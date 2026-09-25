@@ -812,6 +812,219 @@ static std::vector<Vector2> CrystalSpots(const Game& g) {
     return v;
 }
 
+// ---------------------------------------------------------------- the regions' own scenery
+// Each location has its own mid and near layers instead of a re-tinted cave: the Island a drowned jungle of
+// basalt, dead trees and bone totems; the Weeds a kelp forest, thick or thin by the run's seed, with leviathan
+// ribs and chained anchors; Atlantis broken marble colonnades, hanging void crystals and a ruined altar. All
+// flat, muted ink-dark masses with one hard-edged lit face; the vignette and ink pass finish them.
+static void DrawRegionMidground(Game& g) {
+    auto& d = g.dungeon;
+    if (d.loc == Location::Cave) return;
+    float t = g.time, sd = (float)(d.visSeed % 9973) * 1.37f;
+    float dense = 0.35f + Hash1(sd + 3.0f) * 0.65f;
+    if (d.loc == Location::Island) {
+        Repeat(LayerOffset(g, 0.3f), 300, [&](float sx, float wx) { // jagged basalt columns
+            if (Hash1(wx * 0.3f + sd) > 0.85f) return;
+            float x = sx + Hash1(wx + sd) * 120, h = 130 + Hash1(wx * 1.7f + sd) * 220, w = 26 + Hash1(wx + 4) * 20;
+            for (int k = 0; k < 3; k++) {
+                float cx = x + k * w * 0.9f, ch = h * (1 - k * 0.22f);
+                DrawRectangle((int)cx, (int)(470 - ch), (int)w, (int)ch, Color{22, 28, 32, 255});
+                DrawTri({cx, 470 - ch}, {cx + w, 470 - ch}, {cx + w * 0.4f, 470 - ch - 18}, Color{28, 36, 40, 255});
+                DrawRectangle((int)cx, (int)(470 - ch), 4, (int)ch, Color{40, 52, 56, 255});     // the lit face, one hard stripe
+            }
+        });
+        Repeat(LayerOffset(g, 0.5f), 260, [&](float sx, float wx) { // drowned jungle: bare trunks, drooping fronds, vines
+            if (Hash1(wx * 0.9f + sd) > 0.75f) return;
+            float x = sx + Hash1(wx + sd * 2) * 100, h = 200 + Hash1(wx) * 130;
+            DrawRectangle((int)x, (int)(470 - h), 12, (int)h, Color{20, 22, 18, 255});
+            for (int k = 0; k < 4; k++) {
+                float a = -2.6f + k * 0.6f, len = 60 + (k & 1) * 26, sw = sinf(t * 0.8f + wx + k) * 6;
+                DrawTri({x + 6, 470 - h + 8}, {x + 6 + cosf(a) * len + sw, 470 - h + sinf(a) * len * 0.4f + 26}, {x + 6 + cosf(a) * len * 0.5f, 470 - h + 4}, Color{24, 38, 28, 255});
+            }
+            for (int k = 0; k < 3; k++) DrawLineEx({x + k * 8.0f, 60}, {x + k * 8.0f + sinf(t + wx + k) * 6, 140 + Hash1(wx + k) * 90}, 3, Color{20, 36, 26, 255});
+        });
+        Repeat(LayerOffset(g, 0.66f), 820, [&](float sx, float wx) { // bone totems
+            float x = sx + Hash1(wx + sd) * 300;
+            DrawRectangle((int)x, 330, 14, 140, Color{40, 30, 22, 255});
+            for (int k = 0; k < 4; k++) {
+                DrawCircleV({x + 7, 340 + k * 30.0f}, 11, Color{190, 182, 158, 255});
+                DrawRectangle((int)x + 1, (int)(336 + k * 30), 5, 7, Color{6, 6, 8, 255}); DrawRectangle((int)x + 8, (int)(336 + k * 30), 5, 7, Color{6, 6, 8, 255});
+            }
+            DrawTri({x - 14, 340}, {x + 28, 340}, {x + 7, 300}, Color{110, 60, 44, 255});
+        });
+    } else if (d.loc == Location::Weeds) {
+        for (int layer = 0; layer < 3; layer++) { // kelp: sparse and open, or a choking maze
+            float par = 0.3f + layer * 0.16f, gap = 210 - dense * 120 - layer * 20;
+            Repeat(LayerOffset(g, par), gap, [&](float sx, float wx) {
+                float x = sx + Hash1(wx + sd + layer) * gap * 0.8f, h = 260 + Hash1(wx * 1.3f + layer) * 200;
+                Vector2 prev{x, 480};
+                for (int sgm = 1; sgm <= 12; sgm++) {
+                    float u = sgm / 12.0f;
+                    Vector2 q{x + sinf(t * 0.7f + wx + sgm * 0.5f) * sgm * (3 + layer), 480 - u * h};
+                    DrawLineEx(prev, q, 12 - layer * 3 - sgm * 0.6f, layer == 0 ? Color{14, 26, 22, 255} : layer == 1 ? Color{18, 36, 28, 255} : Color{24, 46, 32, 255});
+                    if (sgm % 3 == 0) DrawCircleV({q.x + 6, q.y}, 3, Color{60, 90, 52, 255});
+                    prev = q;
+                }
+            });
+        }
+        Repeat(LayerOffset(g, 0.36f), 1200, [&](float sx, float wx) { // a leviathan's ribcage, half sunk
+            if (Hash1(wx + sd) > 0.6f) return;
+            float x = sx + Hash1(wx * 2 + sd) * 300;
+            for (int k = 0; k < 7; k++) DrawRing({x + k * 34.0f, 500}, 120 - fabsf(k - 3.0f) * 14, 130 - fabsf(k - 3.0f) * 14, 200, 340, 18, Color{150, 146, 128, 255});
+            DrawRectangle((int)x - 10, 496, 260, 12, Color{120, 116, 100, 255});
+        });
+        Repeat(LayerOffset(g, 0.6f), 640, [&](float sx, float wx) { // entangled anchor chains, hanging from the dark
+            float x = sx + Hash1(wx + sd) * 260;
+            for (int k = 0; k < 16; k++) DrawRing({x + sinf(t * 0.4f + wx + k * 0.3f) * 5, 50 + k * 13.0f}, 3, 5.5f, 0, 360, 8, Color{50, 50, 46, 255});
+            DrawRing({x, 260}, 22, 28, 30, 330, 12, Color{50, 50, 46, 255});
+            DrawCircleV({x, 300}, 10, Color{120, 220, 110, 255}); DrawCircleV({x, 300}, 7, Color{50, 110, 50, 255}); // a glowing spore pod
+        });
+    } else { // Atlantis
+        for (int layer = 0; layer < 2; layer++)
+            Repeat(LayerOffset(g, 0.3f + layer * 0.22f), layer ? 250 : 340, [&](float sx, float wx) { // broken marble colonnades
+                if (Hash1(wx + sd * 1.5f + layer) > 0.8f) return;
+                float x = sx + Hash1(wx + sd) * 100, h = 150 + Hash1(wx * 1.9f + layer) * 200 * (layer ? 0.7f : 1);
+                Color c = layer ? Color{34, 34, 42, 255} : Color{26, 26, 34, 255};
+                DrawRectangle((int)x, (int)(470 - h), 30, (int)h, c);
+                DrawRectangle((int)x - 6, (int)(470 - h - 12), 42, 12, c);
+                DrawRectangle((int)x - 8, 458, 46, 12, c);
+                DrawRectangle((int)x + 4, (int)(470 - h), 3, (int)h, Color{74, 74, 86, 255});                                 // a fluted, lit edge
+                if (Hash1(wx * 3 + sd) > 0.5f) DrawTri({x - 6, 470 - h - 12}, {x + 36, 470 - h - 12}, {x + 30, 470 - h - 30}, Color{8, 8, 12, 255}); // a jagged break
+            });
+        Repeat(LayerOffset(g, 0.5f), 520, [&](float sx, float wx) { // void crystals hanging from the ceiling
+            float x = sx + Hash1(wx + sd) * 220, len = 60 + Hash1(wx * 1.1f) * 110;
+            Color v = d.atmos == 0 ? Color{190, 60, 210, 255} : d.atmos == 2 ? Color{210, 60, 60, 255} : Color{170, 170, 190, 255};
+            DrawTri({x - 12, 56}, {x + 12, 56}, {x, 56 + len}, Color{16, 12, 26, 255});
+            DrawTri({x, 56}, {x + 12, 56}, {x, 56 + len}, Fade(v, 0.55f));
+        });
+        Repeat(LayerOffset(g, 0.68f), 900, [&](float sx, float wx) { // a fractured altar with a corrupted brazier
+            float x = sx + Hash1(wx + sd) * 300;
+            DrawRectangle((int)x, 420, 90, 50, Color{40, 40, 50, 255});
+            DrawRectangle((int)x - 8, 412, 106, 10, Color{58, 58, 70, 255});
+            DrawTri({x + 60, 412}, {x + 98, 412}, {x + 80, 396}, Color{8, 8, 12, 255});
+            DrawCircleV({x + 20, 400}, 8, Color{30, 26, 34, 255});
+            Glow({x + 20, 392}, 34, Color{200, 80, 230, 90});
+        });
+    }
+}
+
+// Ground colour and texture for each region: sun-bleached sand, black silt, cracked marble flags.
+static void DrawRegionFloor(Game& g) {
+    auto& d = g.dungeon;
+    if (d.loc == Location::Cave) return;
+    float off = LayerOffset(g, 1.0f);
+    Color base = d.loc == Location::Island ? Color{96, 82, 58, 255} : d.loc == Location::Weeds ? Color{34, 44, 36, 255} : Color{58, 58, 68, 255};
+    DrawRectangle(0, 452, SCREEN_W, 268, Fade(base, 0.78f));
+    DrawRectangle(0, 450, SCREEN_W, 4, Color{6, 6, 8, 255});
+    if (d.loc == Location::Atlantis) {
+        for (float x = fmodf(off, 130) - 130; x < SCREEN_W + 130; x += 130) DrawLineEx({x, 452}, {x - 90, 720}, 3, Color{8, 8, 12, 255}); // marble flag seams
+        for (int k = 1; k < 5; k++) DrawRectangle(0, 452 + k * k * 12, SCREEN_W, 2, Color{8, 8, 12, 255});
+    } else if (d.loc == Location::Island) {
+        for (int k = 0; k < 24; k++) DrawEllipse((int)fmodf(k * 133.0f + off, 1400.0f) - 60, 500 + (k % 5) * 40, 16 + k % 4 * 6, 3, Color{60, 50, 34, 255});
+    } else {
+        for (int k = 0; k < 18; k++) DrawEllipse((int)fmodf(k * 151.0f + off, 1400.0f) - 60, 490 + (k % 4) * 50, 26, 5, Color{18, 26, 20, 255});
+    }
+}
+// ---------------------------------------------------------------- the prop spawner
+// Modular decor along the path, chosen per step from a weighted pool for the location and the run's seed:
+// each 230-pixel step of the walk may hold one prop (or none), so the path is assembled differently every run.
+// Flat shapes, black ink under every mass, one hard lit edge.
+enum Prop { P_SKULL, P_IMPALED, P_CAGE, P_WRECK, P_TOTEM, P_FUNGUS, P_HELMET, P_SHELLBONES, P_CORAL, P_ANCHOR, P_POD, P_CRATE, P_ALTAR, P_VOIDCRYSTAL, P_BRAZIER, P_LOSTONE, P_COUNT };
+struct PropWeight { Prop p; int w; };
+
+static void DrawProp(Prop p, float x, float y, float t, int seed) {
+    const Color ink{6, 7, 10, 255};
+    switch (p) {
+        case P_SKULL:
+            DrawEllipse((int)x, (int)y - 8, 12, 10, ink); DrawEllipse((int)x, (int)y - 8, 10, 8, Color{176, 168, 146, 255});
+            DrawRectangle((int)x - 6, (int)y - 10, 4, 5, ink); DrawRectangle((int)x + 2, (int)y - 10, 4, 5, ink);
+            break;
+        case P_IMPALED:
+            DrawLineEx({x, y}, {x + 2, y - 70}, 5, Color{60, 44, 30, 255});
+            DrawEllipse((int)x + 2, (int)y - 74, 11, 9, ink); DrawEllipse((int)x + 2, (int)y - 74, 9, 7, Color{184, 176, 152, 255});
+            DrawRectangle((int)x - 3, (int)y - 77, 3, 4, ink); DrawRectangle((int)x + 3, (int)y - 77, 3, 4, ink);
+            break;
+        case P_CAGE:
+            DrawRectangle((int)x - 22, (int)y - 46, 44, 46, ink);
+            for (int k = -2; k <= 2; k++) DrawRectangle((int)x + k * 9 - 1, (int)y - 44, 3, 42, Color{110, 70, 46, 255});
+            DrawRectangle((int)x - 22, (int)y - 46, 44, 4, Color{130, 84, 54, 255}); DrawRectangle((int)x - 22, (int)y - 6, 44, 6, Color{90, 58, 38, 255});
+            break;
+        case P_WRECK:
+            DrawTri({x - 50, y}, {x + 46, y}, {x + 30, y - 34}, ink); DrawTri({x - 44, y - 2}, {x + 40, y - 2}, {x + 26, y - 28}, Color{70, 48, 32, 255});
+            DrawLineEx({x - 10, y - 20}, {x - 4, y - 70}, 4, Color{60, 42, 28, 255});
+            break;
+        case P_TOTEM:
+            DrawRectangle((int)x - 8, (int)y - 80, 16, 80, ink);
+            for (int k = 0; k < 3; k++) { DrawRectangle((int)x - 6, (int)y - 76 + k * 26, 12, 22, Color{90, 66, 44, 255}); DrawRectangle((int)x - 4, (int)y - 68 + k * 26, 3, 4, ink); DrawRectangle((int)x + 1, (int)y - 68 + k * 26, 3, 4, ink); }
+            break;
+        case P_FUNGUS:
+            for (int k = 0; k < 4; k++) { float h = 14 + (seed + k * 7) % 22; DrawEllipse((int)x + k * 9 - 14, (int)(y - h), 9, 7, ink); DrawLineEx({x + k * 9 - 14.0f, y}, {x + k * 9 - 14.0f, y - h}, 3, ink); Glow({x + k * 9 - 14.0f, y - h}, 24, Color{90, 230, 220, 70}); DrawEllipse((int)x + k * 9 - 14, (int)(y - h), 7, 5, Color{60, 190, 190, 255}); }
+            break;
+        case P_HELMET:
+            DrawCircleSector({x, y}, 18, 180, 360, 14, ink); DrawCircleSector({x, y}, 15, 180, 360, 14, Color{120, 92, 52, 255});
+            DrawRing({x + 5, y - 8}, 3, 6, 0, 360, 10, ink); DrawLineEx({x + 1, y - 12}, {x + 9, y - 4}, 1.5f, ink);
+            break;
+        case P_SHELLBONES:
+            DrawCircleSector({x, y}, 28, 180, 360, 16, ink); DrawCircleSector({x, y}, 25, 180, 360, 16, Color{150, 136, 118, 255});
+            for (int k = 0; k < 4; k++) DrawLineEx({x - 12 + k * 8.0f, y - 6}, {x - 14 + k * 9.0f, y - 22}, 2.5f, Color{206, 200, 180, 255});
+            break;
+        case P_CORAL:
+            for (int k = 0; k < 4; k++) { float h = 20 + (seed + k * 11) % 34; DrawTri({x + k * 9 - 20.0f, y}, {x + k * 9 - 12.0f, y}, {x + k * 9 - 16.0f + (k & 1 ? 4 : -4), y - h}, ink); DrawTri({x + k * 9 - 18.0f, y}, {x + k * 9 - 13.0f, y}, {x + k * 9 - 15.0f, y - h + 4}, Color{172, 80, 70, 255}); }
+            break;
+        case P_ANCHOR:
+            DrawLineEx({x, y}, {x, y - 60}, 7, ink); DrawLineEx({x, y}, {x, y - 58}, 4, Color{70, 70, 66, 255});
+            DrawRing({x, y - 66}, 5, 9, 0, 360, 10, Color{70, 70, 66, 255}); DrawRing({x, y - 10}, 24, 30, 20, 160, 14, Color{104, 60, 38, 255});
+            DrawLineEx({x - 16, y - 46}, {x + 16, y - 46}, 5, Color{70, 70, 66, 255});
+            break;
+        case P_POD:
+            DrawCircleV({x, y - 12}, 14, ink); DrawCircleV({x, y - 12}, 11, Color{50, 110, 56, 255}); Glow({x, y - 12}, 28, Color{150, 255, 110, (unsigned char)(80 + 50 * sinf(t * 2 + seed))});
+            DrawCircleV({x - 3, y - 15}, 4, Color{190, 255, 150, 255});
+            break;
+        case P_CRATE:
+            DrawRectangle((int)x - 22, (int)y - 34, 44, 34, ink); DrawRectangle((int)x - 20, (int)y - 32, 40, 30, Color{86, 62, 40, 255});
+            DrawLineEx({x - 20, y - 32}, {x + 20, y - 2}, 3, Color{60, 42, 28, 255}); DrawRectangle((int)x - 20, (int)y - 32, 40, 4, Color{130, 98, 64, 255});
+            break;
+        case P_ALTAR:
+            DrawRectangle((int)x - 34, (int)y - 30, 68, 30, ink); DrawRectangle((int)x - 31, (int)y - 27, 62, 27, Color{88, 88, 100, 255});
+            DrawTri({x + 12, y - 30}, {x + 36, y - 30}, {x + 26, y - 42}, ink); DrawLineEx({x - 20, y - 27}, {x - 8, y - 4}, 2, ink);
+            break;
+        case P_VOIDCRYSTAL:
+            for (int k = 0; k < 3; k++) { float h = 28 + (seed + k * 13) % 40; DrawTri({x + k * 12 - 14.0f, y}, {x + k * 12 - 4.0f, y}, {x + k * 12 - 9.0f, y - h}, ink); DrawTri({x + k * 12 - 9.0f, y}, {x + k * 12 - 4.0f, y}, {x + k * 12 - 9.0f, y - h}, Color{170, 70, 220, 255}); }
+            Glow({x, y - 20}, 40, Color{190, 70, 230, 60});
+            break;
+        case P_BRAZIER:
+            DrawRectangle((int)x - 3, (int)y - 30, 6, 30, ink); DrawTri({x - 16, y - 30}, {x + 16, y - 30}, {x, y - 18}, ink);
+            DrawEllipse((int)x, (int)(y - 40 + sinf(t * 9 + seed) * 2), 9, 14, Color{150, 60, 220, 255}); Glow({x, y - 40}, 50, Color{170, 70, 230, 90});
+            break;
+        case P_LOSTONE: // a petrified, coral-crusted figure, kneeling in worship
+            DrawEllipse((int)x, (int)y - 22, 14, 22, ink); DrawEllipse((int)x, (int)y - 22, 11, 19, Color{96, 100, 96, 255});
+            DrawCircleV({x + 2, y - 46}, 9, ink); DrawCircleV({x + 2, y - 46}, 7, Color{104, 108, 102, 255}); DrawRectangle((int)x - 5, (int)y - 48, 14, 4, Color{6, 6, 8, 255});
+            DrawTri({x - 12, y - 30}, {x - 6, y - 30}, {x - 9, y - 50}, Color{178, 84, 72, 255});
+            break;
+        default: break;
+    }
+}
+
+static void DrawPathProps(Game& g) {
+    auto& d = g.dungeon;
+    static const PropWeight ISLAND[] = {{P_SKULL, 3}, {P_IMPALED, 3}, {P_CAGE, 2}, {P_WRECK, 3}, {P_TOTEM, 2}};
+    static const PropWeight CAVE[] = {{P_FUNGUS, 4}, {P_HELMET, 2}, {P_SHELLBONES, 2}, {P_CORAL, 3}, {P_SKULL, 1}};
+    static const PropWeight WEEDS[] = {{P_ANCHOR, 2}, {P_POD, 4}, {P_CRATE, 3}, {P_SHELLBONES, 2}, {P_SKULL, 1}};
+    static const PropWeight ATLANTIS[] = {{P_ALTAR, 2}, {P_VOIDCRYSTAL, 3}, {P_BRAZIER, 2}, {P_LOSTONE, 3}};
+    const PropWeight* pool = d.loc == Location::Island ? ISLAND : d.loc == Location::Weeds ? WEEDS : d.loc == Location::Atlantis ? ATLANTIS : CAVE;
+    int n = d.loc == Location::Island ? 5 : d.loc == Location::Weeds ? 5 : d.loc == Location::Atlantis ? 4 : 5, total = 0;
+    for (int i = 0; i < n; i++) total += pool[i].w;
+    float sd = (float)(d.visSeed % 7919) * 0.91f;
+    Repeat(LayerOffset(g, 1.0f), 230, [&](float sx, float wx) {
+        float roll = Hash1(wx * 0.77f + sd);
+        if (roll < 0.38f) return;                                       // some steps are bare
+        float pick = Hash1(wx * 1.31f + sd * 2.0f) * total;
+        Prop p = pool[0].p;
+        for (int i = 0; i < n; i++) { if (pick < pool[i].w) { p = pool[i].p; break; } pick -= pool[i].w; }
+        float x = sx + Hash1(wx + sd) * 150, y = 470 + Hash1(wx * 2.1f) * 30;
+        DrawProp(p, x, y, g.time, (int)(wx * 13));
+    });
+}
 static void DrawCaveLayers(Game& g) {
     float t = g.time;
     // 1. the far water, with bioluminescent haze drifting in it
@@ -841,8 +1054,8 @@ static void DrawCaveLayers(Game& g) {
             DrawTri({fx - dir * 5, fy}, {fx - dir * 10, fy - 3}, {fx - dir * 10, fy + 3}, Color{70, 120, 130, 255});
         }
     });
-    // 3. distant rock columns rising from floor to ceiling
-    Repeat(LayerOffset(g, 0.3f), 430, [&](float sx, float wx) {
+    // 3. distant rock columns rising from floor to ceiling (the Cave's own; the other regions have their own, below)
+    if (g.dungeon.loc == Location::Cave) Repeat(LayerOffset(g, 0.3f), 430, [&](float sx, float wx) {
         float x = sx + Hash1(wx) * 160, wTop = 60 + Hash1(wx + 2) * 40, wMid = 26 + Hash1(wx + 4) * 16, wBot = 80 + Hash1(wx + 5) * 40;
         Color c{24, 56, 68, 255};
         DrawTri({x - wTop, 40}, {x + wTop, 40}, {x + wMid, 260}, c);
@@ -882,8 +1095,11 @@ static void DrawCaveLayers(Game& g) {
     EndBackdrop(1.7f);
     // 4. the ceiling's stalactites, stalagmites and swaying kelp
     float off4 = LayerOffset(g, 0.45f);
-    DrawRidge(off4, 70, 40, 5, true, Color{14, 30, 38, 255}, 130);
-    DrawRidge(off4, 432, 22, 21, false, Color{20, 40, 48, 255}, 60);
+    if (g.dungeon.loc == Location::Cave) {
+        DrawRidge(off4, 70, 40, 5, true, Color{14, 30, 38, 255}, 130);
+        DrawRidge(off4, 432, 22, 21, false, Color{20, 40, 48, 255}, 60);
+    }
+    DrawRegionMidground(g);
     Repeat(LayerOffset(g, 0.55f), 170, [&](float sx, float wx) {
         float bx = sx + Hash1(wx) * 60, by = 462;
         int h = 8 + (int)(Hash1(wx + 9) * 5);
@@ -902,7 +1118,7 @@ static void DrawCaveLayers(Game& g) {
         DrawRectangle(x, (int)y, 4, (int)(393 - y), Color{56, 70, 76, 255});
     }
     DrawVGradient({0, 392, (float)SCREEN_W, 64}, Fade(BLACK, 0.05f), Fade(BLACK, 0.45f));
-    for (Vector2 c : CrystalSpots(g)) {
+    if (g.dungeon.loc == Location::Cave) for (Vector2 c : CrystalSpots(g)) {
         for (int k = -2; k <= 2; k++) {
             float h = 26 - abs(k) * 6 + Hash1(c.x * 0.01f + k) * 8, lean = k * 7.0f;
             Vector2 base{c.x + k * 6.0f, c.y}, tip{c.x + k * 6.0f + lean, c.y - h};
@@ -1396,8 +1612,10 @@ static void DrawUnitHud(Game& g, int actingHero, int actingEnemy) {
         if (!e.alive) continue;
         Rectangle r = EnemyRect(g, p);
         DrawBar({r.x, r.y + r.height + 8, r.width, 8}, (float)e.hp / e.maxHp, Pal::Bad);
-        float nw = (float)MeasureTxt(e.name, 16, true);
-        TxtShadow(e.name, r.x + r.width / 2 - nw / 2, r.y + r.height + 22, 16, Pal::Paper, true);
+        int nfs = 16;
+        while (nfs > 10 && MeasureTxt(e.name, nfs, true) > 120) nfs--; // long names (Dysformed Crustacean, Tribal Spearman) shrink to fit their rank
+        float nw = (float)MeasureTxt(e.name, nfs, true);
+        TxtShadow(e.name, r.x + r.width / 2 - nw / 2, r.y + r.height + 22, nfs, Pal::Paper, true);
         DrawTextCentered(TextFormat("%d/%d HP", e.hp, e.maxHp), r.x + r.width / 2, r.y + r.height + 41, 13, Color{220, 220, 200, 255});
         std::string tags = StatusTags(e.st);
         float tw = (float)MeasureTxt(tags, 12, true);
@@ -1949,7 +2167,9 @@ void SceneDungeon(Game& g) {
 
     // ---------------- drawing
     DrawCaveLayers(g);
+    DrawRegionFloor(g);
     DrawSeededSilhouettes(g);
+    DrawPathProps(g);
     DrawUnitFigures(g);
     DrawProjectiles(g);
     DrawCaveLighting(g);

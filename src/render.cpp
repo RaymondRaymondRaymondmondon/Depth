@@ -67,11 +67,19 @@ void main() {
     col *= 1.0 + 0.25 * (away - toward);                          // light from the upper left
     // a thin, cool rim of reflected light along the shadowed edge, as in Darkest Dungeon's portraits
     float rimEdge = 1.0 - texture(texture0, uv + vec2(2.0, -1.0) * uTexel).a;
-    col += vec3(0.16, 0.24, 0.32) * rimEdge * (1.0 - toward * 0.5);
+    col += vec3(0.05, 0.08, 0.09) * rimEdge * (1.0 - toward * 0.5);
     col = mix(col, INK, smoothstep(0.35, 0.9, edge) * 0.75);      // linework between parts
     // a little painted texture, so surfaces read as cloth, skin and metal rather than flat colour
     vec2 cell = floor(uv / uTexel / 2.0);
     col *= 0.94 + 0.1 * fract(sin(dot(cell, vec2(12.9898, 78.233))) * 43758.5453);
+    // hand-inked finish: a sickly, desaturated maritime palette, flat cel bands instead of gradients, and a
+    // solid black block shadow along the edge facing away from the key light (upper left)
+    float lum = dot(col, vec3(0.299, 0.587, 0.114));
+    col = mix(vec3(lum), col, 0.74) * vec3(1.1, 1.18, 1.14);
+    col = floor(col * 4.0 + 0.5) / 4.0;
+    float e1 = texture(texture0, uv + vec2(4.0, 3.5) * uTexel).a, e2 = texture(texture0, uv + vec2(10.0, 8.5) * uTexel).a;
+    if (e1 < 0.5) col = INK * 1.4;                 // pure black block on the shadow side
+    else if (e2 < 0.5) col *= 0.55;                // a second, half-dark step behind it
     finalColor = vec4(col * fragColor.rgb, fragColor.a);
 }
 )";
@@ -1091,11 +1099,8 @@ void DrawCrewFigure(const Hero& h, Vector2 ft, float s, bool right, float walk, 
         DrawCircleSector(P(-1.5f, -155), 12.4f * s, 180, 360, 18, hair);
         DrawCircleSector(P(-3, -152), 11.8f * s, f > 0 ? 90 : 0, f > 0 ? 180 : 90, 10, hair);
         for (int k = 0; k < 4; k++) DrawLineEx(P(-9 + k * 4.0f, -165), P(-7 + k * 4.5f, -157), 0.9f * s, Tone(hair, -0.35f)); // strands
-        DrawEllipse((int)P(7.5f, -151).x, (int)P(7.5f, -151).y, 3.6f * s, 2.6f * s, Fade(Color{40, 20, 16, 255}, 0.45f)); // eye socket
-        DrawEllipse((int)P(8, -151).x, (int)P(8, -151).y, 2.2f * s, 1.3f * s, Color{236, 230, 220, 255});
-        DrawCircleV(P(8.8f, -151), 1.1f * s, Color{40, 60, 70, 255});
-        DrawLineEx(P(5.5f, -152.6f), P(10.5f, -152.4f), 0.9f * s, Tone(skin, -0.5f));   // lid
-        DrawLineEx(P(4, -155.2f), P(10.8f, -155.6f), 1.6f * s, Tone(hair, -0.3f));        // brow
+        Q(P(2, -156.4f), P(12.6f, -156.4f), P(12.6f, -148.6f), P(2, -149.2f), Color{6, 8, 12, 255}); // the eyes are lost under a heavy brow shadow
+        DrawCircleV(P(9.4f, -152.4f), 0.85f * s, Color{214, 220, 206, 255});                          // just a pinprick of light in it
         ShadeBall(P(12, -148), 2.6f * s, skin);              // nose
         DrawCircleV(P(12, -146.5f), 0.8f * s, Tone(skin, -0.55f));
         DrawLineEx(P(7.5f, -142.8f), P(11.5f, -143.2f), 1.3f * s, Color{150, 80, 70, 255}); // lips
