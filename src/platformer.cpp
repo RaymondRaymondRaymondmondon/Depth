@@ -59,16 +59,16 @@ const char* PIPE_RISER[] = { // up a narrow riser: wall-jump the whole way
     W,
     "########................",
     "########................",
-    "########...........o...>",
+    "########...............>",
     "########...#############",
     "########...#############",
     "########...#############",
     "########...#############",
-    "########.o.#############",
     "########...#############",
     "########...#############",
     "########...#############",
-    "########.o.#############",
+    "########...#############",
+    "########...#############",
     "########...#############",
     "########...#############",
     "...........#############",
@@ -82,10 +82,10 @@ const char* PIPE_DROP[] = { // down through a steam chamber, pipe to pipe, past 
     "<.................######",
     "######............######",
     "######............######",
-    "######...o........######",
+    "######............######",
     "######..==........######",
     "######.....g......######",
-    "######.......o....######",
+    "######............######",
     "######......==....######",
     "######..................",
     "######..................",
@@ -94,7 +94,7 @@ const char* PIPE_DROP[] = { // down through a steam chamber, pipe to pipe, past 
 const char* PIPE_JETS[] = { // a low duct: time your runs between the jets, hop the gaps
     W, W, W, W, W, W, W, W, W, W, W,
     E,
-    "........o.......o.......",
+    "........................",
     "<......................>",
     "####t###..#t##..##t#####",
     "########..####..########",
@@ -105,19 +105,19 @@ const char* PIPE_SHAFT[] = { // a long plunge down a shaft, landing on pipes as 
     "................########",
     "<...............########",
     "########........########",
-    "########......o.########",
+    "########........########",
     "########....====########",
     "########........########",
     "########...g....########",
-    "########.o......########",
+    "########........########",
     "########====....########",
     "########........########",
     "########........########",
-    "########..o.....########",
+    "########........########",
     "########....====########",
     "########................",
     "########....g...........",
-    "########.......o........",
+    "########................",
     "########====............",
     "########................",
     "########................",
@@ -125,7 +125,7 @@ const char* PIPE_SHAFT[] = { // a long plunge down a shaft, landing on pipes as 
     W, W, nullptr};
 const char* PIPE_CRAWL[] = { // a crawlspace two tiles high, with steam holes to hop
     W, W, W, W, W, W, W, W, W, W, W, W,
-    "......o....o....o.......",
+    "........................",
     "<......................>",
     "####x###x####xx####x####",
     W, nullptr};
@@ -138,7 +138,7 @@ const char* PIPE_BOILER[] = { // up the boiler room on staggered pipes, then one
     "###....................>",
     "###.........===......###",
     "###..................###",
-    "###.....o............###",
+    "###..................###",
     "###....===...........###",
     "###........g.........###",
     "###..................###",
@@ -153,7 +153,7 @@ const char* PIPE_TWINS[] = { // climb between two pipes, drop behind a third, do
     W,
     "......|.....|...........",
     "......|.....|...........",
-    "......|.o...|...........",
+    "......|.....|...........",
     "......|.....|...........",
     "......|..|..|...........",
     "......|..|..|...........",
@@ -161,7 +161,7 @@ const char* PIPE_TWINS[] = { // climb between two pipes, drop behind a third, do
     "......|..|..|...........",
     "......|..|..|...........",
     ".........|..............",
-    ".........|.....o........",
+    ".........|..............",
     ".........|..............",
     "<........|xx...........>",
     W, W, nullptr};
@@ -173,7 +173,7 @@ const char* PIPE_TWINS[] = { // climb between two pipes, drop behind a third, do
 const char* HULL[][CH_H] = {
     {   // A (near): crab walk along the plating
         "########################", E, E, E, E, E, E, E, E, E,
-        "..........o.o...........",
+        "........................",
         ".........####...........",
         E,
         ".....c.......c..........",
@@ -184,7 +184,7 @@ const char* HULL[][CH_H] = {
         "########################",
         E,
         "......#.................",
-        "......#...o.............",
+        "......#.................",
         "......#...##............",
         "......#...##............",
         "......#...##............",
@@ -193,14 +193,30 @@ const char* HULL[][CH_H] = {
         "......#...##............",
         "..........##............",
         "..........##............",
-        "..........##.....o......",
+        "..........##............",
         "..........##.......c....",
         "#######xxx##xxx#########",
         "########################",
     },
+    {   // H (near): the service duct -- a plain crawl along the plating, with a sneaky pipe
+        // branching up off the main floor into a dead-end nook: a staircase of pipe segments,
+        // each one jump above the last, hiding a stash of coins nobody's going to stumble on.
+        "########################",
+        E, E, E,
+        "..............oo........",
+        "..............==........",
+        E, E,
+        "...........==...........",
+        E, E,
+        "........==..............",
+        E,
+        ".........p..............",
+        "<..........c.......c...>",
+        "########xx######xx######",
+    },
     {   // B (open water): eel pits
         "########################", E, E, E, E, E, E, E, E, E,
-        ".....o.......o.......o..",
+        "........................",
         E, E,
         "......e.......e.........",
         "####....####....####..##",
@@ -208,7 +224,7 @@ const char* HULL[][CH_H] = {
     },
     {   // C (open water): mine climb
         "########################", E, E, E, E,
-        "..................o.....",
+        "........................",
         ".................###....",
         "............##..........",
         ".........g..............",
@@ -221,25 +237,34 @@ const char* HULL[][CH_H] = {
     },
     {   // E (open water): eel bridge with a crab on the middle span
         "########################", E, E, E, E, E, E, E, E, E,
-        ".....o.....c.....o......",
+        "...........c............",
         "....###...###...###.....",
         E,
         "........e.....e.........",
         "##....................##",
         "##....................##",
     },
+    {   // J (open water): the kelp drift -- floating wreckage and a pair of drifting mines
+        "########################", E, E, E, E, E, E, E, E, E,
+        E,
+        "..g.................g...",
+        E,
+        "...e.............e......",
+        "##....####....####....##",
+        "##....####....####....##",
+    },
     {   // F (trench approach): the drop-off, leaving the plating behind for open water
         "########################",
         "........................",
         "........................",
         "........................",
-        "....o...................",
+        "........................",
         "...###..................",
         "........................",
         ".........g..............",
         "........###.............",
         "........................",
-        ".................o......",
+        "........................",
         "................###.....",
         "........................",
         "......................c.",
@@ -252,7 +277,7 @@ const char* HULL[][CH_H] = {
         "........................",
         "........................",
         "........................",
-        "..o........g........o...",
+        "...........g............",
         "........................",
         "........................",
         "....c..............c....",
@@ -265,7 +290,7 @@ const char* HULL[][CH_H] = {
         "########################",
     },
 };
-enum { HULL_NEAR0 = 0, HULL_NEAR_N = 2, HULL_OPEN0 = 2, HULL_OPEN_N = 3, HULL_TRENCH0 = 5, HULL_TRENCH_N = 2 }; // indexes into HULL[]
+enum { HULL_NEAR0 = 0, HULL_NEAR_N = 3, HULL_OPEN0 = 3, HULL_OPEN_N = 4, HULL_TRENCH0 = 7, HULL_TRENCH_N = 2 }; // indexes into HULL[]
 const char* HULL_ARENA[CH_H] = {
     "########################", E, E, E, E, E, E, E, E, E, E,
     "......###...##....###...",
@@ -293,8 +318,8 @@ const char* DECK_WAIST[] = { // crates, an open hatch full of spikes, and a gunn
     E, E, E, E, E, E, E,
     "..............p.........",
     E,
-    ".................o......",
-    "....o...................",
+    "........................",
+    "........................",
     "................kk......",
     "...kkk..........kk......",
     "<..kkk.....P....kk.kG..>",
@@ -302,7 +327,7 @@ const char* DECK_WAIST[] = { // crates, an open hatch full of spikes, and a gunn
     W, nullptr};
 const char* DECK_RIGGING[] = { // up the yards and onto the forecastle
     E, E, E, E, E,
-    ".............o..........",
+    "........................",
     ".............==.........",
     "..........p.............",
     E,
@@ -317,25 +342,38 @@ const char* DECK_BARRELS[] = { // barrel stacks between spike-filled gratings
     E, E, E, E, E, E,
     "..........p.............",
     E,
-    "........o...o...........",
+    "........................",
     E, E,
     "........k...............",
     "........k........k......",
     "<.......k......P.k...G.>",
     "####xxx###xxx#####xx####",
     W, nullptr};
+const char* DECK_MAST[] = { // a flat crossing, with a mast worth climbing far past where it's useful
+    E, E, E,
+    "..............oo........",
+    "..............==........",
+    E, E,
+    "...........==...........",
+    E, E,
+    "........==..............",
+    "....k...................",
+    ".........p..............",
+    "<...k......P.......kG..>",
+    "####xxx#########xx######",
+    W, nullptr};
 const char* DECK_HATCH[] = { // down through the main hatch into the hold
     E, E, E, E, E,
     ".........p..............",
     E,
-    "...........o............",
+    "........................",
     E,
     "<.......................",
     "#######...##############",
     "#######...##############",
     "####...............#####",
     "####...............#####",
-    "####.......o.......#####",
+    "####...............#####",
     "####...............#####",
     "####......===......#####",
     "####...............#####",
@@ -348,26 +386,26 @@ const char* DECK_HATCH[] = { // down through the main hatch into the hold
     W, W, nullptr};
 const char* HOLD_CARGO[] = { // stacks of cargo, a pirate behind the bulkhead door
     W, W, W, W, E, E, E,
-    "..............o.........",
+    "........................",
     E,
     "..........kk............",
     "..........kk............",
     "......kk..kk.....kk.....",
-    "..o...kk..kk.....kk.....",
+    "......kk..kk.....kk.....",
     "<.....kk..kk...P.kk..G.>",
     "####xx######xxx#########",
     W, nullptr};
 const char* HOLD_GUNDECK[] = { // the gun deck: a low passage with powder flares in the floor
     W, W, W, W, W, W, W, W, W,
     E,
-    "......o.......o.........",
+    "........................",
     E, E,
     "<..........P.......kG..>",
     "####t###t####t###t######",
     W, nullptr};
 const char* HOLD_BILGE[] = { // beams over the flooded bilge, and a swinging ball and chain
     W, W, W, W, E, E, E, E,
-    "............o...........",
+    "........................",
     "..............g.........",
     E,
     "......==.........==.....",
@@ -375,11 +413,20 @@ const char* HOLD_BILGE[] = { // beams over the flooded bilge, and a swinging bal
     "<..........==..........>",
     "##xxxxxxxxxxxxxxxxxxx###",
     W, nullptr};
+const char* HOLD_MAGAZINE[] = { // the powder magazine: a swinging shot-chain over a low crossing
+    W, W, W, W, W, W, W, W, W,
+    E,
+    E,
+    "..................g.....",
+    E,
+    "<....P.............kG..>",
+    "####t###t####t###t######",
+    W, nullptr};
 const char* COMPANIONWAY[] = { // up the companionway to the quarterdeck
     E,
     "...............p........",
     E,
-    "................o......>",
+    ".......................>",
     "#######...##############",
     "#######...##############",
     "#######...##############",
@@ -388,7 +435,7 @@ const char* COMPANIONWAY[] = { // up the companionway to the quarterdeck
     "#######...##############",
     "#######...##############",
     "#######...##############",
-    "#######.o.##############",
+    "#######...##############",
     "####......##############",
     "####......##############",
     "####......##############",
@@ -405,7 +452,7 @@ const char* CABIN_ARENA[] = { // Blackbeard's great cabin: charge him into a wal
     "##....................##",
     "##....................##",
     "##....................##",
-    "##..........o.........##",
+    "##....................##",
     "##....................##",
     "##....................##",
     "##..===..........===..##",
@@ -419,14 +466,14 @@ const char* CABIN_ARENA_NOBOSS[] = { // Blackbeard switched off: the cabin sits 
     "##....................##",
     "##....................##",
     "##....................##",
-    "##..........o.........##",
+    "##....................##",
     "##....................##",
     "##....................##",
     "##..===..........===..##",
     "......................##",
     "<...................E.##",
     W, W, nullptr};
-enum { PS_DECK0 = 0, PS_DECKS = 3, PS_HATCH = 3, PS_HOLD0 = 4, PS_HOLDS = 3, PS_STAIRS = 7 }; // indexes into the Pirate sections#undef E
+enum { PS_DECK0 = 0, PS_DECKS = 4, PS_HATCH = 4, PS_HOLD0 = 5, PS_HOLDS = 4, PS_STAIRS = 9 }; // indexes into the Pirate sections#undef E
 #undef W
 
 // interior: the row where a section's below-decks interior starts (what's drawn behind it); kind 1 = hold, 2 = cabin
@@ -451,13 +498,13 @@ const LevelDef& Lv(int level) {
         std::vector<LevelDef> d(PL_COUNT);
         Part pipesEnd = P(END_PIPES);
         d[PL_PIPES] = {"The Pipes", {P(PIPE_RISER), P(PIPE_DROP), P(PIPE_JETS), P(PIPE_SHAFT), P(PIPE_CRAWL), P(PIPE_BOILER), P(PIPE_TWINS)},
-                       P(START_PIPES), pipesEnd, pipesEnd, 6, 3, 45, '#', true, '#'};
+                       P(START_PIPES), pipesEnd, pipesEnd, 6, 4, 65, '#', true, '#'};
         std::vector<Part> hull;
         for (auto& c : HULL) hull.push_back(P16(c));
-        d[PL_HULL] = {"The Hull", hull, P16(START), P16(HULL_ARENA), P16(HULL_ARENA_NOBOSS), 6, 4, 110, '.', false, '.'};
-        std::vector<Part> pirate = {P(DECK_WAIST), P(DECK_RIGGING), P(DECK_BARRELS), P(DECK_HATCH, 12, 1),
-                                    P(HOLD_CARGO, 4, 1), P(HOLD_GUNDECK, 9, 1), P(HOLD_BILGE, 4, 1), P(COMPANIONWAY, 4, 1)};
-        d[PL_PIRATE] = {"The Pirate Ship", pirate, P(START_DECK), P(CABIN_ARENA, 0, 2), P(CABIN_ARENA_NOBOSS, 0, 2), 6, 6, 160, '#', false, '.'};
+        d[PL_HULL] = {"The Hull", hull, P16(START), P16(HULL_ARENA), P16(HULL_ARENA_NOBOSS), 8, 5, 165, '.', false, '.'};
+        std::vector<Part> pirate = {P(DECK_WAIST), P(DECK_RIGGING), P(DECK_BARRELS), P(DECK_MAST), P(DECK_HATCH, 12, 1),
+                                    P(HOLD_CARGO, 4, 1), P(HOLD_GUNDECK, 9, 1), P(HOLD_BILGE, 4, 1), P(HOLD_MAGAZINE, 9, 1), P(COMPANIONWAY, 4, 1)};
+        d[PL_PIRATE] = {"The Pirate Ship", pirate, P(START_DECK), P(CABIN_ARENA, 0, 2), P(CABIN_ARENA_NOBOSS, 0, 2), 8, 7, 230, '#', false, '.'};
         return d;
     }();
     return defs[level];
@@ -715,6 +762,10 @@ void ResetBoss(PlatformState& p) {
     b.pos = b.home;
     b.vel = {0, 0};
     b.tentT[0] = b.tentT[1] = TENT_IDLE;
+    b.tentFake[0] = b.tentFake[1] = false;
+    b.moveKind = -1;
+    b.inkT = -1;
+    b.lungeT = -1;
 }
 
 void UpdateBoss(PlatformState& p, float dt) {
@@ -724,29 +775,51 @@ void UpdateBoss(PlatformState& p, float dt) {
     b.invuln = std::max(0.0f, b.invuln - dt);
     if (b.type == 'K') {
         float arenaX = (p.w - CH_W) * (float)T, pitL = arenaX + 4 * T + 16, pitR = arenaX + 18 * T - 16;
+        float arenaMid = arenaX + 11.5f * T;
         bool playerInArena = p.pos.x > arenaX - 2 * T;
-        // tentT: TENT_IDLE when idle, negative while waiting to start, then seconds since its warning began
+        // tentT: TENT_IDLE when idle, negative while waiting to start, then seconds since its warning began.
+        // A "fake" strike warns exactly like a real one, then never extends -- just to bait an early dodge.
         for (int i = 0; i < 2; i++)
-            if (b.tentT[i] > TENT_IDLE && (b.tentT[i] += dt) > 1.8f) b.tentT[i] = TENT_IDLE;
+            if (b.tentT[i] > TENT_IDLE) {
+                b.tentT[i] += dt;
+                if (b.tentFake[i] && b.tentT[i] >= 0.75f) { b.tentT[i] = TENT_IDLE; b.tentFake[i] = false; }
+                else if (b.tentT[i] > 1.8f) b.tentT[i] = TENT_IDLE;
+            }
+        if (b.inkT >= 0 && (b.inkT += dt) > 2.0f) b.inkT = -1;
+        if (b.lungeT >= 0 && (b.lungeT += dt) > 1.3f) b.lungeT = -1;
         switch (b.state) {
-            case 0: // submerged: one tentacle rises from the abyss, another slams down from above
-                if (!b.defeated && playerInArena && b.timer > 0.3f && b.timer < 1.0f && b.tentT[0] == TENT_IDLE && b.tentT[1] == TENT_IDLE) {
+            case 0: // submerged: picks one move for this cycle -- a tentacle strike (maybe a bluff), a
+                     // spray of ink that floods half the arena, or a fast lunge sweeping across it
+                if (!b.defeated && playerInArena && b.timer > 0.3f && b.timer < 1.0f && b.moveKind == -1) {
+                    b.moveKind = GetRandomValue(0, 2);
                     float px = p.pos.x + PW / 2;
-                    bool slamFirst = GetRandomValue(0, 1) == 1;
-                    b.tentTop[0] = slamFirst;
-                    b.tentX[0] = slamFirst ? std::clamp(px, arenaX + 2.0f * T, arenaX + 21.0f * T) : std::clamp(px, pitL, pitR);
-                    b.tentTop[1] = !slamFirst;
-                    b.tentX[1] = std::clamp(px + (GetRandomValue(0, 1) ? 120.0f : -120.0f), pitL, pitR);
-                    if (b.tentTop[1]) b.tentX[1] = std::clamp(px, arenaX + 2.0f * T, arenaX + 21.0f * T);
-                    b.tentT[0] = 0;
-                    b.tentT[1] = -0.5f; // the second strike follows a moment later, where you've moved to
+                    if (b.moveKind == 0) {
+                        bool slamFirst = GetRandomValue(0, 1) == 1;
+                        b.tentTop[0] = slamFirst;
+                        b.tentX[0] = slamFirst ? std::clamp(px, arenaX + 2.0f * T, arenaX + 21.0f * T) : std::clamp(px, pitL, pitR);
+                        b.tentTop[1] = !slamFirst;
+                        b.tentX[1] = std::clamp(px + (GetRandomValue(0, 1) ? 120.0f : -120.0f), pitL, pitR);
+                        if (b.tentTop[1]) b.tentX[1] = std::clamp(px, arenaX + 2.0f * T, arenaX + 21.0f * T);
+                        b.tentFake[0] = GetRandomValue(0, 99) < 25;
+                        b.tentFake[1] = GetRandomValue(0, 99) < 25;
+                        b.tentT[0] = 0;
+                        b.tentT[1] = -0.5f; // the second strike follows a moment later, where you've moved to
+                    } else if (b.moveKind == 1) {
+                        b.inkSafeRight = px < arenaMid; // the spray floods away from where you're standing now
+                        b.inkT = 0;
+                    } else {
+                        bool fromLeft = px > arenaMid;
+                        b.lungeFromX = fromLeft ? arenaX + 20.0f * T : arenaX + 3.0f * T;
+                        b.lungeToX = fromLeft ? arenaX + 3.0f * T : arenaX + 20.0f * T;
+                        b.lungeT = 0;
+                    }
                 }
                 if (b.defeated) break;
                 if (b.timer > 2.9f && playerInArena) { b.state = 1; b.timer = 0; }
                 break;
             case 1: if (b.timer > 0.5f) { b.state = 2; b.timer = 0; } break;
             case 2: if (b.timer > 2.2f) { b.state = 3; b.timer = 0; } break;
-            case 3: if (b.timer > 0.5f) { b.state = 0; b.timer = 0; } break;
+            case 3: if (b.timer > 0.5f) { b.state = 0; b.timer = 0; b.moveKind = -1; } break;
             case 4: break; // sinking away for good
         }
     } else if (b.type == 'B') {
@@ -1805,6 +1878,25 @@ void DrawBoss(const PlatformState& p, float t) {
             Vector2 tip = b.tentTop[i] ? Vector2{b.tentX[i], r.y + r.height} : Vector2{b.tentX[i], r.y};
             DrawTentacle(base, tip, 16, t * 2, i * 3.0f, arm);
         }
+        if (b.inkT >= 0) { // a spreading cloud of ink, flooding everything but the safe half
+            float arenaX = (p.w - CH_W) * (float)T, arenaMid = arenaX + 11.5f * T;
+            float x0 = b.inkSafeRight ? arenaX : arenaMid, x1 = b.inkSafeRight ? arenaMid : arenaX + 22.0f * T;
+            float grow = std::clamp(b.inkT / 0.5f, 0.0f, 1.0f), fade = 1 - std::clamp((b.inkT - 1.7f) / 0.3f, 0.0f, 1.0f);
+            float top = KrakenOrigin(p) + (17.0f - 8.0f * grow) * T;
+            DrawRectangle((int)x0, (int)top, (int)(x1 - x0), (int)(KrakenOrigin(p) + 17.0f * T - top), Fade(Color{18, 8, 26, 255}, 0.88f * fade));
+            for (int k = 0; k < 10; k++) DrawCircle((int)Rnd(x0, x1), (int)Rnd(top, KrakenOrigin(p) + 17.0f * T), Rnd(3, 8), Fade(Color{60, 20, 80, 255}, 0.5f * fade));
+        }
+        if (b.lungeT >= 0) { // the head skims just under the surface, sweeping across
+            float u = std::clamp((b.lungeT - 0.15f) / 1.0f, 0.0f, 1.0f), lx = b.lungeFromX + (b.lungeToX - b.lungeFromX) * u;
+            float warn = 1 - std::clamp(b.lungeT / 0.15f, 0.0f, 1.0f);
+            Color wake{90, 40, 110, 255};
+            if (warn > 0) DrawCircle((int)b.lungeFromX, (int)(KrakenOrigin(p) + 10.5f * T), 30 + 20 * (1 - warn), Fade(wake, 0.5f * warn));
+            else {
+                DrawEllipse((int)lx, (int)(KrakenOrigin(p) + 10.5f * T), 44, 26, wake);
+                DrawEllipse((int)lx, (int)(KrakenOrigin(p) + 10.5f * T), 30, 16, Fade(Color{150, 90, 170, 255}, 0.8f));
+                for (int k = 0; k < 4; k++) DrawCircle((int)(lx - (b.lungeToX > b.lungeFromX ? 1 : -1) * k * 14), (int)(KrakenOrigin(p) + 10.5f * T + Rnd(-8, 8)), 6, Fade(WHITE, 0.4f));
+            }
+        }
         if (b.state >= 1) {
             Rectangle h = KrakenHead(p);
             const float S = KRAKEN_SCALE;
@@ -1929,28 +2021,28 @@ bool PlatLayoutValid(const Game& g, int level) {
     if (l.empty()) return false;
     for (int c : l) if (c < 0 || c >= (int)Lv(level).sections.size()) return false;
     if (level == PL_PIRATE) {
-        if (l.size() != 6 || l[2] != PS_HATCH || l[5] != PS_STAIRS) return false;
-        for (int i : {0, 1}) if (l[i] < PS_DECK0 || l[i] >= PS_DECK0 + PS_DECKS) return false;
-        for (int i : {3, 4}) if (l[i] < PS_HOLD0 || l[i] >= PS_HOLD0 + PS_HOLDS) return false;
+        if (l.size() != 8 || l[3] != PS_HATCH || l[7] != PS_STAIRS) return false;
+        for (int i : {0, 1, 2}) if (l[i] < PS_DECK0 || l[i] >= PS_DECK0 + PS_DECKS) return false;
+        for (int i : {4, 5, 6}) if (l[i] < PS_HOLD0 || l[i] >= PS_HOLD0 + PS_HOLDS) return false;
     } else if (level == PL_HULL) {
         // near the hull, then open water, then always the drop-off and the trench mouth, in that order
-        if (l.size() != 6) return false;
-        for (int i : {0, 1}) if (l[i] < HULL_NEAR0 || l[i] >= HULL_NEAR0 + HULL_NEAR_N) return false;
-        for (int i : {2, 3}) if (l[i] < HULL_OPEN0 || l[i] >= HULL_OPEN0 + HULL_OPEN_N) return false;
-        if (l[4] != HULL_TRENCH0 || l[5] != HULL_TRENCH0 + 1) return false;
+        if (l.size() != 8) return false;
+        for (int i : {0, 1, 2}) if (l[i] < HULL_NEAR0 || l[i] >= HULL_NEAR0 + HULL_NEAR_N) return false;
+        for (int i : {3, 4, 5}) if (l[i] < HULL_OPEN0 || l[i] >= HULL_OPEN0 + HULL_OPEN_N) return false;
+        if (l[6] != HULL_TRENCH0 || l[7] != HULL_TRENCH0 + 1) return false;
     }
     return true;
 }
 
 void GeneratePlatLayout(Game& g, int level) {
     if (level == PL_PIRATE) {
-        std::vector<int> deck = Shuffled(PS_DECK0, PS_DECKS, 2), hold = Shuffled(PS_HOLD0, PS_HOLDS, 2);
-        g.platLayouts[level] = {deck[0], deck[1], PS_HATCH, hold[0], hold[1], PS_STAIRS};
+        std::vector<int> deck = Shuffled(PS_DECK0, PS_DECKS, 3), hold = Shuffled(PS_HOLD0, PS_HOLDS, 3);
+        g.platLayouts[level] = {deck[0], deck[1], deck[2], PS_HATCH, hold[0], hold[1], hold[2], PS_STAIRS};
         return;
     }
     if (level == PL_HULL) {
-        std::vector<int> near = Shuffled(HULL_NEAR0, HULL_NEAR_N, 2), open = Shuffled(HULL_OPEN0, HULL_OPEN_N, 2);
-        g.platLayouts[level] = {near[0], near[1], open[0], open[1], HULL_TRENCH0, HULL_TRENCH0 + 1};
+        std::vector<int> near = Shuffled(HULL_NEAR0, HULL_NEAR_N, 3), open = Shuffled(HULL_OPEN0, HULL_OPEN_N, 3);
+        g.platLayouts[level] = {near[0], near[1], near[2], open[0], open[1], open[2], HULL_TRENCH0, HULL_TRENCH0 + 1};
         return;
     }
     const LevelDef& L = Lv(level);
@@ -2045,6 +2137,15 @@ void ScenePlatformer(Game& g) {
             bool falling = p.vel.y > 0;
             if (b.type == 'K' && !b.defeated) {
                 for (int i = 0; i < 2; i++) if (b.tentT[i] >= 0.75f && CheckCollisionRecs(pr, TentacleBox(p, i))) Die(p);
+                if (b.inkT >= 0.5f && b.inkT < 1.7f) { // the cloud floods everything but one half of the arena
+                    float arenaX = (p.w - CH_W) * (float)T, arenaMid = arenaX + 11.5f * T;
+                    bool inCloud = b.inkSafeRight ? p.pos.x + PW < arenaMid : p.pos.x > arenaMid;
+                    if (inCloud) Die(p);
+                }
+                if (b.lungeT >= 0.15f && b.lungeT < 1.15f) { // the head skims the surface, sweeping across
+                    float u = (b.lungeT - 0.15f) / 1.0f, lx = b.lungeFromX + (b.lungeToX - b.lungeFromX) * u;
+                    if (CheckCollisionRecs(pr, {lx - 40, KrakenOrigin(p) + 9.0f * T, 80, 3.0f * T})) Die(p);
+                }
                 if ((b.state == 1 || b.state == 2) && CheckCollisionRecs(pr, KrakenHead(p))) {
                     Rectangle h = KrakenHead(p);
                     if (falling && p.pos.y + PH - p.vel.y * dt <= h.y + 14 * KRAKEN_SCALE && b.invuln <= 0) {

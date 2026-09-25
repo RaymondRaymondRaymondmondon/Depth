@@ -248,6 +248,12 @@ struct PlatBoss {
     float chargeStartX = 0;                        // Blackbeard: where a charge began, so a lucky tap on a nearby wall doesn't count
     float tentX[2] = {0, 0}, tentT[2] = {-1, -1}; // Kraken tentacle strikes (x, time since warning; <0 = idle)
     bool tentTop[2] = {false, false};             // true = slams down from above, false = rises from the abyss
+    bool tentFake[2] = {false, false};            // a bluff: warns like a real strike, then never extends
+    int moveKind = -1;                            // Kraken, chosen once per submerged cycle: -1 not yet, 0 tentacles, 1 ink, 2 lunge
+    float inkT = -1;                              // Kraken ink spray: seconds since it began, < 0 = idle
+    bool inkSafeRight = false;                    // which half of the arena the ink cloud leaves clear
+    float lungeT = -1;                            // Kraken lunge: seconds since it began, < 0 = idle
+    float lungeFromX = 0, lungeToX = 0;           // sweep endpoints
     bool defeated = false;
 };
 
