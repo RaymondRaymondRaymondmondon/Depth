@@ -1,4 +1,6 @@
 ﻿build/
+build_lin/
+build_rel/
 
 shots/
 sprites.png

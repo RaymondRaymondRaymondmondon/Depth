@@ -97,14 +97,194 @@ static std::vector<Ability> BuildMechanic() {
     return v;
 }
 
+static std::vector<Ability> BuildWhaler() {
+    std::vector<Ability> v;
+    Ability a = Ab("Harpoon Gun", "A heavy bolt from the gun, fired from any rank.", RANGED_FROM, ANY_RANK, Target::Enemy);
+    a.dmgMult = 0.85f; a.accBonus = 5; a.ranged = true; v.push_back(a);
+    a = Ab("Boat Hook", "Hook a back-line enemy and haul it in 2 ranks.", RANGED_FROM, RANK_2 | RANK_3 | RANK_4, Target::Enemy);
+    a.dmgMult = 0.3f; a.moveTarget = -2; a.ranged = true; v.push_back(a);
+    a = Ab("Warning Shot", "Blast the front enemy back 2 ranks.", RANGED_FROM, RANK_1, Target::Enemy);
+    a.dmgMult = 0.4f; a.moveTarget = 2; a.ranged = true; v.push_back(a);
+    a = Ab("Steady Aim", "Brace and take careful aim: +20% damage for 3 turns.", ANY_RANK, ANY_RANK, Target::Self);
+    a.buffDmg = 20; v.push_back(a);
+    a = Ab("Chain Harpoon", "A tethered shot that marks its catch.", RANGED_FROM, ANY_RANK, Target::Enemy);
+    a.dmgMult = 0.6f; a.mark = true; a.ranged = true; a.unlockLevel = 1; v.push_back(a);
+    a = Ab("Barbed Shot", "A barbed head that tears on the way out.", RANGED_FROM, ANY_RANK, Target::Enemy);
+    a.dmgMult = 0.5f; a.bleed = 3; a.ranged = true; a.unlockLevel = 1; v.push_back(a);
+    a = Ab("Broadside", "A spread of bolts across the front three ranks.", RANGED_FROM, RANK_1 | RANK_2 | RANK_3, Target::Enemy);
+    a.dmgMult = 0.35f; a.aoe = true; a.ranged = true; a.unlockLevel = 2; v.push_back(a);
+    a = Ab("Harpoon Volley", "Two aimed shots at the same target.", RANGED_FROM, ANY_RANK, Target::Enemy);
+    a.dmgMult = 0.5f; a.hitsCount = 2; a.accBonus = 5; a.ranged = true; a.unlockLevel = 3; v.push_back(a);
+    return v;
+}
+
+static std::vector<Ability> BuildStowaway() {
+    std::vector<Ability> v;
+    Ability a = Ab("Wild Swing", "A reckless haymaker: hard to aim, harder to stop.", MELEE_FROM, MELEE_HITS, Target::Enemy);
+    a.dmgMult = 1.0f; a.accBonus = -10; v.push_back(a);
+    a = Ab("Broken Bottle", "A jagged edge, up close.", MELEE_FROM, MELEE_HITS, Target::Enemy);
+    a.dmgMult = 0.6f; a.bleed = 3; a.accBonus = -5; v.push_back(a);
+    a = Ab("Foul Breath", "A blast of rotgut fumes: blinds the target for 3 turns.", ANY_RANK, ANY_RANK, Target::Enemy);
+    a.dmgMult = 0.2f; a.buffAcc = -15; a.accBonus = -5; v.push_back(a);
+    a = Ab("Liquid Courage", "A stiff drink: steadies the nerves and the swing (+15% damage).", ANY_RANK, ANY_RANK, Target::Self);
+    a.stressHeal = 10; a.buffDmg = 15; v.push_back(a);
+    a = Ab("Poisoned Flask", "Lob a flask of something you shouldn't drink.", RANGED_FROM, RANK_2 | RANK_3 | RANK_4, Target::Enemy);
+    a.dmgMult = 0.3f; a.poison = 3; a.ranged = true; a.unlockLevel = 1; v.push_back(a);
+    a = Ab("Stumble", "Trip into the target, off balance but heavy.", MELEE_FROM, MELEE_HITS, Target::Enemy);
+    a.dmgMult = 0.5f; a.stunChance = 30; a.accBonus = -10; a.unlockLevel = 1; v.push_back(a);
+    a = Ab("Reckless Brawl", "Swing wildly at both enemies up front.", MELEE_FROM, MELEE_HITS, Target::Enemy);
+    a.dmgMult = 0.4f; a.aoe = true; a.bleed = 2; a.accBonus = -10; a.unlockLevel = 2; v.push_back(a);
+    a = Ab("Last Call", "A slurred curse that leaves the target seeing double.", ANY_RANK, ANY_RANK, Target::Enemy);
+    a.dmgMult = 0.3f; a.buffAcc = -25; a.unlockLevel = 3; v.push_back(a);
+    return v;
+}
+
+static std::vector<Ability> BuildMerman() {
+    std::vector<Ability> v;
+    Ability a = Ab("Trident Strike", "A powerful thrust with the trident.", MELEE_FROM, MELEE_HITS, Target::Enemy);
+    a.dmgMult = 1.1f; v.push_back(a);
+    a = Ab("Crushing Grip", "A bone-crushing grapple. May stun.", MELEE_FROM, MELEE_HITS, Target::Enemy);
+    a.dmgMult = 0.7f; a.stunChance = 25; v.push_back(a);
+    a = Ab("Tail Sweep", "A sweeping blow across both front enemies.", MELEE_FROM, MELEE_HITS, Target::Enemy);
+    a.dmgMult = 0.5f; a.aoe = true; v.push_back(a);
+    a = Ab("Tidal Roar", "A bellow that hardens resolve: +20% damage for 3 turns.", ANY_RANK, ANY_RANK, Target::Self);
+    a.buffDmg = 20; v.push_back(a);
+    a = Ab("Savage Bite", "Fangs meant for something bigger than you.", MELEE_FROM, MELEE_HITS, Target::Enemy);
+    a.dmgMult = 1.3f; a.accBonus = -5; a.unlockLevel = 1; v.push_back(a);
+    a = Ab("Riptide Slam", "Slam the front enemy back with the tide.", MELEE_FROM, RANK_1, Target::Enemy);
+    a.dmgMult = 0.6f; a.moveTarget = 2; a.unlockLevel = 1; v.push_back(a);
+    a = Ab("Frenzy", "A killing frenzy: +30% damage for 3 turns.", ANY_RANK, ANY_RANK, Target::Self);
+    a.buffDmg = 30; a.unlockLevel = 2; v.push_back(a);
+    a = Ab("Deep Fury", "Everything, all at once.", MELEE_FROM, MELEE_HITS, Target::Enemy);
+    a.dmgMult = 1.5f; a.accBonus = -10; a.unlockLevel = 3; v.push_back(a);
+    return v;
+}
+
+static std::vector<Ability> BuildQueen() {
+    std::vector<Ability> v;
+    Ability a = Ab("Royal Scepter", "A blow struck with a scepter that once meant something.", RANGED_FROM, ANY_RANK, Target::Enemy);
+    a.dmgMult = 0.6f; a.accBonus = 5; a.ranged = true; v.push_back(a);
+    a = Ab("Curse of the Fallen Throne", "An old curse: weakens the target's attacks for 3 turns.", ANY_RANK, ANY_RANK, Target::Enemy);
+    a.buffDmg = -15; a.ranged = true; v.push_back(a);
+    a = Ab("Tend the Faithful", "A small mercy, from someone who has little left to give.", ANY_RANK, ANY_RANK, Target::Ally);
+    a.heal = 4; v.push_back(a);
+    a = Ab("Regal Composure", "Her bearing alone steadies the crew (-6 stress).", ANY_RANK, ANY_RANK, Target::AllAllies);
+    a.stressHeal = 6; v.push_back(a);
+    a = Ab("Binding Curse", "Strips away a foe's defenses for 3 turns.", ANY_RANK, ANY_RANK, Target::Enemy);
+    a.buffProt = -15; a.ranged = true; a.unlockLevel = 1; v.push_back(a);
+    a = Ab("Healing Balm", "A remedy from the old palace gardens.", ANY_RANK, ANY_RANK, Target::Ally);
+    a.heal = 5; a.cure = true; a.unlockLevel = 1; v.push_back(a);
+    a = Ab("Wrath of the Deposed", "Everything she has left, hurled at once.", ANY_RANK, ANY_RANK, Target::Enemy);
+    a.dmgMult = 0.5f; a.mark = true; a.ranged = true; a.unlockLevel = 2; v.push_back(a);
+    a = Ab("Last Decree", "One final command to the crew: +15% damage, -5 stress.", ANY_RANK, ANY_RANK, Target::AllAllies);
+    a.buffDmg = 15; a.stressHeal = 5; a.unlockLevel = 3; v.push_back(a);
+    return v;
+}
+
+static std::vector<Ability> BuildRobot() {
+    std::vector<Ability> v;
+    Ability a = Ab("Piston Fist", "A hydraulic punch. May stun.", MELEE_FROM, MELEE_HITS, Target::Enemy);
+    a.dmgMult = 0.95f; a.stunChance = 15; v.push_back(a);
+    a = Ab("Gear Grind", "Grinding gears tear at both front enemies.", MELEE_FROM, MELEE_HITS, Target::Enemy);
+    a.dmgMult = 0.45f; a.aoe = true; v.push_back(a);
+    a = Ab("Reposition Protocol", "Trade places with an ally, calculated to the inch.", ANY_RANK, ANY_RANK, Target::Ally);
+    a.swapWithTarget = true; v.push_back(a);
+    a = Ab("Overclock", "Push the boiler past redline: +20% damage for 3 turns.", ANY_RANK, ANY_RANK, Target::Self);
+    a.buffDmg = 20; v.push_back(a);
+    a = Ab("Steam Hammer", "A heavy overhead strike, vented with steam.", MELEE_FROM, MELEE_HITS, Target::Enemy);
+    a.dmgMult = 1.2f; a.accBonus = -5; a.unlockLevel = 1; v.push_back(a);
+    a = Ab("Bulwark Mode", "Lock into place: enemies must attack you, +25 protection.", ANY_RANK, ANY_RANK, Target::Self);
+    a.guardTurns = 2; a.unlockLevel = 1; v.push_back(a);
+    a = Ab("Reinforce", "Extend armor plating to the whole party: +15 protection for 3 turns.", ANY_RANK, ANY_RANK, Target::AllAllies);
+    a.buffProt = 15; a.unlockLevel = 2; v.push_back(a);
+    a = Ab("Full Steam", "Every system at once: +30% damage, +15 protection for 3 turns.", ANY_RANK, ANY_RANK, Target::Self);
+    a.buffDmg = 30; a.buffProt = 15; a.unlockLevel = 3; v.push_back(a);
+    return v;
+}
+
+static std::vector<Ability> BuildOctopus() {
+    std::vector<Ability> v;
+    Ability a = Ab("Tentacle Lash", "Two quick lashes, weak but fast.", MELEE_FROM, MELEE_HITS, Target::Enemy);
+    a.dmgMult = 0.5f; a.hitsCount = 2; v.push_back(a);
+    a = Ab("Ink Spray", "A cloud of ink, blinding the target for 3 turns.", ANY_RANK, ANY_RANK, Target::Enemy);
+    a.dmgMult = 0.2f; a.buffAcc = -10; v.push_back(a);
+    a = Ab("Quick Snatch", "A grasping tentacle pulls a back-line enemy closer.", RANGED_FROM, RANK_2 | RANK_3 | RANK_4, Target::Enemy);
+    a.dmgMult = 0.4f; a.moveTarget = -1; a.ranged = true; v.push_back(a);
+    a = Ab("Camouflage", "Blend into the rocks: +20 dodge for 3 turns.", ANY_RANK, ANY_RANK, Target::Self);
+    a.buffDodge = 20; v.push_back(a);
+    a = Ab("Eight-Armed Flurry", "Every arm at once, weak but relentless.", MELEE_FROM, MELEE_HITS, Target::Enemy);
+    a.dmgMult = 0.3f; a.hitsCount = 3; a.unlockLevel = 1; v.push_back(a);
+    a = Ab("Jet Propulsion", "A burst of water jets it out of harm's way.", ANY_RANK, ANY_RANK, Target::Self);
+    a.buffDodge = 15; a.buffProt = 10; a.unlockLevel = 1; v.push_back(a);
+    a = Ab("Venomous Bite", "A small, weak, poisoned bite.", MELEE_FROM, MELEE_HITS, Target::Enemy);
+    a.dmgMult = 0.5f; a.poison = 2; a.unlockLevel = 2; v.push_back(a);
+    a = Ab("Deep Sea Barrage", "A spray of ink and grit across the front ranks.", RANGED_FROM, RANK_1 | RANK_2 | RANK_3, Target::Enemy);
+    a.dmgMult = 0.3f; a.aoe = true; a.ranged = true; a.unlockLevel = 3; v.push_back(a);
+    return v;
+}
+
+static std::vector<Ability> BuildSiren() {
+    std::vector<Ability> v;
+    Ability a = Ab("Enthralling Song", "A song that saps the will to fight: -15% damage for 3 turns.", RANGED_FROM, ANY_RANK, Target::Enemy);
+    a.buffDmg = -15; a.ranged = true; v.push_back(a);
+    a = Ab("Mesmerize", "A hypnotic verse. Often stuns.", RANGED_FROM, ANY_RANK, Target::Enemy);
+    a.dmgMult = 0.2f; a.stunChance = 40; a.ranged = true; v.push_back(a);
+    a = Ab("Rally Cry", "A rousing chorus: +15% damage for the whole party.", ANY_RANK, ANY_RANK, Target::AllAllies);
+    a.buffDmg = 15; v.push_back(a);
+    a = Ab("Reposition", "Trade places with an ally, mid-verse.", ANY_RANK, ANY_RANK, Target::Ally);
+    a.swapWithTarget = true; v.push_back(a);
+    a = Ab("Siren's Wail", "A piercing wail that shatters a foe's guard for 3 turns.", RANGED_FROM, ANY_RANK, Target::Enemy);
+    a.buffProt = -15; a.ranged = true; a.unlockLevel = 1; v.push_back(a);
+    a = Ab("Harmonize", "A soothing melody sharpens the party's footing: +10 dodge for 3 turns.", ANY_RANK, ANY_RANK, Target::AllAllies);
+    a.buffDodge = 10; a.unlockLevel = 1; v.push_back(a);
+    a = Ab("Discordant Screech", "An ugly note that rattles and blinds the front line.", RANGED_FROM, RANK_1 | RANK_2 | RANK_3, Target::Enemy);
+    a.dmgMult = 0.3f; a.aoe = true; a.buffAcc = -10; a.ranged = true; a.unlockLevel = 2; v.push_back(a);
+    a = Ab("Anthem of the Deep", "Her finest song: +20% damage, +10 protection for the party.", ANY_RANK, ANY_RANK, Target::AllAllies);
+    a.buffDmg = 20; a.buffProt = 10; a.unlockLevel = 3; v.push_back(a);
+    return v;
+}
+
+static std::vector<Ability> BuildWisp() {
+    std::vector<Ability> v;
+    Ability a = Ab("Glowing Bolt", "A bolt of cold light from any rank.", RANGED_FROM, ANY_RANK, Target::Enemy);
+    a.dmgMult = 0.6f; a.ranged = true; v.push_back(a);
+    a = Ab("Paralyzing Light", "A flare that often locks a target in place.", RANGED_FROM, ANY_RANK, Target::Enemy);
+    a.dmgMult = 0.2f; a.stunChance = 45; a.ranged = true; v.push_back(a);
+    a = Ab("Guiding Glow", "A light that helps the whole crew move quicker: +15 dodge for 3 turns.", ANY_RANK, ANY_RANK, Target::AllAllies);
+    a.buffDodge = 15; v.push_back(a);
+    a = Ab("Soothing Aura", "A calm, cold light settles over the party (-8 stress).", ANY_RANK, ANY_RANK, Target::AllAllies);
+    a.stressHeal = 8; v.push_back(a);
+    a = Ab("Will-o'-Wisp Flare", "A blinding flash that may stun.", RANGED_FROM, ANY_RANK, Target::Enemy);
+    a.dmgMult = 0.5f; a.stunChance = 20; a.ranged = true; a.unlockLevel = 1; v.push_back(a);
+    a = Ab("Empower", "Lend an ally some of its own light: +20% damage for 3 turns.", ANY_RANK, ANY_RANK, Target::Ally);
+    a.buffDmg = 20; a.unlockLevel = 1; v.push_back(a);
+    a = Ab("Blinding Flash", "A flash that leaves a target seeing spots for 3 turns.", RANGED_FROM, ANY_RANK, Target::Enemy);
+    a.buffAcc = -15; a.ranged = true; a.unlockLevel = 2; v.push_back(a);
+    a = Ab("Radiant Ward", "Wraps the party in cold light: +15 protection, +10 dodge for 3 turns.", ANY_RANK, ANY_RANK, Target::AllAllies);
+    a.buffProt = 15; a.buffDodge = 10; a.unlockLevel = 3; v.push_back(a);
+    return v;
+}
+
 const std::vector<Ability>& ClassAbilities(HeroClass c) {
     static const std::vector<Ability> nurse = BuildNurse(), diver = BuildDiver(),
-                                      captain = BuildCaptain(), mechanic = BuildMechanic();
+                                      captain = BuildCaptain(), mechanic = BuildMechanic(),
+                                      whaler = BuildWhaler(), stowaway = BuildStowaway(),
+                                      merman = BuildMerman(), queen = BuildQueen(),
+                                      robot = BuildRobot(), octopus = BuildOctopus(),
+                                      siren = BuildSiren(), wisp = BuildWisp();
     switch (c) {
         case HeroClass::Nurse: return nurse;
         case HeroClass::Diver: return diver;
         case HeroClass::Captain: return captain;
-        default: return mechanic;
+        case HeroClass::Mechanic: return mechanic;
+        case HeroClass::Whaler: return whaler;
+        case HeroClass::Stowaway: return stowaway;
+        case HeroClass::Merman: return merman;
+        case HeroClass::Queen: return queen;
+        case HeroClass::Robot: return robot;
+        case HeroClass::Octopus: return octopus;
+        case HeroClass::Siren: return siren;
+        default: return wisp;
     }
 }
 
@@ -138,7 +318,15 @@ const char* ClassName(HeroClass c) {
         case HeroClass::Nurse: return "Nurse";
         case HeroClass::Diver: return "Diver";
         case HeroClass::Captain: return "Captain";
-        default: return "Mechanic";
+        case HeroClass::Mechanic: return "Mechanic";
+        case HeroClass::Whaler: return "Whaler";
+        case HeroClass::Stowaway: return "Stowaway";
+        case HeroClass::Merman: return "Merman";
+        case HeroClass::Queen: return "Dethroned Island Queen";
+        case HeroClass::Robot: return "Robot";
+        case HeroClass::Octopus: return "Octopus";
+        case HeroClass::Siren: return "Siren";
+        default: return "Wisp of the Sea";
     }
 }
 
@@ -147,7 +335,15 @@ const char* ClassBlurb(HeroClass c) {
         case HeroClass::Nurse: return "A steady-handed medic. Fights up close, but the real job is keeping the crew breathing.";
         case HeroClass::Diver: return "Quick and daring. Strikes fast from the front and hauls enemies out of position.";
         case HeroClass::Captain: return "Leads from anywhere on deck. Rallies the crew and reorders the line.";
-        default: return "Built like a bulkhead. Soaks up hits so the rest of the crew doesn't have to.";
+        case HeroClass::Mechanic: return "Built like a bulkhead. Soaks up hits so the rest of the crew doesn't have to.";
+        case HeroClass::Whaler: return "A harpoon gun and a steady hand. Fights from range and hauls enemies wherever it likes.";
+        case HeroClass::Stowaway: return "Found sleeping in the hold, three sheets to the wind. Fights dirty, sees double, doesn't much care.";
+        case HeroClass::Merman: return "Hauled aboard fighting. Ferociously strong up close, and hard to calm down.";
+        case HeroClass::Queen: return "Once ruled an island that no longer exists. A weaker healer, but her curses still carry weight.";
+        case HeroClass::Robot: return "A steampunk contraption of gears and steam. Slow, armored, and endlessly reconfigurable.";
+        case HeroClass::Octopus: return "Eight arms, none of them strong, all of them fast. Just as at home up close as at range.";
+        case HeroClass::Siren: return "Her song saps the will to fight and steels her own crew's nerve in the same breath.";
+        default: return "A drifting light that was once something else. Stuns, wards, and lights the way.";
     }
 }
 
@@ -156,18 +352,34 @@ Color ClassColor(HeroClass c) {
         case HeroClass::Nurse: return {236, 120, 150, 255};
         case HeroClass::Diver: return {64, 196, 190, 255};
         case HeroClass::Captain: return {70, 90, 170, 255};
-        default: return {232, 140, 50, 255};
+        case HeroClass::Mechanic: return {232, 140, 50, 255};
+        case HeroClass::Whaler: return {90, 110, 130, 255};
+        case HeroClass::Stowaway: return {150, 110, 60, 255};
+        case HeroClass::Merman: return {40, 150, 130, 255};
+        case HeroClass::Queen: return {180, 130, 200, 255};
+        case HeroClass::Robot: return {170, 150, 90, 255};
+        case HeroClass::Octopus: return {160, 70, 140, 255};
+        case HeroClass::Siren: return {210, 90, 130, 255};
+        default: return {150, 220, 220, 255};
     }
 }
 
 // ---------------------------------------------------------------- stats
 static Stats BaseStats(HeroClass c) {
-    //                         hp  min max spd acc dodge prot resist
+    //                              hp  min max spd acc dodge prot resist
     switch (c) {
-        case HeroClass::Nurse:   return {22, 3, 6, 5, 85, 10, 0, 0};
-        case HeroClass::Diver:   return {20, 4, 8, 8, 90, 15, 0, 0};
-        case HeroClass::Captain: return {24, 4, 7, 5, 85, 8, 10, 10};
-        default:                 return {30, 4, 7, 2, 80, 5, 20, 0};
+        case HeroClass::Nurse:      return {22, 3, 6, 5, 85, 10, 0, 0};
+        case HeroClass::Diver:      return {20, 4, 8, 8, 90, 15, 0, 0};
+        case HeroClass::Captain:    return {24, 4, 7, 5, 85, 8, 10, 10};
+        case HeroClass::Mechanic:   return {30, 4, 7, 2, 80, 5, 20, 0};
+        case HeroClass::Whaler:     return {22, 4, 8, 4, 85, 8, 5, 5};
+        case HeroClass::Stowaway:   return {20, 3, 7, 6, 72, 12, 0, 25};
+        case HeroClass::Merman:     return {26, 5, 10, 6, 82, 10, 5, 0};
+        case HeroClass::Queen:      return {20, 3, 6, 5, 85, 10, 0, 15};
+        case HeroClass::Robot:      return {32, 4, 7, 3, 80, 3, 25, 30};
+        case HeroClass::Octopus:    return {20, 2, 5, 9, 88, 18, 0, 5};
+        case HeroClass::Siren:      return {20, 2, 5, 6, 82, 10, 0, 10};
+        default:                    return {18, 2, 5, 7, 85, 20, 0, 20}; // Wisp
     }
 }
 
@@ -287,13 +499,13 @@ int LoadoutCount(const Hero& h) {
 // ---------------------------------------------------------------- workshop upgrades
 //                                    level:  0   1   2   3
 static const int ROSTER_SIZE[4]      = {8,  9, 10, 12};
-static const int RECRUITS[4]         = {3,  4,  4,  5};
+static const int RADAR_REFRESHES[4]  = {0,  1,  2,  3};
 static const int SCAN_COST[4]        = {70, 55, 40, 25};
 static const int WARD_COST[4]        = {9,  7,  5,  4};
 static const int LIGHT_DRAIN[4]      = {20, 16, 12, 9};
 
 int MaxRoster(const Game& g) { return ROSTER_SIZE[g.upgrades[UP_BUNKS]]; }
-int RecruitsPerScan(const Game& g) { return RECRUITS[g.upgrades[UP_SONAR]]; }
+int SonarRefreshCount(const Game& g) { return RADAR_REFRESHES[g.upgrades[UP_SONAR]]; }
 int ScanCost(const Game& g) { return SCAN_COST[g.upgrades[UP_SONAR]]; }
 int WardCostPerHp(const Game& g) { return WARD_COST[g.upgrades[UP_INFIRMARY]]; }
 int LightDrainPerRoom(const Game& g) { return LIGHT_DRAIN[g.upgrades[UP_REFLECTOR]]; }
@@ -312,14 +524,15 @@ const char* UpgradeDesc(int u, int lv) {
     switch (u) {
         case UP_REFLECTOR: return TextFormat("Each room drains %d light", LIGHT_DRAIN[lv]);
         case UP_BUNKS: return TextFormat("Room for %d crew aboard", ROSTER_SIZE[lv]);
-        case UP_SONAR: return TextFormat("%d recruits per scan, scans cost %dg", RECRUITS[lv], SCAN_COST[lv]);
+        case UP_SONAR: return TextFormat("%d re-scan%s per mission, scans cost %dg", RADAR_REFRESHES[lv], RADAR_REFRESHES[lv] == 1 ? "" : "s", SCAN_COST[lv]);
         default: return TextFormat("The Ward charges %dg per HP", WARD_COST[lv]);
     }
 }
 
 void RefreshRadar(Game& g) {
     g.recruits.clear();
-    for (int i = 0; i < RecruitsPerScan(g); i++) g.recruits.push_back(MakeRandomHero(g));
+    for (int i = 0; i < RECRUIT_BATCH; i++) g.recruits.push_back(MakeRandomHero(g));
+    g.radarRefreshes = SonarRefreshCount(g);
     g.shopRelics.clear();
     while (g.shopRelics.size() < 3) {
         int r = GetRandomValue(0, (int)Relics().size() - 1);
@@ -385,9 +598,12 @@ void ScaleEnemyForTier(Enemy& e, int tier) {
 
 // ---------------------------------------------------------------- new game
 void InitGame(Game& g) {
-    for (int c = 0; c < (int)HeroClass::COUNT; c++) g.roster.push_back(MakeHero(g, (HeroClass)c));
+    // Only the four original hands start aboard; the other eight classes turn up at the Radar Room
+    // like any other recruit (MakeRandomHero already draws from every class).
+    for (HeroClass c : {HeroClass::Mechanic, HeroClass::Diver, HeroClass::Captain, HeroClass::Nurse})
+        g.roster.push_back(MakeHero(g, c));
     // Starting marching order: Mechanic, Diver, Captain, Nurse
-    g.party = {{g.roster[3].id, g.roster[1].id, g.roster[2].id, g.roster[0].id}};
+    g.party = {{g.roster[0].id, g.roster[1].id, g.roster[2].id, g.roster[3].id}};
     g.relicStorage = {0, 8}; // Wrench, MedKit
     RefreshRadar(g);
     for (int l = 0; l < PL_COUNT; l++) GeneratePlatLayout(g, l);

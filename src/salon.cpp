@@ -702,16 +702,19 @@ void DrawOperatingTable(float t) {
 
 void DrawChandelier(float t) {
     Billboard(0, 470, 760, [&] {
-        DrawLineEx({0, -130}, {0, 0}, 4, Pal::BrassDk);
+        DrawEllipse(0, -132, 26, 8, Pal::BrassDk);                        // the ceiling rosette it actually hangs from
+        DrawEllipse(0, -133, 20, 5, Pal::Brass);
+        DrawLineEx({0, -130}, {0, 0}, 5, Pal::Brass);                     // a bright chain, plainly connecting the two
+        DrawLineEx({-2, -130}, {-2, 0}, 2, Pal::BrassDk);
         DrawEllipse(0, 0, 150, 26, Pal::BrassDk);
         DrawEllipse(0, -4, 140, 20, Pal::Brass);
-        for (int k = 0; k < 9; k++) {
-            float a = k * 2 * PI / 9 + 0.2f;
+        for (int k = 0; k < 8; k++) { // an even, mirrored ring of candles, so it reads level rather than lopsided
+            float a = k * 2 * PI / 8;
             Vector2 p{cosf(a) * 132, sinf(a) * 20 - 14};
             DrawRectangle((int)p.x - 4, (int)p.y - 18, 8, 18, Color{236, 228, 200, 255});
             DrawEllipse((int)p.x, (int)p.y - 24, 4, 8 + sinf(t * 11 + k) * 1.5f, Color{255, 210, 130, 255});
         }
-        for (int k = 0; k < 12; k++) DrawCircleV({-110 + k * 20.0f, 18 + fabsf(k - 5.5f) * 2}, 4, Color{200, 230, 240, 200}); // crystal drops
+        for (int k = 0; k < 13; k++) DrawCircleV({-120 + k * 20.0f, 18 + fabsf(k - 6.0f) * 2}, 4, Color{200, 230, 240, 200}); // crystal drops, sagging evenly from the centre
     });
 }
 
@@ -1004,8 +1007,11 @@ void DrawCardTable(float t) {
     });
 }
 // ---------------------------------------------------------------- lighting
-void DrawSalonLighting(float t, int hovered) {
+void DrawSalonLighting(float t, int hovered, const std::vector<Vector2>& personLights) {
     LightsBegin(Color{66, 70, 78, 255});
+    // a soft warm fill on whoever's out on the floor, so the crew and cat read as lit figures wherever they
+    // walk instead of going nearly silhouette-black between the room's fixed light pools
+    for (const Vector2& at : personLights) AddLight(at, 170, Color{255, 214, 168, 255}, 0.5f);
     Color warm{255, 206, 140, 255}, sea{70, 150, 170, 255};
     float flick = 0.93f + 0.07f * sinf(t * 9) * sinf(t * 3.1f);
     Vector2 ch = Proj(0, 450, 760);
@@ -1185,7 +1191,10 @@ void SceneHub(Game& g) {
     if (mouseInRoom && !hovPerson && !hovCat)
         for (int i : order) if (CheckCollisionPointRec(m, stationRect[i])) { hovered = i; break; }
 
-    DrawSalonLighting(t, hovered);
+    std::vector<Vector2> personLights;
+    for (auto& p : people) personLights.push_back({p.feet.x, p.feet.y - 100 * p.s});
+    personLights.push_back({Proj(cat.pos.x, 40, cat.pos.y)});
+    DrawSalonLighting(t, hovered, personLights);
     for (auto& p : people)
         if (p.h->rattled) Glow({p.feet.x, p.r.y - 6}, 20 + sinf(t * 5) * 3, Fade(Pal::Stress, 0.5f));
     if (hovered >= 0) {

@@ -312,11 +312,14 @@ void SceneRadar(Game& g) {
     }
     if ((int)g.roster.size() >= MaxRoster(g))
         Txt(TextFormat("Crew quarters are full (%d). Dismiss someone, or extend the bunks in the Workshop.", MaxRoster(g)), 50, 612, 15, Pal::Coral);
-    if (Button({48, 640, 300, 44}, TextFormat("Scan for new signals (%dg)", ScanCost(g)), g.gold >= ScanCost(g))) {
+    bool canScan = g.gold >= ScanCost(g) && g.radarRefreshes > 0;
+    if (Button({48, 640, 300, 44}, TextFormat("Scan for new signals (%dg)", ScanCost(g)), canScan)) {
         g.gold -= ScanCost(g);
+        g.radarRefreshes--;
         g.recruits.clear();
-        for (int i = 0; i < RecruitsPerScan(g); i++) g.recruits.push_back(MakeRandomHero(g));
+        for (int i = 0; i < RECRUIT_BATCH; i++) g.recruits.push_back(MakeRandomHero(g));
     }
+    Txt(TextFormat("%d re-scan%s left this mission", g.radarRefreshes, g.radarRefreshes == 1 ? "" : "s"), 360, 654, 15, Pal::BrassDk);
 
     Panel({670, 90, 580, 612});
     TxtBold("Salvage market: relics", 690, 104, 21, Pal::Ink);
@@ -459,6 +462,7 @@ void SceneSickLeave(Game& g) {
 void SceneBookshelf(Game& g) {
     DrawCabinBackground();
     if (BackButton(g)) return;
+    Vector2 m = GetMousePosition();
     DrawSceneTitle("The Library", "Everything the crew has learned about the deep");
     const char* tabs[] = {"Crew", "Conditions", "Light & Nerves", "Bestiary", "Platforming"};
     for (int i = 0; i < 5; i++) {
@@ -471,16 +475,23 @@ void SceneBookshelf(Game& g) {
     Rectangle body{page.x + 30, page.y + 24, page.width - 60, page.height - 40};
 
     if (g.bookTab == 0) {
-        for (int c = 0; c < (int)HeroClass::COUNT; c++) {
-            float y = body.y + c * 128.0f;
+        const float rowH = 108.0f;
+        int n = (int)HeroClass::COUNT;
+        int maxScroll = std::max(0, (int)(n * rowH - body.height));
+        if (CheckCollisionPointRec(m, body)) g.bookScroll -= (int)(GetMouseWheelMove() * 40);
+        g.bookScroll = std::clamp(g.bookScroll, 0, maxScroll);
+        for (int c = 0; c < n; c++) {
+            float y = body.y - g.bookScroll + c * rowH;
+            if (y + rowH < body.y || y > body.y + body.height) continue; // off-screen: skip drawing it
             HeroClass hc = (HeroClass)c;
-            DrawRectangle((int)body.x, (int)y + 4, 8, 110, ClassColor(hc));
-            TxtBold(ClassName(hc), body.x + 20, y, 24, Pal::Ink);
-            DrawWrapped(ClassBlurb(hc), {body.x + 20, y + 32, body.width - 20, 40}, 16, Pal::Ink);
+            DrawRectangle((int)body.x, (int)y + 4, 8, 92, ClassColor(hc));
+            TxtBold(ClassName(hc), body.x + 20, y, 21, Pal::Ink);
+            DrawWrapped(ClassBlurb(hc), {body.x + 20, y + 28, body.width - 20, 36}, 15, Pal::Ink);
             std::string ab;
             for (auto& a : ClassAbilities(hc)) ab += a.name + (a.unlockLevel ? TextFormat(" (Lv %d)", a.unlockLevel) : "") + "  |  ";
-            DrawWrapped(ab.substr(0, ab.size() - 5), {body.x + 20, y + 72, body.width - 20, 40}, 14, Pal::Copper);
+            DrawWrapped(ab.substr(0, ab.size() - 5), {body.x + 20, y + 62, body.width - 20, 36}, 13, Pal::Copper);
         }
+        if (maxScroll > 0) Txt("Scroll for more", body.x + body.width - 130, body.y + body.height - 22, 14, Pal::BrassDk);
     } else if (g.bookTab == 1) {
         DrawWrapped(
             "BLEED: loses health at the start of each turn for 3 turns.\n\n"

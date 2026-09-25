@@ -201,7 +201,8 @@ static void HeroAct(Game& g, int heroId, int abilityIdx, int targetPos) {
                 Enemy* e = FindEnemy(g, uid);
                 if (!e || !e->alive) break;
                 Rectangle er = EnemyRect(g, EnemyPos(g, uid));
-                int hit = std::clamp(s.acc + a.accBonus + HeroAccBonus(g) - e->dodge, 5, 95);
+                int edodge = e->dodge + (e->st.dodgeTurns > 0 ? e->st.dodgeBuff : 0);
+                int hit = std::clamp(s.acc + a.accBonus + (h->st.accTurns > 0 ? h->st.accBuff : 0) + HeroAccBonus(g) - edodge, 5, 95);
                 if (!Chance(hit)) { Float(g, er, "Miss", Pal::Paper); StartAnim(g, false, uid, Anim::Dodge, 0.45f); continue; }
                 bool crit = Chance(5);
                 StartAnim(g, false, uid, Anim::Hurt, 0.5f);
@@ -210,7 +211,8 @@ static void HeroAct(Game& g, int heroId, int abilityIdx, int targetPos) {
                     float raw = Roll(s.dmgMin, s.dmgMax) * a.dmgMult * (1.0f + h->st.buffDmg / 100.0f);
                     if (crit) raw *= 1.5f;
                     if (e->st.marked > 0) raw *= 1.25f;
-                    int dmg = std::max(1, (int)std::round(raw * (100 - e->prot) / 100.0f));
+                    int eprot = std::max(0, e->prot + (e->st.protTurns > 0 ? e->st.protBuff : 0));
+                    int dmg = std::max(1, (int)std::round(raw * (100 - eprot) / 100.0f));
                     e->hp -= dmg;
                     Float(g, er, (crit ? "CRIT " : "") + std::to_string(dmg), crit ? Pal::Brass : Pal::Coral);
                     if (crit) {
@@ -225,6 +227,12 @@ static void HeroAct(Game& g, int heroId, int abilityIdx, int targetPos) {
                 if (a.mark) { e->st.marked = 3; Float(g, er, "Marked", Pal::Brass); }
                 if (a.stunChance && Chance(a.stunChance)) { e->st.stunned = 1; Float(g, er, "Stunned", Pal::Teal); }
                 if (a.moveTarget) MoveEnemy(g, uid, a.moveTarget);
+                // a curse or a song can weaken an enemy the same way a buff strengthens an ally -- same
+                // fields, just applied to the other side with a negative value
+                if (a.buffDmg) { e->st.buffDmg = a.buffDmg; e->st.buffTurns = 3; Float(g, er, "Weakened", Pal::Bad); }
+                if (a.buffProt) { e->st.protBuff = a.buffProt; e->st.protTurns = 3; Float(g, er, "Exposed", Pal::Bad); }
+                if (a.buffDodge) { e->st.dodgeBuff = a.buffDodge; e->st.dodgeTurns = 3; Float(g, er, "Off Balance", Pal::Bad); }
+                if (a.buffAcc) { e->st.accBuff = a.buffAcc; e->st.accTurns = 3; Float(g, er, "Blinded", Pal::Bad); }
             }
         }
         return;
@@ -252,6 +260,7 @@ static void HeroAct(Game& g, int heroId, int abilityIdx, int targetPos) {
         if (a.buffDmg) { t->st.buffDmg = a.buffDmg; t->st.buffTurns = 3; Float(g, tr, "Rallied", Pal::Brass); }
         if (a.buffDodge) { t->st.dodgeBuff = a.buffDodge; t->st.dodgeTurns = 3; Float(g, tr, "Dodge up", Pal::Teal); }
         if (a.buffProt) { t->st.protBuff = a.buffProt; t->st.protTurns = 3; Float(g, tr, "Armor up", Pal::Brass); }
+        if (a.buffAcc) { t->st.accBuff = a.buffAcc; t->st.accTurns = 3; Float(g, tr, "Eagle Eye", Pal::Brass); }
         if (a.guardTurns) { t->st.guardTurns = a.guardTurns; Float(g, tr, "Guarding", Pal::Teal); }
     }
 }
@@ -298,7 +307,8 @@ static void EnemyAct(Game& g, int uid, int ability) {
         Stats s = GetStats(*h);
         Rectangle hr = HeroRect(p);
         int dodge = s.dodge + (h->st.dodgeTurns > 0 ? h->st.dodgeBuff : 0);
-        int hit = std::clamp(e->acc + EnemyAccBonus(g) - dodge, 5, 95);
+        int eacc = e->acc + (e->st.accTurns > 0 ? e->st.accBuff : 0);
+        int hit = std::clamp(eacc + EnemyAccBonus(g) - dodge, 5, 95);
         if (!Chance(hit)) { Float(g, hr, "Dodge", Pal::Paper); StartAnim(g, true, h->id, Anim::Dodge, 0.45f); continue; }
         bool crit = Chance(6);
         if (crit) g.dungeon.shake = 0.35f;
@@ -306,7 +316,7 @@ static void EnemyAct(Game& g, int uid, int ability) {
             StartAnim(g, true, h->id, Anim::Hurt, 0.5f);
             Sparkle(g, hr, 8, Color{220, 60, 50, 255}, 180, 0);
             int prot = std::min(80, s.prot + (h->st.guardTurns > 0 ? 25 : 0) + (h->st.protTurns > 0 ? h->st.protBuff : 0));
-            float raw = Roll(e->dmgMin, e->dmgMax) * a.dmgMult * (crit ? 1.5f : 1.0f);
+            float raw = Roll(e->dmgMin, e->dmgMax) * a.dmgMult * (1.0f + (e->st.buffTurns > 0 ? e->st.buffDmg / 100.0f : 0.0f)) * (crit ? 1.5f : 1.0f);
             int dmg = std::max(1, (int)std::round(raw * (100 - prot) / 100.0f));
             Float(g, hr, (crit ? "CRIT " : "") + std::to_string(dmg), crit ? Pal::Brass : Pal::Bad);
             DamageHero(g, *h, dmg);
@@ -377,6 +387,7 @@ static void StartTurn(Game& g) {
         if (st.buffTurns > 0 && --st.buffTurns == 0) st.buffDmg = 0;
         if (st.dodgeTurns > 0 && --st.dodgeTurns == 0) st.dodgeBuff = 0;
         if (st.protTurns > 0 && --st.protTurns == 0) st.protBuff = 0;
+        if (st.accTurns > 0 && --st.accTurns == 0) st.accBuff = 0;
         if (st.guardTurns > 0) st.guardTurns--;
         if (h->dead) { skip(""); return; }
         if (st.stunned > 0) { st.stunned--; skip(h->name + " is stunned and loses the turn."); return; }
@@ -388,6 +399,10 @@ static void StartTurn(Game& g) {
         if (st.bleedTurns > 0) { st.bleedTurns--; e->hp -= st.bleedDmg; Float(g, r, "Bleed " + std::to_string(st.bleedDmg), Pal::Bad); }
         if (st.poisonTurns > 0) { st.poisonTurns--; e->hp -= st.poisonDmg; Float(g, r, "Poison " + std::to_string(st.poisonDmg), Pal::Good); }
         if (st.marked > 0) st.marked--;
+        if (st.buffTurns > 0 && --st.buffTurns == 0) st.buffDmg = 0;
+        if (st.dodgeTurns > 0 && --st.dodgeTurns == 0) st.dodgeBuff = 0;
+        if (st.protTurns > 0 && --st.protTurns == 0) st.protBuff = 0;
+        if (st.accTurns > 0 && --st.accTurns == 0) st.accBuff = 0;
         if (e->hp <= 0) { e->hp = 0; e->alive = false; skip(e->name + " succumbs."); return; }
         if (st.stunned > 0) { st.stunned--; skip(e->name + " is stunned."); return; }
     }
@@ -931,10 +946,20 @@ static AnimFx HeroAnimFx(const Game& g, const Hero& h) {
     switch (a->kind) {
         case Anim::Melee: {
             struct Style { float raise, windLean, windCrouch, lunge, tilt, reach, lean, crouch; };
-            const Style S[4] = {{0.45f, -0.15f, 0.0f, 70, 35, 1.0f, 0.45f, 0.1f},    // Nurse
-                                {0.0f, -0.3f, 0.35f, 95, 10, 1.0f, 0.6f, 0.25f},    // Diver
-                                {1.0f, -0.25f, 0.0f, 60, 95, 0.7f, 0.5f, 0.05f},    // Captain
-                                {1.0f, -0.4f, 0.2f, 45, 80, 0.5f, 0.65f, 0.45f}};   // Mechanic
+            const Style S[(int)HeroClass::COUNT] = {
+                {0.45f, -0.15f, 0.0f, 70, 35, 1.0f, 0.45f, 0.1f},    // Nurse: a quick slash
+                {0.0f, -0.3f, 0.35f, 95, 10, 1.0f, 0.6f, 0.25f},    // Diver: a harpoon lunge
+                {1.0f, -0.25f, 0.0f, 60, 95, 0.7f, 0.5f, 0.05f},    // Captain: an overhead cut
+                {1.0f, -0.4f, 0.2f, 45, 80, 0.5f, 0.65f, 0.45f},    // Mechanic: a heavy swing
+                {0.3f, -0.2f, 0.1f, 55, 50, 0.7f, 0.4f, 0.15f},     // Whaler: a hooked jab
+                {0.6f, -0.35f, 0.25f, 75, 65, 0.6f, 0.7f, 0.3f},    // Stowaway: a wild, staggering swing
+                {0.7f, -0.2f, 0.05f, 90, 70, 0.9f, 0.55f, 0.2f},    // Merman: a crushing tail-driven blow
+                {0.4f, -0.15f, 0.0f, 50, 40, 0.6f, 0.35f, 0.1f},    // Queen: a regal, precise strike
+                {0.85f, -0.1f, 0.35f, 40, 90, 0.4f, 0.3f, 0.4f},    // Robot: a slow, mechanical piston punch
+                {0.15f, -0.45f, 0.3f, 100, 20, 1.1f, 0.75f, 0.35f}, // Octopus: a fast whipping tentacle
+                {0.35f, -0.25f, 0.1f, 55, 45, 0.6f, 0.5f, 0.15f},   // Siren: a graceful, sudden strike
+                {0.5f, -0.3f, 0.15f, 60, 55, 0.7f, 0.6f, 0.2f},     // Wisp: a drifting, ethereal lash
+            };
             const Style& s = S[c];
             float wind = Bell(u, 0, 0.26f, 0.38f), strike = Bell(u, 0.28f, 0.38f, 0.88f);
             p.raise = wind * s.raise;
@@ -1067,9 +1092,10 @@ static std::string StatusTags(const Status& st) {
     if (st.poisonTurns > 0) s += TextFormat("POISON %d ", st.poisonDmg);
     if (st.stunned > 0) s += "STUN ";
     if (st.marked > 0) s += "MARKED ";
-    if (st.buffTurns > 0) s += "RALLY ";
-    if (st.dodgeTurns > 0) s += "DODGE+ ";
-    if (st.protTurns > 0) s += "ARMOR+ ";
+    if (st.buffTurns > 0) s += st.buffDmg > 0 ? "RALLY " : "WEAKENED ";
+    if (st.dodgeTurns > 0) s += st.dodgeBuff > 0 ? "DODGE+ " : "OFF-BALANCE ";
+    if (st.protTurns > 0) s += st.protBuff > 0 ? "ARMOR+ " : "EXPOSED ";
+    if (st.accTurns > 0) s += st.accBuff > 0 ? "ACC+ " : "BLINDED ";
     if (st.guardTurns > 0) s += "GUARD ";
     return s;
 }
@@ -1793,17 +1819,20 @@ void DrawCrewSpritePage(float t) {
     dodge.crouch = 0.35f; dodge.lean = -0.2f; dodge.stride = -0.5f;
     const Named poses[8] = {{"Ready", Pose{}, 0}, {"Walk", Pose{}, 1.2f}, {"Walk", Pose{}, 2.8f}, {"Strike", melee, 0},
                             {"Raise / cast", raise, 0}, {"Hit!", hurt, 0}, {"Dread", stress, 0}, {"Death's Door", door, 0}};
-    for (int c = 0; c < (int)HeroClass::COUNT; c++) {
+    // Twelve classes at the original scale would run off the bottom of the page, so this shrinks to fit.
+    int n = (int)HeroClass::COUNT;
+    float scale = n <= 4 ? 0.82f : 0.82f * 4 / n, rowH = (720.0f - 90) / n;
+    for (int c = 0; c < n; c++) {
         Hero h;
         h.id = 3 + c * 5;
         h.cls = (HeroClass)c;
-        float y = 60 + (c + 1) * 162.0f;
-        TxtBold(ClassName(h.cls), 12, y - 150, 17, ClassColor(h.cls));
+        float y = 90 + (c + 1) * rowH - rowH * 0.5f;
+        TxtBold(ClassName(h.cls), 12, y - rowH * 0.42f, 15, ClassColor(h.cls));
         for (int k = 0; k < 8; k++) {
             float x = 90 + k * 158.0f;
             if (c == 0) TxtBold(poses[k].name, x - MeasureTxt(poses[k].name, 16, true) / 2.0f, 52, 16, Pal::Paper);
-            DrawShadowBlob({x, y}, 26);
-            DrawCrewFigureInked(h, {x, y}, 0.82f, true, poses[k].walk, t, poses[k].pose);
+            DrawShadowBlob({x, y}, 26 * scale / 0.82f);
+            DrawCrewFigureInked(h, {x, y}, scale, true, poses[k].walk, t, poses[k].pose);
         }
     }
     (void)dodge;
