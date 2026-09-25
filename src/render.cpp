@@ -65,6 +65,9 @@ void main() {
     float rimEdge = 1.0 - texture(texture0, uv + vec2(2.0, -1.0) * uTexel).a;
     col += vec3(0.16, 0.24, 0.32) * rimEdge * (1.0 - toward * 0.5);
     col = mix(col, INK, smoothstep(0.35, 0.9, edge) * 0.75);      // linework between parts
+    // a little painted texture, so surfaces read as cloth, skin and metal rather than flat colour
+    vec2 cell = floor(uv / uTexel / 2.0);
+    col *= 0.94 + 0.1 * fract(sin(dot(cell, vec2(12.9898, 78.233))) * 43758.5453);
     finalColor = vec4(col * fragColor.rgb, fragColor.a);
 }
 )";
@@ -720,6 +723,16 @@ void DrawCrewFigure(const Hero& h, Vector2 ft, float s, bool right, float walk, 
         case HeroClass::Captain: top = {40, 50, 82, 255}; legs = {36, 34, 42, 255}; sleeve = top; trim = Pal::Brass; glove = {220, 214, 200, 255}; break;
         default:                 top = {196, 184, 158, 255}; legs = {170, 96, 46, 255}; sleeve = top; trim = {110, 70, 40, 255}; glove = {92, 66, 44, 255}; break;
     }
+    bool npc = h.outfit >= 0; // the Nautilus's own hands wear uniforms instead of expedition gear
+    switch (h.outfit) {
+        case OUT_HELMSMAN:  top = {58, 72, 66, 255}; legs = {38, 38, 44, 255}; sleeve = top; trim = Pal::Brass; glove = {70, 50, 36, 255}; break;
+        case OUT_RADIO:     top = {150, 140, 108, 255}; legs = {64, 58, 50, 255}; sleeve = top; trim = {120, 110, 88, 255}; break;
+        case OUT_ENGINEER:  top = {120, 110, 96, 255}; legs = {64, 82, 112, 255}; sleeve = top; trim = {90, 80, 70, 255}; glove = {44, 40, 36, 255}; break;
+        case OUT_PROFESSOR: top = {112, 76, 52, 255}; legs = {72, 62, 52, 255}; sleeve = top; trim = {206, 196, 176, 255}; break;
+        case OUT_STEWARD:   top = {232, 230, 222, 255}; legs = {30, 30, 36, 255}; sleeve = top; trim = {40, 40, 46, 255}; glove = {240, 240, 236, 255}; break;
+        case OUT_ORDERLY:   top = {196, 210, 204, 255}; legs = {84, 92, 92, 255}; sleeve = top; trim = {232, 232, 228, 255}; break;
+        default: break;
+    }
     Color brass = Pal::Brass, steel{176, 180, 188, 255};
     float bootW = h.cls == HeroClass::Diver ? 8.5f : 6.8f;
 
@@ -767,15 +780,47 @@ void DrawCrewFigure(const Hero& h, Vector2 ft, float s, bool right, float walk, 
     if (h.cls == HeroClass::Nurse) {
         Q(P(-16, -100), P(16, -100), P(24, -38), P(-23, -38), top); // skirt
         for (int k = 0; k < 3; k++) DrawLineEx(P(-8 + k * 8.0f, -96), P(-11 + k * 11.0f, -42), 1.1f * s, Tone(top, -0.35f)); // folds
-        Q(P(-5, -124), P(16, -124), P(22, -42), P(-6, -42), Color{224, 218, 202, 255}); // apron
-        DrawLineEx(P(6, -100), P(8, -46), 1.0f * s, Color{190, 184, 170, 255});
+        if (!npc) {
+            Q(P(-5, -124), P(16, -124), P(22, -42), P(-6, -42), Color{224, 218, 202, 255}); // apron
+            DrawLineEx(P(6, -100), P(8, -46), 1.0f * s, Color{190, 184, 170, 255});
+        }
     }
 
     // --- torso
     Q(P(-18, -135), P(19, -135), P(15, -86), P(-15, -86), top);
     ShadeBall(P(-13, -129), 9 * s, sleeve);
     ShadeBall(P(14, -129), 9 * s, sleeve);
-    switch (h.cls) {
+    if (npc) switch (h.outfit) {
+        case OUT_HELMSMAN: // a double-breasted pea coat
+            for (int k = 0; k < 3; k++) { DrawCircleV(P(4, -124 + k * 11.0f), 1.6f * s, trim); DrawCircleV(P(12, -124 + k * 11.0f), 1.6f * s, trim); }
+            ShadeLimb(P(-4, -136), P(13, -136), 3 * s, 3 * s, Tone(top, 0.2f));
+            break;
+        case OUT_RADIO:
+            ShadeLimb(P(-4, -136), P(13, -136), 2.6f * s, 2.6f * s, trim);
+            Q(P(4, -122), P(12, -122), P(12, -113), P(4, -113), Tone(top, -0.2f)); // a pocket with pencils in it
+            DrawLineEx(P(6, -125), P(6, -119), 1.2f * s, Color{200, 60, 40, 255});
+            break;
+        case OUT_ENGINEER: // blue overalls over a work shirt
+            Q(P(-11, -122), P(15, -122), P(15, -86), P(-13, -86), legs);
+            ShadeLimb(P(-8, -122), P(-10, -133), 1.6f * s, 1.6f * s, Tone(legs, -0.2f));
+            ShadeLimb(P(11, -122), P(11, -133), 1.6f * s, 1.6f * s, Tone(legs, -0.2f));
+            break;
+        case OUT_PROFESSOR: // tweed coat, waistcoat, watch chain
+            Q(P(0, -128), P(14, -128), P(12, -96), P(0, -96), Color{70, 54, 44, 255});
+            DrawTri(P(13, -134), P(5, -134), P(10, -120), Color{226, 222, 212, 255});
+            DrawLineEx(P(2, -108), P(11, -104), 1.1f * s, Pal::Brass);
+            break;
+        case OUT_STEWARD: // white jacket, black bow tie
+            DrawTri(P(6, -136), P(12, -132), P(6, -128), trim);
+            DrawTri(P(18, -136), P(12, -132), P(18, -128), trim);
+            for (int k = 0; k < 3; k++) DrawCircleV(P(10, -120 + k * 10.0f), 1.5f * s, Pal::Brass);
+            break;
+        default: // orderly: a stethoscope around the neck
+            DrawRing(P(6, -126), 5 * s, 6.2f * s, 0, 180, 12, Color{90, 90, 96, 255});
+            ShadeBall(P(6, -118), 2.2f * s, Color{170, 176, 180, 255});
+            break;
+    }
+    else switch (h.cls) {
         case HeroClass::Nurse: {
             Q(P(-4, -127), P(16, -127), P(14, -98), P(-4, -98), Color{224, 218, 202, 255});
             Color red{176, 40, 36, 255};
@@ -844,7 +889,31 @@ void DrawCrewFigure(const Hero& h, Vector2 ft, float s, bool right, float walk, 
         DrawCircleV(P(12, -146.5f), 0.8f * s, Tone(skin, -0.55f));
         DrawLineEx(P(7.5f, -142.8f), P(11.5f, -143.2f), 1.3f * s, Color{150, 80, 70, 255}); // lips
         DrawLineEx(P(8, -140.5f), P(11, -140.8f), 0.8f * s, Fade(skinDk, 0.6f));
-        switch (h.cls) {
+        if (npc) switch (h.outfit) {
+            case OUT_HELMSMAN: // a flat sailor's cap
+                Q(P(-12, -168), P(13, -168), P(13, -160), P(-12, -160), Color{30, 34, 40, 255});
+                ShadeLimb(P(4, -159), P(16, -158), 1.8f * s, 1.2f * s, Color{16, 16, 20, 255});
+                ShadeBall(P(6, -165), 1.8f * s, Pal::Brass);
+                break;
+            case OUT_RADIO: // headphones
+                DrawRing(P(-1, -154), 12.5f * s, 14.5f * s, 180, 360, 16, Color{50, 44, 40, 255});
+                ShadeBall(P(-2, -150), 4.5f * s, Color{70, 56, 44, 255});
+                break;
+            case OUT_ENGINEER: // a cloth cap, and oil on the cheek
+                Q(P(-11, -168), P(12, -166), P(13, -159), P(-11, -159), Color{80, 72, 64, 255});
+                ShadeLimb(P(6, -159), P(17, -158), 2 * s, 1.4f * s, Color{70, 62, 54, 255});
+                DrawCircleV(P(9, -146), 2.4f * s, Fade(BLACK, 0.25f));
+                break;
+            case OUT_PROFESSOR: // spectacles and grey whiskers
+                DrawRing(P(8, -151), 2.6f * s, 3.4f * s, 0, 360, 12, Color{200, 180, 110, 255});
+                ShadeLimb(P(7, -145), P(12, -145), 2 * s, 1.5f * s, Color{190, 186, 180, 255});
+                break;
+            case OUT_ORDERLY:
+                Q(P(-8, -164), P(10, -164), P(10, -158), P(-8, -158), Color{236, 236, 232, 255});
+                break;
+            default: break;
+        }
+        else switch (h.cls) {
             case HeroClass::Nurse:
                 ShadeBall(P(-11, -155), 5 * s, hair);           // bun
                 Q(P(-8, -164), P(10, -164), P(10, -157), P(-8, -157), Color{236, 232, 222, 255});
@@ -879,6 +948,25 @@ void DrawCrewFigure(const Hero& h, Vector2 ft, float s, bool right, float walk, 
     Vector2 el = L(L(elIdle, P(16, -150), rz), P(30, -122), rc);
     Vector2 hand = L(L(hdIdle, P(8, -174), rz), P(46, -118), rc);
     arm(sh, el, hand, sleeve, forearm);
+    if (npc) { // the ship's hands carry the tools of their trade, not weapons
+        switch (h.outfit) {
+            case OUT_ENGINEER: { // a hammer
+                float a = (-40 - 100 * rz + pose.weaponTilt) * DEG2RAD;
+                Vector2 end{hand.x + cosf(a) * 26 * s * f, hand.y + sinf(a) * 26 * s};
+                ShadeLimb(hand, end, 2 * s, 2 * s, Color{120, 84, 50, 255});
+                ShadeLimb({end.x - sinf(a) * 6 * s * f, end.y + cosf(a) * 6 * s}, {end.x + sinf(a) * 6 * s * f, end.y - cosf(a) * 6 * s}, 3.4f * s, 3.4f * s, steel);
+            } break;
+            case OUT_PROFESSOR: // a book
+                Q({hand.x - 2 * s * f, hand.y - 16 * s}, {hand.x + 10 * s * f, hand.y - 16 * s}, {hand.x + 10 * s * f, hand.y + 2 * s}, {hand.x - 2 * s * f, hand.y + 2 * s}, Color{110, 40, 36, 255});
+                break;
+            case OUT_STEWARD: // a silver tray with a glass on it
+                ShadeLimb({hand.x - 14 * s * f, hand.y - 5 * s}, {hand.x + 18 * s * f, hand.y - 5 * s}, 2 * s, 2 * s, Color{200, 204, 210, 255});
+                ShadeLimb({hand.x + 2 * s * f, hand.y - 8 * s}, {hand.x + 2 * s * f, hand.y - 18 * s}, 2.4f * s, 3 * s, Color{200, 226, 230, 200});
+                break;
+            default: break;
+        }
+        return;
+    }
     if (walking && h.cls != HeroClass::Diver) return;
     // weapon angle in degrees: 0 points straight ahead, negative points up
     float base = h.cls == HeroClass::Nurse ? -8.0f : h.cls == HeroClass::Diver ? -26.0f : h.cls == HeroClass::Captain ? -64.0f : 70.0f;

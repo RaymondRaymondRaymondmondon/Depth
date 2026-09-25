@@ -116,60 +116,147 @@ const Station STATIONS[ST_COUNT] = {
 Rectangle stationRect[ST_COUNT];
 
 // ---------------------------------------------------------------- life aboard
-struct Npc { const char* role; HeroClass look; };
-const Npc NPCS[] = {{"Engineer", HeroClass::Mechanic}, {"Deckhand", HeroClass::Diver}, {"Orderly", HeroClass::Nurse}};
+// Only the Nautilus's own hands walk the salon (your expedition crew stay in their quarters). Most have a
+// post, where they stand working, and every so often they stretch their legs and come back.
+struct Npc { const char* role; HeroClass build; int outfit; Vector2 post; bool faceRight; };
+const Npc NPCS[] = {
+    {"Helmsman", HeroClass::Captain, OUT_HELMSMAN, {-70, 860}, true},    // at the wheel
+    {"Radio operator", HeroClass::Mechanic, OUT_RADIO, {555, 625}, true}, // listening at the sonar
+    {"Engineer", HeroClass::Mechanic, OUT_ENGINEER, {555, 910}, true},    // hammering at the workbench
+    {"Professor", HeroClass::Captain, OUT_PROFESSOR, {-555, 930}, false}, // browsing the shelves
+    {"Steward", HeroClass::Captain, OUT_STEWARD, {0, 0}, true},           // no post: does the rounds with a tray
+    {"Orderly", HeroClass::Nurse, OUT_ORDERLY, {250, 985}, true},         // tending the operating table
+};
 constexpr int NPC_COUNT = sizeof(NPCS) / sizeof(NPCS[0]);
-struct Walker { int id; Vector2 pos, target; float wait, phase; bool right, npc; };
+struct Walker { int id; Vector2 pos, target; float wait, phase; bool right, atPost; };
 struct Cat { Vector2 pos{120, 700}, target{120, 700}; float wait = 3, phase = 0; bool right = true; };
 std::vector<Walker> walkers;
 Cat cat;
 
+// Furniture on the floor, as circles (X, Z, radius) that people and the cat walk around.
+struct Obstacle { float x, z, r; };
+const Obstacle OBSTACLES[] = {{0, 900, 95}, {-255, 900, 105}, {150, 560, 45}, {-430, 1010, 175}, {430, 1010, 170}};
+
 const Hero& NpcHero(int i) {
     static Hero heroes[NPC_COUNT];
     heroes[i].id = 100000 + i * 3 + 1; // only used to vary their looks
-    heroes[i].cls = NPCS[i].look;
+    heroes[i].cls = NPCS[i].build;
+    heroes[i].outfit = NPCS[i].outfit;
     return heroes[i];
 }
 
-Vector2 FloorSpot() { return {RandF(-560, 560), RandF(560, 1060)}; }
+bool Blocked(Vector2 p, float margin) {
+    for (auto& o : OBSTACLES) if ((p.x - o.x) * (p.x - o.x) + (p.y - o.z) * (p.y - o.z) < (o.r + margin) * (o.r + margin)) return true;
+    return false;
+}
+
+Vector2 FloorSpot() {
+    for (int tries = 0; tries < 30; tries++) {
+        Vector2 p{RandF(-560, 560), RandF(560, 1060)};
+        if (!Blocked(p, 30)) return p;
+    }
+    return {0, 640};
+}
+
+// Head for `target`, but slide around any furniture in the way.
+Vector2 Steer(Vector2 pos, Vector2 target, float step) {
+    Vector2 d{target.x - pos.x, target.y - pos.y};
+    float len = sqrtf(d.x * d.x + d.y * d.y);
+    if (len < 0.001f) return pos;
+    d = {d.x / len, d.y / len};
+    for (auto& o : OBSTACLES) {
+        Vector2 away{pos.x - o.x, pos.y - o.z};
+        float dist = sqrtf(away.x * away.x + away.y * away.y), reach = o.r + 45;
+        if (dist >= reach || dist < 0.001f) continue;
+        away = {away.x / dist, away.y / dist};
+        float push = (reach - dist) / 45;
+        Vector2 side{-away.y, away.x};                            // go round on whichever side leads toward the target
+        if (side.x * d.x + side.y * d.y < 0) side = {-side.x, -side.y};
+        d = {d.x + away.x * push * 1.2f + side.x * push, d.y + away.y * push * 1.2f + side.y * push};
+    }
+    float n = sqrtf(d.x * d.x + d.y * d.y);
+    Vector2 np{pos.x + d.x / n * step, pos.y + d.y / n * step};
+    for (auto& o : OBSTACLES) { // never end up inside anything
+        Vector2 a{np.x - o.x, np.y - o.z};
+        float dist = sqrtf(a.x * a.x + a.y * a.y);
+        if (dist < o.r && dist > 0.001f) np = {o.x + a.x / dist * o.r, o.z + a.y / dist * o.r};
+    }
+    np.x = std::clamp(np.x, -600.0f, 600.0f);
+    np.y = std::clamp(np.y, 540.0f, 1080.0f);
+    return np;
+}
 
 void PickTarget(Walker& w) {
-    w.target = GetRandomValue(0, 99) < 65 ? STATIONS[GetRandomValue(0, ST_COUNT - 1)].stand : FloorSpot();
-    w.target.x += RandF(-50, 50);
-    w.target.y += RandF(-40, 40);
+    const Npc& n = NPCS[w.id];
+    bool hasPost = n.post.x != 0 || n.post.y != 0;
+    if (hasPost && !w.atPost && GetRandomValue(0, 99) < 75) { w.target = n.post; w.atPost = true; return; }
+    w.atPost = false;
+    w.target = GetRandomValue(0, 99) < 60 ? STATIONS[GetRandomValue(0, ST_COUNT - 1)].stand : FloorSpot();
+    if (Blocked(w.target, 20)) w.target = FloorSpot();
 }
 
 void UpdateLife(Game& g, float dt) {
-    walkers.erase(std::remove_if(walkers.begin(), walkers.end(), [&](const Walker& w) { return !w.npc && !FindHero(g, w.id); }), walkers.end());
-    if (std::none_of(walkers.begin(), walkers.end(), [](const Walker& w) { return w.npc; }))
-        for (int i = 0; i < NPC_COUNT; i++) walkers.push_back({i, FloorSpot(), {0, 0}, RandF(0, 3), 0, i % 2 == 0, true});
-    for (auto& h : g.roster)
-        if (std::none_of(walkers.begin(), walkers.end(), [&](const Walker& w) { return !w.npc && w.id == h.id; })) {
-            Vector2 p = STATIONS[GetRandomValue(0, ST_COUNT - 1)].stand;
-            walkers.push_back({h.id, {p.x + RandF(-60, 60), p.y + RandF(-40, 40)}, {0, 0}, RandF(0, 3), 0, GetRandomValue(0, 1) == 1, false});
+    (void)g;
+    if (walkers.empty())
+        for (int i = 0; i < NPC_COUNT; i++) {
+            bool hasPost = NPCS[i].post.x != 0 || NPCS[i].post.y != 0;
+            Vector2 start = hasPost ? NPCS[i].post : FloorSpot();
+            walkers.push_back({i, start, start, RandF(2, 10), 0, NPCS[i].faceRight, hasPost});
         }
     for (auto& w : walkers) {
         if (w.wait > 0) {
             w.wait -= dt;
             w.phase = 0;
+            if (w.atPost) w.right = NPCS[w.id].faceRight;
             if (w.wait <= 0) PickTarget(w);
             continue;
         }
         Vector2 d{w.target.x - w.pos.x, w.target.y - w.pos.y};
         float len = sqrtf(d.x * d.x + d.y * d.y), step = 70 * dt;
-        if (len <= step) { w.pos = w.target; w.wait = RandF(2, 7); w.phase = 0; continue; }
-        w.pos.x += d.x / len * step;
-        w.pos.y += d.y / len * step;
-        if (fabsf(d.x) > 4) w.right = d.x > 0;
+        if (len <= step + 2) {
+            w.pos = w.target;
+            w.wait = w.atPost ? RandF(12, 30) : RandF(2, 6);
+            w.phase = 0;
+            continue;
+        }
+        Vector2 np = Steer(w.pos, w.target, step);
+        if (fabsf(np.x - w.pos.x) > 0.05f) w.right = np.x > w.pos.x;
+        w.pos = np;
         w.phase += dt * 7.5f;
     }
     if (cat.wait > 0) { cat.wait -= dt; cat.phase = 0; if (cat.wait <= 0) cat.target = FloorSpot(); }
     else {
         Vector2 d{cat.target.x - cat.pos.x, cat.target.y - cat.pos.y};
         float len = sqrtf(d.x * d.x + d.y * d.y), step = 55 * dt;
-        if (len <= step) { cat.pos = cat.target; cat.wait = RandF(3, 10); }
-        else { cat.pos.x += d.x / len * step; cat.pos.y += d.y / len * step; cat.right = d.x > 0; cat.phase += dt * 10; }
+        if (len <= step + 2) { cat.pos = cat.target; cat.wait = RandF(3, 10); }
+        else {
+            Vector2 np = Steer(cat.pos, cat.target, step);
+            cat.right = np.x > cat.pos.x;
+            cat.pos = np;
+            cat.phase += dt * 10;
+        }
     }
+}
+
+// What someone is doing with their hands while they stand at their post.
+Pose WorkPose(const Walker& w, float t) {
+    Pose p;
+    if (!w.atPost || w.wait <= 0) return p;
+    float ph = t + w.id * 1.7f;
+    auto bell = [](float u, float a, float b, float c) {
+        auto sm = [](float v) { v = std::clamp(v, 0.0f, 1.0f); return v * v * (3 - 2 * v); };
+        return u <= a || u >= c ? 0.0f : u < b ? sm((u - a) / (b - a)) : sm((c - u) / (c - b));
+    };
+    switch (NPCS[w.id].outfit) {
+        case OUT_HELMSMAN: p.reach = 0.55f + 0.12f * sinf(ph * 0.9f); p.lean = 0.08f; break;           // hands on the wheel
+        case OUT_RADIO: p.reach = 0.35f; p.lean = 0.14f + 0.04f * sinf(ph * 2); break;                  // tuning the set
+        case OUT_ENGINEER: { float c = fmodf(ph * 1.1f, 1.0f); p.raise = bell(c, 0, 0.45f, 0.6f);       // hammering
+                             p.weaponTilt = 70 * bell(c, 0.5f, 0.62f, 0.9f); p.lean = 0.25f * bell(c, 0.5f, 0.62f, 0.9f); } break;
+        case OUT_PROFESSOR: p.backRaise = 0.55f + 0.15f * sinf(ph * 0.7f); break;                        // reaching for a book
+        case OUT_ORDERLY: p.reach = 0.3f; p.lean = 0.2f + 0.05f * sinf(ph); p.crouch = 0.1f; break;      // tidying the table
+        default: break;
+    }
+    return p;
 }
 
 // ---------------------------------------------------------------- the ocean beyond the great window
@@ -749,8 +836,7 @@ void SceneHub(Game& g) {
     struct Person { Walker* w; const Hero* h; Vector2 feet; float s; Rectangle r; };
     std::vector<Person> people;
     for (auto& w : walkers) {
-        const Hero* h = w.npc ? &NpcHero(w.id) : FindHero(g, w.id);
-        if (!h || h->onLeave > 0) continue;
+        const Hero* h = &NpcHero(w.id);
         float s = CREW_H / 165.0f * Px(w.pos.y);
         Vector2 feet = Proj(w.pos.x, 0, w.pos.y);
         people.push_back({&w, h, feet, s, {feet.x - 22 * s, feet.y - 165 * s, 44 * s, 165 * s}});
@@ -758,7 +844,7 @@ void SceneHub(Game& g) {
     for (auto& p : people)
         items.push_back({p.w->pos.y, [&, pp = &p] {
             DrawShadowBlob(pp->feet, 30 * pp->s);
-            DrawCrewFigureInked(*pp->h, pp->feet, pp->s, pp->w->right, pp->w->phase, t);
+            DrawCrewFigureInked(*pp->h, pp->feet, pp->s, pp->w->right, pp->w->phase, t, WorkPose(*pp->w, t));
         }});
     std::stable_sort(items.begin(), items.end(), [](const Item& a, const Item& b) { return a.z > b.z; });
     for (auto& it : items) it.draw();
@@ -798,18 +884,16 @@ void SceneHub(Game& g) {
     InkPass(1.0f, 1.0f);
 
     // --- labels, hints, HUD
-    std::string hint = "Every station in the salon can be clicked. So can your crew.";
+    std::string hint = "Every station in the salon can be clicked. Your expedition crew wait in Crew Quarters.";
     if (hovPerson) {
-        const Hero& h = *hovPerson->h;
-        std::string label = hovPerson->w->npc ? std::string(NPCS[hovPerson->w->id].role) + " of the Nautilus"
-                                              : h.name + "  -  " + ClassName(h.cls) + TextFormat("  Lv %d", h.level) + (h.rattled ? "  (rattled)" : "");
+        const Npc& n = NPCS[hovPerson->w->id];
+        std::string label = std::string(n.role) + " of the Nautilus";
         float w = (float)MeasureTxt(label, 16, true);
         Rectangle r{hovPerson->feet.x - w / 2 - 10, hovPerson->r.y - 34, w + 20, 26};
         DrawRectangleRounded(r, 0.4f, 6, Color{12, 18, 22, 230});
         DrawRectangleRoundedLinesEx(r, 0.4f, 6, 1.5f, Pal::BrassDk);
         TxtBold(label, r.x + 10, r.y + 4, 16, Pal::Paper);
-        hint = hovPerson->w->npc ? "One of the ship's own hands. They keep the Nautilus running."
-                                 : "Click to open Crew Quarters with " + h.name + " selected.";
+        hint = "One of the ship's own hands. They keep the Nautilus running; they don't go on expeditions.";
     } else if (hovered >= 0) {
         hint = std::string(STATIONS[hovered].name) + ":  " + STATIONS[hovered].hint;
     }
@@ -832,15 +916,8 @@ void SceneHub(Game& g) {
     }
 
     // --- clicks
-    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && mouseInRoom) {
-        if (hovPerson) {
-            if (!hovPerson->w->npc) {
-                g.selectedHero = hovPerson->h->id;
-                g.scene = Scene::Crew;
-            }
-        } else if (hovered >= 0) {
-            g.scene = STATIONS[hovered].target;
-            if (g.scene == Scene::Crew && !FindHero(g, g.selectedHero) && !g.roster.empty()) g.selectedHero = g.roster[0].id;
-        }
+    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && mouseInRoom && !hovPerson && hovered >= 0) {
+        g.scene = STATIONS[hovered].target;
+        if (g.scene == Scene::Crew && !FindHero(g, g.selectedHero) && !g.roster.empty()) g.selectedHero = g.roster[0].id;
     }
 }

@@ -103,6 +103,7 @@ struct Hero {
     int onLeave = 0;         // expeditions left to sit out
     int relics[2] = {-1, -1};
     int loadout[LOADOUT_SIZE] = {0, 1, 2, 3}; // indices into ClassAbilities, -1 = empty slot
+    int outfit = -1;         // >= 0 for the Nautilus's own hands (see NpcOutfit): a uniform instead of class gear
     Status st;
 };
 
@@ -152,6 +153,9 @@ struct PendingAction {
 };
 
 // How a crew member is posed this frame (all zero = standing ready). Set by the combat animations.
+// Uniforms worn by the Nautilus's own crew, who work the salon but never join expeditions.
+enum NpcOutfit { OUT_HELMSMAN, OUT_RADIO, OUT_ENGINEER, OUT_PROFESSOR, OUT_STEWARD, OUT_ORDERLY, OUT_COUNT };
+
 struct Pose {
     float lean = 0;        // + leans forward, - rears back
     float crouch = 0;      // 0..1 bends the knees
@@ -169,6 +173,9 @@ struct DungeonState {
     std::vector<Spark> sparks;
     PendingAction pending;
     float shake = 0;
+    float corridorT = 0;           // time since the "advance or swap a battery?" choice came up (it fades in)
+    float batteryT = 0;            // counts down while a battery is being swapped in
+    float lightShown = 100;        // the flashlight as drawn: eases toward `light`
     std::string levelUps;
     std::vector<RoomType> rooms;
     int roomIndex = -1;
@@ -219,8 +226,12 @@ struct PlatformState {
     PlatBoss boss;
     std::vector<PlatParticle> particles;
     int coins = 0, deaths = 0, reward = 0, relic = -1;
-    float time = 0, deathTimer = 0, camX = 0;
+    float time = 0, deathTimer = 0, camX = 0, camY = 0;
     bool finished = false, exitOpen = true;
+    // Sections are stitched left to right, each raised or lowered so its entrance meets the last exit.
+    std::vector<int> partX;          // first tile column of each section
+    std::vector<Vector2> spawns;     // where you respawn in each section (its checkpoint)
+    std::vector<float> deathY;       // per tile column: fall below this and you're lost
 };
 
 struct Game {

@@ -28,107 +28,140 @@
 namespace {
 constexpr int T = 32, CH_W = 24, CH_H = 16;
 constexpr float PW = 20, PH = 26;
-constexpr float RUN = 340, ACCEL_GROUND = 3400, DECEL_GROUND = 3800, ACCEL_AIR = 2500, DECEL_AIR = 1400;
+// Quick to reach full speed and quick to stop, so the diver goes exactly where the keys say.
+constexpr float RUN = 340, ACCEL_GROUND = 6500, DECEL_GROUND = 7500, ACCEL_AIR = 4200, DECEL_AIR = 2600;
 constexpr float JUMP_V = 720, GRAV_UP = 2100, GRAV_UP_RELEASED = 5400, GRAV_DOWN = 3000, MAX_FALL = 980;
 constexpr float WALL_SLIDE = 150, WALLJUMP_VX = 360, WALLJUMP_VY = 690, WALL_LOCK = 0.13f;
-constexpr float COYOTE = 0.09f, JUMP_BUFFER = 0.12f, STEP = 1.0f / 240; // physics runs at a fixed 240 Hz
+constexpr float COYOTE = 0.1f, JUMP_BUFFER = 0.14f, STEP = 1.0f / 240; // physics runs at a fixed 240 Hz
 constexpr float ZOOM = 0.625f, HUD_PX = 28; // canvas pixels per world pixel; HUD height in canvas pixels
 
 #define E "........................"
+#define W "########################"
+// Where sections join: '<' in the first column marks the row you enter on, '>' in the last column the
+// row you leave on (row 13 if unmarked). Each section is raised or lowered so its '<' meets the
+// previous section's '>', so a level can climb or plunge as it goes.
 const char* START[CH_H] = {
-    "########################", E, E, E, E, E, E, E, E, E, E, E, E,
+    W, E, E, E, E, E, E, E, E, E, E, E, E,
     ".S......................",
-    "########################",
-    "########################",
-};
-const char* END_PIPES[CH_H] = {
-    "########################", E, E, E, E, E, E, E, E, E, E, E, E,
-    "...........E............",
-    "########################",
-    "########################",
+    W,
+    W,
 };
 
-// ---------------------------------------------------------------- the Pipes: pure platforming
-const char* PIPES[][CH_H] = {
-    {   // A: stepping stones - land on single posts across a pit
-        "########################", E, E, E, E, E, E, E, E, E,
-        "..........o.............",
-        "......o...#......o......",
-        "......#..........#......",
-        E,
-        "##....................##",
-        "##....................##",
-    },
-    {   // B: low gears - a full jump hits the gear, so hop just high enough
-        "########################", E, E, E, E, E, E, E, E,
-        "......g.....g.....g.....",
-        E, E,
-        ".....o.....o.....o......",
-        E,
-        "####xxxx##xxxx##xxxx####",
-        "########################",
-    },
-    {   // C: chimney - wall-jump up between the two walls
-        "########################",
-        E,
-        "......#.................",
-        "......#...o.............",
-        "......#...##............",
-        "......#...##............",
-        "......#...##............",
-        "......#...##............",
-        "......#...##............",
-        "......#...##............",
-        "..........##............",
-        "..........##............",
-        "..........##.....o......",
-        "..........##............",
-        "############xxx#########",
-        "########################",
-    },
-    {   // D: timed jets under a low ceiling
-        "########################", E, E, E, E, E, E, E, E, E,
-        "...####################.",
-        E,
-        "........o.......o.......",
-        E,
-        "####t###..#t##..##t#####",
-        "########..####..########",
-    },
-    {   // E: long leaps upward
-        "########################", E, E, E, E,
-        ".................o......",
-        "................###.....",
-        E,
-        "..........o.............",
-        ".........###............",
-        E, E,
-        "...###..................",
-        E,
-        "##....................##",
-        "##....................##",
-    },
-    {   // F: gear corridor - a low jump hits the gear, so jump high
-        "########################", E, E, E, E, E, E, E,
-        "........g......g........",
-        E,
-        "....o......o......o.....",
-        "....##.....##.....##....",
-        E, E,
-        "##xxxxxxxxxxxxxxxxxxxx##",
-        "########################",
-    },
-    {   // G: pillars over steam, with gears between
-        "########################", E, E, E, E, E, E, E, E,
-        "..........g.....g.......",
-        "......o.....o.....o.....",
-        "......##....##....##....",
-        "......##....##....##....",
-        "......##....##....##....",
-        "###xxx##xxxx##xxxx##xx##",
-        "########################",
-    },
-};
+// ---------------------------------------------------------------- the Pipes: inside the ship's ducts
+// Everything around these sections is solid, so you're always crawling through the Nautilus's plumbing.
+// '=' and '|' are pipes you can stand on and jump off.
+const char* START_PIPES[] = {W, W, W, W, W, W, W, W, W, W, W, E, E, ".S.....................>", W, W, nullptr};
+const char* END_PIPES[] = {W, W, W, W, W, W, W, W, W, W, W, E, E, "<..........E............", W, W, nullptr};
+const char* PIPE_RISER[] = { // up a narrow riser: wall-jump the whole way
+    W,
+    "########................",
+    "########................",
+    "########...........o...>",
+    "########...#############",
+    "########...#############",
+    "########...#############",
+    "########...#############",
+    "########.o.#############",
+    "########...#############",
+    "########...#############",
+    "########...#############",
+    "########.o.#############",
+    "########...#############",
+    "########...#############",
+    "...........#############",
+    "...........#############",
+    "<.......xxx#############",
+    W, W, nullptr};
+const char* PIPE_DROP[] = { // down through a steam chamber, pipe to pipe, past a gear
+    W,
+    "..................######",
+    "..................######",
+    "<.................######",
+    "######............######",
+    "######............######",
+    "######...o........######",
+    "######..==........######",
+    "######.....g......######",
+    "######.......o....######",
+    "######......==....######",
+    "######..................",
+    "######..................",
+    "######xxxxxxxxxxxx.....>",
+    W, W, nullptr};
+const char* PIPE_JETS[] = { // a low duct: time your runs between the jets, hop the gaps
+    W, W, W, W, W, W, W, W, W, W, W,
+    E,
+    "........o.......o.......",
+    "<......................>",
+    "####t###..#t##..##t#####",
+    "########..####..########",
+    nullptr};
+const char* PIPE_SHAFT[] = { // a long plunge down a shaft, landing on pipes as you go
+    W,
+    "................########",
+    "................########",
+    "<...............########",
+    "########........########",
+    "########......o.########",
+    "########....====########",
+    "########........########",
+    "########...g....########",
+    "########.o......########",
+    "########====....########",
+    "########........########",
+    "########........########",
+    "########..o.....########",
+    "########....====########",
+    "########................",
+    "########....g...........",
+    "########.......o........",
+    "########====............",
+    "########................",
+    "########................",
+    "########xxxxxxxx.......>",
+    W, W, nullptr};
+const char* PIPE_CRAWL[] = { // a crawlspace two tiles high, with steam holes to hop
+    W, W, W, W, W, W, W, W, W, W, W, W,
+    "......o....o....o.......",
+    "<......................>",
+    "####x###x####xx####x####",
+    W, nullptr};
+const char* PIPE_BOILER[] = { // up the boiler room on staggered pipes, then one long leap under a gear
+    W,
+    "###..................###",
+    "###..................###",
+    "###.....................",
+    "###...............g.....",
+    "###....................>",
+    "###.........===......###",
+    "###..................###",
+    "###.....o............###",
+    "###....===...........###",
+    "###........g.........###",
+    "###..................###",
+    "###.........===......###",
+    "###..................###",
+    "###..................###",
+    ".......===...........###",
+    ".....................###",
+    "<....xxxxxxxxxxxxxxxx###",
+    W, W, nullptr};
+const char* PIPE_TWINS[] = { // climb between two pipes, drop behind a third, dodge the steam below
+    W,
+    "......|.....|...........",
+    "......|.....|...........",
+    "......|.o...|...........",
+    "......|.....|...........",
+    "......|..|..|...........",
+    "......|..|..|...........",
+    "......|..|..|...........",
+    "......|..|..|...........",
+    "......|..|..|...........",
+    ".........|..............",
+    ".........|.....o........",
+    ".........|..............",
+    "<........|xx...........>",
+    W, W, nullptr};
 
 // ---------------------------------------------------------------- the Hull: crabs, eels, urchins, mines
 const char* HULL[][CH_H] = {
@@ -269,19 +302,36 @@ const char* PIRATE_ARENA[CH_H] = {
     "########################",
 };
 #undef E
+#undef W
+
+struct Part { const char* const* rows; int h; };
+Part P(const char* const* rows) { int h = 0; while (rows[h]) h++; return {rows, h}; } // null-terminated
+Part P16(const char* const* rows) { return {rows, CH_H}; }
+int EntryRow(const Part& s) { for (int r = 0; r < s.h; r++) if (s.rows[r][0] == '<') return r; return 13; }
+int ExitRow(const Part& s) { for (int r = 0; r < s.h; r++) if (s.rows[r][CH_W - 1] == '>') return r; return 13; }
 
 struct LevelDef {
     const char* name;
-    const char* const* chunks; // count * CH_H rows
-    int count, perRun;
-    const char* const* last;   // the final section (exit or boss arena)
-    int coinValue, bonus;
+    std::vector<Part> sections;
+    Part first, last;     // the opening section, and the final one (exit or boss arena)
+    int perRun, coinValue, bonus;
+    char fill;            // what's around the sections: solid for the enclosed Pipes, open water or sky otherwise
+    bool dark;            // lit only by the diver's helmet lamp
 };
-const LevelDef LEVELS[PL_COUNT] = {
-    {"The Pipes", &PIPES[0][0], (int)(sizeof(PIPES) / sizeof(PIPES[0])), 6, END_PIPES, 2, 30},
-    {"The Hull", &HULL[0][0], (int)(sizeof(HULL) / sizeof(HULL[0])), 5, HULL_ARENA, 3, 60},
-    {"The Pirate Ship", &PIRATE[0][0], (int)(sizeof(PIRATE) / sizeof(PIRATE[0])), 5, PIRATE_ARENA, 4, 100},
-};
+const LevelDef& Lv(int level) {
+    static const std::vector<LevelDef> defs = [] {
+        std::vector<LevelDef> d(PL_COUNT);
+        d[PL_PIPES] = {"The Pipes", {P(PIPE_RISER), P(PIPE_DROP), P(PIPE_JETS), P(PIPE_SHAFT), P(PIPE_CRAWL), P(PIPE_BOILER), P(PIPE_TWINS)},
+                       P(START_PIPES), P(END_PIPES), 6, 2, 30, '#', true};
+        std::vector<Part> hull, pirate;
+        for (auto& c : HULL) hull.push_back(P16(c));
+        for (auto& c : PIRATE) pirate.push_back(P16(c));
+        d[PL_HULL] = {"The Hull", hull, P16(START), P16(HULL_ARENA), 5, 3, 60, '.', false};
+        d[PL_PIRATE] = {"The Pirate Ship", pirate, P16(START), P16(PIRATE_ARENA), 5, 4, 100, '.', false};
+        return d;
+    }();
+    return defs[level];
+}
 
 float Rnd(float lo, float hi) { return lo + (hi - lo) * GetRandomValue(0, 10000) / 10000.0f; }
 
@@ -295,7 +345,7 @@ bool Solid(const PlatformState& p, int tx, int ty) {
     if (tx < 0 || tx >= p.w) return true; // level edges act as walls
     if (ty < 0 || ty >= p.h) return false;
     char c = p.tiles[ty][tx];
-    return c == '#' || c == 't';
+    return c == '#' || c == 't' || c == '=' || c == '|';
 }
 
 // Moves a box one axis at a time and pushes it out of solid tiles.
@@ -388,7 +438,7 @@ void UpdateEnemies(PlatformState& p, float dt) {
             else e.pos.x = nx;
             e.pos.y = e.home.y + sinf(e.t * 3) * 14;
         } else { // eel: leaps out of the depths, then dives back
-            float cyc = fmodf(e.t, 2.6f), bottom = p.h * T + 40.0f, apex = e.home.y - 3.0f * T;
+            float cyc = fmodf(e.t, 2.6f), bottom = e.home.y + 3.0f * T + 40, apex = e.home.y - 3.0f * T;
             e.pos.y = cyc < 1.2f ? bottom - (bottom - apex) * sinf(PI * cyc / 1.2f) : bottom + 200;
         }
     }
@@ -397,12 +447,13 @@ void UpdateEnemies(PlatformState& p, float dt) {
 // The Kraken: an ancient horror rising from the abyss beneath the arena. Its tentacles strike up from
 // the depths and slam down from above where you stand; then its great head surfaces between the
 // platforms. Stomp its head three times.
-constexpr float KRAKEN_SURFACED_TOP = 11 * T - 10;
+// The arena's row 0 sits at KrakenOrigin(p): everything below is measured from it.
+float KrakenOrigin(const PlatformState& p) { return p.boss.home.y - 14.0f * T; }
 constexpr float TENT_IDLE = -100;
 constexpr float BB_W = 36, BB_H = 72; // Blackbeard is a head taller than anyone
 float KrakenTop(const PlatformState& p) {
     const PlatBoss& b = p.boss;
-    float under = p.h * T + 30.0f;
+    float under = KrakenOrigin(p) + 17.0f * T, KRAKEN_SURFACED_TOP = KrakenOrigin(p) + 11.0f * T - 10;
     switch (b.state) {
         case 1: return under + (KRAKEN_SURFACED_TOP - under) * std::min(1.0f, b.timer / 0.5f);
         case 2: return KRAKEN_SURFACED_TOP + sinf(p.time * 3) * 3;
@@ -421,10 +472,10 @@ float TentacleReach(float tt) { // 0..1 extent of a strike, tt = time since its 
 Rectangle TentacleBox(const PlatformState& p, int i) {
     float r = TentacleReach(p.boss.tentT[i]);
     if (p.boss.tentTop[i]) { // slamming down from the dark above
-        float top = (float)T, bottom = top + (14.0f * T - top) * r;
+        float top = KrakenOrigin(p) + T, bottom = top + (KrakenOrigin(p) + 14.0f * T - top) * r;
         return {p.boss.tentX[i] - 15, top, 30, bottom - top};
     }
-    float bottom = p.h * T + 10.0f, top = bottom + (7.0f * T - bottom) * r;
+    float bottom = KrakenOrigin(p) + 16.0f * T + 10, top = bottom + (KrakenOrigin(p) + 7.0f * T - bottom) * r;
     return {p.boss.tentX[i] - 15, top, 30, bottom - top};
 }
 
@@ -497,19 +548,34 @@ void UpdateBoss(PlatformState& p, float dt) {
 }
 
 // ---------------------------------------------------------------- building a level
-void BuildFromParts(PlatformState& p, const std::vector<const char* const*>& parts) {
-    p.tiles.assign(CH_H, "");
-    for (auto part : parts)
-        for (int r = 0; r < CH_H; r++) {
-            std::string row = part[r];
+// Sections go left to right. Each is raised or lowered so the row you enter on lines up with the row
+// you left the previous one on; whatever the sections don't cover is filled with `fill`.
+void BuildFromParts(PlatformState& p, const std::vector<Part>& parts, char fill) {
+    int n = (int)parts.size();
+    std::vector<int> yoff(n, 0);
+    for (int i = 1; i < n; i++) yoff[i] = yoff[i - 1] + ExitRow(parts[i - 1]) - EntryRow(parts[i]);
+    int top = 0, bottom = 0;
+    for (int i = 0; i < n; i++) { top = std::min(top, yoff[i]); bottom = std::max(bottom, yoff[i] + parts[i].h); }
+    p.w = n * CH_W;
+    p.h = bottom - top;
+    p.tiles.assign(p.h, std::string(p.w, fill));
+    p.partX.clear();
+    p.spawns.clear();
+    p.deathY.assign(p.w, 0);
+    for (int i = 0; i < n; i++) {
+        int ox = i * CH_W, oy = yoff[i] - top;
+        for (int r = 0; r < parts[i].h; r++) {
+            std::string row = parts[i].rows[r];
             if ((int)row.size() != CH_W) {
-                TraceLog(LOG_WARNING, "PLATFORM: section row '%s' is %d wide, expected %d", part[r], (int)row.size(), CH_W);
+                TraceLog(LOG_WARNING, "PLATFORM: section row '%s' is %d wide, expected %d", parts[i].rows[r], (int)row.size(), CH_W);
                 row.resize(CH_W, '.');
             }
-            p.tiles[r] += row;
+            for (int c = 0; c < CH_W; c++) p.tiles[oy + r][ox + c] = (row[c] == '<' || row[c] == '>') ? '.' : row[c];
         }
-    p.w = (int)p.tiles[0].size();
-    p.h = CH_H;
+        p.partX.push_back(ox);
+        p.spawns.push_back({ox * (float)T + 6, (oy + EntryRow(parts[i]) + 1) * (float)T - PH});
+        for (int c = 0; c < CH_W; c++) p.deathY[ox + c] = (oy + parts[i].h) * (float)T + 40;
+    }
     p.enemies.clear();
     p.boss = PlatBoss{};
     for (int r = 0; r < p.h; r++)
@@ -521,31 +587,40 @@ void BuildFromParts(PlatformState& p, const std::vector<const char* const*>& par
                 case 'c': p.enemies.push_back({'c', {x + 3, y + T - 16}, {x, y}, -1, 0}); break;
                 case 'P': p.enemies.push_back({'P', {x + 5, y + T - 30}, {x, y}, -1, 0}); break;
                 case 'p': p.enemies.push_back({'p', {x + 16, y + 16}, {x + 16, y + 16}, 1, 0}); break;
-                case 'e': p.enemies.push_back({'e', {x + 16, p.h * (float)T + 200}, {x + 16, y}, 1, c * 0.37f}); break;
+                case 'e': p.enemies.push_back({'e', {x + 16, y + 400}, {x + 16, y}, 1, c * 0.37f}); break;
                 case 'K': p.boss.type = 'K'; p.boss.home = {x + 16, y + T}; p.boss.tentT[0] = p.boss.tentT[1] = TENT_IDLE; break;
                 case 'B': p.boss.type = 'B'; p.boss.home = p.boss.pos = {x, y + T - BB_H}; break;
                 default: continue;
             }
             ch = '.';
         }
+    p.spawns[0] = p.startPos;
     p.exitOpen = p.boss.type != 'B'; // Blackbeard guards the treasure
     p.pos = p.startPos;
     p.camX = p.pos.x;
+    p.camY = p.pos.y;
 }
 
 void BuildLevel(PlatformState& p, const std::vector<int>& layout) {
-    const LevelDef& L = LEVELS[p.level];
-    std::vector<const char* const*> parts;
-    parts.push_back(START);
-    for (int c : layout) parts.push_back(L.chunks + c * CH_H);
+    const LevelDef& L = Lv(p.level);
+    std::vector<Part> parts{L.first};
+    for (int c : layout) parts.push_back(L.sections[c]);
     parts.push_back(L.last);
-    BuildFromParts(p, parts);
+    BuildFromParts(p, parts, L.fill);
 }
 
-Vector2 SpawnPoint(const PlatformState& p) {
-    if (p.checkpointChunk == 0) return p.startPos;
-    return {p.checkpointChunk * CH_W * (float)T + 6, 14.0f * T - PH};
+int PartAt(const PlatformState& p, float x) {
+    int k = 0;
+    for (int i = 0; i < (int)p.partX.size(); i++) if (x >= p.partX[i] * (float)T) k = i;
+    return k;
 }
+
+float DeathY(const PlatformState& p) {
+    int c = std::clamp((int)((p.pos.x + PW / 2) / T), 0, p.w - 1);
+    return p.deathY.empty() ? p.h * (float)T + 40 : p.deathY[c];
+}
+
+Vector2 SpawnPoint(const PlatformState& p) { return p.spawns.empty() ? p.startPos : p.spawns[std::min(p.checkpointChunk, (int)p.spawns.size() - 1)]; }
 
 void Die(PlatformState& p) {
     if (p.deathTimer > 0 || p.finished) return;
@@ -635,7 +710,7 @@ void StepPlayer(PlatformState& p, float dir, bool jumpHeld) {
                 p.finished = true;
             }
         }
-    if (TouchesHazard(p) || p.pos.y > p.h * T + 40) Die(p);
+    if (TouchesHazard(p) || p.pos.y > DeathY(p)) Die(p);
 }
 
 // ---------------------------------------------------------------- drawing: backgrounds
@@ -653,34 +728,30 @@ void Layer(float cx, float depth, float gap, float cw, F fn) {
 void DrawBackground(const PlatformState& p, float t) {
     float cw = PIXEL_W + 2.0f, ch = PIXEL_H + 2.0f, cx = p.camX * ZOOM;
     switch (p.level) {
-        case PL_PIPES: {
-            DrawRectangleGradientV(0, 0, (int)cw, (int)ch, Color{62, 50, 42, 255}, Color{22, 26, 32, 255});
-            Layer(cx, 0.08f, 60, cw, [&](float x, float wx) { // a far lattice of pipes
-                DrawRectangle((int)x, 30, 3, (int)ch, Color{54, 44, 38, 255});
-                DrawRectangle(0, (int)(60 + Hs(wx) * 240), (int)cw, 2, Color{54, 44, 38, 255});
+        case PL_PIPES: { // the back wall of a cramped duct, close behind you
+            float cyv = p.camY * ZOOM;
+            DrawRectangle(0, 0, (int)cw, (int)ch, Color{22, 20, 20, 255});
+            Layer(cx, 0.5f, 150, cw, [&](float x, float wx) { // big mains running behind the plating
+                DrawRectangle((int)x, 0, 26, (int)ch, Color{48, 40, 34, 255});
+                DrawRectangle((int)x + 4, 0, 5, (int)ch, Color{64, 54, 46, 255});
+                float fy = fmodf(wx * 7 - cyv * 0.5f + 40000, 170.0f);
+                DrawRectangle((int)x - 4, (int)fy, 34, 8, Color{70, 58, 46, 255});
             });
-            DrawRectangle(0, 0, (int)cw, (int)ch, Color{40, 34, 30, 60});
-            Layer(cx, 0.2f, 170, cw, [&](float x, float wx) { // big boilers
-                float r = 40 + Hs(wx) * 30, y = 170 + Hs(wx + 1) * 110;
-                DrawCircleV({x, y}, r, Color{66, 52, 42, 255});
-                DrawCircleV({x - r * 0.3f, y - r * 0.3f}, r * 0.35f, Color{78, 62, 50, 255});
-                for (int k = 0; k < 10; k++) DrawCircleV({x + cosf(k * 0.63f) * r * 0.85f, y + sinf(k * 0.63f) * r * 0.85f}, 1.2f, Color{96, 78, 60, 255});
-            });
-            Layer(cx, 0.35f, 162, cw, [&](float x, float wx) { // columns and cross-pipes with valves and gauges
-                DrawRectangle((int)x, 30, 22, (int)ch, Color{88, 68, 52, 255});
-                DrawRectangle((int)x, 30, 3, (int)ch, Color{112, 88, 66, 255});
-                float y = 100 + Hs(wx) * 190;
-                DrawRectangle((int)x - 60, (int)y, 140, 9, Color{102, 78, 58, 255});
-                DrawCircleV({x + 11, y + 30}, 9, Color{150, 120, 70, 255});
-                DrawCircleV({x + 11, y + 30}, 7, Color{220, 210, 180, 255});
-                DrawLineEx({x + 11, y + 30}, {x + 11 + cosf(t * 2 + wx) * 5, y + 30 + sinf(t * 2 + wx) * 5}, 1, Color{160, 40, 30, 255});
-            });
-            Layer(cx, 0.6f, 230, cw, [&](float x, float wx) { // chains and steam close by
-                for (int k = 0; k < 14; k++) DrawRectangle((int)(x + sinf(t + wx) * k * 0.3f), 30 + k * 9, 3, 6, Color{40, 32, 28, 255});
-                for (int k = 0; k < 3; k++) {
-                    float ph = fmodf(t * 0.4f + k * 0.33f + Hs(wx), 1.0f);
-                    DrawCircleV({x + 40 + sinf(ph * 5) * 6, 330 - ph * 200}, 6 + ph * 12, Fade(Color{220, 220, 214, 255}, 0.18f * (1 - ph)));
+            float ox = fmodf(cx * 0.85f, 40), oy = fmodf(cyv * 0.85f + 40000, 40);
+            for (float y = -oy - 40; y < ch + 40; y += 40)      // riveted plates
+                for (float x = -ox - 40; x < cw + 40; x += 40) {
+                    DrawRectangle((int)x + 1, (int)y + 1, 38, 38, Color{40, 35, 32, 235});
+                    DrawRectangle((int)x + 1, (int)y + 1, 38, 2, Color{54, 47, 42, 255});
+                    for (int k = 0; k < 4; k++) DrawPixel((int)x + 4 + (k % 2) * 31, (int)y + 4 + (k / 2) * 31, Color{80, 68, 58, 255});
                 }
+            for (int k = 0; k < 3; k++) { // pipes across the plating
+                float y = fmodf(k * 130.0f - cyv * 0.85f + 40000, 390.0f) - 20;
+                DrawRectangle(0, (int)y, (int)cw, 9, Color{70, 50, 36, 255});
+                DrawRectangle(0, (int)y + 2, (int)cw, 2, Color{110, 80, 54, 255});
+            }
+            Layer(cx, 0.85f, 70, cw, [&](float x, float wx) { // water dripping from the seams
+                float ph = fmodf(t * 0.7f + Hs(wx) * 5, 1.0f);
+                DrawRectangle((int)x, (int)(ph * ch), 1, 3, Color{120, 150, 160, 160});
             });
         } break;
         case PL_HULL: {
@@ -769,13 +840,22 @@ void DrawSolid(const PlatformState& p, int x, int y) {
     float px = x * (float)T, py = y * (float)T;
     bool topEdge = !Solid(p, x, y - 1);
     switch (p.level) {
-        case PL_PIPES:
-            DrawRectangle((int)px, (int)py, T, T, Color{150, 106, 52, 255});
-            DrawRectangleLines((int)px, (int)py, T, T, Color{104, 72, 36, 255});
-            DrawCircle((int)px + 6, (int)py + 6, 2, Color{226, 186, 116, 255});
-            DrawCircle((int)px + T - 6, (int)py + 6, 2, Color{226, 186, 116, 255});
-            if (topEdge) DrawRectangle((int)px, (int)py, T, 4, Color{208, 160, 92, 255});
-            break;
+        case PL_PIPES: {
+            // the duct walls: dark iron. Deep inside the mass it's plain; at the edges, riveted and rusting.
+            bool inner = Solid(p, x, y - 1) && Solid(p, x, y + 1) && Solid(p, x - 1, y) && Solid(p, x + 1, y);
+            if (inner) {
+                DrawRectangle((int)px, (int)py, T, T, Color{36, 32, 30, 255});
+                if ((x + y) % 3 == 0) DrawRectangle((int)px + 6, (int)py + 6, 2, 2, Color{46, 40, 36, 255});
+                break;
+            }
+            DrawRectangle((int)px, (int)py, T, T, Color{78, 66, 58, 255});
+            DrawRectangleLines((int)px, (int)py, T, T, Color{44, 38, 34, 255});
+            DrawRectangle((int)px + 2, (int)py + 2, T - 4, 3, Color{96, 82, 70, 255});
+            DrawCircle((int)px + 6, (int)py + 8, 2, Color{130, 112, 92, 255});
+            DrawCircle((int)px + T - 6, (int)py + 8, 2, Color{130, 112, 92, 255});
+            if ((x * 5 + y * 3) % 4 == 0) DrawRectangle((int)px + 10 + (x % 3) * 4, (int)py + 10, 2, T - 12, Color{120, 64, 34, 255}); // rust
+            if (topEdge) DrawRectangle((int)px, (int)py, T, 3, Color{140, 120, 100, 255});
+        } break;
         case PL_HULL:
             DrawRectangle((int)px, (int)py, T, T, Color{62, 88, 104, 255});
             DrawRectangleLines((int)px, (int)py, T, T, Color{36, 52, 64, 255});
@@ -800,10 +880,50 @@ void DrawSolid(const PlatformState& p, int x, int y) {
     }
 }
 
+// The environment has depth: every block with open space above or to its right shows a top and a side
+// receding into the scene, and pipes cast a shadow on the wall behind them. Drawn before the faces.
+constexpr float DEPTH = 7;
+void DrawDepth(const PlatformState& p, int x, int y) {
+    char c = p.tiles[y][x];
+    float px = x * (float)T, py = y * (float)T;
+    if (c == '=' || c == '|') {
+        DrawRectangle((int)px + 5, (int)py + 5, T, T, Color{0, 0, 0, 80});
+        return;
+    }
+    if (c != '#' && c != 't') return;
+    Color topC, sideC;
+    switch (p.level) {
+        case PL_PIPES: topC = {112, 96, 82, 255}; sideC = {40, 34, 30, 255}; break;
+        case PL_HULL: topC = {96, 126, 138, 255}; sideC = {34, 50, 60, 255}; break;
+        default: topC = {150, 104, 64, 255}; sideC = {64, 40, 24, 255}; break;
+    }
+    if (!Solid(p, x, y - 1)) {
+        DrawTri({px, py}, {px + T, py}, {px + T + DEPTH, py - DEPTH}, topC);
+        DrawTri({px, py}, {px + T + DEPTH, py - DEPTH}, {px + DEPTH, py - DEPTH}, topC);
+    }
+    if (!Solid(p, x + 1, y)) {
+        DrawTri({px + T, py}, {px + T + DEPTH, py - DEPTH}, {px + T + DEPTH, py + T - DEPTH}, sideC);
+        DrawTri({px + T, py}, {px + T + DEPTH, py + T - DEPTH}, {px + T, py + T}, sideC);
+    }
+}
+
 void DrawTile(const PlatformState& p, char c, int x, int y, float t) {
     float px = x * (float)T, py = y * (float)T;
     switch (c) {
         case '#': DrawSolid(p, x, y); break;
+        case '=': { // a horizontal pipe you can stand on
+            Color pipe = p.level == PL_PIPES ? Color{176, 104, 62, 255} : Color{120, 124, 118, 255};
+            DrawPipeH(px, px + T, py + 16, 14, pipe);
+            if (At(p, x - 1, y) != '=') DrawFlange({px + 3, py + 16}, 12, false, Pal::BrassDk);
+            if (At(p, x + 1, y) != '=') DrawFlange({px + T - 3, py + 16}, 12, false, Pal::BrassDk);
+            if (x % 4 == 0 && At(p, x + 1, y) == '=') DrawCircleV({px + T, py + 4}, 3, Color{220, 60, 40, 255}); // a valve wheel
+        } break;
+        case '|': { // a vertical pipe you can jump off
+            Color pipe = Color{150, 154, 146, 255};
+            DrawPipeV(px + 16, py, py + T, 14, pipe);
+            if (At(p, x, y - 1) != '|') DrawFlange({px + 16, py + 3}, 12, true, Pal::BrassDk);
+            if (At(p, x, y + 1) != '|') DrawFlange({px + 16, py + T - 3}, 12, true, Pal::BrassDk);
+        } break;
         case 'x':
             if (p.level == PL_PIPES) {
                 DrawRectangle((int)px, (int)py + T - 12, T, 12, Color{64, 64, 70, 255});
@@ -898,43 +1018,75 @@ void DrawTile(const PlatformState& p, char c, int x, int y, float t) {
 // ---------------------------------------------------------------- drawing: characters
 // The diver is drawn a little narrower than its collision box, squash-and-stretch never widens it into
 // a wall it's touching, and its position is snapped to the canvas's pixel grid (as the tiles are), so
-// it can never appear to sink into a wall.
-void DrawDiver(const PlatformState& p) {
-    Color suit{64, 196, 190, 255}, suitDk{40, 140, 136, 255}, boot{60, 56, 60, 255};
+// it can never appear to sink into a wall. It leans into its run, its arms swing, and it casts a soft
+// shadow on the wall behind (drawn first, with shadow = true), which sets it apart from the scenery.
+void DrawDiver(const PlatformState& p, bool shadow) {
+    auto C = [&](Color c) { return shadow ? Color{0, 0, 0, 80} : c; };
+    Color suit = C({64, 196, 190, 255}), suitDk = C({40, 140, 136, 255}), suitHi = C({150, 236, 226, 255}), boot = C({60, 56, 60, 255});
+    Color brass = C(Pal::Brass), brassDk = C(Pal::BrassDk), glass = C({30, 70, 90, 255}), glint = C({190, 235, 245, 255});
     int wall = TouchWall(p, 1) ? 1 : TouchWall(p, -1) ? -1 : 0;
     float sx = p.scale.x, feetX = p.pos.x + PW / 2 - wall * 1.5f;
     if (wall) sx = std::min(sx, 0.92f);
-    feetX = roundf(feetX * ZOOM) / ZOOM;
-    float feetY = roundf((p.pos.y + PH) * ZOOM) / ZOOM;
+    feetX = roundf(feetX * ZOOM) / ZOOM + (shadow ? 6 : 0);
+    float feetY = roundf((p.pos.y + PH) * ZOOM) / ZOOM + (shadow ? 5 : 0);
+    float lean = p.onGround ? p.vel.x / RUN * 7 : std::clamp(p.vel.x / RUN * 4, -4.0f, 4.0f);
     rlDrawRenderBatchActive();
     rlDisableBackfaceCulling(); // the mirrored transform flips triangle winding
     rlPushMatrix();
     rlTranslatef(feetX, feetY, 0);
+    rlRotatef(lean, 0, 0, 1);
     rlScalef((p.facingRight ? 1.0f : -1.0f) * sx, p.scale.y, 1);
     bool running = p.onGround && fabsf(p.vel.x) > 30, sliding = p.wallSide != 0;
-    float ph = p.runAnim, l1 = running ? sinf(ph) * 4.5f : 0;
-    if (!p.onGround) { // legs tucked in the air
-        DrawRectangleRec({-7.5f, -11, 6, 7}, suitDk);
-        DrawRectangleRec({2, -12, 6, 7}, suit);
-        DrawRectangleRec({-8.5f, -6, 7, 3}, boot);
-        DrawRectangleRec({1.5f, -7, 7, 3}, boot);
+    float ph = p.runAnim, l1 = running ? sinf(ph) * 4.5f : 0, bob = running ? fabsf(cosf(ph)) * 1.2f : 0;
+    rlTranslatef(0, -bob, 0);
+    if (!p.onGround) { // legs tucked in the air, trailing when falling
+        float trail = p.vel.y > 0 ? 2.0f : 0.0f;
+        DrawRectangleRec({-7.5f, -11 + trail, 6, 7}, suitDk);
+        DrawRectangleRec({2, -12 + trail, 6, 7}, suit);
+        DrawRectangleRec({-8.5f, -6 + trail, 7, 3}, boot);
+        DrawRectangleRec({1.5f, -7 + trail, 7, 3}, boot);
     } else {
         DrawRectangleRec({-7 + l1 * 0.6f, -9, 6, 9 - fmaxf(0, l1 * 0.4f)}, suitDk);
         DrawRectangleRec({1.5f - l1 * 0.6f, -9, 6, 9 - fmaxf(0, -l1 * 0.4f)}, suit);
         DrawRectangleRec({-8.5f + l1 * 0.7f, -3, 8, 3}, boot);
         DrawRectangleRec({0.5f - l1 * 0.7f, -3, 8, 3}, boot);
     }
+    if (!sliding) DrawRectangleRec({-6.5f + l1 * 0.3f, -19, 3.5f, 8}, suitDk); // far arm, swinging opposite
     DrawRectangleRounded({-7.5f, -21, 15, 13}, 0.4f, 4, suit);
-    DrawRectangleRec({-7.5f, -11, 15, 2}, Color{80, 60, 40, 255});
+    if (!shadow) {
+        DrawRectangleRec({-6.5f, -20, 3, 10}, suitHi);          // light catching the near side of the suit
+        DrawRectangleRec({3.5f, -20, 3, 10}, Color{36, 120, 118, 255});
+    }
+    DrawRectangleRec({-7.5f, -11, 15, 2}, C({80, 60, 40, 255}));
     if (sliding) DrawRectangleRec({5, -27, 3.5f, 9}, suitDk); // hand pressed to the wall
     else DrawRectangleRec({3.5f - l1 * 0.3f, -19, 4, 8}, suitDk);
-    DrawCircleV({0.5f, -26}, 8.5f, Pal::Brass);
-    DrawCircleV({-0.5f, -28}, 3, Color{250, 220, 150, 255});
-    DrawCircleV({3.5f, -26}, 4.6f, Color{30, 70, 90, 255});
-    DrawCircleV({2.5f, -28}, 1.8f, Color{190, 235, 245, 255});
+    DrawCircleV({0.5f, -26}, 8.5f, brass);
+    if (!shadow) {
+        DrawCircleSector({0.5f, -26}, 8.5f, 20, 160, 10, Color{150, 110, 40, 255}); // the helmet's shaded underside
+        DrawCircleV({-2.5f, -29.5f}, 2.5f, Color{255, 236, 170, 255});           // polished highlight
+    }
+    DrawCircleV({3.5f, -26}, 4.6f, brassDk);
+    DrawCircleV({3.8f, -26}, 3.6f, glass);
+    DrawCircleV({2.6f, -27.5f}, 1.4f, glint);
     rlPopMatrix();
     rlDrawRenderBatchActive();
     rlEnableBackfaceCulling();
+}
+
+// In the dark ducts, some things still shine: live steam jets, vents, the exit valve, coins catching the lamp.
+void DrawGlowingBits(const PlatformState& p, int c0, int c1, int r0, int r1, float t) {
+    BeginBlendMode(BLEND_ADDITIVE);
+    for (int y = r0; y <= r1; y++)
+        for (int x = c0; x <= c1; x++) {
+            char c = p.tiles[y][x];
+            Vector2 m{x * (float)T + 16, y * (float)T + 16};
+            if (c == 't' && JetOn(p, x)) for (int k = 1; k <= 3; k++) DrawCircleV({m.x, m.y - k * T}, 18, Color{120, 110, 90, 60});
+            else if (c == 'x') DrawCircleV({m.x, m.y + 8}, 16, Color{140, 70, 30, (unsigned char)(50 + 30 * sinf(t * 3 + x))});
+            else if (c == 'E') DrawCircleV({m.x, m.y - 10}, 34, Color{255, 120, 80, 90});
+            else if (c == 'o') DrawCircleV(m, 10, Color{120, 100, 30, 110});
+            else if (c == 'g') DrawCircleV(m, 16, Color{90, 70, 30, 60});
+        }
+    EndBlendMode();
 }
 
 void DrawEnemy(const PlatEnemy& e, float t) {
@@ -1011,11 +1163,11 @@ void DrawBossBack(const PlatformState& p, float t) {
     if (b.type != 'K') return;
     float arenaX = (p.w - CH_W) * (float)T;
     float sink = b.defeated && b.state == 4 ? std::min(1.0f, b.timer / 3.0f) * 300 : 0;
-    Vector2 body{arenaX + 13 * T, 17.5f * T + sink};
+    Vector2 body{arenaX + 13 * T, KrakenOrigin(p) + 17.5f * T + sink};
     Color deep{52, 22, 64, 255}, deeper{36, 16, 46, 255};
     for (int k = 0; k < 7; k++) { // great arms curling up behind the platforms
         float bx = body.x - 300 + k * 100, sw = sinf(t * 0.6f + k) * 60;
-        DrawTentacle({bx, body.y}, {bx + sw, 3.0f * T + (k % 3) * 40 + sink}, 22, t * 0.4f, k * 1.7f, deeper);
+        DrawTentacle({bx, body.y}, {bx + sw, KrakenOrigin(p) + 3.0f * T + (k % 3) * 40 + sink}, 22, t * 0.4f, k * 1.7f, deeper);
     }
     DrawEllipse((int)body.x, (int)body.y, 300, 170, deep); // the mantle, rising from the dark
     DrawEllipse((int)(body.x - 80), (int)(body.y - 90), 90, 40, Color{70, 32, 84, 255});
@@ -1037,17 +1189,17 @@ void DrawBoss(const PlatformState& p, float t) {
             if (b.tentT[i] < 0.75f) { // warning: churning water below, or a shadow falling from above
                 if (b.tentTop[i]) {
                     float a = 0.3f + 0.5f * b.tentT[i] / 0.75f;
-                    DrawRectangle((int)(b.tentX[i] - 16), T, 32, 13 * T, Fade(Color{20, 0, 30, 255}, a * 0.35f));
-                    for (int k = 0; k < 3; k++) DrawCircle((int)(b.tentX[i] + Rnd(-14, 14)), (int)(T + Rnd(0, 40)), 3, Fade(Color{200, 120, 220, 255}, a));
+                    DrawRectangle((int)(b.tentX[i] - 16), (int)KrakenOrigin(p) + T, 32, 13 * T, Fade(Color{20, 0, 30, 255}, a * 0.35f));
+                    for (int k = 0; k < 3; k++) DrawCircle((int)(b.tentX[i] + Rnd(-14, 14)), (int)(KrakenOrigin(p) + T + Rnd(0, 40)), 3, Fade(Color{200, 120, 220, 255}, a));
                 } else {
-                    float surface = p.h * T - 6.0f;
+                    float surface = KrakenOrigin(p) + 16.0f * T - 6;
                     for (int k = 0; k < 5; k++)
                         DrawCircle((int)(b.tentX[i] + Rnd(-14, 14)), (int)(surface - Rnd(0, 30) * b.tentT[i]), 3, Fade(Color{200, 120, 220, 255}, 0.8f));
                 }
                 continue;
             }
             Rectangle r = TentacleBox(p, i);
-            Vector2 base = b.tentTop[i] ? Vector2{b.tentX[i], 0} : Vector2{b.tentX[i], (float)p.h * T + 30};
+            Vector2 base = b.tentTop[i] ? Vector2{b.tentX[i], KrakenOrigin(p)} : Vector2{b.tentX[i], KrakenOrigin(p) + 16.0f * T + 30};
             Vector2 tip = b.tentTop[i] ? Vector2{b.tentX[i], r.y + r.height} : Vector2{b.tentX[i], r.y};
             DrawTentacle(base, tip, 16, t * 2, i * 3.0f, arm);
         }
@@ -1108,14 +1260,15 @@ void DrawBoss(const PlatformState& p, float t) {
 }  // namespace
 
 // ============================================================ public
-const char* PlatLevelName(int level) { return LEVELS[level].name; }
+const char* PlatLevelName(int level) { return Lv(level).name; }
 
 void GeneratePlatLayout(Game& g, int level) {
-    const LevelDef& L = LEVELS[level];
+    const LevelDef& L = Lv(level);
+    int count = (int)L.sections.size();
     std::vector<int> idx;
-    for (int i = 0; i < L.count; i++) idx.push_back(i);
+    for (int i = 0; i < count; i++) idx.push_back(i);
     for (int i = (int)idx.size() - 1; i > 0; i--) std::swap(idx[i], idx[GetRandomValue(0, i)]);
-    idx.resize(std::min(L.perRun, L.count));
+    idx.resize(std::min(L.perRun, count));
     g.platLayouts[level] = idx;
 }
 
@@ -1127,13 +1280,23 @@ std::string PlatLayoutCode(const Game& g, int level) {
 
 void StartPlatform(Game& g, int level) {
     bool bad = g.platLayouts[level].empty();
-    for (int c : g.platLayouts[level]) bad |= c < 0 || c >= LEVELS[level].count; // e.g. an old save
+    for (int c : g.platLayouts[level]) bad |= c < 0 || c >= (int)Lv(level).sections.size(); // e.g. an old save
     if (bad) GeneratePlatLayout(g, level);
     g.plat = PlatformState{};
     g.plat.level = level;
     g.plat.layoutCode = PlatLayoutCode(g, level);
     BuildLevel(g.plat, g.platLayouts[level]);
     g.scene = Scene::Platformer;
+}
+
+// The darkness of the ducts, drawn in bands (it suits the pixel art) around the diver's helmet lamp.
+static void DrawLampDarkness(Vector2 c, float r, float maxA) {
+    const int B = 6;
+    for (int i = 0; i < B; i++) {
+        float r0 = r * (0.4f + 0.6f * i / B), r1 = r * (0.4f + 0.6f * (i + 1) / B);
+        DrawRing(c, r0, r1, 0, 360, 48, Fade(BLACK, maxA * (i + 1) / (B + 1)));
+    }
+    DrawRing(c, r, 1600, 0, 360, 64, Fade(BLACK, maxA));
 }
 
 void ScenePlatformer(Game& g) {
@@ -1171,16 +1334,14 @@ void ScenePlatformer(Game& g) {
                 p.accumulator -= STEP;
                 StepPlayer(p, dir, jumpHeld);
             }
-            int chunk = (int)((p.pos.x + PW / 2) / (CH_W * T));
-            if (p.onGround && chunk > p.checkpointChunk) {
-                p.checkpointChunk = chunk;
+            int part = PartAt(p, p.pos.x + PW / 2);
+            if (p.onGround && part > p.checkpointChunk) {
+                p.checkpointChunk = part;
                 Burst(p, {p.pos.x + PW / 2, p.pos.y}, 12, Pal::Good, 140, 0.5f, 2);
             }
         }
         UpdateEnemies(p, dt);
-        Vector2 prevBossPos = p.boss.pos;
         UpdateBoss(p, dt);
-        (void)prevBossPos;
 
         // touching an enemy is deadly; only a boss can be stomped
         if (p.deathTimer <= 0 && !p.finished) {
@@ -1234,7 +1395,7 @@ void ScenePlatformer(Game& g) {
         }
 
         if (p.finished) {
-            const LevelDef& L = LEVELS[p.level];
+            const LevelDef& L = Lv(p.level);
             p.reward = p.coins * L.coinValue + L.bonus;
             if (p.level == PL_PIRATE) p.relic = GetRandomValue(0, (int)Relics().size() - 1);
             g.gold += p.reward;
@@ -1252,48 +1413,61 @@ void ScenePlatformer(Game& g) {
     }
     p.particles.erase(std::remove_if(p.particles.begin(), p.particles.end(), [](const PlatParticle& q) { return q.life <= 0; }), p.particles.end());
 
-    // camera: follows smoothly, leading in the direction you're moving
-    float levelW = (float)p.w * T, halfView = PIXEL_W / 2.0f / ZOOM;
-    float lead = (p.facingRight ? 60.0f : -60.0f) + p.vel.x * 0.12f;
-    p.camX += (p.pos.x + PW / 2 + lead - p.camX) * std::min(1.0f, dt * 5);
-    p.camX = std::clamp(p.camX, halfView, levelW - halfView);
+    // camera: locked to the diver on both axes (no easing), stopping only at the level's edges
+    const float viewW = PIXEL_W / ZOOM, viewH = (PIXEL_H - HUD_PX) / ZOOM;
+    float levelW = (float)p.w * T, levelH = (float)p.h * T;
+    p.camX = std::clamp(p.pos.x + PW / 2, viewW / 2, std::max(viewW / 2, levelW - viewW / 2));
+    p.camY = levelH <= viewH ? levelH / 2 : std::clamp(p.pos.y + PH / 2, viewH / 2, levelH - viewH / 2);
 
     // ---------------- draw
     // The platform levels are deliberately retro: the world is drawn at half resolution onto a small
-    // canvas, then scaled up without smoothing. The canvas has a pixel of margin, and the fraction of a
-    // pixel the camera has moved is applied when scaling up, so scrolling stays smooth.
+    // canvas, then scaled up without smoothing. The camera is snapped to whole canvas pixels (as the
+    // diver is), and the leftover fraction is applied when scaling up, so scrolling stays smooth.
     float t = g.time;
     SetPost(0.2f, 0.0f, 0.15f);
     const float PX = (float)SCREEN_W / PIXEL_W;
-    float camC = p.camX * ZOOM, snapped = floorf(camC), frac = camC - snapped;
+    float cx = p.camX * ZOOM, cy = p.camY * ZOOM, sx = floorf(cx), sy = floorf(cy);
     BeginLayer(PixelRT());
     DrawBackground(p, t);
     Camera2D cam{};
     cam.zoom = ZOOM;
-    cam.offset = {(PIXEL_W + 2) / 2.0f, 1 + HUD_PX};
-    cam.target = {snapped / ZOOM, 0};
+    cam.offset = {(PIXEL_W + 2) / 2.0f, 1 + HUD_PX + (PIXEL_H - HUD_PX) / 2.0f};
+    cam.target = {sx / ZOOM, sy / ZOOM};
     BeginMode2D(cam);
     DrawBossBack(p, t);
-    int c0 = std::max(0, (int)((p.camX - halfView) / T) - 2), c1 = std::min(p.w - 1, (int)((p.camX + halfView) / T) + 2);
-    for (int y = 0; y < p.h; y++)
+    int c0 = std::max(0, (int)((p.camX - viewW / 2) / T) - 2), c1 = std::min(p.w - 1, (int)((p.camX + viewW / 2) / T) + 2);
+    int r0 = std::max(0, (int)((p.camY - viewH / 2) / T) - 2), r1 = std::min(p.h - 1, (int)((p.camY + viewH / 2) / T) + 2);
+    for (int y = r0; y <= r1; y++) // first the sides and tops of blocks, which recede into the scene...
+        for (int x = c0; x <= c1; x++) DrawDepth(p, x, y);
+    for (int y = r0; y <= r1; y++) // ...then their faces and everything else
         for (int x = c0; x <= c1; x++) DrawTile(p, p.tiles[y][x], x, y, t);
     DrawBoss(p, t);
     for (auto& e : p.enemies) DrawEnemy(e, t);
     for (auto& pt : p.particles) DrawRectangle((int)pt.p.x, (int)pt.p.y, (int)pt.size, (int)pt.size, Fade(pt.c, std::min(1.0f, pt.life / pt.max * 1.5f)));
-    if (p.deathTimer <= 0) DrawDiver(p);
+    if (p.deathTimer <= 0) {
+        DrawDiver(p, true); // its shadow on the wall behind
+        DrawDiver(p, false);
+    }
     EndMode2D();
+    if (Lv(p.level).dark) {
+        Vector2 lamp = GetWorldToScreen2D({p.pos.x + PW / 2 + (p.facingRight ? 14.0f : -14.0f), p.pos.y + 6}, cam);
+        DrawLampDarkness(lamp, 150, 0.82f);
+        BeginMode2D(cam); // things that glow in the dark: steam jets, gears' rims, the valve, warning lamps
+        DrawGlowingBits(p, c0, c1, r0, r1, t);
+        EndMode2D();
+    }
     EndLayer();
     DrawTexturePro(PixelRT().texture, {0, 0, PIXEL_W + 2.0f, -(PIXEL_H + 2.0f)},
-                   {-PX - frac * PX, -PX, (PIXEL_W + 2) * PX, (PIXEL_H + 2) * PX}, {0, 0}, 0, WHITE);
+                   {-PX - (cx - sx) * PX, -PX - (cy - sy) * PX, (PIXEL_W + 2) * PX, (PIXEL_H + 2) * PX}, {0, 0}, 0, WHITE);
     if (p.deathTimer > 0) DrawRectangle(0, 0, SCREEN_W, SCREEN_H, Fade(Pal::Bad, p.deathTimer * 0.5f));
 
     // ---------------- HUD
     DrawRectangle(0, 0, SCREEN_W, 56, Color{16, 30, 40, 235});
     DrawRectangle(0, 56, SCREEN_W, 3, Pal::BrassDk);
-    TxtShadow(TextFormat("%s   %s", LEVELS[p.level].name, p.layoutCode.c_str()), 20, 15, 22, Pal::Brass, true);
+    TxtShadow(TextFormat("%s   %s", Lv(p.level).name, p.layoutCode.c_str()), 20, 15, 22, Pal::Brass, true);
     DrawCircle(440, 28, 10, Color{250, 210, 70, 255});
     Txt(TextFormat("x %d", p.coins), 458, 16, 22, Pal::Paper);
-    int sections = (int)g.platLayouts[p.level].size() + 2;
+    int sections = (int)p.partX.size();
     Txt(TextFormat("Checkpoint %d/%d", std::min(p.checkpointChunk + 1, sections), sections), 530, 18, 19, Pal::Paper);
     Txt(TextFormat("Deaths %d", p.deaths), 720, 18, 19, Pal::Paper);
     Txt(TextFormat("%.1fs", p.time), 840, 18, 19, Pal::Paper);
@@ -1307,7 +1481,7 @@ void ScenePlatformer(Game& g) {
     if (p.finished) {
         Rectangle panel{380, 190, 520, 300};
         Panel(panel);
-        const LevelDef& L = LEVELS[p.level];
+        const LevelDef& L = Lv(p.level);
         DrawTextCenteredBold(p.level == PL_PIPES ? "Valve reached!" : p.level == PL_HULL ? "Back inside!" : "Treasure claimed!", panel.x + panel.width / 2, panel.y + 24, 34, Pal::Good);
         DrawTextCentered(TextFormat("%d coins x %d  +  %d bonus  =  %d gold", p.coins, L.coinValue, L.bonus, p.reward), panel.x + panel.width / 2, panel.y + 88, 21, Pal::Ink);
         DrawTextCentered(TextFormat("Time %.1fs  (best %.1fs)    Deaths %d", p.time, g.platBest[p.level], p.deaths), panel.x + panel.width / 2, panel.y + 124, 19, Pal::BrassDk);
@@ -1399,18 +1573,19 @@ bool Crossable(PlatformState& p, float goalX, bool jets, long& expanded) {
 int VerifyPlatformLevels() {
     int failures = 0;
     for (int lv = 0; lv < PL_COUNT; lv++) {
-        const LevelDef& L = LEVELS[lv];
-        for (int c = 0; c <= L.count; c++) {
-            bool last = c == L.count;
+        const LevelDef& L = Lv(lv);
+        int count = (int)L.sections.size();
+        for (int c = 0; c <= count; c++) {
+            bool last = c == count;
             if (last && lv == PL_PIPES) continue; // the Pipes end on a flat section
             PlatformState p;
             p.level = lv;
-            BuildFromParts(p, {START, last ? L.last : L.chunks + c * CH_H, END_PIPES});
+            BuildFromParts(p, {L.first, last ? L.last : L.sections[c], P(END_PIPES)}, L.fill);
             bool jets = false;
             for (auto& row : p.tiles) jets |= row.find('t') != std::string::npos;
             p.exitOpen = false;
             long n = 0;
-            bool ok = Crossable(p, 2.0f * CH_W * T + 8, jets, n);
+            bool ok = Crossable(p, p.partX[2] * (float)T + 8, jets, n);
             failures += !ok;
             printf("%-16s section %c: %s  (%ld states searched)\n", L.name, last ? '*' : 'A' + c, ok ? "crossable" : "NOT CROSSABLE", n);
             fflush(stdout);

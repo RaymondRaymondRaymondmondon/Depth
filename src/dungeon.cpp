@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <unordered_map>
 
 static int Roll(int lo, int hi) { return GetRandomValue(lo, hi); }
 static bool Chance(int pct) { return GetRandomValue(1, 100) <= pct; }
@@ -610,7 +611,9 @@ static std::vector<Vector2> CrystalSpots(const Game& g) {
 static void DrawCaveLayers(Game& g) {
     float t = g.time;
     // 1. the far water, with bioluminescent haze drifting in it
-    DrawVGradient({0, 0, (float)SCREEN_W, (float)SCREEN_H}, Color{30, 78, 94, 255}, Color{6, 20, 30, 255});
+    float deep = CAVE_TIER_LEVEL[g.dungeon.tier] / 6.0f; // deeper levels: darker water, more bones, more glowing things
+    DrawVGradient({0, 0, (float)SCREEN_W, (float)SCREEN_H}, Color{(unsigned char)(30 - 16 * deep), (unsigned char)(78 - 40 * deep), (unsigned char)(94 - 40 * deep), 255},
+                  Color{6, 20, 30, 255});
     Repeat(LayerOffset(g, 0.04f), 520, [&](float sx, float wx) {
         DrawCircleGradient((int)(sx + Hash1(wx) * 200), (int)(160 + Hash1(wx + 1) * 200), 160, Color{60, 140, 150, 50}, Color{60, 140, 150, 0});
     });
@@ -625,6 +628,14 @@ static void DrawCaveLayers(Game& g) {
     DrawRidge(LayerOffset(g, 0.12f), 318, 70, 3, false, Color{16, 44, 56, 255}, 70);
     DrawRidge(LayerOffset(g, 0.2f), 372, 50, 11, false, Color{19, 48, 60, 255}, 40);
     DrawRectangle(0, 0, SCREEN_W, SCREEN_H, Color{30, 70, 84, 40}); // fog between layers
+    Repeat(LayerOffset(g, 0.16f), 900, [&](float sx, float wx) { // schools of fish drifting past
+        float dir = Hash1(wx) > 0.5f ? 1.0f : -1.0f, cx = sx + fmodf(t * 14 * dir + 9000, 900.0f) - 450, cy = 150 + Hash1(wx + 1) * 170;
+        for (int f = 0; f < 16; f++) {
+            float fx = cx + (Hash1(wx + f) - 0.5f) * 140 + sinf(t * 1.4f + f) * 4, fy = cy + (Hash1(wx + f + 30) - 0.5f) * 50 + cosf(t + f) * 3;
+            DrawEllipse((int)fx, (int)fy, 6, 2, Color{70, 120, 130, 255});
+            DrawTri({fx - dir * 5, fy}, {fx - dir * 10, fy - 3}, {fx - dir * 10, fy + 3}, Color{70, 120, 130, 255});
+        }
+    });
     // 3. distant rock columns rising from floor to ceiling
     Repeat(LayerOffset(g, 0.3f), 430, [&](float sx, float wx) {
         float x = sx + Hash1(wx) * 160, wTop = 60 + Hash1(wx + 2) * 40, wMid = 26 + Hash1(wx + 4) * 16, wBot = 80 + Hash1(wx + 5) * 40;
@@ -635,7 +646,34 @@ static void DrawCaveLayers(Game& g) {
         DrawTri({x - wMid, 260}, {x + wBot, 470}, {x - wBot, 470}, c);
         DrawTri({x + wMid * 0.2f, 60}, {x + wMid * 0.6f, 60}, {x + wMid * 0.5f, 440}, Color{40, 80, 92, 255}); // a lit seam
     });
+    Repeat(LayerOffset(g, 0.34f), 2300, [&](float sx, float wx) { // a shipwreck settling into the silt
+        float x = sx + Hash1(wx) * 600, base = 450;
+        Color wreck{22, 48, 56, 255};
+        for (int k = 0; k < 7; k++) { // the ribs of its hull
+            float rx = x + k * 38, h = 150 - fabsf(k - 3.0f) * 18;
+            DrawRing({rx, base}, h - 6, h, 200, 260 + k * 3.0f, 12, wreck);
+        }
+        DrawLineEx({x + 110, base - 20}, {x + 170, base - 260}, 8, wreck);            // the broken mast, leaning
+        DrawLineEx({x + 150, base - 180}, {x + 230, base - 170}, 4, wreck);
+        DrawRectangle((int)x - 20, (int)base - 30, 300, 30, wreck);
+    });
     DrawRectangle(0, 0, SCREEN_W, SCREEN_H, Color{30, 70, 84, 30});
+    BeginBlendMode(BLEND_ADDITIVE);
+    Repeat(LayerOffset(g, 0.38f), 520 - 180 * deep, [&](float sx, float wx) { // jellyfish, glowing faintly
+        float x = sx + Hash1(wx) * 200, y = 140 + Hash1(wx + 2) * 180 + sinf(t * 0.6f + wx) * 18, pulse = 0.85f + 0.15f * sinf(t * 2.2f + wx);
+        Color glow{120, 200, 230, 70};
+        DrawCircleGradient((int)x, (int)y, 30, glow, Fade(glow, 0));
+        DrawCircleSector({x, y}, 13 * pulse, 180, 360, 16, Color{150, 220, 240, 90});
+        for (int k = 0; k < 5; k++) {
+            Vector2 prev{x - 10 + k * 5.0f, y};
+            for (int s2 = 1; s2 <= 6; s2++) {
+                Vector2 q{prev.x + sinf(t * 2 + k + s2) * 1.5f, y + s2 * 7.0f};
+                DrawLineEx(prev, q, 1.2f, Color{150, 220, 240, 70});
+                prev = q;
+            }
+        }
+    });
+    EndBlendMode();
     // 4. the ceiling's stalactites, stalagmites and swaying kelp
     float off4 = LayerOffset(g, 0.45f);
     DrawRidge(off4, 70, 40, 5, true, Color{14, 30, 38, 255}, 130);
@@ -667,6 +705,22 @@ static void DrawCaveLayers(Game& g) {
         }
         DrawEllipse((int)c.x, (int)c.y + 2, 20, 5, Color{40, 60, 64, 255});
     }
+    Repeat(LayerOffset(g, 0.6f), 1500, [&](float sx, float wx) { // an old anchor on a chain, hanging from above
+        float x = sx + Hash1(wx + 5) * 400, sway = sinf(t * 0.5f + wx) * 6;
+        for (int k = 0; k < 20; k++) DrawRing({x + sway * k / 20, 60 + k * 11.0f}, 3, 5, 0, 360, 8, Color{40, 46, 48, 255});
+        Vector2 a{x + sway, 290};
+        DrawLineEx(a, {a.x, a.y + 70}, 6, Color{44, 50, 52, 255});
+        DrawRing({a.x, a.y + 50}, 26, 32, 20, 160, 16, Color{44, 50, 52, 255});
+        DrawLineEx({a.x - 16, a.y + 12}, {a.x + 16, a.y + 12}, 5, Color{44, 50, 52, 255});
+    });
+    Repeat(LayerOffset(g, 0.7f), 700 - 300 * deep, [&](float sx, float wx) { // bones of things that came before
+        float x = sx + Hash1(wx + 9) * 250, y = 450;
+        Color bone{176, 172, 150, 255};
+        for (int k = 0; k < 5; k++) DrawRing({x + k * 10.0f, y}, 12 - k * 1.2f, 14 - k * 1.2f, 180, 330, 8, bone); // a ribcage
+        DrawCircleV({x - 16, y - 6}, 8, bone);                                       // a skull
+        DrawCircleV({x - 19, y - 7}, 2.2f, Color{30, 30, 30, 255});
+        DrawCircleV({x - 14, y - 7}, 2.2f, Color{30, 30, 30, 255});
+    });
     // 6. the cave floor, with a wet lip and puddles
     float off6 = LayerOffset(g, 1.0f);
     DrawTiled(Tex::Rock, {0, 450, (float)SCREEN_W, 270}, 1.4f, Color{96, 110, 112, 255}, {-off6 / 1.4f, 0});
@@ -677,6 +731,14 @@ static void DrawCaveLayers(Game& g) {
         float px = sx + Hash1(wx) * 200, py = 505 + Hash1(wx + 1) * 80, w = 50 + Hash1(wx + 2) * 40;
         DrawEllipse((int)px, (int)py, w, 10, Color{40, 80, 90, 200});
         DrawEllipse((int)px - 10, (int)py - 2, w * 0.55f, 4, Color{110, 170, 180, 90});
+    });
+    Repeat(off6, 610, [&](float sx, float wx) { // vents in the floor, trickling bubbles
+        float vx = sx + Hash1(wx + 4) * 300, vy = 470 + Hash1(wx + 6) * 30;
+        DrawEllipse((int)vx, (int)vy, 10, 3, Color{30, 40, 44, 255});
+        for (int k = 0; k < 6; k++) {
+            float ph = fmodf(t * 0.5f + k / 6.0f + Hash1(wx), 1.0f);
+            DrawCircleLines((int)(vx + sinf(ph * 9 + k) * 5), (int)(vy - ph * 420), 2 + (k % 2), Color{200, 235, 245, (unsigned char)(160 * (1 - ph))});
+        }
     });
 }
 
@@ -700,66 +762,114 @@ static void DrawCaveForeground(Game& g) {
     });
 }
 
+// The creatures of the cave, built from lit forms like the crew, with jointed legs, plates and claws.
 static void DrawEnemyFigure(const Enemy& e, Rectangle r, float t) {
     float cx = r.x + r.width / 2, by = r.y + r.height, bob = sinf(t * 2.5f + e.uid) * 3;
+    auto legPair = [&](Vector2 hip, float reach, float kneeUp, float step, float w, Color col) {
+        Vector2 knee{hip.x - reach * 0.45f, hip.y - kneeUp}, foot{hip.x - reach + step, by - 1};
+        ShadeLimb(hip, knee, w, w * 0.8f, col);
+        ShadeLimb(knee, foot, w * 0.8f, w * 0.5f, col);
+    };
     switch (e.type) {
-        case EnemyType::SeaLouse: { // a segmented isopod, head toward the crew
-            Color c{160, 140, 182, 255}, leg{96, 82, 116, 255};
-            float cy = by - 30 + bob;
-            for (int k = 0; k < 4; k++) {
-                float lx = cx - 26 + k * 17.0f;
-                ShadeLimb({lx, cy + 4}, {lx - 8 + sinf(t * 7 + k) * 2, by - 2}, 2.8f, 1.8f, leg);
+        case EnemyType::SeaLouse: { // a giant isopod: overlapping armoured plates on seven pairs of legs
+            Color shell{150, 132, 170, 255}, seam{92, 78, 110, 255}, leg{104, 90, 124, 255};
+            float cy = by - 30 + bob * 0.5f;
+            for (int k = 0; k < 7; k++) legPair({cx - 26 + k * 9.0f, cy + 6}, 10, 4, sinf(t * 7 + k * 0.9f) * 3, 2.4f, leg);
+            DrawTri({cx + 34, cy + 4}, {cx + 50, cy - 4}, {cx + 48, cy + 12}, seam);  // tail fan
+            DrawTri({cx + 34, cy + 6}, {cx + 48, cy + 14}, {cx + 38, cy + 16}, seam);
+            for (int k = 0; k < 8; k++) { // plates from tail to head, each overlapping the next
+                float x = cx + 32 - k * 9.0f, rad = 13 + sinf((k + 0.5f) / 8 * PI) * 7;
+                ShadeBall({x, cy + 2}, rad, shell);
+                DrawRing({x + 1, cy + 2}, rad - 1.5f, rad, 200, 340, 10, seam);
             }
-            ShadeLimb({cx - 32, cy - 8}, {cx - 58, cy - 34}, 2.2f, 1.4f, leg);
-            ShadeLimb({cx - 30, cy - 11}, {cx - 48, cy - 42}, 2.0f, 1.4f, leg);
-            for (int k = 4; k >= 0; k--) ShadeBall({cx + 26 - k * 13.0f, cy - 2 + (k == 0 || k == 4 ? 4 : 0)}, 17.0f - abs(k - 2) * 2, c);
-            ShadeLimb({cx + 30, cy + 4}, {cx + 44, cy + 10}, 4, 2, c);
-            DrawCircleV({cx - 30, cy - 4}, 3.5f, Pal::Ink);
-            DrawCircleV({cx - 31, cy - 5}, 1.2f, Color{230, 230, 220, 255});
+            ShadeBall({cx - 40, cy + 4}, 11, shell);                                    // head
+            DrawEllipse((int)(cx - 44), (int)cy + 1, 5, 4, Color{30, 24, 36, 255});   // compound eye
+            DrawCircleV({cx - 45.5f, cy - 0.5f}, 1.4f, Color{200, 210, 230, 255});
+            ShadeLimb({cx - 46, cy - 2}, {cx - 64, cy - 26}, 2.0f, 1.3f, leg);           // antennae
+            ShadeLimb({cx - 44, cy - 4}, {cx - 56, cy - 34}, 1.8f, 1.2f, leg);
         } break;
-        case EnemyType::CaveShrimp: {
-            Color c{232, 128, 112, 255}, dk{190, 90, 82, 255};
-            float cy = by - 52 + bob;
-            for (int k = 0; k < 3; k++) ShadeLimb({cx - 14 + k * 16.0f, cy + 8}, {cx - 22 + k * 16.0f, by - 1}, 2.6f, 1.8f, dk);
-            DrawTri({cx + 30, cy + 16}, {cx + 48, cy + 36}, {cx + 20, cy + 36}, dk);
-            const float seg[5][3] = {{28, 10, 10}, {20, -2, 12}, {8, -12, 14}, {-8, -16, 16}, {-24, -12, 17}};
-            for (auto& s : seg) ShadeBall({cx + s[0], cy + s[1]}, s[2], c);
-            ShadeLimb({cx - 34, cy - 26}, {cx - 70, cy - 58}, 2.0f, 1.4f, c);
-            ShadeLimb({cx - 22, cy - 2}, {cx - 38, cy + 6}, 5, 4, c);
-            ShadeBall({cx - 48, cy + 6}, 14, Color{214, 96, 86, 255});
-            ShadeBall({cx - 60, cy + 1}, 7, Color{236, 160, 140, 255});
-            DrawCircleV({cx - 32, cy - 22}, 4, Pal::Ink);
-            DrawCircleV({cx - 33, cy - 23}, 1.3f, Color{230, 230, 220, 255});
-        } break;
-        case EnemyType::BrineWorm: {
-            for (int k = 0; k <= 5; k++) {
-                float x = cx + sinf(t * 2 + k * 0.8f) * 10 - k * 2;
-                float y = by - 14 - k * 18.0f + bob * 0.5f;
-                ShadeBall({x, y}, 18 - k * 1.5f, k % 2 ? Color{106, 170, 86, 255} : Color{88, 150, 72, 255});
-                if (k == 5) {
-                    DrawCircleV({x - 8, y + 2}, 6, Color{40, 56, 30, 255});
-                    DrawCircleV({x - 2, y - 6}, 3, Pal::Ink);
-                }
+        case EnemyType::CaveShrimp: { // a pistol shrimp: curled abdomen, fan tail, and the snapping claw
+            Color c{226, 120, 104, 255}, dk{170, 78, 70, 255}, lt{246, 178, 156, 255};
+            float cy = by - 50 + bob;
+            for (int k = 0; k < 3; k++) legPair({cx - 12 + k * 12.0f, cy + 12}, 12, 6, sinf(t * 6 + k) * 2, 2.6f, dk);
+            Vector2 prev{cx - 2, cy};
+            for (int k = 0; k < 5; k++) { // the abdomen curls down and back toward the tail
+                float a = -0.4f + k * 0.42f;
+                Vector2 q{cx + 6 + cosf(a) * 22 + k * 3, cy - 2 + sinf(a) * 16 + k * 3};
+                ShadeBall(q, 13.0f - k * 1.6f, c);
+                DrawRing(q, 12.0f - k * 1.6f, 13.0f - k * 1.6f, 230, 320, 8, dk);          // segment seams
+                prev = q;
             }
+            for (int k = -1; k <= 1; k++) DrawTri(prev, {prev.x + 14 + k * 3, prev.y + 12 + k * 7}, {prev.x + 6, prev.y + 16 + k * 5}, dk); // tail fan
+            ShadeBall({cx - 12, cy - 4}, 17, c);                                          // carapace
+            ShadeBall({cx - 24, cy - 2}, 12, c);
+            DrawTri({cx - 30, cy - 8}, {cx - 44, cy - 6}, {cx - 30, cy - 2}, lt);         // rostrum
+            for (int s = 0; s < 2; s++) {                                                 // stalked eyes
+                Vector2 eye{cx - 30 + s * 6.0f, cy - 16 - s * 2.0f};
+                ShadeLimb({cx - 26 + s * 6.0f, cy - 8}, eye, 2, 2, c);
+                DrawCircleV(eye, 3, Color{24, 20, 20, 255});
+                DrawCircleV({eye.x - 1, eye.y - 1}, 1, Color{230, 230, 220, 255});
+            }
+            ShadeLimb({cx - 32, cy - 10}, {cx - 64, cy - 40}, 1.8f, 1.1f, dk);          // antennae, swept back
+            ShadeLimb({cx - 30, cy - 12}, {cx - 50, cy - 50}, 1.6f, 1.0f, dk);
+            ShadeLimb({cx - 22, cy + 6}, {cx - 38, cy + 10}, 5, 4.5f, dk);               // the pistol claw
+            ShadeBall({cx - 50, cy + 10}, 13, c);
+            ShadeLimb({cx - 58, cy + 4}, {cx - 72, cy + 9}, 4, 2.4f, lt);
+            ShadeBall({cx - 58, cy + 2}, 4, lt);
+            ShadeLimb({cx - 20, cy + 10}, {cx - 34, cy + 20}, 2.4f, 2, dk);              // the small claw
+            ShadeBall({cx - 36, cy + 21}, 4, c);
         } break;
-        case EnemyType::Lobster: {
-            Color c{196, 56, 46, 255}, dk{150, 38, 34, 255};
-            float cy = by - 62 + bob;
-            for (int k = 0; k < 4; k++) ShadeLimb({cx - 10 + k * 14.0f, cy + 20}, {cx - 20 + k * 14.0f, by - 1}, 3, 2, dk);
-            ShadeBall({cx + 70, cy + 16}, 15, c);
-            DrawTri({cx + 78, cy + 20}, {cx + 104, cy + 46}, {cx + 70, cy + 46}, dk);
-            ShadeBall({cx + 48, cy + 8}, 20, c);
-            ShadeBall({cx + 8, cy}, 34, c);
-            ShadeBall({cx - 34, cy - 10}, 24, c);
-            ShadeLimb({cx - 40, cy - 30}, {cx - 90, cy - 180}, 2, 1, dk);
-            ShadeLimb({cx - 30, cy - 32}, {cx - 60, cy - 190}, 2, 1, dk);
-            DrawCircleV({cx - 44, cy - 28}, 5, Pal::Ink);
-            DrawCircleV({cx - 30, cy - 30}, 5, Pal::Ink);
-            ShadeLimb({cx - 40, cy - 4}, {cx - 64, cy - 66}, 7, 6, c);   // the crushing claw, raised
-            ShadeBall({cx - 66, cy - 84}, 22, c);
-            DrawTri({cx - 90, cy - 104}, {cx - 64, cy - 88}, {cx - 76, cy - 112}, Color{30, 60, 70, 255});
-            ShadeLimb({cx - 30, cy + 10}, {cx - 56, cy + 20}, 7, 6, c);
-            ShadeBall({cx - 62, cy + 20}, 16, c);
+        case EnemyType::BrineWorm: { // a bristle worm rearing up, jaws working
+            Color c1{106, 170, 86, 255}, c2{84, 148, 70, 255}, bristle{200, 220, 150, 255};
+            Vector2 head{cx, by};
+            for (int k = 0; k <= 9; k++) {
+                float u = k / 9.0f, rad = 15 - k * 0.6f;
+                Vector2 q{cx + sinf(t * 1.6f + k * 0.7f) * 10 * u - k * 1.5f, by - 8 - k * 14.0f + bob * 0.5f * u};
+                ShadeBall(q, rad, k % 2 ? c1 : c2);
+                for (int sd = -1; sd <= 1; sd += 2) // parapodia with bristles
+                    DrawLineEx({q.x + sd * rad * 0.8f, q.y}, {q.x + sd * (rad + 7), q.y - 3 + sinf(t * 5 + k) * 2}, 1.6f, bristle);
+                head = q;
+            }
+            ShadeBall({head.x - 3, head.y - 4}, 12, c1);
+            float jaw = 0.5f + 0.5f * sinf(t * 4 + e.uid);
+            DrawTri({head.x - 10, head.y - 2}, {head.x - 22, head.y - 10 - jaw * 6}, {head.x - 14, head.y + 2}, Color{50, 40, 30, 255});
+            DrawTri({head.x - 10, head.y + 2}, {head.x - 22, head.y + 8 + jaw * 6}, {head.x - 14, head.y - 2}, Color{50, 40, 30, 255});
+            for (int k = 0; k < 4; k++) DrawCircleV({head.x - 6 + (k % 2) * 5.0f, head.y - 10 + (k / 2) * 4.0f}, 1.4f, Pal::Ink);
+        } break;
+        case EnemyType::Lobster: { // armoured, spiked, with a crusher claw held high
+            Color c{182, 50, 42, 255}, dk{130, 34, 30, 255}, lt{222, 98, 78, 255};
+            float cy = by - 72 + bob;
+            for (int k = 0; k < 4; k++) legPair({cx - 8 + k * 14.0f, cy + 22}, 16, 10, sinf(t * 5 + k) * 3, 3.6f, dk);
+            Vector2 prev{cx + 30, cy + 4};
+            for (int k = 0; k < 6; k++) { // the tail, curling under
+                float a = -0.2f + k * 0.38f;
+                Vector2 q{cx + 34 + cosf(a) * 30 + k * 4, cy + 6 + sinf(a) * 22 + k * 4};
+                ShadeBall(q, 17.0f - k * 1.7f, c);
+                DrawRing(q, 16.0f - k * 1.7f, 17.0f - k * 1.7f, 220, 320, 8, dk);
+                prev = q;
+            }
+            for (int k = -1; k <= 1; k++) DrawTri(prev, {prev.x + 20 + k * 6, prev.y + 16 + k * 10}, {prev.x + 8, prev.y + 24 + k * 6}, dk);
+            ShadeBall({cx + 6, cy}, 34, c);                                               // carapace
+            for (int k = 0; k < 6; k++) DrawTri({cx - 18 + k * 9.0f, cy - 28 + fabsf(k - 2.5f) * 2}, {cx - 12 + k * 9.0f, cy - 30 + fabsf(k - 2.5f) * 2},
+                                                {cx - 15 + k * 9.0f, cy - 38 + fabsf(k - 2.5f) * 2}, lt); // spines
+            ShadeBall({cx - 30, cy - 8}, 21, c);                                          // head
+            DrawTri({cx - 44, cy - 16}, {cx - 66, cy - 18}, {cx - 46, cy - 8}, lt);       // rostrum
+            for (int s = 0; s < 2; s++) {
+                Vector2 eye{cx - 40 + s * 10.0f, cy - 30};
+                ShadeLimb({cx - 36 + s * 10.0f, cy - 22}, eye, 2.4f, 2.4f, c);
+                DrawCircleV(eye, 4.5f, Color{20, 16, 16, 255});
+                DrawCircleV({eye.x - 1.5f, eye.y - 1.5f}, 1.4f, Color{230, 230, 220, 255});
+            }
+            ShadeLimb({cx - 42, cy - 26}, {cx - 92, cy - 170}, 2.6f, 1.1f, dk);          // whip antennae
+            ShadeLimb({cx - 34, cy - 28}, {cx - 64, cy - 186}, 2.6f, 1.1f, dk);
+            ShadeLimb({cx - 36, cy - 2}, {cx - 52, cy - 38}, 8, 7, c);                   // the crusher, raised
+            ShadeLimb({cx - 52, cy - 38}, {cx - 66, cy - 66}, 7, 7, c);
+            ShadeBall({cx - 68, cy - 84}, 23, c);
+            ShadeLimb({cx - 78, cy - 100}, {cx - 96, cy - 118}, 7, 4, lt);               // its jaw, open
+            for (int k = 0; k < 4; k++) DrawCircleV({cx - 82 - k * 4.0f, cy - 102 - k * 4.0f}, 2, Color{240, 220, 200, 255});
+            ShadeLimb({cx - 30, cy + 10}, {cx - 50, cy + 18}, 7, 6, c);                  // the cutter, low
+            ShadeBall({cx - 62, cy + 20}, 15, c);
+            ShadeLimb({cx - 70, cy + 14}, {cx - 86, cy + 18}, 5, 3, lt);
         } break;
     }
 }
@@ -798,7 +908,10 @@ static AnimFx HeroAnimFx(const Game& g, const Hero& h) {
             p.crouch = wind * s.windCrouch + strike * s.crouch;
             p.reach = strike * s.reach;
             p.weaponTilt = strike * s.tilt;
-            fx.dx = strike * s.lunge - wind * 8;
+            // follow-through: after the blow the body rocks back a little past neutral before settling
+            float settle = Bell(u, 0.62f, 0.76f, 0.98f);
+            p.lean -= settle * 0.12f;
+            fx.dx = strike * s.lunge - wind * 8 - settle * 7;
         } break;
         case Anim::Ranged: {
             float aim = Bell(u, 0, 0.22f, 0.95f), recoil = Bell(u, 0.3f, 0.36f, 0.62f);
@@ -837,10 +950,11 @@ static AnimFx HeroAnimFx(const Game& g, const Hero& h) {
                 default: p.raise = e * 0.5f; break;
             }
         } break;
-        case Anim::Hurt: {
-            float b = Bell(u, 0, 0.07f, 0.48f);
-            fx.dx = -16 * b;
-            p.lean = -0.45f * b;
+        case Anim::Hurt: { // knocked back, then a damped wobble as they recover their footing
+            float spring = expf(-7 * u) * cosf(u * 16) * std::min(1.0f, u / 0.04f), b = Bell(u, 0, 0.07f, 0.48f);
+            fx.dx = -18 * spring;
+            p.lean = -0.5f * spring;
+            p.crouch = 0.25f * b;
             fx.tint = {255, (unsigned char)(255 - 120 * b), (unsigned char)(255 - 130 * b), 255};
         } break;
         case Anim::Dodge: {
@@ -864,8 +978,9 @@ static AnimFx EnemyAnimFx(const Game& g, const Enemy& e) {
         case Anim::Ranged: fx.dx = 10 * Bell(u, 0.05f, 0.25f, 0.45f); fx.dy = -6 * Bell(u, 0.25f, 0.32f, 0.5f); break;
         case Anim::Buff: fx.dy = -10 * Bell(u, 0.1f, 0.3f, 0.8f); fx.dx = 4 * sinf(u * 60) * Bell(u, 0.1f, 0.3f, 0.8f); break;
         case Anim::Hurt: {
-            float b = Bell(u, 0, 0.07f, 0.48f);
-            fx.dx = 18 * b;
+            float spring = expf(-7 * u) * cosf(u * 16) * std::min(1.0f, u / 0.04f), b = Bell(u, 0, 0.07f, 0.48f);
+            fx.dx = 20 * spring;
+            fx.dy = -4 * b;
             fx.tint = {255, (unsigned char)(255 - 120 * b), (unsigned char)(255 - 130 * b), 255};
         } break;
         case Anim::Dodge: fx.dx = 28 * Bell(u, 0, 0.15f, 0.45f); break;
@@ -888,16 +1003,30 @@ static std::string StatusTags(const Status& st) {
     return s;
 }
 
+// Where each fighter is drawn, easing toward their rank's spot so swaps and shoves slide instead of jumping.
+static float ShownX(int key, float target, float dt) {
+    static std::unordered_map<int, float> shown;
+    auto it = shown.find(key);
+    if (it == shown.end() || fabsf(it->second - target) > 600) return shown[key] = target;
+    it->second += (target - it->second) * std::min(1.0f, dt * 7);
+    return it->second;
+}
+
 static void DrawUnitFigures(Game& g) {
     auto& d = g.dungeon;
-    float t = g.time;
+    float t = g.time, dt = GetFrameTime();
     bool walking = d.phase == DPhase::Walking;
     for (int p = PARTY_SIZE - 1; p >= 0; p--) {
         Hero* h = PartyAt(g, p);
         if (!h) continue;
         Rectangle r = HeroRect(p);
         AnimFx fx = HeroAnimFx(g, *h);
-        Vector2 feet{r.x + r.width / 2 + fx.dx + gShake.x, r.y + r.height + fx.dy + gShake.y};
+        // alive even when standing still: breathing, and a slow shift of weight from foot to foot
+        float ph = t + h->id * 2.3f;
+        fx.pose.lean += 0.035f * sinf(ph * 1.1f);
+        fx.pose.crouch += 0.04f * (0.5f + 0.5f * sinf(ph * 1.7f));
+        fx.dx += sinf(ph * 0.6f) * 1.5f;
+        Vector2 feet{ShownX(h->id, r.x + r.width / 2, dt) + fx.dx + gShake.x, r.y + r.height + fx.dy + gShake.y};
         DrawShadowBlob({feet.x, r.y + r.height}, 38);
         DrawCrewFigureInked(*h, feet, 1.08f, true, walking ? d.walkT * 9 + p * 1.3f : 0, t, fx.pose, fx.tint);
     }
@@ -906,7 +1035,7 @@ static void DrawUnitFigures(Game& g) {
         AnimFx fx = EnemyAnimFx(g, e);
         if (fx.tint.a == 0) continue;
         Rectangle r = EnemyRect(g, p);
-        Vector2 feet{r.x + r.width / 2 + fx.dx + gShake.x, r.y + r.height + fx.dy + gShake.y}, ff = FigureFeet();
+        Vector2 feet{ShownX(1000000 + e.uid, r.x + r.width / 2, dt) + fx.dx + gShake.x, r.y + r.height + fx.dy + gShake.y}, ff = FigureFeet();
         DrawShadowBlob({feet.x, r.y + r.height}, e.boss ? 70 : 44);
         BeginFigure(); // draw on the figure canvas, lined up so its feet land on FigureFeet()
         DrawEnemyFigure(e, {ff.x - r.width / 2, ff.y - r.height, r.width, r.height}, t);
@@ -1003,7 +1132,8 @@ static void DrawUnitHud(Game& g, int actingHero, int actingEnemy) {
 
 static void DrawCaveLighting(Game& g) {
     auto& d = g.dungeon;
-    float L = d.light / 100.0f, t = g.time;
+    float t = g.time, L = d.lightShown / 100.0f;
+    if (d.batteryT > 0.7f) L *= 0.35f + 0.65f * (sinf(t * 47) * sinf(t * 23) > 0 ? 1.0f : 0.3f); // the torch sputters as the battery goes in
     auto lerp = [](float a, float b, float k) { return (unsigned char)(a + (b - a) * k); };
     LightsBegin(Color{lerp(18, 84, L), lerp(22, 96, L), lerp(34, 108, L), 255});
     float flick = 0.95f + 0.05f * sinf(t * 17) * sinf(t * 5.3f);
@@ -1034,7 +1164,7 @@ static void DrawTopBar(Game& g) {
         else DrawCircle((int)x + 10, 28, 8, c);
     }
     Txt("Light", 590, 6, 16, Pal::Paper);
-    DrawBar({590, 28, 180, 14}, d.light / 100.0f, Color{250, 220, 120, 255});
+    DrawBar({590, 28, 180, 14}, d.lightShown / 100.0f, Color{250, 220, 120, 255});
     TxtShadow(LightName(d.light), 782, 22, 19, Color{250, 220, 120, 255});
     Txt(TextFormat("Loot: %d gold, %d relic%s", d.lootGold, (int)d.lootRelics.size(), d.lootRelics.size() == 1 ? "" : "s"), 930, 18, 19, Pal::Paper);
 }
@@ -1145,6 +1275,9 @@ static void UpdateEffects(Game& g, float dt) {
     }
     d.sparks.erase(std::remove_if(d.sparks.begin(), d.sparks.end(), [](const Spark& s) { return s.life <= 0; }), d.sparks.end());
     d.shake = std::max(0.0f, d.shake - dt);
+    if (d.phase == DPhase::Corridor) d.corridorT += dt;
+    d.batteryT = std::max(0.0f, d.batteryT - dt);
+    if (d.batteryT <= 0.7f) d.lightShown += std::clamp(d.light - d.lightShown, -40 * dt, 40 * dt); // light eases to its new level
     float k = d.shake * 22;
     gShake = {sinf(g.time * 70) * k, cosf(g.time * 57) * k * 0.6f};
 }
@@ -1221,7 +1354,16 @@ void SceneDungeon(Game& g) {
     switch (d.phase) {
         case DPhase::Walking: break;
         case DPhase::Corridor: {
-            Rectangle p{400, 150, 480, 270};
+            // The party takes a breath before the choice comes up; the panel then eases down into place,
+            // and its buttons only work once it has settled (and while no battery is being swapped).
+            const float DELAY = 1.4f, SLIDE = 0.45f;
+            if (d.corridorT < DELAY) {
+                if (d.roomIndex >= 0) DrawTextCentered("The crew catch their breath...", SCREEN_W / 2.0f, 610, 20, Color{200, 210, 210, 200});
+                break;
+            }
+            float u = std::min(1.0f, (d.corridorT - DELAY) / SLIDE), ease = 1 - (1 - u) * (1 - u) * (1 - u);
+            bool ready = u >= 1 && d.batteryT <= 0;
+            Rectangle p{400, 150 - (1 - ease) * 260, 480, 270};
             Panel(p);
             const char* head = d.roomIndex < 0 ? "At the cave mouth" : TextFormat("Room %d of %d cleared", d.roomIndex + 1, (int)d.rooms.size());
             DrawTextCenteredBold(head, p.x + p.width / 2, p.y + 20, 28, Pal::Ink);
@@ -1229,17 +1371,18 @@ void SceneDungeon(Game& g) {
             DrawTextCentered(nextIsBoss ? "Heavy clacking echoes from the next chamber..." : "The passage winds deeper.",
                              p.x + p.width / 2, p.y + 60, 18, nextIsBoss ? Pal::Bad : Pal::BrassDk);
             int drain = LightDrainPerRoom(g);
-            if (Button({p.x + 40, p.y + 96, 400, 46}, TextFormat(nextIsBoss ? "Face the Lobster  (-%d light)" : "Advance  (-%d light)", drain))) {
+            if (Button({p.x + 40, p.y + 96, 400, 46}, TextFormat(nextIsBoss ? "Face the Lobster  (-%d light)" : "Advance  (-%d light)", drain), ready)) {
                 d.light = std::max(0.0f, d.light - drain);
                 d.phase = DPhase::Walking;
                 d.walkT = 0;
             }
-            if (Button({p.x + 40, p.y + 150, 400, 42}, TextFormat("Swap in a battery  (+40 light)   [%d left]", g.batteries),
-                       g.batteries > 0 && d.light < 100)) {
+            const char* swap = d.batteryT > 0 ? "Swapping the battery..." : TextFormat("Swap in a battery  (+40 light)   [%d left]", g.batteries);
+            if (Button({p.x + 40, p.y + 150, 400, 42}, swap, ready && g.batteries > 0 && d.light < 100)) {
                 g.batteries--;
                 d.light = std::min(100.0f, d.light + 40);
+                d.batteryT = 1.4f;
             }
-            if (Button({p.x + 40, p.y + 200, 400, 42}, d.roomIndex < 0 ? "Turn back" : "Retreat with the loot (+10 stress)")) {
+            if (Button({p.x + 40, p.y + 200, 400, 42}, d.roomIndex < 0 ? "Turn back" : "Retreat with the loot (+10 stress)", ready)) {
                 if (d.roomIndex < 0) { g.scene = Scene::Hub; return; }
                 d.phase = DPhase::Retreat;
             }
@@ -1249,12 +1392,12 @@ void SceneDungeon(Game& g) {
             std::string body = TextFormat("A barnacled chest! +%d gold.", d.roomGold);
             if (d.roomRelic >= 0) body += " Inside, wrapped in oilcloth: a " + Relics()[d.roomRelic].name + "!";
             if (d.light < 50) body += "\n\nThe darkness made the find richer.";
-            if (ResultPanel("Treasure", body, "Continue", Pal::Brass)) d.phase = DPhase::Corridor;
+            if (ResultPanel("Treasure", body, "Continue", Pal::Brass)) { d.phase = DPhase::Corridor; d.corridorT = 0; }
         } break;
 
         case DPhase::RoomClear: {
             std::string body = TextFormat("The room is quiet again. You gather %d gold from the debris.", d.roomGold);
-            if (ResultPanel("Room cleared", body, "Continue", Pal::Good)) d.phase = DPhase::Corridor;
+            if (ResultPanel("Room cleared", body, "Continue", Pal::Good)) { d.phase = DPhase::Corridor; d.corridorT = 0; }
         } break;
 
         case DPhase::Victory:
