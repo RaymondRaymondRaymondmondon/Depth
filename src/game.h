@@ -29,7 +29,7 @@ const Color Bad     = {225, 70, 70, 255};
 const Color Stress  = {170, 120, 230, 255};
 }  // namespace Pal
 
-enum class Scene { Hub, Helm, Crew, Radar, Ward, SickLeave, Bookshelf, Periscope, Workshop, Dungeon, Platformer };
+enum class Scene { Hub, Helm, Crew, Radar, Ward, SickLeave, Bookshelf, Periscope, Workshop, Dungeon, Platformer, Cards };
 
 // Workshop upgrades. Each has levels 0..UPGRADE_MAX.
 enum Upgrade { UP_REFLECTOR, UP_BUNKS, UP_SONAR, UP_INFIRMARY, UP_COUNT };
@@ -421,6 +421,11 @@ void DrawPlatformSpritePage(int page, float t);
 Image GrabFrame();
 void DebugPetCat();
 void SceneHub(Game& g);
+void SceneCards(Game& g);            // Flats, the card table
+void FlatsSpritePage(float t);      // the sprite sheet page of Flats cards, the dealer and the bell
+void FlatsSim(int runs, bool sensible);                // headless: play Flats runs and print how they go
+void DebugFlatsDeal();              // debug: skip the menu and deal a mid-round hand (for screenshots)
+void DrawItemSpritePage(float t);   // the sprite sheet page of carried items and relic icons
 void SceneHelm(Game& g);
 void SceneCrew(Game& g);
 void SceneRadar(Game& g);

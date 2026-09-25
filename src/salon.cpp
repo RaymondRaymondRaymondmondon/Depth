@@ -101,7 +101,7 @@ float Hash01(int a, int b) {
 float RandF(float lo, float hi) { return lo + (hi - lo) * GetRandomValue(0, 10000) / 10000.0f; }
 
 // ---------------------------------------------------------------- stations
-enum StationId { ST_CREW, ST_LIBRARY, ST_RADAR, ST_HELM, ST_PERISCOPE, ST_WORKSHOP, ST_SICKBAY, ST_WARD, ST_COUNT };
+enum StationId { ST_CREW, ST_LIBRARY, ST_RADAR, ST_HELM, ST_PERISCOPE, ST_WORKSHOP, ST_SICKBAY, ST_WARD, ST_CARDS, ST_COUNT };
 struct Station { Scene target; const char* name; const char* hint; Vector2 stand; }; // stand = (X, Z) where crew gather
 const Station STATIONS[ST_COUNT] = {
     {Scene::Crew, "Crew Quarters", "Choose your party, fit relics, and pick each crew member's abilities.", {-540, 620}},
@@ -112,6 +112,7 @@ const Station STATIONS[ST_COUNT] = {
     {Scene::Workshop, "Workshop", "Upgrade the Nautilus: reflectors, bunks, sonar and infirmary gear.", {540, 900}},
     {Scene::SickLeave, "Sick Bay", "Rattled crew can rest by the organ and steady their nerves.", {-400, 930}},
     {Scene::Ward, "The Ward", "Patch up injured crew.", {400, 930}},
+    {Scene::Cards, "The Card Table", "Play Flats against the ship's dealer: a card-sharp's way to earn gold when you're short.", {-260, 630}},
 };
 Rectangle stationRect[ST_COUNT];
 
@@ -137,7 +138,8 @@ Cat cat;
 
 // Furniture on the floor, as circles (X, Z, radius) that people and the cat walk around.
 struct Obstacle { float x, z, r; };
-const Obstacle OBSTACLES[] = {{0, 900, 95}, {-255, 900, 105}, {150, 560, 45}, {-430, 1010, 175}, {430, 1010, 170}};
+const Obstacle OBSTACLES[] = {{0, 900, 95}, {-255, 900, 105}, {150, 560, 45}, {-430, 1010, 175}, {430, 1010, 170}, {-260, 760, 95}};
+constexpr float CARD_X = -260, CARD_Z = 700, DEALER_Z = 785; // the card table, and the dealer seated behind it
 
 const Hero& NpcHero(int i) {
     static Hero heroes[NPC_COUNT];
@@ -947,6 +949,60 @@ void DrawCeilingSteam(float t) {
         }
     }
 }
+// ---------------------------------------------------------------- the card table and its dealer
+// The dealer sits across the table in a dark cloak and hood, face grey as old candle wax, eyes catching the
+// light. A cold glow rises from the felt.
+void DrawCardDealer(float t) {
+    float k = Px(DEALER_Z) * 1.05f;
+    Vector2 feet = Proj(CARD_X, 0, DEALER_Z), o = FigureFeet();
+    auto P = [&](float dx, float dy) { return Vector2{o.x + dx * k, o.y + dy * k}; };
+    float breathe = sinf(t * 1.2f) * 1.2f;
+    Color cloak{26, 30, 48, 255}, glove{34, 34, 40, 255}, wax{132, 134, 132, 255};
+    BeginFigure();
+    ShadeLimb(P(-30, -128 + breathe), P(30, -128 + breathe), 24 * 0.5f * 2, 24 * 0.5f * 2, cloak); // shoulders
+    ShadeLimb(P(0, -60), P(0, -130 + breathe), 30, 27, cloak);                                    // the body under the cloak
+    DrawTri(P(-46, -118), P(46, -118), P(0, -180 + breathe), Tone(cloak, -0.3f));                 // the hood's peak
+    ShadeBall(P(0, -160 + breathe), 25, Tone(cloak, -0.2f));                                       // hood
+    ShadeBall(P(1, -158 + breathe), 15.5f, wax);                                                   // face
+    DrawLineEx(P(-12, -164 + breathe), P(12, -164 + breathe), 3 * k, Color{50, 52, 56, 255});     // heavy brow
+    DrawLineEx(P(-8, -142 + breathe), P(8, -142 + breathe), 2.2f * k, Color{36, 32, 34, 255});     // flat mouth
+    for (int e = -1; e <= 1; e += 2) {
+        DrawEllipse((int)P(e * 6.5f, -159 + breathe).x, (int)P(e * 6.5f, -159 + breathe).y, 3.6f * k, 2.4f * k, Color{214, 226, 255, 255});
+    }
+    ShadeLimb(P(-30, -128), P(-38, -108), 10, 9, cloak);                                            // arms reaching to the felt
+    ShadeLimb(P(30, -128), P(40, -108), 10, 9, cloak);
+    ShadeBall(P(-38, -106), 7, glove);
+    ShadeBall(P(40, -106), 7, glove);
+    EndFigure(feet);
+    for (int e = -1; e <= 1; e += 2) { // his eyes catch the light
+        Vector2 eye{feet.x + (P(e * 6.5f, -159).x - o.x), feet.y + (P(e * 6.5f, -159).y - o.y)};
+        Glow(eye, 18 * k, Color{150, 170, 255, 110});
+    }
+}
+
+void DrawCardTable(float t) {
+    Billboard(CARD_X, 0, CARD_Z, [&] {
+        DrawEllipse(0, -3, 64, 12, Color{20, 14, 10, 255});                                         // foot
+        DrawRectangleGradientH(-16, -104, 16, 104, Color{34, 22, 16, 255}, Color{76, 50, 34, 255}); // pedestal
+        DrawRectangleGradientH(0, -104, 16, 104, Color{76, 50, 34, 255}, Color{28, 18, 12, 255});
+        DrawEllipse(0, -104, 100, 25, Color{28, 18, 12, 255});                                      // the top and its rim
+        DrawEllipse(0, -106, 96, 21, Color{74, 48, 32, 255});
+        DrawEllipse(0, -107, 84, 17, Color{10, 34, 44, 255});                                       // felt, a deep cold teal
+        DrawRing({0, -107}, 78, 84, 0, 360, 40, Fade(Color{80, 190, 230, 255}, 0.5f));               // a glowing rune ring
+        for (int k = 0; k < 3; k++) { // three cards laid out
+            float x = -34 + k * 34.0f, y = -107 + (k % 2) * 3.0f;
+            DrawRectanglePro({x, y, 22, 9}, {11, 4.5f}, -14 + k * 14.0f, Color{228, 196, 148, 255});
+            DrawRectanglePro({x, y, 22, 9}, {11, 4.5f}, -14 + k * 14.0f, Fade(BLACK, 0.0f));
+        }
+        for (int c = -1; c <= 1; c += 2) { // a candle at either end of the table
+            float x = c * 66.0f;
+            DrawRectangle((int)x - 3, -128, 6, 22, Color{236, 228, 200, 255});
+            DrawEllipse((int)x, -132, 3.2f, 6.5f + sinf(t * 10 + c) * 1.2f, Color{255, 210, 120, 255});
+            Glow({x, -132}, 34, Color{255, 190, 100, 90});
+        }
+        DrawBrassPlate({-46, -60, 92, 22}, "FLATS", 14);
+    });
+}
 // ---------------------------------------------------------------- lighting
 void DrawSalonLighting(float t, int hovered) {
     LightsBegin(Color{66, 70, 78, 255});
@@ -962,6 +1018,8 @@ void DrawSalonLighting(float t, int hovered) {
         for (float z : {720.0f, 1100.0f}) AddLight(Proj(s * (RW - 10), 400, z), 200 * Px(z) * 2.2f, warm, 0.7f * flick);
     AddLight(Proj(-520, 190, Z_BACK), 150, warm, 0.8f);          // organ candles
     AddLight(Proj(RW, 440, 620), 180, Color{80, 255, 140, 255}, 0.5f); // the radar's glow
+    AddLight(Proj(CARD_X, 110, CARD_Z), 190, Color{80, 170, 220, 255}, 0.7f);          // the card table's cold glow
+    AddLight(Proj(CARD_X - 60, 130, CARD_Z), 90, Color{255, 190, 110, 255}, 0.6f);      // and its candle
     AddCone(Proj(430, 470, 1010), PI / 2, 0.45f, 180, Color{255, 250, 232, 255}); // surgical lamp
     if (fmodf(t, 6) < 2.2f) AddLight(Proj(RW, 90, 1010), 120, Color{255, 170, 80, 255}, 0.7f);
     if (hovered >= 0) {
@@ -1082,6 +1140,8 @@ void SceneHub(Game& g) {
     items.push_back({900, [&] { DrawHelmFurniture(t); }});
     items.push_back({PERI_Z, [&] { DrawPeriscope(t); }});
     items.push_back({cat.pos.y, [&] { DrawCat(t); }});
+    items.push_back({DEALER_Z, [&] { DrawCardDealer(t); }});
+    items.push_back({CARD_Z, [&] { DrawCardTable(t); }});
     struct Person { Walker* w; const Hero* h; Vector2 feet; float s; Rectangle r; };
     std::vector<Person> people;
     for (auto& w : walkers) {
@@ -1106,6 +1166,7 @@ void SceneHub(Game& g) {
         return Rectangle{a.x, a.y, b.x - a.x, b.y - a.y};
     };
     stationRect[ST_HELM] = around(-90, 900, 480, 360);
+    stationRect[ST_CARDS] = around(CARD_X, DEALER_Z - 40, 240, 200);
     stationRect[ST_PERISCOPE] = around(PERI_X, PERI_Z, 140, 420);
     Rectangle organR{organBase.x - 200 * kb, organBase.y - 560 * kb, 400 * kb, 560 * kb}, chaise = around(-430, 1010, 330, 170);
     stationRect[ST_SICKBAY] = {std::min(organR.x, chaise.x), organR.y, std::max(organR.x + organR.width, chaise.x + chaise.width) - std::min(organR.x, chaise.x),
@@ -1120,7 +1181,7 @@ void SceneHub(Game& g) {
     if (mouseInRoom && !hovCat)
         for (auto& p : people) if (CheckCollisionPointRec(m, p.r) && (!hovPerson || p.w->pos.y < hovPerson->w->pos.y)) hovPerson = &p;
     int hovered = -1;
-    const int order[ST_COUNT] = {ST_HELM, ST_PERISCOPE, ST_SICKBAY, ST_WARD, ST_CREW, ST_LIBRARY, ST_RADAR, ST_WORKSHOP};
+    const int order[ST_COUNT] = {ST_CARDS, ST_HELM, ST_PERISCOPE, ST_SICKBAY, ST_WARD, ST_CREW, ST_LIBRARY, ST_RADAR, ST_WORKSHOP};
     if (mouseInRoom && !hovPerson && !hovCat)
         for (int i : order) if (CheckCollisionPointRec(m, stationRect[i])) { hovered = i; break; }
 

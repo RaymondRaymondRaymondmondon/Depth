@@ -49,6 +49,8 @@ After you change code, just run `cmake --build build --config Release` again.
 ## What's in the slice
 - **The Nautilus's grand salon**, a single-screen 3D room modelled on Captain Nemo's salon, with eight stations around it: Crew Quarters, Library, Radar Room, Helm, Periscope, Workshop, Sick Bay (by the organ), and the Ward. The ocean shows through the great window and steam pipes run along the ceiling. The ship's own hands and Barnacle, the ship's cat, wander the room; click the cat for a purr.
 - **Saving:** the game saves itself whenever you return to the salon, and when you quit. "Start a new game" (bottom left of the salon) wipes the save.
+- **The Card Table**: a dealer in the salon plays Flats, an original roguelike card game with two decks and three lanes (rules in the game). It is one of the two ways to earn gold besides the Periscope; gold is meant to be tight.
+- **Four expeditions from the start**: the Cave, the Island, the Weeds and Atlantis, each with its own ladder of levels. **Expeditions carry an inventory** of batteries, bandages, keys and relics.
 - **The Cave**, at levels 0, 1, 3, 5 and 6: beating one unlocks the next, and earlier levels stay open. Random rooms (fights or treasure), then the Lobster mini-boss. The cave is painted in layers that slide past as the party walks, and every attack, throw, shot and heal is animated. It has the flashlight (which really lights the scene), rank-based combat, stress ("Nerves"), Death's Door, and relic loot.
 - **Four classes:** Nurse, Diver, Captain, and Mechanic. Each has eight abilities, and a crew member brings four of them. Four are available from the start; the rest unlock at levels 1, 1, 2, and 3.
 - **The Workshop:** lasting upgrades bought with gold (flashlight reflector, bunk extension, sonar array, infirmary gear).
@@ -71,12 +73,14 @@ The Island, Weeds, and Atlantis appear in the menus as "coming soon".
 | `src/dungeon.cpp` | Expeditions and combat | change combat rules, light, or room generation |
 | `src/platformer.cpp` | The three platform levels, their bosses, and the level verifier | **design new level sections** (they're drawn as text: see the legend at the top of the file) |
 | `src/ui.cpp` | Buttons, panels, and text helpers | change the look of the UI |
+| `src/flats.cpp` | The card game Flats and its table scene | tune the rules, payouts or the dealer |
 | `src/main.cpp` | The window and main loop | rarely needs changing |
 
 ## Developer switches
 - `depth.exe --sim 1000 [level] [random]` auto-plays 1000 expeditions and prints win rate, deaths, and how often someone ends up Rattled. The default auto-player heals anyone below 40% HP and otherwise hits the weakest enemy with its strongest attack; add `random` for a player who picks anything.
 - `depth.exe --shots shots` renders every screen to PNG files in the `shots` folder and quits. The folder has to exist.
-- `depth.exe --sprites sprites.png` draws every sprite in the game (crew poses, the ship's hands, the cat, cave creatures, and the platform sprites and tiles) onto one sheet.
+- `depth.exe --flats-sim 2000 [sensible]` plays Flats headlessly and reports how far a player gets.
+- `depth.exe --sprites sprites.png` draws every sprite in the game (crew poses, the ship's hands, the cat, cave creatures, the platform sprites and tiles, the Flats cards and dealer, and the carried items and relic icons) onto one sheet.
 - `depth.exe --verify` proves every platform section can be crossed. It searches button presses using the real movement code, so a jump that looks possible but isn't gets caught. Run it after designing a section. It takes about a minute and a half.
 
 Good first experiments: tweak an enemy's stats in `MakeEnemy` (data.cpp), give a class a new ability in `BuildNurse` and its siblings, or draw a new platform section: add a block of text (24 wide) like `PIPE_RISER`, `HULL` or `DECK_WAIST` in platformer.cpp and list it in `Lv()`, then run `--verify`.

@@ -5,6 +5,7 @@
 //    depth.exe --sim 400 [level] [random|sensible] [cave tier 0-4]   auto-play expeditions, print balance
 //    depth.exe --shots <folder>    render every screen to PNGs and quit
 //    depth.exe --verify            prove every platformer section can be crossed
+//    depth.exe --flats-sim 1000    play Flats headlessly and report how it goes
 //    depth.exe --sprites <file.png>  draw every sprite in the game onto one sheet
 // ============================================================================
 #include "game.h"
@@ -28,6 +29,7 @@ static void RunScene(Game& g) {
         case Scene::Workshop:   SceneWorkshop(g); break;
         case Scene::Dungeon:    SceneDungeon(g); break;
         case Scene::Platformer: ScenePlatformer(g); break;
+        case Scene::Cards:      SceneCards(g); break;
     }
 }
 
@@ -36,6 +38,8 @@ static void TakeShots(const Game& base, const std::string& dir) {
     const Shot shots[] = {
         {"hub", [](Game& g) { g.scene = Scene::Hub; }},
         {"hub_cat", [](Game& g) { g.scene = Scene::Hub; DebugPetCat(); }},
+        {"cards_menu", [](Game& g) { g.scene = Scene::Cards; }},
+        {"cards_play", [](Game& g) { g.scene = Scene::Cards; DebugFlatsDeal(); }},
         {"hub_leave", [](Game& g) { g.scene = Scene::Hub; g.roster[0].onLeave = 1; g.roster[1].rattled = true; }},
         {"crew", [](Game& g) { g.scene = Scene::Crew; g.roster[1].level = 3; g.selectedHero = g.roster[1].id; }},
         {"helm", [](Game& g) { g.scene = Scene::Helm; g.tierCleared[(int)Location::Cave] = 1; g.tierSel[(int)Location::Cave] = 2; }},
@@ -81,15 +85,16 @@ static void TakeShots(const Game& base, const std::string& dir) {
     }
 }
 
-// Renders every sprite in the game onto six pages and stitches them into one image.
+// Renders every sprite in the game onto eight pages and stitches them into one image.
 static void MakeSpriteSheet(const std::string& path) {
-    const std::function<void(float)> pages[6] = {
+    const std::function<void(float)> pages[8] = {
         [](float t) { DrawCrewSpritePage(t); },       [](float t) { DrawSalonSpritePage(t); },
         [](float t) { DrawCaveSpritePage(t); },       [](float t) { DrawPlatformSpritePage(0, t); },
         [](float t) { DrawPlatformSpritePage(1, t); }, [](float t) { DrawPlatformSpritePage(2, t); },
+        [](float t) { FlatsSpritePage(t); },          [](float t) { DrawItemSpritePage(t); },
     };
-    Image sheet = GenImageColor(SCREEN_W * 2, SCREEN_H * 3, BLACK);
-    for (int i = 0; i < 6; i++) {
+    Image sheet = GenImageColor(SCREEN_W * 2, SCREEN_H * 4, BLACK);
+    for (int i = 0; i < 8; i++) {
         BeginFrame();
         SetPost(0.0f, 0.0f, 0.0f);
         DrawVGradient({0, 0, (float)SCREEN_W, (float)SCREEN_H}, Color{46, 50, 58, 255}, Color{24, 26, 32, 255});
@@ -110,6 +115,11 @@ int main(int argc, char** argv) {
         SetTraceLogLevel(LOG_WARNING);
         SimulateExpeditions(argc >= 3 ? atoi(argv[2]) : 400, argc >= 4 ? atoi(argv[3]) : 0,
                             argc >= 5 && strcmp(argv[4], "random") == 0, argc >= 6 ? std::clamp(atoi(argv[5]), 0, CAVE_TIERS - 1) : 0);
+        return 0;
+    }
+    if (argc >= 2 && strcmp(argv[1], "--flats-sim") == 0) {
+        SetTraceLogLevel(LOG_WARNING);
+        FlatsSim(argc >= 3 ? atoi(argv[2]) : 1000, argc >= 4 && strcmp(argv[3], "sensible") == 0);
         return 0;
     }
     if (argc >= 2 && strcmp(argv[1], "--verify") == 0) {
