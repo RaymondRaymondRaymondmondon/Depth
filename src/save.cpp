@@ -30,7 +30,7 @@ bool SaveGame(const Game& g) {
         f << "\nrelics";
         for (int r : g.relicStorage) f << " " << r;
         f << "\ncave " << g.caveTierCleared << " " << g.caveTier << "\n";
-        f << "platopts " << (g.platHard ? 1 : 0) << " " << (g.platCheckpoints ? 1 : 0) << "\n";
+        f << "platopts " << (g.platHard ? 1 : 0) << " " << (g.platCheckpoints ? 1 : 0) << " " << (g.platHullBoss ? 1 : 0) << " " << (g.platPirateBoss ? 1 : 0) << "\n";
         for (int l = 0; l < PL_COUNT; l++) {
             f << "plat " << l << " " << (g.platCleared[l] ? 1 : 0) << " " << g.platBest[l];
             for (int c : g.platLayouts[l]) f << " " << c;
@@ -66,7 +66,11 @@ bool LoadGame(Game& g) {
         else if (key == "upgrades") for (int& u : fresh.upgrades) in >> u;
         else if (key == "relics") { int r; while (in >> r) if (r >= 0 && r < (int)Relics().size()) fresh.relicStorage.push_back(r); }
         else if (key == "cave") in >> fresh.caveTierCleared >> fresh.caveTier;
-        else if (key == "platopts") { int h = 0, c = 0; in >> h >> c; fresh.platHard = h != 0; fresh.platCheckpoints = c != 0; }
+        else if (key == "platopts") {
+            int h = 0, c = 0, hb = 1, pb = 1;
+            in >> h >> c >> hb >> pb; // hb/pb default to 1 (on) for saves from before this option existed
+            fresh.platHard = h != 0; fresh.platCheckpoints = c != 0; fresh.platHullBoss = hb != 0; fresh.platPirateBoss = pb != 0;
+        }
         else if (key == "plat") {
             int l, cleared, c;
             float best;

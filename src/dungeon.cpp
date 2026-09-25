@@ -330,7 +330,7 @@ static void RoomCleared(Game& g) {
     for (int id : g.party)
         if (Hero* h = FindHero(g, id)) { h->st = Status{}; }
     bool boss = d.rooms[d.roomIndex] == RoomType::Boss;
-    d.roomGold = (int)(Roll(boss ? 60 : 20, boss ? 90 : 40) * LootMult(g));
+    d.roomGold = (int)(Roll(boss ? 30 : 10, boss ? 50 : 22) * LootMult(g)); // kept modest: gold should stay scarce
     d.roomRelic = -1;
     if (boss && Chance(50)) { d.roomRelic = Roll(0, (int)Relics().size() - 1); d.lootRelics.push_back(d.roomRelic); }
     d.lootGold += d.roomGold;
@@ -392,7 +392,7 @@ static void EnterNextRoom(Game& g) {
     d.floats.clear();
     RoomType rt = d.rooms[d.roomIndex];
     if (rt == RoomType::Treasure) {
-        d.roomGold = (int)(Roll(35, 70) * LootMult(g));
+        d.roomGold = (int)(Roll(18, 36) * LootMult(g));
         d.roomRelic = Chance(30) ? Roll(0, (int)Relics().size() - 1) : -1;
         d.lootGold += d.roomGold;
         if (d.roomRelic >= 0) d.lootRelics.push_back(d.roomRelic);

@@ -179,18 +179,18 @@ static RelicDef R(const char* n, const char* d, int hp, int dmg, int spd, int ac
 
 const std::vector<RelicDef>& Relics() {
     static const std::vector<RelicDef> list = {
-        R("Wrench", "+10 Protection", 0, 0, 0, 0, 0, 10, 0, 70),                // 0
-        R("Pipe Wrench", "+1 Damage, -1 Speed", 0, 1, -1, 0, 0, 0, 0, 60),      // 1
-        R("Monkey Wrench", "+5 Accuracy, +3 Dodge", 0, 0, 0, 5, 3, 0, 0, 70),   // 2
-        R("Rivet Gun", "+2 Damage, -5 Accuracy", 0, 2, 0, -5, 0, 0, 0, 80),     // 3
-        R("Sword", "+1 Damage, +3 Accuracy", 0, 1, 0, 3, 0, 0, 0, 80),          // 4
-        R("Butcher Knife", "+2 Damage, -5 Protection", 0, 2, 0, 0, 0, -5, 0, 75),
-        R("Flintlock", "+8 Accuracy", 0, 0, 0, 8, 0, 0, 0, 70),
-        R("Six-Shooter", "+1 Damage, +1 Speed", 0, 1, 1, 0, 0, 0, 0, 90),
-        R("MedKit", "+5 Max HP", 5, 0, 0, 0, 0, 0, 0, 70),                      // 8
-        R("Syringe", "+2 Speed", 0, 0, 2, 0, 0, 0, 0, 80),
-        R("Pliers", "Resist 15% of stress", 0, 0, 0, 0, 0, 0, 15, 75),
-        R("Backpack", "+3 Max HP, +5 Protection", 3, 0, 0, 0, 0, 5, 0, 85),
+        R("Wrench", "+10 Protection", 0, 0, 0, 0, 0, 10, 0, 170),                // 0
+        R("Pipe Wrench", "+1 Damage, -1 Speed", 0, 1, -1, 0, 0, 0, 0, 145),      // 1
+        R("Monkey Wrench", "+5 Accuracy, +3 Dodge", 0, 0, 0, 5, 3, 0, 0, 170),   // 2
+        R("Rivet Gun", "+2 Damage, -5 Accuracy", 0, 2, 0, -5, 0, 0, 0, 195),     // 3
+        R("Sword", "+1 Damage, +3 Accuracy", 0, 1, 0, 3, 0, 0, 0, 195),          // 4
+        R("Butcher Knife", "+2 Damage, -5 Protection", 0, 2, 0, 0, 0, -5, 0, 180),
+        R("Flintlock", "+8 Accuracy", 0, 0, 0, 8, 0, 0, 0, 170),
+        R("Six-Shooter", "+1 Damage, +1 Speed", 0, 1, 1, 0, 0, 0, 0, 220),
+        R("MedKit", "+5 Max HP", 5, 0, 0, 0, 0, 0, 0, 170),                      // 8
+        R("Syringe", "+2 Speed", 0, 0, 2, 0, 0, 0, 0, 195),
+        R("Pliers", "Resist 15% of stress", 0, 0, 0, 0, 0, 0, 15, 180),
+        R("Backpack", "+3 Max HP, +5 Protection", 3, 0, 0, 0, 0, 5, 0, 205),
     };
     return list;
 }
@@ -263,8 +263,8 @@ int LoadoutCount(const Hero& h) {
 //                                    level:  0   1   2   3
 static const int ROSTER_SIZE[4]      = {8,  9, 10, 12};
 static const int RECRUITS[4]         = {3,  4,  4,  5};
-static const int SCAN_COST[4]        = {20, 15, 10, 5};
-static const int WARD_COST[4]        = {3,  2,  2,  1};
+static const int SCAN_COST[4]        = {70, 55, 40, 25};
+static const int WARD_COST[4]        = {9,  7,  5,  4};
 static const int LIGHT_DRAIN[4]      = {20, 16, 12, 9};
 
 int MaxRoster(const Game& g) { return ROSTER_SIZE[g.upgrades[UP_BUNKS]]; }
@@ -272,7 +272,7 @@ int RecruitsPerScan(const Game& g) { return RECRUITS[g.upgrades[UP_SONAR]]; }
 int ScanCost(const Game& g) { return SCAN_COST[g.upgrades[UP_SONAR]]; }
 int WardCostPerHp(const Game& g) { return WARD_COST[g.upgrades[UP_INFIRMARY]]; }
 int LightDrainPerRoom(const Game& g) { return LIGHT_DRAIN[g.upgrades[UP_REFLECTOR]]; }
-int UpgradePrice(int level) { return level == 1 ? 120 : level == 2 ? 240 : 400; }
+int UpgradePrice(int level) { return level == 1 ? 400 : level == 2 ? 800 : 1400; } // gold should stay scarce: parkour and Flats are meant to fill the gap
 
 const char* UpgradeName(int u) {
     switch (u) {

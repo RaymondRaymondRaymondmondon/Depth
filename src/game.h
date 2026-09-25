@@ -217,6 +217,7 @@ struct PlatBoss {
     int hp = 3, state = 0;
     float timer = 0, invuln = 0, dir = -1;
     int volley = 0;                               // Blackbeard: alternates pistol shots and charges
+    float chargeStartX = 0;                        // Blackbeard: where a charge began, so a lucky tap on a nearby wall doesn't count
     float tentX[2] = {0, 0}, tentT[2] = {-1, -1}; // Kraken tentacle strikes (x, time since warning; <0 = idle)
     bool tentTop[2] = {false, false};             // true = slams down from above, false = rises from the abyss
     bool defeated = false;
@@ -235,7 +236,7 @@ struct PlatformState {
     std::vector<PlatEnemy> enemies;
     PlatBoss boss;
     std::vector<PlatParticle> particles;
-    int coins = 0, deaths = 0, reward = 0, relic = -1;
+    int coins = 0, deaths = 0, reward = 0, relic = -1, relic2 = -1; // relic2: Blackbeard sometimes leaves a second
     float time = 0, deathTimer = 0, camX = 0, camY = 0;
     bool finished = false, exitOpen = true;
     // Sections are stitched left to right, each raised or lowered so its entrance meets the last exit.
@@ -248,11 +249,12 @@ struct PlatformState {
     std::vector<PlatShot> shots;     // musket balls and bombs in flight
     bool hard = false;               // Hard keeps the gears and jets; Normal leaves them out
     bool checkpoints = false;        // respawn at the last section reached, but forfeit the relic
+    bool bossEnabled = true;         // Hull/Pirate: whether the boss arena has its boss in it
 };
 
 struct Game {
     Scene scene = Scene::Hub;
-    int gold = 300;
+    int gold = 60; // kept deliberately scarce: parkour runs and Flats are meant to make up the difference
     int batteries = 2;
     std::vector<Hero> roster;
     std::array<int, PARTY_SIZE> party{{-1, -1, -1, -1}}; // hero ids, rank 1 first
@@ -270,6 +272,8 @@ struct Game {
     float platBest[PL_COUNT] = {0, 0, 0};    // best clear time in seconds (0 = never cleared)
     bool platHard = false;                   // Periscope option: the full-strength layouts
     bool platCheckpoints = false;            // Periscope option: checkpoints, at the cost of the relic
+    bool platHullBoss = true;                // Periscope option: fight the Kraken (only chance of a relic)
+    bool platPirateBoss = true;              // Periscope option: fight Blackbeard (guarantees relic(s))
     int caveTierCleared = -1;                // highest cave level beaten (-1 = none)
     int caveTier = 0;                        // the cave level chosen at the Helm
     std::string toast;

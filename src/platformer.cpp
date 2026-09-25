@@ -167,8 +167,11 @@ const char* PIPE_TWINS[] = { // climb between two pipes, drop behind a third, do
     W, W, nullptr};
 
 // ---------------------------------------------------------------- the Hull: crabs, eels, urchins, mines
+// Sections run in three phases: two laps along the outer hull plating close to the sub (near enough
+// that its ribs and portholes still show behind you), then two stretches of open water further out,
+// then always the drop-off and the trench mouth, descending toward the abyss where the Kraken lairs.
 const char* HULL[][CH_H] = {
-    {   // A: crab walk
+    {   // A (near): crab walk along the plating
         "########################", E, E, E, E, E, E, E, E, E,
         "..........o.o...........",
         ".........####...........",
@@ -177,28 +180,7 @@ const char* HULL[][CH_H] = {
         "########xx######xx######",
         "########################",
     },
-    {   // B: eel pits
-        "########################", E, E, E, E, E, E, E, E, E,
-        ".....o.......o.......o..",
-        E, E,
-        "......e.......e.........",
-        "####....####....####..##",
-        "####....####....####..##",
-    },
-    {   // C: mine climb
-        "########################", E, E, E, E,
-        "..................o.....",
-        ".................###....",
-        "............##..........",
-        ".........g..............",
-        ".......###..............",
-        E, E,
-        "...###..................",
-        ".....................c..",
-        "##..................####",
-        "##..................####",
-    },
-    {   // D: barnacle chimney
+    {   // D (near): barnacle chimney, wall-jumping up past the hull's ribs
         "########################",
         E,
         "......#.................",
@@ -216,7 +198,28 @@ const char* HULL[][CH_H] = {
         "#######xxx##xxx#########",
         "########################",
     },
-    {   // E: eel bridge with a crab on the middle span
+    {   // B (open water): eel pits
+        "########################", E, E, E, E, E, E, E, E, E,
+        ".....o.......o.......o..",
+        E, E,
+        "......e.......e.........",
+        "####....####....####..##",
+        "####....####....####..##",
+    },
+    {   // C (open water): mine climb
+        "########################", E, E, E, E,
+        "..................o.....",
+        ".................###....",
+        "............##..........",
+        ".........g..............",
+        ".......###..............",
+        E, E,
+        "...###..................",
+        ".....................c..",
+        "##..................####",
+        "##..................####",
+    },
+    {   // E (open water): eel bridge with a crab on the middle span
         "########################", E, E, E, E, E, E, E, E, E,
         ".....o.....c.....o......",
         "....###...###...###.....",
@@ -225,12 +228,57 @@ const char* HULL[][CH_H] = {
         "##....................##",
         "##....................##",
     },
+    {   // F (trench approach): the drop-off, leaving the plating behind for open water
+        "########################",
+        "........................",
+        "........................",
+        "........................",
+        "....o...................",
+        "...###..................",
+        "........................",
+        ".........g..............",
+        "........###.............",
+        "........................",
+        ".................o......",
+        "................###.....",
+        "........................",
+        "......................c.",
+        "########xx######xx######",
+        "########################",
+    },
+    {   // G (trench approach): the trench mouth, right at the edge of the abyss
+        "########################",
+        "........................",
+        "........................",
+        "........................",
+        "........................",
+        "..o........g........o...",
+        "........................",
+        "........................",
+        "....c..............c....",
+        "########xx######xx######",
+        "........................",
+        "......e..........e......",
+        "####....####....####..##",
+        "####....####....####..##",
+        "########################",
+        "########################",
+    },
 };
+enum { HULL_NEAR0 = 0, HULL_NEAR_N = 2, HULL_OPEN0 = 2, HULL_OPEN_N = 3, HULL_TRENCH0 = 5, HULL_TRENCH_N = 2 }; // indexes into HULL[]
 const char* HULL_ARENA[CH_H] = {
     "########################", E, E, E, E, E, E, E, E, E, E,
     "......###...##....###...",
     E,
     "...............K.....E..",
+    "####..............######",
+    "####..............######",
+};
+const char* HULL_ARENA_NOBOSS[CH_H] = { // the Kraken switched off: a quiet stretch of open water to the exit
+    "########################", E, E, E, E, E, E, E, E, E, E,
+    "......###...##....###...",
+    E,
+    ".......................E",
     "####..............######",
     "####..............######",
 };
@@ -364,6 +412,20 @@ const char* CABIN_ARENA[] = { // Blackbeard's great cabin: charge him into a wal
     "......................##",
     "<.........B.........E.##",
     W, W, nullptr};
+const char* CABIN_ARENA_NOBOSS[] = { // Blackbeard switched off: the cabin sits empty, treasure for the taking
+    W, W, W,
+    "##....................##",
+    "##....................##",
+    "##....................##",
+    "##....................##",
+    "##....................##",
+    "##..........o.........##",
+    "##....................##",
+    "##....................##",
+    "##..===..........===..##",
+    "......................##",
+    "<...................E.##",
+    W, W, nullptr};
 enum { PS_DECK0 = 0, PS_DECKS = 3, PS_HATCH = 3, PS_HOLD0 = 4, PS_HOLDS = 3, PS_STAIRS = 7 }; // indexes into the Pirate sections#undef E
 #undef W
 
@@ -378,6 +440,7 @@ struct LevelDef {
     const char* name;
     std::vector<Part> sections;
     Part first, last;     // the opening section, and the final one (exit or boss arena)
+    Part lastNoBoss;      // used instead of `last` when the boss fight is switched off
     int perRun, coinValue, bonus;
     char fill;            // what's below and around the sections: solid for the Pipes and the ship, open water otherwise
     bool dark;            // lit only by the diver's helmet lamp
@@ -386,14 +449,15 @@ struct LevelDef {
 const LevelDef& Lv(int level) {
     static const std::vector<LevelDef> defs = [] {
         std::vector<LevelDef> d(PL_COUNT);
+        Part pipesEnd = P(END_PIPES);
         d[PL_PIPES] = {"The Pipes", {P(PIPE_RISER), P(PIPE_DROP), P(PIPE_JETS), P(PIPE_SHAFT), P(PIPE_CRAWL), P(PIPE_BOILER), P(PIPE_TWINS)},
-                       P(START_PIPES), P(END_PIPES), 6, 2, 30, '#', true, '#'};
+                       P(START_PIPES), pipesEnd, pipesEnd, 6, 3, 45, '#', true, '#'};
         std::vector<Part> hull;
         for (auto& c : HULL) hull.push_back(P16(c));
-        d[PL_HULL] = {"The Hull", hull, P16(START), P16(HULL_ARENA), 5, 3, 60, '.', false, '.'};
+        d[PL_HULL] = {"The Hull", hull, P16(START), P16(HULL_ARENA), P16(HULL_ARENA_NOBOSS), 6, 4, 110, '.', false, '.'};
         std::vector<Part> pirate = {P(DECK_WAIST), P(DECK_RIGGING), P(DECK_BARRELS), P(DECK_HATCH, 12, 1),
                                     P(HOLD_CARGO, 4, 1), P(HOLD_GUNDECK, 9, 1), P(HOLD_BILGE, 4, 1), P(COMPANIONWAY, 4, 1)};
-        d[PL_PIRATE] = {"The Pirate Ship", pirate, P(START_DECK), P(CABIN_ARENA, 0, 2), 6, 4, 100, '#', false, '.'};
+        d[PL_PIRATE] = {"The Pirate Ship", pirate, P(START_DECK), P(CABIN_ARENA, 0, 2), P(CABIN_ARENA_NOBOSS, 0, 2), 6, 6, 160, '#', false, '.'};
         return d;
     }();
     return defs[level];
@@ -609,6 +673,7 @@ bool ShotHits(const PlatShot& s, Rectangle pr) {
 float KrakenOrigin(const PlatformState& p) { return p.boss.home.y - 14.0f * T; }
 constexpr float TENT_IDLE = -100;
 constexpr float BB_W = 36, BB_H = 72; // Blackbeard is a head taller than anyone
+constexpr float KRAKEN_SCALE = 1.8f;  // the Kraken's mantle is drawn at life size: this is the beast you fight, not a stand-in
 float KrakenTop(const PlatformState& p) {
     const PlatBoss& b = p.boss;
     float under = KrakenOrigin(p) + 17.0f * T, KRAKEN_SURFACED_TOP = KrakenOrigin(p) + 11.0f * T - 10;
@@ -619,7 +684,10 @@ float KrakenTop(const PlatformState& p) {
         default: return under;
     }
 }
-Rectangle KrakenHead(const PlatformState& p) { float top = KrakenTop(p); return {p.boss.home.x - 48, top, 96, 70}; }
+Rectangle KrakenHead(const PlatformState& p) {
+    float top = KrakenTop(p), w = 96 * KRAKEN_SCALE, h = 70 * KRAKEN_SCALE;
+    return {p.boss.home.x - w / 2, top, w, h};
+}
 float TentacleReach(float tt) { // 0..1 extent of a strike, tt = time since its warning began
     if (tt < 0.75f) return 0;
     if (tt < 0.9f) return (tt - 0.75f) / 0.15f;
@@ -687,13 +755,13 @@ void UpdateBoss(PlatformState& p, float dt) {
         // moment: that's when to stomp him. Each hit makes him faster, and after the first he throws bombs.
         float px = p.pos.x + PW / 2, bx = b.pos.x + BB_W / 2;
         int hits = 3 - b.hp;
-        float charge = (p.hard ? 390.0f : 320.0f) + hits * (p.hard ? 50.0f : 35.0f);
+        float charge = (p.hard ? 460.0f : 380.0f) + hits * (p.hard ? 65.0f : 45.0f);
         if (b.defeated) b.vel.x = 0;
         else switch (b.state) {
             case 0: // stalk toward you
                 b.dir = px < bx ? -1.0f : 1.0f;
-                b.vel.x = b.dir * (60 + hits * 25.0f);
-                if (b.timer > (hits ? 0.9f : 1.3f)) {
+                b.vel.x = b.dir * (70 + hits * 30.0f);
+                if (b.timer > (hits ? 0.65f : 1.0f)) { // reads faster each hit: less time to predict what's next
                     b.vel.x = 0;
                     b.timer = 0;
                     b.state = (b.volley++ % 2 == 0 && fabsf(px - bx) > 2.5f * T) || p.pos.y + PH < b.pos.y ? 4 : 1; // a shot, or a charge
@@ -702,41 +770,50 @@ void UpdateBoss(PlatformState& p, float dt) {
             case 1: // wind-up: he lowers his head and paws the boards
                 b.vel.x = 0;
                 b.dir = px < bx ? -1.0f : 1.0f;
-                if (b.timer > (p.hard ? 0.45f : 0.6f)) { b.state = 2; b.timer = 0; }
+                if (b.timer > (p.hard ? 0.3f : 0.4f)) { b.state = 2; b.timer = 0; b.chargeStartX = b.pos.x; }
                 break;
-            case 2: // charge! He only stops at a wall
+            case 2: // charge! He only stops at a wall -- and it only counts as a daze if the charge carried
+                     // real distance first, so tapping a wall he started right next to doesn't count
                 b.vel.x = b.dir * charge;
                 if (b.timer > 3.0f) { b.state = 3; b.timer = 0; }
                 break;
             case 4: // aiming a pistol; it fires at the end
                 b.vel.x = 0;
                 b.dir = px < bx ? -1.0f : 1.0f;
-                if (b.timer > (p.hard ? 0.5f : 0.65f)) {
+                if (b.timer > (p.hard ? 0.38f : 0.5f)) {
                     Vector2 muzzle{bx + b.dir * 26, b.pos.y + 30}, to{px, p.pos.y + PH / 2};
                     float ax = to.x - muzzle.x, ay = to.y - muzzle.y, len = std::max(1.0f, sqrtf(ax * ax + ay * ay));
-                    p.shots.push_back({muzzle, {ax / len * 380, ay / len * 380}, 4, 0});
+                    p.shots.push_back({muzzle, {ax / len * 430, ay / len * 430}, 4, 0});
                     Burst(p, muzzle, 8, Color{255, 210, 110, 255}, 150, 0.25f, 2);
-                    b.state = hits && b.volley % 3 == 0 ? 4 : 0; // later on, two shots in a row
+                    b.state = b.volley % 2 == 0 ? 4 : 0; // fires twice in a row from the second hit on
                     b.volley += b.state == 4;
-                    b.timer = b.state == 4 ? 0.1f : 0;
+                    b.timer = b.state == 4 ? 0.08f : 0;
                 }
                 break;
-            case 5: // dazed after hitting a wall: now he can be stomped
+            case 5: // dazed after hitting a wall: now he can be stomped, but not for long
                 b.vel.x = 0;
-                if (b.timer > (p.hard ? 1.5f : 2.3f)) { b.state = 3; b.timer = 0; }
+                if (b.timer > (p.hard ? 1.0f : 1.5f)) { b.state = 3; b.timer = 0; }
                 break;
             default: // 3: back on his feet (and furious)
                 b.vel.x = 0;
-                if (b.timer > 0.6f) { b.state = 0; b.timer = 0; }
+                if (b.timer > 0.4f) { b.state = 0; b.timer = 0; }
                 break;
         }
         b.vel.y = std::min(b.vel.y + GRAV_DOWN * dt, MAX_FALL);
         bool grounded, hitWall;
         MoveAndCollide(p, b.pos, b.vel, BB_W, BB_H, dt, grounded, hitWall);
         if (hitWall && b.state == 2) {
-            b.state = 5;
-            b.timer = 0;
-            Burst(p, {b.dir > 0 ? b.pos.x + BB_W : b.pos.x, b.pos.y + 30}, 16, Color{190, 150, 100, 255}, 220, 0.5f, 3); // splinters
+            float traveled = fabsf(b.pos.x - b.chargeStartX);
+            if (traveled >= 5.0f * T) { // a real charge, carried at speed into the wall: he's genuinely dazed
+                b.state = 5;
+                b.timer = 0;
+                Burst(p, {b.dir > 0 ? b.pos.x + BB_W : b.pos.x, b.pos.y + 30}, 16, Color{190, 150, 100, 255}, 220, 0.5f, 3); // splinters
+            } else { // he was already right on top of the wall: barely a bump, and he shrugs it off
+                b.state = 0;
+                b.timer = 0;
+                b.vel.x = 0;
+                Burst(p, {b.dir > 0 ? b.pos.x + BB_W : b.pos.x, b.pos.y + 30}, 5, Color{190, 150, 100, 255}, 90, 0.25f, 2);
+            }
         }
     }
 }
@@ -813,7 +890,7 @@ void BuildLevel(PlatformState& p) {
     const LevelDef& L = Lv(p.level);
     std::vector<Part> parts{L.first};
     for (int c : p.layout) parts.push_back(L.sections[c]);
-    parts.push_back(L.last);
+    parts.push_back(p.bossEnabled ? L.last : L.lastNoBoss);
     BuildFromParts(p, parts, L.fill, L.fillAbove);
     if (!p.hard) // Normal: no spinning hazards, and the jets are left cold (plain floor)
         for (auto& row : p.tiles)
@@ -967,10 +1044,26 @@ void DrawBackground(const PlatformState& p, float t) {
                 DrawRectangle(0, (int)y, (int)cw, 9, Color{70, 50, 36, 255});
                 DrawRectangle(0, (int)y + 2, (int)cw, 2, Color{110, 80, 54, 255});
             }
-            Layer(cx, 0.85f, 70, cw, [&](float x, float wx) { // water dripping from the seams
+            Layer(cx, 0.85f, 70, cw, [&](float x, float wx) { // water dripping from the seams -- rust-dark, more often than not
                 float ph = fmodf(t * 0.7f + Hs(wx) * 5, 1.0f);
-                DrawRectangle((int)x, (int)(ph * ch), 1, 3, Color{120, 150, 160, 160});
+                bool dark = Hs(wx + 3) > 0.4f;
+                DrawRectangle((int)x, (int)(ph * ch), 1, 3, dark ? Color{80, 30, 26, 180} : Color{120, 150, 160, 160});
+                if (dark && ph > 0.85f) DrawCircle((int)x, (int)ch - 4, 2, Color{60, 22, 20, 140}); // a stain pooling on the plating below
             });
+            Layer(cx, 0.5f, 260, cw, [&](float x, float wx) { // claw marks raked across a plate, as if something came this way
+                if (Hs(wx + 11) < 0.62f) return;
+                float y = 60 + Hs(wx + 12) * (ch - 160);
+                for (int k = 0; k < 4; k++) DrawLineEx({x - 14.0f + k * 9, y}, {x + 8.0f + k * 9, y + 46}, 2, Color{18, 14, 12, 200});
+            });
+            Layer(cx, 0.5f, 340, cw, [&](float x, float wx) { // something watches from a gap in the plating, then isn't there
+                float cyc = fmodf(t * 0.11f + Hs(wx + 20) * 9, 9.0f);
+                if (cyc > 1.6f) return;
+                float a = std::min(1.0f, cyc * 4) * std::min(1.0f, (1.6f - cyc) * 4);
+                float y = 140 + Hs(wx + 21) * (ch - 280);
+                for (int s = -1; s <= 1; s += 2) DrawCircleV({x + s * 4.0f, y}, 1.4f, Fade(Color{220, 60, 50, 255}, a));
+            });
+            if (fmodf(t * 0.6f + cyv * 0.002f, 5.0f) < 0.12f) // the lamp flicker, and a bang echoing from deeper in
+                DrawRectangle(0, 0, (int)cw, (int)ch, Fade(BLACK, 0.35f));
         } break;
         case PL_HULL: {
             DrawRectangleGradientV(0, 0, (int)cw, (int)ch, Color{18, 64, 94, 255}, Color{4, 14, 30, 255});
@@ -1120,6 +1213,22 @@ void DrawHoldWall(const PlatformState& p, float x0, float y0, float x1, float y1
         DrawRectangleLines((int)(x + sway) - 4, (int)y0 + 30, 8, 10, Color{60, 50, 30, 255});
         float hy = y0 + 58;
         for (int k = 0; k < 10; k++) DrawRectangle((int)(x - 60 + k * 8), (int)(hy + sinf(k / 9.0f * PI) * 12 + sinf(t * 0.9f) * 2), 8, 3, Color{150, 132, 100, 255});
+    }
+    // A row of shut cabin doors lines the passage at floor level, so the one or two that burst open read
+    // as part of a real corridor of quarters, not as a random ambush spot in open air. Skip anywhere an
+    // ambusher's own (interactive) door will be drawn, so the two don't overlap.
+    for (float x = x0 + 44; x < x1 - 8; x += 52) {
+        bool live = false;
+        for (auto& e : p.enemies) if (e.type == 'P' && fabsf(e.home.x - x) < 40) live = true;
+        if (live) continue;
+        int col = (int)(x / T), row = (int)(y0 / T);
+        while (row < p.h - 1 && !Solid(p, col, row)) row++;
+        float dy = row * (float)T - 2 * T;
+        DrawRectangle((int)x, (int)dy + 1, 30, 2 * T - 1, Color{56, 34, 20, 255});
+        DrawRectangle((int)x + 3, (int)dy + 4, 24, 2 * T - 7, Color{74, 46, 26, 255});
+        DrawRectangle((int)x + 3, (int)dy + 12, 24, 3, Color{48, 30, 18, 255});
+        DrawRectangle((int)x + 3, (int)dy + 2 * T - 16, 24, 3, Color{48, 30, 18, 255});
+        DrawCircle((int)x + 22, (int)dy + T, 2, Pal::Brass);
     }
 }
 
@@ -1657,25 +1766,19 @@ void DrawTentacle(Vector2 base, Vector2 tip, float w0, float t, float seed, Colo
 }
 
 // The Kraken's bulk, looming in the abyss behind the arena: drawn before the tiles.
+// Only the abyss it's rising from is drawn here now: the great arms churning the dark water below the
+// platforms, foreshadowing what's about to surface. The creature itself -- the thing you actually fight
+// -- is drawn life-sized by DrawBoss below; there is no separate, smaller stand-in.
 void DrawBossBack(const PlatformState& p, float t) {
     const PlatBoss& b = p.boss;
     if (b.type != 'K') return;
     float arenaX = (p.w - CH_W) * (float)T;
     float sink = b.defeated && b.state == 4 ? std::min(1.0f, b.timer / 3.0f) * 300 : 0;
     Vector2 body{arenaX + 13 * T, KrakenOrigin(p) + 17.5f * T + sink};
-    Color deep{52, 22, 64, 255}, deeper{36, 16, 46, 255};
-    for (int k = 0; k < 7; k++) { // great arms curling up behind the platforms
+    Color deeper{30, 13, 40, 255};
+    for (int k = 0; k < 7; k++) { // great arms churning in the abyss beneath everything
         float bx = body.x - 300 + k * 100, sw = sinf(t * 0.6f + k) * 60;
-        DrawTentacle({bx, body.y}, {bx + sw, KrakenOrigin(p) + 3.0f * T + (k % 3) * 40 + sink}, 22, t * 0.4f, k * 1.7f, deeper);
-    }
-    DrawEllipse((int)body.x, (int)body.y, 300, 170, deep); // the mantle, rising from the dark
-    DrawEllipse((int)(body.x - 80), (int)(body.y - 90), 90, 40, Color{70, 32, 84, 255});
-    for (int s = -1; s <= 1; s += 2) { // vast eyes that follow you
-        Vector2 e{body.x + s * 110, body.y - 60};
-        float look = std::clamp((p.pos.x - e.x) * 0.02f, -6.0f, 6.0f);
-        DrawEllipse((int)e.x, (int)e.y, 34, 24, Color{30, 10, 20, 255});
-        DrawEllipse((int)e.x, (int)e.y, 28, 18, Color{230, 190, 60, 255});
-        DrawRectangle((int)(e.x + look - 3), (int)e.y - 16, 6, 32, Color{20, 6, 10, 255});
+        DrawTentacle({bx, body.y}, {bx + sw, KrakenOrigin(p) + 3.0f * T + (k % 3) * 40 + sink}, 20, t * 0.4f, k * 1.7f, deeper);
     }
 }
 
@@ -1704,20 +1807,22 @@ void DrawBoss(const PlatformState& p, float t) {
         }
         if (b.state >= 1) {
             Rectangle h = KrakenHead(p);
+            const float S = KRAKEN_SCALE;
             bool blink = b.invuln > 0 && fmodf(t, 0.15f) < 0.075f;
             Color skin = blink ? WHITE : Color{130, 64, 150, 255}, dk{96, 44, 112, 255};
             float cx = h.x + h.width / 2;
-            for (int k = -2; k <= 2; k++) // short arms writhing around the head
-                DrawTentacle({cx + k * 18, h.y + 60}, {cx + k * 46, h.y + 110 + fabsf((float)k) * 8}, 9, t * 3, k * 2.0f, dk);
-            DrawEllipse((int)cx, (int)(h.y + 28), 54, 40, skin);             // the great mantle
-            DrawEllipse((int)(cx - 14), (int)(h.y + 12), 22, 12, Fade(WHITE, 0.18f));
-            for (int k = 0; k < 6; k++) DrawCircle((int)(cx - 36 + k * 14), (int)(h.y + 20 + (k % 2) * 10), 3, dk); // mottling
-            for (int s = -1; s <= 1; s += 2) {
-                DrawEllipse((int)(cx + s * 24), (int)(h.y + 42), 12, 9, Color{250, 220, 80, 255});
-                DrawRectangle((int)(cx + s * 24 - 2), (int)(h.y + 35), 4, 14, Pal::Ink);
+            for (int k = -3; k <= 3; k++) // a crown of arms writhing around the huge head
+                DrawTentacle({cx + k * 18 * S, h.y + 60 * S}, {cx + k * 46 * S, h.y + (110 + fabsf((float)k) * 8) * S}, 9 * S, t * 3, k * 2.0f, dk);
+            DrawEllipse((int)cx, (int)(h.y + 28 * S), 54 * S, 40 * S, skin);             // the great mantle
+            DrawEllipse((int)(cx - 14 * S), (int)(h.y + 12 * S), 22 * S, 12 * S, Fade(WHITE, 0.18f));
+            for (int k = 0; k < 6; k++) DrawCircle((int)(cx - 36 * S + k * 14 * S), (int)(h.y + (20 + (k % 2) * 10) * S), 3 * S, dk); // mottling
+            for (int s = -1; s <= 1; s += 2) { // vast eyes that follow you
+                float look = std::clamp((p.pos.x - (cx + s * 24 * S)) * 0.015f, -6.0f, 6.0f) * S;
+                DrawEllipse((int)(cx + s * 24 * S), (int)(h.y + 42 * S), 12 * S, 9 * S, Color{250, 220, 80, 255});
+                DrawRectangle((int)(cx + s * 24 * S - 2 * S + look), (int)(h.y + 35 * S), 4 * S, 14 * S, Pal::Ink);
             }
-            DrawTri({cx - 8, h.y + 58}, {cx + 8, h.y + 58}, {cx, h.y + 70}, Color{40, 30, 30, 255}); // the beak
-            DrawTri({cx - 12, h.y - 6}, {cx, h.y + 6}, {cx + 12, h.y - 6}, Color{250, 220, 80, 200});    // stomp here
+            DrawTri({cx - 8 * S, h.y + 58 * S}, {cx + 8 * S, h.y + 58 * S}, {cx, h.y + 70 * S}, Color{40, 30, 30, 255}); // the beak
+            DrawTri({cx - 12 * S, h.y - 6 * S}, {cx, h.y + 6 * S}, {cx + 12 * S, h.y - 6 * S}, Color{250, 220, 80, 200}); // stomp here
         }
     } else if (b.type == 'B' && !b.defeated) {
         float x = b.pos.x, y = b.pos.y, f = b.dir, cx = x + BB_W / 2;
@@ -1827,6 +1932,12 @@ bool PlatLayoutValid(const Game& g, int level) {
         if (l.size() != 6 || l[2] != PS_HATCH || l[5] != PS_STAIRS) return false;
         for (int i : {0, 1}) if (l[i] < PS_DECK0 || l[i] >= PS_DECK0 + PS_DECKS) return false;
         for (int i : {3, 4}) if (l[i] < PS_HOLD0 || l[i] >= PS_HOLD0 + PS_HOLDS) return false;
+    } else if (level == PL_HULL) {
+        // near the hull, then open water, then always the drop-off and the trench mouth, in that order
+        if (l.size() != 6) return false;
+        for (int i : {0, 1}) if (l[i] < HULL_NEAR0 || l[i] >= HULL_NEAR0 + HULL_NEAR_N) return false;
+        for (int i : {2, 3}) if (l[i] < HULL_OPEN0 || l[i] >= HULL_OPEN0 + HULL_OPEN_N) return false;
+        if (l[4] != HULL_TRENCH0 || l[5] != HULL_TRENCH0 + 1) return false;
     }
     return true;
 }
@@ -1835,6 +1946,11 @@ void GeneratePlatLayout(Game& g, int level) {
     if (level == PL_PIRATE) {
         std::vector<int> deck = Shuffled(PS_DECK0, PS_DECKS, 2), hold = Shuffled(PS_HOLD0, PS_HOLDS, 2);
         g.platLayouts[level] = {deck[0], deck[1], PS_HATCH, hold[0], hold[1], PS_STAIRS};
+        return;
+    }
+    if (level == PL_HULL) {
+        std::vector<int> near = Shuffled(HULL_NEAR0, HULL_NEAR_N, 2), open = Shuffled(HULL_OPEN0, HULL_OPEN_N, 2);
+        g.platLayouts[level] = {near[0], near[1], open[0], open[1], HULL_TRENCH0, HULL_TRENCH0 + 1};
         return;
     }
     const LevelDef& L = Lv(level);
@@ -1860,6 +1976,7 @@ void StartPlatform(Game& g, int level) {
     g.plat.layout = g.platLayouts[level];
     g.plat.hard = g.platHard;
     g.plat.checkpoints = g.platCheckpoints;
+    g.plat.bossEnabled = level == PL_HULL ? g.platHullBoss : level == PL_PIRATE ? g.platPirateBoss : true;
     BuildLevel(g.plat);
     g.scene = Scene::Platformer;
 }
@@ -1930,7 +2047,7 @@ void ScenePlatformer(Game& g) {
                 for (int i = 0; i < 2; i++) if (b.tentT[i] >= 0.75f && CheckCollisionRecs(pr, TentacleBox(p, i))) Die(p);
                 if ((b.state == 1 || b.state == 2) && CheckCollisionRecs(pr, KrakenHead(p))) {
                     Rectangle h = KrakenHead(p);
-                    if (falling && p.pos.y + PH - p.vel.y * dt <= h.y + 14 && b.invuln <= 0) {
+                    if (falling && p.pos.y + PH - p.vel.y * dt <= h.y + 14 * KRAKEN_SCALE && b.invuln <= 0) {
                         b.hp--;
                         b.invuln = 0.6f;
                         p.vel.y = IsKeyDown(KEY_SPACE) || IsKeyDown(KEY_W) || IsKeyDown(KEY_UP) ? -820.0f : -600.0f;
@@ -1977,9 +2094,14 @@ void ScenePlatformer(Game& g) {
         if (p.finished) {
             const LevelDef& L = Lv(p.level);
             p.reward = p.coins * L.coinValue + (p.hard ? L.bonus * 3 / 2 : L.bonus);
-            if (p.level == PL_PIRATE && !p.checkpoints) p.relic = GetRandomValue(0, (int)Relics().size() - 1);
+            // Blackbeard is the reason the Pirate Ship pays out relics: beating him guarantees one, often two.
+            if (p.level == PL_PIRATE && p.boss.type == 'B' && p.boss.defeated && !p.checkpoints) {
+                p.relic = GetRandomValue(0, (int)Relics().size() - 1);
+                if (GetRandomValue(1, 100) <= 45) p.relic2 = GetRandomValue(0, (int)Relics().size() - 1);
+            }
             g.gold += p.reward;
             if (p.relic >= 0) g.relicStorage.push_back(p.relic);
+            if (p.relic2 >= 0) g.relicStorage.push_back(p.relic2);
             g.platCleared[p.level] = true;
             if (g.platBest[p.level] <= 0 || p.time < g.platBest[p.level]) g.platBest[p.level] = p.time;
             GeneratePlatLayout(g, p.level); // beaten: a fresh layout next time
@@ -2069,7 +2191,11 @@ void ScenePlatformer(Game& g) {
         DrawTextCenteredBold(p.level == PL_PIPES ? "Valve reached!" : p.level == PL_HULL ? "Back inside!" : "Treasure claimed!", panel.x + panel.width / 2, panel.y + 24, 34, Pal::Good);
         DrawTextCentered(TextFormat("%d coins x %d  +  %d bonus  =  %d gold", p.coins, L.coinValue, L.bonus, p.reward), panel.x + panel.width / 2, panel.y + 88, 21, Pal::Ink);
         DrawTextCentered(TextFormat("Time %.1fs  (best %.1fs)    Deaths %d", p.time, g.platBest[p.level], p.deaths), panel.x + panel.width / 2, panel.y + 124, 19, Pal::BrassDk);
-        if (p.relic >= 0) DrawTextCenteredBold(TextFormat("Relic found: %s", Relics()[p.relic].name.c_str()), panel.x + panel.width / 2, panel.y + 160, 20, Pal::Copper);
+        if (p.relic >= 0 && p.relic2 >= 0)
+            DrawTextCenteredBold(TextFormat("Relics found: %s, %s", Relics()[p.relic].name.c_str(), Relics()[p.relic2].name.c_str()),
+                                 panel.x + panel.width / 2, panel.y + 160, 20, Pal::Copper);
+        else if (p.relic >= 0)
+            DrawTextCenteredBold(TextFormat("Relic found: %s", Relics()[p.relic].name.c_str()), panel.x + panel.width / 2, panel.y + 160, 20, Pal::Copper);
         DrawTextCentered("A new layout will be waiting next time.", panel.x + panel.width / 2, panel.y + 194, 17, Pal::BrassDk);
         if (Button({panel.x + 110, panel.y + 228, 300, 48}, "Back to the periscope")) g.scene = Scene::Periscope;
     }
@@ -2271,6 +2397,22 @@ int VerifyPlatformLevels() {
             bool ok = Crossable(p, goal, jets, n);
             failures += !ok;
             printf("%-16s section %c: %s  (%ld states searched)\n", L.name, last ? '*' : 'A' + c, ok ? "crossable" : "NOT CROSSABLE", n);
+            fflush(stdout);
+        }
+        if (lv == PL_HULL || lv == PL_PIRATE) { // also check the arena used when the boss fight is switched off
+            PlatformState p;
+            p.level = lv;
+            BuildFromParts(p, {L.first, L.lastNoBoss, P(END_PIPES)}, L.fill, L.fillAbove);
+            bool jets = false;
+            for (auto& row : p.tiles) jets |= row.find('t') != std::string::npos;
+            p.exitOpen = false;
+            long n = 0;
+            float goal = p.partX[2] * (float)T + 8;
+            for (int r = 0; r < p.h; r++)
+                for (int x = p.partX[1]; x < p.partX[2]; x++) if (p.tiles[r][x] == 'E') goal = x * (float)T;
+            bool ok = Crossable(p, goal, jets, n);
+            failures += !ok;
+            printf("%-16s no-boss arena: %s  (%ld states searched)\n", L.name, ok ? "crossable" : "NOT CROSSABLE", n);
             fflush(stdout);
         }
     }

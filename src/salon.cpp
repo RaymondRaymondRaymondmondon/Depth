@@ -197,14 +197,22 @@ void PickTarget(Walker& w) {
     if (Blocked(w.target, 20)) w.target = FloorSpot();
 }
 
+// Only two of the ship's hands are ever out on the floor at once (plus the cat): a full crowd made the
+// room feel cramped. The rest are elsewhere on the boat, at their posts, off scene.
+constexpr int ACTIVE_NPCS = 2;
 void UpdateLife(Game& g, float dt) {
     (void)g;
-    if (walkers.empty())
-        for (int i = 0; i < NPC_COUNT; i++) {
+    if (walkers.empty()) {
+        std::vector<int> idx;
+        for (int i = 0; i < NPC_COUNT; i++) idx.push_back(i);
+        for (int i = (int)idx.size() - 1; i > 0; i--) std::swap(idx[i], idx[GetRandomValue(0, i)]);
+        for (int k = 0; k < ACTIVE_NPCS; k++) {
+            int i = idx[k];
             bool hasPost = NPCS[i].post.x != 0 || NPCS[i].post.y != 0;
             Vector2 start = hasPost ? NPCS[i].post : FloorSpot();
             walkers.push_back({i, start, start, RandF(2, 10), 0, NPCS[i].faceRight, hasPost});
         }
+    }
     for (auto& w : walkers) {
         if (w.wait > 0) {
             w.wait -= dt;

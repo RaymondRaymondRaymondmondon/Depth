@@ -51,7 +51,7 @@ static void TakeShots(const Game& base, const std::string& dir) {
         {"pipes_riser", [](Game& g) { g.platLayouts[PL_PIPES] = {0, 1, 2, 3, 4, 5}; StartPlatform(g, PL_PIPES); g.plat.pos = g.plat.spawns[1]; g.plat.pos.x += 200; g.plat.pos.y -= 160; }},
         {"pipes_shaft", [](Game& g) { g.platLayouts[PL_PIPES] = {3, 6, 1, 0, 2, 4}; StartPlatform(g, PL_PIPES); g.plat.pos = g.plat.spawns[1]; g.plat.pos.x += 330; g.plat.pos.y += 60; }},
         {"pipes_twins", [](Game& g) { g.platLayouts[PL_PIPES] = {6, 5, 1, 0, 2, 4}; StartPlatform(g, PL_PIPES); g.plat.pos = g.plat.spawns[1]; g.plat.pos.x += 60; }},
-        {"hull", [](Game& g) { g.platLayouts[PL_HULL] = {1, 0, 2, 3, 4}; StartPlatform(g, PL_HULL); g.plat.pos = {24 * 32 + 100, 300}; }},
+        {"hull", [](Game& g) { g.platLayouts[PL_HULL] = {0, 1, 2, 3, 5, 6}; StartPlatform(g, PL_HULL); g.plat.pos = {24 * 32 + 100, 300}; }},
         {"hull_kraken", [](Game& g) { StartPlatform(g, PL_HULL); g.plat.pos = {(g.plat.w - 24) * 32 + 420.0f, 200}; g.plat.boss.state = 2; }},
         {"pirate", [](Game& g) { g.platLayouts[PL_PIRATE] = {0, 1, 3, 4, 5, 7}; StartPlatform(g, PL_PIRATE); g.plat.pos = g.plat.spawns[1]; g.plat.pos.x += 16 * 32; g.plat.pos.y -= 96; }},
         {"pirate_hatch", [](Game& g) { g.platLayouts[PL_PIRATE] = {0, 1, 3, 4, 5, 7}; StartPlatform(g, PL_PIRATE); g.plat.pos = g.plat.spawns[3]; g.plat.pos.x += 260; g.plat.pos.y += 200; }},

@@ -535,14 +535,14 @@ void ScenePeriscope(Game& g) {
     const Lvl lv[PL_COUNT] = {
         {"FIRST DIVE", "A long crawl through the Nautilus's steam pipes. No enemies, just hard jumps: steam vents, a shaft to plunge down, and chimneys to wall-jump up.",
          "2 gold per coin, +30 at the valve"},
-        {"SECOND DIVE", "Out along the Nautilus's hull. Crabs, leaping eels, urchins and mines; one touch is fatal. At the end, the Kraken: stomp its head for a relic.",
-         "3 gold per coin, +60, and a relic for the Kraken"},
-        {"THIRD DIVE", "Board a pirate ship: across the deck, down the hatch into the hold, up to the captain's cabin. Pirates burst out of doors and shoot from cover. Trick Blackbeard into charging a wall, then stomp him while he's dazed.",
-         "4 gold per coin, +100, and a relic"},
+        {"SECOND DIVE", "Out along the Nautilus's hull, following her ribs and rails deeper toward open water where the Kraken lairs. Crabs, leaping eels, urchins and mines; one touch is fatal.",
+         "4 gold per coin, +90"},
+        {"THIRD DIVE", "Board a pirate ship: across the deck, down the hatch into the hold, up the companionway to the captain's cabin. Pirates burst out of doors and shoot from cover.",
+         "6 gold per coin, +160"},
     };
     for (int i = 0; i < PL_COUNT; i++) {
         bool open = i == 0 || g.platCleared[i - 1];
-        Rectangle c{60 + i * 400.0f, 110, 370, 470};
+        Rectangle c{60 + i * 400.0f, 110, 370, 510};
         Panel(c, open ? Pal::Paper : Color{176, 168, 150, 255});
         Color top = i == 0 ? Pal::Copper : i == 1 ? Color{50, 110, 130, 255} : Color{70, 50, 90, 255};
         DrawVGradient({c.x + 14, c.y + 14, c.width - 28, 120}, ColorBrightness(top, 0.15f), ColorBrightness(top, -0.35f));
@@ -553,8 +553,15 @@ void ScenePeriscope(Game& g) {
         if (open) {
             TxtBold(TextFormat("Layout: %s", PlatLayoutCode(g, i).c_str()), c.x + 20, c.y + 312, 17, Pal::Ink);
             if (g.platBest[i] > 0) Txt(TextFormat("Best time %.1fs", g.platBest[i]), c.x + 230, c.y + 314, 15, Pal::BrassDk);
-            if (Button({c.x + 20, c.y + 364, c.width - 40, 44}, "Dive in")) { StartPlatform(g, i); return; }
-            if (Button({c.x + 20, c.y + 414, c.width - 40, 40}, "Reshuffle layout (10g)", g.gold >= 10)) {
+            if (i == PL_HULL) {
+                if (Button({c.x + 20, c.y + 342, c.width - 40, 32}, g.platHullBoss ? "Kraken fight: ON (chance of a relic)" : "Kraken fight: OFF (no relic)", true, 13))
+                    g.platHullBoss = !g.platHullBoss;
+            } else if (i == PL_PIRATE) {
+                if (Button({c.x + 20, c.y + 342, c.width - 40, 32}, g.platPirateBoss ? "Blackbeard fight: ON (relic(s) guaranteed)" : "Blackbeard fight: OFF (no relic)", true, 13))
+                    g.platPirateBoss = !g.platPirateBoss;
+            }
+            if (Button({c.x + 20, c.y + 388, c.width - 40, 44}, "Dive in")) { StartPlatform(g, i); return; }
+            if (Button({c.x + 20, c.y + 440, c.width - 40, 40}, "Reshuffle layout (10g)", g.gold >= 10)) {
                 g.gold -= 10;
                 GeneratePlatLayout(g, i);
                 Toast(g, "The sections rattle and rearrange themselves...");
@@ -564,10 +571,10 @@ void ScenePeriscope(Game& g) {
         }
     }
     // run options, kept between sessions
-    if (Button({60, 592, 250, 40}, g.platHard ? "Difficulty: HARD" : "Difficulty: Normal", true, 17)) g.platHard = !g.platHard;
-    Txt(g.platHard ? "Every gear, mine, spiked ball and jet. +50% bonus gold." : "No gears, mines, spiked balls or jets, and a brighter lamp.", 320, 603, 15, Pal::Paper);
-    if (Button({700, 592, 250, 40}, g.platCheckpoints ? "Checkpoints: ON" : "Checkpoints: OFF", true, 17)) g.platCheckpoints = !g.platCheckpoints;
-    Txt(g.platCheckpoints ? "Respawn in the section you reached,\nbut no relics can be won." : "A death sends you back to the start.\nRelics can be won.", 960, 594, 15, Pal::Paper);
+    if (Button({60, 632, 250, 40}, g.platHard ? "Difficulty: HARD" : "Difficulty: Normal", true, 17)) g.platHard = !g.platHard;
+    Txt(g.platHard ? "Every gear, mine, spiked ball and jet. +50% bonus gold." : "No gears, mines, spiked balls or jets, and a brighter lamp.", 320, 643, 15, Pal::Paper);
+    if (Button({700, 632, 250, 40}, g.platCheckpoints ? "Checkpoints: ON" : "Checkpoints: OFF", true, 17)) g.platCheckpoints = !g.platCheckpoints;
+    Txt(g.platCheckpoints ? "Respawn in the section you reached,\nbut no relics can be won." : "A death sends you back to the start.\nRelics can be won.", 960, 634, 15, Pal::Paper);
     const char* help = "A/D or arrows to move   |   Space to jump: hold for height, jump off walls   |   Esc to give up   |   Only bosses can be stomped";
-    TxtShadow(help, SCREEN_W / 2.0f - MeasureTxt(help, 17) / 2.0f, 652, 17, Color{220, 200, 160, 255});
+    TxtShadow(help, SCREEN_W / 2.0f - MeasureTxt(help, 16) / 2.0f, 690, 16, Color{220, 200, 160, 255});
 }
