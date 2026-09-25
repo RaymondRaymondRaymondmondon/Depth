@@ -4,6 +4,7 @@
 //  Developer switches:
 //    depth.exe --sim 400 [level] [random]   auto-play expeditions and print balance stats
 //    depth.exe --shots <folder>    render every screen to PNGs and quit
+//    depth.exe --verify            prove every platformer section can be crossed
 // ============================================================================
 #include "game.h"
 #include <cstdlib>
@@ -46,7 +47,13 @@ static void TakeShots(const Game& base, const std::string& dir) {
         {"library", [](Game& g) { g.scene = Scene::Bookshelf; g.bookTab = 1; }},
         {"combat", [](Game& g) { g.dungeon.light = 60; DebugEnterCombat(g); }},
         {"combat_dark", [](Game& g) { DebugEnterCombat(g); g.dungeon.light = 10; }},
-        {"pipes", [](Game& g) { StartPipes(g); g.plat.pos.x += 200; }},
+        {"periscope", [](Game& g) { g.scene = Scene::Periscope; g.platCleared[0] = true; }},
+        {"pipes", [](Game& g) { StartPlatform(g, PL_PIPES); }},
+        {"pipes_chimney", [](Game& g) { g.platLayouts[PL_PIPES] = {2, 0, 1, 3, 4, 5}; StartPlatform(g, PL_PIPES); g.plat.pos = {24 * 32 + 200, 200}; }},
+        {"hull", [](Game& g) { g.platLayouts[PL_HULL] = {1, 0, 2, 3, 4}; StartPlatform(g, PL_HULL); g.plat.pos = {24 * 32 + 100, 300}; }},
+        {"hull_kraken", [](Game& g) { StartPlatform(g, PL_HULL); g.plat.pos = {(g.plat.w - 24) * 32 + 420.0f, 200}; g.plat.boss.state = 2; }},
+        {"pirate", [](Game& g) { g.platLayouts[PL_PIRATE] = {0, 1, 2, 3, 4}; StartPlatform(g, PL_PIRATE); g.plat.pos = {24 * 32 + 100, 250}; }},
+        {"pirate_boss", [](Game& g) { StartPlatform(g, PL_PIRATE); g.plat.pos = {(g.plat.w - 24) * 32 + 200.0f, 300}; }},
     };
     for (const auto& s : shots) {
         Game g = base;
@@ -71,6 +78,10 @@ int main(int argc, char** argv) {
         SimulateExpeditions(argc >= 3 ? atoi(argv[2]) : 400, argc >= 4 ? atoi(argv[3]) : 0,
                             argc >= 5 && strcmp(argv[4], "random") == 0);
         return 0;
+    }
+    if (argc >= 2 && strcmp(argv[1], "--verify") == 0) {
+        SetTraceLogLevel(LOG_WARNING);
+        return VerifyPlatformLevels();
     }
     const char* shotDir = argc >= 3 && strcmp(argv[1], "--shots") == 0 ? argv[2] : nullptr;
 

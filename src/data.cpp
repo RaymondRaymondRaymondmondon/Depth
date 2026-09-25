@@ -352,5 +352,5 @@ void InitGame(Game& g) {
     g.party = {{g.roster[3].id, g.roster[1].id, g.roster[2].id, g.roster[0].id}};
     g.relicStorage = {0, 8}; // Wrench, MedKit
     RefreshRadar(g);
-    GeneratePipesLayout(g);
+    for (int l = 0; l < PL_COUNT; l++) GeneratePlatLayout(g, l);
 }

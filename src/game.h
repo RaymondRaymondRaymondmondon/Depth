@@ -153,21 +153,36 @@ struct DungeonState {
     std::vector<FloatText> floats;
 };
 
-struct Rat { Vector2 pos; float dir; float vy; bool alive; };
+// ---------- platformer ----------
+enum PlatLevel { PL_PIPES, PL_HULL, PL_PIRATE, PL_COUNT };
+
+struct PlatEnemy { char type; Vector2 pos, home; float dir, t; };
+struct PlatParticle { Vector2 p, v; float life, max, size; Color c; };
+struct PlatBoss {
+    char type = 0;               // 'K' Kraken, 'B' Blackbeard, 0 = none
+    Vector2 home{0, 0}, pos{0, 0}, vel{0, 0};
+    int hp = 3, state = 0;
+    float timer = 0, invuln = 0, dir = -1;
+    float tentX[2] = {0, 0}, tentT[2] = {-1, -1}; // Kraken tentacle strikes (x, time since warning; <0 = idle)
+    bool defeated = false;
+};
 
 struct PlatformState {
-    std::vector<int> pipesLayout; // which chunks make up the current Pipes layout
+    int level = PL_PIPES;
     std::string layoutCode;
     std::vector<std::string> tiles;
     int w = 0, h = 0;
-    Vector2 pos{0, 0}, vel{0, 0};
+    Vector2 pos{0, 0}, vel{0, 0}, scale{1, 1}, startPos{0, 0};
     bool onGround = false, facingRight = true;
-    float coyote = 0, jumpBuffer = 0;
+    int wallSide = 0, lockSide = 0;   // wall being slid on / wall just jumped from (-1 left, 1 right)
+    float coyote = 0, wallCoyote = 0, jumpBuffer = 0, wallLock = 0, runAnim = 0, accumulator = 0;
     int checkpointChunk = 0;
-    std::vector<Rat> rats;
-    int coins = 0, deaths = 0, reward = 0;
-    float time = 0, deathFlash = 0;
-    bool finished = false;
+    std::vector<PlatEnemy> enemies;
+    PlatBoss boss;
+    std::vector<PlatParticle> particles;
+    int coins = 0, deaths = 0, reward = 0, relic = -1;
+    float time = 0, deathTimer = 0, camX = 0;
+    bool finished = false, exitOpen = true;
 };
 
 struct Game {
@@ -185,6 +200,9 @@ struct Game {
     int bookTab = 0;
     int relicScroll = 0;
     int upgrades[UP_COUNT] = {0, 0, 0, 0};
+    std::vector<int> platLayouts[PL_COUNT]; // which chunks make up each platform level's current layout
+    bool platCleared[PL_COUNT] = {false, false, false};
+    float platBest[PL_COUNT] = {0, 0, 0};    // best clear time in seconds (0 = never cleared)
     float hubCam = 1690, hubCamTarget = 1690; // left edge of the view along the Nautilus deck (starts at the Helm)
     std::string toast;
     float toastTimer = 0;
@@ -252,7 +270,18 @@ void DrawGauge(Vector2 c, float r, float needle01, Color face);
 void DrawGear(Vector2 c, float r, int teeth, float rot, Color col);
 void DrawBrassPlate(Rectangle r, const char* text, int size);
 void DrawCrewFigure(const Hero& h, Vector2 feet, float scale, bool faceRight, float walk, float t);
+void DrawCrewFigureInked(const Hero& h, Vector2 feet, float scale, bool faceRight, float walk, float t); // with ink and volume
 void DrawShadowBlob(Vector2 feet, float w);
+// Characters: draw between BeginFigure/EndFigure with their feet at FigureFeet(); EndFigure inks them,
+// adds volume, and places them with their feet at `feet` on screen.
+void BeginFigure();
+void EndFigure(Vector2 feet);
+Vector2 FigureFeet();
+Color Tone(Color c, float k); // k < 0 darkens toward shadow, k > 0 lightens toward a warm highlight
+void ShadeBall(Vector2 c, float r, Color col);                         // a lit sphere
+void ShadeLimb(Vector2 a, Vector2 b, float wa, float wb, Color c);     // a lit tapered cylinder
+void ShadeQuad(Vector2 tl, Vector2 tr, Vector2 br, Vector2 bl, Color c); // a lit panel
+void InkPass(float ink, float hatch); // Darkest Dungeon-style inking and crosshatching over the world drawn so far
 
 // ---------- ui.cpp ----------
 int MeasureTxt(const std::string& s, int size, bool bold = false);
@@ -291,7 +320,9 @@ void DebugEnterCombat(Game& g);    // debug: jump straight into the first fight
 void SimulateExpeditions(int runs, int level, bool randomPlayer); // debug: auto-play expeditions and print the results
 
 // ---------- platformer.cpp ----------
-void GeneratePipesLayout(Game& g);
-std::string PipesLayoutCode(const Game& g);
-void StartPipes(Game& g);
+void GeneratePlatLayout(Game& g, int level);
+std::string PlatLayoutCode(const Game& g, int level);
+const char* PlatLevelName(int level);
+void StartPlatform(Game& g, int level);
 void ScenePlatformer(Game& g);
+int VerifyPlatformLevels(); // debug: proves every section can be crossed; returns the number that can't

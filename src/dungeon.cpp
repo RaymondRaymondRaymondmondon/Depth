@@ -592,63 +592,63 @@ static void DrawCaveForeground(Game& g) {
 static void DrawEnemyFigure(const Enemy& e, Rectangle r, float t) {
     float cx = r.x + r.width / 2, by = r.y + r.height, bob = sinf(t * 2.5f + e.uid) * 3;
     switch (e.type) {
-        case EnemyType::SeaLouse: {
-            Color c{176, 156, 200, 255};
-            float cy = by - 32 + bob;
-            for (int k = 0; k < 3; k++) {
-                float lx = cx - 20 + k * 20.0f;
-                DrawLineEx({lx, cy}, {lx - 10, by}, 3, Color{110, 95, 130, 255});
+        case EnemyType::SeaLouse: { // a segmented isopod, head toward the crew
+            Color c{160, 140, 182, 255}, leg{96, 82, 116, 255};
+            float cy = by - 30 + bob;
+            for (int k = 0; k < 5; k++) {
+                float lx = cx - 28 + k * 14.0f;
+                ShadeLimb({lx, cy + 4}, {lx - 8 + sinf(t * 7 + k) * 2, by - 2}, 2.2f, 1.3f, leg);
             }
-            DrawEllipse((int)cx, (int)cy, 40, 22, c);
-            DrawEllipse((int)cx - 6, (int)cy - 8, 26, 9, Fade(WHITE, 0.2f));
-            for (int k = 1; k < 4; k++) DrawLineEx({cx - 40 + k * 20.0f, cy - 19}, {cx - 40 + k * 20.0f, cy + 19}, 2, Color{140, 120, 160, 255});
-            DrawLineEx({cx - 34, cy - 12}, {cx - 58, cy - 38}, 2, c);
-            DrawCircle((int)(cx - 30), (int)(cy - 5), 4, Pal::Ink);
+            ShadeLimb({cx - 32, cy - 8}, {cx - 62, cy - 38}, 1.8f, 0.9f, leg);
+            ShadeLimb({cx - 30, cy - 11}, {cx - 50, cy - 46}, 1.6f, 0.9f, leg);
+            for (int k = 4; k >= 0; k--) ShadeBall({cx + 26 - k * 13.0f, cy - 2 + (k == 0 || k == 4 ? 4 : 0)}, 17.0f - abs(k - 2) * 2, c);
+            ShadeLimb({cx + 30, cy + 4}, {cx + 44, cy + 10}, 4, 2, c);
+            DrawCircleV({cx - 30, cy - 4}, 3.5f, Pal::Ink);
+            DrawCircleV({cx - 31, cy - 5}, 1.2f, Color{230, 230, 220, 255});
         } break;
         case EnemyType::CaveShrimp: {
-            Color c{248, 146, 132, 255};
+            Color c{232, 128, 112, 255}, dk{190, 90, 82, 255};
             float cy = by - 52 + bob;
-            const float seg[5][3] = {{-24, -12, 17}, {-8, -16, 16}, {8, -12, 14}, {20, -2, 12}, {28, 10, 10}};
-            DrawTri({cx + 30, cy + 16}, {cx + 44, cy + 34}, {cx + 20, cy + 34}, Color{230, 120, 110, 255});
-            for (auto& s : seg) DrawCircle((int)(cx + s[0]), (int)(cy + s[1]), s[2], c);
-            for (auto& s : seg) DrawCircle((int)(cx + s[0] - 3), (int)(cy + s[1] - 5), s[2] * 0.4f, Fade(WHITE, 0.18f));
-            for (int k = 0; k < 4; k++) DrawLineEx({cx - 16 + k * 10.0f, cy}, {cx - 20 + k * 10.0f, by}, 2, Color{210, 110, 100, 255});
-            DrawCircle((int)(cx - 44), (int)(cy + 6), 14, Color{220, 100, 90, 255});
-            DrawCircle((int)(cx - 54), (int)(cy + 2), 7, Color{240, 170, 150, 255});
-            DrawCircle((int)(cx - 30), (int)(cy - 22), 4, Pal::Ink);
-            DrawLineEx({cx - 32, cy - 24}, {cx - 64, cy - 56}, 2, c);
+            for (int k = 0; k < 5; k++) ShadeLimb({cx - 16 + k * 10.0f, cy + 8}, {cx - 22 + k * 10.0f, by - 1}, 1.6f, 1.0f, dk);
+            DrawTri({cx + 30, cy + 16}, {cx + 48, cy + 36}, {cx + 20, cy + 36}, dk);
+            const float seg[5][3] = {{28, 10, 10}, {20, -2, 12}, {8, -12, 14}, {-8, -16, 16}, {-24, -12, 17}};
+            for (auto& s : seg) ShadeBall({cx + s[0], cy + s[1]}, s[2], c);
+            ShadeLimb({cx - 36, cy - 26}, {cx - 76, cy - 64}, 0.9f, 0.5f, dk);
+            ShadeLimb({cx - 22, cy - 2}, {cx - 38, cy + 6}, 5, 4, c);
+            ShadeBall({cx - 48, cy + 6}, 14, Color{214, 96, 86, 255});
+            ShadeBall({cx - 60, cy + 1}, 7, Color{236, 160, 140, 255});
+            DrawCircleV({cx - 32, cy - 22}, 4, Pal::Ink);
+            DrawCircleV({cx - 33, cy - 23}, 1.3f, Color{230, 230, 220, 255});
         } break;
         case EnemyType::BrineWorm: {
-            for (int k = 5; k >= 0; k--) {
+            for (int k = 0; k <= 5; k++) {
                 float x = cx + sinf(t * 2 + k * 0.8f) * 10 - k * 2;
                 float y = by - 14 - k * 18.0f + bob * 0.5f;
-                DrawCircle((int)x, (int)y, 18 - k * 1.5f, k % 2 ? Color{110, 180, 90, 255} : Color{90, 160, 76, 255});
-                DrawCircle((int)x - 4, (int)y - 5, (18 - k * 1.5f) * 0.4f, Fade(WHITE, 0.15f));
+                ShadeBall({x, y}, 18 - k * 1.5f, k % 2 ? Color{106, 170, 86, 255} : Color{88, 150, 72, 255});
                 if (k == 5) {
-                    DrawCircle((int)x - 8, (int)y + 2, 6, Color{40, 60, 30, 255});
-                    DrawCircle((int)x - 2, (int)y - 6, 3, Pal::Ink);
+                    DrawCircleV({x - 8, y + 2}, 6, Color{40, 56, 30, 255});
+                    DrawCircleV({x - 2, y - 6}, 3, Pal::Ink);
                 }
             }
         } break;
         case EnemyType::Lobster: {
-            Color c{210, 60, 50, 255}, dk{160, 40, 36, 255};
+            Color c{196, 56, 46, 255}, dk{150, 38, 34, 255};
             float cy = by - 62 + bob;
-            for (int k = 0; k < 4; k++) DrawLineEx({cx - 10 + k * 14.0f, cy + 20}, {cx - 20 + k * 14.0f, by}, 4, dk);
-            DrawCircle((int)(cx + 48), (int)(cy + 8), 20, c);
-            DrawCircle((int)(cx + 70), (int)(cy + 16), 15, c);
-            DrawTri({cx + 78, cy + 20}, {cx + 100, cy + 44}, {cx + 70, cy + 44}, dk);
-            DrawEllipse((int)(cx + 8), (int)cy, 48, 32, c);
-            DrawEllipse((int)(cx - 2), (int)cy - 12, 30, 12, Fade(WHITE, 0.18f));
-            DrawCircle((int)(cx - 34), (int)(cy - 10), 24, c);
-            DrawLineEx({cx - 40, cy - 30}, {cx - 90, cy - 180}, 2, dk);
-            DrawLineEx({cx - 30, cy - 32}, {cx - 60, cy - 190}, 2, dk);
-            DrawCircle((int)(cx - 44), (int)(cy - 28), 5, Pal::Ink);
-            DrawCircle((int)(cx - 30), (int)(cy - 30), 5, Pal::Ink);
-            DrawLineEx({cx - 40, cy - 4}, {cx - 64, cy - 70}, 8, c);
-            DrawCircle((int)(cx - 66), (int)(cy - 84), 22, c);
+            for (int k = 0; k < 4; k++) ShadeLimb({cx - 10 + k * 14.0f, cy + 20}, {cx - 20 + k * 14.0f, by - 1}, 3, 2, dk);
+            ShadeBall({cx + 70, cy + 16}, 15, c);
+            DrawTri({cx + 78, cy + 20}, {cx + 104, cy + 46}, {cx + 70, cy + 46}, dk);
+            ShadeBall({cx + 48, cy + 8}, 20, c);
+            ShadeBall({cx + 8, cy}, 34, c);
+            ShadeBall({cx - 34, cy - 10}, 24, c);
+            ShadeLimb({cx - 40, cy - 30}, {cx - 90, cy - 180}, 2, 1, dk);
+            ShadeLimb({cx - 30, cy - 32}, {cx - 60, cy - 190}, 2, 1, dk);
+            DrawCircleV({cx - 44, cy - 28}, 5, Pal::Ink);
+            DrawCircleV({cx - 30, cy - 30}, 5, Pal::Ink);
+            ShadeLimb({cx - 40, cy - 4}, {cx - 64, cy - 66}, 7, 6, c);   // the crushing claw, raised
+            ShadeBall({cx - 66, cy - 84}, 22, c);
             DrawTri({cx - 90, cy - 104}, {cx - 64, cy - 88}, {cx - 76, cy - 112}, Color{30, 60, 70, 255});
-            DrawLineEx({cx - 30, cy + 10}, {cx - 56, cy + 20}, 8, c);
-            DrawCircle((int)(cx - 62), (int)(cy + 20), 16, c);
+            ShadeLimb({cx - 30, cy + 10}, {cx - 56, cy + 20}, 7, 6, c);
+            ShadeBall({cx - 62, cy + 20}, 16, c);
         } break;
     }
 }
@@ -675,13 +675,16 @@ static void DrawUnitFigures(Game& g) {
         Rectangle r = HeroRect(p);
         Vector2 feet{r.x + r.width / 2, r.y + r.height};
         DrawShadowBlob(feet, 38);
-        DrawCrewFigure(*h, feet, 1.05f, true, 0, t);
+        DrawCrewFigureInked(*h, feet, 1.08f, true, 0, t);
     }
     for (int p = 0; p < (int)d.enemies.size(); p++) {
         const Enemy& e = d.enemies[p];
         Rectangle r = EnemyRect(g, p);
-        DrawShadowBlob({r.x + r.width / 2, r.y + r.height}, e.boss ? 70 : 44);
-        DrawEnemyFigure(e, r, t);
+        Vector2 feet{r.x + r.width / 2, r.y + r.height}, ff = FigureFeet();
+        DrawShadowBlob(feet, e.boss ? 70 : 44);
+        BeginFigure(); // draw on the figure canvas, lined up so its feet land on FigureFeet()
+        DrawEnemyFigure(e, {r.x - feet.x + ff.x, r.y - feet.y + ff.y, r.width, r.height}, t);
+        EndFigure(feet);
     }
 }
 
@@ -704,9 +707,9 @@ static void DrawUnitHud(Game& g, int actingHero, int actingEnemy) {
         if (h->deathsDoor) tags += "DEATH'S DOOR ";
         if (h->rattled) tags += "RATTLED";
         float tw = (float)MeasureTxt(tags, 12, true);
-        TxtShadow(tags, r.x + r.width / 2 - tw / 2, r.y - 26, 12, Pal::Coral, true);
+        TxtShadow(tags, r.x + r.width / 2 - tw / 2, r.y - 46, 12, Pal::Coral, true);
         if (h->id == actingHero) {
-            float y = r.y - 50 + sinf(t * 6) * 4;
+            float y = r.y - 72 + sinf(t * 6) * 4;
             Glow({r.x + r.width / 2, y + 6}, 22, Fade(Pal::Brass, 0.7f));
             DrawTri({r.x + r.width / 2 - 12, y}, {r.x + r.width / 2, y + 14}, {r.x + r.width / 2 + 12, y}, Pal::Brass);
         }
@@ -808,6 +811,7 @@ void SceneDungeon(Game& g) {
     DrawUnitFigures(g);
     DrawCaveLighting(g);
     DrawCaveForeground(g);
+    InkPass(1.0f, 1.0f);
     DrawUnitHud(g, actingHero, actingEnemy);
     for (auto& f : d.floats) {
         f.life -= dt;

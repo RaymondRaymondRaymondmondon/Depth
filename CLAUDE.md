@@ -5,9 +5,17 @@ Depth is a 2D game in C++17 with raylib 5.5, built with CMake (see README.md for
 The vertical slice was built in an earlier claude.ai chat, "Computer game development". All art is drawn in code; there are no image assets.
 
 ## Art direction (from the user)
-- **The platformer levels (the Pipes, and later the Hull and Pirate Ship) are retro pixel art.** They're drawn at half resolution into `PixelRT()` and scaled up with point filtering.
-- **Everything else is 2D with depth and a realistic, painterly look, like Darkest Dungeon.** Use layered parallax, the lightmap (`LightsBegin` / `AddLight` / `AddCone` / `LightsEnd`), generated textures, and shaded props rather than flat shapes.
+- **The platform levels (Pipes, Hull, Pirate Ship) are retro pixel art.** They're drawn at half resolution into `PixelRT()` and scaled up with point filtering, with sub-pixel camera offsets for smooth scrolling.
+- **Everything else looks like Darkest Dungeon: 2D with depth.**
+  - **Characters must look three-dimensional.** Build them from `ShadeLimb` / `ShadeBall` / `ShadeQuad` (lit cylinders, spheres and panels), draw them between `BeginFigure` / `EndFigure` (or use `DrawCrewFigureInked`), and give them chunky, heroic proportions. The figure shader adds a thick ink outline, linework between parts, and light/shadow that wraps the silhouette.
+  - **Backgrounds** are inked and painterly. Call `InkPass()` after the world and lighting, before the HUD; it adds edge ink, crosshatching in the darkest shadows, and canvas grain. Also use layered parallax, the lightmap (`LightsBegin` / `AddLight` / `AddCone` / `LightsEnd`), and generated textures.
 - **The hub is the deck of a steampunk submarine, and it should feel lively and spacious.** Stations must not be crowded together. Crew, the ship's hands and the cat wander the deck; steam vents, sparks fly, gauges twitch.
+
+## Platform level design (from the user)
+- **Like Super Meat Boy: the hard part is the platforming itself.** All three levels prioritise hard jumps: precise landings, gears that force a low or a high arc, timed jets, and wall-jump chimneys.
+- **Only levels 2 and 3 (Hull, Pirate Ship) have enemies.** The Pipes have none. Enemies are extra challenge, and touching one is fatal. **Only bosses can be stomped** (the Kraken optionally, Blackbeard to open the exit).
+- Movement runs at a fixed 240 Hz. Jump height is about 3.8 tiles, and the max same-height gap is about 6.5 tiles. Two walls up to 4 tiles apart can be climbed.
+- **After adding or changing a section, run `depth.exe --verify`.** It must report "All sections can be crossed".
 
 ## Building and checking on this PC
 - Run `.\build.ps1` (add `-Run` to launch). This machine has Visual Studio 2026 (not 2022) and no git on PATH; the script sets up the VS dev shell and uses VS's bundled git. Output: `build\Release\depth.exe`.
@@ -32,12 +40,12 @@ The vertical slice was built in an earlier claude.ai chat, "Computer game develo
 - **Workshop upgrades** (3 levels each; prices 120/240/400): Flashlight Reflector (light drain per room), Bunk Extension (roster size), Sonar Array (recruits per scan, scan cost), Infirmary Gear (Ward cost per HP).
 
 ## Locations
-Built: the Cave (Shallows: 3 random rooms, then the Lobster mini-boss) and the Pipes (platformer).
-Menu-only, "coming soon": Island, Weeds, Atlantis, Hull, Pirate Ship.
+Built: the Cave (Shallows: 3 random rooms, then the Lobster mini-boss), and all three platform levels (Pipes, Hull with the Kraken, Pirate Ship with Blackbeard). Each platform level unlocks when the previous one is cleared.
+Menu-only, "coming soon": Island, Weeds, Atlantis.
 
 ## Roadmap
 1. ~~Expand to 8 abilities per class with a choose-4 loadout.~~ Done.
 2. ~~Add the Workshop for upgrades, split off from the Radar.~~ Done.
-3. Build the Hull platformer level with its Kraken fight.
+3. ~~Build the Hull platformer level with its Kraken fight.~~ Done, along with the Pirate Ship and Blackbeard.
 4. Add the other three expedition locations (Island, Weeds, Atlantis), plus the Deep and Abyssal tiers.
 - Open issues: there's no save/load yet, so progress resets on quit. The new abilities make levelled crews noticeably safer (at level 3, deaths per run fall from 0.38 to 0.11); consider tuning once harder tiers exist.

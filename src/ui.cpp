@@ -165,6 +165,7 @@ void DrawCabinBackground() {
     AddLight({SCREEN_W / 2.0f, SCREEN_H / 2.0f}, 900, Color{90, 110, 120, 255}, 0.6f);
     LightsEnd();
     for (int i = 0; i < 4; i++) Glow({160 + i * 320.0f, 118}, 34, Color{255, 200, 120, 120});
+    InkPass(0.9f, 1.0f);
 }
 
 std::string RankString(int mask) {

@@ -1,6 +1,6 @@
 # Depth: vertical slice
 
-A playable first slice of Depth: the Nautilus hub, one roguelike expedition into the Cave, and the Pipes platformer.
+A playable first slice of Depth: the Nautilus hub, one roguelike expedition into the Cave, and three platform levels.
 Written in C++17 with [raylib](https://www.raylib.com/).
 
 ## Building it
@@ -44,16 +44,20 @@ After you change code, just run `cmake --build build --config Release` again.
 - **The Nautilus deck:** move the mouse to the screen edges, use A/D or the arrow keys, scroll the mouse wheel, or click the deck plan (bottom left) to walk along the deck. Click a station to use it, or click a crew member to open Crew Quarters with them selected.
 - **Menus:** mouse.
 - **Combat:** click an ability, then click a highlighted target. Right-click cancels.
-- **Pipes:** A/D or arrow keys to move, Space/W/Up to jump (hold for a higher jump), Esc to give up the run.
+- **Platform levels:** A/D or arrow keys to move, Space/W/Up to jump (hold for a higher jump, tap for a hop). Push into a wall in mid-air to slide, and jump to kick off it. Esc gives up the run. A gamepad works too.
 
 ## What's in the slice
 - **The Nautilus**, a long, scrolling cross-section of the submarine with eight stations spread along the deck: Crew Quarters, Library, Radar Room, Helm, Periscope, Workshop, Sick Bay, and the Ward. The ocean is visible through the portholes. Your crew, the ship's own hands, and the ship's cat wander the deck.
 - **The Cave (Shallows):** three random rooms (fights or treasure), then the Lobster mini-boss. It has the flashlight (which really lights the scene), rank-based combat, stress ("Nerves"), Death's Door, and relic loot.
 - **Four classes:** Nurse, Diver, Captain, and Mechanic. Each has eight abilities, and a crew member brings four of them. Four are available from the start; the rest unlock at levels 1, 1, 2, and 3.
 - **The Workshop:** lasting upgrades bought with gold (flashlight reflector, bunk extension, sonar array, infirmary gear).
-- **The Pipes:** four shuffled chunks out of five, with checkpoints. Beating it reshuffles the layout. It's drawn in a deliberately retro pixel-art style; everything else aims for a lit, painterly look.
+- **Three platform levels at the Periscope**, in a deliberately retro pixel-art style (everything else aims for Darkest Dungeon's inked, painterly look). The challenge is the jumping, as in Super Meat Boy:
+  - **The Pipes** (easy): 6 sections, no enemies at all.
+  - **The Hull** (medium): 5 sections, with crabs, leaping eels, urchins and mines, then the Kraken (optional; stomp it for a relic).
+  - **The Pirate Ship** (hard): 5 sections, with pirates, parakeets and fire vents, then Blackbeard, who guards the exit.
+  - Enemies are deadly to touch; only bosses can be stomped. Clearing a level unlocks the next and reshuffles its sections.
 
-The Island, Weeds, Atlantis, Hull, and Pirate Ship appear in the menus as "coming soon".
+The Island, Weeds, and Atlantis appear in the menus as "coming soon".
 
 ## Where things live
 | File | What it does | Edit it to... |
@@ -63,12 +67,13 @@ The Island, Weeds, Atlantis, Hull, and Pirate Ship appear in the menus as "comin
 | `src/hub.cpp` | The Nautilus deck and every station screen | change the deck, menus, and shops |
 | `src/render.cpp` | Lighting, post-processing, generated textures, fonts, props, crew figures | change the look of the game |
 | `src/dungeon.cpp` | Expeditions and combat | change combat rules, light, or room generation |
-| `src/platformer.cpp` | The Pipes | **design new level chunks** (they're drawn as text: see the legend at the top of the file) |
+| `src/platformer.cpp` | The three platform levels, their bosses, and the level verifier | **design new level sections** (they're drawn as text: see the legend at the top of the file) |
 | `src/ui.cpp` | Buttons, panels, and text helpers | change the look of the UI |
 | `src/main.cpp` | The window and main loop | rarely needs changing |
 
 ## Developer switches
 - `depth.exe --sim 1000 [level] [random]` auto-plays 1000 expeditions and prints win rate, deaths, and how often someone ends up Rattled. The default auto-player heals anyone below 40% HP and otherwise hits the weakest enemy with its strongest attack; add `random` for a player who picks anything.
 - `depth.exe --shots shots` renders every screen to PNG files in the `shots` folder and quits. The folder has to exist.
+- `depth.exe --verify` proves every platform section can be crossed. It searches button presses using the real movement code, so a jump that looks possible but isn't gets caught. Run it after designing a section. It takes about a minute and a half.
 
-Good first experiments: tweak an enemy's stats in `MakeEnemy` (data.cpp), give a class a new ability in `BuildNurse` and its siblings, or draw a sixth Pipes chunk in `CHUNKS` (platformer.cpp) (bump the array size `CHUNKS[5]` to `[6]` and add `5` to the list in `GeneratePipesLayout`).
+Good first experiments: tweak an enemy's stats in `MakeEnemy` (data.cpp), give a class a new ability in `BuildNurse` and its siblings, or draw a new platform section: add a 24 x 16 block of text to `PIPES`, `HULL` or `PIRATE` in platformer.cpp, then run `--verify`.

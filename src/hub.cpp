@@ -757,6 +757,10 @@ static void DrawCat(float cam, float t) {
     float f = cat.right ? 1.0f : -1.0f;
     Color fur{54, 50, 50, 255};
     DrawShadowBlob({x, y}, 22 * s);
+    Vector2 feet{x, y};
+    x = FigureFeet().x;
+    y = FigureFeet().y;
+    BeginFigure();
     bool sitting = cat.wait > 0;
     for (int k = 0; k < 4; k++) { // legs
         float lx = x + (k < 2 ? -9 : 9) * s + (k % 2) * 3 * s, sw = sitting ? 0 : sinf(cat.phase + k * 1.6f) * 4 * s;
@@ -776,6 +780,7 @@ static void DrawCat(float cam, float t) {
     DrawTri({hd.x + 1 * s, hd.y - 5 * s}, {hd.x + 5 * s, hd.y - 13 * s}, {hd.x + 7 * s, hd.y - 3 * s}, fur);
     DrawCircleV({hd.x + f * 3.5f * s, hd.y - 1 * s}, 1.6f * s, Color{230, 220, 90, 255});
     DrawEllipse((int)(hd.x + f * 1 * s), (int)(hd.y + 4 * s), 4 * s, 3 * s, Color{220, 216, 210, 255});
+    EndFigure(feet);
 }
 
 // ============================================================ lighting and foreground
@@ -995,7 +1000,7 @@ void SceneHub(Game& g) {
     for (auto& c : crew) {
         if (!catDrawn && c.w->lane > 604) { DrawCat(cam, t); catDrawn = true; }
         DrawShadowBlob({c.sx, c.w->lane}, 30 * c.s);
-        DrawCrewFigure(*c.h, {c.sx, c.w->lane}, c.s, c.w->right, c.w->phase, t);
+        DrawCrewFigureInked(*c.h, {c.sx, c.w->lane}, c.s, c.w->right, c.w->phase, t);
     }
     if (!catDrawn) DrawCat(cam, t);
     DrawDeckLighting(cam, t, hovered);
@@ -1010,6 +1015,7 @@ void SceneHub(Game& g) {
         DrawRectangleRoundedLinesEx({r.x - 10, r.y - 44, r.width + 20, r.height + 50}, 0.06f, 6, 3, Fade(Color{255, 214, 150, 255}, pulse));
     }
     DrawForeground(cam, t);
+    InkPass(1.0f, 1.0f);
 
     // --- labels and hints
     if (hovCrew) {
@@ -1544,13 +1550,15 @@ void SceneBookshelf(Game& g) {
             body, 18, Pal::Ink);
     } else {
         DrawWrapped(
-            "THE PIPES (easy): a run through the Nautilus's steam pipes. Coins are worth 2 gold each, plus 25 gold for reaching the valve. "
-            "Falling or touching steam just sends you back to the last checkpoint. Nobody dies for real here.\n\n"
-            "Each Pipes layout is stitched together from hand-built sections. Beat it and a new layout is shuffled in. Stuck on a layout? Pay 10 gold at the periscope to reshuffle it.\n\n"
-            "Controls: A/D or arrow keys to move, Space/W/Up to jump (hold for higher), Esc to give up the run.\n\n"
-            "THE HULL (medium, coming soon): outside the hull among the growths, with an optional Kraken fight for a relic.\n\n"
-            "THE PIRATE SHIP (hard, coming soon): precise jumps, pirates, parakeets, and Blackbeard. Sometimes it's a ghost ship: faster foes, double rewards.",
-            body, 18, Pal::Ink);
+            "Platforming runs are about the jumps. Hold jump for a higher leap, tap it for a short hop. Push against a wall in mid-air to slide down it, "
+            "and jump to kick off it: two walls close together can be climbed. Falling, steam, spikes and gears send you back to the last checkpoint "
+            "(every section is one). Your crew never gets hurt here.\n\n"
+            "THE PIPES (easy): no enemies at all, just gears, vents, timed jets and chimneys.\n\n"
+            "THE HULL (medium): crabs, leaping eels, urchins and mines. Every creature is deadly to touch. The Kraken waits at the end: dodge its "
+            "tentacles and stomp its head three times for a relic. Or just run for the airlock.\n\n"
+            "THE PIRATE SHIP (hard): the longest leaps, pirates, parakeets and fire vents. Stomp Blackbeard three times to claim the treasure.\n\n"
+            "Clearing a level unlocks the next one and reshuffles its layout. Controls: A/D or arrows, Space/W/Up to jump, Esc to give up. A gamepad works too.",
+            body, 17, Pal::Ink);
     }
 }
 
@@ -1558,36 +1566,42 @@ void SceneBookshelf(Game& g) {
 void ScenePeriscope(Game& g) {
     DrawCabinBackground();
     if (BackButton(g)) return;
-    DrawSceneTitle("The Periscope", "Platforming runs: nobody dies here, and there's gold to be had");
+    DrawSceneTitle("The Periscope", "Platforming runs: your crew stays safe, and there's gold to be had");
     DrawGoldBadge(g);
-    struct Lvl { const char* name; const char* diff; const char* desc; bool open; };
-    const Lvl lv[3] = {
-        {"The Pipes", "EASY", "Hop through the Nautilus's steam pipes. Dodge vents, stomp rats, grab coins, and turn the valve at the end.", true},
-        {"The Hull", "MEDIUM", "Outside the hull among the growths and fishing lines. Optional Kraken boss for a chance at a relic.", false},
-        {"The Pirate Ship", "HARD", "Precision jumps past pirates and parakeets up to Blackbeard. Sometimes it's a ghost ship.", false},
+    struct Lvl { const char* diff; const char* desc; const char* reward; };
+    const Lvl lv[PL_COUNT] = {
+        {"EASY", "A long run through the Nautilus's steam pipes. No enemies, just hard jumps: gears, vents, timed jets, and a chimney to wall-jump up.",
+         "2 gold per coin, +30 at the valve"},
+        {"MEDIUM", "Outside the hull. Crabs, leaping eels, urchins and mines. Crab or eel, one touch is fatal. At the end, the Kraken: stomp its head for a relic.",
+         "3 gold per coin, +60, and a relic if you beat the Kraken"},
+        {"HARD", "The hardest leaps yet, past pirates, parakeets and fire vents. Blackbeard guards the treasure: stomp him three times.",
+         "4 gold per coin, +100, and a relic"},
     };
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < PL_COUNT; i++) {
+        bool open = i == 0 || g.platCleared[i - 1];
         Rectangle c{60 + i * 400.0f, 110, 370, 470};
-        Panel(c, lv[i].open ? Pal::Paper : Color{176, 168, 150, 255});
-        Color top = i == 0 ? Pal::Copper : i == 1 ? Color{50, 110, 130, 255} : Color{90, 70, 60, 255};
+        Panel(c, open ? Pal::Paper : Color{176, 168, 150, 255});
+        Color top = i == 0 ? Pal::Copper : i == 1 ? Color{50, 110, 130, 255} : Color{70, 50, 90, 255};
         DrawVGradient({c.x + 14, c.y + 14, c.width - 28, 120}, ColorBrightness(top, 0.15f), ColorBrightness(top, -0.35f));
-        DrawTextCenteredBold(lv[i].name, c.x + c.width / 2, c.y + 46, 32, Pal::Paper);
+        DrawTextCenteredBold(PlatLevelName(i), c.x + c.width / 2, c.y + 46, 32, Pal::Paper);
         DrawTextCenteredBold(lv[i].diff, c.x + c.width / 2, c.y + 90, 18, Pal::Paper);
-        DrawWrapped(lv[i].desc, {c.x + 20, c.y + 150, c.width - 40, 120}, 17, Pal::Ink);
-        if (lv[i].open) {
-            Txt("Reward: 2 gold per coin", c.x + 20, c.y + 270, 17, Pal::BrassDk);
-            Txt("+25 gold for reaching the valve", c.x + 20, c.y + 294, 17, Pal::BrassDk);
-            TxtBold(TextFormat("Current layout: %s", PipesLayoutCode(g).c_str()), c.x + 20, c.y + 330, 19, Pal::Ink);
-            if (Button({c.x + 20, c.y + 364, c.width - 40, 44}, "Dive in")) { StartPipes(g); return; }
+        DrawWrapped(lv[i].desc, {c.x + 20, c.y + 150, c.width - 40, 110}, 16, Pal::Ink);
+        DrawWrapped(TextFormat("Reward: %s", lv[i].reward), {c.x + 20, c.y + 262, c.width - 40, 40}, 15, Pal::BrassDk);
+        if (open) {
+            TxtBold(TextFormat("Layout: %s", PlatLayoutCode(g, i).c_str()), c.x + 20, c.y + 312, 17, Pal::Ink);
+            if (g.platBest[i] > 0) Txt(TextFormat("Best time %.1fs", g.platBest[i]), c.x + 230, c.y + 314, 15, Pal::BrassDk);
+            if (Button({c.x + 20, c.y + 364, c.width - 40, 44}, "Dive in")) { StartPlatform(g, i); return; }
             if (Button({c.x + 20, c.y + 414, c.width - 40, 40}, "Reshuffle layout (10g)", g.gold >= 10)) {
                 g.gold -= 10;
-                GeneratePipesLayout(g);
-                Toast(g, "The pipes rattle and rearrange themselves...");
+                GeneratePlatLayout(g, i);
+                Toast(g, "The sections rattle and rearrange themselves...");
             }
         } else {
-            DrawTextCentered("Coming in a later build", c.x + c.width / 2, c.y + 400, 21, Pal::BrassDk);
+            DrawTextCenteredBold(TextFormat("Locked: clear %s first", PlatLevelName(i - 1)), c.x + c.width / 2, c.y + 390, 18, Pal::BrassDk);
         }
     }
-    const char* help = "A/D or arrows to move   |   Space to jump (hold for height)   |   Esc to give up";
-    TxtShadow(help, SCREEN_W / 2.0f - MeasureTxt(help, 19) / 2.0f, 610, 19, Pal::Paper);
+    const char* help = "A/D or arrows to move   |   Space to jump: hold for height, jump off walls   |   Esc to give up";
+    TxtShadow(help, SCREEN_W / 2.0f - MeasureTxt(help, 19) / 2.0f, 606, 19, Pal::Paper);
+    const char* help2 = "Only bosses can be stomped. Every other enemy is deadly to touch.";
+    TxtShadow(help2, SCREEN_W / 2.0f - MeasureTxt(help2, 17) / 2.0f, 636, 17, Color{220, 200, 160, 255});
 }
