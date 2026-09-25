@@ -861,10 +861,18 @@ void DrawCrewFigure(const Hero& h, Vector2 ft, float s, bool right, float walk, 
 
     Color top, legs, boots{44, 32, 26, 255}, sleeve, glove = skin, trim;
     switch (h.cls) {
-        case HeroClass::Nurse:   top = {72, 94, 124, 255}; legs = {46, 42, 48, 255}; sleeve = top; trim = {230, 226, 214, 255}; break;
-        case HeroClass::Diver:   top = {140, 114, 74, 255}; legs = top; boots = {96, 90, 84, 255}; sleeve = top; glove = {74, 58, 44, 255}; trim = Pal::BrassDk; break;
-        case HeroClass::Captain: top = {40, 50, 82, 255}; legs = {36, 34, 42, 255}; sleeve = top; trim = Pal::Brass; glove = {220, 214, 200, 255}; break;
-        default:                 top = {196, 184, 158, 255}; legs = {170, 96, 46, 255}; sleeve = top; trim = {110, 70, 40, 255}; glove = {92, 66, 44, 255}; break;
+        case HeroClass::Nurse:    top = {72, 94, 124, 255}; legs = {46, 42, 48, 255}; sleeve = top; trim = {230, 226, 214, 255}; break;
+        case HeroClass::Diver:    top = {140, 114, 74, 255}; legs = top; boots = {96, 90, 84, 255}; sleeve = top; glove = {74, 58, 44, 255}; trim = Pal::BrassDk; break;
+        case HeroClass::Captain:  top = {40, 50, 82, 255}; legs = {36, 34, 42, 255}; sleeve = top; trim = Pal::Brass; glove = {220, 214, 200, 255}; break;
+        case HeroClass::Mechanic: top = {196, 184, 158, 255}; legs = {170, 96, 46, 255}; sleeve = top; trim = {110, 70, 40, 255}; glove = {92, 66, 44, 255}; break;
+        case HeroClass::Whaler:   top = {72, 82, 92, 255}; legs = {52, 50, 54, 255}; boots = {36, 32, 30, 255}; sleeve = top; glove = {60, 54, 48, 255}; trim = Pal::BrassDk; break;
+        case HeroClass::Stowaway: top = {124, 94, 62, 255}; legs = {84, 72, 52, 255}; boots = {58, 48, 38, 255}; sleeve = top; glove = skin; trim = {176, 48, 46, 255}; break;
+        case HeroClass::Merman:   top = {40, 140, 120, 255}; legs = {30, 108, 96, 255}; boots = {20, 88, 80, 255}; sleeve = top; glove = skin; trim = Pal::BrassDk; break;
+        case HeroClass::Queen:    top = {150, 108, 170, 255}; legs = {92, 70, 112, 255}; boots = {70, 55, 62, 255}; sleeve = top; glove = {200, 190, 210, 255}; trim = {202, 172, 92, 255}; break;
+        case HeroClass::Robot:    top = {172, 176, 182, 255}; legs = {112, 100, 90, 255}; boots = {90, 85, 80, 255}; sleeve = top; glove = {142, 110, 60, 255}; trim = Pal::Brass; break;
+        case HeroClass::Octopus:  top = {150, 60, 130, 255}; legs = {130, 50, 110, 255}; boots = {110, 40, 95, 255}; sleeve = top; glove = {160, 70, 140, 255}; trim = {202, 122, 182, 255}; break;
+        case HeroClass::Siren:    top = {182, 92, 132, 255}; legs = {60, 140, 140, 255}; boots = {50, 110, 110, 255}; sleeve = top; glove = skin; trim = {222, 182, 202, 255}; break;
+        default:                  top = {182, 222, 222, 255}; legs = {142, 192, 192, 255}; boots = {122, 172, 172, 255}; sleeve = top; glove = {202, 232, 232, 255}; trim = WHITE; break; // Wisp
     }
     bool npc = h.outfit >= 0; // the Nautilus's own hands wear uniforms instead of expedition gear
     switch (h.outfit) {
@@ -909,7 +917,8 @@ void DrawCrewFigure(const Hero& h, Vector2 ft, float s, bool right, float walk, 
             prev = p;
         }
     }
-    if (h.cls != HeroClass::Diver) ShadeBall(P(-3, -153), 11.5f * s, hair);
+    bool helmeted = h.cls == HeroClass::Diver || h.cls == HeroClass::Robot || h.cls == HeroClass::Octopus || h.cls == HeroClass::Wisp;
+    if (!helmeted) ShadeBall(P(-3, -153), 11.5f * s, hair);
     {   // the far arm
         float bR = ease(pose.backRaise);
         Vector2 sh = P(-6, -128 + br);
@@ -990,7 +999,7 @@ void DrawCrewFigure(const Hero& h, Vector2 ft, float s, bool right, float walk, 
             ShadeBall(P(15, -133), 6.5f * s, brass);
             for (int k = 0; k < 4; k++) DrawLineEx(P(8 + k * 2.2f, -128), P(8 + k * 2.2f, -123), 1.1f * s, Pal::BrassDk);
             break;
-        default: // mechanic's overalls, tool belt
+        case HeroClass::Mechanic: // overalls, tool belt
             Q(P(-11, -122), P(15, -122), P(15, -86), P(-13, -86), legs);
             ShadeLimb(P(-8, -122), P(-10, -133), 1.6f * s, 1.6f * s, Tone(legs, -0.2f));
             ShadeLimb(P(11, -122), P(11, -133), 1.6f * s, 1.6f * s, Tone(legs, -0.2f));
@@ -1000,12 +1009,53 @@ void DrawCrewFigure(const Hero& h, Vector2 ft, float s, bool right, float walk, 
             Q(P(-16, -94), P(16, -94), P(15, -88), P(-15, -88), Color{92, 64, 40, 255});
             Q(P(-14, -92), P(-5, -92), P(-5, -80), P(-14, -80), Color{110, 78, 50, 255}); // pouch
             break;
+        case HeroClass::Whaler: // a heavy oilskin coat, a coiled line across the chest
+            Q(P(-19, -137), P(20, -137), P(16, -90), P(-16, -90), Tone(top, -0.15f));
+            ShadeLimb(P(-14, -132), P(10, -100), 2.4f * s, 2.4f * s, trim); // the coiled line, slung diagonally
+            ShadeBall(P(-14, -132), 3 * s, trim);
+            Q(P(-6, -136), P(11, -136), P(11, -132), P(-6, -132), Tone(top, 0.2f)); // wide collar
+            break;
+        case HeroClass::Stowaway: // an open, patched vest over a bare chest
+            Q(P(-16, -134), P(-4, -134), P(-6, -90), P(-16, -90), top);
+            Q(P(6, -134), P(18, -134), P(16, -90), P(4, -90), top);
+            ShadeLimb(P(-13, -100), P(-9, -92), 2 * s, 2.4f * s, trim); // a flask on a strap
+            ShadeBall(P(-11, -96), 3.4f * s, Tone(trim, -0.1f));
+            break;
+        case HeroClass::Merman: // scaled chest, a bone necklace
+            for (int k = 0; k < 3; k++) for (int j = 0; j < 2; j++) DrawCircleV(P(-10 + k * 8.0f, -122 + j * 10.0f), 2 * s, Tone(top, -0.2f));
+            ShadeLimb(P(-8, -128), P(8, -128), 1.6f * s, 1.6f * s, Color{224, 214, 196, 255}); // necklace
+            for (int k = 0; k < 3; k++) ShadeBall(P(-4 + k * 4.0f, -122), 1.4f * s, Color{224, 214, 196, 255});
+            break;
+        case HeroClass::Queen: // a tattered royal sash
+            Q(P(-14, -133), P(10, -128), P(6, -90), P(-10, -95), Tone(trim, -0.1f));
+            DrawTri(P(6, -90), P(2, -84), P(10, -88), Tone(trim, -0.1f)); // a torn hem
+            Q(P(-16, -98), P(16, -98), P(15, -92), P(-15, -92), Tone(legs, -0.3f));
+            break;
+        case HeroClass::Robot: // riveted plating and a small gauge
+            Q(P(-16, -135), P(17, -135), P(14, -90), P(-14, -90), Tone(top, -0.1f));
+            for (int k = 0; k < 3; k++) for (int j = 0; j < 3; j++) DrawCircleV(P(-11 + k * 10.0f, -128 + j * 14.0f), 1.1f * s, Tone(top, -0.4f));
+            ShadeBall(P(6, -112), 5 * s, Color{40, 42, 46, 255});
+            DrawCircleV(P(6, -112), 3.4f * s, Color{220, 200, 100, 255});
+            DrawLineEx(P(6, -112), P(8, -115), 0.9f * s, Color{40, 30, 20, 255}); // the needle
+            break;
+        case HeroClass::Octopus: // a boneless mantle, no real "torso" seam
+            Q(P(-17, -134), P(18, -134), P(20, -95), P(-19, -95), Tone(top, -0.1f));
+            for (int k = 0; k < 3; k++) DrawCircleV(P(-10 + k * 9.0f, -110), 2.2f * s, Tone(top, 0.15f));
+            break;
+        case HeroClass::Siren: // a coral bodice, a flowing hem
+            Q(P(-15, -132), P(16, -132), P(13, -100), P(-13, -100), trim);
+            Q(P(-17, -100), P(17, -100), P(24, -84), P(-24, -84), Tone(legs, 0.1f)); // flowing lower hem
+            for (int k = 0; k < 3; k++) DrawLineEx(P(-10 + k * 9.0f, -98), P(-14 + k * 12.0f, -86), 1.1f * s, Tone(legs, -0.25f));
+            break;
+        default: // Wisp: no real body at all, just a trailing glow
+            for (int k = 0; k < 4; k++) DrawCircleV(P(-6 + k * 4.0f, -100 - k * 8.0f), (4 - k * 0.6f) * s, Fade(top, 0.5f - k * 0.1f));
+            break;
     }
 
     // --- head
     ShadeLimb(P(1, -134), P(2, -143), 5.4f * s, 5.2f * s, skinDk);
     Vector2 hd = P(3, -152);
-    if (h.cls == HeroClass::Diver) {
+    if (helmeted && h.cls == HeroClass::Diver) {
         ShadeBall(hd, 19.5f * s, brass);
         DrawCircleSector({hd.x - f * 7 * s, hd.y - 8 * s}, 6 * s, 0, 360, 12, Fade(WHITE, 0.35f)); // polished highlight
         ShadeBall(P(-3, -169), 3.5f * s, Pal::BrassDk);
@@ -1016,6 +1066,23 @@ void DrawCrewFigure(const Hero& h, Vector2 ft, float s, bool right, float walk, 
         ShadeBall(P(-6, -150), 4.5f * s, Pal::BrassDk);
         DrawCircleV(P(-6, -150), 2.6f * s, Color{18, 40, 48, 255});
         for (int k = 0; k < 7; k++) DrawCircleV(P(-15 + k * 5.0f, -137), 1.3f * s, Pal::BrassDk);
+    } else if (helmeted && h.cls == HeroClass::Robot) { // a riveted brass head with a single glass eye
+        ShadeBall(hd, 12.5f * s, steel);
+        Q(P(-9, -164), P(11, -164), P(11, -140), P(-9, -140), Tone(steel, -0.1f));
+        ShadeBall(P(8, -151), 6.5f * s, Pal::BrassDk);
+        DrawCircleV(P(8, -151), 4.4f * s, Color{110, 220, 220, 255});
+        DrawCircleV(P(9, -151), 1.6f * s, Color{20, 30, 30, 255});
+        for (int k = 0; k < 5; k++) DrawCircleV(P(-8 + (k % 3) * 8.0f, -162 + (k / 3) * 20.0f), 1.2f * s, brass);
+        ShadeLimb(P(-2, -140), P(2, -134), 2 * s, 2 * s, steel); // neck bolt
+    } else if (helmeted && h.cls == HeroClass::Octopus) { // a bulbous, boneless head, no jaw
+        ShadeBall(hd, 13.5f * s, top);
+        DrawEllipse((int)P(8, -151).x, (int)P(8, -151).y, 3.4f * s, 3.4f * s, Color{255, 220, 120, 255});
+        DrawCircleV(P(8.6f, -151), 1.8f * s, Color{20, 10, 18, 255});
+        for (int k = 0; k < 5; k++) DrawLineEx(P(-9 + k * 3.5f, -142), P(-11 + k * 3.8f, -134), 1.6f * s, Tone(top, -0.2f)); // trailing mantle fronds
+    } else if (helmeted) { // Wisp: a soft, faceless glow
+        Glow(hd, 22 * s, Fade(trim, 0.5f));
+        ShadeBall(hd, 10.5f * s, Fade(top, 0.9f));
+        DrawCircleV(hd, 6 * s, Fade(WHITE, 0.7f));
     } else {
         ShadeBall(P(-2, -150), 3 * s, Tone(skin, -0.12f));  // ear
         ShadeBall(hd, 11.8f * s, skin);
@@ -1081,6 +1148,26 @@ void DrawCrewFigure(const Hero& h, Vector2 ft, float s, bool right, float walk, 
                 DrawCircleV(P(8, -146), 2.5f * s, Fade(BLACK, 0.25f));
                 for (int k = 0; k < 8; k++) DrawPixelV(P(4 + (k % 4) * 2.5f, -141 + (k / 4) * 2.0f), Tone(hair, -0.2f)); // stubble
                 break;
+            case HeroClass::Whaler: // a wide sou'wester hat
+                Q(P(-13, -165), P(14, -165), P(14, -160), P(-13, -160), trim);
+                ShadeBall(P(1, -166), 12.5f * s, trim);
+                ShadeLimb(P(5, -159), P(19, -157), 2 * s, 1.3f * s, Tone(trim, -0.2f));
+                break;
+            case HeroClass::Stowaway: // a grimy bandana, tied off at the back
+                DrawCircleSector(P(-1.5f, -155), 12.5f * s, 165, 345, 14, trim);
+                ShadeBall(P(-11, -156), 2.6f * s, Tone(trim, -0.2f)); // the knot
+                break;
+            case HeroClass::Merman: // a crest of fins instead of hair
+                for (int k = 0; k < 4; k++) DrawTri(P(-9 + k * 6.0f, -160), P(-6 + k * 6.0f, -160), P(-8 + k * 6.0f, -172 - k * 1.5f), Tone(top, 0.15f));
+                break;
+            case HeroClass::Queen: // a tarnished, once-golden crown
+                Q(P(-10, -166), P(11, -166), P(11, -160), P(-10, -160), trim);
+                for (int k = 0; k < 3; k++) DrawTri(P(-8 + k * 7.0f, -166), P(-3 + k * 7.0f, -166), P(-5 + k * 7.0f, -173), trim);
+                ShadeBall(P(0, -168), 1.6f * s, Color{170, 90, 160, 255}); // a single remaining jewel
+                break;
+            case HeroClass::Siren: // pearls woven through her hair
+                for (int k = 0; k < 3; k++) ShadeBall(P(-10 + k * 7.0f, -160 - (k % 2) * 4.0f), 1.6f * s, Color{230, 220, 226, 255});
+                break;
             default: break;
         }
     }
@@ -1114,7 +1201,18 @@ void DrawCrewFigure(const Hero& h, Vector2 ft, float s, bool right, float walk, 
     }
     if (walking && h.cls != HeroClass::Diver) return;
     // weapon angle in degrees: 0 points straight ahead, negative points up
-    float base = h.cls == HeroClass::Nurse ? -8.0f : h.cls == HeroClass::Diver ? -26.0f : h.cls == HeroClass::Captain ? -64.0f : 70.0f;
+    float base;
+    switch (h.cls) {
+        case HeroClass::Nurse: base = -8.0f; break;
+        case HeroClass::Diver: base = -26.0f; break;
+        case HeroClass::Captain: base = -64.0f; break;
+        case HeroClass::Whaler: base = -18.0f; break;
+        case HeroClass::Queen: base = -14.0f; break;
+        case HeroClass::Siren: base = -12.0f; break;
+        case HeroClass::Wisp: base = -20.0f; break;
+        case HeroClass::Octopus: base = -22.0f; break;
+        default: base = 70.0f; break; // Mechanic, Stowaway, Merman, Robot: a heavier overhead swing
+    }
     float ang = (base - 110 * rz + pose.weaponTilt) * DEG2RAD;
     auto W = [&](float along) { return Vector2{hand.x + cosf(ang) * along * s * f, hand.y + sinf(ang) * along * s}; };
     switch (h.cls) {
@@ -1135,10 +1233,44 @@ void DrawCrewFigure(const Hero& h, Vector2 ft, float s, bool right, float walk, 
             DrawLineEx(W(4), W(34), 0.8f * s, Fade(WHITE, 0.6f));
             ShadeBall(hand, 4.2f * s, brass);
             break;
-        default: // a heavy wrench
+        case HeroClass::Mechanic: // a heavy wrench
             ShadeLimb(W(-4), W(30), 2.8f * s, 2.6f * s, steel);
             ShadeBall(W(33), 6.5f * s, steel);
             DrawCircleV(W(36), 2.8f * s, Tone(steel, -0.6f));
+            break;
+        case HeroClass::Whaler: { // a stubby harpoon gun
+            ShadeLimb(W(-10), W(20), 3 * s, 2.6f * s, Tone(steel, -0.2f));
+            ShadeLimb(W(16), W(40), 1.3f * s, 1.3f * s, steel); // the bolt, loaded
+            Vector2 tip = W(44), a = W(40);
+            Vector2 n{-sinf(ang) * 3 * s * f, cosf(ang) * 3 * s};
+            DrawTri(tip, {a.x + n.x, a.y + n.y}, {a.x - n.x, a.y - n.y}, steel);
+        } break;
+        case HeroClass::Stowaway: // a broken bottle
+            ShadeLimb(W(-2), W(14), 2.6f * s, 1.6f * s, Color{60, 110, 70, 200});
+            DrawTri(W(14), W(20), W(11), Color{40, 90, 55, 220});
+            break;
+        case HeroClass::Merman: // a bone trident
+            ShadeLimb(W(-6), W(30), 1.6f * s, 1.3f * s, Color{224, 214, 196, 255});
+            for (int k = -1; k <= 1; k++) DrawLineEx(W(30), {W(30).x + k * 6 * s, W(30).y - 10 * s}, 1.1f * s, Color{224, 214, 196, 255});
+            break;
+        case HeroClass::Queen: // a jeweled scepter
+            ShadeLimb(W(-6), W(28), 1.6f * s, 1.6f * s, trim);
+            ShadeBall(W(31), 3.6f * s, Color{170, 90, 160, 255});
+            break;
+        case HeroClass::Robot: // a heavy pneumatic drill
+            ShadeLimb(W(-4), W(24), 3 * s, 2.8f * s, steel);
+            for (int k = 0; k < 3; k++) ShadeBall(W(24 + k * 4.0f), 3.2f * s - k * 0.4f, Tone(steel, -0.3f));
+            break;
+        case HeroClass::Octopus: // a small barbed spine
+            ShadeLimb(W(-4), W(20), 1.4f * s, 0.8f * s, Tone(top, -0.2f));
+            break;
+        case HeroClass::Siren: // a shell-tipped rod
+            ShadeLimb(W(-4), W(26), 1.3f * s, 1.3f * s, trim);
+            ShadeBall(W(28), 2.8f * s, Color{230, 200, 220, 255});
+            break;
+        default: // Wisp: no weapon at all, just a mote of light in her hand
+            Glow(W(14), 16 * s, Fade(top, 0.6f));
+            DrawCircleV(W(14), 2.6f * s, WHITE);
             break;
     }
 }

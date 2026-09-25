@@ -43,7 +43,7 @@ constexpr int MELEE_HITS = RANK_1 | RANK_2;           // ...and can only reach t
 constexpr int RANGED_FROM = RANK_2 | RANK_3 | RANK_4; // ranged: anywhere except the very front
 constexpr int ANY_RANK = RANK_1 | RANK_2 | RANK_3 | RANK_4;
 
-enum class HeroClass { Nurse, Diver, Captain, Mechanic, COUNT };
+enum class HeroClass { Nurse, Diver, Captain, Mechanic, Whaler, Stowaway, Merman, Queen, Robot, Octopus, Siren, Wisp, COUNT };
 enum class Target { Enemy, Ally, Self, AllAllies };
 
 struct Ability {
@@ -61,9 +61,10 @@ struct Ability {
     int stunChance = 0;          // percent
     int bleed = 0;               // damage per turn, 3 turns
     int poison = 0;              // damage per turn, 3 turns
-    int buffDmg = 0;             // +% damage for a few turns
-    int buffDodge = 0;           // +dodge for a few turns
-    int buffProt = 0;            // +protection for a few turns
+    int buffDmg = 0;             // +% damage for a few turns (negative on an enemy: weakens its attack)
+    int buffDodge = 0;           // +dodge for a few turns (negative on an enemy: strips its evasion)
+    int buffProt = 0;            // +protection for a few turns (negative on an enemy: exposes it)
+    int buffAcc = 0;             // +accuracy for a few turns (negative on an enemy: blinds it)
     int guardTurns = 0;          // taunt + extra protection
     bool mark = false;           // marked enemies take +25% damage for 3 turns
     int moveTarget = 0;          // + pushes an enemy back, - pulls it forward
@@ -76,9 +77,10 @@ struct Status {
     int bleedDmg = 0, bleedTurns = 0;
     int poisonDmg = 0, poisonTurns = 0; // poison stacks, and halves healing received
     int stunned = 0;
-    int buffDmg = 0, buffTurns = 0;
-    int dodgeBuff = 0, dodgeTurns = 0;
-    int protBuff = 0, protTurns = 0;
+    int buffDmg = 0, buffTurns = 0;       // negative = weakened attack (an enemy effect)
+    int dodgeBuff = 0, dodgeTurns = 0;    // negative = stripped evasion (an enemy effect)
+    int protBuff = 0, protTurns = 0;      // negative = exposed (an enemy effect)
+    int accBuff = 0, accTurns = 0;        // negative = blinded (an enemy effect)
     int guardTurns = 0;
     int marked = 0;
 };
@@ -292,6 +294,7 @@ struct Game {
     int selectedHero = -1;
     int dismissArmed = -1;
     int bookTab = 0;
+    int bookScroll = 0;
     int relicScroll = 0;
     int upgrades[UP_COUNT] = {0, 0, 0, 0};
     std::vector<int> platLayouts[PL_COUNT]; // which chunks make up each platform level's current layout
