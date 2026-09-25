@@ -20,6 +20,7 @@
 //  mines, spiked balls and jets; Hard keeps them all.
 // ============================================================================
 #include "game.h"
+#include "relics.h"
 #include "rlgl.h"
 #include <algorithm>
 #include <cmath>
@@ -1018,7 +1019,7 @@ void StepPlayer(PlatformState& p, float dir, bool jumpHeld) {
         p.wallLock -= STEP;
         if (dir == (float)p.lockSide) dir = 0; // right after a wall jump, pushing back into the wall is ignored
     }
-    float target = dir * RUN, accel;
+    float target = dir * RUN * (1 + p.speedPct / 100.0f), accel; // the lead hero's relics (a syringe) quicken the run
     if (p.onGround) accel = dir == 0 ? DECEL_GROUND : p.vel.x * dir < 0 ? DECEL_GROUND + ACCEL_GROUND : ACCEL_GROUND;
     else accel = dir == 0 ? DECEL_AIR : ACCEL_AIR;
     if (p.vel.x < target) p.vel.x = std::min(target, p.vel.x + accel * STEP);
@@ -1035,7 +1036,7 @@ void StepPlayer(PlatformState& p, float dir, bool jumpHeld) {
     p.jumpBuffer -= STEP;
     if (p.jumpBuffer > 0) {
         if (p.coyote > 0) {
-            p.vel.y = -JUMP_V;
+            p.vel.y = -JUMP_V * (1 + p.jumpPct / 100.0f);
             p.coyote = p.jumpBuffer = 0;
             p.onGround = false;
             p.scale = {0.72f, 1.32f};
@@ -1069,6 +1070,19 @@ void StepPlayer(PlatformState& p, float dir, bool jumpHeld) {
     if (p.wallSide && p.vel.y > 0 && GetRandomValue(0, 30) == 0)
         p.particles.push_back({{p.wallSide > 0 ? p.pos.x + PW : p.pos.x, p.pos.y + PH - 4}, {-p.wallSide * 20.0f, -20}, 0.3f, 0.3f, 2, Color{220, 214, 200, 255}});
 
+    // a backpack's wide reach: coins within a bigger radius are gathered too
+    if (p.pickupPct > 0) {
+        float ex = 32.0f * p.pickupPct / 100.0f;
+        Rectangle wide = PlayerBox(p);
+        wide = {wide.x - ex, wide.y - ex, wide.width + 2 * ex, wide.height + 2 * ex};
+        for (int ty = (int)floorf(wide.y / T); ty <= (int)floorf((wide.y + wide.height) / T); ty++)
+            for (int tx = (int)floorf(wide.x / T); tx <= (int)floorf((wide.x + wide.width) / T); tx++)
+                if (At(p, tx, ty) == 'o') {
+                    p.tiles[ty][tx] = '.';
+                    p.coins++;
+                    Burst(p, {tx * (float)T + 16, ty * (float)T + 16}, 8, Color{255, 220, 90, 255}, 120, 0.35f, 2);
+                }
+    }
     // coins, the exit, hazards and falling out of the level
     Rectangle pr = PlayerBox(p);
     for (int ty = (int)floorf(pr.y / T); ty <= (int)floorf((pr.y + pr.height) / T); ty++)
@@ -1529,10 +1543,29 @@ void DrawHazardOverlay(const PlatformState& p, int c0, int c1, int r0, int r1, f
         }
 }
 
+// Weathering laid over every solid tile: rust running down from the rivets, salt crust along the tops, and
+// hairline cracks, placed by a hash of the tile so it never crawls.
+void DrawTileGrit(const PlatformState& p, int x, int y) {
+    float px = x * (float)T, py = y * (float)T;
+    float h1 = Hs(x * 3.1f + y * 7.7f), h2 = Hs(x * 5.3f + y * 2.9f + 4), h3 = Hs(x * 1.7f + y * 9.1f + 9);
+    if (h1 > 0.55f) { // a rust streak
+        Color rust = p.level == PL_PIRATE ? Color{70, 44, 26, 150} : Color{120, 62, 34, 150};
+        DrawRectangle((int)px + 6 + (int)(h2 * 16), (int)py + 4, 3, 8 + (int)(h3 * 20), rust);
+        DrawRectangle((int)px + 7 + (int)(h2 * 16), (int)py + 4, 1, 8 + (int)(h3 * 20), Fade(BLACK, 0.4f));
+    }
+    if (h2 > 0.82f) { // a crack
+        Color ink{10, 10, 14, 210};
+        Vector2 a{px + 8 + h1 * 12, py + 4}, b{a.x + 5, a.y + 9}, c{b.x - 4, b.y + 9}, d{c.x + 6, c.y + 8};
+        DrawLineEx(a, b, 1, ink); DrawLineEx(b, c, 1, ink); DrawLineEx(c, d, 1, ink);
+    }
+    if (!Solid(p, x, y - 1) && h3 > 0.5f) // salt crust along the top edge
+        for (int k = 0; k < 3; k++) DrawRectangle((int)px + 3 + k * 10 + (int)(h1 * 5), (int)py, 4, 2, Color{214, 210, 196, 200});
+}
+
 void DrawTile(const PlatformState& p, char c, int x, int y, float t) {
     float px = x * (float)T, py = y * (float)T;
     switch (c) {
-        case '#': DrawSolid(p, x, y); DrawPillarCaps(p, x, y); break;
+        case '#': DrawSolid(p, x, y); DrawPillarCaps(p, x, y); DrawTileGrit(p, x, y); break;
         case 'k': { // a crate or a barrel
             bool barrel = Hs(x * 7.1f + y * 3.3f) > 0.5f;
             if (barrel) {
@@ -1770,7 +1803,7 @@ void DrawEnemy(const PlatEnemy& e, float t) {
     float x = e.pos.x, y = e.pos.y, f = e.dir;
     switch (e.type) {
         case 'c': { // crab
-            Color c{220, 90, 50, 255}, dk{160, 60, 34, 255};
+            Color c{150, 80, 58, 255}, dk{100, 56, 42, 255};
             float cx = x + 13, cy = y + 10;
             for (int k = 0; k < 3; k++) {
                 float lx = cx - 8 + k * 8, sw = sinf(t * 14 + k) * 2;
@@ -1857,9 +1890,9 @@ void DrawEnemy(const PlatEnemy& e, float t) {
             }
         } break;        case 'p': { // parakeet
             float flap = sinf(t * 18) * 5;
-            DrawEllipse((int)x, (int)y, 9, 6, Color{60, 190, 80, 255});
-            DrawTri({x - 2, y - 2}, {x + 6, y - 2}, {x + 1, y - 8 - flap}, Color{230, 60, 50, 255});
-            DrawCircle((int)(x + f * 8), (int)y - 3, 4, Color{80, 210, 100, 255});
+            DrawEllipse((int)x, (int)y, 9, 6, Color{88, 126, 82, 255});
+            DrawTri({x - 2, y - 2}, {x + 6, y - 2}, {x + 1, y - 8 - flap}, Color{140, 60, 52, 255});
+            DrawCircle((int)(x + f * 8), (int)y - 3, 4, Color{104, 138, 90, 255});
             DrawTri({x + f * 11, y - 4}, {x + f * 16, y - 2}, {x + f * 11, y}, Color{250, 200, 60, 255});
             DrawCircle((int)(x + f * 9), (int)y - 4, 1.2f, Pal::Ink);
             DrawTri({x - f * 8, y}, {x - f * 16, y + 4}, {x - f * 8, y + 3}, Color{40, 120, 200, 255});
@@ -1878,7 +1911,7 @@ void DrawEnemy(const PlatEnemy& e, float t) {
 // A tapering, swaying tentacle from base to tip, with a row of pale suckers and a curled tip.
 void DrawTentacle(Vector2 base, Vector2 tip, float w0, float t, float seed, Color c) {
     const int N = 18;
-    Color hi = ColorBrightness(c, 0.25f), sucker{236, 176, 214, 255};
+    Color hi = ColorBrightness(c, 0.25f), sucker{176, 146, 140, 255};
     Vector2 prev = base;
     float len = sqrtf((tip.x - base.x) * (tip.x - base.x) + (tip.y - base.y) * (tip.y - base.y));
     Vector2 dir{(tip.x - base.x) / std::max(1.0f, len), (tip.y - base.y) / std::max(1.0f, len)}, n{-dir.y, dir.x};
@@ -1914,7 +1947,7 @@ void DrawBossBack(const PlatformState& p, float t) {
 void DrawBoss(const PlatformState& p, float t) {
     const PlatBoss& b = p.boss;
     if (b.type == 'K') {
-        Color arm{130, 60, 140, 255};
+        Color arm{86, 58, 80, 255};
         for (int i = 0; i < 2; i++) {
             if (b.tentT[i] < 0) continue;
             if (b.tentT[i] < 0.75f) { // warning: churning water below, or a shadow falling from above
@@ -1957,7 +1990,7 @@ void DrawBoss(const PlatformState& p, float t) {
             Rectangle h = KrakenHead(p);
             const float S = KRAKEN_SCALE;
             bool blink = b.invuln > 0 && fmodf(t, 0.15f) < 0.075f;
-            Color skin = blink ? WHITE : Color{130, 64, 150, 255}, dk{96, 44, 112, 255};
+            Color skin = blink ? WHITE : Color{90, 60, 84, 255}, dk{60, 40, 58, 255};
             float cx = h.x + h.width / 2;
             for (int k = -3; k <= 3; k++) // a crown of arms writhing around the huge head
                 DrawTentacle({cx + k * 18 * S, h.y + 60 * S}, {cx + k * 46 * S, h.y + (110 + fabsf((float)k) * 8) * S}, 9 * S, t * 3, k * 2.0f, dk);
@@ -2125,6 +2158,10 @@ void StartPlatform(Game& g, int level) {
     g.plat.hard = g.platHard;
     g.plat.checkpoints = g.platCheckpoints;
     g.plat.bossEnabled = level == PL_HULL ? g.platHullBoss : level == PL_PIRATE ? g.platPirateBoss : true;
+    if (Hero* lead = FindHero(g, g.party[0])) { // the rank-1 hero's relics shape the run
+        RelicFx fx = RelicBundle(*lead);
+        g.plat.pickupPct = fx.pickupPct; g.plat.speedPct = fx.speedPct; g.plat.jumpPct = fx.jumpPct; g.plat.lampPct = fx.lampPct;
+    }
     BuildLevel(g.plat);
     g.scene = Scene::Platformer;
 }
@@ -2312,7 +2349,7 @@ void ScenePlatformer(Game& g) {
     EndMode2D();
     if (Lv(p.level).dark) {
         Vector2 lamp = GetWorldToScreen2D({p.pos.x + PW / 2 + (p.facingRight ? 14.0f : -14.0f), p.pos.y + 6}, cam);
-        DrawLampDarkness(lamp, p.hard ? 120.0f : 148.0f, p.hard ? 0.82f : 0.74f); // Normal lights more of the duct
+        DrawLampDarkness(lamp, (p.hard ? 120.0f : 148.0f) * (1 + p.lampPct / 100.0f), p.hard ? 0.82f : 0.74f); // Normal lights more of the duct
         BeginMode2D(cam); // things that glow in the dark: steam jets, gears' rims, the valve, warning lamps
         DrawGlowingBits(p, c0, c1, r0, r1, t);
         EndMode2D();
@@ -2421,8 +2458,8 @@ void DrawPlatformSpritePage(int page, float t) {
         p.boss.tentT[0] = p.boss.tentT[1] = TENT_IDLE;
         DrawBoss(p, t);
         labels.push_back({"The Kraken's head (stomp it)", {500, 150}});
-        DrawTentacle({120, 340}, {130, 200}, 16, t * 2, 1, Color{130, 60, 140, 255});
-        DrawTentacle({220, 190}, {230, 330}, 16, t * 2, 2, Color{130, 60, 140, 255});
+        DrawTentacle({120, 340}, {130, 200}, 16, t * 2, 1, Color{86, 58, 80, 255});
+        DrawTentacle({220, 190}, {230, 330}, 16, t * 2, 2, Color{86, 58, 80, 255});
         labels.push_back({"Tentacles rise and slam", {175, 350}});
     } else {
         struct Strip { int level; const char* name; const char* rows[3]; };

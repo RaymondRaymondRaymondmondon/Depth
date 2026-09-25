@@ -2,6 +2,7 @@
 //  DEPTH - the roguelike expedition: rooms, the flashlight, and combat.
 // ============================================================================
 #include "game.h"
+#include "relics.h"
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -84,7 +85,7 @@ static void Sparkle(Game& g, Rectangle r, int n, Color c, float speed, float ris
 // ---------------------------------------------------------------- hero effects
 static void AddStress(Game& g, Hero& h, int amount) {
     if (amount > 0) {
-        amount = (int)std::round(amount * StressMult(g) * (100 - GetStats(h).stressResist) / 100.0f);
+        amount = (int)std::round(amount * StressMult(g) * (100 - GetStats(h).stressResist) / 100.0f * (100 - RelicBundle(h).stressGainPct) / 100.0f);
         if (amount <= 0) return;
     }
     int before = h.stress;
@@ -206,14 +207,18 @@ static void HeroAct(Game& g, int heroId, int abilityIdx, int targetPos) {
                 int regionAcc = (h->st.burnTurns > 0 ? 15 : 0) + (h->st.siltTurns > 0 ? 25 : 0); // Totemic Burn -15%, Silt Blindness -25%
                 int hit = std::clamp(s.acc + a.accBonus + (h->st.accTurns > 0 ? h->st.accBuff : 0) + HeroAccBonus(g) - edodge - regionAcc, 5, 95);
                 if (!Chance(hit)) { Float(g, er, "Miss", Pal::Paper); StartAnim(g, false, uid, Anim::Dodge, 0.45f); continue; }
-                bool crit = Chance(std::max(0, 5 - (h->st.siltTurns > 0 ? 10 : 0)));
+                RelicFx rb = RelicBundle(*h);
+                bool crit = Chance(std::max(0, 5 + rb.critPct - (h->st.siltTurns > 0 ? 10 : 0)));
                 StartAnim(g, false, uid, Anim::Hurt, 0.5f);
                 Sparkle(g, er, crit ? 16 : 8, crit ? Pal::Brass : Color{255, 210, 160, 255}, 220, 0);
                 if (a.dmgMult > 0) {
                     float raw = Roll(s.dmgMin, s.dmgMax) * a.dmgMult * (1.0f + h->st.buffDmg / 100.0f);
                     if (crit) raw *= 1.5f;
                     if (e->st.marked > 0) raw *= 1.25f;
+                    if (e->prot >= 10 && rb.vsArmored) raw *= 1.0f + rb.vsArmored / 100.0f;                          // pickaxes and picks vs shells and plate
+                    if ((e->type == EnemyType::LostDiver || e->type == EnemyType::SunGod || e->type == EnemyType::ArmorLostOne) && rb.vsConstruct) raw *= 1.0f + rb.vsConstruct / 100.0f;
                     int eprot = std::max(0, e->prot + (e->st.protTurns > 0 ? e->st.protBuff : 0));
+                    eprot = eprot * (100 - rb.armorPen) / 100;                                                        // armour-piercing tools
                     int dmg = std::max(1, (int)std::round(raw * (100 - eprot) / 100.0f));
                     e->hp -= dmg;
                     Float(g, er, (crit ? "CRIT " : "") + std::to_string(dmg), crit ? Pal::Brass : Pal::Coral);
@@ -222,6 +227,36 @@ static void HeroAct(Game& g, int heroId, int abilityIdx, int targetPos) {
                         Log(g, "Critical hit! The crew cheers.");
                         for (int p = 0; p < PARTY_SIZE; p++) if (Hero* o = PartyAt(g, p)) AddStress(g, *o, -4);
                     }
+                    // relic effects that fire when a blow lands: stuns, bleeds, arcs, dynamite, occult costs
+                    CombatState cs;
+                    cs.game = &g; cs.hero = h; cs.target = e; cs.damage = dmg; cs.crit = crit;
+                    RunCombatRelicEffects(cs);
+                    if (cs.stunTarget && e->hp > 0) { e->st.stunned = 1; Float(g, er, "Stunned", Pal::Teal); }
+                    if (cs.bleedTarget && e->hp > 0) { e->st.bleedDmg = std::max(e->st.bleedDmg, cs.bleedTarget); e->st.bleedTurns = 3; Float(g, er, "Bleed", Pal::Bad); }
+                    if (cs.arcDamage > 0) { // a Tesla arc leaps to the next enemy in line
+                        int ei = EnemyPos(g, uid);
+                        if (ei >= 0 && ei + 1 < (int)d.enemies.size() && d.enemies[ei + 1].alive) {
+                            Enemy& nx = d.enemies[ei + 1];
+                            nx.hp -= cs.arcDamage;
+                            Float(g, EnemyRect(g, ei + 1), "Arc " + std::to_string(cs.arcDamage), Pal::Teal);
+                            Sparkle(g, EnemyRect(g, ei + 1), 10, Color{110, 200, 230, 255}, 200, 0);
+                            if (nx.hp <= 0) { nx.hp = 0; nx.alive = false; Log(g, nx.name + " is defeated."); }
+                        }
+                    }
+                    if (cs.splashFront > 0) { // dynamite: both front enemies
+                        for (int fi = 0; fi < 2 && fi < (int)d.enemies.size(); fi++) {
+                            Enemy& fe = d.enemies[fi];
+                            if (!fe.alive) continue;
+                            fe.hp -= cs.splashFront;
+                            Float(g, EnemyRect(g, fi), "Boom " + std::to_string(cs.splashFront), Pal::Coral);
+                            Sparkle(g, EnemyRect(g, fi), 16, Color{255, 170, 60, 255}, 260, 0);
+                            if (fe.hp <= 0) { fe.hp = 0; fe.alive = false; Log(g, fe.name + " is defeated."); }
+                        }
+                        d.shake = 0.3f;
+                    }
+                    if (cs.recoilDamage > 0) { Float(g, HeroRect(std::max(0, PartyPos(g, h->id))), "Recoil " + std::to_string(cs.recoilDamage), Pal::Bad); DamageHero(g, *h, cs.recoilDamage); }
+                    if (cs.selfStress > 0) AddStress(g, *h, cs.selfStress);
+                    if (cs.stressRelief > 0) for (int p = 0; p < PARTY_SIZE; p++) if (Hero* o = PartyAt(g, p)) AddStress(g, *o, -cs.stressRelief);
                     if (e->hp <= 0) { e->hp = 0; e->alive = false; Log(g, e->name + " is defeated."); break; }
                 }
                 if (a.bleed) { e->st.bleedDmg = std::max(e->st.bleedDmg, a.bleed); e->st.bleedTurns = 3; Float(g, er, "Bleed", Pal::Bad); }
@@ -258,7 +293,13 @@ static void HeroAct(Game& g, int heroId, int abilityIdx, int targetPos) {
         Rectangle tr = HeroRect(p);
         if (a.heal || a.stressHeal || a.cure) Sparkle(g, tr, 14, a.heal ? Color{130, 240, 150, 255} : Color{200, 170, 255, 255}, 50, 60);
         else Sparkle(g, tr, 14, Color{255, 214, 120, 255}, 60, 50);
-        if (a.heal) { int amt = HealHero(*t, a.heal + Roll(0, 2)); Float(g, tr, "+" + std::to_string(amt), Pal::Good); }
+        if (a.heal) {
+            RelicFx hb = RelicBundle(*h);
+            int amt = HealHero(*t, a.heal + Roll(0, 2) + hb.healBonus);
+            Float(g, tr, "+" + std::to_string(amt), Pal::Good);
+            if (hb.healParty > 0 && a.target == Target::Ally) // a chemistry kit splashes the mixture around
+                for (int q = 0; q < PartySize(g); q++) if (q != p) if (Hero* o = PartyAt(g, q)) { int x = HealHero(*o, hb.healParty); Float(g, HeroRect(q), "+" + std::to_string(x), Pal::Good); }
+        }
         if (a.cure) { t->st.bleedTurns = 0; t->st.poisonTurns = 0; }
         if (a.stressHeal) AddStress(g, *t, -a.stressHeal);
         if (a.buffDmg) { t->st.buffDmg = a.buffDmg; t->st.buffTurns = 3; Float(g, tr, "Rallied", Pal::Brass); }
@@ -1220,7 +1261,7 @@ static void DrawEnemyFigure(const Enemy& e, Rectangle r, float t) {
             ShadeLimb({cx - 44, cy - 4}, {cx - 56, cy - 34}, 1.8f, 1.2f, leg);
         } break;
         case EnemyType::CaveShrimp: { // a pistol shrimp: curled abdomen, fan tail, and the snapping claw
-            Color c{226, 120, 104, 255}, dk{170, 78, 70, 255}, lt{246, 178, 156, 255};
+            Color c{150, 92, 80, 255}, dk{104, 62, 56, 255}, lt{176, 130, 112, 255};
             float cy = by - 50 + bob;
             for (int k = 0; k < 3; k++) legPair({cx - 12 + k * 12.0f, cy + 12}, 12, 6, sinf(t * 6 + k) * 2, 2.6f, dk);
             Vector2 prev{cx - 2, cy};
@@ -1773,8 +1814,8 @@ static void DrawLocationTint(Game& g) {
     switch (d.loc) {
         case Location::Cave:
             if (v == 0) { // pitch black: a tight searchlight round the party, ink beyond it
-                for (int i = 0; i < 8; i++) DrawRing({520, 390}, 150 + i * 34, 190 + i * 34, 0, 360, 48, Fade(Color{0, 0, 0, 255}, 0.16f + i * 0.06f));
-                DrawRing({520, 390}, 430, 1500, 0, 360, 64, BLACK);
+                for (int i = 0; i < 8; i++) DrawRing({690, 390}, 300 + i * 30, 340 + i * 30, 0, 360, 48, Fade(Color{0, 0, 0, 255}, 0.14f + i * 0.06f)); // the lamp reaches the whole line, crew and foes
+                DrawRing({690, 390}, 540, 1600, 0, 360, 64, BLACK);
             } else if (v == 1) { // bloom: cyan and violet bleeding off the walls
                 lightWash(Color{20, 90, 110, 34});
                 BeginBlendMode(BLEND_ADDITIVE);
@@ -1918,7 +1959,7 @@ static void DrawFoundItemPanel(Game& g, Rectangle main) {
     }
     if (!d.pendingItem) return;
     Panel(p, Color{224, 214, 190, 255});
-    bool full = (int)d.inventory.size() >= INV_SLOTS;
+    bool full = (int)d.inventory.size() >= InvCapacity(g);
     Vector2 ic{p.x + 50, p.y + 50};
     DrawItemIcon(d.pendingItemVal.kind, d.pendingItemVal.relicId, ic, 44);
     TxtBold(("Found: " + ItemName(d.pendingItemVal)).c_str(), p.x + 92, p.y + 16, 19, Pal::Ink);
@@ -1926,7 +1967,7 @@ static void DrawFoundItemPanel(Game& g, Rectangle main) {
         if (Button({p.x + 92, p.y + 52, 150, 42}, "Take it")) { d.inventory.push_back(d.pendingItemVal); d.pendingItem = false; }
         if (Button({p.x + 254, p.y + 52, 150, 42}, "Leave it")) d.pendingItem = false;
     } else {
-        Txt("Your pack is full (5/5). Click something below to leave it behind, or leave the new find.", p.x + 92, p.y + 50, 15, Pal::Bad);
+        Txt(TextFormat("Your pack is full (%d/%d). Click something below to leave it behind, or leave the new find.", InvCapacity(g), InvCapacity(g)), p.x + 92, p.y + 50, 15, Pal::Bad);
         if (Button({p.x + 92, p.y + 78, 150, 36}, "Leave the find")) d.pendingItem = false;
         for (int i = 0; i < (int)d.inventory.size(); i++) {
             Vector2 sc{p.x + 300.0f + i * 52, p.y + 96};
@@ -1951,7 +1992,7 @@ static void DrawFoundItemPanel(Game& g, Rectangle main) {
 static void DrawInventoryBar(Game& g) {
     auto& d = g.dungeon;
     const float SZ = 46, GAP = 8, x0 = 20, y0 = SCREEN_H - 66.0f;
-    for (int i = 0; i < INV_SLOTS; i++) {
+    for (int i = 0; i < InvCapacity(g); i++) {
         Rectangle r{x0 + i * (SZ + GAP), y0, SZ, SZ};
         bool has = i < (int)d.inventory.size();
         DrawRectangleRounded(r, 0.25f, 6, has ? Color{40, 46, 44, 235} : Color{20, 24, 24, 160});
@@ -1993,9 +2034,10 @@ static void DrawInventoryBar(Game& g) {
             if (!h) continue;
             Rectangle br{m.x + 14, m.y + 40.0f + row * 34, 252, 30};
             bool canBandage = it.kind == ItemKind::Bandage && h->hp < GetStats(*h).maxHp;
-            bool canRelic = it.kind == ItemKind::Relic && (h->relics[0] < 0 || h->relics[1] < 0);
+            std::string whyNot;
+            bool canRelic = it.kind == ItemKind::Relic && CanEquipRelic(*h, it.relicId, &whyNot);
             const char* label = it.kind == ItemKind::Bandage ? TextFormat("%s  (%d/%d HP)", h->name.c_str(), h->hp, GetStats(*h).maxHp)
-                                                              : TextFormat("%s  (%s)", h->name.c_str(), h->relics[0] < 0 || h->relics[1] < 0 ? "has a free slot" : "no free slot");
+                                                              : TextFormat("%s  (%s)", h->name.c_str(), canRelic ? "can carry it" : whyNot.c_str());
             if (Button(br, label, canBandage || canRelic, 14)) {
                 if (it.kind == ItemKind::Bandage) {
                     int heal = std::max(1, GetStats(*h).maxHp * 30 / 100);

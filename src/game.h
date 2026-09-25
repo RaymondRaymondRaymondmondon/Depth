@@ -5,6 +5,7 @@
 #pragma once
 #include "raylib.h"
 #include <array>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -89,10 +90,40 @@ struct Status {
     int marked = 0;
 };
 
+// ---------- relics ----------
+// Crew carry at most two relics, and at most one of them a "hard weapon" (a blade, a firearm, a staff).
+// Each relic has stat changes, a few combat and platformer effects, an on-hit hook, and a small hand-inked
+// SVG icon that relics.cpp draws into a texture. See relics.h.
+enum class RelicCategory { OFFENSE, ENGINEERING, SUPPORT, UTILITY, OCCULT };
+struct CombatState;      // what an on-hit effect can see and change (relics.h)
+struct PlatformState;
+struct RelicFx {         // numeric effects, summed over a hero's relics (and their synergies) by RelicBundle()
+    int critPct = 0;         // added to the hero's crit chance
+    int armorPen = 0;        // percent of an enemy's protection ignored
+    int vsArmored = 0;       // percent extra damage against enemies with 10+ protection (shells, plate)
+    int vsConstruct = 0;     // percent extra damage against constructs (bosses of stone, brass and bronze)
+    int healBonus = 0;       // flat added to every heal the hero casts
+    int healParty = 0;       // a single-target heal also heals the rest of the party by this much
+    int stressGainPct = 0;   // percent less stress gained
+    int extraSlots = 0;      // more inventory slots on an expedition
+    int pickupPct = 0;       // platformer: bigger coin pickup radius
+    int speedPct = 0;        // platformer: run speed
+    int jumpPct = 0;         // platformer: jump strength
+    int lampPct = 0;         // platformer: helmet lamp radius in the dark levels
+    bool chainOnCrit = false;// a critical hit always arcs
+    int dmg = 0;             // synergy-only: added damage
+};
 struct RelicDef {
     std::string name, desc;
     int hp = 0, dmg = 0, speed = 0, acc = 0, dodge = 0, prot = 0, stressResist = 0;
     int price = 80;
+    RelicCategory category = RelicCategory::UTILITY;
+    bool isHardWeapon = false;
+    RelicFx fx;
+    std::string dungeonText, platformerText;                    // the two halves of the description
+    std::function<void(CombatState&)> combatEffect;             // on-hit effect in expeditions
+    std::function<void(PlatformState&)> platformerEffect;       // effect in the platform levels
+    std::string svgSpriteData;                                  // the icon, as SVG markup
 };
 
 struct Stats { int maxHp, dmgMin, dmgMax, speed, acc, dodge, prot, stressResist; };
@@ -309,6 +340,7 @@ struct PlatformState {
     std::vector<int> partKind;       // per section: 0 open air, 1 the ship's hold, 2 the captain's cabin
     std::vector<int> layout;         // the sections in this run, so a death can rebuild the level from scratch
     std::vector<PlatShot> shots;     // musket balls and bombs in flight
+    int pickupPct = 0, speedPct = 0, jumpPct = 0, lampPct = 0; // from the lead hero's relics (see RelicFx)
     bool hard = false;               // Hard keeps the gears and jets; Normal leaves them out
     bool checkpoints = false;        // respawn at the last section reached, but forfeit the relic
     bool bossEnabled = true;         // Hull/Pirate: whether the boss arena has its boss in it

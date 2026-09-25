@@ -48,6 +48,11 @@ Two players, two decks, three lanes ("flats"); laid out like the first act of In
 - Each run rolls `visSeed` and `atmos` (StartDungeon). Platformer: world px = screen px, 2 px art grid, no fractional offsets or rotation on sprites.
 - `--sim` now prints where wipes happen; Cave level 0 is about 51% wins.
 
+## Relics (relics.h / relics.cpp)
+- 20 relics in `RelicRegistry` (ids 0-11 are the originals and are saved by id). Two per hero, at most one hard weapon (`CanEquipRelic`); synergies via `CheckRelicSynergies`; numbers summed by `RelicBundle`; on-hit effects via `RunCombatRelicEffects` (a `CombatState` from `HeroAct`). The rank-1 hero's relics also shape platform runs (pickup radius, run speed, lamp).
+- Icons are SVG strings in relics.cpp, rasterised by a small built-in SVG reader (raylib 5.5 here has no SVG support) into 128 px textures at startup (`RelicSpriteGenerator`); batteries, bandages and keys use it too. `--relic-test` checks the rules headlessly.
+- The figure shader (FIG_FS) does the gritty finish: variable-width ink, cross-hatching, cloth folds, grit, salt, rust, cel bands, black block shadow.
+
 ## Rendering gotchas
 - raylib culls triangles by winding order. Use `DrawTri()` (it draws both windings), not `DrawTriangle`.
 - rlgl resets the bound texture when the batch switches to `RL_TRIANGLES`. Textured custom geometry must use `RL_QUADS` (see `DrawTexturedCircle`).

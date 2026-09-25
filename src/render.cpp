@@ -8,6 +8,7 @@
 //  for every lamp, then LightsEnd() multiplies it over what's been drawn.
 // ============================================================================
 #include "game.h"
+#include "relics.h"
 #include "rlgl.h"
 #include <algorithm>
 #include <cmath>
@@ -45,14 +46,17 @@ uniform vec2 uTexel;
 uniform float uOutline;
 out vec4 finalColor;
 const vec3 INK = vec3(0.055, 0.042, 0.036);
+float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 void main() {
     vec2 uv = fragTexCoord;
     vec4 c = texture(texture0, uv);
     float o = 0.0, nearA = 0.0;
+    float wv = 0.8 + 0.55 * hash(floor(uv / uTexel / 5.0)); // the ink line wavers in width, as if drawn by hand
     for (int i = 0; i < 16; i++) {
         float a = float(i) * 0.3927;
         vec2 d = vec2(cos(a), sin(a)) * uTexel;
-        o = max(o, texture(texture0, uv + d * uOutline).a);
+        float heavy = 1.0 + 0.45 * (cos(a) + sin(a)) * 0.5;   // heavier on the shadow side
+        o = max(o, texture(texture0, uv + d * uOutline * wv * heavy).a);
         nearA += texture(texture0, uv + d * 3.0).a;
     }
     nearA /= 16.0;
@@ -78,6 +82,19 @@ void main() {
     col = mix(vec3(lum), col, 0.74) * vec3(1.1, 1.18, 1.14);
     col = floor(col * 4.0 + 0.5) / 4.0;
     float e1 = texture(texture0, uv + vec2(4.0, 3.5) * uTexel).a, e2 = texture(texture0, uv + vec2(10.0, 8.5) * uTexel).a;
+    // cross-hatching in the mid-tones and deeper shadow, cloth folds, grit, salt and rust
+    vec2 px = uv / uTexel;
+    float lum2 = dot(col, vec3(0.299, 0.587, 0.114));
+    float h1 = step(0.80, fract((px.x + px.y) / 4.5)), h2 = step(0.80, fract((px.x - px.y) / 4.5));
+    col *= 1.0 - 0.55 * h1 * smoothstep(0.58, 0.30, lum2);
+    col *= 1.0 - 0.55 * h2 * smoothstep(0.34, 0.16, lum2);
+    float fold = step(0.86, fract((px.x * 0.8 + px.y * 0.45) / 11.0 + hash(floor(px / 23.0)) * 0.5));
+    col *= 1.0 - 0.20 * fold;
+    float gr = hash(floor(px));
+    col *= 1.0 - 0.10 * step(0.93, gr);
+    col += 0.10 * step(0.992, gr);
+    float rn = hash(floor(px / 9.0)) * 0.6 + hash(floor(px / 3.0)) * 0.4;
+    col = mix(col, vec3(0.34, 0.17, 0.09), 0.30 * smoothstep(0.78, 0.93, rn));
     if (e1 < 0.5) col = INK * 1.4;                 // pure black block on the shadow side
     else if (e2 < 0.5) col *= 0.55;                // a second, half-dark step behind it
     finalColor = vec4(col * fragColor.rgb, fragColor.a);
@@ -629,6 +646,12 @@ void DrawGear(Vector2 c, float r, int teeth, float rot, Color col) {
 void DrawRelicIcon(int id, Vector2 c, float s) {
     const auto& relics = Relics();
     if (id < 0 || id >= (int)relics.size()) { DrawCircleV(c, 0.4f * s, Pal::Brass); return; }
+    if (RelicSpriteGenerator::Has(id)) { // the hand-inked SVG icon
+        Texture2D tx = RelicSpriteGenerator::Sprite(id);
+        float z = s * 1.2f;
+        DrawTexturePro(tx, {0, 0, (float)tx.width, -(float)tx.height}, {c.x - z / 2, c.y - z / 2, z, z}, {0, 0}, 0, WHITE);
+        return;
+    }
     const std::string& n = relics[id].name;
     auto has = [&](const char* w) { return n.find(w) != std::string::npos; };
     unsigned h = (unsigned)id * 2654435761u;
@@ -659,6 +682,12 @@ void DrawRelicIcon(int id, Vector2 c, float s) {
 }
 
 void DrawItemIcon(ItemKind kind, int relicId, Vector2 c, float s) {
+    if (kind != ItemKind::Relic && RelicSpriteGenerator::HasItem((int)kind)) { // aged brass, stained linen, rusted iron
+        Texture2D tx = RelicSpriteGenerator::ItemSprite((int)kind);
+        float z = s * 1.2f;
+        DrawTexturePro(tx, {0, 0, (float)tx.width, -(float)tx.height}, {c.x - z / 2, c.y - z / 2, z, z}, {0, 0}, 0, WHITE);
+        return;
+    }
     switch (kind) {
         case ItemKind::Battery:
             DrawRectangleRounded({c.x - 0.3f * s, c.y - 0.46f * s, 0.6f * s, 0.92f * s}, 0.25f, 6, Color{58, 62, 58, 255});

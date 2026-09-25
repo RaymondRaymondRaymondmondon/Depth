@@ -27,5 +27,6 @@ add_executable(depth
     src/dungeon.cpp
     src/platformer.cpp
     src/flats.cpp
+    src/relics.cpp
 )
 target_link_libraries(depth PRIVATE raylib)

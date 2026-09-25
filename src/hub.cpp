@@ -2,6 +2,7 @@
 //  DEPTH - the station screens you open from the Nautilus's salon (salon.cpp).
 // ============================================================================
 #include "game.h"
+#include "relics.h"
 #include <algorithm>
 #include <cmath>
 
@@ -206,8 +207,10 @@ void SceneCrew(Game& g) {
             DrawRectangleRounded(rs, 0.2f, 6, Color{214, 196, 158, 255});
             if (h.relics[k] >= 0) {
                 const RelicDef& rd = Relics()[h.relics[k]];
-                TxtBold(rd.name, rs.x + 8, rs.y + 3, 15, Pal::Ink);
-                Txt(rd.desc, rs.x + 8, rs.y + 22, 12, Pal::BrassDk);
+                DrawItemIcon(ItemKind::Relic, h.relics[k], {rs.x + 22, rs.y + 20}, 30);
+                TxtBold(rd.name, rs.x + 44, rs.y + 3, 15, Pal::Ink);
+                Txt(rd.isHardWeapon ? "hard weapon" : RelicCategoryName(rd.category), rs.x + 44, rs.y + 22, 12, Pal::BrassDk);
+                if (CheckCollisionPointRec(m, rs)) tooltip = rd.desc;
                 if (Button({rs.x + rs.width - 34, rs.y + 6, 28, 28}, "x")) {
                     g.relicStorage.push_back(h.relics[k]);
                     h.hp = std::max(1, h.hp - rd.hp);
@@ -254,20 +257,24 @@ void SceneCrew(Game& g) {
     // --- relic storage
     Panel({960, 90, 300, 612});
     TxtBold("Relic storage", 976, 102, 21, Pal::Ink);
-    Txt("Two relics per crew member", 976, 128, 13, Pal::BrassDk);
+    Txt("Two per crew member, one hard weapon", 976, 128, 13, Pal::BrassDk);
     int n = (int)g.relicStorage.size();
     if (CheckCollisionPointRec(m, {960, 90, 300, 612})) g.relicScroll -= (int)GetMouseWheelMove();
-    g.relicScroll = std::clamp(g.relicScroll, 0, std::max(0, n - 10));
-    bool canEquip = sel && (sel->relics[0] < 0 || sel->relics[1] < 0);
+    g.relicScroll = std::clamp(g.relicScroll, 0, std::max(0, n - 7));
     if (n == 0) Txt("Empty. Finish expeditions to find relics.", 976, 160, 14, Pal::BrassDk);
-    for (int i = g.relicScroll; i < n && i < g.relicScroll + 10; i++) {
+    for (int i = g.relicScroll; i < n && i < g.relicScroll + 7; i++) {
         int rid = g.relicStorage[i];
         const RelicDef& rd = Relics()[rid];
-        Rectangle r{972, 150 + (i - g.relicScroll) * 54.0f, 276, 48};
-        DrawRectangleRounded(r, 0.2f, 6, Color{222, 206, 170, 255});
-        TxtBold(rd.name, r.x + 8, r.y + 5, 16, Pal::Ink);
-        Txt(rd.desc, r.x + 8, r.y + 27, 12, Pal::BrassDk);
-        if (Button({r.x + r.width - 70, r.y + 9, 62, 30}, "Equip", canEquip)) {
+        std::string why;
+        bool canEquip = sel && CanEquipRelic(*sel, rid, &why); // two per hero, and only one hard weapon
+        Rectangle r{972, 150 + (i - g.relicScroll) * 78.0f, 276, 72};
+        DrawRectangleRounded(r, 0.12f, 6, Color{222, 206, 170, 255});
+        DrawItemIcon(ItemKind::Relic, rid, {r.x + 26, r.y + 26}, 34);
+        TxtBold(rd.name, r.x + 52, r.y + 4, 16, Pal::Ink);
+        Txt(rd.isHardWeapon ? "hard weapon" : RelicCategoryName(rd.category), r.x + 52, r.y + 24, 12, Pal::BrassDk);
+        DrawWrapped(rd.desc, {r.x + 8, r.y + 42, r.width - 92, 30}, 10, Pal::Ink);
+        if (CheckCollisionPointRec(m, r)) tooltip = rd.desc + "\n" + rd.platformerText + (canEquip || !sel ? "" : "\n(" + why + ")");
+        if (Button({r.x + r.width - 70, r.y + 6, 62, 30}, "Equip", canEquip)) {
             int slot = sel->relics[0] < 0 ? 0 : 1;
             sel->relics[slot] = rid;
             sel->hp += rd.hp;
@@ -275,7 +282,7 @@ void SceneCrew(Game& g) {
             break;
         }
     }
-    if (n > 10) Txt("Scroll for more", 976, 690, 13, Pal::BrassDk);
+    if (n > 7) Txt("Scroll for more", 976, 690, 13, Pal::BrassDk);
     if (!tooltip.empty()) DrawTooltip(tooltip, m);
 }
 

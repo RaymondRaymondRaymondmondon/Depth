@@ -3,6 +3,7 @@
 //  Most balancing happens in this file.
 // ============================================================================
 #include "game.h"
+#include "relics.h"
 #include <algorithm>
 
 // ---------------------------------------------------------------- abilities
@@ -396,6 +397,7 @@ Stats GetStats(const Hero& h) {
         s.maxHp += d.hp; s.dmgMin += d.dmg; s.dmgMax += d.dmg; s.speed += d.speed;
         s.acc += d.acc; s.dodge += d.dodge; s.prot += d.prot; s.stressResist += d.stressResist;
     }
+    { RelicFx b = RelicBundle(h); s.dmgMin += b.dmg; s.dmgMax += b.dmg; } // synergy damage (Tesla Gun + Crank)
     if (h.rattled) { s.acc -= 10; s.dodge -= 5; }
     s.dmgMin = std::max(1, s.dmgMin);
     s.dmgMax = std::max(s.dmgMin, s.dmgMax);
@@ -407,30 +409,8 @@ Stats GetStats(const Hero& h) {
 }
 
 // ---------------------------------------------------------------- relics
-static RelicDef R(const char* n, const char* d, int hp, int dmg, int spd, int acc, int dodge, int prot, int sr, int price) {
-    RelicDef r;
-    r.name = n; r.desc = d; r.hp = hp; r.dmg = dmg; r.speed = spd; r.acc = acc;
-    r.dodge = dodge; r.prot = prot; r.stressResist = sr; r.price = price;
-    return r;
-}
-
-const std::vector<RelicDef>& Relics() {
-    static const std::vector<RelicDef> list = {
-        R("Wrench", "+10 Protection", 0, 0, 0, 0, 0, 10, 0, 170),                // 0
-        R("Pipe Wrench", "+1 Damage, -1 Speed", 0, 1, -1, 0, 0, 0, 0, 145),      // 1
-        R("Monkey Wrench", "+5 Accuracy, +3 Dodge", 0, 0, 0, 5, 3, 0, 0, 170),   // 2
-        R("Rivet Gun", "+2 Damage, -5 Accuracy", 0, 2, 0, -5, 0, 0, 0, 195),     // 3
-        R("Sword", "+1 Damage, +3 Accuracy", 0, 1, 0, 3, 0, 0, 0, 195),          // 4
-        R("Butcher Knife", "+2 Damage, -5 Protection", 0, 2, 0, 0, 0, -5, 0, 180),
-        R("Flintlock", "+8 Accuracy", 0, 0, 0, 8, 0, 0, 0, 170),
-        R("Six-Shooter", "+1 Damage, +1 Speed", 0, 1, 1, 0, 0, 0, 0, 220),
-        R("MedKit", "+5 Max HP", 5, 0, 0, 0, 0, 0, 0, 170),                      // 8
-        R("Syringe", "+2 Speed", 0, 0, 2, 0, 0, 0, 0, 195),
-        R("Pliers", "Resist 15% of stress", 0, 0, 0, 0, 0, 0, 15, 180),
-        R("Backpack", "+3 Max HP, +5 Protection", 3, 0, 0, 0, 0, 5, 0, 205),
-    };
-    return list;
-}
+// The relics live in relics.cpp (the registry, the equip rules, the synergies and the icons).
+const std::vector<RelicDef>& Relics() { return RelicRegistry::All(); }
 
 // ---------------------------------------------------------------- heroes
 static const char* NAMES[] = {"Abernathy", "Beatrix", "Cormac",   "Delphine", "Ezra",   "Fitz",

@@ -13,6 +13,7 @@
 //  bell on the table ends your turn.
 // ============================================================================
 #include "game.h"
+#include "relics.h"
 #include "rlgl.h"
 #include <algorithm>
 #include <cctype>
@@ -955,12 +956,13 @@ void DrawItemSpritePage(float t) {
     }
     const auto& relics = Relics();
     for (int i = 0; i < (int)relics.size(); i++) {
-        Vector2 c{120.0f + (i % 6) * 190, 300.0f + (i / 6) * 160};
+        Vector2 c{120.0f + (i % 7) * 170, 290.0f + (i / 7) * 170};
         DrawRectangleRounded({c.x - 40, c.y - 40, 80, 80}, 0.25f, 6, Color{40, 46, 44, 235});
         DrawItemIcon(ItemKind::Relic, i, c, 64);
         std::string n = relics[i].name;
         Txt(n, c.x - MeasureTxt(n, 15) / 2.0f, c.y + 48, 15, Pal::Paper);
-        Txt(relics[i].desc, c.x - MeasureTxt(relics[i].desc, 11) / 2.0f, c.y + 68, 11, Color{190, 190, 176, 255});
+        std::string tag = relics[i].isHardWeapon ? "hard weapon" : RelicCategoryName(relics[i].category);
+        Txt(tag, c.x - MeasureTxt(tag, 11) / 2.0f, c.y + 66, 11, Color{190, 190, 176, 255});
     }
 }
 

@@ -9,6 +9,7 @@
 //    depth.exe --sprites <file.png>  draw every sprite in the game onto one sheet
 // ============================================================================
 #include "game.h"
+#include "relics.h"
 #include <algorithm>
 #include <cstdlib>
 #include <cstring>
@@ -131,6 +132,28 @@ int main(int argc, char** argv) {
         FlatsSim(argc >= 3 ? atoi(argv[2]) : 1000, argc >= 4 && strcmp(argv[3], "sensible") == 0);
         return 0;
     }
+    if (argc >= 2 && strcmp(argv[1], "--relic-test") == 0) { // the relic rules, without a window
+        const auto& all = RelicRegistry::All();
+        printf("%d relics\n", (int)all.size());
+        int hard = 0;
+        for (auto& r : all) hard += r.isHardWeapon;
+        printf("hard weapons: %d\n", hard);
+        Hero h;
+        std::string why;
+        int sword = -1, gun = -1, wrench = -1, pliers = -1, rivet = -1;
+        for (int i = 0; i < (int)all.size(); i++) { if (all[i].name == "Sword") sword = i; if (all[i].name == "Tesla Gun") gun = i; if (all[i].name == "Wrench") wrench = i; if (all[i].name == "Pliers") pliers = i; if (all[i].name == "Rivet Gun") rivet = i; }
+        h.relics[0] = sword;
+        bool okGun = CanEquipRelic(h, gun, &why);
+        printf("Sword then Tesla Gun: %s (%s)\n", okGun ? "allowed" : "refused", why.c_str());
+        printf("Sword then Wrench: %s\n", CanEquipRelic(h, wrench, &why) ? "allowed" : "refused");
+        h.relics[1] = wrench;
+        bool okPliers = CanEquipRelic(h, pliers, &why);
+        printf("third relic (Pliers): %s (%s)\n", okPliers ? "allowed" : "refused", why.c_str());
+        RelicSynergy s1 = CheckRelicSynergies(all[rivet], all[pliers]);
+        printf("Rivet Gun + Pliers: %s %s\n", s1.active ? "synergy" : "none", s1.text);
+        for (int a = 0; a < (int)all.size(); a++) for (int b = a + 1; b < (int)all.size(); b++) { RelicSynergy s = CheckRelicSynergies(all[a], all[b]); if (s.active) printf("synergy: %s + %s -> %s\n", all[a].name.c_str(), all[b].name.c_str(), s.name); }
+        return 0;
+    }
     if (argc >= 2 && strcmp(argv[1], "--verify") == 0) {
         SetTraceLogLevel(LOG_WARNING);
         return VerifyPlatformLevels();
@@ -143,6 +166,7 @@ int main(int argc, char** argv) {
     SetExitKey(KEY_NULL); // Esc is used in-game, so it shouldn't close the window
     SetTargetFPS(60);
     InitArt();
+    RelicSpriteGenerator::Init(); // draw every relic's SVG icon
 
     Game g;
     InitGame(g);
@@ -166,6 +190,7 @@ int main(int argc, char** argv) {
         }
         if (g.scene != Scene::Dungeon) SaveGame(g); // quitting mid-expedition keeps the last save from aboard
     }
+    RelicSpriteGenerator::Unload();
     UnloadArt();
     if (IsAudioDeviceReady()) CloseAudioDevice();
     CloseWindow();
