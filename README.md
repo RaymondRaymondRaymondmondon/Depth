@@ -41,14 +41,15 @@ cmake --build build --config Release
 After you change code, just run `cmake --build build --config Release` again.
 
 ## Controls
-- **The Nautilus deck:** move the mouse to the screen edges, use A/D or the arrow keys, scroll the mouse wheel, or click the deck plan (bottom left) to walk along the deck. Click a station to use it, or click a crew member to open Crew Quarters with them selected.
+- **The Nautilus salon:** click any station in the room, or click a crew member to open Crew Quarters with them selected.
 - **Menus:** mouse.
 - **Combat:** click an ability, then click a highlighted target. Right-click cancels.
 - **Platform levels:** A/D or arrow keys to move, Space/W/Up to jump (hold for a higher jump, tap for a hop). Push into a wall in mid-air to slide, and jump to kick off it. Esc gives up the run. A gamepad works too.
 
 ## What's in the slice
-- **The Nautilus**, a long, scrolling cross-section of the submarine with eight stations spread along the deck: Crew Quarters, Library, Radar Room, Helm, Periscope, Workshop, Sick Bay, and the Ward. The ocean is visible through the portholes. Your crew, the ship's own hands, and the ship's cat wander the deck.
-- **The Cave (Shallows):** three random rooms (fights or treasure), then the Lobster mini-boss. It has the flashlight (which really lights the scene), rank-based combat, stress ("Nerves"), Death's Door, and relic loot.
+- **The Nautilus's grand salon**, a single-screen 3D room modelled on Captain Nemo's salon, with eight stations around it: Crew Quarters, Library, Radar Room, Helm, Periscope, Workshop, Sick Bay (by the organ), and the Ward. The ocean shows through the great window. Your crew, the ship's own hands, and the ship's cat wander the room.
+- **Saving:** the game saves itself whenever you return to the salon, and when you quit. "Start a new game" (bottom left of the salon) wipes the save.
+- **The Cave**, at levels 0, 1, 3, 5 and 6: beating one unlocks the next, and earlier levels stay open. Random rooms (fights or treasure), then the Lobster mini-boss. The cave is painted in layers that slide past as the party walks, and every attack, throw, shot and heal is animated. It has the flashlight (which really lights the scene), rank-based combat, stress ("Nerves"), Death's Door, and relic loot.
 - **Four classes:** Nurse, Diver, Captain, and Mechanic. Each has eight abilities, and a crew member brings four of them. Four are available from the start; the rest unlock at levels 1, 1, 2, and 3.
 - **The Workshop:** lasting upgrades bought with gold (flashlight reflector, bunk extension, sonar array, infirmary gear).
 - **Three platform levels at the Periscope**, in a deliberately retro pixel-art style (everything else aims for Darkest Dungeon's inked, painterly look). The challenge is the jumping, as in Super Meat Boy:

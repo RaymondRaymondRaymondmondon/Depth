@@ -17,7 +17,10 @@ static void Log(Game& g, const std::string& s) {
 
 // ---------------------------------------------------------------- light
 static float StressMult(const Game& g) { float l = g.dungeon.light; return l >= 50 ? 1.0f : l > 0 ? 1.4f : 1.8f; }
-static float LootMult(const Game& g) { float l = g.dungeon.light; return l >= 50 ? 1.0f : l > 0 ? 1.4f : 1.8f; }
+static float LootMult(const Game& g) {
+    float l = g.dungeon.light;
+    return (l >= 50 ? 1.0f : l > 0 ? 1.4f : 1.8f) * (1.0f + 0.35f * CAVE_TIER_LEVEL[g.dungeon.tier]);
+}
 static int EnemyAccBonus(const Game& g) { float l = g.dungeon.light; return l >= 50 ? 0 : l > 0 ? 6 : 12; }
 static int HeroAccBonus(const Game& g) { return g.dungeon.light >= 75 ? 5 : 0; }
 static const char* LightName(float l) { return l >= 75 ? "Bright" : l >= 50 ? "Dim" : l > 0 ? "Murky" : "Pitch Black"; }
@@ -46,6 +49,27 @@ static void Float(Game& g, Rectangle r, const std::string& t, Color c) {
     int stack = 0;
     for (auto& f : g.dungeon.floats) if (fabsf(f.pos.x - x) < 2 && f.life > 0.75f) stack++;
     g.dungeon.floats.push_back({{x, r.y - 16 - stack * 22.0f}, t, c, 1.2f});
+}
+
+// ---------------------------------------------------------------- animation bookkeeping
+static void StartAnim(Game& g, bool hero, int id, Anim kind, float dur) {
+    auto& v = g.dungeon.anims;
+    v.erase(std::remove_if(v.begin(), v.end(), [&](const UnitAnim& a) { return a.hero == hero && a.id == id; }), v.end());
+    v.push_back({hero, id, kind, 0, dur});
+}
+
+static const UnitAnim* FindAnim(const Game& g, bool hero, int id) {
+    for (auto& a : g.dungeon.anims) if (a.hero == hero && a.id == id) return &a;
+    return nullptr;
+}
+
+static void Sparkle(Game& g, Rectangle r, int n, Color c, float speed, float rise) {
+    for (int i = 0; i < n; i++) {
+        float a = GetRandomValue(0, 628) / 100.0f, v = speed * GetRandomValue(30, 100) / 100.0f;
+        Vector2 p{r.x + r.width * GetRandomValue(15, 85) / 100.0f, r.y + r.height * GetRandomValue(20, 80) / 100.0f};
+        float life = GetRandomValue(40, 90) / 100.0f;
+        g.dungeon.sparks.push_back({p, {cosf(a) * v, sinf(a) * v - rise}, life, life, GetRandomValue(15, 35) / 10.0f, c});
+    }
 }
 
 // ---------------------------------------------------------------- hero effects
@@ -165,8 +189,10 @@ static void HeroAct(Game& g, int heroId, int abilityIdx, int targetPos) {
                 if (!e || !e->alive) break;
                 Rectangle er = EnemyRect(g, EnemyPos(g, uid));
                 int hit = std::clamp(s.acc + a.accBonus + HeroAccBonus(g) - e->dodge, 5, 95);
-                if (!Chance(hit)) { Float(g, er, "Miss", Pal::Paper); continue; }
+                if (!Chance(hit)) { Float(g, er, "Miss", Pal::Paper); StartAnim(g, false, uid, Anim::Dodge, 0.45f); continue; }
                 bool crit = Chance(5);
+                StartAnim(g, false, uid, Anim::Hurt, 0.5f);
+                Sparkle(g, er, crit ? 16 : 8, crit ? Pal::Brass : Color{255, 210, 160, 255}, 220, 0);
                 if (a.dmgMult > 0) {
                     float raw = Roll(s.dmgMin, s.dmgMax) * a.dmgMult * (1.0f + h->st.buffDmg / 100.0f);
                     if (crit) raw *= 1.5f;
@@ -175,6 +201,7 @@ static void HeroAct(Game& g, int heroId, int abilityIdx, int targetPos) {
                     e->hp -= dmg;
                     Float(g, er, (crit ? "CRIT " : "") + std::to_string(dmg), crit ? Pal::Brass : Pal::Coral);
                     if (crit) {
+                        d.shake = 0.35f;
                         Log(g, "Critical hit! The crew cheers.");
                         for (int p = 0; p < PARTY_SIZE; p++) if (Hero* o = PartyAt(g, p)) AddStress(g, *o, -4);
                     }
@@ -204,6 +231,8 @@ static void HeroAct(Game& g, int heroId, int abilityIdx, int targetPos) {
         Hero* t = PartyAt(g, p);
         if (!t) continue;
         Rectangle tr = HeroRect(p);
+        if (a.heal || a.stressHeal || a.cure) Sparkle(g, tr, 14, a.heal ? Color{130, 240, 150, 255} : Color{200, 170, 255, 255}, 50, 60);
+        else Sparkle(g, tr, 14, Color{255, 214, 120, 255}, 60, 50);
         if (a.heal) { int amt = HealHero(*t, a.heal + Roll(0, 2)); Float(g, tr, "+" + std::to_string(amt), Pal::Good); }
         if (a.cure) { t->st.bleedTurns = 0; t->st.poisonTurns = 0; }
         if (a.stressHeal) AddStress(g, *t, -a.stressHeal);
@@ -214,17 +243,25 @@ static void HeroAct(Game& g, int heroId, int abilityIdx, int targetPos) {
     }
 }
 
-static void EnemyAct(Game& g, int uid) {
+// Which ability an enemy will use this turn (-1 if it can't reach anyone).
+static int EnemyPick(Game& g, int uid) {
     Enemy* e = FindEnemy(g, uid);
     int n = PartySize(g);
-    if (!e || n == 0) return;
-
+    if (!e || n == 0) return -1;
     std::vector<int> usable;
     for (int i = 0; i < (int)e->abilities.size(); i++)
         for (int p = 0; p < n; p++)
             if (e->abilities[i].hits & (1 << p)) { usable.push_back(i); break; }
-    if (usable.empty()) { Log(g, e->name + " can't reach anyone and skitters about."); return; }
-    const EnemyAbility& a = e->abilities[usable[Roll(0, (int)usable.size() - 1)]];
+    return usable.empty() ? -1 : usable[Roll(0, (int)usable.size() - 1)];
+}
+
+static void EnemyAct(Game& g, int uid, int ability) {
+    Enemy* e = FindEnemy(g, uid);
+    int n = PartySize(g);
+    if (!e || n == 0) return;
+    if (ability < 0) ability = EnemyPick(g, uid);
+    if (ability < 0) { Log(g, e->name + " can't reach anyone and skitters about."); return; }
+    const EnemyAbility& a = e->abilities[ability];
 
     std::vector<int> targets;
     if (a.aoe) {
@@ -249,9 +286,12 @@ static void EnemyAct(Game& g, int uid) {
         Rectangle hr = HeroRect(p);
         int dodge = s.dodge + (h->st.dodgeTurns > 0 ? h->st.dodgeBuff : 0);
         int hit = std::clamp(e->acc + EnemyAccBonus(g) - dodge, 5, 95);
-        if (!Chance(hit)) { Float(g, hr, "Dodge", Pal::Paper); continue; }
+        if (!Chance(hit)) { Float(g, hr, "Dodge", Pal::Paper); StartAnim(g, true, h->id, Anim::Dodge, 0.45f); continue; }
         bool crit = Chance(6);
+        if (crit) g.dungeon.shake = 0.35f;
         if (a.dmgMult > 0) {
+            StartAnim(g, true, h->id, Anim::Hurt, 0.5f);
+            Sparkle(g, hr, 8, Color{220, 60, 50, 255}, 180, 0);
             int prot = std::min(80, s.prot + (h->st.guardTurns > 0 ? 25 : 0) + (h->st.protTurns > 0 ? h->st.protBuff : 0));
             float raw = Roll(e->dmgMin, e->dmgMax) * a.dmgMult * (crit ? 1.5f : 1.0f);
             int dmg = std::max(1, (int)std::round(raw * (100 - prot) / 100.0f));
@@ -355,15 +395,20 @@ static void EnterNextRoom(Game& g) {
         return;
     }
     if (rt == RoomType::Boss) {
-        d.enemies.push_back(MakeEnemy(EnemyType::SeaLouse, d.nextUid++));
+        d.enemies.push_back(MakeEnemy(CAVE_TIER_LEVEL[d.tier] >= 3 ? EnemyType::CaveShrimp : EnemyType::SeaLouse, d.nextUid++));
         d.enemies.push_back(MakeEnemy(EnemyType::Lobster, d.nextUid++));
         d.enemies.push_back(MakeEnemy(EnemyType::BrineWorm, d.nextUid++));
+        if (CAVE_TIER_LEVEL[d.tier] >= 6) d.enemies.push_back(MakeEnemy(EnemyType::BrineWorm, d.nextUid++));
         Log(g, "Something huge clacks in the dark...");
     } else {
         int count = Roll(3, 4);
         for (int i = 0; i < count; i++) d.enemies.push_back(MakeEnemy((EnemyType)Roll(0, 2), d.nextUid++));
         Log(g, "Something stirs in the dark...");
     }
+    for (auto& e : d.enemies) ScaleEnemyForTier(e, d.tier);
+    d.anims.clear();
+    d.shots.clear();
+    d.pending = PendingAction{};
     d.round = 0;
     BeginRound(g);
     d.phase = DPhase::Combat;
@@ -373,13 +418,15 @@ void StartDungeon(Game& g) {
     CompactParty(g);
     g.dungeon = DungeonState{};
     auto& d = g.dungeon;
+    d.tier = std::clamp(g.caveTier, 0, std::min(CAVE_TIERS - 1, g.caveTierCleared + 1));
+    int lvl = CAVE_TIER_LEVEL[d.tier], rooms = lvl >= 3 ? 4 : 3;
     bool anyFight = false;
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < rooms; i++) {
         RoomType t = Chance(70) ? RoomType::Fight : RoomType::Treasure;
         anyFight |= t == RoomType::Fight;
         d.rooms.push_back(t);
     }
-    if (!anyFight) d.rooms[Roll(0, 2)] = RoomType::Fight;
+    if (!anyFight) d.rooms[Roll(0, rooms - 1)] = RoomType::Fight;
     d.rooms.push_back(RoomType::Boss);
     for (int id : g.party)
         if (Hero* h = FindHero(g, id)) { h->st = Status{}; h->deathsDoor = false; h->hp = std::max(1, h->hp); }
@@ -402,10 +449,17 @@ static void ApplyResults(Game& g) {
         g.gold += d.lootGold;
         for (int r : d.lootRelics) g.relicStorage.push_back(r);
         if (win) { d.rewardRelic = Roll(0, (int)Relics().size() - 1); g.relicStorage.push_back(d.rewardRelic); }
+        if (win && d.tier > g.caveTierCleared) {
+            g.caveTierCleared = d.tier;
+            if (d.tier + 1 < CAVE_TIERS) g.caveTier = d.tier + 1;
+        }
+        int lvl = CAVE_TIER_LEVEL[d.tier];
         for (int id : g.party) {
             Hero* h = FindHero(g, id);
             if (!h) continue;
-            GiveXP(g, *h, win ? 5 : 2);
+            int before = h->level;
+            GiveXP(g, *h, win ? 5 + lvl * 2 : 2 + lvl);
+            if (h->level > before) d.levelUps += (d.levelUps.empty() ? "" : ", ") + h->name + TextFormat(" reached level %d", h->level);
             if (!win) {
                 h->stress = std::min(100, h->stress + 10);
                 if (h->stress >= 100) h->rattled = true;
@@ -429,11 +483,13 @@ static void ApplyResults(Game& g) {
 // Run with:  depth.exe --sim 400 [level] [random]
 // The default player heals anyone below 40% HP and otherwise uses its hardest-hitting attack on the
 // weakest enemy it can reach; "random" picks any usable ability and target instead.
-void SimulateExpeditions(int runs, int level, bool randomPlayer) {
+void SimulateExpeditions(int runs, int level, bool randomPlayer, int tier) {
     int wins = 0, losses = 0, deaths = 0, anyDeath = 0, rattled = 0;
     for (int r = 0; r < runs; r++) {
         Game g;
         InitGame(g);
+        g.caveTier = tier;
+        g.caveTierCleared = CAVE_TIERS;
         for (auto& h : g.roster) {
             h.level = level;
             h.hp = GetStats(h).maxHp;
@@ -457,7 +513,7 @@ void SimulateExpeditions(int runs, int level, bool randomPlayer) {
             if (!valid) { d.turnIdx++; d.turnStarted = false; continue; }
             if (!d.turnStarted) StartTurn(g);
             if (d.pendingSkip) { EndTurn(g); continue; }
-            if (!te.hero) { EnemyAct(g, te.id); EndTurn(g); continue; }
+            if (!te.hero) { EnemyAct(g, te.id, -1); EndTurn(g); continue; }
             Hero* h = FindHero(g, te.id);
             int pos = PartyPos(g, te.id);
             const auto& abs = ClassAbilities(h->cls);
@@ -501,15 +557,26 @@ void SimulateExpeditions(int runs, int level, bool randomPlayer) {
         for (auto& h : g.roster) if (h.rattled) { rattled++; break; }
         if (d.phase == DPhase::Victory) wins++; else losses++;
     }
-    printf("Simulated %d expeditions at level %d (%s player):\n", runs, level, randomPlayer ? "random" : "sensible");
+    printf("Simulated %d expeditions, crew level %d, cave level %d (%s player):\n", runs, level, CAVE_TIER_LEVEL[tier],
+           randomPlayer ? "random" : "sensible");
     printf("  wins %.1f%%   wipes %.1f%%\n", 100.0 * wins / runs, 100.0 * losses / runs);
     printf("  runs with a death %.1f%%   avg deaths %.2f   runs with someone rattled %.1f%%\n",
            100.0 * anyDeath / runs, (double)deaths / runs, 100.0 * rattled / runs);
 }
 
-// ---------------------------------------------------------------- drawing
-static const float ANEMONE_X[] = {40, 640, 1240};
-static const int ANEMONES = 3;
+// ---------------------------------------------------------------- drawing: the cave, in layers
+// The cave is painted in seven layers, from the far water to rocks right in front of the view. Each
+// layer slides by a different amount as the party walks between rooms (and sways a little with the
+// mouse), so the scenery has real depth. Deeper cave levels start further along the same cave.
+static Vector2 gShake{0, 0};
+
+static float LayerOffset(const Game& g, float depth) {
+    float sway = sinf(g.time * 0.23f) * 14 + (GetMousePosition().x - SCREEN_W / 2.0f) * 0.025f;
+    return -(g.dungeon.scroll + g.dungeon.tier * 1900.0f + sway) * depth + gShake.x * depth;
+}
+
+static float Hash1(float x) { float s = sinf(x * 12.9898f + 1.7f) * 43758.5453f; return s - floorf(s); }
+
 // A rocky silhouette whose edge follows layered waves, with occasional spikes (stalactites/stalagmites).
 static float RidgeY(float x, float base, float amp, int seed, bool fromTop, float spiky) {
     float h = sinf(x * 0.006f + seed) * 0.5f + sinf(x * 0.017f + seed * 2.3f) * 0.3f + sinf(x * 0.041f + seed * 0.7f) * 0.2f;
@@ -517,76 +584,120 @@ static float RidgeY(float x, float base, float amp, int seed, bool fromTop, floa
     return base + h * amp + (fromTop ? spike : -spike);
 }
 
-static void DrawRidge(float base, float amp, int seed, bool fromTop, Color col, float spiky) {
+static void DrawRidge(float off, float base, float amp, int seed, bool fromTop, Color col, float spiky) {
     const float STEP = 3;
     float edge = fromTop ? 0.0f : (float)SCREEN_H;
     for (float x = 0; x < SCREEN_W; x += STEP) {
-        float y0 = RidgeY(x, base, amp, seed, fromTop, spiky), y1 = RidgeY(x + STEP, base, amp, seed, fromTop, spiky);
+        float y0 = RidgeY(x - off, base, amp, seed, fromTop, spiky), y1 = RidgeY(x + STEP - off, base, amp, seed, fromTop, spiky);
         DrawTri({x, y0}, {x + STEP, y1}, {x, edge}, col);
         DrawTri({x + STEP, y1}, {x + STEP, edge}, {x, edge}, col);
     }
 }
 
-static void DrawCave(Game& g) {
+// Calls fn(screenX, worldX) for every repeat of a pattern spaced `gap` apart on a layer at `off`.
+template <typename F>
+static void Repeat(float off, float gap, F fn) {
+    float first = floorf(-off / gap) * gap;
+    for (float wx = first - gap; wx < -off + SCREEN_W + gap; wx += gap) fn(wx + off, wx);
+}
+
+static std::vector<Vector2> CrystalSpots(const Game& g) {
+    std::vector<Vector2> v;
+    Repeat(LayerOffset(g, 0.7f), 330, [&](float sx, float wx) { v.push_back({sx + Hash1(wx) * 120, 446 + Hash1(wx + 3) * 8}); });
+    return v;
+}
+
+static void DrawCaveLayers(Game& g) {
     float t = g.time;
-    DrawVGradient({0, 0, (float)SCREEN_W, (float)SCREEN_H}, Color{28, 74, 90, 255}, Color{6, 20, 30, 255});
-    // shafts of daylight through cracks far above
-    BeginBlendMode(BLEND_ADDITIVE);
-    for (int k = 0; k < 4; k++) {
-        float x = 200 + k * 290 + sinf(t * 0.2f + k) * 20;
-        DrawTri({x, 0}, {x - 60, 0}, {x - 170, 520}, Color{60, 110, 120, 30});
-        DrawTri({x - 60, 0}, {x - 240, 520}, {x - 170, 520}, Color{60, 110, 120, 30});
-    }
+    // 1. the far water, with bioluminescent haze drifting in it
+    DrawVGradient({0, 0, (float)SCREEN_W, (float)SCREEN_H}, Color{30, 78, 94, 255}, Color{6, 20, 30, 255});
+    Repeat(LayerOffset(g, 0.04f), 520, [&](float sx, float wx) {
+        DrawCircleGradient((int)(sx + Hash1(wx) * 200), (int)(160 + Hash1(wx + 1) * 200), 160, Color{60, 140, 150, 50}, Color{60, 140, 150, 0});
+    });
+    BeginBlendMode(BLEND_ADDITIVE); // daylight through cracks far above
+    Repeat(LayerOffset(g, 0.08f), 300, [&](float sx, float wx) {
+        float x = sx + sinf(t * 0.2f + wx) * 20, w = 40 + Hash1(wx) * 40;
+        DrawTri({x, 0}, {x + w, 0}, {x - 150, 520}, Color{60, 110, 120, 24});
+        DrawTri({x + w, 0}, {x - 150 + w * 2, 520}, {x - 150, 520}, Color{60, 110, 120, 24});
+    });
     EndBlendMode();
-    DrawRidge(330, 60, 3, false, Color{18, 46, 58, 255}, 60);   // far rock
-    DrawRidge(390, 40, 9, false, Color{22, 40, 48, 255}, 30);   // nearer rock
-    DrawRidge(70, 40, 5, true, Color{14, 30, 38, 255}, 130);    // ceiling and stalactites
-    // kelp swaying against the back wall
-    for (int k = 0; k < 9; k++) {
-        float bx = 40 + k * 150 + (k % 2) * 40, by = 460;
+    // 2. the far cave walls
+    DrawRidge(LayerOffset(g, 0.12f), 318, 70, 3, false, Color{16, 44, 56, 255}, 70);
+    DrawRidge(LayerOffset(g, 0.2f), 372, 50, 11, false, Color{19, 48, 60, 255}, 40);
+    DrawRectangle(0, 0, SCREEN_W, SCREEN_H, Color{30, 70, 84, 40}); // fog between layers
+    // 3. distant rock columns rising from floor to ceiling
+    Repeat(LayerOffset(g, 0.3f), 430, [&](float sx, float wx) {
+        float x = sx + Hash1(wx) * 160, wTop = 60 + Hash1(wx + 2) * 40, wMid = 26 + Hash1(wx + 4) * 16, wBot = 80 + Hash1(wx + 5) * 40;
+        Color c{24, 56, 68, 255};
+        DrawTri({x - wTop, 40}, {x + wTop, 40}, {x + wMid, 260}, c);
+        DrawTri({x - wTop, 40}, {x + wMid, 260}, {x - wMid, 260}, c);
+        DrawTri({x - wMid, 260}, {x + wMid, 260}, {x + wBot, 470}, c);
+        DrawTri({x - wMid, 260}, {x + wBot, 470}, {x - wBot, 470}, c);
+        DrawTri({x + wMid * 0.2f, 60}, {x + wMid * 0.6f, 60}, {x + wMid * 0.5f, 440}, Color{40, 80, 92, 255}); // a lit seam
+    });
+    DrawRectangle(0, 0, SCREEN_W, SCREEN_H, Color{30, 70, 84, 30});
+    // 4. the ceiling's stalactites, stalagmites and swaying kelp
+    float off4 = LayerOffset(g, 0.45f);
+    DrawRidge(off4, 70, 40, 5, true, Color{14, 30, 38, 255}, 130);
+    DrawRidge(off4, 432, 22, 21, false, Color{20, 40, 48, 255}, 60);
+    Repeat(LayerOffset(g, 0.55f), 170, [&](float sx, float wx) {
+        float bx = sx + Hash1(wx) * 60, by = 462;
+        int h = 8 + (int)(Hash1(wx + 9) * 5);
         Vector2 prev{bx, by};
-        for (int s = 1; s <= 10; s++) {
-            Vector2 p{bx + sinf(t * 0.9f + k + s * 0.45f) * s * 2.2f, by - s * (16 + k % 3 * 3)};
-            DrawLineEx(prev, p, 6 - s * 0.4f, Color{34, 90, 60, 255});
+        for (int s = 1; s <= h; s++) {
+            Vector2 p{bx + sinf(t * 0.9f + wx + s * 0.45f) * s * 2.2f, by - s * 17.0f};
+            DrawLineEx(prev, p, 6 - s * 0.35f, Color{34, 90, 60, 255});
             prev = p;
         }
+    });
+    // 5. the near wall behind the fighters, studded with glowing crystals
+    float off5 = LayerOffset(g, 0.7f);
+    DrawTiled(Tex::Rock, {0, 392, (float)SCREEN_W, 64}, 1.2f, Color{70, 86, 92, 255}, {-off5 / 1.2f, 0});
+    for (int x = 0; x < SCREEN_W; x += 4) { // a ragged top edge
+        float y = 392 - fabsf(sinf((x - off5) * 0.021f) * 16 + sinf((x - off5) * 0.07f) * 6);
+        DrawRectangle(x, (int)y, 4, (int)(393 - y), Color{56, 70, 76, 255});
     }
-    // the cave floor, with a wet lip where it meets the back wall
-    DrawTiled(Tex::Rock, {0, 450, (float)SCREEN_W, 270}, 1.4f, Color{96, 110, 112, 255});
+    DrawVGradient({0, 392, (float)SCREEN_W, 64}, Fade(BLACK, 0.05f), Fade(BLACK, 0.45f));
+    for (Vector2 c : CrystalSpots(g)) {
+        for (int k = -2; k <= 2; k++) {
+            float h = 26 - abs(k) * 6 + Hash1(c.x * 0.01f + k) * 8, lean = k * 7.0f;
+            Vector2 base{c.x + k * 6.0f, c.y}, tip{c.x + k * 6.0f + lean, c.y - h};
+            DrawTri({base.x - 4, base.y}, {base.x + 4, base.y}, tip, Color{80, 200, 210, 255});
+            DrawTri({base.x - 1, base.y}, {base.x + 4, base.y}, tip, Color{150, 240, 240, 255});
+        }
+        DrawEllipse((int)c.x, (int)c.y + 2, 20, 5, Color{40, 60, 64, 255});
+    }
+    // 6. the cave floor, with a wet lip and puddles
+    float off6 = LayerOffset(g, 1.0f);
+    DrawTiled(Tex::Rock, {0, 450, (float)SCREEN_W, 270}, 1.4f, Color{96, 110, 112, 255}, {-off6 / 1.4f, 0});
     DrawVGradient({0, 450, (float)SCREEN_W, 40}, Fade(BLACK, 0.55f), Fade(BLACK, 0));
     DrawRectangle(0, 450, SCREEN_W, 3, Color{120, 150, 150, 160});
     DrawVGradient({0, 600, (float)SCREEN_W, 120}, Fade(BLACK, 0), Fade(BLACK, 0.5f));
-    for (int k = 0; k < 5; k++) { // puddles catch the light
-        float px = 90 + k * 270.0f + (k % 2) * 60, py = 505 + (k % 3) * 40.0f;
-        DrawEllipse((int)px, (int)py, 70 - k * 4, 10, Color{40, 80, 90, 200});
-        DrawEllipse((int)px - 10, (int)py - 2, 40 - k * 3, 4, Color{110, 170, 180, 90});
-    }
-    // glowing anemones, in the gaps between where the units stand
-    for (int k = 0; k < ANEMONES; k++) {
-        float ax = ANEMONE_X[k], ay = 452;
-        for (int f = -3; f <= 3; f++)
-            DrawLineEx({ax, ay}, {ax + f * 5 + sinf(t * 2 + k + f) * 3, ay - 16 - (3 - abs(f)) * 3}, 2.5f, Color{120, 230, 220, 255});
-        DrawCircle((int)ax, (int)ay, 6, Color{60, 150, 150, 255});
-    }
+    Repeat(off6, 380, [&](float sx, float wx) {
+        float px = sx + Hash1(wx) * 200, py = 505 + Hash1(wx + 1) * 80, w = 50 + Hash1(wx + 2) * 40;
+        DrawEllipse((int)px, (int)py, w, 10, Color{40, 80, 90, 200});
+        DrawEllipse((int)px - 10, (int)py - 2, w * 0.55f, 4, Color{110, 170, 180, 90});
+    });
 }
 
+// 7. rocks and kelp right in front of the view: dark, and moving fastest of all
 static void DrawCaveForeground(Game& g) {
     float t = g.time;
     Color fg{6, 12, 16, 255};
-    // rocks framing the bottom corners and kelp hanging in front of the view
-    DrawCircle(-40, 760, 230, fg);
-    DrawCircle(160, 790, 150, fg);
-    DrawCircle(1320, 770, 240, fg);
-    DrawCircle(1110, 800, 140, fg);
-    for (int k = 0; k < 3; k++) {
-        float bx = k == 0 ? 30 : k == 1 ? 1230 : 1180;
+    Repeat(LayerOffset(g, 1.5f), 760, [&](float sx, float wx) {
+        float x = sx + Hash1(wx) * 300;
+        DrawCircle((int)x, 790, 170 + Hash1(wx + 1) * 90, fg);
+        DrawCircle((int)(x + 180), 800, 110 + Hash1(wx + 2) * 50, fg);
+    });
+    Repeat(LayerOffset(g, 1.35f), 640, [&](float sx, float wx) {
+        float bx = sx + Hash1(wx + 7) * 200;
         Vector2 prev{bx, 0};
         for (int s = 1; s <= 9; s++) {
-            Vector2 p{bx + sinf(t * 0.7f + k * 2 + s * 0.5f) * s * 3, s * 22.0f};
+            Vector2 p{bx + sinf(t * 0.7f + wx + s * 0.5f) * s * 3, s * 22.0f};
             DrawLineEx(prev, p, 16 - s, fg);
             prev = p;
         }
-    }
+    });
 }
 
 static void DrawEnemyFigure(const Enemy& e, Rectangle r, float t) {
@@ -595,12 +706,12 @@ static void DrawEnemyFigure(const Enemy& e, Rectangle r, float t) {
         case EnemyType::SeaLouse: { // a segmented isopod, head toward the crew
             Color c{160, 140, 182, 255}, leg{96, 82, 116, 255};
             float cy = by - 30 + bob;
-            for (int k = 0; k < 5; k++) {
-                float lx = cx - 28 + k * 14.0f;
-                ShadeLimb({lx, cy + 4}, {lx - 8 + sinf(t * 7 + k) * 2, by - 2}, 2.2f, 1.3f, leg);
+            for (int k = 0; k < 4; k++) {
+                float lx = cx - 26 + k * 17.0f;
+                ShadeLimb({lx, cy + 4}, {lx - 8 + sinf(t * 7 + k) * 2, by - 2}, 2.8f, 1.8f, leg);
             }
-            ShadeLimb({cx - 32, cy - 8}, {cx - 62, cy - 38}, 1.8f, 0.9f, leg);
-            ShadeLimb({cx - 30, cy - 11}, {cx - 50, cy - 46}, 1.6f, 0.9f, leg);
+            ShadeLimb({cx - 32, cy - 8}, {cx - 58, cy - 34}, 2.2f, 1.4f, leg);
+            ShadeLimb({cx - 30, cy - 11}, {cx - 48, cy - 42}, 2.0f, 1.4f, leg);
             for (int k = 4; k >= 0; k--) ShadeBall({cx + 26 - k * 13.0f, cy - 2 + (k == 0 || k == 4 ? 4 : 0)}, 17.0f - abs(k - 2) * 2, c);
             ShadeLimb({cx + 30, cy + 4}, {cx + 44, cy + 10}, 4, 2, c);
             DrawCircleV({cx - 30, cy - 4}, 3.5f, Pal::Ink);
@@ -609,11 +720,11 @@ static void DrawEnemyFigure(const Enemy& e, Rectangle r, float t) {
         case EnemyType::CaveShrimp: {
             Color c{232, 128, 112, 255}, dk{190, 90, 82, 255};
             float cy = by - 52 + bob;
-            for (int k = 0; k < 5; k++) ShadeLimb({cx - 16 + k * 10.0f, cy + 8}, {cx - 22 + k * 10.0f, by - 1}, 1.6f, 1.0f, dk);
+            for (int k = 0; k < 3; k++) ShadeLimb({cx - 14 + k * 16.0f, cy + 8}, {cx - 22 + k * 16.0f, by - 1}, 2.6f, 1.8f, dk);
             DrawTri({cx + 30, cy + 16}, {cx + 48, cy + 36}, {cx + 20, cy + 36}, dk);
             const float seg[5][3] = {{28, 10, 10}, {20, -2, 12}, {8, -12, 14}, {-8, -16, 16}, {-24, -12, 17}};
             for (auto& s : seg) ShadeBall({cx + s[0], cy + s[1]}, s[2], c);
-            ShadeLimb({cx - 36, cy - 26}, {cx - 76, cy - 64}, 0.9f, 0.5f, dk);
+            ShadeLimb({cx - 34, cy - 26}, {cx - 70, cy - 58}, 2.0f, 1.4f, c);
             ShadeLimb({cx - 22, cy - 2}, {cx - 38, cy + 6}, 5, 4, c);
             ShadeBall({cx - 48, cy + 6}, 14, Color{214, 96, 86, 255});
             ShadeBall({cx - 60, cy + 1}, 7, Color{236, 160, 140, 255});
@@ -653,6 +764,117 @@ static void DrawEnemyFigure(const Enemy& e, Rectangle r, float t) {
     }
 }
 
+
+// ---------------------------------------------------------------- drawing: animation
+// Smooth 0 -> 1 -> 0 envelope: rises from a to its peak at b, falls back to zero at c.
+static float Bell(float u, float a, float b, float c) {
+    auto sm = [](float v) { v = std::clamp(v, 0.0f, 1.0f); return v * v * (3 - 2 * v); };
+    if (u <= a || u >= c) return 0;
+    return u < b ? sm((u - a) / (b - a)) : sm((c - u) / (c - b));
+}
+
+struct AnimFx { Pose pose; float dx = 0, dy = 0; Color tint = WHITE; };
+
+// Each class has its own way of fighting: the Nurse's quick slash, the Diver's long harpoon lunge,
+// the Captain's overhead cutlass cut, the Mechanic's heavy wrench swing.
+static AnimFx HeroAnimFx(const Game& g, const Hero& h) {
+    AnimFx fx;
+    const UnitAnim* a = FindAnim(g, true, h.id);
+    if (!a) return fx;
+    float u = a->t;
+    Pose& p = fx.pose;
+    int c = (int)h.cls;
+    switch (a->kind) {
+        case Anim::Melee: {
+            struct Style { float raise, windLean, windCrouch, lunge, tilt, reach, lean, crouch; };
+            const Style S[4] = {{0.45f, -0.15f, 0.0f, 70, 35, 1.0f, 0.45f, 0.1f},    // Nurse
+                                {0.0f, -0.3f, 0.35f, 95, 10, 1.0f, 0.6f, 0.25f},    // Diver
+                                {1.0f, -0.25f, 0.0f, 60, 95, 0.7f, 0.5f, 0.05f},    // Captain
+                                {1.0f, -0.4f, 0.2f, 45, 80, 0.5f, 0.65f, 0.45f}};   // Mechanic
+            const Style& s = S[c];
+            float wind = Bell(u, 0, 0.26f, 0.38f), strike = Bell(u, 0.28f, 0.38f, 0.88f);
+            p.raise = wind * s.raise;
+            p.lean = wind * s.windLean + strike * s.lean;
+            p.crouch = wind * s.windCrouch + strike * s.crouch;
+            p.reach = strike * s.reach;
+            p.weaponTilt = strike * s.tilt;
+            fx.dx = strike * s.lunge - wind * 8;
+        } break;
+        case Anim::Ranged: {
+            float aim = Bell(u, 0, 0.22f, 0.95f), recoil = Bell(u, 0.3f, 0.36f, 0.62f);
+            if (h.cls == HeroClass::Nurse) { // wind up and throw
+                p.raise = Bell(u, 0, 0.22f, 0.34f) * 0.9f;
+                p.reach = Bell(u, 0.28f, 0.36f, 0.8f);
+                p.weaponTilt = p.reach * 40;
+                p.lean = p.reach * 0.35f - p.raise * 0.2f;
+            } else if (h.cls == HeroClass::Mechanic) { // brace and vent
+                p.crouch = aim * 0.4f;
+                p.reach = aim * 0.6f;
+                fx.dx = -recoil * 6;
+            } else { // aim, fire, recoil
+                p.reach = aim;
+                p.crouch = aim * 0.2f;
+                p.weaponTilt = h.cls == HeroClass::Captain ? aim * 60 : 0;
+                p.lean = -recoil * 0.35f;
+                fx.dx = -recoil * 12;
+            }
+        } break;
+        case Anim::Heal: {
+            float e = Bell(u, 0, 0.3f, 0.92f);
+            switch (h.cls) {
+                case HeroClass::Nurse: p.reach = e * 0.7f; p.raise = e * 0.25f; p.crouch = e * 0.2f; p.lean = e * 0.2f; break;
+                case HeroClass::Captain: p.raise = e * 0.6f; p.backRaise = e * 0.5f; break;
+                case HeroClass::Mechanic: p.crouch = e * 0.5f; p.reach = e * 0.4f; p.lean = e * 0.3f; break;
+                default: p.crouch = e * 0.3f; break;
+            }
+        } break;
+        case Anim::Buff: {
+            float e = Bell(u, 0, 0.3f, 0.92f);
+            switch (h.cls) {
+                case HeroClass::Captain: p.raise = e; p.backRaise = e * 0.8f; p.lean = -e * 0.15f; break;  // sword aloft
+                case HeroClass::Diver: p.crouch = e * 0.7f; p.lean = e * 0.3f; break;                      // into the ink
+                case HeroClass::Mechanic: p.crouch = e * 0.5f; p.backRaise = e * 0.4f; p.lean = -e * 0.1f; break;
+                default: p.raise = e * 0.5f; break;
+            }
+        } break;
+        case Anim::Hurt: {
+            float b = Bell(u, 0, 0.07f, 0.48f);
+            fx.dx = -16 * b;
+            p.lean = -0.45f * b;
+            fx.tint = {255, (unsigned char)(255 - 120 * b), (unsigned char)(255 - 130 * b), 255};
+        } break;
+        case Anim::Dodge: {
+            float b = Bell(u, 0, 0.15f, 0.45f);
+            fx.dx = -26 * b;
+            p.crouch = 0.35f * b;
+            p.lean = -0.2f * b;
+        } break;
+        default: break;
+    }
+    return fx;
+}
+
+static AnimFx EnemyAnimFx(const Game& g, const Enemy& e) {
+    AnimFx fx;
+    const UnitAnim* a = FindAnim(g, false, e.uid);
+    if (!a) return fx;
+    float u = a->t;
+    switch (a->kind) {
+        case Anim::Melee: fx.dx = -85 * Bell(u, 0.2f, 0.36f, 0.8f) + 12 * Bell(u, 0, 0.16f, 0.28f); break;
+        case Anim::Ranged: fx.dx = 10 * Bell(u, 0.05f, 0.25f, 0.45f); fx.dy = -6 * Bell(u, 0.25f, 0.32f, 0.5f); break;
+        case Anim::Buff: fx.dy = -10 * Bell(u, 0.1f, 0.3f, 0.8f); fx.dx = 4 * sinf(u * 60) * Bell(u, 0.1f, 0.3f, 0.8f); break;
+        case Anim::Hurt: {
+            float b = Bell(u, 0, 0.07f, 0.48f);
+            fx.dx = 18 * b;
+            fx.tint = {255, (unsigned char)(255 - 120 * b), (unsigned char)(255 - 130 * b), 255};
+        } break;
+        case Anim::Dodge: fx.dx = 28 * Bell(u, 0, 0.15f, 0.45f); break;
+        default: break;
+    }
+    if (!e.alive) fx.tint.a = (unsigned char)(255 * std::max(0.0f, 1 - (a->kind == Anim::Hurt ? a->t / a->dur : 1)));
+    return fx;
+}
+
 static std::string StatusTags(const Status& st) {
     std::string s;
     if (st.bleedTurns > 0) s += "BLEED ";
@@ -669,23 +891,69 @@ static std::string StatusTags(const Status& st) {
 static void DrawUnitFigures(Game& g) {
     auto& d = g.dungeon;
     float t = g.time;
-    for (int p = 0; p < PARTY_SIZE; p++) {
+    bool walking = d.phase == DPhase::Walking;
+    for (int p = PARTY_SIZE - 1; p >= 0; p--) {
         Hero* h = PartyAt(g, p);
         if (!h) continue;
         Rectangle r = HeroRect(p);
-        Vector2 feet{r.x + r.width / 2, r.y + r.height};
-        DrawShadowBlob(feet, 38);
-        DrawCrewFigureInked(*h, feet, 1.08f, true, 0, t);
+        AnimFx fx = HeroAnimFx(g, *h);
+        Vector2 feet{r.x + r.width / 2 + fx.dx + gShake.x, r.y + r.height + fx.dy + gShake.y};
+        DrawShadowBlob({feet.x, r.y + r.height}, 38);
+        DrawCrewFigureInked(*h, feet, 1.08f, true, walking ? d.walkT * 9 + p * 1.3f : 0, t, fx.pose, fx.tint);
     }
     for (int p = 0; p < (int)d.enemies.size(); p++) {
         const Enemy& e = d.enemies[p];
+        AnimFx fx = EnemyAnimFx(g, e);
+        if (fx.tint.a == 0) continue;
         Rectangle r = EnemyRect(g, p);
-        Vector2 feet{r.x + r.width / 2, r.y + r.height}, ff = FigureFeet();
-        DrawShadowBlob(feet, e.boss ? 70 : 44);
+        Vector2 feet{r.x + r.width / 2 + fx.dx + gShake.x, r.y + r.height + fx.dy + gShake.y}, ff = FigureFeet();
+        DrawShadowBlob({feet.x, r.y + r.height}, e.boss ? 70 : 44);
         BeginFigure(); // draw on the figure canvas, lined up so its feet land on FigureFeet()
-        DrawEnemyFigure(e, {r.x - feet.x + ff.x, r.y - feet.y + ff.y, r.width, r.height}, t);
-        EndFigure(feet);
+        DrawEnemyFigure(e, {ff.x - r.width / 2, ff.y - r.height, r.width, r.height}, t);
+        EndFigure(feet, fx.tint);
     }
+}
+
+// Thrown vials, harpoon bolts, pistol shot, steam, spit and sonic pops.
+static void DrawProjectiles(Game& g) {
+    for (auto& s : g.dungeon.shots) {
+        float u = std::clamp(s.t / s.dur, 0.0f, 1.0f);
+        bool arc = s.kind == 0 || s.kind == 10;
+        Vector2 p{s.from.x + (s.to.x - s.from.x) * u, s.from.y + (s.to.y - s.from.y) * u - (arc ? sinf(u * PI) * 70 : 0)};
+        switch (s.kind) {
+            case 0: // the Nurse's vial, tumbling
+                DrawRectanglePro({p.x, p.y, 8, 14}, {4, 7}, u * 720, Color{120, 220, 130, 255});
+                Glow(p, 16, Color{100, 255, 120, 90});
+                break;
+            case 1: // harpoon bolt
+                DrawLineEx({p.x - 30, p.y}, p, 3, Color{200, 204, 210, 255});
+                DrawTri({p.x + 8, p.y}, {p.x - 2, p.y - 5}, {p.x - 2, p.y + 5}, Color{200, 204, 210, 255});
+                break;
+            case 2: // shot
+                DrawLineEx({p.x - 40, p.y}, p, 2, Color{255, 220, 150, 150});
+                Glow(p, 14, Color{255, 220, 150, 200});
+                break;
+            case 3: // scalding steam
+                for (int k = 0; k < 5; k++) DrawCircleV({p.x - k * 16.0f, p.y + sinf(k * 1.7f) * 8}, 12 + k * 3.0f, Color{230, 236, 236, (unsigned char)(160 - k * 28)});
+                break;
+            case 10: // spit
+                DrawCircleV(p, 7, Color{120, 200, 80, 255});
+                Glow(p, 14, Color{120, 255, 80, 80});
+                break;
+            default: // a sonic pop: rings spreading as they travel
+                for (int k = 0; k < 3; k++) DrawRing(p, 10 + k * 8.0f, 12 + k * 8.0f, 110, 250, 16, Fade(Color{220, 230, 255, 255}, 0.7f - k * 0.2f));
+                break;
+        }
+    }
+}
+
+static void DrawSparks(Game& g) {
+    BeginBlendMode(BLEND_ADDITIVE);
+    for (auto& s : g.dungeon.sparks) {
+        float a = std::clamp(s.life / s.max, 0.0f, 1.0f);
+        DrawCircleV(s.p, s.size * (0.5f + a * 0.5f), Fade(s.c, a));
+    }
+    EndBlendMode();
 }
 
 static void DrawUnitHud(Game& g, int actingHero, int actingEnemy) {
@@ -696,13 +964,13 @@ static void DrawUnitHud(Game& g, int actingHero, int actingEnemy) {
         if (!h) continue;
         Rectangle r = HeroRect(p);
         Stats s = GetStats(*h);
-        if (h->rattled) Glow({r.x + r.width / 2, r.y - 4}, 40 + sinf(t * 5) * 6, Fade(Pal::Stress, 0.6f));
+        if (h->rattled) Glow({r.x + r.width / 2, r.y - 24}, 40 + sinf(t * 5) * 6, Fade(Pal::Stress, 0.6f));
         if (h->deathsDoor) Glow({r.x + r.width / 2, r.y + 60}, 80, Fade(Pal::Bad, 0.25f + 0.15f * sinf(t * 6)));
         DrawBar({r.x, r.y + r.height + 8, r.width, 8}, (float)h->hp / s.maxHp, Pal::Good);
         DrawBar({r.x, r.y + r.height + 19, r.width, 5}, h->stress / 100.0f, Pal::Stress);
         float nw = (float)MeasureTxt(h->name, 16, true);
         TxtShadow(h->name, r.x + r.width / 2 - nw / 2, r.y + r.height + 28, 16, Pal::Paper, true);
-        DrawTextCentered(TextFormat("%d/%d HP", h->hp, s.maxHp), r.x + r.width / 2, r.y + r.height + 47, 13, Color{220, 220, 200, 255});
+        DrawTextCentered(TextFormat("Lv %d   %d/%d HP", h->level, h->hp, s.maxHp), r.x + r.width / 2, r.y + r.height + 47, 13, Color{220, 220, 200, 255});
         std::string tags = StatusTags(h->st);
         if (h->deathsDoor) tags += "DEATH'S DOOR ";
         if (h->rattled) tags += "RATTLED";
@@ -716,6 +984,7 @@ static void DrawUnitHud(Game& g, int actingHero, int actingEnemy) {
     }
     for (int p = 0; p < (int)d.enemies.size(); p++) {
         const Enemy& e = d.enemies[p];
+        if (!e.alive) continue;
         Rectangle r = EnemyRect(g, p);
         DrawBar({r.x, r.y + r.height + 8, r.width, 8}, (float)e.hp / e.maxHp, Pal::Bad);
         float nw = (float)MeasureTxt(e.name, 16, true);
@@ -738,16 +1007,16 @@ static void DrawCaveLighting(Game& g) {
     auto lerp = [](float a, float b, float k) { return (unsigned char)(a + (b - a) * k); };
     LightsBegin(Color{lerp(18, 84, L), lerp(22, 96, L), lerp(34, 108, L), 255});
     float flick = 0.95f + 0.05f * sinf(t * 17) * sinf(t * 5.3f);
-    Color warm{255, 214, 150, 255};
-    AddLight({470, 330}, 300 + 480 * L, warm, (0.45f + 0.5f * L) * flick); // the party's flashlight glow
+    AddLight({470, 330}, 300 + 480 * L, Color{255, 214, 150, 255}, (0.45f + 0.5f * L) * flick); // the party's flashlight glow
     AddCone({560, 320}, 0.05f, 0.42f, 420 + 480 * L, Color{255, 226, 170, 255});
-    for (int k = 0; k < 4; k++) AddLight({200 + k * 290.0f - 110, 120}, 260, Color{70, 120, 130, 255}, 0.45f); // shafts
-    for (int k = 0; k < ANEMONES; k++) AddLight({ANEMONE_X[k], 446}, 110, Color{90, 220, 210, 255}, 0.6f);
+    Repeat(LayerOffset(g, 0.08f), 300, [&](float sx, float) { AddLight({sx - 60, 120}, 240, Color{70, 120, 130, 255}, 0.4f); });
+    std::vector<Vector2> crystals = CrystalSpots(g);
+    for (Vector2 c : crystals) AddLight({c.x, c.y - 14}, 130, Color{90, 220, 210, 255}, 0.65f);
+    for (auto& s : d.shots) AddLight({s.from.x + (s.to.x - s.from.x) * std::clamp(s.t / s.dur, 0.0f, 1.0f), s.from.y}, 120, Color{255, 220, 170, 255}, 0.4f);
     LightsEnd();
-    for (int k = 0; k < ANEMONES; k++) Glow({ANEMONE_X[k], 440}, 22, Color{90, 220, 210, 80});
-    // marine snow drifting through the beam
-    for (int k = 0; k < 40; k++) {
-        float px = fmodf(k * 97.0f + t * (6 + k % 5), (float)SCREEN_W);
+    for (Vector2 c : crystals) Glow({c.x, c.y - 12}, 26, Color{90, 230, 220, 80});
+    for (int k = 0; k < 40; k++) { // marine snow drifting through the beam
+        float px = fmodf(k * 97.0f + t * (6 + k % 5) + LayerOffset(g, 0.9f) * -1 + 100000, (float)SCREEN_W);
         float py = fmodf(k * 53.0f + t * (10 + k % 7), 520.0f) + 40;
         DrawCircle((int)px, (int)py, 1.3f + (k % 3) * 0.5f, Color{220, 240, 240, (unsigned char)(50 + 60 * L)});
     }
@@ -757,61 +1026,179 @@ static void DrawTopBar(Game& g) {
     auto& d = g.dungeon;
     DrawVGradient({0, 0, (float)SCREEN_W, 58}, Color{10, 18, 24, 240}, Color{16, 28, 36, 220});
     DrawRectangle(0, 56, SCREEN_W, 3, Pal::BrassDk);
-    TxtShadow("THE CAVE  -  Shallows", 20, 15, 24, Pal::Brass, true);
+    TxtShadow(TextFormat("THE CAVE  -  %s (Lv %d)", CAVE_TIER_NAME[d.tier], CAVE_TIER_LEVEL[d.tier]), 20, 15, 22, Pal::Brass, true);
     for (int i = 0; i < (int)d.rooms.size(); i++) {
-        float x = 330 + i * 34.0f;
+        float x = 380 + i * 30.0f;
         Color c = i < d.roomIndex ? Pal::Good : i == d.roomIndex ? Pal::Brass : Color{90, 100, 104, 255};
-        if (d.rooms[i] == RoomType::Boss) DrawPoly({x + 10, 28}, 4, 13, 45, c);
-        else DrawCircle((int)x + 10, 28, 9, c);
+        if (d.rooms[i] == RoomType::Boss) DrawPoly({x + 10, 28}, 4, 12, 45, c);
+        else DrawCircle((int)x + 10, 28, 8, c);
     }
-    Txt("Light", 500, 6, 16, Pal::Paper);
-    DrawBar({500, 28, 200, 14}, d.light / 100.0f, Color{250, 220, 120, 255});
-    TxtShadow(LightName(d.light), 712, 22, 20, Color{250, 220, 120, 255});
-    Txt(TextFormat("Loot: %d gold, %d relic%s", d.lootGold, (int)d.lootRelics.size(), d.lootRelics.size() == 1 ? "" : "s"), 880, 18, 20, Pal::Paper);
+    Txt("Light", 590, 6, 16, Pal::Paper);
+    DrawBar({590, 28, 180, 14}, d.light / 100.0f, Color{250, 220, 120, 255});
+    TxtShadow(LightName(d.light), 782, 22, 19, Color{250, 220, 120, 255});
+    Txt(TextFormat("Loot: %d gold, %d relic%s", d.lootGold, (int)d.lootRelics.size(), d.lootRelics.size() == 1 ? "" : "s"), 930, 18, 19, Pal::Paper);
 }
 
 // Returns true if the button to leave was pressed.
 static bool ResultPanel(const char* title, const std::string& body, const char* button, Color titleColor) {
-    Rectangle p{340, 150, 600, 300};
+    Rectangle p{340, 140, 600, 330};
     Panel(p);
     DrawTextCenteredBold(title, p.x + p.width / 2, p.y + 24, 34, titleColor);
-    DrawWrapped(body, {p.x + 40, p.y + 84, p.width - 80, 150}, 19, Pal::Ink);
-    return Button({p.x + 150, p.y + p.height - 70, 300, 48}, button);
+    DrawWrapped(body, {p.x + 40, p.y + 80, p.width - 80, 180}, 18, Pal::Ink);
+    return Button({p.x + 150, p.y + p.height - 66, 300, 48}, button);
 }
 
+// ---------------------------------------------------------------- actions in motion
+static Anim KindFor(const Ability& a) {
+    if (a.target == Target::Enemy) return a.ranged ? Anim::Ranged : Anim::Melee;
+    return (a.heal || a.stressHeal || a.cure) ? Anim::Heal : Anim::Buff;
+}
+
+static void BeginHeroAction(Game& g, int heroId, int ability, int target) {
+    Hero* h = FindHero(g, heroId);
+    auto& p = g.dungeon.pending;
+    p = PendingAction{};
+    p.active = true;
+    p.hero = true;
+    p.id = heroId;
+    p.ability = ability;
+    p.target = target;
+    p.kind = KindFor(ClassAbilities(h->cls)[ability]);
+    switch (p.kind) {
+        case Anim::Melee: p.impact = 0.36f; p.end = 0.95f; break;
+        case Anim::Ranged: p.fire = 0.32f; p.impact = 0.6f; p.end = 1.05f; break;
+        default: p.impact = 0.42f; p.end = 1.0f; break;
+    }
+    StartAnim(g, true, heroId, p.kind, p.end);
+}
+
+static void BeginEnemyAction(Game& g, int uid) {
+    int ab = EnemyPick(g, uid);
+    Enemy* e = FindEnemy(g, uid);
+    auto& p = g.dungeon.pending;
+    p = PendingAction{};
+    p.active = true;
+    p.id = uid;
+    p.ability = ab;
+    if (ab < 0) { p.kind = Anim::None; p.impact = 0; p.end = 0.3f; return; }
+    const EnemyAbility& a = e->abilities[ab];
+    p.kind = a.dmgMult <= 0 ? Anim::Buff : (a.hits & (RANK_3 | RANK_4)) ? Anim::Ranged : Anim::Melee;
+    switch (p.kind) {
+        case Anim::Melee: p.impact = 0.36f; p.end = 0.9f; break;
+        case Anim::Ranged: p.fire = 0.25f; p.impact = 0.55f; p.end = 0.95f; break;
+        default: p.impact = 0.4f; p.end = 0.9f; g.dungeon.shake = 0.3f; break;
+    }
+    StartAnim(g, false, uid, p.kind, p.end);
+}
+
+static void UpdatePending(Game& g, float dt) {
+    auto& d = g.dungeon;
+    auto& p = d.pending;
+    if (!p.active) return;
+    p.t += dt;
+    if (p.kind == Anim::Ranged && !p.fired && p.t >= p.fire) {
+        p.fired = true;
+        Projectile s{};
+        s.dur = p.impact - p.fire;
+        s.hero = p.hero;
+        if (p.hero) {
+            Hero* h = FindHero(g, p.id);
+            Rectangle hr = HeroRect(std::max(0, PartyPos(g, p.id)));
+            int tp = std::clamp(p.target, 0, std::max(0, (int)d.enemies.size() - 1));
+            Rectangle er = EnemyRect(g, tp);
+            s.from = {hr.x + hr.width / 2 + 40, hr.y + 62};
+            s.to = {er.x + er.width / 2, er.y + er.height * 0.5f};
+            s.kind = h ? (int)h->cls : 1;
+        } else {
+            Enemy* e = FindEnemy(g, p.id);
+            Rectangle er = EnemyRect(g, std::max(0, EnemyPos(g, p.id)));
+            Rectangle hr = HeroRect(std::min(1, PartySize(g) - 1));
+            s.from = {er.x + er.width / 2 - 30, er.y + er.height * 0.4f};
+            s.to = {hr.x + hr.width / 2, hr.y + 70};
+            s.kind = e && e->type == EnemyType::CaveShrimp ? 11 : 10;
+        }
+        d.shots.push_back(s);
+    }
+    if (!p.applied && p.t >= p.impact) {
+        p.applied = true;
+        if (p.hero) HeroAct(g, p.id, p.ability, p.target);
+        else EnemyAct(g, p.id, p.ability);
+    }
+    if (p.t >= p.end) {
+        p.active = false;
+        EndTurn(g);
+    }
+}
+
+static void UpdateEffects(Game& g, float dt) {
+    auto& d = g.dungeon;
+    for (auto& a : d.anims) a.t += dt;
+    d.anims.erase(std::remove_if(d.anims.begin(), d.anims.end(), [](const UnitAnim& a) { return a.t >= a.dur; }), d.anims.end());
+    for (auto& s : d.shots) s.t += dt;
+    d.shots.erase(std::remove_if(d.shots.begin(), d.shots.end(), [](const Projectile& s) { return s.t >= s.dur; }), d.shots.end());
+    for (auto& s : d.sparks) {
+        s.p.x += s.v.x * dt;
+        s.p.y += s.v.y * dt;
+        s.v.x *= 1 - dt * 2;
+        s.v.y = s.v.y * (1 - dt * 2) + 40 * dt;
+        s.life -= dt;
+    }
+    d.sparks.erase(std::remove_if(d.sparks.begin(), d.sparks.end(), [](const Spark& s) { return s.life <= 0; }), d.sparks.end());
+    d.shake = std::max(0.0f, d.shake - dt);
+    float k = d.shake * 22;
+    gShake = {sinf(g.time * 70) * k, cosf(g.time * 57) * k * 0.6f};
+}
+
+// ---------------------------------------------------------------- the scene
 void SceneDungeon(Game& g) {
     auto& d = g.dungeon;
     float dt = GetFrameTime();
     SetPost(0.5f, 0.035f, 0.45f);
+    UpdateEffects(g, dt);
+
+    // ---------------- walking between rooms: the whole cave slides past
+    if (d.phase == DPhase::Walking) {
+        d.walkT += dt;
+        float speed = 240 * std::min(1.0f, d.walkT / 0.3f) * std::min(1.0f, std::max(0.0f, (2.0f - d.walkT) / 0.3f));
+        d.scroll += speed * dt;
+        if (d.walkT >= 2.0f) EnterNextRoom(g);
+    }
 
     // ---------------- combat logic
     int actingHero = -1, actingEnemy = -1;
     if (d.phase == DPhase::Combat) {
-        if (d.turnIdx >= (int)d.order.size()) BeginRound(g);
-        TurnEntry te = d.order[d.turnIdx];
-        bool valid = te.hero ? (FindHero(g, te.id) && PartyPos(g, te.id) >= 0) : FindEnemy(g, te.id) != nullptr;
-        if (!valid) {
-            d.turnIdx++;
-            d.turnStarted = false;
-        } else {
-            if (!d.turnStarted) StartTurn(g);
-            if (te.hero) actingHero = te.id; else actingEnemy = te.id;
-            if (d.pendingSkip) {
-                d.actTimer -= dt;
-                if (d.actTimer <= 0) EndTurn(g);
-            } else if (!te.hero) {
-                d.actTimer += dt;
-                if (d.actTimer > 0.75f) { EnemyAct(g, te.id); EndTurn(g); }
+        UpdatePending(g, dt);
+        if (d.pending.active) {
+            if (d.pending.hero) actingHero = d.pending.id; else actingEnemy = d.pending.id;
+        } else if (d.phase == DPhase::Combat) {
+            if (d.turnIdx >= (int)d.order.size()) BeginRound(g);
+            TurnEntry te = d.order[d.turnIdx];
+            bool valid = te.hero ? (FindHero(g, te.id) && PartyPos(g, te.id) >= 0) : FindEnemy(g, te.id) != nullptr;
+            if (!valid) {
+                d.turnIdx++;
+                d.turnStarted = false;
+            } else {
+                if (!d.turnStarted) StartTurn(g);
+                if (te.hero) actingHero = te.id; else actingEnemy = te.id;
+                if (d.pendingSkip) {
+                    d.actTimer -= dt;
+                    if (d.actTimer <= 0) EndTurn(g);
+                } else if (!te.hero) {
+                    d.actTimer += dt;
+                    if (d.actTimer > 0.35f) BeginEnemyAction(g, te.id);
+                }
             }
         }
     }
 
     // ---------------- drawing
-    DrawCave(g);
+    DrawCaveLayers(g);
     DrawUnitFigures(g);
+    DrawProjectiles(g);
     DrawCaveLighting(g);
     DrawCaveForeground(g);
     InkPass(1.0f, 1.0f);
+    DrawSparks(g);
     DrawUnitHud(g, actingHero, actingEnemy);
     for (auto& f : d.floats) {
         f.life -= dt;
@@ -832,6 +1219,7 @@ void SceneDungeon(Game& g) {
 
     // ---------------- phase-specific UI
     switch (d.phase) {
+        case DPhase::Walking: break;
         case DPhase::Corridor: {
             Rectangle p{400, 150, 480, 270};
             Panel(p);
@@ -843,7 +1231,8 @@ void SceneDungeon(Game& g) {
             int drain = LightDrainPerRoom(g);
             if (Button({p.x + 40, p.y + 96, 400, 46}, TextFormat(nextIsBoss ? "Face the Lobster  (-%d light)" : "Advance  (-%d light)", drain))) {
                 d.light = std::max(0.0f, d.light - drain);
-                EnterNextRoom(g);
+                d.phase = DPhase::Walking;
+                d.walkT = 0;
             }
             if (Button({p.x + 40, p.y + 150, 400, 42}, TextFormat("Swap in a battery  (+40 light)   [%d left]", g.batteries),
                        g.batteries > 0 && d.light < 100)) {
@@ -875,24 +1264,29 @@ void SceneDungeon(Game& g) {
             std::string body;
             const char* title;
             Color tc;
+            int lvl = CAVE_TIER_LEVEL[d.tier];
             if (d.phase == DPhase::Victory) {
                 title = "Expedition complete!";
                 tc = Pal::Good;
                 body = TextFormat("The Lobster is beaten. You bring home %d gold", d.lootGold);
                 for (int r : d.lootRelics) body += ", a " + Relics()[r].name;
-                body += ", and as a reward for finishing: a " + Relics()[d.rewardRelic].name + ".\n\nSurvivors earn 5 XP.";
+                body += ", and as a reward for finishing: a " + Relics()[d.rewardRelic].name + ".";
+                body += TextFormat("\n\nSurvivors earn %d XP.", 5 + lvl * 2);
+                if (d.tier + 1 < CAVE_TIERS && g.caveTierCleared == d.tier)
+                    body += TextFormat(" Cave level %d (%s) is now open at the Helm.", CAVE_TIER_LEVEL[d.tier + 1], CAVE_TIER_NAME[d.tier + 1]);
             } else if (d.phase == DPhase::Retreat) {
                 title = "Retreat";
                 tc = Pal::Brass;
                 body = TextFormat("The crew scrambles back to the Nautilus with %d gold", d.lootGold);
                 body += d.lootRelics.empty() ? "." : " and the relics they found.";
-                body += "\n\nNo completion reward. Survivors earn 2 XP and +10 stress.";
+                body += TextFormat("\n\nNo completion reward. Survivors earn %d XP and +10 stress.", 2 + lvl);
             } else {
                 title = "Lost to the depths";
                 tc = Pal::Bad;
                 body = "The whole party has fallen, along with their relics and everything they carried.";
                 if (g.roster.size() == 1 && PartySize(g) == 1) body += "\n\nA stowaway creeps out of the cargo hold and volunteers.";
             }
+            if (!d.levelUps.empty()) body += "\n\nLevel up! " + d.levelUps + ".";
             if (ResultPanel(title, body, "Return to the Nautilus", tc)) g.scene = Scene::Hub;
         } break;
 
@@ -902,8 +1296,8 @@ void SceneDungeon(Game& g) {
             DrawRectangleRounded(bar, 0.08f, 6, Color{14, 24, 32, 235});
             DrawRectangleRoundedLinesEx(bar, 0.08f, 6, 3, Pal::BrassDk);
             Hero* h = actingHero >= 0 ? FindHero(g, actingHero) : nullptr;
-            if (!h || d.pendingSkip || !d.turnStarted) {
-                const char* who = actingEnemy >= 0 && FindEnemy(g, actingEnemy) ? FindEnemy(g, actingEnemy)->name.c_str() : "...";
+            if (!h || d.pendingSkip || !d.turnStarted || d.pending.active) {
+                const char* who = h ? h->name.c_str() : actingEnemy >= 0 && FindEnemy(g, actingEnemy) ? FindEnemy(g, actingEnemy)->name.c_str() : "...";
                 DrawTextCentered(TextFormat("%s is acting", who), SCREEN_W / 2.0f, 620, 24, Pal::Paper);
                 break;
             }
@@ -926,8 +1320,7 @@ void SceneDungeon(Game& g) {
                 if (CheckCollisionPointRec(GetMousePosition(), b)) hoverAb = i;
                 if (Button(b, abs[i].name.c_str(), usable)) {
                     if (abs[i].target == Target::Self || abs[i].target == Target::AllAllies) {
-                        HeroAct(g, heroId, i, pos);
-                        EndTurn(g);
+                        BeginHeroAction(g, heroId, i, pos);
                         return;
                     }
                     d.selectedAbility = i;
@@ -952,8 +1345,7 @@ void SceneDungeon(Game& g) {
                     DrawRectangleRoundedLinesEx({tr.x - 6, tr.y - 6, tr.width + 12, tr.height + 12}, 0.1f, 6, hov ? 4.0f : 2.0f,
                                                 a.target == Target::Enemy ? Pal::Coral : Pal::Good);
                     if (hov && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-                        HeroAct(g, heroId, d.selectedAbility, tp);
-                        EndTurn(g);
+                        BeginHeroAction(g, heroId, d.selectedAbility, tp);
                         return;
                     }
                 }

@@ -26,7 +26,7 @@ static std::vector<Ability> BuildNurse() {
     a = Ab("Triage", "Quick care for the whole party (heal 3 each).", RANGED_FROM, ANY_RANK, Target::AllAllies);
     a.heal = 3; a.unlockLevel = 1; v.push_back(a);
     a = Ab("Toxin Vial", "Lob a vial at the back line. Poison stacks.", RANGED_FROM, RANK_2 | RANK_3 | RANK_4, Target::Enemy);
-    a.dmgMult = 0.3f; a.poison = 3; a.unlockLevel = 1; v.push_back(a);
+    a.dmgMult = 0.3f; a.poison = 3; a.ranged = true; a.unlockLevel = 1; v.push_back(a);
     a = Ab("Adrenaline Shot", "An ally heals 2, calms a little and hits 20% harder.", ANY_RANK, ANY_RANK, Target::Ally);
     a.heal = 2; a.buffDmg = 20; a.stressHeal = 4; a.unlockLevel = 2; v.push_back(a);
     a = Ab("Bone Saw", "A brutal, messy cut. Heavy bleeding.", MELEE_FROM, MELEE_HITS, Target::Enemy);
@@ -45,13 +45,13 @@ static std::vector<Ability> BuildDiver() {
     a = Ab("Riptide Shove", "Shove the front enemy back 2 ranks. May stun.", MELEE_FROM, RANK_1, Target::Enemy);
     a.dmgMult = 0.6f; a.moveTarget = 2; a.stunChance = 20; v.push_back(a);
     a = Ab("Speargun", "A barbed bolt from the second line or further back.", RANGED_FROM, RANK_2 | RANK_3 | RANK_4, Target::Enemy);
-    a.dmgMult = 0.85f; a.accBonus = 5; a.unlockLevel = 1; v.push_back(a);
+    a.dmgMult = 0.85f; a.accBonus = 5; a.ranged = true; a.unlockLevel = 1; v.push_back(a);
     a = Ab("Ink Cloud", "Vanish into the murk: +25 dodge for 3 turns.", ANY_RANK, ANY_RANK, Target::Self);
     a.buffDodge = 25; a.stressHeal = 3; a.unlockLevel = 1; v.push_back(a);
     a = Ab("Mark the Prey", "Tag a target: it takes 25% more damage for 3 turns.", ANY_RANK, ANY_RANK, Target::Enemy);
-    a.dmgMult = 0.2f; a.mark = true; a.accBonus = 10; a.unlockLevel = 2; v.push_back(a);
+    a.dmgMult = 0.2f; a.mark = true; a.accBonus = 10; a.ranged = true; a.unlockLevel = 2; v.push_back(a);
     a = Ab("Depth Charge", "Blast the back two ranks. May stun.", RANK_1 | RANK_2 | RANK_3, RANK_3 | RANK_4, Target::Enemy);
-    a.dmgMult = 0.5f; a.aoe = true; a.stunChance = 15; a.unlockLevel = 3; v.push_back(a);
+    a.dmgMult = 0.5f; a.aoe = true; a.stunChance = 15; a.ranged = true; a.unlockLevel = 3; v.push_back(a);
     return v;
 }
 
@@ -66,13 +66,13 @@ static std::vector<Ability> BuildCaptain() {
     a = Ab("Steady Now", "A calm word to everyone (-8 stress to the party).", ANY_RANK, ANY_RANK, Target::AllAllies);
     a.stressHeal = 8; v.push_back(a);
     a = Ab("Flintlock", "A steady shot at any enemy rank.", RANGED_FROM, ANY_RANK, Target::Enemy);
-    a.dmgMult = 0.75f; a.unlockLevel = 1; v.push_back(a);
+    a.dmgMult = 0.75f; a.ranged = true; a.unlockLevel = 1; v.push_back(a);
     a = Ab("Hold the Line", "Whole party gains +15 protection for 3 turns.", ANY_RANK, ANY_RANK, Target::AllAllies);
     a.buffProt = 15; a.unlockLevel = 1; v.push_back(a);
     a = Ab("Grog Ration", "A tot of grog: an ally heals 4 and loses 10 stress.", ANY_RANK, ANY_RANK, Target::Ally);
     a.heal = 4; a.stressHeal = 10; a.unlockLevel = 2; v.push_back(a);
     a = Ab("Grapeshot", "A scattering blast across the first three enemy ranks.", RANGED_FROM, RANK_1 | RANK_2 | RANK_3, Target::Enemy);
-    a.dmgMult = 0.4f; a.aoe = true; a.unlockLevel = 3; v.push_back(a);
+    a.dmgMult = 0.4f; a.aoe = true; a.ranged = true; a.unlockLevel = 3; v.push_back(a);
     return v;
 }
 
@@ -93,7 +93,7 @@ static std::vector<Ability> BuildMechanic() {
     a = Ab("Jury-Rig", "Patch up an ally with whatever's to hand (heal 5).", ANY_RANK, ANY_RANK, Target::Ally);
     a.heal = 5; a.unlockLevel = 2; v.push_back(a);
     a = Ab("Steam Valve", "Vent scalding steam over every enemy. May stun.", ANY_RANK, ANY_RANK, Target::Enemy);
-    a.dmgMult = 0.25f; a.aoe = true; a.stunChance = 20; a.unlockLevel = 3; v.push_back(a);
+    a.dmgMult = 0.25f; a.aoe = true; a.stunChance = 20; a.ranged = true; a.unlockLevel = 3; v.push_back(a);
     return v;
 }
 
@@ -343,6 +343,19 @@ Enemy MakeEnemy(EnemyType t, int uid) {
     }
     e.hp = e.maxHp;
     return e;
+}
+
+// Deeper cave levels field tougher versions of the same creatures.
+void ScaleEnemyForTier(Enemy& e, int tier) {
+    int L = CAVE_TIER_LEVEL[tier];
+    e.maxHp = (int)(e.maxHp * (1 + 0.11f * L));
+    e.dmgMin = (int)(e.dmgMin * (1 + 0.07f * L) + 0.5f);
+    e.dmgMax = (int)(e.dmgMax * (1 + 0.07f * L) + 0.5f);
+    e.acc += (3 * L) / 2;
+    e.dodge += L / 2;
+    e.prot = std::min(50, e.prot + L);
+    e.speed += L / 2;
+    e.hp = e.maxHp;
 }
 
 // ---------------------------------------------------------------- new game

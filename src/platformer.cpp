@@ -394,9 +394,12 @@ void UpdateEnemies(PlatformState& p, float dt) {
     }
 }
 
-// The Kraken: tentacles strike up where you stand, then its head surfaces. Stomp the head three times.
-constexpr float KRAKEN_SURFACED_TOP = 11 * T - 6;
+// The Kraken: an ancient horror rising from the abyss beneath the arena. Its tentacles strike up from
+// the depths and slam down from above where you stand; then its great head surfaces between the
+// platforms. Stomp its head three times.
+constexpr float KRAKEN_SURFACED_TOP = 11 * T - 10;
 constexpr float TENT_IDLE = -100;
+constexpr float BB_W = 36, BB_H = 72; // Blackbeard is a head taller than anyone
 float KrakenTop(const PlatformState& p) {
     const PlatBoss& b = p.boss;
     float under = p.h * T + 30.0f;
@@ -407,8 +410,8 @@ float KrakenTop(const PlatformState& p) {
         default: return under;
     }
 }
-Rectangle KrakenHead(const PlatformState& p) { float top = KrakenTop(p); return {p.boss.home.x - 40, top, 80, 60}; }
-float TentacleReach(float tt) { // 0..1 height of a strike, tt = time since its warning began
+Rectangle KrakenHead(const PlatformState& p) { float top = KrakenTop(p); return {p.boss.home.x - 48, top, 96, 70}; }
+float TentacleReach(float tt) { // 0..1 extent of a strike, tt = time since its warning began
     if (tt < 0.75f) return 0;
     if (tt < 0.9f) return (tt - 0.75f) / 0.15f;
     if (tt < 1.5f) return 1;
@@ -416,8 +419,13 @@ float TentacleReach(float tt) { // 0..1 height of a strike, tt = time since its 
     return 0;
 }
 Rectangle TentacleBox(const PlatformState& p, int i) {
-    float bottom = p.h * T + 10.0f, top = bottom + (7.0f * T - bottom) * TentacleReach(p.boss.tentT[i]);
-    return {p.boss.tentX[i] - 13, top, 26, bottom - top};
+    float r = TentacleReach(p.boss.tentT[i]);
+    if (p.boss.tentTop[i]) { // slamming down from the dark above
+        float top = (float)T, bottom = top + (14.0f * T - top) * r;
+        return {p.boss.tentX[i] - 15, top, 30, bottom - top};
+    }
+    float bottom = p.h * T + 10.0f, top = bottom + (7.0f * T - bottom) * r;
+    return {p.boss.tentX[i] - 15, top, 30, bottom - top};
 }
 
 void ResetBoss(PlatformState& p) {
@@ -444,15 +452,20 @@ void UpdateBoss(PlatformState& p, float dt) {
         for (int i = 0; i < 2; i++)
             if (b.tentT[i] > TENT_IDLE && (b.tentT[i] += dt) > 1.8f) b.tentT[i] = TENT_IDLE;
         switch (b.state) {
-            case 0: // submerged, striking with tentacles
+            case 0: // submerged: one tentacle rises from the abyss, another slams down from above
                 if (!b.defeated && playerInArena && b.timer > 0.3f && b.timer < 1.0f && b.tentT[0] == TENT_IDLE && b.tentT[1] == TENT_IDLE) {
-                    b.tentX[0] = std::clamp(p.pos.x + PW / 2, pitL, pitR);
-                    b.tentX[1] = std::clamp(b.tentX[0] + (GetRandomValue(0, 1) ? 110.0f : -110.0f), pitL, pitR);
+                    float px = p.pos.x + PW / 2;
+                    bool slamFirst = GetRandomValue(0, 1) == 1;
+                    b.tentTop[0] = slamFirst;
+                    b.tentX[0] = slamFirst ? std::clamp(px, arenaX + 2.0f * T, arenaX + 21.0f * T) : std::clamp(px, pitL, pitR);
+                    b.tentTop[1] = !slamFirst;
+                    b.tentX[1] = std::clamp(px + (GetRandomValue(0, 1) ? 120.0f : -120.0f), pitL, pitR);
+                    if (b.tentTop[1]) b.tentX[1] = std::clamp(px, arenaX + 2.0f * T, arenaX + 21.0f * T);
                     b.tentT[0] = 0;
-                    b.tentT[1] = -0.45f; // the second strike follows a moment later
+                    b.tentT[1] = -0.5f; // the second strike follows a moment later, where you've moved to
                 }
                 if (b.defeated) break;
-                if (b.timer > 2.8f && playerInArena) { b.state = 1; b.timer = 0; }
+                if (b.timer > 2.9f && playerInArena) { b.state = 1; b.timer = 0; }
                 break;
             case 1: if (b.timer > 0.5f) { b.state = 2; b.timer = 0; } break;
             case 2: if (b.timer > 2.2f) { b.state = 3; b.timer = 0; } break;
@@ -462,14 +475,14 @@ void UpdateBoss(PlatformState& p, float dt) {
     } else if (b.type == 'B') {
         if (b.defeated) { b.vel.x = 0; }
         else {
-            float px = p.pos.x + PW / 2, bx = b.pos.x + 17;
+            float px = p.pos.x + PW / 2, bx = b.pos.x + BB_W / 2;
             float speedUp = (3 - b.hp) * 25.0f;
             switch (b.state) {
                 case 0: // stalk toward the player
                     b.dir = px < bx ? -1.0f : 1.0f;
                     b.vel.x = b.dir * (70 + speedUp);
                     if (b.timer > 2.0f) { b.state = 1; b.timer = 0; b.vel.x = 0; }
-                    if (p.pos.y + PH < b.pos.y - 40 && b.vel.y == 0 && GetRandomValue(0, 90) == 0) b.vel.y = -760;
+                    if (p.pos.y + PH < b.pos.y - 20 && b.vel.y == 0 && GetRandomValue(0, 90) == 0) b.vel.y = -760;
                     break;
                 case 1: b.vel.x = 0; if (b.timer > 0.45f) { b.state = 2; b.timer = 0; } break; // wind up
                 case 2: b.vel.x = b.dir * (330 + speedUp); if (b.timer > 0.8f) { b.state = 3; b.timer = 0; } break; // charge!
@@ -478,7 +491,7 @@ void UpdateBoss(PlatformState& p, float dt) {
         }
         b.vel.y = std::min(b.vel.y + GRAV_DOWN * dt, MAX_FALL);
         bool grounded, hitWall;
-        MoveAndCollide(p, b.pos, b.vel, 34, 46, dt, grounded, hitWall);
+        MoveAndCollide(p, b.pos, b.vel, BB_W, BB_H, dt, grounded, hitWall);
         if (hitWall && b.state == 2) { b.state = 3; b.timer = 0; }
     }
 }
@@ -510,7 +523,7 @@ void BuildFromParts(PlatformState& p, const std::vector<const char* const*>& par
                 case 'p': p.enemies.push_back({'p', {x + 16, y + 16}, {x + 16, y + 16}, 1, 0}); break;
                 case 'e': p.enemies.push_back({'e', {x + 16, p.h * (float)T + 200}, {x + 16, y}, 1, c * 0.37f}); break;
                 case 'K': p.boss.type = 'K'; p.boss.home = {x + 16, y + T}; p.boss.tentT[0] = p.boss.tentT[1] = TENT_IDLE; break;
-                case 'B': p.boss.type = 'B'; p.boss.home = p.boss.pos = {x, y + T - 46}; break;
+                case 'B': p.boss.type = 'B'; p.boss.home = p.boss.pos = {x, y + T - BB_H}; break;
                 default: continue;
             }
             ch = '.';
@@ -626,54 +639,126 @@ void StepPlayer(PlatformState& p, float dir, bool jumpHeld) {
 }
 
 // ---------------------------------------------------------------- drawing: backgrounds
+// Every level's scenery is several layers deep; each layer scrolls at its own speed, so the far
+// ones barely move and the near ones sweep past.
+float Hs(float x) { float s = sinf(x * 12.9898f + 3.1f) * 43758.5453f; return s - floorf(s); }
+
+template <typename F>
+void Layer(float cx, float depth, float gap, float cw, F fn) {
+    float off = cx * depth;
+    float first = floorf(off / gap) * gap;
+    for (float wx = first - gap; wx < off + cw + gap; wx += gap) fn(wx - off, wx);
+}
+
 void DrawBackground(const PlatformState& p, float t) {
     float cw = PIXEL_W + 2.0f, ch = PIXEL_H + 2.0f, cx = p.camX * ZOOM;
     switch (p.level) {
-        case PL_PIPES:
-            DrawRectangleGradientV(0, 0, (int)cw, (int)ch, Color{70, 56, 46, 255}, Color{26, 32, 38, 255});
-            for (int i = 0; i < 14; i++) {
-                float x = fmodf(i * 162.0f - cx * 0.3f + 40000, 14 * 162.0f) - 100;
-                DrawRectangle((int)x, 30, 23, (int)ch, Color{90, 70, 54, 255});
+        case PL_PIPES: {
+            DrawRectangleGradientV(0, 0, (int)cw, (int)ch, Color{62, 50, 42, 255}, Color{22, 26, 32, 255});
+            Layer(cx, 0.08f, 60, cw, [&](float x, float wx) { // a far lattice of pipes
+                DrawRectangle((int)x, 30, 3, (int)ch, Color{54, 44, 38, 255});
+                DrawRectangle(0, (int)(60 + Hs(wx) * 240), (int)cw, 2, Color{54, 44, 38, 255});
+            });
+            DrawRectangle(0, 0, (int)cw, (int)ch, Color{40, 34, 30, 60});
+            Layer(cx, 0.2f, 170, cw, [&](float x, float wx) { // big boilers
+                float r = 40 + Hs(wx) * 30, y = 170 + Hs(wx + 1) * 110;
+                DrawCircleV({x, y}, r, Color{66, 52, 42, 255});
+                DrawCircleV({x - r * 0.3f, y - r * 0.3f}, r * 0.35f, Color{78, 62, 50, 255});
+                for (int k = 0; k < 10; k++) DrawCircleV({x + cosf(k * 0.63f) * r * 0.85f, y + sinf(k * 0.63f) * r * 0.85f}, 1.2f, Color{96, 78, 60, 255});
+            });
+            Layer(cx, 0.35f, 162, cw, [&](float x, float wx) { // columns and cross-pipes with valves and gauges
+                DrawRectangle((int)x, 30, 22, (int)ch, Color{88, 68, 52, 255});
                 DrawRectangle((int)x, 30, 3, (int)ch, Color{112, 88, 66, 255});
-                DrawRectangle((int)x - 3, 100 + (i % 3) * 60, 29, 7, Color{110, 84, 60, 255});
-            }
-            break;
+                float y = 100 + Hs(wx) * 190;
+                DrawRectangle((int)x - 60, (int)y, 140, 9, Color{102, 78, 58, 255});
+                DrawCircleV({x + 11, y + 30}, 9, Color{150, 120, 70, 255});
+                DrawCircleV({x + 11, y + 30}, 7, Color{220, 210, 180, 255});
+                DrawLineEx({x + 11, y + 30}, {x + 11 + cosf(t * 2 + wx) * 5, y + 30 + sinf(t * 2 + wx) * 5}, 1, Color{160, 40, 30, 255});
+            });
+            Layer(cx, 0.6f, 230, cw, [&](float x, float wx) { // chains and steam close by
+                for (int k = 0; k < 14; k++) DrawRectangle((int)(x + sinf(t + wx) * k * 0.3f), 30 + k * 9, 3, 6, Color{40, 32, 28, 255});
+                for (int k = 0; k < 3; k++) {
+                    float ph = fmodf(t * 0.4f + k * 0.33f + Hs(wx), 1.0f);
+                    DrawCircleV({x + 40 + sinf(ph * 5) * 6, 330 - ph * 200}, 6 + ph * 12, Fade(Color{220, 220, 214, 255}, 0.18f * (1 - ph)));
+                }
+            });
+        } break;
         case PL_HULL: {
-            DrawRectangleGradientV(0, 0, (int)cw, (int)ch, Color{16, 58, 88, 255}, Color{4, 14, 30, 255});
-            for (int i = 0; i < 6; i++) { // light from the surface
-                float x = fmodf(i * 140.0f - cx * 0.1f + 40000, 840) - 100;
-                DrawTri({x, 0}, {x + 26, 0}, {x - 70, ch}, Color{60, 130, 160, 40});
-                DrawTri({x + 26, 0}, {x - 30, ch}, {x - 70, ch}, Color{60, 130, 160, 40});
+            DrawRectangleGradientV(0, 0, (int)cw, (int)ch, Color{18, 64, 94, 255}, Color{4, 14, 30, 255});
+            for (int x = 0; x < (int)cw; x += 3) // the shimmering surface, far above
+                DrawRectangle(x, 29, 3, (int)(4 + sinf(x * 0.08f + t * 1.5f) * 2 + 2), Color{120, 190, 210, 90});
+            BeginBlendMode(BLEND_ADDITIVE);
+            Layer(cx, 0.06f, 140, cw, [&](float x, float wx) {
+                float w = 18 + Hs(wx) * 16;
+                DrawTri({x, 30}, {x + w, 30}, {x - 70, ch}, Color{60, 130, 160, 30});
+                DrawTri({x + w, 30}, {x - 70 + w * 1.6f, ch}, {x - 70, ch}, Color{60, 130, 160, 30});
+            });
+            EndBlendMode();
+            { // the Nautilus itself, looming overhead with its portholes lit
+                float hx = 700 - cx * 0.12f;
+                DrawRectangleRounded({hx - 520, 40, 1040, 70}, 1.0f, 24, Color{14, 34, 46, 255});
+                DrawRectangleRounded({hx - 80, 22, 160, 30}, 0.6f, 8, Color{14, 34, 46, 255});
+                for (int k = 0; k < 16; k++) DrawCircleV({hx - 450 + k * 60.0f, 78}, 3, Color{255, 210, 130, 255});
             }
-            // the Nautilus looming above, its portholes glowing
-            float hx = -cx * 0.2f + 900;
-            DrawRectangleRounded({hx - 800, -60, 1500, 110}, 1.0f, 20, Color{14, 30, 40, 255});
-            for (int k = 0; k < 12; k++) DrawCircle((int)(hx - 700 + k * 120), 20, 5, Color{255, 210, 130, 255});
-            for (int k = 0; k < 40; k++) {
-                float bx = fmodf(k * 53.0f - cx * 0.5f + 40000, cw), by = ch - fmodf(t * (18 + k % 5 * 6) + k * 31, ch);
-                DrawCircleLines((int)bx, (int)by, 1 + k % 2, Color{180, 230, 250, 140});
-            }
+            Layer(cx, 0.22f, 110, cw, [&](float x, float wx) { // far rock spires
+                float h = 70 + Hs(wx) * 110;
+                DrawTri({x - 26, ch}, {x + 26, ch}, {x + Hs(wx + 1) * 10, ch - h}, Color{14, 40, 54, 255});
+            });
+            DrawRectangle(0, 0, (int)cw, (int)ch, Color{20, 60, 80, 40});
+            Layer(cx, 0.42f, 70, cw, [&](float x, float wx) { // a kelp forest
+                Vector2 prev{x, ch};
+                int n = 10 + (int)(Hs(wx) * 8);
+                for (int s = 1; s <= n; s++) {
+                    Vector2 q{x + sinf(t * 0.9f + wx + s * 0.45f) * s * 1.5f, ch - s * 14.0f};
+                    DrawLineEx(prev, q, 3.5f - s * 0.12f, Color{22, 76, 60, 255});
+                    prev = q;
+                }
+            });
+            Layer(cx, 0.7f, 90, cw, [&](float x, float wx) { // coral and bubbles close by
+                DrawCircleV({x, ch + 6}, 14 + Hs(wx) * 10, Color{120, 60, 80, 255});
+                DrawCircleV({x + 12, ch}, 8, Color{180, 90, 90, 255});
+                float by = ch - fmodf(t * (20 + Hs(wx) * 20) + wx, ch);
+                DrawCircleLines((int)(x + sinf(t * 2 + wx) * 3), (int)by, 2, Color{180, 230, 250, 150});
+            });
         } break;
         default: {
             DrawRectangleGradientV(0, 0, (int)cw, (int)ch, Color{12, 14, 38, 255}, Color{52, 34, 62, 255});
-            for (int k = 0; k < 70; k++) {
-                float sx = fmodf(k * 97.0f - cx * 0.05f + 40000, cw), sy = fmodf(k * 41.0f, 200.0f) + 28;
-                if (sinf(t * 2 + k) > -0.6f) DrawPixel((int)sx, (int)sy, Color{230, 230, 255, 255});
-            }
+            Layer(cx, 0.02f, 23, cw, [&](float x, float wx) {
+                float sy = 34 + Hs(wx) * 200;
+                if (Hs(wx + 2) > 0.45f && sinf(t * 2 + wx) > -0.6f) DrawPixel((int)x, (int)sy, Color{230, 230, 255, 255});
+            });
             Vector2 moon{cw - 110 - cx * 0.03f, 80};
             DrawCircleV(moon, 26, Color{250, 244, 220, 60});
             DrawCircleV(moon, 20, Color{246, 240, 214, 255});
             DrawCircleV({moon.x - 6, moon.y - 4}, 4, Color{220, 214, 190, 255});
-            for (int i = 0; i < 5; i++) { // a ghostly fleet on the horizon
-                float x = fmodf(i * 260.0f - cx * 0.25f + 40000, 1300) - 150;
-                DrawRectangle((int)x, 250, 90, 18, Color{28, 24, 44, 255});
-                DrawRectangle((int)x + 40, 170, 3, 80, Color{28, 24, 44, 255});
-                DrawTri({x + 44, 178}, {x + 44, 236}, {x + 80, 236}, Color{36, 32, 56, 255});
+            Layer(cx + t * 6, 0.08f, 260, cw, [&](float x, float wx) { // drifting clouds
+                float y = 60 + Hs(wx) * 70;
+                for (int k = 0; k < 4; k++) DrawEllipse((int)(x + k * 22), (int)(y + (k % 2) * 4), 26, 8, Color{44, 40, 70, 200});
+            });
+            Layer(cx, 0.2f, 260, cw, [&](float x, float wx) { // a ghostly fleet on the horizon
+                float y = 240 + Hs(wx) * 16;
+                DrawRectangle((int)x, (int)y, 90, 16, Color{28, 24, 44, 255});
+                DrawRectangle((int)x + 40, (int)y - 80, 3, 80, Color{28, 24, 44, 255});
+                DrawTri({x + 44, y - 72}, {x + 44, y - 14}, {x + 80, y - 14}, Color{36, 32, 56, 255});
+            });
+            for (int x = 0; x < (int)cw; x += 4) { // the far sea
+                float y = 262 + sinf((x + cx * 0.3f) * 0.05f + t * 1.2f) * 2;
+                DrawRectangle(x, (int)y, 4, (int)ch - (int)y, Color{22, 28, 56, 255});
+                if (((x / 4) % 9) == 0) DrawRectangle(x, (int)y, 3, 1, Color{120, 130, 180, 255});
             }
-            for (int x = 0; x < (int)cw; x += 4) { // moonlit sea
-                float y = 300 + sinf((x + cx * 0.4f) * 0.05f + t * 1.5f) * 3;
-                DrawRectangle(x, (int)y, 4, (int)ch - (int)y, Color{20, 28, 54, 255});
-                if (((x / 4) % 7) == 0) DrawRectangle(x, (int)y, 3, 1, Color{120, 130, 180, 255});
+            Layer(cx, 0.5f, 300, cw, [&](float x, float wx) { // our own masts and rigging, nearer
+                DrawRectangle((int)x, 30, 6, (int)ch, Color{24, 18, 22, 255});
+                DrawRectangle((int)x - 50, (int)(90 + Hs(wx) * 30), 106, 4, Color{24, 18, 22, 255});
+                DrawTri({x + 8, 100}, {x + 8, 220}, {x + 70, 200}, Color{58, 50, 64, 255});
+                for (int k = 0; k < 5; k++) DrawLineEx({x + 3, 40.0f + k * 4}, {x + 150, 330}, 1, Color{30, 24, 26, 255});
+                Vector2 lamp{x + 20, 150};
+                DrawCircleV(lamp, 7, Color{255, 190, 90, 70});
+                DrawCircleV(lamp, 3, Color{255, 210, 120, 255});
+            });
+            for (int x = 0; x < (int)cw; x += 4) { // the near sea, rolling
+                float y = 300 + sinf((x + cx * 0.6f) * 0.04f + t * 1.6f) * 4;
+                DrawRectangle(x, (int)y, 4, (int)ch - (int)y, Color{18, 24, 50, 255});
+                if (((x / 4) % 6) == 0) DrawRectangle(x, (int)y, 3, 1, Color{150, 160, 200, 255});
             }
         } break;
     }
@@ -811,34 +896,42 @@ void DrawTile(const PlatformState& p, char c, int x, int y, float t) {
 }
 
 // ---------------------------------------------------------------- drawing: characters
+// The diver is drawn a little narrower than its collision box, squash-and-stretch never widens it into
+// a wall it's touching, and its position is snapped to the canvas's pixel grid (as the tiles are), so
+// it can never appear to sink into a wall.
 void DrawDiver(const PlatformState& p) {
     Color suit{64, 196, 190, 255}, suitDk{40, 140, 136, 255}, boot{60, 56, 60, 255};
+    int wall = TouchWall(p, 1) ? 1 : TouchWall(p, -1) ? -1 : 0;
+    float sx = p.scale.x, feetX = p.pos.x + PW / 2 - wall * 1.5f;
+    if (wall) sx = std::min(sx, 0.92f);
+    feetX = roundf(feetX * ZOOM) / ZOOM;
+    float feetY = roundf((p.pos.y + PH) * ZOOM) / ZOOM;
     rlDrawRenderBatchActive();
     rlDisableBackfaceCulling(); // the mirrored transform flips triangle winding
     rlPushMatrix();
-    rlTranslatef(p.pos.x + PW / 2, p.pos.y + PH, 0);
-    rlScalef((p.facingRight ? 1.0f : -1.0f) * p.scale.x, p.scale.y, 1);
+    rlTranslatef(feetX, feetY, 0);
+    rlScalef((p.facingRight ? 1.0f : -1.0f) * sx, p.scale.y, 1);
     bool running = p.onGround && fabsf(p.vel.x) > 30, sliding = p.wallSide != 0;
-    float ph = p.runAnim, l1 = running ? sinf(ph) * 5 : 0;
+    float ph = p.runAnim, l1 = running ? sinf(ph) * 4.5f : 0;
     if (!p.onGround) { // legs tucked in the air
-        DrawRectangleRec({-8, -11, 6, 7}, suitDk);
+        DrawRectangleRec({-7.5f, -11, 6, 7}, suitDk);
         DrawRectangleRec({2, -12, 6, 7}, suit);
-        DrawRectangleRec({-9, -6, 7, 3}, boot);
-        DrawRectangleRec({2, -7, 7, 3}, boot);
+        DrawRectangleRec({-8.5f, -6, 7, 3}, boot);
+        DrawRectangleRec({1.5f, -7, 7, 3}, boot);
     } else {
         DrawRectangleRec({-7 + l1 * 0.6f, -9, 6, 9 - fmaxf(0, l1 * 0.4f)}, suitDk);
-        DrawRectangleRec({2 - l1 * 0.6f, -9, 6, 9 - fmaxf(0, -l1 * 0.4f)}, suit);
-        DrawRectangleRec({-9 + l1 * 0.8f, -3, 8, 3}, boot);
-        DrawRectangleRec({1 - l1 * 0.8f, -3, 8, 3}, boot);
+        DrawRectangleRec({1.5f - l1 * 0.6f, -9, 6, 9 - fmaxf(0, -l1 * 0.4f)}, suit);
+        DrawRectangleRec({-8.5f + l1 * 0.7f, -3, 8, 3}, boot);
+        DrawRectangleRec({0.5f - l1 * 0.7f, -3, 8, 3}, boot);
     }
-    DrawRectangleRounded({-8, -21, 16, 13}, 0.4f, 4, suit);
-    DrawRectangleRec({-8, -11, 16, 2}, Color{80, 60, 40, 255});
-    if (sliding) DrawRectangleRec({6, -27, 4, 9}, suitDk); // hand pressed to the wall
-    else DrawRectangleRec({4 - l1 * 0.3f, -19, 4, 8}, suitDk);
-    DrawCircle(1, -26, 9, Pal::Brass);
-    DrawCircle(0, -28, 3, Color{250, 220, 150, 255});
-    DrawCircle(4, -26, 5, Color{30, 70, 90, 255});
-    DrawCircle(3, -28, 2, Color{190, 235, 245, 255});
+    DrawRectangleRounded({-7.5f, -21, 15, 13}, 0.4f, 4, suit);
+    DrawRectangleRec({-7.5f, -11, 15, 2}, Color{80, 60, 40, 255});
+    if (sliding) DrawRectangleRec({5, -27, 3.5f, 9}, suitDk); // hand pressed to the wall
+    else DrawRectangleRec({3.5f - l1 * 0.3f, -19, 4, 8}, suitDk);
+    DrawCircleV({0.5f, -26}, 8.5f, Pal::Brass);
+    DrawCircleV({-0.5f, -28}, 3, Color{250, 220, 150, 255});
+    DrawCircleV({3.5f, -26}, 4.6f, Color{30, 70, 90, 255});
+    DrawCircleV({2.5f, -28}, 1.8f, Color{190, 235, 245, 255});
     rlPopMatrix();
     rlDrawRenderBatchActive();
     rlEnableBackfaceCulling();
@@ -893,55 +986,123 @@ void DrawEnemy(const PlatEnemy& e, float t) {
     }
 }
 
+// A tapering, swaying tentacle from base to tip, with a row of pale suckers and a curled tip.
+void DrawTentacle(Vector2 base, Vector2 tip, float w0, float t, float seed, Color c) {
+    const int N = 18;
+    Color hi = ColorBrightness(c, 0.25f), sucker{236, 176, 214, 255};
+    Vector2 prev = base;
+    float len = sqrtf((tip.x - base.x) * (tip.x - base.x) + (tip.y - base.y) * (tip.y - base.y));
+    Vector2 dir{(tip.x - base.x) / std::max(1.0f, len), (tip.y - base.y) / std::max(1.0f, len)}, n{-dir.y, dir.x};
+    for (int i = 1; i <= N; i++) {
+        float u = (float)i / N, sway = sinf(t * 3 + seed + u * 5) * 14 * u;
+        Vector2 q{base.x + (tip.x - base.x) * u + n.x * sway, base.y + (tip.y - base.y) * u + n.y * sway};
+        float w = w0 * (1 - u * 0.75f);
+        DrawLineEx(prev, q, w * 2, c);
+        DrawLineEx({prev.x - n.x * w * 0.4f, prev.y - n.y * w * 0.4f}, {q.x - n.x * w * 0.4f, q.y - n.y * w * 0.4f}, std::max(1.0f, w * 0.5f), hi);
+        if (i % 2 == 0) DrawCircleV({q.x + n.x * w * 0.7f, q.y + n.y * w * 0.7f}, std::max(1.2f, w * 0.3f), sucker);
+        prev = q;
+    }
+    DrawRing(prev, 3, 6, 0, 270, 8, c); // the curled tip
+}
+
+// The Kraken's bulk, looming in the abyss behind the arena: drawn before the tiles.
+void DrawBossBack(const PlatformState& p, float t) {
+    const PlatBoss& b = p.boss;
+    if (b.type != 'K') return;
+    float arenaX = (p.w - CH_W) * (float)T;
+    float sink = b.defeated && b.state == 4 ? std::min(1.0f, b.timer / 3.0f) * 300 : 0;
+    Vector2 body{arenaX + 13 * T, 17.5f * T + sink};
+    Color deep{52, 22, 64, 255}, deeper{36, 16, 46, 255};
+    for (int k = 0; k < 7; k++) { // great arms curling up behind the platforms
+        float bx = body.x - 300 + k * 100, sw = sinf(t * 0.6f + k) * 60;
+        DrawTentacle({bx, body.y}, {bx + sw, 3.0f * T + (k % 3) * 40 + sink}, 22, t * 0.4f, k * 1.7f, deeper);
+    }
+    DrawEllipse((int)body.x, (int)body.y, 300, 170, deep); // the mantle, rising from the dark
+    DrawEllipse((int)(body.x - 80), (int)(body.y - 90), 90, 40, Color{70, 32, 84, 255});
+    for (int s = -1; s <= 1; s += 2) { // vast eyes that follow you
+        Vector2 e{body.x + s * 110, body.y - 60};
+        float look = std::clamp((p.pos.x - e.x) * 0.02f, -6.0f, 6.0f);
+        DrawEllipse((int)e.x, (int)e.y, 34, 24, Color{30, 10, 20, 255});
+        DrawEllipse((int)e.x, (int)e.y, 28, 18, Color{230, 190, 60, 255});
+        DrawRectangle((int)(e.x + look - 3), (int)e.y - 16, 6, 32, Color{20, 6, 10, 255});
+    }
+}
+
 void DrawBoss(const PlatformState& p, float t) {
     const PlatBoss& b = p.boss;
     if (b.type == 'K') {
+        Color arm{130, 60, 140, 255};
         for (int i = 0; i < 2; i++) {
             if (b.tentT[i] < 0) continue;
-            float reach = TentacleReach(b.tentT[i]);
-            float surface = p.h * T - 6.0f;
-            if (b.tentT[i] < 0.75f) { // warning: bubbles churning where it will strike
-                for (int k = 0; k < 5; k++)
-                    DrawCircle((int)(b.tentX[i] + Rnd(-14, 14)), (int)(surface - Rnd(0, 30) * b.tentT[i]), 3, Fade(Color{200, 120, 220, 255}, 0.8f));
+            if (b.tentT[i] < 0.75f) { // warning: churning water below, or a shadow falling from above
+                if (b.tentTop[i]) {
+                    float a = 0.3f + 0.5f * b.tentT[i] / 0.75f;
+                    DrawRectangle((int)(b.tentX[i] - 16), T, 32, 13 * T, Fade(Color{20, 0, 30, 255}, a * 0.35f));
+                    for (int k = 0; k < 3; k++) DrawCircle((int)(b.tentX[i] + Rnd(-14, 14)), (int)(T + Rnd(0, 40)), 3, Fade(Color{200, 120, 220, 255}, a));
+                } else {
+                    float surface = p.h * T - 6.0f;
+                    for (int k = 0; k < 5; k++)
+                        DrawCircle((int)(b.tentX[i] + Rnd(-14, 14)), (int)(surface - Rnd(0, 30) * b.tentT[i]), 3, Fade(Color{200, 120, 220, 255}, 0.8f));
+                }
                 continue;
             }
             Rectangle r = TentacleBox(p, i);
-            for (float y = r.y; y < r.y + r.height; y += 10) {
-                float w = 13 - 5 * (1 - (y - r.y) / std::max(1.0f, r.height)) + sinf(y * 0.08f + t * 6) * 1.5f;
-                DrawRectangle((int)(b.tentX[i] - w + sinf(y * 0.05f + t * 4) * 4), (int)y, (int)(w * 2), 11, Color{120, 60, 140, 255});
-                DrawCircle((int)(b.tentX[i] + w - 4 + sinf(y * 0.05f + t * 4) * 4), (int)y + 5, 3, Color{230, 170, 220, 255});
-            }
-            (void)reach;
+            Vector2 base = b.tentTop[i] ? Vector2{b.tentX[i], 0} : Vector2{b.tentX[i], (float)p.h * T + 30};
+            Vector2 tip = b.tentTop[i] ? Vector2{b.tentX[i], r.y + r.height} : Vector2{b.tentX[i], r.y};
+            DrawTentacle(base, tip, 16, t * 2, i * 3.0f, arm);
         }
         if (b.state >= 1) {
             Rectangle h = KrakenHead(p);
             bool blink = b.invuln > 0 && fmodf(t, 0.15f) < 0.075f;
-            Color skin = blink ? WHITE : Color{130, 64, 150, 255};
-            DrawEllipse((int)(h.x + 40), (int)(h.y + 44), 40, 44, skin);
-            DrawEllipse((int)(h.x + 30), (int)(h.y + 22), 16, 10, Fade(WHITE, 0.2f));
+            Color skin = blink ? WHITE : Color{130, 64, 150, 255}, dk{96, 44, 112, 255};
+            float cx = h.x + h.width / 2;
+            for (int k = -2; k <= 2; k++) // short arms writhing around the head
+                DrawTentacle({cx + k * 18, h.y + 60}, {cx + k * 46, h.y + 110 + fabsf((float)k) * 8}, 9, t * 3, k * 2.0f, dk);
+            DrawEllipse((int)cx, (int)(h.y + 28), 54, 40, skin);             // the great mantle
+            DrawEllipse((int)(cx - 14), (int)(h.y + 12), 22, 12, Fade(WHITE, 0.18f));
+            for (int k = 0; k < 6; k++) DrawCircle((int)(cx - 36 + k * 14), (int)(h.y + 20 + (k % 2) * 10), 3, dk); // mottling
             for (int s = -1; s <= 1; s += 2) {
-                DrawEllipse((int)(h.x + 40 + s * 16), (int)(h.y + 40), 9, 7, Color{250, 220, 80, 255});
-                DrawRectangle((int)(h.x + 39 + s * 16), (int)(h.y + 35), 3, 11, Pal::Ink);
+                DrawEllipse((int)(cx + s * 24), (int)(h.y + 42), 12, 9, Color{250, 220, 80, 255});
+                DrawRectangle((int)(cx + s * 24 - 2), (int)(h.y + 35), 4, 14, Pal::Ink);
             }
-            DrawTri({h.x + 26, h.y - 2}, {h.x + 40, h.y + 8}, {h.x + 54, h.y - 2}, Color{250, 220, 80, 200}); // stomp here
+            DrawTri({cx - 8, h.y + 58}, {cx + 8, h.y + 58}, {cx, h.y + 70}, Color{40, 30, 30, 255}); // the beak
+            DrawTri({cx - 12, h.y - 6}, {cx, h.y + 6}, {cx + 12, h.y - 6}, Color{250, 220, 80, 200});    // stomp here
         }
     } else if (b.type == 'B' && !b.defeated) {
-        float x = b.pos.x, y = b.pos.y, f = b.dir;
+        float x = b.pos.x, y = b.pos.y, f = b.dir, cx = x + BB_W / 2;
         bool blink = b.invuln > 0 && fmodf(t, 0.15f) < 0.075f;
         if (blink) return;
-        float step = b.vel.x != 0 ? sinf(t * 14) * 4 : 0;
-        DrawRectangleRec({x + 8 + step, y + 34, 8, 12}, Color{30, 26, 24, 255});
-        DrawRectangleRec({x + 19 - step, y + 34, 8, 12}, Color{30, 26, 24, 255});
-        DrawRectangleRounded({x + 4, y + 14, 26, 22}, 0.3f, 4, Color{150, 30, 30, 255});
-        DrawRectangleRec({x + 4, y + 30, 26, 4}, Color{60, 40, 24, 255});
-        DrawCircle((int)x + 17, (int)y + 10, 9, Color{220, 170, 130, 255});
-        DrawCircle((int)x + 17, (int)y + 16, 9, Color{24, 22, 22, 255}); // the famous beard
-        DrawCircle((int)(x + 17 + f * 4), (int)y + 8, 2, b.state == 1 ? Color{255, 60, 40, 255} : Pal::Ink);
-        DrawTri({x - 2, y + 2}, {x + 36, y + 2}, {x + 17, y - 12}, Color{24, 22, 30, 255}); // tricorn
-        DrawTri({x + 12, y - 2}, {x + 22, y - 2}, {x + 17, y - 8}, Color{230, 230, 220, 255});
-        float swordA = b.state == 1 ? -1.2f : b.state == 2 ? 0.1f : -0.5f;
-        Vector2 hand{x + 17 + f * 14, y + 22};
-        DrawLineEx(hand, {hand.x + f * cosf(swordA) * 26, hand.y + sinf(swordA) * 26}, 3, Color{210, 214, 220, 255});
+        float step = b.vel.x != 0 ? sinf(t * 14) * 5 : 0;
+        Color coat{140, 26, 30, 255}, coatDk{96, 16, 20, 255}, boot{24, 20, 18, 255};
+        DrawRectangleRec({cx - 12 + step, y + 50, 10, 22}, boot);                          // tall boots
+        DrawRectangleRec({cx + 2 - step, y + 50, 10, 22}, boot);
+        DrawRectangleRec({cx - 14 + step, y + 48, 13, 5}, Color{60, 40, 24, 255});
+        DrawRectangleRec({cx + 1 - step, y + 48, 13, 5}, Color{60, 40, 24, 255});
+        DrawTri({cx - 18, y + 22}, {cx + 18, y + 22}, {cx + 20, y + 56}, coat);             // a long coat
+        DrawTri({cx - 18, y + 22}, {cx + 20, y + 56}, {cx - 22, y + 56}, coatDk);
+        DrawRectangleRounded({cx - 17, y + 18, 34, 28}, 0.3f, 4, coat);
+        DrawRectangleRec({cx - 17, y + 38, 34, 5}, Color{60, 40, 24, 255});                 // belt
+        DrawRectangleRec({cx - 3, y + 37, 6, 7}, Pal::Brass);
+        DrawRectangleRec({cx - 14, y + 30, 5, 10}, Color{70, 70, 76, 255});                 // a brace of pistols
+        DrawRectangleRec({cx + 9, y + 30, 5, 10}, Color{70, 70, 76, 255});
+        DrawRectangleRec({cx - 17, y + 18, 34, 3}, Pal::Brass);
+        DrawCircle((int)cx, (int)y + 12, 9, Color{220, 170, 130, 255});                   // face
+        DrawCircle((int)cx, (int)y + 20, 11, Color{24, 22, 22, 255});                     // the famous beard...
+        DrawRectangleRec({cx - 10, y + 20, 20, 12}, Color{24, 22, 22, 255});
+        for (int k = 0; k < 3; k++) {                                                    // ...with smoking fuses in it
+            Vector2 fz{cx - 8 + k * 8.0f, y + 28};
+            DrawCircleV(fz, 1.5f, Color{255, 140, 40, 255});
+            float ph = fmodf(t * 0.8f + k * 0.3f, 1.0f);
+            DrawCircleV({fz.x + sinf(ph * 6 + k) * 3, fz.y - 6 - ph * 22}, 2 + ph * 3, Fade(Color{150, 150, 150, 255}, 0.6f * (1 - ph)));
+        }
+        DrawCircle((int)(cx + f * 4), (int)y + 10, 2, b.state == 1 ? Color{255, 60, 40, 255} : Pal::Ink);
+        DrawTri({cx - 22, y + 4}, {cx + 22, y + 4}, {cx, y - 14}, Color{24, 22, 30, 255}); // tricorn
+        DrawRectangleRec({cx - 22, y + 2, 44, 4}, Color{24, 22, 30, 255});
+        DrawCircle((int)cx, (int)y - 3, 3, Color{230, 230, 220, 255});                  // skull badge
+        float swordA = b.state == 1 ? -1.3f : b.state == 2 ? 0.1f : -0.5f;
+        Vector2 hand{cx + f * 18, y + 30};
+        DrawLineEx(hand, {hand.x + f * cosf(swordA) * 34, hand.y + sinf(swordA) * 34}, 3, Color{210, 214, 220, 255});
+        DrawCircleV(hand, 3, Pal::Brass);
     }
 }
 }  // namespace
@@ -965,7 +1126,9 @@ std::string PlatLayoutCode(const Game& g, int level) {
 }
 
 void StartPlatform(Game& g, int level) {
-    if (g.platLayouts[level].empty()) GeneratePlatLayout(g, level);
+    bool bad = g.platLayouts[level].empty();
+    for (int c : g.platLayouts[level]) bad |= c < 0 || c >= LEVELS[level].count; // e.g. an old save
+    if (bad) GeneratePlatLayout(g, level);
     g.plat = PlatformState{};
     g.plat.level = level;
     g.plat.layoutCode = PlatLayoutCode(g, level);
@@ -1034,7 +1197,7 @@ void ScenePlatformer(Game& g) {
                         b.invuln = 0.6f;
                         p.vel.y = IsKeyDown(KEY_SPACE) || IsKeyDown(KEY_W) || IsKeyDown(KEY_UP) ? -820.0f : -600.0f;
                         p.scale = {0.75f, 1.3f};
-                        Burst(p, {h.x + 40, h.y}, 16, Color{230, 170, 220, 255}, 200, 0.5f, 3);
+                        Burst(p, {h.x + h.width / 2, h.y}, 16, Color{230, 170, 220, 255}, 200, 0.5f, 3);
                         b.state = b.hp <= 0 ? 4 : 3;
                         b.timer = 0;
                         if (b.hp <= 0) {
@@ -1047,18 +1210,18 @@ void ScenePlatformer(Game& g) {
                         Die(p);
                     }
                 }
-            } else if (b.type == 'B' && !b.defeated && CheckCollisionRecs(pr, {b.pos.x + 4, b.pos.y, 26, 46})) {
+            } else if (b.type == 'B' && !b.defeated && CheckCollisionRecs(pr, {b.pos.x + 5, b.pos.y, BB_W - 10, BB_H})) {
                 if (falling && p.pos.y + PH - p.vel.y * dt <= b.pos.y + 12) {
                     if (b.invuln <= 0) {
                         b.hp--;
                         b.invuln = 1.0f;
                         b.state = 3;
                         b.timer = 0;
-                        Burst(p, {b.pos.x + 17, b.pos.y}, 14, Color{240, 240, 230, 255}, 200, 0.5f, 3);
+                        Burst(p, {b.pos.x + BB_W / 2, b.pos.y}, 14, Color{240, 240, 230, 255}, 200, 0.5f, 3);
                         if (b.hp <= 0) {
                             b.defeated = true;
                             p.exitOpen = true;
-                            Burst(p, {b.pos.x + 17, b.pos.y + 20}, 30, Pal::Brass, 260, 0.8f, 3);
+                            Burst(p, {b.pos.x + BB_W / 2, b.pos.y + 30}, 30, Pal::Brass, 260, 0.8f, 3);
                             Toast(g, "Blackbeard is beaten! The treasure is yours.");
                         }
                     }
@@ -1110,6 +1273,7 @@ void ScenePlatformer(Game& g) {
     cam.offset = {(PIXEL_W + 2) / 2.0f, 1 + HUD_PX};
     cam.target = {snapped / ZOOM, 0};
     BeginMode2D(cam);
+    DrawBossBack(p, t);
     int c0 = std::max(0, (int)((p.camX - halfView) / T) - 2), c1 = std::min(p.w - 1, (int)((p.camX + halfView) / T) + 2);
     for (int y = 0; y < p.h; y++)
         for (int x = c0; x <= c1; x++) DrawTile(p, p.tiles[y][x], x, y, t);

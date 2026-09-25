@@ -14,6 +14,15 @@ if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
 }
 
 Set-Location $PSScriptRoot
+# If a different CMake configured the build folder (say a new CMake was installed), start it afresh.
+$cmake = (Get-Command cmake).Source -replace '\\', '/'
+if (Test-Path build\CMakeCache.txt) {
+    $cached = (Select-String -Path build\CMakeCache.txt -Pattern '^CMAKE_COMMAND:INTERNAL=(.*)$').Matches.Groups[1].Value
+    if ($cached -and $cached -ne $cmake) {
+        Write-Host "CMake changed ($cached -> $cmake); reconfiguring the build folder."
+        Remove-Item -Recurse -Force build\CMakeCache.txt, build\CMakeFiles
+    }
+}
 if (-not (Test-Path build\CMakeCache.txt)) { cmake -B build; if ($LASTEXITCODE) { exit $LASTEXITCODE } }
 cmake --build build --config Release
 if ($LASTEXITCODE) { exit $LASTEXITCODE }

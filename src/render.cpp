@@ -52,7 +52,7 @@ void main() {
         nearA += texture(texture0, uv + d * 3.0).a;
     }
     nearA /= 16.0;
-    if (c.a < 0.5) { finalColor = vec4(INK, o); return; }
+    if (c.a < 0.5) { finalColor = vec4(INK, o * fragColor.a); return; }
     vec3 l = texture(texture0, uv - vec2(uTexel.x, 0.0)).rgb, r = texture(texture0, uv + vec2(uTexel.x, 0.0)).rgb;
     vec3 u = texture(texture0, uv + vec2(0.0, uTexel.y)).rgb, dn = texture(texture0, uv - vec2(0.0, uTexel.y)).rgb;
     float edge = length(l - r) + length(u - dn);
@@ -61,8 +61,11 @@ void main() {
     float toward = texture(texture0, uv + vec2(-3.0, 3.0) * uTexel).a;
     float away = texture(texture0, uv + vec2(3.0, -3.0) * uTexel).a;
     col *= 1.0 + 0.25 * (away - toward);                          // light from the upper left
+    // a thin, cool rim of reflected light along the shadowed edge, as in Darkest Dungeon's portraits
+    float rimEdge = 1.0 - texture(texture0, uv + vec2(2.0, -1.0) * uTexel).a;
+    col += vec3(0.16, 0.24, 0.32) * rimEdge * (1.0 - toward * 0.5);
     col = mix(col, INK, smoothstep(0.35, 0.9, edge) * 0.75);      // linework between parts
-    finalColor = vec4(col, 1.0);
+    finalColor = vec4(col * fragColor.rgb, fragColor.a);
 }
 )";
 
@@ -576,6 +579,28 @@ void InkPass(float ink, float hatch) {
 
 Vector2 FigureFeet() { return FIG_FEET; }
 
+// A transparent canvas for painting flat art (a bookcase, a console) that is then mapped onto a wall.
+RenderTexture2D& ArtRT() {
+    static RenderTexture2D rt = LoadRenderTexture(512, 768);
+    return rt;
+}
+
+void BeginCanvas(RenderTexture2D& rt) {
+    BeginLayer(rt);
+    ClearBackground(BLANK);
+    rlSetBlendFactorsSeparate(RL_SRC_ALPHA, RL_ONE_MINUS_SRC_ALPHA, RL_ONE, RL_ONE_MINUS_SRC_ALPHA, RL_FUNC_ADD, RL_FUNC_ADD);
+    BeginBlendMode(BLEND_CUSTOM_SEPARATE);
+    rlDrawRenderBatchActive();
+    rlDisableBackfaceCulling();
+}
+
+void EndCanvas() {
+    rlDrawRenderBatchActive();
+    rlEnableBackfaceCulling();
+    EndBlendMode();
+    EndLayer();
+}
+
 // Figures are drawn on a separate transparent canvas. The blend mode keeps its alpha solid wherever
 // shading is layered on top, and culling is off so shapes can be wound either way.
 void BeginFigure() {
@@ -587,7 +612,7 @@ void BeginFigure() {
     rlDisableBackfaceCulling();
 }
 
-void EndFigure(Vector2 feet) {
+void EndFigure(Vector2 feet, Color tint) {
     rlDrawRenderBatchActive();
     rlEnableBackfaceCulling();
     EndBlendMode();
@@ -596,7 +621,7 @@ void EndFigure(Vector2 feet) {
     SetShaderValue(A.figShader, A.locFigTexel, texel, SHADER_UNIFORM_VEC2);
     SetShaderValue(A.figShader, A.locFigOutline, &outline, SHADER_UNIFORM_FLOAT);
     BeginShaderMode(A.figShader);
-    DrawTextureRec(A.fig.texture, {0, 0, (float)FIG_W, -(float)FIG_H}, {roundf(feet.x - FIG_FEET.x), roundf(feet.y - FIG_FEET.y)}, WHITE);
+    DrawTextureRec(A.fig.texture, {0, 0, (float)FIG_W, -(float)FIG_H}, {roundf(feet.x - FIG_FEET.x), roundf(feet.y - FIG_FEET.y)}, tint);
     EndShaderMode();
 }
 
@@ -663,8 +688,9 @@ void ShadeQuad(Vector2 tl, Vector2 tr, Vector2 br, Vector2 bl, Color c) {
 
 // ============================================================= crew figures
 // About 165 px tall at scale 1, standing on `ft`. `walk` is a phase in radians; 0 means standing in a
-// ready stance. All offsets below are written facing right and mirrored for facing left.
-void DrawCrewFigure(const Hero& h, Vector2 ft, float s, bool right, float walk, float t) {
+// ready stance. All offsets below are written facing right and mirrored for facing left. `pose` bends
+// the figure for combat animations: leaning, crouching, raising or thrusting the weapon arm.
+void DrawCrewFigure(const Hero& h, Vector2 ft, float s, bool right, float walk, float t, const Pose& pose) {
     float f = right ? 1.0f : -1.0f, x = ft.x;
     int seed = h.id * 7919 + 13;
     const Color skins[4] = {{226, 186, 152, 255}, {198, 150, 112, 255}, {160, 110, 78, 255}, {108, 74, 52, 255}};
@@ -674,34 +700,47 @@ void DrawCrewFigure(const Hero& h, Vector2 ft, float s, bool right, float walk, 
     float sw = sinf(walk), lift = walking ? std::max(0.0f, cosf(walk)) : 0, liftB = walking ? std::max(0.0f, -cosf(walk)) : 0;
     float br = sinf(t * 2.0f + h.id) * 0.8f;
     float y = ft.y - (walking ? fabsf(cosf(walk)) * 2.5f * s : 0);
-    auto P = [&](float dx, float dy) { return Vector2{x + dx * s * f, y + dy * s}; };
+    // P maps a point written in "facing right, feet at 0" units to the screen, applying the pose:
+    // the upper body tilts about the hips, and crouching lowers everything above the feet.
+    auto P = [&](float dx, float dy) {
+        float up = std::clamp((-dy - 8) / 78.0f, 0.0f, 1.0f);
+        float lean = pose.lean * std::max(0.0f, -dy - 86) * 0.35f;
+        return Vector2{x + (dx + lean + pose.crouch * 4 * up) * s * f, y + (dy + pose.crouch * 16 * up) * s};
+    };
     auto Q = [&](Vector2 bt, Vector2 fT, Vector2 fb, Vector2 bb, Color c) {
         if (f > 0) ShadeQuad(bt, fT, fb, bb, c); else ShadeQuad(fT, bt, bb, fb, c);
     };
+    auto L = [](Vector2 a, Vector2 b, float k) { return Vector2{a.x + (b.x - a.x) * k, a.y + (b.y - a.y) * k}; };
+    auto ease = [](float v) { v = std::clamp(v, 0.0f, 1.0f); return v * v * (3 - 2 * v); };
 
-    Color top, legs, boots{44, 32, 26, 255}, sleeve, glove = skin;
+    Color top, legs, boots{44, 32, 26, 255}, sleeve, glove = skin, trim;
     switch (h.cls) {
-        case HeroClass::Nurse:   top = {72, 94, 124, 255}; legs = {46, 42, 48, 255}; sleeve = top; break;
-        case HeroClass::Diver:   top = {140, 114, 74, 255}; legs = top; boots = {96, 90, 84, 255}; sleeve = top; glove = {74, 58, 44, 255}; break;
-        case HeroClass::Captain: top = {40, 50, 82, 255}; legs = {36, 34, 42, 255}; sleeve = top; break;
-        default:                 top = {196, 184, 158, 255}; legs = {170, 96, 46, 255}; sleeve = top; break;
+        case HeroClass::Nurse:   top = {72, 94, 124, 255}; legs = {46, 42, 48, 255}; sleeve = top; trim = {230, 226, 214, 255}; break;
+        case HeroClass::Diver:   top = {140, 114, 74, 255}; legs = top; boots = {96, 90, 84, 255}; sleeve = top; glove = {74, 58, 44, 255}; trim = Pal::BrassDk; break;
+        case HeroClass::Captain: top = {40, 50, 82, 255}; legs = {36, 34, 42, 255}; sleeve = top; trim = Pal::Brass; glove = {220, 214, 200, 255}; break;
+        default:                 top = {196, 184, 158, 255}; legs = {170, 96, 46, 255}; sleeve = top; trim = {110, 70, 40, 255}; glove = {92, 66, 44, 255}; break;
     }
     Color brass = Pal::Brass, steel{176, 180, 188, 255};
     float bootW = h.cls == HeroClass::Diver ? 8.5f : 6.8f;
 
     auto leg = [&](float hx, float fx, float up, Color col) {
         Vector2 hip = P(hx, -86), foot = P(fx, -7 - up);
-        Vector2 knee = P((hx + fx) * 0.5f + 5, -46 - up * 0.5f);
+        Vector2 knee = P((hx + fx) * 0.5f + 5 + pose.crouch * 8, -46 - up * 0.5f + pose.crouch * 4);
         ShadeLimb(hip, knee, 9.5f * s, 7.8f * s, col);
         ShadeLimb(knee, foot, 7.6f * s, 5.6f * s, col);
-        ShadeLimb(P(fx - 3, -5 - up), P(fx + 9, -4 - up), bootW * s, (bootW - 1) * s, boots);
+        DrawLineEx(L(hip, knee, 0.3f), L(hip, knee, 0.85f), 1.0f * s, Tone(col, -0.35f)); // trouser crease
+        Vector2 heel = P(fx - 3, -5 - up), toe = P(fx + 10, -4 - up);
+        ShadeLimb(heel, toe, bootW * s, (bootW - 1.2f) * s, boots);
+        DrawLineEx({heel.x - f * 2 * s, heel.y + bootW * 0.8f * s}, {toe.x + f * 3 * s, toe.y + (bootW - 1.5f) * 0.8f * s}, 1.6f * s, Tone(boots, -0.6f)); // sole
+        DrawCircleV({toe.x - f * 1 * s, toe.y - 2.5f * s}, 1.6f * s, Tone(boots, 0.5f));  // shine on the toe cap
     };
-    auto arm = [&](float sx, Vector2 el, Vector2 hd, Color upper, Color lower) {
-        Vector2 sh = P(sx, -128 + br), e = P(el.x, el.y + br), hnd = P(hd.x, hd.y + br);
-        ShadeLimb(sh, e, 7.6f * s, 6.6f * s, upper);
-        ShadeLimb(e, hnd, 6.6f * s, 5.2f * s, lower);
-        ShadeBall(hnd, 6.0f * s, glove);
-        return hnd;
+    auto arm = [&](Vector2 sh, Vector2 el, Vector2 hd, Color upper, Color lower) {
+        ShadeLimb(sh, el, 7.6f * s, 6.6f * s, upper);
+        ShadeLimb(el, hd, 6.6f * s, 5.2f * s, lower);
+        Vector2 cuff = L(el, hd, 0.78f);
+        ShadeBall(cuff, 5.8f * s, h.cls == HeroClass::Mechanic ? upper : Tone(trim, -0.1f)); // cuff / rolled sleeve
+        ShadeBall(hd, 6.0f * s, glove);
+        ShadeBall({hd.x + f * 3.5f * s, hd.y - 2.5f * s}, 2.6f * s, glove); // thumb
     };
     Color forearm = h.cls == HeroClass::Mechanic ? skin : sleeve;
 
@@ -715,14 +754,21 @@ void DrawCrewFigure(const Hero& h, Vector2 ft, float s, bool right, float walk, 
         }
     }
     if (h.cls != HeroClass::Diver) ShadeBall(P(-3, -153), 11.5f * s, hair);
-    if (walking) arm(-6, {-6 - sw * 6, -105}, {-4 - sw * 13, -84}, Tone(sleeve, -0.25f), Tone(forearm, -0.25f));
-    else arm(-6, {-5, -105}, {5, -88}, Tone(sleeve, -0.25f), Tone(forearm, -0.25f));
+    {   // the far arm
+        float bR = ease(pose.backRaise);
+        Vector2 sh = P(-6, -128 + br);
+        Vector2 el = walking ? P(-6 - sw * 6, -105) : L(P(-5, -105), P(-8, -150), bR);
+        Vector2 hd = walking ? P(-4 - sw * 13, -84) : L(P(5, -88), P(-2, -172), bR);
+        arm(sh, el, hd, Tone(sleeve, -0.25f), Tone(forearm, -0.25f));
+    }
     leg(-3, walking ? -sw * 15 - 2 : -12, liftB * 6, Tone(legs, -0.22f));
     if (h.cls == HeroClass::Captain) Q(P(-19, -100), P(15, -100), P(19, -34), P(-25, -34), top); // greatcoat skirts
     leg(4, walking ? sw * 15 + 3 : 13, lift * 6, legs);
     if (h.cls == HeroClass::Nurse) {
         Q(P(-16, -100), P(16, -100), P(24, -38), P(-23, -38), top); // skirt
+        for (int k = 0; k < 3; k++) DrawLineEx(P(-8 + k * 8.0f, -96), P(-11 + k * 11.0f, -42), 1.1f * s, Tone(top, -0.35f)); // folds
         Q(P(-5, -124), P(16, -124), P(22, -42), P(-6, -42), Color{224, 218, 202, 255}); // apron
+        DrawLineEx(P(6, -100), P(8, -46), 1.0f * s, Color{190, 184, 170, 255});
     }
 
     // --- torso
@@ -735,15 +781,19 @@ void DrawCrewFigure(const Hero& h, Vector2 ft, float s, bool right, float walk, 
             Color red{176, 40, 36, 255};
             ShadeLimb(P(5, -121), P(5, -111), 1.6f * s, 1.6f * s, red);
             ShadeLimb(P(0, -116), P(10, -116), 1.6f * s, 1.6f * s, red);
+            ShadeLimb(P(-6, -136), P(12, -136), 3 * s, 3 * s, trim); // collar
+            Q(P(-15, -101), P(15, -101), P(15, -96), P(-15, -96), Tone(top, -0.3f)); // waistband
         } break;
         case HeroClass::Diver:
             Q(P(-21, -139), P(22, -139), P(17, -117), P(-17, -117), brass); // corselet
-            for (int k = 0; k < 5; k++) DrawCircleV(P(-11 + k * 6.0f, -122), 1.2f * s, Pal::BrassDk);
+            for (int k = 0; k < 6; k++) DrawCircleV(P(-14 + k * 6.0f, -121), 1.2f * s, Pal::BrassDk);
+            DrawLineEx(P(-12, -106), P(-10, -94), 1.0f * s, Tone(top, -0.35f));
             Q(P(-16, -95), P(16, -95), P(15, -87), P(-15, -87), Color{60, 54, 48, 255}); // weight belt
             for (int k = 0; k < 3; k++) ShadeBall(P(-8 + k * 8.0f, -91), 3 * s, Color{110, 110, 118, 255});
             break;
         case HeroClass::Captain:
             DrawTri(P(13, -134), P(5, -134), P(10, -116), Color{226, 222, 212, 255});
+            Q(P(4, -134), P(9, -134), P(6, -104), P(2, -104), Tone(top, 0.25f)); // lapel
             for (int k = 0; k < 3; k++) DrawCircleV(P(11, -124 + k * 10.0f), 1.6f * s, brass);
             Q(P(-16, -98), P(16, -98), P(15, -92), P(-15, -92), Color{70, 46, 28, 255});
             ShadeBall(P(11, -95), 2.6f * s, brass);
@@ -751,11 +801,15 @@ void DrawCrewFigure(const Hero& h, Vector2 ft, float s, bool right, float walk, 
             ShadeBall(P(15, -133), 6.5f * s, brass);
             for (int k = 0; k < 4; k++) DrawLineEx(P(8 + k * 2.2f, -128), P(8 + k * 2.2f, -123), 1.1f * s, Pal::BrassDk);
             break;
-        default: // mechanic's overalls
+        default: // mechanic's overalls, tool belt
             Q(P(-11, -122), P(15, -122), P(15, -86), P(-13, -86), legs);
             ShadeLimb(P(-8, -122), P(-10, -133), 1.6f * s, 1.6f * s, Tone(legs, -0.2f));
             ShadeLimb(P(11, -122), P(11, -133), 1.6f * s, 1.6f * s, Tone(legs, -0.2f));
+            ShadeBall(P(-8, -121), 1.8f * s, brass);
+            ShadeBall(P(11, -121), 1.8f * s, brass);
             Q(P(0, -114), P(9, -114), P(9, -106), P(0, -106), Tone(legs, -0.15f)); // pocket
+            Q(P(-16, -94), P(16, -94), P(15, -88), P(-15, -88), Color{92, 64, 40, 255});
+            Q(P(-14, -92), P(-5, -92), P(-5, -80), P(-14, -80), Color{110, 78, 50, 255}); // pouch
             break;
     }
 
@@ -764,23 +818,32 @@ void DrawCrewFigure(const Hero& h, Vector2 ft, float s, bool right, float walk, 
     Vector2 hd = P(3, -152);
     if (h.cls == HeroClass::Diver) {
         ShadeBall(hd, 19.5f * s, brass);
+        DrawCircleSector({hd.x - f * 7 * s, hd.y - 8 * s}, 6 * s, 0, 360, 12, Fade(WHITE, 0.35f)); // polished highlight
         ShadeBall(P(-3, -169), 3.5f * s, Pal::BrassDk);
         ShadeBall(P(12, -151), 9 * s, Pal::BrassDk);
         DrawCircleV(P(12.5f, -151), 6.4f * s, Color{18, 40, 48, 255});
+        for (int k = -1; k <= 1; k++) DrawLineEx(P(8, -151 + k * 3.0f), P(17, -151 + k * 3.0f), 0.9f * s, Pal::BrassDk); // grille
         DrawCircleV(P(10.5f, -153.5f), 1.9f * s, Color{170, 225, 235, 210});
         ShadeBall(P(-6, -150), 4.5f * s, Pal::BrassDk);
-        for (int k = 0; k < 6; k++) DrawCircleV(P(-12 + k * 5.0f, -137), 1.3f * s, Pal::BrassDk);
+        DrawCircleV(P(-6, -150), 2.6f * s, Color{18, 40, 48, 255});
+        for (int k = 0; k < 7; k++) DrawCircleV(P(-15 + k * 5.0f, -137), 1.3f * s, Pal::BrassDk);
     } else {
         ShadeBall(P(-2, -150), 3 * s, Tone(skin, -0.12f));  // ear
         ShadeBall(hd, 11.8f * s, skin);
-        ShadeBall(P(7, -146), 8 * s, skin);                 // jaw
+        ShadeBall(P(7, -145.5f), 8 * s, skin);              // jaw
+        DrawEllipse((int)P(4, -145).x, (int)P(4, -145).y, 4 * s, 2.5f * s, Fade(skinDk, 0.45f)); // under the cheekbone
         DrawCircleSector(P(-1.5f, -155), 12.4f * s, 180, 360, 18, hair);
         DrawCircleSector(P(-3, -152), 11.8f * s, f > 0 ? 90 : 0, f > 0 ? 180 : 90, 10, hair);
-        DrawEllipse((int)P(7, -151).x, (int)P(7, -151).y, 3.4f * s, 2.4f * s, Fade(Color{40, 20, 16, 255}, 0.4f)); // eye socket
-        DrawCircleV(P(7.8f, -151), 1.3f * s, Color{24, 18, 14, 255});
-        DrawLineEx(P(4, -154.8f), P(10.5f, -155.3f), 1.5f * s, Tone(hair, -0.3f));
-        ShadeBall(P(12, -148), 2.5f * s, skin);             // nose
-        DrawLineEx(P(8, -143), P(11, -143.4f), 1.1f * s, skinDk);
+        for (int k = 0; k < 4; k++) DrawLineEx(P(-9 + k * 4.0f, -165), P(-7 + k * 4.5f, -157), 0.9f * s, Tone(hair, -0.35f)); // strands
+        DrawEllipse((int)P(7.5f, -151).x, (int)P(7.5f, -151).y, 3.6f * s, 2.6f * s, Fade(Color{40, 20, 16, 255}, 0.45f)); // eye socket
+        DrawEllipse((int)P(8, -151).x, (int)P(8, -151).y, 2.2f * s, 1.3f * s, Color{236, 230, 220, 255});
+        DrawCircleV(P(8.8f, -151), 1.1f * s, Color{40, 60, 70, 255});
+        DrawLineEx(P(5.5f, -152.6f), P(10.5f, -152.4f), 0.9f * s, Tone(skin, -0.5f));   // lid
+        DrawLineEx(P(4, -155.2f), P(10.8f, -155.6f), 1.6f * s, Tone(hair, -0.3f));        // brow
+        ShadeBall(P(12, -148), 2.6f * s, skin);              // nose
+        DrawCircleV(P(12, -146.5f), 0.8f * s, Tone(skin, -0.55f));
+        DrawLineEx(P(7.5f, -142.8f), P(11.5f, -143.2f), 1.3f * s, Color{150, 80, 70, 255}); // lips
+        DrawLineEx(P(8, -140.5f), P(11, -140.8f), 0.8f * s, Fade(skinDk, 0.6f));
         switch (h.cls) {
             case HeroClass::Nurse:
                 ShadeBall(P(-11, -155), 5 * s, hair);           // bun
@@ -788,9 +851,14 @@ void DrawCrewFigure(const Hero& h, Vector2 ft, float s, bool right, float walk, 
                 ShadeLimb(P(1, -163), P(1, -158), 0.9f * s, 0.9f * s, Color{176, 40, 36, 255});
                 break;
             case HeroClass::Captain:
-                if (seed % 2) { ShadeBall(P(7, -143), 7.5f * s, Color{204, 200, 192, 255}); ShadeLimb(P(7, -146), P(13, -146), 2 * s, 1.5f * s, Color{204, 200, 192, 255}); }
+                if (seed % 2) {
+                    ShadeBall(P(7, -142.5f), 7.5f * s, Color{204, 200, 192, 255});
+                    ShadeLimb(P(7, -145), P(13, -145), 2 * s, 1.5f * s, Color{204, 200, 192, 255});
+                    for (int k = 0; k < 4; k++) DrawLineEx(P(3 + k * 3.0f, -142), P(4 + k * 3.0f, -136), 0.8f * s, Color{160, 156, 150, 255});
+                }
                 Q(P(-11, -171), P(12, -169), P(12, -160), P(-10, -160), Color{26, 26, 32, 255});
                 Q(P(-10, -162), P(12, -162), P(12, -159), P(-10, -159), brass);
+                ShadeBall(P(8, -166), 2.2f * s, brass); // cap badge
                 ShadeLimb(P(5, -159), P(18, -157), 2 * s, 1.3f * s, Color{16, 16, 20, 255});
                 break;
             case HeroClass::Mechanic:
@@ -798,41 +866,53 @@ void DrawCrewFigure(const Hero& h, Vector2 ft, float s, bool right, float walk, 
                 ShadeBall(P(6, -159), 4 * s, brass);
                 DrawCircleV(P(6.4f, -159), 2.4f * s, Color{110, 190, 196, 255});
                 DrawCircleV(P(8, -146), 2.5f * s, Fade(BLACK, 0.25f));
+                for (int k = 0; k < 8; k++) DrawPixelV(P(4 + (k % 4) * 2.5f, -141 + (k / 4) * 2.0f), Tone(hair, -0.2f)); // stubble
                 break;
             default: break;
         }
     }
 
-    // --- front arm and weapon, in front of everything
-    if (walking) arm(6, {6 + sw * 6, -106}, {8 + sw * 13, -86}, sleeve, forearm);
-    else {
-        Vector2 hand = arm(6, {12, -106}, {22, -98}, sleeve, forearm);
-        switch (h.cls) {
-            case HeroClass::Nurse: // a large syringe
-                ShadeLimb(P(14, -97), P(21, -98), 1.3f * s, 1.3f * s, steel);
-                ShadeLimb(P(24, -99), P(38, -103), 3.2f * s, 3.2f * s, Color{186, 214, 214, 255});
-                DrawLineEx(P(38, -103), P(50, -106), 1.2f * s, steel);
-                break;
-            case HeroClass::Diver: // harpoon
-                ShadeLimb(P(-8, -84), P(48, -112), 1.7f * s, 1.7f * s, steel);
-                DrawTri(P(48, -118), P(58, -117), P(49, -108), steel);
-                break;
-            case HeroClass::Captain: // cutlass
-                ShadeLimb(hand, P(34, -138), 2.4f * s, 1.3f * s, Color{206, 210, 216, 255});
-                ShadeBall(hand, 4.2f * s, brass);
-                break;
-            default: // a heavy wrench
-                ShadeLimb(hand, P(34, -70), 2.8f * s, 2.6f * s, steel);
-                ShadeBall(P(35, -68), 6.5f * s, steel);
-                DrawCircleV(P(38, -66), 2.8f * s, Tone(steel, -0.6f));
-                break;
-        }
+    // --- the weapon arm, in front of everything, posed by `pose`
+    float rz = ease(pose.raise), rc = ease(pose.reach);
+    Vector2 sh = P(6, -128 + br);
+    Vector2 elIdle = walking ? P(6 + sw * 6, -106) : P(12, -106), hdIdle = walking ? P(8 + sw * 13, -86) : P(22, -98);
+    Vector2 el = L(L(elIdle, P(16, -150), rz), P(30, -122), rc);
+    Vector2 hand = L(L(hdIdle, P(8, -174), rz), P(46, -118), rc);
+    arm(sh, el, hand, sleeve, forearm);
+    if (walking && h.cls != HeroClass::Diver) return;
+    // weapon angle in degrees: 0 points straight ahead, negative points up
+    float base = h.cls == HeroClass::Nurse ? -8.0f : h.cls == HeroClass::Diver ? -26.0f : h.cls == HeroClass::Captain ? -64.0f : 70.0f;
+    float ang = (base - 110 * rz + pose.weaponTilt) * DEG2RAD;
+    auto W = [&](float along) { return Vector2{hand.x + cosf(ang) * along * s * f, hand.y + sinf(ang) * along * s}; };
+    switch (h.cls) {
+        case HeroClass::Nurse: // a large syringe
+            ShadeLimb(W(-8), W(-1), 1.3f * s, 1.3f * s, steel);
+            ShadeLimb(W(2), W(16), 3.2f * s, 3.2f * s, Color{186, 214, 214, 255});
+            ShadeLimb(W(6), W(13), 2 * s, 2 * s, Color{120, 200, 120, 255}); // the dose
+            DrawLineEx(W(16), W(28), 1.2f * s, steel);
+            break;
+        case HeroClass::Diver: { // harpoon
+            ShadeLimb(W(-30), W(36), 1.7f * s, 1.7f * s, steel);
+            Vector2 tip = W(46), a = W(36);
+            Vector2 n{-sinf(ang) * 5 * s * f, cosf(ang) * 5 * s};
+            DrawTri(tip, {a.x + n.x, a.y + n.y}, {a.x - n.x, a.y - n.y}, steel);
+        } break;
+        case HeroClass::Captain: // cutlass
+            ShadeLimb(W(2), W(36), 2.4f * s, 1.2f * s, Color{206, 210, 216, 255});
+            DrawLineEx(W(4), W(34), 0.8f * s, Fade(WHITE, 0.6f));
+            ShadeBall(hand, 4.2f * s, brass);
+            break;
+        default: // a heavy wrench
+            ShadeLimb(W(-4), W(30), 2.8f * s, 2.6f * s, steel);
+            ShadeBall(W(33), 6.5f * s, steel);
+            DrawCircleV(W(36), 2.8f * s, Tone(steel, -0.6f));
+            break;
     }
 }
 
-void DrawCrewFigureInked(const Hero& h, Vector2 feet, float s, bool right, float walk, float t) {
+void DrawCrewFigureInked(const Hero& h, Vector2 feet, float s, bool right, float walk, float t, const Pose& pose, Color tint) {
     BeginFigure();
-    DrawCrewFigure(h, FIG_FEET, s, right, walk, t);
-    EndFigure(feet);
+    DrawCrewFigure(h, FIG_FEET, s, right, walk, t, pose);
+    EndFigure(feet, tint);
 }
 

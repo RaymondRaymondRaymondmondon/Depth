@@ -2,11 +2,12 @@
 //  DEPTH - entry point. Opens the window and runs whichever scene is active.
 //
 //  Developer switches:
-//    depth.exe --sim 400 [level] [random]   auto-play expeditions and print balance stats
+//    depth.exe --sim 400 [level] [random|sensible] [cave tier 0-4]   auto-play expeditions, print balance
 //    depth.exe --shots <folder>    render every screen to PNGs and quit
 //    depth.exe --verify            prove every platformer section can be crossed
 // ============================================================================
 #include "game.h"
+#include <algorithm>
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
@@ -31,22 +32,18 @@ static void RunScene(Game& g) {
 
 static void TakeShots(const Game& base, const std::string& dir) {
     struct Shot { const char* name; std::function<void(Game&)> setup; };
-    auto hubAt = [](float cam) { return [cam](Game& g) { g.scene = Scene::Hub; g.hubCam = g.hubCamTarget = cam; }; };
     const Shot shots[] = {
-        {"hub_bow", hubAt(-160)},
-        {"hub_library", hubAt(640)},
-        {"hub_radar", hubAt(1200)},
-        {"hub_helm", hubAt(1690)},
-        {"hub_periscope", hubAt(2500)},
-        {"hub_sickbay", hubAt(3500)},
-        {"hub_stern", hubAt(3880)},
+        {"hub", [](Game& g) { g.scene = Scene::Hub; }},
+        {"hub_leave", [](Game& g) { g.scene = Scene::Hub; g.roster[0].onLeave = 1; g.roster[1].rattled = true; }},
         {"crew", [](Game& g) { g.scene = Scene::Crew; g.roster[1].level = 3; g.selectedHero = g.roster[1].id; }},
-        {"helm", [](Game& g) { g.scene = Scene::Helm; }},
+        {"helm", [](Game& g) { g.scene = Scene::Helm; g.caveTierCleared = 1; g.caveTier = 2; }},
         {"radar", [](Game& g) { g.scene = Scene::Radar; }},
         {"workshop", [](Game& g) { g.scene = Scene::Workshop; g.gold = 500; g.upgrades[UP_BUNKS] = 1; }},
         {"library", [](Game& g) { g.scene = Scene::Bookshelf; g.bookTab = 1; }},
         {"combat", [](Game& g) { g.dungeon.light = 60; DebugEnterCombat(g); }},
         {"combat_dark", [](Game& g) { DebugEnterCombat(g); g.dungeon.light = 10; }},
+        {"combat_walk", [](Game& g) { DebugEnterCombat(g); g.dungeon.phase = DPhase::Walking; g.dungeon.walkT = 0.4f; }},
+        {"combat_deep", [](Game& g) { g.caveTierCleared = 4; g.caveTier = 3; DebugEnterCombat(g); }},
         {"periscope", [](Game& g) { g.scene = Scene::Periscope; g.platCleared[0] = true; }},
         {"pipes", [](Game& g) { StartPlatform(g, PL_PIPES); }},
         {"pipes_chimney", [](Game& g) { g.platLayouts[PL_PIPES] = {2, 0, 1, 3, 4, 5}; StartPlatform(g, PL_PIPES); g.plat.pos = {24 * 32 + 200, 200}; }},
@@ -58,10 +55,8 @@ static void TakeShots(const Game& base, const std::string& dir) {
     for (const auto& s : shots) {
         Game g = base;
         s.setup(g);
-        float cam = g.hubCam;
         for (int f = 0; f < 90; f++) {
             g.time += 1 / 60.0f;
-            g.hubCam = g.hubCamTarget = cam;
             BeginFrame();
             RunScene(g);
             EndFrame(g.time);
@@ -76,7 +71,7 @@ int main(int argc, char** argv) {
     if (argc >= 2 && strcmp(argv[1], "--sim") == 0) {
         SetTraceLogLevel(LOG_WARNING);
         SimulateExpeditions(argc >= 3 ? atoi(argv[2]) : 400, argc >= 4 ? atoi(argv[3]) : 0,
-                            argc >= 5 && strcmp(argv[4], "random") == 0);
+                            argc >= 5 && strcmp(argv[4], "random") == 0, argc >= 6 ? std::clamp(atoi(argv[5]), 0, CAVE_TIERS - 1) : 0);
         return 0;
     }
     if (argc >= 2 && strcmp(argv[1], "--verify") == 0) {
@@ -97,13 +92,18 @@ int main(int argc, char** argv) {
     if (shotDir) {
         TakeShots(g, shotDir);
     } else {
+        if (LoadGame(g)) Toast(g, "Welcome back aboard. Your progress was loaded.");
+        Scene last = g.scene;
         while (!WindowShouldClose()) {
             g.time += GetFrameTime();
             BeginFrame();
             RunScene(g);
             DrawToast(g);
             EndFrame(g.time);
+            if (g.scene != last && g.scene == Scene::Hub) SaveGame(g); // autosave whenever you're back aboard
+            last = g.scene;
         }
+        if (g.scene != Scene::Dungeon) SaveGame(g); // quitting mid-expedition keeps the last save from aboard
     }
     UnloadArt();
     CloseWindow();

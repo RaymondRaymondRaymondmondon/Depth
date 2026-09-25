@@ -22,6 +22,8 @@ add_executable(depth
     src/ui.cpp
     src/render.cpp
     src/hub.cpp
+    src/salon.cpp
+    src/save.cpp
     src/dungeon.cpp
     src/platformer.cpp
 )

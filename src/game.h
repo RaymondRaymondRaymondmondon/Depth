@@ -67,6 +67,7 @@ struct Ability {
     bool mark = false;           // marked enemies take +25% damage for 3 turns
     int moveTarget = 0;          // + pushes an enemy back, - pulls it forward
     bool swapWithTarget = false; // "command team": trade places with an ally
+    bool ranged = false;         // thrown or fired (animates with a projectile) rather than a close-in strike
     int unlockLevel = 0;         // hero level needed before it can be slotted
 };
 
@@ -130,9 +131,45 @@ struct FloatText { Vector2 pos; std::string text; Color color; float life; };
 struct TurnEntry { bool hero; int id; int init; };
 
 enum class RoomType { Fight, Treasure, Boss };
-enum class DPhase { Corridor, Combat, RoomClear, Treasure, Victory, Retreat, Defeat };
+enum class DPhase { Corridor, Walking, Combat, RoomClear, Treasure, Victory, Retreat, Defeat };
+
+// Dungeon difficulty levels. Clearing one unlocks the next; earlier ones stay available.
+constexpr int CAVE_TIERS = 5;
+inline constexpr int CAVE_TIER_LEVEL[CAVE_TIERS] = {0, 1, 3, 5, 6};
+inline const char* const CAVE_TIER_NAME[CAVE_TIERS] = {"Shallows", "Tidal Caves", "The Deep", "The Abyss", "The Trench"};
+
+// ---------- combat animation ----------
+enum class Anim { None, Melee, Ranged, Heal, Buff, Hurt, Dodge };
+struct UnitAnim { bool hero; int id; Anim kind; float t, dur; };
+struct Projectile { Vector2 from, to; float t, dur; int kind; bool hero; };
+struct Spark { Vector2 p, v; float life, max, size; Color c; };
+// An action in progress: the actor winds up, its effect lands at `impact`, and the turn ends at `end`.
+struct PendingAction {
+    bool active = false, hero = false, applied = false, fired = false;
+    int id = -1, ability = -1, target = -1;
+    Anim kind = Anim::None;
+    float t = 0, fire = 0, impact = 0, end = 0;
+};
+
+// How a crew member is posed this frame (all zero = standing ready). Set by the combat animations.
+struct Pose {
+    float lean = 0;        // + leans forward, - rears back
+    float crouch = 0;      // 0..1 bends the knees
+    float reach = 0;       // 0..1 thrusts the weapon arm forward
+    float raise = 0;       // 0..1 lifts the weapon arm overhead
+    float backRaise = 0;   // 0..1 lifts the other arm
+    float weaponTilt = 0;  // extra weapon rotation in degrees (+ swings down/forward)
+};
 
 struct DungeonState {
+    int tier = 0;                  // index into CAVE_TIER_LEVEL
+    float scroll = 0, walkT = 0;   // how far the party has walked (drives the parallax), and the walk timer
+    std::vector<UnitAnim> anims;
+    std::vector<Projectile> shots;
+    std::vector<Spark> sparks;
+    PendingAction pending;
+    float shake = 0;
+    std::string levelUps;
     std::vector<RoomType> rooms;
     int roomIndex = -1;
     float light = 100;
@@ -164,6 +201,7 @@ struct PlatBoss {
     int hp = 3, state = 0;
     float timer = 0, invuln = 0, dir = -1;
     float tentX[2] = {0, 0}, tentT[2] = {-1, -1}; // Kraken tentacle strikes (x, time since warning; <0 = idle)
+    bool tentTop[2] = {false, false};             // true = slams down from above, false = rises from the abyss
     bool defeated = false;
 };
 
@@ -203,7 +241,8 @@ struct Game {
     std::vector<int> platLayouts[PL_COUNT]; // which chunks make up each platform level's current layout
     bool platCleared[PL_COUNT] = {false, false, false};
     float platBest[PL_COUNT] = {0, 0, 0};    // best clear time in seconds (0 = never cleared)
-    float hubCam = 1690, hubCamTarget = 1690; // left edge of the view along the Nautilus deck (starts at the Helm)
+    int caveTierCleared = -1;                // highest cave level beaten (-1 = none)
+    int caveTier = 0;                        // the cave level chosen at the Helm
     std::string toast;
     float toastTimer = 0;
     float time = 0;
@@ -237,6 +276,12 @@ const char* UpgradeName(int u);
 const char* UpgradeDesc(int u, int level); // what the given level does
 int UpgradePrice(int level);                // price to buy the given level
 int LoadoutCount(const Hero& h);
+void ScaleEnemyForTier(Enemy& e, int tier);
+
+// ---------- save.cpp ----------
+bool SaveGame(const Game& g);
+bool LoadGame(Game& g);
+void DeleteSave();
 
 // ---------- render.cpp: lighting, textures, post-processing, figures ----------
 void InitArt();
@@ -269,14 +314,18 @@ void DrawFlange(Vector2 c, float radius, bool vertical, Color base);
 void DrawGauge(Vector2 c, float r, float needle01, Color face);
 void DrawGear(Vector2 c, float r, int teeth, float rot, Color col);
 void DrawBrassPlate(Rectangle r, const char* text, int size);
-void DrawCrewFigure(const Hero& h, Vector2 feet, float scale, bool faceRight, float walk, float t);
-void DrawCrewFigureInked(const Hero& h, Vector2 feet, float scale, bool faceRight, float walk, float t); // with ink and volume
+void DrawCrewFigure(const Hero& h, Vector2 feet, float scale, bool faceRight, float walk, float t, const Pose& pose = Pose{});
+void DrawCrewFigureInked(const Hero& h, Vector2 feet, float scale, bool faceRight, float walk, float t,
+                         const Pose& pose = Pose{}, Color tint = WHITE); // with ink and volume
 void DrawShadowBlob(Vector2 feet, float w);
 // Characters: draw between BeginFigure/EndFigure with their feet at FigureFeet(); EndFigure inks them,
-// adds volume, and places them with their feet at `feet` on screen.
+// adds volume, and places them with their feet at `feet` on screen. `tint` flashes them (e.g. red when hit).
 void BeginFigure();
-void EndFigure(Vector2 feet);
+void EndFigure(Vector2 feet, Color tint = WHITE);
 Vector2 FigureFeet();
+RenderTexture2D& ArtRT();              // 512 x 768 scratch canvas for flat art mapped onto walls
+void BeginCanvas(RenderTexture2D& rt); // like BeginFigure, but just paints into `rt`
+void EndCanvas();
 Color Tone(Color c, float k); // k < 0 darkens toward shadow, k > 0 lightens toward a warm highlight
 void ShadeBall(Vector2 c, float r, Color col);                         // a lit sphere
 void ShadeLimb(Vector2 a, Vector2 b, float wa, float wb, Color c);     // a lit tapered cylinder
@@ -317,7 +366,7 @@ void SceneWorkshop(Game& g);
 void StartDungeon(Game& g);
 void SceneDungeon(Game& g);
 void DebugEnterCombat(Game& g);    // debug: jump straight into the first fight
-void SimulateExpeditions(int runs, int level, bool randomPlayer); // debug: auto-play expeditions and print the results
+void SimulateExpeditions(int runs, int level, bool randomPlayer, int tier = 0); // debug: auto-play expeditions and print the results
 
 // ---------- platformer.cpp ----------
 void GeneratePlatLayout(Game& g, int level);
