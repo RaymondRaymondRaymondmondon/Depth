@@ -287,13 +287,13 @@ int LoadoutCount(const Hero& h) {
 // ---------------------------------------------------------------- workshop upgrades
 //                                    level:  0   1   2   3
 static const int ROSTER_SIZE[4]      = {8,  9, 10, 12};
-static const int RECRUITS[4]         = {3,  4,  4,  5};
+static const int RADAR_REFRESHES[4]  = {0,  1,  2,  3};
 static const int SCAN_COST[4]        = {70, 55, 40, 25};
 static const int WARD_COST[4]        = {9,  7,  5,  4};
 static const int LIGHT_DRAIN[4]      = {20, 16, 12, 9};
 
 int MaxRoster(const Game& g) { return ROSTER_SIZE[g.upgrades[UP_BUNKS]]; }
-int RecruitsPerScan(const Game& g) { return RECRUITS[g.upgrades[UP_SONAR]]; }
+int SonarRefreshCount(const Game& g) { return RADAR_REFRESHES[g.upgrades[UP_SONAR]]; }
 int ScanCost(const Game& g) { return SCAN_COST[g.upgrades[UP_SONAR]]; }
 int WardCostPerHp(const Game& g) { return WARD_COST[g.upgrades[UP_INFIRMARY]]; }
 int LightDrainPerRoom(const Game& g) { return LIGHT_DRAIN[g.upgrades[UP_REFLECTOR]]; }
@@ -312,14 +312,15 @@ const char* UpgradeDesc(int u, int lv) {
     switch (u) {
         case UP_REFLECTOR: return TextFormat("Each room drains %d light", LIGHT_DRAIN[lv]);
         case UP_BUNKS: return TextFormat("Room for %d crew aboard", ROSTER_SIZE[lv]);
-        case UP_SONAR: return TextFormat("%d recruits per scan, scans cost %dg", RECRUITS[lv], SCAN_COST[lv]);
+        case UP_SONAR: return TextFormat("%d re-scan%s per mission, scans cost %dg", RADAR_REFRESHES[lv], RADAR_REFRESHES[lv] == 1 ? "" : "s", SCAN_COST[lv]);
         default: return TextFormat("The Ward charges %dg per HP", WARD_COST[lv]);
     }
 }
 
 void RefreshRadar(Game& g) {
     g.recruits.clear();
-    for (int i = 0; i < RecruitsPerScan(g); i++) g.recruits.push_back(MakeRandomHero(g));
+    for (int i = 0; i < RECRUIT_BATCH; i++) g.recruits.push_back(MakeRandomHero(g));
+    g.radarRefreshes = SonarRefreshCount(g);
     g.shopRelics.clear();
     while (g.shopRelics.size() < 3) {
         int r = GetRandomValue(0, (int)Relics().size() - 1);

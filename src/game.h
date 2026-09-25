@@ -12,6 +12,7 @@ constexpr int SCREEN_W   = 1280;
 constexpr int SCREEN_H   = 720;
 constexpr int PARTY_SIZE = 4;
 constexpr int LOADOUT_SIZE = 4; // abilities a hero brings on an expedition (out of 8)
+constexpr int RECRUIT_BATCH = 4; // exactly four new recruits show up after each mission
 
 // ---------- Palette: a brighter take on Darkest Dungeon ----------
 namespace Pal {
@@ -285,6 +286,7 @@ struct Game {
     std::array<int, PARTY_SIZE> party{{-1, -1, -1, -1}}; // hero ids, rank 1 first
     std::vector<int> relicStorage;
     std::vector<Hero> recruits;
+    int radarRefreshes = 0; // manual re-scans left this expedition cycle, from the Sonar Array upgrade
     std::vector<int> shopRelics;
     int nextHeroId = 1;
     int selectedHero = -1;
@@ -326,7 +328,7 @@ bool InParty(const Game& g, int id);
 void CompactParty(Game& g);
 void RefreshRadar(Game& g);
 int MaxRoster(const Game& g);
-int RecruitsPerScan(const Game& g);
+int SonarRefreshCount(const Game& g);
 int ScanCost(const Game& g);
 int WardCostPerHp(const Game& g);
 int LightDrainPerRoom(const Game& g);

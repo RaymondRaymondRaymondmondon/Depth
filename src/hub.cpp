@@ -312,11 +312,14 @@ void SceneRadar(Game& g) {
     }
     if ((int)g.roster.size() >= MaxRoster(g))
         Txt(TextFormat("Crew quarters are full (%d). Dismiss someone, or extend the bunks in the Workshop.", MaxRoster(g)), 50, 612, 15, Pal::Coral);
-    if (Button({48, 640, 300, 44}, TextFormat("Scan for new signals (%dg)", ScanCost(g)), g.gold >= ScanCost(g))) {
+    bool canScan = g.gold >= ScanCost(g) && g.radarRefreshes > 0;
+    if (Button({48, 640, 300, 44}, TextFormat("Scan for new signals (%dg)", ScanCost(g)), canScan)) {
         g.gold -= ScanCost(g);
+        g.radarRefreshes--;
         g.recruits.clear();
-        for (int i = 0; i < RecruitsPerScan(g); i++) g.recruits.push_back(MakeRandomHero(g));
+        for (int i = 0; i < RECRUIT_BATCH; i++) g.recruits.push_back(MakeRandomHero(g));
     }
+    Txt(TextFormat("%d re-scan%s left this mission", g.radarRefreshes, g.radarRefreshes == 1 ? "" : "s"), 360, 654, 15, Pal::BrassDk);
 
     Panel({670, 90, 580, 612});
     TxtBold("Salvage market: relics", 690, 104, 21, Pal::Ink);
