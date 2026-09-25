@@ -12,6 +12,7 @@ constexpr int SCREEN_W   = 1280;
 constexpr int SCREEN_H   = 720;
 constexpr int PARTY_SIZE = 4;
 constexpr int LOADOUT_SIZE = 4; // abilities a hero brings on an expedition (out of 8)
+constexpr int RECRUIT_BATCH = 4; // exactly four new recruits show up after each mission
 
 // ---------- Palette: a brighter take on Darkest Dungeon ----------
 namespace Pal {
@@ -42,7 +43,7 @@ constexpr int MELEE_HITS = RANK_1 | RANK_2;           // ...and can only reach t
 constexpr int RANGED_FROM = RANK_2 | RANK_3 | RANK_4; // ranged: anywhere except the very front
 constexpr int ANY_RANK = RANK_1 | RANK_2 | RANK_3 | RANK_4;
 
-enum class HeroClass { Nurse, Diver, Captain, Mechanic, COUNT };
+enum class HeroClass { Nurse, Diver, Captain, Mechanic, Whaler, Stowaway, Merman, Queen, Robot, Octopus, Siren, Wisp, COUNT };
 enum class Target { Enemy, Ally, Self, AllAllies };
 
 struct Ability {
@@ -60,9 +61,10 @@ struct Ability {
     int stunChance = 0;          // percent
     int bleed = 0;               // damage per turn, 3 turns
     int poison = 0;              // damage per turn, 3 turns
-    int buffDmg = 0;             // +% damage for a few turns
-    int buffDodge = 0;           // +dodge for a few turns
-    int buffProt = 0;            // +protection for a few turns
+    int buffDmg = 0;             // +% damage for a few turns (negative on an enemy: weakens its attack)
+    int buffDodge = 0;           // +dodge for a few turns (negative on an enemy: strips its evasion)
+    int buffProt = 0;            // +protection for a few turns (negative on an enemy: exposes it)
+    int buffAcc = 0;             // +accuracy for a few turns (negative on an enemy: blinds it)
     int guardTurns = 0;          // taunt + extra protection
     bool mark = false;           // marked enemies take +25% damage for 3 turns
     int moveTarget = 0;          // + pushes an enemy back, - pulls it forward
@@ -75,9 +77,10 @@ struct Status {
     int bleedDmg = 0, bleedTurns = 0;
     int poisonDmg = 0, poisonTurns = 0; // poison stacks, and halves healing received
     int stunned = 0;
-    int buffDmg = 0, buffTurns = 0;
-    int dodgeBuff = 0, dodgeTurns = 0;
-    int protBuff = 0, protTurns = 0;
+    int buffDmg = 0, buffTurns = 0;       // negative = weakened attack (an enemy effect)
+    int dodgeBuff = 0, dodgeTurns = 0;    // negative = stripped evasion (an enemy effect)
+    int protBuff = 0, protTurns = 0;      // negative = exposed (an enemy effect)
+    int accBuff = 0, accTurns = 0;        // negative = blinded (an enemy effect)
     int guardTurns = 0;
     int marked = 0;
 };
@@ -245,6 +248,12 @@ struct PlatBoss {
     float chargeStartX = 0;                        // Blackbeard: where a charge began, so a lucky tap on a nearby wall doesn't count
     float tentX[2] = {0, 0}, tentT[2] = {-1, -1}; // Kraken tentacle strikes (x, time since warning; <0 = idle)
     bool tentTop[2] = {false, false};             // true = slams down from above, false = rises from the abyss
+    bool tentFake[2] = {false, false};            // a bluff: warns like a real strike, then never extends
+    int moveKind = -1;                            // Kraken, chosen once per submerged cycle: -1 not yet, 0 tentacles, 1 ink, 2 lunge
+    float inkT = -1;                              // Kraken ink spray: seconds since it began, < 0 = idle
+    bool inkSafeRight = false;                    // which half of the arena the ink cloud leaves clear
+    float lungeT = -1;                            // Kraken lunge: seconds since it began, < 0 = idle
+    float lungeFromX = 0, lungeToX = 0;           // sweep endpoints
     bool defeated = false;
 };
 
@@ -285,11 +294,13 @@ struct Game {
     std::array<int, PARTY_SIZE> party{{-1, -1, -1, -1}}; // hero ids, rank 1 first
     std::vector<int> relicStorage;
     std::vector<Hero> recruits;
+    int radarRefreshes = 0; // manual re-scans left this expedition cycle, from the Sonar Array upgrade
     std::vector<int> shopRelics;
     int nextHeroId = 1;
     int selectedHero = -1;
     int dismissArmed = -1;
     int bookTab = 0;
+    int bookScroll = 0;
     int relicScroll = 0;
     int upgrades[UP_COUNT] = {0, 0, 0, 0};
     std::vector<int> platLayouts[PL_COUNT]; // which chunks make up each platform level's current layout
@@ -326,7 +337,7 @@ bool InParty(const Game& g, int id);
 void CompactParty(Game& g);
 void RefreshRadar(Game& g);
 int MaxRoster(const Game& g);
-int RecruitsPerScan(const Game& g);
+int SonarRefreshCount(const Game& g);
 int ScanCost(const Game& g);
 int WardCostPerHp(const Game& g);
 int LightDrainPerRoom(const Game& g);

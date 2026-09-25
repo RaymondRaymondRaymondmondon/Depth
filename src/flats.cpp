@@ -101,8 +101,40 @@ struct State {
     int laneResult[LANES] = {0, 0, 0}; // after a round: +1 you took it, -1 the dealer did
     bool lost = false, cashed = false;
     int payout = 0;
+    bool showRules = false; // the "how to play" folder, open at any time
 };
 State S;
+
+const char* RULES_TEXT =
+    "Three flats lie across the table. Each round you and the dealer are dealt five cards from your own decks and "
+    "take turns laying them, two at a time; ring the bell to end your turn. The higher total in a flat wins it. "
+    "Take two flats to take the round, and two rounds to take the match.\n\n"
+    "A pair of a suit in one flat: +2 for each extra card. Consecutive values: +1 for each step, +4 for a straight of three. "
+    "Specials: Tide copies its best neighbour, Snare cuts the opposite flat by 3, Lantern counts as any suit, Wave adds +2 for every other card beside it.\n\n"
+    "Win a match to add a card to your deck and face a harder dealer. Payouts: 40, 100 and 220 gold. "
+    "Cash out after any match, or press on; lose a match and the pot is gone.";
+
+// A folder tab at the screen's edge, open at any time during play, so the rules are never more than a click away.
+Rectangle RulesTabRect() { return {(float)SCREEN_W - 34, 300, 34, 130}; }
+void DrawRulesFolder(Vector2 m) {
+    Rectangle tab = RulesTabRect();
+    bool hot = CheckCollisionPointRec(m, tab) || S.showRules;
+    Color col = hot ? Pal::Brass : ColorBrightness(Pal::Brass, -0.3f);
+    DrawRectangleRounded({tab.x - 2, tab.y, tab.width + 2, tab.height}, 0.3f, 6, Color{8, 12, 16, 220});
+    DrawRectangleRoundedLinesEx({tab.x - 2, tab.y, tab.width + 2, tab.height}, 0.3f, 6, 1.5f, col);
+    rlPushMatrix();
+    rlTranslatef(tab.x + tab.width / 2 + 5, tab.y + tab.height - 10, 0);
+    rlRotatef(-90, 0, 0, 1);
+    TxtBold("HOW TO PLAY", -55, -8, 15, col);
+    rlPopMatrix();
+    if (S.showRules) {
+        Rectangle p{SCREEN_W / 2.0f - 340, SCREEN_H / 2.0f - 230, 680, 460};
+        Panel(p);
+        DrawTextCenteredBold("How Flats is played", p.x + p.width / 2, p.y + 18, 30, Pal::Ink);
+        DrawWrapped(RULES_TEXT, {p.x + 34, p.y + 64, p.width - 68, p.height - 130}, 15, Pal::Ink);
+        if (Button({p.x + p.width / 2 - 90, p.y + p.height - 56, 180, 42}, "Close")) S.showRules = false;
+    }
+}
 
 Card RandomCard(int lo, int hi) {
     Card c;
@@ -374,37 +406,48 @@ void DrawTable() {
     Txt("you : dealer", 258, 458, 12, Color{120, 190, 220, 160});
 }
 
+// The same lit-figure technique the salon uses for its own cast (ShadeLimb/ShadeBall between BeginFigure/
+// EndFigure), so the dealer you actually sit across from looks as three-dimensional as the one at his table
+// in the salon, just bigger: he's the whole scene's focal point here.
+// The same proportions and lit-figure technique (ShadeLimb/ShadeBall between BeginFigure/EndFigure) as the
+// dealer standing at his table in the salon, just scaled up: he's the whole scene's focal point here, so the
+// two should read as the same character instead of two differently-drawn men.
 void DrawDealer(float t) {
-    float cx = 640, bob = sinf(t * 1.2f) * 2.5f, top = 30 + bob;
-    Color cloak{10, 12, 20, 255}, cloakLt{22, 28, 44, 255};
-    // shoulders and cloak, dissolving into the dark
-    DrawEllipse((int)cx, (int)(top + 250), 250, 150, cloak);
-    DrawTri({cx - 250, top + 300}, {cx + 250, top + 300}, {cx, top + 120}, cloak);
-    DrawEllipse((int)(cx - 60), (int)(top + 190), 120, 34, cloakLt);
-    DrawEllipse((int)cx, (int)(top + 96), 96, 108, cloak);                      // the hood
-    DrawEllipse((int)cx, (int)(top + 106), 62, 78, Color{104, 106, 108, 255});   // the face, grey and heavy
-    DrawEllipse((int)(cx - 8), (int)(top + 84), 40, 38, Color{132, 134, 134, 255});
-    DrawRectangle((int)cx - 44, (int)(top + 74), 88, 10, Color{58, 60, 64, 255}); // the brow
-    DrawLineEx({cx - 42, top + 76}, {cx - 16, top + 84}, 3, Color{40, 40, 44, 255});
-    DrawLineEx({cx + 42, top + 76}, {cx + 16, top + 84}, 3, Color{40, 40, 44, 255});
-    DrawLineEx({cx, top + 92}, {cx - 4, top + 124}, 4, Color{78, 80, 84, 255});   // the nose
-    DrawLineEx({cx - 24, top + 152}, {cx + 24, top + 150}, 3, Color{30, 26, 28, 255}); // a flat mouth
-    // eyes that follow you, glowing faintly
+    float cx = 640, breathe = sinf(t * 1.2f) * 2.4f;
+    Vector2 feet{cx, 470}, o = FigureFeet();
+    float k = 2.0f;
+    auto P = [&](float dx, float dy) { return Vector2{o.x + dx * k, o.y + dy * k}; };
+    Color cloak{26, 30, 48, 255}, glove{34, 34, 40, 255}, wax{132, 134, 132, 255};
+    BeginFigure();
+    ShadeLimb(P(-30, -128 + breathe), P(30, -128 + breathe), 24, 24, cloak); // shoulders
+    ShadeLimb(P(0, -60), P(0, -130 + breathe), 30, 27, cloak);               // the body under the cloak
+    DrawTri(P(-46, -118), P(46, -118), P(0, -180 + breathe), Tone(cloak, -0.3f)); // the hood's peak
+    ShadeBall(P(0, -160 + breathe), 25, Tone(cloak, -0.2f));                 // hood
+    ShadeBall(P(1, -158 + breathe), 15.5f, wax);                            // face
+    DrawLineEx(P(-12, -164 + breathe), P(12, -164 + breathe), 6, Color{50, 52, 56, 255});   // heavy brow
+    DrawLineEx(P(-8, -142 + breathe), P(8, -142 + breathe), 4.4f, Color{36, 32, 34, 255});  // a flat mouth
+    for (int e = -1; e <= 1; e += 2) DrawEllipse((int)P(e * 6.5f, -159 + breathe).x, (int)P(e * 6.5f, -159 + breathe).y, 3.6f * k, 2.4f * k, Color{214, 226, 255, 255});
+    ShadeLimb(P(-30, -128 + breathe), P(-38, -108), 10, 9, cloak); // arms reaching to the felt
+    ShadeLimb(P(30, -128 + breathe), P(38, -108), 10, 9, cloak);
+    ShadeBall(P(-38, -106), 7, glove);
+    ShadeBall(P(38, -106), 7, glove);
+    EndFigure(feet);
+    // his eyes catch the light and follow you
     Vector2 m = GetMousePosition();
     float lookx = std::clamp((m.x - cx) * 0.012f, -4.0f, 4.0f), looky = std::clamp((m.y - 200) * 0.006f, -2.0f, 3.0f);
     for (int s = -1; s <= 1; s += 2) {
-        Vector2 e{cx + s * 25, top + 100};
-        Glow(e, 34, Color{150, 170, 255, 60});
-        DrawEllipse((int)e.x, (int)e.y, 11, 7, Color{200, 214, 255, 235});
+        Vector2 e{feet.x + (P(s * 6.5f, -159 + breathe).x - o.x), feet.y + (P(s * 6.5f, -159 + breathe).y - o.y)};
+        Glow(e, 26, Color{150, 170, 255, 90});
+        DrawCircleV({e.x + lookx, e.y + looky}, 3.6f, Color{20, 24, 40, 255});
     }
-    for (int s = -1; s <= 1; s += 2) DrawCircleV({cx + s * 25 + lookx, top + 100 + looky}, 3.2f, Color{20, 24, 40, 255});
     // a dagger held up beside his shoulder, catching the cold light
-    Vector2 hand{cx + 190, top + 210}, tip{cx + 220, top + 40};
+    Vector2 hand{feet.x + (P(38, -108).x - o.x), feet.y + (P(38, -108).y - o.y)}, tip{cx + 60, feet.y - 340};
     DrawLineEx(hand, tip, 7, Color{150, 176, 196, 255});
     DrawLineEx({hand.x - 3, hand.y}, {tip.x - 3, tip.y + 10}, 2, Color{210, 232, 244, 255});
     DrawLineEx({hand.x - 22, hand.y - 4}, {hand.x + 22, hand.y - 4}, 6, Color{90, 78, 56, 255});
-    DrawCircleV({hand.x, hand.y + 14}, 15, Color{28, 30, 36, 255});               // his gloved fist
-    DrawCircleV({cx - 190, top + 262}, 15, Color{28, 30, 36, 255});                // and the other, resting
+    DrawCircleV({hand.x, hand.y + 14}, 15, Color{28, 30, 36, 255}); // his gloved fist around the grip
+    Vector2 rest{feet.x + (P(-38, -106).x - o.x), feet.y + (P(-38, -106).y - o.y) + 156};
+    DrawCircleV(rest, 15, Color{28, 30, 36, 255}); // and the other hand, resting on the table
 }
 
 void DrawSkull(float t, float x, float y) {
@@ -739,7 +782,7 @@ void SceneCards(Game& g) {
     }
 
     // ---------------- input while playing
-    if (S.phase == Phase::Playing && S.yourTurn) {
+    if (S.phase == Phase::Playing && S.yourTurn && !S.showRules) {
         if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) S.selected = -1;
         if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
             if (hoverCard >= 0 && S.actions > 0) S.selected = S.selected == hoverCard ? -1 : hoverCard;
@@ -759,19 +802,13 @@ void SceneCards(Game& g) {
 
     // ---------------- overlays
     Rectangle centre{300, 110, 680, 400};
+    if (!S.showRules)
     switch (S.phase) {
         case Phase::Menu: {
             Panel(centre);
             DrawTextCenteredBold("FLATS", centre.x + centre.width / 2, centre.y + 18, 44, Pal::Ink);
             DrawTextCentered(DEALER_LINES[0], centre.x + centre.width / 2, centre.y + 72, 18, Pal::BrassDk);
-            DrawWrapped("Three flats lie across the table. Each round you and the dealer are dealt five cards from your own decks and "
-                        "take turns laying them, two at a time; ring the bell to end your turn. The higher total in a flat wins it. "
-                        "Take two flats to take the round, and two rounds to take the match.\n\n"
-                        "A pair of a suit in one flat: +2 for each extra card. Consecutive values: +1 for each step, +4 for a straight of three. "
-                        "Specials: Tide copies its best neighbour, Snare cuts the opposite flat by 3, Lantern counts as any suit, Wave adds +2 for every other card beside it.\n\n"
-                        "Win a match to add a card to your deck and face a harder dealer. Payouts: 40, 100 and 220 gold. "
-                        "Cash out after any match, or press on; lose a match and the pot is gone.",
-                        {centre.x + 34, centre.y + 104, centre.width - 68, 230}, 15, Pal::Ink);
+            DrawWrapped(RULES_TEXT, {centre.x + 34, centre.y + 104, centre.width - 68, 230}, 15, Pal::Ink);
             if (Button({centre.x + centre.width / 2 - 140, centre.y + centre.height - 62, 280, 48}, "Take a seat")) { S.phase = Phase::Playing; StartMatch(); }
             if (BackButton(g)) S.inited = false;
         } break;
@@ -844,8 +881,12 @@ void SceneCards(Game& g) {
     }
 
     // leaving mid-run forfeits whatever is unbanked
-    if (S.phase == Phase::Playing || S.phase == Phase::Resolving || S.phase == Phase::MatchOver || S.phase == Phase::Reward)
+    if (!S.showRules && (S.phase == Phase::Playing || S.phase == Phase::Resolving || S.phase == Phase::MatchOver || S.phase == Phase::Reward))
         if (Button({20, 122, 150, 34}, S.pot > 0 ? "Fold (lose pot)" : "Fold and leave", true, 14)) LeaveTable(g);
+
+    // ---------------- the "how to play" folder: open at any time, over everything else
+    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(m, RulesTabRect())) S.showRules = !S.showRules;
+    DrawRulesFolder(m);
 }
 
 // ---------------------------------------------------------------- the sprite sheet page
