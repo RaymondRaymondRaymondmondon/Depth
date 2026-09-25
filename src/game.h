@@ -81,6 +81,10 @@ struct Status {
     int dodgeBuff = 0, dodgeTurns = 0;    // negative = stripped evasion (an enemy effect)
     int protBuff = 0, protTurns = 0;      // negative = exposed (an enemy effect)
     int accBuff = 0, accTurns = 0;        // negative = blinded (an enemy effect)
+    int spdBuff = 0, spdTurns = 0;        // negative = slowed
+    // region debuffs, each from one location's creatures: Totemic Burn (Island), Silt Blindness (Cave),
+    // Drowning Entanglement (Weeds), Eldritch Madness (Atlantis). Turns remaining.
+    int burnTurns = 0, siltTurns = 0, drownTurns = 0, madTurns = 0;
     int guardTurns = 0;
     int marked = 0;
 };
@@ -112,20 +116,40 @@ struct Hero {
 
 struct EnemyAbility {
     std::string name;
-    int hits = ANY_RANK;
+    int hits = ANY_RANK;               // which HERO ranks it can reach (melee: front two)
+    int fromRanks = ANY_RANK;          // which of the ENEMY's own ranks may use it (melee: 1-2; long range: 2-4)
     bool aoe = false;
     float dmgMult = 1.0f;
     int stress = 0, stunChance = 0, bleed = 0, poison = 0;
+    int weakAtk = 0, weakAcc = 0, weakDef = 0, weakSpd = 0; // percent, for 3 turns
+    int region = 0;                    // 1 Totemic Burn, 2 Silt Blindness, 3 Drowning Entanglement, 4 Eldritch Madness
+    int targetsN = 0;                  // >0: reaches this many random heroes instead of one
+    int pull = 0;                      // command: 1 drag a back-rank hero to the front, 2 shuffle the party, 3 swap two heroes
+    int selfMove = 0;                  // command on itself: +1 falls back a rank, -99 steps to the front
+    int healSelf = 0, healAllies = 0, healLowest = 0;   // heals (flat)
+    int buffAllyAtk = 0, buffAllyDef = 0, buffSelfAtk = 0, buffSelfDef = 0; // percent
+    bool cleanse = false, drain = false;
+    int summon = -1;                   // an EnemyType to call to the fight
 };
 
-enum class EnemyType { SeaLouse, CaveShrimp, BrineWorm, Lobster };
+// Region bestiaries. Standards and supports fill the ordinary fights; minis turn up with a probability that
+// climbs with depth; each location ends in its own level boss.
+enum class EnemyType {
+    SeaLouse, CaveShrimp, BrineWorm, Lobster,
+    DysCrustacean, GhostWorm, LostDiver, CrustaceanQueen,                       // the Cave
+    TribalSpearman, WarDog, TribalShaman, TribalDemigod, CoconutQueen, SunGod,   // the Island
+    FeralMerman, Siren, GiantOctopus, ElectricEel, GreatWhite, Neptune,          // the Weeds
+    LostInfantry, LostCultist, ArmorLostOne, AlienHorror, Cthulhu,               // Atlantis
+    COUNT
+};
 
 struct Enemy {
     int uid = 0;
     EnemyType type = EnemyType::SeaLouse;
     std::string name;
     int maxHp = 1, hp = 1, dmgMin = 1, dmgMax = 1, speed = 0, acc = 80, dodge = 0, prot = 0;
-    bool boss = false;
+    bool boss = false;                 // drawn large; minis and level bosses both
+    int tier = 0;                      // 0 standard, 1 mini-boss, 2 level boss
     bool alive = true;
     std::vector<EnemyAbility> abilities;
     Status st;
@@ -155,6 +179,7 @@ inline const char* const CAVE_TIER_NAME[CAVE_TIERS] = {"Shallows", "Tidal Caves"
 enum class Location { Cave, Island, Weeds, Atlantis, COUNT };
 constexpr int LOCATION_COUNT = (int)Location::COUNT;
 const char* LocationName(Location loc);
+const char* AtmosphereName(Location loc, int variant);
 const char* LocationBossName(Location loc); // the mini-boss at the end of a run
 const char* LocationDesc(Location loc);
 
@@ -189,6 +214,9 @@ struct Pose {
 
 struct DungeonState {
     Location loc = Location::Cave; // which of the four Shallows expeditions this is
+    unsigned visSeed = 0;          // the run's visual seed: skyline silhouettes, prop layout
+    int atmos = 0;                 // the run's atmospheric state, 0-2 (see AtmosphereName)
+    bool miniFight = false;        // the current room holds a mini-boss
     int tier = 0;                  // index into CAVE_TIER_LEVEL
     float scroll = 0, walkT = 0;   // how far the party has walked (drives the parallax), and the walk timer
     std::vector<UnitAnim> anims;
@@ -330,6 +358,13 @@ Hero MakeRandomHero(Game& g);
 const std::vector<RelicDef>& Relics();
 Stats GetStats(const Hero& h);
 Enemy MakeEnemy(EnemyType t, int uid);
+std::vector<EnemyType> LocationStandards(Location loc);  // ordinary melee and ranged enemies
+std::vector<EnemyType> LocationSupports(Location loc);   // healers, controllers: at most one per fight, in the back
+std::vector<EnemyType> LocationMinis(Location loc);
+EnemyType LocationLevelBoss(Location loc);
+int MiniBossChance(int levelValue);                       // percent chance of a mini-boss encounter at a depth level
+const char* RegionDebuffName(Location loc);
+void DrawBestiaryFigure(const Enemy& e, Rectangle r, float t); // the new creatures (render.cpp)
 void GiveXP(Game& g, Hero& h, int amount);
 int XpForNextLevel(const Hero& h);
 Hero* FindHero(Game& g, int id);
@@ -428,6 +463,7 @@ std::string RankString(int mask);
 void DrawSalonSpritePage(float t);
 void DrawCrewSpritePage(float t);
 void DrawCaveSpritePage(float t);
+void DrawBestiarySpritePage(int page, float t);
 void DrawPlatformSpritePage(int page, float t);
 Image GrabFrame();
 void DebugPetCat();

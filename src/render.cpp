@@ -1281,3 +1281,239 @@ void DrawCrewFigureInked(const Hero& h, Vector2 feet, float s, bool right, float
     EndFigure(feet, tint);
 }
 
+// ============================================================================
+//  The bestiary, drawn in the heavy hand-inked style: thick ink outlines (added by the figure shader), a
+//  desaturated maritime palette, eyes buried in shadow under masks, brows and hoods, and solid block shadows
+//  cast down and away from the key light (no soft gradients on the shadow side). Each creature is built from
+//  an archetype (a humanoid, a hound, a crab, a worm, a tentacled mass, ...) dressed with its own colours
+//  and accessories, so every entry in the bestiary has its own silhouette.
+// ============================================================================
+namespace {
+enum Acc { A_NONE = 0, A_SKULL = 1, A_IDOL = 2, A_SHELLCROWN = 4, A_COCONUT = 8, A_FEATHERS = 16, A_SPEAR = 32, A_STAFF = 64, A_TRIDENT = 128,
+           A_SCEPTER = 256, A_HORNS = 512, A_FINS = 1024, A_BANDAGE = 2048, A_COWL = 4096, A_GLADIUS = 8192, A_CORAL = 16384, A_VOID = 32768 };
+struct Look { Color skin, cloth, accent, glow; int acc; };
+const Color BLK{6, 8, 12, 255};
+
+// a cel-shadow: a solid black block on the far side of a round mass, away from the upper-left light
+void BlockShadow(Vector2 c, float rx, float ry) { // a hard crescent along the lower-right rim, not a wash
+    float r = std::max(rx, ry);
+    DrawRing(c, r * 0.68f, r, -25, 105, 14, BLK);
+}
+
+void Humanoid(float cx, float by, float H, const Look& L, float bulk, float lean, float t, int uid, bool tail = false) {
+    float sway = sinf(t * 1.6f + uid) * 1.5f;
+    float hipY = by - 0.40f * H, shY = by - 0.70f * H, headY = by - 0.85f * H, hr = 0.075f * H * (0.8f + bulk * 0.4f);
+    Vector2 hip{cx + lean * 0.3f, hipY}, sh{cx + lean, shY + sway * 0.4f}, head{cx + lean * 1.4f, headY + sway * 0.6f};
+    float lw = 0.055f * H * bulk, tw = 0.095f * H * bulk;
+    if (tail) { // a fish tail instead of legs: siren and merman
+        Vector2 prev = hip;
+        for (int i = 1; i <= 6; i++) {
+            Vector2 q{cx + sinf(t * 2 + i * 0.7f + uid) * 8 * i * 0.3f + lean * 0.2f, hipY + i * (by - hipY) / 6.0f};
+            ShadeLimb(prev, q, lw * (1.5f - i * 0.15f), lw * (1.5f - (i + 1) * 0.15f), L.cloth);
+            prev = q;
+        }
+        DrawTri({prev.x, prev.y}, {prev.x - 26, by + 6}, {prev.x + 4, by - 6}, Tone(L.accent, -0.2f));
+        DrawTri({prev.x, prev.y}, {prev.x + 26, by + 6}, {prev.x - 4, by - 6}, L.accent);
+    } else {
+        ShadeLimb({hip.x - 8, hipY}, {cx - 12, by - 3}, lw, lw * 0.85f, Tone(L.cloth, -0.25f));   // legs, boots in shadow
+        ShadeLimb({hip.x + 8, hipY}, {cx + 14, by - 3}, lw, lw * 0.85f, L.cloth);
+        DrawRectangle((int)cx - 20, (int)by - 8, 16, 8, BLK);
+        DrawRectangle((int)cx + 6, (int)by - 8, 18, 8, BLK);
+    }
+    ShadeLimb(hip, sh, tw, tw * 1.15f, L.cloth);                                                   // a rugged, top-heavy torso
+    BlockShadow({sh.x + 4, (sh.y + hip.y) / 2}, tw * 0.9f, (hip.y - sh.y) * 0.5f);
+    DrawTri({sh.x - tw * 1.3f, sh.y}, {sh.x + tw * 1.3f, sh.y}, {sh.x + tw * 0.9f, sh.y + 22}, Tone(L.accent, -0.3f)); // torn cloth at the shoulders
+    Vector2 elL{sh.x - tw * 1.5f, sh.y + 0.13f * H}, elR{sh.x + tw * 1.5f, sh.y + 0.13f * H};
+    ShadeLimb({sh.x - tw, sh.y + 4}, elL, lw * 0.8f, lw * 0.7f, Tone(L.skin, -0.3f));
+    ShadeLimb({sh.x + tw, sh.y + 4}, elR, lw * 0.8f, lw * 0.7f, L.skin);
+    ShadeBall(head, hr, L.skin);
+    BlockShadow(head, hr, hr);
+    // eyes never show: a mask, a hood, or a heavy brow swallows them
+    if (L.acc & A_SKULL) { ShadeBall({head.x, head.y + 2}, hr * 1.12f, Color{200, 192, 170, 255}); DrawEllipse((int)head.x - 5, (int)head.y, 4, 5, BLK); DrawEllipse((int)head.x + 5, (int)head.y, 4, 5, BLK); DrawRectangle((int)head.x - 6, (int)head.y + 8, 12, 4, BLK); }
+    else if (L.acc & A_IDOL) { ShadeQuad({head.x - hr * 1.5f, head.y - hr * 1.8f}, {head.x + hr * 1.5f, head.y - hr * 1.8f}, {head.x + hr * 1.3f, head.y + hr * 1.7f}, {head.x - hr * 1.3f, head.y + hr * 1.7f}, Color{112, 78, 44, 255});
+                                DrawRectangle((int)(head.x - hr * 0.9f), (int)head.y - 6, (int)(hr * 0.7f), 9, BLK); DrawRectangle((int)(head.x + hr * 0.2f), (int)head.y - 6, (int)(hr * 0.7f), 9, BLK); }
+    else if (L.acc & A_COWL) { DrawTri({head.x - hr * 1.5f, head.y + hr * 1.2f}, {head.x + hr * 1.5f, head.y + hr * 1.2f}, {head.x, head.y - hr * 2.2f}, Tone(L.cloth, -0.35f)); DrawEllipse((int)head.x, (int)head.y + 1, hr * 0.8f, hr * 0.9f, BLK); DrawRectangle((int)head.x - 5, (int)head.y - 1, 3, 2, Fade(L.glow, 0.9f)); DrawRectangle((int)head.x + 2, (int)head.y - 1, 3, 2, Fade(L.glow, 0.9f)); }
+    else { DrawRectangle((int)(head.x - hr), (int)(head.y - hr * 0.35f), (int)(hr * 2), (int)(hr * 0.7f), BLK); } // a black bar of brow-shadow where the eyes should be
+    if (L.acc & A_BANDAGE) DrawRectangle((int)(head.x - hr), (int)(head.y - hr * 0.5f), (int)(hr * 2), (int)(hr * 0.9f), Color{178, 168, 140, 255});
+    if (L.acc & A_HORNS) { DrawTri({head.x - hr, head.y - hr * 0.6f}, {head.x - hr * 0.3f, head.y - hr}, {head.x - hr * 1.6f, head.y - hr * 2.2f}, Color{200, 192, 170, 255}); DrawTri({head.x + hr, head.y - hr * 0.6f}, {head.x + hr * 0.3f, head.y - hr}, {head.x + hr * 1.6f, head.y - hr * 2.2f}, Color{200, 192, 170, 255}); }
+    if (L.acc & A_FEATHERS) for (int k = -2; k <= 2; k++) DrawTri({head.x + k * 5, head.y - hr}, {head.x + k * 5 + 4, head.y - hr}, {head.x + k * 9, head.y - hr * 2.6f - (k & 1) * 6}, k & 1 ? Color{150, 60, 44, 255} : Color{60, 90, 84, 255});
+    if (L.acc & A_COCONUT) { DrawCircleSector({head.x, head.y - 2}, hr * 1.25f, 180, 360, 14, Color{92, 62, 36, 255}); DrawLineEx({head.x - 8, head.y - hr}, {head.x + 2, head.y - hr * 1.2f}, 2, BLK); }
+    if (L.acc & A_SHELLCROWN) for (int k = -2; k <= 2; k++) DrawTri({head.x + k * 7 - 4, head.y - hr * 0.8f}, {head.x + k * 7 + 4, head.y - hr * 0.8f}, {head.x + k * 7, head.y - hr * (1.7f + (k & 1) * 0.5f)}, Color{214, 200, 176, 255});
+    if (L.acc & A_FINS) { DrawTri({head.x - hr, head.y - 4}, {head.x - hr * 2.2f, head.y - 12}, {head.x - hr * 1.6f, head.y + 8}, Fade(L.accent, 0.75f)); DrawTri({head.x + hr, head.y - 4}, {head.x + hr * 2.2f, head.y - 12}, {head.x + hr * 1.6f, head.y + 8}, Fade(L.accent, 0.75f)); }
+    // weapons, held in the far hand
+    Vector2 hand = elR;
+    if (L.acc & A_SPEAR) { DrawLineEx({hand.x + 6, by}, {hand.x + 10, headY - 0.18f * H}, 4, Color{92, 62, 36, 255}); DrawTri({hand.x + 4, headY - 0.16f * H}, {hand.x + 16, headY - 0.16f * H}, {hand.x + 10, headY - 0.32f * H}, Color{30, 32, 38, 255}); }
+    if (L.acc & A_STAFF) { DrawLineEx({hand.x + 6, by}, {hand.x + 8, headY - 0.14f * H}, 4, Color{110, 84, 50, 255}); DrawCircleV({hand.x + 8, headY - 0.16f * H}, 8, L.glow); }
+    if (L.acc & A_SCEPTER) { DrawLineEx({hand.x + 6, by - 10}, {hand.x + 10, headY - 0.05f * H}, 4, Color{110, 84, 50, 255}); DrawTri({hand.x + 2, headY - 0.04f * H}, {hand.x + 18, headY - 0.04f * H}, {hand.x + 10, headY - 0.2f * H}, Color{214, 120, 110, 255}); }
+    if (L.acc & A_TRIDENT) { DrawLineEx({hand.x + 6, by}, {hand.x + 8, headY - 0.22f * H}, 6, Color{104, 84, 66, 255}); for (int k = -1; k <= 1; k++) DrawLineEx({hand.x + 8 + k * 9, headY - 0.22f * H}, {hand.x + 8 + k * 9, headY - 0.36f * H}, 3, Color{120, 96, 80, 255}); }
+    if (L.acc & A_GLADIUS) { DrawLineEx(hand, {hand.x + 26, hand.y - 8}, 5, Color{130, 96, 60, 255}); DrawCircleV(hand, 5, BLK); }
+    if (L.acc & A_CORAL) for (int k = 0; k < 4; k++) DrawTri({sh.x + k * 9 - 18, sh.y - 2}, {sh.x + k * 9 - 12, sh.y - 2}, {sh.x + k * 9 - 15, sh.y - 20 - (k & 1) * 8}, Color{180, 90, 80, 255}); // living coral fused to the stone
+    if (L.acc & A_VOID) for (int k = 0; k < 3; k++) { float a = t * 1.4f + k * 2.1f; DrawRectangle((int)(hip.x + cosf(a) * 30), (int)(hip.y + sinf(a) * 8 - 4), 4, 4, L.glow); }
+}
+
+void Hound(float cx, float by, float H, const Look& L, float t, int uid) {
+    float run = sinf(t * 8 + uid) * 3;
+    ShadeLimb({cx - 30, by - 0.42f * H}, {cx - 34 + run, by - 3}, 6, 4, Tone(L.cloth, -0.2f));
+    ShadeLimb({cx + 22, by - 0.42f * H}, {cx + 26 - run, by - 3}, 6, 4, Tone(L.cloth, -0.2f));
+    ShadeLimb({cx - 24, by - 0.55f * H}, {cx + 24, by - 0.58f * H}, 0.14f * H, 0.16f * H, L.cloth);        // an emaciated body
+    for (int k = 0; k < 5; k++) DrawLineEx({cx - 14 + k * 8.0f, by - 0.5f * H}, {cx - 12 + k * 8.0f, by - 0.66f * H}, 2, Tone(L.skin, 0.3f)); // exposed ribs
+    ShadeLimb({cx - 28, by - 0.6f * H}, {cx - 44, by - 0.78f * H}, 4, 2, L.cloth);                          // a whip of a tail
+    ShadeLimb({cx + 22, by - 0.6f * H}, {cx + 34, by - 0.78f * H}, 8, 8, L.cloth);
+    ShadeBall({cx + 48, by - 0.76f * H}, 0.09f * H, L.cloth);                                                // the head, jaw dripping in shadow
+    DrawTri({cx + 52, by - 0.74f * H}, {cx + 76, by - 0.68f * H}, {cx + 52, by - 0.64f * H}, L.cloth);
+    DrawRectangle((int)cx + 52, (int)(by - 0.7f * H), 22, 5, BLK);
+    for (int k = 0; k < 3; k++) DrawTri({cx + 56.0f + k * 6, by - 0.66f * H}, {cx + 60.0f + k * 6, by - 0.66f * H}, {cx + 58.0f + k * 6, by - 0.6f * H}, Color{150, 20, 20, 255});
+    DrawRectangle((int)cx + 44, (int)(by - 0.82f * H), 12, 5, BLK);                                          // the eyes, in shadow
+    DrawTri({cx + 40, by - 0.84f * H}, {cx + 46, by - 0.84f * H}, {cx + 42, by - 0.94f * H}, L.cloth);
+    for (int k = 0; k < 3; k++) DrawLineEx({cx + 44.0f + k * 5, by - 0.74f * H}, {cx + 46.0f + k * 5, by - 0.66f * H}, 2, L.accent);  // ash warpaint
+}
+
+void Crab(float cx, float by, float W, const Look& L, float t, int uid, bool queen) {
+    float k = W / 100.0f;
+    for (int i = 0; i < 4; i++) ShadeLimb({cx - 24 * k + i * 16 * k, by - 30 * k}, {cx - 40 * k + i * 22 * k + sinf(t * 6 + i + uid) * 3, by - 2}, 3.4f * k, 2.4f * k, Tone(L.cloth, -0.3f));
+    ShadeBall({cx, by - 46 * k}, 34 * k, L.cloth);                                                             // a bloated, lopsided carapace
+    ShadeBall({cx + 16 * k, by - 52 * k}, 24 * k, Tone(L.cloth, 0.1f));
+    BlockShadow({cx, by - 44 * k}, 34 * k, 26 * k);
+    for (int i = 0; i < 6; i++) DrawLineEx({cx - 30 * k + i * 10 * k, by - 60 * k}, {cx - 20 * k + i * 10 * k, by - 40 * k}, 1.5f, BLK); // heavy cross-hatching
+    ShadeLimb({cx - 30 * k, by - 50 * k}, {cx - 56 * k, by - 78 * k}, 6 * k, 9 * k, L.cloth);                  // the huge jagged left claw
+    DrawTri({cx - 74 * k, by - 96 * k}, {cx - 48 * k, by - 86 * k}, {cx - 58 * k, by - 70 * k}, Tone(L.cloth, 0.05f));
+    DrawTri({cx - 74 * k, by - 96 * k}, {cx - 50 * k, by - 70 * k}, {cx - 76 * k, by - 72 * k}, Tone(L.cloth, -0.3f));
+    ShadeLimb({cx + 30 * k, by - 48 * k}, {cx + 44 * k, by - 62 * k}, 4 * k, 4 * k, L.cloth);                  // a small withered right claw
+    for (int s = -1; s <= 1; s += 2) { DrawLineEx({cx + s * 9 * k, by - 72 * k}, {cx + s * 10 * k, by - 86 * k}, 2, L.cloth); DrawCircleV({cx + s * 10 * k, by - 88 * k}, 3.5f * k, BLK); }
+    if (queen) { for (int i = -2; i <= 2; i++) DrawTri({cx + i * 12 * k - 5, by - 74 * k}, {cx + i * 12 * k + 5, by - 74 * k}, {cx + i * 12 * k, by - 96 * k - (i & 1) * 8}, Color{200, 190, 168, 255});
+                   for (int i = 0; i < 5; i++) DrawLineEx({cx - 20 * k + i * 10 * k, by - 40 * k}, {cx - 24 * k + i * 10 * k + sinf(t * 3 + i) * 6, by - 8 * k}, 2.5f, L.glow); } // parasitic worms
+}
+
+void WormBody(float cx, float by, float H, const Look& L, float t, int uid, bool ghost, bool serpent) {
+    int segs = 11;
+    Vector2 prev{cx, by - 2};
+    for (int i = 1; i <= segs; i++) {
+        float u = (float)i / segs;
+        float sw = serpent ? sinf(t * 2 + i * 0.9f + uid) * 22 * u : sinf(t * 1.3f + i * 0.6f + uid) * 8 * u;
+        Vector2 q{cx + sw, by - u * H * 0.95f};
+        float w = (serpent ? 12 : 15) * (1 - u * 0.25f);
+        Color c = ghost ? Color{188, 204, 196, 255} : L.cloth;
+        ShadeLimb(prev, q, w, w * 0.92f, i % 2 ? Tone(c, -0.15f) : c);
+        if (serpent) DrawCircleV({q.x, q.y}, 2.5f, Fade(L.glow, 0.9f));                                       // crackling veins along the spine
+        else DrawRing(q, w * 0.55f, w * 0.8f, 0, 360, 10, Fade(BLK, 0.6f));                                     // concentric rings of teeth
+        prev = q;
+    }
+    Vector2 top = prev;
+    ShadeBall(top, 17, ghost ? Color{198, 214, 206, 255} : L.cloth);
+    if (ghost) { DrawEllipse((int)top.x - 6, (int)top.y - 2, 4, 6, BLK); DrawEllipse((int)top.x + 6, (int)top.y - 2, 4, 6, BLK); Glow(top, 60, Fade(L.glow, 0.5f)); }
+    else if (serpent) { DrawRectangle((int)top.x - 8, (int)top.y - 5, 16, 4, BLK); DrawTri({top.x + 6, top.y}, {top.x + 20, top.y + 6}, {top.x + 6, top.y + 8}, Color{220, 212, 190, 255}); }
+    else { DrawCircleV(top, 10, BLK); for (int i = 0; i < 8; i++) { float a = i * PI / 4; DrawTri({top.x + cosf(a) * 8, top.y + sinf(a) * 8}, {top.x + cosf(a + 0.3f) * 8, top.y + sinf(a + 0.3f) * 8}, {top.x + cosf(a + 0.15f) * 15, top.y + sinf(a + 0.15f) * 15}, Color{214, 206, 180, 255}); } }
+}
+
+void DiverWreck(float cx, float by, float H, const Look& L, float t) {
+    ShadeLimb({cx - 16, by - 0.4f * H}, {cx - 18, by - 3}, 15, 13, L.cloth);
+    ShadeLimb({cx + 16, by - 0.4f * H}, {cx + 20, by - 3}, 15, 13, Tone(L.cloth, -0.2f));
+    DrawRectangle((int)cx - 34, (int)by - 12, 26, 12, BLK); DrawRectangle((int)cx + 8, (int)by - 12, 28, 12, BLK);
+    ShadeBall({cx, by - 0.55f * H}, 0.26f * H, L.cloth);                                                        // a bloated, waterlogged suit
+    BlockShadow({cx + 4, by - 0.55f * H}, 0.26f * H, 0.26f * H);
+    ShadeLimb({cx - 0.22f * H, by - 0.66f * H}, {cx - 0.3f * H, by - 0.42f * H}, 13, 11, L.cloth);
+    ShadeLimb({cx + 0.22f * H, by - 0.66f * H}, {cx + 0.32f * H, by - 0.4f * H}, 13, 11, L.cloth);
+    for (int i = 0; i < 4; i++) DrawLineEx({cx + 0.32f * H + 6, by - 0.4f * H + i * 4.0f}, {cx + 0.32f * H + 30, by - 0.28f * H + i * 6.0f}, 3, Color{60, 58, 56, 255}); // a chain
+    ShadeBall({cx, by - 0.84f * H}, 0.13f * H, Color{112, 88, 50, 255});                                        // the helmet
+    DrawRing({cx + 8, by - 0.84f * H}, 5, 9, 0, 360, 14, BLK);
+    DrawCircleV({cx + 8, by - 0.84f * H}, 5, L.glow);                                                            // a cracked faceplate leaking dim light
+    DrawLineEx({cx + 4, by - 0.88f * H}, {cx + 12, by - 0.8f * H}, 1.5f, BLK);
+    Glow({cx + 8, by - 0.84f * H}, 44, Fade(L.glow, 0.5f));
+}
+
+void Totem(float cx, float by, float H, const Look& L, float t) {
+    float w = 0.34f * H;
+    ShadeQuad({cx - w, by - 0.55f * H}, {cx + w, by - 0.55f * H}, {cx + w * 0.8f, by}, {cx - w * 0.8f, by}, L.cloth);                    // stacked black basalt
+    ShadeQuad({cx - w * 0.85f, by - 0.95f * H}, {cx + w * 0.85f, by - 0.95f * H}, {cx + w, by - 0.55f * H}, {cx - w, by - 0.55f * H}, Tone(L.cloth, -0.1f));
+    BlockShadow({cx + w * 0.4f, by - 0.5f * H}, w * 0.7f, 0.4f * H);
+    float pulse = 0.6f + 0.4f * sinf(t * 2);
+    for (int i = 0; i < 6; i++) { float x = cx - w * 0.7f + i * w * 0.28f; DrawLineEx({x, by - 0.9f * H + (i & 1) * 20}, {x + 8, by - 0.15f * H - (i % 3) * 14}, 3, Fade(L.glow, 0.55f + 0.4f * pulse)); } // magma in the cracks
+    Glow({cx, by - 0.55f * H}, 0.5f * H, Fade(L.glow, 0.18f + 0.12f * pulse));
+    DrawCircleV({cx, by - 0.6f * H}, 0.11f * H, Fade(L.glow, 0.95f));                                                                   // a glowing amber core
+    DrawRectangle((int)(cx - w * 0.55f), (int)(by - 0.82f * H), (int)(w * 0.42f), 12, BLK); DrawRectangle((int)(cx + w * 0.13f), (int)(by - 0.82f * H), (int)(w * 0.42f), 12, BLK);
+    for (int i = 0; i < 7; i++) { float a = -PI / 2 + (i - 3) * 0.32f; DrawTri({cx + cosf(a) * w * 0.9f, by - 0.98f * H + sinf(a) * 6}, {cx + cosf(a + 0.1f) * w * 0.9f, by - 0.98f * H}, {cx + cosf(a) * w * 1.5f, by - 1.1f * H + sinf(a) * 20}, Fade(L.glow, 0.85f)); } // a corona of rays
+}
+
+void TentacleMass(float cx, float by, float H, const Look& L, float t, int uid, bool cosmic) {
+    int n = cosmic ? 9 : 7;
+    for (int i = 0; i < n; i++) {
+        float ang = PI * (0.08f + 0.84f * i / (n - 1));
+        Vector2 prev{cx + cosf(ang + PI) * 0.16f * H, by - 0.38f * H};
+        for (int sgm = 1; sgm <= 7; sgm++) {
+            float u = sgm / 7.0f, wob = sinf(t * 2 + i + sgm * 0.7f + uid) * 8 * u;
+            Vector2 q{cx + (i - (n - 1) / 2.0f) * 0.11f * H * (0.6f + u) + wob, by - 0.38f * H + u * 0.38f * H};
+            ShadeLimb(prev, q, 9 * (1 - u * 0.6f), 9 * (1 - (u + 0.14f) * 0.6f), Tone(L.cloth, -0.1f * (i & 1)));
+            if (sgm % 2 == 0) DrawCircleV({q.x + 3, q.y}, 2, Fade(Color{190, 200, 170, 255}, 0.8f));             // suckers dripping slime
+            prev = q;
+        }
+    }
+    ShadeBall({cx, by - 0.62f * H}, 0.26f * H, L.cloth);                                                        // the bulbous mantle, shadowed from above
+    DrawEllipse((int)cx, (int)(by - 0.78f * H), 0.24f * H, 0.11f * H, Fade(BLK, 0.9f));
+    BlockShadow({cx + 6, by - 0.6f * H}, 0.26f * H, 0.26f * H);
+    for (int s = -1; s <= 1; s += 2) { DrawRectangle((int)(cx + s * 0.1f * H - 8), (int)(by - 0.6f * H), 16, 6, BLK); DrawRectangle((int)(cx + s * 0.1f * H - 2), (int)(by - 0.6f * H + 1), 4, 3, Fade(L.glow, 0.9f)); }
+    if (cosmic) { // wings of pure shadow, and a maw of ink
+        for (int s = -1; s <= 1; s += 2) { DrawTri({cx + s * 0.2f * H, by - 0.8f * H}, {cx + s * 0.75f * H, by - 1.05f * H + sinf(t) * 8}, {cx + s * 0.5f * H, by - 0.45f * H}, BLK); DrawTri({cx + s * 0.75f * H, by - 1.05f * H + sinf(t) * 8}, {cx + s * 0.85f * H, by - 0.7f * H}, {cx + s * 0.5f * H, by - 0.45f * H}, Color{14, 10, 24, 255}); }
+        DrawEllipse((int)cx, (int)(by - 0.5f * H), 0.14f * H, 0.07f * H, BLK);
+        Glow({cx, by - 0.6f * H}, 0.7f * H, Fade(L.glow, 0.14f));
+    }
+}
+
+void Shark(float cx, float by, float W, const Look& L, float t) {
+    float k = W / 110.0f, sw = sinf(t * 2) * 4;
+    ShadeLimb({cx - 60 * k, by - 40 * k + sw}, {cx + 40 * k, by - 54 * k}, 16 * k, 24 * k, L.cloth);
+    DrawTri({cx - 96 * k, by - 66 * k + sw}, {cx - 56 * k, by - 40 * k + sw}, {cx - 70 * k, by - 14 * k + sw}, Tone(L.cloth, -0.2f));
+    DrawTri({cx - 6 * k, by - 74 * k}, {cx + 22 * k, by - 72 * k}, {cx + 4 * k, by - 110 * k}, Tone(L.cloth, -0.1f));
+    ShadeLimb({cx - 50 * k, by - 30 * k + sw}, {cx + 34 * k, by - 32 * k}, 8 * k, 12 * k, Color{198, 196, 184, 255});
+    BlockShadow({cx, by - 46 * k}, 50 * k, 20 * k);
+    DrawRectangle((int)(cx + 30 * k), (int)(by - 60 * k), (int)(14 * k), 6, BLK);                               // pitch-black eyes
+    for (int i = 0; i < 6; i++) DrawTri({cx + 34 * k + i * 6 * k, by - 44 * k}, {cx + 39 * k + i * 6 * k, by - 44 * k}, {cx + 36 * k + i * 6 * k, by - 34 * k}, Color{230, 226, 210, 255});
+    DrawLineEx({cx + 50 * k, by - 48 * k}, {cx + 56 * k, by - 30 * k}, 1.5f, Color{170, 170, 176, 255});       // fishhooks in the jaw
+    DrawCircleLines((int)(cx + 56 * k), (int)(by - 28 * k), 4, Color{170, 170, 176, 255});
+}
+
+void Alien(float cx, float by, float H, const Look& L, float t, int uid) {
+    Vector2 c{cx, by - 0.5f * H + sinf(t * 1.5f + uid) * 5};
+    for (int i = 0; i < 9; i++) { // a non-Euclidean mass: shards that don't agree which way is up
+        float a = t * 0.5f * (i & 1 ? 1 : -1) + i * 0.7f, r1 = 0.32f * H, r2 = 0.14f * H;
+        Vector2 p1{c.x + cosf(a) * r1, c.y + sinf(a) * r1 * 0.8f}, p2{c.x + cosf(a + 0.35f) * r2, c.y + sinf(a + 0.35f) * r2}, p3{c.x + cosf(a - 0.35f) * r2, c.y + sinf(a - 0.35f) * r2};
+        DrawTri(p1, p2, p3, i % 3 ? BLK : Color{14, 10, 26, 255});
+        DrawLineEx(c, p1, 2, Fade(L.glow, 0.5f + 0.4f * sinf(t * 3 + i)));                                     // sharp glowing angular tendrils
+    }
+    DrawCircleV(c, 0.14f * H, BLK);                                                                              // no face at all
+    DrawRing(c, 0.14f * H, 0.16f * H, 0, 360, 24, Fade(L.glow, 0.8f));
+    Glow(c, 0.7f * H, Fade(L.glow, 0.12f));
+}
+}  // namespace
+
+void DrawBestiaryFigure(const Enemy& e, Rectangle r, float t) {
+    float cx = r.x + r.width / 2, by = r.y + r.height, H = r.height, bob = sinf(t * 2.2f + e.uid) * 2;
+    int u = e.uid;
+    switch (e.type) {
+        // ---- the Island
+        case EnemyType::TribalSpearman: Humanoid(cx, by, H * 0.98f, {{150, 104, 72, 255}, {96, 82, 64, 255}, {170, 60, 44, 255}, {255, 190, 90, 255}, A_SKULL | A_SPEAR}, 0.8f, 6, t, u); break;
+        case EnemyType::WarDog: Hound(cx, by, H, {{120, 108, 96, 255}, {104, 92, 82, 255}, {214, 206, 190, 255}, {255, 90, 60, 255}, 0}, t, u); break;
+        case EnemyType::TribalShaman: Humanoid(cx - 4, by, H * 0.9f, {{140, 100, 70, 255}, {88, 70, 56, 255}, {60, 96, 90, 255}, {150, 230, 120, 255}, A_COWL | A_FEATHERS | A_STAFF}, 0.75f, -10, t, u); break;
+        case EnemyType::TribalDemigod: Humanoid(cx, by, H * 1.0f, {{110, 84, 60, 255}, {80, 60, 42, 255}, {150, 96, 50, 255}, {255, 180, 60, 255}, A_IDOL | A_FEATHERS}, 1.7f, 10, t, u); break;
+        case EnemyType::CoconutQueen: Humanoid(cx, by, H * 0.95f, {{136, 104, 82, 255}, {84, 92, 62, 255}, {190, 70, 60, 255}, {220, 110, 100, 255}, A_COCONUT | A_SCEPTER}, 1.1f, 0, t, u); break;
+        case EnemyType::SunGod: Totem(cx, by, H, {{40, 36, 34, 255}, {34, 30, 32, 255}, {255, 150, 40, 255}, {255, 160, 50, 255}, 0}, t); break;
+        // ---- the Cave
+        case EnemyType::DysCrustacean: Crab(cx, by, r.width * 1.05f, {{130, 60, 52, 255}, {124, 66, 56, 255}, {200, 120, 90, 255}, {170, 190, 120, 255}, 0}, t, u, false); break;
+        case EnemyType::CrustaceanQueen: Crab(cx, by, r.width * 1.3f, {{110, 64, 62, 255}, {112, 68, 64, 255}, {210, 190, 160, 255}, {190, 200, 130, 255}, 0}, t, u, true); break;
+        case EnemyType::GhostWorm: WormBody(cx, by, H * 0.95f, {{190, 206, 198, 255}, {190, 206, 198, 255}, {230, 240, 230, 255}, {170, 240, 200, 255}, 0}, t, u, true, false); break;
+        case EnemyType::LostDiver: DiverWreck(cx, by, H, {{100, 110, 96, 255}, {92, 96, 84, 255}, {130, 100, 60, 255}, {255, 214, 100, 255}, 0}, t); break;
+        // ---- the Weeds
+        case EnemyType::FeralMerman: Humanoid(cx, by - bob, H, {{70, 92, 90, 255}, {48, 68, 72, 255}, {90, 130, 130, 255}, {150, 230, 220, 255}, A_FINS}, 0.85f, 8, t, u, true); break;
+        case EnemyType::Siren: Humanoid(cx, by - bob, H, {{150, 160, 152, 255}, {70, 84, 84, 255}, {110, 130, 122, 255}, {200, 220, 200, 255}, A_FINS | A_BANDAGE}, 0.7f, -4, t, u, true); break;
+        case EnemyType::GiantOctopus: TentacleMass(cx, by, H, {{62, 46, 74, 255}, {62, 46, 74, 255}, {150, 130, 170, 255}, {230, 200, 90, 255}, 0}, t, u, false); break;
+        case EnemyType::ElectricEel: WormBody(cx, by, H * 0.95f, {{60, 82, 76, 255}, {56, 76, 70, 255}, {90, 130, 120, 255}, {120, 200, 255, 255}, 0}, t, u, false, true); break;
+        case EnemyType::GreatWhite: Shark(cx, by, r.width * 1.25f, {{106, 118, 122, 255}, {100, 112, 116, 255}, {200, 200, 190, 255}, {0, 0, 0, 255}, 0}, t); break;
+        case EnemyType::Neptune: Humanoid(cx, by, H * 1.0f, {{74, 110, 96, 255}, {52, 82, 62, 255}, {120, 90, 60, 255}, {150, 230, 200, 255}, A_TRIDENT | A_SHELLCROWN | A_FINS}, 1.5f, 6, t, u); break;
+        // ---- Atlantis
+        case EnemyType::LostInfantry: Humanoid(cx, by, H * 0.98f, {{120, 122, 114, 255}, {116, 100, 78, 255}, {170, 96, 80, 255}, {150, 130, 210, 255}, A_BANDAGE | A_GLADIUS | A_CORAL}, 1.0f, 4, t, u); break;
+        case EnemyType::LostCultist: Humanoid(cx, by - 24 - bob * 2, H * 0.9f, {{110, 100, 124, 255}, {58, 44, 84, 255}, {150, 100, 210, 255}, {200, 130, 255, 255}, A_COWL | A_VOID}, 0.7f, 0, t, u); break;
+        case EnemyType::ArmorLostOne: Humanoid(cx, by, H * 1.0f, {{104, 120, 96, 255}, {128, 96, 56, 255}, {60, 60, 66, 255}, {160, 130, 255, 255}, A_HORNS | A_CORAL | A_VOID}, 1.9f, 4, t, u); TentacleMass(cx + 10, by - 0.62f * H, H * 0.5f, {{22, 20, 30, 255}, {22, 20, 30, 255}, {60, 50, 90, 255}, {180, 120, 255, 255}, 0}, t, u, false); break;
+        case EnemyType::AlienHorror: Alien(cx, by, H, {{0, 0, 0, 255}, {0, 0, 0, 255}, {0, 0, 0, 255}, {230, 60, 220, 255}, 0}, t, u); break;
+        case EnemyType::Cthulhu: TentacleMass(cx, by, H, {{34, 46, 52, 255}, {34, 46, 52, 255}, {90, 130, 120, 255}, {130, 255, 170, 255}, 0}, t, u, true); break;
+        default: break;
+    }
+}

@@ -71,7 +71,15 @@ static void TakeShots(const Game& base, const std::string& dir) {
         {"pirate_stairs", [](Game& g) { g.platLayouts[PL_PIRATE] = {0, 1, 3, 4, 5, 7}; StartPlatform(g, PL_PIRATE); g.plat.pos = g.plat.spawns[6]; g.plat.pos.x += 250; g.plat.pos.y -= 300; }},
         {"pirate_boss", [](Game& g) { StartPlatform(g, PL_PIRATE); g.plat.pos = {(g.plat.w - 24) * 32 + 150.0f, g.plat.boss.home.y + 40}; }},
     };
-    for (const auto& s : shots) {
+    std::vector<Shot> all(std::begin(shots), std::end(shots));
+    static char names[12][32];
+    static const char* LN[4] = {"cave", "island", "weeds", "atlantis"};
+    for (int loc = 0; loc < 4; loc++)
+        for (int v = 0; v < 3; v++) { // every location in each of its three atmospheric states
+            snprintf(names[loc * 3 + v], 32, "atm_%s_%d", LN[loc], v);
+            all.push_back({names[loc * 3 + v], [loc, v](Game& g) { DebugEnterCombat(g, (Location)loc); g.dungeon.atmos = v; g.dungeon.visSeed = 4000u + loc * 77 + v * 13; }});
+        }
+    for (const auto& s : all) {
         Game g = base;
         s.setup(g);
         for (int f = 0; f < 90; f++) {
@@ -87,14 +95,15 @@ static void TakeShots(const Game& base, const std::string& dir) {
 
 // Renders every sprite in the game onto eight pages and stitches them into one image.
 static void MakeSpriteSheet(const std::string& path) {
-    const std::function<void(float)> pages[8] = {
+    const std::function<void(float)> pages[11] = {
         [](float t) { DrawCrewSpritePage(t); },       [](float t) { DrawSalonSpritePage(t); },
         [](float t) { DrawCaveSpritePage(t); },       [](float t) { DrawPlatformSpritePage(0, t); },
         [](float t) { DrawPlatformSpritePage(1, t); }, [](float t) { DrawPlatformSpritePage(2, t); },
         [](float t) { FlatsSpritePage(t); },          [](float t) { DrawItemSpritePage(t); },
+        [](float t) { DrawBestiarySpritePage(0, t); }, [](float t) { DrawBestiarySpritePage(1, t); }, [](float t) { DrawBestiarySpritePage(2, t); },
     };
-    Image sheet = GenImageColor(SCREEN_W * 2, SCREEN_H * 4, BLACK);
-    for (int i = 0; i < 8; i++) {
+    Image sheet = GenImageColor(SCREEN_W * 2, SCREEN_H * 6, BLACK);
+    for (int i = 0; i < 11; i++) {
         BeginFrame();
         SetPost(0.0f, 0.0f, 0.0f);
         DrawVGradient({0, 0, (float)SCREEN_W, (float)SCREEN_H}, Color{46, 50, 58, 255}, Color{24, 26, 32, 255});

@@ -104,6 +104,7 @@ static void AddStress(Game& g, Hero& h, int amount) {
 
 static void DamageHero(Game& g, Hero& h, int dmg) {
     if (dmg <= 0) return;
+    if (h.st.madTurns > 0) dmg = (int)std::ceil(dmg * 1.15f); // Eldritch Madness: 15% more damage from all sources
     if (h.deathsDoor) {
         if (Chance(35)) { h.dead = true; Log(g, h.name + " has been lost to the depths."); }
         else Log(g, h.name + " clings on at Death's Door!");
@@ -202,9 +203,10 @@ static void HeroAct(Game& g, int heroId, int abilityIdx, int targetPos) {
                 if (!e || !e->alive) break;
                 Rectangle er = EnemyRect(g, EnemyPos(g, uid));
                 int edodge = e->dodge + (e->st.dodgeTurns > 0 ? e->st.dodgeBuff : 0);
-                int hit = std::clamp(s.acc + a.accBonus + (h->st.accTurns > 0 ? h->st.accBuff : 0) + HeroAccBonus(g) - edodge, 5, 95);
+                int regionAcc = (h->st.burnTurns > 0 ? 15 : 0) + (h->st.siltTurns > 0 ? 25 : 0); // Totemic Burn -15%, Silt Blindness -25%
+                int hit = std::clamp(s.acc + a.accBonus + (h->st.accTurns > 0 ? h->st.accBuff : 0) + HeroAccBonus(g) - edodge - regionAcc, 5, 95);
                 if (!Chance(hit)) { Float(g, er, "Miss", Pal::Paper); StartAnim(g, false, uid, Anim::Dodge, 0.45f); continue; }
-                bool crit = Chance(5);
+                bool crit = Chance(std::max(0, 5 - (h->st.siltTurns > 0 ? 10 : 0)));
                 StartAnim(g, false, uid, Anim::Hurt, 0.5f);
                 Sparkle(g, er, crit ? 16 : 8, crit ? Pal::Brass : Color{255, 210, 160, 255}, 220, 0);
                 if (a.dmgMult > 0) {
@@ -245,6 +247,8 @@ static void HeroAct(Game& g, int heroId, int abilityIdx, int targetPos) {
 
     if (a.swapWithTarget && myPos >= 0 && targetPos >= 0) {
         std::swap(g.party[myPos], g.party[targetPos]);
+        for (int idA : {g.party[myPos], g.party[targetPos]}) // Drowning Entanglement: damage whenever forced to change ranks
+            if (Hero* mv = FindHero(g, idA); mv && mv->st.drownTurns > 0) { DamageHero(g, *mv, 3); Float(g, HeroRect(PartyPos(g, idA)), "Drowning 3", Pal::Bad); }
         Log(g, "The Captain reorders the line.");
         targets = {myPos}; // the ally now stands where the Captain was
     }
@@ -265,16 +269,55 @@ static void HeroAct(Game& g, int heroId, int abilityIdx, int targetPos) {
     }
 }
 
-// Which ability an enemy will use this turn (-1 if it can't reach anyone).
+// Which ability an enemy will use this turn (-1 if it can't do anything). Rank rules: a skill can only be
+// used from the ranks it allows (melee: the front two; long range: anywhere but the front), and a melee
+// skill only reaches the heroes in the front two ranks. Supports (heals, buffs, commands) pick their own
+// sense: no heal when everyone is well, no drag when there's no one at the back to drag.
+static bool EnemyCanUse(Game& g, int uid, const EnemyAbility& a) {
+    int rank = EnemyPos(g, uid), n = PartySize(g);
+    if (rank < 0 || n == 0 || !(a.fromRanks & (1 << rank))) return false;
+    bool heals = a.healSelf || a.healAllies || a.healLowest;
+    if (heals) {
+        bool hurt = false;
+        for (auto& o : g.dungeon.enemies) if (o.alive && o.hp < o.maxHp * 0.8f) hurt = true;
+        if (!hurt && a.dmgMult <= 0 && !a.buffAllyAtk && !a.buffAllyDef) return false;
+    }
+    if (a.summon >= 0 && (int)g.dungeon.enemies.size() >= 2) return false; // she only calls for help once her court is dead
+    if (a.drain) return g.dungeon.enemies.size() >= 2;
+    if (a.pull == 1) return n >= 3;
+    if (a.pull >= 2) return n >= 2;
+    if (a.dmgMult <= 0 && a.hits == ANY_RANK && !a.aoe && !a.region && !a.weakAtk && !a.weakAcc && !a.weakDef && !a.weakSpd) return true; // pure self/ally effect
+    for (int p = 0; p < n; p++) if (a.hits & (1 << p)) return true;
+    return false;
+}
+
 static int EnemyPick(Game& g, int uid) {
     Enemy* e = FindEnemy(g, uid);
-    int n = PartySize(g);
-    if (!e || n == 0) return -1;
+    if (!e) return -1;
     std::vector<int> usable;
-    for (int i = 0; i < (int)e->abilities.size(); i++)
-        for (int p = 0; p < n; p++)
-            if (e->abilities[i].hits & (1 << p)) { usable.push_back(i); break; }
+    for (int i = 0; i < (int)e->abilities.size(); i++) if (EnemyCanUse(g, uid, e->abilities[i])) usable.push_back(i);
     return usable.empty() ? -1 : usable[Roll(0, (int)usable.size() - 1)];
+}
+
+static void ApplyRegion(Game& g, Hero& h, int region) {
+    Rectangle hr = HeroRect(std::max(0, PartyPos(g, h.id)));
+    switch (region) {
+        case 1: h.st.burnTurns = 3; Float(g, hr, "Totemic Burn", Pal::Coral); break;
+        case 2: h.st.siltTurns = 3; Float(g, hr, "Silt Blindness", Pal::Paper); break;
+        case 3: h.st.drownTurns = 3; Float(g, hr, "Entangled", Pal::Teal); break;
+        case 4: h.st.madTurns = 3; Float(g, hr, "Madness", Pal::Stress); break;
+        default: break;
+    }
+}
+
+// Entangled heroes take damage whenever they are forced to change rank.
+static void AfterPartyMoved(Game& g, const std::array<int, PARTY_SIZE>& before) {
+    for (int p = 0; p < PARTY_SIZE; p++) {
+        int id = g.party[p];
+        if (id < 0 || id == before[p]) continue;
+        Hero* h = FindHero(g, id);
+        if (h && h->st.drownTurns > 0) { DamageHero(g, *h, 3); Float(g, HeroRect(p), "Drowning 3", Pal::Bad); }
+    }
 }
 
 static void EnemyAct(Game& g, int uid, int ability) {
@@ -283,24 +326,37 @@ static void EnemyAct(Game& g, int uid, int ability) {
     if (!e || n == 0) return;
     if (ability < 0) ability = EnemyPick(g, uid);
     if (ability < 0) { Log(g, e->name + " can't reach anyone and skitters about."); return; }
-    const EnemyAbility& a = e->abilities[ability];
+    const EnemyAbility a = e->abilities[ability]; // a copy: summoning may move the enemy list under us
+    Rectangle er = EnemyRect(g, std::max(0, EnemyPos(g, uid)));
 
+    // ---- who it goes for
     std::vector<int> targets;
+    bool hasHeroEffect = a.dmgMult > 0 || a.aoe || a.region || a.weakAtk || a.weakAcc || a.weakDef || a.weakSpd || a.stress || a.bleed || a.poison || a.stunChance || a.pull == 1;
     if (a.aoe) {
         for (int p = 0; p < n; p++) if (a.hits & (1 << p)) targets.push_back(p);
-    } else {
+    } else if (a.pull == 1) {
+        int pick = -1; // an alluring song or a vine reaches for someone at the back
+        for (int p = n - 1; p >= 2; p--) if (a.hits & (1 << p)) { pick = p; break; }
+        if (pick >= 0) targets.push_back(pick);
+    } else if (hasHeroEffect) {
         int guard = -1;
         for (int p = 0; p < n; p++) if (Hero* h = PartyAt(g, p); h && h->st.guardTurns > 0) guard = p;
-        if (guard >= 0 && a.dmgMult > 0) {
-            targets.push_back(guard);
-        } else {
-            std::vector<int> opts;
-            for (int p = 0; p < n; p++) if (a.hits & (1 << p)) opts.push_back(p);
-            targets.push_back(opts[Roll(0, (int)opts.size() - 1)]);
+        std::vector<int> opts;
+        for (int p = 0; p < n; p++) if (a.hits & (1 << p)) opts.push_back(p);
+        if (guard >= 0 && a.dmgMult > 0 && a.targetsN == 0) targets.push_back(guard);
+        else if (!opts.empty()) {
+            int count = std::min(std::max(1, a.targetsN), (int)opts.size());
+            for (int k = 0; k < count; k++) {
+                int i = Roll(0, (int)opts.size() - 1);
+                targets.push_back(opts[i]);
+                opts.erase(opts.begin() + i);
+            }
         }
     }
     Log(g, e->name + ": " + a.name);
+    std::array<int, PARTY_SIZE> before = g.party;
 
+    // ---- what lands on the heroes
     for (int p : targets) {
         Hero* h = PartyAt(g, p);
         if (!h || h->dead) continue;
@@ -309,8 +365,8 @@ static void EnemyAct(Game& g, int uid, int ability) {
         int dodge = s.dodge + (h->st.dodgeTurns > 0 ? h->st.dodgeBuff : 0);
         int eacc = e->acc + (e->st.accTurns > 0 ? e->st.accBuff : 0);
         int hit = std::clamp(eacc + EnemyAccBonus(g) - dodge, 5, 95);
-        if (!Chance(hit)) { Float(g, hr, "Dodge", Pal::Paper); StartAnim(g, true, h->id, Anim::Dodge, 0.45f); continue; }
-        bool crit = Chance(6);
+        if (a.dmgMult > 0 && !Chance(hit)) { Float(g, hr, "Dodge", Pal::Paper); StartAnim(g, true, h->id, Anim::Dodge, 0.45f); continue; }
+        bool crit = a.dmgMult > 0 && Chance(6);
         if (crit) g.dungeon.shake = 0.35f;
         if (a.dmgMult > 0) {
             StartAnim(g, true, h->id, Anim::Hurt, 0.5f);
@@ -321,21 +377,94 @@ static void EnemyAct(Game& g, int uid, int ability) {
             Float(g, hr, (crit ? "CRIT " : "") + std::to_string(dmg), crit ? Pal::Brass : Pal::Bad);
             DamageHero(g, *h, dmg);
             if (h->dead) continue;
+        } else if (hasHeroEffect) {
+            StartAnim(g, true, h->id, Anim::Stress, 0.7f);
         }
         int st = a.stress + (crit ? 10 : 0);
         if (st) AddStress(g, *h, st);
         if (a.bleed) { h->st.bleedDmg = std::max(h->st.bleedDmg, a.bleed); h->st.bleedTurns = 3; }
         if (a.poison) ApplyPoison(h->st, a.poison);
         if (a.stunChance && Chance(a.stunChance)) { h->st.stunned = 1; Float(g, hr, "Stunned", Pal::Teal); }
+        if (a.weakAtk) { h->st.buffDmg = -a.weakAtk; h->st.buffTurns = 3; Float(g, hr, "Weakened", Pal::Bad); }
+        if (a.weakAcc) { h->st.accBuff = -a.weakAcc; h->st.accTurns = 3; Float(g, hr, "Blinded", Pal::Bad); }
+        if (a.weakDef) { h->st.protBuff = -a.weakDef; h->st.protTurns = 3; Float(g, hr, "Exposed", Pal::Bad); }
+        if (a.weakSpd) { h->st.spdBuff = -a.weakSpd; h->st.spdTurns = 3; Float(g, hr, "Slowed", Pal::Teal); }
+        if (a.region) ApplyRegion(g, *h, a.region);
+    }
+
+    // ---- commands: who stands where
+    if (a.pull == 1 && !targets.empty()) {
+        int k = targets[0];
+        if (k >= 1) std::rotate(g.party.begin(), g.party.begin() + k, g.party.begin() + k + 1); // dragged to the front
+        Log(g, "A hero is dragged to the front!");
+    } else if (a.pull == 2) {
+        std::vector<int> ids;
+        for (int id : g.party) if (id >= 0) ids.push_back(id);
+        for (int i = (int)ids.size() - 1; i > 0; i--) std::swap(ids[i], ids[Roll(0, i)]);
+        for (int p = 0, k = 0; p < PARTY_SIZE; p++) if (g.party[p] >= 0) g.party[p] = ids[k++];
+        Log(g, "The party is thrown into disarray!");
+    } else if (a.pull == 3 && n >= 2) {
+        int i = Roll(0, n - 1), j = Roll(0, n - 2);
+        if (j >= i) j++;
+        std::swap(g.party[i], g.party[j]);
+        Log(g, "Two of the crew are hauled out of place!");
+        if (Hero* h = PartyAt(g, i); h && a.region) ApplyRegion(g, *h, a.region);
+        if (Hero* h = PartyAt(g, j); h && a.region) ApplyRegion(g, *h, a.region);
+    }
+    if (a.pull >= 1) AfterPartyMoved(g, before);
+
+    // ---- what it does for its own side
+    auto lowestAlly = [&]() -> Enemy* {
+        Enemy* best = nullptr;
+        for (auto& o : g.dungeon.enemies) if (o.alive && (!best || o.hp * best->maxHp < best->hp * o.maxHp)) best = &o;
+        return best;
+    };
+    auto healEnemy = [&](Enemy& t, int amt) {
+        t.hp = std::min(t.maxHp, t.hp + amt);
+        Float(g, EnemyRect(g, std::max(0, EnemyPos(g, t.uid))), TextFormat("+%d", amt), Pal::Good);
+    };
+    auto buffEnemy = [&](Enemy& t, int atk, int def) {
+        if (atk) { t.st.buffDmg = atk; t.st.buffTurns = 3; }
+        if (def) { t.st.protBuff = def; t.st.protTurns = 3; }
+    };
+    if (a.healSelf) { healEnemy(*e, a.healSelf); e = FindEnemy(g, uid); }
+    if (a.healLowest) if (Enemy* t = lowestAlly()) { healEnemy(*t, a.healLowest); buffEnemy(*t, a.buffAllyAtk, a.buffAllyDef); }
+    if (a.healAllies) for (auto& o : g.dungeon.enemies) if (o.alive) { healEnemy(o, a.healAllies); buffEnemy(o, a.buffAllyAtk, a.buffAllyDef); }
+    if (!a.healLowest && !a.healAllies && (a.buffAllyAtk || a.buffAllyDef)) for (auto& o : g.dungeon.enemies) if (o.alive) buffEnemy(o, a.buffAllyAtk, a.buffAllyDef);
+    if ((e = FindEnemy(g, uid))) {
+        if (a.cleanse) { Status keep; keep.protBuff = e->st.protBuff; keep.protTurns = e->st.protTurns; keep.buffDmg = std::max(0, e->st.buffDmg); keep.buffTurns = e->st.buffDmg > 0 ? e->st.buffTurns : 0; e->st = keep; Float(g, er, "Cleansed", Pal::Good); }
+        if (a.buffSelfDef) { e->st.protBuff = a.buffSelfDef; e->st.protTurns = 3; Float(g, er, "Armor up", Pal::Brass); }
+        if (a.buffSelfAtk) { e->st.buffDmg = a.buffSelfAtk; e->st.buffTurns = 3; Float(g, er, "Enraged", Pal::Bad); }
+        if (a.drain) { // Siphon Offering: bleed a minion to feed itself (or the boss)
+            Enemy* victim = nullptr;
+            for (auto& o : g.dungeon.enemies) if (o.alive && o.uid != uid && !o.boss) victim = &o;
+            if (!victim) for (auto& o : g.dungeon.enemies) if (o.alive && o.uid != uid) victim = &o;
+            Enemy* feed = e;
+            for (auto& o : g.dungeon.enemies) if (o.alive && o.boss && o.uid != (victim ? victim->uid : -1)) feed = &o;
+            if (victim) {
+                int take = std::min(5, victim->hp - 1);
+                if (take > 0) { victim->hp -= take; Float(g, EnemyRect(g, std::max(0, EnemyPos(g, victim->uid))), TextFormat("-%d", take), Pal::Bad); healEnemy(*feed, take + 2); }
+            }
+        }
+        if (a.selfMove) MoveEnemy(g, uid, a.selfMove == -99 ? -EnemyPos(g, uid) : a.selfMove);
+        if (a.summon >= 0 && (int)g.dungeon.enemies.size() < 4) {
+            Enemy add = MakeEnemy((EnemyType)a.summon, g.dungeon.nextUid++);
+            ScaleEnemyForTier(add, g.dungeon.tier);
+            g.dungeon.enemies.push_back(add);
+            Log(g, add.name + " scuttles in from the dark.");
+        }
     }
 }
-
 // ---------------------------------------------------------------- turn flow
 static void BeginRound(Game& g) {
     auto& d = g.dungeon;
     d.order.clear();
     for (int id : g.party)
-        if (Hero* h = FindHero(g, id)) d.order.push_back({true, id, GetStats(*h).speed + Roll(0, 8)});
+        if (Hero* h = FindHero(g, id)) {
+            int spd = GetStats(*h).speed + (h->st.spdTurns > 0 ? h->st.spdBuff : 0);
+            if (h->st.drownTurns > 0) spd /= 2; // Drowning Entanglement: -50% speed
+            d.order.push_back({true, id, spd + Roll(0, 8)});
+        }
     for (auto& e : d.enemies) d.order.push_back({false, e.uid, e.speed + Roll(0, 8)});
     std::stable_sort(d.order.begin(), d.order.end(), [](const TurnEntry& a, const TurnEntry& b) { return a.init > b.init; });
     d.turnIdx = 0;
@@ -351,9 +480,11 @@ static void RoomCleared(Game& g) {
     d.roomGold = (int)(Roll(boss ? 30 : 10, boss ? 50 : 22) * LootMult(g)); // kept modest: gold should stay scarce
     d.roomRelic = -1;
     if (boss && Chance(50)) { d.roomRelic = Roll(0, (int)Relics().size() - 1); d.lootRelics.push_back(d.roomRelic); }
+    if (d.miniFight) d.roomGold = d.roomGold * 8 / 5; // a mini-boss guards better loot
     d.lootGold += d.roomGold;
-    d.pendingItem = !boss && Chance(40); // something dropped among the wreckage, worth a look
+    d.pendingItem = !boss && Chance(d.miniFight ? 85 : 40); // something dropped among the wreckage, worth a look
     if (d.pendingItem) d.pendingItemVal = RollFoundItem();
+    if (d.miniFight && Chance(35)) { d.pendingItem = true; d.pendingItemVal = {ItemKind::Relic, Roll(0, (int)Relics().size() - 1)}; }
     d.phase = boss ? DPhase::Victory : DPhase::RoomClear;
 }
 
@@ -388,7 +519,25 @@ static void StartTurn(Game& g) {
         if (st.dodgeTurns > 0 && --st.dodgeTurns == 0) st.dodgeBuff = 0;
         if (st.protTurns > 0 && --st.protTurns == 0) st.protBuff = 0;
         if (st.accTurns > 0 && --st.accTurns == 0) st.accBuff = 0;
+        if (st.spdTurns > 0 && --st.spdTurns == 0) st.spdBuff = 0;
         if (st.guardTurns > 0) st.guardTurns--;
+        if (st.burnTurns > 0) { st.burnTurns--; Float(g, r, "Burn 2", Pal::Coral); DamageHero(g, *h, 2); }
+        if (st.siltTurns > 0) st.siltTurns--;
+        if (st.drownTurns > 0) st.drownTurns--;
+        if (!h->dead && st.madTurns > 0) {
+            st.madTurns--;
+            if (Chance(20)) { // Eldritch Madness: the mind slips
+                std::vector<int> others;
+                for (int p = 0; p < PartySize(g); p++) if (PartyAt(g, p) && PartyAt(g, p)->id != h->id) others.push_back(p);
+                if (!others.empty() && Chance(50)) {
+                    Hero* victim = PartyAt(g, others[Roll(0, (int)others.size() - 1)]);
+                    Float(g, r, "Madness!", Pal::Stress);
+                    DamageHero(g, *victim, Roll(3, 5));
+                    skip(h->name + " lashes out at " + victim->name + " in a fit of madness.");
+                } else skip(h->name + " stares into nothing, lost to madness.");
+                return;
+            }
+        }
         if (h->dead) { skip(""); return; }
         if (st.stunned > 0) { st.stunned--; skip(h->name + " is stunned and loses the turn."); return; }
         if (h->rattled && Chance(20)) { skip(h->name + " freezes up, too rattled to act!"); return; }
@@ -430,19 +579,27 @@ static void EnterNextRoom(Game& g) {
         d.phase = DPhase::Treasure;
         return;
     }
-    if (rt == RoomType::Boss) {
-        d.enemies.push_back(MakeEnemy(CAVE_TIER_LEVEL[d.tier] >= 3 ? EnemyType::CaveShrimp : EnemyType::SeaLouse, d.nextUid++));
-        d.enemies.push_back(MakeEnemy(EnemyType::Lobster, d.nextUid++));
-        d.enemies.back().name = LocationBossName(d.loc); // the same creature underneath, dressed as this location's threat
-        d.enemies.push_back(MakeEnemy(EnemyType::BrineWorm, d.nextUid++));
-        if (CAVE_TIER_LEVEL[d.tier] >= 6) d.enemies.push_back(MakeEnemy(EnemyType::BrineWorm, d.nextUid++));
-        Log(g, "Something huge stirs in the dark...");
+    int level = CAVE_TIER_LEVEL[d.tier];
+    auto pickFrom = [&](const std::vector<EnemyType>& pool) { return pool[Roll(0, (int)pool.size() - 1)]; };
+    auto standards = LocationStandards(d.loc), supports = LocationSupports(d.loc), minis = LocationMinis(d.loc);
+    d.miniFight = false;
+    if (rt == RoomType::Boss) { // the location's level boss stands in front, with its own to back it up
+        d.enemies.push_back(MakeEnemy(LocationLevelBoss(d.loc), d.nextUid++));
+        int adds = level >= 5 ? 2 : 1;
+        for (int i = 0; i < adds; i++) d.enemies.push_back(MakeEnemy(i == adds - 1 && Chance(50) ? pickFrom(supports) : pickFrom(standards), d.nextUid++));
+        Log(g, std::string(LocationBossName(d.loc)) + " rises to meet you...");
+    } else if (Chance(MiniBossChance(level))) { // a mini-boss: more likely the deeper you go
+        d.miniFight = true;
+        d.enemies.push_back(MakeEnemy(pickFrom(minis), d.nextUid++));
+        int adds = Roll(1, 2);
+        for (int i = 0; i < adds; i++) d.enemies.push_back(MakeEnemy(pickFrom(standards), d.nextUid++));
+        Log(g, d.enemies[0].name + " blocks the way!");
     } else {
         int count = Roll(3, 4);
-        for (int i = 0; i < count; i++) d.enemies.push_back(MakeEnemy((EnemyType)Roll(0, 2), d.nextUid++));
+        for (int i = 0; i < count; i++) d.enemies.push_back(MakeEnemy(pickFrom(standards), d.nextUid++));
+        if (Chance(50)) d.enemies.back() = MakeEnemy(pickFrom(supports), d.nextUid - 1); // a support hangs back at the rear
         Log(g, "Something stirs in the dark...");
-    }
-    for (auto& e : d.enemies) ScaleEnemyForTier(e, d.tier);
+    }    for (auto& e : d.enemies) ScaleEnemyForTier(e, d.tier);
     d.anims.clear();
     d.shots.clear();
     d.pending = PendingAction{};
@@ -456,6 +613,8 @@ void StartDungeon(Game& g, Location loc) {
     g.dungeon = DungeonState{};
     auto& d = g.dungeon;
     d.loc = loc;
+    d.visSeed = (unsigned)GetRandomValue(1, 2000000000); // this run's look: which skyline, which atmosphere
+    d.atmos = GetRandomValue(0, 2);
     int li = (int)loc;
     d.tier = std::clamp(g.tierSel[li], 0, std::min(CAVE_TIERS - 1, g.tierCleared[li] + 1));
     int lvl = CAVE_TIER_LEVEL[d.tier], rooms = lvl >= 3 ? 4 : 3;
@@ -524,7 +683,8 @@ static void ApplyResults(Game& g) {
 // The default player heals anyone below 40% HP and otherwise uses its hardest-hitting attack on the
 // weakest enemy it can reach; "random" picks any usable ability and target instead.
 void SimulateExpeditions(int runs, int level, bool randomPlayer, int tier) {
-    int wins = 0, losses = 0, deaths = 0, anyDeath = 0, rattled = 0;
+    int wins = 0, losses = 0, deaths = 0, anyDeath = 0, rattled = 0, wipeRoom[8] = {0};
+    std::unordered_map<std::string, int> killers; // what was standing when the crew went down
     for (int r = 0; r < runs; r++) {
         Game g;
         InitGame(g);
@@ -595,13 +755,18 @@ void SimulateExpeditions(int runs, int level, bool randomPlayer, int tier) {
         deaths += lost;
         anyDeath += lost > 0;
         for (auto& h : g.roster) if (h.rattled) { rattled++; break; }
-        if (d.phase == DPhase::Victory) wins++; else losses++;
+        if (d.phase == DPhase::Victory) wins++; else { losses++; wipeRoom[std::clamp(d.roomIndex, 0, 7)]++; for (auto& e : d.enemies) if (e.alive) killers[e.name]++; }
     }
     printf("Simulated %d expeditions, crew level %d, cave level %d (%s player):\n", runs, level, CAVE_TIER_LEVEL[tier],
            randomPlayer ? "random" : "sensible");
     printf("  wins %.1f%%   wipes %.1f%%\n", 100.0 * wins / runs, 100.0 * losses / runs);
     printf("  runs with a death %.1f%%   avg deaths %.2f   runs with someone rattled %.1f%%\n",
            100.0 * anyDeath / runs, (double)deaths / runs, 100.0 * rattled / runs);
+    printf("  wipes by room:");
+    for (int i = 0; i < 6; i++) printf(" %d:%d", i + 1, wipeRoom[i]);
+    printf("\n  standing at the end:");
+    for (auto& kv : killers) printf(" %s x%d;", kv.first.c_str(), kv.second);
+    printf("\n");
 }
 
 // ---------------------------------------------------------------- drawing: the cave, in layers
@@ -819,6 +984,7 @@ static void DrawEnemyFigure(const Enemy& e, Rectangle r, float t) {
         ShadeLimb(hip, knee, w, w * 0.8f, col);
         ShadeLimb(knee, foot, w * 0.8f, w * 0.5f, col);
     };
+    if (e.type >= EnemyType::DysCrustacean && e.type != EnemyType::COUNT) { DrawBestiaryFigure(e, r, t); return; } // the region bestiaries
     switch (e.type) {
         case EnemyType::SeaLouse: { // a giant isopod: overlapping armoured plates on seven pairs of legs
             Color shell{150, 132, 170, 255}, seam{92, 78, 110, 255}, leg{104, 90, 124, 255};
@@ -1096,6 +1262,11 @@ static std::string StatusTags(const Status& st) {
     if (st.dodgeTurns > 0) s += st.dodgeBuff > 0 ? "DODGE+ " : "OFF-BALANCE ";
     if (st.protTurns > 0) s += st.protBuff > 0 ? "ARMOR+ " : "EXPOSED ";
     if (st.accTurns > 0) s += st.accBuff > 0 ? "ACC+ " : "BLINDED ";
+    if (st.spdTurns > 0) s += "SLOWED ";
+    if (st.burnTurns > 0) s += "BURN ";
+    if (st.siltTurns > 0) s += "SILT ";
+    if (st.drownTurns > 0) s += "DROWNING ";
+    if (st.madTurns > 0) s += "MADNESS ";
     if (st.guardTurns > 0) s += "GUARD ";
     return s;
 }
@@ -1273,40 +1444,201 @@ static void DrawDriftingSpecks(Game& g) {
     });
 }
 
-// Each of the four Shallows locations shares the same cave geometry, but a wash of colour and a drift
-// of location-flavoured motes gives each its own identity: golden and sandy for the Island, green and
-// leafy for the Weeds, and a cold violet with drifting rune-glyphs for sunken Atlantis.
-static void DrawLocationTint(Game& g) {
-    Location loc = g.dungeon.loc;
-    if (loc == Location::Cave) return;
-    float t = g.time;
-    Color wash = loc == Location::Island ? Color{255, 200, 110, 58} : loc == Location::Weeds ? Color{90, 210, 110, 50} : Color{150, 90, 220, 60};
-    BeginBlendMode(BLEND_ADDITIVE);
-    DrawRectangle(0, 0, SCREEN_W, SCREEN_H, wash);
-    if (loc == Location::Island) { // sun shafts and drifting sand
-        for (int k = 0; k < 5; k++) {
-            float x = fmodf(k * 260.0f + t * 8, (float)SCREEN_W + 200) - 100;
-            DrawTri({x, 0}, {x + 60, 0}, {x - 40, (float)SCREEN_H}, Color{255, 220, 140, 10});
-        }
-        for (int k = 0; k < 26; k++) {
-            float px = fmodf(k * 91.0f + t * 14, (float)SCREEN_W), py = fmodf(k * 61.0f + t * 5, 520.0f) + 40;
-            DrawCircleV({px, py}, 1, Color{255, 224, 160, 70});
-        }
-    } else if (loc == Location::Weeds) { // stray fronds and pollen
-        for (int k = 0; k < 20; k++) {
-            float px = fmodf(k * 103.0f + sinf(t * 0.6f + k) * 20, (float)SCREEN_W), py = fmodf(k * 71.0f + t * 8, 520.0f) + 40;
-            DrawCircleV({px, py}, 1.5f, Color{180, 255, 160, 60});
-        }
-    } else { // Atlantis: cold light and faint drifting glyphs
-        for (int k = 0; k < 10; k++) {
-            float px = fmodf(k * 151.0f + t * 6, (float)SCREEN_W), py = fmodf(k * 83.0f + t * 3, 480.0f) + 40;
-            float a = 40 + 30 * sinf(t * 1.3f + k);
-            DrawRing({px, py}, 5, 6.5f, 0, 360, 6, Color{200, 160, 255, (unsigned char)std::max(0.0f, a)});
-        }
+// ---------------------------------------------------------------- the level theme manager
+// Every run rolls a visual seed and one of three atmospheric states for its location. The seed decides
+// which silhouettes stand on the far horizon and how thick they are; the state decides the colour grade,
+// the weather and the light. Both are fixed for the run, so a level looks like itself from room to room,
+// and different from the last time. All silhouettes are flat ink-black masses: no gradients, hard edges.
+static const char* ATMOS_NAME[LOCATION_COUNT][3] = {
+    {"Pitch Black Trench", "Bioluminescent Bloom", "Submerged Silt Storm"},
+    {"Torrential Downpour", "Toxic Sea Fog", "Eldritch Sunset"},
+    {"Abyssal Current", "Fungal Rot", "Sanguine Tide"},
+    {"Cosmic Void", "Drowned Eclipse", "Blood Moon Abyss"},
+};
+const char* AtmosphereName(Location loc, int variant) { return ATMOS_NAME[(int)loc][std::clamp(variant, 0, 2)]; }
+
+// Distant silhouettes: an ink-black frieze of local landmarks, laid out from the run's seed on two parallax
+// depths, with variable spacing so no two runs share a skyline.
+static void DrawSeededSilhouettes(Game& g) {
+    auto& d = g.dungeon;
+    const Color ink{4, 5, 8, 255};
+    float sd = (float)(d.visSeed % 9973) * 1.37f, t = g.time;
+    for (int layer = 0; layer < 2; layer++) {
+        float par = layer ? 0.42f : 0.24f, gap = layer ? 470.0f : 690.0f, base = 452.0f - layer * 10.0f;
+        float density = 0.45f + Hash1(sd + layer * 7.0f) * 0.5f;            // how crowded this run's horizon is
+        Repeat(LayerOffset(g, par), gap, [&](float sx, float wx) {
+            float h = Hash1(wx * 0.37f + sd + layer * 31.0f);
+            if (Hash1(wx * 0.11f + sd * 2.1f) > density) return;           // gaps in the skyline
+            float x = sx + Hash1(wx + sd) * 180.0f;
+            float sc = 0.8f + Hash1(wx * 1.3f + sd) * 0.7f;
+            int kind = (int)(h * 4.0f);
+            switch (d.loc) {
+                case Location::Island:
+                    if (kind == 0) { // a stilt hut
+                        DrawRectangle((int)x - 30 * sc, (int)(base - 90 * sc), 60 * sc, 34 * sc, ink);
+                        DrawTri({x - 40 * sc, base - 90 * sc}, {x + 40 * sc, base - 90 * sc}, {x, base - 130 * sc}, ink);
+                        for (int k = 0; k < 4; k++) DrawRectangle((int)(x - 28 * sc + k * 18 * sc), (int)(base - 56 * sc), 4, (int)(56 * sc), ink);
+                    } else if (kind == 1) { // a watchtower
+                        DrawRectangle((int)x - 6, (int)(base - 190 * sc), 12, (int)(190 * sc), ink);
+                        DrawRectangle((int)x - 26, (int)(base - 200 * sc), 52, 22, ink);
+                        DrawTri({x - 32, base - 200 * sc}, {x + 32, base - 200 * sc}, {x, base - 232 * sc}, ink);
+                    } else if (kind == 2) { // a smoking pyre
+                        DrawTri({x - 26, base}, {x + 26, base}, {x, base - 44 * sc}, ink);
+                        Glow({x, base - 54 * sc}, 40, Color{255, 110, 40, 80});
+                        for (int k = 0; k < 5; k++) DrawCircleV({x + sinf(t + k) * 10 + k * 3, base - 60 * sc - k * 26 - fmodf(t * 20 + k * 9, 30)}, 10 + k * 3, Fade(Color{20, 18, 20, 255}, 0.5f));
+                    } else { // a stone idol
+                        DrawRectangle((int)x - 16, (int)(base - 120 * sc), 32, (int)(120 * sc), ink);
+                        DrawRectangle((int)x - 24, (int)(base - 160 * sc), 48, 44, ink);
+                        DrawTri({x - 24, base - 160 * sc}, {x + 24, base - 160 * sc}, {x, base - 186 * sc}, ink);
+                    }
+                    break;
+                case Location::Cave:
+                    if (kind < 2) { // a stalactite cluster hanging from the ceiling
+                        for (int k = -2; k <= 2; k++) DrawTri({x + k * 22 - 14, 60}, {x + k * 22 + 14, 60}, {x + k * 22 + k * 3, 60 + (90 + Hash1(wx + k) * 110) * sc}, ink);
+                    } else if (kind == 2) { // a gargantuan molt in the wall: an empty carapace
+                        DrawRing({x, base - 110 * sc}, 70 * sc, 92 * sc, 180, 360, 22, ink);
+                        for (int k = 0; k < 5; k++) DrawLineEx({x - 60 * sc + k * 30 * sc, base - 110 * sc}, {x - 70 * sc + k * 34 * sc, base - 50 * sc}, 5, ink);
+                    } else { // a chasm opening in the floor
+                        DrawTri({x - 90 * sc, base}, {x + 90 * sc, base}, {x, base + 60}, ink);
+                    }
+                    break;
+                case Location::Weeds:
+                    if (kind < 3) { // kelp: sparse or choking, by the run's density
+                        int n = 2 + (int)(density * 5);
+                        for (int k = 0; k < n; k++) {
+                            Vector2 prev{x + k * 14.0f, base};
+                            for (int sgm = 1; sgm <= 9; sgm++) {
+                                Vector2 q{x + k * 14.0f + sinf(t * 0.6f + wx + sgm * 0.5f + k) * sgm * 2.4f, base - sgm * 22.0f * sc};
+                                DrawLineEx(prev, q, 7 - sgm * 0.5f, ink);
+                                prev = q;
+                            }
+                        }
+                    } else { // a sunken naval hull wrapped in vines
+                        DrawTri({x - 150 * sc, base - 30}, {x + 150 * sc, base - 90 * sc}, {x + 150 * sc, base}, ink);
+                        DrawRectangle((int)(x + 40 * sc), (int)(base - 220 * sc), 8, (int)(140 * sc), ink);
+                        DrawLineEx({x + 44 * sc, base - 210 * sc}, {x - 60 * sc, base - 60}, 3, ink);
+                    }
+                    break;
+                default: // Atlantis
+                    if (kind == 0) { // a drowned temple
+                        DrawRectangle((int)(x - 110 * sc), (int)(base - 20), (int)(220 * sc), 20, ink);
+                        for (int k = 0; k < 5; k++) DrawRectangle((int)(x - 96 * sc + k * 48 * sc), (int)(base - 150 * sc), 18, (int)(130 * sc), ink);
+                        DrawTri({x - 118 * sc, base - 150 * sc}, {x + 118 * sc, base - 150 * sc}, {x, base - 210 * sc}, ink);
+                    } else if (kind == 1) { // a broken aqueduct
+                        for (int k = 0; k < 3; k++) {
+                            DrawRectangle((int)(x + k * 90 * sc), (int)(base - 170 * sc), 26, (int)(170 * sc), ink);
+                            DrawRing({x + k * 90 * sc + 58 * sc, base - 130 * sc}, 26, 40, 180, 360, 14, ink);
+                        }
+                    } else if (kind == 2) { // a colossal headless statue
+                        DrawTri({x - 60 * sc, base}, {x + 60 * sc, base}, {x, base - 200 * sc}, ink);
+                        DrawRectangle((int)(x - 74 * sc), (int)(base - 210 * sc), (int)(148 * sc), 24, ink);
+                    } else { // an alien monolith, its runes pulsing
+                        DrawTri({x - 22 * sc, base}, {x + 22 * sc, base}, {x, base - 260 * sc}, ink);
+                        Color rune = d.atmos == 0 ? Color{230, 60, 220, 255} : d.atmos == 2 ? Color{255, 70, 50, 255} : Color{200, 200, 210, 255};
+                        float pulse = 0.5f + 0.5f * sinf(t * 1.6f + wx);
+                        for (int k = 0; k < 4; k++) DrawRectangle((int)x - 2, (int)(base - 60 * sc - k * 44 * sc), 4, 10, Fade(rune, 0.3f + 0.6f * pulse));
+                    }
+                    break;
+            }
+        });
     }
-    EndBlendMode();
 }
 
+// The run's atmospheric state: colour grade, weather and light, laid over the finished, inked scene.
+static void DrawLocationTint(Game& g) {
+    auto& d = g.dungeon;
+    float t = g.time;
+    float seed = (float)(d.visSeed % 997);
+    int v = d.atmos;
+    auto tint = [&](Color c) { DrawRectangle(0, 0, SCREEN_W, SCREEN_H, c); };                    // a colour grade
+    auto lightWash = [&](Color c) { BeginBlendMode(BLEND_ADDITIVE); tint(c); EndBlendMode(); };  // light spilling in
+    switch (d.loc) {
+        case Location::Cave:
+            if (v == 0) { // pitch black: a tight searchlight round the party, ink beyond it
+                for (int i = 0; i < 8; i++) DrawRing({520, 390}, 150 + i * 34, 190 + i * 34, 0, 360, 48, Fade(Color{0, 0, 0, 255}, 0.16f + i * 0.06f));
+                DrawRing({520, 390}, 430, 1500, 0, 360, 64, BLACK);
+            } else if (v == 1) { // bloom: cyan and violet bleeding off the walls
+                lightWash(Color{20, 90, 110, 34});
+                BeginBlendMode(BLEND_ADDITIVE);
+                for (int k = 0; k < 9; k++) Glow({fmodf(k * 173.0f + seed * 31, 1280.0f), 120 + fmodf(k * 89.0f, 300.0f)}, 150, k % 2 ? Color{160, 60, 230, 40} : Color{40, 210, 230, 44});
+                EndBlendMode();
+            } else { // silt storm: a grey-brown haze full of drifting dirt
+                tint(Color{92, 84, 70, 92});
+                for (int k = 0; k < 90; k++) {
+                    float px = fmodf(k * 67.0f + t * (30 + k % 9 * 5), 1300.0f) - 10, py = fmodf(k * 41.0f + sinf(t + k) * 14, 520.0f) + 50;
+                    DrawRectangle((int)px, (int)py, 3, 2, Color{132, 116, 92, 150});
+                }
+            }
+            break;
+        case Location::Island:
+            if (v == 0) { // downpour: charcoal grade, slanted rain, and lightning that lights the black ink for an instant
+                tint(Color{20, 24, 30, 84});
+                for (int k = 0; k < 140; k++) {
+                    float px = fmodf(k * 47.0f + t * 180, 1400.0f) - 60, py = fmodf(k * 31.0f + t * 700 + k * 13, 760.0f) - 20;
+                    DrawLineEx({px, py}, {px - 8, py + 22}, 1.5f, Color{170, 190, 210, 90});
+                }
+                float c = fmodf(t + seed * 0.013f, 9.0f);
+                if (c < 0.22f) lightWash(Color{190, 210, 255, (unsigned char)(120 * (1 - c / 0.22f))});
+            } else if (v == 1) { // toxic fog: yellow-green rolling over the lower half
+                tint(Color{70, 80, 30, 46});
+                for (int k = 0; k < 7; k++) {
+                    float x = fmodf(k * 230.0f + t * 12, 1500.0f) - 150;
+                    DrawEllipse((int)x, 470 + (k % 3) * 30, 260, 70, Color{150, 160, 60, 50});
+                }
+                DrawVGradient({0, 360, (float)SCREEN_W, 360}, Fade(Color{120, 130, 40, 255}, 0.0f), Fade(Color{110, 120, 40, 255}, 0.28f));
+            } else { // eldritch sunset: a blood-crimson sky and amber rim light
+                DrawVGradient({0, 0, (float)SCREEN_W, 380}, Fade(Color{150, 20, 20, 255}, 0.42f), Fade(Color{60, 10, 20, 255}, 0.0f));
+                lightWash(Color{120, 60, 10, 30});
+            }
+            break;
+        case Location::Weeds:
+            if (v == 0) { // abyssal current: indigo water, marine rot streaming sideways
+                tint(Color{18, 24, 74, 92});
+                for (int k = 0; k < 70; k++) {
+                    float px = fmodf(k * 89.0f + t * (120 + k % 5 * 30), 1400.0f) - 60, py = 70 + fmodf(k * 53.0f, 520.0f) + sinf(t * 2 + k) * 6;
+                    DrawRectangle((int)px, (int)py, 8 + k % 4 * 3, 2, Color{120, 110, 130, 110});
+                }
+            } else if (v == 1) { // fungal rot: lime murk with pulsing spores
+                tint(Color{40, 74, 20, 82});
+                for (int k = 0; k < 30; k++) {
+                    float px = fmodf(k * 121.0f + sinf(t * 0.5f + k) * 30, 1280.0f), py = 60 + fmodf(k * 67.0f + t * 6, 520.0f);
+                    float pulse = 0.5f + 0.5f * sinf(t * 2.2f + k);
+                    Glow({px, py}, 16 + pulse * 10, Color{170, 255, 90, (unsigned char)(40 + 60 * pulse)});
+                }
+            } else { // sanguine tide: burgundy water and crimson rim light
+                tint(Color{92, 14, 26, 96});
+                lightWash(Color{110, 20, 20, 30});
+            }
+            break;
+        default: // Atlantis
+            if (v == 0) { // cosmic void: magenta and violet energy over cold blue light
+                tint(Color{30, 14, 66, 88});
+                lightWash(Color{40, 60, 140, 24});
+                for (int k = 0; k < 12; k++) {
+                    float px = fmodf(k * 151.0f + t * 6, 1280.0f), py = fmodf(k * 83.0f + t * 3, 480.0f) + 40, a = 40 + 30 * sinf(t * 1.3f + k);
+                    DrawRing({px, py}, 5, 6.5f, 0, 360, 6, Color{230, 90, 230, (unsigned char)std::max(0.0f, a)});
+                }
+            } else if (v == 1) { // drowned eclipse: drained to slate, gold only where light lands
+                tint(Color{110, 114, 122, 150});
+                BeginBlendMode(BLEND_ADDITIVE);
+                Glow({640, 60}, 300, Color{255, 200, 90, 60});
+                EndBlendMode();
+            } else { // blood moon: red light bleeding up from vents below, shadows pointing skyward
+                tint(Color{60, 6, 10, 70});
+                BeginBlendMode(BLEND_ADDITIVE);
+                for (int k = 0; k < 6; k++) DrawTri({150.0f + k * 210, 560}, {230.0f + k * 210, 560}, {190.0f + k * 210 + sinf(t + k) * 20, 140}, Color{140, 20, 20, 16});
+                Glow({640, 600}, 700, Color{200, 30, 30, 50});
+                EndBlendMode();
+            }
+            break;
+    }
+    // the vignette that closes every scene in: black at the edges, hard
+    for (int i = 0; i < 6; i++) DrawRing({640, 360}, 520 + i * 60, 560 + i * 60, 0, 360, 64, Fade(BLACK, 0.06f + i * 0.045f));
+    if (d.atmos >= 0) {
+        const char* nm = AtmosphereName(d.loc, v);
+        Txt(nm, 20, 62, 14, Fade(Pal::Paper, 0.55f));
+    }
+}
 static void DrawTopBar(Game& g) {
     auto& d = g.dungeon;
     DrawVGradient({0, 0, (float)SCREEN_W, 58}, Color{10, 18, 24, 240}, Color{16, 28, 36, 220});
@@ -1617,6 +1949,7 @@ void SceneDungeon(Game& g) {
 
     // ---------------- drawing
     DrawCaveLayers(g);
+    DrawSeededSilhouettes(g);
     DrawUnitFigures(g);
     DrawProjectiles(g);
     DrawCaveLighting(g);
@@ -1852,4 +2185,29 @@ void DrawCaveSpritePage(float t) {
         DrawEnemyFigure(e, {ff.x - r.width / 2, ff.y - r.height, r.width, r.height}, t);
         EndFigure({x, y});
     }
+}
+
+// Every creature of the four regions, on two sprite sheet pages.
+void DrawBestiarySpritePage(int page, float t) {
+    DrawVGradient({0, 0, (float)SCREEN_W, (float)SCREEN_H}, Color{16, 18, 24, 255}, Color{6, 7, 10, 255});
+    const int FIRST = (int)EnemyType::DysCrustacean, LAST = (int)EnemyType::COUNT;
+    int total = LAST - FIRST, perPage = 8, from = FIRST + page * perPage;
+    TxtBold(TextFormat("The bestiary (%d of 3)", page + 1), 30, 14, 24, Pal::Brass);
+    for (int k = 0; k < perPage && from + k < LAST; k++) {
+        Enemy e = MakeEnemy((EnemyType)(from + k), 90 + k);
+        float x = 170 + (k % 4) * 310.0f, y = 330 + (k / 4) * 300.0f;
+        Rectangle r = e.boss ? Rectangle{0, 0, 116, 210} : Rectangle{0, 0, 90, 130};
+        Vector2 ff = FigureFeet();
+        DrawShadowBlob({x, y}, e.boss ? 80 : 50);
+        BeginFigure();
+        DrawEnemyFigure(e, {ff.x - r.width / 2, ff.y - r.height, r.width, r.height}, t);
+        EndFigure({x, y});
+        const char* tier = e.tier == 2 ? "LEVEL BOSS" : e.tier == 1 ? "MINI-BOSS" : "";
+        TxtBold(e.name, x - MeasureTxt(e.name, 17, true) / 2.0f, y + 12, 17, Pal::Paper);
+        if (e.tier) Txt(tier, x - MeasureTxt(tier, 13) / 2.0f, y + 32, 13, Pal::Bad);
+        std::string sk;
+        for (auto& a : e.abilities) sk += (sk.empty() ? "" : ", ") + a.name;
+        Txt(sk, x - MeasureTxt(sk, 11) / 2.0f, y + 48, 11, Color{170, 176, 170, 255});
+    }
+    (void)total;
 }

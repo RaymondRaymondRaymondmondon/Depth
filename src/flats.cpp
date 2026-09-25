@@ -412,44 +412,43 @@ void DrawTable() {
 // The same proportions and lit-figure technique (ShadeLimb/ShadeBall between BeginFigure/EndFigure) as the
 // dealer standing at his table in the salon, just scaled up: he's the whole scene's focal point here, so the
 // two should read as the same character instead of two differently-drawn men.
+// The dealer sits in shadow, but he is never lost in it: the room around him is black, and he is picked out
+// in solid ink-black masses with a thin cold rim of light along his hood and shoulders, a brow that hides
+// his eyes, and two pinpricks of light beneath it. Hard block shadows, no gradients.
 void DrawDealer(float t) {
-    float cx = 640, breathe = sinf(t * 1.2f) * 2.4f;
-    Vector2 feet{cx, 470}, o = FigureFeet();
-    float k = 2.0f;
-    auto P = [&](float dx, float dy) { return Vector2{o.x + dx * k, o.y + dy * k}; };
-    Color cloak{26, 30, 48, 255}, glove{34, 34, 40, 255}, wax{132, 134, 132, 255};
-    BeginFigure();
-    ShadeLimb(P(-30, -128 + breathe), P(30, -128 + breathe), 24, 24, cloak); // shoulders
-    ShadeLimb(P(0, -60), P(0, -130 + breathe), 30, 27, cloak);               // the body under the cloak
-    DrawTri(P(-46, -118), P(46, -118), P(0, -180 + breathe), Tone(cloak, -0.3f)); // the hood's peak
-    ShadeBall(P(0, -160 + breathe), 25, Tone(cloak, -0.2f));                 // hood
-    ShadeBall(P(1, -158 + breathe), 15.5f, wax);                            // face
-    DrawLineEx(P(-12, -164 + breathe), P(12, -164 + breathe), 6, Color{50, 52, 56, 255});   // heavy brow
-    DrawLineEx(P(-8, -142 + breathe), P(8, -142 + breathe), 4.4f, Color{36, 32, 34, 255});  // a flat mouth
-    for (int e = -1; e <= 1; e += 2) DrawEllipse((int)P(e * 6.5f, -159 + breathe).x, (int)P(e * 6.5f, -159 + breathe).y, 3.6f * k, 2.4f * k, Color{214, 226, 255, 255});
-    ShadeLimb(P(-30, -128 + breathe), P(-38, -108), 10, 9, cloak); // arms reaching to the felt
-    ShadeLimb(P(30, -128 + breathe), P(38, -108), 10, 9, cloak);
-    ShadeBall(P(-38, -106), 7, glove);
-    ShadeBall(P(38, -106), 7, glove);
-    EndFigure(feet);
-    // his eyes catch the light and follow you
+    float cx = 640, bob = sinf(t * 1.1f) * 2.0f, top = 34 + bob;
+    Color ink{6, 8, 14, 255}, body{20, 26, 42, 255}, bodyLt{34, 46, 70, 255}, rim{92, 150, 190, 255}, skin{92, 96, 100, 255}, skinDk{40, 42, 48, 255};
+    // shoulders and cloak: a broad, top-heavy mass
+    DrawEllipse((int)cx, (int)(top + 270), 290, 130, ink);
+    DrawTri({cx - 270, top + 320}, {cx + 270, top + 320}, {cx, top + 150}, body);
+    DrawTri({cx - 270, top + 320}, {cx - 60, top + 320}, {cx - 40, top + 160}, ink);   // the block shadow under the key light
+    DrawLineEx({cx - 270, top + 320}, {cx, top + 150}, 3, rim);                        // rim light, left shoulder
+    DrawLineEx({cx + 270, top + 320}, {cx, top + 150}, 2, Fade(rim, 0.6f));
+    // the hood, a heavy pointed mass, and the face inside it
+    DrawTri({cx - 100, top + 190}, {cx + 100, top + 190}, {cx, top - 10}, body);
+    DrawTri({cx - 100, top + 190}, {cx, top + 190}, {cx - 6, top - 10}, bodyLt);
+    DrawLineEx({cx - 100, top + 190}, {cx, top - 10}, 3, rim);
+    DrawEllipse((int)cx, (int)(top + 118), 60, 74, ink);                                 // the hood's hollow
+    DrawEllipse((int)(cx + 4), (int)(top + 132), 44, 56, skinDk);                        // the face, mostly shadow
+    DrawEllipse((int)(cx - 14), (int)(top + 136), 22, 44, skin);                         // only the lit cheek
+    DrawRectangle((int)cx - 56, (int)(top + 96), 112, 30, ink);                          // the brow: eyes sit in a black bar
+    DrawLineEx({cx - 52, top + 130}, {cx + 52, top + 130}, 3, Color{4, 4, 8, 255});
+    DrawLineEx({cx - 20, top + 176}, {cx + 20, top + 174}, 3, Color{4, 4, 8, 255});      // a flat mouth
     Vector2 m = GetMousePosition();
-    float lookx = std::clamp((m.x - cx) * 0.012f, -4.0f, 4.0f), looky = std::clamp((m.y - 200) * 0.006f, -2.0f, 3.0f);
+    float lookx = std::clamp((m.x - cx) * 0.012f, -4.0f, 4.0f);
     for (int s = -1; s <= 1; s += 2) {
-        Vector2 e{feet.x + (P(s * 6.5f, -159 + breathe).x - o.x), feet.y + (P(s * 6.5f, -159 + breathe).y - o.y)};
-        Glow(e, 26, Color{150, 170, 255, 90});
-        DrawCircleV({e.x + lookx, e.y + looky}, 3.6f, Color{20, 24, 40, 255});
+        Vector2 e{cx + s * 24 + lookx, top + 112};
+        Glow(e, 26, Color{150, 170, 255, 70});
+        DrawRectangle((int)e.x - 6, (int)e.y - 2, 12, 4, Color{220, 232, 255, 255});    // just a sliver of light in the dark
     }
-    // a dagger held up beside his shoulder, catching the cold light
-    Vector2 hand{feet.x + (P(38, -108).x - o.x), feet.y + (P(38, -108).y - o.y)}, tip{cx + 60, feet.y - 340};
-    DrawLineEx(hand, tip, 7, Color{150, 176, 196, 255});
-    DrawLineEx({hand.x - 3, hand.y}, {tip.x - 3, tip.y + 10}, 2, Color{210, 232, 244, 255});
-    DrawLineEx({hand.x - 22, hand.y - 4}, {hand.x + 22, hand.y - 4}, 6, Color{90, 78, 56, 255});
-    DrawCircleV({hand.x, hand.y + 14}, 15, Color{28, 30, 36, 255}); // his gloved fist around the grip
-    Vector2 rest{feet.x + (P(-38, -106).x - o.x), feet.y + (P(-38, -106).y - o.y) + 156};
-    DrawCircleV(rest, 15, Color{28, 30, 36, 255}); // and the other hand, resting on the table
+    // a dagger held up beside the shoulder, catching the cold light
+    Vector2 hand{cx + 210, top + 230}, tip{cx + 232, top + 60};
+    DrawLineEx(hand, tip, 8, ink);
+    DrawLineEx(hand, tip, 4, Color{150, 176, 196, 255});
+    DrawLineEx({hand.x - 24, hand.y - 4}, {hand.x + 24, hand.y - 4}, 7, ink);
+    DrawCircleV({hand.x, hand.y + 16}, 17, ink);
+    DrawCircleV({cx - 200, top + 280}, 17, ink);                                         // the other fist, resting on the table
 }
-
 void DrawSkull(float t, float x, float y) {
     DrawEllipse((int)x, (int)(y - 8), 26, 24, Color{210, 200, 172, 255});
     DrawEllipse((int)x, (int)(y + 12), 18, 12, Color{192, 182, 154, 255});
@@ -704,10 +703,11 @@ void SceneCards(Game& g) {
     }
 
     // ---------------- lights: the candles at the skull, and a cold glow over the flats
-    LightsBegin(Color{48, 50, 66, 255});
+    LightsBegin(Color{22, 24, 32, 255}); // the room is in shadow; the dealer is lit on purpose below
     AddLight({300, 340}, 380, Color{255, 190, 110, 255}, 0.95f);
     AddLight({640, 470}, 620, Color{80, 150, 200, 255}, 0.6f);
-    AddLight({640, 150}, 230, Color{110, 120, 150, 255}, 0.5f);
+    AddLight({640, 170}, 330, Color{150, 165, 205, 255}, 1.0f);   // the dealer: dark, but always readable
+    AddLight({640, 330}, 260, Color{70, 150, 190, 255}, 0.8f);    // and lit from below by the flats
     AddLight({124, 350}, 260, Color{255, 200, 120, 255}, 0.4f);
     AddLight({1090, 460}, 200, Color{255, 190, 110, 255}, 0.45f);
     LightsEnd();
@@ -796,7 +796,7 @@ void SceneCards(Game& g) {
                 if (S.phase == Phase::Playing) S.actions = std::min(2, (int)S.foe.hand.size());
             }
         }
-        if (aiming) DrawCardFace({m.x - 24, m.y - 34, 48, 68}, S.you.hand[S.selected], true); // the card held in hand
+        if (aiming && S.selected >= 0 && S.selected < (int)S.you.hand.size()) DrawCardFace({m.x - 24, m.y - 34, 48, 68}, S.you.hand[S.selected], true); // the card held in hand
     }
     if (S.phase == Phase::Playing && S.yourTurn && CheckCollisionPointRec(m, BellRect())) Tooltip("Ring the bell to end your turn", {m.x, m.y + 22});
 

@@ -43,6 +43,11 @@ The vertical slice was built in an earlier claude.ai chat, "Computer game develo
 ## Flats (the card game, flats.cpp)
 Two players, two decks, three lanes ("flats"); laid out like the first act of Inscryption (dealer across the table, glowing flats, a fan of cards, a brass bell that ends the turn). Rules are in the menu text. It is run-based like a roguelike: win a match, add a card, face a tougher dealer, cash out or risk the pot. Payouts 40/100/220 (+100 for clearing all three). `--flats-sim N [sensible]` plays it headlessly (a sensible greedy player wins the first match about half the time). The dealer sits at a table in the salon (`DrawCardTable`, `DrawCardDealer`).
 
+## Bestiary, atmospheres and pixels (from the visual pass)
+- See ROADMAP.md. Enemy skills use `fromRanks` (melee 1-2, long range 2-4); region debuffs live in `Status`; mini-boss chance is `MiniBossChance`; each location ends in its level boss (`LocationLevelBoss`).
+- Each run rolls `visSeed` and `atmos` (StartDungeon). Platformer: world px = screen px, 2 px art grid, no fractional offsets or rotation on sprites.
+- `--sim` now prints where wipes happen; Cave level 0 is about 51% wins.
+
 ## Rendering gotchas
 - raylib culls triangles by winding order. Use `DrawTri()` (it draws both windings), not `DrawTriangle`.
 - rlgl resets the bound texture when the batch switches to `RL_TRIANGLES`. Textured custom geometry must use `RL_QUADS` (see `DrawTexturedCircle`).

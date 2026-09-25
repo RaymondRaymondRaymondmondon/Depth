@@ -36,7 +36,11 @@ constexpr float RUN = 340, ACCEL_GROUND = 6500, DECEL_GROUND = 7500, ACCEL_AIR =
 constexpr float JUMP_V = 720, GRAV_UP = 2100, GRAV_UP_RELEASED = 5400, GRAV_DOWN = 3000, MAX_FALL = 980;
 constexpr float WALL_SLIDE = 150, WALLJUMP_VX = 360, WALLJUMP_VY = 690, WALL_LOCK = 0.13f;
 constexpr float COYOTE = 0.1f, JUMP_BUFFER = 0.14f, STEP = 1.0f / 240; // physics runs at a fixed 240 Hz
-constexpr float ZOOM = 0.625f, HUD_PX = 28; // canvas pixels per world pixel; HUD height in canvas pixels
+// The world is drawn at exactly 1 canvas pixel per 2 world pixels, and the canvas is scaled up by exactly 2 (see
+// PIXEL_W): so one world pixel is one screen pixel, every sprite is authored on a 2-world-pixel art grid, and
+// nothing is ever stretched, filtered or drawn at a fractional offset.
+constexpr float ZOOM = 0.5f, HUD_PX = 28; // canvas pixels per world pixel; HUD height in canvas pixels
+constexpr float ART = 2;                  // one art pixel, in world pixels
 
 #define E "........................"
 #define W "########################"
@@ -1484,10 +1488,51 @@ void DrawDepth(const PlatformState& p, int x, int y) {
     }
 }
 
+// A free-standing column (one or two tiles wide) is capped top and bottom, like a real pipe or beam:
+// a flange plate in brass on the Pipes, a rusted collar on the Hull, an iron-banded beam-end on the ship.
+void DrawPillarCaps(const PlatformState& p, int x, int y) {
+    bool L1 = Solid(p, x - 1, y), R1 = Solid(p, x + 1, y);
+    bool narrow = (!L1 && !R1) || (!L1 && R1 && !Solid(p, x + 2, y)) || (L1 && !R1 && !Solid(p, x - 2, y));
+    if (!narrow) return;
+    bool top = !Solid(p, x, y - 1) && Solid(p, x, y + 1), bottom = !Solid(p, x, y + 1) && Solid(p, x, y - 1);
+    if (!top && !bottom) return;
+    float px = x * (float)T, py = y * (float)T;
+    float capY = top ? py : py + T - 8;
+    Color plate = p.level == PL_PIPES ? Color{184, 140, 60, 255} : p.level == PL_HULL ? Color{128, 78, 46, 255} : Color{92, 70, 60, 255};
+    Color dark = ColorBrightness(plate, -0.5f);
+    float x0 = (!L1 ? px : px - 0) - (!L1 ? 4 : 0), x1 = (!R1 ? px + T + 4 : px + T);
+    DrawRectangle((int)x0, (int)capY, (int)(x1 - x0), 8, dark);
+    DrawRectangle((int)x0 + 2, (int)capY + 2, (int)(x1 - x0) - 4, 4, plate);
+    DrawRectangle((int)x0 + 3, (int)capY + 3, 2, 2, Color{240, 220, 160, 255});
+    DrawRectangle((int)x1 - 5, (int)capY + 3, 2, 2, Color{240, 220, 160, 255});
+}
+
+// Foreground dressing that wraps the hazards' edges and ties the depth layers together: fronds curling over
+// the Hull's urchins, steam-pipe condensation on the Pipes, rope lashings on the ship's spike frames.
+void DrawHazardOverlay(const PlatformState& p, int c0, int c1, int r0, int r1, float t) {
+    for (int y = r0; y <= r1; y++)
+        for (int x = c0; x <= c1; x++) {
+            if (p.tiles[y][x] != 'x') continue;
+            float px = x * (float)T, py = y * (float)T;
+            if (p.level == PL_HULL) {
+                for (int k = 0; k < 2; k++) {
+                    float sway = sinf(t * 2 + x + k * 2) * 3, bx = px + (k ? T - 6 : 4);
+                    DrawLineEx({bx, py + T}, {bx + sway, py + 12}, 3, Color{28, 96, 70, 255});
+                    DrawLineEx({bx + sway, py + 12}, {bx + sway * 1.6f + (k ? -4 : 4), py + 6}, 2, Color{40, 128, 90, 255});
+                }
+            } else if (p.level == PL_PIRATE) {
+                DrawRectangle((int)px + 3, (int)py + 14, 2, 10, Color{200, 180, 130, 255});
+                DrawRectangle((int)px + T - 5, (int)py + 14, 2, 10, Color{200, 180, 130, 255});
+            } else {
+                DrawRectangle((int)px + 10, (int)py + 10, 2, 6, Color{120, 150, 160, 170});
+            }
+        }
+}
+
 void DrawTile(const PlatformState& p, char c, int x, int y, float t) {
     float px = x * (float)T, py = y * (float)T;
     switch (c) {
-        case '#': DrawSolid(p, x, y); break;
+        case '#': DrawSolid(p, x, y); DrawPillarCaps(p, x, y); break;
         case 'k': { // a crate or a barrel
             bool barrel = Hs(x * 7.1f + y * 3.3f) > 0.5f;
             if (barrel) {
@@ -1523,28 +1568,42 @@ void DrawTile(const PlatformState& p, char c, int x, int y, float t) {
             if (At(p, x, y - 1) != '|') DrawFlange({px + 16, py + 3}, 12, true, Pal::BrassDk);
             if (At(p, x, y + 1) != '|') DrawFlange({px + 16, py + T - 3}, 12, true, Pal::BrassDk);
         } break;
-        case 'x':
-            if (p.level == PL_PIPES) {
-                DrawRectangle((int)px, (int)py + T - 12, T, 12, Color{64, 64, 70, 255});
-                for (int k = 0; k < 4; k++) DrawRectangle((int)px + 3 + k * 8, (int)py + T - 10, 4, 8, Color{30, 30, 34, 255});
+        case 'x': {
+            // Every hazard is built INTO the level, never set on top of it: a recessed housing is cut into
+            // the floor, framed in the zone's own materials, and the hazard rises out of it.
+            if (p.level == PL_PIPES) { // a recessed brass grate over a steam exhaust port
+                DrawRectangle((int)px, (int)py + 14, T, T - 14, Color{22, 18, 16, 255});                 // the cut-out
+                DrawRectangle((int)px, (int)py + 14, T, 3, Color{184, 140, 60, 255});                    // brass lip
+                DrawRectangle((int)px, (int)py + 14, 3, T - 14, Color{138, 100, 40, 255});               // side flanges
+                DrawRectangle((int)px + T - 3, (int)py + 14, 3, T - 14, Color{138, 100, 40, 255});
+                for (int k = 0; k < 4; k++) DrawRectangle((int)px + 5 + k * 6, (int)py + 19, 3, 11, Color{70, 56, 40, 255}); // the grate bars
+                DrawRectangle((int)px + 2, (int)py + 16, 2, 2, Color{230, 200, 120, 255});               // rivets
+                DrawRectangle((int)px + T - 4, (int)py + 16, 2, 2, Color{230, 200, 120, 255});
                 for (int k = 0; k < 3; k++) {
                     float ph = fmodf(t * 1.6f + k * 0.33f + x * 0.17f, 1.0f);
-                    DrawCircle((int)(px + T / 2 + sinf(ph * 6 + k) * 6), (int)(py + T - 8 - ph * 30), 5 + ph * 7, Fade(Color{240, 245, 250, 255}, 0.7f * (1 - ph)));
+                    DrawRectangle((int)(px + T / 2 + sinf(ph * 6 + k) * 6) - 3, (int)(py + 14 - ph * 30), 6 + (int)(ph * 6), 4, Fade(Color{240, 245, 250, 255}, 0.75f * (1 - ph)));
                 }
-            } else if (p.level == PL_HULL) { // sea urchins
-                Vector2 c0{px + 16, py + T - 10};
-                for (int k = 0; k < 10; k++) {
-                    float a = PI + k * PI / 9;
-                    DrawLineEx(c0, {c0.x + cosf(a) * 15, c0.y + sinf(a) * 15}, 2, Color{70, 40, 90, 255});
+            } else if (p.level == PL_HULL) { // an urchin nested in a barnacle-crusted seam
+                DrawRectangle((int)px, (int)py + 16, T, T - 16, Color{30, 22, 26, 255});                 // dark rust seam
+                DrawRectangle((int)px, (int)py + 16, T, 2, Color{120, 64, 34, 255});                     // rust line
+                for (int k = 0; k < 4; k++) DrawRectangle((int)px + 4 + k * 8, (int)py + 14 - (k % 2) * 2, 6, 4, Color{204, 198, 176, 255}); // barnacles
+                Vector2 c0{px + 16, py + T - 8};
+                for (int k = 0; k < 7; k++) {
+                    float a = PI + k * PI / 6;
+                    DrawLineEx(c0, {c0.x + cosf(a) * 14, c0.y + sinf(a) * 14}, 2, Color{70, 40, 90, 255});
                 }
-                DrawCircleV(c0, 10, Color{90, 50, 110, 255});
-                DrawCircleV({c0.x - 3, c0.y - 3}, 3, Color{150, 100, 170, 255});
-            } else { // iron spikes
-                for (int k = 0; k < 4; k++) DrawTri({px + k * 8.0f, py + T}, {px + k * 8.0f + 8, py + T}, {px + k * 8.0f + 4, py + 12}, Color{150, 150, 160, 255});
-                DrawRectangle((int)px, (int)py + T - 3, T, 3, Color{70, 70, 76, 255});
+                DrawRectangle((int)c0.x - 8, (int)c0.y - 8, 16, 12, Color{90, 50, 110, 255});
+                DrawRectangle((int)c0.x - 6, (int)c0.y - 6, 4, 4, Color{150, 100, 170, 255});
+            } else { // iron spikes mounted in a plank frame with rusty brackets
+                DrawRectangle((int)px, (int)py + 20, T, T - 20, Color{84, 52, 30, 255});                 // the mounting plank
+                DrawRectangle((int)px, (int)py + 20, T, 2, Color{150, 108, 64, 255});
+                for (int k = 0; k < 4; k++) DrawTri({px + k * 8.0f, py + 20}, {px + k * 8.0f + 8, py + 20}, {px + k * 8.0f + 4, py + 6}, Color{150, 150, 160, 255});
+                DrawRectangle((int)px, (int)py + 18, 4, T - 18, Color{92, 70, 60, 255});                  // iron brackets
+                DrawRectangle((int)px + T - 4, (int)py + 18, 4, T - 18, Color{92, 70, 60, 255});
+                DrawRectangle((int)px + 1, (int)py + 22, 2, 2, Color{170, 96, 60, 255});
+                DrawRectangle((int)px + T - 3, (int)py + 22, 2, 2, Color{170, 96, 60, 255});
             }
-            break;
-        case 'g': {
+        } break;        case 'g': {
             Vector2 c0{px + 16, py + 16};
             if (p.level == PL_PIPES) DrawGear(c0, 13, 8, t * 3 + x, Color{190, 150, 80, 255});
             else if (p.level == PL_HULL) { // naval mine
@@ -1615,84 +1674,81 @@ void DrawTile(const PlatformState& p, char c, int x, int y, float t) {
 }
 
 // ---------------------------------------------------------------- drawing: characters
-// The diver: a brass helmet with a front port, a breastplate, an air tank on the back with its hose,
-// canvas suit and lead boots. It's drawn a little narrower than its collision box, squash-and-stretch
-// never widens it into a wall it's touching, and its position is snapped to the canvas's pixel grid
-// (as the tiles are), so it can never appear to sink into a wall. A dark outline, drawn first by
-// stamping the silhouette one canvas pixel to each side, keeps it crisp against any background.
+// The diver, on the same 2-world-pixel art grid as every tile: an oversized copper dome helmet with a cyan
+// glowing visor, twin air tanks on the back joined to the helmet by a hose, a saturated ocean-canvas suit
+// and heavy lead boots, all under a one-art-pixel ink outline (the silhouette stamped in four directions
+// first). Everything here is in art pixels (U = 2 world px), 13 tall, so it lines up with the tiles exactly.
+namespace DiverPalette {
+constexpr Color OUTLINE{14, 20, 27, 255}, HELMET_DARK{138, 82, 20, 255}, HELMET_BASE{217, 130, 43, 255}, HELMET_LIGHT{252, 224, 104, 255};
+constexpr Color VISOR_GLOW{0, 255, 255, 255}, VISOR_INNER{224, 255, 255, 255}, SUIT_MAIN{31, 111, 120, 255}, SUIT_SHADOW{13, 60, 66, 255};
+constexpr Color TANKS_METAL{136, 153, 166, 255}, TANKS_DARK{74, 88, 100, 255}, BOOTS_LEAD{44, 62, 80, 255}, BOOTS_HI{90, 112, 134, 255};
+}  // namespace DiverPalette
+
 void DrawDiverShape(const PlatformState& p, bool outline) {
-    auto C = [&](Color c) { return outline ? Color{14, 12, 16, 255} : c; };
-    Color suit = C({70, 176, 170, 255}), suitDk = C({42, 118, 116, 255}), suitHi = C({150, 226, 214, 255}), boot = C({54, 50, 56, 255});
-    Color brass = C(Pal::Brass), brassDk = C(Pal::BrassDk), brassHi = C({255, 232, 160, 255}), glass = C({26, 64, 84, 255});
-    Color tank = C({176, 120, 60, 255}), tankHi = C({230, 178, 104, 255}), hose = C({40, 40, 44, 255});
+    using namespace DiverPalette;
+    auto R = [&](int x, int y, int w, int h, Color c) { // a rectangle of art pixels; the outline pass paints it all ink
+        DrawRectangle((int)(x * ART), (int)(y * ART), (int)(w * ART), (int)(h * ART), outline ? OUTLINE : c);
+    };
     bool running = p.onGround && fabsf(p.vel.x) > 30, sliding = p.wallSide != 0;
-    float ph = p.runAnim, l1 = running ? sinf(ph) * 4.5f : 0;
-    // air tank and hose, behind everything
-    DrawRectangleRounded({-12, -25, 6, 14}, 0.6f, 4, tank);
-    if (!outline) DrawRectangleRec({-11, -23, 1.5f, 10}, tankHi);
-    DrawLineEx({-9, -25}, {-6, -30}, 2, hose);
-    // legs
-    if (!p.onGround) { // tucked in the air, trailing when falling
-        float trail = p.vel.y > 0 ? 2.0f : 0.0f;
-        DrawRectangleRec({-7.5f, -11 + trail, 6, 7}, suitDk);
-        DrawRectangleRec({2, -12 + trail, 6, 7}, suit);
-        DrawRectangleRec({-8.5f, -6 + trail, 7, 3.5f}, boot);
-        DrawRectangleRec({1.5f, -7 + trail, 7, 3.5f}, boot);
+    int step = running ? (int)roundf(sinf(p.runAnim) * 1.4f) : 0;             // legs swing by whole art pixels
+    int lean = running ? (fabsf(p.vel.x) > RUN * 0.6f ? 1 : 0) : 0;            // the head and shoulders lean into the run
+    int bob = running && (int)(p.runAnim / PI) % 2 == 0 ? 0 : 0;
+    (void)bob;
+    // twin air tanks on the back, and the hose up to the helmet
+    R(-6, -9, 2, 6, TANKS_METAL); R(-6, -9, 2, 1, TANKS_DARK); R(-6, -5, 2, 1, TANKS_DARK);
+    R(-5, -8, 2, 6, TANKS_DARK); R(-5, -8, 1, 5, TANKS_METAL);
+    R(-5, -10, 1, 1, HELMET_DARK);
+    // legs and lead boots
+    if (!p.onGround) {
+        int tr = p.vel.y > 0 ? 1 : 0;                                          // trailing when falling, tucked when rising
+        R(-3, -4 + tr, 2, 2, SUIT_SHADOW); R(1, -5 + tr, 2, 2, SUIT_MAIN);
+        R(-4, -2 + tr, 3, 2, BOOTS_LEAD); R(1, -3 + tr, 3, 2, BOOTS_LEAD); R(-4, -2 + tr, 3, 1, BOOTS_HI);
     } else {
-        DrawRectangleRec({-7 + l1 * 0.6f, -9, 6, 9 - fmaxf(0, l1 * 0.4f)}, suitDk);
-        DrawRectangleRec({1.5f - l1 * 0.6f, -9, 6, 9 - fmaxf(0, -l1 * 0.4f)}, suit);
-        DrawRectangleRec({-8.5f + l1 * 0.7f, -3.5f, 8, 3.5f}, boot);
-        DrawRectangleRec({0.5f - l1 * 0.7f, -3.5f, 8, 3.5f}, boot);
+        R(-3 + step, -4, 2, 2, SUIT_SHADOW); R(1 - step, -4, 2, 2, SUIT_MAIN);
+        R(-4 + step, -2, 3, 2, BOOTS_LEAD); R(1 - step, -2, 3, 2, BOOTS_LEAD);
+        R(-4 + step, -2, 3, 1, BOOTS_HI); R(1 - step, -2, 3, 1, BOOTS_HI);
     }
-    if (!sliding) DrawRectangleRec({-6.5f + l1 * 0.3f, -19, 3.5f, 8}, suitDk); // far arm, swinging opposite
-    DrawRectangleRounded({-7.5f, -21, 15, 13}, 0.4f, 4, suit);                  // body
-    if (!outline) {
-        DrawRectangleRec({-6.5f, -20, 3, 10}, suitHi);          // light catching the near side of the suit
-        DrawRectangleRec({4, -20, 3, 10}, Color{36, 110, 108, 255});
-    }
-    DrawRectangleRec({-7.5f, -11, 15, 2}, C({96, 70, 44, 255}));                 // weight belt
-    DrawRectangleRec({-1, -11, 3, 2}, brass);
-    DrawEllipse(0, -21, 9, 3.2f, brassDk);                                      // breastplate
-    DrawEllipse(0, -21.5f, 8, 2.4f, brass);
-    if (sliding) DrawRectangleRec({5, -27, 3.5f, 9}, suitDk); // hand pressed to the wall
-    else {
-        DrawRectangleRec({3.5f - l1 * 0.3f, -19, 4, 8}, suit);
-        DrawRectangleRec({3.5f - l1 * 0.3f, -12, 4, 2.5f}, brassDk); // glove
-    }
-    DrawCircleV({0.5f, -27}, 8, brass);                                         // the helmet
-    if (!outline) {
-        DrawCircleSector({0.5f, -27}, 8, 20, 160, 10, Color{160, 112, 40, 255}); // shaded underside
-        DrawCircleV({-2.5f, -30.5f}, 2.2f, brassHi);                            // polished highlight
-        DrawCircleV({-5, -27}, 1.6f, brassDk);                                  // side port
-    }
-    DrawCircleV({3.8f, -26.5f}, 4.4f, brassDk);                                 // front port
-    DrawCircleV({4.1f, -26.5f}, 3.3f, glass);
-    if (!outline) DrawRectangleRec({3, -28.5f, 1.5f, 1.5f}, Color{200, 240, 250, 255});
+    // the far arm, then the torso with its brass collar and weight belt
+    if (!sliding) R(-4 + lean, -8, 1, 4, SUIT_SHADOW);
+    R(-3 + lean, -9, 6, 5, SUIT_MAIN);
+    R(-3 + lean, -9, 1, 5, SUIT_SHADOW);
+    R(-3 + lean, -5, 6, 1, HELMET_DARK); R(0 + lean, -5, 1, 1, HELMET_LIGHT);
+    R(-3 + lean, -9, 6, 1, HELMET_BASE);
+    // the near arm: reaching for the wall when sliding, swinging with the stride otherwise
+    if (sliding) { R(2 + lean, -12, 2, 5, SUIT_MAIN); R(2 + lean, -13, 2, 1, HELMET_BASE); }
+    else { R(3 + lean, -8, 1, 3, SUIT_MAIN); R(3 + lean, -5, 1, 1, HELMET_BASE); }
+    // the helmet: a copper dome with a gold highlight and a shadowed underside
+    R(-2 + lean, -14, 4, 1, HELMET_BASE);
+    R(-3 + lean, -13, 6, 4, HELMET_BASE);
+    R(-3 + lean, -13, 2, 1, HELMET_LIGHT); R(-2 + lean, -14, 2, 1, HELMET_LIGHT);
+    R(-3 + lean, -11, 1, 2, HELMET_DARK); R(2 + lean, -10, 1, 1, HELMET_DARK);
+    R(-3 + lean, -10, 6, 1, HELMET_DARK);
+    // the cyan visor, glowing, with a hot centre
+    R(0 + lean, -13, 3, 2, VISOR_GLOW);
+    if (!outline) { R(1 + lean, -13, 1, 1, VISOR_INNER); }
 }
 
 void DrawDiver(const PlatformState& p) {
     int wall = TouchWall(p, 1) ? 1 : TouchWall(p, -1) ? -1 : 0;
-    float sx = p.scale.x, feetX = p.pos.x + PW / 2 - wall * 1.5f;
-    if (wall) sx = std::min(sx, 0.92f);
-    feetX = roundf(feetX * ZOOM) / ZOOM;
+    float feetX = p.pos.x + PW / 2 - wall * 2;
+    feetX = roundf(feetX * ZOOM) / ZOOM;                              // both snapped to the 2-world-pixel grid
     float feetY = roundf((p.pos.y + PH) * ZOOM) / ZOOM;
-    float lean = p.onGround ? p.vel.x / RUN * 7 : std::clamp(p.vel.x / RUN * 4, -4.0f, 4.0f);
-    bool running = p.onGround && fabsf(p.vel.x) > 30;
-    float bob = running ? fabsf(cosf(p.runAnim)) * 1.2f : 0;
     rlDrawRenderBatchActive();
-    rlDisableBackfaceCulling(); // the mirrored transform flips triangle winding
-    const float o = 1 / ZOOM;   // one canvas pixel
+    rlDisableBackfaceCulling();                                        // the mirrored transform flips winding
+    const float o = ART;                                              // the outline is one art pixel thick
     const Vector2 offs[5] = {{-o, 0}, {o, 0}, {0, -o}, {0, o}, {0, 0}};
     for (int k = 0; k < 5; k++) {
         rlPushMatrix();
-        rlTranslatef(feetX + offs[k].x, feetY + offs[k].y - bob, 0);
-        rlRotatef(lean, 0, 0, 1);
-        rlScalef((p.facingRight ? 1.0f : -1.0f) * sx, p.scale.y, 1);
+        rlTranslatef(feetX + offs[k].x, feetY + offs[k].y, 0);
+        rlScalef(p.facingRight ? 1.0f : -1.0f, 1, 1);                 // a mirror only: never a stretch
         DrawDiverShape(p, k < 4);
         rlPopMatrix();
     }
     rlDrawRenderBatchActive();
     rlEnableBackfaceCulling();
+    BeginBlendMode(BLEND_ADDITIVE);                                    // the visor's glow
+    DrawCircleV({feetX + (p.facingRight ? 3.0f : -3.0f) * ART, feetY - 12.0f * ART}, 10, Color{0, 200, 220, 40});
+    EndBlendMode();
 }
 // In the dark ducts, some things still shine: live steam jets, vents, the exit valve, coins catching the lamp.
 void DrawGlowingBits(const PlatformState& p, int c0, int c1, int r0, int r1, float t) {
@@ -2245,6 +2301,7 @@ void ScenePlatformer(Game& g) {
         for (int x = c0; x <= c1; x++) DrawDepth(p, x, y);
     for (int y = r0; y <= r1; y++) // ...then their faces and everything else
         for (int x = c0; x <= c1; x++) DrawTile(p, p.tiles[y][x], x, y, t);
+    DrawHazardOverlay(p, c0, c1, r0, r1, t);
     DrawBoss(p, t);
     for (auto& e : p.enemies) DrawEnemy(e, t);
     DrawShots(p, t);
@@ -2255,14 +2312,14 @@ void ScenePlatformer(Game& g) {
     EndMode2D();
     if (Lv(p.level).dark) {
         Vector2 lamp = GetWorldToScreen2D({p.pos.x + PW / 2 + (p.facingRight ? 14.0f : -14.0f), p.pos.y + 6}, cam);
-        DrawLampDarkness(lamp, p.hard ? 150.0f : 185.0f, p.hard ? 0.82f : 0.74f); // Normal lights more of the duct
+        DrawLampDarkness(lamp, p.hard ? 120.0f : 148.0f, p.hard ? 0.82f : 0.74f); // Normal lights more of the duct
         BeginMode2D(cam); // things that glow in the dark: steam jets, gears' rims, the valve, warning lamps
         DrawGlowingBits(p, c0, c1, r0, r1, t);
         EndMode2D();
     }
     EndLayer();
     DrawTexturePro(PixelRT().texture, {0, 0, PIXEL_W + 2.0f, -(PIXEL_H + 2.0f)},
-                   {-PX - (cx - sx) * PX, -PX - (cy - sy) * PX, (PIXEL_W + 2) * PX, (PIXEL_H + 2) * PX}, {0, 0}, 0, WHITE);
+                   {-PX, -PX, (PIXEL_W + 2) * PX, (PIXEL_H + 2) * PX}, {0, 0}, 0, WHITE); // whole-pixel placement only
     if (p.deathTimer > 0) DrawRectangle(0, 0, SCREEN_W, SCREEN_H, Fade(Pal::Bad, p.deathTimer * 0.5f));
 
     // ---------------- HUD

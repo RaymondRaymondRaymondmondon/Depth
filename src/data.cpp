@@ -298,18 +298,18 @@ const char* LocationName(Location loc) {
 }
 const char* LocationBossName(Location loc) {
     switch (loc) {
-        case Location::Island: return "the Coconut Queen";
-        case Location::Weeds: return "Neptune's Herald";
-        case Location::Atlantis: return "the Drowned King";
-        default: return "the Lobster";
+        case Location::Island: return "the Sun God";
+        case Location::Weeds: return "Neptune";
+        case Location::Atlantis: return "Cthulhu";
+        default: return "the Crustacean Queen";
     }
 }
 const char* LocationDesc(Location loc) {
     switch (loc) {
-        case Location::Island: return "Sun-baked shallows and a wrecked longboat, ruled by the Sun God and the Coconut Queen.";
-        case Location::Weeds: return "A kelp forest thick with merfolk, octopi, and barracuda. Neptune's Herald waits within.";
-        case Location::Atlantis: return "A sunken city of lost ones who still worship something ancient. The Drowned King still keeps its gate.";
-        default: return "An undersea cave crawling with oversized crustaceans, sea bugs, and worms. Mini boss: the Lobster.";
+        case Location::Island: return "A sunken jungle of basalt and bone totems. Tribes with spears and dogs, a Coconut Queen, a Demigod, and the Sun God. Burns.";
+        case Location::Weeds: return "A suffocating kelp forest of mermen, sirens and octopi. An Eel, a Great White, and Neptune. Entangles.";
+        case Location::Atlantis: return "A sunken Greco-Roman city of Lost Ones, alien monoliths and something ancient. Cthulhu waits. Drives mad.";
+        default: return "A cavern of glowing mould and sharp coral. Crustaceans, worms and shrimp; the Lobster, a Ghost Worm, a Lost Diver, and the Queen. Blinds.";
     }
 }
 
@@ -544,6 +544,17 @@ void RefreshRadar(Game& g) {
 static EnemyAbility EA(const char* n, int hits, float mult) {
     EnemyAbility a;
     a.name = n; a.hits = hits; a.dmgMult = mult;
+    if (hits == MELEE_HITS) a.fromRanks = MELEE_FROM;   // melee: from ranks 1-2 only, onto ranks 1-2 only
+    return a;
+}
+static EnemyAbility Melee(const char* n, float mult) { return EA(n, MELEE_HITS, mult); }
+static EnemyAbility Long(const char* n, float mult) { // long range: from any rank except the front, onto any rank
+    EnemyAbility a = EA(n, ANY_RANK, mult);
+    a.fromRanks = RANGED_FROM;
+    return a;
+}
+static EnemyAbility Support(const char* n) { // a heal, buff or command: no damage, usable from anywhere
+    EnemyAbility a = EA(n, ANY_RANK, 0.0f);
     return a;
 }
 
@@ -578,9 +589,196 @@ Enemy MakeEnemy(EnemyType t, int uid) {
             a = EA("Tail Sweep", MELEE_HITS, 0.7f); a.aoe = true; e.abilities.push_back(a);
             a = EA("Clack Clack", ANY_RANK, 0.0f); a.aoe = true; a.stress = 13; e.abilities.push_back(a);
         } break;
-    }
+        // ------------------------------------------------ the Island
+        case EnemyType::TribalSpearman: {
+            e.name = "Tribal Spearman";
+            e.maxHp = 15; e.dmgMin = 4; e.dmgMax = 6; e.speed = 6; e.acc = 80; e.dodge = 10;
+            EnemyAbility a = Melee("Jagged Thrust", 1.0f); a.bleed = 3; e.abilities.push_back(a);
+            a = Melee("Shield Bash", 0.7f); a.stunChance = 40; e.abilities.push_back(a);
+        } break;
+        case EnemyType::WarDog: {
+            e.name = "War Dog";
+            e.maxHp = 12; e.dmgMin = 3; e.dmgMax = 5; e.speed = 9; e.acc = 85; e.dodge = 20;
+            EnemyAbility a = Melee("Rabid Savage", 1.0f); a.bleed = 2; a.weakSpd = 30; e.abilities.push_back(a);
+        } break;
+        case EnemyType::TribalShaman: {
+            e.name = "Tribal Shaman";
+            e.maxHp = 12; e.dmgMin = 2; e.dmgMax = 4; e.speed = 5; e.acc = 80; e.dodge = 10;
+            EnemyAbility a = Long("Toxic Dart", 0.6f); a.poison = 2; a.region = 1; e.abilities.push_back(a);
+            a = Support("Ancestor Chant"); a.healLowest = 6; a.buffAllyAtk = 25; e.abilities.push_back(a);
+            a = Support("Grasping Vines"); a.pull = 1; a.hits = RANK_3 | RANK_4; e.abilities.push_back(a);
+        } break;
+        case EnemyType::TribalDemigod: {
+            e.name = "Tribal Demigod"; e.boss = true; e.tier = 1;
+            e.maxHp = 50; e.dmgMin = 6; e.dmgMax = 9; e.speed = 3; e.acc = 85; e.dodge = 5; e.prot = 15;
+            EnemyAbility a = Melee("Idol Slam", 1.4f); a.stunChance = 50; e.abilities.push_back(a);
+            a = Support("Roar of the Ancestors"); a.pull = 2; a.aoe = true; a.weakDef = 20; a.stress = 8; e.abilities.push_back(a);
+        } break;
+        case EnemyType::CoconutQueen: {
+            e.name = "Coconut Queen"; e.boss = true; e.tier = 1;
+            e.maxHp = 42; e.dmgMin = 4; e.dmgMax = 6; e.speed = 5; e.acc = 85; e.dodge = 10; e.prot = 5;
+            EnemyAbility a = Long("Curse of the Reef", 0.5f); a.region = 1; a.targetsN = 2; e.abilities.push_back(a);
+            a = Support("Royal Decree"); a.healAllies = 8; a.buffAllyDef = 25; e.abilities.push_back(a);
+        } break;
+        case EnemyType::SunGod: {
+            e.name = "The Sun God"; e.boss = true; e.tier = 2;
+            e.maxHp = 66; e.dmgMin = 5; e.dmgMax = 8; e.speed = 4; e.acc = 85; e.dodge = 0; e.prot = 15;
+            EnemyAbility a = Long("Solar Cleave", 0.8f); a.aoe = true; a.region = 1; e.abilities.push_back(a);
+            a = Melee("Wrath of the Sun", 1.4f); a.stunChance = 40; e.abilities.push_back(a);
+            a = Support("Aegis of Gold"); a.buffSelfDef = 30; a.cleanse = true; e.abilities.push_back(a);
+        } break;
+        // ------------------------------------------------ the Cave
+        case EnemyType::DysCrustacean: {
+            e.name = "Dysformed Crustacean";
+            e.maxHp = 18; e.dmgMin = 4; e.dmgMax = 6; e.speed = 4; e.acc = 80; e.dodge = 5; e.prot = 10;
+            EnemyAbility a = Melee("Pincer Snap", 1.0f); a.weakDef = 20; e.abilities.push_back(a);
+            a = Melee("Crushing Clamp", 1.1f); a.bleed = 3; a.stunChance = 30; e.abilities.push_back(a);
+        } break;
+        case EnemyType::GhostWorm: {
+            e.name = "Ghost Worm"; e.boss = true; e.tier = 1;
+            e.maxHp = 44; e.dmgMin = 4; e.dmgMax = 6; e.speed = 6; e.acc = 85; e.dodge = 15; e.prot = 0;
+            EnemyAbility a = Long("Phasmic Toxins", 0.7f); a.poison = 3; a.weakAtk = 20; e.abilities.push_back(a);
+            a = Support("Terror Screech"); a.pull = 2; a.aoe = true; a.region = 2; a.stress = 6; e.abilities.push_back(a);
+        } break;
+        case EnemyType::LostDiver: {
+            e.name = "The Lost Diver"; e.boss = true; e.tier = 1;
+            e.maxHp = 52; e.dmgMin = 5; e.dmgMax = 8; e.speed = 3; e.acc = 80; e.dodge = 0; e.prot = 20;
+            EnemyAbility a = Melee("Anchor Swing", 1.3f); a.bleed = 4; a.stunChance = 40; e.abilities.push_back(a);
+            a = Long("Pressure Vent", 0.5f); a.region = 2; a.weakSpd = 30; e.abilities.push_back(a);
+        } break;
+        case EnemyType::CrustaceanQueen: {
+            e.name = "The Crustacean Queen"; e.boss = true; e.tier = 2;
+            e.maxHp = 36; e.dmgMin = 4; e.dmgMax = 6; e.speed = 3; e.acc = 80; e.dodge = 0; e.prot = 10;
+            EnemyAbility a = Melee("Tidal Crush", 1.5f); a.bleed = 3; a.stunChance = 35; e.abilities.push_back(a);
+            a = Support("Spawning Surge"); a.healSelf = 4; a.summon = (int)EnemyType::CaveShrimp; e.abilities.push_back(a);
+            a = Long("Abyssal Roar", 0.0f); a.aoe = true; a.region = 2; a.weakAtk = 20; a.stress = 4; e.abilities.push_back(a);
+        } break;
+        // ------------------------------------------------ the Weeds
+        case EnemyType::FeralMerman: {
+            e.name = "Feral Merman";
+            e.maxHp = 15; e.dmgMin = 4; e.dmgMax = 6; e.speed = 8; e.acc = 85; e.dodge = 15;
+            EnemyAbility a = Melee("Gutting Claw", 1.0f); a.bleed = 3; e.abilities.push_back(a);
+            a = Melee("Thrasher Strike", 0.8f); a.weakSpd = 30; a.region = 3; e.abilities.push_back(a);
+        } break;
+        case EnemyType::Siren: {
+            e.name = "Siren";
+            e.maxHp = 12; e.dmgMin = 2; e.dmgMax = 4; e.speed = 7; e.acc = 85; e.dodge = 20;
+            EnemyAbility a = Support("Alluring Song"); a.pull = 1; a.hits = RANK_3 | RANK_4; a.stunChance = 100; e.abilities.push_back(a);
+            a = Long("Dissonant Wail", 0.5f); a.weakAtk = 20; a.region = 3; e.abilities.push_back(a);
+            a = Support("Soothing Tide"); a.healLowest = 6; e.abilities.push_back(a);
+        } break;
+        case EnemyType::GiantOctopus: {
+            e.name = "Giant Octopus";
+            e.maxHp = 20; e.dmgMin = 3; e.dmgMax = 5; e.speed = 4; e.acc = 80; e.dodge = 5; e.prot = 5;
+            EnemyAbility a = Support("Tentacle Constrain"); a.pull = 3; a.region = 3; a.aoe = false; e.abilities.push_back(a);
+            a = Long("Ink Jet", 0.0f); a.aoe = true; a.weakAcc = 30; a.stress = 5; e.abilities.push_back(a);
+        } break;
+        case EnemyType::ElectricEel: {
+            e.name = "Electric Eel"; e.boss = true; e.tier = 1;
+            e.maxHp = 45; e.dmgMin = 4; e.dmgMax = 7; e.speed = 8; e.acc = 85; e.dodge = 15;
+            EnemyAbility a = Long("Voltaic Burst", 0.8f); a.stunChance = 40; a.weakSpd = 25; e.abilities.push_back(a);
+            a = Melee("Coil Whip", 1.2f); a.bleed = 3; e.abilities.push_back(a);
+        } break;
+        case EnemyType::GreatWhite: {
+            e.name = "Great White Shark"; e.boss = true; e.tier = 1;
+            e.maxHp = 55; e.dmgMin = 6; e.dmgMax = 9; e.speed = 7; e.acc = 85; e.dodge = 5; e.prot = 10;
+            EnemyAbility a = Melee("Feeding Frenzy", 1.4f); a.bleed = 4; a.buffSelfAtk = 20; e.abilities.push_back(a);
+            a = Melee("Thrash", 1.0f); a.stunChance = 35; e.abilities.push_back(a);
+        } break;
+        case EnemyType::Neptune: {
+            e.name = "Neptune"; e.boss = true; e.tier = 2;
+            e.maxHp = 70; e.dmgMin = 5; e.dmgMax = 8; e.speed = 4; e.acc = 85; e.dodge = 0; e.prot = 15;
+            EnemyAbility a = Melee("Trident Impale", 1.4f); a.bleed = 3; a.weakDef = 20; e.abilities.push_back(a);
+            a = Support("Maelstrom Call"); a.pull = 2; a.aoe = true; a.region = 3; a.stress = 6; e.abilities.push_back(a);
+            a = Support("Ocean''s Blessing"); a.healAllies = 8; a.buffAllyAtk = 25; e.abilities.push_back(a);
+        } break;
+        // ------------------------------------------------ Atlantis
+        case EnemyType::LostInfantry: {
+            e.name = "Lost One Infantry";
+            e.maxHp = 18; e.dmgMin = 4; e.dmgMax = 6; e.speed = 5; e.acc = 80; e.dodge = 5; e.prot = 15;
+            EnemyAbility a = Melee("Rusted Gladius", 1.0f); a.bleed = 3; e.abilities.push_back(a);
+            a = Melee("Phalanx Slam", 0.8f); a.stunChance = 35; a.buffSelfDef = 20; e.abilities.push_back(a);
+        } break;
+        case EnemyType::LostCultist: {
+            e.name = "Lost One Cultist";
+            e.maxHp = 12; e.dmgMin = 2; e.dmgMax = 4; e.speed = 6; e.acc = 85; e.dodge = 15;
+            EnemyAbility a = Long("Void Chant", 0.6f); a.region = 4; a.poison = 2; e.abilities.push_back(a);
+            a = Support("Siphon Offering"); a.drain = true; e.abilities.push_back(a);
+        } break;
+        case EnemyType::ArmorLostOne: {
+            e.name = "Armored Lost One"; e.boss = true; e.tier = 1;
+            e.maxHp = 60; e.dmgMin = 6; e.dmgMax = 9; e.speed = 3; e.acc = 80; e.dodge = 0; e.prot = 30;
+            EnemyAbility a = Melee("Titan Shield Crush", 1.4f); a.stunChance = 40; a.weakAtk = 20; e.abilities.push_back(a);
+            a = Support("Immovable Wall"); a.selfMove = -99; a.buffSelfDef = 30; e.abilities.push_back(a);
+        } break;
+        case EnemyType::AlienHorror: {
+            e.name = "Alien Horror"; e.boss = true; e.tier = 1;
+            e.maxHp = 45; e.dmgMin = 4; e.dmgMax = 7; e.speed = 7; e.acc = 90; e.dodge = 20;
+            EnemyAbility a = Support("Spatial Distortion"); a.pull = 2; a.aoe = true; a.region = 4; a.stress = 8; e.abilities.push_back(a);
+            a = Long("Mind Rend", 0.7f); a.region = 4; a.weakAcc = 20; e.abilities.push_back(a);
+        } break;
+        case EnemyType::Cthulhu: {
+            e.name = "Cthulhu"; e.boss = true; e.tier = 2;
+            e.maxHp = 78; e.dmgMin = 5; e.dmgMax = 8; e.speed = 5; e.acc = 90; e.dodge = 0; e.prot = 15;
+            EnemyAbility a = Long("Gaze of the Abyss", 0.6f); a.aoe = true; a.region = 4; a.stress = 10; e.abilities.push_back(a);
+            a = Melee("Cosmic Crush", 1.6f); a.bleed = 3; a.stunChance = 40; e.abilities.push_back(a);
+            a = Support("Siphon Reality"); a.healSelf = 10; a.buffSelfAtk = 20; e.abilities.push_back(a);
+        } break;
+        default: break;    }
     e.hp = e.maxHp;
     return e;
+}
+
+// ---------------------------------------------------------------- region bestiaries
+std::vector<EnemyType> LocationStandards(Location loc) {
+    switch (loc) {
+        case Location::Island: return {EnemyType::TribalSpearman, EnemyType::WarDog, EnemyType::TribalSpearman};
+        case Location::Weeds: return {EnemyType::FeralMerman, EnemyType::FeralMerman, EnemyType::GiantOctopus};
+        case Location::Atlantis: return {EnemyType::LostInfantry, EnemyType::LostInfantry};
+        default: return {EnemyType::DysCrustacean, EnemyType::CaveShrimp, EnemyType::BrineWorm, EnemyType::SeaLouse};
+    }
+}
+std::vector<EnemyType> LocationSupports(Location loc) {
+    switch (loc) {
+        case Location::Island: return {EnemyType::TribalShaman};
+        case Location::Weeds: return {EnemyType::Siren, EnemyType::GiantOctopus};
+        case Location::Atlantis: return {EnemyType::LostCultist};
+        default: return {EnemyType::CaveShrimp};
+    }
+}
+std::vector<EnemyType> LocationMinis(Location loc) {
+    switch (loc) {
+        case Location::Island: return {EnemyType::TribalDemigod, EnemyType::CoconutQueen};
+        case Location::Weeds: return {EnemyType::ElectricEel, EnemyType::GreatWhite};
+        case Location::Atlantis: return {EnemyType::ArmorLostOne, EnemyType::AlienHorror};
+        default: return {EnemyType::Lobster, EnemyType::GhostWorm, EnemyType::LostDiver};
+    }
+}
+EnemyType LocationLevelBoss(Location loc) {
+    switch (loc) {
+        case Location::Island: return EnemyType::SunGod;
+        case Location::Weeds: return EnemyType::Neptune;
+        case Location::Atlantis: return EnemyType::Cthulhu;
+        default: return EnemyType::CrustaceanQueen;
+    }
+}
+// Mini-boss encounters at a depth level: 0, 1, 3, 5, 6 -> 0%, 15%, 30%, 50%, 85%.
+int MiniBossChance(int levelValue) {
+    switch (levelValue) {
+        case 0: return 0;
+        case 1: return 15;
+        case 3: return 30;
+        case 5: return 50;
+        default: return 85;
+    }
+}
+const char* RegionDebuffName(Location loc) {
+    switch (loc) {
+        case Location::Island: return "Totemic Burn";
+        case Location::Weeds: return "Drowning Entanglement";
+        case Location::Atlantis: return "Eldritch Madness";
+        default: return "Silt Blindness";
+    }
 }
 
 // Deeper cave levels field tougher versions of the same creatures.
