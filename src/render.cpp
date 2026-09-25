@@ -615,6 +615,69 @@ void DrawGear(Vector2 c, float r, int teeth, float rot, Color col) {
     DrawCircleV({c.x - r * 0.05f, c.y - r * 0.05f}, r * 0.1f, ColorBrightness(col, 0.3f));
 }
 
+// A relic's icon is chosen from its name, so each carries a distinct little picture: a wrench, a
+// blade, a pistol, or a medical bag, tinted a touch differently per relic so even two wrenches read
+// as separate items.
+void DrawRelicIcon(int id, Vector2 c, float s) {
+    const auto& relics = Relics();
+    if (id < 0 || id >= (int)relics.size()) { DrawCircleV(c, 0.4f * s, Pal::Brass); return; }
+    const std::string& n = relics[id].name;
+    auto has = [&](const char* w) { return n.find(w) != std::string::npos; };
+    unsigned h = (unsigned)id * 2654435761u;
+    Color tint{(unsigned char)(150 + (h >> 3 & 63)), (unsigned char)(120 + (h >> 9 & 55)), (unsigned char)(70 + (h >> 15 & 50)), 255};
+    if (has("Wrench")) {
+        Vector2 a{c.x - 0.55f * s, c.y - 0.55f * s}, b{c.x + 0.5f * s, c.y + 0.5f * s};
+        DrawLineEx(a, b, 0.3f * s, ColorBrightness(tint, -0.1f));
+        DrawRing(a, 0.26f * s, 0.42f * s, 190, 350, 8, tint);
+        DrawRing(b, 0.26f * s, 0.42f * s, 10, 170, 8, tint);
+    } else if (has("Sword") || has("Knife") || has("Butcher")) {
+        DrawTri({c.x, c.y - 0.62f * s}, {c.x - 0.13f * s, c.y + 0.24f * s}, {c.x + 0.13f * s, c.y + 0.24f * s}, Color{212, 216, 222, 255});
+        DrawRectangleRec({c.x - 0.24f * s, c.y + 0.2f * s, 0.48f * s, 0.1f * s}, Pal::BrassDk);
+        DrawRectangleRec({c.x - 0.06f * s, c.y + 0.32f * s, 0.12f * s, 0.32f * s}, Color{92, 60, 36, 255});
+    } else if (has("Flintlock") || has("Six-Shooter") || has("Rivet Gun")) {
+        DrawRectangleRec({c.x - 0.5f * s, c.y - 0.06f * s, 0.7f * s, 0.16f * s}, Color{72, 72, 78, 255});
+        DrawRectangleRec({c.x - 0.5f * s, c.y - 0.08f * s, 0.12f * s, 0.06f * s}, tint);
+        DrawRectangleRec({c.x - 0.08f * s, c.y + 0.06f * s, 0.2f * s, 0.3f * s}, Color{92, 60, 36, 255});
+    } else if (has("MedKit") || has("Syringe") || has("Pliers") || has("Backpack")) {
+        DrawRectangleRounded({c.x - 0.44f * s, c.y - 0.34f * s, 0.88f * s, 0.68f * s}, 0.3f, 6, Color{222, 222, 212, 255});
+        DrawRectangleRounded({c.x - 0.44f * s, c.y - 0.34f * s, 0.88f * s, 0.2f * s}, 0.5f, 6, tint);
+        DrawRectangleRec({c.x - 0.06f * s, c.y - 0.14f * s, 0.12f * s, 0.4f * s}, Color{190, 40, 36, 255});
+        DrawRectangleRec({c.x - 0.22f * s, c.y + 0.0f * s, 0.44f * s, 0.12f * s}, Color{190, 40, 36, 255});
+    } else {
+        ShadeBall(c, 0.4f * s, tint);
+        DrawRing(c, 0.36f * s, 0.42f * s, 0, 360, 16, ColorBrightness(tint, -0.4f));
+        DrawLineEx({c.x, c.y - 0.4f * s}, {c.x, c.y - 0.55f * s}, 0.08f * s, ColorBrightness(tint, -0.3f)); // a loop to hang it by
+    }
+}
+
+void DrawItemIcon(ItemKind kind, int relicId, Vector2 c, float s) {
+    switch (kind) {
+        case ItemKind::Battery:
+            DrawRectangleRounded({c.x - 0.3f * s, c.y - 0.46f * s, 0.6f * s, 0.92f * s}, 0.25f, 6, Color{58, 62, 58, 255});
+            DrawRectangleRounded({c.x - 0.24f * s, c.y - 0.38f * s, 0.48f * s, 0.72f * s}, 0.2f, 6, Color{92, 156, 82, 255});
+            DrawRectangleRec({c.x - 0.1f * s, c.y - 0.56f * s, 0.2f * s, 0.12f * s}, Color{40, 44, 40, 255});
+            DrawRectangleRec({c.x - 0.03f * s, c.y - 0.2f * s, 0.06f * s, 0.28f * s}, Color{230, 255, 220, 255});
+            DrawRectangleRec({c.x - 0.14f * s, c.y - 0.09f * s, 0.28f * s, 0.06f * s}, Color{230, 255, 220, 255});
+            break;
+        case ItemKind::Bandage:
+            DrawCircleV(c, 0.42f * s, Color{234, 228, 210, 255});
+            DrawRing(c, 0.3f * s, 0.42f * s, 0, 360, 20, Color{212, 202, 176, 255});
+            DrawRectangleRec({c.x - 0.4f * s, c.y - 0.09f * s, 0.8f * s, 0.18f * s}, Color{202, 42, 38, 255});
+            DrawRectangleRec({c.x - 0.09f * s, c.y - 0.4f * s, 0.18f * s, 0.8f * s}, Color{202, 42, 38, 255});
+            break;
+        case ItemKind::Key: {
+            Vector2 bow{c.x - 0.18f * s, c.y - 0.22f * s};
+            DrawRing(bow, 0.16f * s, 0.28f * s, 0, 360, 16, Pal::Brass);
+            DrawLineEx({c.x, c.y - 0.06f * s}, {c.x + 0.42f * s, c.y + 0.36f * s}, 0.1f * s, Pal::Brass);
+            DrawLineEx({c.x + 0.3f * s, c.y + 0.24f * s}, {c.x + 0.3f * s, c.y + 0.4f * s}, 0.08f * s, Pal::Brass);
+            DrawLineEx({c.x + 0.42f * s, c.y + 0.36f * s}, {c.x + 0.42f * s, c.y + 0.5f * s}, 0.08f * s, Pal::Brass);
+        } break;
+        default: // Relic
+            DrawRelicIcon(relicId, c, s);
+            break;
+    }
+}
+
 void DrawBrassPlate(Rectangle r, const char* text, int size) {
     DrawRectangleRounded({r.x + 3, r.y + 4, r.width, r.height}, 0.25f, 6, Fade(BLACK, 0.45f));
     DrawRectangleRounded(r, 0.25f, 6, Pal::BrassDk);

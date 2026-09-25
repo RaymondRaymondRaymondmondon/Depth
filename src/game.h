@@ -132,12 +132,28 @@ struct FloatText { Vector2 pos; std::string text; Color color; float life; };
 struct TurnEntry { bool hero; int id; int init; };
 
 enum class RoomType { Fight, Treasure, Boss };
+
+// Things the crew can pick up and carry through an expedition: a battery to burn for light, a bandage
+// to patch someone up on the spot, a key that opens a locked chest, or a relic found still loose (not
+// yet fitted to anyone). Carried in a short list with limited room, so keeping one sometimes means
+// leaving another behind.
+enum class ItemKind { Battery, Bandage, Key, Relic };
+struct InvItem { ItemKind kind; int relicId = -1; };
+constexpr int INV_SLOTS = 5;
 enum class DPhase { Corridor, Walking, Combat, RoomClear, Treasure, Victory, Retreat, Defeat };
 
 // Dungeon difficulty levels. Clearing one unlocks the next; earlier ones stay available.
 constexpr int CAVE_TIERS = 5;
 inline constexpr int CAVE_TIER_LEVEL[CAVE_TIERS] = {0, 1, 3, 5, 6};
 inline const char* const CAVE_TIER_NAME[CAVE_TIERS] = {"Shallows", "Tidal Caves", "The Deep", "The Abyss", "The Trench"};
+
+// The four Shallows expeditions, all open from the start. They share the same room-and-combat engine
+// and the same tier ladder above -- what differs is the scenery, the names, and who's waiting at the end.
+enum class Location { Cave, Island, Weeds, Atlantis, COUNT };
+constexpr int LOCATION_COUNT = (int)Location::COUNT;
+const char* LocationName(Location loc);
+const char* LocationBossName(Location loc); // the mini-boss at the end of a run
+const char* LocationDesc(Location loc);
 
 // ---------- combat animation ----------
 enum class Anim { None, Melee, Ranged, Heal, Buff, Hurt, Dodge, Stress };
@@ -169,6 +185,7 @@ struct Pose {
 };
 
 struct DungeonState {
+    Location loc = Location::Cave; // which of the four Shallows expeditions this is
     int tier = 0;                  // index into CAVE_TIER_LEVEL
     float scroll = 0, walkT = 0;   // how far the party has walked (drives the parallax), and the walk timer
     std::vector<UnitAnim> anims;
@@ -198,6 +215,14 @@ struct DungeonState {
     int selectedAbility = -1;
     std::vector<std::string> log;
     std::vector<FloatText> floats;
+
+    // ---------- carried items ----------
+    std::vector<InvItem> inventory;
+    bool pendingItem = false;      // a find is waiting to be taken or left in the current room
+    InvItem pendingItemVal{};
+    bool roomIsChest = false;      // this Treasure room is a locked chest: needs a Key to open
+    bool chestOpened = false;
+    int invSelected = -1;          // an inventory slot awaiting a target (a hero to heal or fit a relic to)
 };
 
 // ---------- platformer ----------
@@ -274,8 +299,8 @@ struct Game {
     bool platCheckpoints = false;            // Periscope option: checkpoints, at the cost of the relic
     bool platHullBoss = true;                // Periscope option: fight the Kraken (only chance of a relic)
     bool platPirateBoss = true;              // Periscope option: fight Blackbeard (guarantees relic(s))
-    int caveTierCleared = -1;                // highest cave level beaten (-1 = none)
-    int caveTier = 0;                        // the cave level chosen at the Helm
+    int tierCleared[LOCATION_COUNT] = {-1, -1, -1, -1}; // highest level beaten, per location (-1 = none)
+    int tierSel[LOCATION_COUNT] = {0, 0, 0, 0};         // the level chosen at the Helm, per location
     std::string toast;
     float toastTimer = 0;
     float time = 0;
@@ -365,6 +390,7 @@ void ShadeLimb(Vector2 a, Vector2 b, float wa, float wb, Color c);     // a lit 
 void ShadeQuad(Vector2 tl, Vector2 tr, Vector2 br, Vector2 bl, Color c); // a lit panel
 void BeginBackdrop();          // draw distant scenery softly out of focus...
 void EndBackdrop(float blur);  // ...and lay it into the scene
+void DrawItemIcon(ItemKind kind, int relicId, Vector2 c, float s); // a carried item, drawn at radius ~s
 void InkPass(float ink, float hatch); // Darkest Dungeon-style inking and crosshatching over the world drawn so far
 
 // ---------- ui.cpp ----------
@@ -405,9 +431,9 @@ void ScenePeriscope(Game& g);
 void SceneWorkshop(Game& g);
 
 // ---------- dungeon.cpp ----------
-void StartDungeon(Game& g);
+void StartDungeon(Game& g, Location loc);
 void SceneDungeon(Game& g);
-void DebugEnterCombat(Game& g);    // debug: jump straight into the first fight
+void DebugEnterCombat(Game& g, Location loc = Location::Cave); // debug: jump straight into the first fight
 void SimulateExpeditions(int runs, int level, bool randomPlayer, int tier = 0); // debug: auto-play expeditions and print the results
 
 // ---------- platformer.cpp ----------

@@ -12,43 +12,43 @@ void SceneHelm(Game& g) {
     DrawSceneTitle("The Helm", "Choose a destination for the expedition");
     DrawGoldBadge(g);
 
-    struct Loc { const char* name; const char* desc; bool open; Color col; };
+    struct Loc { Location id; Color col; };
     const Loc locs[4] = {
-        {"The Cave", "An undersea cave crawling with oversized crustaceans, sea bugs, and worms. Mini boss: the Lobster.", true, Color{60, 120, 140, 255}},
-        {"The Island", "Sun-baked shores ruled by the Sun God and the Coconut Queen.", false, Color{200, 160, 80, 255}},
-        {"The Weeds", "A kelp forest of merfolk, octopi, and barracuda. Neptune waits within.", false, Color{70, 140, 80, 255}},
-        {"Atlantis", "A sunken city of lost ones who still worship something ancient.", false, Color{110, 90, 150, 255}},
+        {Location::Cave, Color{60, 120, 140, 255}},
+        {Location::Island, Color{200, 160, 80, 255}},
+        {Location::Weeds, Color{70, 140, 80, 255}},
+        {Location::Atlantis, Color{110, 90, 150, 255}},
     };
     int partyCount = 0;
     for (int id : g.party) if (id >= 0) partyCount++;
 
+    // All four Shallows expeditions are open from the start: they share the same rooms-and-combat engine,
+    // just dressed differently, with their own tier ladder and their own threat waiting at the end.
     for (int i = 0; i < 4; i++) {
+        Location loc = locs[i].id;
+        int li = (int)loc;
         Rectangle c{50 + i * 300.0f, 100, 280, 330};
-        Panel(c, locs[i].open ? Pal::Paper : Color{176, 168, 150, 255});
+        Panel(c, Pal::Paper);
         DrawVGradient({c.x + 12, c.y + 12, c.width - 24, 90}, ColorBrightness(locs[i].col, 0.15f), ColorBrightness(locs[i].col, -0.35f));
-        DrawTextCenteredBold(locs[i].name, c.x + c.width / 2 + 1, c.y + 40, 30, Fade(BLACK, 0.5f));
-        DrawTextCenteredBold(locs[i].name, c.x + c.width / 2, c.y + 38, 30, Pal::Paper);
-        DrawWrapped(locs[i].desc, {c.x + 16, c.y + 112, c.width - 32, 80}, 16, Pal::Ink);
-        if (locs[i].open) {
-            // cave levels 0, 1, 3, 5 and 6: beat one to unlock the next; earlier ones stay open
-            int unlocked = std::min(CAVE_TIERS - 1, g.caveTierCleared + 1);
-            g.caveTier = std::clamp(g.caveTier, 0, unlocked);
-            for (int k = 0; k < CAVE_TIERS; k++) {
-                Rectangle chip{c.x + 16 + k * 50.0f, c.y + 196, 44, 30};
-                bool open = k <= unlocked, sel = k == g.caveTier;
-                if (sel) DrawRectangleRounded({chip.x - 3, chip.y - 3, chip.width + 6, chip.height + 6}, 0.4f, 6, Pal::Teal);
-                if (Button(chip, open ? TextFormat("Lv %d", CAVE_TIER_LEVEL[k]) : "?", open, 14)) g.caveTier = k;
-                if (k <= g.caveTierCleared) DrawCircle((int)(chip.x + chip.width - 4), (int)chip.y + 4, 4, Pal::Good);
-            }
-            int lvl = CAVE_TIER_LEVEL[g.caveTier], rooms = lvl >= 3 ? 4 : 3;
-            TxtBold(TextFormat("%s  (level %d)", CAVE_TIER_NAME[g.caveTier], lvl), c.x + 16, c.y + 232, 16, Pal::Ink);
-            Txt(TextFormat("%d rooms + the Lobster.  Loot x%.1f", rooms, 1.0f + 0.35f * lvl), c.x + 16, c.y + 253, 14, Pal::BrassDk);
-            if (Button({c.x + 20, c.y + 276, c.width - 40, 42}, "Embark", partyCount > 0)) {
-                StartDungeon(g);
-                return;
-            }
-        } else {
-            DrawTextCentered("Not yet charted", c.x + c.width / 2, c.y + 280, 21, Pal::BrassDk);
+        DrawTextCenteredBold(LocationName(loc), c.x + c.width / 2 + 1, c.y + 40, 30, Fade(BLACK, 0.5f));
+        DrawTextCenteredBold(LocationName(loc), c.x + c.width / 2, c.y + 38, 30, Pal::Paper);
+        DrawWrapped(LocationDesc(loc), {c.x + 16, c.y + 112, c.width - 32, 80}, 16, Pal::Ink);
+        // levels 0, 1, 3, 5 and 6: beat one to unlock the next; earlier ones stay open
+        int unlocked = std::min(CAVE_TIERS - 1, g.tierCleared[li] + 1);
+        g.tierSel[li] = std::clamp(g.tierSel[li], 0, unlocked);
+        for (int k = 0; k < CAVE_TIERS; k++) {
+            Rectangle chip{c.x + 16 + k * 50.0f, c.y + 196, 44, 30};
+            bool open = k <= unlocked, sel = k == g.tierSel[li];
+            if (sel) DrawRectangleRounded({chip.x - 3, chip.y - 3, chip.width + 6, chip.height + 6}, 0.4f, 6, Pal::Teal);
+            if (Button(chip, open ? TextFormat("Lv %d", CAVE_TIER_LEVEL[k]) : "?", open, 14)) g.tierSel[li] = k;
+            if (k <= g.tierCleared[li]) DrawCircle((int)(chip.x + chip.width - 4), (int)chip.y + 4, 4, Pal::Good);
+        }
+        int lvl = CAVE_TIER_LEVEL[g.tierSel[li]], rooms = lvl >= 3 ? 4 : 3;
+        TxtBold(TextFormat("%s  (level %d)", CAVE_TIER_NAME[g.tierSel[li]], lvl), c.x + 16, c.y + 232, 16, Pal::Ink);
+        Txt(TextFormat("%d rooms + %s.  Loot x%.1f", rooms, LocationBossName(loc), 1.0f + 0.35f * lvl), c.x + 16, c.y + 253, 14, Pal::BrassDk);
+        if (Button({c.x + 20, c.y + 276, c.width - 40, 42}, "Embark", partyCount > 0)) {
+            StartDungeon(g, loc);
+            return;
         }
     }
 

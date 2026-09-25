@@ -108,6 +108,31 @@ const std::vector<Ability>& ClassAbilities(HeroClass c) {
     }
 }
 
+const char* LocationName(Location loc) {
+    switch (loc) {
+        case Location::Island: return "The Island";
+        case Location::Weeds: return "The Weeds";
+        case Location::Atlantis: return "Atlantis";
+        default: return "The Cave";
+    }
+}
+const char* LocationBossName(Location loc) {
+    switch (loc) {
+        case Location::Island: return "the Coconut Queen";
+        case Location::Weeds: return "Neptune's Herald";
+        case Location::Atlantis: return "the Drowned King";
+        default: return "the Lobster";
+    }
+}
+const char* LocationDesc(Location loc) {
+    switch (loc) {
+        case Location::Island: return "Sun-baked shallows and a wrecked longboat, ruled by the Sun God and the Coconut Queen.";
+        case Location::Weeds: return "A kelp forest thick with merfolk, octopi, and barracuda. Neptune's Herald waits within.";
+        case Location::Atlantis: return "A sunken city of lost ones who still worship something ancient. The Drowned King still keeps its gate.";
+        default: return "An undersea cave crawling with oversized crustaceans, sea bugs, and worms. Mini boss: the Lobster.";
+    }
+}
+
 const char* ClassName(HeroClass c) {
     switch (c) {
         case HeroClass::Nurse: return "Nurse";

@@ -10,6 +10,14 @@
 static int Roll(int lo, int hi) { return GetRandomValue(lo, hi); }
 static bool Chance(int pct) { return GetRandomValue(1, 100) <= pct; }
 
+// ---------------------------------------------------------------- carried items
+static InvItem RollFoundItem() {
+    int r = Roll(1, 100);
+    if (r <= 35) return {ItemKind::Battery};
+    if (r <= 70) return {ItemKind::Bandage};
+    return {ItemKind::Key};
+}
+
 static void Log(Game& g, const std::string& s) {
     auto& L = g.dungeon.log;
     L.push_back(s);
@@ -334,6 +342,8 @@ static void RoomCleared(Game& g) {
     d.roomRelic = -1;
     if (boss && Chance(50)) { d.roomRelic = Roll(0, (int)Relics().size() - 1); d.lootRelics.push_back(d.roomRelic); }
     d.lootGold += d.roomGold;
+    d.pendingItem = !boss && Chance(40); // something dropped among the wreckage, worth a look
+    if (d.pendingItem) d.pendingItemVal = RollFoundItem();
     d.phase = boss ? DPhase::Victory : DPhase::RoomClear;
 }
 
@@ -392,19 +402,26 @@ static void EnterNextRoom(Game& g) {
     d.floats.clear();
     RoomType rt = d.rooms[d.roomIndex];
     if (rt == RoomType::Treasure) {
-        d.roomGold = (int)(Roll(18, 36) * LootMult(g));
-        d.roomRelic = Chance(30) ? Roll(0, (int)Relics().size() - 1) : -1;
-        d.lootGold += d.roomGold;
-        if (d.roomRelic >= 0) d.lootRelics.push_back(d.roomRelic);
+        d.roomIsChest = Chance(35); // sometimes it's locked, and only a carried key opens it
+        d.chestOpened = false;
+        d.roomGold = d.roomIsChest ? 0 : (int)(Roll(18, 36) * LootMult(g));
+        d.roomRelic = -1;
+        d.pendingItem = false;
+        if (!d.roomIsChest) {
+            d.lootGold += d.roomGold;
+            // the relic here, if any, is loose -- carry it home in the inventory rather than an automatic find
+            if (Chance(30)) { d.pendingItem = true; d.pendingItemVal = {ItemKind::Relic, Roll(0, (int)Relics().size() - 1)}; }
+        }
         d.phase = DPhase::Treasure;
         return;
     }
     if (rt == RoomType::Boss) {
         d.enemies.push_back(MakeEnemy(CAVE_TIER_LEVEL[d.tier] >= 3 ? EnemyType::CaveShrimp : EnemyType::SeaLouse, d.nextUid++));
         d.enemies.push_back(MakeEnemy(EnemyType::Lobster, d.nextUid++));
+        d.enemies.back().name = LocationBossName(d.loc); // the same creature underneath, dressed as this location's threat
         d.enemies.push_back(MakeEnemy(EnemyType::BrineWorm, d.nextUid++));
         if (CAVE_TIER_LEVEL[d.tier] >= 6) d.enemies.push_back(MakeEnemy(EnemyType::BrineWorm, d.nextUid++));
-        Log(g, "Something huge clacks in the dark...");
+        Log(g, "Something huge stirs in the dark...");
     } else {
         int count = Roll(3, 4);
         for (int i = 0; i < count; i++) d.enemies.push_back(MakeEnemy((EnemyType)Roll(0, 2), d.nextUid++));
@@ -419,11 +436,13 @@ static void EnterNextRoom(Game& g) {
     d.phase = DPhase::Combat;
 }
 
-void StartDungeon(Game& g) {
+void StartDungeon(Game& g, Location loc) {
     CompactParty(g);
     g.dungeon = DungeonState{};
     auto& d = g.dungeon;
-    d.tier = std::clamp(g.caveTier, 0, std::min(CAVE_TIERS - 1, g.caveTierCleared + 1));
+    d.loc = loc;
+    int li = (int)loc;
+    d.tier = std::clamp(g.tierSel[li], 0, std::min(CAVE_TIERS - 1, g.tierCleared[li] + 1));
     int lvl = CAVE_TIER_LEVEL[d.tier], rooms = lvl >= 3 ? 4 : 3;
     bool anyFight = false;
     for (int i = 0; i < rooms; i++) {
@@ -438,8 +457,8 @@ void StartDungeon(Game& g) {
     g.scene = Scene::Dungeon;
 }
 
-void DebugEnterCombat(Game& g) {
-    StartDungeon(g);
+void DebugEnterCombat(Game& g, Location loc) {
+    StartDungeon(g, loc);
     for (auto& r : g.dungeon.rooms) if (r != RoomType::Boss) r = RoomType::Fight;
     g.dungeon.light = 60;
     EnterNextRoom(g);
@@ -453,10 +472,11 @@ static void ApplyResults(Game& g) {
     if (d.phase != DPhase::Defeat) {
         g.gold += d.lootGold;
         for (int r : d.lootRelics) g.relicStorage.push_back(r);
+        for (auto& it : d.inventory) if (it.kind == ItemKind::Relic) g.relicStorage.push_back(it.relicId); // carried home safely
         if (win) { d.rewardRelic = Roll(0, (int)Relics().size() - 1); g.relicStorage.push_back(d.rewardRelic); }
-        if (win && d.tier > g.caveTierCleared) {
-            g.caveTierCleared = d.tier;
-            if (d.tier + 1 < CAVE_TIERS) g.caveTier = d.tier + 1;
+        if (win && d.tier > g.tierCleared[(int)d.loc]) {
+            g.tierCleared[(int)d.loc] = d.tier;
+            if (d.tier + 1 < CAVE_TIERS) g.tierSel[(int)d.loc] = d.tier + 1;
         }
         int lvl = CAVE_TIER_LEVEL[d.tier];
         for (int id : g.party) {
@@ -493,8 +513,8 @@ void SimulateExpeditions(int runs, int level, bool randomPlayer, int tier) {
     for (int r = 0; r < runs; r++) {
         Game g;
         InitGame(g);
-        g.caveTier = tier;
-        g.caveTierCleared = CAVE_TIERS;
+        g.tierSel[(int)Location::Cave] = tier;
+        g.tierCleared[(int)Location::Cave] = CAVE_TIERS;
         for (auto& h : g.roster) {
             h.level = level;
             h.hp = GetStats(h).maxHp;
@@ -505,7 +525,7 @@ void SimulateExpeditions(int runs, int level, bool randomPlayer, int tier) {
             for (int i = (int)pool.size() - 1; i > 0; i--) std::swap(pool[i], pool[Roll(0, i)]);
             for (int k = 0; k < LOADOUT_SIZE; k++) h.loadout[k] = k < (int)pool.size() ? pool[k] : -1;
         }
-        StartDungeon(g);
+        StartDungeon(g, Location::Cave);
         auto& d = g.dungeon;
         int steps = 0;
         while (steps++ < 20000) {
@@ -1227,11 +1247,45 @@ static void DrawDriftingSpecks(Game& g) {
     });
 }
 
+// Each of the four Shallows locations shares the same cave geometry, but a wash of colour and a drift
+// of location-flavoured motes gives each its own identity: golden and sandy for the Island, green and
+// leafy for the Weeds, and a cold violet with drifting rune-glyphs for sunken Atlantis.
+static void DrawLocationTint(Game& g) {
+    Location loc = g.dungeon.loc;
+    if (loc == Location::Cave) return;
+    float t = g.time;
+    Color wash = loc == Location::Island ? Color{255, 200, 110, 58} : loc == Location::Weeds ? Color{90, 210, 110, 50} : Color{150, 90, 220, 60};
+    BeginBlendMode(BLEND_ADDITIVE);
+    DrawRectangle(0, 0, SCREEN_W, SCREEN_H, wash);
+    if (loc == Location::Island) { // sun shafts and drifting sand
+        for (int k = 0; k < 5; k++) {
+            float x = fmodf(k * 260.0f + t * 8, (float)SCREEN_W + 200) - 100;
+            DrawTri({x, 0}, {x + 60, 0}, {x - 40, (float)SCREEN_H}, Color{255, 220, 140, 10});
+        }
+        for (int k = 0; k < 26; k++) {
+            float px = fmodf(k * 91.0f + t * 14, (float)SCREEN_W), py = fmodf(k * 61.0f + t * 5, 520.0f) + 40;
+            DrawCircleV({px, py}, 1, Color{255, 224, 160, 70});
+        }
+    } else if (loc == Location::Weeds) { // stray fronds and pollen
+        for (int k = 0; k < 20; k++) {
+            float px = fmodf(k * 103.0f + sinf(t * 0.6f + k) * 20, (float)SCREEN_W), py = fmodf(k * 71.0f + t * 8, 520.0f) + 40;
+            DrawCircleV({px, py}, 1.5f, Color{180, 255, 160, 60});
+        }
+    } else { // Atlantis: cold light and faint drifting glyphs
+        for (int k = 0; k < 10; k++) {
+            float px = fmodf(k * 151.0f + t * 6, (float)SCREEN_W), py = fmodf(k * 83.0f + t * 3, 480.0f) + 40;
+            float a = 40 + 30 * sinf(t * 1.3f + k);
+            DrawRing({px, py}, 5, 6.5f, 0, 360, 6, Color{200, 160, 255, (unsigned char)std::max(0.0f, a)});
+        }
+    }
+    EndBlendMode();
+}
+
 static void DrawTopBar(Game& g) {
     auto& d = g.dungeon;
     DrawVGradient({0, 0, (float)SCREEN_W, 58}, Color{10, 18, 24, 240}, Color{16, 28, 36, 220});
     DrawRectangle(0, 56, SCREEN_W, 3, Pal::BrassDk);
-    TxtShadow(TextFormat("THE CAVE  -  %s (Lv %d)", CAVE_TIER_NAME[d.tier], CAVE_TIER_LEVEL[d.tier]), 20, 15, 22, Pal::Brass, true);
+    TxtShadow(TextFormat("%s  -  %s (Lv %d)", LocationName(d.loc), CAVE_TIER_NAME[d.tier], CAVE_TIER_LEVEL[d.tier]), 20, 15, 22, Pal::Brass, true);
     for (int i = 0; i < (int)d.rooms.size(); i++) {
         float x = 380 + i * 30.0f;
         Color c = i < d.roomIndex ? Pal::Good : i == d.roomIndex ? Pal::Brass : Color{90, 100, 104, 255};
@@ -1251,6 +1305,142 @@ static bool ResultPanel(const char* title, const std::string& body, const char* 
     DrawTextCenteredBold(title, p.x + p.width / 2, p.y + 24, 34, titleColor);
     DrawWrapped(body, {p.x + 40, p.y + 80, p.width - 80, 180}, 18, Pal::Ink);
     return Button({p.x + 150, p.y + p.height - 66, 300, 48}, button);
+}
+
+// What a found item is called, for the "Found: ..." label.
+static std::string ItemName(const InvItem& it) {
+    switch (it.kind) {
+        case ItemKind::Battery: return "A battery";
+        case ItemKind::Bandage: return "A bandage";
+        case ItemKind::Key: return "A key";
+        default: return (it.relicId >= 0 && it.relicId < (int)Relics().size()) ? Relics()[it.relicId].name : "A relic";
+    }
+}
+
+// The locked-chest prompt, or what was found lying among the wreckage: take it, leave it, or -- if the
+// pack is already full -- clear a slot first by discarding something (click it) before taking the new one.
+static void DrawFoundItemPanel(Game& g, Rectangle main) {
+    auto& d = g.dungeon;
+    Rectangle p{main.x, main.y + main.height + 14, main.width, 158};
+    if (d.roomIsChest && !d.chestOpened) {
+        Panel(p, Color{224, 214, 190, 255});
+        bool hasKey = false;
+        for (auto& it : d.inventory) if (it.kind == ItemKind::Key) hasKey = true;
+        DrawTextCenteredBold("A locked chest, bound in iron", p.x + p.width / 2, p.y + 14, 22, Pal::BrassDk);
+        DrawTextCentered(hasKey ? "A key from your pack fits the lock." : "You have no key. It stays shut.",
+                         p.x + p.width / 2, p.y + 46, 16, Pal::Ink);
+        if (Button({p.x + p.width / 2 - 140, p.y + 90, 280, 44}, "Open it", hasKey)) {
+            for (auto it = d.inventory.begin(); it != d.inventory.end(); ++it)
+                if (it->kind == ItemKind::Key) { d.inventory.erase(it); break; }
+            d.chestOpened = true;
+            d.roomGold = (int)(Roll(40, 70) * LootMult(g));
+            d.lootGold += d.roomGold;
+            if (Chance(60)) { d.pendingItem = true; d.pendingItemVal = {ItemKind::Relic, Roll(0, (int)Relics().size() - 1)}; }
+            Toast(g, TextFormat("The chest creaks open: +%d gold.", d.roomGold));
+        }
+        return;
+    }
+    if (!d.pendingItem) return;
+    Panel(p, Color{224, 214, 190, 255});
+    bool full = (int)d.inventory.size() >= INV_SLOTS;
+    Vector2 ic{p.x + 50, p.y + 50};
+    DrawItemIcon(d.pendingItemVal.kind, d.pendingItemVal.relicId, ic, 44);
+    TxtBold(("Found: " + ItemName(d.pendingItemVal)).c_str(), p.x + 92, p.y + 16, 19, Pal::Ink);
+    if (!full) {
+        if (Button({p.x + 92, p.y + 52, 150, 42}, "Take it")) { d.inventory.push_back(d.pendingItemVal); d.pendingItem = false; }
+        if (Button({p.x + 254, p.y + 52, 150, 42}, "Leave it")) d.pendingItem = false;
+    } else {
+        Txt("Your pack is full (5/5). Click something below to leave it behind, or leave the new find.", p.x + 92, p.y + 50, 15, Pal::Bad);
+        if (Button({p.x + 92, p.y + 78, 150, 36}, "Leave the find")) d.pendingItem = false;
+        for (int i = 0; i < (int)d.inventory.size(); i++) {
+            Vector2 sc{p.x + 300.0f + i * 52, p.y + 96};
+            Rectangle sr{sc.x - 24, sc.y - 24, 48, 48};
+            bool hov = CheckCollisionPointRec(GetMousePosition(), sr);
+            if (hov) DrawRectangleRounded(sr, 0.3f, 6, Fade(Pal::Bad, 0.25f));
+            DrawItemIcon(d.inventory[i].kind, d.inventory[i].relicId, sc, 40);
+            if (hov && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+                d.inventory.erase(d.inventory.begin() + i);
+                d.inventory.push_back(d.pendingItemVal);
+                d.pendingItem = false;
+                Toast(g, "Left it behind to make room.");
+                break;
+            }
+        }
+    }
+}
+
+// The pack: a row of carried items, always visible once the expedition starts. Click one to use it --
+// a bandage or a battery asks which hero (or to burn it on the spot), a relic asks which hero to fit it
+// to. Click the same slot again, or elsewhere, to cancel.
+static void DrawInventoryBar(Game& g) {
+    auto& d = g.dungeon;
+    const float SZ = 46, GAP = 8, x0 = 20, y0 = SCREEN_H - 66.0f;
+    for (int i = 0; i < INV_SLOTS; i++) {
+        Rectangle r{x0 + i * (SZ + GAP), y0, SZ, SZ};
+        bool has = i < (int)d.inventory.size();
+        DrawRectangleRounded(r, 0.25f, 6, has ? Color{40, 46, 44, 235} : Color{20, 24, 24, 160});
+        DrawRectangleRoundedLinesEx(r, 0.25f, 6, d.invSelected == i ? 2.5f : 1.5f, d.invSelected == i ? Pal::Brass : Color{80, 80, 70, 200});
+        if (has) {
+            Vector2 c{r.x + r.width / 2, r.y + r.height / 2};
+            DrawItemIcon(d.inventory[i].kind, d.inventory[i].relicId, c, 36);
+            bool hov = CheckCollisionPointRec(GetMousePosition(), r);
+            if (hov && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) d.invSelected = d.invSelected == i ? -1 : i;
+            if (hov) {
+                std::string name = ItemName(d.inventory[i]);
+                float w = (float)MeasureTxt(name, 15, true);
+                Rectangle lr{r.x + r.width / 2 - w / 2 - 8, r.y - 30, w + 16, 24};
+                DrawRectangleRounded(lr, 0.4f, 6, Color{12, 18, 22, 230});
+                TxtBold(name, lr.x + 8, lr.y + 4, 15, Pal::Paper);
+            }
+        }
+    }
+    if (d.invSelected < 0 || d.invSelected >= (int)d.inventory.size()) return;
+    // a compact menu of who to use it on (or, for a battery, to burn it on the spot)
+    const InvItem& it = d.inventory[d.invSelected];
+    Rectangle m{x0, y0 - 190, 280, 176};
+    Panel(m, Color{230, 222, 200, 255});
+    TxtBold(("Use: " + ItemName(it)).c_str(), m.x + 14, m.y + 10, 17, Pal::Ink);
+    if (it.kind == ItemKind::Battery) {
+        if (Button({m.x + 14, m.y + 44, 252, 40}, TextFormat("Burn it now (+40 light, at %.0f)", d.light), d.light < 100)) {
+            d.light = std::min(100.0f, d.light + 40);
+            d.inventory.erase(d.inventory.begin() + d.invSelected);
+            d.invSelected = -1;
+            Toast(g, "The lamp flares brighter.");
+        }
+        Txt("A carried battery, separate from the ones stowed at home.", m.x + 14, m.y + 92, 13, Pal::BrassDk);
+    } else if (it.kind == ItemKind::Key) {
+        Txt("Used automatically on a locked chest, if you're carrying one when you reach it.", m.x + 14, m.y + 44, 15, Pal::Ink);
+    } else {
+        int row = 0;
+        for (int p = 0; p < PARTY_SIZE; p++) {
+            Hero* h = PartyAt(g, p);
+            if (!h) continue;
+            Rectangle br{m.x + 14, m.y + 40.0f + row * 34, 252, 30};
+            bool canBandage = it.kind == ItemKind::Bandage && h->hp < GetStats(*h).maxHp;
+            bool canRelic = it.kind == ItemKind::Relic && (h->relics[0] < 0 || h->relics[1] < 0);
+            const char* label = it.kind == ItemKind::Bandage ? TextFormat("%s  (%d/%d HP)", h->name.c_str(), h->hp, GetStats(*h).maxHp)
+                                                              : TextFormat("%s  (%s)", h->name.c_str(), h->relics[0] < 0 || h->relics[1] < 0 ? "has a free slot" : "no free slot");
+            if (Button(br, label, canBandage || canRelic, 14)) {
+                if (it.kind == ItemKind::Bandage) {
+                    int heal = std::max(1, GetStats(*h).maxHp * 30 / 100);
+                    h->hp = std::min(GetStats(*h).maxHp, h->hp + heal);
+                    Float(g, HeroRect(p), TextFormat("+%d", heal), Pal::Good);
+                    Toast(g, TextFormat("%s is patched up.", h->name.c_str()));
+                } else {
+                    int slot = h->relics[0] < 0 ? 0 : 1;
+                    h->relics[slot] = it.relicId;
+                    Toast(g, TextFormat("%s fits the %s.", h->name.c_str(), Relics()[it.relicId].name.c_str()));
+                }
+                d.inventory.erase(d.inventory.begin() + d.invSelected);
+                d.invSelected = -1;
+                break; // `it` (a reference into the vector) is no longer valid after the erase
+            }
+            row++;
+        }
+    }
+    if (CheckCollisionPointRec(GetMousePosition(), m) == false && IsMouseButtonPressed(MOUSE_BUTTON_LEFT) &&
+        !CheckCollisionPointRec(GetMousePosition(), {x0 + d.invSelected * (SZ + GAP), y0, SZ, SZ}))
+        d.invSelected = -1;
 }
 
 // ---------------------------------------------------------------- actions in motion
@@ -1407,6 +1597,7 @@ void SceneDungeon(Game& g) {
     DrawCaveForeground(g);
     InkPass(1.0f, 1.0f);
     DrawDriftingSpecks(g);
+    DrawLocationTint(g);
     DrawSparks(g);
     DrawUnitHud(g, actingHero, actingEnemy);
     for (auto& f : d.floats) {
@@ -1419,6 +1610,7 @@ void SceneDungeon(Game& g) {
     }
     d.floats.erase(std::remove_if(d.floats.begin(), d.floats.end(), [](const FloatText& f) { return f.life <= 0; }), d.floats.end());
     DrawTopBar(g);
+    if (d.phase != DPhase::Combat && d.phase != DPhase::Walking) DrawInventoryBar(g);
 
     if (!d.log.empty()) {
         DrawRectangleRounded({380, 66, 520, 20.0f * d.log.size() + 14}, 0.1f, 6, Color{8, 16, 22, 180});
@@ -1465,15 +1657,29 @@ void SceneDungeon(Game& g) {
         } break;
 
         case DPhase::Treasure: {
-            std::string body = TextFormat("A barnacled chest! +%d gold.", d.roomGold);
-            if (d.roomRelic >= 0) body += " Inside, wrapped in oilcloth: a " + Relics()[d.roomRelic].name + "!";
-            if (d.light < 50) body += "\n\nThe darkness made the find richer.";
-            if (ResultPanel("Treasure", body, "Continue", Pal::Brass)) { d.phase = DPhase::Corridor; d.corridorT = 0; }
+            Rectangle main{340, 90, 600, 260};
+            Panel(main);
+            std::string body = d.roomIsChest ? "A chest, bound shut, sits half-buried in the silt."
+                                             : TextFormat("A barnacled cache! +%d gold.%s", d.roomGold, d.light < 50 ? " The darkness made the find richer." : "");
+            DrawTextCenteredBold("Treasure", main.x + main.width / 2, main.y + 20, 30, Pal::Brass);
+            DrawWrapped(body, {main.x + 36, main.y + 66, main.width - 72, 130}, 17, Pal::Ink);
+            DrawFoundItemPanel(g, main);
+            bool blocked = d.pendingItem || (d.roomIsChest && !d.chestOpened);
+            if (Button({main.x + main.width / 2 - 130, main.y + main.height - 46, 260, 42}, blocked ? "Move on (leave anything unclaimed)" : "Continue")) {
+                d.phase = DPhase::Corridor; d.corridorT = 0;
+            }
         } break;
 
         case DPhase::RoomClear: {
-            std::string body = TextFormat("The room is quiet again. You gather %d gold from the debris.", d.roomGold);
-            if (ResultPanel("Room cleared", body, "Continue", Pal::Good)) { d.phase = DPhase::Corridor; d.corridorT = 0; }
+            Rectangle main{340, 90, 600, 260};
+            Panel(main);
+            DrawTextCenteredBold("Room cleared", main.x + main.width / 2, main.y + 20, 30, Pal::Good);
+            DrawWrapped(TextFormat("The room is quiet again. You gather %d gold from the debris.", d.roomGold),
+                        {main.x + 36, main.y + 66, main.width - 72, 130}, 17, Pal::Ink);
+            DrawFoundItemPanel(g, main);
+            if (Button({main.x + main.width / 2 - 130, main.y + main.height - 46, 260, 42}, d.pendingItem ? "Move on (leave it)" : "Continue")) {
+                d.phase = DPhase::Corridor; d.corridorT = 0;
+            }
         } break;
 
         case DPhase::Victory:
@@ -1487,12 +1693,12 @@ void SceneDungeon(Game& g) {
             if (d.phase == DPhase::Victory) {
                 title = "Expedition complete!";
                 tc = Pal::Good;
-                body = TextFormat("The Lobster is beaten. You bring home %d gold", d.lootGold);
+                body = TextFormat("%s is beaten. You bring home %d gold", LocationBossName(d.loc), d.lootGold);
                 for (int r : d.lootRelics) body += ", a " + Relics()[r].name;
                 body += ", and as a reward for finishing: a " + Relics()[d.rewardRelic].name + ".";
                 body += TextFormat("\n\nSurvivors earn %d XP.", 5 + lvl * 2);
-                if (d.tier + 1 < CAVE_TIERS && g.caveTierCleared == d.tier)
-                    body += TextFormat(" Cave level %d (%s) is now open at the Helm.", CAVE_TIER_LEVEL[d.tier + 1], CAVE_TIER_NAME[d.tier + 1]);
+                if (d.tier + 1 < CAVE_TIERS && g.tierCleared[(int)d.loc] == d.tier)
+                    body += TextFormat(" %s level %d (%s) is now open at the Helm.", LocationName(d.loc), CAVE_TIER_LEVEL[d.tier + 1], CAVE_TIER_NAME[d.tier + 1]);
             } else if (d.phase == DPhase::Retreat) {
                 title = "Retreat";
                 tc = Pal::Brass;

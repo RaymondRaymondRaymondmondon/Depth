@@ -29,7 +29,9 @@ bool SaveGame(const Game& g) {
         for (int u : g.upgrades) f << " " << u;
         f << "\nrelics";
         for (int r : g.relicStorage) f << " " << r;
-        f << "\ncave " << g.caveTierCleared << " " << g.caveTier << "\n";
+        f << "\nlocations";
+        for (int l = 0; l < LOCATION_COUNT; l++) f << " " << g.tierCleared[l] << " " << g.tierSel[l];
+        f << "\n";
         f << "platopts " << (g.platHard ? 1 : 0) << " " << (g.platCheckpoints ? 1 : 0) << " " << (g.platHullBoss ? 1 : 0) << " " << (g.platPirateBoss ? 1 : 0) << "\n";
         for (int l = 0; l < PL_COUNT; l++) {
             f << "plat " << l << " " << (g.platCleared[l] ? 1 : 0) << " " << g.platBest[l];
@@ -65,7 +67,8 @@ bool LoadGame(Game& g) {
         else if (key == "party") for (int& id : fresh.party) in >> id;
         else if (key == "upgrades") for (int& u : fresh.upgrades) in >> u;
         else if (key == "relics") { int r; while (in >> r) if (r >= 0 && r < (int)Relics().size()) fresh.relicStorage.push_back(r); }
-        else if (key == "cave") in >> fresh.caveTierCleared >> fresh.caveTier;
+        else if (key == "cave") { in >> fresh.tierCleared[(int)Location::Cave] >> fresh.tierSel[(int)Location::Cave]; } // an older save: Cave only
+        else if (key == "locations") for (int l = 0; l < LOCATION_COUNT; l++) in >> fresh.tierCleared[l] >> fresh.tierSel[l];
         else if (key == "platopts") {
             int h = 0, c = 0, hb = 1, pb = 1;
             in >> h >> c >> hb >> pb; // hb/pb default to 1 (on) for saves from before this option existed
@@ -94,7 +97,7 @@ bool LoadGame(Game& g) {
     }
     if (fresh.roster.empty()) return false;
     for (int& u : fresh.upgrades) u = std::clamp(u, 0, UPGRADE_MAX);
-    fresh.caveTier = std::clamp(fresh.caveTier, 0, std::min(CAVE_TIERS - 1, fresh.caveTierCleared + 1));
+    for (int l = 0; l < LOCATION_COUNT; l++) fresh.tierSel[l] = std::clamp(fresh.tierSel[l], 0, std::min(CAVE_TIERS - 1, fresh.tierCleared[l] + 1));
     g = fresh;
     CompactParty(g);
     RefreshRadar(g);
