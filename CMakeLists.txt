@@ -20,6 +20,7 @@ add_executable(depth
     src/main.cpp
     src/data.cpp
     src/ui.cpp
+    src/render.cpp
     src/hub.cpp
     src/dungeon.cpp
     src/platformer.cpp

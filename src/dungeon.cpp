@@ -4,6 +4,7 @@
 #include "game.h"
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 
 static int Roll(int lo, int hi) { return GetRandomValue(lo, hi); }
 static bool Chance(int pct) { return GetRandomValue(1, 100) <= pct; }
@@ -80,9 +81,18 @@ static void DamageHero(Game& g, Hero& h, int dmg) {
     }
 }
 
-static void HealHero(Hero& h, int amt) {
+// Poison halves healing, which is what makes it different from bleed.
+static int HealHero(Hero& h, int amt) {
+    if (h.st.poisonTurns > 0) amt = std::max(1, amt / 2);
     h.hp = std::min(GetStats(h).maxHp, h.hp + amt);
     if (h.hp > 0) h.deathsDoor = false;
+    return amt;
+}
+
+// Poison stacks up to three applications; bleed just refreshes.
+static void ApplyPoison(Status& st, int dmg) {
+    st.poisonDmg = st.poisonTurns > 0 ? std::min(st.poisonDmg + dmg, dmg * 3) : dmg;
+    st.poisonTurns = 3;
 }
 
 // Remove defeated enemies and fallen crew. The fallen take their relics with them.
@@ -160,6 +170,7 @@ static void HeroAct(Game& g, int heroId, int abilityIdx, int targetPos) {
                 if (a.dmgMult > 0) {
                     float raw = Roll(s.dmgMin, s.dmgMax) * a.dmgMult * (1.0f + h->st.buffDmg / 100.0f);
                     if (crit) raw *= 1.5f;
+                    if (e->st.marked > 0) raw *= 1.25f;
                     int dmg = std::max(1, (int)std::round(raw * (100 - e->prot) / 100.0f));
                     e->hp -= dmg;
                     Float(g, er, (crit ? "CRIT " : "") + std::to_string(dmg), crit ? Pal::Brass : Pal::Coral);
@@ -170,7 +181,8 @@ static void HeroAct(Game& g, int heroId, int abilityIdx, int targetPos) {
                     if (e->hp <= 0) { e->hp = 0; e->alive = false; Log(g, e->name + " is defeated."); break; }
                 }
                 if (a.bleed) { e->st.bleedDmg = std::max(e->st.bleedDmg, a.bleed); e->st.bleedTurns = 3; Float(g, er, "Bleed", Pal::Bad); }
-                if (a.poison) { e->st.poisonDmg = std::max(e->st.poisonDmg, a.poison); e->st.poisonTurns = 3; Float(g, er, "Poison", Pal::Good); }
+                if (a.poison) { ApplyPoison(e->st, a.poison); Float(g, er, TextFormat("Poison %d", e->st.poisonDmg), Pal::Good); }
+                if (a.mark) { e->st.marked = 3; Float(g, er, "Marked", Pal::Brass); }
                 if (a.stunChance && Chance(a.stunChance)) { e->st.stunned = 1; Float(g, er, "Stunned", Pal::Teal); }
                 if (a.moveTarget) MoveEnemy(g, uid, a.moveTarget);
             }
@@ -192,10 +204,12 @@ static void HeroAct(Game& g, int heroId, int abilityIdx, int targetPos) {
         Hero* t = PartyAt(g, p);
         if (!t) continue;
         Rectangle tr = HeroRect(p);
-        if (a.heal) { int amt = a.heal + Roll(0, 2); HealHero(*t, amt); Float(g, tr, "+" + std::to_string(amt), Pal::Good); }
+        if (a.heal) { int amt = HealHero(*t, a.heal + Roll(0, 2)); Float(g, tr, "+" + std::to_string(amt), Pal::Good); }
         if (a.cure) { t->st.bleedTurns = 0; t->st.poisonTurns = 0; }
         if (a.stressHeal) AddStress(g, *t, -a.stressHeal);
         if (a.buffDmg) { t->st.buffDmg = a.buffDmg; t->st.buffTurns = 3; Float(g, tr, "Rallied", Pal::Brass); }
+        if (a.buffDodge) { t->st.dodgeBuff = a.buffDodge; t->st.dodgeTurns = 3; Float(g, tr, "Dodge up", Pal::Teal); }
+        if (a.buffProt) { t->st.protBuff = a.buffProt; t->st.protTurns = 3; Float(g, tr, "Armor up", Pal::Brass); }
         if (a.guardTurns) { t->st.guardTurns = a.guardTurns; Float(g, tr, "Guarding", Pal::Teal); }
     }
 }
@@ -233,11 +247,12 @@ static void EnemyAct(Game& g, int uid) {
         if (!h || h->dead) continue;
         Stats s = GetStats(*h);
         Rectangle hr = HeroRect(p);
-        int hit = std::clamp(e->acc + EnemyAccBonus(g) - s.dodge, 5, 95);
+        int dodge = s.dodge + (h->st.dodgeTurns > 0 ? h->st.dodgeBuff : 0);
+        int hit = std::clamp(e->acc + EnemyAccBonus(g) - dodge, 5, 95);
         if (!Chance(hit)) { Float(g, hr, "Dodge", Pal::Paper); continue; }
         bool crit = Chance(6);
         if (a.dmgMult > 0) {
-            int prot = std::min(80, s.prot + (h->st.guardTurns > 0 ? 25 : 0));
+            int prot = std::min(80, s.prot + (h->st.guardTurns > 0 ? 25 : 0) + (h->st.protTurns > 0 ? h->st.protBuff : 0));
             float raw = Roll(e->dmgMin, e->dmgMax) * a.dmgMult * (crit ? 1.5f : 1.0f);
             int dmg = std::max(1, (int)std::round(raw * (100 - prot) / 100.0f));
             Float(g, hr, (crit ? "CRIT " : "") + std::to_string(dmg), crit ? Pal::Brass : Pal::Bad);
@@ -247,7 +262,7 @@ static void EnemyAct(Game& g, int uid) {
         int st = a.stress + (crit ? 10 : 0);
         if (st) AddStress(g, *h, st);
         if (a.bleed) { h->st.bleedDmg = std::max(h->st.bleedDmg, a.bleed); h->st.bleedTurns = 3; }
-        if (a.poison) { h->st.poisonDmg = std::max(h->st.poisonDmg, a.poison); h->st.poisonTurns = 3; }
+        if (a.poison) ApplyPoison(h->st, a.poison);
         if (a.stunChance && Chance(a.stunChance)) { h->st.stunned = 1; Float(g, hr, "Stunned", Pal::Teal); }
     }
 }
@@ -305,6 +320,8 @@ static void StartTurn(Game& g) {
         if (st.bleedTurns > 0) { st.bleedTurns--; Float(g, r, "Bleed " + std::to_string(st.bleedDmg), Pal::Bad); DamageHero(g, *h, st.bleedDmg); }
         if (!h->dead && st.poisonTurns > 0) { st.poisonTurns--; Float(g, r, "Poison " + std::to_string(st.poisonDmg), Pal::Good); DamageHero(g, *h, st.poisonDmg); }
         if (st.buffTurns > 0 && --st.buffTurns == 0) st.buffDmg = 0;
+        if (st.dodgeTurns > 0 && --st.dodgeTurns == 0) st.dodgeBuff = 0;
+        if (st.protTurns > 0 && --st.protTurns == 0) st.protBuff = 0;
         if (st.guardTurns > 0) st.guardTurns--;
         if (h->dead) { skip(""); return; }
         if (st.stunned > 0) { st.stunned--; skip(h->name + " is stunned and loses the turn."); return; }
@@ -315,6 +332,7 @@ static void StartTurn(Game& g) {
         Status& st = e->st;
         if (st.bleedTurns > 0) { st.bleedTurns--; e->hp -= st.bleedDmg; Float(g, r, "Bleed " + std::to_string(st.bleedDmg), Pal::Bad); }
         if (st.poisonTurns > 0) { st.poisonTurns--; e->hp -= st.poisonDmg; Float(g, r, "Poison " + std::to_string(st.poisonDmg), Pal::Good); }
+        if (st.marked > 0) st.marked--;
         if (e->hp <= 0) { e->hp = 0; e->alive = false; skip(e->name + " succumbs."); return; }
         if (st.stunned > 0) { st.stunned--; skip(e->name + " is stunned."); return; }
     }
@@ -368,6 +386,13 @@ void StartDungeon(Game& g) {
     g.scene = Scene::Dungeon;
 }
 
+void DebugEnterCombat(Game& g) {
+    StartDungeon(g);
+    for (auto& r : g.dungeon.rooms) if (r != RoomType::Boss) r = RoomType::Fight;
+    g.dungeon.light = 60;
+    EnterNextRoom(g);
+}
+
 static void ApplyResults(Game& g) {
     auto& d = g.dungeon;
     if (d.resultsApplied) return;
@@ -399,61 +424,169 @@ static void ApplyResults(Game& g) {
     }
 }
 
-// ---------------------------------------------------------------- drawing
-static void DrawCave(Game& g) {
-    float t = g.time;
-    DrawRectangleGradientV(0, 0, SCREEN_W, SCREEN_H, Color{34, 104, 120, 255}, Color{12, 40, 56, 255});
-    for (int i = 0; i < 7; i++) DrawCircle(80 + i * 200, 470, 170 + (i % 3) * 30.0f, Color{20, 62, 78, 255});
-    for (int i = 0; i < 6; i++) {
-        float x = 60 + i * 230.0f;
-        DrawTriangle({x, 56}, {x + 50, 56}, {x + 25, 140 + (i % 3) * 30.0f}, Color{18, 54, 68, 255});
+// ---------------------------------------------------------------- auto-play (balance testing)
+// Plays expeditions with a simple auto-player that never swaps batteries and never retreats.
+// Run with:  depth.exe --sim 400 [level] [random]
+// The default player heals anyone below 40% HP and otherwise uses its hardest-hitting attack on the
+// weakest enemy it can reach; "random" picks any usable ability and target instead.
+void SimulateExpeditions(int runs, int level, bool randomPlayer) {
+    int wins = 0, losses = 0, deaths = 0, anyDeath = 0, rattled = 0;
+    for (int r = 0; r < runs; r++) {
+        Game g;
+        InitGame(g);
+        for (auto& h : g.roster) {
+            h.level = level;
+            h.hp = GetStats(h).maxHp;
+            // random loadout among the unlocked abilities
+            std::vector<int> pool;
+            const auto& abs = ClassAbilities(h.cls);
+            for (int i = 0; i < (int)abs.size(); i++) if (abs[i].unlockLevel <= level) pool.push_back(i);
+            for (int i = (int)pool.size() - 1; i > 0; i--) std::swap(pool[i], pool[Roll(0, i)]);
+            for (int k = 0; k < LOADOUT_SIZE; k++) h.loadout[k] = k < (int)pool.size() ? pool[k] : -1;
+        }
+        StartDungeon(g);
+        auto& d = g.dungeon;
+        int steps = 0;
+        while (steps++ < 20000) {
+            if (d.phase == DPhase::Corridor) { d.light = std::max(0.0f, d.light - LightDrainPerRoom(g)); EnterNextRoom(g); continue; }
+            if (d.phase == DPhase::Treasure || d.phase == DPhase::RoomClear) { d.phase = DPhase::Corridor; continue; }
+            if (d.phase != DPhase::Combat) break;
+            if (d.turnIdx >= (int)d.order.size()) BeginRound(g);
+            TurnEntry te = d.order[d.turnIdx];
+            bool valid = te.hero ? (FindHero(g, te.id) && PartyPos(g, te.id) >= 0) : FindEnemy(g, te.id) != nullptr;
+            if (!valid) { d.turnIdx++; d.turnStarted = false; continue; }
+            if (!d.turnStarted) StartTurn(g);
+            if (d.pendingSkip) { EndTurn(g); continue; }
+            if (!te.hero) { EnemyAct(g, te.id); EndTurn(g); continue; }
+            Hero* h = FindHero(g, te.id);
+            int pos = PartyPos(g, te.id);
+            const auto& abs = ClassAbilities(h->cls);
+            std::vector<int> usable;
+            for (int ab : h->loadout)
+                if (ab >= 0 && HeroCanUse(g, pos, abs[ab])) usable.push_back(ab);
+            if (usable.empty()) { EndTurn(g); continue; }
+            int ab = usable[Roll(0, (int)usable.size() - 1)], target = -1;
+            if (!randomPlayer) {
+                // Simple but sensible: heal whoever is badly hurt, else hit the weakest enemy as hard as possible.
+                int hurt = -1;
+                float worst = 0.4f;
+                for (int p = 0; p < PartySize(g); p++) {
+                    Hero* o = PartyAt(g, p);
+                    float f = (float)o->hp / GetStats(*o).maxHp;
+                    if (f < worst) { worst = f; hurt = p; }
+                }
+                int healAb = -1, bestAb = -1;
+                float best = 0;
+                for (int a : usable) {
+                    if (abs[a].heal > 0 && abs[a].target == Target::Ally) healAb = a;
+                    float v = abs[a].dmgMult * abs[a].hitsCount * (abs[a].aoe ? 2.0f : 1.0f) + (abs[a].bleed + abs[a].poison) * 0.15f;
+                    if (abs[a].target == Target::Enemy && v > best) { best = v; bestAb = a; }
+                }
+                if (hurt >= 0 && healAb >= 0) { ab = healAb; target = hurt; }
+                else if (bestAb >= 0) {
+                    ab = bestAb;
+                    int lowHp = 1 << 30;
+                    for (int tp : ValidTargets(g, pos, abs[ab]))
+                        if (d.enemies[tp].hp < lowHp) { lowHp = d.enemies[tp].hp; target = tp; }
+                }
+            }
+            auto targets = ValidTargets(g, pos, abs[ab]);
+            if (target < 0) target = targets[Roll(0, (int)targets.size() - 1)];
+            HeroAct(g, h->id, ab, target);
+            EndTurn(g);
+        }
+        int lost = 4 - (int)g.roster.size();
+        deaths += lost;
+        anyDeath += lost > 0;
+        for (auto& h : g.roster) if (h.rattled) { rattled++; break; }
+        if (d.phase == DPhase::Victory) wins++; else losses++;
     }
-    DrawRectangle(0, 460, SCREEN_W, 260, Color{46, 78, 82, 255});
-    DrawRectangle(0, 460, SCREEN_W, 6, Color{70, 110, 110, 255});
-    for (int k = 0; k < 14; k++) {
-        float y = 460 - fmodf(t * (18 + k % 4 * 6) + k * 57, 400);
-        DrawCircleLines(40 + k * 92, (int)y, 3 + k % 3, Color{200, 240, 250, 90});
+    printf("Simulated %d expeditions at level %d (%s player):\n", runs, level, randomPlayer ? "random" : "sensible");
+    printf("  wins %.1f%%   wipes %.1f%%\n", 100.0 * wins / runs, 100.0 * losses / runs);
+    printf("  runs with a death %.1f%%   avg deaths %.2f   runs with someone rattled %.1f%%\n",
+           100.0 * anyDeath / runs, (double)deaths / runs, 100.0 * rattled / runs);
+}
+
+// ---------------------------------------------------------------- drawing
+static const float ANEMONE_X[] = {40, 640, 1240};
+static const int ANEMONES = 3;
+// A rocky silhouette whose edge follows layered waves, with occasional spikes (stalactites/stalagmites).
+static float RidgeY(float x, float base, float amp, int seed, bool fromTop, float spiky) {
+    float h = sinf(x * 0.006f + seed) * 0.5f + sinf(x * 0.017f + seed * 2.3f) * 0.3f + sinf(x * 0.041f + seed * 0.7f) * 0.2f;
+    float spike = powf(fabsf(sinf(x * 0.013f + seed * 1.7f)), 12.0f) * spiky;
+    return base + h * amp + (fromTop ? spike : -spike);
+}
+
+static void DrawRidge(float base, float amp, int seed, bool fromTop, Color col, float spiky) {
+    const float STEP = 3;
+    float edge = fromTop ? 0.0f : (float)SCREEN_H;
+    for (float x = 0; x < SCREEN_W; x += STEP) {
+        float y0 = RidgeY(x, base, amp, seed, fromTop, spiky), y1 = RidgeY(x + STEP, base, amp, seed, fromTop, spiky);
+        DrawTri({x, y0}, {x + STEP, y1}, {x, edge}, col);
+        DrawTri({x + STEP, y1}, {x + STEP, edge}, {x, edge}, col);
     }
 }
 
-static void DrawHeroFigure(const Hero& h, Rectangle r, float t) {
-    Color c = ClassColor(h.cls);
-    float cx = r.x + r.width / 2, bob = sinf(t * 2 + h.id) * 2, top = r.y + bob;
-    Color skin{236, 196, 160, 255};
-    DrawRectangle((int)cx - 18, (int)(r.y + 128), 14, 32, Color{60, 50, 44, 255});
-    DrawRectangle((int)cx + 4, (int)(r.y + 128), 14, 32, Color{60, 50, 44, 255});
-    DrawRectangleRounded({cx - 26, top + 56, 52, 76}, 0.3f, 6, c);
-    switch (h.cls) {
-        case HeroClass::Nurse:
-            DrawRectangleRounded({cx - 18, top + 64, 36, 62}, 0.3f, 6, Pal::Paper);
-            DrawCircle((int)cx, (int)(top + 36), 20, skin);
-            DrawRectangle((int)cx - 20, (int)(top + 10), 40, 14, Pal::Paper);
-            DrawRectangle((int)cx - 2, (int)(top + 12), 4, 10, Pal::Bad);
-            DrawRectangle((int)cx - 5, (int)(top + 15), 10, 4, Pal::Bad);
-            break;
-        case HeroClass::Diver:
-            DrawCircle((int)cx, (int)(top + 34), 28, Pal::Brass);
-            DrawCircle((int)cx + 6, (int)(top + 34), 15, Color{40, 90, 110, 255});
-            DrawCircle((int)cx + 2, (int)(top + 29), 5, Color{180, 230, 240, 255});
-            DrawLineEx({cx + 26, top + 90}, {cx + 60, top + 60}, 4, Color{160, 160, 170, 255});
-            break;
-        case HeroClass::Captain:
-            DrawCircle((int)cx, (int)(top + 36), 20, skin);
-            DrawRectangle((int)cx - 28, (int)(top + 14), 56, 8, Color{30, 30, 40, 255});
-            DrawRectangle((int)cx - 16, (int)(top - 2), 32, 18, Color{30, 30, 40, 255});
-            DrawRectangle((int)cx - 30, (int)(top + 56), 14, 6, Pal::Brass);
-            DrawRectangle((int)cx + 16, (int)(top + 56), 14, 6, Pal::Brass);
-            break;
-        default:
-            DrawCircle((int)cx, (int)(top + 36), 20, skin);
-            DrawCircle((int)cx - 8, (int)(top + 24), 7, Pal::Brass);
-            DrawCircle((int)cx + 8, (int)(top + 24), 7, Pal::Brass);
-            DrawCircle((int)cx - 8, (int)(top + 24), 4, Color{140, 220, 230, 255});
-            DrawCircle((int)cx + 8, (int)(top + 24), 4, Color{140, 220, 230, 255});
-            DrawLineEx({cx + 24, top + 100}, {cx + 50, top + 70}, 6, Color{150, 150, 160, 255});
-            break;
+static void DrawCave(Game& g) {
+    float t = g.time;
+    DrawVGradient({0, 0, (float)SCREEN_W, (float)SCREEN_H}, Color{28, 74, 90, 255}, Color{6, 20, 30, 255});
+    // shafts of daylight through cracks far above
+    BeginBlendMode(BLEND_ADDITIVE);
+    for (int k = 0; k < 4; k++) {
+        float x = 200 + k * 290 + sinf(t * 0.2f + k) * 20;
+        DrawTri({x, 0}, {x - 60, 0}, {x - 170, 520}, Color{60, 110, 120, 30});
+        DrawTri({x - 60, 0}, {x - 240, 520}, {x - 170, 520}, Color{60, 110, 120, 30});
     }
-    if (h.cls != HeroClass::Diver) DrawCircle((int)cx + 8, (int)(top + 38), 3, Pal::Ink);
+    EndBlendMode();
+    DrawRidge(330, 60, 3, false, Color{18, 46, 58, 255}, 60);   // far rock
+    DrawRidge(390, 40, 9, false, Color{22, 40, 48, 255}, 30);   // nearer rock
+    DrawRidge(70, 40, 5, true, Color{14, 30, 38, 255}, 130);    // ceiling and stalactites
+    // kelp swaying against the back wall
+    for (int k = 0; k < 9; k++) {
+        float bx = 40 + k * 150 + (k % 2) * 40, by = 460;
+        Vector2 prev{bx, by};
+        for (int s = 1; s <= 10; s++) {
+            Vector2 p{bx + sinf(t * 0.9f + k + s * 0.45f) * s * 2.2f, by - s * (16 + k % 3 * 3)};
+            DrawLineEx(prev, p, 6 - s * 0.4f, Color{34, 90, 60, 255});
+            prev = p;
+        }
+    }
+    // the cave floor, with a wet lip where it meets the back wall
+    DrawTiled(Tex::Rock, {0, 450, (float)SCREEN_W, 270}, 1.4f, Color{96, 110, 112, 255});
+    DrawVGradient({0, 450, (float)SCREEN_W, 40}, Fade(BLACK, 0.55f), Fade(BLACK, 0));
+    DrawRectangle(0, 450, SCREEN_W, 3, Color{120, 150, 150, 160});
+    DrawVGradient({0, 600, (float)SCREEN_W, 120}, Fade(BLACK, 0), Fade(BLACK, 0.5f));
+    for (int k = 0; k < 5; k++) { // puddles catch the light
+        float px = 90 + k * 270.0f + (k % 2) * 60, py = 505 + (k % 3) * 40.0f;
+        DrawEllipse((int)px, (int)py, 70 - k * 4, 10, Color{40, 80, 90, 200});
+        DrawEllipse((int)px - 10, (int)py - 2, 40 - k * 3, 4, Color{110, 170, 180, 90});
+    }
+    // glowing anemones, in the gaps between where the units stand
+    for (int k = 0; k < ANEMONES; k++) {
+        float ax = ANEMONE_X[k], ay = 452;
+        for (int f = -3; f <= 3; f++)
+            DrawLineEx({ax, ay}, {ax + f * 5 + sinf(t * 2 + k + f) * 3, ay - 16 - (3 - abs(f)) * 3}, 2.5f, Color{120, 230, 220, 255});
+        DrawCircle((int)ax, (int)ay, 6, Color{60, 150, 150, 255});
+    }
+}
+
+static void DrawCaveForeground(Game& g) {
+    float t = g.time;
+    Color fg{6, 12, 16, 255};
+    // rocks framing the bottom corners and kelp hanging in front of the view
+    DrawCircle(-40, 760, 230, fg);
+    DrawCircle(160, 790, 150, fg);
+    DrawCircle(1320, 770, 240, fg);
+    DrawCircle(1110, 800, 140, fg);
+    for (int k = 0; k < 3; k++) {
+        float bx = k == 0 ? 30 : k == 1 ? 1230 : 1180;
+        Vector2 prev{bx, 0};
+        for (int s = 1; s <= 9; s++) {
+            Vector2 p{bx + sinf(t * 0.7f + k * 2 + s * 0.5f) * s * 3, s * 22.0f};
+            DrawLineEx(prev, p, 16 - s, fg);
+            prev = p;
+        }
+    }
 }
 
 static void DrawEnemyFigure(const Enemy& e, Rectangle r, float t) {
@@ -467,6 +600,7 @@ static void DrawEnemyFigure(const Enemy& e, Rectangle r, float t) {
                 DrawLineEx({lx, cy}, {lx - 10, by}, 3, Color{110, 95, 130, 255});
             }
             DrawEllipse((int)cx, (int)cy, 40, 22, c);
+            DrawEllipse((int)cx - 6, (int)cy - 8, 26, 9, Fade(WHITE, 0.2f));
             for (int k = 1; k < 4; k++) DrawLineEx({cx - 40 + k * 20.0f, cy - 19}, {cx - 40 + k * 20.0f, cy + 19}, 2, Color{140, 120, 160, 255});
             DrawLineEx({cx - 34, cy - 12}, {cx - 58, cy - 38}, 2, c);
             DrawCircle((int)(cx - 30), (int)(cy - 5), 4, Pal::Ink);
@@ -475,8 +609,9 @@ static void DrawEnemyFigure(const Enemy& e, Rectangle r, float t) {
             Color c{248, 146, 132, 255};
             float cy = by - 52 + bob;
             const float seg[5][3] = {{-24, -12, 17}, {-8, -16, 16}, {8, -12, 14}, {20, -2, 12}, {28, 10, 10}};
-            DrawTriangle({cx + 30, cy + 16}, {cx + 44, cy + 34}, {cx + 20, cy + 34}, Color{230, 120, 110, 255});
+            DrawTri({cx + 30, cy + 16}, {cx + 44, cy + 34}, {cx + 20, cy + 34}, Color{230, 120, 110, 255});
             for (auto& s : seg) DrawCircle((int)(cx + s[0]), (int)(cy + s[1]), s[2], c);
+            for (auto& s : seg) DrawCircle((int)(cx + s[0] - 3), (int)(cy + s[1] - 5), s[2] * 0.4f, Fade(WHITE, 0.18f));
             for (int k = 0; k < 4; k++) DrawLineEx({cx - 16 + k * 10.0f, cy}, {cx - 20 + k * 10.0f, by}, 2, Color{210, 110, 100, 255});
             DrawCircle((int)(cx - 44), (int)(cy + 6), 14, Color{220, 100, 90, 255});
             DrawCircle((int)(cx - 54), (int)(cy + 2), 7, Color{240, 170, 150, 255});
@@ -488,6 +623,7 @@ static void DrawEnemyFigure(const Enemy& e, Rectangle r, float t) {
                 float x = cx + sinf(t * 2 + k * 0.8f) * 10 - k * 2;
                 float y = by - 14 - k * 18.0f + bob * 0.5f;
                 DrawCircle((int)x, (int)y, 18 - k * 1.5f, k % 2 ? Color{110, 180, 90, 255} : Color{90, 160, 76, 255});
+                DrawCircle((int)x - 4, (int)y - 5, (18 - k * 1.5f) * 0.4f, Fade(WHITE, 0.15f));
                 if (k == 5) {
                     DrawCircle((int)x - 8, (int)y + 2, 6, Color{40, 60, 30, 255});
                     DrawCircle((int)x - 2, (int)y - 6, 3, Pal::Ink);
@@ -500,8 +636,9 @@ static void DrawEnemyFigure(const Enemy& e, Rectangle r, float t) {
             for (int k = 0; k < 4; k++) DrawLineEx({cx - 10 + k * 14.0f, cy + 20}, {cx - 20 + k * 14.0f, by}, 4, dk);
             DrawCircle((int)(cx + 48), (int)(cy + 8), 20, c);
             DrawCircle((int)(cx + 70), (int)(cy + 16), 15, c);
-            DrawTriangle({cx + 78, cy + 20}, {cx + 100, cy + 44}, {cx + 70, cy + 44}, dk);
+            DrawTri({cx + 78, cy + 20}, {cx + 100, cy + 44}, {cx + 70, cy + 44}, dk);
             DrawEllipse((int)(cx + 8), (int)cy, 48, 32, c);
+            DrawEllipse((int)(cx - 2), (int)cy - 12, 30, 12, Fade(WHITE, 0.18f));
             DrawCircle((int)(cx - 34), (int)(cy - 10), 24, c);
             DrawLineEx({cx - 40, cy - 30}, {cx - 90, cy - 180}, 2, dk);
             DrawLineEx({cx - 30, cy - 32}, {cx - 60, cy - 190}, 2, dk);
@@ -509,7 +646,7 @@ static void DrawEnemyFigure(const Enemy& e, Rectangle r, float t) {
             DrawCircle((int)(cx - 30), (int)(cy - 30), 5, Pal::Ink);
             DrawLineEx({cx - 40, cy - 4}, {cx - 64, cy - 70}, 8, c);
             DrawCircle((int)(cx - 66), (int)(cy - 84), 22, c);
-            DrawTriangle({cx - 90, cy - 104}, {cx - 64, cy - 88}, {cx - 76, cy - 112}, Color{30, 60, 70, 255});
+            DrawTri({cx - 90, cy - 104}, {cx - 64, cy - 88}, {cx - 76, cy - 112}, Color{30, 60, 70, 255});
             DrawLineEx({cx - 30, cy + 10}, {cx - 56, cy + 20}, 8, c);
             DrawCircle((int)(cx - 62), (int)(cy + 20), 16, c);
         } break;
@@ -519,66 +656,114 @@ static void DrawEnemyFigure(const Enemy& e, Rectangle r, float t) {
 static std::string StatusTags(const Status& st) {
     std::string s;
     if (st.bleedTurns > 0) s += "BLEED ";
-    if (st.poisonTurns > 0) s += "POISON ";
+    if (st.poisonTurns > 0) s += TextFormat("POISON %d ", st.poisonDmg);
     if (st.stunned > 0) s += "STUN ";
+    if (st.marked > 0) s += "MARKED ";
     if (st.buffTurns > 0) s += "RALLY ";
+    if (st.dodgeTurns > 0) s += "DODGE+ ";
+    if (st.protTurns > 0) s += "ARMOR+ ";
     if (st.guardTurns > 0) s += "GUARD ";
     return s;
 }
 
-static void DrawUnits(Game& g, int actingHero, int actingEnemy) {
+static void DrawUnitFigures(Game& g) {
     auto& d = g.dungeon;
     float t = g.time;
     for (int p = 0; p < PARTY_SIZE; p++) {
         Hero* h = PartyAt(g, p);
         if (!h) continue;
         Rectangle r = HeroRect(p);
-        DrawEllipse((int)(r.x + r.width / 2), (int)(r.y + r.height), 40, 8, Color{0, 0, 0, 60});
-        DrawHeroFigure(*h, r, t);
+        Vector2 feet{r.x + r.width / 2, r.y + r.height};
+        DrawShadowBlob(feet, 38);
+        DrawCrewFigure(*h, feet, 1.05f, true, 0, t);
+    }
+    for (int p = 0; p < (int)d.enemies.size(); p++) {
+        const Enemy& e = d.enemies[p];
+        Rectangle r = EnemyRect(g, p);
+        DrawShadowBlob({r.x + r.width / 2, r.y + r.height}, e.boss ? 70 : 44);
+        DrawEnemyFigure(e, r, t);
+    }
+}
+
+static void DrawUnitHud(Game& g, int actingHero, int actingEnemy) {
+    auto& d = g.dungeon;
+    float t = g.time;
+    for (int p = 0; p < PARTY_SIZE; p++) {
+        Hero* h = PartyAt(g, p);
+        if (!h) continue;
+        Rectangle r = HeroRect(p);
         Stats s = GetStats(*h);
+        if (h->rattled) Glow({r.x + r.width / 2, r.y - 4}, 40 + sinf(t * 5) * 6, Fade(Pal::Stress, 0.6f));
+        if (h->deathsDoor) Glow({r.x + r.width / 2, r.y + 60}, 80, Fade(Pal::Bad, 0.25f + 0.15f * sinf(t * 6)));
         DrawBar({r.x, r.y + r.height + 8, r.width, 8}, (float)h->hp / s.maxHp, Pal::Good);
-        DrawBar({r.x, r.y + r.height + 18, r.width, 6}, h->stress / 100.0f, Pal::Stress);
-        DrawTextCentered(h->name, r.x + r.width / 2, r.y + r.height + 28, 16, Pal::Paper);
-        DrawTextCentered(TextFormat("%d/%d HP", h->hp, s.maxHp), r.x + r.width / 2, r.y + r.height + 46, 14, Color{220, 220, 200, 255});
+        DrawBar({r.x, r.y + r.height + 19, r.width, 5}, h->stress / 100.0f, Pal::Stress);
+        float nw = (float)MeasureTxt(h->name, 16, true);
+        TxtShadow(h->name, r.x + r.width / 2 - nw / 2, r.y + r.height + 28, 16, Pal::Paper, true);
+        DrawTextCentered(TextFormat("%d/%d HP", h->hp, s.maxHp), r.x + r.width / 2, r.y + r.height + 47, 13, Color{220, 220, 200, 255});
         std::string tags = StatusTags(h->st);
         if (h->deathsDoor) tags += "DEATH'S DOOR ";
         if (h->rattled) tags += "RATTLED";
-        DrawTextCentered(tags, r.x + r.width / 2, r.y - 22, 12, Pal::Coral);
+        float tw = (float)MeasureTxt(tags, 12, true);
+        TxtShadow(tags, r.x + r.width / 2 - tw / 2, r.y - 26, 12, Pal::Coral, true);
         if (h->id == actingHero) {
-            float y = r.y - 44 + sinf(t * 6) * 4;
-            DrawTriangle({r.x + r.width / 2 - 12, y}, {r.x + r.width / 2, y + 14}, {r.x + r.width / 2 + 12, y}, Pal::Brass);
+            float y = r.y - 50 + sinf(t * 6) * 4;
+            Glow({r.x + r.width / 2, y + 6}, 22, Fade(Pal::Brass, 0.7f));
+            DrawTri({r.x + r.width / 2 - 12, y}, {r.x + r.width / 2, y + 14}, {r.x + r.width / 2 + 12, y}, Pal::Brass);
         }
     }
     for (int p = 0; p < (int)d.enemies.size(); p++) {
         const Enemy& e = d.enemies[p];
         Rectangle r = EnemyRect(g, p);
-        DrawEllipse((int)(r.x + r.width / 2), (int)(r.y + r.height), e.boss ? 60 : 40, 8, Color{0, 0, 0, 60});
-        DrawEnemyFigure(e, r, t);
         DrawBar({r.x, r.y + r.height + 8, r.width, 8}, (float)e.hp / e.maxHp, Pal::Bad);
-        DrawTextCentered(e.name, r.x + r.width / 2, r.y + r.height + 22, 16, Pal::Paper);
-        DrawTextCentered(TextFormat("%d/%d HP", e.hp, e.maxHp), r.x + r.width / 2, r.y + r.height + 40, 14, Color{220, 220, 200, 255});
-        DrawTextCentered(StatusTags(e.st), r.x + r.width / 2, r.y - 22, 12, Pal::Coral);
+        float nw = (float)MeasureTxt(e.name, 16, true);
+        TxtShadow(e.name, r.x + r.width / 2 - nw / 2, r.y + r.height + 22, 16, Pal::Paper, true);
+        DrawTextCentered(TextFormat("%d/%d HP", e.hp, e.maxHp), r.x + r.width / 2, r.y + r.height + 41, 13, Color{220, 220, 200, 255});
+        std::string tags = StatusTags(e.st);
+        float tw = (float)MeasureTxt(tags, 12, true);
+        TxtShadow(tags, r.x + r.width / 2 - tw / 2, r.y - 26, 12, Pal::Coral, true);
         if (e.uid == actingEnemy) {
-            float y = r.y - 44 + sinf(t * 6) * 4;
-            DrawTriangle({r.x + r.width / 2 - 12, y}, {r.x + r.width / 2, y + 14}, {r.x + r.width / 2 + 12, y}, Pal::Bad);
+            float y = r.y - 50 + sinf(t * 6) * 4;
+            Glow({r.x + r.width / 2, y + 6}, 22, Fade(Pal::Bad, 0.7f));
+            DrawTri({r.x + r.width / 2 - 12, y}, {r.x + r.width / 2, y + 14}, {r.x + r.width / 2 + 12, y}, Pal::Bad);
         }
+    }
+}
+
+static void DrawCaveLighting(Game& g) {
+    auto& d = g.dungeon;
+    float L = d.light / 100.0f, t = g.time;
+    auto lerp = [](float a, float b, float k) { return (unsigned char)(a + (b - a) * k); };
+    LightsBegin(Color{lerp(18, 84, L), lerp(22, 96, L), lerp(34, 108, L), 255});
+    float flick = 0.95f + 0.05f * sinf(t * 17) * sinf(t * 5.3f);
+    Color warm{255, 214, 150, 255};
+    AddLight({470, 330}, 300 + 480 * L, warm, (0.45f + 0.5f * L) * flick); // the party's flashlight glow
+    AddCone({560, 320}, 0.05f, 0.42f, 420 + 480 * L, Color{255, 226, 170, 255});
+    for (int k = 0; k < 4; k++) AddLight({200 + k * 290.0f - 110, 120}, 260, Color{70, 120, 130, 255}, 0.45f); // shafts
+    for (int k = 0; k < ANEMONES; k++) AddLight({ANEMONE_X[k], 446}, 110, Color{90, 220, 210, 255}, 0.6f);
+    LightsEnd();
+    for (int k = 0; k < ANEMONES; k++) Glow({ANEMONE_X[k], 440}, 22, Color{90, 220, 210, 80});
+    // marine snow drifting through the beam
+    for (int k = 0; k < 40; k++) {
+        float px = fmodf(k * 97.0f + t * (6 + k % 5), (float)SCREEN_W);
+        float py = fmodf(k * 53.0f + t * (10 + k % 7), 520.0f) + 40;
+        DrawCircle((int)px, (int)py, 1.3f + (k % 3) * 0.5f, Color{220, 240, 240, (unsigned char)(50 + 60 * L)});
     }
 }
 
 static void DrawTopBar(Game& g) {
     auto& d = g.dungeon;
-    DrawRectangle(0, 0, SCREEN_W, 56, Color{16, 30, 40, 230});
+    DrawVGradient({0, 0, (float)SCREEN_W, 58}, Color{10, 18, 24, 240}, Color{16, 28, 36, 220});
     DrawRectangle(0, 56, SCREEN_W, 3, Pal::BrassDk);
-    Txt("THE CAVE  -  Shallows", 20, 16, 24, Pal::Brass);
+    TxtShadow("THE CAVE  -  Shallows", 20, 15, 24, Pal::Brass, true);
     for (int i = 0; i < (int)d.rooms.size(); i++) {
         float x = 330 + i * 34.0f;
         Color c = i < d.roomIndex ? Pal::Good : i == d.roomIndex ? Pal::Brass : Color{90, 100, 104, 255};
         if (d.rooms[i] == RoomType::Boss) DrawPoly({x + 10, 28}, 4, 13, 45, c);
         else DrawCircle((int)x + 10, 28, 9, c);
     }
-    Txt("Light", 500, 8, 16, Pal::Paper);
+    Txt("Light", 500, 6, 16, Pal::Paper);
     DrawBar({500, 28, 200, 14}, d.light / 100.0f, Color{250, 220, 120, 255});
-    Txt(LightName(d.light), 712, 24, 20, Color{250, 220, 120, 255});
+    TxtShadow(LightName(d.light), 712, 22, 20, Color{250, 220, 120, 255});
     Txt(TextFormat("Loot: %d gold, %d relic%s", d.lootGold, (int)d.lootRelics.size(), d.lootRelics.size() == 1 ? "" : "s"), 880, 18, 20, Pal::Paper);
 }
 
@@ -586,14 +771,15 @@ static void DrawTopBar(Game& g) {
 static bool ResultPanel(const char* title, const std::string& body, const char* button, Color titleColor) {
     Rectangle p{340, 150, 600, 300};
     Panel(p);
-    DrawTextCentered(title, p.x + p.width / 2, p.y + 24, 36, titleColor);
-    DrawWrapped(body, {p.x + 40, p.y + 84, p.width - 80, 150}, 20, Pal::Ink);
+    DrawTextCenteredBold(title, p.x + p.width / 2, p.y + 24, 34, titleColor);
+    DrawWrapped(body, {p.x + 40, p.y + 84, p.width - 80, 150}, 19, Pal::Ink);
     return Button({p.x + 150, p.y + p.height - 70, 300, 48}, button);
 }
 
 void SceneDungeon(Game& g) {
     auto& d = g.dungeon;
     float dt = GetFrameTime();
+    SetPost(0.5f, 0.035f, 0.45f);
 
     // ---------------- combat logic
     int actingHero = -1, actingEnemy = -1;
@@ -619,23 +805,25 @@ void SceneDungeon(Game& g) {
 
     // ---------------- drawing
     DrawCave(g);
-    DrawUnits(g, actingHero, actingEnemy);
-    unsigned char dark = (unsigned char)std::clamp((100 - d.light) * 1.5f, 0.0f, 150.0f);
-    DrawRectangle(0, 0, SCREEN_W, SCREEN_H, Color{0, 8, 18, dark});
+    DrawUnitFigures(g);
+    DrawCaveLighting(g);
+    DrawCaveForeground(g);
+    DrawUnitHud(g, actingHero, actingEnemy);
     for (auto& f : d.floats) {
         f.life -= dt;
         f.pos.y -= 32 * dt;
         unsigned char a = (unsigned char)(255 * std::clamp(f.life / 0.4f, 0.0f, 1.0f));
-        DrawTextCentered(f.text, f.pos.x + 2, f.pos.y + 2, 22, Color{0, 0, 0, a});
-        DrawTextCentered(f.text, f.pos.x, f.pos.y, 22, Color{f.color.r, f.color.g, f.color.b, a});
+        float w = (float)MeasureTxt(f.text, 22, true);
+        TxtBold(f.text, f.pos.x - w / 2 + 2, f.pos.y + 2, 22, Color{0, 0, 0, a});
+        TxtBold(f.text, f.pos.x - w / 2, f.pos.y, 22, Color{f.color.r, f.color.g, f.color.b, a});
     }
     d.floats.erase(std::remove_if(d.floats.begin(), d.floats.end(), [](const FloatText& f) { return f.life <= 0; }), d.floats.end());
     DrawTopBar(g);
 
     if (!d.log.empty()) {
-        DrawRectangleRounded({380, 66, 520, 20.0f * d.log.size() + 14}, 0.1f, 6, Color{10, 20, 28, 170});
+        DrawRectangleRounded({380, 66, 520, 20.0f * d.log.size() + 14}, 0.1f, 6, Color{8, 16, 22, 180});
         for (size_t i = 0; i < d.log.size(); i++)
-            DrawTextCentered(d.log[i], 640, 73 + i * 20.0f, 17, i + 1 == d.log.size() ? Pal::Paper : Color{190, 200, 200, 255});
+            DrawTextCentered(d.log[i], 640, 73 + i * 20.0f, 16, i + 1 == d.log.size() ? Pal::Paper : Color{176, 190, 190, 255});
     }
 
     // ---------------- phase-specific UI
@@ -644,12 +832,13 @@ void SceneDungeon(Game& g) {
             Rectangle p{400, 150, 480, 270};
             Panel(p);
             const char* head = d.roomIndex < 0 ? "At the cave mouth" : TextFormat("Room %d of %d cleared", d.roomIndex + 1, (int)d.rooms.size());
-            DrawTextCentered(head, p.x + p.width / 2, p.y + 20, 28, Pal::Ink);
+            DrawTextCenteredBold(head, p.x + p.width / 2, p.y + 20, 28, Pal::Ink);
             bool nextIsBoss = d.rooms[d.roomIndex + 1] == RoomType::Boss;
             DrawTextCentered(nextIsBoss ? "Heavy clacking echoes from the next chamber..." : "The passage winds deeper.",
                              p.x + p.width / 2, p.y + 60, 18, nextIsBoss ? Pal::Bad : Pal::BrassDk);
-            if (Button({p.x + 40, p.y + 96, 400, 46}, nextIsBoss ? "Face the Lobster  (-20 light)" : "Advance  (-20 light)")) {
-                d.light = std::max(0.0f, d.light - 20);
+            int drain = LightDrainPerRoom(g);
+            if (Button({p.x + 40, p.y + 96, 400, 46}, TextFormat(nextIsBoss ? "Face the Lobster  (-%d light)" : "Advance  (-%d light)", drain))) {
+                d.light = std::max(0.0f, d.light - drain);
                 EnterNextRoom(g);
             }
             if (Button({p.x + 40, p.y + 150, 400, 42}, TextFormat("Swap in a battery  (+40 light)   [%d left]", g.batteries),
@@ -705,7 +894,8 @@ void SceneDungeon(Game& g) {
 
         case DPhase::Combat: {
             Rectangle bar{20, 560, SCREEN_W - 40.0f, 148};
-            DrawRectangleRounded(bar, 0.08f, 6, Color{16, 30, 40, 230});
+            DrawRectangleRounded({bar.x + 3, bar.y + 5, bar.width, bar.height}, 0.08f, 6, Fade(BLACK, 0.4f));
+            DrawRectangleRounded(bar, 0.08f, 6, Color{14, 24, 32, 235});
             DrawRectangleRoundedLinesEx(bar, 0.08f, 6, 3, Pal::BrassDk);
             Hero* h = actingHero >= 0 ? FindHero(g, actingHero) : nullptr;
             if (!h || d.pendingSkip || !d.turnStarted) {
@@ -715,12 +905,18 @@ void SceneDungeon(Game& g) {
             }
             int pos = PartyPos(g, h->id);
             int heroId = h->id;
-            Txt(TextFormat("%s's turn  (%s, rank %d)", h->name.c_str(), ClassName(h->cls), pos + 1), 40, 570, 20, Pal::Brass);
-            Txt("Choose an ability, then click a highlighted target. Right-click to cancel.", 520, 572, 16, Color{190, 200, 200, 255});
+            TxtBold(TextFormat("%s's turn  (%s, rank %d)", h->name.c_str(), ClassName(h->cls), pos + 1), 40, 570, 20, Pal::Brass);
+            Txt("Choose an ability, then click a highlighted target. Right-click to cancel.", 560, 573, 15, Color{176, 190, 190, 255});
             const auto& abs = ClassAbilities(h->cls);
             int hoverAb = -1;
-            for (int i = 0; i < (int)abs.size(); i++) {
-                Rectangle b{40 + i * 240.0f, 600, 228, 50};
+            for (int slot = 0; slot < LOADOUT_SIZE; slot++) {
+                int i = h->loadout[slot];
+                Rectangle b{40 + slot * 240.0f, 600, 228, 50};
+                if (i < 0) {
+                    DrawRectangleRoundedLinesEx(b, 0.25f, 6, 1, Color{90, 100, 100, 255});
+                    DrawTextCentered("(empty slot)", b.x + b.width / 2, b.y + 16, 16, Color{90, 100, 100, 255});
+                    continue;
+                }
                 bool usable = HeroCanUse(g, pos, abs[i]);
                 if (i == d.selectedAbility) DrawRectangleRounded({b.x - 4, b.y - 4, b.width + 8, b.height + 8}, 0.3f, 6, Pal::Teal);
                 if (CheckCollisionPointRec(GetMousePosition(), b)) hoverAb = i;
@@ -741,7 +937,7 @@ void SceneDungeon(Game& g) {
                 if (a.target == Target::Enemy) info += ", hits enemy ranks " + RankString(a.hits);
                 info += "]";
                 if (!(a.usableFrom & (1 << pos))) info += "  - can't be used from this rank";
-                Txt(info, 40, 664, 17, Pal::Paper);
+                Txt(info, 40, 664, 16, Pal::Paper);
             }
             if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) d.selectedAbility = -1;
             if (d.selectedAbility >= 0) {

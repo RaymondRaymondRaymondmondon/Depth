@@ -10,8 +10,8 @@
 
 constexpr int SCREEN_W   = 1280;
 constexpr int SCREEN_H   = 720;
-constexpr int MAX_ROSTER = 8;
 constexpr int PARTY_SIZE = 4;
+constexpr int LOADOUT_SIZE = 4; // abilities a hero brings on an expedition (out of 8)
 
 // ---------- Palette: a brighter take on Darkest Dungeon ----------
 namespace Pal {
@@ -29,7 +29,11 @@ const Color Bad     = {225, 70, 70, 255};
 const Color Stress  = {170, 120, 230, 255};
 }  // namespace Pal
 
-enum class Scene { Hub, Helm, Crew, Radar, Ward, SickLeave, Bookshelf, Periscope, Dungeon, Platformer };
+enum class Scene { Hub, Helm, Crew, Radar, Ward, SickLeave, Bookshelf, Periscope, Workshop, Dungeon, Platformer };
+
+// Workshop upgrades. Each has levels 0..UPGRADE_MAX.
+enum Upgrade { UP_REFLECTOR, UP_BUNKS, UP_SONAR, UP_INFIRMARY, UP_COUNT };
+constexpr int UPGRADE_MAX = 3;
 
 // Rank masks. Bit 0 = rank 1 (front line), bit 3 = rank 4 (back line).
 constexpr int RANK_1 = 1, RANK_2 = 2, RANK_3 = 4, RANK_4 = 8;
@@ -57,17 +61,24 @@ struct Ability {
     int bleed = 0;               // damage per turn, 3 turns
     int poison = 0;              // damage per turn, 3 turns
     int buffDmg = 0;             // +% damage for a few turns
+    int buffDodge = 0;           // +dodge for a few turns
+    int buffProt = 0;            // +protection for a few turns
     int guardTurns = 0;          // taunt + extra protection
+    bool mark = false;           // marked enemies take +25% damage for 3 turns
     int moveTarget = 0;          // + pushes an enemy back, - pulls it forward
     bool swapWithTarget = false; // "command team": trade places with an ally
+    int unlockLevel = 0;         // hero level needed before it can be slotted
 };
 
 struct Status {
     int bleedDmg = 0, bleedTurns = 0;
-    int poisonDmg = 0, poisonTurns = 0;
+    int poisonDmg = 0, poisonTurns = 0; // poison stacks, and halves healing received
     int stunned = 0;
     int buffDmg = 0, buffTurns = 0;
+    int dodgeBuff = 0, dodgeTurns = 0;
+    int protBuff = 0, protTurns = 0;
     int guardTurns = 0;
+    int marked = 0;
 };
 
 struct RelicDef {
@@ -90,6 +101,7 @@ struct Hero {
     bool dead = false;
     int onLeave = 0;         // expeditions left to sit out
     int relics[2] = {-1, -1};
+    int loadout[LOADOUT_SIZE] = {0, 1, 2, 3}; // indices into ClassAbilities, -1 = empty slot
     Status st;
 };
 
@@ -172,6 +184,8 @@ struct Game {
     int dismissArmed = -1;
     int bookTab = 0;
     int relicScroll = 0;
+    int upgrades[UP_COUNT] = {0, 0, 0, 0};
+    float hubCam = 1690, hubCamTarget = 1690; // left edge of the view along the Nautilus deck (starts at the Helm)
     std::string toast;
     float toastTimer = 0;
     float time = 0;
@@ -196,9 +210,56 @@ Hero* FindHero(Game& g, int id);
 bool InParty(const Game& g, int id);
 void CompactParty(Game& g);
 void RefreshRadar(Game& g);
+int MaxRoster(const Game& g);
+int RecruitsPerScan(const Game& g);
+int ScanCost(const Game& g);
+int WardCostPerHp(const Game& g);
+int LightDrainPerRoom(const Game& g);
+const char* UpgradeName(int u);
+const char* UpgradeDesc(int u, int level); // what the given level does
+int UpgradePrice(int level);                // price to buy the given level
+int LoadoutCount(const Hero& h);
+
+// ---------- render.cpp: lighting, textures, post-processing, figures ----------
+void InitArt();
+void UnloadArt();
+const Font& BodyFont();
+const Font& BoldFont();
+void BeginFrame();                 // everything is drawn into an offscreen scene...
+void EndFrame(float time);         // ...then presented through the post-process shader
+void SetPost(float vignette, float grain, float bloom);
+bool SaveFrameShot(const char* path); // debug: writes the last presented frame to a PNG
+void BeginLayer(RenderTexture2D& rt); // draw into another texture for a while...
+void EndLayer();                      // ...then return to the scene
+void DrawTri(Vector2 a, Vector2 b, Vector2 c, Color col); // a triangle in any vertex order
+void LightsBegin(Color ambient);   // start a lightmap: ambient is how dark unlit areas get
+void AddLight(Vector2 pos, float radius, Color c, float intensity = 1.0f);
+void AddCone(Vector2 origin, float angle, float spread, float length, Color c);
+void LightsEnd();                  // multiply the lightmap onto the scene
+void Glow(Vector2 pos, float radius, Color c); // additive bloom sprite drawn straight onto the scene
+enum class Tex { Metal, Wood, Paper, Rock };
+Texture2D GetTex(Tex t);
+void DrawTiled(Tex t, Rectangle dst, float scale, Color tint, Vector2 offset = {0, 0});
+void DrawTexturedCircle(Texture2D tex, Vector2 c, float r, bool flipY);
+RenderTexture2D& OceanRT();
+constexpr int PIXEL_W = SCREEN_W / 2, PIXEL_H = SCREEN_H / 2;
+RenderTexture2D& PixelRT(); // low-resolution canvas for the pixel-art platformer
+void DrawVGradient(Rectangle r, Color top, Color bottom);
+void DrawPipeH(float x1, float x2, float y, float radius, Color base);
+void DrawPipeV(float x, float y1, float y2, float radius, Color base);
+void DrawFlange(Vector2 c, float radius, bool vertical, Color base);
+void DrawGauge(Vector2 c, float r, float needle01, Color face);
+void DrawGear(Vector2 c, float r, int teeth, float rot, Color col);
+void DrawBrassPlate(Rectangle r, const char* text, int size);
+void DrawCrewFigure(const Hero& h, Vector2 feet, float scale, bool faceRight, float walk, float t);
+void DrawShadowBlob(Vector2 feet, float w);
 
 // ---------- ui.cpp ----------
+int MeasureTxt(const std::string& s, int size, bool bold = false);
 void Txt(const std::string& s, float x, float y, int size, Color c);
+void TxtBold(const std::string& s, float x, float y, int size, Color c);
+void TxtShadow(const std::string& s, float x, float y, int size, Color c, bool bold = false);
+void DrawTextCenteredBold(const std::string& s, float cx, float y, int size, Color c);
 void DrawTextCentered(const std::string& s, float cx, float y, int size, Color c);
 bool Button(Rectangle r, const char* text, bool enabled = true, int fontSize = 20);
 void Panel(Rectangle r, Color fill = Pal::Paper);
@@ -221,10 +282,13 @@ void SceneWard(Game& g);
 void SceneSickLeave(Game& g);
 void SceneBookshelf(Game& g);
 void ScenePeriscope(Game& g);
+void SceneWorkshop(Game& g);
 
 // ---------- dungeon.cpp ----------
 void StartDungeon(Game& g);
 void SceneDungeon(Game& g);
+void DebugEnterCombat(Game& g);    // debug: jump straight into the first fight
+void SimulateExpeditions(int runs, int level, bool randomPlayer); // debug: auto-play expeditions and print the results
 
 // ---------- platformer.cpp ----------
 void GeneratePipesLayout(Game& g);

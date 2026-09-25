@@ -22,6 +22,15 @@ static std::vector<Ability> BuildNurse() {
     a.heal = 6; a.cure = true; v.push_back(a);
     a = Ab("Smelling Salts", "Steady an ally's nerves (-15 stress).", ANY_RANK, ANY_RANK, Target::Ally);
     a.stressHeal = 15; a.heal = 1; v.push_back(a);
+    // unlocked by leveling up
+    a = Ab("Triage", "Quick care for the whole party (heal 3 each).", RANGED_FROM, ANY_RANK, Target::AllAllies);
+    a.heal = 3; a.unlockLevel = 1; v.push_back(a);
+    a = Ab("Toxin Vial", "Lob a vial at the back line. Poison stacks.", RANGED_FROM, RANK_2 | RANK_3 | RANK_4, Target::Enemy);
+    a.dmgMult = 0.3f; a.poison = 3; a.unlockLevel = 1; v.push_back(a);
+    a = Ab("Adrenaline Shot", "An ally heals 2, calms a little and hits 20% harder.", ANY_RANK, ANY_RANK, Target::Ally);
+    a.heal = 2; a.buffDmg = 20; a.stressHeal = 4; a.unlockLevel = 2; v.push_back(a);
+    a = Ab("Bone Saw", "A brutal, messy cut. Heavy bleeding.", MELEE_FROM, MELEE_HITS, Target::Enemy);
+    a.dmgMult = 1.15f; a.bleed = 3; a.accBonus = -5; a.unlockLevel = 3; v.push_back(a);
     return v;
 }
 
@@ -35,6 +44,14 @@ static std::vector<Ability> BuildDiver() {
     a.dmgMult = 0.5f; a.moveTarget = -2; v.push_back(a);
     a = Ab("Riptide Shove", "Shove the front enemy back 2 ranks. May stun.", MELEE_FROM, RANK_1, Target::Enemy);
     a.dmgMult = 0.6f; a.moveTarget = 2; a.stunChance = 20; v.push_back(a);
+    a = Ab("Speargun", "A barbed bolt from the second line or further back.", RANGED_FROM, RANK_2 | RANK_3 | RANK_4, Target::Enemy);
+    a.dmgMult = 0.85f; a.accBonus = 5; a.unlockLevel = 1; v.push_back(a);
+    a = Ab("Ink Cloud", "Vanish into the murk: +25 dodge for 3 turns.", ANY_RANK, ANY_RANK, Target::Self);
+    a.buffDodge = 25; a.stressHeal = 3; a.unlockLevel = 1; v.push_back(a);
+    a = Ab("Mark the Prey", "Tag a target: it takes 25% more damage for 3 turns.", ANY_RANK, ANY_RANK, Target::Enemy);
+    a.dmgMult = 0.2f; a.mark = true; a.accBonus = 10; a.unlockLevel = 2; v.push_back(a);
+    a = Ab("Depth Charge", "Blast the back two ranks. May stun.", RANK_1 | RANK_2 | RANK_3, RANK_3 | RANK_4, Target::Enemy);
+    a.dmgMult = 0.5f; a.aoe = true; a.stunChance = 15; a.unlockLevel = 3; v.push_back(a);
     return v;
 }
 
@@ -48,6 +65,14 @@ static std::vector<Ability> BuildCaptain() {
     a.swapWithTarget = true; a.stressHeal = 4; v.push_back(a);
     a = Ab("Steady Now", "A calm word to everyone (-8 stress to the party).", ANY_RANK, ANY_RANK, Target::AllAllies);
     a.stressHeal = 8; v.push_back(a);
+    a = Ab("Flintlock", "A steady shot at any enemy rank.", RANGED_FROM, ANY_RANK, Target::Enemy);
+    a.dmgMult = 0.75f; a.unlockLevel = 1; v.push_back(a);
+    a = Ab("Hold the Line", "Whole party gains +15 protection for 3 turns.", ANY_RANK, ANY_RANK, Target::AllAllies);
+    a.buffProt = 15; a.unlockLevel = 1; v.push_back(a);
+    a = Ab("Grog Ration", "A tot of grog: an ally heals 4 and loses 10 stress.", ANY_RANK, ANY_RANK, Target::Ally);
+    a.heal = 4; a.stressHeal = 10; a.unlockLevel = 2; v.push_back(a);
+    a = Ab("Grapeshot", "A scattering blast across the first three enemy ranks.", RANGED_FROM, RANK_1 | RANK_2 | RANK_3, Target::Enemy);
+    a.dmgMult = 0.4f; a.aoe = true; a.unlockLevel = 3; v.push_back(a);
     return v;
 }
 
@@ -61,6 +86,14 @@ static std::vector<Ability> BuildMechanic() {
     a.guardTurns = 2; v.push_back(a);
     a = Ab("Patch the Hull", "Weld over your own wounds (heal self).", ANY_RANK, ANY_RANK, Target::Self);
     a.heal = 5; v.push_back(a);
+    a = Ab("Blowtorch", "Scorch both front enemies. They keep burning.", MELEE_FROM, MELEE_HITS, Target::Enemy);
+    a.dmgMult = 0.35f; a.aoe = true; a.bleed = 2; a.unlockLevel = 1; v.push_back(a);
+    a = Ab("Iron Plating", "Bolt on extra plates: +30 protection for 3 turns.", ANY_RANK, ANY_RANK, Target::Self);
+    a.buffProt = 30; a.unlockLevel = 1; v.push_back(a);
+    a = Ab("Jury-Rig", "Patch up an ally with whatever's to hand (heal 5).", ANY_RANK, ANY_RANK, Target::Ally);
+    a.heal = 5; a.unlockLevel = 2; v.push_back(a);
+    a = Ab("Steam Valve", "Vent scalding steam over every enemy. May stun.", ANY_RANK, ANY_RANK, Target::Enemy);
+    a.dmgMult = 0.25f; a.aoe = true; a.stunChance = 20; a.unlockLevel = 3; v.push_back(a);
     return v;
 }
 
@@ -220,9 +253,48 @@ void CompactParty(Game& g) {
     g.party = np;
 }
 
+int LoadoutCount(const Hero& h) {
+    int n = 0;
+    for (int a : h.loadout) if (a >= 0) n++;
+    return n;
+}
+
+// ---------------------------------------------------------------- workshop upgrades
+//                                    level:  0   1   2   3
+static const int ROSTER_SIZE[4]      = {8,  9, 10, 12};
+static const int RECRUITS[4]         = {3,  4,  4,  5};
+static const int SCAN_COST[4]        = {20, 15, 10, 5};
+static const int WARD_COST[4]        = {3,  2,  2,  1};
+static const int LIGHT_DRAIN[4]      = {20, 16, 12, 9};
+
+int MaxRoster(const Game& g) { return ROSTER_SIZE[g.upgrades[UP_BUNKS]]; }
+int RecruitsPerScan(const Game& g) { return RECRUITS[g.upgrades[UP_SONAR]]; }
+int ScanCost(const Game& g) { return SCAN_COST[g.upgrades[UP_SONAR]]; }
+int WardCostPerHp(const Game& g) { return WARD_COST[g.upgrades[UP_INFIRMARY]]; }
+int LightDrainPerRoom(const Game& g) { return LIGHT_DRAIN[g.upgrades[UP_REFLECTOR]]; }
+int UpgradePrice(int level) { return level == 1 ? 120 : level == 2 ? 240 : 400; }
+
+const char* UpgradeName(int u) {
+    switch (u) {
+        case UP_REFLECTOR: return "Flashlight Reflector";
+        case UP_BUNKS: return "Bunk Extension";
+        case UP_SONAR: return "Sonar Array";
+        default: return "Infirmary Gear";
+    }
+}
+
+const char* UpgradeDesc(int u, int lv) {
+    switch (u) {
+        case UP_REFLECTOR: return TextFormat("Each room drains %d light", LIGHT_DRAIN[lv]);
+        case UP_BUNKS: return TextFormat("Room for %d crew aboard", ROSTER_SIZE[lv]);
+        case UP_SONAR: return TextFormat("%d recruits per scan, scans cost %dg", RECRUITS[lv], SCAN_COST[lv]);
+        default: return TextFormat("The Ward charges %dg per HP", WARD_COST[lv]);
+    }
+}
+
 void RefreshRadar(Game& g) {
     g.recruits.clear();
-    for (int i = 0; i < 3; i++) g.recruits.push_back(MakeRandomHero(g));
+    for (int i = 0; i < RecruitsPerScan(g); i++) g.recruits.push_back(MakeRandomHero(g));
     g.shopRelics.clear();
     while (g.shopRelics.size() < 3) {
         int r = GetRandomValue(0, (int)Relics().size() - 1);

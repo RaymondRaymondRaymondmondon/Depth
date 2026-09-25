@@ -300,19 +300,27 @@ void ScenePlatformer(Game& g) {
     }
 
     // ---------------- draw
+    // The Pipes are deliberately retro: the world is drawn at half resolution into a small
+    // canvas, then scaled up without smoothing so every shape turns into crisp pixels.
     float t = g.time;
-    DrawRectangleGradientV(0, 0, SCREEN_W, SCREEN_H, Color{70, 56, 46, 255}, Color{26, 32, 38, 255});
+    SetPost(0.2f, 0.0f, 0.15f);
+    const float PX = (float)SCREEN_W / PIXEL_W; // screen pixels per canvas pixel
+    const float ZOOM = 1.25f / PX;
     float levelW = (float)p.w * T;
-    float halfView = SCREEN_W / 2.0f / 1.25f;
+    float halfView = PIXEL_W / 2.0f / ZOOM;
     float camX = std::clamp(p.pos.x + PW / 2, halfView, levelW - halfView);
+    camX = roundf(camX * ZOOM) / ZOOM; // snap to whole canvas pixels so tiles don't shimmer
+    BeginLayer(PixelRT());
+    DrawRectangleGradientV(0, 0, PIXEL_W, PIXEL_H, Color{70, 56, 46, 255}, Color{26, 32, 38, 255});
     for (int i = 0; i < 12; i++) {
-        float x = fmodf(i * 260.0f - camX * 0.3f + 4000, 3120) - 200;
-        DrawRectangle((int)x, 60, 46, SCREEN_H, Color{90, 70, 54, 120});
-        DrawRectangle((int)x - 6, 200 + (i % 3) * 120, 58, 14, Color{110, 84, 60, 140});
+        float x = (fmodf(i * 260.0f - camX * 0.3f + 4000, 3120) - 200) / PX;
+        DrawRectangle((int)x, 30, 23, PIXEL_H, Color{90, 70, 54, 255});
+        DrawRectangle((int)x, 30, 3, PIXEL_H, Color{112, 88, 66, 255});
+        DrawRectangle((int)x - 3, 100 + (i % 3) * 60, 29, 7, Color{110, 84, 60, 255});
     }
     Camera2D cam{};
-    cam.zoom = 1.25f;
-    cam.offset = {SCREEN_W / 2.0f, 60 + (SCREEN_H - 60) / 2.0f};
+    cam.zoom = ZOOM;
+    cam.offset = {PIXEL_W / 2.0f, (60 + (SCREEN_H - 60) / 2.0f) / PX};
     cam.target = {camX, p.h * T / 2.0f};
     BeginMode2D(cam);
     int c0 = std::max(0, (int)((camX - halfView) / T) - 1), c1 = std::min(p.w - 1, (int)((camX + halfView) / T) + 1);
@@ -327,6 +335,8 @@ void ScenePlatformer(Game& g) {
     }
     DrawPlayer(p, t);
     EndMode2D();
+    EndLayer();
+    DrawTexturePro(PixelRT().texture, {0, 0, (float)PIXEL_W, -(float)PIXEL_H}, {0, 0, (float)SCREEN_W, (float)SCREEN_H}, {0, 0}, 0, WHITE);
 
     if (p.deathFlash > 0) {
         p.deathFlash -= dt;
