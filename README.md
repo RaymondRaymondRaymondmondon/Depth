@@ -47,16 +47,17 @@ After you change code, just run `cmake --build build --config Release` again.
 - **Platform levels:** A/D or arrow keys to move, Space/W/Up to jump (hold for a higher jump, tap for a hop). Push into a wall in mid-air to slide, and jump to kick off it. Esc gives up the run. A gamepad works too.
 
 ## What's in the slice
-- **The Nautilus's grand salon**, a single-screen 3D room modelled on Captain Nemo's salon, with eight stations around it: Crew Quarters, Library, Radar Room, Helm, Periscope, Workshop, Sick Bay (by the organ), and the Ward. The ocean shows through the great window. Your crew, the ship's own hands, and the ship's cat wander the room.
+- **The Nautilus's grand salon**, a single-screen 3D room modelled on Captain Nemo's salon, with eight stations around it: Crew Quarters, Library, Radar Room, Helm, Periscope, Workshop, Sick Bay (by the organ), and the Ward. The ocean shows through the great window and steam pipes run along the ceiling. The ship's own hands and Barnacle, the ship's cat, wander the room; click the cat for a purr.
 - **Saving:** the game saves itself whenever you return to the salon, and when you quit. "Start a new game" (bottom left of the salon) wipes the save.
 - **The Cave**, at levels 0, 1, 3, 5 and 6: beating one unlocks the next, and earlier levels stay open. Random rooms (fights or treasure), then the Lobster mini-boss. The cave is painted in layers that slide past as the party walks, and every attack, throw, shot and heal is animated. It has the flashlight (which really lights the scene), rank-based combat, stress ("Nerves"), Death's Door, and relic loot.
 - **Four classes:** Nurse, Diver, Captain, and Mechanic. Each has eight abilities, and a crew member brings four of them. Four are available from the start; the rest unlock at levels 1, 1, 2, and 3.
 - **The Workshop:** lasting upgrades bought with gold (flashlight reflector, bunk extension, sonar array, infirmary gear).
 - **Three platform levels at the Periscope**, in a deliberately retro pixel-art style (everything else aims for Darkest Dungeon's inked, painterly look). The challenge is the jumping, as in Super Meat Boy:
-  - **The Pipes** (easy): 6 sections, no enemies at all.
-  - **The Hull** (medium): 5 sections, with crabs, leaping eels, urchins and mines, then the Kraken (optional; stomp it for a relic).
-  - **The Pirate Ship** (hard): 5 sections, with pirates, parakeets and fire vents, then Blackbeard, who guards the exit.
+  - **The Pipes**: 6 sections, no enemies at all.
+  - **The Hull**: 5 sections along the outside of the Nautilus, with crabs, leaping eels, urchins and mines, then the Kraken (optional; stomp it for a relic).
+  - **The Pirate Ship**: across the deck, down the hatch into the hold, up the companionway, and into Blackbeard's cabin. Pirates burst out of doors to stab you or shoot from behind barrels. Blackbeard is deadly to touch until you trick his charge into a wall; stomp him while he's dazed.
   - Enemies are deadly to touch; only bosses can be stomped. Clearing a level unlocks the next and reshuffles its sections.
+  - Options at the Periscope: **Normal** difficulty leaves out the gears, mines, spiked balls and jets (**Hard** keeps them, for +50% bonus gold). A death sends you back to the start, unless you turn **checkpoints** on, which means no relic.
 
 The Island, Weeds, and Atlantis appear in the menus as "coming soon".
 
@@ -75,6 +76,7 @@ The Island, Weeds, and Atlantis appear in the menus as "coming soon".
 ## Developer switches
 - `depth.exe --sim 1000 [level] [random]` auto-plays 1000 expeditions and prints win rate, deaths, and how often someone ends up Rattled. The default auto-player heals anyone below 40% HP and otherwise hits the weakest enemy with its strongest attack; add `random` for a player who picks anything.
 - `depth.exe --shots shots` renders every screen to PNG files in the `shots` folder and quits. The folder has to exist.
+- `depth.exe --sprites sprites.png` draws every sprite in the game (crew poses, the ship's hands, the cat, cave creatures, and the platform sprites and tiles) onto one sheet.
 - `depth.exe --verify` proves every platform section can be crossed. It searches button presses using the real movement code, so a jump that looks possible but isn't gets caught. Run it after designing a section. It takes about a minute and a half.
 
-Good first experiments: tweak an enemy's stats in `MakeEnemy` (data.cpp), give a class a new ability in `BuildNurse` and its siblings, or draw a new platform section: add a 24 x 16 block of text to `PIPES`, `HULL` or `PIRATE` in platformer.cpp, then run `--verify`.
+Good first experiments: tweak an enemy's stats in `MakeEnemy` (data.cpp), give a class a new ability in `BuildNurse` and its siblings, or draw a new platform section: add a block of text (24 wide) like `PIPE_RISER`, `HULL` or `DECK_WAIST` in platformer.cpp and list it in `Lv()`, then run `--verify`.

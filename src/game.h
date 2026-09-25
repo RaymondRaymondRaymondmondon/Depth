@@ -140,7 +140,7 @@ inline constexpr int CAVE_TIER_LEVEL[CAVE_TIERS] = {0, 1, 3, 5, 6};
 inline const char* const CAVE_TIER_NAME[CAVE_TIERS] = {"Shallows", "Tidal Caves", "The Deep", "The Abyss", "The Trench"};
 
 // ---------- combat animation ----------
-enum class Anim { None, Melee, Ranged, Heal, Buff, Hurt, Dodge };
+enum class Anim { None, Melee, Ranged, Heal, Buff, Hurt, Dodge, Stress };
 struct UnitAnim { bool hero; int id; Anim kind; float t, dur; };
 struct Projectile { Vector2 from, to; float t, dur; int kind; bool hero; };
 struct Spark { Vector2 p, v; float life, max, size; Color c; };
@@ -163,6 +163,9 @@ struct Pose {
     float raise = 0;       // 0..1 lifts the weapon arm overhead
     float backRaise = 0;   // 0..1 lifts the other arm
     float weaponTilt = 0;  // extra weapon rotation in degrees (+ swings down/forward)
+    float stride = 0;      // 0..1 steps the front foot forward (lunges, staggers)
+    float tremble = 0;     // 0..1 shaking hands and head (fear, strain)
+    float headDown = 0;    // + bows the head (dread, pain), - snaps it back
 };
 
 struct DungeonState {
@@ -200,13 +203,20 @@ struct DungeonState {
 // ---------- platformer ----------
 enum PlatLevel { PL_PIPES, PL_HULL, PL_PIRATE, PL_COUNT };
 
-struct PlatEnemy { char type; Vector2 pos, home; float dir, t; };
+struct PlatEnemy {
+    char type; Vector2 pos, home; float dir, t;
+    int state = 0;    // pirates: 0 hidden or idle, then emerging / stabbing / retreating, or aiming
+    float timer = 0;  // time in the current state (or cooldown while hidden)
+    Vector2 aim{0, 0}; // where a gunner is aiming
+};
+struct PlatShot { Vector2 pos, vel; float life; int kind; }; // 0 musket ball, 1 lit bomb, 2 explosion
 struct PlatParticle { Vector2 p, v; float life, max, size; Color c; };
 struct PlatBoss {
     char type = 0;               // 'K' Kraken, 'B' Blackbeard, 0 = none
     Vector2 home{0, 0}, pos{0, 0}, vel{0, 0};
     int hp = 3, state = 0;
     float timer = 0, invuln = 0, dir = -1;
+    int volley = 0;                               // Blackbeard: alternates pistol shots and charges
     float tentX[2] = {0, 0}, tentT[2] = {-1, -1}; // Kraken tentacle strikes (x, time since warning; <0 = idle)
     bool tentTop[2] = {false, false};             // true = slams down from above, false = rises from the abyss
     bool defeated = false;
@@ -232,6 +242,12 @@ struct PlatformState {
     std::vector<int> partX;          // first tile column of each section
     std::vector<Vector2> spawns;     // where you respawn in each section (its checkpoint)
     std::vector<float> deathY;       // per tile column: fall below this and you're lost
+    std::vector<int> partInterior;   // per section: the tile row where its below-decks interior starts (or a huge number)
+    std::vector<int> partKind;       // per section: 0 open air, 1 the ship's hold, 2 the captain's cabin
+    std::vector<int> layout;         // the sections in this run, so a death can rebuild the level from scratch
+    std::vector<PlatShot> shots;     // musket balls and bombs in flight
+    bool hard = false;               // Hard keeps the gears and jets; Normal leaves them out
+    bool checkpoints = false;        // respawn at the last section reached, but forfeit the relic
 };
 
 struct Game {
@@ -252,6 +268,8 @@ struct Game {
     std::vector<int> platLayouts[PL_COUNT]; // which chunks make up each platform level's current layout
     bool platCleared[PL_COUNT] = {false, false, false};
     float platBest[PL_COUNT] = {0, 0, 0};    // best clear time in seconds (0 = never cleared)
+    bool platHard = false;                   // Periscope option: the full-strength layouts
+    bool platCheckpoints = false;            // Periscope option: checkpoints, at the cost of the relic
     int caveTierCleared = -1;                // highest cave level beaten (-1 = none)
     int caveTier = 0;                        // the cave level chosen at the Helm
     std::string toast;
@@ -341,6 +359,8 @@ Color Tone(Color c, float k); // k < 0 darkens toward shadow, k > 0 lightens tow
 void ShadeBall(Vector2 c, float r, Color col);                         // a lit sphere
 void ShadeLimb(Vector2 a, Vector2 b, float wa, float wb, Color c);     // a lit tapered cylinder
 void ShadeQuad(Vector2 tl, Vector2 tr, Vector2 br, Vector2 bl, Color c); // a lit panel
+void BeginBackdrop();          // draw distant scenery softly out of focus...
+void EndBackdrop(float blur);  // ...and lay it into the scene
 void InkPass(float ink, float hatch); // Darkest Dungeon-style inking and crosshatching over the world drawn so far
 
 // ---------- ui.cpp ----------
@@ -363,6 +383,13 @@ void DrawCabinBackground();
 std::string RankString(int mask);
 
 // ---------- hub.cpp ----------
+// sprite sheet pages (depth.exe --sprites)
+void DrawSalonSpritePage(float t);
+void DrawCrewSpritePage(float t);
+void DrawCaveSpritePage(float t);
+void DrawPlatformSpritePage(int page, float t);
+Image GrabFrame();
+void DebugPetCat();
 void SceneHub(Game& g);
 void SceneHelm(Game& g);
 void SceneCrew(Game& g);
@@ -381,6 +408,7 @@ void SimulateExpeditions(int runs, int level, bool randomPlayer, int tier = 0); 
 
 // ---------- platformer.cpp ----------
 void GeneratePlatLayout(Game& g, int level);
+bool PlatLayoutValid(const Game& g, int level);
 std::string PlatLayoutCode(const Game& g, int level);
 const char* PlatLevelName(int level);
 void StartPlatform(Game& g, int level);

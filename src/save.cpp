@@ -30,6 +30,7 @@ bool SaveGame(const Game& g) {
         f << "\nrelics";
         for (int r : g.relicStorage) f << " " << r;
         f << "\ncave " << g.caveTierCleared << " " << g.caveTier << "\n";
+        f << "platopts " << (g.platHard ? 1 : 0) << " " << (g.platCheckpoints ? 1 : 0) << "\n";
         for (int l = 0; l < PL_COUNT; l++) {
             f << "plat " << l << " " << (g.platCleared[l] ? 1 : 0) << " " << g.platBest[l];
             for (int c : g.platLayouts[l]) f << " " << c;
@@ -65,6 +66,7 @@ bool LoadGame(Game& g) {
         else if (key == "upgrades") for (int& u : fresh.upgrades) in >> u;
         else if (key == "relics") { int r; while (in >> r) if (r >= 0 && r < (int)Relics().size()) fresh.relicStorage.push_back(r); }
         else if (key == "cave") in >> fresh.caveTierCleared >> fresh.caveTier;
+        else if (key == "platopts") { int h = 0, c = 0; in >> h >> c; fresh.platHard = h != 0; fresh.platCheckpoints = c != 0; }
         else if (key == "plat") {
             int l, cleared, c;
             float best;
@@ -92,7 +94,7 @@ bool LoadGame(Game& g) {
     g = fresh;
     CompactParty(g);
     RefreshRadar(g);
-    for (int l = 0; l < PL_COUNT; l++) if (g.platLayouts[l].empty()) GeneratePlatLayout(g, l);
+    for (int l = 0; l < PL_COUNT; l++) if (!PlatLayoutValid(g, l)) GeneratePlatLayout(g, l); // e.g. from an older version
     return true;
 }
 

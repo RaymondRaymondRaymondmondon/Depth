@@ -129,7 +129,9 @@ const Npc NPCS[] = {
 };
 constexpr int NPC_COUNT = sizeof(NPCS) / sizeof(NPCS[0]);
 struct Walker { int id; Vector2 pos, target; float wait, phase; bool right, atPost; };
-struct Cat { Vector2 pos{120, 700}, target{120, 700}; float wait = 3, phase = 0; bool right = true; };
+struct Cat { Vector2 pos{120, 700}, target{120, 700}; float wait = 3, phase = 0, purr = 0; bool right = true; };
+Rectangle catRect{};   // where the cat is on screen, for clicking
+Vector2 catHead{};     // where its head is on screen, for the hearts
 std::vector<Walker> walkers;
 Cat cat;
 
@@ -224,6 +226,7 @@ void UpdateLife(Game& g, float dt) {
         w.pos = np;
         w.phase += dt * 7.5f;
     }
+    if (cat.purr > 0) { cat.purr -= dt; cat.wait = std::max(cat.wait, cat.purr + 0.5f); } // a scratch behind the ears: it stays put
     if (cat.wait > 0) { cat.wait -= dt; cat.phase = 0; if (cat.wait <= 0) cat.target = FloorSpot(); }
     else {
         Vector2 d{cat.target.x - cat.pos.x, cat.target.y - cat.pos.y};
@@ -702,35 +705,240 @@ void DrawChandelier(float t) {
     });
 }
 
-void DrawCat(float t) {
-    float Z = cat.pos.y, s = Px(Z) * 1.6f;
-    Vector2 feet = Proj(cat.pos.x, 0, Z);
-    float f = cat.right ? 1.0f : -1.0f;
-    Color fur{54, 50, 50, 255};
-    DrawShadowBlob(feet, 22 * s);
-    float x = FigureFeet().x, y = FigureFeet().y;
+// The ship's cat: a ginger tabby. It wanders, sits and watches, and purrs when you click it.
+// Draws the cat standing at `feet` (k = size), and returns where its head ended up on screen.
+Vector2 DrawCatAt(Vector2 feet, float k, bool right, bool sitting, bool purring, float phase, float t, float seed) {
+    Vector2 o = FigureFeet();
+    float f = right ? 1.0f : -1.0f;
+    float vib = purring ? sinf(t * 70) * 0.3f : 0; // the whole cat hums
+    auto P = [&](float dx, float dy) { return Vector2{o.x + (dx + vib) * f * k, o.y + dy * k}; };
+    Color fur{206, 124, 56, 255}, stripe{140, 68, 30, 255}, cream{240, 220, 186, 255}, pink{226, 140, 140, 255};
+    DrawShadowBlob(feet, (sitting ? 20 : 26) * k);
     BeginFigure();
-    bool sitting = cat.wait > 0;
-    for (int k = 0; k < 4; k++) {
-        float lx = x + (k < 2 ? -9 : 9) * s + (k % 2) * 3 * s, sw = sitting ? 0 : sinf(cat.phase + k * 1.6f) * 4 * s;
-        DrawLineEx({lx, y - 12 * s}, {lx + sw, y}, 3 * s, fur);
+    Vector2 hc;
+    float look = 0; // the head tilts now and then while it sits and watches
+    if (!sitting) {
+        float ph = phase;
+        Vector2 prev = P(-16, -18); // tail held high, curling at the tip
+        for (int i = 1; i <= 7; i++) {
+            Vector2 p = P(-17 - i * 1.6f + sinf(t * 2.2f + i * 0.5f) * i * 0.35f, -18 - i * 4.0f + (i > 5 ? (i - 5) * 2.5f : 0));
+            ShadeLimb(prev, p, (2.8f - i * 0.12f) * k, (2.7f - i * 0.12f) * k, i == 7 ? stripe : fur);
+            prev = p;
+        }
+        for (int leg = 0; leg < 2; leg++) { // far legs, in shadow
+            float lx = leg ? 10 : -11, sw = sinf(ph + PI + leg * PI);
+            ShadeLimb(P(lx, -14), P(lx + sw * 5, -1 + std::min(0.0f, cosf(ph + PI + leg * PI)) * 2.5f), 2.6f * k, 1.9f * k, Tone(fur, -0.35f));
+        }
+        float bob = fabsf(sinf(ph)) * 0.8f;
+        ShadeLimb(P(-12, -17 - bob), P(10, -18 - bob), 8.5f * k, 7.8f * k, fur);
+        ShadeLimb(P(-6, -12 - bob), P(8, -12 - bob), 4 * k, 4.5f * k, Tone(cream, -0.1f)); // pale belly
+        for (int i = 0; i < 5; i++) DrawLineEx(P(-10 + i * 4.6f, -25.5f - bob), P(-8.5f + i * 4.6f, -16 - bob), 1.7f * k, stripe);
+        for (int leg = 0; leg < 2; leg++) { // near legs
+            float lx = leg ? 11 : -10, sw = sinf(ph + leg * PI);
+            ShadeLimb(P(lx, -14 - bob), P(lx + sw * 5, -1 + std::min(0.0f, cosf(ph + leg * PI)) * 2.5f), 2.9f * k, 2.1f * k, fur);
+            ShadeBall(P(lx + sw * 5 + 1, -1 + std::min(0.0f, cosf(ph + leg * PI)) * 2.5f), 2.2f * k, cream);
+        }
+        hc = P(19, -25 - bob);
+    } else {
+        look = purring ? 0.25f : sinf(t * 0.5f + seed) * 0.5f;
+        Vector2 prev = P(-12, -3); // tail wrapped round the paws, the tip flicking
+        for (int i = 1; i <= 7; i++) {
+            float tip = i > 4 ? sinf(t * (purring ? 1.2f : 2.6f)) * (i - 4) * 1.2f : 0;
+            Vector2 p = P(-12 + i * 3.4f, -2.5f - sinf(i * 0.45f) * 1.2f - tip);
+            ShadeLimb(prev, p, 2.7f * k, 2.6f * k, i == 7 ? stripe : fur);
+            prev = p;
+        }
+        ShadeBall(P(-6, -10), 10 * k, fur); // haunch
+        for (int i = 0; i < 3; i++) DrawLineEx(P(-13 + i * 4.0f, -17 + i * 0.5f), P(-9 + i * 4.5f, -6), 1.6f * k, stripe);
+        ShadeLimb(P(-5, -11), P(4, -23), 8.8f * k, 7 * k, fur); // body rising to the chest
+        ShadeBall(P(7, -18), 4.6f * k, cream);                   // white bib
+        ShadeLimb(P(3, -18), P(3.5f, -1), 2.5f * k, 2.1f * k, Tone(fur, -0.3f));
+        ShadeLimb(P(7, -17), P(7.5f, -1), 2.6f * k, 2.2f * k, fur);
+        ShadeBall(P(8, -1.5f), 2.3f * k, cream);
+        hc = P(6 + look, -32 + (purring ? 1 : 0));
     }
-    Vector2 prev{x - f * 16 * s, y - 16 * s};
-    for (int k = 1; k <= 6; k++) {
-        Vector2 p{x - f * (16 + k * 3) * s, y - 16 * s - k * 5 * s + sinf(t * 2 + k * 0.6f) * 3 * s};
-        DrawLineEx(prev, p, 3 * s, fur);
-        prev = p;
+    // the head: a round skull, ears, a pale muzzle, stripes on the brow
+    float hk = 7.6f * k;
+    for (int e = -1; e <= 1; e += 2) {
+        Vector2 b1{hc.x + (e * 5.5f - 2.5f) * k, hc.y - 4 * k}, b2{hc.x + (e * 5.5f + 2.5f) * k, hc.y - 4.5f * k}, tip{hc.x + e * 6.5f * k, hc.y - 13 * k};
+        DrawTri(b1, b2, tip, Tone(fur, -0.1f));
+        DrawTri({b1.x + 1.3f * k, b1.y}, {b2.x - 1.3f * k, b2.y}, {tip.x, tip.y + 3.5f * k}, pink);
     }
-    if (sitting) DrawEllipse((int)(x - f * 4 * s), (int)(y - 14 * s), 14 * s, 11 * s, fur);
-    else DrawEllipse((int)x, (int)(y - 16 * s), 18 * s, 8 * s, fur);
-    Vector2 hd{x + f * 16 * s, y - (sitting ? 30 : 24) * s};
-    DrawCircleV(hd, 8 * s, fur);
-    DrawTri({hd.x - 6 * s, hd.y - 4 * s}, {hd.x - 2 * s, hd.y - 13 * s}, {hd.x + 1 * s, hd.y - 5 * s}, fur);
-    DrawTri({hd.x + 1 * s, hd.y - 5 * s}, {hd.x + 5 * s, hd.y - 13 * s}, {hd.x + 7 * s, hd.y - 3 * s}, fur);
-    DrawCircleV({hd.x + f * 3.5f * s, hd.y - 1 * s}, 1.6f * s, Color{230, 220, 90, 255});
+    ShadeBall(hc, hk, fur);
+    for (int i = -1; i <= 1; i++) DrawLineEx({hc.x + i * 2.2f * k, hc.y - 7 * k}, {hc.x + i * 1.6f * k, hc.y - 3.5f * k}, 1.3f * k, stripe);
+    Vector2 mz{hc.x + f * 2.5f * k, hc.y + 3 * k};
+    ShadeBall(mz, 3.6f * k, cream);
+    DrawTri({mz.x - 1.2f * k, mz.y - 1.6f * k}, {mz.x + 1.2f * k, mz.y - 1.6f * k}, {mz.x, mz.y - 0.2f * k}, pink);
+    float blink = fmodf(t * 0.37f + seed * 0.01f, 1.0f) < 0.03f;
+    for (int e = -1; e <= 1; e += 2) {
+        Vector2 ec{hc.x + f * 1.5f * k + e * 3.2f * k, hc.y - 1 * k};
+        if (purring || blink) DrawLineEx({ec.x - 1.6f * k, ec.y + 0.3f * k}, {ec.x + 1.6f * k, ec.y + 0.3f * k}, 1.0f * k, Color{60, 34, 20, 255});
+        else {
+            DrawEllipse((int)ec.x, (int)ec.y, 1.7f * k, 1.5f * k, Color{150, 200, 80, 255});
+            DrawEllipse((int)ec.x, (int)ec.y, 0.45f * k, 1.3f * k, Color{20, 16, 12, 255});
+        }
+    }
+    for (int w = -1; w <= 1; w += 2) // whiskers
+        for (int i = 0; i < 2; i++)
+            DrawLineEx({mz.x + w * 1.5f * k, mz.y + i * 0.8f * k}, {mz.x + w * 9 * k, mz.y - 1 * k + i * 2.2f * k}, 0.4f * k, Fade(WHITE, 0.7f));
     EndFigure(feet);
+    return {feet.x + (hc.x - o.x), feet.y + (hc.y - o.y)};
 }
 
+void DrawCat(float t) {
+    float Z = cat.pos.y, k = Px(Z) * 2.25f;
+    Vector2 feet = Proj(cat.pos.x, 0, Z);
+    catRect = {feet.x - 28 * k, feet.y - 46 * k, 56 * k, 48 * k};
+    catHead = DrawCatAt(feet, k, cat.right, cat.wait > 0, cat.purr > 0, cat.phase, t, cat.pos.x);
+}
+
+// Hearts rise while the cat purrs (drawn after the ink pass, so they stay soft).
+void DrawPurrHearts(float t) {
+    if (cat.purr <= 0) return;
+    for (int i = 0; i < 3; i++) {
+        float ph = fmodf(t * 0.6f + i / 3.0f, 1.0f), a = std::min(1.0f, cat.purr) * (1 - ph) * std::min(1.0f, ph * 5);
+        Vector2 p{catHead.x + sinf(ph * 6 + i * 2) * 8, catHead.y - 14 - ph * 46};
+        float r = 3.2f + ph * 2;
+        Color c = Fade(Color{255, 120, 140, 255}, a);
+        DrawCircleV({p.x - r * 0.7f, p.y}, r, c);
+        DrawCircleV({p.x + r * 0.7f, p.y}, r, c);
+        DrawTri({p.x - r * 1.6f, p.y + r * 0.4f}, {p.x + r * 1.6f, p.y + r * 0.4f}, {p.x, p.y + r * 2.4f}, c);
+    }
+    float w = 1 - fmodf(t * 1.5f, 1.0f); // a little "prrr" beside it
+    TxtBold("prrr", catHead.x + 14, catHead.y - 30 + w * 4, 14, Fade(Pal::Paper, std::min(1.0f, cat.purr) * 0.85f));
+}
+
+// A purr, made from scratch: low filtered noise, pulsed about 25 times a second, louder on the out-breath.
+void PlayPurr() {
+    static Sound purr{};
+    static bool loaded = false;
+    if (!IsAudioDeviceReady()) return;
+    if (!loaded) {
+        const int rate = 22050;
+        const float dur = 3.0f;
+        int n = (int)(rate * dur);
+        std::vector<float> v(n);
+        float lp = 0, lp2 = 0, peak = 0.001f;
+        unsigned seed = 12345;
+        for (int i = 0; i < n; i++) {
+            float tt = (float)i / rate, cyc = fmodf(tt, 1.1f);
+            bool out = cyc < 0.62f;
+            float breath = out ? sinf(cyc / 0.62f * PI) : 0.55f * sinf((cyc - 0.62f) / 0.48f * PI);
+            float hz = out ? 26.0f : 22.0f, pp = fmodf(tt * hz, 1.0f), pulse = expf(-pp * 7);
+            seed = seed * 1664525u + 1013904223u;
+            float noise = ((seed >> 9) & 0xffff) / 32768.0f - 1;
+            lp += (noise - lp) * 0.07f;
+            lp2 += (lp - lp2) * 0.07f;
+            float fade = std::min(1.0f, tt / 0.15f) * std::min(1.0f, (dur - tt) / 0.5f);
+            v[i] = (lp2 + 0.02f * sinf(2 * PI * hz * 2 * tt)) * pulse * breath * fade;
+            peak = std::max(peak, fabsf(v[i]));
+        }
+        short* data = (short*)MemAlloc(n * sizeof(short));
+        for (int i = 0; i < n; i++) data[i] = (short)(v[i] / peak * 0.8f * 32767);
+        Wave w{(unsigned)n, rate, 16, 1, data};
+        purr = LoadSoundFromWave(w);
+        UnloadWave(w);
+        loaded = true;
+    }
+    if (!IsSoundPlaying(purr)) PlaySound(purr);
+}
+
+// ---------------------------------------------------------------- pipes along the ceiling
+// A pipe run in room space, shaded like a lit cylinder. Drawn from `a` to `b`, so give the far end first.
+void Pipe3D(Vector3 a, Vector3 b, float R, Color c, int n = 14) {
+    rlDrawRenderBatchActive();
+    rlDisableBackfaceCulling();
+    for (int i = 0; i < n; i++) {
+        Vector3 p0 = Mix(a, b, (float)i / n), p1 = Mix(a, b, (float)(i + 1) / n);
+        Vector2 s0 = Proj(p0), s1 = Proj(p1);
+        float w0 = R * Px(p0.z), w1 = R * Px(p1.z), dx = s1.x - s0.x, dy = s1.y - s0.y, len = sqrtf(dx * dx + dy * dy);
+        if (len < 0.01f) continue;
+        Vector2 nn{-dy / len, dx / len};
+        if (nn.y > 0) nn = {-nn.x, -nn.y}; // +1 across the pipe is its top, facing the lamps above
+        const int S = 8;
+        for (int j = 0; j < S; j++) {
+            float u0 = -1 + 2.0f * j / S, u1 = -1 + 2.0f * (j + 1) / S;
+            auto tone = [&](float u) {
+                float nz = sqrtf(std::max(0.0f, 1 - u * u));
+                return Tone(c, 0.3f * u + 0.25f * nz - 0.25f - (1 - nz) * 0.4f + 0.6f * expf(-(u - 0.5f) * (u - 0.5f) / 0.02f));
+            };
+            Vector2 A0{s0.x + nn.x * w0 * u0, s0.y + nn.y * w0 * u0}, A1{s0.x + nn.x * w0 * u1, s0.y + nn.y * w0 * u1};
+            Vector2 B0{s1.x + nn.x * w1 * u0, s1.y + nn.y * w1 * u0}, B1{s1.x + nn.x * w1 * u1, s1.y + nn.y * w1 * u1};
+            Color c0 = tone((u0 + u1) / 2);
+            DrawTri(A0, A1, B1, c0);
+            DrawTri(A0, B1, B0, c0);
+        }
+    }
+    rlDrawRenderBatchActive();
+    rlEnableBackfaceCulling();
+}
+
+// A collar where two lengths of pipe are bolted together.
+void Flange3D(Vector3 p, Vector3 dir, float R, Color c) {
+    Pipe3D({p.x - dir.x * 5, p.y - dir.y * 5, p.z - dir.z * 5}, {p.x + dir.x * 5, p.y + dir.y * 5, p.z + dir.z * 5}, R * 1.45f, ColorBrightness(c, -0.25f), 1);
+}
+
+void Hanger(float X, float Y, float Z) { DrawLineEx(Proj(X, Y, Z), Proj(X, RH, Z), std::max(1.0f, 4 * Px(Z)), Color{50, 44, 38, 255}); }
+
+constexpr float CROSS_Z = 520, CROSS_Y = 500;
+
+// The long runs down both sides of the ceiling, drawn with the room (behind the furniture).
+void DrawWallPipes(float t) {
+    (void)t;
+    for (int s = -1; s <= 1; s += 2) {
+        float XA = s * (RW - 48), XB = s * (RW - 100);
+        Color big = s < 0 ? Pal::Copper : Pal::Brass, small{128, 134, 130, 255};
+        for (float z = 1100; z > 340; z -= 150) { Hanger(XA, RH - 45, z); Hanger(XB, RH - 30, z + 60); }
+        Pipe3D({XB, RH - 30, Z_BACK}, {XB, RH - 30, 330}, 8, small);
+        Pipe3D({XA, RH - 45, Z_BACK}, {XA, RH - 45, 330}, 17, big);
+        for (float z = 1000; z > 380; z -= 200) Flange3D({XA, RH - 45, z}, {0, 0, 1}, 17, big);
+        // a drop into the back wall, where the pipe turns down behind the panelling
+        Pipe3D({XA, RH - 45, Z_BACK - 10}, {XA, RH - 150, Z_BACK - 10}, 17, big, 2);
+        Flange3D({XA, RH - 150, Z_BACK - 10}, {0, 1, 0}, 17, big);
+    }
+}
+
+// The pipe that crosses the room near the ceiling, in front of everything, with a valve and a gauge.
+void DrawCrossPipe(float t) {
+    for (float x = -600; x <= 600; x += 200) Hanger(x, CROSS_Y + 13, CROSS_Z);
+    Pipe3D({-RW, CROSS_Y, CROSS_Z}, {RW, CROSS_Y, CROSS_Z}, 13, Pal::Copper, 24);
+    Pipe3D({-RW, CROSS_Y + 34, CROSS_Z + 30}, {RW, CROSS_Y + 34, CROSS_Z + 30}, 6, Color{128, 134, 130, 255}, 24);
+    for (float x : {-420.0f, 90.0f, 460.0f}) Flange3D({x, CROSS_Y, CROSS_Z}, {1, 0, 0}, 13, Pal::Copper);
+    // a red handwheel on a stem
+    Billboard(-240, CROSS_Y + 12, CROSS_Z - 20, [&] {
+        DrawLineEx({0, 0}, {0, -26}, 6, Pal::BrassDk);
+        Vector2 c{0, -30};
+        for (int k = 0; k < 5; k++) {
+            float a = k * 2 * PI / 5 + 0.3f;
+            DrawLineEx(c, {c.x + cosf(a) * 22, c.y + sinf(a) * 7}, 3, Color{130, 30, 26, 255});
+        }
+        DrawEllipse((int)c.x, (int)c.y, 24, 8, Color{150, 34, 30, 255});
+        DrawEllipse((int)c.x, (int)c.y - 1, 19, 5, Color{60, 20, 18, 255});
+        DrawCircleV(c, 4, Pal::Brass);
+    });
+    // a pressure gauge hanging off a tee: the needle never quite sits still
+    Billboard(300, CROSS_Y - 13, CROSS_Z - 16, [&] {
+        DrawLineEx({0, 0}, {0, 18}, 7, Pal::BrassDk);
+        float needle = 0.58f + 0.04f * sinf(t * 7.3f) * sinf(t * 1.1f) + (fmodf(t, 9) < 0.5f ? 0.12f : 0);
+        DrawGauge({0, 40}, 20, needle, Color{236, 228, 206, 255});
+    });
+}
+
+// Wisps from a leaky flange on the cross pipe, and from the wall run now and then.
+void DrawCeilingSteam(float t) {
+    struct Leak { Vector3 at; float rate, drift; };
+    const Leak leaks[] = {{{90, CROSS_Y, CROSS_Z}, 1.0f, 1}, {{-(RW - 48), RH - 45, 800}, 0.7f, 1}, {{RW - 48, RH - 45, 600}, 0.8f, -1}};
+    for (int L = 0; L < 3; L++) {
+        const Leak& lk = leaks[L];
+        Vector2 o = Proj(lk.at);
+        float k = Px(lk.at.z), gust = 0.45f + 0.55f * std::max(0.0f, sinf(t * 0.6f * lk.rate + L * 2));
+        for (int i = 0; i < 9; i++) {
+            float ph = fmodf(t * 0.45f * lk.rate + i / 9.0f, 1.0f);
+            Vector2 p{o.x + lk.drift * ph * 70 * k + sinf(t + i) * 6 * k, o.y + ph * 50 * k - ph * ph * 30 * k};
+            DrawCircleV(p, (6 + ph * 26) * k, Fade(Color{226, 230, 228, 255}, 0.16f * (1 - ph) * gust));
+        }
+    }
+}
 // ---------------------------------------------------------------- lighting
 void DrawSalonLighting(float t, int hovered) {
     LightsBegin(Color{66, 70, 78, 255});
@@ -756,8 +964,13 @@ void DrawSalonLighting(float t, int hovered) {
     Glow(ch, 80, Color{255, 200, 120, 90});
     for (int s = -1; s <= 1; s += 2)
         for (float z : {720.0f, 1100.0f}) Glow(Proj(s * (RW - 10), 400, z), 24 * Px(z) * 2, Color{255, 200, 120, 150});
+}
+
+// Dust in the chandelier light: drawn after the ink pass, or every mote gets a dark ring (the "black dust").
+void DrawDustMotes(float t) {
+    Vector2 ch = Proj(0, 450, 760);
     BeginBlendMode(BLEND_ADDITIVE);
-    for (int k = 0; k < 50; k++) { // dust in the chandelier light
+    for (int k = 0; k < 50; k++) {
         Vector2 p{ch.x + sinf(t * 0.2f + k * 1.7f) * 260, ch.y + 30 + fmodf(k * 53 + t * (5 + k % 4), 330.0f)};
         DrawCircleV(p, 1.2f, Color{255, 230, 180, 60});
     }
@@ -800,6 +1013,33 @@ void DrawSalonHud(Game& g, int hovered, const std::string& hint, bool active) {
 }
 }  // namespace
 
+// For the sprite sheet: the ship's hands in their work poses, walking, and the cat.
+void DrawSalonSpritePage(float t) {
+    TxtBold("The Nautilus's crew (they never go on expeditions) and Barnacle the cat", 30, 16, 24, Pal::Brass);
+    for (int i = 0; i < NPC_COUNT; i++) {
+        const Hero& h = NpcHero(i);
+        float x = 110 + i * 200.0f;
+        Walker w{i, {0, 0}, {0, 0}, 5, 0, true, true};
+        TxtBold(NPCS[i].role, x - MeasureTxt(NPCS[i].role, 17, true) / 2.0f, 60, 17, Pal::Paper);
+        DrawShadowBlob({x - 40, 280}, 26);
+        DrawCrewFigureInked(h, {x - 40, 280}, 1.1f, true, 0, t, WorkPose(w, t));
+        DrawShadowBlob({x + 40, 280}, 26);
+        DrawCrewFigureInked(h, {x + 40, 280}, 1.1f, false, 1.4f, t, Pose{});
+    }
+    Txt("At work (left) and walking (right)", 30, 300, 16, Color{190, 190, 180, 255});
+    const char* modes[3] = {"Walking", "Sitting, watching", "Purring (click it)"};
+    for (int m = 0; m < 3; m++) {
+        float x = 240 + m * 360.0f;
+        TxtBold(modes[m], x - MeasureTxt(modes[m], 18, true) / 2.0f, 380, 18, Pal::Paper);
+        DrawShadowBlob({x, 600}, 60);
+        Vector2 head = DrawCatAt({x, 600}, 3.6f, true, m > 0, m == 2, 1.2f, t, 40);
+        if (m == 2) { cat.purr = 3; catHead = head; DrawPurrHearts(t); cat.purr = 0; }
+    }
+}
+
+// For screenshots: put the cat front and centre, purring.
+void DebugPetCat() { cat.pos = cat.target = {-150, 640}; cat.purr = 3; cat.wait = 4; cat.right = true; }
+
 // ============================================================ the salon scene
 void SceneHub(Game& g) {
     float dt = GetFrameTime(), t = g.time;
@@ -824,6 +1064,7 @@ void SceneHub(Game& g) {
     stationRect[ST_LIBRARY] = PaintWall(-RW, 740, 1080, 0, 510, 750, [&](float w, float h) { ArtLibrary(w, h, t); });
     stationRect[ST_RADAR] = PaintWall(RW, 540, 700, 0, 240, 645, [&](float w, float h) { ArtRadar(w, h, t); });
     stationRect[ST_WORKSHOP] = PaintWall(RW, 740, 1080, 0, 510, 645, [&](float w, float h) { ArtWorkshop(w, h, t); });
+    DrawWallPipes(t);
 
     // furniture and people on the floor, far to near
     struct Item { float z; std::function<void()> draw; };
@@ -849,6 +1090,7 @@ void SceneHub(Game& g) {
     std::stable_sort(items.begin(), items.end(), [](const Item& a, const Item& b) { return a.z > b.z; });
     for (auto& it : items) it.draw();
     DrawChandelier(t);
+    DrawCrossPipe(t);
 
     // where the furniture stations sit on screen (for hovering)
     auto around = [&](float X, float Z, float w, float hgt) {
@@ -865,12 +1107,13 @@ void SceneHub(Game& g) {
                             table.y + table.height - wardR.y};
 
     // --- what's under the mouse: people first, then furniture, then the walls
+    bool hovCat = mouseInRoom && CheckCollisionPointRec(m, catRect);
     const Person* hovPerson = nullptr;
-    if (mouseInRoom)
+    if (mouseInRoom && !hovCat)
         for (auto& p : people) if (CheckCollisionPointRec(m, p.r) && (!hovPerson || p.w->pos.y < hovPerson->w->pos.y)) hovPerson = &p;
     int hovered = -1;
     const int order[ST_COUNT] = {ST_HELM, ST_PERISCOPE, ST_SICKBAY, ST_WARD, ST_CREW, ST_LIBRARY, ST_RADAR, ST_WORKSHOP};
-    if (mouseInRoom && !hovPerson)
+    if (mouseInRoom && !hovPerson && !hovCat)
         for (int i : order) if (CheckCollisionPointRec(m, stationRect[i])) { hovered = i; break; }
 
     DrawSalonLighting(t, hovered);
@@ -882,10 +1125,21 @@ void SceneHub(Game& g) {
         DrawRectangleRoundedLinesEx({r.x - 8, r.y - 8, r.width + 16, r.height + 16}, 0.06f, 6, 3, Fade(Color{255, 214, 150, 255}, pulse));
     }
     InkPass(1.0f, 1.0f);
+    DrawDustMotes(t);
+    DrawCeilingSteam(t);
+    DrawPurrHearts(t);
 
     // --- labels, hints, HUD
     std::string hint = "Every station in the salon can be clicked. Your expedition crew wait in Crew Quarters.";
-    if (hovPerson) {
+    if (hovCat) {
+        std::string label = "Barnacle, the ship's cat";
+        float w = (float)MeasureTxt(label, 16, true);
+        Rectangle r{catRect.x + catRect.width / 2 - w / 2 - 10, catRect.y - 30, w + 20, 26};
+        DrawRectangleRounded(r, 0.4f, 6, Color{12, 18, 22, 230});
+        DrawRectangleRoundedLinesEx(r, 0.4f, 6, 1.5f, Pal::BrassDk);
+        TxtBold(label, r.x + 10, r.y + 4, 16, Pal::Paper);
+        hint = cat.purr > 0 ? "Barnacle leans into your hand and purrs like a donkey engine." : "Click to give the cat a scratch behind the ears.";
+    } else if (hovPerson) {
         const Npc& n = NPCS[hovPerson->w->id];
         std::string label = std::string(n.role) + " of the Nautilus";
         float w = (float)MeasureTxt(label, 16, true);
@@ -897,7 +1151,7 @@ void SceneHub(Game& g) {
     } else if (hovered >= 0) {
         hint = std::string(STATIONS[hovered].name) + ":  " + STATIONS[hovered].hint;
     }
-    DrawSalonHud(g, hovered, hint, hovered >= 0 || hovPerson);
+    DrawSalonHud(g, hovered, hint, hovered >= 0 || hovPerson || hovCat);
 
     // New game, with a second click to confirm
     static float armed = 0;
@@ -916,7 +1170,12 @@ void SceneHub(Game& g) {
     }
 
     // --- clicks
-    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && mouseInRoom && !hovPerson && hovered >= 0) {
+    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && hovCat) {
+        if (cat.purr <= 0) PlayPurr();
+        cat.purr = 3.2f;
+        cat.wait = std::max(cat.wait, 3.7f);
+    }
+    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && mouseInRoom && !hovPerson && !hovCat && hovered >= 0) {
         g.scene = STATIONS[hovered].target;
         if (g.scene == Scene::Crew && !FindHero(g, g.selectedHero) && !g.roster.empty()) g.selectedHero = g.roster[0].id;
     }

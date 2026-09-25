@@ -11,10 +11,13 @@
 //    #  wall / floor        x  floor hazard (steam, urchins, spikes)
 //    g  spinning hazard     t  timed jet (solid; fires upward 3 tiles)
 //    o  coin                S  start          E  exit
-//    c  crab   e  leaping eel   P  pirate   p  parakeet
+//    k  crate or barrel (solid)   =  |  pipes, or yards and masts on the ship
+//    c  crab   e  leaping eel   p  parakeet
+//    P  pirate who bursts out of a door to stab   G  pirate who shoots from cover
 //    K  the Kraken   B  Blackbeard
-//  Every section has floor in its two leftmost and rightmost columns, so any
-//  section can follow any other, and each is a checkpoint.
+//  A death sends you back to the very start, unless checkpoints are switched
+//  on (at the cost of the relic). Normal difficulty leaves out the gears,
+//  mines, spiked balls and jets; Hard keeps them all.
 // ============================================================================
 #include "game.h"
 #include "rlgl.h"
@@ -232,80 +235,141 @@ const char* HULL_ARENA[CH_H] = {
     "####..............######",
 };
 
-// ---------------------------------------------------------------- the Pirate Ship: pirates, parakeets, fire
-const char* PIRATE[][CH_H] = {
-    {   // A: deck planks with patrolling pirates
-        "########################", E, E, E, E, E, E,
-        "..........p.............",
-        E, E,
-        ".....P.......P..........",
-        "....####....####...##...",
-        E, E,
-        "##xxxxxxxxxxxxxxxxxxxx##",
-        "########################",
-    },
-    {   // B: rigging climb - a narrow chimney with a parakeet at the top
-        "########################",
-        E,
-        "......#.................",
-        "......#.....p...........",
-        "......#..###............",
-        "......#..###............",
-        "......#..###............",
-        "......#..###............",
-        "......#..###............",
-        "......#..###............",
-        ".........###............",
-        ".........###............",
-        ".........###......o.....",
-        ".........###............",
-        "######xxx###xxxx########",
-        "########################",
-    },
-    {   // C: cannon deck - fire vents in a low corridor, and a pirate
-        "########################", E, E, E, E, E, E, E, E, E,
-        "...####################.",
-        E,
-        "......o.......o.........",
-        "............P...........",
-        "####t####t####t####t####",
-        "########################",
-    },
-    {   // D: big leaps between single posts
-        "########################", E, E, E, E, E, E, E,
-        "...........p............",
-        E,
-        ".......o......o.........",
-        E,
-        ".......#......#.........",
-        E,
-        "##....................##",
-        "##....................##",
-    },
-    {   // E: spiked balls over pirate-guarded decks
-        "########################", E, E, E, E, E, E, E, E,
-        ".......g........g.......",
-        E,
-        ".........o.......o......",
-        E,
-        ".........P.......P......",
-        "###xxx#####xxx#####xx###",
-        "########################",
-    },
-};
-const char* PIRATE_ARENA[CH_H] = {
-    "########################", E, E, E, E, E, E, E, E, E,
-    ".....###........###.....",
+// ---------------------------------------------------------------- the Pirate Ship: deck, hold, cabin
+// A run boards over the rail, crosses the open deck, drops through a hatch into the hold, climbs the
+// companionway to the quarterdeck, and ends in Blackbeard's cabin. 'k' is a crate or barrel (solid).
+// Pirates don't patrol: 'P' waits behind a door and bursts out to stab whoever passes, and 'G' shoots
+// from behind a barrel. Parakeets ('p') still flap about above the deck.
+const char* START_DECK[] = {E, E, E, E, E, E, E, E, E, E, E, E, E, ".S.....................>", W, W, nullptr};
+const char* DECK_WAIST[] = { // crates, an open hatch full of spikes, and a gunner at the far end
+    E, E, E, E, E, E, E,
+    "..............p.........",
+    E,
+    ".................o......",
+    "....o...................",
+    "................kk......",
+    "...kkk..........kk......",
+    "<..kkk.....P....kk.kG..>",
+    "######xxxxx###xx########",
+    W, nullptr};
+const char* DECK_RIGGING[] = { // up the yards and onto the forecastle
+    E, E, E, E, E,
+    ".............o..........",
+    ".............==.........",
+    "..........p.............",
+    E,
+    "..........===...........",
+    "...................kG..>",
+    ".....===..........######",
+    "..................######",
+    "<.................######",
+    "####xxxxxxxxxxxxxx######",
+    W, nullptr};
+const char* DECK_BARRELS[] = { // barrel stacks between spike-filled gratings
+    E, E, E, E, E, E,
+    "..........p.............",
+    E,
+    "........o...o...........",
     E, E,
-    "..........B..........E..",
-    "########################",
-    "########################",
-};
-#undef E
+    "........k...............",
+    "........k........k......",
+    "<.......k......P.k...G.>",
+    "####xxx###xxx#####xx####",
+    W, nullptr};
+const char* DECK_HATCH[] = { // down through the main hatch into the hold
+    E, E, E, E, E,
+    ".........p..............",
+    E,
+    "...........o............",
+    E,
+    "<.......................",
+    "#######...##############",
+    "#######...##############",
+    "####...............#####",
+    "####...............#####",
+    "####.......o.......#####",
+    "####...............#####",
+    "####......===......#####",
+    "####...............#####",
+    "####...............#####",
+    "####...............#####",
+    "####....................",
+    "####....................",
+    "####....................",
+    "####xxxx.......kG......>",
+    W, W, nullptr};
+const char* HOLD_CARGO[] = { // stacks of cargo, a pirate behind the bulkhead door
+    W, W, W, W, E, E, E,
+    "..............o.........",
+    E,
+    "..........kk............",
+    "..........kk............",
+    "......kk..kk.....kk.....",
+    "..o...kk..kk.....kk.....",
+    "<.....kk..kk...P.kk..G.>",
+    "####xx######xxx#########",
+    W, nullptr};
+const char* HOLD_GUNDECK[] = { // the gun deck: a low passage with powder flares in the floor
+    W, W, W, W, W, W, W, W, W,
+    E,
+    "......o.......o.........",
+    E, E,
+    "<..........P.......kG..>",
+    "####t###t####t###t######",
+    W, nullptr};
+const char* HOLD_BILGE[] = { // beams over the flooded bilge, and a swinging ball and chain
+    W, W, W, W, E, E, E, E,
+    "............o...........",
+    "..............g.........",
+    E,
+    "......==.........==.....",
+    E,
+    "<..........==..........>",
+    "##xxxxxxxxxxxxxxxxxxx###",
+    W, nullptr};
+const char* COMPANIONWAY[] = { // up the companionway to the quarterdeck
+    E,
+    "...............p........",
+    E,
+    "................o......>",
+    "#######...##############",
+    "#######...##############",
+    "#######...##############",
+    "#######...##############",
+    "#######...##############",
+    "#######...##############",
+    "#######...##############",
+    "#######...##############",
+    "#######.o.##############",
+    "####......##############",
+    "####......##############",
+    "####......##############",
+    "####...kkk##############",
+    "####......##############",
+    ".....kk...##############",
+    ".....kk...##############",
+    "<....kk...##############",
+    W, W, nullptr};
+const char* CABIN_ARENA[] = { // Blackbeard's great cabin: charge him into a wall, then stomp him while he's dazed
+    W, W, W,
+    "##....................##",
+    "##....................##",
+    "##....................##",
+    "##....................##",
+    "##....................##",
+    "##..........o.........##",
+    "##....................##",
+    "##....................##",
+    "##..===..........===..##",
+    "......................##",
+    "<.........B.........E.##",
+    W, W, nullptr};
+enum { PS_DECK0 = 0, PS_DECKS = 3, PS_HATCH = 3, PS_HOLD0 = 4, PS_HOLDS = 3, PS_STAIRS = 7 }; // indexes into the Pirate sections#undef E
 #undef W
 
-struct Part { const char* const* rows; int h; };
-Part P(const char* const* rows) { int h = 0; while (rows[h]) h++; return {rows, h}; } // null-terminated
+// interior: the row where a section's below-decks interior starts (what's drawn behind it); kind 1 = hold, 2 = cabin
+struct Part { const char* const* rows; int h; int interior = 999, kind = 0; };
+Part P(const char* const* rows, int interior = 999, int kind = 0) { int h = 0; while (rows[h]) h++; return {rows, h, interior, kind}; } // null-terminated
 Part P16(const char* const* rows) { return {rows, CH_H}; }
 int EntryRow(const Part& s) { for (int r = 0; r < s.h; r++) if (s.rows[r][0] == '<') return r; return 13; }
 int ExitRow(const Part& s) { for (int r = 0; r < s.h; r++) if (s.rows[r][CH_W - 1] == '>') return r; return 13; }
@@ -315,19 +379,21 @@ struct LevelDef {
     std::vector<Part> sections;
     Part first, last;     // the opening section, and the final one (exit or boss arena)
     int perRun, coinValue, bonus;
-    char fill;            // what's around the sections: solid for the enclosed Pipes, open water or sky otherwise
+    char fill;            // what's below and around the sections: solid for the Pipes and the ship, open water otherwise
     bool dark;            // lit only by the diver's helmet lamp
+    char fillAbove;       // what's above them: open sky over the pirate ship's deck
 };
 const LevelDef& Lv(int level) {
     static const std::vector<LevelDef> defs = [] {
         std::vector<LevelDef> d(PL_COUNT);
         d[PL_PIPES] = {"The Pipes", {P(PIPE_RISER), P(PIPE_DROP), P(PIPE_JETS), P(PIPE_SHAFT), P(PIPE_CRAWL), P(PIPE_BOILER), P(PIPE_TWINS)},
-                       P(START_PIPES), P(END_PIPES), 6, 2, 30, '#', true};
-        std::vector<Part> hull, pirate;
+                       P(START_PIPES), P(END_PIPES), 6, 2, 30, '#', true, '#'};
+        std::vector<Part> hull;
         for (auto& c : HULL) hull.push_back(P16(c));
-        for (auto& c : PIRATE) pirate.push_back(P16(c));
-        d[PL_HULL] = {"The Hull", hull, P16(START), P16(HULL_ARENA), 5, 3, 60, '.', false};
-        d[PL_PIRATE] = {"The Pirate Ship", pirate, P16(START), P16(PIRATE_ARENA), 5, 4, 100, '.', false};
+        d[PL_HULL] = {"The Hull", hull, P16(START), P16(HULL_ARENA), 5, 3, 60, '.', false, '.'};
+        std::vector<Part> pirate = {P(DECK_WAIST), P(DECK_RIGGING), P(DECK_BARRELS), P(DECK_HATCH, 12, 1),
+                                    P(HOLD_CARGO, 4, 1), P(HOLD_GUNDECK, 9, 1), P(HOLD_BILGE, 4, 1), P(COMPANIONWAY, 4, 1)};
+        d[PL_PIRATE] = {"The Pirate Ship", pirate, P(START_DECK), P(CABIN_ARENA, 0, 2), 6, 4, 100, '#', false, '.'};
         return d;
     }();
     return defs[level];
@@ -345,7 +411,7 @@ bool Solid(const PlatformState& p, int tx, int ty) {
     if (tx < 0 || tx >= p.w) return true; // level edges act as walls
     if (ty < 0 || ty >= p.h) return false;
     char c = p.tiles[ty][tx];
-    return c == '#' || c == 't' || c == '=' || c == '|';
+    return c == '#' || c == 't' || c == '=' || c == '|' || c == 'k';
 }
 
 // Moves a box one axis at a time and pushes it out of solid tiles.
@@ -417,21 +483,79 @@ void Dust(PlatformState& p, Vector2 at, int n, float dirX) {
 Rectangle EnemyBox(const PlatEnemy& e) {
     switch (e.type) {
         case 'c': return {e.pos.x + 3, e.pos.y + 4, 20, 12};
-        case 'P': return {e.pos.x + 3, e.pos.y + 2, 16, 28};
+        case 'P': case 'G': return {e.pos.x + 3, e.pos.y + 3, 16, 27};
         case 'p': return {e.pos.x - 9, e.pos.y - 6, 18, 12};
         default:  return {e.pos.x - 8, e.pos.y - 18, 16, 36}; // eel
     }
 }
 
+// Ambusher timings: bursting out of the door, the stab, and ducking back in.
+constexpr float AMB_OUT = 0.28f, AMB_STAB = 0.42f, AMB_BACK = 0.32f;
+// Gunner timings: the pause between shots, and the aim (the telegraph) before each one.
+constexpr float GUN_REST = 1.5f, GUN_AIM = 0.7f, BALL_SPEED = 330;
+
+float Lunge(const PlatEnemy& e) { // how far an ambusher has stepped out of his doorway
+    switch (e.state) {
+        case 1: return 10 * e.timer / AMB_OUT;
+        case 2: return 10 + 12 * sinf(PI * std::min(1.0f, e.timer / AMB_STAB));
+        case 3: return 10 * (1 - e.timer / AMB_BACK);
+        default: return 0;
+    }
+}
+
+// Is this enemy touching the player's box? A hidden ambusher can't be touched; a stabbing one reaches.
+bool EnemyHits(const PlatEnemy& e, Rectangle pr) {
+    if (e.type == 'P') {
+        if (e.state == 0) return false;
+        if (e.state == 2 && e.timer > 0.08f) {
+            Rectangle blade{e.dir > 0 ? e.pos.x + 18 : e.pos.x - 18, e.pos.y + 10, 22, 8};
+            if (CheckCollisionRecs(pr, blade)) return true;
+        }
+    }
+    return CheckCollisionRecs(pr, EnemyBox(e));
+}
+
 void UpdateEnemies(PlatformState& p, float dt) {
+    Vector2 pc{p.pos.x + PW / 2, p.pos.y + PH / 2};
     for (auto& e : p.enemies) {
         e.t += dt;
-        if (e.type == 'c' || e.type == 'P') { // walk, turning at walls and ledges
-            float w = e.type == 'c' ? 26.0f : 22.0f, h = e.type == 'c' ? 16.0f : 30.0f, speed = e.type == 'c' ? 70.0f : 105.0f;
-            float nx = e.pos.x + e.dir * speed * dt;
-            int ftx = (int)floorf((e.dir > 0 ? nx + w : nx) / T), fty = (int)floorf((e.pos.y + h - 1) / T);
+        if (e.type == 'c') { // crabs walk, turning at walls and ledges
+            float nx = e.pos.x + e.dir * 70 * dt;
+            int ftx = (int)floorf((e.dir > 0 ? nx + 26 : nx) / T), fty = (int)floorf((e.pos.y + 15) / T);
             if (Solid(p, ftx, fty) || !Solid(p, ftx, fty + 1)) e.dir = -e.dir;
             else e.pos.x = nx;
+        } else if (e.type == 'P') { // waits behind his door; bursts out when you come near, stabs, ducks back
+            float dx = pc.x - (e.home.x + 16), dy = pc.y - (e.home.y + 16);
+            e.timer += dt;
+            switch (e.state) {
+                case 0:
+                    if (e.timer > 0 && fabsf(dx) < 4.2f * T && fabsf(dy) < 1.6f * T) { e.state = 1; e.timer = 0; e.dir = dx < 0 ? -1.0f : 1.0f; }
+                    else if (e.timer > 0) e.timer = 0;
+                    break;
+                case 1: if (e.timer > AMB_OUT) { e.state = 2; e.timer = 0; } break;
+                case 2: if (e.timer > AMB_STAB) { e.state = 3; e.timer = 0; } break;
+                default: if (e.timer > AMB_BACK) { e.state = 0; e.timer = -1.1f; } break; // a pause before he'll come out again
+            }
+            e.pos = {e.home.x + 5 + e.dir * Lunge(e), e.home.y + T - 30};
+        } else if (e.type == 'G') { // behind his barrel: aims at you, fires, reloads
+            float dx = pc.x - (e.pos.x + 11), dy = pc.y - (e.pos.y + 10);
+            bool inRange = fabsf(dx) < 15.0f * T && fabsf(dy) < 7.0f * T;
+            e.dir = dx < 0 ? -1.0f : 1.0f;
+            e.timer += dt;
+            if (e.state == 0) {
+                if (e.timer > GUN_REST && inRange) { e.state = 1; e.timer = 0; }
+            } else {
+                e.aim = pc; // tracks you while aiming, then fires where you were at the last moment
+                if (e.timer > GUN_AIM) {
+                    Vector2 muzzle{e.pos.x + 11 + e.dir * 14, e.pos.y + 11};
+                    float ax = e.aim.x - muzzle.x, ay = e.aim.y - muzzle.y, len = std::max(1.0f, sqrtf(ax * ax + ay * ay));
+                    p.shots.push_back({muzzle, {ax / len * BALL_SPEED, ay / len * BALL_SPEED}, 4, 0});
+                    for (int k = 0; k < 6; k++)
+                        p.particles.push_back({muzzle, {e.dir * Rnd(40, 160), Rnd(-60, 20)}, 0.3f, 0.3f, 2, Color{255, 200, 90, 255}});
+                    e.state = 0;
+                    e.timer = Rnd(-0.3f, 0.3f);
+                }
+            }
         } else if (e.type == 'p') { // fly back and forth, bobbing
             float nx = e.pos.x + e.dir * 120 * dt;
             if (fabsf(nx - e.home.x) > 5 * T || Solid(p, (int)floorf((nx + e.dir * 10) / T), (int)floorf(e.pos.y / T))) e.dir = -e.dir;
@@ -444,6 +568,40 @@ void UpdateEnemies(PlatformState& p, float dt) {
     }
 }
 
+// Musket balls fly straight until they hit something; bombs arc, bounce, and go off.
+constexpr float BOMB_FUSE = 1.3f, BLAST_R = 46;
+void UpdateShots(PlatformState& p, float dt) {
+    for (auto& s : p.shots) {
+        s.life -= dt;
+        if (s.kind == 0) {
+            s.pos.x += s.vel.x * dt;
+            s.pos.y += s.vel.y * dt;
+            if (Solid(p, (int)floorf(s.pos.x / T), (int)floorf(s.pos.y / T))) {
+                s.life = 0;
+                for (int k = 0; k < 4; k++) p.particles.push_back({s.pos, {Rnd(-80, 80), Rnd(-120, -20)}, 0.25f, 0.25f, 2, Color{200, 190, 170, 255}});
+            }
+        } else if (s.kind == 1) {
+            s.vel.y += 1500 * dt;
+            Vector2 np{s.pos.x + s.vel.x * dt, s.pos.y + s.vel.y * dt};
+            if (Solid(p, (int)floorf(np.x / T), (int)floorf(s.pos.y / T))) { s.vel.x *= -0.5f; np.x = s.pos.x; }
+            if (Solid(p, (int)floorf(np.x / T), (int)floorf((np.y + 6) / T))) { s.vel.y *= -0.35f; s.vel.x *= 0.7f; np.y = s.pos.y; }
+            s.pos = np;
+            if (s.life <= 0) { // boom
+                s.kind = 2;
+                s.life = 0.3f;
+                Burst(p, s.pos, 26, Color{255, 170, 60, 255}, 300, 0.5f, 3);
+                Burst(p, s.pos, 12, Color{90, 84, 80, 255}, 140, 0.8f, 4);
+            }
+        }
+    }
+    p.shots.erase(std::remove_if(p.shots.begin(), p.shots.end(), [](const PlatShot& s) { return s.life <= 0; }), p.shots.end());
+}
+
+bool ShotHits(const PlatShot& s, Rectangle pr) {
+    if (s.kind == 0) return CheckCollisionRecs(pr, {s.pos.x - 3, s.pos.y - 3, 6, 6});
+    if (s.kind == 2) return CheckCollisionCircleRec(s.pos, BLAST_R, pr);
+    return false; // a bomb only hurts when it goes off
+}
 // The Kraken: an ancient horror rising from the abyss beneath the arena. Its tentacles strike up from
 // the depths and slam down from above where you stand; then its great head surfaces between the
 // platforms. Stomp its head three times.
@@ -524,33 +682,76 @@ void UpdateBoss(PlatformState& p, float dt) {
             case 4: break; // sinking away for good
         }
     } else if (b.type == 'B') {
-        if (b.defeated) { b.vel.x = 0; }
-        else {
-            float px = p.pos.x + PW / 2, bx = b.pos.x + BB_W / 2;
-            float speedUp = (3 - b.hp) * 25.0f;
-            switch (b.state) {
-                case 0: // stalk toward the player
-                    b.dir = px < bx ? -1.0f : 1.0f;
-                    b.vel.x = b.dir * (70 + speedUp);
-                    if (b.timer > 2.0f) { b.state = 1; b.timer = 0; b.vel.x = 0; }
-                    if (p.pos.y + PH < b.pos.y - 20 && b.vel.y == 0 && GetRandomValue(0, 90) == 0) b.vel.y = -760;
-                    break;
-                case 1: b.vel.x = 0; if (b.timer > 0.45f) { b.state = 2; b.timer = 0; } break; // wind up
-                case 2: b.vel.x = b.dir * (330 + speedUp); if (b.timer > 0.8f) { b.state = 3; b.timer = 0; } break; // charge!
-                default: b.vel.x = 0; if (b.timer > 0.6f) { b.state = 0; b.timer = 0; } break; // catch breath
-            }
+        // Blackbeard can't be stomped while he's on his guard: touching him is deadly. He stalks you,
+        // fires his pistols, and charges. Dodge a charge so he crashes into a wall, and he's dazed for a
+        // moment: that's when to stomp him. Each hit makes him faster, and after the first he throws bombs.
+        float px = p.pos.x + PW / 2, bx = b.pos.x + BB_W / 2;
+        int hits = 3 - b.hp;
+        float charge = (p.hard ? 390.0f : 320.0f) + hits * (p.hard ? 50.0f : 35.0f);
+        if (b.defeated) b.vel.x = 0;
+        else switch (b.state) {
+            case 0: // stalk toward you
+                b.dir = px < bx ? -1.0f : 1.0f;
+                b.vel.x = b.dir * (60 + hits * 25.0f);
+                if (b.timer > (hits ? 0.9f : 1.3f)) {
+                    b.vel.x = 0;
+                    b.timer = 0;
+                    b.state = (b.volley++ % 2 == 0 && fabsf(px - bx) > 2.5f * T) || p.pos.y + PH < b.pos.y ? 4 : 1; // a shot, or a charge
+                }
+                break;
+            case 1: // wind-up: he lowers his head and paws the boards
+                b.vel.x = 0;
+                b.dir = px < bx ? -1.0f : 1.0f;
+                if (b.timer > (p.hard ? 0.45f : 0.6f)) { b.state = 2; b.timer = 0; }
+                break;
+            case 2: // charge! He only stops at a wall
+                b.vel.x = b.dir * charge;
+                if (b.timer > 3.0f) { b.state = 3; b.timer = 0; }
+                break;
+            case 4: // aiming a pistol; it fires at the end
+                b.vel.x = 0;
+                b.dir = px < bx ? -1.0f : 1.0f;
+                if (b.timer > (p.hard ? 0.5f : 0.65f)) {
+                    Vector2 muzzle{bx + b.dir * 26, b.pos.y + 30}, to{px, p.pos.y + PH / 2};
+                    float ax = to.x - muzzle.x, ay = to.y - muzzle.y, len = std::max(1.0f, sqrtf(ax * ax + ay * ay));
+                    p.shots.push_back({muzzle, {ax / len * 380, ay / len * 380}, 4, 0});
+                    Burst(p, muzzle, 8, Color{255, 210, 110, 255}, 150, 0.25f, 2);
+                    b.state = hits && b.volley % 3 == 0 ? 4 : 0; // later on, two shots in a row
+                    b.volley += b.state == 4;
+                    b.timer = b.state == 4 ? 0.1f : 0;
+                }
+                break;
+            case 5: // dazed after hitting a wall: now he can be stomped
+                b.vel.x = 0;
+                if (b.timer > (p.hard ? 1.5f : 2.3f)) { b.state = 3; b.timer = 0; }
+                break;
+            default: // 3: back on his feet (and furious)
+                b.vel.x = 0;
+                if (b.timer > 0.6f) { b.state = 0; b.timer = 0; }
+                break;
         }
         b.vel.y = std::min(b.vel.y + GRAV_DOWN * dt, MAX_FALL);
         bool grounded, hitWall;
         MoveAndCollide(p, b.pos, b.vel, BB_W, BB_H, dt, grounded, hitWall);
-        if (hitWall && b.state == 2) { b.state = 3; b.timer = 0; }
+        if (hitWall && b.state == 2) {
+            b.state = 5;
+            b.timer = 0;
+            Burst(p, {b.dir > 0 ? b.pos.x + BB_W : b.pos.x, b.pos.y + 30}, 16, Color{190, 150, 100, 255}, 220, 0.5f, 3); // splinters
+        }
     }
 }
 
+// Blackbeard lobs a bomb at you as he gets up.
+void ThrowBomb(PlatformState& p) {
+    const PlatBoss& b = p.boss;
+    Vector2 from{b.pos.x + BB_W / 2, b.pos.y + 16};
+    float dx = std::clamp((p.pos.x + PW / 2 - from.x) * 1.25f, -420.0f, 420.0f);
+    p.shots.push_back({from, {dx, -560}, BOMB_FUSE, 1});
+}
 // ---------------------------------------------------------------- building a level
 // Sections go left to right. Each is raised or lowered so the row you enter on lines up with the row
 // you left the previous one on; whatever the sections don't cover is filled with `fill`.
-void BuildFromParts(PlatformState& p, const std::vector<Part>& parts, char fill) {
+void BuildFromParts(PlatformState& p, const std::vector<Part>& parts, char fill, char fillAbove) {
     int n = (int)parts.size();
     std::vector<int> yoff(n, 0);
     for (int i = 1; i < n; i++) yoff[i] = yoff[i - 1] + ExitRow(parts[i - 1]) - EntryRow(parts[i]);
@@ -561,9 +762,14 @@ void BuildFromParts(PlatformState& p, const std::vector<Part>& parts, char fill)
     p.tiles.assign(p.h, std::string(p.w, fill));
     p.partX.clear();
     p.spawns.clear();
+    p.partInterior.clear();
+    p.partKind.clear();
     p.deathY.assign(p.w, 0);
     for (int i = 0; i < n; i++) {
         int ox = i * CH_W, oy = yoff[i] - top;
+        for (int r = 0; r < oy; r++) for (int c = 0; c < CH_W; c++) p.tiles[r][ox + c] = fillAbove;
+        p.partInterior.push_back(parts[i].interior >= 999 ? 1 << 20 : oy + parts[i].interior);
+        p.partKind.push_back(parts[i].kind);
         for (int r = 0; r < parts[i].h; r++) {
             std::string row = parts[i].rows[r];
             if ((int)row.size() != CH_W) {
@@ -586,6 +792,7 @@ void BuildFromParts(PlatformState& p, const std::vector<Part>& parts, char fill)
                 case 'S': p.startPos = {x + 6, y + T - PH}; break;
                 case 'c': p.enemies.push_back({'c', {x + 3, y + T - 16}, {x, y}, -1, 0}); break;
                 case 'P': p.enemies.push_back({'P', {x + 5, y + T - 30}, {x, y}, -1, 0}); break;
+                case 'G': p.enemies.push_back({'G', {x + 6, y + T - 30}, {x, y}, -1, 0, 0, Rnd(0, 1.2f)}); break;
                 case 'p': p.enemies.push_back({'p', {x + 16, y + 16}, {x + 16, y + 16}, 1, 0}); break;
                 case 'e': p.enemies.push_back({'e', {x + 16, y + 400}, {x + 16, y}, 1, c * 0.37f}); break;
                 case 'K': p.boss.type = 'K'; p.boss.home = {x + 16, y + T}; p.boss.tentT[0] = p.boss.tentT[1] = TENT_IDLE; break;
@@ -601,12 +808,20 @@ void BuildFromParts(PlatformState& p, const std::vector<Part>& parts, char fill)
     p.camY = p.pos.y;
 }
 
-void BuildLevel(PlatformState& p, const std::vector<int>& layout) {
+// Builds (or rebuilds, after a death) the whole level: coins, enemies and the boss all come back.
+void BuildLevel(PlatformState& p) {
     const LevelDef& L = Lv(p.level);
     std::vector<Part> parts{L.first};
-    for (int c : layout) parts.push_back(L.sections[c]);
+    for (int c : p.layout) parts.push_back(L.sections[c]);
     parts.push_back(L.last);
-    BuildFromParts(p, parts, L.fill);
+    BuildFromParts(p, parts, L.fill, L.fillAbove);
+    if (!p.hard) // Normal: no spinning hazards, and the jets are left cold (plain floor)
+        for (auto& row : p.tiles)
+            for (char& c : row) c = c == 'g' ? '.' : c == 't' ? '#' : c;
+    p.coins = 0;
+    p.relic = -1;
+    p.shots.clear();
+    p.checkpointChunk = 0;
 }
 
 int PartAt(const PlatformState& p, float x) {
@@ -632,7 +847,10 @@ void Die(PlatformState& p) {
 }
 
 void Respawn(PlatformState& p) {
+    if (!p.checkpoints) BuildLevel(p); // back to the very beginning, as it was
     p.pos = SpawnPoint(p);
+    p.shots.clear();
+    for (auto& e : p.enemies) if (e.type == 'P' || e.type == 'G') { e.state = 0; e.timer = 0.6f; }
     p.vel = {0, 0};
     p.scale = {1, 1};
     p.wallLock = 0;
@@ -776,6 +994,34 @@ void DrawBackground(const PlatformState& p, float t) {
                 DrawTri({x - 26, ch}, {x + 26, ch}, {x + Hs(wx + 1) * 10, ch - h}, Color{14, 40, 54, 255});
             });
             DrawRectangle(0, 0, (int)cw, (int)ch, Color{20, 60, 80, 40});
+            { // the Nautilus's own hull, curving away beneath you: riveted plates, lit portholes, a fin
+                float par = 0.32f, hx = cx * par, hy = 150 - (p.camY - 420) * ZOOM * par;
+                DrawRectangleGradientV(0, (int)hy, (int)cw, (int)(ch - hy) + 2, Color{44, 70, 76, 255}, Color{14, 26, 32, 255});
+                DrawRectangle(0, (int)hy - 3, (int)cw, 4, Color{120, 108, 70, 255});
+                for (float y = hy + 22; y < ch; y += 26) DrawRectangle(0, (int)y, (int)cw, 1, Color{18, 32, 38, 255});
+                float ox = fmodf(hx, 52);
+                for (float x = -ox; x < cw; x += 52)
+                    for (float y = hy; y < ch; y += 26) {
+                        float sx = x + (((int)((y - hy) / 26)) % 2) * 26;
+                        DrawRectangle((int)sx, (int)y, 1, 22, Color{18, 32, 38, 255});
+                        DrawPixel((int)sx + 3, (int)y + 4, Color{90, 116, 112, 255});
+                        DrawPixel((int)sx + 3, (int)y + 17, Color{90, 116, 112, 255});
+                    }
+                Layer(cx, par, 104, cw, [&](float x, float wx) { // two rows of portholes, glowing warm
+                    for (int r = 0; r < 2; r++) {
+                        float py = hy + 48 + r * 78;
+                        if (Hs(wx + r * 7) < 0.25f) continue;
+                        DrawCircle((int)x, (int)py, 8, Color{120, 100, 60, 255});
+                        DrawCircle((int)x, (int)py, 5, Hs(wx + r) > 0.4f ? Color{255, 200, 120, 255} : Color{40, 60, 70, 255});
+                    }
+                });
+                Layer(cx, par, 760, cw, [&](float x, float wx) { // a steering fin, and rungs up the plating
+                    (void)wx;
+                    DrawTri({x, hy}, {x + 90, hy}, {x + 20, hy - 60}, Color{36, 58, 64, 255});
+                    DrawLineEx({x + 20, hy - 60}, {x + 90, hy}, 2, Color{120, 108, 70, 255});
+                    for (int k = 0; k < 6; k++) DrawRectangle((int)x + 150, (int)(hy + 10 + k * 14), 14, 2, Color{120, 108, 70, 255});
+                });
+            }
             Layer(cx, 0.42f, 70, cw, [&](float x, float wx) { // a kelp forest
                 Vector2 prev{x, ch};
                 int n = 10 + (int)(Hs(wx) * 8);
@@ -817,14 +1063,18 @@ void DrawBackground(const PlatformState& p, float t) {
                 DrawRectangle(x, (int)y, 4, (int)ch - (int)y, Color{22, 28, 56, 255});
                 if (((x / 4) % 9) == 0) DrawRectangle(x, (int)y, 3, 1, Color{120, 130, 180, 255});
             }
-            Layer(cx, 0.5f, 300, cw, [&](float x, float wx) { // our own masts and rigging, nearer
-                DrawRectangle((int)x, 30, 6, (int)ch, Color{24, 18, 22, 255});
-                DrawRectangle((int)x - 50, (int)(90 + Hs(wx) * 30), 106, 4, Color{24, 18, 22, 255});
-                DrawTri({x + 8, 100}, {x + 8, 220}, {x + 70, 200}, Color{58, 50, 64, 255});
-                for (int k = 0; k < 5; k++) DrawLineEx({x + 3, 40.0f + k * 4}, {x + 150, 330}, 1, Color{30, 24, 26, 255});
-                Vector2 lamp{x + 20, 150};
-                DrawCircleV(lamp, 7, Color{255, 190, 90, 70});
-                DrawCircleV(lamp, 3, Color{255, 210, 120, 255});
+            Layer(cx, 0.35f, 520, cw, [&](float x, float wx) { // a rival ship close by, its gunports lit
+                float y = 250 + Hs(wx) * 10 + sinf(t * 0.8f + wx) * 2;
+                Color hullC{30, 22, 30, 255};
+                DrawRectangle((int)x, (int)y, 170, 26, hullC);
+                DrawTri({x + 170, y}, {x + 200, y - 10}, {x + 170, y + 26}, hullC);
+                DrawRectangle((int)x - 10, (int)y - 14, 40, 16, hullC);
+                for (int k = 0; k < 6; k++) DrawRectangle((int)x + 20 + k * 24, (int)y + 10, 5, 4, Color{255, 190, 90, 255});
+                for (int m = 0; m < 3; m++) {
+                    float mx = x + 40 + m * 55;
+                    DrawRectangle((int)mx, (int)y - 110 + m * 10, 3, 110 - m * 10, hullC);
+                    DrawTri({mx + 3, y - 100 + m * 10}, {mx + 3, y - 30}, {mx + 38, y - 40}, Color{60, 52, 66, 255});
+                }
             });
             for (int x = 0; x < (int)cw; x += 4) { // the near sea, rolling
                 float y = 300 + sinf((x + cx * 0.6f) * 0.04f + t * 1.6f) * 4;
@@ -832,6 +1082,124 @@ void DrawBackground(const PlatformState& p, float t) {
                 if (((x / 4) % 6) == 0) DrawRectangle(x, (int)y, 3, 1, Color{150, 160, 200, 255});
             }
         } break;
+    }
+}
+
+// ---------------------------------------------------------------- drawing: the ship around you
+// On the pirate ship, the world itself is dressed as a ship: masts and sails rise from the open deck,
+// a rail runs along it, and below decks each section has its own interior behind it: the hold with
+// its beams, lanterns and gunports, or the captain's cabin with its great stern windows.
+void DrawHoldWall(const PlatformState& p, float x0, float y0, float x1, float y1, float t, bool gundeck) {
+    DrawRectangle((int)x0, (int)y0, (int)(x1 - x0), (int)(y1 - y0), Color{40, 26, 18, 255});
+    for (float x = x0; x < x1; x += 12) DrawRectangle((int)x, (int)y0, 1, (int)(y1 - y0), Color{30, 18, 12, 255}); // planking
+    for (float x = x0 + 64; x < x1; x += 128) { // ribs, with knees under the deck beams
+        DrawRectangle((int)x - 7, (int)y0, 14, (int)(y1 - y0), Color{62, 40, 24, 255});
+        DrawRectangle((int)x - 7, (int)y0, 3, (int)(y1 - y0), Color{80, 54, 32, 255});
+        DrawTri({x + 7, y0}, {x + 30, y0}, {x + 7, y0 + 24}, Color{62, 40, 24, 255});
+        DrawTri({x - 7, y0}, {x - 30, y0}, {x - 7, y0 + 24}, Color{62, 40, 24, 255});
+    }
+    for (float x = x0 + 128; x < x1; x += 256) { // gunports (lashed cannons on the gun deck), with the moonlit sea outside
+        int col = (int)(x / T), row = (int)(y0 / T); // sit the port a little above the floor below it
+        while (row < p.h - 1 && !Solid(p, col, row)) row++;
+        float gy = row * (float)T - 44;
+        float floorY = row * (float)T;
+        DrawRectangle((int)x - 12, (int)gy - 12, 24, 22, Color{20, 22, 44, 255});
+        DrawRectangle((int)x - 12, (int)gy + 2, 24, 8, Color{30, 40, 70, 255});
+        DrawRectangle((int)x - 7, (int)gy + 2 + (int)(sinf(t * 1.5f + x) * 1.5f), 8, 1, Color{150, 160, 200, 255});
+        DrawRectangleLines((int)x - 13, (int)gy - 13, 26, 24, Color{24, 14, 10, 255});
+        if (gundeck) {
+            DrawRectangle((int)x - 26, (int)gy + 6, 34, 10, Color{34, 34, 38, 255});   // the cannon
+            DrawCircle((int)x - 26, (int)gy + 11, 6, Color{34, 34, 38, 255});
+            DrawRectangle((int)x - 28, (int)floorY - 14, 30, 14, Color{80, 52, 30, 255}); // its carriage
+        }
+    }
+    for (float x = x0 + 192; x < x1; x += 256) { // hanging lanterns and a slung hammock
+        float sway = sinf(t * 1.1f + x) * 3;
+        DrawLineEx({x, y0}, {x + sway, y0 + 30}, 1, Color{30, 26, 22, 255});
+        DrawRectangle((int)(x + sway) - 4, (int)y0 + 30, 8, 10, Color{255, 200, 110, 255});
+        DrawRectangleLines((int)(x + sway) - 4, (int)y0 + 30, 8, 10, Color{60, 50, 30, 255});
+        float hy = y0 + 58;
+        for (int k = 0; k < 10; k++) DrawRectangle((int)(x - 60 + k * 8), (int)(hy + sinf(k / 9.0f * PI) * 12 + sinf(t * 0.9f) * 2), 8, 3, Color{150, 132, 100, 255});
+    }
+}
+
+void DrawCabinWall(float x0, float y0, float x1, float y1, float t) {
+    DrawRectangle((int)x0, (int)y0, (int)(x1 - x0), (int)(y1 - y0), Color{70, 38, 26, 255});
+    for (float x = x0; x < x1; x += 48) { // panelling
+        DrawRectangleLines((int)x + 6, (int)y1 - 120, 36, 100, Color{50, 26, 16, 255});
+        DrawRectangle((int)x + 7, (int)y1 - 119, 34, 2, Color{110, 64, 40, 255});
+    }
+    float mx = (x0 + x1) / 2; // the great stern windows, with the moon on the sea behind
+    for (int k = -2; k <= 2; k++) {
+        float wx = mx + k * 64 - 26, wy = y0 + 110;
+        DrawRectangle((int)wx - 4, (int)wy - 4, 60, 128, Color{130, 90, 40, 255});
+        DrawRectangleGradientV((int)wx, (int)wy, 52, 120, Color{24, 26, 60, 255}, Color{50, 40, 80, 255});
+        DrawRectangle((int)wx, (int)wy + 84, 52, 36, Color{20, 24, 50, 255});
+        DrawRectangle((int)wx + 4, (int)wy + 86 + (int)(sinf(t + k) * 1.5f), 20, 1, Color{150, 160, 200, 255});
+        DrawRectangle((int)wx + 25, (int)wy, 2, 120, Color{130, 90, 40, 255});
+        DrawRectangle((int)wx, (int)wy + 58, 52, 2, Color{130, 90, 40, 255});
+    }
+    DrawCircle((int)mx + 60, (int)y0 + 150, 12, Color{246, 240, 214, 255});
+    // a chart pinned to the wall, and a portrait of the captain himself
+    DrawRectangle((int)x0 + 90, (int)y0 + 130, 70, 50, Color{220, 200, 150, 255});
+    DrawLineEx({x0 + 100, y0 + 160}, {x0 + 150, y0 + 140}, 1, Color{150, 40, 30, 255});
+    DrawRectangle((int)x1 - 150, (int)y0 + 120, 56, 70, Color{170, 128, 60, 255});
+    DrawRectangle((int)x1 - 146, (int)y0 + 124, 48, 62, Color{40, 30, 26, 255});
+    DrawCircle((int)x1 - 122, (int)y0 + 146, 9, Color{210, 170, 130, 255});
+    DrawCircle((int)x1 - 122, (int)y0 + 158, 10, Color{24, 22, 22, 255});
+    DrawTri({x1 - 138, y0 + 140}, {x1 - 106, y0 + 140}, {x1 - 122, y0 + 128}, Color{24, 22, 30, 255});
+    for (int k = 0; k < 2; k++) { // candle lamps
+        float lx = x0 + 200 + k * (x1 - x0 - 400);
+        DrawRectangle((int)lx - 3, (int)y0 + 200, 6, 14, Color{236, 228, 200, 255});
+        DrawCircle((int)lx, (int)y0 + 196, 3 + sinf(t * 12 + k), Color{255, 210, 120, 255});
+    }
+}
+
+void DrawShipScenery(const PlatformState& p, int c0, int c1, float t) {
+    for (int i = 0; i < (int)p.partX.size(); i++) {
+        int x0 = p.partX[i], x1 = x0 + CH_W;
+        if (x1 < c0 || x0 > c1) continue;
+        float wx0 = x0 * (float)T, wx1 = x1 * (float)T;
+        if (p.partInterior[i] < p.h) { // below decks
+            float y0 = p.partInterior[i] * (float)T, y1 = p.h * (float)T;
+            if (p.partKind[i] == 2) DrawCabinWall(wx0, y0, wx1, y1, t);
+            else DrawHoldWall(p, wx0, y0, wx1, y1, t, p.layout.size() > 0 && i > 0 && i - 1 < (int)p.layout.size() && p.layout[i - 1] == 5);
+        }
+        if (p.partKind[i] != 0 || i == (int)p.partX.size() - 1) continue;
+        // an open deck: a mast with its sails and rigging
+        int mc = x0 + 12, base = 0;
+        while (base < p.h - 1 && p.tiles[base][mc] != '#') base++;
+        float mx = mc * (float)T + 16, by = base * (float)T, top = by - 24.0f * T;
+        for (int s = -1; s <= 1; s += 2) // shrouds, down to the rail
+            for (int k = 0; k < 4; k++) DrawLineEx({mx, top + 40}, {mx + s * (4 + k * 1.5f) * T, by - 10}, 1, Color{40, 30, 26, 255});
+        DrawRectangle((int)mx - 7, (int)top, 14, (int)(by - top), Color{92, 60, 34, 255});
+        DrawRectangle((int)mx - 7, (int)top, 4, (int)(by - top), Color{130, 90, 54, 255});
+        for (int y = 0; y < 3; y++) { // yards, and the sails bellying out in the wind
+            float yy = top + 60 + y * 7.0f * T, half = (5.5f - y * 0.8f) * T, h = 5.2f * T, belly = 18 + sinf(t * 0.9f + y) * 4;
+            DrawRectangle((int)(mx - half), (int)yy, (int)(half * 2), 8, Color{80, 52, 30, 255});
+            Color sail{214, 200, 170, 255}, sailDk{176, 160, 132, 255};
+            DrawTri({mx - half + 6, yy + 8}, {mx + half - 6, yy + 8}, {mx + half - 10 + belly, yy + h}, sail);
+            DrawTri({mx - half + 6, yy + 8}, {mx + half - 10 + belly, yy + h}, {mx - half + 10 + belly, yy + h}, sailDk);
+            for (int k = 1; k < 4; k++) DrawLineEx({mx - half + k * half / 2, yy + 8}, {mx - half + k * half / 2 + belly, yy + h}, 1, Color{160, 144, 118, 255});
+        }
+        DrawRectangle((int)mx - 18, (int)top - 20, 36, 14, Color{70, 46, 26, 255}); // the crow's nest
+        DrawRectangle((int)mx - 2, (int)top - 60, 3, 40, Color{80, 52, 30, 255});
+        float wave = sinf(t * 3) * 6; // the Jolly Roger
+        DrawTri({mx + 1, top - 60}, {mx + 44, top - 54 + wave}, {mx + 1, top - 30}, Color{20, 18, 22, 255});
+        DrawTri({mx + 44, top - 54 + wave}, {mx + 44, top - 26 + wave}, {mx + 1, top - 30}, Color{20, 18, 22, 255});
+        DrawCircle((int)mx + 22, (int)(top - 44 + wave * 0.5f), 5, Color{230, 226, 210, 255});
+    }
+    // the rail along the open deck (and along any raised deck), behind you
+    int r0 = 0;
+    for (int x = c0; x <= c1; x++) {
+        int part = PartAt(p, x * (float)T);
+        for (int y = r0 + 1; y < p.h; y++) {
+            if (!Solid(p, x, y) || Solid(p, x, y - 1) || p.tiles[y][x] != '#' || y >= p.partInterior[part]) continue;
+            float px = x * (float)T, py = y * (float)T;
+            for (int k = 0; k < 2; k++) DrawRectangle((int)px + 4 + k * 16, (int)py - 18, 4, 18, Color{84, 54, 32, 255});
+            DrawRectangle((int)px, (int)py - 22, T, 5, Color{120, 80, 46, 255});
+            break; // just the top surface in each column
+        }
     }
 }
 
@@ -856,30 +1224,57 @@ void DrawSolid(const PlatformState& p, int x, int y) {
             if ((x * 5 + y * 3) % 4 == 0) DrawRectangle((int)px + 10 + (x % 3) * 4, (int)py + 10, 2, T - 12, Color{120, 64, 34, 255}); // rust
             if (topEdge) DrawRectangle((int)px, (int)py, T, 3, Color{140, 120, 100, 255});
         } break;
-        case PL_HULL:
-            DrawRectangle((int)px, (int)py, T, T, Color{62, 88, 104, 255});
-            DrawRectangleLines((int)px, (int)py, T, T, Color{36, 52, 64, 255});
-            DrawCircle((int)px + 5, (int)py + T - 6, 2, Color{120, 150, 164, 255});
+        case PL_HULL: {
+            // the Nautilus's outer plating: riveted plates two tiles square, a porthole here and there,
+            // and a handrail along the walkways
+            Color plate{66, 92, 94, 255}, seam{34, 50, 54, 255}, rivet{140, 164, 150, 255};
+            bool inner = Solid(p, x, y - 1) && Solid(p, x, y + 1);
+            DrawRectangle((int)px, (int)py, T, T, inner ? Color{54, 76, 80, 255} : plate);
+            DrawRectangle((int)px + 2, (int)py + 2, T - 4, 2, Color{92, 120, 118, 255}); // light along the plate's upper edge
+            if (x % 2 == 0) { DrawRectangle((int)px, (int)py, 2, T, seam); for (int k = 0; k < 3; k++) DrawCircle((int)px + 5, (int)py + 6 + k * 10, 1.5f, rivet); }
+            if (y % 2 == 0) { DrawRectangle((int)px, (int)py, T, 2, seam); for (int k = 0; k < 3; k++) DrawCircle((int)px + 6 + k * 10, (int)py + 5, 1.5f, rivet); }
+            if (inner && Hs(x * 3.7f + y * 11.1f) > 0.86f) { // a porthole, lit from inside the sub
+                DrawCircle((int)px + 16, (int)py + 16, 9, Color{150, 120, 60, 255});
+                DrawCircle((int)px + 16, (int)py + 16, 6, Color{255, 206, 130, 255});
+                DrawCircle((int)px + 14, (int)py + 14, 2, Color{255, 246, 210, 255});
+            }
             if (topEdge) {
-                DrawRectangle((int)px, (int)py, T, 4, Color{110, 140, 150, 255});
-                for (int k = 0; k < 3; k++) DrawCircle((int)px + 6 + k * 10, (int)py + 3, 2 + (x + k) % 2, Color{200, 196, 180, 255}); // barnacles
-                if ((x * 7) % 3 == 0) {
+                DrawRectangle((int)px, (int)py, T, 4, Color{150, 128, 70, 255});           // brass trim
+                for (int k = 0; k < 3; k++) DrawCircle((int)px + 6 + k * 10, (int)py + 5, 2 + (x + k) % 2, Color{196, 192, 176, 255}); // barnacles
+                if (x % 2 == 0) DrawRectangle((int)px + 14, (int)py - 14, 3, 14, Color{120, 110, 80, 255}); // handrail stanchion
+                DrawRectangle((int)px, (int)py - 13, T, 2, Color{110, 100, 72, 255});      // the rail
+                if ((x * 7) % 5 == 0) {
                     float sway = sinf(p.time * 2 + x) * 3;
-                    DrawLineEx({px + 20, py}, {px + 18 + sway, py - 12}, 2, Color{60, 140, 80, 255});
+                    DrawLineEx({px + 24, py}, {px + 22 + sway, py - 12}, 2, Color{60, 140, 80, 255}); // weed
                 }
             }
-            break;
-        default:
-            DrawRectangle((int)px, (int)py, T, T, Color{112, 72, 42, 255});
-            DrawRectangle((int)px, (int)py + 10, T, 1, Color{80, 50, 28, 255});
-            DrawRectangle((int)px, (int)py + 21, T, 1, Color{80, 50, 28, 255});
-            DrawRectangle((int)px + (y % 2 ? 10 : 22), (int)py, 1, T, Color{80, 50, 28, 255});
-            DrawCircle((int)px + 4, (int)py + 5, 1.5f, Color{60, 56, 60, 255});
-            if (topEdge) DrawRectangle((int)px, (int)py, T, 4, Color{168, 116, 70, 255});
-            break;
+        } break;
+        default: {
+            // the pirate ship: deck planks where they're open to the sky, heavy dark timbers inside the hull
+            bool inner = Solid(p, x, y - 1) && Solid(p, x, y + 1) && Solid(p, x - 1, y) && Solid(p, x + 1, y);
+            if (inner) { // the ship's hull timbers: long strakes, each a slightly different shade
+                for (int k = 0; k < 4; k++) {
+                    int strake = y * 4 + k;
+                    float sh = Hs(strake * 1.7f + (x / 5) * 0.31f);
+                    DrawRectangle((int)px, (int)py + k * 8, T, 8, Color{(unsigned char)(56 + sh * 14), (unsigned char)(34 + sh * 9), (unsigned char)(20 + sh * 6), 255});
+                    DrawRectangle((int)px, (int)py + k * 8 + 7, T, 1, Color{36, 22, 12, 255});
+                    if ((x + strake * 3) % 7 == 0) DrawRectangle((int)px + 12, (int)py + k * 8, 1, 7, Color{36, 22, 12, 255});
+                }
+                if ((x + y * 3) % 5 == 0) DrawRectangle((int)px + 10, (int)py + 5, 2, 2, Color{80, 72, 66, 255}); // treenails
+                break;
+            }
+            DrawRectangle((int)px, (int)py, T, T, Color{118, 76, 44, 255});
+            for (int k = 1; k < 4; k++) DrawRectangle((int)px, (int)py + k * 8, T, 1, Color{84, 52, 30, 255}); // planks
+            DrawRectangle((int)px + ((x + y) % 3) * 9 + 4, (int)py, 1, T, Color{84, 52, 30, 255});          // butt joints
+            DrawCircle((int)px + 3, (int)py + 4, 1, Color{60, 56, 60, 255});                                  // nails
+            DrawCircle((int)px + T - 4, (int)py + 20, 1, Color{60, 56, 60, 255});
+            if (topEdge) {
+                DrawRectangle((int)px, (int)py, T, 4, Color{176, 128, 80, 255}); // worn, lighter deck boards
+                DrawRectangle((int)px, (int)py + 4, T, 1, Color{70, 44, 26, 255});
+            }
+        } break;
     }
 }
-
 // The environment has depth: every block with open space above or to its right shows a top and a side
 // receding into the scene, and pipes cast a shadow on the wall behind them. Drawn before the faces.
 constexpr float DEPTH = 7;
@@ -890,7 +1285,7 @@ void DrawDepth(const PlatformState& p, int x, int y) {
         DrawRectangle((int)px + 5, (int)py + 5, T, T, Color{0, 0, 0, 80});
         return;
     }
-    if (c != '#' && c != 't') return;
+    if (c != '#' && c != 't' && c != 'k') return;
     Color topC, sideC;
     switch (p.level) {
         case PL_PIPES: topC = {112, 96, 82, 255}; sideC = {40, 34, 30, 255}; break;
@@ -911,7 +1306,29 @@ void DrawTile(const PlatformState& p, char c, int x, int y, float t) {
     float px = x * (float)T, py = y * (float)T;
     switch (c) {
         case '#': DrawSolid(p, x, y); break;
-        case '=': { // a horizontal pipe you can stand on
+        case 'k': { // a crate or a barrel
+            bool barrel = Hs(x * 7.1f + y * 3.3f) > 0.5f;
+            if (barrel) {
+                DrawRectangleRounded({px + 2, py, T - 4.0f, (float)T}, 0.35f, 4, Color{120, 76, 40, 255});
+                DrawRectangle((int)px + 6, (int)py + 1, 4, T - 2, Color{150, 100, 58, 255});
+                DrawRectangle((int)px + 2, (int)py + 5, T - 4, 3, Color{60, 58, 62, 255});  // iron hoops
+                DrawRectangle((int)px + 2, (int)py + T - 8, T - 4, 3, Color{60, 58, 62, 255});
+                DrawRectangle((int)px + 22, (int)py + 2, 2, T - 4, Color{90, 56, 28, 255});
+            } else {
+                DrawRectangle((int)px, (int)py, T, T, Color{150, 108, 62, 255});
+                DrawRectangleLines((int)px, (int)py, T, T, Color{80, 54, 30, 255});
+                DrawRectangleLines((int)px + 3, (int)py + 3, T - 6, T - 6, Color{96, 66, 36, 255});
+                DrawLineEx({px + 4, py + 4}, {px + T - 4, py + T - 4}, 3, Color{110, 78, 42, 255}); // cross-brace
+                DrawRectangle((int)px + 2, (int)py + 2, T - 4, 2, Color{186, 140, 88, 255});
+            }
+        } break;
+        case '=': if (p.level == PL_PIRATE) { // a yard or a beam, lashed with rope
+            DrawRectangle((int)px, (int)py + 6, T, 14, Color{104, 70, 40, 255});
+            DrawRectangle((int)px, (int)py + 6, T, 3, Color{150, 108, 64, 255});
+            DrawRectangle((int)px, (int)py + 17, T, 3, Color{70, 46, 26, 255});
+            if (At(p, x - 1, y) != '=' || x % 3 == 0) for (int k = 0; k < 3; k++) DrawRectangle((int)px + 4 + k * 3, (int)py + 5, 2, 16, Color{200, 180, 130, 255});
+            break;
+        } else { // a horizontal pipe you can stand on
             Color pipe = p.level == PL_PIPES ? Color{176, 104, 62, 255} : Color{120, 124, 118, 255};
             DrawPipeH(px, px + T, py + 16, 14, pipe);
             if (At(p, x - 1, y) != '=') DrawFlange({px + 3, py + 16}, 12, false, Pal::BrassDk);
@@ -1016,63 +1433,85 @@ void DrawTile(const PlatformState& p, char c, int x, int y, float t) {
 }
 
 // ---------------------------------------------------------------- drawing: characters
-// The diver is drawn a little narrower than its collision box, squash-and-stretch never widens it into
-// a wall it's touching, and its position is snapped to the canvas's pixel grid (as the tiles are), so
-// it can never appear to sink into a wall. It leans into its run, its arms swing, and it casts a soft
-// shadow on the wall behind (drawn first, with shadow = true), which sets it apart from the scenery.
-void DrawDiver(const PlatformState& p, bool shadow) {
-    auto C = [&](Color c) { return shadow ? Color{0, 0, 0, 80} : c; };
-    Color suit = C({64, 196, 190, 255}), suitDk = C({40, 140, 136, 255}), suitHi = C({150, 236, 226, 255}), boot = C({60, 56, 60, 255});
-    Color brass = C(Pal::Brass), brassDk = C(Pal::BrassDk), glass = C({30, 70, 90, 255}), glint = C({190, 235, 245, 255});
-    int wall = TouchWall(p, 1) ? 1 : TouchWall(p, -1) ? -1 : 0;
-    float sx = p.scale.x, feetX = p.pos.x + PW / 2 - wall * 1.5f;
-    if (wall) sx = std::min(sx, 0.92f);
-    feetX = roundf(feetX * ZOOM) / ZOOM + (shadow ? 6 : 0);
-    float feetY = roundf((p.pos.y + PH) * ZOOM) / ZOOM + (shadow ? 5 : 0);
-    float lean = p.onGround ? p.vel.x / RUN * 7 : std::clamp(p.vel.x / RUN * 4, -4.0f, 4.0f);
-    rlDrawRenderBatchActive();
-    rlDisableBackfaceCulling(); // the mirrored transform flips triangle winding
-    rlPushMatrix();
-    rlTranslatef(feetX, feetY, 0);
-    rlRotatef(lean, 0, 0, 1);
-    rlScalef((p.facingRight ? 1.0f : -1.0f) * sx, p.scale.y, 1);
+// The diver: a brass helmet with a front port, a breastplate, an air tank on the back with its hose,
+// canvas suit and lead boots. It's drawn a little narrower than its collision box, squash-and-stretch
+// never widens it into a wall it's touching, and its position is snapped to the canvas's pixel grid
+// (as the tiles are), so it can never appear to sink into a wall. A dark outline, drawn first by
+// stamping the silhouette one canvas pixel to each side, keeps it crisp against any background.
+void DrawDiverShape(const PlatformState& p, bool outline) {
+    auto C = [&](Color c) { return outline ? Color{14, 12, 16, 255} : c; };
+    Color suit = C({70, 176, 170, 255}), suitDk = C({42, 118, 116, 255}), suitHi = C({150, 226, 214, 255}), boot = C({54, 50, 56, 255});
+    Color brass = C(Pal::Brass), brassDk = C(Pal::BrassDk), brassHi = C({255, 232, 160, 255}), glass = C({26, 64, 84, 255});
+    Color tank = C({176, 120, 60, 255}), tankHi = C({230, 178, 104, 255}), hose = C({40, 40, 44, 255});
     bool running = p.onGround && fabsf(p.vel.x) > 30, sliding = p.wallSide != 0;
-    float ph = p.runAnim, l1 = running ? sinf(ph) * 4.5f : 0, bob = running ? fabsf(cosf(ph)) * 1.2f : 0;
-    rlTranslatef(0, -bob, 0);
-    if (!p.onGround) { // legs tucked in the air, trailing when falling
+    float ph = p.runAnim, l1 = running ? sinf(ph) * 4.5f : 0;
+    // air tank and hose, behind everything
+    DrawRectangleRounded({-12, -25, 6, 14}, 0.6f, 4, tank);
+    if (!outline) DrawRectangleRec({-11, -23, 1.5f, 10}, tankHi);
+    DrawLineEx({-9, -25}, {-6, -30}, 2, hose);
+    // legs
+    if (!p.onGround) { // tucked in the air, trailing when falling
         float trail = p.vel.y > 0 ? 2.0f : 0.0f;
         DrawRectangleRec({-7.5f, -11 + trail, 6, 7}, suitDk);
         DrawRectangleRec({2, -12 + trail, 6, 7}, suit);
-        DrawRectangleRec({-8.5f, -6 + trail, 7, 3}, boot);
-        DrawRectangleRec({1.5f, -7 + trail, 7, 3}, boot);
+        DrawRectangleRec({-8.5f, -6 + trail, 7, 3.5f}, boot);
+        DrawRectangleRec({1.5f, -7 + trail, 7, 3.5f}, boot);
     } else {
         DrawRectangleRec({-7 + l1 * 0.6f, -9, 6, 9 - fmaxf(0, l1 * 0.4f)}, suitDk);
         DrawRectangleRec({1.5f - l1 * 0.6f, -9, 6, 9 - fmaxf(0, -l1 * 0.4f)}, suit);
-        DrawRectangleRec({-8.5f + l1 * 0.7f, -3, 8, 3}, boot);
-        DrawRectangleRec({0.5f - l1 * 0.7f, -3, 8, 3}, boot);
+        DrawRectangleRec({-8.5f + l1 * 0.7f, -3.5f, 8, 3.5f}, boot);
+        DrawRectangleRec({0.5f - l1 * 0.7f, -3.5f, 8, 3.5f}, boot);
     }
     if (!sliding) DrawRectangleRec({-6.5f + l1 * 0.3f, -19, 3.5f, 8}, suitDk); // far arm, swinging opposite
-    DrawRectangleRounded({-7.5f, -21, 15, 13}, 0.4f, 4, suit);
-    if (!shadow) {
+    DrawRectangleRounded({-7.5f, -21, 15, 13}, 0.4f, 4, suit);                  // body
+    if (!outline) {
         DrawRectangleRec({-6.5f, -20, 3, 10}, suitHi);          // light catching the near side of the suit
-        DrawRectangleRec({3.5f, -20, 3, 10}, Color{36, 120, 118, 255});
+        DrawRectangleRec({4, -20, 3, 10}, Color{36, 110, 108, 255});
     }
-    DrawRectangleRec({-7.5f, -11, 15, 2}, C({80, 60, 40, 255}));
+    DrawRectangleRec({-7.5f, -11, 15, 2}, C({96, 70, 44, 255}));                 // weight belt
+    DrawRectangleRec({-1, -11, 3, 2}, brass);
+    DrawEllipse(0, -21, 9, 3.2f, brassDk);                                      // breastplate
+    DrawEllipse(0, -21.5f, 8, 2.4f, brass);
     if (sliding) DrawRectangleRec({5, -27, 3.5f, 9}, suitDk); // hand pressed to the wall
-    else DrawRectangleRec({3.5f - l1 * 0.3f, -19, 4, 8}, suitDk);
-    DrawCircleV({0.5f, -26}, 8.5f, brass);
-    if (!shadow) {
-        DrawCircleSector({0.5f, -26}, 8.5f, 20, 160, 10, Color{150, 110, 40, 255}); // the helmet's shaded underside
-        DrawCircleV({-2.5f, -29.5f}, 2.5f, Color{255, 236, 170, 255});           // polished highlight
+    else {
+        DrawRectangleRec({3.5f - l1 * 0.3f, -19, 4, 8}, suit);
+        DrawRectangleRec({3.5f - l1 * 0.3f, -12, 4, 2.5f}, brassDk); // glove
     }
-    DrawCircleV({3.5f, -26}, 4.6f, brassDk);
-    DrawCircleV({3.8f, -26}, 3.6f, glass);
-    DrawCircleV({2.6f, -27.5f}, 1.4f, glint);
-    rlPopMatrix();
+    DrawCircleV({0.5f, -27}, 8, brass);                                         // the helmet
+    if (!outline) {
+        DrawCircleSector({0.5f, -27}, 8, 20, 160, 10, Color{160, 112, 40, 255}); // shaded underside
+        DrawCircleV({-2.5f, -30.5f}, 2.2f, brassHi);                            // polished highlight
+        DrawCircleV({-5, -27}, 1.6f, brassDk);                                  // side port
+    }
+    DrawCircleV({3.8f, -26.5f}, 4.4f, brassDk);                                 // front port
+    DrawCircleV({4.1f, -26.5f}, 3.3f, glass);
+    if (!outline) DrawRectangleRec({3, -28.5f, 1.5f, 1.5f}, Color{200, 240, 250, 255});
+}
+
+void DrawDiver(const PlatformState& p) {
+    int wall = TouchWall(p, 1) ? 1 : TouchWall(p, -1) ? -1 : 0;
+    float sx = p.scale.x, feetX = p.pos.x + PW / 2 - wall * 1.5f;
+    if (wall) sx = std::min(sx, 0.92f);
+    feetX = roundf(feetX * ZOOM) / ZOOM;
+    float feetY = roundf((p.pos.y + PH) * ZOOM) / ZOOM;
+    float lean = p.onGround ? p.vel.x / RUN * 7 : std::clamp(p.vel.x / RUN * 4, -4.0f, 4.0f);
+    bool running = p.onGround && fabsf(p.vel.x) > 30;
+    float bob = running ? fabsf(cosf(p.runAnim)) * 1.2f : 0;
+    rlDrawRenderBatchActive();
+    rlDisableBackfaceCulling(); // the mirrored transform flips triangle winding
+    const float o = 1 / ZOOM;   // one canvas pixel
+    const Vector2 offs[5] = {{-o, 0}, {o, 0}, {0, -o}, {0, o}, {0, 0}};
+    for (int k = 0; k < 5; k++) {
+        rlPushMatrix();
+        rlTranslatef(feetX + offs[k].x, feetY + offs[k].y - bob, 0);
+        rlRotatef(lean, 0, 0, 1);
+        rlScalef((p.facingRight ? 1.0f : -1.0f) * sx, p.scale.y, 1);
+        DrawDiverShape(p, k < 4);
+        rlPopMatrix();
+    }
     rlDrawRenderBatchActive();
     rlEnableBackfaceCulling();
 }
-
 // In the dark ducts, some things still shine: live steam jets, vents, the exit valve, coins catching the lamp.
 void DrawGlowingBits(const PlatformState& p, int c0, int c1, int r0, int r1, float t) {
     BeginBlendMode(BLEND_ADDITIVE);
@@ -1107,18 +1546,78 @@ void DrawEnemy(const PlatEnemy& e, float t) {
                 DrawCircle((int)(cx + s * 4), (int)cy - 13, 2, Pal::Ink);
             }
         } break;
-        case 'P': { // pirate
-            float cx = x + 11, step = sinf(t * 12) * 3;
-            DrawRectangleRec({cx - 6 + step, y + 22, 5, 8}, Color{50, 40, 36, 255});
-            DrawRectangleRec({cx + 1 - step, y + 22, 5, 8}, Color{50, 40, 36, 255});
-            DrawRectangleRec({cx - 8, y + 10, 16, 13}, Color{230, 226, 216, 255});
-            for (int k = 0; k < 3; k++) DrawRectangleRec({cx - 8, y + 12 + k * 4.0f, 16, 2}, Color{40, 60, 120, 255});
-            DrawCircle((int)cx, (int)y + 6, 6, Color{220, 170, 130, 255});
-            DrawRectangleRec({cx - 7, y - 1, 14, 5}, Color{190, 40, 36, 255});
-            DrawCircle((int)(cx + f * 3), (int)y + 6, 2, Pal::Ink);
-            DrawLineEx({cx + f * 8, y + 16}, {cx + f * 20, y + 4}, 2, Color{200, 204, 210, 255});
+        case 'P': { // a cutthroat behind a door: you see his eyes through the gap, then the door bangs open
+            float open = e.state == 1 ? e.timer / AMB_OUT : e.state == 2 ? 1 : e.state == 3 ? 1 - e.timer / AMB_BACK : 0;
+            float dx = e.home.x, dy = e.home.y - T; // the doorway fills this tile and the one above
+            DrawRectangle((int)dx + 1, (int)dy + 1, T - 2, 2 * T - 1, Color{58, 36, 22, 255});   // frame
+            DrawRectangle((int)dx + 4, (int)dy + 4, T - 8, 2 * T - 4, Color{16, 10, 8, 255});    // the dark inside
+            if (e.state == 0 && fmodf(t * 0.7f + e.home.x * 0.01f, 3.0f) < 2.4f) { // watching through the crack
+                DrawRectangle((int)dx + 21, (int)dy + 16, 2, 2, Color{255, 230, 150, 255});
+                DrawRectangle((int)dx + 25, (int)dy + 16, 2, 2, Color{255, 230, 150, 255});
+            }
+            float leaf = (T - 8) * (1 - open * 0.8f);  // the door leaf, swinging open toward us
+            float hinge = e.dir > 0 ? dx + 4 : dx + T - 4 - leaf;
+            if (e.state == 0) hinge = dx + 4;
+            DrawRectangle((int)hinge, (int)dy + 4, (int)leaf, 2 * T - 4, Color{110, 70, 40, 255});
+            DrawRectangle((int)hinge, (int)dy + 12, (int)leaf, 3, Color{60, 58, 60, 255});         // iron bands
+            DrawRectangle((int)hinge, (int)dy + 2 * T - 16, (int)leaf, 3, Color{60, 58, 60, 255});
+            if (e.state == 0) {
+                DrawRectangle((int)hinge + (int)leaf - 7, (int)dy + T, 3, 3, Pal::Brass); // handle
+                break;
+            }
+            float cx = x + 11, lean = e.state == 2 ? f * 3 : 0;
+            Color skin{214, 164, 124, 255}, shirt{232, 228, 216, 255}, stripe{150, 36, 34, 255}, trousers{56, 46, 72, 255};
+            DrawRectangleRec({cx - 6, y + 21, 5, 9}, trousers);
+            DrawRectangleRec({cx + 1 + (e.state == 2 ? f * 3 : 0), y + 21, 5, 9}, trousers);
+            DrawRectangleRec({cx - 7, y + 28, 6, 2}, Color{30, 24, 22, 255});
+            DrawRectangleRec({cx - 8 + lean, y + 9, 16, 13}, shirt);                               // striped shirt
+            for (int k = 0; k < 3; k++) DrawRectangleRec({cx - 8 + lean, y + 11 + k * 4.0f, 16, 2}, stripe);
+            DrawRectangleRec({cx - 8 + lean, y + 19, 16, 2}, Color{40, 30, 24, 255});             // belt
+            DrawCircle((int)(cx + lean), (int)y + 5, 6, skin);                                      // head
+            DrawRectangleRec({cx - 6 + lean, y + 7, 12, 4}, Color{50, 36, 30, 255});                // stubble
+            DrawRectangleRec({cx - 7 + lean, y - 2, 14, 5}, Color{196, 40, 36, 255});               // bandana
+            DrawRectangleRec({cx - f * 9 + lean, y - 1, 3, 6}, Color{196, 40, 36, 255});            // its tails
+            DrawRectangleRec({cx + f * 1 + lean, y + 2, 4, 2}, Color{20, 16, 16, 255});             // eye patch strap
+            DrawCircle((int)(cx + f * 3 + lean), (int)y + 4, 1.5f, Color{255, 220, 150, 255});     // a mean eye
+            // the cutlass: raised on the way out, thrust at the stab, trailing on the way back
+            float ang = e.state == 1 ? -1.2f : e.state == 2 ? -0.05f : 0.7f;
+            Vector2 hand{cx + f * 8 + lean, y + 14};
+            Vector2 tip{hand.x + f * cosf(ang) * 18, hand.y + sinf(ang) * 18};
+            DrawLineEx(hand, tip, 2.5f, Color{214, 220, 226, 255});
+            DrawLineEx(hand, {hand.x + f * cosf(ang) * 6, hand.y + sinf(ang) * 6}, 3, Color{70, 50, 30, 255});
+            DrawCircleV(hand, 2.5f, skin);
+            if (e.state == 2 && e.timer < 0.15f) DrawLineEx({tip.x - f * 10, tip.y - 3}, {tip.x + f * 4, tip.y}, 1, Fade(WHITE, 0.8f)); // swish
         } break;
-        case 'p': { // parakeet
+        case 'G': { // a musketeer crouched behind a barrel
+            float cx = x + 11;
+            bool aiming = e.state == 1;
+            Color coat{40, 60, 110, 255}, coatDk{26, 40, 78, 255}, skin{206, 156, 118, 255};
+            DrawRectangleRec({cx - 6, y + 20, 5, 10}, Color{50, 40, 36, 255});
+            DrawRectangleRec({cx + 1, y + 20, 5, 10}, Color{50, 40, 36, 255});
+            DrawRectangleRec({cx - 8, y + 8, 16, 14}, coat);
+            DrawRectangleRec({cx - 8, y + 8, 4, 14}, coatDk);
+            DrawLineEx({cx - 8, y + 9}, {cx + 8, y + 20}, 2, Color{220, 210, 190, 255}); // bandolier
+            DrawCircle((int)cx, (int)y + 4, 6, skin);
+            DrawRectangleRec({cx - 5, y + 6, 10, 4}, Color{120, 80, 50, 255});          // a ginger beard
+            DrawTri({cx - 11, y}, {cx + 11, y}, {cx, y - 9}, Color{30, 26, 34, 255});   // tricorn
+            DrawRectangleRec({cx - 10, y - 1, 20, 3}, Color{30, 26, 34, 255});
+            DrawCircle((int)(cx + f * 3), (int)y + 3, 1.5f, Pal::Ink);
+            // the musket: resting on his shoulder, or levelled at you
+            Vector2 shoulder{cx + f * 2, y + 11};
+            float ang = aiming ? atan2f(e.aim.y - shoulder.y, e.aim.x - shoulder.x) : (f > 0 ? -1.0f : PI + 1.0f);
+            if (!aiming) ang = f > 0 ? -1.1f : PI + 1.1f;
+            Vector2 muzzle{shoulder.x + cosf(ang) * 22, shoulder.y + sinf(ang) * 22};
+            DrawLineEx({shoulder.x - cosf(ang) * 6, shoulder.y - sinf(ang) * 6}, {shoulder.x + cosf(ang) * 6, shoulder.y + sinf(ang) * 6}, 4, Color{110, 70, 40, 255});
+            DrawLineEx(shoulder, muzzle, 2.5f, Color{70, 72, 80, 255});
+            if (aiming) { // a fair warning: the glint at the muzzle, and where he's pointing
+                float u = e.timer / GUN_AIM;
+                for (float d = 30; d < 30 + 90 * u; d += 10) {
+                    Vector2 q{shoulder.x + cosf(ang) * d, shoulder.y + sinf(ang) * d};
+                    DrawRectangle((int)q.x, (int)q.y, 2, 2, Fade(Color{255, 90, 60, 255}, 0.35f + 0.3f * u));
+                }
+                if (fmodf(t * 12, 1.0f) < 0.5f) DrawCircleV(muzzle, 2.5f, Color{255, 230, 150, 255});
+            }
+        } break;        case 'p': { // parakeet
             float flap = sinf(t * 18) * 5;
             DrawEllipse((int)x, (int)y, 9, 6, Color{60, 190, 80, 255});
             DrawTri({x - 2, y - 2}, {x + 6, y - 2}, {x + 1, y - 8 - flap}, Color{230, 60, 50, 255});
@@ -1224,45 +1723,120 @@ void DrawBoss(const PlatformState& p, float t) {
         float x = b.pos.x, y = b.pos.y, f = b.dir, cx = x + BB_W / 2;
         bool blink = b.invuln > 0 && fmodf(t, 0.15f) < 0.075f;
         if (blink) return;
-        float step = b.vel.x != 0 ? sinf(t * 14) * 5 : 0;
+        bool dazed = b.state == 5, windup = b.state == 1, charging = b.state == 2, aiming = b.state == 4;
+        float step = b.vel.x != 0 ? sinf(t * (charging ? 22 : 12)) * 5 : 0;
+        float lean = charging ? f * 8 : windup ? -f * 3 : dazed ? sinf(t * 3) * 4 : 0; // head and shoulders
+        float dip = windup ? 5 + sinf(t * 30) : 0;                                   // crouched to charge
         Color coat{140, 26, 30, 255}, coatDk{96, 16, 20, 255}, boot{24, 20, 18, 255};
         DrawRectangleRec({cx - 12 + step, y + 50, 10, 22}, boot);                          // tall boots
         DrawRectangleRec({cx + 2 - step, y + 50, 10, 22}, boot);
         DrawRectangleRec({cx - 14 + step, y + 48, 13, 5}, Color{60, 40, 24, 255});
         DrawRectangleRec({cx + 1 - step, y + 48, 13, 5}, Color{60, 40, 24, 255});
-        DrawTri({cx - 18, y + 22}, {cx + 18, y + 22}, {cx + 20, y + 56}, coat);             // a long coat
-        DrawTri({cx - 18, y + 22}, {cx + 20, y + 56}, {cx - 22, y + 56}, coatDk);
-        DrawRectangleRounded({cx - 17, y + 18, 34, 28}, 0.3f, 4, coat);
-        DrawRectangleRec({cx - 17, y + 38, 34, 5}, Color{60, 40, 24, 255});                 // belt
-        DrawRectangleRec({cx - 3, y + 37, 6, 7}, Pal::Brass);
-        DrawRectangleRec({cx - 14, y + 30, 5, 10}, Color{70, 70, 76, 255});                 // a brace of pistols
-        DrawRectangleRec({cx + 9, y + 30, 5, 10}, Color{70, 70, 76, 255});
-        DrawRectangleRec({cx - 17, y + 18, 34, 3}, Pal::Brass);
-        DrawCircle((int)cx, (int)y + 12, 9, Color{220, 170, 130, 255});                   // face
-        DrawCircle((int)cx, (int)y + 20, 11, Color{24, 22, 22, 255});                     // the famous beard...
-        DrawRectangleRec({cx - 10, y + 20, 20, 12}, Color{24, 22, 22, 255});
-        for (int k = 0; k < 3; k++) {                                                    // ...with smoking fuses in it
-            Vector2 fz{cx - 8 + k * 8.0f, y + 28};
+        float ty = y + dip;
+        DrawTri({cx - 18 + lean * 0.5f, ty + 22}, {cx + 18 + lean * 0.5f, ty + 22}, {cx + 20, y + 56}, coat); // a long coat
+        DrawTri({cx - 18 + lean * 0.5f, ty + 22}, {cx + 20, y + 56}, {cx - 22, y + 56}, coatDk);
+        DrawRectangleRounded({cx - 17 + lean * 0.5f, ty + 18, 34, 28}, 0.3f, 4, coat);
+        DrawRectangleRec({cx - 17 + lean * 0.5f, ty + 38, 34, 5}, Color{60, 40, 24, 255}); // belt
+        DrawRectangleRec({cx - 3 + lean * 0.5f, ty + 37, 6, 7}, Pal::Brass);
+        DrawRectangleRec({cx - 17 + lean * 0.5f, ty + 18, 34, 3}, Pal::Brass);
+        float hx = cx + lean, hy = ty;
+        DrawCircle((int)hx, (int)hy + 12, 9, Color{220, 170, 130, 255});                  // face
+        DrawCircle((int)hx, (int)hy + 20, 11, Color{24, 22, 22, 255});                    // the famous beard...
+        DrawRectangleRec({hx - 10, hy + 20, 20, 12}, Color{24, 22, 22, 255});
+        for (int k = 0; k < 3; k++) {                                                   // ...with smoking fuses in it
+            Vector2 fz{hx - 8 + k * 8.0f, hy + 28};
             DrawCircleV(fz, 1.5f, Color{255, 140, 40, 255});
             float ph = fmodf(t * 0.8f + k * 0.3f, 1.0f);
             DrawCircleV({fz.x + sinf(ph * 6 + k) * 3, fz.y - 6 - ph * 22}, 2 + ph * 3, Fade(Color{150, 150, 150, 255}, 0.6f * (1 - ph)));
         }
-        DrawCircle((int)(cx + f * 4), (int)y + 10, 2, b.state == 1 ? Color{255, 60, 40, 255} : Pal::Ink);
-        DrawTri({cx - 22, y + 4}, {cx + 22, y + 4}, {cx, y - 14}, Color{24, 22, 30, 255}); // tricorn
-        DrawRectangleRec({cx - 22, y + 2, 44, 4}, Color{24, 22, 30, 255});
-        DrawCircle((int)cx, (int)y - 3, 3, Color{230, 230, 220, 255});                  // skull badge
-        float swordA = b.state == 1 ? -1.3f : b.state == 2 ? 0.1f : -0.5f;
-        Vector2 hand{cx + f * 18, y + 30};
-        DrawLineEx(hand, {hand.x + f * cosf(swordA) * 34, hand.y + sinf(swordA) * 34}, 3, Color{210, 214, 220, 255});
-        DrawCircleV(hand, 3, Pal::Brass);
+        if (dazed) { // cross-eyed, with stars going round
+            DrawLineEx({hx + f * 2, hy + 8}, {hx + f * 6, hy + 12}, 1.5f, Pal::Ink);
+            DrawLineEx({hx + f * 6, hy + 8}, {hx + f * 2, hy + 12}, 1.5f, Pal::Ink);
+            for (int k = 0; k < 4; k++) {
+                float a = t * 5 + k * PI / 2;
+                Vector2 st{hx + cosf(a) * 20, hy - 12 + sinf(a) * 5};
+                DrawRectangle((int)st.x - 1, (int)st.y - 3, 2, 6, Color{255, 230, 90, 255});
+                DrawRectangle((int)st.x - 3, (int)st.y - 1, 6, 2, Color{255, 230, 90, 255});
+            }
+        } else {
+            DrawCircle((int)(hx + f * 4), (int)hy + 10, 2, windup || charging ? Color{255, 60, 40, 255} : Pal::Ink);
+        }
+        DrawTri({hx - 22, hy + 4}, {hx + 22, hy + 4}, {hx, hy - 14}, Color{24, 22, 30, 255}); // tricorn
+        DrawRectangleRec({hx - 22, hy + 2, 44, 4}, Color{24, 22, 30, 255});
+        DrawCircle((int)hx, (int)hy - 3, 3, Color{230, 230, 220, 255});                    // skull badge
+        Vector2 hand{cx + f * 18 + lean * 0.5f, ty + 30};
+        if (aiming) { // a pistol, levelled at you
+            float u = std::min(1.0f, b.timer / 0.5f);
+            Vector2 aimTo{p.pos.x + PW / 2, p.pos.y + PH / 2};
+            float ang = atan2f(aimTo.y - hand.y, aimTo.x - hand.x);
+            Vector2 muzzle{hand.x + cosf(ang) * 12, hand.y + sinf(ang) * 12};
+            DrawLineEx(hand, muzzle, 4, Color{70, 70, 76, 255});
+            DrawCircleV(hand, 3, Pal::Brass);
+            for (float d = 18; d < 18 + 80 * u; d += 10)
+                DrawRectangle((int)(hand.x + cosf(ang) * d), (int)(hand.y + sinf(ang) * d), 2, 2, Fade(Color{255, 90, 60, 255}, 0.5f));
+            if (fmodf(t * 12, 1.0f) < 0.5f) DrawCircleV(muzzle, 2.5f, Color{255, 230, 150, 255});
+        } else {
+            float swordA = windup ? -1.3f : charging ? 0.1f : dazed ? 1.2f : -0.5f;
+            DrawLineEx(hand, {hand.x + f * cosf(swordA) * 34, hand.y + sinf(swordA) * 34}, 3, Color{210, 214, 220, 255});
+            DrawCircleV(hand, 3, Pal::Brass);
+        }
+        if (windup) // he paws the boards
+            for (int k = 0; k < 2; k++) DrawRectangle((int)(cx - f * 14 + GetRandomValue(-6, 6)), (int)(y + BB_H - 3), 3, 3, Color{190, 170, 140, 255});
     }
 }
-}  // namespace
+
+// Musket balls, bombs and their blasts.
+void DrawShots(const PlatformState& p, float t) {
+    for (const auto& s : p.shots) {
+        if (s.kind == 0) {
+            Vector2 back{s.pos.x - s.vel.x * 0.03f, s.pos.y - s.vel.y * 0.03f};
+            DrawLineEx(back, s.pos, 2, Fade(Color{230, 230, 220, 255}, 0.5f));
+            DrawCircleV(s.pos, 3, Color{40, 40, 44, 255});
+            DrawCircleV({s.pos.x - 1, s.pos.y - 1}, 1, Color{200, 200, 210, 255});
+        } else if (s.kind == 1) {
+            bool flash = fmodf(t * (4 + (BOMB_FUSE - s.life) * 10), 1.0f) < 0.5f;
+            DrawCircleV(s.pos, 7, flash && s.life < 0.5f ? Color{200, 60, 50, 255} : Color{30, 30, 34, 255});
+            DrawCircleV({s.pos.x - 2, s.pos.y - 2}, 2, Color{120, 120, 130, 255});
+            DrawLineEx({s.pos.x + 3, s.pos.y - 6}, {s.pos.x + 6, s.pos.y - 10}, 2, Color{120, 90, 60, 255});
+            DrawCircleV({s.pos.x + 6 + GetRandomValue(-1, 1), s.pos.y - 11 + GetRandomValue(-1, 1)}, 2.5f, Color{255, 200, 80, 255});
+        } else {
+            float u = 1 - s.life / 0.3f;
+            DrawCircleV(s.pos, BLAST_R * (0.5f + u * 0.5f), Fade(Color{255, 150, 50, 255}, 0.8f * (1 - u)));
+            DrawCircleV(s.pos, BLAST_R * 0.5f * (1 - u), Fade(Color{255, 240, 180, 255}, 0.9f));
+        }
+    }
+}}  // namespace
 
 // ============================================================ public
 const char* PlatLevelName(int level) { return Lv(level).name; }
 
+// The pirate ship always runs deck, deck, hatch, hold, hold, companionway (in a random mix of each).
+static std::vector<int> Shuffled(int first, int count, int keep) {
+    std::vector<int> idx;
+    for (int i = 0; i < count; i++) idx.push_back(first + i);
+    for (int i = count - 1; i > 0; i--) std::swap(idx[i], idx[GetRandomValue(0, i)]);
+    idx.resize(keep);
+    return idx;
+}
+
+bool PlatLayoutValid(const Game& g, int level) {
+    const std::vector<int>& l = g.platLayouts[level];
+    if (l.empty()) return false;
+    for (int c : l) if (c < 0 || c >= (int)Lv(level).sections.size()) return false;
+    if (level == PL_PIRATE) {
+        if (l.size() != 6 || l[2] != PS_HATCH || l[5] != PS_STAIRS) return false;
+        for (int i : {0, 1}) if (l[i] < PS_DECK0 || l[i] >= PS_DECK0 + PS_DECKS) return false;
+        for (int i : {3, 4}) if (l[i] < PS_HOLD0 || l[i] >= PS_HOLD0 + PS_HOLDS) return false;
+    }
+    return true;
+}
+
 void GeneratePlatLayout(Game& g, int level) {
+    if (level == PL_PIRATE) {
+        std::vector<int> deck = Shuffled(PS_DECK0, PS_DECKS, 2), hold = Shuffled(PS_HOLD0, PS_HOLDS, 2);
+        g.platLayouts[level] = {deck[0], deck[1], PS_HATCH, hold[0], hold[1], PS_STAIRS};
+        return;
+    }
     const LevelDef& L = Lv(level);
     int count = (int)L.sections.size();
     std::vector<int> idx;
@@ -1279,13 +1853,14 @@ std::string PlatLayoutCode(const Game& g, int level) {
 }
 
 void StartPlatform(Game& g, int level) {
-    bool bad = g.platLayouts[level].empty();
-    for (int c : g.platLayouts[level]) bad |= c < 0 || c >= (int)Lv(level).sections.size(); // e.g. an old save
-    if (bad) GeneratePlatLayout(g, level);
+    if (!PlatLayoutValid(g, level)) GeneratePlatLayout(g, level); // e.g. an old save
     g.plat = PlatformState{};
     g.plat.level = level;
     g.plat.layoutCode = PlatLayoutCode(g, level);
-    BuildLevel(g.plat, g.platLayouts[level]);
+    g.plat.layout = g.platLayouts[level];
+    g.plat.hard = g.platHard;
+    g.plat.checkpoints = g.platCheckpoints;
+    BuildLevel(g.plat);
     g.scene = Scene::Platformer;
 }
 
@@ -1336,17 +1911,19 @@ void ScenePlatformer(Game& g) {
             }
             int part = PartAt(p, p.pos.x + PW / 2);
             if (p.onGround && part > p.checkpointChunk) {
-                p.checkpointChunk = part;
-                Burst(p, {p.pos.x + PW / 2, p.pos.y}, 12, Pal::Good, 140, 0.5f, 2);
+                p.checkpointChunk = part; // with checkpoints off this just counts progress
+                if (p.checkpoints) Burst(p, {p.pos.x + PW / 2, p.pos.y}, 12, Pal::Good, 140, 0.5f, 2);
             }
         }
         UpdateEnemies(p, dt);
         UpdateBoss(p, dt);
+        UpdateShots(p, dt);
 
         // touching an enemy is deadly; only a boss can be stomped
         if (p.deathTimer <= 0 && !p.finished) {
             Rectangle pr = PlayerBox(p);
-            for (auto& e : p.enemies) if (CheckCollisionRecs(pr, EnemyBox(e))) Die(p);
+            for (auto& e : p.enemies) if (EnemyHits(e, pr)) Die(p);
+            for (auto& s : p.shots) if (ShotHits(s, pr)) Die(p);
             PlatBoss& b = p.boss;
             bool falling = p.vel.y > 0;
             if (b.type == 'K' && !b.defeated) {
@@ -1364,40 +1941,43 @@ void ScenePlatformer(Game& g) {
                         if (b.hp <= 0) {
                             b.defeated = true;
                             b.tentT[0] = b.tentT[1] = TENT_IDLE;
-                            p.relic = GetRandomValue(0, (int)Relics().size() - 1);
-                            Toast(g, "The Kraken sinks into the abyss! It left something behind...");
+                            if (!p.checkpoints) p.relic = GetRandomValue(0, (int)Relics().size() - 1);
+                            Toast(g, p.checkpoints ? "The Kraken sinks into the abyss!" : "The Kraken sinks into the abyss! It left something behind...");
                         }
                     } else if (b.invuln <= 0) {
                         Die(p);
                     }
                 }
             } else if (b.type == 'B' && !b.defeated && CheckCollisionRecs(pr, {b.pos.x + 5, b.pos.y, BB_W - 10, BB_H})) {
-                if (falling && p.pos.y + PH - p.vel.y * dt <= b.pos.y + 12) {
-                    if (b.invuln <= 0) {
+                if (b.state == 5) { // dazed: stomp him (brushing against him now is safe)
+                    if (falling && p.pos.y + PH - p.vel.y * dt <= b.pos.y + 14 && b.invuln <= 0) {
                         b.hp--;
                         b.invuln = 1.0f;
                         b.state = 3;
                         b.timer = 0;
                         Burst(p, {b.pos.x + BB_W / 2, b.pos.y}, 14, Color{240, 240, 230, 255}, 200, 0.5f, 3);
+                        p.vel.y = IsKeyDown(KEY_SPACE) || IsKeyDown(KEY_W) || IsKeyDown(KEY_UP) ? -820.0f : -600.0f;
+                        p.scale = {0.75f, 1.3f};
                         if (b.hp <= 0) {
                             b.defeated = true;
                             p.exitOpen = true;
+                            p.shots.clear();
                             Burst(p, {b.pos.x + BB_W / 2, b.pos.y + 30}, 30, Pal::Brass, 260, 0.8f, 3);
                             Toast(g, "Blackbeard is beaten! The treasure is yours.");
+                        } else if (p.hard || b.hp == 1) {
+                            ThrowBomb(p);
                         }
                     }
-                    p.vel.y = IsKeyDown(KEY_SPACE) || IsKeyDown(KEY_W) || IsKeyDown(KEY_UP) ? -820.0f : -600.0f;
-                    p.scale = {0.75f, 1.3f};
                 } else if (b.invuln <= 0) {
-                    Die(p);
+                    Die(p); // on his guard, he's deadly from every side, even from above
                 }
             }
         }
 
         if (p.finished) {
             const LevelDef& L = Lv(p.level);
-            p.reward = p.coins * L.coinValue + L.bonus;
-            if (p.level == PL_PIRATE) p.relic = GetRandomValue(0, (int)Relics().size() - 1);
+            p.reward = p.coins * L.coinValue + (p.hard ? L.bonus * 3 / 2 : L.bonus);
+            if (p.level == PL_PIRATE && !p.checkpoints) p.relic = GetRandomValue(0, (int)Relics().size() - 1);
             g.gold += p.reward;
             if (p.relic >= 0) g.relicStorage.push_back(p.relic);
             g.platCleared[p.level] = true;
@@ -1436,6 +2016,7 @@ void ScenePlatformer(Game& g) {
     BeginMode2D(cam);
     DrawBossBack(p, t);
     int c0 = std::max(0, (int)((p.camX - viewW / 2) / T) - 2), c1 = std::min(p.w - 1, (int)((p.camX + viewW / 2) / T) + 2);
+    if (p.level == PL_PIRATE) DrawShipScenery(p, c0, c1, t);
     int r0 = std::max(0, (int)((p.camY - viewH / 2) / T) - 2), r1 = std::min(p.h - 1, (int)((p.camY + viewH / 2) / T) + 2);
     for (int y = r0; y <= r1; y++) // first the sides and tops of blocks, which recede into the scene...
         for (int x = c0; x <= c1; x++) DrawDepth(p, x, y);
@@ -1443,15 +2024,15 @@ void ScenePlatformer(Game& g) {
         for (int x = c0; x <= c1; x++) DrawTile(p, p.tiles[y][x], x, y, t);
     DrawBoss(p, t);
     for (auto& e : p.enemies) DrawEnemy(e, t);
+    DrawShots(p, t);
     for (auto& pt : p.particles) DrawRectangle((int)pt.p.x, (int)pt.p.y, (int)pt.size, (int)pt.size, Fade(pt.c, std::min(1.0f, pt.life / pt.max * 1.5f)));
     if (p.deathTimer <= 0) {
-        DrawDiver(p, true); // its shadow on the wall behind
-        DrawDiver(p, false);
+        DrawDiver(p);
     }
     EndMode2D();
     if (Lv(p.level).dark) {
         Vector2 lamp = GetWorldToScreen2D({p.pos.x + PW / 2 + (p.facingRight ? 14.0f : -14.0f), p.pos.y + 6}, cam);
-        DrawLampDarkness(lamp, 150, 0.82f);
+        DrawLampDarkness(lamp, p.hard ? 150.0f : 185.0f, p.hard ? 0.82f : 0.74f); // Normal lights more of the duct
         BeginMode2D(cam); // things that glow in the dark: steam jets, gears' rims, the valve, warning lamps
         DrawGlowingBits(p, c0, c1, r0, r1, t);
         EndMode2D();
@@ -1464,11 +2045,14 @@ void ScenePlatformer(Game& g) {
     // ---------------- HUD
     DrawRectangle(0, 0, SCREEN_W, 56, Color{16, 30, 40, 235});
     DrawRectangle(0, 56, SCREEN_W, 3, Pal::BrassDk);
-    TxtShadow(TextFormat("%s   %s", Lv(p.level).name, p.layoutCode.c_str()), 20, 15, 22, Pal::Brass, true);
+    const char* title = TextFormat("%s   %s", Lv(p.level).name, p.layoutCode.c_str());
+    TxtShadow(title, 20, 15, 22, Pal::Brass, true);
+    TxtBold(p.hard ? "HARD" : "NORMAL", 20 + MeasureTxt(title, 22, true) + 14, 20, 14, p.hard ? Pal::Bad : Color{160, 200, 190, 255});
     DrawCircle(440, 28, 10, Color{250, 210, 70, 255});
     Txt(TextFormat("x %d", p.coins), 458, 16, 22, Pal::Paper);
     int sections = (int)p.partX.size();
-    Txt(TextFormat("Checkpoint %d/%d", std::min(p.checkpointChunk + 1, sections), sections), 530, 18, 19, Pal::Paper);
+    Txt(TextFormat(p.checkpoints ? "Checkpoint %d/%d" : "Section %d/%d", std::min(p.checkpointChunk + 1, sections), sections), 530, 18, 19, Pal::Paper);
+
     Txt(TextFormat("Deaths %d", p.deaths), 720, 18, 19, Pal::Paper);
     Txt(TextFormat("%.1fs", p.time), 840, 18, 19, Pal::Paper);
     if (p.boss.type && !p.boss.defeated && p.pos.x > (p.w - CH_W - 2) * (float)T) {
@@ -1491,6 +2075,102 @@ void ScenePlatformer(Game& g) {
     }
 }
 
+// ============================================================ sprite sheet pages (developer tool)
+// Draws the platform levels' sprites on the pixel canvas, at twice the size they appear in the game.
+// page 0: the diver and the enemies; 1: the bosses; 2: each level's tiles.
+void DrawPlatformSpritePage(int page, float t) {
+    const float PX = (float)SCREEN_W / PIXEL_W; // screen pixels per canvas pixel
+    struct Label { const char* text; Vector2 at; };
+    std::vector<Label> labels;
+    BeginLayer(PixelRT());
+    ClearBackground(Color{30, 34, 44, 255});
+    for (int x = 0; x < PIXEL_W + 2; x += 16) DrawRectangle(x, 0, 1, PIXEL_H + 2, Color{36, 40, 52, 255});
+    PlatformState p;
+    p.time = t;
+    p.tiles.assign(1, std::string(40, '.'));
+    p.w = 40;
+    p.h = 1;
+    if (page == 0) {
+        struct DiverPose { const char* name; bool ground; Vector2 vel; float anim; int wall; };
+        const DiverPose dp[6] = {{"Idle", true, {0, 0}, 0, 0}, {"Run", true, {RUN, 0}, 1.2f, 0}, {"Run", true, {RUN, 0}, 2.9f, 0},
+                                 {"Jump", false, {200, -500}, 0, 0}, {"Fall", false, {100, 500}, 0, 0}, {"Wall slide", false, {0, 150}, 0, 1}};
+        for (int k = 0; k < 6; k++) {
+            p.onGround = dp[k].ground; p.vel = dp[k].vel; p.runAnim = dp[k].anim; p.wallSide = dp[k].wall; p.facingRight = true;
+            p.pos = {40.0f + k * 56, 80 - PH};
+            DrawDiver(p);
+            labels.push_back({dp[k].name, {p.pos.x + PW / 2, 90}});
+        }
+        PlatEnemy crab{'c', {380, 64}, {380, 64}, 1, 0}, eel{'e', {450, 64}, {450, 64}, 1, 0}, bird{'p', {520, 60}, {520, 60}, 1, 0};
+        DrawEnemy(crab, t); DrawEnemy(eel, t); DrawEnemy(bird, t);
+        labels.push_back({"Crab", {393, 90}}); labels.push_back({"Eel", {450, 90}}); labels.push_back({"Parakeet", {520, 90}});
+        const char* ambName[4] = {"Behind his door", "Bursting out", "Stab!", "Ducking back"};
+        for (int k = 0; k < 4; k++) {
+            PlatEnemy a{'P', {0, 0}, {40.0f + k * 80, 150}, 1, 0, k, k == 1 ? AMB_OUT * 0.6f : k == 2 ? AMB_STAB * 0.5f : k == 3 ? AMB_BACK * 0.3f : 0};
+            a.pos = {a.home.x + 5 + Lunge(a), a.home.y + T - 30};
+            DrawEnemy(a, t);
+            labels.push_back({ambName[k], {a.home.x + 20, 192}});
+        }
+        for (int k = 0; k < 2; k++) {
+            PlatEnemy gn{'G', {380.0f + k * 90, 162}, {380.0f + k * 90, 160}, 1, 0, k, k ? GUN_AIM * 0.8f : 0};
+            gn.aim = {gn.pos.x + 120, gn.pos.y - 10};
+            DrawTile(p, 'k', (int)((gn.pos.x - 34) / T), 5, t); // his barrel
+            DrawEnemy(gn, t);
+            labels.push_back({k ? "Gunner, aiming" : "Gunner", {gn.pos.x + 11, 200}});
+        }
+        p.shots = {{{80, 260}, {-330, 0}, 1, 0}, {{160, 256}, {0, 0}, 0.4f, 1}, {{250, 256}, {0, 0}, 0.15f, 2}};
+        DrawShots(p, t);
+        labels.push_back({"Musket ball", {80, 300}}); labels.push_back({"Lit bomb", {160, 300}}); labels.push_back({"Blast", {250, 300}});
+    } else if (page == 1) {
+        const char* bbName[5] = {"Blackbeard stalks", "winds up", "charges", "aims a pistol", "dazed: stomp now!"};
+        const int bbState[5] = {0, 1, 2, 4, 5};
+        p.pos = {600, 200};
+        for (int k = 0; k < 5; k++) {
+            p.boss = PlatBoss{};
+            p.boss.type = 'B'; p.boss.state = bbState[k]; p.boss.dir = 1; p.boss.timer = 0.3f;
+            p.boss.pos = {30.0f + k * 78, 110 - BB_H};
+            if (k == 2) p.boss.vel.x = 300;
+            DrawBoss(p, t);
+            labels.push_back({bbName[k], {p.boss.pos.x + BB_W / 2, 124}});
+        }
+        p.boss = PlatBoss{};
+        p.boss.type = 'K'; p.boss.state = 2; p.boss.home = {500, 20 + 3.0f * T + 10};
+        p.boss.tentT[0] = p.boss.tentT[1] = TENT_IDLE;
+        DrawBoss(p, t);
+        labels.push_back({"The Kraken's head (stomp it)", {500, 150}});
+        DrawTentacle({120, 340}, {130, 200}, 16, t * 2, 1, Color{130, 60, 140, 255});
+        DrawTentacle({220, 190}, {230, 330}, 16, t * 2, 2, Color{130, 60, 140, 255});
+        labels.push_back({"Tentacles rise and slam", {175, 350}});
+    } else {
+        struct Strip { int level; const char* name; const char* rows[3]; };
+        const Strip strips[3] = {{PL_PIPES, "The Pipes", {".o..g..E", ".==.|...", "##tx#x##"}},
+                                 {PL_HULL, "The Hull", {".o..g..E", "........", "##x#####"}},
+                                 {PL_PIRATE, "The Pirate Ship", {".o..g..E", ".==.k...", "##tx#k##"}}};
+        for (int i = 0; i < 3; i++) {
+            PlatformState q;
+            q.level = strips[i].level;
+            q.time = t;
+            q.w = 8; q.h = 3;
+            for (auto r : strips[i].rows) q.tiles.push_back(r);
+            float ox = 16 + (i % 2) * 320.0f, oy = 30 + (i / 2) * 170.0f;
+            rlPushMatrix();
+            rlTranslatef(ox, oy, 0);
+            for (int y = 0; y < 3; y++) for (int x = 0; x < 8; x++) DrawDepth(q, x, y);
+            for (int y = 0; y < 3; y++) for (int x = 0; x < 8; x++) DrawTile(q, q.tiles[y][x], x, y, t);
+            rlPopMatrix();
+            labels.push_back({strips[i].name, {ox + 128, oy + 104}});
+        }
+        labels.push_back({"coin, hazard (gear / mine / spiked ball), exit; pipes, jets, crates", {480, 330}});
+    }
+    EndLayer();
+    DrawTexturePro(PixelRT().texture, {0, 0, PIXEL_W + 2.0f, -(PIXEL_H + 2.0f)}, {-PX, -PX, (PIXEL_W + 2) * PX, (PIXEL_H + 2) * PX}, {0, 0}, 0, WHITE);
+    const char* titles[3] = {"Platform levels: the diver and the enemies (shown at 1.6x their in-game size)", "Platform levels: the bosses",
+                             "Platform levels: tiles for each level"};
+    TxtBold(titles[page], 30, 12, 22, Pal::Brass);
+    for (auto& l : labels) {
+        int w = MeasureTxt(l.text, 14);
+        Txt(l.text, l.at.x * PX - w / 2.0f, l.at.y * PX, 14, Pal::Paper);
+    }
+}
 // ============================================================ verification (developer tool)
 // Proves every section can be crossed: an A* search over button inputs (left / right / neither, jump
 // held or not, re-decided every 1/40 s) driving the real movement code, from the section's left edge
@@ -1580,12 +2260,15 @@ int VerifyPlatformLevels() {
             if (last && lv == PL_PIPES) continue; // the Pipes end on a flat section
             PlatformState p;
             p.level = lv;
-            BuildFromParts(p, {L.first, last ? L.last : L.sections[c], P(END_PIPES)}, L.fill);
+            BuildFromParts(p, {L.first, last ? L.last : L.sections[c], P(END_PIPES)}, L.fill, L.fillAbove);
             bool jets = false;
             for (auto& row : p.tiles) jets |= row.find('t') != std::string::npos;
             p.exitOpen = false;
             long n = 0;
-            bool ok = Crossable(p, p.partX[2] * (float)T + 8, jets, n);
+            float goal = p.partX[2] * (float)T + 8; // into the next section, or onto the exit if this one ends the level
+            for (int r = 0; r < p.h; r++)
+                for (int x = p.partX[1]; x < p.partX[2]; x++) if (p.tiles[r][x] == 'E') goal = x * (float)T;
+            bool ok = Crossable(p, goal, jets, n);
             failures += !ok;
             printf("%-16s section %c: %s  (%ld states searched)\n", L.name, last ? '*' : 'A' + c, ok ? "crossable" : "NOT CROSSABLE", n);
             fflush(stdout);

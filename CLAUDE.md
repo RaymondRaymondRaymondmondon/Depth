@@ -19,13 +19,16 @@ The vertical slice was built in an earlier claude.ai chat, "Computer game develo
 
 ## Platform level design (from the user)
 - **Like Super Meat Boy: the hard part is the platforming itself.** All three levels prioritise hard jumps: precise landings, gears that force a low or a high arc, timed jets, and wall-jump chimneys.
-- **Only levels 2 and 3 (Hull, Pirate Ship) have enemies.** The Pipes have none. Enemies are extra challenge, and touching one is fatal. **Only bosses can be stomped** (the Kraken optionally, Blackbeard to open the exit).
+- **Only levels 2 and 3 (Hull, Pirate Ship) have enemies.** The Pipes have none. Enemies are extra challenge, and touching one is fatal. **Only bosses can be stomped** (the Kraken optionally, Blackbeard to open the exit). Blackbeard is deadly from every side, including from above, except while he's dazed from charging into a wall.
+- **Deaths restart the whole level** (it is rebuilt). The Periscope has two saved options: checkpoints (which forfeit the relic) and Normal/Hard. Normal turns 'g' into empty space and 't' into plain floor, so `--verify` checks Hard.
+- **The Pirate Ship is structured**: deck, deck, hatch, hold, hold, companionway, cabin (`GeneratePlatLayout` and `PlatLayoutValid`). Its fill is solid below and open sky above (`fillAbove`). Sections carry an interior row and kind (hold or cabin) for the background drawn behind them. The pirates are 'P' (bursts out of a door to stab) and 'G' (shoots aimed musket balls from behind a 'k' barrel).
 - Movement runs at a fixed 240 Hz. Jump height is about 3.8 tiles, and the max same-height gap is about 6.5 tiles. Two walls up to 4 tiles apart can be climbed.
 - **After adding or changing a section, run `depth.exe --verify`.** It must report "All sections can be crossed".
 
 ## Building and checking on this PC
 - Run `.\build.ps1` (add `-Run` to launch). The user has since installed a standalone CMake 4.4 (C:\Program Files\CMake); build.ps1 reconfigures the build folder automatically if the CMake that configured it changes. This machine has Visual Studio 2026 (not 2022) and no git on PATH; the script sets up the VS dev shell and uses VS's bundled git. Output: `build\Release\depth.exe`.
 - The project is a git repo, but git isn't on PATH. Use `C:\Program Files\Microsoft Visual Studio\18\Community\Common7\IDE\CommonExtensions\Microsoft\TeamFoundation\Team Explorer\Git\cmd\git.exe`.
+- **See every sprite** with `depth.exe --sprites sprites.png` (gitignored). When adding a character or enemy, add it to a page (`Draw*SpritePage`).
 - **Check visuals** with `depth.exe --shots shots`, which renders every screen to `shots\*.png` (gitignored), then look at the PNGs. Add new screens to the list in `TakeShots` in `main.cpp`. The game can't write to the temp/scratchpad folder, so keep `shots` inside the project.
 - **Check balance** with `depth.exe --sim 2000 <level>`. Reference results (sensible auto-player, Cave): level 0 wins about 70% with about 1.5 deaths per run; level 2 about 97%; level 3 about 99%. A random player at level 0 wins only about 6%. (The design chat quoted 88% for its own auto-player, which isn't reproducible.)
 
@@ -34,6 +37,10 @@ The vertical slice was built in an earlier claude.ai chat, "Computer game develo
 - rlgl resets the bound texture when the batch switches to `RL_TRIANGLES`. Textured custom geometry must use `RL_QUADS` (see `DrawTexturedCircle`).
 - Everything draws into an offscreen scene texture. To draw into another texture, use `BeginLayer(rt)` / `EndLayer()`, never raw `BeginTextureMode`.
 - Menu screens set low bloom in `DrawCabinBackground`, because parchment is bright enough to bloom.
+- **Tiny bright particles** (dust, marine snow, steam) must be drawn **after** `InkPass`. Otherwise the Sobel ink rings each one in black, which is where the "black dust" came from.
+- The scene and the figure canvas are supersampled (`SS = 2`) through a pushed matrix (`PushScale`); leave targets with `EndTarget()`, never raw `EndTextureMode`.
+- Distant scenery can be drawn between `BeginBackdrop()` and `EndBackdrop(blur)` for depth of field (the cave does this for its far layers).
+- Combat poses go through a per-hero spring (`SpringPose`), so animations blend and overshoot. `Pose` has `stride`, `tremble` and `headDown` for steps, fear and flinching; idle posture reflects stress and Death's Door.
 
 ## Design calls made where the design doc was open (the user may change any of these)
 - **Stress ("Nerves")**: at 100 a hero becomes Rattled: less accurate, easier to hit, sometimes freezes. The Sick Bay cures it, but the hero sits out the next expedition. Deliberately gentler than Darkest Dungeon's afflictions.

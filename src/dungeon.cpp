@@ -84,6 +84,10 @@ static void AddStress(Game& g, Hero& h, int amount) {
     int diff = h.stress - before;
     int pos = PartyPos(g, h.id);
     if (diff != 0 && pos >= 0) Float(g, HeroRect(pos), TextFormat("%+d nerves", diff), Pal::Stress);
+    if (diff > 0 && pos >= 0) {
+        const UnitAnim* cur = FindAnim(g, true, h.id);
+        if (!cur || cur->kind == Anim::Stress) StartAnim(g, true, h.id, Anim::Stress, 1.1f);
+    }
     if (h.stress >= 100 && !h.rattled) {
         h.rattled = true;
         Log(g, h.name + " is RATTLED! (less accurate, may freeze up)");
@@ -612,6 +616,7 @@ static void DrawCaveLayers(Game& g) {
     float t = g.time;
     // 1. the far water, with bioluminescent haze drifting in it
     float deep = CAVE_TIER_LEVEL[g.dungeon.tier] / 6.0f; // deeper levels: darker water, more bones, more glowing things
+    BeginBackdrop(); // layers 1-3 are far away: drawn out of focus, like a camera focused on the fighters
     DrawVGradient({0, 0, (float)SCREEN_W, (float)SCREEN_H}, Color{(unsigned char)(30 - 16 * deep), (unsigned char)(78 - 40 * deep), (unsigned char)(94 - 40 * deep), 255},
                   Color{6, 20, 30, 255});
     Repeat(LayerOffset(g, 0.04f), 520, [&](float sx, float wx) {
@@ -674,6 +679,7 @@ static void DrawCaveLayers(Game& g) {
         }
     });
     EndBlendMode();
+    EndBackdrop(1.7f);
     // 4. the ceiling's stalactites, stalagmites and swaying kelp
     float off4 = LayerOffset(g, 0.45f);
     DrawRidge(off4, 70, 40, 5, true, Color{14, 30, 38, 255}, 130);
@@ -732,13 +738,21 @@ static void DrawCaveLayers(Game& g) {
         DrawEllipse((int)px, (int)py, w, 10, Color{40, 80, 90, 200});
         DrawEllipse((int)px - 10, (int)py - 2, w * 0.55f, 4, Color{110, 170, 180, 90});
     });
+    BeginBlendMode(BLEND_ADDITIVE); // caustics: light from far above, rippling across the wet floor
+    for (int k = 0; k < 14; k++) {
+        float y0 = 462 + k * k * 1.4f, sq = 0.35f + k * 0.05f; // bands crowd together toward the far edge
+        Vector2 prev{-20, y0};
+        for (float x = -20; x <= SCREEN_W + 20; x += 24) {
+            float u = x + off6 * 0.6f;
+            Vector2 q{x, y0 + (sinf(u * 0.021f + t * 0.9f + k * 1.7f) * 7 + sinf(u * 0.047f - t * 1.3f + k) * 4) * sq};
+            DrawLineEx(prev, q, 1.5f + k * 0.12f, Color{120, 200, 210, (unsigned char)(10 + k)});
+            prev = q;
+        }
+    }
+    EndBlendMode();
     Repeat(off6, 610, [&](float sx, float wx) { // vents in the floor, trickling bubbles
         float vx = sx + Hash1(wx + 4) * 300, vy = 470 + Hash1(wx + 6) * 30;
         DrawEllipse((int)vx, (int)vy, 10, 3, Color{30, 40, 44, 255});
-        for (int k = 0; k < 6; k++) {
-            float ph = fmodf(t * 0.5f + k / 6.0f + Hash1(wx), 1.0f);
-            DrawCircleLines((int)(vx + sinf(ph * 9 + k) * 5), (int)(vy - ph * 420), 2 + (k % 2), Color{200, 235, 245, (unsigned char)(160 * (1 - ph))});
-        }
     });
 }
 
@@ -912,6 +926,7 @@ static AnimFx HeroAnimFx(const Game& g, const Hero& h) {
             float settle = Bell(u, 0.62f, 0.76f, 0.98f);
             p.lean -= settle * 0.12f;
             fx.dx = strike * s.lunge - wind * 8 - settle * 7;
+            p.stride = strike * 0.9f - wind * 0.2f;
         } break;
         case Anim::Ranged: {
             float aim = Bell(u, 0, 0.22f, 0.95f), recoil = Bell(u, 0.3f, 0.36f, 0.62f);
@@ -955,6 +970,10 @@ static AnimFx HeroAnimFx(const Game& g, const Hero& h) {
             fx.dx = -18 * spring;
             p.lean = -0.5f * spring;
             p.crouch = 0.25f * b;
+            p.headDown = -0.9f * b;        // the head snaps back...
+            p.backRaise = 0.55f * b;       // ...an arm flies up...
+            p.stride = -0.6f * b;          // ...and they stagger a step back
+            p.tremble = 0.6f * Bell(u, 0.1f, 0.25f, 0.6f);
             fx.tint = {255, (unsigned char)(255 - 120 * b), (unsigned char)(255 - 130 * b), 255};
         } break;
         case Anim::Dodge: {
@@ -962,10 +981,42 @@ static AnimFx HeroAnimFx(const Game& g, const Hero& h) {
             fx.dx = -26 * b;
             p.crouch = 0.35f * b;
             p.lean = -0.2f * b;
+            p.stride = -0.5f * b;
+        } break;
+        case Anim::Stress: { // dread: they flinch, hunch, bring a hand up and shake
+            float b = Bell(u, 0, 0.18f, 1.05f);
+            p.crouch = 0.3f * b;
+            p.lean = -0.18f * Bell(u, 0, 0.1f, 0.4f) + 0.12f * Bell(u, 0.3f, 0.6f, 1.05f);
+            p.headDown = 0.7f * b;
+            p.backRaise = 0.35f * b;
+            p.tremble = 1.0f * b;
+            fx.dx = -6 * Bell(u, 0, 0.1f, 0.5f);
         } break;
         default: break;
     }
     return fx;
+}
+
+// Every pose change goes through a spring, so motions blend into each other, overshoot a touch and
+// settle, rather than snapping from one position to the next.
+static Pose SpringPose(int id, const Pose& target, float& dx, float dt) {
+    struct Spring { float v[9] = {}, vel[9] = {}; bool init = false; };
+    static std::unordered_map<int, Spring> springs;
+    Spring& sp = springs[id];
+    float tgt[9] = {target.lean, target.crouch, target.reach, target.raise, target.backRaise, target.weaponTilt / 100, target.stride, target.headDown, dx};
+    if (!sp.init) { for (int i = 0; i < 9; i++) sp.v[i] = tgt[i]; sp.init = true; }
+    const float w = 24, z = 0.62f;
+    float step = std::min(dt, 1 / 30.0f);
+    for (int i = 0; i < 9; i++) {
+        float acc = w * w * (tgt[i] - sp.v[i]) - 2 * z * w * sp.vel[i];
+        sp.vel[i] += acc * step;
+        sp.v[i] += sp.vel[i] * step;
+    }
+    Pose p = target;
+    p.lean = sp.v[0]; p.crouch = sp.v[1]; p.reach = sp.v[2]; p.raise = sp.v[3]; p.backRaise = sp.v[4];
+    p.weaponTilt = sp.v[5] * 100; p.stride = sp.v[6]; p.headDown = sp.v[7];
+    dx = sp.v[8];
+    return p;
 }
 
 static AnimFx EnemyAnimFx(const Game& g, const Enemy& e) {
@@ -1021,11 +1072,23 @@ static void DrawUnitFigures(Game& g) {
         if (!h) continue;
         Rectangle r = HeroRect(p);
         AnimFx fx = HeroAnimFx(g, *h);
-        // alive even when standing still: breathing, and a slow shift of weight from foot to foot
+        // alive even when standing still: breathing, and a slow shift of weight from foot to foot...
         float ph = t + h->id * 2.3f;
         fx.pose.lean += 0.035f * sinf(ph * 1.1f);
         fx.pose.crouch += 0.04f * (0.5f + 0.5f * sinf(ph * 1.7f));
         fx.dx += sinf(ph * 0.6f) * 1.5f;
+        // ...and wearing the strain: nerves hunch the shoulders and shake the hands; at Death's Door they
+        // sag to one knee, heaving for breath
+        float nerves = h->rattled ? 1.0f : h->stress / 100.0f;
+        fx.pose.crouch += nerves * 0.14f;
+        fx.pose.headDown += nerves * 0.35f;
+        fx.pose.tremble = std::max(fx.pose.tremble, nerves * nerves * 0.7f);
+        if (h->deathsDoor) {
+            fx.pose.crouch += 0.5f + 0.08f * sinf(ph * 4);
+            fx.pose.headDown += 0.6f;
+            fx.pose.lean += 0.18f;
+        }
+        fx.pose = SpringPose(h->id, fx.pose, fx.dx, dt);
         Vector2 feet{ShownX(h->id, r.x + r.width / 2, dt) + fx.dx + gShake.x, r.y + r.height + fx.dy + gShake.y};
         DrawShadowBlob({feet.x, r.y + r.height}, 38);
         DrawCrewFigureInked(*h, feet, 1.08f, true, walking ? d.walkT * 9 + p * 1.3f : 0, t, fx.pose, fx.tint);
@@ -1145,11 +1208,23 @@ static void DrawCaveLighting(Game& g) {
     for (auto& s : d.shots) AddLight({s.from.x + (s.to.x - s.from.x) * std::clamp(s.t / s.dur, 0.0f, 1.0f), s.from.y}, 120, Color{255, 220, 170, 255}, 0.4f);
     LightsEnd();
     for (Vector2 c : crystals) Glow({c.x, c.y - 12}, 26, Color{90, 230, 220, 80});
+}
+
+// Tiny drifting specks are drawn after the ink pass: inked, each would get a dark ring (the "black dust").
+static void DrawDriftingSpecks(Game& g) {
+    float t = g.time, L = g.dungeon.lightShown / 100.0f;
     for (int k = 0; k < 40; k++) { // marine snow drifting through the beam
         float px = fmodf(k * 97.0f + t * (6 + k % 5) + LayerOffset(g, 0.9f) * -1 + 100000, (float)SCREEN_W);
         float py = fmodf(k * 53.0f + t * (10 + k % 7), 520.0f) + 40;
-        DrawCircle((int)px, (int)py, 1.3f + (k % 3) * 0.5f, Color{220, 240, 240, (unsigned char)(50 + 60 * L)});
+        DrawCircleV({px, py}, 1.3f + (k % 3) * 0.5f, Color{220, 240, 240, (unsigned char)(50 + 60 * L)});
     }
+    Repeat(LayerOffset(g, 1.0f), 610, [&](float sx, float wx) { // bubbles trickling from vents in the floor
+        float vx = sx + Hash1(wx + 4) * 300, vy = 470 + Hash1(wx + 6) * 30;
+        for (int k = 0; k < 6; k++) {
+            float ph = fmodf(t * 0.5f + k / 6.0f + Hash1(wx), 1.0f);
+            DrawRing({vx + sinf(ph * 9 + k) * 5, vy - ph * 420}, 1.5f + (k % 2), 2.5f + (k % 2), 0, 360, 12, Color{200, 235, 245, (unsigned char)(160 * (1 - ph))});
+        }
+    });
 }
 
 static void DrawTopBar(Game& g) {
@@ -1331,6 +1406,7 @@ void SceneDungeon(Game& g) {
     DrawCaveLighting(g);
     DrawCaveForeground(g);
     InkPass(1.0f, 1.0f);
+    DrawDriftingSpecks(g);
     DrawSparks(g);
     DrawUnitHud(g, actingHero, actingEnemy);
     for (auto& f : d.floats) {
@@ -1494,5 +1570,51 @@ void SceneDungeon(Game& g) {
                 }
             }
         } break;
+    }
+}
+
+// ============================================================ sprite sheet pages (developer tool)
+// The expedition crew in each of the poses combat uses, then the creatures of the cave.
+void DrawCrewSpritePage(float t) {
+    TxtBold("Expedition crew: the poses their animations blend between", 30, 16, 24, Pal::Brass);
+    struct Named { const char* name; Pose pose; float walk; };
+    Pose melee, raise, hurt, stress, door, dodge;
+    melee.reach = 1; melee.lean = 0.3f; melee.stride = 0.9f;
+    raise.raise = 1; raise.lean = -0.1f;
+    hurt.lean = -0.5f; hurt.crouch = 0.25f; hurt.headDown = -0.9f; hurt.backRaise = 0.55f; hurt.stride = -0.6f;
+    stress.crouch = 0.3f; stress.headDown = 0.7f; stress.backRaise = 0.35f; stress.tremble = 1; stress.lean = -0.1f;
+    door.crouch = 0.62f; door.headDown = 0.95f; door.lean = 0.18f; door.tremble = 0.4f;
+    dodge.crouch = 0.35f; dodge.lean = -0.2f; dodge.stride = -0.5f;
+    const Named poses[8] = {{"Ready", Pose{}, 0}, {"Walk", Pose{}, 1.2f}, {"Walk", Pose{}, 2.8f}, {"Strike", melee, 0},
+                            {"Raise / cast", raise, 0}, {"Hit!", hurt, 0}, {"Dread", stress, 0}, {"Death's Door", door, 0}};
+    for (int c = 0; c < (int)HeroClass::COUNT; c++) {
+        Hero h;
+        h.id = 3 + c * 5;
+        h.cls = (HeroClass)c;
+        float y = 60 + (c + 1) * 162.0f;
+        TxtBold(ClassName(h.cls), 12, y - 150, 17, ClassColor(h.cls));
+        for (int k = 0; k < 8; k++) {
+            float x = 90 + k * 158.0f;
+            if (c == 0) TxtBold(poses[k].name, x - MeasureTxt(poses[k].name, 16, true) / 2.0f, 52, 16, Pal::Paper);
+            DrawShadowBlob({x, y}, 26);
+            DrawCrewFigureInked(h, {x, y}, 0.82f, true, poses[k].walk, t, poses[k].pose);
+        }
+    }
+    (void)dodge;
+}
+
+void DrawCaveSpritePage(float t) {
+    TxtBold("Creatures of the Cave", 30, 16, 24, Pal::Brass);
+    const EnemyType types[4] = {EnemyType::SeaLouse, EnemyType::CaveShrimp, EnemyType::BrineWorm, EnemyType::Lobster};
+    for (int i = 0; i < 4; i++) {
+        Enemy e = MakeEnemy(types[i], 50 + i);
+        float x = 170 + i * 310.0f, y = 520;
+        Rectangle r = e.boss ? Rectangle{0, 0, 116, 210} : Rectangle{0, 0, 90, 130};
+        Vector2 ff = FigureFeet();
+        TxtBold(e.name.c_str(), x - MeasureTxt(e.name, 19, true) / 2.0f, 580, 19, Pal::Paper);
+        DrawShadowBlob({x, y}, e.boss ? 90 : 60);
+        BeginFigure();
+        DrawEnemyFigure(e, {ff.x - r.width / 2, ff.y - r.height, r.width, r.height}, t);
+        EndFigure({x, y});
     }
 }

@@ -18,8 +18,9 @@ struct ArtState {
     Font body{}, bold{};
     bool ownBody = false, ownBold = false;
     Texture2D glow{}, tex[4]{};
-    RenderTexture2D scene{}, final{}, light{}, ocean{}, pixel{}, fig{}, temp{};
-    Shader post{}, figShader{}, ink{};
+    RenderTexture2D scene{}, final{}, light{}, ocean{}, pixel{}, fig{}, temp{}, backdrop{};
+    Shader post{}, figShader{}, ink{}, blur{};
+    int locBlurTexel = -1;
     int locTime = -1, locRes = -1, locVig = -1, locGrain = -1, locBloom = -1;
     int locFigTexel = -1, locFigOutline = -1, locInkRes = -1, locInkAmt = -1, locInkHatch = -1;
     float vignette = 0.45f, grain = 0.03f, bloom = 0.35f;
@@ -27,6 +28,9 @@ struct ArtState {
 };
 ArtState A;
 constexpr int LIGHT_DIV = 2; // the lightmap is half resolution: softer and cheaper
+// The scene (and the character canvas) are drawn at twice the screen resolution and scaled down when
+// presented: every edge is anti-aliased, so nothing looks pixelated outside the retro platform levels.
+constexpr int SS = 2;
 constexpr int FIG_W = 340, FIG_H = 440;
 const Vector2 FIG_FEET = {FIG_W / 2.0f, FIG_H - 24.0f}; // where a figure's feet go on its canvas
 
@@ -99,6 +103,26 @@ void main() {
     col += (hash(floor(px / 2.0)) - 0.5) * 0.04;
     col = mix(vec3(lum(col)) * vec3(1.05, 1.0, 0.92), col, 0.86);
     finalColor = vec4(col, 1.0);
+}
+)";
+
+// A soft gaussian blur, for distant scenery (depth of field).
+const char* BLUR_FS = R"(#version 330
+in vec2 fragTexCoord;
+in vec4 fragColor;
+uniform sampler2D texture0;
+uniform vec2 uTexel;
+out vec4 finalColor;
+void main() {
+    vec4 s = vec4(0.0);
+    float w = 0.0;
+    for (int x = -3; x <= 3; x++)
+        for (int y = -3; y <= 3; y++) {
+            float k = exp(-float(x * x + y * y) / 6.0);
+            s += texture(texture0, fragTexCoord + vec2(float(x), float(y)) * uTexel) * k;
+            w += k;
+        }
+    finalColor = vec4((s / w).rgb, 1.0) * fragColor;
 }
 )";
 
@@ -284,7 +308,7 @@ void InitArt() {
     A.tex[(int)Tex::Paper] = MakeTexture(256, 256, true, PaperPixel);
     A.tex[(int)Tex::Rock] = MakeTexture(256, 256, true, RockPixel);
 
-    A.scene = LoadRenderTexture(SCREEN_W, SCREEN_H);
+    A.scene = LoadRenderTexture(SCREEN_W * SS, SCREEN_H * SS);
     A.final = LoadRenderTexture(SCREEN_W, SCREEN_H);
     A.light = LoadRenderTexture(SCREEN_W / LIGHT_DIV, SCREEN_H / LIGHT_DIV);
     A.ocean = LoadRenderTexture(SCREEN_W, SCREEN_H);
@@ -293,8 +317,13 @@ void InitArt() {
     SetTextureFilter(A.ocean.texture, TEXTURE_FILTER_BILINEAR);
     A.pixel = LoadRenderTexture(PIXEL_W + 2, PIXEL_H + 2); // a pixel of margin allows smooth sub-pixel scrolling
     SetTextureFilter(A.pixel.texture, TEXTURE_FILTER_POINT); // chunky pixels when scaled up
-    A.fig = LoadRenderTexture(FIG_W, FIG_H);
-    A.temp = LoadRenderTexture(SCREEN_W, SCREEN_H);
+    A.fig = LoadRenderTexture(FIG_W * SS, FIG_H * SS);
+    SetTextureFilter(A.fig.texture, TEXTURE_FILTER_BILINEAR);
+    A.temp = LoadRenderTexture(SCREEN_W * SS, SCREEN_H * SS);
+    A.backdrop = LoadRenderTexture(SCREEN_W / 2, SCREEN_H / 2);
+    SetTextureFilter(A.backdrop.texture, TEXTURE_FILTER_BILINEAR);
+    A.blur = LoadShaderFromMemory(nullptr, BLUR_FS);
+    A.locBlurTexel = GetShaderLocation(A.blur, "uTexel");
 
     A.post = LoadShaderFromMemory(nullptr, POST_FS);
     A.locTime = GetShaderLocation(A.post, "uTime");
@@ -323,6 +352,8 @@ void UnloadArt() {
     UnloadRenderTexture(A.pixel);
     UnloadRenderTexture(A.fig);
     UnloadRenderTexture(A.temp);
+    UnloadRenderTexture(A.backdrop);
+    UnloadShader(A.blur);
     UnloadShader(A.post);
     UnloadShader(A.figShader);
     UnloadShader(A.ink);
@@ -341,14 +372,31 @@ void SetPost(float vignette, float grain, float bloom) {
     A.bloom = bloom;
 }
 
-void BeginFrame() {
+// A pushed transform scales each vertex as it's submitted (a plain matrix change would apply to the whole
+// pending batch when it flushes). It must be popped before leaving the target, which EndTarget does.
+static bool targetScaled = false;
+static void PushScale() {
+    rlPushMatrix();
+    rlScalef((float)SS, (float)SS, 1);
+    targetScaled = true;
+}
+static void EndTarget() {
+    if (targetScaled) { rlPopMatrix(); targetScaled = false; }
+    EndTextureMode();
+}
+void EnterScene() {
     BeginTextureMode(A.scene);
+    PushScale(); // everything is drawn in screen units onto the double-size scene
+}
+
+void BeginFrame() {
+    EnterScene();
     ClearBackground(Pal::SeaDeep);
 }
 
 void EndFrame(float time) {
     if (A.lightsOpen) LightsEnd();
-    EndTextureMode();
+    EndTarget();
 
     BeginTextureMode(A.final);
     float res[2] = {(float)SCREEN_W, (float)SCREEN_H};
@@ -358,9 +406,9 @@ void EndFrame(float time) {
     SetShaderValue(A.post, A.locGrain, &A.grain, SHADER_UNIFORM_FLOAT);
     SetShaderValue(A.post, A.locBloom, &A.bloom, SHADER_UNIFORM_FLOAT);
     BeginShaderMode(A.post);
-    DrawTextureRec(A.scene.texture, {0, 0, (float)SCREEN_W, -(float)SCREEN_H}, {0, 0}, WHITE);
+    DrawTexturePro(A.scene.texture, {0, 0, (float)SCREEN_W * SS, -(float)SCREEN_H * SS}, {0, 0, (float)SCREEN_W, (float)SCREEN_H}, {0, 0}, 0, WHITE);
     EndShaderMode();
-    EndTextureMode();
+    EndTarget();
 
     BeginDrawing();
     ClearBackground(BLACK);
@@ -371,19 +419,44 @@ void EndFrame(float time) {
 // Draw into another render texture for a while (the ocean, the pixel-art platformer), then come back.
 void BeginLayer(RenderTexture2D& rt) {
     if (A.lightsOpen) LightsEnd();
-    EndTextureMode();
+    EndTarget();
     BeginTextureMode(rt);
 }
 
 void EndLayer() {
-    EndTextureMode();
-    BeginTextureMode(A.scene);
+    EndTarget();
+    EnterScene();
+}
+
+// Distant scenery: drawn (in screen units) into a half-size backdrop, then laid into the scene through
+// a blur, so it sits out of focus behind whatever is drawn sharply in front of it.
+void BeginBackdrop() {
+    BeginLayer(A.backdrop);
+    ClearBackground(BLACK);
+    rlPushMatrix();
+    rlScalef(0.5f, 0.5f, 1);
+    targetScaled = true;
+}
+
+void EndBackdrop(float blur) {
+    EndLayer();
+    float texel[2] = {blur / (SCREEN_W / 2.0f), blur / (SCREEN_H / 2.0f)};
+    SetShaderValue(A.blur, A.locBlurTexel, texel, SHADER_UNIFORM_VEC2);
+    BeginShaderMode(A.blur);
+    DrawTexturePro(A.backdrop.texture, {0, 0, SCREEN_W / 2.0f, -SCREEN_H / 2.0f}, {0, 0, (float)SCREEN_W, (float)SCREEN_H}, {0, 0}, 0, WHITE);
+    EndShaderMode();
 }
 
 // raylib culls triangles wound the "wrong" way; drawing both windings means any order works.
 void DrawTri(Vector2 a, Vector2 b, Vector2 c, Color col) {
     DrawTriangle(a, b, c, col);
     DrawTriangle(a, c, b, col);
+}
+
+Image GrabFrame() {
+    Image img = LoadImageFromTexture(A.final.texture);
+    ImageFlipVertical(&img);
+    return img;
 }
 
 bool SaveFrameShot(const char* path) {
@@ -396,7 +469,7 @@ bool SaveFrameShot(const char* path) {
 
 // ============================================================= lighting
 void LightsBegin(Color ambient) {
-    EndTextureMode();
+    EndTarget();
     BeginTextureMode(A.light);
     ClearBackground(ambient);
     BeginBlendMode(BLEND_ADDITIVE);
@@ -435,8 +508,8 @@ void AddCone(Vector2 o, float angle, float spread, float length, Color c) {
 void LightsEnd() {
     if (!A.lightsOpen) return;
     EndBlendMode();
-    EndTextureMode();
-    BeginTextureMode(A.scene);
+    EndTarget();
+    EnterScene();
     BeginBlendMode(BLEND_MULTIPLIED);
     DrawTexturePro(A.light.texture, {0, 0, (float)A.light.texture.width, -(float)A.light.texture.height},
                    {0, 0, (float)SCREEN_W, (float)SCREEN_H}, {0, 0}, 0, WHITE);
@@ -566,18 +639,19 @@ void DrawShadowBlob(Vector2 feet, float w) {
 // ============================================================= painterly passes
 void InkPass(float ink, float hatch) {
     if (A.lightsOpen) LightsEnd();
-    EndTextureMode();
+    EndTarget();
     BeginTextureMode(A.temp);
     float res[2] = {(float)SCREEN_W, (float)SCREEN_H};
     SetShaderValue(A.ink, A.locInkRes, res, SHADER_UNIFORM_VEC2);
     SetShaderValue(A.ink, A.locInkAmt, &ink, SHADER_UNIFORM_FLOAT);
     SetShaderValue(A.ink, A.locInkHatch, &hatch, SHADER_UNIFORM_FLOAT);
     BeginShaderMode(A.ink);
-    DrawTextureRec(A.scene.texture, {0, 0, (float)SCREEN_W, -(float)SCREEN_H}, {0, 0}, WHITE);
+    DrawTextureRec(A.scene.texture, {0, 0, (float)SCREEN_W * SS, -(float)SCREEN_H * SS}, {0, 0}, WHITE);
     EndShaderMode();
-    EndTextureMode();
+    EndTarget();
     BeginTextureMode(A.scene);
-    DrawTextureRec(A.temp.texture, {0, 0, (float)SCREEN_W, -(float)SCREEN_H}, {0, 0}, WHITE);
+    DrawTextureRec(A.temp.texture, {0, 0, (float)SCREEN_W * SS, -(float)SCREEN_H * SS}, {0, 0}, WHITE);
+    PushScale();
 }
 
 Vector2 FigureFeet() { return FIG_FEET; }
@@ -609,6 +683,7 @@ void EndCanvas() {
 void BeginFigure() {
     BeginLayer(A.fig);
     ClearBackground(BLANK);
+    PushScale(); // characters are painted at double resolution too
     rlSetBlendFactorsSeparate(RL_SRC_ALPHA, RL_ONE_MINUS_SRC_ALPHA, RL_ONE, RL_ONE_MINUS_SRC_ALPHA, RL_FUNC_ADD, RL_FUNC_ADD);
     BeginBlendMode(BLEND_CUSTOM_SEPARATE);
     rlDrawRenderBatchActive();
@@ -624,7 +699,8 @@ void EndFigure(Vector2 feet, Color tint) {
     SetShaderValue(A.figShader, A.locFigTexel, texel, SHADER_UNIFORM_VEC2);
     SetShaderValue(A.figShader, A.locFigOutline, &outline, SHADER_UNIFORM_FLOAT);
     BeginShaderMode(A.figShader);
-    DrawTextureRec(A.fig.texture, {0, 0, (float)FIG_W, -(float)FIG_H}, {roundf(feet.x - FIG_FEET.x), roundf(feet.y - FIG_FEET.y)}, tint);
+    DrawTexturePro(A.fig.texture, {0, 0, (float)FIG_W * SS, -(float)FIG_H * SS},
+                   {roundf(feet.x - FIG_FEET.x), roundf(feet.y - FIG_FEET.y), (float)FIG_W, (float)FIG_H}, {0, 0}, 0, tint);
     EndShaderMode();
 }
 
@@ -702,13 +778,17 @@ void DrawCrewFigure(const Hero& h, Vector2 ft, float s, bool right, float walk, 
     bool walking = walk != 0;
     float sw = sinf(walk), lift = walking ? std::max(0.0f, cosf(walk)) : 0, liftB = walking ? std::max(0.0f, -cosf(walk)) : 0;
     float br = sinf(t * 2.0f + h.id) * 0.8f;
+    float tj = pose.tremble * 1.8f; // fear and strain make the hands and head shake
+    Vector2 shake{sinf(t * 47 + h.id) * tj, cosf(t * 39 + h.id * 2) * tj * 0.7f};
     float y = ft.y - (walking ? fabsf(cosf(walk)) * 2.5f * s : 0);
     // P maps a point written in "facing right, feet at 0" units to the screen, applying the pose:
     // the upper body tilts about the hips, and crouching lowers everything above the feet.
     auto P = [&](float dx, float dy) {
         float up = std::clamp((-dy - 8) / 78.0f, 0.0f, 1.0f);
         float lean = pose.lean * std::max(0.0f, -dy - 86) * 0.35f;
-        return Vector2{x + (dx + lean + pose.crouch * 4 * up) * s * f, y + (dy + pose.crouch * 16 * up) * s};
+        float head = std::clamp((-dy - 136) / 6.0f, 0.0f, 1.0f); // the head can bow, snap back and shake
+        return Vector2{x + (dx + lean + pose.crouch * 4 * up + head * (pose.headDown * 4 + shake.x)) * s * f,
+                       y + (dy + pose.crouch * 16 * up + head * (pose.headDown * 6 + shake.y)) * s};
     };
     auto Q = [&](Vector2 bt, Vector2 fT, Vector2 fb, Vector2 bb, Color c) {
         if (f > 0) ShadeQuad(bt, fT, fb, bb, c); else ShadeQuad(fT, bt, bb, fb, c);
@@ -770,13 +850,14 @@ void DrawCrewFigure(const Hero& h, Vector2 ft, float s, bool right, float walk, 
     {   // the far arm
         float bR = ease(pose.backRaise);
         Vector2 sh = P(-6, -128 + br);
-        Vector2 el = walking ? P(-6 - sw * 6, -105) : L(P(-5, -105), P(-8, -150), bR);
-        Vector2 hd = walking ? P(-4 - sw * 13, -84) : L(P(5, -88), P(-2, -172), bR);
+        Vector2 el = walking ? P(-6 - sw * 8, -100) : L(P(-6, -100), P(-10, -158), bR);
+        Vector2 hd = walking ? P(-4 - sw * 17, -72) : L(P(2, -74), P(-4, -192), bR);
+        hd = {hd.x + shake.x * s, hd.y + shake.y * s};
         arm(sh, el, hd, Tone(sleeve, -0.25f), Tone(forearm, -0.25f));
     }
-    leg(-3, walking ? -sw * 15 - 2 : -12, liftB * 6, Tone(legs, -0.22f));
+    leg(-3, walking ? -sw * 15 - 2 : -12 - pose.stride * 8, liftB * 6, Tone(legs, -0.22f));
     if (h.cls == HeroClass::Captain) Q(P(-19, -100), P(15, -100), P(19, -34), P(-25, -34), top); // greatcoat skirts
-    leg(4, walking ? sw * 15 + 3 : 13, lift * 6, legs);
+    leg(4, walking ? sw * 15 + 3 : 13 + pose.stride * 16, lift * 6, legs);
     if (h.cls == HeroClass::Nurse) {
         Q(P(-16, -100), P(16, -100), P(24, -38), P(-23, -38), top); // skirt
         for (int k = 0; k < 3; k++) DrawLineEx(P(-8 + k * 8.0f, -96), P(-11 + k * 11.0f, -42), 1.1f * s, Tone(top, -0.35f)); // folds
@@ -944,9 +1025,10 @@ void DrawCrewFigure(const Hero& h, Vector2 ft, float s, bool right, float walk, 
     // --- the weapon arm, in front of everything, posed by `pose`
     float rz = ease(pose.raise), rc = ease(pose.reach);
     Vector2 sh = P(6, -128 + br);
-    Vector2 elIdle = walking ? P(6 + sw * 6, -106) : P(12, -106), hdIdle = walking ? P(8 + sw * 13, -86) : P(22, -98);
-    Vector2 el = L(L(elIdle, P(16, -150), rz), P(30, -122), rc);
-    Vector2 hand = L(L(hdIdle, P(8, -174), rz), P(46, -118), rc);
+    Vector2 elIdle = walking ? P(6 + sw * 8, -100) : P(14, -102), hdIdle = walking ? P(8 + sw * 17, -74) : P(26, -84);
+    Vector2 el = L(L(elIdle, P(18, -160), rz), P(34, -120), rc);
+    Vector2 hand = L(L(hdIdle, P(10, -192), rz), P(60, -114), rc);
+    hand = {hand.x + shake.x * s, hand.y + shake.y * s};
     arm(sh, el, hand, sleeve, forearm);
     if (npc) { // the ship's hands carry the tools of their trade, not weapons
         switch (h.outfit) {

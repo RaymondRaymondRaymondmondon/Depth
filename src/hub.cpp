@@ -533,11 +533,11 @@ void ScenePeriscope(Game& g) {
     DrawGoldBadge(g);
     struct Lvl { const char* diff; const char* desc; const char* reward; };
     const Lvl lv[PL_COUNT] = {
-        {"EASY", "A long run through the Nautilus's steam pipes. No enemies, just hard jumps: gears, vents, timed jets, and a chimney to wall-jump up.",
+        {"FIRST DIVE", "A long crawl through the Nautilus's steam pipes. No enemies, just hard jumps: steam vents, a shaft to plunge down, and chimneys to wall-jump up.",
          "2 gold per coin, +30 at the valve"},
-        {"MEDIUM", "Outside the hull. Crabs, leaping eels, urchins and mines. Crab or eel, one touch is fatal. At the end, the Kraken: stomp its head for a relic.",
-         "3 gold per coin, +60, and a relic if you beat the Kraken"},
-        {"HARD", "The hardest leaps yet, past pirates, parakeets and fire vents. Blackbeard guards the treasure: stomp him three times.",
+        {"SECOND DIVE", "Out along the Nautilus's hull. Crabs, leaping eels, urchins and mines; one touch is fatal. At the end, the Kraken: stomp its head for a relic.",
+         "3 gold per coin, +60, and a relic for the Kraken"},
+        {"THIRD DIVE", "Board a pirate ship: across the deck, down the hatch into the hold, up to the captain's cabin. Pirates burst out of doors and shoot from cover. Trick Blackbeard into charging a wall, then stomp him while he's dazed.",
          "4 gold per coin, +100, and a relic"},
     };
     for (int i = 0; i < PL_COUNT; i++) {
@@ -563,8 +563,11 @@ void ScenePeriscope(Game& g) {
             DrawTextCenteredBold(TextFormat("Locked: clear %s first", PlatLevelName(i - 1)), c.x + c.width / 2, c.y + 390, 18, Pal::BrassDk);
         }
     }
-    const char* help = "A/D or arrows to move   |   Space to jump: hold for height, jump off walls   |   Esc to give up";
-    TxtShadow(help, SCREEN_W / 2.0f - MeasureTxt(help, 19) / 2.0f, 606, 19, Pal::Paper);
-    const char* help2 = "Only bosses can be stomped. Every other enemy is deadly to touch.";
-    TxtShadow(help2, SCREEN_W / 2.0f - MeasureTxt(help2, 17) / 2.0f, 636, 17, Color{220, 200, 160, 255});
+    // run options, kept between sessions
+    if (Button({60, 592, 250, 40}, g.platHard ? "Difficulty: HARD" : "Difficulty: Normal", true, 17)) g.platHard = !g.platHard;
+    Txt(g.platHard ? "Every gear, mine, spiked ball and jet. +50% bonus gold." : "No gears, mines, spiked balls or jets, and a brighter lamp.", 320, 603, 15, Pal::Paper);
+    if (Button({700, 592, 250, 40}, g.platCheckpoints ? "Checkpoints: ON" : "Checkpoints: OFF", true, 17)) g.platCheckpoints = !g.platCheckpoints;
+    Txt(g.platCheckpoints ? "Respawn in the section you reached,\nbut no relics can be won." : "A death sends you back to the start.\nRelics can be won.", 960, 594, 15, Pal::Paper);
+    const char* help = "A/D or arrows to move   |   Space to jump: hold for height, jump off walls   |   Esc to give up   |   Only bosses can be stomped";
+    TxtShadow(help, SCREEN_W / 2.0f - MeasureTxt(help, 17) / 2.0f, 652, 17, Color{220, 200, 160, 255});
 }
