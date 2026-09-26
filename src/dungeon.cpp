@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 //  DEPTH - the roguelike expedition: rooms, the flashlight, and combat.
 // ============================================================================
 #include "game.h"
@@ -1373,6 +1373,104 @@ static void DrawRegionForeground(Game& g) {
             break;
     }
 }
+// The furthest layer of each region, painted as part of its own look (the Cave keeps its dark water and light shafts):
+// the Island a drowned eldritch sunset behind distant palm isles and stilt huts, the Weeds a green kelp forest lit from far
+// above, Atlantis a vast sunken city of colonnades, domes and spires under a pale, watching moon.
+static void DrawRegionFar(Game& g) {
+    float t = g.time;
+    Rectangle full{0, 0, (float)SCREEN_W, (float)SCREEN_H};
+    if (g.dungeon.loc == Location::Island) {
+        DrawVGradient(full, Color{96, 36, 74, 255}, Color{16, 14, 36, 255});
+        Vector2 sun{860 - LayerOffset(g, 0.02f) * 0.5f, 250};
+        BeginBlendMode(BLEND_ADDITIVE);
+        DrawCircleGradient((int)sun.x, (int)sun.y, 330, Color{255, 130, 60, 110}, Color{255, 130, 60, 0});
+        for (int k = 0; k < 14; k++) { // rays fanning from the sun
+            float a = k * 0.45f + t * 0.03f;
+            DrawTri(sun, {sun.x + cosf(a) * 900, sun.y + sinf(a) * 900}, {sun.x + cosf(a + 0.08f) * 900, sun.y + sinf(a + 0.08f) * 900}, Color{255, 150, 80, 12});
+        }
+        EndBlendMode();
+        DrawCircleV(sun, 66, Color{255, 196, 120, 255});
+        DrawRing(sun, 72, 79, 0, 360, 48, Color{140, 44, 84, 255}); // a dark ring about it: an eclipse, or an eye
+        DrawCircleV({sun.x + 14, sun.y - 6}, 26, Color{40, 14, 40, 230});
+        Repeat(LayerOffset(g, 0.05f), 470, [&](float sx, float wx) { // dusk cloud, banded
+            float x = sx + Hash1(wx) * 200, y = 90 + Hash1(wx + 3) * 170;
+            for (int k = 0; k < 3; k++) DrawEllipse((int)(x + k * 40), (int)(y + k * 6), 150, 9, Color{170, 64, 96, 90});
+        });
+        for (int layer = 0; layer < 2; layer++) { // distant palm isles and stilt huts on the horizon
+            Color land = layer ? Color{34, 20, 44, 255} : Color{52, 26, 58, 255};
+            Repeat(LayerOffset(g, layer ? 0.11f : 0.07f), layer ? 520 : 700, [&](float sx, float wx) {
+                float x = sx + Hash1(wx + layer) * 240, hh = 40 + Hash1(wx + 2) * 40, by = layer ? 452 : 436;
+                DrawEllipse((int)x, (int)by, 200, hh, land);
+                for (int p = 0; p < 3; p++) { // palms
+                    float px = x - 90 + p * 80 + Hash1(wx + p * 7) * 30, ph = 70 + Hash1(wx + p) * 50 - layer * 16, lean = (p - 1) * 10;
+                    DrawLineEx({px, by - hh * 0.5f}, {px + lean, by - hh * 0.5f - ph}, layer ? 5.0f : 6.0f, land);
+                    for (int fr = -2; fr <= 2; fr++) DrawTri({px + lean, by - hh * 0.5f - ph}, {px + lean + fr * 22.0f, by - hh * 0.5f - ph + 10 + abs(fr) * 5}, {px + lean + fr * 22.0f + 6, by - hh * 0.5f - ph + 20}, land);
+                }
+                if (Hash1(wx + 11) > 0.4f) { // a hut on stilts, one window lit
+                    float hx = x + 70;
+                    DrawRectangle((int)hx - 14, (int)(by - hh * 0.4f) - 22, 28, 20, land);
+                    DrawTri({hx - 20, by - hh * 0.4f - 22}, {hx + 20, by - hh * 0.4f - 22}, {hx, by - hh * 0.4f - 42}, land);
+                    for (int s = -1; s <= 1; s += 2) DrawLineEx({hx + s * 10.0f, by - hh * 0.4f - 2}, {hx + s * 12.0f, by - hh * 0.4f + 22}, 3, land);
+                    DrawRectangle((int)hx - 3, (int)(by - hh * 0.4f) - 16, 6, 6, Color{255, 180, 90, 255});
+                }
+            });
+        }
+    } else if (g.dungeon.loc == Location::Weeds) {
+        DrawVGradient(full, Color{34, 112, 86, 255}, Color{4, 26, 26, 255});
+        BeginBlendMode(BLEND_ADDITIVE); // the sun through the canopy of the surface
+        Repeat(LayerOffset(g, 0.05f), 260, [&](float sx, float wx) {
+            float x = sx + sinf(t * 0.25f + wx) * 22, w = 34 + Hash1(wx) * 46;
+            DrawTri({x, 0}, {x + w, 0}, {x - 120, 620}, Color{120, 220, 150, 20});
+            DrawTri({x + w, 0}, {x - 120 + w * 2, 620}, {x - 120, 620}, Color{120, 220, 150, 20});
+        });
+        EndBlendMode();
+        for (int layer = 0; layer < 3; layer++) { // a kelp forest in three depths, the furthest palest
+            float f = 0.05f + layer * 0.06f;
+            Color kc = layer == 0 ? Color{28, 96, 78, 255} : layer == 1 ? Color{18, 74, 62, 255} : Color{10, 52, 46, 255};
+            Repeat(LayerOffset(g, f), 64 - layer * 8, [&](float sx, float wx) {
+                float x = sx + Hash1(wx + layer) * 40, h = 200 + Hash1(wx + 5 + layer) * 220;
+                Vector2 prev{x, 470};
+                for (int s2 = 1; s2 <= 9; s2++) {
+                    Vector2 q{x + sinf(t * 0.6f + wx * 0.7f + s2 * 0.5f) * s2 * 2.4f, 470 - h * s2 / 9};
+                    DrawLineEx(prev, q, 13.0f - s2 * 1.1f - layer, kc);
+                    if (s2 % 2 == 0) DrawEllipse((int)q.x + (s2 % 4 ? 12 : -12), (int)q.y, 12, 4, kc); // a broad blade
+                    prev = q;
+                }
+            });
+        }
+    } else { // Atlantis
+        DrawVGradient(full, Color{44, 36, 96, 255}, Color{6, 6, 24, 255});
+        Vector2 moon{640 - LayerOffset(g, 0.02f) * 0.4f, 170};
+        BeginBlendMode(BLEND_ADDITIVE);
+        DrawCircleGradient((int)moon.x, (int)moon.y, 260, Color{140, 120, 220, 90}, Color{140, 120, 220, 0});
+        EndBlendMode();
+        DrawCircleV(moon, 78, Color{176, 168, 226, 255});
+        DrawCircleV({moon.x + 22, moon.y}, 26, Color{22, 18, 52, 255}); // a slitted pupil in a pale, watching eye
+        DrawEllipse((int)moon.x + 22, (int)moon.y, 9, 34, Color{160, 40, 60, 255});
+        for (int layer = 0; layer < 2; layer++) { // the drowned city: colonnades, domes and spires
+            Color st = layer ? Color{18, 16, 52, 255} : Color{32, 28, 80, 255};
+            Repeat(LayerOffset(g, layer ? 0.12f : 0.07f), layer ? 620 : 800, [&](float sx, float wx) {
+                float x = sx + Hash1(wx + layer) * 260, by = layer ? 456 : 440;
+                int kind = (int)(Hash1(wx + 4 + layer) * 3);
+                if (kind == 0) { // a colonnade under an architrave and pediment
+                    for (int k = 0; k < 6; k++) DrawRectangle((int)(x + k * 34), (int)(by - 150), 16, 150, st);
+                    DrawRectangle((int)x - 10, (int)(by - 166), 220, 16, st);
+                    DrawTri({x - 10, by - 166}, {x + 210, by - 166}, {x + 100, by - 210}, st);
+                } else if (kind == 1) { // a great dome on a drum
+                    DrawRectangle((int)x, (int)(by - 90), 150, 90, st);
+                    DrawCircleSector({x + 75, by - 90}, 84, 270, 450, 24, st);
+                    DrawRectangle((int)x + 70, (int)(by - 200), 10, 40, st);
+                } else { // spires and a broken arch
+                    for (int k = 0; k < 4; k++) { float hh = 120 + Hash1(wx + k * 3) * 130; DrawTri({x + k * 44.0f, by}, {x + k * 44.0f + 30, by}, {x + k * 44.0f + 15, by - hh}, st); }
+                    DrawRing({x + 230, by}, 60, 80, 180, 320, 20, st);
+                }
+                BeginBlendMode(BLEND_ADDITIVE);
+                for (int w = 0; w < 4; w++) DrawRectangle((int)(x + 20 + Hash1(wx + w * 5) * 160), (int)(by - 30 - Hash1(wx + w) * 90), 4, 6, Color{110, 190, 230, (unsigned char)(90 + 50 * sinf(t + wx + w))}); // lit windows
+                EndBlendMode();
+            });
+        }
+    }
+}
 static void DrawCaveLayers(Game& g) {
     float t = g.time;
     // 1. the far water, with bioluminescent haze drifting in it
@@ -1390,9 +1488,10 @@ static void DrawCaveLayers(Game& g) {
         DrawTri({x + w, 0}, {x - 150 + w * 2, 520}, {x - 150, 520}, Color{60, 110, 120, 24});
     });
     EndBlendMode();
+    if (g.dungeon.loc != Location::Cave) DrawRegionFar(g); // each region paints its own furthest layer instead of the cave water
     // 2. the far cave walls
-    DrawRidge(LayerOffset(g, 0.12f), 318, 70, 3, false, Color{16, 44, 56, 255}, 70);
-    DrawRidge(LayerOffset(g, 0.2f), 372, 50, 11, false, Color{19, 48, 60, 255}, 40);
+    if (g.dungeon.loc == Location::Cave) DrawRidge(LayerOffset(g, 0.12f), 318, 70, 3, false, Color{16, 44, 56, 255}, 70);
+    if (g.dungeon.loc == Location::Cave) DrawRidge(LayerOffset(g, 0.2f), 372, 50, 11, false, Color{19, 48, 60, 255}, 40);
     DrawRectangle(0, 0, SCREEN_W, SCREEN_H, Color{30, 70, 84, 40}); // fog between layers
     Repeat(LayerOffset(g, 0.16f), 900, [&](float sx, float wx) { // schools of fish drifting past
         float dir = Hash1(wx) > 0.5f ? 1.0f : -1.0f, cx = sx + fmodf(t * 14 * dir + 9000, 900.0f) - 450, cy = 150 + Hash1(wx + 1) * 170;
