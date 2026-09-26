@@ -65,7 +65,7 @@ void main() {
     vec3 u = texture(texture0, uv + vec2(0.0, uTexel.y)).rgb, dn = texture(texture0, uv - vec2(0.0, uTexel.y)).rgb;
     float edge = length(l - r) + length(u - dn);
     vec3 col = c.rgb;
-    col *= mix(0.8, 1.0, smoothstep(0.45, 0.95, nearA));          // the form turns away at its edges
+    col *= mix(0.92, 1.0, smoothstep(0.45, 0.95, nearA));         // the form turns away at its edges
     float toward = texture(texture0, uv + vec2(-3.0, 3.0) * uTexel).a;
     float away = texture(texture0, uv + vec2(3.0, -3.0) * uTexel).a;
     col *= 1.0 + 0.25 * (away - toward);                          // light from the upper left
@@ -79,24 +79,29 @@ void main() {
     // hand-inked finish: a sickly, desaturated maritime palette, flat cel bands instead of gradients, and a
     // solid black block shadow along the edge facing away from the key light (upper left)
     float lum = dot(col, vec3(0.299, 0.587, 0.114));
-    col = mix(vec3(lum), col, 0.74) * vec3(1.1, 1.18, 1.14);
-    col = floor(col * 4.0 + 0.5) / 4.0;
-    float e1 = texture(texture0, uv + vec2(4.0, 3.5) * uTexel).a, e2 = texture(texture0, uv + vec2(10.0, 8.5) * uTexel).a;
+    col = mix(vec3(lum), col, 1.15) * 1.32;                 // keep the class colours vivid and lifted
+    col = floor(col * 6.0 + 0.5) / 6.0;                     // flat comic bands, not darkening
+    float e1 = texture(texture0, uv + vec2(2.5, 2.2) * uTexel).a, e2 = texture(texture0, uv + vec2(7.0, 6.0) * uTexel).a;
     // cross-hatching in the mid-tones and deeper shadow, cloth folds, grit, salt and rust
     vec2 px = uv / uTexel;
     float lum2 = dot(col, vec3(0.299, 0.587, 0.114));
     float h1 = step(0.80, fract((px.x + px.y) / 4.5)), h2 = step(0.80, fract((px.x - px.y) / 4.5));
-    col *= 1.0 - 0.55 * h1 * smoothstep(0.58, 0.30, lum2);
-    col *= 1.0 - 0.55 * h2 * smoothstep(0.34, 0.16, lum2);
+    col *= 1.0 - 0.32 * h1 * smoothstep(0.30, 0.10, lum2);   // hatching only in the truly dark tones
+    col *= 1.0 - 0.32 * h2 * smoothstep(0.16, 0.05, lum2);
     float fold = step(0.86, fract((px.x * 0.8 + px.y * 0.45) / 11.0 + hash(floor(px / 23.0)) * 0.5));
-    col *= 1.0 - 0.20 * fold;
+    col *= 1.0 - 0.09 * fold;
     float gr = hash(floor(px));
     col *= 1.0 - 0.10 * step(0.93, gr);
     col += 0.10 * step(0.992, gr);
     float rn = hash(floor(px / 9.0)) * 0.6 + hash(floor(px / 3.0)) * 0.4;
-    col = mix(col, vec3(0.34, 0.17, 0.09), 0.30 * smoothstep(0.78, 0.93, rn));
-    if (e1 < 0.5) col = INK * 1.4;                 // pure black block on the shadow side
-    else if (e2 < 0.5) col *= 0.55;                // a second, half-dark step behind it
+    col = mix(col, vec3(0.34, 0.17, 0.09), 0.12 * smoothstep(0.84, 0.95, rn));
+    // strong directional rim light on the edges facing the lamp (upper left): gold, then pale cyan
+    float rimA = 1.0 - texture(texture0, uv + vec2(-3.5, -3.0) * uTexel).a;
+    float rimB = 1.0 - texture(texture0, uv + vec2(-6.5, -5.5) * uTexel).a;
+    col = mix(col, vec3(1.0, 0.86, 0.52), rimA * 0.75);
+    col = mix(col, vec3(0.62, 0.9, 1.0), rimB * (1.0 - rimA) * 0.4);
+    if (e1 < 0.5) col = mix(col * 0.28, INK, 0.5);  // a thin, sharp shadow edge on the far side only: the fill keeps its colour
+    else if (e2 < 0.5) col *= 0.82;
     finalColor = vec4(col * fragColor.rgb, fragColor.a);
 }
 )";
@@ -901,14 +906,15 @@ void DrawCrewFigure(const Hero& h, Vector2 ft, float s, bool right, float walk, 
         case HeroClass::Nurse:    top = {72, 94, 124, 255}; legs = {46, 42, 48, 255}; sleeve = top; trim = {230, 226, 214, 255}; break;
         case HeroClass::Diver:    top = {140, 114, 74, 255}; legs = top; boots = {96, 90, 84, 255}; sleeve = top; glove = {74, 58, 44, 255}; trim = Pal::BrassDk; break;
         case HeroClass::Captain:  top = {40, 50, 82, 255}; legs = {36, 34, 42, 255}; sleeve = top; trim = Pal::Brass; glove = {220, 214, 200, 255}; break;
-        case HeroClass::Mechanic: top = {196, 184, 158, 255}; legs = {170, 96, 46, 255}; sleeve = top; trim = {110, 70, 40, 255}; glove = {92, 66, 44, 255}; break;
-        case HeroClass::Whaler:   top = {72, 82, 92, 255}; legs = {52, 50, 54, 255}; boots = {36, 32, 30, 255}; sleeve = top; glove = {60, 54, 48, 255}; trim = Pal::BrassDk; break;
+        case HeroClass::Mechanic: top = {226, 112, 30, 255}; legs = {206, 96, 26, 255}; sleeve = top; trim = {70, 66, 64, 255}; glove = {66, 60, 56, 255}; boots = {60, 56, 52, 255}; break;
+        case HeroClass::Whaler:   top = {84, 108, 138, 255}; legs = {64, 70, 84, 255}; boots = {92, 62, 36, 255}; sleeve = top; glove = {110, 76, 44, 255}; trim = {126, 88, 50, 255}; break;
         case HeroClass::Stowaway: top = {124, 94, 62, 255}; legs = {84, 72, 52, 255}; boots = {58, 48, 38, 255}; sleeve = top; glove = skin; trim = {176, 48, 46, 255}; break;
-        case HeroClass::Merman:   top = {40, 140, 120, 255}; legs = {30, 108, 96, 255}; boots = {20, 88, 80, 255}; sleeve = top; glove = skin; trim = Pal::BrassDk; break;
+        case HeroClass::Merman:   top = {34, 168, 176, 255}; legs = {26, 132, 146, 255}; boots = {20, 104, 120, 255}; sleeve = top; glove = skin; trim = Pal::BrassDk; break;
         case HeroClass::Queen:    top = {150, 108, 170, 255}; legs = {92, 70, 112, 255}; boots = {70, 55, 62, 255}; sleeve = top; glove = {200, 190, 210, 255}; trim = {202, 172, 92, 255}; break;
-        case HeroClass::Robot:    top = {172, 176, 182, 255}; legs = {112, 100, 90, 255}; boots = {90, 85, 80, 255}; sleeve = top; glove = {142, 110, 60, 255}; trim = Pal::Brass; break;
-        case HeroClass::Octopus:  top = {150, 60, 130, 255}; legs = {130, 50, 110, 255}; boots = {110, 40, 95, 255}; sleeve = top; glove = {160, 70, 140, 255}; trim = {202, 122, 182, 255}; break;
-        case HeroClass::Siren:    top = {182, 92, 132, 255}; legs = {60, 140, 140, 255}; boots = {50, 110, 110, 255}; sleeve = top; glove = skin; trim = {222, 182, 202, 255}; break;
+        case HeroClass::Robot:    top = {198, 196, 190, 255}; legs = {150, 146, 140, 255}; boots = {90, 85, 80, 255}; sleeve = top; glove = {142, 110, 60, 255}; trim = Pal::Brass; break;
+        case HeroClass::Wisp:     top = {150, 236, 226, 255}; legs = {120, 214, 214, 255}; boots = {96, 190, 204, 255}; sleeve = top; glove = {190, 250, 244, 255}; trim = {230, 255, 250, 255}; break;
+        case HeroClass::Octopus:  top = {176, 60, 150, 255}; legs = {146, 50, 128, 255}; boots = {120, 40, 108, 255}; sleeve = top; glove = {190, 80, 164, 255}; trim = {232, 214, 226, 255}; break;
+        case HeroClass::Siren:    top = {232, 112, 122, 255}; legs = {36, 118, 122, 255}; boots = {30, 96, 100, 255}; sleeve = top; glove = skin; trim = {244, 168, 160, 255}; break;
         default:                  top = {182, 222, 222, 255}; legs = {142, 192, 192, 255}; boots = {122, 172, 172, 255}; sleeve = top; glove = {202, 232, 232, 255}; trim = WHITE; break; // Wisp
     }
     bool npc = h.outfit >= 0; // the Nautilus's own hands wear uniforms instead of expedition gear

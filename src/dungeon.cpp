@@ -2212,9 +2212,9 @@ void SceneDungeon(Game& g) {
     DrawRegionFloor(g);
     DrawSeededSilhouettes(g);
     DrawPathProps(g);
-    DrawUnitFigures(g);
-    DrawProjectiles(g);
     DrawCaveLighting(g);
+    DrawUnitFigures(g);   // after the lightmap: characters keep their own colours instead of being multiplied toward black
+    DrawProjectiles(g);
     DrawCaveForeground(g);
     InkPass(1.0f, 1.0f);
     DrawDriftingSpecks(g);
