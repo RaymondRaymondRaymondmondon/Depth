@@ -658,6 +658,135 @@ void Neptune(const Ctx& c) { // the Weeds' level boss: a king of the drowned wit
     Line(c, {-30, -222 + hover}, {18, -222 + hover}, 5, gold);
     Ball(c, -6, -226 + hover, 6, Tone(glow, -0.2f)); Glow(c.P(-6, -226 + hover), 30 * c.k, Fade(glow, 0.18f + 0.1f * pulse));
 }
+// ============================================================ THE WEEDS: the beasts
+void GiantOctopus(const Ctx& c) {
+    const float t = c.t;
+    const Color skin{108, 74, 132, 255}, lt{156, 124, 178, 255}, dk{62, 44, 82, 255}, pale{218, 200, 214, 255}, amber{240, 200, 90, 255}, glow{230, 120, 220, 255}, rust{130, 84, 50, 255};
+    float breathe = sinf(t * 1.8f + c.u) * 1.6f, pulse = 0.5f + 0.5f * sinf(t * 2.4f + c.u);
+    // eight arms, each a sinuous, tapering curve from under the head to the ground or up to reach for the party
+    struct Arm { float bx, ex, ey, arch; };
+    const Arm arms[8] = {{-20, -92, -34, 46}, {-16, -84, 0, 14}, {-10, -62, 0, 10}, {-4, -34, 0, 8}, {4, -4, 0, 10}, {12, 24, 0, 8}, {18, 52, -4, 16}, {22, 76, -26, 34}};
+    for (int pass = 0; pass < 2; pass++)
+        for (int i = pass; i < 8; i += 2) {
+            const Arm& a = arms[i];
+            Vector2 prev{a.bx, -42.0f};
+            for (int sg = 1; sg <= 9; sg++) {
+                float u = sg / 9.0f, wob = sinf(t * 1.8f + i * 1.3f + sg * 0.6f + c.u) * 4 * u;
+                Vector2 q{a.bx + (a.ex - a.bx) * u + wob, -42.0f + (a.ey + 42.0f) * u - sinf(u * PI) * a.arch};
+                float w0 = 9.5f * (1 - (sg - 1) / 10.0f), w1 = 9.5f * (1 - sg / 10.0f);
+                Limb(c, prev, q, w0, w1, pass ? skin : Tone(skin, -0.28f));
+                if (sg % 2 == 0) { Dot(c, q.x + 1, q.y + w1 * 0.35f, std::max(1.0f, w1 * 0.32f), pale); Dot(c, q.x + 1, q.y + w1 * 0.35f, std::max(0.6f, w1 * 0.14f), dk); }  // suckers
+                if (sg == 9 && i == 0) { Tri(c, {q.x, q.y - 2}, {q.x, q.y + 2}, {q.x - 8, q.y + sinf(t * 3) * 3}, Tone(skin, 0.1f)); }
+                prev = q;
+            }
+        }
+    // an old anchor chain wound round the first arm, and a rusted hook
+    for (int i = 0; i < 6; i++) DrawRing(c.P(-30.0f - i * 8, -46.0f + i * 1.5f), 2.6f * c.k, 3.8f * c.k, 0, 360, 8, Color{78, 78, 74, 255});
+    Tri(c, {-78, -34}, {-72, -30}, {-76, -22}, rust);
+    Ball(c, 26, -80 + breathe, 34, skin); Ball(c, 14, -92 + breathe, 22, lt); Crescent(c, 26, -80 + breathe, 34);                                    // the great mantle
+    for (int i = 0; i < 9; i++) { float a = i * 2.2f; Dot(c, 26 + cosf(a) * (8 + i * 2.2f), -80 + sinf(a) * (8 + i * 2.0f) + breathe, 1.8f + (i % 3) * 0.6f, Fade(glow, 0.3f + 0.55f * (0.5f + 0.5f * sinf(t * 2 + i)))); } // chromatophores flickering
+    for (int i = 0; i < 4; i++) Barnacles(c, 40.0f + i * 2, -98.0f + i * 10 + breathe, 4, 2, c.u + i);
+    Line(c, {36, -100 + breathe}, {50, -82 + breathe}, 1.4f, Fade(INK, 0.6f));                                                                        // old scars
+    Ball(c, -6, -56, 25, skin); Crescent(c, -6, -56, 25);                                                                                            // the head
+    for (int s = -1; s <= 1; s += 2) { // eyes with a horizontal pupil, under a heavy brow
+        Vector2 e{-6.0f + s * 12.0f, -62.0f};
+        Ball(c, e.x, e.y, 6.6f, Tone(amber, -0.15f)); Bar(c, e.x - 4.2f, e.y - 1.0f, 8.4f, 2.4f, INK); Dot(c, e.x - 2.0f, e.y - 2.4f, 1.0f, WHITE);
+        Tri(c, {e.x - 8, e.y - 5}, {e.x + 8, e.y - 5}, {e.x + s * 2.0f, e.y - 11}, Tone(skin, -0.35f));
+    }
+    Tri(c, {-12, -40}, {0, -40}, {-6, -30}, Color{200, 184, 150, 255});                                                                              // a parrot's beak between the arms
+    Glow(c.P(-6, -62), 44 * c.k, Fade(amber, 0.05f + 0.03f * pulse));
+    for (int i = 0; i < 3; i++) { float ph = fmodf(t * 0.5f + i / 3.0f + c.u * 0.1f, 1.0f); DrawCircleV(c.P(52 + sinf(ph * 6) * 6, -70 - ph * 40), (2.4f + ph * 5) * c.k, Fade(Color{40, 26, 60, 255}, 0.4f * (1 - ph))); } // wisps of ink
+}
+
+void ElectricEel(const Ctx& c) { // the Weeds' mini-boss: a long, rearing serpent crackling with current
+    const float t = c.t;
+    const Color skin{72, 100, 92, 255}, dk{40, 60, 58, 255}, belly{158, 178, 158, 255}, elec{120, 204, 255, 255}, bone{224, 214, 190, 255}, amber{255, 210, 100, 255};
+    float pulse = 0.5f + 0.5f * sinf(t * 5 + c.u);
+    const int N = 22;
+    Vector2 pts[N + 1];
+    for (int i = 0; i <= N; i++) { // from the coiled tail on the ground, up in an S, to the head held aloft toward the party
+        float u = (float)i / N;
+        float rise = std::clamp((u - 0.5f) / 0.5f, 0.0f, 1.0f), coil = 1.0f - std::clamp((u - 0.5f) / 0.25f, 0.0f, 1.0f);
+        pts[i] = {100.0f - u * 178 - rise * rise * 8 + sinf(t * 1.5f + u * 5 + c.u) * 4 * rise, -(26.0f * powf(sinf(u * PI * 2.3f), 2.0f) * coil + 104.0f * powf(rise, 1.35f)) - 5};
+    }
+    for (int i = N; i >= 1; i--) {
+        float u = (float)i / N, u1 = (float)(i - 1) / N;
+        auto wf = [](float q) { return 7.0f + 15.0f * sinf(PI * std::clamp(q * 0.9f + 0.05f, 0.0f, 1.0f)); };
+        float w0 = wf(u), w1 = wf(u1);
+        Limb(c, pts[i], pts[i - 1], w0 * 0.85f, w1 * 0.85f, i % 2 ? skin : Tone(skin, -0.1f));
+        Limb(c, {pts[i].x, pts[i].y + w0 * 0.22f}, {pts[i - 1].x, pts[i - 1].y + w1 * 0.22f}, w0 * 0.34f, w1 * 0.34f, belly);                              // a pale belly
+        Tri(c, {pts[i].x, pts[i].y - w0 * 0.44f}, {pts[i - 1].x, pts[i - 1].y - w1 * 0.44f}, {(pts[i].x + pts[i - 1].x) / 2, (pts[i].y + pts[i - 1].y) / 2 - w0 * 0.44f - 7}, i % 2 ? dk : Tone(dk, 0.12f)); // the dorsal frill
+        if (i % 3 == 0) DrawRing(c.P(pts[i].x, pts[i].y), w0 * 0.3f * c.k, w0 * 0.45f * c.k, 200, 340, 8, Fade(INK, 0.45f));
+    }
+    for (int i = 2; i < N - 1; i += 2) { // veins and spines that crackle
+        float ph = 0.5f + 0.5f * sinf(t * 7 + i * 1.7f + c.u);
+        Dot(c, pts[i].x, pts[i].y - 4, 1.6f, Fade(elec, 0.4f + 0.55f * ph));
+        if (ph > 0.75f) { Vector2 a = pts[i], b{a.x + sinf(i * 3.1f + t * 9) * 16, a.y - 16 - ph * 10};
+            Line(c, {a.x, a.y - 4}, {(a.x + b.x) / 2 + 4, (a.y + b.y) / 2}, 1.3f, Fade(elec, 0.9f)); Line(c, {(a.x + b.x) / 2 + 4, (a.y + b.y) / 2}, b, 1.3f, Fade(WHITE, 0.9f)); }
+    }
+    for (int i = 6; i < 16; i += 3) { Line(c, {pts[i].x, pts[i].y + 6}, {pts[i + 1].x - 2, pts[i + 1].y + 4}, 0.9f, Fade(INK, 0.6f)); }                   // scars
+    Vector2 h = pts[0];
+    for (int i = 0; i < 5; i++) Tri(c, {pts[2].x + i * 2.0f - 4, pts[2].y - 10 + i * 5}, {pts[2].x + i * 2.0f - 4, pts[2].y - 6 + i * 5}, {pts[2].x - 14 + i * 2.0f, pts[2].y - 8 + i * 5.6f}, Tone(skin, 0.12f)); // gill plates
+    Ball(c, h.x - 2, h.y, 19, Tone(skin, 0.05f)); Ball(c, h.x - 6, h.y - 5, 11, Tone(skin, 0.2f)); Crescent(c, h.x - 2, h.y, 19);
+    Limb(c, {h.x - 8, h.y + 2}, {h.x - 40, h.y + 8}, 15, 7, skin);                                                                                    // the snout...
+    float jaw = 7 + sinf(t * 3 + c.u) * 3;
+    Limb(c, {h.x - 6, h.y + 9}, {h.x - 38, h.y + 9 + jaw}, 9, 4, Tone(skin, -0.2f));                                                               // ...and the open lower jaw
+    for (int i = 0; i < 6; i++) { Tri(c, {h.x - 14.0f - i * 3.6f, h.y + 6}, {h.x - 11.0f - i * 3.6f, h.y + 6}, {h.x - 12.5f - i * 3.6f, h.y + 12}, bone); Tri(c, {h.x - 13.0f - i * 3.4f, h.y + 10 + jaw * 0.8f}, {h.x - 10.0f - i * 3.4f, h.y + 10 + jaw * 0.8f}, {h.x - 11.5f - i * 3.4f, h.y + 4 + jaw * 0.8f}, bone); } // needle teeth
+    Bar(c, h.x - 12, h.y - 6, 16, 5, INK); Dot(c, h.x - 8, h.y - 3.5f, 1.3f, amber); Dot(c, h.x - 1, h.y - 3.5f, 1.3f, amber);                          // eyes buried under the brow
+    for (int i = 0; i < 2; i++) Line(c, {h.x - 30, h.y + 12 + i * 4}, {h.x - 44 + sinf(t * 2 + i) * 4, h.y + 22 + i * 8}, 1.0f, Tone(skin, -0.1f));  // barbels
+    Glow(c.P(h.x - 6, h.y), 60 * c.k, Fade(elec, 0.10f + 0.10f * pulse));
+    for (int i = 0; i < 3; i++) { Vector2 a{h.x - 34.0f + i * 6, h.y - 4}; Line(c, a, {a.x - 10 + sinf(t * 11 + i) * 6, a.y - 12}, 1.3f, Fade(elec, 0.85f)); Line(c, {a.x - 10 + sinf(t * 11 + i) * 6, a.y - 12}, {a.x - 4 + cosf(t * 9 + i) * 8, a.y - 22}, 1.3f, Fade(WHITE, 0.85f)); }
+}
+
+void GreatWhite(const Ctx& c) { // the Weeds' other mini-boss: a shark hauled up out of the water and furious about it
+    const float t = c.t;
+    const Color top{104, 122, 130, 255}, mid{132, 150, 156, 255}, belly{214, 214, 204, 255}, dk{62, 76, 84, 255}, bone{236, 230, 212, 255}, blood{150, 40, 40, 255}, rust{140, 84, 48, 255};
+    float breathe = sinf(t * 2.0f + c.u) * 1.4f;
+    // tail, rising behind
+    Limb2(c, {80, -46}, {112, -58}, {132, -86}, 30, 18, 8, top);
+    Tri(c, {126, -78}, {150, -118 + sinf(t * 2 + c.u) * 4}, {132, -88}, Tone(top, 0.05f)); Tri(c, {130, -84}, {156, -74}, {134, -60}, Tone(top, -0.18f)); // the caudal fin
+    Ball(c, 108, -60, 4, INK);
+    // pectoral fins as forelimbs, propping the body on the ground
+    Limb2(c, {-10, -32}, {-24, -20}, {-38, -4}, 10, 8, 5, Tone(top, -0.2f));
+    Limb2(c, {20, -34}, {32, -22}, {44, -4}, 12, 9, 5, Tone(top, -0.32f));
+    // the body: a torpedo along a curved spine, countershaded dark above and pale beneath
+    const int SN = 10;
+    Vector2 sp[SN + 1];
+    for (int i = 0; i <= SN; i++) { float u = (float)i / SN; sp[i] = {-30 + u * 128, -50 + breathe * (1 - u) - u * u * 20}; }
+    for (int i = 1; i <= SN; i++) {
+        float u0 = (float)(i - 1) / SN, u1 = (float)i / SN, w0 = 46.0f * (1 - u0 * 0.8f), w1 = 46.0f * (1 - u1 * 0.8f);
+        Limb(c, sp[i - 1], sp[i], w0, w1, i % 2 ? top : Tone(top, -0.06f));
+        if (u1 < 0.9f) Limb(c, {sp[i - 1].x, sp[i - 1].y + w0 * 0.3f}, {sp[i].x, sp[i].y + w1 * 0.3f}, w0 * 0.4f, w1 * 0.4f, belly);
+        Limb(c, {sp[i - 1].x, sp[i - 1].y - w0 * 0.3f}, {sp[i].x, sp[i].y - w1 * 0.3f}, w0 * 0.3f, w1 * 0.3f, mid);
+    }
+    Crescent(c, 10, -46, 26);    for (int i = 0; i < 4; i++) Line(c, {-6.0f + i * 5, -34 + breathe}, {-8.0f + i * 5, -52 + breathe}, 1.4f, Fade(INK, 0.6f));                             // gill slits
+    for (int i = 0; i < 6; i++) Dot(c, -30.0f + i * 5, -46.0f + breathe + (i % 2) * 2, 0.9f, Fade(INK, 0.5f));                                          // pores
+    Tri(c, {14, -76}, {56, -76}, {36, -128 + breathe}, Tone(top, 0.02f)); Tri(c, {14, -76}, {36, -76}, {36, -128 + breathe}, Tone(top, -0.2f));         // the dorsal fin, torn at the edge
+    Tri(c, {50, -110}, {56, -106}, {52, -96}, INK);
+    Line(c, {60, -68}, {88, -54}, 1.6f, Fade(INK, 0.65f)); Line(c, {70, -72}, {94, -58}, 1.2f, Fade(INK, 0.5f)); Line(c, {-6, -66}, {10, -56}, 1.4f, Color{200, 190, 176, 255}); // scars
+    Barnacles(c, 30, -74, 12, 4, c.u); Barnacles(c, 64, -62, 8, 3, c.u + 4);
+    Line(c, {40, -74}, {62, -110}, 2.4f, Color{100, 72, 44, 255}); Tri(c, {36, -72}, {44, -78}, {40, -66}, rust);                                        // a rusted harpoon still in its back
+    for (int i = 0; i < 5; i++) Line(c, {42.0f + i * 4, -86.0f - i * 5}, {44.0f + i * 4, -80.0f - i * 5}, 1.0f, Fade(bone, 0.7f));
+    Line(c, {-30, -26}, {-14, -22}, 1.0f, Fade(Color{190, 176, 140, 255}, 0.8f)); Line(c, {-24, -34}, {-8, -14}, 1.0f, Fade(Color{190, 176, 140, 255}, 0.8f)); // torn net
+    // the head: a blunt snout and a jaw that gapes and snaps
+    Ball(c, -44, -52, 24, top); Ball(c, -50, -58, 14, mid); Crescent(c, -44, -52, 24);
+    Limb(c, {-56, -50}, {-90, -46}, 22, 8, top);                                                                                                        // the snout
+    float open = 0.24f + 0.2f * (0.5f + 0.5f * sinf(t * 2.6f + c.u));
+    Vector2 hinge{-40, -38};
+    Vector2 jawTip{hinge.x - 52.0f * cosf(open), hinge.y + 52.0f * sinf(open) + 4};
+    Tri(c, {hinge.x - 4, hinge.y - 4}, {-88, -42}, {jawTip.x + 6, jawTip.y - 2}, Fade(blood, 0.95f));                                                   // the raw red of the throat
+    Limb(c, hinge, jawTip, 14, 5, belly);                                                                                                               // the lower jaw
+    for (int i = 0; i < 9; i++) { // rows of serrated teeth, top and bottom
+        float u = (i + 0.6f) / 9.4f;
+        Tri(c, {-52.0f - u * 34 - 2.6f, -43}, {-52.0f - u * 34 + 2.6f, -43}, {-52.0f - u * 34, -34 + u * 2}, bone);
+        Vector2 jp{hinge.x + (jawTip.x - hinge.x) * u, hinge.y + (jawTip.y - hinge.y) * u - 4};
+        Tri(c, {jp.x - 2.6f, jp.y}, {jp.x + 2.6f, jp.y}, {jp.x, jp.y - 8}, bone);
+    }    Ball(c, -54, -60, 4.2f, INK); Dot(c, -55.4f, -61.4f, 1.0f, Color{230, 230, 220, 255});                                                            // a black, unblinking eye
+    Line(c, {-62, -62}, {-50, -56}, 1.4f, Fade(INK, 0.65f));
+    DrawLineEx(c.P(-84, -34), c.P(-82, -22 + sinf(t * 2 + c.u) * 2), std::max(1.0f, 0.9f * c.k), Fade(Color{170, 170, 176, 255}, 0.9f));                  // a fishhook and line in the jaw
+    DrawCircleLines((int)c.P(-82, -20 + sinf(t * 2 + c.u) * 2).x, (int)c.P(-82, -20 + sinf(t * 2 + c.u) * 2).y, 4 * c.k, Color{170, 170, 176, 255});
+    Limb(c, {-30, -12}, {-40, -2}, 2.6f, 1.6f, Fade(blood, 0.8f));                                                                                    // blood dripping
+}
 }  // namespace
 
 // Returns true if the enemy has a rich drawing (the rest still use the older archetype drawers).
@@ -675,6 +804,9 @@ bool DrawRichEnemy(const Enemy& e, Rectangle r, float t) {
         case EnemyType::TribalShaman: fn = TribalShaman; H = 138; W = 110; break;
         case EnemyType::TribalDemigod: fn = TribalDemigod; H = 205; W = 170; break;
         case EnemyType::FeralMerman: fn = FeralMerman; H = 116; W = 110; break;
+        case EnemyType::GiantOctopus: fn = GiantOctopus; H = 108; W = 150; break;
+        case EnemyType::ElectricEel: fn = ElectricEel; H = 132; W = 240; break;
+        case EnemyType::GreatWhite: fn = GreatWhite; H = 128; W = 250; break;
         case EnemyType::Siren: fn = Siren; H = 120; W = 100; break;
         case EnemyType::Neptune: fn = Neptune; H = 284; W = 380; break;
         default: return false;

@@ -73,7 +73,8 @@ static void TakeShots(const Game& base, const std::string& dir) {
         {"boss_queen", [](Game& g) { DebugSetEnemies(g, Location::Cave, {EnemyType::CrustaceanQueen, EnemyType::DysCrustacean}); }},
         {"foes_tribal", [](Game& g) { DebugSetEnemies(g, Location::Island, {EnemyType::TribalSpearman, EnemyType::WarDog, EnemyType::TribalShaman, EnemyType::TribalSpearman}); }},
         {"boss_demigod", [](Game& g) { DebugSetEnemies(g, Location::Island, {EnemyType::TribalDemigod, EnemyType::WarDog, EnemyType::TribalShaman}); }},        {"foes_merfolk", [](Game& g) { DebugSetEnemies(g, Location::Weeds, {EnemyType::FeralMerman, EnemyType::Siren, EnemyType::FeralMerman, EnemyType::Siren}); }},
-        {"boss_neptune", [](Game& g) { DebugSetEnemies(g, Location::Weeds, {EnemyType::Neptune, EnemyType::FeralMerman}); }},        {"island", [](Game& g) { DebugEnterCombat(g, Location::Island); }},
+        {"boss_neptune", [](Game& g) { DebugSetEnemies(g, Location::Weeds, {EnemyType::Neptune, EnemyType::FeralMerman}); }},        {"foes_weeds", [](Game& g) { DebugSetEnemies(g, Location::Weeds, {EnemyType::GiantOctopus, EnemyType::ElectricEel, EnemyType::GiantOctopus}); }},
+        {"boss_shark", [](Game& g) { DebugSetEnemies(g, Location::Weeds, {EnemyType::GreatWhite, EnemyType::GiantOctopus, EnemyType::Siren}); }},        {"island", [](Game& g) { DebugEnterCombat(g, Location::Island); }},
         {"weeds", [](Game& g) { DebugEnterCombat(g, Location::Weeds); }},
         {"atlantis", [](Game& g) { DebugEnterCombat(g, Location::Atlantis); }},
         {"inventory", [](Game& g) { DebugEnterCombat(g); g.dungeon.phase = DPhase::RoomClear; g.dungeon.roomGold = 24;

@@ -591,9 +591,9 @@ Enemy MakeEnemy(EnemyType t, int uid) {
         } break;
         case EnemyType::TribalDemigod: {
             e.name = "Tribal Demigod"; e.boss = true; e.tier = 1;
-            e.maxHp = 50; e.dmgMin = 6; e.dmgMax = 9; e.speed = 3; e.acc = 85; e.dodge = 5; e.prot = 15;
-            EnemyAbility a = Melee("Idol Slam", 1.4f); a.stunChance = 50; e.abilities.push_back(a);
-            a = Support("Roar of the Ancestors"); a.pull = 2; a.aoe = true; a.weakDef = 20; a.stress = 8; e.abilities.push_back(a);
+            e.maxHp = 76; e.dmgMin = 8; e.dmgMax = 12; e.speed = 3; e.acc = 85; e.dodge = 5; e.prot = 15;
+            EnemyAbility a = Melee("Idol Slam", 1.6f); a.stunChance = 50; e.abilities.push_back(a);
+            a = Support("Roar of the Ancestors"); a.pull = 2; a.aoe = true; a.dmgMult = 0.2f; a.weakDef = 20; a.stress = 8; e.abilities.push_back(a);
         } break;
         case EnemyType::CoconutQueen: {
             e.name = "Coconut Queen"; e.boss = true; e.tier = 1;
@@ -617,7 +617,7 @@ Enemy MakeEnemy(EnemyType t, int uid) {
         } break;
         case EnemyType::GhostWorm: {
             e.name = "Ghost Worm"; e.boss = true; e.tier = 1;
-            e.maxHp = 44; e.dmgMin = 4; e.dmgMax = 6; e.speed = 6; e.acc = 85; e.dodge = 15; e.prot = 0;
+            e.maxHp = 50; e.dmgMin = 5; e.dmgMax = 7; e.speed = 6; e.acc = 85; e.dodge = 15; e.prot = 0;
             EnemyAbility a = Long("Phasmic Toxins", 0.7f); a.poison = 3; a.weakAtk = 20; e.abilities.push_back(a);
             a = Support("Terror Screech"); a.pull = 2; a.aoe = true; a.region = 2; a.stress = 6; e.abilities.push_back(a);
         } break;
@@ -629,7 +629,7 @@ Enemy MakeEnemy(EnemyType t, int uid) {
         } break;
         case EnemyType::CrustaceanQueen: {
             e.name = "The Crustacean Queen"; e.boss = true; e.tier = 2;
-            e.maxHp = 36; e.dmgMin = 4; e.dmgMax = 6; e.speed = 3; e.acc = 80; e.dodge = 0; e.prot = 10;
+            e.maxHp = 62; e.dmgMin = 5; e.dmgMax = 7; e.speed = 3; e.acc = 80; e.dodge = 0; e.prot = 10;
             EnemyAbility a = Melee("Tidal Crush", 1.5f); a.bleed = 3; a.stunChance = 35; e.abilities.push_back(a);
             a = Support("Spawning Surge"); a.healSelf = 4; a.summon = (int)EnemyType::CaveShrimp; e.abilities.push_back(a);
             a = Long("Abyssal Roar", 0.0f); a.aoe = true; a.region = 2; a.weakAtk = 20; a.stress = 4; e.abilities.push_back(a);
@@ -656,7 +656,7 @@ Enemy MakeEnemy(EnemyType t, int uid) {
         } break;
         case EnemyType::ElectricEel: {
             e.name = "Electric Eel"; e.boss = true; e.tier = 1;
-            e.maxHp = 45; e.dmgMin = 4; e.dmgMax = 7; e.speed = 8; e.acc = 85; e.dodge = 15;
+            e.maxHp = 52; e.dmgMin = 5; e.dmgMax = 8; e.speed = 8; e.acc = 85; e.dodge = 15;
             EnemyAbility a = Long("Voltaic Burst", 0.8f); a.stunChance = 40; a.weakSpd = 25; e.abilities.push_back(a);
             a = Melee("Coil Whip", 1.2f); a.bleed = 3; e.abilities.push_back(a);
         } break;
@@ -688,19 +688,19 @@ Enemy MakeEnemy(EnemyType t, int uid) {
         } break;
         case EnemyType::ArmorLostOne: {
             e.name = "Armored Lost One"; e.boss = true; e.tier = 1;
-            e.maxHp = 60; e.dmgMin = 6; e.dmgMax = 9; e.speed = 3; e.acc = 80; e.dodge = 0; e.prot = 30;
-            EnemyAbility a = Melee("Titan Shield Crush", 1.4f); a.stunChance = 40; a.weakAtk = 20; e.abilities.push_back(a);
-            a = Support("Immovable Wall"); a.selfMove = -99; a.buffSelfDef = 30; e.abilities.push_back(a);
+            e.maxHp = 84; e.dmgMin = 9; e.dmgMax = 12; e.speed = 3; e.acc = 80; e.dodge = 0; e.prot = 30;
+            EnemyAbility a = Melee("Titan Shield Crush", 2.0f); a.stunChance = 40; a.weakAtk = 20; e.abilities.push_back(a);
+            a = Support("Immovable Wall"); a.selfMove = -99; a.dmgMult = 0.8f; a.hits = MELEE_HITS; a.buffSelfDef = 30; e.abilities.push_back(a);
         } break;
         case EnemyType::AlienHorror: {
             e.name = "Alien Horror"; e.boss = true; e.tier = 1;
-            e.maxHp = 45; e.dmgMin = 4; e.dmgMax = 7; e.speed = 7; e.acc = 90; e.dodge = 20;
-            EnemyAbility a = Support("Spatial Distortion"); a.pull = 2; a.aoe = true; a.region = 4; a.stress = 8; e.abilities.push_back(a);
-            a = Long("Mind Rend", 0.7f); a.region = 4; a.weakAcc = 20; e.abilities.push_back(a);
+            e.maxHp = 64; e.dmgMin = 6; e.dmgMax = 9; e.speed = 7; e.acc = 90; e.dodge = 20;
+            EnemyAbility a = Support("Spatial Distortion"); a.pull = 2; a.aoe = true; a.dmgMult = 0.2f; a.region = 4; a.stress = 8; e.abilities.push_back(a);
+            a = Long("Mind Rend", 0.95f); a.region = 4; a.weakAcc = 20; e.abilities.push_back(a);
         } break;
         case EnemyType::Cthulhu: {
             e.name = "Cthulhu"; e.boss = true; e.tier = 2;
-            e.maxHp = 78; e.dmgMin = 5; e.dmgMax = 8; e.speed = 5; e.acc = 90; e.dodge = 0; e.prot = 15;
+            e.maxHp = 96; e.dmgMin = 5; e.dmgMax = 9; e.speed = 5; e.acc = 90; e.dodge = 0; e.prot = 15;
             EnemyAbility a = Long("Gaze of the Abyss", 0.6f); a.aoe = true; a.region = 4; a.stress = 10; e.abilities.push_back(a);
             a = Melee("Cosmic Crush", 1.6f); a.bleed = 3; a.stunChance = 40; e.abilities.push_back(a);
             a = Support("Siphon Reality"); a.healSelf = 10; a.buffSelfAtk = 20; e.abilities.push_back(a);
@@ -709,18 +709,18 @@ Enemy MakeEnemy(EnemyType t, int uid) {
     e.hp = e.maxHp;
     switch (t) { // bosses can strike twice in a round: the chance (percent) is tuned per boss
         case EnemyType::Lobster: e.extraAct = 30; break;
-        case EnemyType::GhostWorm: e.extraAct = 80; break;
+        case EnemyType::GhostWorm: e.extraAct = 50; break;
         case EnemyType::LostDiver: e.extraAct = 45; break;
-        case EnemyType::CrustaceanQueen: e.extraAct = 90; break;
-        case EnemyType::TribalDemigod: e.extraAct = 90; break;
+        case EnemyType::CrustaceanQueen: e.extraAct = 40; break;
+        case EnemyType::TribalDemigod: e.extraAct = 45; break;
         case EnemyType::CoconutQueen: e.extraAct = 5; break;
         case EnemyType::SunGod: e.extraAct = 5; break;
-        case EnemyType::ElectricEel: e.extraAct = 90; break;
+        case EnemyType::ElectricEel: e.extraAct = 50; break;
         case EnemyType::GreatWhite: e.extraAct = 20; break;
         case EnemyType::Neptune: e.extraAct = 13; break;
-        case EnemyType::ArmorLostOne: e.extraAct = 90; break;
-        case EnemyType::AlienHorror: e.extraAct = 90; break;
-        case EnemyType::Cthulhu: e.extraAct = 0; break;
+        case EnemyType::ArmorLostOne: e.extraAct = 50; break;
+        case EnemyType::AlienHorror: e.extraAct = 45; break;
+        case EnemyType::Cthulhu: e.extraAct = 10; break;
         default: break;
     }
     if (const char* sc = getenv("DEPTH_EXTRA")) e.extraAct = (int)(e.extraAct * atof(sc)); // developer knob for tuning runs
