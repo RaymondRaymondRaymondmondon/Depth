@@ -577,6 +577,55 @@ bool gHasHover = false;
 int gHoverHp = -1, gHoverStr = -1;
 void Hover(const Card& c, int hp = -1, int str = -1) { gHoverCard = c; gHasHover = true; gHoverHp = hp; gHoverStr = str; }
 
+// ---- a tiny bitmap font of carved, tally-style numerals (5 x 7 pixels per digit), drawn as square pixels with a rim and a shaded lower half
+void DrawPxNum(int v, Vector2 centre, float px, Color fill, Color rim) {
+    static const char* G[10][7] = {
+        {"01110", "10001", "10011", "10101", "11001", "10001", "01110"}, {"00100", "01100", "00100", "00100", "00100", "00100", "01110"},
+        {"01110", "10001", "00001", "00010", "00100", "01000", "11111"}, {"11110", "00001", "00001", "01110", "00001", "00001", "11110"},
+        {"00010", "00110", "01010", "10010", "11111", "00010", "00010"}, {"11111", "10000", "11110", "00001", "00001", "10001", "01110"},
+        {"00110", "01000", "10000", "11110", "10001", "10001", "01110"}, {"11111", "00001", "00010", "00100", "01000", "01000", "01000"},
+        {"01110", "10001", "10001", "01110", "10001", "10001", "01110"}, {"01110", "10001", "10001", "01111", "00001", "00010", "01100"}};
+    std::string s = std::to_string(std::clamp(v, 0, 99));
+    float w = (s.size() * 6 - 1) * px, x0 = centre.x - w / 2, y0 = centre.y - 3.5f * px;
+    for (int pass = 0; pass < 2; pass++)
+        for (size_t d = 0; d < s.size(); d++)
+            for (int row = 0; row < 7; row++)
+                for (int col = 0; col < 5; col++) {
+                    if (G[s[d] - '0'][row][col] != '1') continue;
+                    float x = x0 + (d * 6 + col) * px, y = y0 + row * px;
+                    if (pass == 0) { for (int dy = -1; dy <= 1; dy++) for (int dx = -1; dx <= 1; dx++) DrawRectangleRec({x + dx * px * 0.75f, y + dy * px * 0.75f, px, px}, rim); }
+                    else { float sh = row < 4 ? 1.0f : 0.82f; DrawRectangleRec({x, y, px, px}, Color{(unsigned char)(fill.r * sh), (unsigned char)(fill.g * sh), (unsigned char)(fill.b * sh), 255}); }
+                }
+}
+
+// Blood splatters for the cost: fixed pixel clusters, one per point of blood (never circles).
+void DrawSplat(int variant, Vector2 c, float px) {
+    static const char* S[3][7] = {{"..r.r..", ".rrRrr.", "rrRrrRr", ".rrrrr.", "rRrrrRr", ".r.rr..", "...r..."}, {"r..rr..", "rrrrRr.", ".rRrrrr", "rrrrRr.", ".rrRrr.", "..rr.r.", ".r....."}, {"..rr...", ".rRrrr.", "rrrrRrr", "rRrrrr.", ".rrrRrr", "..rrr.r", ".....r."}};
+    for (int y = 0; y < 7; y++) for (int x = 0; x < 7; x++) {
+        char ch = S[variant % 3][y][x];
+        if (ch == '.') continue;
+        DrawRectangleRec({c.x + (x - 3.5f) * px + px * 0.4f, c.y + (y - 3.5f) * px + px * 0.4f, px, px}, Color{20, 4, 6, 255});
+        DrawRectangleRec({c.x + (x - 3.5f) * px, c.y + (y - 3.5f) * px, px, px}, ch == 'R' ? Color{112, 10, 16, 255} : Color{176, 22, 28, 255});
+    }
+}
+
+// A rusted, engraved iron plate that stretches to fit its lettering: fixed end caps (bolts and rust) with a stretched brushed-steel middle.
+void DrawMetalPlate(Rectangle p, float u, unsigned seed) {
+    Color iron{100, 104, 104, 255}, dk{22, 24, 26, 255};
+    auto rnd = [&]() { seed = seed * 1664525u + 1013904223u; return ((seed >> 8) & 0xffff) / 65535.0f; };
+    DrawRectangleRounded({p.x + 1 * u, p.y + 1.6f * u, p.width, p.height}, 0.18f, 4, Fade(BLACK, 0.5f));
+    DrawRectangleRounded(p, 0.18f, 4, iron);
+    float cap = std::min(6 * u, p.width * 0.3f);
+    DrawRectangleGradientV((int)p.x, (int)p.y, (int)p.width, (int)(p.height * 0.5f), Fade(WHITE, 0.22f), Fade(WHITE, 0.0f));
+    DrawRectangleGradientV((int)p.x, (int)(p.y + p.height * 0.5f), (int)p.width, (int)(p.height * 0.5f), Fade(BLACK, 0.0f), Fade(BLACK, 0.35f));
+    for (int k = 0; k < 9; k++) { float y = p.y + p.height * (0.12f + 0.76f * rnd()); DrawLineEx({p.x + cap, y}, {p.x + p.width - cap, y}, std::max(1.0f, 0.5f * u), Fade(rnd() < 0.5f ? WHITE : BLACK, 0.16f)); }
+    for (int k = 0; k < 7; k++) {
+        float fx = k < 4 ? (k < 2 ? p.x + cap * rnd() : p.x + p.width - cap * rnd()) : p.x + p.width * rnd();
+        DrawCircleV({fx, p.y + p.height * (k < 4 ? rnd() : (rnd() < 0.5f ? 0.05f : 0.95f))}, (1.5f + 3.0f * rnd()) * u, Fade(Color{156, 84, 40, 255}, 0.34f));
+    }
+    DrawRectangleRoundedLinesEx(p, 0.18f, 4, std::max(1.0f, 1.3f * u), dk);
+    for (int e = 0; e < 2; e++) { Vector2 b{e ? p.x + p.width - cap * 0.5f : p.x + cap * 0.5f, p.y + p.height / 2}; DrawCircleV(b, 1.6f * u, dk); DrawCircleV({b.x - 0.4f * u, b.y - 0.4f * u}, 0.8f * u, Fade(WHITE, 0.4f)); }
+}
 // A card face (or its back) filling `r`. Everything scales from the card's height, so the same routine draws a big card in
 // the inspector and a small one in the queue. `hp` and `str` show a creature's current numbers (damaged, buffed) on the board.
 void DrawCardFace(Rectangle r, const Card& c, bool faceUp, int hp = -1, int str = -1) {
@@ -634,80 +683,55 @@ void DrawCardFace(Rectangle r, const Card& c, bool faceUp, int hp = -1, int str 
     }
     DrawRectangleLinesEx({in.x + 3 * u, in.y + 3 * u, in.width - 6 * u, in.height - 6 * u}, std::max(1.0f, 0.7f * u), Fade(ink, 0.22f));
 
-    // ---- the title, printed straight onto the parchment like a faded sign over a bulkhead door
-    int fs = std::max(7, (int)(14 * u));
-    while (fs > 7 && MeasureTxt(c.name, fs, true) > in.width - 8 * u) fs--;
-    float tx = in.x + in.width / 2 - MeasureTxt(c.name, fs, true) / 2.0f, ty = in.y + 4 * u;
-    TxtBold(c.name, tx + 0.7f * u, ty + 0.6f * u, fs, Fade(ink, 0.30f));   // ink bleed
-    TxtBold(c.name, tx, ty, fs, Fade(ink, 0.9f));
-    DrawLineEx({in.x + 8 * u, ty + fs + 3 * u}, {in.x + in.width - 8 * u, ty + fs + 3.4f * u}, std::max(1.0f, 0.8f * u), Fade(ink, 0.45f));
-    DrawLineEx({in.x + 14 * u, ty + fs + 5.6f * u}, {in.x + in.width - 14 * u, ty + fs + 5.8f * u}, std::max(1.0f, 0.5f * u), Fade(ink, 0.25f));
-
-    // ---- the illustration: a big inked well, 55% of the card
-    Rectangle well{in.x + 5 * u, in.y + 0.185f * r.height, in.width - 10 * u, r.height * 0.56f - 5 * u};
-    DrawRectangleRec(well, Fade(Color{60, 42, 24, 255}, 0.20f));
-    for (int k = 0; k < 4; k++) { // a hand-inked, uneven border
-        float j = (rnd() - 0.5f) * 1.6f * u, w2 = std::max(1.0f, (0.8f + rnd() * 0.8f) * u);
-        DrawLineEx({well.x + j, well.y}, {well.x + well.width + j, well.y + j}, w2, Fade(ink, 0.7f));
-        DrawLineEx({well.x + j, well.y + well.height}, {well.x + well.width + j, well.y + well.height - j}, w2, Fade(ink, 0.7f));
-        DrawLineEx({well.x, well.y + j}, {well.x + j, well.y + well.height}, w2, Fade(ink, 0.6f));
-        DrawLineEx({well.x + well.width, well.y + j}, {well.x + well.width + j, well.y + well.height}, w2, Fade(ink, 0.6f));
-    }
-    if (!DrawCreaturePixels(c.name, {well.x + 1.5f * u, well.y + 1.5f * u, well.width - 3 * u, well.height - 3 * u}, 1.0f, c.id)) DrawSuitIcon(c.suit, {well.x + well.width / 2, well.y + well.height / 2}, well.width * 0.6f, SUIT_COL[c.suit]);
-    // the cost, in the well's top-left corner: blood or bones
-    if (c.cost != CostType::FREE && c.costAmount > 0) {
-        float cs = 11 * u;
-        for (int i = 0; i < std::min(c.costAmount, 3); i++) {
-            Vector2 p{well.x + 8 * u + i * 8.5f * u, well.y + 9 * u};
-            if (c.cost == CostType::BLOOD) DrawDrop(p, cs, BLOOD_COL); else DrawBone(p, cs * 0.9f, ColorBrightness(BONE_COL, -0.1f));
-        }
-        if (c.costAmount > 3) TxtBold(TextFormat("x%d", c.costAmount), well.x + 8 * u + 3 * 8.5f * u, well.y + 3 * u, std::max(7, (int)(11 * u)), c.cost == CostType::BLOOD ? BLOOD_COL : ColorBrightness(BONE_COL, -0.3f));
-    }
-    // weight: a worn iron nut in the well's top-right corner
-    {
-        Vector2 wp{well.x + well.width - 9 * u, well.y + 9 * u};
-        DrawPoly(wp, 6, 8 * u + std::max(1.0f, u), 0, ink);
-        DrawPoly(wp, 6, 8 * u, 0, Color{92, 96, 102, 255});
-        DrawPoly(wp, 6, 5.2f * u, 0, Color{60, 64, 70, 255});
-        int wf = std::max(7, (int)(11 * u));
-        const char* s = TextFormat("%d", c.weight);
-        TxtBold(s, wp.x - MeasureTxt(s, wf, true) / 2.0f, wp.y - wf * 0.56f, wf, Color{226, 222, 208, 255});
-    }
-
-    // ---- the readouts: bone (attack) and driftwood (health) plates on the bottom corners, riveted on
     int shownHp = hp >= 0 ? hp : c.defense, shownStr = str >= 0 ? str : c.strength + (c.edition == ED_FOIL ? 1 : c.edition == ED_HEX ? 2 : 0);
     if (hp < 0 && c.edition == ED_HEX) shownHp = std::max(1, c.defense - 1);
     int base = c.strength + (c.edition == ED_FOIL ? 1 : c.edition == ED_HEX ? 2 : 0);
-    int nf = std::max(10, (int)(19 * u));
-    auto plate = [&](Rectangle p, bool bone, int v, Color numeral) {
-        Color face = bone ? Color{212, 198, 160, 255} : Color{66, 48, 34, 255}, edge = bone ? Color{92, 76, 52, 255} : Color{20, 14, 10, 255};
-        DrawRectangleRounded({p.x + 1.2f * u, p.y + 1.6f * u, p.width, p.height}, 0.22f, 4, Fade(BLACK, 0.45f));
-        DrawRectangleRounded(p, 0.22f, 4, face);
-        for (int k = 0; k < 4; k++) DrawLineEx({p.x + 2 * u, p.y + (4 + k * 5) * u}, {p.x + p.width - 2 * u, p.y + (4 + k * 5 + (bone ? 0.6f : -0.6f)) * u}, std::max(1.0f, 0.6f * u), Fade(bone ? Color{120, 100, 70, 255} : Color{110, 84, 60, 255}, 0.35f));
-        DrawRectangleRoundedLinesEx(p, 0.22f, 4, std::max(1.0f, 1.4f * u), edge);
-        for (int k = 0; k < 2; k++) { DrawCircleV({p.x + 3.2f * u, p.y + (k ? p.height - 3.2f * u : 3.2f * u)}, 1.3f * u, edge); DrawCircleV({p.x + p.width - 3.2f * u, p.y + (k ? p.height - 3.2f * u : 3.2f * u)}, 1.3f * u, edge); }
-        const char* s = TextFormat("%d", v);
-        float sx = p.x + p.width / 2 - MeasureTxt(s, nf, true) / 2.0f, sy = p.y + p.height / 2 - nf * 0.58f;
-        TxtBold(s, sx + 0.7f * u, sy + 0.7f * u, nf, Fade(bone ? Color{255, 250, 230, 255} : BLACK, 0.5f));   // etched
-        TxtBold(s, sx, sy, nf, numeral);
-    };
-    Color strC = shownStr > base ? Color{20, 96, 40, 255} : shownStr < c.strength ? Color{150, 30, 20, 255} : ink;
-    Color hpC = hp >= 0 && hp < c.defense ? Color{255, 150, 120, 255} : hp > c.defense ? Color{170, 255, 170, 255} : Color{238, 224, 190, 255};
-    Rectangle pL{in.x + 3 * u, in.y + in.height - 24 * u, 26 * u, 21 * u}, pR{in.x + in.width - 29 * u, in.y + in.height - 24 * u, 26 * u, 21 * u};
-    plate(pL, true, shownStr, strC);
-    plate(pR, false, shownHp, hpC);
-    // ---- sigils: larger seals, low on the card, centred between the plates
     int n = (int)c.sigils.size();
-    float bs = 19 * u, gap = bs * 1.08f;
+    // ---- layer 1: things printed straight onto the card: the tribe emblem (bottom left) and the unframed sigils (bottom bar)
+    DrawSuitIcon(c.suit, {in.x + 11 * u, in.y + in.height - 35 * u}, 13 * u, Fade(ink, 0.75f));
+    float bs = (n <= 2 ? 24 : 19) * u, gap = bs * 1.02f;
     for (int i = 0; i < n; i++) {
-        bool top = n == 3 && i == 2;   // a third seal rides above the other two
-        Vector2 p = top ? Vector2{r.x + r.width / 2, in.y + in.height - 15 * u - bs * 1.0f} : Vector2{r.x + r.width / 2 + ((float)i - (std::min(n, 2) - 1) / 2.0f) * gap, in.y + in.height - 13.5f * u};
-        DrawCircleV({p.x + 0.8f * u, p.y + 1.1f * u}, bs * 0.58f, Fade(BLACK, 0.4f));
-        DrawCircleV(p, bs * 0.58f, ink);
-        DrawCircleV(p, bs * 0.52f, Color{52, 38, 26, 255});
-        DrawRing(p, bs * 0.46f, bs * 0.52f, 0, 360, 20, Fade(Color{190, 160, 110, 255}, 0.55f));
-        DrawSigilGlyph(c.sigils[i], p, bs * 0.8f, Color{240, 220, 168, 255});
-    }    if (c.edition != ED_NONE) DrawEdition(r, c.edition, u);
+        Vector2 p{r.x + r.width / 2 + ((float)i - (n - 1) / 2.0f) * gap, in.y + in.height - 15 * u};
+        DrawSigilGlyph(c.sigils[i], {p.x + 0.7f * u, p.y + 0.8f * u}, bs, Fade(Color{250, 240, 210, 255}, 0.55f));
+        DrawSigilGlyph(c.sigils[i], p, bs, Color{28, 20, 14, 255});
+    }
+    // ---- layer 2: the creature, with no box round it: it may spill over the header and the stat line
+    Rectangle art{r.x + 2 * u, r.y + r.height * 0.13f, r.width - 4 * u, r.height * 0.66f};
+    DrawEllipse((int)(r.x + r.width / 2), (int)(r.y + r.height * 0.5f), r.width * 0.42f, r.height * 0.22f, Fade(Color{60, 42, 24, 255}, 0.16f));
+    if (!DrawCreaturePixels(c.name, art, 1.0f, c.id)) DrawSuitIcon(c.suit, {art.x + art.width / 2, art.y + art.height / 2}, art.width * 0.6f, SUIT_COL[c.suit]);
+    // ---- layer 3: hardware. The engraved iron header plate stretches to fit the name; an iron weight hangs top left
+    int fs = std::max(7, (int)(12 * u));
+    while (fs > 7 && MeasureTxt(c.name, fs, true) > in.width - 16 * u) fs--;
+    float tw = MeasureTxt(c.name, fs, true), pw = std::max(46 * u, tw + 14 * u), ph = 15 * u;
+    Rectangle plate{r.x + r.width / 2 - pw / 2, in.y + 1.5f * u, pw, ph};
+    DrawMetalPlate(plate, u, (unsigned)(c.id * 977 + 3));
+    float tx = plate.x + pw / 2 - tw / 2, ty = plate.y + (ph - fs) / 2 - 1;
+    TxtBold(c.name, tx + 0.8f * u, ty + 0.8f * u, fs, Fade(Color{190, 194, 190, 255}, 0.55f));
+    TxtBold(c.name, tx - 0.4f * u, ty - 0.4f * u, fs, Fade(BLACK, 0.7f));
+    TxtBold(c.name, tx, ty, fs, Color{34, 34, 34, 255});
+    {
+        Vector2 wp{in.x + 12 * u, in.y + 30 * u};
+        DrawTri({wp.x - 8 * u, wp.y + 8 * u}, {wp.x + 8 * u, wp.y + 8 * u}, {wp.x + 5 * u, wp.y - 4 * u}, Color{20, 22, 24, 255});
+        DrawTri({wp.x - 8 * u, wp.y + 8 * u}, {wp.x + 5 * u, wp.y - 4 * u}, {wp.x - 5 * u, wp.y - 4 * u}, Color{20, 22, 24, 255});
+        DrawTri({wp.x - 7 * u, wp.y + 7.2f * u}, {wp.x + 7 * u, wp.y + 7.2f * u}, {wp.x + 4.4f * u, wp.y - 3.2f * u}, Color{92, 96, 100, 255});
+        DrawTri({wp.x - 7 * u, wp.y + 7.2f * u}, {wp.x + 4.4f * u, wp.y - 3.2f * u}, {wp.x - 4.4f * u, wp.y - 3.2f * u}, Color{112, 116, 120, 255});
+        DrawRing({wp.x, wp.y - 6 * u}, 1.6f * u, 3 * u, 0, 360, 12, Color{20, 22, 24, 255});
+        DrawPxNum(c.weight, {wp.x, wp.y + 2.4f * u}, 1.5f * u, Color{236, 232, 216, 255}, Color{10, 10, 12, 255});
+    }
+    // ---- layer 4: metrics. Blood splatters (or bones) for the cost, and the carved numerals
+    if (c.cost != CostType::FREE && c.costAmount > 0) {
+        int cn = c.costAmount;
+        for (int i = 0; i < cn; i++) {
+            Vector2 sp{in.x + in.width - (cn > 2 ? 10 + (i % 2) * 11 : 12) * u, in.y + (25 + (cn > 2 ? (i / 2) * 11 : i * 12)) * u};
+            if (c.cost == CostType::BLOOD) DrawSplat(i + c.id, sp, 1.35f * u);
+            else DrawBone(sp, 10 * u, ColorBrightness(BONE_COL, -0.05f));
+        }
+    }
+    Color strC = shownStr > base ? Color{150, 240, 150, 255} : shownStr < c.strength ? Color{255, 130, 110, 255} : Color{238, 226, 194, 255};
+    Color hpC = hp >= 0 && hp < c.defense ? Color{255, 130, 110, 255} : hp > c.defense ? Color{150, 240, 150, 255} : Color{238, 226, 194, 255};
+    float px = 3.0f * u;
+    DrawPxNum(shownStr, {in.x + 11 * u, in.y + in.height - 12 * u}, px, strC, Color{18, 12, 8, 255});
+    DrawPxNum(shownHp, {in.x + in.width - 11 * u, in.y + in.height - 12 * u}, px, hpC, Color{18, 12, 8, 255});    if (c.edition != ED_NONE) DrawEdition(r, c.edition, u);
 }
 // The inspector: the hovered card large, with every number and sigil spelled out.
 void DrawInspector(const Card& c, int hp, int str) {
@@ -2021,7 +2045,7 @@ void SceneCards(Game& g) {
     // leaving mid-run forfeits whatever is unbanked
     bool inRun = U.ph == Ph::Map || U.ph == Ph::Node || U.ph == Ph::Boon || U.ph == Ph::Battle;
     if (!modal && inRun && Button({20, 122, 150, 34}, U.rm.gs.pot > 0 ? "Fold (lose pot)" : "Fold and leave", true, 14)) LeaveTable(g);
-    if (!modal && U.ph == Ph::Battle && Button({20, 164, 150, 30}, TextFormat("Deck (%d)", (int)U.bat.deck.size() + (int)U.bat.hand.size()), true, 14)) U.showDeck = true;
+    if (!modal && (U.ph == Ph::Battle || U.ph == Ph::Boon) && Button({20, 164, 150, 30}, TextFormat("Deck (%d)", (int)U.rm.gs.deck.size()), true, 14)) U.showDeck = true;   // read every card before the fight, too
 
     DrawHud(g, m, modal);
     if (gHasHover && !modal) DrawInspector(gHoverCard, gHoverHp, gHoverStr);
