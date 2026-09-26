@@ -66,9 +66,9 @@ struct Params {
 
 Params ParamsFor(int level) {
     switch (level) {
-        case 0: return {0.62f, 150, 40, 4, 9, 2, 3, 1, true, 0.0f, 0, 0, 0.30f};     // the Pipes: wide, forgiving, no wall jumps
-        case 1: return {0.78f, 180, 64, 2, 5, 3, 4, 2, false, 0.40f, 7, 13, 0.20f};   // the Hull: verticality, shafts, footholds
-        default: return {0.93f, 190, 64, 1, 3, 3, 4, 3, false, 0.36f, 7, 13, 0.20f}; // the Pirate Ship: tiny footholds at the arc's edge
+        case 0: return {0.62f, 230, 40, 4, 9, 2, 3, 1, true, 0.0f, 0, 0, 0.38f};     // the Pipes: wide, forgiving, no wall jumps
+        case 1: return {0.78f, 270, 64, 2, 5, 3, 4, 2, false, 0.40f, 9, 14, 0.20f};   // the Hull: verticality, shafts, footholds
+        default: return {0.93f, 310, 64, 1, 3, 3, 4, 3, false, 0.36f, 10, 14, 0.20f}; // the Pirate Ship: tiny footholds at the arc's edge
     }
 }
 }  // namespace
@@ -155,7 +155,10 @@ static void BuildTrench(Grid& g, std::vector<Plat>& pl, Rng& rng, GenLevel& out,
         // coins up the middle of the climb, crossing the plateau
         for (int k = 0; k < 3; k++) { int cy = F - 3 - (Hs - 4) * (k + 1) / 4; if (cy < F && g.get(upX0 + iw1 / 2, cy) == '.') g.set(upX0 + iw1 / 2, cy, 'o'); }
         for (int xx = sX0 + 1; xx < sX0 + sw - 1; xx += 2) if (g.get(xx, sTop - 1) == '.') g.set(xx, sTop - 1, 'o');
-        if (sw >= 5 && rng.C(0.5f) && g.get(sX0 + sw - 2, sTop - 1) == '.') g.set(sX0 + sw - 2, sTop - 1, 'c');
+        if (sw >= 6 && rng.C(0.5f)) { // an urchin bed in the plateau, with a mine hung just over it (Hard only): a short, careful hop
+            g.set(sX0 + 3, sTop, 'x');
+            if (rng.C(0.6f) && g.get(sX0 + 3, sTop - 4) == '.') g.set(sX0 + 3, sTop - 4, 'g');
+        } else if (sw >= 5 && rng.C(0.5f) && g.get(sX0 + sw - 2, sTop - 1) == '.') g.set(sX0 + sw - 2, sTop - 1, 'c');
         if (rng.C(0.4f) && g.get(sX0 + 1, sTop - 8) == '.') g.set(sX0 + 1, sTop - 8, 'p');
         // the critical path: in through the tunnel, up to the plateau, down to the next tunnel
         Plat entry{upX0, upX0 + iw1 - 1, F, C_JUMP, '#', SetPiece::None, 0, upX0};
@@ -205,6 +208,8 @@ static void BuildFleet(Grid& g, std::vector<Plat>& pl, Rng& rng, GenLevel& out, 
             for (int i = 1; i <= nB; i++) yard(mB, Ds - 3 * i, std::max(2, 5 - i));
             yard(mB, pendingRow, pendingHalf);
             for (int xx = pendingMastX + pendingHalf + 1; xx < mB + 1 - pendingHalf; xx++) g.set(xx, pendingRow, 'r'); // the rigging rope
+            for (int xx = pendingMastX + pendingHalf + 6; xx < mB - pendingHalf - 4; xx += 9) if (g.get(xx, pendingRow - 5) == '.') g.set(xx, pendingRow - 5, 'p');   // parakeets over the rope
+            for (int xx = pendingMastX + pendingHalf + 2; xx < mB - pendingHalf - 1; xx += 3) if (g.get(xx, pendingRow - 1) == '.') g.set(xx, pendingRow - 1, 'o');   // coins strung along the rope
             Plat ropeEnd{mB - pendingHalf - 1, mB - pendingHalf - 1, pendingRow, C_JUMP, 'r', SetPiece::None, 0, mB - pendingHalf - 1};
             pl.push_back(ropeEnd);
             Plat land{mB + pendingHalf + 2, mB + pendingHalf + 4, Ds, C_JUMP, '#', SetPiece::None, 0, mB + pendingHalf + 2};
@@ -221,13 +226,15 @@ static void BuildFleet(Grid& g, std::vector<Plat>& pl, Rng& rng, GenLevel& out, 
         int bridgeAt = (rng.C(0.55f) && x + len < P.length - 40) ? 1 : 0;
         if (bridgeAt) last = ex - 16;
         while (cx < last) {
-            int kind = rng.I(0, 3);
+            int kind = rng.C(0.34f) ? 0 : rng.C(0.5f) ? 1 : rng.I(2, 3);        // hatches and barricades dominate: crossing a ship is a fight
             const int need[4] = {12, 20, 9, 10};                              // the widest each segment can grow, with its run-off
             if (cx + need[kind] > last) kind = 2;                              // not enough deck left: something small
             if (cx + need[kind] > last) break;
             if (kind == 0) { // an open hatch, spikes in the hold
                 int gw = P.safety > 0.85f ? rng.I(3, 4) : 3;
                 g.rect(cx, Ds, cx + gw - 1, Ds + 3, '.'); g.rect(cx, Ds + 4, cx + gw - 1, Ds + 4, 'x');
+                if (rng.C(0.5f)) g.set(cx + gw / 2, Ds - 4, 'g');                      // a spiked ball hung over the hatch (Hard): a low or a high arc
+                for (int q = 0; q < gw; q++) if (g.get(cx + q, Ds - 3 - (q == gw / 2 ? 2 : 0)) == '.' && rng.C(0.5f)) g.set(cx + q, Ds - 3 - (q == gw / 2 ? 2 : 0), 'o');
                 Plat after{cx + gw, cx + gw + 2, Ds, C_JUMP, '#', SetPiece::None, 0, cx + gw};
                 Plat before{cx - 3, cx - 1, Ds, C_JUMP, '#', SetPiece::None, 0, cx - 1};
                 pl.push_back(before); pl.push_back(after);
@@ -244,7 +251,8 @@ static void BuildFleet(Grid& g, std::vector<Plat>& pl, Rng& rng, GenLevel& out, 
                 Plat down{bx + bw, bx + bw + 2, Ds, C_JUMP, '#', SetPiece::None, 0, bx + bw + 1};
                 pl.push_back(inside); pl.push_back(top); pl.push_back(down);
                 out.setPieces[(int)SetPiece::ShaftUp]++;
-                if (rng.C(0.5f) && g.get(bx + bw - 2, Ds - Hs - 1) == '.' && bw >= 4) g.set(bx + bw - 2, Ds - Hs - 1, 'c');
+                if (bw >= 4 && g.get(bx + bw - 1, Ds - Hs - 1) == '.' && g.get(bx + bw - 2, Ds - Hs - 1) == '.') { g.set(bx + bw - 1, Ds - Hs - 1, 'G'); g.set(bx + bw - 2, Ds - Hs - 1, 'k'); }   // a gunner on the barricade, behind a barrel, covering the deck beyond
+                else if (rng.C(0.5f) && g.get(bx + bw - 2, Ds - Hs - 1) == '.' && bw >= 4) g.set(bx + bw - 2, Ds - Hs - 1, 'c');
                 cx = bx + bw + 5;
             } else if (kind == 2) { // cargo: a crate or two to hop
                 int h = rng.I(1, 2);
@@ -256,7 +264,8 @@ static void BuildFleet(Grid& g, std::vector<Plat>& pl, Rng& rng, GenLevel& out, 
                 yard(cx, Ds - 14, 6); yard(cx, Ds - 20, 4);
                 cx += 7;
             }
-            if (rng.C(0.5f) && g.get(cx - 2, Ds) == '#' && g.get(cx - 2, Ds - 1) == '.' && g.get(cx - 2, Ds - 2) == '.') g.set(cx - 2, Ds - 1, 'P');
+            for (int off : {2, 4}) if (rng.C(0.55f) && g.get(cx - off, Ds) == '#' && g.get(cx - off, Ds - 1) == '.' && g.get(cx - off, Ds - 2) == '.') g.set(cx - off, Ds - 1, 'P');
+            if (rng.C(0.25f) && g.get(cx - 6, Ds) == '#' && g.get(cx - 6, Ds - 1) == '.') g.set(cx - 6, Ds - 1, 'c');
             if (rng.C(0.6f) && g.get(cx - 1, Ds - 1) == '.') g.set(cx - 1, Ds - 1, 'o');
         }
         // ---- leaving the ship
@@ -270,6 +279,7 @@ static void BuildFleet(Grid& g, std::vector<Plat>& pl, Rng& rng, GenLevel& out, 
             for (int i = 1; i <= n; i++) {
                 int half = std::max(2, 5 - i), row = Ds - 3 * i;
                 yard(mA, row, half);
+                if (g.get(mA + half, row - 1) == '.') g.set(mA + half, row - 1, 'o');
                 ladder.push_back(Plat{mA + 1 - half, mA + half, row, C_JUMP, '=', i == n ? SetPiece::MastLadder : SetPiece::None, 0, mA + 1 - half});
             }
             Plat at{mA - 4, mA - 2, Ds, C_JUMP, '#', SetPiece::None, 0, mA - 3};

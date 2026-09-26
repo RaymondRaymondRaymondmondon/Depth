@@ -116,9 +116,9 @@ struct LevelDef {
 const LevelDef& Lv(int level) {
     static const std::vector<LevelDef> defs = [] {
         std::vector<LevelDef> d(PL_COUNT);
-        d[PL_PIPES] = {"The Pipes", Part{}, Part{}, 4, 65, '#', true, '#'};
-        d[PL_HULL] = {"The Hull", P16(HULL_ARENA), P16(HULL_ARENA_NOBOSS), 5, 165, '.', false, '.'};
-        d[PL_PIRATE] = {"The Pirate Ship", P(CABIN_ARENA, 0, 2), P(CABIN_ARENA_NOBOSS, 0, 2), 7, 230, '#', false, '.'};
+        d[PL_PIPES] = {"The Pipes", Part{}, Part{}, 2, 65, '#', true, '#'};
+        d[PL_HULL] = {"The Hull", P16(HULL_ARENA), P16(HULL_ARENA_NOBOSS), 2, 165, '.', false, '.'};
+        d[PL_PIRATE] = {"The Pirate Ship", P(CABIN_ARENA, 0, 2), P(CABIN_ARENA_NOBOSS, 0, 2), 5, 230, '#', false, '.'};
         return d;
     }();
     return defs[level];
@@ -794,6 +794,8 @@ void StepPlayer(PlatformState& p, float dir, bool jumpHeld) {
             for (int tx = (int)floorf((p.pos.x + 3) / T); tx <= (int)floorf((p.pos.x + PW - 3) / T); tx++) if (At(p, tx, ty) == 'w') { p.onWeed = true; break; }
         if (p.onWeed) p.coyote = COYOTE; // you can always jump off it
     }
+    if (!p.verifying && p.level == PL_HULL && GetRandomValue(0, 160) == 0) // the diver's exhaled air rises from the helmet
+        p.particles.push_back({{p.pos.x + PW / 2 + (p.facingRight ? 5.0f : -5.0f), p.pos.y + 3}, {(float)GetRandomValue(-10, 10), -36}, 1.8f, 1.8f, -(float)GetRandomValue(2, 4), Color{196, 236, 250, 255}});
     // a steam vent's column lifts whoever is in it
     {
         int vx = (int)floorf((p.pos.x + PW / 2) / T), vy = (int)floorf((p.pos.y + PH - 1) / T);
@@ -1453,10 +1455,29 @@ void DrawPipeGrit(float px, float py, int len, bool horiz, int seed) {
         if (h > 0.6f) DrawEllipse((int)px + 7, (int)py + 24, 3, 4, Fade(ink, 0.55f));
     }
 }
+// Things that give light: an emergency lamp hung from the duct ceiling, a lantern on a post along the ship's deck.
+bool CeilingLamp(const PlatformState& p, int x, int y) { return p.level == PL_PIPES && At(p, x, y) == '#' && !Solid(p, x, y + 1) && !Solid(p, x, y + 2) && Hs(x * 4.1f + y * 9.3f) > 0.88f; }
+bool DeckLantern(const PlatformState& p, int x, int y) { return p.level == PL_PIRATE && At(p, x, y) == '#' && !Solid(p, x, y - 1) && !Solid(p, x, y - 2) && !Solid(p, x, y - 3) && (x * 7 + y) % 9 == 0; }
 void DrawTile(const PlatformState& p, char c, int x, int y, float t) {
     float px = x * (float)T, py = y * (float)T;
     switch (c) {
-        case '#': DrawSolid(p, x, y); DrawPillarCaps(p, x, y); DrawTileGrit(p, x, y); break;
+        case '#':
+            DrawSolid(p, x, y); DrawPillarCaps(p, x, y); DrawTileGrit(p, x, y);
+            if (CeilingLamp(p, x, y)) { // a caged emergency lamp, flickering red
+                float fl = 0.6f + 0.4f * sinf(t * 7 + x * 1.7f) * sinf(t * 3.1f + y);
+                DrawRectangle((int)px + 14, (int)py + T, 4, 5, Color{40, 36, 34, 255});
+                DrawRectangle((int)px + 8, (int)py + T + 5, 16, 10, Color{8, 8, 12, 255});
+                DrawRectangle((int)px + 10, (int)py + T + 7, 12, 6, Color{(unsigned char)(120 + 100 * fl), 24, 20, 255});
+                for (int k = 0; k < 3; k++) DrawRectangle((int)px + 11 + k * 4, (int)py + T + 6, 1, 8, Color{20, 12, 12, 255});
+            }
+            if (DeckLantern(p, x, y)) { // a lantern on a post
+                float fl = 0.85f + 0.15f * sinf(t * 9 + x);
+                DrawRectangle((int)px + 14, (int)py - 26, 3, 26, Color{60, 40, 26, 255});
+                DrawRectangle((int)px + 8, (int)py - 38, 15, 13, Color{8, 8, 12, 255});
+                DrawRectangle((int)px + 10, (int)py - 36, 11, 9, Color{(unsigned char)(200 + 55 * fl), (unsigned char)(150 + 60 * fl), 60, 255});
+                DrawRectangle((int)px + 7, (int)py - 40, 17, 3, Color{60, 58, 62, 255});
+            }
+            break;
         case 'k': { // a crate or a barrel
             bool barrel = Hs(x * 7.1f + y * 3.3f) > 0.5f;
             if (barrel) {
@@ -1684,6 +1705,7 @@ void DrawTile(const PlatformState& p, char c, int x, int y, float t) {
             float bob = sinf(t * 4 + x) * 3, squeeze = fabsf(cosf(t * 3 + x));
             DrawEllipse((int)px + T / 2, (int)(py + T / 2 + bob), 9 * squeeze + 1, 9, Color{250, 210, 70, 255});
             DrawEllipse((int)px + T / 2 - 2, (int)(py + T / 2 - 3 + bob), 3 * squeeze, 3, Color{255, 246, 196, 255});
+            if (fmodf(t * 1.1f + x * 0.9f, 3.0f) < 0.16f) { float gx = px + T / 2 + 6, gy = py + T / 2 - 8 + bob; DrawRectangle((int)gx - 4, (int)gy, 9, 1, WHITE); DrawRectangle((int)gx, (int)gy - 4, 1, 9, WHITE); }   // a glint
         } break;
         case 'E':
             if (!p.exitOpen) break;
@@ -1802,10 +1824,77 @@ void DrawGlowingBits(const PlatformState& p, int c0, int c1, int r0, int r1, flo
             else if (c == 'E') DrawCircleV({m.x, m.y - 10}, 34, Color{255, 120, 80, 90});
             else if (c == 'o') DrawCircleV(m, 10, Color{120, 100, 30, 110});
             else if (c == 'g') DrawCircleV(m, 16, Color{90, 70, 30, 60});
+            if (c == 'g') { float pl = 0.5f + 0.5f * sinf(t * 5 + x * 0.9f); DrawCircleV(m, 26, Color{200, 40, 30, (unsigned char)(20 + 40 * pl)}); }   // a mine's red heart pulses
+            if (c == 'v' && VentOn(p, x)) DrawCircleV({m.x, m.y - T}, 26, Color{90, 100, 110, 30});
+            if (CeilingLamp(p, x, y)) { // a pool of red light spilling down the duct
+                float fl = 0.6f + 0.4f * sinf(t * 7 + x * 1.7f) * sinf(t * 3.1f + y);
+                for (int k = 0; k < 4; k++) DrawCircleV({m.x, m.y + T + 8}, 30.0f + k * 22, Color{200, 40, 30, (unsigned char)((26 - k * 5) * fl)});
+            }
+            if (DeckLantern(p, x, y)) {
+                float fl = 0.85f + 0.15f * sinf(t * 9 + x);
+                for (int k = 0; k < 4; k++) DrawCircleV({m.x, m.y - 30}, 18.0f + k * 16, Color{255, 180, 80, (unsigned char)((30 - k * 6) * fl)});
+            }
         }
     EndBlendMode();
 }
 
+// Life in the world, behind the tiles: drifting plankton and jellyfish in the trench, sparking pipes in the duct, gulls and
+// swaying rigging above the ships. Placed by hashes of world cells so it is the same wherever you look.
+void DrawAmbientLife(const PlatformState& p, float t, float viewW, float viewH) {
+    float x0 = p.camX - viewW / 2 - 120, x1 = p.camX + viewW / 2 + 120, y0 = p.camY - viewH / 2 - 120, y1 = p.camY + viewH / 2 + 120;
+    if (p.level == PL_HULL) {
+        BeginBlendMode(BLEND_ADDITIVE);
+        for (int k = 0; k < 140; k++) { // plankton, twinkling
+            float fx = Hs(k * 7.1f) * (viewW + 240), fy = Hs(k * 3.3f) * (viewH + 240);
+            float wx = x0 + fmodf(fx + t * (3 + k % 6) - 0.0f + 60000, viewW + 240), wy = y0 + fmodf(fy + sinf(t * 0.7f + k) * 16 + 60000, viewH + 240);
+            float tw = 0.5f + 0.5f * sinf(t * 2 + k);
+            DrawCircleV({wx, wy}, 1.5f + (k % 3) * 0.6f, Fade(Color{120, 240, 220, 255}, 0.22f + 0.4f * tw));
+        }
+        EndBlendMode();
+        for (int cx = (int)floorf(x0 / 420); cx <= (int)floorf(x1 / 420); cx++)
+            for (int cy = (int)floorf(y0 / 360); cy <= (int)floorf(y1 / 360); cy++) {
+                float h = Hs(cx * 5.1f + cy * 9.7f);
+                if (h < 0.5f) continue;
+                float jx = (cx + 0.5f) * 420 + sinf(t * 0.35f + cx * 2 + cy) * 50, jy = (cy + 0.5f) * 360 - fmodf(t * 6 + h * 300, 60.0f) + sinf(t * 0.8f + h * 6) * 12;
+                float pulse = 0.5f + 0.5f * sinf(t * 2.2f + h * 9), bh = 11 + pulse * 4;
+                Color bell = h > 0.75f ? Color{210, 110, 190, 255} : Color{110, 190, 230, 255};
+                for (int k = 0; k < 6; k++) { // trailing tentacles
+                    float tx = jx - 12 + k * 4.8f; Vector2 prev{tx, jy + 6};
+                    for (int sg = 1; sg <= 5; sg++) { Vector2 q{tx + sinf(t * 1.6f + k + sg * 0.8f) * sg * 1.6f, jy + 6 + sg * 7.0f}; DrawLineEx(prev, q, 1.4f, Fade(bell, 0.5f - sg * 0.07f)); prev = q; }
+                }
+                DrawEllipse((int)jx, (int)jy, 17, bh, Fade(bell, 0.45f)); DrawEllipse((int)jx, (int)jy - 2, 11, bh * 0.6f, Fade(WHITE, 0.25f));
+                BeginBlendMode(BLEND_ADDITIVE); DrawCircleV({jx, jy}, 36, Fade(bell, 0.07f + 0.05f * pulse)); EndBlendMode();
+            }
+        for (int k = 0; k < 3; k++) { // a school of small fish crossing, far off
+            float fx = fmodf(t * (24 + k * 5) + k * 700 + p.camX * 0.5f, viewW + 400) + x0 - 100, fy = p.camY - 60 + k * 90 + sinf(t * 0.6f + k) * 20;
+            for (int q = 0; q < 9; q++) { float ox = -q * 11 + (q % 3) * 4, oy = sinf(q * 1.7f) * 12 + (q % 2) * 6; DrawTri({fx + ox, fy + oy}, {fx + ox - 8, fy + oy - 3}, {fx + ox - 8, fy + oy + 3}, Color{16, 44, 58, 255}); }
+        }
+    } else if (p.level == PL_PIPES) {
+        int c0 = std::max(0, (int)(x0 / T)), c1 = std::min(p.w - 1, (int)(x1 / T)), r0 = std::max(0, (int)(y0 / T)), r1 = std::min(p.h - 1, (int)(y1 / T));
+        BeginBlendMode(BLEND_ADDITIVE);
+        for (int y = r0; y <= r1; y++)
+            for (int x = c0; x <= c1; x++) {
+                char c = p.tiles[y][x];
+                if ((c == '=' || c == '|') && Hs(x * 6.7f + y * 2.1f) > 0.86f) { // a fractured pipe throwing sparks in bursts
+                    float cyc = fmodf(t + Hs(x * 1.3f + y) * 5, 4.0f);
+                    if (cyc < 0.45f)
+                        for (int k = 0; k < 8; k++) { float a = -PI / 2 + (k - 3.5f) * 0.3f, d = cyc * (60 + k * 8); DrawRectangle((int)(x * T + 16 + cosf(a) * d), (int)(y * T + 8 + sinf(a) * d + cyc * cyc * 90), 2, 2, Fade(Color{255, 200, 90, 255}, 1 - cyc / 0.45f)); }
+                }
+                if (c == '#' && !Solid(p, x, y - 1) && Hs(x * 3.9f + y * 8.1f) > 0.9f) { // a seam venting steam
+                    float ph = fmodf(t * 0.7f + Hs(x + y) * 3, 1.0f);
+                    DrawEllipse((int)(x * T + 16 + sinf(ph * 5) * 4), (int)(y * T - ph * 48), 8 + ph * 12, 5 + ph * 8, Fade(Color{190, 190, 186, 255}, 0.16f * (1 - ph)));
+                }
+            }
+        EndBlendMode();
+    } else {
+        for (int k = 0; k < 3; k++) { // gulls, high over the fleet
+            float gx = fmodf(t * (30 + k * 8) + k * 500 + p.camX * 0.3f, viewW + 500) + x0 - 200, gy = p.camY - 150 - k * 34 + sinf(t * 0.9f + k) * 14, fl = sinf(t * 7 + k * 2) * 5;
+            Color gc{10, 10, 16, 255};
+            DrawLineEx({gx - 9, gy + fl}, {gx, gy - 2}, 2, gc); DrawLineEx({gx, gy - 2}, {gx + 9, gy + fl}, 2, gc);
+        }
+    }
+    (void)y1;
+}
 // The Ghost Ship's crew: bone, tatters and a pale green light in the sockets, in place of the living pirates.
 void DrawSkeletonBody(float x, float y, float f, float t, float lean) {
     const Color bone{224, 220, 196, 255}, ink{8, 8, 12, 255}, glow{120, 255, 190, 255};
@@ -2269,7 +2358,7 @@ void DrawShots(const PlatformState& p, float t) {
 // ============================================================ public
 const char* PlatLevelName(int level) { return Lv(level).name; }
 
-namespace { bool ValidateGenerated(int level, const GenLevel& gl, int* failedHop); }
+namespace { bool ValidateGenerated(int level, const GenLevel& gl, int* failedHop, float* solveTime = nullptr, int* hopsOut = nullptr); }
 
 // A layout is a generator seed and a difficulty scale (percent). Layouts are validated when they are made: every hop
 // on the critical path is searched with the real movement code, and a level that fails is thrown away.
@@ -2460,7 +2549,7 @@ void ScenePlatformer(Game& g) {
     for (auto& pt : p.particles) {
         pt.p.x += pt.v.x * dt;
         pt.p.y += pt.v.y * dt;
-        pt.v.y += 400 * dt;
+        pt.v.y += (pt.size < 0 ? -30 : 400) * dt;   // a negative size marks a bubble: it rises
         pt.life -= dt;
     }
     p.particles.erase(std::remove_if(p.particles.begin(), p.particles.end(), [](const PlatParticle& q) { return q.life <= 0; }), p.particles.end());
@@ -2489,6 +2578,7 @@ void ScenePlatformer(Game& g) {
     DrawBossBack(p, t);
     int c0 = std::max(0, (int)((p.camX - viewW / 2) / T) - 2), c1 = std::min(p.w - 1, (int)((p.camX + viewW / 2) / T) + 2);
     if (p.level == PL_PIRATE) DrawShipScenery(p, c0, c1, t);
+    DrawAmbientLife(p, t, viewW, viewH);
     int r0 = std::max(0, (int)((p.camY - viewH / 2) / T) - 2), r1 = std::min(p.h - 1, (int)((p.camY + viewH / 2) / T) + 2);
     for (int y = r0; y <= r1; y++) // first the sides and tops of blocks, which recede into the scene...
         for (int x = c0; x <= c1; x++) DrawDepth(p, x, y);
@@ -2498,10 +2588,14 @@ void ScenePlatformer(Game& g) {
     DrawBoss(p, t);
     for (auto& e : p.enemies) DrawEnemy(e, t);
     DrawShots(p, t);
-    for (auto& pt : p.particles) DrawRectangle((int)pt.p.x, (int)pt.p.y, (int)pt.size, (int)pt.size, Fade(pt.c, std::min(1.0f, pt.life / pt.max * 1.5f)));
+    for (auto& pt : p.particles) {
+        if (pt.size < 0) DrawRing({pt.p.x, pt.p.y}, -pt.size * 0.6f, -pt.size, 0, 360, 10, Fade(pt.c, std::min(1.0f, pt.life / pt.max * 1.5f) * 0.8f));
+        else DrawRectangle((int)pt.p.x, (int)pt.p.y, (int)pt.size, (int)pt.size, Fade(pt.c, std::min(1.0f, pt.life / pt.max * 1.5f)));
+    }
     if (p.deathTimer <= 0) {
         DrawDiver(p);
     }
+    if (!Lv(p.level).dark) DrawGlowingBits(p, c0, c1, r0, r1, t);
     EndMode2D();
     DrawForeground(p, t); // the near silhouettes, in front of the diver
     if (p.ghost) { // a cold teal grade and drifting fog
@@ -2694,7 +2788,8 @@ uint64_t Key(const SimNode& n, bool jets) {
     return k;
 }
 
-bool Crossable(PlatformState& p, float goalX, bool jets, long& expanded, float goalY = 0, float tol = 0, long cap = 3000000) {
+bool Crossable(PlatformState& p, float goalX, bool jets, long& expanded, float goalY = 0, float tol = 0, long cap = 3000000, float* outTime = nullptr) {
+    const float startTime = p.time;
     struct Item { float f; int idx; bool operator<(const Item& o) const { return f > o.f; } };
     std::vector<SimNode> nodes;
     std::priority_queue<Item> open;
@@ -2721,7 +2816,7 @@ bool Crossable(PlatformState& p, float goalX, bool jets, long& expanded, float g
                 }
                 p.particles.clear();
                 if (dead) continue;
-                if (tol > 0 ? (p.onGround && fabsf(p.pos.x + PW / 2 - goalX) < tol && fabsf(p.pos.y - goalY) < 6) : (p.pos.x >= goalX && p.onGround)) return true;
+                if (tol > 0 ? (p.onGround && fabsf(p.pos.x + PW / 2 - goalX) < tol && fabsf(p.pos.y - goalY) < 6) : (p.pos.x >= goalX && p.onGround)) { if (outTime) *outTime = p.time - startTime; return true; }
                 SimNode n = Snap(p, held != 0);
                 if (!seen.insert(Key(n, jets)).second) continue;
                 nodes.push_back(n);
@@ -2739,7 +2834,7 @@ namespace {
 double gMs[3] = {}; int gDraws[3] = {};
 bool gValidateShafts = false; // DEPTH_FULL=1: also search the shaft climbs of every generated level, not just the proven templates
 long gHopExpanded[3][3] = {}; // per level: total expansions, hops searched, largest hop
-bool ValidateGenerated(int level, const GenLevel& gl, int* failedHop) {
+bool ValidateGenerated(int level, const GenLevel& gl, int* failedHop, float* solveTime, int* hopsOut) {
     const LevelDef& L = Lv(level);
     PlatformState p;
     p.level = level;
@@ -2757,7 +2852,10 @@ bool ValidateGenerated(int level, const GenLevel& gl, int* failedHop) {
         p.coyote = p.wallCoyote = p.jumpBuffer = p.wallLock = p.time = 0;
         p.onGround = false;
         long n = 0;
-        bool hopOk = Crossable(p, b.tx * (float)T + 16, jets, n, (b.ty - p.genTop + 1) * (float)T - PH, 22, gValidateShafts ? 2500000 : 60000);
+        float hopTime = 0;
+        bool hopOk = Crossable(p, b.tx * (float)T + 16, jets, n, (b.ty - p.genTop + 1) * (float)T - PH, 22, gValidateShafts ? 2500000 : 60000, &hopTime);
+        if (hopOk && solveTime) *solveTime += hopTime;
+        if (hopsOut) (*hopsOut)++;
         gHopExpanded[level][0] += n; gHopExpanded[level][1]++; gHopExpanded[level][2] = std::max(gHopExpanded[level][2], n);
         if (!hopOk) {
             if (failedHop) *failedHop = (int)i;
@@ -2793,7 +2891,31 @@ static int VerifyShafts() {
     return bad;
 }
 
+// DEPTH_METRICS=1 depth.exe --verify : how hard is each generated level? The optimal solve time (the path search's best run,
+// shaft climbs included), how wide it is, and how many hazards and enemies it holds, averaged over several seeds.
+static void PrintLevelMetrics() {
+    gValidateShafts = true;
+    const char* names[3] = {"Pipes", "Hull", "Pirate Ship"};
+    for (int lv = 0; lv < PL_COUNT; lv++) {
+        double time = 0, wide = 0, hops = 0, hazards = 0, foes = 0, coins = 0;
+        int n = 0;
+        for (int seed = 1; seed <= 6; seed++) {
+            GenLevel gl;
+            bool ok = false;
+            float tsolve = 0; int hp = 0;
+            for (int k = 0; k < 40 && !ok; k++) { gl = GenerateLevel(lv, seed * 1000 + k, 1.0f); tsolve = 0; hp = 0; ok = ValidateGenerated(lv, gl, nullptr, &tsolve, &hp); }
+            if (!ok) continue;
+            int hz = 0, en = 0, co = 0;
+            for (auto& row : gl.rows) for (char c : row) { if (c == 'g' || c == 'x' || c == 't') hz++; if (c == 'c' || c == 'P' || c == 'G' || c == 'p' || c == 'e') en++; if (c == 'o') co++; }
+            time += tsolve; wide += gl.w; hops += hp; hazards += hz; foes += en; coins += co; n++;
+        }
+        if (n) printf("%-12s optimal run %5.1f s | %5.0f wide | %4.1f hops checked | %4.1f hazards | %4.1f enemies | %4.1f coins\n", names[lv], time / n, wide / n, hops / n, hazards / n, foes / n, coins / n);
+        fflush(stdout);
+    }
+}
+
 int VerifyPlatformLevels() {
+    if (getenv("DEPTH_METRICS")) { PrintLevelMetrics(); return 0; }
     gValidateShafts = getenv("DEPTH_FULL") != nullptr;
     int failures = getenv("DEPTH_SHAFTS") ? VerifyShafts() : 0; // slow: set DEPTH_SHAFTS=1 to re-prove the shaft dimensions
     for (int lv = 0; lv < PL_COUNT; lv++) {
