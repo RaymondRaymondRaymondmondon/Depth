@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 //  DEPTH - entry point. Opens the window and runs whichever scene is active.
 //
 //  Developer switches:
@@ -58,6 +58,11 @@ static void TakeShots(const Game& base, const std::string& dir) {
         {"hub_cat", [](Game& g) { g.scene = Scene::Hub; DebugPetCat(); }},
         {"cards_menu", [](Game& g) { g.scene = Scene::Cards; }},
         {"cards_play", [](Game& g) { g.scene = Scene::Cards; DebugFlatsDeal(); }},
+        {"cards_combat", [](Game& g) { g.scene = Scene::Cards; DebugFlatsCombat(); }},
+        {"cards_won", [](Game& g) { g.scene = Scene::Cards; DebugFlatsWon(); }},
+        {"cards_boon", [](Game& g) { g.scene = Scene::Cards; DebugFlatsBoon(); }},
+        {"cards_map", [](Game& g) { g.scene = Scene::Cards; DebugFlatsMap(); }},
+        {"cards_campfire", [](Game& g) { g.scene = Scene::Cards; DebugFlatsCampfire(); }},
         {"cards_reward", [](Game& g) { g.scene = Scene::Cards; DebugFlatsReward(); }},
         {"cards_shop", [](Game& g) { g.scene = Scene::Cards; DebugFlatsShop(); }},
         {"cards_deck", [](Game& g) { g.scene = Scene::Cards; DebugFlatsDeck(); }},

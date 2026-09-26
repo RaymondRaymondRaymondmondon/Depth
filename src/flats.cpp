@@ -1,18 +1,18 @@
 ﻿// ============================================================================
 //  DEPTH - Flats, the card game played at the Nautilus's card table.
 //
-//  A two-player roguelike duel: you against the ship's dealer, each with your own deck. Three "flats"
-//  (lanes) lie across the table. Each round you and the dealer are dealt five cards and take turns laying
-//  them, two at a time, then ringing the bell. The higher total in a flat wins it; take two flats to take
-//  the round, and two rounds to take the match. Winning a match adds a card of your choice to your deck
-//  and puts the next, tougher dealer in front of you. Cash your winnings out after any match, or press
-//  on and risk the lot: lose, and the pot goes to the house.
+//  A roguelike duel of creatures. You and the dealer fight across a 4x4 board (see flats_board.h): your creatures
+//  strike the space ahead each combat, or the scales if it is empty, and the scales tipping 8 either way ends the
+//  battle. Cards have strength, defense and weight, a cost in blood (sacrifice your own creatures) or bones (earned
+//  from the dead), and sigils. Battles are strung together on a branching map (flats_run.h): more battles, cards to
+//  pick, campfires to strengthen a card, splices, trials, a stall to spend the pot in, and the House at the end.
+//  Win a battle fast and you bank Momentum for a head start in the next. Cash out between battles or press on.
 //
-//  The scene is laid out like the first act of Inscryption: the dealer sits across from you in the dark,
-//  the flats glow on the table between you, your hand fans out along the bottom of the screen, and a brass
-//  bell on the table ends your turn.
+//  This file is the scene: it draws the table, plays back the engine's events as animation and handles the clicks.
+//  The rules themselves live in the engine (flats_card / flats_board / flats_run); nothing here decides an outcome.
 // ============================================================================
 #include "game.h"
+#include "flats_run.h"
 #include "relics.h"
 #include "rlgl.h"
 #include <algorithm>
@@ -23,336 +23,80 @@
 #include <vector>
 
 namespace {
-// ---------------------------------------------------------------- the cards
-enum Suit { COIN, CUP, BLADE, SHELL, SUITS };
-enum Special { SP_NONE, SP_TIDE, SP_SNARE, SP_LANTERN, SP_WAVE, SP_COUNT };
-enum Edition { ED_NONE, ED_FOIL, ED_GILT, ED_HEX, ED_COUNT };
-enum LaneMod { LM_NONE, LM_TREASURE, LM_REEF, LM_TRENCH, LM_WHIRL, LM_COUNT };
-enum Charm { CH_PEARL, CH_KNOT, CH_COMPASS, CH_TOOTH, CH_ANCHOR, CH_JAR, CH_BARB, CH_COUNT };
-struct Card { int suit = COIN; int value = 1; int special = SP_NONE; int ed = ED_NONE; };
-const char* SUIT_NAME[SUITS] = {"Coin", "Cup", "Blade", "Shell"};
-const char* SPECIAL_NAME[SP_COUNT] = {"", "Tide", "Snare", "Lantern", "Wave"};
-const char* SPECIAL_TEXT[SP_COUNT] = {"", "Copies the highest card beside it.", "Cuts the opposing flat by 3.",
-                                      "Counts as any suit for pairs.", "+2 for each other card in its flat."};
-const char* ED_NAME[ED_COUNT] = {"", "Foil", "Gilt", "Hex"};
-const char* ED_TEXT[ED_COUNT] = {"", "+2 in its flat.", "Win its flat: +6 gold in the pot.", "+5 in its flat, but lose 8 gold if the flat is lost."};
-const char* MOD_NAME[LM_COUNT] = {"", "Sunken Chest", "Coral Reef", "Trench Current", "Whirlpool"};
-const char* MOD_TEXT[LM_COUNT] = {"", "Whoever wins this flat takes 10 gold for the pot.", "Suit and pair bonuses are doubled in this flat.",
-                                  "Every card in this flat counts +1.", "Only two cards fit in this flat."};
-const char* CHARM_NAME[CH_COUNT] = {"Pearl Necklace", "Sailor's Knot", "Brass Compass", "Lucky Tooth", "Iron Anchor", "Tip Jar", "Barbed Hook"};
-const char* CHARM_TEXT[CH_COUNT] = {"Your Shell cards count +1.", "Pairs of a suit are worth +1 more each.", "You may play three cards a turn.",
-                                    "You are dealt a sixth card.", "Ties in a flat go to you.", "+10 gold in the pot for each round you win.",
-                                    "Your Snares cut 5 instead of 3."};
+using namespace flats;
+
 const Color SUIT_COL[SUITS] = {{200, 148, 42, 255}, {60, 100, 168, 255}, {178, 46, 42, 255}, {64, 152, 142, 255}};
-
-constexpr int LANES = 3, LANE_CAP = 3, HAND_SIZE = 5, MATCHES = 4, MAX_CHARMS = 3;
-const int PAYOUT[MATCHES] = {40, 100, 200, 340};
-const char* DEALER_NAME[MATCHES] = {"The Novice", "The Tidewife", "The Wreck-Broker", "The House"};
-const char* DEALER_LINES[MATCHES] = {"\"Sit. Cards don't bite. Much.\"", "\"You learn quickly. Shame.\"", "\"Now we play for real.\"",
-                                     "\"The house always wins. Prove me wrong.\""};
-
-struct Placed { Card c; float age = 0; Vector2 from{0, 0}; float rot = 0; };
-struct Side {
-    std::vector<Card> deck, hand;
-    std::vector<Placed> lane[LANES];
-    unsigned charms = 0;
-    int boonSuit = -1;
-};
+const Color STR_COL{214, 84, 64, 255}, HP_COL{74, 168, 104, 255}, WT_COL{128, 138, 158, 255}, BONE_COL{226, 220, 196, 255}, BLOOD_COL{196, 36, 48, 255};
 
 int Roll(int lo, int hi) { return GetRandomValue(lo, hi); }
-void Shuffle(std::vector<Card>& v) { for (int i = (int)v.size() - 1; i > 0; i--) std::swap(v[i], v[Roll(0, i)]); }
-int LaneCap(int mod) { return mod == LM_WHIRL ? 2 : LANE_CAP; }
-bool Has(const Side& s, int charm) { return (s.charms >> charm) & 1u; }
+float Dist(Vector2 a, Vector2 b) { return hypotf(a.x - b.x, a.y - b.y); }
 
-// The total of one flat: card values (plus foil, hex, the flat's modifier and the owner's boons), bonuses for sharing
-// a suit and for runs, the specials, minus whatever the Snares on the other side of the table cut.
-int LaneTotal(const std::vector<Placed>& lane, int cut, int mod, const Side& own) {
-    int n = (int)lane.size();
-    if (n == 0) return 0;
-    int maxv = 1;
-    for (auto& p : lane) if (p.c.special != SP_TIDE) maxv = std::max(maxv, p.c.value);
-    int total = 0;
-    std::vector<int> vals;
-    for (auto& p : lane) {
-        int v = p.c.special == SP_TIDE ? maxv : p.c.value;
-        vals.push_back(v);
-        if (p.c.ed == ED_FOIL) v += 2;
-        if (p.c.ed == ED_HEX) v += 5;
-        if (mod == LM_TRENCH) v += 1;
-        if (own.boonSuit == p.c.suit && p.c.special != SP_LANTERN) v += 1;
-        if (Has(own, CH_PEARL) && p.c.suit == SHELL) v += 1;
-        total += v;
-        if (p.c.special == SP_WAVE) total += 2 * (n - 1);
-    }
-    int cnt[SUITS] = {0}, lanterns = 0;
-    for (auto& p : lane) { if (p.c.special == SP_LANTERN) lanterns++; else cnt[p.c.suit]++; }
-    int best = 0;
-    for (int s = 0; s < SUITS; s++) best = std::max(best, cnt[s]);
-    bool lanternsUsed = false;
-    int per = (2 + (Has(own, CH_KNOT) ? 1 : 0)) * (mod == LM_REEF ? 2 : 1);
-    for (int s = 0; s < SUITS; s++) {
-        int k = cnt[s];
-        if (!lanternsUsed && k == best) { k += lanterns; lanternsUsed = true; }
-        if (k >= 2) total += per * (k - 1);
-    }
-    std::sort(vals.begin(), vals.end());
-    int steps = 0;
-    for (size_t i = 1; i < vals.size(); i++) if (vals[i] == vals[i - 1] + 1) steps++;
-    total += (n == 3 && steps == 2) ? 4 : steps; // a straight of three: +4; each consecutive pair: +1
-    total -= cut;
-    return std::max(0, total);
-}
-
-// How much the Snares in `lane` (played by `owner`) cut from the flat opposite.
-int Snares(const std::vector<Placed>& lane, const Side& owner) {
-    int n = 0;
-    for (auto& p : lane) if (p.c.special == SP_SNARE) n++;
-    return n * (Has(owner, CH_BARB) ? 5 : 3);
-}
-
-// ---------------------------------------------------------------- state
-enum class Phase { Menu, Playing, Resolving, MatchOver, Shop, Reward, RunOver };
-enum ShopKind { SK_CARD, SK_CHARM, SK_TRIM, SK_EDITION, SK_INSURE };
-struct ShopItem { int kind = SK_CARD, price = 0, charm = -1; Card card; bool sold = false; };
 struct Particle { Vector2 p, v; float life, max, size; Color col; int kind; }; // kind 0 spark, 1 coin, 2 dust, 3 wisp
-struct State {
-    bool inited = false;
-    Phase phase = Phase::Menu;
-    Side you, foe;
-    int match = 0, round = 0, roundsYou = 0, roundsFoe = 0;
-    bool yourTurn = true;
-    int actions = 2, selected = -1;
-    float foeT = 0;
-    int pot = 0;
-    std::vector<Card> rewards;
-    int rewardCharm = -1; // when >= 0 the third reward slot is this charm rather than a card
-    std::string banner, sub, twistText;
-    float resolveT = 0, bellT = 0, beam = 0;
-    int laneResult[LANES] = {0, 0, 0}; // after a round: +1 you took it, -1 the dealer did
-    int mod[LANES] = {0, 0, 0};
-    bool lost = false, cashed = false;
-    int payout = 0;
-    bool showRules = false, showDeck = false;
-    bool foeOpenSnare = false, foeExtraCard = false, foeExtraAct = false;
-    float shake = 0, mood = 0, moodT = 0; // mood: +1 the dealer gloats, -1 he flinches
-    std::vector<Particle> parts;
-    std::vector<ShopItem> shop;
-    int pickItem = -1; // a shop item waiting for you to choose which card it applies to
-    int rerolls = 0;
-    bool insured = false, insurePaid = false;
+enum ShopKind { SK_CARD, SK_CHARM, SK_ITEM, SK_TRIM, SK_EDITION, SK_INSURE };
+struct ShopItem { int kind = SK_CARD, price = 0, charm = -1, item = -1; Card card; bool sold = false; };
+
+enum class Ph { Menu, Map, Boon, Battle, Won, Node, RunOver };
+enum class NodeUi { None, CardPick, Campfire, Splice, Sacrifice, Trial, Stall, Cache };
+
+// A card on the board can be mid-flight, mid-lunge, shaking or flashing: per-cell effects, decaying to nothing.
+struct CellFx {
+    Vector2 off{0, 0};       // where it is drawn relative to its cell (a slide or a flight)
+    float offT = 0, offDur = 0.3f, arc = 0;
+    float lunge = 0;         // 1 -> 0: a strike
+    Vector2 lungeDir{0, 0};
+    float shake = 0, flash = 0;
+    float appear = 1;        // scale-in for a card that has just landed
 };
-State S;
+struct Ghost { Card c; Vector2 pos; Vector2 size; float t = 0, dur = 0.6f; bool dies = true; };
+struct FloatText { std::string text; Vector2 pos; float t = 0; Color col; float size = 20; };
 
-const char* RULES_TEXT =
-    "Three flats lie across the table. Each round you and the dealer are dealt five cards from your own decks and "
-    "take turns laying them, two at a time; ring the bell to end your turn. The higher total in a flat wins it. "
-    "Take two flats to take the round, and two rounds to take the match.\n\n"
-    "A pair of a suit in one flat: +2 for each extra card. Consecutive values: +1 for each step, +4 for a straight of three. "
-    "Specials: Tide copies its best neighbour, Snare cuts the opposite flat by 3, Lantern counts as any suit, Wave adds +2 for every other card beside it.\n\n"
-    "Editions: Foil is +2, Gilt pays 6 gold into the pot when its flat wins, Hex is +5 but costs 8 gold if its flat is lost. "
-    "Each round one or two flats carry a modifier (Sunken Chest, Coral Reef, Trench Current, Whirlpool); hover the emblem to read it.\n\n"
-    "Win a match and choose a reward: a card for your deck, or a charm (you can carry three) that bends the rules your way. "
-    "Press on and you pass the dealer's stall first: spend part of the pot on a card, a charm, trimming or dressing your deck, or insurance that saves half the pot if you lose. "
-    "Four dealers, each with a trick of their own; payouts 40, 100, 200 and 340 gold. Cash out after any match, or press on: lose and the pot is gone.";
+struct Ui {
+    bool inited = false;
+    Ph ph = Ph::Menu;
+    NodeUi nu = NodeUi::None;
+    RunManager rm;
+    Battle bat;
+    Rng rng;
+    Events ev;
+    float stepT = 0, endT = 0;
+    // interaction
+    int selHand = -1;
+    std::vector<std::pair<int, int>> sacs;
+    bool sacMode = false;
+    int sacCol = -1;
+    int selItem = -1;             // an item waiting for a target
+    Vector2 handFrom{640, 700};   // where the last card played left the hand from (for its flight)
+    // playback state
+    CellFx fx[ROWS][COLS];
+    std::vector<Ghost> ghosts;
+    std::vector<FloatText> floats;
+    std::vector<Particle> parts;
+    float shake = 0, beam = 0, bellT = 0, mood = 0, moodT = 0;
+    // panels
+    std::vector<Card> offers;
+    int offerCharm = -1;
+    bool rareOffer = false;
+    int pick1 = -1, pick2 = -1;
+    std::vector<ShopItem> shop;
+    int rerolls = 0, shopPick = -1;
+    int foundItem = -1;
+    std::string toast; float toastT = 0;
+    int gainedGold = 0; bool gainedMomentum = false, isElite = false, isBoss = false;
+    bool cashed = false, lost = false; int payout = 0; bool insurePaid = false;
+    bool showRules = false, showDeck = false;
+    int lastTurns = 0;
+};
+Ui U;
 
-// A folder tab at the screen's edge, open at any time during play, so the rules are never more than a click away.
-Rectangle RulesTabRect() { return {(float)SCREEN_W - 34, 300, 34, 130}; }
-void DrawRulesFolder(Vector2 m) {
-    Rectangle tab = RulesTabRect();
-    bool hot = CheckCollisionPointRec(m, tab) || S.showRules;
-    Color col = hot ? Pal::Brass : ColorBrightness(Pal::Brass, -0.3f);
-    DrawRectangleRounded({tab.x - 2, tab.y, tab.width + 2, tab.height}, 0.3f, 6, Color{8, 12, 16, 220});
-    DrawRectangleRoundedLinesEx({tab.x - 2, tab.y, tab.width + 2, tab.height}, 0.3f, 6, 1.5f, col);
-    rlPushMatrix();
-    rlTranslatef(tab.x + tab.width / 2 + 5, tab.y + tab.height - 10, 0);
-    rlRotatef(-90, 0, 0, 1);
-    TxtBold("HOW TO PLAY", -55, -8, 15, col);
-    rlPopMatrix();
-    if (S.showRules) {
-        Rectangle p{SCREEN_W / 2.0f - 360, SCREEN_H / 2.0f - 270, 720, 540};
-        Panel(p);
-        DrawTextCenteredBold("How Flats is played", p.x + p.width / 2, p.y + 18, 30, Pal::Ink);
-        DrawWrapped(RULES_TEXT, {p.x + 34, p.y + 64, p.width - 68, p.height - 130}, 14, Pal::Ink);
-        if (Button({p.x + p.width / 2 - 90, p.y + p.height - 56, 180, 42}, "Close")) S.showRules = false;
-    }
-}
-
-int Tot(const Side& mine, const Side& other, int l) { return LaneTotal(mine.lane[l], Snares(other.lane[l], other), S.mod[l], mine); }
+void Toast(const std::string& s) { U.toast = s; U.toastT = 2.4f; }
 
 void Burst(Vector2 at, int n, int kind, Color col, float speed) {
     for (int i = 0; i < n; i++) {
         float a = Roll(0, 6283) / 1000.0f, sp = speed * (0.3f + Roll(0, 100) / 100.0f);
         float life = 0.6f + Roll(0, 60) / 100.0f;
-        S.parts.push_back({at, {cosf(a) * sp, sinf(a) * sp - (kind == 1 ? speed * 0.6f : 0)}, life, life, 2.0f + Roll(0, 30) / 10.0f, col, kind});
+        U.parts.push_back({at, {cosf(a) * sp, sinf(a) * sp - (kind == 1 ? speed * 0.6f : 0)}, life, life, 2.0f + Roll(0, 30) / 10.0f, col, kind});
     }
 }
-
-Card RandomCard(int lo, int hi) {
-    Card c;
-    c.suit = Roll(0, SUITS - 1);
-    c.value = Roll(lo, hi);
-    return c;
-}
-Card RandomSpecial() {
-    Card c = RandomCard(1, 5);
-    c.special = Roll(SP_TIDE, SP_COUNT - 1);
-    c.value = c.special == SP_SNARE ? 1 : c.special == SP_WAVE ? 2 : c.special == SP_LANTERN ? 4 : 2;
-    return c;
-}
-
-void BuildDecks() {
-    S.you.deck.clear();
-    for (int s = 0; s < SUITS; s++) for (int v : {2, 4, 6}) S.you.deck.push_back({s, v, SP_NONE});
-}
-
-// Each dealer is a little different: what he does is rolled when you sit down.
-void BuildFoeDeck(int match) {
-    S.foe.deck.clear();
-    int size = 12 + match * 2;
-    for (int i = 0; i < size; i++) S.foe.deck.push_back(RandomCard(1, 6 + match));
-    for (int i = 0; i < match + 1 && match > 0; i++) S.foe.deck[Roll(0, (int)S.foe.deck.size() - 1)] = RandomSpecial();
-    S.foe.boonSuit = -1;
-    S.foeOpenSnare = S.foeExtraCard = S.foeExtraAct = false;
-    S.twistText = "No tricks. Yet.";
-    bool foil = false, pick = Roll(0, 1) == 1;
-    if (match == 1) {
-        if (pick) { S.foe.boonSuit = Roll(0, SUITS - 1); S.twistText = TextFormat("Her %s cards all count +1.", SUIT_NAME[S.foe.boonSuit]); }
-        else { S.foeOpenSnare = true; S.twistText = "She lays a Snare before you have sat down."; }
-    } else if (match == 2) {
-        if (pick) { foil = true; S.twistText = "His deck is shot through with Foil."; }
-        else { S.foeExtraCard = true; S.twistText = "He is dealt a sixth card each round."; }
-    } else if (match >= 3) {
-        S.foe.boonSuit = Roll(0, SUITS - 1);
-        foil = S.foeExtraCard = true;
-        S.twistText = TextFormat("Foil, a sixth card, and %s cards count +1.", SUIT_NAME[S.foe.boonSuit]);
-    }
-    if (foil) for (auto& c : S.foe.deck) if (Roll(1, 100) <= 28) c.ed = ED_FOIL;
-}
-
-void ClearLanes() {
-    for (int l = 0; l < LANES; l++) { S.you.lane[l].clear(); S.foe.lane[l].clear(); }
-}
-
-void RollMods() {
-    for (int l = 0; l < LANES; l++) S.mod[l] = LM_NONE;
-    int n = S.match == 0 ? (Roll(1, 100) <= 60 ? 1 : 0) : S.match >= 3 ? 2 : 1;
-    for (int k = 0; k < n; k++) {
-        int l = Roll(0, LANES - 1);
-        if (S.mod[l] != LM_NONE) { k--; continue; }
-        S.mod[l] = Roll(LM_TREASURE, LM_COUNT - 1);
-    }
-}
-
-void DealHands() {
-    for (Side* s : {&S.you, &S.foe}) {
-        std::vector<Card> pile = s->deck;
-        Shuffle(pile);
-        int want = HAND_SIZE + (s == &S.foe ? (S.foeExtraCard ? 1 : 0) : (Has(S.you, CH_TOOTH) ? 1 : 0));
-        int n = std::min((int)pile.size(), want);
-        s->hand.assign(pile.begin(), pile.begin() + n);
-    }
-}
-
-void BeginTurn(bool you);
-
-void StartRound() {
-    ClearLanes();
-    RollMods();
-    DealHands();
-    if (S.foeOpenSnare) {
-        Placed p;
-        p.c = {BLADE, 1, SP_SNARE};
-        p.from = {930, 300};
-        S.foe.lane[Roll(0, LANES - 1)].push_back(p);
-    }
-    S.selected = -1;
-    S.phase = Phase::Playing;
-    BeginTurn(true);
-}
-
-void BeginTurn(bool you) {
-    S.yourTurn = you;
-    Side& side = you ? S.you : S.foe;
-    int per = 2 + (you ? (Has(S.you, CH_COMPASS) ? 1 : 0) : (S.foeExtraAct ? 1 : 0));
-    S.actions = std::min(per, (int)side.hand.size());
-    S.foeT = 0.7f;
-    S.selected = -1;
-}
-
-void ResetRun() {
-    S = State{};
-    S.inited = true;
-    BuildDecks();
-}
-
-void StartMatch() {
-    S.roundsYou = S.roundsFoe = 0;
-    S.round = 0;
-    BuildFoeDeck(S.match);
-    StartRound();
-}
-
-// A single card into a flat; it remembers where it came from so it can fly to its place.
-bool PlayCard(Side& side, int handIdx, int lane) {
-    if (handIdx < 0 || handIdx >= (int)side.hand.size() || (int)side.lane[lane].size() >= LaneCap(S.mod[lane])) return false;
-    Placed p;
-    p.c = side.hand[handIdx];
-    bool mine = &side == &S.you;
-    if (mine) {
-        float off = handIdx - ((int)side.hand.size() - 1) / 2.0f;
-        p.from = {640 + off * 116, 664 - fabsf(off) * 8};
-        p.rot = off * 4.5f;
-    } else {
-        p.from = {930 + handIdx * 14.0f, 300};
-        p.rot = -8;
-    }
-    side.hand.erase(side.hand.begin() + handIdx);
-    side.lane[lane].push_back(p);
-    return true;
-}
-
-bool HandsEmpty() { return S.you.hand.empty() && S.foe.hand.empty(); }
-bool CanPlaceAnywhere(const Side& s) {
-    for (int l = 0; l < LANES; l++) if ((int)s.lane[l].size() < LaneCap(S.mod[l])) return true;
-    return false;
-}
-
-// ---------------------------------------------------------------- the dealer's play
-float Sigmoid(float m) { return 1.0f / (1.0f + expf(-m / 3.0f)); }
-
-// The play both the dealer and the simulated "sensible" player use: for each card and flat, how much does it
-// improve the balance there? Small cards go first and the big ones are held back; `noise` makes it err.
-bool GreedyPlayOne(Side& me, Side& them, float noise) {
-    if (me.hand.empty() || !CanPlaceAnywhere(me)) return false;
-    float bestU = -1e9f;
-    int bc = -1, bl = -1;
-    for (int i = 0; i < (int)me.hand.size(); i++)
-        for (int l = 0; l < LANES; l++) {
-            if ((int)me.lane[l].size() >= LaneCap(S.mod[l])) continue;
-            int themTot = LaneTotal(them.lane[l], Snares(me.lane[l], me), S.mod[l], them);
-            int before = LaneTotal(me.lane[l], Snares(them.lane[l], them), S.mod[l], me);
-            std::vector<Placed> trial = me.lane[l];
-            Placed p; p.c = me.hand[i];
-            trial.push_back(p);
-            int after = LaneTotal(trial, Snares(them.lane[l], them), S.mod[l], me);
-            int themAfter = LaneTotal(them.lane[l], Snares(trial, me), S.mod[l], them); // a Snare also cuts what the other side has there
-            float u = Sigmoid((float)(after - themAfter)) - Sigmoid((float)(before - themTot));
-            if (me.hand[i].special == SP_SNARE) u += 0.06f * (float)(themTot > 0);
-            u -= 0.012f * me.hand[i].value;
-            if (S.mod[l] == LM_TREASURE) u += 0.05f;
-            u += (Roll(0, 1000) / 1000.0f - 0.5f) * noise;
-            if (u > bestU) { bestU = u; bc = i; bl = l; }
-        }
-    if (bc < 0) return false;
-    PlayCard(me, bc, bl);
-    return true;
-}
-
-bool FoePlayOne() {
-    static const float NOISE[MATCHES] = {0.22f, 0.10f, 0.05f, 0.02f}; // an early dealer errs more often
-    return GreedyPlayOne(S.foe, S.you, NOISE[std::min(S.match, MATCHES - 1)]);
-}
-float Dist(Vector2 a, Vector2 b) { return hypotf(a.x - b.x, a.y - b.y); }
 
 // ---------------------------------------------------------------- audio: a bell and a card on wood
 Sound MakeSound(float dur, const std::function<float(float)>& gen) {
@@ -435,39 +179,6 @@ void DrawSuitIcon(int suit, Vector2 c, float s, Color col) {
     }
 }
 
-// A small glyph for each special, drawn in the strip under the medallion.
-void DrawSpecialGlyph(int sp, Vector2 c, float s, Color col) {
-    float w = std::max(1.0f, 0.06f * s);
-    switch (sp) {
-        case SP_TIDE:
-            for (int k = 0; k < 3; k++)
-                for (int i = 0; i < 8; i++) {
-                    float x0 = c.x - 0.5f * s + i * 0.125f * s, x1 = x0 + 0.125f * s;
-                    DrawLineEx({x0, c.y + (k - 1) * 0.2f * s + sinf(i * 0.9f) * 0.07f * s}, {x1, c.y + (k - 1) * 0.2f * s + sinf((i + 1) * 0.9f) * 0.07f * s}, w, col);
-                }
-            break;
-        case SP_SNARE:
-            for (int k = -2; k <= 2; k++) {
-                DrawLineEx({c.x + k * 0.2f * s, c.y - 0.4f * s}, {c.x + k * 0.2f * s + 0.2f * s, c.y + 0.4f * s}, w, col);
-                DrawLineEx({c.x + k * 0.2f * s, c.y + 0.4f * s}, {c.x + k * 0.2f * s + 0.2f * s, c.y - 0.4f * s}, w, col);
-            }
-            break;
-        case SP_LANTERN:
-            DrawRing(c, 0.18f * s, 0.22f * s, 0, 360, 14, col);
-            for (int k = 0; k < 8; k++) {
-                float a = k * PI / 4;
-                DrawLineEx({c.x + cosf(a) * 0.3f * s, c.y + sinf(a) * 0.3f * s}, {c.x + cosf(a) * 0.46f * s, c.y + sinf(a) * 0.46f * s}, w, col);
-            }
-            DrawCircleV(c, 0.11f * s, col);
-            break;
-        default: // wave
-            DrawRing({c.x - 0.15f * s, c.y + 0.2f * s}, 0.24f * s, 0.29f * s, 180, 360, 12, col);
-            DrawRing({c.x + 0.25f * s, c.y + 0.2f * s}, 0.24f * s, 0.29f * s, 180, 360, 12, col);
-            DrawRing({c.x - 0.15f * s, c.y - 0.1f * s}, 0.16f * s, 0.2f * s, 180, 300, 12, col);
-            break;
-    }
-}
-
 // The edition dressing: a sliding rainbow sheen for Foil, a beaten-gold border with a glint for Gilt, and violet smoke for Hex.
 void DrawEdition(Rectangle r, int ed, float u) {
     float t = (float)GetTime();
@@ -500,73 +211,6 @@ void DrawEdition(Rectangle r, int ed, float u) {
             DrawCircleV({x, r.y + r.height * (1.0f - ph)}, (3.5f - 2.5f * ph) * u * 1.6f, Fade(v, 0.5f * (1 - ph)));
         }
     }
-}
-
-// A card face (or its back) filling `r`. Everything scales from the card's height, so the same routine
-// draws a big card in your hand and a small one on the far side of the table.
-void DrawCardFace(Rectangle r, const Card& c, bool faceUp) {
-    float u = r.height / 150.0f;
-    DrawRectangleRounded({r.x + 2 * u, r.y + 3 * u, r.width, r.height}, 0.08f, 6, Fade(BLACK, 0.5f));
-    if (!faceUp) {
-        Color edge{110, 120, 150, 255};
-        DrawRectangleRounded(r, 0.08f, 6, Color{34, 40, 60, 255});
-        DrawRectangleRounded({r.x + 3 * u, r.y + 3 * u, r.width - 6 * u, r.height - 6 * u}, 0.06f, 6, Color{44, 52, 76, 255});
-        DrawRectangleRoundedLinesEx(r, 0.08f, 6, 1.5f * u + 0.5f, edge);
-        DrawRectangleRoundedLinesEx({r.x + 6 * u, r.y + 6 * u, r.width - 12 * u, r.height - 12 * u}, 0.05f, 6, std::max(1.0f, u), Fade(edge, 0.55f));
-        Vector2 m{r.x + r.width / 2, r.y + r.height / 2};
-        for (int k = -3; k <= 3; k++) { // a lattice of fine diagonals
-            DrawLineEx({m.x + k * 0.13f * r.width - 0.3f * r.width, m.y - 0.38f * r.height}, {m.x + k * 0.13f * r.width + 0.3f * r.width, m.y + 0.38f * r.height}, 1, Fade(edge, 0.12f));
-            DrawLineEx({m.x + k * 0.13f * r.width + 0.3f * r.width, m.y - 0.38f * r.height}, {m.x + k * 0.13f * r.width - 0.3f * r.width, m.y + 0.38f * r.height}, 1, Fade(edge, 0.12f));
-        }
-        DrawRing(m, 0.16f * r.width, 0.2f * r.width, 0, 360, 20, edge);
-        DrawRing(m, 0.26f * r.width, 0.28f * r.width, 0, 360, 24, Fade(edge, 0.6f));
-        DrawCircleV(m, 0.07f * r.width, edge);
-        return;
-    }
-    Color paper{234, 200, 148, 255}, ink{38, 26, 20, 255};
-    if (c.ed == ED_HEX) paper = Color{206, 178, 170, 255};
-    DrawRectangleRounded(r, 0.08f, 6, ColorBrightness(paper, -0.25f));
-    DrawRectangleRounded({r.x + 1.5f * u, r.y + 1.5f * u, r.width - 3 * u, r.height - 3 * u}, 0.08f, 6, paper);
-    // foxing and grain, fixed per card so it doesn't crawl
-    unsigned h = (unsigned)(c.suit * 131 + c.value * 31 + c.special * 7 + 5);
-    for (int k = 0; k < 9; k++) {
-        h = h * 1664525u + 1013904223u;
-        float fx = ((h >> 8) & 255) / 255.0f, fy = ((h >> 16) & 255) / 255.0f;
-        DrawCircleV({r.x + r.width * (0.12f + 0.76f * fx), r.y + r.height * (0.1f + 0.8f * fy)}, (1.5f + (k % 3)) * u, Fade(Color{150, 100, 50, 255}, 0.13f));
-    }
-    DrawRectangleRoundedLinesEx({r.x + 4 * u, r.y + 4 * u, r.width - 8 * u, r.height - 8 * u}, 0.06f, 6, std::max(1.0f, 1.2f * u), Fade(ink, 0.7f));
-    Color col = SUIT_COL[c.suit];
-    Vector2 mid{r.x + r.width / 2, r.y + r.height * 0.54f};
-    float mr = r.width * 0.42f;
-    if (c.special != SP_NONE) { // a coloured header band for the specials
-        Rectangle band{r.x + 6 * u, r.y + 6 * u, r.width - 12 * u, 20 * u};
-        DrawRectangleRec(band, ColorBrightness(col, -0.15f));
-        DrawRectangleRec({band.x, band.y + band.height - 2 * u, band.width, 2 * u}, Fade(BLACK, 0.3f));
-        std::string nm = SPECIAL_NAME[c.special];
-        for (auto& ch : nm) ch = (char)toupper(ch);
-        int fs = std::max(8, (int)(15 * u));
-        TxtBold(nm, band.x + band.width / 2 - MeasureTxt(nm, fs, true) / 2.0f, band.y + 2 * u, fs, Color{250, 240, 220, 255});
-    }
-    // the medallion the suit sits in
-    DrawCircleV(mid, mr, Fade(col, 0.16f));
-    DrawRing(mid, mr - std::max(1.0f, 1.5f * u), mr, 0, 360, 28, Fade(col, 0.7f));
-    DrawRing(mid, mr * 0.86f, mr * 0.86f + std::max(1.0f, u), 0, 360, 28, Fade(ink, 0.25f));
-    DrawSuitIcon(c.suit, mid, r.width * 0.56f, col);
-    int fs = std::max(9, (int)(30 * u));
-    float top = (c.special != SP_NONE ? 28 : 8) * u;
-    TxtBold(TextFormat("%d", c.value), r.x + 9 * u, r.y + top, fs, ink);
-    DrawSuitIcon(c.suit, {r.x + 9 * u + fs * 0.32f, r.y + top + fs * 1.35f}, fs * 0.5f, col); // a pip under each corner number
-    int bw = MeasureTxt(TextFormat("%d", c.value), fs, true);
-    TxtBold(TextFormat("%d", c.value), r.x + r.width - 9 * u - bw, r.y + r.height - 8 * u - fs, fs, ink);
-    DrawSuitIcon(c.suit, {r.x + r.width - 9 * u - bw + fs * 0.32f, r.y + r.height - 8 * u - fs - fs * 0.5f}, fs * 0.5f, col);
-    if (c.special == SP_NONE) {
-        std::string nm = SUIT_NAME[c.suit];
-        int nf = std::max(7, (int)(12 * u));
-        Txt(nm, r.x + r.width / 2 - MeasureTxt(nm, nf) / 2.0f, r.y + r.height - 22 * u, nf, Fade(ink, 0.6f));
-    } else {
-        DrawSpecialGlyph(c.special, {r.x + r.width / 2, r.y + r.height - 20 * u}, 22 * u, Fade(ink, 0.65f));
-    }
-    if (c.ed != ED_NONE) DrawEdition(r, c.ed, u);
 }
 
 // The charms: brass-set trinkets carried in the pocket, one glyph each.
@@ -627,48 +271,9 @@ void DrawCharmCard(Rectangle r, int ch) {
     TxtBold("CHARM", r.x + r.width / 2 - MeasureTxt("CHARM", 13, true) / 2.0f, r.y + 12 * u + 2, 13, Pal::Brass);
     Glow({r.x + r.width / 2, r.y + r.height * 0.4f}, r.width * 0.5f, Fade(Pal::Brass, 0.3f));
     DrawCharmIcon(ch, {r.x + r.width / 2, r.y + r.height * 0.4f}, r.width * 0.62f, 0);
-    std::string nm = CHARM_NAME[ch];
+    std::string nm = CharmName(ch);
     Txt(nm, r.x + r.width / 2 - MeasureTxt(nm, 14) / 2.0f, r.y + r.height * 0.68f, 14, Pal::Paper);
-    DrawWrapped(CHARM_TEXT[ch], {r.x + 12, r.y + r.height * 0.76f, r.width - 24, r.height * 0.22f}, 11, Fade(Pal::Paper, 0.75f));
-}
-
-// The emblem on a flat that carries a modifier.
-void DrawModEmblem(int mod, Vector2 c, float t) {
-    Color cols[LM_COUNT] = {WHITE, {236, 190, 70, 255}, {230, 110, 130, 255}, {90, 200, 230, 255}, {150, 110, 220, 255}};
-    Color col = cols[mod];
-    Glow(c, 34, Fade(col, 0.22f + 0.08f * sinf(t * 3)));
-    DrawCircleV(c, 15, Color{10, 14, 20, 235});
-    DrawRing(c, 13, 15.5f, 0, 360, 20, col);
-    switch (mod) {
-        case LM_TREASURE:
-            DrawRectangleRounded({c.x - 8, c.y - 3, 16, 10}, 0.3f, 4, col);
-            DrawCircleSector({c.x, c.y - 3}, 8, 270, 450, 10, ColorBrightness(col, 0.2f));
-            DrawRectangle((int)c.x - 1, (int)c.y - 1, 2, 4, Color{20, 20, 20, 255});
-            break;
-        case LM_REEF:
-            for (int k = -1; k <= 1; k++) { DrawLineEx({c.x + k * 5, c.y + 8}, {c.x + k * 5, c.y - 4 + abs(k) * 3}, 2, col); DrawCircleV({c.x + k * 5, c.y - 5 + abs(k) * 3}, 2.4f, col); }
-            break;
-        case LM_TRENCH:
-            for (int k = -1; k <= 1; k++) DrawRing({c.x - 4, c.y + k * 5}, 4, 5.4f, 200, 340, 6, col);
-            break;
-        default:
-            DrawRing(c, 3, 5, 0, 300, 10, col);
-            DrawRing(c, 6, 8, 60, 360, 12, col);
-            DrawRing(c, 9, 11, 120, 420, 14, col);
-            break;
-    }
-}
-
-// ---------------------------------------------------------------- drawing: the room
-constexpr float FOE_ROW_Y = 392, YOU_ROW_Y = 512, LANE_X[LANES] = {440, 640, 840};
-constexpr Vector2 FOE_CARD = {48, 68}, YOU_CARD = {62, 88};
-constexpr float FOE_STEP = 54, YOU_STEP = 66;
-
-Rectangle SlotRect(bool you, int lane, int idx) {
-    float step = you ? YOU_STEP : FOE_STEP;
-    Vector2 sz = you ? YOU_CARD : FOE_CARD;
-    float cx = LANE_X[lane] + (idx - 1) * step, cy = you ? YOU_ROW_Y : FOE_ROW_Y;
-    return {cx - sz.x / 2, cy - sz.y / 2, sz.x, sz.y};
+    DrawWrapped(CharmText(ch), {r.x + 12, r.y + r.height * 0.76f, r.width - 24, r.height * 0.22f}, 11, Fade(Pal::Paper, 0.75f));
 }
 
 Vector2 TP(float u, float v) { float hw = 390 + 270 * v; return {640 + u * hw, 300 + 310 * v}; }
@@ -781,41 +386,6 @@ void DrawDealer(float t) {
     }
 }
 
-// The scales: their beam tilts toward whoever is ahead in the flats right now.
-void DrawScale(float tilt) {
-    Vector2 top{124, 250};
-    Color brass = Pal::Brass, brassDk = Pal::BrassDk;
-    DrawEllipse(124, 486, 56, 12, brassDk);
-    DrawRectangle(118, 250, 12, 236, brassDk);
-    DrawRectangle(120, 250, 5, 236, brass);
-    DrawCircleV(top, 13, brass);
-    float a = tilt;
-    Vector2 l{top.x - cosf(a) * 94, top.y - sinf(a) * 94}, r{top.x + cosf(a) * 94, top.y + sinf(a) * 94};
-    DrawLineEx(l, r, 8, brassDk);
-    DrawLineEx({l.x, l.y - 1}, {r.x, r.y - 1}, 4, brass);
-    for (Vector2 e : {l, r}) {
-        DrawCircleV(e, 8, brass);
-        Vector2 dish{e.x, e.y + 96};
-        DrawLineEx(e, {dish.x - 42, dish.y - 8}, 1.5f, brassDk);
-        DrawLineEx(e, {dish.x + 42, dish.y - 8}, 1.5f, brassDk);
-        DrawCircleSector({dish.x, dish.y - 12}, 46, 0, 180, 20, brassDk);
-        DrawCircleSector({dish.x, dish.y - 14}, 42, 0, 180, 20, brass);
-        DrawEllipse((int)dish.x, (int)dish.y - 14, 46, 6, ColorBrightness(brass, 0.2f));
-    }
-    // bone tally-beads heaped in the dishes, one per flat currently held
-    int youLeads = 0, foeLeads = 0;
-    for (int i = 0; i < LANES; i++) {
-        int y = Tot(S.you, S.foe, i), f = Tot(S.foe, S.you, i);
-        if (y > f) youLeads++; else if (f > y) foeLeads++;
-    }
-    Vector2 dishL{l.x, l.y + 96}, dishR{r.x, r.y + 96};
-    for (int k = 0; k < foeLeads; k++) DrawCircleV({dishL.x - 14 + k * 14.0f, dishL.y - 32 - (k % 2) * 4}, 6, Color{224, 218, 196, 255});
-    for (int k = 0; k < youLeads; k++) DrawCircleV({dishR.x - 14 + k * 14.0f, dishR.y - 32 - (k % 2) * 4}, 6, Color{224, 218, 196, 255});
-    // the two sides, labelled so the balance reads at a glance
-    Txt("DEALER", l.x - MeasureTxt("DEALER", 12) / 2.0f, l.y - 30, 12, Fade(Pal::Paper, 0.7f));
-    Txt("YOU", r.x - MeasureTxt("YOU", 12) / 2.0f, r.y - 30, 12, Fade(Pal::Paper, 0.7f));
-}
-
 // The bell: click it to end your turn.
 void DrawBell(Vector2 c, bool live, float ring) {
     float s = sinf(ring * 40) * ring * 4;
@@ -843,120 +413,6 @@ void DrawSlot(Rectangle r, bool hot, float t) {
     DrawRing(m, r.width * 0.2f, r.width * 0.24f, 0, 360, 16, Fade(cy, 0.3f));
 }
 
-// ---------------------------------------------------------------- the scene
-Rectangle BellRect() { return {1040, 420, 100, 90}; }
-
-bool RunOver() { return S.phase == Phase::RunOver; }
-
-void Resolve() {
-    int you = 0, foe = 0, yourSum = 0, foeSum = 0, gain = 0;
-    for (int l = 0; l < LANES; l++) {
-        int y = Tot(S.you, S.foe, l), f = Tot(S.foe, S.you, l);
-        int res = y > f ? 1 : f > y ? -1 : (Has(S.you, CH_ANCHOR) && y > 0 ? 1 : 0);
-        S.laneResult[l] = res;
-        you += res > 0; foe += res < 0;
-        yourSum += y; foeSum += f;
-        Vector2 c{LANE_X[l], 452};
-        if (res > 0) {
-            for (auto& p : S.you.lane[l]) if (p.c.ed == ED_GILT) gain += 6;
-            if (S.mod[l] == LM_TREASURE) gain += 10;
-            Burst(c, 14, 1, Color{240, 200, 80, 255}, 220);
-        } else if (res < 0) {
-            for (auto& p : S.you.lane[l]) if (p.c.ed == ED_HEX) gain -= 8;
-            Burst(c, 8, 3, Color{150, 80, 210, 255}, 60);
-        }
-    }
-    int winner = you > foe ? 1 : foe > you ? -1 : yourSum > foeSum ? 1 : foeSum > yourSum ? -1 : 0;
-    if (winner > 0) { S.roundsYou++; S.banner = "You take the round"; if (Has(S.you, CH_JAR)) gain += 10; }
-    else if (winner < 0) { S.roundsFoe++; S.banner = "The dealer takes the round"; }
-    else S.banner = "A dead heat: the round is dealt again";
-    S.pot = std::max(0, S.pot + gain);
-    S.sub = TextFormat("Flats %d - %d   (totals %d - %d)%s", you, foe, yourSum, foeSum, gain != 0 ? TextFormat("   pot %+d", gain) : "");
-    if (winner == 0) S.round--; // replay
-    S.round++;
-    S.phase = Phase::Resolving;
-    S.resolveT = 2.6f;
-    S.shake = 0.5f;
-    S.mood = (float)-winner; // he gloats when he wins, flinches when he loses
-    S.moodT = 1.6f;
-}
-
-void MakeRewards() {
-    S.rewards.clear();
-    S.rewardCharm = -1;
-    for (int k = 0; k < 3; k++) {
-        Card c = RandomCard(5, 9);
-        if (Roll(1, 100) <= 40) c = RandomSpecial();
-        if (Roll(1, 100) <= 38) c.ed = Roll(ED_FOIL, ED_COUNT - 1);
-        S.rewards.push_back(c);
-    }
-    int owned = 0;
-    std::vector<int> free;
-    for (int i = 0; i < CH_COUNT; i++) { if (Has(S.you, i)) owned++; else free.push_back(i); }
-    if (owned < MAX_CHARMS && !free.empty()) S.rewardCharm = free[Roll(0, (int)free.size() - 1)];
-    S.phase = Phase::Reward;
-}
-
-// The dealer's stall between matches: everything is priced against the pot on the table, so buying is a gamble.
-int PotPct(int pct, int lo) { return std::max(lo, S.pot * pct / 100); }
-
-void StockShop() {
-    S.shop.clear();
-    ShopItem a; a.kind = SK_CARD; a.price = PotPct(30, 10);
-    a.card = RandomCard(5, 9);
-    if (Roll(1, 100) <= 40) a.card = RandomSpecial();
-    if (Roll(1, 100) <= 30) a.card.ed = Roll(ED_FOIL, ED_COUNT - 1);
-    S.shop.push_back(a);
-    std::vector<int> free;
-    for (int i = 0; i < CH_COUNT; i++) if (!Has(S.you, i)) free.push_back(i);
-    int owned = CH_COUNT - (int)free.size();
-    if (owned < MAX_CHARMS && !free.empty()) { ShopItem c; c.kind = SK_CHARM; c.price = PotPct(50, 20); c.charm = free[Roll(0, (int)free.size() - 1)]; S.shop.push_back(c); }
-    ShopItem t; t.kind = SK_TRIM; t.price = PotPct(20, 8); S.shop.push_back(t);
-    ShopItem e; e.kind = SK_EDITION; e.price = PotPct(35, 15); e.card.ed = Roll(0, 1) ? ED_FOIL : ED_GILT; S.shop.push_back(e);
-    if (!S.insured) { ShopItem i; i.kind = SK_INSURE; i.price = PotPct(25, 10); S.shop.push_back(i); }
-}
-void OpenShop() { S.rerolls = 0; S.pickItem = -1; StockShop(); S.phase = Phase::Shop; }
-int RerollPrice() { return PotPct(5 + 5 * S.rerolls, 5); }
-
-void BuyItem(int k) {
-    ShopItem& it = S.shop[k];
-    if (it.sold || it.price > S.pot) return;
-    if (it.kind == SK_TRIM || it.kind == SK_EDITION) { S.pickItem = k; return; } // choose a card first
-    S.pot -= it.price;
-    it.sold = true;
-    if (it.kind == SK_CARD) S.you.deck.push_back(it.card);
-    else if (it.kind == SK_CHARM) S.you.charms |= 1u << it.charm;
-    else if (it.kind == SK_INSURE) S.insured = true;
-}
-void ApplyPick(int deckIdx) {
-    ShopItem& it = S.shop[S.pickItem];
-    if (it.kind == SK_TRIM) {
-        if (S.you.deck.size() <= 8) return;
-        S.you.deck.erase(S.you.deck.begin() + deckIdx);
-    } else {
-        if (S.you.deck[deckIdx].ed != ED_NONE) return;
-        S.you.deck[deckIdx].ed = it.card.ed;
-    }
-    S.pot -= it.price;
-    it.sold = true;
-    S.pickItem = -1;
-}
-
-void TakeReward(int k) {
-    if (k == 2 && S.rewardCharm >= 0) S.you.charms |= 1u << S.rewardCharm;
-    else S.you.deck.push_back(S.rewards[k]);
-    S.match++;
-    StartMatch();
-}
-
-void DrawPot(Game& g) {
-    DrawRectangleRounded({SCREEN_W - 250.0f, 12, 238, 40}, 0.3f, 6, Color{8, 12, 16, 210});
-    DrawRectangleRoundedLinesEx({SCREEN_W - 250.0f, 12, 238, 40}, 0.3f, 6, 1.5f, Pal::BrassDk);
-    DrawCircle(SCREEN_W - 228, 32, 9, Pal::Brass);
-    TxtBold(TextFormat("%d", g.gold), SCREEN_W - 210, 20, 20, Pal::Brass);
-    Txt(TextFormat("Pot %d", S.pot), SCREEN_W - 120, 23, 17, Pal::Paper);
-}
-
 // The pot, as stacks of coins on the table.
 void DrawChips(Vector2 base, int pot, float t) {
     int n = std::min(25, pot / 12);
@@ -971,11 +427,6 @@ void DrawChips(Vector2 base, int pot, float t) {
     if (n > 0) Glow({base.x + 30, base.y - 10}, 50 + 4 * sinf(t * 3), Fade(Pal::Brass, 0.12f));
 }
 
-void LeaveTable(Game& g) {
-    S.inited = false;
-    g.scene = Scene::Hub;
-}
-
 void Tooltip(const std::string& text, Vector2 at) {
     float w = (float)MeasureTxt(text, 15, true);
     Rectangle r{std::clamp(at.x - w / 2 - 10, 8.0f, SCREEN_W - w - 28), at.y, w + 20, 28};
@@ -984,133 +435,8 @@ void Tooltip(const std::string& text, Vector2 at) {
     TxtBold(text, r.x + 10, r.y + 5, 15, Pal::Paper);
 }
 
-std::string CardDescription(const Card& c) {
-    std::string s = c.special != SP_NONE ? TextFormat("%s (%d): %s", SPECIAL_NAME[c.special], c.value, SPECIAL_TEXT[c.special])
-                                         : TextFormat("%s %d", SUIT_NAME[c.suit], c.value);
-    if (c.ed != ED_NONE) s += TextFormat("  |  %s: %s", ED_NAME[c.ed], ED_TEXT[c.ed]);
-    return s;
-}
-
-// One frame of the rules: the dealer's plays, resolving a round, and easing the balance. With autoYou
-// set (the headless simulation) your own turn is played at random too.
-void UpdateFlats(float dt, bool autoYou, bool sensible) {
-    bool live = dt < 0.5f;
-    S.bellT = std::max(0.0f, S.bellT - dt * 1.1f);
-    S.shake = std::max(0.0f, S.shake - dt * 1.4f);
-    S.moodT = std::max(0.0f, S.moodT - dt);
-    for (int l = 0; l < LANES; l++)
-        for (bool you : {true, false}) {
-            auto& lane = (you ? S.you : S.foe).lane[l];
-            for (int i = 0; i < (int)lane.size(); i++) {
-                float before = lane[i].age;
-                lane[i].age = std::min(1.0f, before + dt * 3.2f);
-                if (live && before < 1 && lane[i].age >= 1) {
-                    Rectangle r = SlotRect(you, l, i);
-                    Burst({r.x + r.width / 2, r.y + r.height - 4}, 5, 2, Color{150, 130, 110, 255}, 40);
-                    if (lane[i].c.ed == ED_FOIL) Burst({r.x + r.width / 2, r.y + r.height / 2}, 6, 0, Color{200, 240, 255, 255}, 90);
-                    if (lane[i].c.ed == ED_GILT) Burst({r.x + r.width / 2, r.y + r.height / 2}, 6, 0, Color{255, 220, 110, 255}, 90);
-                    if (lane[i].c.ed == ED_HEX) Burst({r.x + r.width / 2, r.y + r.height / 2}, 5, 3, Color{150, 80, 210, 255}, 40);
-                }
-            }
-        }
-    if (live) {
-        for (auto& p : S.parts) {
-            p.life -= dt;
-            p.p.x += p.v.x * dt; p.p.y += p.v.y * dt;
-            if (p.kind == 1) p.v.y += 900 * dt;
-            else if (p.kind == 2) { p.v.x *= 0.92f; p.v.y *= 0.92f; }
-            else if (p.kind == 3) { p.v.y -= 40 * dt; p.v.x *= 0.98f; }
-        }
-        S.parts.erase(std::remove_if(S.parts.begin(), S.parts.end(), [](const Particle& p) { return p.life <= 0; }), S.parts.end());
-    } else S.parts.clear();
-
-    if (S.phase == Phase::Playing) {
-        // the dealer takes his plays one at a time, with a pause between, then it's your turn
-        if (!S.yourTurn) {
-            S.foeT -= dt;
-            if (S.foeT <= 0) {
-                if (S.actions > 0 && FoePlayOne()) { S.actions--; S.foeT = 0.85f; if (live) PlaySlap(); }
-                else {
-                    if (HandsEmpty() || (!CanPlaceAnywhere(S.foe) && !CanPlaceAnywhere(S.you))) Resolve();
-                    else BeginTurn(true);
-                }
-            }
-        } else if (S.you.hand.empty()) {
-            // out of cards: the dealer finishes his hand alone
-            if (S.foe.hand.empty()) Resolve(); else BeginTurn(false);
-        } else if (!CanPlaceAnywhere(S.you) && !S.you.hand.empty()) {
-            S.you.hand.clear(); // nowhere left to put anything
-        }
-    } else if (S.phase == Phase::Resolving) {
-        S.resolveT -= dt;
-        if (S.resolveT <= 0) {
-            if (S.roundsYou >= 2) {
-                S.phase = Phase::MatchOver;
-                S.pot += PAYOUT[S.match];
-            } else if (S.roundsFoe >= 2) {
-                S.phase = Phase::RunOver;
-                S.lost = true;
-                S.payout = S.insured ? S.pot / 2 : 0; // insurance: half the pot survives a lost match
-            } else StartRound();
-        }
-    }
-    // the scales ease toward whoever leads
-    int lead = 0;
-    for (int l = 0; l < LANES; l++) {
-        int y = Tot(S.you, S.foe, l), f = Tot(S.foe, S.you, l);
-        lead += y > f ? 1 : f > y ? -1 : 0;
-    }
-    float target = -lead * 0.13f;
-    S.beam += (target - S.beam) * std::min(1.0f, dt * 3);
-
-    if (autoYou && S.phase == Phase::Playing && S.yourTurn && !S.you.hand.empty()) {
-        if (S.actions > 0) {
-            if (sensible) {
-                if (GreedyPlayOne(S.you, S.foe, 0.03f)) S.actions--; else S.you.hand.clear();
-            } else {
-                std::vector<int> open;
-                for (int l = 0; l < LANES; l++) if ((int)S.you.lane[l].size() < LaneCap(S.mod[l])) open.push_back(l);
-                if (!open.empty()) { PlayCard(S.you, Roll(0, (int)S.you.hand.size() - 1), open[Roll(0, (int)open.size() - 1)]); S.actions--; }
-                else S.you.hand.clear();
-            }
-        } else {
-            if (HandsEmpty()) Resolve(); else BeginTurn(false);
-        }
-    }
-}
-
-// A card on the table: it flies in from where it was played on an arc, and the dealer's cards turn over as they land.
-void DrawPlaced(bool you, int l, int i, float t) {
-    Placed& p = (you ? S.you : S.foe).lane[l][i];
-    Rectangle r = SlotRect(you, l, i);
-    float e = p.age, ease = 1 - powf(1 - e, 3);
-    Vector2 tc{r.x + r.width / 2, r.y + r.height / 2};
-    Vector2 pos{p.from.x + (tc.x - p.from.x) * ease, p.from.y + (tc.y - p.from.y) * ease - sinf(e * PI) * 70};
-    Vector2 fsz = you ? Vector2{108, 150} : Vector2{34, 48};
-    float w = fsz.x + (r.width - fsz.x) * ease, h = fsz.y + (r.height - fsz.y) * ease;
-    if (e >= 1) { pos = tc; w = r.width; h = r.height; }
-    // the winning flats bob and glow once a round is settled, the losing ones dim
-    bool settled = S.phase == Phase::Resolving || S.phase == Phase::MatchOver || S.phase == Phase::RunOver;
-    if (settled && S.laneResult[l] != 0) {
-        bool won = (S.laneResult[l] > 0) == you;
-        Color gc = won ? Color{120, 240, 150, 255} : Color{240, 100, 90, 255};
-        if (won) pos.y -= 4 + 3 * sinf(t * 6 + i);
-        Glow(pos, w * (won ? 1.1f : 0.6f), Fade(gc, won ? 0.30f : 0.10f));
-    } else if (e < 1) {
-        DrawEllipse((int)tc.x, (int)(tc.y + h / 2), (int)(w * 0.5f * e), (int)(4 * e), Fade(BLACK, 0.4f * e));
-    }
-    rlPushMatrix();
-    rlTranslatef(pos.x, pos.y, 0);
-    rlRotatef(p.rot * (1 - ease), 0, 0, 1);
-    bool faceUp = you || e >= 0.45f;
-    float flip = (you || e >= 0.7f) ? 1.0f : std::max(0.05f, (e - 0.45f) / 0.25f);
-    if (!you && e >= 0.45f && e < 0.7f) faceUp = true;
-    DrawCardFace({-w * flip / 2, -h / 2, w * flip, h}, p.c, faceUp);
-    rlPopMatrix();
-}
-
 void DrawParticles() {
-    for (auto& p : S.parts) {
+    for (auto& p : U.parts) {
         float a = std::clamp(p.life / p.max, 0.0f, 1.0f);
         switch (p.kind) {
             case 0: Glow(p.p, p.size * 4, Fade(p.col, 0.5f * a)); DrawCircleV(p.p, p.size * 0.7f, Fade(WHITE, a)); break;
@@ -1123,485 +449,1371 @@ void DrawParticles() {
         }
     }
 }
-}  // namespace
 
-// ============================================================================
-void SceneCards(Game& g) {
-    if (!S.inited) ResetRun();
-    float dt = GetFrameTime(), t = g.time;
-    SetPost(0.75f, 0.03f, 0.5f);
-    Vector2 m = GetMousePosition();
-    bool modal = S.showRules || S.showDeck;
 
-    UpdateFlats(dt, false, false);
-    Vector2 sh{sinf(t * 91) * S.shake * 9, cosf(t * 77) * S.shake * 9};
+// ---------------------------------------------------------------- drawing: glyphs, costs and the card itself
+void DrawDrop(Vector2 c, float s, Color col) {
+    DrawCircleV({c.x, c.y + 0.16f * s}, 0.32f * s, col);
+    DrawTri({c.x - 0.3f * s, c.y + 0.06f * s}, {c.x + 0.3f * s, c.y + 0.06f * s}, {c.x, c.y - 0.5f * s}, col);
+}
+void DrawBone(Vector2 c, float s, Color col) {
+    Color dk = ColorBrightness(col, -0.5f);
+    DrawLineEx({c.x - 0.38f * s, c.y + 0.16f * s}, {c.x + 0.38f * s, c.y - 0.16f * s}, 0.24f * s + 2, dk);
+    DrawLineEx({c.x - 0.38f * s, c.y + 0.16f * s}, {c.x + 0.38f * s, c.y - 0.16f * s}, 0.16f * s, col);
+    for (int e = -1; e <= 1; e += 2)
+        for (int k = -1; k <= 1; k += 2) DrawCircleV({c.x + e * 0.4f * s + k * 0.03f * s, c.y - e * 0.16f * s + k * 0.1f * s}, 0.11f * s, col);
+}
 
-    // ---------------- draw the room
-    ClearBackground(Color{4, 5, 8, 255});
-    DrawVGradient({0, 0, (float)SCREEN_W, (float)SCREEN_H}, Color{12, 14, 22, 255}, Color{4, 4, 7, 255});
-    rlPushMatrix();
-    rlTranslatef(sh.x, sh.y, 0);
-    // hanging chains and dim shapes in the dark around the dealer, as in the reference
-    for (int k = 0; k < 6; k++) {
-        float x = 80 + k * 220 + sinf(t * 0.3f + k) * 4;
-        DrawLineEx({x, 0}, {x + 20, 200.0f + (k % 3) * 40}, 3, Color{18, 22, 30, 255});
-        for (int j = 0; j < 4; j++) DrawCircleLines((int)(x + 20 * (j / 4.0f)), 50 + j * 40, 5, Color{24, 30, 40, 255});
+void DrawSigilGlyph(Sigil sg, Vector2 c, float s, Color col) {
+    float w = std::max(1.0f, 0.1f * s);
+    Color dk = ColorBrightness(col, -0.5f);
+    switch (sg) {
+        case Sigil::SKIMMER:
+            DrawTri({c.x - 0.5f * s, c.y + 0.25f * s}, {c.x + 0.5f * s, c.y - 0.35f * s}, {c.x + 0.05f * s, c.y + 0.4f * s}, col);
+            DrawLineEx({c.x - 0.5f * s, c.y + 0.25f * s}, {c.x + 0.5f * s, c.y - 0.35f * s}, w * 0.7f, dk);
+            break;
+        case Sigil::TWIN_TIDE:
+            for (int e = -1; e <= 1; e += 2) {
+                DrawLineEx({c.x, c.y + 0.35f * s}, {c.x + e * 0.4f * s, c.y - 0.25f * s}, w, col);
+                DrawTri({c.x + e * 0.4f * s - 0.18f * s, c.y - 0.15f * s}, {c.x + e * 0.4f * s + 0.18f * s, c.y - 0.15f * s}, {c.x + e * 0.4f * s, c.y - 0.45f * s}, col);
+            }
+            break;
+        case Sigil::TIDECALLER:
+            for (int k = -1; k <= 1; k++) DrawTri({c.x + k * 0.3f * s - 0.14f * s, c.y}, {c.x + k * 0.3f * s + 0.14f * s, c.y}, {c.x + k * 0.3f * s, c.y - 0.45f * s + (k == 0 ? -0.1f * s : 0)}, col);
+            DrawRectangleRec({c.x - 0.44f * s, c.y, 0.88f * s, 0.24f * s}, col);
+            break;
+        case Sigil::SPINES:
+            DrawCircleV(c, 0.22f * s, col);
+            for (int k = 0; k < 8; k++) { float a = k * PI / 4; DrawLineEx({c.x + cosf(a) * 0.22f * s, c.y + sinf(a) * 0.22f * s}, {c.x + cosf(a) * 0.5f * s, c.y + sinf(a) * 0.5f * s}, w * 0.8f, col); }
+            break;
+        case Sigil::BRINE: DrawDrop(c, s, col); DrawDrop({c.x + 0.28f * s, c.y + 0.18f * s}, 0.55f * s, col); break;
+        case Sigil::VENOM:
+            DrawDrop({c.x, c.y - 0.05f * s}, s * 0.9f, col);
+            DrawCircleV({c.x - 0.1f * s, c.y + 0.1f * s}, 0.05f * s, dk); DrawCircleV({c.x + 0.1f * s, c.y + 0.1f * s}, 0.05f * s, dk);
+            break;
+        case Sigil::SENTINEL:
+            DrawRectangleRec({c.x - 0.36f * s, c.y - 0.42f * s, 0.72f * s, 0.5f * s}, col);
+            DrawTri({c.x - 0.36f * s, c.y + 0.08f * s}, {c.x + 0.36f * s, c.y + 0.08f * s}, {c.x, c.y + 0.5f * s}, col);
+            DrawLineEx({c.x, c.y - 0.34f * s}, {c.x, c.y + 0.28f * s}, w * 0.7f, dk);
+            break;
+        case Sigil::BURROWER:
+            DrawCircleSector({c.x, c.y + 0.25f * s}, 0.5f * s, 270 - 90, 270 + 90, 12, col);
+            DrawEllipse((int)c.x, (int)(c.y + 0.05f * s), 0.2f * s, 0.08f * s, dk);
+            break;
+        case Sigil::UNDYING:
+            DrawRing(c, 0.26f * s, 0.36f * s, 30, 320, 16, col);
+            DrawTri({c.x + 0.3f * s, c.y - 0.34f * s}, {c.x + 0.52f * s, c.y - 0.05f * s}, {c.x + 0.05f * s, c.y - 0.1f * s}, col);
+            break;
+        case Sigil::BALLAST:
+            DrawTri({c.x - 0.5f * s, c.y + 0.4f * s}, {c.x + 0.5f * s, c.y + 0.4f * s}, {c.x + 0.28f * s, c.y - 0.15f * s}, col);
+            DrawTri({c.x - 0.5f * s, c.y + 0.4f * s}, {c.x + 0.28f * s, c.y - 0.15f * s}, {c.x - 0.28f * s, c.y - 0.15f * s}, col);
+            DrawRing({c.x, c.y - 0.26f * s}, 0.1f * s, 0.18f * s, 0, 360, 10, col);
+            break;
+        case Sigil::NINE_LIVES: TxtBold("9", c.x - MeasureTxt("9", (int)(s * 0.95f), true) / 2.0f, c.y - s * 0.55f, (int)(s * 0.95f), col); break;
+        case Sigil::SPAWN:
+            DrawCircleV({c.x - 0.18f * s, c.y}, 0.28f * s, col);
+            DrawCircleV({c.x + 0.2f * s, c.y}, 0.28f * s, Fade(col, 0.75f));
+            break;
+        case Sigil::HEAVY_CURRENT:
+            for (int k = -1; k <= 1; k++)
+                for (int i = 0; i < 5; i++) DrawLineEx({c.x - 0.5f * s + i * 0.2f * s, c.y + k * 0.28f * s + sinf(i * 1.3f) * 0.1f * s}, {c.x - 0.3f * s + i * 0.2f * s, c.y + k * 0.28f * s + sinf((i + 1) * 1.3f) * 0.1f * s}, w * 0.8f, col);
+            break;
+        case Sigil::SWIMMER:
+            DrawEllipse((int)(c.x - 0.08f * s), (int)c.y, 0.38f * s, 0.22f * s, col);
+            DrawTri({c.x + 0.24f * s, c.y}, {c.x + 0.52f * s, c.y - 0.24f * s}, {c.x + 0.52f * s, c.y + 0.24f * s}, col);
+            DrawCircleV({c.x - 0.28f * s, c.y - 0.05f * s}, 0.04f * s, dk);
+            break;
+        case Sigil::BONE_KING:
+            DrawBone({c.x, c.y + 0.16f * s}, s, col);
+            DrawTri({c.x - 0.3f * s, c.y - 0.05f * s}, {c.x - 0.1f * s, c.y - 0.05f * s}, {c.x - 0.2f * s, c.y - 0.42f * s}, col);
+            DrawTri({c.x + 0.1f * s, c.y - 0.05f * s}, {c.x + 0.3f * s, c.y - 0.05f * s}, {c.x + 0.2f * s, c.y - 0.42f * s}, col);
+            break;
+        case Sigil::SCAVENGER:
+            DrawRing({c.x, c.y + 0.1f * s}, 0.22f * s, 0.32f * s, 90, 360, 12, col);
+            DrawLineEx({c.x, c.y - 0.42f * s}, {c.x, c.y + 0.1f * s}, w, col);
+            break;
+        case Sigil::FRY:
+            DrawCircleV({c.x - 0.28f * s, c.y + 0.12f * s}, 0.12f * s, col);
+            DrawCircleV({c.x + 0.16f * s, c.y - 0.05f * s}, 0.3f * s, col);
+            break;
+        case Sigil::REPULSIVE:
+            DrawRing(c, 0.32f * s, 0.42f * s, 0, 360, 16, col);
+            DrawLineEx({c.x - 0.28f * s, c.y + 0.28f * s}, {c.x + 0.28f * s, c.y - 0.28f * s}, w, col);
+            break;
+        default: break;
     }
+}
+
+Card gHoverCard;                 // whichever card the mouse is over this frame (a copy: the original may be played away): shown large in the inspector
+bool gHasHover = false;
+int gHoverHp = -1, gHoverStr = -1;
+void Hover(const Card& c, int hp = -1, int str = -1) { gHoverCard = c; gHasHover = true; gHoverHp = hp; gHoverStr = str; }
+
+// A card face (or its back) filling `r`. Everything scales from the card's height, so the same routine draws a big card in
+// the inspector and a small one in the queue. `hp` and `str` show a creature's current numbers (damaged, buffed) on the board.
+void DrawCardFace(Rectangle r, const Card& c, bool faceUp, int hp = -1, int str = -1) {
+    float u = r.height / 150.0f;
+    DrawRectangleRounded({r.x + 2 * u, r.y + 3 * u, r.width, r.height}, 0.08f, 6, Fade(BLACK, 0.5f));
+    if (!faceUp) {
+        Color edge{110, 120, 150, 255};
+        DrawRectangleRounded(r, 0.08f, 6, Color{34, 40, 60, 255});
+        DrawRectangleRounded({r.x + 3 * u, r.y + 3 * u, r.width - 6 * u, r.height - 6 * u}, 0.06f, 6, Color{44, 52, 76, 255});
+        DrawRectangleRoundedLinesEx(r, 0.08f, 6, 1.5f * u + 0.5f, edge);
+        DrawRectangleRoundedLinesEx({r.x + 6 * u, r.y + 6 * u, r.width - 12 * u, r.height - 12 * u}, 0.05f, 6, std::max(1.0f, u), Fade(edge, 0.55f));
+        Vector2 m{r.x + r.width / 2, r.y + r.height / 2};
+        for (int k = -3; k <= 3; k++) {
+            DrawLineEx({m.x + k * 0.13f * r.width - 0.3f * r.width, m.y - 0.38f * r.height}, {m.x + k * 0.13f * r.width + 0.3f * r.width, m.y + 0.38f * r.height}, 1, Fade(edge, 0.12f));
+            DrawLineEx({m.x + k * 0.13f * r.width + 0.3f * r.width, m.y - 0.38f * r.height}, {m.x + k * 0.13f * r.width - 0.3f * r.width, m.y + 0.38f * r.height}, 1, Fade(edge, 0.12f));
+        }
+        DrawRing(m, 0.16f * r.width, 0.2f * r.width, 0, 360, 20, edge);
+        DrawCircleV(m, 0.07f * r.width, edge);
+        return;
+    }
+    Color paper{234, 204, 154, 255}, ink{38, 26, 20, 255};
+    if (c.edition == ED_HEX) paper = Color{206, 178, 170, 255};
+    Color col = SUIT_COL[c.suit];
+    DrawRectangleRounded(r, 0.08f, 6, ColorBrightness(paper, -0.3f));
+    DrawRectangleRounded({r.x + 1.5f * u, r.y + 1.5f * u, r.width - 3 * u, r.height - 3 * u}, 0.08f, 6, paper);
+    unsigned h = (unsigned)(c.id * 131 + c.strength * 31 + 5);
+    for (int k = 0; k < 8; k++) { // foxing, fixed per card
+        h = h * 1664525u + 1013904223u;
+        float fx = ((h >> 8) & 255) / 255.0f, fy = ((h >> 16) & 255) / 255.0f;
+        DrawCircleV({r.x + r.width * (0.12f + 0.76f * fx), r.y + r.height * (0.15f + 0.7f * fy)}, (1.5f + (k % 3)) * u, Fade(Color{150, 100, 50, 255}, 0.13f));
+    }
+    DrawRectangleRoundedLinesEx({r.x + 4 * u, r.y + 4 * u, r.width - 8 * u, r.height - 8 * u}, 0.06f, 6, std::max(1.0f, 1.2f * u), Fade(ink, 0.6f));
+    // the name plate
+    Rectangle plate{r.x + 6 * u, r.y + 6 * u, r.width - 12 * u, 19 * u};
+    DrawRectangleRec(plate, ColorBrightness(col, -0.25f));
+    DrawRectangleRec({plate.x, plate.y + plate.height - 2 * u, plate.width, 2 * u}, Fade(BLACK, 0.3f));
+    int fs = std::max(7, (int)(13 * u));
+    while (fs > 7 && MeasureTxt(c.name, fs, true) > plate.width - 4) fs--;
+    TxtBold(c.name, plate.x + plate.width / 2 - MeasureTxt(c.name, fs, true) / 2.0f, plate.y + (plate.height - fs) / 2 - 1, fs, Color{250, 240, 220, 255});
+    // the medallion
+    Vector2 mid{r.x + r.width / 2, r.y + r.height * 0.44f};
+    float mr = r.width * 0.34f;
+    DrawCircleV(mid, mr, Fade(col, 0.18f));
+    DrawRing(mid, mr - std::max(1.0f, 1.4f * u), mr, 0, 360, 28, Fade(col, 0.7f));
+    DrawSuitIcon(c.suit, mid, r.width * 0.42f, col);
+    // the cost: drops or bones, at the top left under the plate
+    if (c.cost != CostType::FREE && c.costAmount > 0) {
+        float cs = 11 * u;
+        int n = c.costAmount;
+        for (int i = 0; i < std::min(n, 3); i++) {
+            Vector2 p{r.x + 12 * u + i * 8.5f * u, r.y + 37 * u};
+            if (c.cost == CostType::BLOOD) DrawDrop(p, cs, BLOOD_COL); else DrawBone(p, cs * 0.9f, ColorBrightness(BONE_COL, -0.15f));
+        }
+        if (n > 3) TxtBold(TextFormat("x%d", n), r.x + 12 * u + 3 * 8.5f * u - 2 * u, r.y + 31 * u, std::max(7, (int)(11 * u)), c.cost == CostType::BLOOD ? BLOOD_COL : ColorBrightness(BONE_COL, -0.3f));
+    }
+    // sigil badges along the lower half of the art
+    for (size_t i = 0; i < c.sigils.size(); i++) {
+        float bs = 13 * u, gap = 15 * u;
+        Vector2 p{r.x + r.width / 2 + ((float)i - (c.sigils.size() - 1) / 2.0f) * gap, r.y + r.height * 0.7f};
+        DrawCircleV(p, bs * 0.62f, Fade(ink, 0.85f));
+        DrawSigilGlyph(c.sigils[i], p, bs * 0.9f, Color{236, 214, 160, 255});
+    }
+    // the three numbers: strength (left), defense (right), weight (top right)
+    int shownHp = hp >= 0 ? hp : c.defense, shownStr = str >= 0 ? str : c.strength + (c.edition == ED_FOIL ? 1 : c.edition == ED_HEX ? 2 : 0);
+    if (hp < 0 && c.edition == ED_HEX) shownHp = std::max(1, c.defense - 1);
+    int nf = std::max(9, (int)(21 * u));
+    auto badge = [&](Vector2 p, float rad, Color bc, int v, Color tc) {
+        DrawCircleV(p, rad + std::max(1.0f, 1.3f * u), ink);
+        DrawCircleV(p, rad, bc);
+        DrawCircleSector(p, rad, 200, 260, 6, Fade(WHITE, 0.25f));
+        const char* s = TextFormat("%d", v);
+        TxtBold(s, p.x - MeasureTxt(s, nf, true) / 2.0f, p.y - nf * 0.58f, nf, tc);
+    };
+    Color strTc = shownStr > c.strength + (c.edition == ED_FOIL ? 1 : c.edition == ED_HEX ? 2 : 0) ? Color{190, 255, 190, 255} : shownStr < c.strength ? Color{255, 200, 190, 255} : WHITE;
+    Color hpTc = hp >= 0 && hp < c.defense ? Color{255, 200, 190, 255} : hp > c.defense ? Color{190, 255, 190, 255} : WHITE;
+    badge({r.x + 17 * u, r.y + r.height - 17 * u}, 13.5f * u, STR_COL, shownStr, strTc);
+    badge({r.x + r.width - 17 * u, r.y + r.height - 17 * u}, 13.5f * u, HP_COL, shownHp, hpTc);
+    DrawCircleV({r.x + r.width - 15 * u, r.y + 37 * u}, 9 * u + std::max(1.0f, u), ink);
+    DrawCircleV({r.x + r.width - 15 * u, r.y + 37 * u}, 9 * u, WT_COL);
     {
-        float bob = 0, lean = 0;
-        if (S.moodT > 0) {
-            float f = std::min(1.0f, S.moodT);
-            if (S.mood > 0) bob = -6 * fabsf(sinf(t * 9)) * f; else lean = sinf(t * 42) * 3 * f;
-        } else if (S.phase == Phase::Playing && !S.yourTurn) bob = sinf(t * 3) * 1.5f;
+        int wf = std::max(7, (int)(13 * u));
+        const char* s = TextFormat("%d", c.weight);
+        TxtBold(s, r.x + r.width - 15 * u - MeasureTxt(s, wf, true) / 2.0f, r.y + 37 * u - wf * 0.58f, wf, WHITE);
+    }
+    if (c.edition != ED_NONE) DrawEdition(r, c.edition, u);
+}
+
+// The inspector: the hovered card large, with every number and sigil spelled out.
+void DrawInspector(const Card& c, int hp, int str) {
+    Rectangle p{1006, 70, 262, 396};
+    DrawRectangleRounded(p, 0.04f, 8, Color{8, 12, 16, 236});
+    DrawRectangleRoundedLinesEx(p, 0.04f, 8, 2, Pal::BrassDk);
+    DrawCardFace({p.x + 56, p.y + 10, 150, 210}, c, true, hp, str);
+    float y = p.y + 228;
+    TxtBold(c.name, p.x + 14, y, 18, Pal::Brass); y += 24;
+    Txt(TextFormat("Strength %d   Defense %d   Weight %d", str >= 0 ? str : c.strength, hp >= 0 ? hp : c.defense, c.weight), p.x + 14, y, 14, Pal::Paper); y += 20;
+    Txt(TextFormat("Cost: %s   Tribe: %s", c.CostText().c_str(), SuitName(c.suit)), p.x + 14, y, 14, Pal::Paper); y += 22;
+    for (Sigil s : c.sigils) {
+        TxtBold(InfoOf(s).name, p.x + 14, y, 14, Color{236, 214, 160, 255}); y += 17;
+        DrawWrapped(InfoOf(s).text, {p.x + 14, y, p.width - 28, 34}, 12, Fade(Pal::Paper, 0.8f)); y += 30;
+    }
+    if (c.edition != ED_NONE) { TxtBold(EditionName(c.edition), p.x + 14, y, 14, Pal::Brass); y += 17; DrawWrapped(EditionText(c.edition), {p.x + 14, y, p.width - 28, 30}, 12, Fade(Pal::Paper, 0.8f)); }
+}
+
+// A bottle of something in a pack slot.
+void DrawBottle(int kind, Vector2 c, float s) {
+    Color glass{150, 190, 196, 150}, ink{8, 8, 12, 255};
+    DrawEllipse((int)c.x, (int)(c.y + 0.46f * s), 0.34f * s, 0.07f * s, Fade(BLACK, 0.5f));
+    DrawRectangleRounded({c.x - 0.28f * s, c.y - 0.2f * s, 0.56f * s, 0.64f * s}, 0.4f, 6, ink);
+    DrawRectangleRounded({c.x - 0.25f * s, c.y - 0.17f * s, 0.5f * s, 0.58f * s}, 0.4f, 6, glass);
+    DrawRectangle((int)(c.x - 0.09f * s), (int)(c.y - 0.42f * s), (int)(0.18f * s), (int)(0.24f * s), ink);
+    DrawRectangle((int)(c.x - 0.07f * s), (int)(c.y - 0.4f * s), (int)(0.14f * s), (int)(0.2f * s), glass);
+    DrawRectangle((int)(c.x - 0.1f * s), (int)(c.y - 0.5f * s), (int)(0.2f * s), (int)(0.1f * s), Color{150, 108, 60, 255}); // the cork
+    Vector2 m{c.x, c.y + 0.14f * s};
+    switch ((PackItem)kind) {
+        case PackItem::BOULDER: DrawCircleV(m, 0.17f * s, Color{120, 122, 128, 255}); DrawCircleV({m.x - 0.05f * s, m.y - 0.05f * s}, 0.05f * s, Color{170, 172, 176, 255}); break;
+        case PackItem::GOAT: DrawTri({m.x - 0.14f * s, m.y + 0.14f * s}, {m.x + 0.14f * s, m.y + 0.14f * s}, {m.x, m.y - 0.12f * s}, ink); DrawLineEx({m.x - 0.12f * s, m.y - 0.02f * s}, {m.x - 0.2f * s, m.y - 0.2f * s}, 0.04f * s + 1, ink); DrawLineEx({m.x + 0.12f * s, m.y - 0.02f * s}, {m.x + 0.2f * s, m.y - 0.2f * s}, 0.04f * s + 1, ink); break;
+        case PackItem::FISHHOOK: DrawRing({m.x, m.y + 0.03f * s}, 0.1f * s, 0.16f * s, 60, 330, 10, Color{200, 205, 210, 255}); DrawLineEx({m.x + 0.1f * s, m.y - 0.2f * s}, {m.x + 0.1f * s, m.y}, 0.05f * s + 1, Color{200, 205, 210, 255}); break;
+        case PackItem::INK: DrawDrop(m, 0.5f * s, ink); break;
+        case PackItem::BANDAGE: DrawRectangleRec({m.x - 0.15f * s, m.y - 0.05f * s, 0.3f * s, 0.1f * s}, Color{236, 226, 200, 255}); DrawRectangleRec({m.x - 0.05f * s, m.y - 0.15f * s, 0.1f * s, 0.3f * s}, Color{236, 226, 200, 255}); break;
+        default: DrawLineEx({m.x - 0.14f * s, m.y + 0.16f * s}, {m.x + 0.14f * s, m.y - 0.2f * s}, 0.04f * s + 1, Color{200, 205, 210, 255}); DrawTri({m.x + 0.08f * s, m.y - 0.14f * s}, {m.x + 0.2f * s, m.y - 0.14f * s}, {m.x + 0.16f * s, m.y - 0.3f * s}, Color{220, 224, 228, 255}); break;
+    }
+}
+
+// A node on the map.
+void DrawNodeIcon(NodeType t, Vector2 c, float r, Color col) {
+    Color ink{20, 14, 10, 255};
+    switch (t) {
+        case NodeType::BATTLE:
+            DrawLineEx({c.x - 0.6f * r, c.y + 0.6f * r}, {c.x + 0.6f * r, c.y - 0.6f * r}, 0.22f * r, col);
+            DrawLineEx({c.x + 0.6f * r, c.y + 0.6f * r}, {c.x - 0.6f * r, c.y - 0.6f * r}, 0.22f * r, col);
+            DrawCircleV({c.x, c.y}, 0.16f * r, ink);
+            break;
+        case NodeType::ELITE: case NodeType::BOSS:
+            DrawCircleV({c.x, c.y - 0.05f * r}, 0.5f * r, col);
+            DrawRectangleRec({c.x - 0.28f * r, c.y + 0.3f * r, 0.56f * r, 0.32f * r}, col);
+            DrawCircleV({c.x - 0.2f * r, c.y - 0.1f * r}, 0.12f * r, ink); DrawCircleV({c.x + 0.2f * r, c.y - 0.1f * r}, 0.12f * r, ink);
+            DrawTri({c.x - 0.5f * r, c.y - 0.25f * r}, {c.x - 0.2f * r, c.y - 0.45f * r}, {c.x - 0.6f * r, c.y - 0.75f * r}, col);
+            DrawTri({c.x + 0.5f * r, c.y - 0.25f * r}, {c.x + 0.2f * r, c.y - 0.45f * r}, {c.x + 0.6f * r, c.y - 0.75f * r}, col);
+            break;
+        case NodeType::CARD_PICK:
+            DrawRectangleRounded({c.x - 0.42f * r, c.y - 0.6f * r, 0.84f * r, 1.2f * r}, 0.15f, 4, col);
+            TxtBold("?", c.x - MeasureTxt("?", (int)(r * 1.1f), true) / 2.0f, c.y - r * 0.62f, (int)(r * 1.1f), ink);
+            break;
+        case NodeType::CAMPFIRE:
+            DrawTri({c.x - 0.5f * r, c.y + 0.5f * r}, {c.x + 0.5f * r, c.y + 0.5f * r}, {c.x, c.y - 0.6f * r}, col);
+            DrawTri({c.x - 0.22f * r, c.y + 0.5f * r}, {c.x + 0.22f * r, c.y + 0.5f * r}, {c.x, c.y - 0.05f * r}, ink);
+            break;
+        case NodeType::SPLICE:
+            DrawCircleV({c.x - 0.3f * r, c.y}, 0.42f * r, col); DrawCircleV({c.x + 0.3f * r, c.y}, 0.42f * r, Fade(col, 0.8f));
+            DrawCircleV({c.x, c.y}, 0.14f * r, ink);
+            break;
+        case NodeType::SACRIFICE:
+            DrawRectangleLinesEx({c.x - 0.5f * r, c.y - 0.5f * r, r, r}, 0.16f * r, col);
+            DrawLineEx({c.x - 0.5f * r, c.y - 0.5f * r}, {c.x + 0.5f * r, c.y + 0.5f * r}, 0.16f * r, col);
+            DrawLineEx({c.x + 0.5f * r, c.y - 0.5f * r}, {c.x - 0.5f * r, c.y + 0.5f * r}, 0.16f * r, col);
+            break;
+        case NodeType::TRIAL:
+            DrawTri({c.x - 0.6f * r, c.y + 0.5f * r}, {c.x + 0.6f * r, c.y + 0.5f * r}, {c.x, c.y - 0.6f * r}, col);
+            DrawEllipse((int)c.x, (int)(c.y + 0.12f * r), 0.26f * r, 0.16f * r, ink); DrawCircleV({c.x, c.y + 0.12f * r}, 0.08f * r, col);
+            break;
+        case NodeType::STALL:
+            for (int k = 0; k < 3; k++) { DrawEllipse((int)c.x, (int)(c.y + 0.4f * r - k * 0.28f * r), 0.5f * r, 0.18f * r, ink); DrawEllipse((int)c.x, (int)(c.y + 0.36f * r - k * 0.28f * r), 0.46f * r, 0.16f * r, col); }
+            break;
+        default: // cache: a satchel
+            DrawRectangleRounded({c.x - 0.5f * r, c.y - 0.25f * r, r, 0.8f * r}, 0.3f, 4, col);
+            DrawRing({c.x, c.y - 0.25f * r}, 0.2f * r, 0.32f * r, 180, 360, 10, col);
+            DrawRectangleRec({c.x - 0.1f * r, c.y, 0.2f * r, 0.16f * r}, ink);
+            break;
+    }
+}
+
+// The scales: their beam tilts toward whoever is ahead; bone beads heaped in the leading dish, one per point.
+void DrawScale(float tilt, int scaleVal) {
+    Vector2 top{124, 250};
+    Color brass = Pal::Brass, brassDk = Pal::BrassDk;
+    DrawEllipse(124, 486, 56, 12, brassDk);
+    DrawRectangle(118, 250, 12, 236, brassDk);
+    DrawRectangle(120, 250, 5, 236, brass);
+    DrawCircleV(top, 13, brass);
+    float a = tilt;
+    Vector2 l{top.x - cosf(a) * 94, top.y - sinf(a) * 94}, r{top.x + cosf(a) * 94, top.y + sinf(a) * 94};
+    DrawLineEx(l, r, 8, brassDk);
+    DrawLineEx({l.x, l.y - 1}, {r.x, r.y - 1}, 4, brass);
+    for (Vector2 e : {l, r}) {
+        DrawCircleV(e, 8, brass);
+        Vector2 dish{e.x, e.y + 96};
+        DrawLineEx(e, {dish.x - 42, dish.y - 8}, 1.5f, brassDk);
+        DrawLineEx(e, {dish.x + 42, dish.y - 8}, 1.5f, brassDk);
+        DrawCircleSector({dish.x, dish.y - 12}, 46, 0, 180, 20, brassDk);
+        DrawCircleSector({dish.x, dish.y - 14}, 42, 0, 180, 20, brass);
+        DrawEllipse((int)dish.x, (int)dish.y - 14, 46, 6, ColorBrightness(brass, 0.2f));
+    }
+    Vector2 dishL{l.x, l.y + 96}, dishR{r.x, r.y + 96};
+    int foeBeads = scaleVal < 0 ? -scaleVal : 0, youBeads = scaleVal > 0 ? scaleVal : 0;
+    for (int k = 0; k < foeBeads; k++) DrawCircleV({dishL.x - 24 + (k % 5) * 12.0f, dishL.y - 30 - (k / 5) * 9.0f}, 5.5f, Color{224, 218, 196, 255});
+    for (int k = 0; k < youBeads; k++) DrawCircleV({dishR.x - 24 + (k % 5) * 12.0f, dishR.y - 30 - (k / 5) * 9.0f}, 5.5f, Color{224, 218, 196, 255});
+    Txt("DEALER", l.x - MeasureTxt("DEALER", 12) / 2.0f, l.y - 30, 12, Fade(Pal::Paper, 0.7f));
+    Txt("YOU", r.x - MeasureTxt("YOU", 12) / 2.0f, r.y - 30, 12, Fade(Pal::Paper, 0.7f));
+    Txt(TextFormat("%+d / %d", scaleVal, SCALE_LIMIT), 124 - 26, 500, 14, scaleVal > 0 ? Color{140, 230, 160, 255} : scaleVal < 0 ? Color{240, 120, 110, 255} : Pal::Paper);
+}
+
+// ---------------------------------------------------------------- the board's geometry
+constexpr float COL_X[COLS] = {430, 570, 710, 850};
+Rectangle CellRect(int r, int c) {
+    float w, h, cy;
+    switch (r) {
+        case R_FOE_QUEUE: w = 58; h = 82; cy = 318; break;
+        case R_FOE_FRONT: w = 74; h = 104; cy = 394; break;
+        case R_YOU_FRONT: w = 92; h = 128; cy = 518; break;
+        default: w = 66; h = 92; cy = 608; break;
+    }
+    return {COL_X[c] - w / 2, cy - h / 2, w, h};
+}
+Vector2 CellCenter(int r, int c) { Rectangle q = CellRect(r, c); return {q.x + q.width / 2, q.y + q.height / 2}; }
+Vector2 HandPos(int i, int n) { float off = i - (n - 1) / 2.0f; return {640 + off * 100, 716 - fabsf(off) * 5}; }
+Rectangle BellRect() { return {1040, 420, 100, 90}; }
+
+// ---------------------------------------------------------------- rules text and the folder tab
+const char* RULES_TEXT =
+    "You and the dealer fight across a board of four lanes. Each turn you draw a card and a free minnow, lay cards in your front "
+    "row, then ring the bell: every creature strikes the space straight ahead. If it is empty the blow lands on the scales; when "
+    "the scales tip 8 points either way the battle is over.\n\n"
+    "Every card has STRENGTH (damage dealt), DEFENSE (damage it can take) and WEIGHT. A blow from a heavier creature knocks a "
+    "survivor back a row. A heavier card may be laid onto an occupied lane of yours and shoves the occupant behind it; a mover "
+    "that is not heavier than what is in its way is crushed.\n\n"
+    "Costs: BLOOD means sacrificing your own creatures (click them). BONES are earned whenever any of your creatures dies. "
+    "Sigils are abilities: hover a card to read them. Cards come in Foil, Gilt and Hex.\n\n"
+    "Between battles you walk a map: card picks, campfires (+1 strength or defense), splices (merge sigils), sacrifices (thin the deck "
+    "and start with more bones), trials (+3 strength, -2 defense), a stall to spend the pot, caches of items, and tougher dealers "
+    "with tricks of their own. Win a battle in under six turns and you bank Momentum, spent for a head start next time. "
+    "Cash out after any battle, or press on and risk the pot.";
+
+Rectangle RulesTabRect() { return {(float)SCREEN_W - 34, 300, 34, 130}; }
+void DrawRulesFolder(Vector2 m) {
+    Rectangle tab = RulesTabRect();
+    bool hot = CheckCollisionPointRec(m, tab) || U.showRules;
+    Color col = hot ? Pal::Brass : ColorBrightness(Pal::Brass, -0.3f);
+    DrawRectangleRounded({tab.x - 2, tab.y, tab.width + 2, tab.height}, 0.3f, 6, Color{8, 12, 16, 220});
+    DrawRectangleRoundedLinesEx({tab.x - 2, tab.y, tab.width + 2, tab.height}, 0.3f, 6, 1.5f, col);
+    rlPushMatrix();
+    rlTranslatef(tab.x + tab.width / 2 + 5, tab.y + tab.height - 10, 0);
+    rlRotatef(-90, 0, 0, 1);
+    TxtBold("HOW TO PLAY", -55, -8, 15, col);
+    rlPopMatrix();
+    if (U.showRules) {
+        Rectangle p{SCREEN_W / 2.0f - 380, SCREEN_H / 2.0f - 300, 760, 600};
+        Panel(p);
+        DrawTextCenteredBold("How Flats is played", p.x + p.width / 2, p.y + 16, 30, Pal::Ink);
+        DrawWrapped(RULES_TEXT, {p.x + 34, p.y + 60, p.width - 68, p.height - 120}, 14, Pal::Ink);
+        if (Button({p.x + p.width / 2 - 90, p.y + p.height - 54, 180, 40}, "Close")) U.showRules = false;
+    }
+}
+
+Game* G = nullptr;
+int PotPct(int pct, int lo) { return std::max(lo, U.rm.gs.pot * pct / 100); }
+
+void ResetUi() {
+    U = Ui();
+    U.inited = true;
+    U.rng.Seed((unsigned)GetRandomValue(1, 1 << 30));
+}
+
+void LeaveTable(Game& g) {
+    U.inited = false;
+    g.scene = Scene::Hub;
+}
+
+// ---------------------------------------------------------------- playing the engine's events back as animation
+void ApplyEvents(const Events& evs, const Board& prev) {
+    for (const Event& e : evs) {
+        switch (e.type) {
+            case Event::Play: {
+                Vector2 to = CellCenter(e.r1, e.c1);
+                CellFx& f = U.fx[e.r1][e.c1];
+                Vector2 from = Owner(e.r1) == Side::YOU ? U.handFrom : Vector2{930, 300};
+                f.off = {from.x - to.x, from.y - to.y};
+                f.offT = 0; f.offDur = 0.42f; f.arc = 70; f.appear = 0.55f;
+                PlaySlap();
+                Burst({to.x, to.y + 30}, 5, 2, Color{150, 130, 110, 255}, 40);
+            } break;
+            case Event::Move: case Event::Knock: case Event::Push: {
+                Vector2 a = CellCenter(e.r0, e.c0), b = CellCenter(e.r1, e.c1);
+                CellFx& f = U.fx[e.r1][e.c1];
+                f.off = {a.x - b.x, a.y - b.y}; f.offT = 0; f.offDur = 0.32f; f.arc = 0;
+                if (e.type == Event::Push) { CellFx& g2 = U.fx[e.r0][e.c0]; g2.off = {b.x - a.x, b.y - a.y}; g2.offT = 0; g2.offDur = 0.32f; g2.arc = 0; }
+                if (e.type == Event::Knock) { f.shake = 0.5f; f.flash = 0.6f; U.floats.push_back({"knocked back", {b.x, b.y - 30}, 0, Color{230, 200, 120, 255}, 15}); }
+            } break;
+            case Event::Strike: {
+                CellFx& f = U.fx[e.r0][e.c0];
+                Vector2 a = CellCenter(e.r0, e.c0), b = CellCenter(e.r1, e.c1);
+                float d = std::max(1.0f, Dist(a, b));
+                f.lunge = 1; f.lungeDir = {(b.x - a.x) / d * 46, (b.y - a.y) / d * 46};
+                PlaySlap();
+            } break;
+            case Event::Damage: {
+                Vector2 c = CellCenter(e.r1, e.c1);
+                CellFx& f = U.fx[e.r1][e.c1];
+                f.shake = 0.5f; f.flash = 1;
+                U.floats.push_back({e.text == "Spines" ? "spines -1" : TextFormat("-%d", e.amount), {c.x, c.y - 20}, 0, Color{255, 110, 90, 255}, 24});
+                Burst(c, 8, 0, Color{255, 150, 90, 255}, 150);
+                U.shake = std::max(U.shake, 0.12f + 0.03f * e.amount);
+            } break;
+            case Event::ScaleHit: {
+                U.floats.push_back({TextFormat("%+d", e.c1 > 0 ? e.amount : -e.amount), {130, 340}, 0, e.c1 > 0 ? Color{140, 240, 160, 255} : Color{255, 120, 110, 255}, 30});
+                Burst({124, 340}, 8 + e.amount * 2, e.c1 > 0 ? 1 : 0, Color{255, 220, 120, 255}, 140);
+                U.shake = std::max(U.shake, 0.2f + 0.05f * e.amount);
+                U.mood = e.c1 > 0 ? -1.0f : 1.0f; U.moodT = 1.4f;
+            } break;
+            case Event::Death: {
+                Rectangle q = CellRect(e.r1, e.c1);
+                U.ghosts.push_back({prev.cell[e.r1][e.c1].card, {q.x, q.y}, {q.width, q.height}, 0, 0.7f, true});
+                Vector2 c = CellCenter(e.r1, e.c1);
+                Burst(c, 12, 2, Color{170, 160, 150, 255}, 90);
+                Burst(c, 5, 3, Color{190, 180, 220, 255}, 50);
+                U.floats.push_back({TextFormat("+%d bone%s", e.amount, e.amount == 1 ? "" : "s"), {c.x, c.y}, 0, BONE_COL, 17});
+            } break;
+            case Event::SigilFired: {
+                Vector2 c = CellCenter(e.r1, e.c1);
+                U.floats.push_back({e.text, {c.x, c.y - 40}, 0, Color{236, 214, 160, 255}, 16});
+                Burst(c, 6, 0, Color{236, 214, 160, 255}, 90);
+            } break;
+            case Event::Evolve: {
+                Vector2 c = CellCenter(e.r1, e.c1);
+                U.fx[e.r1][e.c1].flash = 1; U.fx[e.r1][e.c1].appear = 0.6f;
+                U.floats.push_back({"grows into " + e.text, {c.x, c.y - 44}, 0, Color{160, 240, 200, 255}, 16});
+                Burst(c, 14, 0, Color{160, 240, 200, 255}, 130);
+            } break;
+            case Event::Gold: {
+                Vector2 c = CellCenter(e.r1, e.c1);
+                U.floats.push_back({TextFormat("+%d gold", e.amount), {c.x, c.y - 30}, 0, Pal::Brass, 20});
+                Burst(c, 8, 1, Color{240, 200, 80, 255}, 200);
+            } break;
+            default: break;
+        }
+    }
+}
+
+void UpdateFx(float dt) {
+    for (int r = 0; r < ROWS; r++)
+        for (int c = 0; c < COLS; c++) {
+            CellFx& f = U.fx[r][c];
+            f.offT = std::min(f.offDur, f.offT + dt);
+            f.lunge = std::max(0.0f, f.lunge - dt * 2.2f);
+            f.shake = std::max(0.0f, f.shake - dt * 2.4f);
+            f.flash = std::max(0.0f, f.flash - dt * 3.0f);
+            f.appear = std::min(1.0f, f.appear + dt * 4.0f);
+        }
+    for (auto& g : U.ghosts) g.t += dt;
+    U.ghosts.erase(std::remove_if(U.ghosts.begin(), U.ghosts.end(), [](const Ghost& g) { return g.t >= g.dur; }), U.ghosts.end());
+    for (auto& f : U.floats) { f.t += dt; f.pos.y -= dt * 26; }
+    U.floats.erase(std::remove_if(U.floats.begin(), U.floats.end(), [](const FloatText& f) { return f.t > 1.3f; }), U.floats.end());
+    for (auto& p : U.parts) {
+        p.life -= dt;
+        p.p.x += p.v.x * dt; p.p.y += p.v.y * dt;
+        if (p.kind == 1) p.v.y += 900 * dt;
+        else if (p.kind == 2) { p.v.x *= 0.92f; p.v.y *= 0.92f; }
+        else if (p.kind == 3) { p.v.y -= 40 * dt; p.v.x *= 0.98f; }
+    }
+    U.parts.erase(std::remove_if(U.parts.begin(), U.parts.end(), [](const Particle& p) { return p.life <= 0; }), U.parts.end());
+    U.shake = std::max(0.0f, U.shake - dt * 1.4f);
+    U.moodT = std::max(0.0f, U.moodT - dt);
+    U.bellT = std::max(0.0f, U.bellT - dt * 1.1f);
+    U.toastT = std::max(0.0f, U.toastT - dt);
+    float target = -(float)U.bat.board.scale / SCALE_LIMIT * 0.34f;
+    U.beam += (target - U.beam) * std::min(1.0f, dt * 3);
+}
+
+// ---------------------------------------------------------------- the map and its nodes
+void StartBattle(Boon boon) {
+    const MapNode& n = U.rm.Current();
+    U.bat.Start(U.rm.MakeBattle(boon), U.rng);
+    for (int r = 0; r < ROWS; r++) for (int c = 0; c < COLS; c++) U.fx[r][c] = CellFx();
+    U.ghosts.clear(); U.floats.clear();
+    U.selHand = -1; U.sacs.clear(); U.sacMode = false; U.selItem = -1;
+    U.stepT = 0.5f; U.endT = 0;
+    U.isElite = n.type == NodeType::ELITE; U.isBoss = n.type == NodeType::BOSS;
+    for (int c = 0; c < COLS; c++) if (U.bat.board.cell[R_FOE_QUEUE][c].used) { U.fx[R_FOE_QUEUE][c].appear = 0.3f; U.fx[R_FOE_QUEUE][c].off = {480 - CellCenter(0, c).x, -60}; U.fx[R_FOE_QUEUE][c].offDur = 0.6f; U.fx[R_FOE_QUEUE][c].offT = 0; }
+    U.ph = Ph::Battle;
+}
+
+void FinishNode() {
+    U.rm.map[U.rm.layer][U.rm.slot].visited = true;
+    U.nu = NodeUi::None;
+    U.ph = Ph::Map;
+    U.pick1 = U.pick2 = -1;
+}
+
+void StockShop() {
+    U.shop.clear();
+    ShopItem a; a.kind = SK_CARD; a.price = PotPct(30, 10); a.card = RandomPlayerCard(std::min(3, U.rm.Tier() + 1), U.rng); U.shop.push_back(a);
+    if (U.rm.gs.Charms() < 3) {
+        std::vector<int> free;
+        for (int i = 0; i < CH_COUNT; i++) if (!U.rm.gs.HasCharm(i)) free.push_back(i);
+        if (!free.empty()) { ShopItem c; c.kind = SK_CHARM; c.price = PotPct(50, 20); c.charm = free[U.rng.I(0, (int)free.size() - 1)]; U.shop.push_back(c); }
+    }
+    ShopItem it; it.kind = SK_ITEM; it.price = PotPct(15, 8); it.item = U.rng.I(0, (int)PackItem::COUNT - 1); U.shop.push_back(it);
+    ShopItem t; t.kind = SK_TRIM; t.price = PotPct(20, 8); U.shop.push_back(t);
+    ShopItem e; e.kind = SK_EDITION; e.price = PotPct(35, 15); e.card.edition = U.rng.I(ED_FOIL, ED_COUNT - 1); U.shop.push_back(e);
+    if (!U.rm.gs.insured) { ShopItem i; i.kind = SK_INSURE; i.price = PotPct(25, 10); U.shop.push_back(i); }
+}
+int RerollPrice() { return PotPct(5 + 5 * U.rerolls, 5); }
+
+void EnterNode() {
+    const MapNode& n = U.rm.Current();
+    U.pick1 = U.pick2 = -1;
+    switch (n.type) {
+        case NodeType::BATTLE: case NodeType::ELITE: case NodeType::BOSS:
+            if (U.rm.gs.momentumTracker > 0) U.ph = Ph::Boon; else StartBattle(Boon::NONE);
+            break;
+        case NodeType::CARD_PICK: U.offers = U.rm.OfferCards(3, false); U.offerCharm = -1; U.rareOffer = false; U.nu = NodeUi::CardPick; U.ph = Ph::Node; break;
+        case NodeType::CAMPFIRE: U.nu = NodeUi::Campfire; U.ph = Ph::Node; break;
+        case NodeType::SPLICE: U.nu = NodeUi::Splice; U.ph = Ph::Node; break;
+        case NodeType::SACRIFICE: U.nu = NodeUi::Sacrifice; U.ph = Ph::Node; break;
+        case NodeType::TRIAL: U.nu = NodeUi::Trial; U.ph = Ph::Node; break;
+        case NodeType::STALL: U.rerolls = 0; U.shopPick = -1; StockShop(); U.nu = NodeUi::Stall; U.ph = Ph::Node; break;
+        case NodeType::CACHE: U.foundItem = U.rm.RandomItem(); U.nu = NodeUi::Cache; U.ph = Ph::Node; break;
+    }
+}
+
+void CashOut() {
+    G->gold += U.rm.gs.pot;
+    U.payout = U.rm.gs.pot;
+    U.cashed = true; U.lost = false;
+    U.ph = Ph::RunOver;
+}
+
+void HandleBattleEnd() {
+    bool won = U.bat.winner > 0;
+    U.lastTurns = U.bat.turnNo;
+    int before = U.rm.gs.momentumTracker;
+    U.gainedGold = U.rm.OnBattleFinished(won, U.bat.turnNo, U.bat.board.gold, U.bat.board.itemsFound[0]);
+    U.gainedMomentum = won && U.rm.gs.momentumTracker > before;
+    if (won) {
+        U.ph = Ph::Won;
+        Burst({640, 300}, 30, 1, Color{240, 200, 80, 255}, 260);
+    } else {
+        U.lost = true; U.cashed = false;
+        U.payout = U.rm.gs.insured ? U.rm.gs.pot / 2 : 0;
+        U.insurePaid = false;
+        U.ph = Ph::RunOver;
+    }
+}
+
+// ---------------------------------------------------------------- a battle: picking cards, sacrifices, items, the bell
+int BloodAvailable() {
+    int have = 0;
+    for (int r : {R_YOU_FRONT, R_YOU_BACK}) for (int c = 0; c < COLS; c++) if (U.bat.board.cell[r][c].used) have += U.bat.board.cell[r][c].card.BloodValue();
+    return have;
+}
+bool Affordable(const Card& c) {
+    if (c.cost == CostType::BLOOD) return BloodAvailable() >= U.bat.BloodNeeded(c);
+    if (c.cost == CostType::BONES) return U.bat.board.bones[0] >= c.costAmount;
+    return true;
+}
+
+void TryPlay(int col) {
+    if (U.selHand < 0 || U.selHand >= (int)U.bat.hand.size()) return;
+    const Card& c = U.bat.hand[U.selHand];
+    if (c.cost == CostType::BLOOD && !U.sacMode) {
+        if (BloodAvailable() < U.bat.BloodNeeded(c)) { Toast("You need more creatures to sacrifice for that card."); return; }
+        U.sacMode = true; U.sacCol = col; U.sacs.clear();
+        return;
+    }
+    std::string why;
+    if (!U.bat.CanPlay(U.selHand, col, U.sacs, &why)) { Toast(why); if (U.sacMode) { U.sacMode = false; U.sacs.clear(); } return; }
+    Board prev = U.bat.board;
+    U.handFrom = HandPos(U.selHand, (int)U.bat.hand.size());
+    U.ev.clear();
+    U.bat.Play(U.selHand, col, U.sacs, U.ev, U.rng);
+    ApplyEvents(U.ev, prev);
+    U.selHand = -1; U.sacs.clear(); U.sacMode = false;
+}
+
+void UseItemAt(int slot, int r, int c) {
+    Board prev = U.bat.board;
+    U.ev.clear();
+    if (U.bat.UseItem(slot, r, c, U.ev)) { ApplyEvents(U.ev, prev); U.selItem = -1; }
+    else Toast("It can't be used there.");
+}
+
+// ---------------------------------------------------------------- deck grids (used by the campfire, splice, trial, stall and the deck viewer)
+int DeckGrid(Rectangle area, const std::vector<Card>& d, const std::vector<int>& sel, Vector2 m, const std::function<bool(int)>& enabled = nullptr) {
+    int n = (int)d.size(), cols = 8, clicked = -1;
+    int rows = std::max(1, (n + cols - 1) / cols);
+    float ch = std::min(112.0f, area.height / rows - 8), cw = ch * 0.72f, gapX = area.width / cols;
+    for (int i = 0; i < n; i++) {
+        Rectangle r{area.x + (i % cols) * gapX + (gapX - cw) / 2, area.y + (i / cols) * (ch + 8), cw, ch};
+        bool ok = !enabled || enabled(i), hov = CheckCollisionPointRec(m, r);
+        if (hov && ok) r.y -= 6;
+        bool isSel = std::find(sel.begin(), sel.end(), i) != sel.end();
+        if (isSel) { DrawRectangleRounded({r.x - 4, r.y - 4, r.width + 8, r.height + 8}, 0.1f, 6, Fade(Pal::Brass, 0.9f)); }
+        DrawCardFace(r, d[i], true);
+        if (!ok) DrawRectangleRounded(r, 0.08f, 6, Fade(BLACK, 0.55f));
+        if (hov) Hover(d[i]);
+        if (hov && ok && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) clicked = i;
+    }
+    return clicked;
+}
+
+// ---------------------------------------------------------------- drawing the battle
+void DrawBoardCard(int r, int c, float t) {
+    const Cell& x = U.bat.board.cell[r][c];
+    if (!x.used) return;
+    CellFx& f = U.fx[r][c];
+    Rectangle q = CellRect(r, c);
+    float k = f.offDur > 0 ? std::clamp(f.offT / f.offDur, 0.0f, 1.0f) : 1.0f, ease = 1 - powf(1 - k, 3);
+    Vector2 o{f.off.x * (1 - ease), f.off.y * (1 - ease) - sinf(k * PI) * f.arc};
+    if (f.lunge > 0) { float a = sinf((1 - f.lunge) * PI); o.x += f.lungeDir.x * a; o.y += f.lungeDir.y * a; }
+    if (f.shake > 0) o.x += sinf(t * 90) * f.shake * 8;
+    float sc = f.appear;
+    Rectangle rr{q.x + o.x + q.width * (1 - sc) / 2, q.y + o.y + q.height * (1 - sc) / 2, q.width * sc, q.height * sc};
+    int str = U.bat.board.EffStrength(r, c);
+    DrawCardFace(rr, x.card, true, x.card.hp, str);
+    if (r == R_FOE_QUEUE) DrawRectangleRounded(rr, 0.08f, 6, Fade(BLACK, 0.3f)); // waiting in the queue
+    if (f.flash > 0) DrawRectangleRounded(rr, 0.08f, 6, Fade(WHITE, 0.55f * f.flash));
+}
+
+void DrawBattle(Game& g, float dt, float t, Vector2 m, bool modal) {
+    (void)g;
+    Battle& bat = U.bat;
+    // ---- the automatic phases, one micro-step at a time
+    if (bat.turn == Turn::YOU_DRAW) {
+        U.stepT -= dt;
+        if (U.stepT <= 0) { U.ev.clear(); bat.Draw(true, U.ev, U.rng); U.stepT = 0.15f; U.selHand = -1; U.sacs.clear(); U.sacMode = false; U.selItem = -1; }
+    } else if (bat.turn == Turn::OVER) {
+        U.endT += dt;
+        if (U.endT > 1.1f && U.ph == Ph::Battle) HandleBattleEnd();
+    } else if (!bat.Waiting()) {
+        U.stepT -= dt;
+        if (U.stepT <= 0) {
+            Board prev = bat.board;
+            U.ev.clear();
+            bat.Advance(U.ev, U.rng);
+            ApplyEvents(U.ev, prev);
+            bool strike = false, play = false;
+            for (auto& e : U.ev) { strike |= e.type == Event::Strike; play |= e.type == Event::Play; }
+            U.stepT = strike ? 0.62f : play ? 0.6f : 0.28f;
+        }
+    }
+    bool myMain = bat.turn == Turn::YOU_MAIN && !modal && U.ph == Ph::Battle;
+
+    // ---- the slots
+    for (int c = 0; c < COLS; c++) {
+        DrawSlot(CellRect(R_FOE_QUEUE, c), false, t);
+        DrawSlot(CellRect(R_FOE_FRONT, c), false, t);
+        bool hotCol = false;
+        Rectangle lane{COL_X[c] - 50, 440, 100, 150};
+        if (myMain && U.selHand >= 0 && CheckCollisionPointRec(m, lane)) hotCol = true;
+        DrawSlot(CellRect(R_YOU_FRONT, c), hotCol || (myMain && U.selHand >= 0 && !U.sacMode), t);
+    }
+    // the dealer's telegraph: a small brass arrow under each queued card, where it will step
+    for (int c = 0; c < COLS; c++) if (bat.board.cell[R_FOE_QUEUE][c].used) DrawTri({COL_X[c] - 7, 362}, {COL_X[c] + 7, 362}, {COL_X[c], 372}, Fade(Pal::Brass, 0.7f));
+
+    // ---- the cards: reserve and queue first (they sit behind), then the fronts
+    for (int r : {R_YOU_BACK, R_FOE_QUEUE, R_FOE_FRONT, R_YOU_FRONT})
+        for (int c = 0; c < COLS; c++) DrawBoardCard(r, c, t);
+    for (auto& gh : U.ghosts) { // the dead fade and sink
+        float a = 1 - gh.t / gh.dur;
+        Rectangle q{gh.pos.x + gh.size.x * (1 - a) * 0.15f, gh.pos.y + (1 - a) * 24, gh.size.x * (0.85f + 0.15f * a), gh.size.y * (0.85f + 0.15f * a)};
+        DrawCardFace(q, gh.c, true, 0);
+        DrawRectangleRounded(q, 0.08f, 6, Fade(BLACK, 0.6f * (1 - a)));
+        DrawRectangleRounded(q, 0.08f, 6, Fade(WHITE, 0.0f));
+    }
+    // the dealer's hand, as a small fan of backs
+    for (int i = 0; i < (int)bat.foeHand.size(); i++) DrawCardFace({930.0f + i * 14, 292.0f - (i % 2) * 3, 34, 48}, Card{}, false);
+
+    // ---- hover and selection on the board
+    int hoverR = -1, hoverC = -1;
+    for (int r : {R_YOU_FRONT, R_FOE_FRONT, R_YOU_BACK, R_FOE_QUEUE}) {
+        for (int c = 0; c < COLS && hoverR < 0; c++) if (bat.board.cell[r][c].used && CheckCollisionPointRec(m, CellRect(r, c))) { hoverR = r; hoverC = c; }
+        if (hoverR >= 0) break;
+    }
+    if (hoverR >= 0 && !modal) Hover(bat.board.cell[hoverR][hoverC].card, bat.board.cell[hoverR][hoverC].card.hp, bat.board.EffStrength(hoverR, hoverC));
+    // sacrifice marks and targeting highlights
+    if (U.sacMode)
+        for (int r : {R_YOU_FRONT, R_YOU_BACK})
+            for (int c = 0; c < COLS; c++)
+                if (bat.board.cell[r][c].used) {
+                    Rectangle q = CellRect(r, c);
+                    bool marked = std::find(U.sacs.begin(), U.sacs.end(), std::make_pair(r, c)) != U.sacs.end();
+                    DrawRectangleRoundedLinesEx({q.x - 3, q.y - 3, q.width + 6, q.height + 6}, 0.1f, 6, marked ? 4.0f : 2.0f, marked ? BLOOD_COL : Fade(BLOOD_COL, 0.5f + 0.3f * sinf(t * 6)));
+                    if (marked) DrawDrop({q.x + q.width / 2, q.y + q.height / 2}, 46, Fade(BLOOD_COL, 0.85f));
+                }
+    if (U.selItem >= 0 && U.selItem < (int)bat.items.size()) {
+        PackItem k = (PackItem)bat.items[U.selItem];
+        for (int r = 0; r < ROWS; r++)
+            for (int c = 0; c < COLS; c++) {
+                bool ok = bat.board.cell[r][c].used && (k == PackItem::BANDAGE ? (r >= 2) : k == PackItem::HARPOON ? (r <= 1) : (r == R_FOE_QUEUE));
+                if (!ok) continue;
+                Rectangle q = CellRect(r, c);
+                DrawRectangleRoundedLinesEx({q.x - 3, q.y - 3, q.width + 6, q.height + 6}, 0.1f, 6, 3, Fade(Pal::Brass, 0.6f + 0.3f * sinf(t * 6)));
+            }
+    }
+
+    // ---- your hand, fanned along the bottom
+    int n = (int)bat.hand.size(), hoverHand = -1;
+    for (int i = n - 1; i >= 0 && hoverHand < 0; i--) {
+        Vector2 p = HandPos(i, n);
+        float lift = U.selHand == i ? 62 : 0;
+        Rectangle hit{p.x - 48, p.y - 66 - lift, 96, 150};
+        if (CheckCollisionPointRec(m, hit) && !modal) hoverHand = i;
+    }
+    for (int i = 0; i < n; i++) {
+        Vector2 p = HandPos(i, n);
+        float off = i - (n - 1) / 2.0f, lift = U.selHand == i ? 62 : (hoverHand == i ? 34 : 0);
         rlPushMatrix();
-        rlTranslatef(lean, bob, 0);
-        DrawDealer(t);
+        rlTranslatef(p.x, p.y - lift, 0);
+        rlRotatef(off * 3.5f, 0, 0, 1);
+        Rectangle cr{-46, -66, 92, 128};
+        DrawCardFace(cr, bat.hand[i], true);
+        if (!Affordable(bat.hand[i]) && bat.turn == Turn::YOU_MAIN) DrawRectangleRounded(cr, 0.08f, 6, Fade(BLACK, 0.5f));
         rlPopMatrix();
     }
-    DrawTable();
-    DrawSkull(t, 300, 372);
-    DrawScale(S.beam);
-    DrawChips({150, 560}, S.pot, t);
-    // bottles on the right, as on the reference's table
-    for (int k = 0; k < 2; k++) {
-        float x = 1130 + k * 44, y = 352 + k * 16;
-        DrawRectangleRounded({x - 14, y, 28, 56}, 0.3f, 6, Color{58, 78, 52, 255});
-        DrawRectangle((int)x - 5, (int)y - 14, 10, 16, Color{50, 66, 46, 255});
-        DrawRectangle((int)x - 6, (int)y - 18, 12, 6, Color{150, 108, 60, 255});
-        DrawRectangle((int)x - 10, (int)y + 16, 20, 22, Color{220, 190, 130, 255});
+    if (hoverHand >= 0) Hover(bat.hand[hoverHand]);
+
+    // ---- bones, momentum, items on the table's near edge
+    {
+        Vector2 b{150, 600};
+        DrawRectangleRounded({b.x - 46, b.y - 30, 130, 64}, 0.2f, 6, Color{8, 12, 16, 200});
+        DrawBone({b.x - 20, b.y}, 34, BONE_COL);
+        TxtBold(TextFormat("x %d", bat.board.bones[0]), b.x + 4, b.y - 14, 26, BONE_COL);
+        Txt("bones", b.x + 6, b.y + 14, 12, Fade(Pal::Paper, 0.7f));
+        for (int i = 0; i < MAX_MOMENTUM; i++) DrawCircleV({b.x - 26 + i * 24.0f, b.y + 54}, 8, i < U.rm.gs.momentumTracker ? Color{170, 220, 240, 255} : Color{40, 50, 60, 255});
+        Txt("momentum", b.x - 42, b.y + 66, 11, Fade(Pal::Paper, 0.6f));
     }
-    // where the flats are: your row and the dealer's, each in threes
-    int hoverLane = -1;
-    for (int l = 0; l < LANES; l++) {
-        Rectangle whole{SlotRect(true, l, 0).x, SlotRect(true, l, 0).y, SlotRect(true, l, 2).x + YOU_CARD.x - SlotRect(true, l, 0).x, YOU_CARD.y};
-        if (CheckCollisionPointRec(m, whole)) hoverLane = l;
-    }
-    bool aiming = S.phase == Phase::Playing && S.yourTurn && S.selected >= 0 && S.actions > 0 && !modal;
-    for (int l = 0; l < LANES; l++) {
-        for (int i = 0; i < LANE_CAP; i++) {
-            if (i >= LaneCap(S.mod[l])) { // the whirlpool has swallowed this slot
-                for (bool you : {false, true}) {
-                    Rectangle r = SlotRect(you, l, i);
-                    DrawRectangleRounded(r, 0.1f, 6, Color{14, 8, 26, 220});
-                    DrawLineEx({r.x + 8, r.y + 8}, {r.x + r.width - 8, r.y + r.height - 8}, 2, Fade(Color{150, 110, 220, 255}, 0.5f));
-                    DrawLineEx({r.x + r.width - 8, r.y + 8}, {r.x + 8, r.y + r.height - 8}, 2, Fade(Color{150, 110, 220, 255}, 0.5f));
+    for (int i = 0; i < MAX_ITEMS; i++) {
+        Vector2 p{1150, 520.0f + i * 62};
+        DrawRectangleRounded({p.x - 26, p.y - 28, 52, 56}, 0.2f, 6, Color{8, 12, 16, 190});
+        DrawRectangleRoundedLinesEx({p.x - 26, p.y - 28, 52, 56}, 0.2f, 6, U.selItem == i ? 3.0f : 1.5f, U.selItem == i ? Pal::Brass : Pal::BrassDk);
+        if (i < (int)bat.items.size()) {
+            DrawBottle(bat.items[i], p, 46);
+            if (CheckCollisionPointRec(m, {p.x - 26, p.y - 28, 52, 56}) && !modal) {
+                Rectangle tip{p.x - 250, p.y - 18, 216, 44};
+                DrawRectangleRounded(tip, 0.2f, 6, Color{8, 12, 16, 240});
+                TxtBold(ItemName(bat.items[i]), tip.x + 8, tip.y + 4, 14, Pal::Brass);
+                DrawWrapped(ItemText(bat.items[i]), {tip.x + 8, tip.y + 20, tip.width - 16, 24}, 11, Pal::Paper);
+                if (myMain && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+                    if (ItemNeedsTarget(bat.items[i])) { U.selItem = U.selItem == i ? -1 : i; U.selHand = -1; U.sacMode = false; }
+                    else UseItemAt(i, 0, 0);
                 }
-                continue;
-            }
-            DrawSlot(SlotRect(false, l, i), false, t);
-            bool free = i == (int)S.you.lane[l].size();
-            DrawSlot(SlotRect(true, l, i), aiming && hoverLane == l && free, t);
-        }
-    }
-    rlPopMatrix();
-
-    // ---------------- lights: the candles at the skull, and a cold glow over the flats
-    float fl = 1 + 0.06f * sinf(t * 13) + 0.04f * sinf(t * 29 + 1);
-    LightsBegin(Color{22, 24, 32, 255}); // the room is in shadow; the dealer is lit on purpose below
-    AddLight({300, 340}, 380 * fl, Color{255, 190, 110, 255}, 0.95f);
-    AddLight({640, 470}, 620, Color{80, 150, 200, 255}, 0.6f);
-    AddLight({640, 170}, 330, Color{150, 165, 205, 255}, 1.0f);   // the dealer: dark, but always readable
-    AddLight({640, 330}, 260, Color{70, 150, 190, 255}, 0.8f);    // and lit from below by the flats
-    AddLight({124, 350}, 260 * fl, Color{255, 200, 120, 255}, 0.4f);
-    AddLight({1090, 460}, 200, Color{255, 190, 110, 255}, 0.45f);
-    if (S.pot > 0) AddLight({170, 550}, 150, Color{255, 200, 100, 255}, 0.3f);
-    for (int l = 0; l < LANES; l++) {
-        if (S.mod[l] == LM_TREASURE) AddLight({LANE_X[l], 452}, 150, Color{255, 200, 90, 255}, 0.35f);
-        if (S.mod[l] == LM_WHIRL) AddLight({LANE_X[l], 452}, 150, Color{140, 90, 220, 255}, 0.35f);
-    }
-    LightsEnd();
-    InkPass(0.55f, 0.7f);
-
-    // ---------------- cards on the table (drawn crisp, after the ink pass)
-    rlPushMatrix();
-    rlTranslatef(sh.x * 0.6f, sh.y * 0.6f, 0);
-    bool settled = S.phase == Phase::Resolving || S.phase == Phase::MatchOver || S.phase == Phase::RunOver;
-    for (int l = 0; l < LANES; l++)
-        for (bool you : {false, true}) {
-            auto& lane = (you ? S.you : S.foe).lane[l];
-            for (int i = 0; i < (int)lane.size(); i++) {
-                DrawPlaced(you, l, i, t);
-                Rectangle r = SlotRect(you, l, i);
-                if (!modal && CheckCollisionPointRec(m, r) && lane[i].age >= 1) Tooltip(CardDescription(lane[i].c), {m.x, m.y + 22});
             }
         }
-    // each flat's running total, in the band between the two rows
-    for (int l = 0; l < LANES; l++) {
-        int y = Tot(S.you, S.foe, l), f = Tot(S.foe, S.you, l);
-        Vector2 c{LANE_X[l], 452};
-        Color col = y > f ? Color{120, 230, 150, 255} : f > y ? Color{240, 110, 100, 255} : Color{210, 210, 200, 255};
-        if (settled && S.laneResult[l] != 0) DrawRectangleRounded({c.x - 62, c.y - 16, 124, 32}, 0.5f, 6, Fade(col, 0.28f));
-        DrawRectangleRounded({c.x - 48, c.y - 13, 96, 26}, 0.5f, 6, Color{8, 12, 16, 200});
-        std::string txt = TextFormat("%d : %d", y, f); // you : dealer
-        TxtBold(txt, c.x - MeasureTxt(txt, 18, true) / 2.0f, c.y - 10, 18, col);
-        if (S.mod[l] != LM_NONE) {
-            Vector2 e{c.x - 84, c.y};
-            DrawModEmblem(S.mod[l], e, t);
-            if (!modal && Dist(m, e) < 18) Tooltip(std::string(MOD_NAME[S.mod[l]]) + ": " + MOD_TEXT[S.mod[l]], {m.x, m.y + 24});
-        }
     }
-    DrawBell({1090, 470}, S.phase == Phase::Playing && S.yourTurn && S.actions >= 0, S.bellT);
+    DrawBell({1090, 470}, myMain, U.bellT);
 
-    // the dealer's hand, as a small fan of backs up by his shoulder
-    for (int i = 0; i < (int)S.foe.hand.size(); i++)
-        DrawCardFace({930.0f + i * 14, 292.0f - (i % 2) * 3, 34, 48}, Card{}, false);
-    DrawParticles();
-    rlPopMatrix();
-
-    // ---------------- HUD
-    if (S.phase != Phase::Menu) {
-        DrawRectangleRounded({12, 12, 300, 100}, 0.12f, 6, Color{8, 12, 16, 200});
-        DrawRectangleRoundedLinesEx({12, 12, 300, 100}, 0.12f, 6, 1.5f, Pal::BrassDk);
-        TxtBold("FLATS", 26, 18, 24, Pal::Brass);
-        Txt(DEALER_NAME[std::min(S.match, MATCHES - 1)], 116, 24, 16, Pal::Paper);
-        Txt(TextFormat("Match %d of %d  -  round %d", S.match + 1, MATCHES, std::min(3, S.round + 1)), 26, 54, 16, Pal::Paper);
-        Txt(TextFormat("Rounds: you %d, dealer %d", S.roundsYou, S.roundsFoe), 26, 76, 16, Pal::Paper);
-        // the charms in your pocket
-        int shown = 0;
-        for (int c = 0; c < CH_COUNT; c++) {
-            if (!Has(S.you, c)) continue;
-            Vector2 cc{200.0f + shown * 42, 148};
-            DrawCharmIcon(c, cc, 34, t);
-            if (!modal && Dist(m, cc) < 18) Tooltip(std::string(CHARM_NAME[c]) + ": " + CHARM_TEXT[c], {m.x, m.y + 24});
-            shown++;
-        }
-        if (!modal && S.phase != Phase::RunOver && Button({20, 166, 150, 30}, TextFormat("Deck (%d)", (int)S.you.deck.size()), true, 14)) S.showDeck = true;
-    }
-    DrawPot(g);
-
-    // ---------------- your hand, fanned along the bottom
-    int hoverCard = -1;
-    int n = (int)S.you.hand.size();
-    if (S.phase == Phase::Playing || S.phase == Phase::Resolving) {
-        for (int i = 0; i < n; i++) { // hit-test from the top card down
-            float off = i - (n - 1) / 2.0f, x = 640 + off * 116, y = 664 - fabsf(off) * 8 - (S.selected == i ? 46 : 0);
-            Rectangle hit{x - 56, y - 76, 112, 152};
-            if (CheckCollisionPointRec(m, hit) && !modal) hoverCard = i;
-        }
-        for (int i = 0; i < n; i++) {
-            float off = i - (n - 1) / 2.0f, x = 640 + off * 116, y = 664 - fabsf(off) * 8 - (S.selected == i ? 46 : (hoverCard == i ? 22 : 0));
-            y += sinf(t * 1.6f + i) * 1.5f;
-            rlPushMatrix();
-            rlTranslatef(x, y, 0);
-            rlRotatef(off * 4.5f, 0, 0, 1);
-            DrawCardFace({-54, -75, 108, 150}, S.you.hand[i], true);
-            rlPopMatrix();
-        }
-        if (hoverCard >= 0) Tooltip(CardDescription(S.you.hand[hoverCard]), {m.x, m.y - 40});
-    }
-
-    // ---------------- turn hint
-    if (S.phase == Phase::Playing) {
-        const char* hint = !S.yourTurn ? "The dealer is playing..."
-                           : S.actions > 0 ? TextFormat("Your turn: %d play%s left. Pick a card, then a flat. Ring the bell to end your turn.", S.actions, S.actions == 1 ? "" : "s")
-                                            : "Ring the bell.";
-        DrawRectangleRounded({SCREEN_W / 2.0f - 340, 14, 680, 26}, 0.5f, 6, Color{8, 12, 16, 190});
-        DrawTextCentered(hint, SCREEN_W / 2.0f, 18, 16, Color{214, 222, 226, 255});
-        DrawTextCentered(TextFormat("%s: %s", DEALER_NAME[std::min(S.match, MATCHES - 1)], S.twistText.c_str()), SCREEN_W / 2.0f, 46, 14, Fade(Pal::Brass, 0.85f));
-    }
-
-    // ---------------- input while playing
-    if (S.phase == Phase::Playing && S.yourTurn && !modal) {
-        if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) S.selected = -1;
+    // ---- input
+    if (myMain) {
+        if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) { U.selHand = -1; U.sacs.clear(); U.sacMode = false; U.selItem = -1; }
         if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-            if (hoverCard >= 0 && S.actions > 0) S.selected = S.selected == hoverCard ? -1 : hoverCard;
-            else if (aiming && hoverLane >= 0 && (int)S.you.lane[hoverLane].size() < LaneCap(S.mod[hoverLane])) {
-                if (PlayCard(S.you, S.selected, hoverLane)) { S.actions--; S.selected = -1; PlaySlap(); }
-            } else if (CheckCollisionPointRec(m, BellRect())) {
-                S.bellT = 1;
-                S.shake = std::max(S.shake, 0.12f);
-                PlayBell();
-                if (HandsEmpty()) Resolve();
-                else BeginTurn(false);
+            bool hoverItemSlot = false;
+            for (int i = 0; i < MAX_ITEMS; i++) hoverItemSlot |= CheckCollisionPointRec(m, {1124, 492.0f + i * 62, 52, 56});
+            if (CheckCollisionPointRec(m, BellRect())) {
+                U.bellT = 1; U.shake = std::max(U.shake, 0.1f); PlayBell();
+                U.selHand = -1; U.sacs.clear(); U.sacMode = false; U.selItem = -1;
+                bat.EndTurn();
+                U.stepT = 0.5f;
+            } else if (hoverItemSlot) {
+                // handled above
+            } else if (U.selItem >= 0) {
+                if (hoverR >= 0) UseItemAt(U.selItem, hoverR, hoverC);
+            } else if (U.sacMode) {
+                if (hoverR == R_YOU_FRONT || hoverR == R_YOU_BACK) {
+                    auto key = std::make_pair(hoverR, hoverC);
+                    auto it = std::find(U.sacs.begin(), U.sacs.end(), key);
+                    if (it != U.sacs.end()) U.sacs.erase(it); else U.sacs.push_back(key);
+                    int blood = 0;
+                    for (auto& s : U.sacs) blood += bat.board.cell[s.first][s.second].card.BloodValue();
+                    if (U.selHand >= 0 && blood >= bat.BloodNeeded(bat.hand[U.selHand])) TryPlay(U.sacCol);
+                }
+            } else if (hoverHand >= 0) {
+                U.selHand = U.selHand == hoverHand ? -1 : hoverHand;
+                U.sacs.clear(); U.sacMode = false;
+            } else if (U.selHand >= 0) {
+                for (int c = 0; c < COLS; c++) if (CheckCollisionPointRec(m, {COL_X[c] - 50, 440, 100, 150})) { TryPlay(c); break; }
             }
         }
-        if (aiming && S.selected >= 0 && S.selected < (int)S.you.hand.size()) DrawCardFace({m.x - 24, m.y - 34, 48, 68}, S.you.hand[S.selected], true); // the card held in hand
     }
-    if (S.phase == Phase::Playing && S.yourTurn && !modal && CheckCollisionPointRec(m, BellRect())) Tooltip("Ring the bell to end your turn", {m.x, m.y + 22});
 
-    // ---------------- overlays
-    Rectangle centre{300, 110, 680, 400};
-    if (!modal)
-    switch (S.phase) {
-        case Phase::Menu: {
-            Panel(centre);
-            DrawTextCenteredBold("FLATS", centre.x + centre.width / 2, centre.y + 18, 44, Pal::Ink);
-            DrawTextCentered(DEALER_LINES[0], centre.x + centre.width / 2, centre.y + 72, 18, Pal::BrassDk);
-            DrawWrapped("Three flats, two dealers' decks, one bell. Win two flats for a round and two rounds for a match. Win a match to add a card to your deck "
-                        "or take a charm that bends the rules; but each dealer, from the Novice to the House, has a trick of his own. Every round some flats "
-                        "carry a hazard or a prize, and cards can come Foil, Gilt or Hex.\n\nOpen the HOW TO PLAY tab on the right for the full rules. "
-                        "Cash out after any match, or press on and risk the pot.",
-                        {centre.x + 34, centre.y + 104, centre.width - 68, 230}, 15, Pal::Ink);
-            if (Button({centre.x + centre.width / 2 - 140, centre.y + centre.height - 62, 280, 48}, "Take a seat")) { S.phase = Phase::Playing; StartMatch(); }
-            if (BackButton(g)) S.inited = false;
-        } break;
+    // ---- the turn hint
+    const char* hint = "";
+    switch (bat.turn) {
+        case Turn::YOU_DRAW: hint = "You draw a card and a minnow..."; break;
+        case Turn::YOU_MAIN:
+            hint = U.sacMode ? TextFormat("Click your creatures to sacrifice: %d blood needed. Right-click cancels.", U.selHand >= 0 ? bat.BloodNeeded(bat.hand[U.selHand]) : 0)
+                   : U.selItem >= 0 ? "Click a target for the item." : U.selHand >= 0 ? "Click a lane to play the card there. Right-click puts it back." : "Pick a card, then a lane. Ring the bell to fight."; break;
+        case Turn::YOU_COMBAT: case Turn::YOU_END: hint = "Your creatures strike..."; break;
+        case Turn::OVER: hint = bat.winner > 0 ? "The scales tip your way!" : "The scales tip against you..."; break;
+        default: hint = "The dealer's turn..."; break;
+    }
+    DrawRectangleRounded({SCREEN_W / 2.0f - 360, 14, 720, 26}, 0.5f, 6, Color{8, 12, 16, 190});
+    DrawTextCentered(hint, SCREEN_W / 2.0f, 18, 16, Color{214, 222, 226, 255});
+    const DealerInfo& di = Dealer(bat.dealer);
+    DrawTextCentered(TextFormat("%s%s: %s", U.isElite ? "Elite " : "", di.name, di.twist), SCREEN_W / 2.0f, 46, 14, Fade(Pal::Brass, 0.85f));
+}
 
-        case Phase::Resolving: {
-            Rectangle b{340, 250, 600, 96};
-            DrawRectangleRounded(b, 0.15f, 8, Color{6, 8, 12, 232});
-            DrawRectangleRoundedLinesEx(b, 0.15f, 8, 2, Pal::BrassDk);
-            DrawTextCenteredBold(S.banner, b.x + b.width / 2, b.y + 14, 30, Pal::Brass);
-            DrawTextCentered(S.sub, b.x + b.width / 2, b.y + 58, 18, Pal::Paper);
-        } break;
+// ---------------------------------------------------------------- the map
+Color NodeCol(NodeType t) {
+    switch (t) {
+        case NodeType::BATTLE: return {190, 96, 74, 255}; case NodeType::ELITE: return {170, 100, 200, 255}; case NodeType::CARD_PICK: return {90, 150, 210, 255};
+        case NodeType::CAMPFIRE: return {230, 150, 70, 255}; case NodeType::SPLICE: return {110, 190, 130, 255}; case NodeType::SACRIFICE: return {190, 60, 70, 255};
+        case NodeType::TRIAL: return {226, 200, 90, 255}; case NodeType::STALL: return {200, 160, 70, 255}; case NodeType::CACHE: return {190, 160, 120, 255};
+        default: return {120, 70, 170, 255};
+    }
+}
 
-        case Phase::MatchOver: {
-            Panel(centre);
-            DrawTextCenteredBold(TextFormat("You beat %s!", DEALER_NAME[std::min(S.match, MATCHES - 1)]), centre.x + centre.width / 2, centre.y + 28, 36, Pal::Good);
-            DrawTextCentered(TextFormat("The pot stands at %d gold.", S.pot), centre.x + centre.width / 2, centre.y + 90, 22, Pal::Ink);
-            if (S.match + 1 >= MATCHES) {
-                DrawTextCentered("The House slides the last of its gold across the table. You've cleaned it out.",
-                                 centre.x + centre.width / 2, centre.y + 140, 17, Pal::BrassDk);
-                if (Button({centre.x + centre.width / 2 - 150, centre.y + 250, 300, 52}, TextFormat("Collect %d gold", S.pot + 100))) {
-                    g.gold += S.pot + 100;
-                    S.payout = S.pot + 100;
-                    S.cashed = true;
-                    S.phase = Phase::RunOver;
+void DrawStatusBar(Vector2 m, float y, bool modal) {
+    // the deck, charms, pack and pot along the bottom of a panel
+    if (!modal && Button({80, y, 130, 34}, TextFormat("Deck (%d)", (int)U.rm.gs.deck.size()), true, 15)) U.showDeck = true;
+    int shown = 0;
+    for (int c = 0; c < CH_COUNT; c++) {
+        if (!U.rm.gs.HasCharm(c)) continue;
+        Vector2 cc{250.0f + shown * 44, y + 17};
+        DrawCharmIcon(c, cc, 36, 0);
+        if (!modal && Dist(m, cc) < 19) Tooltip(std::string(CharmName(c)) + ": " + CharmText(c), {m.x, m.y + 24});
+        shown++;
+    }
+    for (int i = 0; i < (int)U.rm.gs.items.size(); i++) {
+        Vector2 p{520.0f + i * 50, y + 15};
+        DrawBottle(U.rm.gs.items[i], p, 40);
+        if (!modal && Dist(m, p) < 22) Tooltip(std::string(ItemName(U.rm.gs.items[i])) + ": " + ItemText(U.rm.gs.items[i]), {m.x, m.y + 24});
+    }
+    for (int i = 0; i < MAX_MOMENTUM; i++) DrawCircleV({710.0f + i * 22, y + 17}, 8, i < U.rm.gs.momentumTracker ? Color{170, 220, 240, 255} : Color{70, 60, 50, 255});
+    Txt("momentum", 700, y + 30, 11, Fade(Pal::Ink, 0.6f));
+    Txt(TextFormat("Starting bones: %d", U.rm.gs.startBones), 800, y + 8, 15, Pal::Ink);
+}
+
+void DrawMap(Game& g, float t, Vector2 m, bool modal) {
+    (void)g;
+    Rectangle mp{50, 84, 1180, 560};
+    Panel(mp);
+    DrawTextCenteredBold("The Deep Table", mp.x + mp.width / 2, mp.y + 12, 30, Pal::Ink);
+    DrawTextCentered(U.rm.layer < 0 ? "Choose where to begin." : "Choose the next table.", mp.x + mp.width / 2, mp.y + 48, 16, Pal::BrassDk);
+    float x0 = mp.x + 90, x1 = mp.x + mp.width - 90;
+    auto pos = [&](int l, int s) { int w = (int)U.rm.map[l].size(); return Vector2{x0 + (x1 - x0) * l / (MAP_LAYERS - 1), mp.y + 270 + (s - (w - 1) / 2.0f) * 128}; };
+    auto reach = U.rm.Reachable();
+    int nextLayer = U.rm.layer + 1;
+    for (int l = 0; l + 1 < MAP_LAYERS; l++)
+        for (int s = 0; s < (int)U.rm.map[l].size(); s++)
+            for (int nx : U.rm.map[l][s].next) {
+                bool live = l == U.rm.layer && s == U.rm.slot;
+                Color ec = live ? Color{120, 40, 30, 255} : Color{120, 90, 60, 120};
+                Vector2 a = pos(l, s), b = pos(l + 1, nx);
+                for (int k = 0; k < 14; k += 2) DrawLineEx({a.x + (b.x - a.x) * k / 14.0f, a.y + (b.y - a.y) * k / 14.0f}, {a.x + (b.x - a.x) * (k + 1) / 14.0f, a.y + (b.y - a.y) * (k + 1) / 14.0f}, live ? 3.0f : 2.0f, ec);
+            }
+    int hovL = -1, hovS = -1;
+    for (int l = 0; l < MAP_LAYERS; l++)
+        for (int s = 0; s < (int)U.rm.map[l].size(); s++) {
+            const MapNode& n = U.rm.map[l][s];
+            Vector2 p = pos(l, s);
+            float rad = n.type == NodeType::BOSS ? 40 : 28;
+            bool canGo = l == nextLayer && std::find(reach.begin(), reach.end(), s) != reach.end();
+            bool here = l == U.rm.layer && s == U.rm.slot;
+            bool hov = Dist(m, p) < rad + 4;
+            Color col = NodeCol(n.type);
+            bool past = l <= U.rm.layer && !here;
+            if (canGo) Glow(p, rad * 2.0f, Fade(col, 0.22f + 0.1f * sinf(t * 4)));
+            DrawCircleV({p.x + 2, p.y + 3}, rad, Fade(BLACK, 0.3f));
+            DrawCircleV(p, rad, Color{46, 32, 22, 255});
+            DrawCircleV(p, rad - 3, past ? Color{90, 80, 70, 255} : Fade(ColorBrightness(col, -0.45f), 1.0f));
+            DrawNodeIcon(n.type, p, rad * 0.62f, past ? Color{150, 140, 130, 255} : ColorBrightness(col, 0.25f));
+            DrawRing(p, rad - 3, rad, 0, 360, 28, canGo ? Fade(Pal::Brass, hov ? 1.0f : 0.8f) : here ? Color{240, 240, 240, 255} : Color{20, 14, 10, 255});
+            if (here) DrawTri({p.x - 8, p.y - rad - 16}, {p.x + 8, p.y - rad - 16}, {p.x, p.y - rad - 4}, Color{230, 230, 240, 255});
+            if (hov) { hovL = l; hovS = s; }
+            if (canGo && hov && !modal && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) { U.rm.Enter(s); EnterNode(); return; }
+        }
+    if (hovL >= 0 && !modal) {
+        const MapNode& n = U.rm.map[hovL][hovS];
+        std::string txt = std::string(NodeName(n.type)) + (n.type == NodeType::BATTLE || n.type == NodeType::ELITE ? std::string(" vs ") + Dealer(n.dealer).name : "") + ": " + NodeText(n.type);
+        Tooltip(txt, {m.x, m.y + 30});
+    }
+    DrawStatusBar(m, mp.y + mp.height - 64, modal);
+    if (!modal && Button({mp.x + mp.width - 250, mp.y + mp.height - 64, 220, 36}, TextFormat("Cash out %d gold", U.rm.gs.pot), true, 15)) CashOut();
+    Txt(TextFormat("Pot: %d gold%s", U.rm.gs.pot, U.rm.gs.insured ? "  (insured)" : ""), mp.x + mp.width - 250, mp.y + mp.height - 88, 16, Pal::Ink);
+}
+
+// ---------------------------------------------------------------- node screens
+void DrawNodePanel(Game& g, float t, Vector2 m, bool modal) {
+    (void)g; (void)t;
+    Rectangle p{110, 84, 1060, 560};
+    GameState& gs = U.rm.gs;
+    switch (U.nu) {
+        case NodeUi::CardPick: {
+            Panel(p);
+            DrawTextCenteredBold(U.rareOffer ? "A rare find: choose one" : "Choose a card for your deck", p.x + p.width / 2, p.y + 20, 32, Pal::Ink);
+            DrawTextCentered("It joins your deck for the rest of the run.", p.x + p.width / 2, p.y + 66, 16, Pal::BrassDk);
+            int slots = (int)U.offers.size() + (U.offerCharm >= 0 ? 1 : 0);
+            for (int k = 0; k < slots; k++) {
+                Rectangle r{p.x + p.width / 2 - slots * 110.0f + k * 220.0f + 20, p.y + 130, 170, 238};
+                bool hov = CheckCollisionPointRec(m, r) && !modal;
+                if (hov) r.y -= 10;
+                bool charm = k >= (int)U.offers.size();
+                if (charm) DrawCharmCard(r, U.offerCharm); else DrawCardFace(r, U.offers[k], true);
+                if (hov && !charm) Hover(U.offers[k]);
+                if (hov && charm) Tooltip(std::string(CharmName(U.offerCharm)) + ": " + CharmText(U.offerCharm), {m.x, m.y + 24});
+                if (hov && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+                    if (charm) gs.charms |= 1u << U.offerCharm; else U.rm.TakeCard(U.offers[k]);
+                    FinishNode();
+                    return;
                 }
-            } else {
-                DrawWrapped(TextFormat("Cash out and walk away with it, or press on to face %s: a reward for your hand, a sharper dealer, and a bigger pot. "
-                            "Lose the next match and all of it stays on the table.", DEALER_NAME[S.match + 1]),
-                            {centre.x + 50, centre.y + 130, centre.width - 100, 100}, 17, Pal::Ink);
-                if (Button({centre.x + 50, centre.y + 250, 280, 52}, TextFormat("Cash out %d gold", S.pot))) {
-                    g.gold += S.pot;
-                    S.payout = S.pot;
-                    S.cashed = true;
-                    S.phase = Phase::RunOver;
+            }
+            if (!modal && Button({p.x + p.width / 2 - 90, p.y + p.height - 60, 180, 40}, "Take nothing", true, 15)) FinishNode();
+        } break;
+        case NodeUi::Campfire: case NodeUi::Trial: case NodeUi::Sacrifice: {
+            bool camp = U.nu == NodeUi::Campfire, trial = U.nu == NodeUi::Trial;
+            Panel(p);
+            DrawTextCenteredBold(camp ? "The Campfire" : trial ? "The Trial" : "The Sacrifice", p.x + p.width / 2, p.y + 16, 32, Pal::Ink);
+            DrawTextCentered(camp ? "Pick a card, then choose what the fire gives it." : trial ? "Pick a card: -2 defense, +3 strength, for good." : "Pick a card to give up. Every battle you fight will start with an extra bone.",
+                             p.x + p.width / 2, p.y + 60, 16, Pal::BrassDk);
+            std::vector<int> sel; if (U.pick1 >= 0) sel.push_back(U.pick1);
+            int clicked = DeckGrid({p.x + 30, p.y + 100, p.width - 60, p.height - 210}, gs.deck, sel, m,
+                                   [&](int i) { return trial ? gs.deck[i].defense > 2 : (!(U.nu == NodeUi::Sacrifice) || gs.deck.size() > 8); });
+            if (clicked >= 0 && !modal) U.pick1 = clicked;
+            if (U.pick1 >= 0 && U.pick1 < (int)gs.deck.size()) {
+                const Card& c = gs.deck[U.pick1];
+                if (camp) {
+                    if (Button({p.x + p.width / 2 - 250, p.y + p.height - 90, 230, 44}, TextFormat("+1 strength (%d -> %d)", c.strength, c.strength + 1), true, 15)) { U.rm.Campfire(U.pick1, true); FinishNode(); return; }
+                    if (Button({p.x + p.width / 2 + 20, p.y + p.height - 90, 230, 44}, TextFormat("+1 defense (%d -> %d)", c.defense, c.defense + 1), true, 15)) { U.rm.Campfire(U.pick1, false); FinishNode(); return; }
+                } else if (trial) {
+                    if (Button({p.x + p.width / 2 - 150, p.y + p.height - 90, 300, 44}, TextFormat("Face the trial: %d/%d -> %d/%d", c.strength, c.defense, c.strength + 3, c.defense - 2), true, 15)) { U.rm.Trial(U.pick1); FinishNode(); return; }
+                } else {
+                    if (Button({p.x + p.width / 2 - 150, p.y + p.height - 90, 300, 44}, TextFormat("Give up %s", c.name.c_str()), gs.deck.size() > 8, 15)) { U.rm.SacrificeCard(U.pick1); FinishNode(); return; }
                 }
-                if (Button({centre.x + 350, centre.y + 250, 280, 52}, "Press on")) OpenShop();
+            } else DrawTextCentered("Click a card.", p.x + p.width / 2, p.y + p.height - 78, 16, Fade(Pal::Ink, 0.6f));
+            if (!modal && Button({p.x + p.width - 210, p.y + p.height - 90, 170, 40}, "Walk on", true, 15)) FinishNode();
+        } break;
+        case NodeUi::Splice: {
+            Panel(p);
+            DrawTextCenteredBold("The Splice", p.x + p.width / 2, p.y + 16, 32, Pal::Ink);
+            DrawTextCentered(U.pick1 < 0 ? "First choose the card to DESTROY: its sigils are taken." : U.pick2 < 0 ? "Now choose the card that keeps them (up to three sigils)." : "Confirm the splice.",
+                             p.x + p.width / 2, p.y + 60, 16, Pal::BrassDk);
+            std::vector<int> sel; if (U.pick1 >= 0) sel.push_back(U.pick1); if (U.pick2 >= 0) sel.push_back(U.pick2);
+            int clicked = DeckGrid({p.x + 30, p.y + 100, p.width - 60, p.height - 210}, gs.deck, sel, m, [&](int i) { return U.pick1 < 0 ? !gs.deck[i].sigils.empty() : i != U.pick1; });
+            if (clicked >= 0 && !modal) { if (U.pick1 < 0) U.pick1 = clicked; else U.pick2 = clicked; }
+            if (U.pick1 >= 0 && U.pick2 >= 0) {
+                Card k = gs.deck[U.pick2]; for (Sigil s : gs.deck[U.pick1].sigils) k.AddSigil(s);
+                if (Button({p.x + p.width / 2 - 200, p.y + p.height - 90, 400, 44}, TextFormat("Splice: %s absorbs %s", k.name.c_str(), gs.deck[U.pick1].name.c_str()), true, 15)) { U.rm.Splice(U.pick2, U.pick1); FinishNode(); return; }
+            }
+            if (!modal && Button({p.x + 40, p.y + p.height - 90, 150, 40}, "Start over", true, 15)) U.pick1 = U.pick2 = -1;
+            if (!modal && Button({p.x + p.width - 210, p.y + p.height - 90, 170, 40}, "Walk on", true, 15)) FinishNode();
+        } break;
+        case NodeUi::Cache: {
+            Panel({p.x + 250, p.y + 70, 560, 400});
+            DrawTextCenteredBold("A cache in the wreck", p.x + p.width / 2, p.y + 96, 32, Pal::Ink);
+            DrawBottle(U.foundItem, {p.x + p.width / 2, p.y + 220}, 130);
+            DrawTextCenteredBold(ItemName(U.foundItem), p.x + p.width / 2, p.y + 290, 24, Pal::Ink);
+            DrawTextCentered(ItemText(U.foundItem), p.x + p.width / 2, p.y + 326, 16, Pal::BrassDk);
+            bool room = (int)gs.items.size() < MAX_ITEMS;
+            if (room) { if (Button({p.x + p.width / 2 - 110, p.y + 390, 220, 44}, "Take it")) { gs.AddItem(U.foundItem); FinishNode(); return; } }
+            else {
+                DrawTextCentered("Your pack is full. Click an item to swap it out:", p.x + p.width / 2, p.y + 366, 15, Pal::Bad);
+                for (int i = 0; i < (int)gs.items.size(); i++) {
+                    Vector2 c{p.x + p.width / 2 - 70 + i * 70.0f, p.y + 410};
+                    DrawBottle(gs.items[i], c, 50);
+                    if (Dist(m, c) < 28 && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) { gs.items[i] = U.foundItem; FinishNode(); return; }
+                }
+                if (Button({p.x + p.width / 2 - 80, p.y + 436, 160, 32}, "Leave it", true, 14)) FinishNode();
             }
         } break;
-
-        case Phase::Shop: {
-            // the dealer's stall: a dark leather cloth, goods laid out with hanging brass price tags
-            Rectangle sp{150, 90, 980, 470};
+        case NodeUi::Stall: {
+            Rectangle sp{110, 80, 1060, 560};
             DrawRectangleRounded(sp, 0.04f, 8, Color{22, 16, 14, 245});
             DrawRectangleRoundedLinesEx(sp, 0.04f, 8, 3, Pal::BrassDk);
             DrawRectangleRoundedLinesEx({sp.x + 8, sp.y + 8, sp.width - 16, sp.height - 16}, 0.04f, 8, 1, Fade(Pal::Brass, 0.4f));
             DrawTextCenteredBold("The Dealer's Stall", sp.x + sp.width / 2, sp.y + 14, 32, Pal::Brass);
             DrawTextCentered("\"Everything has a price. Yours is the pot.\"", sp.x + sp.width / 2, sp.y + 56, 16, Fade(Pal::Paper, 0.8f));
-            // a gloved hand comes out of the cloak to offer the goods
             {
                 float bob = sinf(t * 1.7f) * 4;
-                DrawTri({sp.x + 40, sp.y + 90}, {sp.x + 130, sp.y + 90}, {sp.x + 100 + bob, sp.y + 168}, Color{14, 18, 26, 255});
-                DrawTri({sp.x + 40, sp.y + 90}, {sp.x + 100 + bob, sp.y + 168}, {sp.x + 60 + bob, sp.y + 180}, Color{20, 26, 36, 255});
-                DrawCircleV({sp.x + 106 + bob, sp.y + 176}, 15, Color{28, 30, 36, 255});
-                for (int k = 0; k < 4; k++) DrawLineEx({sp.x + 112 + bob, sp.y + 170 + k * 5}, {sp.x + 134 + bob, sp.y + 176 + k * 5}, 4, Color{28, 30, 36, 255});
-                DrawCircleV({sp.x + 96 + bob, sp.y + 172}, 4, Fade(Pal::Brass, 0.9f)); // a brass ring on the glove
+                DrawTri({sp.x + 40, sp.y + 96}, {sp.x + 130, sp.y + 96}, {sp.x + 100 + bob, sp.y + 174}, Color{14, 18, 26, 255});
+                DrawTri({sp.x + 40, sp.y + 96}, {sp.x + 100 + bob, sp.y + 174}, {sp.x + 60 + bob, sp.y + 186}, Color{20, 26, 36, 255});
+                DrawCircleV({sp.x + 106 + bob, sp.y + 182}, 15, Color{28, 30, 36, 255});
+                for (int k = 0; k < 4; k++) DrawLineEx({sp.x + 112 + bob, sp.y + 176 + k * 5}, {sp.x + 134 + bob, sp.y + 182 + k * 5}, 4, Color{28, 30, 36, 255});
             }
-            int n = (int)S.shop.size();
-            const char* KIND_NAME[5] = {"Card", "Charm", "Trim a card", "Add an edition", "Insurance"};
-            const char* KIND_TEXT[5] = {"A card for your deck.", "", "Discard a card from your deck (min 8).", "Choose a card: it gains the edition.",
-                                        "If you lose a match, keep half the pot."};
-            float x0 = sp.x + 190, gap = (sp.width - 230) / 5.0f;
+            const char* KIND_NAME[6] = {"Card", "Charm", "Item", "Trim a card", "Add an edition", "Insurance"};
+            const char* KIND_TEXT[6] = {"", "", "", "Discard a card from your deck (min 8).", "Choose a card: it gains the edition.", "If you lose a battle, keep half the pot."};
+            int n = (int)U.shop.size();
+            float x0 = sp.x + 190, gap = (sp.width - 220) / 6.0f;
             for (int k = 0; k < n; k++) {
-                ShopItem& it = S.shop[k];
-                Rectangle r{x0 + k * gap, sp.y + 96, 130, 184};
-                bool afford = !it.sold && it.price <= S.pot;
-                bool hov = CheckCollisionPointRec(m, r) && S.pickItem < 0;
+                ShopItem& it = U.shop[k];
+                Rectangle r{x0 + k * gap, sp.y + 104, 130, 182};
+                bool afford = !it.sold && it.price <= gs.pot;
+                bool hov = CheckCollisionPointRec(m, r) && U.shopPick < 0 && !modal;
                 if (hov && afford) r.y -= 8;
                 if (it.kind == SK_CARD) DrawCardFace(r, it.card, true);
                 else if (it.kind == SK_CHARM) DrawCharmCard(r, it.charm);
                 else {
                     DrawRectangleRounded(r, 0.08f, 6, Color{30, 38, 46, 255});
                     DrawRectangleRoundedLinesEx(r, 0.08f, 6, 2, Pal::BrassDk);
-                    if (it.kind == SK_EDITION) {
-                        Card demo{COIN, 7, SP_NONE, it.card.ed};
-                        DrawCardFace({r.x + 25, r.y + 22, 80, 112}, demo, true);
-                    } else if (it.kind == SK_TRIM) {
-                        DrawCardFace({r.x + 25, r.y + 22, 80, 112}, Card{BLADE, 1, SP_NONE}, true);
-                        DrawLineEx({r.x + 20, r.y + 20}, {r.x + 110, r.y + 138}, 5, Fade(Color{220, 60, 50, 255}, 0.9f));
-                        DrawLineEx({r.x + 110, r.y + 20}, {r.x + 20, r.y + 138}, 5, Fade(Color{220, 60, 50, 255}, 0.9f));
-                    } else {
-                        Glow({r.x + 65, r.y + 76}, 60, Fade(Pal::Brass, 0.25f));
-                        DrawTri({r.x + 65, r.y + 26}, {r.x + 22, r.y + 60}, {r.x + 108, r.y + 60}, Pal::Brass);
-                        DrawRectangle((int)r.x + 26, (int)r.y + 60, 78, 60, Pal::Brass);
-                        DrawRectangle((int)r.x + 58, (int)r.y + 84, 14, 36, Pal::BrassDk);
-                    }
+                    if (it.kind == SK_ITEM) { DrawBottle(it.item, {r.x + 65, r.y + 84}, 96); }
+                    else if (it.kind == SK_EDITION) { Card demo = MakeCard(CardIdByName("Hammerhead"), it.card.edition); DrawCardFace({r.x + 25, r.y + 20, 80, 112}, demo, true); }
+                    else if (it.kind == SK_TRIM) { DrawCardFace({r.x + 25, r.y + 20, 80, 112}, MakeCard(CardIdByName("Bilge Rat")), true); DrawLineEx({r.x + 20, r.y + 20}, {r.x + 110, r.y + 132}, 5, Fade(Color{220, 60, 50, 255}, 0.9f)); DrawLineEx({r.x + 110, r.y + 20}, {r.x + 20, r.y + 132}, 5, Fade(Color{220, 60, 50, 255}, 0.9f)); }
+                    else { Glow({r.x + 65, r.y + 74}, 60, Fade(Pal::Brass, 0.25f)); DrawTri({r.x + 65, r.y + 26}, {r.x + 22, r.y + 60}, {r.x + 108, r.y + 60}, Pal::Brass); DrawRectangle((int)r.x + 26, (int)r.y + 60, 78, 60, Pal::Brass); DrawRectangle((int)r.x + 58, (int)r.y + 84, 14, 36, Pal::BrassDk); }
                     std::string nm = KIND_NAME[it.kind];
-                    Txt(nm, r.x + 65 - MeasureTxt(nm, 14) / 2.0f, r.y + 152, 14, Pal::Paper);
+                    Txt(nm, r.x + 65 - MeasureTxt(nm, 14) / 2.0f, r.y + 150, 14, Pal::Paper);
                 }
-                if (it.sold) { // a SOLD stamp
+                if (it.sold) {
                     DrawRectangleRounded(r, 0.08f, 6, Fade(BLACK, 0.7f));
-                    rlPushMatrix(); rlTranslatef(r.x + 65, r.y + 92, 0); rlRotatef(-18, 0, 0, 1);
+                    rlPushMatrix(); rlTranslatef(r.x + 65, r.y + 90, 0); rlRotatef(-18, 0, 0, 1);
                     TxtBold("SOLD", -MeasureTxt("SOLD", 28, true) / 2.0f, -16, 28, Fade(Color{220, 80, 70, 255}, 0.95f));
                     rlPopMatrix();
                 } else if (!afford) DrawRectangleRounded(r, 0.08f, 6, Fade(BLACK, 0.55f));
-                // the brass price tag, hanging on a string
                 Rectangle tag{r.x + 25, r.y + r.height + 6, 80, 28};
                 DrawLineEx({r.x + 65, r.y + r.height - 2}, {r.x + 65, tag.y + 2}, 1.5f, Fade(Pal::Paper, 0.6f));
                 DrawRectangleRounded(tag, 0.35f, 6, it.sold ? Color{60, 56, 50, 255} : afford ? Pal::Brass : Color{120, 90, 60, 255});
                 DrawCircleV({tag.x + 9, tag.y + 14}, 3, Color{22, 16, 14, 255});
                 TxtBold(TextFormat("%d", it.price), tag.x + 20, tag.y + 4, 18, Color{28, 20, 14, 255});
                 if (hov && !it.sold) {
-                    std::string d = it.kind == SK_CARD ? CardDescription(it.card) : it.kind == SK_CHARM ? std::string(CHARM_NAME[it.charm]) + ": " + CHARM_TEXT[it.charm]
-                                    : std::string(KIND_TEXT[it.kind]) + (it.kind == SK_EDITION ? std::string(" ") + ED_NAME[it.card.ed] + ": " + ED_TEXT[it.card.ed] : "");
-                    Tooltip(d, {m.x, m.y + 22});
-                    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && afford) BuyItem(k);
+                    if (it.kind == SK_CARD) Hover(it.card);
+                    else {
+                        std::string d = it.kind == SK_CHARM ? std::string(CharmName(it.charm)) + ": " + CharmText(it.charm)
+                                        : it.kind == SK_ITEM ? std::string(ItemName(it.item)) + ": " + ItemText(it.item)
+                                        : std::string(KIND_TEXT[it.kind]) + (it.kind == SK_EDITION ? std::string(" ") + EditionName(it.card.edition) + ": " + EditionText(it.card.edition) : "");
+                        Tooltip(d, {m.x, m.y + 22});
+                    }
+                    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && afford) {
+                        if (it.kind == SK_TRIM || it.kind == SK_EDITION) U.shopPick = k;
+                        else {
+                            gs.pot -= it.price; it.sold = true;
+                            if (it.kind == SK_CARD) gs.deck.push_back(it.card);
+                            else if (it.kind == SK_CHARM) gs.charms |= 1u << it.charm;
+                            else if (it.kind == SK_ITEM) { if (!gs.AddItem(it.item)) { gs.pot += it.price; it.sold = false; Toast("Your pack is full."); } }
+                            else if (it.kind == SK_INSURE) gs.insured = true;
+                        }
+                    }
                 }
             }
-            Txt(TextFormat("Pot: %d gold%s", S.pot, S.insured ? "   (insured)" : ""), sp.x + 34, sp.y + 60 + 150, 18, Pal::Brass);
-            if (Button({sp.x + 190, sp.y + sp.height - 130, 200, 40}, TextFormat("Reroll goods (%d)", RerollPrice()), RerollPrice() <= S.pot, 15)) {
-                S.pot -= RerollPrice(); S.rerolls++;
+            Txt(TextFormat("Pot: %d gold%s", gs.pot, gs.insured ? "   (insured)" : ""), sp.x + 34, sp.y + 214, 18, Pal::Brass);
+            if (!modal && U.shopPick < 0 && Button({sp.x + 190, sp.y + sp.height - 130, 200, 40}, TextFormat("Reroll goods (%d)", RerollPrice()), RerollPrice() <= gs.pot, 15)) {
+                gs.pot -= RerollPrice(); U.rerolls++;
                 std::vector<ShopItem> keep;
-                for (auto& it : S.shop) if (it.sold && it.kind != SK_CARD && it.kind != SK_CHARM) keep.push_back(it);
+                for (auto& it : U.shop) if (it.sold && it.kind != SK_CARD && it.kind != SK_CHARM && it.kind != SK_ITEM) keep.push_back(it);
                 StockShop();
-                for (auto& it : S.shop) for (auto& k : keep) if (k.kind == it.kind) it.sold = true;
+                for (auto& it : U.shop) for (auto& k : keep) if (k.kind == it.kind) it.sold = true;
             }
-            if (Button({sp.x + sp.width - 300, sp.y + sp.height - 66, 260, 48}, "Leave the stall")) MakeRewards();
-            // choosing a card for a trim or an edition
-            if (S.pickItem >= 0) {
-                Rectangle p{170, 70, 940, 580};
+            if (!modal && U.shopPick < 0 && Button({sp.x + sp.width - 300, sp.y + sp.height - 66, 260, 48}, "Leave the stall")) FinishNode();
+            if (U.shopPick >= 0) {
+                Rectangle pp{150, 70, 980, 580};
                 DrawRectangle(0, 0, SCREEN_W, SCREEN_H, Fade(BLACK, 0.5f));
-                Panel(p);
-                DrawTextCenteredBold(S.shop[S.pickItem].kind == SK_TRIM ? "Choose a card to discard" : "Choose a card to dress", p.x + p.width / 2, p.y + 14, 30, Pal::Ink);
-                for (int i = 0; i < (int)S.you.deck.size(); i++) {
-                    Rectangle r{p.x + 30 + (i % 8) * 108.0f, p.y + 64 + (i / 8) * 122.0f, 82, 114};
-                    bool ok = S.shop[S.pickItem].kind == SK_TRIM ? S.you.deck.size() > 8 : S.you.deck[i].ed == ED_NONE;
-                    bool hov = CheckCollisionPointRec(m, r) && ok;
-                    if (hov) r.y -= 6;
-                    DrawCardFace(r, S.you.deck[i], true);
-                    if (!ok) DrawRectangleRounded(r, 0.08f, 6, Fade(BLACK, 0.5f));
-                    if (hov && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) { ApplyPick(i); break; }
+                Panel(pp);
+                ShopItem& it = U.shop[U.shopPick];
+                DrawTextCenteredBold(it.kind == SK_TRIM ? "Choose a card to discard" : "Choose a card to dress", pp.x + pp.width / 2, pp.y + 14, 30, Pal::Ink);
+                int clicked = DeckGrid({pp.x + 30, pp.y + 64, pp.width - 60, pp.height - 130}, gs.deck, {}, m,
+                                       [&](int i) { return it.kind == SK_TRIM ? gs.deck.size() > 8 : gs.deck[i].edition == ED_NONE; });
+                if (clicked >= 0) {
+                    if (it.kind == SK_TRIM) gs.deck.erase(gs.deck.begin() + clicked); else gs.deck[clicked].edition = it.card.edition;
+                    gs.pot -= it.price; it.sold = true; U.shopPick = -1;
                 }
-                if (Button({p.x + p.width / 2 - 90, p.y + p.height - 50, 180, 40}, "Cancel")) S.pickItem = -1;
+                if (Button({pp.x + pp.width / 2 - 90, pp.y + pp.height - 54, 180, 40}, "Cancel")) U.shopPick = -1;
             }
         } break;
-
-        case Phase::Reward: {
-            Panel(centre);
-            DrawTextCenteredBold(S.rewardCharm >= 0 ? "Choose a card, or a charm" : "Choose a card for your deck", centre.x + centre.width / 2, centre.y + 24, 32, Pal::Ink);
-            DrawTextCentered(DEALER_LINES[std::min(MATCHES - 1, S.match + 1)], centre.x + centre.width / 2, centre.y + 72, 17, Pal::BrassDk);
-            for (int k = 0; k < (int)S.rewards.size(); k++) {
-                Rectangle r{centre.x + 60 + k * 205.0f, centre.y + 120, 140, 196};
-                bool hov = CheckCollisionPointRec(m, r);
-                if (hov) r.y -= 10;
-                bool charm = k == 2 && S.rewardCharm >= 0;
-                if (charm) DrawCharmCard(r, S.rewardCharm); else DrawCardFace(r, S.rewards[k], true);
-                if (hov && !charm) Tooltip(CardDescription(S.rewards[k]), {m.x, m.y + 22});
-                if (hov && charm) Tooltip(std::string(CHARM_NAME[S.rewardCharm]) + ": " + CHARM_TEXT[S.rewardCharm], {m.x, m.y + 22});
-                if (hov && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) { TakeReward(k); break; }
-            }
-            Txt(TextFormat("Your deck: %d cards", (int)S.you.deck.size()), centre.x + 60, centre.y + 350, 16, Pal::BrassDk);
-        } break;
-
-        case Phase::RunOver: {
-            Panel(centre);
-            if (S.cashed) {
-                DrawTextCenteredBold("You leave the table", centre.x + centre.width / 2, centre.y + 40, 40, Pal::Good);
-                DrawTextCentered(TextFormat("%d gold richer.", S.payout), centre.x + centre.width / 2, centre.y + 110, 26, Pal::Ink);
-            } else {
-                DrawTextCenteredBold("The dealer sweeps the pot", centre.x + centre.width / 2, centre.y + 40, 38, Pal::Bad);
-                if (S.payout > 0 && !S.insurePaid) { g.gold += S.payout; S.insurePaid = true; }
-                DrawTextCentered(S.payout > 0 ? TextFormat("Your insurance pays %d of the %d gold.", S.payout, S.pot)
-                                 : S.pot > 0 ? TextFormat("%d gold, gone.", S.pot) : "You hadn't won anything yet.",
-                                 centre.x + centre.width / 2, centre.y + 110, 24, Pal::Ink);
-            }
-            DrawTextCentered("\"Come back when you've more to lose.\"", centre.x + centre.width / 2, centre.y + 170, 18, Pal::BrassDk);
-            if (Button({centre.x + centre.width / 2 - 260, centre.y + 260, 240, 50}, "Deal again")) { ResetRun(); }
-            if (Button({centre.x + centre.width / 2 + 20, centre.y + 260, 240, 50}, "Leave the table")) LeaveTable(g);
-        } break;
-
         default: break;
     }
+}
+
+// ---------------------------------------------------------------- the room, the panels and the scene
+void DrawRoom(float t) {
+    ClearBackground(Color{4, 5, 8, 255});
+    DrawVGradient({0, 0, (float)SCREEN_W, (float)SCREEN_H}, Color{12, 14, 22, 255}, Color{4, 4, 7, 255});
+    for (int k = 0; k < 6; k++) { // hanging chains in the dark around the dealer
+        float x = 80 + k * 220 + sinf(t * 0.3f + k) * 4;
+        DrawLineEx({x, 0}, {x + 20, 200.0f + (k % 3) * 40}, 3, Color{18, 22, 30, 255});
+        for (int j = 0; j < 4; j++) DrawCircleLines((int)(x + 20 * (j / 4.0f)), 50 + j * 40, 5, Color{24, 30, 40, 255});
+    }
+    float bob = 0, lean = 0;
+    if (U.moodT > 0) {
+        float f = std::min(1.0f, U.moodT);
+        if (U.mood > 0) bob = -6 * fabsf(sinf(t * 9)) * f; else lean = sinf(t * 42) * 3 * f;
+    } else if (U.ph == Ph::Battle && U.bat.turn >= Turn::FOE_START && U.bat.turn <= Turn::FOE_END) bob = sinf(t * 3) * 1.5f;
+    rlPushMatrix();
+    rlTranslatef(lean, bob, 0);
+    DrawDealer(t);
+    rlPopMatrix();
+    DrawTable();
+    DrawSkull(t, 300, 372);
+    DrawScale(U.beam, U.ph == Ph::Battle || U.ph == Ph::Won ? U.bat.board.scale : 0);
+    DrawChips({150, 560}, U.rm.gs.pot, t);
+    for (int k = 0; k < 2; k++) { // bottles on the right
+        float x = 1130 + k * 44, y = 352 + k * 16;
+        DrawRectangleRounded({x - 14, y, 28, 56}, 0.3f, 6, Color{58, 78, 52, 255});
+        DrawRectangle((int)x - 5, (int)y - 14, 10, 16, Color{50, 66, 46, 255});
+        DrawRectangle((int)x - 6, (int)y - 18, 12, 6, Color{150, 108, 60, 255});
+        DrawRectangle((int)x - 10, (int)y + 16, 20, 22, Color{220, 190, 130, 255});
+    }
+}
+
+void DrawHud(Game& g, Vector2 m, bool modal) {
+    (void)m; (void)modal;
+    if (U.ph != Ph::Menu) {
+        DrawRectangleRounded({12, 12, 300, 92}, 0.12f, 6, Color{8, 12, 16, 200});
+        DrawRectangleRoundedLinesEx({12, 12, 300, 92}, 0.12f, 6, 1.5f, Pal::BrassDk);
+        TxtBold("FLATS", 26, 18, 24, Pal::Brass);
+        if (U.ph == Ph::Battle) {
+            Txt(Dealer(U.bat.dealer).name, 116, 24, 16, Pal::Paper);
+            Txt(TextFormat("Turn %d   Deck %d   Hand %d", U.bat.turnNo, (int)U.bat.deck.size(), (int)U.bat.hand.size()), 26, 54, 15, Pal::Paper);
+            Txt(TextFormat("Battles won %d", U.rm.gs.battlesWon), 26, 76, 14, Fade(Pal::Paper, 0.75f));
+        } else {
+            Txt(TextFormat("Table %d of %d", std::max(0, U.rm.layer + 1), MAP_LAYERS), 116, 24, 16, Pal::Paper);
+            Txt(TextFormat("Battles won %d", U.rm.gs.battlesWon), 26, 54, 15, Pal::Paper);
+            Txt(TextFormat("Deck of %d", (int)U.rm.gs.deck.size()), 26, 76, 14, Fade(Pal::Paper, 0.75f));
+        }
+    }
+    DrawRectangleRounded({SCREEN_W - 250.0f, 12, 238, 40}, 0.3f, 6, Color{8, 12, 16, 210});
+    DrawRectangleRoundedLinesEx({SCREEN_W - 250.0f, 12, 238, 40}, 0.3f, 6, 1.5f, Pal::BrassDk);
+    DrawCircle(SCREEN_W - 228, 32, 9, Pal::Brass);
+    TxtBold(TextFormat("%d", g.gold), SCREEN_W - 210, 20, 20, Pal::Brass);
+    Txt(TextFormat("Pot %d", U.rm.gs.pot), SCREEN_W - 120, 23, 17, Pal::Paper);
+}
+
+}  // namespace
+
+// ============================================================================
+void SceneCards(Game& g) {
+    G = &g;
+    if (!U.inited) ResetUi();
+    float dt = GetFrameTime(), t = g.time;
+    SetPost(0.75f, 0.03f, 0.5f);
+    Vector2 m = GetMousePosition();
+    gHasHover = false;
+    UpdateFx(dt);
+    bool modal = U.showRules || U.showDeck;
+    Vector2 sh{sinf(t * 91) * U.shake * 9, cosf(t * 77) * U.shake * 9};
+
+    rlPushMatrix();
+    rlTranslatef(sh.x, sh.y, 0);
+    DrawRoom(t);
+    rlPopMatrix();
+
+    float fl = 1 + 0.06f * sinf(t * 13) + 0.04f * sinf(t * 29 + 1);
+    LightsBegin(Color{22, 24, 32, 255}); // the room is in shadow; the dealer is lit on purpose below
+    AddLight({300, 340}, 380 * fl, Color{255, 190, 110, 255}, 0.95f);
+    AddLight({640, 470}, 620, Color{80, 150, 200, 255}, 0.6f);
+    AddLight({640, 170}, 330, Color{150, 165, 205, 255}, 1.0f);
+    AddLight({640, 330}, 260, Color{70, 150, 190, 255}, 0.8f);
+    AddLight({124, 350}, 260 * fl, Color{255, 200, 120, 255}, 0.4f);
+    AddLight({1090, 460}, 200, Color{255, 190, 110, 255}, 0.45f);
+    if (U.rm.gs.pot > 0) AddLight({170, 550}, 150, Color{255, 200, 100, 255}, 0.3f);
+    LightsEnd();
+    InkPass(0.55f, 0.7f);
+
+    rlPushMatrix();
+    rlTranslatef(sh.x * 0.6f, sh.y * 0.6f, 0);
+    Rectangle centre{300, 110, 680, 400};
+    switch (U.ph) {
+        case Ph::Menu: {
+            Panel(centre);
+            DrawTextCenteredBold("FLATS", centre.x + centre.width / 2, centre.y + 16, 44, Pal::Ink);
+            DrawTextCentered("\"Sit. Cards don't bite. Much.\"", centre.x + centre.width / 2, centre.y + 70, 18, Pal::BrassDk);
+            DrawWrapped("A duel of creatures on a four-lane board. Every card has strength, defense and weight; pay in blood (sacrifice your own creatures) "
+                        "or bones (earned from the dead); and read the sigils. Tip the scales 8 points your way to win a battle.\n\n"
+                        "Between battles you walk a map: card picks, campfires, splices, trials, a stall to spend your winnings, and four dealers, each with a trick of "
+                        "their own. Win fast and you bank Momentum. Cash out after any battle, or press on and risk the pot.\n\nThe HOW TO PLAY tab on the right has the full rules.",
+                        {centre.x + 34, centre.y + 104, centre.width - 68, 230}, 15, Pal::Ink);
+            if (Button({centre.x + centre.width / 2 - 140, centre.y + centre.height - 62, 280, 48}, "Take a seat")) { U.rm.NewRun((unsigned)GetRandomValue(1, 1 << 30)); U.ph = Ph::Map; }
+            if (BackButton(g)) U.inited = false;
+        } break;
+
+        case Ph::Map: DrawMap(g, t, m, modal); break;
+
+        case Ph::Node: DrawNodePanel(g, t, m, modal); break;
+
+        case Ph::Boon: {
+            Panel(centre);
+            const MapNode& n = U.rm.Current();
+            DrawTextCenteredBold(TextFormat("%s%s", n.type == NodeType::ELITE ? "Elite: " : "", Dealer(n.dealer).name), centre.x + centre.width / 2, centre.y + 20, 36, Pal::Ink);
+            DrawTextCentered(Dealer(n.dealer).line, centre.x + centre.width / 2, centre.y + 70, 18, Pal::BrassDk);
+            DrawTextCentered(Dealer(n.dealer).twist, centre.x + centre.width / 2, centre.y + 100, 16, Pal::Ink);
+            DrawTextCenteredBold(TextFormat("You hold %d momentum. Spend one for a head start?", U.rm.gs.momentumTracker), centre.x + centre.width / 2, centre.y + 150, 20, Pal::Ink);
+            struct B { const char* label; Boon b; } bs[3] = {{"Two extra cards", Boon::EXTRA_DRAW}, {"Three bones", Boon::BONES}, {"The scales start +1", Boon::HEAD_START}};
+            for (int i = 0; i < 3; i++)
+                if (Button({centre.x + 34 + i * 214.0f, centre.y + 200, 200, 52}, bs[i].label, true, 15)) { U.rm.SpendMomentum(); StartBattle(bs[i].b); }
+            if (Button({centre.x + centre.width / 2 - 120, centre.y + 300, 240, 46}, "Keep it for later")) StartBattle(Boon::NONE);
+        } break;
+
+        case Ph::Battle: DrawBattle(g, dt, t, m, modal); break;
+
+        case Ph::Won: {
+            DrawBattle(g, 0, t, m, true);
+            Panel(centre);
+            DrawTextCenteredBold(TextFormat("You beat %s!", Dealer(U.bat.dealer).name), centre.x + centre.width / 2, centre.y + 20, 36, Pal::Good);
+            DrawTextCentered(TextFormat("In %d turn%s. +%d gold: the pot stands at %d.", U.lastTurns, U.lastTurns == 1 ? "" : "s", U.gainedGold, U.rm.gs.pot), centre.x + centre.width / 2, centre.y + 80, 20, Pal::Ink);
+            if (U.gainedMomentum) DrawTextCenteredBold("Fast work: +1 momentum.", centre.x + centre.width / 2, centre.y + 112, 20, Color{60, 120, 170, 255});
+            if (U.isBoss) {
+                DrawTextCentered("The House slides the last of its gold across the table. You've cleaned it out.", centre.x + centre.width / 2, centre.y + 160, 17, Pal::BrassDk);
+                if (Button({centre.x + centre.width / 2 - 150, centre.y + 250, 300, 52}, TextFormat("Collect %d gold", U.rm.gs.pot + 100))) {
+                    U.rm.gs.pot += 100; CashOut();
+                }
+            } else {
+                DrawWrapped("Cash out and walk away with it, or press on: another card, a sharper dealer, a bigger pot. Lose the next battle and all of it stays on the table.",
+                            {centre.x + 50, centre.y + 150, centre.width - 100, 80}, 17, Pal::Ink);
+                if (Button({centre.x + 50, centre.y + 250, 280, 52}, TextFormat("Cash out %d gold", U.rm.gs.pot))) CashOut();
+                if (Button({centre.x + 350, centre.y + 250, 280, 52}, U.isElite ? "Press on (a rare find)" : "Press on")) {
+                    if (U.isElite) {
+                        U.offers = U.rm.OfferCards(3, true); U.offerCharm = -1; U.rareOffer = true;
+                        if (U.rm.gs.Charms() < 3) { std::vector<int> free; for (int i = 0; i < CH_COUNT; i++) if (!U.rm.gs.HasCharm(i)) free.push_back(i); if (!free.empty()) U.offerCharm = free[U.rng.I(0, (int)free.size() - 1)]; }
+                        U.nu = NodeUi::CardPick; U.ph = Ph::Node;
+                    } else FinishNode();
+                }
+            }
+        } break;
+
+        case Ph::RunOver: {
+            Panel(centre);
+            if (U.cashed) {
+                DrawTextCenteredBold(U.isBoss ? "You cleared the House!" : "You leave the table", centre.x + centre.width / 2, centre.y + 40, 40, Pal::Good);
+                DrawTextCentered(TextFormat("%d gold richer.", U.payout), centre.x + centre.width / 2, centre.y + 110, 26, Pal::Ink);
+            } else {
+                if (U.payout > 0 && !U.insurePaid) { g.gold += U.payout; U.insurePaid = true; }
+                DrawTextCenteredBold("The dealer sweeps the pot", centre.x + centre.width / 2, centre.y + 40, 38, Pal::Bad);
+                DrawTextCentered(U.payout > 0 ? TextFormat("Your insurance pays %d of the %d gold.", U.payout, U.rm.gs.pot)
+                                 : U.rm.gs.pot > 0 ? TextFormat("%d gold, gone.", U.rm.gs.pot) : "You hadn't won anything yet.", centre.x + centre.width / 2, centre.y + 110, 24, Pal::Ink);
+            }
+            DrawTextCentered("\"Come back when you've more to lose.\"", centre.x + centre.width / 2, centre.y + 170, 18, Pal::BrassDk);
+            if (Button({centre.x + centre.width / 2 - 260, centre.y + 260, 240, 50}, "Deal again")) ResetUi();
+            if (Button({centre.x + centre.width / 2 + 20, centre.y + 260, 240, 50}, "Leave the table")) LeaveTable(g);
+        } break;
+    }
+    // effects over the whole table
+    for (auto& f : U.floats) {
+        float a = 1 - f.t / 1.3f;
+        int fs = (int)f.size;
+        TxtBold(f.text, f.pos.x - MeasureTxt(f.text, fs, true) / 2.0f + 1, f.pos.y + 1, fs, Fade(BLACK, a * 0.8f));
+        TxtBold(f.text, f.pos.x - MeasureTxt(f.text, fs, true) / 2.0f, f.pos.y, fs, Fade(f.col, std::min(1.0f, a * 1.6f)));
+    }
+    DrawParticles();
+    rlPopMatrix();
 
     // leaving mid-run forfeits whatever is unbanked
-    if (!modal && (S.phase == Phase::Playing || S.phase == Phase::Resolving || S.phase == Phase::MatchOver || S.phase == Phase::Shop || S.phase == Phase::Reward))
-        if (Button({20, 122, 150, 34}, S.pot > 0 ? "Fold (lose pot)" : "Fold and leave", true, 14)) LeaveTable(g);
+    bool inRun = U.ph == Ph::Map || U.ph == Ph::Node || U.ph == Ph::Boon || U.ph == Ph::Battle;
+    if (!modal && inRun && Button({20, 122, 150, 34}, U.rm.gs.pot > 0 ? "Fold (lose pot)" : "Fold and leave", true, 14)) LeaveTable(g);
+    if (!modal && U.ph == Ph::Battle && Button({20, 164, 150, 30}, TextFormat("Deck (%d)", (int)U.bat.deck.size() + (int)U.bat.hand.size()), true, 14)) U.showDeck = true;
 
-    // ---------------- the deck viewer
-    if (S.showDeck) {
-        Rectangle p{170, 70, 940, 580};
-        Panel(p);
-        DrawTextCenteredBold(TextFormat("Your deck: %d cards", (int)S.you.deck.size()), p.x + p.width / 2, p.y + 14, 30, Pal::Ink);
-        std::vector<Card> sorted = S.you.deck;
-        std::stable_sort(sorted.begin(), sorted.end(), [](const Card& a, const Card& b) { return a.suit != b.suit ? a.suit < b.suit : a.value < b.value; });
-        for (int i = 0; i < (int)sorted.size(); i++) {
-            Rectangle r{p.x + 30 + (i % 8) * 108.0f, p.y + 64 + (i / 8) * 122.0f, 82, 114};
-            DrawCardFace(r, sorted[i], true);
-            if (CheckCollisionPointRec(m, r)) Tooltip(CardDescription(sorted[i]), {m.x, m.y + 22});
-        }
-        if (Button({p.x + p.width / 2 - 90, p.y + p.height - 50, 180, 40}, "Close")) S.showDeck = false;
+    DrawHud(g, m, modal);
+    if (gHasHover && !modal) DrawInspector(gHoverCard, gHoverHp, gHoverStr);
+    if (U.toastT > 0) {
+        float w = (float)MeasureTxt(U.toast, 17, true);
+        Rectangle r{SCREEN_W / 2.0f - w / 2 - 16, 74, w + 32, 34};
+        DrawRectangleRounded(r, 0.4f, 6, Fade(Color{40, 12, 12, 240}, std::min(1.0f, U.toastT * 3)));
+        DrawRectangleRoundedLinesEx(r, 0.4f, 6, 1.5f, Fade(Pal::Bad, std::min(1.0f, U.toastT * 3)));
+        TxtBold(U.toast, r.x + 16, r.y + 7, 17, Fade(Pal::Paper, std::min(1.0f, U.toastT * 3)));
     }
 
-    // ---------------- the "how to play" folder: open at any time, over everything else
-    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(m, RulesTabRect())) S.showRules = !S.showRules;
+    // ---- the deck viewer
+    if (U.showDeck) {
+        Rectangle p{170, 70, 940, 580};
+        Panel(p);
+        const std::vector<Card>& d = U.ph == Ph::Battle ? U.rm.gs.deck : U.rm.gs.deck;
+        DrawTextCenteredBold(TextFormat("Your deck: %d cards", (int)d.size()), p.x + p.width / 2, p.y + 14, 30, Pal::Ink);
+        DeckGrid({p.x + 30, p.y + 64, p.width - 60, p.height - 130}, d, {}, m);
+        if (gHasHover) DrawInspector(gHoverCard, gHoverHp, gHoverStr);
+        if (Button({p.x + p.width / 2 - 90, p.y + p.height - 54, 180, 40}, "Close")) U.showDeck = false;
+    }
+    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(m, RulesTabRect())) U.showRules = !U.showRules;
     DrawRulesFolder(m);
 }
 
 // ---------------------------------------------------------------- the sprite sheet page
 void FlatsSpritePage(float t) {
+    gHasHover = false;
     DrawVGradient({0, 0, (float)SCREEN_W, (float)SCREEN_H}, Color{12, 14, 22, 255}, Color{4, 4, 7, 255});
-    TxtBold("Flats: the cards, editions, charms, modifiers, the dealer, and the bell", 30, 16, 24, Pal::Brass);
-    int x = 30;
-    for (int s = 0; s < SUITS; s++)
-        for (int v : {2, 5, 9}) {
-            Card c{s, v, SP_NONE};
-            DrawCardFace({(float)x + (v == 2 ? 0 : v == 5 ? 100 : 200), 60.0f + s * 130, 84, 118}, c, true);
-        }
-    Card specials[SP_COUNT - 1] = {{COIN, 2, SP_TIDE}, {BLADE, 1, SP_SNARE}, {CUP, 4, SP_LANTERN}, {SHELL, 2, SP_WAVE}};
-    for (int i = 0; i < SP_COUNT - 1; i++) DrawCardFace({360.0f + i * 100, 60, 84, 118}, specials[i], true);
-    Txt("Specials: Tide, Snare, Lantern, Wave", 360, 184, 15, Pal::Paper);
-    for (int e = ED_FOIL; e < ED_COUNT; e++) DrawCardFace({360.0f + (e - 1) * 100, 214, 84, 118}, Card{e == 2 ? CUP : e == 1 ? COIN : BLADE, 7, SP_NONE, e}, true);
-    DrawCardFace({660, 214, 84, 118}, Card{}, false);
-    Txt("Editions: Foil, Gilt, Hex; and the card back", 360, 338, 15, Pal::Paper);
-    for (int c = 0; c < CH_COUNT; c++) DrawCharmIcon(c, {410.0f + c * 76, 400}, 60, t);
-    Txt("Charms", 360, 438, 15, Pal::Paper);
-    for (int k = 1; k < LM_COUNT; k++) DrawModEmblem(k, {410.0f + k * 76, 480}, t);
-    Txt("Flat modifiers", 360, 508, 15, Pal::Paper);
-    DrawCharmCard({800, 210, 140, 196}, CH_ANCHOR);
-    DrawBell({560, 600}, true, 0);
-    Txt("The bell (ends your turn)", 490, 650, 15, Pal::Paper);
-    S.beam = 0.1f;
-    rlPushMatrix();
-    rlTranslatef(820, 80, 0);
-    rlScalef(0.6f, 0.6f, 1);
-    DrawScale(0.1f);
-    rlPopMatrix();
-    DrawSkull(t, 1000, 640);
-    DrawChips({960, 560}, 240, t);
-    Txt("The balance, the pot, and the candle skull", 800, 690, 15, Pal::Paper);
-    rlPushMatrix();
-    rlTranslatef(180, 460, 0);
-    rlScalef(0.6f, 0.6f, 1);
-    DrawDealer(t);
-    rlPopMatrix();
-    Txt("The dealer", 30, 690, 15, Pal::Paper);
+    TxtBold("Flats: creatures, sigils, charms, bottles, map nodes", 30, 12, 22, Pal::Brass);
+    const auto& cat = Catalog();
+    for (int i = 0; i < (int)cat.size(); i++) {
+        Card c = cat[i];
+        if (i % 7 == 3) c.edition = ED_FOIL; else if (i % 7 == 5) c.edition = ED_GILT; else if (i % 11 == 4) c.edition = ED_HEX;
+        DrawCardFace({20.0f + (i % 13) * 96, 44.0f + (i / 13) * 132, 88, 122}, c, true);
+    }
+    for (int k = 0; k < (int)PackItem::COUNT; k++) DrawBottle(k, {60.0f + k * 70, 480}, 54);
+    for (int c = 0; c < CH_COUNT; c++) DrawCharmIcon(c, {540.0f + c * 60, 480}, 46, t);
+    Txt("Bottles (items) and charms", 40, 516, 14, Pal::Paper);
+    for (int k = 0; k < (int)NodeType::COUNT; k++) {
+        Vector2 p{60.0f + k * 80, 580};
+        DrawCircleV(p, 28, Color{46, 32, 22, 255});
+        DrawNodeIcon((NodeType)k, p, 17, NodeCol((NodeType)k));
+    }
+    Txt("Map nodes: battle, elite, card, campfire, splice, sacrifice, trial, stall, cache, boss", 40, 618, 14, Pal::Paper);
+    for (int s = 1; s < (int)Sigil::COUNT; s++) {
+        Vector2 p{50.0f + (s - 1) * 66, 672};
+        DrawCircleV(p, 22, Fade(Color{38, 26, 20, 255}, 0.9f));
+        DrawSigilGlyph((Sigil)s, p, 30, Color{236, 214, 160, 255});
+        std::string nm = InfoOf((Sigil)s).name;
+        Txt(nm, p.x - MeasureTxt(nm, 9) / 2.0f, p.y + 24, 9, Fade(Pal::Paper, 0.85f));
+    }
+    DrawBell({1180, 560}, true, 0);
+    DrawSkull(t, 1180, 650);
 }
 
-// A mid-round position for screenshots: a few cards already on the table and a full hand, with editions,
-// a modifier and a couple of charms in play. Variant 1 is the reward screen; variant 2 the deck viewer.
-void DebugFlatsDeal(int variant) {
-    ResetRun();
-    S.phase = Phase::Playing;
-    S.match = 1;
-    StartMatch();
-    S.mod[0] = LM_TREASURE; S.mod[1] = LM_REEF; S.mod[2] = LM_NONE;
-    ClearLanes();
-    S.you.charms = (1u << CH_PEARL) | (1u << CH_ANCHOR);
-    S.you.lane[0].push_back({{COIN, 6, SP_NONE, ED_FOIL}, 1});
-    S.you.lane[0].push_back({{COIN, 4, SP_NONE, ED_GILT}, 1});
-    S.you.lane[1].push_back({{BLADE, 5, SP_NONE}, 1});
-    S.you.lane[1].push_back({{SHELL, 3, SP_NONE, ED_HEX}, 0.5f, {640, 664}, 4});
-    S.foe.lane[0].push_back({{CUP, 5, SP_NONE}, 1});
-    S.foe.lane[1].push_back({{SHELL, 3, SP_NONE}, 1});
-    S.foe.lane[1].push_back({{SHELL, 2, SP_WAVE}, 1});
-    S.foe.lane[2].push_back({{BLADE, 7, SP_NONE, ED_FOIL}, 1});
-    S.you.hand.resize(4);
-    S.you.hand[0] = {SHELL, 8, SP_NONE};
-    S.you.hand[1] = {CUP, 4, SP_LANTERN};
-    S.you.hand[2] = {BLADE, 1, SP_SNARE, ED_GILT};
-    S.you.hand[3] = {COIN, 9, SP_NONE, ED_HEX};
-    S.pot = 140;
-    S.beam = 0.1f;
-    Burst({640, 452}, 8, 1, Color{240, 200, 80, 255}, 60);
-    if (variant == 1) { S.match = 1; MakeRewards(); S.rewardCharm = CH_COMPASS; }
-    if (variant == 2) S.showDeck = true;
-    if (variant == 3) { S.pot = 160; OpenShop(); S.shop[0].sold = false; if (S.shop.size() > 2) S.shop[2].sold = true; }
+// ---------------------------------------------------------------- screenshots and tests
+static void DebugRun(unsigned seed) {
+    ResetUi();
+    U.rm.NewRun(seed);
+    U.rm.gs.pot = 140;
+    U.rm.gs.charms = (1u << CH_PEARL) | (1u << CH_ANCHOR);
+    U.rm.gs.items = {(int)PackItem::HARPOON, (int)PackItem::BANDAGE};
+    U.rm.gs.momentumTracker = 2;
+    U.rm.gs.deck.push_back(MakeCard(CardIdByName("Manta Ray"), ED_FOIL));
+    U.rm.gs.deck.push_back(MakeCard(CardIdByName("Kraken Spawn"), ED_GILT));
+    U.rm.gs.deck.push_back(MakeCard(CardIdByName("Stingray"), ED_HEX));
+    U.rm.gs.deck.push_back(MakeCard(CardIdByName("Sperm Whale")));
 }
-void DebugFlatsShop() { DebugFlatsDeal(3); }
-void DebugFlatsDeal() { DebugFlatsDeal(0); }
-void DebugFlatsReward() { DebugFlatsDeal(1); }
-void DebugFlatsDeck() { DebugFlatsDeal(2); }
+void DebugFlatsDeal() {
+    DebugRun(7);
+    U.rm.layer = 4; U.rm.slot = 0;
+    U.rm.map[4][0].type = NodeType::ELITE; U.rm.map[4][0].dealer = 2;
+    StartBattle(Boon::NONE);
+    Battle& b = U.bat;
+    Events ev;
+    b.Draw(true, ev, U.rng);
+    auto put = [&](int r, int c, const char* n, int hpLoss = 0, int ed = ED_NONE) { Card k = MakeCard(CardIdByName(n), ed); k.hp -= hpLoss; b.board.cell[r][c].used = true; b.board.cell[r][c].card = k; b.board.cell[r][c].card.age = 2; };
+    put(R_YOU_FRONT, 0, "Manta Ray", 0, ED_FOIL); put(R_YOU_FRONT, 2, "Crab Sentinel", 1); put(R_YOU_FRONT, 3, "Minnow"); put(R_YOU_BACK, 1, "Ship's Cat");
+    put(R_FOE_FRONT, 0, "Stingray"); put(R_FOE_FRONT, 1, "Rusted Anchor"); put(R_FOE_FRONT, 3, "Hammerhead", 1);
+    put(R_FOE_QUEUE, 2, "Ghost Crab"); put(R_FOE_QUEUE, 3, "Deckhand");
+    b.board.bones[0] = 4; b.board.scale = 2;
+    b.hand.clear();
+    for (const char* n : {"Hammerhead", "Coral Queen", "Ballast Cask", "Moray Eel", "Minnow"}) b.hand.push_back(MakeCard(CardIdByName(n)));
+    b.hand[1].edition = ED_GILT;
+    b.turn = Turn::YOU_MAIN;
+    U.selHand = 0;
+    U.beam = -0.34f * 2.0f / SCALE_LIMIT;
+    U.fx[R_YOU_FRONT][0].flash = 0;
+}
+void DebugFlatsCombat() {
+    DebugFlatsDeal();
+    U.selHand = -1;
+    U.bat.turn = Turn::YOU_COMBAT; U.bat.col = 0; U.stepT = 0;
+}
+void DebugFlatsWon() {
+    DebugFlatsDeal();
+    U.bat.board.scale = SCALE_LIMIT; U.bat.turn = Turn::OVER; U.bat.winner = 1; U.bat.turnNo = 4;
+    HandleBattleEnd();
+}
+void DebugFlatsBoon() {
+    DebugRun(23);
+    U.rm.layer = 1; U.rm.slot = 0;
+    U.rm.map[1][0].type = NodeType::BATTLE; U.rm.map[1][0].dealer = 1;
+    U.ph = Ph::Boon;
+}
+void DebugFlatsMap() {
+    DebugRun(11);
+    U.rm.layer = 2; U.rm.slot = 0;
+    for (int l = 0; l <= 2; l++) for (auto& n : U.rm.map[l]) n.visited = true;
+    U.rm.map[2][0].visited = true;
+    U.rm.gs.battlesWon = 2;
+    U.ph = Ph::Map;
+}
+void DebugFlatsShop() {
+    DebugRun(13);
+    U.rm.layer = 3; U.rm.slot = 0;
+    StockShop();
+    U.shop[1].sold = true;
+    U.nu = NodeUi::Stall; U.ph = Ph::Node;
+}
+void DebugFlatsDeck() { DebugFlatsMap(); U.showDeck = true; }
+void DebugFlatsReward() {
+    DebugRun(17);
+    U.rm.layer = 4; U.rm.slot = 0;
+    U.offers = U.rm.OfferCards(3, true);
+    U.offerCharm = CH_COMPASS; U.rareOffer = true;
+    U.nu = NodeUi::CardPick; U.ph = Ph::Node;
+}
+void DebugFlatsCampfire() {
+    DebugRun(19);
+    U.rm.layer = 3; U.rm.slot = 0;
+    U.nu = NodeUi::Campfire; U.ph = Ph::Node; U.pick1 = 3;
+}
+
 // The carried items and every relic icon, for the sprite sheet.
 void DrawItemSpritePage(float t) {
     (void)t;
@@ -1624,30 +1836,4 @@ void DrawItemSpritePage(float t) {
         std::string tag = relics[i].isHardWeapon ? "hard weapon" : RelicCategoryName(relics[i].category);
         Txt(tag, c.x - MeasureTxt(tag, 11) / 2.0f, c.y + 66, 11, Color{190, 190, 176, 255});
     }
-}
-
-// Plays whole runs headlessly (you at random, the dealer by his own rules) to check the turn logic never
-// stalls and to see how often a random player gets how far. Run with:  depth.exe --flats-sim 2000
-void FlatsSim(int runs, bool sensible) {
-    int reached[MATCHES + 1] = {0}, stalls = 0;
-    long steps = 0;
-    for (int r = 0; r < runs; r++) {
-        ResetRun();
-        S.phase = Phase::Playing;
-        StartMatch();
-        int guard = 0;
-        while (S.phase != Phase::RunOver && ++guard < 20000) {
-            steps++;
-            if (S.phase == Phase::MatchOver) {
-                if (S.match + 1 >= MATCHES) { S.cashed = true; S.phase = Phase::RunOver; }
-                else MakeRewards();
-            } else if (S.phase == Phase::Reward) TakeReward(Roll(0, 2));
-            else UpdateFlats(1.0f, true, sensible);
-        }
-        if (guard >= 20000) stalls++;
-        reached[std::min(MATCHES, S.match + (S.cashed ? 1 : 0))]++;
-    }
-    printf("Flats: %d runs, a %s player against the dealer\n", runs, sensible ? "sensible" : "random");
-    for (int m = 0; m <= MATCHES; m++) printf("  matches won: %d   %5.1f%%\n", m, 100.0 * reached[m] / runs);
-    printf("  stalled runs: %d, average %.0f steps per run\n", stalls, (double)steps / runs);
 }

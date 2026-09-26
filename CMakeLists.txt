@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16)
+﻿cmake_minimum_required(VERSION 3.16)
 project(Depth C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -27,6 +27,10 @@ add_executable(depth
     src/dungeon.cpp
     src/platformer.cpp
     src/flats.cpp
+    src/flats_card.cpp
+    src/flats_board.cpp
+    src/flats_run.cpp
+    src/flats_sim.cpp
     src/relics.cpp
     src/levelgen.cpp
     src/enemyart.cpp
