@@ -32,7 +32,7 @@ constexpr int LIGHT_DIV = 2; // the lightmap is half resolution: softer and chea
 // The scene (and the character canvas) are drawn at twice the screen resolution and scaled down when
 // presented: every edge is anti-aliased, so nothing looks pixelated outside the retro platform levels.
 constexpr int SS = 2;
-constexpr int FIG_W = 340, FIG_H = 440;
+constexpr int FIG_W = 640, FIG_H = 440;
 const Vector2 FIG_FEET = {FIG_W / 2.0f, FIG_H - 24.0f}; // where a figure's feet go on its canvas
 
 // Characters are drawn onto their own canvas, then composited through this shader: it inks a thick

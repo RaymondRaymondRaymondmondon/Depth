@@ -706,6 +706,7 @@ Enemy MakeEnemy(EnemyType t, int uid) {
         } break;
         default: break;    }
     e.hp = e.maxHp;
+    e.span = e.tier == 2 ? 3 : e.boss ? 2 : 1; // bosses are big: a level boss fills three ranks, a mini-boss two
     return e;
 }
 

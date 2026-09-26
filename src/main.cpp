@@ -68,7 +68,11 @@ static void TakeShots(const Game& base, const std::string& dir) {
         {"combat_dark", [](Game& g) { DebugEnterCombat(g); g.dungeon.light = 10; }},
         {"combat_walk", [](Game& g) { DebugEnterCombat(g); g.dungeon.phase = DPhase::Walking; g.dungeon.walkT = 0.4f; }},
         {"combat_deep", [](Game& g) { g.tierCleared[(int)Location::Cave] = 4; g.tierSel[(int)Location::Cave] = 3; DebugEnterCombat(g); }},
-        {"island", [](Game& g) { DebugEnterCombat(g, Location::Island); }},
+        {"foes_crab", [](Game& g) { DebugSetEnemies(g, Location::Cave, {EnemyType::SeaLouse, EnemyType::CaveShrimp, EnemyType::DysCrustacean, EnemyType::SeaLouse}); }},
+        {"boss_lobster", [](Game& g) { DebugSetEnemies(g, Location::Cave, {EnemyType::Lobster, EnemyType::CaveShrimp, EnemyType::SeaLouse}); }},
+        {"boss_queen", [](Game& g) { DebugSetEnemies(g, Location::Cave, {EnemyType::CrustaceanQueen, EnemyType::DysCrustacean}); }},
+        {"foes_tribal", [](Game& g) { DebugSetEnemies(g, Location::Island, {EnemyType::TribalSpearman, EnemyType::WarDog, EnemyType::TribalShaman, EnemyType::TribalSpearman}); }},
+        {"boss_demigod", [](Game& g) { DebugSetEnemies(g, Location::Island, {EnemyType::TribalDemigod, EnemyType::WarDog, EnemyType::TribalShaman}); }},        {"island", [](Game& g) { DebugEnterCombat(g, Location::Island); }},
         {"weeds", [](Game& g) { DebugEnterCombat(g, Location::Weeds); }},
         {"atlantis", [](Game& g) { DebugEnterCombat(g, Location::Atlantis); }},
         {"inventory", [](Game& g) { DebugEnterCombat(g); g.dungeon.phase = DPhase::RoomClear; g.dungeon.roomGold = 24;

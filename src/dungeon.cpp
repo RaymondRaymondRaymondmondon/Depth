@@ -47,11 +47,26 @@ static int EnemyPos(Game& g, int uid) {
 }
 
 // ---------------------------------------------------------------- layout
-// Heroes stand on the left with rank 1 closest to the middle; enemies mirror them on the right.
+// Heroes stand on the left with rank 1 closest to the middle; enemies mirror them on the right. A big enemy fills
+// several ranks (span) but is still one enemy: it can be hit, and can act, from any rank it fills.
 static Rectangle HeroRect(int pos) { float cx = 520 - pos * 125.0f; return {cx - 45, 300, 90, 160}; }
+static int EnemySpan(const Enemy& e) { return std::max(1, e.span); }
+static int SlotStart(Game& g, int idx) { int s = 0; for (int i = 0; i < idx && i < (int)g.dungeon.enemies.size(); i++) s += EnemySpan(g.dungeon.enemies[i]); return s; }
+static int SlotsUsed(Game& g) { return SlotStart(g, (int)g.dungeon.enemies.size()); }
+static bool CoversMask(Game& g, int idx, int mask) { // does the enemy at list index idx fill any rank in mask?
+    if (idx < 0 || idx >= (int)g.dungeon.enemies.size()) return false;
+    int st = SlotStart(g, idx);
+    for (int k = 0; k < EnemySpan(g.dungeon.enemies[idx]); k++) if (mask & (1 << (st + k))) return true;
+    return false;
+}
 static Rectangle EnemyRect(Game& g, int pos) {
-    float cx = 760 + pos * 125.0f;
-    if (pos >= 0 && pos < (int)g.dungeon.enemies.size() && g.dungeon.enemies[pos].boss) return {cx - 58, 250, 116, 210};
+    int slot = pos, span = 1;
+    bool boss = false;
+    if (pos >= 0 && pos < (int)g.dungeon.enemies.size()) { slot = SlotStart(g, pos); span = EnemySpan(g.dungeon.enemies[pos]); boss = g.dungeon.enemies[pos].boss; }
+    float cx = 760 + (slot + (span - 1) * 0.5f) * 125.0f, w = 90 + (span - 1) * 125.0f + (span > 1 ? 34 : 0);
+    if (span >= 3) return {cx - w / 2, 150, w, 310};
+    if (span == 2) return {cx - w / 2, 215, w, 245};
+    if (boss) return {cx - 58, 250, 116, 210};
     return {cx - 45, 330, 90, 130};
 }
 
@@ -152,6 +167,7 @@ static void MoveEnemy(Game& g, int uid, int delta) {
     auto& en = g.dungeon.enemies;
     int i = EnemyPos(g, uid);
     if (i < 0) return;
+    if (en[i].span > 1) { Log(g, en[i].name + " is far too big to move."); return; }
     int j = std::clamp(i + delta, 0, (int)en.size() - 1);
     if (i == j) return;
     Enemy e = en[i];
@@ -164,8 +180,8 @@ static void MoveEnemy(Game& g, int uid, int delta) {
 static std::vector<int> ValidTargets(Game& g, int heroPos, const Ability& a) {
     std::vector<int> v;
     if (a.target == Target::Enemy) {
-        for (int i = 0; i < (int)g.dungeon.enemies.size() && i < 4; i++)
-            if (a.hits & (1 << i)) v.push_back(i);
+        for (int i = 0; i < (int)g.dungeon.enemies.size(); i++)
+            if (CoversMask(g, i, a.hits)) v.push_back(i);
     } else if (a.target == Target::Ally) {
         for (int i = 0; i < PartySize(g); i++) {
             if (a.swapWithTarget && i == heroPos) continue;
@@ -194,8 +210,8 @@ static void HeroAct(Game& g, int heroId, int abilityIdx, int targetPos) {
     if (a.target == Target::Enemy) {
         std::vector<int> uids;
         if (a.aoe) {
-            for (int i = 0; i < (int)d.enemies.size() && i < 4; i++)
-                if (a.hits & (1 << i)) uids.push_back(d.enemies[i].uid);
+            for (int i = 0; i < (int)d.enemies.size(); i++)
+                if (CoversMask(g, i, a.hits)) uids.push_back(d.enemies[i].uid);
         } else if (targetPos >= 0 && targetPos < (int)d.enemies.size()) {
             uids.push_back(d.enemies[targetPos].uid);
         }
@@ -245,7 +261,8 @@ static void HeroAct(Game& g, int heroId, int abilityIdx, int targetPos) {
                         }
                     }
                     if (cs.splashFront > 0) { // dynamite: both front enemies
-                        for (int fi = 0; fi < 2 && fi < (int)d.enemies.size(); fi++) {
+                        for (int fi = 0; fi < (int)d.enemies.size(); fi++) {
+                            if (SlotStart(g, fi) >= 2) break;
                             Enemy& fe = d.enemies[fi];
                             if (!fe.alive) continue;
                             fe.hp -= cs.splashFront;
@@ -317,7 +334,7 @@ static void HeroAct(Game& g, int heroId, int abilityIdx, int targetPos) {
 // sense: no heal when everyone is well, no drag when there's no one at the back to drag.
 static bool EnemyCanUse(Game& g, int uid, const EnemyAbility& a) {
     int rank = EnemyPos(g, uid), n = PartySize(g);
-    if (rank < 0 || n == 0 || !(a.fromRanks & (1 << rank))) return false;
+    if (rank < 0 || n == 0 || !CoversMask(g, rank, a.fromRanks)) return false;
     bool heals = a.healSelf || a.healAllies || a.healLowest;
     if (heals) {
         bool hurt = false;
@@ -489,7 +506,7 @@ static void EnemyAct(Game& g, int uid, int ability) {
             }
         }
         if (a.selfMove) MoveEnemy(g, uid, a.selfMove == -99 ? -EnemyPos(g, uid) : a.selfMove);
-        if (a.summon >= 0 && (int)g.dungeon.enemies.size() < 4) {
+        if (a.summon >= 0 && SlotsUsed(g) < 4) {
             Enemy add = MakeEnemy((EnemyType)a.summon, g.dungeon.nextUid++);
             ScaleEnemyForTier(add, g.dungeon.tier);
             g.dungeon.enemies.push_back(add);
@@ -627,7 +644,7 @@ static void EnterNextRoom(Game& g) {
     d.miniFight = false;
     if (rt == RoomType::Boss) { // the location's level boss stands in front, with its own to back it up
         d.enemies.push_back(MakeEnemy(LocationLevelBoss(d.loc), d.nextUid++));
-        int adds = level >= 5 ? 2 : 1;
+        int adds = 1; // the boss fills three ranks, so only one retainer fits beside it
         for (int i = 0; i < adds; i++) d.enemies.push_back(MakeEnemy(i == adds - 1 && Chance(50) ? pickFrom(supports) : pickFrom(standards), d.nextUid++));
         Log(g, std::string(LocationBossName(d.loc)) + " rises to meet you...");
     } else if (Chance(MiniBossChance(level))) { // a mini-boss: more likely the deeper you go
@@ -671,6 +688,13 @@ void StartDungeon(Game& g, Location loc) {
     for (int id : g.party)
         if (Hero* h = FindHero(g, id)) { h->st = Status{}; h->deathsDoor = false; h->hp = std::max(1, h->hp); }
     g.scene = Scene::Dungeon;
+}
+
+void DebugSetEnemies(Game& g, Location loc, const std::vector<EnemyType>& types) {
+    DebugEnterCombat(g, loc);
+    auto& d = g.dungeon;
+    d.enemies.clear();
+    for (EnemyType ty : types) { Enemy e = MakeEnemy(ty, d.nextUid++); ScaleEnemyForTier(e, d.tier); d.enemies.push_back(e); }
 }
 
 void DebugEnterCombat(Game& g, Location loc) {
@@ -1458,6 +1482,7 @@ static void DrawEnemyFigure(const Enemy& e, Rectangle r, float t) {
         ShadeLimb(hip, knee, w, w * 0.8f, col);
         ShadeLimb(knee, foot, w * 0.8f, w * 0.5f, col);
     };
+    if (DrawRichEnemy(e, r, t)) return;
     if (e.type >= EnemyType::DysCrustacean && e.type != EnemyType::COUNT) { DrawBestiaryFigure(e, r, t); return; } // the region bestiaries
     switch (e.type) {
         case EnemyType::SeaLouse: { // a giant isopod: overlapping armoured plates on seven pairs of legs

@@ -180,6 +180,7 @@ struct Enemy {
     std::string name;
     int maxHp = 1, hp = 1, dmgMin = 1, dmgMax = 1, speed = 0, acc = 80, dodge = 0, prot = 0;
     bool boss = false;                 // drawn large; minis and level bosses both
+    int span = 1;                      // how many of the four enemy ranks it fills: a level boss 3, a mini-boss 2. Still one enemy, hittable in any of its ranks
     int tier = 0;                      // 0 standard, 1 mini-boss, 2 level boss
     bool alive = true;
     std::vector<EnemyAbility> abilities;
@@ -434,6 +435,8 @@ EnemyType LocationLevelBoss(Location loc);
 int MiniBossChance(int levelValue);                       // percent chance of a mini-boss encounter at a depth level
 const char* RegionDebuffName(Location loc);
 void DrawBestiaryFigure(const Enemy& e, Rectangle r, float t); // the new creatures (render.cpp)
+bool DrawRichEnemy(const Enemy& e, Rectangle r, float t);      // the richly drawn creatures (enemyart.cpp); false = not one of them yet
+void DebugSetEnemies(Game& g, Location loc, const std::vector<EnemyType>& types); // debug: a hand-picked enemy line-up in the first fight
 void GiveXP(Game& g, Hero& h, int amount);
 int XpForNextLevel(const Hero& h);
 Hero* FindHero(Game& g, int id);

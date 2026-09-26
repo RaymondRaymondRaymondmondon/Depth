@@ -29,5 +29,6 @@ add_executable(depth
     src/flats.cpp
     src/relics.cpp
     src/levelgen.cpp
+    src/enemyart.cpp
 )
 target_link_libraries(depth PRIVATE raylib)

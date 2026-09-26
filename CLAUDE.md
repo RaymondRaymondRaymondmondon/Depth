@@ -86,3 +86,8 @@ Menu-only, "coming soon": Island, Weeds, Atlantis.
 3. ~~Build the Hull platformer level with its Kraken fight.~~ Done, along with the Pirate Ship and Blackbeard.
 4. Add the other three expedition locations (Island, Weeds, Atlantis), plus the Deep and Abyssal tiers.
 - Open issues: the new abilities make levelled crews noticeably safer (at level 3, deaths per run fall from 0.38 to 0.11); consider tuning once harder tiers exist.
+
+## Enemies (enemyart.cpp)
+- Rich enemies are drawn by `DrawRichEnemy` (a shared kit: two-segment limbs, claws, plates, barnacles, ragged hems, rivets, scars, hatching; lit parts inside the figure shader, facing left). Done so far: the Cave's crustaceans (Sea Louse, Pistol Shrimp, Dysformed Crustacean, Lobster, Crustacean Queen) and the Island's tribe (Spearman, War Dog, Shaman, Demigod). The rest still use the archetype drawers in render.cpp (`DrawBestiaryFigure`).
+- **Bosses fill several ranks** (`Enemy::span`: level boss 3, mini-boss 2; still one enemy, hittable and able to act from any rank it fills; `CoversMask` / `SlotStart` in dungeon.cpp). A level boss leaves room for one retainer; bosses can't be shoved.
+- `depth.exe --shots shots boss_` renders just the shots whose name contains the text (`foes_crab`, `boss_lobster`, `boss_queen`, `foes_tribal`, `boss_demigod`).
