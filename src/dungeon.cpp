@@ -2,6 +2,7 @@
 //  DEPTH - the roguelike expedition: rooms, the flashlight, and combat.
 // ============================================================================
 #include "game.h"
+#include "sprite_renderer.h"
 #include "rlgl.h"
 #include "relics.h"
 #include <algorithm>
@@ -1316,7 +1317,13 @@ static void DrawGroundClutter(Game& g) {
 }
 
 // The very front of the frame: heavy black ink silhouettes at the camera lens, so the scene is seen through them.
+static art::ParallaxBackgroundManager& PaintedBackground(const Game& g, bool& active);
 static void DrawRegionForeground(Game& g) {
+    {
+        bool painted = false;
+        art::ParallaxBackgroundManager& pm = PaintedBackground(g, painted);
+        if (painted) { pm.Draw(art::BackgroundLayer::Foreground, -LayerOffset(g, 1.0f), 0, SCREEN_W, SCREEN_H); return; }
+    }
     auto& d = g.dungeon;
     float t = g.time;
     const Color fg{4, 7, 9, 255};
@@ -1471,7 +1478,33 @@ static void DrawRegionFar(Game& g) {
         }
     }
 }
+// ART HOOK: painted parallax backgrounds. If assets/backgrounds/<region>/layers.txt exists (region: cave, island, weeds, atlantis) the
+// ParallaxBackgroundManager draws those bands (distant and mid planes here, the foreground plane in front of the fighters) at their own
+// scroll speeds, in place of the procedural layers below. See sprite_renderer.h for the file format.
+static art::ParallaxBackgroundManager& PaintedBackground(const Game& g, bool& active) {
+    static art::ParallaxBackgroundManager mgr;
+    static int loaded = -1;
+    static bool have = false;
+    int loc = (int)g.dungeon.loc;
+    if (loaded != loc) {
+        static const char* names[4] = {"cave", "island", "weeds", "atlantis"};
+        loaded = loc;
+        have = art::ParallaxBackgroundManager::HasAssets(names[std::clamp(loc, 0, 3)]) && mgr.LoadRegion(names[std::clamp(loc, 0, 3)]);
+    }
+    active = have;
+    return mgr;
+}
 static void DrawCaveLayers(Game& g) {
+    {
+        bool painted = false;
+        art::ParallaxBackgroundManager& pm = PaintedBackground(g, painted);
+        if (painted) {
+            float camX = -LayerOffset(g, 1.0f);
+            pm.Draw(art::BackgroundLayer::Distant, camX, 0, SCREEN_W, SCREEN_H);
+            pm.Draw(art::BackgroundLayer::Mid, camX, 0, SCREEN_W, SCREEN_H);
+            return;
+        }
+    }
     float t = g.time;
     // 1. the far water, with bioluminescent haze drifting in it
     float deep = CAVE_TIER_LEVEL[g.dungeon.tier] / 6.0f; // deeper levels: darker water, more bones, more glowing things
@@ -1996,6 +2029,19 @@ static void DrawUnitFigures(Game& g) {
         Rectangle r = EnemyRect(g, p);
         Vector2 feet{ShownX(1000000 + e.uid, r.x + r.width / 2, dt) + fx.dx + gShake.x, r.y + r.height + fx.dy + gShake.y}, ff = FigureFeet();
         DrawShadowBlob({feet.x, r.y + r.height}, e.boss ? 70 : 44);
+        // ART HOOK: a painted creature. If assets/enemies/<name>/layers.txt exists (name lower-case, spaces as underscores: ghost_worm,
+        // crustacean_queen, cthulhu ...) it is drawn from its layered high-resolution sprites as painted: no procedural body, no figure
+        // shader, no rust or noise. The collision hull comes from UpdateEnemyCollisionMesh (used by the hit tests when they need it).
+        {
+            std::string key = e.name;
+            for (auto& ch : key) ch = ch == ' ' ? '_' : (char)tolower(ch);
+            static std::unordered_map<std::string, art::EnemyRenderer> painted;
+            if (art::EnemyRenderer::HasAssets(key)) {
+                art::EnemyRenderer& er = painted[key];
+                if (!er.Ready()) er.Load(key);
+                if (er.Ready()) { er.Draw(feet, std::max(0.2f, r.height / 200.0f) * fx.sx, t, fx.tint); continue; }
+            }
+        }
         BeginFigure(); // draw on the figure canvas, lined up so its feet land on FigureFeet()
         DrawEnemyFigure(e, {ff.x - r.width / 2, ff.y - r.height, r.width, r.height}, t);
         float breathe = 1 + 0.012f * sinf(t * 1.7f + e.uid * 1.3f);                               // it breathes, slowly

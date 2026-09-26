@@ -8,6 +8,9 @@
 //  for every lamp, then LightsEnd() multiplies it over what's been drawn.
 // ============================================================================
 #include "game.h"
+#include "sprite_renderer.h"
+#include <map>
+#include <cctype>
 #include "relics.h"
 #include "rlgl.h"
 #include <algorithm>
@@ -91,9 +94,9 @@ void main() {
     float fold = step(0.86, fract((px.x * 0.8 + px.y * 0.45) / 11.0 + hash(floor(px / 23.0)) * 0.5));
     col *= 1.0 - 0.02 * fold;
     float gr = hash(floor(px));
-    (void)gr;
+
     float rn = hash(floor(px / 9.0)) * 0.6 + hash(floor(px / 3.0)) * 0.4;
-    (void)rn; // no rust or grime: the crew and the creatures are drawn clean
+    // no rust or grime: the crew and the creatures are drawn clean
     // strong directional rim light on the edges facing the lamp (upper left): gold, then pale cyan
     float rimA = 1.0 - texture(texture0, uv + vec2(-3.5, -3.0) * uTexel).a;
     float rimB = 1.0 - texture(texture0, uv + vec2(-6.5, -5.5) * uTexel).a;
@@ -905,7 +908,7 @@ void DrawCrewFigure(const Hero& h, Vector2 ft, float s, bool right, float walk, 
     }
     auto P = [&](float dx, float dy) {
         float up = std::clamp((-dy - 8) / 78.0f, 0.0f, 1.0f);
-        float lean = (pose.lean + slouch) * std::max(0.0f, -dy - 86) * 0.35f;
+        float lean = (pose.lean + slouch * 0.35f) * std::max(0.0f, -dy - 86) * 0.35f;   // a standing figure is upright: slouch is only a hint
         float head = std::clamp((-dy - 136) / 6.0f, 0.0f, 1.0f); // the head can bow, snap back and shake
         return Vector2{x + (dx * cw + lean + pose.crouch * 4 * up + head * ((pose.headDown + cHead) * 4 + shake.x)) * s * f,
                        y + (dy * chh + pose.crouch * 16 * up + head * ((pose.headDown + cHead) * 6 + shake.y)) * s};
@@ -947,7 +950,7 @@ void DrawCrewFigure(const Hero& h, Vector2 ft, float s, bool right, float walk, 
 
     auto leg = [&](float hx, float fx, float up, Color col) {
         Vector2 hip = P(hx, -86), foot = P(fx, -7 - up);
-        Vector2 knee = P((hx + fx) * 0.5f + 5 + pose.crouch * 8, -46 - up * 0.5f + pose.crouch * 4);
+        Vector2 knee = P((hx + fx) * 0.5f + 2 + pose.crouch * 8, -46 - up * 0.5f + pose.crouch * 4);
         ShadeLimb(hip, knee, 9.5f * s * bulk, 7.8f * s * bulk, col);
         ShadeLimb(knee, foot, 7.6f * s * bulk, 5.6f * s * bulk, col);
         DrawLineEx(L(hip, knee, 0.3f), L(hip, knee, 0.85f), 1.0f * s, Tone(col, -0.35f)); // trouser crease
@@ -1044,15 +1047,15 @@ void DrawCrewFigure(const Hero& h, Vector2 ft, float s, bool right, float walk, 
     if (!helmeted) ShadeBall(P(-3, -153), 11.5f * s, hair);
     {   // the far arm
         float bR = ease(pose.backRaise);
-        Vector2 sh = P(-6, -128 + br);
-        Vector2 el = walking ? P(-6 - sw * 8, -100) : L(P(-6, -100), P(-10, -158), bR);
-        Vector2 hd = walking ? P(-4 - sw * 17, -72) : L(P(2, -74), P(-4, -192), bR);
+        Vector2 sh = P(-13, -128 + br);   // the arm hangs from the shoulder, out beside the torso, not from the neck
+        Vector2 el = walking ? P(-14 - sw * 8, -100) : L(P(-15, -102), P(-14, -158), bR);
+        Vector2 hd = walking ? P(-12 - sw * 17, -72) : L(P(-14, -76), P(-8, -192), bR);
         hd = {hd.x + shake.x * s, hd.y + shake.y * s};
         arm(sh, el, hd, Tone(sleeve, -0.25f), Tone(forearm, -0.25f));
     }
-    leg(-3, walking ? -sw * 15 - 2 : -12 - pose.stride * 8, liftB * 6, Tone(legs, -0.22f));
+    leg(-5, walking ? -sw * 15 - 4 : -9 - pose.stride * 8, liftB * 6, Tone(legs, -0.22f));
     if (h.cls == HeroClass::Captain) Q(P(-19, -100), P(15, -100), P(19, -34), P(-25, -34), top); // greatcoat skirts
-    leg(4, walking ? sw * 15 + 3 : 13 + pose.stride * 16, lift * 6, legs);
+    leg(5, walking ? sw * 15 + 4 : 9 + pose.stride * 16, lift * 6, legs);
     if (h.cls == HeroClass::Nurse) {
         Q(P(-16, -100), P(16, -100), P(24, -38), P(-23, -38), top); // skirt
         for (int k = 0; k < 3; k++) DrawLineEx(P(-8 + k * 8.0f, -96), P(-11 + k * 11.0f, -42), 1.1f * s, Tone(top, -0.35f)); // folds
@@ -1448,8 +1451,8 @@ void DrawCrewFigure(const Hero& h, Vector2 ft, float s, bool right, float walk, 
 
     // --- the weapon arm, in front of everything, posed by `pose`
     float rz = ease(pose.raise), rc = ease(pose.reach);
-    Vector2 sh = P(6, -128 + br);
-    Vector2 elIdle = walking ? P(6 + sw * 8, -100) : P(14, -102), hdIdle = walking ? P(8 + sw * 17, -74) : P(26, -84);
+    Vector2 sh = P(14, -128 + br);
+    Vector2 elIdle = walking ? P(15 + sw * 8, -100) : P(18, -102), hdIdle = walking ? P(16 + sw * 17, -74) : P(24, -80);
     Vector2 el = L(L(elIdle, P(18, -160), rz), P(34, -120), rc);
     Vector2 hand = L(L(hdIdle, P(10, -192), rz), P(60, -114), rc);
     hand = {hand.x + shake.x * s, hand.y + shake.y * s};
@@ -1550,6 +1553,18 @@ void DrawCrewFigure(const Hero& h, Vector2 ft, float s, bool right, float walk, 
 }
 
 void DrawCrewFigureInked(const Hero& h, Vector2 feet, float s, bool right, float walk, float t, const Pose& pose, Color tint) {
+    // ART HOOK: painted, skeletal explorers. If assets/characters/<class>/skeleton.txt exists (e.g. characters/diver/), the hero is drawn
+    // from its high-resolution attachments exactly as painted: no figure shader, no ink pass, no tint, no rust. Otherwise the procedural figure below is used.
+    if (h.outfit < 0) {
+        static std::map<int, art::CharacterRenderer> painted;
+        std::string folder = ClassName(h.cls);
+        for (auto& ch : folder) ch = (char)tolower(ch);
+        if (art::CharacterRenderer::HasAssets(folder)) {
+            art::CharacterRenderer& cr = painted[(int)h.cls];
+            if (!cr.Ready()) cr.Load(folder);
+            if (cr.Ready()) { cr.Draw(feet, s, right, walk != 0 ? "walk" : "idle", walk != 0 ? walk / 6.0f : t, tint); return; }
+        }
+    }
     BeginFigure();
     DrawCrewFigure(h, FIG_FEET, s, right, walk, t, pose);
     EndFigure(feet, tint);

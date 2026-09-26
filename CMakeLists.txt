@@ -31,6 +31,8 @@ add_executable(depth
     src/flats_board.cpp
     src/flats_run.cpp
     src/flats_sim.cpp
+    src/skeletal_node.cpp
+    src/sprite_renderer.cpp
     src/relics.cpp
     src/levelgen.cpp
     src/enemyart.cpp
