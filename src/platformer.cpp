@@ -116,9 +116,9 @@ struct LevelDef {
 const LevelDef& Lv(int level) {
     static const std::vector<LevelDef> defs = [] {
         std::vector<LevelDef> d(PL_COUNT);
-        d[PL_PIPES] = {"The Pipes", Part{}, Part{}, 0, 90, '#', true, '#'};
-        d[PL_HULL] = {"The Hull", P16(HULL_ARENA), P16(HULL_ARENA_NOBOSS), 0, 220, '.', false, '.'};
-        d[PL_PIRATE] = {"The Pirate Ship", P(CABIN_ARENA, 0, 2), P(CABIN_ARENA_NOBOSS, 0, 2), 0, 340, '#', false, '.'};
+        d[PL_PIPES] = {"The Pipes", Part{}, Part{}, 0, 60, '#', true, '#'};
+        d[PL_HULL] = {"The Hull", P16(HULL_ARENA), P16(HULL_ARENA_NOBOSS), 0, 120, '.', false, '.'};
+        d[PL_PIRATE] = {"The Pirate Ship", P(CABIN_ARENA, 0, 2), P(CABIN_ARENA_NOBOSS, 0, 2), 0, 200, '#', false, '.'};
         return d;
     }();
     return defs[level];
@@ -712,7 +712,7 @@ void ScanTiles(PlatformState& p) {
                 case 'G': p.enemies.push_back({'G', {x + 6, y + T - 30}, {x, y}, -1, 0, 0, Rnd(0, 1.2f)}); break;
                 case 'p': p.enemies.push_back({'p', {x + 16, y + 16}, {x + 16, y + 16}, 1, 0}); break;
                 case 'e': p.enemies.push_back({'e', {x + 16, y + 400}, {x + 16, y}, 1, c * 0.37f}); break;
-                case 'o': if ((r * 7 + c * 13) % 3 != 0) ch = '.'; continue;   // generator "coins" are now sparse breadcrumbs: static guides at jump apexes, never collected
+                case 'o': if ((r * 7 + c * 13) % 5 != 0) ch = '.'; continue;   // generator "coins" survive only as a few faint pools of light: environmental cues, never markers or pickups
                 case 'T': case 'N': case 'y': p.launchers.push_back({c, r, ch, Rnd(0.0f, 2.0f)}); continue; // solid fixtures that fire on a timer: the tile stays
                 case 'K': p.boss.type = 'K'; p.boss.home = {x + 16, y + T}; p.boss.tentT[0] = p.boss.tentT[1] = TENT_IDLE; break;
                 case 'B': p.boss.type = 'B'; p.boss.home = p.boss.pos = {x, y + T - BB_H}; break;
@@ -2003,22 +2003,11 @@ void DrawTile(const PlatformState& p, char c, int x, int y, float t) {
             }
         } break;
         case 'o': {
-            float fl = 0.75f + 0.25f * sinf(t * 3 + x * 1.7f);
-            int cx0 = (int)px + T / 2, cy0 = (int)py + T / 2;
-            if (p.level == PL_HULL) { // a drifting bioluminescent orb: a guide light, not something to collect
-                float bob = sinf(t * 2 + x) * 2;
-                DrawCircle(cx0, (int)(cy0 + bob), 6, Fade(Color{60, 200, 190, 255}, 0.18f * fl));
-                DrawCircle(cx0, (int)(cy0 + bob), 3, Fade(Color{110, 240, 220, 255}, fl));
-                DrawCircle(cx0, (int)(cy0 + bob), 1, WHITE);
-            } else if (p.level == PL_PIPES) { // a small brass steam-lamp on a bracket
-                DrawRectangle(cx0 - 1, cy0 - 8, 2, 6, Color{110, 84, 40, 255});
-                DrawRectangle(cx0 - 4, cy0 - 3, 8, 9, Color{150, 112, 50, 255});
-                DrawRectangle(cx0 - 2, cy0 - 1, 4, 5, Color{255, (unsigned char)(170 + 50 * fl), 80, 255});
-            } else { // a ship's lantern
-                DrawRectangle(cx0, cy0 - 10, 1, 5, Color{60, 44, 30, 255});
-                DrawRectangle(cx0 - 4, cy0 - 5, 8, 10, Color{80, 58, 36, 255});
-                DrawRectangle(cx0 - 2, cy0 - 3, 4, 6, gGhost ? Color{110, 250, 200, 255} : Color{255, (unsigned char)(180 + 40 * fl), 90, 255});
-            }
+            // No marker: just a faint pool of ambient light, the kind of cue the diver has to read (light ahead, a lit passage), never an arrow.
+            float fl = 0.8f + 0.2f * sinf(t * 2.3f + x * 1.7f);
+            Color lc = p.level == PL_HULL ? Color{60, 170, 170, 255} : gGhost ? Color{90, 220, 180, 255} : Color{255, 170, 80, 255};
+            DrawCircle((int)px + T / 2, (int)py + T / 2, 30, Fade(lc, 0.05f * fl));
+            DrawCircle((int)px + T / 2, (int)py + T / 2, 16, Fade(lc, 0.06f * fl));
         } break;
         case 'E':
             if (!p.exitOpen) break;
@@ -2139,7 +2128,7 @@ void DrawGlowingBits(const PlatformState& p, int c0, int c1, int r0, int r1, flo
             if (c == 't' && JetOn(p, x)) for (int k = 1; k <= 3; k++) DrawCircleV({m.x, m.y - k * T}, 18, Color{120, 110, 90, 60});
             else if (c == 'x') DrawCircleV({m.x, m.y + 8}, 16, Color{140, 70, 30, (unsigned char)(50 + 30 * sinf(t * 3 + x))});
             else if (c == 'E') DrawCircleV({m.x, m.y - 10}, 34, Color{255, 120, 80, 90});
-            else if (c == 'o') DrawCircleV(m, 12, p.level == PL_HULL ? Color{30, 110, 110, 90} : Color{120, 84, 30, 90});
+            
             else if (c == 'g') DrawCircleV(m, 16, Color{90, 70, 30, 60});
             if (c == 'g') { float pl = 0.5f + 0.5f * sinf(t * 5 + x * 0.9f); DrawCircleV(m, 26, Color{200, 40, 30, (unsigned char)(20 + 40 * pl)}); }   // a mine's red heart pulses
             if (c == 'v' && VentOn(p, x)) DrawCircleV({m.x, m.y - T}, 26, Color{90, 100, 110, 30});

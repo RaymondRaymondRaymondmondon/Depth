@@ -552,11 +552,11 @@ void ScenePeriscope(Game& g) {
     struct Lvl { const char* diff; const char* desc; const char* reward; };
     const Lvl lv[PL_COUNT] = {
         {"FIRST DIVE", "A long crawl through the Nautilus's steam pipes. No enemies, just hard jumps: steam vents, a shaft to plunge down, and chimneys to wall-jump up.",
-         "90 gold at the valve, up to +60 for a fast run"},
+         "60 gold at the valve, up to +60 for a fast run"},
         {"SECOND DIVE", "Cross the top of the Nautilus's hull: long runs of deck, torpedoes, live plating and mines, and reef walls that force you down through rock tunnels. The Kraken lairs at the end. One touch is fatal.",
-         "220 gold, and a relic roll if you beat the Kraken"},
+         "120 gold, and a relic roll if you beat the Kraken"},
         {"THIRD DIVE", "Board a pirate ship: across the deck, down the hatch into the hold, up the companionway to the captain's cabin. Pirates burst out of doors and shoot from cover.",
-         "340 gold and a relic (a Ghost Ship pays double and two relics)"},
+         "200 gold and a relic (a Ghost Ship pays double and two relics)"},
     };
     for (int i = 0; i < PL_COUNT; i++) {
         bool open = i == 0 || g.platCleared[i - 1];

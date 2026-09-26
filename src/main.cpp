@@ -122,7 +122,7 @@ static void TakeShots(const Game& base, const std::string& dir) {
             for (unsigned seed = 1; seed < 80; seed++) {
                 GenLevel gl = GenerateLevel(PL_HULL, seed, 1.0f);
                 for (size_t i = 1; i < gl.path.size(); i++)
-                    if (gl.path[i].tag == SetPiece::ShaftDown && gl.path[i].ty > gl.exitRow + 3) { // a tunnel under the deck
+                    if (gl.path[i].tag == SetPiece::ShaftDown && gl.rows[gl.exitRow - 9][gl.path[i].tx - 1] == 'R') { // a cavern: reef rock overhead
                         g.platLayouts[PL_HULL] = {(int)seed, 100};
                         StartPlatform(g, PL_HULL);
                         const GenWaypoint& w = gl.path[i - 1];

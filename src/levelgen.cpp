@@ -133,7 +133,7 @@ GenLevel ShaftTemplate(int iw, int Hs, bool up, bool barnacle) {
 //                  urchins, crabs and an eel leaping from the water below
 // Everything is joined by plain deck, so nothing floats: every tile belongs to the hull, the rocks or a fixture on them.
 static void BuildTrench(Grid& g, std::vector<Plat>& pl, Rng& rng, GenLevel& out, const Params& P, int& wOut) {
-    const int H = g.h, F = H - 9;            // nine tiles of deck: room to carve the reef caverns under it
+    const int H = g.h, F = H - 6;
     g.rect(0, F, g.w - 1, H - 1, '#');       // the hull's deck and everything under it
     g.rect(0, 0, g.w - 1, 1, '#');           // the sea's surface overhead
     auto column = [&](int x0, int width, int top, bool tunnel) {
@@ -183,7 +183,7 @@ static void BuildTrench(Grid& g, std::vector<Plat>& pl, Rng& rng, GenLevel& out,
             } break;
             case 1: { // torpedo gap
                 int gw = std::clamp(gm - 1, 4, 6);
-                g.rect(x, F, x + gw - 1, H - 1, '.');
+                for (int xx = x; xx < x + gw; xx++) g.set(xx, F, 'x');              // the hull stays whole: a bed of limpets and urchins on the deck to hop
                 int tx = x + gw + 6;
                 g.rect(tx, F - 2, tx + 1, F - 1, '#');
                 g.set(tx, F - 1, 'T');                                              // the tube, low on the tower, firing along the deck's lane
@@ -211,11 +211,10 @@ static void BuildTrench(Grid& g, std::vector<Plat>& pl, Rng& rng, GenLevel& out,
             } break;
             case 4: { // rotten grating
                 int len = 14;
-                g.rect(x, F, x + len - 1, H - 1, '.');
+                for (int xx = x; xx < x + len; xx++) g.set(xx, F, 'x');            // a spiked bed on the deck, with corroded grating laid over it
                 for (int px2 : {x + 1, x + 5, x + 9}) {
-                    g.rect(px2, F, px2 + 1, F, 'f');
-                    g.set(px2, F - 3, 'o');
-                    Plat plate{px2, px2 + 1, F, C_JUMP, 'f', SetPiece::CrumbleRun, 0, px2};
+                    g.rect(px2, F - 1, px2 + 1, F - 1, 'f');
+                    Plat plate{px2, px2 + 1, F - 1, C_JUMP, 'f', SetPiece::CrumbleRun, 0, px2};
                     pl.push_back(plate);
                 }
                 Plat after{x + len, x + len + 2, F, C_JUMP, '#', SetPiece::None, 0, x + len};
@@ -223,41 +222,37 @@ static void BuildTrench(Grid& g, std::vector<Plat>& pl, Rng& rng, GenLevel& out,
                 out.setPieces[(int)SetPiece::CrumbleRun]++;
                 x += len;
             } break;
-            case 6: { // cavern detour: a reef wall rises from the deck to the surface; the way on is down a mouth in the deck,
-                      // through a low rock tunnel under it, and up a wall-jump shaft back onto the hull
-                int Hs = 6, tl = rng.I(14, 20);
-                int holeX = x + 3, sx = holeX + tl, yb = F + 6;
+            case 6: { // cavern detour: a reef wall stands on the deck and runs to the surface. The way on is in through a low doorway,
+                      // up a wall-jump chimney to a tunnel high in the rock, along it, and down a drop shaft to a doorway on the far side.
+                      // Nothing goes below the deck: the hull is never breached.
+                int Hs = 6, tl = rng.I(12, 18);
+                int dx = x + 8 + tl, bx1 = dx + 5;                                   // the drop shaft, and the reef's far face
                 Plat before{x, x + 2, F, C_JUMP, '#', SetPiece::None, 0, x + 1};
-                g.rect(holeX, F, holeX + 2, yb - 1, '.');               // the mouth
-                g.rect(holeX + 3, F + 2, sx - 1, yb - 1, '.');          // the tunnel: four tiles high, roofed by the reef
-                g.rect(sx, F + 3, sx + 1, yb - 1, '.');                 // the doorway into the shaft
-                g.rect(sx + 2, F, sx + 4, yb - 1, '.');                 // the shaft interior
-                g.rect(holeX + 3, 2, sx + 1, F + 1, 'R');               // the reef wall and the tunnel roof: rock, where the coral grows
-                int px2 = holeX + 3 + rng.I(4, tl - 8);
-                g.set(px2, yb, 'x');                                     // an urchin bed on the tunnel floor: hop it
-                g.set(holeX + tl / 2 + 2, yb - 3, 'o');
-                Plat tunnel{holeX, sx - 1, yb, C_SHAFT_DOWN, '#', SetPiece::ShaftDown, 0, holeX + 1};
-                Plat plateau = CarveShaft(g, tunnel, true, 3, Hs, false, 2);
-                pl.push_back(before); pl.push_back(tunnel); pl.push_back(plateau);
+                g.rect(x + 3, 2, bx1, F - 1, 'R');                                   // the reef, where the coral grows
+                g.rect(x + 3, F - 3, x + 4, F - 1, '.');                             // the entry doorway
+                g.rect(x + 5, F - Hs, x + 7, F - 1, '.');                            // the chimney
+                g.rect(x + 5, F - 10, dx - 1, F - 7, '.');                           // the tunnel, four tiles high
+                g.rect(dx, F - 10, dx + 2, F - 1, '.');                              // the drop shaft
+                g.rect(dx + 3, F - 3, bx1, F - 1, '.');                              // the exit doorway
+                g.set(x + 8 + rng.I(4, tl - 5), F - Hs, 'x');                        // an urchin bed on the tunnel floor: hop it
+                Plat tunnel{x, x + 2, F, C_JUMP, '#', SetPiece::None, 0, x + 1};
+                Plat plateau = CarveShaft(g, tunnel, true, 3, Hs, false, dx - 1 - (x + 9));
+                Plat after{bx1 + 1, bx1 + 3, F, C_SHAFT_DOWN, '#', SetPiece::ShaftDown, 0, bx1 + 1};
+                pl.push_back(before); pl.push_back(plateau); pl.push_back(after);
                 out.setPieces[(int)SetPiece::ShaftUp]++; out.setPieces[(int)SetPiece::ShaftDown]++;
-                x = sx + 6 + 3;
-            } break;
-            default: { // rock reef
+                x = bx1 + 4;
+            } break;            default: { // rock reef
                 int n = 4, w0 = 3;
                 int total = w0 + n * 6;
-                g.rect(x, F, x + total - 1, H - 1, '.');
                 int prevTop = F;
                 for (int k = 0; k < n; k++) {
                     int sx = x + w0 + k * 6;
-                    int top = std::clamp(prevTop + rng.I(-2, 2), F - 3, F);
-                    if (k == n - 1) top = std::max(top, F - 1);
-                    g.rect(sx, top, sx + 2, H - 1, 'R');
+                    int top = std::clamp(prevTop + rng.I(-2, 2), F - 3, F - 1);
+                    g.rect(sx, top, sx + 2, F - 1, 'R');                             // boulders standing on the deck; urchins fill the gaps between
+                    if (k > 0) for (int xx = sx - 3; xx < sx; xx++) g.set(xx, F, 'x');
                     Plat stone{sx, sx + 2, top, C_JUMP, 'R', SetPiece::None, 0, sx + 1};
                     pl.push_back(stone);
-                    if (k == 1) g.set(sx + 1, top, 'x');                             // an urchin bed on the rock
                     if (k == 2 && g.get(sx + 2, top - 1) == '.') g.set(sx + 2, top - 1, 'c');
-                    if (k == 0 || k == 2) g.set(sx - 2, F, 'e');                     // an eel leaping between the stones
-                    g.set(sx + 1, top - 3, 'o');
                     prevTop = top;
                 }
                 Plat after{x + total, x + total + 2, F, C_JUMP, '#', SetPiece::None, 0, x + total};
@@ -267,7 +262,10 @@ static void BuildTrench(Grid& g, std::vector<Plat>& pl, Rng& rng, GenLevel& out,
         }
         // ---- plain deck to breathe on, with a little to pick up
         int breath = rng.I(5, 8);
-        for (int k = 2; k < breath; k += 3) if (g.get(x + k, F - 1) == '.') g.set(x + k, F - 2, 'o');
+        if (rng.C(0.55f)) { // a dense kelp bed growing from the deck: passable, but it swallows the view and drags at a fall
+            int kx = x + rng.I(0, std::max(0, breath - 3)), kh = rng.I(3, 5);
+            for (int i = 0; i < 3; i++) for (int j = 1; j <= kh - (i == 1 ? 0 : 1); j++) if (g.get(kx + i, F - j) == '.') g.set(kx + i, F - j, 'w');
+        }
         x += breath;
     }
     int fx = x + 3;
