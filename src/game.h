@@ -1,4 +1,4 @@
-﻿// ============================================================================
+// ============================================================================
 //  DEPTH - shared header
 //  Everything the different parts of the game need to know about each other.
 // ============================================================================
@@ -535,6 +535,7 @@ void DrawSceneTitle(const char* title, const char* subtitle);
 void DrawGoldBadge(const Game& g);
 void DrawCabinBackground();
 std::string RankString(int mask);
+extern bool gDiveGear;   // true only on an expedition: the crew wear masks and helmets there and take them off aboard the Nautilus
 
 // ---------- hub.cpp ----------
 // sprite sheet pages (depth.exe --sprites)

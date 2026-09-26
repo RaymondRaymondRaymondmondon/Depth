@@ -1,4 +1,4 @@
-﻿// ============================================================================
+// ============================================================================
 //  DEPTH - the Nautilus's grand salon: the hub.
 //
 //  Inspired by Captain Nemo's salon in "Twenty Thousand Leagues Under the Sea":
@@ -130,7 +130,7 @@ const Npc NPCS[] = {
 };
 constexpr int NPC_COUNT = sizeof(NPCS) / sizeof(NPCS[0]);
 struct Walker { int id; Vector2 pos, target; float wait, phase; bool right, atPost; };
-struct Cat { Vector2 pos{120, 700}, target{120, 700}; float wait = 3, phase = 0, purr = 0; bool right = true; };
+struct Cat { Vector2 pos{120, 700}, target{120, 700}; float wait = 3, phase = 0, purr = 0; bool right = true, asleep = false; };
 Rectangle catRect{};   // where the cat is on screen, for clicking
 Vector2 catHead{};     // where its head is on screen, for the hearts
 std::vector<Walker> walkers;
@@ -236,12 +236,12 @@ void UpdateLife(Game& g, float dt) {
         w.pos = np;
         w.phase += dt * 7.5f;
     }
-    if (cat.purr > 0) { cat.purr -= dt; cat.wait = std::max(cat.wait, cat.purr + 0.5f); } // a scratch behind the ears: it stays put
-    if (cat.wait > 0) { cat.wait -= dt; cat.phase = 0; if (cat.wait <= 0) cat.target = FloorSpot(); }
+    if (cat.purr > 0) { cat.asleep = false; cat.purr -= dt; cat.wait = std::max(cat.wait, cat.purr + 0.5f); } // a scratch behind the ears: it stays put
+    if (cat.wait > 0) { cat.wait -= dt; cat.phase = 0; if (cat.wait <= 0) { cat.asleep = false; cat.target = FloorSpot(); } }
     else {
         Vector2 d{cat.target.x - cat.pos.x, cat.target.y - cat.pos.y};
         float len = sqrtf(d.x * d.x + d.y * d.y), step = 55 * dt;
-        if (len <= step + 2) { cat.pos = cat.target; cat.wait = RandF(3, 10); }
+        if (len <= step + 2) { cat.pos = cat.target; cat.asleep = GetRandomValue(0, 99) < 30; cat.wait = cat.asleep ? RandF(16, 34) : RandF(3, 10); }
         else {
             Vector2 np = Steer(cat.pos, cat.target, step);
             cat.right = np.x > cat.pos.x;
@@ -254,12 +254,20 @@ void UpdateLife(Game& g, float dt) {
 // What someone is doing with their hands while they stand at their post.
 Pose WorkPose(const Walker& w, float t) {
     Pose p;
-    if (!w.atPost || w.wait <= 0) return p;
+    if (w.wait <= 0) return p;
     float ph = t + w.id * 1.7f;
     auto bell = [](float u, float a, float b, float c) {
         auto sm = [](float v) { v = std::clamp(v, 0.0f, 1.0f); return v * v * (3 - 2 * v); };
         return u <= a || u >= c ? 0.0f : u < b ? sm((u - a) / (b - a)) : sm((c - u) / (c - b));
     };
+    if (!w.atPost) { // resting between errands: an ambient idle, picked by who they are and how far the errand round has got
+        switch ((w.id + (int)(w.pos.x * 0.013f + w.pos.y * 0.017f) + 3) % 3) {
+            case 0: p.raise = 0.3f; p.weaponTilt = 22 * sinf(ph * 5); p.lean = 0.06f; p.headDown = 0.4f; break;                         // cleaning a weapon
+            case 1: p.reach = 0.28f; p.lean = 0.22f; p.headDown = 0.55f + 0.1f * sinf(ph * 0.8f); p.backRaise = 0.15f; break;            // studying a chart
+            default: { float c = fmodf(ph * 0.35f, 1.0f); p.backRaise = 0.85f * bell(c, 0.1f, 0.3f, 0.6f); p.headDown = -0.25f * bell(c, 0.25f, 0.4f, 0.55f); p.lean = -0.06f * bell(c, 0.2f, 0.35f, 0.6f); } break;   // a cup of tea
+        }
+        return p;
+    }
     switch (NPCS[w.id].outfit) {
         case OUT_HELMSMAN: p.reach = 0.55f + 0.12f * sinf(ph * 0.9f); p.lean = 0.08f; break;           // hands on the wheel
         case OUT_RADIO: p.reach = 0.35f; p.lean = 0.14f + 0.04f * sinf(ph * 2); break;                  // tuning the set
@@ -718,113 +726,117 @@ void DrawChandelier(float t) {
     });
 }
 
-// The ship's cat: a ginger tabby. It wanders, sits and watches, and purrs when you click it.
-// Draws the cat standing at `feet` (k = size), and returns where its head ended up on screen.
-Vector2 DrawCatAt(Vector2 feet, float k, bool right, bool sitting, bool purring, float phase, float t, float seed) {
-    // A cute chibi tabby drawn in plain soft shapes (not through the grim figure shader): a big round head, big
-    // glossy eyes, rounded ears, stubby legs, a fluffy tail. Each shape gets a thin warm outline, a light top and a
-    // soft shaded underside, so it reads as a friendly little animal even at small size.
-    float f = right ? 1.0f : -1.0f;
-    float vib = purring ? sinf(t * 70) * 0.35f : 0;
-    auto P = [&](float dx, float dy) { return Vector2{feet.x + (dx + vib) * f * k, feet.y + dy * k}; };
-    const Color line{150, 84, 42, 255}, fur{236, 156, 78, 255}, furLt{252, 190, 112, 255}, furDk{190, 108, 50, 255};
-    const Color stripe{168, 88, 38, 255}, cream{252, 238, 212, 255}, pink{246, 158, 160, 255};
-    auto Blob = [&](Vector2 c, float rx, float ry, Color col, bool shade = true) {
-        DrawEllipse((int)c.x, (int)c.y, rx * k + 0.8f * k, ry * k + 0.8f * k, line);
-        DrawEllipse((int)c.x, (int)c.y, rx * k, ry * k, col);
-        if (shade) {
-            DrawEllipse((int)(c.x + rx * 0.18f * k * f), (int)(c.y + ry * 0.32f * k), rx * 0.78f * k, ry * 0.58f * k, Tone(col, -0.08f));   // a soft shaded underside
-            DrawEllipse((int)(c.x - rx * 0.14f * k * f), (int)(c.y - ry * 0.28f * k), rx * 0.66f * k, ry * 0.5f * k, Tone(col, 0.07f));    // lit top
-        }
-    };
-    auto Limb = [&](Vector2 a, Vector2 b, float w, Color col) {
-        DrawLineEx(a, b, w * k + 1.6f * k, line); DrawCircleV(a, w * 0.5f * k + 0.8f * k, line); DrawCircleV(b, w * 0.5f * k + 0.8f * k, line);
-        DrawLineEx(a, b, w * k, col); DrawCircleV(a, w * 0.5f * k, col); DrawCircleV(b, w * 0.5f * k, col);
-    };
-    DrawShadowBlob(feet, (sitting ? 17 : 22) * k);
-    Vector2 hc;
-    float tilt = 0;
-    if (!sitting) {
-        float ph = phase, bob = fabsf(sinf(ph)) * 0.7f;
-        Vector2 prev = P(-13, -17); // a tail held high in a curl
-        for (int i = 1; i <= 8; i++) {
-            Vector2 p = P(-14 - i * 1.4f + sinf(t * 2.2f + i * 0.5f) * i * 0.3f, -17 - i * 3.2f + (i > 5 ? (i - 5) * 2.2f : 0));
-            Limb(prev, p, 3.6f - i * 0.15f, i >= 7 ? stripe : fur);
-            prev = p;
-        }
-        for (int leg = 0; leg < 2; leg++) { // far legs, a little darker
-            float lx = leg ? 8 : -10, sw = sinf(ph + PI + leg * PI);
-            Vector2 foot = P(lx + sw * 4, -2 + std::min(0.0f, cosf(ph + PI + leg * PI)) * 2.0f);
-            Limb(P(lx, -12), foot, 4.0f, furDk);
-            Blob({foot.x + 0.6f * f * k, foot.y}, 2.6f, 1.9f, Tone(cream, -0.1f), false);
-        }
-        Blob(P(-1, -15 - bob), 15, 9.2f, fur);                         // the body, long and soft
-        Blob(P(2, -10.5f - bob), 9, 4.3f, cream, false);               // the pale belly
-        for (int i = 0; i < 4; i++) DrawLineEx(P(-9 + i * 4.6f, -22.5f - bob), P(-8 + i * 4.6f, -17 - bob), 1.6f * k, stripe);
-        for (int leg = 0; leg < 2; leg++) { // near legs
-            float lx = leg ? 10 : -8, sw = sinf(ph + leg * PI);
-            Vector2 foot = P(lx + sw * 4, -2 + std::min(0.0f, cosf(ph + leg * PI)) * 2.0f);
-            Limb(P(lx, -12 - bob), foot, 4.4f, fur);
-            Blob({foot.x + 0.6f * f * k, foot.y}, 2.9f, 2.1f, cream, false);
-        }
-        hc = P(16, -25 - bob);
-    } else {
-        tilt = purring ? 0.35f : sinf(t * 0.5f + seed) * 0.6f;
-        Vector2 prev = P(-9, -3); // the tail wrapped round the front paws, its tip flicking
-        for (int i = 1; i <= 8; i++) {
-            float tip = i > 4 ? sinf(t * (purring ? 1.2f : 2.6f)) * (i - 4) * 0.9f : 0;
-            Vector2 p = P(-9 + i * 3.6f, -2.2f - sinf(i * 0.4f) * 1.0f - tip);
-            Limb(prev, p, 3.8f, i >= 7 ? stripe : fur);
-            prev = p;
-        }
-        Blob(P(-2, -10), 11.5f, 11, fur);                              // a round, sitting body
-        Blob(P(4, -9), 6.5f, 8, cream, false);                         // the white bib
-        for (int i = 0; i < 3; i++) DrawLineEx(P(-11 + i * 3.6f, -16 + i * 0.6f), P(-9 + i * 3.6f, -7), 1.6f * k, stripe);
-        for (int leg = 0; leg < 2; leg++) {
-            Vector2 foot = P(4 + leg * 5.0f, -1.6f);
-            Limb(P(3 + leg * 5.0f, -10), foot, 3.8f, leg ? fur : furDk);
-            Blob({foot.x + 0.4f * f * k, foot.y}, 2.9f, 2.1f, cream, false);
-        }
-        hc = P(4 + tilt, -27 + (purring ? 0.8f : 0));
+// The ship's cat: a ginger tabby in pixel art. It wanders, sits and watches (breathing, its tail swishing), sleeps curled up, and purrs
+// when you click it. Each frame is composed on a small character canvas from sprite parts (head, body, tail, legs), then drawn as
+// crisp squares with an ink outline. Returns where its head ended up on screen.
+namespace catpx {
+const int CW = 38, CH = 26;
+struct Canvas {
+    char c[CH][CW];
+    Canvas() { for (auto& r : c) for (char& ch : r) ch = '.'; }
+    void set(int x, int y, char ch) { if (x >= 0 && x < CW && y >= 0 && y < CH) c[y][x] = ch; }
+    char get(int x, int y) const { return x >= 0 && x < CW && y >= 0 && y < CH ? c[y][x] : '.'; }
+    void blit(const char* const* rows, int n, int x, int y) {
+        for (int j = 0; j < n; j++) for (int i = 0; rows[j][i]; i++) if (rows[j][i] != '.') set(x + i, y + j, rows[j][i]);
     }
-    // the head: wide and round, with rounded ears, fluffy cheeks and a tiny cream muzzle
-    for (int e = -1; e <= 1; e += 2) {
-        Vector2 base{hc.x + e * 5.2f * k, hc.y - 3.4f * k}, tip{hc.x + e * 6.8f * k, hc.y - 14.5f * k};
-        DrawTri({base.x - 5.2f * k - 0.8f * k, base.y + 2 * k}, {base.x + 5.2f * k + 0.8f * k, base.y + 2 * k}, {tip.x, tip.y - 0.8f * k}, line);
-        DrawTri({base.x - 5.2f * k, base.y + 2 * k}, {base.x + 5.2f * k, base.y + 2 * k}, tip, fur);
-        DrawTri({base.x - 2.6f * k, base.y + 1.4f * k}, {base.x + 2.6f * k, base.y + 1.4f * k}, {tip.x, tip.y + 3.6f * k}, pink); DrawCircleV({tip.x, tip.y + 1.0f * k}, 1.6f * k, fur); // a rounded ear tip
-    }
-    for (int e = -1; e <= 1; e += 2) Blob({hc.x + e * 7.4f * k, hc.y + 3.0f * k}, 2.4f, 2.2f, furLt, false); // a little cheek fluff
-    Blob(hc, 9.0f, 8.0f, fur);
-    for (int i = -1; i <= 1; i++) DrawLineEx({hc.x + i * 2.6f * k, hc.y - 9 * k}, {hc.x + i * 2.0f * k, hc.y - 5 * k}, 1.3f * k, stripe);      // brow stripes
-    DrawEllipse((int)(hc.x + f * 1.6f * k), (int)(hc.y + 3.6f * k), 4.6f * k, 3.4f * k, cream);                                                                      // the muzzle
-    Vector2 mz{hc.x + f * 1.6f * k, hc.y + 2.6f * k};
-    DrawTri({mz.x - 1.6f * k, mz.y - 1.2f * k}, {mz.x + 1.6f * k, mz.y - 1.2f * k}, {mz.x, mz.y + 0.9f * k}, pink);                            // the nose
-    DrawLineEx({mz.x, mz.y + 0.9f * k}, {mz.x, mz.y + 1.8f * k}, 0.5f * k, Fade(line, 0.7f));
-    DrawRing({mz.x - 1.1f * k, mz.y + 1.8f * k}, 0.8f * k, 1.2f * k, 0, 180, 6, Fade(line, 0.7f));                                            // a small smile
-    DrawRing({mz.x + 1.1f * k, mz.y + 1.8f * k}, 0.8f * k, 1.2f * k, 0, 180, 6, Fade(line, 0.7f));
-    bool blink = fmodf(t * 0.37f + seed * 0.01f, 1.0f) < 0.035f;
-    for (int e = -1; e <= 1; e += 2) {
-        Vector2 ec{hc.x + f * 1.2f * k + e * 4.4f * k, hc.y - 0.4f * k};
-        if (purring || blink) { // happy closed eyes: little upturned arcs
-            DrawRing(ec, 1.6f * k, 2.4f * k, 200, 340, 8, line);
-        } else {
-            DrawEllipse((int)ec.x, (int)ec.y, 2.3f * k, 2.5f * k, line);
-            DrawEllipse((int)ec.x, (int)ec.y, 1.8f * k, 2.0f * k, Color{150, 190, 84, 255});
-            DrawEllipse((int)ec.x, (int)(ec.y + 0.1f * k), 0.7f * k, 1.8f * k, Color{22, 18, 14, 255});
-            DrawCircleV({ec.x - 0.6f * k, ec.y - 0.8f * k}, 0.55f * k, Fade(WHITE, 0.9f));
+    void ellipse(float cx, float cy, float rx, float ry, char ch) {
+        for (int y = 0; y < CH; y++) for (int x = 0; x < CW; x++) {
+            float dx = (x + 0.5f - cx) / rx, dy = (y + 0.5f - cy) / ry;
+            if (dx * dx + dy * dy <= 1) set(x, y, ch);
         }
     }
-    for (int w = -1; w <= 1; w += 2) // whiskers
-        for (int i = 0; i < 2; i++)
-            DrawLineEx({mz.x + w * 5.0f * k, mz.y + 0.8f * k + i * 1.0f * k}, {mz.x + w * 13.0f * k, mz.y - 0.8f * k + i * 2.6f * k}, 0.4f * k, Fade(Color{255, 244, 226, 255}, 0.8f));
-    return hc;
+};
+const char* const HEAD_OPEN[] = {".k........k.", ".kok....kok.", ".kopkkkkpok.", "kooooooooook", "koOooOOooOok", "kogeooooegok", "kooooooooook", "kowwwppwwwok", ".kowwwwwwok.", "..kooooook..", "...kkkkkk..."};
+const char* const HEAD_SHUT[] = {".k........k.", ".kok....kok.", ".kopkkkkpok.", "kooooooooook", "koOooOOooOok", "koeeooooeeok", "kooooooooook", "kowwwppwwwok", ".kowwwwwwok.", "..kooooook..", "...kkkkkk..."};
+const char* const BODY_SIT[] = {"...kkkkkkkk...", "..kooooOooook.", ".kooOooooooowk", ".kooOoooooowwk", "kooooOoooowwwk", "koooooooooowwk", "kooooooooowwwk", "kooooooooowwwk", ".koooooooowwk.", ".kwwkkkkkkwwk.", "..kkk....kkk.."};
+const char* const BODY_WALK[] = {".kkkkkkkkkkkkkkkk.", "koooOoooOoooOooook", "kooooooooooooooook", "kooooooooooooooook", "kowwwwwwwwwwwwwwok", ".kwwwwwwwwwwwwwwk.", "..kkkkkkkkkkkkkk.."};
+const char* const TAIL_A[] = {".kk.....", "koOk....", "kook....", ".kook...", "..kook..", "...kook.", "....kook", ".....kOk", "......kk"};
+const char* const TAIL_B[] = {"..kk....", ".kook...", ".kOok...", ".kook...", "..kook..", "...kook.", "....kook", ".....kOk", "......kk"};
+const char* const TAIL_C[] = {"kk......", "koOk....", ".kook...", "..kook..", "..kook..", "...kook.", "....kook", ".....kOk", "......kk"};
+Color Pal(char ch) {
+    switch (ch) {
+        case 'k': return {92, 52, 30, 255};
+        case 'o': return {238, 150, 66, 255};
+        case 'O': return {186, 96, 40, 255};
+        case 'w': return {252, 236, 208, 255};
+        case 'p': return {244, 150, 156, 255};
+        case 'g': return {150, 200, 84, 255};
+        case 'e': return {28, 20, 16, 255};
+        case 'l': return {252, 186, 108, 255};
+        default: return {0, 0, 0, 0};
+    }
 }
-void DrawCat(float t) {
+void Leg(Canvas& cv, int x, float ph, bool far) {
+    float sw = sinf(ph), lift = std::max(0.0f, cosf(ph));
+    int xo = (int)lroundf(sw * 2), top = 19, bot = 23 - (lift > 0.55f ? 1 : 0);
+    for (int y = top; y <= bot; y++) {
+        cv.set(x + xo, y, 'k'); cv.set(x + xo + 1, y, y == bot ? 'w' : (far ? 'O' : 'o')); cv.set(x + xo + 2, y, 'k');
+    }
+    cv.set(x + xo, bot, 'k'); cv.set(x + xo + 2, bot, 'k');
+}
+}  // namespace catpx
+
+Vector2 DrawCatAt(Vector2 feet, float k, bool right, bool sitting, bool purring, float phase, float t, float seed, bool asleep = false) {
+    using namespace catpx;
+    Canvas cv;
+    bool blink = fmodf(t * 0.37f + seed * 0.01f, 1.0f) < 0.035f;
+    int breath = sinf(t * 2.0f + seed) > 0.25f ? 1 : 0;   // a slow rise and fall
+    int tf = (int)floorf(fmodf(t * (purring ? 1.6f : 1.1f) + seed * 0.07f, 4.0f));
+    const char* const* tail = (tf == 0 || tf == 2) ? TAIL_B : (tf == 1 ? TAIL_A : TAIL_C);   // the swish: up, left, up, right
+    int hx = 0, hy = 0;
+    if (asleep) {
+        cv.ellipse(15, 18.5f, 12, 5.6f + breath * 0.9f, 'o');   // a curled loaf that swells as it breathes
+        for (int i = 0; i < 5; i++) for (int y = 0; y < 3; y++) cv.set(9 + i * 3, 13 - breath + y, 'O');
+        for (int x = 4; x < 20; x++) { cv.set(x, 23, 'o'); cv.set(x, 22, 'o'); }   // the tail curled along the front
+        for (int x = 4; x < 8; x++) cv.set(x, 22, 'O');
+        cv.blit(HEAD_SHUT, 11, 20, 12 - breath); hx = 26; hy = 17;
+    } else if (sitting) {
+        cv.blit(tail, 9, 2, 12);
+        cv.blit(BODY_SIT, 11, 10, 13);
+        cv.blit(purring || blink ? HEAD_SHUT : HEAD_OPEN, 11, 16, 5 + (breath ? 0 : 1));
+        hx = 22; hy = 10 + (breath ? 0 : 1);
+    } else {
+        float bob = fabsf(sinf(phase)) > 0.6f ? 1.0f : 0.0f;
+        cv.blit(tail, 9, 1, 8);
+        Leg(cv, 13, phase + PI, true); Leg(cv, 24, phase, true);
+        cv.blit(BODY_WALK, 7, 9, 12 + (int)bob);
+        Leg(cv, 11, phase, false); Leg(cv, 22, phase + PI, false);
+        cv.blit(HEAD_OPEN, 11, 24, 6 + (int)bob);
+        hx = 30; hy = 11 + (int)bob;
+    }
+    // the ink outline, drawn round anything that isn't already a dark line
+    Canvas out = cv;
+    for (int y = 0; y < CH; y++) for (int x = 0; x < CW; x++) {
+        if (cv.get(x, y) != '.') continue;
+        bool nb = false;
+        for (int d = 0; d < 4 && !nb; d++) { char q = cv.get(x + (d == 0) - (d == 1), y + (d == 2) - (d == 3)); nb = q != '.' && q != 'k'; }
+        if (nb) out.set(x, y, 'k');
+    }
+    float f = right ? 1.0f : -1.0f, ps = 2.3f * k;
+    int lastRow = 0;
+    for (int y = 0; y < CH; y++) for (int x = 0; x < CW; x++) if (out.get(x, y) != '.') lastRow = y;
+    Vector2 origin{feet.x - f * (CW / 2) * ps, feet.y - (lastRow + 1) * ps};
+    auto X = [&](int cx) { return roundf(origin.x + f * cx * ps); };
+    DrawShadowBlob(feet, (asleep ? 26 : sitting ? 19 : 24) * k);
+    float vib = purring ? (fmodf(t * 30, 2.0f) < 1 ? 0.0f : ps * 0.5f) : 0;
+    for (int y = 0; y < CH; y++) for (int x = 0; x < CW; x++) {
+        char ch = out.get(x, y);
+        if (ch == '.') continue;
+        float x0 = X(x), x1 = X(x + 1), yy0 = roundf(origin.y + y * ps + vib * (y < lastRow - 4 ? 1 : 0)), yy1 = roundf(origin.y + (y + 1) * ps + vib * (y < lastRow - 4 ? 1 : 0));
+        DrawRectangleRec({std::min(x0, x1), yy0, fabsf(x1 - x0), yy1 - yy0}, Pal(ch));
+    }
+    if (asleep) { // z z z
+        for (int i = 0; i < 3; i++) {
+            float ph = fmodf(t * 0.35f + i / 3.0f, 1.0f);
+            TxtBold("z", X(hx) + f * ps * 2 + ph * 12 * f, origin.y + hy * ps - ph * 40 * k - 6, (int)(10 + ph * 8), Fade(Pal::Paper, (1 - ph) * 0.85f));
+        }
+    }
+    return {X(hx), origin.y + hy * ps};
+}void DrawCat(float t) {
     float Z = cat.pos.y, k = Px(Z) * 2.7f;
     Vector2 feet = Proj(cat.pos.x, 0, Z);
     catRect = {feet.x - 28 * k, feet.y - 46 * k, 56 * k, 48 * k};
-    catHead = DrawCatAt(feet, k, cat.right, cat.wait > 0, cat.purr > 0, cat.phase, t, cat.pos.x);
+    catHead = DrawCatAt(feet, k, cat.right, cat.wait > 0, cat.purr > 0, cat.phase, t, cat.pos.x, cat.asleep && cat.purr <= 0);
 }
 
 // Hearts rise while the cat purrs (drawn after the ink pass, so they stay soft).

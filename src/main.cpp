@@ -1,4 +1,4 @@
-﻿// ============================================================================
+// ============================================================================
 //  DEPTH - entry point. Opens the window and runs whichever scene is active.
 //
 //  Developer switches:
@@ -19,6 +19,7 @@
 #include <string>
 
 static void RunScene(Game& g) {
+    gDiveGear = g.scene == Scene::Dungeon;   // masks and helmets only on expedition
     switch (g.scene) {
         case Scene::Hub:        SceneHub(g); break;
         case Scene::Helm:       SceneHelm(g); break;
@@ -117,7 +118,20 @@ static void TakeShots(const Game& base, const std::string& dir) {
         {"pirate_hold", [](Game& g) { g.platHard = true; g.platLayouts[PL_PIRATE] = {808, 100}; StartPlatform(g, PL_PIRATE); g.plat.pos = g.plat.spawns[4]; }},
         {"pirate_stairs", [](Game& g) { g.platLayouts[PL_PIRATE] = {909, 100}; StartPlatform(g, PL_PIRATE); g.plat.pos = g.plat.spawns[6]; }},        {"pirate_cannon", [](Game& g) { ShotAtLauncher(g, PL_PIRATE, 'N'); }},
         {"pirate_barrel", [](Game& g) { ShotAtLauncher(g, PL_PIRATE, 'y'); }},
-        {"hull_torpedo", [](Game& g) { ShotAtLauncher(g, PL_HULL, 'T'); }},
+        {"hull_cavern", [](Game& g) {
+            for (unsigned seed = 1; seed < 80; seed++) {
+                GenLevel gl = GenerateLevel(PL_HULL, seed, 1.0f);
+                for (size_t i = 1; i < gl.path.size(); i++)
+                    if (gl.path[i].tag == SetPiece::ShaftDown && gl.path[i].ty > gl.exitRow + 3) { // a tunnel under the deck
+                        g.platLayouts[PL_HULL] = {(int)seed, 100};
+                        StartPlatform(g, PL_HULL);
+                        const GenWaypoint& w = gl.path[i - 1];
+                        g.plat.pos = {w.tx * 32.0f + 6, (w.ty - g.plat.genTop + 1) * 32.0f - 26};
+                        return;
+                    }
+            }
+        }},
+        {"hull_torpedo",[](Game& g) { ShotAtLauncher(g, PL_HULL, 'T'); }},
         {"pipes_vent", [](Game& g) { ShotAtPiece(g, PL_PIPES, SetPiece::SteamBoost); g.plat.time = 0.4f; }},
         {"pipes_crumble", [](Game& g) { ShotAtPiece(g, PL_PIPES, SetPiece::CrumbleRun); }},
         {"hull_barnacle", [](Game& g) { ShotAtPiece(g, PL_HULL, SetPiece::BarnacleShaft); }},

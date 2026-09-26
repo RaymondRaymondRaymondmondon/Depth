@@ -1,4 +1,4 @@
-﻿// ============================================================================
+// ============================================================================
 //  DEPTH - rendering: textures generated in code, lighting, post-processing,
 //  shared props (pipes, gauges, gears) and the shaded crew figures.
 //
@@ -26,7 +26,7 @@ struct ArtState {
     Shader post{}, figShader{}, ink{}, blur{};
     int locBlurTexel = -1;
     int locTime = -1, locRes = -1, locVig = -1, locGrain = -1, locBloom = -1;
-    int locFigTexel = -1, locFigOutline = -1, locInkRes = -1, locInkAmt = -1, locInkHatch = -1;
+    int locFigTexel = -1, locFigOutline = -1, locFigVib = -1, locInkRes = -1, locInkAmt = -1, locInkHatch = -1;
     float vignette = 0.45f, grain = 0.03f, bloom = 0.35f;
     bool lightsOpen = false;
 };
@@ -47,6 +47,7 @@ in vec4 fragColor;
 uniform sampler2D texture0;
 uniform vec2 uTexel;
 uniform float uOutline;
+uniform float uVibrance;
 out vec4 finalColor;
 const vec3 INK = vec3(0.055, 0.042, 0.036);
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
@@ -104,6 +105,11 @@ void main() {
     col = mix(col, vec3(0.62, 0.9, 1.0), rimB * (1.0 - rimA) * 0.4);
     if (e1 < 0.5) col = mix(col * 0.55, INK, 0.25);  // a thin, sharp shadow edge on the far side only: the fill keeps its colour
     else if (e2 < 0.5) col *= 0.92;
+    if (uVibrance > 0.0) { // aboard the Nautilus: warmer, more saturated and higher in contrast, to sit in the brass-lit salon
+        float lv = dot(col, vec3(0.299, 0.587, 0.114));
+        col = mix(vec3(lv), col, 1.0 + 0.45 * uVibrance) * vec3(1.06, 1.0, 0.9);
+        col = (col - 0.5) * (1.0 + 0.18 * uVibrance) + 0.5 + 0.03 * uVibrance;
+    }
     finalColor = vec4(col * fragColor.rgb, fragColor.a);
 }
 )";
@@ -366,6 +372,7 @@ void InitArt() {
     A.figShader = LoadShaderFromMemory(nullptr, FIG_FS);
     A.locFigTexel = GetShaderLocation(A.figShader, "uTexel");
     A.locFigOutline = GetShaderLocation(A.figShader, "uOutline");
+    A.locFigVib = GetShaderLocation(A.figShader, "uVibrance");
     A.ink = LoadShaderFromMemory(nullptr, INK_FS);
     A.locInkRes = GetShaderLocation(A.ink, "uRes");
     A.locInkAmt = GetShaderLocation(A.ink, "uInk");
@@ -805,6 +812,8 @@ void EndFigure(Vector2 feet, Color tint, float sx, float sy) {
     float texel[2] = {1.0f / FIG_W, 1.0f / FIG_H}, outline = 2.6f;
     SetShaderValue(A.figShader, A.locFigTexel, texel, SHADER_UNIFORM_VEC2);
     SetShaderValue(A.figShader, A.locFigOutline, &outline, SHADER_UNIFORM_FLOAT);
+    float vib = gDiveGear ? 0.0f : 1.0f;   // every figure drawn off-expedition gets the Nautilus's warm, vivid look
+    SetShaderValue(A.figShader, A.locFigVib, &vib, SHADER_UNIFORM_FLOAT);
     BeginShaderMode(A.figShader);
     DrawTexturePro(A.fig.texture, {0, 0, (float)FIG_W * SS, -(float)FIG_H * SS},
                    {roundf(feet.x - FIG_FEET.x * sx), roundf(feet.y - FIG_FEET.y * sy), (float)FIG_W * sx, (float)FIG_H * sy}, {0, 0}, 0, tint); // squash and stretch, about the feet
@@ -876,6 +885,7 @@ void ShadeQuad(Vector2 tl, Vector2 tr, Vector2 br, Vector2 bl, Color c) {
 // About 165 px tall at scale 1, standing on `ft`. `walk` is a phase in radians; 0 means standing in a
 // ready stance. All offsets below are written facing right and mirrored for facing left. `pose` bends
 // the figure for combat animations: leaning, crouching, raising or thrusting the weapon arm.
+bool gDiveGear = false;
 void DrawCrewFigure(const Hero& h, Vector2 ft, float s, bool right, float walk, float t, const Pose& pose) {
     float f = right ? 1.0f : -1.0f, x = ft.x;
     int seed = h.id * 7919 + 13;
@@ -1043,7 +1053,7 @@ void DrawCrewFigure(const Hero& h, Vector2 ft, float s, bool right, float walk, 
             prev = p;
         }
     }
-    bool helmeted = h.cls == HeroClass::Diver || h.cls == HeroClass::Robot || h.cls == HeroClass::Octopus || h.cls == HeroClass::Wisp;
+    bool helmeted = (h.cls == HeroClass::Diver && gDiveGear) || h.cls == HeroClass::Robot || h.cls == HeroClass::Octopus || h.cls == HeroClass::Wisp;
     if (!helmeted) ShadeBall(P(-3, -153), 11.5f * s, hair);
     {   // the far arm
         float bR = ease(pose.backRaise);

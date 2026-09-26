@@ -1,4 +1,4 @@
-﻿#include "levelgen.h"
+#include "levelgen.h"
 #include <algorithm>
 #include <cmath>
 #include <random>
@@ -133,7 +133,7 @@ GenLevel ShaftTemplate(int iw, int Hs, bool up, bool barnacle) {
 //                  urchins, crabs and an eel leaping from the water below
 // Everything is joined by plain deck, so nothing floats: every tile belongs to the hull, the rocks or a fixture on them.
 static void BuildTrench(Grid& g, std::vector<Plat>& pl, Rng& rng, GenLevel& out, const Params& P, int& wOut) {
-    const int H = g.h, F = H - 6;
+    const int H = g.h, F = H - 9;            // nine tiles of deck: room to carve the reef caverns under it
     g.rect(0, F, g.w - 1, H - 1, '#');       // the hull's deck and everything under it
     g.rect(0, 0, g.w - 1, 1, '#');           // the sea's surface overhead
     auto column = [&](int x0, int width, int top, bool tunnel) {
@@ -150,9 +150,9 @@ static void BuildTrench(Grid& g, std::vector<Plat>& pl, Rng& rng, GenLevel& out,
         int kind;
         for (int tries = 0;; tries++) {
             int r = rng.I(0, 99);
-            kind = r < 18 ? 0 : r < 38 ? 1 : r < 54 ? 2 : r < 68 ? 3 : r < 82 ? 4 : 5;
+            kind = r < 14 ? 0 : r < 30 ? 1 : r < 44 ? 2 : r < 57 ? 3 : r < 69 ? 4 : r < 83 ? 5 : 6;
             if (kind != lastKind && !(kind == 0 && towers > 0 && guard % 3 != 0) && (kind != 0 || x > 40)) break;
-            if (tries > 12) { kind = (lastKind + 1) % 6; break; }
+            if (tries > 12) { kind = (lastKind + 1) % 7; break; }
         }
         if (kind == 0) towers = 3; else if (towers > 0) towers--;
         lastKind = kind;
@@ -222,6 +222,25 @@ static void BuildTrench(Grid& g, std::vector<Plat>& pl, Rng& rng, GenLevel& out,
                 pl.push_back(after);
                 out.setPieces[(int)SetPiece::CrumbleRun]++;
                 x += len;
+            } break;
+            case 6: { // cavern detour: a reef wall rises from the deck to the surface; the way on is down a mouth in the deck,
+                      // through a low rock tunnel under it, and up a wall-jump shaft back onto the hull
+                int Hs = 6, tl = rng.I(14, 20);
+                int holeX = x + 3, sx = holeX + tl, yb = F + 6;
+                Plat before{x, x + 2, F, C_JUMP, '#', SetPiece::None, 0, x + 1};
+                g.rect(holeX, F, holeX + 2, yb - 1, '.');               // the mouth
+                g.rect(holeX + 3, F + 2, sx - 1, yb - 1, '.');          // the tunnel: four tiles high, roofed by the reef
+                g.rect(sx, F + 3, sx + 1, yb - 1, '.');                 // the doorway into the shaft
+                g.rect(sx + 2, F, sx + 4, yb - 1, '.');                 // the shaft interior
+                g.rect(holeX + 3, 2, sx + 1, F + 1, 'R');               // the reef wall and the tunnel roof: rock, where the coral grows
+                int px2 = holeX + 3 + rng.I(4, tl - 8);
+                g.set(px2, yb, 'x');                                     // an urchin bed on the tunnel floor: hop it
+                g.set(holeX + tl / 2 + 2, yb - 3, 'o');
+                Plat tunnel{holeX, sx - 1, yb, C_SHAFT_DOWN, '#', SetPiece::ShaftDown, 0, holeX + 1};
+                Plat plateau = CarveShaft(g, tunnel, true, 3, Hs, false, 2);
+                pl.push_back(before); pl.push_back(tunnel); pl.push_back(plateau);
+                out.setPieces[(int)SetPiece::ShaftUp]++; out.setPieces[(int)SetPiece::ShaftDown]++;
+                x = sx + 6 + 3;
             } break;
             default: { // rock reef
                 int n = 4, w0 = 3;

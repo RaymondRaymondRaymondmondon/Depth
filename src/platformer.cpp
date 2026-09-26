@@ -1,4 +1,4 @@
-﻿// ============================================================================
+// ============================================================================
 //  DEPTH - the platform levels: the Pipes, the Hull and the Pirate Ship.
 //
 //  In the spirit of Super Meat Boy, the challenge is the jumping itself: quick
@@ -116,9 +116,9 @@ struct LevelDef {
 const LevelDef& Lv(int level) {
     static const std::vector<LevelDef> defs = [] {
         std::vector<LevelDef> d(PL_COUNT);
-        d[PL_PIPES] = {"The Pipes", Part{}, Part{}, 2, 65, '#', true, '#'};
-        d[PL_HULL] = {"The Hull", P16(HULL_ARENA), P16(HULL_ARENA_NOBOSS), 2, 165, '.', false, '.'};
-        d[PL_PIRATE] = {"The Pirate Ship", P(CABIN_ARENA, 0, 2), P(CABIN_ARENA_NOBOSS, 0, 2), 5, 230, '#', false, '.'};
+        d[PL_PIPES] = {"The Pipes", Part{}, Part{}, 0, 90, '#', true, '#'};
+        d[PL_HULL] = {"The Hull", P16(HULL_ARENA), P16(HULL_ARENA_NOBOSS), 0, 220, '.', false, '.'};
+        d[PL_PIRATE] = {"The Pirate Ship", P(CABIN_ARENA, 0, 2), P(CABIN_ARENA_NOBOSS, 0, 2), 0, 340, '#', false, '.'};
         return d;
     }();
     return defs[level];
@@ -712,6 +712,7 @@ void ScanTiles(PlatformState& p) {
                 case 'G': p.enemies.push_back({'G', {x + 6, y + T - 30}, {x, y}, -1, 0, 0, Rnd(0, 1.2f)}); break;
                 case 'p': p.enemies.push_back({'p', {x + 16, y + 16}, {x + 16, y + 16}, 1, 0}); break;
                 case 'e': p.enemies.push_back({'e', {x + 16, y + 400}, {x + 16, y}, 1, c * 0.37f}); break;
+                case 'o': if ((r * 7 + c * 13) % 3 != 0) ch = '.'; continue;   // generator "coins" are now sparse breadcrumbs: static guides at jump apexes, never collected
                 case 'T': case 'N': case 'y': p.launchers.push_back({c, r, ch, Rnd(0.0f, 2.0f)}); continue; // solid fixtures that fire on a timer: the tile stays
                 case 'K': p.boss.type = 'K'; p.boss.home = {x + 16, y + T}; p.boss.tentT[0] = p.boss.tentT[1] = TENT_IDLE; break;
                 case 'B': p.boss.type = 'B'; p.boss.home = p.boss.pos = {x, y + T - BB_H}; break;
@@ -945,29 +946,12 @@ void StepPlayer(PlatformState& p, float dir, bool jumpHeld) {
         p.particles.push_back({{wx, p.pos.y + PH - 8}, {-p.wallSide * 40.0f, 30}, 0.22f, 0.22f, 2, Color{255, 210, 120, 255}});
     }
 
-    // a backpack's wide reach: coins within a bigger radius are gathered too
-    if (p.pickupPct > 0) {
-        float ex = 32.0f * p.pickupPct / 100.0f;
-        Rectangle wide = PlayerBox(p);
-        wide = {wide.x - ex, wide.y - ex, wide.width + 2 * ex, wide.height + 2 * ex};
-        for (int ty = (int)floorf(wide.y / T); ty <= (int)floorf((wide.y + wide.height) / T); ty++)
-            for (int tx = (int)floorf(wide.x / T); tx <= (int)floorf((wide.x + wide.width) / T); tx++)
-                if (At(p, tx, ty) == 'o') {
-                    p.tiles[ty][tx] = '.';
-                    p.coins++;
-                    CoinPop(p, {tx * (float)T + 16, ty * (float)T + 16});
-                }
-    }
-    // coins, the exit, hazards and falling out of the level
+    // the exit, hazards and falling out of the level
     Rectangle pr = PlayerBox(p);
     for (int ty = (int)floorf(pr.y / T); ty <= (int)floorf((pr.y + pr.height) / T); ty++)
         for (int tx = (int)floorf(pr.x / T); tx <= (int)floorf((pr.x + pr.width) / T); tx++) {
             char c = At(p, tx, ty);
-            if (c == 'o') {
-                p.tiles[ty][tx] = '.';
-                p.coins++;
-                CoinPop(p, {tx * (float)T + 16, ty * (float)T + 16});
-            } else if (c == 'E' && p.exitOpen) {
+            if (c == 'E' && p.exitOpen) {
                 p.finished = true;
             }
         }
@@ -1017,61 +1001,73 @@ void BackgroundSystem::Setup(int lv) {
     level = lv;
     const float cw = PIXEL_W + 2.0f, ch = PIXEL_H + 2.0f;
     if (lv == PL_PIPES) {
-        farLayer = {0.3f, 0.3f, [cw, ch](const PlatformState& p, float t, float ox, float oy) { // the deep pipe matrix, lost in fog
-            (void)p;
-            DrawRectangle(0, 0, (int)cw, (int)ch, Color{16, 14, 14, 255});
-            float px0 = fmodf(ox, 90), py0 = fmodf(oy + 40000, 90);
-            for (float x = -px0 - 90; x < cw + 90; x += 90) { // a lattice of thin pipes with junction flanges and tiny lamps
-                DrawRectangle((int)x, 0, 7, (int)ch, Color{30, 26, 24, 255}); DrawRectangle((int)x + 1, 0, 2, (int)ch, Color{42, 36, 32, 255});
-            }
-            for (float y = -py0 - 90; y < ch + 90; y += 90) { DrawRectangle(0, (int)y, (int)cw, 7, Color{30, 26, 24, 255}); DrawRectangle(0, (int)y + 1, (int)cw, 2, Color{42, 36, 32, 255}); }
-            for (float x = -px0 - 90; x < cw + 90; x += 90)
-                for (float y = -py0 - 90; y < ch + 90; y += 90) {
-                    DrawRectangle((int)x - 3, (int)y - 3, 13, 13, Color{38, 32, 28, 255}); DrawRectangle((int)x - 1, (int)y - 1, 9, 9, Color{54, 46, 38, 255});
-                    if (Hs(x * 0.13f + y * 0.07f + ox * 0.001f) > 0.72f) { float fl = 0.6f + 0.4f * sinf(t * 3 + x); DrawRectangle((int)x + 1, (int)y + 1, 5, 5, Fade(Color{255, 170, 70, 255}, 0.55f * fl)); }
+        // Three tiers: far steel plating (0.2x scroll, 35% bright), mid pipework (0.5x, 55%), then the playable tiles at 1.0x.
+        // Background colours are pulled halfway to grey and dimmed, so nothing behind the diver competes with what he can land on.
+        auto dim = [](Color c, float k) {
+            float l = c.r * 0.3f + c.g * 0.59f + c.b * 0.11f;
+            return Color{(unsigned char)((c.r * 0.5f + l * 0.5f) * k), (unsigned char)((c.g * 0.5f + l * 0.5f) * k), (unsigned char)((c.b * 0.5f + l * 0.5f) * k), 255};
+        };
+        farLayer = {0.2f, 0.2f, [cw, ch, dim](const PlatformState& p, float t, float ox, float oy) {   // riveted steel plating, lost in the gloom
+            (void)p; (void)t;
+            const float B = 0.35f;
+            DrawRectangle(0, 0, (int)cw, (int)ch, dim(Color{60, 52, 46, 255}, B));
+            float px0 = fmodf(ox, 64), py0 = fmodf(oy + 64000, 64);
+            for (float y = -py0 - 64; y < ch; y += 64)
+                for (float x = -px0 - 64; x < cw; x += 64) {
+                    int gx = (int)floorf((x + ox) / 64 + 0.5f), gy = (int)floorf((y + oy) / 64 + 0.5f);
+                    float h = Hs(gx * 1.7f + gy * 5.3f);
+                    DrawRectangle((int)x + 1, (int)y + 1, 62, 62, dim(Color{(unsigned char)(80 + h * 26), (unsigned char)(70 + h * 22), (unsigned char)(62 + h * 18), 255}, B));
+                    DrawRectangle((int)x + 1, (int)y + 1, 62, 2, dim(Color{118, 104, 92, 255}, B));
+                    DrawRectangle((int)x + 1, (int)y + 61, 62, 2, dim(Color{40, 34, 30, 255}, B));
+                    for (int k = 0; k < 4; k++) DrawRectangle((int)x + 6 + (k % 2) * 50, (int)y + 6 + (k / 2) * 50, 3, 3, dim(Color{140, 122, 104, 255}, B));
+                    if (h > 0.78f) DrawRectangle((int)x + 14, (int)y + 24, 36, 5, dim(Color{20, 18, 16, 255}, B));   // a vent slot
+                    else if (h < 0.16f) { DrawRectangle((int)x + 10, (int)y + 20, 44, 22, dim(Color{50, 44, 40, 255}, B)); DrawRectangle((int)x + 14, (int)y + 24, 36, 14, dim(Color{90, 78, 66, 255}, B)); }   // a bolted access panel
                 }
-            DrawRectangle(0, 0, (int)cw, (int)ch, Fade(Color{10, 8, 8, 255}, 0.35f)); // fog
         }};
-        midLayer = {0.6f, 0.6f, [cw, ch](const PlatformState& p, float t, float cx, float cyv) {
-            Layer(cx / 0.6f, 0.5f, 150, cw, [&](float x, float wx) { // big mains running behind the plating
-                DrawRectangle((int)x, 0, 26, (int)ch, Color{48, 40, 34, 255});
-                DrawRectangle((int)x + 4, 0, 5, (int)ch, Color{64, 54, 46, 255});
-                float fy = fmodf(wx * 7 - cyv * 0.5f + 40000, 170.0f);
-                DrawRectangle((int)x - 4, (int)fy, 34, 8, Color{70, 58, 46, 255});
-                DrawCircle((int)x + 13, (int)fy + 4, 9, Color{60, 50, 40, 255}); DrawCircle((int)x + 13, (int)fy + 4, 5, Color{150, 50, 40, 255});   // a valve wheel
-            });
+        midLayer = {0.5f, 0.5f, [cw, ch, dim](const PlatformState& p, float t, float ox, float oy) {   // pipework: mains, T-joints, valves and trusses
             (void)p;
-            float ox = fmodf(cx * 1.4f, 40), oy = fmodf(cyv * 1.4f + 40000, 40);
-            for (float y = -oy - 40; y < ch + 40; y += 40)      // riveted plates
-                for (float x = -ox - 40; x < cw + 40; x += 40) {
-                    DrawRectangle((int)x + 1, (int)y + 1, 38, 38, Color{40, 35, 32, 200});
-                    DrawRectangle((int)x + 1, (int)y + 1, 38, 2, Color{54, 47, 42, 255});
-                    for (int k = 0; k < 4; k++) DrawPixel((int)x + 4 + (k % 2) * 31, (int)y + 4 + (k / 2) * 31, Color{80, 68, 58, 255});
-                }
-            for (int k = 0; k < 3; k++) { // pipes across the plating
-                float y = fmodf(k * 130.0f - cyv * 1.4f + 40000, 390.0f) - 20;
-                DrawRectangle(0, (int)y, (int)cw, 9, Color{70, 50, 36, 255});
-                DrawRectangle(0, (int)y + 2, (int)cw, 2, Color{110, 80, 54, 255});
+            const float B = 0.55f;
+            Color pipe = dim(Color{176, 104, 62, 255}, B), pipeHi = dim(Color{222, 148, 96, 255}, B), pipeLo = dim(Color{92, 52, 32, 255}, B), brass = dim(Color{184, 140, 60, 255}, B), iron = dim(Color{70, 60, 54, 255}, B);
+            // horizontal runs, with trusses between the upper and lower ones
+            const float rowGap = 210;
+            for (int k = -1; k < (int)(ch / rowGap) + 2; k++) {
+                float y = fmodf(k * rowGap - oy + 42000, rowGap * 4) - rowGap;
+                DrawRectangle(0, (int)y, (int)cw, 14, pipe);
+                DrawRectangle(0, (int)y + 2, (int)cw, 3, pipeHi);
+                DrawRectangle(0, (int)y + 11, (int)cw, 3, pipeLo);
             }
-            Layer(cx * 1.4f, 0.85f, 70, cw, [&](float x, float wx) { // water dripping from the seams
-                float ph = fmodf(t * 0.7f + Hs(wx) * 5, 1.0f);
-                bool dark = Hs(wx + 3) > 0.4f;
-                DrawRectangle((int)x, (int)(ph * ch), 1, 3, dark ? Color{80, 30, 26, 180} : Color{120, 150, 160, 160});
-                if (dark && ph > 0.85f) DrawCircle((int)x, (int)ch - 4, 2, Color{60, 22, 20, 140});
+            Layer(ox, 1.0f, 120, cw, [&](float x, float wx) {   // truss braces hung between two horizontal runs
+                if (Hs(wx * 0.31f + 4) < 0.55f) return;
+                float y0 = fmodf(-oy + 42000, rowGap * 4) - rowGap;
+                for (int r = 0; r < 4; r++) {
+                    float ya = y0 + r * rowGap + 14, yb = ya + rowGap - 14;
+                    if (ya > ch || yb < 0) continue;
+                    DrawLineEx({x, ya}, {x + 120, yb}, 4, iron); DrawLineEx({x + 120, ya}, {x, yb}, 4, iron);
+                    DrawRectangle((int)x - 3, (int)ya, 6, (int)(yb - ya), iron); DrawRectangle((int)x + 117, (int)ya, 6, (int)(yb - ya), iron);
+                }
             });
-            Layer(cx, 0.5f, 260, cw, [&](float x, float wx) { // claw marks raked across a plate
-                if (Hs(wx + 11) < 0.62f) return;
-                float y = 60 + Hs(wx + 12) * (ch - 160);
-                for (int k = 0; k < 4; k++) DrawLineEx({x - 14.0f + k * 9, y}, {x + 8.0f + k * 9, y + 46}, 2, Color{18, 14, 12, 200});
+            Layer(ox, 1.0f, 240, cw, [&](float x, float wx) {   // vertical mains dropping through the runs: flanged T-joints, valve wheels
+                if (Hs(wx * 0.17f + 9) < 0.35f) return;
+                DrawRectangle((int)x, 0, 24, (int)ch, pipe);
+                DrawRectangle((int)x + 3, 0, 4, (int)ch, pipeHi);
+                DrawRectangle((int)x + 19, 0, 3, (int)ch, pipeLo);
+                float y0 = fmodf(-oy + 42000, rowGap * 4) - rowGap;
+                for (int r = 0; r < 4; r++) {
+                    float y = y0 + r * rowGap;
+                    DrawRectangle((int)x - 5, (int)y - 4, 34, 6, brass); DrawRectangle((int)x - 5, (int)y + 12, 34, 6, brass);   // T-joint flanges
+                }
+                float vy = fmodf(-oy * 0.9f + Hs(wx) * 700 + 42000, 460) - 30;
+                DrawRectangle((int)x + 10, (int)vy - 8, 4, 16, iron);
+                DrawCircle((int)x + 12, (int)vy, 11, iron); DrawCircle((int)x + 12, (int)vy, 8, dim(Color{150, 50, 40, 255}, B)); DrawCircle((int)x + 12, (int)vy, 3, iron);
             });
-            Layer(cx, 0.5f, 340, cw, [&](float x, float wx) { // something watches from a gap, then isn't there
+            Layer(ox, 1.0f, 340, cw, [&](float x, float wx) {   // something watches from a gap, then isn't there
                 float cyc = fmodf(t * 0.11f + Hs(wx + 20) * 9, 9.0f);
                 if (cyc > 1.6f) return;
                 float a = std::min(1.0f, cyc * 4) * std::min(1.0f, (1.6f - cyc) * 4);
                 float y = 140 + Hs(wx + 21) * (ch - 280);
-                for (int s = -1; s <= 1; s += 2) DrawCircleV({x + s * 4.0f, y}, 1.4f, Fade(Color{220, 60, 50, 255}, a));
+                for (int s = -1; s <= 1; s += 2) DrawCircleV({x + s * 4.0f, y}, 1.4f, Fade(Color{220, 60, 50, 255}, a * 0.6f));
             });
-            if (fmodf(t * 0.6f + cyv * 0.002f, 5.0f) < 0.12f) DrawRectangle(0, 0, (int)cw, (int)ch, Fade(BLACK, 0.35f)); // the lamp flicker
+            if (fmodf(t * 0.6f + oy * 0.002f, 5.0f) < 0.12f) DrawRectangle(0, 0, (int)cw, (int)ch, Fade(BLACK, 0.25f));   // the lamp flicker
         }};
         foreLayer = {1.3f, 1.3f, [cw, ch](const PlatformState& p, float t, float ox, float oy) { // brackets, valves and steam very near the lens
             (void)p;
@@ -2007,10 +2003,22 @@ void DrawTile(const PlatformState& p, char c, int x, int y, float t) {
             }
         } break;
         case 'o': {
-            float bob = sinf(t * 4 + x) * 3, squeeze = fabsf(cosf(t * 3 + x));
-            DrawEllipse((int)px + T / 2, (int)(py + T / 2 + bob), 9 * squeeze + 1, 9, Color{250, 210, 70, 255});
-            DrawEllipse((int)px + T / 2 - 2, (int)(py + T / 2 - 3 + bob), 3 * squeeze, 3, Color{255, 246, 196, 255});
-            if (fmodf(t * 1.1f + x * 0.9f, 3.0f) < 0.16f) { float gx = px + T / 2 + 6, gy = py + T / 2 - 8 + bob; DrawRectangle((int)gx - 4, (int)gy, 9, 1, WHITE); DrawRectangle((int)gx, (int)gy - 4, 1, 9, WHITE); }   // a glint
+            float fl = 0.75f + 0.25f * sinf(t * 3 + x * 1.7f);
+            int cx0 = (int)px + T / 2, cy0 = (int)py + T / 2;
+            if (p.level == PL_HULL) { // a drifting bioluminescent orb: a guide light, not something to collect
+                float bob = sinf(t * 2 + x) * 2;
+                DrawCircle(cx0, (int)(cy0 + bob), 6, Fade(Color{60, 200, 190, 255}, 0.18f * fl));
+                DrawCircle(cx0, (int)(cy0 + bob), 3, Fade(Color{110, 240, 220, 255}, fl));
+                DrawCircle(cx0, (int)(cy0 + bob), 1, WHITE);
+            } else if (p.level == PL_PIPES) { // a small brass steam-lamp on a bracket
+                DrawRectangle(cx0 - 1, cy0 - 8, 2, 6, Color{110, 84, 40, 255});
+                DrawRectangle(cx0 - 4, cy0 - 3, 8, 9, Color{150, 112, 50, 255});
+                DrawRectangle(cx0 - 2, cy0 - 1, 4, 5, Color{255, (unsigned char)(170 + 50 * fl), 80, 255});
+            } else { // a ship's lantern
+                DrawRectangle(cx0, cy0 - 10, 1, 5, Color{60, 44, 30, 255});
+                DrawRectangle(cx0 - 4, cy0 - 5, 8, 10, Color{80, 58, 36, 255});
+                DrawRectangle(cx0 - 2, cy0 - 3, 4, 6, gGhost ? Color{110, 250, 200, 255} : Color{255, (unsigned char)(180 + 40 * fl), 90, 255});
+            }
         } break;
         case 'E':
             if (!p.exitOpen) break;
@@ -2131,7 +2139,7 @@ void DrawGlowingBits(const PlatformState& p, int c0, int c1, int r0, int r1, flo
             if (c == 't' && JetOn(p, x)) for (int k = 1; k <= 3; k++) DrawCircleV({m.x, m.y - k * T}, 18, Color{120, 110, 90, 60});
             else if (c == 'x') DrawCircleV({m.x, m.y + 8}, 16, Color{140, 70, 30, (unsigned char)(50 + 30 * sinf(t * 3 + x))});
             else if (c == 'E') DrawCircleV({m.x, m.y - 10}, 34, Color{255, 120, 80, 90});
-            else if (c == 'o') DrawCircleV(m, 10, Color{120, 100, 30, 110});
+            else if (c == 'o') DrawCircleV(m, 12, p.level == PL_HULL ? Color{30, 110, 110, 90} : Color{120, 84, 30, 90});
             else if (c == 'g') DrawCircleV(m, 16, Color{90, 70, 30, 60});
             if (c == 'g') { float pl = 0.5f + 0.5f * sinf(t * 5 + x * 0.9f); DrawCircleV(m, 26, Color{200, 40, 30, (unsigned char)(20 + 40 * pl)}); }   // a mine's red heart pulses
             if (c == 'v' && VentOn(p, x)) DrawCircleV({m.x, m.y - T}, 26, Color{90, 100, 110, 30});
@@ -2929,11 +2937,14 @@ void ScenePlatformer(Game& g) {
 
         if (p.finished) {
             const LevelDef& L = Lv(p.level);
-            p.reward = p.coins * L.coinValue + (p.hard ? L.bonus * 3 / 2 : L.bonus);
-            // Blackbeard is the reason the Pirate Ship pays out relics: beating him guarantees one, often two.
+            // one payout at the end: a flat sum per level (the Pipes add a speed bonus; the Ghost Ship pays double)
+            int base = L.bonus + (p.level == PL_PIPES ? std::clamp((int)(120 - p.time), 0, 60) : 0);
+            if (p.level == PL_PIRATE && p.ghost) base *= 2;
+            p.reward = p.hard ? base * 3 / 2 : base;
+            // the Kraken rolls a relic (above); Blackbeard always leaves one, and the Ghost Ship's captain two
             if (p.level == PL_PIRATE && p.boss.type == 'B' && p.boss.defeated && !p.checkpoints) {
                 p.relic = GetRandomValue(0, (int)Relics().size() - 1);
-                if (GetRandomValue(1, 100) <= 45) p.relic2 = GetRandomValue(0, (int)Relics().size() - 1);
+                if (p.ghost) p.relic2 = GetRandomValue(0, (int)Relics().size() - 1);
             }
             g.gold += p.reward;
             if (p.relic >= 0) g.relicStorage.push_back(p.relic);
@@ -3032,8 +3043,6 @@ void ScenePlatformer(Game& g) {
     const char* title = TextFormat("%s   %s", Lv(p.level).name, p.layoutCode.c_str());
     TxtShadow(title, 20, 15, 22, Pal::Brass, true);
     TxtBold(p.hard ? "HARD" : "NORMAL", 20 + MeasureTxt(title, 22, true) + 14, 20, 14, p.hard ? Pal::Bad : Color{160, 200, 190, 255});
-    DrawCircle(440, 28, 10, Color{250, 210, 70, 255});
-    Txt(TextFormat("x %d", p.coins), 458, 16, 22, Pal::Paper);
     int sections = (int)p.partX.size();
     Txt(TextFormat(p.checkpoints ? "Checkpoint %d/%d" : "Section %d/%d", std::min(p.checkpointChunk + 1, sections), sections), 530, 18, 19, Pal::Paper);
 
@@ -3051,7 +3060,7 @@ void ScenePlatformer(Game& g) {
         Panel(panel);
         const LevelDef& L = Lv(p.level);
         DrawTextCenteredBold(p.level == PL_PIPES ? "Valve reached!" : p.level == PL_HULL ? "Back inside!" : "Treasure claimed!", panel.x + panel.width / 2, panel.y + 24, 34, Pal::Good);
-        DrawTextCentered(TextFormat("%d coins x %d  +  %d bonus  =  %d gold", p.coins, L.coinValue, L.bonus, p.reward), panel.x + panel.width / 2, panel.y + 88, 21, Pal::Ink);
+        DrawTextCentered(TextFormat(p.level == PL_PIPES ? "Payout (with speed bonus): %d gold" : p.ghost && p.level == PL_PIRATE ? "Ghost Ship payout, doubled: %d gold" : "Payout: %d gold", p.reward), panel.x + panel.width / 2, panel.y + 88, 21, Pal::Ink);
         DrawTextCentered(TextFormat("Time %.1fs  (best %.1fs)    Deaths %d", p.time, g.platBest[p.level], p.deaths), panel.x + panel.width / 2, panel.y + 124, 19, Pal::BrassDk);
         if (p.relic >= 0 && p.relic2 >= 0)
             DrawTextCenteredBold(TextFormat("Relics found: %s, %s", Relics()[p.relic].name.c_str(), Relics()[p.relic2].name.c_str()),
