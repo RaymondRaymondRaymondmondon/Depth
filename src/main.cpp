@@ -74,7 +74,10 @@ static void TakeShots(const Game& base, const std::string& dir) {
         {"foes_tribal", [](Game& g) { DebugSetEnemies(g, Location::Island, {EnemyType::TribalSpearman, EnemyType::WarDog, EnemyType::TribalShaman, EnemyType::TribalSpearman}); }},
         {"boss_demigod", [](Game& g) { DebugSetEnemies(g, Location::Island, {EnemyType::TribalDemigod, EnemyType::WarDog, EnemyType::TribalShaman}); }},        {"foes_merfolk", [](Game& g) { DebugSetEnemies(g, Location::Weeds, {EnemyType::FeralMerman, EnemyType::Siren, EnemyType::FeralMerman, EnemyType::Siren}); }},
         {"boss_neptune", [](Game& g) { DebugSetEnemies(g, Location::Weeds, {EnemyType::Neptune, EnemyType::FeralMerman}); }},        {"foes_weeds", [](Game& g) { DebugSetEnemies(g, Location::Weeds, {EnemyType::GiantOctopus, EnemyType::ElectricEel, EnemyType::GiantOctopus}); }},
-        {"boss_shark", [](Game& g) { DebugSetEnemies(g, Location::Weeds, {EnemyType::GreatWhite, EnemyType::GiantOctopus, EnemyType::Siren}); }},        {"island", [](Game& g) { DebugEnterCombat(g, Location::Island); }},
+        {"boss_shark", [](Game& g) { DebugSetEnemies(g, Location::Weeds, {EnemyType::GreatWhite, EnemyType::GiantOctopus, EnemyType::Siren}); }},        {"foes_atlantis", [](Game& g) { DebugSetEnemies(g, Location::Atlantis, {EnemyType::LostInfantry, EnemyType::LostCultist, EnemyType::LostInfantry, EnemyType::LostCultist}); }},
+        {"boss_armored", [](Game& g) { DebugSetEnemies(g, Location::Atlantis, {EnemyType::ArmorLostOne, EnemyType::LostCultist, EnemyType::LostInfantry}); }},
+        {"boss_alien", [](Game& g) { DebugSetEnemies(g, Location::Atlantis, {EnemyType::AlienHorror, EnemyType::LostInfantry, EnemyType::LostCultist}); }},
+        {"boss_cthulhu", [](Game& g) { DebugSetEnemies(g, Location::Atlantis, {EnemyType::Cthulhu, EnemyType::LostCultist}); }},        {"island", [](Game& g) { DebugEnterCombat(g, Location::Island); }},
         {"weeds", [](Game& g) { DebugEnterCombat(g, Location::Weeds); }},
         {"atlantis", [](Game& g) { DebugEnterCombat(g, Location::Atlantis); }},
         {"inventory", [](Game& g) { DebugEnterCombat(g); g.dungeon.phase = DPhase::RoomClear; g.dungeon.roomGold = 24;
