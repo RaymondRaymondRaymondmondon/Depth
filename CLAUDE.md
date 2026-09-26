@@ -105,3 +105,8 @@ Menu-only, "coming soon": Island, Weeds, Atlantis.
 
 ## Flats expansion (second pass)
 - Now 4 dealers (Novice, Tidewife, Wreck-Broker, House), each with a rolled twist (`BuildFoeDeck`); payouts 40/100/200/340 (+100 for clearing all). Card editions (Foil +2, Gilt pays pot, Hex +5 but -8 pot when lost), per-round lane modifiers (`RollMods`: Sunken Chest, Coral Reef, Trench Current, Whirlpool), 7 charms (max 3, one offered as the third reward), deck viewer, chips, particles, shake, card flight arcs and dealer reactions. Scoring goes through `Tot(mine, other, lane)` / `LaneTotal(..., owner Side)`. `--shots shots cards` renders cards_play/reward/deck. `--flats-sim 2000 sensible`: first match ~54% won, all four ~1%.
+
+## Parkour visual pass and the Flats stall (third pass)
+- Diver squash/stretch is in whole art pixels only (`sqy` in `DrawDiverShape`, from `p.scale`); `Bubbles`, `CoinPop`, `Flare` (respawn/death rings) are guarded by `p.verifying`. Tile wear per level lives in `DrawTileDetail` (access plates, hazard tape, drips; shells, algae, barnacles; warped boards, stains, moss, rope). Every hazard ('x', 'g', 't') gets the same pulsing orange corner brackets (`DrawHazardOverlay`). Hull: god-rays, caustics, silt (`DrawAmbientLife`); the foreground kelp only hugs the lens edges. Pirate: rain, low fog and lightning (in `ScenePlatformer`). Pipes' lamp darkness was lightened.
+- Flats now has a stall between matches (`Phase::Shop`, `StockShop`, `BuyItem`): card, charm, trim, edition, insurance (pays half the pot on a lost match), reroll; all priced against the pot. `--shots shots cards_shop`.
+- Known issue: Pirate layouts often need several draws to validate (see `--verify`), pre-existing.
