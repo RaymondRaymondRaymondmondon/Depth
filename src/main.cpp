@@ -77,7 +77,10 @@ static void TakeShots(const Game& base, const std::string& dir) {
         {"boss_shark", [](Game& g) { DebugSetEnemies(g, Location::Weeds, {EnemyType::GreatWhite, EnemyType::GiantOctopus, EnemyType::Siren}); }},        {"foes_atlantis", [](Game& g) { DebugSetEnemies(g, Location::Atlantis, {EnemyType::LostInfantry, EnemyType::LostCultist, EnemyType::LostInfantry, EnemyType::LostCultist}); }},
         {"boss_armored", [](Game& g) { DebugSetEnemies(g, Location::Atlantis, {EnemyType::ArmorLostOne, EnemyType::LostCultist, EnemyType::LostInfantry}); }},
         {"boss_alien", [](Game& g) { DebugSetEnemies(g, Location::Atlantis, {EnemyType::AlienHorror, EnemyType::LostInfantry, EnemyType::LostCultist}); }},
-        {"boss_cthulhu", [](Game& g) { DebugSetEnemies(g, Location::Atlantis, {EnemyType::Cthulhu, EnemyType::LostCultist}); }},        {"island", [](Game& g) { DebugEnterCombat(g, Location::Island); }},
+        {"boss_cthulhu", [](Game& g) { DebugSetEnemies(g, Location::Atlantis, {EnemyType::Cthulhu, EnemyType::LostCultist}); }},        {"foes_cave2", [](Game& g) { DebugSetEnemies(g, Location::Cave, {EnemyType::BrineWorm, EnemyType::GhostWorm, EnemyType::BrineWorm}); }},
+        {"boss_diver", [](Game& g) { DebugSetEnemies(g, Location::Cave, {EnemyType::LostDiver, EnemyType::BrineWorm, EnemyType::SeaLouse}); }},
+        {"boss_coconut", [](Game& g) { DebugSetEnemies(g, Location::Island, {EnemyType::CoconutQueen, EnemyType::TribalSpearman, EnemyType::WarDog}); }},
+        {"boss_sun", [](Game& g) { DebugSetEnemies(g, Location::Island, {EnemyType::SunGod, EnemyType::TribalShaman}); }},        {"island", [](Game& g) { DebugEnterCombat(g, Location::Island); }},
         {"weeds", [](Game& g) { DebugEnterCombat(g, Location::Weeds); }},
         {"atlantis", [](Game& g) { DebugEnterCombat(g, Location::Atlantis); }},
         {"inventory", [](Game& g) { DebugEnterCombat(g); g.dungeon.phase = DPhase::RoomClear; g.dungeon.roomGold = 24;
