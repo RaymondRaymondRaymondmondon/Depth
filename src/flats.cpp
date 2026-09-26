@@ -417,40 +417,70 @@ void DrawTable() {
 // in solid ink-black masses with a thin cold rim of light along his hood and shoulders, a brow that hides
 // his eyes, and two pinpricks of light beneath it. Hard block shadows, no gradients.
 void DrawDealer(float t) {
-    float cx = 640, bob = sinf(t * 1.1f) * 2.0f, top = 34 + bob;
-    Color ink{6, 8, 14, 255}, body{20, 26, 42, 255}, bodyLt{34, 46, 70, 255}, rim{92, 150, 190, 255}, skin{92, 96, 100, 255}, skinDk{40, 42, 48, 255};
-    // shoulders and cloak: a broad, top-heavy mass
-    DrawEllipse((int)cx, (int)(top + 270), 290, 130, ink);
-    DrawTri({cx - 270, top + 320}, {cx + 270, top + 320}, {cx, top + 150}, body);
-    DrawTri({cx - 270, top + 320}, {cx - 60, top + 320}, {cx - 40, top + 160}, ink);   // the block shadow under the key light
-    DrawLineEx({cx - 270, top + 320}, {cx, top + 150}, 3, rim);                        // rim light, left shoulder
-    DrawLineEx({cx + 270, top + 320}, {cx, top + 150}, 2, Fade(rim, 0.6f));
-    // the hood, a heavy pointed mass, and the face inside it
-    DrawTri({cx - 100, top + 190}, {cx + 100, top + 190}, {cx, top - 10}, body);
-    DrawTri({cx - 100, top + 190}, {cx, top + 190}, {cx - 6, top - 10}, bodyLt);
-    DrawLineEx({cx - 100, top + 190}, {cx, top - 10}, 3, rim);
-    DrawEllipse((int)cx, (int)(top + 118), 60, 74, ink);                                 // the hood's hollow
-    DrawEllipse((int)(cx + 4), (int)(top + 132), 44, 56, skinDk);                        // the face, mostly shadow
-    DrawEllipse((int)(cx - 14), (int)(top + 136), 22, 44, skin);                         // only the lit cheek
-    DrawRectangle((int)cx - 56, (int)(top + 96), 112, 30, ink);                          // the brow: eyes sit in a black bar
-    DrawLineEx({cx - 52, top + 130}, {cx + 52, top + 130}, 3, Color{4, 4, 8, 255});
-    DrawLineEx({cx - 20, top + 176}, {cx + 20, top + 174}, 3, Color{4, 4, 8, 255});      // a flat mouth
+    // The same character as the one at the table in the salon, drawn large: a hooded cloak, a face like old candle wax,
+    // eyes that catch the cold light, gloved hands, a brass-trimmed mantle, a glowing brooch. Built in layers, back to front.
+    const float cx = 640, sx = 4.0f, sy = 3.1f, base = 44 + 180 * sy, bob = sinf(t * 1.1f) * 2.0f;
+    auto V = [&](float dx, float dy) { return Vector2{cx + dx * sx, base + dy * sy + bob}; };
+    const Color ink{6, 8, 14, 255}, cloak{26, 30, 48, 255}, cloakLt{36, 42, 64, 255}, cloakDk{14, 16, 28, 255}, glove{34, 34, 40, 255};
+    const Color wax{132, 134, 132, 255}, waxDk{74, 76, 80, 255}, rim{92, 150, 190, 255}, brass{176, 140, 70, 255}, gem{90, 200, 220, 255};
+    auto Ell = [&](Vector2 c, float rx, float ry, Color col) { DrawEllipse((int)c.x, (int)c.y, rx, ry, col); };
+    auto Quad = [&](Vector2 a, Vector2 b2, Vector2 c2, Vector2 d, Color col) { DrawTri(a, b2, c2, col); DrawTri(a, c2, d, col); };
+    // 1. the back mantle, the widest and darkest layer
+    { Vector2 c = V(0, -76); Ell(c, 52 * sx + 6, 64 * sy + 6, ink); Ell(c, 52 * sx, 64 * sy, cloakDk); }
+    // 2. the cloak, with a lit left edge and long folds
+    Ell(V(0, -118), 47 * sx + 6, 24 * sy + 6, ink); Ell(V(0, -118), 47 * sx, 24 * sy, cloak);       // rounded, sloping shoulders
+    Quad(V(-38, -120), V(38, -120), V(44, -24), V(-44, -24), ink);
+    Quad(V(-35, -120), V(35, -120), V(41, -26), V(-41, -26), cloak);
+    Quad(V(-35, -120), V(-18, -120), V(-22, -26), V(-41, -26), cloakLt);
+    for (int i = -2; i <= 2; i++) DrawLineEx(V(i * 9.0f, -112), V(i * 10.0f + (i > 0 ? 3.0f : -3.0f), -30), 3, cloakDk);
+    DrawLineEx(V(-46, -112), V(-44, -24), 3, Fade(rim, 0.8f));                              // the cold rim light down the left edge
+    // 3. the arms and gloved hands, resting on the felt
+    for (int s2 = -1; s2 <= 1; s2 += 2) {
+        Vector2 sh = V(s2 * 30.0f, -124), hd = V(s2 * 40.0f, -104);
+        DrawLineEx(sh, hd, 66, ink); DrawLineEx(sh, hd, 58, cloak);
+        if (s2 < 0) DrawLineEx({sh.x - 20, sh.y}, {hd.x - 20, hd.y}, 10, cloakLt);
+        Vector2 cf = V(s2 * 39.5f, -107);
+        DrawLineEx({cf.x - 30, cf.y}, {cf.x + 30, cf.y}, 16, ink); DrawLineEx({cf.x - 28, cf.y}, {cf.x + 28, cf.y}, 11, brass);   // a brass cuff
+        Vector2 g = V(s2 * 40.5f, -98);
+        Ell(g, 34, 26, ink); Ell(g, 30, 22, glove);
+        for (int i = -1; i <= 1; i++) { DrawLineEx({g.x + i * 13.0f, g.y + 10}, {g.x + i * 13.0f + s2 * 3.0f, g.y + 26}, 11, ink); DrawLineEx({g.x + i * 13.0f, g.y + 10}, {g.x + i * 13.0f + s2 * 3.0f, g.y + 26}, 7, glove); }
+        DrawRing({g.x + 13.0f * s2, g.y + 20}, 5, 9, 0, 360, 10, brass);                    // a ring on a finger
+        DrawLineEx({g.x - 24, g.y - 12}, {g.x - 8, g.y - 16}, 2, Fade(rim, 0.7f));         // a thin edge of light on the knuckles
+    }
+    // 4. the mantle over the shoulders, trimmed in brass, with tassels
+    Ell(V(0, -118), 41 * sx + 5, 13 * sy + 5, ink); Ell(V(0, -118), 41 * sx, 13 * sy, cloakLt);
+    Ell(V(-6, -120), 30 * sx, 8 * sy, Color{48, 58, 88, 255});
+    DrawLineEx(V(-38, -110), V(38, -110), 5, brass);
+    for (int i = -2; i <= 2; i++) { DrawLineEx(V(i * 15.0f, -109), V(i * 15.0f, -99), 3, brass); Ell(V(i * 15.0f, -98), 5, 5, brass); }
+    // 5. the high collar and the hood: peak, lit half, lining, rim light
+    DrawTri(V(-34, -126), V(34, -126), V(0, -152), ink);
+    DrawTri(V(-30, -126), V(30, -126), V(0, -148), cloakDk);
+    DrawTri(V(-27, -140), V(27, -140), V(1, -178), ink);                                   // a soft peak to the hood, not a cone
+    DrawTri(V(-25, -141), V(25, -141), V(1, -174), cloak);
+    DrawTri(V(-25, -141), V(0, -141), V(-1, -174), cloakLt);
+    DrawTri(V(-38, -122), V(-20, -150), V(-14, -122), cloak); DrawTri(V(38, -122), V(20, -150), V(14, -122), cloak); // the hood falls in folds to the shoulders
+    DrawLineEx(V(-38, -122), V(-24, -156), 3, Fade(rim, 0.9f)); DrawLineEx(V(-25, -141), V(1, -178), 3, Fade(rim, 0.9f));
+    { Vector2 c = V(0, -160); Ell(c, 25 * sx + 5, 25 * sy + 5, ink); Ell(c, 25 * sx, 25 * sy, cloak); Ell(V(0, -159), 21 * sx, 21 * sy, cloakDk); } // the hood and its darker lining
+    for (int i = -6; i <= 6; i++) { Vector2 p = V(i * 3.4f, -176 + fabsf(i) * 3.6f); DrawRectangle((int)p.x - 2, (int)p.y, 4, 4, Fade(brass, 0.6f)); } // stitched trim
+    // 6. the face: mostly shadow, one lit cheek, a brow that hides the eyes
+    Ell(V(1, -158), 15.5f * sx, 15.5f * sy, waxDk);
+    Ell(V(-3.5f, -156), 10 * sx, 13 * sy, wax);
+    for (int s2 = -1; s2 <= 1; s2 += 2) Ell(V(s2 * 8.0f, -149), 3.2f * sx, 3.6f * sy, Fade(BLACK, 0.3f));   // sunken cheeks
+    DrawLineEx(V(1, -161), V(2.5f, -150), 5, waxDk); Ell(V(3, -149), 9, 4, Fade(BLACK, 0.4f));               // the nose
+    { Vector2 b0 = V(-14.5f, -169); DrawRectangle((int)b0.x, (int)b0.y, (int)(29 * sx), (int)(11 * sy), ink); } // the brow: a black bar
+    DrawLineEx(V(-8, -142), V(8, -142), 4, Color{4, 4, 8, 255});                                             // a flat mouth
     Vector2 m = GetMousePosition();
     float lookx = std::clamp((m.x - cx) * 0.012f, -4.0f, 4.0f);
-    for (int s = -1; s <= 1; s += 2) {
-        Vector2 e{cx + s * 24 + lookx, top + 112};
-        Glow(e, 26, Color{150, 170, 255, 70});
-        DrawRectangle((int)e.x - 6, (int)e.y - 2, 12, 4, Color{220, 232, 255, 255});    // just a sliver of light in the dark
+    for (int s2 = -1; s2 <= 1; s2 += 2) {
+        Vector2 e = V(s2 * 6.5f, -160);
+        e.x += lookx;
+        Glow(e, 28, Color{150, 170, 255, 70});
+        DrawRectangle((int)e.x - 12, (int)e.y - 3, 24, 6, Color{220, 232, 255, 255});                        // just a sliver of light in the dark
     }
-    // a dagger held up beside the shoulder, catching the cold light
-    Vector2 hand{cx + 210, top + 230}, tip{cx + 232, top + 60};
-    DrawLineEx(hand, tip, 8, ink);
-    DrawLineEx(hand, tip, 4, Color{150, 176, 196, 255});
-    DrawLineEx({hand.x - 24, hand.y - 4}, {hand.x + 24, hand.y - 4}, 7, ink);
-    DrawCircleV({hand.x, hand.y + 16}, 17, ink);
-    DrawCircleV({cx - 200, top + 280}, 17, ink);                                         // the other fist, resting on the table
-}
-void DrawSkull(float t, float x, float y) {
+    // 7. the brooch at the throat, its gem the colour of the table's glow, and a watch chain
+    { Vector2 c = V(0, -124); Ell(c, 16, 15, ink); Ell(c, 13, 12, brass); Ell(c, 8, 7, gem); Glow(c, 40, Color{90, 200, 220, (unsigned char)(80 + 30 * sinf(t * 2))}); }
+    DrawLineEx(V(0, -121), V(-16, -101), 3, ink); DrawLineEx(V(0, -121), V(-16, -101), 1.6f, brass); Ell(V(-16, -99), 9, 9, ink); Ell(V(-16, -99), 6.5f, 6.5f, brass);
+}void DrawSkull(float t, float x, float y) {
     DrawEllipse((int)x, (int)(y - 8), 26, 24, Color{210, 200, 172, 255});
     DrawEllipse((int)x, (int)(y + 12), 18, 12, Color{192, 182, 154, 255});
     DrawEllipse((int)x - 9, (int)(y - 6), 7, 8, Color{20, 16, 14, 255});

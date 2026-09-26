@@ -789,14 +789,13 @@ Vector2 DrawCatAt(Vector2 feet, float k, bool right, bool sitting, bool purring,
     }
     // the head: wide and round, with rounded ears, fluffy cheeks and a tiny cream muzzle
     for (int e = -1; e <= 1; e += 2) {
-        Vector2 base{hc.x + e * 6.0f * k, hc.y - 3.6f * k}, tip{hc.x + e * 8.2f * k, hc.y - 16.0f * k};
-        DrawTri({base.x - 6.6f * k - 1.5f * k, base.y + 2 * k}, {base.x + 6.6f * k + 1.5f * k, base.y + 2 * k}, {tip.x, tip.y - 1.6f * k}, line);
-        DrawTri({base.x - 6.6f * k, base.y + 2 * k}, {base.x + 6.6f * k, base.y + 2 * k}, tip, fur);
-        DrawCircleV({tip.x, tip.y + 0.8f * k}, 1.6f * k, fur);
-        DrawTri({base.x - 3.6f * k, base.y + 1.4f * k}, {base.x + 3.6f * k, base.y + 1.4f * k}, {tip.x, tip.y + 3.4f * k}, pink);
+        Vector2 base{hc.x + e * 5.2f * k, hc.y - 3.4f * k}, tip{hc.x + e * 6.8f * k, hc.y - 14.5f * k};
+        DrawTri({base.x - 5.2f * k - 1.4f * k, base.y + 2 * k}, {base.x + 5.2f * k + 1.4f * k, base.y + 2 * k}, {tip.x, tip.y - 1.4f * k}, line);
+        DrawTri({base.x - 5.2f * k, base.y + 2 * k}, {base.x + 5.2f * k, base.y + 2 * k}, tip, fur);
+        DrawTri({base.x - 2.6f * k, base.y + 1.4f * k}, {base.x + 2.6f * k, base.y + 1.4f * k}, {tip.x, tip.y + 3.6f * k}, pink);
     }
-    for (int e = -1; e <= 1; e += 2) Blob({hc.x + e * 8.4f * k, hc.y + 3.4f * k}, 3.6f, 3.2f, furLt, false); // cheek fluff
-    Blob(hc, 11, 9.6f, fur);
+    for (int e = -1; e <= 1; e += 2) Blob({hc.x + e * 7.4f * k, hc.y + 3.0f * k}, 2.4f, 2.2f, furLt, false); // a little cheek fluff
+    Blob(hc, 9.6f, 8.6f, fur);
     for (int i = -1; i <= 1; i++) DrawLineEx({hc.x + i * 2.6f * k, hc.y - 9 * k}, {hc.x + i * 2.0f * k, hc.y - 5 * k}, 1.3f * k, stripe);      // brow stripes
     DrawEllipse((int)(hc.x + f * 1.6f * k), (int)(hc.y + 3.6f * k), 4.6f * k, 3.4f * k, cream);                                                                      // the muzzle
     Vector2 mz{hc.x + f * 1.6f * k, hc.y + 2.6f * k};
@@ -804,27 +803,25 @@ Vector2 DrawCatAt(Vector2 feet, float k, bool right, bool sitting, bool purring,
     DrawLineEx({mz.x, mz.y + 0.9f * k}, {mz.x, mz.y + 1.8f * k}, 0.5f * k, Fade(line, 0.7f));
     DrawRing({mz.x - 1.1f * k, mz.y + 1.8f * k}, 0.8f * k, 1.2f * k, 0, 180, 6, Fade(line, 0.7f));                                            // a small smile
     DrawRing({mz.x + 1.1f * k, mz.y + 1.8f * k}, 0.8f * k, 1.2f * k, 0, 180, 6, Fade(line, 0.7f));
-    for (int e = -1; e <= 1; e += 2) DrawEllipse((int)(hc.x + e * 6.6f * k + f * 0.8f * k), (int)(hc.y + 3.2f * k), 2.2f * k, 1.3f * k, Fade(pink, 0.55f)); // blush
     bool blink = fmodf(t * 0.37f + seed * 0.01f, 1.0f) < 0.035f;
     for (int e = -1; e <= 1; e += 2) {
         Vector2 ec{hc.x + f * 1.2f * k + e * 4.4f * k, hc.y - 0.4f * k};
         if (purring || blink) { // happy closed eyes: little upturned arcs
             DrawRing(ec, 1.6f * k, 2.4f * k, 200, 340, 8, line);
         } else {
-            DrawEllipse((int)ec.x, (int)ec.y, 3.0f * k, 3.4f * k, line);
-            DrawEllipse((int)ec.x, (int)ec.y, 2.4f * k, 2.9f * k, Color{132, 206, 96, 255});
-            DrawEllipse((int)ec.x, (int)(ec.y + 0.2f * k), 1.5f * k, 2.4f * k, Color{22, 18, 14, 255});
-            DrawCircleV({ec.x - 0.9f * k, ec.y - 1.1f * k}, 0.95f * k, WHITE);                                                                   // the glint
-            DrawCircleV({ec.x + 0.9f * k, ec.y + 1.0f * k}, 0.5f * k, Fade(WHITE, 0.8f));
+            DrawEllipse((int)ec.x, (int)ec.y, 2.3f * k, 2.5f * k, line);
+            DrawEllipse((int)ec.x, (int)ec.y, 1.8f * k, 2.0f * k, Color{150, 190, 84, 255});
+            DrawEllipse((int)ec.x, (int)(ec.y + 0.1f * k), 0.7f * k, 1.8f * k, Color{22, 18, 14, 255});
+            DrawCircleV({ec.x - 0.6f * k, ec.y - 0.8f * k}, 0.55f * k, Fade(WHITE, 0.9f));
         }
     }
     for (int w = -1; w <= 1; w += 2) // whiskers
-        for (int i = 0; i < 3; i++)
+        for (int i = 0; i < 2; i++)
             DrawLineEx({mz.x + w * 5.0f * k, mz.y + 0.8f * k + i * 1.0f * k}, {mz.x + w * 13.0f * k, mz.y - 0.8f * k + i * 2.6f * k}, 0.4f * k, Fade(Color{255, 244, 226, 255}, 0.8f));
     return hc;
 }
 void DrawCat(float t) {
-    float Z = cat.pos.y, k = Px(Z) * 3.0f;
+    float Z = cat.pos.y, k = Px(Z) * 2.7f;
     Vector2 feet = Proj(cat.pos.x, 0, Z);
     catRect = {feet.x - 28 * k, feet.y - 46 * k, 56 * k, 48 * k};
     catHead = DrawCatAt(feet, k, cat.right, cat.wait > 0, cat.purr > 0, cat.phase, t, cat.pos.x);
@@ -984,30 +981,43 @@ void DrawCardDealer(float t) {
     float k = Px(DEALER_Z) * 1.05f;
     Vector2 feet = Proj(CARD_X, 0, DEALER_Z), o = FigureFeet();
     auto P = [&](float dx, float dy) { return Vector2{o.x + dx * k, o.y + dy * k}; };
-    float breathe = sinf(t * 1.2f) * 1.2f;
-    Color cloak{26, 30, 48, 255}, glove{34, 34, 40, 255}, wax{132, 134, 132, 255};
+    float br = sinf(t * 1.2f) * 1.2f;
+    Color cloak{26, 30, 48, 255}, glove{34, 34, 40, 255}, wax{132, 134, 132, 255}, brass{176, 140, 70, 255};
     BeginFigure();
-    ShadeLimb(P(-30, -128 + breathe), P(30, -128 + breathe), 24 * 0.5f * 2, 24 * 0.5f * 2, cloak); // shoulders
-    ShadeLimb(P(0, -60), P(0, -130 + breathe), 30, 27, cloak);                                    // the body under the cloak
-    DrawTri(P(-46, -118), P(46, -118), P(0, -180 + breathe), Tone(cloak, -0.3f));                 // the hood's peak
-    ShadeBall(P(0, -160 + breathe), 25, Tone(cloak, -0.2f));                                       // hood
-    ShadeBall(P(1, -158 + breathe), 15.5f, wax);                                                   // face
-    DrawLineEx(P(-12, -164 + breathe), P(12, -164 + breathe), 3 * k, Color{50, 52, 56, 255});     // heavy brow
-    DrawLineEx(P(-8, -142 + breathe), P(8, -142 + breathe), 2.2f * k, Color{36, 32, 34, 255});     // flat mouth
-    for (int e = -1; e <= 1; e += 2) {
-        DrawEllipse((int)P(e * 6.5f, -159 + breathe).x, (int)P(e * 6.5f, -159 + breathe).y, 3.6f * k, 2.4f * k, Color{214, 226, 255, 255});
-    }
+    ShadeLimb(P(-42, -122 + br), P(42, -122 + br), 22, 22, Tone(cloak, -0.3f));                  // the back mantle, widest layer
+    ShadeLimb(P(-30, -128 + br), P(30, -128 + br), 24, 24, cloak);                                 // shoulders
+    ShadeLimb(P(0, -60), P(0, -130 + br), 30, 27, cloak);                                          // the body under the cloak
+    for (int i = -2; i <= 2; i++) DrawLineEx(P(i * 9.0f, -116), P(i * 12.0f + (i > 0 ? 2.0f : -2.0f), -62), 1.3f * k, Tone(cloak, -0.4f)); // folds
+    ShadeLimb(P(-38, -117 + br), P(38, -117 + br), 13, 13, Tone(cloak, 0.12f));                    // a mantle over the shoulders...
+    DrawLineEx(P(-40, -110 + br), P(40, -110 + br), 1.7f * k, brass);                              // ...trimmed in brass
+    for (int i = -2; i <= 2; i++) { DrawLineEx(P(i * 15.0f, -110 + br), P(i * 15.0f, -102 + br), 1.3f * k, brass); DrawCircleV(P(i * 15.0f, -101 + br), 1.3f * k, brass); } // tassels
+    DrawTri(P(-32, -126 + br), P(32, -126 + br), P(0, -150 + br), Tone(cloak, -0.35f));            // a high collar behind the head
+    DrawTri(P(-46, -118), P(46, -118), P(0, -180 + br), Tone(cloak, -0.3f));                       // the hood's peak
+    DrawLineEx(P(-46, -118), P(0, -180 + br), 1.3f * k, Fade(brass, 0.6f));                        // its trim
+    ShadeBall(P(0, -160 + br), 25, Tone(cloak, -0.2f));                                            // hood
+    ShadeBall(P(0, -159 + br), 21, Tone(cloak, -0.6f));                                            // the lining, a darker layer inside
+    ShadeBall(P(1, -158 + br), 15.5f, wax);                                                        // face
+    for (int e = -1; e <= 1; e += 2) DrawEllipse((int)P(e * 7.5f, -150 + br).x, (int)P(e * 7.5f, -150 + br).y, 2.6f * k, 3.4f * k, Fade(BLACK, 0.3f)); // sunken cheeks
+    DrawLineEx(P(1, -160 + br), P(2, -151 + br), 1.4f * k, Tone(wax, -0.4f));                      // the nose
+    DrawLineEx(P(-12, -164 + br), P(12, -164 + br), 3 * k, Color{50, 52, 56, 255});               // heavy brow
+    DrawLineEx(P(-8, -142 + br), P(8, -142 + br), 2.2f * k, Color{36, 32, 34, 255});               // flat mouth
+    for (int e = -1; e <= 1; e += 2)
+        DrawEllipse((int)P(e * 6.5f, -159 + br).x, (int)P(e * 6.5f, -159 + br).y, 3.6f * k, 2.4f * k, Color{214, 226, 255, 255});
     ShadeLimb(P(-30, -128), P(-38, -108), 10, 9, cloak);                                            // arms reaching to the felt
     ShadeLimb(P(30, -128), P(40, -108), 10, 9, cloak);
+    ShadeBall(P(-38, -111), 5.6f, brass); ShadeBall(P(40, -111), 5.6f, brass);                     // cuffs
     ShadeBall(P(-38, -106), 7, glove);
     ShadeBall(P(40, -106), 7, glove);
+    DrawRing(P(-41, -103), 1.6f * k, 2.6f * k, 0, 360, 8, brass); DrawRing(P(43, -103), 1.6f * k, 2.6f * k, 0, 360, 8, brass); // rings on the gloves
+    ShadeBall(P(0, -124 + br), 4.5f, brass); DrawCircleV(P(0, -124 + br), 1.9f * k, Color{90, 200, 220, 255}); // a brooch at the throat, its gem the table's glow
+    DrawLineEx(P(0, -121 + br), P(-16, -100), 0.9f * k, brass); DrawCircleV(P(-16, -99), 2.1f * k, brass); // a watch chain
     EndFigure(feet);
     for (int e = -1; e <= 1; e += 2) { // his eyes catch the light
         Vector2 eye{feet.x + (P(e * 6.5f, -159).x - o.x), feet.y + (P(e * 6.5f, -159).y - o.y)};
         Glow(eye, 18 * k, Color{150, 170, 255, 110});
     }
+    Glow({feet.x + (P(0, -124).x - o.x), feet.y + (P(0, -124).y - o.y)}, 10 * k, Color{90, 200, 220, 120}); // the brooch glows
 }
-
 void DrawCardTable(float t) {
     Billboard(CARD_X, 0, CARD_Z, [&] {
         DrawEllipse(0, -3, 64, 12, Color{20, 14, 10, 255});                                         // foot

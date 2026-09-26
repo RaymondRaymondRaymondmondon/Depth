@@ -1000,6 +1000,26 @@ void DrawCrewFigure(const Hero& h, Vector2 ft, float s, bool right, float walk, 
                     break;
                 default: break;
             }
+        } else { // the ship's hands: uniform footwear
+            Vector2 cA = L(knee, foot, 0.5f), cB = L(knee, foot, 0.68f);
+            switch (h.outfit) {
+                case OUT_HELMSMAN: // sea boots with a folded top and a brass buckle
+                    ShadeLimb(cA, cB, 9.4f * s, 9.0f * s, Tone(boots, 0.25f)); DrawCircleV(L(cA, cB, 0.5f), 1.3f * s, brass);
+                    break;
+                case OUT_RADIO: // wound puttees
+                    for (int k = 0; k < 4; k++) DrawLineEx(L(knee, foot, 0.35f + k * 0.13f), {L(knee, foot, 0.35f + k * 0.13f).x + f * 6 * s, L(knee, foot, 0.4f + k * 0.13f).y}, 1.9f * s, Color{136, 124, 92, 255});
+                    break;
+                case OUT_ENGINEER: // knee pads and steel toes
+                    ShadeBall(knee, 6.2f * s, Color{86, 64, 44, 255}); ShadeBall({toe.x + f * 2 * s, toe.y - 0.5f * s}, 3.6f * s, steel);
+                    break;
+                case OUT_PROFESSOR: case OUT_STEWARD: // spats over polished shoes
+                    ShadeLimb(L(knee, foot, 0.74f), L(knee, foot, 0.96f), 8.4f * s, 8.2f * s, Color{216, 210, 192, 255});
+                    DrawCircleV(L(knee, foot, 0.86f), 1.0f * s, Color{120, 110, 90, 255});
+                    break;
+                default: // the orderly's white laces
+                    for (int k = 0; k < 3; k++) DrawLineEx(L(knee, foot, 0.58f + k * 0.1f), {L(knee, foot, 0.58f + k * 0.1f).x + f * 4 * s, L(knee, foot, 0.62f + k * 0.1f).y}, 0.9f * s, Color{240, 238, 230, 255});
+                    break;
+            }
         }
     };
     auto arm = [&](Vector2 sh, Vector2 el, Vector2 hd, Color upper, Color lower) {
@@ -1246,6 +1266,68 @@ void DrawCrewFigure(const Hero& h, Vector2 ft, float s, bool right, float walk, 
                 for (int k = 0; k < 4; k++) DrawLineEx(P(-16 + k * 9.0f, -100), P(-8 + k * 9.0f, -85), 0.6f * s, Fade(WHITE, 0.55f)); // a fishing-net drape
                 break;
             default: break;
+        }
+    }
+    if (npc) { // the ship's hands: layered uniforms
+        Color leather{96, 66, 40, 255}, leatherDk{58, 40, 26, 255};
+        auto Buckle = [&](Vector2 at, float r) { ShadeBall(at, r * s, brass); DrawCircleV(at, r * 0.42f * s, Color{40, 32, 24, 255}); };
+        auto Strap = [&](Vector2 a, Vector2 b, float w, Color c) { ShadeLimb(a, b, w * s, w * s, c); };
+        auto Jag = [&](Vector2 a, Vector2 b, int n, float depth, Color c) {
+            for (int k = 0; k < n; k++) {
+                Vector2 p0 = L(a, b, k / (float)n), p1 = L(a, b, (k + 1) / (float)n);
+                DrawTri(p0, p1, {(p0.x + p1.x) / 2, (p0.y + p1.y) / 2 + depth * s * (0.55f + 0.45f * (float)((k * 7 + seed) % 3) / 2.0f)}, c);
+            }
+        };
+        switch (h.outfit) {
+            case OUT_HELMSMAN:
+                ShadeBall(P(-13, -136), 5.6f * s, Tone(top, 0.1f)); ShadeBall(P(15, -136), 5.6f * s, Tone(top, 0.1f)); // shoulder boards with gold bars
+                for (int k = 0; k < 2; k++) { DrawLineEx(P(-17, -138 + k * 2.6f), P(-9, -138 + k * 2.6f), 1.1f * s, brass); DrawLineEx(P(11, -138 + k * 2.6f), P(19, -138 + k * 2.6f), 1.1f * s, brass); }
+                Strap(P(-15, -133), P(12, -98), 2.0f, leatherDk);                                        // binoculars on a strap
+                ShadeBall(P(8, -100), 3.8f * s, Color{56, 58, 64, 255}); ShadeBall(P(14, -97), 3.8f * s, Color{56, 58, 64, 255});
+                Strap(P(-17, -93), P(17, -93), 3.4f, leather); Buckle(P(0, -93), 2.2f);
+                Q(P(-12, -116), P(-4, -116), P(-4, -108), P(-12, -108), Tone(top, -0.2f)); DrawCircleV(P(-8, -108), 1.1f * s, brass); // a buttoned pocket flap
+                Jag(P(-15, -88), P(15, -88), 5, 4.5f, Tone(top, -0.3f));
+                break;
+            case OUT_RADIO:
+                Strap(P(-9, -134), P(-9, -92), 2.6f, leatherDk); Strap(P(11, -134), P(11, -92), 2.6f, leatherDk);   // braces
+                Q(P(8, -96), P(19, -96), P(19, -82), P(8, -82), Color{60, 66, 58, 255}); DrawCircleV(P(13.5f, -90), 3.2f * s, Color{200, 190, 120, 255}); // a belt radio and its dial
+                DrawLineEx(P(17, -96), P(19, -118), 0.9f * s, Color{40, 40, 44, 255});                             // its antenna
+                DrawRing(P(-14, -90), 2.4f * s, 3.6f * s, 0, 360, 10, Color{70, 52, 38, 255});                     // a coil of wire on the belt
+                DrawLineEx(P(-19, -124), P(-13, -124), 2.2f * s, Color{90, 80, 64, 255});                          // sleeve garters
+                break;
+            case OUT_ENGINEER:
+                Strap(P(-17, -92), P(17, -92), 4.0f, leather); Buckle(P(0, -92), 2.4f);
+                Strap(P(-13, -92), P(-15, -74), 1.8f, leatherDk); Q(P(-18, -76), P(-11, -76), P(-11, -70), P(-18, -70), Color{170, 172, 178, 255}); // a spanner on the belt
+                Q(P(6, -96), P(13, -96), P(14, -78), P(7, -78), Color{174, 90, 60, 255});                          // an oily rag
+                DrawCircleV(P(-4, -108), 3.0f * s, Fade(BLACK, 0.32f)); DrawCircleV(P(9, -100), 2.4f * s, Fade(BLACK, 0.28f)); // grease
+                ShadeBall(P(2, -116), 4.4f * s, Color{60, 62, 66, 255}); DrawCircleV(P(2, -116), 3.0f * s, Color{206, 196, 140, 255}); // a gauge in the bib
+                break;
+            case OUT_PROFESSOR:
+                Strap(P(-14, -134), P(14, -96), 1.9f, leatherDk); Q(P(6, -102), P(19, -102), P(19, -84), P(6, -84), leather); Buckle(P(12.5f, -98), 1.3f); // a satchel
+                DrawTri(P(-11, -122), P(-6, -122), P(-8.5f, -128), Color{176, 50, 60, 255});                       // a pocket square
+                DrawLineEx(P(-6, -136), P(-8, -118), 0.9f * s, brass);                                             // a monocle chain
+                for (int k = 0; k < 3; k++) DrawCircleV(P(0, -124 + k * 10.0f), 1.4f * s, Tone(brass, -0.2f));
+                Jag(P(-15, -88), P(15, -88), 5, 5, Tone(top, -0.25f));
+                break;
+            case OUT_STEWARD:
+                Q(P(-16, -100), P(16, -100), P(15, -92), P(-15, -92), Color{30, 30, 36, 255});                     // a black cummerbund
+                for (int k = 0; k < 3; k++) DrawLineEx(P(-17, -126 + k * 4.0f), P(-8, -118 + k * 3.0f), 1.0f * s, brass); // a gold aiguillette
+                ShadeBall(P(-17, -126), 1.8f * s, brass);
+                ShadeBall(P(-13, -136), 4.4f * s, Color{40, 40, 46, 255}); DrawLineEx(P(-17, -132), P(-9, -132), 1.0f * s, brass); // epaulette and fringe
+                Q(P(14, -104), P(22, -104), P(21, -84), P(13, -84), Color{240, 238, 232, 255});                    // a napkin over the arm
+                DrawLineEx(P(15, -100), P(15, -88), 0.7f * s, Color{200, 200, 200, 255});
+                break;
+            default: { // the orderly
+                Color red{176, 40, 36, 255};
+                Q(P(-12, -118), P(-3, -118), P(-3, -106), P(-12, -106), Tone(top, -0.12f));                        // a pocket of pens and a thermometer
+                DrawLineEx(P(-10, -121), P(-10, -115), 1.0f * s, Color{40, 70, 150, 255}); DrawLineEx(P(-6, -121), P(-6, -115), 1.0f * s, red);
+                Q(P(-19, -130), P(-14, -130), P(-14, -122), P(-19, -122), Color{232, 232, 228, 255});              // a red-cross armband
+                DrawLineEx(P(-16.5f, -129), P(-16.5f, -123), 1.2f * s, red); DrawLineEx(P(-18.5f, -126), P(-14.5f, -126), 1.2f * s, red);
+                Strap(P(-15, -98), P(-19, -88), 1.4f, Color{236, 234, 226, 255});                                  // apron ties
+                Q(P(9, -100), P(18, -100), P(18, -88), P(9, -88), leather); DrawCircleV(P(13.5f, -94), 2.2f * s, Color{226, 220, 204, 255}); // a pouch with a bandage roll
+                Q(P(-19, -96), P(-11, -96), P(-11, -78), P(-19, -78), Color{150, 110, 70, 255});                   // a clipboard at the hip
+                Q(P(-18, -94), P(-12, -94), P(-12, -80), P(-18, -80), Color{232, 230, 222, 255});
+            } break;
         }
     }
     // --- head

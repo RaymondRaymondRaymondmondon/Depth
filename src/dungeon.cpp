@@ -861,8 +861,26 @@ static std::vector<Vector2> CrystalSpots(const Game& g) {
 // flat, muted ink-dark masses with one hard-edged lit face; the vignette and ink pass finish them.
 static void DrawRegionMidground(Game& g) {
     auto& d = g.dungeon;
-    if (d.loc == Location::Cave) return;
     float t = g.time, sd = (float)(d.visSeed % 9973) * 1.37f;
+    if (d.loc == Location::Cave) { // rock pillars, hanging root curtains and glowing moss: a cavern to walk through
+        Repeat(LayerOffset(g, 0.42f), 420, [&](float sx, float wx) {
+            if (Hash1(wx * 0.4f + sd) > 0.8f) return;
+            float x = sx + Hash1(wx + sd) * 160, w = 44 + Hash1(wx * 1.6f) * 40;
+            Color rock{14, 22, 28, 255}, lit{34, 52, 60, 255};
+            for (int seg = 0; seg < 9; seg++) { // a pillar of stacked, uneven blocks from the ceiling to the floor
+                float y0 = 60 + seg * 46.0f, jut = (Hash1(wx + seg * 3.1f) - 0.5f) * 14;
+                DrawRectangle((int)(x + jut), (int)y0, (int)w, 48, rock);
+                DrawRectangle((int)(x + jut), (int)y0, 5, 48, lit);
+            }
+            DrawTri({x - 20, 472}, {x + w + 20, 472}, {x + w / 2, 440}, rock);                                                  // rubble at its foot
+            if (Hash1(wx * 2.2f + sd) > 0.4f) { Vector2 mo{x + w * 0.5f, 330 + Hash1(wx) * 90}; DrawEllipse((int)mo.x, (int)mo.y, 16, 7, Color{40, 150, 130, 255}); Glow(mo, 60, Color{60, 220, 190, 60}); } // glowing moss
+        });
+        Repeat(LayerOffset(g, 0.62f), 350, [&](float sx, float wx) { // root curtains
+            float x = sx + Hash1(wx + sd) * 200;
+            for (int k = 0; k < 5; k++) DrawLineEx({x + k * 9.0f, 56}, {x + k * 9.0f + sinf(t * 0.5f + wx + k) * 7, 130 + Hash1(wx + k) * 130}, 3, Color{16, 22, 20, 255});
+        });
+        return;
+    }
     float dense = 0.35f + Hash1(sd + 3.0f) * 0.65f;
     if (d.loc == Location::Island) {
         Repeat(LayerOffset(g, 0.3f), 300, [&](float sx, float wx) { // jagged basalt columns
@@ -950,24 +968,65 @@ static void DrawRegionMidground(Game& g) {
     }
 }
 
-// Ground colour and texture for each region: sun-bleached sand, black silt, cracked marble flags.
+// The ground the party walks on, for every region: a lit worn path over darker ground that falls away to black, with
+// its own material (cave rock slabs, a rotted boardwalk, black mud and roots, cracked marble with a glowing rune line),
+// wet sheen where the party's light lands, ragged edges, and a hard ink lip along the horizon.
 static void DrawRegionFloor(Game& g) {
     auto& d = g.dungeon;
-    if (d.loc == Location::Cave) return;
-    float off = LayerOffset(g, 1.0f);
-    Color base = d.loc == Location::Island ? Color{96, 82, 58, 255} : d.loc == Location::Weeds ? Color{34, 44, 36, 255} : Color{58, 58, 68, 255};
-    DrawRectangle(0, 452, SCREEN_W, 268, Fade(base, 0.78f));
-    DrawRectangle(0, 450, SCREEN_W, 4, Color{6, 6, 8, 255});
-    if (d.loc == Location::Atlantis) {
-        for (float x = fmodf(off, 130) - 130; x < SCREEN_W + 130; x += 130) DrawLineEx({x, 452}, {x - 90, 720}, 3, Color{8, 8, 12, 255}); // marble flag seams
-        for (int k = 1; k < 5; k++) DrawRectangle(0, 452 + k * k * 12, SCREEN_W, 2, Color{8, 8, 12, 255});
-    } else if (d.loc == Location::Island) {
-        for (int k = 0; k < 24; k++) DrawEllipse((int)fmodf(k * 133.0f + off, 1400.0f) - 60, 500 + (k % 5) * 40, 16 + k % 4 * 6, 3, Color{60, 50, 34, 255});
-    } else {
-        for (int k = 0; k < 18; k++) DrawEllipse((int)fmodf(k * 151.0f + off, 1400.0f) - 60, 490 + (k % 4) * 50, 26, 5, Color{18, 26, 20, 255});
+    float t = g.time, off = LayerOffset(g, 1.0f), sd = (float)(d.visSeed % 4099) * 0.37f;
+    const Color ink{6, 7, 10, 255};
+    Color base = d.loc == Location::Cave ? Color{34, 46, 54, 255} : d.loc == Location::Island ? Color{104, 88, 62, 255} : d.loc == Location::Weeds ? Color{36, 50, 40, 255} : Color{62, 62, 76, 255};
+    DrawVGradient({0, 452, (float)SCREEN_W, 268}, Fade(Tone(base, 0.05f), 0.95f), Fade(Tone(base, -0.7f), 0.98f));      // ground falling away to black
+    DrawRectangle(0, 448, SCREEN_W, 6, ink);                                                                                // the horizon lip
+    DrawRectangle(0, 454, SCREEN_W, 2, Fade(Tone(base, 0.4f), 0.8f));
+    DrawRectangle(0, 456, SCREEN_W, 60, Fade(Tone(base, 0.16f), 0.6f));                                                     // the worn path
+    Repeat(off, 44, [&](float sx, float wx) {                                                                              // its ragged lower edge
+        float h = 3 + Hash1(wx + sd) * 9;
+        DrawTri({sx, 516}, {sx + 44, 516}, {sx + 22 + (Hash1(wx * 2 + sd) - 0.5f) * 16, 516 + h}, Fade(Tone(base, 0.16f), 0.6f));
+    });
+    for (int k = 1; k < 6; k++) DrawRectangle(0, 452 + k * k * 9, SCREEN_W, 1 + k / 3, Fade(ink, 0.35f));                    // receding bands
+    if (d.loc == Location::Cave) { // uneven rock slabs with cracks and silt
+        Repeat(off, 130, [&](float sx, float wx) {
+            float w = 90 + Hash1(wx + sd) * 60, y = 462 + Hash1(wx * 1.3f + sd) * 46, x = sx + Hash1(wx * 2 + sd) * 40;
+            DrawEllipse((int)(x + w / 2), (int)y, w / 2 + 2, 11, ink); DrawEllipse((int)(x + w / 2), (int)y - 1, w / 2 - 1, 9, Tone(base, 0.14f));
+            DrawEllipse((int)(x + w / 2 - w * 0.12f), (int)y - 4, w * 0.32f, 3, Tone(base, 0.34f));                          // the lit top
+            DrawLineEx({x + w * 0.2f, y - 3}, {x + w * 0.35f, y + 6}, 1.6f, ink); DrawLineEx({x + w * 0.35f, y + 6}, {x + w * 0.3f, y + 10}, 1.6f, ink);
+        });
+        Repeat(off, 210, [&](float sx, float wx) { for (int k = 0; k < 4; k++) DrawRectangle((int)(sx + k * 17 + Hash1(wx) * 40), 522 + k * 14 + (int)(Hash1(wx + k) * 6), 20 + k * 6, 2, Fade(Tone(base, 0.25f), 0.45f)); });   // strata of silt
+    } else if (d.loc == Location::Atlantis) {
+        for (float x = fmodf(off, 130) - 130; x < SCREEN_W + 130; x += 130) DrawLineEx({x, 454}, {x - 90, 720}, 3, ink);       // marble flag seams
+        Repeat(off, 260, [&](float sx, float wx) { // cracks, chips, and an inlaid rune line that pulses
+            float y = 470 + Hash1(wx + sd) * 40;
+            DrawLineEx({sx + 20, y}, {sx + 44, y + 7}, 2, ink); DrawLineEx({sx + 44, y + 7}, {sx + 38, y + 16}, 2, ink);
+        });
+        Color rune = d.atmos == 2 ? Color{230, 70, 60, 255} : d.atmos == 1 ? Color{220, 190, 110, 255} : Color{200, 90, 240, 255};
+        Repeat(off, 90, [&](float sx, float wx) { float pulse = 0.5f + 0.5f * sinf(t * 1.6f + wx * 0.05f); DrawRectangle((int)sx, 490, 46, 3, Fade(rune, 0.25f + 0.45f * pulse)); DrawRectangle((int)sx + 54, 490, 8, 3, Fade(rune, 0.2f + 0.3f * pulse)); });
+    } else if (d.loc == Location::Island) { // a rotted boardwalk over the sand
+        Repeat(off, 72, [&](float sx, float wx) {
+            if (Hash1(wx * 0.7f + sd) < 0.1f) { DrawRectangle((int)sx, 462, 70, 52, Color{14, 12, 10, 255}); return; }              // a missing plank
+            Color pc = Tone(Color{116, 82, 50, 255}, (Hash1(wx + sd) - 0.5f) * 0.4f);
+            DrawRectangle((int)sx, 460, 70, 56, ink); DrawRectangle((int)sx + 2, 462, 66, 52, pc);
+            DrawRectangle((int)sx + 2, 462, 66, 4, Tone(pc, 0.3f));                                                            // its lit edge
+            for (int k = 0; k < 3; k++) DrawLineEx({sx + 8, 472 + k * 14.0f}, {sx + 62, 470 + k * 14.0f + Hash1(wx + k) * 4}, 1, Tone(pc, -0.3f)); // grain
+            DrawCircleV({sx + 8, 468}, 2, Color{40, 36, 34, 255}); DrawCircleV({sx + 62, 468}, 2, Color{40, 36, 34, 255});          // nails
+        });
+        Repeat(off, 60, [&](float sx, float wx) { DrawEllipse((int)sx, 540 + (int)(Hash1(wx + sd) * 90), 18 + Hash1(wx) * 14, 3, Fade(Tone(base, -0.4f), 0.7f)); }); // sand ripples
+    } else { // Weeds: black mud, roots and standing water
+        Repeat(off, 150, [&](float sx, float wx) {
+            float y = 470 + Hash1(wx + sd) * 40, x = sx + Hash1(wx * 2 + sd) * 60;
+            Vector2 prev{x, y};
+            for (int k = 1; k <= 6; k++) { Vector2 q{x + k * 12.0f, y + sinf(k * 0.9f + wx) * 5}; DrawLineEx(prev, q, 5.0f - k * 0.4f, ink); DrawLineEx(prev, q, 3.0f - k * 0.3f, Color{54, 44, 34, 255}); prev = q; } // a root
+        });
+        Repeat(off, 240, [&](float sx, float wx) { // puddles, catching the light
+            float y = 500 + Hash1(wx + sd) * 40, w = 40 + Hash1(wx * 3) * 40;
+            DrawEllipse((int)sx + 40, (int)y, w, 8, ink); DrawEllipse((int)sx + 40, (int)y, w - 2, 6, Color{40, 70, 74, 255}); DrawEllipse((int)sx + 30, (int)y - 1, w * 0.4f, 2, Color{120, 180, 180, 255});
+        });
     }
-}
-// ---------------------------------------------------------------- the prop spawner
+    // sheen where the party's lantern and the props' lights fall on the wet ground
+    BeginBlendMode(BLEND_ADDITIVE);
+    for (int k = 0; k < 4; k++) DrawEllipse(430 + k * 20, 476 + k * 12, 300 - k * 55, 20 - k * 3, Fade(Tone(base, 0.4f), 0.05f));
+    EndBlendMode();
+}// ---------------------------------------------------------------- the prop spawner
 // Modular decor along the path, chosen per step from a weighted pool for the location and the run's seed:
 // each 230-pixel step of the walk may hold one prop (or none), so the path is assembled differently every run.
 // Flat shapes, black ink under every mass, one hard lit edge.
@@ -1886,6 +1945,23 @@ const char* AtmosphereName(Location loc, int variant) { return ATMOS_NAME[(int)l
 
 // Distant silhouettes: an ink-black frieze of local landmarks, laid out from the run's seed on two parallax
 // depths, with variable spacing so no two runs share a skyline.
+// Shafts of light slanting down through the region's air, behind the figures: pale cyan in the cave, a sickly glow over the
+// island, green in the weeds, violet in Atlantis. Additive, soft, and slowly drifting.
+static void DrawLightShafts(Game& g) {
+    auto& d = g.dungeon;
+    float t = g.time, sd = (float)(d.visSeed % 1013) * 0.7f;
+    Color c = d.loc == Location::Cave ? Color{90, 190, 210, 255} : d.loc == Location::Island ? Color{220, 210, 130, 255} : d.loc == Location::Weeds ? Color{120, 230, 140, 255} : Color{170, 120, 240, 255};
+    if (d.atmos == 0 && d.loc == Location::Cave) return; // the pitch-black trench has no light to spare
+    BeginBlendMode(BLEND_ADDITIVE);
+    Repeat(LayerOffset(g, 0.2f), 260, [&](float sx, float wx) {
+        if (Hash1(wx * 0.9f + sd) < 0.35f) return;
+        float x = sx + Hash1(wx + sd) * 120, w = 26 + Hash1(wx * 1.7f) * 40, sway = sinf(t * 0.25f + wx) * 14, a = 0.05f + Hash1(wx * 2.3f) * 0.05f;
+        Vector2 a0{x, 56}, a1{x + w, 56}, b0{x - 150 + sway, 470}, b1{x + w + 100 + sway, 470};
+        DrawTri(a0, b0, a1, Fade(c, a)); DrawTri(a1, b0, b1, Fade(c, a * 0.8f));
+    });
+    EndBlendMode();
+}
+
 static void DrawSeededSilhouettes(Game& g) {
     auto& d = g.dungeon;
     const Color ink{4, 5, 8, 255};
@@ -2383,6 +2459,7 @@ void SceneDungeon(Game& g) {
     DrawGroundClutter(g);
     DrawPathProps(g);
     DrawCaveLighting(g);
+    DrawLightShafts(g);
     DrawLocationTint(g, false); // the colour grade is baked into the backdrop, under the figures
     DrawUnitFigures(g);   // after the lightmap: characters keep their own colours instead of being multiplied toward black
     DrawProjectiles(g);
