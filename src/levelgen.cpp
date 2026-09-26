@@ -1,4 +1,4 @@
-#include "levelgen.h"
+﻿#include "levelgen.h"
 #include <algorithm>
 #include <cmath>
 #include <random>
@@ -188,7 +188,8 @@ static void BuildFleet(Grid& g, std::vector<Plat>& pl, Rng& rng, GenLevel& out, 
         g.rect(mx, top, mx + 1, deckRow - 1, '|');
         g.rect(mx, deckRow - 3, mx + 1, deckRow - 1, '.');
     };
-    auto yard = [&](int cx, int row, int half) { g.rect(cx + 1 - half, row, cx + half, row, '='); };
+    auto rig = [&](int mx, int deckRow, int top) { g.rect(mx, top, mx, deckRow - 1, 'l'); }; // ratlines: a rope ladder you climb or walk through, not a wall
+    auto yard = [&](int cx, int row, int half) { for (int xx = cx + 1 - half; xx <= cx + half; xx++) if (xx != cx) g.set(xx, row, '='); }; // a spar either side of the ladder, with a gap to climb through
     int x = 0, ship = 0, guard = 0, prevD = D0, prevBowX = -1, prevBowD = D0;
     bool bridgePending = false; int pendingMastX = 0, pendingRow = 0, pendingHalf = 2;
     while (x < P.length && guard++ < 12) {
@@ -198,13 +199,14 @@ static void BuildFleet(Grid& g, std::vector<Plat>& pl, Rng& rng, GenLevel& out, 
                                                 : std::clamp(prevD + rng.I(0, 1), D0 - 2, D0 + 2); // a jumped gap never climbs: the stern castle is as high as the bow, or lower
         bool isLast = x + len >= P.length - 8;
         g.rect(sx, Ds, ex, Ds + 4, '#');                                       // the hull: deck planking over timber
-        if (ship > 0) g.rect(sx, Ds - 3, sx + 3, Ds - 1, '#');                  // the stern castle, raised
+        bool quarter = ship > 0 && !bridgePending; // the ship a rope bridge lands on has a plain deck at that end
+        if (quarter) { g.rect(sx, Ds - 2, sx + 8, Ds - 1, '#'); g.rect(sx + 9, Ds - 1, sx + 10, Ds - 1, '#'); } // the quarter deck, raised two tiles, and a step down to the main deck
         if (!isLast) { g.rect(ex - 2, Ds - 1, ex, Ds - 1, '#'); g.rect(ex - 1, Ds - 2, ex, Ds - 2, '#'); g.set(ex, Ds - 3, '#'); } // the bow, stepping up
-        int cx = sx + (ship == 0 ? 9 : 6);
+        int cx = sx + (ship == 0 ? 9 : quarter ? 14 : 6);
         // ---- if a rope bridge arrives here, drop its far mast onto this ship
         if (bridgePending) {
             int mB = sx + 7;
-            mast(mB, Ds, pendingRow);
+            rig(mB, Ds, pendingRow);
             int i = 0;                                                            // the ladder runs down from the rope's own row, so no yard is stacked on the landing yard
             for (int r = pendingRow + 3; r <= Ds - 3; r += 3) yard(mB, r, std::max(2, 4 - i++));
             yard(mB, pendingRow, pendingHalf);
@@ -218,7 +220,7 @@ static void BuildFleet(Grid& g, std::vector<Plat>& pl, Rng& rng, GenLevel& out, 
             bridgePending = false;
             cx = mB + 15;                                                          // keep the next ship's masts and yardarms clear of the descent
         } else if (ship > 0) { // arrived by a jump: a waypoint on the stern castle
-            Plat cap{sx, sx + 3, Ds - 3, C_JUMP, '#', SetPiece::None, 0, sx + 1};
+            Plat cap{sx, sx + 3, Ds - 2, C_JUMP, '#', SetPiece::None, 0, sx + 1};
             pl.push_back(cap);
         }
         if (ship == 0) { Plat d0{x + 4, x + 8, Ds, C_JUMP, '#', SetPiece::None, 0, x + 5}; (void)d0; }
@@ -233,7 +235,7 @@ static void BuildFleet(Grid& g, std::vector<Plat>& pl, Rng& rng, GenLevel& out, 
             if (cx + need[kind] > last) break;
             if (kind == 0) { // an open hatch, spikes in the hold
                 int gw = P.safety > 0.85f ? rng.I(3, 4) : 3;
-                g.rect(cx, Ds, cx + gw - 1, Ds + 3, '.'); g.rect(cx, Ds + 4, cx + gw - 1, Ds + 4, 'x');
+                g.rect(cx, Ds, cx + gw - 1, Ds, '.'); g.rect(cx, Ds + 1, cx + gw - 1, Ds + 1, 'x'); // a shallow hatch: spikes on the grating below, the hull unbroken beneath
                 if (rng.C(0.5f)) g.set(cx + gw / 2, Ds - 4, 'g');                      // a spiked ball hung over the hatch (Hard): a low or a high arc
                 for (int q = 0; q < gw; q++) if (g.get(cx + q, Ds - 3 - (q == gw / 2 ? 2 : 0)) == '.' && rng.C(0.5f)) g.set(cx + q, Ds - 3 - (q == gw / 2 ? 2 : 0), 'o');
                 Plat after{cx + gw, cx + gw + 2, Ds, C_JUMP, '#', SetPiece::None, 0, cx + gw};
@@ -261,7 +263,7 @@ static void BuildFleet(Grid& g, std::vector<Plat>& pl, Rng& rng, GenLevel& out, 
                 if (rng.C(0.6f)) { g.set(cx + 1, Ds - 1, 'k'); }
                 cx += 6;
             } else { // a standing mast with yardarms out of reach: dressing, a tunnel at its foot
-                mast(cx, Ds, Ds - 22);
+                rig(cx, Ds, Ds - 22);
                 yard(cx, Ds - 14, 6); yard(cx, Ds - 20, 4);
                 cx += 7;
             }
@@ -269,13 +271,17 @@ static void BuildFleet(Grid& g, std::vector<Plat>& pl, Rng& rng, GenLevel& out, 
             if (rng.C(0.25f) && g.get(cx - 6, Ds) == '#' && g.get(cx - 6, Ds - 1) == '.') g.set(cx - 6, Ds - 1, 'c');
             if (rng.C(0.6f) && g.get(cx - 1, Ds - 1) == '.') g.set(cx - 1, Ds - 1, 'o');
         }
+        // ---- below decks: cabins under the quarter deck and a corridor beneath the main deck (behind the timbers, not reachable)
+        auto room = [&](int a, int b, int r0, int r1) { for (int xx = a; xx <= b; xx++) for (int rr = r0; rr <= r1; rr++) if (g.get(xx, rr) == '#') g.set(xx, rr, 'i'); };
+        if (quarter) room(sx + 2, sx + 8, Ds + 1, Ds + 3);
+        if (len >= 40) room(sx + 14, ex - 8, Ds + 2, Ds + 3);
         // ---- leaving the ship
         prevBowX = ex; prevBowD = Ds; prevD = Ds;
         if (isLast) { x = ex + 1; ship++; break; }
         if (bridgeAt) { // a mast ladder up to a rope that runs across a gap too wide to jump
             int mA = ex - 10, n = rng.I(3, 4);
             int gap = rng.I(9, 11);
-            mast(mA, Ds, Ds - 3 * n);
+            rig(mA, Ds, Ds - 3 * n);
             std::vector<Plat> ladder;
             for (int i = 1; i <= n; i++) {
                 int half = std::max(2, 5 - i), row = Ds - 3 * i;
@@ -294,10 +300,12 @@ static void BuildFleet(Grid& g, std::vector<Plat>& pl, Rng& rng, GenLevel& out, 
             JumpArc a = CalculateValidJumpArc(rise * kin::TILE);
             int gm = std::max(2, (int)std::floor((a.maxReach * P.safety - 12) / kin::TILE));
             int gap = rng.I(std::max(3, gm - 1), gm);
+            g.rect(ex + 1, Ds - 2, ex + 3, Ds - 2, '='); // the bowsprit: a spar jutting over the water, the place to leap from
             Plat bow{ex - 1, ex, Ds - 2, C_JUMP, '#', SetPiece::None, 0, ex - 1};
-            pl.push_back(bow);
+            Plat tip{ex + 2, ex + 3, Ds - 2, C_JUMP, '=', SetPiece::None, 0, ex + 2};
+            pl.push_back(bow); pl.push_back(tip);
             out.setPieces[(int)SetPiece::ShipGap]++;
-            x = ex + 1 + gap;
+            x = ex + 4 + gap;
         }
         ship++;
     }
@@ -539,7 +547,7 @@ GenLevel GenerateLevel(int level, unsigned seed, float scale) {
             if (wdt >= 4 && rng.C(0.45f) && air(p.x0 + 1, p.y - 1)) g.set(p.x0 + 1, p.y - 1, 'c');
             else if (wdt >= 5 && rng.C(0.3f) && p.ch == '#') g.set(p.x0 + wdt / 2, p.y, 'x');
         } else {
-            if (wdt >= 3 && rng.C(0.4f) && air(p.x1 - 1, p.y - 1) && air(p.x1 - 1, p.y - 2)) g.set(p.x1 - 1, p.y - 1, 'P');
+            if (wdt >= 3 && p.ch == '#' && rng.C(0.4f) && air(p.x1 - 1, p.y - 1) && air(p.x1 - 1, p.y - 2)) g.set(p.x1 - 1, p.y - 1, 'P'); // only on a deck, never on a spar in mid-air
             if (wdt >= 5 && rng.C(0.3f) && air(p.x0 + 2, p.y - 1)) g.set(p.x0 + 2, p.y - 1, 'k');
             if (wdt >= 4 && rng.C(0.4f) && air(p.x0 + 1, p.y - 1) && g.get(p.x0 + 1, p.y - 1) == '.') g.set(p.x0 + 1, p.y - 1, 'c');
         }

@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 //  DEPTH - shared header
 //  Everything the different parts of the game need to know about each other.
 // ============================================================================
@@ -377,6 +377,7 @@ struct PlatformState {
     bool hard = false;               // Hard keeps the gears and jets; Normal leaves them out
     bool checkpoints = false;        // respawn at the last section reached, but forfeit the relic
     bool bossEnabled = true;         // Hull/Pirate: whether the boss arena has its boss in it
+    float waterY = 0;                // the sea's surface in world pixels (the Pirate Ship); 0 when there is none
     bool onWeed = false;             // the diver is among seaweed: it slows a fall and can be climbed
     int climbDir = 0;                // -1 up, 1 down: held keys, read only while on weed (never set by the path search)
     bool ghost = false;              // the rare Ghost Ship: undead crew, fog, and everything 1.6x faster

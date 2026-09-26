@@ -686,6 +686,11 @@ void BuildFromGrid(PlatformState& p, const GenLevel& gl, const Part* arena, char
     }
     p.partX.clear(); p.spawns.clear(); p.partInterior.clear(); p.partKind.clear();
     p.deathY.assign(p.w, p.h * (float)T + 40);
+    p.waterY = 0;
+    if (p.level == PL_PIRATE) { // the sea: falling between the ships means the water, not a strip of spikes
+        p.waterY = (gl.h - 20 + 3 - top) * (float)T + 16;
+        for (int c = 0; c < gl.w; c++) p.deathY[c] = p.waterY - PH + 12;
+    }
     for (int x = 0; x < gl.w; x += CH_W) { // checkpoint chunks: each respawns at the first critical-path platform inside it
         const GenWaypoint* wp = &gl.path.back();
         for (const GenWaypoint& w : gl.path) if (w.tx >= x) { wp = &w; break; }
@@ -742,6 +747,10 @@ void Die(PlatformState& p) {
     p.deathTimer = 0.45f;
     p.deaths++;
     Vector2 c{p.pos.x + PW / 2, p.pos.y + PH / 2};
+    if (p.waterY > 0 && p.pos.y + PH > p.waterY - 6) { // into the sea: a spout of spray
+        for (int k = 0; k < 14; k++) p.particles.push_back({{c.x + Rnd(-8, 8), p.waterY}, {Rnd(-70, 70), Rnd(-260, -120)}, 0.7f, 0.7f, Rnd(2, 4), Color{200, 225, 250, 255}});
+        Bubbles(p, {c.x, p.waterY + 6}, 8, 12);
+    }
     Burst(p, c, 18, Pal::Teal, 260, 0.6f, 3);
     Burst(p, c, 10, Pal::Brass, 200, 0.5f, 3);
     if (!p.verifying) {
@@ -821,7 +830,7 @@ void StepPlayer(PlatformState& p, float dir, bool jumpHeld) {
     {
         p.onWeed = false;
         for (int ty = (int)floorf((p.pos.y + 2) / T); ty <= (int)floorf((p.pos.y + PH - 2) / T) && !p.onWeed; ty++)
-            for (int tx = (int)floorf((p.pos.x + 3) / T); tx <= (int)floorf((p.pos.x + PW - 3) / T); tx++) if (At(p, tx, ty) == 'w') { p.onWeed = true; break; }
+            for (int tx = (int)floorf((p.pos.x + 3) / T); tx <= (int)floorf((p.pos.x + PW - 3) / T); tx++) if (At(p, tx, ty) == 'w' || At(p, tx, ty) == 'l') { p.onWeed = true; break; }
         if (p.onWeed) p.coyote = COYOTE; // you can always jump off it
     }
     if (!p.verifying && p.level == PL_HULL && GetRandomValue(0, 160) == 0) // the diver's exhaled air rises from the helmet
@@ -1136,11 +1145,6 @@ void BackgroundSystem::Setup(int lv) {
                 float bx = fmodf(k * 131.0f - ox * 0.7f + 9000, cw + 120) - 40, ph = fmodf(t * 0.5f + k * 0.13f, 1.0f);
                 DrawRectangle((int)bx, (int)(ch - 12 - sinf(ph * PI) * 26), 2, 2, Fade(Color{220, 230, 250, 255}, 0.6f * (1 - ph)));
             }
-            Layer(ox / 1.3f, 1.3f, 520, cw, [&](float x, float wx) { // a lantern swinging from a spar, black against the sky
-                float sw = sinf(t * 1.1f + wx) * 5;
-                DrawLineEx({x, 30}, {x + sw, 78}, 2, Color{6, 6, 10, 255}); DrawRectangle((int)(x + sw) - 5, 78, 10, 14, Color{6, 6, 10, 255});
-                DrawRectangle((int)(x + sw) - 2, 82, 4, 6, Color{255, 200, 100, 255});
-            });
         }};
     }
 }
@@ -1271,6 +1275,15 @@ void DrawShipScenery(const PlatformState& p, int c0, int c1, float t) {
                 for (int k = 1; k < 4; k++) DrawLineEx({mx - half + k * half / 2, yy + 8}, {mx - half + k * half / 2 + belly, yy + h}, 1, Color{160, 144, 118, 255});
             }
         }
+        { // a lantern hung from the lowest yard: fixed to the mast in the world, so it never moves with the diver
+            float yy = top + 60 + 2 * 7.0f * T, half = 3.9f * T, lx = mx - half + 16, sway = sinf(t * 1.1f + mx * 0.01f) * 2;
+            DrawLineEx({lx, yy + 8}, {lx + sway, yy + 34}, 1, Color{20, 16, 12, 255});
+            DrawRectangle((int)(lx + sway) - 5, (int)yy + 34, 10, 13, Color{8, 8, 12, 255});
+            DrawRectangle((int)(lx + sway) - 3, (int)yy + 36, 6, 9, gGhost ? Color{120, 255, 210, 255} : Color{255, 206, 110, 255});
+            BeginBlendMode(BLEND_ADDITIVE);
+            for (int k = 0; k < 3; k++) DrawCircleV({lx + sway, yy + 41}, 14.0f + k * 12, gGhost ? Color{80, 240, 190, (unsigned char)(26 - k * 7)} : Color{255, 180, 80, (unsigned char)(28 - k * 8)});
+            EndBlendMode();
+        }
         DrawRectangle((int)mx - 18, (int)top - 20, 36, 14, Color{70, 46, 26, 255}); // the crow's nest
         DrawRectangle((int)mx - 2, (int)top - 60, 3, 40, Color{80, 52, 30, 255});
         float wave = sinf(t * 3) * 6; // the Jolly Roger
@@ -1296,7 +1309,8 @@ void DrawShipScenery(const PlatformState& p, int c0, int c1, float t) {
 // Auto-tiling: a bitmask of which of a tile's four neighbours match (1 = north, 2 = east, 4 = south, 8 = west), so pipes,
 // coral, timbers and ropes can draw the right junction, corner, cap or open face instead of a disjointed block.
 uint8_t SolidMask(const PlatformState& p, int x, int y) {
-    return (Solid(p, x, y - 1) ? 1 : 0) | (Solid(p, x + 1, y) ? 2 : 0) | (Solid(p, x, y + 1) ? 4 : 0) | (Solid(p, x - 1, y) ? 8 : 0);
+    auto S = [&](int tx, int ty) { return Solid(p, tx, ty) || At(p, tx, ty) == 'i'; }; // a cabin behind the timbers is part of the hull
+    return (S(x, y - 1) ? 1 : 0) | (S(x + 1, y) ? 2 : 0) | (S(x, y + 1) ? 4 : 0) | (S(x - 1, y) ? 8 : 0);
 }
 template <typename Pred>
 uint8_t TileMask(const PlatformState& p, int x, int y, Pred match) {
@@ -1611,6 +1625,28 @@ void DrawTile(const PlatformState& p, char c, int x, int y, float t) {
                 DrawRectangle((int)px + 7, (int)py - 40, 17, 3, Color{60, 58, 62, 255});
             }
             break;
+        case 'l': { // ratlines: a rope ladder, two shrouds with rungs between, swaying a little
+            float sw = sinf(t * 1.2f + y * 0.7f) * 1.2f;
+            Color rope{176, 150, 100, 255}, ropeDk{96, 76, 48, 255};
+            DrawRectangle((int)(px + 7 + sw), (int)py, 2, T, ropeDk); DrawRectangle((int)(px + 8 + sw), (int)py, 1, T, rope);
+            DrawRectangle((int)(px + 22 + sw), (int)py, 2, T, ropeDk); DrawRectangle((int)(px + 23 + sw), (int)py, 1, T, rope);
+            for (int k = 0; k < 4; k++) { DrawRectangle((int)(px + 7 + sw), (int)py + 3 + k * 8, 18, 3, Color{8, 8, 12, 255}); DrawRectangle((int)(px + 8 + sw), (int)py + 4 + k * 8, 16, 1, Color{150, 108, 64, 255}); }
+        } break;
+        case 'i': { // below decks, behind the timbers: planking, ribs, a lamp, and a cabin door now and then
+            DrawRectangle((int)px, (int)py, T, T, gGhost ? Color{16, 30, 30, 255} : Color{34, 22, 16, 255});
+            DrawRectangle((int)px + 11, (int)py, 1, T, Color{24, 14, 10, 255});
+            DrawRectangle((int)px, (int)py, T, 2, Color{54, 34, 22, 255});
+            if (x % 6 == 0 && At(p, x, y + 1) != 'i') { // a door in the bulkhead, on the room's floor
+                DrawRectangle((int)px + 4, (int)py + 4, 24, T - 4, Color{58, 36, 22, 255});
+                DrawRectangle((int)px + 6, (int)py + 6, 20, T - 8, Color{78, 50, 30, 255});
+                DrawCircle((int)px + 22, (int)py + 18, 2, Pal::Brass);
+            }
+            if (x % 6 == 3) { // a bulkhead lamp
+                float fl = 0.8f + 0.2f * sinf(t * 8 + x);
+                DrawRectangle((int)px + 13, (int)py + 6, 6, 8, Color{8, 8, 12, 255});
+                DrawRectangle((int)px + 14, (int)py + 7, 4, 6, gGhost ? Color{110, 250, 210, 255} : Color{(unsigned char)(220 * fl + 30), (unsigned char)(170 * fl + 30), 80, 255});
+            }
+        } break;
         case 'k': { // a crate or a barrel
             bool barrel = Hs(x * 7.1f + y * 3.3f) > 0.5f;
             if (barrel) {
@@ -2066,6 +2102,25 @@ void DrawAmbientLife(const PlatformState& p, float t, float viewW, float viewH) 
     (void)y1;
 }
 // The Ghost Ship's crew: bone, tatters and a pale green light in the sockets, in place of the living pirates.
+// The sea under the fleet: a wavy body of water in front of the hulls' lower planking, foam on its crest. Falling into it is the
+// hazard (see DeathY), not a strip of spikes.
+void DrawSea(const PlatformState& p, float t, float viewW, float viewH) {
+    if (p.waterY <= 0) return;
+    float x0 = floorf(p.camX - viewW / 2) - 4, x1 = p.camX + viewW / 2 + 4, yb = p.camY + viewH / 2 + 8;
+    if (yb < p.waterY - 8) return;
+    Color body = gGhost ? Color{16, 70, 74, 168} : Color{16, 46, 92, 172}, crest = gGhost ? Color{120, 226, 204, 255} : Color{140, 196, 240, 255};
+    for (float x = x0; x < x1; x += 2) {
+        float wy = p.waterY + sinf(x * 0.045f + t * 1.5f) * 2.5f + sinf(x * 0.12f - t * 2.2f) * 1.5f;
+        DrawRectangle((int)x, (int)wy, 2, (int)(yb - wy), body);
+        DrawRectangle((int)x, (int)wy, 2, 2, Fade(crest, 0.9f));
+        if (((int)(x * 0.5f + t * 9)) % 19 == 0) DrawRectangle((int)x, (int)wy - 2, 4, 2, Fade(WHITE, 0.85f)); // foam
+    }
+    for (int k = 0; k < 6; k++) { // darker swells rolling below the surface
+        float sy = p.waterY + 14 + k * 12;
+        for (float x = x0; x < x1; x += 4) DrawRectangle((int)x, (int)(sy + sinf(x * 0.03f + t * 0.8f + k * 2) * 3), 4, 2, Fade(BLACK, 0.16f));
+    }
+}
+
 void DrawSkeletonBody(float x, float y, float f, float t, float lean) {
     const Color bone{224, 220, 196, 255}, ink{8, 8, 12, 255}, glow{120, 255, 190, 255};
     float cx = x + 11 + lean;
@@ -2126,6 +2181,17 @@ void DrawEnemy(const PlatEnemy& e, float t) {
         } break;        case 'P': { // a cutthroat behind a door: you see his eyes through the gap, then the door bangs open
             float open = e.state == 1 ? e.timer / AMB_OUT : e.state == 2 ? 1 : e.state == 3 ? 1 - e.timer / AMB_BACK : 0;
             float dx = e.home.x, dy = e.home.y - T; // the doorway fills this tile and the one above
+            { // a deckhouse: the door is set into the wall of a little timber cabin standing on the deck, never in open air
+                Color wood{78, 50, 30, 255}, woodDk{46, 28, 18, 255};
+                if (gGhost) { wood = Color{56, 82, 76, 255}; woodDk = Color{28, 46, 44, 255}; }
+                DrawRectangle((int)dx - T + 2, (int)dy - 10, 3 * T - 4, 2 * T + 10, woodDk);
+                DrawRectangle((int)dx - T + 4, (int)dy - 8, 3 * T - 8, 2 * T + 8, wood);
+                for (int k = 0; k < 12; k++) DrawRectangle((int)dx - T + 4 + k * 8, (int)dy - 8, 1, 2 * T + 8, woodDk);
+                DrawRectangle((int)dx - T - 2, (int)dy - 18, 3 * T + 4, 8, Color{40, 26, 16, 255});   // the roof's eave
+                DrawRectangle((int)dx - T - 2, (int)dy - 18, 3 * T + 4, 2, Color{110, 76, 48, 255});
+                DrawRectangle((int)dx - T + 9, (int)dy + 4, 12, 12, Color{10, 14, 26, 255});          // a little window
+                DrawRectangle((int)dx - T + 9, (int)dy + 9, 12, 1, woodDk);
+            }
             DrawRectangle((int)dx + 1, (int)dy + 1, T - 2, 2 * T - 1, Color{58, 36, 22, 255});   // frame
             DrawRectangle((int)dx + 4, (int)dy + 4, T - 8, 2 * T - 4, Color{16, 10, 8, 255});    // the dark inside
             if (e.state == 0 && fmodf(t * 0.7f + e.home.x * 0.01f, 3.0f) < 2.4f) { // watching through the crack
@@ -2761,6 +2827,7 @@ void ScenePlatformer(Game& g) {
     DrawBoss(p, t);
     for (auto& e : p.enemies) DrawEnemy(e, t);
     DrawShots(p, t);
+    DrawSea(p, t, viewW, viewH);
     for (auto& pt : p.particles) {
         if (pt.size < 0) DrawRing({pt.p.x, pt.p.y}, -pt.size * 0.6f, -pt.size, 0, 360, 10, Fade(pt.c, std::min(1.0f, pt.life / pt.max * 1.5f) * 0.8f));
         else DrawRectangle((int)pt.p.x, (int)pt.p.y, (int)pt.size, (int)pt.size, Fade(pt.c, std::min(1.0f, pt.life / pt.max * 1.5f)));
