@@ -86,6 +86,7 @@ struct Ui {
     bool cashed = false, lost = false; int payout = 0; bool insurePaid = false;
     bool showRules = false, showDeck = false;
     int lastTurns = 0;
+    bool autoPlay = false;                         // developer self-test: the auto-player fights every dealer through the real UI code
     int showPage = 0;                              // the showcase page (developer tool): 0-8 sheets, 100+ one card each
     int ventStep = 0;                             // warmings so far at the Boiling Vents (the risk climbs with each)
     std::vector<int> scrimSuits, scrimSigils;      // the carved bones on offer at the Scrimshaw Artist
@@ -1839,6 +1840,41 @@ void DrawHud(Game& g, Vector2 m, bool modal) {
     Txt(TextFormat("Pot %d", U.rm.gs.pot), SCREEN_W - 120, 23, 17, Pal::Paper);
 }
 
+// ---------------------------------------------------------------- developer self-test: the auto-player through the real UI code
+int gAutoBattles = 0, gAutoDone = 0, gAutoWins = 0, gAutoPhase2 = 0;
+void AutoStart() {
+    int dealer = gAutoDone % DEALERS;
+    U.rm.layer = 1; U.rm.slot = 0;
+    U.rm.map[1][0].type = dealer == 4 ? NodeType::BOSS : NodeType::BATTLE; U.rm.map[1][0].dealer = dealer;
+    U.rm.gs.momentumTracker = 0;
+    StartBattle(Boon::NONE);
+}
+void AutoplayTick() {
+    if (!U.autoPlay) return;
+    Battle& bat = U.bat;
+    static int frameNo = 0;
+    if (++frameNo % 120 == 0) TraceLog(LOG_INFO, "autoplay frame %d: ph %d turn %d turnNo %d scale %d", frameNo, (int)U.ph, (int)bat.turn, bat.turnNo, bat.board.scale); fflush(stdout);
+    if (U.ph == Ph::Battle) {
+        U.stepT = 0;                                   // one micro-step per frame
+        if (bat.turn == Turn::OVER) U.endT = 2;        // skip the end pause
+        if (bat.turn == Turn::YOU_MAIN) {
+            Board prev = bat.board;
+            U.ev.clear();
+            bat.AutoYourTurn(U.ev, U.rng);
+            ApplyEvents(U.ev, prev);
+        }
+        return;
+    }
+    if (U.ph == Ph::Won || U.ph == Ph::RunOver || U.ph == Ph::Map || U.ph == Ph::Node) {
+        if (bat.winner > 0) gAutoWins++;
+        if (bat.boss && bat.phase == 2) gAutoPhase2++;
+        TraceLog(LOG_INFO, "autoplay battle %d (%s): %s in %d turns, phase %d", gAutoDone + 1, Dealer(bat.dealer).name, bat.winner > 0 ? "won" : "lost", bat.turnNo, bat.phase); fflush(stdout);
+        gAutoDone++;
+        if (gAutoDone >= gAutoBattles) { U.autoPlay = false; TraceLog(LOG_INFO, "autoplay finished: %d of %d won, Selenis met %d times", gAutoWins, gAutoDone, gAutoPhase2); fflush(stdout); return; }
+        U.ph = Ph::Battle;
+        AutoStart();
+    }
+}
 // ---------------------------------------------------------------- the showcase: every card and component, one page each (for the shots folder)
 void DrawShowcase(float t) {
     DrawVGradient({0, 0, (float)SCREEN_W, (float)SCREEN_H}, Color{20, 40, 42, 255}, Color{8, 16, 20, 255});
@@ -1954,6 +1990,7 @@ void SceneCards(Game& g) {
     float dt = GetFrameTime(), t = g.time;
     SetPost(0.75f, 0.03f, 0.5f);
     Vector2 m = GetMousePosition();
+    AutoplayTick();
     gHasHover = false;
     UpdateFx(dt);
     if (U.ph == Ph::Showcase) { SetPost(0.15f, 0.0f, 0.1f); DrawShowcase(t); return; }   // a clean page, without the table or the HUD
@@ -2255,6 +2292,8 @@ void DebugFlatsBoss(int phase) {
     for (int r = 0; r < ROWS; r++) for (int c = 0; c < COLS; c++) U.fx[r][c] = CellFx();
     b.turn = Turn::YOU_MAIN;
 }
+bool FlatsAutoplayActive() { return U.autoPlay; }
+void DebugFlatsAutoplay(int battles) { DebugRun(5); U.autoPlay = true; gAutoBattles = battles; gAutoDone = gAutoWins = gAutoPhase2 = 0; AutoStart(); }
 void DebugFlatsShowcase(int page) { DebugRun(3); U.ph = Ph::Showcase; U.showPage = page; }
 int FlatsCatalogSize() { return (int)Catalog().size(); }
 const char* FlatsCardName(int i) { return Catalog()[std::clamp(i, 0, (int)Catalog().size() - 1)].name.c_str(); }

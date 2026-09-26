@@ -191,35 +191,36 @@ Painted Paint(const Sprite& sp) {
             float a = a2[o];
             if (a < 0.10f) continue;
             unsigned char* q = &px[o * 4];
-            // ink line: the halo just outside the body
-            if (a < 0.47f) {
-                q[0] = 22; q[1] = 15; q[2] = 12; q[3] = (unsigned char)(255 * SStep(0.10f, 0.20f, a));
-                continue;
-            }
+            auto ink = [&](int alpha) { q[0] = 24; q[1] = 17; q[2] = 14; q[3] = (unsigned char)alpha; };
+            float wob = (Hash2(x / 2, y / 2) - 0.5f) * 0.10f;               // a ragged, hand-inked contour, like fur and scratchy pen work
+            if (a < 0.47f + wob) { ink((int)(255 * SStep(0.10f, 0.20f, a))); continue; }
             float wv = std::max(wgtv[o], 1e-3f);
             float r = Rb[o] / wv, g = Gb[o] / wv, b = Bb[o] / wv;
-            r = r * 0.86f + 150 * 0.14f; g = g * 0.86f + 118 * 0.14f; b = b * 0.86f + 78 * 0.14f;   // salvaged, warm cast
             float dhx = hgt[o + 1] - hgt[o - 1], dhy = hgt[o + W] - hgt[o - W], dax = a2[o + 1] - a2[o - 1], day = a2[o + W] - a2[o - W];
             float nx = -(dhx * 30 + dax * 2.6f), ny = -(dhy * 30 + day * 2.6f), nz = 1;
             float nl = sqrtf(nx * nx + ny * ny + nz * nz); nx /= nl; ny /= nl; nz /= nl;
             float diff = std::max(0.0f, nx * Lx + ny * Ly + nz * Lz), spec = powf(std::max(0.0f, nx * hx + ny * hy + nz * hz), 28.0f) * 0.32f;
             float shade = 0.40f + 0.82f * diff;
-            shade *= 0.72f + 0.28f * SStep(0.47f, 0.62f, a);                       // dark rim where the form turns away
-            // skin: a staggered scale pattern and fine grain
-            float su = x / 8.5f, sv = y / 7.0f + ((int)floorf(su) % 2 ? 0.5f : 0.0f);
-            float fu = su - floorf(su) - 0.5f, fv = sv - floorf(sv) - 0.5f;
-            float scale = SStep(0.30f, 0.52f, sqrtf(fu * fu * 0.9f + fv * fv * 1.2f));
-            shade *= 1.0f - 0.07f * scale * SStep(0.5f, 0.9f, wv);
-            shade *= 0.93f + 0.14f * Hash2(x, y);
-            {   // inked linework where one colour region meets another (fins, belly, eyes, hat brims)
+            shade *= 0.72f + 0.28f * SStep(0.47f, 0.62f, a);
+            // value: how dark this part of the creature is in the drawing (its own colour, times the light on it)
+            float lumBase = (0.3f * r + 0.59f * g + 0.11f * b) / 255.0f;
+            float v = std::pow(lumBase, 0.55f) * std::clamp(shade, 0.3f, 1.2f);
+            {   // inked linework wherever one colour region meets another: fins, belly, eyes, hat brims
                 auto lum = [&](int i) { return 0.3f * R[i] + 0.59f * G[i] + 0.11f * B[i]; };
                 float grad = fabsf(lum(o + 1) - lum(o - 1)) + fabsf(lum(o + W) - lum(o - W));
-                if (a1[o] > 0.9f && a1[o + 1] > 0.9f && a1[o - 1] > 0.9f && a1[o + W] > 0.9f && a1[o - W] > 0.9f) shade *= 1.0f - 0.85f * SStep(9.0f, 24.0f, grad) * 0.8f;
+                if (a1[o] > 0.9f && a1[o + 1] > 0.9f && a1[o - 1] > 0.9f && a1[o + W] > 0.9f && a1[o - W] > 0.9f && grad > 36.0f) { ink(255); continue; }
             }
-            if (shade < 0.62f && fmodf((x + y) / 5.0f, 1.0f) < 0.22f) shade *= 0.78f;          // crosshatch in the shadow
-            float rr = r * shade + spec * 255, gg = g * shade + spec * 255, bb = b * shade + spec * 255;
-            q[0] = (unsigned char)std::clamp(rr, 0.0f, 255.0f); q[1] = (unsigned char)std::clamp(gg, 0.0f, 255.0f); q[2] = (unsigned char)std::clamp(bb, 0.0f, 255.0f);
-            q[3] = 255;
+            // ordered dither in 3-pixel blocks: dense black in shadow, brown stipple in the mid-tones, bare paper in the light
+            static const int BAYER[4][4] = {{0, 8, 2, 10}, {12, 4, 14, 6}, {3, 11, 1, 9}, {15, 7, 13, 5}};
+            float thr = (BAYER[(y / 3) & 3][(x / 3) & 3] + 0.5f) / 16.0f;
+            float d = std::clamp((0.80f - v) / 0.62f, 0.0f, 1.0f);
+            bool hatch = v < 0.36f && fmodf((x + y) / 7.0f, 1.0f) < 0.2f;                      // diagonal hatching in the shadows
+            float su = x / 8.5f, sv = y / 7.0f + ((int)floorf(su) % 2 ? 0.5f : 0.0f);
+            float fu = su - floorf(su) - 0.5f, fv = sv - floorf(sv) - 0.5f;
+            bool scaleLine = SStep(0.30f, 0.52f, sqrtf(fu * fu * 0.9f + fv * fv * 1.2f)) > 0.9f && v < 0.6f && Hash2(x / 3, y / 3) > 0.55f;   // scale arcs
+            if (spec > 0.12f) continue;                                                        // a glint: the paper shows through
+            if (hatch || scaleLine || thr < d * 0.55f) ink(255);
+            else if (thr < d * 1.1f) { q[0] = 122; q[1] = 88; q[2] = 62; q[3] = 205; }
         }
     Image img{px.data(), W, H, 1, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8};
     out.tex = LoadTextureFromImage(img);
@@ -247,6 +248,7 @@ bool DrawCreaturePixels(const std::string& name, Rectangle box, float dim, int s
     float dw = p.tex.width * scale, dh = p.tex.height * scale;
     float dx = box.x + (box.width - dw) / 2, dy = box.y + (box.height - dh) / 2 + scale * OC * 0.3f;
     DrawEllipse((int)(dx + dw / 2), (int)(dy + dh - scale * OC * (1 + 0.3f)), dw * 0.36f, scale * OC * 0.8f, Fade(Color{20, 14, 12, 255}, 0.30f * dim));
+    DrawTexturePro(p.tex, {0, 0, (float)p.tex.width, (float)p.tex.height}, {dx - dw * 0.06f, dy - dh * 0.10f, dw * 1.12f, dh * 1.12f}, {0, 0}, 0, Fade(Color{130, 100, 78, 255}, 0.16f * dim));   // the creature's faint shadow-self looming behind it
     DrawTexturePro(p.tex, {0, 0, (float)p.tex.width, (float)p.tex.height}, {dx, dy, dw, dh}, {0, 0}, 0, Fade(WHITE, dim));
     return true;
 }

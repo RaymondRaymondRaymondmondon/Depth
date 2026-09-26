@@ -263,9 +263,11 @@ int main(int argc, char** argv) {
     }
     const char* shotDir = argc >= 3 && strcmp(argv[1], "--shots") == 0 ? argv[2] : nullptr;
     const char* spriteFile = argc >= 3 && strcmp(argv[1], "--sprites") == 0 ? argv[2] : nullptr;
+    const bool flatsUiTest = argc >= 2 && strcmp(argv[1], "--flats-ui-test") == 0;
 
-    SetConfigFlags(FLAG_VSYNC_HINT);
+    SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_RESIZABLE);
     InitWindow(SCREEN_W, SCREEN_H, "Depth");
+    SetWindowMinSize(640, 360);
     SetExitKey(KEY_NULL); // Esc is used in-game, so it shouldn't close the window
     SetTargetFPS(60);
     InitArt();
@@ -274,7 +276,11 @@ int main(int argc, char** argv) {
     Game g;
     InitGame(g);
 
-    if (spriteFile) {
+    if (flatsUiTest) { // the Flats battle screen driven by the auto-player, through the real drawing and animation code
+        g.scene = Scene::Cards;
+        DebugFlatsAutoplay(argc >= 3 ? atoi(argv[2]) : 10);
+        for (int f = 0; f < 200000 && FlatsAutoplayActive(); f++) { g.time += 1 / 60.0f; BeginFrame(); RunScene(g); EndFrame(g.time); }
+    } else if (spriteFile) {
         MakeSpriteSheet(spriteFile);
     } else if (shotDir) {
         gShotFilter = argc >= 4 ? argv[3] : nullptr;
@@ -285,6 +291,7 @@ int main(int argc, char** argv) {
         Scene last = g.scene;
         while (!WindowShouldClose()) {
             g.time += GetFrameTime();
+            if (IsKeyPressed(KEY_F11)) ToggleBorderlessWindowed();   // F11: fill the screen (the frame is letterboxed to fit)
             BeginFrame();
             RunScene(g);
             DrawToast(g);

@@ -451,7 +451,14 @@ void EndFrame(float time) {
 
     BeginDrawing();
     ClearBackground(BLACK);
-    DrawTextureRec(A.final.texture, {0, 0, (float)SCREEN_W, -(float)SCREEN_H}, {0, 0}, WHITE);
+    // the window is resizable: the frame is letterboxed to fit it, and the mouse is mapped back into game coordinates
+    static bool filtered = false;
+    if (!filtered) { SetTextureFilter(A.final.texture, TEXTURE_FILTER_BILINEAR); filtered = true; }
+    float ww = (float)GetScreenWidth(), wh = (float)GetScreenHeight(), sc = std::min(ww / SCREEN_W, wh / SCREEN_H);
+    float dw = SCREEN_W * sc, dh = SCREEN_H * sc, dx = std::floor((ww - dw) / 2), dy = std::floor((wh - dh) / 2);
+    SetMouseOffset((int)-dx, (int)-dy);
+    SetMouseScale(1.0f / sc, 1.0f / sc);
+    DrawTexturePro(A.final.texture, {0, 0, (float)SCREEN_W, -(float)SCREEN_H}, {dx, dy, dw, dh}, {0, 0}, 0, WHITE);
     EndDrawing();
 }
 

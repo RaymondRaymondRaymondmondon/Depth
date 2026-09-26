@@ -563,6 +563,8 @@ void DebugFlatsBarnacle();
 void DebugFlatsMaelstrom();
 void DebugFlatsBoss(int phase);
 void DebugFlatsShowcase(int page);
+void DebugFlatsAutoplay(int battles);   // developer self-test (depth.exe --flats-ui-test N)
+bool FlatsAutoplayActive();
 int FlatsCatalogSize();
 const char* FlatsCardName(int i);
 void DebugFlatsShop();              // debug: the dealer's stall
