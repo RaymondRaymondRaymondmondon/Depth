@@ -296,10 +296,41 @@ struct PlatEnemy {
     float timer = 0;  // time in the current state (or cooldown while hidden)
     Vector2 aim{0, 0}; // where a gunner is aiming
 };
-struct PlatShot { Vector2 pos, vel; float life; int kind; }; // 0 musket ball, 1 lit bomb, 2 explosion
+struct PlatShot { Vector2 pos, vel; float life; int kind; }; // 0 musket ball, 1 lit bomb, 2 explosion, 3 falling ink
 struct PlatParticle { Vector2 p, v; float life, max, size; Color c; };
+// ---- animation states for the articulated platform characters
+enum class BBAnim { Idle, Walk, Windup, Charge, AimPistol, Dazed, Recover };   // Blackbeard: each drives his limbs
+enum class CrabAnim { Idle, Scuttle, ClawSnap };                                // the crab's legs and claws
+
+// ---- the Kraken's three newest attacks, each a small state machine with its own timers
+// TentacleReachState: two tentacles rise from the abyss and TRACK the player, reaching for wherever they stand.
+struct TentacleReachState {
+    bool active = false;
+    float t = 0;                     // 0-0.8 telegraph, 0.8-2.8 reaching (deadly), 2.8-3.4 retracting
+    Vector2 base[2], tip[2];         // where each tentacle starts, and where its tip is now
+    Vector2 target{0, 0};            // the last known player position, updated every frame while reaching
+};
+// InkRainState: ink falls from the top of the screen at random x, as dark projectiles with hitboxes.
+struct InkRainState {
+    bool active = false;
+    float t = 0, spawnT = 0;         // spawns drops between 0.4 s and 3.0 s
+};
+// BeakChargeState: the head locks onto the player's height, telegraphs, then dashes across the arena. Its front
+// (the beak) has its own, longer and narrower hitbox than its body.
+struct BeakChargeState {
+    bool active = false;
+    float t = 0;                     // 0-0.9 telegraph (tracks Y), 0.9-2.0 dash, then done
+    float y = 0;                     // the height it locked onto (centre)
+    float fromX = 0, toX = 0, x = 0; // dash endpoints and current position
+    float dir = 1;
+};
+enum class KrakenMove { TentacleSlam = 0, InkFlood = 1, Lunge = 2, TentacleReach = 3, InkRain = 4, BeakCharge = 5 };
+
 struct PlatBoss {
     char type = 0;               // 'K' Kraken, 'B' Blackbeard, 0 = none
+    TentacleReachState reach;    // Kraken
+    InkRainState rain;
+    BeakChargeState beak;
     Vector2 home{0, 0}, pos{0, 0}, vel{0, 0};
     int hp = 3, state = 0;
     float timer = 0, invuln = 0, dir = -1;

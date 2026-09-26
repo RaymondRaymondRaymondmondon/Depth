@@ -598,7 +598,7 @@ void Dust(PlatformState& p, Vector2 at, int n, float dirX) {
 // ---------------------------------------------------------------- enemies and bosses
 Rectangle EnemyBox(const PlatEnemy& e) {
     switch (e.type) {
-        case 'c': return {e.pos.x + 3, e.pos.y + 4, 20, 12};
+        case 'c': return {e.pos.x + 3, e.pos.y + 4, 28, 14}; // a wide, low crustacean hull
         case 'P': case 'G': return {e.pos.x + 3, e.pos.y + 3, 16, 27};
         case 'p': return {e.pos.x - 9, e.pos.y - 6, 18, 12};
         default:  return {e.pos.x - 8, e.pos.y - 18, 16, 36}; // eel
@@ -637,7 +637,7 @@ void UpdateEnemies(PlatformState& p, float dt) {
         e.t += dt;
         if (e.type == 'c') { // crabs walk, turning at walls and ledges
             float nx = e.pos.x + e.dir * 70 * dt;
-            int ftx = (int)floorf((e.dir > 0 ? nx + 26 : nx) / T), fty = (int)floorf((e.pos.y + 15) / T);
+            int ftx = (int)floorf((e.dir > 0 ? nx + 34 : nx) / T), fty = (int)floorf((e.pos.y + 17) / T);
             if (Solid(p, ftx, fty) || !Solid(p, ftx, fty + 1)) e.dir = -e.dir;
             else e.pos.x = nx;
         } else if (e.type == 'P') { // waits behind his door; bursts out when you come near, stabs, ducks back
@@ -696,6 +696,13 @@ void UpdateShots(PlatformState& p, float dt) {
                 s.life = 0;
                 for (int k = 0; k < 4; k++) p.particles.push_back({s.pos, {Rnd(-80, 80), Rnd(-120, -20)}, 0.25f, 0.25f, 2, Color{200, 190, 170, 255}});
             }
+        } else if (s.kind == 3) { // a drop of Kraken ink, falling from above
+            s.vel.y = std::min(s.vel.y + 700 * dt, 620.0f);
+            s.pos.y += s.vel.y * dt;
+            if (Solid(p, (int)floorf(s.pos.x / T), (int)floorf((s.pos.y + 8) / T))) {
+                s.life = 0;
+                for (int k = 0; k < 5; k++) p.particles.push_back({s.pos, {Rnd(-90, 90), Rnd(-140, -30)}, 0.35f, 0.35f, 3, Color{40, 24, 50, 255}});
+            }
         } else if (s.kind == 1) {
             s.vel.y += 1500 * dt;
             Vector2 np{s.pos.x + s.vel.x * dt, s.pos.y + s.vel.y * dt};
@@ -716,6 +723,7 @@ void UpdateShots(PlatformState& p, float dt) {
 bool ShotHits(const PlatShot& s, Rectangle pr) {
     if (s.kind == 0) return CheckCollisionRecs(pr, {s.pos.x - 3, s.pos.y - 3, 6, 6});
     if (s.kind == 2) return CheckCollisionCircleRec(s.pos, BLAST_R, pr);
+    if (s.kind == 3) return CheckCollisionRecs(pr, {s.pos.x - 6, s.pos.y - 10, 12, 20}); // ink
     return false; // a bomb only hurts when it goes off
 }
 // The Kraken: an ancient horror rising from the abyss beneath the arena. Its tentacles strike up from
@@ -724,7 +732,7 @@ bool ShotHits(const PlatShot& s, Rectangle pr) {
 // The arena's row 0 sits at KrakenOrigin(p): everything below is measured from it.
 float KrakenOrigin(const PlatformState& p) { return p.boss.home.y - 14.0f * T; }
 constexpr float TENT_IDLE = -100;
-constexpr float BB_W = 36, BB_H = 72; // Blackbeard is a head taller than anyone
+constexpr float BB_W = 28, BB_H = 78; // Blackbeard is a head taller than anyone: a tall, narrow humanoid frame, not a wide block
 constexpr float KRAKEN_SCALE = 1.8f;  // the Kraken's mantle is drawn at life size: this is the beast you fight, not a stand-in
 float KrakenTop(const PlatformState& p) {
     const PlatBoss& b = p.boss;
@@ -771,6 +779,71 @@ void ResetBoss(PlatformState& p) {
     b.moveKind = -1;
     b.inkT = -1;
     b.lungeT = -1;
+    b.reach = TentacleReachState{};
+    b.rain = InkRainState{};
+    b.beak = BeakChargeState{};
+}
+
+// Does a segment (a tentacle from base to tip, with a radius) touch a box? Sampled along its length.
+bool SegmentTouches(Vector2 a, Vector2 b, float radius, Rectangle r) {
+    float len = sqrtf((b.x - a.x) * (b.x - a.x) + (b.y - a.y) * (b.y - a.y));
+    int n = std::max(2, (int)(len / 12));
+    for (int i = 0; i <= n; i++) {
+        float u = (float)i / n;
+        if (CheckCollisionCircleRec({a.x + (b.x - a.x) * u, a.y + (b.y - a.y) * u}, radius * (1 - u * 0.5f), r)) return true;
+    }
+    return false;
+}
+
+// The Kraken's head, in its beaked charge, occupies a body and a narrower beak out front.
+Rectangle BeakBody(const BeakChargeState& s) { return {s.x - 55, s.y - 34, 110, 68}; }
+Rectangle BeakTip(const BeakChargeState& s) { return {s.dir > 0 ? s.x + 40 : s.x - 40 - 62, s.y - 14, 62, 28}; }
+bool BeakDeadly(const BeakChargeState& s) { return s.active && s.t >= 0.9f && s.t < 2.05f; }
+bool ReachDeadly(const TentacleReachState& s) { return s.active && s.t >= 0.8f && s.t < 3.0f; }
+
+// Advance the three new Kraken attacks.
+void UpdateKrakenAttacks(PlatformState& p, float dt, float arenaX) {
+    PlatBoss& b = p.boss;
+    Vector2 pc{p.pos.x + PW / 2, p.pos.y + PH / 2};
+    if (b.reach.active) {
+        TentacleReachState& r = b.reach;
+        r.t += dt;
+        if (r.t < 2.8f) {
+            r.target = pc;
+            for (int i = 0; i < 2; i++) {
+                Vector2 to = r.t < 0.8f ? Vector2{r.base[i].x, r.base[i].y - 50} : r.target;
+                Vector2 d{to.x - r.tip[i].x, to.y - r.tip[i].y};
+                float len = std::max(1.0f, sqrtf(d.x * d.x + d.y * d.y)), step = std::min(len, (r.t < 0.8f ? 90.0f : 300.0f) * dt);
+                r.tip[i].x += d.x / len * step;
+                r.tip[i].y += d.y / len * step;
+                float bl = sqrtf((r.tip[i].x - r.base[i].x) * (r.tip[i].x - r.base[i].x) + (r.tip[i].y - r.base[i].y) * (r.tip[i].y - r.base[i].y));
+                if (bl > 13.0f * T) { r.tip[i].x = r.base[i].x + (r.tip[i].x - r.base[i].x) * 13.0f * T / bl; r.tip[i].y = r.base[i].y + (r.tip[i].y - r.base[i].y) * 13.0f * T / bl; }
+            }
+        } else {
+            for (int i = 0; i < 2; i++) { r.tip[i].x += (r.base[i].x - r.tip[i].x) * std::min(1.0f, dt * 6); r.tip[i].y += (r.base[i].y - r.tip[i].y) * std::min(1.0f, dt * 6); }
+        }
+        if (r.t > 3.4f) r.active = false;
+    }
+    if (b.rain.active) {
+        InkRainState& s = b.rain;
+        s.t += dt;
+        if (s.t > 0.4f && s.t < 3.0f) {
+            s.spawnT -= dt;
+            while (s.spawnT <= 0) {
+                s.spawnT += 0.14f;
+                float x = arenaX + Rnd(2.0f * T, 22.0f * T);
+                p.shots.push_back({{x, p.camY - 340}, {0, 260}, 5, 3}); // dark projectiles, from the top of the screen
+            }
+        }
+        if (s.t > 3.4f) s.active = false;
+    }
+    if (b.beak.active) {
+        BeakChargeState& s = b.beak;
+        s.t += dt;
+        if (s.t < 0.9f) s.y = std::clamp(pc.y, KrakenOrigin(p) + 3.0f * T, KrakenOrigin(p) + 13.0f * T); // locks onto your height
+        else if (s.t < 2.0f) s.x = s.fromX + (s.toX - s.fromX) * std::min(1.0f, (s.t - 0.9f) / 1.0f);
+        if (s.t > 2.4f) s.active = false;
+    }
 }
 
 void UpdateBoss(PlatformState& p, float dt) {
@@ -790,14 +863,35 @@ void UpdateBoss(PlatformState& p, float dt) {
                 if (b.tentFake[i] && b.tentT[i] >= 0.75f) { b.tentT[i] = TENT_IDLE; b.tentFake[i] = false; }
                 else if (b.tentT[i] > 1.8f) b.tentT[i] = TENT_IDLE;
             }
+        UpdateKrakenAttacks(p, dt, arenaX);
         if (b.inkT >= 0 && (b.inkT += dt) > 2.0f) b.inkT = -1;
         if (b.lungeT >= 0 && (b.lungeT += dt) > 1.3f) b.lungeT = -1;
         switch (b.state) {
             case 0: // submerged: picks one move for this cycle -- a tentacle strike (maybe a bluff), a
                      // spray of ink that floods half the arena, or a fast lunge sweeping across it
                 if (!b.defeated && playerInArena && b.timer > 0.3f && b.timer < 1.0f && b.moveKind == -1) {
-                    b.moveKind = GetRandomValue(0, 2);
+                    b.moveKind = GetRandomValue(0, 5);
                     float px = p.pos.x + PW / 2;
+                    if (b.moveKind == (int)KrakenMove::TentacleReach) {
+                        b.reach = TentacleReachState{};
+                        b.reach.active = true;
+                        b.reach.base[0] = {pitL, KrakenOrigin(p) + 16.0f * T};
+                        b.reach.base[1] = {pitR, KrakenOrigin(p) + 16.0f * T};
+                        b.reach.tip[0] = b.reach.base[0]; b.reach.tip[1] = b.reach.base[1];
+                        b.reach.target = {px, p.pos.y};
+                    } else if (b.moveKind == (int)KrakenMove::InkRain) {
+                        b.rain = InkRainState{};
+                        b.rain.active = true;
+                    } else if (b.moveKind == (int)KrakenMove::BeakCharge) {
+                        b.beak = BeakChargeState{};
+                        b.beak.active = true;
+                        bool fromLeft = px > arenaMid; // it charges from the side you are NOT near, toward you
+                        b.beak.dir = fromLeft ? 1.0f : -1.0f;
+                        b.beak.fromX = fromLeft ? arenaX - 2.0f * T : arenaX + 26.0f * T;
+                        b.beak.toX = fromLeft ? arenaX + 26.0f * T : arenaX - 2.0f * T;
+                        b.beak.x = b.beak.fromX;
+                        b.beak.y = p.pos.y;
+                    } else
                     if (b.moveKind == 0) {
                         bool slamFirst = GetRandomValue(0, 1) == 1;
                         b.tentTop[0] = slamFirst;
@@ -820,7 +914,7 @@ void UpdateBoss(PlatformState& p, float dt) {
                     }
                 }
                 if (b.defeated) break;
-                if (b.timer > 2.9f && playerInArena) { b.state = 1; b.timer = 0; }
+                if (b.timer > 2.9f && playerInArena && !b.reach.active && !b.rain.active && !b.beak.active) { b.state = 1; b.timer = 0; }
                 break;
             case 1: if (b.timer > 0.5f) { b.state = 2; b.timer = 0; } break;
             case 2: if (b.timer > 2.2f) { b.state = 3; b.timer = 0; } break;
@@ -945,7 +1039,7 @@ void BuildFromParts(PlatformState& p, const std::vector<Part>& parts, char fill,
             float x = c * (float)T, y = r * (float)T;
             switch (ch) {
                 case 'S': p.startPos = {x + 6, y + T - PH}; break;
-                case 'c': p.enemies.push_back({'c', {x + 3, y + T - 16}, {x, y}, -1, 0}); break;
+                case 'c': p.enemies.push_back({'c', {x - 1, y + T - 18}, {x, y}, -1, 0}); break;
                 case 'P': p.enemies.push_back({'P', {x + 5, y + T - 30}, {x, y}, -1, 0}); break;
                 case 'G': p.enemies.push_back({'G', {x + 6, y + T - 30}, {x, y}, -1, 0, 0, Rnd(0, 1.2f)}); break;
                 case 'p': p.enemies.push_back({'p', {x + 16, y + 16}, {x + 16, y + 16}, 1, 0}); break;
@@ -1562,6 +1656,27 @@ void DrawTileGrit(const PlatformState& p, int x, int y) {
         for (int k = 0; k < 3; k++) DrawRectangle((int)px + 3 + k * 10 + (int)(h1 * 5), (int)py, 4, 2, Color{214, 210, 196, 200});
 }
 
+// Weathering over a pipe run: an ink edge on the shadow side, rust blooms, dents, weld seams and stencilled hatching.
+void DrawPipeGrit(float px, float py, int len, bool horiz, int seed) {
+    float h = Hs(seed * 4.3f + px * 0.07f + py * 0.05f);
+    Color ink{8, 8, 12, 255}, rust{132, 68, 36, 210}, seam{30, 26, 24, 255};
+    if (horiz) {
+        DrawRectangle((int)px, (int)py + 13, len, 2, Fade(ink, 0.7f));                                     // shadow-side ink
+        DrawRectangle((int)px + 12, (int)py, 2, 14, seam);                                                 // weld seam
+        DrawRectangle((int)px + 11, (int)py + 1, 1, 2, Color{200, 190, 160, 255});                         // seam sparkle
+        DrawRectangle((int)px + 4 + (int)(h * 12), (int)py + 3, 7, 4, rust);                               // rust bloom
+        DrawRectangle((int)px + 6 + (int)(h * 12), (int)py + 7, 1, 5, rust);                               // running down
+        for (int k = 0; k < 3; k++) DrawRectangle((int)px + 18 + k * 3, (int)py + 4 + k * 2, 2, 1, ink);   // hatching
+        if (h > 0.6f) DrawEllipse((int)px + 22, (int)py + 7, 4, 3, Fade(ink, 0.55f));                     // a dent
+    } else {
+        DrawRectangle((int)px + 13, (int)py, 2, len, Fade(ink, 0.7f));
+        DrawRectangle((int)px, (int)py + 12, 14, 2, seam);
+        DrawRectangle((int)px + 3, (int)py + 4 + (int)(h * 12), 4, 7, rust);
+        DrawRectangle((int)px + 4, (int)py + 11 + (int)(h * 12), 1, 5, rust);
+        for (int k = 0; k < 3; k++) DrawRectangle((int)px + 4 + k * 2, (int)py + 20 + k * 3, 1, 2, ink);
+        if (h > 0.6f) DrawEllipse((int)px + 7, (int)py + 24, 3, 4, Fade(ink, 0.55f));
+    }
+}
 void DrawTile(const PlatformState& p, char c, int x, int y, float t) {
     float px = x * (float)T, py = y * (float)T;
     switch (c) {
@@ -1574,12 +1689,22 @@ void DrawTile(const PlatformState& p, char c, int x, int y, float t) {
                 DrawRectangle((int)px + 2, (int)py + 5, T - 4, 3, Color{60, 58, 62, 255});  // iron hoops
                 DrawRectangle((int)px + 2, (int)py + T - 8, T - 4, 3, Color{60, 58, 62, 255});
                 DrawRectangle((int)px + 22, (int)py + 2, 2, T - 4, Color{90, 56, 28, 255});
+                DrawRectangleRoundedLinesEx({px + 2, py, T - 4.0f, (float)T}, 0.35f, 4, 2, Color{8, 8, 12, 255});
+                for (int k = 0; k < 4; k++) DrawRectangle((int)px + 3 + k * 7, (int)py + 5, 1, 3, Color{190, 110, 60, 255}); // rust bleeding from the hoop
+                for (int k = 0; k < 3; k++) DrawRectangle((int)px + 4 + k * 8, (int)py + 10 + k * 5, 2, 1, Color{40, 26, 14, 255}); // hatching
+                DrawRectangle((int)px + 5, (int)py + 6, 2, 2, Color{20, 20, 24, 255}); DrawRectangle((int)px + T - 8, (int)py + 6, 2, 2, Color{20, 20, 24, 255}); // hoop rivets
             } else {
                 DrawRectangle((int)px, (int)py, T, T, Color{150, 108, 62, 255});
                 DrawRectangleLines((int)px, (int)py, T, T, Color{80, 54, 30, 255});
                 DrawRectangleLines((int)px + 3, (int)py + 3, T - 6, T - 6, Color{96, 66, 36, 255});
                 DrawLineEx({px + 4, py + 4}, {px + T - 4, py + T - 4}, 3, Color{110, 78, 42, 255}); // cross-brace
                 DrawRectangle((int)px + 2, (int)py + 2, T - 4, 2, Color{186, 140, 88, 255});
+                DrawRectangleLines((int)px - 1, (int)py - 1, T + 2, T + 2, Color{8, 8, 12, 255});                       // ink outline
+                DrawRectangle((int)px + T - 6, (int)py + 3, 4, T - 6, Fade(BLACK, 0.28f));                            // shadow plank
+                for (int k = 0; k < 4; k++) DrawRectangle((int)px + 5 + k * 5, (int)py + 20 + k % 2 * 3, 3, 1, Color{50, 32, 18, 255}); // hatching
+                for (int q = 0; q < 4; q++) DrawRectangle((int)px + 4 + (q % 2) * (T - 10), (int)py + 4 + (q / 2) * (T - 10), 2, 2, Color{60, 58, 62, 255}); // iron nails
+                DrawRectangle((int)px + 9, (int)py + 22, 1, 6, Color{120, 64, 36, 200});                                // rust drip
+                DrawLineEx({px + 14, py + 3}, {px + 17, py + 9}, 1, Color{20, 12, 8, 255});                             // a split in the wood
             }
         } break;
         case '=': if (p.level == PL_PIRATE) { // a yard or a beam, lashed with rope
@@ -1593,6 +1718,7 @@ void DrawTile(const PlatformState& p, char c, int x, int y, float t) {
             DrawPipeH(px, px + T, py + 16, 14, pipe);
             if (At(p, x - 1, y) != '=') DrawFlange({px + 3, py + 16}, 12, false, Pal::BrassDk);
             if (At(p, x + 1, y) != '=') DrawFlange({px + T - 3, py + 16}, 12, false, Pal::BrassDk);
+            DrawPipeGrit(px, py + 9, T, true, x);
             if (x % 4 == 0 && At(p, x + 1, y) == '=') DrawCircleV({px + T, py + 4}, 3, Color{220, 60, 40, 255}); // a valve wheel
         } break;
         case '|': { // a vertical pipe you can jump off
@@ -1600,6 +1726,7 @@ void DrawTile(const PlatformState& p, char c, int x, int y, float t) {
             DrawPipeV(px + 16, py, py + T, 14, pipe);
             if (At(p, x, y - 1) != '|') DrawFlange({px + 16, py + 3}, 12, true, Pal::BrassDk);
             if (At(p, x, y + 1) != '|') DrawFlange({px + 16, py + T - 3}, 12, true, Pal::BrassDk);
+            DrawPipeGrit(px + 9, py, T, false, y);
         } break;
         case 'x': {
             // Every hazard is built INTO the level, never set on top of it: a recessed housing is cut into
@@ -1802,22 +1929,39 @@ void DrawGlowingBits(const PlatformState& p, int c0, int c1, int r0, int r1, flo
 void DrawEnemy(const PlatEnemy& e, float t) {
     float x = e.pos.x, y = e.pos.y, f = e.dir;
     switch (e.type) {
-        case 'c': { // crab
-            Color c{150, 80, 58, 255}, dk{100, 56, 42, 255};
-            float cx = x + 13, cy = y + 10;
-            for (int k = 0; k < 3; k++) {
-                float lx = cx - 8 + k * 8, sw = sinf(t * 14 + k) * 2;
-                DrawLineEx({lx, cy}, {lx - 4 + sw, y + 16}, 2, dk);
+        case 'c': { // crab: a domed carapace, two-segment legs, eyestalks and claws that open and snap (CrabAnim)
+            const Color INKC{8, 8, 12, 255};
+            Color c{170, 84, 56, 255}, dk{104, 50, 38, 255}, lt{232, 140, 100, 255};
+            CrabAnim an = fmodf(e.t + x * 0.013f, 2.6f) < 0.4f ? CrabAnim::ClawSnap : CrabAnim::Scuttle;
+            float cx = x + 17, cy = y + 10, w = e.t * 16;
+            for (int s = -1; s <= 1; s += 2) for (int k = 0; k < 3; k++) { // three jointed legs per side
+                float ph = w + k * 2.1f + (s > 0 ? PI : 0), lift = std::max(0.0f, sinf(ph)) * 2.5f;
+                Vector2 hip{cx + s * (5 + k * 3.0f), cy + 3}, knee{cx + s * (11 + k * 3.5f), cy - 1 - lift}, foot{cx + s * (14 + k * 4.5f) + cosf(ph) * 2, y + 17 - lift * 0.5f};
+                DrawLineEx(hip, knee, 4.2f, INKC); DrawLineEx(knee, foot, 3.6f, INKC);
+                DrawLineEx(hip, knee, 2, dk); DrawLineEx(knee, foot, 1.6f, c);
             }
-            DrawEllipse((int)cx, (int)cy, 12, 7, c);
-            DrawEllipse((int)cx - 2, (int)cy - 3, 6, 2, Color{250, 150, 110, 255});
-            for (int s = -1; s <= 1; s += 2) {
-                DrawCircle((int)(cx + s * 14), (int)(cy - 5 + sinf(t * 6 + s) * 2), 5, c);
-                DrawLineEx({cx + s * 4, cy - 6}, {cx + s * 4, cy - 12}, 1.5f, dk);
-                DrawCircle((int)(cx + s * 4), (int)cy - 13, 2, Pal::Ink);
+            for (int s = -1; s <= 1; s += 2) { // claws on jointed arms, the pincer snapping open and shut
+                float open = an == CrabAnim::ClawSnap ? fabsf(sinf(e.t * 22)) : 0.35f + 0.15f * sinf(e.t * 3 + s);
+                Vector2 sh{cx + s * 9, cy - 1}, el{cx + s * 15, cy - 6}, wr{cx + s * 17, cy - 11};
+                DrawLineEx(sh, el, 5, INKC); DrawLineEx(el, wr, 5, INKC);
+                DrawLineEx(sh, el, 2.6f, dk); DrawLineEx(el, wr, 2.6f, c);
+                DrawCircleV(wr, 5.4f, INKC); DrawCircleV(wr, 3.8f, c);
+                for (int j = -1; j <= 1; j += 2) { // the two pincer fingers
+                    Vector2 tip{wr.x + s * 3 * (1 - open * 0.3f) + j * open * 4, wr.y - 5 - (1 - j * 0.4f) * 3};
+                    DrawLineEx(wr, tip, 4.4f, INKC); DrawLineEx(wr, tip, 2.4f, lt);
+                }
             }
-        } break;
-        case 'P': { // a cutthroat behind a door: you see his eyes through the gap, then the door bangs open
+            DrawEllipse((int)cx, (int)cy, 13, 8.5f, INKC);                     // the domed carapace
+            DrawEllipse((int)cx, (int)cy, 11.5f, 7, c);
+            DrawEllipse((int)cx - 2, (int)cy - 3, 7, 2.4f, lt);
+            DrawEllipse((int)cx + 3, (int)cy + 3, 9, 3, dk);                  // shadow side
+            for (int k = -1; k <= 1; k++) DrawCircleV({cx + k * 5.0f, cy + 1 + fabsf((float)k)}, 1.2f, dk); // mottling
+            for (int s = -1; s <= 1; s += 2) { // eyestalks: no shine, just a black bead
+                DrawLineEx({cx + s * 3, cy - 6}, {cx + s * 4.5f, cy - 11}, 2.6f, INKC);
+                DrawCircleV({cx + s * 4.5f, cy - 12}, 2.6f, INKC);
+                DrawRectangle((int)(cx + s * 4.5f + f * 0.5f), (int)cy - 13, 1, 1, Color{230, 226, 210, 255});
+            }
+        } break;        case 'P': { // a cutthroat behind a door: you see his eyes through the gap, then the door bangs open
             float open = e.state == 1 ? e.timer / AMB_OUT : e.state == 2 ? 1 : e.state == 3 ? 1 - e.timer / AMB_BACK : 0;
             float dx = e.home.x, dy = e.home.y - T; // the doorway fills this tile and the one above
             DrawRectangle((int)dx + 1, (int)dy + 1, T - 2, 2 * T - 1, Color{58, 36, 22, 255});   // frame
@@ -1944,6 +2088,166 @@ void DrawBossBack(const PlatformState& p, float t) {
     }
 }
 
+// The Kraken's head, drawn as a textured horror rather than a flat oval: a layered mantle with cross-hatched
+// shadow and mottled skin, translucent glowing organs showing through, barnacles and suckers, a heavy brow
+// shadow over great slit eyes that follow you, and a dark beak. `beakDir` (+1/-1) draws it charging sideways.
+void DrawKrakenHeadArt(float cx, float top, float S, float t, bool blink, float look, float beakDir = 0) {
+    Color skin = blink ? WHITE : Color{92, 62, 86, 255}, mid{70, 46, 66, 255}, dk{46, 30, 46, 255}, ink{12, 8, 14, 255};
+    float pulse = 0.5f + 0.5f * sinf(t * 3);
+    float f = beakDir != 0 ? beakDir : 0;
+    for (int k = -3; k <= 3; k++) // a crown of arms writhing behind and below the head
+        DrawTentacle({cx + k * 18 * S - f * 30 * S, top + 60 * S}, {cx + k * 46 * S - f * 90 * S, top + (110 + fabsf((float)k) * 8) * S}, 9 * S, t * 3, k * 2.0f, dk);
+    DrawEllipse((int)cx, (int)(top + 28 * S), 57 * S, 43 * S, ink);                      // heavy ink outline
+    DrawEllipse((int)cx, (int)(top + 28 * S), 54 * S, 40 * S, skin);                      // the great mantle
+    DrawEllipse((int)(cx + 12 * S), (int)(top + 36 * S), 42 * S, 30 * S, mid);             // its shadowed underside
+    DrawEllipse((int)(cx + 20 * S), (int)(top + 46 * S), 30 * S, 18 * S, dk);
+    for (int k = 0; k < 9; k++) DrawLineEx({cx - 44 * S + k * 10 * S, top + 8 * S}, {cx - 30 * S + k * 10 * S, top + 44 * S}, 1.4f * S, Fade(ink, 0.55f)); // cross-hatching
+    for (int k = 0; k < 7; k++) DrawLineEx({cx - 40 * S + k * 12 * S, top + 46 * S}, {cx - 52 * S + k * 12 * S, top + 12 * S}, 1.2f * S, Fade(ink, 0.35f));
+    for (int k = 0; k < 6; k++) DrawCircle((int)(cx - 36 * S + k * 14 * S), (int)(top + (20 + (k % 2) * 10) * S), 3 * S, dk);            // mottling
+    for (int k = 0; k < 3; k++) { // translucent glowing organs beneath the skin
+        Vector2 o{cx - 20 * S + k * 20 * S, top + 20 * S + (k & 1) * 8 * S};
+        DrawEllipse((int)o.x, (int)o.y, 8 * S, 5 * S, Fade(Color{90, 190, 170, 255}, 0.28f + 0.2f * pulse));
+        DrawEllipse((int)o.x, (int)o.y, 4 * S, 2.6f * S, Fade(Color{170, 240, 210, 255}, 0.3f + 0.2f * pulse));
+    }
+    for (int k = 0; k < 5; k++) { // barnacles encrusting the crown
+        float bx = cx - 28 * S + k * 14 * S, by = top + (2 + (k * 7) % 6) * S;
+        DrawTri({bx - 4 * S, by + 6 * S}, {bx + 4 * S, by + 6 * S}, {bx, by - 2 * S}, Color{184, 176, 152, 255});
+        DrawTri({bx, by - 2 * S}, {bx + 4 * S, by + 6 * S}, {bx + 1 * S, by + 6 * S}, ink);
+    }
+    for (int s = -1; s <= 1; s += 2) { // vast eyes under a heavy black brow
+        float ex = cx + s * 24 * S, ey = top + 42 * S;
+        DrawEllipse((int)ex, (int)ey, 14 * S, 11 * S, ink);
+        DrawEllipse((int)ex, (int)ey, 12 * S, 9 * S, Color{206, 176, 70, 255});
+        DrawRectangle((int)(ex - 2 * S + look * S), (int)(ey - 8 * S), (int)(4 * S), (int)(16 * S), ink);
+        DrawTri({ex - 14 * S, ey - 4 * S}, {ex + 14 * S, ey - 4 * S}, {ex + s * 4 * S, ey - 16 * S}, ink);                                  // the brow
+    }
+    for (int k = -2; k <= 2; k++) DrawCircle((int)(cx + k * 12 * S), (int)(top + 62 * S), 2.6f * S, Color{150, 120, 116, 255});             // suckers
+    Vector2 bt{cx, top + 70 * S};
+    if (beakDir == 0) DrawTri({cx - 9 * S, top + 58 * S}, {cx + 9 * S, top + 58 * S}, bt, Color{34, 26, 26, 255});                          // the beak, pointing down
+    else {                                                                                                                                 // ...or forward, when it charges
+        DrawTri({cx + f * 40 * S, top + 30 * S}, {cx + f * 40 * S, top + 54 * S}, {cx + f * 100 * S, top + 44 * S}, ink);
+        DrawTri({cx + f * 40 * S, top + 32 * S}, {cx + f * 40 * S, top + 46 * S}, {cx + f * 94 * S, top + 42 * S}, Color{62, 46, 40, 255});
+    }
+}
+
+// Blackbeard, articulated: a skeleton of hip, chest, head and jointed arms and legs, animated per BBAnim, dressed
+// in a long red coat, a waist sash, tall boots, a feathered hat, a fusing beard, a cutlass and a brace of pistols.
+BBAnim BBAnimOf(const PlatBoss& b) {
+    switch (b.state) {
+        case 0: return fabsf(b.vel.x) > 1 ? BBAnim::Walk : BBAnim::Idle;
+        case 1: return BBAnim::Windup;
+        case 2: return BBAnim::Charge;
+        case 4: return BBAnim::AimPistol;
+        case 5: return BBAnim::Dazed;
+        default: return BBAnim::Recover;
+    }
+}
+
+void DrawBlackbeard(const PlatformState& p, const PlatBoss& b, float t) {
+    const Color INKC{8, 8, 12, 255};
+    BBAnim an = BBAnimOf(b);
+    float f = b.dir, cx = b.pos.x + BB_W / 2, fy = b.pos.y + BB_H;
+    auto P = [&](float x, float y) { return Vector2{cx + f * x, fy + y}; };
+    auto limb = [&](Vector2 a, Vector2 c, float w, Color col) { DrawLineEx(a, c, w + 3.2f, INKC); DrawLineEx(a, c, w, col); DrawCircleV(c, w * 0.5f, col); };
+    float w = t * (an == BBAnim::Charge ? 17.0f : 9.0f);
+    float lean = an == BBAnim::Charge ? 9 : an == BBAnim::Windup ? -5 : an == BBAnim::Dazed ? sinf(t * 3) * 5 : an == BBAnim::AimPistol ? 3 : 0;
+    float crouch = an == BBAnim::Windup ? 8.0f + sinf(t * 30) : an == BBAnim::Dazed ? 4.0f : 0.0f;
+    float bob = (an == BBAnim::Walk || an == BBAnim::Charge) ? fabsf(sinf(w)) * 2.4f : sinf(t * 2) * 0.8f;
+    Vector2 hip = P(0, -35 + crouch - bob), chest = P(lean * 0.6f, -55 + crouch * 0.6f - bob), head = P(lean, -66 + crouch * 0.5f - bob);
+    float stride = an == BBAnim::Charge ? 13.0f : an == BBAnim::Walk ? 8.0f : an == BBAnim::Windup ? 6.0f : an == BBAnim::Dazed ? 7.0f : 0.0f;
+    Color breeches{56, 46, 54, 255}, boot{22, 18, 18, 255}, coat{128, 30, 34, 255}, coatDk{78, 16, 20, 255}, skin{206, 160, 122, 255};
+    // ---- far arm and far leg
+    auto leg = [&](float phase, Color pants) {
+        float sw = sinf(w + phase) * stride, lift = std::max(0.0f, cosf(w + phase)) * (stride > 0 ? 6.0f : 0.0f);
+        if (an == BBAnim::Dazed) sw = (phase > 0 ? 9.0f : -9.0f);
+        Vector2 knee = P(sw * 0.45f + (crouch > 4 ? 5.0f : 0.0f), -18 + crouch * 0.4f - lift * 0.5f), foot = P(sw, -3 - lift);
+        limb(hip, knee, 8, pants);
+        limb(knee, foot, 7, boot);
+        DrawRectangle((int)(foot.x - 5 + (f > 0 ? 0 : -3)), (int)foot.y - 2, 12, 6, INKC); // the boot's toe
+    };
+    Vector2 shBack = P(lean * 0.6f - 5, -58 + crouch * 0.6f - bob), shFront = P(lean * 0.6f + 5, -58 + crouch * 0.6f - bob);
+    Vector2 handB{}, handF{};
+    switch (an) {
+        case BBAnim::Windup: handF = P(-12, -78); handB = P(-8, -44); break;                        // cutlass raised behind
+        case BBAnim::Charge: handF = P(22, -50 - sinf(w) * 2); handB = P(-10, -46); break;           // lunging forward
+        case BBAnim::AimPistol: { Vector2 aim{p.pos.x + PW / 2, p.pos.y + PH / 2}; float ang = atan2f(aim.y - shFront.y, aim.x - shFront.x); handF = {shFront.x + cosf(ang) * 26, shFront.y + sinf(ang) * 26}; handB = P(-6, -44); break; }
+        case BBAnim::Dazed: handF = P(10, -30); handB = P(-6, -30); break;
+        case BBAnim::Walk: handF = P(12 + sinf(w) * 5, -46); handB = P(-8 - sinf(w) * 5, -44); break;
+        default: handF = P(14, -48); handB = P(-8, -44); break;
+    }
+    Vector2 elbowB = P((handB.x - cx) / f * 0.5f - 6, -50 + crouch * 0.4f), elbowF = {(shFront.x + handF.x) / 2, (shFront.y + handF.y) / 2 + 6};
+    limb(shBack, elbowB, 7, coatDk); limb(elbowB, handB, 6, coatDk);
+    DrawCircleV(handB, 4, skin);
+    if (an != BBAnim::AimPistol) { // a pistol holstered in the sash
+        DrawRectangle((int)(hip.x - f * 9) - 2, (int)hip.y - 8, 5, 12, INKC);
+    }
+    leg(PI, breeches);
+    // ---- the long coat: tails that sway and flare with the charge
+    float flare = an == BBAnim::Charge ? 14.0f : 4.0f, sway = sinf(t * 4) * 2 + (an == BBAnim::Walk ? sinf(w) * 3 : 0);
+    Vector2 c1 = P(-13 - flare, -6 + sway), c2 = P(13 + flare * 0.3f, -8 - sway), c3 = P(11, -34), c4 = P(-11, -34);
+    DrawTri(c4, c3, c2, INKC); DrawTri(c4, c2, c1, INKC);
+    Vector2 d1 = P(-11 - flare * 0.8f, -9 + sway), d2 = P(11, -11 - sway), d3 = P(9.5f, -33), d4 = P(-9.5f, -33);
+    DrawTri(d4, d3, d2, coat); DrawTri(d4, d2, d1, coat);
+    DrawTri(P(0, -33), P(-9.5f, -33), P(-6 - flare * 0.4f, -10), coatDk);
+    // ---- torso, sash, buttons, gold trim
+    limb(hip, chest, 17, coat);
+    DrawLineEx(P(4, -50), P(3, -36), 2.4f, coatDk);
+    DrawRectangle((int)std::min(hip.x - 9, hip.x + 9), (int)hip.y - 6, 18, 7, Color{176, 132, 52, 255});               // the sash
+    DrawRectangle((int)std::min(hip.x - 9, hip.x + 9), (int)hip.y - 6, 18, 2, Color{110, 26, 30, 255});
+    DrawTri(P(6, -30), P(12, -30), P(9 + sinf(t * 3) * 2, -20), Color{176, 132, 52, 255});                            // its loose end
+    for (int k = 0; k < 3; k++) DrawCircleV(P(6, -52 + k * 6.0f), 1.6f, Color{200, 170, 90, 255});
+    DrawTri(P(-9, -60), P(9, -60), P(0, -55), Color{176, 132, 52, 255});                                            // epaulettes
+    leg(0, breeches);
+    // ---- near arm with the cutlass or the pistol
+    limb(shFront, elbowF, 7.5f, coat); limb(elbowF, handF, 6.5f, coat);
+    DrawCircleV(handF, 4.5f, skin);
+    if (an == BBAnim::AimPistol) { // a pistol, levelled
+        float ang = atan2f(handF.y - shFront.y, handF.x - shFront.x);
+        Vector2 muzzle{handF.x + cosf(ang) * 14, handF.y + sinf(ang) * 14};
+        DrawLineEx(handF, muzzle, 5.5f, INKC); DrawLineEx(handF, muzzle, 3.2f, Color{90, 90, 100, 255});
+        float u = std::min(1.0f, b.timer / 0.5f);
+        for (float dd = 18; dd < 18 + 80 * u; dd += 10) DrawRectangle((int)(handF.x + cosf(ang) * dd), (int)(handF.y + sinf(ang) * dd), 2, 2, Fade(Color{255, 90, 60, 255}, 0.5f));
+        if (fmodf(t * 12, 1.0f) < 0.5f) DrawCircleV(muzzle, 2.6f, Color{255, 230, 150, 255});
+    } else { // the cutlass: a curved blade
+        float ang = an == BBAnim::Windup ? -2.2f : an == BBAnim::Charge ? 0.05f : an == BBAnim::Dazed ? 1.4f : -0.6f;
+        Vector2 dir{f * cosf(ang), sinf(ang)}, tip{handF.x + dir.x * 34, handF.y + dir.y * 34}, mid{handF.x + dir.x * 18 - dir.y * 3, handF.y + dir.y * 18 + dir.x * 3};
+        DrawLineEx(handF, mid, 6, INKC); DrawLineEx(mid, tip, 5, INKC);
+        DrawLineEx(handF, mid, 3, Color{190, 196, 202, 255}); DrawLineEx(mid, tip, 2.4f, Color{214, 218, 224, 255});
+        DrawLineEx({handF.x - dir.y * 6, handF.y + dir.x * 6}, {handF.x + dir.y * 6, handF.y - dir.x * 6}, 3.4f, Color{176, 132, 52, 255});   // the guard
+    }
+    // ---- head: hat, feather, face in shadow, beard with fuses
+    DrawCircleV(head, 9.5f, INKC);
+    DrawCircleV(head, 8, skin);
+    DrawEllipse((int)head.x, (int)(head.y + 8), 11, 10, INKC);                                 // the famous beard...
+    DrawEllipse((int)head.x, (int)(head.y + 7), 9, 8, Color{22, 20, 22, 255});
+    for (int k = 0; k < 3; k++) {                                                              // ...with fuses smoking in it
+        Vector2 fz{head.x - 6 + k * 6.0f, head.y + 12};
+        DrawCircleV(fz, 1.5f, Color{255, 140, 40, 255});
+        float ph = fmodf(t * 0.8f + k * 0.3f, 1.0f);
+        DrawCircleV({fz.x + sinf(ph * 6 + k) * 3, fz.y - 5 - ph * 18}, 2 + ph * 3, Fade(Color{150, 150, 150, 255}, 0.55f * (1 - ph)));
+    }
+    DrawRectangle((int)head.x - 8, (int)head.y - 4, 16, 5, INKC);                              // the brow shadow: no eyes, just a glint
+    DrawRectangle((int)(head.x + f * 3), (int)head.y - 3, 2, 2, an == BBAnim::Windup || an == BBAnim::Charge ? Color{255, 70, 50, 255} : Color{214, 210, 190, 255});
+    DrawTri({head.x - 15, head.y - 5}, {head.x + 15, head.y - 5}, {head.x, head.y - 20}, INKC);        // the tricorn
+    DrawTri({head.x - 13, head.y - 6}, {head.x + 13, head.y - 6}, {head.x, head.y - 17}, Color{34, 30, 40, 255});
+    DrawRectangle((int)head.x - 15, (int)head.y - 7, 30, 4, INKC);
+    Vector2 fe0{head.x - f * 12, head.y - 15};
+    for (int k = 0; k < 4; k++) { // the feather plume, curving back
+        float a = k * 0.28f;
+        DrawLineEx({head.x - f * 2, head.y - 17}, {fe0.x - f * (4 + k * 3), fe0.y - 8 + k * 4 + sinf(t * 3 + k) * 1.5f}, 3.2f - k * 0.5f, k == 0 ? INKC : Color{224, 220, 206, 255});
+        (void)a;
+    }
+    DrawCircleV(P(lean, -71 + crouch * 0.5f - bob), 2.2f, Color{230, 226, 210, 255});         // a skull badge
+    if (an == BBAnim::Dazed) { // stars circle his head
+        for (int k = 0; k < 4; k++) {
+            float a = t * 5 + k * PI / 2;
+            Vector2 st{head.x + cosf(a) * 20, head.y - 20 + sinf(a) * 5};
+            DrawRectangle((int)st.x - 1, (int)st.y - 3, 2, 6, Color{255, 230, 90, 255});
+            DrawRectangle((int)st.x - 3, (int)st.y - 1, 6, 2, Color{255, 230, 90, 255});
+        }
+    }
+    if (an == BBAnim::Windup) for (int k = 0; k < 2; k++) DrawRectangle((int)(cx - f * 14 + GetRandomValue(-6, 6)), (int)(fy - 3), 3, 3, Color{190, 170, 140, 255});
+}
 void DrawBoss(const PlatformState& p, float t) {
     const PlatBoss& b = p.boss;
     if (b.type == 'K') {
@@ -1986,91 +2290,37 @@ void DrawBoss(const PlatformState& p, float t) {
                 for (int k = 0; k < 4; k++) DrawCircle((int)(lx - (b.lungeToX > b.lungeFromX ? 1 : -1) * k * 14), (int)(KrakenOrigin(p) + 10.5f * T + Rnd(-8, 8)), 6, Fade(WHITE, 0.4f));
             }
         }
+        if (b.reach.active) { // the tracking tentacles, and the marks they are homing on
+            const TentacleReachState& r = b.reach;
+            if (r.t < 0.8f) {
+                float a = 0.25f + 0.5f * (r.t / 0.8f);
+                DrawRing(r.target, 16, 22, 0, 360, 18, Fade(Color{190, 150, 120, 255}, a));
+                DrawRing(r.target, 4, 8, 0, 360, 12, Fade(Color{190, 150, 120, 255}, a));
+            }
+            for (int i = 0; i < 2; i++) DrawTentacle(r.base[i], r.tip[i], 15, t * 2, i * 2.0f, arm);
+        }
+        if (b.beak.active) { // a warning bar at the height it has locked, then the beaked head itself
+            const BeakChargeState& s = b.beak;
+            float arenaX2 = (p.w - CH_W) * (float)T;
+            if (s.t < 0.9f) {
+                float a = 0.18f + 0.28f * fabsf(sinf(t * 14));
+                DrawRectangle((int)arenaX2, (int)(s.y - 30), 24 * T, 60, Fade(Color{150, 40, 40, 255}, a));
+                for (int k = 0; k < 8; k++) { float x = s.dir > 0 ? arenaX2 + 24 + k * 40.0f : arenaX2 + 24 * T - 24 - k * 40.0f; DrawTri({x, s.y - 14}, {x, s.y + 14}, {x + s.dir * 22, s.y}, Fade(Color{220, 80, 70, 255}, a + 0.3f)); }
+            } else if (s.t < 2.05f) {
+                DrawKrakenHeadArt(s.x, s.y - 34, 1.0f, t, false, 0, s.dir);
+            }
+        }
         if (b.state >= 1) {
             Rectangle h = KrakenHead(p);
-            const float S = KRAKEN_SCALE;
             bool blink = b.invuln > 0 && fmodf(t, 0.15f) < 0.075f;
-            Color skin = blink ? WHITE : Color{90, 60, 84, 255}, dk{60, 40, 58, 255};
-            float cx = h.x + h.width / 2;
-            for (int k = -3; k <= 3; k++) // a crown of arms writhing around the huge head
-                DrawTentacle({cx + k * 18 * S, h.y + 60 * S}, {cx + k * 46 * S, h.y + (110 + fabsf((float)k) * 8) * S}, 9 * S, t * 3, k * 2.0f, dk);
-            DrawEllipse((int)cx, (int)(h.y + 28 * S), 54 * S, 40 * S, skin);             // the great mantle
-            DrawEllipse((int)(cx - 14 * S), (int)(h.y + 12 * S), 22 * S, 12 * S, Fade(WHITE, 0.18f));
-            for (int k = 0; k < 6; k++) DrawCircle((int)(cx - 36 * S + k * 14 * S), (int)(h.y + (20 + (k % 2) * 10) * S), 3 * S, dk); // mottling
-            for (int s = -1; s <= 1; s += 2) { // vast eyes that follow you
-                float look = std::clamp((p.pos.x - (cx + s * 24 * S)) * 0.015f, -6.0f, 6.0f) * S;
-                DrawEllipse((int)(cx + s * 24 * S), (int)(h.y + 42 * S), 12 * S, 9 * S, Color{250, 220, 80, 255});
-                DrawRectangle((int)(cx + s * 24 * S - 2 * S + look), (int)(h.y + 35 * S), 4 * S, 14 * S, Pal::Ink);
-            }
-            DrawTri({cx - 8 * S, h.y + 58 * S}, {cx + 8 * S, h.y + 58 * S}, {cx, h.y + 70 * S}, Color{40, 30, 30, 255}); // the beak
-            DrawTri({cx - 12 * S, h.y - 6 * S}, {cx, h.y + 6 * S}, {cx + 12 * S, h.y - 6 * S}, Color{250, 220, 80, 200}); // stomp here
+            DrawKrakenHeadArt(h.x + h.width / 2, h.y, KRAKEN_SCALE, t, blink, std::clamp((p.pos.x - (h.x + h.width / 2)) * 0.015f, -6.0f, 6.0f));
+            DrawTri({h.x + h.width / 2 - 12 * KRAKEN_SCALE, h.y - 6 * KRAKEN_SCALE}, {h.x + h.width / 2, h.y + 6 * KRAKEN_SCALE}, {h.x + h.width / 2 + 12 * KRAKEN_SCALE, h.y - 6 * KRAKEN_SCALE}, Color{190, 156, 70, 200}); // stomp here
         }
     } else if (b.type == 'B' && !b.defeated) {
-        float x = b.pos.x, y = b.pos.y, f = b.dir, cx = x + BB_W / 2;
         bool blink = b.invuln > 0 && fmodf(t, 0.15f) < 0.075f;
-        if (blink) return;
-        bool dazed = b.state == 5, windup = b.state == 1, charging = b.state == 2, aiming = b.state == 4;
-        float step = b.vel.x != 0 ? sinf(t * (charging ? 22 : 12)) * 5 : 0;
-        float lean = charging ? f * 8 : windup ? -f * 3 : dazed ? sinf(t * 3) * 4 : 0; // head and shoulders
-        float dip = windup ? 5 + sinf(t * 30) : 0;                                   // crouched to charge
-        Color coat{140, 26, 30, 255}, coatDk{96, 16, 20, 255}, boot{24, 20, 18, 255};
-        DrawRectangleRec({cx - 12 + step, y + 50, 10, 22}, boot);                          // tall boots
-        DrawRectangleRec({cx + 2 - step, y + 50, 10, 22}, boot);
-        DrawRectangleRec({cx - 14 + step, y + 48, 13, 5}, Color{60, 40, 24, 255});
-        DrawRectangleRec({cx + 1 - step, y + 48, 13, 5}, Color{60, 40, 24, 255});
-        float ty = y + dip;
-        DrawTri({cx - 18 + lean * 0.5f, ty + 22}, {cx + 18 + lean * 0.5f, ty + 22}, {cx + 20, y + 56}, coat); // a long coat
-        DrawTri({cx - 18 + lean * 0.5f, ty + 22}, {cx + 20, y + 56}, {cx - 22, y + 56}, coatDk);
-        DrawRectangleRounded({cx - 17 + lean * 0.5f, ty + 18, 34, 28}, 0.3f, 4, coat);
-        DrawRectangleRec({cx - 17 + lean * 0.5f, ty + 38, 34, 5}, Color{60, 40, 24, 255}); // belt
-        DrawRectangleRec({cx - 3 + lean * 0.5f, ty + 37, 6, 7}, Pal::Brass);
-        DrawRectangleRec({cx - 17 + lean * 0.5f, ty + 18, 34, 3}, Pal::Brass);
-        float hx = cx + lean, hy = ty;
-        DrawCircle((int)hx, (int)hy + 12, 9, Color{220, 170, 130, 255});                  // face
-        DrawCircle((int)hx, (int)hy + 20, 11, Color{24, 22, 22, 255});                    // the famous beard...
-        DrawRectangleRec({hx - 10, hy + 20, 20, 12}, Color{24, 22, 22, 255});
-        for (int k = 0; k < 3; k++) {                                                   // ...with smoking fuses in it
-            Vector2 fz{hx - 8 + k * 8.0f, hy + 28};
-            DrawCircleV(fz, 1.5f, Color{255, 140, 40, 255});
-            float ph = fmodf(t * 0.8f + k * 0.3f, 1.0f);
-            DrawCircleV({fz.x + sinf(ph * 6 + k) * 3, fz.y - 6 - ph * 22}, 2 + ph * 3, Fade(Color{150, 150, 150, 255}, 0.6f * (1 - ph)));
-        }
-        if (dazed) { // cross-eyed, with stars going round
-            DrawLineEx({hx + f * 2, hy + 8}, {hx + f * 6, hy + 12}, 1.5f, Pal::Ink);
-            DrawLineEx({hx + f * 6, hy + 8}, {hx + f * 2, hy + 12}, 1.5f, Pal::Ink);
-            for (int k = 0; k < 4; k++) {
-                float a = t * 5 + k * PI / 2;
-                Vector2 st{hx + cosf(a) * 20, hy - 12 + sinf(a) * 5};
-                DrawRectangle((int)st.x - 1, (int)st.y - 3, 2, 6, Color{255, 230, 90, 255});
-                DrawRectangle((int)st.x - 3, (int)st.y - 1, 6, 2, Color{255, 230, 90, 255});
-            }
-        } else {
-            DrawCircle((int)(hx + f * 4), (int)hy + 10, 2, windup || charging ? Color{255, 60, 40, 255} : Pal::Ink);
-        }
-        DrawTri({hx - 22, hy + 4}, {hx + 22, hy + 4}, {hx, hy - 14}, Color{24, 22, 30, 255}); // tricorn
-        DrawRectangleRec({hx - 22, hy + 2, 44, 4}, Color{24, 22, 30, 255});
-        DrawCircle((int)hx, (int)hy - 3, 3, Color{230, 230, 220, 255});                    // skull badge
-        Vector2 hand{cx + f * 18 + lean * 0.5f, ty + 30};
-        if (aiming) { // a pistol, levelled at you
-            float u = std::min(1.0f, b.timer / 0.5f);
-            Vector2 aimTo{p.pos.x + PW / 2, p.pos.y + PH / 2};
-            float ang = atan2f(aimTo.y - hand.y, aimTo.x - hand.x);
-            Vector2 muzzle{hand.x + cosf(ang) * 12, hand.y + sinf(ang) * 12};
-            DrawLineEx(hand, muzzle, 4, Color{70, 70, 76, 255});
-            DrawCircleV(hand, 3, Pal::Brass);
-            for (float d = 18; d < 18 + 80 * u; d += 10)
-                DrawRectangle((int)(hand.x + cosf(ang) * d), (int)(hand.y + sinf(ang) * d), 2, 2, Fade(Color{255, 90, 60, 255}, 0.5f));
-            if (fmodf(t * 12, 1.0f) < 0.5f) DrawCircleV(muzzle, 2.5f, Color{255, 230, 150, 255});
-        } else {
-            float swordA = windup ? -1.3f : charging ? 0.1f : dazed ? 1.2f : -0.5f;
-            DrawLineEx(hand, {hand.x + f * cosf(swordA) * 34, hand.y + sinf(swordA) * 34}, 3, Color{210, 214, 220, 255});
-            DrawCircleV(hand, 3, Pal::Brass);
-        }
-        if (windup) // he paws the boards
-            for (int k = 0; k < 2; k++) DrawRectangle((int)(cx - f * 14 + GetRandomValue(-6, 6)), (int)(y + BB_H - 3), 3, 3, Color{190, 170, 140, 255});
+        if (!blink) DrawBlackbeard(p, b, t);
     }
 }
-
 // Musket balls, bombs and their blasts.
 void DrawShots(const PlatformState& p, float t) {
     for (const auto& s : p.shots) {
@@ -2079,8 +2329,13 @@ void DrawShots(const PlatformState& p, float t) {
             DrawLineEx(back, s.pos, 2, Fade(Color{230, 230, 220, 255}, 0.5f));
             DrawCircleV(s.pos, 3, Color{40, 40, 44, 255});
             DrawCircleV({s.pos.x - 1, s.pos.y - 1}, 1, Color{200, 200, 210, 255});
+        } else if (s.kind == 3) { // ink: a dark teardrop with a purple sheen and a streak behind it
+            DrawLineEx({s.pos.x, s.pos.y - 26}, {s.pos.x, s.pos.y - 8}, 3, Fade(Color{40, 24, 50, 255}, 0.55f));
+            DrawEllipse((int)s.pos.x, (int)s.pos.y, 7, 10, Color{10, 6, 14, 255});
+            DrawTri({s.pos.x - 5, s.pos.y - 6}, {s.pos.x + 5, s.pos.y - 6}, {s.pos.x, s.pos.y - 18}, Color{10, 6, 14, 255});
+            DrawEllipse((int)s.pos.x - 2, (int)s.pos.y - 1, 2, 4, Color{110, 70, 130, 255});
         } else if (s.kind == 1) {
-            bool flash = fmodf(t * (4 + (BOMB_FUSE - s.life) * 10), 1.0f) < 0.5f;
+            bool flash =fmodf(t * (4 + (BOMB_FUSE - s.life) * 10), 1.0f) < 0.5f;
             DrawCircleV(s.pos, 7, flash && s.life < 0.5f ? Color{200, 60, 50, 255} : Color{30, 30, 34, 255});
             DrawCircleV({s.pos.x - 2, s.pos.y - 2}, 2, Color{120, 120, 130, 255});
             DrawLineEx({s.pos.x + 3, s.pos.y - 6}, {s.pos.x + 6, s.pos.y - 10}, 2, Color{120, 90, 60, 255});
@@ -2230,6 +2485,9 @@ void ScenePlatformer(Game& g) {
             bool falling = p.vel.y > 0;
             if (b.type == 'K' && !b.defeated) {
                 for (int i = 0; i < 2; i++) if (b.tentT[i] >= 0.75f && CheckCollisionRecs(pr, TentacleBox(p, i))) Die(p);
+                if (ReachDeadly(b.reach)) // the tracking tentacles: the whole length is deadly
+                    for (int i = 0; i < 2; i++) if (SegmentTouches(b.reach.base[i], b.reach.tip[i], 14, pr)) Die(p);
+                if (BeakDeadly(b.beak) && (CheckCollisionRecs(pr, BeakBody(b.beak)) || CheckCollisionRecs(pr, BeakTip(b.beak)))) Die(p);
                 if (b.inkT >= 0.5f && b.inkT < 1.7f) { // the cloud floods everything but one half of the arena
                     float arenaX = (p.w - CH_W) * (float)T, arenaMid = arenaX + 11.5f * T;
                     bool inCloud = b.inkSafeRight ? p.pos.x + PW < arenaMid : p.pos.x > arenaMid;
