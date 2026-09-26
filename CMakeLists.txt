@@ -1,4 +1,4 @@
-﻿cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.16)
 project(Depth C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -31,6 +31,7 @@ add_executable(depth
     src/flats_board.cpp
     src/flats_run.cpp
     src/flats_sim.cpp
+    src/flats_art.cpp
     src/skeletal_node.cpp
     src/sprite_renderer.cpp
     src/relics.cpp

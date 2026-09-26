@@ -14,6 +14,7 @@
 #include "game.h"
 #include "flats_run.h"
 #include "relics.h"
+bool DrawCreaturePixels(const std::string& name, Rectangle box, float dim);
 #include "rlgl.h"
 #include <algorithm>
 #include <cctype>
@@ -544,7 +545,7 @@ void DrawSigilGlyph(Sigil sg, Vector2 c, float s, Color col) {
     }
 }
 
-Card gHoverCard;                 // whichever card the mouse is over this frame (a copy: the original may be played away): shown large in the inspector
+Card gHoverCard;               // whichever card the mouse is over this frame (a copy: the original may be played away): shown large in the inspector
 bool gHasHover = false;
 int gHoverHp = -1, gHoverStr = -1;
 void Hover(const Card& c, int hp = -1, int str = -1) { gHoverCard = c; gHasHover = true; gHoverHp = hp; gHoverStr = str; }
@@ -593,7 +594,7 @@ void DrawCardFace(Rectangle r, const Card& c, bool faceUp, int hp = -1, int str 
     float mr = r.width * 0.34f;
     DrawCircleV(mid, mr, Fade(col, 0.18f));
     DrawRing(mid, mr - std::max(1.0f, 1.4f * u), mr, 0, 360, 28, Fade(col, 0.7f));
-    DrawSuitIcon(c.suit, mid, r.width * 0.42f, col);
+    if (!DrawCreaturePixels(c.name, {mid.x - mr * 0.92f, mid.y - mr * 0.75f, mr * 1.84f, mr * 1.5f}, 1.0f)) DrawSuitIcon(c.suit, mid, r.width * 0.42f, col);
     // the cost: drops or bones, at the top left under the plate
     if (c.cost != CostType::FREE && c.costAmount > 0) {
         float cs = 11 * u;
