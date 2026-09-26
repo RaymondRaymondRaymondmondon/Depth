@@ -28,5 +28,6 @@ add_executable(depth
     src/platformer.cpp
     src/flats.cpp
     src/relics.cpp
+    src/levelgen.cpp
 )
 target_link_libraries(depth PRIVATE raylib)

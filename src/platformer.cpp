@@ -21,10 +21,12 @@
 // ============================================================================
 #include "game.h"
 #include "relics.h"
+#include "levelgen.h"
 #include "rlgl.h"
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <chrono>
 #include <cstdio>
 #include <queue>
 #include <unordered_set>
@@ -33,9 +35,9 @@ namespace {
 constexpr int T = 32, CH_W = 24, CH_H = 16;
 constexpr float PW = 20, PH = 26;
 // Quick to reach full speed and quick to stop, so the diver goes exactly where the keys say.
-constexpr float RUN = 340, ACCEL_GROUND = 6500, DECEL_GROUND = 7500, ACCEL_AIR = 4200, DECEL_AIR = 2600;
-constexpr float JUMP_V = 720, GRAV_UP = 2100, GRAV_UP_RELEASED = 5400, GRAV_DOWN = 3000, MAX_FALL = 980;
-constexpr float WALL_SLIDE = 150, WALLJUMP_VX = 360, WALLJUMP_VY = 690, WALL_LOCK = 0.13f;
+constexpr float RUN = kin::RUN, ACCEL_GROUND = 6500, DECEL_GROUND = 7500, ACCEL_AIR = 4200, DECEL_AIR = 2600;
+constexpr float JUMP_V = kin::JUMP_V, GRAV_UP = kin::GRAV_UP, GRAV_UP_RELEASED = kin::GRAV_UP_RELEASED, GRAV_DOWN = kin::GRAV_DOWN, MAX_FALL = kin::MAX_FALL;
+constexpr float WALL_SLIDE = kin::WALL_SLIDE, WALLJUMP_VX = kin::WALLJUMP_VX, WALLJUMP_VY = kin::WALLJUMP_VY, WALL_LOCK = 0.13f;
 constexpr float COYOTE = 0.1f, JUMP_BUFFER = 0.14f, STEP = 1.0f / 240; // physics runs at a fixed 240 Hz
 // The world is drawn at exactly 1 canvas pixel per 2 world pixels, and the canvas is scaled up by exactly 2 (see
 // PIXEL_W): so one world pixel is one screen pixel, every sprite is authored on a 2-world-pixel art grid, and
@@ -45,257 +47,6 @@ constexpr float ART = 2;                  // one art pixel, in world pixels
 
 #define E "........................"
 #define W "########################"
-// Where sections join: '<' in the first column marks the row you enter on, '>' in the last column the
-// row you leave on (row 13 if unmarked). Each section is raised or lowered so its '<' meets the
-// previous section's '>', so a level can climb or plunge as it goes.
-const char* START[CH_H] = {
-    W, E, E, E, E, E, E, E, E, E, E, E, E,
-    ".S......................",
-    W,
-    W,
-};
-
-// ---------------------------------------------------------------- the Pipes: inside the ship's ducts
-// Everything around these sections is solid, so you're always crawling through the Nautilus's plumbing.
-// '=' and '|' are pipes you can stand on and jump off.
-const char* START_PIPES[] = {W, W, W, W, W, W, W, W, W, W, W, E, E, ".S.....................>", W, W, nullptr};
-const char* END_PIPES[] = {W, W, W, W, W, W, W, W, W, W, W, E, E, "<..........E............", W, W, nullptr};
-const char* PIPE_RISER[] = { // up a narrow riser: wall-jump the whole way
-    W,
-    "########................",
-    "########................",
-    "########...............>",
-    "########...#############",
-    "########...#############",
-    "########...#############",
-    "########...#############",
-    "########...#############",
-    "########...#############",
-    "########...#############",
-    "########...#############",
-    "########...#############",
-    "########...#############",
-    "########...#############",
-    "...........#############",
-    "...........#############",
-    "<.......xxx#############",
-    W, W, nullptr};
-const char* PIPE_DROP[] = { // down through a steam chamber, pipe to pipe, past a gear
-    W,
-    "..................######",
-    "..................######",
-    "<.................######",
-    "######............######",
-    "######............######",
-    "######............######",
-    "######..==........######",
-    "######.....g......######",
-    "######............######",
-    "######......==....######",
-    "######..................",
-    "######..................",
-    "######xxxxxxxxxxxx.....>",
-    W, W, nullptr};
-const char* PIPE_JETS[] = { // a low duct: time your runs between the jets, hop the gaps
-    W, W, W, W, W, W, W, W, W, W, W,
-    E,
-    "........................",
-    "<......................>",
-    "####t###..#t##..##t#####",
-    "########..####..########",
-    nullptr};
-const char* PIPE_SHAFT[] = { // a long plunge down a shaft, landing on pipes as you go
-    W,
-    "................########",
-    "................########",
-    "<...............########",
-    "########........########",
-    "########........########",
-    "########....====########",
-    "########........########",
-    "########...g....########",
-    "########........########",
-    "########====....########",
-    "########........########",
-    "########........########",
-    "########........########",
-    "########....====########",
-    "########................",
-    "########....g...........",
-    "########................",
-    "########====............",
-    "########................",
-    "########................",
-    "########xxxxxxxx.......>",
-    W, W, nullptr};
-const char* PIPE_CRAWL[] = { // a crawlspace two tiles high, with steam holes to hop
-    W, W, W, W, W, W, W, W, W, W, W, W,
-    "........................",
-    "<......................>",
-    "####x###x####xx####x####",
-    W, nullptr};
-const char* PIPE_BOILER[] = { // up the boiler room on staggered pipes, then one long leap under a gear
-    W,
-    "###..................###",
-    "###..................###",
-    "###.....................",
-    "###...............g.....",
-    "###....................>",
-    "###.........===......###",
-    "###..................###",
-    "###..................###",
-    "###....===...........###",
-    "###........g.........###",
-    "###..................###",
-    "###.........===......###",
-    "###..................###",
-    "###..................###",
-    ".......===...........###",
-    ".....................###",
-    "<....xxxxxxxxxxxxxxxx###",
-    W, W, nullptr};
-const char* PIPE_TWINS[] = { // climb between two pipes, drop behind a third, dodge the steam below
-    W,
-    "......|.....|...........",
-    "......|.....|...........",
-    "......|.....|...........",
-    "......|.....|...........",
-    "......|..|..|...........",
-    "......|..|..|...........",
-    "......|..|..|...........",
-    "......|..|..|...........",
-    "......|..|..|...........",
-    ".........|..............",
-    ".........|..............",
-    ".........|..............",
-    "<........|xx...........>",
-    W, W, nullptr};
-
-// ---------------------------------------------------------------- the Hull: crabs, eels, urchins, mines
-// Sections run in three phases: two laps along the outer hull plating close to the sub (near enough
-// that its ribs and portholes still show behind you), then two stretches of open water further out,
-// then always the drop-off and the trench mouth, descending toward the abyss where the Kraken lairs.
-const char* HULL[][CH_H] = {
-    {   // A (near): crab walk along the plating
-        "########################", E, E, E, E, E, E, E, E, E,
-        "........................",
-        ".........####...........",
-        E,
-        ".....c.......c..........",
-        "########xx######xx######",
-        "########################",
-    },
-    {   // D (near): barnacle chimney, wall-jumping up past the hull's ribs
-        "########################",
-        E,
-        "......#.................",
-        "......#.................",
-        "......#...##............",
-        "......#...##............",
-        "......#...##............",
-        "......#...##............",
-        "......#...##............",
-        "......#...##............",
-        "..........##............",
-        "..........##............",
-        "..........##............",
-        "..........##.......c....",
-        "#######xxx##xxx#########",
-        "########################",
-    },
-    {   // H (near): the service duct -- a plain crawl along the plating, with a sneaky pipe
-        // branching up off the main floor into a dead-end nook: a staircase of pipe segments,
-        // each one jump above the last, hiding a stash of coins nobody's going to stumble on.
-        "########################",
-        E, E, E,
-        "..............oo........",
-        "..............==........",
-        E, E,
-        "...........==...........",
-        E, E,
-        "........==..............",
-        E,
-        ".........p..............",
-        "<..........c.......c...>",
-        "########xx######xx######",
-    },
-    {   // B (open water): eel pits
-        "########################", E, E, E, E, E, E, E, E, E,
-        "........................",
-        E, E,
-        "......e.......e.........",
-        "####....####....####..##",
-        "####....####....####..##",
-    },
-    {   // C (open water): mine climb
-        "########################", E, E, E, E,
-        "........................",
-        ".................###....",
-        "............##..........",
-        ".........g..............",
-        ".......###..............",
-        E, E,
-        "...###..................",
-        ".....................c..",
-        "##..................####",
-        "##..................####",
-    },
-    {   // E (open water): eel bridge with a crab on the middle span
-        "########################", E, E, E, E, E, E, E, E, E,
-        "...........c............",
-        "....###...###...###.....",
-        E,
-        "........e.....e.........",
-        "##....................##",
-        "##....................##",
-    },
-    {   // J (open water): the kelp drift -- floating wreckage and a pair of drifting mines
-        "########################", E, E, E, E, E, E, E, E, E,
-        E,
-        "..g.................g...",
-        E,
-        "...e.............e......",
-        "##....####....####....##",
-        "##....####....####....##",
-    },
-    {   // F (trench approach): the drop-off, leaving the plating behind for open water
-        "########################",
-        "........................",
-        "........................",
-        "........................",
-        "........................",
-        "...###..................",
-        "........................",
-        ".........g..............",
-        "........###.............",
-        "........................",
-        "........................",
-        "................###.....",
-        "........................",
-        "......................c.",
-        "########xx######xx######",
-        "########################",
-    },
-    {   // G (trench approach): the trench mouth, right at the edge of the abyss
-        "########################",
-        "........................",
-        "........................",
-        "........................",
-        "........................",
-        "...........g............",
-        "........................",
-        "........................",
-        "....c..............c....",
-        "########xx######xx######",
-        "........................",
-        "......e..........e......",
-        "####....####....####..##",
-        "####....####....####..##",
-        "########################",
-        "########################",
-    },
-};
-enum { HULL_NEAR0 = 0, HULL_NEAR_N = 3, HULL_OPEN0 = 3, HULL_OPEN_N = 4, HULL_TRENCH0 = 7, HULL_TRENCH_N = 2 }; // indexes into HULL[]
 const char* HULL_ARENA[CH_H] = {
     "########################", E, E, E, E, E, E, E, E, E, E,
     "......###...##....###...",
@@ -313,143 +64,6 @@ const char* HULL_ARENA_NOBOSS[CH_H] = { // the Kraken switched off: a quiet stre
     "####..............######",
 };
 
-// ---------------------------------------------------------------- the Pirate Ship: deck, hold, cabin
-// A run boards over the rail, crosses the open deck, drops through a hatch into the hold, climbs the
-// companionway to the quarterdeck, and ends in Blackbeard's cabin. 'k' is a crate or barrel (solid).
-// Pirates don't patrol: 'P' waits behind a door and bursts out to stab whoever passes, and 'G' shoots
-// from behind a barrel. Parakeets ('p') still flap about above the deck.
-const char* START_DECK[] = {E, E, E, E, E, E, E, E, E, E, E, E, E, ".S.....................>", W, W, nullptr};
-const char* DECK_WAIST[] = { // crates, an open hatch full of spikes, and a gunner at the far end
-    E, E, E, E, E, E, E,
-    "..............p.........",
-    E,
-    "........................",
-    "........................",
-    "................kk......",
-    "...kkk..........kk......",
-    "<..kkk.....P....kk.kG..>",
-    "######xxxxx###xx########",
-    W, nullptr};
-const char* DECK_RIGGING[] = { // up the yards and onto the forecastle
-    E, E, E, E, E,
-    "........................",
-    ".............==.........",
-    "..........p.............",
-    E,
-    "..........===...........",
-    "...................kG..>",
-    ".....===..........######",
-    "..................######",
-    "<.................######",
-    "####xxxxxxxxxxxxxx######",
-    W, nullptr};
-const char* DECK_BARRELS[] = { // barrel stacks between spike-filled gratings
-    E, E, E, E, E, E,
-    "..........p.............",
-    E,
-    "........................",
-    E, E,
-    "........k...............",
-    "........k........k......",
-    "<.......k......P.k...G.>",
-    "####xxx###xxx#####xx####",
-    W, nullptr};
-const char* DECK_MAST[] = { // a flat crossing, with a mast worth climbing far past where it's useful
-    E, E, E,
-    "..............oo........",
-    "..............==........",
-    E, E,
-    "...........==...........",
-    E, E,
-    "........==..............",
-    "....k...................",
-    ".........p..............",
-    "<...k......P.......kG..>",
-    "####xxx#########xx######",
-    W, nullptr};
-const char* DECK_HATCH[] = { // down through the main hatch into the hold
-    E, E, E, E, E,
-    ".........p..............",
-    E,
-    "........................",
-    E,
-    "<.......................",
-    "#######...##############",
-    "#######...##############",
-    "####...............#####",
-    "####...............#####",
-    "####...............#####",
-    "####...............#####",
-    "####......===......#####",
-    "####...............#####",
-    "####...............#####",
-    "####...............#####",
-    "####....................",
-    "####....................",
-    "####....................",
-    "####xxxx.......kG......>",
-    W, W, nullptr};
-const char* HOLD_CARGO[] = { // stacks of cargo, a pirate behind the bulkhead door
-    W, W, W, W, E, E, E,
-    "........................",
-    E,
-    "..........kk............",
-    "..........kk............",
-    "......kk..kk.....kk.....",
-    "......kk..kk.....kk.....",
-    "<.....kk..kk...P.kk..G.>",
-    "####xx######xxx#########",
-    W, nullptr};
-const char* HOLD_GUNDECK[] = { // the gun deck: a low passage with powder flares in the floor
-    W, W, W, W, W, W, W, W, W,
-    E,
-    "........................",
-    E, E,
-    "<..........P.......kG..>",
-    "####t###t####t###t######",
-    W, nullptr};
-const char* HOLD_BILGE[] = { // beams over the flooded bilge, and a swinging ball and chain
-    W, W, W, W, E, E, E, E,
-    "........................",
-    "..............g.........",
-    E,
-    "......==.........==.....",
-    E,
-    "<..........==..........>",
-    "##xxxxxxxxxxxxxxxxxxx###",
-    W, nullptr};
-const char* HOLD_MAGAZINE[] = { // the powder magazine: a swinging shot-chain over a low crossing
-    W, W, W, W, W, W, W, W, W,
-    E,
-    E,
-    "..................g.....",
-    E,
-    "<....P.............kG..>",
-    "####t###t####t###t######",
-    W, nullptr};
-const char* COMPANIONWAY[] = { // up the companionway to the quarterdeck
-    E,
-    "...............p........",
-    E,
-    ".......................>",
-    "#######...##############",
-    "#######...##############",
-    "#######...##############",
-    "#######...##############",
-    "#######...##############",
-    "#######...##############",
-    "#######...##############",
-    "#######...##############",
-    "#######...##############",
-    "####......##############",
-    "####......##############",
-    "####......##############",
-    "####...kkk##############",
-    "####......##############",
-    ".....kk...##############",
-    ".....kk...##############",
-    "<....kk...##############",
-    W, W, nullptr};
 const char* CABIN_ARENA[] = { // Blackbeard's great cabin: charge him into a wall, then stomp him while he's dazed
     W, W, W,
     "##....................##",
@@ -478,7 +92,7 @@ const char* CABIN_ARENA_NOBOSS[] = { // Blackbeard switched off: the cabin sits 
     "......................##",
     "<...................E.##",
     W, W, nullptr};
-enum { PS_DECK0 = 0, PS_DECKS = 4, PS_HATCH = 4, PS_HOLD0 = 5, PS_HOLDS = 4, PS_STAIRS = 9 }; // indexes into the Pirate sections#undef E
+#undef E
 #undef W
 
 // interior: the row where a section's below-decks interior starts (what's drawn behind it); kind 1 = hold, 2 = cabin
@@ -490,31 +104,23 @@ int ExitRow(const Part& s) { for (int r = 0; r < s.h; r++) if (s.rows[r][CH_W - 
 
 struct LevelDef {
     const char* name;
-    std::vector<Part> sections;
-    Part first, last;     // the opening section, and the final one (exit or boss arena)
+    Part last;            // the boss arena (Hull, Pirate Ship); unused by the Pipes, which end on an exit pipe
     Part lastNoBoss;      // used instead of `last` when the boss fight is switched off
-    int perRun, coinValue, bonus;
-    char fill;            // what's below and around the sections: solid for the Pipes and the ship, open water otherwise
+    int coinValue, bonus;
+    char fill;            // what's around the generated level: open water for the Hull, solid for the ship's hull below the arena
     bool dark;            // lit only by the diver's helmet lamp
-    char fillAbove;       // what's above them: open sky over the pirate ship's deck
+    char fillAbove;       // what's above it: open sky over the pirate ship's deck
 };
 const LevelDef& Lv(int level) {
     static const std::vector<LevelDef> defs = [] {
         std::vector<LevelDef> d(PL_COUNT);
-        Part pipesEnd = P(END_PIPES);
-        d[PL_PIPES] = {"The Pipes", {P(PIPE_RISER), P(PIPE_DROP), P(PIPE_JETS), P(PIPE_SHAFT), P(PIPE_CRAWL), P(PIPE_BOILER), P(PIPE_TWINS)},
-                       P(START_PIPES), pipesEnd, pipesEnd, 6, 4, 65, '#', true, '#'};
-        std::vector<Part> hull;
-        for (auto& c : HULL) hull.push_back(P16(c));
-        d[PL_HULL] = {"The Hull", hull, P16(START), P16(HULL_ARENA), P16(HULL_ARENA_NOBOSS), 8, 5, 165, '.', false, '.'};
-        std::vector<Part> pirate = {P(DECK_WAIST), P(DECK_RIGGING), P(DECK_BARRELS), P(DECK_MAST), P(DECK_HATCH, 12, 1),
-                                    P(HOLD_CARGO, 4, 1), P(HOLD_GUNDECK, 9, 1), P(HOLD_BILGE, 4, 1), P(HOLD_MAGAZINE, 9, 1), P(COMPANIONWAY, 4, 1)};
-        d[PL_PIRATE] = {"The Pirate Ship", pirate, P(START_DECK), P(CABIN_ARENA, 0, 2), P(CABIN_ARENA_NOBOSS, 0, 2), 8, 7, 230, '#', false, '.'};
+        d[PL_PIPES] = {"The Pipes", Part{}, Part{}, 4, 65, '#', true, '#'};
+        d[PL_HULL] = {"The Hull", P16(HULL_ARENA), P16(HULL_ARENA_NOBOSS), 5, 165, '.', false, '.'};
+        d[PL_PIRATE] = {"The Pirate Ship", P(CABIN_ARENA, 0, 2), P(CABIN_ARENA_NOBOSS, 0, 2), 7, 230, '#', false, '.'};
         return d;
     }();
     return defs[level];
 }
-
 float Rnd(float lo, float hi) { return lo + (hi - lo) * GetRandomValue(0, 10000) / 10000.0f; }
 
 // ---------------------------------------------------------------- tiles and collision
@@ -527,7 +133,7 @@ bool Solid(const PlatformState& p, int tx, int ty) {
     if (tx < 0 || tx >= p.w) return true; // level edges act as walls
     if (ty < 0 || ty >= p.h) return false;
     char c = p.tiles[ty][tx];
-    return c == '#' || c == 't' || c == '=' || c == '|' || c == 'k';
+    return c == '#' || c == 't' || c == '=' || c == '|' || c == 'k' || c == 'f' || c == 'v' || c == 'b';
 }
 
 // Moves a box one axis at a time and pushes it out of solid tiles.
@@ -998,39 +604,9 @@ void ThrowBomb(PlatformState& p) {
     p.shots.push_back({from, {dx, -560}, BOMB_FUSE, 1});
 }
 // ---------------------------------------------------------------- building a level
-// Sections go left to right. Each is raised or lowered so the row you enter on lines up with the row
-// you left the previous one on; whatever the sections don't cover is filled with `fill`.
-void BuildFromParts(PlatformState& p, const std::vector<Part>& parts, char fill, char fillAbove) {
-    int n = (int)parts.size();
-    std::vector<int> yoff(n, 0);
-    for (int i = 1; i < n; i++) yoff[i] = yoff[i - 1] + ExitRow(parts[i - 1]) - EntryRow(parts[i]);
-    int top = 0, bottom = 0;
-    for (int i = 0; i < n; i++) { top = std::min(top, yoff[i]); bottom = std::max(bottom, yoff[i] + parts[i].h); }
-    p.w = n * CH_W;
-    p.h = bottom - top;
-    p.tiles.assign(p.h, std::string(p.w, fill));
-    p.partX.clear();
-    p.spawns.clear();
-    p.partInterior.clear();
-    p.partKind.clear();
-    p.deathY.assign(p.w, 0);
-    for (int i = 0; i < n; i++) {
-        int ox = i * CH_W, oy = yoff[i] - top;
-        for (int r = 0; r < oy; r++) for (int c = 0; c < CH_W; c++) p.tiles[r][ox + c] = fillAbove;
-        p.partInterior.push_back(parts[i].interior >= 999 ? 1 << 20 : oy + parts[i].interior);
-        p.partKind.push_back(parts[i].kind);
-        for (int r = 0; r < parts[i].h; r++) {
-            std::string row = parts[i].rows[r];
-            if ((int)row.size() != CH_W) {
-                TraceLog(LOG_WARNING, "PLATFORM: section row '%s' is %d wide, expected %d", parts[i].rows[r], (int)row.size(), CH_W);
-                row.resize(CH_W, '.');
-            }
-            for (int c = 0; c < CH_W; c++) p.tiles[oy + r][ox + c] = (row[c] == '<' || row[c] == '>') ? '.' : row[c];
-        }
-        p.partX.push_back(ox);
-        p.spawns.push_back({ox * (float)T + 6, (oy + EntryRow(parts[i]) + 1) * (float)T - PH});
-        for (int c = 0; c < CH_W; c++) p.deathY[ox + c] = (oy + parts[i].h) * (float)T + 40;
-    }
+// The generator (levelgen.cpp) supplies the terrain; a boss arena, when there is one, is joined onto its last
+// platform. Whatever the level doesn't cover is filled with `fill` (below) or `fillAbove` (above).
+void ScanTiles(PlatformState& p) {
     p.enemies.clear();
     p.boss = PlatBoss{};
     for (int r = 0; r < p.h; r++)
@@ -1057,13 +633,50 @@ void BuildFromParts(PlatformState& p, const std::vector<Part>& parts, char fill,
     p.camY = p.pos.y;
 }
 
-// Builds (or rebuilds, after a death) the whole level: coins, enemies and the boss all come back.
+void BuildFromGrid(PlatformState& p, const GenLevel& gl, const Part* arena, char fill, char fillAbove) {
+    int ay = arena ? gl.exitRow - EntryRow(*arena) : 0; // the arena's first row, in generator rows
+    int top = arena ? std::min(0, ay) : 0, bottom = arena ? std::max(gl.h, ay + arena->h) : gl.h;
+    p.genTop = top;
+    p.w = gl.w + (arena ? CH_W : 0);
+    p.h = bottom - top;
+    p.tiles.assign(p.h, std::string(p.w, fill));
+    for (int r = 0; r < p.h; r++) {
+        int gr = r + top;
+        for (int c = 0; c < gl.w; c++) p.tiles[r][c] = gr < 0 ? fillAbove : gr >= gl.h ? fill : gl.rows[gr][c];
+        if (arena && r < ay - top) for (int c = gl.w; c < p.w; c++) p.tiles[r][c] = fillAbove;
+    }
+    p.partX.clear(); p.spawns.clear(); p.partInterior.clear(); p.partKind.clear();
+    p.deathY.assign(p.w, p.h * (float)T + 40);
+    for (int x = 0; x < gl.w; x += CH_W) { // checkpoint chunks: each respawns at the first critical-path platform inside it
+        const GenWaypoint* wp = &gl.path.back();
+        for (const GenWaypoint& w : gl.path) if (w.tx >= x) { wp = &w; break; }
+        p.partX.push_back(x);
+        p.partInterior.push_back(1 << 20);
+        p.partKind.push_back(0);
+        p.spawns.push_back({wp->tx * (float)T + 6, (wp->ty - top + 1) * (float)T - PH});
+    }
+    if (arena) {
+        for (int r = 0; r < arena->h; r++) {
+            std::string row = arena->rows[r];
+            row.resize(CH_W, '.');
+            for (int c = 0; c < CH_W; c++) p.tiles[r + ay - top][gl.w + c] = (row[c] == '<' || row[c] == '>') ? '.' : row[c];
+        }
+        p.partX.push_back(gl.w);
+        p.partInterior.push_back(arena->interior >= 999 ? 1 << 20 : ay - top + arena->interior);
+        p.partKind.push_back(arena->kind);
+        p.spawns.push_back({gl.w * (float)T + 6, (ay - top + EntryRow(*arena) + 1) * (float)T - PH});
+    }
+    ScanTiles(p);
+}
+
+// Builds (or rebuilds, after a death) the whole level from its seed: coins, enemies and the boss all come back.
 void BuildLevel(PlatformState& p) {
     const LevelDef& L = Lv(p.level);
-    std::vector<Part> parts{L.first};
-    for (int c : p.layout) parts.push_back(L.sections[c]);
-    parts.push_back(p.bossEnabled ? L.last : L.lastNoBoss);
-    BuildFromParts(p, parts, L.fill, L.fillAbove);
+    unsigned seed = p.layout.empty() ? 1u : (unsigned)p.layout[0];
+    float scale = p.layout.size() > 1 ? p.layout[1] / 100.0f : 1.0f;
+    GenLevel gl = GenerateLevel(p.level, seed, scale);
+    const Part* arena = p.level == PL_PIPES ? nullptr : &(p.bossEnabled ? L.last : L.lastNoBoss);
+    BuildFromGrid(p, gl, arena, L.fill, L.fillAbove);
     if (!p.hard) // Normal: no spinning hazards, and the jets are left cold (plain floor)
         for (auto& row : p.tiles)
             for (char& c : row) c = c == 'g' ? '.' : c == 't' ? '#' : c;
@@ -1072,7 +685,6 @@ void BuildLevel(PlatformState& p) {
     p.shots.clear();
     p.checkpointChunk = 0;
 }
-
 int PartAt(const PlatformState& p, float x) {
     int k = 0;
     for (int i = 0; i < (int)p.partX.size(); i++) if (x >= p.partX[i] * (float)T) k = i;
@@ -1457,7 +1069,7 @@ void DrawShipScenery(const PlatformState& p, int c0, int c1, float t) {
         if (p.partInterior[i] < p.h) { // below decks
             float y0 = p.partInterior[i] * (float)T, y1 = p.h * (float)T;
             if (p.partKind[i] == 2) DrawCabinWall(wx0, y0, wx1, y1, t);
-            else DrawHoldWall(p, wx0, y0, wx1, y1, t, p.layout.size() > 0 && i > 0 && i - 1 < (int)p.layout.size() && p.layout[i - 1] == 5);
+            else DrawHoldWall(p, wx0, y0, wx1, y1, t, false);
         }
         if (p.partKind[i] != 0 || i == (int)p.partX.size() - 1) continue;
         // an open deck: a mast with its sails and rigging
@@ -2351,61 +1963,31 @@ void DrawShots(const PlatformState& p, float t) {
 // ============================================================ public
 const char* PlatLevelName(int level) { return Lv(level).name; }
 
-// The pirate ship always runs deck, deck, hatch, hold, hold, companionway (in a random mix of each).
-static std::vector<int> Shuffled(int first, int count, int keep) {
-    std::vector<int> idx;
-    for (int i = 0; i < count; i++) idx.push_back(first + i);
-    for (int i = count - 1; i > 0; i--) std::swap(idx[i], idx[GetRandomValue(0, i)]);
-    idx.resize(keep);
-    return idx;
-}
+namespace { bool ValidateGenerated(int level, const GenLevel& gl, int* failedHop); }
 
+// A layout is a generator seed and a difficulty scale (percent). Layouts are validated when they are made: every hop
+// on the critical path is searched with the real movement code, and a level that fails is thrown away.
 bool PlatLayoutValid(const Game& g, int level) {
     const std::vector<int>& l = g.platLayouts[level];
-    if (l.empty()) return false;
-    for (int c : l) if (c < 0 || c >= (int)Lv(level).sections.size()) return false;
-    if (level == PL_PIRATE) {
-        if (l.size() != 8 || l[3] != PS_HATCH || l[7] != PS_STAIRS) return false;
-        for (int i : {0, 1, 2}) if (l[i] < PS_DECK0 || l[i] >= PS_DECK0 + PS_DECKS) return false;
-        for (int i : {4, 5, 6}) if (l[i] < PS_HOLD0 || l[i] >= PS_HOLD0 + PS_HOLDS) return false;
-    } else if (level == PL_HULL) {
-        // near the hull, then open water, then always the drop-off and the trench mouth, in that order
-        if (l.size() != 8) return false;
-        for (int i : {0, 1, 2}) if (l[i] < HULL_NEAR0 || l[i] >= HULL_NEAR0 + HULL_NEAR_N) return false;
-        for (int i : {3, 4, 5}) if (l[i] < HULL_OPEN0 || l[i] >= HULL_OPEN0 + HULL_OPEN_N) return false;
-        if (l[6] != HULL_TRENCH0 || l[7] != HULL_TRENCH0 + 1) return false;
-    }
-    return true;
+    return l.size() == 2 && l[0] > 0 && l[1] >= 40 && l[1] <= 100;
 }
 
 void GeneratePlatLayout(Game& g, int level) {
-    if (level == PL_PIRATE) {
-        std::vector<int> deck = Shuffled(PS_DECK0, PS_DECKS, 3), hold = Shuffled(PS_HOLD0, PS_HOLDS, 3);
-        g.platLayouts[level] = {deck[0], deck[1], deck[2], PS_HATCH, hold[0], hold[1], hold[2], PS_STAIRS};
-        return;
+    for (int attempt = 0; attempt < 150; attempt++) {
+        unsigned seed = (unsigned)GetRandomValue(1, 999999);
+        int scale = 100 - (attempt / 20) * 6; // a level that keeps failing is eased off
+        GenLevel gl = GenerateLevel(level, seed, scale / 100.0f);
+        if (ValidateGenerated(level, gl, nullptr)) { g.platLayouts[level] = {(int)seed, scale}; return; }
     }
-    if (level == PL_HULL) {
-        std::vector<int> near = Shuffled(HULL_NEAR0, HULL_NEAR_N, 3), open = Shuffled(HULL_OPEN0, HULL_OPEN_N, 3);
-        g.platLayouts[level] = {near[0], near[1], near[2], open[0], open[1], open[2], HULL_TRENCH0, HULL_TRENCH0 + 1};
-        return;
-    }
-    const LevelDef& L = Lv(level);
-    int count = (int)L.sections.size();
-    std::vector<int> idx;
-    for (int i = 0; i < count; i++) idx.push_back(i);
-    for (int i = (int)idx.size() - 1; i > 0; i--) std::swap(idx[i], idx[GetRandomValue(0, i)]);
-    idx.resize(std::min(L.perRun, count));
-    g.platLayouts[level] = idx;
+    g.platLayouts[level] = {1, 60};
 }
 
 std::string PlatLayoutCode(const Game& g, int level) {
-    std::string s;
-    for (int c : g.platLayouts[level]) { if (!s.empty()) s += "-"; s += (char)('A' + c); }
-    return s.empty() ? "(new)" : s;
+    const std::vector<int>& l = g.platLayouts[level];
+    return l.size() == 2 ? TextFormat("#%06d", l[0]) : "(new)";
 }
-
 void StartPlatform(Game& g, int level) {
-    if (!PlatLayoutValid(g, level)) GeneratePlatLayout(g, level); // e.g. an old save
+    if (!PlatLayoutValid(g, level)) GeneratePlatLayout(g, level); // e.g. a save from before the generator
     g.plat = PlatformState{};
     g.plat.level = level;
     g.plat.layoutCode = PlatLayoutCode(g, level);
@@ -2791,7 +2373,7 @@ uint64_t Key(const SimNode& n, bool jets) {
     return k;
 }
 
-bool Crossable(PlatformState& p, float goalX, bool jets, long& expanded) {
+bool Crossable(PlatformState& p, float goalX, bool jets, long& expanded, float goalY = 0, float tol = 0, long cap = 3000000) {
     struct Item { float f; int idx; bool operator<(const Item& o) const { return f > o.f; } };
     std::vector<SimNode> nodes;
     std::priority_queue<Item> open;
@@ -2802,7 +2384,7 @@ bool Crossable(PlatformState& p, float goalX, bool jets, long& expanded) {
     seen.insert(Key(nodes[0], jets));
     expanded = 0;
     const int SUB = 6;
-    while (!open.empty() && expanded < 3000000) {
+    while (!open.empty() && expanded < cap) {
         SimNode cur = nodes[open.top().idx];
         open.pop();
         expanded++;
@@ -2818,57 +2400,127 @@ bool Crossable(PlatformState& p, float goalX, bool jets, long& expanded) {
                 }
                 p.particles.clear();
                 if (dead) continue;
-                if (p.pos.x >= goalX && p.onGround) return true;
+                if (tol > 0 ? (p.onGround && fabsf(p.pos.x + PW / 2 - goalX) < tol && fabsf(p.pos.y - goalY) < 6) : (p.pos.x >= goalX && p.onGround)) return true;
                 SimNode n = Snap(p, held != 0);
                 if (!seen.insert(Key(n, jets)).second) continue;
                 nodes.push_back(n);
-                open.push({n.time + (goalX - n.pos.x) / RUN, (int)nodes.size() - 1});
+                // hop searches (tol > 0) only need *a* path, so they use a weighted heuristic: horizontal and vertical distance to go
+                float toGo = fabsf(goalX - n.pos.x) / RUN + (tol > 0 ? fabsf(goalY - n.pos.y) / 900 : 0);
+                open.push({n.time + toGo, (int)nodes.size() - 1});
             }
     }
     return false;
 }
 }  // namespace
 
-int VerifyPlatformLevels() {
-    int failures = 0;
-    for (int lv = 0; lv < PL_COUNT; lv++) {
-        const LevelDef& L = Lv(lv);
-        int count = (int)L.sections.size();
-        for (int c = 0; c <= count; c++) {
-            bool last = c == count;
-            if (last && lv == PL_PIPES) continue; // the Pipes end on a flat section
-            PlatformState p;
-            p.level = lv;
-            BuildFromParts(p, {L.first, last ? L.last : L.sections[c], P(END_PIPES)}, L.fill, L.fillAbove);
-            bool jets = false;
-            for (auto& row : p.tiles) jets |= row.find('t') != std::string::npos;
-            p.exitOpen = false;
-            long n = 0;
-            float goal = p.partX[2] * (float)T + 8; // into the next section, or onto the exit if this one ends the level
-            for (int r = 0; r < p.h; r++)
-                for (int x = p.partX[1]; x < p.partX[2]; x++) if (p.tiles[r][x] == 'E') goal = x * (float)T;
-            bool ok = Crossable(p, goal, jets, n);
-            failures += !ok;
-            printf("%-16s section %c: %s  (%ld states searched)\n", L.name, last ? '*' : 'A' + c, ok ? "crossable" : "NOT CROSSABLE", n);
-            fflush(stdout);
-        }
-        if (lv == PL_HULL || lv == PL_PIRATE) { // also check the arena used when the boss fight is switched off
-            PlatformState p;
-            p.level = lv;
-            BuildFromParts(p, {L.first, L.lastNoBoss, P(END_PIPES)}, L.fill, L.fillAbove);
-            bool jets = false;
-            for (auto& row : p.tiles) jets |= row.find('t') != std::string::npos;
-            p.exitOpen = false;
-            long n = 0;
-            float goal = p.partX[2] * (float)T + 8;
-            for (int r = 0; r < p.h; r++)
-                for (int x = p.partX[1]; x < p.partX[2]; x++) if (p.tiles[r][x] == 'E') goal = x * (float)T;
-            bool ok = Crossable(p, goal, jets, n);
-            failures += !ok;
-            printf("%-16s no-boss arena: %s  (%ld states searched)\n", L.name, ok ? "crossable" : "NOT CROSSABLE", n);
-            fflush(stdout);
+namespace {
+// Searches every hop of the critical path, from one platform's standing tile to the next's, with the real movement.
+double gMs[3] = {}; int gDraws[3] = {};
+long gHopExpanded[3][3] = {}; // per level: total expansions, hops searched, largest hop
+bool ValidateGenerated(int level, const GenLevel& gl, int* failedHop) {
+    const LevelDef& L = Lv(level);
+    PlatformState p;
+    p.level = level;
+    p.hard = true;
+    p.verifying = true;
+    BuildFromGrid(p, gl, level == PL_PIPES ? nullptr : &L.last, L.fill, L.fillAbove);
+    bool jets = false;
+    for (auto& row : p.tiles) jets |= row.find_first_of("tv") != std::string::npos;
+    p.exitOpen = false;
+    for (size_t i = 0; i + 1 < gl.path.size(); i++) {
+        const GenWaypoint &a = gl.path[i], &b = gl.path[i + 1];
+        if (b.tag == SetPiece::ShaftUp || b.tag == SetPiece::ShaftDown || b.tag == SetPiece::BarnacleShaft) continue; // shafts are proven as templates (see VerifyPlatformLevels)
+        p.pos = {a.tx * (float)T + 6, (a.ty - p.genTop + 1) * (float)T - PH};
+        p.vel = {0, 0};
+        p.coyote = p.wallCoyote = p.jumpBuffer = p.wallLock = p.time = 0;
+        p.onGround = false;
+        long n = 0;
+        bool hopOk = Crossable(p, b.tx * (float)T + 16, jets, n, (b.ty - p.genTop + 1) * (float)T - PH, 22, 60000);
+        gHopExpanded[level][0] += n; gHopExpanded[level][1]++; gHopExpanded[level][2] = std::max(gHopExpanded[level][2], n);
+        if (!hopOk) {
+            if (failedHop) *failedHop = (int)i;
+            return false;
         }
     }
-    printf(failures ? "%d section(s) failed.\n" : "All sections can be crossed.\n", failures);
+    return true;
+}
+}  // namespace
+
+// Proves the shaft templates the generator is allowed to use, and reports the tallest climbable up-shaft per width.
+static int VerifyShafts() {
+    int bad = 0;
+    for (int barnacle = 0; barnacle < 2; barnacle++)
+        for (int iw = 3; iw <= 4; iw++) {
+            int maxUp = 0, maxDown = 0;
+            for (int up = 0; up < 2; up++)
+                for (int Hs = 5; Hs <= 14; Hs++) {
+                    GenLevel gl = ShaftTemplate(iw, Hs, up != 0, barnacle != 0);
+                    PlatformState p;
+                    p.level = PL_HULL; p.hard = true; p.verifying = true;
+                    BuildFromGrid(p, gl, nullptr, '.', '.');
+                    p.exitOpen = false;
+                    p.pos = {gl.path[0].tx * (float)T + 6, (gl.path[0].ty - p.genTop + 1) * (float)T - PH};
+                    long n = 0;
+                    bool ok = Crossable(p, gl.path[1].tx * (float)T + 16, false, n, (gl.path[1].ty - p.genTop + 1) * (float)T - PH, 22, 1500000);
+                    if (ok) (up ? maxUp : maxDown) = Hs; else if (!up || Hs <= 6) bad += !up;
+                    if (!ok && up) break;
+                }
+            printf("shaft, interior %d wide%s: climbable up to %d rows, drops up to %d rows\n", iw, barnacle ? ", barnacles" : "", maxUp, maxDown);
+            fflush(stdout);
+        }
+    return bad;
+}
+
+int VerifyPlatformLevels() {
+    int failures = getenv("DEPTH_SHAFTS") ? VerifyShafts() : 0; // slow: set DEPTH_SHAFTS=1 to re-prove the shaft dimensions
+    for (int lv = 0; lv < PL_COUNT; lv++) {
+        const LevelDef& L = Lv(lv);
+        const int SEEDS = 4;
+        int firstTry = 0, totalAttempts = 0, worstAttempts = 0, hopsFailed = 0;
+        for (int seed = 1; seed <= SEEDS; seed++) {
+            int attempts = 0;
+            bool ok = false;
+            for (int k = 0; k < 150 && !ok; k++) {
+                attempts++;
+                GenLevel gl = GenerateLevel(lv, seed * 1000 + k, 1.0f - (k / 20) * 0.06f);
+                int hop = -1;
+                auto t0 = std::chrono::steady_clock::now();
+                ok = ValidateGenerated(lv, gl, &hop);
+                gMs[lv] += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count(); gDraws[lv]++;
+                if (!ok && k == 0) hopsFailed++;
+                if (ok && k == 0) firstTry++;
+            }
+            failures += !ok;
+            totalAttempts += attempts;
+            worstAttempts = std::max(worstAttempts, attempts);
+        }
+        GenLevel sample = GenerateLevel(lv, 4242, 1.0f);
+        int sp = 0;
+        for (int c : sample.setPieces) sp += c;
+        printf("%-16s %d seeds: %d valid at the first draw, %.1f draws on average (worst %d)  |  sample: %d wide, %d hops, %d set-pieces\n",
+               L.name, SEEDS, firstTry, totalAttempts / (float)SEEDS, worstAttempts, sample.w, (int)sample.path.size() - 1, sp);
+        printf("    validation: %.0f ms per draw on average\n", gMs[lv] / std::max(1, gDraws[lv]));
+        printf("    hops searched: %ld, %.0f states each on average, largest %ld\n", gHopExpanded[lv][1], gHopExpanded[lv][0] / (double)std::max(1L, gHopExpanded[lv][1]), gHopExpanded[lv][2]);
+        fflush(stdout);
+        if (lv != PL_PIPES) { // the arenas: from the landing to the exit, with the boss switched on and off
+            for (int nb = 0; nb < 2; nb++) {
+                PlatformState p;
+                p.level = lv; p.hard = true; p.verifying = true;
+                GenLevel gl = GenerateLevel(lv, 4242, 0.8f);
+                BuildFromGrid(p, gl, nb ? &L.lastNoBoss : &L.last, L.fill, L.fillAbove);
+                p.exitOpen = false;
+                const GenWaypoint& a = gl.path.back();
+                p.pos = {a.tx * (float)T + 6, (a.ty - p.genTop + 1) * (float)T - PH};
+                float goal = 0;
+                for (int r = 0; r < p.h; r++) for (int x = gl.w; x < p.w; x++) if (p.tiles[r][x] == 'E') goal = x * (float)T;
+                long n = 0;
+                bool ok = Crossable(p, goal, false, n);
+                failures += !ok;
+                printf("%-16s %s arena: %s  (%ld states searched)\n", L.name, nb ? "no-boss" : "boss", ok ? "crossable" : "NOT CROSSABLE", n);
+                fflush(stdout);
+            }
+        }
+    }
+    printf(failures ? "%d level(s) failed.\n" : "All generated levels can be crossed.\n", failures);
     return failures;
 }
