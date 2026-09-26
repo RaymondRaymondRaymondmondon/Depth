@@ -547,6 +547,7 @@ static void RoomCleared(Game& g) {
     d.phase = boss ? DPhase::Victory : DPhase::RoomClear;
 }
 
+static const int BONUS_TURN = -999; // the initiative marker of an extra boss action, so it can't chain into another
 static void EndTurn(Game& g) {
     Cleanup(g);
     auto& d = g.dungeon;
@@ -555,6 +556,15 @@ static void EndTurn(Game& g) {
     d.turnStarted = false;
     if (PartySize(g) == 0) { d.phase = DPhase::Defeat; return; }
     if (d.enemies.empty()) { RoomCleared(g); return; }
+    // a boss that just acted may get a second action in the same round (its own chance, once per turn)
+    TurnEntry done = d.order[d.turnIdx];
+    if (!done.hero && done.init != BONUS_TURN)
+        if (Enemy* e = FindEnemy(g, done.id))
+            if (e->alive && e->extraAct > 0 && Chance(e->extraAct)) {
+                d.order.insert(d.order.begin() + d.turnIdx + 1, {false, done.id, BONUS_TURN});
+                Float(g, EnemyRect(g, std::max(0, EnemyPos(g, done.id))), "Again!", Pal::Bad);
+                Log(g, e->name + " strikes again!");
+            }
     d.turnIdx++;
 }
 
@@ -617,6 +627,7 @@ static void StartTurn(Game& g) {
 }
 
 // ---------------------------------------------------------------- rooms
+static int gForceEnemy = -1; // the boss simulator sets this to fight one particular enemy
 static void EnterNextRoom(Game& g) {
     auto& d = g.dungeon;
     d.roomIndex++;
@@ -642,7 +653,13 @@ static void EnterNextRoom(Game& g) {
     auto pickFrom = [&](const std::vector<EnemyType>& pool) { return pool[Roll(0, (int)pool.size() - 1)]; };
     auto standards = LocationStandards(d.loc), supports = LocationSupports(d.loc), minis = LocationMinis(d.loc);
     d.miniFight = false;
-    if (rt == RoomType::Boss) { // the location's level boss stands in front, with its own to back it up
+    if (gForceEnemy >= 0) { // the boss simulator: this enemy and the retainers it would normally have
+        Enemy b = MakeEnemy((EnemyType)gForceEnemy, d.nextUid++);
+        d.enemies.push_back(b);
+        d.miniFight = b.tier == 1;
+        int adds = b.span >= 3 ? 1 : Roll(1, 2);
+        for (int i = 0; i < adds; i++) d.enemies.push_back(MakeEnemy(pickFrom(standards), d.nextUid++));
+    } else if (rt == RoomType::Boss) { // the location's level boss stands in front, with its own to back it up
         d.enemies.push_back(MakeEnemy(LocationLevelBoss(d.loc), d.nextUid++));
         int adds = 1; // the boss fills three ranks, so only one retainer fits beside it
         for (int i = 0; i < adds; i++) d.enemies.push_back(MakeEnemy(i == adds - 1 && Chance(50) ? pickFrom(supports) : pickFrom(standards), d.nextUid++));
@@ -745,6 +762,55 @@ static void ApplyResults(Game& g) {
 
 // ---------------------------------------------------------------- auto-play (balance testing)
 // Plays expeditions with a simple auto-player that never swaps batteries and never retreats.
+static void SimCombatStep(Game& g, bool randomPlayer) { // one unit's turn, played by the simulator
+    auto& d = g.dungeon;
+    do {
+        if (d.turnIdx >= (int)d.order.size()) BeginRound(g);
+        TurnEntry te = d.order[d.turnIdx];
+        bool valid = te.hero ? (FindHero(g, te.id) && PartyPos(g, te.id) >= 0) : FindEnemy(g, te.id) != nullptr;
+        if (!valid) { d.turnIdx++; d.turnStarted = false; break; }
+        if (!d.turnStarted) StartTurn(g);
+        if (d.pendingSkip) { EndTurn(g); break; }
+        if (!te.hero) { EnemyAct(g, te.id, -1); EndTurn(g); break; }
+        Hero* h = FindHero(g, te.id);
+        int pos = PartyPos(g, te.id);
+        const auto& abs = ClassAbilities(h->cls);
+        std::vector<int> usable;
+        for (int ab : h->loadout)
+            if (ab >= 0 && HeroCanUse(g, pos, abs[ab])) usable.push_back(ab);
+        if (usable.empty()) { EndTurn(g); break; }
+        int ab = usable[Roll(0, (int)usable.size() - 1)], target = -1;
+        if (!randomPlayer) {
+            // Simple but sensible: heal whoever is badly hurt, else hit the weakest enemy as hard as possible.
+            int hurt = -1;
+            float worst = 0.4f;
+            for (int p = 0; p < PartySize(g); p++) {
+                Hero* o = PartyAt(g, p);
+                float f = (float)o->hp / GetStats(*o).maxHp;
+                if (f < worst) { worst = f; hurt = p; }
+            }
+            int healAb = -1, bestAb = -1;
+            float best = 0;
+            for (int a : usable) {
+                if (abs[a].heal > 0 && abs[a].target == Target::Ally) healAb = a;
+                float v = abs[a].dmgMult * abs[a].hitsCount * (abs[a].aoe ? 2.0f : 1.0f) + (abs[a].bleed + abs[a].poison) * 0.15f;
+                if (abs[a].target == Target::Enemy && v > best) { best = v; bestAb = a; }
+            }
+            if (hurt >= 0 && healAb >= 0) { ab = healAb; target = hurt; }
+            else if (bestAb >= 0) {
+                ab = bestAb;
+                int lowHp = 1 << 30;
+                for (int tp : ValidTargets(g, pos, abs[ab]))
+                    if (d.enemies[tp].hp < lowHp) { lowHp = d.enemies[tp].hp; target = tp; }
+            }
+        }
+        auto targets = ValidTargets(g, pos, abs[ab]);
+        if (target < 0) target = targets[Roll(0, (int)targets.size() - 1)];
+        HeroAct(g, h->id, ab, target);
+        EndTurn(g);
+    } while (false);
+}
+
 // Run with:  depth.exe --sim 400 [level] [random]
 // The default player heals anyone below 40% HP and otherwise uses its hardest-hitting attack on the
 // weakest enemy it can reach; "random" picks any usable ability and target instead.
@@ -773,49 +839,7 @@ void SimulateExpeditions(int runs, int level, bool randomPlayer, int tier) {
             if (d.phase == DPhase::Corridor) { d.light = std::max(0.0f, d.light - LightDrainPerRoom(g)); EnterNextRoom(g); continue; }
             if (d.phase == DPhase::Treasure || d.phase == DPhase::RoomClear) { d.phase = DPhase::Corridor; continue; }
             if (d.phase != DPhase::Combat) break;
-            if (d.turnIdx >= (int)d.order.size()) BeginRound(g);
-            TurnEntry te = d.order[d.turnIdx];
-            bool valid = te.hero ? (FindHero(g, te.id) && PartyPos(g, te.id) >= 0) : FindEnemy(g, te.id) != nullptr;
-            if (!valid) { d.turnIdx++; d.turnStarted = false; continue; }
-            if (!d.turnStarted) StartTurn(g);
-            if (d.pendingSkip) { EndTurn(g); continue; }
-            if (!te.hero) { EnemyAct(g, te.id, -1); EndTurn(g); continue; }
-            Hero* h = FindHero(g, te.id);
-            int pos = PartyPos(g, te.id);
-            const auto& abs = ClassAbilities(h->cls);
-            std::vector<int> usable;
-            for (int ab : h->loadout)
-                if (ab >= 0 && HeroCanUse(g, pos, abs[ab])) usable.push_back(ab);
-            if (usable.empty()) { EndTurn(g); continue; }
-            int ab = usable[Roll(0, (int)usable.size() - 1)], target = -1;
-            if (!randomPlayer) {
-                // Simple but sensible: heal whoever is badly hurt, else hit the weakest enemy as hard as possible.
-                int hurt = -1;
-                float worst = 0.4f;
-                for (int p = 0; p < PartySize(g); p++) {
-                    Hero* o = PartyAt(g, p);
-                    float f = (float)o->hp / GetStats(*o).maxHp;
-                    if (f < worst) { worst = f; hurt = p; }
-                }
-                int healAb = -1, bestAb = -1;
-                float best = 0;
-                for (int a : usable) {
-                    if (abs[a].heal > 0 && abs[a].target == Target::Ally) healAb = a;
-                    float v = abs[a].dmgMult * abs[a].hitsCount * (abs[a].aoe ? 2.0f : 1.0f) + (abs[a].bleed + abs[a].poison) * 0.15f;
-                    if (abs[a].target == Target::Enemy && v > best) { best = v; bestAb = a; }
-                }
-                if (hurt >= 0 && healAb >= 0) { ab = healAb; target = hurt; }
-                else if (bestAb >= 0) {
-                    ab = bestAb;
-                    int lowHp = 1 << 30;
-                    for (int tp : ValidTargets(g, pos, abs[ab]))
-                        if (d.enemies[tp].hp < lowHp) { lowHp = d.enemies[tp].hp; target = tp; }
-                }
-            }
-            auto targets = ValidTargets(g, pos, abs[ab]);
-            if (target < 0) target = targets[Roll(0, (int)targets.size() - 1)];
-            HeroAct(g, h->id, ab, target);
-            EndTurn(g);
+            SimCombatStep(g, randomPlayer);
         }
         int lost = 4 - (int)g.roster.size();
         deaths += lost;
@@ -835,6 +859,49 @@ void SimulateExpeditions(int runs, int level, bool randomPlayer, int tier) {
     printf("\n");
 }
 
+// Fights one particular boss or mini-boss (with the retainers it would normally bring) again and again, against a
+// fresh crew of the given level, and prints how often the crew wins and how long the fight lasts.
+// Run with:  depth.exe --boss <runs> <crewLevel> <tier 0-4> <enemy type index> [random]
+void SimulateBossFight(int runs, int level, int tier, int enemyType, bool randomPlayer) {
+    int wins = 0, deaths = 0, rounds = 0;
+    Location loc = Location::Cave;
+    if (enemyType >= (int)EnemyType::TribalSpearman && enemyType <= (int)EnemyType::SunGod) loc = Location::Island;
+    else if (enemyType >= (int)EnemyType::FeralMerman && enemyType <= (int)EnemyType::Neptune) loc = Location::Weeds;
+    else if (enemyType >= (int)EnemyType::LostInfantry) loc = Location::Atlantis;
+    for (int r = 0; r < runs; r++) {
+        Game g;
+        InitGame(g);
+        g.tierSel[(int)loc] = tier;
+        g.tierCleared[(int)loc] = CAVE_TIERS;
+        for (auto& h : g.roster) {
+            h.level = level;
+            h.hp = GetStats(h).maxHp;
+            std::vector<int> pool;
+            const auto& abs = ClassAbilities(h.cls);
+            for (int i = 0; i < (int)abs.size(); i++) if (abs[i].unlockLevel <= level) pool.push_back(i);
+            for (int i = (int)pool.size() - 1; i > 0; i--) std::swap(pool[i], pool[Roll(0, i)]);
+            for (int k = 0; k < LOADOUT_SIZE; k++) h.loadout[k] = k < (int)pool.size() ? pool[k] : -1;
+        }
+        StartDungeon(g, loc);
+        auto& d = g.dungeon;
+        d.rooms = {RoomType::Fight};
+        d.roomIndex = -1;
+        gForceEnemy = enemyType;
+        int steps = 0;
+        while (steps++ < 20000) {
+            if (d.phase == DPhase::Corridor) { EnterNextRoom(g); continue; }
+            if (d.phase != DPhase::Combat) break;
+            SimCombatStep(g, randomPlayer);
+        }
+        gForceEnemy = -1;
+        deaths += 4 - (int)g.roster.size();
+        rounds += d.round;
+        wins += d.phase == DPhase::RoomClear || d.phase == DPhase::Victory;
+    }
+    Enemy e = MakeEnemy((EnemyType)enemyType, 0);
+    printf("%-22s (span %d, extra action %2d%%) vs crew level %d, cave level %d: wins %.1f%%   avg deaths %.2f   avg rounds %.1f\n",
+           e.name.c_str(), e.span, e.extraAct, level, CAVE_TIER_LEVEL[tier], 100.0 * wins / runs, (double)deaths / runs, (double)rounds / runs);
+}
 // ---------------------------------------------------------------- drawing: the cave, in layers
 // The cave is painted in seven layers, from the far water to rocks right in front of the view. Each
 // layer slides by a different amount as the party walks between rooms (and sways a little with the

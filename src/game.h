@@ -180,6 +180,7 @@ struct Enemy {
     std::string name;
     int maxHp = 1, hp = 1, dmgMin = 1, dmgMax = 1, speed = 0, acc = 80, dodge = 0, prot = 0;
     bool boss = false;                 // drawn large; minis and level bosses both
+    int extraAct = 0;                  // percent chance (bosses only) to act a second time after each of its turns, tuned per boss
     int span = 1;                      // how many of the four enemy ranks it fills: a level boss 3, a mini-boss 2. Still one enemy, hittable in any of its ranks
     int tier = 0;                      // 0 standard, 1 mini-boss, 2 level boss
     bool alive = true;
@@ -558,6 +559,7 @@ void SceneWorkshop(Game& g);
 void StartDungeon(Game& g, Location loc);
 void SceneDungeon(Game& g);
 void DebugEnterCombat(Game& g, Location loc = Location::Cave); // debug: jump straight into the first fight
+void SimulateBossFight(int runs, int level, int tier, int enemyType, bool randomPlayer); // debug: one boss, many fights
 void SimulateExpeditions(int runs, int level, bool randomPlayer, int tier = 0); // debug: auto-play expeditions and print the results
 
 // ---------- platformer.cpp ----------

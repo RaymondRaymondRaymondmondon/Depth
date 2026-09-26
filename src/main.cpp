@@ -72,7 +72,8 @@ static void TakeShots(const Game& base, const std::string& dir) {
         {"boss_lobster", [](Game& g) { DebugSetEnemies(g, Location::Cave, {EnemyType::Lobster, EnemyType::CaveShrimp, EnemyType::SeaLouse}); }},
         {"boss_queen", [](Game& g) { DebugSetEnemies(g, Location::Cave, {EnemyType::CrustaceanQueen, EnemyType::DysCrustacean}); }},
         {"foes_tribal", [](Game& g) { DebugSetEnemies(g, Location::Island, {EnemyType::TribalSpearman, EnemyType::WarDog, EnemyType::TribalShaman, EnemyType::TribalSpearman}); }},
-        {"boss_demigod", [](Game& g) { DebugSetEnemies(g, Location::Island, {EnemyType::TribalDemigod, EnemyType::WarDog, EnemyType::TribalShaman}); }},        {"island", [](Game& g) { DebugEnterCombat(g, Location::Island); }},
+        {"boss_demigod", [](Game& g) { DebugSetEnemies(g, Location::Island, {EnemyType::TribalDemigod, EnemyType::WarDog, EnemyType::TribalShaman}); }},        {"foes_merfolk", [](Game& g) { DebugSetEnemies(g, Location::Weeds, {EnemyType::FeralMerman, EnemyType::Siren, EnemyType::FeralMerman, EnemyType::Siren}); }},
+        {"boss_neptune", [](Game& g) { DebugSetEnemies(g, Location::Weeds, {EnemyType::Neptune, EnemyType::FeralMerman}); }},        {"island", [](Game& g) { DebugEnterCombat(g, Location::Island); }},
         {"weeds", [](Game& g) { DebugEnterCombat(g, Location::Weeds); }},
         {"atlantis", [](Game& g) { DebugEnterCombat(g, Location::Atlantis); }},
         {"inventory", [](Game& g) { DebugEnterCombat(g); g.dungeon.phase = DPhase::RoomClear; g.dungeon.roomGold = 24;
@@ -146,6 +147,11 @@ static void MakeSpriteSheet(const std::string& path) {
 
 int main(int argc, char** argv) {
     SetRandomSeed((unsigned int)time(nullptr));
+    if (argc >= 6 && strcmp(argv[1], "--boss") == 0) {
+        SetTraceLogLevel(LOG_WARNING);
+        SimulateBossFight(atoi(argv[2]), atoi(argv[3]), std::clamp(atoi(argv[4]), 0, CAVE_TIERS - 1), std::clamp(atoi(argv[5]), 0, (int)EnemyType::COUNT - 1), argc >= 7 && strcmp(argv[6], "random") == 0);
+        return 0;
+    }
     if (argc >= 2 && strcmp(argv[1], "--sim") == 0) {
         SetTraceLogLevel(LOG_WARNING);
         SimulateExpeditions(argc >= 3 ? atoi(argv[2]) : 400, argc >= 4 ? atoi(argv[3]) : 0,

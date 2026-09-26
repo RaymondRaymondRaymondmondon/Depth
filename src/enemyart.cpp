@@ -493,6 +493,171 @@ void TribalDemigod(const Ctx& c) { // the Island's mini-boss: a mountain of a ma
         Tri(c, {-4.0f + i * 5 - 3.5f, -178}, {-4.0f + i * 5 + 3.5f, -178}, {-4.0f + i * 6.4f + sinf(t * 1.3f + i) * 1.5f, -178 - h}, i % 2 ? red : teal);
     }
 }
+// ============================================================ THE WEEDS: the merfolk
+// a fish tail from the hips down: scaled segments swaying, ending in a fluke. `tip` is where the last segment lands.
+void FishTail(const Ctx& c, float hx, float hy, float w, float len, float sway, Color scale, Color fin, Color belly, float finSize, bool ribs) {
+    Vector2 prev{hx, hy};
+    const int N = 7;
+    for (int i = 1; i <= N; i++) {
+        float u = (float)i / N;
+        Vector2 q{hx + sinf(c.t * 2.0f + i * 0.7f + c.u) * sway * u + u * len * 0.12f, hy + u * (0 - hy)};
+        float w0 = w * (1.0f - (i - 1) * 0.11f), w1 = w * (1.0f - i * 0.11f);
+        Limb(c, prev, q, w0, w1, i % 2 ? scale : Tone(scale, -0.1f));
+        DrawRing(c.P(q.x, q.y), std::max(1.0f, (w1 * 0.5f - 1.2f)) * c.k, (w1 * 0.5f + 0.6f) * c.k, 210, 330, 8, Tone(scale, -0.4f));   // a scale ring
+        if (i < N - 1) Tri(c, {q.x + w1 * 0.4f, q.y - 3}, {q.x + w1 * 0.4f, q.y + 3}, {q.x + w1 * 0.4f + finSize * (1.0f - u * 0.5f), q.y}, fin);       // dorsal fin spines
+        prev = q;
+    }
+    Limb(c, {hx - 1, hy + 3}, {prev.x - 1, prev.y - 4}, w * 0.5f, w * 0.2f, belly);                                                                 // the pale belly stripe
+    for (int s = -1; s <= 1; s += 2) { // the fluke, two great lobes with rays
+        Vector2 tipA{prev.x + s * finSize * 1.7f, prev.y + 2 + sinf(c.t * 2.4f + s + c.u) * 3};
+        Tri(c, {prev.x, prev.y - 8}, tipA, {prev.x + s * 4.0f, prev.y + 5}, s < 0 ? Tone(fin, -0.25f) : fin);
+        if (ribs) for (int r = 1; r <= 3; r++) Line(c, {prev.x, prev.y - 4}, {prev.x + (tipA.x - prev.x) * r / 3.2f, prev.y + (tipA.y - prev.y) * r / 3.2f}, 0.8f, Fade(INK, 0.55f));
+    }
+}
+
+void FeralMerman(const Ctx& c) {
+    const float t = c.t;
+    const Color skin{104, 138, 128, 255}, scale{70, 100, 104, 255}, fin{124, 168, 166, 255}, belly{196, 210, 196, 255}, glow{150, 230, 220, 255}, bone{224, 214, 190, 255}, kelp{64, 124, 84, 255};
+    float hover = sinf(t * 1.6f + c.u) * 2, pulse = 0.5f + 0.5f * sinf(t * 3 + c.u);
+    FishTail(c, 2, -56 + hover, 15, 60, 8, scale, fin, belly, 12, true);
+    for (int i = 0; i < 6; i++) Dot(c, 4.0f + i * 1.5f, -46.0f + i * 7 + hover, 1.2f, Fade(glow, 0.4f + 0.5f * sinf(t * 2 + i + c.u)));      // bioluminescent spots down the tail
+    Limb(c, {2, -58 + hover}, {-8, -98 + hover}, 21, 26, skin);                                                                                    // a hunched, muscled torso
+    Crescent(c, -2, -80 + hover, 22);
+    for (int i = 0; i < 4; i++) Limb(c, {-10, -92.0f + i * 7 + hover}, {8, -90.0f + i * 7 + hover}, 3, 3, Tone(belly, -0.15f));                    // pale belly plates
+    for (int r = 0; r < 4; r++) for (int i = 0; i < 4; i++) DrawRing(c.P(-10.0f + i * 6 + (r % 2) * 3, -90.0f + r * 6 + hover), 2.2f * c.k, 3.2f * c.k, 200, 340, 6, Fade(INK, 0.5f)); // scales
+    for (int i = 0; i < 3; i++) Line(c, {-16, -102.0f + i * 3 + hover}, {-12, -100.0f + i * 3 + hover}, 1.0f, INK);                                // gill slits
+    for (int i = 0; i < 5; i++) Tri(c, {6.0f + i * 1.0f, -98.0f + i * 7 + hover}, {6.0f + i * 1.0f, -92.0f + i * 7 + hover}, {16.0f + i * 1.0f, -96.0f + i * 7 + hover}, fin); // spines down the back
+    Ball(c, 4, -98 + hover, 10, Tone(skin, -0.15f)); Ball(c, -18, -98 + hover, 11, Tone(fin, -0.1f));                                               // shoulders, one finned
+    for (int i = 0; i < 3; i++) Tri(c, {-24.0f + i * 4, -104 + hover}, {-20.0f + i * 4, -104 + hover}, {-22.0f + i * 4, -116 - (i % 2) * 3 + hover}, fin);
+    Barnacles(c, 6, -104 + hover, 8, 4, c.u);
+    Limb2(c, {4, -96 + hover}, {-6, -76 + hover}, {-14, -60 + hover}, 8, 6.4f, 5, Tone(skin, -0.2f));                                              // the rear arm
+    for (int i = 0; i < 3; i++) Tri(c, {-14.0f - i * 2, -60 + hover}, {-11.0f - i * 2, -58 + hover}, {-18.0f - i * 3, -50 + i * 2 + hover}, bone);  // claws
+    Limb2(c, {-16, -96 + hover}, {-36, -84 + hover}, {-50, -70 + sinf(t * 2 + c.u) * 2 + hover}, 9, 7, 5.6f, skin);                                 // the reaching arm
+    for (int i = 0; i < 4; i++) Tri(c, {-32.0f - i * 5, -88 + i * 1.5f + hover}, {-32.0f - i * 5, -81 + i * 1.5f + hover}, {-36.0f - i * 5, -85 + i * 2.2f + hover}, Tone(fin, 0.1f)); // fins along the forearm
+    for (int i = 0; i < 4; i++) { Tri(c, {-50.0f - i * 1.5f, -72 + i * 2 + hover}, {-48.0f - i * 1.5f, -68 + i * 2 + hover}, {-62.0f - i * 2, -68 + i * 3.4f + hover}, bone); } // long claws
+    Line(c, {-30, -90 + hover}, {-8, -70 + hover}, 1.2f, Fade(Color{190, 176, 140, 255}, 0.85f)); Line(c, {-34, -80 + hover}, {-6, -84 + hover}, 1.2f, Fade(Color{190, 176, 140, 255}, 0.85f)); // torn net wound round the arm
+    for (int i = 0; i < 3; i++) Line(c, {-24.0f - i * 6, -80 + hover}, {-26.0f - i * 6 + sinf(t * 2 + i) * 3, -64 + i * 3 + hover}, 1.6f, kelp);  // weed trailing from it
+    Line(c, {2, -102 + hover}, {16, -122 + hover}, 2.0f, Color{92, 64, 40, 255}); Tri(c, {-2, -100 + hover}, {6, -104 + hover}, {2, -94 + hover}, Color{130, 84, 46, 255}); // a harpoon head stuck in the shoulder
+    Ball(c, -22, -110 + hover, 12, skin); Crescent(c, -22, -110 + hover, 12);                                                                       // the head, hung forward
+    for (int i = 0; i < 5; i++) Tri(c, {-26.0f + i * 3.4f, -118 + hover}, {-23.0f + i * 3.4f, -118 + hover}, {-25.0f + i * 3.4f, -132 - (i % 2) * 5 + hover}, i % 2 ? fin : Tone(fin, -0.2f)); // a crest of fins
+    Bar(c, -34, -114 + hover, 16, 5, INK); Dot(c, -30, -111.6f + hover, 1.2f, glow); Dot(c, -24, -111.6f + hover, 1.2f, glow);                        // eyes in a black brow
+    float jaw = 4 + sinf(t * 3 + c.u) * 2;
+    Limb(c, {-30, -102 + hover}, {-44, -98 + jaw + hover}, 6, 4, Tone(skin, -0.2f));                                                                // the lower jaw
+    for (int i = 0; i < 5; i++) { Tri(c, {-32.0f - i * 2.6f, -103 + hover}, {-30.0f - i * 2.6f, -103 + hover}, {-31.0f - i * 2.6f, -97 + hover}, bone); Tri(c, {-33.0f - i * 2.4f, -98 + jaw * 0.8f + hover}, {-31.0f - i * 2.4f, -98 + jaw * 0.8f + hover}, {-32.0f - i * 2.4f, -103 + jaw * 0.8f + hover}, bone); } // needle teeth
+    Glow(c.P(-27, -112 + hover), 20 * c.k, Fade(glow, 0.08f + 0.06f * pulse));
+}
+
+void Siren(const Ctx& c) { // a drowned singer: pale, bandaged, her song made visible
+    const float t = c.t;
+    const Color skin{198, 208, 198, 255}, scale{84, 120, 120, 255}, fin{148, 178, 170, 255}, glow{200, 226, 210, 255}, bone{224, 214, 192, 255}, hair{46, 92, 70, 255}, pearl{244, 240, 232, 255};
+    float hover = sinf(t * 1.2f + c.u) * 2.4f, ph = fmodf(t * 0.8f + c.u * 0.13f, 1.0f);
+    for (int s = -1; s <= 1; s += 2) // trailing veil-fins from the hips
+        for (int i = 0; i < 3; i++) {
+            float sw = sinf(t * 1.6f + i + s) * 5;
+            Tri(c, {s * 6.0f, -60 + hover}, {s * (20.0f + i * 6) + sw, -28 + i * 4 + hover}, {s * 4.0f, -24 + i * 6 + hover}, Fade(fin, 0.55f));
+        }
+    FishTail(c, 0, -60 + hover, 14, 40, 11, scale, fin, Tone(skin, -0.1f), 13, true);
+    for (int i = 0; i < 8; i++) { float a = i * 2.4f; Dot(c, -6 + cosf(a) * 8, -48 + i * 5 + hover, 1.0f, Fade(glow, 0.45f)); }                     // pale freckles of light down the tail
+    Limb(c, {0, -60 + hover}, {-3, -104 + hover}, 14, 17, skin);                                                                                   // a slender torso
+    Crescent(c, -1, -84 + hover, 15);
+    for (int i = 0; i < 4; i++) Line(c, {-9, -98.0f + i * 4 + hover}, {6, -96.0f + i * 4 + hover}, 0.9f, Fade(INK, 0.45f));                        // showing ribs
+    Quad(c, {-14, -106 + hover}, {12, -106 + hover}, {16, -64 + hover}, {-16, -62 + hover}, Fade(Color{60, 84, 78, 255}, 0.92f));               // a shroud of net and weed
+    Jag(c, {-16, -62 + hover}, {16, -64 + hover}, 6, 9, Fade(Color{60, 84, 78, 255}, 0.9f), c.u);
+    for (int i = 0; i < 5; i++) { Line(c, {-12.0f + i * 6, -104 + hover}, {-14.0f + i * 6, -66 + hover}, 0.6f, Fade(bone, 0.5f)); Line(c, {-14, -100.0f + i * 8 + hover}, {14, -96.0f + i * 8 + hover}, 0.6f, Fade(bone, 0.5f)); } // its mesh
+    for (int s = -1; s <= 1; s += 2) { // a bodice of two shells
+        for (int i = -2; i <= 2; i++) Tri(c, {s * 5.0f - 2 + i, -100 + hover}, {s * 5.0f + 2 + i, -100 + hover}, {s * 5.0f + i * 2.4f, -108 + std::abs(i) + hover}, Tone(Color{232, 200, 190, 255}, -0.1f * std::abs(i)));
+        Ball(c, s * 5.0f, -98 + hover, 4.2f, Color{236, 206, 196, 255});
+    }
+    for (int i = 0; i < 9; i++) { float u = i / 8.0f; Ball(c, -12 + u * 24, -108 + sinf(u * PI) * 7 + hover, 2.2f, pearl); }                          // a pearl necklace
+    Limb2(c, {-8, -102 + hover}, {-28, -102 + hover}, {-44, -118 + sinf(t * 1.4f) * 3 + hover}, 7, 5.6f, 4, skin);                                 // the arms rise, beckoning
+    Limb2(c, {6, -102 + hover}, {20, -110 + hover}, {30, -128 + sinf(t * 1.4f + 1) * 3 + hover}, 6.4f, 5.2f, 3.6f, Tone(skin, -0.18f));
+    for (int i = 0; i < 5; i++) { Line(c, {-44, -118 + hover}, {-58.0f - i * 1.5f, -128.0f + i * 5 + hover}, 1.5f, skin); Line(c, {-46.0f, -118 + hover}, {-58.0f - i * 1.5f, -128.0f + i * 5 + hover}, 0.6f, Fade(fin, 0.7f)); } // webbed fingers
+    for (int i = 0; i < 4; i++) Line(c, {30, -128 + hover}, {38.0f + i * 1.4f, -138.0f + i * 5 + hover}, 1.4f, Tone(skin, -0.18f));
+    for (int i = 0; i < 12; i++) { // long hair of kelp, drifting
+        float x0 = -4.0f + (i - 6) * 1.6f;
+        Vector2 prev{x0, -124 + hover};
+        for (int sg = 1; sg <= 6; sg++) { Vector2 q{x0 + 6 + sinf(t * 1.3f + i * 0.5f + sg * 0.7f) * sg * 1.6f + sg * 1.5f, -124 + sg * 11.0f + hover}; Limb(c, prev, q, 2.6f - sg * 0.25f, 2.2f - sg * 0.25f, i % 3 ? hair : Tone(hair, 0.15f)); prev = q; }
+    }
+    Ball(c, -6, -118 + hover, 11, skin); Crescent(c, -6, -118 + hover, 11);                                                                         // the head
+    for (int s = -1; s <= 1; s += 2) Tri(c, {-6 + s * 9.0f, -122 + hover}, {-6 + s * 9.0f, -114 + hover}, {-6 + s * 20.0f, -120 + hover}, Fade(fin, 0.8f)); // fin ears
+    for (int i = -2; i <= 2; i++) Tri(c, {-6.0f + i * 4 - 3, -127 + hover}, {-6.0f + i * 4 + 3, -127 + hover}, {-6.0f + i * 4, -138 + std::abs(i) * 2 + hover}, i % 2 ? Color{206, 132, 126, 255} : bone); // a crown of coral and bone
+    Bar(c, -18, -122 + hover, 24, 6, bone);                                                                                                         // a bandage over the eyes
+    for (int i = 0; i < 4; i++) Line(c, {-16.0f + i * 6, -122 + hover}, {-13.0f + i * 6, -116 + hover}, 0.9f, Fade(INK, 0.5f));
+    Ball(c, -12, -110 + hover, 2.6f, Tone(skin, -0.5f)); Bar(c, -13, -111.5f + hover, 4, 4.4f, INK);                                                // an open mouth, mid-song
+    for (int i = 0; i < 3; i++) { // the song, drawn as rings of sound leaving her mouth
+        float p2 = fmodf(ph + i / 3.0f, 1.0f);
+        DrawRing(c.P(-12, -110 + hover), (8 + p2 * 44) * c.k, (9.4f + p2 * 44) * c.k, 150, 210, 18, Fade(glow, 0.5f * (1 - p2)));
+    }
+    Glow(c.P(-12, -110 + hover), 30 * c.k, Fade(glow, 0.08f));
+}
+
+void Neptune(const Ctx& c) { // the Weeds' level boss: a king of the drowned with a coiled tail and a trident like a mast
+    const float t = c.t;
+    const Color skin{96, 140, 120, 255}, scale{62, 98, 84, 255}, fin{140, 184, 156, 255}, coral{190, 104, 90, 255}, belly{170, 194, 172, 255}, gold{178, 140, 70, 255}, bone{214, 204, 180, 255}, glow{150, 230, 200, 255}, kelp{52, 108, 72, 255}, pearl{244, 240, 232, 255};
+    float pulse = 0.5f + 0.5f * sinf(t * 2.0f + c.u), hover = sinf(t * 1.1f + c.u) * 2.5f;
+    // the tail: a great coil behind and to the right, ending in a fluke that flicks
+    Vector2 tp[10] = {{6, -92}, {40, -84}, {78, -64}, {112, -38}, {140, -20}, {166, -24}, {180, -46}, {170, -68}, {150, -74}, {136, -62}};
+    for (int i = 1; i < 10; i++) {
+        float w0 = 32 - (i - 1) * 2.6f, w1 = 32 - i * 2.6f;
+        Limb(c, tp[i - 1], tp[i], w0, w1, i % 2 ? scale : Tone(scale, -0.12f));
+        DrawRing(c.P(tp[i].x, tp[i].y), std::max(1.0f, w1 * 0.45f) * c.k, (w1 * 0.5f + 1) * c.k, 190, 350, 10, Tone(scale, -0.45f));
+        Tri(c, {tp[i].x, tp[i].y - w1 * 0.5f}, {tp[i].x + 10, tp[i].y - w1 * 0.5f - 2}, {tp[i].x + 4, tp[i].y - w1 * 0.5f - 22 + (i % 2) * 4}, fin);   // dorsal spines
+    }
+    Limb(c, {6, -84}, {138, -14}, 8, 3, Tone(belly, -0.1f));
+    for (int s = -1; s <= 1; s += 2) Tri(c, {136, -62}, {122 + s * 28.0f, -78 + sinf(t * 2.2f + s) * 6}, {138 + s * 6.0f, -50}, s < 0 ? Tone(fin, -0.25f) : fin);    // the fluke
+    for (int i = 0; i < 12; i++) Dot(c, 24.0f + i * 12, -78.0f + i * 5 + sinf(i) * 6, 1.6f, Fade(glow, 0.35f + 0.5f * sinf(t * 2 + i)));                              // glow-spots
+    // the kelp cloak behind him
+    for (int i = 0; i < 9; i++) { float x = 14.0f + i * 7, sw = sinf(t * 1.3f + i) * 6; Tri(c, {x - 6, -178 + hover}, {x + 6, -178 + hover}, {x + 14 + sw, -60 - i * 4.0f}, i % 2 ? kelp : Tone(kelp, -0.3f)); }
+    Limb(c, {2, -90 + hover}, {-4, -170 + hover}, 60, 78, skin);                                                                                     // a colossal torso
+    Crescent(c, -2, -130 + hover, 62);
+    for (int r = 0; r < 4; r++) for (int i = 0; i < 5 - (r % 2); i++) { // a breastplate of overlapping coral scales
+        float x = -36.0f + i * 15 + (r % 2) * 7.5f, y = -160.0f + r * 15 + hover;
+        Ball(c, x, y, 9, r % 2 ? coral : Tone(coral, 0.1f)); DrawRing(c.P(x, y), 6 * c.k, 9 * c.k, 200, 340, 8, Tone(coral, -0.45f));
+    }
+    for (int i = 0; i < 4; i++) { Line(c, {-30, -168.0f + i * 14 + hover}, {24, -166.0f + i * 14 + hover}, 1.4f, Fade(glow, 0.45f + 0.35f * pulse)); } // glowing seams between the scales
+    Glow(c.P(-2, -140 + hover), 70 * c.k, Fade(glow, 0.06f + 0.05f * pulse));
+    Limb(c, {-30, -92 + hover}, {28, -92 + hover}, 9, 9, gold); for (int i = 0; i < 5; i++) Rivet(c, -22.0f + i * 11, -92 + hover, 2.6f, Tone(gold, 0.2f));      // a belt of gold
+    Ball(c, 0, -92 + hover, 9, gold); Ball(c, 0, -92 + hover, 5, Tone(glow, -0.2f));
+    for (int i = 0; i < 8; i++) { float u = i / 7.0f; Ball(c, -30 + u * 58, -186 + sinf(u * PI) * 12 + hover, 5.4f, pearl); }                          // a pearl collar
+    Ball(c, -58, -184 + hover, 27, coral); Crescent(c, -58, -184 + hover, 27); Barnacles(c, -60, -196 + hover, 22, 7, c.u);                          // barnacled pauldrons
+    for (int i = 0; i < 4; i++) Tri(c, {-72.0f + i * 10, -204 + hover}, {-64.0f + i * 10, -204 + hover}, {-68.0f + i * 10, -228 + std::abs(i - 1.5f) * 5 + hover}, bone);
+    Ball(c, 50, -184 + hover, 23, Tone(coral, -0.1f)); Barnacles(c, 50, -194 + hover, 16, 5, c.u + 3);
+    for (int i = 0; i < 3; i++) Tri(c, {40.0f + i * 9, -202 + hover}, {48.0f + i * 9, -202 + hover}, {44.0f + i * 9, -220 + i * 2 + hover}, Tone(bone, -0.1f));
+    // the trident, held upright in front
+    Limb2(c, {-54, -178 + hover}, {-84, -150 + hover}, {-92, -122 + hover}, 20, 17, 14, skin);                                                       // the trident arm
+    Limb2(c, {-84, -150 + hover}, {-92, -122 + hover}, {-92, -116 + hover}, 15, 14, 13, Tone(gold, -0.1f));                                          // a gold bracer
+    Line(c, {-94, -6}, {-94, -232 + hover}, 6, Color{112, 92, 70, 255});
+    for (int i = 0; i < 6; i++) Line(c, {-97, -20.0f - i * 34}, {-91, -14.0f - i * 34}, 3.4f, Tone(gold, -0.3f));                                    // its bindings
+    Line(c, {-116, -236 + hover}, {-72, -236 + hover}, 6, gold);
+    for (int i = -1; i <= 1; i++) { // the three tines, barbed
+        float x = -94 + i * 22.0f;
+        Line(c, {x, -236 + hover}, {x, -264 + hover + std::abs(i) * 4.0f}, 5, Tone(bone, -0.05f));
+        Tri(c, {x - 6, -258 + hover + std::abs(i) * 4.0f}, {x + 6, -258 + hover + std::abs(i) * 4.0f}, {x, -280 + hover + std::abs(i) * 4.0f}, glow);
+        Tri(c, {x, -244 + hover}, {x + 9, -236 + hover}, {x, -238 + hover}, bone);
+    }
+    Glow(c.P(-94, -262 + hover), 50 * c.k, Fade(glow, 0.14f + 0.1f * pulse));
+    Limb2(c, {50, -178 + hover}, {76, -170 + hover}, {84, -198 + hover}, 18, 15, 12, Tone(skin, -0.14f));                                            // the raised arm, cradling a storm
+    Ball(c, 88, -212 + hover, 16, Tone(glow, -0.25f)); Glow(c.P(88, -212 + hover), 70 * c.k, Fade(glow, 0.22f + 0.14f * pulse));
+    for (int i = 0; i < 4; i++) { float a = t * 2.4f + i * 1.57f; Line(c, {88, -212 + hover}, {88 + cosf(a) * 26, -212 + sinf(a) * 26 + hover}, 1.2f, Fade(WHITE, 0.6f)); } // lightning about the orb
+    // the head: a heavy brow, a beard of writhing weed, a crown of shells
+    Ball(c, -6, -206 + hover, 24, skin); Crescent(c, -6, -206 + hover, 24);
+    for (int s = -1; s <= 1; s += 2) for (int i = 0; i < 3; i++) Tri(c, {-6 + s * 22.0f, -212.0f + i * 5 + hover}, {-6 + s * 22.0f, -206.0f + i * 5 + hover}, {-6 + s * (36.0f - i * 4), -210.0f + i * 7 + hover}, Fade(fin, 0.85f)); // fin ears
+    for (int i = 0; i < 9; i++) { // the beard
+        float x0 = -22.0f + i * 5.5f;
+        Vector2 prev{x0, -192 + hover};
+        for (int sg = 1; sg <= 5; sg++) { Vector2 q{x0 - 3 + sinf(t * 1.6f + i + sg * 0.8f) * sg * 1.8f, -192 + sg * 9.0f + hover}; Limb(c, prev, q, 5.0f - sg * 0.7f, 4.4f - sg * 0.7f, i % 2 ? kelp : Tone(kelp, 0.15f)); prev = q; }
+    }
+    Ball(c, -12, -198 + hover, 7, Tone(skin, -0.25f));                                                                                              // the nose
+    Bar(c, -32, -216 + hover, 52, 11, INK); Bar(c, -28, -213.5f + hover, 10, 3, INK); Dot(c, -22, -211.6f + hover, 1.6f, glow); Dot(c, 8, -211.6f + hover, 1.6f, glow); // eyes under a black brow
+    for (int i = 0; i < 4; i++) Line(c, {-22.0f + i * 3, -226 + hover}, {-20.0f + i * 3, -220 + hover}, 1.2f, Fade(INK, 0.6f));                     // brow scars
+    for (int i = -3; i <= 3; i++) { // a crown of shells and bone
+        float h = 26 + (3 - std::abs(i)) * 7;
+        Tri(c, {-6.0f + i * 8 - 4.5f, -222 + hover}, {-6.0f + i * 8 + 4.5f, -222 + hover}, {-6.0f + i * 9.4f, -222 - h + hover}, i % 2 ? Color{232, 214, 196, 255} : bone);
+        if (i % 2 == 0) Ball(c, -6.0f + i * 9.4f, -222 - h + hover, 3.2f, pearl);
+    }
+    Line(c, {-30, -222 + hover}, {18, -222 + hover}, 5, gold);
+    Ball(c, -6, -226 + hover, 6, Tone(glow, -0.2f)); Glow(c.P(-6, -226 + hover), 30 * c.k, Fade(glow, 0.18f + 0.1f * pulse));
+}
 }  // namespace
 
 // Returns true if the enemy has a rich drawing (the rest still use the older archetype drawers).
@@ -509,6 +674,9 @@ bool DrawRichEnemy(const Enemy& e, Rectangle r, float t) {
         case EnemyType::WarDog: fn = WarDog; H = 78; W = 140; break;
         case EnemyType::TribalShaman: fn = TribalShaman; H = 138; W = 110; break;
         case EnemyType::TribalDemigod: fn = TribalDemigod; H = 205; W = 170; break;
+        case EnemyType::FeralMerman: fn = FeralMerman; H = 116; W = 110; break;
+        case EnemyType::Siren: fn = Siren; H = 120; W = 100; break;
+        case EnemyType::Neptune: fn = Neptune; H = 284; W = 380; break;
         default: return false;
     }
     float k = std::min(r.height / H, 1.5f * r.width / W);

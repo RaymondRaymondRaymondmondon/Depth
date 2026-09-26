@@ -3,6 +3,7 @@
 //  Most balancing happens in this file.
 // ============================================================================
 #include "game.h"
+#include <cstdlib>
 #include "relics.h"
 #include <algorithm>
 
@@ -706,6 +707,23 @@ Enemy MakeEnemy(EnemyType t, int uid) {
         } break;
         default: break;    }
     e.hp = e.maxHp;
+    switch (t) { // bosses can strike twice in a round: the chance (percent) is tuned per boss
+        case EnemyType::Lobster: e.extraAct = 30; break;
+        case EnemyType::GhostWorm: e.extraAct = 80; break;
+        case EnemyType::LostDiver: e.extraAct = 45; break;
+        case EnemyType::CrustaceanQueen: e.extraAct = 90; break;
+        case EnemyType::TribalDemigod: e.extraAct = 90; break;
+        case EnemyType::CoconutQueen: e.extraAct = 5; break;
+        case EnemyType::SunGod: e.extraAct = 5; break;
+        case EnemyType::ElectricEel: e.extraAct = 90; break;
+        case EnemyType::GreatWhite: e.extraAct = 20; break;
+        case EnemyType::Neptune: e.extraAct = 13; break;
+        case EnemyType::ArmorLostOne: e.extraAct = 90; break;
+        case EnemyType::AlienHorror: e.extraAct = 90; break;
+        case EnemyType::Cthulhu: e.extraAct = 0; break;
+        default: break;
+    }
+    if (const char* sc = getenv("DEPTH_EXTRA")) e.extraAct = (int)(e.extraAct * atof(sc)); // developer knob for tuning runs
     e.span = e.tier == 2 ? 3 : e.boss ? 2 : 1; // bosses are big: a level boss fills three ranks, a mini-boss two
     return e;
 }
@@ -772,6 +790,8 @@ void ScaleEnemyForTier(Enemy& e, int tier) {
     e.dodge += L / 2;
     e.prot = std::min(50, e.prot + L);
     e.speed += L / 2;
+    static const float EXTRA_ACT_BY_TIER[CAVE_TIERS] = {1.0f, 0.6f, 0.35f, 0.25f, 0.15f}; // deeper bosses already hit harder and last longer
+    e.extraAct = (int)(e.extraAct * EXTRA_ACT_BY_TIER[std::clamp(tier, 0, CAVE_TIERS - 1)] + 0.5f);
     e.hp = e.maxHp;
 }
 
@@ -785,5 +805,5 @@ void InitGame(Game& g) {
     g.party = {{g.roster[0].id, g.roster[1].id, g.roster[2].id, g.roster[3].id}};
     g.relicStorage = {0, 8}; // Wrench, MedKit
     RefreshRadar(g);
-    for (int l = 0; l < PL_COUNT; l++) GeneratePlatLayout(g, l);
+    // platform layouts are generated (and validated, which takes a moment) the first time each level is started
 }
