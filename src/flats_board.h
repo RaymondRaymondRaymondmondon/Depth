@@ -42,7 +42,7 @@ struct Cell { bool used = false; Card card; };
 
 // What happened, in order, so the scene can animate it.
 struct Event {
-    enum Type { Play, Strike, Damage, ScaleHit, Death, Move, Knock, Push, Crush, SigilFired, Evolve, Bones, Gold, Drew, ItemFound } type = Play;
+    enum Type { Play, Strike, Damage, ScaleHit, Death, Move, Knock, Push, Crush, SigilFired, Evolve, Bones, Gold, Drew, ItemFound, PhaseChange, Tide } type = Play;
     int r0 = 0, c0 = 0, r1 = 0, c1 = 0, amount = 0;
     std::string text;
 };
@@ -66,6 +66,8 @@ public:
     std::vector<Card> returned[2];    // Undying copies waiting to go back into a hand
     int itemsFound[2] = {0, 0};       // Scavenger finds waiting to be picked up
     int gold = 0;                     // Gilt kills: gold for the pot
+    bool massive = false;             // Selenis is on the board: he is anchored at the dealer's front lane 0 but fills all four
+    int tideDir = 1;                  // which way the next Tidal Pull drags
 
     bool Empty(int r, int c) const { return c >= 0 && c < COLS && !cell[r][c].used; }
     int EffStrength(int r, int c) const;
@@ -81,6 +83,10 @@ public:
     void AdvanceQueue(Events& ev);                // the dealer's queue steps into his front row
     void SentinelPass(Side defender, Events& ev); // sentinels step in front of enemies that arrived across an empty lane
     bool Shove(int r, int c, int dir, bool crushIfLight, Events& ev);
+    void TidalPull(Side victim, Events& ev);      // Selenis drags every creature of `victim` one lane sideways; the edge is fatal (Waterborne creatures submerge and stay)
+    // The cell a blow at (r, c) really lands on: with Selenis on the board every dealer front lane is Selenis.
+    bool Occupied(int r, int c) const { return cell[r][c].used || (massive && r == R_FOE_FRONT && cell[R_FOE_FRONT][0].used); }
+    int RealCol(int r, int c) const { return (massive && r == R_FOE_FRONT && !cell[r][c].used) ? 0 : c; }
 
     bool OverCheck() const { return scale >= SCALE_LIMIT || scale <= -SCALE_LIMIT; }
 
@@ -100,7 +106,7 @@ enum class Boon { NONE, EXTRA_DRAW, BONES, HEAD_START };   // what spent momentu
 
 struct DealerInfo { const char* name; const char* line; const char* twist; int plays; int draws; };
 const DealerInfo& Dealer(int i);
-constexpr int DEALERS = 4;
+constexpr int DEALERS = 5;          // 0-3 the tables on the way, 4 the Atlantean Sovereign (the boss, in two phases)
 
 struct BattleSetup {
     std::vector<Card> deck;
@@ -110,6 +116,7 @@ struct BattleSetup {
     int dealer = 0;
     bool elite = false;
     Boon boon = Boon::NONE;
+    std::vector<std::pair<int, int>> totems;   // scrimshaw totems: (tribe, sigil): a creature of that tribe gains the sigil when played
 };
 
 class Battle {
@@ -123,6 +130,9 @@ public:
     int winner = 0;                   // +1 you, -1 the dealer, once the turn is OVER
     unsigned charms = 0;
     int foeMaxPlays = 1;
+    bool boss = false;                // the Sovereign: when the scales tip your way he sacrifices his court and Selenis rises
+    int phase = 1;                    // 1 the Drowned Phalanx, 2 the Lunar Tide
+    std::vector<std::pair<int, int>> totems;
 
     void Start(const BattleSetup& s, Rng& rng);
     bool Waiting() const { return turn == Turn::YOU_DRAW || turn == Turn::YOU_MAIN || turn == Turn::OVER; }
@@ -134,6 +144,7 @@ public:
     bool Play(int handIdx, int col, const std::vector<std::pair<int, int>>& sacs, Events& ev, Rng& rng);
     bool UseItem(int slot, int r, int c, Events& ev);
     void EndTurn();                                           // ring the bell: main phase -> combat
+    void RiseSelenis(Events& ev);                             // phase two of the Sovereign: he sacrifices his court and the Moon God rises
     // the automatic phases: one micro-step per call (one column of combat, one card the dealer lays, ...)
     void Advance(Events& ev, Rng& rng);
     void AutoYourTurn(Events& ev, Rng& rng);                  // a sensible player: used by the simulator and the hints
@@ -144,7 +155,7 @@ public:
 private:
     void FoeChoose(Events& ev, Rng& rng);
     void Drain(Events& ev);                                   // move Undying copies and finds into hands
-    void CheckOver();
+    void CheckOver(Events& ev);
     void FoeDrawCards(int n, Rng& rng);
     int BestColumn(const Card& c, Side me, Rng& rng) const;
 };

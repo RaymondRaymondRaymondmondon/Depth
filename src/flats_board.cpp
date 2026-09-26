@@ -1,4 +1,4 @@
-﻿#include "flats_board.h"
+#include "flats_board.h"
 #include <algorithm>
 #include <cmath>
 
@@ -34,6 +34,7 @@ const DealerInfo& Dealer(int i) {
         {"The Tidewife", "\"You learn quickly. Shame.\"", "Her Shell creatures strike for +1.", 1, 1},
         {"The Wreck-Broker", "\"Now we play for real.\"", "A rusted anchor already waits across from you.", 2, 1},
         {"The House", "\"The house always wins. Prove me wrong.\"", "Foil in the deck, two cards drawn a turn, and the Croupier at the table.", 2, 2},
+        {"The Atlantean Sovereign", "\"Kneel. The tide remembers every crown.\"", "A drowned phalanx, and beneath it Selenis, the Moon God.", 2, 2},
     };
     return d[std::clamp(i, 0, DEALERS - 1)];
 }
@@ -47,6 +48,7 @@ std::vector<Card> BuildDealerDeck(int dealer, bool elite, Rng& rng) {
                 add("Barnacle Husk", 2); add("Deckhand", 3); add("Fry", 2); add("Bilge Rat", 2); break;
         case 2: add("Rusted Anchor", 1); add("Stingray", 3); add("Ghost Crab", 2); add("Skeleton Sailor", 1); add("Sea Urchin", 2); add("Hammerhead", 2);
                 add("Mudskipper", 1); add("Deckhand", 2); break;
+        case 4: add("Atlantean Hoplite", 7); add("Sunken Oracle", 2); add("Coral Golem", 3); break;
         default: add("Great White", 2); add("Kraken Spawn", 1); add("Manta Ray", 2); add("Hammerhead", 2); add("Sperm Whale", 1); add("The Croupier", 1);
                  add("Crab Sentinel", 2); add("Stingray", 1); add("Deckhand", 2); break;
     }
@@ -95,6 +97,7 @@ bool Board::Kill(int r, int c, Side killer, bool sacrificed, int killerEdition, 
     if (!x.used) return false;
     Side owner = Owner(r);
     Card dead = x.card;
+    if (dead.Has(Sigil::MASSIVE)) massive = false;
     if (sacrificed && dead.Has(Sigil::NINE_LIVES)) {
         Event e; e.type = Event::SigilFired; e.r1 = r; e.c1 = c; e.text = "Nine Lives"; ev.push_back(e);
         return false;
@@ -132,38 +135,65 @@ void Board::TryBurrow(Side defender, int col, Events& ev) {
 // One attacker strikes. Returns true if it struck at all (so the scene knows whether to spend time on this column).
 bool Board::StrikeColumn(Side s, int c, Events& ev) {
     int fr = FrontRow(s), of = FrontRow(Other(s));
-    if (!cell[fr][c].used) return false;
-    int str = EffStrength(fr, c);
+    bool mass = massive && s == Side::FOE;              // Selenis strikes every lane, for a quarter of his strength each, from his anchor lane
+    int ac = mass ? 0 : c;
+    if (!cell[fr][ac].used) return false;
+    int str = EffStrength(fr, ac);
+    if (mass) str = std::max(1, str / COLS);
     if (str <= 0) return false;
     std::vector<int> targets;
-    if (cell[fr][c].card.Has(Sigil::TWIN_TIDE)) { if (In(c - 1)) targets.push_back(c - 1); if (In(c + 1)) targets.push_back(c + 1); }
+    if (!mass && cell[fr][ac].card.Has(Sigil::TWIN_TIDE)) { if (In(c - 1)) targets.push_back(c - 1); if (In(c + 1)) targets.push_back(c + 1); }
     else targets.push_back(c);
-    bool skim = cell[fr][c].card.Has(Sigil::SKIMMER);
+    bool skim = cell[fr][ac].card.Has(Sigil::SKIMMER);
+    if (skim) for (int k = 0; k < COLS; k++) if (cell[of][k].used && cell[of][k].card.Has(Sigil::MIGHTY_LEAP)) skim = false;   // a Mighty Leap holds the line
     for (int tc : targets) {
-        if (!cell[fr][c].used) break; // it fell to spines on an earlier blow
+        if (!cell[fr][ac].used) break; // it fell to quills on an earlier blow
         Event st; st.type = Event::Strike; st.r0 = fr; st.c0 = c; st.r1 = of; st.c1 = tc; st.amount = str; ev.push_back(st);
-        if (!skim && !cell[of][tc].used) TryBurrow(Other(s), tc, ev);
-        if (skim || !cell[of][tc].used) { HitScale(s, str, fr, c, ev); continue; }
-        if (cell[of][tc].card.Has(Sigil::REPULSIVE)) { Event e; e.type = Event::SigilFired; e.r1 = of; e.c1 = tc; e.text = "Repulsive"; ev.push_back(e); continue; }
+        int rc = RealCol(of, tc);
+        bool present = cell[of][rc].used, submerged = false;
+        if (present && cell[of][rc].card.Has(Sigil::WATERBORNE)) {   // it dives: the blow passes over it and lands on the scales
+            Event e; e.type = Event::SigilFired; e.r1 = of; e.c1 = rc; e.text = "Waterborne"; ev.push_back(e);
+            submerged = true; present = false;
+        } else if (present && s == Side::YOU && cell[of][rc].card.Has(Sigil::FORESIGHT) && !cell[of][rc].card.Has(Sigil::MASSIVE)) {   // an oracle steps aside
+            int nc = -1;
+            for (int dc : {-1, 1}) if (nc < 0 && In(rc + dc) && !cell[of][rc + dc].used) nc = rc + dc;
+            if (nc >= 0) {
+                Move(of, rc, of, nc, ev);
+                Event e; e.type = Event::SigilFired; e.r1 = of; e.c1 = nc; e.text = "Foresight"; ev.push_back(e);
+                present = false;
+            }
+        }
+        if (!skim && !present && !submerged) { TryBurrow(Other(s), tc, ev); rc = RealCol(of, tc); present = cell[of][rc].used; }
+        if (skim || !present) { HitScale(s, str, fr, c, ev); continue; }
+        if (cell[of][rc].card.Has(Sigil::REPULSIVE)) { Event e; e.type = Event::SigilFired; e.r1 = of; e.c1 = rc; e.text = "Repulsive"; ev.push_back(e); continue; }
+        // a phalanx: the blow is taken by the sturdiest Phalanx creature in the unbroken line the target stands in
+        int pc = rc;
+        if (cell[of][rc].card.Has(Sigil::PHALANX)) {
+            int lo = rc, hi = rc;
+            while (In(lo - 1) && cell[of][lo - 1].used && cell[of][lo - 1].card.Has(Sigil::PHALANX)) lo--;
+            while (In(hi + 1) && cell[of][hi + 1].used && cell[of][hi + 1].card.Has(Sigil::PHALANX)) hi++;
+            for (int k = lo; k <= hi; k++) if (cell[of][k].card.hp > cell[of][pc].card.hp) pc = k;
+            if (pc != rc) { Event e; e.type = Event::SigilFired; e.r1 = of; e.c1 = pc; e.text = "Phalanx"; ev.push_back(e); }
+        }
         // --- the blow lands on a card: strength against defense, then weight decides the shove
-        Card& a = cell[fr][c].card;
-        Card& t = cell[of][tc].card;
-        int aw = EffWeight(fr, c), tw = EffWeight(of, tc), aed = a.edition;
+        Card& a = cell[fr][ac].card;
+        Card& t = cell[of][pc].card;
+        int aw = EffWeight(fr, ac), tw = EffWeight(of, pc), aed = a.edition;
         bool venom = a.Has(Sigil::VENOM);
         t.hp -= str;
-        Event dm; dm.type = Event::Damage; dm.r1 = of; dm.c1 = tc; dm.amount = str; ev.push_back(dm);
-        if (venom && t.hp > 0) { t.hp = 0; Event e; e.type = Event::SigilFired; e.r1 = of; e.c1 = tc; e.text = "Venom"; ev.push_back(e); }
-        if (t.hp <= 0) { Kill(of, tc, s, false, aed, ev); continue; }
+        Event dm; dm.type = Event::Damage; dm.r1 = of; dm.c1 = pc; dm.amount = str; ev.push_back(dm);
+        if (venom && t.hp > 0 && !t.Has(Sigil::MASSIVE)) { t.hp = 0; Event e; e.type = Event::SigilFired; e.r1 = of; e.c1 = pc; e.text = "Venom"; ev.push_back(e); }
+        if (t.hp <= 0) { Kill(of, pc, s, false, aed, ev); continue; }
         bool attackerAlive = true;
         if (t.Has(Sigil::SPINES)) {
             a.hp -= 1;
-            Event e; e.type = Event::Damage; e.r1 = fr; e.c1 = c; e.amount = 1; e.text = "Spines"; ev.push_back(e);
-            if (a.hp <= 0) { Kill(fr, c, Other(s), false, ED_NONE, ev); attackerAlive = false; }
+            Event e; e.type = Event::Damage; e.r1 = fr; e.c1 = ac; e.amount = 1; e.text = "Quills"; ev.push_back(e);
+            if (a.hp <= 0) { Kill(fr, ac, Other(s), false, ED_NONE, ev); attackerAlive = false; }
         }
-        if (attackerAlive && aw > tw) { // a heavier striker knocks a survivor back a row, if there is room behind it
+        if (attackerAlive && !mass && !t.Has(Sigil::MASSIVE) && aw > tw) { // a heavier striker knocks a survivor back a row, if there is room behind it
             int back = BackRow(Other(s));
-            if (!cell[back][tc].used) {
-                Move(of, tc, back, tc, ev);
+            if (!cell[back][pc].used) {
+                Move(of, pc, back, pc, ev);
                 ev.back().type = Event::Knock;
             }
         }
@@ -171,6 +201,21 @@ bool Board::StrikeColumn(Side s, int c, Events& ev) {
     return true;
 }
 
+// Selenis pulls the tide: every creature of the victim slides one lane the same way. Whoever is carried off the edge is
+// destroyed. Creatures with Waterborne are under the surface and are not moved (and a swimmer in the way blocks the one behind it).
+void Board::TidalPull(Side v, Events& ev) {
+    int dir = tideDir;
+    tideDir = -tideDir;
+    Event t; t.type = Event::Tide; t.amount = dir; ev.push_back(t);
+    for (int r : {FrontRow(v), BackRow(v)}) {
+        for (int c = dir > 0 ? COLS - 1 : 0; c >= 0 && c < COLS; c -= dir) {
+            if (!cell[r][c].used || cell[r][c].card.Has(Sigil::WATERBORNE)) continue;
+            int nc = c + dir;
+            if (!In(nc)) { Event x; x.type = Event::Crush; x.r1 = r; x.c1 = c; ev.push_back(x); Kill(r, c, Other(v), false, ED_NONE, ev); }
+            else if (!cell[r][nc].used) Move(r, c, r, nc, ev);
+        }
+    }
+}
 // A sideways forced move. A heavier mover pushes the card in its way further along; a mover that is not heavier is crushed.
 bool Board::Shove(int r, int c, int dir, bool crushIfLight, Events& ev) {
     int nc = c + dir;
@@ -244,6 +289,14 @@ void Board::EndPhase(Side s, Events& ev) {
     if (s == Side::YOU) // your reserve steps into empty lanes (the dealer's queue moves at the start of his turn instead)
         for (int c = 0; c < COLS; c++) if (cell[br][c].used && !cell[fr][c].used) Move(br, c, fr, c, ev);
     for (int r : {fr, br}) for (int c = 0; c < COLS; c++) if (cell[r][c].used) cell[r][c].card.age++;
+    for (int r : {fr, br}) // an oracle heals the phalanx at the end of its side's turn
+        for (int c = 0; c < COLS; c++)
+            if (cell[r][c].used && cell[r][c].card.Has(Sigil::FORESIGHT)) {
+                for (int r2 : {fr, br}) for (int c2 = 0; c2 < COLS; c2++)
+                    if (cell[r2][c2].used && cell[r2][c2].card.Has(Sigil::PHALANX)) cell[r2][c2].card.hp = std::min(cell[r2][c2].card.hp + 1, cell[r2][c2].card.defense + 2);
+                Event e; e.type = Event::SigilFired; e.r1 = r; e.c1 = c; e.text = "Foresight"; ev.push_back(e);
+            }
+    if (massive && s == Side::FOE && cell[R_FOE_FRONT][0].used && cell[R_FOE_FRONT][0].card.Has(Sigil::TIDAL_PULL)) TidalPull(Side::YOU, ev);
     SentinelPass(Other(s), ev);
     SideRules& R = rules[Idx(s)];
     if (R.tempTurns > 0) R.tempTurns--;
@@ -252,7 +305,8 @@ void Board::EndPhase(Side s, Events& ev) {
 // ---------------------------------------------------------------- one battle
 void Battle::Start(const BattleSetup& s, Rng& rng) {
     *this = Battle();
-    dealer = s.dealer; elite = s.elite; charms = s.charms; items = s.items;
+    dealer = s.dealer; elite = s.elite; charms = s.charms; items = s.items; totems = s.totems;
+    boss = dealer == 4; phase = 1;
     board.rules[0].pearl = (charms >> CH_PEARL) & 1u;
     board.rules[0].weightAll = ((charms >> CH_ANCHOR) & 1u) ? 1 : 0;
     board.rules[0].boneOnKill = ((charms >> CH_BARB) & 1u) ? 1 : 0;
@@ -294,8 +348,33 @@ void Battle::Drain(Events& ev) {
     (void)ev;
 }
 
-void Battle::CheckOver() {
+// The Sovereign's first life is spent: he sacrifices the whole court on the board and Selenis rises to fill the dealer's lanes.
+void Battle::RiseSelenis(Events& ev) {
+    for (int r : {R_FOE_QUEUE, R_FOE_FRONT})
+        for (int c = 0; c < COLS; c++) if (board.cell[r][c].used) board.Kill(r, c, Side::FOE, true, ED_NONE, ev);
+    foeHand.clear(); foeDeck.clear();
+    phase = 2;
+    board.scale = 3;                                   // the first life bought you some room
+    board.bones[0] += 3;
+    for (int i = 0; i < 2 && !deck.empty() && (int)hand.size() < MAX_HAND; i++) { hand.push_back(deck.back()); deck.pop_back(); }   // and the tide brings you cards
+    board.Put(R_FOE_FRONT, 0, MakeCard(CardIdByName("Selenis, the Moon God")), ev);
+    board.massive = true;
+    board.tideDir = 1;
+    Event e; e.type = Event::PhaseChange; e.amount = 2; e.text = "Selenis, the Moon God"; ev.push_back(e);
+}
+
+void Battle::CheckOver(Events& ev) {
     if (turn == Turn::OVER) return;
+    if (boss) {
+        if (board.scale <= -SCALE_LIMIT) { turn = Turn::OVER; winner = -1; return; }
+        if (phase == 1 && board.scale >= SCALE_LIMIT) { RiseSelenis(ev); return; }
+        if (phase == 2) {
+            board.scale = std::min(board.scale, SCALE_LIMIT - 1);
+            if (!board.massive) { turn = Turn::OVER; winner = 1; return; }
+        }
+        if (turnNo > 90) { turn = Turn::OVER; winner = -1; }
+        return;
+    }
     if (board.OverCheck()) { turn = Turn::OVER; winner = board.scale > 0 ? 1 : -1; return; }
     if (turnNo > 40) { turn = Turn::OVER; winner = board.scale > 0 ? 1 : -1; }
 }
@@ -362,6 +441,7 @@ bool Battle::Play(int hi, int col, const std::vector<std::pair<int, int>>& sacs,
     if (c.cost == CostType::BONES) board.bones[0] -= c.costAmount;
     hand.erase(hand.begin() + hi);
     c.ResetForBattle();
+    for (auto& tt : totems) if (c.suit == tt.first) c.AddSigil((Sigil)tt.second);
     if (board.cell[R_YOU_FRONT][col].used) { // the heavier card shoves the occupant back a row
         board.Move(R_YOU_FRONT, col, R_YOU_BACK, col, ev);
         ev.back().type = Event::Push;
@@ -377,7 +457,7 @@ bool Battle::Play(int hi, int col, const std::vector<std::pair<int, int>>& sacs,
     firstPlayThisTurn = false;
     board.SentinelPass(Side::FOE, ev);
     Drain(ev);
-    CheckOver();
+    CheckOver(ev);
     return true;
 }
 
@@ -431,7 +511,7 @@ int Battle::BestColumn(const Card& c, Side me, Rng& rng) const {
         if (board.cell[place][col2].used) continue;
         if (me == Side::FOE && board.cell[R_FOE_FRONT][col2].used && board.cell[R_FOE_FRONT][col2].card.weight >= c.weight) { /* it would wait behind a friend */ }
         float s = 0;
-        const Cell& t = board.cell[theirFront][col2];
+        const Cell& t = board.cell[theirFront][board.RealCol(theirFront, col2)];
         if (t.used) {
             int tstr = board.EffStrength(theirFront, col2);
             if (c.strength >= t.card.hp) s += 3;
@@ -469,13 +549,13 @@ void Battle::Advance(Events& ev, Rng& rng) {
         case Turn::YOU_COMBAT:
             while (col < COLS) { bool hit = board.StrikeColumn(Side::YOU, col, ev); col++; if (hit) break; }
             Drain(ev);
-            CheckOver();
+            CheckOver(ev);
             if (turn != Turn::OVER && col >= COLS) turn = Turn::YOU_END;
             break;
         case Turn::YOU_END:
             board.EndPhase(Side::YOU, ev);
             Drain(ev);
-            CheckOver();
+            CheckOver(ev);
             if (turn != Turn::OVER) turn = Turn::FOE_START;
             break;
         case Turn::FOE_START:
@@ -490,14 +570,14 @@ void Battle::Advance(Events& ev, Rng& rng) {
         case Turn::FOE_COMBAT:
             while (col < COLS) { bool hit = board.StrikeColumn(Side::FOE, col, ev); col++; if (hit) break; }
             Drain(ev);
-            CheckOver();
+            CheckOver(ev);
             if (turn != Turn::OVER && col >= COLS) turn = Turn::FOE_END;
             break;
         case Turn::FOE_END:
             board.EndPhase(Side::FOE, ev);
             Drain(ev);
             turnNo++;
-            CheckOver();
+            CheckOver(ev);
             if (turn != Turn::OVER) turn = Turn::YOU_DRAW;
             break;
         default: break;

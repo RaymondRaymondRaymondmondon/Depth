@@ -1,18 +1,22 @@
-﻿#include "flats_run.h"
+#include "flats_run.h"
 #include <algorithm>
 
 namespace flats {
 
 const char* NodeName(NodeType t) {
-    static const char* n[(int)NodeType::COUNT] = {"Battle", "Elite battle", "Choose a card", "Campfire", "Splice", "Sacrifice", "Trial", "The stall", "Cache", "The House"};
+    static const char* n[(int)NodeType::COUNT] = {"Battle", "Elite battle", "Choose a card", "Campfire", "Barnacle Cluster", "The Maelstrom", "Trial", "The stall", "Cache", "The Atlantean Sovereign",
+                                                  "The Boiling Vents", "The Scrimshaw Artist", "The Abyssal Splicers"};
     return n[(int)t];
 }
 const char* NodeText(NodeType t) {
     static const char* n[(int)NodeType::COUNT] = {
         "A dealer at the table. Win to bank the pot.", "A harder dealer with a totem. Pays half again, and gives a rare card.",
-        "Choose one card from three.", "Pick a card: +1 strength or +1 defense.", "Pick two cards: one is destroyed, the other inherits its sigils.",
-        "Remove a card from your deck. Every battle starts with an extra bone.", "A card gives up 2 defense for 3 strength, for good.",
-        "Spend the pot on cards, charms, items and insurance.", "A free item for the pack.", "The last table. Beat the House to clear the run."};
+        "Choose one card from three.", "Pick a card: +1 strength or +1 defense.", "Sacrifice one card to have its sigils encrusted onto a host, for good.",
+        "A vortex takes a card from your deck for good. Every battle starts with an extra bone.", "A card gives up 2 defense for 3 strength, for good.",
+        "Spend the pot on cards, charms, items and insurance.", "A free item for the pack.", "The last table: the drowned phalanx, and the Moon God beneath it.",
+        "Warm a creature by the vents for +1 strength or defense. Each further warming risks it boiling away.",
+        "Carve whale bone into a totem: a tribe head on a sigil base. That tribe gains the sigil whenever it is played.",
+        "Twin mutants fuse two copies of the same card into one monstrosity."};
     return n[(int)t];
 }
 
@@ -36,17 +40,18 @@ void RunManager::NewRun(unsigned seed) {
         map[l].assign(w, MapNode());
     }
     for (int l = 0; l < MAP_LAYERS; l++) {
-        int dealer = l < 2 ? 0 : l < 4 ? 1 : l < 7 ? 2 : 3; // a dealer per stretch of the map; the last layers before the House are Broker territory
+        int dealer = l < 2 ? 0 : l < 4 ? 1 : l < 6 ? 2 : 3; // a dealer per stretch of the map; the last layers before the House are Broker territory
         for (int s = 0; s < (int)map[l].size(); s++) {
             MapNode& n = map[l][s];
             n.dealer = dealer;
-            if (l == MAP_LAYERS - 1) { n.type = NodeType::BOSS; n.dealer = 3; continue; }
+            if (l == MAP_LAYERS - 1) { n.type = NodeType::BOSS; n.dealer = 4; continue; }
             if (l == 0) { n.type = s == 0 ? NodeType::BATTLE : (rng.C(0.5f) ? NodeType::CARD_PICK : NodeType::CACHE); continue; }
             if (l == MAP_LAYERS - 2) { n.type = s == 0 ? NodeType::CAMPFIRE : (rng.C(0.6f) ? NodeType::STALL : NodeType::TRIAL); continue; } // a breath before the House
             // weighted draw of a node type
             struct W { NodeType t; int w; };
             std::vector<W> ws = {{NodeType::BATTLE, 36}, {NodeType::CARD_PICK, 12}, {NodeType::CAMPFIRE, 10}, {NodeType::SPLICE, 7}, {NodeType::SACRIFICE, 7},
                                  {NodeType::TRIAL, 7}, {NodeType::STALL, 9}, {NodeType::CACHE, 7}};
+            if (l >= 2) { ws.push_back({NodeType::VENTS, 8}); ws.push_back({NodeType::SCRIMSHAW, 7}); ws.push_back({NodeType::SPLICERS, 6}); }
             if (l >= 3) ws.push_back({NodeType::ELITE, 12});
             int total = 0;
             for (auto& x : ws) total += x.w;
@@ -91,12 +96,12 @@ BattleSetup RunManager::MakeBattle(Boon boon) const {
     const MapNode& n = map[layer][slot];
     BattleSetup s;
     s.deck = gs.deck; s.charms = gs.charms; s.items = gs.items; s.startBones = gs.startBones;
-    s.dealer = n.dealer; s.elite = n.type == NodeType::ELITE; s.boon = boon;
+    s.dealer = n.dealer; s.elite = n.type == NodeType::ELITE; s.boon = boon; s.totems = gs.totems;
     return s;
 }
 
 int RunManager::PayoutFor(const MapNode& n) const {
-    static const int base[DEALERS] = {20, 40, 70, 250};
+    static const int base[DEALERS] = {20, 40, 70, 250, 300};
     int p = base[std::clamp(n.dealer, 0, DEALERS - 1)];
     if (n.type == NodeType::ELITE) p = p * 3 / 2;
     return p;
@@ -156,6 +161,30 @@ bool RunManager::Trial(int i) {
     gs.deck[i].defense -= 2;
     gs.deck[i].strength += 3;
     gs.deck[i].ResetForBattle();
+    return true;
+}
+bool RunManager::Vent(int i, bool strength, int step) {
+    if (i < 0 || i >= (int)gs.deck.size()) return true;
+    if (step > 0 && rng.C(0.25f * step)) { gs.deck.erase(gs.deck.begin() + i); return false; }   // boiled away
+    if (strength) gs.deck[i].strength++; else gs.deck[i].defense++;
+    gs.deck[i].ResetForBattle();
+    return true;
+}
+bool RunManager::Merge(int a, int b) {
+    if (a == b || a < 0 || b < 0 || a >= (int)gs.deck.size() || b >= (int)gs.deck.size() || gs.deck[a].name != gs.deck[b].name) return false;
+    Card m = gs.deck[a];
+    const Card& o = gs.deck[b];
+    m.strength += o.strength; m.defense += o.defense; m.weight = std::max(m.weight, o.weight) + 1;
+    for (Sigil s : o.sigils) m.AddSigil(s);
+    if (m.cost != CostType::FREE) m.costAmount = std::min(4, std::max(m.costAmount, o.costAmount) + 1);
+    m.ResetForBattle();
+    gs.deck[a] = m;
+    gs.deck.erase(gs.deck.begin() + b);
+    return true;
+}
+bool RunManager::Carve(int suit, int sigil) {
+    if ((int)gs.totems.size() >= 3) return false;
+    gs.totems.push_back({suit, sigil});
     return true;
 }
 int RunManager::RandomItem() { return rng.I(0, (int)PackItem::COUNT - 1); }

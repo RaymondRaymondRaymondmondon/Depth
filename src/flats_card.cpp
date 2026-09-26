@@ -5,24 +5,30 @@ namespace flats {
 
 static const SigilInfo SIGILS[(int)Sigil::COUNT] = {
     {"", ""},
-    {"Skimmer", "Strikes the scales directly, over whatever stands in front."},
+    {"Airborne", "Flies over the creature in front and strikes the scales directly. A Mighty Leap creature blocks it."},
     {"Twin Tide", "Strikes the two neighbouring lanes instead of the one ahead."},
     {"Tidecaller", "Creatures beside it gain +1 strength."},
-    {"Spines", "Whatever strikes it takes 1 damage."},
+    {"Sharp Quills", "Whatever strikes it takes 1 damage."},
     {"Brine", "The creature across from it loses 1 strength."},
     {"Venom", "Anything it damages dies."},
     {"Sentinel", "Steps in front of an enemy that arrives across an empty lane."},
     {"Burrower", "When an empty lane is struck, slides in to take the blow."},
     {"Undying", "When it dies, a copy returns to your hand."},
     {"Ballast", "Counts as three blood when sacrificed."},
-    {"Nine Lives", "Survives being sacrificed."},
+    {"Many Lives", "Survives being sacrificed."},
     {"Spawn", "When played, a copy of it is added to your hand."},
     {"Heavy Current", "Each turn it shoves sideways, pushing lighter creatures ahead of it."},
     {"Swimmer", "Drifts one lane each turn, turning about at a wall or a blocker."},
     {"Bone King", "Leaves four bones when it dies."},
     {"Scavenger", "When played, you find an item if your pack has room."},
-    {"Fry", "Grows into something bigger after a turn on the board."},
+    {"Fledgling", "Grows into something bigger after a turn on the board."},
     {"Repulsive", "Creatures will not strike it."},
+    {"Waterborne", "Submerges on the enemy's turn: their blows pass over it and land on the scales."},
+    {"Phalanx", "If an adjacent Phalanx creature is struck, this one takes the blow instead."},
+    {"Foresight", "Steps out of the way of attacks. Each turn's end it heals every Phalanx creature by 1."},
+    {"Mighty Leap", "Blocks Airborne creatures: they cannot fly over its line."},
+    {"Massive", "Fills all four lanes and cannot be moved. Every attack in any lane strikes it."},
+    {"Tidal Pull", "At the end of its turn, drags every enemy creature one lane sideways. The edge is fatal."},
 };
 const SigilInfo& InfoOf(Sigil s) { return SIGILS[(int)s]; }
 const char* SuitName(int suit) { static const char* n[SUITS] = {"Coin", "Cup", "Blade", "Shell"}; return n[suit]; }
@@ -74,9 +80,9 @@ std::vector<Card> Build() {
     const std::vector<Def> defs = {
         {"Minnow", COIN, 0, 1, 1, F, 0, {}, 0, nullptr},
         // ---- tier 1: cheap and simple, the bones and blood you start with
-        {"Hermit Crab", SHELL, 1, 3, 3, BN, 2, {}, 1, nullptr},
+        {"Hermit Crab", SHELL, 1, 3, 3, BN, 2, {S::BURROWER}, 1, nullptr},
         {"Flying Fish", CUP, 1, 2, 1, BL, 1, {S::SKIMMER}, 1, nullptr},
-        {"Anglerfish", CUP, 2, 2, 2, BL, 1, {S::BRINE}, 1, nullptr},
+        {"Anglerfish", CUP, 2, 2, 2, BL, 1, {S::WATERBORNE}, 1, nullptr},
         {"Pufferfish", CUP, 1, 2, 1, BN, 2, {S::SPINES}, 1, nullptr},
         {"Sea Urchin", BLADE, 0, 3, 3, BN, 2, {S::SPINES}, 1, nullptr},
         {"Clownfish", COIN, 1, 1, 1, BL, 1, {S::SPAWN}, 1, nullptr},
@@ -85,12 +91,14 @@ std::vector<Card> Build() {
         {"Ballast Cask", SHELL, 0, 2, 4, BN, 1, {S::BALLAST}, 1, nullptr},
         {"Salvage Diver", COIN, 2, 2, 2, BL, 1, {S::SCAVENGER}, 1, nullptr},
         {"Mudskipper", BLADE, 1, 2, 1, BN, 2, {S::BURROWER}, 1, nullptr},
-        {"Sailfish", BLADE, 2, 2, 2, BL, 1, {S::SWIMMER}, 1, nullptr},
+        {"Sailfish", BLADE, 2, 2, 2, BL, 1, {S::SKIMMER}, 1, nullptr},
         {"Skeleton Sailor", BLADE, 1, 2, 2, BL, 1, {S::BONE_KING}, 1, nullptr},
         // ---- tier 2
-        {"Stingray", BLADE, 1, 2, 2, BL, 2, {S::VENOM}, 2, nullptr},
+        {"Stingray", BLADE, 1, 2, 2, BL, 2, {S::VENOM, S::WATERBORNE}, 2, nullptr},
         {"Manta Ray", CUP, 2, 3, 3, BL, 2, {S::TWIN_TIDE}, 2, nullptr},
-        {"Sea Turtle", SHELL, 1, 5, 4, BL, 2, {}, 2, nullptr},
+        {"Sea Turtle", SHELL, 1, 5, 4, BL, 2, {S::SPINES}, 2, nullptr},
+        {"Swordfish", BLADE, 2, 2, 2, BL, 2, {S::SKIMMER, S::SPINES}, 2, nullptr},
+        {"Squid", CUP, 1, 2, 2, BL, 1, {S::WATERBORNE, S::BRINE}, 2, nullptr},
         {"Coral Queen", SHELL, 1, 3, 2, BL, 2, {S::TIDECALLER}, 2, nullptr},
         {"Crab Sentinel", SHELL, 2, 3, 3, BL, 2, {S::SENTINEL}, 2, nullptr},
         {"Ghost Crab", SHELL, 2, 1, 2, BN, 4, {S::UNDYING}, 2, nullptr},
@@ -102,7 +110,7 @@ std::vector<Card> Build() {
         // ---- tier 3: heavy hitters
         {"Great White", BLADE, 4, 4, 5, BL, 3, {}, 3, nullptr},
         {"Sperm Whale", CUP, 3, 6, 5, BL, 3, {S::HEAVY_CURRENT}, 3, nullptr},
-        {"Kraken Spawn", CUP, 3, 4, 4, BL, 3, {S::TIDECALLER, S::SPINES}, 3, nullptr},
+        {"Kraken Spawn", CUP, 1, 3, 3, BL, 2, {S::FRY, S::SPINES}, 3, "Kraken"},
         {"Sea Serpent", BLADE, 4, 3, 3, BL, 2, {S::TWIN_TIDE, S::BRINE}, 3, nullptr},
         {"Drowned King", COIN, 3, 4, 4, BL, 3, {S::BONE_KING, S::UNDYING}, 3, nullptr},
         {"Chambered Titan", SHELL, 3, 5, 4, BL, 3, {S::SPINES}, 3, nullptr},
@@ -114,6 +122,12 @@ std::vector<Card> Build() {
         {"The Croupier", CUP, 4, 8, 5, F, 0, {S::TWIN_TIDE, S::SPINES}, 0, nullptr},
         {"Boulder", SHELL, 0, 5, 5, F, 0, {}, 0, nullptr},
         {"Black Goat", BLADE, 0, 1, 1, F, 0, {S::BALLAST}, 0, nullptr},
+        // ---- what a Kraken Spawn grows into, and the drowned court of Atlantis (cards you can never win)
+        {"Kraken", CUP, 5, 8, 6, F, 0, {S::SPINES, S::TIDECALLER}, 0, nullptr},
+        {"Atlantean Hoplite", SHELL, 1, 3, 3, F, 0, {S::PHALANX}, 0, nullptr},
+        {"Sunken Oracle", CUP, 0, 2, 1, F, 0, {S::FORESIGHT}, 0, nullptr},
+        {"Coral Golem", SHELL, 2, 4, 5, F, 0, {S::MIGHTY_LEAP}, 0, nullptr},
+        {"Selenis, the Moon God", CUP, 4, 40, 9, F, 0, {S::MASSIVE, S::TIDAL_PULL}, 0, nullptr},
     };
     std::vector<Card> out;
     for (size_t i = 0; i < defs.size(); i++) {

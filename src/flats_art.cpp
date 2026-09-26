@@ -71,7 +71,14 @@ const std::vector<Sprite>& Sprites() {
         {"Barnacle Husk", {".....eeeeee.....", "...eeeeeeeeee...", "..elelleeleelee.", ".eeeeeeeeeeeeee.", ".eelweeelweeeee.", ".eeeeeeeeeeeeee.", "..eeeeeeeeeeee.."}},
         {"The Croupier", {"....aaaaaa......", "....aaaaaa......", "..aaaaaaaaaaaa..", "....ssssss......", "...sksssksss....", "...aaaaaaaa.....", "....sssssss.....", ".....rrrrr......", "..aaaaraaaaaa...", "..aaaaaaaaaaaa.."}},
         {"Boulder", {"....eeeeeee.....", "..eeeleeeeeee...", ".eeleeeeeeeeeee.", ".eeeeeeeeaeeeee.", ".eeeeeeeeeeeeee.", "..eeeeeaeeeeee..", "....eeeeeeee...."}},
-        {"Black Goat", {".w..........w...", ".ww........ww...", "..ww.aaaa.ww....", "...waaaaaaw.....", "...arraarra.....", "...aaaaaaaa.....", "....aaaaaa......", ".....awwa.......", ".....aaaa......."}},
+        {"Swordfish", {"....bb..........", "llllllkbbbbbbb..", "llllllbbbbbbbbbb", "....lllllbbbb.bb", ".....bbbbb..bb.."}},
+        {"Squid", {"......pppp......", ".....pppppp.....", "....ppkppkpp....", "....pppppppp....", ".....pppppp.....", "....p.p.p.p.....", "...p..p.p..p....", "...p.p...p.p...."}},
+        {"Kraken", {"....pppppppp....", "...pppppppppp...", "..pppwkppwkppp..", "..pppppppppppp..", "..pprrrrrrrrpp..", ".pp.pppppppp.pp.", "pp..pp.pp.pp..pp", "p..pp..pp..pp..p", ".pp.p...pp..p.pp"}},
+        {"Atlantean Hoplite", {"....kyyk........", "...kyyyyk...w...", "...kssssk...w...", "...ksssk....w...", "..rrrrrr....w...", ".eeeeeeee...w...", ".eeeyyeee...w...", ".eeeeeeee...w...", "..ee..ee........"}},
+        {"Sunken Oracle", {"....bbbbbb......", "...bbbbbbbb.....", "..bbbwwwwbb.....", "..bbwcwwcwb.....", "..bbbwwwwbb.....", "...bbbbbbbb.....", "..bbbbbbbbbb.cc.", ".bbbbbbbbbbb.cc.", "bbbbbbbbbbbbb..."}},
+        {"Coral Golem", {"..r.r..r........", ".rrrrrrrrr......", "..eeeeeeee......", ".eeceeeceee.....", ".eeeeeeeeee.....", "eeeeeeeeeeeee...", "eeeeeeeeeeeee...", "ee.ee..ee.ee...."}},
+        {"Selenis, the Moon God", {"....wwwwwwww....", "..wwwwwwwwwwww..", ".wwwlwwwwwwlwww.", ".wwwwkwwwwkwwww.", "wwwlwwwwwwwwwwww", "wwwwwwwlwwwwlwww", ".wwwwwwkkwwwwww.", ".wwwlwwwwwwwwww.", "..wwwwwwwwwwww..", "....wwwwwwww...."}},
+        {"Black Goat",{".w..........w...", ".ww........ww...", "..ww.aaaa.ww....", "...waaaaaaw.....", "...arraarra.....", "...aaaaaaaa.....", "....aaaaaa......", ".....awwa.......", ".....aaaa......."}},
     };
     return s;
 }

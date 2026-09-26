@@ -1,4 +1,4 @@
-﻿// Headless play of the Flats engine: whole runs with a sensible auto-player, to check the turn logic never stalls
+// Headless play of the Flats engine: whole runs with a sensible auto-player, to check the turn logic never stalls
 // and to see how the dealers balance.  Run with:  depth.exe --flats-sim 1000
 #include "flats_run.h"
 #include "game.h"
@@ -9,7 +9,7 @@
 using namespace flats;
 
 namespace {
-struct BattleResult { bool won; int turns; int gold; int found; };
+struct BattleResult { bool won; int turns; int gold; int found; int phase; };
 
 BattleResult PlayBattle(RunManager& rm, Rng& rng, long* steps) {
     Boon boon = Boon::NONE;
@@ -33,7 +33,7 @@ BattleResult PlayBattle(RunManager& rm, Rng& rng, long* steps) {
         if (b.Waiting()) b.AutoYourTurn(ev, rng);
         else b.Advance(ev, rng);
     }
-    return {b.winner > 0, b.turnNo, b.board.gold, b.board.itemsFound[0]};
+    return {b.winner > 0, b.turnNo, b.board.gold, b.board.itemsFound[0], b.phase};
 }
 
 int Score(NodeType t) { // the auto-player's taste in nodes
@@ -49,7 +49,7 @@ void FlatsSim(int runs, bool sensible) {
     (void)sensible;
     int battles[DEALERS + 1] = {0}, wins[DEALERS + 1] = {0}, turnsSum[DEALERS + 1] = {0}, layerReached[MAP_LAYERS + 1] = {0}, cleared = 0, stalls = 0;
     long steps = 0;
-    int boons = 0;
+    int boons = 0, reachedPhase2 = 0;
     for (int r = 0; r < runs; r++) {
         RunManager rm;
         rm.NewRun((unsigned)(r * 7919 + 1));
@@ -69,7 +69,7 @@ void FlatsSim(int runs, bool sensible) {
                     int before = rm.gs.momentumTracker;
                     BattleResult res = PlayBattle(rm, rng, &steps);
                     if (before > 0 && rm.gs.momentumTracker < before) boons++;
-                    int d = n.type == NodeType::BOSS ? DEALERS - 1 : n.dealer;
+                    int d = n.dealer; if (res.phase == 2) reachedPhase2++;
                     battles[d]++; turnsSum[d] += res.turns;
                     if (res.won) {
                         wins[d]++;
@@ -109,6 +109,9 @@ void FlatsSim(int runs, bool sensible) {
                     break;
                 }
                 case NodeType::CACHE: rm.gs.AddItem(rm.RandomItem()); break;
+                case NodeType::VENTS: { int bi = 0; for (int i = 0; i < (int)rm.gs.deck.size(); i++) if (rm.gs.deck[i].Rating() > rm.gs.deck[bi].Rating()) bi = i; rm.Vent(bi, true, 0); break; }
+                case NodeType::SCRIMSHAW: rm.Carve(rm.rng.I(0, SUITS - 1), (int)(rm.rng.C(0.5f) ? Sigil::SPINES : Sigil::SKIMMER)); break;
+                case NodeType::SPLICERS: { bool done = false; for (int i = 0; i < (int)rm.gs.deck.size() && !done; i++) for (int j = i + 1; j < (int)rm.gs.deck.size() && !done; j++) if (rm.gs.deck[i].name == rm.gs.deck[j].name && rm.gs.deck[i].name != "Minnow") { rm.Merge(i, j); done = true; } break; }
                 default: break;
             }
         }
@@ -118,7 +121,7 @@ void FlatsSim(int runs, bool sensible) {
     printf("Flats engine: %d runs, a sensible auto-player\n", runs);
     for (int d = 0; d < DEALERS; d++)
         if (battles[d]) printf("  %-17s %6d battles, %5.1f%% won, %.1f turns on average\n", Dealer(d).name, battles[d], 100.0 * wins[d] / battles[d], (double)turnsSum[d] / battles[d]);
-    printf("  runs that cleared the House: %.1f%%   (momentum boons spent: %d)\n", 100.0 * cleared / runs, boons);
+    printf("  runs that cleared the Sovereign: %.1f%%   (reached Selenis in %d battles; momentum boons spent: %d)\n", 100.0 * cleared / runs, reachedPhase2, boons);
     printf("  layer where runs ended:");
     for (int l = 0; l < MAP_LAYERS; l++) printf(" %d:%d", l, layerReached[l]);
     printf("\n  stalled runs: %d, average %.0f steps per run\n", stalls, (double)steps / runs);

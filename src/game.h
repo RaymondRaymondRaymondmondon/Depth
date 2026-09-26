@@ -556,6 +556,15 @@ void DebugFlatsWon();               // debug: the battle-won panel
 void DebugFlatsBoon();              // debug: the momentum choice
 void DebugFlatsMap();               // debug: the run map
 void DebugFlatsCampfire();          // debug: the campfire screen
+void DebugFlatsVents();             // debug: the new map events and the boss, and the showcase pages of every card and component
+void DebugFlatsSplicers();
+void DebugFlatsScrimshaw();
+void DebugFlatsBarnacle();
+void DebugFlatsMaelstrom();
+void DebugFlatsBoss(int phase);
+void DebugFlatsShowcase(int page);
+int FlatsCatalogSize();
+const char* FlatsCardName(int i);
 void DebugFlatsShop();              // debug: the dealer's stall
 void DebugFlatsDeck();            // debug: the deck viewer
 void DebugFlatsDeal();            // debug: skip the menu and deal a mid-round hand (for screenshots)

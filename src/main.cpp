@@ -66,16 +66,16 @@ static void TakeShots(const Game& base, const std::string& dir) {
     const Shot shots[] = {
         {"hub", [](Game& g) { g.scene = Scene::Hub; }},
         {"hub_cat", [](Game& g) { g.scene = Scene::Hub; DebugPetCat(); }},
-        {"cards_menu", [](Game& g) { g.scene = Scene::Cards; }},
-        {"cards_play", [](Game& g) { g.scene = Scene::Cards; DebugFlatsDeal(); }},
-        {"cards_combat", [](Game& g) { g.scene = Scene::Cards; DebugFlatsCombat(); }},
-        {"cards_won", [](Game& g) { g.scene = Scene::Cards; DebugFlatsWon(); }},
-        {"cards_boon", [](Game& g) { g.scene = Scene::Cards; DebugFlatsBoon(); }},
-        {"cards_map", [](Game& g) { g.scene = Scene::Cards; DebugFlatsMap(); }},
-        {"cards_campfire", [](Game& g) { g.scene = Scene::Cards; DebugFlatsCampfire(); }},
-        {"cards_reward", [](Game& g) { g.scene = Scene::Cards; DebugFlatsReward(); }},
-        {"cards_shop", [](Game& g) { g.scene = Scene::Cards; DebugFlatsShop(); }},
-        {"cards_deck", [](Game& g) { g.scene = Scene::Cards; DebugFlatsDeck(); }},
+        {"flats_menu", [](Game& g) { g.scene = Scene::Cards; }},
+        {"flats_play", [](Game& g) { g.scene = Scene::Cards; DebugFlatsDeal(); }},
+        {"flats_combat", [](Game& g) { g.scene = Scene::Cards; DebugFlatsCombat(); }},
+        {"flats_won", [](Game& g) { g.scene = Scene::Cards; DebugFlatsWon(); }},
+        {"flats_boon", [](Game& g) { g.scene = Scene::Cards; DebugFlatsBoon(); }},
+        {"flats_map", [](Game& g) { g.scene = Scene::Cards; DebugFlatsMap(); }},
+        {"flats_campfire", [](Game& g) { g.scene = Scene::Cards; DebugFlatsCampfire(); }},
+        {"flats_reward", [](Game& g) { g.scene = Scene::Cards; DebugFlatsReward(); }},
+        {"flats_shop", [](Game& g) { g.scene = Scene::Cards; DebugFlatsShop(); }},
+        {"flats_deck", [](Game& g) { g.scene = Scene::Cards; DebugFlatsDeck(); }},
         {"hub_leave", [](Game& g) { g.scene = Scene::Hub; g.roster[0].onLeave = 1; g.roster[1].rattled = true; }},
         {"crew", [](Game& g) { g.scene = Scene::Crew; g.roster[1].level = 3; g.selectedHero = g.roster[1].id; }},
         {"helm", [](Game& g) { g.scene = Scene::Helm; g.tierCleared[(int)Location::Cave] = 1; g.tierSel[(int)Location::Cave] = 2; }},
@@ -141,6 +141,26 @@ static void TakeShots(const Game& base, const std::string& dir) {
         {"pirate_ghost", [](Game& g) { ShotAtPiece(g, PL_PIRATE, SetPiece::ShipGap, true, 3); }},        {"pirate_boss", [](Game& g) { StartPlatform(g, PL_PIRATE); g.plat.pos = {(g.plat.w - 24) * 32 + 150.0f, g.plat.boss.home.y + 40}; }},
     };
     std::vector<Shot> all(std::begin(shots), std::end(shots));
+    // the Flats showcase: every card and component (depth.exe --shots shots/Flats flats)
+    static const char* SHEETS[9] = {"cards_all_1_common", "cards_all_2_uncommon", "cards_all_3_rare", "cards_all_4_dealers_and_kraken", "cards_all_5_atlantis", "components_sigils", "components_charms_bottles_editions", "components_map_nodes", "components_dealers"};
+    static std::vector<std::string> showNames;
+    showNames.clear();
+    showNames.reserve(9 + FlatsCatalogSize());
+    for (int i = 0; i < 9; i++) { showNames.push_back(std::string("flats_") + SHEETS[i]); all.push_back({showNames.back().c_str(), [i](Game& g) { g.scene = Scene::Cards; DebugFlatsShowcase(i); }}); }
+    for (int i = 1; i < FlatsCatalogSize(); i++) {
+        std::string slug = FlatsCardName(i);
+        for (char& ch : slug) ch = isalnum((unsigned char)ch) ? (char)tolower((unsigned char)ch) : '_';
+        char buf[96]; snprintf(buf, sizeof buf, "flats_card_%02d_%s", i, slug.c_str());
+        showNames.push_back(buf);
+        all.push_back({showNames.back().c_str(), [i](Game& g) { g.scene = Scene::Cards; DebugFlatsShowcase(100 + i); }});
+    }
+    all.push_back({"flats_event_vents", [](Game& g) { g.scene = Scene::Cards; DebugFlatsVents(); }});
+    all.push_back({"flats_event_scrimshaw", [](Game& g) { g.scene = Scene::Cards; DebugFlatsScrimshaw(); }});
+    all.push_back({"flats_event_splicers", [](Game& g) { g.scene = Scene::Cards; DebugFlatsSplicers(); }});
+    all.push_back({"flats_event_barnacle_cluster", [](Game& g) { g.scene = Scene::Cards; DebugFlatsBarnacle(); }});
+    all.push_back({"flats_event_maelstrom", [](Game& g) { g.scene = Scene::Cards; DebugFlatsMaelstrom(); }});
+    all.push_back({"flats_boss_phase1_drowned_phalanx", [](Game& g) { g.scene = Scene::Cards; DebugFlatsBoss(1); }});
+    all.push_back({"flats_boss_phase2_lunar_tide", [](Game& g) { g.scene = Scene::Cards; DebugFlatsBoss(2); }});
     static char names[12][32];
     static const char* LN[4] = {"cave", "island", "weeds", "atlantis"};
     for (int loc = 0; loc < 4; loc++)

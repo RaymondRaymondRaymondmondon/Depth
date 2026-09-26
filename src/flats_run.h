@@ -1,4 +1,4 @@
-﻿// ============================================================================
+// ============================================================================
 //  DEPTH - Flats: the run. A branching map of nodes strung between battles, and what carries over.
 //
 //  GameState is everything that persists: your deck (cards keep their edits: stronger, spliced, scarred), your
@@ -21,7 +21,10 @@ enum class NodeType {
     TRIAL,      // a card gives up 2 defense for 3 strength, for good
     STALL,      // the dealer's stall: spend the pot
     CACHE,      // a free item (or, with a full pack, a pack rat: a spare minnow-grade card)
-    BOSS,
+    BOSS,       // the Atlantean Sovereign
+    VENTS,      // the Boiling Vents: warm a creature for a bonus, at a rising risk of losing it
+    SCRIMSHAW,  // carve a totem: a tribe head and a sigil base, a passive for that tribe
+    SPLICERS,   // the Abyssal Splicers: merge two copies of the same card
     COUNT
 };
 const char* NodeName(NodeType t);
@@ -48,6 +51,7 @@ public:
     int pot = 0;                     // gold on the table: lost if you lose a battle, banked if you cash out
     int battlesWon = 0;
     bool insured = false;
+    std::vector<std::pair<int, int>> totems;   // scrimshaw totems (tribe, sigil), at most three
     int Charms() const { int n = 0; for (int i = 0; i < CH_COUNT; i++) n += (charms >> i) & 1u; return n; }
     bool HasCharm(int c) const { return (charms >> c) & 1u; }
     bool AddItem(int kind) { if ((int)items.size() >= MAX_ITEMS) return false; items.push_back(kind); return true; }
@@ -81,6 +85,9 @@ public:
     bool Splice(int keepIdx, int consumeIdx);      // destroy one card, the keeper gains its sigils
     bool SacrificeCard(int deckIdx);               // thin the deck, +1 starting bone
     bool Trial(int deckIdx);                       // -2 defense, +3 strength
+    bool Vent(int deckIdx, bool strength, int step);   // warm a card: safe at first, then a 25% chance per step of losing it. Returns false if it was destroyed
+    bool Merge(int a, int b);                      // two copies of one card fuse into a single, terrifying monstrosity
+    bool Carve(int suit, int sigil);               // add a scrimshaw totem
     int  RandomItem();
     int  Tier() const { return layer < 3 ? 1 : layer < 6 ? 2 : 3; }
     static std::vector<Card> StartingDeck();

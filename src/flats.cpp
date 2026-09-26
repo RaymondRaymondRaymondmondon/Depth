@@ -1,4 +1,4 @@
-﻿// ============================================================================
+// ============================================================================
 //  DEPTH - Flats, the card game played at the Nautilus's card table.
 //
 //  A roguelike duel of creatures. You and the dealer fight across a 4x4 board (see flats_board.h): your creatures
@@ -36,8 +36,8 @@ struct Particle { Vector2 p, v; float life, max, size; Color col; int kind; }; /
 enum ShopKind { SK_CARD, SK_CHARM, SK_ITEM, SK_TRIM, SK_EDITION, SK_INSURE };
 struct ShopItem { int kind = SK_CARD, price = 0, charm = -1, item = -1; Card card; bool sold = false; };
 
-enum class Ph { Menu, Map, Boon, Battle, Won, Node, RunOver };
-enum class NodeUi { None, CardPick, Campfire, Splice, Sacrifice, Trial, Stall, Cache };
+enum class Ph { Menu, Map, Boon, Battle, Won, Node, RunOver, Showcase };
+enum class NodeUi { None, CardPick, Campfire, Splice, Sacrifice, Trial, Stall, Cache, Vents, Scrimshaw, Splicers };
 
 // A card on the board can be mid-flight, mid-lunge, shaking or flashing: per-cell effects, decaying to nothing.
 struct CellFx {
@@ -86,6 +86,10 @@ struct Ui {
     bool cashed = false, lost = false; int payout = 0; bool insurePaid = false;
     bool showRules = false, showDeck = false;
     int lastTurns = 0;
+    int showPage = 0;                              // the showcase page (developer tool): 0-8 sheets, 100+ one card each
+    int ventStep = 0;                             // warmings so far at the Boiling Vents (the risk climbs with each)
+    std::vector<int> scrimSuits, scrimSigils;      // the carved bones on offer at the Scrimshaw Artist
+    int pickSuit = -1, pickSigil = -1;
 };
 Ui U;
 
@@ -541,6 +545,29 @@ void DrawSigilGlyph(Sigil sg, Vector2 c, float s, Color col) {
             DrawRing(c, 0.32f * s, 0.42f * s, 0, 360, 16, col);
             DrawLineEx({c.x - 0.28f * s, c.y + 0.28f * s}, {c.x + 0.28f * s, c.y - 0.28f * s}, w, col);
             break;
+        case Sigil::WATERBORNE:
+            DrawCircleV({c.x, c.y - 0.25f * s}, 0.2f * s, col);
+            for (int k = 0; k < 2; k++) for (int i = 0; i < 4; i++) DrawLineEx({c.x - 0.5f * s + i * 0.25f * s, c.y + (0.05f + 0.25f * k) * s + (i % 2 ? -0.06f : 0.06f) * s}, {c.x - 0.25f * s + i * 0.25f * s, c.y + (0.05f + 0.25f * k) * s + (i % 2 ? 0.06f : -0.06f) * s}, w * 0.9f, col);
+            break;
+        case Sigil::PHALANX:
+            for (int k = -1; k <= 1; k += 2) { DrawRectangleRec({c.x + k * 0.22f * s - 0.2f * s, c.y - 0.4f * s, 0.4f * s, 0.5f * s}, k > 0 ? col : Fade(col, 0.75f)); DrawTri({c.x + k * 0.22f * s - 0.2f * s, c.y + 0.1f * s}, {c.x + k * 0.22f * s + 0.2f * s, c.y + 0.1f * s}, {c.x + k * 0.22f * s, c.y + 0.42f * s}, k > 0 ? col : Fade(col, 0.75f)); }
+            break;
+        case Sigil::FORESIGHT:
+            DrawEllipse((int)c.x, (int)c.y, 0.5f * s, 0.28f * s, col);
+            DrawCircleV(c, 0.17f * s, dk); DrawCircleV({c.x - 0.05f * s, c.y - 0.05f * s}, 0.05f * s, col);
+            break;
+        case Sigil::MIGHTY_LEAP:
+            for (int k = 0; k < 2; k++) { float y0 = c.y + 0.2f * s - k * 0.32f * s; DrawLineEx({c.x - 0.4f * s, y0}, {c.x, y0 - 0.3f * s}, w * 1.1f, col); DrawLineEx({c.x + 0.4f * s, y0}, {c.x, y0 - 0.3f * s}, w * 1.1f, col); }
+            DrawRectangleRec({c.x - 0.45f * s, c.y + 0.36f * s, 0.9f * s, 0.12f * s}, col);
+            break;
+        case Sigil::MASSIVE:
+            DrawRectangleLinesEx({c.x - 0.5f * s, c.y - 0.32f * s, s, 0.64f * s}, w * 1.2f, col);
+            for (int k = -1; k <= 1; k++) DrawLineEx({c.x + k * 0.25f * s, c.y - 0.32f * s}, {c.x + k * 0.25f * s, c.y + 0.32f * s}, w * 0.6f, Fade(col, 0.7f));
+            break;
+        case Sigil::TIDAL_PULL:
+            DrawCircleV(c, 0.4f * s, col); DrawCircleV({c.x + 0.2f * s, c.y - 0.06f * s}, 0.36f * s, dk);
+            DrawLineEx({c.x - 0.5f * s, c.y + 0.42f * s}, {c.x + 0.4f * s, c.y + 0.42f * s}, w, col);
+            break;
         default: break;
     }
 }
@@ -714,6 +741,19 @@ void DrawNodeIcon(NodeType t, Vector2 c, float r, Color col) {
         case NodeType::STALL:
             for (int k = 0; k < 3; k++) { DrawEllipse((int)c.x, (int)(c.y + 0.4f * r - k * 0.28f * r), 0.5f * r, 0.18f * r, ink); DrawEllipse((int)c.x, (int)(c.y + 0.36f * r - k * 0.28f * r), 0.46f * r, 0.16f * r, col); }
             break;
+        case NodeType::VENTS:
+            for (int k = -1; k <= 1; k++) for (int i = 0; i < 4; i++) DrawLineEx({c.x + k * 0.45f * r + sinf(i * 1.4f + k) * 0.1f * r, c.y + 0.6f * r - i * 0.4f * r}, {c.x + k * 0.45f * r + sinf((i + 1) * 1.4f + k) * 0.1f * r, c.y + 0.6f * r - (i + 1) * 0.4f * r}, 0.16f * r, col);
+            DrawRectangleRec({c.x - 0.7f * r, c.y + 0.6f * r, 1.4f * r, 0.18f * r}, ink);
+            break;
+        case NodeType::SCRIMSHAW:
+            DrawBone({c.x, c.y}, 1.7f * r, col);
+            DrawLineEx({c.x - 0.3f * r, c.y - 0.08f * r}, {c.x + 0.3f * r, c.y - 0.08f * r}, 0.08f * r, ink);
+            DrawLineEx({c.x - 0.2f * r, c.y + 0.1f * r}, {c.x + 0.2f * r, c.y + 0.1f * r}, 0.08f * r, ink);
+            break;
+        case NodeType::SPLICERS:
+            DrawRing({c.x - 0.3f * r, c.y}, 0.28f * r, 0.5f * r, 0, 360, 14, col); DrawRing({c.x + 0.3f * r, c.y}, 0.28f * r, 0.5f * r, 0, 360, 14, col);
+            DrawCircleV({c.x, c.y}, 0.2f * r, ink); DrawCircleV({c.x, c.y}, 0.1f * r, col);
+            break;
         default: // cache: a satchel
             DrawRectangleRounded({c.x - 0.5f * r, c.y - 0.25f * r, r, 0.8f * r}, 0.3f, 4, col);
             DrawRing({c.x, c.y - 0.25f * r}, 0.2f * r, 0.32f * r, 180, 360, 10, col);
@@ -839,7 +879,8 @@ void ApplyEvents(const Events& evs, const Board& prev) {
                 if (e.type == Event::Knock) { f.shake = 0.5f; f.flash = 0.6f; U.floats.push_back({"knocked back", {b.x, b.y - 30}, 0, Color{230, 200, 120, 255}, 15}); }
             } break;
             case Event::Strike: {
-                CellFx& f = U.fx[e.r0][e.c0];
+                int sc0 = (prev.massive && e.r0 == R_FOE_FRONT) ? 0 : e.c0;   // Selenis strikes from his one wide card
+                CellFx& f = U.fx[e.r0][sc0];
                 Vector2 a = CellCenter(e.r0, e.c0), b = CellCenter(e.r1, e.c1);
                 float d = std::max(1.0f, Dist(a, b));
                 f.lunge = 1; f.lungeDir = {(b.x - a.x) / d * 46, (b.y - a.y) / d * 46};
@@ -877,6 +918,21 @@ void ApplyEvents(const Events& evs, const Board& prev) {
                 U.fx[e.r1][e.c1].flash = 1; U.fx[e.r1][e.c1].appear = 0.6f;
                 U.floats.push_back({"grows into " + e.text, {c.x, c.y - 44}, 0, Color{160, 240, 200, 255}, 16});
                 Burst(c, 14, 0, Color{160, 240, 200, 255}, 130);
+            } break;
+            case Event::PhaseChange: {
+                U.shake = 1.0f;
+                Toast("The Sovereign sacrifices his court. Selenis, the Moon God, rises!");
+                U.floats.push_back({"PHASE TWO: THE LUNAR TIDE", {640, 330}, 0, Color{190, 215, 255, 255}, 34});
+                Burst({640, 394}, 40, 3, Color{170, 200, 255, 255}, 220);
+            } break;
+            case Event::Tide: {
+                Toast(e.amount > 0 ? "Tidal Pull drags your creatures to the right!" : "Tidal Pull drags your creatures to the left!");
+                U.floats.push_back({e.amount > 0 ? "tide >>>" : "<<< tide", {640, 470}, 0, Color{150, 200, 255, 255}, 26});
+                for (int i = 0; i < 14; i++) Burst({430.0f + i * 32, 520.0f}, 1, 3, Color{150, 200, 255, 255}, 60);
+            } break;
+            case Event::Crush: {
+                Vector2 c = CellCenter(e.r1, e.c1);
+                U.floats.push_back({"swept away", {c.x, c.y - 20}, 0, Color{150, 200, 255, 255}, 18});
             } break;
             case Event::Gold: {
                 Vector2 c = CellCenter(e.r1, e.c1);
@@ -967,6 +1023,18 @@ void EnterNode() {
         case NodeType::TRIAL: U.nu = NodeUi::Trial; U.ph = Ph::Node; break;
         case NodeType::STALL: U.rerolls = 0; U.shopPick = -1; StockShop(); U.nu = NodeUi::Stall; U.ph = Ph::Node; break;
         case NodeType::CACHE: U.foundItem = U.rm.RandomItem(); U.nu = NodeUi::Cache; U.ph = Ph::Node; break;
+        case NodeType::VENTS: U.ventStep = 0; U.nu = NodeUi::Vents; U.ph = Ph::Node; break;
+        case NodeType::SPLICERS: U.nu = NodeUi::Splicers; U.ph = Ph::Node; break;
+        case NodeType::SCRIMSHAW: {
+            U.scrimSuits.clear(); U.scrimSigils.clear(); U.pickSuit = U.pickSigil = -1;
+            std::vector<int> suits = {COIN, CUP, BLADE, SHELL};
+            U.rng.Shuffle(suits);
+            U.scrimSuits.assign(suits.begin(), suits.begin() + 3);
+            std::vector<int> sigs = {(int)Sigil::SPINES, (int)Sigil::SKIMMER, (int)Sigil::BURROWER, (int)Sigil::WATERBORNE, (int)Sigil::TIDECALLER, (int)Sigil::BRINE, (int)Sigil::SENTINEL, (int)Sigil::UNDYING};
+            U.rng.Shuffle(sigs);
+            U.scrimSigils.assign(sigs.begin(), sigs.begin() + 3);
+            U.nu = NodeUi::Scrimshaw; U.ph = Ph::Node;
+        } break;
     }
 }
 
@@ -1051,11 +1119,38 @@ int DeckGrid(Rectangle area, const std::vector<Card>& d, const std::vector<int>&
 }
 
 // ---------------------------------------------------------------- drawing the battle
+// Selenis, the Moon God: one enormous card across all four of the dealer's lanes.
+void DrawSelenis(Rectangle w, const Card& c, float t, float flash) {
+    DrawRectangleRounded({w.x + 3, w.y + 4, w.width, w.height}, 0.12f, 8, Fade(BLACK, 0.5f));
+    DrawRectangleRounded(w, 0.12f, 8, Color{16, 26, 52, 255});
+    DrawRectangleRounded({w.x + 4, w.y + 4, w.width - 8, w.height - 8}, 0.12f, 8, Color{22, 36, 72, 255});
+    DrawRectangleRoundedLinesEx(w, 0.12f, 8, 3, Color{150, 180, 230, 255});
+    for (int k = 1; k < COLS; k++) { float x = (COL_X[k - 1] + COL_X[k]) / 2; DrawLineEx({x, w.y + 10}, {x, w.y + w.height - 10}, 1, Fade(Color{150, 180, 230, 255}, 0.18f)); }
+    Vector2 mc{w.x + w.width / 2, w.y + w.height / 2};
+    Glow(mc, 100, Fade(Color{150, 190, 255, 255}, 0.22f + 0.05f * sinf(t * 1.6f)));
+    DrawCreaturePixels(c.name, {mc.x - 50, w.y + 8, 100, w.height - 16}, 1.0f);
+    TxtBold("SELENIS, THE MOON GOD", w.x + 16, w.y + 8, 15, Color{220, 232, 255, 255});
+    Txt("Massive  -  Tidal Pull", w.x + 16, w.y + 28, 12, Fade(Color{220, 232, 255, 255}, 0.8f));
+    // his health, as a long bar
+    Rectangle bar{w.x + 16, w.y + w.height - 26, w.width - 32, 12};
+    DrawRectangleRounded(bar, 0.5f, 6, Color{8, 10, 20, 255});
+    DrawRectangleRounded({bar.x, bar.y, bar.width * std::clamp((float)c.hp / c.defense, 0.0f, 1.0f), bar.height}, 0.5f, 6, Color{110, 170, 240, 255});
+    TxtBold(TextFormat("%d / %d", c.hp, c.defense), bar.x + bar.width / 2 - 24, bar.y - 1, 12, WHITE);
+    DrawCircleV({w.x + 30, w.y + w.height - 50}, 15, Color{200, 60, 50, 255}); TxtBold("1", w.x + 26, w.y + w.height - 60, 18, WHITE);
+    if (flash > 0) DrawRectangleRounded(w, 0.12f, 8, Fade(WHITE, 0.5f * flash));
+}
+
 void DrawBoardCard(int r, int c, float t) {
     const Cell& x = U.bat.board.cell[r][c];
     if (!x.used) return;
     CellFx& f = U.fx[r][c];
     Rectangle q = CellRect(r, c);
+    if (U.bat.board.massive && r == R_FOE_FRONT) {
+        float ox = (f.shake > 0 ? sinf(t * 90) * f.shake * 8 : 0) + (f.lunge > 0 ? f.lungeDir.x * sinf((1 - f.lunge) * PI) * 0.4f : 0);
+        float oy = f.lunge > 0 ? f.lungeDir.y * sinf((1 - f.lunge) * PI) * 0.6f : 0;
+        DrawSelenis({COL_X[0] - 42 + ox, q.y - 6 + oy, COL_X[3] - COL_X[0] + 84, q.height + 12}, x.card, t, f.flash);
+        return;
+    }
     float k = f.offDur > 0 ? std::clamp(f.offT / f.offDur, 0.0f, 1.0f) : 1.0f, ease = 1 - powf(1 - k, 3);
     Vector2 o{f.off.x * (1 - ease), f.off.y * (1 - ease) - sinf(k * PI) * f.arc};
     if (f.lunge > 0) { float a = sinf((1 - f.lunge) * PI); o.x += f.lungeDir.x * a; o.y += f.lungeDir.y * a; }
@@ -1119,6 +1214,7 @@ void DrawBattle(Game& g, float dt, float t, Vector2 m, bool modal) {
 
     // ---- hover and selection on the board
     int hoverR = -1, hoverC = -1;
+    if (bat.board.massive && CheckCollisionPointRec(m, {COL_X[0] - 42, 340, COL_X[3] - COL_X[0] + 84, 116})) { hoverR = R_FOE_FRONT; hoverC = 0; }
     for (int r : {R_YOU_FRONT, R_FOE_FRONT, R_YOU_BACK, R_FOE_QUEUE}) {
         for (int c = 0; c < COLS && hoverR < 0; c++) if (bat.board.cell[r][c].used && CheckCollisionPointRec(m, CellRect(r, c))) { hoverR = r; hoverC = c; }
         if (hoverR >= 0) break;
@@ -1243,7 +1339,8 @@ void DrawBattle(Game& g, float dt, float t, Vector2 m, bool modal) {
     DrawRectangleRounded({SCREEN_W / 2.0f - 360, 14, 720, 26}, 0.5f, 6, Color{8, 12, 16, 190});
     DrawTextCentered(hint, SCREEN_W / 2.0f, 18, 16, Color{214, 222, 226, 255});
     const DealerInfo& di = Dealer(bat.dealer);
-    DrawTextCentered(TextFormat("%s%s: %s", U.isElite ? "Elite " : "", di.name, di.twist), SCREEN_W / 2.0f, 46, 14, Fade(Pal::Brass, 0.85f));
+    if (bat.boss) DrawTextCentered(TextFormat("%s   -   Phase %d: %s", di.name, bat.phase, bat.phase == 1 ? "The Drowned Phalanx" : "The Lunar Tide"), SCREEN_W / 2.0f, 46, 15, Fade(Color{190, 215, 255, 255}, 0.95f));
+    else DrawTextCentered(TextFormat("%s%s: %s", U.isElite ? "Elite " : "", di.name, di.twist), SCREEN_W / 2.0f, 46, 14, Fade(Pal::Brass, 0.85f));
 }
 
 // ---------------------------------------------------------------- the map
@@ -1252,6 +1349,7 @@ Color NodeCol(NodeType t) {
         case NodeType::BATTLE: return {190, 96, 74, 255}; case NodeType::ELITE: return {170, 100, 200, 255}; case NodeType::CARD_PICK: return {90, 150, 210, 255};
         case NodeType::CAMPFIRE: return {230, 150, 70, 255}; case NodeType::SPLICE: return {110, 190, 130, 255}; case NodeType::SACRIFICE: return {190, 60, 70, 255};
         case NodeType::TRIAL: return {226, 200, 90, 255}; case NodeType::STALL: return {200, 160, 70, 255}; case NodeType::CACHE: return {190, 160, 120, 255};
+        case NodeType::VENTS: return {232, 110, 60, 255}; case NodeType::SCRIMSHAW: return {225, 214, 186, 255}; case NodeType::SPLICERS: return {150, 120, 214, 255};
         default: return {120, 70, 170, 255};
     }
 }
@@ -1275,6 +1373,12 @@ void DrawStatusBar(Vector2 m, float y, bool modal) {
     for (int i = 0; i < MAX_MOMENTUM; i++) DrawCircleV({710.0f + i * 22, y + 17}, 8, i < U.rm.gs.momentumTracker ? Color{170, 220, 240, 255} : Color{70, 60, 50, 255});
     Txt("momentum", 700, y + 30, 11, Fade(Pal::Ink, 0.6f));
     Txt(TextFormat("Starting bones: %d", U.rm.gs.startBones), 800, y + 8, 15, Pal::Ink);
+    for (size_t i = 0; i < U.rm.gs.totems.size(); i++) {   // scrimshaw totems
+        Vector2 tp{980.0f + i * 34, y + 17};
+        DrawCircleV(tp, 15, Color{226, 214, 184, 255}); DrawCircleV(tp, 12, Color{62, 46, 34, 255});
+        DrawSuitIcon(U.rm.gs.totems[i].first, tp, 16, SUIT_COL[U.rm.gs.totems[i].first]);
+        if (!modal && Dist(m, tp) < 16) Tooltip(std::string(SuitName(U.rm.gs.totems[i].first)) + " creatures gain " + InfoOf((Sigil)U.rm.gs.totems[i].second).name + " when played.", {m.x, m.y + 24});
+    }
 }
 
 void DrawMap(Game& g, float t, Vector2 m, bool modal) {
@@ -1356,8 +1460,8 @@ void DrawNodePanel(Game& g, float t, Vector2 m, bool modal) {
         case NodeUi::Campfire: case NodeUi::Trial: case NodeUi::Sacrifice: {
             bool camp = U.nu == NodeUi::Campfire, trial = U.nu == NodeUi::Trial;
             Panel(p);
-            DrawTextCenteredBold(camp ? "The Campfire" : trial ? "The Trial" : "The Sacrifice", p.x + p.width / 2, p.y + 16, 32, Pal::Ink);
-            DrawTextCentered(camp ? "Pick a card, then choose what the fire gives it." : trial ? "Pick a card: -2 defense, +3 strength, for good." : "Pick a card to give up. Every battle you fight will start with an extra bone.",
+            DrawTextCenteredBold(camp ? "The Campfire" : trial ? "The Trial" : "The Maelstrom", p.x + p.width / 2, p.y + 16, 32, Pal::Ink);
+            DrawTextCentered(camp ? "Pick a card, then choose what the fire gives it." : trial ? "Pick a card: -2 defense, +3 strength, for good." : "A vortex takes one card from your deck for good. In return, every battle starts with an extra bone.",
                              p.x + p.width / 2, p.y + 60, 16, Pal::BrassDk);
             std::vector<int> sel; if (U.pick1 >= 0) sel.push_back(U.pick1);
             int clicked = DeckGrid({p.x + 30, p.y + 100, p.width - 60, p.height - 210}, gs.deck, sel, m,
@@ -1378,8 +1482,8 @@ void DrawNodePanel(Game& g, float t, Vector2 m, bool modal) {
         } break;
         case NodeUi::Splice: {
             Panel(p);
-            DrawTextCenteredBold("The Splice", p.x + p.width / 2, p.y + 16, 32, Pal::Ink);
-            DrawTextCentered(U.pick1 < 0 ? "First choose the card to DESTROY: its sigils are taken." : U.pick2 < 0 ? "Now choose the card that keeps them (up to three sigils)." : "Confirm the splice.",
+            DrawTextCenteredBold("The Barnacle Cluster", p.x + p.width / 2, p.y + 16, 32, Pal::Ink);
+            DrawTextCentered(U.pick1 < 0 ? "First choose the card to SACRIFICE: its sigils will be encrusted onto another." : U.pick2 < 0 ? "Now choose the host that keeps them (up to three sigils)." : "Confirm the encrusting.",
                              p.x + p.width / 2, p.y + 60, 16, Pal::BrassDk);
             std::vector<int> sel; if (U.pick1 >= 0) sel.push_back(U.pick1); if (U.pick2 >= 0) sel.push_back(U.pick2);
             int clicked = DeckGrid({p.x + 30, p.y + 100, p.width - 60, p.height - 210}, gs.deck, sel, m, [&](int i) { return U.pick1 < 0 ? !gs.deck[i].sigils.empty() : i != U.pick1; });
@@ -1389,6 +1493,90 @@ void DrawNodePanel(Game& g, float t, Vector2 m, bool modal) {
                 if (Button({p.x + p.width / 2 - 200, p.y + p.height - 90, 400, 44}, TextFormat("Splice: %s absorbs %s", k.name.c_str(), gs.deck[U.pick1].name.c_str()), true, 15)) { U.rm.Splice(U.pick2, U.pick1); FinishNode(); return; }
             }
             if (!modal && Button({p.x + 40, p.y + p.height - 90, 150, 40}, "Start over", true, 15)) U.pick1 = U.pick2 = -1;
+            if (!modal && Button({p.x + p.width - 210, p.y + p.height - 90, 170, 40}, "Walk on", true, 15)) FinishNode();
+        } break;
+        case NodeUi::Vents: {
+            Panel(p);
+            DrawTextCenteredBold("The Boiling Vents", p.x + p.width / 2, p.y + 16, 32, Pal::Ink);
+            DrawTextCentered("Hold a creature in the heat for +1 strength or +1 defense. Each warming after the first risks it boiling away.", p.x + p.width / 2, p.y + 60, 16, Pal::BrassDk);
+            std::vector<int> sel; if (U.pick1 >= 0) sel.push_back(U.pick1);
+            int clicked = DeckGrid({p.x + 30, p.y + 100, p.width - 60, p.height - 210}, gs.deck, sel, m);
+            if (clicked >= 0 && !modal) { if (clicked != U.pick1) U.ventStep = 0; U.pick1 = clicked; }
+            if (U.pick1 >= 0 && U.pick1 < (int)gs.deck.size()) {
+                const Card& c = gs.deck[U.pick1];
+                int risk = 25 * U.ventStep;
+                Txt(U.ventStep == 0 ? "The first warming is safe." : TextFormat("Risk of boiling away: %d%%", std::min(100, risk)), p.x + p.width / 2 - 120, p.y + p.height - 128, 17, U.ventStep == 0 ? Pal::Good : Pal::Bad);
+                for (int k = 0; k < 2; k++) {
+                    bool str = k == 0;
+                    if (Button({p.x + p.width / 2 - 250 + k * 270.0f, p.y + p.height - 90, 230, 44}, str ? TextFormat("Warm: +1 strength (%d)", c.strength + 1) : TextFormat("Warm: +1 defense (%d)", c.defense + 1), true, 15)) {
+                        std::string nm = c.name;
+                        if (!U.rm.Vent(U.pick1, str, U.ventStep)) { Toast(nm + " boiled away in the vents."); FinishNode(); return; }
+                        U.ventStep++;
+                        Toast(nm + " grows warmer.");
+                    }
+                }
+            } else DrawTextCentered("Click a creature to hold over the vents.", p.x + p.width / 2, p.y + p.height - 78, 16, Fade(Pal::Ink, 0.6f));
+            if (!modal && Button({p.x + p.width - 210, p.y + p.height - 90, 170, 40}, "Step away", true, 15)) FinishNode();
+        } break;
+        case NodeUi::Splicers: {
+            Panel(p);
+            DrawTextCenteredBold("The Abyssal Splicers", p.x + p.width / 2, p.y + 16, 32, Pal::Ink);
+            DrawTextCentered(U.pick1 < 0 ? "Twin mutants fuse two copies of the same card. Choose the first." : U.pick2 < 0 ? "Now choose its twin." : "Confirm the fusion.", p.x + p.width / 2, p.y + 60, 16, Pal::BrassDk);
+            auto twin = [&](int i) { for (int j = 0; j < (int)gs.deck.size(); j++) if (j != i && gs.deck[j].name == gs.deck[i].name) return true; return false; };
+            bool any = false; for (int i = 0; i < (int)gs.deck.size(); i++) any |= twin(i);
+            std::vector<int> sel; if (U.pick1 >= 0) sel.push_back(U.pick1); if (U.pick2 >= 0) sel.push_back(U.pick2);
+            int clicked = DeckGrid({p.x + 30, p.y + 100, p.width - 60, p.height - 210}, gs.deck, sel, m, [&](int i) { return U.pick1 < 0 ? twin(i) : (i != U.pick1 && gs.deck[i].name == gs.deck[U.pick1].name); });
+            if (clicked >= 0 && !modal) { if (U.pick1 < 0) U.pick1 = clicked; else U.pick2 = clicked; }
+            if (!any) DrawTextCentered("You carry no matching pair. The twins shrug.", p.x + p.width / 2, p.y + p.height - 78, 17, Pal::Bad);
+            if (U.pick1 >= 0 && U.pick2 >= 0) {
+                const Card &a = gs.deck[U.pick1], &b = gs.deck[U.pick2];
+                if (Button({p.x + p.width / 2 - 220, p.y + p.height - 90, 440, 44}, TextFormat("Fuse: %d/%d -> %d/%d, weight %d", a.strength, a.defense, a.strength + b.strength, a.defense + b.defense, std::max(a.weight, b.weight) + 1), true, 15)) { U.rm.Merge(U.pick1, U.pick2); FinishNode(); return; }
+            }
+            if (!modal && Button({p.x + 40, p.y + p.height - 90, 150, 40}, "Start over", true, 15)) U.pick1 = U.pick2 = -1;
+            if (!modal && Button({p.x + p.width - 210, p.y + p.height - 90, 170, 40}, "Walk on", true, 15)) FinishNode();
+        } break;
+        case NodeUi::Scrimshaw: {
+            Panel(p);
+            DrawTextCenteredBold("The Scrimshaw Artist", p.x + p.width / 2, p.y + 16, 32, Pal::Ink);
+            DrawTextCentered("Carve a totem from whale bone: a tribe head on a sigil base. That tribe gains the sigil whenever it is played.", p.x + p.width / 2, p.y + 60, 16, Pal::BrassDk);
+            Txt("Choose a tribe head", p.x + 130, p.y + 110, 18, Pal::Ink);
+            Txt("Choose a sigil base", p.x + 620, p.y + 110, 18, Pal::Ink);
+            for (int k = 0; k < (int)U.scrimSuits.size(); k++) {
+                Vector2 cc{p.x + 190 + k * 150.0f, p.y + 210};
+                bool hov = Dist(m, cc) < 56 && !modal, sel = U.pickSuit == U.scrimSuits[k];
+                DrawCircleV({cc.x + 3, cc.y + 4}, 54, Fade(BLACK, 0.3f));
+                DrawCircleV(cc, 54, sel ? Pal::Brass : Color{226, 214, 184, 255});
+                DrawCircleV(cc, 46, Color{62, 46, 34, 255});
+                DrawSuitIcon(U.scrimSuits[k], cc, 60, SUIT_COL[U.scrimSuits[k]]);
+                std::string nm = std::string(SuitName(U.scrimSuits[k])) + " tribe";
+                Txt(nm, cc.x - MeasureTxt(nm, 15) / 2.0f, cc.y + 64, 15, Pal::Ink);
+                if (hov && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) U.pickSuit = U.scrimSuits[k];
+            }
+            for (int k = 0; k < (int)U.scrimSigils.size(); k++) {
+                Vector2 cc{p.x + 680 + k * 140.0f, p.y + 210};
+                bool hov = Dist(m, cc) < 56 && !modal, sel = U.pickSigil == U.scrimSigils[k];
+                DrawRectangleRounded({cc.x - 50, cc.y - 50, 100, 100}, 0.3f, 8, sel ? Pal::Brass : Color{226, 214, 184, 255});
+                DrawRectangleRounded({cc.x - 44, cc.y - 44, 88, 88}, 0.3f, 8, Color{62, 46, 34, 255});
+                DrawSigilGlyph((Sigil)U.scrimSigils[k], cc, 56, Color{236, 214, 160, 255});
+                std::string nm = InfoOf((Sigil)U.scrimSigils[k]).name;
+                Txt(nm, cc.x - MeasureTxt(nm, 14) / 2.0f, cc.y + 58, 14, Pal::Ink);
+                if (hov) Tooltip(InfoOf((Sigil)U.scrimSigils[k]).text, {m.x, m.y + 26});
+                if (hov && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) U.pickSigil = U.scrimSigils[k];
+            }
+            if (!gs.totems.empty()) {
+                Txt("Your totems:", p.x + 60, p.y + 372, 16, Pal::Ink);
+                for (size_t i = 0; i < gs.totems.size(); i++) {
+                    Txt(TextFormat("%s tribe: %s", SuitName(gs.totems[i].first), InfoOf((Sigil)gs.totems[i].second).name), p.x + 60, p.y + 396 + i * 22.0f, 15, Pal::BrassDk);
+                }
+            }
+            if (U.pickSuit >= 0 && U.pickSigil >= 0) {
+                if (Button({p.x + p.width / 2 - 240, p.y + p.height - 90, 480, 44}, TextFormat("Carve: %s creatures gain %s", SuitName(U.pickSuit), InfoOf((Sigil)U.pickSigil).name), true, 15)) {
+                    if (gs.totems.size() >= 3) gs.totems.erase(gs.totems.begin());
+                    U.rm.Carve(U.pickSuit, U.pickSigil);
+                    FinishNode();
+                    return;
+                }
+            }
             if (!modal && Button({p.x + p.width - 210, p.y + p.height - 90, 170, 40}, "Walk on", true, 15)) FinishNode();
         } break;
         case NodeUi::Cache: {
@@ -1558,6 +1746,112 @@ void DrawHud(Game& g, Vector2 m, bool modal) {
     Txt(TextFormat("Pot %d", U.rm.gs.pot), SCREEN_W - 120, 23, 17, Pal::Paper);
 }
 
+// ---------------------------------------------------------------- the showcase: every card and component, one page each (for the shots folder)
+void DrawShowcase(float t) {
+    DrawVGradient({0, 0, (float)SCREEN_W, (float)SCREEN_H}, Color{20, 40, 42, 255}, Color{8, 16, 20, 255});
+    for (int k = 0; k < 40; k++) DrawCircleV({fmodf(k * 173.0f, 1280.0f), fmodf(k * 97.0f, 720.0f)}, 60 + (k % 5) * 20, Fade(Color{30, 70, 66, 255}, 0.05f));
+    const auto& cat = Catalog();
+    int pg = U.showPage;
+    auto title = [&](const char* s, const char* sub) {
+        TxtBold(s, 40, 18, 32, Pal::Brass);
+        Txt(sub, 42, 58, 15, Fade(Pal::Paper, 0.8f));
+        DrawLineEx({40, 82}, {1240, 82}, 2, Pal::BrassDk);
+    };
+    if (pg >= 100) { // one card, large, with everything spelled out
+        const Card& c = cat[std::clamp(pg - 100, 0, (int)cat.size() - 1)];
+        DrawCardFace({90, 60, 340, 476}, c, true);
+        float x = 480, y = 70;
+        TxtBold(c.name, x, y, 40, Pal::Brass); y += 56;
+        Txt(TextFormat("Strength %d      Defense %d      Weight %d", c.strength, c.defense, c.weight), x, y, 22, Pal::Paper); y += 34;
+        Txt(TextFormat("Cost: %s      Tribe: %s      %s", c.CostText().c_str(), SuitName(c.suit), c.tier == 0 ? "Never offered as a reward" : c.tier == 1 ? "Common" : c.tier == 2 ? "Uncommon" : "Rare"), x, y, 18, Pal::Paper); y += 40;
+        for (Sigil s : c.sigils) {
+            DrawCircleV({x + 20, y + 20}, 22, Fade(Color{38, 26, 20, 255}, 0.9f));
+            DrawSigilGlyph(s, {x + 20, y + 20}, 30, Color{236, 214, 160, 255});
+            TxtBold(InfoOf(s).name, x + 58, y, 20, Pal::Brass);
+            DrawWrapped(InfoOf(s).text, {x + 58, y + 26, 640, 44}, 16, Pal::Paper);
+            y += 62;
+        }
+        if (c.evolveId >= 0) { Txt(TextFormat("Grows into: %s", cat[c.evolveId].name.c_str()), x, y + 6, 18, Color{160, 240, 200, 255}); DrawCardFace({x + 300, y - 10, 90, 126}, cat[c.evolveId], true); }
+        return;
+    }
+    if (pg >= 0 && pg <= 4) {
+        struct Sheet { const char* title; const char* sub; };
+        static const Sheet S[5] = {{"Flats: common creatures", "Tier 1: the cheap cards you start with and find early."}, {"Flats: uncommon creatures", "Tier 2: found deeper in the run."},
+                                   {"Flats: rare creatures", "Tier 3: the heavy hitters and engines."}, {"Flats: the dealers' cards and the Kraken", "Cards you can meet but never take: the dealers' decks and what a Kraken Spawn becomes."},
+                                   {"Flats: the drowned court of Atlantis", "The Atlantean Sovereign's cards: Phase 1, the Drowned Phalanx, and Phase 2, Selenis the Moon God."}};
+        title(S[pg].title, S[pg].sub);
+        std::vector<int> ids;
+        for (const Card& c : cat) {
+            bool boss = c.name == "Atlantean Hoplite" || c.name == "Sunken Oracle" || c.name == "Coral Golem" || c.name.rfind("Selenis", 0) == 0;
+            bool sel = pg == 0 ? (c.tier == 1 && c.name != "Minnow") : pg == 1 ? c.tier == 2 : pg == 2 ? c.tier == 3 : pg == 3 ? ((c.tier == 0 && !boss) || c.name == "Kraken") : boss;
+            if (pg == 3 && c.name == "Kraken") sel = true;
+            if (pg == 3 && c.name == "Minnow") sel = true;
+            if (sel) ids.push_back(c.id);
+        }
+        if (pg == 4) {
+            for (int i = 0; i < (int)ids.size() - 1; i++) { float x = 60.0f + i * 220; DrawCardFace({x, 130, 200, 280}, cat[ids[i]], true); }
+            Rectangle w{60, 440, 1160, 180};
+            DrawSelenis(w, cat[ids.back()], t, 0);
+            Txt("Phase 1: Hoplites cover each other, the Oracle heals them and slips your blows, the Golem holds off Airborne creatures.   Phase 2: Selenis fills every lane, and each turn's end his tide drags your creatures sideways.", 60, 640, 14, Fade(Pal::Paper, 0.85f));
+            return;
+        }
+        int cw = 138, ch = 194, per = 8;
+        for (int i = 0; i < (int)ids.size(); i++) DrawCardFace({44.0f + (i % per) * (cw + 12), 100.0f + (i / per) * (ch + 22), (float)cw, (float)ch}, cat[ids[i]], true);
+        return;
+    }
+    if (pg == 5) { // the sigils
+        title("Flats: sigils", "Persistent abilities. Each one hooks into a single moment of the turn.");
+        for (int s = 1; s < (int)Sigil::COUNT; s++) {
+            int col = (s - 1) / 13, row = (s - 1) % 13;
+            float x = 40 + col * 610, y = 100 + row * 46;
+            DrawCircleV({x + 20, y + 20}, 20, Fade(Color{38, 26, 20, 255}, 0.95f));
+            DrawSigilGlyph((Sigil)s, {x + 20, y + 20}, 28, Color{236, 214, 160, 255});
+            TxtBold(InfoOf((Sigil)s).name, x + 52, y, 17, Pal::Brass);
+            DrawWrapped(InfoOf((Sigil)s).text, {x + 190, y, 400, 44}, 13, Pal::Paper);
+        }
+        return;
+    }
+    if (pg == 6) { // charms, bottles, editions, tribes
+        title("Flats: charms, bottles, editions and tribes", "Everything you carry, and how cards are dressed.");
+        TxtBold("Charms (up to three)", 40, 100, 20, Pal::Brass);
+        for (int c = 0; c < CH_COUNT; c++) { DrawCharmIcon(c, {70.0f, 150.0f + c * 46}, 40, t); TxtBold(CharmName(c), 110, 136 + c * 46, 16, Pal::Paper); Txt(CharmText(c), 300, 138 + c * 46, 14, Fade(Pal::Paper, 0.85f)); }
+        TxtBold("Bottles (pack items, up to three)", 40, 476, 20, Pal::Brass);
+        for (int k = 0; k < (int)PackItem::COUNT; k++) { DrawBottle(k, {70.0f + (k % 2) * 400, 528.0f + (k / 2) * 62}, 46); TxtBold(ItemName(k), 104 + (k % 2) * 400, 510 + (k / 2) * 62, 15, Pal::Paper); DrawWrapped(ItemText(k), {104.0f + (k % 2) * 400, 530.0f + (k / 2) * 62, 290, 40}, 12, Fade(Pal::Paper, 0.85f)); }
+        TxtBold("Editions", 900, 100, 20, Pal::Brass);
+        for (int e = 1; e < ED_COUNT; e++) { Card d = MakeCard(CardIdByName("Hammerhead"), e); DrawCardFace({900.0f + (e - 1) * 116, 136, 104, 146}, d, true); TxtBold(EditionName(e), 900.0f + (e - 1) * 116, 288, 15, Pal::Paper); DrawWrapped(EditionText(e), {900.0f + (e - 1) * 116, 308, 108, 60}, 11, Fade(Pal::Paper, 0.85f)); }
+        TxtBold("Tribes (suits)", 900, 380, 20, Pal::Brass);
+        for (int s = 0; s < SUITS; s++) { Vector2 p{930.0f + s * 84, 448}; DrawCircleV(p, 30, Fade(SUIT_COL[s], 0.3f)); DrawSuitIcon(s, p, 40, SUIT_COL[s]); Txt(SuitName(s), p.x - MeasureTxt(SuitName(s), 14) / 2.0f, p.y + 36, 14, Pal::Paper); }
+        TxtBold("Costs", 900, 520, 20, Pal::Brass);
+        DrawDrop({930, 570}, 40, BLOOD_COL); Txt("Blood: sacrifice your creatures", 956, 560, 14, Pal::Paper);
+        DrawBone({930, 606}, 36, BONE_COL); Txt("Bones: earned from the dead", 956, 596, 14, Pal::Paper);
+        return;
+    }
+    if (pg == 7) { // map nodes
+        title("Flats: the sunken map", "Eight layers of choices, then the Atlantean Sovereign. Every node is an event.");
+        for (int k = 0; k < (int)NodeType::COUNT; k++) {
+            int col = k % 2, row = k / 2;
+            Vector2 p{80.0f + col * 610, 140.0f + row * 78};
+            DrawCircleV({p.x + 2, p.y + 3}, 30, Fade(BLACK, 0.3f)); DrawCircleV(p, 30, Color{46, 32, 22, 255});
+            DrawCircleV(p, 27, ColorBrightness(NodeCol((NodeType)k), -0.45f));
+            DrawNodeIcon((NodeType)k, p, 18, ColorBrightness(NodeCol((NodeType)k), 0.25f));
+            TxtBold(NodeName((NodeType)k), p.x + 44, p.y - 26, 18, Pal::Brass);
+            DrawWrapped(NodeText((NodeType)k), {p.x + 44, p.y - 4, 520, 44}, 13, Fade(Pal::Paper, 0.9f));
+        }
+        return;
+    }
+    if (pg == 8) { // the dealers
+        title("Flats: the dealers", "A dealer for each stretch of the map; each has a trick.");
+        for (int d = 0; d < DEALERS; d++) {
+            const DealerInfo& di = Dealer(d);
+            float y = 110 + d * 108;
+            TxtBold(di.name, 60, y, 24, Pal::Brass);
+            Txt(di.line, 60, y + 32, 16, Fade(Pal::Paper, 0.85f));
+            Txt(TextFormat("Trick: %s   (plays %d, draws %d a turn)", di.twist, di.plays, di.draws), 60, y + 58, 15, Pal::Paper);
+        }
+        return;
+    }
+}
+
 }  // namespace
 
 // ============================================================================
@@ -1569,6 +1863,7 @@ void SceneCards(Game& g) {
     Vector2 m = GetMousePosition();
     gHasHover = false;
     UpdateFx(dt);
+    if (U.ph == Ph::Showcase) { SetPost(0.15f, 0.0f, 0.1f); DrawShowcase(t); return; }   // a clean page, without the table or the HUD
     bool modal = U.showRules || U.showDeck;
     Vector2 sh{sinf(t * 91) * U.shake * 9, cosf(t * 77) * U.shake * 9};
 
@@ -1625,6 +1920,8 @@ void SceneCards(Game& g) {
 
         case Ph::Battle: DrawBattle(g, dt, t, m, modal); break;
 
+        case Ph::Showcase: DrawShowcase(t); break;
+
         case Ph::Won: {
             DrawBattle(g, 0, t, m, true);
             Panel(centre);
@@ -1632,7 +1929,7 @@ void SceneCards(Game& g) {
             DrawTextCentered(TextFormat("In %d turn%s. +%d gold: the pot stands at %d.", U.lastTurns, U.lastTurns == 1 ? "" : "s", U.gainedGold, U.rm.gs.pot), centre.x + centre.width / 2, centre.y + 80, 20, Pal::Ink);
             if (U.gainedMomentum) DrawTextCenteredBold("Fast work: +1 momentum.", centre.x + centre.width / 2, centre.y + 112, 20, Color{60, 120, 170, 255});
             if (U.isBoss) {
-                DrawTextCentered("The House slides the last of its gold across the table. You've cleaned it out.", centre.x + centre.width / 2, centre.y + 160, 17, Pal::BrassDk);
+                DrawTextCentered("The Sovereign's court is drowned, and the Moon God is dark. You've cleaned out the deep table.", centre.x + centre.width / 2, centre.y + 160, 17, Pal::BrassDk);
                 if (Button({centre.x + centre.width / 2 - 150, centre.y + 250, 300, 52}, TextFormat("Collect %d gold", U.rm.gs.pot + 100))) {
                     U.rm.gs.pot += 100; CashOut();
                 }
@@ -1653,7 +1950,7 @@ void SceneCards(Game& g) {
         case Ph::RunOver: {
             Panel(centre);
             if (U.cashed) {
-                DrawTextCenteredBold(U.isBoss ? "You cleared the House!" : "You leave the table", centre.x + centre.width / 2, centre.y + 40, 40, Pal::Good);
+                DrawTextCenteredBold(U.isBoss ? "You cleared the deep table!" : "You leave the table", centre.x + centre.width / 2, centre.y + 40, 40, Pal::Good);
                 DrawTextCentered(TextFormat("%d gold richer.", U.payout), centre.x + centre.width / 2, centre.y + 110, 26, Pal::Ink);
             } else {
                 if (U.payout > 0 && !U.insurePaid) { g.gold += U.payout; U.insurePaid = true; }
@@ -1814,6 +2111,60 @@ void DebugFlatsCampfire() {
     U.rm.layer = 3; U.rm.slot = 0;
     U.nu = NodeUi::Campfire; U.ph = Ph::Node; U.pick1 = 3;
 }
+static void DebugNode(unsigned seed, NodeType t) {
+    DebugRun(seed);
+    U.rm.layer = 3; U.rm.slot = 0;
+    U.rm.map[3][0].type = t;
+    EnterNode();
+}
+void DebugFlatsVents() { DebugNode(31, NodeType::VENTS); U.pick1 = 3; U.ventStep = 2; }
+void DebugFlatsSplicers() {
+    DebugRun(37);
+    U.rm.gs.deck.push_back(MakeCard(CardIdByName("Hermit Crab")));
+    U.rm.gs.deck.push_back(MakeCard(CardIdByName("Pufferfish")));
+    U.rm.layer = 3; U.rm.slot = 0; U.rm.map[3][0].type = NodeType::SPLICERS;
+    EnterNode();
+    U.pick1 = 0; U.pick2 = (int)U.rm.gs.deck.size() - 2;
+}
+void DebugFlatsScrimshaw() {
+    DebugNode(41, NodeType::SCRIMSHAW);
+    U.rm.gs.totems.push_back({BLADE, (int)Sigil::SKIMMER});
+    U.pickSuit = U.scrimSuits[0]; U.pickSigil = U.scrimSigils[1];
+}
+void DebugFlatsBarnacle() { DebugNode(43, NodeType::SPLICE); U.pick1 = 4; U.pick2 = 0; }
+void DebugFlatsMaelstrom() { DebugNode(47, NodeType::SACRIFICE); U.pick1 = 5; }
+void DebugFlatsBoss(int phase) {
+    DebugRun(29);
+    U.rm.layer = 8; U.rm.slot = 0;
+    U.rm.map[8][0].type = NodeType::BOSS; U.rm.map[8][0].dealer = 4;
+    StartBattle(Boon::NONE);
+    Battle& b = U.bat;
+    Events ev;
+    auto put = [&](int r, int c, const char* n, int hpLoss = 0) { Card k = MakeCard(CardIdByName(n)); k.hp -= hpLoss; b.board.cell[r][c].used = true; b.board.cell[r][c].card = k; b.board.cell[r][c].card.age = 2; };
+    put(R_YOU_FRONT, 0, "Flying Fish"); put(R_YOU_FRONT, 1, "Pufferfish"); put(R_YOU_FRONT, 2, "Anglerfish"); put(R_YOU_BACK, 1, "Ship's Cat"); put(R_YOU_FRONT, 3, "Hermit Crab", 1);
+    b.hand.clear();
+    for (const char* n : {"Kraken Spawn", "Sperm Whale", "Sailfish", "Sea Urchin", "Minnow"}) b.hand.push_back(MakeCard(CardIdByName(n)));
+    b.board.bones[0] = 5;
+    if (phase == 1) {
+        b.board.cell[R_FOE_FRONT][0] = Cell(); b.board.cell[R_FOE_QUEUE][1] = Cell();
+        put(R_FOE_FRONT, 0, "Atlantean Hoplite"); put(R_FOE_FRONT, 1, "Atlantean Hoplite", 1); put(R_FOE_FRONT, 2, "Sunken Oracle"); put(R_FOE_FRONT, 3, "Atlantean Hoplite");
+        put(R_FOE_QUEUE, 1, "Coral Golem"); put(R_FOE_QUEUE, 3, "Atlantean Hoplite");
+        b.board.scale = 3;
+        U.beam = -0.34f * 3.0f / SCALE_LIMIT;
+    } else {
+        for (int r : {R_FOE_QUEUE, R_FOE_FRONT}) for (int c = 0; c < COLS; c++) b.board.cell[r][c] = Cell();
+        b.RiseSelenis(ev);
+        b.board.cell[R_FOE_FRONT][0].card.hp = 31;
+        b.board.scale = 2;
+        b.phase = 2;
+        U.beam = -0.34f * 2.0f / SCALE_LIMIT;
+    }
+    for (int r = 0; r < ROWS; r++) for (int c = 0; c < COLS; c++) U.fx[r][c] = CellFx();
+    b.turn = Turn::YOU_MAIN;
+}
+void DebugFlatsShowcase(int page) { DebugRun(3); U.ph = Ph::Showcase; U.showPage = page; }
+int FlatsCatalogSize() { return (int)Catalog().size(); }
+const char* FlatsCardName(int i) { return Catalog()[std::clamp(i, 0, (int)Catalog().size() - 1)].name.c_str(); }
 
 // The carried items and every relic icon, for the sprite sheet.
 void DrawItemSpritePage(float t) {

@@ -48,6 +48,12 @@ enum class Sigil {
     SCAVENGER,     // when played, you find an item (if your pack has room)
     FRY,           // becomes something bigger after a turn on the board
     REPULSIVE,     // creatures will not strike it at all
+    WATERBORNE,    // submerges during the enemy's turn: their blows pass over it and land on the scales
+    PHALANX,       // if an adjacent Phalanx creature is struck, this one takes the blow instead
+    FORESIGHT,     // sidesteps your attacks; at the end of its turn it heals every Phalanx creature
+    MIGHTY_LEAP,   // blocks Airborne creatures: they cannot fly over the line it holds
+    MASSIVE,       // fills all four lanes, cannot be moved, and every attack in any lane strikes it
+    TIDAL_PULL,    // at the end of its turn every enemy creature is dragged one lane sideways; the edge is fatal
     COUNT
 };
 constexpr int MAX_SIGILS = 3;
