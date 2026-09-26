@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 //  DEPTH - the Nautilus's grand salon: the hub.
 //
 //  Inspired by Captain Nemo's salon in "Twenty Thousand Leagues Under the Sea":
@@ -727,18 +727,18 @@ Vector2 DrawCatAt(Vector2 feet, float k, bool right, bool sitting, bool purring,
     float f = right ? 1.0f : -1.0f;
     float vib = purring ? sinf(t * 70) * 0.35f : 0;
     auto P = [&](float dx, float dy) { return Vector2{feet.x + (dx + vib) * f * k, feet.y + dy * k}; };
-    const Color line{74, 40, 24, 255}, fur{232, 152, 74, 255}, furLt{252, 190, 112, 255}, furDk{190, 108, 50, 255};
+    const Color line{150, 84, 42, 255}, fur{236, 156, 78, 255}, furLt{252, 190, 112, 255}, furDk{190, 108, 50, 255};
     const Color stripe{168, 88, 38, 255}, cream{252, 238, 212, 255}, pink{246, 158, 160, 255};
     auto Blob = [&](Vector2 c, float rx, float ry, Color col, bool shade = true) {
-        DrawEllipse((int)c.x, (int)c.y, rx * k + 1.4f * k, ry * k + 1.4f * k, line);
+        DrawEllipse((int)c.x, (int)c.y, rx * k + 0.8f * k, ry * k + 0.8f * k, line);
         DrawEllipse((int)c.x, (int)c.y, rx * k, ry * k, col);
         if (shade) {
-            DrawEllipse((int)(c.x + rx * 0.18f * k * f), (int)(c.y + ry * 0.32f * k), rx * 0.78f * k, ry * 0.58f * k, Tone(col, -0.16f));   // shaded underside
-            DrawEllipse((int)(c.x - rx * 0.14f * k * f), (int)(c.y - ry * 0.28f * k), rx * 0.66f * k, ry * 0.5f * k, Tone(col, 0.12f));    // lit top
+            DrawEllipse((int)(c.x + rx * 0.18f * k * f), (int)(c.y + ry * 0.32f * k), rx * 0.78f * k, ry * 0.58f * k, Tone(col, -0.08f));   // a soft shaded underside
+            DrawEllipse((int)(c.x - rx * 0.14f * k * f), (int)(c.y - ry * 0.28f * k), rx * 0.66f * k, ry * 0.5f * k, Tone(col, 0.07f));    // lit top
         }
     };
     auto Limb = [&](Vector2 a, Vector2 b, float w, Color col) {
-        DrawLineEx(a, b, w * k + 2.6f * k, line); DrawCircleV(a, w * 0.5f * k + 1.3f * k, line); DrawCircleV(b, w * 0.5f * k + 1.3f * k, line);
+        DrawLineEx(a, b, w * k + 1.6f * k, line); DrawCircleV(a, w * 0.5f * k + 0.8f * k, line); DrawCircleV(b, w * 0.5f * k + 0.8f * k, line);
         DrawLineEx(a, b, w * k, col); DrawCircleV(a, w * 0.5f * k, col); DrawCircleV(b, w * 0.5f * k, col);
     };
     DrawShadowBlob(feet, (sitting ? 17 : 22) * k);
@@ -758,7 +758,7 @@ Vector2 DrawCatAt(Vector2 feet, float k, bool right, bool sitting, bool purring,
             Limb(P(lx, -12), foot, 4.0f, furDk);
             Blob({foot.x + 0.6f * f * k, foot.y}, 2.6f, 1.9f, Tone(cream, -0.1f), false);
         }
-        Blob(P(-1, -15 - bob), 14, 8.6f, fur);                         // the body
+        Blob(P(-1, -15 - bob), 15, 9.2f, fur);                         // the body, long and soft
         Blob(P(2, -10.5f - bob), 9, 4.3f, cream, false);               // the pale belly
         for (int i = 0; i < 4; i++) DrawLineEx(P(-9 + i * 4.6f, -22.5f - bob), P(-8 + i * 4.6f, -17 - bob), 1.6f * k, stripe);
         for (int leg = 0; leg < 2; leg++) { // near legs
@@ -790,12 +790,12 @@ Vector2 DrawCatAt(Vector2 feet, float k, bool right, bool sitting, bool purring,
     // the head: wide and round, with rounded ears, fluffy cheeks and a tiny cream muzzle
     for (int e = -1; e <= 1; e += 2) {
         Vector2 base{hc.x + e * 5.2f * k, hc.y - 3.4f * k}, tip{hc.x + e * 6.8f * k, hc.y - 14.5f * k};
-        DrawTri({base.x - 5.2f * k - 1.4f * k, base.y + 2 * k}, {base.x + 5.2f * k + 1.4f * k, base.y + 2 * k}, {tip.x, tip.y - 1.4f * k}, line);
+        DrawTri({base.x - 5.2f * k - 0.8f * k, base.y + 2 * k}, {base.x + 5.2f * k + 0.8f * k, base.y + 2 * k}, {tip.x, tip.y - 0.8f * k}, line);
         DrawTri({base.x - 5.2f * k, base.y + 2 * k}, {base.x + 5.2f * k, base.y + 2 * k}, tip, fur);
-        DrawTri({base.x - 2.6f * k, base.y + 1.4f * k}, {base.x + 2.6f * k, base.y + 1.4f * k}, {tip.x, tip.y + 3.6f * k}, pink);
+        DrawTri({base.x - 2.6f * k, base.y + 1.4f * k}, {base.x + 2.6f * k, base.y + 1.4f * k}, {tip.x, tip.y + 3.6f * k}, pink); DrawCircleV({tip.x, tip.y + 1.0f * k}, 1.6f * k, fur); // a rounded ear tip
     }
     for (int e = -1; e <= 1; e += 2) Blob({hc.x + e * 7.4f * k, hc.y + 3.0f * k}, 2.4f, 2.2f, furLt, false); // a little cheek fluff
-    Blob(hc, 9.6f, 8.6f, fur);
+    Blob(hc, 9.0f, 8.0f, fur);
     for (int i = -1; i <= 1; i++) DrawLineEx({hc.x + i * 2.6f * k, hc.y - 9 * k}, {hc.x + i * 2.0f * k, hc.y - 5 * k}, 1.3f * k, stripe);      // brow stripes
     DrawEllipse((int)(hc.x + f * 1.6f * k), (int)(hc.y + 3.6f * k), 4.6f * k, 3.4f * k, cream);                                                                      // the muzzle
     Vector2 mz{hc.x + f * 1.6f * k, hc.y + 2.6f * k};
@@ -1026,7 +1026,6 @@ void DrawCardTable(float t) {
         DrawEllipse(0, -104, 100, 25, Color{28, 18, 12, 255});                                      // the top and its rim
         DrawEllipse(0, -106, 96, 21, Color{74, 48, 32, 255});
         DrawEllipse(0, -107, 84, 17, Color{10, 34, 44, 255});                                       // felt, a deep cold teal
-        DrawRing({0, -107}, 78, 84, 0, 360, 40, Fade(Color{80, 190, 230, 255}, 0.5f));               // a glowing rune ring
         for (int k = 0; k < 3; k++) { // three cards laid out
             float x = -34 + k * 34.0f, y = -107 + (k % 2) * 3.0f;
             DrawRectanglePro({x, y, 22, 9}, {11, 4.5f}, -14 + k * 14.0f, Color{228, 196, 148, 255});

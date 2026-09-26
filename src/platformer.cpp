@@ -915,6 +915,7 @@ void StepPlayer(PlatformState& p, float dir, bool jumpHeld) {
 // Every level's scenery is several layers deep; each layer scrolls at its own speed, so the far
 // ones barely move and the near ones sweep past.
 float Hs(float x) { float s = sinf(x * 12.9898f + 3.1f) * 43758.5453f; return s - floorf(s); }
+constexpr float WATER_LEVEL_Y = 262; // the pirate biome's horizon: the far sea's surface, where background ships and masts stand
 
 template <typename F>
 void Layer(float cx, float depth, float gap, float cw, F fn) {
@@ -1097,7 +1098,7 @@ void BackgroundSystem::Setup(int lv) {
                 for (int k = 0; k < 4; k++) DrawEllipse((int)(x + k * 22), (int)(y + (k % 2) * 4), 26, 8, Color{44, 40, 70, 200});
             });
             Layer(ox / 0.05f, 0.2f, 260, cw, [&](float x, float wx) { // a ghostly fleet on the horizon
-                float y = 240 + Hs(wx) * 16;
+                float y = WATER_LEVEL_Y - 12; // every background hull sits on the horizon line
                 DrawRectangle((int)x, (int)y, 90, 16, Color{28, 24, 44, 255});
                 DrawRectangle((int)x + 40, (int)y - 80, 3, 80, Color{28, 24, 44, 255});
                 DrawTri({x + 44, y - 72}, {x + 44, y - 14}, {x + 80, y - 14}, Color{36, 32, 56, 255});
@@ -1111,7 +1112,7 @@ void BackgroundSystem::Setup(int lv) {
                 if (((x / 4) % 9) == 0) DrawRectangle(x, (int)y, 3, 1, Color{120, 130, 180, 255});
             }
             Layer(ox / 0.35f, 0.35f, 520, cw, [&](float x, float wx) {
-                float y = 250 + Hs(wx) * 10 + sinf(t * 0.8f + wx) * 2;
+                float y = WATER_LEVEL_Y - 20 + sinf(t * 0.8f + wx) * 2; // its keel rides at the waterline
                 Color hullC{30, 22, 30, 255};
                 DrawRectangle((int)x, (int)y, 170, 26, hullC);
                 DrawTri({x + 170, y}, {x + 200, y - 10}, {x + 170, y + 26}, hullC);
@@ -1256,9 +1257,19 @@ void DrawShipScenery(const PlatformState& p, int c0, int c1, float t) {
             float yy = top + 60 + y * 7.0f * T, half = (5.5f - y * 0.8f) * T, h = 5.2f * T, belly = 18 + sinf(t * 0.9f + y) * 4;
             DrawRectangle((int)(mx - half), (int)yy, (int)(half * 2), 8, Color{80, 52, 30, 255});
             Color sail{214, 200, 170, 255}, sailDk{176, 160, 132, 255};
-            DrawTri({mx - half + 6, yy + 8}, {mx + half - 6, yy + 8}, {mx + half - 10 + belly, yy + h}, sail);
-            DrawTri({mx - half + 6, yy + 8}, {mx + half - 10 + belly, yy + h}, {mx - half + 10 + belly, yy + h}, sailDk);
-            for (int k = 1; k < 4; k++) DrawLineEx({mx - half + k * half / 2, yy + 8}, {mx - half + k * half / 2 + belly, yy + h}, 1, Color{160, 144, 118, 255});
+            if (gGhost) { // shredded: hanging strips of grey-green canvas, each torn off at its own length
+                float sw = (half * 2 - 12) / 6.0f;
+                for (int k = 0; k < 6; k++) {
+                    float sx0 = mx - half + 6 + k * sw, len = (h - 8) * (0.3f + Hs(k * 3.1f + y * 7.7f + mx * 0.01f) * 0.65f), sway = sinf(t * 1.3f + k + y) * 5;
+                    Color sc = k % 2 ? Color{112, 142, 132, 235} : Color{86, 114, 106, 235};
+                    DrawTri({sx0, yy + 8}, {sx0 + sw - 3, yy + 8}, {sx0 + sw - 3 + sway, yy + 8 + len}, sc);
+                    DrawTri({sx0, yy + 8}, {sx0 + sw - 3 + sway, yy + 8 + len}, {sx0 + sway * 0.6f, yy + 8 + len * 0.8f}, Tone(sc, -0.2f));
+                }
+            } else {
+                DrawTri({mx - half + 6, yy + 8}, {mx + half - 6, yy + 8}, {mx + half - 10 + belly, yy + h}, sail);
+                DrawTri({mx - half + 6, yy + 8}, {mx + half - 10 + belly, yy + h}, {mx - half + 10 + belly, yy + h}, sailDk);
+                for (int k = 1; k < 4; k++) DrawLineEx({mx - half + k * half / 2, yy + 8}, {mx - half + k * half / 2 + belly, yy + h}, 1, Color{160, 144, 118, 255});
+            }
         }
         DrawRectangle((int)mx - 18, (int)top - 20, 36, 14, Color{70, 46, 26, 255}); // the crow's nest
         DrawRectangle((int)mx - 2, (int)top - 60, 3, 40, Color{80, 52, 30, 255});
@@ -1548,6 +1559,17 @@ void DrawTileDetail(const PlatformState& p, int x, int y, float t) {
         }
         if (!(m & 2) && h3 > 0.76f) Barnacles(px + T - 6.0f, py + 10 + h1 * 12); // a cluster on the right face
         if (!(m & 4) && h1 > 0.6f) for (int k = 0; k < 3; k++) DrawCircle(px + 7 + k * 9, py + T - 3, 2, Color{224, 212, 186, 255}); // a row of barnacles under an overhang
+    } else if (gGhost) { // the drowned ship: rot-grey timber, splintered edges, holes that show the dark inside
+        DrawRectangle(px, py, T, T, Fade(Color{40, 74, 68, 255}, 0.42f));
+        if (!(m & 1)) for (int k = 0; k < 4; k++) DrawRectangle(px + 2 + k * 8, py - 1 - (int)(Hs(x * 2.7f + k) * 3), 3, 3, Color{60, 84, 78, 255}); // splintered top edge
+        if (h1 > 0.62f && (m & 1)) { // a rotted-through hole in the plank
+            int hx = px + 5 + (int)(h2 * 12), hw = 8 + (int)(h3 * 8);
+            DrawRectangle(hx, py + 8, hw, 12, Color{6, 10, 12, 255});
+            DrawRectangle(hx - 2, py + 10, 2, 8, Color{30, 44, 42, 255}); DrawRectangle(hx + hw, py + 10, 2, 8, Color{30, 44, 42, 255});
+            DrawRectangle(hx + 2, py + 12, 2, 2, Fade(Color{110, 250, 200, 255}, 0.7f)); // a spark of ghostfire within
+        }
+        if (h2 > 0.7f) DrawRectangle(px + 6, py + 4, 2, T - 8, Color{6, 10, 12, 200});   // a wide crack
+        if (h3 > 0.8f && !(m & 4)) DrawRectangle(px + 2, py + T - 6, 12, 5, Color{70, 120, 92, 255});  // green slime
     } else {
         if (!(m & 1)) { // deck boards: mismatched, warped, one sprung
             int row = (x + y) % 3;
@@ -1581,6 +1603,10 @@ void DrawTile(const PlatformState& p, char c, int x, int y, float t) {
                 float fl = 0.85f + 0.15f * sinf(t * 9 + x);
                 DrawRectangle((int)px + 14, (int)py - 26, 3, 26, Color{60, 40, 26, 255});
                 DrawRectangle((int)px + 8, (int)py - 38, 15, 13, Color{8, 8, 12, 255});
+                if (gGhost) { // ghostfire in the glass, licking upward
+                    DrawRectangle((int)px + 10, (int)py - 36, 11, 9, Color{(unsigned char)(70 + 40 * fl), (unsigned char)(200 + 50 * fl), (unsigned char)(170 + 40 * fl), 255});
+                    for (int k = 0; k < 3; k++) { float ph = fmodf(t * 0.9f + k * 0.33f, 1.0f); DrawRectangle((int)px + 13 + (int)(sinf(t * 3 + k * 2) * 4), (int)(py - 40 - ph * 22), 2, 3, Fade(Color{120, 255, 210, 255}, 1 - ph)); }
+                } else
                 DrawRectangle((int)px + 10, (int)py - 36, 11, 9, Color{(unsigned char)(200 + 55 * fl), (unsigned char)(150 + 60 * fl), 60, 255});
                 DrawRectangle((int)px + 7, (int)py - 40, 17, 3, Color{60, 58, 62, 255});
             }
@@ -1943,7 +1969,7 @@ void DrawGlowingBits(const PlatformState& p, int c0, int c1, int r0, int r1, flo
             }
             if (DeckLantern(p, x, y)) {
                 float fl = 0.85f + 0.15f * sinf(t * 9 + x);
-                for (int k = 0; k < 4; k++) DrawCircleV({m.x, m.y - 30}, 18.0f + k * 16, Color{255, 180, 80, (unsigned char)((30 - k * 6) * fl)});
+                for (int k = 0; k < 4; k++) DrawCircleV({m.x, m.y - 30}, 18.0f + k * 16, gGhost ? Color{80, 240, 190, (unsigned char)((34 - k * 7) * fl)} : Color{255, 180, 80, (unsigned char)((30 - k * 6) * fl)});
             }
         }
     EndBlendMode();
@@ -2026,6 +2052,11 @@ void DrawAmbientLife(const PlatformState& p, float t, float viewW, float viewH) 
             }
         EndBlendMode();
     } else {
+        if (gGhost) // a low bank of fog crawling along the deck around the diver
+            for (int k = 0; k < 12; k++) {
+                float fx = x0 + fmodf(k * 89.0f + t * (6 + k % 4 * 3) + 60000, viewW + 240), fy = p.pos.y + PH - 4 - (k % 3) * 5 + sinf(t * 0.6f + k) * 3;
+                DrawEllipse((int)fx, (int)fy, 46 + (k % 4) * 10, 7, Color{150, 235, 214, 26});
+            }
         for (int k = 0; k < 3; k++) { // gulls, high over the fleet
             float gx = fmodf(t * (30 + k * 8) + k * 500 + p.camX * 0.3f, viewW + 500) + x0 - 200, gy = p.camY - 150 - k * 34 + sinf(t * 0.9f + k) * 14, fl = sinf(t * 7 + k * 2) * 5;
             Color gc{10, 10, 16, 255};

@@ -711,41 +711,41 @@ void DrawDealer(float t) {
     auto Ell = [&](Vector2 c, float rx, float ry, Color col) { DrawEllipse((int)c.x, (int)c.y, rx, ry, col); };
     auto Quad = [&](Vector2 a, Vector2 b2, Vector2 c2, Vector2 d, Color col) { DrawTri(a, b2, c2, col); DrawTri(a, c2, d, col); };
     // 1. the back mantle, the widest and darkest layer
-    { Vector2 c = V(0, -76); Ell(c, 52 * sx + 6, 64 * sy + 6, ink); Ell(c, 52 * sx, 64 * sy, cloakDk); }
+    { Vector2 c = V(0, -76); Ell(c, 66 * sx + 6, 70 * sy + 6, ink); Ell(c, 66 * sx, 70 * sy, cloakDk); }
     // 2. the cloak, with a lit left edge and long folds
-    Ell(V(0, -118), 47 * sx + 6, 24 * sy + 6, ink); Ell(V(0, -118), 47 * sx, 24 * sy, cloak);       // rounded, sloping shoulders
-    Quad(V(-38, -120), V(38, -120), V(44, -24), V(-44, -24), ink);
-    Quad(V(-35, -120), V(35, -120), V(41, -26), V(-41, -26), cloak);
-    Quad(V(-35, -120), V(-18, -120), V(-22, -26), V(-41, -26), cloakLt);
+    Ell(V(0, -116), 60 * sx + 6, 30 * sy + 6, ink); Ell(V(0, -116), 60 * sx, 30 * sy, cloak);       // rounded, sloping shoulders
+    { Vector2 b = V(0, -70); Ell(b, 58 * sx + 6, 56 * sy + 6, ink); Ell(b, 58 * sx, 56 * sy, cloak); Ell(V(-20, -68), 30 * sx, 48 * sy, cloakLt); Ell(V(8, -40), 44 * sx, 22 * sy, cloakDk); } // one round, heavy body
+    
+    
     for (int i = -2; i <= 2; i++) DrawLineEx(V(i * 9.0f, -112), V(i * 10.0f + (i > 0 ? 3.0f : -3.0f), -30), 3, cloakDk);
-    DrawLineEx(V(-46, -112), V(-44, -24), 3, Fade(rim, 0.8f));                              // the cold rim light down the left edge
+    DrawRing(V(0, -70), 58 * sx - 3, 58 * sx + 2, 150, 210, 30, Fade(rim, 0.8f));                              // the cold rim light down the left edge
     // 3. the arms and gloved hands, resting on the felt
     for (int s2 = -1; s2 <= 1; s2 += 2) {
-        Vector2 sh = V(s2 * 30.0f, -124), hd = V(s2 * 40.0f, -104);
-        DrawLineEx(sh, hd, 66, ink); DrawLineEx(sh, hd, 58, cloak);
+        Vector2 sh = V(s2 * 42.0f, -122), hd = V(s2 * 52.0f, -102);
+        DrawLineEx(sh, hd, 84, ink); DrawLineEx(sh, hd, 76, cloak);
         if (s2 < 0) DrawLineEx({sh.x - 20, sh.y}, {hd.x - 20, hd.y}, 10, cloakLt);
-        Vector2 cf = V(s2 * 39.5f, -107);
+        Vector2 cf = V(s2 * 51.5f, -105);
         DrawLineEx({cf.x - 30, cf.y}, {cf.x + 30, cf.y}, 16, ink); DrawLineEx({cf.x - 28, cf.y}, {cf.x + 28, cf.y}, 11, brass);   // a brass cuff
-        Vector2 g = V(s2 * 40.5f, -98);
-        Ell(g, 34, 26, ink); Ell(g, 30, 22, glove);
+        Vector2 g = V(s2 * 52.5f, -96);
+        Ell(g, 42, 32, ink); Ell(g, 38, 28, glove);
         for (int i = -1; i <= 1; i++) { DrawLineEx({g.x + i * 13.0f, g.y + 10}, {g.x + i * 13.0f + s2 * 3.0f, g.y + 26}, 11, ink); DrawLineEx({g.x + i * 13.0f, g.y + 10}, {g.x + i * 13.0f + s2 * 3.0f, g.y + 26}, 7, glove); }
         DrawRing({g.x + 13.0f * s2, g.y + 20}, 5, 9, 0, 360, 10, brass);                    // a ring on a finger
         DrawLineEx({g.x - 24, g.y - 12}, {g.x - 8, g.y - 16}, 2, Fade(rim, 0.7f));         // a thin edge of light on the knuckles
     }
     // 4. the mantle over the shoulders, trimmed in brass, with tassels
-    Ell(V(0, -118), 41 * sx + 5, 13 * sy + 5, ink); Ell(V(0, -118), 41 * sx, 13 * sy, cloakLt);
+    Ell(V(0, -117), 54 * sx + 5, 17 * sy + 5, ink); Ell(V(0, -117), 54 * sx, 17 * sy, cloakLt);
     Ell(V(-6, -120), 30 * sx, 8 * sy, Color{48, 58, 88, 255});
-    DrawLineEx(V(-38, -110), V(38, -110), 5, brass);
+    DrawLineEx(V(-50, -108), V(50, -108), 6, brass);
     for (int i = -2; i <= 2; i++) { DrawLineEx(V(i * 15.0f, -109), V(i * 15.0f, -99), 3, brass); Ell(V(i * 15.0f, -98), 5, 5, brass); }
     // 5. the high collar and the hood: peak, lit half, lining, rim light
     DrawTri(V(-34, -126), V(34, -126), V(0, -152), ink);
     DrawTri(V(-30, -126), V(30, -126), V(0, -148), cloakDk);
-    DrawTri(V(-27, -140), V(27, -140), V(1, -178), ink);                                   // a soft peak to the hood, not a cone
-    DrawTri(V(-25, -141), V(25, -141), V(1, -174), cloak);
-    DrawTri(V(-25, -141), V(0, -141), V(-1, -174), cloakLt);
+    DrawTri(V(-27, -140), V(27, -140), V(1, -172), ink);                                   // a soft peak to the hood, not a cone
+    DrawTri(V(-25, -141), V(25, -141), V(1, -168), cloak);
+    DrawTri(V(-25, -141), V(0, -141), V(-1, -168), cloakLt);
     DrawTri(V(-38, -122), V(-20, -150), V(-14, -122), cloak); DrawTri(V(38, -122), V(20, -150), V(14, -122), cloak); // the hood falls in folds to the shoulders
     DrawLineEx(V(-38, -122), V(-24, -156), 3, Fade(rim, 0.9f)); DrawLineEx(V(-25, -141), V(1, -178), 3, Fade(rim, 0.9f));
-    { Vector2 c = V(0, -160); Ell(c, 25 * sx + 5, 25 * sy + 5, ink); Ell(c, 25 * sx, 25 * sy, cloak); Ell(V(0, -159), 21 * sx, 21 * sy, cloakDk); } // the hood and its darker lining
+    { Vector2 c = V(0, -160); Ell(c, 30 * sx + 5, 28 * sy + 5, ink); Ell(c, 30 * sx, 28 * sy, cloak); Ell(V(0, -159), 25 * sx, 23 * sy, cloakDk); } // the hood and its darker lining
     for (int i = -6; i <= 6; i++) { Vector2 p = V(i * 3.4f, -176 + fabsf(i) * 3.6f); DrawRectangle((int)p.x - 2, (int)p.y, 4, 4, Fade(brass, 0.6f)); } // stitched trim
     // 6. the face: mostly shadow, one lit cheek, a brow that hides the eyes
     Ell(V(1, -158), 15.5f * sx, 15.5f * sy, waxDk);
