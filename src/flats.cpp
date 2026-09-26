@@ -14,7 +14,7 @@
 #include "game.h"
 #include "flats_run.h"
 #include "relics.h"
-bool DrawCreaturePixels(const std::string& name, Rectangle box, float dim);
+bool DrawCreaturePixels(const std::string& name, Rectangle box, float dim, int seed = 0);
 #include "rlgl.h"
 #include <algorithm>
 #include <cctype>
@@ -597,73 +597,118 @@ void DrawCardFace(Rectangle r, const Card& c, bool faceUp, int hp = -1, int str 
         DrawCircleV(m, 0.07f * r.width, edge);
         return;
     }
-    Color paper{234, 204, 154, 255}, ink{38, 26, 20, 255};
-    if (c.edition == ED_HEX) paper = Color{206, 178, 170, 255};
-    Color col = SUIT_COL[c.suit];
-    DrawRectangleRounded(r, 0.08f, 6, ColorBrightness(paper, -0.3f));
-    DrawRectangleRounded({r.x + 1.5f * u, r.y + 1.5f * u, r.width - 3 * u, r.height - 3 * u}, 0.08f, 6, paper);
+    // ---- a physical relic salvaged from the sea: a driftwood frame round stained, salt-crusted parchment
+    Color ink{30, 22, 16, 255}, wood{54, 40, 30, 255}, woodLt{86, 66, 48, 255};
+    Color paper{194, 168, 118, 255};
+    if (c.edition == ED_HEX) paper = Color{176, 150, 140, 255};
     unsigned h = (unsigned)(c.id * 131 + c.strength * 31 + 5);
-    for (int k = 0; k < 8; k++) { // foxing, fixed per card
-        h = h * 1664525u + 1013904223u;
-        float fx = ((h >> 8) & 255) / 255.0f, fy = ((h >> 16) & 255) / 255.0f;
-        DrawCircleV({r.x + r.width * (0.12f + 0.76f * fx), r.y + r.height * (0.15f + 0.7f * fy)}, (1.5f + (k % 3)) * u, Fade(Color{150, 100, 50, 255}, 0.13f));
+    auto rnd = [&]() { h = h * 1664525u + 1013904223u; return ((h >> 8) & 0xffff) / 65535.0f; };
+    DrawRectangleRounded(r, 0.035f, 4, wood);
+    for (int k = 0; k < 14; k++) { float y = r.y + rnd() * r.height; DrawLineEx({r.x + 1, y}, {r.x + r.width - 1, y + (rnd() - 0.5f) * 3 * u}, std::max(1.0f, 0.8f * u), Fade(rnd() < 0.5f ? BLACK : woodLt, 0.35f)); }   // driftwood grain
+    Rectangle in{r.x + 5 * u, r.y + 5 * u, r.width - 10 * u, r.height - 10 * u};
+    DrawRectangleRec(in, paper);
+    DrawRectangleGradientV((int)in.x, (int)in.y, (int)in.width, (int)(in.height * 0.5f), Fade(Color{120, 84, 40, 255}, 0.28f), Fade(Color{120, 84, 40, 255}, 0.0f));   // aged, uneven: dark at the top and foot
+    DrawRectangleGradientV((int)in.x, (int)(in.y + in.height * 0.55f), (int)in.width, (int)(in.height * 0.45f), Fade(Color{100, 70, 36, 255}, 0.0f), Fade(Color{80, 54, 26, 255}, 0.42f));
+    for (int k = 0; k < 4; k++) { // water stains: soft blotches with a darker tide-line ring
+        Vector2 sc{in.x + in.width * (0.1f + 0.8f * rnd()), in.y + in.height * (0.1f + 0.8f * rnd())};
+        float rad = (10 + 20 * rnd()) * u;
+        DrawCircleV(sc, rad, Fade(Color{120, 84, 40, 255}, 0.10f));
+        DrawRing(sc, rad - 1.2f * u, rad, 0, 360, 24, Fade(Color{96, 64, 30, 255}, 0.22f));
     }
-    DrawRectangleRoundedLinesEx({r.x + 4 * u, r.y + 4 * u, r.width - 8 * u, r.height - 8 * u}, 0.06f, 6, std::max(1.0f, 1.2f * u), Fade(ink, 0.6f));
-    // the name plate
-    Rectangle plate{r.x + 6 * u, r.y + 6 * u, r.width - 12 * u, 19 * u};
-    DrawRectangleRec(plate, ColorBrightness(col, -0.25f));
-    DrawRectangleRec({plate.x, plate.y + plate.height - 2 * u, plate.width, 2 * u}, Fade(BLACK, 0.3f));
-    int fs = std::max(7, (int)(13 * u));
-    while (fs > 7 && MeasureTxt(c.name, fs, true) > plate.width - 4) fs--;
-    TxtBold(c.name, plate.x + plate.width / 2 - MeasureTxt(c.name, fs, true) / 2.0f, plate.y + (plate.height - fs) / 2 - 1, fs, Color{250, 240, 220, 255});
-    // the medallion
-    Vector2 mid{r.x + r.width / 2, r.y + r.height * 0.44f};
-    float mr = r.width * 0.34f;
-    DrawCircleV(mid, mr, Fade(col, 0.18f));
-    DrawRing(mid, mr - std::max(1.0f, 1.4f * u), mr, 0, 360, 28, Fade(col, 0.7f));
-    if (!DrawCreaturePixels(c.name, {mid.x - mr * 0.92f, mid.y - mr * 0.75f, mr * 1.84f, mr * 1.5f}, 1.0f)) DrawSuitIcon(c.suit, mid, r.width * 0.42f, col);
-    // the cost: drops or bones, at the top left under the plate
+    for (int k = 0; k < 5; k++) { Vector2 mc{in.x + in.width * rnd(), in.y + in.height * rnd()}; DrawCircleV(mc, (3 + 6 * rnd()) * u, Fade(Color{86, 104, 84, 255}, 0.13f)); }   // mildew
+    for (int k = 0; k < 16; k++) DrawCircleV({in.x + in.width * rnd(), in.y + in.height * rnd()}, (0.6f + 1.2f * rnd()) * u, Fade(Color{86, 60, 30, 255}, 0.3f));       // foxing
+    // frayed edges: the driftwood bites back into the parchment
+    for (int side = 0; side < 4; side++) {
+        bool horiz = side < 2;
+        float len = horiz ? in.width : in.height;
+        for (float s = 0; s < len; s += 2.2f * u) {
+            if (rnd() > 0.42f) continue;
+            float w2 = (1.0f + 2.2f * rnd()) * u, d = (0.7f + 1.9f * rnd()) * u;
+            Rectangle q = horiz ? Rectangle{in.x + s, side == 0 ? in.y : in.y + in.height - d, w2, d} : Rectangle{side == 2 ? in.x : in.x + in.width - d, in.y + s, d, w2};
+            DrawRectangleRec(q, wood);
+        }
+    }
+    for (int k = 0; k < 34; k++) { // salt crust along the edges
+        float e = rnd(); Vector2 sp = k % 2 ? Vector2{in.x + in.width * rnd(), e < 0.5f ? in.y + 2 * u * rnd() : in.y + in.height - 2 * u * rnd()} : Vector2{e < 0.5f ? in.x + 2 * u * rnd() : in.x + in.width - 2 * u * rnd(), in.y + in.height * rnd()};
+        DrawCircleV(sp, (0.5f + 1.0f * rnd()) * u, Fade(Color{240, 236, 220, 255}, 0.55f));
+    }
+    DrawRectangleLinesEx({in.x + 3 * u, in.y + 3 * u, in.width - 6 * u, in.height - 6 * u}, std::max(1.0f, 0.7f * u), Fade(ink, 0.22f));
+
+    // ---- the title, printed straight onto the parchment like a faded sign over a bulkhead door
+    int fs = std::max(7, (int)(14 * u));
+    while (fs > 7 && MeasureTxt(c.name, fs, true) > in.width - 8 * u) fs--;
+    float tx = in.x + in.width / 2 - MeasureTxt(c.name, fs, true) / 2.0f, ty = in.y + 4 * u;
+    TxtBold(c.name, tx + 0.7f * u, ty + 0.6f * u, fs, Fade(ink, 0.30f));   // ink bleed
+    TxtBold(c.name, tx, ty, fs, Fade(ink, 0.9f));
+    DrawLineEx({in.x + 8 * u, ty + fs + 3 * u}, {in.x + in.width - 8 * u, ty + fs + 3.4f * u}, std::max(1.0f, 0.8f * u), Fade(ink, 0.45f));
+    DrawLineEx({in.x + 14 * u, ty + fs + 5.6f * u}, {in.x + in.width - 14 * u, ty + fs + 5.8f * u}, std::max(1.0f, 0.5f * u), Fade(ink, 0.25f));
+
+    // ---- the illustration: a big inked well, 55% of the card
+    Rectangle well{in.x + 5 * u, in.y + 0.185f * r.height, in.width - 10 * u, r.height * 0.56f - 5 * u};
+    DrawRectangleRec(well, Fade(Color{60, 42, 24, 255}, 0.20f));
+    for (int k = 0; k < 4; k++) { // a hand-inked, uneven border
+        float j = (rnd() - 0.5f) * 1.6f * u, w2 = std::max(1.0f, (0.8f + rnd() * 0.8f) * u);
+        DrawLineEx({well.x + j, well.y}, {well.x + well.width + j, well.y + j}, w2, Fade(ink, 0.7f));
+        DrawLineEx({well.x + j, well.y + well.height}, {well.x + well.width + j, well.y + well.height - j}, w2, Fade(ink, 0.7f));
+        DrawLineEx({well.x, well.y + j}, {well.x + j, well.y + well.height}, w2, Fade(ink, 0.6f));
+        DrawLineEx({well.x + well.width, well.y + j}, {well.x + well.width + j, well.y + well.height}, w2, Fade(ink, 0.6f));
+    }
+    if (!DrawCreaturePixels(c.name, {well.x + 1.5f * u, well.y + 1.5f * u, well.width - 3 * u, well.height - 3 * u}, 1.0f, c.id)) DrawSuitIcon(c.suit, {well.x + well.width / 2, well.y + well.height / 2}, well.width * 0.6f, SUIT_COL[c.suit]);
+    // the cost, in the well's top-left corner: blood or bones
     if (c.cost != CostType::FREE && c.costAmount > 0) {
         float cs = 11 * u;
-        int n = c.costAmount;
-        for (int i = 0; i < std::min(n, 3); i++) {
-            Vector2 p{r.x + 12 * u + i * 8.5f * u, r.y + 37 * u};
-            if (c.cost == CostType::BLOOD) DrawDrop(p, cs, BLOOD_COL); else DrawBone(p, cs * 0.9f, ColorBrightness(BONE_COL, -0.15f));
+        for (int i = 0; i < std::min(c.costAmount, 3); i++) {
+            Vector2 p{well.x + 8 * u + i * 8.5f * u, well.y + 9 * u};
+            if (c.cost == CostType::BLOOD) DrawDrop(p, cs, BLOOD_COL); else DrawBone(p, cs * 0.9f, ColorBrightness(BONE_COL, -0.1f));
         }
-        if (n > 3) TxtBold(TextFormat("x%d", n), r.x + 12 * u + 3 * 8.5f * u - 2 * u, r.y + 31 * u, std::max(7, (int)(11 * u)), c.cost == CostType::BLOOD ? BLOOD_COL : ColorBrightness(BONE_COL, -0.3f));
+        if (c.costAmount > 3) TxtBold(TextFormat("x%d", c.costAmount), well.x + 8 * u + 3 * 8.5f * u, well.y + 3 * u, std::max(7, (int)(11 * u)), c.cost == CostType::BLOOD ? BLOOD_COL : ColorBrightness(BONE_COL, -0.3f));
     }
-    // sigil badges along the lower half of the art
-    for (size_t i = 0; i < c.sigils.size(); i++) {
-        float bs = 13 * u, gap = 15 * u;
-        Vector2 p{r.x + r.width / 2 + ((float)i - (c.sigils.size() - 1) / 2.0f) * gap, r.y + r.height * 0.7f};
-        DrawCircleV(p, bs * 0.62f, Fade(ink, 0.85f));
-        DrawSigilGlyph(c.sigils[i], p, bs * 0.9f, Color{236, 214, 160, 255});
+    // weight: a worn iron nut in the well's top-right corner
+    {
+        Vector2 wp{well.x + well.width - 9 * u, well.y + 9 * u};
+        DrawPoly(wp, 6, 8 * u + std::max(1.0f, u), 0, ink);
+        DrawPoly(wp, 6, 8 * u, 0, Color{92, 96, 102, 255});
+        DrawPoly(wp, 6, 5.2f * u, 0, Color{60, 64, 70, 255});
+        int wf = std::max(7, (int)(11 * u));
+        const char* s = TextFormat("%d", c.weight);
+        TxtBold(s, wp.x - MeasureTxt(s, wf, true) / 2.0f, wp.y - wf * 0.56f, wf, Color{226, 222, 208, 255});
     }
-    // the three numbers: strength (left), defense (right), weight (top right)
+
+    // ---- the readouts: bone (attack) and driftwood (health) plates on the bottom corners, riveted on
     int shownHp = hp >= 0 ? hp : c.defense, shownStr = str >= 0 ? str : c.strength + (c.edition == ED_FOIL ? 1 : c.edition == ED_HEX ? 2 : 0);
     if (hp < 0 && c.edition == ED_HEX) shownHp = std::max(1, c.defense - 1);
-    int nf = std::max(9, (int)(21 * u));
-    auto badge = [&](Vector2 p, float rad, Color bc, int v, Color tc) {
-        DrawCircleV(p, rad + std::max(1.0f, 1.3f * u), ink);
-        DrawCircleV(p, rad, bc);
-        DrawCircleSector(p, rad, 200, 260, 6, Fade(WHITE, 0.25f));
+    int base = c.strength + (c.edition == ED_FOIL ? 1 : c.edition == ED_HEX ? 2 : 0);
+    int nf = std::max(10, (int)(19 * u));
+    auto plate = [&](Rectangle p, bool bone, int v, Color numeral) {
+        Color face = bone ? Color{212, 198, 160, 255} : Color{66, 48, 34, 255}, edge = bone ? Color{92, 76, 52, 255} : Color{20, 14, 10, 255};
+        DrawRectangleRounded({p.x + 1.2f * u, p.y + 1.6f * u, p.width, p.height}, 0.22f, 4, Fade(BLACK, 0.45f));
+        DrawRectangleRounded(p, 0.22f, 4, face);
+        for (int k = 0; k < 4; k++) DrawLineEx({p.x + 2 * u, p.y + (4 + k * 5) * u}, {p.x + p.width - 2 * u, p.y + (4 + k * 5 + (bone ? 0.6f : -0.6f)) * u}, std::max(1.0f, 0.6f * u), Fade(bone ? Color{120, 100, 70, 255} : Color{110, 84, 60, 255}, 0.35f));
+        DrawRectangleRoundedLinesEx(p, 0.22f, 4, std::max(1.0f, 1.4f * u), edge);
+        for (int k = 0; k < 2; k++) { DrawCircleV({p.x + 3.2f * u, p.y + (k ? p.height - 3.2f * u : 3.2f * u)}, 1.3f * u, edge); DrawCircleV({p.x + p.width - 3.2f * u, p.y + (k ? p.height - 3.2f * u : 3.2f * u)}, 1.3f * u, edge); }
         const char* s = TextFormat("%d", v);
-        TxtBold(s, p.x - MeasureTxt(s, nf, true) / 2.0f, p.y - nf * 0.58f, nf, tc);
+        float sx = p.x + p.width / 2 - MeasureTxt(s, nf, true) / 2.0f, sy = p.y + p.height / 2 - nf * 0.58f;
+        TxtBold(s, sx + 0.7f * u, sy + 0.7f * u, nf, Fade(bone ? Color{255, 250, 230, 255} : BLACK, 0.5f));   // etched
+        TxtBold(s, sx, sy, nf, numeral);
     };
-    Color strTc = shownStr > c.strength + (c.edition == ED_FOIL ? 1 : c.edition == ED_HEX ? 2 : 0) ? Color{190, 255, 190, 255} : shownStr < c.strength ? Color{255, 200, 190, 255} : WHITE;
-    Color hpTc = hp >= 0 && hp < c.defense ? Color{255, 200, 190, 255} : hp > c.defense ? Color{190, 255, 190, 255} : WHITE;
-    badge({r.x + 17 * u, r.y + r.height - 17 * u}, 13.5f * u, STR_COL, shownStr, strTc);
-    badge({r.x + r.width - 17 * u, r.y + r.height - 17 * u}, 13.5f * u, HP_COL, shownHp, hpTc);
-    DrawCircleV({r.x + r.width - 15 * u, r.y + 37 * u}, 9 * u + std::max(1.0f, u), ink);
-    DrawCircleV({r.x + r.width - 15 * u, r.y + 37 * u}, 9 * u, WT_COL);
-    {
-        int wf = std::max(7, (int)(13 * u));
-        const char* s = TextFormat("%d", c.weight);
-        TxtBold(s, r.x + r.width - 15 * u - MeasureTxt(s, wf, true) / 2.0f, r.y + 37 * u - wf * 0.58f, wf, WHITE);
-    }
-    if (c.edition != ED_NONE) DrawEdition(r, c.edition, u);
+    Color strC = shownStr > base ? Color{20, 96, 40, 255} : shownStr < c.strength ? Color{150, 30, 20, 255} : ink;
+    Color hpC = hp >= 0 && hp < c.defense ? Color{255, 150, 120, 255} : hp > c.defense ? Color{170, 255, 170, 255} : Color{238, 224, 190, 255};
+    Rectangle pL{in.x + 3 * u, in.y + in.height - 24 * u, 26 * u, 21 * u}, pR{in.x + in.width - 29 * u, in.y + in.height - 24 * u, 26 * u, 21 * u};
+    plate(pL, true, shownStr, strC);
+    plate(pR, false, shownHp, hpC);
+    // ---- sigils: larger seals, low on the card, centred between the plates
+    int n = (int)c.sigils.size();
+    float bs = 19 * u, gap = bs * 1.08f;
+    for (int i = 0; i < n; i++) {
+        bool top = n == 3 && i == 2;   // a third seal rides above the other two
+        Vector2 p = top ? Vector2{r.x + r.width / 2, in.y + in.height - 15 * u - bs * 1.0f} : Vector2{r.x + r.width / 2 + ((float)i - (std::min(n, 2) - 1) / 2.0f) * gap, in.y + in.height - 13.5f * u};
+        DrawCircleV({p.x + 0.8f * u, p.y + 1.1f * u}, bs * 0.58f, Fade(BLACK, 0.4f));
+        DrawCircleV(p, bs * 0.58f, ink);
+        DrawCircleV(p, bs * 0.52f, Color{52, 38, 26, 255});
+        DrawRing(p, bs * 0.46f, bs * 0.52f, 0, 360, 20, Fade(Color{190, 160, 110, 255}, 0.55f));
+        DrawSigilGlyph(c.sigils[i], p, bs * 0.8f, Color{240, 220, 168, 255});
+    }    if (c.edition != ED_NONE) DrawEdition(r, c.edition, u);
 }
-
 // The inspector: the hovered card large, with every number and sigil spelled out.
 void DrawInspector(const Card& c, int hp, int str) {
     Rectangle p{1006, 70, 262, 396};

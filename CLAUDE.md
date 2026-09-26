@@ -141,3 +141,5 @@ Menu-only, "coming soon": Island, Weeds, Atlantis.
 - New map nodes: Boiling Vents (`RunManager::Vent`, +25% risk per repeat), Scrimshaw Artist (`GameState::totems`, tribe+sigil applied in `Battle::Play`), Abyssal Splicers (`Merge`); Splice is shown as Barnacle Cluster and Sacrifice as The Maelstrom.
 - `depth.exe --flats-sim N` now reports the Sovereign; a sensible bot clears the whole run about 5-10%.
 - Shots: `depth.exe --shots shots/Flats flats` renders every card (`flats_card_NN_name.png`), sheets (`flats_cards_all_*`), components (`flats_components_*`), map events and both boss phases into shots/Flats. Debug pages are `Ph::Showcase` (`DrawShowcase`).
+
+- Flats card face (eighth pass): a salvaged relic: driftwood frame, stained/salt-crusted parchment (DrawCardFace), title printed in ink with no banner, a large inked illustration well (55% of the card) with shaded, dithered pixel sprites (DrawCreaturePixels), bone/driftwood stat plates on the bottom corners, and larger sigil seals between them.

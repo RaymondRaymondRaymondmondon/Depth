@@ -84,29 +84,53 @@ const std::vector<Sprite>& Sprites() {
 }
 }  // namespace
 
-// Draws the named creature's pixel portrait centred in `box`. Returns false if the card has no sprite (the caller draws its suit icon).
-bool DrawCreaturePixels(const std::string& name, Rectangle box, float dim) {
+// Draws the named creature's pixel portrait, filling `box`: heavy ink outline, a muted salvaged palette, light from the upper left with
+// dithered shadow on the lower right, and stamp speckle, so it reads as an inked woodblock rather than a flat icon.
+// Returns false if the card has no sprite (the caller draws its suit icon).
+bool DrawCreaturePixels(const std::string& name, Rectangle box, float dim, int seed) {
     const Sprite* sp = nullptr;
     for (const Sprite& s : Sprites()) if (name == s.name) { sp = &s; break; }
     if (!sp) return false;
     int w = 16, h = (int)sp->rows.size();
-    float cell = std::max(1.0f, (float)(int)(std::min(box.width / w, box.height / 12.0f)));
-    float ox = box.x + (box.width - w * cell) / 2, oy = box.y + (box.height - h * cell) / 2;
-    Color ink = {18, 14, 20, 255};
+    float cell = std::min(box.width / w, box.height / (float)std::max(h, 9));
+    float ox = box.x + (box.width - w * cell) / 2, oy = box.y + (box.height - h * cell) / 2 + cell * 0.4f;
+    Color ink = {20, 14, 12, 255};
     if (dim < 1) ink.a = (unsigned char)(255 * dim);
     auto filled = [&](int x, int y) {
         if (y < 0 || y >= h || x < 0) return false;
         const char* r = sp->rows[y];
         return x < (int)strlen(r) && r[x] != '.';
     };
-    for (int y = 0; y < h; y++)
-        for (int x = 0; x < w; x++) {
+    auto hash = [&](int a, int b, int c) { unsigned v = (unsigned)(a * 73856093 ^ b * 19349663 ^ c * 83492791 ^ seed * 2654435761u); v ^= v >> 13; v *= 1274126177u; v ^= v >> 16; return (v & 1023) / 1023.0f; };
+    DrawEllipse((int)(ox + w * cell / 2), (int)(oy + h * cell), w * cell * 0.38f, cell * 0.8f, Fade(ink, 0.32f));   // ground shadow
+    for (int y = -1; y <= h; y++)
+        for (int x = -1; x <= w; x++) {
             if (filled(x, y)) continue;
-            if (filled(x - 1, y) || filled(x + 1, y) || filled(x, y - 1) || filled(x, y + 1))
-                DrawRectangleRec({ox + x * cell, oy + y * cell, cell, cell}, ink);
+            bool near4 = filled(x - 1, y) || filled(x + 1, y) || filled(x, y - 1) || filled(x, y + 1);
+            bool near8 = near4 || filled(x - 1, y - 1) || filled(x + 1, y - 1) || filled(x - 1, y + 1) || filled(x + 1, y + 1);
+            if (near4 || (near8 && hash(x, y, 9) < 0.55f))   // a heavy, slightly ragged outline
+                DrawRectangleRec({ox + x * cell, oy + y * cell, cell + 0.5f, cell + 0.5f}, ink);
         }
+    float sub = cell / 2;
     for (int y = 0; y < h; y++)
-        for (int x = 0; x < w && x < (int)strlen(sp->rows[y]); x++)
-            if (filled(x, y)) DrawRectangleRec({ox + x * cell, oy + y * cell, cell, cell}, Pal(sp->rows[y][x]));
+        for (int x = 0; x < w && x < (int)strlen(sp->rows[y]); x++) {
+            if (!filled(x, y)) continue;
+            Color base = Pal(sp->rows[y][x]);
+            base = {(unsigned char)(base.r * 0.84f + 150 * 0.16f * 0.9f), (unsigned char)(base.g * 0.84f + 120 * 0.16f * 0.9f), (unsigned char)(base.b * 0.84f + 80 * 0.16f * 0.9f), 255};   // salvaged: a warm, muted cast
+            bool dark = sp->rows[y][x] == 'k';
+            for (int sy = 0; sy < 2; sy++)
+                for (int sx = 0; sx < 2; sx++) {
+                    float sh = 1.10f - 0.32f * ((y + sy * 0.5f) / h) - 0.08f * ((float)x / w);
+                    if (!filled(x - 1, y) && sx == 0) sh *= 1.14f;
+                    if (!filled(x, y - 1) && sy == 0) sh *= 1.14f;
+                    if (!filled(x + 1, y) && sx == 1) sh *= 0.72f;
+                    if (!filled(x, y + 1) && sy == 1) sh *= 0.66f;
+                    if (((x * 2 + sx) + (y * 2 + sy)) % 2 == 0 && sh < 0.98f) sh *= 0.86f;   // dithered shade
+                    if (hash(x * 2 + sx, y * 2 + sy, 3) < 0.07f) sh *= 0.68f;                  // stamp speckle
+                    if (dark) sh = 1.0f;
+                    Color c2{(unsigned char)std::clamp(base.r * sh, 0.0f, 255.0f), (unsigned char)std::clamp(base.g * sh, 0.0f, 255.0f), (unsigned char)std::clamp(base.b * sh, 0.0f, 255.0f), 255};
+                    DrawRectangleRec({ox + x * cell + sx * sub, oy + y * cell + sy * sub, sub + 0.5f, sub + 0.5f}, c2);
+                }
+        }
     return true;
 }
