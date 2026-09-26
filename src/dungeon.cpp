@@ -1803,102 +1803,103 @@ static void DrawSeededSilhouettes(Game& g) {
     }
 }
 
-// The run's atmospheric state: colour grade, weather and light, laid over the finished, inked scene.
-static void DrawLocationTint(Game& g) {
+// The run's atmosphere in two passes. The GRADE (fx=false) is drawn onto the backdrop, before the figures, so the
+// party keeps its true colours; the FX (fx=true) are weather, spores and localised glows drawn after the ink pass.
+static void DrawLocationTint(Game& g, bool fx) {
     auto& d = g.dungeon;
     float t = g.time;
     float seed = (float)(d.visSeed % 997);
     int v = d.atmos;
-    auto tint = [&](Color c) { DrawRectangle(0, 0, SCREEN_W, SCREEN_H, c); };                    // a colour grade
-    auto lightWash = [&](Color c) { BeginBlendMode(BLEND_ADDITIVE); tint(c); EndBlendMode(); };  // light spilling in
+    auto tint = [&](Color c) { if (!fx) DrawRectangle(0, 0, SCREEN_W, SCREEN_H, c); };
+    auto lightWash = [&](Color c) { if (!fx) { BeginBlendMode(BLEND_ADDITIVE); DrawRectangle(0, 0, SCREEN_W, SCREEN_H, c); EndBlendMode(); } };
+    auto glows = [&](auto fn) { if (fx) { BeginBlendMode(BLEND_ADDITIVE); fn(); EndBlendMode(); } };
     switch (d.loc) {
         case Location::Cave:
             if (v == 0) { // pitch black: a tight searchlight round the party, ink beyond it
-                for (int i = 0; i < 8; i++) DrawRing({690, 390}, 300 + i * 30, 340 + i * 30, 0, 360, 48, Fade(Color{0, 0, 0, 255}, 0.14f + i * 0.06f)); // the lamp reaches the whole line, crew and foes
-                DrawRing({690, 390}, 540, 1600, 0, 360, 64, BLACK);
+                if (fx) {
+                    for (int i = 0; i < 8; i++) DrawRing({690, 390}, 300 + i * 30, 340 + i * 30, 0, 360, 48, Fade(Color{0, 0, 0, 255}, 0.14f + i * 0.06f));
+                    DrawRing({690, 390}, 540, 1600, 0, 360, 64, BLACK);
+                }
             } else if (v == 1) { // bloom: cyan and violet bleeding off the walls
                 lightWash(Color{20, 90, 110, 34});
-                BeginBlendMode(BLEND_ADDITIVE);
-                for (int k = 0; k < 9; k++) Glow({fmodf(k * 173.0f + seed * 31, 1280.0f), 120 + fmodf(k * 89.0f, 300.0f)}, 150, k % 2 ? Color{160, 60, 230, 40} : Color{40, 210, 230, 44});
-                EndBlendMode();
+                glows([&] { for (int k = 0; k < 9; k++) Glow({fmodf(k * 173.0f + seed * 31, 1280.0f), 120 + fmodf(k * 89.0f, 300.0f)}, 150, k % 2 ? Color{160, 60, 230, 40} : Color{40, 210, 230, 44}); });
             } else { // silt storm: a grey-brown haze full of drifting dirt
-                tint(Color{92, 84, 70, 92});
-                for (int k = 0; k < 90; k++) {
+                tint(Color{92, 84, 70, 70});
+                if (fx) for (int k = 0; k < 90; k++) {
                     float px = fmodf(k * 67.0f + t * (30 + k % 9 * 5), 1300.0f) - 10, py = fmodf(k * 41.0f + sinf(t + k) * 14, 520.0f) + 50;
                     DrawRectangle((int)px, (int)py, 3, 2, Color{132, 116, 92, 150});
                 }
             }
             break;
         case Location::Island:
-            if (v == 0) { // downpour: charcoal grade, slanted rain, and lightning that lights the black ink for an instant
-                tint(Color{20, 24, 30, 84});
-                for (int k = 0; k < 140; k++) {
-                    float px = fmodf(k * 47.0f + t * 180, 1400.0f) - 60, py = fmodf(k * 31.0f + t * 700 + k * 13, 760.0f) - 20;
-                    DrawLineEx({px, py}, {px - 8, py + 22}, 1.5f, Color{170, 190, 210, 90});
+            if (v == 0) { // downpour: charcoal grade, slanted rain, and lightning
+                tint(Color{20, 24, 30, 60});
+                if (fx) {
+                    for (int k = 0; k < 140; k++) {
+                        float px = fmodf(k * 47.0f + t * 180, 1400.0f) - 60, py = fmodf(k * 31.0f + t * 700 + k * 13, 760.0f) - 20;
+                        DrawLineEx({px, py}, {px - 8, py + 22}, 1.5f, Color{170, 190, 210, 90});
+                    }
+                    float c = fmodf(t + seed * 0.013f, 9.0f);
+                    if (c < 0.22f) { BeginBlendMode(BLEND_ADDITIVE); DrawRectangle(0, 0, SCREEN_W, SCREEN_H, Color{190, 210, 255, (unsigned char)(120 * (1 - c / 0.22f))}); EndBlendMode(); }
                 }
-                float c = fmodf(t + seed * 0.013f, 9.0f);
-                if (c < 0.22f) lightWash(Color{190, 210, 255, (unsigned char)(120 * (1 - c / 0.22f))});
             } else if (v == 1) { // toxic fog: yellow-green rolling over the lower half
-                tint(Color{70, 80, 30, 46});
-                for (int k = 0; k < 7; k++) {
+                tint(Color{70, 80, 30, 36});
+                if (fx) for (int k = 0; k < 7; k++) {
                     float x = fmodf(k * 230.0f + t * 12, 1500.0f) - 150;
-                    DrawEllipse((int)x, 470 + (k % 3) * 30, 260, 70, Color{150, 160, 60, 50});
+                    DrawEllipse((int)x, 470 + (k % 3) * 30, 260, 70, Color{150, 160, 60, 34});
                 }
-                DrawVGradient({0, 360, (float)SCREEN_W, 360}, Fade(Color{120, 130, 40, 255}, 0.0f), Fade(Color{110, 120, 40, 255}, 0.28f));
             } else { // eldritch sunset: a blood-crimson sky and amber rim light
-                DrawVGradient({0, 0, (float)SCREEN_W, 380}, Fade(Color{150, 20, 20, 255}, 0.42f), Fade(Color{60, 10, 20, 255}, 0.0f));
-                lightWash(Color{120, 60, 10, 30});
+                if (!fx) { DrawVGradient({0, 0, (float)SCREEN_W, 380}, Fade(Color{150, 20, 20, 255}, 0.36f), Fade(Color{60, 10, 20, 255}, 0.0f)); }
+                lightWash(Color{120, 60, 10, 26});
             }
             break;
         case Location::Weeds:
             if (v == 0) { // abyssal current: indigo water, marine rot streaming sideways
-                tint(Color{18, 24, 74, 92});
-                for (int k = 0; k < 70; k++) {
+                tint(Color{18, 24, 74, 70});
+                if (fx) for (int k = 0; k < 70; k++) {
                     float px = fmodf(k * 89.0f + t * (120 + k % 5 * 30), 1400.0f) - 60, py = 70 + fmodf(k * 53.0f, 520.0f) + sinf(t * 2 + k) * 6;
                     DrawRectangle((int)px, (int)py, 8 + k % 4 * 3, 2, Color{120, 110, 130, 110});
                 }
             } else if (v == 1) { // fungal rot: lime murk with pulsing spores
-                tint(Color{40, 74, 20, 82});
-                for (int k = 0; k < 30; k++) {
+                tint(Color{40, 74, 20, 60});
+                if (fx) for (int k = 0; k < 30; k++) {
                     float px = fmodf(k * 121.0f + sinf(t * 0.5f + k) * 30, 1280.0f), py = 60 + fmodf(k * 67.0f + t * 6, 520.0f);
                     float pulse = 0.5f + 0.5f * sinf(t * 2.2f + k);
                     Glow({px, py}, 16 + pulse * 10, Color{170, 255, 90, (unsigned char)(40 + 60 * pulse)});
                 }
             } else { // sanguine tide: burgundy water and crimson rim light
-                tint(Color{92, 14, 26, 96});
-                lightWash(Color{110, 20, 20, 30});
+                tint(Color{92, 14, 26, 70});
+                lightWash(Color{110, 20, 20, 24});
             }
             break;
         default: // Atlantis
             if (v == 0) { // cosmic void: magenta and violet energy over cold blue light
-                tint(Color{30, 14, 66, 88});
-                lightWash(Color{40, 60, 140, 24});
-                for (int k = 0; k < 12; k++) {
+                tint(Color{30, 14, 66, 66});
+                lightWash(Color{40, 60, 140, 20});
+                if (fx) for (int k = 0; k < 12; k++) {
                     float px = fmodf(k * 151.0f + t * 6, 1280.0f), py = fmodf(k * 83.0f + t * 3, 480.0f) + 40, a = 40 + 30 * sinf(t * 1.3f + k);
                     DrawRing({px, py}, 5, 6.5f, 0, 360, 6, Color{230, 90, 230, (unsigned char)std::max(0.0f, a)});
                 }
             } else if (v == 1) { // drowned eclipse: drained to slate, gold only where light lands
-                tint(Color{110, 114, 122, 150});
-                BeginBlendMode(BLEND_ADDITIVE);
-                Glow({640, 60}, 300, Color{255, 200, 90, 60});
-                EndBlendMode();
-            } else { // blood moon: red light bleeding up from vents below, shadows pointing skyward
-                tint(Color{60, 6, 10, 70});
-                BeginBlendMode(BLEND_ADDITIVE);
-                for (int k = 0; k < 6; k++) DrawTri({150.0f + k * 210, 560}, {230.0f + k * 210, 560}, {190.0f + k * 210 + sinf(t + k) * 20, 140}, Color{140, 20, 20, 16});
-                Glow({640, 600}, 700, Color{200, 30, 30, 50});
-                EndBlendMode();
+                tint(Color{110, 114, 122, 100});
+                glows([&] { Glow({640, 60}, 300, Color{255, 200, 90, 60}); });
+            } else { // blood moon: red light bleeding up from vents below
+                tint(Color{60, 6, 10, 56});
+                glows([&] {
+                    for (int k = 0; k < 6; k++) DrawTri({150.0f + k * 210, 560}, {230.0f + k * 210, 560}, {190.0f + k * 210 + sinf(t + k) * 20, 140}, Color{140, 20, 20, 16});
+                    Glow({640, 600}, 700, Color{200, 30, 30, 50});
+                });
             }
             break;
     }
-    // the vignette that closes every scene in: black at the edges, hard
-    for (int i = 0; i < 6; i++) DrawRing({640, 360}, 520 + i * 60, 560 + i * 60, 0, 360, 64, Fade(BLACK, 0.06f + i * 0.045f));
+    if (!fx) return;
+    // a soft vignette closes the scene in
+    for (int i = 0; i < 6; i++) DrawRing({640, 360}, 540 + i * 60, 580 + i * 60, 0, 360, 64, Fade(BLACK, 0.05f + i * 0.035f));
     if (d.atmos >= 0) {
         const char* nm = AtmosphereName(d.loc, v);
         Txt(nm, 20, 62, 14, Fade(Pal::Paper, 0.55f));
     }
-}
-static void DrawTopBar(Game& g) {
+}static void DrawTopBar(Game& g) {
     auto& d = g.dungeon;
     DrawVGradient({0, 0, (float)SCREEN_W, 58}, Color{10, 18, 24, 240}, Color{16, 28, 36, 220});
     DrawRectangle(0, 56, SCREEN_W, 3, Pal::BrassDk);
@@ -2213,12 +2214,13 @@ void SceneDungeon(Game& g) {
     DrawSeededSilhouettes(g);
     DrawPathProps(g);
     DrawCaveLighting(g);
+    DrawLocationTint(g, false); // the colour grade is baked into the backdrop, under the figures
     DrawUnitFigures(g);   // after the lightmap: characters keep their own colours instead of being multiplied toward black
     DrawProjectiles(g);
     DrawCaveForeground(g);
     InkPass(1.0f, 1.0f);
     DrawDriftingSpecks(g);
-    DrawLocationTint(g);
+    DrawLocationTint(g, true);
     DrawSparks(g);
     DrawUnitHud(g, actingHero, actingEnemy);
     for (auto& f : d.floats) {

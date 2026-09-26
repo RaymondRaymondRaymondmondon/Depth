@@ -888,12 +888,28 @@ void DrawCrewFigure(const Hero& h, Vector2 ft, float s, bool right, float walk, 
     float y = ft.y - (walking ? fabsf(cosf(walk)) * 2.5f * s : 0);
     // P maps a point written in "facing right, feet at 0" units to the screen, applying the pose:
     // the upper body tilts about the hips, and crouching lowers everything above the feet.
+    // Each class has its own build: height, width, limb bulk and posture, so no two silhouettes match.
+    float cw = 1, chh = 1, bulk = 1, slouch = 0, cHead = 0;
+    if (h.outfit < 0) switch (h.cls) {
+        case HeroClass::Nurse:    cw = 0.9f;  chh = 0.96f; bulk = 0.9f; break;
+        case HeroClass::Diver:    cw = 1.16f; chh = 0.94f; bulk = 1.2f; slouch = 0.05f; break;
+        case HeroClass::Captain:  cw = 0.94f; chh = 1.07f; bulk = 0.95f; slouch = -0.05f; break;
+        case HeroClass::Mechanic: cw = 1.26f; chh = 1.1f;  bulk = 1.4f; slouch = 0.06f; break;
+        case HeroClass::Whaler:   cw = 1.2f;  chh = 1.02f; bulk = 1.25f; slouch = 0.08f; break;
+        case HeroClass::Stowaway: cw = 0.9f;  chh = 0.88f; bulk = 0.85f; slouch = 0.3f; cHead = 0.6f; break;
+        case HeroClass::Merman:   cw = 0.98f; chh = 1.03f; bulk = 1.0f; break;
+        case HeroClass::Queen:    cw = 0.96f; chh = 1.0f;  bulk = 0.95f; slouch = -0.04f; break;
+        case HeroClass::Robot:    cw = 1.24f; chh = 1.12f; bulk = 1.45f; break;
+        case HeroClass::Octopus:  cw = 1.05f; chh = 0.92f; bulk = 1.1f; slouch = 0.12f; cHead = 0.3f; break;
+        case HeroClass::Siren:    cw = 0.88f; chh = 1.04f; bulk = 0.85f; break;
+        default:                  cw = 0.84f; chh = 1.0f;  bulk = 0.8f; break;
+    }
     auto P = [&](float dx, float dy) {
         float up = std::clamp((-dy - 8) / 78.0f, 0.0f, 1.0f);
-        float lean = pose.lean * std::max(0.0f, -dy - 86) * 0.35f;
+        float lean = (pose.lean + slouch) * std::max(0.0f, -dy - 86) * 0.35f;
         float head = std::clamp((-dy - 136) / 6.0f, 0.0f, 1.0f); // the head can bow, snap back and shake
-        return Vector2{x + (dx + lean + pose.crouch * 4 * up + head * (pose.headDown * 4 + shake.x)) * s * f,
-                       y + (dy + pose.crouch * 16 * up + head * (pose.headDown * 6 + shake.y)) * s};
+        return Vector2{x + (dx * cw + lean + pose.crouch * 4 * up + head * ((pose.headDown + cHead) * 4 + shake.x)) * s * f,
+                       y + (dy * chh + pose.crouch * 16 * up + head * ((pose.headDown + cHead) * 6 + shake.y)) * s};
     };
     auto Q = [&](Vector2 bt, Vector2 fT, Vector2 fb, Vector2 bb, Color c) {
         if (f > 0) ShadeQuad(bt, fT, fb, bb, c); else ShadeQuad(fT, bt, bb, fb, c);
@@ -933,8 +949,8 @@ void DrawCrewFigure(const Hero& h, Vector2 ft, float s, bool right, float walk, 
     auto leg = [&](float hx, float fx, float up, Color col) {
         Vector2 hip = P(hx, -86), foot = P(fx, -7 - up);
         Vector2 knee = P((hx + fx) * 0.5f + 5 + pose.crouch * 8, -46 - up * 0.5f + pose.crouch * 4);
-        ShadeLimb(hip, knee, 9.5f * s, 7.8f * s, col);
-        ShadeLimb(knee, foot, 7.6f * s, 5.6f * s, col);
+        ShadeLimb(hip, knee, 9.5f * s * bulk, 7.8f * s * bulk, col);
+        ShadeLimb(knee, foot, 7.6f * s * bulk, 5.6f * s * bulk, col);
         DrawLineEx(L(hip, knee, 0.3f), L(hip, knee, 0.85f), 1.0f * s, Tone(col, -0.35f)); // trouser crease
         Vector2 heel = P(fx - 3, -5 - up), toe = P(fx + 10, -4 - up);
         ShadeLimb(heel, toe, bootW * s, (bootW - 1.2f) * s, boots);
@@ -942,8 +958,8 @@ void DrawCrewFigure(const Hero& h, Vector2 ft, float s, bool right, float walk, 
         DrawCircleV({toe.x - f * 1 * s, toe.y - 2.5f * s}, 1.6f * s, Tone(boots, 0.5f));  // shine on the toe cap
     };
     auto arm = [&](Vector2 sh, Vector2 el, Vector2 hd, Color upper, Color lower) {
-        ShadeLimb(sh, el, 7.6f * s, 6.6f * s, upper);
-        ShadeLimb(el, hd, 6.6f * s, 5.2f * s, lower);
+        ShadeLimb(sh, el, 7.6f * s * bulk, 6.6f * s * bulk, upper);
+        ShadeLimb(el, hd, 6.6f * s * bulk, 5.2f * s * bulk, lower);
         Vector2 cuff = L(el, hd, 0.78f);
         ShadeBall(cuff, 5.8f * s, h.cls == HeroClass::Mechanic ? upper : Tone(trim, -0.1f)); // cuff / rolled sleeve
         ShadeBall(hd, 6.0f * s, glove);
@@ -984,8 +1000,8 @@ void DrawCrewFigure(const Hero& h, Vector2 ft, float s, bool right, float walk, 
 
     // --- torso
     Q(P(-18, -135), P(19, -135), P(15, -86), P(-15, -86), top);
-    ShadeBall(P(-13, -129), 9 * s, sleeve);
-    ShadeBall(P(14, -129), 9 * s, sleeve);
+    ShadeBall(P(-13, -129), 9 * s * bulk, sleeve);
+    ShadeBall(P(14, -129), 9 * s * bulk, sleeve);
     if (npc) switch (h.outfit) {
         case OUT_HELMSMAN: // a double-breasted pea coat
             for (int k = 0; k < 3; k++) { DrawCircleV(P(4, -124 + k * 11.0f), 1.6f * s, trim); DrawCircleV(P(12, -124 + k * 11.0f), 1.6f * s, trim); }

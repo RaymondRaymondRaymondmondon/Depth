@@ -1008,10 +1008,10 @@ void DrawCardTable(float t) {
 }
 // ---------------------------------------------------------------- lighting
 void DrawSalonLighting(float t, int hovered, const std::vector<Vector2>& personLights) {
-    LightsBegin(Color{66, 70, 78, 255});
+    LightsBegin(Color{118, 118, 122, 255});
     // a soft warm fill on whoever's out on the floor, so the crew and cat read as lit figures wherever they
     // walk instead of going nearly silhouette-black between the room's fixed light pools
-    for (const Vector2& at : personLights) AddLight(at, 170, Color{255, 214, 168, 255}, 0.5f);
+    for (const Vector2& at : personLights) AddLight(at, 210, Color{255, 220, 176, 255}, 0.7f);
     Color warm{255, 206, 140, 255}, sea{70, 150, 170, 255};
     float flick = 0.93f + 0.07f * sinf(t * 9) * sinf(t * 3.1f);
     Vector2 ch = Proj(0, 450, 760);
