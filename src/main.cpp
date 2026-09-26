@@ -9,6 +9,7 @@
 //    depth.exe --sprites <file.png>  draw every sprite in the game onto one sheet
 // ============================================================================
 #include "game.h"
+#include "levelgen.h"
 #include "relics.h"
 #include <algorithm>
 #include <cstdlib>
@@ -34,6 +35,21 @@ static void RunScene(Game& g) {
     }
 }
 
+// Starts a platform level on the first generator seed that contains the given set-piece, standing just before it.
+static void ShotAtPiece(Game& g, int level, SetPiece sp, bool ghost = false, int hopsBefore = 1) {
+    unsigned seed = 1;
+    GenLevel gl;
+    for (;; seed++) { gl = GenerateLevel(level, seed, 1.0f); if (gl.setPieces[(int)sp] > 0) break; }
+    g.platLayouts[level] = {(int)seed, 100};
+    if (ghost) g.platLayouts[level].push_back(1);
+    StartPlatform(g, level);
+    for (size_t i = 1; i < gl.path.size(); i++)
+        if (gl.path[i].tag == sp) {
+            const GenWaypoint& w = gl.path[i >= (size_t)hopsBefore ? i - hopsBefore : 0];
+            g.plat.pos = {w.tx * 32.0f + 6, (w.ty - g.plat.genTop + 1) * 32.0f - 26};
+            break;
+        }
+}
 static void TakeShots(const Game& base, const std::string& dir) {
     struct Shot { const char* name; std::function<void(Game&)> setup; };
     const Shot shots[] = {
@@ -69,7 +85,11 @@ static void TakeShots(const Game& base, const std::string& dir) {
         {"pirate", [](Game& g) { g.platLayouts[PL_PIRATE] = {606, 100}; StartPlatform(g, PL_PIRATE); g.plat.pos = g.plat.spawns[1]; }},
         {"pirate_hatch", [](Game& g) { g.platLayouts[PL_PIRATE] = {707, 100}; StartPlatform(g, PL_PIRATE); g.plat.pos = g.plat.spawns[3]; }},
         {"pirate_hold", [](Game& g) { g.platHard = true; g.platLayouts[PL_PIRATE] = {808, 100}; StartPlatform(g, PL_PIRATE); g.plat.pos = g.plat.spawns[4]; }},
-        {"pirate_stairs", [](Game& g) { g.platLayouts[PL_PIRATE] = {909, 100}; StartPlatform(g, PL_PIRATE); g.plat.pos = g.plat.spawns[6]; }},        {"pirate_boss", [](Game& g) { StartPlatform(g, PL_PIRATE); g.plat.pos = {(g.plat.w - 24) * 32 + 150.0f, g.plat.boss.home.y + 40}; }},
+        {"pirate_stairs", [](Game& g) { g.platLayouts[PL_PIRATE] = {909, 100}; StartPlatform(g, PL_PIRATE); g.plat.pos = g.plat.spawns[6]; }},        {"pipes_vent", [](Game& g) { ShotAtPiece(g, PL_PIPES, SetPiece::SteamBoost); g.plat.time = 0.4f; }},
+        {"pipes_crumble", [](Game& g) { ShotAtPiece(g, PL_PIPES, SetPiece::CrumbleRun); }},
+        {"hull_barnacle", [](Game& g) { ShotAtPiece(g, PL_HULL, SetPiece::BarnacleShaft); }},
+        {"pirate_gap", [](Game& g) { ShotAtPiece(g, PL_PIRATE, SetPiece::ShipGap, false, 2); }},
+        {"pirate_ghost", [](Game& g) { ShotAtPiece(g, PL_PIRATE, SetPiece::ShipGap, true, 3); }},        {"pirate_boss", [](Game& g) { StartPlatform(g, PL_PIRATE); g.plat.pos = {(g.plat.w - 24) * 32 + 150.0f, g.plat.boss.home.y + 40}; }},
     };
     std::vector<Shot> all(std::begin(shots), std::end(shots));
     static char names[12][32];

@@ -375,6 +375,10 @@ struct PlatformState {
     bool hard = false;               // Hard keeps the gears and jets; Normal leaves them out
     bool checkpoints = false;        // respawn at the last section reached, but forfeit the relic
     bool bossEnabled = true;         // Hull/Pirate: whether the boss arena has its boss in it
+    bool ghost = false;              // the rare Ghost Ship: undead crew, fog, and everything 1.6x faster
+    struct Crumble { int tx, ty; float t; };
+    std::vector<Crumble> crumbles;   // fragile scaffolding that has been stepped on and is shaking
+    std::vector<std::pair<int, int>> crumbled; // and what has already fallen, so a checkpoint respawn can put it back
     int genTop = 0;                  // generator row 0 sits at this row offset (negative when the arena rises above it)
     bool verifying = false;          // the path search drives the real movement: nothing may permanently change the tiles
 };

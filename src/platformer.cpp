@@ -43,6 +43,7 @@ constexpr float COYOTE = 0.1f, JUMP_BUFFER = 0.14f, STEP = 1.0f / 240; // physic
 // PIXEL_W): so one world pixel is one screen pixel, every sprite is authored on a 2-world-pixel art grid, and
 // nothing is ever stretched, filtered or drawn at a fractional offset.
 constexpr float ZOOM = 0.5f, HUD_PX = 28; // canvas pixels per world pixel; HUD height in canvas pixels
+bool gGhost = false; // the ghost-ship variant is being drawn: skeleton crew, teal fog
 constexpr float ART = 2;                  // one art pixel, in world pixels
 
 #define E "........................"
@@ -298,6 +299,15 @@ void UpdateShots(PlatformState& p, float dt) {
         if (s.kind == 0) {
             s.pos.x += s.vel.x * dt;
             s.pos.y += s.vel.y * dt;
+            for (size_t i = 0; i < p.enemies.size() && s.life > 0; i++) { // friendly fire: a musket ball kills whoever it hits, pirate or parakeet
+                const PlatEnemy& e = p.enemies[i];
+                if (e.type == 'G' || e.type == 'c' || e.type == 'e' || (e.type == 'P' && e.state == 0)) continue;
+                if (CheckCollisionRecs(EnemyBox(e), {s.pos.x - 3, s.pos.y - 3, 6, 6})) {
+                    Burst(p, {e.pos.x + 11, e.pos.y + 12}, 14, e.type == 'p' ? Color{120, 180, 100, 255} : Color{220, 210, 190, 255}, 200, 0.5f, 3);
+                    p.enemies.erase(p.enemies.begin() + i);
+                    s.life = 0;
+                }
+            }
             if (Solid(p, (int)floorf(s.pos.x / T), (int)floorf(s.pos.y / T))) {
                 s.life = 0;
                 for (int k = 0; k < 4; k++) p.particles.push_back({s.pos, {Rnd(-80, 80), Rnd(-120, -20)}, 0.25f, 0.25f, 2, Color{200, 190, 170, 255}});
@@ -320,6 +330,11 @@ void UpdateShots(PlatformState& p, float dt) {
                 s.life = 0.3f;
                 Burst(p, s.pos, 26, Color{255, 170, 60, 255}, 300, 0.5f, 3);
                 Burst(p, s.pos, 12, Color{90, 84, 80, 255}, 140, 0.8f, 4);
+                for (size_t i = 0; i < p.enemies.size();) { // the blast kills any other pirates or parakeets in reach
+                    const PlatEnemy& e = p.enemies[i];
+                    if ((e.type == 'P' || e.type == 'p' || e.type == 'G') && CheckCollisionCircleRec(s.pos, BLAST_R, EnemyBox(e))) p.enemies.erase(p.enemies.begin() + i);
+                    else i++;
+                }
             }
         }
     }
@@ -708,6 +723,9 @@ void Die(PlatformState& p) {
 }
 
 void Respawn(PlatformState& p) {
+    for (auto& q : p.crumbled) if (At(p, q.first, q.second) == '.') p.tiles[q.second][q.first] = 'f'; // the scaffolding is put back
+    p.crumbled.clear();
+    p.crumbles.clear();
     if (!p.checkpoints) BuildLevel(p); // back to the very beginning, as it was
     p.pos = SpawnPoint(p);
     p.shots.clear();
@@ -720,6 +738,15 @@ void Respawn(PlatformState& p) {
 }
 
 // ---------------------------------------------------------------- the player
+// Steam vents ('v', set into the floor) blow a column of steam 5 tiles high for 1.6 s of every 2.6 s, lifting the diver.
+bool VentOn(const PlatformState& p, int tx) { return fmodf(p.time + (tx % 7) * 0.37f, 2.6f) < 1.6f; }
+bool WallIsBarnacle(const PlatformState& p, int side) { // the wall you are wall-jumping off is lined with barnacles: springy
+    float x = side > 0 ? p.pos.x + PW + 0.5f : p.pos.x - 0.5f;
+    int tx = (int)floorf(x / T);
+    for (int ty = (int)floorf((p.pos.y + 4) / T); ty <= (int)floorf((p.pos.y + PH - 4) / T); ty++) if (At(p, tx, ty) == 'b') return true;
+    return false;
+}
+constexpr float GHOST_SPEED = 1.6f;
 void StepPlayer(PlatformState& p, float dir, bool jumpHeld) {
     if (p.wallLock > 0) {
         p.wallLock -= STEP;
@@ -748,8 +775,9 @@ void StepPlayer(PlatformState& p, float dir, bool jumpHeld) {
             p.scale = {0.72f, 1.32f};
             Dust(p, {p.pos.x + PW / 2, p.pos.y + PH}, 5, -p.vel.x / RUN);
         } else if (p.wallCoyote > 0) {
-            p.vel.x = -p.lockSide * WALLJUMP_VX;
-            p.vel.y = -WALLJUMP_VY;
+            float spring = WallIsBarnacle(p, p.lockSide) ? 1.5f : 1.0f; // barnacle springboards fling you 1.5x
+            p.vel.x = -p.lockSide * WALLJUMP_VX * spring;
+            p.vel.y = -WALLJUMP_VY * spring;
             p.wallLock = WALL_LOCK;
             p.wallCoyote = p.jumpBuffer = 0;
             p.facingRight = p.lockSide < 0;
@@ -758,6 +786,15 @@ void StepPlayer(PlatformState& p, float dir, bool jumpHeld) {
         }
     }
 
+    // a steam vent's column lifts whoever is in it
+    {
+        int vx = (int)floorf((p.pos.x + PW / 2) / T), vy = (int)floorf((p.pos.y + PH - 1) / T);
+        for (int k = 0; k <= 5; k++)
+            if (At(p, vx, vy + k) == 'v') {
+                if (VentOn(p, vx)) p.vel.y = std::max(p.vel.y - 9000 * STEP, -540.0f);
+                break;
+            }
+    }
     // gravity is stronger once the jump button is released (short hops) and when falling (snappy arcs)
     p.vel.y += (p.vel.y < 0 ? (jumpHeld ? GRAV_UP : GRAV_UP_RELEASED) : GRAV_DOWN) * STEP;
     if (p.wallSide && p.vel.y > WALL_SLIDE) p.vel.y = std::max(WALL_SLIDE, p.vel.y - 6000 * STEP);
@@ -769,6 +806,26 @@ void StepPlayer(PlatformState& p, float dir, bool jumpHeld) {
     if (p.onGround && !was) {
         p.scale = {1.0f + std::min(0.35f, fallSpeed / 2400), 1.0f - std::min(0.3f, fallSpeed / 2800)};
         if (fallSpeed > 400) Dust(p, {p.pos.x + PW / 2, p.pos.y + PH}, 6, 0);
+    }
+    if (!p.verifying) { // fragile scaffolding: shakes when stood on, and is gone half a second later
+        if (p.onGround)
+            for (int tx = (int)floorf((p.pos.x + 3) / T); tx <= (int)floorf((p.pos.x + PW - 3) / T); tx++) {
+                int ty = (int)floorf((p.pos.y + PH + 1) / T);
+                if (At(p, tx, ty) != 'f') continue;
+                bool has = false;
+                for (auto& c : p.crumbles) has |= c.tx == tx && c.ty == ty;
+                if (!has) p.crumbles.push_back({tx, ty, 0});
+            }
+        for (size_t i = 0; i < p.crumbles.size();) {
+            auto& c = p.crumbles[i];
+            c.t += STEP;
+            if (c.t >= 0.5f) {
+                p.tiles[c.ty][c.tx] = '.';
+                p.crumbled.push_back({c.tx, c.ty});
+                Burst(p, {c.tx * (float)T + 16, c.ty * (float)T + 10}, 8, Color{150, 110, 70, 255}, 140, 0.5f, 3);
+                p.crumbles.erase(p.crumbles.begin() + i);
+            } else i++;
+        }
     }
     p.scale.x += (1 - p.scale.x) * std::min(1.0f, STEP * 14);
     p.scale.y += (1 - p.scale.y) * std::min(1.0f, STEP * 14);
@@ -1340,7 +1397,42 @@ void DrawTile(const PlatformState& p, char c, int x, int y, float t) {
             if (At(p, x, y + 1) != '|') DrawFlange({px + 16, py + T - 3}, 12, true, Pal::BrassDk);
             DrawPipeGrit(px + 9, py, T, false, y);
         } break;
-        case 'x': {
+        case 'f': { // fragile scaffolding: a rusted plank on brackets, shaking when it is about to go
+            float shake = 0;
+            for (auto& c : p.crumbles) if (c.tx == x && c.ty == y) shake = (fmodf(c.t * 40, 2) < 1 ? -2.0f : 2.0f) * std::min(1.0f, c.t * 4);
+            float ox = px + shake;
+            const Color ink{8, 8, 12, 255};
+            DrawRectangle((int)ox, (int)py, T, 13, ink);
+            DrawRectangle((int)ox + 2, (int)py + 2, T - 4, 9, Color{124, 84, 48, 255});
+            DrawRectangle((int)ox + 2, (int)py + 2, T - 4, 2, Color{178, 134, 82, 255});
+            DrawRectangle((int)ox + 2, (int)py + 9, T - 4, 2, Color{70, 44, 26, 255});
+            for (int k = 0; k < 3; k++) DrawRectangle((int)ox + 5 + k * 10, (int)py + 5, 2, 2, Color{60, 58, 62, 255});    // iron nails
+            DrawLineEx({ox + 12, py + 3}, {ox + 15, py + 10}, 1, ink);                                                    // a split
+            for (int k = 0; k < 3; k++) DrawRectangle((int)ox + 18 + k * 3, (int)py + 4 + k, 2, 1, Color{50, 32, 18, 255}); // hatching
+            DrawRectangle((int)ox + 3, (int)py + 13, 3, 6, Color{110, 60, 34, 255});                                      // rusted brackets
+            DrawRectangle((int)ox + T - 6, (int)py + 13, 3, 6, Color{110, 60, 34, 255});
+        } break;
+        case 'v': { // a steam vent set into the floor: a brass grate, and a plume whenever it erupts
+            DrawSolid(p, x, y);
+            DrawRectangle((int)px + 3, (int)py, T - 6, 5, Color{20, 16, 14, 255});
+            for (int k = 0; k < 4; k++) DrawRectangle((int)px + 5 + k * 6, (int)py, 2, 5, Color{176, 132, 56, 255});
+            DrawRectangle((int)px + 2, (int)py - 1, T - 4, 2, Color{184, 140, 60, 255});
+            if (VentOn(p, x))
+                for (int k = 0; k < 7; k++) {
+                    float ph = fmodf(p.time * 1.6f + k * 0.16f + x * 0.17f, 1.0f);
+                    DrawRectangle((int)(px + 7 + sinf(ph * 6 + k) * 5), (int)(py - ph * 5.4f * T), 8 + (int)(ph * 12), 8, Fade(Color{240, 245, 250, 255}, 0.6f * (1 - ph)));
+                }
+            else DrawRectangle((int)px + 12, (int)(py - 6 - fmodf(p.time * 12, 8.0f)), 6, 4, Fade(Color{240, 245, 250, 255}, 0.25f));
+        } break;
+        case 'b': { // a wall crusted with barnacles: it springs a wall jump 1.5x
+            DrawSolid(p, x, y);
+            for (int k = 0; k < 6; k++) {
+                float bx = px + 6 + (k % 2) * 16 + Hs(x * 3.3f + k) * 5, by = py + 4 + (k / 2) * 10 + Hs(y * 5.1f + k) * 3;
+                DrawTri({bx - 6, by + 8}, {bx + 6, by + 8}, {bx, by - 3}, Color{8, 8, 12, 255});
+                DrawTri({bx - 4, by + 7}, {bx + 4, by + 7}, {bx, by - 1}, Color{214, 196, 170, 255});
+                DrawRectangle((int)bx - 1, (int)by, 2, 2, Color{60, 30, 40, 255});
+            }
+        } break;        case 'x': {
             // Every hazard is built INTO the level, never set on top of it: a recessed housing is cut into
             // the floor, framed in the zone's own materials, and the hazard rises out of it.
             if (p.level == PL_PIPES) { // a recessed brass grate over a steam exhaust port
@@ -1538,6 +1630,29 @@ void DrawGlowingBits(const PlatformState& p, int c0, int c1, int r0, int r1, flo
     EndBlendMode();
 }
 
+// The Ghost Ship's crew: bone, tatters and a pale green light in the sockets, in place of the living pirates.
+void DrawSkeletonBody(float x, float y, float f, float t, float lean) {
+    const Color bone{224, 220, 196, 255}, ink{8, 8, 12, 255}, glow{120, 255, 190, 255};
+    float cx = x + 11 + lean;
+    DrawEllipse((int)cx, (int)y + 14, 14, 18, Fade(glow, 0.10f + 0.04f * sinf(t * 4)));
+    for (int s = -1; s <= 1; s += 2) {
+        DrawLineEx({cx + s * 3, y + 21}, {cx + s * 4, y + 30}, 4, ink);
+        DrawLineEx({cx + s * 3, y + 21}, {cx + s * 4, y + 30}, 2, bone);
+        DrawRectangle((int)(cx + s * 4 + (s > 0 ? -1 : -3)), (int)y + 29, 4, 2, ink);
+    }
+    DrawRectangle((int)cx - 6, (int)y + 18, 12, 4, ink); DrawRectangle((int)cx - 5, (int)y + 19, 10, 2, bone);
+    DrawLineEx({cx, y + 9}, {cx, y + 19}, 3, ink); DrawLineEx({cx, y + 9}, {cx, y + 19}, 1.5f, bone);
+    for (int k = 0; k < 4; k++) { DrawRectangle((int)cx - 8, (int)y + 10 + k * 3, 16, 3, ink); DrawRectangle((int)cx - 7, (int)y + 11 + k * 3, 14, 1, bone); }
+    DrawTri({cx - 9, y + 9}, {cx - 2, y + 9}, {cx - 6 + sinf(t * 3) * 2, y + 22}, Color{34, 58, 66, 210});   // a tattered vest
+    DrawTri({cx + 2, y + 9}, {cx + 9, y + 9}, {cx + 7 - sinf(t * 3 + 1) * 2, y + 20}, Color{34, 58, 66, 210});
+    DrawCircle((int)cx, (int)y + 4, 7, ink); DrawCircle((int)cx, (int)y + 4, 5.5f, bone);                      // the skull
+    DrawRectangle((int)cx - 3, (int)y + 8, 6, 4, ink); DrawRectangle((int)cx - 2, (int)y + 8, 4, 2, bone);     // the jaw
+    DrawRectangle((int)cx - 4, (int)y + 2, 3, 3, ink); DrawRectangle((int)cx + 1, (int)y + 2, 3, 3, ink);
+    DrawRectangle((int)(cx - 3 + f * 0.5f), (int)y + 3, 1, 1, glow); DrawRectangle((int)(cx + 2 + f * 0.5f), (int)y + 3, 1, 1, glow);
+    DrawTri({cx - 11, y}, {cx + 11, y}, {cx, y - 9}, Color{22, 34, 40, 255});                                   // a torn tricorn
+    DrawRectangle((int)cx - 10, (int)y - 1, 20, 3, Color{22, 34, 40, 255});
+    DrawTri({cx + 5, y - 4}, {cx + 9, y}, {cx + 9 + sinf(t * 5) * 2, y - 9}, Fade(glow, 0.6f));                  // a green ghostfire wisp
+}
 void DrawEnemy(const PlatEnemy& e, float t) {
     float x = e.pos.x, y = e.pos.y, f = e.dir;
     switch (e.type) {
@@ -1593,6 +1708,14 @@ void DrawEnemy(const PlatEnemy& e, float t) {
                 break;
             }
             float cx = x + 11, lean = e.state == 2 ? f * 3 : 0;
+            if (gGhost) { // the skeleton pirate: same lunge, bare bone
+                DrawSkeletonBody(x, y, f, t, lean);
+                float ang = e.state == 1 ? -1.2f : e.state == 2 ? -0.05f : 0.7f;
+                Vector2 hand{cx + f * 8 + lean, y + 14}, tip{hand.x + f * cosf(ang) * 18, hand.y + sinf(ang) * 18};
+                DrawLineEx(hand, tip, 3.5f, Color{8, 8, 12, 255}); DrawLineEx(hand, tip, 2, Color{170, 210, 200, 255});
+                if (e.state == 2 && e.timer < 0.15f) DrawLineEx({tip.x - f * 10, tip.y - 3}, {tip.x + f * 4, tip.y}, 1, Fade(Color{150, 255, 210, 255}, 0.8f));
+                break;
+            }
             Color skin{214, 164, 124, 255}, shirt{232, 228, 216, 255}, stripe{150, 36, 34, 255}, trousers{56, 46, 72, 255};
             DrawRectangleRec({cx - 6, y + 21, 5, 9}, trousers);
             DrawRectangleRec({cx + 1 + (e.state == 2 ? f * 3 : 0), y + 21, 5, 9}, trousers);
@@ -1619,6 +1742,7 @@ void DrawEnemy(const PlatEnemy& e, float t) {
             float cx = x + 11;
             bool aiming = e.state == 1;
             Color coat{40, 60, 110, 255}, coatDk{26, 40, 78, 255}, skin{206, 156, 118, 255};
+            if (gGhost) DrawSkeletonBody(x, y, f, t, 0); else {
             DrawRectangleRec({cx - 6, y + 20, 5, 10}, Color{50, 40, 36, 255});
             DrawRectangleRec({cx + 1, y + 20, 5, 10}, Color{50, 40, 36, 255});
             DrawRectangleRec({cx - 8, y + 8, 16, 14}, coat);
@@ -1629,6 +1753,7 @@ void DrawEnemy(const PlatEnemy& e, float t) {
             DrawTri({cx - 11, y}, {cx + 11, y}, {cx, y - 9}, Color{30, 26, 34, 255});   // tricorn
             DrawRectangleRec({cx - 10, y - 1, 20, 3}, Color{30, 26, 34, 255});
             DrawCircle((int)(cx + f * 3), (int)y + 3, 1.5f, Pal::Ink);
+            }
             // the musket: resting on his shoulder, or levelled at you
             Vector2 shoulder{cx + f * 2, y + 11};
             float ang = aiming ? atan2f(e.aim.y - shoulder.y, e.aim.x - shoulder.x) : (f > 0 ? -1.0f : PI + 1.0f);
@@ -1768,6 +1893,10 @@ void DrawBlackbeard(const PlatformState& p, const PlatBoss& b, float t) {
     Vector2 hip = P(0, -35 + crouch - bob), chest = P(lean * 0.6f, -55 + crouch * 0.6f - bob), head = P(lean, -66 + crouch * 0.5f - bob);
     float stride = an == BBAnim::Charge ? 13.0f : an == BBAnim::Walk ? 8.0f : an == BBAnim::Windup ? 6.0f : an == BBAnim::Dazed ? 7.0f : 0.0f;
     Color breeches{56, 46, 54, 255}, boot{22, 18, 18, 255}, coat{128, 30, 34, 255}, coatDk{78, 16, 20, 255}, skin{206, 160, 122, 255};
+    if (gGhost) { // Ghost Blackbeard: bone, a drowned teal coat, and a beard of green ghostfire
+        breeches = {36, 50, 58, 255}; coat = {44, 84, 92, 255}; coatDk = {22, 46, 54, 255}; skin = {224, 220, 196, 255};
+        DrawEllipse((int)cx, (int)(fy - 38), 26, 46, Fade(Color{110, 255, 190, 255}, 0.10f + 0.04f * sinf(t * 4)));
+    }
     // ---- far arm and far leg
     auto leg = [&](float phase, Color pants) {
         float sw = sinf(w + phase) * stride, lift = std::max(0.0f, cosf(w + phase)) * (stride > 0 ? 6.0f : 0.0f);
@@ -1803,6 +1932,7 @@ void DrawBlackbeard(const PlatformState& p, const PlatBoss& b, float t) {
     DrawTri(P(0, -33), P(-9.5f, -33), P(-6 - flare * 0.4f, -10), coatDk);
     // ---- torso, sash, buttons, gold trim
     limb(hip, chest, 17, coat);
+    if (gGhost) for (int k = 0; k < 4; k++) DrawLineEx(P(-5, -54 + k * 5.0f), P(6, -54 + k * 5.0f), 1.6f, Color{224, 220, 196, 255}); // ribs through the torn coat
     DrawLineEx(P(4, -50), P(3, -36), 2.4f, coatDk);
     DrawRectangle((int)std::min(hip.x - 9, hip.x + 9), (int)hip.y - 6, 18, 7, Color{176, 132, 52, 255});               // the sash
     DrawRectangle((int)std::min(hip.x - 9, hip.x + 9), (int)hip.y - 6, 18, 2, Color{110, 26, 30, 255});
@@ -1831,7 +1961,7 @@ void DrawBlackbeard(const PlatformState& p, const PlatBoss& b, float t) {
     DrawCircleV(head, 9.5f, INKC);
     DrawCircleV(head, 8, skin);
     DrawEllipse((int)head.x, (int)(head.y + 8), 11, 10, INKC);                                 // the famous beard...
-    DrawEllipse((int)head.x, (int)(head.y + 7), 9, 8, Color{22, 20, 22, 255});
+    DrawEllipse((int)head.x, (int)(head.y + 7), 9, 8, gGhost ? Color{40, 130, 96, 255} : Color{22, 20, 22, 255});
     for (int k = 0; k < 3; k++) {                                                              // ...with fuses smoking in it
         Vector2 fz{head.x - 6 + k * 6.0f, head.y + 12};
         DrawCircleV(fz, 1.5f, Color{255, 140, 40, 255});
@@ -1839,7 +1969,7 @@ void DrawBlackbeard(const PlatformState& p, const PlatBoss& b, float t) {
         DrawCircleV({fz.x + sinf(ph * 6 + k) * 3, fz.y - 5 - ph * 18}, 2 + ph * 3, Fade(Color{150, 150, 150, 255}, 0.55f * (1 - ph)));
     }
     DrawRectangle((int)head.x - 8, (int)head.y - 4, 16, 5, INKC);                              // the brow shadow: no eyes, just a glint
-    DrawRectangle((int)(head.x + f * 3), (int)head.y - 3, 2, 2, an == BBAnim::Windup || an == BBAnim::Charge ? Color{255, 70, 50, 255} : Color{214, 210, 190, 255});
+    DrawRectangle((int)(head.x + f * 3), (int)head.y - 3, 2, 2, an == BBAnim::Windup || an == BBAnim::Charge ? Color{255, 70, 50, 255} : gGhost ? Color{120, 255, 190, 255} : Color{214, 210, 190, 255});
     DrawTri({head.x - 15, head.y - 5}, {head.x + 15, head.y - 5}, {head.x, head.y - 20}, INKC);        // the tricorn
     DrawTri({head.x - 13, head.y - 6}, {head.x + 13, head.y - 6}, {head.x, head.y - 17}, Color{34, 30, 40, 255});
     DrawRectangle((int)head.x - 15, (int)head.y - 7, 30, 4, INKC);
@@ -1969,7 +2099,7 @@ namespace { bool ValidateGenerated(int level, const GenLevel& gl, int* failedHop
 // on the critical path is searched with the real movement code, and a level that fails is thrown away.
 bool PlatLayoutValid(const Game& g, int level) {
     const std::vector<int>& l = g.platLayouts[level];
-    return l.size() == 2 && l[0] > 0 && l[1] >= 40 && l[1] <= 100;
+    return (l.size() == 2 || l.size() == 3) && l[0] > 0 && l[1] >= 40 && l[1] <= 100;
 }
 
 void GeneratePlatLayout(Game& g, int level) {
@@ -1977,14 +2107,19 @@ void GeneratePlatLayout(Game& g, int level) {
         unsigned seed = (unsigned)GetRandomValue(1, 999999);
         int scale = 100 - (attempt / 20) * 6; // a level that keeps failing is eased off
         GenLevel gl = GenerateLevel(level, seed, scale / 100.0f);
-        if (ValidateGenerated(level, gl, nullptr)) { g.platLayouts[level] = {(int)seed, scale}; return; }
+        if (ValidateGenerated(level, gl, nullptr)) {
+            g.platLayouts[level] = {(int)seed, scale};
+            if (level == PL_PIRATE && GetRandomValue(1, 100) <= 12) g.platLayouts[level].push_back(1); // rarely, the ship is a ghost ship
+            return;
+        }
     }
     g.platLayouts[level] = {1, 60};
 }
 
 std::string PlatLayoutCode(const Game& g, int level) {
     const std::vector<int>& l = g.platLayouts[level];
-    return l.size() == 2 ? TextFormat("#%06d", l[0]) : "(new)";
+    if (l.size() < 2) return "(new)";
+    return l.size() == 3 && l[2] ? TextFormat("#%06d GHOST", l[0]) : TextFormat("#%06d", l[0]);
 }
 void StartPlatform(Game& g, int level) {
     if (!PlatLayoutValid(g, level)) GeneratePlatLayout(g, level); // e.g. a save from before the generator
@@ -1992,6 +2127,7 @@ void StartPlatform(Game& g, int level) {
     g.plat.level = level;
     g.plat.layoutCode = PlatLayoutCode(g, level);
     g.plat.layout = g.platLayouts[level];
+    g.plat.ghost = level == PL_PIRATE && g.plat.layout.size() == 3 && g.plat.layout[2] != 0;
     g.plat.hard = g.platHard;
     g.plat.checkpoints = g.platCheckpoints;
     g.plat.bossEnabled = level == PL_HULL ? g.platHullBoss : level == PL_PIRATE ? g.platPirateBoss : true;
@@ -2015,6 +2151,7 @@ static void DrawLampDarkness(Vector2 c, float r, float maxA) {
 
 void ScenePlatformer(Game& g) {
     auto& p = g.plat;
+    gGhost = p.ghost;
     float dt = std::min(GetFrameTime(), 0.05f);
 
     // ---------------- update
@@ -2054,9 +2191,10 @@ void ScenePlatformer(Game& g) {
                 if (p.checkpoints) Burst(p, {p.pos.x + PW / 2, p.pos.y}, 12, Pal::Good, 140, 0.5f, 2);
             }
         }
-        UpdateEnemies(p, dt);
-        UpdateBoss(p, dt);
-        UpdateShots(p, dt);
+        float ed = p.ghost ? dt * GHOST_SPEED : dt; // ghosts move, aim, fire and charge 1.6x faster
+        UpdateEnemies(p, ed);
+        UpdateBoss(p, ed);
+        UpdateShots(p, ed);
 
         // touching an enemy is deadly; only a boss can be stomped
         if (p.deathTimer <= 0 && !p.finished) {
@@ -2187,6 +2325,10 @@ void ScenePlatformer(Game& g) {
         DrawDiver(p);
     }
     EndMode2D();
+    if (p.ghost) { // a cold teal grade and drifting fog
+        DrawRectangle(0, 0, PIXEL_W + 2, PIXEL_H + 2, Color{26, 78, 96, 72});
+        for (int k = 0; k < 6; k++) DrawEllipse((int)(fmodf(k * 137.0f + t * 9 * (1 + k % 3), PIXEL_W + 240.0f) - 120), (int)(HUD_PX + 50 + k * 46), 130, 14, Color{170, 235, 230, 26});
+    }
     if (Lv(p.level).dark) {
         Vector2 lamp = GetWorldToScreen2D({p.pos.x + PW / 2 + (p.facingRight ? 14.0f : -14.0f), p.pos.y + 6}, cam);
         DrawLampDarkness(lamp, (p.hard ? 120.0f : 148.0f) * (1 + p.lampPct / 100.0f), p.hard ? 0.82f : 0.74f); // Normal lights more of the duct
@@ -2213,7 +2355,7 @@ void ScenePlatformer(Game& g) {
     Txt(TextFormat("Deaths %d", p.deaths), 720, 18, 19, Pal::Paper);
     Txt(TextFormat("%.1fs", p.time), 840, 18, 19, Pal::Paper);
     if (p.boss.type && !p.boss.defeated && p.pos.x > (p.w - CH_W - 2) * (float)T) {
-        const char* name = p.boss.type == 'K' ? "KRAKEN" : "BLACKBEARD";
+        const char* name = p.boss.type == 'K' ? "KRAKEN" : p.ghost ? "GHOST BLACKBEARD" : "BLACKBEARD";
         TxtBold(name, 930, 18, 19, Pal::Bad);
         for (int k = 0; k < 3; k++) DrawCircle(1060 + MeasureTxt(name, 19, true) - 110 + k * 18, 28, 6, k < p.boss.hp ? Pal::Bad : Color{60, 50, 50, 255});
     }

@@ -33,3 +33,8 @@
 4. **Enemies**: per-creature bespoke animation (idle, attack lunge) beyond the shared bob; art pass to give each archetype more anatomy.
 5. **Balance**: level-0 Cave sim is about 51% wins (was 67%); tune level bosses with `--sim`.
 6. **Props**: weighted decor props along the path (skulls, anchors, crates, idols) placed from `visSeed` per step.
+
+
+## Platformer generator (latest)
+- Kinematic level generator replaces the chunk system; hops validated with the real movement code; steam vents, crumbling scaffolds, barnacle springboards, friendly fire, Ghost Ship variant.
+- Not yet built from the design brief: swaying seaweed, falling stalactites, rotating solid gears, ropes/masts, bomb-jumping and cannons.
