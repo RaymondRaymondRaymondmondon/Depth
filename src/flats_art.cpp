@@ -1,7 +1,9 @@
 // Pixel-art portraits for the Flats creature cards: one small sprite per card name, drawn as crisp squares with an ink outline.
 #include "raylib.h"
 #include <algorithm>
+#include <cmath>`n#include <cmath>
 #include <cstring>
+#include <map>`n#include <map>
 #include <string>
 #include <vector>
 
@@ -84,53 +86,167 @@ const std::vector<Sprite>& Sprites() {
 }
 }  // namespace
 
-// Draws the named creature's pixel portrait, filling `box`: heavy ink outline, a muted salvaged palette, light from the upper left with
-// dithered shadow on the lower right, and stamp speckle, so it reads as an inked woodblock rather than a flat icon.
-// Returns false if the card has no sprite (the caller draws its suit icon).
+// ---------------------------------------------------------------- from concept grid to a painted, lit illustration
+// The hand-drawn grid is only the concept. Each creature is rebuilt once as a high-resolution image: the blocky silhouette is smoothed
+// into an organic outline, the height of the body is inferred so it can be lit from the upper left (diffuse, a glossy highlight, ambient
+// occlusion and a dark rim), then skin detail is added (scale pattern, fine grain, crosshatching in shadow) and a thin ink line drawn
+// round it. The result is drawn scaled down with mipmaps, so it reads as a real, inked creature rather than big squares.
+namespace {
+using FVec = std::vector<float>;
+
+void BoxBlur(FVec& v, int W, int H, int r, int passes) {
+    FVec tmp(v.size());
+    for (int p = 0; p < passes; p++) {
+        for (int y = 0; y < H; y++) { // horizontal running sum
+            float sum = 0; int cnt = 0;
+            for (int x = -r; x <= r; x++) if (x >= 0 && x < W) { sum += v[y * W + x]; cnt++; }
+            for (int x = 0; x < W; x++) {
+                tmp[y * W + x] = sum / (2 * r + 1);
+                int add = x + r + 1, rem = x - r;
+                if (add < W) sum += v[y * W + add];
+                if (rem >= 0) sum -= v[y * W + rem];
+            }
+            (void)cnt;
+        }
+        for (int x = 0; x < W; x++) { // vertical
+            float sum = 0;
+            for (int y = -r; y <= r; y++) if (y >= 0 && y < H) sum += tmp[y * W + x];
+            for (int y = 0; y < H; y++) {
+                v[y * W + x] = sum / (2 * r + 1);
+                int add = y + r + 1, rem = y - r;
+                if (add < H) sum += tmp[add * W + x];
+                if (rem >= 0) sum -= tmp[rem * W + x];
+            }
+        }
+    }
+}
+float SStep(float a, float b, float x) { float t = std::clamp((x - a) / (b - a), 0.0f, 1.0f); return t * t * (3 - 2 * t); }
+float Hash2(int x, int y) { unsigned v = (unsigned)(x * 73856093 ^ y * 19349663); v ^= v >> 13; v *= 1274126177u; v ^= v >> 16; return (v & 1023) / 1023.0f; }
+
+constexpr int SC = 3, PADC = 4, UP = 4, OC = SC * UP;   // pixels per (4x upscaled) cell, the margin, the upscale factor, and pixels per ORIGINAL cell
+
+struct Painted { Texture2D tex{}; int gw = 0, gh = 0; bool ok = false; };
+
+Painted Paint(const Sprite& sp) {
+    Painted out;
+    // first the concept grid is upscaled 4x with the edge-aware EPX rule (twice), which rounds diagonals and curves without smearing detail
+    std::vector<std::string> g0;
+    for (const char* row : sp.rows) { std::string s = row; s.resize(16, '.'); g0.push_back(s); }
+    for (int pass = 0; pass < 2; pass++) {
+        int h0 = (int)g0.size(), w0 = (int)g0[0].size();
+        std::vector<std::string> g1(h0 * 2, std::string(w0 * 2, '.'));
+        auto at = [&](int x, int y, char self) { return (x < 0 || y < 0 || x >= w0 || y >= h0) ? '.' : g0[y][x]; (void)self; };
+        for (int y = 0; y < h0; y++) for (int x = 0; x < w0; x++) {
+            char P = g0[y][x], A = at(x, y - 1, P), B = at(x + 1, y, P), C = at(x - 1, y, P), D = at(x, y + 1, P);
+            char p1 = P, p2 = P, p3 = P, p4 = P;
+            if (C == A && C != D && A != B) p1 = A;
+            if (A == B && A != C && B != D) p2 = B;
+            if (D == C && D != B && C != A) p3 = C;
+            if (B == D && B != A && D != C) p4 = D;
+            g1[y * 2][x * 2] = p1; g1[y * 2][x * 2 + 1] = p2; g1[y * 2 + 1][x * 2] = p3; g1[y * 2 + 1][x * 2 + 1] = p4;
+        }
+        g0 = g1;
+    }
+    int rows = (int)g0.size(), cols = (int)g0[0].size(), gw = cols + 2 * PADC, gh = rows + 2 * PADC, W = gw * SC, H = gh * SC;
+    std::vector<float> m(gw * gh, 0.0f), cr(gw * gh, 0.0f), cg(gw * gh, 0.0f), cb(gw * gh, 0.0f);
+    for (int y = 0; y < rows; y++)
+        for (int x = 0; x < cols; x++) {
+            char ch = g0[y][x];
+            if (ch == '.') continue;
+            Color c = Pal(ch);
+            int i = (y + PADC) * gw + x + PADC;
+            m[i] = 1; cr[i] = c.r; cg[i] = c.g; cb[i] = c.b;
+        }
+    FVec a1(W * H), R(W * H), G(W * H), B(W * H);
+    for (int py = 0; py < H; py++)
+        for (int px = 0; px < W; px++) {
+            float fx = (px + 0.5f) / SC - 0.5f, fy = (py + 0.5f) / SC - 0.5f;
+            int ix = (int)floorf(fx), iy = (int)floorf(fy);
+            float tx = fx - ix, ty = fy - iy, asum = 0, rs = 0, gs = 0, bs = 0;
+            for (int dy = 0; dy < 2; dy++)
+                for (int dx = 0; dx < 2; dx++) {
+                    int cx = std::clamp(ix + dx, 0, gw - 1), cy = std::clamp(iy + dy, 0, gh - 1);
+                    float wgt = (dx ? tx : 1 - tx) * (dy ? ty : 1 - ty);
+                    int i = cy * gw + cx;
+                    asum += wgt * m[i]; rs += wgt * cr[i]; gs += wgt * cg[i]; bs += wgt * cb[i];
+                }
+            int o = py * W + px;
+            a1[o] = asum;
+            if (asum > 1e-4f) { R[o] = rs / asum; G[o] = gs / asum; B[o] = bs / asum; }
+        }
+    // colours bleed a little into each other: a painted look, not flat fills
+    FVec Rb = R, Gb = G, Bb = B, wgtv = a1;
+    for (size_t i = 0; i < Rb.size(); i++) { Rb[i] *= a1[i]; Gb[i] *= a1[i]; Bb[i] *= a1[i]; }
+    BoxBlur(Rb, W, H, 1, 1); BoxBlur(Gb, W, H, 1, 1); BoxBlur(Bb, W, H, 1, 1); BoxBlur(wgtv, W, H, 1, 1);
+    FVec a2 = a1, hgt = a1;
+    BoxBlur(a2, W, H, 3, 2);          // the organic silhouette (small radius, so fins and tentacles survive)
+    BoxBlur(hgt, W, H, 11, 3);        // the body's swell: what the light bends round
+    std::vector<unsigned char> px(W * H * 4, 0);
+    const float lx = -0.52f, ly = -0.62f, lz = 0.59f, ll = sqrtf(lx * lx + ly * ly + lz * lz);
+    const float Lx = lx / ll, Ly = ly / ll, Lz = lz / ll;
+    float hx = Lx, hy = Ly, hz = Lz + 1, hl = sqrtf(hx * hx + hy * hy + hz * hz); hx /= hl; hy /= hl; hz /= hl;
+    for (int y = 1; y < H - 1; y++)
+        for (int x = 1; x < W - 1; x++) {
+            int o = y * W + x;
+            float a = a2[o];
+            if (a < 0.10f) continue;
+            unsigned char* q = &px[o * 4];
+            // ink line: the halo just outside the body
+            if (a < 0.47f) {
+                q[0] = 22; q[1] = 15; q[2] = 12; q[3] = (unsigned char)(255 * SStep(0.10f, 0.20f, a));
+                continue;
+            }
+            float wv = std::max(wgtv[o], 1e-3f);
+            float r = Rb[o] / wv, g = Gb[o] / wv, b = Bb[o] / wv;
+            r = r * 0.86f + 150 * 0.14f; g = g * 0.86f + 118 * 0.14f; b = b * 0.86f + 78 * 0.14f;   // salvaged, warm cast
+            float dhx = hgt[o + 1] - hgt[o - 1], dhy = hgt[o + W] - hgt[o - W], dax = a2[o + 1] - a2[o - 1], day = a2[o + W] - a2[o - W];
+            float nx = -(dhx * 30 + dax * 2.6f), ny = -(dhy * 30 + day * 2.6f), nz = 1;
+            float nl = sqrtf(nx * nx + ny * ny + nz * nz); nx /= nl; ny /= nl; nz /= nl;
+            float diff = std::max(0.0f, nx * Lx + ny * Ly + nz * Lz), spec = powf(std::max(0.0f, nx * hx + ny * hy + nz * hz), 28.0f) * 0.32f;
+            float shade = 0.40f + 0.82f * diff;
+            shade *= 0.72f + 0.28f * SStep(0.47f, 0.62f, a);                       // dark rim where the form turns away
+            // skin: a staggered scale pattern and fine grain
+            float su = x / 8.5f, sv = y / 7.0f + ((int)floorf(su) % 2 ? 0.5f : 0.0f);
+            float fu = su - floorf(su) - 0.5f, fv = sv - floorf(sv) - 0.5f;
+            float scale = SStep(0.30f, 0.52f, sqrtf(fu * fu * 0.9f + fv * fv * 1.2f));
+            shade *= 1.0f - 0.07f * scale * SStep(0.5f, 0.9f, wv);
+            shade *= 0.93f + 0.14f * Hash2(x, y);
+            {   // inked linework where one colour region meets another (fins, belly, eyes, hat brims)
+                auto lum = [&](int i) { return 0.3f * R[i] + 0.59f * G[i] + 0.11f * B[i]; };
+                float grad = fabsf(lum(o + 1) - lum(o - 1)) + fabsf(lum(o + W) - lum(o - W));
+                if (a1[o] > 0.9f && a1[o + 1] > 0.9f && a1[o - 1] > 0.9f && a1[o + W] > 0.9f && a1[o - W] > 0.9f) shade *= 1.0f - 0.85f * SStep(9.0f, 24.0f, grad) * 0.8f;
+            }
+            if (shade < 0.62f && fmodf((x + y) / 5.0f, 1.0f) < 0.22f) shade *= 0.78f;          // crosshatch in the shadow
+            float rr = r * shade + spec * 255, gg = g * shade + spec * 255, bb = b * shade + spec * 255;
+            q[0] = (unsigned char)std::clamp(rr, 0.0f, 255.0f); q[1] = (unsigned char)std::clamp(gg, 0.0f, 255.0f); q[2] = (unsigned char)std::clamp(bb, 0.0f, 255.0f);
+            q[3] = 255;
+        }
+    Image img{px.data(), W, H, 1, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8};
+    out.tex = LoadTextureFromImage(img);
+    GenTextureMipmaps(&out.tex);
+    SetTextureFilter(out.tex, TEXTURE_FILTER_TRILINEAR);
+    out.gw = gw; out.gh = gh; out.ok = out.tex.id != 0;
+    return out;
+}
+std::map<std::string, Painted>& PaintCache() { static std::map<std::string, Painted> c; return c; }
+}  // namespace
+
+// Draws the named creature filling `box`. Returns false if the card has no sprite (the caller draws its suit icon).
 bool DrawCreaturePixels(const std::string& name, Rectangle box, float dim, int seed) {
+    (void)seed;
     const Sprite* sp = nullptr;
     for (const Sprite& s : Sprites()) if (name == s.name) { sp = &s; break; }
     if (!sp) return false;
-    int w = 16, h = (int)sp->rows.size();
-    float cell = std::min(box.width / w, box.height / (float)std::max(h, 9));
-    float ox = box.x + (box.width - w * cell) / 2, oy = box.y + (box.height - h * cell) / 2 + cell * 0.4f;
-    Color ink = {20, 14, 12, 255};
-    if (dim < 1) ink.a = (unsigned char)(255 * dim);
-    auto filled = [&](int x, int y) {
-        if (y < 0 || y >= h || x < 0) return false;
-        const char* r = sp->rows[y];
-        return x < (int)strlen(r) && r[x] != '.';
-    };
-    auto hash = [&](int a, int b, int c) { unsigned v = (unsigned)(a * 73856093 ^ b * 19349663 ^ c * 83492791 ^ seed * 2654435761u); v ^= v >> 13; v *= 1274126177u; v ^= v >> 16; return (v & 1023) / 1023.0f; };
-    DrawEllipse((int)(ox + w * cell / 2), (int)(oy + h * cell), w * cell * 0.38f, cell * 0.8f, Fade(ink, 0.32f));   // ground shadow
-    for (int y = -1; y <= h; y++)
-        for (int x = -1; x <= w; x++) {
-            if (filled(x, y)) continue;
-            bool near4 = filled(x - 1, y) || filled(x + 1, y) || filled(x, y - 1) || filled(x, y + 1);
-            bool near8 = near4 || filled(x - 1, y - 1) || filled(x + 1, y - 1) || filled(x - 1, y + 1) || filled(x + 1, y + 1);
-            if (near4 || (near8 && hash(x, y, 9) < 0.55f))   // a heavy, slightly ragged outline
-                DrawRectangleRec({ox + x * cell, oy + y * cell, cell + 0.5f, cell + 0.5f}, ink);
-        }
-    float sub = cell / 2;
-    for (int y = 0; y < h; y++)
-        for (int x = 0; x < w && x < (int)strlen(sp->rows[y]); x++) {
-            if (!filled(x, y)) continue;
-            Color base = Pal(sp->rows[y][x]);
-            base = {(unsigned char)(base.r * 0.84f + 150 * 0.16f * 0.9f), (unsigned char)(base.g * 0.84f + 120 * 0.16f * 0.9f), (unsigned char)(base.b * 0.84f + 80 * 0.16f * 0.9f), 255};   // salvaged: a warm, muted cast
-            bool dark = sp->rows[y][x] == 'k';
-            for (int sy = 0; sy < 2; sy++)
-                for (int sx = 0; sx < 2; sx++) {
-                    float sh = 1.10f - 0.32f * ((y + sy * 0.5f) / h) - 0.08f * ((float)x / w);
-                    if (!filled(x - 1, y) && sx == 0) sh *= 1.14f;
-                    if (!filled(x, y - 1) && sy == 0) sh *= 1.14f;
-                    if (!filled(x + 1, y) && sx == 1) sh *= 0.72f;
-                    if (!filled(x, y + 1) && sy == 1) sh *= 0.66f;
-                    if (((x * 2 + sx) + (y * 2 + sy)) % 2 == 0 && sh < 0.98f) sh *= 0.86f;   // dithered shade
-                    if (hash(x * 2 + sx, y * 2 + sy, 3) < 0.07f) sh *= 0.68f;                  // stamp speckle
-                    if (dark) sh = 1.0f;
-                    Color c2{(unsigned char)std::clamp(base.r * sh, 0.0f, 255.0f), (unsigned char)std::clamp(base.g * sh, 0.0f, 255.0f), (unsigned char)std::clamp(base.b * sh, 0.0f, 255.0f), 255};
-                    DrawRectangleRec({ox + x * cell + sx * sub, oy + y * cell + sy * sub, sub + 0.5f, sub + 0.5f}, c2);
-                }
-        }
+    auto& cache = PaintCache();
+    auto it = cache.find(name);
+    if (it == cache.end()) it = cache.emplace(name, Paint(*sp)).first;
+    const Painted& p = it->second;
+    if (!p.ok) return false;
+    int rows = (int)sp->rows.size();
+    float scale = std::min(box.width / (16.0f * OC), box.height / (std::max(rows, 9) * (float)OC));
+    float dw = p.tex.width * scale, dh = p.tex.height * scale;
+    float dx = box.x + (box.width - dw) / 2, dy = box.y + (box.height - dh) / 2 + scale * OC * 0.3f;
+    DrawEllipse((int)(dx + dw / 2), (int)(dy + dh - scale * OC * (1 + 0.3f)), dw * 0.36f, scale * OC * 0.8f, Fade(Color{20, 14, 12, 255}, 0.30f * dim));
+    DrawTexturePro(p.tex, {0, 0, (float)p.tex.width, (float)p.tex.height}, {dx, dy, dw, dh}, {0, 0}, 0, Fade(WHITE, dim));
     return true;
 }

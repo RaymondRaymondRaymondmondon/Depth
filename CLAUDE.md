@@ -143,3 +143,5 @@ Menu-only, "coming soon": Island, Weeds, Atlantis.
 - Shots: `depth.exe --shots shots/Flats flats` renders every card (`flats_card_NN_name.png`), sheets (`flats_cards_all_*`), components (`flats_components_*`), map events and both boss phases into shots/Flats. Debug pages are `Ph::Showcase` (`DrawShowcase`).
 
 - Flats card face (eighth pass): a salvaged relic: driftwood frame, stained/salt-crusted parchment (DrawCardFace), title printed in ink with no banner, a large inked illustration well (55% of the card) with shaded, dithered pixel sprites (DrawCreaturePixels), bone/driftwood stat plates on the bottom corners, and larger sigil seals between them.
+
+- Card art (ninth pass): creature sprites are rebuilt once into lit, painted high-res textures (Paint in flats_art.cpp: EPX 4x upscale of the grid, smoothed silhouette, height-lit shading, inked colour edges, scale grain, ink outline; cached per name). Board cards print larger (kf), the header plate is worn into the parchment, card backs are weathered (driftwood, net, stamped ship's wheel), and the bell moved down so the inspector never covers it.

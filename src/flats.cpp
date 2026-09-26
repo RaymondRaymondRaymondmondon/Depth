@@ -609,44 +609,65 @@ void DrawSplat(int variant, Vector2 c, float px) {
     }
 }
 
-// A rusted, engraved iron plate that stretches to fit its lettering: fixed end caps (bolts and rust) with a stretched brushed-steel middle.
+// A tarnished, engraved iron plate that stretches to fit its lettering (fixed end caps, a stretched brushed middle). It is worn into the
+// card: rust and stain spill past its edges, parchment shows through where the metal has flaked, and the ends fade back into the paper.
 void DrawMetalPlate(Rectangle p, float u, unsigned seed) {
-    Color iron{100, 104, 104, 255}, dk{22, 24, 26, 255};
+    Color iron{122, 114, 98, 255}, dk{50, 38, 28, 255}, paper{194, 168, 118, 255};
     auto rnd = [&]() { seed = seed * 1664525u + 1013904223u; return ((seed >> 8) & 0xffff) / 65535.0f; };
-    DrawRectangleRounded({p.x + 1 * u, p.y + 1.6f * u, p.width, p.height}, 0.18f, 4, Fade(BLACK, 0.5f));
-    DrawRectangleRounded(p, 0.18f, 4, iron);
+    for (int k = 0; k < 6; k++) DrawCircleV({p.x + p.width * rnd(), p.y + p.height * (rnd() < 0.5f ? -0.05f : 1.05f)}, (2 + 4 * rnd()) * u, Fade(Color{130, 84, 44, 255}, 0.22f));   // rust weeping onto the paper
+    DrawRectangleRounded({p.x + 0.5f * u, p.y + 0.9f * u, p.width, p.height}, 0.18f, 4, Fade(BLACK, 0.2f));
+    DrawRectangleRounded(p, 0.18f, 4, Fade(iron, 0.93f));
     float cap = std::min(6 * u, p.width * 0.3f);
-    DrawRectangleGradientV((int)p.x, (int)p.y, (int)p.width, (int)(p.height * 0.5f), Fade(WHITE, 0.22f), Fade(WHITE, 0.0f));
-    DrawRectangleGradientV((int)p.x, (int)(p.y + p.height * 0.5f), (int)p.width, (int)(p.height * 0.5f), Fade(BLACK, 0.0f), Fade(BLACK, 0.35f));
-    for (int k = 0; k < 9; k++) { float y = p.y + p.height * (0.12f + 0.76f * rnd()); DrawLineEx({p.x + cap, y}, {p.x + p.width - cap, y}, std::max(1.0f, 0.5f * u), Fade(rnd() < 0.5f ? WHITE : BLACK, 0.16f)); }
-    for (int k = 0; k < 7; k++) {
-        float fx = k < 4 ? (k < 2 ? p.x + cap * rnd() : p.x + p.width - cap * rnd()) : p.x + p.width * rnd();
-        DrawCircleV({fx, p.y + p.height * (k < 4 ? rnd() : (rnd() < 0.5f ? 0.05f : 0.95f))}, (1.5f + 3.0f * rnd()) * u, Fade(Color{156, 84, 40, 255}, 0.34f));
+    DrawRectangleGradientV((int)p.x, (int)p.y, (int)p.width, (int)(p.height * 0.5f), Fade(WHITE, 0.14f), Fade(WHITE, 0.0f));
+    DrawRectangleGradientV((int)p.x, (int)(p.y + p.height * 0.5f), (int)p.width, (int)(p.height * 0.5f), Fade(BLACK, 0.0f), Fade(BLACK, 0.24f));
+    for (int k = 0; k < 9; k++) { float y = p.y + p.height * (0.12f + 0.76f * rnd()); DrawLineEx({p.x + cap, y}, {p.x + p.width - cap, y}, std::max(1.0f, 0.5f * u), Fade(rnd() < 0.5f ? WHITE : BLACK, 0.13f)); }
+    for (int k = 0; k < 8; k++) DrawCircleV({p.x + p.width * rnd(), p.y + p.height * rnd()}, (1.2f + 3.0f * rnd()) * u, Fade(Color{156, 88, 44, 255}, 0.28f));   // rust bloom across the face
+    DrawRectangleGradientH((int)p.x, (int)p.y, (int)(cap * 1.4f), (int)p.height, Fade(paper, 0.6f), Fade(paper, 0.0f));   // the ends fade back into the paper
+    DrawRectangleGradientH((int)(p.x + p.width - cap * 1.4f), (int)p.y, (int)(cap * 1.4f), (int)p.height, Fade(paper, 0.0f), Fade(paper, 0.6f));
+    DrawRectangleRoundedLinesEx(p, 0.18f, 4, std::max(1.0f, 1.0f * u), Fade(dk, 0.5f));
+    for (int k = 0; k < 9; k++) { // flaked away: paper showing through along the edges
+        float ex = p.x + p.width * rnd(); DrawCircleV({ex, rnd() < 0.5f ? p.y : p.y + p.height}, (0.8f + 1.8f * rnd()) * u, Fade(paper, 0.7f));
     }
-    DrawRectangleRoundedLinesEx(p, 0.18f, 4, std::max(1.0f, 1.3f * u), dk);
-    for (int e = 0; e < 2; e++) { Vector2 b{e ? p.x + p.width - cap * 0.5f : p.x + cap * 0.5f, p.y + p.height / 2}; DrawCircleV(b, 1.6f * u, dk); DrawCircleV({b.x - 0.4f * u, b.y - 0.4f * u}, 0.8f * u, Fade(WHITE, 0.4f)); }
+    for (int e = 0; e < 2; e++) { Vector2 b{e ? p.x + p.width - cap * 0.55f : p.x + cap * 0.55f, p.y + p.height / 2}; DrawCircleV(b, 1.3f * u, Fade(dk, 0.75f)); DrawCircleV({b.x - 0.3f * u, b.y - 0.3f * u}, 0.6f * u, Fade(WHITE, 0.3f)); }
 }
 // A card face (or its back) filling `r`. Everything scales from the card's height, so the same routine draws a big card in
 // the inspector and a small one in the queue. `hp` and `str` show a creature's current numbers (damaged, buffed) on the board.
 void DrawCardFace(Rectangle r, const Card& c, bool faceUp, int hp = -1, int str = -1) {
     float u = r.height / 150.0f;
     DrawRectangleRounded({r.x + 2 * u, r.y + 3 * u, r.width, r.height}, 0.08f, 6, Fade(BLACK, 0.5f));
-    if (!faceUp) {
-        Color edge{110, 120, 150, 255};
-        DrawRectangleRounded(r, 0.08f, 6, Color{34, 40, 60, 255});
-        DrawRectangleRounded({r.x + 3 * u, r.y + 3 * u, r.width - 6 * u, r.height - 6 * u}, 0.06f, 6, Color{44, 52, 76, 255});
-        DrawRectangleRoundedLinesEx(r, 0.08f, 6, 1.5f * u + 0.5f, edge);
-        DrawRectangleRoundedLinesEx({r.x + 6 * u, r.y + 6 * u, r.width - 12 * u, r.height - 12 * u}, 0.05f, 6, std::max(1.0f, u), Fade(edge, 0.55f));
-        Vector2 m{r.x + r.width / 2, r.y + r.height / 2};
-        for (int k = -3; k <= 3; k++) {
-            DrawLineEx({m.x + k * 0.13f * r.width - 0.3f * r.width, m.y - 0.38f * r.height}, {m.x + k * 0.13f * r.width + 0.3f * r.width, m.y + 0.38f * r.height}, 1, Fade(edge, 0.12f));
-            DrawLineEx({m.x + k * 0.13f * r.width + 0.3f * r.width, m.y - 0.38f * r.height}, {m.x + k * 0.13f * r.width - 0.3f * r.width, m.y + 0.38f * r.height}, 1, Fade(edge, 0.12f));
+    if (!faceUp) { // the back: the same driftwood and stained cloth, stamped with a faded ship's wheel
+        Color wood{54, 40, 30, 255}, woodLt{86, 66, 48, 255}, ink{30, 22, 16, 255}, cloth{104, 98, 82, 255};
+        unsigned hh = (unsigned)(r.x * 3 + 17);
+        auto rn = [&]() { hh = hh * 1664525u + 1013904223u; return ((hh >> 8) & 0xffff) / 65535.0f; };
+        DrawRectangleRounded(r, 0.035f, 4, wood);
+        for (int k = 0; k < 12; k++) { float y = r.y + rn() * r.height; DrawLineEx({r.x + 1, y}, {r.x + r.width - 1, y + (rn() - 0.5f) * 3 * u}, std::max(1.0f, 0.8f * u), Fade(rn() < 0.5f ? BLACK : woodLt, 0.35f)); }
+        Rectangle in{r.x + 5 * u, r.y + 5 * u, r.width - 10 * u, r.height - 10 * u};
+        DrawRectangleRec(in, cloth);
+        DrawRectangleGradientV((int)in.x, (int)in.y, (int)in.width, (int)in.height, Fade(Color{40, 60, 60, 255}, 0.30f), Fade(Color{20, 30, 30, 255}, 0.42f));
+        for (int k = -6; k <= 6; k++) { // a knotted net, worn thin
+            DrawLineEx({in.x + in.width * 0.5f + k * 0.16f * in.width - 0.4f * in.width, in.y}, {in.x + in.width * 0.5f + k * 0.16f * in.width + 0.4f * in.width, in.y + in.height}, std::max(1.0f, 0.8f * u), Fade(ink, 0.13f));
+            DrawLineEx({in.x + in.width * 0.5f + k * 0.16f * in.width + 0.4f * in.width, in.y}, {in.x + in.width * 0.5f + k * 0.16f * in.width - 0.4f * in.width, in.y + in.height}, std::max(1.0f, 0.8f * u), Fade(ink, 0.13f));
         }
-        DrawRing(m, 0.16f * r.width, 0.2f * r.width, 0, 360, 20, edge);
-        DrawCircleV(m, 0.07f * r.width, edge);
+        for (int k = 0; k < 4; k++) { Vector2 sc{in.x + in.width * rn(), in.y + in.height * rn()}; float rad = (10 + 18 * rn()) * u; DrawCircleV(sc, rad, Fade(Color{120, 100, 60, 255}, 0.10f)); DrawRing(sc, rad - 1.2f * u, rad, 0, 360, 20, Fade(Color{70, 54, 30, 255}, 0.24f)); }
+        for (int k = 0; k < 5; k++) DrawCircleV({in.x + in.width * rn(), in.y + in.height * rn()}, (3 + 5 * rn()) * u, Fade(Color{80, 112, 92, 255}, 0.16f));   // mildew
+        for (int side = 0; side < 4; side++) { // frayed rim
+            bool horiz = side < 2; float len = horiz ? in.width : in.height;
+            for (float s = 0; s < len; s += 2.2f * u) {
+                if (rn() > 0.4f) continue;
+                float w2 = (1.0f + 2.0f * rn()) * u, d = (0.7f + 1.8f * rn()) * u;
+                DrawRectangleRec(horiz ? Rectangle{in.x + s, side == 0 ? in.y : in.y + in.height - d, w2, d} : Rectangle{side == 2 ? in.x : in.x + in.width - d, in.y + s, d, w2}, wood);
+            }
+        }
+        Vector2 m{r.x + r.width / 2, r.y + r.height / 2};
+        float R0 = 0.27f * r.width;
+        DrawRing(m, R0 * 0.62f, R0 * 0.72f, 0, 360, 28, Fade(ink, 0.55f));         // a ship's wheel, stamped in faded ink
+        DrawRing(m, R0 * 1.02f, R0 * 1.12f, 0, 360, 28, Fade(ink, 0.5f));
+        for (int k = 0; k < 8; k++) { float a = k * PI / 4; DrawLineEx({m.x + cosf(a) * R0 * 0.2f, m.y + sinf(a) * R0 * 0.2f}, {m.x + cosf(a) * R0 * 1.4f, m.y + sinf(a) * R0 * 1.4f}, std::max(1.0f, 1.6f * u), Fade(ink, 0.5f)); DrawCircleV({m.x + cosf(a) * R0 * 1.4f, m.y + sinf(a) * R0 * 1.4f}, 1.7f * u, Fade(ink, 0.55f)); }
+        DrawCircleV(m, R0 * 0.2f, Fade(ink, 0.6f));
+        for (int k = 0; k < 30; k++) { float e = rn(); Vector2 sp = k % 2 ? Vector2{in.x + in.width * rn(), e < 0.5f ? in.y + 2 * u * rn() : in.y + in.height - 2 * u * rn()} : Vector2{e < 0.5f ? in.x + 2 * u * rn() : in.x + in.width - 2 * u * rn(), in.y + in.height * rn()}; DrawCircleV(sp, (0.5f + 0.9f * rn()) * u, Fade(Color{240, 236, 220, 255}, 0.5f)); }   // salt
+        for (int k = 0; k < 4; k++) DrawCircleV({k % 2 ? in.x + in.width - 4 * u : in.x + 4 * u, k < 2 ? in.y + 4 * u : in.y + in.height - 4 * u}, 1.5f * u, Fade(ink, 0.7f));   // rivets
         return;
-    }
-    // ---- a physical relic salvaged from the sea: a driftwood frame round stained, salt-crusted parchment
+    }    // ---- a physical relic salvaged from the sea: a driftwood frame round stained, salt-crusted parchment
     Color ink{30, 22, 16, 255}, wood{54, 40, 30, 255}, woodLt{86, 66, 48, 255};
     Color paper{194, 168, 118, 255};
     if (c.edition == ED_HEX) paper = Color{176, 150, 140, 255};
@@ -689,9 +710,12 @@ void DrawCardFace(Rectangle r, const Card& c, bool faceUp, int hp = -1, int str 
     int n = (int)c.sigils.size();
     // ---- layer 1: things printed straight onto the card: the tribe emblem (bottom left) and the unframed sigils (bottom bar)
     DrawSuitIcon(c.suit, {in.x + 11 * u, in.y + in.height - 35 * u}, 13 * u, Fade(ink, 0.75f));
-    float bs = (n <= 2 ? 24 : 19) * u, gap = bs * 1.02f;
+    const float kf = r.height < 135 ? 1.3f : 1.0f;   // small board cards: everything printed larger, so it stays readable
+    float bs = std::min((n <= 2 ? 24.0f : 19.0f) * u * kf, 26 * u), gap = bs * 1.02f;
     for (int i = 0; i < n; i++) {
-        Vector2 p{r.x + r.width / 2 + ((float)i - (n - 1) / 2.0f) * gap, in.y + in.height - 15 * u};
+        bool top = n == 3 && i == 2;   // a third seal rides above the other two
+        int rowN = std::min(n, 2);
+        Vector2 p = top ? Vector2{r.x + r.width / 2, in.y + in.height - 15 * u - bs * 0.95f} : Vector2{r.x + r.width / 2 + ((float)i - (rowN - 1) / 2.0f) * gap, in.y + in.height - 15 * u};
         DrawSigilGlyph(c.sigils[i], {p.x + 0.7f * u, p.y + 0.8f * u}, bs, Fade(Color{250, 240, 210, 255}, 0.55f));
         DrawSigilGlyph(c.sigils[i], p, bs, Color{28, 20, 14, 255});
     }
@@ -700,15 +724,15 @@ void DrawCardFace(Rectangle r, const Card& c, bool faceUp, int hp = -1, int str 
     DrawEllipse((int)(r.x + r.width / 2), (int)(r.y + r.height * 0.5f), r.width * 0.42f, r.height * 0.22f, Fade(Color{60, 42, 24, 255}, 0.16f));
     if (!DrawCreaturePixels(c.name, art, 1.0f, c.id)) DrawSuitIcon(c.suit, {art.x + art.width / 2, art.y + art.height / 2}, art.width * 0.6f, SUIT_COL[c.suit]);
     // ---- layer 3: hardware. The engraved iron header plate stretches to fit the name; an iron weight hangs top left
-    int fs = std::max(7, (int)(12 * u));
-    while (fs > 7 && MeasureTxt(c.name, fs, true) > in.width - 16 * u) fs--;
-    float tw = MeasureTxt(c.name, fs, true), pw = std::max(46 * u, tw + 14 * u), ph = 15 * u;
+    int fs = std::max(8, (int)(12 * u * kf));
+    while (fs > 8 && MeasureTxt(c.name, fs, true) > in.width - 12 * u) fs--;
+    float tw = MeasureTxt(c.name, fs, true), pw = std::min(in.width - 2 * u, std::max(46 * u, tw + 14 * u)), ph = std::max(15 * u, fs + 6.0f);
     Rectangle plate{r.x + r.width / 2 - pw / 2, in.y + 1.5f * u, pw, ph};
     DrawMetalPlate(plate, u, (unsigned)(c.id * 977 + 3));
     float tx = plate.x + pw / 2 - tw / 2, ty = plate.y + (ph - fs) / 2 - 1;
     TxtBold(c.name, tx + 0.8f * u, ty + 0.8f * u, fs, Fade(Color{190, 194, 190, 255}, 0.55f));
     TxtBold(c.name, tx - 0.4f * u, ty - 0.4f * u, fs, Fade(BLACK, 0.7f));
-    TxtBold(c.name, tx, ty, fs, Color{34, 34, 34, 255});
+    TxtBold(c.name, tx, ty, fs, Color{42, 30, 22, 255});
     {
         Vector2 wp{in.x + 12 * u, in.y + 30 * u};
         DrawTri({wp.x - 8 * u, wp.y + 8 * u}, {wp.x + 8 * u, wp.y + 8 * u}, {wp.x + 5 * u, wp.y - 4 * u}, Color{20, 22, 24, 255});
@@ -729,7 +753,7 @@ void DrawCardFace(Rectangle r, const Card& c, bool faceUp, int hp = -1, int str 
     }
     Color strC = shownStr > base ? Color{150, 240, 150, 255} : shownStr < c.strength ? Color{255, 130, 110, 255} : Color{238, 226, 194, 255};
     Color hpC = hp >= 0 && hp < c.defense ? Color{255, 130, 110, 255} : hp > c.defense ? Color{150, 240, 150, 255} : Color{238, 226, 194, 255};
-    float px = 3.0f * u;
+    float px = 3.0f * u * std::min(kf, 1.15f);
     DrawPxNum(shownStr, {in.x + 11 * u, in.y + in.height - 12 * u}, px, strC, Color{18, 12, 8, 255});
     DrawPxNum(shownHp, {in.x + in.width - 11 * u, in.y + in.height - 12 * u}, px, hpC, Color{18, 12, 8, 255});    if (c.edition != ED_NONE) DrawEdition(r, c.edition, u);
 }
@@ -875,7 +899,7 @@ Rectangle CellRect(int r, int c) {
 }
 Vector2 CellCenter(int r, int c) { Rectangle q = CellRect(r, c); return {q.x + q.width / 2, q.y + q.height / 2}; }
 Vector2 HandPos(int i, int n) { float off = i - (n - 1) / 2.0f; return {640 + off * 100, 716 - fabsf(off) * 5}; }
-Rectangle BellRect() { return {1040, 420, 100, 90}; }
+Rectangle BellRect() { return {1040, 484, 100, 90}; }
 
 // ---------------------------------------------------------------- rules text and the folder tab
 const char* RULES_TEXT =
@@ -1359,7 +1383,7 @@ void DrawBattle(Game& g, float dt, float t, Vector2 m, bool modal) {
             }
         }
     }
-    DrawBell({1090, 470}, myMain, U.bellT);
+    DrawBell({1090, 534}, myMain, U.bellT);
 
     // ---- input
     if (myMain) {
