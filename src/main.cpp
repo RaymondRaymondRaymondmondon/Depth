@@ -36,6 +36,15 @@ static void RunScene(Game& g) {
 }
 
 // Starts a platform level on the first generator seed that contains the given set-piece, standing just before it.
+// Puts the diver in front of the first launcher of `type` (T torpedo tube, N cannon, y barrel chute) in the first layout that has one.
+static void ShotAtLauncher(Game& g, int level, char type) {
+    for (int seed = 1; seed < 60; seed++) {
+        g.platLayouts[level] = {seed, 100};
+        StartPlatform(g, level);
+        for (auto& l : g.plat.launchers)
+            if (l.type == type) { g.plat.pos = {(l.tx - 9) * 32.0f, l.ty * 32.0f + 4 - 28}; l.t = 1.0f; g.plat.time = 0.5f; return; }
+    }
+}
 static void ShotAtPiece(Game& g, int level, SetPiece sp, bool ghost = false, int hopsBefore = 1) {
     unsigned seed = 1;
     GenLevel gl;
@@ -106,7 +115,10 @@ static void TakeShots(const Game& base, const std::string& dir) {
         {"pirate", [](Game& g) { g.platLayouts[PL_PIRATE] = {606, 100}; StartPlatform(g, PL_PIRATE); g.plat.pos = g.plat.spawns[1]; }},
         {"pirate_hatch", [](Game& g) { g.platLayouts[PL_PIRATE] = {707, 100}; StartPlatform(g, PL_PIRATE); g.plat.pos = g.plat.spawns[3]; }},
         {"pirate_hold", [](Game& g) { g.platHard = true; g.platLayouts[PL_PIRATE] = {808, 100}; StartPlatform(g, PL_PIRATE); g.plat.pos = g.plat.spawns[4]; }},
-        {"pirate_stairs", [](Game& g) { g.platLayouts[PL_PIRATE] = {909, 100}; StartPlatform(g, PL_PIRATE); g.plat.pos = g.plat.spawns[6]; }},        {"pipes_vent", [](Game& g) { ShotAtPiece(g, PL_PIPES, SetPiece::SteamBoost); g.plat.time = 0.4f; }},
+        {"pirate_stairs", [](Game& g) { g.platLayouts[PL_PIRATE] = {909, 100}; StartPlatform(g, PL_PIRATE); g.plat.pos = g.plat.spawns[6]; }},        {"pirate_cannon", [](Game& g) { ShotAtLauncher(g, PL_PIRATE, 'N'); }},
+        {"pirate_barrel", [](Game& g) { ShotAtLauncher(g, PL_PIRATE, 'y'); }},
+        {"hull_torpedo", [](Game& g) { ShotAtLauncher(g, PL_HULL, 'T'); }},
+        {"pipes_vent", [](Game& g) { ShotAtPiece(g, PL_PIPES, SetPiece::SteamBoost); g.plat.time = 0.4f; }},
         {"pipes_crumble", [](Game& g) { ShotAtPiece(g, PL_PIPES, SetPiece::CrumbleRun); }},
         {"hull_barnacle", [](Game& g) { ShotAtPiece(g, PL_HULL, SetPiece::BarnacleShaft); }},
         {"pirate_gap", [](Game& g) { ShotAtPiece(g, PL_PIRATE, SetPiece::ShipGap, false, 2); }},

@@ -67,7 +67,7 @@ struct Params {
 Params ParamsFor(int level) {
     switch (level) {
         case 0: return {0.62f, 230, 40, 4, 9, 2, 3, 1, true, 0.0f, 0, 0, 0.38f};     // the Pipes: wide, forgiving, no wall jumps
-        case 1: return {0.78f, 270, 64, 2, 5, 3, 4, 2, false, 0.40f, 9, 14, 0.20f};   // the Hull: verticality, shafts, footholds
+        case 1: return {0.78f, 300, 64, 2, 5, 3, 4, 2, false, 0.40f, 9, 14, 0.20f};   // the Hull: verticality, shafts, footholds
         default: return {0.93f, 310, 64, 1, 3, 3, 4, 3, false, 0.36f, 10, 14, 0.20f}; // the Pirate Ship: tiny footholds at the arc's edge
     }
 }
@@ -119,54 +119,137 @@ GenLevel ShaftTemplate(int iw, int Hs, bool up, bool barnacle) {
     return out;
 }
 // ---------------------------------------------------------------------------- macro-structures
-// The Hull is a trench: tall coral columns rooted in the seabed and reaching the ceiling, each with a tunnel at its base,
-// alternating with short columns whose tops are plateaus. You come through a tunnel, climb the shaft between a tall column
-// and a short one (wall-jumping), cross the plateau, drop into the shaft on its far side, and leave through the next tall
-// column's tunnel. Nothing floats: every tile of the level is part of a column or the seabed.
+// The Hull is the top of a submarine, and you cross it. The deck is a long run of steel plating with the superstructure built
+// on it, and between the features (which are chosen at random, never the same twice in a row) there is plain deck to catch your
+// breath. The features are what make each crossing different:
+//   conning tower  the old climb: through a hatch at the foot of a tower, up a shaft between it and a lower housing, over its
+//                  roof and down the far side
+//   torpedo gap    a breach in the hull too wide to step over, with a torpedo tube on a gun tower across it firing down the
+//                  lane you must jump through
+//   live plating   a stretch of deck with electrified plates that spark on a timer: cross them between surges
+//   limpet mines   spikes on the deck under mines hung at the height of a big jump: a low, careful hop
+//   rotten grating a breach bridged by corroded grating that gives way half a second after you land: keep moving
+//   rock reef      the hull lies among rocks: a breach crossed by stepping stones of rock (this is where the coral grows), with
+//                  urchins, crabs and an eel leaping from the water below
+// Everything is joined by plain deck, so nothing floats: every tile belongs to the hull, the rocks or a fixture on them.
 static void BuildTrench(Grid& g, std::vector<Plat>& pl, Rng& rng, GenLevel& out, const Params& P, int& wOut) {
     const int H = g.h, F = H - 6;
-    g.rect(0, F, g.w - 1, H - 1, '#');       // the seabed
-    g.rect(0, 0, g.w - 1, 1, '#');           // the ceiling of the trench
+    g.rect(0, F, g.w - 1, H - 1, '#');       // the hull's deck and everything under it
+    g.rect(0, 0, g.w - 1, 1, '#');           // the sea's surface overhead
     auto column = [&](int x0, int width, int top, bool tunnel) {
         g.rect(x0, top, x0 + width - 1, H - 1, '#');
         if (tunnel) g.rect(x0, F - 3, x0 + width - 1, F - 1, '.');
     };
     Plat start{2, 9, F, C_START, '#', SetPiece::None, 0, 3};
     pl.push_back(start);
-    int x = 10;
-    column(x, 3, 0, true);
-    int guard = 0;
-    while (x < P.length && guard++ < 40) {
-        int iw1 = rng.I(3, 4), iw2 = rng.I(3, 4), sw = rng.I(5, 7);
-        bool barnacle = rng.C(0.35f);
-        int Hs = std::min(rng.I(P.shaftMin, P.shaftMax + 1), MaxUpShaft(iw1, barnacle));
-        int upX0 = x + 3, sX0 = upX0 + iw1, sTop = F - Hs, t2X0 = sX0 + sw + iw2;
-        column(sX0, sw, sTop, false);                                       // the short column, its top a plateau
-        column(t2X0, 3, 0, true);                                           // the next tall column, with its tunnel
-        if (barnacle) { g.rect(x + 2, sTop - 1, x + 2, F - 4, 'b'); g.rect(sX0, sTop + 1, sX0, F - 1, 'b'); }
-        // an overhang shelf off the tall column high above the plateau, with weed hanging from it
-        int shelfY = sTop - 12;
-        if (shelfY > 3) {
-            g.rect(upX0, shelfY, upX0 + 2, shelfY, '#');
-            for (int k = 0; k < 3; k += 2) g.rect(upX0 + k, shelfY + 1, upX0 + k, shelfY + 4, 'w');
+    JumpArc a0 = CalculateValidJumpArc(0);
+    int gm = std::max(3, (int)std::floor((a0.maxReach * P.safety - 12) / kin::TILE));   // the widest breach a plain jump clears
+    int x = 12, lastKind = -1, towers = 0, guard = 0;
+    while (x < P.length && guard++ < 60) {
+        // ---- choose a feature: weighted, and never the one before; towers no more than one in three
+        int kind;
+        for (int tries = 0;; tries++) {
+            int r = rng.I(0, 99);
+            kind = r < 18 ? 0 : r < 38 ? 1 : r < 54 ? 2 : r < 68 ? 3 : r < 82 ? 4 : 5;
+            if (kind != lastKind && !(kind == 0 && towers > 0 && guard % 3 != 0) && (kind != 0 || x > 40)) break;
+            if (tries > 12) { kind = (lastKind + 1) % 6; break; }
         }
-        // the down shaft's floor: urchins across its left, the tunnel side left clear
-        for (int xx = sX0 + sw; xx <= t2X0 - 3; xx++) g.set(xx, F, 'x');
-        // coins up the middle of the climb, crossing the plateau
-        for (int k = 0; k < 3; k++) { int cy = F - 3 - (Hs - 4) * (k + 1) / 4; if (cy < F && g.get(upX0 + iw1 / 2, cy) == '.') g.set(upX0 + iw1 / 2, cy, 'o'); }
-        for (int xx = sX0 + 1; xx < sX0 + sw - 1; xx += 2) if (g.get(xx, sTop - 1) == '.') g.set(xx, sTop - 1, 'o');
-        if (sw >= 6 && rng.C(0.5f)) { // an urchin bed in the plateau, with a mine hung just over it (Hard only): a short, careful hop
-            g.set(sX0 + 3, sTop, 'x');
-            if (rng.C(0.6f) && g.get(sX0 + 3, sTop - 4) == '.') g.set(sX0 + 3, sTop - 4, 'g');
-        } else if (sw >= 5 && rng.C(0.5f) && g.get(sX0 + sw - 2, sTop - 1) == '.') g.set(sX0 + sw - 2, sTop - 1, 'c');
-        if (rng.C(0.4f) && g.get(sX0 + 1, sTop - 8) == '.') g.set(sX0 + 1, sTop - 8, 'p');
-        // the critical path: in through the tunnel, up to the plateau, down to the next tunnel
-        Plat entry{upX0, upX0 + iw1 - 1, F, C_JUMP, '#', SetPiece::None, 0, upX0};
-        Plat plateau{sX0, sX0 + sw - 1, sTop, C_SHAFT_UP, '#', barnacle ? SetPiece::BarnacleShaft : SetPiece::ShaftUp, 0, sX0 + 1};
-        Plat bottom{t2X0 - 2, t2X0 - 1, F, C_SHAFT_DOWN, '#', SetPiece::ShaftDown, 0, t2X0 - 1};
-        pl.push_back(entry); pl.push_back(plateau); pl.push_back(bottom);
-        out.setPieces[(int)plateau.tag]++; out.setPieces[(int)SetPiece::ShaftDown]++;
-        x = t2X0;
+        if (kind == 0) towers = 3; else if (towers > 0) towers--;
+        lastKind = kind;
+        int coinRow = F - 2;
+        switch (kind) {
+            case 0: { // the conning tower climb
+                int iw1 = rng.I(3, 4), iw2 = rng.I(3, 4), sw = rng.I(5, 7);
+                bool barnacle = rng.C(0.35f);
+                int Hs = std::min(rng.I(P.shaftMin, P.shaftMax + 1), MaxUpShaft(iw1, barnacle));
+                column(x, 3, 0, true);                                              // the tower itself, with a hatch through its foot
+                int upX0 = x + 3, sX0 = upX0 + iw1, sTop = F - Hs, t2X0 = sX0 + sw + iw2;
+                column(sX0, sw, sTop, false);                                       // a lower housing beside it: its roof is the way over
+                column(t2X0, 3, 0, true);                                           // the next bulkhead, with its own hatch
+                if (barnacle) { g.rect(x + 2, sTop - 1, x + 2, F - 4, 'b'); g.rect(sX0, sTop + 1, sX0, F - 1, 'b'); }
+                int shelfY = sTop - 12;
+                if (shelfY > 3) { g.rect(upX0, shelfY, upX0 + 2, shelfY, '#'); for (int k = 0; k < 3; k += 2) g.rect(upX0 + k, shelfY + 1, upX0 + k, shelfY + 4, 'l'); } // a gantry with a chain ladder hanging from it
+                for (int xx = sX0 + sw; xx <= t2X0 - 3; xx++) g.set(xx, F, 'x');
+                for (int k = 0; k < 3; k++) { int cy = F - 3 - (Hs - 4) * (k + 1) / 4; if (cy < F && g.get(upX0 + iw1 / 2, cy) == '.') g.set(upX0 + iw1 / 2, cy, 'o'); }
+                for (int xx = sX0 + 1; xx < sX0 + sw - 1; xx += 2) if (g.get(xx, sTop - 1) == '.') g.set(xx, sTop - 1, 'o');
+                if (sw >= 6 && rng.C(0.5f)) { g.set(sX0 + 3, sTop, 'x'); if (rng.C(0.6f) && g.get(sX0 + 3, sTop - 4) == '.') g.set(sX0 + 3, sTop - 4, 'g'); }
+                else if (sw >= 5 && rng.C(0.5f) && g.get(sX0 + sw - 2, sTop - 1) == '.') g.set(sX0 + sw - 2, sTop - 1, 'c');
+                Plat entry{upX0, upX0 + iw1 - 1, F, C_JUMP, '#', SetPiece::None, 0, upX0};
+                Plat plateau{sX0, sX0 + sw - 1, sTop, C_SHAFT_UP, '#', barnacle ? SetPiece::BarnacleShaft : SetPiece::ShaftUp, 0, sX0 + 1};
+                Plat bottom{t2X0 - 2, t2X0 - 1, F, C_SHAFT_DOWN, '#', SetPiece::ShaftDown, 0, t2X0 - 1};
+                pl.push_back(entry); pl.push_back(plateau); pl.push_back(bottom);
+                out.setPieces[(int)plateau.tag]++; out.setPieces[(int)SetPiece::ShaftDown]++;
+                x = t2X0 + 3;
+            } break;
+            case 1: { // torpedo gap
+                int gw = std::clamp(gm - 1, 4, 6);
+                g.rect(x, F, x + gw - 1, H - 1, '.');
+                int tx = x + gw + 6;
+                g.rect(tx, F - 2, tx + 1, F - 1, '#');
+                g.set(tx, F - 1, 'T');                                              // the tube, low on the tower, firing along the deck's lane
+                Plat before{x - 3, x - 1, F, C_JUMP, '#', SetPiece::None, 0, x - 1};
+                Plat after{x + gw, x + gw + 3, F, C_JUMP, '#', SetPiece::None, 0, x + gw};
+                pl.push_back(before); pl.push_back(after);
+                for (int k = 1; k <= 2; k++) g.set(x + gw * k / 3, F - 4, 'o');
+                out.setPieces[(int)SetPiece::ShipGap]++;
+                x = tx + 3;
+            } break;
+            case 2: { // live plating
+                int len = 26;
+                for (int i = 4; i < len - 2; i += 6) { g.set(x + i, F, 't'); g.set(x + i + 1, F, 't'); g.set(x + i, F - 4, 'o'); }
+                Plat run{x, x + len - 1, F, C_JUMP, '#', SetPiece::None, 0, x + 1};
+                pl.push_back(run);
+                x += len;
+            } break;
+            case 3: { // limpet mines over spikes
+                int len = 26;
+                for (int i = 5; i < len - 3; i += 5) { g.set(x + i, F, 'x'); g.set(x + i, F - 5, 'g'); g.set(x + i + 2, coinRow - 1, 'o'); }
+                Plat run{x, x + len - 1, F, C_JUMP, '#', SetPiece::None, 0, x + 1};
+                pl.push_back(run);
+                out.setPieces[(int)SetPiece::GearGauntlet]++;
+                x += len;
+            } break;
+            case 4: { // rotten grating
+                int len = 14;
+                g.rect(x, F, x + len - 1, H - 1, '.');
+                for (int px2 : {x + 1, x + 5, x + 9}) {
+                    g.rect(px2, F, px2 + 1, F, 'f');
+                    g.set(px2, F - 3, 'o');
+                    Plat plate{px2, px2 + 1, F, C_JUMP, 'f', SetPiece::CrumbleRun, 0, px2};
+                    pl.push_back(plate);
+                }
+                Plat after{x + len, x + len + 2, F, C_JUMP, '#', SetPiece::None, 0, x + len};
+                pl.push_back(after);
+                out.setPieces[(int)SetPiece::CrumbleRun]++;
+                x += len;
+            } break;
+            default: { // rock reef
+                int n = 4, w0 = 3;
+                int total = w0 + n * 6;
+                g.rect(x, F, x + total - 1, H - 1, '.');
+                int prevTop = F;
+                for (int k = 0; k < n; k++) {
+                    int sx = x + w0 + k * 6;
+                    int top = std::clamp(prevTop + rng.I(-2, 2), F - 3, F);
+                    if (k == n - 1) top = std::max(top, F - 1);
+                    g.rect(sx, top, sx + 2, H - 1, 'R');
+                    Plat stone{sx, sx + 2, top, C_JUMP, 'R', SetPiece::None, 0, sx + 1};
+                    pl.push_back(stone);
+                    if (k == 1) g.set(sx + 1, top, 'x');                             // an urchin bed on the rock
+                    if (k == 2 && g.get(sx + 2, top - 1) == '.') g.set(sx + 2, top - 1, 'c');
+                    if (k == 0 || k == 2) g.set(sx - 2, F, 'e');                     // an eel leaping between the stones
+                    g.set(sx + 1, top - 3, 'o');
+                    prevTop = top;
+                }
+                Plat after{x + total, x + total + 2, F, C_JUMP, '#', SetPiece::None, 0, x + total};
+                pl.push_back(after);
+                x += total;
+            } break;
+        }
+        // ---- plain deck to breathe on, with a little to pick up
+        int breath = rng.I(5, 8);
+        for (int k = 2; k < breath; k += 3) if (g.get(x + k, F - 1) == '.') g.set(x + k, F - 2, 'o');
+        x += breath;
     }
     int fx = x + 3;
     Plat fin{fx, fx + 6, F, C_JUMP, '#', SetPiece::None, 0, fx + 1};
@@ -229,8 +312,10 @@ static void BuildFleet(Grid& g, std::vector<Plat>& pl, Rng& rng, GenLevel& out, 
         int bridgeAt = (rng.C(0.55f) && x + len < P.length - 40) ? 1 : 0;
         if (bridgeAt) last = ex - 16;
         while (cx < last) {
-            int kind = rng.C(0.34f) ? 0 : rng.C(0.5f) ? 1 : rng.I(2, 3);        // hatches and barricades dominate: crossing a ship is a fight
-            const int need[4] = {12, 20, 9, 10};                              // the widest each segment can grow, with its run-off
+            // 0 hatch, 1 barricade shaft, 2 cargo, 3 dressing mast, 4 gun battery, 5 barrel run, 6 rotten planking
+            int roll = rng.I(0, 99);
+            int kind = roll < 16 ? 0 : roll < 34 ? 1 : roll < 42 ? 2 : roll < 48 ? 3 : roll < 66 ? 4 : roll < 82 ? 5 : 6;
+            const int need[7] = {12, 20, 9, 10, 16, 18, 14};                  // the widest each segment can grow, with its run-off
             if (cx + need[kind] > last) kind = 2;                              // not enough deck left: something small
             if (cx + need[kind] > last) break;
             if (kind == 0) { // an open hatch, spikes in the hold
@@ -262,6 +347,24 @@ static void BuildFleet(Grid& g, std::vector<Plat>& pl, Rng& rng, GenLevel& out, 
                 for (int k = 1; k <= h; k++) g.set(cx, Ds - k, 'k');
                 if (rng.C(0.6f)) { g.set(cx + 1, Ds - 1, 'k'); }
                 cx += 6;
+            } else if (kind == 4) { // a gun battery: a cannon firing along the deck at hopping height, with crates to shelter behind
+                g.set(cx + 3, Ds - 1, 'k');
+                g.set(cx + 4, Ds - 1, 'k'); g.set(cx + 4, Ds - 2, 'k');
+                g.set(cx + 11, Ds - 1, 'N');
+                if (rng.C(0.5f)) { g.set(cx + 8, Ds - 1, 'k'); }
+                for (int q = 5; q < 11; q += 2) if (g.get(cx + q, Ds - 3) == '.') g.set(cx + q, Ds - 4, 'o');
+                cx += 15;
+            } else if (kind == 5) { // a barrel run: a chute ahead lets barrels roll down the deck at you: hop each one
+                g.set(cx + 13, Ds - 1, 'y');
+                if (g.get(cx + 12, Ds - 1) == '.') g.set(cx + 12, Ds - 1, 'k');
+                for (int q = 3; q < 12; q += 3) g.set(cx + q, Ds - 3, 'o');
+                cx += 17;
+            } else if (kind == 6) { // rotten planking: deck boards over the open hold that give way soon after you step on them
+                int len = rng.I(6, 8);
+                g.rect(cx, Ds, cx + len - 1, Ds, 'f');
+                g.rect(cx, Ds + 1, cx + len - 1, Ds + 1, 'x');
+                for (int q = 1; q < len; q += 3) g.set(cx + q, Ds - 3, 'o');
+                cx += len + 5;
             } else { // a standing mast with yardarms out of reach: dressing, a tunnel at its foot
                 rig(cx, Ds, Ds - 22);
                 yard(cx, Ds - 14, 6); yard(cx, Ds - 20, 4);

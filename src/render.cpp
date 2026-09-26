@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 //  DEPTH - rendering: textures generated in code, lighting, post-processing,
 //  shared props (pipes, gauges, gears) and the shaded crew figures.
 //
@@ -75,33 +75,32 @@ void main() {
     col = mix(col, INK, smoothstep(0.35, 0.9, edge) * 0.75);      // linework between parts
     // a little painted texture, so surfaces read as cloth, skin and metal rather than flat colour
     vec2 cell = floor(uv / uTexel / 2.0);
-    col *= 0.94 + 0.1 * fract(sin(dot(cell, vec2(12.9898, 78.233))) * 43758.5453);
+    col *= 0.975 + 0.05 * fract(sin(dot(cell, vec2(12.9898, 78.233))) * 43758.5453);
     // hand-inked finish: a sickly, desaturated maritime palette, flat cel bands instead of gradients, and a
     // solid black block shadow along the edge facing away from the key light (upper left)
     float lum = dot(col, vec3(0.299, 0.587, 0.114));
-    col = mix(vec3(lum), col, 1.15) * 1.32;                 // keep the class colours vivid and lifted
-    col = floor(col * 6.0 + 0.5) / 6.0;                     // flat comic bands, not darkening
+    col = mix(vec3(lum), col, 1.2) * 1.4;                 // keep the class colours vivid and lifted
+    col = floor(col * 10.0 + 0.5) / 10.0;                   // fine cel bands: clean, not muddy
     float e1 = texture(texture0, uv + vec2(2.5, 2.2) * uTexel).a, e2 = texture(texture0, uv + vec2(7.0, 6.0) * uTexel).a;
     // cross-hatching in the mid-tones and deeper shadow, cloth folds, grit, salt and rust
     vec2 px = uv / uTexel;
     float lum2 = dot(col, vec3(0.299, 0.587, 0.114));
     float h1 = step(0.80, fract((px.x + px.y) / 4.5)), h2 = step(0.80, fract((px.x - px.y) / 4.5));
-    col *= 1.0 - 0.32 * h1 * smoothstep(0.30, 0.10, lum2);   // hatching only in the truly dark tones
-    col *= 1.0 - 0.32 * h2 * smoothstep(0.16, 0.05, lum2);
+    col *= 1.0 - 0.14 * h1 * smoothstep(0.12, 0.04, lum2);   // a little hatching, only in the very darkest tones
+    col *= 1.0 - 0.10 * h2 * smoothstep(0.08, 0.02, lum2);
     float fold = step(0.86, fract((px.x * 0.8 + px.y * 0.45) / 11.0 + hash(floor(px / 23.0)) * 0.5));
-    col *= 1.0 - 0.09 * fold;
+    col *= 1.0 - 0.02 * fold;
     float gr = hash(floor(px));
-    col *= 1.0 - 0.10 * step(0.93, gr);
-    col += 0.10 * step(0.992, gr);
+    (void)gr;
     float rn = hash(floor(px / 9.0)) * 0.6 + hash(floor(px / 3.0)) * 0.4;
-    col = mix(col, vec3(0.34, 0.17, 0.09), 0.12 * smoothstep(0.84, 0.95, rn));
+    (void)rn; // no rust or grime: the crew and the creatures are drawn clean
     // strong directional rim light on the edges facing the lamp (upper left): gold, then pale cyan
     float rimA = 1.0 - texture(texture0, uv + vec2(-3.5, -3.0) * uTexel).a;
     float rimB = 1.0 - texture(texture0, uv + vec2(-6.5, -5.5) * uTexel).a;
-    col = mix(col, vec3(1.0, 0.86, 0.52), rimA * 0.75);
+    col = mix(col, vec3(1.0, 0.9, 0.62), rimA * 0.4);
     col = mix(col, vec3(0.62, 0.9, 1.0), rimB * (1.0 - rimA) * 0.4);
-    if (e1 < 0.5) col = mix(col * 0.28, INK, 0.5);  // a thin, sharp shadow edge on the far side only: the fill keeps its colour
-    else if (e2 < 0.5) col *= 0.82;
+    if (e1 < 0.5) col = mix(col * 0.55, INK, 0.25);  // a thin, sharp shadow edge on the far side only: the fill keeps its colour
+    else if (e2 < 0.5) col *= 0.92;
     finalColor = vec4(col * fragColor.rgb, fragColor.a);
 }
 )";
@@ -1205,7 +1204,7 @@ void DrawCrewFigure(const Hero& h, Vector2 ft, float s, bool right, float walk, 
                 for (int k = -1; k <= 1; k += 2) { DrawCircleV(P(-19 + (k > 0 ? 40.0f : 0), -136), 1.2f * s, Pal::BrassDk); DrawCircleV(P(-19 + (k > 0 ? 40.0f : 0) + k * 3, -134), 1.0f * s, Pal::BrassDk); }
                 Strap(P(-14, -137), P(11, -90), 2.6f, leatherDk); Strap(P(15, -137), P(-11, -90), 2.6f, leatherDk); Buckle(P(0, -114), 2.4f); // the tank harness
                 ShadeBall(P(9, -127), 3.6f * s, Color{176, 104, 62, 255}); Strap(P(9, -127), P(15, -121), 1.7f, Color{176, 104, 62, 255}); // a copper valve
-                DrawLineEx(P(-9, -132), P(-10, -121), 1.6f * s, rust); DrawLineEx(P(4, -130), P(3, -122), 1.2f * s, rust);   // rust runs
+                (void)rust;
                 Q(P(10, -97), P(20, -97), P(20, -85), P(10, -85), leather);                        // a tool pouch
                 break;
             case HeroClass::Captain:

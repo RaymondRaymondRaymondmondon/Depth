@@ -135,7 +135,7 @@ bool Solid(const PlatformState& p, int tx, int ty) {
     if (tx < 0 || tx >= p.w) return true; // level edges act as walls
     if (ty < 0 || ty >= p.h) return false;
     char c = p.tiles[ty][tx];
-    return c == '#' || c == 't' || c == '=' || c == '|' || c == 'k' || c == 'f' || c == 'v' || c == 'b' || c == 'r';
+    return c == '#' || c == 't' || c == '=' || c == '|' || c == 'k' || c == 'f' || c == 'v' || c == 'b' || c == 'r' || c == 'R' || c == 'T' || c == 'N' || c == 'y';
 }
 
 // Moves a box one axis at a time and pushes it out of solid tiles.
@@ -315,12 +315,61 @@ void UpdateEnemies(PlatformState& p, float dt) {
     }
 }
 
+// Torpedo tubes, deck cannons and barrel chutes fire on a timer, with a warning glow before each shot. They only wake when the
+// diver is within range, so a level is never firing behind you.
+constexpr float TUBE_PERIOD = 2.8f, TUBE_WARN = 0.9f, CANNON_PERIOD = 3.2f, CANNON_WARN = 1.0f, CHUTE_PERIOD = 3.6f, CHUTE_WARN = 0.8f;
+float LauncherPeriod(char t) { return t == 'T' ? TUBE_PERIOD : t == 'N' ? CANNON_PERIOD : CHUTE_PERIOD; }
+float LauncherWarn(char t) { return t == 'T' ? TUBE_WARN : t == 'N' ? CANNON_WARN : CHUTE_WARN; }
+float LauncherAlert(const PlatformState& p, int tx, int ty) { // 0..1 how close it is to firing (for the warning glow)
+    for (const auto& l : p.launchers) if (l.tx == tx && l.ty == ty) { float rem = LauncherPeriod(l.type) - l.t, w = LauncherWarn(l.type); return rem < w ? 1.0f - rem / w : 0.0f; }
+    return 0;
+}
+void UpdateLaunchers(PlatformState& p, float dt) {
+    for (auto& l : p.launchers) {
+        if (fabsf((l.tx + 0.5f) * T - (p.pos.x + PW / 2)) > 30.0f * T || fabsf((l.ty + 0.5f) * T - (p.pos.y + PH / 2)) > 16.0f * T) continue;
+        l.t += dt;
+        if (l.t < LauncherPeriod(l.type)) continue;
+        l.t -= LauncherPeriod(l.type);
+        float lx = l.tx * (float)T, ly = l.ty * (float)T;
+        if (l.type == 'T') {
+            p.shots.push_back({{lx - 4, ly + 16}, {-310, 0}, 5.0f, 4});
+            for (int k = 0; k < 8; k++) p.particles.push_back({{lx - 6, ly + 16}, {Rnd(-120, -20), Rnd(-40, 40)}, 0.5f, 0.5f, -Rnd(2, 4), Color{196, 236, 250, 255}});
+        } else if (l.type == 'N') {
+            p.shots.push_back({{lx - 6, ly + 14}, {-300, 0}, 5.0f, 5});
+            for (int k = 0; k < 10; k++) p.particles.push_back({{lx - 6, ly + 14}, {Rnd(-160, -30), Rnd(-50, 30)}, 0.5f, 0.5f, Rnd(2, 5), k % 2 ? Color{230, 230, 220, 255} : Color{255, 190, 80, 255}});
+        } else {
+            p.shots.push_back({{lx - 14, ly + 6}, {-115, 0}, 9.0f, 6});
+            for (int k = 0; k < 5; k++) p.particles.push_back({{lx - 4, ly + 16}, {Rnd(-70, -10), Rnd(-60, -10)}, 0.35f, 0.35f, 2, Color{170, 130, 80, 255}});
+        }
+    }
+}
+
 // Musket balls fly straight until they hit something; bombs arc, bounce, and go off.
 constexpr float BOMB_FUSE = 1.3f, BLAST_R = 46;
 void UpdateShots(PlatformState& p, float dt) {
     for (auto& s : p.shots) {
         s.life -= dt;
-        if (s.kind == 0) {
+        if (s.kind == 4 || s.kind == 5) { // a torpedo or a cannonball: straight and fast, until it meets something solid
+            s.pos.x += s.vel.x * dt;
+            if (Solid(p, (int)floorf(s.pos.x / T), (int)floorf(s.pos.y / T))) {
+                s.life = 0;
+                Burst(p, s.pos, s.kind == 4 ? 16 : 10, s.kind == 4 ? Color{255, 170, 70, 255} : Color{210, 200, 180, 255}, 220, 0.4f, 3);
+                if (s.kind == 4) Bubbles(p, s.pos, 6, 8);
+            } else if (GetRandomValue(0, 2) == 0) {
+                if (s.kind == 4) p.particles.push_back({{s.pos.x + 14, s.pos.y + Rnd(-3, 3)}, {Rnd(0, 40), Rnd(-20, 20)}, 0.5f, 0.5f, -Rnd(2, 4), Color{196, 236, 250, 255}});
+                else p.particles.push_back({{s.pos.x + 6, s.pos.y}, {Rnd(0, 30), Rnd(-30, 10)}, 0.4f, 0.4f, Rnd(2, 4), Color{170, 170, 170, 255}});
+            }
+        } else if (s.kind == 6) { // a barrel rolling along the deck, falling into gaps, smashing on the first wall it meets
+            s.vel.y = std::min(s.vel.y + 1400 * dt, 700.0f);
+            float nx = s.pos.x + s.vel.x * dt, ny = s.pos.y + s.vel.y * dt;
+            if (Solid(p, (int)floorf((nx - 13) / T), (int)floorf(s.pos.y / T)) || Solid(p, (int)floorf((nx - 13) / T), (int)floorf((s.pos.y - 10) / T))) {
+                s.life = 0;
+                for (int k = 0; k < 10; k++) p.particles.push_back({s.pos, {Rnd(-120, 60), Rnd(-160, -20)}, 0.5f, 0.5f, Rnd(2, 4), Color{140, 96, 56, 255}});
+            } else s.pos.x = nx;
+            if (Solid(p, (int)floorf(s.pos.x / T), (int)floorf((ny + 13) / T))) { s.vel.y = 0; s.pos.y = floorf((ny + 13) / T) * (float)T - 13; }
+            else s.pos.y = ny;
+            if (s.pos.y > p.h * (float)T + 40 || (p.waterY > 0 && s.pos.y > p.waterY)) s.life = 0;
+        } else if (s.kind == 0) {
             s.pos.x += s.vel.x * dt;
             s.pos.y += s.vel.y * dt;
             for (size_t i = 0; i < p.enemies.size() && s.life > 0; i++) { // friendly fire: a musket ball kills whoever it hits, pirate or parakeet
@@ -366,6 +415,9 @@ void UpdateShots(PlatformState& p, float dt) {
 }
 
 bool ShotHits(const PlatShot& s, Rectangle pr) {
+    if (s.kind == 4) return CheckCollisionRecs(pr, {s.pos.x - 16, s.pos.y - 6, 32, 12});
+    if (s.kind == 5) return CheckCollisionCircleRec(s.pos, 8, pr);
+    if (s.kind == 6) return CheckCollisionRecs(pr, {s.pos.x - 12, s.pos.y - 12, 24, 24});
     if (s.kind == 0) return CheckCollisionRecs(pr, {s.pos.x - 3, s.pos.y - 3, 6, 6});
     if (s.kind == 2) return CheckCollisionCircleRec(s.pos, BLAST_R, pr);
     if (s.kind == 3) return CheckCollisionRecs(pr, {s.pos.x - 6, s.pos.y - 10, 12, 20}); // ink
@@ -647,6 +699,7 @@ void ThrowBomb(PlatformState& p) {
 // platform. Whatever the level doesn't cover is filled with `fill` (below) or `fillAbove` (above).
 void ScanTiles(PlatformState& p) {
     p.enemies.clear();
+    p.launchers.clear();
     p.boss = PlatBoss{};
     for (int r = 0; r < p.h; r++)
         for (int c = 0; c < p.w; c++) {
@@ -659,6 +712,7 @@ void ScanTiles(PlatformState& p) {
                 case 'G': p.enemies.push_back({'G', {x + 6, y + T - 30}, {x, y}, -1, 0, 0, Rnd(0, 1.2f)}); break;
                 case 'p': p.enemies.push_back({'p', {x + 16, y + 16}, {x + 16, y + 16}, 1, 0}); break;
                 case 'e': p.enemies.push_back({'e', {x + 16, y + 400}, {x + 16, y}, 1, c * 0.37f}); break;
+                case 'T': case 'N': case 'y': p.launchers.push_back({c, r, ch, Rnd(0.0f, 2.0f)}); continue; // solid fixtures that fire on a timer: the tile stays
                 case 'K': p.boss.type = 'K'; p.boss.home = {x + 16, y + T}; p.boss.tentT[0] = p.boss.tentT[1] = TENT_IDLE; break;
                 case 'B': p.boss.type = 'B'; p.boss.home = p.boss.pos = {x, y + T - BB_H}; break;
                 default: continue;
@@ -1323,9 +1377,55 @@ void Barnacles(float bx, float by) {
         DrawTri({ox - 2, oy + 2}, {ox + 2, oy + 2}, {ox, oy - 2}, Color{214, 202, 178, 255});
     }
 }
+// The Hull level is the top of a submarine: riveted steel plating, welded seams, hatches, grilles and hazard stripes. Coral
+// belongs on the rocks ('R') the hull lies among, not on the hull itself, so this is drawn clean and industrial.
+void DrawHullSteel(const PlatformState& p, int x, int y) {
+    int px = x * T, py = y * T;
+    uint8_t m = SolidMask(p, x, y);
+    float h1 = Hs(x * 3.7f + y * 11.1f), h2 = Hs(x * 6.1f + y * 2.3f + 5), h3 = Hs(x * 1.9f + y * 7.7f + 9);
+    Color ink{8, 10, 14, 255};
+    if (y <= 1) { // the surface of the sea, seen from below: pale light and rolling waves
+        Color a = y == 0 ? Color{198, 238, 248, 255} : Color{104, 176, 204, 255}, b = y == 0 ? Color{132, 204, 226, 255} : Color{58, 128, 168, 255};
+        DrawRectangleGradientV(px, py, T, T, a, b);
+        for (int k = 0; k < 4; k++) DrawRectangle(px + ((k * 9 + (int)(sinf(p.time * 1.2f + x + k) * 4)) & 31), py + 6 + k * 7, 8, 1, Fade(WHITE, 0.55f));
+        return;
+    }
+    bool inner = m == 15;
+    Color steel = inner ? Color{54, 64, 76, 255} : Color{86, 100, 114, 255}, dk = Color{34, 42, 52, 255}, lt = Color{140, 158, 172, 255};
+    DrawRectangle(px, py, T, T, steel);
+    DrawRectangle(px, py, T, 1, dk); DrawRectangle(px, py, 1, T, dk);                       // the seams between plates
+    DrawRectangleLines(px + 3, py + 3, T - 6, T - 6, Fade(dk, 0.7f));                       // an inset panel
+    for (int k = 0; k < 4; k++) { // rivets at the corners of every panel
+        int rx = px + 5 + (k % 2) * (T - 12), ry = py + 5 + (k / 2) * (T - 12);
+        DrawRectangle(rx + 1, ry + 1, 2, 2, dk); DrawRectangle(rx, ry, 2, 2, lt);
+    }
+    if (x % 4 == 0) { DrawRectangle(px, py, 3, T, Color{30, 38, 46, 255}); for (int k = 0; k < 4; k++) DrawRectangle(px + 5, py + 4 + k * 8, 1, 3, lt); } // a welded frame rib
+    if (!(m & 1)) { // the deck: bright edge and non-slip diamonds
+        DrawRectangle(px, py, T, 3, lt);
+        DrawRectangle(px, py + 3, T, 1, dk);
+        for (int k = 0; k < 5; k++) { DrawRectangle(px + 3 + k * 6, py + 8, 2, 1, Color{112, 128, 142, 255}); DrawRectangle(px + 6 + k * 6, py + 10, 2, 1, Color{112, 128, 142, 255}); }
+    }
+    if (!(m & 2)) DrawRectangle(px + T - 3, py, 3, T, dk);
+    if (!(m & 4)) { DrawRectangle(px, py + T - 4, T, 4, dk); DrawRectangle(px, py + T - 4, T, 1, lt); }
+    if (!inner || h1 > 0.5f) {
+        if (h1 > 0.93f) { // a round pressure hatch with a wheel
+            DrawCircle(px + 16, py + 16, 11, ink); DrawCircle(px + 16, py + 16, 9, Color{102, 116, 128, 255}); DrawRing({px + 16.0f, py + 16.0f}, 3, 5, 0, 360, 10, dk);
+            for (int k = 0; k < 4; k++) { float a = k * PI / 2 + 0.4f; DrawLineEx({px + 16.0f, py + 16.0f}, {px + 16 + cosf(a) * 8, py + 16 + sinf(a) * 8}, 2, Color{190, 150, 60, 255}); }
+        } else if (h1 > 0.86f) { // a vent grille
+            DrawRectangle(px + 5, py + 8, T - 10, 16, ink);
+            for (int k = 0; k < 5; k++) DrawRectangle(px + 7, py + 10 + k * 3, T - 14, 1, Color{92, 106, 118, 255});
+        } else if (h1 > 0.8f) { // a stencilled white patch: a hull marking
+            DrawRectangle(px + 6, py + 10, 20, 12, Fade(Color{226, 232, 236, 255}, 0.85f)); DrawRectangle(px + 8, py + 12, 16, 8, steel); DrawRectangle(px + 11, py + 14, 3, 4, Fade(WHITE, 0.85f)); DrawRectangle(px + 17, py + 14, 4, 4, Fade(WHITE, 0.85f));
+        }
+    }
+    if (!(m & 1) && h2 > 0.88f) for (int k = 0; k < 8; k++) DrawRectangle(px + k * 4, py + 4, 4, 3, k % 2 ? Color{232, 196, 52, 255} : Color{22, 20, 18, 255}); // hazard stripes along a deck edge
+    if (h3 > 0.9f && (m & 1)) { DrawRectangle(px + 8, py + 2, 3, 12, Color{110, 60, 36, 200}); DrawRectangle(px + 9, py + 2, 1, 12, Fade(BLACK, 0.3f)); } // a rust weep from a bolt
+    if (inner) DrawRectangle(px, py, T, T, Fade(BLACK, 0.12f));
+}
 void DrawSolid(const PlatformState& p, int x, int y) {
     float px = x * (float)T, py = y * (float)T;
     bool topEdge = !Solid(p, x, y - 1);
+    if (p.level == PL_HULL && p.tiles[y][x] != 'R') { DrawHullSteel(p, x, y); return; }
     switch (p.level) {
         case PL_PIPES: {
             // the duct walls: dark iron. Deep inside the mass it's plain; at the edges, riveted and rusting.
@@ -1417,11 +1517,11 @@ void DrawDepth(const PlatformState& p, int x, int y) {
         DrawRectangle((int)px + 5, (int)py + 5, T, T, Color{0, 0, 0, 80});
         return;
     }
-    if (c != '#' && c != 't' && c != 'k') return;
+    if (c != '#' && c != 't' && c != 'k' && c != 'R' && c != 'T' && c != 'N' && c != 'y') return;
     Color topC, sideC;
     switch (p.level) {
         case PL_PIPES: topC = {112, 96, 82, 255}; sideC = {40, 34, 30, 255}; break;
-        case PL_HULL: topC = {96, 126, 138, 255}; sideC = {34, 50, 60, 255}; break;
+        case PL_HULL: topC = {124, 142, 154, 255}; sideC = {30, 38, 48, 255}; break;
         default: topC = {150, 104, 64, 255}; sideC = {64, 40, 24, 255}; break;
     }
     if (!Solid(p, x, y - 1)) {
@@ -1559,6 +1659,7 @@ void DrawTileDetail(const PlatformState& p, int x, int y, float t) {
         }
         if (!(m & 1) && h3 > 0.7f) DrawRectangle(px + 4, py + 3, 12, 2, Color{170, 150, 120, 255}); // a scuffed, polished top edge
     } else if (p.level == PL_HULL) {
+        if (p.tiles[y][x] != 'R') return; // steel plating stays clean; the marine growth lives on the rocks
         if (!(m & 1)) { // algae fuzz on top
             for (int k = 0; k < 7; k++) {
                 float sw = sinf(t * 1.6f + x + k) * 1.2f;
@@ -1646,6 +1747,41 @@ void DrawTile(const PlatformState& p, char c, int x, int y, float t) {
                 DrawRectangle((int)px + 13, (int)py + 6, 6, 8, Color{8, 8, 12, 255});
                 DrawRectangle((int)px + 14, (int)py + 7, 4, 6, gGhost ? Color{110, 250, 210, 255} : Color{(unsigned char)(220 * fl + 30), (unsigned char)(170 * fl + 30), 80, 255});
             }
+        } break;
+        case 'R': DrawSolid(p, x, y); DrawTileGrit(p, x, y); DrawTileDetail(p, x, y, t); break;
+        case 'T': { // a torpedo tube set into a steel housing: a dark bore facing left, hazard bands, a red lamp that warns before it fires
+            DrawHullSteel(p, x, y);
+            float al = LauncherAlert(p, x, y);
+            DrawRectangle((int)px, (int)py + 4, T, 24, Color{8, 10, 14, 255});
+            DrawRectangle((int)px + 2, (int)py + 6, T - 4, 20, Color{58, 66, 76, 255});
+            DrawCircle((int)px + 6, (int)py + 16, 11, Color{8, 10, 14, 255});
+            DrawCircle((int)px + 6, (int)py + 16, 9, al > 0 ? Color{(unsigned char)(80 + 160 * al), 40, 30, 255} : Color{22, 26, 32, 255});
+            DrawRing({px + 6, py + 16}, 9, 11, 0, 360, 14, Color{150, 164, 176, 255});
+            for (int k = 0; k < 4; k++) DrawRectangle((int)px + 14 + k * 4, (int)py + 4, 2, 24, k % 2 ? Color{232, 196, 52, 255} : Color{22, 20, 18, 255});
+            DrawCircle((int)px + T - 6, (int)py + 8, 3, al > 0 && fmodf(t * 10, 1.0f) < 0.5f ? Color{255, 60, 40, 255} : Color{90, 30, 26, 255});
+            if (al > 0) { BeginBlendMode(BLEND_ADDITIVE); DrawCircleV({px + 4, py + 16}, 20 + 10 * al, Color{255, 90, 50, (unsigned char)(50 * al)}); EndBlendMode(); }
+        } break;
+        case 'N': { // a deck cannon: an iron barrel on a wooden carriage, muzzle to the left, a smoking fuse before it fires
+            float al = LauncherAlert(p, x, y);
+            DrawRectangle((int)px - 8, (int)py + 8, 30, 12, Color{8, 8, 12, 255});
+            DrawRectangle((int)px - 6, (int)py + 10, 26, 8, Color{58, 60, 66, 255});
+            DrawRectangle((int)px - 6, (int)py + 10, 26, 3, Color{110, 114, 122, 255});
+            DrawRectangle((int)px - 9, (int)py + 7, 5, 14, Color{40, 42, 48, 255});
+            DrawRectangle((int)px + 2, (int)py + 18, 26, 12, Color{112, 74, 42, 255});
+            DrawRectangle((int)px + 2, (int)py + 18, 26, 3, Color{164, 116, 72, 255});
+            DrawCircle((int)px + 8, (int)py + 28, 6, Color{8, 8, 12, 255}); DrawCircle((int)px + 8, (int)py + 28, 4, Color{92, 60, 34, 255});
+            DrawCircle((int)px + 22, (int)py + 28, 6, Color{8, 8, 12, 255}); DrawCircle((int)px + 22, (int)py + 28, 4, Color{92, 60, 34, 255});
+            if (al > 0) { DrawRectangle((int)px + 20, (int)py + 4, 2, 6, Color{60, 50, 40, 255}); DrawCircle((int)px + 21, (int)py + 3, 2 + 2 * al, Fade(Color{255, 180, 60, 255}, 0.9f)); BeginBlendMode(BLEND_ADDITIVE); DrawCircleV({px - 8, py + 14}, 12 + 12 * al, Color{255, 140, 50, (unsigned char)(70 * al)}); EndBlendMode(); }
+        } break;
+        case 'y': { // a barrel chute: a hatch of planks with a sluice of barrels stacked behind it, its bolt drawn back to warn
+            float al = LauncherAlert(p, x, y);
+            DrawRectangle((int)px, (int)py, T, T, Color{8, 8, 12, 255});
+            DrawRectangle((int)px + 2, (int)py + 2, T - 4, T - 4, Color{120, 80, 46, 255});
+            for (int k = 1; k < 4; k++) DrawRectangle((int)px + 2, (int)py + k * 8, T - 4, 1, Color{74, 46, 26, 255});
+            DrawRectangle((int)px + 2, (int)py + 4 + (int)(al * 6), 5, 10, Color{54, 52, 56, 255});                    // the iron bolt
+            DrawCircle((int)px + 14, (int)py + 22, 6, Color{150, 100, 56, 255}); DrawCircleLines((int)px + 14, (int)py + 22, 6, Color{60, 40, 22, 255});
+            DrawRectangle((int)px + 4, (int)py + 26, T - 8, 2, Color{190, 150, 60, 255});
+            if (al > 0.3f) DrawRectangle((int)px - 3, (int)py + 4, 3, T - 8, Fade(Color{255, 190, 60, 255}, al));
         } break;
         case 'k': { // a crate or a barrel
             bool barrel = Hs(x * 7.1f + y * 3.3f) > 0.5f;
@@ -2567,7 +2703,28 @@ void DrawBoss(const PlatformState& p, float t) {
 // Musket balls, bombs and their blasts.
 void DrawShots(const PlatformState& p, float t) {
     for (const auto& s : p.shots) {
-        if (s.kind == 0) {
+        if (s.kind == 4) { // a torpedo: a steel cylinder with a nose cone and a churning propeller
+            int px = (int)s.pos.x, py = (int)s.pos.y;
+            DrawRectangle(px - 16, py - 6, 30, 12, Color{8, 8, 12, 255});
+            DrawRectangle(px - 14, py - 4, 26, 8, Color{120, 132, 140, 255});
+            DrawRectangle(px - 14, py - 4, 26, 3, Color{176, 190, 198, 255});
+            DrawTri({px - 16.0f, py - 6.0f}, {px - 16.0f, py + 6.0f}, {px - 24.0f, (float)py}, Color{8, 8, 12, 255});
+            DrawTri({px - 15.0f, py - 4.0f}, {px - 15.0f, py + 4.0f}, {px - 22.0f, (float)py}, Color{220, 84, 60, 255});
+            DrawRectangle(px + 6, py - 4, 3, 8, Color{220, 190, 60, 255});
+            DrawRectangle(px + 14, py - 5 + (int)(sinf(t * 40) * 2), 2, 10, Color{60, 66, 72, 255});
+            BeginBlendMode(BLEND_ADDITIVE); DrawCircleV({s.pos.x + 18, s.pos.y}, 12, Color{255, 140, 60, 80}); EndBlendMode();
+        } else if (s.kind == 5) { // an iron cannonball
+            DrawCircleV(s.pos, 9, Color{8, 8, 12, 255});
+            DrawCircleV(s.pos, 7, Color{54, 56, 62, 255});
+            DrawCircleV({s.pos.x - 2, s.pos.y - 3}, 2.5f, Color{170, 176, 184, 255});
+        } else if (s.kind == 6) { // a barrel, its staves turning as it rolls
+            float rot = s.pos.x * 0.07f;
+            DrawCircleV(s.pos, 14, Color{8, 8, 12, 255});
+            DrawCircleV(s.pos, 12, Color{132, 86, 46, 255});
+            for (int k = 0; k < 4; k++) { float a = rot + k * PI / 2; DrawLineEx({s.pos.x + cosf(a) * 12, s.pos.y + sinf(a) * 12}, {s.pos.x - cosf(a) * 12, s.pos.y - sinf(a) * 12}, 1.5f, Color{74, 46, 24, 255}); }
+            DrawCircleLines((int)s.pos.x, (int)s.pos.y, 7, Color{60, 58, 62, 255});
+            DrawCircleV({s.pos.x + cosf(rot) * 8, s.pos.y + sinf(rot) * 8}, 2, Color{190, 60, 50, 255});
+        } else if (s.kind == 0) {
             Vector2 back{s.pos.x - s.vel.x * 0.03f, s.pos.y - s.vel.y * 0.03f};
             DrawLineEx(back, s.pos, 2, Fade(Color{230, 230, 220, 255}, 0.5f));
             DrawCircleV(s.pos, 3, Color{40, 40, 44, 255});
@@ -2700,6 +2857,7 @@ void ScenePlatformer(Game& g) {
         float ed = p.ghost ? dt * GHOST_SPEED : dt; // ghosts move, aim, fire and charge 1.6x faster
         UpdateEnemies(p, ed);
         UpdateBoss(p, ed);
+        UpdateLaunchers(p, ed);
         UpdateShots(p, ed);
 
         // touching an enemy is deadly; only a boss can be stomped

@@ -298,7 +298,8 @@ struct PlatEnemy {
     float timer = 0;  // time in the current state (or cooldown while hidden)
     Vector2 aim{0, 0}; // where a gunner is aiming
 };
-struct PlatShot { Vector2 pos, vel; float life; int kind; }; // 0 musket ball, 1 lit bomb, 2 explosion, 3 falling ink
+struct PlatShot { Vector2 pos, vel; float life; int kind; }; // 0 musket ball, 1 lit bomb, 2 explosion, 3 falling ink, 4 torpedo, 5 cannonball, 6 rolling barrel
+struct PlatLauncher { int tx, ty; char type; float t; }; // a torpedo tube (T), a deck cannon (N) or a barrel chute (y): fires on a timer, with a warning before
 struct PlatParticle { Vector2 p, v; float life, max, size; Color c; };
 // ---- animation states for the articulated platform characters
 enum class BBAnim { Idle, Walk, Windup, Charge, AimPistol, Dazed, Recover };   // Blackbeard: each drives his limbs
@@ -372,7 +373,8 @@ struct PlatformState {
     std::vector<int> partInterior;   // per section: the tile row where its below-decks interior starts (or a huge number)
     std::vector<int> partKind;       // per section: 0 open air, 1 the ship's hold, 2 the captain's cabin
     std::vector<int> layout;         // the sections in this run, so a death can rebuild the level from scratch
-    std::vector<PlatShot> shots;     // musket balls and bombs in flight
+    std::vector<PlatShot> shots;     // musket balls, bombs, torpedoes, cannonballs and barrels in flight
+    std::vector<PlatLauncher> launchers;
     int pickupPct = 0, speedPct = 0, jumpPct = 0, lampPct = 0; // from the lead hero's relics (see RelicFx)
     bool hard = false;               // Hard keeps the gears and jets; Normal leaves them out
     bool checkpoints = false;        // respawn at the last section reached, but forfeit the relic
