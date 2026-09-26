@@ -67,7 +67,7 @@ struct Params {
 Params ParamsFor(int level) {
     switch (level) {
         case 0: return {0.62f, 150, 40, 4, 9, 2, 3, 1, true, 0.0f, 0, 0, 0.30f};     // the Pipes: wide, forgiving, no wall jumps
-        case 1: return {0.78f, 180, 64, 2, 5, 3, 4, 2, false, 0.40f, 5, 9, 0.20f};   // the Hull: verticality, shafts, footholds
+        case 1: return {0.78f, 180, 64, 2, 5, 3, 4, 2, false, 0.40f, 7, 13, 0.20f};   // the Hull: verticality, shafts, footholds
         default: return {0.93f, 190, 64, 1, 3, 3, 4, 3, false, 0.36f, 7, 13, 0.20f}; // the Pirate Ship: tiny footholds at the arc's edge
     }
 }
@@ -118,6 +118,186 @@ GenLevel ShaftTemplate(int iw, int Hs, bool up, bool barnacle) {
     out.path = {{first.wx, first.y - 1, SetPiece::None}, {n.wx, n.y - 1, n.tag}};
     return out;
 }
+// ---------------------------------------------------------------------------- macro-structures
+// The Hull is a trench: tall coral columns rooted in the seabed and reaching the ceiling, each with a tunnel at its base,
+// alternating with short columns whose tops are plateaus. You come through a tunnel, climb the shaft between a tall column
+// and a short one (wall-jumping), cross the plateau, drop into the shaft on its far side, and leave through the next tall
+// column's tunnel. Nothing floats: every tile of the level is part of a column or the seabed.
+static void BuildTrench(Grid& g, std::vector<Plat>& pl, Rng& rng, GenLevel& out, const Params& P, int& wOut) {
+    const int H = g.h, F = H - 6;
+    g.rect(0, F, g.w - 1, H - 1, '#');       // the seabed
+    g.rect(0, 0, g.w - 1, 1, '#');           // the ceiling of the trench
+    auto column = [&](int x0, int width, int top, bool tunnel) {
+        g.rect(x0, top, x0 + width - 1, H - 1, '#');
+        if (tunnel) g.rect(x0, F - 3, x0 + width - 1, F - 1, '.');
+    };
+    Plat start{2, 9, F, C_START, '#', SetPiece::None, 0, 3};
+    pl.push_back(start);
+    int x = 10;
+    column(x, 3, 0, true);
+    int guard = 0;
+    while (x < P.length && guard++ < 40) {
+        int iw1 = rng.I(3, 4), iw2 = rng.I(3, 4), sw = rng.I(5, 7);
+        bool barnacle = rng.C(0.35f);
+        int Hs = std::min(rng.I(P.shaftMin, P.shaftMax + 1), MaxUpShaft(iw1, barnacle));
+        int upX0 = x + 3, sX0 = upX0 + iw1, sTop = F - Hs, t2X0 = sX0 + sw + iw2;
+        column(sX0, sw, sTop, false);                                       // the short column, its top a plateau
+        column(t2X0, 3, 0, true);                                           // the next tall column, with its tunnel
+        if (barnacle) { g.rect(x + 2, sTop - 1, x + 2, F - 4, 'b'); g.rect(sX0, sTop + 1, sX0, F - 1, 'b'); }
+        // an overhang shelf off the tall column high above the plateau, with weed hanging from it
+        int shelfY = sTop - 12;
+        if (shelfY > 3) {
+            g.rect(upX0, shelfY, upX0 + 2, shelfY, '#');
+            for (int k = 0; k < 3; k += 2) g.rect(upX0 + k, shelfY + 1, upX0 + k, shelfY + 4, 'w');
+        }
+        // the down shaft's floor: urchins across its left, the tunnel side left clear
+        for (int xx = sX0 + sw; xx <= t2X0 - 3; xx++) g.set(xx, F, 'x');
+        // coins up the middle of the climb, crossing the plateau
+        for (int k = 0; k < 3; k++) { int cy = F - 3 - (Hs - 4) * (k + 1) / 4; if (cy < F && g.get(upX0 + iw1 / 2, cy) == '.') g.set(upX0 + iw1 / 2, cy, 'o'); }
+        for (int xx = sX0 + 1; xx < sX0 + sw - 1; xx += 2) if (g.get(xx, sTop - 1) == '.') g.set(xx, sTop - 1, 'o');
+        if (sw >= 5 && rng.C(0.5f) && g.get(sX0 + sw - 2, sTop - 1) == '.') g.set(sX0 + sw - 2, sTop - 1, 'c');
+        if (rng.C(0.4f) && g.get(sX0 + 1, sTop - 8) == '.') g.set(sX0 + 1, sTop - 8, 'p');
+        // the critical path: in through the tunnel, up to the plateau, down to the next tunnel
+        Plat entry{upX0, upX0 + iw1 - 1, F, C_JUMP, '#', SetPiece::None, 0, upX0};
+        Plat plateau{sX0, sX0 + sw - 1, sTop, C_SHAFT_UP, '#', barnacle ? SetPiece::BarnacleShaft : SetPiece::ShaftUp, 0, sX0 + 1};
+        Plat bottom{t2X0 - 2, t2X0 - 1, F, C_SHAFT_DOWN, '#', SetPiece::ShaftDown, 0, t2X0 - 1};
+        pl.push_back(entry); pl.push_back(plateau); pl.push_back(bottom);
+        out.setPieces[(int)plateau.tag]++; out.setPieces[(int)SetPiece::ShaftDown]++;
+        x = t2X0;
+    }
+    int fx = x + 3;
+    Plat fin{fx, fx + 6, F, C_JUMP, '#', SetPiece::None, 0, fx + 1};
+    pl.push_back(fin);
+    wOut = fx + 7;
+    out.exitRow = F - 1;
+}
+
+// The Pirate Ship is a fleet: ships on the sea, each a run of deck with a raised stern castle and a stepped bow, and open
+// water between them. On a deck you meet open hatches (spikes below), cargo, and masts. A mast with a barricade beside it
+// is a shaft to climb; a mast with yardarms of shrinking length is a ladder, and between the ships a rigging rope runs from
+// one masthead to the next. Yardarms cross a mast, ropes join masts, and every mast has a tunnel at its foot.
+static void BuildFleet(Grid& g, std::vector<Plat>& pl, Rng& rng, GenLevel& out, const Params& P, int& wOut) {
+    const int H = g.h;
+    const int D0 = H - 20;
+    Plat start{2, 8, D0, C_START, '#', SetPiece::None, 0, 3};
+    pl.push_back(start);
+    auto mast = [&](int mx, int deckRow, int top) { // two planks wide, with a tunnel at its foot
+        g.rect(mx, top, mx + 1, deckRow - 1, '|');
+        g.rect(mx, deckRow - 3, mx + 1, deckRow - 1, '.');
+    };
+    auto yard = [&](int cx, int row, int half) { g.rect(cx + 1 - half, row, cx + half, row, '='); };
+    int x = 0, ship = 0, guard = 0, prevD = D0, prevBowX = -1, prevBowD = D0;
+    bool bridgePending = false; int pendingMastX = 0, pendingRow = 0, pendingHalf = 2;
+    while (x < P.length && guard++ < 12) {
+        int len = rng.I(36, 46);
+        int sx = x, ex = sx + len - 1;
+        int Ds = ship == 0 ? D0 : std::clamp(prevD + rng.I(-1, 1), D0 - 2, D0 + 2);
+        bool isLast = x + len >= P.length - 8;
+        g.rect(sx, Ds, ex, Ds + 4, '#');                                       // the hull: deck planking over timber
+        if (ship > 0) g.rect(sx, Ds - 3, sx + 3, Ds - 1, '#');                  // the stern castle, raised
+        if (!isLast) { g.rect(ex - 2, Ds - 1, ex, Ds - 1, '#'); g.rect(ex - 1, Ds - 2, ex, Ds - 2, '#'); g.set(ex, Ds - 3, '#'); } // the bow, stepping up
+        int cx = sx + (ship == 0 ? 9 : 6);
+        // ---- if a rope bridge arrives here, drop its far mast onto this ship
+        if (bridgePending) {
+            int mB = sx + 7;
+            mast(mB, Ds, pendingRow);
+            int nB = 4;
+            for (int i = 1; i <= nB; i++) yard(mB, Ds - 3 * i, std::max(2, 5 - i));
+            yard(mB, pendingRow, pendingHalf);
+            for (int xx = pendingMastX + pendingHalf + 1; xx < mB + 1 - pendingHalf; xx++) g.set(xx, pendingRow, 'r'); // the rigging rope
+            Plat ropeEnd{mB - pendingHalf - 1, mB - pendingHalf - 1, pendingRow, C_JUMP, 'r', SetPiece::None, 0, mB - pendingHalf - 1};
+            pl.push_back(ropeEnd);
+            Plat land{mB + pendingHalf + 2, mB + pendingHalf + 4, Ds, C_JUMP, '#', SetPiece::None, 0, mB + pendingHalf + 2};
+            pl.push_back(land);
+            bridgePending = false;
+            cx = mB + 8;
+        } else if (ship > 0) { // arrived by a jump: a waypoint on the stern castle
+            Plat cap{sx, sx + 3, Ds - 3, C_JUMP, '#', SetPiece::None, 0, sx + 1};
+            pl.push_back(cap);
+        }
+        if (ship == 0) { Plat d0{x + 4, x + 8, Ds, C_JUMP, '#', SetPiece::None, 0, x + 5}; (void)d0; }
+        // ---- the deck's obstacles
+        int last = ex - 12;
+        int bridgeAt = (rng.C(0.55f) && x + len < P.length - 40) ? 1 : 0;
+        if (bridgeAt) last = ex - 16;
+        while (cx < last) {
+            int kind = rng.I(0, 3);
+            const int need[4] = {12, 20, 9, 10};                              // the widest each segment can grow, with its run-off
+            if (cx + need[kind] > last) kind = 2;                              // not enough deck left: something small
+            if (cx + need[kind] > last) break;
+            if (kind == 0) { // an open hatch, spikes in the hold
+                int gw = P.safety > 0.85f ? rng.I(3, 4) : 3;
+                g.rect(cx, Ds, cx + gw - 1, Ds + 3, '.'); g.rect(cx, Ds + 4, cx + gw - 1, Ds + 4, 'x');
+                Plat after{cx + gw, cx + gw + 2, Ds, C_JUMP, '#', SetPiece::None, 0, cx + gw};
+                Plat before{cx - 3, cx - 1, Ds, C_JUMP, '#', SetPiece::None, 0, cx - 1};
+                pl.push_back(before); pl.push_back(after);
+                cx += gw + 5;
+            } else if (kind == 1) { // a mast and a barricade: a shaft to climb
+                int iw = rng.I(3, 4), Hs = std::min(rng.I(P.shaftMin, P.shaftMax), MaxUpShaft(iw, false)), bw = rng.I(3, 5);
+                int mx = cx, ix = mx + 2, bx = ix + iw;
+                if (Ds - Hs < 6) { cx += 6; continue; }
+                mast(mx, Ds, Ds - Hs - 9);                                       // the mast, the left wall of the shaft
+                g.rect(bx, Ds - Hs, bx + bw - 1, Ds - 1, '#');                   // the barricade of cargo, the right wall
+                yard(mx, Ds - Hs - 9, 5);
+                Plat inside{ix, ix + iw - 1, Ds, C_JUMP, '#', SetPiece::None, 0, ix};
+                Plat top{bx, bx + bw - 1, Ds - Hs, C_SHAFT_UP, '#', SetPiece::ShaftUp, 0, bx + 1};
+                Plat down{bx + bw, bx + bw + 2, Ds, C_JUMP, '#', SetPiece::None, 0, bx + bw + 1};
+                pl.push_back(inside); pl.push_back(top); pl.push_back(down);
+                out.setPieces[(int)SetPiece::ShaftUp]++;
+                if (rng.C(0.5f) && g.get(bx + bw - 2, Ds - Hs - 1) == '.' && bw >= 4) g.set(bx + bw - 2, Ds - Hs - 1, 'c');
+                cx = bx + bw + 5;
+            } else if (kind == 2) { // cargo: a crate or two to hop
+                int h = rng.I(1, 2);
+                for (int k = 1; k <= h; k++) g.set(cx, Ds - k, 'k');
+                if (rng.C(0.6f)) { g.set(cx + 1, Ds - 1, 'k'); }
+                cx += 6;
+            } else { // a standing mast with yardarms out of reach: dressing, a tunnel at its foot
+                mast(cx, Ds, Ds - 22);
+                yard(cx, Ds - 14, 6); yard(cx, Ds - 20, 4);
+                cx += 7;
+            }
+            if (rng.C(0.5f) && g.get(cx - 2, Ds) == '#' && g.get(cx - 2, Ds - 1) == '.' && g.get(cx - 2, Ds - 2) == '.') g.set(cx - 2, Ds - 1, 'P');
+            if (rng.C(0.6f) && g.get(cx - 1, Ds - 1) == '.') g.set(cx - 1, Ds - 1, 'o');
+        }
+        // ---- leaving the ship
+        prevBowX = ex; prevBowD = Ds; prevD = Ds;
+        if (isLast) { x = ex + 1; ship++; break; }
+        if (bridgeAt) { // a mast ladder up to a rope that runs across a gap too wide to jump
+            int mA = ex - 10, n = rng.I(3, 4);
+            int gap = rng.I(9, 11);
+            mast(mA, Ds, Ds - 3 * n);
+            std::vector<Plat> ladder;
+            for (int i = 1; i <= n; i++) {
+                int half = std::max(2, 5 - i), row = Ds - 3 * i;
+                yard(mA, row, half);
+                ladder.push_back(Plat{mA + 1 - half, mA + half, row, C_JUMP, '=', i == n ? SetPiece::MastLadder : SetPiece::None, 0, mA + 1 - half});
+            }
+            Plat at{mA - 4, mA - 2, Ds, C_JUMP, '#', SetPiece::None, 0, mA - 3};
+            pl.push_back(at);
+            for (auto& l : ladder) pl.push_back(l);
+            bridgePending = true; pendingMastX = mA; pendingRow = Ds - 3 * n; pendingHalf = std::max(2, 5 - n);
+            out.setPieces[(int)SetPiece::MastLadder]++; out.setPieces[(int)SetPiece::ShipGap]++;
+            x = ex + 1 + gap;
+        } else { // a gap a good jump across, between a bow and the next stern castle
+            int rise = 0;
+            JumpArc a = CalculateValidJumpArc(rise * kin::TILE);
+            int gm = std::max(2, (int)std::floor((a.maxReach * P.safety - 12) / kin::TILE));
+            int gap = rng.I(std::max(3, gm - 1), gm);
+            Plat bow{ex - 1, ex, Ds - 2, C_JUMP, '#', SetPiece::None, 0, ex - 1};
+            pl.push_back(bow);
+            out.setPieces[(int)SetPiece::ShipGap]++;
+            x = ex + 1 + gap;
+        }
+        ship++;
+    }
+    (void)prevBowX; (void)prevBowD;
+    // the last ship: a long flat deck to meet the arena
+    Plat fin{x - 8, x - 2, prevD, C_JUMP, '#', SetPiece::None, 0, x - 6};
+    if (ship > 0) { fin.x0 = std::max(fin.x0, 1); }
+    pl.push_back(fin);
+    wOut = x;
+    out.exitRow = prevD - 1;
+}
 // ---------------------------------------------------------------------------- the generator
 GenLevel GenerateLevel(int level, unsigned seed, float scale) {
     Params P = ParamsFor(level);
@@ -127,7 +307,7 @@ GenLevel GenerateLevel(int level, unsigned seed, float scale) {
     Grid g(W, P.H, P.enclosed ? '#' : '.');
     std::vector<Plat> pl;
     GenLevel out;
-    out.setPieces.assign(8, 0);
+    out.setPieces.assign(12, 0);
     out.safety = P.safety;
     out.enclosed = P.enclosed;
     const int yLo = P.enclosed ? 10 : 9, yHi = P.H - 10;
@@ -140,6 +320,7 @@ GenLevel GenerateLevel(int level, unsigned seed, float scale) {
                 g.rect(p.x0, p.y + 1, p.x1, p.y + 2, '.');
                 g.rect(p.x0, p.y + 3, p.x1, p.y + 3, 'x');
                 g.rect(p.x0, p.y, p.x1, p.y, p.ch);
+                if (p.ch == '=' && p.x1 - p.x0 >= 2) { int sx = p.x0 + (p.x1 - p.x0) / 2; g.rect(sx, p.y + 1, sx, p.y + 3, '|'); } // a riser down to the duct floor: the run branches off the network
             }
         } else {
             int thick = p.ch != '#' ? 1 : (p.deck ? 3 : 2);
@@ -181,7 +362,10 @@ GenLevel GenerateLevel(int level, unsigned seed, float scale) {
         bool small = w <= 3 && !deck;
         Plat n{c.x1 + 1 + gap, c.x1 + gap + w, c.y - dy, C_JUMP, '#', SetPiece::None, gap, 0};
         n.deck = deck;
-        if (P.enclosed) n.ch = (w >= 2 && rng.C(0.45f)) ? '=' : '#';
+        if (P.enclosed) {
+            n.ch = (w >= 2 && rng.C(0.45f)) ? '=' : '#';
+            if (n.ch == '=' && c.ch == '=' && dy == 0 && rng.C(0.4f)) { n.x0 = c.x1 + 1; n.x1 = n.x0 + w - 1; n.gap = 0; }   // the run simply continues, joined at a flange
+        }
         else if (small) n.ch = '=';
         n.wx = n.x0;
         push(n, &c);
@@ -222,6 +406,17 @@ GenLevel GenerateLevel(int level, unsigned seed, float scale) {
         out.setPieces[(int)SetPiece::GearGauntlet]++;
         return true;
     };
+    auto pipeDrop = [&]() { // a vertical pipe carries the run down to a lower one: a drop with an elbow at the bottom
+        Plat c = pl.back();
+        int D = rng.I(5, 9), iw = 3;
+        if (c.ch == 'f' || c.y + D > yHi || c.conn == C_STEAM) return false;
+        g.rect(c.x1 + 1, c.y - 1, c.x1 + iw, c.y + D - 1, '.');                                   // the chamber
+        Plat n{c.x1 + 1, c.x1 + iw + rng.I(3, 5), c.y + D, C_JUMP, '=', SetPiece::PipeDrop, 0, c.x1 + 2};
+        push(n, nullptr);
+        g.rect(c.x1, c.y + 1, c.x1, c.y + D - 1, '|');                                            // the riser: it meets the lower run in an elbow
+        out.setPieces[(int)SetPiece::PipeDrop]++;
+        return true;
+    };
     auto shipGap = [&]() {
         // two big decks facing each other across a gap at the very edge of the arc: a ship-to-ship leap
         addJump(6, 7, true);
@@ -250,12 +445,18 @@ GenLevel GenerateLevel(int level, unsigned seed, float scale) {
         out.setPieces[(int)n.tag]++;
         return true;
     };
+    int w = 0;
+    if (level != 0) {
+        pl.clear();
+        g = Grid(W, P.H, '.');
+        if (level == 1) BuildTrench(g, pl, rng, out, P, w); else BuildFleet(g, pl, rng, out, P, w);
+    } else {
     // ---- pass 1: the critical path
     int guard = 0;
     while (pl.back().x1 < P.length && guard++ < 400) {
         bool did = false;
         if (rng.C(P.setChance)) {
-            if (level == 0) { int k = rng.I(0, 2); did = k == 0 ? steamBoost() : k == 1 ? crumbleRun() : gearGauntlet(); }
+            if (level == 0) { int k = rng.I(0, 3); did = k == 0 ? steamBoost() : k == 1 ? crumbleRun() : k == 2 ? gearGauntlet() : pipeDrop(); }
             else if (level == 1) did = shaft(true);
             else did = shipGap();
         }
@@ -268,7 +469,7 @@ GenLevel GenerateLevel(int level, unsigned seed, float scale) {
     for (int x = last.x0; x <= last.x1; x++) for (int t = 0; t < 3; t++) g.set(x, last.y + t, '#');
     if (P.enclosed) g.rect(last.x0, last.y - 6, last.x1, last.y - 1, '.');
     out.exitRow = last.y - 1;
-    int w = last.x1 + 1;
+    w = last.x1 + 1;
 
     // ---- pass 2: hazards, enemies and coins on the surfaces that exist
     auto air = [&](int x, int y) { return g.get(x, y) == '.'; };
@@ -333,9 +534,10 @@ GenLevel GenerateLevel(int level, unsigned seed, float scale) {
         }
     }
 
-    // ---- the start, the exit and the finished grid
-    g.set(first.wx, first.y - 1, 'S');
     if (P.enclosed) g.set(last.x0 + 3, last.y - 1, 'E');
+    }
+    // ---- the start, the exit and the finished grid
+    g.set(pl[0].wx, pl[0].y - 1, 'S');
     for (auto& r : g.r) r.resize(w);
     out.w = w;
     out.h = P.H;

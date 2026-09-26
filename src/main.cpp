@@ -102,6 +102,8 @@ static void TakeShots(const Game& base, const std::string& dir) {
         {"pipes_crumble", [](Game& g) { ShotAtPiece(g, PL_PIPES, SetPiece::CrumbleRun); }},
         {"hull_barnacle", [](Game& g) { ShotAtPiece(g, PL_HULL, SetPiece::BarnacleShaft); }},
         {"pirate_gap", [](Game& g) { ShotAtPiece(g, PL_PIRATE, SetPiece::ShipGap, false, 2); }},
+        {"pirate_ladder", [](Game& g) { ShotAtPiece(g, PL_PIRATE, SetPiece::MastLadder, false, 1); }},
+        {"pipes_drop", [](Game& g) { ShotAtPiece(g, PL_PIPES, SetPiece::PipeDrop, false, 1); }},
         {"pirate_ghost", [](Game& g) { ShotAtPiece(g, PL_PIRATE, SetPiece::ShipGap, true, 3); }},        {"pirate_boss", [](Game& g) { StartPlatform(g, PL_PIRATE); g.plat.pos = {(g.plat.w - 24) * 32 + 150.0f, g.plat.boss.home.y + 40}; }},
     };
     std::vector<Shot> all(std::begin(shots), std::end(shots));
@@ -154,6 +156,15 @@ static void MakeSpriteSheet(const std::string& path) {
 
 int main(int argc, char** argv) {
     SetRandomSeed((unsigned int)time(nullptr));
+    if (argc >= 4 && strcmp(argv[1], "--gen") == 0) { // developer: print a generated level as ASCII (level 0-2, seed, optional first/last column)
+        GenLevel gl = GenerateLevel(atoi(argv[2]), (unsigned)atoi(argv[3]), 1.0f);
+        int c0 = argc >= 5 ? atoi(argv[4]) : 0, c1 = argc >= 6 ? atoi(argv[5]) : std::min(gl.w, c0 + 120);
+        printf("%dx%d, exit row %d, %d waypoints\n", gl.w, gl.h, gl.exitRow, (int)gl.path.size());
+        for (int r = 0; r < gl.h; r++) printf("%2d %s\n", r, gl.rows[r].substr(std::min(c0, gl.w), std::max(0, std::min(c1, gl.w) - c0)).c_str());
+        for (auto& wp : gl.path) printf("(%d,%d,%d) ", wp.tx, wp.ty, (int)wp.tag);
+        printf("\n");
+        return 0;
+    }
     if (argc >= 6 && strcmp(argv[1], "--boss") == 0) {
         SetTraceLogLevel(LOG_WARNING);
         SimulateBossFight(atoi(argv[2]), atoi(argv[3]), std::clamp(atoi(argv[4]), 0, CAVE_TIERS - 1), std::clamp(atoi(argv[5]), 0, (int)EnemyType::COUNT - 1), argc >= 7 && strcmp(argv[6], "random") == 0);

@@ -26,6 +26,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <functional>
 #include <chrono>
 #include <cstdio>
 #include <queue>
@@ -134,7 +135,7 @@ bool Solid(const PlatformState& p, int tx, int ty) {
     if (tx < 0 || tx >= p.w) return true; // level edges act as walls
     if (ty < 0 || ty >= p.h) return false;
     char c = p.tiles[ty][tx];
-    return c == '#' || c == 't' || c == '=' || c == '|' || c == 'k' || c == 'f' || c == 'v' || c == 'b';
+    return c == '#' || c == 't' || c == '=' || c == '|' || c == 'k' || c == 'f' || c == 'v' || c == 'b' || c == 'r';
 }
 
 // Moves a box one axis at a time and pushes it out of solid tiles.
@@ -786,6 +787,13 @@ void StepPlayer(PlatformState& p, float dir, bool jumpHeld) {
         }
     }
 
+    // seaweed: it slows a fall, lets the diver hang on, and can be climbed up or down
+    {
+        p.onWeed = false;
+        for (int ty = (int)floorf((p.pos.y + 2) / T); ty <= (int)floorf((p.pos.y + PH - 2) / T) && !p.onWeed; ty++)
+            for (int tx = (int)floorf((p.pos.x + 3) / T); tx <= (int)floorf((p.pos.x + PW - 3) / T); tx++) if (At(p, tx, ty) == 'w') { p.onWeed = true; break; }
+        if (p.onWeed) p.coyote = COYOTE; // you can always jump off it
+    }
     // a steam vent's column lifts whoever is in it
     {
         int vx = (int)floorf((p.pos.x + PW / 2) / T), vy = (int)floorf((p.pos.y + PH - 1) / T);
@@ -798,6 +806,11 @@ void StepPlayer(PlatformState& p, float dir, bool jumpHeld) {
     // gravity is stronger once the jump button is released (short hops) and when falling (snappy arcs)
     p.vel.y += (p.vel.y < 0 ? (jumpHeld ? GRAV_UP : GRAV_UP_RELEASED) : GRAV_DOWN) * STEP;
     if (p.wallSide && p.vel.y > WALL_SLIDE) p.vel.y = std::max(WALL_SLIDE, p.vel.y - 6000 * STEP);
+    if (p.onWeed) { // hanging in the weed
+        if (p.climbDir != 0) p.vel.y = p.climbDir * 150.0f;
+        else p.vel.y = std::min(p.vel.y, 60.0f);
+        p.vel.x = std::clamp(p.vel.x, -140.0f, 140.0f);
+    }
     p.vel.y = std::min(p.vel.y, MAX_FALL);
 
     bool was = p.onGround, wall;
@@ -874,143 +887,193 @@ void Layer(float cx, float depth, float gap, float cw, F fn) {
     for (float wx = first - gap; wx < off + cw + gap; wx += gap) fn(wx - off, wx);
 }
 
-void DrawBackground(const PlatformState& p, float t) {
-    float cw = PIXEL_W + 2.0f, ch = PIXEL_H + 2.0f, cx = p.camX * ZOOM;
-    switch (p.level) {
-        case PL_PIPES: { // the back wall of a cramped duct, close behind you
-            float cyv = p.camY * ZOOM;
-            DrawRectangle(0, 0, (int)cw, (int)ch, Color{22, 20, 20, 255});
-            Layer(cx, 0.5f, 150, cw, [&](float x, float wx) { // big mains running behind the plating
+// ---------------------------------------------------------------- the background, in three parallax tiers
+// Each zone has a FAR layer (the deep pipe matrix / the dark trench and its light / the night sky), a MID layer (out-of-focus
+// mains and plating / faded coral and kelp / distant ships and the sea), and the playable layer at 1.0x scroll. A FORE layer
+// of near silhouettes drawn in front of the diver adds the last of the depth.
+struct ParallaxLayer {
+    float scrollSpeedX = 0.2f, scrollSpeedY = 0.2f;   // how far it moves for each pixel the camera does
+    std::function<void(const PlatformState&, float t, float ox, float oy)> draw;
+};
+class BackgroundSystem {
+public:
+    ParallaxLayer farLayer, midLayer, foreLayer;
+    int level = -1;
+    void Setup(int lv);
+    void RenderBack(const PlatformState& p, float t) {
+        if (level != p.level) Setup(p.level);
+        float cx = p.camX * ZOOM, cy = p.camY * ZOOM;
+        farLayer.draw(p, t, cx * farLayer.scrollSpeedX, cy * farLayer.scrollSpeedY);
+        midLayer.draw(p, t, cx * midLayer.scrollSpeedX, cy * midLayer.scrollSpeedY);
+    }
+    void RenderFore(const PlatformState& p, float t) {
+        if (level != p.level) Setup(p.level);
+        float cx = p.camX * ZOOM, cy = p.camY * ZOOM;
+        foreLayer.draw(p, t, cx * foreLayer.scrollSpeedX, cy * foreLayer.scrollSpeedY);
+    }
+};
+
+void BackgroundSystem::Setup(int lv) {
+    level = lv;
+    const float cw = PIXEL_W + 2.0f, ch = PIXEL_H + 2.0f;
+    if (lv == PL_PIPES) {
+        farLayer = {0.3f, 0.3f, [cw, ch](const PlatformState& p, float t, float ox, float oy) { // the deep pipe matrix, lost in fog
+            (void)p;
+            DrawRectangle(0, 0, (int)cw, (int)ch, Color{16, 14, 14, 255});
+            float px0 = fmodf(ox, 90), py0 = fmodf(oy + 40000, 90);
+            for (float x = -px0 - 90; x < cw + 90; x += 90) { // a lattice of thin pipes with junction flanges and tiny lamps
+                DrawRectangle((int)x, 0, 7, (int)ch, Color{30, 26, 24, 255}); DrawRectangle((int)x + 1, 0, 2, (int)ch, Color{42, 36, 32, 255});
+            }
+            for (float y = -py0 - 90; y < ch + 90; y += 90) { DrawRectangle(0, (int)y, (int)cw, 7, Color{30, 26, 24, 255}); DrawRectangle(0, (int)y + 1, (int)cw, 2, Color{42, 36, 32, 255}); }
+            for (float x = -px0 - 90; x < cw + 90; x += 90)
+                for (float y = -py0 - 90; y < ch + 90; y += 90) {
+                    DrawRectangle((int)x - 3, (int)y - 3, 13, 13, Color{38, 32, 28, 255}); DrawRectangle((int)x - 1, (int)y - 1, 9, 9, Color{54, 46, 38, 255});
+                    if (Hs(x * 0.13f + y * 0.07f + ox * 0.001f) > 0.72f) { float fl = 0.6f + 0.4f * sinf(t * 3 + x); DrawRectangle((int)x + 1, (int)y + 1, 5, 5, Fade(Color{255, 170, 70, 255}, 0.55f * fl)); }
+                }
+            DrawRectangle(0, 0, (int)cw, (int)ch, Fade(Color{10, 8, 8, 255}, 0.35f)); // fog
+        }};
+        midLayer = {0.6f, 0.6f, [cw, ch](const PlatformState& p, float t, float cx, float cyv) {
+            Layer(cx / 0.6f, 0.5f, 150, cw, [&](float x, float wx) { // big mains running behind the plating
                 DrawRectangle((int)x, 0, 26, (int)ch, Color{48, 40, 34, 255});
                 DrawRectangle((int)x + 4, 0, 5, (int)ch, Color{64, 54, 46, 255});
                 float fy = fmodf(wx * 7 - cyv * 0.5f + 40000, 170.0f);
                 DrawRectangle((int)x - 4, (int)fy, 34, 8, Color{70, 58, 46, 255});
+                DrawCircle((int)x + 13, (int)fy + 4, 9, Color{60, 50, 40, 255}); DrawCircle((int)x + 13, (int)fy + 4, 5, Color{150, 50, 40, 255});   // a valve wheel
             });
-            float ox = fmodf(cx * 0.85f, 40), oy = fmodf(cyv * 0.85f + 40000, 40);
+            (void)p;
+            float ox = fmodf(cx * 1.4f, 40), oy = fmodf(cyv * 1.4f + 40000, 40);
             for (float y = -oy - 40; y < ch + 40; y += 40)      // riveted plates
                 for (float x = -ox - 40; x < cw + 40; x += 40) {
-                    DrawRectangle((int)x + 1, (int)y + 1, 38, 38, Color{40, 35, 32, 235});
+                    DrawRectangle((int)x + 1, (int)y + 1, 38, 38, Color{40, 35, 32, 200});
                     DrawRectangle((int)x + 1, (int)y + 1, 38, 2, Color{54, 47, 42, 255});
                     for (int k = 0; k < 4; k++) DrawPixel((int)x + 4 + (k % 2) * 31, (int)y + 4 + (k / 2) * 31, Color{80, 68, 58, 255});
                 }
             for (int k = 0; k < 3; k++) { // pipes across the plating
-                float y = fmodf(k * 130.0f - cyv * 0.85f + 40000, 390.0f) - 20;
+                float y = fmodf(k * 130.0f - cyv * 1.4f + 40000, 390.0f) - 20;
                 DrawRectangle(0, (int)y, (int)cw, 9, Color{70, 50, 36, 255});
                 DrawRectangle(0, (int)y + 2, (int)cw, 2, Color{110, 80, 54, 255});
             }
-            Layer(cx, 0.85f, 70, cw, [&](float x, float wx) { // water dripping from the seams -- rust-dark, more often than not
+            Layer(cx * 1.4f, 0.85f, 70, cw, [&](float x, float wx) { // water dripping from the seams
                 float ph = fmodf(t * 0.7f + Hs(wx) * 5, 1.0f);
                 bool dark = Hs(wx + 3) > 0.4f;
                 DrawRectangle((int)x, (int)(ph * ch), 1, 3, dark ? Color{80, 30, 26, 180} : Color{120, 150, 160, 160});
-                if (dark && ph > 0.85f) DrawCircle((int)x, (int)ch - 4, 2, Color{60, 22, 20, 140}); // a stain pooling on the plating below
+                if (dark && ph > 0.85f) DrawCircle((int)x, (int)ch - 4, 2, Color{60, 22, 20, 140});
             });
-            Layer(cx, 0.5f, 260, cw, [&](float x, float wx) { // claw marks raked across a plate, as if something came this way
+            Layer(cx, 0.5f, 260, cw, [&](float x, float wx) { // claw marks raked across a plate
                 if (Hs(wx + 11) < 0.62f) return;
                 float y = 60 + Hs(wx + 12) * (ch - 160);
                 for (int k = 0; k < 4; k++) DrawLineEx({x - 14.0f + k * 9, y}, {x + 8.0f + k * 9, y + 46}, 2, Color{18, 14, 12, 200});
             });
-            Layer(cx, 0.5f, 340, cw, [&](float x, float wx) { // something watches from a gap in the plating, then isn't there
+            Layer(cx, 0.5f, 340, cw, [&](float x, float wx) { // something watches from a gap, then isn't there
                 float cyc = fmodf(t * 0.11f + Hs(wx + 20) * 9, 9.0f);
                 if (cyc > 1.6f) return;
                 float a = std::min(1.0f, cyc * 4) * std::min(1.0f, (1.6f - cyc) * 4);
                 float y = 140 + Hs(wx + 21) * (ch - 280);
                 for (int s = -1; s <= 1; s += 2) DrawCircleV({x + s * 4.0f, y}, 1.4f, Fade(Color{220, 60, 50, 255}, a));
             });
-            if (fmodf(t * 0.6f + cyv * 0.002f, 5.0f) < 0.12f) // the lamp flicker, and a bang echoing from deeper in
-                DrawRectangle(0, 0, (int)cw, (int)ch, Fade(BLACK, 0.35f));
-        } break;
-        case PL_HULL: {
-            DrawRectangleGradientV(0, 0, (int)cw, (int)ch, Color{18, 64, 94, 255}, Color{4, 14, 30, 255});
-            for (int x = 0; x < (int)cw; x += 3) // the shimmering surface, far above
-                DrawRectangle(x, 29, 3, (int)(4 + sinf(x * 0.08f + t * 1.5f) * 2 + 2), Color{120, 190, 210, 90});
+            if (fmodf(t * 0.6f + cyv * 0.002f, 5.0f) < 0.12f) DrawRectangle(0, 0, (int)cw, (int)ch, Fade(BLACK, 0.35f)); // the lamp flicker
+        }};
+        foreLayer = {1.3f, 1.3f, [cw, ch](const PlatformState& p, float t, float ox, float oy) { // brackets, valves and steam very near the lens
+            (void)p;
+            Layer(ox / 1.3f, 1.3f, 330, cw, [&](float x, float wx) {
+                float len = 40 + Hs(wx) * 50;
+                DrawRectangle((int)x, 30, 12, (int)len, Color{10, 9, 9, 255}); DrawRectangle((int)x - 5, 30 + (int)len - 8, 22, 12, Color{10, 9, 9, 255});  // a hanging pipe with a flange
+                DrawCircle((int)x + 6, 30 + (int)len + 12, 8, Color{10, 9, 9, 255}); DrawRectangle((int)x + 4, 30 + (int)len + 4, 4, 16, Color{10, 9, 9, 255});
+            });
+            for (int k = 0; k < 6; k++) { // steam wisps drifting through the frame
+                float ph = fmodf(t * 0.08f + k * 0.21f, 1.0f), wx0 = fmodf(k * 231.0f - ox * 0.6f + 8000, cw + 200) - 100;
+                DrawEllipse((int)wx0, (int)(ch - ph * ch), 60 + ph * 40, 12 + ph * 16, Fade(Color{200, 200, 196, 255}, 0.05f * (1 - ph)));
+            }
+            (void)oy;
+        }};
+    } else if (lv == PL_HULL) {
+        farLayer = {0.1f, 0.1f, [cw, ch](const PlatformState& p, float t, float ox, float oy) { // the dark trench and the light that reaches it
+            (void)p; (void)oy;
+            DrawRectangleGradientV(0, 0, (int)cw, (int)ch, Color{16, 60, 88, 255}, Color{3, 12, 26, 255});
+            for (int x = 0; x < (int)cw; x += 3) DrawRectangle(x, 29, 3, (int)(4 + sinf(x * 0.08f + t * 1.5f) * 2 + 2), Color{120, 190, 210, 80});   // the surface, far above
             BeginBlendMode(BLEND_ADDITIVE);
-            Layer(cx, 0.06f, 140, cw, [&](float x, float wx) {
+            Layer(ox / 0.1f, 0.1f, 140, cw, [&](float x, float wx) {
                 float w = 18 + Hs(wx) * 16;
-                DrawTri({x, 30}, {x + w, 30}, {x - 70, ch}, Color{60, 130, 160, 30});
-                DrawTri({x + w, 30}, {x - 70 + w * 1.6f, ch}, {x - 70, ch}, Color{60, 130, 160, 30});
+                DrawTri({x, 30}, {x + w, 30}, {x - 70, ch}, Color{60, 130, 160, 26});
+                DrawTri({x + w, 30}, {x - 70 + w * 1.6f, ch}, {x - 70, ch}, Color{60, 130, 160, 26});
             });
             EndBlendMode();
-            { // the Nautilus itself, looming overhead with its portholes lit
-                float hx = 700 - cx * 0.12f;
-                DrawRectangleRounded({hx - 520, 40, 1040, 70}, 1.0f, 24, Color{14, 34, 46, 255});
-                DrawRectangleRounded({hx - 80, 22, 160, 30}, 0.6f, 8, Color{14, 34, 46, 255});
-                for (int k = 0; k < 16; k++) DrawCircleV({hx - 450 + k * 60.0f, 78}, 3, Color{255, 210, 130, 255});
-            }
-            Layer(cx, 0.22f, 110, cw, [&](float x, float wx) { // far rock spires
-                float h = 70 + Hs(wx) * 110;
-                DrawTri({x - 26, ch}, {x + 26, ch}, {x + Hs(wx + 1) * 10, ch - h}, Color{14, 40, 54, 255});
+            float hx = 700 - ox * 1.2f; // the Nautilus, looming overhead, portholes lit
+            DrawRectangleRounded({hx - 520, 40, 1040, 70}, 1.0f, 24, Color{10, 26, 38, 255});
+            DrawRectangleRounded({hx - 80, 22, 160, 30}, 0.6f, 8, Color{10, 26, 38, 255});
+            for (int k = 0; k < 16; k++) DrawCircleV({hx - 450 + k * 60.0f, 78}, 3, Color{255, 210, 130, 255});
+            Layer(ox / 0.1f, 0.1f, 300, cw, [&](float x, float wx) { // the ribs of a great sunken hull, far off
+                for (int k = 0; k < 5; k++) DrawRing({x + k * 30.0f, ch + 20}, 80 + Hs(wx) * 30, 84 + Hs(wx) * 30, 200, 340, 18, Color{10, 30, 42, 255});
             });
-            DrawRectangle(0, 0, (int)cw, (int)ch, Color{20, 60, 80, 40});
-            { // the Nautilus's own hull, curving away beneath you: riveted plates, lit portholes, a fin
-                float par = 0.32f, hx = cx * par, hy = 150 - (p.camY - 420) * ZOOM * par;
-                DrawRectangleGradientV(0, (int)hy, (int)cw, (int)(ch - hy) + 2, Color{44, 70, 76, 255}, Color{14, 26, 32, 255});
-                DrawRectangle(0, (int)hy - 3, (int)cw, 4, Color{120, 108, 70, 255});
-                for (float y = hy + 22; y < ch; y += 26) DrawRectangle(0, (int)y, (int)cw, 1, Color{18, 32, 38, 255});
-                float ox = fmodf(hx, 52);
-                for (float x = -ox; x < cw; x += 52)
-                    for (float y = hy; y < ch; y += 26) {
-                        float sx = x + (((int)((y - hy) / 26)) % 2) * 26;
-                        DrawRectangle((int)sx, (int)y, 1, 22, Color{18, 32, 38, 255});
-                        DrawPixel((int)sx + 3, (int)y + 4, Color{90, 116, 112, 255});
-                        DrawPixel((int)sx + 3, (int)y + 17, Color{90, 116, 112, 255});
-                    }
-                Layer(cx, par, 104, cw, [&](float x, float wx) { // two rows of portholes, glowing warm
-                    for (int r = 0; r < 2; r++) {
-                        float py = hy + 48 + r * 78;
-                        if (Hs(wx + r * 7) < 0.25f) continue;
-                        DrawCircle((int)x, (int)py, 8, Color{120, 100, 60, 255});
-                        DrawCircle((int)x, (int)py, 5, Hs(wx + r) > 0.4f ? Color{255, 200, 120, 255} : Color{40, 60, 70, 255});
-                    }
-                });
-                Layer(cx, par, 760, cw, [&](float x, float wx) { // a steering fin, and rungs up the plating
-                    (void)wx;
-                    DrawTri({x, hy}, {x + 90, hy}, {x + 20, hy - 60}, Color{36, 58, 64, 255});
-                    DrawLineEx({x + 20, hy - 60}, {x + 90, hy}, 2, Color{120, 108, 70, 255});
-                    for (int k = 0; k < 6; k++) DrawRectangle((int)x + 150, (int)(hy + 10 + k * 14), 14, 2, Color{120, 108, 70, 255});
+        }};
+        midLayer = {0.35f, 0.35f, [cw, ch](const PlatformState& p, float t, float ox, float oy) { // faded coral columns, kelp and marine snow
+            (void)p; (void)oy;
+            for (int tier = 0; tier < 2; tier++) { // two ranks of far coral pillars, the near rank a little clearer
+                float sp = 0.6f + tier * 0.5f, gap = 150 - tier * 30;
+                Layer(ox / 0.35f, 0.35f * sp, gap, cw, [&](float x, float wx) {
+                    float h = 140 + Hs(wx * 1.3f + tier) * 220, w = 30 + Hs(wx + 4) * 30;
+                    Color c = tier ? Color{18, 44, 60, 255} : Color{12, 34, 48, 255};
+                    DrawRectangle((int)x, (int)(ch - h), (int)w, (int)h + 2, c);                                      // a pillar of coral
+                    for (int k = 0; k < 4; k++) DrawCircle((int)(x + k * w / 3), (int)(ch - h) + (k % 2) * 6, 8 + Hs(wx + k) * 6, c);   // its lumpy crown
+                    DrawRectangle((int)x + 3, (int)(ch - h) + 6, 3, (int)h - 6, tier ? Color{34, 74, 90, 255} : Color{24, 56, 70, 255});  // a faded lit edge
+                    for (int k = 0; k < 3; k++) DrawCircle((int)(x + 4 + Hs(wx * 2 + k) * (w - 8)), (int)(ch - h * (0.2f + 0.25f * k)), 2.5f, Fade(Color{190, 96, 120, 255}, tier ? 0.55f : 0.35f)); // polyps
                 });
             }
-            Layer(cx, 0.42f, 70, cw, [&](float x, float wx) { // a kelp forest
+            Layer(ox / 0.35f, 0.5f, 70, cw, [&](float x, float wx) { // a kelp forest
                 Vector2 prev{x, ch};
                 int n = 10 + (int)(Hs(wx) * 8);
                 for (int s = 1; s <= n; s++) {
                     Vector2 q{x + sinf(t * 0.9f + wx + s * 0.45f) * s * 1.5f, ch - s * 14.0f};
-                    DrawLineEx(prev, q, 3.5f - s * 0.12f, Color{22, 76, 60, 255});
+                    DrawLineEx(prev, q, 3.5f - s * 0.12f, Color{16, 64, 52, 255});
                     prev = q;
                 }
             });
-            Layer(cx, 0.7f, 90, cw, [&](float x, float wx) { // coral and bubbles close by
-                DrawCircleV({x, ch + 6}, 14 + Hs(wx) * 10, Color{120, 60, 80, 255});
-                DrawCircleV({x + 12, ch}, 8, Color{180, 90, 90, 255});
-                float by = ch - fmodf(t * (20 + Hs(wx) * 20) + wx, ch);
-                DrawCircleLines((int)(x + sinf(t * 2 + wx) * 3), (int)by, 2, Color{180, 230, 250, 150});
+            for (int k = 0; k < 40; k++) { // marine snow, falling slowly
+                float sx2 = fmodf(k * 97.0f - ox * 0.9f + 9000, cw), sy2 = fmodf(k * 53.0f + t * (8 + k % 5 * 3), ch);
+                DrawRectangle((int)sx2, (int)sy2, 1, 1, Fade(Color{190, 220, 230, 255}, 0.45f));
+            }
+        }};
+        foreLayer = {1.35f, 1.2f, [cw, ch](const PlatformState& p, float t, float ox, float oy) { // near kelp and coral, dark against the lens
+            (void)p; (void)oy;
+            Layer(ox / 1.35f, 1.35f, 760, cw, [&](float x, float wx) {
+                Vector2 prev{x, ch + 4};
+                for (int s = 1; s <= 8; s++) {
+                    Vector2 q{x + sinf(t * 0.8f + wx + s * 0.5f) * s * 2.2f, ch - s * 20.0f * (0.6f + Hs(wx) * 0.5f)};
+                    DrawLineEx(prev, q, 8.0f - s * 0.85f, Fade(Color{4, 12, 14, 255}, 0.88f));
+                    prev = q;
+                }
             });
-        } break;
-        default: {
-            DrawRectangleGradientV(0, 0, (int)cw, (int)ch, Color{12, 14, 38, 255}, Color{52, 34, 62, 255});
-            Layer(cx, 0.02f, 23, cw, [&](float x, float wx) {
+            for (int k = 0; k < 8; k++) { float bx = fmodf(k * 173.0f - ox * 0.5f + 9000, cw + 100), by = ch - fmodf(t * (16 + k * 4) + k * 60, ch); DrawCircleLines((int)bx, (int)by, 3 + k % 3, Fade(Color{190, 230, 250, 255}, 0.4f)); }
+        }};
+    } else {
+        farLayer = {0.05f, 0.05f, [cw, ch](const PlatformState& p, float t, float ox, float oy) { // the night sky, a full moon, drifting cloud
+            (void)p; (void)oy;
+            DrawRectangleGradientV(0, 0, (int)cw, (int)ch, Color{10, 12, 34, 255}, Color{56, 36, 66, 255});
+            Layer(ox / 0.05f, 0.02f, 23, cw, [&](float x, float wx) {
                 float sy = 34 + Hs(wx) * 200;
                 if (Hs(wx + 2) > 0.45f && sinf(t * 2 + wx) > -0.6f) DrawPixel((int)x, (int)sy, Color{230, 230, 255, 255});
             });
-            Vector2 moon{cw - 110 - cx * 0.03f, 80};
-            DrawCircleV(moon, 26, Color{250, 244, 220, 60});
-            DrawCircleV(moon, 20, Color{246, 240, 214, 255});
-            DrawCircleV({moon.x - 6, moon.y - 4}, 4, Color{220, 214, 190, 255});
-            Layer(cx + t * 6, 0.08f, 260, cw, [&](float x, float wx) { // drifting clouds
+            Vector2 moon{cw - 110 - ox * 0.6f, 80};
+            DrawCircleV(moon, 26, Color{250, 244, 220, 60}); DrawCircleV(moon, 20, Color{246, 240, 214, 255}); DrawCircleV({moon.x - 6, moon.y - 4}, 4, Color{220, 214, 190, 255});
+            Layer(ox / 0.05f + t * 6, 0.08f, 260, cw, [&](float x, float wx) {
                 float y = 60 + Hs(wx) * 70;
                 for (int k = 0; k < 4; k++) DrawEllipse((int)(x + k * 22), (int)(y + (k % 2) * 4), 26, 8, Color{44, 40, 70, 200});
             });
-            Layer(cx, 0.2f, 260, cw, [&](float x, float wx) { // a ghostly fleet on the horizon
+            Layer(ox / 0.05f, 0.2f, 260, cw, [&](float x, float wx) { // a ghostly fleet on the horizon
                 float y = 240 + Hs(wx) * 16;
                 DrawRectangle((int)x, (int)y, 90, 16, Color{28, 24, 44, 255});
                 DrawRectangle((int)x + 40, (int)y - 80, 3, 80, Color{28, 24, 44, 255});
                 DrawTri({x + 44, y - 72}, {x + 44, y - 14}, {x + 80, y - 14}, Color{36, 32, 56, 255});
             });
-            for (int x = 0; x < (int)cw; x += 4) { // the far sea
-                float y = 262 + sinf((x + cx * 0.3f) * 0.05f + t * 1.2f) * 2;
+        }};
+        midLayer = {0.35f, 0.35f, [cw, ch](const PlatformState& p, float t, float ox, float oy) { // the far sea, a rival galleon close by, the near sea
+            (void)p; (void)oy;
+            for (int x = 0; x < (int)cw; x += 4) {
+                float y = 262 + sinf((x + ox * 0.9f) * 0.05f + t * 1.2f) * 2;
                 DrawRectangle(x, (int)y, 4, (int)ch - (int)y, Color{22, 28, 56, 255});
                 if (((x / 4) % 9) == 0) DrawRectangle(x, (int)y, 3, 1, Color{120, 130, 180, 255});
             }
-            Layer(cx, 0.35f, 520, cw, [&](float x, float wx) { // a rival ship close by, its gunports lit
+            Layer(ox / 0.35f, 0.35f, 520, cw, [&](float x, float wx) {
                 float y = 250 + Hs(wx) * 10 + sinf(t * 0.8f + wx) * 2;
                 Color hullC{30, 22, 30, 255};
                 DrawRectangle((int)x, (int)y, 170, 26, hullC);
@@ -1023,15 +1086,30 @@ void DrawBackground(const PlatformState& p, float t) {
                     DrawTri({mx + 3, y - 100 + m * 10}, {mx + 3, y - 30}, {mx + 38, y - 40}, Color{60, 52, 66, 255});
                 }
             });
-            for (int x = 0; x < (int)cw; x += 4) { // the near sea, rolling
-                float y = 300 + sinf((x + cx * 0.6f) * 0.04f + t * 1.6f) * 4;
+            for (int x = 0; x < (int)cw; x += 4) {
+                float y = 300 + sinf((x + ox * 1.7f) * 0.04f + t * 1.6f) * 4;
                 DrawRectangle(x, (int)y, 4, (int)ch - (int)y, Color{18, 24, 50, 255});
                 if (((x / 4) % 6) == 0) DrawRectangle(x, (int)y, 3, 1, Color{150, 160, 200, 255});
             }
-        } break;
+        }};
+        foreLayer = {1.3f, 1.1f, [cw, ch](const PlatformState& p, float t, float ox, float oy) { // spray and slack rigging, near the lens
+            (void)p; (void)oy;
+            for (int k = 0; k < 14; k++) {
+                float bx = fmodf(k * 131.0f - ox * 0.7f + 9000, cw + 120) - 40, ph = fmodf(t * 0.5f + k * 0.13f, 1.0f);
+                DrawRectangle((int)bx, (int)(ch - 12 - sinf(ph * PI) * 26), 2, 2, Fade(Color{220, 230, 250, 255}, 0.6f * (1 - ph)));
+            }
+            Layer(ox / 1.3f, 1.3f, 520, cw, [&](float x, float wx) { // a lantern swinging from a spar, black against the sky
+                float sw = sinf(t * 1.1f + wx) * 5;
+                DrawLineEx({x, 30}, {x + sw, 78}, 2, Color{6, 6, 10, 255}); DrawRectangle((int)(x + sw) - 5, 78, 10, 14, Color{6, 6, 10, 255});
+                DrawRectangle((int)(x + sw) - 2, 82, 4, 6, Color{255, 200, 100, 255});
+            });
+        }};
     }
 }
 
+BackgroundSystem gBackground;
+void DrawBackground(const PlatformState& p, float t) { gBackground.RenderBack(p, t); }
+void DrawForeground(const PlatformState& p, float t) { gBackground.RenderFore(p, t); }
 // ---------------------------------------------------------------- drawing: the ship around you
 // On the pirate ship, the world itself is dressed as a ship: masts and sails rise from the open deck,
 // a rail runs along it, and below decks each section has its own interior behind it: the hold with
@@ -1167,6 +1245,22 @@ void DrawShipScenery(const PlatformState& p, int c0, int c1, float t) {
 }
 
 // ---------------------------------------------------------------- drawing: tiles
+// Auto-tiling: a bitmask of which of a tile's four neighbours match (1 = north, 2 = east, 4 = south, 8 = west), so pipes,
+// coral, timbers and ropes can draw the right junction, corner, cap or open face instead of a disjointed block.
+uint8_t SolidMask(const PlatformState& p, int x, int y) {
+    return (Solid(p, x, y - 1) ? 1 : 0) | (Solid(p, x + 1, y) ? 2 : 0) | (Solid(p, x, y + 1) ? 4 : 0) | (Solid(p, x - 1, y) ? 8 : 0);
+}
+template <typename Pred>
+uint8_t TileMask(const PlatformState& p, int x, int y, Pred match) {
+    return (match(At(p, x, y - 1)) ? 1 : 0) | (match(At(p, x + 1, y)) ? 2 : 0) | (match(At(p, x, y + 1)) ? 4 : 0) | (match(At(p, x - 1, y)) ? 8 : 0);
+}
+void Barnacles(float bx, float by) {
+    for (int k = 0; k < 3; k++) {
+        float ox = bx + k * 5 - 5, oy = by + (k % 2) * 3;
+        DrawTri({ox - 3, oy + 3}, {ox + 3, oy + 3}, {ox, oy - 3}, Color{8, 10, 14, 255});
+        DrawTri({ox - 2, oy + 2}, {ox + 2, oy + 2}, {ox, oy - 2}, Color{214, 202, 178, 255});
+    }
+}
 void DrawSolid(const PlatformState& p, int x, int y) {
     float px = x * (float)T, py = y * (float)T;
     bool topEdge = !Solid(p, x, y - 1);
@@ -1188,31 +1282,40 @@ void DrawSolid(const PlatformState& p, int x, int y) {
             if (topEdge) DrawRectangle((int)px, (int)py, T, 3, Color{140, 120, 100, 255});
         } break;
         case PL_HULL: {
-            // the Nautilus's outer plating: riveted plates two tiles square, a porthole here and there,
-            // and a handrail along the walkways
-            Color plate{66, 92, 94, 255}, seam{34, 50, 54, 255}, rivet{140, 164, 150, 255};
-            bool inner = Solid(p, x, y - 1) && Solid(p, x, y + 1);
-            DrawRectangle((int)px, (int)py, T, T, inner ? Color{54, 76, 80, 255} : plate);
-            DrawRectangle((int)px + 2, (int)py + 2, T - 4, 2, Color{92, 120, 118, 255}); // light along the plate's upper edge
-            if (x % 2 == 0) { DrawRectangle((int)px, (int)py, 2, T, seam); for (int k = 0; k < 3; k++) DrawCircle((int)px + 5, (int)py + 6 + k * 10, 1.5f, rivet); }
-            if (y % 2 == 0) { DrawRectangle((int)px, (int)py, T, 2, seam); for (int k = 0; k < 3; k++) DrawCircle((int)px + 6 + k * 10, (int)py + 5, 1.5f, rivet); }
-            if (inner && Hs(x * 3.7f + y * 11.1f) > 0.86f) { // a porthole, lit from inside the sub
-                DrawCircle((int)px + 16, (int)py + 16, 9, Color{150, 120, 60, 255});
-                DrawCircle((int)px + 16, (int)py + 16, 6, Color{255, 206, 130, 255});
-                DrawCircle((int)px + 14, (int)py + 14, 2, Color{255, 246, 210, 255});
+            // a coral mass grown over a wreck's iron: dark rock and plating inside, and wherever a face is open to the water
+            // (found from the N/E/S/W neighbour bitmask) coral crowns, lumps and hanging tendrils
+            uint8_t m = SolidMask(p, x, y); // 1 N, 2 E, 4 S, 8 W: which neighbours are solid
+            bool inner = m == 15;
+            Color rock{38, 52, 58, 255}, rockLt{56, 74, 78, 255}, ink{8, 10, 14, 255};
+            DrawRectangle((int)px, (int)py, T, T, inner ? Color{30, 42, 48, 255} : rock);
+            float h1 = Hs(x * 3.7f + y * 11.1f), h2 = Hs(x * 6.1f + y * 2.3f + 5);
+            if (inner) { // deep in the mass: plating seams and polyp pits
+                if (x % 2 == 0) DrawRectangle((int)px, (int)py, 2, T, Color{22, 32, 38, 255});
+                if (y % 2 == 0) DrawRectangle((int)px, (int)py, T, 2, Color{22, 32, 38, 255});
+                for (int k = 0; k < 3; k++) DrawCircle((int)(px + 5 + Hs(x * 1.3f + k) * 22), (int)(py + 5 + Hs(y * 1.7f + k) * 22), 1.5f, Color{60, 48, 66, 255});
+                break;
             }
-            if (topEdge) {
-                DrawRectangle((int)px, (int)py, T, 4, Color{150, 128, 70, 255});           // brass trim
-                for (int k = 0; k < 3; k++) DrawCircle((int)px + 6 + k * 10, (int)py + 5, 2 + (x + k) % 2, Color{196, 192, 176, 255}); // barnacles
-                if (x % 2 == 0) DrawRectangle((int)px + 14, (int)py - 14, 3, 14, Color{120, 110, 80, 255}); // handrail stanchion
-                DrawRectangle((int)px, (int)py - 13, T, 2, Color{110, 100, 72, 255});      // the rail
-                if ((x * 7) % 5 == 0) {
-                    float sway = sinf(p.time * 2 + x) * 3;
-                    DrawLineEx({px + 24, py}, {px + 22 + sway, py - 12}, 2, Color{60, 140, 80, 255}); // weed
+            DrawRectangle((int)px + 2, (int)py + 2, T - 4, 2, rockLt);
+            Color pal[4] = {{204, 100, 112, 255}, {216, 134, 76, 255}, {142, 92, 158, 255}, {196, 170, 120, 255}};
+            Color cA = pal[(x * 7 + y * 3) & 3], cB = pal[(x * 5 + y * 11 + 1) & 3];
+            if (!(m & 1)) { // an open top: a crown of coral branches and a few polyps
+                for (int k = 0; k < 4; k++) {
+                    float bx = px + 3 + k * 8 + h1 * 3, bh = 6 + Hs(x * 2.9f + k) * 12;
+                    DrawLineEx({bx, py + 2}, {bx + (k - 1.5f) * 2, py - bh}, 5, ink);
+                    DrawLineEx({bx, py + 2}, {bx + (k - 1.5f) * 2, py - bh}, 3, k % 2 ? cA : cB);
+                    DrawCircleV({bx + (k - 1.5f) * 2, py - bh}, 3, ink); DrawCircleV({bx + (k - 1.5f) * 2, py - bh}, 2, Tone(cA, 0.25f));
                 }
+                DrawRectangle((int)px, (int)py, T, 3, Color{88, 108, 100, 255});
             }
-        } break;
-        default: {
+            if (!(m & 2) && h1 > 0.62f) { float cy = py + 6 + h2 * 16, r = 4 + h1 * 4; DrawCircleV({px + T - 1, cy}, r + 1.5f, ink); DrawCircleV({px + T - 2, cy}, r, Tone(cA, -0.2f)); DrawCircleV({px + T - 3, cy - 1}, r * 0.4f, Tone(cA, 0.2f)); }   // a coral lump on the right face
+            if (!(m & 8) && h2 > 0.62f) { float cy = py + 6 + h1 * 16, r = 4 + h2 * 4; DrawCircleV({px + 1, cy}, r + 1.5f, ink); DrawCircleV({px + 2, cy}, r, Tone(cB, -0.2f)); DrawCircleV({px + 3, cy - 1}, r * 0.4f, Tone(cB, 0.2f)); }    // and the left
+            if (!(m & 4)) for (int k = 0; k < 3; k++) { // tendrils hanging from the underside, swaying
+                float bx = px + 6 + k * 10, sw = sinf(p.time * 1.4f + x + k * 2) * 2.5f;
+                DrawLineEx({bx, py + T - 2}, {bx + sw, py + T + 6}, 4, ink); DrawLineEx({bx, py + T - 2}, {bx + sw, py + T + 6}, 2, Color{70, 120, 96, 255});
+            }
+            if (h1 > 0.82f) Barnacles(px + 6 + h2 * 16, py + 8 + h1 * 12);
+            if (h2 > 0.7f) DrawLineEx({px + 8, py + 12}, {px + 14, py + 24}, 1.5f, ink);       // a crack
+        } break;        default: {
             // the pirate ship: deck planks where they're open to the sky, heavy dark timbers inside the hull
             bool inner = Solid(p, x, y - 1) && Solid(p, x, y + 1) && Solid(p, x - 1, y) && Solid(p, x + 1, y);
             if (inner) { // the ship's hull timbers: long strakes, each a slightly different shade
@@ -1235,6 +1338,10 @@ void DrawSolid(const PlatformState& p, int x, int y) {
                 DrawRectangle((int)px, (int)py, T, 4, Color{176, 128, 80, 255}); // worn, lighter deck boards
                 DrawRectangle((int)px, (int)py + 4, T, 1, Color{70, 44, 26, 255});
             }
+            uint8_t sm = SolidMask(p, x, y);                                     // the ship's outline: keel below, carved trim on the ends
+            if (!(sm & 4)) { DrawRectangle((int)px, (int)py + T - 7, T, 7, Color{34, 22, 14, 255}); Barnacles(px + 10, py + T - 4); DrawRectangle((int)px, (int)py + T - 8, T, 1, Color{176, 150, 70, 255}); }
+            if (!(sm & 2)) { DrawRectangle((int)px + T - 5, (int)py, 5, T, Color{60, 38, 22, 255}); DrawRectangle((int)px + T - 3, (int)py + 2, 1, T - 4, Color{176, 150, 70, 255}); }
+            if (!(sm & 8)) { DrawRectangle((int)px, (int)py, 5, T, Color{60, 38, 22, 255}); DrawRectangle((int)px + 2, (int)py + 2, 1, T - 4, Color{176, 150, 70, 255}); }
         } break;
     }
 }
@@ -1376,28 +1483,97 @@ void DrawTile(const PlatformState& p, char c, int x, int y, float t) {
                 DrawLineEx({px + 14, py + 3}, {px + 17, py + 9}, 1, Color{20, 12, 8, 255});                             // a split in the wood
             }
         } break;
-        case '=': if (p.level == PL_PIRATE) { // a yard or a beam, lashed with rope
-            DrawRectangle((int)px, (int)py + 6, T, 14, Color{104, 70, 40, 255});
-            DrawRectangle((int)px, (int)py + 6, T, 3, Color{150, 108, 64, 255});
-            DrawRectangle((int)px, (int)py + 17, T, 3, Color{70, 46, 26, 255});
-            if (At(p, x - 1, y) != '=' || x % 3 == 0) for (int k = 0; k < 3; k++) DrawRectangle((int)px + 4 + k * 3, (int)py + 5, 2, 16, Color{200, 180, 130, 255});
-            break;
-        } else { // a horizontal pipe you can stand on
+        case '=': {
+            if (p.level == PL_PIRATE) { // a yardarm: a spar crossing a mast, iron-capped at its ends, lashed where it meets the mast
+                uint8_t m = TileMask(p, x, y, [](char c) { return c == '=' || c == '|' || c == 'r'; });
+                bool cross = (m & 1) || (m & 4);
+                DrawRectangle((int)px, (int)py + 5, T, 16, Color{8, 8, 12, 255});
+                DrawRectangle((int)px, (int)py + 7, T, 12, Color{112, 76, 44, 255});
+                DrawRectangle((int)px, (int)py + 7, T, 3, Color{164, 120, 72, 255});
+                DrawRectangle((int)px, (int)py + 16, T, 3, Color{70, 46, 26, 255});
+                for (int k = 0; k < 3; k++) DrawRectangle((int)px + 4 + k * 9, (int)py + 11 + (k % 2) * 3, 5, 1, Color{86, 56, 32, 255});   // grain
+                if (!(m & 8)) { DrawRectangle((int)px, (int)py + 5, 5, 16, Color{56, 54, 58, 255}); DrawRectangle((int)px + 1, (int)py + 8, 2, 2, Color{176, 176, 182, 255}); }   // iron end-caps
+                if (!(m & 2)) { DrawRectangle((int)px + T - 5, (int)py + 5, 5, 16, Color{56, 54, 58, 255}); DrawRectangle((int)px + T - 3, (int)py + 8, 2, 2, Color{176, 176, 182, 255}); }
+                if (cross) for (int k = 0; k < 3; k++) DrawRectangle((int)px + 8, (int)py + 5 + k * 5, 16, 2, Color{204, 184, 134, 255});      // rope lashings at the mast
+                else if (x % 4 == 1) { float sw = sinf(p.time * 1.5f + x) * 1.5f; DrawTri({px + 4, py + 19}, {px + 28, py + 19}, {px + 16 + sw, py + 34}, Color{8, 8, 12, 255}); DrawTri({px + 6, py + 19}, {px + 26, py + 19}, {px + 16 + sw, py + 31}, Color{184, 176, 152, 255}); }   // a furled sail
+                break;
+            }
             Color pipe = p.level == PL_PIPES ? Color{176, 104, 62, 255} : Color{120, 124, 118, 255};
-            DrawPipeH(px, px + T, py + 16, 14, pipe);
-            if (At(p, x - 1, y) != '=') DrawFlange({px + 3, py + 16}, 12, false, Pal::BrassDk);
-            if (At(p, x + 1, y) != '=') DrawFlange({px + T - 3, py + 16}, 12, false, Pal::BrassDk);
-            DrawPipeGrit(px, py + 9, T, true, x);
-            if (x % 4 == 0 && At(p, x + 1, y) == '=') DrawCircleV({px + T, py + 4}, 3, Color{220, 60, 40, 255}); // a valve wheel
+            uint8_t m = TileMask(p, x, y, [](char c) { return c == '=' || c == '|'; });
+            bool hasW = m & 8, hasE = m & 2, up = m & 1, down = m & 4;
+            float hx0 = hasW ? px : px + 6, hx1 = hasE ? px + T : px + T - 6;
+            bool lone = !hasW && !hasE && !up && !down;
+            if (lone) { hx0 = px; hx1 = px + T; }
+            if (!hasW && !hasE && (up || down)) hx1 = hx0;                                      // a pure T stem: no horizontal body
+            if (hx1 > hx0 + 1) DrawPipeH(hx0, hx1, py + 16, 14, pipe);
+            if (lone || hasW || hasE) {
+                if (!hasW) DrawFlange({px + 3, py + 16}, 12, false, Pal::BrassDk);
+                if (!hasE) DrawFlange({px + T - 3, py + 16}, 12, false, Pal::BrassDk);
+            }
+            if (up) DrawPipeV(px + 16, py, py + 16, 14, pipe);
+            if (down) DrawPipeV(px + 16, py + 16, py + T, 14, pipe);
+            if (up || down) { // a joint where the network branches: an elbow, a tee or a cross, with a brass collar
+                DrawCircleV({px + 16, py + 16}, 15, Color{8, 8, 12, 255}); DrawCircleV({px + 16, py + 16}, 13, Pal::BrassDk); DrawCircleV({px + 14, py + 14}, 5, Color{232, 196, 110, 255});
+                for (int k = 0; k < 4; k++) DrawCircleV({px + 16 + cosf(k * PI / 2 + PI / 4) * 10, py + 16 + sinf(k * PI / 2 + PI / 4) * 10}, 1.4f, Color{40, 32, 24, 255});
+            }
+            if (hx1 > hx0 + 8) DrawPipeGrit(px, py + 9, T, true, x);
+            if (x % 4 == 0 && hasE) DrawCircleV({px + T, py + 4}, 3, Color{220, 60, 40, 255}); // a valve wheel
         } break;
-        case '|': { // a vertical pipe you can jump off
+        case '|': {
+            if (p.level == PL_PIRATE) { // a mast: a pole of pale timber, banded in iron and lashed with rope; two tiles make one thick mast
+                uint8_t m = TileMask(p, x, y, [](char c) { return c == '|' || c == '='; });
+                float x0 = (m & 8) ? px : px + 4, x1 = (m & 2) ? px + T : px + T - 4;
+                bool topEnd = !(m & 1), footEnd = !(m & 4);
+                DrawRectangle((int)x0 - 1, (int)py, (int)(x1 - x0) + 2, T, Color{8, 8, 12, 255});
+                DrawRectangle((int)x0, (int)py, (int)(x1 - x0), T, Color{148, 108, 66, 255});
+                DrawRectangle((int)x0, (int)py, (m & 8) ? 0 : 4, T, Color{196, 156, 104, 255});                                    // the lit edge
+                DrawRectangle((int)x1 - ((m & 2) ? 0 : 4), (int)py, (m & 2) ? 0 : 4, T, Color{92, 62, 36, 255});                    // the shaded edge
+                for (int k = 0; k < 3; k++) DrawRectangle((int)x0 + 3 + (k * 7 + y * 3) % 12, (int)py + 4 + k * 10, 1, 8, Color{104, 74, 44, 255});   // grain
+                if (y % 3 == 0) { DrawRectangle((int)x0, (int)py + 12, (int)(x1 - x0), 5, Color{56, 54, 58, 255}); DrawRectangle((int)x0 + 3, (int)py + 13, 2, 2, Color{176, 176, 182, 255}); }   // an iron band
+                else if (y % 3 == 1) for (int k = 0; k < 4; k++) DrawLineEx({x0, py + 4.0f + k * 6}, {x1, py + 8.0f + k * 6}, 2, Color{200, 180, 130, 255});   // rope lashing
+                if (footEnd) { DrawRectangle((int)x0 - 2, (int)py + T - 7, (int)(x1 - x0) + 4, 7, Color{40, 38, 42, 255}); }        // the mast-step collar
+                if (topEnd && !(m & 8)) { // the masthead: a truck, and a pennant
+                    DrawRectangle((int)x0 - 3, (int)py - 3, (int)(x1 - x0) + 12, 5, Color{56, 54, 58, 255});
+                    DrawLineEx({x1 - 2, py - 3}, {x1 - 2, py - 22}, 2, Color{60, 44, 30, 255});
+                    float fl = sinf(p.time * 5 + x) * 3;
+                    DrawTri({x1, py - 22}, {x1 + 20 + fl, py - 18 + fl * 0.5f}, {x1, py - 12}, Color{20, 18, 24, 255});
+                    DrawRectangle((int)x1 + 6, (int)py - 20, 3, 3, Color{214, 210, 196, 255});
+                }
+                break;
+            }
             Color pipe = Color{150, 154, 146, 255};
+            uint8_t m = TileMask(p, x, y, [](char c) { return c == '=' || c == '|'; });
+            bool left = m & 8, right = m & 2;
             DrawPipeV(px + 16, py, py + T, 14, pipe);
-            if (At(p, x, y - 1) != '|') DrawFlange({px + 16, py + 3}, 12, true, Pal::BrassDk);
-            if (At(p, x, y + 1) != '|') DrawFlange({px + 16, py + T - 3}, 12, true, Pal::BrassDk);
+            if (!(m & 1)) DrawFlange({px + 16, py + 3}, 12, true, Pal::BrassDk);
+            if (!(m & 4)) DrawFlange({px + 16, py + T - 3}, 12, true, Pal::BrassDk);
+            Color hpipe = p.level == PL_PIPES ? Color{176, 104, 62, 255} : Color{120, 124, 118, 255};
+            if (right) DrawPipeH(px + 16, px + T, py + 16, 14, hpipe);
+            if (left) DrawPipeH(px, px + 16, py + 16, 14, hpipe);
+            if (left || right) { DrawCircleV({px + 16, py + 16}, 15, Color{8, 8, 12, 255}); DrawCircleV({px + 16, py + 16}, 13, Pal::BrassDk); DrawCircleV({px + 14, py + 14}, 5, Color{232, 196, 110, 255}); }
             DrawPipeGrit(px + 9, py, T, false, y);
         } break;
-        case 'f': { // fragile scaffolding: a rusted plank on brackets, shaking when it is about to go
+        case 'r': { // rigging: a rope sagging between two masts, twisted, with an iron thimble at each end
+            int a = x, b = x;
+            while (At(p, a - 1, y) == 'r') a--;
+            while (At(p, b + 1, y) == 'r') b++;
+            float span = (float)(b - a + 1), u0 = (x - a) / span, u1 = (x - a + 1) / span, sag = std::min(9.0f, 3.0f + span * 0.25f);
+            float sw = sinf(p.time * 1.3f + x * 0.3f) * 0.8f;
+            Vector2 s0{px, py + 9 + sinf(u0 * PI) * sag + sw}, s1{px + T, py + 9 + sinf(u1 * PI) * sag + sw};
+            DrawLineEx({s0.x, s0.y + 1}, {s1.x, s1.y + 1}, 5, Color{8, 8, 12, 255});
+            DrawLineEx(s0, s1, 3, Color{176, 148, 98, 255});
+            for (int k = 0; k < 4; k++) DrawRectangle((int)(px + 3 + k * 8), (int)(s0.y + (s1.y - s0.y) * (3 + k * 8) / T) - 1, 2, 3, Color{110, 88, 56, 255});   // twist
+            if (x == a) { DrawRing({px + 2, s0.y}, 2, 4, 0, 360, 8, Color{60, 58, 62, 255}); }
+            if (x == b) { DrawRing({px + T - 2, s1.y}, 2, 4, 0, 360, 8, Color{60, 58, 62, 255}); }
+        } break;
+        case 'w': { // seaweed: a swaying ribbon of blades, climbable (hold up or down while it is around you)
+            float wy = py, sway0 = sinf(p.time * 1.5f + x * 0.7f + wy * 0.05f) * 4, sway1 = sinf(p.time * 1.5f + x * 0.7f + (wy + T) * 0.05f) * 4;
+            Vector2 a{px + 16 + sway0, py}, b{px + 16 + sway1, py + T};
+            DrawLineEx({a.x + 1, a.y}, {b.x + 1, b.y}, 7, Color{8, 10, 14, 255});
+            DrawLineEx(a, b, 4, Color{48, 130, 88, 255});
+            DrawLineEx({a.x - 1, a.y}, {b.x - 1, b.y}, 1, Color{110, 190, 130, 255});
+            for (int k = 0; k < 2; k++) { float ly = py + 6 + k * 14, lx = px + 16 + (sway0 + (sway1 - sway0) * (ly - py) / T); int side = (k + x) % 2 ? 1 : -1; DrawTri({lx, ly}, {lx + side * 12.0f, ly - 6}, {lx + side * 4.0f, ly + 4}, Color{58, 150, 100, 255}); }
+        } break;        case 'f': { // fragile scaffolding: a rusted plank on brackets, shaking when it is about to go
             float shake = 0;
             for (auto& c : p.crumbles) if (c.tx == x && c.ty == y) shake = (fmodf(c.t * 40, 2) < 1 ? -2.0f : 2.0f) * std::min(1.0f, c.t * 4);
             float ox = px + shake;
@@ -2164,7 +2340,9 @@ void ScenePlatformer(Game& g) {
         float dir = 0;
         if (IsKeyDown(KEY_D) || IsKeyDown(KEY_RIGHT)) dir += 1;
         if (IsKeyDown(KEY_A) || IsKeyDown(KEY_LEFT)) dir -= 1;
-        bool jumpPressed = IsKeyPressed(KEY_SPACE) || IsKeyPressed(KEY_W) || IsKeyPressed(KEY_UP);
+        bool weed = p.onWeed; // in seaweed, up and down climb instead of jumping (Space still jumps off it)
+        bool jumpPressed = IsKeyPressed(KEY_SPACE) || (!weed && (IsKeyPressed(KEY_W) || IsKeyPressed(KEY_UP)));
+        p.climbDir = weed ? ((IsKeyDown(KEY_W) || IsKeyDown(KEY_UP)) ? -1 : (IsKeyDown(KEY_S) || IsKeyDown(KEY_DOWN)) ? 1 : 0) : 0;
         bool jumpHeld = IsKeyDown(KEY_SPACE) || IsKeyDown(KEY_W) || IsKeyDown(KEY_UP);
         if (IsGamepadAvailable(0)) {
             float ax = GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_X);
@@ -2325,6 +2503,7 @@ void ScenePlatformer(Game& g) {
         DrawDiver(p);
     }
     EndMode2D();
+    DrawForeground(p, t); // the near silhouettes, in front of the diver
     if (p.ghost) { // a cold teal grade and drifting fog
         DrawRectangle(0, 0, PIXEL_W + 2, PIXEL_H + 2, Color{26, 78, 96, 72});
         for (int k = 0; k < 6; k++) DrawEllipse((int)(fmodf(k * 137.0f + t * 9 * (1 + k % 3), PIXEL_W + 240.0f) - 120), (int)(HUD_PX + 50 + k * 46), 130, 14, Color{170, 235, 230, 26});
@@ -2558,6 +2737,7 @@ bool Crossable(PlatformState& p, float goalX, bool jets, long& expanded, float g
 namespace {
 // Searches every hop of the critical path, from one platform's standing tile to the next's, with the real movement.
 double gMs[3] = {}; int gDraws[3] = {};
+bool gValidateShafts = false; // DEPTH_FULL=1: also search the shaft climbs of every generated level, not just the proven templates
 long gHopExpanded[3][3] = {}; // per level: total expansions, hops searched, largest hop
 bool ValidateGenerated(int level, const GenLevel& gl, int* failedHop) {
     const LevelDef& L = Lv(level);
@@ -2571,13 +2751,13 @@ bool ValidateGenerated(int level, const GenLevel& gl, int* failedHop) {
     p.exitOpen = false;
     for (size_t i = 0; i + 1 < gl.path.size(); i++) {
         const GenWaypoint &a = gl.path[i], &b = gl.path[i + 1];
-        if (b.tag == SetPiece::ShaftUp || b.tag == SetPiece::ShaftDown || b.tag == SetPiece::BarnacleShaft) continue; // shafts are proven as templates (see VerifyPlatformLevels)
+        if (!gValidateShafts && (b.tag == SetPiece::ShaftUp || b.tag == SetPiece::ShaftDown || b.tag == SetPiece::BarnacleShaft)) continue; // shafts are proven as templates (see VerifyPlatformLevels)
         p.pos = {a.tx * (float)T + 6, (a.ty - p.genTop + 1) * (float)T - PH};
         p.vel = {0, 0};
         p.coyote = p.wallCoyote = p.jumpBuffer = p.wallLock = p.time = 0;
         p.onGround = false;
         long n = 0;
-        bool hopOk = Crossable(p, b.tx * (float)T + 16, jets, n, (b.ty - p.genTop + 1) * (float)T - PH, 22, 60000);
+        bool hopOk = Crossable(p, b.tx * (float)T + 16, jets, n, (b.ty - p.genTop + 1) * (float)T - PH, 22, gValidateShafts ? 2500000 : 60000);
         gHopExpanded[level][0] += n; gHopExpanded[level][1]++; gHopExpanded[level][2] = std::max(gHopExpanded[level][2], n);
         if (!hopOk) {
             if (failedHop) *failedHop = (int)i;
@@ -2614,10 +2794,11 @@ static int VerifyShafts() {
 }
 
 int VerifyPlatformLevels() {
+    gValidateShafts = getenv("DEPTH_FULL") != nullptr;
     int failures = getenv("DEPTH_SHAFTS") ? VerifyShafts() : 0; // slow: set DEPTH_SHAFTS=1 to re-prove the shaft dimensions
     for (int lv = 0; lv < PL_COUNT; lv++) {
         const LevelDef& L = Lv(lv);
-        const int SEEDS = 4;
+        const int SEEDS = gValidateShafts ? 2 : 4;
         int firstTry = 0, totalAttempts = 0, worstAttempts = 0, hopsFailed = 0;
         for (int seed = 1; seed <= SEEDS; seed++) {
             int attempts = 0;
@@ -2628,6 +2809,7 @@ int VerifyPlatformLevels() {
                 int hop = -1;
                 auto t0 = std::chrono::steady_clock::now();
                 ok = ValidateGenerated(lv, gl, &hop);
+                if (!ok && hop >= 0 && k < 6) printf("    draw %d failed at hop %d -> waypoint (%d,%d) tag %d\n", k, hop, gl.path[hop + 1].tx, gl.path[hop + 1].ty, (int)gl.path[hop + 1].tag);
                 gMs[lv] += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count(); gDraws[lv]++;
                 if (!ok && k == 0) hopsFailed++;
                 if (ok && k == 0) firstTry++;

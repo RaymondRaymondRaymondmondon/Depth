@@ -30,7 +30,7 @@ struct JumpArc {
 JumpArc CalculateValidJumpArc(float risePx, int samples = 0);
 
 // Set-pieces are injected while the critical path is plotted, and the terrain adapts its spacing to them.
-enum class SetPiece { None, SteamBoost, CrumbleRun, GearGauntlet, BarnacleShaft, ShipGap, ShaftUp, ShaftDown };
+enum class SetPiece { None, SteamBoost, CrumbleRun, GearGauntlet, BarnacleShaft, ShipGap, ShaftUp, ShaftDown, PipeDrop, MastLadder };
 
 struct GenWaypoint { int tx, ty; SetPiece tag; };   // a standing tile on the critical path (ty = the row you stand in)
 
