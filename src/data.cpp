@@ -423,7 +423,12 @@ Hero MakeHero(Game& g, HeroClass c) {
     Hero h;
     h.id = g.nextHeroId++;
     h.cls = c;
-    h.name = NAMES[GetRandomValue(0, (int)(sizeof(NAMES) / sizeof(NAMES[0])) - 1)];
+    for (int tries = 0; tries < 60; tries++) { // a crew of distinct names
+        h.name = NAMES[GetRandomValue(0, (int)(sizeof(NAMES) / sizeof(NAMES[0])) - 1)];
+        bool taken = false;
+        for (const Hero& o : g.roster) taken |= o.name == h.name;
+        if (!taken) break;
+    }
     h.hp = GetStats(h).maxHp;
     return h;
 }

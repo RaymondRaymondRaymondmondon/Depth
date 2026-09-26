@@ -145,3 +145,9 @@ Menu-only, "coming soon": Island, Weeds, Atlantis.
 - Flats card face (eighth pass): a salvaged relic: driftwood frame, stained/salt-crusted parchment (DrawCardFace), title printed in ink with no banner, a large inked illustration well (55% of the card) with shaded, dithered pixel sprites (DrawCreaturePixels), bone/driftwood stat plates on the bottom corners, and larger sigil seals between them.
 
 - Card art (ninth pass): creature sprites are rebuilt once into lit, painted high-res textures (Paint in flats_art.cpp: EPX 4x upscale of the grid, smoothed silhouette, height-lit shading, inked colour edges, scale grain, ink outline; cached per name). Board cards print larger (kf), the header plate is worn into the parchment, card backs are weathered (driftwood, net, stamped ship's wheel), and the bell moved down so the inspector never covers it.
+
+## Tenth pass: ink style, window scaling, self-tests
+- Creature art now follows the Inscryption reference (pale parchment, black ink linework, hatching, brown stipple, a faint shadow-self behind): `Paint` in flats_art.cpp renders each concept grid (EPX-upscaled) as dithered ink, cached per name.
+- The window is resizable (min 640x360) and the frame is letterboxed with the mouse mapped back to game coordinates (`EndFrame`); F11 toggles borderless fullscreen.
+- `depth.exe --flats-ui-test N` runs the real Flats battle screen with the auto-player through N battles (cycling all five dealers, both boss phases) to catch crashes in drawing and animation. Native window clicks cannot be automated from the Claude session (the game window is not reachable by Win32), so UI click paths are checked by reading code and these self-tests.
+- Crew names are unique within the roster; the Hull's background now has a distant whale instead of the floating Nautilus capsule.

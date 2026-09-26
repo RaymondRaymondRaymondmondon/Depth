@@ -1094,11 +1094,10 @@ void BackgroundSystem::Setup(int lv) {
                 DrawTri({x + w, 30}, {x - 70 + w * 1.6f, ch}, {x - 70, ch}, Color{60, 130, 160, 26});
             });
             EndBlendMode();
-            float hx = 700 - ox * 1.2f; // the Nautilus, looming overhead, portholes lit
-            DrawRectangleRounded({hx - 520, 40, 1040, 70}, 1.0f, 24, Color{10, 26, 38, 255});
-            DrawRectangleRounded({hx - 80, 22, 160, 30}, 0.6f, 8, Color{10, 26, 38, 255});
-            for (int k = 0; k < 16; k++) DrawCircleV({hx - 450 + k * 60.0f, 78}, 3, Color{255, 210, 130, 255});
-            Layer(ox / 0.1f, 0.1f, 300, cw, [&](float x, float wx) { // the ribs of a great sunken hull, far off
+            float wx0 = fmodf(900 - t * 14 - ox * 0.6f + 4000, cw + 700) - 350;   // a great whale far off, crossing slowly through the blue
+            DrawEllipse((int)wx0, 150, 150, 26, Color{8, 26, 40, 255});
+            DrawTri({wx0 + 120, 150}, {wx0 + 210, 118}, {wx0 + 200, 176}, Color{8, 26, 40, 255});
+            DrawTri({wx0 - 40, 168}, {wx0 + 30, 168}, {wx0 - 10, 204}, Color{8, 26, 40, 255});            Layer(ox / 0.1f, 0.1f, 300, cw, [&](float x, float wx) { // the ribs of a great sunken hull, far off
                 for (int k = 0; k < 5; k++) DrawRing({x + k * 30.0f, ch + 20}, 80 + Hs(wx) * 30, 84 + Hs(wx) * 30, 200, 340, 18, Color{10, 30, 42, 255});
             });
         }};
