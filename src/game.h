@@ -498,7 +498,7 @@ void DrawShadowBlob(Vector2 feet, float w);
 // Characters: draw between BeginFigure/EndFigure with their feet at FigureFeet(); EndFigure inks them,
 // adds volume, and places them with their feet at `feet` on screen. `tint` flashes them (e.g. red when hit).
 void BeginFigure();
-void EndFigure(Vector2 feet, Color tint = WHITE);
+void EndFigure(Vector2 feet, Color tint = WHITE, float sx = 1, float sy = 1);
 Vector2 FigureFeet();
 RenderTexture2D& ArtRT();              // 512 x 768 scratch canvas for flat art mapped onto walls
 void BeginCanvas(RenderTexture2D& rt); // like BeginFigure, but just paints into `rt`

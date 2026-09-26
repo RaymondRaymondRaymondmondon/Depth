@@ -1664,7 +1664,7 @@ static float Bell(float u, float a, float b, float c) {
     return u < b ? sm((u - a) / (b - a)) : sm((c - u) / (c - b));
 }
 
-struct AnimFx { Pose pose; float dx = 0, dy = 0; Color tint = WHITE; };
+struct AnimFx { Pose pose; float dx = 0, dy = 0; Color tint = WHITE; float sx = 1, sy = 1; }; // sx/sy: squash and stretch, about the feet
 
 // Each class has its own way of fighting: the Nurse's quick slash, the Diver's long harpoon lunge,
 // the Captain's overhead cutlass cut, the Mechanic's heavy wrench swing.
@@ -1752,6 +1752,7 @@ static AnimFx HeroAnimFx(const Game& g, const Hero& h) {
             p.stride = -0.6f * b;          // ...and they stagger a step back
             p.tremble = 0.6f * Bell(u, 0.1f, 0.25f, 0.6f);
             fx.tint = {255, (unsigned char)(255 - 120 * b), (unsigned char)(255 - 130 * b), 255};
+            fx.sx = 1 + 0.09f * b; fx.sy = 1 - 0.08f * b;                                       // flinches: squashed by the blow
         } break;
         case Anim::Dodge: {
             float b = Bell(u, 0, 0.15f, 0.45f);
@@ -1802,19 +1803,32 @@ static AnimFx EnemyAnimFx(const Game& g, const Enemy& e) {
     if (!a) return fx;
     float u = a->t;
     switch (a->kind) {
-        case Anim::Melee: fx.dx = -85 * Bell(u, 0.2f, 0.36f, 0.8f) + 12 * Bell(u, 0, 0.16f, 0.28f); break;
-        case Anim::Ranged: fx.dx = 10 * Bell(u, 0.05f, 0.25f, 0.45f); fx.dy = -6 * Bell(u, 0.25f, 0.32f, 0.5f); break;
+        case Anim::Melee: {
+            fx.dx = -85 * Bell(u, 0.2f, 0.36f, 0.8f) + 12 * Bell(u, 0, 0.16f, 0.28f);
+            float wind = Bell(u, 0, 0.13f, 0.24f), strike = Bell(u, 0.2f, 0.3f, 0.5f);      // gather, then stretch into the blow
+            fx.sx = 1 + 0.07f * wind - 0.06f * strike; fx.sy = 1 - 0.06f * wind + 0.07f * strike;
+        } break;
+        case Anim::Ranged: {
+            fx.dx = 10 * Bell(u, 0.05f, 0.25f, 0.45f); fx.dy = -6 * Bell(u, 0.25f, 0.32f, 0.5f);
+            float draw = Bell(u, 0, 0.2f, 0.35f);
+            fx.sx = 1 - 0.04f * draw; fx.sy = 1 + 0.05f * draw;                                 // rears up to cast or spit
+        } break;
         case Anim::Buff: fx.dy = -10 * Bell(u, 0.1f, 0.3f, 0.8f); fx.dx = 4 * sinf(u * 60) * Bell(u, 0.1f, 0.3f, 0.8f); break;
         case Anim::Hurt: {
             float spring = expf(-7 * u) * cosf(u * 16) * std::min(1.0f, u / 0.04f), b = Bell(u, 0, 0.07f, 0.48f);
             fx.dx = 20 * spring;
             fx.dy = -4 * b;
             fx.tint = {255, (unsigned char)(255 - 120 * b), (unsigned char)(255 - 130 * b), 255};
+            fx.sx = 1 + 0.09f * b; fx.sy = 1 - 0.08f * b;                                       // flinches: squashed by the blow
         } break;
         case Anim::Dodge: fx.dx = 28 * Bell(u, 0, 0.15f, 0.45f); break;
         default: break;
     }
-    if (!e.alive) fx.tint.a = (unsigned char)(255 * std::max(0.0f, 1 - (a->kind == Anim::Hurt ? a->t / a->dur : 1)));
+    if (!e.alive) { // dying: it buckles and sinks as it fades
+        float prog = std::clamp(a->kind == Anim::Hurt ? a->t / a->dur : 1.0f, 0.0f, 1.0f);
+        fx.tint.a = (unsigned char)(255 * (1 - prog));
+        fx.sy *= 1 - 0.7f * prog * prog; fx.sx *= 1 + 0.3f * prog; fx.dx += 8 * prog;
+    }
     return fx;
 }
 
@@ -1885,7 +1899,8 @@ static void DrawUnitFigures(Game& g) {
         DrawShadowBlob({feet.x, r.y + r.height}, e.boss ? 70 : 44);
         BeginFigure(); // draw on the figure canvas, lined up so its feet land on FigureFeet()
         DrawEnemyFigure(e, {ff.x - r.width / 2, ff.y - r.height, r.width, r.height}, t);
-        EndFigure(feet, fx.tint);
+        float breathe = 1 + 0.012f * sinf(t * 1.7f + e.uid * 1.3f);                               // it breathes, slowly
+        EndFigure(feet, fx.tint, fx.sx / breathe, fx.sy * breathe);
     }
 }
 

@@ -795,7 +795,7 @@ void BeginFigure() {
     rlDisableBackfaceCulling();
 }
 
-void EndFigure(Vector2 feet, Color tint) {
+void EndFigure(Vector2 feet, Color tint, float sx, float sy) {
     rlDrawRenderBatchActive();
     rlEnableBackfaceCulling();
     EndBlendMode();
@@ -805,7 +805,7 @@ void EndFigure(Vector2 feet, Color tint) {
     SetShaderValue(A.figShader, A.locFigOutline, &outline, SHADER_UNIFORM_FLOAT);
     BeginShaderMode(A.figShader);
     DrawTexturePro(A.fig.texture, {0, 0, (float)FIG_W * SS, -(float)FIG_H * SS},
-                   {roundf(feet.x - FIG_FEET.x), roundf(feet.y - FIG_FEET.y), (float)FIG_W, (float)FIG_H}, {0, 0}, 0, tint);
+                   {roundf(feet.x - FIG_FEET.x * sx), roundf(feet.y - FIG_FEET.y * sy), (float)FIG_W * sx, (float)FIG_H * sy}, {0, 0}, 0, tint); // squash and stretch, about the feet
     EndShaderMode();
 }
 

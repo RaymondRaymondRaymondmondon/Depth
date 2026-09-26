@@ -1167,7 +1167,7 @@ void CoconutQueen(const Ctx& c) { // the Island's mini-boss: a warrior queen in 
     for (int i = 0; i < 8; i++) { float x = -22.0f + i * 5.6f; Tri(c, {x - 3, -72}, {x + 3, -72}, {x + 1 + sinf(t * 1.6f + i + 1) * 2, -42 - (i % 2) * 4}, Tone(frond, 0.2f)); }
     Limb(c, {-28, -70}, {28, -70}, 6, 6, Color{104, 76, 46, 255});                                                                                  // a woven belt hung with coconut bombs
     for (int i = 0; i < 4; i++) { Line(c, {-18.0f + i * 12, -68}, {-18.0f + i * 12, -58}, 1.0f, bone); Ball(c, -18.0f + i * 12, -54, 5.6f, shell); Dot(c, -19.6f + i * 12, -55.4f, 0.9f, INK); Dot(c, -16.6f + i * 12, -55.4f, 0.9f, INK); Dot(c, -18.0f + i * 12, -51.6f, 0.9f, INK); }
-    Limb(c, {0, -70}, {-3 + breathe * 0.2f, -110 + breathe}, 30, 36, skin); Crescent(c, -1, -92, 30);                                                  // a strong, tall torso
+    Limb(c, {0, -70}, {-3 + breathe * 0.2f, -110 + breathe}, 22, 30, skin); Crescent(c, -1, -92, 24);                                                  // a strong, tall torso
     for (int s = -1; s <= 1; s += 2) { Ball(c, s * 10.0f - 3, -100 + breathe, 12, shell); Ball(c, s * 10.0f - 5, -102 + breathe, 7, shellLt); Rivet(c, s * 10.0f - 3, -100 + breathe, 1.6f, Tone(shell, -0.5f)); } // half-shell armour
     Limb(c, {-24, -104 + breathe}, {22, -104 + breathe}, 3, 3, red);
     for (int i = 0; i < 9; i++) { float u = i / 8.0f; Ball(c, -18 + u * 34, -114 + sinf(u * PI) * 8 + breathe, 3.2f, i % 3 ? bone : coral); } // a necklace of shells
