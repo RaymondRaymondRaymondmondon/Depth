@@ -2507,9 +2507,12 @@ bool PlatLayoutValid(const Game& g, int level) {
 }
 
 void GeneratePlatLayout(Game& g, int level) {
+    const double start = GetTime();
     for (int attempt = 0; attempt < 150; attempt++) {
         unsigned seed = (unsigned)GetRandomValue(1, 999999);
         int scale = 100 - (attempt / 20) * 6; // a level that keeps failing is eased off
+        if (GetTime() - start > 5.0) scale = 60; // never leave the window frozen for long: ease off hard once the budget is spent
+        if (GetTime() - start > 8.0) break;
         GenLevel gl = GenerateLevel(level, seed, scale / 100.0f);
         if (ValidateGenerated(level, gl, nullptr)) {
             g.platLayouts[level] = {(int)seed, scale};
@@ -2975,7 +2978,7 @@ bool Crossable(PlatformState& p, float goalX, bool jets, long& expanded, float g
                 nodes.push_back(n);
                 // hop searches (tol > 0) only need *a* path, so they use a weighted heuristic: horizontal and vertical distance to go
                 float toGo = fabsf(goalX - n.pos.x) / RUN + (tol > 0 ? fabsf(goalY - n.pos.y) / 900 : 0);
-                open.push({n.time + toGo, (int)nodes.size() - 1});
+                open.push({n.time + (tol > 0 ? 3.0f : 1.0f) * toGo, (int)nodes.size() - 1});
             }
     }
     return false;
@@ -3068,6 +3071,16 @@ static void PrintLevelMetrics() {
 }
 
 int VerifyPlatformLevels() {
+    if (const char* chk = getenv("DEPTH_CHECK")) { // DEPTH_CHECK=<level>:<seed>[:<scale%>]: validate one layout and report each hop
+        int lv = 0, seed = 0, sc = 100; sscanf(chk, "%d:%d:%d", &lv, &seed, &sc);
+        GenLevel gl = GenerateLevel(lv, (unsigned)seed, sc / 100.0f);
+        gValidateShafts = true;
+        int hop = -1;
+        bool ok = ValidateGenerated(lv, gl, &hop);
+        printf("level %d seed %d scale %d: %s", lv, seed, sc, ok ? "crossable\n" : "FAILED");
+        if (!ok) printf(" at hop %d -> waypoint (%d,%d)\n", hop, gl.path[hop + 1].tx, gl.path[hop + 1].ty);
+        return ok ? 0 : 1;
+    }
     if (getenv("DEPTH_METRICS")) { PrintLevelMetrics(); return 0; }
     gValidateShafts = getenv("DEPTH_FULL") != nullptr;
     int failures = getenv("DEPTH_SHAFTS") ? VerifyShafts() : 0; // slow: set DEPTH_SHAFTS=1 to re-prove the shaft dimensions

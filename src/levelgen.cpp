@@ -194,7 +194,8 @@ static void BuildFleet(Grid& g, std::vector<Plat>& pl, Rng& rng, GenLevel& out, 
     while (x < P.length && guard++ < 12) {
         int len = rng.I(36, 46);
         int sx = x, ex = sx + len - 1;
-        int Ds = ship == 0 ? D0 : std::clamp(prevD + rng.I(-1, 1), D0 - 2, D0 + 2);
+        int Ds = ship == 0 ? D0 : bridgePending ? std::clamp(prevD + rng.I(-1, 1), D0 - 2, D0 + 2)
+                                                : std::clamp(prevD + rng.I(0, 1), D0 - 2, D0 + 2); // a jumped gap never climbs: the stern castle is as high as the bow, or lower
         bool isLast = x + len >= P.length - 8;
         g.rect(sx, Ds, ex, Ds + 4, '#');                                       // the hull: deck planking over timber
         if (ship > 0) g.rect(sx, Ds - 3, sx + 3, Ds - 1, '#');                  // the stern castle, raised
@@ -204,8 +205,8 @@ static void BuildFleet(Grid& g, std::vector<Plat>& pl, Rng& rng, GenLevel& out, 
         if (bridgePending) {
             int mB = sx + 7;
             mast(mB, Ds, pendingRow);
-            int nB = 4;
-            for (int i = 1; i <= nB; i++) yard(mB, Ds - 3 * i, std::max(2, 5 - i));
+            int i = 0;                                                            // the ladder runs down from the rope's own row, so no yard is stacked on the landing yard
+            for (int r = pendingRow + 3; r <= Ds - 3; r += 3) yard(mB, r, std::max(2, 4 - i++));
             yard(mB, pendingRow, pendingHalf);
             for (int xx = pendingMastX + pendingHalf + 1; xx < mB + 1 - pendingHalf; xx++) g.set(xx, pendingRow, 'r'); // the rigging rope
             for (int xx = pendingMastX + pendingHalf + 6; xx < mB - pendingHalf - 4; xx += 9) if (g.get(xx, pendingRow - 5) == '.') g.set(xx, pendingRow - 5, 'p');   // parakeets over the rope
@@ -215,7 +216,7 @@ static void BuildFleet(Grid& g, std::vector<Plat>& pl, Rng& rng, GenLevel& out, 
             Plat land{mB + pendingHalf + 2, mB + pendingHalf + 4, Ds, C_JUMP, '#', SetPiece::None, 0, mB + pendingHalf + 2};
             pl.push_back(land);
             bridgePending = false;
-            cx = mB + 8;
+            cx = mB + 15;                                                          // keep the next ship's masts and yardarms clear of the descent
         } else if (ship > 0) { // arrived by a jump: a waypoint on the stern castle
             Plat cap{sx, sx + 3, Ds - 3, C_JUMP, '#', SetPiece::None, 0, sx + 1};
             pl.push_back(cap);
