@@ -58,6 +58,8 @@ static void TakeShots(const Game& base, const std::string& dir) {
         {"hub_cat", [](Game& g) { g.scene = Scene::Hub; DebugPetCat(); }},
         {"cards_menu", [](Game& g) { g.scene = Scene::Cards; }},
         {"cards_play", [](Game& g) { g.scene = Scene::Cards; DebugFlatsDeal(); }},
+        {"cards_reward", [](Game& g) { g.scene = Scene::Cards; DebugFlatsReward(); }},
+        {"cards_deck", [](Game& g) { g.scene = Scene::Cards; DebugFlatsDeck(); }},
         {"hub_leave", [](Game& g) { g.scene = Scene::Hub; g.roster[0].onLeave = 1; g.roster[1].rattled = true; }},
         {"crew", [](Game& g) { g.scene = Scene::Crew; g.roster[1].level = 3; g.selectedHero = g.roster[1].id; }},
         {"helm", [](Game& g) { g.scene = Scene::Helm; g.tierCleared[(int)Location::Cave] = 1; g.tierSel[(int)Location::Cave] = 2; }},
