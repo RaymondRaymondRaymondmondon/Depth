@@ -721,85 +721,110 @@ void DrawChandelier(float t) {
 // The ship's cat: a ginger tabby. It wanders, sits and watches, and purrs when you click it.
 // Draws the cat standing at `feet` (k = size), and returns where its head ended up on screen.
 Vector2 DrawCatAt(Vector2 feet, float k, bool right, bool sitting, bool purring, float phase, float t, float seed) {
-    Vector2 o = FigureFeet();
+    // A cute chibi tabby drawn in plain soft shapes (not through the grim figure shader): a big round head, big
+    // glossy eyes, rounded ears, stubby legs, a fluffy tail. Each shape gets a thin warm outline, a light top and a
+    // soft shaded underside, so it reads as a friendly little animal even at small size.
     float f = right ? 1.0f : -1.0f;
-    float vib = purring ? sinf(t * 70) * 0.3f : 0; // the whole cat hums
-    auto P = [&](float dx, float dy) { return Vector2{o.x + (dx + vib) * f * k, o.y + dy * k}; };
-    Color fur{206, 124, 56, 255}, stripe{140, 68, 30, 255}, cream{240, 220, 186, 255}, pink{226, 140, 140, 255};
-    DrawShadowBlob(feet, (sitting ? 20 : 26) * k);
-    BeginFigure();
+    float vib = purring ? sinf(t * 70) * 0.35f : 0;
+    auto P = [&](float dx, float dy) { return Vector2{feet.x + (dx + vib) * f * k, feet.y + dy * k}; };
+    const Color line{74, 40, 24, 255}, fur{232, 152, 74, 255}, furLt{252, 190, 112, 255}, furDk{190, 108, 50, 255};
+    const Color stripe{168, 88, 38, 255}, cream{252, 238, 212, 255}, pink{246, 158, 160, 255};
+    auto Blob = [&](Vector2 c, float rx, float ry, Color col, bool shade = true) {
+        DrawEllipse((int)c.x, (int)c.y, rx * k + 1.4f * k, ry * k + 1.4f * k, line);
+        DrawEllipse((int)c.x, (int)c.y, rx * k, ry * k, col);
+        if (shade) {
+            DrawEllipse((int)(c.x + rx * 0.18f * k * f), (int)(c.y + ry * 0.32f * k), rx * 0.78f * k, ry * 0.58f * k, Tone(col, -0.16f));   // shaded underside
+            DrawEllipse((int)(c.x - rx * 0.14f * k * f), (int)(c.y - ry * 0.28f * k), rx * 0.66f * k, ry * 0.5f * k, Tone(col, 0.12f));    // lit top
+        }
+    };
+    auto Limb = [&](Vector2 a, Vector2 b, float w, Color col) {
+        DrawLineEx(a, b, w * k + 2.6f * k, line); DrawCircleV(a, w * 0.5f * k + 1.3f * k, line); DrawCircleV(b, w * 0.5f * k + 1.3f * k, line);
+        DrawLineEx(a, b, w * k, col); DrawCircleV(a, w * 0.5f * k, col); DrawCircleV(b, w * 0.5f * k, col);
+    };
+    DrawShadowBlob(feet, (sitting ? 17 : 22) * k);
     Vector2 hc;
-    float look = 0; // the head tilts now and then while it sits and watches
+    float tilt = 0;
     if (!sitting) {
-        float ph = phase;
-        Vector2 prev = P(-16, -18); // tail held high, curling at the tip
-        for (int i = 1; i <= 7; i++) {
-            Vector2 p = P(-17 - i * 1.6f + sinf(t * 2.2f + i * 0.5f) * i * 0.35f, -18 - i * 4.0f + (i > 5 ? (i - 5) * 2.5f : 0));
-            ShadeLimb(prev, p, (2.8f - i * 0.12f) * k, (2.7f - i * 0.12f) * k, i == 7 ? stripe : fur);
+        float ph = phase, bob = fabsf(sinf(ph)) * 0.7f;
+        Vector2 prev = P(-13, -17); // a tail held high in a curl
+        for (int i = 1; i <= 8; i++) {
+            Vector2 p = P(-14 - i * 1.4f + sinf(t * 2.2f + i * 0.5f) * i * 0.3f, -17 - i * 3.2f + (i > 5 ? (i - 5) * 2.2f : 0));
+            Limb(prev, p, 3.6f - i * 0.15f, i >= 7 ? stripe : fur);
             prev = p;
         }
-        for (int leg = 0; leg < 2; leg++) { // far legs, in shadow
-            float lx = leg ? 10 : -11, sw = sinf(ph + PI + leg * PI);
-            ShadeLimb(P(lx, -14), P(lx + sw * 5, -1 + std::min(0.0f, cosf(ph + PI + leg * PI)) * 2.5f), 2.6f * k, 1.9f * k, Tone(fur, -0.35f));
+        for (int leg = 0; leg < 2; leg++) { // far legs, a little darker
+            float lx = leg ? 8 : -10, sw = sinf(ph + PI + leg * PI);
+            Vector2 foot = P(lx + sw * 4, -2 + std::min(0.0f, cosf(ph + PI + leg * PI)) * 2.0f);
+            Limb(P(lx, -12), foot, 4.0f, furDk);
+            Blob({foot.x + 0.6f * f * k, foot.y}, 2.6f, 1.9f, Tone(cream, -0.1f), false);
         }
-        float bob = fabsf(sinf(ph)) * 0.8f;
-        ShadeLimb(P(-12, -17 - bob), P(10, -18 - bob), 8.5f * k, 7.8f * k, fur);
-        ShadeLimb(P(-6, -12 - bob), P(8, -12 - bob), 4 * k, 4.5f * k, Tone(cream, -0.1f)); // pale belly
-        for (int i = 0; i < 5; i++) DrawLineEx(P(-10 + i * 4.6f, -25.5f - bob), P(-8.5f + i * 4.6f, -16 - bob), 1.7f * k, stripe);
+        Blob(P(-1, -15 - bob), 14, 8.6f, fur);                         // the body
+        Blob(P(2, -10.5f - bob), 9, 4.3f, cream, false);               // the pale belly
+        for (int i = 0; i < 4; i++) DrawLineEx(P(-9 + i * 4.6f, -22.5f - bob), P(-8 + i * 4.6f, -17 - bob), 1.6f * k, stripe);
         for (int leg = 0; leg < 2; leg++) { // near legs
-            float lx = leg ? 11 : -10, sw = sinf(ph + leg * PI);
-            ShadeLimb(P(lx, -14 - bob), P(lx + sw * 5, -1 + std::min(0.0f, cosf(ph + leg * PI)) * 2.5f), 2.9f * k, 2.1f * k, fur);
-            ShadeBall(P(lx + sw * 5 + 1, -1 + std::min(0.0f, cosf(ph + leg * PI)) * 2.5f), 2.2f * k, cream);
+            float lx = leg ? 10 : -8, sw = sinf(ph + leg * PI);
+            Vector2 foot = P(lx + sw * 4, -2 + std::min(0.0f, cosf(ph + leg * PI)) * 2.0f);
+            Limb(P(lx, -12 - bob), foot, 4.4f, fur);
+            Blob({foot.x + 0.6f * f * k, foot.y}, 2.9f, 2.1f, cream, false);
         }
-        hc = P(19, -25 - bob);
+        hc = P(16, -25 - bob);
     } else {
-        look = purring ? 0.25f : sinf(t * 0.5f + seed) * 0.5f;
-        Vector2 prev = P(-12, -3); // tail wrapped round the paws, the tip flicking
-        for (int i = 1; i <= 7; i++) {
-            float tip = i > 4 ? sinf(t * (purring ? 1.2f : 2.6f)) * (i - 4) * 1.2f : 0;
-            Vector2 p = P(-12 + i * 3.4f, -2.5f - sinf(i * 0.45f) * 1.2f - tip);
-            ShadeLimb(prev, p, 2.7f * k, 2.6f * k, i == 7 ? stripe : fur);
+        tilt = purring ? 0.35f : sinf(t * 0.5f + seed) * 0.6f;
+        Vector2 prev = P(-9, -3); // the tail wrapped round the front paws, its tip flicking
+        for (int i = 1; i <= 8; i++) {
+            float tip = i > 4 ? sinf(t * (purring ? 1.2f : 2.6f)) * (i - 4) * 0.9f : 0;
+            Vector2 p = P(-9 + i * 3.6f, -2.2f - sinf(i * 0.4f) * 1.0f - tip);
+            Limb(prev, p, 3.8f, i >= 7 ? stripe : fur);
             prev = p;
         }
-        ShadeBall(P(-6, -10), 10 * k, fur); // haunch
-        for (int i = 0; i < 3; i++) DrawLineEx(P(-13 + i * 4.0f, -17 + i * 0.5f), P(-9 + i * 4.5f, -6), 1.6f * k, stripe);
-        ShadeLimb(P(-5, -11), P(4, -23), 8.8f * k, 7 * k, fur); // body rising to the chest
-        ShadeBall(P(7, -18), 4.6f * k, cream);                   // white bib
-        ShadeLimb(P(3, -18), P(3.5f, -1), 2.5f * k, 2.1f * k, Tone(fur, -0.3f));
-        ShadeLimb(P(7, -17), P(7.5f, -1), 2.6f * k, 2.2f * k, fur);
-        ShadeBall(P(8, -1.5f), 2.3f * k, cream);
-        hc = P(6 + look, -32 + (purring ? 1 : 0));
+        Blob(P(-2, -10), 11.5f, 11, fur);                              // a round, sitting body
+        Blob(P(4, -9), 6.5f, 8, cream, false);                         // the white bib
+        for (int i = 0; i < 3; i++) DrawLineEx(P(-11 + i * 3.6f, -16 + i * 0.6f), P(-9 + i * 3.6f, -7), 1.6f * k, stripe);
+        for (int leg = 0; leg < 2; leg++) {
+            Vector2 foot = P(4 + leg * 5.0f, -1.6f);
+            Limb(P(3 + leg * 5.0f, -10), foot, 3.8f, leg ? fur : furDk);
+            Blob({foot.x + 0.4f * f * k, foot.y}, 2.9f, 2.1f, cream, false);
+        }
+        hc = P(4 + tilt, -27 + (purring ? 0.8f : 0));
     }
-    // the head: a round skull, ears, a pale muzzle, stripes on the brow
-    float hk = 7.6f * k;
+    // the head: wide and round, with rounded ears, fluffy cheeks and a tiny cream muzzle
     for (int e = -1; e <= 1; e += 2) {
-        Vector2 b1{hc.x + (e * 5.5f - 2.5f) * k, hc.y - 4 * k}, b2{hc.x + (e * 5.5f + 2.5f) * k, hc.y - 4.5f * k}, tip{hc.x + e * 6.5f * k, hc.y - 13 * k};
-        DrawTri(b1, b2, tip, Tone(fur, -0.1f));
-        DrawTri({b1.x + 1.3f * k, b1.y}, {b2.x - 1.3f * k, b2.y}, {tip.x, tip.y + 3.5f * k}, pink);
+        Vector2 base{hc.x + e * 6.0f * k, hc.y - 3.6f * k}, tip{hc.x + e * 8.2f * k, hc.y - 16.0f * k};
+        DrawTri({base.x - 6.6f * k - 1.5f * k, base.y + 2 * k}, {base.x + 6.6f * k + 1.5f * k, base.y + 2 * k}, {tip.x, tip.y - 1.6f * k}, line);
+        DrawTri({base.x - 6.6f * k, base.y + 2 * k}, {base.x + 6.6f * k, base.y + 2 * k}, tip, fur);
+        DrawCircleV({tip.x, tip.y + 0.8f * k}, 1.6f * k, fur);
+        DrawTri({base.x - 3.6f * k, base.y + 1.4f * k}, {base.x + 3.6f * k, base.y + 1.4f * k}, {tip.x, tip.y + 3.4f * k}, pink);
     }
-    ShadeBall(hc, hk, fur);
-    for (int i = -1; i <= 1; i++) DrawLineEx({hc.x + i * 2.2f * k, hc.y - 7 * k}, {hc.x + i * 1.6f * k, hc.y - 3.5f * k}, 1.3f * k, stripe);
-    Vector2 mz{hc.x + f * 2.5f * k, hc.y + 3 * k};
-    ShadeBall(mz, 3.6f * k, cream);
-    DrawTri({mz.x - 1.2f * k, mz.y - 1.6f * k}, {mz.x + 1.2f * k, mz.y - 1.6f * k}, {mz.x, mz.y - 0.2f * k}, pink);
-    float blink = fmodf(t * 0.37f + seed * 0.01f, 1.0f) < 0.03f;
+    for (int e = -1; e <= 1; e += 2) Blob({hc.x + e * 8.4f * k, hc.y + 3.4f * k}, 3.6f, 3.2f, furLt, false); // cheek fluff
+    Blob(hc, 11, 9.6f, fur);
+    for (int i = -1; i <= 1; i++) DrawLineEx({hc.x + i * 2.6f * k, hc.y - 9 * k}, {hc.x + i * 2.0f * k, hc.y - 5 * k}, 1.3f * k, stripe);      // brow stripes
+    DrawEllipse((int)(hc.x + f * 1.6f * k), (int)(hc.y + 3.6f * k), 4.6f * k, 3.4f * k, cream);                                                                      // the muzzle
+    Vector2 mz{hc.x + f * 1.6f * k, hc.y + 2.6f * k};
+    DrawTri({mz.x - 1.6f * k, mz.y - 1.2f * k}, {mz.x + 1.6f * k, mz.y - 1.2f * k}, {mz.x, mz.y + 0.9f * k}, pink);                            // the nose
+    DrawLineEx({mz.x, mz.y + 0.9f * k}, {mz.x, mz.y + 1.8f * k}, 0.5f * k, Fade(line, 0.7f));
+    DrawRing({mz.x - 1.1f * k, mz.y + 1.8f * k}, 0.8f * k, 1.2f * k, 0, 180, 6, Fade(line, 0.7f));                                            // a small smile
+    DrawRing({mz.x + 1.1f * k, mz.y + 1.8f * k}, 0.8f * k, 1.2f * k, 0, 180, 6, Fade(line, 0.7f));
+    for (int e = -1; e <= 1; e += 2) DrawEllipse((int)(hc.x + e * 6.6f * k + f * 0.8f * k), (int)(hc.y + 3.2f * k), 2.2f * k, 1.3f * k, Fade(pink, 0.55f)); // blush
+    bool blink = fmodf(t * 0.37f + seed * 0.01f, 1.0f) < 0.035f;
     for (int e = -1; e <= 1; e += 2) {
-        Vector2 ec{hc.x + f * 1.5f * k + e * 3.2f * k, hc.y - 1 * k};
-        if (purring || blink) DrawLineEx({ec.x - 1.6f * k, ec.y + 0.3f * k}, {ec.x + 1.6f * k, ec.y + 0.3f * k}, 1.0f * k, Color{60, 34, 20, 255});
-        else {
-            DrawEllipse((int)ec.x, (int)ec.y, 1.7f * k, 1.5f * k, Color{150, 200, 80, 255});
-            DrawEllipse((int)ec.x, (int)ec.y, 0.45f * k, 1.3f * k, Color{20, 16, 12, 255});
+        Vector2 ec{hc.x + f * 1.2f * k + e * 4.4f * k, hc.y - 0.4f * k};
+        if (purring || blink) { // happy closed eyes: little upturned arcs
+            DrawRing(ec, 1.6f * k, 2.4f * k, 200, 340, 8, line);
+        } else {
+            DrawEllipse((int)ec.x, (int)ec.y, 3.0f * k, 3.4f * k, line);
+            DrawEllipse((int)ec.x, (int)ec.y, 2.4f * k, 2.9f * k, Color{132, 206, 96, 255});
+            DrawEllipse((int)ec.x, (int)(ec.y + 0.2f * k), 1.5f * k, 2.4f * k, Color{22, 18, 14, 255});
+            DrawCircleV({ec.x - 0.9f * k, ec.y - 1.1f * k}, 0.95f * k, WHITE);                                                                   // the glint
+            DrawCircleV({ec.x + 0.9f * k, ec.y + 1.0f * k}, 0.5f * k, Fade(WHITE, 0.8f));
         }
     }
     for (int w = -1; w <= 1; w += 2) // whiskers
-        for (int i = 0; i < 2; i++)
-            DrawLineEx({mz.x + w * 1.5f * k, mz.y + i * 0.8f * k}, {mz.x + w * 9 * k, mz.y - 1 * k + i * 2.2f * k}, 0.4f * k, Fade(WHITE, 0.7f));
-    EndFigure(feet);
-    return {feet.x + (hc.x - o.x), feet.y + (hc.y - o.y)};
+        for (int i = 0; i < 3; i++)
+            DrawLineEx({mz.x + w * 5.0f * k, mz.y + 0.8f * k + i * 1.0f * k}, {mz.x + w * 13.0f * k, mz.y - 0.8f * k + i * 2.6f * k}, 0.4f * k, Fade(Color{255, 244, 226, 255}, 0.8f));
+    return hc;
 }
-
 void DrawCat(float t) {
-    float Z = cat.pos.y, k = Px(Z) * 2.25f;
+    float Z = cat.pos.y, k = Px(Z) * 3.0f;
     Vector2 feet = Proj(cat.pos.x, 0, Z);
     catRect = {feet.x - 28 * k, feet.y - 46 * k, 56 * k, 48 * k};
     catHead = DrawCatAt(feet, k, cat.right, cat.wait > 0, cat.purr > 0, cat.phase, t, cat.pos.x);

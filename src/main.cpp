@@ -50,6 +50,7 @@ static void ShotAtPiece(Game& g, int level, SetPiece sp, bool ghost = false, int
             break;
         }
 }
+static const char* gShotFilter = nullptr; // depth.exe --shots <folder> <text>: only screens whose name contains <text>
 static void TakeShots(const Game& base, const std::string& dir) {
     struct Shot { const char* name; std::function<void(Game&)> setup; };
     const Shot shots[] = {
@@ -100,6 +101,7 @@ static void TakeShots(const Game& base, const std::string& dir) {
             all.push_back({names[loc * 3 + v], [loc, v](Game& g) { DebugEnterCombat(g, (Location)loc); g.dungeon.atmos = v; g.dungeon.visSeed = 4000u + loc * 77 + v * 13; }});
         }
     for (const auto& s : all) {
+        if (gShotFilter && !strstr(s.name, gShotFilter)) continue;
         Game g = base;
         s.setup(g);
         for (int f = 0; f < 90; f++) {
@@ -193,6 +195,7 @@ int main(int argc, char** argv) {
     if (spriteFile) {
         MakeSpriteSheet(spriteFile);
     } else if (shotDir) {
+        gShotFilter = argc >= 4 ? argv[3] : nullptr;
         TakeShots(g, shotDir);
     } else {
         InitAudioDevice(); // only for real play: the tools above run silently

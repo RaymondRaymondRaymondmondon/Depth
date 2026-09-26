@@ -2,6 +2,7 @@
 //  DEPTH - the roguelike expedition: rooms, the flashlight, and combat.
 // ============================================================================
 #include "game.h"
+#include "rlgl.h"
 #include "relics.h"
 #include <algorithm>
 #include <cmath>
@@ -970,7 +971,7 @@ static void DrawRegionFloor(Game& g) {
 // Modular decor along the path, chosen per step from a weighted pool for the location and the run's seed:
 // each 230-pixel step of the walk may hold one prop (or none), so the path is assembled differently every run.
 // Flat shapes, black ink under every mass, one hard lit edge.
-enum Prop { P_SKULL, P_IMPALED, P_CAGE, P_WRECK, P_TOTEM, P_FUNGUS, P_HELMET, P_SHELLBONES, P_CORAL, P_ANCHOR, P_POD, P_CRATE, P_ALTAR, P_VOIDCRYSTAL, P_BRAZIER, P_LOSTONE, P_COUNT };
+enum Prop { P_SKULL, P_IMPALED, P_CAGE, P_WRECK, P_TOTEM, P_FUNGUS, P_HELMET, P_SHELLBONES, P_CORAL, P_ANCHOR, P_POD, P_CRATE, P_ALTAR, P_VOIDCRYSTAL, P_BRAZIER, P_LOSTONE, P_STALAGMITE, P_TORCH, P_STAKES, P_KELPCLUMP, P_BARREL, P_COLUMN, P_RIBS, P_COUNT };
 struct PropWeight { Prop p; int w; };
 
 static void DrawProp(Prop p, float x, float y, float t, int seed) {
@@ -1042,29 +1043,185 @@ static void DrawProp(Prop p, float x, float y, float t, int seed) {
             DrawCircleV({x + 2, y - 46}, 9, ink); DrawCircleV({x + 2, y - 46}, 7, Color{104, 108, 102, 255}); DrawRectangle((int)x - 5, (int)y - 48, 14, 4, Color{6, 6, 8, 255});
             DrawTri({x - 12, y - 30}, {x - 6, y - 30}, {x - 9, y - 50}, Color{178, 84, 72, 255});
             break;
-        default: break;
+        case P_STALAGMITE:
+            for (int k = 0; k < 3; k++) {
+                float h = 30 + (seed + k * 17) % 46, bx = x + k * 15 - 15;
+                DrawTri({bx - 10, y}, {bx + 10, y}, {bx + (k - 1) * 3, y - h}, ink);
+                DrawTri({bx - 7, y}, {bx + 3, y}, {bx + (k - 1) * 3, y - h + 5}, Color{84, 96, 108, 255});
+                DrawTri({bx + 1, y}, {bx + 7, y}, {bx + (k - 1) * 3, y - h + 5}, Color{46, 56, 66, 255});
+            }
+            break;
+        case P_TORCH: { // a driftwood torch: it really lights what is around it (see DrawCaveLighting)
+            DrawLineEx({x, y}, {x + 1, y - 64}, 6, ink); DrawLineEx({x, y}, {x + 1, y - 64}, 3.5f, Color{96, 66, 40, 255});
+            DrawTri({x - 10, y - 62}, {x + 10, y - 62}, {x, y - 48}, ink);
+            float fl = sinf(t * 11 + seed) * 2;
+            DrawEllipse((int)x, (int)(y - 76), 9, 15 + fl, Color{200, 70, 20, 255});
+            DrawEllipse((int)x, (int)(y - 74), 6, 11 + fl, Color{255, 160, 50, 255});
+            DrawEllipse((int)x, (int)(y - 72), 3, 6, Color{255, 236, 170, 255});
+            Glow({x, y - 74}, 70, Color{255, 150, 60, 90});
+        } break;
+        case P_STAKES: // sharpened tribal stakes lashed with rope
+            for (int k = 0; k < 3; k++) {
+                float bx = x + k * 18 - 18, h = 54 + (seed + k * 9) % 28, lean = (k - 1) * 6;
+                DrawLineEx({bx, y}, {bx + lean, y - h}, 7, ink); DrawLineEx({bx, y}, {bx + lean, y - h}, 4, Color{112, 78, 46, 255});
+                DrawTri({bx + lean - 4, y - h + 2}, {bx + lean + 4, y - h + 2}, {bx + lean, y - h - 14}, ink);
+            }
+            DrawLineEx({x - 18, y - 30}, {x + 18, y - 26}, 3, Color{170, 140, 90, 255});
+            break;
+        case P_KELPCLUMP:
+            for (int k = 0; k < 5; k++) {
+                float bx = x + k * 8 - 16, h = 60 + (seed + k * 13) % 60;
+                Vector2 prev{bx, y};
+                for (int s2 = 1; s2 <= 6; s2++) {
+                    Vector2 q{bx + sinf(t * 0.9f + k + s2 * 0.6f) * s2 * 2.5f, y - h * s2 / 6};
+                    DrawLineEx(prev, q, 8.0f - s2 * 0.9f, ink); DrawLineEx(prev, q, 5.0f - s2 * 0.6f, Color{44, 112, 66, 255});
+                    prev = q;
+                }
+            }
+            break;
+        case P_BARREL:
+            DrawEllipse((int)x, (int)y - 16, 20, 22, ink); DrawEllipse((int)x, (int)y - 16, 17, 19, Color{96, 66, 40, 255});
+            DrawRectangle((int)x - 17, (int)y - 26, 34, 3, Color{60, 58, 62, 255}); DrawRectangle((int)x - 17, (int)y - 8, 34, 3, Color{60, 58, 62, 255});
+            DrawEllipse((int)x - 6, (int)y - 22, 5, 8, Color{140, 100, 62, 255});
+            break;
+        case P_COLUMN:
+            DrawRectangle((int)x - 15, (int)y - 74, 30, 74, ink); DrawRectangle((int)x - 12, (int)y - 72, 24, 72, Color{132, 132, 146, 255});
+            for (int k = 0; k < 4; k++) DrawLineEx({x - 9 + k * 6.0f, y - 70}, {x - 9 + k * 6.0f, y - 2}, 1.5f, Color{88, 88, 102, 255});
+            DrawTri({x - 15, y - 74}, {x + 15, y - 74}, {x + 4, y - 88}, ink); DrawTri({x - 12, y - 72}, {x + 12, y - 72}, {x + 3, y - 84}, Color{132, 132, 146, 255});
+            DrawEllipse((int)x + 32, (int)y - 8, 22, 8, ink); DrawEllipse((int)x + 32, (int)y - 8, 19, 6, Color{112, 112, 126, 255}); // a fallen drum
+            break;
+        case P_RIBS: // the ribcage of something huge
+            for (int k = 0; k < 5; k++) {
+                float bx = x + k * 11 - 22, r = k == 2 ? 27.0f : 24.0f;
+                DrawRing({bx, y}, r - 5, r, 180, 360, 14, ink); DrawRing({bx, y}, r - 4, r - 1, 185, 355, 14, Color{196, 188, 164, 255});
+            }
+            DrawLineEx({x - 22, y}, {x + 22, y}, 5, ink); DrawLineEx({x - 22, y}, {x + 22, y}, 3, Color{176, 168, 146, 255});
+            break;        default: break;
     }
 }
 
-static void DrawPathProps(Game& g) {
+// Every prop on the path this frame, from the run's seed: a dense, region-specific midground the party walks past.
+struct PlacedProp { Prop p; float x, y; int seed; };
+static std::vector<PlacedProp> CollectProps(Game& g) {
     auto& d = g.dungeon;
-    static const PropWeight ISLAND[] = {{P_SKULL, 3}, {P_IMPALED, 3}, {P_CAGE, 2}, {P_WRECK, 3}, {P_TOTEM, 2}};
-    static const PropWeight CAVE[] = {{P_FUNGUS, 4}, {P_HELMET, 2}, {P_SHELLBONES, 2}, {P_CORAL, 3}, {P_SKULL, 1}};
-    static const PropWeight WEEDS[] = {{P_ANCHOR, 2}, {P_POD, 4}, {P_CRATE, 3}, {P_SHELLBONES, 2}, {P_SKULL, 1}};
-    static const PropWeight ATLANTIS[] = {{P_ALTAR, 2}, {P_VOIDCRYSTAL, 3}, {P_BRAZIER, 2}, {P_LOSTONE, 3}};
-    const PropWeight* pool = d.loc == Location::Island ? ISLAND : d.loc == Location::Weeds ? WEEDS : d.loc == Location::Atlantis ? ATLANTIS : CAVE;
-    int n = d.loc == Location::Island ? 5 : d.loc == Location::Weeds ? 5 : d.loc == Location::Atlantis ? 4 : 5, total = 0;
-    for (int i = 0; i < n; i++) total += pool[i].w;
+    static const std::vector<PropWeight> ISLAND = {{P_SKULL, 2}, {P_IMPALED, 3}, {P_CAGE, 2}, {P_WRECK, 3}, {P_TOTEM, 2}, {P_TORCH, 4}, {P_STAKES, 3}, {P_RIBS, 2}};
+    static const std::vector<PropWeight> CAVE = {{P_FUNGUS, 4}, {P_HELMET, 2}, {P_SHELLBONES, 2}, {P_CORAL, 3}, {P_SKULL, 1}, {P_STALAGMITE, 4}, {P_RIBS, 1}};
+    static const std::vector<PropWeight> WEEDS = {{P_ANCHOR, 2}, {P_POD, 4}, {P_CRATE, 2}, {P_SHELLBONES, 2}, {P_SKULL, 1}, {P_KELPCLUMP, 5}, {P_BARREL, 3}, {P_FUNGUS, 2}};
+    static const std::vector<PropWeight> ATLANTIS = {{P_ALTAR, 2}, {P_VOIDCRYSTAL, 3}, {P_BRAZIER, 2}, {P_LOSTONE, 3}, {P_COLUMN, 4}};
+    const auto& pool = d.loc == Location::Island ? ISLAND : d.loc == Location::Weeds ? WEEDS : d.loc == Location::Atlantis ? ATLANTIS : CAVE;
+    int total = 0;
+    for (auto& w : pool) total += w.w;
     float sd = (float)(d.visSeed % 7919) * 0.91f;
-    Repeat(LayerOffset(g, 1.0f), 230, [&](float sx, float wx) {
-        float roll = Hash1(wx * 0.77f + sd);
-        if (roll < 0.38f) return;                                       // some steps are bare
+    std::vector<PlacedProp> out;
+    Repeat(LayerOffset(g, 1.0f), 150, [&](float sx, float wx) {
+        if (Hash1(wx * 0.77f + sd) < 0.2f) return;                         // an odd bare step
         float pick = Hash1(wx * 1.31f + sd * 2.0f) * total;
         Prop p = pool[0].p;
-        for (int i = 0; i < n; i++) { if (pick < pool[i].w) { p = pool[i].p; break; } pick -= pool[i].w; }
-        float x = sx + Hash1(wx + sd) * 150, y = 470 + Hash1(wx * 2.1f) * 30;
-        DrawProp(p, x, y, g.time, (int)(wx * 13));
+        for (auto& w : pool) { if (pick < w.w) { p = w.p; break; } pick -= w.w; }
+        out.push_back({p, sx + Hash1(wx + sd) * 100, 466 + Hash1(wx * 2.1f) * 46, (int)(wx * 13)});
     });
+    std::sort(out.begin(), out.end(), [](const PlacedProp& a, const PlacedProp& b) { return a.y < b.y; });
+    return out;
+}
+static void DrawPathProps(Game& g) {
+    for (const PlacedProp& pp : CollectProps(g)) { // nearer props (lower on the ground plane) are drawn larger
+        float k = 1.25f + (pp.y - 466) / 46.0f * 0.5f;
+        rlPushMatrix(); rlTranslatef(pp.x, pp.y, 0); rlScalef(k, k, 1); rlTranslatef(-pp.x, -pp.y, 0);
+        DrawProp(pp.p, pp.x, pp.y, g.time, pp.seed);
+        rlPopMatrix();
+    }
+}
+
+// Small clutter thickly strewn over the ground plane so the floor is never bare: pebbles, tufts, bones and cracks.
+static void DrawGroundClutter(Game& g) {
+    auto& d = g.dungeon;
+    const Color ink{6, 7, 10, 255};
+    Color rock = d.loc == Location::Island ? Color{112, 94, 68, 255} : d.loc == Location::Weeds ? Color{58, 72, 60, 255} : d.loc == Location::Atlantis ? Color{108, 108, 122, 255} : Color{82, 96, 104, 255};
+    Color plant = d.loc == Location::Island ? Color{112, 118, 56, 255} : d.loc == Location::Weeds ? Color{56, 130, 78, 255} : d.loc == Location::Atlantis ? Color{120, 90, 150, 255} : Color{62, 140, 128, 255};
+    float sd = (float)(d.visSeed % 4099) * 0.37f, t = g.time;
+    Repeat(LayerOffset(g, 1.0f), 46, [&](float sx, float wx) {
+        float h = Hash1(wx * 0.53f + sd);
+        if (h < 0.12f) return;
+        float x = sx + Hash1(wx * 3.1f + sd) * 40, y = 458 + Hash1(wx * 1.7f + sd) * 84;
+        switch ((int)(Hash1(wx * 2.3f + sd) * 5)) {
+            case 0: // a cluster of pebbles
+                for (int k = 0; k < 3; k++) { float r = 4 + (k * 3 + (int)wx) % 4; DrawEllipse((int)x + k * 7 - 7, (int)y - (int)(r * 0.5f), r + 1.5f, r * 0.7f + 1.5f, ink); DrawEllipse((int)x + k * 7 - 7, (int)y - (int)(r * 0.5f), r, r * 0.7f, k == 1 ? Tone(rock, 0.15f) : rock); }
+                break;
+            case 1: // a tuft of moss, weed or crystal grass, swaying a little
+                for (int k = 0; k < 4; k++) { float sw = sinf(t * 1.3f + wx + k) * 2.5f; DrawLineEx({x + k * 3 - 5, y}, {x + k * 4 - 6 + sw, y - 12 - k % 3 * 5}, 3.4f, ink); DrawLineEx({x + k * 3 - 5, y}, {x + k * 4 - 6 + sw, y - 12 - k % 3 * 5}, 1.8f, plant); }
+                break;
+            case 2: // a bone
+                DrawLineEx({x - 9, y}, {x + 9, y - 3}, 5, ink); DrawLineEx({x - 9, y}, {x + 9, y - 3}, 3, Color{196, 188, 164, 255});
+                DrawCircleV({x - 10, y - 1}, 3.4f, Color{196, 188, 164, 255}); DrawCircleV({x + 10, y - 4}, 3.4f, Color{196, 188, 164, 255});
+                break;
+            case 3: // a shell
+                DrawCircleSector({x, y}, 8, 180, 360, 10, ink); DrawCircleSector({x, y}, 6.5f, 180, 360, 10, Color{214, 178, 160, 255});
+                for (int k = -1; k <= 1; k++) DrawLineEx({x, y}, {x + k * 4.0f, y - 6}, 1, Color{150, 110, 96, 255});
+                break;
+            default: // a crack in the ground
+                DrawLineEx({x - 12, y}, {x - 2, y - 3}, 2.2f, ink); DrawLineEx({x - 2, y - 3}, {x + 4, y + 1}, 2.2f, ink); DrawLineEx({x + 4, y + 1}, {x + 14, y - 2}, 2.2f, ink);
+                break;
+        }
+    });
+}
+
+// The very front of the frame: heavy black ink silhouettes at the camera lens, so the scene is seen through them.
+static void DrawRegionForeground(Game& g) {
+    auto& d = g.dungeon;
+    float t = g.time;
+    const Color fg{4, 7, 9, 255};
+    switch (d.loc) {
+        case Location::Cave: // stalactite teeth along the ceiling, and rocks at the corners
+            Repeat(LayerOffset(g, 1.4f), 210, [&](float sx, float wx) {
+                float x = sx + Hash1(wx) * 120, h = 40 + Hash1(wx + 2) * 120, w = 20 + Hash1(wx + 3) * 30;
+                DrawTri({x - w, -4}, {x + w, -4}, {x + (Hash1(wx + 5) - 0.5f) * 16, h}, fg);
+            });
+            DrawCircle(-30, 760, 190, fg); DrawCircle(1320, 770, 200, fg);
+            break;
+        case Location::Island: // hanging jungle vines with broad leaves, and palm fronds from the top corners
+            Repeat(LayerOffset(g, 1.4f), 280, [&](float sx, float wx) {
+                float x = sx + Hash1(wx) * 160, len = 90 + Hash1(wx + 1) * 130;
+                Vector2 prev{x, -4};
+                for (int s2 = 1; s2 <= 8; s2++) {
+                    Vector2 q{x + sinf(t * 0.8f + wx + s2 * 0.5f) * s2 * 2.2f, -4 + len * s2 / 8};
+                    DrawLineEx(prev, q, 7.0f - s2 * 0.6f, fg);
+                    if (s2 % 2 == 0) DrawTri(q, {q.x + (s2 % 4 == 0 ? 26.0f : -26.0f), q.y + 9}, {q.x + 3, q.y + 20}, fg);
+                    prev = q;
+                }
+            });
+            for (int side = -1; side <= 1; side += 2) // palm fronds arching in from the corners
+                for (int k = 0; k < 5; k++) {
+                    float a = (side < 0 ? 0.25f : PI - 0.25f) + side * k * 0.16f, cx0 = side < 0 ? -10.0f : 1290.0f;
+                    DrawTri({cx0, 0}, {cx0 + cosf(a) * 260 + sinf(t * 0.9f + k) * 6, sinf(a) * 220 + 20}, {cx0 + cosf(a + 0.17f * -side) * 190, sinf(a + 0.17f * -side) * 160 + 40}, fg);
+                }
+            break;
+        case Location::Weeds: // tall kelp blades rising at the left and right edges, hanging weed above
+            for (int side = 0; side < 2; side++)
+                for (int k = 0; k < 4; k++) {
+                    float bx = side ? 1290.0f - k * 34 : -10.0f + k * 34, h = 210 + (k * 53 + side * 31) % 150;
+                    Vector2 prev{bx, 726};
+                    for (int s2 = 1; s2 <= 9; s2++) {
+                        Vector2 q{bx + sinf(t * 0.7f + k + side * 2 + s2 * 0.5f) * s2 * 3.2f, 726 - h * s2 / 9};
+                        DrawLineEx(prev, q, 16.0f - s2 * 1.4f, fg);
+                        prev = q;
+                    }
+                }
+            Repeat(LayerOffset(g, 1.4f), 240, [&](float sx, float wx) {
+                float x = sx + Hash1(wx) * 120, len = 50 + Hash1(wx + 1) * 90;
+                Vector2 prev{x, -4};
+                for (int s2 = 1; s2 <= 6; s2++) { Vector2 q{x + sinf(t + wx + s2) * s2 * 2.5f, -4 + len * s2 / 6}; DrawLineEx(prev, q, 9.0f - s2, fg); prev = q; }
+            });
+            break;
+        default: // Atlantis: broken columns and a drowned arch at the edges of the frame
+            for (int side = 0; side < 2; side++) {
+                float bx = side ? 1240.0f : 40.0f, h = side ? 330.0f : 400.0f;
+                DrawRectangle((int)bx - 34, (int)(726 - h), 68, (int)h + 10, fg);
+                DrawTri({bx - 34, 726 - h}, {bx + 34, 726 - h}, {bx + 6 - side * 12, 726 - h - 42}, fg);
+                DrawRectangle((int)bx - 46, (int)(726 - h) + 30, 92, 14, fg);
+            }
+            DrawRing({110, -40}, 110, 165, 20, 175, 24, fg); DrawRing({1170, -40}, 110, 165, 5, 160, 24, fg); // broken arches hanging in the corners
+            break;
+    }
 }
 static void DrawCaveLayers(Game& g) {
     float t = g.time;
@@ -1216,6 +1373,7 @@ static void DrawCaveLayers(Game& g) {
 // 7. rocks and kelp right in front of the view: dark, and moving fastest of all
 static void DrawCaveForeground(Game& g) {
     float t = g.time;
+    DrawRegionForeground(g);
     Color fg{6, 12, 16, 255};
     Repeat(LayerOffset(g, 1.5f), 760, [&](float sx, float wx) {
         float x = sx + Hash1(wx) * 300;
@@ -1681,6 +1839,16 @@ static void DrawCaveLighting(Game& g) {
     Repeat(LayerOffset(g, 0.08f), 300, [&](float sx, float) { AddLight({sx - 60, 120}, 240, Color{70, 120, 130, 255}, 0.4f); });
     std::vector<Vector2> crystals = CrystalSpots(g);
     for (Vector2 c : crystals) AddLight({c.x, c.y - 14}, 130, Color{90, 220, 210, 255}, 0.65f);
+    for (const PlacedProp& pp : CollectProps(g)) { // props that glow light the props and figures around them
+        switch (pp.p) {
+            case P_TORCH: AddLight({pp.x, pp.y - 74}, 280, Color{255, 170, 80, 255}, 0.95f * flick); break;
+            case P_FUNGUS: AddLight({pp.x, pp.y - 20}, 140, Color{90, 220, 210, 255}, 0.7f); break;
+            case P_POD: AddLight({pp.x, pp.y - 12}, 130, Color{150, 255, 110, 255}, 0.7f); break;
+            case P_BRAZIER: AddLight({pp.x, pp.y - 40}, 220, Color{170, 80, 230, 255}, 0.8f); break;
+            case P_VOIDCRYSTAL: AddLight({pp.x, pp.y - 24}, 160, Color{190, 80, 240, 255}, 0.7f); break;
+            default: break;
+        }
+    }
     for (auto& s : d.shots) AddLight({s.from.x + (s.to.x - s.from.x) * std::clamp(s.t / s.dur, 0.0f, 1.0f), s.from.y}, 120, Color{255, 220, 170, 255}, 0.4f);
     LightsEnd();
     for (Vector2 c : crystals) Glow({c.x, c.y - 12}, 26, Color{90, 230, 220, 80});
@@ -2212,6 +2380,7 @@ void SceneDungeon(Game& g) {
     DrawCaveLayers(g);
     DrawRegionFloor(g);
     DrawSeededSilhouettes(g);
+    DrawGroundClutter(g);
     DrawPathProps(g);
     DrawCaveLighting(g);
     DrawLocationTint(g, false); // the colour grade is baked into the backdrop, under the figures

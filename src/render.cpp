@@ -956,6 +956,51 @@ void DrawCrewFigure(const Hero& h, Vector2 ft, float s, bool right, float walk, 
         ShadeLimb(heel, toe, bootW * s, (bootW - 1.2f) * s, boots);
         DrawLineEx({heel.x - f * 2 * s, heel.y + bootW * 0.8f * s}, {toe.x + f * 3 * s, toe.y + (bootW - 1.5f) * 0.8f * s}, 1.6f * s, Tone(boots, -0.6f)); // sole
         DrawCircleV({toe.x - f * 1 * s, toe.y - 2.5f * s}, 1.6f * s, Tone(boots, 0.5f));  // shine on the toe cap
+        if (!npc) { // layered kit on each leg: knee pads, folded cuffs, laces, greaves, rags
+            Color leather{96, 66, 40, 255};
+            Vector2 mid = L(knee, foot, 0.55f), cuffA = L(knee, foot, 0.5f), cuffB = L(knee, foot, 0.68f);
+            switch (h.cls) {
+                case HeroClass::Nurse: // laced boots
+                    for (int k = 0; k < 3; k++) DrawLineEx(L(knee, foot, 0.55f + k * 0.1f), {L(knee, foot, 0.55f + k * 0.1f).x + f * 4 * s, L(knee, foot, 0.6f + k * 0.1f).y}, 0.9f * s, Color{226, 220, 204, 255});
+                    break;
+                case HeroClass::Diver: // brass knee caps and a lead-weighted boot band
+                    ShadeBall(knee, 5.8f * s, Tone(Pal::BrassDk, 0.05f)); DrawCircleV(knee, 1.2f * s, Color{232, 196, 110, 255});
+                    ShadeLimb(cuffA, cuffB, 8.8f * s, 8.8f * s, Tone(boots, -0.15f)); DrawCircleV(L(cuffA, cuffB, 0.5f), 1.3f * s, brass);
+                    break;
+                case HeroClass::Captain: // a folded boot cuff with a gold buckle
+                    ShadeLimb(cuffA, cuffB, 9.0f * s, 8.6f * s, Tone(boots, 0.22f)); DrawCircleV(L(cuffA, cuffB, 0.5f), 1.5f * s, brass);
+                    break;
+                case HeroClass::Mechanic: // leather knee pads, steel-toed boots
+                    ShadeBall(knee, 6.4f * s * bulk, Color{92, 66, 44, 255}); DrawCircleV(knee, 1.3f * s, steel);
+                    ShadeBall({toe.x + f * 2 * s, toe.y - 0.5f * s}, 3.6f * s, steel);
+                    break;
+                case HeroClass::Whaler: // high rubber boots with a rolled top and a patch
+                    ShadeLimb(cuffA, cuffB, 9.6f * s * bulk, 9.2f * s * bulk, Tone(boots, 0.2f));
+                    DrawRectangle((int)(mid.x - 2 * s), (int)(mid.y + 4 * s), (int)(4 * s), (int)(4 * s), Color{110, 120, 84, 255});
+                    break;
+                case HeroClass::Stowaway: // rags wound round the shins, a torn trouser hem
+                    for (int k = 0; k < 3; k++) DrawLineEx(L(knee, foot, 0.4f + k * 0.14f), {L(knee, foot, 0.4f + k * 0.14f).x + f * 6 * s, L(knee, foot, 0.45f + k * 0.14f).y}, 1.8f * s, Color{170, 150, 110, 255});
+                    DrawTri(L(knee, foot, 0.25f), {knee.x + 4 * s, knee.y + 8 * s}, {knee.x - 4 * s, knee.y + 6 * s}, Tone(col, -0.3f));
+                    break;
+                case HeroClass::Merman: // a fin along the calf
+                    DrawTri(L(knee, foot, 0.2f), L(knee, foot, 0.75f), {mid.x - f * 8 * s, mid.y + 2 * s}, Tone(boots, 0.25f));
+                    break;
+                case HeroClass::Queen: // a jewelled boot buckle
+                    ShadeBall(L(knee, foot, 0.7f), 2.2f * s, Color{202, 172, 92, 255}); DrawCircleV(L(knee, foot, 0.7f), 0.9f * s, Color{170, 40, 70, 255});
+                    break;
+                case HeroClass::Robot: // riveted greaves
+                    ShadeLimb(L(knee, foot, 0.12f), L(knee, foot, 0.8f), 10.6f * s * bulk, 9.6f * s * bulk, Tone(steel, -0.12f));
+                    for (int k = 0; k < 3; k++) DrawCircleV(L(knee, foot, 0.25f + k * 0.2f), 1.0f * s, Tone(steel, -0.5f));
+                    break;
+                case HeroClass::Octopus: // strapped wraps
+                    for (int k = 0; k < 2; k++) DrawLineEx(L(knee, foot, 0.45f + k * 0.2f), {L(knee, foot, 0.45f + k * 0.2f).x + f * 6 * s, L(knee, foot, 0.5f + k * 0.2f).y}, 1.6f * s, Color{232, 214, 226, 255});
+                    break;
+                case HeroClass::Siren: // pearl anklets
+                    for (int k = 0; k < 3; k++) { Vector2 an = L(knee, foot, 0.72f); DrawCircleV({an.x + (k - 1) * 3.0f * s * f, an.y}, 1.2f * s, Color{246, 240, 232, 255}); }
+                    break;
+                default: break;
+            }
+        }
     };
     auto arm = [&](Vector2 sh, Vector2 el, Vector2 hd, Color upper, Color lower) {
         ShadeLimb(sh, el, 7.6f * s * bulk, 6.6f * s * bulk, upper);
@@ -1111,6 +1156,98 @@ void DrawCrewFigure(const Hero& h, Vector2 ft, float s, bool right, float walk, 
             break;
     }
 
+    if (!npc && h.cls != HeroClass::Wisp) { // layered costume: straps, buckles, pouches, patches, tears and trim
+        Color leather{96, 66, 40, 255}, leatherDk{58, 40, 26, 255}, pearl{246, 240, 232, 255}, rust{130, 66, 36, 210};
+        auto Jag = [&](Vector2 a, Vector2 b, int n, float depth, Color c) { // a ragged hem hanging from a line
+            for (int k = 0; k < n; k++) {
+                Vector2 p0 = L(a, b, k / (float)n), p1 = L(a, b, (k + 1) / (float)n);
+                float d = depth * s * (0.55f + 0.45f * (float)((k * 7 + seed) % 3) / 2.0f);
+                DrawTri(p0, p1, {(p0.x + p1.x) / 2, (p0.y + p1.y) / 2 + d}, c);
+            }
+        };
+        auto Buckle = [&](Vector2 at, float r) { ShadeBall(at, r * s, brass); DrawCircleV(at, r * 0.42f * s, Color{40, 32, 24, 255}); };
+        auto Strap = [&](Vector2 a, Vector2 b, float w, Color c) { ShadeLimb(a, b, w * s, w * s, c); };
+        auto Patch = [&](Vector2 c, float w, Color col) {
+            Q(P(c.x - w, c.y - w), P(c.x + w, c.y - w), P(c.x + w, c.y + w), P(c.x - w, c.y + w), col);
+            DrawLineEx(P(c.x - w + 0.8f, c.y - w + 0.8f), P(c.x + w - 0.8f, c.y - w + 0.8f), 0.7f * s, leatherDk);
+            DrawLineEx(P(c.x - w + 0.8f, c.y + w - 0.8f), P(c.x + w - 0.8f, c.y + w - 0.8f), 0.7f * s, leatherDk);
+        };
+        switch (h.cls) {
+            case HeroClass::Nurse:
+                Strap(P(-14, -133), P(12, -101), 2.2f, leather);                                  // a bandolier of glass vials
+                for (int k = 0; k < 4; k++) { Vector2 v = P(-10 + k * 6.0f, -127 + k * 6.6f); ShadeBall(v, 2.1f * s, Color{150, 208, 228, 255}); DrawCircleV({v.x, v.y - 2.6f * s}, 0.9f * s, Color{150, 110, 70, 255}); }
+                Q(P(9, -102), P(18, -102), P(18, -92), P(9, -92), leather); Buckle(P(13.5f, -97), 1.4f);   // a hip pouch of dressings
+                Buckle(P(0, -98), 2.0f);
+                Jag(P(-23, -39), P(24, -39), 8, 5.5f, Tone(top, -0.25f));                         // a torn hem
+                break;
+            case HeroClass::Diver:
+                ShadeBall(P(-19, -136), 7.2f * s, Tone(brass, -0.05f)); ShadeBall(P(21, -136), 7.2f * s, Tone(brass, -0.05f)); // pauldrons
+                for (int k = -1; k <= 1; k += 2) { DrawCircleV(P(-19 + (k > 0 ? 40.0f : 0), -136), 1.2f * s, Pal::BrassDk); DrawCircleV(P(-19 + (k > 0 ? 40.0f : 0) + k * 3, -134), 1.0f * s, Pal::BrassDk); }
+                Strap(P(-14, -137), P(11, -90), 2.6f, leatherDk); Strap(P(15, -137), P(-11, -90), 2.6f, leatherDk); Buckle(P(0, -114), 2.4f); // the tank harness
+                ShadeBall(P(9, -127), 3.6f * s, Color{176, 104, 62, 255}); Strap(P(9, -127), P(15, -121), 1.7f, Color{176, 104, 62, 255}); // a copper valve
+                DrawLineEx(P(-9, -132), P(-10, -121), 1.6f * s, rust); DrawLineEx(P(4, -130), P(3, -122), 1.2f * s, rust);   // rust runs
+                Q(P(10, -97), P(20, -97), P(20, -85), P(10, -85), leather);                        // a tool pouch
+                break;
+            case HeroClass::Captain:
+                Strap(P(-15, -104), P(15, -97), 4.6f, Color{150, 36, 34, 255});                    // a red sash
+                for (int k = 0; k < 3; k++) DrawLineEx(P(14 + k, -97), P(15 + k * 1.5f, -88), 1.1f * s, brass);
+                Strap(P(-13, -96), P(-20, -62), 1.7f, leatherDk); ShadeBall(P(-20, -62), 2.2f * s, brass); // a sword hanger
+                for (int k = 0; k < 3; k++) { DrawLineEx(P(-8 + k * 5.5f, -128), P(-8 + k * 5.5f, -123), 1.7f * s, k == 1 ? Color{40, 70, 150, 255} : Color{170, 36, 36, 255}); ShadeBall(P(-8 + k * 5.5f, -121), 2.1f * s, brass); } // medals
+                DrawLineEx(P(-25, -34), P(19, -34), 1.7f * s, brass); DrawLineEx(P(-19, -100), P(-25, -34), 1.2f * s, brass); DrawLineEx(P(15, -100), P(19, -34), 1.2f * s, brass); // gold piping
+                break;
+            case HeroClass::Mechanic:
+                Strap(P(-15, -133), P(14, -98), 2.8f, leather); Buckle(P(-1, -115), 2.2f);         // a leather harness
+                Q(P(-5, -94), P(5, -94), P(5, -87), P(-5, -87), steel); DrawCircleV(P(0, -90.5f), 1.2f * s, Tone(steel, -0.5f)); // a big belt plate
+                Strap(P(11, -86), P(14, -70), 2.1f, Color{120, 84, 52, 255}); Q(P(9, -73), P(19, -73), P(19, -66), P(9, -66), steel); // a hammer on the belt
+                DrawCircleV(P(-4, -108), 3.4f * s, Fade(BLACK, 0.35f)); DrawCircleV(P(9, -99), 2.6f * s, Fade(BLACK, 0.3f)); // grease
+                for (int k = 0; k < 3; k++) DrawCircleV(P(-14 + k * 14.0f, -93), 0.9f * s, Tone(steel, -0.3f)); // studs
+                break;
+            case HeroClass::Whaler:
+                Strap(P(-17, -92), P(17, -92), 4.4f, leather); Buckle(P(0, -92), 2.5f);
+                for (int k = 0; k < 4; k++) { DrawCircleV(P(3, -128 + k * 9.0f), 1.4f * s, brass); DrawCircleV(P(10, -128 + k * 9.0f), 1.4f * s, brass); } // brass buttons
+                Q(P(-18, -97), P(-12, -97), P(-13, -80), P(-17, -80), Color{80, 52, 30, 255}); ShadeBall(P(-15, -98), 2.0f * s, Color{170, 150, 120, 255}); // a knife sheath
+                Patch(P(-8, -114), 3.6f, Color{104, 124, 92, 255});
+                Strap(P(-9, -136), P(9, -136), 4.2f, Color{146, 62, 52, 255}); Q(P(5, -134), P(10, -134), P(11, -118), P(6, -118), Color{146, 62, 52, 255}); // a wool scarf
+                Jag(P(-16, -90), P(16, -90), 6, 7, Tone(top, -0.3f));
+                break;
+            case HeroClass::Stowaway:
+                Patch(P(-11, -116), 3.6f, Color{112, 62, 60, 255}); Patch(P(11, -104), 3.2f, Color{74, 94, 104, 255});
+                Jag(P(-16, -90), P(-6, -90), 3, 6.5f, Tone(top, -0.3f)); Jag(P(4, -90), P(16, -90), 3, 7.5f, Tone(top, -0.3f));
+                Strap(P(-17, -93), P(17, -93), 3.0f, Color{170, 140, 90, 255}); ShadeBall(P(10, -93), 3.2f * s, Color{170, 140, 90, 255}); Strap(P(10, -93), P(12, -78), 1.7f, Color{170, 140, 90, 255}); // a rope belt
+                Strap(P(-14, -134), P(14, -97), 1.9f, leatherDk); Q(P(8, -100), P(20, -100), P(20, -84), P(8, -84), Color{96, 70, 44, 255}); Buckle(P(14, -97), 1.3f); // a satchel
+                ShadeBall(P(2, -112), 2.7f * s, brass); DrawCircleV(P(2, -112), 1.1f * s, Color{40, 32, 24, 255});   // a pocket compass
+                break;
+            case HeroClass::Merman:
+                for (int e = 0; e < 2; e++) for (int k = 0; k < 3; k++) ShadeBall(P(e ? 21.0f - k * 2.5f : -19.0f + k * 2.5f, -137 - k * 2.4f), (4.6f - k * 0.7f) * s, Tone(Color{232, 196, 186, 255}, -0.05f * k)); // shell pauldrons
+                Strap(P(-16, -92), P(16, -92), 2.2f, Color{170, 150, 110, 255}); ShadeBall(P(0, -92), 3.6f * s, pearl);
+                for (int k = 0; k < 4; k++) Strap(P(-9 + k * 6.0f, -91), P(-10 + k * 6.6f + sinf(t * 2 + k) * 1.5f, -72), 3.2f, Color{40, 110, 80, 255}); // a kelp kilt
+                break;
+            case HeroClass::Queen:
+                for (int k = 0; k < 7; k++) DrawCircleV(P(-10 + k * 3.4f, -130 + sinf(k * 0.5f) * 4.0f + 6), 1.5f * s, pearl); // a pearl strand
+                ShadeBall(P(-2, -117), 3.8f * s, Color{202, 172, 92, 255}); DrawCircleV(P(-2, -117), 1.7f * s, Color{170, 40, 70, 255}); // a brooch
+                for (int k = 0; k < 4; k++) DrawLineEx(P(-5, -126 + k * 7.0f), P(4, -123 + k * 7.0f), 0.9f * s, Color{202, 172, 92, 255}); // corset lacing
+                Jag(P(-16, -90), P(16, -90), 7, 6, Tone(legs, -0.2f));
+                break;
+            case HeroClass::Robot:
+                DrawLineEx(P(-15, -112), P(15, -112), 1.3f * s, Tone(top, -0.5f)); DrawLineEx(P(0, -134), P(0, -112), 1.3f * s, Tone(top, -0.5f));
+                Q(P(-15, -97), P(15, -97), P(14, -91), P(-14, -91), Color{40, 40, 44, 255});
+                for (int k = 0; k < 6; k++) DrawLineEx(P(-13 + k * 5.2f, -97), P(-10 + k * 5.2f, -91), 1.6f * s, Color{226, 190, 60, 255}); // hazard stripes
+                for (int k = -1; k <= 1; k += 2) { ShadeLimb(P(k * 13.0f, -140), P(k * 13.0f, -151), 4.2f * s / s, 4.2f, steel); DrawCircleV(P(k * 13.0f + sinf(t * 3 + k) * 1.5f, -153 - fmodf(t * 8 + k * 3, 6.0f)), 2.2f * s, Fade(WHITE, 0.4f)); } // exhaust stacks
+                break;
+            case HeroClass::Octopus:
+                ShadeBall(P(12, -101), 6.2f * s, Color{58, 46, 92, 255}); DrawCircleV(P(12, -101), 1.6f * s, brass);   // an ink sac on the hip
+                for (int k = 0; k < 3; k++) ShadeLimb(P(-10 + k * 4.0f, -95), P(-14 + k * 5.0f + sinf(t * 2 + k) * 3, -68), 3.8f * s / s, 2.0f, Tone(top, -0.05f)); // trailing arms
+                for (int k = 0; k < 2; k++) DrawLineEx(P(-12, -122 + k * 9.0f), P(10, -119 + k * 9.0f), 1.3f * s, Color{232, 214, 226, 255}); // cloth wraps
+                break;
+            case HeroClass::Siren:
+                for (int k = 0; k < 7; k++) DrawCircleV(P(-22 + k * 7.3f, -85 + (k % 2) * 1.5f), 1.7f * s, pearl);          // pearls along the hem
+                Strap(P(-15, -105), P(16, -109), 3.0f, Color{40, 120, 96, 255});                                            // a seaweed sash
+                ShadeBall(P(0, -124), 3.6f * s, Color{250, 214, 200, 255});                                                 // a shell clasp
+                for (int k = 0; k < 4; k++) DrawLineEx(P(-16 + k * 9.0f, -100), P(-8 + k * 9.0f, -85), 0.6f * s, Fade(WHITE, 0.55f)); // a fishing-net drape
+                break;
+            default: break;
+        }
+    }
     // --- head
     ShadeLimb(P(1, -134), P(2, -143), 5.4f * s, 5.2f * s, skinDk);
     Vector2 hd = P(3, -152);
