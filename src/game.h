@@ -547,7 +547,8 @@ void SceneCards(Game& g);            // Flats, the card table
 void FlatsSpritePage(float t);      // the sprite sheet page of Flats cards, the dealer and the bell
 void FlatsSim(int runs, bool sensible);                // headless: play Flats runs and print how they go
 void DebugFlatsReward();            // debug: the reward pick screen
-void DebugFlatsDeck();              // debug: the deck viewer
+void DebugFlatsShop();              // debug: the dealer's stall
+void DebugFlatsDeck();            // debug: the deck viewer
 void DebugFlatsDeal();            // debug: skip the menu and deal a mid-round hand (for screenshots)
 void DrawItemSpritePage(float t);   // the sprite sheet page of carried items and relic icons
 void SceneHelm(Game& g);

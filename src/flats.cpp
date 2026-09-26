@@ -111,7 +111,9 @@ int Snares(const std::vector<Placed>& lane, const Side& owner) {
 }
 
 // ---------------------------------------------------------------- state
-enum class Phase { Menu, Playing, Resolving, MatchOver, Reward, RunOver };
+enum class Phase { Menu, Playing, Resolving, MatchOver, Shop, Reward, RunOver };
+enum ShopKind { SK_CARD, SK_CHARM, SK_TRIM, SK_EDITION, SK_INSURE };
+struct ShopItem { int kind = SK_CARD, price = 0, charm = -1; Card card; bool sold = false; };
 struct Particle { Vector2 p, v; float life, max, size; Color col; int kind; }; // kind 0 spark, 1 coin, 2 dust, 3 wisp
 struct State {
     bool inited = false;
@@ -134,6 +136,10 @@ struct State {
     bool foeOpenSnare = false, foeExtraCard = false, foeExtraAct = false;
     float shake = 0, mood = 0, moodT = 0; // mood: +1 the dealer gloats, -1 he flinches
     std::vector<Particle> parts;
+    std::vector<ShopItem> shop;
+    int pickItem = -1; // a shop item waiting for you to choose which card it applies to
+    int rerolls = 0;
+    bool insured = false, insurePaid = false;
 };
 State S;
 
@@ -146,6 +152,7 @@ const char* RULES_TEXT =
     "Editions: Foil is +2, Gilt pays 6 gold into the pot when its flat wins, Hex is +5 but costs 8 gold if its flat is lost. "
     "Each round one or two flats carry a modifier (Sunken Chest, Coral Reef, Trench Current, Whirlpool); hover the emblem to read it.\n\n"
     "Win a match and choose a reward: a card for your deck, or a charm (you can carry three) that bends the rules your way. "
+    "Press on and you pass the dealer's stall first: spend part of the pot on a card, a charm, trimming or dressing your deck, or insurance that saves half the pot if you lose. "
     "Four dealers, each with a trick of their own; payouts 40, 100, 200 and 340 gold. Cash out after any match, or press on: lose and the pot is gone.";
 
 // A folder tab at the screen's edge, open at any time during play, so the rules are never more than a click away.
@@ -890,6 +897,51 @@ void MakeRewards() {
     S.phase = Phase::Reward;
 }
 
+// The dealer's stall between matches: everything is priced against the pot on the table, so buying is a gamble.
+int PotPct(int pct, int lo) { return std::max(lo, S.pot * pct / 100); }
+
+void StockShop() {
+    S.shop.clear();
+    ShopItem a; a.kind = SK_CARD; a.price = PotPct(30, 10);
+    a.card = RandomCard(5, 9);
+    if (Roll(1, 100) <= 40) a.card = RandomSpecial();
+    if (Roll(1, 100) <= 30) a.card.ed = Roll(ED_FOIL, ED_COUNT - 1);
+    S.shop.push_back(a);
+    std::vector<int> free;
+    for (int i = 0; i < CH_COUNT; i++) if (!Has(S.you, i)) free.push_back(i);
+    int owned = CH_COUNT - (int)free.size();
+    if (owned < MAX_CHARMS && !free.empty()) { ShopItem c; c.kind = SK_CHARM; c.price = PotPct(50, 20); c.charm = free[Roll(0, (int)free.size() - 1)]; S.shop.push_back(c); }
+    ShopItem t; t.kind = SK_TRIM; t.price = PotPct(20, 8); S.shop.push_back(t);
+    ShopItem e; e.kind = SK_EDITION; e.price = PotPct(35, 15); e.card.ed = Roll(0, 1) ? ED_FOIL : ED_GILT; S.shop.push_back(e);
+    if (!S.insured) { ShopItem i; i.kind = SK_INSURE; i.price = PotPct(25, 10); S.shop.push_back(i); }
+}
+void OpenShop() { S.rerolls = 0; S.pickItem = -1; StockShop(); S.phase = Phase::Shop; }
+int RerollPrice() { return PotPct(5 + 5 * S.rerolls, 5); }
+
+void BuyItem(int k) {
+    ShopItem& it = S.shop[k];
+    if (it.sold || it.price > S.pot) return;
+    if (it.kind == SK_TRIM || it.kind == SK_EDITION) { S.pickItem = k; return; } // choose a card first
+    S.pot -= it.price;
+    it.sold = true;
+    if (it.kind == SK_CARD) S.you.deck.push_back(it.card);
+    else if (it.kind == SK_CHARM) S.you.charms |= 1u << it.charm;
+    else if (it.kind == SK_INSURE) S.insured = true;
+}
+void ApplyPick(int deckIdx) {
+    ShopItem& it = S.shop[S.pickItem];
+    if (it.kind == SK_TRIM) {
+        if (S.you.deck.size() <= 8) return;
+        S.you.deck.erase(S.you.deck.begin() + deckIdx);
+    } else {
+        if (S.you.deck[deckIdx].ed != ED_NONE) return;
+        S.you.deck[deckIdx].ed = it.card.ed;
+    }
+    S.pot -= it.price;
+    it.sold = true;
+    S.pickItem = -1;
+}
+
 void TakeReward(int k) {
     if (k == 2 && S.rewardCharm >= 0) S.you.charms |= 1u << S.rewardCharm;
     else S.you.deck.push_back(S.rewards[k]);
@@ -998,7 +1050,7 @@ void UpdateFlats(float dt, bool autoYou, bool sensible) {
             } else if (S.roundsFoe >= 2) {
                 S.phase = Phase::RunOver;
                 S.lost = true;
-                S.payout = 0;
+                S.payout = S.insured ? S.pot / 2 : 0; // insurance: half the pot survives a lost match
             } else StartRound();
         }
     }
@@ -1315,7 +1367,103 @@ void SceneCards(Game& g) {
                     S.cashed = true;
                     S.phase = Phase::RunOver;
                 }
-                if (Button({centre.x + 350, centre.y + 250, 280, 52}, "Press on")) MakeRewards();
+                if (Button({centre.x + 350, centre.y + 250, 280, 52}, "Press on")) OpenShop();
+            }
+        } break;
+
+        case Phase::Shop: {
+            // the dealer's stall: a dark leather cloth, goods laid out with hanging brass price tags
+            Rectangle sp{150, 90, 980, 470};
+            DrawRectangleRounded(sp, 0.04f, 8, Color{22, 16, 14, 245});
+            DrawRectangleRoundedLinesEx(sp, 0.04f, 8, 3, Pal::BrassDk);
+            DrawRectangleRoundedLinesEx({sp.x + 8, sp.y + 8, sp.width - 16, sp.height - 16}, 0.04f, 8, 1, Fade(Pal::Brass, 0.4f));
+            DrawTextCenteredBold("The Dealer's Stall", sp.x + sp.width / 2, sp.y + 14, 32, Pal::Brass);
+            DrawTextCentered("\"Everything has a price. Yours is the pot.\"", sp.x + sp.width / 2, sp.y + 56, 16, Fade(Pal::Paper, 0.8f));
+            // a gloved hand comes out of the cloak to offer the goods
+            {
+                float bob = sinf(t * 1.7f) * 4;
+                DrawTri({sp.x + 40, sp.y + 90}, {sp.x + 130, sp.y + 90}, {sp.x + 100 + bob, sp.y + 168}, Color{14, 18, 26, 255});
+                DrawTri({sp.x + 40, sp.y + 90}, {sp.x + 100 + bob, sp.y + 168}, {sp.x + 60 + bob, sp.y + 180}, Color{20, 26, 36, 255});
+                DrawCircleV({sp.x + 106 + bob, sp.y + 176}, 15, Color{28, 30, 36, 255});
+                for (int k = 0; k < 4; k++) DrawLineEx({sp.x + 112 + bob, sp.y + 170 + k * 5}, {sp.x + 134 + bob, sp.y + 176 + k * 5}, 4, Color{28, 30, 36, 255});
+                DrawCircleV({sp.x + 96 + bob, sp.y + 172}, 4, Fade(Pal::Brass, 0.9f)); // a brass ring on the glove
+            }
+            int n = (int)S.shop.size();
+            const char* KIND_NAME[5] = {"Card", "Charm", "Trim a card", "Add an edition", "Insurance"};
+            const char* KIND_TEXT[5] = {"A card for your deck.", "", "Discard a card from your deck (min 8).", "Choose a card: it gains the edition.",
+                                        "If you lose a match, keep half the pot."};
+            float x0 = sp.x + 190, gap = (sp.width - 230) / 5.0f;
+            for (int k = 0; k < n; k++) {
+                ShopItem& it = S.shop[k];
+                Rectangle r{x0 + k * gap, sp.y + 96, 130, 184};
+                bool afford = !it.sold && it.price <= S.pot;
+                bool hov = CheckCollisionPointRec(m, r) && S.pickItem < 0;
+                if (hov && afford) r.y -= 8;
+                if (it.kind == SK_CARD) DrawCardFace(r, it.card, true);
+                else if (it.kind == SK_CHARM) DrawCharmCard(r, it.charm);
+                else {
+                    DrawRectangleRounded(r, 0.08f, 6, Color{30, 38, 46, 255});
+                    DrawRectangleRoundedLinesEx(r, 0.08f, 6, 2, Pal::BrassDk);
+                    if (it.kind == SK_EDITION) {
+                        Card demo{COIN, 7, SP_NONE, it.card.ed};
+                        DrawCardFace({r.x + 25, r.y + 22, 80, 112}, demo, true);
+                    } else if (it.kind == SK_TRIM) {
+                        DrawCardFace({r.x + 25, r.y + 22, 80, 112}, Card{BLADE, 1, SP_NONE}, true);
+                        DrawLineEx({r.x + 20, r.y + 20}, {r.x + 110, r.y + 138}, 5, Fade(Color{220, 60, 50, 255}, 0.9f));
+                        DrawLineEx({r.x + 110, r.y + 20}, {r.x + 20, r.y + 138}, 5, Fade(Color{220, 60, 50, 255}, 0.9f));
+                    } else {
+                        Glow({r.x + 65, r.y + 76}, 60, Fade(Pal::Brass, 0.25f));
+                        DrawTri({r.x + 65, r.y + 26}, {r.x + 22, r.y + 60}, {r.x + 108, r.y + 60}, Pal::Brass);
+                        DrawRectangle((int)r.x + 26, (int)r.y + 60, 78, 60, Pal::Brass);
+                        DrawRectangle((int)r.x + 58, (int)r.y + 84, 14, 36, Pal::BrassDk);
+                    }
+                    std::string nm = KIND_NAME[it.kind];
+                    Txt(nm, r.x + 65 - MeasureTxt(nm, 14) / 2.0f, r.y + 152, 14, Pal::Paper);
+                }
+                if (it.sold) { // a SOLD stamp
+                    DrawRectangleRounded(r, 0.08f, 6, Fade(BLACK, 0.7f));
+                    rlPushMatrix(); rlTranslatef(r.x + 65, r.y + 92, 0); rlRotatef(-18, 0, 0, 1);
+                    TxtBold("SOLD", -MeasureTxt("SOLD", 28, true) / 2.0f, -16, 28, Fade(Color{220, 80, 70, 255}, 0.95f));
+                    rlPopMatrix();
+                } else if (!afford) DrawRectangleRounded(r, 0.08f, 6, Fade(BLACK, 0.55f));
+                // the brass price tag, hanging on a string
+                Rectangle tag{r.x + 25, r.y + r.height + 6, 80, 28};
+                DrawLineEx({r.x + 65, r.y + r.height - 2}, {r.x + 65, tag.y + 2}, 1.5f, Fade(Pal::Paper, 0.6f));
+                DrawRectangleRounded(tag, 0.35f, 6, it.sold ? Color{60, 56, 50, 255} : afford ? Pal::Brass : Color{120, 90, 60, 255});
+                DrawCircleV({tag.x + 9, tag.y + 14}, 3, Color{22, 16, 14, 255});
+                TxtBold(TextFormat("%d", it.price), tag.x + 20, tag.y + 4, 18, Color{28, 20, 14, 255});
+                if (hov && !it.sold) {
+                    std::string d = it.kind == SK_CARD ? CardDescription(it.card) : it.kind == SK_CHARM ? std::string(CHARM_NAME[it.charm]) + ": " + CHARM_TEXT[it.charm]
+                                    : std::string(KIND_TEXT[it.kind]) + (it.kind == SK_EDITION ? std::string(" ") + ED_NAME[it.card.ed] + ": " + ED_TEXT[it.card.ed] : "");
+                    Tooltip(d, {m.x, m.y + 22});
+                    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && afford) BuyItem(k);
+                }
+            }
+            Txt(TextFormat("Pot: %d gold%s", S.pot, S.insured ? "   (insured)" : ""), sp.x + 34, sp.y + 60 + 150, 18, Pal::Brass);
+            if (Button({sp.x + 190, sp.y + sp.height - 130, 200, 40}, TextFormat("Reroll goods (%d)", RerollPrice()), RerollPrice() <= S.pot, 15)) {
+                S.pot -= RerollPrice(); S.rerolls++;
+                std::vector<ShopItem> keep;
+                for (auto& it : S.shop) if (it.sold && it.kind != SK_CARD && it.kind != SK_CHARM) keep.push_back(it);
+                StockShop();
+                for (auto& it : S.shop) for (auto& k : keep) if (k.kind == it.kind) it.sold = true;
+            }
+            if (Button({sp.x + sp.width - 300, sp.y + sp.height - 66, 260, 48}, "Leave the stall")) MakeRewards();
+            // choosing a card for a trim or an edition
+            if (S.pickItem >= 0) {
+                Rectangle p{170, 70, 940, 580};
+                DrawRectangle(0, 0, SCREEN_W, SCREEN_H, Fade(BLACK, 0.5f));
+                Panel(p);
+                DrawTextCenteredBold(S.shop[S.pickItem].kind == SK_TRIM ? "Choose a card to discard" : "Choose a card to dress", p.x + p.width / 2, p.y + 14, 30, Pal::Ink);
+                for (int i = 0; i < (int)S.you.deck.size(); i++) {
+                    Rectangle r{p.x + 30 + (i % 8) * 108.0f, p.y + 64 + (i / 8) * 122.0f, 82, 114};
+                    bool ok = S.shop[S.pickItem].kind == SK_TRIM ? S.you.deck.size() > 8 : S.you.deck[i].ed == ED_NONE;
+                    bool hov = CheckCollisionPointRec(m, r) && ok;
+                    if (hov) r.y -= 6;
+                    DrawCardFace(r, S.you.deck[i], true);
+                    if (!ok) DrawRectangleRounded(r, 0.08f, 6, Fade(BLACK, 0.5f));
+                    if (hov && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) { ApplyPick(i); break; }
+                }
+                if (Button({p.x + p.width / 2 - 90, p.y + p.height - 50, 180, 40}, "Cancel")) S.pickItem = -1;
             }
         } break;
 
@@ -1343,7 +1491,10 @@ void SceneCards(Game& g) {
                 DrawTextCentered(TextFormat("%d gold richer.", S.payout), centre.x + centre.width / 2, centre.y + 110, 26, Pal::Ink);
             } else {
                 DrawTextCenteredBold("The dealer sweeps the pot", centre.x + centre.width / 2, centre.y + 40, 38, Pal::Bad);
-                DrawTextCentered(S.pot > 0 ? TextFormat("%d gold, gone.", S.pot) : "You hadn't won anything yet.", centre.x + centre.width / 2, centre.y + 110, 24, Pal::Ink);
+                if (S.payout > 0 && !S.insurePaid) { g.gold += S.payout; S.insurePaid = true; }
+                DrawTextCentered(S.payout > 0 ? TextFormat("Your insurance pays %d of the %d gold.", S.payout, S.pot)
+                                 : S.pot > 0 ? TextFormat("%d gold, gone.", S.pot) : "You hadn't won anything yet.",
+                                 centre.x + centre.width / 2, centre.y + 110, 24, Pal::Ink);
             }
             DrawTextCentered("\"Come back when you've more to lose.\"", centre.x + centre.width / 2, centre.y + 170, 18, Pal::BrassDk);
             if (Button({centre.x + centre.width / 2 - 260, centre.y + 260, 240, 50}, "Deal again")) { ResetRun(); }
@@ -1354,7 +1505,7 @@ void SceneCards(Game& g) {
     }
 
     // leaving mid-run forfeits whatever is unbanked
-    if (!modal && (S.phase == Phase::Playing || S.phase == Phase::Resolving || S.phase == Phase::MatchOver || S.phase == Phase::Reward))
+    if (!modal && (S.phase == Phase::Playing || S.phase == Phase::Resolving || S.phase == Phase::MatchOver || S.phase == Phase::Shop || S.phase == Phase::Reward))
         if (Button({20, 122, 150, 34}, S.pot > 0 ? "Fold (lose pot)" : "Fold and leave", true, 14)) LeaveTable(g);
 
     // ---------------- the deck viewer
@@ -1445,7 +1596,9 @@ void DebugFlatsDeal(int variant) {
     Burst({640, 452}, 8, 1, Color{240, 200, 80, 255}, 60);
     if (variant == 1) { S.match = 1; MakeRewards(); S.rewardCharm = CH_COMPASS; }
     if (variant == 2) S.showDeck = true;
+    if (variant == 3) { S.pot = 160; OpenShop(); S.shop[0].sold = false; if (S.shop.size() > 2) S.shop[2].sold = true; }
 }
+void DebugFlatsShop() { DebugFlatsDeal(3); }
 void DebugFlatsDeal() { DebugFlatsDeal(0); }
 void DebugFlatsReward() { DebugFlatsDeal(1); }
 void DebugFlatsDeck() { DebugFlatsDeal(2); }
