@@ -721,7 +721,7 @@ void DrawCardFace(Rectangle r, const Card& c, bool faceUp, int hp = -1, int str 
         DrawSigilGlyph(c.sigils[i], p, bs, Color{28, 20, 14, 255});
     }
     // ---- layer 2: the creature, with no box round it: it may spill over the header and the stat line
-    Rectangle art{r.x + 2 * u, r.y + r.height * 0.13f, r.width - 4 * u, r.height * 0.66f};
+    Rectangle art{r.x - r.width * 0.04f, r.y + r.height * 0.13f, r.width * 1.08f, r.height * 0.66f};   // wide creatures may spill a little over the frame
     DrawEllipse((int)(r.x + r.width / 2), (int)(r.y + r.height * 0.5f), r.width * 0.42f, r.height * 0.22f, Fade(Color{60, 42, 24, 255}, 0.16f));
     if (!DrawCreaturePixels(c.name, art, 1.0f, c.id)) DrawSuitIcon(c.suit, {art.x + art.width / 2, art.y + art.height / 2}, art.width * 0.6f, SUIT_COL[c.suit]);
     // ---- layer 3: hardware. The engraved iron header plate stretches to fit the name; an iron weight hangs top left

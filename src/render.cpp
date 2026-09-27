@@ -127,6 +127,11 @@ out vec4 finalColor;
 float lum(vec3 c) { return dot(c, vec3(0.299, 0.587, 0.114)); }
 float L(vec2 o) { return lum(texture(texture0, fragTexCoord + o / uRes).rgb); }
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float bayer(vec2 p) {
+    int i = int(mod(p.x, 4.0)) + 4 * int(mod(p.y, 4.0));
+    float m[16] = float[16](0.0, 8.0, 2.0, 10.0, 12.0, 4.0, 14.0, 6.0, 3.0, 11.0, 1.0, 9.0, 15.0, 7.0, 13.0, 5.0);
+    return (m[i] + 0.5) / 16.0;
+}
 void main() {
     vec3 c = texture(texture0, fragTexCoord).rgb;
     float gx = -L(vec2(-1, 1)) - 2.0 * L(vec2(-1, 0)) - L(vec2(-1, -1)) + L(vec2(1, 1)) + 2.0 * L(vec2(1, 0)) + L(vec2(1, -1));
@@ -138,6 +143,9 @@ void main() {
     float h2 = step(0.8, fract((px.x - px.y) / 6.0)) * (1.0 - smoothstep(0.015, 0.05, l));
     float hatch = max(h1, h2) * uHatch;
     vec3 col = c * (1.0 - ink * 0.7) * (1.0 - hatch * 0.5);
+    float stip = step(bayer(floor(px / 2.0)), smoothstep(0.34, 0.10, l) * 0.9) * step(0.02, l);   // an ordered stipple in the shadows, as on the cards
+    col *= 1.0 - stip * 0.30 * uHatch;
+    col = mix(col, col * vec3(1.07, 1.0, 0.87), 0.30);   // a warm, aged-paper cast
     col += (hash(floor(px / 2.0)) - 0.5) * 0.04;
     col = mix(vec3(lum(col)) * vec3(1.05, 1.0, 0.92), col, 0.86);
     finalColor = vec4(col, 1.0);

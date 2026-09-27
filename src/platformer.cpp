@@ -2255,6 +2255,22 @@ void DrawAmbientLife(const PlatformState& p, float t, float viewW, float viewH) 
                 float fx = x0 + fmodf(k * 89.0f + t * (6 + k % 4 * 3) + 60000, viewW + 240), fy = p.pos.y + PH - 4 - (k % 3) * 5 + sinf(t * 0.6f + k) * 3;
                 DrawEllipse((int)fx, (int)fy, 46 + (k % 4) * 10, 7, Color{150, 235, 214, 26});
             }
+        if (p.waterY > 0) {
+            for (int k = 0; k < 4; k++) { // gulls riding the storm wind, high over the fleet
+                float gx = x0 + fmodf(k * 311.0f + t * (26 + k * 7) + p.camX * 0.3f + 60000, viewW + 240), gy = p.waterY - 150 - k * 34 + sinf(t * 0.9f + k * 2) * 12;
+                float flap = sinf(t * 7 + k * 1.3f) * 4;
+                Color gc = gGhost ? Color{120, 230, 200, 220} : Color{20, 18, 26, 230};
+                DrawLineEx({gx - 8, gy + flap}, {gx, gy}, 2, gc); DrawLineEx({gx, gy}, {gx + 8, gy + flap}, 2, gc);
+            }
+            for (int k = 0; k < 16; k++) { // rain and spray dimpling the sea, and a low mist rolling over it
+                float sx = x0 + fmodf(Hs(k * 4.7f) * (viewW + 240) + t * 14 * (1 + k % 3), viewW + 240);
+                if (fmodf(t * 3 + k * 0.37f, 1.0f) < 0.3f) DrawRectangle((int)sx, (int)(p.waterY + 6 + (k % 5) * 3), 5, 1, Fade(WHITE, 0.45f));
+            }
+            for (int k = 0; k < 6; k++) {
+                float mx = x0 + fmodf(k * 173.0f + t * (5 + k) + 60000, viewW + 320) - 80, my = p.waterY - 5 - (k % 3) * 4 + sinf(t * 0.5f + k) * 2;
+                DrawEllipse((int)mx, (int)my, 70 + (k % 3) * 14, 8, Color{170, 190, 220, 24});
+            }
+        }
         for (int k = 0; k < 3; k++) { // gulls, high over the fleet
             float gx = fmodf(t * (30 + k * 8) + k * 500 + p.camX * 0.3f, viewW + 500) + x0 - 200, gy = p.camY - 150 - k * 34 + sinf(t * 0.9f + k) * 14, fl = sinf(t * 7 + k * 2) * 5;
             Color gc{10, 10, 16, 255};
