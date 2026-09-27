@@ -774,6 +774,22 @@ void Leg(Canvas& cv, int x, float ph, bool far) {
     }
     cv.set(x + xo, bot, 'k'); cv.set(x + xo + 2, bot, 'k');
 }
+// Scale2x: doubles resolution, rounding diagonal steps into smooth 45-degree edges instead of square blocks -
+// the same trick the card art's EPX upscale uses, so the cat reads as drawn rather than pixelated.
+struct Canvas2 {
+    char c[CH * 2][CW * 2];
+    char get(int x, int y) const { return x >= 0 && x < CW * 2 && y >= 0 && y < CH * 2 ? c[y][x] : '.'; }
+};
+Canvas2 Scale2x(const Canvas& in) {
+    Canvas2 out{};
+    for (int y = 0; y < CH; y++) for (int x = 0; x < CW; x++) {
+        char p = in.get(x, y), a = in.get(x, y - 1), b = in.get(x + 1, y), c = in.get(x - 1, y), d = in.get(x, y + 1);
+        char e0 = (c == a && c != d && a != b) ? a : p, e1 = (a == b && a != c && b != d) ? b : p;
+        char e2 = (c == d && c != b && d != a) ? c : p, e3 = (b == d && b != a && d != c) ? d : p;
+        out.c[y * 2][x * 2] = e0; out.c[y * 2][x * 2 + 1] = e1; out.c[y * 2 + 1][x * 2] = e2; out.c[y * 2 + 1][x * 2 + 1] = e3;
+    }
+    return out;
+}
 }  // namespace catpx
 
 Vector2 DrawCatAt(Vector2 feet, float k, bool right, bool sitting, bool purring, float phase, float t, float seed, bool asleep = false) {
@@ -819,11 +835,16 @@ Vector2 DrawCatAt(Vector2 feet, float k, bool right, bool sitting, bool purring,
     auto X = [&](int cx) { return roundf(origin.x + f * cx * ps); };
     DrawShadowBlob(feet, (asleep ? 26 : sitting ? 19 : 24) * k);
     float vib = purring ? (fmodf(t * 30, 2.0f) < 1 ? 0.0f : ps * 0.5f) : 0;
-    for (int y = 0; y < CH; y++) for (int x = 0; x < CW; x++) {
-        char ch = out.get(x, y);
+    catpx::Canvas2 out2 = catpx::Scale2x(out);
+    float ps2 = ps / 2.0f;
+    auto X2 = [&](int cx2) { return roundf(origin.x + f * cx2 * ps2); };
+    int lastRow2 = lastRow * 2 + 1;
+    for (int y = 0; y < CH * 2; y++) for (int x = 0; x < CW * 2; x++) {
+        char ch = out2.get(x, y);
         if (ch == '.') continue;
-        float x0 = X(x), x1 = X(x + 1), yy0 = roundf(origin.y + y * ps + vib * (y < lastRow - 4 ? 1 : 0)), yy1 = roundf(origin.y + (y + 1) * ps + vib * (y < lastRow - 4 ? 1 : 0));
-        DrawRectangleRec({std::min(x0, x1), yy0, fabsf(x1 - x0), yy1 - yy0}, Pal(ch));
+        float x0 = X2(x), x1 = X2(x + 1), rowVib = vib * (y < lastRow2 - 8 ? 1 : 0);
+        float yy0 = roundf(origin.y + y * ps2 + rowVib), yy1 = roundf(origin.y + (y + 1) * ps2 + rowVib);
+        DrawRectangleRec({std::min(x0, x1), yy0, fabsf(x1 - x0) + 0.6f, yy1 - yy0 + 0.6f}, Pal(ch));
     }
     if (asleep) { // z z z
         for (int i = 0; i < 3; i++) {

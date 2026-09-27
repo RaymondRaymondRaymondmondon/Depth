@@ -631,7 +631,7 @@ void RunCombatRelicEffects(CombatState& cs) {
 }
 
 int InvCapacity(const Game& g) {
-    int extra = 0;
+    int extra = CargoBonusSlots(g);
     for (int id : g.party) {
         if (id < 0) continue;
         for (const auto& h : g.roster) if (h.id == id) extra += RelicBundle(h).extraSlots;

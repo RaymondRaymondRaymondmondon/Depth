@@ -342,8 +342,10 @@ static void BuildFleet(Grid& g, std::vector<Plat>& pl, Rng& rng, GenLevel& out, 
         if (bridgeAt) last = ex - 16;
         while (cx < last) {
             // 0 hatch, 1 barricade shaft, 2 cargo, 3 dressing mast, 4 gun battery, 5 barrel run, 6 rotten planking, 7 gun crossfire
+            // weighted toward the obstacles that demand a real jump or a dodge; cargo and dressing masts (a walk-past)
+            // are kept rare so the deck isn't mostly flat ground between ships
             int roll = rng.I(0, 99);
-            int kind = roll < 15 ? 0 : roll < 31 ? 1 : roll < 38 ? 2 : roll < 44 ? 3 : roll < 60 ? 4 : roll < 74 ? 5 : roll < 87 ? 6 : 7;
+            int kind = roll < 14 ? 0 : roll < 34 ? 1 : roll < 38 ? 2 : roll < 41 ? 3 : roll < 58 ? 4 : roll < 74 ? 5 : roll < 88 ? 6 : 7;
             const int need[8] = {12, 20, 9, 10, 16, 18, 14, 18};              // the widest each segment can grow, with its run-off
             if (cx + need[kind] > last) kind = 2;                              // not enough deck left: something small
             if (cx + need[kind] > last) break;

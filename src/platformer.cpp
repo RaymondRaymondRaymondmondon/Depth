@@ -317,7 +317,7 @@ void UpdateEnemies(PlatformState& p, float dt) {
 
 // Torpedo tubes, deck cannons and barrel chutes fire on a timer, with a warning glow before each shot. They only wake when the
 // diver is within range, so a level is never firing behind you.
-constexpr float TUBE_PERIOD = 2.8f, TUBE_WARN = 0.9f, CANNON_PERIOD = 3.2f, CANNON_WARN = 1.0f, CHUTE_PERIOD = 3.6f, CHUTE_WARN = 0.8f;
+constexpr float TUBE_PERIOD = 2.8f, TUBE_WARN = 0.9f, CANNON_PERIOD = 2.6f, CANNON_WARN = 0.9f, CHUTE_PERIOD = 2.9f, CHUTE_WARN = 0.75f;
 float LauncherPeriod(char t) { return t == 'T' ? TUBE_PERIOD : t == 'N' ? CANNON_PERIOD : CHUTE_PERIOD; }
 float LauncherWarn(char t) { return t == 'T' ? TUBE_WARN : t == 'N' ? CANNON_WARN : CHUTE_WARN; }
 float LauncherAlert(const PlatformState& p, int tx, int ty) { // 0..1 how close it is to firing (for the warning glow)
@@ -2943,9 +2943,10 @@ void ScenePlatformer(Game& g) {
                         Die(p);
                     }
                 }
-            } else if (b.type == 'B' && !b.defeated && CheckCollisionRecs(pr, {b.pos.x + 5, b.pos.y, BB_W - 10, BB_H})) {
-                if (b.state == 5) { // dazed: stomp him (brushing against him now is safe)
-                    if (falling && p.pos.y + PH - p.vel.y * dt <= b.pos.y + 14 && b.invuln <= 0) {
+            } else if (b.type == 'B' && !b.defeated && CheckCollisionRecs(pr, b.state == 5 ? Rectangle{b.pos.x - 10, b.pos.y - 8, BB_W + 20, BB_H + 8} : Rectangle{b.pos.x + 5, b.pos.y, BB_W - 10, BB_H})) {
+                if (b.state == 5) { // dazed: stomp him (brushing against him now is safe). A wider, more forgiving box than his
+                                     // usual deadly one: he's tall and narrow, and pixel-perfect landings weren't fun to chase
+                    if (falling && p.pos.y + PH - p.vel.y * dt <= b.pos.y + 28 && b.invuln <= 0) {
                         b.hp--;
                         b.invuln = 1.0f;
                         b.state = 3;

@@ -390,6 +390,10 @@ bool Battle::Draw(bool fromDeck, Events& ev, Rng& rng) {
     // a real choice, not both for free: the deck's next card, growing your options, or a free minnow, fuel for
     // a blood cost, at the price of not drawing a real card this turn
     take(fromDeck && !deck.empty());
+    // the first two tables are where you're learning the choice, not being punished for it: the Novice always
+    // backs it up with a free minnow, the Tidewife every other turn, so an unlucky pick doesn't stall the game
+    bool earlyEase = dealer == 0 || (dealer == 1 && (turnNo % 2) == 1);
+    if (earlyEase && (int)hand.size() < MAX_HAND) take(false);
     if (((charms >> CH_COMPASS) & 1u) && !deck.empty() && (int)hand.size() < MAX_HAND) take(true);         // the compass: a second card, always from the deck
     turn = Turn::YOU_MAIN;
     firstPlayThisTurn = true;

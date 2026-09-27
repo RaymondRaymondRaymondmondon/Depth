@@ -34,7 +34,7 @@ const Color Stress  = {170, 120, 230, 255};
 enum class Scene { Hub, Helm, Crew, Radar, Ward, SickLeave, Bookshelf, Periscope, Workshop, Dungeon, Platformer, Cards };
 
 // Workshop upgrades. Each has levels 0..UPGRADE_MAX.
-enum Upgrade { UP_REFLECTOR, UP_BUNKS, UP_SONAR, UP_INFIRMARY, UP_COUNT };
+enum Upgrade { UP_REFLECTOR, UP_BUNKS, UP_SONAR, UP_INFIRMARY, UP_CARGO, UP_COUNT };
 constexpr int UPGRADE_MAX = 3;
 
 // Rank masks. Bit 0 = rank 1 (front line), bit 3 = rank 4 (back line).
@@ -409,7 +409,7 @@ struct Game {
     int bookTab = 0;
     int bookScroll = 0;
     int relicScroll = 0;
-    int upgrades[UP_COUNT] = {0, 0, 0, 0};
+    int upgrades[UP_COUNT] = {0, 0, 0, 0, 0};
     std::vector<int> platLayouts[PL_COUNT]; // which chunks make up each platform level's current layout
     bool platCleared[PL_COUNT] = {false, false, false};
     float platBest[PL_COUNT] = {0, 0, 0};    // best clear time in seconds (0 = never cleared)
@@ -458,6 +458,7 @@ int SonarRefreshCount(const Game& g);
 int ScanCost(const Game& g);
 int WardCostPerHp(const Game& g);
 int LightDrainPerRoom(const Game& g);
+int CargoBonusSlots(const Game& g);
 const char* UpgradeName(int u);
 const char* UpgradeDesc(int u, int level); // what the given level does
 int UpgradePrice(int level);                // price to buy the given level

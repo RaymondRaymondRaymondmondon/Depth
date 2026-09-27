@@ -372,31 +372,33 @@ void SceneWorkshop(Game& g) {
         "Hammocks strung between the pipes. Room for more crew aboard.",
         "A bigger ear on the hull. More recruit signals, and cheaper scans.",
         "Better instruments and a steadier surgeon's hand. The Ward charges less.",
+        "Netting and extra straps below deck. More room in the pack on expeditions.",
     };
+    const int cols = 3;
     for (int u = 0; u < UP_COUNT; u++) {
-        Rectangle c{70 + (u % 2) * 580.0f, 100 + (u / 2) * 290.0f, 560, 270};
+        Rectangle c{40 + (u % cols) * 406.0f, 90 + (u / cols) * 300.0f, 386, 280};
         Panel(c);
         int lv = g.upgrades[u];
-        TxtBold(UpgradeName(u), c.x + 24, c.y + 20, 26, Pal::Ink);
+        TxtBold(UpgradeName(u), c.x + 20, c.y + 18, 22, Pal::Ink);
         for (int k = 0; k < UPGRADE_MAX; k++) {
-            Vector2 p{c.x + c.width - 110 + k * 30.0f, c.y + 36};
-            DrawCircleV(p, 10, Pal::BrassDk);
-            DrawCircleV(p, 7, k < lv ? Pal::Brass : Color{90, 80, 64, 255});
+            Vector2 p{c.x + c.width - 78 + k * 26.0f, c.y + 30};
+            DrawCircleV(p, 9, Pal::BrassDk);
+            DrawCircleV(p, 6, k < lv ? Pal::Brass : Color{90, 80, 64, 255});
         }
-        DrawWrapped(flavor[u], {c.x + 24, c.y + 62, c.width - 48, 50}, 16, Pal::Ink);
-        TxtBold("Now:", c.x + 24, c.y + 120, 16, Pal::BrassDk);
-        Txt(UpgradeDesc(u, lv), c.x + 80, c.y + 120, 16, Pal::Ink);
+        DrawWrapped(flavor[u], {c.x + 20, c.y + 54, c.width - 40, 62}, 14, Pal::Ink);
+        TxtBold("Now:", c.x + 20, c.y + 122, 15, Pal::BrassDk);
+        Txt(UpgradeDesc(u, lv), c.x + 70, c.y + 122, 15, Pal::Ink);
         if (lv < UPGRADE_MAX) {
-            TxtBold("Next:", c.x + 24, c.y + 146, 16, Pal::BrassDk);
-            Txt(UpgradeDesc(u, lv + 1), c.x + 80, c.y + 146, 16, Color{30, 110, 90, 255});
+            TxtBold("Next:", c.x + 20, c.y + 146, 15, Pal::BrassDk);
+            Txt(UpgradeDesc(u, lv + 1), c.x + 70, c.y + 146, 15, Color{30, 110, 90, 255});
             int price = UpgradePrice(lv + 1);
-            if (Button({c.x + 24, c.y + 196, 260, 48}, TextFormat("Build level %d  (%dg)", lv + 1, price), g.gold >= price)) {
+            if (Button({c.x + 20, c.y + 202, 250, 46}, TextFormat("Build level %d  (%dg)", lv + 1, price), g.gold >= price)) {
                 g.gold -= price;
                 g.upgrades[u]++;
                 Toast(g, TextFormat("%s upgraded to level %d.", UpgradeName(u), g.upgrades[u]));
             }
         } else {
-            TxtBold("Fully upgraded.", c.x + 24, c.y + 206, 20, Color{30, 110, 90, 255});
+            TxtBold("Fully upgraded.", c.x + 20, c.y + 210, 18, Color{30, 110, 90, 255});
         }
     }
 }

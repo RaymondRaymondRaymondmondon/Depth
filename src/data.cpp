@@ -510,12 +510,14 @@ static const int RADAR_REFRESHES[4]  = {0,  1,  2,  3};
 static const int SCAN_COST[4]        = {70, 55, 40, 25};
 static const int WARD_COST[4]        = {9,  7,  5,  4};
 static const int LIGHT_DRAIN[4]      = {20, 16, 12, 9};
+static const int CARGO_SLOTS[4]      = {0,  1,  2,  3};
 
 int MaxRoster(const Game& g) { return ROSTER_SIZE[g.upgrades[UP_BUNKS]]; }
 int SonarRefreshCount(const Game& g) { return RADAR_REFRESHES[g.upgrades[UP_SONAR]]; }
 int ScanCost(const Game& g) { return SCAN_COST[g.upgrades[UP_SONAR]]; }
 int WardCostPerHp(const Game& g) { return WARD_COST[g.upgrades[UP_INFIRMARY]]; }
 int LightDrainPerRoom(const Game& g) { return LIGHT_DRAIN[g.upgrades[UP_REFLECTOR]]; }
+int CargoBonusSlots(const Game& g) { return CARGO_SLOTS[g.upgrades[UP_CARGO]]; }
 int UpgradePrice(int level) { return level == 1 ? 400 : level == 2 ? 800 : 1400; } // gold should stay scarce: parkour and Flats are meant to fill the gap
 
 const char* UpgradeName(int u) {
@@ -523,6 +525,7 @@ const char* UpgradeName(int u) {
         case UP_REFLECTOR: return "Flashlight Reflector";
         case UP_BUNKS: return "Bunk Extension";
         case UP_SONAR: return "Sonar Array";
+        case UP_CARGO: return "Cargo Netting";
         default: return "Infirmary Gear";
     }
 }
@@ -532,6 +535,7 @@ const char* UpgradeDesc(int u, int lv) {
         case UP_REFLECTOR: return TextFormat("Each room drains %d light", LIGHT_DRAIN[lv]);
         case UP_BUNKS: return TextFormat("Room for %d crew aboard", ROSTER_SIZE[lv]);
         case UP_SONAR: return TextFormat("%d re-scan%s per mission, scans cost %dg", RADAR_REFRESHES[lv], RADAR_REFRESHES[lv] == 1 ? "" : "s", SCAN_COST[lv]);
+        case UP_CARGO: return TextFormat("+%d pack slot%s on expeditions", CARGO_SLOTS[lv], CARGO_SLOTS[lv] == 1 ? "" : "s");
         default: return TextFormat("The Ward charges %dg per HP", WARD_COST[lv]);
     }
 }

@@ -589,7 +589,10 @@ void DrawSigilGlyph(Sigil sg, Vector2 c, float s, Color col) {
 Card gHoverCard;               // whichever card the mouse is over this frame (a copy: the original may be played away): shown large in the inspector
 bool gHasHover = false;
 int gHoverHp = -1, gHoverStr = -1;
-void Hover(const Card& c, int hp = -1, int str = -1) { gHoverCard = c; gHasHover = true; gHoverHp = hp; gHoverStr = str; }
+bool gHoverInHand = false;     // hovering a card in your own hand: lift it up near itself instead of a fixed side panel
+Vector2 gHoverAnchor{};
+void Hover(const Card& c, int hp = -1, int str = -1) { gHoverCard = c; gHasHover = true; gHoverHp = hp; gHoverStr = str; gHoverInHand = false; }
+void HoverInHand(const Card& c, Vector2 anchor) { gHoverCard = c; gHasHover = true; gHoverHp = -1; gHoverStr = -1; gHoverInHand = true; gHoverAnchor = anchor; }
 
 // ---- a tiny bitmap font of carved, tally-style numerals (5 x 7 pixels per digit), drawn as square pixels with a rim and a shaded lower half
 void DrawPxNum(int v, Vector2 centre, float px, Color fill, Color rim) {
@@ -648,7 +651,8 @@ void DrawMetalPlate(Rectangle p, float u, unsigned seed) {
 // the inspector and a small one in the queue. `hp` and `str` show a creature's current numbers (damaged, buffed) on the board.
 void DrawCardFace(Rectangle r, const Card& c, bool faceUp, int hp = -1, int str = -1) {
     float u = r.height / 150.0f;
-    DrawRectangleRounded({r.x + 2 * u, r.y + 3 * u, r.width, r.height}, 0.08f, 6, Fade(BLACK, 0.5f));
+    // a cool, wet-room shadow rather than a neutral one: the card is sitting in a murky, submerged space, not a dry cabin
+    DrawRectangleRounded({r.x + 2 * u, r.y + 3 * u, r.width, r.height}, 0.08f, 6, Fade(Color{3, 9, 13, 255}, 0.55f));
     if (!faceUp) { // the back: the same driftwood and stained cloth, stamped with a faded ship's wheel
         Color wood{54, 40, 30, 255}, woodLt{86, 66, 48, 255}, ink{30, 22, 16, 255}, cloth{104, 98, 82, 255};
         unsigned hh = (unsigned)(r.x * 3 + 17);
@@ -681,10 +685,12 @@ void DrawCardFace(Rectangle r, const Card& c, bool faceUp, int hp = -1, int str 
         for (int k = 0; k < 30; k++) { float e = rn(); Vector2 sp = k % 2 ? Vector2{in.x + in.width * rn(), e < 0.5f ? in.y + 2 * u * rn() : in.y + in.height - 2 * u * rn()} : Vector2{e < 0.5f ? in.x + 2 * u * rn() : in.x + in.width - 2 * u * rn(), in.y + in.height * rn()}; DrawCircleV(sp, (0.5f + 0.9f * rn()) * u, Fade(Color{240, 236, 220, 255}, 0.5f)); }   // salt
         for (int k = 0; k < 4; k++) DrawCircleV({k % 2 ? in.x + in.width - 4 * u : in.x + 4 * u, k < 2 ? in.y + 4 * u : in.y + in.height - 4 * u}, 1.5f * u, Fade(ink, 0.7f));   // rivets
         return;
-    }    // ---- a physical relic salvaged from the sea: a driftwood frame round stained, salt-crusted parchment
-    Color ink{30, 22, 16, 255}, wood{54, 40, 30, 255}, woodLt{86, 66, 48, 255};
-    Color paper{194, 168, 118, 255};
-    if (c.edition == ED_HEX) paper = Color{176, 150, 140, 255};
+    }    // ---- a physical relic salvaged from the sea: a driftwood frame round stained, salt-crusted parchment.
+    // Pulled a shade cooler and greyer than dry parchment would be - salt-bleached and damp, so it sits in the
+    // murky, submerged room instead of reading like it wandered in from a cabin.
+    Color ink{26, 22, 20, 255}, wood{46, 38, 34, 255}, woodLt{74, 64, 54, 255};
+    Color paper{182, 166, 138, 255};
+    if (c.edition == ED_HEX) paper = Color{166, 148, 142, 255};
     unsigned h = (unsigned)(c.id * 131 + c.strength * 31 + 5);
     auto rnd = [&]() { h = h * 1664525u + 1013904223u; return ((h >> 8) & 0xffff) / 65535.0f; };
     DrawRectangleRounded(r, 0.035f, 4, wood);
@@ -715,6 +721,16 @@ void DrawCardFace(Rectangle r, const Card& c, bool faceUp, int hp = -1, int str 
     for (int k = 0; k < 34; k++) { // salt crust along the edges
         float e = rnd(); Vector2 sp = k % 2 ? Vector2{in.x + in.width * rnd(), e < 0.5f ? in.y + 2 * u * rnd() : in.y + in.height - 2 * u * rnd()} : Vector2{e < 0.5f ? in.x + 2 * u * rnd() : in.x + in.width - 2 * u * rnd(), in.y + in.height * rnd()};
         DrawCircleV(sp, (0.5f + 1.0f * rnd()) * u, Fade(Color{240, 236, 220, 255}, 0.55f));
+    }
+    // a wash of the room's own cool light off the top edge, and a couple of beaded droplets: this card is sitting
+    // wet on the table, not dry parchment in a cabin
+    DrawRectangleGradientV((int)in.x, (int)in.y, (int)in.width, (int)(in.height * 0.3f), Fade(Color{140, 190, 196, 255}, 0.16f), Fade(Color{140, 190, 196, 255}, 0.0f));
+    for (int k = 0; k < 3; k++) {
+        Vector2 dp{in.x + in.width * (0.15f + 0.7f * rnd()), in.y + in.height * (0.08f + 0.3f * rnd())};
+        float dr = (1.3f + 1.4f * rnd()) * u;
+        DrawCircleV({dp.x, dp.y + dr * 0.3f}, dr, Fade(Color{20, 30, 30, 255}, 0.14f));
+        DrawCircleV(dp, dr * 0.8f, Fade(Color{210, 232, 232, 255}, 0.35f));
+        DrawCircleV({dp.x - dr * 0.25f, dp.y - dr * 0.25f}, dr * 0.28f, Fade(WHITE, 0.55f));
     }
     DrawRectangleLinesEx({in.x + 3 * u, in.y + 3 * u, in.width - 6 * u, in.height - 6 * u}, std::max(1.0f, 0.7f * u), Fade(ink, 0.22f));
 
@@ -771,9 +787,15 @@ void DrawCardFace(Rectangle r, const Card& c, bool faceUp, int hp = -1, int str 
     DrawPxNum(shownStr, {in.x + 11 * u, in.y + in.height - 12 * u}, px, strC, Color{18, 12, 8, 255});
     DrawPxNum(shownHp, {in.x + in.width - 11 * u, in.y + in.height - 12 * u}, px, hpC, Color{18, 12, 8, 255});    if (c.edition != ED_NONE) DrawEdition(r, c.edition, u);
 }
-// The inspector: the hovered card large, with every number and sigil spelled out.
+// The inspector: the hovered card large, with every number and sigil spelled out. A card from your own hand is
+// lifted up right above itself, like you raised it for a closer look; anything else (the board, a deck list) gets
+// the fixed panel off to the side.
 void DrawInspector(const Card& c, int hp, int str) {
     Rectangle p{1006, 70, 262, 396};
+    if (gHoverInHand) {
+        p.x = std::clamp(gHoverAnchor.x - p.width / 2, 20.0f, (float)SCREEN_W - p.width - 20);
+        p.y = std::clamp(gHoverAnchor.y - p.height - 36, 20.0f, (float)SCREEN_H - p.height - 20);
+    }
     DrawRectangleRounded(p, 0.04f, 8, Color{8, 12, 16, 236});
     DrawRectangleRoundedLinesEx(p, 0.04f, 8, 2, Pal::BrassDk);
     DrawCardFace({p.x + 56, p.y + 10, 150, 210}, c, true, hp, str);
@@ -1367,7 +1389,7 @@ void DrawBattle(Game& g, float dt, float t, Vector2 m, bool modal) {
         if (!Affordable(bat.hand[i]) && bat.turn == Turn::YOU_MAIN) DrawRectangleRounded(cr, 0.08f, 6, Fade(BLACK, 0.5f));
         rlPopMatrix();
     }
-    if (hoverHand >= 0) Hover(bat.hand[hoverHand]);
+    if (hoverHand >= 0) { Vector2 hp = HandPos(hoverHand, n); HoverInHand(bat.hand[hoverHand], {hp.x, hp.y - 66}); }
 
     // ---- bones, momentum, items on the table's near edge
     {
@@ -1534,7 +1556,16 @@ void DrawMap(Game& g, float t, Vector2 m, bool modal) {
             if (canGo) Glow(p, rad * 2.0f, Fade(col, 0.22f + 0.1f * sinf(t * 4)));
             DrawCircleV({p.x + 2, p.y + 3}, rad, Fade(BLACK, 0.3f));
             DrawCircleV(p, rad, Color{46, 32, 22, 255});
-            DrawCircleV(p, rad - 3, past ? Color{90, 80, 70, 255} : Fade(ColorBrightness(col, -0.45f), 1.0f));
+            // a worn, carved medallion rather than a flat disc: a fake top-left light and ink speckle for texture
+            DrawCircleV(p, rad - 3, past ? Color{90, 80, 70, 255} : ColorBrightness(col, -0.45f));
+            DrawCircleSector(p, rad - 3, 195, 345, 16, Fade(WHITE, past ? 0.05f : 0.10f));
+            {
+                unsigned sh = (unsigned)(l * 977 + s * 131 + 71);
+                auto srn = [&]() { sh = sh * 1664525u + 1013904223u; return ((sh >> 8) & 0xffff) / 65535.0f; };
+                for (int k = 0; k < 12; k++) { float a = srn() * 2 * PI, rr = srn() * (rad - 6); DrawCircleV({p.x + cosf(a) * rr, p.y + sinf(a) * rr}, 0.8f + srn() * 0.8f, Fade(BLACK, 0.14f)); }
+            }
+            DrawRing(p, rad - 4, rad - 3, 0, 360, 24, Fade(BLACK, 0.35f));
+            DrawNodeIcon(n.type, {p.x + 1.3f, p.y + 1.8f}, rad * 0.62f, Fade(BLACK, 0.45f));   // an inked shadow behind the glyph, not just a flat vector fill
             DrawNodeIcon(n.type, p, rad * 0.62f, past ? Color{150, 140, 130, 255} : ColorBrightness(col, 0.25f));
             DrawRing(p, rad - 3, rad, 0, 360, 28, canGo ? Fade(Pal::Brass, hov ? 1.0f : 0.8f) : here ? Color{240, 240, 240, 255} : Color{20, 14, 10, 255});
             if (here) DrawTri({p.x - 8, p.y - rad - 16}, {p.x + 8, p.y - rad - 16}, {p.x, p.y - rad - 4}, Color{230, 230, 240, 255});
