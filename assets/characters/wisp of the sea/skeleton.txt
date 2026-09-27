@@ -6,8 +6,8 @@ bone bell hip 0 0 0 1 1 40
 bone fringe hip 0 0 0 1 1 60
 slot bell bell
 slot fringe fringe
-attach bell piece characters/wisp of the sea/bell.png 0.5 0.63 0.55
-attach fringe piece characters/wisp of the sea/fringe.png 0.5 0.05 0.5
+attach bell piece characters/wisp of the sea/bell.png 0.502 0.674 0.4
+attach fringe piece characters/wisp of the sea/fringe.png 0.49 0.072 0.4
 anim idle 3
 key hip y 0 -84
 key hip y 0.375 -80.4645

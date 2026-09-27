@@ -8,10 +8,10 @@ bone body hip 0 0 0 1 1 40
 bone tail hip 0 0 0 1 1 60
 slot tail tail
 slot body body
-attach body piece characters/siren/torso_neutral.png 0.680 0.790 0.32
-attach body piece characters/siren/torso_attack.png 0.592 0.798 0.32
-attach body piece characters/siren/torso_hit.png 0.504 0.838 0.32
-attach tail piece characters/siren/tail.png 0.5 0.04 0.32
+attach body piece characters/siren/torso_neutral.png 0.347 0.975 0.32
+attach body piece characters/siren/torso_attack.png 0.4225 0.981 0.32
+attach body piece characters/siren/torso_hit.png 0.573 0.979 0.32
+attach tail piece characters/siren/tail.png 0.219 0.02 0.32
 anim idle 2.4
 key tail rot 0 0
 key tail rot 0.3 7.07107
