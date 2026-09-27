@@ -1,9 +1,9 @@
 // Pixel-art portraits for the Flats creature cards: one small sprite per card name, drawn as crisp squares with an ink outline.
 #include "raylib.h"
 #include <algorithm>
-#include <cmath>`n#include <cmath>
+#include <cmath>
 #include <cstring>
-#include <map>`n#include <map>
+#include <map>
 #include <string>
 #include <vector>
 
