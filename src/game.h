@@ -546,6 +546,7 @@ extern bool gDiveGear;   // true only on an expedition: the crew wear masks and 
 // sprite sheet pages (depth.exe --sprites)
 void DrawSalonSpritePage(float t);
 void DrawCrewSpritePage(float t);
+void DrawCrewGalleryPage(HeroClass cls, float t);   // developer tool: one class filling the whole page
 void DrawCaveSpritePage(float t);
 void DrawBestiarySpritePage(int page, float t);
 void DrawPlatformSpritePage(int page, float t);

@@ -221,6 +221,23 @@ static void MakeSpriteSheet(const std::string& path) {
     UnloadImage(sheet);
 }
 
+// One full-page PNG per class - for actually inspecting one character's art at a time, not squinting at a
+// dense multi-pose sheet or a shared tile a badly oversized rig can spill out of. Writes <basePath>_01.png
+// through _12.png, one per HeroClass in enum order.
+static void MakeCrewGallery(const std::string& basePath) {
+    for (int c = 0; c < (int)HeroClass::COUNT; c++) {
+        BeginFrame();
+        SetPost(0.0f, 0.0f, 0.0f);
+        DrawCrewGalleryPage((HeroClass)c, 1.3f);
+        EndFrame(1.3f);
+        Image page = GrabFrame();
+        char num[4]; snprintf(num, sizeof(num), "%02d", c + 1);
+        std::string path = basePath + "_" + num + ".png";
+        TraceLog(LOG_INFO, "gallery %s: %s", path.c_str(), ExportImage(page, path.c_str()) ? "ok" : "FAILED");
+        UnloadImage(page);
+    }
+}
+
 int main(int argc, char** argv) {
     SetRandomSeed((unsigned int)time(nullptr));
     if (argc >= 4 && strcmp(argv[1], "--gen") == 0) { // developer: print a generated level as ASCII (level 0-2, seed, optional first/last column)
@@ -282,6 +299,7 @@ int main(int argc, char** argv) {
     }
     const char* shotDir = argc >= 3 && strcmp(argv[1], "--shots") == 0 ? argv[2] : nullptr;
     const char* spriteFile = argc >= 3 && strcmp(argv[1], "--sprites") == 0 ? argv[2] : nullptr;
+    const char* galleryBase = argc >= 3 && strcmp(argv[1], "--gallery") == 0 ? argv[2] : nullptr;
     const bool flatsUiTest = argc >= 2 && strcmp(argv[1], "--flats-ui-test") == 0;
 
     SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_RESIZABLE);
@@ -301,6 +319,8 @@ int main(int argc, char** argv) {
         for (int f = 0; f < 200000 && FlatsAutoplayActive(); f++) { g.time += 1 / 60.0f; BeginFrame(); RunScene(g); EndFrame(g.time); }
     } else if (spriteFile) {
         MakeSpriteSheet(spriteFile);
+    } else if (galleryBase) {
+        MakeCrewGallery(galleryBase);
     } else if (shotDir) {
         gShotFilter = argc >= 4 ? argv[3] : nullptr;
         TakeShots(g, shotDir);

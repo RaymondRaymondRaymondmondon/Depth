@@ -2933,6 +2933,19 @@ void DrawCrewSpritePage(float t) {
     (void)dodge;
 }
 
+// One class filling the whole page: several of the painted rigs are still badly out of scale (a known,
+// unfixed calibration bug - see chargen.cpp), so a shared tile with hard clipping either hid them entirely
+// (BeginScissorMode doesn't reliably clip this draw path - a separate bug worth its own look) or cut them off.
+// A full page and a small, generous scale is the reliable way to actually see one character at a time.
+void DrawCrewGalleryPage(HeroClass cls, float t) {
+    ClearBackground(Color{20, 22, 28, 255});
+    TxtBold(ClassName(cls), 30, 20, 30, ClassColor(cls));
+    Hero h; h.id = 3 + (int)cls * 5; h.cls = cls;
+    Vector2 feet{SCREEN_W * 0.5f, SCREEN_H - 90.0f};
+    DrawShadowBlob(feet, 40);
+    DrawCrewFigureInked(h, feet, 0.55f, true, 0, t, Pose{});
+}
+
 void DrawCaveSpritePage(float t) {
     TxtBold("Creatures of the Cave", 30, 16, 24, Pal::Brass);
     const EnemyType types[4] = {EnemyType::SeaLouse, EnemyType::CaveShrimp, EnemyType::BrineWorm, EnemyType::Lobster};
