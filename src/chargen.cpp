@@ -194,12 +194,16 @@ Image PaintGlow(const std::vector<std::string>& rowsIn, Color glowColor) {
         int gx = std::clamp(px / SC, 0, gw - 1), gy = std::clamp(py / SC, 0, gh - 1);
         hi[py * W + px] = mask[gy * gw + gx];
     }
+    // A tight halo, not a fog: earlier this used a much wider blur (radius 6) that bridged the gaps between
+    // separate silhouette parts (e.g. neighbouring tentacles) into one glowing blob, erasing exactly the shape
+    // definition the ink linework was drawing. Keeping the blur small lets the glow brighten the true silhouette
+    // without smearing across the dark gaps that separate its parts.
     std::vector<float> soft = hi, core = hi;
-    BoxBlur(soft, W, H, 6, 3);
-    BoxBlur(core, W, H, 2, 2);
+    BoxBlur(soft, W, H, 2, 2);
+    BoxBlur(core, W, H, 1, 1);
     std::vector<unsigned char> px(W * H * 4, 0);
     for (int i = 0; i < W * H; i++) {
-        float a = std::clamp(soft[i] * 0.75f + core[i] * 0.55f, 0.0f, 1.0f);
+        float a = std::clamp(soft[i] * 0.45f + core[i] * 0.65f, 0.0f, 1.0f);
         if (a < 0.02f) continue;
         px[i * 4 + 0] = glowColor.r; px[i * 4 + 1] = glowColor.g; px[i * 4 + 2] = glowColor.b;
         px[i * 4 + 3] = (unsigned char)(a * 255);
@@ -611,48 +615,53 @@ std::vector<ClassSpec> CrewSpecs() {
         c.pal['L'] = {142, 106, 48, 255};    // lantern brass, shadowed / cogs
         c.pal['c'] = {58, 52, 45, 255};      // lantern chain and rings
 
-        const float cx = 13;
-        Grid g(26, 44);
-        // the bell: a rounded dome, shaded darker on its underside so it reads as a hollow glowing form
-        g.Ellipse(cx, 11, 9.2f, 8.4f, 't');
-        g.Ellipse(cx, 13.6f, 8.6f, 7.0f, 'T');
-        g.Ellipse(cx, 8.6f, 8.6f, 6.6f, 't');   // relights the crown over the shadow pass so the dome apex stays bright
+        // Drawn much bolder than the first pass: at the figure's actual on-screen size (tens of pixels, not a
+        // zoomed-in debug crop) six thin, closely-spaced tentacles and a fine 3-unit-wide lantern simply vanished
+        // into a single glowing smudge - "a mono-colour floating ball dripping something". Fewer, thicker,
+        // further-apart parts, a wider flatter dome, and ink slits pre-separating the tentacle roots all read at
+        // a glance; fine detail that only shows up zoomed in doesn't count for anything here.
+        const float cx = 16;
+        Grid g(32, 38);
+        // the bell: wide and flat like a real jellyfish cap, not a round ball - shaded darker underneath so it
+        // reads as a hollow glowing form, relit across the crown so the apex stays bright
+        g.Ellipse(cx, 10, 12.5f, 8.0f, 't');
+        g.Ellipse(cx, 13.0f, 11.5f, 6.0f, 'T');
+        g.Ellipse(cx, 7.0f, 11.0f, 6.0f, 't');
         // faint darker patterning inside the glow (echoes the reference's subtle mask-like shading, not real eyes)
-        g.Ellipse(cx - 3.0f, 8.4f, 1.3f, 1.7f, 'k');
-        g.Ellipse(cx + 3.0f, 8.4f, 1.3f, 1.7f, 'k');
+        g.Ellipse(cx - 4.0f, 7.5f, 1.6f, 2.0f, 'k');
+        g.Ellipse(cx + 4.0f, 7.5f, 1.6f, 2.0f, 'k');
+        // ink slits between where each tentacle will start, so the hem reads as gathered/split rather than solid
+        for (float gap : {cx - 6.0f, cx, cx + 6.0f}) g.Capsule(gap, 12.5f, gap, 16.5f, 0.55f, 0.3f, 'k');
 
-        // the spectral lantern, hanging inside the bell on a short chain, with two small cogs either side
-        g.Rect(cx - 0.3f, 10.6f, cx + 0.3f, 11.4f, 'c');
-        g.Ellipse(cx, 10.8f, 0.5f, 0.5f, 'c');
-        g.Rect(cx - 2.0f, 11.4f, cx + 2.0f, 12.3f, 'L');
-        g.Rect(cx - 1.6f, 12.3f, cx + 1.6f, 16.2f, 'l');
-        g.Ellipse(cx, 14.2f, 0.7f, 1.1f, 'w');
-        g.Ellipse(cx - 2.6f, 14.0f, 0.7f, 0.7f, 'L'); g.Ellipse(cx - 2.6f, 14.0f, 0.25f, 0.25f, 'c');
-        g.Ellipse(cx + 2.6f, 13.2f, 0.6f, 0.6f, 'L'); g.Ellipse(cx + 2.6f, 13.2f, 0.2f, 0.2f, 'c');
+        // the spectral lantern: much bigger than the first pass so it actually reads as an object, not a speck
+        g.Rect(cx - 0.35f, 8.6f, cx + 0.35f, 9.6f, 'c');
+        g.Ellipse(cx, 8.8f, 0.6f, 0.6f, 'c');
+        g.Rect(cx - 2.6f, 9.6f, cx + 2.6f, 10.8f, 'L');
+        g.Rect(cx - 2.0f, 10.8f, cx + 2.0f, 15.4f, 'l');
+        g.Ellipse(cx, 12.8f, 1.0f, 1.6f, 'w');
+        g.Ellipse(cx - 3.2f, 12.6f, 0.9f, 0.9f, 'L'); g.Ellipse(cx - 3.2f, 12.6f, 0.3f, 0.3f, 'c');
+        g.Ellipse(cx + 3.2f, 11.6f, 0.75f, 0.75f, 'L'); g.Ellipse(cx + 3.2f, 11.6f, 0.25f, 0.25f, 'c');
 
-        // trailing tentacles: six wavy strands hanging from the bell's rim, tapering to a fine point, with a
-        // couple of bright bioluminescent patches along each one
+        // four wavy tentacles - thick at the root, real gaps between them, tapering to a point - with a bright
+        // bioluminescent patch partway down each one
         struct Tendril { float baseX, amp, phase, rTop, rBot; };
         const Tendril tendrils[] = {
-            {cx - 7.5f, 1.1f, 0.0f, 1.05f, 0.28f}, {cx - 4.6f, 1.5f, 1.4f, 0.95f, 0.26f},
-            {cx - 1.6f, 0.9f, 2.6f, 0.85f, 0.22f}, {cx + 1.6f, 1.2f, 0.7f, 0.85f, 0.22f},
-            {cx + 4.6f, 1.6f, 2.0f, 0.95f, 0.26f}, {cx + 7.5f, 1.0f, 3.3f, 1.05f, 0.28f},
+            {cx - 9.0f, 1.4f, 0.0f, 2.3f, 0.6f}, {cx - 3.0f, 1.7f, 1.8f, 2.0f, 0.5f},
+            {cx + 3.0f, 1.7f, 0.9f, 2.0f, 0.5f}, {cx + 9.0f, 1.4f, 2.7f, 2.3f, 0.6f},
         };
-        const float y0 = 18, y1 = 42;
+        const float y0 = 15, y1 = 34;
         for (const Tendril& td : tendrils) {
             for (int yy = (int)y0; yy <= (int)y1; yy++) {
                 float t = (yy - y0) / (y1 - y0);
-                float x = td.baseX + td.amp * sinf(t * 5.5f + td.phase);
+                float x = td.baseX + td.amp * sinf(t * 4.0f + td.phase);
                 float r = td.rTop + (td.rBot - td.rTop) * t;
                 g.Ellipse(x, (float)yy, r, r, 't');
                 g.Ellipse(x + r * 0.4f, (float)yy, r * 0.5f, r * 0.5f, 'T');
             }
-            for (int gi = 0; gi < 2; gi++) {
-                float t = 0.32f + gi * 0.36f;
-                float yy = y0 + t * (y1 - y0);
-                float x = td.baseX + td.amp * sinf(t * 5.5f + td.phase);
-                g.Ellipse(x, yy, 0.55f, 0.55f, 'w');
-            }
+            float t = 0.45f;
+            float yy = y0 + t * (y1 - y0);
+            float x = td.baseX + td.amp * sinf(t * 4.0f + td.phase);
+            g.Ellipse(x, yy, 0.85f, 0.85f, 'w');
         }
         c.body = g.rows;
         out.push_back(c);
