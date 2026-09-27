@@ -37,5 +37,6 @@ add_executable(depth
     src/relics.cpp
     src/levelgen.cpp
     src/enemyart.cpp
+    src/chargen.cpp
 )
 target_link_libraries(depth PRIVATE raylib)

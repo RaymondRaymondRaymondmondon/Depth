@@ -266,6 +266,9 @@ int main(int argc, char** argv) {
         SetTraceLogLevel(LOG_WARNING);
         return VerifyPlatformLevels();
     }
+    if (argc >= 2 && strcmp(argv[1], "--gen-siren-art") == 0) {
+        return GenerateSirenArt() ? 0 : 1;
+    }
     const char* shotDir = argc >= 3 && strcmp(argv[1], "--shots") == 0 ? argv[2] : nullptr;
     const char* spriteFile = argc >= 3 && strcmp(argv[1], "--sprites") == 0 ? argv[2] : nullptr;
     const bool flatsUiTest = argc >= 2 && strcmp(argv[1], "--flats-ui-test") == 0;

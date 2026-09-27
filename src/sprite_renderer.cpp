@@ -56,6 +56,7 @@ void SpriteRenderer::Draw(const Texture2D& tex, const Mat2D& m, float pivotX, fl
         case BlendKind::Multiply: BeginBlendMode(BLEND_MULTIPLIED); break;
         default: BeginBlendMode(BLEND_ALPHA_PREMULTIPLY); break;   // the textures are premultiplied on load
     }
+    rlDisableBackfaceCulling();   // an arbitrary bone rotation/mirror can flip this quad's winding; never let culling drop it
     rlSetTexture(tex.id);
     rlBegin(RL_QUADS);
     rlColor4ub(tint.r, tint.g, tint.b, tint.a);
@@ -70,6 +71,7 @@ void SpriteRenderer::Draw(const Texture2D& tex, const Mat2D& m, float pivotX, fl
     }
     rlEnd();
     rlSetTexture(0);
+    rlEnableBackfaceCulling();
     EndBlendMode();
 }
 
