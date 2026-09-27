@@ -1690,7 +1690,13 @@ void DrawCrewFigureInked(const Hero& h, Vector2 feet, float s, bool right, float
         if (art::CharacterRenderer::HasAssets(folder)) {
             art::CharacterRenderer& cr = painted[(int)h.cls];
             if (!cr.Ready()) cr.Load(folder);
-            if (cr.Ready()) { cr.Draw(feet, s, right, walk != 0 ? "walk" : "idle", walk != 0 ? walk / 6.0f : t, tint); return; }
+            if (cr.Ready()) {
+                // ART HOOK: a class whose "body" slot carries neutral/attack/hit art (e.g. the Siren) picks between them
+                // from the same pose the procedural figure below already reacts to - no extra signal needed from callers.
+                int expr = pose.headDown < -0.25f ? 2 : (pose.reach > 0.25f ? 1 : 0);
+                cr.Draw(feet, s, right, walk != 0 ? "walk" : "idle", walk != 0 ? walk / 6.0f : t, tint, expr);
+                return;
+            }
         }
     }
     BeginFigure();

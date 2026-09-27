@@ -69,8 +69,9 @@ public:
     bool Load(const std::string& folder);
     bool Ready() const { return ready_; }
     // `feet` is where the root bone stands; `scale` converts art pixels to screen pixels. `anim` is an animation name in the
-    // skeleton ("idle", "walk", "attack"...); if it is missing the setup pose is drawn.
-    void Draw(Vector2 feet, float scale, bool facingRight, const std::string& anim, float time, Color tint = WHITE);
+    // skeleton ("idle", "walk", "attack"...); if it is missing the setup pose is drawn. `expr` selects which attachment is
+    // active in the "body" slot when it carries more than one (e.g. neutral/attack/hit torso art) - out-of-range values clamp.
+    void Draw(Vector2 feet, float scale, bool facingRight, const std::string& anim, float time, Color tint = WHITE, int expr = 0);
     skel::Skeleton& Rig() { return rig_; }
     static bool HasAssets(const std::string& folder);
 private:

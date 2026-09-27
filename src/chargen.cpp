@@ -601,12 +601,13 @@ bool GenerateSirenArt();   // defined below; forward-declared so GenerateAllCrew
 
 bool GenerateWispArt();   // defined below; forward-declared for the same reason as GenerateSirenArt above
 
-// depth.exe --gen-crew-art: regenerates the Siren (a hand-tuned pilot) plus the ten remaining classes built from
-// the shared ClassSpec toolkit. The Wisp of the Sea now uses real, hand-placed art (cropped from a reference
-// sheet) instead of GenerateWispArt's procedural version - deliberately NOT called here, so re-running this
-// doesn't overwrite it. GenerateWispArt is left in place below as a fallback if that ever needs to change back.
+// depth.exe --gen-crew-art: regenerates the ten remaining classes built from the shared ClassSpec toolkit. Both
+// the Wisp of the Sea and the Siren now use real, hand-placed art (cropped from reference sheets with marked
+// rigging pivots) instead of their procedural pilot versions - deliberately NOT called here, so re-running this
+// doesn't overwrite either one. GenerateSirenArt/GenerateWispArt are left in place below as a fallback if that
+// ever needs to change back.
 bool GenerateAllCrewArt() {
-    bool ok = GenerateSirenArt();
+    bool ok = true;
     for (const ClassSpec& c : CrewSpecs()) ok = GenerateClassArt(c) && ok;
     return ok;
 }

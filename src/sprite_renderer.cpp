@@ -95,11 +95,15 @@ bool CharacterRenderer::Load(const std::string& folder) {
     return ready_;
 }
 
-void CharacterRenderer::Draw(Vector2 feet, float scale, bool facingRight, const std::string& anim, float time, Color tint) {
+void CharacterRenderer::Draw(Vector2 feet, float scale, bool facingRight, const std::string& anim, float time, Color tint, int expr) {
     if (!ready_) return;
     rig_.SetToSetupPose();
     int ai = rig_.FindAnimation(anim);
     if (ai >= 0) rig_.Apply(rig_.animations[ai], time);
+    // ART HOOK: a "body" slot with more than one attachment (e.g. a neutral/attack/hit torso) swaps expression by index.
+    int bi = rig_.FindSlot("body");
+    if (bi >= 0 && !rig_.slots[bi].attachments.empty())
+        rig_.slots[bi].active = std::clamp(expr, 0, (int)rig_.slots[bi].attachments.size() - 1);
     float f = facingRight ? 1.0f : -1.0f;
     Mat2D root = Mat2D::FromTRS(feet.x, feet.y, 0, scale * f, scale);   // a mirrored root flips the whole rig, joints and all
     rig_.UpdateWorld(root);
