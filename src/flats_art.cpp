@@ -39,7 +39,7 @@ const std::vector<Sprite>& Sprites() {
         {"Minnow", {"....eeee........", "..eelllllle..ee.", ".elllkllllleeee.", ".ellllllllle.ee.", "..eelllllee.....", "....eeee........"}},
         {"Hermit Crab", {".......y........", "......yny.......", ".....nnyyn......", "....nnyynnn...oo", "...nnyyyynnn.oo.", "..nnynnnnynn.o..", "..nnyyyyyynnooo.", "..nnnnnnnnnnoo..", "...nnnnnnnn.oo.o", "....o.o.o.o.o.o."}},
         {"Flying Fish", {"...cc...........", "..cwwc..cc......", ".cwwwwccwwc.....", "cwwwwwwwwwwc....", ".ccwbbbbbbbbb...", "...bbbkbbbbbbbb.", "....lllllllbbbbb", ".....bbbbbb..bb."}},
-        {"Anglerfish", {".........y......", "........y.......", ".......y........", "....aaaaaaa.....", "..aaaaaaaaaaa...", ".aaaaywaaaaaaa..", ".aaaaaaaaaaaaaa.", ".aawawawawaaaaa.", "..aaaaaaaaaaaaa.", "....aaaa..aaa..."}},
+        {"Anglerfish", {"...................................yy", "...............aaaaaaaaaaaaaaaaaaaayyyy", "..............a....................yyyy", ".............a......................yy", "............a", "...........a", ".......aaaaaaaaaaaaaaaaa", ".....aaaaaaaaaaaaaaaaaaaaaaa", "...aaaaaaaaaaaaaaaaaaaaaaaaaaaa", "..aaaaaaaaaaaaaaaaawwkaaaaaaaaaa", "..aaaaaaaaaaaaaaaaawwwwaaaaaaaaaaa", ".aaaaaaeeeeeaaaaaaaaaaaaaaaaaaaaaa", ".aaaaaeeeeeeeeeaaaaaaaawawawawawaaa", "..aaeeeeeeeeeeeeeeeeeeeeeaaaaaaaaaa", "..aaaeeeeeeeeeeeeeeeeaaawawawawaaa", "...aaaaaeeeeeeeeeeeeaaaaaaaaaaaa", ".....aaaaaaeeeeeeeeaaaaaaaaaa", ".......aaaaaaaaaaaaaa"}},
         {"Pufferfish", {"..o.o..o..o.....", "...oyyyyyyo.....", ".ooyyyyyyyyoo...", "..yyykyyyyyyy...", ".oyyyyyyyyyyyo..", "..yyswwsyyyyyy..", ".oyyyyyyyyyyo.oo", "...oyyyyyyyo.ooo", "..o.o..o..o....."}},
         {"Sea Urchin", {".p...p..p...p...", "..p..p..p..p....", "...pppppppp.....", "pppppkppppppppp.", "...pppppppp.....", "pppppppppppp.pp.", "..p..p..p..p....", ".p...p..p...p..."}},
         {"Clownfish", {"......oo........", "....ooooooo.....", "..ooowwooowwoo..", ".oookwwooowwooo.", ".oooowwooowwoo.o", "..ooowwooowwoooo", "....ooooooo..oo."}},
@@ -50,8 +50,8 @@ const std::vector<Sprite>& Sprites() {
         {"Mudskipper", {".....k.k........", "....gggggg......", "..ggggggggggg...", ".ggggnggggggggg.", ".gggggggggggg.gg", "..ggnnggggnnggg.", ".nn.nn.nn.nn..g."}},
         {"Sailfish", {".....bb.........", "....bBBb........", "...bBBBBb.......", ".bbbbbbbbbbb....", "lllllkbbbbbbbb..", "....llllllbbbbbb", ".....bbbbb.bb..."}},
         {"Skeleton Sailor", {"...kkkkkkkk.....", "..kkkkyykkkk....", ".kkkkkkkkkkkk...", "...wwwwwwww.....", "...wkkwwkkw.....", "...wkkwwkkw.....", "....wwkkww......", "..awawawawawa...", ".awawawawawawa..", "..wawawawawaw...", "..a.wa..aw.aw...", "...c.c..c..c...."}},
-        {"Stingray", {"......bbbb......", "...bbbbbbbbbb...", ".bbbbkbbbbkbbbb.", "bbbbbbbbbbbbbbbb", ".bbbbbbbbbbbbeee", "...bbbbbbbbbe...", ".....bbbbb.e...."}},
-        {"Manta Ray", {".....b....b.....", ".bb.bbb..bbb.bb.", "bbbbbbbbbbbbbbbb", "bbbbbkbbbbkbbbbb", ".bbbbbwwwwbbbbb.", "..bbbbwwwwbbbb..", "....bbbwwbbb....", "......eee.......", ".......e........"}},
+        {"Stingray", {"..............bbbb", "..........bbbbbbbbbbbb", "......bbbbbbbbbbbbbbbbbbbb", "..BBbbbbbbbbbbbbbbbbbbbbbbbbbbB", "BBbbbbbbbbbkbbbbbbbbbbkbbbbbbbbBB", ".BBbbbbbbbbbbbbbllllbbbbbbbbbbbBB", "...BBbbbbbbbbbbbllllllbbbbbbbBB...eeeeee", ".....BBbbbbbbbbbbllllbbbbbbBB.....eeeeeeeeee", ".......BBbbbbbbbbbbbbbbbBB..........eeeeeeeeeee", ".........BBBbbbbbbbbbBBB"}},
+        {"Manta Ray", {"................bb..bb", "..............bbbb..bbbb", ".........bbbbbbbbbbbbbbbbbbbb", "..bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "bbbbbbbbbbbbbbbbbkbbbbkbbbbbbbbbbbbbb", ".bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "...bbbbbbbbbbbllllllllllbbbbbbbbb", ".....bbbbbbbbbllllllllllbbbbbb", ".......bbbbbbbbbllllllbbbbb", ".........bbbbbbbblllbbbb", "...........bbbbbbbbbb", "..............eeeee", "...............eee", "................ee"}},
         {"Sea Turtle", {"....gggggggg....", "..gGGgGGgGGgg...", ".gGgGGgGGgGGgg..", ".ggGGgGGgGGgggg.", "gggggggggggggg..", "sskgggggggggg.s.", "ss.ss......ss..."}},
         {"Coral Queen", {"..r.r.r.rr.r.r..", "..r.rrrrrr.r.r..", "...rryyyyrrr....", "....mmmmmm......", "...mkmmmmkm.....", "....mmrrmm......", "...rrrrrrrr.....", "..rrrrrrrrrr....", ".rrr.rrrr.rrr..."}},
         {"Crab Sentinel", {".rr..........rr.", "rrrr...ee...rrrr", "rr.r..eeee..r.rr", ".rr.rrrrrrrr.rr.", "...rrkrrrrkrr...", "...rrrrrrrrrr...", "..rrrelllerrr...", ".r.rr.rrrr.rr.r.", "r..r..r..r..r..r"}},
@@ -61,8 +61,8 @@ const std::vector<Sprite>& Sprites() {
         {"Barracuda", {"............ee..", ".lllllllllllllee", "lllkllllllllllee", "lwwwwllleeeeeee.", ".llllllllll.ee.."}},
         {"Moray Eel", {"...nnnnnnnn.....", "..nnnnnnnnnn....", ".nnnggggggnnn...", ".nngggggggggg...", ".nnnkggggwwwgg..", ".nnnnggggggggg..", "..nnnnnngggg....", "...nnnnnnnn....."}},
         {"Nautilus", {"....ssss........", "...soooosss.....", "..soossooos.....", ".soossoossos....", ".soosoooosos....", ".sooossssoos....", "..soooooooss....", "...ssssss.mm.mm.", ".......mmmmmmmm."}},
-        {"Great White", {".......ee.......", "......eeee......", ".....eeeeee.....", ".eeeeeeeeeeeeeee", "eeeekeeeeeeeeeee", "eewwwwwlllllleee", ".lwwwwwllllllle.", "..lllllllllll.ee", ".......ll......."}},
-        {"Sperm Whale", {"..aaaaa......a.a", ".aaaaaaaaa..aaaa", "aaaaaaaaaaaaaaa.", "aakaaaaaaaaaaa..", "aaaaaaaaaaaaa...", "aeeeeeeeeeeaa...", "wwwwwwweeee.....", ".eeeeeeeee......"}},
+        {"Great White", {"..................ee", ".................eeee", "................eeeeee", "eeeee...........eeeeeee", "eeeeeeee.....eeeeeeeeeeeeeeeeee", ".eeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", "..eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", "...eeeeeeeeeeeeeeeeeeeeeeeeeeekeeeeee", "....eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", ".....lllllllllllllllllllllllllllwwwwww", ".......llllllllllllllllllllllllwlwlwlw", "........wwwwwwwwwwwwwwwwwwwwwwwwwwww", "..........wwwwwwwwwwwwwwwwwwwwwww", "......eeeee....................eee"}},
+        {"Sperm Whale", {"........aaaaaaaaaaaaaaaaaa", "......aaaaaaaaaaaaaaaaaaaaaaaa.......aa", "....aaaaaaaaaaaaaaaaaaaaaaaaaaaaa....aaa", "...aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa..aaa", "..aaaakaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "..aaaaaaaaeeeaaaaaaaaaaaaaaaaaaaaaaaaa", "..eeeeaaaaaaeeeeeaaaaaaaaaaaaaaaaaaa", "..eeeeeeeeeeeeeeeeeeeeaaaaaaaaaaaa", "..wewewewewewellllllllllleeeeeeeeaa", "...eeeeeeeeeeeellllllllllleeeeeee", ".....eeeeeeeeeeeeeeeeeeeeeeeee", ".......eeeeeeeeeeeeeeeeeeee"}},
         {"Kraken Spawn", {"....pppppp......", "...pppppppp.....", "..ppwkppwkpp....", "..pppppppppp....", "..pp.pppp.pp....", ".pp.pp..pp.pp...", "pp..p....p..pp..", ".p.pp....pp..p.."}},
         {"Sea Serpent", {".........gggg...", "........gggggg..", ".......ggkggrr..", "....gg..gggggg..", "...gggg..gggg...", "..gg.gg...gg....", ".gg...gg.gg.....", "gg.....ggg......"}},
         {"Drowned King", {"..y.y.yy.y.y....", "..yyyyyyyyyy....", "...wwwwwwww.....", "...wkkwwkkw.....", "...wwwwwwww.....", "....wwkkww......", ".gg.wwwwww.gg...", "..gggwkwkwggg...", "...gg.gg.gg....."}},
@@ -79,7 +79,7 @@ const std::vector<Sprite>& Sprites() {
         {"Atlantean Hoplite", {"....kyyk........", "...kyyyyk...w...", "...kssssk...w...", "...ksssk....w...", "..rrrrrr....w...", ".eeeeeeee...w...", ".eeeyyeee...w...", ".eeeeeeee...w...", "..ee..ee........"}},
         {"Sunken Oracle", {"....bbbbbb......", "...bbbbbbbb.....", "..bbbwwwwbb.....", "..bbwcwwcwb.....", "..bbbwwwwbb.....", "...bbbbbbbb.....", "..bbbbbbbbbb.cc.", ".bbbbbbbbbbb.cc.", "bbbbbbbbbbbbb..."}},
         {"Coral Golem", {"..r.r..r........", ".rrrrrrrrr......", "..eeeeeeee......", ".eeceeeceee.....", ".eeeeeeeeee.....", "eeeeeeeeeeeee...", "eeeeeeeeeeeee...", "ee.ee..ee.ee...."}},
-        {"Selenis, the Moon God", {"....wwwwwwww....", "..wwwwwwwwwwww..", ".wwwlwwwwwwlwww.", ".wwwwkwwwwkwwww.", "wwwlwwwwwwwwwwww", "wwwwwwwlwwwwlwww", ".wwwwwwkkwwwwww.", ".wwwlwwwwwwwwww.", "..wwwwwwwwwwww..", "....wwwwwwww...."}},
+        {"Selenis, the Moon God", {"......y.....y.....y.....y", ".....yyy...yyy...yyy...yyy", "....yyyyy.yyyyy.yyyyy.yyyyy", ".........wwwwwlllll.........", ".......wwwwwwllllllll.......", "......wwwwwwllllllllll......", ".....wwwwwweeelllllllll.....", "....wwwwwwlelellllllllle....", "...wwwwwwlleeelllllelllee...", "..wwwwwwlllllllllleeelllee..", "..wwwwwlllllllllleeleellee..", ".wwwweeeeeeelllleeeeellllee.", ".wwwwelelllllllllllelllleee.", ".wwwleeekkkllllllkkkllleeee.", ".wwlllllkkkllllllkkklleeeee.", ".wllllllllllllllllllleeeeee.", ".lllllllllllleellllleeeeeee.", ".lllllllllllleelllleeeeeeee.", ".lllllllllllleellleeeeeeeee.", ".lllllllllllllllleeeeeeeeee.", ".llllleeellllllleeeeeeeeeee.", "..llleeleekkkkkkkkeeeeeeee..", "..lllelllelllleeeeeeeeeeee..", "...lleeleellleeeeeeeeeeee...", "....lleeellleeeeeeeeeeee....", ".....eelllleeeeeeeeeeee.....", "......eeeleeeeeeeeeeee......", ".......eeeeeeeeeeeeee.......", ".........eeeeeeeeee........."}},
         {"Black Goat",{".w..........w...", ".ww........ww...", "..ww.aaaa.ww....", "...waaaaaaw.....", "...arraarra.....", "...aaaaaaaa.....", "....aaaaaa......", ".....awwa.......", ".....aaaa......."}},
     };
     return s;
@@ -131,7 +131,8 @@ Painted Paint(const Sprite& sp) {
     Painted out;
     // first the concept grid is upscaled 4x with the edge-aware EPX rule (twice), which rounds diagonals and curves without smearing detail
     std::vector<std::string> g0;
-    for (const char* row : sp.rows) { std::string s = row; s.resize(16, '.'); g0.push_back(s); }
+    size_t w0max = 16; for (const char* row : sp.rows) w0max = std::max(w0max, strlen(row));
+    for (const char* row : sp.rows) { std::string s = row; s.resize(w0max, '.'); g0.push_back(s); }
     for (int pass = 0; pass < 2; pass++) {
         int h0 = (int)g0.size(), w0 = (int)g0[0].size();
         std::vector<std::string> g1(h0 * 2, std::string(w0 * 2, '.'));
@@ -244,7 +245,8 @@ bool DrawCreaturePixels(const std::string& name, Rectangle box, float dim, int s
     const Painted& p = it->second;
     if (!p.ok) return false;
     int rows = (int)sp->rows.size();
-    float scale = std::min(box.width / (16.0f * OC), box.height / (std::max(rows, 9) * (float)OC));
+    size_t colsMax = 16; for (const char* row : sp->rows) colsMax = std::max(colsMax, strlen(row));
+    float scale = std::min(box.width / ((float)colsMax * OC), box.height / (std::max((int)(colsMax * 9 / 16), rows) * (float)OC));
     float dw = p.tex.width * scale, dh = p.tex.height * scale;
     float dx = box.x + (box.width - dw) / 2, dy = box.y + (box.height - dh) / 2 + scale * OC * 0.3f;
     DrawEllipse((int)(dx + dw / 2), (int)(dy + dh - scale * OC * (1 + 0.3f)), dw * 0.36f, scale * OC * 0.8f, Fade(Color{20, 14, 12, 255}, 0.30f * dim));

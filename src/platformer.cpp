@@ -1009,7 +1009,7 @@ void BackgroundSystem::Setup(int lv) {
         };
         farLayer = {0.2f, 0.2f, [cw, ch, dim](const PlatformState& p, float t, float ox, float oy) {   // riveted steel plating, lost in the gloom
             (void)p; (void)t;
-            const float B = 0.35f;
+            const float B = 0.46f;
             DrawRectangle(0, 0, (int)cw, (int)ch, dim(Color{60, 52, 46, 255}, B));
             float px0 = fmodf(ox, 64), py0 = fmodf(oy + 64000, 64);
             for (float y = -py0 - 64; y < ch; y += 64)
@@ -1026,7 +1026,7 @@ void BackgroundSystem::Setup(int lv) {
         }};
         midLayer = {0.5f, 0.5f, [cw, ch, dim](const PlatformState& p, float t, float ox, float oy) {   // pipework: mains, T-joints, valves and trusses
             (void)p;
-            const float B = 0.55f;
+            const float B = 0.72f;
             Color pipe = dim(Color{176, 104, 62, 255}, B), pipeHi = dim(Color{222, 148, 96, 255}, B), pipeLo = dim(Color{92, 52, 32, 255}, B), brass = dim(Color{184, 140, 60, 255}, B), iron = dim(Color{70, 60, 54, 255}, B);
             // horizontal runs, with trusses between the upper and lower ones
             const float rowGap = 210;
@@ -1060,7 +1060,25 @@ void BackgroundSystem::Setup(int lv) {
                 DrawRectangle((int)x + 10, (int)vy - 8, 4, 16, iron);
                 DrawCircle((int)x + 12, (int)vy, 11, iron); DrawCircle((int)x + 12, (int)vy, 8, dim(Color{150, 50, 40, 255}, B)); DrawCircle((int)x + 12, (int)vy, 3, iron);
             });
-            Layer(ox, 1.0f, 340, cw, [&](float x, float wx) {   // something watches from a gap, then isn't there
+            Layer(ox, 1.0f, 520, cw, [&](float x, float wx) {   // slow machinery behind the pipes: great gears, and dials glowing amber
+                float gy = 90 + Hs(wx * 0.23f) * (ch - 260);
+                float dir = Hs(wx * 0.7f) > 0.5f ? 1.0f : -1.0f;
+                DrawGear({x, gy}, 46, 14, t * 0.5f * dir + wx, dim(Color{150, 116, 60, 255}, B));
+                DrawGear({x + 66, gy + 20}, 26, 9, -t * 0.9f * dir + wx, dim(Color{176, 104, 62, 255}, B));
+                DrawCircle((int)x, (int)gy, 9, dim(Color{40, 34, 30, 255}, B));
+                if (Hs(wx * 1.9f) > 0.45f) { // a pressure dial with a trembling needle
+                    Vector2 dc{x + 150, gy - 40};
+                    DrawCircleV(dc, 20, dim(Color{40, 34, 30, 255}, B)); DrawCircleV(dc, 16, dim(Color{176, 158, 120, 255}, B));
+                    float na = -2.3f + 1.6f * (0.5f + 0.5f * sinf(t * 0.7f + wx)) + sinf(t * 23) * 0.03f;
+                    DrawLineEx(dc, {dc.x + cosf(na) * 13, dc.y + sinf(na) * 13}, 2, Color{170, 30, 24, 255});
+                    DrawCircleV(dc, 2.5f, Color{20, 16, 14, 255});
+                }
+            });
+            Layer(ox, 1.0f, 190, cw, [&](float x, float wx) {   // chains and cables hanging from the ceiling
+                if (Hs(wx * 0.9f + 2) < 0.5f) return;
+                float len = 60 + Hs(wx) * 200, sway = sinf(t * 0.8f + wx) * 3;
+                for (float yy = 0; yy < len; yy += 9) DrawRectangle((int)(x + sway * yy / len), (int)yy, 4, 6, dim(Color{90, 80, 70, 255}, B + 0.15f));
+            });            Layer(ox, 1.0f, 340, cw, [&](float x, float wx) {   // something watches from a gap, then isn't there
                 float cyc = fmodf(t * 0.11f + Hs(wx + 20) * 9, 9.0f);
                 if (cyc > 1.6f) return;
                 float a = std::min(1.0f, cyc * 4) * std::min(1.0f, (1.6f - cyc) * 4);
@@ -1349,6 +1367,18 @@ void DrawShipScenery(const PlatformState& p, int c0, int c1, float t) {
             float px = x * (float)T, py = y * (float)T;
             for (int k = 0; k < 2; k++) DrawRectangle((int)px + 4 + k * 16, (int)py - 18, 4, 18, Color{84, 54, 32, 255});
             DrawRectangle((int)px, (int)py - 22, T, 5, Color{120, 80, 46, 255});
+            float hh = Hs(x * 7.13f + 2);   // deck furniture behind the rail, dimmer than the deck you walk on: barrels, cannons, coiled rope
+            if (!gGhost || hh > 0.5f) {
+                if (hh > 0.90f && hh < 0.945f) {
+                    DrawRectangle((int)px + 6, (int)py - 16, 18, 16, Color{58, 38, 22, 255});
+                    DrawRectangle((int)px + 6, (int)py - 13, 18, 2, Color{28, 22, 18, 255}); DrawRectangle((int)px + 6, (int)py - 6, 18, 2, Color{28, 22, 18, 255});
+                } else if (hh >= 0.945f && hh < 0.975f) {
+                    DrawRectangle((int)px + 4, (int)py - 12, 22, 6, Color{26, 26, 30, 255}); DrawRectangle((int)px + 20, (int)py - 14, 8, 9, Color{36, 36, 40, 255});
+                    DrawCircle((int)px + 9, (int)py - 4, 4, Color{54, 36, 22, 255}); DrawCircle((int)px + 22, (int)py - 4, 4, Color{54, 36, 22, 255});
+                } else if (hh >= 0.975f) {
+                    for (int k = 0; k < 3; k++) DrawEllipse((int)px + 15, (int)py - 3 - k * 3, 10 - k, 3, Color{92, 76, 52, 255});
+                }
+            }
             break; // just the top surface in each column
         }
     }
