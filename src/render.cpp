@@ -1290,6 +1290,17 @@ void DrawCrewFigure(const Hero& h, Vector2 ft, float s, bool right, float walk, 
             DrawLineEx(P(c.x - w + 0.8f, c.y - w + 0.8f), P(c.x + w - 0.8f, c.y - w + 0.8f), 0.7f * s, leatherDk);
             DrawLineEx(P(c.x - w + 0.8f, c.y + w - 0.8f), P(c.x + w - 0.8f, c.y + w - 0.8f), 0.7f * s, leatherDk);
         };
+        // A small "detail kit", reusable across any class: the sort of small things that make cloth and jewelry
+        // read as real rather than flat - strung beads, a hand-stitched seam, a woven cloth texture.
+        auto Necklace = [&](Vector2 a, Vector2 b, int n, float bead, Color col) { // beads strung along a gentle drooping curve
+            for (int k = 0; k <= n; k++) {
+                float u = k / (float)n, sag = sinf(u * PI) * 3.5f;
+                ShadeBall({L(a, b, u).x, L(a, b, u).y + sag * s}, bead * s, col);
+            }
+        };
+        auto Stitching = [&](Vector2 a, Vector2 b, int n, Color col) { // a dashed, hand-sewn seam line
+            for (int k = 0; k < n; k++) DrawLineEx(L(a, b, (k + 0.12f) / n), L(a, b, (k + 0.55f) / n), 0.7f * s, col);
+        };
         switch (h.cls) {
             case HeroClass::Nurse:
                 Strap(P(-14, -133), P(12, -101), 2.2f, leather);                                  // a bandolier of glass vials
@@ -1312,6 +1323,8 @@ void DrawCrewFigure(const Hero& h, Vector2 ft, float s, bool right, float walk, 
                 Strap(P(-13, -96), P(-20, -62), 1.7f, leatherDk); ShadeBall(P(-20, -62), 2.2f * s, brass); // a sword hanger
                 for (int k = 0; k < 3; k++) { DrawLineEx(P(-8 + k * 5.5f, -128), P(-8 + k * 5.5f, -123), 1.7f * s, k == 1 ? Color{40, 70, 150, 255} : Color{170, 36, 36, 255}); ShadeBall(P(-8 + k * 5.5f, -121), 2.1f * s, brass); } // medals
                 DrawLineEx(P(-25, -34), P(19, -34), 1.7f * s, brass); DrawLineEx(P(-19, -100), P(-25, -34), 1.2f * s, brass); DrawLineEx(P(15, -100), P(19, -34), 1.2f * s, brass); // gold piping
+                Necklace(P(-6, -134), P(10, -117), 5, 0.9f, brass);                                 // a watch chain, looped from a lapel button into a breast pocket
+                Stitching(P(-19, -100), P(-25, -34), 5, Tone(top, 0.3f));                           // topstitching down the coat's front seam
                 break;
             case HeroClass::Mechanic:
                 Strap(P(-15, -133), P(14, -98), 2.8f, leather); Buckle(P(-1, -115), 2.2f);         // a leather harness
@@ -1319,6 +1332,8 @@ void DrawCrewFigure(const Hero& h, Vector2 ft, float s, bool right, float walk, 
                 Strap(P(11, -86), P(14, -70), 2.1f, Color{120, 84, 52, 255}); Q(P(9, -73), P(19, -73), P(19, -66), P(9, -66), steel); // a hammer on the belt
                 DrawCircleV(P(-4, -108), 3.4f * s, Fade(BLACK, 0.35f)); DrawCircleV(P(9, -99), 2.6f * s, Fade(BLACK, 0.3f)); // grease
                 for (int k = 0; k < 3; k++) DrawCircleV(P(-14 + k * 14.0f, -93), 0.9f * s, Tone(steel, -0.3f)); // studs
+                Necklace(P(-3, -126), P(4, -114), 3, 1.0f, steel);                                  // a set of stamped ID tags on a chain
+                Stitching(P(-6, -110), P(6, -108), 3, Tone(Color{92, 78, 54, 255}, 0.35f));          // a stitched pocket edge
                 break;
             case HeroClass::Whaler:
                 Strap(P(-17, -92), P(17, -92), 4.4f, leather); Buckle(P(0, -92), 2.5f);
@@ -1330,7 +1345,10 @@ void DrawCrewFigure(const Hero& h, Vector2 ft, float s, bool right, float walk, 
                 break;
             case HeroClass::Stowaway:
                 Patch(P(-11, -116), 3.6f, Color{112, 62, 60, 255}); Patch(P(11, -104), 3.2f, Color{74, 94, 104, 255});
+                Stitching(P(-14.6f, -119.6f), P(-7.4f, -112.4f), 3, Color{200, 190, 160, 200}); // crude stitching round the patches
+                Stitching(P(14.2f, -107.6f), P(7.8f, -100.4f), 3, Color{200, 190, 160, 200});
                 Jag(P(-16, -90), P(-6, -90), 3, 6.5f, Tone(top, -0.3f)); Jag(P(4, -90), P(16, -90), 3, 7.5f, Tone(top, -0.3f));
+                Necklace(P(-9, -128), P(7, -119), 6, 0.85f, Color{224, 216, 200, 255});              // a trophy string of shark teeth and shells
                 Strap(P(-17, -93), P(17, -93), 3.0f, Color{170, 140, 90, 255}); ShadeBall(P(10, -93), 3.2f * s, Color{170, 140, 90, 255}); Strap(P(10, -93), P(12, -78), 1.7f, Color{170, 140, 90, 255}); // a rope belt
                 Strap(P(-14, -134), P(14, -97), 1.9f, leatherDk); Q(P(8, -100), P(20, -100), P(20, -84), P(8, -84), Color{96, 70, 44, 255}); Buckle(P(14, -97), 1.3f); // a satchel
                 ShadeBall(P(2, -112), 2.7f * s, brass); DrawCircleV(P(2, -112), 1.1f * s, Color{40, 32, 24, 255});   // a pocket compass
@@ -1365,6 +1383,7 @@ void DrawCrewFigure(const Hero& h, Vector2 ft, float s, bool right, float walk, 
                 Strap(P(-15, -105), P(16, -109), 3.0f, Color{40, 120, 96, 255});                                            // a seaweed sash
                 ShadeBall(P(0, -124), 3.6f * s, Color{250, 214, 200, 255});                                                 // a shell clasp
                 for (int k = 0; k < 3; k++) DrawLineEx(P(-9 + k * 8.0f, -89), P(-6 + k * 8.0f, -76), 0.6f * s, Fade(WHITE, 0.5f)); // a torn net, trailing down over the tail
+                Necklace(P(-9, -130), P(9, -122), 6, 0.9f, pearl);                                   // a longer pearl strand, looser than the choker at her throat
                 // a small skull, bound with coral growth, hung at her hip - her lair is built from older sailors
                 ShadeBall(P(-14, -95), 2.6f * s, Color{224, 216, 200, 255});
                 DrawCircleV(P(-14.8f, -95.6f), 0.6f * s, Color{30, 28, 26, 255}); DrawCircleV(P(-13.2f, -95.6f), 0.6f * s, Color{30, 28, 26, 255});
