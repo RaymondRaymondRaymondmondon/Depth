@@ -11,7 +11,7 @@ slot body body
 attach body piece characters/siren/torso_neutral.png 0.347 0.975 0.32
 attach body piece characters/siren/torso_attack.png 0.4225 0.981 0.32
 attach body piece characters/siren/torso_hit.png 0.573 0.979 0.32
-attach tail piece characters/siren/tail.png 0.219 0.02 0.32
+attach tail piece characters/siren/tail.png 0.168 0.213 0.72
 anim idle 2.4
 key tail rot 0 0
 key tail rot 0.3 7.07107
