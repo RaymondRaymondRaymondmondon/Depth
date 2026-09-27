@@ -577,6 +577,7 @@ void DebugFlatsDeck();            // debug: the deck viewer
 void DebugFlatsDeal();            // debug: skip the menu and deal a mid-round hand (for screenshots)
 void DrawItemSpritePage(float t);   // the sprite sheet page of carried items and relic icons
 bool GenerateSirenArt();            // developer tool (depth.exe --gen-siren-art): paints assets/characters/siren/*
+bool GenerateAllCrewArt();          // developer tool (depth.exe --gen-crew-art): the Siren plus all 11 other classes
 void SceneHelm(Game& g);
 void SceneCrew(Game& g);
 void SceneRadar(Game& g);

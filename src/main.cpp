@@ -83,6 +83,14 @@ static void TakeShots(const Game& base, const std::string& dir) {
         {"workshop", [](Game& g) { g.scene = Scene::Workshop; g.gold = 500; g.upgrades[UP_BUNKS] = 1; }},
         {"library", [](Game& g) { g.scene = Scene::Bookshelf; g.bookTab = 1; }},
         {"combat", [](Game& g) { g.dungeon.light = 60; DebugEnterCombat(g); }},
+        // Verification only, for the painted-art rollout (depth.exe --gen-crew-art): every class rendered in
+        // combat, four at a time, so the new skeletal/painted CharacterRenderer path is exercised for all twelve.
+        {"crew_art_1", [](Game& g) { g.dungeon.light = 60; DebugEnterCombat(g); HeroClass cls[4] = {HeroClass::Nurse, HeroClass::Diver, HeroClass::Captain, HeroClass::Mechanic};
+                                      for (int p = 0; p < PARTY_SIZE; p++) if (Hero* h = FindHero(g, g.party[p])) h->cls = cls[p]; }},
+        {"crew_art_2", [](Game& g) { g.dungeon.light = 60; DebugEnterCombat(g); HeroClass cls[4] = {HeroClass::Whaler, HeroClass::Stowaway, HeroClass::Merman, HeroClass::Queen};
+                                      for (int p = 0; p < PARTY_SIZE; p++) if (Hero* h = FindHero(g, g.party[p])) h->cls = cls[p]; }},
+        {"crew_art_3", [](Game& g) { g.dungeon.light = 60; DebugEnterCombat(g); HeroClass cls[4] = {HeroClass::Robot, HeroClass::Octopus, HeroClass::Siren, HeroClass::Wisp};
+                                      for (int p = 0; p < PARTY_SIZE; p++) if (Hero* h = FindHero(g, g.party[p])) h->cls = cls[p]; }},
         {"combat_dark", [](Game& g) { DebugEnterCombat(g); g.dungeon.light = 10; }},
         {"combat_walk", [](Game& g) { DebugEnterCombat(g); g.dungeon.phase = DPhase::Walking; g.dungeon.walkT = 0.4f; }},
         {"combat_deep", [](Game& g) { g.tierCleared[(int)Location::Cave] = 4; g.tierSel[(int)Location::Cave] = 3; DebugEnterCombat(g); }},
@@ -268,6 +276,9 @@ int main(int argc, char** argv) {
     }
     if (argc >= 2 && strcmp(argv[1], "--gen-siren-art") == 0) {
         return GenerateSirenArt() ? 0 : 1;
+    }
+    if (argc >= 2 && strcmp(argv[1], "--gen-crew-art") == 0) {
+        return GenerateAllCrewArt() ? 0 : 1;
     }
     const char* shotDir = argc >= 3 && strcmp(argv[1], "--shots") == 0 ? argv[2] : nullptr;
     const char* spriteFile = argc >= 3 && strcmp(argv[1], "--sprites") == 0 ? argv[2] : nullptr;
