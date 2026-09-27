@@ -1,0 +1,143 @@
+<title>Depth Concept Art</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=IM+Fell+English:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  /* A deliberately dark, candle-lit page: the art is drawn for a black frame. */
+  :root, :root[data-theme="light"], :root[data-theme="dark"] {
+    --bg: #0b0a0c; --panel: #151217; --ink: #e8dcc4; --muted: #a89a82; --dim: #6f6556;
+    --gold: #c9a24a; --gold-dk: #6b5423; --blood: #9a3228; --line: #2c2520;
+  }
+  @media (prefers-color-scheme: light) { :root:not([data-theme="light"]) { color-scheme: dark; } }
+  * { box-sizing: border-box; }
+  html { color-scheme: dark; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: 'IM Fell English', Georgia, serif; line-height: 1.5;
+    background-image: radial-gradient(ellipse at 50% 0%, #2a1d14 0%, rgba(11,10,12,0) 60%); }
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 0 16px 80px; }
+  header { text-align: center; padding: 56px 0 24px; }
+  header .kicker { font-family: 'IM Fell English SC', serif; letter-spacing: .3em; color: var(--gold); font-size: 13px; }
+  h1 { font-family: 'IM Fell English SC', serif; font-weight: 400; font-size: clamp(40px, 8vw, 84px); margin: 6px 0 4px; letter-spacing: .06em;
+    text-shadow: 0 2px 0 #000, 0 0 30px rgba(201,162,74,.25); }
+  header p { color: var(--muted); max-width: 680px; margin: 10px auto 0; font-style: italic; font-size: 17px; }
+  .rule { height: 14px; margin: 26px auto; max-width: 420px; background:
+    linear-gradient(90deg, transparent, var(--gold-dk) 20%, var(--gold) 50%, var(--gold-dk) 80%, transparent) center/100% 1px no-repeat; position: relative; }
+  .rule::after { content: '✦'; position: absolute; left: 50%; top: -5px; transform: translateX(-50%); color: var(--gold); background: var(--bg); padding: 0 10px; font-size: 14px; }
+  nav { display: flex; flex-wrap: wrap; gap: 6px 8px; justify-content: center; margin: 0 0 12px; }
+  nav a { font-family: 'IM Fell English SC', serif; color: var(--muted); text-decoration: none; border: 1px solid var(--line); padding: 4px 11px; font-size: 14px; background: var(--panel); }
+  nav a:hover { color: var(--gold); border-color: var(--gold-dk); }
+  section { padding-top: 40px; }
+  .sec-head { display: flex; align-items: baseline; gap: 14px; border-bottom: 1px solid var(--line); padding-bottom: 8px; margin-bottom: 18px; flex-wrap: wrap; }
+  .num { font-family: 'IM Fell English SC', serif; color: var(--blood); font-size: 26px; }
+  h2 { font-family: 'IM Fell English SC', serif; font-weight: 400; font-size: 32px; margin: 0; letter-spacing: .04em; }
+  .sec-head p { margin: 0; color: var(--muted); font-style: italic; flex-basis: 100%; }
+  .scenes { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 520px), 1fr)); gap: 18px; margin-bottom: 18px; }
+  .figs { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(46%, 190px), 1fr)); gap: 14px; }
+  figure { margin: 0; background: var(--panel); border: 1px solid #000; outline: 1px solid var(--gold-dk); outline-offset: -5px; padding: 8px 8px 10px; cursor: zoom-in;
+    box-shadow: 0 10px 30px rgba(0,0,0,.6); transition: outline-color .2s, transform .2s; }
+  figure:hover { outline-color: var(--gold); transform: translateY(-2px); }
+  canvas { display: block; width: 100%; height: auto; background: #000; }
+  .scenes canvas { aspect-ratio: 16 / 9; } .figs canvas { aspect-ratio: 4 / 5; }
+  figcaption { padding: 8px 4px 0; }
+  figcaption b { font-family: 'IM Fell English SC', serif; font-weight: 400; font-size: 17px; letter-spacing: .03em; display: block; }
+  figcaption span { color: var(--muted); font-style: italic; font-size: 14px; }
+  .tag { display: inline-block; font-family: 'IM Fell English SC', serif; font-size: 11px; letter-spacing: .12em; padding: 0 6px; margin-left: 6px; border: 1px solid; vertical-align: 2px; }
+  .tag.boss { color: #e0786a; border-color: var(--blood); } .tag.mini { color: var(--gold); border-color: var(--gold-dk); }
+  .notes { color: var(--dim); font-size: 14px; margin: 14px 0 0; font-style: italic; }
+  footer { text-align: center; color: var(--dim); font-style: italic; margin-top: 60px; font-size: 14px; }
+  #lb { position: fixed; inset: 0; background: rgba(0,0,0,.92); display: none; align-items: center; justify-content: center; padding: 16px; z-index: 10; cursor: zoom-out; flex-direction: column; gap: 10px; }
+  #lb.on { display: flex; }
+  #lb canvas { max-width: min(100%, 1280px); max-height: 84vh; width: auto; height: auto; outline: 1px solid var(--gold-dk); }
+  #lb div { font-family: 'IM Fell English SC', serif; color: var(--ink); font-size: 20px; text-align: center; }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="kicker">The Nautilus · Concept Folio</div>
+    <h1>Depth</h1>
+    <p>Every crew member, foe, room and level, redrawn the way Darkest Dungeon would draw them: heavy ink, hard block shadows, eyes lost under the brow, a drowned palette of rust, brass, kelp and pitch.</p>
+    <div class="rule"></div>
+    <nav id="nav"></nav>
+  </header>
+  <main id="main"></main>
+  <footer>Concept art only. Nothing in the game's code was changed. Heroes face right; foes face left, as they would across a battle line. Click any plate to enlarge it.</footer>
+</div>
+<div id="lb"><canvas></canvas><div></div></div>
+
+<script src="lib.js"></script>
+<script src="people.js"></script>
+<script src="people2.js"></script>
+<script src="beasts.js"></script>
+<script src="scenes.js"></script>
+<script>
+const tint = {
+  crew: ['#2e2a28', '#121012', '#d8a868'], salon: ['#3a2618', '#140e0a', '#ffb870'], cards: ['#141014', '#060508', '#ffb060'],
+  cave: ['#12303a', '#081418', '#7affd0'], island: ['#2e4a30', '#101a12', '#f0e0a0'], weeds: ['#15403e', '#081818', '#9affe0'],
+  atlantis: ['#141e3c', '#080a18', '#8ab0ff'], pipes: ['#2a1c14', '#0e0a08', '#ffc890'], hull: ['#12304a', '#060e18', '#9ad8ff'], pirate: ['#2a1c14', '#0e0a08', '#ffb070'],
+};
+const SECTIONS = [
+  { id: 'crew', title: 'The Crew', sub: 'Twelve recruits for the ranks. Chunky and top-heavy, weapons out.', figs: Object.values(HEROES),
+    notes: 'The Nurse\'s cowl and bone-saw; the Diver\'s cracked Mark V faceplate and barnacles; the Captain\'s tattered coat and sea-beard; the Mechanic\'s welding apron, iron gauntlets and hydraulic wrench; the Whaler\'s oilskin and harpoon gun; the slouching Stowaway with his rum; the Merman\'s scales, fins and angler lure; the Queen\'s broken shell crown and faded silks; the Automaton\'s furnace heart; the Octopus under a cracked dome; the Siren\'s rotting fins and bone jewellery; the Wisp, a cold cloud of plankton.' },
+  { id: 'salon', title: 'The Nautilus', sub: 'The grand salon (a single, unscrolling room) and the hands who work it. Two at a time, plus the cat.', scenes: ['salon'], figs: Object.values(SALON) },
+  { id: 'cards', title: 'The Card Table', sub: 'Flats. The dealer sits in lamplight; the room behind him is swallowed by the dark.', scenes: ['cards'], figs: [DEALER] },
+  { id: 'cave', title: 'The Cave', sub: 'Glowing mold, coral and dripping stalactites. Crustaceans and worms.', scenes: ['cave', 'caveBoss'], foes: ['crustacean', 'pistolShrimp', 'seaWorm', 'lobster', 'ghostWorm', 'lostDiver', 'crabQueen'] },
+  { id: 'island', title: 'The Sunken Island', sub: 'A drowned jungle: bent palms, basalt columns, bone totems, sun shafts.', scenes: ['island', 'islandBoss'], foes: ['spearman', 'warDog', 'shaman', 'demigod', 'coconutQueen', 'sunGod'] },
+  { id: 'weeds', title: 'The Weeds', sub: 'Three layers of swaying kelp, light shafts, schools of shadow-fish.', scenes: ['weeds', 'weedsBoss'], foes: ['feralMerman', 'enemySiren', 'giantOctopus', 'eel', 'shark', 'neptune'] },
+  { id: 'atlantis', title: 'Atlantis', sub: 'A sunken Greco-Roman city with alien monoliths humming between its columns.', scenes: ['atlantis', 'atlantisBoss'], foes: ['lostOne', 'cultist', 'giantLostOne', 'alienHorror', 'cthulhu'] },
+  { id: 'pipes', title: 'The Pipes', sub: 'Platform level one: enclosed ducts lit only by the helmet lamp. No enemies, only the jumps.', scenes: ['pipes'], figs: [PLATFOLK.diver] },
+  { id: 'hull', title: 'The Hull', sub: 'Platform level two: hull plating, open water, the drop-off, and the colossal Kraken in the trench mouth.', scenes: ['hull', 'kraken'], foes: ['hullCrab', 'moray', 'kraken'] },
+  { id: 'pirate', title: 'The Pirate Ship', sub: 'Platform level three: deck, hatch, hold, companionway, and Blackbeard\'s cabin.', scenes: ['pirate', 'hold', 'cabin'], figs: [PLATFOLK.ambusher, PLATFOLK.gunner].map(f => ({ ...f, flip: true })), foes: ['parakeet'], extra: [{ ...PLATFOLK.blackbeard, flip: true }] },
+];
+const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
+const foeOf = k => ({ ...(BEASTS[k] || HFOES[k]), flip: true });
+const jobs = [];
+function tagFor(sub) { return /mini-boss/i.test(sub) ? '<span class="tag mini">Mini-boss</span>' : /\bboss\b/i.test(sub) ? '<span class="tag boss">Boss</span>' : ''; }
+function mk(item, kind, sec) {
+  const f = document.createElement('figure'), cv = document.createElement('canvas');
+  f.appendChild(cv);
+  const cap = document.createElement('figcaption');
+  cap.innerHTML = `<b>${item.name}${tagFor(item.sub)}</b><span>${item.sub}</span>`;
+  f.appendChild(cap);
+  const job = { cv, item, kind, sec, done: false };
+  jobs.push(job); f.onclick = () => zoom(job);
+  return f;
+}
+function paint(cv, job, scale) {
+  const [w, h] = job.kind === 'scene' ? [SW, SH] : [320, 400];
+  cv.width = w * scale; cv.height = h * scale;
+  const c = cv.getContext('2d'); c.setTransform(scale, 0, 0, scale, 0, 0);
+  const D = new Ink(c, 11);
+  try {
+    if (job.kind === 'scene') job.item.draw(D);
+    else {
+      const t = tint[job.sec]; cardBg(D, w, h, t[0], t[1], t[2]);
+      c.save(); if (job.item.flip) { c.translate(w, 0); c.scale(-1, 1); } job.item.draw(D); c.restore();
+    }
+  } catch (e) { console.error(job.item.name, e); }
+  post(c, w, h, job.kind === 'scene' ? 0.7 : 0.8);
+}
+function zoom(job) {
+  const lb = document.getElementById('lb'), cv = lb.querySelector('canvas');
+  paint(cv, job, 2); lb.querySelector('div').textContent = job.item.name; lb.classList.add('on');
+}
+document.getElementById('lb').onclick = () => document.getElementById('lb').classList.remove('on');
+document.addEventListener('keydown', e => { if (e.key === 'Escape') document.getElementById('lb').classList.remove('on'); });
+
+const main = document.getElementById('main'), nav = document.getElementById('nav');
+SECTIONS.forEach((s, i) => {
+  const sec = document.createElement('section'); sec.id = s.id;
+  sec.innerHTML = `<div class="sec-head"><span class="num">${ROMAN[i]}</span><h2>${s.title}</h2><p>${s.sub}</p></div>`;
+  if (s.scenes) { const g = document.createElement('div'); g.className = 'scenes'; s.scenes.forEach(k => g.appendChild(mk(SCENES[k], 'scene', s.id))); sec.appendChild(g); }
+  const figs = [...(s.figs || []), ...(s.foes || []).map(foeOf), ...(s.extra || [])];
+  if (figs.length) { const g = document.createElement('div'); g.className = 'figs'; figs.forEach(f => g.appendChild(mk(f, 'fig', s.id))); sec.appendChild(g); }
+  if (s.notes) { const p = document.createElement('p'); p.className = 'notes'; p.textContent = s.notes; sec.appendChild(p); }
+  main.appendChild(sec);
+  const a = document.createElement('a'); a.href = '#' + s.id; a.textContent = s.title; nav.appendChild(a);
+});
+// paint plates as they scroll into view
+const dpr = Math.min(2, window.devicePixelRatio || 1);
+const io = 'IntersectionObserver' in window ? new IntersectionObserver(es => es.forEach(e => {
+  if (!e.isIntersecting) return; const j = jobs.find(j => j.cv === e.target); if (j && !j.done) { j.done = true; paint(j.cv, j, dpr); } io.unobserve(e.target);
+}), { rootMargin: '600px' }) : null;
+jobs.forEach(j => io ? io.observe(j.cv) : (paint(j.cv, j, dpr), j.done = true));
+</script>
