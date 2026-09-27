@@ -13,8 +13,12 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <cstring>
 #include <fstream>
+#include <functional>
+#include <map>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -74,7 +78,7 @@ constexpr int SC = 3, PADC = 4;
 
 // Builds the lit, inked, dithered CPU-side Image for one concept grid. Adapted from flats_art.cpp's Paint(),
 // stopping short of the GPU upload so the pixels can be exported straight to disk.
-Image PaintImage(const std::vector<std::string>& rowsIn, Color (*pal)(char)) {
+Image PaintImage(const std::vector<std::string>& rowsIn, const std::function<Color(char)>& pal) {
     std::vector<std::string> g0;
     size_t w0max = 4; for (auto& row : rowsIn) w0max = std::max(w0max, row.size());
     for (auto& row : rowsIn) { std::string s = row; s.resize(w0max, '.'); g0.push_back(s); }
@@ -238,7 +242,322 @@ const std::vector<Part>& Parts() {
     };
     return p;
 }
+
+// ============================================================================
+//  The general-purpose rig (depth.exe --gen-crew-art): the same technique as GenerateSirenArt above, extended
+//  from "one hand-authored pilot" to a small silhouette-composition toolkit so the remaining eleven classes can
+//  each get their own painted, skeletal parts without hand-typing a full ASCII grid per body. A `Grid` is a
+//  canvas of palette letters built from simple primitives (ellipses, tapered "capsule" limbs, filled polygons);
+//  it is converted to rows of characters and pushed through the same PaintImage() lighting/ink/dither pass as
+//  the Siren's hand-drawn grids. Letters are roles, not fixed colours: every class supplies its own palette map,
+//  so the same silhouette code reads as a different uniform for each one (matching each class's existing
+//  procedural colours in render.cpp's DrawCrewFigure, so the painted pilot and the procedural fallback agree).
+// ============================================================================
+struct Grid {
+    int w, h;
+    std::vector<std::string> rows;
+    Grid(int w, int h) : w(w), h(h), rows(h, std::string(w, '.')) {}
+    void Set(int x, int y, char c) { if (x >= 0 && x < w && y >= 0 && y < h) rows[y][x] = c; }
+    void Ellipse(float cx, float cy, float rx, float ry, char c) {
+        rx = std::max(rx, 0.35f); ry = std::max(ry, 0.35f);
+        int x0 = (int)floorf(cx - rx - 1), x1 = (int)ceilf(cx + rx + 1), y0 = (int)floorf(cy - ry - 1), y1 = (int)ceilf(cy + ry + 1);
+        for (int y = y0; y <= y1; y++) for (int x = x0; x <= x1; x++) {
+            float dx = (x + 0.5f - cx) / rx, dy = (y + 0.5f - cy) / ry;
+            if (dx * dx + dy * dy <= 1.0f) Set(x, y, c);
+        }
+    }
+    void Rect(float x0, float y0, float x1, float y1, char c) {
+        for (int y = (int)floorf(y0); y < (int)ceilf(y1); y++) for (int x = (int)floorf(x0); x < (int)ceilf(x1); x++) Set(x, y, c);
+    }
+    // a tapered limb from (x0,y0) radius r0 to (x1,y1) radius r1: stamped ellipses walking the segment
+    void Capsule(float x0, float y0, float x1, float y1, float r0, float r1, char c) {
+        float len = std::max(1.0f, (float)std::hypot((double)(x1 - x0), (double)(y1 - y0)));
+        int n = (int)(len * 2) + 4;
+        for (int i = 0; i <= n; i++) { float t = (float)i / n; Ellipse(x0 + (x1 - x0) * t, y0 + (y1 - y0) * t, r0 + (r1 - r0) * t, r0 + (r1 - r0) * t, c); }
+    }
+    // even-odd fill, one sample per cell centre - good enough for the simple silhouettes here
+    void Poly(const std::vector<std::pair<float, float>>& pts, char c) {
+        float x0 = 1e9f, x1 = -1e9f, y0 = 1e9f, y1 = -1e9f;
+        for (auto& p : pts) { x0 = std::min(x0, p.first); x1 = std::max(x1, p.first); y0 = std::min(y0, p.second); y1 = std::max(y1, p.second); }
+        for (int y = (int)floorf(y0); y <= (int)ceilf(y1); y++) for (int x = (int)floorf(x0); x <= (int)ceilf(x1); x++) {
+            float px = x + 0.5f, py = y + 0.5f; bool in = false;
+            for (size_t i = 0, j = pts.size() - 1; i < pts.size(); j = i++) {
+                float xi = pts[i].first, yi = pts[i].second, xj = pts[j].first, yj = pts[j].second;
+                if (((yi > py) != (yj > py)) && (px < (xj - xi) * (py - yi) / (yj - yi) + xi)) in = !in;
+            }
+            if (in) Set(x, y, c);
+        }
+    }
+};
+
+using HeadFn = std::function<void(Grid&, float)>;   // (grid, torso centre x) - drawn after the head, for hats/goggles/crowns
+using TorsoFn = std::function<void(Grid&, float)>;  // drawn after the torso, for aprons/straps/collars
+
+// The shared humanoid torso+head+tucked-arms silhouette every biped class is built from. `dome` swaps the
+// bare head for a round helmet/dome (Diver, Robot, Octopus) with no face painted (eyes are added by headAcc).
+Grid BodyGrid(float headR, float shoulderW, float hipW, float torsoTop, float torsoBot, bool dome, const TorsoFn& torsoAcc, const HeadFn& headAcc) {
+    Grid g(24, 30);
+    const float cx = 12;
+    g.Poly({{cx - shoulderW, torsoTop}, {cx + shoulderW, torsoTop}, {cx + hipW, torsoBot}, {cx - hipW, torsoBot}}, 't');
+    g.Poly({{cx + shoulderW * 0.1f, torsoTop}, {cx + shoulderW, torsoTop}, {cx + hipW, torsoBot}, {cx + hipW * 0.15f, torsoBot}}, 'T');
+    g.Capsule(cx - shoulderW * 0.82f, torsoTop + 1, cx - shoulderW * 0.62f, torsoBot - 3, 1.7f, 1.3f, 't');
+    g.Capsule(cx + shoulderW * 0.82f, torsoTop + 1, cx + shoulderW * 0.62f, torsoBot - 3, 1.7f, 1.3f, 'T');
+    g.Ellipse(cx - shoulderW * 0.6f, torsoBot - 2.5f, 1.5f, 1.5f, 'g');
+    g.Ellipse(cx + shoulderW * 0.6f, torsoBot - 2.5f, 1.5f, 1.5f, 'G');
+    torsoAcc(g, cx);
+    float headCy = torsoTop - headR * 0.95f;
+    if (dome) {
+        g.Ellipse(cx, headCy, headR, headR, 'g');
+        g.Ellipse(cx + headR * 0.15f, headCy + headR * 0.08f, headR * 0.6f, headR * 0.6f, 'e');
+    } else {
+        g.Ellipse(cx, headCy, headR, headR * 1.05f, 's');
+        g.Ellipse(cx + headR * 0.32f, headCy + headR * 0.05f, headR * 0.82f, headR * 0.98f, 'S');
+        g.Rect(cx - headR, headCy - headR * 0.1f, cx + headR, headCy + headR * 0.2f, 'k'); // eyes lost in the brow's shadow
+    }
+    headAcc(g, cx);
+    return g;
+}
+Grid LegGrid(float len, float rTop, float rBot) {
+    Grid g(10, (int)len + 6);
+    g.Capsule(5, 1, 5, len, rTop, rBot, 'l');
+    g.Capsule(5.7f, 1, 5.7f, len, rTop * 0.5f, rBot * 0.5f, 'L');
+    g.Ellipse(5, len, rBot * 1.15f, rBot * 0.8f, 'o');
+    return g;
+}
+// one segment of a fish tail or a flared skirt; `fluke` adds the finned tip (siren/merman only)
+Grid TailSegGrid(float len, float rTop, float rBot, bool fluke) {
+    Grid g(20, (int)len + 8);
+    g.Capsule(10, 1, 10, len, rTop, rBot, 'l');
+    g.Capsule(10.8f, 1, 10.8f, len, rTop * 0.5f, rBot * 0.5f, 'L');
+    if (fluke) {
+        g.Poly({{10, len - 2}, {1, len + 9}, {9, len + 3}}, 'l');
+        g.Poly({{10, len - 2}, {19, len + 9}, {11, len + 3}}, 'L');
+    }
+    return g;
+}
+
+struct ClassSpec {
+    std::string className;                 // folder = lowercase(className), spaces kept (matches ClassName()/render.cpp exactly)
+    std::map<char, Color> pal;
+    std::vector<std::string> body, leg, tailUpper, tailLower;
+    enum class Rig { Biped, Tail, Float } rig = Rig::Biped;
+    float legAmpIdle = 3.0f, legAmpWalk = 18.0f;
+    float tailAmpIdleUp = 7.0f, tailAmpIdleLow = 5.0f, tailAmpWalkUp = 14.0f, tailAmpWalkLow = 11.0f;
+    float floatAmp = 4.0f;
+};
+
+bool GenerateClassArt(const ClassSpec& spec) {
+    std::string folder = spec.className;
+    for (auto& ch : folder) ch = (char)tolower((unsigned char)ch);
+    std::string dir = "assets/characters/" + folder;
+    MakeDirectory("assets"); MakeDirectory("assets/characters"); MakeDirectory(dir.c_str());
+    std::map<char, Color> pal = spec.pal;
+    std::function<Color(char)> palFn = [pal](char c) { auto it = pal.find(c); return it != pal.end() ? it->second : Color{0, 0, 0, 0}; };
+    auto write = [&](const char* file, const std::vector<std::string>& rows) -> bool {
+        if (rows.empty()) return true;
+        Image img = PaintImage(rows, palFn);
+        std::string path = dir + "/" + file;
+        bool ok = ExportImage(img, path.c_str());
+        printf("chargen: %s %s (%dx%d)\n", path.c_str(), ok ? "written" : "FAILED", img.width, img.height);
+        UnloadImage(img);
+        return ok;
+    };
+    bool ok = write("body.png", spec.body);
+    if (spec.rig == ClassSpec::Rig::Biped) ok = write("leg.png", spec.leg) && ok;
+    else if (spec.rig == ClassSpec::Rig::Tail) { ok = write("tail_upper.png", spec.tailUpper) && ok; ok = write("tail_lower.png", spec.tailLower) && ok; }
+    if (!ok) return false;
+
+    std::ofstream f(dir + "/skeleton.txt");
+    f << "# generated by chargen.cpp (depth.exe --gen-crew-art) - painted skeletal parts for " << spec.className << "\n";
+    f << "bone hip - 0 -84 0 1 1 0\n";
+    const float TAU = 6.28318530f;
+    if (spec.rig == ClassSpec::Rig::Biped) {
+        f << "bone legBack hip -7 0 0 1 1 78\n";
+        f << "bone legFront hip 7 0 0 1 1 78\n";
+        f << "bone body hip 0 0 0 1 1 90\n";
+        f << "slot legBack legBack\nslot body hip\nslot legFront legFront\n";
+        f << "attach legBack piece characters/" << folder << "/leg.png 0.5 0.04 0.6\n";
+        f << "attach legFront piece characters/" << folder << "/leg.png 0.5 0.04 0.6\n";
+        f << "attach body piece characters/" << folder << "/body.png 0.5 0.92 0.6\n";
+        auto anim = [&](const char* name, float dur, float amp) {
+            f << "anim " << name << " " << dur << "\n";
+            const int N = 8;
+            for (int k = 0; k <= N; k++) { float t = dur * k / N; f << "key legBack rot " << t << " " << (amp * sinf(TAU * t / dur)) << "\n"; }
+            for (int k = 0; k <= N; k++) { float t = dur * k / N; f << "key legFront rot " << t << " " << (-amp * sinf(TAU * t / dur)) << "\n"; }
+        };
+        anim("idle", 2.4f, spec.legAmpIdle);
+        anim("walk", 0.9f, spec.legAmpWalk);
+    } else if (spec.rig == ClassSpec::Rig::Tail) {
+        f << "bone tailUpper hip 0 -10 0 1 1 30\n";
+        f << "bone tailLower tailUpper 0 32 0 1 1 28\n";
+        f << "slot tail_lower tailLower\nslot tail_upper tailUpper\nslot body hip\n";
+        f << "attach tail_lower piece characters/" << folder << "/tail_lower.png 0.5 0.03 0.6\n";
+        f << "attach tail_upper piece characters/" << folder << "/tail_upper.png 0.5 0.02 0.6\n";
+        f << "attach body piece characters/" << folder << "/body.png 0.5 0.94 0.6\n";
+        auto anim = [&](const char* name, float dur, float upAmp, float lowAmp) {
+            f << "anim " << name << " " << dur << "\n";
+            const int N = 8;
+            for (int k = 0; k <= N; k++) { float t = dur * k / N; f << "key tailUpper rot " << t << " " << (upAmp * sinf(TAU * t / dur)) << "\n"; }
+            for (int k = 0; k <= N; k++) { float t = dur * k / N; f << "key tailLower rot " << t << " " << (lowAmp * sinf(TAU * (t - dur * 0.22f) / dur)) << "\n"; }
+        };
+        anim("idle", 2.4f, spec.tailAmpIdleUp, spec.tailAmpIdleLow);
+        anim("walk", 1.2f, spec.tailAmpWalkUp, spec.tailAmpWalkLow);
+    } else { // Float: no legs at all - the whole body drifts, a slow bob and a lazy tilt
+        f << "bone body hip 0 0 0 1 1 90\n";
+        f << "slot body hip\n";
+        f << "attach body piece characters/" << folder << "/body.png 0.5 0.92 0.6\n";
+        auto anim = [&](const char* name, float dur, float amp) {
+            f << "anim " << name << " " << dur << "\n";
+            const int N = 8;
+            for (int k = 0; k <= N; k++) { float t = dur * k / N; f << "key hip y " << t << " " << (-84.0f + amp * sinf(TAU * t / dur)) << "\n"; }
+            for (int k = 0; k <= N; k++) { float t = dur * k / N; f << "key hip rot " << t << " " << (amp * 0.5f * sinf(TAU * t / dur + 1.0f)) << "\n"; }
+        };
+        anim("idle", 3.0f, spec.floatAmp);
+        anim("walk", 2.0f, spec.floatAmp * 1.4f);
+    }
+    printf("chargen: %s/skeleton.txt written\n", dir.c_str());
+    return true;
+}
+
+// One representative skin/hair tone stands in for render.cpp's per-hero random picks (skins[0]/a mid-brown
+// hair), matching how SirenPal above hardcodes a single skin tone for her too.
+constexpr Color SKIN{226, 186, 152, 255}, SKIN_DK{184, 148, 118, 255}, HAIR{58, 45, 36, 255};
+
+// Builds the eleven remaining classes' specs from render.cpp's DrawCrewFigure colours (top/legs/boots/sleeve/
+// glove/trim) and proportions (cw/chh/bulk), so the painted pilot and the procedural fallback agree.
+std::vector<ClassSpec> CrewSpecs() {
+    std::vector<ClassSpec> out;
+    auto base = [](Color top, Color legs, Color boots, Color trim, Color glove) {
+        std::map<char, Color> p;
+        p['s'] = SKIN; p['S'] = SKIN_DK; p['h'] = HAIR; p['k'] = Color{20, 16, 14, 255}; p['w'] = Color{238, 232, 218, 255};
+        p['t'] = top; p['T'] = Color{(unsigned char)(top.r * 0.72f), (unsigned char)(top.g * 0.72f), (unsigned char)(top.b * 0.72f), 255};
+        p['g'] = glove; p['G'] = Color{(unsigned char)(glove.r * 0.75f), (unsigned char)(glove.g * 0.75f), (unsigned char)(glove.b * 0.75f), 255};
+        p['a'] = trim; p['A'] = Color{(unsigned char)(trim.r * 0.7f), (unsigned char)(trim.g * 0.7f), (unsigned char)(trim.b * 0.7f), 255};
+        p['l'] = legs; p['L'] = Color{(unsigned char)(legs.r * 0.72f), (unsigned char)(legs.g * 0.72f), (unsigned char)(legs.b * 0.72f), 255};
+        p['o'] = boots; p['e'] = Color{160, 224, 236, 255}; p['r'] = Color{176, 48, 46, 255}; p['R'] = Color{120, 30, 30, 255};
+        return p;
+    };
+    auto noop2 = [](Grid&, float) {};
+
+    { // Nurse: a pale cowl, a long habit-like dress in place of legs, a small red cross
+        ClassSpec c; c.className = "Nurse"; c.rig = ClassSpec::Rig::Tail;
+        c.pal = base({72, 94, 124, 255}, {230, 226, 214, 255}, {44, 32, 26, 255}, {230, 226, 214, 255}, SKIN);
+        TorsoFn cross = [](Grid& g, float cx) { g.Rect(cx - 3.5f, 12.5f, cx + 3.5f, 15.5f, 'r'); g.Rect(cx - 1.5f, 10.5f, cx + 1.5f, 17.5f, 'r'); };
+        HeadFn cowl = [](Grid& g, float cx) { g.Poly({{cx - 5.6f, 3}, {cx + 5.6f, 3}, {cx + 4.4f, 10}, {cx - 4.4f, 10}}, 'a'); g.Poly({{cx - 3.4f, 4.5f}, {cx + 3.4f, 4.5f}, {cx + 2.4f, 8}, {cx - 2.4f, 8}}, 's'); };
+        c.body = BodyGrid(3.6f, 6.2f, 5.0f, 9, 20, false, cross, cowl).rows;
+        c.tailUpper = TailSegGrid(20, 8.5f, 9.5f, false).rows; c.tailLower = TailSegGrid(19, 9.5f, 3.5f, false).rows;
+        c.tailAmpIdleUp = 3; c.tailAmpIdleLow = 2; c.tailAmpWalkUp = 6; c.tailAmpWalkLow = 5;
+        out.push_back(c);
+    }
+    { // Diver: a full brass dome helmet, twin tanks hinted at the shoulders
+        ClassSpec c; c.className = "Diver"; c.rig = ClassSpec::Rig::Biped;
+        c.pal = base({140, 114, 74, 255}, {140, 114, 74, 255}, {96, 90, 84, 255}, Color{176, 140, 60, 255}, {74, 58, 44, 255});
+        TorsoFn tanks = [](Grid& g, float cx) { g.Rect(cx - 8.5f, 11, cx - 6, 20, 'a'); g.Rect(cx + 6, 11, cx + 8.5f, 20, 'a'); };
+        HeadFn port = [](Grid& g, float cx) { g.Ellipse(cx, 5.6f, 1.7f, 2.1f, 'e'); g.Poly({{cx - 4, 8.6f}, {cx + 4, 8.6f}, {cx + 3.2f, 10.4f}, {cx - 3.2f, 10.4f}}, 'a'); };
+        c.body = BodyGrid(4.4f, 7.6f, 5.6f, 9, 23, true, tanks, port).rows;
+        c.leg = LegGrid(78, 2.3f, 3.4f).rows; c.legAmpWalk = 16;
+        out.push_back(c);
+    }
+    { // Captain: a peaked cap, epaulettes, a clockwork off-hand hinted in brass
+        ClassSpec c; c.className = "Captain"; c.rig = ClassSpec::Rig::Biped;
+        c.pal = base({40, 50, 82, 255}, {36, 34, 42, 255}, {44, 32, 26, 255}, Color{190, 150, 60, 255}, {220, 214, 200, 255});
+        TorsoFn coat = [](Grid& g, float cx) { for (int i = 0; i < 3; i++) g.Ellipse(cx, 12.5f + i * 3.2f, 0.7f, 0.7f, 'a'); g.Rect(cx - 6.4f, 10, cx - 4, 11.6f, 'a'); g.Rect(cx + 4, 10, cx + 6.4f, 11.6f, 'a'); };
+        HeadFn cap = [](Grid& g, float cx) { g.Poly({{cx - 4.6f, 2.4f}, {cx + 4.6f, 2.4f}, {cx + 4, 6.4f}, {cx - 4, 6.4f}}, 'k'); g.Rect(cx - 4.4f, 5.2f, cx + 4.4f, 6.4f, 'a'); g.Poly({{cx - 1, 6.2f}, {cx + 5.6f, 6.6f}, {cx - 1, 7.6f}}, 'k'); };
+        c.body = BodyGrid(3.6f, 6.6f, 5.2f, 9, 23, false, coat, cap).rows;
+        c.leg = LegGrid(78, 2.2f, 3.1f).rows; c.legAmpWalk = 15;
+        out.push_back(c);
+    }
+    { // Mechanic: a broad welding apron, iron gauntlets, goggles shoved up on the forehead
+        ClassSpec c; c.className = "Mechanic"; c.rig = ClassSpec::Rig::Biped;
+        c.pal = base({226, 112, 30, 255}, {206, 96, 26, 255}, {60, 56, 52, 255}, Color{200, 198, 192, 255}, {66, 60, 56, 255});
+        TorsoFn apron = [](Grid& g, float cx) { g.Poly({{cx - 5.2f, 11}, {cx + 5.2f, 11}, {cx + 4.6f, 22}, {cx - 4.6f, 22}}, 'a'); g.Rect(cx - 0.6f, 11, cx + 0.6f, 21, 'k'); };
+        HeadFn goggles = [](Grid& g, float cx) { g.Ellipse(cx - 2.3f, 3, 1.7f, 1.7f, 'e'); g.Ellipse(cx + 2.3f, 3, 1.7f, 1.7f, 'e'); g.Rect(cx - 4.2f, 2.2f, cx + 4.2f, 3.8f, 'k'); };
+        c.body = BodyGrid(3.9f, 7.6f, 6.0f, 9, 23, false, apron, goggles).rows;
+        c.leg = LegGrid(76, 2.6f, 3.6f).rows; c.legAmpWalk = 14; c.legAmpIdle = 2;
+        out.push_back(c);
+    }
+    { // Whaler: an oilskin collar and a harpoon-gun strap across the chest
+        ClassSpec c; c.className = "Whaler"; c.rig = ClassSpec::Rig::Biped;
+        c.pal = base({84, 108, 138, 255}, {64, 70, 84, 255}, {92, 62, 36, 255}, Color{126, 88, 50, 255}, {110, 76, 44, 255});
+        TorsoFn strap = [](Grid& g, float cx) { g.Poly({{cx - 5.4f, 10}, {cx - 3.4f, 10}, {cx + 4, 21}, {cx + 2, 21}}, 'a'); };
+        HeadFn collar = [](Grid& g, float cx) { g.Poly({{cx - 5, 8}, {cx - 2, 6.4f}, {cx - 2, 9.6f}}, 'a'); g.Poly({{cx + 5, 8}, {cx + 2, 6.4f}, {cx + 2, 9.6f}}, 'a'); };
+        c.body = BodyGrid(3.9f, 7.2f, 5.6f, 9, 23, false, strap, collar).rows;
+        c.leg = LegGrid(77, 2.5f, 3.5f).rows; c.legAmpWalk = 16;
+        out.push_back(c);
+    }
+    { // Stowaway: a slouched hood, a rum bottle silhouette at the hip
+        ClassSpec c; c.className = "Stowaway"; c.rig = ClassSpec::Rig::Biped;
+        c.pal = base({124, 94, 62, 255}, {84, 72, 52, 255}, {58, 48, 38, 255}, Color{176, 48, 46, 255}, SKIN);
+        TorsoFn bottle = [](Grid& g, float cx) { g.Rect(cx + 4.6f, 17, cx + 6.4f, 21.5f, 'r'); g.Rect(cx + 5, 15.5f, cx + 6, 17, 'r'); };
+        HeadFn hood = [](Grid& g, float cx) { g.Poly({{cx - 4.8f, 2.6f}, {cx + 3.6f, 2}, {cx + 4.6f, 8}, {cx - 4, 9}}, 'h'); };
+        c.body = BodyGrid(3.5f, 6.0f, 5.0f, 10, 22.5f, false, bottle, hood).rows;
+        c.leg = LegGrid(74, 2.1f, 3.0f).rows; c.legAmpWalk = 13; c.legAmpIdle = 4;
+        out.push_back(c);
+    }
+    { // Merman: a real fish tail, bare chest, a bioluminescent lure hinted at the temple
+        ClassSpec c; c.className = "Merman"; c.rig = ClassSpec::Rig::Tail;
+        c.pal = base({34, 168, 176, 255}, {26, 132, 146, 255}, {20, 104, 120, 255}, Color{216, 174, 96, 255}, SKIN);
+        c.pal['s'] = Color{58, 150, 150, 255}; c.pal['S'] = Color{40, 116, 118, 255}; // scaled skin, not human
+        TorsoFn fins = [](Grid& g, float cx) { g.Poly({{cx - 6.4f, 11}, {cx - 9, 9}, {cx - 7.6f, 13.5f}}, 'l'); g.Poly({{cx + 6.4f, 11}, {cx + 9, 9}, {cx + 7.6f, 13.5f}}, 'l'); };
+        HeadFn lure = [](Grid& g, float cx) { g.Ellipse(cx + 4.6f, -0.5f, 1.0f, 1.0f, 'e'); g.Rect(cx + 4.2f, 0.4f, cx + 5.0f, 3.4f, 'k'); };
+        c.body = BodyGrid(3.6f, 6.4f, 5.2f, 9, 20, false, fins, lure).rows;
+        c.tailUpper = TailSegGrid(20, 8.0f, 6.8f, false).rows; c.tailLower = TailSegGrid(18, 6.8f, 3.6f, true).rows;
+        out.push_back(c);
+    }
+    { // Dethroned Island Queen: a cracked shell crown, a long faded-silk skirt, a tribal staff hinted by a strap
+        ClassSpec c; c.className = "Dethroned Island Queen"; c.rig = ClassSpec::Rig::Tail;
+        c.pal = base({150, 108, 170, 255}, {92, 70, 112, 255}, {70, 55, 62, 255}, Color{202, 172, 92, 255}, {200, 190, 210, 255});
+        c.pal['s'] = Color{150, 106, 76, 255}; c.pal['S'] = Color{116, 80, 56, 255}; // a warmer, sun-weathered skin
+        TorsoFn necklace = [](Grid& g, float cx) { for (int i = -2; i <= 2; i++) g.Ellipse(cx + i * 1.6f, 10.2f + fabsf(i) * 0.5f, 0.6f, 0.6f, 'a'); };
+        HeadFn crown = [](Grid& g, float cx) { g.Poly({{cx - 4.4f, 4.2f}, {cx - 2.6f, 1}, {cx - 0.8f, 3.6f}, {cx + 0.8f, 0.4f}, {cx + 2.6f, 3.6f}, {cx + 4.4f, 1.2f}, {cx + 4, 5}, {cx - 4, 5}}, 'a'); };
+        c.body = BodyGrid(3.7f, 6.4f, 5.4f, 9, 21, false, necklace, crown).rows;
+        c.tailUpper = TailSegGrid(21, 9.0f, 10.5f, false).rows; c.tailLower = TailSegGrid(19, 10.5f, 4.5f, false).rows;
+        c.tailAmpIdleUp = 4; c.tailAmpIdleLow = 3; c.tailAmpWalkUp = 8; c.tailAmpWalkLow = 6;
+        out.push_back(c);
+    }
+    { // Robot: a boxy iron chassis and a furnace-glow porthole where a chest would be
+        ClassSpec c; c.className = "Robot"; c.rig = ClassSpec::Rig::Biped;
+        c.pal = base({198, 196, 190, 255}, {150, 146, 140, 255}, {90, 85, 80, 255}, Color{190, 150, 60, 255}, {142, 110, 60, 255});
+        TorsoFn furnace = [](Grid& g, float cx) { g.Ellipse(cx, 15, 2.6f, 2.6f, 'e'); g.Ellipse(cx, 15, 1.6f, 1.6f, 'w'); for (int i = -1; i <= 1; i += 2) g.Rect(cx + i * 6.4f, 10, cx + i * 7.4f, 22, 'a'); };
+        HeadFn rivets = [](Grid& g, float cx) { g.Rect(cx - 3.4f, 1.6f, cx + 3.4f, 3.0f, 'k'); for (int i = -2; i <= 2; i++) g.Ellipse(cx + i * 1.4f, 7.6f, 0.4f, 0.4f, 'k'); };
+        c.body = BodyGrid(4.4f, 7.8f, 6.2f, 9, 23, true, furnace, rivets).rows;
+        c.leg = LegGrid(76, 2.9f, 3.9f).rows; c.legAmpWalk = 12; c.legAmpIdle = 2;
+        out.push_back(c);
+    }
+    { // Octopus: a cracked dome, a rubbery mantle, one tentacle reused on both sides for a many-limbed silhouette
+        ClassSpec c; c.className = "Octopus"; c.rig = ClassSpec::Rig::Biped;
+        c.pal = base({176, 60, 150, 255}, {146, 50, 128, 255}, {120, 40, 108, 255}, Color{232, 214, 226, 255}, {190, 80, 164, 255});
+        TorsoFn suckers = [](Grid& g, float cx) { for (int i = 0; i < 3; i++) { g.Ellipse(cx - 5.4f, 13 + i * 3, 0.8f, 0.6f, 'a'); g.Ellipse(cx + 5.4f, 13 + i * 3, 0.8f, 0.6f, 'a'); } };
+        HeadFn crack = [](Grid& g, float cx) { g.Poly({{cx - 1, 1}, {cx + 0.6f, 3.4f}, {cx - 0.6f, 4.6f}, {cx + 1.2f, 6.6f}}, 'k'); };
+        c.body = BodyGrid(4.6f, 7.4f, 6.6f, 10, 22, true, suckers, crack).rows;
+        c.leg = TailSegGrid(70, 3.0f, 1.0f, false).rows; c.legAmpWalk = 22; c.legAmpIdle = 6;
+        out.push_back(c);
+    }
+    { // Wisp: no limbs at all - a drifting cloud of plankton light with two glowing motes for eyes
+        ClassSpec c; c.className = "Wisp of the Sea"; c.rig = ClassSpec::Rig::Float; c.floatAmp = 5.0f;
+        c.pal = base({150, 236, 226, 255}, {120, 214, 214, 255}, {96, 190, 204, 255}, Color{230, 255, 250, 255}, {190, 250, 244, 255});
+        Grid g(24, 30);
+        g.Poly({{12, 6}, {19, 12}, {20, 20}, {16, 26}, {8, 26}, {4, 20}, {5, 12}}, 't');
+        g.Poly({{13, 6}, {19, 12}, {20, 20}, {16.5f, 26}, {12, 26}}, 'T');
+        g.Ellipse(9.6f, 14, 1.1f, 1.4f, 'e'); g.Ellipse(14.4f, 14, 1.1f, 1.4f, 'e');
+        for (int i = 0; i < 10; i++) g.Ellipse(6 + (i * 37 % 14), 8 + (i * 53 % 16), 0.5f, 0.5f, 'w');
+        c.body = g.rows;
+        out.push_back(c);
+    }
+    (void)noop2;
+    return out;
+}
+
 }  // namespace
+
+bool GenerateSirenArt();   // defined below; forward-declared so GenerateAllCrewArt can call it in file order
+
+// depth.exe --gen-crew-art: regenerates the Siren (the pilot) plus the eleven remaining classes.
+bool GenerateAllCrewArt() {
+    bool ok = GenerateSirenArt();
+    for (const ClassSpec& c : CrewSpecs()) ok = GenerateClassArt(c) && ok;
+    return ok;
+}
 
 bool GenerateSirenArt() {
     const char* dir = "assets/characters/siren";
