@@ -1054,9 +1054,6 @@ void DrawCrewFigure(const Hero& h, Vector2 ft, float s, bool right, float walk, 
                 case HeroClass::Octopus: // strapped wraps
                     for (int k = 0; k < 2; k++) DrawLineEx(L(knee, foot, 0.45f + k * 0.2f), {L(knee, foot, 0.45f + k * 0.2f).x + f * 6 * s, L(knee, foot, 0.5f + k * 0.2f).y}, 1.6f * s, Color{232, 214, 226, 255});
                     break;
-                case HeroClass::Siren: // pearl anklets
-                    for (int k = 0; k < 3; k++) { Vector2 an = L(knee, foot, 0.72f); DrawCircleV({an.x + (k - 1) * 3.0f * s * f, an.y}, 1.2f * s, Color{246, 240, 232, 255}); }
-                    break;
                 default: break;
             }
         } else { // the ship's hands: uniform footwear
@@ -1088,6 +1085,28 @@ void DrawCrewFigure(const Hero& h, Vector2 ft, float s, bool right, float walk, 
         ShadeBall(cuff, 5.8f * s, h.cls == HeroClass::Mechanic ? upper : Tone(trim, -0.1f)); // cuff / rolled sleeve
         ShadeBall(hd, 6.0f * s, glove);
         ShadeBall({hd.x + f * 3.5f * s, hd.y - 2.5f * s}, 2.6f * s, glove); // thumb
+    };
+    // the Siren has no legs at all: one long, tapering fish tail in place of both, that undulates side to
+    // side as she swims (a real S-curve while walking/swimming, a slow idle sway while she waits) rather than
+    // striding. It replaces both leg() calls when she's drawn.
+    auto tail = [&]() {
+        float phase = walking ? walk * 1.7f : t * 1.05f;
+        float amp = (walking ? 15.0f : 4.0f) * bulk;
+        const float width[5] = {11.0f, 9.6f, 7.8f, 5.8f, 3.8f};
+        Vector2 prev = P(0, -86);
+        for (int i = 0; i < 4; i++) {
+            float u = (i + 1) / 4.0f;
+            float dx = sinf(phase - u * 2.5f) * amp * (0.2f + 0.8f * u); // the wave grows toward the tip
+            Vector2 p = P(dx, -86 + u * 78);
+            ShadeLimb(prev, p, width[i] * s * bulk, width[i + 1] * s * bulk, i % 2 == 0 ? legs : Tone(legs, -0.12f));
+            DrawLineEx(L(prev, p, 0.2f), L(prev, p, 0.78f), 0.9f * s, Tone(legs, -0.32f)); // a banded scale ring at each joint
+            prev = p;
+        }
+        Vector2 tip = prev;
+        float flick = sinf(phase) * 9.0f * s;
+        ShadeBall(tip, 3.4f * s, Tone(legs, -0.22f)); // where the fluke meets the tail
+        DrawTri(tip, {tip.x - f * 15 * s, tip.y - 7 * s + flick}, {tip.x - f * 4 * s, tip.y - 2.5f * s}, Tone(legs, -0.15f)); // near fluke lobe
+        DrawTri(tip, {tip.x + f * 15 * s, tip.y + 7 * s - flick}, {tip.x + f * 4 * s, tip.y + 2.5f * s}, Tone(legs, -0.05f)); // far fluke lobe
     };
     Color forearm = h.cls == HeroClass::Mechanic ? skin : sleeve;
 
@@ -1123,9 +1142,13 @@ void DrawCrewFigure(const Hero& h, Vector2 ft, float s, bool right, float walk, 
             DrawCircleV(hd, 1.8f * s, brass);
         }
     }
-    leg(-5, walking ? -sw * 15 - 4 : -9 - pose.stride * 8, liftB * 6, Tone(legs, -0.22f));
-    if (h.cls == HeroClass::Captain) Q(P(-19, -100), P(15, -100), P(19, -34), P(-25, -34), top); // greatcoat skirts
-    leg(5, walking ? sw * 15 + 4 : 9 + pose.stride * 16, lift * 6, legs);
+    if (h.cls == HeroClass::Siren) {
+        tail();
+    } else {
+        leg(-5, walking ? -sw * 15 - 4 : -9 - pose.stride * 8, liftB * 6, Tone(legs, -0.22f));
+        if (h.cls == HeroClass::Captain) Q(P(-19, -100), P(15, -100), P(19, -34), P(-25, -34), top); // greatcoat skirts
+        leg(5, walking ? sw * 15 + 4 : 9 + pose.stride * 16, lift * 6, legs);
+    }
     if (h.cls == HeroClass::Nurse) {
         Q(P(-16, -100), P(16, -100), P(24, -38), P(-23, -38), top); // skirt
         for (int k = 0; k < 3; k++) DrawLineEx(P(-8 + k * 8.0f, -96), P(-11 + k * 11.0f, -42), 1.1f * s, Tone(top, -0.35f)); // folds
@@ -1241,10 +1264,8 @@ void DrawCrewFigure(const Hero& h, Vector2 ft, float s, bool right, float walk, 
             Q(P(-17, -134), P(18, -134), P(20, -95), P(-19, -95), Tone(top, -0.1f));
             for (int k = 0; k < 3; k++) DrawCircleV(P(-10 + k * 9.0f, -110), 2.2f * s, Tone(top, 0.15f));
             break;
-        case HeroClass::Siren: // a coral bodice, a flowing hem, and a choker set with resonant tubes at her throat
-            Q(P(-15, -132), P(16, -132), P(13, -100), P(-13, -100), trim);
-            Q(P(-17, -100), P(17, -100), P(24, -84), P(-24, -84), Tone(legs, 0.1f)); // flowing lower hem
-            for (int k = 0; k < 3; k++) DrawLineEx(P(-10 + k * 9.0f, -98), P(-14 + k * 12.0f, -86), 1.1f * s, Tone(legs, -0.25f));
+        case HeroClass::Siren: // a coral bodice that tapers straight into the tail - no skirt, no legs to hide
+            Q(P(-15, -132), P(16, -132), P(12, -88), P(-12, -88), trim);
             ShadeLimb(P(-7, -136), P(9, -136), 2.2f * s, 2.2f * s, Tone(legs, -0.15f));      // the choker band
             for (int k = 0; k < 3; k++) ShadeLimb(P(-4 + k * 4.0f, -139), P(-4 + k * 4.0f, -133), 0.8f * s, 0.8f * s, Tone(trim, -0.15f)); // its resonance tubes
             break;
@@ -1340,10 +1361,10 @@ void DrawCrewFigure(const Hero& h, Vector2 ft, float s, bool right, float walk, 
                 for (int k = 0; k < 2; k++) DrawLineEx(P(-12, -122 + k * 9.0f), P(10, -119 + k * 9.0f), 1.3f * s, Color{232, 214, 226, 255}); // cloth wraps
                 break;
             case HeroClass::Siren:
-                for (int k = 0; k < 7; k++) DrawCircleV(P(-22 + k * 7.3f, -85 + (k % 2) * 1.5f), 1.7f * s, pearl);          // pearls along the hem
+                for (int k = 0; k < 6; k++) DrawCircleV(P(-12 + k * 4.6f, -88 + (k % 2) * 1.2f), 1.5f * s, pearl);           // a pearl strand at the waist, where the bodice meets the tail
                 Strap(P(-15, -105), P(16, -109), 3.0f, Color{40, 120, 96, 255});                                            // a seaweed sash
                 ShadeBall(P(0, -124), 3.6f * s, Color{250, 214, 200, 255});                                                 // a shell clasp
-                for (int k = 0; k < 4; k++) DrawLineEx(P(-16 + k * 9.0f, -100), P(-8 + k * 9.0f, -85), 0.6f * s, Fade(WHITE, 0.55f)); // a fishing-net drape
+                for (int k = 0; k < 3; k++) DrawLineEx(P(-9 + k * 8.0f, -89), P(-6 + k * 8.0f, -76), 0.6f * s, Fade(WHITE, 0.5f)); // a torn net, trailing down over the tail
                 // a small skull, bound with coral growth, hung at her hip - her lair is built from older sailors
                 ShadeBall(P(-14, -95), 2.6f * s, Color{224, 216, 200, 255});
                 DrawCircleV(P(-14.8f, -95.6f), 0.6f * s, Color{30, 28, 26, 255}); DrawCircleV(P(-13.2f, -95.6f), 0.6f * s, Color{30, 28, 26, 255});
