@@ -2,9 +2,9 @@
 bone hip - 0 -84 0 1 1 0
 bone body hip 0 0 0 1 1 90
 slot glow hip add
-attach glow piece characters/wisp of the sea/glow.png 0.5 0.92 0.6
+attach glow piece characters/wisp of the sea/glow.png 0.5 0.92 0.85
 slot body hip
-attach body piece characters/wisp of the sea/body.png 0.5 0.92 0.6
+attach body piece characters/wisp of the sea/body.png 0.5 0.92 0.85
 anim idle 3
 key hip y 0 -84
 key hip y 0.375 -80.4645

@@ -392,6 +392,7 @@ struct ClassSpec {
     float floatAmp = 4.0f;
     bool hasGlow = false;      // an extra un-dithered glow.png, additive-blended behind body.png (see PaintGlow)
     Color glowColor{0, 0, 0, 0};
+    float bodyScale = 0.6f;    // body.png's (and glow.png's) attach scale; classes needing extra screen presence can raise it
 };
 
 bool GenerateClassArt(const ClassSpec& spec) {
@@ -471,10 +472,10 @@ bool GenerateClassArt(const ClassSpec& spec) {
         f << "bone body hip 0 0 0 1 1 90\n";
         if (spec.hasGlow) {
             f << "slot glow hip add\n";
-            f << "attach glow piece characters/" << folder << "/glow.png 0.5 0.92 0.6\n";
+            f << "attach glow piece characters/" << folder << "/glow.png 0.5 0.92 " << spec.bodyScale << "\n";
         }
         f << "slot body hip\n";
-        f << "attach body piece characters/" << folder << "/body.png 0.5 0.92 0.6\n";
+        f << "attach body piece characters/" << folder << "/body.png 0.5 0.92 " << spec.bodyScale << "\n";
         auto anim = [&](const char* name, float dur, float amp) {
             f << "anim " << name << " " << dur << "\n";
             const int N = 8;
@@ -607,6 +608,7 @@ std::vector<ClassSpec> CrewSpecs() {
         // bioluminescent command/communication patches. No humanoid silhouette at all.
         ClassSpec c; c.className = "Wisp of the Sea"; c.rig = ClassSpec::Rig::Float; c.floatAmp = 5.0f;
         c.hasGlow = true; c.glowColor = {120, 235, 228, 255};   // the "Radiant Blue and Teal Energy Source" the ink pass can't carry
+        c.bodyScale = 0.85f;   // noticeably bigger on screen than the other classes' shared 0.6 - a large, imposing jellyfish
         c.pal['t'] = {110, 205, 208, 255};   // bell: translucent teal-cyan
         c.pal['T'] = {62, 140, 152, 255};    // bell underside shadow
         c.pal['w'] = {225, 255, 250, 255};   // bioluminescent glow (bright)
@@ -619,37 +621,38 @@ std::vector<ClassSpec> CrewSpecs() {
         // zoomed-in debug crop) six thin, closely-spaced tentacles and a fine 3-unit-wide lantern simply vanished
         // into a single glowing smudge - "a mono-colour floating ball dripping something". Fewer, thicker,
         // further-apart parts, a wider flatter dome, and ink slits pre-separating the tentacle roots all read at
-        // a glance; fine detail that only shows up zoomed in doesn't count for anything here.
-        const float cx = 16;
-        Grid g(32, 38);
+        // a glance; fine detail that only shows up zoomed in doesn't count for anything here. Scaled up again (a
+        // bigger grid, six tentacles instead of four, plus a larger bodyScale above) for more screen presence.
+        const float cx = 22;
+        Grid g(44, 50);
         // the bell: wide and flat like a real jellyfish cap, not a round ball - shaded darker underneath so it
         // reads as a hollow glowing form, relit across the crown so the apex stays bright
-        g.Ellipse(cx, 10, 12.5f, 8.0f, 't');
-        g.Ellipse(cx, 13.0f, 11.5f, 6.0f, 'T');
-        g.Ellipse(cx, 7.0f, 11.0f, 6.0f, 't');
+        g.Ellipse(cx, 13, 17.0f, 11.0f, 't');
+        g.Ellipse(cx, 17.0f, 15.5f, 8.0f, 'T');
+        g.Ellipse(cx, 9.0f, 15.0f, 8.0f, 't');
         // faint darker patterning inside the glow (echoes the reference's subtle mask-like shading, not real eyes)
-        g.Ellipse(cx - 4.0f, 7.5f, 1.6f, 2.0f, 'k');
-        g.Ellipse(cx + 4.0f, 7.5f, 1.6f, 2.0f, 'k');
+        g.Ellipse(cx - 5.5f, 10.0f, 2.2f, 2.8f, 'k');
+        g.Ellipse(cx + 5.5f, 10.0f, 2.2f, 2.8f, 'k');
         // ink slits between where each tentacle will start, so the hem reads as gathered/split rather than solid
-        for (float gap : {cx - 6.0f, cx, cx + 6.0f}) g.Capsule(gap, 12.5f, gap, 16.5f, 0.55f, 0.3f, 'k');
+        for (float gap : {cx - 11.2f, cx - 5.6f, cx, cx + 5.6f, cx + 11.2f}) g.Capsule(gap, 16.5f, gap, 21.5f, 0.75f, 0.4f, 'k');
 
         // the spectral lantern: much bigger than the first pass so it actually reads as an object, not a speck
-        g.Rect(cx - 0.35f, 8.6f, cx + 0.35f, 9.6f, 'c');
-        g.Ellipse(cx, 8.8f, 0.6f, 0.6f, 'c');
-        g.Rect(cx - 2.6f, 9.6f, cx + 2.6f, 10.8f, 'L');
-        g.Rect(cx - 2.0f, 10.8f, cx + 2.0f, 15.4f, 'l');
-        g.Ellipse(cx, 12.8f, 1.0f, 1.6f, 'w');
-        g.Ellipse(cx - 3.2f, 12.6f, 0.9f, 0.9f, 'L'); g.Ellipse(cx - 3.2f, 12.6f, 0.3f, 0.3f, 'c');
-        g.Ellipse(cx + 3.2f, 11.6f, 0.75f, 0.75f, 'L'); g.Ellipse(cx + 3.2f, 11.6f, 0.25f, 0.25f, 'c');
+        g.Rect(cx - 0.5f, 11.5f, cx + 0.5f, 13.0f, 'c');
+        g.Ellipse(cx, 11.8f, 0.85f, 0.85f, 'c');
+        g.Rect(cx - 3.6f, 13.0f, cx + 3.6f, 14.8f, 'L');
+        g.Rect(cx - 2.8f, 14.8f, cx + 2.8f, 21.5f, 'l');
+        g.Ellipse(cx, 18.0f, 1.4f, 2.2f, 'w');
+        g.Ellipse(cx - 4.5f, 17.6f, 1.25f, 1.25f, 'L'); g.Ellipse(cx - 4.5f, 17.6f, 0.42f, 0.42f, 'c');
+        g.Ellipse(cx + 4.5f, 16.2f, 1.05f, 1.05f, 'L'); g.Ellipse(cx + 4.5f, 16.2f, 0.35f, 0.35f, 'c');
 
-        // four wavy tentacles - thick at the root, real gaps between them, tapering to a point - with a bright
+        // six wavy tentacles - thick at the root, real gaps between them, tapering to a point - with a bright
         // bioluminescent patch partway down each one
         struct Tendril { float baseX, amp, phase, rTop, rBot; };
         const Tendril tendrils[] = {
-            {cx - 9.0f, 1.4f, 0.0f, 2.3f, 0.6f}, {cx - 3.0f, 1.7f, 1.8f, 2.0f, 0.5f},
-            {cx + 3.0f, 1.7f, 0.9f, 2.0f, 0.5f}, {cx + 9.0f, 1.4f, 2.7f, 2.3f, 0.6f},
+            {cx - 14.0f, 1.9f, 0.0f, 3.2f, 0.8f}, {cx - 8.4f, 2.3f, 1.1f, 2.8f, 0.7f}, {cx - 2.8f, 2.6f, 2.2f, 2.6f, 0.65f},
+            {cx + 2.8f, 2.6f, 0.6f, 2.6f, 0.65f}, {cx + 8.4f, 2.3f, 1.7f, 2.8f, 0.7f}, {cx + 14.0f, 1.9f, 2.9f, 3.2f, 0.8f},
         };
-        const float y0 = 15, y1 = 34;
+        const float y0 = 21, y1 = 48;
         for (const Tendril& td : tendrils) {
             for (int yy = (int)y0; yy <= (int)y1; yy++) {
                 float t = (yy - y0) / (y1 - y0);
