@@ -82,6 +82,25 @@ void main() {
     // a thin, cool rim of reflected light along the shadowed edge, as in Darkest Dungeon's portraits
     float rimEdge = 1.0 - texture(texture0, uv + vec2(2.0, -1.0) * uTexel).a;
     col += vec3(0.05, 0.08, 0.09) * rimEdge * (1.0 - toward * 0.5);
+    if (uInkStyle > 0.5) { // an ink drawing, like the cards: black linework, diagonal hatching and dithered stipple over a dusky paper tone.
+        // Built straight from the lit, pre-tint colour above: the legacy cel-band/rim pipeline below is for the painted look, and
+        // compounds into near-black once fed through ink thresholding, so ink drawings skip it entirely.
+        float lv = dot(col, vec3(0.299, 0.587, 0.114));
+        vec3 hue = col / max(lv, 0.08);
+        vec3 paper = mix(vec3(0.72, 0.62, 0.46), clamp(hue * 0.85, 0.0, 1.3) * 0.68, 0.30);
+        float v = clamp(pow(lv, 0.55) * 1.05, 0.0, 1.15);
+        vec2 hpx = uv / uTexel;
+        float diag = fract((hpx.x + hpx.y) / 6.0);
+        bool hatch = v < 0.42 && diag < 0.24;                  // one clean diagonal hatch band, not scattered dots
+        float thr = bayerF(floor(hpx / 3.0));                  // a smooth 3px-block dither for the fill, matching the cards
+        float d = clamp((0.72 - v) / 0.58, 0.0, 1.0);
+        vec3 outc;
+        if (edge > 0.6 || hatch || thr < d * 0.55) outc = INK;
+        else if (thr < d * 1.05) outc = vec3(0.38, 0.27, 0.20);
+        else outc = paper * (0.70 + 0.30 * v);                 // dusky rather than bright, so it sits in a dim scene instead of glowing
+        finalColor = vec4(outc * fragColor.rgb, fragColor.a);
+        return;
+    }
     col = mix(col, INK, smoothstep(0.35, 0.9, edge) * 0.75);      // linework between parts
     // a little painted texture, so surfaces read as cloth, skin and metal rather than flat colour
     vec2 cell = floor(uv / uTexel / 2.0);
@@ -111,20 +130,7 @@ void main() {
     col = mix(col, vec3(0.62, 0.9, 1.0), rimB * (1.0 - rimA) * 0.4);
     if (e1 < 0.5) col = mix(col * 0.55, INK, 0.25);  // a thin, sharp shadow edge on the far side only: the fill keeps its colour
     else if (e2 < 0.5) col *= 0.92;
-    if (uInkStyle > 0.5) { // an ink drawing, like the cards: black linework, hatching and dithered stipple over paper tones
-        float lv = dot(col, vec3(0.299, 0.587, 0.114));
-        vec3 hue = col / max(lv, 0.08);
-        vec3 paper = mix(vec3(0.90, 0.80, 0.62), clamp(hue * 0.85, 0.0, 1.3) * 0.85, 0.30);
-        float v = clamp(pow(lv, 0.5) * 1.18, 0.0, 1.2);
-        float thr = bayerF(floor(uv / uTexel / 3.0)) * 0.72 + hash(floor(uv / uTexel / 3.0)) * 0.28;
-        float d = clamp((0.95 - v) / 0.7, 0.0, 1.0);
-        float hatchL = step(0.82, fract((uv.x + uv.y) / uTexel.x / 9.0)) * step(v, 0.36);
-        vec3 outc;
-        if (edge > 0.6 || hatchL > 0.5 || thr < d * 0.42) outc = INK;
-        else if (thr < d * 1.0) outc = vec3(0.45, 0.32, 0.24);
-        else outc = paper * (0.70 + 0.14 * v);
-        col = outc;
-    } else if (uVibrance > 0.0) { // aboard the Nautilus: warmer, more saturated and higher in contrast, to sit in the brass-lit salon
+    if (uVibrance > 0.0) { // aboard the Nautilus: warmer, more saturated and higher in contrast, to sit in the brass-lit salon
         float lv = dot(col, vec3(0.299, 0.587, 0.114));
         col = mix(vec3(lv), col, 1.0 + 0.45 * uVibrance) * vec3(1.06, 1.0, 0.9);
         col = (col - 0.5) * (1.0 + 0.18 * uVibrance) + 0.5 + 0.03 * uVibrance;

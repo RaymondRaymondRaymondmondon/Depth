@@ -131,7 +131,9 @@ static void TakeShots(const Game& base, const std::string& dir) {
                     }
             }
         }},
-        {"hull_vent", [](Game& g) { ShotAtPiece(g, PL_HULL, SetPiece::SteamBoost, false, 1); }},
+        {"pipes_piston", [](Game& g) { ShotAtPiece(g, PL_PIPES, SetPiece::PistonCorridor, false, 1); }},
+        {"pirate_crossfire", [](Game& g) { ShotAtPiece(g, PL_PIRATE, SetPiece::GunCrossfire, false, 1); }},
+        {"hull_vent",[](Game& g) { ShotAtPiece(g, PL_HULL, SetPiece::SteamBoost, false, 1); }},
         {"hull_torpedo",[](Game& g) { ShotAtLauncher(g, PL_HULL, 'T'); }},
         {"pipes_vent", [](Game& g) { ShotAtPiece(g, PL_PIPES, SetPiece::SteamBoost); g.plat.time = 0.4f; }},
         {"pipes_crumble", [](Game& g) { ShotAtPiece(g, PL_PIPES, SetPiece::CrumbleRun); }},

@@ -341,10 +341,10 @@ static void BuildFleet(Grid& g, std::vector<Plat>& pl, Rng& rng, GenLevel& out, 
         int bridgeAt = (rng.C(0.55f) && x + len < P.length - 40) ? 1 : 0;
         if (bridgeAt) last = ex - 16;
         while (cx < last) {
-            // 0 hatch, 1 barricade shaft, 2 cargo, 3 dressing mast, 4 gun battery, 5 barrel run, 6 rotten planking
+            // 0 hatch, 1 barricade shaft, 2 cargo, 3 dressing mast, 4 gun battery, 5 barrel run, 6 rotten planking, 7 gun crossfire
             int roll = rng.I(0, 99);
-            int kind = roll < 16 ? 0 : roll < 34 ? 1 : roll < 42 ? 2 : roll < 48 ? 3 : roll < 66 ? 4 : roll < 82 ? 5 : 6;
-            const int need[7] = {12, 20, 9, 10, 16, 18, 14};                  // the widest each segment can grow, with its run-off
+            int kind = roll < 15 ? 0 : roll < 31 ? 1 : roll < 38 ? 2 : roll < 44 ? 3 : roll < 60 ? 4 : roll < 74 ? 5 : roll < 87 ? 6 : 7;
+            const int need[8] = {12, 20, 9, 10, 16, 18, 14, 18};              // the widest each segment can grow, with its run-off
             if (cx + need[kind] > last) kind = 2;                              // not enough deck left: something small
             if (cx + need[kind] > last) break;
             if (kind == 0) { // an open hatch, spikes in the hold
@@ -394,6 +394,15 @@ static void BuildFleet(Grid& g, std::vector<Plat>& pl, Rng& rng, GenLevel& out, 
                 g.rect(cx, Ds + 1, cx + len - 1, Ds + 1, 'x');
                 for (int q = 1; q < len; q += 3) g.set(cx + q, Ds - 3, 'o');
                 cx += len + 5;
+            } else if (kind == 7) { // gun crossfire: two cannons face each other across the lane, firing on staggered timers so the safe beat keeps changing
+                int gw = rng.I(7, 8);
+                g.set(cx + 1, Ds - 1, 'N');
+                g.set(cx + gw, Ds - 1, 'N');
+                for (int q = 3; q < gw - 1; q += 3) if (g.get(cx + q, Ds - 4) == '.') g.set(cx + q, Ds - 4, 'o');
+                Plat mid{cx + 2, cx + gw - 1, Ds, C_JUMP, '#', SetPiece::GunCrossfire, 0, cx + 2 + gw / 2};
+                pl.push_back(mid);
+                out.setPieces[(int)SetPiece::GunCrossfire]++;
+                cx += gw + 6;
             } else { // a standing mast with yardarms out of reach: dressing, a tunnel at its foot
                 rig(cx, Ds, Ds - 22);
                 yard(cx, Ds - 14, 6); yard(cx, Ds - 20, 4);
@@ -568,6 +577,28 @@ GenLevel GenerateLevel(int level, unsigned seed, float scale) {
         out.setPieces[(int)SetPiece::PipeDrop]++;
         return true;
     };
+    auto pistonCorridor = [&]() { // two crumbling plates back to back, landing right on a vent that launches you clear: no time to plant your feet
+        Plat c = pl.back();
+        if (c.ch == 'f' || c.conn == C_STEAM) return false;
+        Plat cur = c;
+        for (int k = 0; k < 2; k++) {
+            Plat f{cur.x1 + 3, cur.x1 + 3, cur.y, C_CRUMBLE, 'f', k == 0 ? SetPiece::PistonCorridor : SetPiece::None, 2, 0};
+            f.wx = f.x0;
+            push(f, &cur);
+            cur = f;
+        }
+        int ny = cur.y - 5;
+        if (ny >= yLo) {
+            g.set(cur.x1, cur.y, 'v');
+            Plat n{cur.x1 + 1, cur.x1 + 5, ny, C_STEAM, '#', SetPiece::None, 0, cur.x1 + 2};
+            push(n, nullptr);
+            g.rect(cur.x1, ny - 6, cur.x1, cur.y - 1, '.');
+        } else {
+            addJump(3, 4);
+        }
+        out.setPieces[(int)SetPiece::PistonCorridor]++;
+        return true;
+    };
     auto shipGap = [&]() {
         // two big decks facing each other across a gap at the very edge of the arc: a ship-to-ship leap
         addJump(6, 7, true);
@@ -607,7 +638,7 @@ GenLevel GenerateLevel(int level, unsigned seed, float scale) {
     while (pl.back().x1 < P.length && guard++ < 400) {
         bool did = false;
         if (rng.C(P.setChance)) {
-            if (level == 0) { int k = rng.I(0, 3); did = k == 0 ? steamBoost() : k == 1 ? crumbleRun() : k == 2 ? gearGauntlet() : pipeDrop(); }
+            if (level == 0) { int k = rng.I(0, 4); did = k == 0 ? steamBoost() : k == 1 ? crumbleRun() : k == 2 ? gearGauntlet() : k == 3 ? pipeDrop() : pistonCorridor(); }
             else if (level == 1) did = shaft(true);
             else did = shipGap();
         }
