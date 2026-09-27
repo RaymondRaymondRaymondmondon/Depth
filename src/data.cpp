@@ -392,6 +392,11 @@ Stats GetStats(const Hero& h) {
     s.dmgMax += h.level;
     s.acc += h.level * 2;
     s.dodge += h.level * 2;
+    // this individual's own build: vigor (HP), might (damage), quickness (speed & dodge), fortitude (protection & nerve)
+    s.maxHp += h.vigor * 3;
+    s.dmgMin += h.might; s.dmgMax += h.might * 2;
+    s.speed += h.quickness; s.dodge += h.quickness * 3;
+    s.prot += h.fortitude * 4; s.stressResist += h.fortitude * 5;
     for (int r : h.relics) {
         if (r < 0) continue;
         const RelicDef& d = Relics()[r];
@@ -429,8 +434,21 @@ Hero MakeHero(Game& g, HeroClass c) {
         for (const Hero& o : g.roster) taken |= o.name == h.name;
         if (!taken) break;
     }
+    h.vigor = GetRandomValue(-2, 2); h.might = GetRandomValue(-2, 2); h.quickness = GetRandomValue(-2, 2); h.fortitude = GetRandomValue(-2, 2);
     h.hp = GetStats(h).maxHp;
     return h;
+}
+
+// A one- or two-word read on a recruit's build, for the roster and radar screens: which axes stand out, and by how much.
+std::string HeroBuildTag(const Hero& h) {
+    struct Axis { int v; const char* hi; const char* lo; };
+    Axis axes[4] = {{h.vigor, "Vigorous", "Frail"}, {h.might, "Mighty", "Weak-armed"}, {h.quickness, "Quick", "Sluggish"}, {h.fortitude, "Steady", "Nervy"}};
+    int best = 0;
+    for (int i = 1; i < 4; i++) if (std::abs(axes[i].v) > std::abs(axes[best].v)) best = i;
+    if (axes[best].v == 0) return "Balanced";
+    std::string tag = axes[best].v > 0 ? axes[best].hi : axes[best].lo;
+    for (int i = 0; i < 4; i++) if (i != best && std::abs(axes[i].v) >= 2) tag += std::string(", ") + (axes[i].v > 0 ? axes[i].hi : axes[i].lo);
+    return tag;
 }
 
 Hero MakeRandomHero(Game& g) {
@@ -438,7 +456,10 @@ Hero MakeRandomHero(Game& g) {
 }
 
 // Level 0-6. Values are total XP needed to reach each level.
-static const int XP_TABLE[7] = {0, 4, 10, 18, 28, 40, 55};
+// Each level costs more than the last (deltas 6, 11, 17, 25, 35, 48), so a crew that keeps farming the shallowest
+// water stalls out: XP per win scales with how deep the cave tier actually is (see ApplyResults), so the fastest way
+// to keep levelling is to take the crew somewhere harder, not to grind the same easy room.
+static const int XP_TABLE[7] = {0, 6, 17, 34, 59, 94, 142};
 
 void GiveXP(Game& g, Hero& h, int amount) {
     int oldMax = GetStats(h).maxHp;

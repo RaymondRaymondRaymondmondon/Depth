@@ -741,7 +741,7 @@ static void ApplyResults(Game& g) {
             Hero* h = FindHero(g, id);
             if (!h) continue;
             int before = h->level;
-            GiveXP(g, *h, win ? 5 + lvl * 2 : 2 + lvl);
+            GiveXP(g, *h, win ? 3 + lvl * 3 : 1 + lvl);   // deeper tiers pay off far faster than grinding the Shallows
             if (h->level > before) d.levelUps += (d.levelUps.empty() ? "" : ", ") + h->name + TextFormat(" reached level %d", h->level);
             if (!win) {
                 h->stress = std::min(100, h->stress + 10);

@@ -143,6 +143,9 @@ struct Hero {
     int loadout[LOADOUT_SIZE] = {0, 1, 2, 3}; // indices into ClassAbilities, -1 = empty slot
     int outfit = -1;         // >= 0 for the Nautilus's own hands (see NpcOutfit): a uniform instead of class gear
     Status st;
+    // Individual variance, rolled once at recruitment: -2..+2 on four axes, so two recruits of the same class
+    // are never identical. The player is meant to read the numbers and judge which recruit suits which role.
+    int vigor = 0, might = 0, quickness = 0, fortitude = 0;
 };
 
 struct EnemyAbility {
@@ -430,6 +433,7 @@ const char* ClassName(HeroClass c);
 const char* ClassBlurb(HeroClass c);
 Color ClassColor(HeroClass c);
 Hero MakeHero(Game& g, HeroClass c);
+std::string HeroBuildTag(const Hero& h);   // "Vigorous", "Frail, Quick", ... a read on which stat axes stand out
 Hero MakeRandomHero(Game& g);
 const std::vector<RelicDef>& Relics();
 Stats GetStats(const Hero& h);

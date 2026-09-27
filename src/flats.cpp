@@ -312,6 +312,14 @@ void DrawTable() {
 // The dealer sits in shadow, but he is never lost in it: the room around him is black, and he is picked out
 // in solid ink-black masses with a thin cold rim of light along his hood and shoulders, a brow that hides
 // his eyes, and two pinpricks of light beneath it. Hard block shadows, no gradients.
+// A clipped diagonal hatch, so the dealer picks up the same ink texture as the cards without a full redraw.
+void InkHatch(Rectangle r, Color col, float spacing = 7, float w = 1.6f) {
+    BeginScissorMode((int)r.x, (int)r.y, (int)r.width, (int)r.height);
+    float diag = r.width + r.height;
+    for (float d = -r.height; d < r.width; d += spacing) DrawLineEx({r.x + d, r.y}, {r.x + d + r.height, r.y + r.height}, w, col);
+    (void)diag;
+    EndScissorMode();
+}
 void DrawDealer(float t) {
     // The same character as the one at the table in the salon, drawn large: a hooded cloak, a face like old candle wax,
     // eyes that catch the cold light, gloved hands, a brass-trimmed mantle, a glowing brooch. Built in layers, back to front.
@@ -373,6 +381,11 @@ void DrawDealer(float t) {
         Glow(e, 28, Color{150, 170, 255, 70});
         DrawRectangle((int)e.x - 12, (int)e.y - 3, 24, 6, Color{220, 232, 255, 255});                        // just a sliver of light in the dark
     }
+    // ink hatching, clipped over the dark cloak masses, so he reads as inked like the cards instead of smoothly painted
+    Color hatchInk = Fade(BLACK, 0.30f);
+    InkHatch({V(-66, -146).x, V(0, -146).y, 132 * sx, 140 * sy}, hatchInk, 6, 1.4f);
+    InkHatch({V(-58, -126).x, V(0, -126).y, 116 * sx, 112 * sy}, Fade(BLACK, 0.20f), 8, 1.2f);
+    InkHatch({V(-15.5f, -172).x, V(0, -172).y, 31 * sx, 14 * sy}, Fade(BLACK, 0.35f), 4, 1.2f);   // the brow: a touch more ink over its solid bar
     // 7. the brooch at the throat, its gem the colour of the table's glow, and a watch chain
     { Vector2 c = V(0, -124); Ell(c, 16, 15, ink); Ell(c, 13, 12, brass); Ell(c, 8, 7, gem); Glow(c, 40, Color{90, 200, 220, (unsigned char)(80 + 30 * sinf(t * 2))}); }
     DrawLineEx(V(0, -121), V(-16, -101), 3, ink); DrawLineEx(V(0, -121), V(-16, -101), 1.6f, brass); Ell(V(-16, -99), 9, 9, ink); Ell(V(-16, -99), 6.5f, 6.5f, brass);
@@ -961,7 +974,7 @@ void ApplyEvents(const Events& evs, const Board& prev) {
                 CellFx& f = U.fx[e.r1][e.c1];
                 Vector2 from = Owner(e.r1) == Side::YOU ? U.handFrom : Vector2{930, 300};
                 f.off = {from.x - to.x, from.y - to.y};
-                f.offT = 0; f.offDur = 0.42f; f.arc = 70; f.appear = 0.55f;
+                f.offT = 0; f.offDur = 0.34f; f.arc = 46; f.appear = 0.0f;   // grows in step with the flight, instead of popping to size and then sliding
                 PlaySlap();
                 Burst({to.x, to.y + 30}, 5, 2, Color{150, 130, 110, 255}, 40);
             } break;
@@ -1046,7 +1059,7 @@ void UpdateFx(float dt) {
             f.lunge = std::max(0.0f, f.lunge - dt * 2.2f);
             f.shake = std::max(0.0f, f.shake - dt * 2.4f);
             f.flash = std::max(0.0f, f.flash - dt * 3.0f);
-            f.appear = std::min(1.0f, f.appear + dt * 4.0f);
+            f.appear = std::min(1.0f, f.appear + dt * 3.0f);   // roughly tracks a card's flight time, so it grows as it arrives rather than popping in early
         }
     for (auto& g : U.ghosts) g.t += dt;
     U.ghosts.erase(std::remove_if(U.ghosts.begin(), U.ghosts.end(), [](const Ghost& g) { return g.t >= g.dur; }), U.ghosts.end());
@@ -1143,8 +1156,11 @@ void HandleBattleEnd() {
     bool won = U.bat.winner > 0;
     U.lastTurns = U.bat.turnNo;
     int before = U.rm.gs.momentumTracker;
-    U.gainedGold = U.rm.OnBattleFinished(won, U.bat.turnNo, U.bat.board.gold, U.bat.board.itemsFound[0]);
+    std::vector<int> gotItems; int lostItems = 0;
+    U.gainedGold = U.rm.OnBattleFinished(won, U.bat.turnNo, U.bat.board.gold, U.bat.board.itemsFound[0], &gotItems, &lostItems);
     U.gainedMomentum = won && U.rm.gs.momentumTracker > before;
+    for (int k : gotItems) Toast(std::string("Found: ") + ItemName(k));
+    if (lostItems > 0) Toast("Your pack was full: a find from the table was left behind.");
     if (won) {
         U.ph = Ph::Won;
         Burst({640, 300}, 30, 1, Color{240, 200, 80, 255}, 260);
@@ -1260,11 +1276,8 @@ void DrawBoardCard(int r, int c, float t) {
 void DrawBattle(Game& g, float dt, float t, Vector2 m, bool modal) {
     (void)g;
     Battle& bat = U.bat;
-    // ---- the automatic phases, one micro-step at a time
-    if (bat.turn == Turn::YOU_DRAW) {
-        U.stepT -= dt;
-        if (U.stepT <= 0) { U.ev.clear(); bat.Draw(true, U.ev, U.rng); U.stepT = 0.15f; U.selHand = -1; U.sacs.clear(); U.sacMode = false; U.selItem = -1; }
-    } else if (bat.turn == Turn::OVER) {
+    // ---- the automatic phases, one micro-step at a time (drawing is the one choice the player makes here, so it waits)
+    if (bat.turn == Turn::OVER) {
         U.endT += dt;
         if (U.endT > 1.1f && U.ph == Ph::Battle) HandleBattleEnd();
     } else if (!bat.Waiting()) {
@@ -1367,7 +1380,7 @@ void DrawBattle(Game& g, float dt, float t, Vector2 m, bool modal) {
         Txt("momentum", b.x - 42, b.y + 66, 11, Fade(Pal::Paper, 0.6f));
     }
     for (int i = 0; i < MAX_ITEMS; i++) {
-        Vector2 p{1150, 520.0f + i * 62};
+        Vector2 p{1210, 500.0f + i * 62};   // clear of the bell, which now sits lower (see BellRect)
         DrawRectangleRounded({p.x - 26, p.y - 28, 52, 56}, 0.2f, 6, Color{8, 12, 16, 190});
         DrawRectangleRoundedLinesEx({p.x - 26, p.y - 28, 52, 56}, 0.2f, 6, U.selItem == i ? 3.0f : 1.5f, U.selItem == i ? Pal::Brass : Pal::BrassDk);
         if (i < (int)bat.items.size()) {
@@ -1386,12 +1399,26 @@ void DrawBattle(Game& g, float dt, float t, Vector2 m, bool modal) {
     }
     DrawBell({1090, 534}, myMain, U.bellT);
 
+    // ---- the draw: a real choice each turn, not both for free
+    bool myDraw = bat.turn == Turn::YOU_DRAW && !modal && U.ph == Ph::Battle;
+    if (myDraw) {
+        bool handFull = (int)bat.hand.size() >= MAX_HAND, deckEmpty = bat.deck.empty();
+        Rectangle db{440, 560, 190, 76}, mb{650, 560, 190, 76};
+        if (Button(db, TextFormat("Draw a card  (%d left)", (int)bat.deck.size()), !handFull && !deckEmpty, 16)) {
+            U.ev.clear(); bat.Draw(true, U.ev, U.rng); U.selHand = -1; U.sacs.clear(); U.sacMode = false; U.selItem = -1; U.stepT = 0.15f;
+        }
+        if (Button(mb, "Draw a minnow  (free)", !handFull, 16)) {
+            U.ev.clear(); bat.Draw(false, U.ev, U.rng); U.selHand = -1; U.sacs.clear(); U.sacMode = false; U.selItem = -1; U.stepT = 0.15f;
+        }
+        DrawTextCentered("A minnow is free fodder for a blood cost; the deck grows your board.", SCREEN_W / 2.0f, 640, 13, Fade(Pal::Paper, 0.75f));
+    }
+
     // ---- input
     if (myMain) {
         if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) { U.selHand = -1; U.sacs.clear(); U.sacMode = false; U.selItem = -1; }
         if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
             bool hoverItemSlot = false;
-            for (int i = 0; i < MAX_ITEMS; i++) hoverItemSlot |= CheckCollisionPointRec(m, {1124, 492.0f + i * 62, 52, 56});
+            for (int i = 0; i < MAX_ITEMS; i++) hoverItemSlot |= CheckCollisionPointRec(m, {1184, 472.0f + i * 62, 52, 56});
             if (CheckCollisionPointRec(m, BellRect())) {
                 U.bellT = 1; U.shake = std::max(U.shake, 0.1f); PlayBell();
                 U.selHand = -1; U.sacs.clear(); U.sacMode = false; U.selItem = -1;
@@ -1422,7 +1449,7 @@ void DrawBattle(Game& g, float dt, float t, Vector2 m, bool modal) {
     // ---- the turn hint
     const char* hint = "";
     switch (bat.turn) {
-        case Turn::YOU_DRAW: hint = "You draw a card and a minnow..."; break;
+        case Turn::YOU_DRAW: hint = "Draw a card, or a free minnow to fuel a sacrifice."; break;
         case Turn::YOU_MAIN:
             hint = U.sacMode ? TextFormat("Click your creatures to sacrifice: %d blood needed. Right-click cancels.", U.selHand >= 0 ? bat.BloodNeeded(bat.hand[U.selHand]) : 0)
                    : U.selItem >= 0 ? "Click a target for the item." : U.selHand >= 0 ? "Click a lane to play the card there. Right-click puts it back." : "Pick a card, then a lane. Ring the bell to fight."; break;
@@ -1857,7 +1884,7 @@ void AutoplayTick() {
     if (U.ph == Ph::Battle) {
         U.stepT = 0;                                   // one micro-step per frame
         if (bat.turn == Turn::OVER) U.endT = 2;        // skip the end pause
-        if (bat.turn == Turn::YOU_MAIN) {
+        if (bat.turn == Turn::YOU_DRAW || bat.turn == Turn::YOU_MAIN) {   // AutoYourTurn draws (its own choice of card vs. minnow) and then plays
             Board prev = bat.board;
             U.ev.clear();
             bat.AutoYourTurn(U.ev, U.rng);

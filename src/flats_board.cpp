@@ -387,12 +387,10 @@ bool Battle::Draw(bool fromDeck, Events& ev, Rng& rng) {
         else hand.push_back(Minnow());
         Event e; e.type = Event::Drew; e.amount = hand.back().id; ev.push_back(e);
     };
-    (void)fromDeck;
-    int minnows = 0;
-    for (auto& h : hand) if (h.name == "Minnow") minnows++;
-    if (!deck.empty()) take(true);                                                                       // a card from the deck...
-    if (minnows < 3 && (int)hand.size() < MAX_HAND) take(false);                                          // ...and a free minnow to spend as blood
-    if (((charms >> CH_COMPASS) & 1u) && !deck.empty() && (int)hand.size() < MAX_HAND) take(true);         // the compass: a second card
+    // a real choice, not both for free: the deck's next card, growing your options, or a free minnow, fuel for
+    // a blood cost, at the price of not drawing a real card this turn
+    take(fromDeck && !deck.empty());
+    if (((charms >> CH_COMPASS) & 1u) && !deck.empty() && (int)hand.size() < MAX_HAND) take(true);         // the compass: a second card, always from the deck
     turn = Turn::YOU_MAIN;
     firstPlayThisTurn = true;
     return true;
@@ -453,7 +451,10 @@ bool Battle::Play(int hi, int col, const std::vector<std::pair<int, int>>& sacs,
         hand.push_back(cp);
         Event e; e.type = Event::SigilFired; e.r1 = R_YOU_FRONT; e.c1 = col; e.text = "Spawn"; ev.push_back(e);
     }
-    if (c.Has(Sigil::SCAVENGER)) board.itemsFound[0]++;
+    if (c.Has(Sigil::SCAVENGER)) {
+        board.itemsFound[0]++;
+        Event e; e.type = Event::SigilFired; e.r1 = R_YOU_FRONT; e.c1 = col; e.text = "Scavenger: an item, at the table"; ev.push_back(e);
+    }
     firstPlayThisTurn = false;
     board.SentinelPass(Side::FOE, ev);
     Drain(ev);

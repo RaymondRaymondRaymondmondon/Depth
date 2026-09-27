@@ -153,7 +153,7 @@ void SceneCrew(Game& g) {
         Hero& h = *sel;
         Stats s = GetStats(h);
         TxtBold(h.name, 356, 254, 26, Pal::Ink);
-        Txt(TextFormat("%s  -  Level %d", ClassName(h.cls), h.level), 356 + MeasureTxt(h.name, 26, true) + 16, 262, 18, Pal::BrassDk);
+        Txt(TextFormat("%s  -  Level %d  -  %s", ClassName(h.cls), h.level, HeroBuildTag(h).c_str()), 356 + MeasureTxt(h.name, 26, true) + 16, 262, 18, Pal::BrassDk);
         DrawWrapped(ClassBlurb(h.cls), {356, 288, 570, 40}, 15, Pal::Ink);
         int next = XpForNextLevel(h);
         const std::string lines[8] = {
@@ -187,6 +187,13 @@ void SceneCrew(Game& g) {
             if (a.target == Target::Enemy) where += "  >  " + RankString(a.hits);
             else where += a.target == Target::Self ? "  >  self" : a.target == Target::AllAllies ? "  >  party" : "  >  ally";
             Txt(where, c.x + 9, c.y + 20, 12, Pal::BrassDk);
+            std::string eff;   // the numbers, so the player isn't forced to hover to compare abilities
+            if (a.dmgMult > 0) { int lo = (int)(s.dmgMin * a.dmgMult), hi = (int)(s.dmgMax * a.dmgMult); eff = TextFormat("%d-%d dmg%s", lo, hi, a.hitsCount > 1 ? TextFormat(" x%d", a.hitsCount) : ""); }
+            if (a.heal > 0) eff += (eff.empty() ? "" : "  ") + std::string(TextFormat("+%d HP", a.heal));
+            if (a.stressHeal > 0) eff += (eff.empty() ? "" : "  ") + std::string(TextFormat("-%d nerve", a.stressHeal));
+            if (a.stunChance > 0) eff += (eff.empty() ? "" : "  ") + std::string(TextFormat("%d%% stun", a.stunChance));
+            if (a.accBonus != 0) eff += (eff.empty() ? "" : "  ") + std::string(TextFormat("%+d acc", a.accBonus));
+            if (!eff.empty()) Txt(eff, c.x + c.width - 8 - MeasureTxt(eff, 11), c.y + 20, 11, Color{60, 120, 110, 255});
             const char* tag = locked ? TextFormat("Lv %d", a.unlockLevel) : slot >= 0 ? "SLOTTED" : "";
             TxtBold(tag, c.x + c.width - 10 - MeasureTxt(tag, 11, true), c.y + 12, 11, locked ? Pal::BrassDk : Color{40, 130, 120, 255});
             if (!hov) continue;
@@ -304,7 +311,8 @@ void SceneRadar(Game& g) {
         DrawRectangle((int)c.x, (int)c.y + 10, 8, (int)c.height - 20, ClassColor(h.cls));
         TxtBold(h.name, c.x + 20, c.y + 8, 22, Pal::Ink);
         Txt(ClassName(h.cls), c.x + 30 + MeasureTxt(h.name, 22, true), c.y + 13, 17, Pal::BrassDk);
-        if (cardH >= 120) DrawWrapped(ClassBlurb(h.cls), {c.x + 20, c.y + 42, 400, 60}, 15, Pal::Ink);
+        Txt(HeroBuildTag(h), c.x + 20, c.y + 32, 14, Pal::Copper);
+        if (cardH >= 140) DrawWrapped(ClassBlurb(h.cls), {c.x + 20, c.y + 54, 400, 46}, 15, Pal::Ink);
         Stats s = GetStats(h);
         Txt(TextFormat("HP %d   Dmg %d-%d   Spd %d   Dodge %d   Prot %d", s.maxHp, s.dmgMin, s.dmgMax, s.speed, s.dodge, s.prot),
             c.x + 20, c.y + cardH - 28, 14, Pal::BrassDk);

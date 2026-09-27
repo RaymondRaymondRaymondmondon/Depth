@@ -172,7 +172,7 @@ bool TouchWall(const PlatformState& p, int side) {
 
 // Timed jets fire for 1.1 s out of every 2.4 s, staggered along the level.
 float JetCycle(const PlatformState& p, int tx) { return fmodf(p.time + (tx % 5) * 0.5f, 2.4f); }
-bool JetOn(const PlatformState& p, int tx) { return JetCycle(p, tx) < 1.1f; }
+bool JetOn(const PlatformState& p, int tx) { return JetCycle(p, tx) < (p.hard ? 1.1f : 0.7f); }   // Normal: a shorter, gentler window, but the jet still fires
 
 Rectangle PlayerBox(const PlatformState& p) { return {p.pos.x + 3, p.pos.y + 3, PW - 6, PH - 5}; }
 
@@ -776,9 +776,9 @@ void BuildLevel(PlatformState& p) {
     GenLevel gl = GenerateLevel(p.level, seed, scale);
     const Part* arena = p.level == PL_PIPES ? nullptr : &(p.bossEnabled ? L.last : L.lastNoBoss);
     BuildFromGrid(p, gl, arena, L.fill, L.fillAbove);
-    if (!p.hard) // Normal: no spinning hazards, and the jets are left cold (plain floor)
+    if (!p.hard) // Normal: mines and spiked balls become a plain spiked bed underfoot instead of vanishing outright, and the jets fire on a shorter, gentler window (see JetOn) rather than going cold
         for (auto& row : p.tiles)
-            for (char& c : row) c = c == 'g' ? '.' : c == 't' ? '#' : c;
+            for (char& c : row) if (c == 'g') c = 'x';
     p.coins = 0;
     p.relic = -1;
     p.shots.clear();

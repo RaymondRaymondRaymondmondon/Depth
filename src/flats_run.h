@@ -74,7 +74,7 @@ public:
     BattleSetup MakeBattle(Boon boon) const;
     int PayoutFor(const MapNode& n) const;
     // Records the result: pot, momentum, item finds. `turns` is how long it lasted. Returns gold banked by the win.
-    int OnBattleFinished(bool won, int turns, int goldFromBoard, int itemsFound);
+    int OnBattleFinished(bool won, int turns, int goldFromBoard, int itemsFound, std::vector<int>* granted = nullptr, int* discarded = nullptr);
     Boon SuggestBoon() const { return Boon::EXTRA_DRAW; }
     bool SpendMomentum();                    // -1 momentum, true if there was any
 

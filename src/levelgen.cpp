@@ -66,9 +66,9 @@ struct Params {
 
 Params ParamsFor(int level) {
     switch (level) {
-        case 0: return {0.62f, 230, 40, 4, 9, 2, 3, 1, true, 0.0f, 0, 0, 0.38f};     // the Pipes: wide, forgiving, no wall jumps
-        case 1: return {0.78f, 300, 64, 2, 5, 3, 4, 2, false, 0.40f, 9, 14, 0.20f};   // the Hull: verticality, shafts, footholds
-        default: return {0.93f, 310, 64, 1, 3, 3, 4, 3, false, 0.36f, 10, 14, 0.20f}; // the Pirate Ship: tiny footholds at the arc's edge
+        case 0: return {0.70f, 230, 40, 4, 9, 2, 3, 1, true, 0.0f, 0, 0, 0.48f};     // the Pipes: still forgiving, no wall jumps, but tighter gaps and denser set-pieces than before
+        case 1: return {0.84f, 300, 64, 2, 5, 3, 4, 2, false, 0.42f, 9, 14, 0.27f};   // the Hull: verticality, shafts, footholds
+        default: return {0.95f, 310, 64, 1, 3, 3, 4, 3, false, 0.38f, 10, 14, 0.24f}; // the Pirate Ship: tiny footholds at the arc's edge
     }
 }
 }  // namespace
@@ -681,7 +681,7 @@ GenLevel GenerateLevel(int level, unsigned seed, float scale) {
                     int cx = prev.x1 + 1 + (int)(p.gap * fr), cy = rowFor(fr);
                     if (air(cx, cy)) g.set(cx, cy, 'o');
                 }
-                float hazardChance = level == 0 ? 0.45f : level == 1 ? 0.30f : 0.45f;
+                float hazardChance = level == 0 ? 0.55f : level == 1 ? 0.40f : 0.55f;
                 if (p.tag == SetPiece::GearGauntlet) hazardChance = 1.0f;
                 if (p.gap >= 3 && p.gap <= gmaxFor(rise) - 1 && rng.C(hazardChance)) { // a hazard hung in the arc's middle
                     int hy = rowFor(0.5f);

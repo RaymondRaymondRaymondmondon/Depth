@@ -39,6 +39,20 @@ void RunManager::NewRun(unsigned seed) {
         int w = l == MAP_LAYERS - 1 ? 1 : (l == 0 ? 2 : rng.I(2, 3));
         map[l].assign(w, MapNode());
     }
+    // a weighted draw of a node type for layer `l`, optionally excluding a set of types (used to break up repeats along a path)
+    auto rollType = [&](int l, const std::vector<NodeType>& exclude) {
+        struct W { NodeType t; int w; };
+        std::vector<W> ws = {{NodeType::BATTLE, 36}, {NodeType::CARD_PICK, 12}, {NodeType::CAMPFIRE, 10}, {NodeType::SPLICE, 7}, {NodeType::SACRIFICE, 7},
+                             {NodeType::TRIAL, 7}, {NodeType::STALL, 9}, {NodeType::CACHE, 7}};
+        if (l >= 2) { ws.push_back({NodeType::VENTS, 8}); ws.push_back({NodeType::SCRIMSHAW, 7}); ws.push_back({NodeType::SPLICERS, 6}); }
+        if (l >= 3) ws.push_back({NodeType::ELITE, 12});
+        ws.erase(std::remove_if(ws.begin(), ws.end(), [&](const W& w) { return w.t != NodeType::BATTLE && w.t != NodeType::ELITE && std::find(exclude.begin(), exclude.end(), w.t) != exclude.end(); }), ws.end());
+        int total = 0;
+        for (auto& x : ws) total += x.w;
+        int roll = rng.I(1, total);
+        for (auto& x : ws) { if (roll <= x.w) return x.t; roll -= x.w; }
+        return NodeType::BATTLE;
+    };
     for (int l = 0; l < MAP_LAYERS; l++) {
         int dealer = l < 2 ? 0 : l < 4 ? 1 : l < 6 ? 2 : 3; // a dealer per stretch of the map; the last layers before the House are Broker territory
         for (int s = 0; s < (int)map[l].size(); s++) {
@@ -47,16 +61,7 @@ void RunManager::NewRun(unsigned seed) {
             if (l == MAP_LAYERS - 1) { n.type = NodeType::BOSS; n.dealer = 4; continue; }
             if (l == 0) { n.type = s == 0 ? NodeType::BATTLE : (rng.C(0.5f) ? NodeType::CARD_PICK : NodeType::CACHE); continue; }
             if (l == MAP_LAYERS - 2) { n.type = s == 0 ? NodeType::CAMPFIRE : (rng.C(0.6f) ? NodeType::STALL : NodeType::TRIAL); continue; } // a breath before the House
-            // weighted draw of a node type
-            struct W { NodeType t; int w; };
-            std::vector<W> ws = {{NodeType::BATTLE, 36}, {NodeType::CARD_PICK, 12}, {NodeType::CAMPFIRE, 10}, {NodeType::SPLICE, 7}, {NodeType::SACRIFICE, 7},
-                                 {NodeType::TRIAL, 7}, {NodeType::STALL, 9}, {NodeType::CACHE, 7}};
-            if (l >= 2) { ws.push_back({NodeType::VENTS, 8}); ws.push_back({NodeType::SCRIMSHAW, 7}); ws.push_back({NodeType::SPLICERS, 6}); }
-            if (l >= 3) ws.push_back({NodeType::ELITE, 12});
-            int total = 0;
-            for (auto& x : ws) total += x.w;
-            int roll = rng.I(1, total);
-            for (auto& x : ws) { if (roll <= x.w) { n.type = x.t; break; } roll -= x.w; }
+            n.type = rollType(l, {});
         }
         // every layer offers at least one battle-free path and (except the ones above) at least one battle
         bool anyBattle = false;
@@ -75,6 +80,19 @@ void RunManager::NewRun(unsigned seed) {
         }
         for (int t = 0; t < w1; t++)
             if (!reached[t]) { int s = std::min(w0 - 1, (int)((float)t * (w0 - 1) / std::max(1, w1 - 1) + 0.5f)); map[l][s].next.push_back(t); }
+    }
+    // break up streaks: a node whose type repeats every one of its predecessors' (and it isn't a battle) is rerolled,
+    // excluding those types, so the same "maelstrom, maelstrom, maelstrom" run down one side of the map can't happen
+    for (int l = 1; l < MAP_LAYERS - 2; l++) {   // the l==0 opening and the l==MAP_LAYERS-2 "breath before the House" have their own fixed choices
+        for (int s = 0; s < (int)map[l].size(); s++) {
+            NodeType ty = map[l][s].type;
+            if (ty == NodeType::BATTLE || ty == NodeType::ELITE) continue;
+            std::vector<NodeType> predTypes;
+            for (auto& pn : map[l - 1])
+                for (int nx : pn.next) if (nx == s) predTypes.push_back(pn.type);
+            if (std::find(predTypes.begin(), predTypes.end(), ty) != predTypes.end())
+                map[l][s].type = rollType(l, predTypes);
+        }
     }
 }
 
@@ -107,7 +125,7 @@ int RunManager::PayoutFor(const MapNode& n) const {
     return p;
 }
 
-int RunManager::OnBattleFinished(bool won, int turns, int goldFromBoard, int itemsFound) {
+int RunManager::OnBattleFinished(bool won, int turns, int goldFromBoard, int itemsFound, std::vector<int>* granted, int* discarded) {
     int gained = 0;
     if (won) {
         gained = PayoutFor(map[layer][slot]) + goldFromBoard + (gs.HasCharm(CH_JAR) ? 10 : 0);
@@ -116,7 +134,11 @@ int RunManager::OnBattleFinished(bool won, int turns, int goldFromBoard, int ite
         if (turns < MOMENTUM_TURNS) gs.momentumTracker = std::min(MAX_MOMENTUM, gs.momentumTracker + 1);
         map[layer][slot].visited = true;
     }
-    for (int i = 0; i < itemsFound; i++) gs.AddItem(RandomItem());
+    for (int i = 0; i < itemsFound; i++) {
+        int kind = RandomItem();
+        if (gs.AddItem(kind)) { if (granted) granted->push_back(kind); }
+        else if (discarded) (*discarded)++;   // the pack was already full: Scavenger's find never makes it aboard
+    }
     return gained;
 }
 
