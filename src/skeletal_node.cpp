@@ -58,14 +58,33 @@ bool Skeleton::LoadText(const std::string& file) {
             b.pose = b.setup;
             bones.push_back(b);
         } else if (kw == "slot") {
-            Slot s; std::string bone;
+            Slot s; std::string bone, blend;
             ss >> s.name >> bone;
             s.bone = FindBone(bone);
             if (s.bone < 0) return false;
+            ss >> blend;   // optional trailing "add"/"mul"; missing token leaves blend empty and the default (Alpha) stands
+            if (blend == "add") s.blend = BlendKind::Additive;
+            else if (blend == "mul") s.blend = BlendKind::Multiply;
             slots.push_back(s);
         } else if (kw == "attach") {
+            // A class folder name can contain spaces (e.g. "characters/wisp of the sea/body.png"), which plain
+            // `>>` extraction would split on and desync every field after it. Read the rest of the line as tokens
+            // instead: the trailing three are always the pivot/scale floats, and everything before them - however
+            // many tokens - is the path.
             std::string slot; Attachment a;
-            ss >> slot >> a.name >> a.path >> a.pivotX >> a.pivotY >> a.scale;
+            ss >> slot >> a.name;
+            std::string rest; std::getline(ss, rest);
+            std::vector<std::string> toks;
+            { std::istringstream ts(rest); std::string tok; while (ts >> tok) toks.push_back(tok); }
+            if (toks.size() < 4) return false;
+            size_t n = toks.size();
+            try {
+                a.scale = std::stof(toks[n - 1]);
+                a.pivotY = std::stof(toks[n - 2]);
+                a.pivotX = std::stof(toks[n - 3]);
+            } catch (...) { return false; }
+            a.path = toks[0];
+            for (size_t i = 1; i < n - 3; i++) a.path += " " + toks[i];
             int si = FindSlot(slot);
             if (si < 0) return false;
             slots[si].attachments.push_back(a);

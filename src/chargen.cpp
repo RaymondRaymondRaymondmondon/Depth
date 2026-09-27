@@ -169,6 +169,48 @@ Image PaintImage(const std::vector<std::string>& rowsIn, const std::function<Col
     return img;
 }
 
+// A soft, un-dithered glow layer for classes whose identity depends on visible colour (e.g. a bioluminescent
+// jellyfish): PaintImage above always resolves down to black ink and a fixed brown stipple, by design, to match
+// the game's ink-illustration style - which means a bright, saturated palette colour never actually survives it.
+// This skips that pipeline entirely: blur the same concept grid's silhouette, tint it the real glow colour, and
+// let the renderer's existing Additive blend (BlendKind::Additive, documented for "ethereal glows") composite it
+// behind the inked shape, instead of trying to make the dither itself carry colour.
+Image PaintGlow(const std::vector<std::string>& rowsIn, Color glowColor) {
+    // Match PaintImage's grid dimensions exactly (its two EPX passes double the grid twice, i.e. 4x total) so
+    // glow.png lands pixel-for-pixel under body.png at the same attach pivot/scale, instead of drifting off to
+    // one side at the wrong size. The smoothing EPX does for edges doesn't matter here - everything gets blurred
+    // heavily anyway - so a plain 4x nearest-neighbour blow-up of the mask is enough.
+    size_t w0max = 4; for (auto& row : rowsIn) w0max = std::max(w0max, row.size());
+    int rows4 = (int)rowsIn.size() * 4, cols4 = (int)w0max * 4;
+    int gw = cols4 + 2 * PADC, gh = rows4 + 2 * PADC, W = gw * SC, H = gh * SC;
+    std::vector<float> mask(gw * gh, 0.0f);
+    for (int y = 0; y < (int)rowsIn.size(); y++)
+        for (int x = 0; x < (int)rowsIn[y].size(); x++)
+            if (rowsIn[y][x] != '.')
+                for (int dy = 0; dy < 4; dy++) for (int dx = 0; dx < 4; dx++)
+                    mask[(y * 4 + dy + PADC) * gw + (x * 4 + dx + PADC)] = 1.0f;
+    std::vector<float> hi(W * H, 0.0f);
+    for (int py = 0; py < H; py++) for (int px = 0; px < W; px++) {
+        int gx = std::clamp(px / SC, 0, gw - 1), gy = std::clamp(py / SC, 0, gh - 1);
+        hi[py * W + px] = mask[gy * gw + gx];
+    }
+    std::vector<float> soft = hi, core = hi;
+    BoxBlur(soft, W, H, 6, 3);
+    BoxBlur(core, W, H, 2, 2);
+    std::vector<unsigned char> px(W * H * 4, 0);
+    for (int i = 0; i < W * H; i++) {
+        float a = std::clamp(soft[i] * 0.75f + core[i] * 0.55f, 0.0f, 1.0f);
+        if (a < 0.02f) continue;
+        px[i * 4 + 0] = glowColor.r; px[i * 4 + 1] = glowColor.g; px[i * 4 + 2] = glowColor.b;
+        px[i * 4 + 3] = (unsigned char)(a * 255);
+    }
+    Image img{};
+    img.width = W; img.height = H; img.mipmaps = 1; img.format = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
+    img.data = RL_MALLOC((size_t)W * H * 4);
+    memcpy(img.data, px.data(), px.size());
+    return img;
+}
+
 struct Part { const char* file; std::vector<std::string> rows; };
 
 // The three parts, drawn facing right: a torso/head/arm piece holding her shell-tipped rod, and two tail
@@ -344,6 +386,8 @@ struct ClassSpec {
     float legAmpIdle = 3.0f, legAmpWalk = 18.0f;
     float tailAmpIdleUp = 7.0f, tailAmpIdleLow = 5.0f, tailAmpWalkUp = 14.0f, tailAmpWalkLow = 11.0f;
     float floatAmp = 4.0f;
+    bool hasGlow = false;      // an extra un-dithered glow.png, additive-blended behind body.png (see PaintGlow)
+    Color glowColor{0, 0, 0, 0};
 };
 
 bool GenerateClassArt(const ClassSpec& spec) {
@@ -367,6 +411,14 @@ bool GenerateClassArt(const ClassSpec& spec) {
     bool ok = write("body.png", spec.body, &bodyH);
     if (spec.rig == ClassSpec::Rig::Biped) ok = write("leg.png", spec.leg, &legH) && ok;
     else if (spec.rig == ClassSpec::Rig::Tail) { ok = write("tail_upper.png", spec.tailUpper) && ok; ok = write("tail_lower.png", spec.tailLower) && ok; }
+    if (spec.hasGlow) {
+        Image img = PaintGlow(spec.body, spec.glowColor);
+        std::string path = dir + "/glow.png";
+        bool gok = ExportImage(img, path.c_str());
+        printf("chargen: %s %s (%dx%d)\n", path.c_str(), gok ? "written" : "FAILED", img.width, img.height);
+        UnloadImage(img);
+        ok = gok && ok;
+    }
     if (!ok) return false;
     // body.png at a fixed 0.6 attach scale is the one piece confirmed to look right (checked visually). The leg
     // grids, though, come out roughly 2.5-3x taller in raw pixels than the body grids for no proportional reason
@@ -413,6 +465,10 @@ bool GenerateClassArt(const ClassSpec& spec) {
         anim("walk", 1.2f, spec.tailAmpWalkUp, spec.tailAmpWalkLow);
     } else { // Float: no legs at all - the whole body drifts, a slow bob and a lazy tilt
         f << "bone body hip 0 0 0 1 1 90\n";
+        if (spec.hasGlow) {
+            f << "slot glow hip add\n";
+            f << "attach glow piece characters/" << folder << "/glow.png 0.5 0.92 0.6\n";
+        }
         f << "slot body hip\n";
         f << "attach body piece characters/" << folder << "/body.png 0.5 0.92 0.6\n";
         auto anim = [&](const char* name, float dur, float amp) {
@@ -542,14 +598,62 @@ std::vector<ClassSpec> CrewSpecs() {
         c.leg = TailSegGrid(70, 3.0f, 1.0f, false).rows; c.legAmpWalk = 22; c.legAmpIdle = 6;
         out.push_back(c);
     }
-    { // Wisp: no limbs at all - a drifting cloud of plankton light with two glowing motes for eyes
+    { // Wisp: from the reference sheet - a glistening translucent jellyfish bell (no limbs, no face), a small
+        // brass steampunk lantern with cogs floating inside it on a chain, and trailing spectral tentacles with
+        // bioluminescent command/communication patches. No humanoid silhouette at all.
         ClassSpec c; c.className = "Wisp of the Sea"; c.rig = ClassSpec::Rig::Float; c.floatAmp = 5.0f;
-        c.pal = base({150, 236, 226, 255}, {120, 214, 214, 255}, {96, 190, 204, 255}, Color{230, 255, 250, 255}, {190, 250, 244, 255});
-        Grid g(24, 30);
-        g.Poly({{12, 6}, {19, 12}, {20, 20}, {16, 26}, {8, 26}, {4, 20}, {5, 12}}, 't');
-        g.Poly({{13, 6}, {19, 12}, {20, 20}, {16.5f, 26}, {12, 26}}, 'T');
-        g.Ellipse(9.6f, 14, 1.1f, 1.4f, 'e'); g.Ellipse(14.4f, 14, 1.1f, 1.4f, 'e');
-        for (int i = 0; i < 10; i++) g.Ellipse(6 + (i * 37 % 14), 8 + (i * 53 % 16), 0.5f, 0.5f, 'w');
+        c.hasGlow = true; c.glowColor = {120, 235, 228, 255};   // the "Radiant Blue and Teal Energy Source" the ink pass can't carry
+        c.pal['t'] = {110, 205, 208, 255};   // bell: translucent teal-cyan
+        c.pal['T'] = {62, 140, 152, 255};    // bell underside shadow
+        c.pal['w'] = {225, 255, 250, 255};   // bioluminescent glow (bright)
+        c.pal['k'] = {35, 72, 78, 255};      // faint dark patterning under the bell's glow (not a face)
+        c.pal['l'] = {198, 158, 78, 255};    // lantern brass
+        c.pal['L'] = {142, 106, 48, 255};    // lantern brass, shadowed / cogs
+        c.pal['c'] = {58, 52, 45, 255};      // lantern chain and rings
+
+        const float cx = 13;
+        Grid g(26, 44);
+        // the bell: a rounded dome, shaded darker on its underside so it reads as a hollow glowing form
+        g.Ellipse(cx, 11, 9.2f, 8.4f, 't');
+        g.Ellipse(cx, 13.6f, 8.6f, 7.0f, 'T');
+        g.Ellipse(cx, 8.6f, 8.6f, 6.6f, 't');   // relights the crown over the shadow pass so the dome apex stays bright
+        // faint darker patterning inside the glow (echoes the reference's subtle mask-like shading, not real eyes)
+        g.Ellipse(cx - 3.0f, 8.4f, 1.3f, 1.7f, 'k');
+        g.Ellipse(cx + 3.0f, 8.4f, 1.3f, 1.7f, 'k');
+
+        // the spectral lantern, hanging inside the bell on a short chain, with two small cogs either side
+        g.Rect(cx - 0.3f, 10.6f, cx + 0.3f, 11.4f, 'c');
+        g.Ellipse(cx, 10.8f, 0.5f, 0.5f, 'c');
+        g.Rect(cx - 2.0f, 11.4f, cx + 2.0f, 12.3f, 'L');
+        g.Rect(cx - 1.6f, 12.3f, cx + 1.6f, 16.2f, 'l');
+        g.Ellipse(cx, 14.2f, 0.7f, 1.1f, 'w');
+        g.Ellipse(cx - 2.6f, 14.0f, 0.7f, 0.7f, 'L'); g.Ellipse(cx - 2.6f, 14.0f, 0.25f, 0.25f, 'c');
+        g.Ellipse(cx + 2.6f, 13.2f, 0.6f, 0.6f, 'L'); g.Ellipse(cx + 2.6f, 13.2f, 0.2f, 0.2f, 'c');
+
+        // trailing tentacles: six wavy strands hanging from the bell's rim, tapering to a fine point, with a
+        // couple of bright bioluminescent patches along each one
+        struct Tendril { float baseX, amp, phase, rTop, rBot; };
+        const Tendril tendrils[] = {
+            {cx - 7.5f, 1.1f, 0.0f, 1.05f, 0.28f}, {cx - 4.6f, 1.5f, 1.4f, 0.95f, 0.26f},
+            {cx - 1.6f, 0.9f, 2.6f, 0.85f, 0.22f}, {cx + 1.6f, 1.2f, 0.7f, 0.85f, 0.22f},
+            {cx + 4.6f, 1.6f, 2.0f, 0.95f, 0.26f}, {cx + 7.5f, 1.0f, 3.3f, 1.05f, 0.28f},
+        };
+        const float y0 = 18, y1 = 42;
+        for (const Tendril& td : tendrils) {
+            for (int yy = (int)y0; yy <= (int)y1; yy++) {
+                float t = (yy - y0) / (y1 - y0);
+                float x = td.baseX + td.amp * sinf(t * 5.5f + td.phase);
+                float r = td.rTop + (td.rBot - td.rTop) * t;
+                g.Ellipse(x, (float)yy, r, r, 't');
+                g.Ellipse(x + r * 0.4f, (float)yy, r * 0.5f, r * 0.5f, 'T');
+            }
+            for (int gi = 0; gi < 2; gi++) {
+                float t = 0.32f + gi * 0.36f;
+                float yy = y0 + t * (y1 - y0);
+                float x = td.baseX + td.amp * sinf(t * 5.5f + td.phase);
+                g.Ellipse(x, yy, 0.55f, 0.55f, 'w');
+            }
+        }
         c.body = g.rows;
         out.push_back(c);
     }
