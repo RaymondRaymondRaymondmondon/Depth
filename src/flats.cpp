@@ -1928,6 +1928,18 @@ void DrawShowcase(float t) {
         for (int i = 0; i < (int)ids.size(); i++) DrawCardFace({44.0f + (i % per) * (cw + 12), 100.0f + (i / per) * (ch + 22), (float)cw, (float)ch}, cat[ids[i]], true);
         return;
     }
+    if (pg == 9 || pg == 10) { // the sprite lab: every creature big on bare parchment, to judge the art without the card around it
+        DrawRectangle(0, 0, SCREEN_W, SCREEN_H, Color{196, 170, 120, 255});
+        int per = 24, start = (pg - 9) * per;
+        for (int i = 0; i < per && start + i + 1 < (int)cat.size(); i++) {
+            const Card& c = cat[start + i + 1];
+            Rectangle box{20.0f + (i % 6) * 206, 14.0f + (i / 6) * 176, 196, 150};
+            DrawRectangleLinesEx(box, 1, Fade(BLACK, 0.25f));
+            DrawCreaturePixels(c.name, {box.x + 4, box.y + 4, box.width - 8, box.height - 26}, 1.0f, c.id);
+            Txt(c.name, box.x + 6, box.y + box.height - 20, 15, Color{30, 22, 16, 255});
+        }
+        return;
+    }
     if (pg == 5) { // the sigils
         title("Flats: sigils", "Persistent abilities. Each one hooks into a single moment of the turn.");
         for (int s = 1; s < (int)Sigil::COUNT; s++) {

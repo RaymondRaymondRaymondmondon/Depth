@@ -154,6 +154,8 @@ static void TakeShots(const Game& base, const std::string& dir) {
         showNames.push_back(buf);
         all.push_back({showNames.back().c_str(), [i](Game& g) { g.scene = Scene::Cards; DebugFlatsShowcase(100 + i); }});
     }
+    all.push_back({"lab_sprites_1", [](Game& g) { g.scene = Scene::Cards; DebugFlatsShowcase(9); }});
+    all.push_back({"lab_sprites_2", [](Game& g) { g.scene = Scene::Cards; DebugFlatsShowcase(10); }});
     all.push_back({"flats_event_vents", [](Game& g) { g.scene = Scene::Cards; DebugFlatsVents(); }});
     all.push_back({"flats_event_scrimshaw", [](Game& g) { g.scene = Scene::Cards; DebugFlatsScrimshaw(); }});
     all.push_back({"flats_event_splicers", [](Game& g) { g.scene = Scene::Cards; DebugFlatsSplicers(); }});
