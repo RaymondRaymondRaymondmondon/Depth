@@ -26,7 +26,7 @@ struct ArtState {
     Shader post{}, figShader{}, ink{}, blur{};
     int locBlurTexel = -1;
     int locTime = -1, locRes = -1, locVig = -1, locGrain = -1, locBloom = -1;
-    int locFigTexel = -1, locFigOutline = -1, locFigVib = -1, locInkRes = -1, locInkAmt = -1, locInkHatch = -1;
+    int locFigTexel = -1, locFigOutline = -1, locFigVib = -1, locFigInk = -1, locInkRes = -1, locInkAmt = -1, locInkHatch = -1;
     float vignette = 0.45f, grain = 0.03f, bloom = 0.35f;
     bool lightsOpen = false;
 };
@@ -48,9 +48,15 @@ uniform sampler2D texture0;
 uniform vec2 uTexel;
 uniform float uOutline;
 uniform float uVibrance;
+uniform float uInkStyle;
 out vec4 finalColor;
 const vec3 INK = vec3(0.055, 0.042, 0.036);
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float bayerF(vec2 p) {
+    int i = int(mod(p.x, 4.0)) + 4 * int(mod(p.y, 4.0));
+    float m[16] = float[16](0.0, 8.0, 2.0, 10.0, 12.0, 4.0, 14.0, 6.0, 3.0, 11.0, 1.0, 9.0, 15.0, 7.0, 13.0, 5.0);
+    return (m[i] + 0.5) / 16.0;
+}
 void main() {
     vec2 uv = fragTexCoord;
     vec4 c = texture(texture0, uv);
@@ -105,7 +111,20 @@ void main() {
     col = mix(col, vec3(0.62, 0.9, 1.0), rimB * (1.0 - rimA) * 0.4);
     if (e1 < 0.5) col = mix(col * 0.55, INK, 0.25);  // a thin, sharp shadow edge on the far side only: the fill keeps its colour
     else if (e2 < 0.5) col *= 0.92;
-    if (uVibrance > 0.0) { // aboard the Nautilus: warmer, more saturated and higher in contrast, to sit in the brass-lit salon
+    if (uInkStyle > 0.5) { // an ink drawing, like the cards: black linework, hatching and dithered stipple over paper tones
+        float lv = dot(col, vec3(0.299, 0.587, 0.114));
+        vec3 hue = col / max(lv, 0.08);
+        vec3 paper = mix(vec3(0.90, 0.80, 0.62), clamp(hue * 0.85, 0.0, 1.3) * 0.85, 0.30);
+        float v = clamp(pow(lv, 0.5) * 1.18, 0.0, 1.2);
+        float thr = bayerF(floor(uv / uTexel / 3.0)) * 0.72 + hash(floor(uv / uTexel / 3.0)) * 0.28;
+        float d = clamp((0.95 - v) / 0.7, 0.0, 1.0);
+        float hatchL = step(0.82, fract((uv.x + uv.y) / uTexel.x / 9.0)) * step(v, 0.36);
+        vec3 outc;
+        if (edge > 0.6 || hatchL > 0.5 || thr < d * 0.42) outc = INK;
+        else if (thr < d * 1.0) outc = vec3(0.45, 0.32, 0.24);
+        else outc = paper * (0.70 + 0.14 * v);
+        col = outc;
+    } else if (uVibrance > 0.0) { // aboard the Nautilus: warmer, more saturated and higher in contrast, to sit in the brass-lit salon
         float lv = dot(col, vec3(0.299, 0.587, 0.114));
         col = mix(vec3(lv), col, 1.0 + 0.45 * uVibrance) * vec3(1.06, 1.0, 0.9);
         col = (col - 0.5) * (1.0 + 0.18 * uVibrance) + 0.5 + 0.03 * uVibrance;
@@ -381,6 +400,7 @@ void InitArt() {
     A.locFigTexel = GetShaderLocation(A.figShader, "uTexel");
     A.locFigOutline = GetShaderLocation(A.figShader, "uOutline");
     A.locFigVib = GetShaderLocation(A.figShader, "uVibrance");
+    A.locFigInk = GetShaderLocation(A.figShader, "uInkStyle");
     A.ink = LoadShaderFromMemory(nullptr, INK_FS);
     A.locInkRes = GetShaderLocation(A.ink, "uRes");
     A.locInkAmt = GetShaderLocation(A.ink, "uInk");
@@ -829,6 +849,8 @@ void EndFigure(Vector2 feet, Color tint, float sx, float sy) {
     SetShaderValue(A.figShader, A.locFigOutline, &outline, SHADER_UNIFORM_FLOAT);
     float vib = gDiveGear ? 0.0f : 1.0f;   // every figure drawn off-expedition gets the Nautilus's warm, vivid look
     SetShaderValue(A.figShader, A.locFigVib, &vib, SHADER_UNIFORM_FLOAT);
+    float inkStyle = 1.0f;   // every figure is drawn as an ink illustration
+    SetShaderValue(A.figShader, A.locFigInk, &inkStyle, SHADER_UNIFORM_FLOAT);
     BeginShaderMode(A.figShader);
     DrawTexturePro(A.fig.texture, {0, 0, (float)FIG_W * SS, -(float)FIG_H * SS},
                    {roundf(feet.x - FIG_FEET.x * sx), roundf(feet.y - FIG_FEET.y * sy), (float)FIG_W * sx, (float)FIG_H * sy}, {0, 0}, 0, tint); // squash and stretch, about the feet

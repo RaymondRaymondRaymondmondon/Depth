@@ -150,9 +150,9 @@ static void BuildTrench(Grid& g, std::vector<Plat>& pl, Rng& rng, GenLevel& out,
         int kind;
         for (int tries = 0;; tries++) {
             int r = rng.I(0, 99);
-            kind = r < 14 ? 0 : r < 30 ? 1 : r < 44 ? 2 : r < 57 ? 3 : r < 69 ? 4 : r < 83 ? 5 : 6;
+            kind = r < 13 ? 0 : r < 28 ? 1 : r < 41 ? 2 : r < 53 ? 3 : r < 64 ? 4 : r < 76 ? 5 : r < 88 ? 6 : 7;
             if (kind != lastKind && !(kind == 0 && towers > 0 && guard % 3 != 0) && (kind != 0 || x > 40)) break;
-            if (tries > 12) { kind = (lastKind + 1) % 7; break; }
+            if (tries > 12) { kind = (lastKind + 1) % 8; break; }
         }
         if (kind == 0) towers = 3; else if (towers > 0) towers--;
         lastKind = kind;
@@ -241,6 +241,18 @@ static void BuildTrench(Grid& g, std::vector<Plat>& pl, Rng& rng, GenLevel& out,
                 pl.push_back(before); pl.push_back(plateau); pl.push_back(after);
                 out.setPieces[(int)SetPiece::ShaftUp]++; out.setPieces[(int)SetPiece::ShaftDown]++;
                 x = bx1 + 4;
+            } break;            case 7: { // ballast vent: a steam vent set into the deck lifts you onto a gantry over a bed of urchins; walk off the far end
+                int run = 6;
+                Plat before{x, x + run - 1, F, C_JUMP, '#', SetPiece::None, 0, x + 1};
+                g.set(x + run - 1, F, 'v');
+                Plat gantry{x + run, x + run + 4, F - 5, C_STEAM, '#', SetPiece::SteamBoost, 0, x + run + 1};
+                for (int xx = gantry.x0; xx <= gantry.x1; xx++) { g.set(xx, F - 5, '#'); g.set(xx, F - 4, '#'); g.set(xx, F, 'x'); }   // the gantry, over a bed of urchins on the deck
+                for (int yy = F - 3; yy < F; yy++) { g.set(gantry.x0 + 1, yy, '#'); g.set(gantry.x1 - 1, yy, '#'); }   // its legs
+                for (int yy = F - 12; yy < F; yy++) if (g.get(x + run - 1, yy) != '.') g.set(x + run - 1, yy, '.');
+                Plat after{x + run + 5, x + run + 8, F, C_JUMP, '#', SetPiece::None, 0, x + run + 5};
+                pl.push_back(before); pl.push_back(gantry); pl.push_back(after);
+                out.setPieces[(int)SetPiece::SteamBoost]++;
+                x += run + 9;
             } break;            default: { // rock reef
                 int n = 4, w0 = 3;
                 int total = w0 + n * 6;
