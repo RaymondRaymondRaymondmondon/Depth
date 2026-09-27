@@ -390,9 +390,6 @@ struct ClassSpec {
     float legAmpIdle = 3.0f, legAmpWalk = 18.0f;
     float tailAmpIdleUp = 7.0f, tailAmpIdleLow = 5.0f, tailAmpWalkUp = 14.0f, tailAmpWalkLow = 11.0f;
     float floatAmp = 4.0f;
-    bool hasGlow = false;      // an extra un-dithered glow.png, additive-blended behind body.png (see PaintGlow)
-    Color glowColor{0, 0, 0, 0};
-    float bodyScale = 0.6f;    // body.png's (and glow.png's) attach scale; classes needing extra screen presence can raise it
 };
 
 bool GenerateClassArt(const ClassSpec& spec) {
@@ -416,14 +413,6 @@ bool GenerateClassArt(const ClassSpec& spec) {
     bool ok = write("body.png", spec.body, &bodyH);
     if (spec.rig == ClassSpec::Rig::Biped) ok = write("leg.png", spec.leg, &legH) && ok;
     else if (spec.rig == ClassSpec::Rig::Tail) { ok = write("tail_upper.png", spec.tailUpper) && ok; ok = write("tail_lower.png", spec.tailLower) && ok; }
-    if (spec.hasGlow) {
-        Image img = PaintGlow(spec.body, spec.glowColor);
-        std::string path = dir + "/glow.png";
-        bool gok = ExportImage(img, path.c_str());
-        printf("chargen: %s %s (%dx%d)\n", path.c_str(), gok ? "written" : "FAILED", img.width, img.height);
-        UnloadImage(img);
-        ok = gok && ok;
-    }
     if (!ok) return false;
     // body.png at a fixed 0.6 attach scale is the one piece confirmed to look right (checked visually). The leg
     // grids, though, come out roughly 2.5-3x taller in raw pixels than the body grids for no proportional reason
@@ -470,12 +459,8 @@ bool GenerateClassArt(const ClassSpec& spec) {
         anim("walk", 1.2f, spec.tailAmpWalkUp, spec.tailAmpWalkLow);
     } else { // Float: no legs at all - the whole body drifts, a slow bob and a lazy tilt
         f << "bone body hip 0 0 0 1 1 90\n";
-        if (spec.hasGlow) {
-            f << "slot glow hip add\n";
-            f << "attach glow piece characters/" << folder << "/glow.png 0.5 0.92 " << spec.bodyScale << "\n";
-        }
         f << "slot body hip\n";
-        f << "attach body piece characters/" << folder << "/body.png 0.5 0.92 " << spec.bodyScale << "\n";
+        f << "attach body piece characters/" << folder << "/body.png 0.5 0.92 0.6\n";
         auto anim = [&](const char* name, float dur, float amp) {
             f << "anim " << name << " " << dur << "\n";
             const int N = 8;
@@ -603,72 +588,9 @@ std::vector<ClassSpec> CrewSpecs() {
         c.leg = TailSegGrid(70, 3.0f, 1.0f, false).rows; c.legAmpWalk = 22; c.legAmpIdle = 6;
         out.push_back(c);
     }
-    { // Wisp: from the reference sheet - a glistening translucent jellyfish bell (no limbs, no face), a small
-        // brass steampunk lantern with cogs floating inside it on a chain, and trailing spectral tentacles with
-        // bioluminescent command/communication patches. No humanoid silhouette at all.
-        ClassSpec c; c.className = "Wisp of the Sea"; c.rig = ClassSpec::Rig::Float; c.floatAmp = 5.0f;
-        c.hasGlow = true; c.glowColor = {120, 235, 228, 255};   // the "Radiant Blue and Teal Energy Source" the ink pass can't carry
-        c.bodyScale = 0.85f;   // noticeably bigger on screen than the other classes' shared 0.6 - a large, imposing jellyfish
-        c.pal['t'] = {110, 205, 208, 255};   // bell: translucent teal-cyan
-        c.pal['T'] = {62, 140, 152, 255};    // bell underside shadow
-        c.pal['w'] = {225, 255, 250, 255};   // bioluminescent glow (bright)
-        c.pal['k'] = {35, 72, 78, 255};      // faint dark patterning under the bell's glow (not a face)
-        c.pal['l'] = {198, 158, 78, 255};    // lantern brass
-        c.pal['L'] = {142, 106, 48, 255};    // lantern brass, shadowed / cogs
-        c.pal['c'] = {58, 52, 45, 255};      // lantern chain and rings
-
-        // Drawn much bolder than the first pass: at the figure's actual on-screen size (tens of pixels, not a
-        // zoomed-in debug crop) six thin, closely-spaced tentacles and a fine 3-unit-wide lantern simply vanished
-        // into a single glowing smudge - "a mono-colour floating ball dripping something". Fewer, thicker,
-        // further-apart parts, a wider flatter dome, and ink slits pre-separating the tentacle roots all read at
-        // a glance; fine detail that only shows up zoomed in doesn't count for anything here. Scaled up again (a
-        // bigger grid, six tentacles instead of four, plus a larger bodyScale above) for more screen presence.
-        const float cx = 22;
-        Grid g(44, 50);
-        // the bell: wide and flat like a real jellyfish cap, not a round ball - shaded darker underneath so it
-        // reads as a hollow glowing form, relit across the crown so the apex stays bright
-        g.Ellipse(cx, 13, 17.0f, 11.0f, 't');
-        g.Ellipse(cx, 17.0f, 15.5f, 8.0f, 'T');
-        g.Ellipse(cx, 9.0f, 15.0f, 8.0f, 't');
-        // faint darker patterning inside the glow (echoes the reference's subtle mask-like shading, not real eyes)
-        g.Ellipse(cx - 5.5f, 10.0f, 2.2f, 2.8f, 'k');
-        g.Ellipse(cx + 5.5f, 10.0f, 2.2f, 2.8f, 'k');
-        // ink slits between where each tentacle will start, so the hem reads as gathered/split rather than solid
-        for (float gap : {cx - 11.2f, cx - 5.6f, cx, cx + 5.6f, cx + 11.2f}) g.Capsule(gap, 16.5f, gap, 21.5f, 0.75f, 0.4f, 'k');
-
-        // the spectral lantern: much bigger than the first pass so it actually reads as an object, not a speck
-        g.Rect(cx - 0.5f, 11.5f, cx + 0.5f, 13.0f, 'c');
-        g.Ellipse(cx, 11.8f, 0.85f, 0.85f, 'c');
-        g.Rect(cx - 3.6f, 13.0f, cx + 3.6f, 14.8f, 'L');
-        g.Rect(cx - 2.8f, 14.8f, cx + 2.8f, 21.5f, 'l');
-        g.Ellipse(cx, 18.0f, 1.4f, 2.2f, 'w');
-        g.Ellipse(cx - 4.5f, 17.6f, 1.25f, 1.25f, 'L'); g.Ellipse(cx - 4.5f, 17.6f, 0.42f, 0.42f, 'c');
-        g.Ellipse(cx + 4.5f, 16.2f, 1.05f, 1.05f, 'L'); g.Ellipse(cx + 4.5f, 16.2f, 0.35f, 0.35f, 'c');
-
-        // six wavy tentacles - thick at the root, real gaps between them, tapering to a point - with a bright
-        // bioluminescent patch partway down each one
-        struct Tendril { float baseX, amp, phase, rTop, rBot; };
-        const Tendril tendrils[] = {
-            {cx - 14.0f, 1.9f, 0.0f, 3.2f, 0.8f}, {cx - 8.4f, 2.3f, 1.1f, 2.8f, 0.7f}, {cx - 2.8f, 2.6f, 2.2f, 2.6f, 0.65f},
-            {cx + 2.8f, 2.6f, 0.6f, 2.6f, 0.65f}, {cx + 8.4f, 2.3f, 1.7f, 2.8f, 0.7f}, {cx + 14.0f, 1.9f, 2.9f, 3.2f, 0.8f},
-        };
-        const float y0 = 21, y1 = 48;
-        for (const Tendril& td : tendrils) {
-            for (int yy = (int)y0; yy <= (int)y1; yy++) {
-                float t = (yy - y0) / (y1 - y0);
-                float x = td.baseX + td.amp * sinf(t * 4.0f + td.phase);
-                float r = td.rTop + (td.rBot - td.rTop) * t;
-                g.Ellipse(x, (float)yy, r, r, 't');
-                g.Ellipse(x + r * 0.4f, (float)yy, r * 0.5f, r * 0.5f, 'T');
-            }
-            float t = 0.45f;
-            float yy = y0 + t * (y1 - y0);
-            float x = td.baseX + td.amp * sinf(t * 4.0f + td.phase);
-            g.Ellipse(x, yy, 0.85f, 0.85f, 'w');
-        }
-        c.body = g.rows;
-        out.push_back(c);
-    }
+    // Wisp of the Sea is generated separately (GenerateWispArt, below): it needs independently-animated
+    // tentacles swaying under a fixed head, which the shared body/leg/tail ClassSpec pipeline above has no way
+    // to express (every rig here is exactly one or two rigid painted pieces on a fixed animation shape).
     (void)noop2;
     return out;
 }
@@ -677,9 +599,13 @@ std::vector<ClassSpec> CrewSpecs() {
 
 bool GenerateSirenArt();   // defined below; forward-declared so GenerateAllCrewArt can call it in file order
 
-// depth.exe --gen-crew-art: regenerates the Siren (the pilot) plus the eleven remaining classes.
+bool GenerateWispArt();   // defined below; forward-declared for the same reason as GenerateSirenArt above
+
+// depth.exe --gen-crew-art: regenerates the Siren and the Wisp (each a hand-tuned pilot) plus the ten remaining
+// classes built from the shared ClassSpec toolkit.
 bool GenerateAllCrewArt() {
     bool ok = GenerateSirenArt();
+    ok = GenerateWispArt() && ok;
     for (const ClassSpec& c : CrewSpecs()) ok = GenerateClassArt(c) && ok;
     return ok;
 }
@@ -729,6 +655,144 @@ bool GenerateSirenArt() {
     };
     anim("idle", 2.4f, 10.0f, 8.0f, 0.22f);
     anim("walk", 1.2f, 16.0f, 13.0f, 0.22f);
+    f.close();
+    printf("chargen: %s/skeleton.txt written\n", dir);
+    return true;
+}
+
+// The Wisp of the Sea: unlike every other class, its identity depends on the tentacles visibly hanging off and
+// swaying independently of a distinct, fixed head - something the shared body/leg/tail ClassSpec toolkit above
+// has no way to express (it always paints one rigid image per rig part). So this is a bespoke two-part rig, the
+// same way the Siren above is bespoke: "bell" (the dome, face and lantern - fixed, only riding the whole
+// figure's hover) and "fringe" (the six tentacles - its own bone, so it can sway on its own on top of that).
+bool GenerateWispArt() {
+    const char* dir = "assets/characters/wisp of the sea";
+    MakeDirectory("assets");
+    MakeDirectory("assets/characters");
+    MakeDirectory(dir);
+
+    std::map<char, Color> pal;
+    pal['t'] = {110, 205, 208, 255};   // bell/tentacles: translucent teal-cyan
+    pal['T'] = {62, 140, 152, 255};    // underside shadow
+    pal['w'] = {225, 255, 250, 255};   // bioluminescent glow (bright)
+    pal['k'] = {24, 40, 44, 255};      // ink: eyes, mouth, collar slits - darker than before, so the face reads
+    pal['l'] = {198, 158, 78, 255};    // lantern brass
+    pal['L'] = {142, 106, 48, 255};    // lantern brass, shadowed / cogs
+    pal['c'] = {58, 52, 45, 255};      // lantern chain and rings
+    Color glowColor{120, 235, 228, 255};
+    std::function<Color(char)> palFn = [pal](char c) { auto it = pal.find(c); return it != pal.end() ? it->second : Color{0, 0, 0, 0}; };
+
+    const float cx = 22;
+
+    // --- the bell: dome, a hostile glaring face, the lantern, and a gathered collar the tentacles tuck under ---
+    Grid bell(44, 30);
+    bell.Ellipse(cx, 13, 17.0f, 11.0f, 't');
+    bell.Ellipse(cx, 17.0f, 15.5f, 8.0f, 'T');
+    bell.Ellipse(cx, 9.0f, 15.0f, 8.0f, 't');
+    // menacing brow-eyes: a thin diagonal brow over a narrower slit, both angled down toward the centre like a
+    // scowl, instead of the first pass's soft round dots (which read as a friendly face, not a hostile spirit)
+    auto glareEye = [&](float m) {   // m = -1 for the left eye, +1 for the right (mirrored)
+        bell.Capsule(cx + m * 8.0f, 8.4f, cx + m * 3.0f, 11.0f, 1.15f, 0.5f, 'k');
+        bell.Capsule(cx + m * 7.2f, 10.0f, cx + m * 3.6f, 12.2f, 0.55f, 0.28f, 'k');
+    };
+    glareEye(-1.0f); glareEye(1.0f);
+    // a jagged, toothy maw instead of the first pass's small friendly glow-dot "nose"
+    for (int i = -2; i <= 2; i++) {
+        float tx = cx + i * 1.6f;
+        bell.Poly({{tx - 0.9f, 14.0f}, {tx + 0.9f, 14.0f}, {tx, 16.2f}}, 'k');
+    }
+    // the spectral lantern, hanging inside the bell on a short chain, with two small cogs either side
+    bell.Rect(cx - 0.5f, 11.5f, cx + 0.5f, 13.0f, 'c');
+    bell.Ellipse(cx, 11.8f, 0.85f, 0.85f, 'c');
+    bell.Rect(cx - 3.6f, 13.0f, cx + 3.6f, 14.8f, 'L');
+    bell.Rect(cx - 2.8f, 14.8f, cx + 2.8f, 21.5f, 'l');
+    bell.Ellipse(cx, 18.0f, 1.4f, 2.2f, 'w');
+    bell.Ellipse(cx - 4.5f, 17.6f, 1.25f, 1.25f, 'L'); bell.Ellipse(cx - 4.5f, 17.6f, 0.42f, 0.42f, 'c');
+    bell.Ellipse(cx + 4.5f, 16.2f, 1.05f, 1.05f, 'L'); bell.Ellipse(cx + 4.5f, 16.2f, 0.35f, 0.35f, 'c');
+    // the gathered collar: a solid darker band right at the bell's base, slit at each tentacle root, so the bell
+    // reads as a distinct, closed head that the tentacles hang from - not a shape that just trails off into them
+    bell.Rect(cx - 15.5f, 24.0f, cx + 15.5f, 28.0f, 'T');
+    for (float gap : {cx - 11.2f, cx - 5.6f, cx, cx + 5.6f, cx + 11.2f}) bell.Capsule(gap, 24.0f, gap, 28.0f, 0.75f, 0.4f, 'k');
+
+    // --- the fringe: six tentacles, drawn on their own so they can be a separate, swaying bone ---
+    struct Tendril { float baseX, amp, phase, rTop, rBot; };
+    const Tendril tendrils[] = {
+        {cx - 14.0f, 1.9f, 0.0f, 3.2f, 0.8f}, {cx - 8.4f, 2.3f, 1.1f, 2.8f, 0.7f}, {cx - 2.8f, 2.6f, 2.2f, 2.6f, 0.65f},
+        {cx + 2.8f, 2.6f, 0.6f, 2.6f, 0.65f}, {cx + 8.4f, 2.3f, 1.7f, 2.8f, 0.7f}, {cx + 14.0f, 1.9f, 2.9f, 3.2f, 0.8f},
+    };
+    Grid fringe(44, 29);
+    const float y0 = 2, y1 = 27;
+    for (const Tendril& td : tendrils) {
+        for (int yy = (int)y0; yy <= (int)y1; yy++) {
+            float t = (yy - y0) / (y1 - y0);
+            float x = td.baseX + td.amp * sinf(t * 4.0f + td.phase);
+            float r = td.rTop + (td.rBot - td.rTop) * t;
+            fringe.Ellipse(x, (float)yy, r, r, 't');
+            fringe.Ellipse(x + r * 0.4f, (float)yy, r * 0.5f, r * 0.5f, 'T');
+        }
+        float t = 0.45f;
+        float yy = y0 + t * (y1 - y0);
+        float x = td.baseX + td.amp * sinf(t * 4.0f + td.phase);
+        fringe.Ellipse(x, yy, 0.85f, 0.85f, 'w');
+    }
+
+    struct P { const char* file; const Grid* grid; bool glow; };
+    const P parts[] = {{"bell.png", &bell, false}, {"bell_glow.png", &bell, true}, {"fringe.png", &fringe, false}, {"fringe_glow.png", &fringe, true}};
+    for (const P& p : parts) {
+        Image img = p.glow ? PaintGlow(p.grid->rows, glowColor) : PaintImage(p.grid->rows, palFn);
+        std::string path = std::string(dir) + "/" + p.file;
+        bool ok = ExportImage(img, path.c_str());
+        printf("chargen: %s %s (%dx%d)\n", path.c_str(), ok ? "written" : "FAILED", img.width, img.height);
+        UnloadImage(img);
+        if (!ok) return false;
+    }
+
+    // The rig: both parts hang off a shared "neck" bone (the collar line where the tentacles gather under the
+    // bell), so rotating "fringe" sways it around that natural root instead of around its own far tip. The neck's
+    // offset from hip, and each part's pivot, are computed exactly rather than guessed: 1 grid row always renders
+    // as exactly 12 px (two EPX doubling passes x SC=3) before the attach `scale` multiplies it into world units,
+    // so a row number in either grid converts to world units (or a pivot fraction of that grid's own image) by
+    // simple arithmetic instead of trial and error.
+    const float scale = 0.85f;   // noticeably bigger on screen than the other classes' shared 0.6 - a large, imposing jellyfish
+    const float pxPerRow = 12.0f;
+    auto pivotFor = [&](float contentRow, int gridRows) {   // fraction of a PaintImage'd grid's own final image
+        return (contentRow + 1.0f) * pxPerRow / ((gridRows + 2.0f) * pxPerRow);   // +1 row of PADC padding each side
+    };
+    const float neckRow = 26.0f;                                   // the collar's centre, in the shared bell/old grid row space
+    const float neckOffsetFromHip = -(46.84f - neckRow) * pxPerRow * scale;   // hip sat near the old design's tentacle tips (row ~46.84)
+    const float bellPivotY = pivotFor(neckRow, 30);                // neck's row within bell's own 30-row grid
+    const float fringePivotY = pivotFor(neckRow - 19.0f, 29);      // neck's row within fringe's own grid (its row 0 = old row 19)
+
+    std::ofstream f(std::string(dir) + "/skeleton.txt");
+    f << "# generated by chargen.cpp (depth.exe --gen-crew-art) - a bespoke two-part rig for the Wisp of the Sea\n";
+    f << "bone hip - 0 -84 0 1 1 0\n";
+    f << "bone neck hip 0 " << neckOffsetFromHip << " 0 1 1 40\n";
+    f << "bone bell neck 0 0 0 1 1 40\n";
+    f << "bone fringe neck 0 0 0 1 1 60\n";
+    f << "slot fringeGlow fringe add\n";
+    f << "slot fringe fringe\n";
+    f << "slot bellGlow bell add\n";
+    f << "slot bell bell\n";
+    f << "attach fringeGlow piece characters/wisp of the sea/fringe_glow.png 0.5 " << fringePivotY << " " << scale << "\n";
+    f << "attach fringe piece characters/wisp of the sea/fringe.png 0.5 " << fringePivotY << " " << scale << "\n";
+    f << "attach bellGlow piece characters/wisp of the sea/bell_glow.png 0.5 " << bellPivotY << " " << scale << "\n";
+    f << "attach bell piece characters/wisp of the sea/bell.png 0.5 " << bellPivotY << " " << scale << "\n";
+    const float TAU = 6.28318530f;
+    auto anim = [&](const char* name, float dur, float hoverAmp, float swayAmp) {
+        f << "anim " << name << " " << dur << "\n";
+        const int N = 8;
+        for (int k = 0; k <= N; k++) { float t = dur * k / N; f << "key hip y " << t << " " << (-84.0f + hoverAmp * sinf(TAU * t / dur)) << "\n"; }
+        for (int k = 0; k <= N; k++) { float t = dur * k / N; f << "key hip rot " << t << " " << (hoverAmp * 0.4f * sinf(TAU * t / dur + 1.0f)) << "\n"; }
+        // the tentacles sway on their own clock, out of phase with the hover - a two-harmonic wave (still exactly
+        // one period per anim loop, so it still loops seamlessly) reads as an organic sway, not a metronome
+        for (int k = 0; k <= N; k++) {
+            float t = dur * k / N;
+            float sway = sinf(TAU * t / dur + 2.1f) * 0.7f + sinf(2.0f * TAU * t / dur + 0.6f) * 0.3f;
+            f << "key fringe rot " << t << " " << (swayAmp * sway) << "\n";
+        }
+    };
+    anim("idle", 3.0f, 5.0f, 5.0f);
+    anim("walk", 2.0f, 7.0f, 10.0f);
     f.close();
     printf("chargen: %s/skeleton.txt written\n", dir);
     return true;
