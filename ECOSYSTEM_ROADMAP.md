@@ -4,28 +4,43 @@ This tracks a large addition the user asked for, kept separate from ROADMAP.md (
 roadmap) because it's a different initiative: new parkour content and systems, explicitly **not**
 touching the main game (the Nautilus hub, expeditions, Flats) at all.
 
-## Status as of commit 595c579 (checkpoint before pausing near a usage limit)
+## Status as of commit 9a0159c (checkpoint before starting the four new biomes)
 
-Done from the feedback list below: dash double-tap, real predator physics/AI (Pursue/FleeFrom,
-ambient perception, predictive lead, personality-scaled persistence), Hull creature size/silhouettes,
-Abyss creature silhouettes (Isopod/Eel/Squid/TrenchWorm/Hatchetfish/BrineSlug/GlassSponge all
-redone), free-look+clamped Abyss camera, a wider trench, three horizontal-cavern crossings with
-blocking Rock Ledges, and more general resting ledges. All of `--verify`, `--verify-abyss`,
-`--verify-hull-ecosystem`, `--verify-pipe-ecosystem`, `--flats-ui-test` pass.
+**The entire original feedback list (below) is now done**, including the Pirate Ship retrofit:
+dash double-tap, real predator physics/AI (Pursue/FleeFrom, ambient perception, predictive lead,
+personality-scaled persistence), Hull creature size/silhouettes, Abyss creature silhouettes (Isopod/
+Eel/Squid/TrenchWorm/Hatchetfish/BrineSlug/GlassSponge all redone), free-look+clamped Abyss camera, a
+wider trench, three horizontal-cavern crossings with blocking Rock Ledges, more general resting
+ledges, and the Pirate Ship's personality-rolled crew plus its other 7 species and their real chain
+(Cat/Rat, scare/fuse/explode/scatter/infest/berserk - see commit 9a0159c for detail). All of
+`--verify`, `--verify-abyss`, `--verify-hull-ecosystem`, `--verify-pipe-ecosystem`,
+`--verify-pirate-ecosystem`, `--verify-hull-life`, `--verify-critters`, `--flats-ui-test` pass.
 
-Not done yet from the list: the Pipes were left alone per the user's own note that it's fine as is.
-The trench wall's own texture/readability at the new larger scale is still fairly soft/hazy at a
-distance - noted but not chased further, since the user's priority order puts the Pirate Ship
-retrofit and the four new biomes ahead of further art polish on work already functionally fixed.
+Investigated (not fixed, because it turned out not to be broken): the Pirate Ship's suspected
+eel-style dead-code bug for parakeets. Empirically counted 102 literal parakeet tiles across 40
+generated layouts - they were already being placed. The real gap was just the missing personality
+roll, which is now fixed.
 
-**Next action: the Pirate Ship retrofit** (same pattern as the Hull commits `25bd1fb`/`0c5cdd6`):
-add personality to the existing Pirates/gunners, add the other ~7 species from ECOSYSTEM_BESTIARY.md's
-Pirate Ship chain - Ship Rats, Stray Cats, Parakeets, Gunpowder Monkeys, Flea Swarms, Guard Dogs,
-Barn Owls, Albatrosses - with their real causal chain, fix the same eel-style dead-code bug for
-parakeets that was found and fixed for Hull eels, add a `--verify-pirate-ecosystem` headless check,
-screenshot for regressions.** Then the four new biomes one at a time (Island, Cave, Weeds, Atlantis,
-in that difficulty order, each scaling harder than the Pirate Ship). Then, if budget remains: more
-AI/art polish, then the randomization system for the new content.
+Not done: the Pipes were left alone per the user's own note that it's fine as is. The Abyss trench
+wall's own texture/readability at its new larger scale is still fairly soft/hazy at a distance -
+noted but not chased further, since it's a minor polish item behind the much larger work below.
+
+**Next action: the four new parkour-only biomes, one at a time, in this order: Island, Cave, Weeds,
+Atlantis.** Each needs the same production bar as Pipes/Hull/Pirate Ship: a new `PlatLevel` entry (bump
+`PL_COUNT` and every array sized by it), a `LevelDef` in `Lv()`, a structural generator function in
+levelgen.cpp (the equivalent of `BuildTrench`/`BuildFleet`) validated by the existing jump-arc/
+`--verify` machinery, a full enemy/hazard set (not just an ecosystem overlay - Tribal Warriors/Feral
+Boars/etc. for the Island are real hazards, per ECOSYSTEM_BESTIARY.md), its own art pass, and a
+Periscope entry. Each must scale harder than the Pirate Ship, and per the user's explicit instruction
+must NEVER touch the existing turn-based expedition locations of the same name (Location::Island
+etc. in dungeon.cpp/data.cpp are a completely separate system - do not modify them). The user also
+suggested the Island specifically could randomize between a temple, a village, or a coast-to-coast
+traverse over hills/palm trees/a small mountainside - a good model for the other three biomes having
+their own internal variety too, not just one fixed layout theme apiece.
+
+This is a substantially larger undertaking than the retrofit work above (each new biome is
+comparable in scope to building the Hull or Pirate Ship originally). Budget context/session usage
+accordingly - checkpoint and commit after each biome, not just at the end of all four.
 
 ## Original work order (the user's own words, playtest feedback after the first PR merge)
 
