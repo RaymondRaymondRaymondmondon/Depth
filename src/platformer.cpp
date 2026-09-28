@@ -1672,10 +1672,16 @@ void DrawIslandLife(const PlatIslandLife& e, float t) {
         break;
     }
     case IslandEcoKind::Snake: {
-        Color c = Color{74, 128, 54, 255};
+        Color c{74, 128, 54, 255}, band{44, 34, 22, 255};
         float drop = e.state == IslandEcoState::Dropping ? std::min(1.0f, e.stateTimer / ISLAND_SNAKE_DROP_T) : 0.0f;
-        for (int k = 0; k < 4; k++) DrawCircle((int)(x + sinf(t * 6 + k) * 3), (int)(y - 6 - k * 4 - drop * 14), 3.2f - k * 0.3f, c);
-        DrawCircle(x, (int)(y - 6 - drop * 14), 2.6f, ink);
+        Vector2 prev{(float)x, y - 2.0f - drop * 14};
+        for (int k = 1; k <= 3; k++) {
+            Vector2 q{x + sinf(t * 6 + k * 1.3f) * 5.0f, y - 2 - k * 4.0f - drop * 14};
+            DrawLineEx(prev, q, 3.4f, c);
+            if (k % 2 == 0) DrawCircleV(q, 1.3f, band);
+            prev = q;
+        }
+        DrawCircleV(prev, 2.4f, c); DrawCircleV(prev, 2.4f, Fade(ink, 0.3f));
         break;
     }
     case IslandEcoKind::Lizard: {
@@ -3005,9 +3011,18 @@ void DrawTile(const PlatformState& p, char c, int x, int y, float t) {
             if (x == a) { DrawRing({px + 2, s0.y}, 2, 4, 0, 360, 8, Color{60, 58, 62, 255}); }
             if (x == b) { DrawRing({px + T - 2, s1.y}, 2, 4, 0, 360, 8, Color{60, 58, 62, 255}); }
         } break;
-        case 'w': { // seaweed: a swaying ribbon of blades, climbable (hold up or down while it is around you)
+        case 'w': {
             float wy = py, sway0 = sinf(p.time * 1.5f + x * 0.7f + wy * 0.05f) * 4, sway1 = sinf(p.time * 1.5f + x * 0.7f + (wy + T) * 0.05f) * 4;
             Vector2 a{px + 16 + sway0, py}, b{px + 16 + sway1, py + T};
+            if (p.level == PL_ISLAND) { // a hanging liana, knotted and leafy, climbable the same way as seaweed
+                DrawLineEx({a.x + 1, a.y}, {b.x + 1, b.y}, 5, Color{10, 8, 6, 255});
+                DrawLineEx(a, b, 2.6f, Color{74, 58, 34, 255});
+                DrawLineEx({a.x - 1, a.y}, {b.x - 1, b.y}, 1, Color{112, 90, 54, 255});
+                for (int k = 0; k < 3; k++) { float ly = py + 4 + k * 10, lx = px + 16 + (sway0 + (sway1 - sway0) * (ly - py) / T); DrawCircleV({lx, ly}, 2, Color{58, 44, 26, 255}); } // knots along the vine
+                for (int k = 0; k < 2; k++) { float ly = py + 8 + k * 14, lx = px + 16 + (sway0 + (sway1 - sway0) * (ly - py) / T); int side = (k + x) % 2 ? 1 : -1; DrawEllipse((int)(lx + side * 9), (int)ly, 8, 4, Color{70, 116, 48, 255}); } // broad leaves
+                break;
+            }
+            // seaweed: a swaying ribbon of blades, climbable (hold up or down while it is around you)
             DrawLineEx({a.x + 1, a.y}, {b.x + 1, b.y}, 7, Color{8, 10, 14, 255});
             DrawLineEx(a, b, 4, Color{48, 130, 88, 255});
             DrawLineEx({a.x - 1, a.y}, {b.x - 1, b.y}, 1, Color{110, 190, 130, 255});
@@ -3039,8 +3054,17 @@ void DrawTile(const PlatformState& p, char c, int x, int y, float t) {
                 }
             else DrawRectangle((int)px + 12, (int)(py - 6 - fmodf(p.time * 12, 8.0f)), 6, 4, Fade(Color{240, 245, 250, 255}, 0.25f));
         } break;
-        case 'b': { // a wall crusted with barnacles: it springs a wall jump 1.5x
+        case 'b': {
             DrawSolid(p, x, y);
+            if (p.level == PL_ISLAND) { // a wall of gnarled bark, studded with thorns: it springs a wall jump 1.5x the same as barnacles do
+                for (int k = 0; k < 6; k++) {
+                    float bx = px + 6 + (k % 2) * 16 + Hs(x * 3.3f + k) * 5, by = py + 4 + (k / 2) * 10 + Hs(y * 5.1f + k) * 3;
+                    DrawTri({bx - 5, by + 7}, {bx + 5, by + 7}, {bx, by - 6}, Color{8, 8, 6, 255});
+                    DrawTri({bx - 3.5f, by + 6}, {bx + 3.5f, by + 6}, {bx, by - 4}, Color{86, 70, 44, 255});
+                }
+                break;
+            }
+            // a wall crusted with barnacles: it springs a wall jump 1.5x
             for (int k = 0; k < 6; k++) {
                 float bx = px + 6 + (k % 2) * 16 + Hs(x * 3.3f + k) * 5, by = py + 4 + (k / 2) * 10 + Hs(y * 5.1f + k) * 3;
                 DrawTri({bx - 6, by + 8}, {bx + 6, by + 8}, {bx, by - 3}, Color{8, 8, 12, 255});
@@ -3115,9 +3139,19 @@ void DrawTile(const PlatformState& p, char c, int x, int y, float t) {
         } break;
         case 't': {
             DrawSolid(p, x, y);
-            DrawRectangle((int)px + 6, (int)py, T - 12, 5, Color{30, 30, 34, 255});
             float cyc = JetCycle(p, x);
-            Color jet = p.level == PL_PIPES ? Color{240, 245, 250, 255} : p.level == PL_HULL ? Color{170, 230, 250, 255} : p.level == PL_ISLAND ? Color{140, 210, 70, 255} : Color{255, 170, 60, 255};
+            if (p.level == PL_ISLAND) { // a poison-frog mud wallow: no grate, no tall jet - just a rim of churned mud that bubbles low when it's "on"
+                DrawEllipse((int)px + 16, (int)py + 2, 15, 5, Color{58, 44, 26, 255});
+                DrawEllipse((int)px + 16, (int)py + 1, 12, 3.5f, Color{74, 96, 40, 200});
+                if (cyc < 1.1f) for (int k = 0; k < 6; k++) {
+                    float ph = fmodf(t * 3 + k * 0.2f, 1.0f);
+                    float bx = px + 8 + (k * 3) % 16;
+                    DrawCircle((int)bx, (int)(py - ph * 10), 2.5f - ph * 1.5f, Fade(Color{110, 140, 60, 255}, 0.8f - ph * 0.6f));
+                } else if (cyc > 2.1f) DrawCircle((int)px + 16, (int)py - 1, 2, Fade(Color{110, 140, 60, 255}, 0.6f)); // a single warning bubble
+                break;
+            }
+            DrawRectangle((int)px + 6, (int)py, T - 12, 5, Color{30, 30, 34, 255});
+            Color jet = p.level == PL_PIPES ? Color{240, 245, 250, 255} : p.level == PL_HULL ? Color{170, 230, 250, 255} : Color{255, 170, 60, 255};
             if (cyc < 1.1f) {
                 for (int k = 0; k < 9; k++) {
                     float ph = fmodf(t * 5 + k * 0.11f, 1.0f);
@@ -3430,11 +3464,35 @@ void DrawEnemy(const PlatEnemy& e, float t, int level = -1) {
     float x = e.pos.x, y = e.pos.y, f = e.dir;
     bool island = level == PL_ISLAND;
     switch (e.type) {
-        case 'c': { // crab: a domed carapace, two-segment legs, eyestalks and claws that open and snap (CrabAnim)
+        case 'c': {
+            if (island) { // a Monitor Lizard: a low sprawling body on four splayed legs, a long tapering tail, a forked tongue - nothing like a crab
+                const Color INKC{8, 8, 12, 255};
+                Color c{92, 118, 62, 255}, dk{54, 74, 38, 255}, belly{168, 176, 140, 255};
+                float walk = e.t * 10;
+                Vector2 body{x + 17.0f, y + 11.0f};
+                for (int s = -1; s <= 1; s += 2) for (int k = 0; k < 2; k++) { // four short splayed legs, opposite corners stepping together
+                    float ph = walk + (s * k > 0 ? 0 : PI);
+                    float lift = std::max(0.0f, sinf(ph)) * 2.0f;
+                    Vector2 hip{body.x + s * 7 + (k ? -4.0f : 4.0f), body.y + 3};
+                    Vector2 foot{hip.x + s * 5 + cosf(ph) * 2, body.y + 9 - lift};
+                    DrawLineEx(hip, foot, 3.2f, INKC); DrawLineEx(hip, foot, 1.8f, dk);
+                }
+                DrawEllipse((int)body.x, (int)body.y, 15, 6, INKC);       // the ink base
+                DrawEllipse((int)body.x, (int)body.y, 13.5f, 5, c);       // the sprawling body
+                DrawEllipse((int)body.x, (int)body.y + 2, 9, 2.4f, belly); // pale underbelly
+                for (int k = -2; k <= 2; k++) DrawCircleV({body.x + k * 4.0f, body.y - 2 + fabsf((float)k) * 0.4f}, 1.0f, dk); // scale mottling
+                Vector2 tail{body.x - f * 13, body.y}, tailTip{body.x - f * 26, body.y + sinf(e.t * 6) * 3};
+                DrawLineEx(tail, tailTip, 4.5f, INKC); DrawLineEx(tail, tailTip, 2.6f, c); // a long tapering tail
+                DrawCircle((int)(body.x + f * 12), (int)(body.y - 1), 4, c); // a blunt low head
+                DrawCircleLines((int)(body.x + f * 12), (int)(body.y - 1), 4, INKC);
+                DrawCircle((int)(body.x + f * 13.5f), (int)(body.y - 2.5f), 0.9f, INKC); // a small dark eye, no stalk
+                float tongue = fabsf(sinf(e.t * 4));
+                if (tongue > 0.6f) DrawLineEx({body.x + f * 16, body.y - 1}, {body.x + f * (16 + 5 * tongue), body.y - 1}, 1, Color{200, 60, 50, 255}); // a flicking tongue
+                break;
+            }
+            // crab: a domed carapace, two-segment legs, eyestalks and claws that open and snap (CrabAnim)
             const Color INKC{8, 8, 12, 255};
-            Color c = island ? Color{90, 122, 60, 255} : Color{170, 84, 56, 255};
-            Color dk = island ? Color{54, 76, 36, 255} : Color{104, 50, 38, 255};
-            Color lt = island ? Color{150, 176, 110, 255} : Color{232, 140, 100, 255};
+            Color c{170, 84, 56, 255}, dk{104, 50, 38, 255}, lt{232, 140, 100, 255};
             CrabAnim an = fmodf(e.t + x * 0.013f, 2.6f) < 0.4f ? CrabAnim::ClawSnap : CrabAnim::Scuttle;
             float cx = x + 17, cy = y + 10, w = e.t * 16;
             for (int s = -1; s <= 1; s += 2) for (int k = 0; k < 3; k++) { // three jointed legs per side
@@ -3583,14 +3641,22 @@ void DrawEnemy(const PlatEnemy& e, float t, int level = -1) {
             }
         } break;
         default: {
-            if (island) { // a coiled viper, lunging up out of the canyon mud
-                for (int k = 5; k >= 0; k--) {
-                    float sy = y - 16 + k * 7, sx = x + sinf(t * 10 + k) * 3;
-                    DrawCircle((int)sx, (int)sy, 6 - k * 0.5f, k % 2 ? Color{60, 96, 40, 255} : Color{84, 128, 54, 255});
+            if (island) { // a coiled viper, lunging up out of the canyon mud on a zigzag S-curve body, not a fish's tapering one
+                Color body{84, 128, 54, 255}, band{50, 38, 24, 255};
+                Vector2 prev{x, y};
+                for (int k = 6; k >= 1; k--) {
+                    float sy = y - k * 5.0f, sx = x + sinf(k * 1.1f + t * 2.0f) * 7.0f;
+                    Vector2 q{sx, sy};
+                    DrawLineEx(prev, q, 7.0f, Color{20, 16, 10, 255});
+                    DrawLineEx(prev, q, 5.0f, body);
+                    if (k % 2 == 0) DrawCircleV(q, 2.6f, band); // dorsal banding
+                    prev = q;
                 }
-                DrawCircle((int)x - 3, (int)y - 19, 5, Color{84, 128, 54, 255}); // a wider triangular head
-                DrawCircle((int)x - 4, (int)y - 20, 1, Pal::Ink); DrawCircle((int)x - 2, (int)y - 20, 1, Pal::Ink);
-                DrawLineEx({x - 3, y - 15}, {x - 3 + sinf(t * 14) * 3, y - 11}, 1, Color{200, 60, 50, 255}); // a flicking tongue
+                DrawEllipse((int)prev.x, (int)prev.y - 2, 5.5f, 4.5f, body); // a wide triangular pit-viper head, flatter than the eel's
+                DrawEllipse((int)prev.x, (int)prev.y - 2, 5.5f, 4.5f, Fade(Color{20, 16, 10, 255}, 0.25f));
+                DrawCircle((int)prev.x - 2, (int)prev.y - 3, 1, Pal::Ink); DrawCircle((int)prev.x + 2, (int)prev.y - 3, 1, Pal::Ink);
+                float flick = fabsf(sinf(t * 8));
+                if (flick > 0.5f) { Vector2 tt{prev.x + sinf(t * 20) * 3, prev.y - 7 - flick * 3}; DrawLineEx({prev.x, prev.y - 3}, tt, 1, Color{200, 60, 50, 255}); } // a flicking forked tongue
             } else { // eel
                 for (int k = 5; k >= 0; k--) {
                     float sy = y - 16 + k * 7, sx = x + sinf(t * 10 + k) * 3;

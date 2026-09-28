@@ -571,7 +571,9 @@ void ScenePeriscope(Game& g) {
         {"FOURTH DIVE", "A jungle island rises from the Shallows: temple ruins, a stilt village or a hillside palm traverse, seeded fresh each run. Tribal warriors ambush from cover, a coiled viper waits in the canyon mud, and a charging boar is death on four legs.",
          "300 gold"},
     };
-    const float cardW = 290, cardX0 = 30, cardStride = 310;
+    // Five cards now (four platform levels plus the Abyss) - narrower and tighter-packed than the original three,
+    // so every card (including the Abyss, appended after PL_COUNT) fits on screen without scrolling.
+    const float cardW = 238, cardX0 = 16, cardStride = 252;
     for (int i = 0; i < PL_COUNT; i++) {
         bool open = i == 0 || g.platCleared[i - 1];
         Rectangle c{cardX0 + i * cardStride, 110, cardW, 510};
