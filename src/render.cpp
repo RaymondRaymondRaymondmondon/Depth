@@ -82,7 +82,7 @@ void main() {
     // a thin, cool rim of reflected light along the shadowed edge, as in Darkest Dungeon's portraits
     float rimEdge = 1.0 - texture(texture0, uv + vec2(2.0, -1.0) * uTexel).a;
     col += vec3(0.05, 0.08, 0.09) * rimEdge * (1.0 - toward * 0.5);
-    if (uInkStyle > 0.5) { // an ink drawing, like the cards: black linework, diagonal hatching and dithered stipple over a dusky paper tone.
+    if (uInkStyle > 0.01) { // an ink drawing, like the cards: black linework, diagonal hatching and dithered stipple over a dusky paper tone.
         // Built straight from the lit, pre-tint colour above: the legacy cel-band/rim pipeline below is for the painted look, and
         // compounds into near-black once fed through ink thresholding, so ink drawings skip it entirely.
         float lv = dot(col, vec3(0.299, 0.587, 0.114));
@@ -98,7 +98,9 @@ void main() {
         if (edge > 0.6 || hatch || thr < d * 0.55) outc = INK;
         else if (thr < d * 1.05) outc = vec3(0.38, 0.27, 0.20);
         else outc = paper * (0.70 + 0.30 * v);                 // dusky rather than bright, so it sits in a dim scene instead of glowing
-        finalColor = vec4(outc * fragColor.rgb, fragColor.a);
+        // uInkStyle blends toward the plain lit colour instead of a hard switch, so the effect's
+        // strength can be dialed back without turning it off outright.
+        finalColor = vec4(mix(col, outc, uInkStyle) * fragColor.rgb, fragColor.a);
         return;
     }
     col = mix(col, INK, smoothstep(0.35, 0.9, edge) * 0.75);      // linework between parts
@@ -855,7 +857,7 @@ void EndFigure(Vector2 feet, Color tint, float sx, float sy) {
     SetShaderValue(A.figShader, A.locFigOutline, &outline, SHADER_UNIFORM_FLOAT);
     float vib = gDiveGear ? 0.0f : 1.0f;   // every figure drawn off-expedition gets the Nautilus's warm, vivid look
     SetShaderValue(A.figShader, A.locFigVib, &vib, SHADER_UNIFORM_FLOAT);
-    float inkStyle = 1.0f;   // every figure is drawn as an ink illustration
+    float inkStyle = 0.62f;  // every figure is an ink illustration, but blended rather than pure so it doesn't overwhelm the art
     SetShaderValue(A.figShader, A.locFigInk, &inkStyle, SHADER_UNIFORM_FLOAT);
     BeginShaderMode(A.figShader);
     DrawTexturePro(A.fig.texture, {0, 0, (float)FIG_W * SS, -(float)FIG_H * SS},

@@ -2313,8 +2313,14 @@ static void DrawLocationTint(Game& g, bool fx) {
         case Location::Cave:
             if (v == 0) { // pitch black: a tight searchlight round the party, ink beyond it
                 if (fx) {
-                    for (int i = 0; i < 8; i++) DrawRing({690, 390}, 300 + i * 30, 340 + i * 30, 0, 360, 48, Fade(Color{0, 0, 0, 255}, 0.14f + i * 0.06f));
-                    DrawRing({690, 390}, 540, 1600, 0, 360, 64, BLACK);
+                    // centered toward the enemy side, not the party - the back rank (pos 3, drawn out at
+                    // x=145) is ~545px from this center, which used to fall inside the very first
+                    // graduated ring (old base 300), so even the lightest darkening already dimmed her
+                    // and the figure's own already-dark ink shading finished the job. Pushed the whole
+                    // falloff out by 280 so every rank - and the enemy formation on the other side - sits
+                    // inside the fully-lit radius, and only the far background/corners still go dark.
+                    for (int i = 0; i < 8; i++) DrawRing({690, 390}, 580 + i * 30, 620 + i * 30, 0, 360, 48, Fade(Color{0, 0, 0, 255}, 0.14f + i * 0.06f));
+                    DrawRing({690, 390}, 820, 1600, 0, 360, 64, BLACK);
                 }
             } else if (v == 1) { // bloom: cyan and violet bleeding off the walls
                 lightWash(Color{20, 90, 110, 34});
