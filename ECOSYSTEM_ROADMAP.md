@@ -4,7 +4,30 @@ This tracks a large addition the user asked for, kept separate from ROADMAP.md (
 roadmap) because it's a different initiative: new parkour content and systems, explicitly **not**
 touching the main game (the Nautilus hub, expeditions, Flats) at all.
 
-## Current work order (the user's own words, playtest feedback after the first PR merge)
+## Status as of commit 595c579 (checkpoint before pausing near a usage limit)
+
+Done from the feedback list below: dash double-tap, real predator physics/AI (Pursue/FleeFrom,
+ambient perception, predictive lead, personality-scaled persistence), Hull creature size/silhouettes,
+Abyss creature silhouettes (Isopod/Eel/Squid/TrenchWorm/Hatchetfish/BrineSlug/GlassSponge all
+redone), free-look+clamped Abyss camera, a wider trench, three horizontal-cavern crossings with
+blocking Rock Ledges, and more general resting ledges. All of `--verify`, `--verify-abyss`,
+`--verify-hull-ecosystem`, `--verify-pipe-ecosystem`, `--flats-ui-test` pass.
+
+Not done yet from the list: the Pipes were left alone per the user's own note that it's fine as is.
+The trench wall's own texture/readability at the new larger scale is still fairly soft/hazy at a
+distance - noted but not chased further, since the user's priority order puts the Pirate Ship
+retrofit and the four new biomes ahead of further art polish on work already functionally fixed.
+
+**Next action: the Pirate Ship retrofit** (same pattern as the Hull commits `25bd1fb`/`0c5cdd6`):
+add personality to the existing Pirates/gunners, add the other ~7 species from ECOSYSTEM_BESTIARY.md's
+Pirate Ship chain - Ship Rats, Stray Cats, Parakeets, Gunpowder Monkeys, Flea Swarms, Guard Dogs,
+Barn Owls, Albatrosses - with their real causal chain, fix the same eel-style dead-code bug for
+parakeets that was found and fixed for Hull eels, add a `--verify-pirate-ecosystem` headless check,
+screenshot for regressions.** Then the four new biomes one at a time (Island, Cave, Weeds, Atlantis,
+in that difficulty order, each scaling harder than the Pirate Ship). Then, if budget remains: more
+AI/art polish, then the randomization system for the new content.
+
+## Original work order (the user's own words, playtest feedback after the first PR merge)
 
 The user tried the Pipes/Hull/Abyss, liked the mechanics, and gave this feedback verbatim - treat
 this whole section as the standing task list until every item is checked off or explicitly punted:
