@@ -793,6 +793,7 @@ void BuildFromGrid(PlatformState& p, const GenLevel& gl, const Part* arena, char
 
 // Builds (or rebuilds, after a death) the whole level from its seed: coins, enemies and the boss all come back.
 static void PopulateCritters(PlatformState& p, unsigned seed); // defined below Hs(), which it needs
+static void PopulateEcoLife(PlatformState& p, unsigned seed);  // defined below Hs(), which it needs
 
 void BuildLevel(PlatformState& p) {
     const LevelDef& L = Lv(p.level);
@@ -809,10 +810,15 @@ void BuildLevel(PlatformState& p) {
     p.shots.clear();
     p.checkpointChunk = 0;
     p.critters.clear();
+    p.ecoLife.clear();
+    p.inkClouds.clear();
     // The Pipes have no enemies (CLAUDE.md) - this is ambient duct life, not a hazard: no collision or
     // death check anywhere touches p.critters. Skipped headlessly: the path-search rebuilds many
     // PlatformState instances rapidly and never renders, so there is nothing for this to add there.
     if (p.level == PL_PIPES && !p.verifying) PopulateCritters(p, seed);
+    // The Hull's real 7-species chain on top of its existing crabs/eels (ECOSYSTEM_BESTIARY.md) - same
+    // headless skip as the Pipes' critters, for the same reason.
+    if (p.level == PL_HULL && !p.verifying) PopulateEcoLife(p, seed);
 }
 int PartAt(const PlatformState& p, float x) {
     int k = 0;
@@ -1068,6 +1074,212 @@ void DrawCritter(const PlatCritter& c, float t) {
         int ly = y + 1 + (sinf(legPh + k) > 0 ? 0 : 1);
         DrawRectangle(x - 2, ly, 1, 2, Fade(BLACK, 0.6f));
         DrawRectangle(x + 2, ly, 1, 2, Fade(BLACK, 0.6f));
+    }
+}
+
+// ---------------------------------------------------------------- the Hull's real ecosystem chain
+// ECOSYSTEM_BESTIARY.md, "The Hull": Cleaner Shrimp draw Camouflage Octopuses into ambush; Barnacle Crabs
+// (the existing 'c' enemy) pinch an Octopus that lands on their bed; either pinch, or the player bumping an
+// Octopus, sprays an ink cloud; Pufferfish caught in it panic and puff into a real hazard; a puffed Pufferfish
+// knocks a Hull-Leech loose to drift; a Stinging Anemone catches a drifting Leech; Hermit Crabs scavenge an
+// Anemone's scraps; Brittle-Star mats break underfoot. Same personality-rolled, seed-stable spawn shape as
+// PopulateCritters/RollEnemyTraits.
+constexpr float ECO_OCTO_AMBUSH_R = 70, ECO_OCTO_PINCH_R = 36, ECO_INK_LIFE = 2.5f, ECO_INK_R = 66;
+constexpr float ECO_PUFFER_PANIC = 0.4f, ECO_PUFFER_PUFF = 2.6f, ECO_PUFF_BUMP_R = 26;
+constexpr float ECO_LEECH_DRIFT_TIME = 6.0f, ECO_ANEMONE_CAPTURE_R = 42, ECO_HERMIT_SCAVENGE_R = 50;
+constexpr float ECO_BRITTLE_BREAK_T = 0.35f;
+
+static void PopulateEcoLife(PlatformState& p, unsigned seed) {
+    int idx = 0;
+    for (int x = 2; x < p.w - 2; x++) {
+        int fy = -1;
+        for (int y = 1; y < p.h - 1; y++) if (!Solid(p, x, y) && Solid(p, x, y + 1)) { fy = y; break; }
+        if (fy < 0) continue;
+        float roll = Hs2((float)x, (float)seed * 5.1f + 2);
+        if (roll > 0.22f) continue; // sparser than the Pipes' critters - a whole food chain, not a swarm
+        float pick = Hs2((float)x, (float)seed * 5.1f + 3);
+        EcoKind kind = pick < 0.26f ? EcoKind::Shrimp : pick < 0.40f ? EcoKind::Octopus : pick < 0.58f ? EcoKind::Puffer
+                     : pick < 0.72f ? EcoKind::Leech : pick < 0.82f ? EcoKind::Anemone : pick < 0.94f ? EcoKind::Hermit
+                     : EcoKind::BrittleStar;
+        PlatEcoLife e;
+        e.kind = kind;
+        e.home = e.pos = {x * (float)T + T / 2.0f, fy * (float)T + T - 3};
+        e.personality = {Hs2(idx * 3.0f + 1, (float)seed), Hs2(idx * 3.0f + 2, (float)seed), Hs2(idx * 3.0f + 3, (float)seed), Hs2(idx * 3.0f + 4, (float)seed)};
+        e.dir = Hs2(idx * 5.0f, (float)seed) > 0.5f ? 1.0f : -1.0f;
+        e.phase = Hs2(idx * 9.0f, (float)seed) * 6.28f;
+        e.state = kind == EcoKind::Octopus ? EcoState::Hidden : EcoState::Idle; // an Octopus starts camouflaged, everything else idle/anchored
+        idx++;
+        p.ecoLife.push_back(e);
+        if (idx > 45) break;
+    }
+}
+
+// Simple walk-and-turn-at-ledges patrol, shared by every wandering species here (Shrimp/Puffer/Hermit) - the
+// same shape as the crab enemy and the Pipes' critters, just parameterised by speed and a home leash.
+static void EcoWander(PlatformState& p, PlatEcoLife& e, float speed, float leash) {
+    if (speed <= 0) return;
+    float nx = e.pos.x + e.dir * speed;
+    int ftx = (int)floorf((e.dir > 0 ? nx + 6 : nx - 6) / T), fty = (int)floorf((e.pos.y - 2) / T);
+    if (Solid(p, ftx, fty) || !Solid(p, ftx, fty + 1)) e.dir = -e.dir;
+    else e.pos.x = nx;
+    if (fabsf(e.pos.x - e.home.x) > leash) e.dir = e.home.x < e.pos.x ? -1.0f : 1.0f;
+}
+
+void UpdateEcoLife(PlatformState& p, float dt) {
+    if (p.ecoLife.empty() && p.inkClouds.empty()) return;
+    for (auto& ic : p.inkClouds) ic.life -= dt;
+    p.inkClouds.erase(std::remove_if(p.inkClouds.begin(), p.inkClouds.end(), [](const InkCloud& ic) { return ic.life <= 0; }), p.inkClouds.end());
+
+    Rectangle pr = PlayerBox(p);
+    for (auto& e : p.ecoLife) {
+        e.phase += dt;
+        e.stateTimer += dt;
+        switch (e.kind) {
+        case EcoKind::Shrimp: {
+            bool hunted = false;
+            for (auto& o : p.ecoLife) if (o.kind == EcoKind::Octopus && o.state == EcoState::Ambush) {
+                float odx = o.pos.x - e.pos.x, ody = o.pos.y - e.pos.y;
+                if (odx * odx + ody * ody < ECO_OCTO_AMBUSH_R * ECO_OCTO_AMBUSH_R) { hunted = true; e.dir = odx < 0 ? 1.0f : -1.0f; }
+            }
+            EcoWander(p, e, hunted ? (60 + e.personality.energy * 30) * dt : (fmodf(e.phase, 3.0f) > 2.3f ? 12 * dt : 0), hunted ? 1e9f : 34);
+            break;
+        }
+        case EcoKind::Octopus: {
+            if (e.state == EcoState::Hidden) {
+                for (auto& s : p.ecoLife) if (s.kind == EcoKind::Shrimp) {
+                    float sdx = s.pos.x - e.pos.x, sdy = s.pos.y - e.pos.y;
+                    if (sdx * sdx + sdy * sdy < ECO_OCTO_AMBUSH_R * ECO_OCTO_AMBUSH_R && e.personality.aggression > 0.45f) { e.state = EcoState::Ambush; e.stateTimer = 0; break; }
+                }
+            } else if (e.state == EcoState::Ambush) {
+                PlatEcoLife* target = nullptr; float best = 1e9f;
+                for (auto& s : p.ecoLife) if (s.kind == EcoKind::Shrimp) {
+                    float sdx = s.pos.x - e.pos.x, sdy = s.pos.y - e.pos.y, sd = sdx * sdx + sdy * sdy;
+                    if (sd < best) { best = sd; target = &s; }
+                }
+                if (target) {
+                    e.dir = target->pos.x < e.pos.x ? -1.0f : 1.0f;
+                    float speed = (45 + e.personality.energy * 35) * dt, nx = e.pos.x + e.dir * speed;
+                    int ftx = (int)floorf((e.dir > 0 ? nx + 6 : nx - 6) / T), fty = (int)floorf((e.pos.y - 2) / T);
+                    if (!Solid(p, ftx, fty) && Solid(p, ftx, fty + 1)) e.pos.x = nx;
+                }
+                bool pinched = false;
+                for (auto& c : p.enemies) if (c.type == 'c') {
+                    float cdx = c.home.x - e.pos.x, cdy = c.home.y - e.pos.y;
+                    if (cdx * cdx + cdy * cdy < ECO_OCTO_PINCH_R * ECO_OCTO_PINCH_R) { pinched = true; break; }
+                }
+                Rectangle eb{e.pos.x - 8, e.pos.y - 8, 16, 16};
+                bool bumped = CheckCollisionRecs(pr, eb);
+                if (pinched || bumped) { p.inkClouds.push_back({e.pos, ECO_INK_LIFE, ECO_INK_R}); e.state = EcoState::Hidden; e.stateTimer = 0; e.pos = e.home; }
+                else if (e.stateTimer > 4.0f) { e.state = EcoState::Hidden; e.stateTimer = 0; e.pos = e.home; } // gives up the hunt
+            }
+            break;
+        }
+        case EcoKind::Puffer: {
+            if (e.state == EcoState::Idle) {
+                bool inCloud = false;
+                for (auto& ic : p.inkClouds) { float idx_ = ic.pos.x - e.pos.x, idy_ = ic.pos.y - e.pos.y; if (idx_ * idx_ + idy_ * idy_ < ic.r * ic.r) inCloud = true; }
+                if (inCloud) { e.state = EcoState::Panicked; e.stateTimer = 0; }
+                else EcoWander(p, e, fmodf(e.phase, 3.4f) > 2.6f ? (16 + e.personality.energy * 10) * dt : 0, 36);
+            } else if (e.state == EcoState::Panicked) {
+                if (e.stateTimer > ECO_PUFFER_PANIC) { e.state = EcoState::Puffed; e.stateTimer = 0; }
+            } else if (e.state == EcoState::Puffed) {
+                if (e.stateTimer > ECO_PUFFER_PUFF) { e.state = EcoState::Idle; e.stateTimer = 0; }
+                else for (auto& l : p.ecoLife) if (l.kind == EcoKind::Leech && l.state == EcoState::Idle) {
+                    float ldx = l.pos.x - e.pos.x, ldy = l.pos.y - e.pos.y;
+                    if (ldx * ldx + ldy * ldy < ECO_PUFF_BUMP_R * ECO_PUFF_BUMP_R) { l.state = EcoState::Detached; l.stateTimer = 0; }
+                }
+            }
+            break;
+        }
+        case EcoKind::Leech:
+            if (e.state == EcoState::Detached) {
+                e.pos.y += (20 + e.personality.energy * 14) * dt;
+                e.pos.x += sinf(e.phase * 1.4f) * 10 * dt;
+                if (e.stateTimer > ECO_LEECH_DRIFT_TIME) { e.state = EcoState::Idle; e.pos = e.home; e.stateTimer = 0; } // drifted off unclaimed - recycles
+            }
+            break;
+        case EcoKind::Anemone:
+            if (e.state == EcoState::Fed && e.stateTimer > 1.5f) { e.state = EcoState::Idle; e.stateTimer = 0; }
+            for (auto& l : p.ecoLife) if (l.kind == EcoKind::Leech && l.state == EcoState::Detached) {
+                float ldx = l.pos.x - e.pos.x, ldy = l.pos.y - e.pos.y;
+                if (ldx * ldx + ldy * ldy < ECO_ANEMONE_CAPTURE_R * ECO_ANEMONE_CAPTURE_R) {
+                    l.state = EcoState::Idle; l.pos = l.home; l.stateTimer = 0; // captured and consumed - the leech population recycles rather than depletes
+                    e.state = EcoState::Fed; e.stateTimer = 0;
+                }
+            }
+            break;
+        case EcoKind::Hermit: {
+            bool scavenging = false;
+            for (auto& a : p.ecoLife) if (a.kind == EcoKind::Anemone && a.state == EcoState::Fed) {
+                float adx = a.pos.x - e.pos.x, ady = a.pos.y - e.pos.y;
+                if (adx * adx + ady * ady < ECO_HERMIT_SCAVENGE_R * ECO_HERMIT_SCAVENGE_R) scavenging = true;
+            }
+            e.state = scavenging ? EcoState::Scavenging : EcoState::Wander;
+            if (!scavenging) EcoWander(p, e, fmodf(e.phase, 2.6f) > 1.8f ? (18 + e.personality.energy * 12) * dt : 0, 60);
+            break;
+        }
+        case EcoKind::BrittleStar:
+            if (e.state == EcoState::Idle) {
+                Rectangle mat{e.pos.x - 10, e.pos.y - 4, 20, 6};
+                if (CheckCollisionRecs(pr, mat)) {
+                    if (e.stateTimer > ECO_BRITTLE_BREAK_T) { e.state = EcoState::Broken; e.stateTimer = 0; p.vel.y = std::max(p.vel.y, 40.0f); } // gives way underfoot - a dip, not a kill; it only ever sits over floor that's already safe
+                } else e.stateTimer = 0; // only counts while actually stood on
+            }
+            break;
+        }
+    }
+}
+
+// Small flat pixel-art per species, same unrotated shape-language as DrawCritter. Only a puffed Pufferfish
+// reads as dangerous (spikes, bright warning color) - everything else is scenery.
+void DrawEcoLife(const PlatEcoLife& e, float t) {
+    int x = (int)e.pos.x, y = (int)e.pos.y;
+    switch (e.kind) {
+    case EcoKind::Shrimp: {
+        Color c = e.state == EcoState::Idle ? Color{230, 190, 170, 255} : Color{240, 210, 190, 255};
+        DrawRectangle(x - 3, y - 3, 6, 3, c);
+        DrawRectangle(x + (e.dir > 0 ? 2 : -4), y - 4, 2, 2, c);
+        break;
+    }
+    case EcoKind::Octopus:
+        if (e.state != EcoState::Hidden) {
+            Color c = Color{150, 90, 130, 230};
+            DrawCircle(x, y - 4, 6, c);
+            for (int k = -2; k <= 2; k += 2) DrawRectangle(x + k * 2, y, 2, 5 + (int)(sinf(t * 6 + k) * 2), c);
+        } else DrawCircleLines(x, y - 3, 5, Fade(Color{150, 90, 130, 255}, 0.25f)); // faint camouflaged outline only
+        break;
+    case EcoKind::Puffer: {
+        bool puffed = e.state == EcoState::Puffed;
+        float r = puffed ? 10 : 5;
+        Color c = puffed ? Color{235, 170, 60, 255} : Color{210, 200, 90, 255};
+        DrawCircle(x, y - 4, r, c);
+        if (puffed) for (int k = 0; k < 8; k++) { float a = k * PI / 4; DrawLineEx({x + cosf(a) * r, y - 4 + sinf(a) * r}, {x + cosf(a) * (r + 4), y - 4 + sinf(a) * (r + 4)}, 2, Color{200, 90, 40, 255}); }
+        break;
+    }
+    case EcoKind::Leech: {
+        Color c = Color{110, 40, 50, 255};
+        float wob = e.state == EcoState::Detached ? sinf(t * 5 + e.phase) * 2 : sinf(t * 2 + e.phase) * 0.6f;
+        DrawRectangle(x - 2 + (int)wob, y - 6, 4, 8, c);
+        break;
+    }
+    case EcoKind::Anemone: {
+        Color c = e.state == EcoState::Fed ? Color{225, 100, 140, 255} : Color{190, 80, 120, 255};
+        float spread = e.state == EcoState::Fed ? 7 : 4;
+        for (int k = -2; k <= 2; k++) { float a = k * 0.35f + sinf(t * 3 + e.phase) * 0.1f; DrawLineEx({(float)x, (float)y}, {x + sinf(a) * spread, y - 8 - cosf(a) * spread}, 2, c); }
+        break;
+    }
+    case EcoKind::Hermit: {
+        Color c = Color{175, 140, 90, 255};
+        DrawRectangle(x - 4, y - 4, 8, 4, c);
+        DrawCircle(x + (e.dir > 0 ? 4 : -4), y - 5, 3, Color{200, 170, 130, 255});
+        break;
+    }
+    case EcoKind::BrittleStar:
+        if (e.state == EcoState::Idle) {
+            Color c = Color{160, 150, 140, 200};
+            for (int k = 0; k < 5; k++) { float a = k * 2.0f * PI / 5 + e.phase; DrawLineEx({(float)x, (float)y}, {x + cosf(a) * 9, y + sinf(a) * 4}, 1.5f, c); }
+        }
+        break;
     }
 }
 
@@ -3049,6 +3261,82 @@ bool VerifyHullLife() {
     return true;
 }
 
+// depth.exe --verify-hull-ecosystem: proves the Hull's 7-species chain fires end to end, on synthetic
+// setups the same way --verify-hull-life proves the crab/eel mechanism - a real generated layout's spacing
+// is luck of the seed, not what the mechanism test should depend on. Chain: Octopus bumped -> ink cloud ->
+// Pufferfish panics and puffs -> knocks a Leech loose -> an Anemone captures it -> plus Brittle-Star mats
+// breaking underfoot, and a real generated layout actually spawning more than one species.
+bool VerifyHullEcosystem() {
+    // 1) a real generated Hull layout spawns several of the new species, not just crabs/eels
+    {
+        PlatformState p;
+        p.level = PL_HULL;
+        p.bossEnabled = false;
+        p.layout = {7, 100};
+        BuildLevel(p);
+        int kinds[7] = {0};
+        for (auto& e : p.ecoLife) kinds[(int)e.kind]++;
+        int distinct = 0;
+        for (int k = 0; k < 7; k++) if (kinds[k] > 0) distinct++;
+        if (distinct < 3) { TraceLog(LOG_WARNING, "verify-hull-ecosystem: FAILED - only %d distinct species spawned in a real layout", distinct); return false; }
+        TraceLog(LOG_WARNING, "verify-hull-ecosystem: a real layout spawned %d distinct species (%d total)", distinct, (int)p.ecoLife.size());
+    }
+    // 2) the causal chain: player bumps a hunting Octopus -> ink -> Pufferfish panics/puffs -> knocks a Leech
+    // loose. No Anemone here - it's tested separately below, since one sitting right at the same spot would
+    // recapture the Leech the instant it detaches, in the same frame, which is a same-frame artifact of a
+    // synthetic layout with everything stacked at one point, not something the mechanism test should assert on.
+    bool inked = false, puffed = false, detached = false;
+    {
+        PlatformState p;
+        p.w = 40; p.h = 20;
+        p.tiles.assign(p.h, std::string(p.w, '.'));
+        for (int x = 0; x < p.w; x++) p.tiles[15][x] = '#';
+        float fy = 15.0f * T + T - 3;
+        PlatEcoLife octo; octo.kind = EcoKind::Octopus; octo.home = octo.pos = {10.0f * T, fy}; octo.state = EcoState::Ambush; octo.personality.aggression = 0.9f;
+        PlatEcoLife puffer; puffer.kind = EcoKind::Puffer; puffer.home = puffer.pos = {10.0f * T, fy}; puffer.state = EcoState::Idle;
+        PlatEcoLife leech; leech.kind = EcoKind::Leech; leech.home = leech.pos = {10.0f * T, fy}; leech.state = EcoState::Idle;
+        p.ecoLife = {octo, puffer, leech};
+        p.pos = {octo.pos.x - PW / 2, octo.pos.y - PH / 2}; // standing right on the octopus - a bump
+        for (int f = 0; f < 600 && !detached; f++) {
+            UpdateEcoLife(p, 1 / 60.0f);
+            if (!p.inkClouds.empty()) inked = true;
+            if (p.ecoLife[1].state == EcoState::Puffed) puffed = true;
+            if (p.ecoLife[2].state == EcoState::Detached) detached = true;
+        }
+        if (!inked) { TraceLog(LOG_WARNING, "verify-hull-ecosystem: FAILED - bumping the Octopus never sprayed ink"); return false; }
+        if (!puffed) { TraceLog(LOG_WARNING, "verify-hull-ecosystem: FAILED - the Pufferfish never puffed up in the ink"); return false; }
+        if (!detached) { TraceLog(LOG_WARNING, "verify-hull-ecosystem: FAILED - the puffed Pufferfish never knocked the Leech loose"); return false; }
+    }
+    // an already-detached Leech drifting near a Stinging Anemone gets captured, and the Anemone shows it (Fed)
+    {
+        PlatformState p;
+        p.w = 20; p.h = 20;
+        p.tiles.assign(p.h, std::string(p.w, '.'));
+        PlatEcoLife leech; leech.kind = EcoKind::Leech; leech.home = {10.0f * T, 5.0f * T}; leech.pos = leech.home; leech.state = EcoState::Detached;
+        PlatEcoLife anemone; anemone.kind = EcoKind::Anemone; anemone.home = anemone.pos = leech.home; anemone.state = EcoState::Idle;
+        p.ecoLife = {leech, anemone};
+        p.pos = {leech.home.x - 200, leech.home.y - 200}; // well clear of the Anemone - never bumps or ink-triggers anything here
+        bool captured = false;
+        for (int f = 0; f < 60 && !captured; f++) { UpdateEcoLife(p, 1 / 60.0f); if (p.ecoLife[1].state == EcoState::Fed) captured = true; }
+        if (!captured) { TraceLog(LOG_WARNING, "verify-hull-ecosystem: FAILED - the Anemone never captured the drifting Leech"); return false; }
+    }
+    // 3) a puffed Pufferfish is a real hazard; a Brittle-Star mat breaks underfoot after a moment, not instantly
+    {
+        PlatformState p;
+        p.w = 20; p.h = 20;
+        p.tiles.assign(p.h, std::string(p.w, '.'));
+        PlatEcoLife bstar; bstar.kind = EcoKind::BrittleStar; bstar.home = bstar.pos = {10.0f * T, 10.0f * T}; bstar.state = EcoState::Idle;
+        p.ecoLife = {bstar};
+        p.pos = {bstar.pos.x - PW / 2, bstar.pos.y - PH};
+        UpdateEcoLife(p, 1 / 60.0f);
+        if (p.ecoLife[0].state != EcoState::Idle) { TraceLog(LOG_WARNING, "verify-hull-ecosystem: FAILED - a Brittle-Star mat broke instantly instead of after a moment"); return false; }
+        for (int f = 0; f < 60; f++) UpdateEcoLife(p, 1 / 60.0f); // ~1s stood on it
+        if (p.ecoLife[0].state != EcoState::Broken) { TraceLog(LOG_WARNING, "verify-hull-ecosystem: FAILED - the Brittle-Star mat never broke"); return false; }
+    }
+    TraceLog(LOG_WARNING, "verify-hull-ecosystem: OK - ink/puff/leech/anemone chain and Brittle-Star mats both confirmed");
+    return true;
+}
+
 // The darkness of the ducts, drawn in bands (it suits the pixel art) around the diver's helmet lamp.
 static void DrawLampDarkness(Vector2 c, float r, float maxA) {
     const int B = 6;
@@ -3106,6 +3394,7 @@ void ScenePlatformer(Game& g) {
         float ed = p.ghost ? dt * GHOST_SPEED : dt; // ghosts move, aim, fire and charge 1.6x faster
         UpdateEnemies(p, ed);
         UpdateCritters(p, dt); // ambient duct life - never touched by ghost speed, it isn't part of the challenge
+        UpdateEcoLife(p, dt);  // the Hull's ecosystem chain - Ghost Ship speed is Pirate-only, doesn't apply here
         UpdateBoss(p, ed);
         UpdateLaunchers(p, ed);
         UpdateShots(p, ed);
@@ -3115,6 +3404,8 @@ void ScenePlatformer(Game& g) {
             Rectangle pr = PlayerBox(p);
             for (auto& e : p.enemies) if (EnemyHits(e, pr)) Die(p);
             for (auto& s : p.shots) if (ShotHits(s, pr)) Die(p);
+            for (auto& el : p.ecoLife) // only a puffed Pufferfish is a hazard - everything else in the Hull's chain is scenery
+                if (el.kind == EcoKind::Puffer && el.state == EcoState::Puffed && CheckCollisionRecs(pr, {el.pos.x - 14, el.pos.y - 14, 28, 28})) Die(p);
             PlatBoss& b = p.boss;
             bool falling = p.vel.y > 0;
             if (b.type == 'K' && !b.defeated) {
@@ -3239,6 +3530,8 @@ void ScenePlatformer(Game& g) {
     DrawBoss(p, t);
     for (auto& e : p.enemies) DrawEnemy(e, t);
     for (auto& c : p.critters) DrawCritter(c, t);
+    for (auto& ic : p.inkClouds) DrawCircle((int)ic.pos.x, (int)ic.pos.y, ic.r * std::clamp(ic.life / ECO_INK_LIFE, 0.0f, 1.0f), Fade(Color{30, 20, 35, 255}, 0.35f));
+    for (auto& e : p.ecoLife) DrawEcoLife(e, t);
     DrawShots(p, t);
     DrawSea(p, t, viewW, viewH);
     for (auto& pt : p.particles) {

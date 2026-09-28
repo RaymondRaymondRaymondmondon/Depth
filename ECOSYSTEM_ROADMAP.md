@@ -189,11 +189,55 @@ rock-reef features (occasionally replacing a plain urchin tile), confirmed via `
 `--verify-hull-life` that eels now genuinely appear. Left the Pirate Ship's parakeets alone for this pass -
 out of scope ("the Hull section") - but the same dead-code gap almost certainly affects them too.
 
+## The full brief now lives in ECOSYSTEM_BESTIARY.md
+
+The user's complete, seven-biome ecosystem brief (verbatim: `WaterTraversalState`/Water Dash/Hydro-Glide,
+the numbered food chains and cause-effect diagrams for all seven biomes, and the `PersonalityProfile`/
+`EntityBrain` pseudocode) is now persisted in `ECOSYSTEM_BESTIARY.md` so it never has to be re-pasted. It's
+the source of truth for what each biome's real chain is; this file tracks what's actually built against it.
+Correction from earlier in this file: the Pipes' ambient duct life above is one species (a stand-in for the
+brief's Pipes chain of ten), not a match to the brief - it's flagged there as a gap, not finished.
+
+## The Hull's real ecosystem chain: the other 7 species
+
+The brief's Hull chain (`ECOSYSTEM_BESTIARY.md`, "The Hull") is: Cleaner Shrimp draw Camouflage Octopuses
+into ambush; Barnacle Crabs (the existing `'c'` enemy) pinch an Octopus that lands on their bed; either
+pinch, or the player bumping an Octopus, sprays an ink cloud; Pufferfish caught in it panic and puff up into
+a real hazard; a puffed Pufferfish knocks a Hull-Leech loose to drift; a Stinging Anemone catches a drifting
+Leech; Hermit Crabs scavenge an Anemone's scraps; Brittle-Star mats break underfoot.
+
+- `PlatEcoLife` (game.h): one struct for all seven, `EcoKind` picks the species and `EcoState` the state -
+  the same states mean different things per kind (`Hidden`/`Ambush` only apply to the Octopus, `Puffed` only
+  to the Pufferfish, `Fed` only to the Anemone, etc.), the same way `CritterState`'s three states already
+  cover the Pipes' whole vocabulary with one enum.
+- `PopulateEcoLife` (platformer.cpp): same seed-stable floor scan as `PopulateCritters`, picking a kind per
+  spawn spot by a weighted roll (Shrimp commonest, Brittle-Star rarest) and capped at 45 - sparser than the
+  Pipes' critters, since this is a whole food chain, not a swarm.
+- `UpdateEcoLife`: the chain above, implemented as read of each entity's own neighbours every frame (arrays
+  are small, so an O(n^2) scan per frame is cheap) rather than pointers between them, so entities can be
+  freely recycled (a captured Leech respawns at its own home; a spent ink cloud just expires).
+- The mat/hazard end of the chain is deliberately conservative: Brittle-Star mats never sit over an already-
+  deadly tile (they're scenery over safe floor), so breaking one gives the player a small downward velocity
+  dip rather than an actual drop onto a hazard underneath - the brief's "dropping onto underlying hazards"
+  read literally would mean touching Depth's tile-solidity code (`Solid()`), which every jump-arc validator
+  and the whole movement model depend on; not worth that risk for one set-piece. Only the player triggers a
+  mat break, not walking Barnacle Crabs (also in the brief) - out of scope for this pass.
+- Only a puffed Pufferfish is an actual hazard (touching it kills, same check as `p.enemies`/`p.shots`);
+  everything else in the chain is scenery, same rule as the Pipes' critters.
+- `depth.exe --verify-hull-ecosystem`: a real generated layout spawns several distinct species (not just
+  crabs/eels), then the mechanism is proven on synthetic setups the same way `--verify-hull-life` proves the
+  crab/eel mechanism - bumping an Octopus sprays ink, a Pufferfish in it panics and puffs, a puffed Pufferfish
+  detaches a Leech, and (a separate synthetic, since stacking an Anemone at the same point as the other three
+  would recapture the Leech in the very same frame it detaches) a Leech already adrift near an Anemone gets
+  captured. A Brittle-Star mat also confirmed to survive a first touch and break only after a moment.
+
 ## Not yet done
 
-- The other biomes: new platform versions of Island/Cave/Weeds/Atlantis.
-- The Pirate Ship's own retrofit (parakeets and gunners gaining personality) - and very likely the same
-  dead-code eel/parakeet-placement bug fix, scoped to `BuildFleet` this time.
+- The Pipes' and Pirate Ship's own real 10-species chains, per `ECOSYSTEM_BESTIARY.md` - the Pipes still only
+  has its one stand-in species, and the Pirate Ship hasn't been touched (its own retrofit, and very likely the
+  same dead-code eel/parakeet-placement bug fix, scoped to `BuildFleet` this time).
+- Four new parkour-only biomes (Island, Cave, Weeds, Atlantis) per the brief - additions to the parkour
+  section only, never touching the turn-based expedition locations of the same names.
 - Streaming/infinite generation past the Abyss's fixed ~900 m trench - deliberately deferred, see above.
 - Whether biome transitions (e.g. falling from the Hull into the Abyss) are ever made seamless rather
   than a standalone menu entry - raised in the brief; for this slice, decided as standalone (simplest,

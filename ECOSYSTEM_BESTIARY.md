@@ -109,10 +109,15 @@ diver, not yet this full ten-species, player-ignoring, systemic-chaos chain. Rev
 10. Brittle-Stars form dense carpet mats over slippery hull sections. Walking or dashing over Brittle-Stars
     destroys the mat, dropping the player or walking crabs onto underlying hazards.
 
-**Status: in progress.** The Hull's existing crab ('c') and eel ('e') map onto **Barnacle Crab** and
-**Moray Eel** here - both already retrofitted with PersonalityProfile (see ECOSYSTEM_ROADMAP.md). The
-other 7 species (Cleaner Shrimp, Camouflage Octopus, Pufferfish, Hull-Leech, Stinging Anemone, Hermit Crab,
-Brittle-Star) and their real inter-species chain are what's being built now.
+**Status: built.** The Hull's existing crab ('c') and eel ('e') map onto **Barnacle Crab** and **Moray Eel**
+here (retrofitted with PersonalityProfile). The other 7 species (Cleaner Shrimp, Camouflage Octopus,
+Pufferfish, Hull-Leech, Stinging Anemone, Hermit Crab, Brittle-Star) and the real chain between them -
+shrimp draw an ambush, a crab pinch or a player bump sprays ink, a pufferfish panics and puffs, a puffed
+pufferfish knocks a leech loose, an anemone catches it, a hermit crab scavenges the scraps, and brittle-star
+mats break underfoot - are implemented as `PlatEcoLife` (see ECOSYSTEM_ROADMAP.md). One deliberate deviation:
+a broken Brittle-Star mat gives a small downward velocity dip rather than truly dropping the player through
+onto a hazard underneath, since mats never sit over an actually-deadly tile - going further would mean
+touching `Solid()`, which the whole movement model and jump-arc validator depend on.
 
 ### The Pirate Ship (Deck & Rigging)
 1. Ship Rats scurry across deck planks toward food barrels or dropped items.

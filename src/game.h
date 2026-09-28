@@ -329,6 +329,25 @@ struct PlatCritter {
     CritterState state = CritterState::Idle;
     float stateTimer = 0, phase = 0;      // phase: per-critter offset so a cluster doesn't move in lockstep
 };
+// The Hull's real ecosystem chain (ECOSYSTEM_BESTIARY.md, "The Hull"): Cleaner Shrimp draw Camouflage
+// Octopuses into ambush, Barnacle Crabs (the existing 'c' enemy) pinch Octopuses that land on their beds,
+// either pinch sprays an ink cloud, Pufferfish panic and puff up inside it, a puffed Pufferfish knocks Hull-
+// Leeches loose, Stinging Anemones catch drifting Leeches, and Hermit Crabs scavenge an Anemone's scraps.
+// One shared struct/state enum for all seven - the states mean different things per kind (see UpdateEcoLife),
+// the same way CritterState's three states already cover the Pipes' whole vocabulary.
+enum class EcoKind { Shrimp, Octopus, Puffer, Leech, Anemone, Hermit, BrittleStar };
+enum class EcoState { Idle, Wander, Hidden, Ambush, Panicked, Puffed, Detached, Captured, Fed, Scavenging, Broken };
+struct PlatEcoLife {
+    EcoKind kind;
+    Vector2 pos{0, 0}, home{0, 0};
+    PersonalityProfile personality;
+    float dir = 1;
+    EcoState state = EcoState::Idle;
+    float stateTimer = 0, phase = 0;
+};
+// A Camouflage Octopus's ink, sprayed when a Crab pinches it or the player bumps it - Pufferfish inside the
+// radius panic and puff up (see UpdateEcoLife); purely a trigger volume, drawn as a spreading dark bloom.
+struct InkCloud { Vector2 pos{0, 0}; float life = 0, r = 60; };
 struct PlatShot { Vector2 pos, vel; float life; int kind; }; // 0 musket ball, 1 lit bomb, 2 explosion, 3 falling ink, 4 torpedo, 5 cannonball, 6 rolling barrel
 struct PlatLauncher { int tx, ty; char type; float t; }; // a torpedo tube (T), a deck cannon (N) or a barrel chute (y): fires on a timer, with a warning before
 struct PlatParticle { Vector2 p, v; float life, max, size; Color c; };
@@ -393,6 +412,8 @@ struct PlatformState {
     int checkpointChunk = 0;
     std::vector<PlatEnemy> enemies;
     std::vector<PlatCritter> critters; // ambient duct life (Pipes only) - see PlatCritter; never a hazard
+    std::vector<PlatEcoLife> ecoLife;  // Hull only - see PlatEcoLife; a puffed Pufferfish IS a hazard
+    std::vector<InkCloud> inkClouds;
     PlatBoss boss;
     std::vector<PlatParticle> particles;
     int coins = 0, deaths = 0, reward = 0, relic = -1, relic2 = -1; // relic2: Blackbeard sometimes leaves a second
@@ -715,3 +736,4 @@ void UpdateAbyss(Game& g, float dt); // the fixed-step simulation, callable head
 bool VerifyAbyss();                  // debug: proves a run can descend past the first downdraft/sponge gauntlet
 bool VerifyCritters();               // debug (depth.exe --verify-critters): proves the Pipes' ambient duct life spawns and reacts
 bool VerifyHullLife();                // debug (depth.exe --verify-hull-life): proves the Hull's crabs/eels roll and react to personality
+bool VerifyHullEcosystem();           // debug (depth.exe --verify-hull-ecosystem): proves the Hull's 7-species chain (ink -> puff -> leech -> anemone) fires
