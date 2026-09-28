@@ -366,6 +366,23 @@ struct PlatPipeLife {
     PipeState state = PipeState::Idle;
     float stateTimer = 0, phase = 0;
 };
+// The Pirate Ship's real ecosystem chain (ECOSYSTEM_BESTIARY.md, "The Pirate Ship"): on top of the existing
+// Pirates/Gunners/Parakeets (now personality-rolled - see RollEnemyTraits), a Cat hunts a Rat; a Gunpowder
+// Monkey scared by nearby gunfire fuses a dropped powder line that, after a moment, explodes and scatters
+// any Flea Swarm within reach; a scattered swarm infests the Guard Dog it lives on; an infested Dog goes
+// Berserk - the one member of this chain that's a real hazard, same as a puffed Hull Pufferfish. A Barn Owl
+// dives on a fleeing Rat or a fused Monkey and drops it back near its own home; an Albatross just circles.
+enum class PirateEcoKind { Rat, Cat, Monkey, FleaSwarm, GuardDog, Owl, Albatross };
+enum class PirateEcoState { Idle, Wander, Hunting, Fleeing, Fused, Scattered, Infested, Berserk, Diving, Circling };
+struct PlatPirateLife {
+    PirateEcoKind kind;
+    Vector2 pos{0, 0}, home{0, 0};
+    PersonalityProfile personality;
+    float dir = 1;
+    PirateEcoState state = PirateEcoState::Idle;
+    float stateTimer = 0, phase = 0;
+    int dogIndex = -1; // FleaSwarm: which p.pirateLife entry is its host Guard Dog
+};
 struct PlatShot { Vector2 pos, vel; float life; int kind; }; // 0 musket ball, 1 lit bomb, 2 explosion, 3 falling ink, 4 torpedo, 5 cannonball, 6 rolling barrel
 struct PlatLauncher { int tx, ty; char type; float t; }; // a torpedo tube (T), a deck cannon (N) or a barrel chute (y): fires on a timer, with a warning before
 struct PlatParticle { Vector2 p, v; float life, max, size; Color c; };
@@ -434,6 +451,7 @@ struct PlatformState {
     std::vector<InkCloud> inkClouds;
     std::vector<PlatPipeLife> pipeLife; // Pipes only - see PlatPipeLife; never a hazard, never reacts to the diver
     std::vector<Vector2> lightSpots;    // Pipes only - the few surviving 'o' bioluminescent leaks Dust Moths fly toward
+    std::vector<PlatPirateLife> pirateLife; // Pirate Ship only - see PlatPirateLife; a Berserk Guard Dog IS a hazard
     PlatBoss boss;
     std::vector<PlatParticle> particles;
     int coins = 0, deaths = 0, reward = 0, relic = -1, relic2 = -1; // relic2: Blackbeard sometimes leaves a second
@@ -762,3 +780,4 @@ bool VerifyCritters();               // debug (depth.exe --verify-critters): pro
 bool VerifyHullLife();                // debug (depth.exe --verify-hull-life): proves the Hull's crabs/eels roll and react to personality
 bool VerifyHullEcosystem();           // debug (depth.exe --verify-hull-ecosystem): proves the Hull's 7-species chain (ink -> puff -> leech -> anemone) fires
 bool VerifyPipeEcosystem();           // debug (depth.exe --verify-pipe-ecosystem): proves the Pipes' 10-species chain (web -> bite -> curl/roll -> flash -> panic) fires, entirely without the diver
+bool VerifyPirateEcosystem();         // debug (depth.exe --verify-pirate-ecosystem): proves the Pirate Ship's chain (scare -> fuse -> explode -> scatter -> infest -> berserk) fires

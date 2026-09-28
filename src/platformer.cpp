@@ -731,9 +731,9 @@ void ScanTiles(PlatformState& p) {
             switch (ch) {
                 case 'S': p.startPos = {x + 6, y + T - PH}; break;
                 case 'c': { PlatEnemy pe{'c', {x - 1, y + T - 18}, {x, y}, -1, 0}; pe.personality = RollEnemyTraits(x, y); p.enemies.push_back(pe); break; }
-                case 'P': p.enemies.push_back({'P', {x + 5, y + T - 30}, {x, y}, -1, 0}); break;
-                case 'G': p.enemies.push_back({'G', {x + 6, y + T - 30}, {x, y}, -1, 0, 0, Rnd(0, 1.2f)}); break;
-                case 'p': p.enemies.push_back({'p', {x + 16, y + 16}, {x + 16, y + 16}, 1, 0}); break;
+                case 'P': { PlatEnemy pe{'P', {x + 5, y + T - 30}, {x, y}, -1, 0}; pe.personality = RollEnemyTraits(x, y); p.enemies.push_back(pe); break; }
+                case 'G': { PlatEnemy pe{'G', {x + 6, y + T - 30}, {x, y}, -1, 0, 0, Rnd(0, 1.2f)}; pe.personality = RollEnemyTraits(x, y); p.enemies.push_back(pe); break; }
+                case 'p': { PlatEnemy pe{'p', {x + 16, y + 16}, {x + 16, y + 16}, 1, 0}; pe.personality = RollEnemyTraits(x, y); p.enemies.push_back(pe); break; }
                 case 'e': { PlatEnemy pe{'e', {x + 16, y + 400}, {x + 16, y}, 1, c * 0.37f}; pe.personality = RollEnemyTraits(x, y); p.enemies.push_back(pe); break; }
                 case 'o': if ((r * 7 + c * 13) % 5 != 0) ch = '.'; continue;   // generator "coins" survive only as a few faint pools of light: environmental cues, never markers or pickups
                 case 'T': case 'N': case 'y': p.launchers.push_back({c, r, ch, Rnd(0.0f, 2.0f)}); continue; // solid fixtures that fire on a timer: the tile stays
@@ -795,6 +795,7 @@ void BuildFromGrid(PlatformState& p, const GenLevel& gl, const Part* arena, char
 static void PopulateCritters(PlatformState& p, unsigned seed); // defined below Hs(), which it needs
 static void PopulateEcoLife(PlatformState& p, unsigned seed);  // defined below Hs(), which it needs
 static void PopulatePipeLife(PlatformState& p, unsigned seed); // defined below Hs(), which it needs
+static void PopulatePirateLife(PlatformState& p, unsigned seed); // defined below Hs(), which it needs
 
 void BuildLevel(PlatformState& p) {
     const LevelDef& L = Lv(p.level);
@@ -815,6 +816,7 @@ void BuildLevel(PlatformState& p) {
     p.inkClouds.clear();
     p.pipeLife.clear();
     p.lightSpots.clear();
+    p.pirateLife.clear();
     // The Pipes have no enemies (CLAUDE.md) - this is ambient duct life, not a hazard: no collision or
     // death check anywhere touches p.critters. Skipped headlessly: the path-search rebuilds many
     // PlatformState instances rapidly and never renders, so there is nothing for this to add there.
@@ -825,6 +827,9 @@ void BuildLevel(PlatformState& p) {
     // The Hull's real 7-species chain on top of its existing crabs/eels (ECOSYSTEM_BESTIARY.md) - same
     // headless skip as the Pipes' critters, for the same reason.
     if (p.level == PL_HULL && !p.verifying) PopulateEcoLife(p, seed);
+    // The Pirate Ship's real 7-species chain on top of its existing Pirates/Gunners/Parakeets
+    // (ECOSYSTEM_BESTIARY.md) - same headless skip, for the same reason.
+    if (p.level == PL_PIRATE && !p.verifying) PopulatePirateLife(p, seed);
 }
 int PartAt(const PlatformState& p, float x) {
     int k = 0;
@@ -1120,9 +1125,12 @@ static void PopulateEcoLife(PlatformState& p, unsigned seed) {
     }
 }
 
-// Simple walk-and-turn-at-ledges patrol, shared by every wandering species here (Shrimp/Puffer/Hermit) - the
-// same shape as the crab enemy and the Pipes' critters, just parameterised by speed and a home leash.
-static void EcoWander(PlatformState& p, PlatEcoLife& e, float speed, float leash) {
+// Simple walk-and-turn-at-ledges patrol, shared by every wandering species here (Shrimp/Puffer/Hermit, and
+// the Pirate Ship's Rat/Cat/Monkey/GuardDog below) - the same shape as the crab enemy and the Pipes'
+// critters, just parameterised by speed and a home leash. Templated since PlatEcoLife and PlatPirateLife
+// are separate structs that both happen to carry pos/dir/home.
+template <class Ent>
+static void EcoWander(PlatformState& p, Ent& e, float speed, float leash) {
     if (speed <= 0) return;
     float nx = e.pos.x + e.dir * speed;
     int ftx = (int)floorf((e.dir > 0 ? nx + 6 : nx - 6) / T), fty = (int)floorf((e.pos.y - 2) / T);
@@ -1316,6 +1324,203 @@ void DrawEcoLife(const PlatEcoLife& e, float t) {
             DrawCircle(x, y, 3.5f, Tone(c, -0.15f));
         }
         break;
+    }
+}
+
+// ---------------------------------------------------------------- the Pirate Ship's real ecosystem chain
+// ECOSYSTEM_BESTIARY.md, "The Pirate Ship": on top of the existing Pirates/Gunners/Parakeets (their own
+// hand-tuned ambush/aim timing is untouched here - only personality is now rolled for them, see the 'P'/'G'/
+// 'p' spawn cases above), a Cat hunts a Rat; a Gunpowder Monkey scared by nearby gunfire fuses a dropped
+// powder line that explodes after a moment, scattering any Flea Swarm within reach; a scattered swarm
+// infests the Guard Dog it lives on; an infested Dog goes Berserk (the one member of this chain that's a
+// real hazard, same shape as a puffed Hull Pufferfish); a Barn Owl dives on a fleeing Rat or a fused Monkey
+// and drops it back near its own home; an Albatross just circles overhead.
+constexpr float PIRATE_CAT_HUNT_R = 90, PIRATE_CAT_CATCH_R = 14, PIRATE_SCARE_R = 70, PIRATE_FUSE_T = 1.1f;
+constexpr float PIRATE_EXPLODE_R = 60, PIRATE_SCATTER_T = 1.0f, PIRATE_OWL_SWOOP_R = 130, PIRATE_OWL_COOLDOWN = 5.0f;
+constexpr float PIRATE_BERSERK_SPEED = 90;
+
+static void PopulatePirateLife(PlatformState& p, unsigned seed) {
+    int idx = 0;
+    std::vector<int> dogIdx;
+    for (int x = 2; x < p.w - 2; x++) {
+        int fy = -1;
+        for (int y = 1; y < p.h - 1; y++) if (!Solid(p, x, y) && Solid(p, x, y + 1)) { fy = y; break; }
+        if (fy < 0) continue;
+        float roll = Hs2((float)x, (float)seed * 7.3f + 2);
+        if (roll > 0.16f) continue; // sparse: a crew's worth of extra life, not a swarm
+        float pick = Hs2((float)x, (float)seed * 7.3f + 3);
+        PirateEcoKind kind = pick < 0.24f ? PirateEcoKind::Rat : pick < 0.42f ? PirateEcoKind::Cat
+                            : pick < 0.58f ? PirateEcoKind::Monkey : pick < 0.78f ? PirateEcoKind::GuardDog
+                            : pick < 0.90f ? PirateEcoKind::Owl : PirateEcoKind::Albatross;
+        PlatPirateLife e;
+        e.kind = kind;
+        float baseY = kind == PirateEcoKind::Owl || kind == PirateEcoKind::Albatross ? std::max(2.0f, fy - Hs2((float)x, seed * 8.1f) * 6.0f - 3.0f) : (float)fy;
+        e.home = e.pos = {x * (float)T + T / 2.0f, baseY * (float)T + T - 3};
+        e.personality = {Hs2(idx * 3.0f + 1, (float)seed + 900), Hs2(idx * 3.0f + 2, (float)seed + 900), Hs2(idx * 3.0f + 3, (float)seed + 900), Hs2(idx * 3.0f + 4, (float)seed + 900)};
+        e.dir = Hs2(idx * 5.0f, (float)seed + 900) > 0.5f ? 1.0f : -1.0f;
+        e.phase = Hs2(idx * 9.0f, (float)seed + 900) * 6.28f;
+        e.state = kind == PirateEcoKind::Albatross ? PirateEcoState::Circling : kind == PirateEcoKind::Owl ? PirateEcoState::Idle : PirateEcoState::Wander;
+        idx++;
+        p.pirateLife.push_back(e);
+        if (kind == PirateEcoKind::GuardDog) dogIdx.push_back((int)p.pirateLife.size() - 1);
+        if (idx > 40) break;
+    }
+    // every Guard Dog gets its own Flea Swarm, riding along in its coat until something scatters it
+    for (int di : dogIdx) {
+        PlatPirateLife f;
+        f.kind = PirateEcoKind::FleaSwarm;
+        f.home = f.pos = p.pirateLife[di].pos;
+        f.personality = {Hs2(idx * 3.0f + 1, (float)seed + 900), Hs2(idx * 3.0f + 2, (float)seed + 900), Hs2(idx * 3.0f + 3, (float)seed + 900), Hs2(idx * 3.0f + 4, (float)seed + 900)};
+        f.phase = Hs2(idx * 9.0f, (float)seed + 900) * 6.28f;
+        f.dogIndex = di;
+        idx++;
+        p.pirateLife.push_back(f);
+    }
+}
+
+void UpdatePirateLife(PlatformState& p, float dt) {
+    if (p.pirateLife.empty()) return;
+    Rectangle pr = PlayerBox(p);
+    // a Monkey is "scared" by any live musket ball or cannon/torpedo shot passing near it - real gunfire,
+    // not a scripted trigger
+    for (auto& e : p.pirateLife) {
+        e.phase += dt;
+        e.stateTimer += dt;
+        switch (e.kind) {
+        case PirateEcoKind::Rat:
+            if (e.state != PirateEcoState::Fleeing) EcoWander(p, e, fmodf(e.phase, 2.4f) > 1.6f ? (30 + e.personality.energy * 20) * dt : 0, 44);
+            else { e.stateTimer += 0; if (e.stateTimer > 1.0f) { e.state = PirateEcoState::Wander; e.stateTimer = 0; } }
+            break;
+        case PirateEcoKind::Cat: {
+            PlatPirateLife* target = nullptr; float best = PIRATE_CAT_HUNT_R * PIRATE_CAT_HUNT_R;
+            if (e.personality.aggression > 0.3f) for (auto& r : p.pirateLife) if (r.kind == PirateEcoKind::Rat) {
+                float dx = r.pos.x - e.pos.x, dy = r.pos.y - e.pos.y, d2 = dx * dx + dy * dy;
+                if (d2 < best) { best = d2; target = &r; }
+            }
+            if (target) {
+                e.state = PirateEcoState::Hunting;
+                e.dir = target->pos.x < e.pos.x ? -1.0f : 1.0f;
+                float speed = (70 + e.personality.energy * 40) * dt, nx = e.pos.x + e.dir * speed;
+                int ftx = (int)floorf((e.dir > 0 ? nx + 6 : nx - 6) / T), fty = (int)floorf((e.pos.y - 2) / T);
+                if (!Solid(p, ftx, fty) && Solid(p, ftx, fty + 1)) e.pos.x = nx;
+                float dx = target->pos.x - e.pos.x, dy = target->pos.y - e.pos.y;
+                if (dx * dx + dy * dy < PIRATE_CAT_CATCH_R * PIRATE_CAT_CATCH_R) { target->state = PirateEcoState::Fleeing; target->stateTimer = 0; target->pos = target->home; e.state = PirateEcoState::Wander; }
+            } else EcoWander(p, e, fmodf(e.phase, 3.0f) > 2.2f ? (20 + e.personality.energy * 14) * dt : 0, 50);
+            break;
+        }
+        case PirateEcoKind::Monkey:
+            if (e.state == PirateEcoState::Wander) {
+                bool scared = false;
+                for (auto& s : p.shots) { float dx = s.pos.x - e.pos.x, dy = s.pos.y - e.pos.y; if (dx * dx + dy * dy < PIRATE_SCARE_R * PIRATE_SCARE_R) scared = true; }
+                if (scared && e.personality.bravery < 0.7f) { e.state = PirateEcoState::Fused; e.stateTimer = 0; }
+                else EcoWander(p, e, fmodf(e.phase, 2.8f) > 2.0f ? (26 + e.personality.energy * 16) * dt : 0, 46);
+            } else if (e.state == PirateEcoState::Fused) {
+                if (e.stateTimer > PIRATE_FUSE_T) { // the powder line goes off: any nearby Flea Swarm scatters
+                    for (auto& f : p.pirateLife) if (f.kind == PirateEcoKind::FleaSwarm && f.state == PirateEcoState::Idle) {
+                        float dx = f.pos.x - e.pos.x, dy = f.pos.y - e.pos.y;
+                        if (dx * dx + dy * dy < PIRATE_EXPLODE_R * PIRATE_EXPLODE_R) { f.state = PirateEcoState::Scattered; f.stateTimer = 0; }
+                    }
+                    Burst(p, e.pos, 8, Color{90, 70, 50, 255}, 90, 0.35f, 2);
+                    e.state = PirateEcoState::Wander; e.stateTimer = 0;
+                }
+            }
+            break;
+        case PirateEcoKind::FleaSwarm:
+            if (e.state == PirateEcoState::Idle && e.dogIndex >= 0 && e.dogIndex < (int)p.pirateLife.size()) e.pos = p.pirateLife[e.dogIndex].pos; // rides along with its dog
+            else if (e.state == PirateEcoState::Scattered) {
+                e.pos.x += sinf(e.phase * 6.0f) * 40 * dt; e.pos.y += cosf(e.phase * 5.0f) * 20 * dt;
+                if (e.stateTimer > PIRATE_SCATTER_T) {
+                    if (e.dogIndex >= 0 && e.dogIndex < (int)p.pirateLife.size()) { p.pirateLife[e.dogIndex].state = PirateEcoState::Infested; p.pirateLife[e.dogIndex].stateTimer = 0; }
+                    e.state = PirateEcoState::Idle; e.stateTimer = 0;
+                }
+            }
+            break;
+        case PirateEcoKind::GuardDog:
+            if (e.state == PirateEcoState::Infested) {
+                if (e.stateTimer > 0.6f) { e.state = PirateEcoState::Berserk; e.stateTimer = 0; }
+            } else if (e.state == PirateEcoState::Berserk) {
+                float dx = pr.x + pr.width / 2 - e.pos.x;
+                e.dir = dx < 0 ? -1.0f : 1.0f;
+                float nx = e.pos.x + e.dir * PIRATE_BERSERK_SPEED * dt;
+                int ftx = (int)floorf((e.dir > 0 ? nx + 8 : nx - 8) / T), fty = (int)floorf((e.pos.y - 2) / T);
+                if (!Solid(p, ftx, fty) && Solid(p, ftx, fty + 1)) e.pos.x = nx;
+            } else EcoWander(p, e, fmodf(e.phase, 3.4f) > 2.6f ? (24 + e.personality.energy * 12) * dt : 0, 40);
+            break;
+        case PirateEcoKind::Owl:
+            if (e.state == PirateEcoState::Idle && e.stateTimer > PIRATE_OWL_COOLDOWN) {
+                for (auto& t : p.pirateLife) if ((t.kind == PirateEcoKind::Rat && t.state == PirateEcoState::Fleeing) || (t.kind == PirateEcoKind::Monkey && t.state == PirateEcoState::Fused)) {
+                    float dx = t.pos.x - e.pos.x, dy = t.pos.y - e.pos.y;
+                    if (dx * dx + dy * dy < PIRATE_OWL_SWOOP_R * PIRATE_OWL_SWOOP_R && e.personality.aggression > 0.35f) {
+                        e.state = PirateEcoState::Diving; e.stateTimer = 0;
+                        t.pos = t.home; t.state = t.kind == PirateEcoKind::Rat ? PirateEcoState::Wander : PirateEcoState::Wander; // dropped back home, shaken loose
+                        break;
+                    }
+                }
+            } else if (e.state == PirateEcoState::Diving && e.stateTimer > 0.6f) { e.state = PirateEcoState::Idle; e.stateTimer = 0; }
+            break;
+        case PirateEcoKind::Albatross:
+            e.pos.x = e.home.x + sinf(e.phase * 0.3f) * 60; e.pos.y = e.home.y + cosf(e.phase * 0.22f) * 8;
+            break;
+        }
+    }
+}
+
+void DrawPirateLife(const PlatPirateLife& e, float t) {
+    int x = (int)e.pos.x, y = (int)e.pos.y;
+    Color ink = Fade(BLACK, 0.55f);
+    switch (e.kind) {
+    case PirateEcoKind::Rat: {
+        Color c = Color{90, 82, 76, 255};
+        DrawCircle(x, y - 4, 5.0f, c);
+        DrawCircle(x - (int)e.dir * 6, y - 5, 3.0f, c); // head
+        DrawLineEx({x + e.dir * 6.0f, y - 3.0f}, {x + e.dir * 13.0f, y - 1.0f}, 1.2f, Fade(c, 0.8f)); // tail
+        break;
+    }
+    case PirateEcoKind::Cat: {
+        bool hunting = e.state == PirateEcoState::Hunting;
+        Color c = hunting ? Color{60, 56, 54, 255} : Color{70, 64, 60, 255};
+        DrawCircle(x, y - 6, 7.0f, c);
+        DrawCircle(x - (int)e.dir * 7, y - 9, 4.0f, c);
+        DrawTri({x - e.dir * 9, y - 12.0f}, {x - e.dir * 6, y - 15.0f}, {x - e.dir * 4, y - 11.0f}, c); // an ear
+        DrawLineEx({x + e.dir * 7.0f, y - 4.0f}, {x + e.dir * 15.0f, y - 8.0f}, 1.4f, c); // tail up when hunting
+        break;
+    }
+    case PirateEcoKind::Monkey: {
+        bool fused = e.state == PirateEcoState::Fused;
+        Color c = Color{120, 84, 56, 255};
+        DrawCircle(x, y - 8, 6.5f, c);
+        DrawCircle(x, y - 15, 4.5f, c);
+        if (fused) DrawCircle(x + 4, y - 18, 2.0f, Fade(Color{255, 170, 60, 255}, 0.7f + 0.3f * sinf(t * 20)));
+        break;
+    }
+    case PirateEcoKind::FleaSwarm:
+        if (e.state == PirateEcoState::Scattered) for (int k = 0; k < 6; k++) {
+            float a = k * 1.05f + t * 8;
+            DrawCircle((int)(x + cosf(a) * 8), (int)(y - 8 + sinf(a) * 8), 1.2f, Color{40, 30, 20, 220});
+        }
+        break;
+    case PirateEcoKind::GuardDog: {
+        bool berserk = e.state == PirateEcoState::Berserk || e.state == PirateEcoState::Infested;
+        Color c = berserk ? Color{160, 60, 50, 255} : Color{150, 120, 90, 255};
+        DrawCircle(x, y - 6, 6.5f, c);
+        DrawCircle(x + (int)e.dir * 8, y - 8, 4.5f, c);
+        DrawCircleLines(x, y - 6, 6.5f, ink);
+        if (berserk) { DrawCircle(x + (int)e.dir * 11, y - 9, 1.3f, Color{255, 220, 40, 255}); }
+        break;
+    }
+    case PirateEcoKind::Owl: {
+        Color c = Color{140, 120, 90, 255};
+        DrawCircle(x, y - 8, 7.0f, c);
+        DrawCircle(x - 3, y - 9, 1.4f, BLACK); DrawCircle(x + 3, y - 9, 1.4f, BLACK);
+        if (e.state == PirateEcoState::Diving) DrawLineEx({(float)x, (float)y - 14}, {(float)x, (float)y + 4}, 2.0f, Fade(c, 0.5f));
+        break;
+    }
+    case PirateEcoKind::Albatross: {
+        Color c = Color{225, 220, 210, 255};
+        DrawLineEx({x - 16.0f, (float)y}, {x + 16.0f, (float)y}, 2.5f, c);
+        DrawTri({(float)x, y - 3.0f}, {x - 5.0f, y + 3.0f}, {x + 5.0f, y + 3.0f}, c);
+        break;
+    }
     }
 }
 
@@ -3742,6 +3947,72 @@ bool VerifyPipeEcosystem() {
     return true;
 }
 
+// depth.exe --verify-pirate-ecosystem: proves the Pirate Ship's chain fires, the same synthetic-setup shape
+// as the Hull/Pipes verifiers above.
+bool VerifyPirateEcosystem() {
+    // 1) a real generated Pirate Ship layout spawns several distinct species
+    {
+        PlatformState p;
+        p.level = PL_PIRATE;
+        p.bossEnabled = false;
+        p.layout = {9, 100};
+        BuildLevel(p);
+        int kinds[7] = {0};
+        for (auto& e : p.pirateLife) kinds[(int)e.kind]++;
+        int distinct = 0;
+        for (int k = 0; k < 7; k++) if (kinds[k] > 0) distinct++;
+        if (distinct < 3) { TraceLog(LOG_WARNING, "verify-pirate-ecosystem: FAILED - only %d distinct species spawned in a real layout", distinct); return false; }
+        TraceLog(LOG_WARNING, "verify-pirate-ecosystem: a real layout spawned %d distinct species (%d total)", distinct, (int)p.pirateLife.size());
+    }
+    // 2) a Cat hunts down a nearby Rat, which flees
+    {
+        PlatformState p;
+        p.w = 40; p.h = 20;
+        p.tiles.assign(p.h, std::string(p.w, '.'));
+        for (int x = 0; x < p.w; x++) p.tiles[16][x] = '#'; // solid floor one row below fy, matching PopulateEcoLife's own convention
+        float fy = 15.0f * T + T - 3;
+        PlatPirateLife cat; cat.kind = PirateEcoKind::Cat; cat.home = cat.pos = {10.0f * T, fy}; cat.state = PirateEcoState::Wander; cat.personality.aggression = 0.9f; cat.personality.energy = 0.8f;
+        PlatPirateLife rat; rat.kind = PirateEcoKind::Rat; rat.home = rat.pos = {11.0f * T, fy}; rat.state = PirateEcoState::Wander;
+        p.pirateLife = {cat, rat};
+        p.pos = {-1000, -1000};
+        bool fled = false;
+        for (int f = 0; f < 300 && !fled; f++) { UpdatePirateLife(p, 1 / 60.0f); if (p.pirateLife[1].state == PirateEcoState::Fleeing) fled = true; }
+        if (!fled) { TraceLog(LOG_WARNING, "verify-pirate-ecosystem: FAILED - the Cat never caught and scared off the Rat"); return false; }
+    }
+    // 3) the full chain: nearby gunfire scares a Monkey -> it fuses a powder line -> explodes -> scatters the
+    // Flea Swarm riding on a nearby Guard Dog -> the swarm infests the Dog -> the Dog goes Berserk, and a
+    // Berserk Dog is a real hazard (touching it kills, same shape as a puffed Hull Pufferfish)
+    {
+        PlatformState p;
+        p.w = 20; p.h = 20;
+        p.tiles.assign(p.h, std::string(p.w, '.'));
+        float fy = 10.0f * T + T - 3;
+        PlatPirateLife monkey; monkey.kind = PirateEcoKind::Monkey; monkey.home = monkey.pos = {10.0f * T, fy}; monkey.state = PirateEcoState::Wander; monkey.personality.bravery = 0.1f;
+        PlatPirateLife dog; dog.kind = PirateEcoKind::GuardDog; dog.home = dog.pos = {10.0f * T, fy}; dog.state = PirateEcoState::Wander;
+        PlatPirateLife flea; flea.kind = PirateEcoKind::FleaSwarm; flea.home = flea.pos = {10.0f * T, fy}; flea.state = PirateEcoState::Idle; flea.dogIndex = 1;
+        p.pirateLife = {monkey, dog, flea};
+        p.pos = {-1000, -1000}; // well clear - the gunfire itself is the trigger, not the diver
+        p.shots.push_back({{10.0f * T, fy}, {0, 0}, 5.0f, 0}); // a musket ball passing right by the Monkey
+        bool berserk = false, scattered = false, infested = false;
+        for (int f = 0; f < 600 && !berserk; f++) {
+            UpdatePirateLife(p, 1 / 60.0f);
+            if (p.pirateLife[2].state == PirateEcoState::Scattered) scattered = true;
+            if (p.pirateLife[1].state == PirateEcoState::Infested) infested = true;
+            if (p.pirateLife[1].state == PirateEcoState::Berserk) berserk = true;
+        }
+        if (!scattered) { TraceLog(LOG_WARNING, "verify-pirate-ecosystem: FAILED - the scared Monkey's powder line never scattered the Flea Swarm"); return false; }
+        if (!infested) { TraceLog(LOG_WARNING, "verify-pirate-ecosystem: FAILED - the scattered Flea Swarm never infested its Guard Dog"); return false; }
+        if (!berserk) { TraceLog(LOG_WARNING, "verify-pirate-ecosystem: FAILED - the infested Guard Dog never went Berserk"); return false; }
+        // now confirm the Berserk Dog is an actual hazard
+        p.pos = {p.pirateLife[1].pos.x - PW / 2, p.pirateLife[1].pos.y - PH / 2};
+        Rectangle pr = PlayerBox(p);
+        bool hazard = CheckCollisionRecs(pr, {p.pirateLife[1].pos.x - 12, p.pirateLife[1].pos.y - 14, 24, 20});
+        if (!hazard) { TraceLog(LOG_WARNING, "verify-pirate-ecosystem: FAILED - a Berserk Guard Dog standing on the diver isn't a hazard"); return false; }
+    }
+    TraceLog(LOG_WARNING, "verify-pirate-ecosystem: OK - Cat/Rat, and scare/fuse/explode/scatter/infest/berserk chains both confirmed, and the Berserk Dog is a real hazard");
+    return true;
+}
+
 // The darkness of the ducts, drawn in bands (it suits the pixel art) around the diver's helmet lamp.
 static void DrawLampDarkness(Vector2 c, float r, float maxA) {
     const int B = 6;
@@ -3801,6 +4072,7 @@ void ScenePlatformer(Game& g) {
         UpdateCritters(p, dt); // ambient duct life - never touched by ghost speed, it isn't part of the challenge
         UpdatePipeLife(p, dt); // the Pipes' real ecosystem chain - ignores the diver entirely, so likewise untouched by ghost speed (Pirate-only anyway)
         UpdateEcoLife(p, dt);  // the Hull's ecosystem chain - Ghost Ship speed is Pirate-only, doesn't apply here
+        UpdatePirateLife(p, ed); // the Pirate Ship's ecosystem chain - Ghost Ship speed DOES apply here ("everything 1.6x faster")
         UpdateBoss(p, ed);
         UpdateLaunchers(p, ed);
         UpdateShots(p, ed);
@@ -3812,6 +4084,8 @@ void ScenePlatformer(Game& g) {
             for (auto& s : p.shots) if (ShotHits(s, pr)) Die(p);
             for (auto& el : p.ecoLife) // only a puffed Pufferfish is a hazard - everything else in the Hull's chain is scenery
                 if (el.kind == EcoKind::Puffer && el.state == EcoState::Puffed && CheckCollisionRecs(pr, {el.pos.x - 14, el.pos.y - 14, 28, 28})) Die(p);
+            for (auto& pl2 : p.pirateLife) // only a Berserk Guard Dog is a hazard - everything else in the Pirate Ship's chain is scenery
+                if (pl2.kind == PirateEcoKind::GuardDog && pl2.state == PirateEcoState::Berserk && CheckCollisionRecs(pr, {pl2.pos.x - 12, pl2.pos.y - 14, 24, 20})) Die(p);
             PlatBoss& b = p.boss;
             bool falling = p.vel.y > 0;
             if (b.type == 'K' && !b.defeated) {
@@ -3939,6 +4213,7 @@ void ScenePlatformer(Game& g) {
     for (auto& e : p.pipeLife) DrawPipeLife(e, t);
     for (auto& ic : p.inkClouds) DrawCircle((int)ic.pos.x, (int)ic.pos.y, ic.r * std::clamp(ic.life / ECO_INK_LIFE, 0.0f, 1.0f), Fade(Color{30, 20, 35, 255}, 0.35f));
     for (auto& e : p.ecoLife) DrawEcoLife(e, t);
+    for (auto& e : p.pirateLife) DrawPirateLife(e, t);
     DrawShots(p, t);
     DrawSea(p, t, viewW, viewH);
     for (auto& pt : p.particles) {
