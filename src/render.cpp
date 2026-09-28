@@ -22,7 +22,7 @@ struct ArtState {
     Font body{}, bold{};
     bool ownBody = false, ownBold = false;
     Texture2D glow{}, tex[4]{};
-    RenderTexture2D scene{}, final{}, light{}, ocean{}, pixel{}, fig{}, temp{}, backdrop{};
+    RenderTexture2D scene{}, final{}, light{}, ocean{}, pixel{}, fig{}, temp{}, backdrop{}, mode3d{};
     Shader post{}, figShader{}, ink{}, blur{};
     int locBlurTexel = -1;
     int locTime = -1, locRes = -1, locVig = -1, locGrain = -1, locBloom = -1;
@@ -395,6 +395,8 @@ void InitArt() {
     A.temp = LoadRenderTexture(SCREEN_W * SS, SCREEN_H * SS);
     A.backdrop = LoadRenderTexture(SCREEN_W / 2, SCREEN_H / 2);
     SetTextureFilter(A.backdrop.texture, TEXTURE_FILTER_BILINEAR);
+    A.mode3d = LoadRenderTexture(SCREEN_W, SCREEN_H); // a real depth-buffered target for BeginMode3D scenes (the Abyss)
+    SetTextureFilter(A.mode3d.texture, TEXTURE_FILTER_BILINEAR);
     A.blur = LoadShaderFromMemory(nullptr, BLUR_FS);
     A.locBlurTexel = GetShaderLocation(A.blur, "uTexel");
 
@@ -439,6 +441,7 @@ const Font& BoldFont() { return A.bold; }
 Texture2D GetTex(Tex t) { return A.tex[(int)t]; }
 RenderTexture2D& OceanRT() { return A.ocean; }
 RenderTexture2D& PixelRT() { return A.pixel; }
+RenderTexture2D& Mode3DRT() { return A.mode3d; }
 
 // ============================================================= frame
 void SetPost(float vignette, float grain, float bloom) {

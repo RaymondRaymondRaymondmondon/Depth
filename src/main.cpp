@@ -33,6 +33,7 @@ static void RunScene(Game& g) {
         case Scene::Dungeon:    SceneDungeon(g); break;
         case Scene::Platformer: ScenePlatformer(g); break;
         case Scene::Cards:      SceneCards(g); break;
+        case Scene::Abyss:      SceneAbyss(g); break;
     }
 }
 
@@ -83,6 +84,8 @@ static void TakeShots(const Game& base, const std::string& dir) {
         {"workshop", [](Game& g) { g.scene = Scene::Workshop; g.gold = 500; g.upgrades[UP_BUNKS] = 1; }},
         {"library", [](Game& g) { g.scene = Scene::Bookshelf; g.bookTab = 1; }},
         {"combat", [](Game& g) { g.dungeon.light = 60; DebugEnterCombat(g); }},
+        {"abyss", [](Game& g) { StartAbyss(g); g.scene = Scene::Abyss; }},
+        {"abyss_deep", [](Game& g) { StartAbyss(g); g.scene = Scene::Abyss; g.abyss.playerPos.y = -120.0f; }},
         // Verification only, for the painted-art rollout (depth.exe --gen-crew-art): every class rendered in
         // combat, four at a time, so the new skeletal/painted CharacterRenderer path is exercised for all twelve.
         {"crew_art_1", [](Game& g) { g.dungeon.light = 60; DebugEnterCombat(g); HeroClass cls[4] = {HeroClass::Nurse, HeroClass::Diver, HeroClass::Captain, HeroClass::Mechanic};
@@ -290,6 +293,10 @@ int main(int argc, char** argv) {
     if (argc >= 2 && strcmp(argv[1], "--verify") == 0) {
         SetTraceLogLevel(LOG_WARNING);
         return VerifyPlatformLevels();
+    }
+    if (argc >= 2 && strcmp(argv[1], "--verify-abyss") == 0) {
+        SetTraceLogLevel(LOG_WARNING);
+        return VerifyAbyss() ? 0 : 1;
     }
     if (argc >= 2 && strcmp(argv[1], "--gen-siren-art") == 0) {
         return GenerateSirenArt() ? 0 : 1;

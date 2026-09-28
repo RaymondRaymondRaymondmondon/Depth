@@ -31,7 +31,7 @@ const Color Bad     = {225, 70, 70, 255};
 const Color Stress  = {170, 120, 230, 255};
 }  // namespace Pal
 
-enum class Scene { Hub, Helm, Crew, Radar, Ward, SickLeave, Bookshelf, Periscope, Workshop, Dungeon, Platformer, Cards };
+enum class Scene { Hub, Helm, Crew, Radar, Ward, SickLeave, Bookshelf, Periscope, Workshop, Dungeon, Platformer, Cards, Abyss };
 
 // Workshop upgrades. Each has levels 0..UPGRADE_MAX.
 enum Upgrade { UP_REFLECTOR, UP_BUNKS, UP_SONAR, UP_INFIRMARY, UP_CARGO, UP_COUNT };
@@ -97,6 +97,7 @@ struct Status {
 enum class RelicCategory { OFFENSE, ENGINEERING, SUPPORT, UTILITY, OCCULT };
 struct CombatState;      // what an on-hit effect can see and change (relics.h)
 struct PlatformState;
+struct AbyssState;
 struct RelicFx {         // numeric effects, summed over a hero's relics (and their synergies) by RelicBundle()
     int critPct = 0;         // added to the hero's crit chance
     int armorPen = 0;        // percent of an enemy's protection ignored
@@ -393,6 +394,58 @@ struct PlatformState {
     bool verifying = false;          // the path search drives the real movement: nothing may permanently change the tiles
 };
 
+// ---------- The Open Abyss: a fully-3D vertical descent biome, separate from the 2D platformer above ----------
+// A per-entity personality, rolled once at spawn from the level's seed, so the same species reads differently
+// run to run (an aggressive eel this run, a timid one next time). Shared by every future ecosystem biome, not
+// just the Abyss - see abyss.cpp's RollPersonality.
+struct PersonalityProfile {
+    float aggression = 0.5f; // 0 = pacifist/flees a fight, 1 = relentless hunter
+    float bravery     = 0.5f; // 0 = flees anything bigger than itself, 1 = attacks larger predators
+    float energy      = 0.5f; // 0 = lethargic/slow forces, 1 = hyperactive/fast impulses
+    float curiosity   = 0.5f; // 0 = ignores disturbances, 1 = investigates every sound
+};
+
+enum class AbyssCreatureState { Cling, Idle, Dislodged, Hunting, Fleeing, Investigating, Shattered };
+enum class AbyssCreatureKind { GlassSponge, GiantIsopod, GulperEel, BioPlankton, VampireSquid, Siphonophore };
+
+struct AbyssCreature {
+    AbyssCreatureKind kind = AbyssCreatureKind::GlassSponge;
+    PersonalityProfile personality;
+    AbyssCreatureState state = AbyssCreatureState::Idle;
+    float wallAngle = 0;      // position around the shaft's circumference, radians
+    float depth = 0;          // how far down the shaft (world -Y)
+    float radiusOffset = 0;   // how far the creature sits from the shaft wall (ledges reach inward)
+    Vector3 pos{0, 0, 0};
+    Vector3 vel{0, 0, 0};
+    float health = 1.0f;      // sponges: shatter (state -> Shattered) at 0; others: simple hit points
+    float stateTimer = 0;
+    float phase = 0;          // per-entity animation/wobble offset so a school doesn't move in lockstep
+    bool alive = true;
+};
+
+struct AbyssPlanktonPuff { Vector3 pos{0, 0, 0}; float life = 0, maxLife = 1.3f, radius = 40; };
+
+struct AbyssState {
+    unsigned seed = 1;
+    Vector3 playerPos{0, 0, 0};
+    Vector3 playerVel{0, 0, 0};
+    float yaw = 0;                    // facing direction around the shaft, for dash/glide aim
+    float stamina = 100.0f;
+    bool isDashing = false;
+    float dashTimer = 0, dashCooldown = 0;
+    bool isGliding = false, glidingUp = false, glidingDown = false;
+    float depth = 0;                  // world -Y of the player: how far the descent has gone
+    float bestDepth = 0;
+    bool downdraftActive = false;
+    float downdraftTimer = 0;
+    float genDepth = 0;               // deepest point the generator has populated so far (streams downward)
+    std::vector<AbyssCreature> creatures;
+    std::vector<AbyssPlanktonPuff> puffs;
+    float time = 0;
+    bool dead = false;
+    bool verifying = false;           // headless self-test: no window/audio/frame timing assumptions
+};
+
 struct Game {
     Scene scene = Scene::Hub;
     int gold = 60; // kept deliberately scarce: parkour runs and Flats are meant to make up the difference
@@ -424,6 +477,7 @@ struct Game {
     float time = 0;
     DungeonState dungeon;
     PlatformState plat;
+    AbyssState abyss;
 };
 
 // ---------- data.cpp ----------
@@ -481,6 +535,7 @@ void SetPost(float vignette, float grain, float bloom);
 bool SaveFrameShot(const char* path); // debug: writes the last presented frame to a PNG
 void BeginLayer(RenderTexture2D& rt); // draw into another texture for a while...
 void EndLayer();                      // ...then return to the scene
+RenderTexture2D& Mode3DRT(); // a real depth-buffered target for BeginMode3D scenes (the Abyss), composited in like any other texture
 void DrawTri(Vector2 a, Vector2 b, Vector2 c, Color col); // a triangle in any vertex order
 void LightsBegin(Color ambient);   // start a lightmap: ambient is how dark unlit areas get
 void AddLight(Vector2 pos, float radius, Color c, float intensity = 1.0f);
@@ -603,3 +658,9 @@ const char* PlatLevelName(int level);
 void StartPlatform(Game& g, int level);
 void ScenePlatformer(Game& g);
 int VerifyPlatformLevels(); // debug: proves every section can be crossed; returns the number that can't
+
+// ---------- abyss.cpp ----------
+void StartAbyss(Game& g);
+void SceneAbyss(Game& g);
+void UpdateAbyss(Game& g, float dt); // the fixed-step simulation, callable headlessly for --verify
+bool VerifyAbyss();                  // debug: proves a run can descend past the first downdraft/sponge gauntlet
