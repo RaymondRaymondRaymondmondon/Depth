@@ -548,7 +548,8 @@ void SceneBookshelf(Game& g) {
             "THE HULL (medium): crabs, leaping eels, urchins and mines. Every creature is deadly to touch. The Kraken waits at the end: dodge its "
             "tentacles and stomp its head three times for a relic. Or just run for the airlock.\n\n"
             "THE PIRATE SHIP (hard): the longest leaps, pirates, parakeets and fire vents. Stomp Blackbeard three times to claim the treasure.\n\n"
-            "THE ISLAND (harder still): a jungle crossing, freshly themed each run. Tribal warriors ambush from cover, and a charging boar is instant death.\n\n"
+            "THE ISLAND (harder still): a tropical crossing among idols and shrines, freshly themed each run. Tribal warriors ambush from cover, and a charging boar is instant death.\n\n"
+            "THE CAVE (hardest yet): a winding tunnel system, climbed and dropped through in the dark. Stalactite Spiders ambush from cracks in the rock.\n\n"
             "Clearing a level unlocks the next one and reshuffles its layout. Controls: A/D or arrows, Space/W/Up to jump, Esc to give up. A gamepad works too.",
             body, 17, Pal::Ink);
     }
@@ -568,17 +569,19 @@ void ScenePeriscope(Game& g) {
          "120 gold, and a relic roll if you beat the Kraken"},
         {"THIRD DIVE", "Board a pirate ship: across the deck, down the hatch into the hold, up the companionway to the captain's cabin. Pirates burst out of doors and shoot from cover.",
          "200 gold and a relic (a Ghost Ship pays double and two relics)"},
-        {"FOURTH DIVE", "A jungle island rises from the Shallows: temple ruins, a stilt village or a hillside palm traverse, seeded fresh each run. Tribal warriors ambush from cover, a coiled viper waits in the canyon mud, and a charging boar is death on four legs.",
+        {"FOURTH DIVE", "A tropical island rises from the Shallows, thick with carved idols and untouched shrines to gods no one's named: stepped stone temples, a stilt village strung with totems, or a ridge of standing statues, seeded fresh each run. Tribal warriors ambush from cover, a coiled viper waits in the canyon mud, and a charging boar is death on four legs.",
          "300 gold"},
+        {"FIFTH DIVE", "A winding tunnel system beneath the Shallows: chained wall-jump shafts climb and drop through solid rock, lit only by your own lamp. Stalactite Spiders wait in cracks overhead, and Cave Leeches drop from the ceiling near anything that stirs the dark.",
+         "380 gold"},
     };
-    // Five cards now (four platform levels plus the Abyss) - narrower and tighter-packed than the original three,
-    // so every card (including the Abyss, appended after PL_COUNT) fits on screen without scrolling.
-    const float cardW = 238, cardX0 = 16, cardStride = 252;
+    // Six cards now (five platform levels plus the Abyss) - narrower and tighter-packed than the original
+    // three, so every card (including the Abyss, appended after PL_COUNT) fits on screen without scrolling.
+    const float cardW = 198, cardX0 = 14, cardStride = 210;
     for (int i = 0; i < PL_COUNT; i++) {
         bool open = i == 0 || g.platCleared[i - 1];
         Rectangle c{cardX0 + i * cardStride, 110, cardW, 510};
         Panel(c, open ? Pal::Paper : Color{176, 168, 150, 255});
-        Color top = i == 0 ? Pal::Copper : i == 1 ? Color{50, 110, 130, 255} : i == 2 ? Color{70, 50, 90, 255} : Color{60, 100, 46, 255};
+        Color top = i == 0 ? Pal::Copper : i == 1 ? Color{50, 110, 130, 255} : i == 2 ? Color{70, 50, 90, 255} : i == 3 ? Color{60, 100, 46, 255} : Color{50, 46, 52, 255};
         DrawVGradient({c.x + 14, c.y + 14, c.width - 28, 120}, ColorBrightness(top, 0.15f), ColorBrightness(top, -0.35f));
         DrawTextCenteredBold(PlatLevelName(i), c.x + c.width / 2, c.y + 46, 28, Pal::Paper);
         DrawTextCenteredBold(lv[i].diff, c.x + c.width / 2, c.y + 90, 17, Pal::Paper);

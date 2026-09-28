@@ -69,7 +69,8 @@ Params ParamsFor(int level) {
         case 0: return {0.70f, 230, 40, 4, 9, 2, 3, 1, true, 0.0f, 0, 0, 0.48f};     // the Pipes: still forgiving, no wall jumps, but tighter gaps and denser set-pieces than before
         case 1: return {0.84f, 300, 64, 2, 5, 3, 4, 2, false, 0.42f, 9, 14, 0.27f};   // the Hull: verticality, shafts, footholds
         case 2: return {0.95f, 310, 64, 1, 3, 3, 4, 3, false, 0.38f, 10, 14, 0.24f}; // the Pirate Ship: tiny footholds at the arc's edge
-        default: return {0.91f, 340, 64, 1, 3, 3, 4, 3, false, 0.38f, 10, 15, 0.30f}; // the Island: harder than the Pirate Ship - narrower canopy footholds
+        case 3: return {0.91f, 340, 64, 1, 3, 3, 4, 3, false, 0.38f, 10, 15, 0.30f}; // the Island: harder than the Pirate Ship - narrower canopy footholds
+        default: return {0.93f, 350, 64, 1, 3, 3, 5, 3, false, 0.44f, 10, 15, 0.34f}; // the Cave: harder than the Island - a denser run of shaft climbs, in the dark
     }
 }
 }  // namespace
@@ -586,6 +587,104 @@ static void BuildIsland(Grid& g, std::vector<Plat>& pl, Rng& rng, GenLevel& out,
     wOut = fx + 7;
     out.exitRow = F - 1;
 }
+
+// The Cave is a claustrophobic tunnel, lit only by the diver's lamp (LevelDef::dark) - harder than the Island,
+// with a shape unlike any of the other three: where the Hull is a long horizontal deck broken up by the
+// occasional shaft, and the Island is a floor-level crossing of set-pieces, the Cave's dominant motif is the
+// climb itself - a winding chain of wall-jump shafts through solid rock, rising and dropping repeatedly
+// rather than holding to one floor level, with only short connecting squeezes between them:
+//   chained shaft    a wall-jump shaft ridged with calcified tube worms, climbing or dropping - the level's
+//                     standing height (curF) actually changes here, unlike Island's fixed floor row
+//   crevice squeeze  a short, low-ceilinged connector between shafts, urchin spines underfoot and sometimes
+//                     a Mutated Crustacean lurking in them
+//   rockfall ledge   loose scree between shafts, gives way soon after you land on it
+//   stalactite drop  a Stalactite Spider waits in a crack overhead and drops to ambush (the 'P' tile, reused
+//                    with its own cave art - see DrawEnemy)
+//   flooded pocket   a still, bioluminescent-lit landing at the foot of a shaft - a breather, not a hazard
+static void BuildCave(Grid& g, std::vector<Plat>& pl, Rng& rng, GenLevel& out, const Params& P, int& wOut) {
+    const int H = g.h, F = H - 6, yLo = 8, yHi = H - 10;
+    g.rect(0, F, g.w - 1, H - 1, '#');       // only the entry floor - everywhere else, height comes from the shaft chain itself
+    auto overhang = [&](int x0, int x1, int depth) { g.rect(x0, 0, x1, depth, '#'); }; // a hanging mass of rock, purely decorative - never low enough to touch a jump arc
+    Plat start{2, 9, F, C_START, '#', SetPiece::None, 0, 3};
+    pl.push_back(start);
+    int x = 12, curF = F, lastKind = -1, guard = 0, shaftsInRow = 0;
+    while (x < P.length && guard++ < 70) {
+        int kind;
+        for (int tries = 0;; tries++) {
+            int r = rng.I(0, 99);
+            // shafts dominate; the other four are connectors that only ever show up between climbs
+            kind = r < 48 ? 0 : r < 63 ? 1 : r < 78 ? 2 : r < 90 ? 3 : 4;
+            if (kind == 0 && shaftsInRow >= 3) kind = 1 + rng.I(0, 3); // never more than three shafts in a row, or it stops reading as a path
+            if (kind != lastKind || tries > 6) break;
+        }
+        lastKind = kind;
+        if (kind == 0) shaftsInRow++; else shaftsInRow = 0;
+        g.rect(x - 3, curF, x + 3, H - 1, '#'); // a guaranteed local floor bridge at the entry, however the previous feature left the grid - curF keeps moving, so nothing here can be assumed already solid
+        switch (kind) {
+            case 0: { // chained shaft: climbs or drops, so the path actually winds through the rock instead of holding one level
+                int iw = rng.I(3, 4);
+                bool up = shaftsInRow <= 1 ? rng.C(0.55f) : rng.C(0.3f); // after climbing once, more likely to level out or drop, so it winds rather than only rising
+                int Hs = rng.I(P.shaftMin, P.shaftMax);
+                if (up) Hs = std::min(Hs, MaxUpShaft(iw, true));
+                if (up && curF - Hs < yLo) up = false;
+                if (!up && (curF + Hs > yHi || curF - 8 < 2)) { up = true; Hs = std::min(Hs, MaxUpShaft(iw, true)); if (curF - Hs < yLo) { x += 8; break; } }
+                Plat tunnel{x, x + 2, curF, C_JUMP, '#', SetPiece::None, 0, x + 1};
+                pl.push_back(tunnel);
+                Plat top = CarveShaft(g, tunnel, up, iw, Hs, true, rng.I(0, 2));
+                pl.push_back(top);
+                out.setPieces[(int)top.tag]++;
+                x = top.x1 + 4;
+                curF = top.y + 1;
+                g.rect(x - 2, curF, x + 6, H - 1, '#'); // a short landing floor at the shaft's new height
+            } break;
+            case 1: { // crevice squeeze: a bed of urchin spines jumped over, never landed on - the standing platforms flank it, exactly like a canyon crossing
+                int len = rng.I(4, 6);
+                g.rect(x - 2, curF, x + len + 2, H - 1, '#');
+                overhang(x - 2, x + len + 2, curF - 9); // rock hanging low overhead - decorative only, well clear of the standing headroom
+                for (int xx = x; xx < x + len; xx++) g.set(xx, curF, 'x');
+                if (len >= 5 && rng.C(0.35f) && g.get(x + len / 2, curF - 5) == '.') g.set(x + len / 2, curF - 5, 'c'); // a Mutated Crustacean clinging over the spines
+                Plat before{x - 3, x - 1, curF, C_JUMP, '#', SetPiece::None, 0, x - 1};
+                Plat after{x + len, x + len + 2, curF, C_JUMP, '#', SetPiece::None, 0, x + len};
+                pl.push_back(before); pl.push_back(after);
+                x += len + 3;
+            } break;
+            case 2: { // rockfall ledge: loose scree between shafts, gives way soon after landing
+                g.rect(x - 2, curF, x + 15, H - 1, '#');
+                int px2[3] = {x + 1, x + 5, x + 9};
+                for (int p2 : px2) { g.rect(p2, curF - 1, p2 + 1, curF - 1, 'f'); Plat plate{p2, p2 + 1, curF - 1, C_JUMP, 'f', SetPiece::CrumbleRun, 0, p2}; pl.push_back(plate); }
+                for (int xx = x; xx < x + 12; xx++) if (g.get(xx, curF) == '#') g.set(xx, curF, 'x'); // sharp broken rock below the scree
+                Plat after{x + 13, x + 15, curF, C_JUMP, '#', SetPiece::None, 0, x + 13};
+                pl.push_back(after);
+                out.setPieces[(int)SetPiece::CrumbleRun]++;
+                x += 16;
+            } break;
+            case 3: { // stalactite drop: a Stalactite Spider waits in a crack overhead, right at the mouth of the next shaft
+                int len = 9;
+                g.rect(x - 2, curF, x + len + 1, H - 1, '#');
+                Plat run{x, x + len - 1, curF, C_JUMP, '#', SetPiece::None, 0, x + 1};
+                pl.push_back(run);
+                overhang(x + 2, x + 6, curF - 12);
+                if (g.get(x + 4, curF - 1) == '.') g.set(x + 4, curF - 1, 'P');
+                x += len;
+            } break;
+            default: { // flooded pocket: a still, bioluminescent landing at the foot of a shaft - a breather, not a hazard
+                int len = 12;
+                g.rect(x - 2, curF, x + len + 1, H - 1, '#');
+                for (int i = 3; i < len - 2; i += 5) if (g.get(x + i, curF - 4) == '.') g.set(x + i, curF - 4, 'o');
+                Plat run{x, x + len - 1, curF, C_JUMP, '#', SetPiece::None, 0, x + 1};
+                pl.push_back(run);
+                x += len;
+            } break;
+        }
+    }
+    int fx = x + 3;
+    g.rect(fx - 2, curF, fx + 8, H - 1, '#');
+    Plat fin{fx, fx + 6, curF, C_JUMP, '#', SetPiece::None, 0, fx + 1};
+    pl.push_back(fin);
+    g.set(fx + 3, curF - 1, 'E');
+    wOut = fx + 7;
+    out.exitRow = curF - 1;
+}
 // ---------------------------------------------------------------------------- the generator
 GenLevel GenerateLevel(int level, unsigned seed, float scale) {
     Params P = ParamsFor(level);
@@ -762,7 +861,8 @@ GenLevel GenerateLevel(int level, unsigned seed, float scale) {
         g = Grid(W, P.H, '.');
         if (level == 1) BuildTrench(g, pl, rng, out, P, w);
         else if (level == 2) BuildFleet(g, pl, rng, out, P, w);
-        else BuildIsland(g, pl, rng, out, P, w, islandVariant);
+        else if (level == 3) BuildIsland(g, pl, rng, out, P, w, islandVariant);
+        else BuildCave(g, pl, rng, out, P, w);
     } else {
     // ---- pass 1: the critical path
     int guard = 0;

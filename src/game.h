@@ -294,7 +294,7 @@ struct DungeonState {
 };
 
 // ---------- platformer ----------
-enum PlatLevel { PL_PIPES, PL_HULL, PL_PIRATE, PL_ISLAND, PL_COUNT };
+enum PlatLevel { PL_PIPES, PL_HULL, PL_PIRATE, PL_ISLAND, PL_CAVE, PL_COUNT };
 
 // A per-entity personality, rolled once at spawn from the level's seed, so the same species reads differently
 // run to run (an aggressive eel this run, a timid one next time). Shared by every ecosystem-framework biome:
@@ -402,6 +402,25 @@ struct PlatIslandLife {
     IslandEcoState state = IslandEcoState::Idle;
     float stateTimer = 0, phase = 0;
 };
+// The Cave's own six-species chain (ECOSYSTEM_BESTIARY.md, "The Cave"), same architecture again. The
+// Stalactite Spiders are the 'P' ambush tiles themselves (real hazards, placed by the generator); this
+// overlay is the rest of the chain. A Bioluminescent Jelly Flashes when the diver dashes near it; a Pale
+// Salamander Hunts whichever Jelly just flashed (cosmetic chase - the light is how it finds prey in the
+// dark); a Fungal Beetle Bursts into a spore cloud on its own slow clock whenever a Salamander is Hunting
+// nearby; a Cave Leech clinging to the ceiling Drops when a spore cloud or a flashing Jelly is near it - the
+// one real hazard in this chain, same shape as the Island's Charging Boar. Cave Bats Roost until a nearby
+// Stalactite Spider bursts its ambush, then go Swarming. Giant Tube Worms are simpler ambient scenery,
+// Retracting briefly whenever a Leech Drops nearby (a heavy impact spooks them into the wall).
+enum class CaveEcoKind { Bat, Jelly, Salamander, Beetle, Leech, TubeWorm };
+enum class CaveEcoState { Idle, Wander, Roost, Swarming, Flash, Hunting, Bursting, Clinging, Dropping, Retracted };
+struct PlatCaveLife {
+    CaveEcoKind kind;
+    Vector2 pos{0, 0}, home{0, 0};
+    PersonalityProfile personality;
+    float dir = 1;
+    CaveEcoState state = CaveEcoState::Idle;
+    float stateTimer = 0, phase = 0;
+};
 struct PlatShot { Vector2 pos, vel; float life; int kind; }; // 0 musket ball, 1 lit bomb, 2 explosion, 3 falling ink, 4 torpedo, 5 cannonball, 6 rolling barrel
 struct PlatLauncher { int tx, ty; char type; float t; }; // a torpedo tube (T), a deck cannon (N) or a barrel chute (y): fires on a timer, with a warning before
 struct PlatParticle { Vector2 p, v; float life, max, size; Color c; };
@@ -472,6 +491,7 @@ struct PlatformState {
     std::vector<Vector2> lightSpots;    // Pipes only - the few surviving 'o' bioluminescent leaks Dust Moths fly toward
     std::vector<PlatPirateLife> pirateLife; // Pirate Ship only - see PlatPirateLife; a Berserk Guard Dog IS a hazard
     std::vector<PlatIslandLife> islandLife; // Island only - see PlatIslandLife; a Charging Boar IS a hazard
+    std::vector<PlatCaveLife> caveLife;     // Cave only - see PlatCaveLife; a Dropping Leech IS a hazard
     PlatBoss boss;
     std::vector<PlatParticle> particles;
     int coins = 0, deaths = 0, reward = 0, relic = -1, relic2 = -1; // relic2: Blackbeard sometimes leaves a second
@@ -802,3 +822,4 @@ bool VerifyHullEcosystem();           // debug (depth.exe --verify-hull-ecosyste
 bool VerifyPipeEcosystem();           // debug (depth.exe --verify-pipe-ecosystem): proves the Pipes' 10-species chain (web -> bite -> curl/roll -> flash -> panic) fires, entirely without the diver
 bool VerifyPirateEcosystem();         // debug (depth.exe --verify-pirate-ecosystem): proves the Pirate Ship's chain (scare -> fuse -> explode -> scatter -> infest -> berserk) fires
 bool VerifyIslandEcosystem();         // debug (depth.exe --verify-island-ecosystem): proves the Island's chain (charge -> swarm/drop, web catch, coconut steal, dog tracking) fires
+bool VerifyCaveEcosystem();           // debug (depth.exe --verify-cave-ecosystem): proves the Cave's chain (flash -> hunt -> burst -> drop, bat swarm, tube worm retract) fires

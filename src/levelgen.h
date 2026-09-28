@@ -49,5 +49,5 @@ constexpr int UP_MAX_3 = 6, UP_MAX_4 = 6, UP_MAX_3B = 6, UP_MAX_4B = 6;
 // A lone shaft between two platforms, for the developer verification of the shaft dimensions.
 GenLevel ShaftTemplate(int iw, int Hs, bool up, bool barnacle);
 
-// level: 0 Pipes, 1 Hull, 2 Pirate Ship, 3 Island. Deterministic for a given seed. safetyScale < 1 makes it more forgiving.
+// level: 0 Pipes, 1 Hull, 2 Pirate Ship, 3 Island, 4 Cave. Deterministic for a given seed. safetyScale < 1 makes it more forgiving.
 GenLevel GenerateLevel(int level, unsigned seed, float safetyScale = 1.0f);

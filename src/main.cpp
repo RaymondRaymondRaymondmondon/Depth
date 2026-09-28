@@ -141,6 +141,7 @@ static void TakeShots(const Game& base, const std::string& dir) {
         {"pirate", [](Game& g) { g.platLayouts[PL_PIRATE] = {606, 100}; StartPlatform(g, PL_PIRATE); g.plat.pos = g.plat.spawns[1]; }},
         {"island", [](Game& g) { g.platLayouts[PL_ISLAND] = {303, 100}; StartPlatform(g, PL_ISLAND); }},
         {"island_village", [](Game& g) { g.platLayouts[PL_ISLAND] = {304, 100}; StartPlatform(g, PL_ISLAND); }},
+        {"cave2", [](Game& g) { g.platLayouts[PL_CAVE] = {505, 100}; StartPlatform(g, PL_CAVE); }},
         {"pirate_hatch", [](Game& g) { g.platLayouts[PL_PIRATE] = {707, 100}; StartPlatform(g, PL_PIRATE); g.plat.pos = g.plat.spawns[3]; }},
         {"pirate_hold", [](Game& g) { g.platHard = true; g.platLayouts[PL_PIRATE] = {808, 100}; StartPlatform(g, PL_PIRATE); g.plat.pos = g.plat.spawns[4]; }},
         {"pirate_stairs", [](Game& g) { g.platLayouts[PL_PIRATE] = {909, 100}; StartPlatform(g, PL_PIRATE); g.plat.pos = g.plat.spawns[6]; }},        {"pirate_cannon", [](Game& g) { ShotAtLauncher(g, PL_PIRATE, 'N'); }},
@@ -333,6 +334,10 @@ int main(int argc, char** argv) {
     if (argc >= 2 && strcmp(argv[1], "--verify-island-ecosystem") == 0) {
         SetTraceLogLevel(LOG_WARNING);
         return VerifyIslandEcosystem() ? 0 : 1;
+    }
+    if (argc >= 2 && strcmp(argv[1], "--verify-cave-ecosystem") == 0) {
+        SetTraceLogLevel(LOG_WARNING);
+        return VerifyCaveEcosystem() ? 0 : 1;
     }
     if (argc >= 2 && strcmp(argv[1], "--verify-abyss") == 0) {
         SetTraceLogLevel(LOG_WARNING);
