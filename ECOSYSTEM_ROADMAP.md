@@ -4,6 +4,54 @@ This tracks a large addition the user asked for, kept separate from ROADMAP.md (
 roadmap) because it's a different initiative: new parkour content and systems, explicitly **not**
 touching the main game (the Nautilus hub, expeditions, Flats) at all.
 
+## Current work order (the user's own words, playtest feedback after the first PR merge)
+
+The user tried the Pipes/Hull/Abyss, liked the mechanics, and gave this feedback verbatim - treat
+this whole section as the standing task list until every item is checked off or explicitly punted:
+
+- **Dash input**: they don't know how to dash; expected double-tap of a movement key (like many
+  games), not just a dedicated button.
+- **"There are no physics applied to the beast first of all."** Creature movement needs real
+  physics (acceleration/momentum), not snapped-to-target velocity.
+- **The Pipes**: current ambient-life-only approach is fine, leave as is for now.
+- **The Hull**: most creatures are too small to identify what they are.
+- **The Abyss creatures**: need real visual definition - right now they read as plain geometric
+  primitives, not animals.
+- **The Abyss camera**: can't look around; gets too close to the trench wall and shows outside the
+  level. Needs free look and to stay clamped inside the trench.
+- **The Abyss play area**: should be larger (wider trench).
+- **The Abyss needs small ledges** to stop a descent and let the player wait out danger below -
+  more/different from the existing Glass Sponges.
+- **The Abyss is too easy**: creatures don't do anything, don't seek out the player. Needs real
+  predator behavior.
+- **The Abyss needs horizontal sections** between vertical free-falls, not just a straight drop.
+- **Every creature (all biomes) should behave like a real animal**: physics-driven, hunting like a
+  hunting animal, fleeing like scared prey. "Every beast should also be smart (until it has the
+  chance to get the dumb personality, make sure all of the personalities are created)" - i.e.
+  competent/intelligent pursuit should be the norm, with the full personality range actually
+  represented, not creatures that are trivially easy to outrun or juke.
+
+**Work order** (explicit, do not reorder): finish all of the above first. Then the Pirate Ship
+retrofit (7 more species from ECOSYSTEM_BESTIARY.md, its own eel/parakeet dead-code bug, matching
+the Hull's approach). Then the four new parkour-only biomes **one at a time**, each with the same
+production bar as Pipes/Hull/Pirate Ship (procedural generation, jump-arc validation, `--verify`,
+art pass) but a uniquely-designed layout per biome (e.g. the Island could randomize between an old
+temple, a village, or a coast-to-coast traverse over hills/palm trees/a small mountainside) -
+**difficulty scaling above the Pirate Ship**, in this order: Pipes < Hull < Pirate Ship < Island <
+Cave < Weeds < Atlantis (the Abyss is its own separate difficulty track). These four are parkour-
+section-only additions and must never touch the existing turn-based expedition locations of the
+same names. If time/budget remains after that: keep improving creature AI, keep improving creature
+art/design, then build the level-randomization system for the new content on the same standards as
+the game's existing procedural generation (the kinematic platform generator, `visSeed`/atmosphere
+system, etc.).
+
+The user said they'd be unavailable for a long time and explicitly asked for autonomous, continuous
+work with no further check-ins - proceed through this list without waiting for confirmation. They
+also asked: if a usage/rate limit is approached, pause and schedule a resume for when it resets
+(`CronCreate`, not `ScheduleWakeup` - this isn't a `/loop` session) rather than stopping silently;
+and to commit/push work before the session gets too full, so nothing already done is ever at risk
+of being lost.
+
 ## What was asked for
 
 The user's brief (developed with Gemini, then refined with Claude through several rounds of
