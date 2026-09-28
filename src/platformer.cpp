@@ -1238,52 +1238,82 @@ void UpdateEcoLife(PlatformState& p, float dt) {
 
 // Small flat pixel-art per species, same unrotated shape-language as DrawCritter. Only a puffed Pufferfish
 // reads as dangerous (spikes, bright warning color) - everything else is scenery.
+// Sized and detailed enough to actually read as a specific animal from normal play distance, not just a
+// colored blob - per feedback that the first pass ("most of the beasts are so small you can't tell what
+// they even are") was too subtle. Roughly 2x the old scale, plus an ink outline on each so the silhouette
+// itself carries the identity, matching the game's inked-figure house style.
 void DrawEcoLife(const PlatEcoLife& e, float t) {
     int x = (int)e.pos.x, y = (int)e.pos.y;
+    Color ink = Fade(BLACK, 0.55f);
     switch (e.kind) {
     case EcoKind::Shrimp: {
-        Color c = e.state == EcoState::Idle ? Color{230, 190, 170, 255} : Color{240, 210, 190, 255};
-        DrawRectangle(x - 3, y - 3, 6, 3, c);
-        DrawRectangle(x + (e.dir > 0 ? 2 : -4), y - 4, 2, 2, c);
+        Color c = e.state == EcoState::Idle ? Color{230, 190, 170, 255} : Color{245, 215, 195, 255};
+        float bob = sinf(t * 4 + e.phase) * 1.0f;
+        // a curved, segmented body with a fanned tail and a pair of long antennae
+        for (int k = -3; k <= 3; k++) DrawCircle(x + k * 2 * (int)e.dir, (int)(y - 6 + bob + fabsf(k) * 0.6f), 3.2f, c);
+        DrawTri({x - e.dir * 8, y - 6 + bob}, {x - e.dir * 13, y - 10 + bob}, {x - e.dir * 13, y - 2 + bob}, c);
+        DrawLineEx({x + e.dir * 6.0f, y - 8 + bob}, {x + e.dir * 15.0f, y - 15 + bob}, 1.0f, Fade(c, 0.7f));
+        DrawCircleLines(x, (int)(y - 6 + bob), 7, Fade(ink, 0.3f));
         break;
     }
     case EcoKind::Octopus:
         if (e.state != EcoState::Hidden) {
             Color c = Color{150, 90, 130, 230};
-            DrawCircle(x, y - 4, 6, c);
-            for (int k = -2; k <= 2; k += 2) DrawRectangle(x + k * 2, y, 2, 5 + (int)(sinf(t * 6 + k) * 2), c);
-        } else DrawCircleLines(x, y - 3, 5, Fade(Color{150, 90, 130, 255}, 0.25f)); // faint camouflaged outline only
+            DrawCircle(x, y - 9, 11, c);
+            DrawCircleLines(x, y - 9, 11, ink);
+            DrawCircle(x - 4, y - 11, 1.6f, WHITE); DrawCircle(x + 4, y - 11, 1.6f, WHITE); // eyes
+            for (int k = -2; k <= 2; k++) {
+                float a = k * 0.28f;
+                float len = 12 + fabsf(sinf(t * 5 + k)) * 5;
+                DrawLineEx({(float)x, (float)y}, {x + sinf(a) * 5 + sinf(t * 6 + k) * 3, y + len - 9}, 3.0f, c);
+            }
+        } else DrawCircleLines(x, y - 8, 10, Fade(Color{150, 90, 130, 255}, 0.3f)); // faint camouflaged outline only
         break;
     case EcoKind::Puffer: {
         bool puffed = e.state == EcoState::Puffed;
-        float r = puffed ? 10 : 5;
+        float r = puffed ? 17 : 9;
         Color c = puffed ? Color{235, 170, 60, 255} : Color{210, 200, 90, 255};
-        DrawCircle(x, y - 4, r, c);
-        if (puffed) for (int k = 0; k < 8; k++) { float a = k * PI / 4; DrawLineEx({x + cosf(a) * r, y - 4 + sinf(a) * r}, {x + cosf(a) * (r + 4), y - 4 + sinf(a) * (r + 4)}, 2, Color{200, 90, 40, 255}); }
+        DrawCircle(x, y - 7, r, c);
+        DrawCircleLines(x, y - 7, r, ink);
+        DrawCircle(x + (puffed ? 5 : 3), y - 9, 2.0f, BLACK); // eye
+        int spikes = puffed ? 12 : 0;
+        for (int k = 0; k < spikes; k++) { float a = k * 2 * PI / spikes; DrawLineEx({x + cosf(a) * r, y - 7 + sinf(a) * r}, {x + cosf(a) * (r + 6), y - 7 + sinf(a) * (r + 6)}, 2.2f, Color{200, 90, 40, 255}); }
+        if (!puffed) DrawTri({x - r - 1, y - 7.0f}, {x - r - 7, y - 11.0f}, {x - r - 7, y - 3.0f}, c); // a small tail fin, unpuffed only
         break;
     }
     case EcoKind::Leech: {
         Color c = Color{110, 40, 50, 255};
-        float wob = e.state == EcoState::Detached ? sinf(t * 5 + e.phase) * 2 : sinf(t * 2 + e.phase) * 0.6f;
-        DrawRectangle(x - 2 + (int)wob, y - 6, 4, 8, c);
+        float wob = e.state == EcoState::Detached ? sinf(t * 5 + e.phase) * 3 : sinf(t * 2 + e.phase) * 1.0f;
+        for (int k = 0; k < 4; k++) DrawCircle(x + (int)wob * (k - 1) / 2, y - 14 + k * 4, 3.0f - (k == 0 || k == 3 ? 0.6f : 0), c);
+        DrawCircleLines(x, y - 8, 8, Fade(ink, 0.3f));
         break;
     }
     case EcoKind::Anemone: {
         Color c = e.state == EcoState::Fed ? Color{225, 100, 140, 255} : Color{190, 80, 120, 255};
-        float spread = e.state == EcoState::Fed ? 7 : 4;
-        for (int k = -2; k <= 2; k++) { float a = k * 0.35f + sinf(t * 3 + e.phase) * 0.1f; DrawLineEx({(float)x, (float)y}, {x + sinf(a) * spread, y - 8 - cosf(a) * spread}, 2, c); }
+        float spread = e.state == EcoState::Fed ? 13 : 8;
+        DrawCircle(x, y, 4, Tone(c, -0.2f)); // a small base disc it's rooted to
+        for (int k = -3; k <= 3; k++) { float a = k * 0.3f + sinf(t * 3 + e.phase) * 0.12f; DrawLineEx({(float)x, (float)y}, {x + sinf(a) * spread, y - 15 - cosf(a) * spread}, 2.6f, c); }
         break;
     }
     case EcoKind::Hermit: {
         Color c = Color{175, 140, 90, 255};
-        DrawRectangle(x - 4, y - 4, 8, 4, c);
-        DrawCircle(x + (e.dir > 0 ? 4 : -4), y - 5, 3, Color{200, 170, 130, 255});
+        DrawCircle(x, y - 6, 6.5f, c); // the borrowed shell, whorled
+        DrawCircleLines(x, y - 6, 6.5f, ink);
+        DrawCircle(x, y - 6, 3.5f, Tone(c, -0.25f));
+        DrawCircle(x + (int)e.dir * 7, y - 5, 4.5f, Color{200, 170, 130, 255}); // the crab peeking out the front
+        DrawCircleLines(x + (int)e.dir * 7, y - 5, 4.5f, ink);
         break;
     }
     case EcoKind::BrittleStar:
         if (e.state == EcoState::Idle) {
-            Color c = Color{160, 150, 140, 200};
-            for (int k = 0; k < 5; k++) { float a = k * 2.0f * PI / 5 + e.phase; DrawLineEx({(float)x, (float)y}, {x + cosf(a) * 9, y + sinf(a) * 4}, 1.5f, c); }
+            Color c = Color{160, 150, 140, 220};
+            for (int k = 0; k < 5; k++) {
+                float a = k * 2.0f * PI / 5 + e.phase;
+                Vector2 tip{x + cosf(a) * 16, y + sinf(a) * 7};
+                DrawLineEx({(float)x, (float)y}, tip, 2.4f, c);
+                DrawLineEx({(float)x, (float)y}, {x + (tip.x - x) * 0.6f, y + (tip.y - y) * 0.6f}, 1.2f, Fade(ink, 0.4f));
+            }
+            DrawCircle(x, y, 3.5f, Tone(c, -0.15f));
         }
         break;
     }
