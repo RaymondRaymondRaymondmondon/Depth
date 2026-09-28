@@ -133,6 +133,9 @@ static void TakeShots(const Game& base, const std::string& dir) {
         {"pipes_riser", [](Game& g) { g.platLayouts[PL_PIPES] = {101, 100}; StartPlatform(g, PL_PIPES); g.plat.pos = g.plat.spawns[1]; }},
         {"pipes_shaft", [](Game& g) { g.platLayouts[PL_PIPES] = {202, 100}; StartPlatform(g, PL_PIPES); g.plat.pos = g.plat.spawns[3]; }},
         {"pipes_twins", [](Game& g) { g.platLayouts[PL_PIPES] = {303, 100}; StartPlatform(g, PL_PIPES); g.plat.pos = g.plat.spawns[2]; }},
+        {"pipes_critters", [](Game& g) { g.platLayouts[PL_PIPES] = {303, 100}; StartPlatform(g, PL_PIPES);
+                                          Vector2 c = g.plat.critters.size() > 3 ? g.plat.critters[3].home : Vector2{700, 450};
+                                          g.plat.pos = {c.x - 130, c.y - 26}; }},
         {"hull", [](Game& g) { g.platLayouts[PL_HULL] = {404, 100}; StartPlatform(g, PL_HULL); g.plat.pos = g.plat.spawns[1]; }},
         {"hull_shaft", [](Game& g) { g.platLayouts[PL_HULL] = {505, 100}; StartPlatform(g, PL_HULL); g.plat.pos = g.plat.spawns[3]; }},        {"hull_kraken", [](Game& g) { StartPlatform(g, PL_HULL); g.plat.pos = {(g.plat.w - 24) * 32 + 420.0f, 200}; g.plat.boss.state = 2; }},
         {"pirate", [](Game& g) { g.platLayouts[PL_PIRATE] = {606, 100}; StartPlatform(g, PL_PIRATE); g.plat.pos = g.plat.spawns[1]; }},
@@ -304,6 +307,10 @@ int main(int argc, char** argv) {
     if (argc >= 2 && strcmp(argv[1], "--verify") == 0) {
         SetTraceLogLevel(LOG_WARNING);
         return VerifyPlatformLevels();
+    }
+    if (argc >= 2 && strcmp(argv[1], "--verify-critters") == 0) {
+        SetTraceLogLevel(LOG_WARNING);
+        return VerifyCritters() ? 0 : 1;
     }
     if (argc >= 2 && strcmp(argv[1], "--verify-abyss") == 0) {
         SetTraceLogLevel(LOG_WARNING);

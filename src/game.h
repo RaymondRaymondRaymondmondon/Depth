@@ -302,6 +302,28 @@ struct PlatEnemy {
     float timer = 0;  // time in the current state (or cooldown while hidden)
     Vector2 aim{0, 0}; // where a gunner is aiming
 };
+
+// A per-entity personality, rolled once at spawn from the level's seed, so the same species reads differently
+// run to run (an aggressive eel this run, a timid one next time). Shared by every ecosystem-framework biome:
+// the Abyss (abyss.cpp's RollPersonality) and the Pipes' ambient duct life below both use it.
+struct PersonalityProfile {
+    float aggression = 0.5f; // 0 = pacifist/flees a fight, 1 = relentless hunter
+    float bravery     = 0.5f; // 0 = flees anything bigger than itself, 1 = attacks larger predators
+    float energy      = 0.5f; // 0 = lethargic/slow forces, 1 = hyperactive/fast impulses
+    float curiosity   = 0.5f; // 0 = ignores disturbances, 1 = investigates every sound
+};
+
+// Ambient duct life for the Pipes (the level with no enemies - see CLAUDE.md - so this is life, not a
+// hazard): little vermin that scurry along the floor, reacting to the diver with the same Flee/Investigate
+// shape as the Abyss's ecosystem, but never touching or harming - see PopulateCritters/UpdateCritters.
+enum class CritterState { Idle, Fleeing, Investigating };
+struct PlatCritter {
+    Vector2 pos{0, 0}, home{0, 0};
+    PersonalityProfile personality;
+    float dir = 1;                        // -1 left, 1 right: which way it's currently facing/walking
+    CritterState state = CritterState::Idle;
+    float stateTimer = 0, phase = 0;      // phase: per-critter offset so a cluster doesn't move in lockstep
+};
 struct PlatShot { Vector2 pos, vel; float life; int kind; }; // 0 musket ball, 1 lit bomb, 2 explosion, 3 falling ink, 4 torpedo, 5 cannonball, 6 rolling barrel
 struct PlatLauncher { int tx, ty; char type; float t; }; // a torpedo tube (T), a deck cannon (N) or a barrel chute (y): fires on a timer, with a warning before
 struct PlatParticle { Vector2 p, v; float life, max, size; Color c; };
@@ -365,6 +387,7 @@ struct PlatformState {
     float coyote = 0, wallCoyote = 0, jumpBuffer = 0, wallLock = 0, runAnim = 0, accumulator = 0;
     int checkpointChunk = 0;
     std::vector<PlatEnemy> enemies;
+    std::vector<PlatCritter> critters; // ambient duct life (Pipes only) - see PlatCritter; never a hazard
     PlatBoss boss;
     std::vector<PlatParticle> particles;
     int coins = 0, deaths = 0, reward = 0, relic = -1, relic2 = -1; // relic2: Blackbeard sometimes leaves a second
@@ -395,16 +418,6 @@ struct PlatformState {
 };
 
 // ---------- The Open Abyss: a fully-3D vertical descent biome, separate from the 2D platformer above ----------
-// A per-entity personality, rolled once at spawn from the level's seed, so the same species reads differently
-// run to run (an aggressive eel this run, a timid one next time). Shared by every future ecosystem biome, not
-// just the Abyss - see abyss.cpp's RollPersonality.
-struct PersonalityProfile {
-    float aggression = 0.5f; // 0 = pacifist/flees a fight, 1 = relentless hunter
-    float bravery     = 0.5f; // 0 = flees anything bigger than itself, 1 = attacks larger predators
-    float energy      = 0.5f; // 0 = lethargic/slow forces, 1 = hyperactive/fast impulses
-    float curiosity   = 0.5f; // 0 = ignores disturbances, 1 = investigates every sound
-};
-
 constexpr float ABYSS_DEPTH_SPAN = 900.0f; // how far down this vertical slice's trench is generated, in metres
 constexpr int ABYSS_PAYOUT = 280;          // gold at the bottom - the deepest dive, so it pays the most
 
@@ -695,3 +708,4 @@ void StartAbyss(Game& g);
 void SceneAbyss(Game& g);
 void UpdateAbyss(Game& g, float dt); // the fixed-step simulation, callable headlessly for --verify
 bool VerifyAbyss();                  // debug: proves a run can descend past the first downdraft/sponge gauntlet
+bool VerifyCritters();               // debug (depth.exe --verify-critters): proves the Pipes' ambient duct life spawns and reacts

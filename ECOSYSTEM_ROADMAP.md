@@ -132,12 +132,36 @@ Added on top of the first vertical slice above:
   with the mechanics as tuned, not just in theory. Passed 65/65 runs across random seeds while this
   was being tuned.
 
+## The Pipes: retrofitted onto the ecosystem framework (life, not enemies)
+
+Checked with the user first: "retrofit the existing Pipes" turned out to mean two different things the
+roadmap could have meant (retrofit it in place, or start a brand-new platform biome), and the answer was
+retrofit-in-place. The Pipes are deliberately the one platform level with no enemies (see CLAUDE.md and
+ROADMAP.md's own file-map comment in platformer.cpp) - touching one anywhere else is fatal - so this
+retrofit adds *life*, never a *hazard*: no collision or death check anywhere touches it.
+
+- `PersonalityProfile` (previously Abyss-only) moved earlier in game.h so both biomes can share it, and a
+  new `PlatCritter`/`CritterState` pair sits right beside `PlatEnemy` - little vermin skittering along the
+  duct floor, each with its own rolled aggression/bravery/energy/curiosity.
+- `PopulateCritters` (Pipes-only, skipped headlessly) scans the generated tile grid for real floor spots
+  (open tile over solid ground) and seed-jitters a sparse population from them - about 25-30 across a
+  typical ~240-wide level, capped at 40.
+- `UpdateCritters` gives each one the same Flee/Investigate/Idle shape as the Abyss's ecosystem: bolt away
+  from a close pass (braver ones tolerate it longer), creep toward a diver standing still if curious enough,
+  otherwise a short skitter near home and a long pause. Movement reuses the crab enemy's own walk-and-turn-
+  at-a-wall-or-ledge logic, so nothing ever runs off a platform.
+- `DrawCritter` is a small, flat, unrotated silhouette (the Pipes' 2px art grid has no sprite rotation) with
+  a wobbling pair of legs - just enough to read as alive under the helmet lamp.
+- `depth.exe --verify-critters`: a headless smoke test (population happens, standing on top of one makes it
+  flee, no position ever blows up) - the same spirit as `--verify-abyss`, since nothing here needs a window.
+
 ## Not yet done
 
-- The other biomes: new platform versions of Island/Cave/Weeds/Atlantis, and retrofitting Pipes/Hull/
-  Pirate Ship onto the shared personality/ecosystem framework. (Next up.)
-- Streaming/infinite generation past this slice's fixed ~900 m trench - deliberately deferred, see
-  above.
+- The other biomes: new platform versions of Island/Cave/Weeds/Atlantis, and retrofitting Hull/Pirate Ship
+  onto the shared personality/ecosystem framework (unlike the Pipes, they already have real enemies, so
+  their retrofit is a different shape of problem - probably existing enemies gaining the personality/
+  perception system, not new ambient life).
+- Streaming/infinite generation past the Abyss's fixed ~900 m trench - deliberately deferred, see above.
 - Whether biome transitions (e.g. falling from the Hull into the Abyss) are ever made seamless rather
   than a standalone menu entry - raised in the brief; for this slice, decided as standalone (simplest,
   matches how Pipes/Hull/Pirate Ship are already picked), revisit if a future pass wants otherwise.

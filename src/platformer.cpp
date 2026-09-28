@@ -769,6 +769,8 @@ void BuildFromGrid(PlatformState& p, const GenLevel& gl, const Part* arena, char
 }
 
 // Builds (or rebuilds, after a death) the whole level from its seed: coins, enemies and the boss all come back.
+static void PopulateCritters(PlatformState& p, unsigned seed); // defined below Hs(), which it needs
+
 void BuildLevel(PlatformState& p) {
     const LevelDef& L = Lv(p.level);
     unsigned seed = p.layout.empty() ? 1u : (unsigned)p.layout[0];
@@ -783,6 +785,11 @@ void BuildLevel(PlatformState& p) {
     p.relic = -1;
     p.shots.clear();
     p.checkpointChunk = 0;
+    p.critters.clear();
+    // The Pipes have no enemies (CLAUDE.md) - this is ambient duct life, not a hazard: no collision or
+    // death check anywhere touches p.critters. Skipped headlessly: the path-search rebuilds many
+    // PlatformState instances rapidly and never renders, so there is nothing for this to add there.
+    if (p.level == PL_PIPES && !p.verifying) PopulateCritters(p, seed);
 }
 int PartAt(const PlatformState& p, float x) {
     int k = 0;
@@ -962,7 +969,84 @@ void StepPlayer(PlatformState& p, float dir, bool jumpHeld) {
 // Every level's scenery is several layers deep; each layer scrolls at its own speed, so the far
 // ones barely move and the near ones sweep past.
 float Hs(float x) { float s = sinf(x * 12.9898f + 3.1f) * 43758.5453f; return s - floorf(s); }
+float Hs2(float x, float y) { return Hs(x * 7.13f + y * 91.7f); }
 constexpr float WATER_LEVEL_Y = 262; // the pirate biome's horizon: the far sea's surface, where background ships and masts stand
+
+// ---------------------------------------------------------------- ambient duct life (the Pipes)
+// The Pipes are the one level with no enemies (CLAUDE.md's own call), so this retrofits the ecosystem
+// framework's shape - a rolled PersonalityProfile driving Flee/Investigate/Idle - onto life that never
+// threatens the diver: little vermin skittering along the duct floor, startled by a close pass, occasionally
+// bold enough to creep toward a diver standing still. Same walk-and-turn-at-ledges movement as the crab
+// enemy ('c' in UpdateEnemies), just never able to hurt anything.
+constexpr float CRITTER_FLEE_R = 68, CRITTER_CURIOUS_R = 150;
+
+static void PopulateCritters(PlatformState& p, unsigned seed) {
+    int idx = 0;
+    for (int x = 2; x < p.w - 2; x++) {
+        int fy = -1;
+        for (int y = 1; y < p.h - 1; y++) if (!Solid(p, x, y) && Solid(p, x, y + 1)) { fy = y; break; } // topmost open tile with solid ground beneath it
+        if (fy < 0) continue;
+        // sparse and seed-varied: not every eligible column gets one, so the ducts don't feel wall-to-wall
+        float roll = Hs2((float)x, (float)seed * 3.7f + 1);
+        if (roll > 0.14f) continue;
+        PlatCritter c;
+        c.home = c.pos = {x * (float)T + T / 2.0f, fy * (float)T + T - 3}; // feet near the bottom of the open tile, just above the floor
+        c.personality = {Hs2(idx * 3.0f + 1, (float)seed), Hs2(idx * 3.0f + 2, (float)seed), Hs2(idx * 3.0f + 3, (float)seed), Hs2(idx * 3.0f + 4, (float)seed)};
+        c.dir = Hs2(idx * 5.0f, (float)seed) > 0.5f ? 1.0f : -1.0f;
+        c.phase = Hs2(idx * 9.0f, (float)seed) * 6.28f;
+        idx++;
+        p.critters.push_back(c);
+        if (idx > 40) break; // a generous cap; PopulateEcosystem-style density, not a swarm
+    }
+}
+
+void UpdateCritters(PlatformState& p, float dt) {
+    if (p.critters.empty()) return;
+    Vector2 pc{p.pos.x + PW / 2, p.pos.y + PH / 2};
+    bool diverStill = fabsf(p.vel.x) < 6 && fabsf(p.vel.y) < 6;
+    for (auto& c : p.critters) {
+        c.phase += dt;
+        float dx = pc.x - c.pos.x, dy = pc.y - c.pos.y, dist = sqrtf(dx * dx + dy * dy);
+        CritterState want = CritterState::Idle;
+        // braver/less curious vermin tolerate a closer approach before bolting, mirroring the Abyss's
+        // personality-driven curiosity/bravery thresholds rather than one fixed radius for every one of them
+        float fleeR = CRITTER_FLEE_R * (0.6f + c.personality.bravery * 0.8f);
+        if (dist < fleeR) want = CritterState::Fleeing;
+        else if (diverStill && dist < CRITTER_CURIOUS_R && c.personality.curiosity > 0.55f) want = CritterState::Investigating;
+        if (want != c.state) { c.state = want; c.stateTimer = 0; }
+        c.stateTimer += dt;
+
+        float speedMag = 0; // set the facing direction first, then walk in it - turning back at a wall or a
+                             // ledge exactly like the crab enemy does, so a fleeing critter can't run off a ledge
+        if (c.state == CritterState::Fleeing) { speedMag = 50 + c.personality.energy * 70; c.dir = dx < 0 ? 1.0f : -1.0f; }
+        else if (c.state == CritterState::Investigating) { speedMag = 22 + c.personality.energy * 18; c.dir = dx < 0 ? -1.0f : 1.0f; }
+        else if (fmodf(c.phase, 3.0f) > 2.2f) speedMag = 14; // idle: a short skitter, then a long pause
+        if (speedMag > 0) {
+            float nx = c.pos.x + c.dir * speedMag * dt;
+            int ftx = (int)floorf((c.dir > 0 ? nx + 6 : nx - 6) / T), fty = (int)floorf((c.pos.y - 2) / T);
+            if (Solid(p, ftx, fty) || !Solid(p, ftx, fty + 1)) c.dir = -c.dir;
+            else c.pos.x = nx;
+            // never stray far from home when idly skittering - it's dressing, not a migration
+            if (c.state == CritterState::Idle && fabsf(c.pos.x - c.home.x) > 40) c.dir = c.home.x < c.pos.x ? -1.0f : 1.0f;
+        }
+    }
+}
+
+// Small, flat, unrotated (the Pipes' 2px pixel-art grid has no rotation on sprites) - a scurrying silhouette
+// with a wobbling pair of legs/antennae, just enough to read as alive under the helmet lamp.
+void DrawCritter(const PlatCritter& c, float t) {
+    float bob = sinf(t * 14 + c.phase) * (c.state == CritterState::Idle ? 0.4f : 1.2f);
+    int x = (int)(c.pos.x - c.dir * 3), y = (int)(c.pos.y + bob);
+    Color body = c.state == CritterState::Fleeing ? Color{168, 96, 70, 255} : Color{120, 92, 74, 255};
+    DrawRectangle(x - 4, y - 3, 8, 4, body);
+    DrawRectangle(x + (c.dir > 0 ? 3 : -5), y - 4, 2, 2, body); // a small raised head at the leading edge
+    float legPh = t * (c.state == CritterState::Idle ? 4.0f : 12.0f) + c.phase;
+    for (int k = -1; k <= 1; k += 2) {
+        int ly = y + 1 + (sinf(legPh + k) > 0 ? 0 : 1);
+        DrawRectangle(x - 2, ly, 1, 2, Fade(BLACK, 0.6f));
+        DrawRectangle(x + 2, ly, 1, 2, Fade(BLACK, 0.6f));
+    }
+}
 
 template <typename F>
 void Layer(float cx, float depth, float gap, float cw, F fn) {
@@ -2842,6 +2926,34 @@ void StartPlatform(Game& g, int level) {
     g.scene = Scene::Platformer;
 }
 
+// depth.exe --verify-critters: a headless smoke test for the Pipes' ambient duct life (PopulateCritters/
+// UpdateCritters), in the same spirit as --verify-abyss - no window/GL context needed, since nothing here
+// draws. Proves critters spawn, that a close approach makes at least one flee, and that none of them ever
+// produce a NaN/runaway position over a few seconds of simulated time.
+bool VerifyCritters() {
+    PlatformState p;
+    p.level = PL_PIPES;
+    p.layout = {303, 100};
+    BuildLevel(p);
+    if (p.critters.empty()) { TraceLog(LOG_WARNING, "verify-critters: FAILED - nothing spawned"); return false; }
+    size_t n = p.critters.size();
+    p.pos = p.critters[n / 2].home; // stand right on top of one: it must react
+    bool anyFled = false;
+    for (int f = 0; f < 300; f++) {
+        UpdateCritters(p, 1 / 60.0f);
+        for (const auto& c : p.critters) {
+            if (std::isnan(c.pos.x) || std::isnan(c.pos.y) || fabsf(c.pos.x) > 1e6f || fabsf(c.pos.y) > 1e6f) {
+                TraceLog(LOG_WARNING, "verify-critters: FAILED - a critter's position blew up");
+                return false;
+            }
+            if (c.state == CritterState::Fleeing) anyFled = true;
+        }
+    }
+    if (!anyFled) { TraceLog(LOG_WARNING, "verify-critters: FAILED - none fled a diver standing on top of one"); return false; }
+    TraceLog(LOG_WARNING, "verify-critters: OK - %zu spawned, at least one fled on approach", n);
+    return true;
+}
+
 // The darkness of the ducts, drawn in bands (it suits the pixel art) around the diver's helmet lamp.
 static void DrawLampDarkness(Vector2 c, float r, float maxA) {
     const int B = 6;
@@ -2898,6 +3010,7 @@ void ScenePlatformer(Game& g) {
         }
         float ed = p.ghost ? dt * GHOST_SPEED : dt; // ghosts move, aim, fire and charge 1.6x faster
         UpdateEnemies(p, ed);
+        UpdateCritters(p, dt); // ambient duct life - never touched by ghost speed, it isn't part of the challenge
         UpdateBoss(p, ed);
         UpdateLaunchers(p, ed);
         UpdateShots(p, ed);
@@ -3030,6 +3143,7 @@ void ScenePlatformer(Game& g) {
     DrawHazardOverlay(p, c0, c1, r0, r1, t);
     DrawBoss(p, t);
     for (auto& e : p.enemies) DrawEnemy(e, t);
+    for (auto& c : p.critters) DrawCritter(c, t);
     DrawShots(p, t);
     DrawSea(p, t, viewW, viewH);
     for (auto& pt : p.particles) {
