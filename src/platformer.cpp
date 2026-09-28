@@ -1300,7 +1300,7 @@ void DrawEcoLife(const PlatEcoLife& e, float t) {
 // fights it; a Glow-Beetle near a fight flashes; a Cave Cricket near a flash panics and stampedes off.
 constexpr float PIPE_MOTH_LIGHT_R = 220, PIPE_WEB_R = 26, PIPE_EAT_R = 30, PIPE_RAT_HUNT_R = 90, PIPE_RAT_BITE_R = 20;
 constexpr float PIPE_MITE_SWARM_T = 3.0f, PIPE_MITE_CURL_R = 22, PIPE_ROLL_SPEED = 130, PIPE_MOUSE_HUNT_R = 110;
-constexpr float PIPE_MOUSE_FLEE_R = 24, PIPE_FIGHT_R = 26, PIPE_BEETLE_FLASH_R = 30, PIPE_FLASH_LIFE = 0.5f, PIPE_CRICKET_PANIC_R = 60;
+constexpr float PIPE_MOUSE_FLEE_R = 24, PIPE_FIGHT_R = 26, PIPE_BEETLE_FLASH_R = 30, PIPE_FLASH_LIFE = 0.5f, PIPE_CRICKET_PANIC_R = 60, PIPE_CRICKET_BUMP_R = 22;
 
 static void PopulatePipeLife(PlatformState& p, unsigned seed) {
     p.lightSpots.clear();
@@ -1461,7 +1461,19 @@ void UpdatePipeLife(PlatformState& p, float dt) {
         case PipeKind::CaveCricket:
             if (e.state == PipeState::Panic) {
                 if (e.stateTimer > 0.8f) e.state = PipeState::Idle;
-                else PipeWander(p, e, (70 + e.personality.energy * 50) * dt, 1e9f); // jumps wildly, ignoring its own leash - the stampede
+                else {
+                    PipeWander(p, e, (70 + e.personality.energy * 50) * dt, 1e9f); // jumps wildly, ignoring its own leash - the stampede
+                    // "jumping wildly into other entities, triggering a chain-reaction stampede": a panicking
+                    // Cricket jumping into another Cricket sets it off too (the cascade proper); anything else
+                    // it jumps into just gets jolted out of the way.
+                    for (auto& o : p.pipeLife) {
+                        if (&o == &e) continue;
+                        float dx = o.pos.x - e.pos.x, dy = o.pos.y - e.pos.y;
+                        if (dx * dx + dy * dy >= PIPE_CRICKET_BUMP_R * PIPE_CRICKET_BUMP_R) continue;
+                        if (o.kind == PipeKind::CaveCricket) { if (o.state != PipeState::Panic) { o.state = PipeState::Panic; o.stateTimer = 0; } }
+                        else o.dir = -o.dir;
+                    }
+                }
             } else {
                 for (auto& g : p.pipeLife) if (g.kind == PipeKind::GlowBeetle && g.state == PipeState::Flash) {
                     float dx = g.pos.x - e.pos.x, dy = g.pos.y - e.pos.y;
@@ -3665,15 +3677,18 @@ bool VerifyPipeEcosystem() {
         PlatPipeLife roach; roach.kind = PipeKind::Cockroach; roach.home = roach.pos = {20.0f * T + 5, fy}; roach.personality.aggression = 0.9f;
         PlatPipeLife beetle; beetle.kind = PipeKind::GlowBeetle; beetle.home = beetle.pos = {20.0f * T, fy};
         PlatPipeLife cricket; cricket.kind = PipeKind::CaveCricket; cricket.home = cricket.pos = {20.0f * T, fy};
-        p.pipeLife = {mouse, roach, beetle, cricket};
-        bool flashed = false, panicked = false;
+        PlatPipeLife cricket2; cricket2.kind = PipeKind::CaveCricket; cricket2.home = cricket2.pos = {20.0f * T, fy}; // right where the first will jump - the cascade should catch it too
+        p.pipeLife = {mouse, roach, beetle, cricket, cricket2};
+        bool flashed = false, panicked = false, cascaded = false;
         for (int f = 0; f < 300; f++) {
             UpdatePipeLife(p, 1 / 60.0f);
             if (p.pipeLife[2].state == PipeState::Flash) flashed = true;
             if (p.pipeLife[3].state == PipeState::Panic) panicked = true;
+            if (p.pipeLife[4].state == PipeState::Panic) cascaded = true;
         }
         if (!flashed) { TraceLog(LOG_WARNING, "verify-pipe-ecosystem: FAILED - a fight never made a Glow-Beetle flash"); return false; }
         if (!panicked) { TraceLog(LOG_WARNING, "verify-pipe-ecosystem: FAILED - a flash never panicked a Cave Cricket into stampeding"); return false; }
+        if (!cascaded) { TraceLog(LOG_WARNING, "verify-pipe-ecosystem: FAILED - a panicking Cricket never triggered a chain-reaction stampede into a second Cricket"); return false; }
     }
     // 5) none of it ever moves toward, or away from, the diver - it's a fixed point far from every setup above,
     // so any positional drift correlated with distance-to-player would show up as blown-up or NaN positions
