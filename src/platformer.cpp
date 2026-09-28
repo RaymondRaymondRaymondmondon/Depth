@@ -119,6 +119,7 @@ const LevelDef& Lv(int level) {
         d[PL_PIPES] = {"The Pipes", Part{}, Part{}, 0, 60, '#', true, '#'};
         d[PL_HULL] = {"The Hull", P16(HULL_ARENA), P16(HULL_ARENA_NOBOSS), 0, 120, '.', false, '.'};
         d[PL_PIRATE] = {"The Pirate Ship", P(CABIN_ARENA, 0, 2), P(CABIN_ARENA_NOBOSS, 0, 2), 0, 200, '#', false, '.'};
+        d[PL_ISLAND] = {"The Island", Part{}, Part{}, 0, 300, '#', false, '.'}; // no boss arena yet - the crossing itself ends the level, like the Pipes
         return d;
     }();
     return defs[level];
@@ -796,13 +797,14 @@ static void PopulateCritters(PlatformState& p, unsigned seed); // defined below 
 static void PopulateEcoLife(PlatformState& p, unsigned seed);  // defined below Hs(), which it needs
 static void PopulatePipeLife(PlatformState& p, unsigned seed); // defined below Hs(), which it needs
 static void PopulatePirateLife(PlatformState& p, unsigned seed); // defined below Hs(), which it needs
+static void PopulateIslandLife(PlatformState& p, unsigned seed); // defined below Hs(), which it needs
 
 void BuildLevel(PlatformState& p) {
     const LevelDef& L = Lv(p.level);
     unsigned seed = p.layout.empty() ? 1u : (unsigned)p.layout[0];
     float scale = p.layout.size() > 1 ? p.layout[1] / 100.0f : 1.0f;
     GenLevel gl = GenerateLevel(p.level, seed, scale);
-    const Part* arena = p.level == PL_PIPES ? nullptr : &(p.bossEnabled ? L.last : L.lastNoBoss);
+    const Part* arena = (p.level == PL_PIPES || p.level == PL_ISLAND) ? nullptr : &(p.bossEnabled ? L.last : L.lastNoBoss);
     BuildFromGrid(p, gl, arena, L.fill, L.fillAbove);
     if (!p.hard) // Normal: mines and spiked balls become a plain spiked bed underfoot instead of vanishing outright, and the jets fire on a shorter, gentler window (see JetOn) rather than going cold
         for (auto& row : p.tiles)
@@ -817,6 +819,7 @@ void BuildLevel(PlatformState& p) {
     p.pipeLife.clear();
     p.lightSpots.clear();
     p.pirateLife.clear();
+    p.islandLife.clear();
     // The Pipes have no enemies (CLAUDE.md) - this is ambient duct life, not a hazard: no collision or
     // death check anywhere touches p.critters. Skipped headlessly: the path-search rebuilds many
     // PlatformState instances rapidly and never renders, so there is nothing for this to add there.
@@ -830,6 +833,9 @@ void BuildLevel(PlatformState& p) {
     // The Pirate Ship's real 7-species chain on top of its existing Pirates/Gunners/Parakeets
     // (ECOSYSTEM_BESTIARY.md) - same headless skip, for the same reason.
     if (p.level == PL_PIRATE && !p.verifying) PopulatePirateLife(p, seed);
+    // The Island's real 9-species chain on top of its existing Warriors/Gunners (ECOSYSTEM_BESTIARY.md) -
+    // same headless skip, for the same reason.
+    if (p.level == PL_ISLAND && !p.verifying) PopulateIslandLife(p, seed);
 }
 int PartAt(const PlatformState& p, float x) {
     int k = 0;
@@ -1524,6 +1530,205 @@ void DrawPirateLife(const PlatPirateLife& e, float t) {
     }
 }
 
+// ---------------------------------------------------------------- the Island's real ecosystem chain
+// ECOSYSTEM_BESTIARY.md, "The Island": on top of the existing Warriors/Gunners ('P'/'G', real hazards placed
+// by the generator itself), a stray shot passing a Boar sends it Charging - the one real hazard in this
+// overlay, same shape as the Pirate Ship's Berserk Guard Dog. The charge's rumble sends roosting Fruit Bats
+// Swarming and wakes a coiled Snake to go Dropping; a Web-Spinning Spider's fixed web Catches a Swarming Bat
+// that strays too close (freed after a moment, mirrors the Pipes' Water-Spider/Moth); a Hunting Dog that
+// notices a Charging Boar goes Tracking toward it. A Coconut Crab periodically Cuts a coconut loose; a
+// Territorial Seagull Circling nearby Dives to steal it, then returns. Monitor Lizards and Poison Dart Frogs
+// are ambient scenery (the Lizard just idles near its spot; the Frog hops).
+constexpr float ISLAND_BOAR_STRAY_R = 70, ISLAND_BOAR_SPEED = 110, ISLAND_SNAKE_DROP_R = 90, ISLAND_SNAKE_DROP_T = 0.6f;
+constexpr float ISLAND_BAT_SWARM_R = 90, ISLAND_BAT_SWARM_T = 2.2f, ISLAND_SPIDER_WEB_R = 30, ISLAND_BAT_CAUGHT_T = 1.0f;
+constexpr float ISLAND_CRAB_CUT_CYCLE = 4.0f, ISLAND_CRAB_CUT_DUR = 1.0f, ISLAND_SEAGULL_DIVE_R = 140, ISLAND_DOG_TRACK_R = 110;
+
+static void PopulateIslandLife(PlatformState& p, unsigned seed) {
+    int idx = 0;
+    for (int x = 2; x < p.w - 2; x++) {
+        int fy = -1;
+        for (int y = 1; y < p.h - 1; y++) if (!Solid(p, x, y) && Solid(p, x, y + 1)) { fy = y; break; }
+        if (fy < 0) continue;
+        float roll = Hs2((float)x, (float)seed * 7.3f + 6);
+        if (roll > 0.16f) continue; // sparse, same density as the Pirate Ship's overlay
+        float pick = Hs2((float)x, (float)seed * 7.3f + 7);
+        IslandEcoKind kind = pick < 0.16f ? IslandEcoKind::Boar : pick < 0.28f ? IslandEcoKind::Snake
+                            : pick < 0.42f ? IslandEcoKind::Lizard : pick < 0.56f ? IslandEcoKind::Bat
+                            : pick < 0.64f ? IslandEcoKind::Spider : pick < 0.76f ? IslandEcoKind::Crab
+                            : pick < 0.86f ? IslandEcoKind::Frog : pick < 0.94f ? IslandEcoKind::Seagull : IslandEcoKind::Dog;
+        PlatIslandLife e;
+        e.kind = kind;
+        float baseY = (kind == IslandEcoKind::Bat || kind == IslandEcoKind::Spider || kind == IslandEcoKind::Seagull) ? std::max(2.0f, fy - Hs2((float)x, seed * 8.3f) * 5.0f - 3.0f) : (float)fy;
+        e.home = e.pos = {x * (float)T + T / 2.0f, baseY * (float)T + T - 3};
+        e.personality = {Hs2(idx * 3.0f + 1, (float)seed + 1900), Hs2(idx * 3.0f + 2, (float)seed + 1900), Hs2(idx * 3.0f + 3, (float)seed + 1900), Hs2(idx * 3.0f + 4, (float)seed + 1900)};
+        e.dir = Hs2(idx * 5.0f, (float)seed + 1900) > 0.5f ? 1.0f : -1.0f;
+        e.phase = Hs2(idx * 9.0f, (float)seed + 1900) * 6.28f;
+        e.state = kind == IslandEcoKind::Seagull ? IslandEcoState::Circling : kind == IslandEcoKind::Spider ? IslandEcoState::Idle : IslandEcoState::Wander;
+        idx++;
+        p.islandLife.push_back(e);
+        if (idx > 40) break;
+    }
+}
+
+void UpdateIslandLife(PlatformState& p, float dt) {
+    if (p.islandLife.empty()) return;
+    Rectangle pr = PlayerBox(p);
+    for (auto& e : p.islandLife) {
+        e.phase += dt;
+        e.stateTimer += dt;
+        switch (e.kind) {
+        case IslandEcoKind::Boar:
+            if (e.state == IslandEcoState::Charging) {
+                float nx = e.pos.x + e.dir * ISLAND_BOAR_SPEED * dt;
+                int ftx = (int)floorf((e.dir > 0 ? nx + 8 : nx - 8) / T), fty = (int)floorf((e.pos.y - 2) / T);
+                if (!Solid(p, ftx, fty) && Solid(p, ftx, fty + 1)) e.pos.x = nx; else { e.state = IslandEcoState::Wander; e.stateTimer = 0; }
+                if (e.stateTimer > 2.5f) { e.state = IslandEcoState::Wander; e.stateTimer = 0; }
+            } else {
+                bool struck = false;
+                for (auto& s : p.shots) { float dx = s.pos.x - e.pos.x, dy = s.pos.y - e.pos.y; if (dx * dx + dy * dy < ISLAND_BOAR_STRAY_R * ISLAND_BOAR_STRAY_R) struck = true; }
+                if (struck) {
+                    e.state = IslandEcoState::Charging; e.stateTimer = 0;
+                    e.dir = pr.x < e.pos.x ? -1.0f : 1.0f;
+                } else EcoWander(p, e, fmodf(e.phase, 2.6f) > 1.8f ? (28 + e.personality.energy * 18) * dt : 0, 48);
+            }
+            break;
+        case IslandEcoKind::Snake:
+            if (e.state == IslandEcoState::Dropping) { if (e.stateTimer > ISLAND_SNAKE_DROP_T) { e.state = IslandEcoState::Idle; e.stateTimer = 0; } }
+            else {
+                for (auto& b : p.islandLife) if (b.kind == IslandEcoKind::Boar && b.state == IslandEcoState::Charging) {
+                    float dx = b.pos.x - e.pos.x, dy = b.pos.y - e.pos.y;
+                    if (dx * dx + dy * dy < ISLAND_SNAKE_DROP_R * ISLAND_SNAKE_DROP_R) { e.state = IslandEcoState::Dropping; e.stateTimer = 0; break; }
+                }
+            }
+            break;
+        case IslandEcoKind::Lizard:
+            EcoWander(p, e, fmodf(e.phase, 3.2f) > 2.5f ? (14 + e.personality.energy * 10) * dt : 0, 40);
+            break;
+        case IslandEcoKind::Bat:
+            if (e.state == IslandEcoState::Swarming || e.state == IslandEcoState::Caught) {
+                if (e.state == IslandEcoState::Swarming) {
+                    e.pos.x = e.home.x + sinf(e.phase * 5.0f) * 50; e.pos.y = e.home.y + cosf(e.phase * 4.0f) * 14;
+                    for (auto& s : p.islandLife) if (s.kind == IslandEcoKind::Spider) {
+                        float dx = s.pos.x - e.pos.x, dy = s.pos.y - e.pos.y;
+                        if (dx * dx + dy * dy < ISLAND_SPIDER_WEB_R * ISLAND_SPIDER_WEB_R) { e.state = IslandEcoState::Caught; e.stateTimer = 0; e.pos = s.pos; break; }
+                    }
+                } else if (e.stateTimer > ISLAND_BAT_CAUGHT_T) { e.state = IslandEcoState::Swarming; e.stateTimer = 0; }
+                if (e.state == IslandEcoState::Swarming && e.stateTimer > ISLAND_BAT_SWARM_T) { e.state = IslandEcoState::Idle; e.stateTimer = 0; }
+            } else {
+                for (auto& b : p.islandLife) if (b.kind == IslandEcoKind::Boar && b.state == IslandEcoState::Charging) {
+                    float dx = b.pos.x - e.pos.x, dy = b.pos.y - e.pos.y;
+                    if (dx * dx + dy * dy < ISLAND_BAT_SWARM_R * ISLAND_BAT_SWARM_R) { e.state = IslandEcoState::Swarming; e.stateTimer = 0; break; }
+                }
+            }
+            break;
+        case IslandEcoKind::Spider: break; // stays put; Bats check its web above
+        case IslandEcoKind::Crab:
+            if (e.state == IslandEcoState::Cutting) { if (e.stateTimer > ISLAND_CRAB_CUT_DUR) { e.state = IslandEcoState::Idle; e.stateTimer = 0; } }
+            else if (e.stateTimer > ISLAND_CRAB_CUT_CYCLE) { e.state = IslandEcoState::Cutting; e.stateTimer = 0; }
+            break;
+        case IslandEcoKind::Frog:
+            e.pos.x = e.home.x + sinf(e.phase * 2.0f) * (fmodf(e.phase, 3.0f) < 0.3f ? 10.0f : 0.0f);
+            break;
+        case IslandEcoKind::Seagull:
+            if (e.state == IslandEcoState::Circling) {
+                e.pos.x = e.home.x + sinf(e.phase * 0.5f) * 44; e.pos.y = e.home.y + cosf(e.phase * 0.4f) * 10;
+                if (e.personality.aggression > 0.3f) for (auto& c : p.islandLife) if (c.kind == IslandEcoKind::Crab && c.state == IslandEcoState::Cutting) {
+                    float dx = c.pos.x - e.pos.x, dy = c.pos.y - e.pos.y;
+                    if (dx * dx + dy * dy < ISLAND_SEAGULL_DIVE_R * ISLAND_SEAGULL_DIVE_R) { e.state = IslandEcoState::Diving; e.stateTimer = 0; break; }
+                }
+            } else if (e.stateTimer > 0.6f) { e.state = IslandEcoState::Circling; e.stateTimer = 0; }
+            break;
+        case IslandEcoKind::Dog:
+            if (e.state == IslandEcoState::Tracking) {
+                float dx = e.home.x - e.pos.x; // tracks back toward whatever triggered it, near its own patrol
+                e.dir = dx < 0 ? -1.0f : 1.0f;
+                if (e.stateTimer > 1.4f) { e.state = IslandEcoState::Wander; e.stateTimer = 0; }
+                else EcoWander(p, e, (30 + e.personality.energy * 16) * dt, 60);
+            } else {
+                bool trail = false;
+                for (auto& b : p.islandLife) if (b.kind == IslandEcoKind::Boar && b.state == IslandEcoState::Charging) {
+                    float dx = b.pos.x - e.pos.x, dy = b.pos.y - e.pos.y;
+                    if (dx * dx + dy * dy < ISLAND_DOG_TRACK_R * ISLAND_DOG_TRACK_R) trail = true;
+                }
+                if (trail) { e.state = IslandEcoState::Tracking; e.stateTimer = 0; }
+                else EcoWander(p, e, fmodf(e.phase, 3.0f) > 2.2f ? (22 + e.personality.energy * 12) * dt : 0, 46);
+            }
+            break;
+        }
+    }
+}
+
+void DrawIslandLife(const PlatIslandLife& e, float t) {
+    int x = (int)e.pos.x, y = (int)e.pos.y;
+    Color ink = Fade(BLACK, 0.55f);
+    switch (e.kind) {
+    case IslandEcoKind::Boar: {
+        bool charging = e.state == IslandEcoState::Charging;
+        Color c = charging ? Color{110, 66, 40, 255} : Color{130, 90, 56, 255};
+        DrawEllipse(x, y - 6, 11, 7, c);
+        DrawCircle(x - (int)e.dir * 10, y - 8, 5, c);
+        DrawTri({x - e.dir * 14, y - 8.0f}, {x - e.dir * 18, y - 6.0f}, {x - e.dir * 14, y - 4.0f}, Color{230, 224, 210, 255}); // a tusk
+        if (charging) for (int k = 0; k < 3; k++) DrawCircle((int)(x + e.dir * (-6 - k * 5)), y + 3, 1.4f, Fade(Color{200, 190, 170, 200}, 0.6f)); // dust
+        break;
+    }
+    case IslandEcoKind::Snake: {
+        Color c = Color{74, 128, 54, 255};
+        float drop = e.state == IslandEcoState::Dropping ? std::min(1.0f, e.stateTimer / ISLAND_SNAKE_DROP_T) : 0.0f;
+        for (int k = 0; k < 4; k++) DrawCircle((int)(x + sinf(t * 6 + k) * 3), (int)(y - 6 - k * 4 - drop * 14), 3.2f - k * 0.3f, c);
+        DrawCircle(x, (int)(y - 6 - drop * 14), 2.6f, ink);
+        break;
+    }
+    case IslandEcoKind::Lizard: {
+        Color c = Color{86, 120, 58, 255};
+        DrawEllipse(x, y - 4, 10, 4.5f, c);
+        DrawCircle(x - (int)e.dir * 9, y - 5, 3, c);
+        DrawLineEx({x + e.dir * 9.0f, y - 3.0f}, {x + e.dir * 18.0f, y - 1.0f}, 2, Fade(c, 0.85f));
+        break;
+    }
+    case IslandEcoKind::Bat: {
+        float flap = sinf(t * 16) * 4;
+        Color wing{58, 50, 54, 220};
+        DrawTri({x - 2.0f, y - 2.0f}, {x - 14.0f, y - 6.0f - flap}, {x - 10.0f, y + 4.0f}, wing);
+        DrawTri({x + 2.0f, y - 2.0f}, {x + 14.0f, y - 6.0f - flap}, {x + 10.0f, y + 4.0f}, wing);
+        DrawEllipse(x, y, 5, 4, Color{74, 62, 56, 255});
+        break;
+    }
+    case IslandEcoKind::Spider: {
+        Color c = Color{40, 34, 30, 255};
+        for (int k = 0; k < 6; k++) { float a = k * PI / 3; DrawLineEx({(float)x, (float)y}, {x + cosf(a) * 22, y + sinf(a) * 22}, 1, Fade(Color{220, 220, 220, 255}, 0.5f)); } // the web
+        DrawCircle(x, y, 4, c);
+        break;
+    }
+    case IslandEcoKind::Crab: {
+        bool cutting = e.state == IslandEcoState::Cutting;
+        Color c = Color{200, 90, 50, 255};
+        DrawEllipse(x, y - 5, 8, 6, c);
+        if (cutting) for (int s = -1; s <= 1; s += 2) DrawLineEx({x + s * 6.0f, y - 8.0f}, {x + s * 10.0f, y - 14.0f}, 2, c); // claws raised, snipping
+        break;
+    }
+    case IslandEcoKind::Frog: {
+        Color c = Color{80, 150, 70, 255};
+        DrawEllipse(x, y - 3, 6, 4.5f, c);
+        DrawCircle(x - 3, y - 6, 1.4f, Color{20, 20, 20, 255}); DrawCircle(x + 3, y - 6, 1.4f, Color{20, 20, 20, 255});
+        break;
+    }
+    case IslandEcoKind::Seagull: {
+        Color c = Color{225, 222, 214, 255};
+        float flap = e.state == IslandEcoState::Diving ? 0 : sinf(t * 8) * 3;
+        DrawLineEx({x - 12.0f, y - flap}, {(float)x, (float)y}, 2, c); DrawLineEx({(float)x, (float)y}, {x + 12.0f, y - flap}, 2, c);
+        break;
+    }
+    case IslandEcoKind::Dog: {
+        bool tracking = e.state == IslandEcoState::Tracking;
+        Color c = tracking ? Color{110, 82, 56, 255} : Color{140, 108, 76, 255};
+        DrawCircle(x, y - 6, 6, c);
+        DrawCircle(x + (int)e.dir * 8, y - 8, 4, c);
+        DrawCircleLines(x, y - 6, 6, ink);
+        break;
+    }
+    }
+}
+
 // ---------------------------------------------------------------- the Pipes' real ecosystem chain
 // ECOSYSTEM_BESTIARY.md, "The Pipes": "Entities ignore the player; all hazards stem from systemic chaos and
 // collateral physics" - the one biome whose chain never reacts to the diver at all (CLAUDE.md: the Pipes have
@@ -1979,6 +2184,41 @@ void BackgroundSystem::Setup(int lv) {
             });
             for (int k = 0; k < 8; k++) { float bx = fmodf(k * 173.0f - ox * 0.5f + 9000, cw + 100), by = ch - fmodf(t * (16 + k * 4) + k * 60, ch); DrawCircleLines((int)bx, (int)by, 3 + k % 3, Fade(Color{190, 230, 250, 255}, 0.4f)); }
         }};
+    } else if (lv == PL_ISLAND) {
+        farLayer = {0.12f, 0.12f, [cw, ch](const PlatformState& p, float t, float ox, float oy) { // a hazy sky, and a jungle ridge far off
+            (void)p; (void)t; (void)oy;
+            DrawRectangleGradientV(0, 0, (int)cw, (int)ch, Color{150, 190, 150, 255}, Color{86, 130, 96, 255});
+            DrawCircle((int)(cw * 0.7f), 70, 34, Color{230, 220, 170, 220}); // a hazy sun
+            Layer(ox / 0.12f, 0.12f, 220, cw, [&](float x, float wx) { // distant canopy hummocks, ruins or hut roofs poking through
+                float h = 40 + Hs(wx) * 60;
+                DrawTri({x - 60, ch}, {x + 60, ch}, {x, ch - h}, Color{70, 108, 78, 255});
+                if (Hs(wx + 5) > 0.75f) DrawTri({x - 14, ch - h + 10}, {x + 14, ch - h + 10}, {x, ch - h - 24}, Color{58, 90, 66, 255}); // a temple spire or a hut roof, breaking the ridge line
+            });
+        }};
+        midLayer = {0.4f, 0.4f, [cw, ch](const PlatformState& p, float t, float ox, float oy) { // tree trunks and swaying canopy
+            (void)p; (void)oy;
+            Layer(ox / 0.4f, 0.4f, 130, cw, [&](float x, float wx) {
+                float h = ch * (0.5f + Hs(wx) * 0.4f), w = 14 + Hs(wx + 2) * 10;
+                DrawRectangle((int)x, (int)(ch - h), (int)w, (int)h + 4, Color{54, 44, 30, 255});
+                DrawRectangle((int)x + 3, (int)(ch - h), 3, (int)h, Color{74, 60, 40, 255});
+                float sway = sinf(t * 0.7f + wx) * 8;
+                DrawCircle((int)(x + w / 2 + sway), (int)(ch - h) - 26, 34 + Hs(wx + 3) * 14, Color{58, 96, 50, 255}); // a canopy crown, swaying
+                DrawCircle((int)(x + w / 2 + sway * 1.3f), (int)(ch - h) - 30, 20, Color{74, 118, 62, 255});
+            });
+            for (int k = 0; k < 26; k++) { // drifting pollen/spores
+                float sx2 = fmodf(k * 83.0f - ox * 0.8f + 9000, cw), sy2 = fmodf(k * 61.0f + t * (6 + k % 4 * 2), ch);
+                DrawRectangle((int)sx2, (int)sy2, 1, 1, Fade(Color{230, 220, 160, 255}, 0.4f));
+            }
+        }};
+        foreLayer = {1.3f, 1.15f, [cw, ch](const PlatformState& p, float t, float ox, float oy) { // hanging vines and near leaves, dark against the lens
+            (void)p; (void)oy;
+            Layer(ox / 1.3f, 1.3f, 260, cw, [&](float x, float wx) {
+                if (x > 100 && x < cw - 100) return; // only at the edges of the lens
+                float len = 60 + Hs(wx) * 120, sway = sinf(t * 0.6f + wx) * 10;
+                for (float yy = 0; yy < len; yy += 10) DrawRectangle((int)(x + sway * yy / len), (int)yy, 4, 8, Color{20, 30, 14, 255});
+                DrawEllipse((int)(x + sway), (int)len, 14, 8, Color{16, 26, 12, 255});
+            });
+        }};
     } else {
         farLayer = {0.05f, 0.05f, [cw, ch](const PlatformState& p, float t, float ox, float oy) { // the night sky, a full moon, drifting cloud
             (void)p; (void)oy;
@@ -2322,7 +2562,32 @@ void DrawSolid(const PlatformState& p, int x, int y) {
             }
             if (h1 > 0.82f) Barnacles(px + 6 + h2 * 16, py + 8 + h1 * 12);
             if (h2 > 0.7f) DrawLineEx({px + 8, py + 12}, {px + 14, py + 24}, 1.5f, ink);       // a crack
-        } break;        default: {
+        } break;
+        case PL_ISLAND: {
+            // jungle earth and root-bound stone: dark packed soil inside the mass, moss and hanging roots wherever a face is open
+            uint8_t m = SolidMask(p, x, y);
+            bool inner = m == 15;
+            Color soil{58, 44, 30, 255}, soilLt{74, 58, 40, 255}, ink{10, 8, 6, 255};
+            DrawRectangle((int)px, (int)py, T, T, inner ? Color{40, 32, 22, 255} : soil);
+            float h1 = Hs(x * 3.3f + y * 9.7f), h2 = Hs(x * 5.9f + y * 2.9f + 5);
+            if (inner) {
+                for (int k = 0; k < 3; k++) DrawCircle((int)(px + 5 + Hs(x * 1.1f + k) * 22), (int)(py + 5 + Hs(y * 1.9f + k) * 22), 1.5f, Color{50, 40, 28, 255});
+                break;
+            }
+            DrawRectangle((int)px + 2, (int)py + 2, T - 4, 2, soilLt);
+            if (!(m & 1)) { // open top: a mat of grass and low fronds
+                DrawRectangle((int)px, (int)py, T, 4, Color{78, 118, 52, 255});
+                for (int k = 0; k < 5; k++) { float bx = px + 2 + k * 6 + h1 * 2, bh = 4 + Hs(x * 2.1f + k) * 6; DrawLineEx({bx, py + 1}, {bx + (k % 2 ? 2.0f : -2.0f), py - bh}, 1.6f, Color{62, 100, 40, 255}); }
+            }
+            if (!(m & 2) && h1 > 0.82f && y % 2 == 0) { float cy = py + 8 + h2 * 14; DrawLineEx({px + T - 1, cy}, {px + T + 5, cy + 4}, 2.2f, Color{86, 66, 40, 255}); } // a root snaking out the right face
+            if (!(m & 8) && h2 > 0.82f && y % 2 == 1) { float cy = py + 8 + h1 * 14; DrawLineEx({px + 1, cy}, {px - 5, cy + 4}, 2.2f, Color{86, 66, 40, 255}); }
+            if (!(m & 4)) for (int k = 0; k < 3; k++) { // hanging vines, swaying
+                float bx = px + 6 + k * 10, sw = sinf(p.time * 1.2f + x + k * 2) * 2.5f;
+                DrawLineEx({bx, py + T - 2}, {bx + sw, py + T + 8}, 3, ink); DrawLineEx({bx, py + T - 2}, {bx + sw, py + T + 8}, 1.6f, Color{74, 112, 48, 255});
+            }
+            if (h2 > 0.75f) DrawLineEx({px + 8, py + 10}, {px + 15, py + 22}, 1.4f, ink); // a crack in the stone underneath
+        } break;
+        default: {
             // the pirate ship: deck planks where they're open to the sky, heavy dark timbers inside the hull
             bool inner = Solid(p, x, y - 1) && Solid(p, x, y + 1) && Solid(p, x - 1, y) && Solid(p, x + 1, y);
             if (inner) { // the ship's hull timbers: long strakes, each a slightly different shade
@@ -2367,6 +2632,7 @@ void DrawDepth(const PlatformState& p, int x, int y) {
     switch (p.level) {
         case PL_PIPES: topC = {112, 96, 82, 255}; sideC = {40, 34, 30, 255}; break;
         case PL_HULL: topC = {124, 142, 154, 255}; sideC = {30, 38, 48, 255}; break;
+        case PL_ISLAND: topC = {96, 132, 66, 255}; sideC = {46, 36, 24, 255}; break;
         default: topC = {150, 104, 64, 255}; sideC = {64, 40, 24, 255}; break;
     }
     if (!Solid(p, x, y - 1)) {
@@ -2389,7 +2655,7 @@ void DrawPillarCaps(const PlatformState& p, int x, int y) {
     if (!top && !bottom) return;
     float px = x * (float)T, py = y * (float)T;
     float capY = top ? py : py + T - 8;
-    Color plate = p.level == PL_PIPES ? Color{184, 140, 60, 255} : p.level == PL_HULL ? Color{128, 78, 46, 255} : Color{92, 70, 60, 255};
+    Color plate = p.level == PL_PIPES ? Color{184, 140, 60, 255} : p.level == PL_HULL ? Color{128, 78, 46, 255} : p.level == PL_ISLAND ? Color{110, 84, 50, 255} : Color{92, 70, 60, 255};
     Color dark = ColorBrightness(plate, -0.5f);
     float x0 = (!L1 ? px : px - 0) - (!L1 ? 4 : 0), x1 = (!R1 ? px + T + 4 : px + T);
     DrawRectangle((int)x0, (int)capY, (int)(x1 - x0), 8, dark);
@@ -2426,6 +2692,8 @@ void DrawHazardOverlay(const PlatformState& p, int c0, int c1, int r0, int r1, f
             } else if (p.level == PL_PIRATE) {
                 DrawRectangle((int)px + 3, (int)py + 14, 2, 10, Color{200, 180, 130, 255});
                 DrawRectangle((int)px + T - 5, (int)py + 14, 2, 10, Color{200, 180, 130, 255});
+            } else if (p.level == PL_ISLAND) { // broad leaves curling over the thorn bed
+                for (int k = 0; k < 2; k++) { float bx = px + (k ? T - 8 : 6); DrawEllipse((int)bx, (int)py + 10, 6, 3, Color{70, 112, 46, 220}); }
             } else {
                 DrawRectangle((int)px + 10, (int)py + 10, 2, 6, Color{120, 150, 160, 170});
             }
@@ -2438,7 +2706,7 @@ void DrawTileGrit(const PlatformState& p, int x, int y) {
     float px = x * (float)T, py = y * (float)T;
     float h1 = Hs(x * 3.1f + y * 7.7f), h2 = Hs(x * 5.3f + y * 2.9f + 4), h3 = Hs(x * 1.7f + y * 9.1f + 9);
     if (h1 > 0.55f) { // a rust streak
-        Color rust = p.level == PL_PIRATE ? Color{70, 44, 26, 150} : Color{120, 62, 34, 150};
+        Color rust = p.level == PL_PIRATE ? Color{70, 44, 26, 150} : p.level == PL_ISLAND ? Color{56, 82, 40, 150} : Color{120, 62, 34, 150};
         DrawRectangle((int)px + 6 + (int)(h2 * 16), (int)py + 4, 3, 8 + (int)(h3 * 20), rust);
         DrawRectangle((int)px + 7 + (int)(h2 * 16), (int)py + 4, 1, 8 + (int)(h3 * 20), Fade(BLACK, 0.4f));
     }
@@ -2805,6 +3073,11 @@ void DrawTile(const PlatformState& p, char c, int x, int y, float t) {
                 }
                 DrawRectangle((int)c0.x - 8, (int)c0.y - 8, 16, 12, Color{90, 50, 110, 255});
                 DrawRectangle((int)c0.x - 6, (int)c0.y - 6, 4, 4, Color{150, 100, 170, 255});
+            } else if (p.level == PL_ISLAND) { // a bed of thorns grown up through split jungle earth
+                DrawRectangle((int)px, (int)py + 18, T, T - 18, Color{46, 34, 22, 255});                  // the split soil
+                DrawRectangle((int)px, (int)py + 18, T, 2, Color{78, 118, 52, 255});                      // a moss lip
+                for (int k = 0; k < 4; k++) DrawTri({px + k * 8.0f + 1, py + 20}, {px + k * 8.0f + 9, py + 20}, {px + k * 8.0f + 5, py + 4}, Color{88, 128, 58, 255});
+                for (int k = 0; k < 4; k++) DrawLineEx({px + k * 8.0f + 5, py + 20}, {px + k * 8.0f + 5, py + 4}, 1, Color{56, 92, 36, 255});
             } else { // iron spikes mounted in a plank frame with rusty brackets
                 DrawRectangle((int)px, (int)py + 20, T, T - 20, Color{84, 52, 30, 255});                 // the mounting plank
                 DrawRectangle((int)px, (int)py + 20, T, 2, Color{150, 108, 64, 255});
@@ -2825,6 +3098,11 @@ void DrawTile(const PlatformState& p, char c, int x, int y, float t) {
                 DrawCircleV(c0, 12, Color{50, 56, 64, 255});
                 DrawCircleV({c0.x - 4, c0.y - 4}, 4, Color{100, 110, 120, 255});
                 if (fmodf(t + x * 0.3f, 1.0f) < 0.5f) DrawCircleV(c0, 3, Color{255, 60, 50, 255});
+            } else if (p.level == PL_ISLAND) { // a spider's egg sack, cut loose by a climbing Coconut Crab
+                DrawLineEx({c0.x, py}, c0, 2, Color{70, 60, 50, 255});
+                DrawCircleV(c0, 10, Color{224, 214, 190, 255});
+                for (int k = 0; k < 5; k++) DrawCircleV({c0.x + cosf(k * 1.26f) * 5, c0.y + sinf(k * 1.26f) * 5}, 2.2f, Color{40, 34, 28, 255});
+                DrawCircleLines((int)c0.x, (int)c0.y, 10, Color{40, 34, 28, 180});
             } else { // spiked ball
                 for (int k = 0; k < 8; k++) {
                     float a = t * 2 + k * PI / 4;
@@ -2839,7 +3117,7 @@ void DrawTile(const PlatformState& p, char c, int x, int y, float t) {
             DrawSolid(p, x, y);
             DrawRectangle((int)px + 6, (int)py, T - 12, 5, Color{30, 30, 34, 255});
             float cyc = JetCycle(p, x);
-            Color jet = p.level == PL_PIPES ? Color{240, 245, 250, 255} : p.level == PL_HULL ? Color{170, 230, 250, 255} : Color{255, 170, 60, 255};
+            Color jet = p.level == PL_PIPES ? Color{240, 245, 250, 255} : p.level == PL_HULL ? Color{170, 230, 250, 255} : p.level == PL_ISLAND ? Color{140, 210, 70, 255} : Color{255, 170, 60, 255};
             if (cyc < 1.1f) {
                 for (int k = 0; k < 9; k++) {
                     float ph = fmodf(t * 5 + k * 0.11f, 1.0f);
@@ -2873,6 +3151,13 @@ void DrawTile(const PlatformState& p, char c, int x, int y, float t) {
                 DrawCircle((int)px + 16, (int)py, 30, Color{90, 110, 116, 255});
                 DrawCircle((int)px + 16, (int)py, 24, Color{50, 64, 70, 255});
                 DrawRing({px + 16, py}, 10, 14, 0, 360, 24, Pal::Bad);
+            } else if (p.level == PL_ISLAND) { // a moss-grown stone idol, its mouth the way out
+                DrawRectangle((int)px - 6, (int)py - 24, 44, 50, Color{92, 88, 76, 255});
+                DrawRectangle((int)px - 6, (int)py - 24, 44, 6, Color{112, 108, 92, 255});
+                DrawCircle((int)px + 10, (int)py - 8, 5, Color{40, 36, 30, 255}); DrawCircle((int)px + 22, (int)py - 8, 5, Color{40, 36, 30, 255});
+                float glow = 0.5f + 0.5f * sinf(t * 4);
+                DrawEllipse((int)px + 16, (int)py + 6, 9, 7 + glow * 2, Fade(Color{255, 220, 100, 255}, 0.5f));
+                for (int k = 0; k < 3; k++) DrawEllipse((int)px - 2 + k * 6, (int)py - 24, 5, 3, Color{78, 118, 52, 255}); // moss along the crown
             } else { // the treasure chest
                 DrawRectangle((int)px - 4, (int)py + 6, 40, 26, Color{120, 72, 36, 255});
                 DrawRectangle((int)px - 4, (int)py - 6, 40, 14, Color{140, 86, 44, 255});
@@ -3141,12 +3426,15 @@ void DrawSkeletonBody(float x, float y, float f, float t, float lean) {
     DrawRectangle((int)cx - 10, (int)y - 1, 20, 3, Color{22, 34, 40, 255});
     DrawTri({cx + 5, y - 4}, {cx + 9, y}, {cx + 9 + sinf(t * 5) * 2, y - 9}, Fade(glow, 0.6f));                  // a green ghostfire wisp
 }
-void DrawEnemy(const PlatEnemy& e, float t) {
+void DrawEnemy(const PlatEnemy& e, float t, int level = -1) {
     float x = e.pos.x, y = e.pos.y, f = e.dir;
+    bool island = level == PL_ISLAND;
     switch (e.type) {
         case 'c': { // crab: a domed carapace, two-segment legs, eyestalks and claws that open and snap (CrabAnim)
             const Color INKC{8, 8, 12, 255};
-            Color c{170, 84, 56, 255}, dk{104, 50, 38, 255}, lt{232, 140, 100, 255};
+            Color c = island ? Color{90, 122, 60, 255} : Color{170, 84, 56, 255};
+            Color dk = island ? Color{54, 76, 36, 255} : Color{104, 50, 38, 255};
+            Color lt = island ? Color{150, 176, 110, 255} : Color{232, 140, 100, 255};
             CrabAnim an = fmodf(e.t + x * 0.013f, 2.6f) < 0.4f ? CrabAnim::ClawSnap : CrabAnim::Scuttle;
             float cx = x + 17, cy = y + 10, w = e.t * 16;
             for (int s = -1; s <= 1; s += 2) for (int k = 0; k < 3; k++) { // three jointed legs per side
@@ -3182,6 +3470,7 @@ void DrawEnemy(const PlatEnemy& e, float t) {
             { // a deckhouse: the door is set into the wall of a little timber cabin standing on the deck, never in open air
                 Color wood{78, 50, 30, 255}, woodDk{46, 28, 18, 255};
                 if (gGhost) { wood = Color{56, 82, 76, 255}; woodDk = Color{28, 46, 44, 255}; }
+                if (island) { wood = Color{96, 78, 44, 255}; woodDk = Color{56, 46, 24, 255}; } // a thatched hut wall, bamboo and dried palm instead of ship timber
                 DrawRectangle((int)dx - T + 2, (int)dy - 10, 3 * T - 4, 2 * T + 10, woodDk);
                 DrawRectangle((int)dx - T + 4, (int)dy - 8, 3 * T - 8, 2 * T + 8, wood);
                 for (int k = 0; k < 12; k++) DrawRectangle((int)dx - T + 4 + k * 8, (int)dy - 8, 1, 2 * T + 8, woodDk);
@@ -3215,24 +3504,28 @@ void DrawEnemy(const PlatEnemy& e, float t) {
                 if (e.state == 2 && e.timer < 0.15f) DrawLineEx({tip.x - f * 10, tip.y - 3}, {tip.x + f * 4, tip.y}, 1, Fade(Color{150, 255, 210, 255}, 0.8f));
                 break;
             }
-            Color skin{214, 164, 124, 255}, shirt{232, 228, 216, 255}, stripe{150, 36, 34, 255}, trousers{56, 46, 72, 255};
+            Color skin = island ? Color{150, 96, 62, 255} : Color{214, 164, 124, 255};
+            Color shirt = island ? Color{74, 58, 40, 255} : Color{232, 228, 216, 255}; // bare chest with a woven sash, not a shirt, on the Island
+            Color stripe = island ? Color{200, 170, 60, 255} : Color{150, 36, 34, 255};
+            Color trousers = island ? Color{86, 62, 34, 255} : Color{56, 46, 72, 255}; // a grass/bark skirt
             DrawRectangleRec({cx - 6, y + 21, 5, 9}, trousers);
             DrawRectangleRec({cx + 1 + (e.state == 2 ? f * 3 : 0), y + 21, 5, 9}, trousers);
             DrawRectangleRec({cx - 7, y + 28, 6, 2}, Color{30, 24, 22, 255});
-            DrawRectangleRec({cx - 8 + lean, y + 9, 16, 13}, shirt);                               // striped shirt
+            DrawRectangleRec({cx - 8 + lean, y + 9, 16, 13}, shirt);                               // striped shirt, or the Island's bare chest
             for (int k = 0; k < 3; k++) DrawRectangleRec({cx - 8 + lean, y + 11 + k * 4.0f, 16, 2}, stripe);
             DrawRectangleRec({cx - 8 + lean, y + 19, 16, 2}, Color{40, 30, 24, 255});             // belt
             DrawCircle((int)(cx + lean), (int)y + 5, 6, skin);                                      // head
-            DrawRectangleRec({cx - 6 + lean, y + 7, 12, 4}, Color{50, 36, 30, 255});                // stubble
-            DrawRectangleRec({cx - 7 + lean, y - 2, 14, 5}, Color{196, 40, 36, 255});               // bandana
-            DrawRectangleRec({cx - f * 9 + lean, y - 1, 3, 6}, Color{196, 40, 36, 255});            // its tails
+            DrawRectangleRec({cx - 6 + lean, y + 7, 12, 4}, island ? Color{30, 24, 20, 255} : Color{50, 36, 30, 255}); // stubble, or dark hair
+            DrawRectangleRec({cx - 7 + lean, y - 2, 14, 5}, island ? Color{200, 170, 60, 255} : Color{196, 40, 36, 255}); // bandana, or a bone-and-feather band
+            DrawRectangleRec({cx - f * 9 + lean, y - 1, 3, 6}, island ? Color{220, 210, 200, 255} : Color{196, 40, 36, 255}); // its tails, or a trailing feather
             DrawRectangleRec({cx + f * 1 + lean, y + 2, 4, 2}, Color{20, 16, 16, 255});             // eye patch strap
             DrawCircle((int)(cx + f * 3 + lean), (int)y + 4, 1.5f, Color{255, 220, 150, 255});     // a mean eye
-            // the cutlass: raised on the way out, thrust at the stab, trailing on the way back
+            // the cutlass (or the Island's spear): raised on the way out, thrust at the stab, trailing on the way back
             float ang = e.state == 1 ? -1.2f : e.state == 2 ? -0.05f : 0.7f;
             Vector2 hand{cx + f * 8 + lean, y + 14};
             Vector2 tip{hand.x + f * cosf(ang) * 18, hand.y + sinf(ang) * 18};
-            DrawLineEx(hand, tip, 2.5f, Color{214, 220, 226, 255});
+            DrawLineEx(hand, tip, 2.5f, island ? Color{90, 66, 40, 255} : Color{214, 220, 226, 255});
+            if (island) DrawTri({tip.x, tip.y}, {tip.x - f * 5 - 2, tip.y - 4}, {tip.x - f * 5 - 2, tip.y + 4}, Color{200, 196, 186, 255}); // a stone spearhead
             DrawLineEx(hand, {hand.x + f * cosf(ang) * 6, hand.y + sinf(ang) * 6}, 3, Color{70, 50, 30, 255});
             DrawCircleV(hand, 2.5f, skin);
             if (e.state == 2 && e.timer < 0.15f) DrawLineEx({tip.x - f * 10, tip.y - 3}, {tip.x + f * 4, tip.y}, 1, Fade(WHITE, 0.8f)); // swish
@@ -3240,26 +3533,28 @@ void DrawEnemy(const PlatEnemy& e, float t) {
         case 'G': { // a musketeer crouched behind a barrel
             float cx = x + 11;
             bool aiming = e.state == 1;
-            Color coat{40, 60, 110, 255}, coatDk{26, 40, 78, 255}, skin{206, 156, 118, 255};
+            Color coat = island ? Color{70, 54, 36, 255} : Color{40, 60, 110, 255};
+            Color coatDk = island ? Color{44, 34, 22, 255} : Color{26, 40, 78, 255};
+            Color skin = island ? Color{150, 96, 62, 255} : Color{206, 156, 118, 255};
             if (gGhost) DrawSkeletonBody(x, y, f, t, 0); else {
             DrawRectangleRec({cx - 6, y + 20, 5, 10}, Color{50, 40, 36, 255});
             DrawRectangleRec({cx + 1, y + 20, 5, 10}, Color{50, 40, 36, 255});
             DrawRectangleRec({cx - 8, y + 8, 16, 14}, coat);
             DrawRectangleRec({cx - 8, y + 8, 4, 14}, coatDk);
-            DrawLineEx({cx - 8, y + 9}, {cx + 8, y + 20}, 2, Color{220, 210, 190, 255}); // bandolier
+            DrawLineEx({cx - 8, y + 9}, {cx + 8, y + 20}, 2, island ? Color{200, 170, 60, 255} : Color{220, 210, 190, 255}); // bandolier, or a woven shoulder strap
             DrawCircle((int)cx, (int)y + 4, 6, skin);
-            DrawRectangleRec({cx - 5, y + 6, 10, 4}, Color{120, 80, 50, 255});          // a ginger beard
-            DrawTri({cx - 11, y}, {cx + 11, y}, {cx, y - 9}, Color{30, 26, 34, 255});   // tricorn
-            DrawRectangleRec({cx - 10, y - 1, 20, 3}, Color{30, 26, 34, 255});
+            DrawRectangleRec({cx - 5, y + 6, 10, 4}, island ? Color{30, 24, 20, 255} : Color{120, 80, 50, 255}); // a ginger beard, or dark hair
+            if (island) DrawTri({cx - 9, y - 6}, {cx + 9, y - 6}, {cx, y - 13}, Color{200, 170, 60, 255}); // a feather headdress instead of a tricorn
+            else { DrawTri({cx - 11, y}, {cx + 11, y}, {cx, y - 9}, Color{30, 26, 34, 255}); DrawRectangleRec({cx - 10, y - 1, 20, 3}, Color{30, 26, 34, 255}); }
             DrawCircle((int)(cx + f * 3), (int)y + 3, 1.5f, Pal::Ink);
             }
-            // the musket: resting on his shoulder, or levelled at you
+            // the musket (or the Island's blowgun): resting on his shoulder, or levelled at you
             Vector2 shoulder{cx + f * 2, y + 11};
             float ang = aiming ? atan2f(e.aim.y - shoulder.y, e.aim.x - shoulder.x) : (f > 0 ? -1.0f : PI + 1.0f);
             if (!aiming) ang = f > 0 ? -1.1f : PI + 1.1f;
             Vector2 muzzle{shoulder.x + cosf(ang) * 22, shoulder.y + sinf(ang) * 22};
-            DrawLineEx({shoulder.x - cosf(ang) * 6, shoulder.y - sinf(ang) * 6}, {shoulder.x + cosf(ang) * 6, shoulder.y + sinf(ang) * 6}, 4, Color{110, 70, 40, 255});
-            DrawLineEx(shoulder, muzzle, 2.5f, Color{70, 72, 80, 255});
+            DrawLineEx({shoulder.x - cosf(ang) * 6, shoulder.y - sinf(ang) * 6}, {shoulder.x + cosf(ang) * 6, shoulder.y + sinf(ang) * 6}, 4, island ? Color{90, 66, 40, 255} : Color{110, 70, 40, 255});
+            DrawLineEx(shoulder, muzzle, 2.5f, island ? Color{100, 82, 56, 255} : Color{70, 72, 80, 255});
             if (aiming) { // a fair warning: the glint at the muzzle, and where he's pointing
                 float u = e.timer / GUN_AIM;
                 for (float d = 30; d < 30 + 90 * u; d += 10) {
@@ -3268,22 +3563,42 @@ void DrawEnemy(const PlatEnemy& e, float t) {
                 }
                 if (fmodf(t * 12, 1.0f) < 0.5f) DrawCircleV(muzzle, 2.5f, Color{255, 230, 150, 255});
             }
-        } break;        case 'p': { // parakeet
+        } break;        case 'p': {
             float flap = sinf(t * 18) * 5;
-            DrawEllipse((int)x, (int)y, 9, 6, Color{88, 126, 82, 255});
-            DrawTri({x - 2, y - 2}, {x + 6, y - 2}, {x + 1, y - 8 - flap}, Color{140, 60, 52, 255});
-            DrawCircle((int)(x + f * 8), (int)y - 3, 4, Color{104, 138, 90, 255});
-            DrawTri({x + f * 11, y - 4}, {x + f * 16, y - 2}, {x + f * 11, y}, Color{250, 200, 60, 255});
-            DrawCircle((int)(x + f * 9), (int)y - 4, 1.2f, Pal::Ink);
-            DrawTri({x - f * 8, y}, {x - f * 16, y + 4}, {x - f * 8, y + 3}, Color{40, 120, 200, 255});
-        } break;
-        default: { // eel
-            for (int k = 5; k >= 0; k--) {
-                float sy = y - 16 + k * 7, sx = x + sinf(t * 10 + k) * 3;
-                DrawCircle((int)sx, (int)sy, 7 - k * 0.6f, k % 2 ? Color{90, 130, 70, 255} : Color{110, 150, 80, 255});
+            if (island) { // a fruit bat: leathery wings instead of a parakeet's feathers, no beak
+                Color wing{58, 50, 54, 220}, body{74, 62, 56, 255};
+                DrawTri({x - f * 2, y - 2}, {x - f * 16, y - 8 - flap}, {x - f * 12, y + 4}, wing);
+                DrawTri({x + f * 2, y - 2}, {x + f * 16, y - 8 - flap}, {x + f * 12, y + 4}, wing);
+                DrawEllipse((int)x, (int)y, 6, 5, body);
+                DrawCircle((int)(x + f * 5), (int)y - 2, 3.5f, body);
+                DrawTri({x + f * 6, y - 5}, {x + f * 8, y - 8}, {x + f * 4, y - 6}, body); // an ear
+                DrawCircle((int)(x + f * 6), (int)y - 2, 1, Color{200, 40, 30, 255});
+            } else { // parakeet
+                DrawEllipse((int)x, (int)y, 9, 6, Color{88, 126, 82, 255});
+                DrawTri({x - 2, y - 2}, {x + 6, y - 2}, {x + 1, y - 8 - flap}, Color{140, 60, 52, 255});
+                DrawCircle((int)(x + f * 8), (int)y - 3, 4, Color{104, 138, 90, 255});
+                DrawTri({x + f * 11, y - 4}, {x + f * 16, y - 2}, {x + f * 11, y}, Color{250, 200, 60, 255});
+                DrawCircle((int)(x + f * 9), (int)y - 4, 1.2f, Pal::Ink);
+                DrawTri({x - f * 8, y}, {x - f * 16, y + 4}, {x - f * 8, y + 3}, Color{40, 120, 200, 255});
             }
-            DrawCircle((int)x - 3, (int)y - 19, 2, Color{250, 230, 60, 255});
-            DrawTri({x - 5, y - 12}, {x + 5, y - 12}, {x, y - 7}, Color{240, 230, 220, 255});
+        } break;
+        default: {
+            if (island) { // a coiled viper, lunging up out of the canyon mud
+                for (int k = 5; k >= 0; k--) {
+                    float sy = y - 16 + k * 7, sx = x + sinf(t * 10 + k) * 3;
+                    DrawCircle((int)sx, (int)sy, 6 - k * 0.5f, k % 2 ? Color{60, 96, 40, 255} : Color{84, 128, 54, 255});
+                }
+                DrawCircle((int)x - 3, (int)y - 19, 5, Color{84, 128, 54, 255}); // a wider triangular head
+                DrawCircle((int)x - 4, (int)y - 20, 1, Pal::Ink); DrawCircle((int)x - 2, (int)y - 20, 1, Pal::Ink);
+                DrawLineEx({x - 3, y - 15}, {x - 3 + sinf(t * 14) * 3, y - 11}, 1, Color{200, 60, 50, 255}); // a flicking tongue
+            } else { // eel
+                for (int k = 5; k >= 0; k--) {
+                    float sy = y - 16 + k * 7, sx = x + sinf(t * 10 + k) * 3;
+                    DrawCircle((int)sx, (int)sy, 7 - k * 0.6f, k % 2 ? Color{90, 130, 70, 255} : Color{110, 150, 80, 255});
+                }
+                DrawCircle((int)x - 3, (int)y - 19, 2, Color{250, 230, 60, 255});
+                DrawTri({x - 5, y - 12}, {x + 5, y - 12}, {x, y - 7}, Color{240, 230, 220, 255});
+            }
         } break;
     }
 }
@@ -4013,6 +4328,76 @@ bool VerifyPirateEcosystem() {
     return true;
 }
 
+// depth.exe --verify-island-ecosystem: proves the Island's chain fires, the same synthetic-setup shape as
+// the Hull/Pipes/Pirate Ship verifiers above.
+bool VerifyIslandEcosystem() {
+    // 1) a real generated Island layout spawns several distinct species
+    {
+        PlatformState p;
+        p.level = PL_ISLAND;
+        p.layout = {9, 100};
+        BuildLevel(p);
+        int kinds[9] = {0};
+        for (auto& e : p.islandLife) kinds[(int)e.kind]++;
+        int distinct = 0;
+        for (int k = 0; k < 9; k++) if (kinds[k] > 0) distinct++;
+        if (distinct < 3) { TraceLog(LOG_WARNING, "verify-island-ecosystem: FAILED - only %d distinct species spawned in a real layout", distinct); return false; }
+        TraceLog(LOG_WARNING, "verify-island-ecosystem: a real layout spawned %d distinct species (%d total)", distinct, (int)p.islandLife.size());
+    }
+    // 2) a stray shot near a Boar sends it Charging (a real hazard), which sends a nearby Bat Swarming, a
+    // nearby Snake Dropping, and a nearby Dog Tracking - and a Swarming Bat is caught by a nearby Spider's web
+    {
+        PlatformState p;
+        p.w = 20; p.h = 20;
+        p.tiles.assign(p.h, std::string(p.w, '.'));
+        float fy = 10.0f * T + T - 3;
+        PlatIslandLife boar; boar.kind = IslandEcoKind::Boar; boar.home = boar.pos = {10.0f * T, fy}; boar.state = IslandEcoState::Wander;
+        PlatIslandLife snake; snake.kind = IslandEcoKind::Snake; snake.home = snake.pos = {10.0f * T, fy}; snake.state = IslandEcoState::Idle;
+        PlatIslandLife bat; bat.kind = IslandEcoKind::Bat; bat.home = bat.pos = {10.0f * T, fy}; bat.state = IslandEcoState::Idle;
+        PlatIslandLife spider; spider.kind = IslandEcoKind::Spider; spider.home = spider.pos = {10.0f * T, fy}; spider.state = IslandEcoState::Idle;
+        PlatIslandLife dog; dog.kind = IslandEcoKind::Dog; dog.home = dog.pos = {10.0f * T, fy}; dog.state = IslandEcoState::Wander;
+        p.islandLife = {boar, snake, bat, spider, dog};
+        p.pos = {-1000, -1000}; // well clear - the stray shot itself is the trigger, not the diver
+        p.shots.push_back({{10.0f * T, fy}, {0, 0}, 5.0f, 0});
+        bool charging = false, dropping = false, swarming = false, tracking = false, caught = false;
+        for (int f = 0; f < 400; f++) {
+            UpdateIslandLife(p, 1 / 60.0f);
+            if (p.islandLife[0].state == IslandEcoState::Charging) charging = true;
+            if (p.islandLife[1].state == IslandEcoState::Dropping) dropping = true;
+            if (p.islandLife[2].state == IslandEcoState::Swarming) swarming = true;
+            if (p.islandLife[2].state == IslandEcoState::Caught) caught = true;
+            if (p.islandLife[4].state == IslandEcoState::Tracking) tracking = true;
+        }
+        if (!charging) { TraceLog(LOG_WARNING, "verify-island-ecosystem: FAILED - the stray shot never sent the Boar Charging"); return false; }
+        if (!dropping) { TraceLog(LOG_WARNING, "verify-island-ecosystem: FAILED - the Charging Boar never woke the coiled Snake"); return false; }
+        if (!swarming) { TraceLog(LOG_WARNING, "verify-island-ecosystem: FAILED - the Charging Boar never sent the Bat Swarming"); return false; }
+        if (!caught) { TraceLog(LOG_WARNING, "verify-island-ecosystem: FAILED - the Swarming Bat never got caught in the Spider's web"); return false; }
+        if (!tracking) { TraceLog(LOG_WARNING, "verify-island-ecosystem: FAILED - the Charging Boar never sent the Dog Tracking"); return false; }
+        // now confirm the Charging Boar is an actual hazard
+        p.islandLife[0].state = IslandEcoState::Charging;
+        p.pos = {p.islandLife[0].pos.x - PW / 2, p.islandLife[0].pos.y - PH / 2};
+        Rectangle pr = PlayerBox(p);
+        bool hazard = CheckCollisionRecs(pr, {p.islandLife[0].pos.x - 12, p.islandLife[0].pos.y - 13, 24, 19});
+        if (!hazard) { TraceLog(LOG_WARNING, "verify-island-ecosystem: FAILED - a Charging Boar standing on the diver isn't a hazard"); return false; }
+    }
+    // 3) a Coconut Crab's periodic Cutting draws a nearby Seagull into a Dive
+    {
+        PlatformState p;
+        p.w = 20; p.h = 20;
+        p.tiles.assign(p.h, std::string(p.w, '.'));
+        float fy = 10.0f * T + T - 3;
+        PlatIslandLife crab; crab.kind = IslandEcoKind::Crab; crab.home = crab.pos = {10.0f * T, fy}; crab.state = IslandEcoState::Idle; crab.stateTimer = ISLAND_CRAB_CUT_CYCLE + 0.1f;
+        PlatIslandLife gull; gull.kind = IslandEcoKind::Seagull; gull.home = gull.pos = {10.0f * T, fy}; gull.state = IslandEcoState::Circling; gull.personality.aggression = 0.9f;
+        p.islandLife = {crab, gull};
+        p.pos = {-1000, -1000};
+        bool diving = false;
+        for (int f = 0; f < 300 && !diving; f++) { UpdateIslandLife(p, 1 / 60.0f); if (p.islandLife[1].state == IslandEcoState::Diving) diving = true; }
+        if (!diving) { TraceLog(LOG_WARNING, "verify-island-ecosystem: FAILED - the Cutting Crab never drew the Seagull into a dive"); return false; }
+    }
+    TraceLog(LOG_WARNING, "verify-island-ecosystem: OK - charge/swarm/drop/track/web-catch and cut/dive chains both confirmed, and the Charging Boar is a real hazard");
+    return true;
+}
+
 // The darkness of the ducts, drawn in bands (it suits the pixel art) around the diver's helmet lamp.
 static void DrawLampDarkness(Vector2 c, float r, float maxA) {
     const int B = 6;
@@ -4073,6 +4458,7 @@ void ScenePlatformer(Game& g) {
         UpdatePipeLife(p, dt); // the Pipes' real ecosystem chain - ignores the diver entirely, so likewise untouched by ghost speed (Pirate-only anyway)
         UpdateEcoLife(p, dt);  // the Hull's ecosystem chain - Ghost Ship speed is Pirate-only, doesn't apply here
         UpdatePirateLife(p, ed); // the Pirate Ship's ecosystem chain - Ghost Ship speed DOES apply here ("everything 1.6x faster")
+        UpdateIslandLife(p, dt); // the Island's ecosystem chain - no Ghost Ship variant, always real time
         UpdateBoss(p, ed);
         UpdateLaunchers(p, ed);
         UpdateShots(p, ed);
@@ -4086,6 +4472,8 @@ void ScenePlatformer(Game& g) {
                 if (el.kind == EcoKind::Puffer && el.state == EcoState::Puffed && CheckCollisionRecs(pr, {el.pos.x - 14, el.pos.y - 14, 28, 28})) Die(p);
             for (auto& pl2 : p.pirateLife) // only a Berserk Guard Dog is a hazard - everything else in the Pirate Ship's chain is scenery
                 if (pl2.kind == PirateEcoKind::GuardDog && pl2.state == PirateEcoState::Berserk && CheckCollisionRecs(pr, {pl2.pos.x - 12, pl2.pos.y - 14, 24, 20})) Die(p);
+            for (auto& il : p.islandLife) // only a Charging Boar is a hazard - everything else in the Island's chain is scenery
+                if (il.kind == IslandEcoKind::Boar && il.state == IslandEcoState::Charging && CheckCollisionRecs(pr, {il.pos.x - 12, il.pos.y - 13, 24, 19})) Die(p);
             PlatBoss& b = p.boss;
             bool falling = p.vel.y > 0;
             if (b.type == 'K' && !b.defeated) {
@@ -4208,12 +4596,13 @@ void ScenePlatformer(Game& g) {
         for (int x = c0; x <= c1; x++) DrawTile(p, p.tiles[y][x], x, y, t);
     DrawHazardOverlay(p, c0, c1, r0, r1, t);
     DrawBoss(p, t);
-    for (auto& e : p.enemies) DrawEnemy(e, t);
+    for (auto& e : p.enemies) DrawEnemy(e, t, p.level);
     for (auto& c : p.critters) DrawCritter(c, t);
     for (auto& e : p.pipeLife) DrawPipeLife(e, t);
     for (auto& ic : p.inkClouds) DrawCircle((int)ic.pos.x, (int)ic.pos.y, ic.r * std::clamp(ic.life / ECO_INK_LIFE, 0.0f, 1.0f), Fade(Color{30, 20, 35, 255}, 0.35f));
     for (auto& e : p.ecoLife) DrawEcoLife(e, t);
     for (auto& e : p.pirateLife) DrawPirateLife(e, t);
+    for (auto& e : p.islandLife) DrawIslandLife(e, t);
     DrawShots(p, t);
     DrawSea(p, t, viewW, viewH);
     for (auto& pt : p.particles) {
@@ -4278,7 +4667,7 @@ void ScenePlatformer(Game& g) {
         Rectangle panel{380, 190, 520, 300};
         Panel(panel);
         const LevelDef& L = Lv(p.level);
-        DrawTextCenteredBold(p.level == PL_PIPES ? "Valve reached!" : p.level == PL_HULL ? "Back inside!" : "Treasure claimed!", panel.x + panel.width / 2, panel.y + 24, 34, Pal::Good);
+        DrawTextCenteredBold(p.level == PL_PIPES ? "Valve reached!" : p.level == PL_HULL ? "Back inside!" : p.level == PL_ISLAND ? "Idol reached!" : "Treasure claimed!", panel.x + panel.width / 2, panel.y + 24, 34, Pal::Good);
         DrawTextCentered(TextFormat(p.level == PL_PIPES ? "Payout (with speed bonus): %d gold" : p.ghost && p.level == PL_PIRATE ? "Ghost Ship payout, doubled: %d gold" : "Payout: %d gold", p.reward), panel.x + panel.width / 2, panel.y + 88, 21, Pal::Ink);
         DrawTextCentered(TextFormat("Time %.1fs  (best %.1fs)    Deaths %d", p.time, g.platBest[p.level], p.deaths), panel.x + panel.width / 2, panel.y + 124, 19, Pal::BrassDk);
         if (p.relic >= 0 && p.relic2 >= 0)
@@ -4358,10 +4747,11 @@ void DrawPlatformSpritePage(int page, float t) {
         labels.push_back({"Tentacles rise and slam", {175, 350}});
     } else {
         struct Strip { int level; const char* name; const char* rows[3]; };
-        const Strip strips[3] = {{PL_PIPES, "The Pipes", {".o..g..E", ".==.|...", "##tx#x##"}},
+        const Strip strips[4] = {{PL_PIPES, "The Pipes", {".o..g..E", ".==.|...", "##tx#x##"}},
                                  {PL_HULL, "The Hull", {".o..g..E", "........", "##x#####"}},
-                                 {PL_PIRATE, "The Pirate Ship", {".o..g..E", ".==.k...", "##tx#k##"}}};
-        for (int i = 0; i < 3; i++) {
+                                 {PL_PIRATE, "The Pirate Ship", {".o..g..E", ".==.k...", "##tx#k##"}},
+                                 {PL_ISLAND, "The Island", {".o..g..E", "........", "##x#####"}}};
+        for (int i = 0; i < 4; i++) {
             PlatformState q;
             q.level = strips[i].level;
             q.time = t;
@@ -4471,16 +4861,16 @@ bool Crossable(PlatformState& p, float goalX, bool jets, long& expanded, float g
 
 namespace {
 // Searches every hop of the critical path, from one platform's standing tile to the next's, with the real movement.
-double gMs[3] = {}; int gDraws[3] = {};
+double gMs[PL_COUNT] = {}; int gDraws[PL_COUNT] = {};
 bool gValidateShafts = false; // DEPTH_FULL=1: also search the shaft climbs of every generated level, not just the proven templates
-long gHopExpanded[3][3] = {}; // per level: total expansions, hops searched, largest hop
+long gHopExpanded[PL_COUNT][3] = {}; // per level: total expansions, hops searched, largest hop
 bool ValidateGenerated(int level, const GenLevel& gl, int* failedHop, float* solveTime, int* hopsOut) {
     const LevelDef& L = Lv(level);
     PlatformState p;
     p.level = level;
     p.hard = true;
     p.verifying = true;
-    BuildFromGrid(p, gl, level == PL_PIPES ? nullptr : &L.last, L.fill, L.fillAbove);
+    BuildFromGrid(p, gl, (level == PL_PIPES || level == PL_ISLAND) ? nullptr : &L.last, L.fill, L.fillAbove);
     bool jets = false;
     for (auto& row : p.tiles) jets |= row.find_first_of("tv") != std::string::npos;
     p.exitOpen = false;
@@ -4535,7 +4925,7 @@ static int VerifyShafts() {
 // shaft climbs included), how wide it is, and how many hazards and enemies it holds, averaged over several seeds.
 static void PrintLevelMetrics() {
     gValidateShafts = true;
-    const char* names[3] = {"Pipes", "Hull", "Pirate Ship"};
+    const char* names[PL_COUNT] = {"Pipes", "Hull", "Pirate Ship", "Island"};
     for (int lv = 0; lv < PL_COUNT; lv++) {
         double time = 0, wide = 0, hops = 0, hazards = 0, foes = 0, coins = 0;
         int n = 0;
@@ -4598,7 +4988,7 @@ int VerifyPlatformLevels() {
         printf("    validation: %.0f ms per draw on average\n", gMs[lv] / std::max(1, gDraws[lv]));
         printf("    hops searched: %ld, %.0f states each on average, largest %ld\n", gHopExpanded[lv][1], gHopExpanded[lv][0] / (double)std::max(1L, gHopExpanded[lv][1]), gHopExpanded[lv][2]);
         fflush(stdout);
-        if (lv != PL_PIPES) { // the arenas: from the landing to the exit, with the boss switched on and off
+        if (lv != PL_PIPES && lv != PL_ISLAND) { // the arenas: from the landing to the exit, with the boss switched on and off
             for (int nb = 0; nb < 2; nb++) {
                 PlatformState p;
                 p.level = lv; p.hard = true; p.verifying = true;

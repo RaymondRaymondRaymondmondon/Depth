@@ -369,3 +369,82 @@ Leech; Hermit Crabs scavenge an Anemone's scraps; Brittle-Star mats break underf
 - Whether biome transitions (e.g. falling from the Hull into the Abyss) are ever made seamless rather
   than a standalone menu entry - raised in the brief; for this slice, decided as standalone (simplest,
   matches how Pipes/Hull/Pirate Ship are already picked), revisit if a future pass wants otherwise.
+
+## Next phase, AFTER the four biomes: deeper beast AI/physics/art (user's verbatim feedback, given mid-session)
+
+The user gave this while Island work was starting. Explicit instruction: finish Island/Cave/Weeds/Atlantis
+**first** ("after all of that I want you to continue developing..."), then come back to this list. Recorded
+here in full so it survives a context reset - do not lose it, do not start it early unless all four biomes
+are done or the user says otherwise.
+
+Verbatim: "Then after all of that I want you to continue developing the individual beast AI/intelligence and
+their physics. In levels where there is water the fish/sea creatures that swim only lay on the ground and
+move at a crawl. They should be moving about, swimming. Part of the personality is if they are generated in
+a school of fish some may not understand to stay with the pack of fish when chased by a predator which a
+predator can pick up on. There are no predators but the crabs in the hull level. The eels are missing and
+they should be swimming around. The abyss level still doesn't have a lot of art development both in the
+environment and in the character and in the beasts so they are still geometric blobs. I don't really know
+how the beasts interact. There should be animation in all levels as the beasts interact with each other they
+devour their prey the prey gets scared and runs. The beasts can perish."
+
+Breaking that down into concrete gaps against what's actually built:
+- **The Hull's `PlatEcoLife` (Shrimp/Octopus/Puffer/Leech/Anemone/Hermit/BrittleStar) all move via `EcoWander`
+  - a ground-hugging walk-and-turn-at-a-ledge patrol, the same helper the Pipes' land critters use.** The Hull
+  is underwater; these are meant to be fish/sea life, not vermin, and should actually swim through open space
+  (a real 2D drift/patrol volume, not pinned to a floor row) - this is the literal "lay on the ground and
+  crawl" complaint and needs its own swim-capable movement helper, separate from `EcoWander`.
+- **The Hull's eels are still not reading as present/swimming.** They were fixed from being genuinely dead
+  code (see the "genuine pre-existing bug" section above - they do now spawn, confirmed via `--gen`), but
+  their movement is a scripted leap-from-a-hole-on-a-timer, which apparently doesn't read as "an eel swimming
+  around" to the user even when it's technically on screen. Likely needs a real swim/patrol phase between
+  leaps, not just dormant-then-leap-then-dormant, plus a visual pass so it's unmistakably an eel and not
+  another blob.
+- **Only the Hull's crabs currently function as real predators anywhere.** The user wants more biomes (and
+  more species per biome) to have a real predator role, not just decorative chain reactions - most of the
+  current ecosystem work (Pipes ten-species chain, Hull's Octopus/Pufferfish/etc., Pirate Ship's chain) is
+  scenery/cause-effect, not predation.
+- **School-of-fish behaviour with personality-driven stragglers**: when a school (Hatchetfish in the Abyss is
+  the closest existing example) is chased by a predator, some individuals (by rolled personality - low
+  bravery/energy, maybe low curiosity too) should fail to keep formation and lag behind - and predators should
+  be able to target that straggler specifically, not just the school's centroid. Needs an actual flocking/
+  school-cohesion behavior (separate from `FleeFrom`) before this can exist anywhere.
+- **The Abyss's visual pass is still not enough** - despite the redraw work already done (Isopod/Eel/Squid/
+  TrenchWorm/Hatchetfish/BrineSlug/GlassSponge as multi-part composites with a `face` direction vector), the
+  user still sees "geometric blobs," for both creatures AND the environment (the trench wall's "fairly soft/
+  hazy" texture noted earlier is part of the same complaint). This needs a real further pass, not just the
+  one already done - treat the earlier redraw as a first draft that didn't land, not as finished.
+- **Real predator-prey interaction/animation across every biome**: devouring (a kill should have a visible
+  animation/effect, not just a state flip), fleeing (already partly done via `FleeFrom` in the Abyss, needs
+  parity elsewhere), and death (creatures should be able to actually die/despawn as part of the chain, not
+  just change state forever) - "the beasts can perish" is a new requirement: currently nothing in any
+  ecosystem chain permanently removes an entity (see `UpdateEcoLife`/`UpdatePipeLife`/`UpdatePirateLife`/
+  `StepAbyss` - every state is cyclic, nothing has a terminal "eaten" or "dead" outcome that removes it from
+  the vector). This means each biome's life vector needs to support erasing entries and needs a Died/Eaten
+  terminal state with a real animation, likely with slow respawn/repopulation so a level doesn't empty out
+  over a long play session.
+
+This is a big, cross-cutting pass (touches every biome's ecosystem code, not just one), likely comparable in
+scope to the whole Pirate Ship retrofit again. Suggested shape for whoever picks this up: (1) a real swim
+helper for aquatic biomes (Hull first, since it's the specific complaint), (2) give eels a swim-patrol phase,
+(3) a school/flocking helper with personality-driven straggling, (4) a genuine "can die" terminal state with
+removal + respawn, usable by any chain, (5) then the Abyss's second art pass (environment first, since that's
+called out as behind the creatures), (6) expand real predation beyond the Hull's crabs where the brief
+supports it (e.g. the Hull's eels, once they swim, are a natural second predator).
+
+**Follow-up, same session, before any of the above was started** - another verbatim note, add to the same
+pass rather than treating as separate: "Also, and possible personality is that a beast can be exploratory.
+This adds to the fact that all beasts are not subject to certain walk/swim/fly patterns. They should be able
+to move in procedurally generated intelligent ways that feel alive. Like they are choosing their path. The
+exploratory personality has they continuing to move well beyond where they started and exploring the map."
+
+Concretely: right now essentially every creature's movement (`EcoWander`, `PipeWander`, the Island's own reuse
+of `EcoWander`, even the Abyss's `Pursue`/`FleeFrom`) is leashed to a `home` position - it patrols, hunts or
+flees, but always snaps back toward where it spawned, and the leash distance is a fixed constant per call site,
+never personality-driven. The user wants a new personality axis (an "exploratory" trait, alongside aggression/
+bravery/energy/curiosity - decide whether it's a 5th `PersonalityProfile` field or derived from existing ones,
+e.g. high curiosity + low bravery-need) that lets a creature roll a real, wandering, long-range path across the
+level rather than sitting in its home radius forever - "choosing their path" procedurally (not a fixed patrol
+loop) is the key ask, so this likely wants a genuine steering/pathing behavior (a random-walk waypoint picker
+over the level's actual solid tiles, or a noise-driven wander target that relocates itself periodically) rather
+than the current leash-and-return model, at least for creatures that roll high on this trait. Roll it into the
+same pass as the swim/flock/death work above, since it touches the same movement helpers.

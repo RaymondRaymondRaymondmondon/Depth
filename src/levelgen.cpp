@@ -68,7 +68,8 @@ Params ParamsFor(int level) {
     switch (level) {
         case 0: return {0.70f, 230, 40, 4, 9, 2, 3, 1, true, 0.0f, 0, 0, 0.48f};     // the Pipes: still forgiving, no wall jumps, but tighter gaps and denser set-pieces than before
         case 1: return {0.84f, 300, 64, 2, 5, 3, 4, 2, false, 0.42f, 9, 14, 0.27f};   // the Hull: verticality, shafts, footholds
-        default: return {0.95f, 310, 64, 1, 3, 3, 4, 3, false, 0.38f, 10, 14, 0.24f}; // the Pirate Ship: tiny footholds at the arc's edge
+        case 2: return {0.95f, 310, 64, 1, 3, 3, 4, 3, false, 0.38f, 10, 14, 0.24f}; // the Pirate Ship: tiny footholds at the arc's edge
+        default: return {0.91f, 340, 64, 1, 3, 3, 4, 3, false, 0.38f, 10, 15, 0.30f}; // the Island: harder than the Pirate Ship - narrower canopy footholds
     }
 }
 }  // namespace
@@ -461,10 +462,135 @@ static void BuildFleet(Grid& g, std::vector<Plat>& pl, Rng& rng, GenLevel& out, 
     wOut = x;
     out.exitRow = prevD - 1;
 }
+
+// The Island is jungle terrain over a solid canopy floor, open sky above - a coast-to-coast crossing that
+// randomizes its theme per seed (variant 0 ruined temple, 1 stilt village, 2 open hillside/palm traverse):
+//   ruin climb      stepped stone plinths (temple debris) rising to a high ledge - narrow, no shaft
+//   canyon crossing a mud-and-thorn ravine too wide to step over, with a coiled viper sometimes waiting below
+//   plank bridge    a rope-and-plank bridge over a ravine that gives way soon after you step on it
+//   vine chimney    a wall-jump shaft between two rock faces laced with thorny vines (climbs like a barnacle shaft)
+//   village stand   stepped huts on stilts, warriors behind cover, a monitor lizard patrolling the boards
+//   hillside run    a long open stretch under the palms, with poison-frog mud patches that pulse on a timer
+// Reuses the Hull/Pirate Ship's own hazard and enemy tiles (x/t/g/e/p/P/G/k/c/b/f/w), redrawn with jungle art
+// per-level in platformer.cpp - see CLAUDE.md's rendering notes; no new tile semantics or physics needed.
+static void BuildIsland(Grid& g, std::vector<Plat>& pl, Rng& rng, GenLevel& out, const Params& P, int& wOut, int variant) {
+    const int H = g.h, F = H - 6;
+    g.rect(0, F, g.w - 1, H - 1, '#');       // the jungle floor and everything under it
+    auto plinth = [&](int x0, int width, int top) { g.rect(x0, top, x0 + width - 1, H - 1, '#'); };
+    Plat start{2, 9, F, C_START, '#', SetPiece::None, 0, 3};
+    pl.push_back(start);
+    JumpArc a0 = CalculateValidJumpArc(0);
+    int gm = std::max(3, (int)std::floor((a0.maxReach * P.safety - 12) / kin::TILE));
+    auto gapFor = [&](int riseTiles) { // the widest safe gap for a hop that also climbs riseTiles, same margin as gm above
+        JumpArc a = CalculateValidJumpArc(riseTiles * kin::TILE);
+        if (!a.reachable) return 1;
+        return std::max(1, (int)std::floor((a.maxReach * P.safety - 12) / kin::TILE) - 1);
+    };
+    int x = 12, lastKind = -1, guard = 0;
+    while (x < P.length && guard++ < 60) {
+        int kind;
+        for (int tries = 0;; tries++) {
+            int r = rng.I(0, 99);
+            // ruin climbs, village stands and hillside runs lean into whichever theme the seed rolled
+            int ruinBias = variant == 0 ? 10 : 0, villageBias = variant == 1 ? 10 : 0;
+            kind = r < 16 + ruinBias ? 0 : r < 34 ? 1 : r < 50 ? 2 : r < 66 ? 3 : r < 83 + villageBias ? 4 : 5;
+            if (kind != lastKind || tries > 6) break;
+        }
+        lastKind = kind;
+        switch (kind) {
+            case 0: { // ruin climb: stepped stone plinths rising to a high ledge, no shaft - just tight vertical hops
+                int steps = rng.I(2, 3), stepW = rng.I(2, 3);
+                int px = x, py = F;
+                for (int k = 0; k < steps; k++) {
+                    int rise = 2, gap = std::max(1, gapFor(rise) - rng.I(0, 1));
+                    py -= rise;
+                    plinth(px, stepW, py);
+                    Plat step{px, px + stepW - 1, py, C_JUMP, '#', SetPiece::None, 0, px + 1};
+                    pl.push_back(step);
+                    if (k == steps - 2 && rng.C(0.5f) && g.get(px + stepW, py - 1) == '.') g.set(px + stepW, py - 1, 'o');
+                    px += stepW + gap;
+                }
+                if (rng.C(0.4f) && g.get(px - 2, py - 1) == '.') g.set(px - 2, py - 1, 'p'); // a fruit bat roosting over the ruin
+                x = px + 2;
+            } break;
+            case 1: { // canyon crossing: a mud-and-thorn ravine, sometimes a coiled viper waiting below
+                int gw = std::clamp(gm - 1, 4, 6);
+                for (int xx = x; xx < x + gw; xx++) g.set(xx, F, 'x');
+                if (gw >= 4 && rng.C(0.3f)) g.set(x + gw / 2, F, 'e'); // a viper coiled in the undergrowth
+                Plat before{x - 3, x - 1, F, C_JUMP, '#', SetPiece::None, 0, x - 1};
+                Plat after{x + gw, x + gw + 3, F, C_JUMP, '#', SetPiece::None, 0, x + gw};
+                pl.push_back(before); pl.push_back(after);
+                for (int k = 1; k <= 2; k++) g.set(x + gw * k / 3, F - 4, 'o');
+                out.setPieces[(int)SetPiece::ShipGap]++;
+                x = x + gw + 4;
+            } break;
+            case 2: { // plank bridge: rope-and-plank over a ravine, gives way soon after you step on it
+                int px2[3] = {x + 1, x + 5, x + 9};
+                for (int p2 : px2) { g.rect(p2, F - 1, p2 + 1, F - 1, 'f'); Plat plate{p2, p2 + 1, F - 1, C_JUMP, 'f', SetPiece::CrumbleRun, 0, p2}; pl.push_back(plate); }
+                for (int xx = x; xx < x + 12; xx++) if (g.get(xx, F) == '#') g.set(xx, F, 'x'); // the ravine floor, thorns below the boards
+                Plat after{x + 13, x + 15, F, C_JUMP, '#', SetPiece::None, 0, x + 13};
+                pl.push_back(after);
+                out.setPieces[(int)SetPiece::CrumbleRun]++;
+                x += 16;
+            } break;
+            case 3: { // vine chimney: a wall-jump shaft between two rock faces, laced with thorny vines
+                int iw = rng.I(3, 4);
+                bool thorny = rng.C(0.5f);
+                int Hs = std::min(rng.I(P.shaftMin, P.shaftMax + 1), MaxUpShaft(iw, thorny));
+                Plat tunnel{x, x + 2, F, C_JUMP, '#', SetPiece::None, 0, x + 1};
+                pl.push_back(tunnel);
+                Plat top = CarveShaft(g, tunnel, true, iw, Hs, thorny, rng.I(0, 2));
+                pl.push_back(top);
+                out.setPieces[(int)top.tag]++;
+                x = top.x1 + 4;
+            } break;
+            case 4: { // village stand: stepped huts on stilts, a warrior behind cover, a monitor lizard patrolling
+                int n = 3, w0 = 3;
+                int prevTop = F, sx = x + w0, prevEnd = x + w0 - 1;
+                for (int k = 0; k < n; k++) {
+                    int top = std::clamp(prevTop + rng.I(-2, 1), F - 3, F - 1);
+                    int gap = std::max(1, gapFor(prevTop - top) - 1);
+                    if (k > 0) sx = prevEnd + 1 + gap;
+                    g.rect(sx, top, sx + 2, F - 1, '#');
+                    if (k > 0) for (int xx = sx - gap; xx < sx; xx++) g.set(xx, F, 'x');
+                    Plat hut{sx, sx + 2, top, C_JUMP, '#', SetPiece::None, 0, sx + 1};
+                    pl.push_back(hut);
+                    if (k == 1 && rng.C(0.6f) && g.get(sx + 2, top - 1) == '.' && g.get(sx + 1, top - 1) == '.') { g.set(sx + 2, top - 1, 'P'); g.set(sx + 1, top - 1, 'k'); }
+                    else if (k == 2 && g.get(sx + 2, top - 1) == '.') g.set(sx + 2, top - 1, 'c'); // a monitor lizard defending the last hut
+                    prevTop = top; prevEnd = sx + 2;
+                }
+                int gapEnd = std::max(1, gapFor(prevTop - F) - 1);
+                Plat after{prevEnd + 1 + gapEnd, prevEnd + 3 + gapEnd, F, C_JUMP, '#', SetPiece::None, 0, prevEnd + 1 + gapEnd};
+                pl.push_back(after);
+                x = after.x1 + 1;
+            } break;
+            default: { // hillside run: a long open stretch under the palms, poison-frog mud patches pulsing underfoot
+                int len = 22;
+                for (int i = 4; i < len - 2; i += 6) { g.set(x + i, F, 't'); g.set(x + i, F - 4, 'o'); }
+                Plat run{x, x + len - 1, F, C_JUMP, '#', SetPiece::None, 0, x + 1};
+                pl.push_back(run);
+                x += len;
+            } break;
+        }
+        int breath = rng.I(5, 8);
+        if (rng.C(0.5f)) { // hanging vines: passable, but they slow a fall
+            int kx = x + rng.I(0, std::max(0, breath - 3)), kh = rng.I(3, 5);
+            for (int i = 0; i < 3; i++) for (int j = 1; j <= kh - (i == 1 ? 0 : 1); j++) if (g.get(kx + i, F - j) == '.') g.set(kx + i, F - j, 'w');
+        }
+        x += breath;
+    }
+    int fx = x + 3;
+    Plat fin{fx, fx + 6, F, C_JUMP, '#', SetPiece::None, 0, fx + 1};
+    pl.push_back(fin);
+    g.set(fx + 3, F - 1, 'E'); // no boss arena for this first pass - the crossing itself ends the level, like the Pipes
+    wOut = fx + 7;
+    out.exitRow = F - 1;
+}
 // ---------------------------------------------------------------------------- the generator
 GenLevel GenerateLevel(int level, unsigned seed, float scale) {
     Params P = ParamsFor(level);
     P.safety = std::min(0.97f, P.safety * scale);
+    int islandVariant = (int)(seed % 3); // 0 ruined temple, 1 stilt village, 2 hillside/palm traverse - read back by platformer.cpp's Island art pass from p.seed the same way
     Rng rng(seed * 2654435761u + (unsigned)level * 97u + 12345u);
     const int W = P.length + 48;
     Grid g(W, P.H, P.enclosed ? '#' : '.');
@@ -634,7 +760,9 @@ GenLevel GenerateLevel(int level, unsigned seed, float scale) {
     if (level != 0) {
         pl.clear();
         g = Grid(W, P.H, '.');
-        if (level == 1) BuildTrench(g, pl, rng, out, P, w); else BuildFleet(g, pl, rng, out, P, w);
+        if (level == 1) BuildTrench(g, pl, rng, out, P, w);
+        else if (level == 2) BuildFleet(g, pl, rng, out, P, w);
+        else BuildIsland(g, pl, rng, out, P, w, islandVariant);
     } else {
     // ---- pass 1: the critical path
     int guard = 0;

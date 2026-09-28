@@ -294,7 +294,7 @@ struct DungeonState {
 };
 
 // ---------- platformer ----------
-enum PlatLevel { PL_PIPES, PL_HULL, PL_PIRATE, PL_COUNT };
+enum PlatLevel { PL_PIPES, PL_HULL, PL_PIRATE, PL_ISLAND, PL_COUNT };
 
 // A per-entity personality, rolled once at spawn from the level's seed, so the same species reads differently
 // run to run (an aggressive eel this run, a timid one next time). Shared by every ecosystem-framework biome:
@@ -383,6 +383,25 @@ struct PlatPirateLife {
     float stateTimer = 0, phase = 0;
     int dogIndex = -1; // FleaSwarm: which p.pirateLife entry is its host Guard Dog
 };
+// The Island's own ten-species chain (ECOSYSTEM_BESTIARY.md, "The Island"), same architecture as the Pirate
+// Ship's above. The Warriors/Gunners themselves are the 'P'/'G' enemy tiles (real hazards, placed by the
+// generator); this overlay is the rest of the food web. A stray shot passing a Boar sends it Charging - the
+// one real hazard in this chain, same shape as the Berserk Guard Dog; its rumble sends roosting Bats
+// Swarming, and a coiled Snake Dropping onto it. A Web-Spinning Spider's fixed web catches a Swarming Bat
+// (freed after a moment, mirrors the Pipes' Water-Spider/Moth). A Coconut Crab periodically Cuts a coconut
+// loose; a Seagull Circling nearby Dives to steal it, then returns. A Hunting Dog that notices a Charging
+// Boar or a Fleeing creature nearby goes Tracking toward it. Monitor Lizards and Poison Dart Frogs are
+// simpler ambient scenery (the Lizard bares its teeth if approached; the Frog just hops).
+enum class IslandEcoKind { Boar, Snake, Lizard, Bat, Spider, Crab, Frog, Seagull, Dog };
+enum class IslandEcoState { Idle, Wander, Charging, Dropping, Swarming, Caught, Cutting, Circling, Diving, Tracking };
+struct PlatIslandLife {
+    IslandEcoKind kind;
+    Vector2 pos{0, 0}, home{0, 0};
+    PersonalityProfile personality;
+    float dir = 1;
+    IslandEcoState state = IslandEcoState::Idle;
+    float stateTimer = 0, phase = 0;
+};
 struct PlatShot { Vector2 pos, vel; float life; int kind; }; // 0 musket ball, 1 lit bomb, 2 explosion, 3 falling ink, 4 torpedo, 5 cannonball, 6 rolling barrel
 struct PlatLauncher { int tx, ty; char type; float t; }; // a torpedo tube (T), a deck cannon (N) or a barrel chute (y): fires on a timer, with a warning before
 struct PlatParticle { Vector2 p, v; float life, max, size; Color c; };
@@ -452,6 +471,7 @@ struct PlatformState {
     std::vector<PlatPipeLife> pipeLife; // Pipes only - see PlatPipeLife; never a hazard, never reacts to the diver
     std::vector<Vector2> lightSpots;    // Pipes only - the few surviving 'o' bioluminescent leaks Dust Moths fly toward
     std::vector<PlatPirateLife> pirateLife; // Pirate Ship only - see PlatPirateLife; a Berserk Guard Dog IS a hazard
+    std::vector<PlatIslandLife> islandLife; // Island only - see PlatIslandLife; a Charging Boar IS a hazard
     PlatBoss boss;
     std::vector<PlatParticle> particles;
     int coins = 0, deaths = 0, reward = 0, relic = -1, relic2 = -1; // relic2: Blackbeard sometimes leaves a second
@@ -574,8 +594,8 @@ struct Game {
     int relicScroll = 0;
     int upgrades[UP_COUNT] = {0, 0, 0, 0, 0};
     std::vector<int> platLayouts[PL_COUNT]; // which chunks make up each platform level's current layout
-    bool platCleared[PL_COUNT] = {false, false, false};
-    float platBest[PL_COUNT] = {0, 0, 0};    // best clear time in seconds (0 = never cleared)
+    bool platCleared[PL_COUNT] = {};
+    float platBest[PL_COUNT] = {};    // best clear time in seconds (0 = never cleared)
     bool platHard = false;                   // Periscope option: the full-strength layouts
     bool platCheckpoints = false;            // Periscope option: checkpoints, at the cost of the relic
     bool platHullBoss = true;                // Periscope option: fight the Kraken (only chance of a relic)
@@ -781,3 +801,4 @@ bool VerifyHullLife();                // debug (depth.exe --verify-hull-life): p
 bool VerifyHullEcosystem();           // debug (depth.exe --verify-hull-ecosystem): proves the Hull's 7-species chain (ink -> puff -> leech -> anemone) fires
 bool VerifyPipeEcosystem();           // debug (depth.exe --verify-pipe-ecosystem): proves the Pipes' 10-species chain (web -> bite -> curl/roll -> flash -> panic) fires, entirely without the diver
 bool VerifyPirateEcosystem();         // debug (depth.exe --verify-pirate-ecosystem): proves the Pirate Ship's chain (scare -> fuse -> explode -> scatter -> infest -> berserk) fires
+bool VerifyIslandEcosystem();         // debug (depth.exe --verify-island-ecosystem): proves the Island's chain (charge -> swarm/drop, web catch, coconut steal, dog tracking) fires
