@@ -474,12 +474,14 @@ enum class AbyssCreatureKind {
     TrenchWorm,  // lunges out of the wall at anything that lingers nearby
     Hatchetfish, // harmless ambient schooling prey - just life in the water, no threat, no reward
     BrineSlug,   // slow, heavy, crushing - the hazard that makes the bowling-lane set-piece work
+    RockLedge,   // a plain, permanent stone shelf: unlike a Glass Sponge it never shatters, so a diver can
+                 // always find somewhere to wait out whatever's patrolling below
 };
 
 // A set-piece band of depth, generated once from the level seed (see PopulateEcosystem): the trench's own
 // geometry (TrenchRadius) is left untouched by these - they're layered on as physics/behaviour effects so the
 // proven, verified wall collision never has to change shape underneath them.
-enum class AbyssZoneKind { Vent, SiphonophoreMaze, BrinePool, BowlingLane };
+enum class AbyssZoneKind { Vent, SiphonophoreMaze, BrinePool, BowlingLane, Cavern };
 struct AbyssZone {
     AbyssZoneKind kind = AbyssZoneKind::Vent;
     float depth = 0, span = 40;   // the band this zone covers: [depth, depth + span)
@@ -516,6 +518,8 @@ struct AbyssState {
     float stamina = 100.0f;
     bool isDashing = false;
     float dashTimer = 0, dashCooldown = 0;
+    float tapTime[4] = {-10, -10, -10, -10}; // last press time of right/left/up/down, for double-tap-to-dash
+    float camYaw = 0, camPitch = 0;   // free-look orbit around the player, mouse-controlled, clamped to the trench
     bool isGliding = false, glidingUp = false, glidingDown = false;
     float depth = 0;                  // world -Y of the player: how far the descent has gone
     float bestDepth = 0;

@@ -19,16 +19,45 @@ namespace {
 float Hash1(float x) { float s = sinf(x * 12.9898f + 1.7f) * 43758.5453f; return s - floorf(s); }
 float Hash2(float x, float y) { float s = sinf(x * 12.9898f + y * 78.233f) * 43758.5453f; return s - floorf(s); }
 
+// Three points down the shaft where it bulges into a wide horizontal cavern rather than a plain vertical
+// drop - the only way through is to drift toward the bulge's angle and find the gap, not just fall
+// straight down, per feedback that the descent was "an easy descent down" with no horizontal sections.
+// A pure function of (depth, seed) - not stored state - so the mesh builder (which only ever sees a seed)
+// and the player-collision code agree on the shape automatically, and GenerateZones below can locate the
+// same bands to place a blocking ledge and drop the vertical gap in the right place.
+struct CavernInfo { bool active = false; float angle = 0, t = 0; };
+constexpr float CAVERN_CENTERS[3] = {220.0f, 480.0f, 730.0f};
+constexpr float CAVERN_SPAN = 85.0f;
+CavernInfo CavernAt(float depth, unsigned seed) {
+    for (int i = 0; i < 3; i++) {
+        float c = CAVERN_CENTERS[i] + (Hash2(CAVERN_CENTERS[i], seed * 11.0f + i) - 0.5f) * 30.0f;
+        if (depth > c - CAVERN_SPAN * 0.5f && depth < c + CAVERN_SPAN * 0.5f) {
+            float angle = Hash2(c, seed * 13.0f) * 2 * PI;
+            float t = 1.0f - fabsf(depth - c) / (CAVERN_SPAN * 0.5f); // 0 at the band's edges, 1 at its centre
+            return {true, angle, t};
+        }
+    }
+    return {};
+}
+
 // The trench's cross-section radius at a given depth/angle: a base width that narrows and widens in slow
 // bands down the shaft, jittered by an angular hash so the wall reads as jagged rock, not a smooth pipe.
+// Widened overall per feedback that the playable area felt cramped, and it bulges hard toward a cavern's
+// angle where one is present, tapering off with angular distance so it reads as a distinct room, not a
+// wider pipe.
 float TrenchRadius(float depth, float angle, unsigned seed) {
-    float band = 6.5f + 2.2f * sinf(depth * 0.045f + seed * 0.7f);
+    float band = 10.0f + 3.0f * sinf(depth * 0.045f + seed * 0.7f);
     float jag = 0;
     for (int o = 0; o < 3; o++) {
         float freq = 3.0f + o * 5.0f;
         jag += (Hash2(cosf(angle) * freq + seed * 3.1f, depth * 0.08f + o * 11.0f) - 0.5f) * (1.4f / (o + 1));
     }
-    return std::max(2.2f, band + jag);
+    CavernInfo cav = CavernAt(depth, seed);
+    if (cav.active) {
+        float da = atan2f(sinf(angle - cav.angle), cosf(angle - cav.angle));
+        band += cav.t * expf(-(da * da) / (0.85f * 0.85f)) * 16.0f;
+    }
+    return std::max(3.2f, band + jag);
 }
 
 constexpr int RING_SEGMENTS = 18;
@@ -60,7 +89,7 @@ void BuildTrenchMesh(unsigned seed) {
             mesh.vertices[vi * 3 + 0] = p.x; mesh.vertices[vi * 3 + 1] = p.y; mesh.vertices[vi * 3 + 2] = p.z;
             Vector3 n = Vector3Normalize({-cosf(a), 0, -sinf(a)}); // inward-facing normal (we're inside the shaft)
             mesh.normals[vi * 3 + 0] = n.x; mesh.normals[vi * 3 + 1] = n.y; mesh.normals[vi * 3 + 2] = n.z;
-            float shade = 0.34f + 0.16f * Hash2(a * 7.0f, depth * 0.1f + seed);
+            float shade = 0.40f + 0.34f * Hash2(a * 7.0f, depth * 0.1f + seed);
             mesh.colors[vi * 4 + 0] = (unsigned char)(shade * 90);
             mesh.colors[vi * 4 + 1] = (unsigned char)(shade * 110);
             mesh.colors[vi * 4 + 2] = (unsigned char)(shade * 130);
@@ -118,6 +147,11 @@ void GenerateZones(AbyssState& a) {
     a.zones.push_back({AbyssZoneKind::SiphonophoreMaze, jit(480, 30, 3), 70, 0, 1.0f});
     a.zones.push_back({AbyssZoneKind::BrinePool, jit(620, 30, 4), 90, 0, 0.75f});
     a.zones.push_back({AbyssZoneKind::Vent, jit(800, 30, 5), 60, Hash2(2, (float)a.seed) * 2 * PI, 1.15f});
+    for (float c : CAVERN_CENTERS) {
+        CavernInfo cav = CavernAt(c, a.seed); // the exact centre may have jittered slightly off `c`; re-resolve it
+        if (!cav.active) cav = CavernAt(c + 1.0f, a.seed);
+        a.zones.push_back({AbyssZoneKind::Cavern, c - CAVERN_SPAN * 0.5f, CAVERN_SPAN, cav.angle, 1.0f});
+    }
 }
 
 void PopulateEcosystem(AbyssState& a) {
@@ -131,9 +165,19 @@ void PopulateEcosystem(AbyssState& a) {
         a.creatures.push_back(c);
         return a.creatures.back();
     };
-    // Glass Sponge ledges: the only safe footholds, spaced down the shaft at varying angles.
+    // Glass Sponge ledges: fragile footholds, spaced down the shaft at varying angles.
     for (float d = 40; d < ABYSS_DEPTH_SPAN - 30; d += 55 + Hash1(d) * 25)
         spawn(AbyssCreatureKind::GlassSponge, d, Hash2(d, a.seed * 2.0f) * 2 * PI, 1.4f, AbyssCreatureState::Idle);
+    // Rock Ledges: plain stone shelves that never shatter, interleaved with the sponges so there's always
+    // somewhere durable to wait out a predator below - per feedback that the descent needed real rest stops.
+    for (float d = 65; d < ABYSS_DEPTH_SPAN - 30; d += 60 + Hash1(d + 6100) * 25)
+        spawn(AbyssCreatureKind::RockLedge, d, Hash2(d + 6100, a.seed * 2.4f) * 2 * PI, 1.7f, AbyssCreatureState::Idle);
+    // Each cavern gets one wide blocking ledge opposite its bulge - falling straight down the old centre
+    // line lands on it, so crossing the cavern toward the bulge angle to find the gap is the only way past.
+    for (const auto& z : a.zones) if (z.kind == AbyssZoneKind::Cavern) {
+        AbyssCreature& led = spawn(AbyssCreatureKind::RockLedge, z.depth + z.span * 0.5f, z.angle + PI, 3.0f, AbyssCreatureState::Idle);
+        led.phase = 1.0f; // marks it as a cavern floor: drawn wider/flatter than an ordinary resting ledge
+    }
     // Giant Isopods: cling to the wall until a downdraft, a nearby dash, or (in the bowling lane) their own
     // clock dislodges them - the lane's whole gimmick is that they let go on a timer, not just on request.
     for (float d = 70; d < ABYSS_DEPTH_SPAN - 30; d += 70 + Hash1(d + 900) * 40)
@@ -202,6 +246,32 @@ void Disturb(AbyssState& a, Vector3 at, float radius) {
             if (d < radius * 1.5f) { c.state = AbyssCreatureState::Fleeing; c.stateTimer = 0; }
         }
     }
+}
+
+// A predictive pursuit: steers toward where the target will be (leading its current velocity), not just
+// where it is right now, and does it by accelerating the creature's own velocity toward a desired one
+// rather than snapping velocity outright - real inertia, and a genuinely harder target to juke by simply
+// changing direction than a creature that teleport-turns to face you every frame.
+void Pursue(AbyssCreature& c, Vector3 targetPos, Vector3 targetVel, float maxSpeed, float accel, float dt) {
+    float dist = Vector3Distance(c.pos, targetPos);
+    float lead = std::clamp(dist / std::max(1.0f, maxSpeed), 0.0f, 0.6f);
+    Vector3 predicted = Vector3Add(targetPos, Vector3Scale(targetVel, lead));
+    Vector3 toward = Vector3Subtract(predicted, c.pos);
+    if (Vector3Length(toward) > 0.01f) {
+        Vector3 desired = Vector3Scale(Vector3Normalize(toward), maxSpeed);
+        c.vel = Vector3Add(c.vel, Vector3Scale(Vector3Subtract(desired, c.vel), std::min(1.0f, accel * dt)));
+    }
+    c.pos = Vector3Add(c.pos, Vector3Scale(c.vel, dt));
+}
+
+// A scared prey animal accelerates away from whatever spooked it (with its own inertia, not a scripted
+// orbit) and only settles once it's put real distance between itself and the threat.
+void FleeFrom(AbyssCreature& c, Vector3 threat, float maxSpeed, float accel, float dt) {
+    Vector3 away = Vector3Subtract(c.pos, threat);
+    if (Vector3Length(away) < 0.05f) away = {0, 1, 0};
+    Vector3 desired = Vector3Scale(Vector3Normalize(away), maxSpeed);
+    c.vel = Vector3Add(c.vel, Vector3Scale(Vector3Subtract(desired, c.vel), std::min(1.0f, accel * dt)));
+    c.pos = Vector3Add(c.pos, Vector3Scale(c.vel, dt));
 }
 
 // Every hazard resolves the same way: a hard knockback away from its source and a stamina cost, gated by a
@@ -326,26 +396,42 @@ static void StepAbyss(Game& g, float dt, Vector2 drift, bool dashPressed, bool g
                 }
                 break;
             case AbyssCreatureKind::GulperEel:
-            case AbyssCreatureKind::VampireSquid:
-                if (c.state == AbyssCreatureState::Hunting) {
-                    bool squid = c.kind == AbyssCreatureKind::VampireSquid;
-                    Vector3 toPlayer = Vector3Subtract(a.playerPos, c.pos);
-                    float dist = Vector3Length(toPlayer);
-                    if (dist > 0.5f) c.vel = Vector3Scale(Vector3Normalize(toPlayer), (squid ? 7.5f : 5.0f) + c.personality.aggression * (squid ? 5.0f : 4.0f));
-                    c.pos = Vector3Add(c.pos, Vector3Scale(c.vel, dt));
-                    if (dist < 1.3f) { HazardHit(a, c.pos, squid ? 30.0f : 22.0f, squid ? 10.0f : 9.0f); c.state = AbyssCreatureState::Idle; c.stateTimer = 0; c.vel = {0, 0, 0}; }
+            case AbyssCreatureKind::VampireSquid: {
+                // Smart, physical predators: they notice the player on their own (ambient perception, gated
+                // by curiosity/aggression - not just when a dash or a shattering sponge disturbs them), then
+                // pursue with real inertia and a predictive lead on the player's own velocity, so changing
+                // direction alone doesn't shake them the way snapping straight at the current position would.
+                bool squid = c.kind == AbyssCreatureKind::VampireSquid;
+                float maxSpd = (squid ? 8.0f : 5.4f) + c.personality.aggression * (squid ? 5.5f : 4.5f) + c.personality.energy * 1.5f;
+                float accel = (squid ? 10.0f : 6.5f) + c.personality.energy * 4.0f; // how fast it can turn onto a new heading
+                float perception = (squid ? 24.0f : 17.0f) * (0.6f + c.personality.curiosity * 0.9f);
+                float dist = Vector3Distance(c.pos, a.playerPos);
+                if (c.state == AbyssCreatureState::Idle) {
+                    if (dist < perception && c.personality.aggression > 0.12f) { c.state = AbyssCreatureState::Hunting; c.stateTimer = 0; }
+                    else { c.vel = Vector3Scale(c.vel, 1.0f / (1.0f + 3.0f * dt)); c.pos = Vector3Add(c.pos, Vector3Scale(c.vel, dt)); } // drifts to rest, doesn't teleport-stop
+                } else if (c.state == AbyssCreatureState::Hunting) {
+                    Pursue(c, a.playerPos, a.playerVel, maxSpd, accel, dt);
+                    dist = Vector3Distance(c.pos, a.playerPos);
+                    if (dist < 1.3f) { HazardHit(a, c.pos, squid ? 30.0f : 22.0f, squid ? 10.0f : 9.0f); c.state = AbyssCreatureState::Idle; c.stateTimer = 0; c.vel = Vector3Scale(c.vel, 0.25f); }
                     c.stateTimer += dt;
-                    if (c.stateTimer > 2.2f) { c.state = AbyssCreatureState::Idle; c.stateTimer = 0; c.vel = {0, 0, 0}; }
+                    // persistence scales with aggression/energy - a relentless roll keeps coming far longer
+                    // than a half-hearted one, and gives up only once the player has genuinely broken away
+                    float patience = 2.5f + c.personality.aggression * 4.0f + c.personality.energy * 2.0f;
+                    if (c.stateTimer > patience || dist > perception * 1.8f) { c.state = AbyssCreatureState::Idle; c.stateTimer = 0; }
                 }
                 break;
+            }
             case AbyssCreatureKind::TrenchWorm: {
                 float distToHome = Vector3Distance(c.home, a.playerPos);
+                float perception = 5.5f + c.personality.aggression * 2.5f + c.personality.curiosity * 1.5f;
                 if (c.state == AbyssCreatureState::Idle) {
                     c.pos = c.home; // coiled back into the wall - nothing to see until it strikes
                     if (c.stateTimer > 0) c.stateTimer -= dt;
-                    else if (distToHome < 5.5f + c.personality.aggression * 2.0f) {
+                    else if (distToHome < perception) {
                         c.state = AbyssCreatureState::Lunging; c.stateTimer = 0;
-                        c.vel = Vector3Scale(Vector3Normalize(Vector3Subtract(a.playerPos, c.home)), 9.0f);
+                        // leads the strike at where the player is heading, not just where they stood when it coiled
+                        Vector3 lead = Vector3Add(a.playerPos, Vector3Scale(a.playerVel, 0.25f));
+                        c.vel = Vector3Scale(Vector3Normalize(Vector3Subtract(lead, c.home)), 10.0f + c.personality.energy * 3.0f);
                     }
                 } else if (c.state == AbyssCreatureState::Lunging) {
                     c.pos = Vector3Add(c.pos, Vector3Scale(c.vel, dt));
@@ -372,11 +458,20 @@ static void StepAbyss(Game& g, float dt, Vector2 drift, bool dashPressed, bool g
                 break;
             }
             case AbyssCreatureKind::Hatchetfish: {
+                // a real scared-prey reaction: accelerate away from whatever spooked it, with its own
+                // inertia, then settle back toward its school's home point once it's actually put distance
+                // between itself and the threat - not a fixed-radius orbit that always looks the same.
                 bool fleeing = c.state == AbyssCreatureState::Fleeing;
-                c.phase += dt * (fleeing ? 3.0f : 1.0f);
-                float orbitR = fleeing ? 3.5f : 1.2f;
-                c.pos = Vector3Add(c.home, {cosf(c.phase) * orbitR, sinf(c.phase * 1.3f) * 0.4f, sinf(c.phase) * orbitR});
-                if (fleeing) { c.stateTimer += dt; if (c.stateTimer > 1.5f) { c.state = AbyssCreatureState::Idle; c.stateTimer = 0; } }
+                if (fleeing) {
+                    FleeFrom(c, a.playerPos, 6.0f + c.personality.energy * 3.0f, 14.0f, dt);
+                    c.stateTimer += dt;
+                    if (c.stateTimer > 1.2f && Vector3Distance(c.pos, c.home) > 2.5f) { c.state = AbyssCreatureState::Idle; c.stateTimer = 0; }
+                } else {
+                    c.phase += dt * 1.0f;
+                    Vector3 driftTarget = Vector3Add(c.home, {cosf(c.phase) * 1.2f, sinf(c.phase * 1.3f) * 0.4f, sinf(c.phase) * 1.2f});
+                    c.vel = Vector3Add(c.vel, Vector3Scale(Vector3Subtract(driftTarget, c.pos), std::min(1.0f, 4.0f * dt)));
+                    c.pos = Vector3Add(c.pos, Vector3Scale(c.vel, dt));
+                }
                 break;
             }
             case AbyssCreatureKind::Leviathan: {
@@ -413,6 +508,16 @@ static void StepAbyss(Game& g, float dt, Vector2 drift, bool dashPressed, bool g
             else { s.state = AbyssCreatureState::Shattered; Disturb(a, s.pos, 8.0f); }
         }
     }
+    // ---- Rock Ledges: a plain stone shelf, always safe to land on at any speed - the dependable rest stop
+    // a Glass Sponge can't be, since those are meant to punish a hard landing ----
+    for (auto& s : a.creatures) {
+        if (s.kind != AbyssCreatureKind::RockLedge) continue;
+        float rx = fabsf(s.pos.x - a.playerPos.x), rz = fabsf(s.pos.z - a.playerPos.z);
+        float reach = s.phase > 0.5f ? 3.2f : 1.8f; // the cavern's blocking ledge is wider than an ordinary one
+        if (rx < reach && rz < reach && a.playerPos.y <= s.pos.y + 0.3f && a.playerVel.y <= 0.0f) {
+            a.playerVel.y = 0; a.playerPos.y = s.pos.y;
+        }
+    }
 
     // plankton puffs fade
     for (auto& p : a.puffs) p.life += dt;
@@ -436,15 +541,26 @@ static void StepAbyss(Game& g, float dt, Vector2 drift, bool dashPressed, bool g
 }
 
 void UpdateAbyss(Game& g, float dt) {
+    AbyssState& a = g.abyss;
     Vector2 drift{0, 0};
     bool dashPressed = false, glideHeld = false, aimUp = false, aimDown = false;
-    if (!g.abyss.verifying) {
-        if (IsKeyDown(KEY_D) || IsKeyDown(KEY_RIGHT)) drift.x += 1;
-        if (IsKeyDown(KEY_A) || IsKeyDown(KEY_LEFT))  drift.x -= 1;
-        if (IsKeyDown(KEY_W) || IsKeyDown(KEY_UP))   { drift.y += 1; aimUp = true; }
-        if (IsKeyDown(KEY_S) || IsKeyDown(KEY_DOWN))  { drift.y -= 1; aimDown = true; }
-        dashPressed = IsKeyPressed(KEY_SPACE);
+    if (!a.verifying) {
+        bool right = IsKeyDown(KEY_D) || IsKeyDown(KEY_RIGHT), left = IsKeyDown(KEY_A) || IsKeyDown(KEY_LEFT);
+        bool up = IsKeyDown(KEY_W) || IsKeyDown(KEY_UP), down = IsKeyDown(KEY_S) || IsKeyDown(KEY_DOWN);
+        if (right) drift.x += 1;
+        if (left)  drift.x -= 1;
+        if (up)   { drift.y += 1; aimUp = true; }
+        if (down)  { drift.y -= 1; aimDown = true; }
         glideHeld = IsKeyDown(KEY_LEFT_SHIFT);
+        // Dash on Space, or (per feedback that Space alone wasn't discoverable) a double-tap of a movement
+        // key within 0.3s, the way most games with a dodge/dash actually teach it.
+        dashPressed = IsKeyPressed(KEY_SPACE);
+        bool tapped[4] = {IsKeyPressed(KEY_D) || IsKeyPressed(KEY_RIGHT), IsKeyPressed(KEY_A) || IsKeyPressed(KEY_LEFT),
+                           IsKeyPressed(KEY_W) || IsKeyPressed(KEY_UP), IsKeyPressed(KEY_S) || IsKeyPressed(KEY_DOWN)};
+        for (int i = 0; i < 4; i++) if (tapped[i]) {
+            if (a.time - a.tapTime[i] < 0.3f) dashPressed = true;
+            a.tapTime[i] = a.time;
+        }
     }
     StepAbyss(g, dt, drift, dashPressed, glideHeld, aimUp, aimDown);
 }
@@ -460,6 +576,7 @@ static Color KindColor(AbyssCreatureKind k) {
         case AbyssCreatureKind::Hatchetfish:  return {200, 220, 255, 255};
         case AbyssCreatureKind::BrineSlug:    return {90, 140, 120, 255};
         case AbyssCreatureKind::Leviathan:    return {14, 16, 24, 255};
+        case AbyssCreatureKind::RockLedge:    return {90, 88, 96, 255};
         default: return WHITE;
     }
 }
@@ -520,14 +637,31 @@ void SceneAbyss(Game& g) {
 
     // BeginFrame/EndFrame are owned by the caller (the main loop or --shots), exactly like every other
     // Scene* function - this only draws into the frame that's already open.
-    // A fixed behind-and-above chase offset, not velocity-derived: with the player falling almost
-    // straight down for most of the descent, a velocity-aligned look direction ends up parallel to the
-    // up vector (a near-zero horizontal drift makes lookDir ~= {0,-1,0} = -up), which degenerates
-    // raylib's LookAt into a singular view matrix and renders nothing at all. A constant offset avoids
-    // that entirely and still reads as "looking down the shaft" since the shaft itself runs along -Y.
+    //
+    // Free-look orbit around the player (mouse), not a fixed offset - per feedback that the camera
+    // couldn't look around at all. Pitch stays clamped well short of +-90 degrees: a look direction
+    // exactly parallel to the up vector degenerates raylib's LookAt into a singular view matrix and
+    // renders nothing (the bug the old fixed-offset comment above used to describe), so this both fixes
+    // that and gives a real look-around range without reintroducing it.
+    if (!a.verifying) {
+        Vector2 md = GetMouseDelta();
+        a.camYaw -= md.x * 0.0035f;
+        a.camPitch = std::clamp(a.camPitch - md.y * 0.0035f, -1.15f, 0.95f);
+    }
+    float camDist = 5.2f;
+    Vector3 orbit{cosf(a.camPitch) * sinf(a.camYaw) * camDist, 1.5f + sinf(a.camPitch) * camDist, cosf(a.camPitch) * cosf(a.camYaw) * camDist};
+    Vector3 camPos = Vector3Add(a.playerPos, orbit);
+    // clamped inside the trench so getting close to a wall pulls the camera in rather than letting it
+    // poke through the mesh and show the void/outside beyond it - the other half of the same complaint.
+    {
+        float camDepth = -camPos.y, camAngle = atan2f(camPos.z, camPos.x);
+        float camHoriz = sqrtf(camPos.x * camPos.x + camPos.z * camPos.z);
+        float camWallR = TrenchRadius(camDepth, camAngle, a.seed) - 0.5f;
+        if (camHoriz > camWallR && camWallR > 0.1f) { float k = camWallR / camHoriz; camPos.x *= k; camPos.z *= k; }
+    }
     Camera3D cam{};
-    cam.position = Vector3Add(a.playerPos, {0, 1.4f, 4.2f});
-    cam.target = Vector3Add(a.playerPos, {0, -2.6f, 0});
+    cam.position = camPos;
+    cam.target = Vector3Add(a.playerPos, {0, -1.3f, 0}); // biased down the shaft (the fall direction), not dead-on the player
     cam.up = {0, 1, 0};
     cam.fovy = 65.0f;
     cam.projection = CAMERA_PERSPECTIVE;
@@ -564,19 +698,95 @@ void SceneAbyss(Game& g) {
     for (auto& c : a.creatures) {
         if (c.state == AbyssCreatureState::Shattered) continue;
         Color col = KindColor(c.kind);
+        // Facing along current velocity when moving, otherwise a stable per-entity default - so a lunging
+        // Trench Worm or a hunting Eel visibly orients toward its target instead of always pointing one way.
+        Vector3 face = Vector3LengthSqr(c.vel) > 0.05f ? Vector3Normalize(c.vel) : Vector3{cosf(c.wallAngle + PI), 0, sinf(c.wallAngle + PI)};
         switch (c.kind) {
-            case AbyssCreatureKind::GlassSponge: DrawCylinderEx(c.pos, Vector3Add(c.pos, {0, 0.6f, 0}), 1.5f, 0.3f, 6, Fade(col, 0.55f)); break;
-            case AbyssCreatureKind::GiantIsopod:  DrawCapsule(c.pos, Vector3Add(c.pos, {0.7f, 0, 0}), 0.35f, 6, 4, col); break;
-            case AbyssCreatureKind::GulperEel:    DrawCapsule(c.pos, Vector3Add(c.pos, {1.6f, 0, 0}), 0.4f, 6, 4, col); break;
-            case AbyssCreatureKind::VampireSquid: DrawCapsule(c.pos, Vector3Add(c.pos, {1.1f, 0, 0}), 0.5f, 6, 4, col); DrawSphere(Vector3Add(c.pos, {1.1f, 0, 0}), 0.15f, Fade(Color{255, 120, 220, 255}, 0.7f)); break;
+            case AbyssCreatureKind::GlassSponge: {
+                // a small crystalline cluster, not one plain cone - three uneven crystal spires
+                DrawCylinderEx(c.pos, Vector3Add(c.pos, {0, 0.7f, 0}), 1.4f, 0.25f, 6, Fade(col, 0.55f));
+                DrawCylinderEx(Vector3Add(c.pos, {0.6f, 0, 0.3f}), Vector3Add(c.pos, {0.6f, 0.45f, 0.3f}), 0.6f, 0.1f, 5, Fade(col, 0.5f));
+                DrawCylinderEx(Vector3Add(c.pos, {-0.5f, 0, -0.4f}), Vector3Add(c.pos, {-0.5f, 0.35f, -0.4f}), 0.5f, 0.08f, 5, Fade(col, 0.45f));
+                break;
+            }
+            case AbyssCreatureKind::GiantIsopod: {
+                // an armored, segmented body tapering from a broad head to a narrow tail, like a real isopod
+                Vector3 side{-face.z, 0, face.x};
+                for (int s = 0; s < 4; s++) {
+                    float k = s / 3.0f;
+                    Vector3 p = Vector3Add(c.pos, Vector3Scale(face, -k * 0.55f));
+                    DrawSphere(p, 0.42f - k * 0.14f, Tone(col, -k * 0.3f));
+                }
+                DrawCapsule(Vector3Subtract(c.pos, Vector3Scale(side, 0.4f)), Vector3Add(c.pos, Vector3Scale(side, 0.4f)), 0.08f, 4, 2, Tone(col, -0.3f)); // legs, suggested as one bar
+                DrawSphere(Vector3Add(c.pos, Vector3Scale(face, 0.3f)), 0.05f, BLACK); // an eye at the head end
+                break;
+            }
+            case AbyssCreatureKind::GulperEel: {
+                // a long, sinuous, segmented body behind a disproportionately huge hinged jaw - the defining
+                // silhouette from the brief ("massive jaws open")
+                bool hunting = c.state == AbyssCreatureState::Hunting;
+                for (int s = 0; s < 5; s++) {
+                    float k = s / 4.0f;
+                    Vector3 p = Vector3Add(c.pos, Vector3Scale(face, -k * 2.0f));
+                    p.y += sinf(a.time * 4.0f - k * 2.2f + c.phase) * 0.15f * (hunting ? 1.6f : 1.0f);
+                    DrawSphere(p, 0.42f - k * 0.22f, col);
+                }
+                Vector3 jawPivot = Vector3Add(c.pos, Vector3Scale(face, 0.35f));
+                float gape = hunting ? 0.55f : 0.15f;
+                DrawTriangle3D(Vector3Add(jawPivot, Vector3Scale(face, 0.7f)), Vector3Add(jawPivot, {0, gape, 0}), Vector3Add(jawPivot, {0, -gape, 0}), Tone(col, hunting ? 0.5f : 0.1f));
+                DrawSphere(Vector3Add(c.pos, {0, 0.15f, 0}), 0.06f, Fade(Color{255, 240, 200, 255}, 0.8f)); // a faint lure/eye glint
+                break;
+            }
+            case AbyssCreatureKind::VampireSquid: {
+                DrawSphere(c.pos, 0.55f, col);
+                DrawSphere(Vector3Add(c.pos, Vector3Scale(face, 0.4f)), 0.2f, Tone(col, 0.4f)); // a small head lobe leading the mantle
+                for (int t2 = 0; t2 < 7; t2++) {
+                    float ta = t2 * 2 * PI / 7 + c.phase;
+                    Vector3 dir = Vector3Add(Vector3Scale(face, -0.6f), {cosf(ta) * 0.5f, sinf(ta) * 0.5f, 0});
+                    DrawCylinderEx(c.pos, Vector3Add(c.pos, Vector3Scale(dir, 1.1f + 0.2f * sinf(a.time * 5 + t2))), 0.07f, 0.02f, 4, Fade(Color{255, 120, 220, 255}, 0.6f));
+                }
+                break;
+            }
             case AbyssCreatureKind::Siphonophore: {
                 DrawSphere(c.pos, 0.35f, Fade(col, 0.5f));
                 for (int t2 = 0; t2 < 4; t2++) DrawCylinderEx(c.pos, Vector3Add(c.pos, {0, -1.2f - t2 * 0.3f, 0}), 0.06f, 0.02f, 4, Fade(col, 0.4f - t2 * 0.08f));
                 break;
             }
-            case AbyssCreatureKind::TrenchWorm: DrawCapsule(c.home, c.pos, 0.3f, 6, 4, col); break;
-            case AbyssCreatureKind::Hatchetfish: DrawSphere(c.pos, 0.14f, col); break;
-            case AbyssCreatureKind::BrineSlug: DrawCylinderEx(c.pos, Vector3Add(c.pos, {0.9f, 0, 0}), 0.5f, 0.4f, 8, col); break;
+            case AbyssCreatureKind::TrenchWorm: {
+                // a ringed tube with a radial, fanged mouth flaring open only while lunging
+                bool lunging = c.state == AbyssCreatureState::Lunging;
+                for (int s = 0; s <= 5; s++) {
+                    float k = s / 5.0f;
+                    Vector3 p = Vector3Add(c.home, Vector3Scale(Vector3Subtract(c.pos, c.home), k));
+                    DrawCylinderEx(p, Vector3Add(p, Vector3Scale(face, 0.35f)), 0.32f - (s == 5 ? 0.1f : 0.0f), 0.3f, 6, Tone(col, (s % 2) * -0.15f));
+                }
+                if (lunging) for (int f2 = 0; f2 < 6; f2++) {
+                    float fa = f2 * 2 * PI / 6;
+                    Vector3 side{-face.z, 0, face.x}; Vector3 up{0, 1, 0};
+                    Vector3 tip = Vector3Add(c.pos, Vector3Add(Vector3Scale(face, 0.5f), Vector3Add(Vector3Scale(side, cosf(fa) * 0.3f), Vector3Scale(up, sinf(fa) * 0.3f))));
+                    DrawLine3D(c.pos, tip, Fade(Color{230, 220, 200, 255}, 0.8f));
+                }
+                break;
+            }
+            case AbyssCreatureKind::Hatchetfish: {
+                Vector3 side{-face.z, 0, face.x};
+                DrawTriangle3D(Vector3Add(c.pos, Vector3Scale(face, 0.15f)), Vector3Add(c.pos, Vector3Add(Vector3Scale(face, -0.1f), Vector3Scale(side, 0.1f))), Vector3Add(c.pos, Vector3Add(Vector3Scale(face, -0.1f), Vector3Scale(side, -0.1f))), col);
+                DrawTriangle3D(Vector3Add(c.pos, Vector3Scale(face, -0.1f)), Vector3Add(c.pos, Vector3Scale(face, -0.28f)), Vector3Add(c.pos, {0, 0.12f, 0}), Fade(col, 0.7f)); // a small tail fin
+                break;
+            }
+            case AbyssCreatureKind::BrineSlug: {
+                DrawCylinderEx(c.pos, Vector3Add(c.pos, Vector3Scale(face, 0.95f)), 0.5f, 0.42f, 8, col);
+                DrawCylinderEx(Vector3Add(c.pos, {0, 0.15f, 0}), Vector3Add(Vector3Add(c.pos, {0, 0.15f, 0}), Vector3Scale(face, 0.7f)), 0.2f, 0.16f, 6, Tone(col, -0.25f)); // a ridged shell line along its back
+                DrawSphere(Vector3Add(c.pos, Vector3Scale(face, 0.5f)), 0.06f, BLACK);
+                break;
+            }
+            case AbyssCreatureKind::RockLedge: {
+                bool cavernFloor = c.phase > 0.5f;
+                float r = cavernFloor ? 3.4f : 1.9f;
+                DrawCylinderEx(c.pos, Vector3Add(c.pos, {0, 0.35f, 0}), r, r * 0.92f, 8, col);
+                DrawCylinderEx(Vector3Add(c.pos, {r * 0.3f, 0.1f, r * 0.1f}), Vector3Add(c.pos, {r * 0.3f, 0.55f, r * 0.1f}), r * 0.22f, r * 0.18f, 6, Tone(col, 0.15f)); // an uneven outcrop, not a flat disc
+                break;
+            }
             case AbyssCreatureKind::Leviathan: {
                 // suggested, not fully rendered: a huge, near-black, low-alpha mass with two faint eyes -
                 // it should read as "something is down here", not as a modelled monster
@@ -616,7 +826,7 @@ void SceneAbyss(Game& g) {
     Txt(TextFormat("Depth: %d m", (int)a.depth), 20, 46, 16, Pal::Paper);
     DrawBar({20, 68, 220, 14}, a.stamina / 100.0f, Color{120, 230, 255, 255});
     Txt("Stamina", 20, 84, 12, Fade(Pal::Paper, 0.7f));
-    Txt("WASD/arrows drift - Space dash - Shift glide (aim up: parachute, down in a downdraft: slipstream) - Esc: leave", 20, SCREEN_H - 30, 13, Fade(Pal::Paper, 0.6f));
+    Txt("WASD/arrows drift (double-tap to dash) - Space also dashes - Shift glide (aim up: parachute, down in a downdraft: slipstream) - Mouse: look - Esc: leave", 20, SCREEN_H - 30, 13, Fade(Pal::Paper, 0.6f));
 
     if (over) {
         Rectangle panel{SCREEN_W / 2.0f - 260, SCREEN_H / 2.0f - 110, 520, 220};
