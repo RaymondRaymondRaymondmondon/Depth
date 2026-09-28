@@ -1,8 +1,11 @@
-# hand-placed real art (cropped from a reference sheet with marked rigging pivots, chargen.cpp's
-# GenerateSirenArt is no longer used for this class) - body and tail both hang directly off hip, at
-# each piece's own exact pivot point (from the sheet's "Waist Rigging Pivot" / "Body Connection
-# Rigging Pivot" markers), so no guesswork was needed to line them up. The body slot carries three
-# attachments (neutral/attack/hit); DrawCrewFigureInked picks which one is active from the hero's pose.
+# hand-placed real art (cropped from a reference sheet, chargen.cpp's GenerateSirenArt is no longer
+# used for this class) - body and tail both hang directly off hip. The tail's pivot sits at its
+# narrow connecting stub near the top of the image (where it's meant to tuck behind the torso's
+# hem), not further down where the tail has already flared out - anchoring it at the wide part
+# made the tail render much bigger than the torso. Both pivots are picked so the two pieces have
+# matching width in world units right at the hip, not just a matching anchor point. The body slot
+# carries three attachments (neutral/attack/hit); DrawCrewFigureInked picks which one is active
+# from the hero's pose.
 bone hip - 0 -84 0 1 1 0
 bone body hip 0 0 0 1 1 40
 bone tail hip 0 0 0 1 1 60
@@ -11,7 +14,7 @@ slot body body
 attach body piece characters/siren/torso_neutral.png 0.365 0.914 0.32
 attach body piece characters/siren/torso_attack.png 0.349 0.916 0.32
 attach body piece characters/siren/torso_hit.png 0.566 0.919 0.32
-attach tail piece characters/siren/tail.png 0.125 0.3 0.714
+attach tail piece characters/siren/tail.png 0.172 0.182 0.714
 anim idle 2.4
 key tail rot 0 0
 key tail rot 0.3 7.07107
