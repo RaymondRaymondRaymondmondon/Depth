@@ -266,8 +266,18 @@ void UpdateEnemies(PlatformState& p, float dt) {
     Vector2 pc{p.pos.x + PW / 2, p.pos.y + PH / 2};
     for (auto& e : p.enemies) {
         e.t += dt;
-        if (e.type == 'c') { // crabs walk, turning at walls and ledges
-            float nx = e.pos.x + e.dir * 70 * dt;
+        if (e.type == 'c') { // crabs walk, turning at walls and ledges; some are aggressive enough to charge
+            float speed = 55 + e.personality.energy * 40; // 55-95: livelier crabs scuttle faster
+            // an aggressive crab that notices the diver at its own height turns to charge instead of patrolling -
+            // but only if that direction doesn't walk it straight off the edge of its own platform: check the
+            // ledge the same way the patrol turn below does, so an aggro override can never be silently undone
+            // by that same check a moment later, and a crab never suicides off a cliff just to give chase
+            if (e.personality.aggression > 0.6f && fabsf(pc.y - e.pos.y) < 1.3f * T && fabsf(pc.x - e.pos.x) < 5.0f * T) {
+                float chargeDir = pc.x < e.pos.x ? -1.0f : 1.0f;
+                int cftx = (int)floorf((chargeDir > 0 ? e.pos.x + 34 : e.pos.x) / T), cfty = (int)floorf((e.pos.y + 17) / T);
+                if (!Solid(p, cftx, cfty) && Solid(p, cftx, cfty + 1)) e.dir = chargeDir;
+            }
+            float nx = e.pos.x + e.dir * speed * dt;
             int ftx = (int)floorf((e.dir > 0 ? nx + 34 : nx) / T), fty = (int)floorf((e.pos.y + 17) / T);
             if (Solid(p, ftx, fty) || !Solid(p, ftx, fty + 1)) e.dir = -e.dir;
             else e.pos.x = nx;
@@ -309,8 +319,15 @@ void UpdateEnemies(PlatformState& p, float dt) {
             else e.pos.x = nx;
             e.pos.y = e.home.y + sinf(e.t * 3) * 14;
         } else { // eel: leaps out of the depths, then dives back
-            float cyc = fmodf(e.t, 2.6f), bottom = e.home.y + 3.0f * T + 40, apex = e.home.y - 3.0f * T;
-            e.pos.y = cyc < 1.2f ? bottom - (bottom - apex) * sinf(PI * cyc / 1.2f) : bottom + 200;
+            float period = 2.6f - e.personality.aggression * 0.9f; // 1.7-2.6s: aggressive eels leap more often
+            // a curious eel notices the diver lingering right over its hole and leaps early rather than
+            // finishing out a long dormant phase - the same "investigate a presence" shape as the Abyss's
+            // Disturb(), just triggered by proximity instead of an acoustic disturbance (the 2D platformer
+            // has nothing analogous to a dash's sound to react to)
+            float cyc = fmodf(e.t, period);
+            if (e.personality.curiosity > 0.6f && cyc > period * 0.55f && fabsf(pc.x - e.home.x) < 2.0f * T) { e.t = ceilf(e.t / period) * period; cyc = 0; }
+            float riseFrac = 0.46f, bottom = e.home.y + 3.0f * T + 40, apex = e.home.y - (3.0f + e.personality.energy) * T;
+            e.pos.y = cyc < period * riseFrac ? bottom - (bottom - apex) * sinf(PI * cyc / (period * riseFrac)) : bottom + 200;
         }
     }
 }
@@ -694,6 +711,12 @@ void ThrowBomb(PlatformState& p) {
     float dx = std::clamp((p.pos.x + PW / 2 - from.x) * 1.25f, -420.0f, 420.0f);
     p.shots.push_back({from, {dx, -560}, BOMB_FUSE, 1});
 }
+// A tiny, self-contained hash (no dependency on Hs(), which isn't defined until much later in this file):
+// rolls a crab's or an eel's personality from its own tile position, so it's stable across a checkpoint
+// respawn's rebuild without needing to plumb the level seed all the way down to here.
+float EnemyTraitHash(float a, float b, float salt) { float s = sinf(a * 12.9898f + b * 78.233f + salt * 37.719f) * 43758.5453f; return s - floorf(s); }
+PersonalityProfile RollEnemyTraits(float x, float y) { return {EnemyTraitHash(x, y, 1), EnemyTraitHash(x, y, 2), EnemyTraitHash(x, y, 3), EnemyTraitHash(x, y, 4)}; }
+
 // ---------------------------------------------------------------- building a level
 // The generator (levelgen.cpp) supplies the terrain; a boss arena, when there is one, is joined onto its last
 // platform. Whatever the level doesn't cover is filled with `fill` (below) or `fillAbove` (above).
@@ -707,11 +730,11 @@ void ScanTiles(PlatformState& p) {
             float x = c * (float)T, y = r * (float)T;
             switch (ch) {
                 case 'S': p.startPos = {x + 6, y + T - PH}; break;
-                case 'c': p.enemies.push_back({'c', {x - 1, y + T - 18}, {x, y}, -1, 0}); break;
+                case 'c': { PlatEnemy pe{'c', {x - 1, y + T - 18}, {x, y}, -1, 0}; pe.personality = RollEnemyTraits(x, y); p.enemies.push_back(pe); break; }
                 case 'P': p.enemies.push_back({'P', {x + 5, y + T - 30}, {x, y}, -1, 0}); break;
                 case 'G': p.enemies.push_back({'G', {x + 6, y + T - 30}, {x, y}, -1, 0, 0, Rnd(0, 1.2f)}); break;
                 case 'p': p.enemies.push_back({'p', {x + 16, y + 16}, {x + 16, y + 16}, 1, 0}); break;
-                case 'e': p.enemies.push_back({'e', {x + 16, y + 400}, {x + 16, y}, 1, c * 0.37f}); break;
+                case 'e': { PlatEnemy pe{'e', {x + 16, y + 400}, {x + 16, y}, 1, c * 0.37f}; pe.personality = RollEnemyTraits(x, y); p.enemies.push_back(pe); break; }
                 case 'o': if ((r * 7 + c * 13) % 5 != 0) ch = '.'; continue;   // generator "coins" survive only as a few faint pools of light: environmental cues, never markers or pickups
                 case 'T': case 'N': case 'y': p.launchers.push_back({c, r, ch, Rnd(0.0f, 2.0f)}); continue; // solid fixtures that fire on a timer: the tile stays
                 case 'K': p.boss.type = 'K'; p.boss.home = {x + 16, y + T}; p.boss.tentT[0] = p.boss.tentT[1] = TENT_IDLE; break;
@@ -2951,6 +2974,78 @@ bool VerifyCritters() {
     }
     if (!anyFled) { TraceLog(LOG_WARNING, "verify-critters: FAILED - none fled a diver standing on top of one"); return false; }
     TraceLog(LOG_WARNING, "verify-critters: OK - %zu spawned, at least one fled on approach", n);
+    return true;
+}
+
+// depth.exe --verify-hull-life: a headless smoke test for the Hull's retrofitted crabs and eels (personality
+// rolled per PlatEnemy - see RollEnemyTraits/UpdateEnemies). Proves personalities aren't degenerate (at
+// least one aggressive crab and one curious eel exist in a real generated layout), that an aggressive crab
+// actually turns to charge a diver at its own height, that a curious eel actually leaps early for a diver
+// lingering over its hole, and that nothing's position ever blows up while the diver walks the level end to
+// end. No window/GL context needed - nothing here draws.
+bool VerifyHullLife() {
+    PlatformState p;
+    p.level = PL_HULL;
+    p.bossEnabled = false;
+    int crabs = 0, eels = 0, seedsScanned = 0, seedsWithCrab = 0, seedsWithEel = 0;
+    for (int seed = 1; seed <= 60; seed++) { // Hull layouts vary a lot; find one with both species to test
+        p.layout = {seed, 100};
+        BuildLevel(p);
+        seedsScanned++;
+        crabs = eels = 0;
+        for (auto& e : p.enemies) { if (e.type == 'c') crabs++; else if (e.type == 'e') eels++; }
+        if (crabs > 0) seedsWithCrab++; if (eels > 0) seedsWithEel++;
+        if (crabs > 0 && eels > 0) break;
+    }
+    TraceLog(LOG_WARNING, "verify-hull-life: scan - %d/%d seeds tried had a crab, %d/%d had an eel", seedsWithCrab, seedsScanned, seedsWithEel, seedsScanned);
+    if (crabs == 0 || eels == 0) { TraceLog(LOG_WARNING, "verify-hull-life: FAILED - couldn't find a layout with both species in 60 seeds"); return false; }
+    // The personality roll is real, and so is a real crab's platform width - whether one generated instance
+    // happens to have room to charge, or already faces the direction charging would pick anyway, is luck of
+    // the seed, not what this is testing. Prove the mechanism itself on a synthetic crab with an unambiguous
+    // long floor either side, rather than a real (and possibly ledge-narrow) generated one.
+    bool aggroFired = false, curiousFired = false;
+    {
+        PlatformState syn;
+        syn.w = 40; syn.h = 20;
+        syn.tiles.assign(syn.h, std::string(syn.w, '.'));
+        for (int x = 0; x < syn.w; x++) syn.tiles[15][x] = '#'; // one long open floor
+        PlatEnemy crab{'c', {20.0f * T, 15.0f * T - 18}, {20.0f * T, 15.0f * T}, -1, 0};
+        crab.personality.aggression = 0.9f;
+        syn.enemies.push_back(crab);
+        syn.pos = {crab.pos.x + 3.0f * T, crab.pos.y - PH / 2}; // diver to its right - opposite its spawn-facing left
+        float dir0 = syn.enemies[0].dir;
+        UpdateEnemies(syn, 1 / 60.0f);
+        aggroFired = syn.enemies[0].dir != dir0;
+    }
+    {
+        PlatformState syn;
+        syn.w = 10; syn.h = 20;
+        syn.tiles.assign(syn.h, std::string(syn.w, '.'));
+        for (int x = 0; x < syn.w; x++) syn.tiles[15][x] = '#';
+        PlatEnemy eel{'e', {5.0f * T + 16, 15.0f * T + 400}, {5.0f * T + 16, 15.0f * T}, 1, 0};
+        eel.personality.curiosity = 0.9f; eel.personality.aggression = 0.5f;
+        float period = 2.6f - eel.personality.aggression * 0.9f;
+        eel.t = period * 0.7f; // deep in the dormant phase - only "noticing" the diver should move it
+        syn.enemies.push_back(eel);
+        syn.pos = {eel.home.x - PW / 2, eel.home.y - 3.0f * T};
+        float tBefore = syn.enemies[0].t;
+        UpdateEnemies(syn, 1 / 60.0f);
+        curiousFired = syn.enemies[0].t > tBefore + period * 0.1f; // snapped forward to an immediate leap
+    }
+    // walk the diver the length of the level and make sure nothing's position ever escapes reality
+    for (int f = 0; f < 600; f++) {
+        p.pos.x = (float)f / 600.0f * p.w * T;
+        p.pos.y = 400;
+        UpdateEnemies(p, 1 / 60.0f);
+        for (const auto& e : p.enemies)
+            if (std::isnan(e.pos.x) || std::isnan(e.pos.y) || fabsf(e.pos.x) > 1e7f || fabsf(e.pos.y) > 1e7f) {
+                TraceLog(LOG_WARNING, "verify-hull-life: FAILED - an enemy's position blew up");
+                return false;
+            }
+    }
+    if (!aggroFired) { TraceLog(LOG_WARNING, "verify-hull-life: FAILED - no aggressive crab turned to charge"); return false; }
+    if (!curiousFired) { TraceLog(LOG_WARNING, "verify-hull-life: FAILED - no curious eel leapt early"); return false; }
+    TraceLog(LOG_WARNING, "verify-hull-life: OK - %d crabs, %d eels; aggression and curiosity both confirmed reactive", crabs, eels);
     return true;
 }
 

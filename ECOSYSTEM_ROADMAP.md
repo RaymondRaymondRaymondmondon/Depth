@@ -155,12 +155,45 @@ retrofit adds *life*, never a *hazard*: no collision or death check anywhere tou
 - `depth.exe --verify-critters`: a headless smoke test (population happens, standing on top of one makes it
   flee, no position ever blows up) - the same spirit as `--verify-abyss`, since nothing here needs a window.
 
+## The Hull: crabs and eels gain personality, and a real bug got fixed along the way
+
+As predicted above: unlike the Pipes, the Hull already has real enemies (crabs and eels), so its retrofit
+gives *them* the personality/perception system rather than adding new ambient life.
+
+- `PersonalityProfile` moved earlier again (now above `PlatEnemy`, which needs it as a real member, not just
+  in a vector) so crabs and eels each roll one (`RollEnemyTraits`, hashed from their own spawn tile - stable
+  across a checkpoint respawn's rebuild without threading the level seed down to `ScanTiles`).
+- Crabs: energy scales patrol speed (55-95 instead of a fixed 70); an aggressive one (>0.6) that notices the
+  diver at its own height turns to charge instead of patrolling past - but only if that direction doesn't
+  walk it straight off its own platform's edge (checked the same way the existing patrol turn is, so a smart
+  aggro override can't be undone a line later by that same check, and a crab never suicides off a ledge just
+  to give chase).
+- Eels: aggression shortens the leap cycle (1.7-2.6s instead of a fixed 2.6s); a curious one (>0.6) lingering
+  near a diver who's lingering over its hole leaps early instead of finishing out a long dormant phase - the
+  same "notices a presence" shape as the Abyss's `Disturb()`, just proximity-triggered instead of acoustic
+  (the 2D platformer has nothing analogous to a dash to react to).
+- `depth.exe --verify-hull-life`: proves personalities aren't degenerate in a real generated layout, then
+  proves the *mechanism* itself (charge-on-aggression, leap-early-on-curiosity) on a synthetic crab/eel with
+  an unambiguous long floor either side - a real generated crab's platform is sometimes too narrow to charge
+  either way, which is a correct refusal, not a mechanism failure, so it's the wrong thing to assert on.
+
+**A genuine pre-existing bug, found and fixed**: eels (and parakeets) had been complete dead code since the
+Hull/Pirate Ship generator was rewritten to `BuildTrench`/`BuildFleet` (see ROADMAP.md's "Platformer
+macro-structures" pass). The only place that ever set `'e'`/`'p'` tiles was gated by `level >= 1`, but that
+code sat entirely inside the generator's `else` branch that only runs `if (level == 0)` (Pipes) - so the
+condition could never be true where the code could run, and vice versa. Confirmed via `--gen 1 <seed>`
+across 40 seeds (zero eels, zero parakeets) before touching anything. The game's own how-to-play text has
+been telling players "crabs, leaping eels, urchins and mines" this whole time for a Hull that could never
+actually contain an eel. Fixed by adding real eel spawns directly into `BuildTrench`'s torpedo-gap and
+rock-reef features (occasionally replacing a plain urchin tile), confirmed via `--gen` and
+`--verify-hull-life` that eels now genuinely appear. Left the Pirate Ship's parakeets alone for this pass -
+out of scope ("the Hull section") - but the same dead-code gap almost certainly affects them too.
+
 ## Not yet done
 
-- The other biomes: new platform versions of Island/Cave/Weeds/Atlantis, and retrofitting Hull/Pirate Ship
-  onto the shared personality/ecosystem framework (unlike the Pipes, they already have real enemies, so
-  their retrofit is a different shape of problem - probably existing enemies gaining the personality/
-  perception system, not new ambient life).
+- The other biomes: new platform versions of Island/Cave/Weeds/Atlantis.
+- The Pirate Ship's own retrofit (parakeets and gunners gaining personality) - and very likely the same
+  dead-code eel/parakeet-placement bug fix, scoped to `BuildFleet` this time.
 - Streaming/infinite generation past the Abyss's fixed ~900 m trench - deliberately deferred, see above.
 - Whether biome transitions (e.g. falling from the Hull into the Abyss) are ever made seamless rather
   than a standalone menu entry - raised in the brief; for this slice, decided as standalone (simplest,

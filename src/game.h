@@ -296,21 +296,26 @@ struct DungeonState {
 // ---------- platformer ----------
 enum PlatLevel { PL_PIPES, PL_HULL, PL_PIRATE, PL_COUNT };
 
-struct PlatEnemy {
-    char type; Vector2 pos, home; float dir, t;
-    int state = 0;    // pirates: 0 hidden or idle, then emerging / stabbing / retreating, or aiming
-    float timer = 0;  // time in the current state (or cooldown while hidden)
-    Vector2 aim{0, 0}; // where a gunner is aiming
-};
-
 // A per-entity personality, rolled once at spawn from the level's seed, so the same species reads differently
 // run to run (an aggressive eel this run, a timid one next time). Shared by every ecosystem-framework biome:
-// the Abyss (abyss.cpp's RollPersonality) and the Pipes' ambient duct life below both use it.
+// the Abyss (abyss.cpp's RollPersonality), the Pipes' ambient duct life, and the Hull's crabs/eels below.
 struct PersonalityProfile {
     float aggression = 0.5f; // 0 = pacifist/flees a fight, 1 = relentless hunter
     float bravery     = 0.5f; // 0 = flees anything bigger than itself, 1 = attacks larger predators
     float energy      = 0.5f; // 0 = lethargic/slow forces, 1 = hyperactive/fast impulses
     float curiosity   = 0.5f; // 0 = ignores disturbances, 1 = investigates every sound
+};
+
+struct PlatEnemy {
+    char type; Vector2 pos, home; float dir, t;
+    int state = 0;    // pirates: 0 hidden or idle, then emerging / stabbing / retreating, or aiming
+    float timer = 0;  // time in the current state (or cooldown while hidden)
+    Vector2 aim{0, 0}; // where a gunner is aiming
+    // Ecosystem-framework retrofit (crabs and eels so far - see UpdateEnemies): rolled once at spawn from
+    // the tile's own position, so a level's danger varies without changing what a creature fundamentally
+    // is. Defaults to neutral for the pirate/gunner/parakeet types, which don't read it (their existing
+    // proximity-gated state machines already give them real perception).
+    PersonalityProfile personality;
 };
 
 // Ambient duct life for the Pipes (the level with no enemies - see CLAUDE.md - so this is life, not a
@@ -709,3 +714,4 @@ void SceneAbyss(Game& g);
 void UpdateAbyss(Game& g, float dt); // the fixed-step simulation, callable headlessly for --verify
 bool VerifyAbyss();                  // debug: proves a run can descend past the first downdraft/sponge gauntlet
 bool VerifyCritters();               // debug (depth.exe --verify-critters): proves the Pipes' ambient duct life spawns and reacts
+bool VerifyHullLife();                // debug (depth.exe --verify-hull-life): proves the Hull's crabs/eels roll and react to personality

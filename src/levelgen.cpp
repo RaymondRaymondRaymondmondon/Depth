@@ -184,6 +184,7 @@ static void BuildTrench(Grid& g, std::vector<Plat>& pl, Rng& rng, GenLevel& out,
             case 1: { // torpedo gap
                 int gw = std::clamp(gm - 1, 4, 6);
                 for (int xx = x; xx < x + gw; xx++) g.set(xx, F, 'x');              // the hull stays whole: a bed of limpets and urchins on the deck to hop
+                if (gw >= 4 && rng.C(0.3f)) g.set(x + gw / 2, F, 'e');              // sometimes a leaping eel lurks in the bed instead of another urchin
                 int tx = x + gw + 6;
                 g.rect(tx, F - 2, tx + 1, F - 1, '#');
                 g.set(tx, F - 1, 'T');                                              // the tube, low on the tower, firing along the deck's lane
@@ -261,7 +262,7 @@ static void BuildTrench(Grid& g, std::vector<Plat>& pl, Rng& rng, GenLevel& out,
                     int sx = x + w0 + k * 6;
                     int top = std::clamp(prevTop + rng.I(-2, 2), F - 3, F - 1);
                     g.rect(sx, top, sx + 2, F - 1, 'R');                             // boulders standing on the deck; urchins fill the gaps between
-                    if (k > 0) for (int xx = sx - 3; xx < sx; xx++) g.set(xx, F, 'x');
+                    if (k > 0) { for (int xx = sx - 3; xx < sx; xx++) g.set(xx, F, 'x'); if (k == 1 && rng.C(0.3f)) g.set(sx - 2, F, 'e'); } // an eel sometimes lurks between the first two boulders
                     Plat stone{sx, sx + 2, top, C_JUMP, 'R', SetPiece::None, 0, sx + 1};
                     pl.push_back(stone);
                     if (k == 2 && g.get(sx + 2, top - 1) == '.') g.set(sx + 2, top - 1, 'c');
