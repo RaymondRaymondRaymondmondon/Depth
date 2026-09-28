@@ -464,14 +464,18 @@ static void BuildFleet(Grid& g, std::vector<Plat>& pl, Rng& rng, GenLevel& out, 
     out.exitRow = prevD - 1;
 }
 
-// The Island is jungle terrain over a solid canopy floor, open sky above - a coast-to-coast crossing that
-// randomizes its theme per seed (variant 0 ruined temple, 1 stilt village, 2 open hillside/palm traverse):
-//   ruin climb      stepped stone plinths (temple debris) rising to a high ledge - narrow, no shaft
-//   canyon crossing a mud-and-thorn ravine too wide to step over, with a coiled viper sometimes waiting below
-//   plank bridge    a rope-and-plank bridge over a ravine that gives way soon after you step on it
-//   vine chimney    a wall-jump shaft between two rock faces laced with thorny vines (climbs like a barnacle shaft)
-//   village stand   stepped huts on stilts, warriors behind cover, a monitor lizard patrolling the boards
-//   hillside run    a long open stretch under the palms, with poison-frog mud patches that pulse on a timer
+// The Island is a tropical shrine ground, not a forest: carved idols and untouched worship sites over a
+// solid canopy floor, open sky above - a coast-to-coast crossing that randomizes its theme per seed (variant
+// 0 stepped temple, 1 stilt village strung with totems, 2 a ridge of standing statues):
+//   idol climb       stepped stone plinths, each carved with a crude glyph, rising to a totem head with
+//                     glowing eyes at the top - the level's visual centrepiece, and its most common feature
+//   canyon crossing  a mud-and-thorn ravine too wide to step over, with a coiled viper sometimes waiting below
+//   plank bridge     a rope-and-plank bridge over a ravine that gives way soon after you step on it
+//   vine chimney     a wall-jump shaft between two rock faces laced with thorny vines (climbs like a barnacle shaft)
+//   village stand    stepped huts strung with totems and skulls, warriors behind cover, a monitor lizard
+//                    patrolling the boards - the second most common feature
+//   processional way a straight ceremonial path lined with totem poles, not open hillside - poison-frog mud
+//                    patches pulse on a timer between them
 // Reuses the Hull/Pirate Ship's own hazard and enemy tiles (x/t/g/e/p/P/G/k/c/b/f/w), redrawn with jungle art
 // per-level in platformer.cpp - see CLAUDE.md's rendering notes; no new tile semantics or physics needed.
 static void BuildIsland(Grid& g, std::vector<Plat>& pl, Rng& rng, GenLevel& out, const Params& P, int& wOut, int variant) {
@@ -492,9 +496,10 @@ static void BuildIsland(Grid& g, std::vector<Plat>& pl, Rng& rng, GenLevel& out,
         int kind;
         for (int tries = 0;; tries++) {
             int r = rng.I(0, 99);
-            // ruin climbs, village stands and hillside runs lean into whichever theme the seed rolled
-            int ruinBias = variant == 0 ? 10 : 0, villageBias = variant == 1 ? 10 : 0;
-            kind = r < 16 + ruinBias ? 0 : r < 34 ? 1 : r < 50 ? 2 : r < 66 ? 3 : r < 83 + villageBias ? 4 : 5;
+            // idol climbs and village stands - the two worship-site features - dominate; the seed's variant
+            // leans further into whichever of the two (or the standing-statue ridge, favouring idols) it rolled
+            int ruinBias = variant == 0 || variant == 2 ? 14 : 0, villageBias = variant == 1 ? 14 : 0;
+            kind = r < 30 + ruinBias ? 0 : r < 45 ? 1 : r < 57 ? 2 : r < 70 ? 3 : r < 92 + villageBias ? 4 : 5;
             if (kind != lastKind || tries > 6) break;
         }
         lastKind = kind;
@@ -565,7 +570,7 @@ static void BuildIsland(Grid& g, std::vector<Plat>& pl, Rng& rng, GenLevel& out,
                 pl.push_back(after);
                 x = after.x1 + 1;
             } break;
-            default: { // hillside run: a long open stretch under the palms, poison-frog mud patches pulsing underfoot
+            default: { // processional way: a straight ceremonial path (totem poles are added by the tile art, see IslandTotem in platformer.cpp), poison-frog mud patches pulsing underfoot
                 int len = 22;
                 for (int i = 4; i < len - 2; i += 6) { g.set(x + i, F, 't'); g.set(x + i, F - 4, 'o'); }
                 Plat run{x, x + len - 1, F, C_JUMP, '#', SetPiece::None, 0, x + 1};

@@ -2355,27 +2355,45 @@ void BackgroundSystem::Setup(int lv) {
             for (int k = 0; k < 8; k++) { float bx = fmodf(k * 173.0f - ox * 0.5f + 9000, cw + 100), by = ch - fmodf(t * (16 + k * 4) + k * 60, ch); DrawCircleLines((int)bx, (int)by, 3 + k % 3, Fade(Color{190, 230, 250, 255}, 0.4f)); }
         }};
     } else if (lv == PL_ISLAND) {
-        farLayer = {0.12f, 0.12f, [cw, ch](const PlatformState& p, float t, float ox, float oy) { // a hazy sky, and a jungle ridge far off
+        farLayer = {0.12f, 0.12f, [cw, ch](const PlatformState& p, float t, float ox, float oy) { // a hazy sky, and a ridge of carved idols far off - the skyline reads as a shrine ground, not a forest
             (void)p; (void)t; (void)oy;
             DrawRectangleGradientV(0, 0, (int)cw, (int)ch, Color{150, 190, 150, 255}, Color{86, 130, 96, 255});
             DrawCircle((int)(cw * 0.7f), 70, 34, Color{230, 220, 170, 220}); // a hazy sun
-            Layer(ox / 0.12f, 0.12f, 220, cw, [&](float x, float wx) { // distant canopy hummocks, ruins or hut roofs poking through
-                float h = 40 + Hs(wx) * 60;
-                DrawTri({x - 60, ch}, {x + 60, ch}, {x, ch - h}, Color{70, 108, 78, 255});
-                if (Hs(wx + 5) > 0.75f) DrawTri({x - 14, ch - h + 10}, {x + 14, ch - h + 10}, {x, ch - h - 24}, Color{58, 90, 66, 255}); // a temple spire or a hut roof, breaking the ridge line
+            Layer(ox / 0.12f, 0.12f, 260, cw, [&](float x, float wx) { // a low canopy hummock behind every other idol, so the ridge doesn't read as bare rock
+                float h = 30 + Hs(wx) * 30;
+                DrawTri({x - 50, ch}, {x + 50, ch}, {x, ch - h}, Color{70, 108, 78, 255});
+            });
+            Layer(ox / 0.12f + 90, 0.12f, 260, cw, [&](float x, float wx) { // a monolithic idol head - the dominant silhouette on the skyline
+                if (Hs(wx) < 0.4f) return;
+                float h = 90 + Hs(wx + 5) * 70, w = 26 + Hs(wx + 9) * 12;
+                Color stone{62, 58, 62, 255};
+                DrawRectangle((int)(x - w / 2), (int)(ch - h), (int)w, (int)h, stone);              // the monolith's shaft
+                DrawEllipse((int)x, (int)(ch - h), w * 0.7f, w * 0.55f, stone);                       // a carved head atop it
+                DrawTri({x - w * 0.5f, ch - h - w * 0.3f}, {x + w * 0.5f, ch - h - w * 0.3f}, {(float)x, ch - h - w * 0.9f}, stone); // a peaked headdress
+                if (Hs(wx + 2) > 0.5f) { DrawCircle((int)x - 4, (int)(ch - h), 2, Color{40, 36, 40, 200}); DrawCircle((int)x + 4, (int)(ch - h), 2, Color{40, 36, 40, 200}); } // deep-set eye hollows, only sometimes visible at this distance
             });
         }};
-        midLayer = {0.4f, 0.4f, [cw, ch](const PlatformState& p, float t, float ox, float oy) { // tree trunks and swaying canopy
+        midLayer = {0.4f, 0.4f, [cw, ch](const PlatformState& p, float t, float ox, float oy) { // standing stone idols among the trees - carved worship sites, not bare jungle
             (void)p; (void)oy;
-            Layer(ox / 0.4f, 0.4f, 130, cw, [&](float x, float wx) {
-                float h = ch * (0.5f + Hs(wx) * 0.4f), w = 14 + Hs(wx + 2) * 10;
-                DrawRectangle((int)x, (int)(ch - h), (int)w, (int)h + 4, Color{54, 44, 30, 255});
-                DrawRectangle((int)x + 3, (int)(ch - h), 3, (int)h, Color{74, 60, 40, 255});
-                float sway = sinf(t * 0.7f + wx) * 8;
-                DrawCircle((int)(x + w / 2 + sway), (int)(ch - h) - 26, 34 + Hs(wx + 3) * 14, Color{58, 96, 50, 255}); // a canopy crown, swaying
-                DrawCircle((int)(x + w / 2 + sway * 1.3f), (int)(ch - h) - 30, 20, Color{74, 118, 62, 255});
+            Layer(ox / 0.4f, 0.4f, 150, cw, [&](float x, float wx) {
+                bool idol = Hs(wx + 11) > 0.45f; // roughly half the mid-ground silhouettes are carved stone, not trees
+                float h = ch * (0.45f + Hs(wx) * 0.4f), w = idol ? 20 + Hs(wx + 2) * 8 : 14 + Hs(wx + 2) * 10;
+                if (idol) {
+                    Color stone{72, 66, 60, 255}, stoneDk{48, 44, 40, 255};
+                    DrawRectangle((int)x, (int)(ch - h), (int)w, (int)h + 4, stone);
+                    DrawRectangle((int)x + 2, (int)(ch - h), 3, (int)h, stoneDk);                      // a shadowed carved seam
+                    for (int k = 0; k < 3; k++) DrawRectangle((int)x + 3, (int)(ch - h) + 14 + k * 26, (int)w - 6, 3, stoneDk); // banded glyph rings, stacked like a totem
+                    DrawEllipse((int)(x + w / 2), (int)(ch - h) - 8, w * 0.55f, 9, stone);             // a broad carved brow atop the pillar
+                    DrawCircle((int)(x + w / 2 - w * 0.2f), (int)(ch - h) - 6, 2.2f, stoneDk); DrawCircle((int)(x + w / 2 + w * 0.2f), (int)(ch - h) - 6, 2.2f, stoneDk); // eye hollows
+                } else {
+                    DrawRectangle((int)x, (int)(ch - h), (int)w, (int)h + 4, Color{54, 44, 30, 255});
+                    DrawRectangle((int)x + 3, (int)(ch - h), 3, (int)h, Color{74, 60, 40, 255});
+                    float sway = sinf(t * 0.7f + wx) * 8;
+                    DrawCircle((int)(x + w / 2 + sway), (int)(ch - h) - 26, 34 + Hs(wx + 3) * 14, Color{58, 96, 50, 255}); // a canopy crown, swaying
+                    DrawCircle((int)(x + w / 2 + sway * 1.3f), (int)(ch - h) - 30, 20, Color{74, 118, 62, 255});
+                }
             });
-            for (int k = 0; k < 26; k++) { // drifting pollen/spores
+            for (int k = 0; k < 26; k++) { // drifting pollen/spores, or incense smoke curling off an unseen offering
                 float sx2 = fmodf(k * 83.0f - ox * 0.8f + 9000, cw), sy2 = fmodf(k * 61.0f + t * (6 + k % 4 * 2), ch);
                 DrawRectangle((int)sx2, (int)sy2, 1, 1, Fade(Color{230, 220, 160, 255}, 0.4f));
             }
@@ -2765,14 +2783,16 @@ void DrawSolid(const PlatformState& p, int x, int y) {
             if (h2 > 0.7f) DrawLineEx({px + 8, py + 12}, {px + 14, py + 24}, 1.5f, ink);       // a crack
         } break;
         case PL_ISLAND: {
-            // jungle earth and root-bound stone: dark packed soil inside the mass, moss and hanging roots wherever a face is open
+            // worked stone terraces, earth-filled: this ground was cut and stepped by hand, not left wild - moss and
+            // hanging roots have crept back over it, but the carving underneath still shows
             uint8_t m = SolidMask(p, x, y);
             bool inner = m == 15;
-            Color soil{58, 44, 30, 255}, soilLt{74, 58, 40, 255}, ink{10, 8, 6, 255};
-            DrawRectangle((int)px, (int)py, T, T, inner ? Color{40, 32, 22, 255} : soil);
+            Color soil{62, 54, 44, 255}, soilLt{78, 68, 54, 255}, ink{10, 8, 6, 255};
+            DrawRectangle((int)px, (int)py, T, T, inner ? Color{42, 36, 30, 255} : soil);
             float h1 = Hs(x * 3.3f + y * 9.7f), h2 = Hs(x * 5.9f + y * 2.9f + 5);
             if (inner) {
-                for (int k = 0; k < 3; k++) DrawCircle((int)(px + 5 + Hs(x * 1.1f + k) * 22), (int)(py + 5 + Hs(y * 1.9f + k) * 22), 1.5f, Color{50, 40, 28, 255});
+                if (h1 > 0.85f) { DrawLineEx({px + 6, py + 8}, {px + 14, py + 8}, 1.4f, Color{58, 50, 40, 255}); DrawLineEx({px + 10, py + 6}, {px + 10, py + 22}, 1.4f, Color{58, 50, 40, 255}); } // a shallow carved glyph, buried in the mass
+                else for (int k = 0; k < 3; k++) DrawCircle((int)(px + 5 + Hs(x * 1.1f + k) * 22), (int)(py + 5 + Hs(y * 1.9f + k) * 22), 1.5f, Color{54, 46, 36, 255});
                 break;
             }
             DrawRectangle((int)px + 2, (int)py + 2, T - 4, 2, soilLt);
@@ -2963,6 +2983,7 @@ void DrawPipeGrit(float px, float py, int len, bool horiz, int seed) {
 // Things that give light: an emergency lamp hung from the duct ceiling, a lantern on a post along the ship's deck.
 bool CeilingLamp(const PlatformState& p, int x, int y) { return p.level == PL_PIPES && At(p, x, y) == '#' && !Solid(p, x, y + 1) && !Solid(p, x, y + 2) && Hs(x * 4.1f + y * 9.3f) > 0.88f; }
 bool DeckLantern(const PlatformState& p, int x, int y) { return p.level == PL_PIRATE && At(p, x, y) == '#' && !Solid(p, x, y - 1) && !Solid(p, x, y - 2) && !Solid(p, x, y - 3) && (x * 7 + y) % 9 == 0; }
+bool IslandTotem(const PlatformState& p, int x, int y) { return p.level == PL_ISLAND && At(p, x, y) == '#' && !Solid(p, x, y - 1) && !Solid(p, x, y - 2) && !Solid(p, x, y - 3) && !Solid(p, x, y - 4) && Hs(x * 5.3f + y * 2.1f) > 0.82f; }
 constexpr Color WARN{255, 96, 52, 255}; // every hazard on every level carries this colour
 
 // Wear and variety laid over the exposed faces of solid tiles, chosen by tile hashes so it never crawls: access plates,
@@ -3057,6 +3078,14 @@ void DrawTile(const PlatformState& p, char c, int x, int y, float t) {
                 } else
                 DrawRectangle((int)px + 10, (int)py - 36, 11, 9, Color{(unsigned char)(200 + 55 * fl), (unsigned char)(150 + 60 * fl), 60, 255});
                 DrawRectangle((int)px + 7, (int)py - 40, 17, 3, Color{60, 58, 62, 255});
+            }
+            if (IslandTotem(p, x, y)) { // a totem pole planted in the ground - carved rings, a skull lashed to the top, a feather trailing
+                float sway = sinf(t * 0.8f + x) * 1.5f;
+                DrawRectangle((int)px + 13, (int)py - 46, 5, 46, Color{74, 56, 34, 255});
+                for (int k = 0; k < 3; k++) DrawRectangle((int)px + 11, (int)py - 12 - k * 12, 9, 3, Color{50, 36, 20, 255}); // carved rings
+                DrawCircle((int)px + 15, (int)py - 46, 6, Color{224, 216, 196, 255});                 // the skull
+                DrawCircle((int)(px + 13), (int)py - 46, 1.4f, Color{20, 18, 16, 255}); DrawCircle((int)(px + 17), (int)py - 46, 1.4f, Color{20, 18, 16, 255});
+                DrawLineEx({px + 15.0f + sway, py - 52.0f}, {px + 19.0f + sway * 1.6f, py - 58.0f}, 1.4f, Color{200, 60, 50, 255}); // a trailing dyed feather
             }
             break;
         case 'l': { // ratlines: a rope ladder, two shrouds with rungs between, swaying a little
