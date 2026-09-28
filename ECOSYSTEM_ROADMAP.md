@@ -155,6 +155,47 @@ retrofit adds *life*, never a *hazard*: no collision or death check anywhere tou
 - `depth.exe --verify-critters`: a headless smoke test (population happens, standing on top of one makes it
   flee, no position ever blows up) - the same spirit as `--verify-abyss`, since nothing here needs a window.
 
+**Superseded, not replaced, by the Pipes' real chain below.** This pass predates the full brief and is one
+stand-in species reacting to the diver; the real Pipes chain (ten species that *ignore* the diver entirely)
+now runs alongside it. Both stay - see the next section.
+
+## The Pipes' real ecosystem chain: the ten-species systemic-chaos version
+
+Per `ECOSYSTEM_BESTIARY.md`, the Pipes are the one biome where "entities ignore the player; all hazards stem
+from systemic chaos and collateral physics" - a fundamentally different shape from every other biome's chain
+(which all react to the diver somewhere). So this is the one retrofit that adds *zero* diver-reactivity: it
+runs identically whether or not the diver is anywhere nearby, matching CLAUDE.md's "the Pipes have no
+enemies" as literally as possible - not just "nothing here can hurt you" but "nothing here has ever heard of
+you." The existing `PlatCritter` pass above is kept running alongside it unmodified.
+
+The chain: Dust Moths flutter toward the duct's surviving light leaks (the same sparse `'o'` tiles kept as
+"faint pools of light" - see `PopulateEcoLife`'s Hull comment for the identical mechanism); Water-Spiders sit
+at a fixed web and catch a Moth that flies through it; Centipedes come eat a caught Moth, freeing it back to
+flutter off; Blind Pipe-Rats hunt a feeding (Hunting-state) Centipede by proximity and, if aggressive enough,
+bite into the pipe on contact; Rust-Mites swarm out at a nearby bite to feed on the flakes, and a swarming
+Mite curls up any Pillbug it brushes; a curled Pillbug starts rolling like the Hull's rolling hazards, and a
+rolling one startles off a hunting Scavenger Mouse; a Cockroach that's aggressive enough and near a Mouse
+picks a fight; a fight that happens near a Glow-Beetle makes it flash; a flash near a Cave Cricket panics it
+into an erratic, leash-ignoring stampede.
+
+- `game.h`: `PipeKind`/`PipeState`/`PlatPipeLife` - one struct for all ten, same shape as `PlatEcoLife`, states
+  meaning different things per kind. `PlatformState` gains `pipeLife` and `lightSpots` (the latter: the
+  surviving `'o'` tile positions, scanned once in `PopulatePipeLife` so Moths don't need to rescan the grid
+  every frame).
+- `PopulatePipeLife` (platformer.cpp): same seed-stable floor scan as `PopulateCritters`/`PopulateEcoLife`,
+  weighted-picking a kind per spot (Moths commonest, denser overall than the Hull - a whole ten-species chain
+  needs more bodies - capped at 55).
+- `UpdatePipeLife`: the chain above; every lookup is entity-to-entity (nearest caught Moth, nearest Hunting
+  Centipede, nearest Biting Rat, etc.) - `p.pos` (the diver) is never read anywhere in it.
+- `DrawPipeLife`: small flat unrotated silhouettes, same style as `DrawCritter`/`DrawEcoLife`, one shape per
+  species (a Water-Spider's web ring, a Glow-Beetle's flash bloom, a Pillbug curling into a ball, and so on).
+- `depth.exe --verify-pipe-ecosystem`: a real generated layout spawns several distinct species, then the
+  mechanism is proven on synthetic setups (a Moth flying into a web then freed by a Centipede; an aggressive
+  Rat biting near a Hunting Centipede, waking a Mite swarm, curling then rolling a Pillbug, and scaring off a
+  Mouse; a fight flashing a Beetle and panicking a Cricket) - and, uniquely to this biome, an explicit check
+  that sweeping the diver across an entire real level's worth of frames never makes any entity's position
+  blow up or NaN, since nothing in this code path should ever even look at where the diver is.
+
 ## The Hull: crabs and eels gain personality, and a real bug got fixed along the way
 
 As predicted above: unlike the Pipes, the Hull already has real enemies (crabs and eels), so its retrofit
@@ -233,9 +274,9 @@ Leech; Hermit Crabs scavenge an Anemone's scraps; Brittle-Star mats break underf
 
 ## Not yet done
 
-- The Pipes' and Pirate Ship's own real 10-species chains, per `ECOSYSTEM_BESTIARY.md` - the Pipes still only
-  has its one stand-in species, and the Pirate Ship hasn't been touched (its own retrofit, and very likely the
-  same dead-code eel/parakeet-placement bug fix, scoped to `BuildFleet` this time).
+- The Pirate Ship's own real 10-species chain, per `ECOSYSTEM_BESTIARY.md` - hasn't been touched (its own
+  retrofit, and very likely the same dead-code eel/parakeet-placement bug fix, scoped to `BuildFleet` this
+  time). The Pipes and the Hull are both now built.
 - Four new parkour-only biomes (Island, Cave, Weeds, Atlantis) per the brief - additions to the parkour
   section only, never touching the turn-based expedition locations of the same names.
 - Streaming/infinite generation past the Abyss's fixed ~900 m trench - deliberately deferred, see above.

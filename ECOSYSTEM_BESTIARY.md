@@ -91,9 +91,13 @@ Scavenger Mice <-- (Stampede) <-- Cave Crickets <-- Glow-Beetles (Flash Pulse)
 10. Cave Crickets panic from the bright light pulses, jumping wildly into other entities and triggering a
     chain-reaction stampede through the pipe network.
 
-**Status: not yet built.** The Pipes currently have a single simpler ambient-life pass (`PlatCritter` in
-platformer.cpp) predating this list - harmless vermin with Flee/Investigate/Idle states reacting to the
-diver, not yet this full ten-species, player-ignoring, systemic-chaos chain. Revisit to bring it in line.
+**Status: built.** All ten species are implemented as `PlatPipeLife` (see ECOSYSTEM_ROADMAP.md), running the
+real chain above - Moth to light, Spider's web, Centipede frees the Moth, an aggressive Pipe-Rat's bite wakes
+a Rust-Mite swarm, a Mite curls a Pillbug into rolling, a rolling Pillbug scares off a Scavenger Mouse, a
+Cockroach fight flashes a Glow-Beetle, and the flash panics a Cave Cricket into a stampede. Implemented
+exactly as literally as the opening line asks: no part of it ever reads the diver's position. The earlier,
+simpler `PlatCritter` ambient-life pass (predating this list, one stand-in species that does react to the
+diver) is kept running alongside it rather than removed.
 
 ### The Hull (Barnacle-Encrusted Exterior)
 1. Cleaner Shrimp establish cleaning stations on barnacle clusters, attracting larger marine life.

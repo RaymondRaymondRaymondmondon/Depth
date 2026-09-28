@@ -348,6 +348,24 @@ struct PlatEcoLife {
 // A Camouflage Octopus's ink, sprayed when a Crab pinches it or the player bumps it - Pufferfish inside the
 // radius panic and puff up (see UpdateEcoLife); purely a trigger volume, drawn as a spreading dark bloom.
 struct InkCloud { Vector2 pos{0, 0}; float life = 0, r = 60; };
+// The Pipes' real ecosystem chain (ECOSYSTEM_BESTIARY.md, "The Pipes"): unlike every other biome's chain,
+// "entities ignore the player; all hazards stem from systemic chaos and collateral physics" - so this one
+// never reacts to the diver at all (CLAUDE.md: the Pipes have no enemies), it just runs. Dust Moths flutter
+// to bioluminescent leaks; Water-Spiders web them at pipe bends; Centipedes eat the trapped Moths; Blind
+// Pipe-Rats hunt Centipedes by vibration and bite into rusted pipe to reach them; Rust-Mites swarm out to
+// feed on the flakes; Pillbugs curl up and roll when touched by a Mite; Scavenger Mice hunt loose Pillbugs
+// but flee a rolling one; Cockroaches fight Mice over scraps; Glow-Beetles flash when stepped on by a fight;
+// Cave Crickets panic and stampede at the flash. Same one-struct-many-kinds shape as PlatEcoLife.
+enum class PipeKind { Moth, Spider, Centipede, PipeRat, RustMite, Pillbug, ScavMouse, Cockroach, GlowBeetle, CaveCricket };
+enum class PipeState { Idle, Wander, Flying, Caught, Hunting, Biting, Swarming, Curled, Rolling, Fleeing, Fighting, Flash, Panic };
+struct PlatPipeLife {
+    PipeKind kind;
+    Vector2 pos{0, 0}, home{0, 0};
+    PersonalityProfile personality;
+    float dir = 1;
+    PipeState state = PipeState::Idle;
+    float stateTimer = 0, phase = 0;
+};
 struct PlatShot { Vector2 pos, vel; float life; int kind; }; // 0 musket ball, 1 lit bomb, 2 explosion, 3 falling ink, 4 torpedo, 5 cannonball, 6 rolling barrel
 struct PlatLauncher { int tx, ty; char type; float t; }; // a torpedo tube (T), a deck cannon (N) or a barrel chute (y): fires on a timer, with a warning before
 struct PlatParticle { Vector2 p, v; float life, max, size; Color c; };
@@ -414,6 +432,8 @@ struct PlatformState {
     std::vector<PlatCritter> critters; // ambient duct life (Pipes only) - see PlatCritter; never a hazard
     std::vector<PlatEcoLife> ecoLife;  // Hull only - see PlatEcoLife; a puffed Pufferfish IS a hazard
     std::vector<InkCloud> inkClouds;
+    std::vector<PlatPipeLife> pipeLife; // Pipes only - see PlatPipeLife; never a hazard, never reacts to the diver
+    std::vector<Vector2> lightSpots;    // Pipes only - the few surviving 'o' bioluminescent leaks Dust Moths fly toward
     PlatBoss boss;
     std::vector<PlatParticle> particles;
     int coins = 0, deaths = 0, reward = 0, relic = -1, relic2 = -1; // relic2: Blackbeard sometimes leaves a second
@@ -737,3 +757,4 @@ bool VerifyAbyss();                  // debug: proves a run can descend past the
 bool VerifyCritters();               // debug (depth.exe --verify-critters): proves the Pipes' ambient duct life spawns and reacts
 bool VerifyHullLife();                // debug (depth.exe --verify-hull-life): proves the Hull's crabs/eels roll and react to personality
 bool VerifyHullEcosystem();           // debug (depth.exe --verify-hull-ecosystem): proves the Hull's 7-species chain (ink -> puff -> leech -> anemone) fires
+bool VerifyPipeEcosystem();           // debug (depth.exe --verify-pipe-ecosystem): proves the Pipes' 10-species chain (web -> bite -> curl/roll -> flash -> panic) fires, entirely without the diver

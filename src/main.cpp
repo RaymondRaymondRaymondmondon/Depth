@@ -320,6 +320,10 @@ int main(int argc, char** argv) {
         SetTraceLogLevel(LOG_WARNING);
         return VerifyHullEcosystem() ? 0 : 1;
     }
+    if (argc >= 2 && strcmp(argv[1], "--verify-pipe-ecosystem") == 0) {
+        SetTraceLogLevel(LOG_WARNING);
+        return VerifyPipeEcosystem() ? 0 : 1;
+    }
     if (argc >= 2 && strcmp(argv[1], "--verify-abyss") == 0) {
         SetTraceLogLevel(LOG_WARNING);
         return VerifyAbyss() ? 0 : 1;

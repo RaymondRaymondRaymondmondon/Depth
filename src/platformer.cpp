@@ -794,6 +794,7 @@ void BuildFromGrid(PlatformState& p, const GenLevel& gl, const Part* arena, char
 // Builds (or rebuilds, after a death) the whole level from its seed: coins, enemies and the boss all come back.
 static void PopulateCritters(PlatformState& p, unsigned seed); // defined below Hs(), which it needs
 static void PopulateEcoLife(PlatformState& p, unsigned seed);  // defined below Hs(), which it needs
+static void PopulatePipeLife(PlatformState& p, unsigned seed); // defined below Hs(), which it needs
 
 void BuildLevel(PlatformState& p) {
     const LevelDef& L = Lv(p.level);
@@ -812,10 +813,15 @@ void BuildLevel(PlatformState& p) {
     p.critters.clear();
     p.ecoLife.clear();
     p.inkClouds.clear();
+    p.pipeLife.clear();
+    p.lightSpots.clear();
     // The Pipes have no enemies (CLAUDE.md) - this is ambient duct life, not a hazard: no collision or
     // death check anywhere touches p.critters. Skipped headlessly: the path-search rebuilds many
     // PlatformState instances rapidly and never renders, so there is nothing for this to add there.
     if (p.level == PL_PIPES && !p.verifying) PopulateCritters(p, seed);
+    // The Pipes' real 10-species chain (ECOSYSTEM_BESTIARY.md), alongside the ambient critters above -
+    // it never reacts to the diver, so it's harmless to run next to them. Same headless skip, same reason.
+    if (p.level == PL_PIPES && !p.verifying) PopulatePipeLife(p, seed);
     // The Hull's real 7-species chain on top of its existing crabs/eels (ECOSYSTEM_BESTIARY.md) - same
     // headless skip as the Pipes' critters, for the same reason.
     if (p.level == PL_HULL && !p.verifying) PopulateEcoLife(p, seed);
@@ -1280,6 +1286,254 @@ void DrawEcoLife(const PlatEcoLife& e, float t) {
             for (int k = 0; k < 5; k++) { float a = k * 2.0f * PI / 5 + e.phase; DrawLineEx({(float)x, (float)y}, {x + cosf(a) * 9, y + sinf(a) * 4}, 1.5f, c); }
         }
         break;
+    }
+}
+
+// ---------------------------------------------------------------- the Pipes' real ecosystem chain
+// ECOSYSTEM_BESTIARY.md, "The Pipes": "Entities ignore the player; all hazards stem from systemic chaos and
+// collateral physics" - the one biome whose chain never reacts to the diver at all (CLAUDE.md: the Pipes have
+// no enemies), it just runs on its own. Dust Moths flutter toward the duct's surviving light leaks;
+// Water-Spiders web them at their post; Centipedes come eat a caught Moth, freeing it; Blind Pipe-Rats hunt a
+// feeding Centipede by vibration and, if aggressive, bite the pipe to reach it; Rust-Mites swarm out at a bite
+// to feed on the flakes; a Pillbug touched by a swarming Mite curls up and rolls; Scavenger Mice hunt an
+// uncurled Pillbug but flee a rolling one; a Cockroach that finds a Mouse near a rolled Pillbug's scraps
+// fights it; a Glow-Beetle near a fight flashes; a Cave Cricket near a flash panics and stampedes off.
+constexpr float PIPE_MOTH_LIGHT_R = 220, PIPE_WEB_R = 26, PIPE_EAT_R = 30, PIPE_RAT_HUNT_R = 90, PIPE_RAT_BITE_R = 20;
+constexpr float PIPE_MITE_SWARM_T = 3.0f, PIPE_MITE_CURL_R = 22, PIPE_ROLL_SPEED = 130, PIPE_MOUSE_HUNT_R = 110;
+constexpr float PIPE_MOUSE_FLEE_R = 24, PIPE_FIGHT_R = 26, PIPE_BEETLE_FLASH_R = 30, PIPE_FLASH_LIFE = 0.5f, PIPE_CRICKET_PANIC_R = 60;
+
+static void PopulatePipeLife(PlatformState& p, unsigned seed) {
+    p.lightSpots.clear();
+    for (int r = 0; r < p.h; r++) for (int c = 0; c < p.w; c++) if (p.tiles[r][c] == 'o') p.lightSpots.push_back({c * (float)T + T / 2.0f, r * (float)T + T / 2.0f});
+    int idx = 0;
+    for (int x = 2; x < p.w - 2; x++) {
+        int fy = -1;
+        for (int y = 1; y < p.h - 1; y++) if (!Solid(p, x, y) && Solid(p, x, y + 1)) { fy = y; break; }
+        if (fy < 0) continue;
+        float roll = Hs2((float)x, (float)seed * 7.3f + 4);
+        if (roll > 0.3f) continue; // a whole ten-species chain: denser ground than the Hull's, still not wall-to-wall
+        float pick = Hs2((float)x, (float)seed * 7.3f + 5);
+        PipeKind kind = pick < 0.20f ? PipeKind::Moth : pick < 0.28f ? PipeKind::Spider : pick < 0.40f ? PipeKind::Centipede
+                      : pick < 0.50f ? PipeKind::PipeRat : pick < 0.60f ? PipeKind::RustMite : pick < 0.70f ? PipeKind::Pillbug
+                      : pick < 0.80f ? PipeKind::ScavMouse : pick < 0.88f ? PipeKind::Cockroach : pick < 0.94f ? PipeKind::GlowBeetle
+                      : PipeKind::CaveCricket;
+        PlatPipeLife e;
+        e.kind = kind;
+        e.home = e.pos = {x * (float)T + T / 2.0f, fy * (float)T + T - 3};
+        e.personality = {Hs2(idx * 3.0f + 1, (float)seed), Hs2(idx * 3.0f + 2, (float)seed), Hs2(idx * 3.0f + 3, (float)seed), Hs2(idx * 3.0f + 4, (float)seed)};
+        e.dir = Hs2(idx * 5.0f, (float)seed) > 0.5f ? 1.0f : -1.0f;
+        e.phase = Hs2(idx * 9.0f, (float)seed) * 6.28f;
+        idx++;
+        p.pipeLife.push_back(e);
+        if (idx > 55) break;
+    }
+}
+
+static void PipeWander(PlatformState& p, PlatPipeLife& e, float speed, float leash) {
+    if (speed <= 0) return;
+    float nx = e.pos.x + e.dir * speed;
+    int ftx = (int)floorf((e.dir > 0 ? nx + 6 : nx - 6) / T), fty = (int)floorf((e.pos.y - 2) / T);
+    if (Solid(p, ftx, fty) || !Solid(p, ftx, fty + 1)) e.dir = -e.dir;
+    else e.pos.x = nx;
+    if (fabsf(e.pos.x - e.home.x) > leash) e.dir = e.home.x < e.pos.x ? -1.0f : 1.0f;
+}
+
+void UpdatePipeLife(PlatformState& p, float dt) {
+    if (p.pipeLife.empty()) return;
+    for (auto& e : p.pipeLife) {
+        e.phase += dt;
+        e.stateTimer += dt;
+        switch (e.kind) {
+        case PipeKind::Moth: {
+            if (e.state == PipeState::Caught) break; // stuck in a web until a Centipede frees it
+            const Vector2* light = nullptr; float best = PIPE_MOTH_LIGHT_R * PIPE_MOTH_LIGHT_R;
+            for (auto& l : p.lightSpots) { float dx = l.x - e.pos.x, dy = l.y - e.pos.y, d = dx * dx + dy * dy; if (d < best) { best = d; light = &l; } }
+            if (light) {
+                float dx = light->x - e.pos.x, dy = light->y - e.pos.y, d = sqrtf(dx * dx + dy * dy);
+                float speed = (24 + e.personality.energy * 20) * dt;
+                if (d > 4) { e.pos.x += dx / d * speed; e.pos.y += dy / d * speed * 0.6f; }
+                e.state = PipeState::Flying;
+            } else e.state = PipeState::Idle;
+            // caught by any Water-Spider's web it flies through
+            for (auto& s : p.pipeLife) if (s.kind == PipeKind::Spider) {
+                float sdx = s.pos.x - e.pos.x, sdy = s.pos.y - e.pos.y;
+                if (sdx * sdx + sdy * sdy < PIPE_WEB_R * PIPE_WEB_R) { e.state = PipeState::Caught; e.pos = s.pos; }
+            }
+            break;
+        }
+        case PipeKind::Spider: break; // stationary at its web - drawn as caught Moths orbit it
+        case PipeKind::Centipede: {
+            PlatPipeLife* target = nullptr; float best = 1e9f;
+            for (auto& m : p.pipeLife) if (m.kind == PipeKind::Moth && m.state == PipeState::Caught) {
+                float dx = m.pos.x - e.pos.x, dy = m.pos.y - e.pos.y, d = dx * dx + dy * dy;
+                if (d < best) { best = d; target = &m; }
+            }
+            if (target) {
+                e.state = PipeState::Hunting;
+                float dx = target->pos.x - e.pos.x;
+                float speed = (30 + e.personality.energy * 25) * dt;
+                if (fabsf(dx) > 4) e.pos.x += (dx < 0 ? -1.0f : 1.0f) * speed; else e.pos.y += (target->pos.y - e.pos.y > 0 ? 1.0f : -1.0f) * speed;
+                float ex = target->pos.x - e.pos.x, ey = target->pos.y - e.pos.y;
+                if (ex * ex + ey * ey < PIPE_EAT_R * PIPE_EAT_R) { target->state = PipeState::Flying; target->home = target->pos; } // eaten - freed to flutter off and disturbs the web
+            } else e.state = PipeState::Idle;
+            break;
+        }
+        case PipeKind::PipeRat: {
+            PlatPipeLife* target = nullptr; float best = PIPE_RAT_HUNT_R * PIPE_RAT_HUNT_R;
+            for (auto& c : p.pipeLife) if (c.kind == PipeKind::Centipede && c.state == PipeState::Hunting) {
+                float dx = c.pos.x - e.pos.x, dy = c.pos.y - e.pos.y, d = dx * dx + dy * dy;
+                if (d < best) { best = d; target = &c; }
+            }
+            if (target) {
+                e.state = PipeState::Hunting;
+                float dx = target->pos.x - e.pos.x;
+                e.dir = dx < 0 ? -1.0f : 1.0f;
+                PipeWander(p, e, (26 + e.personality.energy * 20) * dt, 1e9f);
+                float ex = target->pos.x - e.pos.x, ey = target->pos.y - e.pos.y;
+                if (e.personality.aggression > 0.6f && ex * ex + ey * ey < PIPE_RAT_BITE_R * PIPE_RAT_BITE_R) e.state = PipeState::Biting;
+            } else e.state = PipeState::Idle;
+            break;
+        }
+        case PipeKind::RustMite: {
+            bool biteNearby = false;
+            for (auto& r : p.pipeLife) if (r.kind == PipeKind::PipeRat && r.state == PipeState::Biting) {
+                float dx = r.pos.x - e.pos.x, dy = r.pos.y - e.pos.y;
+                if (dx * dx + dy * dy < PIPE_RAT_HUNT_R * PIPE_RAT_HUNT_R) biteNearby = true;
+            }
+            if (biteNearby) { e.state = PipeState::Swarming; e.stateTimer = 0; }
+            else if (e.state == PipeState::Swarming && e.stateTimer > PIPE_MITE_SWARM_T) e.state = PipeState::Idle;
+            if (e.state == PipeState::Swarming) {
+                PipeWander(p, e, (40 + e.personality.energy * 30) * dt, 60);
+                for (auto& b : p.pipeLife) if (b.kind == PipeKind::Pillbug && b.state == PipeState::Idle) {
+                    float dx = b.pos.x - e.pos.x, dy = b.pos.y - e.pos.y;
+                    if (dx * dx + dy * dy < PIPE_MITE_CURL_R * PIPE_MITE_CURL_R) { b.state = PipeState::Curled; b.stateTimer = 0; }
+                }
+            } else PipeWander(p, e, fmodf(e.phase, 3.0f) > 2.4f ? 10 * dt : 0, 24);
+            break;
+        }
+        case PipeKind::Pillbug:
+            if (e.state == PipeState::Curled) {
+                if (e.stateTimer > 0.4f) { e.state = PipeState::Rolling; e.stateTimer = 0; }
+            } else if (e.state == PipeState::Rolling) {
+                float speed = PIPE_ROLL_SPEED * dt;
+                float nx = e.pos.x + e.dir * speed;
+                int ftx = (int)floorf((e.dir > 0 ? nx + 6 : nx - 6) / T), fty = (int)floorf((e.pos.y - 2) / T);
+                if (Solid(p, ftx, fty) || !Solid(p, ftx, fty + 1)) { e.dir = -e.dir; e.state = PipeState::Idle; e.stateTimer = 0; }
+                else e.pos.x = nx;
+                for (auto& m : p.pipeLife) if (m.kind == PipeKind::ScavMouse) { // a rolling shell scares off a hunting Mouse
+                    float dx = m.pos.x - e.pos.x, dy = m.pos.y - e.pos.y;
+                    if (dx * dx + dy * dy < PIPE_MOUSE_FLEE_R * PIPE_MOUSE_FLEE_R) { m.state = PipeState::Fleeing; m.stateTimer = 0; m.dir = dx < 0 ? -1.0f : 1.0f; }
+                }
+            } else PipeWander(p, e, fmodf(e.phase, 2.8f) > 2.2f ? (14 + e.personality.energy * 8) * dt : 0, 30);
+            break;
+        case PipeKind::ScavMouse: {
+            if (e.state == PipeState::Fleeing) {
+                if (e.stateTimer > 1.2f) e.state = PipeState::Idle;
+                PipeWander(p, e, (55 + e.personality.energy * 25) * dt, 1e9f);
+                break;
+            }
+            PlatPipeLife* target = nullptr; float best = PIPE_MOUSE_HUNT_R * PIPE_MOUSE_HUNT_R;
+            for (auto& b : p.pipeLife) if (b.kind == PipeKind::Pillbug && b.state == PipeState::Idle) {
+                float dx = b.pos.x - e.pos.x, dy = b.pos.y - e.pos.y, d = dx * dx + dy * dy;
+                if (d < best) { best = d; target = &b; }
+            }
+            if (target) { e.state = PipeState::Hunting; e.dir = target->pos.x < e.pos.x ? -1.0f : 1.0f; PipeWander(p, e, (24 + e.personality.energy * 16) * dt, 1e9f); }
+            else e.state = PipeState::Idle;
+            // a Cockroach nearby a Mouse still lingering over a Pillbug's scraps (one it already fled from) picks a fight
+            for (auto& r : p.pipeLife) if (r.kind == PipeKind::Cockroach) {
+                float dx = r.pos.x - e.pos.x, dy = r.pos.y - e.pos.y;
+                if (dx * dx + dy * dy < PIPE_FIGHT_R * PIPE_FIGHT_R && e.personality.aggression > 0.4f) { e.state = PipeState::Fighting; r.state = PipeState::Fighting; r.stateTimer = e.stateTimer = 0; }
+            }
+            break;
+        }
+        case PipeKind::Cockroach:
+            if (e.state == PipeState::Fighting) {
+                if (e.stateTimer > 1.0f) e.state = PipeState::Idle;
+                for (auto& g : p.pipeLife) if (g.kind == PipeKind::GlowBeetle) { // stepped on mid-scuffle
+                    float dx = g.pos.x - e.pos.x, dy = g.pos.y - e.pos.y;
+                    if (dx * dx + dy * dy < PIPE_BEETLE_FLASH_R * PIPE_BEETLE_FLASH_R) { g.state = PipeState::Flash; g.stateTimer = 0; }
+                }
+            } else PipeWander(p, e, fmodf(e.phase, 2.4f) > 1.9f ? (16 + e.personality.energy * 10) * dt : 0, 40);
+            break;
+        case PipeKind::GlowBeetle:
+            if (e.state == PipeState::Flash && e.stateTimer > PIPE_FLASH_LIFE) e.state = PipeState::Idle;
+            break;
+        case PipeKind::CaveCricket:
+            if (e.state == PipeState::Panic) {
+                if (e.stateTimer > 0.8f) e.state = PipeState::Idle;
+                else PipeWander(p, e, (70 + e.personality.energy * 50) * dt, 1e9f); // jumps wildly, ignoring its own leash - the stampede
+            } else {
+                for (auto& g : p.pipeLife) if (g.kind == PipeKind::GlowBeetle && g.state == PipeState::Flash) {
+                    float dx = g.pos.x - e.pos.x, dy = g.pos.y - e.pos.y;
+                    if (dx * dx + dy * dy < PIPE_CRICKET_PANIC_R * PIPE_CRICKET_PANIC_R) { e.state = PipeState::Panic; e.stateTimer = 0; }
+                }
+                if (e.state != PipeState::Panic) PipeWander(p, e, fmodf(e.phase, 1.6f) > 1.3f ? (20 + e.personality.energy * 14) * dt : 0, 26);
+            }
+            break;
+        }
+    }
+}
+
+// Small flat pixel-art per species, same shape-language as DrawCritter/DrawEcoLife.
+void DrawPipeLife(const PlatPipeLife& e, float t) {
+    int x = (int)e.pos.x, y = (int)e.pos.y;
+    switch (e.kind) {
+    case PipeKind::Moth: {
+        Color c = Color{225, 220, 190, 220};
+        float wing = sinf(t * 18 + e.phase) * 3;
+        DrawLineEx({x - wing, y - 4.0f}, {(float)x, (float)y}, 1.5f, c);
+        DrawLineEx({x + wing, y - 4.0f}, {(float)x, (float)y}, 1.5f, c);
+        break;
+    }
+    case PipeKind::Spider: {
+        Color c = Color{70, 60, 60, 255};
+        DrawCircleLines(x, y - 5, 12, Fade(Color{220, 220, 230, 255}, 0.3f)); // the web
+        DrawCircle(x, y - 5, 3, c);
+        break;
+    }
+    case PipeKind::Centipede: {
+        Color c = Color{150, 110, 60, 255};
+        for (int k = 0; k < 5; k++) DrawRectangle(x - 6 + k * 3 - (e.dir > 0 ? 0 : 0), y - 2 + (int)(sinf(t * 10 + k + e.phase) * 1.5f), 3, 2, c);
+        break;
+    }
+    case PipeKind::PipeRat: {
+        Color c = e.state == PipeState::Biting ? Color{200, 90, 90, 255} : Color{120, 110, 110, 255};
+        DrawRectangle(x - 4, y - 4, 8, 4, c);
+        DrawRectangle(x + (e.dir > 0 ? 3 : -5), y - 5, 2, 2, c);
+        break;
+    }
+    case PipeKind::RustMite: {
+        Color c = e.state == PipeState::Swarming ? Color{200, 110, 60, 255} : Color{150, 90, 55, 255};
+        DrawCircle(x, y - 3, e.state == PipeState::Swarming ? 3 : 2, c);
+        break;
+    }
+    case PipeKind::Pillbug: {
+        Color c = Color{130, 130, 110, 255};
+        if (e.state == PipeState::Curled || e.state == PipeState::Rolling) DrawCircle(x, y - 3, 4, c);
+        else DrawRectangle(x - 4, y - 4, 8, 4, c);
+        break;
+    }
+    case PipeKind::ScavMouse: {
+        Color c = e.state == PipeState::Fleeing ? Color{200, 190, 180, 255} : Color{140, 130, 120, 255};
+        DrawRectangle(x - 4, y - 3, 8, 3, c);
+        DrawCircle(x + (e.dir > 0 ? -5 : 5), y - 4, 2, c); // tail-end blob, mouse faces opposite its tail
+        break;
+    }
+    case PipeKind::Cockroach: {
+        Color c = e.state == PipeState::Fighting ? Color{130, 80, 50, 255} : Color{90, 65, 45, 255};
+        DrawRectangle(x - 4, y - 3, 8, 3, c);
+        break;
+    }
+    case PipeKind::GlowBeetle: {
+        if (e.state == PipeState::Flash) DrawCircle(x, y - 4, 10, Fade(Color{255, 250, 200, 255}, 0.5f));
+        DrawCircle(x, y - 4, 3, e.state == PipeState::Flash ? Color{255, 240, 150, 255} : Color{160, 200, 120, 255});
+        break;
+    }
+    case PipeKind::CaveCricket: {
+        Color c = e.state == PipeState::Panic ? Color{210, 200, 120, 255} : Color{150, 160, 100, 255};
+        DrawRectangle(x - 3, y - 4, 6, 4, c);
+        break;
+    }
     }
 }
 
@@ -3337,6 +3591,112 @@ bool VerifyHullEcosystem() {
     return true;
 }
 
+// depth.exe --verify-pipe-ecosystem: proves the Pipes' 10-species chain fires, entirely on synthetic setups
+// the same way --verify-hull-ecosystem does - and additionally proves the diver never has any effect on it
+// at all, since "entities ignore the player" is this biome's whole point (ECOSYSTEM_BESTIARY.md).
+bool VerifyPipeEcosystem() {
+    auto flatFloor = [](int w, int h, int floorRow) {
+        PlatformState p;
+        p.w = w; p.h = h;
+        p.tiles.assign(h, std::string(w, '.'));
+        for (int x = 0; x < w; x++) p.tiles[floorRow][x] = '#';
+        p.pos = {-1000, -1000}; // the diver is nowhere near any of this - the point of the test
+        return p;
+    };
+    // 1) a real generated Pipes layout spawns several distinct species
+    {
+        PlatformState p;
+        p.level = PL_PIPES;
+        p.layout = {11, 100};
+        BuildLevel(p);
+        int kinds[10] = {0};
+        for (auto& e : p.pipeLife) kinds[(int)e.kind]++;
+        int distinct = 0;
+        for (int k = 0; k < 10; k++) if (kinds[k] > 0) distinct++;
+        if (distinct < 4) { TraceLog(LOG_WARNING, "verify-pipe-ecosystem: FAILED - only %d distinct species spawned in a real layout", distinct); return false; }
+        TraceLog(LOG_WARNING, "verify-pipe-ecosystem: a real layout spawned %d distinct species (%d total)", distinct, (int)p.pipeLife.size());
+    }
+    float fy = 15.0f * T + T - 3;
+    // 2) a Moth flies to a light and a Water-Spider's web catches it; a Centipede then eats it and frees it
+    {
+        PlatformState p = flatFloor(40, 20, 15);
+        p.lightSpots = {{20.0f * T, fy}};
+        PlatPipeLife moth; moth.kind = PipeKind::Moth; moth.home = moth.pos = {15.0f * T, fy}; // within PIPE_MOTH_LIGHT_R of the light below
+        PlatPipeLife spider; spider.kind = PipeKind::Spider; spider.home = spider.pos = {20.0f * T, fy};
+        p.pipeLife = {moth, spider};
+        bool caught = false;
+        for (int f = 0; f < 900 && !caught; f++) { UpdatePipeLife(p, 1 / 60.0f); if (p.pipeLife[0].state == PipeState::Caught) caught = true; }
+        if (!caught) { TraceLog(LOG_WARNING, "verify-pipe-ecosystem: FAILED - a Moth never flew into a Water-Spider's web"); return false; }
+        PlatPipeLife centipede; centipede.kind = PipeKind::Centipede; centipede.home = centipede.pos = {20.0f * T, fy}; // right on the web - eats immediately
+        p.pipeLife.push_back(centipede);
+        UpdatePipeLife(p, 1 / 60.0f);
+        if (p.pipeLife[0].state == PipeState::Caught) { TraceLog(LOG_WARNING, "verify-pipe-ecosystem: FAILED - a Centipede never freed a caught Moth"); return false; }
+    }
+    // 3) an aggressive Pipe-Rat hunts a feeding Centipede and bites, waking a swarm of Rust-Mites, which curl
+    // a nearby Pillbug into rolling, which scares off a hunting Scavenger Mouse
+    {
+        PlatformState p = flatFloor(40, 20, 15);
+        PlatPipeLife moth; moth.kind = PipeKind::Moth; moth.home = moth.pos = {20.0f * T, fy}; moth.state = PipeState::Caught; // gives the Centipede below a real reason to be Hunting
+        PlatPipeLife centipede; centipede.kind = PipeKind::Centipede; centipede.home = centipede.pos = {20.0f * T, fy};
+        PlatPipeLife rat; rat.kind = PipeKind::PipeRat; rat.home = rat.pos = {20.0f * T + 5, fy}; rat.personality.aggression = 0.9f;
+        PlatPipeLife mite; mite.kind = PipeKind::RustMite; mite.home = mite.pos = {20.0f * T, fy};
+        PlatPipeLife bug; bug.kind = PipeKind::Pillbug; bug.home = bug.pos = {20.0f * T, fy};
+        PlatPipeLife mouse; mouse.kind = PipeKind::ScavMouse; mouse.home = mouse.pos = {20.0f * T, fy}; mouse.dir = -1;
+        p.pipeLife = {moth, centipede, rat, mite, bug, mouse};
+        bool bit = false, swarmed = false, curled = false, rolling = false, fled = false;
+        for (int f = 0; f < 600; f++) {
+            UpdatePipeLife(p, 1 / 60.0f);
+            if (p.pipeLife[2].state == PipeState::Biting) bit = true;
+            if (p.pipeLife[3].state == PipeState::Swarming) swarmed = true;
+            if (p.pipeLife[4].state == PipeState::Curled) curled = true;
+            if (p.pipeLife[4].state == PipeState::Rolling) rolling = true;
+            if (p.pipeLife[5].state == PipeState::Fleeing) fled = true;
+        }
+        if (!bit) { TraceLog(LOG_WARNING, "verify-pipe-ecosystem: FAILED - an aggressive Pipe-Rat never bit into the pipe"); return false; }
+        if (!swarmed) { TraceLog(LOG_WARNING, "verify-pipe-ecosystem: FAILED - the bite never woke a Rust-Mite swarm"); return false; }
+        if (!curled) { TraceLog(LOG_WARNING, "verify-pipe-ecosystem: FAILED - a swarming Mite never curled up a Pillbug"); return false; }
+        if (!rolling) { TraceLog(LOG_WARNING, "verify-pipe-ecosystem: FAILED - a curled Pillbug never started rolling"); return false; }
+        if (!fled) { TraceLog(LOG_WARNING, "verify-pipe-ecosystem: FAILED - a rolling Pillbug never scared off the hunting Mouse"); return false; }
+    }
+    // 4) a Cockroach fighting a Mouse flashes a nearby Glow-Beetle, which panics a nearby Cave Cricket
+    {
+        PlatformState p = flatFloor(40, 20, 15);
+        PlatPipeLife mouse; mouse.kind = PipeKind::ScavMouse; mouse.home = mouse.pos = {20.0f * T, fy};
+        PlatPipeLife roach; roach.kind = PipeKind::Cockroach; roach.home = roach.pos = {20.0f * T + 5, fy}; roach.personality.aggression = 0.9f;
+        PlatPipeLife beetle; beetle.kind = PipeKind::GlowBeetle; beetle.home = beetle.pos = {20.0f * T, fy};
+        PlatPipeLife cricket; cricket.kind = PipeKind::CaveCricket; cricket.home = cricket.pos = {20.0f * T, fy};
+        p.pipeLife = {mouse, roach, beetle, cricket};
+        bool flashed = false, panicked = false;
+        for (int f = 0; f < 300; f++) {
+            UpdatePipeLife(p, 1 / 60.0f);
+            if (p.pipeLife[2].state == PipeState::Flash) flashed = true;
+            if (p.pipeLife[3].state == PipeState::Panic) panicked = true;
+        }
+        if (!flashed) { TraceLog(LOG_WARNING, "verify-pipe-ecosystem: FAILED - a fight never made a Glow-Beetle flash"); return false; }
+        if (!panicked) { TraceLog(LOG_WARNING, "verify-pipe-ecosystem: FAILED - a flash never panicked a Cave Cricket into stampeding"); return false; }
+    }
+    // 5) none of it ever moves toward, or away from, the diver - it's a fixed point far from every setup above,
+    // so any positional drift correlated with distance-to-player would show up as blown-up or NaN positions
+    // if this code accidentally read p.pos anywhere; walk a full real level's worth of frames to be sure
+    {
+        PlatformState p;
+        p.level = PL_PIPES;
+        p.layout = {11, 100};
+        BuildLevel(p);
+        for (int f = 0; f < 600; f++) {
+            p.pos = {(float)f / 600.0f * p.w * T, 400}; // the diver sweeps the whole level - the chain must never notice
+            UpdatePipeLife(p, 1 / 60.0f);
+            for (const auto& e : p.pipeLife)
+                if (std::isnan(e.pos.x) || std::isnan(e.pos.y) || fabsf(e.pos.x) > 1e7f || fabsf(e.pos.y) > 1e7f) {
+                    TraceLog(LOG_WARNING, "verify-pipe-ecosystem: FAILED - an entity's position blew up");
+                    return false;
+                }
+        }
+    }
+    TraceLog(LOG_WARNING, "verify-pipe-ecosystem: OK - web/eat, bite/swarm/curl/roll/flee, and flash/panic chains all confirmed, none of it reacting to the diver");
+    return true;
+}
+
 // The darkness of the ducts, drawn in bands (it suits the pixel art) around the diver's helmet lamp.
 static void DrawLampDarkness(Vector2 c, float r, float maxA) {
     const int B = 6;
@@ -3394,6 +3754,7 @@ void ScenePlatformer(Game& g) {
         float ed = p.ghost ? dt * GHOST_SPEED : dt; // ghosts move, aim, fire and charge 1.6x faster
         UpdateEnemies(p, ed);
         UpdateCritters(p, dt); // ambient duct life - never touched by ghost speed, it isn't part of the challenge
+        UpdatePipeLife(p, dt); // the Pipes' real ecosystem chain - ignores the diver entirely, so likewise untouched by ghost speed (Pirate-only anyway)
         UpdateEcoLife(p, dt);  // the Hull's ecosystem chain - Ghost Ship speed is Pirate-only, doesn't apply here
         UpdateBoss(p, ed);
         UpdateLaunchers(p, ed);
@@ -3530,6 +3891,7 @@ void ScenePlatformer(Game& g) {
     DrawBoss(p, t);
     for (auto& e : p.enemies) DrawEnemy(e, t);
     for (auto& c : p.critters) DrawCritter(c, t);
+    for (auto& e : p.pipeLife) DrawPipeLife(e, t);
     for (auto& ic : p.inkClouds) DrawCircle((int)ic.pos.x, (int)ic.pos.y, ic.r * std::clamp(ic.life / ECO_INK_LIFE, 0.0f, 1.0f), Fade(Color{30, 20, 35, 255}, 0.35f));
     for (auto& e : p.ecoLife) DrawEcoLife(e, t);
     DrawShots(p, t);
