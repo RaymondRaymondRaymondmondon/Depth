@@ -4,6 +4,73 @@ This tracks a large addition the user asked for, kept separate from ROADMAP.md (
 roadmap) because it's a different initiative: new parkour content and systems, explicitly **not**
 touching the main game (the Nautilus hub, expeditions, Flats) at all.
 
+## ⚠ CURRENT PRIORITY (supersedes "Weeds next" below): a real creature-AI rework, handed to Opus
+
+After commit 64b4901 the user gave this feedback verbatim:
+
+> "The beasts in every level still don't feel like they are part of an environment. Some feel like they
+> just sit there and do nothing (have no reaction to the player) and the one's that are meant to follow
+> and try and out smart the player either don't exist, or sit only on two block ledges and follow a
+> goomba path from mario. These beasts should have the developed intelligence of animals. They should be
+> interacting with each other and the environment. There should be parts of the environment generated
+> that are unique to them (if ever far off in the level that they will seek safety in). Feel free to ask
+> questions now. These creatures should have genuinely developed AI's that make them living instead of
+> stagnant. If this is a project for an opus model tell me"
+
+Clarifying questions were asked; the user's answers (binding):
+- **Depth: full grid pathfinding for wandering and fleeing** - not just richer state machines. Creatures
+  must plan real routes across the level's tile grid to a chosen destination (a shelter, a pursued
+  target, a roam point) instead of today's `EcoWander` / `PipeWander` "walk until a wall or ledge, then
+  turn around" - which is literally the "Mario goomba path" the user is describing. The player-side
+  `Crossable()` A* in platformer.cpp (used by `--verify`) is the obvious reference for how to search this
+  grid with the real movement constraints, but a creature navigator doesn't need the player's full jump
+  physics - most species walk/crawl/fly/swim, not wall-jump - so it wants its own, cheaper graph (walkable
+  floor spans + which spans connect by a drop/step/short hop, per species' movement type), precomputed
+  once per `BuildLevel` rather than searched from scratch every frame.
+- **Shelters: first-class, in all five generators, this pass** - each structural generator (BuildTrench,
+  BuildFleet, BuildIsland, BuildCave, and the Pipes' pass-1/pass-2 core) gets real creature shelters
+  (dens, burrows, crevices, nests - biome-appropriate) that threatened prey navigate to and are safe
+  inside, "if ever far off in the level." These are for creatures, never the player's critical path, so
+  they must not break `--verify` crossability. **Open conflict to resolve first:** CLAUDE.md and the
+  user's own earlier feedback say the Pipes are "fine as-is, leave alone" - check with the user whether
+  that still holds now that they've explicitly asked for shelters in all five generators, before
+  touching the Pipes' generator core.
+- **Rollout: prove it on ONE biome first, then propagate** to the rest. Not yet chosen which biome -
+  recommendation: **the Hull**, since it already has the clearest real predator/prey pair (crabs, eels)
+  plus a full 7-species overlay, so the gap between "what exists" and "genuinely alive" is easiest to see
+  and test there. Confirm with the user or pick and say so.
+- **Model: the user asked for this to be done on Opus**, not in the Sonnet session that built the
+  biomes so far. This section exists so an Opus session can pick it up cold. (The user has since
+  switched; this work is now running on Opus 5.5.)
+- **Decisions taken on the open points above (Opus, same session):** the Hull is the proving biome.
+  The Pipes DO get creature shelters - the user explicitly chose "all five generators" after the "leave
+  the Pipes alone" note, so that answer supersedes it - but only as creature-side structure: no change
+  to the Pipes' platforming, hazards, set-pieces or `--verify` crossability.
+
+What "genuinely alive" needs to cover, synthesized from this message and the two earlier AI notes below
+(the swim/eel/school/death note and the exploratory-personality note - they all belong to this same pass):
+1. **Perception that actually reacts to the player** - several species today never read `p.pos` at all
+   except by accident (the Pipes' chain deliberately; others just never got a check). Every species needs
+   a sight/hearing model appropriate to it (with line-of-sight against solid tiles, not just a radius)
+   and a short memory of where it last noticed the player/a threat.
+2. **Predators that genuinely hunt** - pursue along the navigation graph (the "outsmart the player"
+   complaint), including predicting where prey is heading, not just chasing its current tile; give up
+   based on personality (aggression/energy), not a fixed timer.
+3. **Prey that genuinely flee** - to the nearest reachable shelter via the navigation graph, not just
+   "away" along one axis; schooling species keep formation with personality-driven stragglers a predator
+   can target (earlier note).
+4. **Creatures reacting to each other**, not only to the player - alarm propagation (one prey spotting a
+   predator warns nearby prey), predator/prey pairs across species within a biome, and a real terminal
+   "eaten/dead" state with removal + slow repopulation (earlier note: "the beasts can perish").
+5. **Real movement modes per species** - swimmers actually swim through open water in the aquatic
+   biomes instead of crawling along the floor (earlier note), fliers fly, crawlers crawl; the navigation
+   graph must respect each mode.
+6. **Exploratory personality** (earlier note) - a trait that makes some individuals roam far from home
+   and explore the map, choosing their own path, rather than every creature being leashed to its spawn.
+
+Everything below this section still stands, but is lower priority than this until the user says otherwise.
+Weeds and Atlantis (the remaining two new biomes) are on hold behind this.
+
 ## Status as of commit cd1fe26: Island and Cave both built; Weeds and Atlantis next
 
 The Island (commits 8ee3412, 44ae583, cd1fe26) and the Cave (commit 42ebeff) are both done - see
