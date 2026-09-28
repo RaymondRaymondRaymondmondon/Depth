@@ -4,6 +4,35 @@ This tracks a large addition the user asked for, kept separate from ROADMAP.md (
 roadmap) because it's a different initiative: new parkour content and systems, explicitly **not**
 touching the main game (the Nautilus hub, expeditions, Flats) at all.
 
+## Status as of commit cd1fe26: Island and Cave both built; Weeds and Atlantis next
+
+The Island (commits 8ee3412, 44ae583, cd1fe26) and the Cave (commit 42ebeff) are both done - see
+their own commit messages for the technical detail. Playtest feedback, addressed along the way:
+- The Island first read as a Hull reskin (shared tile vocabulary, recolored rather than redesigned
+  creatures) - fixed (44ae583): every tile/creature the Island touches now has its own real art
+  (vines not seaweed, thorned bark not barnacles, a mud wallow not a steam jet, a real four-legged
+  lizard not a recolored crab, a zigzag-bodied snake not a recolored eel).
+- Adding a fourth platform level pushed the Periscope's Abyss card off the visible screen with no
+  way to reach it - fixed in the same commit (card layout is now sized to fit PL_COUNT + 1 cards on
+  screen, not hand-tuned for exactly three).
+- **"Do not mirror the levels. They should be distinct levels that have distinct layouts."** - given
+  while the Cave was being built as another floor-level set-piece carousel just like the Island's.
+  Redesigned around a genuinely different traversal shape instead: the Cave's dominant motif is a
+  winding chain of wall-jump shafts that actually change the level's standing height as you climb and
+  drop, not a fixed floor row with set-pieces breaking it up. **Apply this same distinctness test to
+  Weeds and Atlantis too** - each of the four new biomes should have its own dominant traversal shape
+  (Island: floor-level crossing of set-pieces; Cave: vertical shaft-chain), not a reskin of a shape
+  already used. Decide Weeds' and Atlantis' own shapes before writing their generators, the way the
+  Cave's "climb dominant, not floor dominant" idea was decided before BuildCave was written.
+- **"The island level looks like a forest not a tropical island inhabited by untouched locals
+  worshipping strange gods."** - fixed (cd1fe26): rebalanced the feature carousel so the two
+  worship-site set-pieces (idol climbs, village stands) dominate instead of generic jungle floor: the
+  skyline and midground are now dominated by carved idol silhouettes rather than trees; the ground
+  reads as worked stone with buried glyphs, not packed earth; totem poles (carved rings, a lashed
+  skull, a trailing feather) are planted procedurally throughout, not just at village stands. Keep
+  this "worship site over wilderness" bar in mind for the Island's future AI/art passes too - it's
+  easy to regress back toward "generic jungle" by leaning on tree/vine art for new content there.
+
 ## Status as of commit 9a0159c (checkpoint before starting the four new biomes)
 
 **The entire original feedback list (below) is now done**, including the Pirate Ship retrofit:
