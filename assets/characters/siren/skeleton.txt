@@ -15,18 +15,23 @@
 # animation). With that stub gone there's nothing left above the pivot to expose, at any rotation.
 # The pivot sits at the very top of this new crop (0 0.1575 - was 0.182 0.172 against the old,
 # uncropped file) and its scale is picked so its width there matches the torso's own width at its
-# pivot row in world units (400px * 0.162 torso scale here) - this row is naturally wider than the
-# old, skin-adjacent one was, so the scale needed to match it is smaller (0.315, down from 0.362),
-# which also makes the tail a bit less heavy overall, per feedback that it still read as too big.
+# pivot row in world units - this row is naturally wider than the old, skin-adjacent one was, so the
+# scale needed to match it is smaller than before, which also makes the tail a bit less heavy
+# overall, per feedback that it still read as too big.
+#
+# Both scales below are then cut a further 10% (0.162/0.315 -> 0.146/0.284) per feedback that even
+# matching the Captain's own head-to-hip reference exactly still read as a little large - a small
+# flat reduction on top of that reference rather than a re-measurement, since it's a matter of
+# taste past that point, not a calibration error.
 bone hip - 0 -84 0 1 1 0
 bone body hip 0 0 0 1 1 40
 bone tail hip 0 0 0 1 1 60
 slot tail tail
 slot body body
-attach body piece characters/siren/torso_neutral.png 0.365 0.914 0.162
-attach body piece characters/siren/torso_attack.png 0.349 0.916 0.162
-attach body piece characters/siren/torso_hit.png 0.566 0.919 0.162
-attach tail piece characters/siren/tail.png 0.1575 0 0.315
+attach body piece characters/siren/torso_neutral.png 0.365 0.914 0.146
+attach body piece characters/siren/torso_attack.png 0.349 0.916 0.146
+attach body piece characters/siren/torso_hit.png 0.566 0.919 0.146
+attach tail piece characters/siren/tail.png 0.1575 0 0.284
 anim idle 2.4
 key tail rot 0 0
 key tail rot 0.3 7.07107
