@@ -92,18 +92,52 @@ render target, `Mode3DRT()`, composited in like `PixelRT`/`OceanRT`), and a dege
 velocity-derived look direction goes parallel to the up vector during a near-straight-down fall,
 silently producing a blank render) - fixed with a fixed chase-camera offset instead.
 
+## Status: the Open Abyss is now a complete, fixed-length slice
+
+Decided with the user (see "Decisions made" above for the earlier round; this is the follow-up
+round, before this pass started): the Abyss is "finished" as a **complete slice at its existing
+fixed ~900 m length** - the full species/set-piece roster below, a real in-game entry point, a
+standalone Helm/Periscope menu entry (no physical connection to the Hull's 2D level) - with
+infinite/streaming generation explicitly deferred as its own future project, not part of "finished."
+
+Added on top of the first vertical slice above:
+- **The remaining species**: Vampire Squid (a faster, more aggressive hunter than the Gulper Eel,
+  only in deeper water), Trench Worms (coiled in the wall, lunging at anything that lingers close),
+  Hatchetfish (harmless ambient schools that flee a disturbance and drift back), Brine Slugs (slow,
+  heavy, crushing - the hazard the bowling lane and brine pool both lean on), and Leviathans (a
+  colossal, mostly-background presence patrolling slow depth bands; rarely, gated by its own rolled
+  aggression, it deviates into a fast, dangerous close pass).
+- **The remaining set-pieces**, generated once per seed as depth-banded zones layered on as physics/
+  behaviour effects rather than changes to the trench's own (proven, verified) wall geometry:
+  a thermal-vent updraft column, an Isopod bowling lane (isopods let go on their own clock, not just
+  on request), a Siphonophore maze (a band of static stinging tendrils meant to be threaded slowly),
+  and a brine-pool arena (gravity cut well down, a distinctly different body of water to swim
+  through).
+- **A real fail state**: stamina is air, warmth, and health at once - every hazard drains it hard
+  (gated by a brief immunity window so one hit can't chain into ten) rather than killing outright,
+  and reaching zero is the one thing that ends a dive. This was a real gap in the first slice: the
+  Gulper Eel could already "catch" the player but nothing happened when it did.
+- **Visual polish**: a pressure-distortion screen-space shader (a subtle depth-scaled UV wobble on
+  the composited 3D render, skipped in the headless verifier where no GL context exists), marine
+  snow that streaks harder in the seconds before a down-draft hits (so the water telegraphs the
+  hazard), and Leviathans drawn as huge, near-black, low-alpha masses with two faint eyes - meant to
+  read as "something is down here," not as a fully modelled monster.
+- **A real entry point**: a fourth Periscope card ("The Open Abyss," gated behind clearing the
+  Pirate Ship), styled distinctly from the three platform-level cards since it isn't another
+  chunk-layout level. Reaching the bottom pays out gold and a relic (the deepest dive, so it pays
+  the most); dying or surfacing both show an overlay with the outcome before returning to the Helm.
+  `abyssCleared`/`abyssBest` persist in the save file.
+- The scripted diver in `--verify-abyss` now also steers away from whatever hazard is nearest, not
+  just toward the shaft's centre - it isn't smart, but the descent has to be provably survivable
+  with the mechanics as tuned, not just in theory. Passed 65/65 runs across random seeds while this
+  was being tuned.
+
 ## Not yet done
 
 - The other biomes: new platform versions of Island/Cave/Weeds/Atlantis, and retrofitting Pipes/Hull/
-  Pirate Ship onto the shared personality/ecosystem framework.
-- The Open Abyss's remaining species (Leviathans, Siphonophore Colonies, Vampire Squid, Hadal
-  Trench-Worms, Deep-Sea Hatchetfish, Heavy Brine-Slugs) and remaining set-pieces (Siphonophore
-  mazes, thermal-vent updrafts, brine-pool shelves with inverted glide physics, Isopod bowling
-  lanes).
-- The pressure-distortion screen-space shader, marine-snow velocity telegraphing, and background
-  Leviathan silhouettes.
-- Streaming/infinite generation past this slice's fixed ~900-unit trench.
-- A real way to reach the Abyss in-game (a Periscope/Helm entry point) - it's debug-launch-only for
-  now (`--shots ... abyss`, or setting `g.scene = Scene::Abyss` directly).
-- Whether biome transitions (e.g. falling from the Hull into the Abyss) are seamless or gated by a
-  loading/transition room - raised in the brief, not yet decided or built.
+  Pirate Ship onto the shared personality/ecosystem framework. (Next up.)
+- Streaming/infinite generation past this slice's fixed ~900 m trench - deliberately deferred, see
+  above.
+- Whether biome transitions (e.g. falling from the Hull into the Abyss) are ever made seamless rather
+  than a standalone menu entry - raised in the brief; for this slice, decided as standalone (simplest,
+  matches how Pipes/Hull/Pirate Ship are already picked), revisit if a future pass wants otherwise.

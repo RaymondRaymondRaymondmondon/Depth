@@ -405,8 +405,28 @@ struct PersonalityProfile {
     float curiosity   = 0.5f; // 0 = ignores disturbances, 1 = investigates every sound
 };
 
-enum class AbyssCreatureState { Cling, Idle, Dislodged, Hunting, Fleeing, Investigating, Shattered };
-enum class AbyssCreatureKind { GlassSponge, GiantIsopod, GulperEel, BioPlankton, VampireSquid, Siphonophore };
+constexpr float ABYSS_DEPTH_SPAN = 900.0f; // how far down this vertical slice's trench is generated, in metres
+constexpr int ABYSS_PAYOUT = 280;          // gold at the bottom - the deepest dive, so it pays the most
+
+enum class AbyssCreatureState { Cling, Idle, Dislodged, Hunting, Fleeing, Investigating, Shattered, Lunging, Passing };
+enum class AbyssCreatureKind {
+    GlassSponge, GiantIsopod, GulperEel, BioPlankton, VampireSquid, Siphonophore,
+    Leviathan,   // a colossal background presence; mostly a suggested silhouette, rarely a close, dangerous pass
+    TrenchWorm,  // lunges out of the wall at anything that lingers nearby
+    Hatchetfish, // harmless ambient schooling prey - just life in the water, no threat, no reward
+    BrineSlug,   // slow, heavy, crushing - the hazard that makes the bowling-lane set-piece work
+};
+
+// A set-piece band of depth, generated once from the level seed (see PopulateEcosystem): the trench's own
+// geometry (TrenchRadius) is left untouched by these - they're layered on as physics/behaviour effects so the
+// proven, verified wall collision never has to change shape underneath them.
+enum class AbyssZoneKind { Vent, SiphonophoreMaze, BrinePool, BowlingLane };
+struct AbyssZone {
+    AbyssZoneKind kind = AbyssZoneKind::Vent;
+    float depth = 0, span = 40;   // the band this zone covers: [depth, depth + span)
+    float angle = 0;              // Vent: the up-draft's centre angle around the shaft
+    float strength = 1.0f;        // Vent: updraft force scale; BrinePool: how much gravity is cut
+};
 
 struct AbyssCreature {
     AbyssCreatureKind kind = AbyssCreatureKind::GlassSponge;
@@ -417,6 +437,7 @@ struct AbyssCreature {
     float radiusOffset = 0;   // how far the creature sits from the shaft wall (ledges reach inward)
     Vector3 pos{0, 0, 0};
     Vector3 vel{0, 0, 0};
+    Vector3 home{0, 0, 0};    // TrenchWorm/BrineSlug: the resting spot a lunge/crawl returns to
     float health = 1.0f;      // sponges: shatter (state -> Shattered) at 0; others: simple hit points
     float stateTimer = 0;
     float phase = 0;          // per-entity animation/wobble offset so a school doesn't move in lockstep
@@ -424,6 +445,9 @@ struct AbyssCreature {
 };
 
 struct AbyssPlanktonPuff { Vector3 pos{0, 0, 0}; float life = 0, maxLife = 1.3f, radius = 40; };
+// A single mote of marine snow: ambient drift that streaks (and telegraphs a coming downdraft) rather than
+// just sitting there looking dusty.
+struct AbyssSnowMote { Vector3 pos{0, 0, 0}; float speed = 1; float phase = 0; };
 
 struct AbyssState {
     unsigned seed = 1;
@@ -438,11 +462,16 @@ struct AbyssState {
     float bestDepth = 0;
     bool downdraftActive = false;
     float downdraftTimer = 0;
+    float hazardIFrame = 0;           // brief immunity after any hazard hit, so one crush doesn't chain into ten
     float genDepth = 0;               // deepest point the generator has populated so far (streams downward)
     std::vector<AbyssCreature> creatures;
     std::vector<AbyssPlanktonPuff> puffs;
+    std::vector<AbyssZone> zones;
+    std::vector<AbyssSnowMote> snow;
     float time = 0;
     bool dead = false;
+    bool won = false;                 // reached the bottom of this vertical slice's trench
+    bool awarded = false;             // the won/dead payout has already been applied to Game (don't double-pay)
     bool verifying = false;           // headless self-test: no window/audio/frame timing assumptions
 };
 
@@ -470,6 +499,8 @@ struct Game {
     bool platCheckpoints = false;            // Periscope option: checkpoints, at the cost of the relic
     bool platHullBoss = true;                // Periscope option: fight the Kraken (only chance of a relic)
     bool platPirateBoss = true;              // Periscope option: fight Blackbeard (guarantees relic(s))
+    bool abyssCleared = false;               // reached the bottom of the Open Abyss's trench at least once
+    float abyssBest = 0;                     // best depth ever reached there (metres), 0 = never dived
     int tierCleared[LOCATION_COUNT] = {-1, -1, -1, -1}; // highest level beaten, per location (-1 = none)
     int tierSel[LOCATION_COUNT] = {0, 0, 0, 0};         // the level chosen at the Helm, per location
     std::string toast;

@@ -86,6 +86,16 @@ static void TakeShots(const Game& base, const std::string& dir) {
         {"combat", [](Game& g) { g.dungeon.light = 60; DebugEnterCombat(g); }},
         {"abyss", [](Game& g) { StartAbyss(g); g.scene = Scene::Abyss; }},
         {"abyss_deep", [](Game& g) { StartAbyss(g); g.scene = Scene::Abyss; g.abyss.playerPos.y = -120.0f; }},
+        {"abyss_vent", [](Game& g) { StartAbyss(g); g.scene = Scene::Abyss; g.abyss.playerPos.y = -145.0f; }},
+        {"abyss_bowling", [](Game& g) { StartAbyss(g); g.scene = Scene::Abyss; g.abyss.playerPos.y = -330.0f; }},
+        {"abyss_maze", [](Game& g) { StartAbyss(g); g.scene = Scene::Abyss; g.abyss.playerPos.y = -485.0f; }},
+        {"abyss_brinepool", [](Game& g) { StartAbyss(g); g.scene = Scene::Abyss; g.abyss.playerPos.y = -625.0f; }},
+        {"abyss_leviathan", [](Game& g) { StartAbyss(g); g.scene = Scene::Abyss; g.abyss.playerPos.y = -250.0f;
+                                           for (auto& c : g.abyss.creatures) if (c.kind == AbyssCreatureKind::Leviathan) {
+                                               c.state = AbyssCreatureState::Passing; c.stateTimer = 0; c.pos = {2, -250, 2};
+                                           } }},
+        {"abyss_won", [](Game& g) { StartAbyss(g); g.scene = Scene::Abyss; g.abyss.depth = ABYSS_DEPTH_SPAN - 12; g.abyss.won = true; g.abyss.awarded = true; }},
+        {"abyss_dead", [](Game& g) { StartAbyss(g); g.scene = Scene::Abyss; g.abyss.stamina = 0; g.abyss.dead = true; g.abyss.awarded = true; }},
         // Verification only, for the painted-art rollout (depth.exe --gen-crew-art): every class rendered in
         // combat, four at a time, so the new skeletal/painted CharacterRenderer path is exercised for all twelve.
         {"crew_art_1", [](Game& g) { g.dungeon.light = 60; DebugEnterCombat(g); HeroClass cls[4] = {HeroClass::Nurse, HeroClass::Diver, HeroClass::Captain, HeroClass::Mechanic};
@@ -118,6 +128,7 @@ static void TakeShots(const Game& base, const std::string& dir) {
         {"chest", [](Game& g) { DebugEnterCombat(g); g.dungeon.phase = DPhase::Treasure; g.dungeon.roomIsChest = true; g.dungeon.chestOpened = false;
                                  g.dungeon.inventory = {{ItemKind::Key}}; }},
         {"periscope", [](Game& g) { g.scene = Scene::Periscope; g.platCleared[0] = true; }},
+        {"periscope_abyss", [](Game& g) { g.scene = Scene::Periscope; g.platCleared[0] = g.platCleared[1] = g.platCleared[2] = true; g.abyssBest = 410; }},
         {"pipes", [](Game& g) { StartPlatform(g, PL_PIPES); }},
         {"pipes_riser", [](Game& g) { g.platLayouts[PL_PIPES] = {101, 100}; StartPlatform(g, PL_PIPES); g.plat.pos = g.plat.spawns[1]; }},
         {"pipes_shaft", [](Game& g) { g.platLayouts[PL_PIPES] = {202, 100}; StartPlatform(g, PL_PIPES); g.plat.pos = g.plat.spawns[3]; }},

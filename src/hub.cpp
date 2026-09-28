@@ -568,34 +568,57 @@ void ScenePeriscope(Game& g) {
         {"THIRD DIVE", "Board a pirate ship: across the deck, down the hatch into the hold, up the companionway to the captain's cabin. Pirates burst out of doors and shoot from cover.",
          "200 gold and a relic (a Ghost Ship pays double and two relics)"},
     };
+    const float cardW = 290, cardX0 = 30, cardStride = 310;
     for (int i = 0; i < PL_COUNT; i++) {
         bool open = i == 0 || g.platCleared[i - 1];
-        Rectangle c{60 + i * 400.0f, 110, 370, 510};
+        Rectangle c{cardX0 + i * cardStride, 110, cardW, 510};
         Panel(c, open ? Pal::Paper : Color{176, 168, 150, 255});
         Color top = i == 0 ? Pal::Copper : i == 1 ? Color{50, 110, 130, 255} : Color{70, 50, 90, 255};
         DrawVGradient({c.x + 14, c.y + 14, c.width - 28, 120}, ColorBrightness(top, 0.15f), ColorBrightness(top, -0.35f));
-        DrawTextCenteredBold(PlatLevelName(i), c.x + c.width / 2, c.y + 46, 32, Pal::Paper);
-        DrawTextCenteredBold(lv[i].diff, c.x + c.width / 2, c.y + 90, 18, Pal::Paper);
-        DrawWrapped(lv[i].desc, {c.x + 20, c.y + 150, c.width - 40, 110}, 16, Pal::Ink);
-        DrawWrapped(TextFormat("Reward: %s", lv[i].reward), {c.x + 20, c.y + 262, c.width - 40, 40}, 15, Pal::BrassDk);
+        DrawTextCenteredBold(PlatLevelName(i), c.x + c.width / 2, c.y + 46, 28, Pal::Paper);
+        DrawTextCenteredBold(lv[i].diff, c.x + c.width / 2, c.y + 90, 17, Pal::Paper);
+        DrawWrapped(lv[i].desc, {c.x + 20, c.y + 150, c.width - 40, 110}, 15, Pal::Ink);
+        DrawWrapped(TextFormat("Reward: %s", lv[i].reward), {c.x + 20, c.y + 262, c.width - 40, 40}, 14, Pal::BrassDk);
         if (open) {
-            TxtBold(TextFormat("Layout: %s", PlatLayoutCode(g, i).c_str()), c.x + 20, c.y + 312, 17, Pal::Ink);
-            if (g.platBest[i] > 0) Txt(TextFormat("Best time %.1fs", g.platBest[i]), c.x + 230, c.y + 314, 15, Pal::BrassDk);
+            TxtBold(TextFormat("Layout: %s", PlatLayoutCode(g, i).c_str()), c.x + 20, c.y + 312, 15, Pal::Ink);
+            if (g.platBest[i] > 0) Txt(TextFormat("Best %.1fs", g.platBest[i]), c.x + 190, c.y + 314, 14, Pal::BrassDk);
             if (i == PL_HULL) {
-                if (Button({c.x + 20, c.y + 342, c.width - 40, 32}, g.platHullBoss ? "Kraken fight: ON (chance of a relic)" : "Kraken fight: OFF (no relic)", true, 13))
+                if (Button({c.x + 20, c.y + 342, c.width - 40, 32}, g.platHullBoss ? "Kraken: ON (relic chance)" : "Kraken: OFF (no relic)", true, 12))
                     g.platHullBoss = !g.platHullBoss;
             } else if (i == PL_PIRATE) {
-                if (Button({c.x + 20, c.y + 342, c.width - 40, 32}, g.platPirateBoss ? "Blackbeard fight: ON (relic(s) guaranteed)" : "Blackbeard fight: OFF (no relic)", true, 13))
+                if (Button({c.x + 20, c.y + 342, c.width - 40, 32}, g.platPirateBoss ? "Blackbeard: ON (relic(s))" : "Blackbeard: OFF (no relic)", true, 12))
                     g.platPirateBoss = !g.platPirateBoss;
             }
             if (Button({c.x + 20, c.y + 388, c.width - 40, 44}, "Dive in")) { StartPlatform(g, i); return; }
-            if (Button({c.x + 20, c.y + 440, c.width - 40, 40}, "Reshuffle layout (10g)", g.gold >= 10)) {
+            if (Button({c.x + 20, c.y + 440, c.width - 40, 40}, "Reshuffle (10g)", g.gold >= 10)) {
                 g.gold -= 10;
                 GeneratePlatLayout(g, i);
                 Toast(g, "The sections rattle and rearrange themselves...");
             }
         } else {
-            DrawTextCenteredBold(TextFormat("Locked: clear %s first", PlatLevelName(i - 1)), c.x + c.width / 2, c.y + 390, 18, Pal::BrassDk);
+            DrawWrapped(TextFormat("Locked: clear %s first", PlatLevelName(i - 1)), {c.x + 20, c.y + 370, c.width - 40, 60}, 16, Pal::BrassDk);
+        }
+    }
+    // The Open Abyss: a fourth, deeper dive - a genuinely 3D vertical descent, not another platform chunk-layout,
+    // so it gets its own card style rather than pretending to fit the Pipes/Hull/Pirate Ship machinery above.
+    {
+        bool open = g.platCleared[PL_PIRATE];
+        Rectangle c{cardX0 + PL_COUNT * cardStride, 110, cardW, 510};
+        Panel(c, open ? Pal::Paper : Color{176, 168, 150, 255});
+        DrawVGradient({c.x + 14, c.y + 14, c.width - 28, 120}, ColorBrightness(Color{10, 40, 58, 255}, 0.3f), ColorBrightness(Color{4, 14, 22, 255}, -0.2f));
+        DrawTextCenteredBold("The Open Abyss", c.x + c.width / 2, c.y + 46, 26, Color{200, 240, 255, 255});
+        DrawTextCenteredBold("FOURTH DIVE", c.x + c.width / 2, c.y + 90, 17, Pal::Paper);
+        DrawWrapped("A true vertical descent, far past the hull. Dash and hydro-glide past a bowling lane "
+                    "of dislodging Isopods, a Siphonophore maze, a weightless brine pool, and whatever a "
+                    "passing Leviathan leaves behind.",
+                    {c.x + 20, c.y + 150, c.width - 40, 110}, 15, Pal::Ink);
+        DrawWrapped(TextFormat("Reward: %d gold and a relic at the bottom", ABYSS_PAYOUT), {c.x + 20, c.y + 262, c.width - 40, 40}, 14, Pal::BrassDk);
+        if (open) {
+            if (g.abyssBest > 0) TxtBold(TextFormat("Best depth: %d m%s", (int)g.abyssBest, g.abyssCleared ? " (cleared)" : ""), c.x + 20, c.y + 312, 15, Pal::Ink);
+            Txt("Stamina is air, warmth, and health down here:\nhazards drain it, and it runs out only once.", c.x + 20, c.y + 342, 13, Fade(Pal::Ink, 0.75f));
+            if (Button({c.x + 20, c.y + 388, c.width - 40, 44}, "Dive in")) { StartAbyss(g); g.scene = Scene::Abyss; return; }
+        } else {
+            DrawWrapped("Locked: clear the Pirate Ship first", {c.x + 20, c.y + 370, c.width - 40, 60}, 16, Pal::BrassDk);
         }
     }
     // run options, kept between sessions
