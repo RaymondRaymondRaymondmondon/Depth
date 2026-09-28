@@ -3,7 +3,13 @@
 # narrow connecting stub near the top of the image (where it's meant to tuck behind the torso's
 # hem), not further down where the tail has already flared out - anchoring it at the wide part
 # made the tail render much bigger than the torso. Both pivots are picked so the two pieces have
-# matching width in world units right at the hip, not just a matching anchor point. The body slot
+# matching width in world units right at the hip - matched against the torso's full visible silhouette
+# at that row (including the sheer sleeve panels draped past her sides, since they visibly occupy
+# that width and a narrower tail leaves a stepped notch under them), not just her bare scale-covered
+# hip alone. Confirmed against a marked-pivot reference sheet the user supplied (Reference/
+# Gemini_Generated_Image_temd90temd90temd.png): its star markers sit right where each piece's art
+# ends/begins, at full width, not partway into a taper - which is what this crop now does too.
+# The body slot
 # carries three attachments (neutral/attack/hit); DrawCrewFigureInked picks which one is active
 # from the hero's pose.
 bone hip - 0 -84 0 1 1 0
