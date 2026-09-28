@@ -9,18 +9,24 @@
 # hip alone. Confirmed against a marked-pivot reference sheet the user supplied (Reference/
 # Gemini_Generated_Image_temd90temd90temd.png): its star markers sit right where each piece's art
 # ends/begins, at full width, not partway into a taper - which is what this crop now does too.
-# The body slot
-# carries three attachments (neutral/attack/hit); DrawCrewFigureInked picks which one is active
-# from the hero's pose.
+# The body slot carries three attachments (neutral/attack/hit); DrawCrewFigureInked picks which one
+# is active from the hero's pose.
+#
+# Absolute size: measured against a procedural class (Captain) at the same in-combat draw scale
+# (1.08) - head-top to hip is only ~162 screen px for the Captain, but was ~320px for the Siren at
+# the old 0.32 attach scale, i.e. her whole figure rendered at roughly 2x the size of a normal party
+# member (this is the "badly out of scale" issue noted where the gallery page is built). Both
+# attach scales below are cut by that same ~0.507 factor so the torso now matches a normal
+# character's size and the tail keeps the proportion already tuned against it.
 bone hip - 0 -84 0 1 1 0
 bone body hip 0 0 0 1 1 40
 bone tail hip 0 0 0 1 1 60
 slot tail tail
 slot body body
-attach body piece characters/siren/torso_neutral.png 0.365 0.914 0.32
-attach body piece characters/siren/torso_attack.png 0.349 0.916 0.32
-attach body piece characters/siren/torso_hit.png 0.566 0.919 0.32
-attach tail piece characters/siren/tail.png 0.172 0.182 0.714
+attach body piece characters/siren/torso_neutral.png 0.365 0.914 0.162
+attach body piece characters/siren/torso_attack.png 0.349 0.916 0.162
+attach body piece characters/siren/torso_hit.png 0.566 0.919 0.162
+attach tail piece characters/siren/tail.png 0.172 0.182 0.362
 anim idle 2.4
 key tail rot 0 0
 key tail rot 0.3 7.07107
