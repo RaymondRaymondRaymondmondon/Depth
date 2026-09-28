@@ -1,23 +1,23 @@
 # hand-placed real art (cropped from a reference sheet, chargen.cpp's GenerateSirenArt is no longer
-# used for this class) - body and tail both hang directly off hip. The tail's pivot sits at its
-# narrow connecting stub near the top of the image (where it's meant to tuck behind the torso's
-# hem), not further down where the tail has already flared out - anchoring it at the wide part
-# made the tail render much bigger than the torso. Both pivots are picked so the two pieces have
-# matching width in world units right at the hip - matched against the torso's full visible silhouette
-# at that row (including the sheer sleeve panels draped past her sides, since they visibly occupy
-# that width and a narrower tail leaves a stepped notch under them), not just her bare scale-covered
-# hip alone. Confirmed against a marked-pivot reference sheet the user supplied (Reference/
-# Gemini_Generated_Image_temd90temd90temd.png): its star markers sit right where each piece's art
-# ends/begins, at full width, not partway into a taper - which is what this crop now does too.
-# The body slot carries three attachments (neutral/attack/hit); DrawCrewFigureInked picks which one
-# is active from the hero's pose.
+# used for this class) - body and tail both hang directly off hip. The body slot carries three
+# attachments (neutral/attack/hit); DrawCrewFigureInked picks which one is active from the hero's
+# pose.
 #
 # Absolute size: measured against a procedural class (Captain) at the same in-combat draw scale
 # (1.08) - head-top to hip is only ~162 screen px for the Captain, but was ~320px for the Siren at
-# the old 0.32 attach scale, i.e. her whole figure rendered at roughly 2x the size of a normal party
-# member (this is the "badly out of scale" issue noted where the gallery page is built). Both
-# attach scales below are cut by that same ~0.507 factor so the torso now matches a normal
-# character's size and the tail keeps the proportion already tuned against it.
+# the old 0.32 torso attach scale, i.e. her whole figure rendered at roughly 2x the size of a normal
+# party member (this is the "badly out of scale" issue noted where the gallery page is built).
+#
+# tail.png is now cropped to start right where the tail is already fully scale-textured (the old
+# file had ~240px of skin-toned "connecting stub" above that, meant to always stay hidden behind
+# the torso - fine at rest, but the tail bone rotates for the idle/walk sway, and rotation pivots
+# around the attach point, so that stub swung out from under the torso and showed bare skin mid-
+# animation). With that stub gone there's nothing left above the pivot to expose, at any rotation.
+# The pivot sits at the very top of this new crop (0 0.1575 - was 0.182 0.172 against the old,
+# uncropped file) and its scale is picked so its width there matches the torso's own width at its
+# pivot row in world units (400px * 0.162 torso scale here) - this row is naturally wider than the
+# old, skin-adjacent one was, so the scale needed to match it is smaller (0.315, down from 0.362),
+# which also makes the tail a bit less heavy overall, per feedback that it still read as too big.
 bone hip - 0 -84 0 1 1 0
 bone body hip 0 0 0 1 1 40
 bone tail hip 0 0 0 1 1 60
@@ -26,7 +26,7 @@ slot body body
 attach body piece characters/siren/torso_neutral.png 0.365 0.914 0.162
 attach body piece characters/siren/torso_attack.png 0.349 0.916 0.162
 attach body piece characters/siren/torso_hit.png 0.566 0.919 0.162
-attach tail piece characters/siren/tail.png 0.172 0.182 0.362
+attach tail piece characters/siren/tail.png 0.1575 0 0.315
 anim idle 2.4
 key tail rot 0 0
 key tail rot 0.3 7.07107

@@ -1,13 +1,21 @@
 # hand-placed real art (cropped from a reference sheet, chargen.cpp's GenerateWispArt is no longer used for this
 # class) - bell and fringe both hang directly off hip, tuned so the head's collar/chain and the tentacles' own
 # top edge meet at that point; fringe is its own bone so it can sway independently of the head's hover.
+#
+# Absolute size: same calibration bug as the Siren (see her skeleton.txt) - measured against a
+# procedural class (Captain) at the same in-combat draw scale (1.08): head-top to hip is ~162 screen
+# px for the Captain, but the bell's own content (its glow-halo top to the hip pivot) came out to
+# ~238px at the old 0.4 scale, i.e. the bell alone rendered noticeably taller than a normal
+# character's whole head+torso. Cut both attach scales by the same ~0.682 factor (bell stands in
+# for head+torso, fringe for legs) so the bell now matches that reference and the fringe keeps its
+# tuned proportion to it.
 bone hip - 0 -84 0 1 1 0
 bone bell hip 0 0 0 1 1 40
 bone fringe hip 0 0 0 1 1 60
 slot bell bell
 slot fringe fringe
-attach bell piece characters/wisp of the sea/bell.png 0.502 0.674 0.4
-attach fringe piece characters/wisp of the sea/fringe.png 0.509 0.094 0.4
+attach bell piece characters/wisp of the sea/bell.png 0.502 0.674 0.273
+attach fringe piece characters/wisp of the sea/fringe.png 0.509 0.094 0.273
 anim idle 3
 key hip y 0 -84
 key hip y 0.375 -80.4645
