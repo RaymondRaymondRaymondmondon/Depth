@@ -692,12 +692,35 @@ void UpdateAbyss(Game& g, float dt) {
     StepAbyss(g, dt, drift, dashPressed, glideHeld, aimUp, aimDown);
 }
 
+// Creatures are drawn with raylib's unlit primitives, so they get a cheap cel light instead: each opaque part is
+// drawn dark, then a smaller copy shifted toward the diver's lamp in the base tone, then a small highlight -
+// the shifted copies poke out of the lit side, which reads as a lit, rounded form rather than a flat blob.
+static Vector3 gLamp{0, 0, 0};
+static void LitSphere(Vector3 p, float r, Color c) {
+    Vector3 L = Vector3Normalize(Vector3Subtract(gLamp, p));
+    DrawSphere(p, r, Tone(c, -0.45f));
+    DrawSphere(Vector3Add(p, Vector3Scale(L, r * 0.3f)), r * 0.78f, c);
+    DrawSphere(Vector3Add(p, Vector3Scale(L, r * 0.62f)), r * 0.42f, Tone(c, 0.3f));
+}
+static void LitCyl(Vector3 a0, Vector3 a1, float r0, float r1, int sides, Color c) {
+    Vector3 m = Vector3Scale(Vector3Add(a0, a1), 0.5f), L = Vector3Normalize(Vector3Subtract(gLamp, m));
+    float rr = std::max(r0, r1);
+    DrawCylinderEx(a0, a1, r0, r1, sides, Tone(c, -0.45f));
+    Vector3 o = Vector3Scale(L, rr * 0.34f);
+    DrawCylinderEx(Vector3Add(a0, o), Vector3Add(a1, o), r0 * 0.72f, r1 * 0.72f, sides, c);
+}
+static void LitCapsule(Vector3 a0, Vector3 a1, float r, Color c) {
+    Vector3 m = Vector3Scale(Vector3Add(a0, a1), 0.5f), L = Vector3Normalize(Vector3Subtract(gLamp, m)), o = Vector3Scale(L, r * 0.34f);
+    DrawCapsule(a0, a1, r, 8, 4, Tone(c, -0.45f));
+    DrawCapsule(Vector3Add(a0, o), Vector3Add(a1, o), r * 0.72f, 8, 4, c);
+}
+
 static Color KindColor(AbyssCreatureKind k) {
     switch (k) {
         case AbyssCreatureKind::GlassSponge: return {80, 230, 255, 255};
         case AbyssCreatureKind::GiantIsopod:  return {150, 110, 90, 255};
         case AbyssCreatureKind::GulperEel:    return {40, 30, 50, 255};
-        case AbyssCreatureKind::VampireSquid: return {200, 40, 160, 255};
+        case AbyssCreatureKind::VampireSquid: return {120, 34, 52, 255};
         case AbyssCreatureKind::Siphonophore: return {120, 255, 120, 255};
         case AbyssCreatureKind::TrenchWorm:   return {110, 70, 60, 255};
         case AbyssCreatureKind::Hatchetfish:  return {200, 220, 255, 255};
@@ -862,6 +885,7 @@ void SceneAbyss(Game& g) {
     ClearBackground(Color{2, 3, 6, 255}); // the Void Canvas: near-Vantablack, no visible back wall
     BeginMode3D(cam);
     gFogCam = camPos;
+    gLamp = Vector3Add(a.playerPos, {0, 1.0f, 0});
     gFogDensity = 0.035f + 0.035f * std::clamp(a.depth / ABYSS_DEPTH_SPAN, 0.0f, 1.0f); // it closes in the deeper you go
     if (gTrenchReady) {
         EnsureRockShader();
@@ -904,81 +928,162 @@ void SceneAbyss(Game& g) {
         Vector3 face = Vector3LengthSqr(c.vel) > 0.05f ? Vector3Normalize(c.vel) : Vector3{cosf(c.wallAngle + PI), 0, sinf(c.wallAngle + PI)};
         switch (c.kind) {
             case AbyssCreatureKind::GlassSponge: {
-                // a small crystalline cluster, not one plain cone - three uneven crystal spires
-                DrawCylinderEx(c.pos, Vector3Add(c.pos, {0, 0.7f, 0}), 1.4f, 0.25f, 6, Fade(col, 0.55f));
-                DrawCylinderEx(Vector3Add(c.pos, {0.6f, 0, 0.3f}), Vector3Add(c.pos, {0.6f, 0.45f, 0.3f}), 0.6f, 0.1f, 5, Fade(col, 0.5f));
-                DrawCylinderEx(Vector3Add(c.pos, {-0.5f, 0, -0.4f}), Vector3Add(c.pos, {-0.5f, 0.35f, -0.4f}), 0.5f, 0.08f, 5, Fade(col, 0.45f));
+                // a Venus's-flower-basket: a tall glass vase woven of silica lattice, lit from inside, with a fringe of rootlets
+                Color glass = Fade(col, 0.28f), fibre = Fade(Tone(col, 0.3f), 0.7f);
+                const int RINGS = 6, RIBS = 10;
+                for (int r = 0; r < RINGS; r++) {
+                    float y0 = r * 0.28f, rad = 0.45f + 0.18f * sinf(r * 0.7f) + r * 0.03f;
+                    for (int k = 0; k < RIBS; k++) {
+                        float a0 = k * 2 * PI / RIBS, a1 = (k + 1) * 2 * PI / RIBS;
+                        Vector3 p0 = Vector3Add(c.pos, {cosf(a0) * rad, y0, sinf(a0) * rad}), p1 = Vector3Add(c.pos, {cosf(a1) * rad, y0, sinf(a1) * rad});
+                        DrawLine3D(p0, p1, fibre);                                                                          // the ring
+                        float rad2 = 0.45f + 0.18f * sinf((r + 1) * 0.7f) + (r + 1) * 0.03f;
+                        if (r < RINGS - 1) DrawLine3D(p0, Vector3Add(c.pos, {cosf(a1) * rad2, y0 + 0.28f, sinf(a1) * rad2}), Fade(fibre, 0.5f)); // the diagonal weave
+                    }
+                }
+                DrawCylinderEx(c.pos, Vector3Add(c.pos, {0, RINGS * 0.28f, 0}), 0.5f, 0.6f, 10, glass);                    // the glassy body
+                DrawSphere(Vector3Add(c.pos, {0, 0.7f, 0}), 0.28f, Fade(Color{200, 250, 255, 255}, 0.18f + 0.08f * sinf(a.time * 1.3f + c.phase))); // the shrimp pair living inside, glowing faintly
+                for (int k = 0; k < 8; k++) { float ra = k * 0.8f + c.phase; DrawLine3D(c.pos, Vector3Add(c.pos, {cosf(ra) * 0.8f, -0.4f, sinf(ra) * 0.8f}), Fade(fibre, 0.6f)); } // anchoring rootlets
                 break;
             }
             case AbyssCreatureKind::GiantIsopod: {
-                // an armored, segmented body tapering from a broad head to a narrow tail, like a real isopod
-                Vector3 side{-face.z, 0, face.x};
-                for (int s = 0; s < 4; s++) {
-                    float k = s / 3.0f;
-                    Vector3 p = Vector3Add(c.pos, Vector3Scale(face, -k * 0.55f));
-                    DrawSphere(p, 0.42f - k * 0.14f, Tone(col, -k * 0.3f));
+                // a real giant isopod: seven overlapping armour plates, a pair of long antennae, fourteen legs rowing along the rock
+                Vector3 side{-face.z, 0, face.x}, up{0, 1, 0};
+                for (int s = 0; s < 7; s++) {
+                    float k = s / 6.0f, w = 0.46f - fabsf(k - 0.35f) * 0.3f;
+                    Vector3 p = Vector3Add(c.pos, Vector3Scale(face, 0.45f - k * 1.0f));
+                    LitCyl(Vector3Subtract(p, Vector3Scale(side, w)), Vector3Add(p, Vector3Scale(side, w)), 0.2f, 0.2f, 8, Tone(col, (s % 2) * -0.12f - k * 0.15f)); // a plate, curved over the back
+                    float stroke = sinf(a.time * 6 + s * 0.9f) * 0.12f;
+                    for (int sd = -1; sd <= 1; sd += 2) LitCyl(Vector3Add(p, Vector3Scale(side, w * sd)), Vector3Add(p, Vector3Add(Vector3Scale(side, (w + 0.22f) * sd), Vector3Add(Vector3Scale(face, stroke), {0, -0.22f, 0}))), 0.04f, 0.02f, 4, Tone(col, -0.35f)); // legs
                 }
-                DrawCapsule(Vector3Subtract(c.pos, Vector3Scale(side, 0.4f)), Vector3Add(c.pos, Vector3Scale(side, 0.4f)), 0.08f, 4, 2, Tone(col, -0.3f)); // legs, suggested as one bar
-                DrawSphere(Vector3Add(c.pos, Vector3Scale(face, 0.3f)), 0.05f, BLACK); // an eye at the head end
+                LitCyl(Vector3Add(c.pos, Vector3Scale(face, -0.62f)), Vector3Add(c.pos, Vector3Scale(face, -0.8f)), 0.26f, 0.12f, 6, Tone(col, -0.3f)); // the tail fan
+                Vector3 head = Vector3Add(c.pos, Vector3Scale(face, 0.58f));
+                LitSphere(head, 0.22f, Tone(col, 0.1f));
+                for (int sd = -1; sd <= 1; sd += 2) {
+                    DrawSphere(Vector3Add(head, Vector3Add(Vector3Scale(side, 0.14f * sd), Vector3Scale(up, 0.05f))), 0.07f, Fogged(Color{30, 34, 30, 255}, c.pos)); // the big compound eyes
+                    Vector3 an = Vector3Add(head, Vector3Add(Vector3Scale(face, 0.9f), Vector3Add(Vector3Scale(side, 0.5f * sd), {0, 0.1f + sinf(a.time * 2 + sd) * 0.1f, 0})));
+                    LitCyl(head, an, 0.025f, 0.008f, 4, Tone(col, -0.2f));                                      // the antennae, feeling ahead
+                }
                 break;
             }
             case AbyssCreatureKind::GulperEel: {
-                // a long, sinuous, segmented body behind a disproportionately huge hinged jaw - the defining
-                // silhouette from the brief ("massive jaws open")
+                // the pelican eel: a whip of a body ending in a glowing pink tail-lure, and a mouth that is almost all of it
                 bool hunting = c.state == AbyssCreatureState::Hunting;
-                for (int s = 0; s < 5; s++) {
-                    float k = s / 4.0f;
-                    Vector3 p = Vector3Add(c.pos, Vector3Scale(face, -k * 2.0f));
-                    p.y += sinf(a.time * 4.0f - k * 2.2f + c.phase) * 0.15f * (hunting ? 1.6f : 1.0f);
-                    DrawSphere(p, 0.42f - k * 0.22f, col);
+                Vector3 side{-face.z, 0, face.x}, up{0, 1, 0};
+                Vector3 prev = c.pos;
+                for (int s = 1; s <= 14; s++) {
+                    float k = s / 14.0f;
+                    Vector3 p = Vector3Add(c.pos, Vector3Scale(face, -k * 4.0f));
+                    p = Vector3Add(p, Vector3Scale(side, sinf(a.time * 4.0f - k * 5.0f + c.phase) * 0.35f * k * (hunting ? 1.5f : 1.0f)));
+                    LitCyl(prev, p, 0.3f * (1 - k) + 0.03f, 0.3f * (1 - k - 1 / 14.0f) + 0.02f, 6, Tone(col, -k * 0.2f));
+                    prev = p;
                 }
-                Vector3 jawPivot = Vector3Add(c.pos, Vector3Scale(face, 0.35f));
-                float gape = hunting ? 0.55f : 0.15f;
-                DrawTriangle3D(Vector3Add(jawPivot, Vector3Scale(face, 0.7f)), Vector3Add(jawPivot, {0, gape, 0}), Vector3Add(jawPivot, {0, -gape, 0}), Tone(col, hunting ? 0.5f : 0.1f));
-                DrawSphere(Vector3Add(c.pos, {0, 0.15f, 0}), 0.06f, Fade(Color{255, 240, 200, 255}, 0.8f)); // a faint lure/eye glint
+                DrawSphere(prev, 0.09f, Color{255, 90, 150, 255});                                   // the tail light, the only colour it has
+                DrawSphere(prev, 0.3f, Fade(Color{255, 90, 150, 255}, 0.2f + 0.1f * sinf(a.time * 5)));
+                float gape = hunting ? 0.9f : 0.25f;
+                Vector3 hinge = Vector3Add(c.pos, Vector3Scale(face, 0.1f)), jawTip = Vector3Add(c.pos, Vector3Scale(face, 1.5f));
+                Vector3 upperTip = Vector3Add(jawTip, Vector3Scale(up, gape)), lowerTip = Vector3Add(jawTip, Vector3Scale(up, -gape * 1.3f));
+                Color jaw = Tone(col, 0.15f), pouch = Fogged(Color{70, 30, 50, 255}, c.pos);
+                DrawTriangle3D(hinge, Vector3Add(upperTip, Vector3Scale(side, 0.3f)), Vector3Add(upperTip, Vector3Scale(side, -0.3f)), jaw);
+                DrawTriangle3D(hinge, Vector3Add(upperTip, Vector3Scale(side, -0.3f)), Vector3Add(upperTip, Vector3Scale(side, 0.3f)), jaw);
+                DrawTriangle3D(hinge, Vector3Add(lowerTip, Vector3Scale(side, 0.45f)), Vector3Add(lowerTip, Vector3Scale(side, -0.45f)), pouch); // the loose pouch of the lower jaw
+                DrawTriangle3D(hinge, Vector3Add(lowerTip, Vector3Scale(side, -0.45f)), Vector3Add(lowerTip, Vector3Scale(side, 0.45f)), pouch);
+                DrawSphere(Vector3Add(hinge, Vector3Add(Vector3Scale(up, 0.15f), Vector3Scale(face, 0.2f))), 0.05f, Fade(Color{220, 230, 255, 255}, 0.7f)); // a tiny eye at the hinge
                 break;
             }
             case AbyssCreatureKind::VampireSquid: {
-                DrawSphere(c.pos, 0.55f, col);
-                DrawSphere(Vector3Add(c.pos, Vector3Scale(face, 0.4f)), 0.2f, Tone(col, 0.4f)); // a small head lobe leading the mantle
-                for (int t2 = 0; t2 < 7; t2++) {
-                    float ta = t2 * 2 * PI / 7 + c.phase;
-                    Vector3 dir = Vector3Add(Vector3Scale(face, -0.6f), {cosf(ta) * 0.5f, sinf(ta) * 0.5f, 0});
-                    DrawCylinderEx(c.pos, Vector3Add(c.pos, Vector3Scale(dir, 1.1f + 0.2f * sinf(a.time * 5 + t2))), 0.07f, 0.02f, 4, Fade(Color{255, 120, 220, 255}, 0.6f));
+                // a cloak of webbed arms, blue eyes the size of its head, ear-like fins, and bioluminescent arm tips
+                Vector3 side{-face.z, 0, face.x}, up{0, 1, 0};
+                float pulse = 0.5f + 0.5f * sinf(a.time * 2.2f + c.phase); // it opens and closes the cloak as it swims
+                LitSphere(c.pos, 0.5f, col);
+                LitSphere(Vector3Add(c.pos, Vector3Scale(face, -0.35f)), 0.42f, Tone(col, -0.15f));                // the mantle
+                for (int sd = -1; sd <= 1; sd += 2) {
+                    Vector3 fin = Vector3Add(c.pos, Vector3Add(Vector3Scale(face, -0.55f), Vector3Scale(side, 0.45f * sd)));
+                    DrawTriangle3D(fin, Vector3Add(fin, Vector3Add(Vector3Scale(side, 0.35f * sd), Vector3Scale(up, 0.3f + pulse * 0.1f))), Vector3Add(fin, Vector3Scale(face, -0.3f)), Tone(col, -0.1f));
+                    DrawTriangle3D(fin, Vector3Add(fin, Vector3Scale(face, -0.3f)), Vector3Add(fin, Vector3Add(Vector3Scale(side, 0.35f * sd), Vector3Scale(up, 0.3f + pulse * 0.1f))), Tone(col, -0.1f));
+                    DrawSphere(Vector3Add(c.pos, Vector3Add(Vector3Scale(face, 0.25f), Vector3Add(Vector3Scale(side, 0.3f * sd), Vector3Scale(up, 0.15f)))), 0.13f, Fogged(Color{90, 160, 255, 255}, c.pos)); // the eyes
+                }
+                Vector3 prevTip{};
+                for (int t2 = 0; t2 <= 8; t2++) {
+                    float ta = (t2 % 8) * 2 * PI / 8 + c.phase;
+                    float spread = 0.4f + 0.6f * pulse;
+                    Vector3 dir = Vector3Add(Vector3Scale(face, 0.9f - spread * 0.5f), Vector3Add(Vector3Scale(side, cosf(ta) * spread), Vector3Scale(up, sinf(ta) * spread)));
+                    Vector3 tip = Vector3Add(c.pos, Vector3Scale(dir, 1.1f));
+                    if (t2 < 8) {
+                        LitCyl(c.pos, tip, 0.07f, 0.03f, 4, Tone(col, -0.2f));
+                        DrawSphere(tip, 0.05f, Fade(Color{120, 200, 255, 255}, 0.5f + 0.5f * pulse));  // glowing tips
+                    }
+                    if (t2 > 0) { DrawTriangle3D(c.pos, prevTip, tip, Fade(Tone(col, -0.3f), 0.75f)); DrawTriangle3D(c.pos, tip, prevTip, Fade(Tone(col, -0.3f), 0.75f)); } // the web between the arms
+                    prevTip = tip;
                 }
                 break;
             }
             case AbyssCreatureKind::Siphonophore: {
-                DrawSphere(c.pos, 0.35f, Fade(col, 0.5f));
-                for (int t2 = 0; t2 < 4; t2++) DrawCylinderEx(c.pos, Vector3Add(c.pos, {0, -1.2f - t2 * 0.3f, 0}), 0.06f, 0.02f, 4, Fade(col, 0.4f - t2 * 0.08f));
+                // a colony: a gas float, a chain of swimming bells, then a long curtain of stinging threads that pulse with light
+                Color bell = Fade(col, 0.35f);
+                DrawSphere(Vector3Add(c.pos, {0, 0.25f, 0}), 0.16f, Fade(Color{255, 150, 90, 255}, 0.7f)); // the float
+                for (int b2 = 0; b2 < 5; b2++) {
+                    Vector3 bp = Vector3Add(c.pos, {sinf(a.time * 1.3f + b2) * 0.05f, -b2 * 0.28f, 0});
+                    DrawCylinderEx(bp, Vector3Add(bp, {0, -0.22f, 0}), 0.12f, 0.2f + 0.03f * sinf(a.time * 4 + b2), 6, bell); // a bell, pumping
+                }
+                for (int t2 = 0; t2 < 7; t2++) {
+                    Vector3 base = Vector3Add(c.pos, {(t2 - 3) * 0.07f, -1.4f, 0});
+                    Vector3 prev = base;
+                    for (int s = 1; s <= 6; s++) {
+                        Vector3 q = Vector3Add(base, {sinf(a.time * 0.8f + t2 + s * 0.6f) * 0.12f * s, -s * 0.45f, cosf(a.time * 0.6f + t2 * 2 + s) * 0.08f * s});
+                        float glow = 0.5f + 0.5f * sinf(a.time * 3 - s * 0.8f + t2); // light running down each thread
+                        DrawLine3D(prev, q, Fade(col, 0.25f + 0.4f * glow));
+                        if (s % 2 == 0) DrawSphere(q, 0.035f, Fade(col, 0.4f + 0.5f * glow)); // clustered stingers
+                        prev = q;
+                    }
+                }
                 break;
             }
             case AbyssCreatureKind::TrenchWorm: {
-                // a ringed tube with a radial, fanged mouth flaring open only while lunging
+                // a ringed, bristled tube with a radial, fanged mouth flaring open only while lunging
                 bool lunging = c.state == AbyssCreatureState::Lunging;
-                for (int s = 0; s <= 5; s++) {
-                    float k = s / 5.0f;
+                Vector3 side{-face.z, 0, face.x}, up{0, 1, 0};
+                for (int s = 0; s <= 8; s++) {
+                    float k = s / 8.0f;
                     Vector3 p = Vector3Add(c.home, Vector3Scale(Vector3Subtract(c.pos, c.home), k));
-                    DrawCylinderEx(p, Vector3Add(p, Vector3Scale(face, 0.35f)), 0.32f - (s == 5 ? 0.1f : 0.0f), 0.3f, 6, Tone(col, (s % 2) * -0.15f));
+                    p = Vector3Add(p, Vector3Scale(side, sinf(a.time * 3 + k * 4) * 0.1f * (1 - k)));
+                    LitSphere(p, 0.3f - k * 0.04f, Tone(col, (s % 2) * -0.15f));
+                    for (int b2 = 0; b2 < 4; b2++) { float ba = b2 * PI / 2 + s; DrawLine3D(p, Vector3Add(p, Vector3Add(Vector3Scale(side, cosf(ba) * 0.45f), Vector3Scale(up, sinf(ba) * 0.45f))), Fade(Color{200, 170, 140, 255}, 0.4f)); } // bristles
                 }
-                if (lunging) for (int f2 = 0; f2 < 6; f2++) {
-                    float fa = f2 * 2 * PI / 6;
-                    Vector3 side{-face.z, 0, face.x}; Vector3 up{0, 1, 0};
-                    Vector3 tip = Vector3Add(c.pos, Vector3Add(Vector3Scale(face, 0.5f), Vector3Add(Vector3Scale(side, cosf(fa) * 0.3f), Vector3Scale(up, sinf(fa) * 0.3f))));
-                    DrawLine3D(c.pos, tip, Fade(Color{230, 220, 200, 255}, 0.8f));
+                for (int f2 = 0; f2 < 6; f2++) {
+                    float fa = f2 * 2 * PI / 6, open = lunging ? 0.45f : 0.12f;
+                    Vector3 tip = Vector3Add(c.pos, Vector3Add(Vector3Scale(face, 0.5f), Vector3Add(Vector3Scale(side, cosf(fa) * open), Vector3Scale(up, sinf(fa) * open))));
+                    DrawCylinderEx(c.pos, tip, 0.05f, 0.01f, 4, Fogged(Color{230, 220, 200, 255}, c.pos)); // the fangs
                 }
+                if (lunging) DrawSphere(Vector3Add(c.pos, Vector3Scale(face, 0.15f)), 0.2f, Fogged(Color{120, 20, 30, 255}, c.pos)); // the red throat
                 break;
             }
             case AbyssCreatureKind::Hatchetfish: {
-                Vector3 side{-face.z, 0, face.x};
-                DrawTriangle3D(Vector3Add(c.pos, Vector3Scale(face, 0.15f)), Vector3Add(c.pos, Vector3Add(Vector3Scale(face, -0.1f), Vector3Scale(side, 0.1f))), Vector3Add(c.pos, Vector3Add(Vector3Scale(face, -0.1f), Vector3Scale(side, -0.1f))), col);
-                DrawTriangle3D(Vector3Add(c.pos, Vector3Scale(face, -0.1f)), Vector3Add(c.pos, Vector3Scale(face, -0.28f)), Vector3Add(c.pos, {0, 0.12f, 0}), Fade(col, 0.7f)); // a small tail fin
+                // a silver hatchet: deep, flat, mirror-sided, a row of glowing photophores along the belly and huge tubular eyes looking up
+                Vector3 side{-face.z, 0, face.x}, up{0, 1, 0};
+                Vector3 nose = Vector3Add(c.pos, Vector3Scale(face, 0.2f)), tail = Vector3Add(c.pos, Vector3Scale(face, -0.22f));
+                Vector3 keel = Vector3Add(c.pos, {0, -0.22f, 0}), back = Vector3Add(c.pos, {0, 0.08f, 0});
+                Color silver = Tone(col, 0.1f);
+                DrawTriangle3D(nose, back, keel, silver); DrawTriangle3D(nose, keel, back, silver);
+                DrawTriangle3D(back, tail, keel, Tone(silver, -0.15f)); DrawTriangle3D(back, keel, tail, Tone(silver, -0.15f));
+                DrawTriangle3D(tail, Vector3Add(tail, Vector3Add(Vector3Scale(face, -0.12f), Vector3Scale(up, 0.08f))), Vector3Add(tail, Vector3Add(Vector3Scale(face, -0.12f), Vector3Scale(up, -0.08f))), Fade(silver, 0.7f)); // the tail
+                for (int k = 0; k < 4; k++) DrawSphere(Vector3Add(keel, Vector3Add(Vector3Scale(face, 0.1f - k * 0.07f), {0, 0.03f + k * 0.03f, 0})), 0.02f, Color{120, 200, 255, 255}); // photophores
+                DrawSphere(Vector3Add(nose, Vector3Add(Vector3Scale(face, -0.05f), Vector3Scale(up, 0.03f))), 0.045f, Fade(Color{220, 240, 255, 255}, 0.8f)); // the eye
+                (void)side;
                 break;
             }
             case AbyssCreatureKind::BrineSlug: {
-                DrawCylinderEx(c.pos, Vector3Add(c.pos, Vector3Scale(face, 0.95f)), 0.5f, 0.42f, 8, col);
-                DrawCylinderEx(Vector3Add(c.pos, {0, 0.15f, 0}), Vector3Add(Vector3Add(c.pos, {0, 0.15f, 0}), Vector3Scale(face, 0.7f)), 0.2f, 0.16f, 6, Tone(col, -0.25f)); // a ridged shell line along its back
-                DrawSphere(Vector3Add(c.pos, Vector3Scale(face, 0.5f)), 0.06f, BLACK);
+                // a sea cucumber of the brine pools: a soft translucent body walking on tube feet, a crown of feeding tentacles
+                Vector3 side{-face.z, 0, face.x}, up{0, 1, 0};
+                for (int s = 0; s < 6; s++) {
+                    float k = s / 5.0f, sq = 1 + 0.08f * sinf(a.time * 2 - k * 4); // peristalsis along the body
+                    Vector3 p = Vector3Add(c.pos, Vector3Scale(face, 0.95f * k));
+                    DrawSphere(p, (0.42f - fabsf(k - 0.4f) * 0.25f) * sq, Fade(Tone(col, -k * 0.1f), 0.85f));
+                    for (int sd = -1; sd <= 1; sd += 2) LitCyl(Vector3Add(p, Vector3Scale(side, 0.3f * sd)), Vector3Add(p, Vector3Add(Vector3Scale(side, 0.38f * sd), Vector3Scale(up, -0.35f))), 0.04f, 0.02f, 4, Tone(col, 0.2f)); // tube feet
+                    LitSphere(Vector3Add(p, Vector3Scale(up, 0.36f)), 0.06f, Tone(col, 0.25f)); // papillae along the back
+                }
+                Vector3 mouth = Vector3Add(c.pos, Vector3Scale(face, 1.1f));
+                for (int k = 0; k < 8; k++) { float ta = k * PI / 4 + a.time; DrawCylinderEx(mouth, Vector3Add(mouth, Vector3Add(Vector3Scale(face, 0.25f), Vector3Add(Vector3Scale(side, cosf(ta) * 0.2f), Vector3Scale(up, sinf(ta) * 0.2f)))), 0.03f, 0.01f, 4, Fogged(Color{230, 200, 160, 255}, c.pos)); }
                 break;
             }
             case AbyssCreatureKind::RockLedge: {
@@ -1062,6 +1167,7 @@ void SceneAbyss(Game& g) {
     for (auto& m : a.snow) DrawSphere(m.pos, 0.045f, Fade(Color{200, 220, 235, 255}, 0.5f));
     { // the diver: brass helmet with its porthole and lamp, a teal canvas suit, an air tank, kicking legs and fins
         Vector3 P = a.playerPos, V = a.playerVel;
+        gLamp = Vector3Add(cam.position, {0, 4.0f, 0}); // the diver is lit from above and behind, the way the camera sees them
         Vector3 up = Vector3Normalize({-V.x * 0.08f, 1.0f, -V.z * 0.08f}); // leans into the way it drifts
         if (a.isGliding) up = Vector3Normalize({-V.x * 0.3f, 0.6f, -V.z * 0.3f});
         Vector3 fwd = Vector3Normalize(Vector3Subtract(cam.target, cam.position)); fwd.y = 0;
@@ -1071,22 +1177,22 @@ void SceneAbyss(Game& g) {
         auto at = [&](float r, float u, float f) { return Vector3Add(P, Vector3Add(Vector3Scale(right, r), Vector3Add(Vector3Scale(up, u), Vector3Scale(fwd, f)))); };
         Color suit{40, 110, 118, 255}, suitDk{26, 76, 84, 255}, brass{196, 150, 70, 255}, steel{120, 126, 132, 255};
         float kick = sinf(a.time * (a.isGliding ? 4.0f : 7.0f)) * 0.18f;
-        DrawCylinderEx(at(0, -0.05f, -0.26f), at(0, 0.45f, -0.26f), 0.13f, 0.13f, 10, steel);  // the air tank
-        DrawCapsule(at(0, -0.25f, 0), at(0, 0.3f, 0), 0.24f, 10, 6, suit);                       // torso
-        DrawSphere(at(0, 0.05f, 0.05f), 0.2f, suitDk);                                            // weight belt
+        LitCyl(at(0, -0.05f, -0.26f), at(0, 0.45f, -0.26f), 0.13f, 0.13f, 10, steel);  // the air tank
+        LitCapsule(at(0, -0.25f, 0), at(0, 0.3f, 0), 0.24f, suit);                       // torso
+        LitSphere(at(0, 0.05f, 0.05f), 0.2f, suitDk);                                            // weight belt
         for (int sd = -1; sd <= 1; sd += 2) {
-            DrawCapsule(at(sd * 0.28f, 0.28f, 0), at(sd * 0.42f, -0.05f, 0.12f + sd * kick * 0.3f), 0.08f, 6, 3, suit); // arms
-            DrawSphere(at(sd * 0.43f, -0.08f, 0.13f), 0.08f, brass);                                                      // gloves
+            LitCapsule(at(sd * 0.28f, 0.28f, 0), at(sd * 0.42f, -0.05f, 0.12f + sd * kick * 0.3f), 0.08f, suit); // arms
+            LitSphere(at(sd * 0.43f, -0.08f, 0.13f), 0.08f, brass);                                                      // gloves
             Vector3 knee = at(sd * 0.12f, -0.55f, sd * kick);
             Vector3 foot = at(sd * 0.13f, -0.95f, -sd * kick * 1.4f);
-            DrawCapsule(at(sd * 0.11f, -0.25f, 0), knee, 0.1f, 6, 3, suit);
-            DrawCapsule(knee, foot, 0.09f, 6, 3, suitDk);
+            LitCapsule(at(sd * 0.11f, -0.25f, 0), knee, 0.1f, suit);
+            LitCapsule(knee, foot, 0.09f, suitDk);
             DrawTriangle3D(foot, at(sd * 0.13f, -1.25f, -sd * kick * 1.8f + 0.15f), at(sd * 0.13f, -1.22f, -sd * kick * 1.8f - 0.12f), Color{30, 36, 40, 255}); // fins
             DrawTriangle3D(foot, at(sd * 0.13f, -1.22f, -sd * kick * 1.8f - 0.12f), at(sd * 0.13f, -1.25f, -sd * kick * 1.8f + 0.15f), Color{30, 36, 40, 255});
         }
         Vector3 head = at(0, 0.62f, 0.02f);
-        DrawSphere(head, 0.3f, brass);                                                 // the brass helmet
-        DrawCylinderEx(at(0, 0.36f, 0), at(0, 0.44f, 0), 0.3f, 0.3f, 12, Tone(brass, -0.3f)); // its collar
+        LitSphere(head, 0.3f, brass);                                                 // the brass helmet
+        LitCyl(at(0, 0.36f, 0), at(0, 0.44f, 0), 0.3f, 0.3f, 12, Tone(brass, -0.3f)); // its collar
         Vector3 port = at(0, 0.62f, 0.28f);
         DrawSphere(port, 0.15f, Color{20, 40, 46, 255});                               // the porthole
         DrawSphere(Vector3Add(port, Vector3Scale(fwd, 0.04f)), 0.1f, Color{120, 220, 230, 200});
