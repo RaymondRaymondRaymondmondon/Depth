@@ -40,6 +40,6 @@ add_executable(depth
     src/chargen.cpp
     src/abyss.cpp
     src/beasts.cpp
-    src/beasts_biomes.cpp src/beasts_hull.cpp src/beasts_pirate.cpp src/beasts_cave.cpp src/beasts_island.cpp src/beasts_weeds.cpp src/beasts_atlantis.cpp src/dossier.cpp src/sound.cpp src/sound_parkour.cpp
+    src/beasts_biomes.cpp src/beasts_hull.cpp src/beasts_pirate.cpp src/beasts_cave.cpp src/beasts_island.cpp src/beasts_weeds.cpp src/beasts_atlantis.cpp src/dossier.cpp src/sound.cpp src/sound_parkour.cpp src/pixelart.cpp src/beastart.cpp
 )
 target_link_libraries(depth PRIVATE raylib)

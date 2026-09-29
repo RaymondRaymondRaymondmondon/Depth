@@ -22,6 +22,7 @@
 #include "game.h"
 #include "relics.h"
 #include "levelgen.h"
+#include "beastart.h"
 #include "ik.h"
 #include "rlgl.h"
 #include <algorithm>
@@ -4618,32 +4619,13 @@ void DrawIslandBeast(const PlatformState& p, const Beast& b, float t) {
             break;
         }
         if (b.act != BeastAct::Strike && b.act != BeastAct::Wander) break;
-        Vector2 a = b.anchor, h = b.territory;
-        for (int k = 0; k < 7; k++) {
-            Vector2 q{a.x + (h.x - a.x) * k / 6.0f + sinf(t * 20 + k) * 2, a.y + (h.y - a.y) * k / 6.0f};
-            DrawRectangle((int)q.x - 14, (int)q.y - 8, 28, 16, FAUNA_INK); DrawRectangle((int)q.x - 13, (int)q.y - 7, 26, 14, k % 2 ? Color{140, 70, 50, 255} : Color{180, 120, 60, 255});
-            DrawRectangle((int)q.x - 6, (int)q.y - 3, 3, 3, FAUNA_INK); DrawRectangle((int)q.x + 3, (int)q.y - 3, 3, 3, FAUNA_INK); // a carved face on each segment
-            DrawLineEx({q.x - 13, q.y}, {q.x - 22, q.y + 6}, 2, FAUNA_INK); DrawLineEx({q.x + 13, q.y}, {q.x + 22, q.y + 6}, 2, FAUNA_INK); // legs
-        }
-        DrawTri({h.x - 10, h.y - 6}, {h.x + 10, h.y - 6}, {h.x, h.y - 22}, Color{200, 60, 50, 255}); // mandibles
+        PxCentipede(b.anchor, b.territory, t, b.territory.x >= b.anchor.x ? 1.0f : -1.0f); // (beastart.cpp)
         break;
     }
-    case IS_SERPENT: { // the Arch-Serpent: a colossal neck rising out of the ravine, horned, sea-green
-        Vector2 a = b.anchor, h = b.territory;
-        Color scale{50, 110, 100, 255}, belly{200, 190, 140, 255};
-        Vector2 prev = {a.x, a.y + 40};
-        for (int k = 1; k <= 12; k++) {
-            float u = k / 12.0f;
-            Vector2 q{a.x + (h.x - a.x) * u + sinf(u * PI) * 40 * (h.x > a.x ? -1 : 1), a.y + 40 + (h.y - a.y - 40) * u};
-            float w = 30 - u * 12;
-            DrawLineEx(prev, q, w + 4, FAUNA_INK); DrawLineEx(prev, q, w, scale); DrawLineEx({prev.x + 4, prev.y}, {q.x + 4, q.y}, w * 0.35f, belly);
-            prev = q;
-        }
-        DrawEllipse((int)h.x, (int)h.y, 26, 16, FAUNA_INK); DrawEllipse((int)h.x, (int)h.y, 24, 14, scale);
-        DrawTri({h.x - 14, h.y - 10}, {h.x - 8, h.y - 12}, {h.x - 20, h.y - 34}, Color{230, 220, 190, 255}); DrawTri({h.x + 14, h.y - 10}, {h.x + 8, h.y - 12}, {h.x + 20, h.y - 34}, Color{230, 220, 190, 255}); // horns
-        bool strike = b.act == BeastAct::Strike || b.act == BeastAct::Coil;
-        for (int e = -1; e <= 1; e += 2) DrawCircle((int)(h.x + e * 10), (int)h.y - 3, 3, strike ? Color{255, 220, 80, 255} : Color{200, 180, 90, 255});
-        if (strike) DrawTri({h.x - 12, h.y + 6}, {h.x + 12, h.y + 6}, {h.x, h.y + 22}, Color{110, 20, 30, 255});
+    case IS_SERPENT: { // the Arch-Serpent (beastart.cpp): out of its lair, rearing, striking
+        bool strike = b.act == BeastAct::Strike || b.act == BeastAct::Eat, rear = b.act == BeastAct::Coil;
+        Rectangle d = PlatDiverBox(p);
+        PxSerpent(b.anchor, b.territory, strike ? b.goal : Vector2{d.x + d.width / 2, d.y + d.height / 2}, t, strike, rear);
         break;
     }
     case IS_SKIPPER: { // a mud-skipper: bug-eyed, finned, skipping
@@ -5508,23 +5490,9 @@ void DrawPirateBeast(const PlatformState& p, const Beast& b, float t) {
     case PS_ALBATROSS:
         DrawBird(b, t, 40 * s, 7 * s, body(Color{240, 238, 232, 255}), body(Color{70, 68, 72, 255}), Color{226, 190, 150, 255}, 3.5f, false);
         break;
-    case PS_TORTOISE: { // the Timber-Shell Tortoise: a dome of shell heaped with sunken cannonballs and broken planks
-        Color shell = body(Color{96, 84, 60, 255}), skin = body(Color{120, 128, 96, 255});
-        float step = sinf(b.phase * 2) * (fabsf(b.vel.x) > 2 ? 2.0f : 0.0f);
-        for (int k = 0; k < 4; k++) { // four stumpy legs, stepping in turn
-            float lx = x + (k < 2 ? 22 : -22) * f + (k % 2 ? 6 : -6), lift = (k % 2 == 0 ? step : -step);
-            DrawRectangle((int)lx - 6, (int)(y + 4 - std::max(0.0f, lift)), 12, (int)(16 + std::min(0.0f, lift)), FAUNA_INK);
-            DrawRectangle((int)lx - 5, (int)(y + 5 - std::max(0.0f, lift)), 10, (int)(14 + std::min(0.0f, lift)), skin);
-        }
-        DrawEllipse((int)(x + f * 44), (int)(y + 2), 11, 8, FAUNA_INK); DrawEllipse((int)(x + f * 44), (int)(y + 2), 10, 7, skin); // the head
-        DrawCircle((int)(x + f * 48), (int)y, 1.6f, FAUNA_INK);
-        DrawEllipse((int)x, (int)y, 42, 26, FAUNA_INK);
-        DrawEllipse((int)x, (int)y, 40, 24, shell);
-        DrawRectangle((int)x - 40, (int)y, 80, 10, Tone(shell, -0.35f)); // the shell's rim
-        for (int k = 0; k < 5; k++) DrawRectangle((int)(x - 30 + k * 13), (int)(y - 18 + (k % 2) * 5), 12, 3, Color{130, 96, 60, 255}); // planks
-        for (int k = 0; k < 4; k++) { float cx2 = x - 24 + k * 16; DrawCircle((int)cx2, (int)(y - 12 - (k % 2) * 6), 4.5f, FAUNA_INK); DrawCircle((int)cx2, (int)(y - 12 - (k % 2) * 6), 3.6f, Color{60, 62, 66, 255}); } // cannonballs
+    case PS_TORTOISE: // the Timber-Shell Tortoise (beastart.cpp): a real tortoise, a sunken ship's cargo on its back
+        PxTortoise({x, y}, f, b.phase, fabsf(b.vel.x) > 2, dead, t);
         break;
-    }
     case PS_CUTTLE: { // the Rigging-Mimic: a fraying rope - until it isn't
         Vector2 top = b.anchor, tip = b.territory;
         bool shown = b.act != BeastAct::Ambush;
@@ -5687,6 +5655,12 @@ void DrawFauna(const PlatformState& p, float t, int c0, int c1) {
     const BeastWorld& W = p.fauna;
     if (!W.active) return;
     float x0 = (c0 - 8) * (float)T, x1 = (c1 + 9) * (float)T; // wide: a giant's body reaches well past its centre
+    for (const auto& L : W.lairs) { // the Arch-Serpent's lairs: always there, its eyes in the dark while it's home
+        if (L.x < x0 - 120 || L.x > x1 + 120) continue;
+        bool out = false;
+        for (const auto& b : W.beasts) if (b.life == BeastLife::Alive && b.species == IS_SERPENT && fabsf(b.anchor.x - L.x) < 4) out = true;
+        PxSerpentLair(L, t, !out);
+    }
     for (const auto& k : W.ink) { // an octopus's ink: a dark bloom spreading and thinning
         float u = std::clamp(k.life / std::max(0.1f, k.max), 0.0f, 1.0f), r = k.r * (1.2f - 0.5f * u);
         if (k.kind == 4) { // a shockwave: a ring racing outward
@@ -6731,6 +6705,20 @@ void DrawPlatformSpritePage(int page, float t) {
     p.tiles.assign(1, std::string(40, '.'));
     p.w = 40;
     p.h = 1;
+    if (page == 3) { // the shaded pixel-sprite creatures (beastart.cpp), at game scale, a few poses each
+        Camera2D cam{}; cam.zoom = ZOOM * (getenv("DEPTH_PAGEZOOM") ? (float)atof(getenv("DEPTH_PAGEZOOM")) : 1.0f); if (getenv("DEPTH_PAGEX")) cam.target = {(float)atof(getenv("DEPTH_PAGEX")), (float)atof(getenv("DEPTH_PAGEY"))}; BeginMode2D(cam);
+        for (int k = 0; k < 3; k++) PxTortoise({110.0f + k * 190, 110}, k == 1 ? -1.0f : 1.0f, t * 3 + k, k != 0, false, t + k);
+        PxTortoise({700, 90}, 1, t * 3, true, false, t, true);
+        PxCentipede({120, 420}, {150, 300}, t, 1); PxCentipede({330, 430}, {420, 320}, t + 0.3f, 1);
+        PxSerpentLair({620, 690}, t, true);
+        PxSerpentLair({1000, 690}, t, false); PxSerpent({1000, 690}, {1060, 440}, {1300, 520}, t, false, true);
+        PxSerpent({1180, 690}, {1170, 560}, {1270, 640}, t, true, false);
+        EndMode2D();
+        EndLayer();
+        DrawTexturePro(PixelRT().texture, {0, 0, PIXEL_W + 2.0f, -(PIXEL_H + 2.0f)}, {-PX, -PX, (PIXEL_W + 2) * PX, (PIXEL_H + 2) * PX}, {0, 0}, 0, WHITE);
+        TxtBold("Platform levels: the shaded pixel-sprite creatures (in-game scale)", 30, 12, 22, Pal::Brass);
+        return;
+    }
     if (page == 0) {
         struct DiverPose { const char* name; bool ground; Vector2 vel; float anim; int wall; };
         const DiverPose dp[6] = {{"Idle", true, {0, 0}, 0, 0}, {"Run", true, {RUN, 0}, 1.2f, 0}, {"Run", true, {RUN, 0}, 2.9f, 0},

@@ -236,7 +236,24 @@ void Island13Tick(BeastWorld& W, PlatformState& p, float dt) {
     if (apex || !dv.alive || getenv("DEPTH_NOAPEX")) return;
     float wait = W.apexVisits == 0 ? 60.0f : 100.0f;
     if (W.apexT < wait || W.calmT < 20 || W.tension > 0.2f || !p.onGround) return;
-    // a ravine near the diver: a column whose floor is far below the diver's (or none at all)
+    // it lives in its lairs: it rises from one 4-14 tiles from the diver (ahead preferred)
+    if (!W.lairs.empty()) {
+        int best = -1; float bs = 1e9f;
+        for (int k = 0; k < (int)W.lairs.size(); k++) {
+            float d = W.lairs[k].x - dv.pos.x, ad = fabsf(d);
+            if (ad < 4 * T || ad > 14 * T || W.lairs[k].x > W.limitX - 4 * T) continue;
+            float score = ad + (d * (dv.vel.x >= 0 ? 1 : -1) < 0 ? 5 * T : 0);
+            if (score < bs) { bs = score; best = k; }
+        }
+        if (best < 0) return;
+        int k = NewBeast(W, IS_SERPENT, W.lairs[best]);
+        Beast& sp = W.beasts[k];
+        sp.anchor = W.lairs[best]; sp.act = BeastAct::Explore; sp.actT = 0; sp.den = -1; sp.special = 0; sp.special2 = 0; sp.pers.abnormal = Abnormal::None;
+        sp.goal = dv.pos;
+        W.apexVisits++; W.apexT = 0;
+        return;
+    }
+    // (no lairs - a synthetic test arena): a ravine near the diver, a column whose floor is far below the diver's
     int feet = (int)floorf((dv.pos.y + 14) / T);
     for (int d = 4; d <= 14; d++)
         for (int sgn = 1; sgn >= -1; sgn -= 2) {
@@ -307,6 +324,12 @@ void Island13Spawn(BeastWorld& W, PlatformState& p) {
         Vector2 f = S.floor[i + 5];
         int b = NewBeast(W, IS_GBEETLE, {f.x, root(f).y - 22}); W.beasts[b].anchor = root(f); W.beasts[b].den = -1; W.beasts[b].pers.abnormal = Abnormal::None;
         break;
+    }
+    // the Arch-Serpent's lairs: burrows in open ground with headroom to rear, spread along the island
+    for (float fr : {0.3f, 0.58f, 0.84f}) {
+        Vector2 f = S.At(fr); bool room = true;
+        for (int y = (int)f.y - 9; y < (int)f.y && room; y++) room = W.nav.Open((int)floorf(f.x / T), y);
+        if (room) W.lairs.push_back(root(f));
     }
     { int b = NewBeast(W, IS_CENTIPEDE, root(S.At(0.5f))); W.beasts[b].anchor = root(S.At(0.5f)); W.beasts[b].den = -1; W.beasts[b].pers.abnormal = Abnormal::None; }
 }

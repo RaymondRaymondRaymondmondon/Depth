@@ -212,6 +212,7 @@ struct BeastWorld {
     struct Web { Vector2 top, bottom; float t = 0; bool revealed = false; };
     std::vector<Web> webs;         // the Abyssal Arachnid's webs: a sheet from a tunnel's ceiling down to 20 px off the floor (slide under)
     std::vector<Vector2> scars;    // bites torn out of the plating by the megalodon (drawn; the tiles themselves never change, so the route stays proven)
+    std::vector<Vector2> lairs;    // the Island: the Arch-Serpent's burrows (it only ever rises from one of these)
     int apexVisits = 0;
 };
 

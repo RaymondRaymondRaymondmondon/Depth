@@ -356,15 +356,23 @@ static void TakeShots(const Game& base, const std::string& dir) {
 
 // Renders every sprite in the game onto eight pages and stitches them into one image.
 static void MakeSpriteSheet(const std::string& path) {
-    const std::function<void(float)> pages[11] = {
+    const std::function<void(float)> pages[12] = {
         [](float t) { DrawCrewSpritePage(t); },       [](float t) { DrawSalonSpritePage(t); },
         [](float t) { DrawCaveSpritePage(t); },       [](float t) { DrawPlatformSpritePage(0, t); },
         [](float t) { DrawPlatformSpritePage(1, t); }, [](float t) { DrawPlatformSpritePage(2, t); },
         [](float t) { FlatsSpritePage(t); },          [](float t) { DrawItemSpritePage(t); },
-        [](float t) { DrawBestiarySpritePage(0, t); }, [](float t) { DrawBestiarySpritePage(1, t); }, [](float t) { DrawBestiarySpritePage(2, t); },
+        [](float t) { DrawBestiarySpritePage(0, t); }, [](float t) { DrawBestiarySpritePage(1, t); }, [](float t) { DrawBestiarySpritePage(2, t); }, [](float t) { DrawPlatformSpritePage(3, t); },
     };
+    if (const char* one = getenv("DEPTH_PAGE")) { // DEPTH_PAGE=<n>: render just that page to the file
+        int i = std::clamp(atoi(one), 0, 11);
+        BeginFrame(); SetPost(0.0f, 0.0f, 0.0f);
+        DrawVGradient({0, 0, (float)SCREEN_W, (float)SCREEN_H}, Color{46, 50, 58, 255}, Color{24, 26, 32, 255});
+        pages[i](1.3f); EndFrame(1.3f);
+        Image page = GrabFrame(); ExportImage(page, path.c_str()); UnloadImage(page);
+        return;
+    }
     Image sheet = GenImageColor(SCREEN_W * 2, SCREEN_H * 6, BLACK);
-    for (int i = 0; i < 11; i++) {
+    for (int i = 0; i < 12; i++) {
         BeginFrame();
         SetPost(0.0f, 0.0f, 0.0f);
         DrawVGradient({0, 0, (float)SCREEN_W, (float)SCREEN_H}, Color{46, 50, 58, 255}, Color{24, 26, 32, 255});
