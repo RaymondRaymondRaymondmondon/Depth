@@ -493,18 +493,56 @@ void Hull13Spawn(BeastWorld& W, PlatformState& p) {
     auto plant = [&](int species, Vector2 at) { int k = NewBeast(W, species, at); W.beasts[k].act = BeastAct::Idle; W.beasts[k].den = -1; return k; };
     std::vector<float> used; // columns already holding a plant
     auto freeAt = [&](float x, float r) { for (float u : used) if (fabsf(u - x) < r) return false; return true; };
-    // 1. anchors: every corner (a step of two tiles or more), then fill so no stretch runs past 12 tiles without cover
-    float lastRefuge = S.floor.front().x;
+    // 0. the Siphon Octopus: in an exhaust tube on a tall wall face by the deck - two on a hull, well apart - with
+    //    hydroids on the rivets in front of it (the answer to its pull). Placed first, so nothing crowds them out.
+    struct Lair { int wx, ox, y, sd; float score; };
+    std::vector<Lair> cand;
+    for (int cx = 30; cx < N.w - 12; cx++) {
+        if (cx * T > W.limitX - 8 * T) break;
+        for (int sd = -1; sd <= 1; sd += 2) {
+            int wx = cx, ox = cx + sd;
+            int f = N.FloorBelow(ox, 2);
+            if (f >= N.h || N.Hazard(ox, f - 1)) continue;
+            int y = f - 2; // a tube two tiles up the wall
+            if (N.Solid(wx, y) && N.Solid(wx, y - 1) && N.Solid(wx, y + 1) && N.Open(ox, y) && N.Open(ox + sd, y) && N.Open(ox, y - 1) && N.Open(ox + sd * 2, y) && N.Open(ox + sd * 3, y))
+                cand.push_back({wx, ox, y, sd, Hash(s, 6000 + cx * 2 + (sd > 0))});
+        }
+    }
+    std::sort(cand.begin(), cand.end(), [](const Lair& a, const Lair& b) { return a.score < b.score; });
+    std::vector<float> lairs;
+    for (const auto& c : cand) {
+        if (lairs.size() >= 2) break;
+        bool apart = true;
+        for (float l : lairs) if (fabsf(l - c.wx * T) < 60 * T) apart = false;
+        if (!apart) continue;
+        int k = NewBeast(W, HS_SIPHON, {0, 0});
+        Beast& o = W.beasts[k];
+        o.facing = (float)c.sd; o.anchor = {c.sd > 0 ? (c.wx + 1) * T : c.wx * T, c.y * T + 16.0f}; o.pos = o.anchor; o.den = -1; o.act = BeastAct::Ambush; o.hidden = true;
+        o.pers.abnormal = Abnormal::None;
+        lairs.push_back(c.wx * T);
+        for (int h = 2, placed = 0; h < 10 && placed < 2; h++) {
+            int hx = c.ox + c.sd * h;
+            int hf = N.FloorBelow(hx, c.y - 2);
+            if (hf >= N.h || !N.Open(hx, hf - 1) || N.Hazard(hx, hf - 1) || !freeAt(hx * T + 16, 1.5f * T)) continue;
+            plant(HS_HYDROID, {hx * T + 16.0f, hf * T}); used.push_back(hx * T + 16); placed++; h += 2;
+        }
+    }
+    // 1. anchors: every corner (a step of two tiles or more, or the lip of a gap), then wherever a spot on the deck
+    //    would be more than COVER tiles from cover (a kelp anchor, or a crevice with plating low overhead)
+    std::vector<float> cover;
+    for (const auto& f : S.floor) { int cx = (int)floorf(f.x / T), cy = (int)f.y; if (N.Solid(cx, cy - 1) || N.Solid(cx, cy - 2)) cover.push_back(f.x); }
+    auto kelpAt = [&](Vector2 at) { plant(HS_KELP, root(at)); used.push_back(at.x); cover.push_back(at.x); };
     for (size_t i = 1; i < S.floor.size(); i++) {
         Vector2 f = S.floor[i], prev = S.floor[i - 1];
-        int cx = (int)floorf(f.x / T), cy = (int)f.y;
-        bool crevice = N.Solid(cx, cy - 1) || N.Solid(cx, cy - 2);
-        if (crevice) { lastRefuge = f.x; continue; }
-        bool corner = fabsf(f.y - prev.y) >= 2 && f.x - prev.x < 1.5f * T;
-        if ((corner && freeAt(f.x, 5 * T)) || f.x - lastRefuge > 12 * T) {
-            Vector2 at = f.y < prev.y ? f : Vector2{prev.x, prev.y}; // on the high side of the step, at its edge
-            if (!N.Hazard((int)floorf(at.x / T), (int)at.y)) { plant(HS_KELP, root(at)); used.push_back(at.x); lastRefuge = f.x; }
-        }
+        bool step = fabsf(f.y - prev.y) >= 2 && f.x - prev.x < 1.5f * T, gap = f.x - prev.x > 1.5f * T;
+        if (step && freeAt(f.x, 5 * T)) kelpAt(f.y < prev.y ? f : prev); // on the high side of the step, at its edge
+        if (gap) { if (freeAt(prev.x, 4 * T)) kelpAt(prev); if (freeAt(f.x, 4 * T)) kelpAt(f); } // both lips of a gap
+    }
+    const float COVER = 6.5f * T;
+    for (const auto& f : S.floor) {
+        float near = 1e9f;
+        for (float c : cover) near = std::min(near, fabsf(c - f.x));
+        if (near > COVER) kelpAt(f);
     }
     // 2. pressure-anemones at the start of long flat runs
     float lastAnemone = -1e9f;
@@ -520,33 +558,6 @@ void Hull13Spawn(BeastWorld& W, PlatformState& p) {
         if (h < 0.16f) { plant(HS_RUST, root(f)); used.push_back(f.x); }
         else if (h < 0.26f) { plant(HS_MITES, root(f)); used.push_back(f.x); }
         else if (h < 0.33f) { plant(HS_MOSS, root(f)); used.push_back(f.x); }
-    }
-    // 4. the Siphon Octopus: in an exhaust tube on a tall wall face near the deck, two at most, well apart
-    std::vector<float> lairs;
-    for (int cx = 30; cx < N.w - 12 && lairs.size() < 2; cx++) {
-        if (cx * T > W.limitX - 8 * T) break;
-        if (!lairs.empty() && cx * T - lairs.back() < 60 * T) continue;
-        if (Hash(s, 6000 + cx) > 0.12f) continue;
-        for (int sd = -1; sd <= 1; sd += 2) {
-            int wx = cx, ox = cx + sd;
-            int f = N.FloorBelow(ox, 2);
-            if (f >= N.h) continue;
-            int y = f - 2; // a tube two tiles up the wall
-            if (!(N.Solid(wx, y) && N.Solid(wx, y - 1) && N.Solid(wx, y + 1) && N.Open(ox, y) && N.Open(ox + sd, y) && N.Open(ox, y - 1))) continue;
-            int k = NewBeast(W, HS_SIPHON, {0, 0});
-            Beast& o = W.beasts[k];
-            o.facing = (float)sd; o.anchor = {sd > 0 ? (wx + 1) * T : wx * T, y * T + 16.0f}; o.pos = o.anchor; o.den = -1; o.act = BeastAct::Ambush;
-            o.pers.abnormal = Abnormal::None;
-            lairs.push_back(cx * T);
-            // hydroids on the rivets in front of it: the answer to its pull
-            for (int h = 0, placed = 0; h < 8 && placed < 2; h++) {
-                int hx = ox + sd * (2 + h);
-                int hf = N.FloorBelow(hx, y - 2);
-                if (hf >= N.h || !N.Open(hx, hf - 1) || N.Hazard(hx, hf - 1) || !freeAt(hx * T + 16, 1.5f * T)) continue;
-                plant(HS_HYDROID, {hx * T + 16.0f, hf * T}); used.push_back(hx * T + 16); placed++; h += 2;
-            }
-            break;
-        }
     }
     // 5. a Hull-Grazer Whale (two on a long hull), somewhere it has room to cruise
     int whales = N.w > 260 ? 2 : 1;
@@ -714,6 +725,35 @@ bool VerifyHull13() {
         if (!crevice && !thrown) fail("the megalodon's strike didn't throw an unanchored diver");
         if (crevice && (coiled || bit)) fail("the megalodon went for a diver sheltering in a crevice");
         if (crevice && thrown) fail("a diver under a low roof was torn loose by the turbulence");
+    }
+    // 7) the ecology planner on real Hulls: every standing spot on the deck within 7 tiles of cover (hull-kelp or a crevice),
+    //    every Hull has its whale, and hydroids guard every siphon tube
+    for (unsigned seed : {404u, 11u, 77u, 1234u, 9001u, 31337u}) {
+        PlatformState p;
+        p.level = PL_HULL; p.layout = {(int)seed, 100};
+        PlatBuildLevel(p);
+        const BeastWorld& W = p.fauna;
+        Spots S; S.Build(W, p, 10, W.nav.w - 4);
+        std::vector<float> kelp;
+        int whales = 0, siphons = 0, guarded = 0, flora = 0;
+        for (const auto& b : W.beasts) {
+            if (!Alive(b)) continue;
+            if (b.species == HS_KELP) kelp.push_back(b.pos.x);
+            if (b.species == HS_WHALE) whales++;
+            if (Has(Sp(PL_HULL, b.species), T_FLORA)) flora++;
+            if (b.species == HS_SIPHON) {
+                siphons++;
+                for (const auto& h : W.beasts) if (Alive(h) && h.species == HS_HYDROID && Dist(h.pos, b.anchor) < 10 * T) { guarded++; break; }
+            }
+        }
+        std::vector<float> cover = kelp;
+        for (const auto& fl : S.floor) { int cx = (int)floorf(fl.x / T), cy = (int)fl.y; if (W.nav.Solid(cx, cy - 1) || W.nav.Solid(cx, cy - 2)) cover.push_back(fl.x); }
+        float worst = 0;
+        for (const auto& fl : S.floor) { float near = 1e9f; for (float c : cover) near = std::min(near, fabsf(c - fl.x)); worst = std::max(worst, near / T); }
+        TraceLog(LOG_WARNING, "verify-hull13: Hull #%u - %d flora (%d kelp), %d whale(s), %d siphon(s) (%d guarded), farthest standing spot from cover %.1f tiles", seed, flora, (int)kelp.size(), whales, siphons, guarded, worst);
+        if (worst > 7.0f) fail("a real Hull has a standing spot more than 7 tiles from any cover");
+        if (whales < 1) fail("a real Hull has no Hull-Grazer whale");
+        if (guarded < siphons) fail("a siphon tube has no hydroids near it");
     }
     if (ok) TraceLog(LOG_WARNING, "verify-hull13: OK - siphon pull, hydroid stun, bait, kelp swing and anchor, mites, anemone vault and jet, rust cloud and corrosion, herding, eel slam, the whale's back, the megalodon and its refuges");
     return ok;

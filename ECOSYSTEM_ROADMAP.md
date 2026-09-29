@@ -630,8 +630,13 @@ decisions; if 5-hour usage reaches 93% pause (checkpoint + say so). Check usage 
 The PDFs' text is in docs/ParkourReference1.2.txt and docs/ParkourReference1.3.txt (decoded; '?' marks symbols that didn't decode).
 Done and pushed up to 2e916eb: the beast engine in all 7 platform levels (incl. the Weeds and Atlantis, built this session), carry-off,
 per-species sizes, the Periscope chart, and the diver's extra moves (--verify-moves). All verifiers pass.
+Progress 2026-09-29 (after compaction): item 1 DONE (5a8569a + follow-up): the whole Hull 1.3 roster, flora, movers, slime,
+the runtime director for the megalodon and the ecology planner with its cover check (see CLAUDE.md "ParkourReference1.3: the Hull
+first"). Item 2 DONE for the engine (injuries, herding, stun; lame-leg drawing). Item 3 partly DONE: planner + director + verifier
+for cover; STILL TO DO there: 'd' destructible tiles the megalodon bites (generator must keep them off the proven route; --verify
+must still pass with them removed), and siphon lairs at 'v' ballast vents when a Hull has no suitable wall.
 To do, in order:
-1. **Hull 1.3 roster** (plan above): merge HS_EEL -> Electric Hull-Crusher Eel (bigger, a slam shockwave along the deck that knocks
+1. (DONE) **Hull 1.3 roster** (plan above): merge HS_EEL -> Electric Hull-Crusher Eel (bigger, a slam shockwave along the deck that knocks
    the diver's momentum and shatters rust-algae; keep its den ambush), HS_SPRAT -> Pilot-Fish (ride the hull's boundary layer, band 1;
    scatter when sprinted through); add Hull-Grazer Whale (a moving solid surface: add "movers" the diver collides with and rides - the
    path search never sees them), Siphon Octopus (in 'T' tubes / 'v' vents: suction toward its lair, pilot-fish corpses as bait,

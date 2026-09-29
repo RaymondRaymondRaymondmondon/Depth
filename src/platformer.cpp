@@ -3857,6 +3857,8 @@ void DrawBeastLegs(const Beast& b, const SpeciesDef& S, bool nearSide, float thi
     for (int k = 0; k < LEGS; k++) {
         if ((k % 2 == 0) != nearSide) continue;
         Vector2 hip = BeastHip(b, S, k), foot = b.legs[k].init ? b.legs[k].foot : Vector2{hip.x, hip.y + legLen};
+        bool lame = k == 2 && b.health < 0.6f && b.life == BeastLife::Alive; // a persistent injury: the hind leg held up, dragged
+        if (lame) foot = {hip.x - b.facing * legLen * 0.4f, hip.y + legLen * 0.62f + fabsf(sinf(b.phase * 6)) * 1.5f};
         float bend = (k < 2 ? frontBend : backBend) * b.facing;
         float l1 = legLen * 0.55f, l2 = legLen * 0.6f;
         Vector2 knee = ik::Knee(hip, foot, l1, l2, bend);
@@ -3864,6 +3866,7 @@ void DrawBeastLegs(const Beast& b, const SpeciesDef& S, bool nearSide, float thi
         DrawLineEx(hip, knee, thick + 2, FAUNA_INK); DrawLineEx(knee, foot, thick + 1.5f, FAUNA_INK);
         DrawLineEx(hip, knee, thick, col); DrawLineEx(knee, foot, thick * 0.8f, col);
         DrawCircleV(foot, thick * 0.6f, Tone(col, -0.2f));
+        if (lame) DrawCircleV(knee, 1.2f, Color{150, 30, 40, 255});
     }
 }
 // A tail of fixed length, bent segment by segment: lifted by mood (lift 0 droops, 1 stands up), lashing when it's
