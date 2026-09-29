@@ -71,6 +71,30 @@ What "genuinely alive" needs to cover, synthesized from this message and the two
 Everything below this section still stands, but is lower priority than this until the user says otherwise.
 Weeds and Atlantis (the remaining two new biomes) are on hold behind this.
 
+### Guiding spec: ParkourReference1.2.pdf (in the repo root)
+The user then supplied `ParkourReference1.2.pdf` as the direction for the whole parkour section. Order
+taken: its AI sections first (perception, memory, utility, personalities, food web, dens), then player
+physics (slide, impact roll, poles, hydro-glide, water dash, parachute brake), FABRIK IK animation, and
+shaders/auto-tiling. It is written for SFML; everything is implemented in raylib here.
+
+### Status: the beast engine is built and proven on the Hull
+- `src/beasts.h/.cpp`: the four-tier pipeline (senses with sight cone + LOS raycast, hearing I/(1+kd^2),
+  a diffusing Eulerian scent grid for blood and the diver's trail; a 12-slot decaying memory with
+  trauma bits; hunger/fear/fatigue drives; sigmoid utility with hysteresis; A* motor for walkers and
+  swimmers with boids schooling), the six personality axes plus the 12 abnormal profiles (~15%), a food
+  web, corpses that sink/bleed/get scavenged, dens (tile 'D', Poisson-disc placed by `PlaceDens` in all
+  five generators, solid like '#', so `--verify` is unaffected) that prey hide in and that repopulate.
+- The Hull runs ten species (sprat schools with stragglers, cleaner shrimp grooming eels, octopus with
+  camo/ink, pufferfish, leeches riding hosts, anemones, hermit crabs mobbing, brittle-stars that break
+  under a fast diver, barnacle crabs, moray eels that ambush from breaches and patrol). The old Hull
+  chain (`PopulateEcoLife` etc.) was removed.
+- `depth.exe --verify-beasts` (with `DEPTH_BEASTLOG=1` for per-state histograms of a minute of real Hull
+  life) checks routing, LOS, hunt/eat/scavenge, hiding, straggler selection (the confusion effect: a
+  strike into a tight school usually misses and the hunter re-targets the loneliest fish), roaming,
+  and the abnormal rates.
+- Next: propagate the engine to Pipes (creature-side only), Pirate, Island, Cave with per-biome species
+  tables and den art; then the PDF's player-physics and IK sections; then Weeds and Atlantis.
+
 ## Status as of commit cd1fe26: Island and Cave both built; Weeds and Atlantis next
 
 The Island (commits 8ee3412, 44ae583, cd1fe26) and the Cave (commit 42ebeff) are both done - see

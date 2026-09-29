@@ -164,4 +164,8 @@ Menu-only, "coming soon": Island, Weeds, Atlantis.
 - Flats map: a node whose type repeats every one of its direct predecessors (and isn't a battle) is rerolled excluding those types, so a run of the same event (e.g. three Maelstroms) down one path can't happen.
 - Recruit variance: `Hero::vigor/might/quickness/fortitude` (rolled -2..2 at MakeHero) feed into GetStats, and `HeroBuildTag()` gives a short read ("Vigorous, Weak-armed") shown on the Radar and Crew Quarters screens.
 - Crew Quarters ability rows now show computed numbers (damage range, heal, stun%, accuracy) inline, not just on hover.
-- Card art: Bilge Rat and Fry redrawn with shots/lab.ps1. Dealer battle portrait gets a clipped diagonal ink hatch (`InkHatch`) over its dark cloak masses for rough parity with the card/figure ink style.
+- Card art: Bilge Rat and Fry redrawn with shots/lab.ps1.
+
+## Living beasts (ParkourReference1.2.pdf; see ECOSYSTEM_ROADMAP.md)
+- `beasts.h/.cpp` is the creature-AI engine (senses, memory, utility, personalities incl. 12 abnormal profiles, food web, corpses, scent grid, A* nav). The Hull runs on it (`BeastsUsed`); other biomes still use their older ecosystem overlays until propagated.
+- Tile 'D' is a creature den (solid like '#'), placed by `PlaceDens` in every generator. Run `depth.exe --verify-beasts` after changing beasts.cpp (`DEPTH_BEASTLOG=1` prints behaviour histograms). Dealer battle portrait gets a clipped diagonal ink hatch (`InkHatch`) over its dark cloak masses for rough parity with the card/figure ink style.

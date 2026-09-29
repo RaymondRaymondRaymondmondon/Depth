@@ -315,13 +315,9 @@ int main(int argc, char** argv) {
         SetTraceLogLevel(LOG_WARNING);
         return VerifyCritters() ? 0 : 1;
     }
-    if (argc >= 2 && strcmp(argv[1], "--verify-hull-life") == 0) {
+    if (argc >= 2 && strcmp(argv[1], "--verify-beasts") == 0) {
         SetTraceLogLevel(LOG_WARNING);
-        return VerifyHullLife() ? 0 : 1;
-    }
-    if (argc >= 2 && strcmp(argv[1], "--verify-hull-ecosystem") == 0) {
-        SetTraceLogLevel(LOG_WARNING);
-        return VerifyHullEcosystem() ? 0 : 1;
+        return VerifyBeasts() ? 0 : 1;
     }
     if (argc >= 2 && strcmp(argv[1], "--verify-pipe-ecosystem") == 0) {
         SetTraceLogLevel(LOG_WARNING);

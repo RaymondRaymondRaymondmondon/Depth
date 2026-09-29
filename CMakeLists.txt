@@ -39,5 +39,6 @@ add_executable(depth
     src/enemyart.cpp
     src/chargen.cpp
     src/abyss.cpp
+    src/beasts.cpp
 )
 target_link_libraries(depth PRIVATE raylib)

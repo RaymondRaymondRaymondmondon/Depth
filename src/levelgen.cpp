@@ -690,6 +690,36 @@ static void BuildCave(Grid& g, std::vector<Plat>& pl, Rng& rng, GenLevel& out, c
     wOut = fx + 7;
     out.exitRow = curF - 1;
 }
+// ---------------------------------------------------------------------------- creature dens
+// ParkourReference1.2.pdf's "Poisson-disc den spawner": the burrows, breaches and nests where a level's creatures
+// hide, rest, and come back out of after something's been eaten (see beasts.h). A den is a floor tile ('#' -> 'D')
+// with open water or air above it - exactly as solid as the floor it replaces, so nothing the diver needs to
+// cross changes and --verify sees the same level. Every open-topped floor tile is a candidate - ledges and tower
+// tops as well as the main floor, so some dens end up well off the diver's route - and Poisson-disc sampling
+// (shuffle, then keep each candidate only if it's far enough from every den already placed) spreads them out.
+static void PlaceDens(Grid& g, int w, unsigned seed, int level) {
+    Rng r(seed * 747796405u + (unsigned)level * 2891336453u + 17u);
+    std::vector<std::pair<int, int>> cand;
+    for (int x = 13; x < w - 10; x++)
+        for (int y = 2; y < g.h - 1; y++)
+            if (g.get(x, y) == '#' && g.get(x, y - 1) == '.' && g.get(x, y - 2) == '.' && g.get(x - 1, y) != 'x' && g.get(x + 1, y) != 'x')
+                cand.push_back({x, y});
+    for (int i = (int)cand.size() - 1; i > 0; i--) std::swap(cand[i], cand[r.I(0, i)]);
+    const float minD = level == 0 ? 16.0f : 13.0f; // tiles
+    const int target = std::max(4, w / 16);
+    std::vector<std::pair<int, int>> dens;
+    for (const auto& c : cand) {
+        if ((int)dens.size() >= target) break;
+        bool ok = true;
+        for (const auto& d : dens) {
+            float dx = (float)(c.first - d.first), dy = (float)(c.second - d.second) * 1.5f;
+            if (dx * dx + dy * dy < minD * minD) { ok = false; break; }
+        }
+        if (ok) dens.push_back(c);
+    }
+    for (const auto& d : dens) g.set(d.first, d.second, 'D');
+}
+
 // ---------------------------------------------------------------------------- the generator
 GenLevel GenerateLevel(int level, unsigned seed, float scale) {
     Params P = ParamsFor(level);
@@ -954,6 +984,7 @@ GenLevel GenerateLevel(int level, unsigned seed, float scale) {
 
     if (P.enclosed) g.set(last.x0 + 3, last.y - 1, 'E');
     }
+    PlaceDens(g, w, seed, level);
     // ---- the start, the exit and the finished grid
     g.set(pl[0].wx, pl[0].y - 1, 'S');
     for (auto& r : g.r) r.resize(w);

@@ -4,6 +4,7 @@
 // ============================================================================
 #pragma once
 #include "raylib.h"
+#include "beasts.h"
 #include <array>
 #include <functional>
 #include <string>
@@ -296,15 +297,7 @@ struct DungeonState {
 // ---------- platformer ----------
 enum PlatLevel { PL_PIPES, PL_HULL, PL_PIRATE, PL_ISLAND, PL_CAVE, PL_COUNT };
 
-// A per-entity personality, rolled once at spawn from the level's seed, so the same species reads differently
-// run to run (an aggressive eel this run, a timid one next time). Shared by every ecosystem-framework biome:
-// the Abyss (abyss.cpp's RollPersonality), the Pipes' ambient duct life, and the Hull's crabs/eels below.
-struct PersonalityProfile {
-    float aggression = 0.5f; // 0 = pacifist/flees a fight, 1 = relentless hunter
-    float bravery     = 0.5f; // 0 = flees anything bigger than itself, 1 = attacks larger predators
-    float energy      = 0.5f; // 0 = lethargic/slow forces, 1 = hyperactive/fast impulses
-    float curiosity   = 0.5f; // 0 = ignores disturbances, 1 = investigates every sound
-};
+// PersonalityProfile (rolled per creature from the level's seed) lives in beasts.h, with the living-AI engine.
 
 struct PlatEnemy {
     char type; Vector2 pos, home; float dir, t;
@@ -329,25 +322,7 @@ struct PlatCritter {
     CritterState state = CritterState::Idle;
     float stateTimer = 0, phase = 0;      // phase: per-critter offset so a cluster doesn't move in lockstep
 };
-// The Hull's real ecosystem chain (ECOSYSTEM_BESTIARY.md, "The Hull"): Cleaner Shrimp draw Camouflage
-// Octopuses into ambush, Barnacle Crabs (the existing 'c' enemy) pinch Octopuses that land on their beds,
-// either pinch sprays an ink cloud, Pufferfish panic and puff up inside it, a puffed Pufferfish knocks Hull-
-// Leeches loose, Stinging Anemones catch drifting Leeches, and Hermit Crabs scavenge an Anemone's scraps.
-// One shared struct/state enum for all seven - the states mean different things per kind (see UpdateEcoLife),
-// the same way CritterState's three states already cover the Pipes' whole vocabulary.
-enum class EcoKind { Shrimp, Octopus, Puffer, Leech, Anemone, Hermit, BrittleStar };
-enum class EcoState { Idle, Wander, Hidden, Ambush, Panicked, Puffed, Detached, Captured, Fed, Scavenging, Broken };
-struct PlatEcoLife {
-    EcoKind kind;
-    Vector2 pos{0, 0}, home{0, 0};
-    PersonalityProfile personality;
-    float dir = 1;
-    EcoState state = EcoState::Idle;
-    float stateTimer = 0, phase = 0;
-};
-// A Camouflage Octopus's ink, sprayed when a Crab pinches it or the player bumps it - Pufferfish inside the
-// radius panic and puff up (see UpdateEcoLife); purely a trigger volume, drawn as a spreading dark bloom.
-struct InkCloud { Vector2 pos{0, 0}; float life = 0, r = 60; };
+// (The Hull's creatures run on the living-AI engine - see beasts.h / PlatformState::fauna.)
 // The Pipes' real ecosystem chain (ECOSYSTEM_BESTIARY.md, "The Pipes"): unlike every other biome's chain,
 // "entities ignore the player; all hazards stem from systemic chaos and collateral physics" - so this one
 // never reacts to the diver at all (CLAUDE.md: the Pipes have no enemies), it just runs. Dust Moths flutter
@@ -485,13 +460,12 @@ struct PlatformState {
     int checkpointChunk = 0;
     std::vector<PlatEnemy> enemies;
     std::vector<PlatCritter> critters; // ambient duct life (Pipes only) - see PlatCritter; never a hazard
-    std::vector<PlatEcoLife> ecoLife;  // Hull only - see PlatEcoLife; a puffed Pufferfish IS a hazard
-    std::vector<InkCloud> inkClouds;
     std::vector<PlatPipeLife> pipeLife; // Pipes only - see PlatPipeLife; never a hazard, never reacts to the diver
     std::vector<Vector2> lightSpots;    // Pipes only - the few surviving 'o' bioluminescent leaks Dust Moths fly toward
     std::vector<PlatPirateLife> pirateLife; // Pirate Ship only - see PlatPirateLife; a Berserk Guard Dog IS a hazard
     std::vector<PlatIslandLife> islandLife; // Island only - see PlatIslandLife; a Charging Boar IS a hazard
     std::vector<PlatCaveLife> caveLife;     // Cave only - see PlatCaveLife; a Dropping Leech IS a hazard
+    BeastWorld fauna;                       // the living-AI creatures (beasts.h) - the Hull first, other levels as they move over
     PlatBoss boss;
     std::vector<PlatParticle> particles;
     int coins = 0, deaths = 0, reward = 0, relic = -1, relic2 = -1; // relic2: Blackbeard sometimes leaves a second
@@ -807,6 +781,13 @@ void GeneratePlatLayout(Game& g, int level);
 bool PlatLayoutValid(const Game& g, int level);
 std::string PlatLayoutCode(const Game& g, int level);
 const char* PlatLevelName(int level);
+// Tile and effect helpers the creature engine (beasts.cpp) borrows from the platformer.
+bool PlatSolid(const PlatformState& p, int tx, int ty);
+char PlatTileAt(const PlatformState& p, int tx, int ty);
+Rectangle PlatDiverBox(const PlatformState& p);
+void PlatBurst(PlatformState& p, Vector2 at, int n, Color c, float speed, float life, float size);
+void PlatBubbles(PlatformState& p, Vector2 at, int n);
+void PlatBuildLevel(PlatformState& p);
 void StartPlatform(Game& g, int level);
 void ScenePlatformer(Game& g);
 int VerifyPlatformLevels(); // debug: proves every section can be crossed; returns the number that can't
@@ -817,8 +798,6 @@ void SceneAbyss(Game& g);
 void UpdateAbyss(Game& g, float dt); // the fixed-step simulation, callable headlessly for --verify
 bool VerifyAbyss();                  // debug: proves a run can descend past the first downdraft/sponge gauntlet
 bool VerifyCritters();               // debug (depth.exe --verify-critters): proves the Pipes' ambient duct life spawns and reacts
-bool VerifyHullLife();                // debug (depth.exe --verify-hull-life): proves the Hull's crabs/eels roll and react to personality
-bool VerifyHullEcosystem();           // debug (depth.exe --verify-hull-ecosystem): proves the Hull's 7-species chain (ink -> puff -> leech -> anemone) fires
 bool VerifyPipeEcosystem();           // debug (depth.exe --verify-pipe-ecosystem): proves the Pipes' 10-species chain (web -> bite -> curl/roll -> flash -> panic) fires, entirely without the diver
 bool VerifyPirateEcosystem();         // debug (depth.exe --verify-pirate-ecosystem): proves the Pirate Ship's chain (scare -> fuse -> explode -> scatter -> infest -> berserk) fires
 bool VerifyIslandEcosystem();         // debug (depth.exe --verify-island-ecosystem): proves the Island's chain (charge -> swarm/drop, web catch, coconut steal, dog tracking) fires
