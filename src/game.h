@@ -743,7 +743,7 @@ void PlatBurst(PlatformState& p, Vector2 at, int n, Color c, float speed, float 
 void PlatBubbles(PlatformState& p, Vector2 at, int n);
 void PlatBuildLevel(PlatformState& p);
 void PlatSnapShip(PlatformState& p, int k); // the Grand Kraken breaks proven snap point k (tiles, enemies, launchers, the diver, the beasts' map)
-void StartPlatform(Game& g, int level);
+void StartPlatform(Game& g, int level, bool freshLayout = false); // freshLayout: a brand-new random level (every dive from the Periscope)
 void ScenePlatformer(Game& g);
 int VerifyPlatformLevels(); // debug: proves every section can be crossed; returns the number that can't
 

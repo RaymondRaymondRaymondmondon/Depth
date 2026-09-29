@@ -5710,8 +5710,8 @@ std::string PlatLayoutCode(const Game& g, int level) {
     if (l.size() < 2) return "(new)";
     return l.size() >= 3 && l[2] ? TextFormat("#%06d GHOST", l[0]) : TextFormat("#%06d", l[0]);
 }
-void StartPlatform(Game& g, int level) {
-    if (!PlatLayoutValid(g, level)) GeneratePlatLayout(g, level); // e.g. a save from before the generator
+void StartPlatform(Game& g, int level, bool freshLayout) {
+    if (freshLayout || !PlatLayoutValid(g, level)) GeneratePlatLayout(g, level); // every dive is a new random level (the user); deaths replay it
     g.plat = PlatformState{};
     g.plat.level = level;
     g.plat.layoutCode = PlatLayoutCode(g, level);

@@ -626,7 +626,7 @@ void ScenePeriscope(Game& g) {
             } else if (i == PL_PIRATE) {
                 if (Button({c.x + 30, c.y + 356, 360, 36}, g.platPirateBoss ? "Blackbeard: ON (relic(s))" : "Blackbeard: OFF (no relic)", true, 15)) g.platPirateBoss = !g.platPirateBoss;
             }
-            if (Button({c.x + 30, c.y + 414, 360, 52}, "Dive in", true, 24)) { StartPlatform(g, i); return; }
+            if (Button({c.x + 30, c.y + 414, 360, 52}, "Dive in", true, 24)) { StartPlatform(g, i, true); return; }
             if (Button({c.x + 410, c.y + 414, 360, 52}, "Reshuffle (10g)", g.gold >= 10, 20)) {
                 g.gold -= 10;
                 GeneratePlatLayout(g, i);
