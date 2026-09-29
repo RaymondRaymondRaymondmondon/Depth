@@ -846,6 +846,7 @@ void SceneAbyss(Game& g) {
         g.abyss.bestDepth = std::max(g.abyss.bestDepth, g.abyss.depth);
         g.abyssBest = std::max(g.abyssBest, g.abyss.bestDepth);
         for (const auto& cr : g.abyss.creatures) if (Vector3Distance(cr.pos, g.abyss.playerPos) < 14.0f) g.platSeen[PL_COUNT] |= 1ull << (int)cr.kind; // the dossier: met down here
+        AbyssAudio(g.abyss, GetFrameTime());
     }
 
     // BeginFrame/EndFrame are owned by the caller (the main loop or --shots), exactly like every other

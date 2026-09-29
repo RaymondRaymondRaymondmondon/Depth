@@ -1,3 +1,4 @@
+#include "sound.h"
 #include "beasts.h"
 // ============================================================================
 //  DEPTH - entry point. Opens the window and runs whichever scene is active.
@@ -444,6 +445,7 @@ int main(int argc, char** argv) {
         for (int a = 0; a < (int)all.size(); a++) for (int b = a + 1; b < (int)all.size(); b++) { RelicSynergy s = CheckRelicSynergies(all[a], all[b]); if (s.active) printf("synergy: %s + %s -> %s\n", all[a].name.c_str(), all[b].name.c_str(), s.name); }
         return 0;
     }
+    if (argc >= 2 && strcmp(argv[1], "--audio-test") == 0) return AudioSelfTest(argc >= 3 ? argv[2] : nullptr) ? 0 : 1;
     if (argc >= 2 && strcmp(argv[1], "--verify") == 0) {
         SetTraceLogLevel(LOG_WARNING);
         return VerifyPlatformLevels();
@@ -523,6 +525,7 @@ int main(int argc, char** argv) {
         TakeShots(g, shotDir);
     } else {
         InitAudioDevice(); // only for real play: the tools above run silently
+        AudioInit();       // the parkour section's synthesizer (sound.cpp)
         if (LoadGame(g)) Toast(g, "Welcome back aboard. Your progress was loaded.");
         Scene last = g.scene;
         while (!WindowShouldClose()) {
@@ -530,6 +533,7 @@ int main(int argc, char** argv) {
             if (IsKeyPressed(KEY_F11)) ToggleBorderlessWindowed();   // F11: fill the screen (the frame is letterboxed to fit)
             BeginFrame();
             RunScene(g);
+            AudioFrame(GetFrameTime(), g.scene == Scene::Platformer || g.scene == Scene::Abyss);
             DrawToast(g);
             EndFrame(g.time);
             if (g.scene != last && g.scene == Scene::Hub) SaveGame(g); // autosave whenever you're back aboard
@@ -539,6 +543,7 @@ int main(int argc, char** argv) {
     }
     RelicSpriteGenerator::Unload();
     UnloadArt();
+    AudioClose();
     if (IsAudioDeviceReady()) CloseAudioDevice();
     CloseWindow();
     return 0;

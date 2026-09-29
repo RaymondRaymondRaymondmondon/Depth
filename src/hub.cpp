@@ -648,6 +648,7 @@ void ScenePeriscope(Game& g) {
         }
     }
     if (DossierButton({c.x + c.width - 230, c.y + 318, 200, 76})) { g.dossier = i; g.dossierPick = -1; }
+    DrawVolumeSliders({c.x + 30, c.y + 478, c.width - 60, 48}); // the parkour section's sound
     // run options, kept between sessions
     if (Button({60, 632, 250, 40}, g.platHard ? "Difficulty: HARD" : "Difficulty: Normal", true, 17)) g.platHard = !g.platHard;
     Txt(g.platHard ? "Every gear, mine, spiked ball and jet. +50% bonus gold." : "Gentler hazards (no gears, shorter jets), brighter lamp.", 320, 643, 15, Pal::Paper);

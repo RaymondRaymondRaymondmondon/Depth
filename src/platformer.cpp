@@ -6081,6 +6081,7 @@ const char* PlatLevelName(int level) { return Lv(level).name; }
 bool PlatSolid(const PlatformState& p, int tx, int ty) { return Solid(p, tx, ty); }
 char PlatTileAt(const PlatformState& p, int tx, int ty) { return At(p, tx, ty); }
 Rectangle PlatDiverBox(const PlatformState& p) { return PlayerBox(p); }
+float PlatDaylight(const PlatformState& p) { return Daylight(p); }
 void PlatBurst(PlatformState& p, Vector2 at, int n, Color c, float speed, float life, float size) { Burst(p, at, n, c, speed, life, size); }
 void PlatBubbles(PlatformState& p, Vector2 at, int n) { Bubbles(p, at, n); }
 void PlatBuildLevel(PlatformState& p) { BuildLevel(p); }
@@ -6522,6 +6523,7 @@ void ScenePlatformer(Game& g) {
     p.camX = std::clamp(p.pos.x + PW / 2, viewW / 2, std::max(viewW / 2, levelW - viewW / 2));
     p.camY = levelH <= viewH ? levelH / 2 : std::clamp(p.pos.y + PH / 2, viewH / 2, levelH - viewH / 2);
 
+    if (!p.verifying) ParkourAudio(p, dt); // the sound of it all (sound_parkour.cpp: it only listens to what changed)
     // ---------------- draw
     // The platform levels are deliberately retro: the world is drawn at half resolution onto a small
     // canvas, then scaled up without smoothing. The camera is snapped to whole canvas pixels (as the

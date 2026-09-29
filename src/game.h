@@ -729,6 +729,9 @@ void SceneBookshelf(Game& g);
 void ScenePeriscope(Game& g);
 bool DossierButton(Rectangle r);   // dossier.cpp: the file-folder button on the Periscope
 bool DrawDossier(Game& g);          // ...and the open dossier
+void ParkourAudio(const PlatformState& p, float dt); // sound_parkour.cpp: the platform levels' sound cues
+void AbyssAudio(const AbyssState& a, float dt);
+void DrawVolumeSliders(Rectangle r);  // master / music / effects / ambience, on the Periscope
 void SceneWorkshop(Game& g);
 
 // ---------- dungeon.cpp ----------
