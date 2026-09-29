@@ -2,6 +2,8 @@
 
 Depth is a 2D game in C++17 with raylib 5.5, built with CMake (see README.md for build steps, controls and the file map). It's a brighter, underwater take on Darkest Dungeon: a submarine hub (the Nautilus), roguelike rank-based expeditions, and platformer levels.
 
+**Design documents:** `docs/design/` holds the full game bible, one file per part: `1_Depth_Overall.md`, `2_Depth_Expeditions.md` (the main game), `3_Depth_Flats.md`, `4_Depth_Parkour.md`. Keep them current when a design changes.
+
 The vertical slice was built in an earlier claude.ai chat, "Computer game development". All art is drawn in code; there are no image assets.
 
 ## Art direction (from the user)
