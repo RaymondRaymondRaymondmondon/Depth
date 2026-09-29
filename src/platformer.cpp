@@ -1503,6 +1503,34 @@ void BackgroundSystem::Setup(int lv) {
                 float y = 140 + Hs(wx + 21) * (ch - 280);
                 for (int s = -1; s <= 1; s += 2) DrawCircleV({x + s * 4.0f, y}, 1.4f, Fade(Color{220, 60, 50, 255}, a * 0.6f));
             });
+            // the ship keeps watches: by day the boilers run hot and the gauges glow; on the night watch the ducts go red-lamped and still
+            float watch = 1.0f - Daylight(p);
+            if (watch > 0.05f) DrawRectangle(0, 0, (int)cw, (int)ch, Fade(Color{60, 6, 4, 255}, watch * 0.22f));
+            Layer(ox, 1.0f, 610, cw, [&](float x, float wx) { // a caged red night-lamp on a bulkhead
+                float ly = 80 + Hs(wx + 31) * (ch - 200);
+                DrawRectangle((int)x - 5, (int)ly - 7, 10, 14, dim(Color{50, 44, 40, 255}, B));
+                DrawCircle((int)x, (int)ly, 4, LerpC(dim(Color{120, 60, 40, 255}, B), Color{255, 70, 50, 255}, watch));
+                if (watch > 0.3f) { BeginBlendMode(BLEND_ADDITIVE); DrawCircle((int)x, (int)ly, 30, Fade(Color{255, 60, 40, 255}, (watch - 0.3f) * 0.25f)); EndBlendMode(); }
+            });
+            // the food web in the ducts, small and quiet: every 20-40 s a moth blunders into a web slung across a truss and the spider runs out and wraps it
+            {
+                float period = 25.0f, e = floorf((t + 11) / period), u = (t + 11 - e * period) / 7.0f;
+                if (u < 1.0f) {
+                    Vector2 wc{cw * (0.25f + 0.5f * Hs(e * 6.1f)), ch * (0.3f + 0.3f * Hs(e + 4))};
+                    Color silk = Fade(Color{220, 220, 210, 255}, 0.35f);
+                    for (int k = 0; k < 8; k++) { float a = k * PI / 4; DrawLineEx(wc, {wc.x + cosf(a) * 26, wc.y + sinf(a) * 26}, 1, silk); } // the spokes
+                    for (int r = 1; r <= 3; r++) DrawRing(wc, r * 7.0f, r * 7.0f + 1, 0, 360, 16, silk); // the spiral
+                    float caught = std::clamp((u - 0.3f) * 20, 0.0f, 1.0f);
+                    Vector2 moth = u < 0.3f ? Vector2{wc.x - 90 + u / 0.3f * 90 + sinf(t * 7) * 8, wc.y - 30 + u / 0.3f * 36 + cosf(t * 5) * 6} : Vector2{wc.x + sinf(t * 30) * 2 * (1 - std::clamp((u - 0.6f) * 4, 0.0f, 1.0f)), wc.y + 6};
+                    float flap = sinf(t * 30) * 3 * (1 - std::clamp((u - 0.6f) * 4, 0.0f, 1.0f));
+                    if (u < 0.6f) { DrawTri({moth.x, moth.y}, {moth.x - 6, moth.y - 4 + flap}, {moth.x - 4, moth.y + 3}, Color{200, 180, 140, 255}); DrawTri({moth.x, moth.y}, {moth.x + 6, moth.y - 4 + flap}, {moth.x + 4, moth.y + 3}, Color{200, 180, 140, 255}); }
+                    else DrawEllipse((int)moth.x, (int)moth.y, 3, 5, Color{230, 230, 220, 255}); // wrapped in silk
+                    (void)caught;
+                    Vector2 sp = u < 0.4f ? Vector2{wc.x + 24, wc.y - 24} : Vector2{wc.x + 24 - std::min((u - 0.4f) * 8, 1.0f) * 22, wc.y - 24 + std::min((u - 0.4f) * 8, 1.0f) * 26};
+                    DrawCircleV(sp, 3, Color{30, 24, 22, 255}); DrawCircleV({sp.x + 2, sp.y - 2}, 2, Color{30, 24, 22, 255});
+                    for (int k = 0; k < 4; k++) for (int s = -1; s <= 1; s += 2) DrawLineEx(sp, {sp.x + s * (5 + k), sp.y - 3 + k * 2.0f + sinf(t * 20 + k) * (u > 0.4f && u < 0.6f ? 1.5f : 0)}, 1, Color{30, 24, 22, 255}); // legs, busy while it wraps
+                }
+            }
             if (fmodf(t * 0.6f + oy * 0.002f, 5.0f) < 0.12f) DrawRectangle(0, 0, (int)cw, (int)ch, Fade(BLACK, 0.25f));   // the lamp flicker
         }};
         foreLayer = {1.3f, 1.3f, [cw, ch](const PlatformState& p, float t, float ox, float oy) { // brackets, valves and steam very near the lens
@@ -1633,7 +1661,7 @@ void BackgroundSystem::Setup(int lv) {
             if (sun.y < ch) { DrawCircleV(sun, 34, Fade(Color{255, 230, 160, 255}, 0.25f)); DrawCircleV(sun, 20, Color{255, 240, 190, 255}); }
             if (moon.y < ch) { DrawCircleV(moon, 16, Color{230, 230, 240, 230}); DrawCircleV({moon.x - 5, moon.y - 3}, 4, Color{200, 200, 215, 230}); }
             // the sea on the horizon, with the beach
-            float sea = ch * 0.78f;
+            float sea = ch * 0.6f;
             DrawRectangle(0, (int)sea, (int)cw, (int)(ch - sea), LerpC(Color{20, 40, 70, 255}, Color{40, 130, 170, 255}, day));
             for (int k = 0; k < 20; k++) DrawRectangle((int)fmodf(k * 131.0f + t * 6 - ox * 0.03f + 9000, cw), (int)(sea + 4 + (k % 5) * 6), 10, 1, Fade(WHITE, 0.25f + 0.2f * day));
             DrawRectangle(0, (int)(sea + 30), (int)cw, 6, LerpC(Color{80, 76, 60, 255}, Color{230, 214, 160, 255}, day)); // the beach
@@ -1685,6 +1713,16 @@ void BackgroundSystem::Setup(int lv) {
                 DrawRectangle((int)sx2, (int)sy2, 1, 1, Fade(Color{230, 220, 160, 255}, 0.4f));
             }
             float day = Daylight(p);
+            Layer(ox / 0.4f + 17, 0.4f, 38, cw, [&](float x, float wx) { // the dense jungle: a tangle of undergrowth, ferns and broad leaves along the ground
+                float h = 30 + Hs(wx) * 40, gb = ch * 0.76f; // it grows along the plain the villages stand on, where the ground doesn't hide it
+                Color g1 = LerpC(Color{14, 26, 18, 255}, Color{40, 84, 44, 255}, day), g2 = LerpC(Color{18, 34, 22, 255}, Color{62, 110, 56, 255}, day);
+                DrawRectangle((int)x - 20, (int)(gb - h * 0.3f), 40, (int)(ch - gb + h * 0.3f), g1);
+                DrawCircle((int)x, (int)(gb - h * 0.5f), h * 0.7f, g1);
+                DrawCircle((int)(x + 14), (int)(gb - h * 0.7f), h * 0.45f, g2);
+                float sw = sinf(t * 0.9f + wx) * 3;
+                DrawTri({x - 4, gb - h * 0.6f}, {x + 4, gb - h * 0.6f}, {x - 18 + sw, gb - h * 1.3f}, g2); // a fern frond
+                if (day < 0.4f && Hs(wx + 13) > 0.8f) DrawPixel((int)(x + sinf(t + wx) * 10), (int)(gb - h + cosf(t * 1.3f + wx) * 8), Color{220, 255, 140, 255}); // a firefly
+            });
             // a river winding down out of the hills, and the waterfall that feeds it
             Layer(ox / 0.4f + 40, 0.4f, 900, cw, [&](float x, float wx) {
                 (void)wx;
@@ -1751,15 +1789,30 @@ void BackgroundSystem::Setup(int lv) {
         }};
     } else if (lv == PL_WEEDS) {
         farLayer = {0.1f, 0.1f, [cw, ch](const PlatformState& p, float t, float ox, float oy) { // sunlit green water: shafts of light from the surface, the forest fading into haze
-            (void)p; (void)oy;
-            DrawRectangleGradientV(0, 0, (int)cw, (int)ch, Color{96, 170, 150, 255}, Color{22, 70, 70, 255});
-            for (int k = 0; k < 7; k++) { // god-rays, slanting and slowly shifting
+            (void)oy;
+            float day = Daylight(p);   // shallow water: bright green noon, amber evening, and at night the moon through the canopy and the mer-lamps
+            DrawRectangleGradientV(0, 0, (int)cw, (int)ch, LerpC(Color{20, 44, 60, 255}, Color{96, 170, 150, 255}, day), LerpC(Color{6, 20, 24, 255}, Color{22, 70, 70, 255}, day));
+            for (int k = 0; k < 7; k++) { // god-rays, slanting and slowly shifting (moonbeams at night)
                 float x0 = fmodf(k * 211.0f - ox * 0.05f + t * 6 + 9000, cw + 300) - 150, w = 40 + (k % 3) * 25;
-                DrawTri({x0, 0}, {x0 + w, 0}, {x0 + w * 0.5f + 160, ch}, Fade(Color{220, 250, 210, 255}, 0.07f + 0.03f * sinf(t * 0.5f + k)));
+                DrawTri({x0, 0}, {x0 + w, 0}, {x0 + w * 0.5f + 160, ch}, Fade(LerpC(Color{150, 170, 220, 255}, Color{220, 250, 210, 255}, day), (0.03f + 0.05f * day) + 0.03f * sinf(t * 0.5f + k)));
             }
             Layer(ox / 0.1f, 0.1f, 60, cw, [&](float x, float wx) { // the far forest, a wall of pale stalks
                 float h = ch * (0.5f + Hs(wx) * 0.45f);
-                DrawRectangle((int)x, (int)(ch - h), 5, (int)h, Color{44, 104, 90, 255});
+                DrawRectangle((int)x, (int)(ch - h), 5, (int)h, LerpC(Color{16, 40, 40, 255}, Color{44, 104, 90, 255}, day));
+            });
+            Layer(ox / 0.1f + 200, 0.1f, 420, cw, [&](float x, float wx) { // a merfolk village in the forest: spiral-shell houses on a rock shelf, lamps of glowing anemone
+                float gy = ch * 0.78f;
+                Color rock = LerpC(Color{14, 34, 36, 255}, Color{40, 86, 80, 255}, day), shell = LerpC(Color{40, 44, 50, 255}, Color{190, 170, 140, 255}, day);
+                DrawRectangle((int)x - 90, (int)gy, 200, (int)(ch - gy), rock);
+                for (int h = 0; h < 4; h++) {
+                    float hx = x - 60 + h * 44 + Hs(wx + h) * 8, r = 12 + Hs(wx + h * 2) * 6;
+                    DrawCircle((int)hx, (int)(gy - r), r, shell);
+                    DrawRing({hx, gy - r}, r * 0.35f, r * 0.45f, 0, 300, 12, Tone(shell, -0.25f)); // the whorl
+                    DrawCircle((int)hx + (int)(r * 0.5f), (int)(gy - r * 0.6f), 3, day < 0.5f ? Color{120, 240, 220, 255} : Tone(shell, -0.4f)); // a doorway, lit at night
+                    if (day < 0.5f) DrawCircle((int)hx + (int)(r * 0.5f), (int)(gy - r * 0.6f), 10, Fade(Color{100, 230, 210, 255}, (0.5f - day) * 0.5f));
+                }
+                DrawTri({x + 70, gy}, {x + 86, gy}, {x + 78, gy - 50}, rock); // a sea-stack spire with a carved trident on it
+                DrawLineEx({x + 78, gy - 44}, {x + 78, gy - 20}, 1.5f, Tone(shell, -0.2f));
             });
         }};
         midLayer = {0.4f, 0.4f, [cw, ch](const PlatformState& p, float t, float ox, float oy) { // tall kelp with its floats, a school of fish drifting through, rock stacks
@@ -1783,6 +1836,40 @@ void BackgroundSystem::Setup(int lv) {
             for (int k = 0; k < 12; k++) { // a school of small fish wheeling far off
                 float sx2 = fmodf(k * 23.0f - ox * 0.3f + t * 30 + 9000, cw + 200) - 100, sy2 = ch * 0.3f + sinf(t * 0.7f + k * 0.4f) * 30 + (k % 4) * 8;
                 DrawEllipse((int)sx2, (int)sy2, 4, 1.5f, Fade(Color{200, 230, 220, 255}, 0.5f));
+            }
+            // the food web, far off: every 20-40 s a merman spears a barracuda, and a tiger shark comes for the merman and his catch (scenery, not the AI)
+            {
+                float period = 34.0f, e = floorf((t + 20) / period), u = (t + 20 - e * period) / 8.0f;
+                if (u < 1.0f) {
+                    float day = Daylight(p);
+                    Color sil = LerpC(Color{6, 20, 22, 255}, Color{20, 60, 58, 255}, day);
+                    float cx = cw * (0.25f + 0.5f * Hs(e * 1.9f)), cy = ch * (0.3f + 0.2f * Hs(e + 7));
+                    // the barracuda cruises in from the left until the spear takes it
+                    float spear = std::clamp((u - 0.25f) * 10, 0.0f, 1.0f);
+                    Vector2 bar{cx - 140 + std::min(u, 0.3f) * 400, cy + 10};
+                    // the merman: a man's torso on a fish's tail, lying in wait, then striking, then fleeing
+                    float flee = std::max(0.0f, u - 0.55f);
+                    Vector2 mm{cx + 30 - spear * 6 + flee * 380, cy - 10 - flee * 60};
+                    float kick = sinf(t * (flee > 0 ? 14.0f : 4.0f)) * 4;
+                    DrawEllipse((int)mm.x, (int)mm.y, 5, 9, sil);                                       // the torso
+                    DrawCircle((int)mm.x - 1, (int)mm.y - 11, 3.5f, sil);                               // the head
+                    DrawLineEx({mm.x + 2, mm.y + 7}, {mm.x + 14, mm.y + 14 + kick}, 5, sil);            // the tail
+                    DrawTri({mm.x + 14, mm.y + 14 + kick}, {mm.x + 22, mm.y + 8 + kick}, {mm.x + 22, mm.y + 20 + kick}, sil); // the flukes
+                    Vector2 tip{mm.x - 10 - spear * 26, mm.y + 4 + spear * 12};
+                    DrawLineEx({mm.x + 4, mm.y - 4}, tip, 1.5f, sil);                                   // the trident, thrust
+                    if (u < 0.3f || spear < 1) { DrawEllipse((int)bar.x, (int)bar.y, 14, 2.5f, Fade(Color{190, 210, 200, 255}, 0.7f)); DrawTri({bar.x - 14, bar.y}, {bar.x - 20, bar.y - 4}, {bar.x - 20, bar.y + 4}, Fade(Color{190, 210, 200, 255}, 0.7f)); }
+                    else DrawEllipse((int)tip.x, (int)tip.y, 14, 2.5f, Fade(Color{190, 210, 200, 255}, 0.7f)); // skewered on the tines
+                    if (u > 0.28f && u < 0.4f) for (int k = 0; k < 4; k++) DrawCircle((int)(tip.x + k * 3), (int)(tip.y - k * 2), 2, Fade(Color{140, 40, 40, 255}, 0.4f)); // blood in the water...
+                    if (u > 0.35f) { // ...brings the tiger shark, a great barred shape out of the haze
+                        float s = (u - 0.35f) / 0.65f;
+                        Vector2 sh{cx - 260 + s * 560, cy + 30 - sinf(s * PI) * 36};
+                        float tail = sinf(t * 7) * 7;
+                        DrawEllipse((int)sh.x, (int)sh.y, 50, 11, sil);
+                        DrawTri({sh.x - 44, sh.y}, {sh.x - 76, sh.y - 20 + tail}, {sh.x - 70, sh.y + 14 + tail}, sil);
+                        DrawTri({sh.x - 6, sh.y - 9}, {sh.x + 12, sh.y - 9}, {sh.x - 10, sh.y - 30}, sil);
+                        for (int k = 0; k < 5; k++) DrawRectangle((int)sh.x - 30 + k * 12, (int)sh.y - 8, 3, 8, Tone(sil, 0.25f)); // its bars
+                    }
+                }
             }
         }};
         foreLayer = {1.3f, 1.15f, [cw, ch](const PlatformState& p, float t, float ox, float oy) { // near kelp fronds at the edges of the lens
@@ -1836,6 +1923,44 @@ void BackgroundSystem::Setup(int lv) {
                 float sx2 = fmodf(k * 89.0f - ox * 0.6f + 9000, cw), sy2 = fmodf(k * 47.0f + t * (4 + k % 3 * 2), ch);
                 DrawRectangle((int)sx2, (int)sy2, 1, 1, Fade(Color{160, 220, 240, 255}, 0.35f));
             }
+            Layer(ox / 0.35f + 500, 0.35f, 1300, cw, [&](float x, float wx) { // a procession of Lost Ones, heads bowed, shuffling past a colossal fallen god
+                (void)wx;
+                Color c{18, 28, 44, 255};
+                DrawEllipse((int)x + 120, (int)(ch - 26), 110, 26, c);                        // the god's body, lying where it fell
+                DrawCircle((int)x + 20, (int)(ch - 50), 36, c);                               // its crowned head
+                for (int k = 0; k < 5; k++) DrawTri({x + 2 + k * 9.0f, ch - 80}, {x + 10 + k * 9.0f, ch - 80}, {x + 6 + k * 9.0f, ch - 100}, c);
+                DrawCircle((int)x + 10, (int)(ch - 54), 4, Fade(Color{120, 220, 240, 255}, 0.4f + 0.3f * sinf(t * 0.7f))); // one eye still lit
+                for (int k = 0; k < 6; k++) { // the procession
+                    float px = x - 60 + fmodf(t * 5 + k * 40, 320), py = ch - 14 + sinf(t * 2 + k) * 1.5f;
+                    DrawRectangle((int)px, (int)py - 16, 5, 16, Color{10, 16, 26, 255});
+                    DrawCircle((int)px + 3, (int)py - 18, 3, Color{10, 16, 26, 255});
+                    DrawCircle((int)px + 5, (int)py - 18, 1, Fade(Color{120, 240, 200, 255}, 0.7f)); // their faint lamps of eyes
+                }
+            });
+            // the food web, far off: every 20-40 s an anglerfish dangles its lure, a crystal-minnow comes to it, and the jaws close (scenery, not the AI)
+            {
+                float period = 31.0f, e = floorf((t + 5) / period), u = (t + 5 - e * period) / 7.0f;
+                if (u < 1.0f) {
+                    float ax = cw * (0.25f + 0.5f * Hs(e * 4.1f)), ay = ch * (0.35f + 0.2f * Hs(e + 2));
+                    float snap = u > 0.62f && u < 0.7f ? 1.0f : 0.0f;
+                    Vector2 lure{ax - 18 + sinf(t * 2) * 2, ay - 16};
+                    BeginBlendMode(BLEND_ADDITIVE);
+                    if (u < 0.66f || u > 0.8f) DrawCircleV(lure, 10, Fade(Color{120, 230, 255, 255}, 0.25f + 0.15f * sinf(t * 5)));
+                    DrawCircleV(lure, 2.5f, Color{180, 245, 255, 255});
+                    EndBlendMode();
+                    Color af{8, 12, 20, 255};
+                    DrawEllipse((int)ax, (int)ay, 20, 14, af);                                                      // the angler, black on black
+                    DrawLineEx({ax - 4, ay - 12}, lure, 1, af);                                                     // its rod
+                    DrawTri({ax - 20, ay - 2 - snap * 10}, {ax - 4, ay}, {ax - 20, ay + 8 + snap * 6}, Color{2, 2, 6, 255}); // the jaw, gaping on the strike
+                    for (int k = 0; k < 4; k++) DrawTri({ax - 18 + k * 4, ay - 1}, {ax - 16 + k * 4, ay - 1}, {ax - 17 + k * 4, ay + 3}, Color{200, 210, 220, 255}); // needle teeth
+                    DrawTri({ax + 18, ay}, {ax + 30, ay - 8}, {ax + 30, ay + 8}, af);
+                    if (u < 0.66f) { // the minnow flickers in toward the light
+                        float m = std::min(u / 0.66f, 1.0f);
+                        Vector2 mn{lure.x - 90 + m * 80, lure.y + 20 - m * 18 + sinf(t * 6) * 3};
+                        DrawEllipse((int)mn.x, (int)mn.y, 4, 1.5f, Fade(Color{190, 240, 255, 255}, 0.8f));
+                    }
+                }
+            }
         }};
         foreLayer = {1.3f, 1.15f, [cw, ch](const PlatformState& p, float t, float ox, float oy) { // broken column shafts framing the lens
             (void)p; (void)t; (void)oy;
@@ -1870,6 +1995,35 @@ void BackgroundSystem::Setup(int lv) {
             for (int k = 0; k < 40; k++) { // silt hanging in the still water
                 float sx2 = fmodf(k * 73.0f - ox * 0.5f + 9000, cw), sy2 = fmodf(k * 131.0f + sinf(t * 0.3f + k) * 6 + t * 1.5f, ch);
                 DrawRectangle((int)sx2, (int)sy2, 1, 1, Fade(Color{120, 160, 150, 255}, 0.3f));
+            }
+            // there is no sun down here, only the cave's own slow tide: glow-worm curtains brighten and fade over the same four minutes
+            float glow = 1.0f - Daylight(p);
+            Layer(ox / 0.32f + 70, 0.32f, 380, cw, [&](float x, float wx) {
+                BeginBlendMode(BLEND_ADDITIVE);
+                for (int k = 0; k < 14; k++) { float len = 10 + Hs(wx + k) * 40, sx = x + k * 6 + sinf(t * 0.4f + k) * 1.5f; for (float yy = 0; yy < len; yy += 4) DrawPixel((int)sx, (int)(yy + 4), Fade(Color{120, 240, 200, 255}, (0.15f + 0.45f * glow) * (1 - yy / len))); }
+                EndBlendMode();
+            });
+            Layer(ox / 0.32f + 300, 0.32f, 900, cw, [&](float x, float wx) { // a drowned chamber: a crystal geode and the bones of something enormous
+                (void)wx;
+                for (int k = 0; k < 6; k++) { float a = -PI * 0.9f + k * 0.35f; Vector2 b{x + cosf(a) * 20, ch - 10 + sinf(a) * 20}, tp{x + cosf(a) * 46, ch - 10 + sinf(a) * 46}; DrawLineEx(b, tp, 6 - k * 0.4f, Fade(Color{120, 160, 200, 255}, 0.25f + 0.2f * glow)); }
+                for (int k = 0; k < 7; k++) DrawRing({x + 150 + k * 18.0f, ch + 10}, 30 - k * 2.0f, 34 - k * 2.0f, 200, 340, 10, Color{44, 42, 38, 255}); // ribs
+                DrawEllipse((int)x + 124, (int)ch - 14, 16, 10, Color{44, 42, 38, 255}); // the skull
+            });
+            // the food web, far off: every 20-40 s a cusk-eel lunges from a crack and takes a glow-shrimp; its light goes out (scenery, not the AI)
+            {
+                float period = 24.0f, e = floorf((t + 3) / period), u = (t + 3 - e * period) / 5.0f;
+                if (u < 1.0f) {
+                    float cx = cw * (0.25f + 0.5f * Hs(e * 5.3f)), cy = ch * (0.4f + 0.25f * Hs(e + 9));
+                    bool eaten = u > 0.5f;
+                    if (!eaten) { BeginBlendMode(BLEND_ADDITIVE); DrawCircle((int)(cx + sinf(t * 3) * 6), (int)cy, 8, Fade(Color{90, 200, 255, 255}, 0.3f)); DrawCircle((int)(cx + sinf(t * 3) * 6), (int)cy, 2, Color{160, 230, 255, 255}); EndBlendMode(); }
+                    float lunge = std::clamp((u - 0.35f) * 7, 0.0f, 1.0f) * (1 - std::clamp((u - 0.6f) * 3, 0.0f, 1.0f));
+                    Vector2 root{cx + 70, cy + 20}, head{root.x - lunge * 70, root.y - lunge * 20};
+                    Color el{26, 22, 20, 255};
+                    for (int k = 0; k < 8; k++) { float s = k / 7.0f; DrawCircle((int)(root.x + (head.x - root.x) * s + sinf(s * 6 + t * 4) * 3 * (1 - s)), (int)(root.y + (head.y - root.y) * s), 4 - s, el); }
+                    DrawCircle((int)head.x, (int)head.y, 4, el);
+                    DrawRectangle((int)root.x - 2, (int)root.y - 6, 16, 14, Color{8, 10, 12, 255}); // its crack in the rock
+                    if (u > 0.48f && u < 0.62f) { BeginBlendMode(BLEND_ADDITIVE); for (int k = 0; k < 6; k++) DrawPixel((int)(cx + cosf(k) * 8 * (u - 0.48f) * 10), (int)(cy + sinf(k) * 8 * (u - 0.48f) * 10), Color{90, 200, 255, 160}); EndBlendMode(); } // the last sparks of its light
+                }
             }
         }};
         foreLayer = {1.3f, 1.15f, [cw, ch](const PlatformState& p, float t, float ox, float oy) { // jagged rock framing the lens, dark against the lamp
