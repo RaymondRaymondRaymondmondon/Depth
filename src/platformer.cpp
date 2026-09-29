@@ -1548,7 +1548,20 @@ void BackgroundSystem::Setup(int lv) {
             // the food web in the ducts, small and quiet: every 20-40 s a moth blunders into a web slung across a truss and the spider runs out and wraps it
             {
                 float period = 25.0f, e = floorf((t + 11) / period), u = (t + 11 - e * period) / 7.0f;
-                if (u < 1.0f) {
+                if (u < 1.0f && ((int)e & 1)) { // ...or, every other time, a rat along a pipe snatches a cockroach and carries it off
+                    float py = ch * (0.3f + 0.3f * Hs(e + 8)), rx0 = cw * (0.2f + 0.5f * Hs(e * 3.1f));
+                    Color fur = dim(Color{96, 84, 78, 255}, B + 0.1f), roach = dim(Color{120, 70, 40, 255}, B + 0.1f);
+                    DrawRectangle((int)rx0 - 140, (int)py + 5, 320, 3, dim(Color{150, 96, 60, 255}, B));             // the pipe they run along
+                    bool caught = u > 0.55f;
+                    float dir = caught ? -1.0f : 1.0f;
+                    Vector2 rat{rx0 - 100 + std::min(u, 0.55f) / 0.55f * 200 - (caught ? (u - 0.55f) * 260 : 0), py};
+                    if (!caught) { float cx = rx0 + 20 + u * 60; DrawEllipse((int)cx, (int)py + 2, 4, 2, roach); for (int k = -1; k <= 1; k++) DrawLine((int)cx + k * 2, (int)py + 3, (int)cx + k * 2 + (int)(sinf(t * 40 + k) * 2), (int)py + 5, roach); }
+                    DrawEllipse((int)rat.x, (int)rat.y, 10, 5, fur);
+                    DrawCircle((int)(rat.x + dir * 9), (int)rat.y - 1, 4, fur);                                    // its head
+                    DrawLineEx({rat.x - dir * 9, rat.y}, {rat.x - dir * 24, rat.y - 4 + sinf(t * 12) * 2}, 1, fur); // the tail
+                    for (int k = 0; k < 2; k++) DrawLine((int)(rat.x - 4 + k * 8), (int)rat.y + 4, (int)(rat.x - 4 + k * 8 + sinf(t * 30 + k * 3) * 3), (int)rat.y + 6, fur); // scurrying legs
+                    if (caught) DrawEllipse((int)(rat.x + dir * 14), (int)rat.y, 3, 2, roach);                    // in its teeth
+                } else if (u < 1.0f) {
                     Vector2 wc{cw * (0.25f + 0.5f * Hs(e * 6.1f)), ch * (0.3f + 0.3f * Hs(e + 4))};
                     Color silk = Fade(Color{220, 220, 210, 255}, 0.35f);
                     for (int k = 0; k < 8; k++) { float a = k * PI / 4; DrawLineEx(wc, {wc.x + cosf(a) * 26, wc.y + sinf(a) * 26}, 1, silk); } // the spokes
@@ -1652,7 +1665,19 @@ void BackgroundSystem::Setup(int lv) {
                     if (u > 1.0f) f = {bx + cosf(a) * r, by + sinf(a) * r * 0.6f}; // re-formed after the strike
                     DrawEllipse((int)f.x, (int)f.y, 3, 1, Fade(fishC, 0.7f));
                 }
-                if (u < 1.0f) {
+                if (u < 1.0f && ((int)e & 1)) { // ...or, every other time, a moray lunges from a crevice at an octopus, which inks and jets away
+                    float ox0 = cw * (0.25f + 0.5f * Hs(e * 1.3f)), oy0 = ch * (0.2f + 0.12f * Hs(e + 5));
+                    Color oc = LerpC(Color{40, 24, 34, 255}, Color{110, 60, 70, 255}, day), ec = LerpC(Color{6, 14, 16, 255}, Color{24, 44, 40, 255}, day);
+                    float esc = std::max(0.0f, u - 0.45f);
+                    DrawRectangle((int)ox0 - 96, (int)oy0 + 22, 40, 18, LerpC(Color{8, 16, 22, 255}, Color{20, 40, 50, 255}, day)); // the reef crevice
+                    if (esc > 0) DrawCircle((int)ox0, (int)oy0, 8 + esc * 60, Fade(Color{8, 6, 12, 255}, std::max(0.0f, 0.8f - esc * 1.2f))); // the ink cloud
+                    Vector2 op{ox0 + esc * 220, oy0 - esc * 90 + sinf(t * 3) * 2};
+                    DrawEllipse((int)op.x, (int)op.y, 7, 9, oc);                                                    // the octopus's mantle
+                    for (int k = 0; k < 4; k++) DrawLineEx({op.x - 4 + k * 3.0f, op.y + 6}, {op.x - 8 + k * 5.0f - esc * 30, op.y + 14 + sinf(t * 6 + k) * 3}, 1.5f, oc); // arms trailing
+                    float lunge = std::clamp((u - 0.3f) * 6, 0.0f, 1.0f) * (1 - std::clamp((u - 0.6f) * 3, 0.0f, 1.0f));
+                    Vector2 root{ox0 - 76, oy0 + 30}, head{root.x + lunge * 72, root.y - lunge * 28};
+                    for (int k = 0; k <= 8; k++) { float s = k / 8.0f; DrawCircle((int)(root.x + (head.x - root.x) * s + sinf(s * 7 + t * 5) * 3 * (1 - s)), (int)(root.y + (head.y - root.y) * s), 3.5f, ec); }
+                } else if (u < 1.0f) {
                     Vector2 sh{bx - 180 + u * 360, by + 30 - sinf(u * PI) * 30};
                     float tail = sinf(t * 10) * 5;
                     DrawEllipse((int)sh.x, (int)sh.y, 26, 6, shC);
@@ -1796,7 +1821,18 @@ void BackgroundSystem::Setup(int lv) {
             // the food web, far off: every 20-40 s a sea eagle stoops on the river and carries off a fish (scenery, not the AI)
             {
                 float period = 30.0f, e = floorf(t / period), u = (t - e * period) / 5.0f; // each event lasts about five seconds
-                if (u < 1.0f) {
+                if (u < 1.0f && ((int)e & 1)) { // ...or, every other time, a tree snake on a branch strikes a perched bird
+                    float bx = cw * (0.2f + 0.6f * Hs(e * 2.7f)), by = ch * (0.3f + 0.12f * Hs(e + 6));
+                    Color wood = LerpC(Color{20, 22, 18, 255}, Color{60, 46, 32, 255}, day), snake = LerpC(Color{16, 30, 16, 255}, Color{70, 120, 50, 255}, day);
+                    DrawLineEx({bx - 80, by + 2}, {bx + 50, by + 8}, 3, wood);                                       // the branch
+                    DrawCircle((int)(bx + 30), (int)(by - 8), 14, LerpC(Color{14, 26, 16, 255}, Color{50, 90, 46, 255}, day)); // a clump of leaves
+                    float strike = std::clamp((u - 0.4f) * 8, 0.0f, 1.0f) * (1 - std::clamp((u - 0.7f) * 3, 0.0f, 1.0f));
+                    Vector2 coil{bx - 50, by}, head{coil.x + strike * 46, by - 6 - strike * 2};
+                    for (int k = 0; k < 10; k++) { float s = k / 9.0f; DrawCircle((int)(coil.x - 20 + s * (head.x - coil.x + 20) + sinf(s * 9 + t * 2) * 3 * (1 - strike)), (int)(by - 1 - s * 5 * strike + (1 - s) * 1), 2.2f, snake); } // the body, uncoiling
+                    DrawCircle((int)head.x, (int)head.y, 3, snake);
+                    if (u < 0.47f) { DrawCircle((int)bx, (int)(by - 4 + sinf(t * 8) * 0.5f), 3, Color{200, 80, 60, 255}); DrawTri({bx - 1, by - 5}, {bx + 3, by - 5}, {bx + 1, by - 1}, Color{230, 190, 60, 255}); } // the bird, preening
+                    else { DrawCircle((int)head.x + 2, (int)head.y + 2, 2.5f, Color{200, 80, 60, 255}); for (int k = 0; k < 5; k++) { float f = (u - 0.47f) * 2; DrawRectangle((int)(bx + cosf(k * 1.3f) * 20 * f), (int)(by - 6 + f * 30 + sinf(k * 2.1f + t * 4) * 3), 2, 1, Fade(Color{220, 110, 80, 255}, 1 - f)); } } // taken; feathers drift down
+                } else if (u < 1.0f) {
                     float bx = cw * (0.2f + 0.6f * Hs(e * 1.7f)), riverY = ch * 0.8f;
                     Vector2 eagle{bx - 120 + u * 240, riverY - 120 + sinf(u * PI) * 110 - (u > 0.5f ? (u - 0.5f) * 200 : 0)};
                     float flap = sinf(t * 12) * 6;
@@ -1873,7 +1909,19 @@ void BackgroundSystem::Setup(int lv) {
             // the food web, far off: every 20-40 s a merman spears a barracuda, and a tiger shark comes for the merman and his catch (scenery, not the AI)
             {
                 float period = 34.0f, e = floorf((t + 20) / period), u = (t + 20 - e * period) / 8.0f;
-                if (u < 1.0f) {
+                if (u < 1.0f && ((int)e & 1)) { // ...or, every other time, a crab blunders onto a buried ray: a shock, and the scavengers' meal is made
+                    float day = Daylight(p);
+                    float rx = cw * (0.2f + 0.6f * Hs(e * 3.7f)), ry = ch * (0.26f + 0.1f * Hs(e + 2));
+                    Color sand = LerpC(Color{30, 40, 34, 255}, Color{120, 124, 96, 255}, day), crab = LerpC(Color{40, 20, 16, 255}, Color{150, 70, 40, 255}, day);
+                    DrawEllipse((int)rx, (int)ry + 6, 60, 6, sand);                                                  // a far sandbank
+                    DrawEllipse((int)rx, (int)ry + 2, 16, 4, Tone(sand, -0.15f));                                    // the ray's outline under the sand
+                    bool zapped = u > 0.45f;
+                    Vector2 c{rx - 50 + std::min(u, 0.45f) / 0.45f * 48, ry + 1 + (zapped ? std::min(1.0f, (u - 0.45f) * 4) * 2 : 0)};
+                    DrawEllipse((int)c.x, (int)c.y, 5, 3, crab);
+                    for (int k = -1; k <= 1; k += 2) DrawLine((int)c.x + k * 4, (int)c.y, (int)c.x + k * 7, (int)c.y + (zapped ? -3 : 3 + (int)(sinf(t * 20 + k) * 1.5f)), crab); // legs (curled up once it's dead)
+                    if (u > 0.45f && u < 0.6f && fmodf(t * 20, 1.0f) < 0.5f) { BeginBlendMode(BLEND_ADDITIVE); DrawCircle((int)rx, (int)ry, 22, Fade(Color{150, 220, 255, 255}, 0.4f)); for (int k = 0; k < 5; k++) DrawLineEx({rx, ry}, {rx + cosf(k * 1.3f + t * 30) * 20, ry + sinf(k * 1.3f + t * 30) * 12}, 1, Color{200, 240, 255, 200}); EndBlendMode(); } // the shock
+                    if (u > 0.75f) for (int k = 0; k < 3; k++) DrawCircle((int)(c.x - 3 + k * 3), (int)(c.y - 4 - (u - 0.75f) * 20 * (k + 1)), 1.5f, Fade(Color{220, 200, 240, 255}, 0.5f)); // spores rising: the fungus has found it
+                } else if (u < 1.0f) {
                     float day = Daylight(p);
                     Color sil = LerpC(Color{6, 20, 22, 255}, Color{20, 60, 58, 255}, day);
                     float cx = cw * (0.2f + 0.6f * Hs(e * 1.9f)), cy = ch * (0.14f + 0.12f * Hs(e + 7)); // up in the far canopy, clear of the real sharks on your path
@@ -1973,7 +2021,19 @@ void BackgroundSystem::Setup(int lv) {
             // the food web, far off: every 20-40 s an anglerfish dangles its lure, a crystal-minnow comes to it, and the jaws close (scenery, not the AI)
             {
                 float period = 31.0f, e = floorf((t + 5) / period), u = (t + 5 - e * period) / 7.0f;
-                if (u < 1.0f) {
+                if (u < 1.0f && ((int)e & 1)) { // ...or, every other time, a glyph eel slides out of a temple window and swallows a drifting wisp - its light goes out
+                    float wx = cw * (0.2f + 0.6f * Hs(e * 2.3f)), wy = ch * (0.16f + 0.12f * Hs(e + 9));
+                    Vector2 wisp{wx + sinf(t * 0.8f) * 20 + u * 40, wy + cosf(t * 1.1f) * 8};
+                    bool eaten = u > 0.55f;
+                    if (!eaten) { BeginBlendMode(BLEND_ADDITIVE); DrawCircleV(wisp, 7, Fade(Color{120, 230, 255, 255}, 0.3f + 0.1f * sinf(t * 4))); DrawCircleV(wisp, 2, Color{190, 250, 255, 220}); EndBlendMode(); }
+                    DrawRectangle((int)wx + 50, (int)wy - 10, 14, 20, Color{10, 16, 26, 255});                          // a dark window in a far wall
+                    DrawRectangle((int)wx + 48, (int)wy - 12, 18, 3, Color{16, 24, 38, 255});
+                    float reach = std::clamp((u - 0.35f) * 5, 0.0f, 1.0f) * (1 - std::clamp((u - 0.7f) * 3, 0.0f, 1.0f));
+                    Vector2 root{wx + 57, wy}, head{root.x + (wisp.x - root.x) * reach, root.y + (wisp.y - root.y) * reach};
+                    for (int k = 0; k <= 10; k++) { float s = k / 10.0f; DrawCircle((int)(root.x + (head.x - root.x) * s), (int)(root.y + (head.y - root.y) * s + sinf(s * 8 + t * 6) * 3 * (1 - s)), 3, Color{14, 22, 34, 255}); }
+                    for (int k = 0; k < 4; k++) if (reach > 0.1f) DrawPixel((int)(root.x + (head.x - root.x) * (0.2f + k * 0.2f)), (int)(root.y + (head.y - root.y) * (0.2f + k * 0.2f)) - 2, Fade(Color{120, 230, 240, 255}, 0.6f)); // its glyph markings
+                    if (eaten && u < 0.65f) { BeginBlendMode(BLEND_ADDITIVE); DrawCircleV(head, 5 * (0.65f - u) * 10, Fade(Color{120, 230, 255, 255}, 0.4f)); EndBlendMode(); } // a last glow in its jaws
+                } else if (u < 1.0f) {
                     float ax = cw * (0.2f + 0.6f * Hs(e * 4.1f)), ay = ch * (0.14f + 0.14f * Hs(e + 2)); // high up and far off: scenery, never mistaken for a threat on your path
                     float snap = u > 0.62f && u < 0.7f ? 1.0f : 0.0f;
                     Vector2 lure{ax - 11 + sinf(t * 2) * 1.5f, ay - 10};
@@ -2045,7 +2105,18 @@ void BackgroundSystem::Setup(int lv) {
             // the food web, far off: every 20-40 s a cusk-eel lunges from a crack and takes a glow-shrimp; its light goes out (scenery, not the AI)
             {
                 float period = 24.0f, e = floorf((t + 3) / period), u = (t + 3 - e * period) / 5.0f;
-                if (u < 1.0f) {
+                if (u < 1.0f && ((int)e & 1)) { // ...or, every other time, a blind loach swims into a web strung across a tunnel, and the arachnid comes down for it
+                    float wx = cw * (0.25f + 0.5f * Hs(e * 4.4f)), wy = ch * (0.18f + 0.15f * Hs(e + 3));
+                    Color silk = Fade(Color{190, 200, 210, 255}, 0.3f), leg{30, 26, 30, 255};
+                    for (int k = 0; k < 7; k++) DrawLineEx({wx - 30 + k * 10.0f, wy - 40}, {wx - 30 + k * 10.0f + sinf(t + k) * 2, wy + 20}, 1, silk); // the sheet of the web
+                    for (int k = 0; k < 4; k++) DrawLineEx({wx - 32, wy - 30 + k * 14.0f}, {wx + 32, wy - 28 + k * 14.0f}, 1, silk);
+                    bool stuck = u > 0.35f;
+                    Vector2 fish{stuck ? wx + sinf(t * 25) * (u < 0.7f ? 2.0f : 0.3f) : wx - 90 + u / 0.35f * 90, wy};
+                    DrawEllipse((int)fish.x, (int)fish.y, 6, 2, Color{190, 180, 200, 220});                            // the loach, pale and eyeless
+                    if (u > 0.5f) { float d = std::min(1.0f, (u - 0.5f) * 4); Vector2 sp{wx + 4, wy - 50 + d * 46}; DrawLineEx({wx + 4, wy - 60}, sp, 1, silk);
+                        DrawCircleV(sp, 4, leg); for (int k = 0; k < 4; k++) for (int s = -1; s <= 1; s += 2) DrawLineEx(sp, {sp.x + s * (7 + k), sp.y - 4 + k * 3.0f + sinf(t * 18 + k) * 1.5f}, 1, leg); } // the arachnid, dropping on its line
+                    if (u > 0.75f) DrawEllipse((int)wx, (int)wy, 7, 4, Fade(Color{230, 230, 230, 255}, 0.7f));        // wrapped
+                } else if (u < 1.0f) {
                     float cx = cw * (0.2f + 0.6f * Hs(e * 5.3f)), cy = ch * (0.15f + 0.18f * Hs(e + 9));
                     bool eaten = u > 0.5f;
                     if (!eaten) { BeginBlendMode(BLEND_ADDITIVE); DrawCircle((int)(cx + sinf(t * 3) * 6), (int)cy, 8, Fade(Color{90, 200, 255, 255}, 0.3f)); DrawCircle((int)(cx + sinf(t * 3) * 6), (int)cy, 2, Color{160, 230, 255, 255}); EndBlendMode(); }
@@ -2136,7 +2207,15 @@ void BackgroundSystem::Setup(int lv) {
             // the food web, far off: every 20-40 s a frigatebird stoops on a flying fish that broke the surface (scenery, not the AI)
             {
                 float period = 28.0f, e = floorf((t + 14) / period), u = (t + 14 - e * period) / 5.0f;
-                if (u < 1.0f) {
+                if (u < 1.0f && ((int)e & 1)) { // ...or, every other time, a skua chases a gull until it drops its fish, and takes it out of the air
+                    float gx = cw * (0.15f + 0.5f * Hs(e * 1.9f)), gy = 150 + 40 * Hs(e + 4);
+                    Color gull{215, 215, 220, 255}, skua{60, 50, 44, 255}, fishC{170, 190, 220, 255};
+                    auto bird = [&](Vector2 at, Color c, float span) { float fl = sinf(t * 11 + at.x) * 4; DrawTri({at.x - span, at.y + fl}, {at.x, at.y}, {at.x - 3, at.y + 2}, c); DrawTri({at.x + span, at.y + fl}, {at.x, at.y}, {at.x + 3, at.y + 2}, c); };
+                    Vector2 g{gx + u * 260, gy + sinf(u * 9) * 10}, s{g.x - 40 + std::min(u, 0.6f) * 30 + sinf(t * 7) * 6, g.y + 6 + cosf(u * 11) * 8};
+                    bird(g, gull, 11); bird(s, skua, 13);
+                    if (u < 0.5f) DrawEllipse((int)g.x, (int)g.y + 4, 3, 1, fishC);                                   // the gull's catch
+                    else { float f = (u - 0.5f) * 2; Vector2 fall{g.x - 60 * f + 20, g.y + 4 + f * f * 60}; if (f < 0.6f) DrawEllipse((int)fall.x, (int)fall.y, 3, 1, fishC); else DrawEllipse((int)s.x, (int)s.y + 4, 3, 1, fishC); } // dropped - and caught
+                } else if (u < 1.0f) {
                     float fx = cw * (0.2f + 0.6f * Hs(e * 3.3f)), sea = 262;
                     Color bird{26, 22, 30, 255};
                     // the flying fish skims out of a wave on stiff fins
@@ -6533,7 +6612,7 @@ void ScenePlatformer(Game& g) {
     const float PX = (float)SCREEN_W / PIXEL_W;
     float cx = p.camX * ZOOM, cy = p.camY * ZOOM, sx = floorf(cx), sy = floorf(cy);
     BeginLayer(PixelRT());
-    DrawBackground(p, t);
+    { static float bgShift = getenv("DEPTH_BGT") ? (float)atof(getenv("DEPTH_BGT")) : 0.0f; DrawBackground(p, t + bgShift); } // DEPTH_BGT=<s>: shots of the background at a later moment (its scripted scenes)
     Camera2D cam{};
     cam.zoom = ZOOM;
     cam.offset = {(PIXEL_W + 2) / 2.0f, 1 + HUD_PX + (PIXEL_H - HUD_PX) / 2.0f};
