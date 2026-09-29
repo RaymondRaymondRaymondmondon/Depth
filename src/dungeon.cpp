@@ -4,6 +4,7 @@
 #include "game.h"
 #include "rig.h"
 #include "sound.h"
+#include "combatfx.h"
 #include "sprite_renderer.h"
 #include "rlgl.h"
 #include "relics.h"
@@ -74,11 +75,20 @@ static Rectangle EnemyRect(Game& g, int pos) {
     return {cx - 56, 290, 112, 170};  // Darkest Dungeon scale: the fighters fill the stage
 }
 
+static Vector2 BodyOf(Rectangle r) { return {r.x + r.width / 2, r.y + r.height * 0.42f}; }
 static void Float(Game& g, Rectangle r, const std::string& t, Color c) {
-    float x = r.x + r.width / 2;
-    int stack = 0;
-    for (auto& f : g.dungeon.floats) if (fabsf(f.pos.x - x) < 2 && f.life > 0.75f) stack++;
-    g.dungeon.floats.push_back({{x, r.y - 16 - stack * 22.0f}, t, c, 1.2f});
+    (void)g;
+    Vector2 at = BodyOf(r);
+    if (!t.empty() && t[0] == '+') cfx::Heal(at, atoi(t.c_str() + 1));
+    else if (t == "Miss" || t == "Dodge") cfx::Miss(at, t.c_str());
+    else cfx::Word(at, t.c_str(), c);
+}
+// a blow lands: everything that hangs off the figure whips (its chains, rags, hems)
+static void KickFigure(int key, bool crit) {
+    for (int k : {key, key + 2000000}) {
+        rig::Instance& in = rig::Get(k);
+        for (auto& ch : in.chains) ch.Kick({crit ? -420.0f : -240.0f, -140});
+    }
 }
 
 // ---------------------------------------------------------------- animation bookkeeping
@@ -110,6 +120,7 @@ static void AddStress(Game& g, Hero& h, int amount) {
     }
     int before = h.stress;
     h.stress = std::clamp(h.stress + amount, 0, 100);
+    if (h.stress != before) { int pos = PartyPos(g, h.id); if (pos >= 0) cfx::Nerves(BodyOf(HeroRect(pos)), h.stress - before); }
     int diff = h.stress - before;
     int pos = PartyPos(g, h.id);
     if (diff != 0 && pos >= 0) Float(g, HeroRect(pos), TextFormat("%+d nerves", diff), Pal::Stress);
@@ -243,7 +254,9 @@ static void HeroAct(Game& g, int heroId, int abilityIdx, int targetPos) {
                     eprot = eprot * (100 - rb.armorPen) / 100;                                                        // armour-piercing tools
                     int dmg = std::max(1, (int)std::round(raw * (100 - eprot) / 100.0f));
                     e->hp -= dmg;
-                    Float(g, er, (crit ? "CRIT " : "") + std::to_string(dmg), crit ? Pal::Brass : Pal::Coral);
+                    cfx::Hit(BodyOf(er), dmg, crit, false);
+                    KickFigure(1000000 + uid, crit);
+                    PlayCue(crit ? "mus.drum" : "ui.drop", crit ? 0.9f : 0.6f);
                     if (crit) {
                         d.shake = 0.35f;
                         Log(g, "Critical hit! The crew cheers.");
@@ -438,7 +451,9 @@ static void EnemyAct(Game& g, int uid, int ability) {
             int prot = std::min(80, s.prot + (h->st.guardTurns > 0 ? 25 : 0) + (h->st.protTurns > 0 ? h->st.protBuff : 0));
             float raw = Roll(e->dmgMin, e->dmgMax) * a.dmgMult * (1.0f + (e->st.buffTurns > 0 ? e->st.buffDmg / 100.0f : 0.0f)) * (crit ? 1.5f : 1.0f);
             int dmg = std::max(1, (int)std::round(raw * (100 - prot) / 100.0f));
-            Float(g, hr, (crit ? "CRIT " : "") + std::to_string(dmg), crit ? Pal::Brass : Pal::Bad);
+            cfx::Hit(BodyOf(hr), dmg, crit, true);
+            KickFigure(h->id, crit);
+            PlayCue(crit ? "mus.drum" : "ui.drop", crit ? 0.9f : 0.6f);
             DamageHero(g, *h, dmg);
             if (h->dead) continue;
         } else if (hasHeroEffect) {
@@ -842,6 +857,7 @@ void StartDungeon(Game& g, Location loc) {
     int li = (int)loc;
     d.tier = std::clamp(g.tierSel[li], 0, std::min(CAVE_TIERS - 1, g.tierCleared[li] + 1));
     d.chart = GenerateChart(d.tier, (unsigned)GetRandomValue(1, 2000000000));
+    cfx::Reset();
     if (getenv("DEPTH_LINEAR")) { // balance baseline: the old linear run (3 or 4 rooms, 70% fights, then the boss) as a straight chart
         Chart c;
         int lvl = CAVE_TIER_LEVEL[d.tier], n = lvl >= 3 ? 4 : 3;
@@ -2355,6 +2371,16 @@ static void DrawUnitFigures(Game& g) {
     auto& d = g.dungeon;
     float t = g.time, dt = GetFrameTime();
     bool walking = d.phase == DPhase::Walking;
+    // whoever acts steps forward half a rank onto a lit ring on the ground
+    int actHero = -1, actEnemy = -1;
+    if (d.phase == DPhase::Combat && d.turnIdx < (int)d.order.size()) { const TurnEntry& te = d.order[d.turnIdx]; (te.hero ? actHero : actEnemy) = te.id; }
+    static std::unordered_map<int, float> step;
+    auto stepOf = [&](int key, bool on) { float& v = step[key]; v += ((on ? 1.0f : 0.0f) - v) * std::min(1.0f, dt * 6); return v; };
+    auto ring = [&](Vector2 at, float w, float k) {
+        if (k < 0.02f) return;
+        DrawEllipse((int)at.x, (int)at.y, w, 12, Fade(Color{255, 210, 140, 255}, 0.22f * k));
+        DrawEllipseLines((int)at.x, (int)at.y, w, 12, Fade(Color{255, 220, 160, 255}, 0.7f * k));
+    };
     for (int p = PARTY_SIZE - 1; p >= 0; p--) {
         Hero* h = PartyAt(g, p);
         if (!h) continue;
@@ -2371,22 +2397,29 @@ static void DrawUnitFigures(Game& g) {
         fx.pose.crouch += nerves * 0.14f;
         fx.pose.headDown += nerves * 0.35f;
         fx.pose.tremble = std::max(fx.pose.tremble, nerves * nerves * 0.7f);
-        if (h->deathsDoor) {
-            fx.pose.crouch += 0.5f + 0.08f * sinf(ph * 4);
+        if (h->deathsDoor) { // on one knee, breathing slow and heavy
+            fx.pose.crouch += 0.5f + 0.08f * sinf(ph * 1.6f);
             fx.pose.headDown += 0.6f;
             fx.pose.lean += 0.18f;
         }
         fx.pose = SpringPose(h->id, fx.pose, fx.dx, dt);
-        Vector2 feet{ShownX(h->id, r.x + r.width / 2, dt) + fx.dx + gShake.x, r.y + r.height + fx.dy + gShake.y};
+        float st = stepOf(h->id, h->id == actHero);
+        Vector2 feet{ShownX(h->id, r.x + r.width / 2, dt) + fx.dx + st * 45 + gShake.x, r.y + r.height + fx.dy + gShake.y};
+        ring({feet.x, r.y + r.height}, 52, st);
         DrawShadowBlob({feet.x, r.y + r.height}, 38);
+        if (h->deathsDoor) SetFigureMood(0.8f, 1.0f);   // Death's Door: grey, with a red rim light
         DrawCrewFigureInked(*h, feet, 1.42f, true, walking ? d.walkT * 9 + p * 1.3f : 0, t, fx.pose, fx.tint);
+        SetFigureMood(0, 0);
+        cfx::DrawStatus(feet, 170 * 1.42f, h->st, h->st.marked > 0, t);
     }
     for (int p = 0; p < (int)d.enemies.size(); p++) {
         const Enemy& e = d.enemies[p];
         AnimFx fx = EnemyAnimFx(g, e);
         if (fx.tint.a == 0) continue;
         Rectangle r = EnemyRect(g, p);
-        Vector2 feet{ShownX(1000000 + e.uid, r.x + r.width / 2, dt) + fx.dx + gShake.x, r.y + r.height + fx.dy + gShake.y}, ff = FigureFeet();
+        float est = stepOf(1000000 + e.uid, e.uid == actEnemy && e.span <= 1);
+        Vector2 feet{ShownX(1000000 + e.uid, r.x + r.width / 2, dt) + fx.dx - est * 45 + gShake.x, r.y + r.height + fx.dy + gShake.y}, ff = FigureFeet();
+        ring({feet.x, r.y + r.height}, e.boss ? 90 : 52, e.uid == actEnemy ? std::max(est, 0.8f) : est);
         DrawShadowBlob({feet.x, r.y + r.height}, e.boss ? 70 : 44);
         // ART HOOK: a painted creature. If assets/enemies/<name>/layers.txt exists (name lower-case, spaces as underscores: ghost_worm,
         // crustacean_queen, cthulhu ...) it is drawn from its layered high-resolution sprites as painted: no procedural body, no figure
@@ -2419,6 +2452,7 @@ static void DrawUnitFigures(Game& g) {
         RigSetActing(-1, 0);
         float breathe = 1 + 0.012f * sinf(t * 1.7f + e.uid * 1.3f);                               // it breathes, slowly
         EndFigure(feet, fx.tint, fx.sx / breathe, fx.sy * breathe);
+        if (e.alive) cfx::DrawStatus(feet, r.height, e.st, e.st.marked > 0, t);
     }
 }
 
@@ -2465,49 +2499,85 @@ static void DrawSparks(Game& g) {
 }
 
 static void DrawUnitHud(Game& g, int actingHero, int actingEnemy) {
+    // Under each fighter only a thin health bar and a nerves bar, as in Darkest Dungeon; names show on hover,
+    // everything else lives in the HUD below the stage.
     auto& d = g.dungeon;
     float t = g.time;
+    Vector2 m = GetMousePosition();
     for (int p = 0; p < PARTY_SIZE; p++) {
         Hero* h = PartyAt(g, p);
         if (!h) continue;
         Rectangle r = HeroRect(p);
         Stats s = GetStats(*h);
-        if (h->rattled) Glow({r.x + r.width / 2, r.y - 24}, 40 + sinf(t * 5) * 6, Fade(Pal::Stress, 0.6f));
-        if (h->deathsDoor) Glow({r.x + r.width / 2, r.y + 60}, 80, Fade(Pal::Bad, 0.25f + 0.15f * sinf(t * 6)));
-        DrawBar({r.x, r.y + r.height + 8, r.width, 8}, (float)h->hp / s.maxHp, Pal::Good);
-        DrawBar({r.x, r.y + r.height + 19, r.width, 5}, h->stress / 100.0f, Pal::Stress);
-        float nw = (float)MeasureTxt(h->name, 16, true);
-        TxtShadow(h->name, r.x + r.width / 2 - nw / 2, r.y + r.height + 28, 16, Pal::Paper, true);
-        DrawTextCentered(TextFormat("Lv %d   %d/%d HP", h->level, h->hp, s.maxHp), r.x + r.width / 2, r.y + r.height + 47, 13, Color{220, 220, 200, 255});
-        std::string tags = StatusTags(h->st);
-        if (h->deathsDoor) tags += "DEATH'S DOOR ";
-        if (h->rattled) tags += "RATTLED";
-        float tw = (float)MeasureTxt(tags, 12, true);
-        TxtShadow(tags, r.x + r.width / 2 - tw / 2, r.y - 46, 12, Pal::Coral, true);
-        if (h->id == actingHero) {
-            float y = r.y - 72 + sinf(t * 6) * 4;
-            Glow({r.x + r.width / 2, y + 6}, 22, Fade(Pal::Brass, 0.7f));
-            DrawTri({r.x + r.width / 2 - 12, y}, {r.x + r.width / 2, y + 14}, {r.x + r.width / 2 + 12, y}, Pal::Brass);
-        }
+        float bx = r.x + 6, bw = r.width - 12, by = r.y + r.height + 6;
+        DrawRectangle((int)bx - 1, (int)by - 1, (int)bw + 2, 11, Color{8, 6, 6, 230});
+        DrawRectangle((int)bx, (int)by, (int)(bw * std::clamp((float)h->hp / s.maxHp, 0.0f, 1.0f)), 5, h->deathsDoor ? Color{120, 20, 20, 255} : Color{190, 40, 36, 255});
+        DrawRectangle((int)bx, (int)by + 6, (int)(bw * h->stress / 100.0f), 3, Color{200, 200, 220, 255});
+        if (h->rattled) Glow({r.x + r.width / 2, r.y - 30}, 34 + sinf(t * 5) * 6, Fade(Pal::Stress, 0.55f));
+        if (CheckCollisionPointRec(m, r)) { float nw = (float)MeasureTxt(h->name, 15, true); TxtShadow(h->name, r.x + r.width / 2 - nw / 2, by + 13, 15, Pal::Paper, true); }
+        (void)actingHero;
     }
     for (int p = 0; p < (int)d.enemies.size(); p++) {
         const Enemy& e = d.enemies[p];
         if (!e.alive) continue;
         Rectangle r = EnemyRect(g, p);
-        DrawBar({r.x, r.y + r.height + 8, r.width, 8}, (float)e.hp / e.maxHp, Pal::Bad);
-        int nfs = 16;
-        while (nfs > 10 && MeasureTxt(e.name, nfs, true) > 120) nfs--; // long names (Dysformed Crustacean, Tribal Spearman) shrink to fit their rank
-        float nw = (float)MeasureTxt(e.name, nfs, true);
-        TxtShadow(e.name, r.x + r.width / 2 - nw / 2, r.y + r.height + 22, nfs, Pal::Paper, true);
-        DrawTextCentered(TextFormat("%d/%d HP", e.hp, e.maxHp), r.x + r.width / 2, r.y + r.height + 41, 13, Color{220, 220, 200, 255});
-        std::string tags = StatusTags(e.st);
-        float tw = (float)MeasureTxt(tags, 12, true);
-        TxtShadow(tags, r.x + r.width / 2 - tw / 2, r.y - 26, 12, Pal::Coral, true);
-        if (e.uid == actingEnemy) {
-            float y = r.y - 50 + sinf(t * 6) * 4;
-            Glow({r.x + r.width / 2, y + 6}, 22, Fade(Pal::Bad, 0.7f));
-            DrawTri({r.x + r.width / 2 - 12, y}, {r.x + r.width / 2, y + 14}, {r.x + r.width / 2 + 12, y}, Pal::Bad);
+        float bx = r.x + 6, bw = r.width - 12, by = r.y + r.height + 6;
+        DrawRectangle((int)bx - 1, (int)by - 1, (int)bw + 2, 7, Color{8, 6, 6, 230});
+        DrawRectangle((int)bx, (int)by, (int)(bw * std::clamp((float)e.hp / e.maxHp, 0.0f, 1.0f)), 5, Color{190, 40, 36, 255});
+        if (CheckCollisionPointRec(m, r)) { float nw = (float)MeasureTxt(e.name, 15, true); TxtShadow(e.name, r.x + r.width / 2 - nw / 2, by + 9, 15, Pal::Paper, true); }
+        (void)actingEnemy;
+    }
+}
+
+// the round counter, a brass medallion at the top of the stage
+static void DrawRoundMedallion(Game& g) {
+    Vector2 c{640, 122};
+    DrawCircleV({c.x + 2, c.y + 3}, 26, Fade(BLACK, 0.5f));
+    DrawCircleV(c, 26, Pal::BrassDk);
+    DrawRing(c, 20, 25, 0, 360, 36, Pal::Brass);
+    for (int k = 0; k < 8; k++) { float a = k * PI / 4; DrawCircleV({c.x + cosf(a) * 22.5f, c.y + sinf(a) * 22.5f}, 1.6f, Pal::BrassDk); }
+    DrawCircleV(c, 19, Color{24, 18, 14, 255});
+    std::string rs = std::to_string(std::max(1, g.dungeon.round));
+    DrawTextCenteredBold(rs, c.x, c.y - 12, 24, Pal::Brass);
+    DrawLineEx({c.x - 110, c.y}, {c.x - 30, c.y}, 2, Fade(Pal::BrassDk, 0.8f));
+    DrawLineEx({c.x + 30, c.y}, {c.x + 110, c.y}, 2, Fade(Pal::BrassDk, 0.8f));
+}
+
+// who acts next, as a strip of small portraits just above the HUD
+static void DrawTurnStrip(Game& g) {
+    auto& d = g.dungeon;
+    std::vector<TurnEntry> next;
+    for (int i = d.turnIdx; i < (int)d.order.size() && next.size() < 8; i++) {
+        const TurnEntry& te = d.order[i];
+        if (te.hero ? (FindHero(g, te.id) && PartyPos(g, te.id) >= 0) : FindEnemy(g, te.id) != nullptr) next.push_back(te);
+    }
+    float x = 640 - next.size() * 22.0f;
+    for (size_t i = 0; i < next.size(); i++) {
+        float sz = i == 0 ? 40.0f : 32.0f;
+        Rectangle r{x, 548 - sz, sz, sz};
+        DrawRectangleRec({r.x - 2, r.y - 2, r.width + 4, r.height + 4}, i == 0 ? Pal::Brass : next[i].hero ? Pal::BrassDk : Color{120, 30, 26, 255});
+        DrawRectangleRec(r, Color{20, 18, 16, 255});
+        if (next[i].hero) { if (Hero* h = FindHero(g, next[i].id)) DrawPortrait(*h, r, g.time); }
+        else if (Enemy* e = FindEnemy(g, next[i].id)) {
+            DrawCircleV({r.x + sz / 2, r.y + sz / 2}, sz * 0.36f, Color{110, 24, 20, 255});
+            std::string ini = e->name.substr(0, 1);
+            DrawTextCenteredBold(ini, r.x + sz / 2, r.y + sz / 2 - 9, 18, Pal::Paper);
         }
+        x += sz + 8;
+    }
+}
+
+// the HUD plate below the stage
+static void DrawHudPlate() {
+    Rectangle bar{0, 556, (float)SCREEN_W, (float)SCREEN_H - 556};
+    DrawRectangleRec(bar, Color{12, 10, 9, 250});
+    DrawTiled(Tex::Metal, bar, 0.7f, Color{40, 36, 32, 255});
+    DrawRectangleRec(bar, Fade(Color{8, 6, 5, 255}, 0.6f));
+    DrawRectangle(0, 556, SCREEN_W, 3, Pal::BrassDk);
+    for (int k = 0; k < 2; k++) { // carved end-pieces, like Darkest Dungeon's
+        float x = k ? SCREEN_W - 28.0f : 0.0f;
+        DrawRectangle((int)x, 560, 28, SCREEN_H - 560, Color{26, 22, 18, 255});
+        for (int j = 0; j < 5; j++) DrawCircleV({x + 14, 580 + j * 30.0f}, 5, Pal::BrassDk);
     }
 }
 
@@ -3032,6 +3102,7 @@ static void UpdateEffects(Game& g, float dt) {
     }
     d.sparks.erase(std::remove_if(d.sparks.begin(), d.sparks.end(), [](const Spark& s) { return s.life <= 0; }), d.sparks.end());
     d.shake = std::max(0.0f, d.shake - dt);
+    cfx::Update(dt);
     if (d.phase == DPhase::Corridor) d.corridorT += dt;
     d.batteryT = std::max(0.0f, d.batteryT - dt);
     if (d.batteryT <= 0.7f) d.lightShown += std::clamp(d.light - d.lightShown, -40 * dt, 40 * dt); // light eases to its new level
@@ -3198,11 +3269,22 @@ void SceneDungeon(Game& g) {
     DrawLocationTint(g, false); // the colour grade is baked into the backdrop, under the figures
     DrawUnitFigures(g);   // after the lightmap: characters keep their own colours instead of being multiplied toward black
     DrawProjectiles(g);
+    cfx::DrawWorld();     // ink splashes and ripples, inked with the stage
     DrawCaveForeground(g);
     InkPass(1.0f, 1.0f);
     DrawDriftingSpecks(g);
     DrawLocationTint(g, true);
     DrawSparks(g);
+    {   // the camera: it leans in on an attacker's windup, snaps back when the blow lands, shakes with it, drifts otherwise
+        auto& pa = d.pending;
+        if (pa.active && pa.t < pa.impact) {
+            Rectangle ar = pa.hero ? HeroRect(std::max(0, PartyPos(g, pa.id))) : EnemyRect(g, std::max(0, EnemyPos(g, pa.id)));
+            cfx::Focus(BodyOf(ar), true);
+        } else cfx::Focus({640, 360}, false);
+        SceneCamera(cfx::FocusPoint(), cfx::Zoom(), cfx::Offset());
+    }
+    cfx::DrawOverlay();
+    if (d.phase == DPhase::Combat) DrawRoundMedallion(g);
     DrawUnitHud(g, actingHero, actingEnemy);
     for (auto& f : d.floats) {
         f.life -= dt;
@@ -3371,34 +3453,74 @@ void SceneDungeon(Game& g) {
         } break;
 
         case DPhase::Combat: {
-            Rectangle bar{20, 560, SCREEN_W - 40.0f, 148};
-            DrawRectangleRounded({bar.x + 3, bar.y + 5, bar.width, bar.height}, 0.08f, 6, Fade(BLACK, 0.4f));
-            DrawRectangleRounded(bar, 0.08f, 6, Color{14, 24, 32, 235});
-            DrawRectangleRoundedLinesEx(bar, 0.08f, 6, 3, Pal::BrassDk);
+            DrawHudPlate();
+            DrawTurnStrip(g);
             Hero* h = actingHero >= 0 ? FindHero(g, actingHero) : nullptr;
+            // the right-hand panel: the enemy under the mouse (or being targeted), else the sonar
+            Rectangle right{900, 566, 350, 146};
+            DrawRectangleRounded(right, 0.08f, 6, Color{20, 18, 16, 235});
+            DrawRectangleRoundedLinesEx(right, 0.08f, 6, 2, Pal::BrassDk);
+            int hovE = -1;
+            for (int p = 0; p < (int)d.enemies.size(); p++) if (d.enemies[p].alive && CheckCollisionPointRec(GetMousePosition(), EnemyRect(g, p))) hovE = p;
+            if (hovE < 0 && actingEnemy >= 0) hovE = EnemyPos(g, actingEnemy);
+            if (hovE >= 0) {
+                const Enemy& e = d.enemies[hovE];
+                TxtBold(e.name, right.x + 14, right.y + 8, 18, Color{230, 120, 100, 255});
+                Txt(TextFormat("HP %d / %d", e.hp, e.maxHp), right.x + 14, right.y + 32, 14, Pal::Paper);
+                DrawRectangle((int)right.x + 110, (int)right.y + 36, 120, 6, Color{40, 10, 10, 255});
+                DrawRectangle((int)right.x + 110, (int)right.y + 36, (int)(120.0f * e.hp / e.maxHp), 6, Color{190, 40, 36, 255});
+                Txt(TextFormat("PROT %d%%   DODGE %d   SPD %d   ACC %d", e.prot, e.dodge, e.speed, e.acc), right.x + 14, right.y + 52, 13, Color{200, 190, 170, 255});
+                std::string ab;
+                for (auto& a : e.abilities) ab += (ab.empty() ? "" : ",  ") + a.name;
+                DrawWrapped(ab, {right.x + 14, right.y + 72, right.width - 28, 40}, 13, Color{170, 160, 140, 255});
+                std::string tags = StatusTags(e.st);
+                if (!tags.empty()) TxtBold(tags, right.x + 14, right.y + 120, 12, Pal::Coral);
+            } else {
+                DrawSonarScope(g, {right.x + 66, right.y + 73}, 40, false);
+                Txt(ObjectiveName(d.objective), right.x + 150, right.y + 22, 15, Pal::Brass);
+                Txt(TextFormat("Light %d%%", (int)d.light), right.x + 150, right.y + 44, 14, Pal::Paper);
+                Txt("Tab: the full scope", right.x + 150, right.y + 66, 13, Color{170, 160, 140, 255});
+            }
             if (!h || d.pendingSkip || !d.turnStarted || d.pending.active) {
                 const char* who = h ? h->name.c_str() : actingEnemy >= 0 && FindEnemy(g, actingEnemy) ? FindEnemy(g, actingEnemy)->name.c_str() : "...";
-                DrawTextCentered(TextFormat("%s is acting", who), SCREEN_W / 2.0f, 620, 24, Pal::Paper);
+                DrawTextCentered(TextFormat("%s is acting", who), 460, 620, 24, Pal::Paper);
                 break;
             }
             int pos = PartyPos(g, h->id);
             int heroId = h->id;
-            TxtBold(TextFormat("%s's turn  (%s, rank %d)", h->name.c_str(), ClassName(h->cls), pos + 1), 40, 570, 20, Pal::Brass);
-            Txt("Choose an ability, then click a highlighted target. Right-click to cancel.", 560, 573, 15, Color{176, 190, 190, 255});
+            Stats s = GetStats(*h);
+            // the hero: portrait, name, stats
+            Rectangle por{40, 570, 80, 96};
+            DrawRectangleRec({por.x - 3, por.y - 3, por.width + 6, por.height + 6}, Pal::BrassDk);
+            DrawRectangleRec(por, Color{30, 34, 36, 255});
+            DrawPortrait(*h, por, g.time);
+            TxtBold(h->name, 132, 568, 20, Pal::Brass);
+            Txt(TextFormat("%s   Lv %d   rank %d", ClassName(h->cls), h->level, pos + 1), 132, 592, 13, Color{190, 176, 140, 255});
+            DrawRectangle(132, 612, 150, 7, Color{40, 10, 10, 255}); DrawRectangle(132, 612, (int)(150.0f * h->hp / s.maxHp), 7, Color{190, 40, 36, 255});
+            Txt(TextFormat("%d/%d", h->hp, s.maxHp), 288, 608, 13, Pal::Paper);
+            DrawRectangle(132, 624, 150, 5, Color{30, 30, 40, 255}); DrawRectangle(132, 624, (int)(150.0f * h->stress / 100), 5, Color{200, 200, 230, 255});
+            Txt(TextFormat("%d nerves", h->stress), 288, 620, 12, Color{200, 200, 230, 255});
+            Txt(TextFormat("ACC %d   CRIT %d%%   DMG %d-%d", s.acc, 5 + RelicBundle(*h).critPct, s.dmgMin, s.dmgMax), 132, 640, 13, Color{200, 190, 170, 255});
+            Txt(TextFormat("DODGE %d   PROT %d%%   SPD %d", s.dodge, s.prot, s.speed), 132, 658, 13, Color{200, 190, 170, 255});
+            std::string tags = StatusTags(h->st);
+            if (h->deathsDoor) tags += "DEATH'S DOOR ";
+            if (h->rattled) tags += "RATTLED";
+            if (!tags.empty()) TxtBold(tags, 40, 684, 12, Pal::Coral);
+            // the skill bar
             const auto& abs = ClassAbilities(h->cls);
             int hoverAb = -1;
             for (int slot = 0; slot < LOADOUT_SIZE; slot++) {
                 int i = h->loadout[slot];
-                Rectangle b{40 + slot * 240.0f, 600, 228, 50};
+                Rectangle b{400 + (slot % 2) * 240.0f, 572 + (slot / 2) * 48.0f, 232, 42};
                 if (i < 0) {
                     DrawRectangleRoundedLinesEx(b, 0.25f, 6, 1, Color{90, 100, 100, 255});
-                    DrawTextCentered("(empty slot)", b.x + b.width / 2, b.y + 16, 16, Color{90, 100, 100, 255});
+                    DrawTextCentered("(empty slot)", b.x + b.width / 2, b.y + 13, 15, Color{90, 100, 100, 255});
                     continue;
                 }
                 bool usable = HeroCanUse(g, pos, abs[i]);
                 if (i == d.selectedAbility) DrawRectangleRounded({b.x - 4, b.y - 4, b.width + 8, b.height + 8}, 0.3f, 6, Pal::Teal);
                 if (CheckCollisionPointRec(GetMousePosition(), b)) hoverAb = i;
-                if (Button(b, abs[i].name.c_str(), usable)) {
+                if (Button(b, abs[i].name.c_str(), usable, 16)) {
                     if (abs[i].target == Target::Self || abs[i].target == Target::AllAllies) {
                         BeginHeroAction(g, heroId, i, pos);
                         return;
@@ -3406,15 +3528,17 @@ void SceneDungeon(Game& g) {
                     d.selectedAbility = i;
                 }
             }
-            if (Button({1010, 600, 120, 50}, "Pass")) { Log(g, h->name + " holds position."); EndTurn(g); return; }
+            if (Button({400, 672, 472, 34}, "Pass the turn", true, 14)) { Log(g, h->name + " holds position."); EndTurn(g); return; }
             int showAb = hoverAb >= 0 ? hoverAb : d.selectedAbility;
-            if (showAb >= 0) {
+            if (showAb >= 0) { // what it does, on a plate just above the HUD
                 const Ability& a = abs[showAb];
                 std::string info = a.desc + "   [from ranks " + RankString(a.usableFrom);
                 if (a.target == Target::Enemy) info += ", hits enemy ranks " + RankString(a.hits);
                 info += "]";
                 if (!(a.usableFrom & (1 << pos))) info += "  - can't be used from this rank";
-                Txt(info, 40, 664, 16, Pal::Paper);
+                float w = (float)MeasureTxt(info, 15) + 24;
+                DrawRectangleRounded({640 - w / 2, 496, w, 26}, 0.4f, 6, Color{10, 10, 12, 220});
+                Txt(info, 640 - w / 2 + 12, 500, 15, Pal::Paper);
             }
             if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) d.selectedAbility = -1;
             if (d.selectedAbility >= 0) {
@@ -3422,8 +3546,11 @@ void SceneDungeon(Game& g) {
                 for (int tp : ValidTargets(g, pos, a)) {
                     Rectangle tr = a.target == Target::Enemy ? EnemyRect(g, tp) : HeroRect(tp);
                     bool hov = CheckCollisionPointRec(GetMousePosition(), tr);
-                    DrawRectangleRoundedLinesEx({tr.x - 6, tr.y - 6, tr.width + 12, tr.height + 12}, 0.1f, 6, hov ? 4.0f : 2.0f,
-                                                a.target == Target::Enemy ? Pal::Coral : Pal::Good);
+                    // a target ring on the ground, and a bracket around it
+                    Vector2 foot{tr.x + tr.width / 2, tr.y + tr.height};
+                    Color rc = a.target == Target::Enemy ? Color{230, 80, 60, 255} : Color{120, 230, 140, 255};
+                    DrawEllipseLines((int)foot.x, (int)foot.y, tr.width * 0.55f, 12, Fade(rc, hov ? 1.0f : 0.6f));
+                    DrawRectangleRoundedLinesEx({tr.x - 6, tr.y - 6, tr.width + 12, tr.height + 12}, 0.1f, 6, hov ? 3.0f : 1.5f, Fade(rc, hov ? 1.0f : 0.5f));
                     if (hov && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
                         BeginHeroAction(g, heroId, d.selectedAbility, tp);
                         return;

@@ -28,7 +28,7 @@ struct ArtState {
     int locBlurTexel = -1;
     int locTime = -1, locRes = -1, locVig = -1, locGrain = -1, locBloom = -1;
     int locFigTexel = -1, locFigOutline = -1, locFigVib = -1, locFigInk = -1, locInkRes = -1, locInkAmt = -1, locInkHatch = -1;
-    int locFigKey = -1, locFigKeyCol = -1, locFigFillCol = -1, locFigRimCol = -1, locFigAmts = -1;
+    int locFigKey = -1, locFigKeyCol = -1, locFigFillCol = -1, locFigRimCol = -1, locFigAmts = -1, locFigDesat = -1, locFigDoor = -1;
     int locInkPal = -1, locInkPalL = -1, locInkPalAmt = -1, locInkSeed = -1;
     float vignette = 0.45f, grain = 0.03f, bloom = 0.35f;
     bool lightsOpen = false;
@@ -55,6 +55,8 @@ uniform float uInkStyle;
 uniform vec2 uKey;      // toward the key light, in texture space (y up)
 uniform vec3 uKeyCol, uFillCol, uRimCol;
 uniform vec3 uAmts;     // key, fill, rim strengths
+uniform float uDesat;   // Death's Door: the figure greys out...
+uniform float uDoor;    // ...and a red rim light runs along its edge
 out vec4 finalColor;
 const vec3 INK = vec3(0.055, 0.042, 0.036);
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
@@ -107,6 +109,8 @@ void main() {
         if (dark > 0.5 && h2 < 0.10) outc = mix(outc, INK, 0.5);
         outc = mix(outc, INK, smoothstep(0.30, 0.8, edge) * 0.9);                        // heavy linework between parts
         if (uVibrance > 0.0) { float l2 = dot(outc, vec3(0.299, 0.587, 0.114)); outc = mix(vec3(l2), outc, 1.0 + 0.3 * uVibrance) * vec3(1.05, 1.0, 0.92); }
+        if (uDesat > 0.0) { float l3 = dot(outc, vec3(0.299, 0.587, 0.114)); outc = mix(outc, vec3(l3) * vec3(0.92, 0.94, 0.98), uDesat); }
+        if (uDoor > 0.0) outc += vec3(0.85, 0.1, 0.07) * uDoor * (1.0 - away) * 0.9;
         finalColor = vec4(mix(col, outc, uInkStyle) * fragColor.rgb, fragColor.a);
         return;
     }    col = mix(col, INK, smoothstep(0.35, 0.9, edge) * 0.75);      // linework between parts
@@ -460,6 +464,8 @@ void InitArt() {
     A.locFigFillCol = GetShaderLocation(A.figShader, "uFillCol");
     A.locFigRimCol = GetShaderLocation(A.figShader, "uRimCol");
     A.locFigAmts = GetShaderLocation(A.figShader, "uAmts");
+    A.locFigDesat = GetShaderLocation(A.figShader, "uDesat");
+    A.locFigDoor = GetShaderLocation(A.figShader, "uDoor");
 }
 
 // ============================================================= the light rig and the palette
@@ -471,6 +477,8 @@ bool gSilhouette = false;
 static Rectangle gFigClip{};
 static bool gFigClipOn = false;
 void SetFigureClip(const Rectangle* r) { gFigClipOn = r != nullptr; if (r) gFigClip = *r; }
+static float gFigDesat = 0, gFigDoor = 0;
+void SetFigureMood(float desat, float door) { gFigDesat = desat; gFigDoor = door; }
 static bool gFlatShade = false; // on while a figure is drawn: forms get flat lit and shadow planes (see ShadeBall)
 void SetSceneLight(const SceneLight& l) { gLight = l; }
 const SceneLight& CurSceneLight() { return gLight; }
@@ -534,6 +542,21 @@ void EnterScene() {
 void SetSceneSlide(Vector2 d) {
     rlTranslatef(d.x - gSlide.x, d.y - gSlide.y, 0); // takes effect at once on the scene being drawn...
     gSlide = d;                                       // ...and again whenever the scene is re-entered after a layer
+}
+
+// The combat camera: the whole stage drawn so far, re-laid scaled about a point and offset (push-in, shake, drift).
+void SceneCamera(Vector2 focus, float zoom, Vector2 off) {
+    zoom = std::max(zoom, 1.012f); // always a touch in, so a drift or a shake never shows the edge
+    if (A.lightsOpen) LightsEnd();
+    EndTarget();
+    BeginTextureMode(A.temp);
+    DrawTextureRec(A.scene.texture, {0, 0, (float)SCREEN_W * SS, -(float)SCREEN_H * SS}, {0, 0}, WHITE);
+    EndTextureMode();
+    BeginTextureMode(A.scene);
+    float fx = focus.x * SS, fy = focus.y * SS;
+    DrawTexturePro(A.temp.texture, {0, 0, (float)SCREEN_W * SS, -(float)SCREEN_H * SS},
+                   {fx - fx * zoom + off.x * SS, fy - fy * zoom + off.y * SS, SCREEN_W * SS * zoom, SCREEN_H * SS * zoom}, {0, 0}, 0, WHITE);
+    PushScale();
 }
 
 void BeginFrame() {
@@ -960,6 +983,8 @@ void EndFigure(Vector2 feet, Color tint, float sx, float sy) {
         SetShaderValue(A.figShader, A.locFigFillCol, fc, SHADER_UNIFORM_VEC3);
         SetShaderValue(A.figShader, A.locFigRimCol, rc, SHADER_UNIFORM_VEC3);
         SetShaderValue(A.figShader, A.locFigAmts, amts, SHADER_UNIFORM_VEC3);
+        SetShaderValue(A.figShader, A.locFigDesat, &gFigDesat, SHADER_UNIFORM_FLOAT);
+        SetShaderValue(A.figShader, A.locFigDoor, &gFigDoor, SHADER_UNIFORM_FLOAT);
     }
     if (gSilhouette) { // the figure as a solid black shape: does it read from its outline alone?
         DrawTexturePro(A.fig.texture, {0, 0, (float)FIG_W * SS, -(float)FIG_H * SS},

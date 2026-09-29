@@ -751,6 +751,8 @@ void DrawSalonBackdrop(Game& g, Scene station); // salon.cpp: the room as a back
 void SceneStudy(Game& g);     // the Study below the hatch (under refit for now)
 void SceneArcade(Game& g);    // the Deep Arcade cabinet (its games arrive with the arcade stages)
 void SetFigureClip(const Rectangle* r); // clip the next EndFigure composites to r (portraits); nullptr turns it off
+void SetFigureMood(float desat, float door); // the next figures: greyed (0..1) and a red rim (Death's Door); set back to 0, 0 after
+void SceneCamera(Vector2 focus, float zoom, Vector2 offset); // re-lay the stage drawn so far: the combat camera
 void DrawPortrait(const Hero& h, Rectangle r, float t); // head and shoulders of a crew member, clipped to r
 void DebugSalonHover(int station); // --shots: hold a salon station hovered (-1 off)
 extern Game* gCurrentGame;    // the game RunScene is drawing (for backdrops that need it)
