@@ -341,23 +341,6 @@ struct PlatPipeLife {
     PipeState state = PipeState::Idle;
     float stateTimer = 0, phase = 0;
 };
-// The Pirate Ship's real ecosystem chain (ECOSYSTEM_BESTIARY.md, "The Pirate Ship"): on top of the existing
-// Pirates/Gunners/Parakeets (now personality-rolled - see RollEnemyTraits), a Cat hunts a Rat; a Gunpowder
-// Monkey scared by nearby gunfire fuses a dropped powder line that, after a moment, explodes and scatters
-// any Flea Swarm within reach; a scattered swarm infests the Guard Dog it lives on; an infested Dog goes
-// Berserk - the one member of this chain that's a real hazard, same as a puffed Hull Pufferfish. A Barn Owl
-// dives on a fleeing Rat or a fused Monkey and drops it back near its own home; an Albatross just circles.
-enum class PirateEcoKind { Rat, Cat, Monkey, FleaSwarm, GuardDog, Owl, Albatross };
-enum class PirateEcoState { Idle, Wander, Hunting, Fleeing, Fused, Scattered, Infested, Berserk, Diving, Circling };
-struct PlatPirateLife {
-    PirateEcoKind kind;
-    Vector2 pos{0, 0}, home{0, 0};
-    PersonalityProfile personality;
-    float dir = 1;
-    PirateEcoState state = PirateEcoState::Idle;
-    float stateTimer = 0, phase = 0;
-    int dogIndex = -1; // FleaSwarm: which p.pirateLife entry is its host Guard Dog
-};
 // The Island's own ten-species chain (ECOSYSTEM_BESTIARY.md, "The Island"), same architecture as the Pirate
 // Ship's above. The Warriors/Gunners themselves are the 'P'/'G' enemy tiles (real hazards, placed by the
 // generator); this overlay is the rest of the food web. A stray shot passing a Boar sends it Charging - the
@@ -462,7 +445,6 @@ struct PlatformState {
     std::vector<PlatCritter> critters; // ambient duct life (Pipes only) - see PlatCritter; never a hazard
     std::vector<PlatPipeLife> pipeLife; // Pipes only - see PlatPipeLife; never a hazard, never reacts to the diver
     std::vector<Vector2> lightSpots;    // Pipes only - the few surviving 'o' bioluminescent leaks Dust Moths fly toward
-    std::vector<PlatPirateLife> pirateLife; // Pirate Ship only - see PlatPirateLife; a Berserk Guard Dog IS a hazard
     std::vector<PlatIslandLife> islandLife; // Island only - see PlatIslandLife; a Charging Boar IS a hazard
     std::vector<PlatCaveLife> caveLife;     // Cave only - see PlatCaveLife; a Dropping Leech IS a hazard
     BeastWorld fauna;                       // the living-AI creatures (beasts.h) - the Hull first, other levels as they move over
@@ -799,6 +781,5 @@ void UpdateAbyss(Game& g, float dt); // the fixed-step simulation, callable head
 bool VerifyAbyss();                  // debug: proves a run can descend past the first downdraft/sponge gauntlet
 bool VerifyCritters();               // debug (depth.exe --verify-critters): proves the Pipes' ambient duct life spawns and reacts
 bool VerifyPipeEcosystem();           // debug (depth.exe --verify-pipe-ecosystem): proves the Pipes' 10-species chain (web -> bite -> curl/roll -> flash -> panic) fires, entirely without the diver
-bool VerifyPirateEcosystem();         // debug (depth.exe --verify-pirate-ecosystem): proves the Pirate Ship's chain (scare -> fuse -> explode -> scatter -> infest -> berserk) fires
 bool VerifyIslandEcosystem();         // debug (depth.exe --verify-island-ecosystem): proves the Island's chain (charge -> swarm/drop, web catch, coconut steal, dog tracking) fires
 bool VerifyCaveEcosystem();           // debug (depth.exe --verify-cave-ecosystem): proves the Cave's chain (flash -> hunt -> burst -> drop, bat swarm, tube worm retract) fires

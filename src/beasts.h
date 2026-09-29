@@ -43,7 +43,7 @@ struct PersonalityProfile {
     Abnormal abnormal = Abnormal::None;
 };
 
-enum class MoveMode : uint8_t { Walk, Swim, Fly, Sessile };
+enum class MoveMode : uint8_t { Walk, Swim, Fly, Sessile, Climb }; // Climb: crawls over any surface - walls, ceilings - never across open air
 enum class BeastAct : uint8_t {
     Idle, Wander, Explore, Hunt, Stalk, Coil, Strike, Eat, Scavenge, Flee, Hide, Rest, Investigate,
     Ambush, Mob, Groom, Guard, Follow, Latched, Drift, Puffed
@@ -57,6 +57,12 @@ enum MemKind : uint8_t { MEM_THREAT, MEM_PREY, MEM_SOUND, MEM_FOOD };
 struct BeastMemory { Vector2 pos{0, 0}, vel{0, 0}; float strength = 0, t = -1e9f; uint8_t kind = 0; int source = -1, sid = 0; };
 
 constexpr int SPINE = 8;
+constexpr int LEGS = 4; // 0 front-near, 1 front-far, 2 back-near, 3 back-far; diagonal pairs (0,3) and (1,2) step together
+struct Leg {
+    Vector2 foot{0, 0}, from{0, 0}, to{0, 0}; // where the foot is, and the step it's taking
+    float t = 1;                              // step progress (1 = planted)
+    bool init = false;
+};
 struct Beast {
     int species = 0, id = 0;
     Vector2 pos{0, 0}, vel{0, 0};
@@ -68,7 +74,7 @@ struct Beast {
     float hunger = 0.3f, fear = 0, fatigue = 0, health = 1;
     float facing = 1, phase = 0, scale = 1, mass = 1;
     int target = -1, targetId = 0; // beast index (checked against its id) or BEAST_DIVER
-    float alarmT = 0, stuckT = 0, shoveT = 0;
+    float alarmT = 0, stuckT = 0, shoveT = 0, noiseT = 0, hopT = 0;
     Vector2 lastPos{0, 0};
     Vector2 goal{0, 0};
     std::vector<Vector2> path;
@@ -81,11 +87,12 @@ struct Beast {
     bool straggler = false;       // won't keep formation under threat - the one a predator picks off
     bool hidden = false, grounded = false;
     float corpseT = 0, meat = 1;  // corpse: time dead, and how much is left to eat
-    float special = 0, special2 = 0, cooldown = 0;
+    float special = 0, special2 = 0, cooldown = 0, flashT = 0;
     int latched = -1;             // parasites riding a host
     int carry = -1;               // hoarders dragging a corpse
     Vector2 territory{0, 0};
     Vector2 spine[SPINE];         // segmented bodies follow the head (serpentine / tail animation)
+    Leg legs[LEGS];               // walkers plant their feet and step (see ik.h and UpdateGait)
 };
 
 struct SpeciesDef {
@@ -105,12 +112,38 @@ struct SpeciesDef {
     int population;    // head count the dens keep topping up
     float denAffinity; // how much it uses dens to rest and hide
     float scavenge;    // appetite for corpses (0 = never)
+    unsigned traits = 0; // BeastTrait bits: behaviours the shared engine runs for any species that has them
+    float reach = 0;     // strikers: how close before it coils to strike (0 = 110 px)
+};
+enum BeastTrait : unsigned {
+    T_STRIKER = 1u << 0,    // coils (a visible tell), then lunges at its prey
+    T_CHARGER = 1u << 1,    // its lunge is a long ground charge (crab, boar)
+    T_DEN_AMBUSH = 1u << 2, // waits in its den with its head out, and strikes from there (moray)
+    T_CAMO = 1u << 3,       // camouflage builds while it keeps still; it lies in wait camouflaged
+    T_MOBBER = 1u << 4,     // in a pack of three or more it turns on a threat not much bigger than itself
+    T_GROOMER = 1u << 5,    // tends a resting T_GROOMED beast (cleaner shrimp on a moray)
+    T_GROOMED = 1u << 6,
+    T_PARASITE = 1u << 7,   // rides a T_HOST, drops off when shaken, drifts, finds another by smell
+    T_HOST = 1u << 8,
+    T_TRAP = 1u << 9,       // sessile: kills any prey that touches it (anemone, web, tube worm)
+    T_DEFENSIVE = 1u << 10, // cornered and brave, it turns on the threat instead of running (boar)
+    T_TOXIC = 1u << 11,     // biting it hurts, and the biter learns to leave its kind alone (dart frog)
+    T_CURL = 1u << 12,      // rolls up when grabbed at: can't be eaten while curled (pillbug)
+    T_FLASH = 1u << 13,     // flashes light when frightened (jelly, glow-beetle)
+    T_ECHO = 1u << 14,      // hunts by echolocation: darkness doesn't hide anything from it (bat)
+    T_LIGHTSEEK = 1u << 15, // drifts toward light (moth)
+    T_ROOST = 1u << 16,     // hangs from the ceiling at rest rather than lying in a den (bat, leech)
+    T_KLEPTO = 1u << 17,    // steals a meal out from under whoever is eating it (gull)
 };
 struct FoodEdge { int pred, prey; float pref; };
+Vector2 BeastHip(const Beast& b, const SpeciesDef& S, int leg); // where a walker's leg joins its body (for drawing with ik::Knee)
+
 
 struct Den { int tx = 0, ty = 0; Vector2 pos{0, 0}; float repopT = 0; };
 struct SoundEvent { Vector2 pos{0, 0}; float intensity = 0, life = 0; int source = -1; };
-struct InkPuff { Vector2 pos{0, 0}; float life = 0, r = 60; };
+struct InkPuff { Vector2 pos{0, 0}; float life = 0, r = 60, max = 2.6f; int kind = 0; }; // a blinding cloud: 0 ink, 1 spores, 2 powder smoke
+struct BeastLight { Vector2 pos{0, 0}; float r = 0, strength = 0; };                  // a light beasts can see by, rebuilt every tick
+struct BeastProp { Vector2 pos{0, 0}, vel{0, 0}; float t = 0; int kind = 0, owner = -1; }; // a biome object: a fused powder keg, a falling coconut
 
 // A downsampled scalar field that spreads (diffusion), fades (decay) and drifts (a constant current). Solid
 // tiles don't carry scent. Beasts read its gradient to follow a trail uphill toward its source.
@@ -151,6 +184,9 @@ struct BeastWorld {
     std::vector<Den> dens;
     std::vector<SoundEvent> sounds;
     std::vector<InkPuff> ink;
+    std::vector<BeastLight> lights;   // this tick's flashes, lamps and glow
+    std::vector<Vector2> lamps;       // the level's fixed light pools ('o')
+    std::vector<BeastProp> props;
     ScentGrid scent;
     NavGrid nav;
     float time = 0, scentT = 0, repopT = 0, noiseT = 0;
@@ -158,6 +194,7 @@ struct BeastWorld {
     int nextId = 1, replansLeft = 0;
     unsigned seed = 1, rng = 1;
     int kills = 0, scavenged = 0, births = 0, hides = 0, abnormals = 0; // running tallies, read by --verify-beasts
+    int deaths[4] = {0, 0, 0, 0}; // how they died: eaten or killed by a beast, a hazard, the sea, a shot or blast
 };
 
 // The host (platformer.cpp) calls these.
@@ -174,3 +211,8 @@ bool VerifyBeasts();                                       // depth.exe --verify
 
 // Hull species indices (biome = PL_HULL).
 enum HullSpecies { HS_SPRAT, HS_SHRIMP, HS_OCTOPUS, HS_PUFFER, HS_LEECH, HS_ANEMONE, HS_HERMIT, HS_BRITTLE, HS_CRAB, HS_EEL, HS_COUNT };
+enum PirateSpecies { PS_RAT, PS_CAT, PS_MONKEY, PS_DOG, PS_FLEA, PS_OWL, PS_GULL, PS_ALBATROSS, PS_COUNT };
+enum IslandSpecies { IS_BOAR, IS_SNAKE, IS_LIZARD, IS_BAT, IS_SPIDER, IS_CRAB, IS_FROG, IS_GULL, IS_DOG, IS_COCONUT, IS_COUNT };
+enum CaveSpecies { CS_BAT, CS_JELLY, CS_SALAMANDER, CS_BEETLE, CS_LEECH, CS_WORM, CS_MOTH, CS_COUNT };
+enum PipeSpecies { PP_MOTH, PP_SPIDER, PP_CENTIPEDE, PP_RAT, PP_MITE, PP_PILLBUG, PP_MOUSE, PP_ROACH, PP_GLOW, PP_CRICKET, PP_COUNT };
+bool VerifyBeastBiome(int level); // depth.exe --verify-<biome>-ecosystem: the biome's own food web and chain reactions

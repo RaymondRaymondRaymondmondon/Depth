@@ -1,33 +1,12 @@
 // ============================================================================
-//  DEPTH - the living-AI creature engine (see beasts.h for the overview).
+//  DEPTH - the living-AI creature engine (see beasts.h for the overview). The engine and the Hull live here;
+//  the other biomes' species, food webs and behaviours are in beasts_biomes.cpp.
 // ============================================================================
-#include "beasts.h"
-#include "game.h"
-#include <algorithm>
-#include <cmath>
+#include "beasts_internal.h"
 #include <queue>
+#include <cstdlib>
 
-namespace {
-constexpr float TILE = 32.0f;
-constexpr float WALK_G = 1900.0f;
-
-inline Vector2 Add(Vector2 a, Vector2 b) { return {a.x + b.x, a.y + b.y}; }
-inline Vector2 Sub(Vector2 a, Vector2 b) { return {a.x - b.x, a.y - b.y}; }
-inline Vector2 Mul(Vector2 a, float s) { return {a.x * s, a.y * s}; }
-inline float Len(Vector2 a) { return sqrtf(a.x * a.x + a.y * a.y); }
-inline float Dist(Vector2 a, Vector2 b) { return Len(Sub(a, b)); }
-inline Vector2 Norm(Vector2 a) { float l = Len(a); return l > 1e-4f ? Mul(a, 1 / l) : Vector2{0, 0}; }
-inline float Clamp01(float v) { return std::clamp(v, 0.0f, 1.0f); }
-inline float Sig(float x, float k, float m) { return 1.0f / (1.0f + expf(-k * (x - m))); } // the reference's utility response curve
-
-// Deterministic randomness: the beasts never touch raylib's global RNG, so a level seed replays exactly.
-inline float Hash(unsigned a, unsigned b) {
-    unsigned h = a * 374761393u + b * 668265263u + 0x9E3779B9u;
-    h = (h ^ (h >> 13)) * 1274126177u;
-    return ((h ^ (h >> 16)) & 0xFFFFFF) / 16777216.0f;
-}
-inline float R(BeastWorld& W) { W.rng ^= W.rng << 13; W.rng ^= W.rng >> 17; W.rng ^= W.rng << 5; return (W.rng & 0xFFFFFF) / 16777216.0f; }
-inline float R(BeastWorld& W, float lo, float hi) { return lo + (hi - lo) * R(W); }
+namespace bk {
 
 // ---------------------------------------------------------------- the Hull: species and food web
 // ECOSYSTEM_BESTIARY.md / ParkourReference1.2.pdf, "The Hull": cleaner shrimp groom moray eels in hull breaches;
@@ -36,18 +15,18 @@ inline float R(BeastWorld& W, float lo, float hi) { return lo + (hi - lo) * R(W)
 // fall off when they puff; stinging anemones catch drifting leeches; hermit crabs scavenge the scraps and mob
 // intruders in numbers; brittle-star mats break under the diver. Sprat schools are the eels' staple, and the
 // diver is on the menu for the eels and the crabs.
-//            name              move              mass  rad  speed sprint accel sight  fov   hear smell hunger dFear dPrey lethal social band pop  den    scav
+//            name              move              mass  rad  speed sprint accel sight  fov   hear smell hunger dFear dPrey lethal social band pop  den    scav  traits
 const SpeciesDef HULL[HS_COUNT] = {
     {"Sprat",            MoveMode::Swim,    0.2f,  5,   70, 230,  900,  170, 2.6f, 0.7f, 0.2f, 0.010f, 0.9f,  0.0f, false, true,  5, 24, 0.05f, 0.0f},
-    {"Cleaner Shrimp",   MoveMode::Swim,    0.05f, 5,   45, 190,  800,  120, 2.8f, 0.6f, 0.5f, 0.012f, 0.8f,  0.0f, false, false, 1,  8, 0.80f, 0.2f},
-    {"Octopus",          MoveMode::Swim,    3.0f,  9,   55, 260,  700,  200, 2.4f, 0.4f, 0.6f, 0.020f, 0.5f,  0.0f, false, false, 0,  4, 0.70f, 0.3f},
-    {"Pufferfish",       MoveMode::Swim,    1.0f,  8,   40, 150,  500,  140, 2.6f, 0.5f, 0.3f, 0.012f, 0.6f,  0.0f, true,  false, 3,  5, 0.30f, 0.0f},
-    {"Hull-Leech",       MoveMode::Swim,    0.1f,  5,   20,  60,  200,   70, PI,   0.2f, 0.8f, 0.020f, 0.1f,  0.0f, false, false, 2,  6, 0.00f, 0.0f},
-    {"Stinging Anemone", MoveMode::Sessile, 2.0f, 10,    0,   0,    0,   60, PI,   0.0f, 0.5f, 0.010f, 0.0f,  0.0f, false, false, 0,  4, 0.00f, 0.0f},
-    {"Hermit Crab",      MoveMode::Walk,    0.5f,  7,   45, 110,  600,  150, 2.4f, 0.5f, 0.9f, 0.020f, 0.7f,  0.0f, false, true,  0,  7, 0.60f, 1.0f},
+    {"Cleaner Shrimp",   MoveMode::Swim,    0.05f, 5,   45, 190,  800,  120, 2.8f, 0.6f, 0.5f, 0.012f, 0.8f,  0.0f, false, false, 1,  8, 0.80f, 0.2f, T_GROOMER},
+    {"Octopus",          MoveMode::Swim,    3.0f,  9,   55, 260,  700,  200, 2.4f, 0.4f, 0.6f, 0.020f, 0.5f,  0.0f, false, false, 0,  4, 0.70f, 0.3f, T_CAMO | T_HOST},
+    {"Pufferfish",       MoveMode::Swim,    1.0f,  8,   40, 150,  500,  140, 2.6f, 0.5f, 0.3f, 0.012f, 0.6f,  0.0f, true,  false, 3,  5, 0.30f, 0.0f, T_HOST},
+    {"Hull-Leech",       MoveMode::Swim,    0.1f,  5,   20,  60,  200,   70, PI,   0.2f, 0.8f, 0.020f, 0.1f,  0.0f, false, false, 2,  6, 0.00f, 0.0f, T_PARASITE},
+    {"Stinging Anemone", MoveMode::Sessile, 2.0f, 10,    0,   0,    0,   60, PI,   0.0f, 0.5f, 0.010f, 0.0f,  0.0f, false, false, 0,  4, 0.00f, 0.0f, T_TRAP},
+    {"Hermit Crab",      MoveMode::Walk,    0.5f,  7,   45, 110,  600,  150, 2.4f, 0.5f, 0.9f, 0.020f, 0.7f,  0.0f, false, true,  0,  7, 0.60f, 1.0f, T_MOBBER},
     {"Brittle-Star",     MoveMode::Sessile, 0.3f, 10,    0,   0,    0,   40, PI,   0.3f, 0.0f, 0.005f, 0.4f,  0.0f, false, false, 0,  5, 0.00f, 0.0f},
-    {"Barnacle Crab",    MoveMode::Walk,    2.5f, 13,   70, 150,  900,  190, 1.6f, 0.6f, 0.8f, 0.020f, 0.2f,  0.7f, true,  false, 0,  0, 0.40f, 1.0f},
-    {"Moray Eel",        MoveMode::Swim,    8.0f, 10,  110, 330, 1100,  240, 1.9f, 0.8f, 0.9f, 0.030f, 0.15f, 0.8f, true,  false, 2,  2, 0.90f, 0.6f},
+    {"Barnacle Crab",    MoveMode::Walk,    2.5f, 13,   70, 150,  900,  190, 1.6f, 0.6f, 0.8f, 0.020f, 0.2f,  0.7f, true,  false, 0,  0, 0.40f, 1.0f, T_STRIKER | T_CHARGER, 90},
+    {"Moray Eel",        MoveMode::Swim,    8.0f, 10,  110, 330, 1100,  240, 1.9f, 0.8f, 0.9f, 0.030f, 0.15f, 0.8f, true,  false, 2,  2, 0.90f, 0.6f, T_STRIKER | T_DEN_AMBUSH | T_GROOMED | T_HOST, 120},
 };
 const FoodEdge HULL_WEB[] = {
     {HS_EEL, HS_SPRAT, 0.9f},    {HS_EEL, HS_PUFFER, 0.5f},   {HS_EEL, HS_OCTOPUS, 0.7f}, {HS_EEL, HS_HERMIT, 0.35f},
@@ -57,42 +36,63 @@ const FoodEdge HULL_WEB[] = {
 };
 const SpeciesDef FALLBACK = {"Creature", MoveMode::Walk, 1, 8, 50, 120, 600, 150, 2.0f, 0.5f, 0.5f, 0.01f, 0.5f, 0, false, false, 0, 0, 0.5f, 0.3f};
 
-const SpeciesDef& Sp(int biome, int s) { return biome == PL_HULL && s >= 0 && s < HS_COUNT ? HULL[s] : FALLBACK; }
+const BiomeDef* Biome(int level) {
+    const BiomeDef* B = nullptr;
+    switch (level) {
+    case PL_HULL: B = &HullBiome(); break;
+    case PL_PIRATE: B = &PirateBiome(); break;
+    case PL_ISLAND: B = &IslandBiome(); break;
+    case PL_CAVE: B = &CaveBiome(); break;
+    case PL_PIPES: B = &PipesBiome(); break;
+    default: break;
+    }
+    return B && B->count > 0 ? B : nullptr;
+}
+const SpeciesDef& Sp(int biome, int s) {
+    const BiomeDef* B = Biome(biome);
+    return B && s >= 0 && s < B->count ? B->species[s] : FALLBACK;
+}
 float Pref(int biome, int pred, int prey) {
-    if (biome == PL_HULL) for (const auto& e : HULL_WEB) if (e.pred == pred && e.prey == prey) return e.pref;
+    const BiomeDef* B = Biome(biome);
+    if (B) for (int k = 0; k < B->webN; k++) if (B->web[k].pred == pred && B->web[k].prey == prey) return B->web[k].pref;
     return 0;
 }
 
 // ---------------------------------------------------------------- the diver, as the beasts see it
-struct Diver { Vector2 pos{0, 0}, vel{0, 0}; bool alive = false; };
 Diver SeeDiver(const PlatformState& p) {
     Rectangle r = PlatDiverBox(p);
     return {{r.x + r.width / 2, r.y + r.height / 2}, p.vel, p.deathTimer <= 0 && !p.finished && !p.verifying};
 }
+bool IgnoresDiver(const BeastWorld& W) { const BiomeDef* B = Biome(W.biome); return B && B->ignoreDiver; }
 
 bool Alive(const Beast& b) { return b.life == BeastLife::Alive; }
 bool Valid(const BeastWorld& W, int i, int id) { return i >= 0 && i < (int)W.beasts.size() && W.beasts[i].id == id && W.beasts[i].life != BeastLife::Gone; }
 Vector2 Home(const BeastWorld& W, const Beast& b) { return b.den >= 0 && b.den < (int)W.dens.size() ? W.dens[b.den].pos : b.territory; }
 Vector2 DenMouth(const BeastWorld& W, int d) { return {W.dens[d].pos.x, W.dens[d].pos.y - 12}; }
-int NearestDen(const BeastWorld& W, Vector2 at, float maxD = 1e9f) {
+int NearestDen(const BeastWorld& W, Vector2 at, float maxD) {
     int best = -1; float bd = maxD;
     for (int d = 0; d < (int)W.dens.size(); d++) { float dd = Dist(W.dens[d].pos, at); if (dd < bd) { bd = dd; best = d; } }
     return best;
 }
-bool InInk(const BeastWorld& W, Vector2 at) {
+bool InCloud(const BeastWorld& W, Vector2 at) {
     for (const auto& k : W.ink) if (Dist(k.pos, at) < k.r) return true;
     return false;
 }
+void AddCloud(BeastWorld& W, Vector2 at, float r, float life, int kind) { W.ink.push_back({at, life, r, life, kind}); }
 
-// Light: the Hull is lit from the surface, fading with height above the deck and pooling around the few lit
-// fixtures ('o'); the dark levels (Pipes, Cave) are black except the diver's lamp and those same pools.
+// Light: the Hull is lit from the surface, fading with height above the deck; the open-air levels by the sky;
+// the dark levels (Pipes, Cave) are black except the diver's lamp, the level's light pools ('o') and whatever
+// is glowing or flashing this tick (W.lights).
 float LightAt(const PlatformState& p, const BeastWorld& W, Vector2 at) {
     int tx = (int)floorf(at.x / TILE), ty = (int)floorf(at.y / TILE);
-    float base = 0.1f;
+    const BiomeDef* B = Biome(W.biome);
+    float base = B ? B->daylight : 0.1f;
     if (W.biome == PL_HULL) base = std::clamp(0.85f - (W.nav.FloorBelow(tx, ty) - ty) / 30.0f, 0.15f, 0.85f);
-    for (int dy = -3; dy <= 3; dy++) for (int dx = -3; dx <= 3; dx++) if (PlatTileAt(p, tx + dx, ty + dy) == 'o') base = std::max(base, 0.9f - 0.12f * (abs(dx) + abs(dy)));
+    for (const auto& l : W.lamps) { float d = Dist(l, at); if (d < 4 * TILE) base = std::max(base, 0.9f - d / (4 * TILE) * 0.8f); }
+    for (const auto& l : W.lights) { float d = Dist(l.pos, at); if (d < l.r) base = std::max(base, l.strength * (1 - d / l.r)); }
     Diver dv = SeeDiver(p);
     if (dv.alive) base = std::max(base, 1.0f - Dist(dv.pos, at) / (6 * TILE));
+    (void)p;
     return Clamp01(base);
 }
 
@@ -157,7 +157,7 @@ int NewBeast(BeastWorld& W, int species, Vector2 at) {
 }
 
 // ---------------------------------------------------------------- senses (reference 2.1)
-float Camouflage(const BeastWorld& W, const Beast& b) { return W.biome == PL_HULL && b.species == HS_OCTOPUS ? Clamp01(b.special) : 0.0f; }
+float Camouflage(const BeastWorld& W, const Beast& b) { return Has(Sp(W.biome, b.species), T_CAMO) ? Clamp01(b.special) : 0.0f; }
 
 // A predator is a threat to me if it eats my kind, or if it's rabid, a tyrant on its home ground, or a glutton
 // bigger than me.
@@ -181,8 +181,10 @@ void Perceive(BeastWorld& W, const PlatformState& p, int i) {
         }
         return;
     }
-    float clarity = W.biome == PL_HULL ? 0.9f : 0.6f;
-    if (InInk(W, b.pos)) clarity *= 0.2f;
+    const BiomeDef* B = Biome(W.biome);
+    bool deaf = B && B->ignoreDiver; // the Pipes: the diver simply isn't part of these animals' world
+    float clarity = B ? B->clarity : 0.6f;
+    if (InCloud(W, b.pos)) clarity *= 0.2f;
     float range = S.sight * (0.85f + 0.3f * b.pers.curiosity);
     Vector2 look = Len(b.vel) > 8 ? Norm(b.vel) : Vector2{b.facing, 0};
     float cosFov = cosf(S.fov);
@@ -193,7 +195,7 @@ void Perceive(BeastWorld& W, const PlatformState& p, int i) {
         float c = (to.x * look.x + to.y * look.y) / d;
         if (c < cosFov && d > S.radius * 3) return 0; // outside the cone, and not close enough to feel
         if (!W.nav.LineOfSight(b.pos, tpos)) return 0;
-        float light = W.biome == PL_HULL ? 1.0f : std::max(0.25f, LightAt(p, W, tpos));
+        float light = (B && B->water) || Has(S, T_ECHO) ? 1.0f : std::max(0.15f, LightAt(p, W, tpos)); // a bat's ears see in the dark
         return (1.0f - d / range) * std::max(0.3f, c) * clarity * light * (1.0f + 0.003f * Len(tvel)) * (1.0f - 0.85f * camo);
     };
     // other beasts
@@ -219,7 +221,7 @@ void Perceive(BeastWorld& W, const PlatformState& p, int i) {
     }
     // the diver
     Diver dv = SeeDiver(p);
-    if (dv.alive) {
+    if (dv.alive && !deaf) {
         float v = visual(dv.pos, dv.vel, 0);
         if (v > 0.05f) {
             if (S.diverFear > 0) Remember(b, MEM_THREAT, BEAST_DIVER, 0, dv.pos, dv.vel, v, W.time);
@@ -236,10 +238,25 @@ void Perceive(BeastWorld& W, const PlatformState& p, int i) {
             }
         }
     }
+    // the level's own enemies (pirates, warriors, cave spiders) are as frightening as the diver, and their
+    // musket balls kill beasts just the same (friendly fire)
+    if (!deaf && S.diverFear > 0)
+        for (int e = 0; e < (int)p.enemies.size(); e++) {
+            const PlatEnemy& en = p.enemies[e];
+            Vector2 ep{en.pos.x + 16, en.pos.y + 16};
+            if (fabsf(ep.x - b.pos.x) > range || fabsf(ep.y - b.pos.y) > range) continue;
+            float v = visual(ep, {0, 0}, 0);
+            if (v > 0.06f) Remember(b, MEM_THREAT, SRC_ENEMY - e, 0, ep, {0, 0}, v, W.time);
+        }
     // sounds (reference 2.1: I / (1 + k d^2))
     for (const auto& s : W.sounds) {
         if (s.source >= 0 && s.source == i) continue;
+        if (deaf && s.source == -1) continue;
         float d = Dist(s.pos, b.pos), heard = s.intensity * S.hearing / (1.0f + 0.00012f * d * d);
+        // a hunter listens for its prey: the scurry of a rat in the dark is as good as a sighting (an owl hunts by ear)
+        if (s.source >= 0 && s.source < (int)W.beasts.size() && Alive(W.beasts[s.source]) && heard > 0.015f &&
+            Pref(W.biome, b.species, W.beasts[s.source].species) > 0 && W.beasts[s.source].act != BeastAct::Puffed)
+            Remember(b, MEM_PREY, s.source, W.beasts[s.source].id, s.pos, W.beasts[s.source].vel, std::min(0.6f, heard * 6), W.time);
         if (heard > 0.12f) Remember(b, MEM_SOUND, s.source, 0, s.pos, {0, 0}, heard, W.time);
     }
     // blood in the water: scavengers and keen-nosed hunters smell a kill from well out of sight
@@ -257,6 +274,7 @@ float ThreatWeight(const BeastWorld& W, const Beast& b, const BeastMemory& m) {
     const SpeciesDef& S = Sp(W.biome, b.species);
     float w;
     if (m.source == BEAST_DIVER) w = S.diverFear * (1.0f + std::min(1.0f, Len(m.vel) / 500.0f)) * (1.3f - b.pers.bravery);
+    else if (m.source <= SRC_ENEMY) w = S.diverFear * (1.3f - b.pers.bravery);
     else {
         float om = m.source >= 0 && m.source < (int)W.beasts.size() ? W.beasts[m.source].mass : 1.0f;
         w = std::clamp(0.4f + 0.18f * log2f(om / std::max(0.02f, b.mass) + 1.0f), 0.3f, 1.3f) * (1.3f - b.pers.bravery);
@@ -299,7 +317,10 @@ void Drives(BeastWorld& W, int i, float dt) {
 }
 
 // ---------------------------------------------------------------- choosing what to do (reference 2.3 / 4.2)
-struct Choice { BeastAct act = BeastAct::Wander; int target = -1, targetId = 0; Vector2 goal{0, 0}; float score = 0; };
+void Consider(const Beast& b, Choice& best, BeastAct a, float u, int tgt, int tid, Vector2 g) {
+    if (a == b.act) u += 0.12f; // hysteresis
+    if (u > best.score) best = {a, tgt, tid, g, u};
+}
 
 // How badly it wants to eat this (reference 2.1's W(i,j) = H * (S * pref - risk) * scent, plus isolation and
 // ease - so a predator stalking the diver drops you the moment an easier meal wanders close).
@@ -316,6 +337,7 @@ float PreyScore(const BeastWorld& W, const Beast& b, const BeastMemory& m) {
         const Beast& o = W.beasts[m.source];
         if (o.id != m.sid || !Alive(o) || o.hidden || o.act == BeastAct::Puffed) return 0;
         pref = Pref(W.biome, b.species, o.species);
+        if (Has(Sp(W.biome, o.species), T_TOXIC) && (b.trauma >> (o.species & 31) & 1)) pref *= 0.08f; // it learned the hard way
         if (pref <= 0 && (b.pers.abnormal == Abnormal::GluttonousDevourer || b.pers.abnormal == Abnormal::RabidEnraged || b.pers.abnormal == Abnormal::TerritorialTyrant)) pref = 0.6f;
         float ratio = o.mass / std::max(0.01f, b.mass);
         suit = Clamp01(1.0f - 0.35f * fabsf(log10f(std::max(ratio, 0.001f) / 0.2f)));
@@ -362,32 +384,47 @@ Choice ChooseUtility(BeastWorld& W, const PlatformState& p, int i) {
     if (sm && Dist(sm->pos, b.pos) > TILE) consider(BeastAct::Investigate, Sig(b.pers.curiosity * bestS, 9, 0.3f) * (1 - b.fear), -1, 0, sm->pos);
     // explore (the "exploratory personality": a far roam, chosen rather than patrolled)
     float explore = Sig(b.pers.wanderlust * (1 - b.fear) * (1 - 0.5f * b.hunger) * (0.5f + 0.5f * b.pers.energy), 8, 0.42f) * 0.75f;
+    bool eatsSomething = S.scavenge > 0;
+    if (const BiomeDef* BB = Biome(W.biome)) for (int k = 0; k < BB->webN && !eatsSomething; k++) eatsSomething = BB->web[k].pred == b.species;
+    if (eatsSomething && !bm) explore = std::max(explore, Sig(b.hunger * (1 - b.fear), 9, 0.55f) * 0.6f); // hungry with nothing in view: it goes foraging
     if (b.act == BeastAct::Wander && b.actT < 3) explore *= 0.3f;
     consider(BeastAct::Explore, explore, -1, 0, b.goal);
     consider(BeastAct::Wander, 0.22f, -1, 0, home);
-    // species extras
-    if (W.biome == PL_HULL) {
-        if (b.species == HS_SHRIMP) { // cleaner shrimp tend a resting eel - the eel never eats them
-            for (int j = 0; j < (int)W.beasts.size(); j++) {
-                const Beast& e = W.beasts[j];
-                if (!Alive(e) || e.species != HS_EEL || e.act == BeastAct::Hunt || e.act == BeastAct::Strike || e.act == BeastAct::Coil) continue;
-                float d = Dist(e.pos, b.pos);
-                if (d < 220) { consider(BeastAct::Groom, 0.45f * (1 - b.fear) * (1 - b.hunger * 0.5f), j, e.id, e.pos); break; }
-            }
-        }
-        if (b.species == HS_HERMIT && PackCount(W, b, 100) >= 3) { // in numbers they turn on an intruder
-            for (const auto& m : b.mem) if (m.kind == MEM_THREAT && m.source >= 0 && m.source < (int)W.beasts.size()) {
-                const Beast& t = W.beasts[m.source];
-                if (Alive(t) && (t.species == HS_OCTOPUS || t.species == HS_CRAB) && Dist(t.pos, b.pos) < 120)
-                    consider(BeastAct::Mob, 0.55f + 0.3f * b.pers.aggression, m.source, m.sid, t.pos);
-            }
-        }
-        if ((b.species == HS_OCTOPUS && b.special > 0.6f) || (b.species == HS_EEL && b.den >= 0)) { // lie in wait
-            float wait = (1 - b.fear) * (0.35f + 0.4f * b.pers.intelligence) * (1 - b.pers.energy * 0.5f);
-            if (b.species == HS_EEL) wait = (1 - b.fear) * (0.2f + 0.3f * b.pers.intelligence) * (1 - 0.4f * b.pers.energy) * (1.1f - b.hunger) + 0.25f * b.fatigue; // an eel mostly patrols, and waits in its breach to rest
-            consider(BeastAct::Ambush, wait, -1, 0, b.species == HS_EEL ? DenMouth(W, b.den) : b.pos);
+    // behaviours any species can have (beasts.h, BeastTrait)
+    if (Has(S, T_GROOMER)) { // a cleaner tends a resting client - who never eats it
+        for (int j = 0; j < (int)W.beasts.size(); j++) {
+            const Beast& e = W.beasts[j];
+            if (!Alive(e) || !Has(Sp(W.biome, e.species), T_GROOMED) || e.act == BeastAct::Hunt || e.act == BeastAct::Strike || e.act == BeastAct::Coil) continue;
+            if (Dist(e.pos, b.pos) < 220) { consider(BeastAct::Groom, 0.45f * (1 - b.fear) * (1 - b.hunger * 0.5f), j, e.id, e.pos); break; }
         }
     }
+    if (Has(S, T_MOBBER) && PackCount(W, b, 100) >= 3) { // in numbers they turn on an intruder not too much bigger than them
+        for (const auto& m : b.mem) if (m.kind == MEM_THREAT && m.source >= 0 && m.source < (int)W.beasts.size()) {
+            const Beast& t = W.beasts[m.source];
+            if (Alive(t) && t.mass < b.mass * 7 && Dist(t.pos, b.pos) < 120)
+                consider(BeastAct::Mob, 0.55f + 0.3f * b.pers.aggression, m.source, m.sid, t.pos);
+        }
+    }
+    if (Has(S, T_DEFENSIVE) && b.pers.bravery > 0.35f) { // cornered, it turns and charges whatever is pressing it
+        for (const auto& m : b.mem) if (m.kind == MEM_THREAT && Recall(b, m, W.time) > 0.35f && Dist(m.pos, b.pos) < 5 * TILE && (m.source == BEAST_DIVER || m.source >= 0)) {
+            consider(BeastAct::Hunt, Sig(b.fear * (0.5f + b.pers.bravery) * (0.6f + 0.6f * b.pers.aggression), 8, 0.3f) + 0.1f, m.source, m.sid, m.pos);
+            break;
+        }
+    }
+    if ((Has(S, T_CAMO) && b.special > 0.6f) || (Has(S, T_DEN_AMBUSH) && b.den >= 0)) { // lie in wait
+        float wait = (1 - b.fear) * (0.35f + 0.4f * b.pers.intelligence) * (1 - b.pers.energy * 0.5f);
+        if (Has(S, T_DEN_AMBUSH)) wait = (1 - b.fear) * (0.2f + 0.3f * b.pers.intelligence) * (1 - 0.4f * b.pers.energy) * (1.1f - b.hunger) + 0.25f * b.fatigue; // it mostly patrols, and waits in its hole to rest
+        consider(BeastAct::Ambush, wait, -1, 0, Has(S, T_DEN_AMBUSH) ? DenMouth(W, b.den) : b.pos);
+    }
+    if (Has(S, T_KLEPTO) && b.hunger > 0.3f) { // a thief: somebody else's meal is the easiest one there is
+        for (int j = 0; j < (int)W.beasts.size(); j++) {
+            const Beast& o = W.beasts[j];
+            if (j == i || !Alive(o) || o.act != BeastAct::Eat || !Valid(W, o.target, o.targetId) || Dist(o.pos, b.pos) > 8 * TILE || o.mass > b.mass * 6) continue;
+            consider(BeastAct::Scavenge, 0.35f + 0.4f * b.hunger * (0.5f + b.pers.bravery), o.target, o.targetId, W.beasts[o.target].pos);
+            break;
+        }
+    }
+    if (const BiomeDef* B = Biome(W.biome)) if (B->extras) B->extras(W, p, i, best);
     return best;
 }
 
@@ -552,7 +589,7 @@ float HalfH(const SpeciesDef& S, const Beast& b) { return std::min(12.0f, S.radi
 // just heads straight at it - and gets stuck behind the first wall, as a dim animal would.
 Vector2 RouteToward(BeastWorld& W, Beast& b, const SpeciesDef& S, Vector2 target, float dt) {
     b.replanT -= dt;
-    bool swim = S.move != MoveMode::Walk;
+    bool swim = S.move == MoveMode::Swim || S.move == MoveMode::Fly, climb = S.move == MoveMode::Climb;
     if (swim && Dist(target, b.pos) < 10 * TILE && W.nav.LineOfSight(b.pos, target)) { b.path.clear(); return target; }
     bool greedy = b.pers.intelligence < 0.2f && Hash((unsigned)b.id, (unsigned)(W.time * 0.5f)) < 0.5f;
     if (greedy) return target;
@@ -570,7 +607,7 @@ Vector2 RouteToward(BeastWorld& W, Beast& b, const SpeciesDef& S, Vector2 target
     if (b.path.empty() || b.pathI >= (int)b.path.size()) return target;
     Vector2 wp = b.path[b.pathI];
     float reach = swim ? 14.0f : 10.0f;
-    if ((swim && Dist(wp, b.pos) < reach) || (!swim && fabsf(wp.x - b.pos.x) < reach && fabsf(wp.y - b.pos.y) < TILE * 1.2f)) {
+    if (((swim || climb) && Dist(wp, b.pos) < reach) || (!swim && !climb && fabsf(wp.x - b.pos.x) < reach && fabsf(wp.y - b.pos.y) < TILE * 1.2f)) {
         b.pathI++;
         if (swim) while (b.pathI + 1 < (int)b.path.size() && W.nav.LineOfSight(b.pos, b.path[b.pathI + 1])) b.pathI++;
         if (b.pathI < (int)b.path.size()) wp = b.path[b.pathI]; else wp = target;
@@ -588,18 +625,33 @@ void Motor(BeastWorld& W, const PlatformState& p, int i, Vector2 target, float s
     if (S.move == MoveMode::Walk) {
         float dx = wp.x - b.pos.x;
         float want = fabsf(dx) < 4 ? 0.0f : (dx > 0 ? 1.0f : -1.0f) * speed * std::min(1.0f, fabsf(dx) / 24.0f + 0.3f);
+        // ledge sense: an animal won't walk off into a drop it can't see the bottom of, onto spikes, or into the
+        // sea - unless its planned route says the landing over there is good (a hop across a gap)
+        int feetY = (int)floorf((b.pos.y + hh - 1) / TILE);
+        auto safeCol = [&](int x, int y0) { for (int k = 0; k <= 6; k++) { int y = y0 + k; if (W.nav.Hazard(x, y)) return false; if (W.nav.Solid(x, y)) return true; } return false; };
+        bool onPath = !b.path.empty() && b.pathI < (int)b.path.size() && Dist(wp, b.path[b.pathI]) < 1;
+        int aheadX = (int)floorf((b.pos.x + (dx > 0 ? 1 : -1) * (hw + 4)) / TILE);
+        bool reckless = b.pers.abnormal == Abnormal::SuicidalSelfDestructive || b.act == BeastAct::Strike;
+        bool safe = onPath ? safeCol((int)floorf(wp.x / TILE), (int)floorf(wp.y / TILE)) || safeCol(aheadX, feetY) : safeCol(aheadX, feetY);
+        if (b.grounded && !safe && !reckless) { want = 0; b.vel.x *= 0.5f; }
         float ax = S.accel * (b.grounded ? 1.0f : 0.45f) * dt;
         b.vel.x += std::clamp(want - b.vel.x, -ax, ax);
-        if (b.grounded) {
-            int cy = (int)floorf((b.pos.y + hh - 1) / TILE), wy = (int)floorf(wp.y / TILE);
-            int ahead = (int)floorf((b.pos.x + (dx > 0 ? 1 : -1) * (hw + 6)) / TILE);
+        b.hopT -= dt;
+        if (b.grounded && b.hopT <= 0) {
+            int cy = feetY, wy = (int)floorf(wp.y / TILE), sx = dx > 0 ? 1 : -1;
+            int ahead = (int)floorf((b.pos.x + sx * (hw + 6)) / TILE);
             bool wall = W.nav.Solid(ahead, cy);
-            bool gap = !W.nav.Solid(ahead, cy + 1) && wy <= cy && fabsf(dx) > TILE * 0.7f;
-            bool up = wy < cy && fabsf(dx) < TILE * 2.2f;
-            if (up || gap || (wall && wy <= cy)) {
-                float rise = std::max(1, cy - wy + (wall ? 1 : 0)) * TILE + 20;
+            int top = cy; // how tall the obstacle is: it only tries what it can clear
+            while (wall && W.nav.Solid(ahead, top) && cy - top < 4) top--;
+            bool climbable = wall && !W.nav.Solid(ahead, top) && cy - top <= 3 && (onPath || safeCol(ahead, top));
+            bool gap = !W.nav.Solid(ahead, cy + 1) && wy <= cy && fabsf(dx) > TILE * 0.7f && safe && onPath;
+            bool up = !wall && wy < cy && fabsf(dx) < TILE * 2.2f && (onPath || safeCol((int)floorf(wp.x / TILE), wy));
+            if (up || gap || (climbable && wy <= cy)) {
+                float rise = (climbable ? (cy - top) : std::max(1, cy - wy)) * TILE + 18;
                 b.vel.y = -sqrtf(2 * WALK_G * rise);
-                b.vel.x = std::clamp(dx * 2.8f, -S.sprint, S.sprint);
+                float carry = gap ? fabsf(dx) : std::min(fabsf(dx), TILE * 1.2f); // just far enough to land - not over the bulwark
+                b.vel.x = sx * std::min(carry * 2.6f + 30, S.sprint);
+                b.hopT = 0.25f; // a hop settles before the next one
             }
         }
         b.vel.y = std::min(b.vel.y + WALK_G * dt, 900.0f);
@@ -636,7 +688,14 @@ void Motor(BeastWorld& W, const PlatformState& p, int i, Vector2 target, float s
         b.vel = Add(b.vel, dv);
         float sp = Len(b.vel), cap = S.sprint * 1.3f * b.scale;
         if (sp > cap) b.vel = Mul(b.vel, cap / sp);
-        b.vel = Mul(b.vel, std::max(0.0f, 1.0f - (0.4f + 0.0015f * sp) * dt)); // quadratic water drag
+        b.vel = Mul(b.vel, std::max(0.0f, 1.0f - (0.4f + 0.0015f * sp) * dt)); // quadratic water (or air) drag
+        if (S.move == MoveMode::Climb) { // a crawler holds on to whatever surface it's on; with nothing to hold, it drops
+            bool touching = false;
+            for (int dy = -1; dy <= 1 && !touching; dy++)
+                for (int dx = -1; dx <= 1 && !touching; dx++)
+                    if (W.nav.Solid((int)floorf((b.pos.x + dx * (hw + 3)) / TILE), (int)floorf((b.pos.y + dy * (hh + 3)) / TILE))) touching = true;
+            if (!touching) b.vel.y = std::min(b.vel.y + WALK_G * dt, 700.0f);
+        }
     }
     bool g;
     Collide(W.nav, b.pos, b.vel, hw, hh, dt, g);
@@ -669,7 +728,7 @@ Vector2 FleeTarget(BeastWorld& W, int i, Vector2 threat) {
         float a = k * 2 * PI / 10 + R(W) * 0.3f, dist = (5 + R(W) * 5) * TILE;
         Vector2 q = Add(b.pos, Vector2{cosf(a) * dist, sinf(a) * dist});
         int qx = (int)floorf(q.x / TILE), qy = (int)floorf(q.y / TILE);
-        if (S.move == MoveMode::Walk) { int f = W.nav.FloorBelow(qx, qy); if (f >= W.nav.h) continue; qy = f - 1; q = {qx * TILE + 16, qy * TILE + 16}; }
+        if (S.move == MoveMode::Walk || S.move == MoveMode::Climb) { int f = W.nav.FloorBelow(qx, qy); if (f >= W.nav.h) continue; qy = f - 1; q = {qx * TILE + 16, qy * TILE + 16}; }
         if (!W.nav.Open(qx, qy) || W.nav.Hazard(qx, qy)) continue;
         float score = Dist(q, threat) - 0.4f * Dist(q, b.pos) - (q.x > W.limitX ? 1e6f : 0.0f);
         if (score > bestScore) { bestScore = score; bestP = q; }
@@ -688,7 +747,7 @@ Vector2 ExploreTarget(BeastWorld& W, int i) {
         int qx = (int)floorf(x / TILE);
         if (qx < 1 || qx >= W.nav.w - 1 || x > W.limitX) continue;
         int qy;
-        if (S.move == MoveMode::Walk) { int f = W.nav.FloorBelow(qx, (int)floorf(b.pos.y / TILE) - 6); if (f >= W.nav.h) continue; qy = f - 1; }
+        if (S.move == MoveMode::Walk || S.move == MoveMode::Climb) { int f = W.nav.FloorBelow(qx, (int)floorf(b.pos.y / TILE) - 6); if (f >= W.nav.h) continue; qy = f - 1; }
         else { int f = W.nav.FloorBelow(qx, 2); if (f >= W.nav.h) continue; qy = f - 1 - S.band - (int)(R(W) * (3 + 6 * b.pers.wanderlust)); }
         if (!W.nav.Open(qx, qy) || W.nav.Hazard(qx, qy)) continue;
         return {qx * TILE + 16, qy * TILE + 16};
@@ -706,7 +765,7 @@ Vector2 WanderTarget(BeastWorld& W, int i) {
         if (qx < 1 || qx >= W.nav.w - 1 || x > W.limitX) continue;
         int f = W.nav.FloorBelow(qx, (int)floorf(b.pos.y / TILE) - 4);
         if (f >= W.nav.h) continue;
-        int qy = S.move == MoveMode::Walk ? f - 1 : f - 1 - S.band + (int)R(W, -2, 2);
+        int qy = S.move == MoveMode::Walk || S.move == MoveMode::Climb ? f - 1 : f - 1 - S.band + (int)R(W, -2, 2);
         if (!W.nav.Open(qx, qy) || W.nav.Hazard(qx, qy)) continue;
         return {qx * TILE + 16, qy * TILE + 16};
     }
@@ -725,9 +784,10 @@ void Kill(BeastWorld& W, PlatformState& p, int v, int killer) {
     b.vel = {b.vel.x * 0.2f, 20};
     b.latched = -1;
     W.kills++;
+    if (killer >= 0) W.deaths[0]++;
     W.scent.Emit(W.scent.blood, b.pos, 30.0f);
     W.sounds.push_back({b.pos, 0.7f, 0.6f, killer});
-    if (!p.verifying) { PlatBurst(p, b.pos, 12, Color{150, 30, 40, 255}, 110, 0.6f, 3); PlatBubbles(p, b.pos, 4); }
+    if (!p.verifying) { PlatBurst(p, b.pos, 12, Color{150, 30, 40, 255}, 110, 0.6f, 3); if (W.biome == PL_HULL) PlatBubbles(p, b.pos, 4); }
     for (auto& o : W.beasts) {
         if (o.latched == v) { o.latched = -1; o.act = BeastAct::Drift; o.actT = 0; }
         if (o.carry == v) o.carry = -1;
@@ -787,53 +847,12 @@ void HullHooks(BeastWorld& W, PlatformState& p, int i, float dt) {
     case HS_PUFFER: {
         if (b.act == BeastAct::Puffed) {
             if (b.actT > 2.6f) { b.act = BeastAct::Idle; b.actT = 0; }
-            for (auto& l : W.beasts) if (Alive(l) && l.species == HS_LEECH && l.latched == i) { l.latched = -1; l.act = BeastAct::Drift; l.actT = 0; }
+            for (auto& l : W.beasts) if (Alive(l) && Has(Sp(W.biome, l.species), T_PARASITE) && l.latched == i) { l.latched = -1; l.act = BeastAct::Drift; l.actT = 0; }
             b.vel = Mul(b.vel, 0.9f);
             break;
         }
-        bool spooked = InInk(W, b.pos) || (b.fear > 0.8f && std::any_of(std::begin(b.mem), std::end(b.mem), [&](const BeastMemory& m) { return m.kind == MEM_THREAT && Dist(m.pos, b.pos) < 60 && Recall(b, m, W.time) > 0.3f; }));
+        bool spooked = InCloud(W, b.pos) || (b.fear > 0.8f && std::any_of(std::begin(b.mem), std::end(b.mem), [&](const BeastMemory& m) { return m.kind == MEM_THREAT && Dist(m.pos, b.pos) < 60 && Recall(b, m, W.time) > 0.3f; }));
         if (spooked) { b.act = BeastAct::Puffed; b.actT = 0; W.sounds.push_back({b.pos, 0.3f, 0.3f, i}); }
-        break;
-    }
-    case HS_LEECH: {
-        if (b.latched >= 0) {
-            Beast& h = W.beasts[b.latched];
-            if (!Alive(h) || h.id != b.targetId || h.hidden) { b.latched = -1; b.act = BeastAct::Drift; b.actT = 0; break; }
-            b.pos = Add(h.pos, Vector2{-h.facing * HULL[h.species].radius * 0.6f, HULL[h.species].radius * 0.5f});
-            b.vel = h.vel;
-            b.act = BeastAct::Latched;
-            h.hunger = Clamp01(h.hunger + 0.004f * dt); // it's feeding on its host
-            if (Len(h.vel) > 260) { b.latched = -1; b.act = BeastAct::Drift; b.actT = 0; } // shaken loose by a hard sprint
-            break;
-        }
-        if (b.act == BeastAct::Drift) { // sinks and drifts, then goes looking for a new host by smell
-            b.vel.y = std::min(b.vel.y + 30 * dt, 35.0f);
-            b.vel.x = sinf(b.phase * 1.3f) * 14;
-            if (b.actT > 6) {
-                int best = -1; float bd = 180;
-                for (int j = 0; j < (int)W.beasts.size(); j++) {
-                    const Beast& h = W.beasts[j];
-                    if (!Alive(h) || h.hidden || (h.species != HS_PUFFER && h.species != HS_OCTOPUS && h.species != HS_EEL)) continue;
-                    float d = Dist(h.pos, b.pos);
-                    if (d < bd) { bd = d; best = j; }
-                }
-                if (best >= 0) { b.act = BeastAct::Follow; b.target = best; b.targetId = W.beasts[best].id; b.actT = 0; }
-            }
-        }
-        if (b.act == BeastAct::Follow && Valid(W, b.target, b.targetId) && Dist(W.beasts[b.target].pos, b.pos) < 14) { b.latched = b.target; }
-        break;
-    }
-    case HS_ANEMONE: { // anything soft it can eat that touches its tentacles, it keeps
-        if (b.act == BeastAct::Eat && b.actT > 1.6f) { b.act = BeastAct::Idle; b.actT = 0; }
-        for (int j = 0; j < (int)W.beasts.size(); j++) {
-            Beast& o = W.beasts[j];
-            if (!Alive(o) || o.hidden || Pref(W.biome, HS_ANEMONE, o.species) <= 0) continue;
-            if (Dist(o.pos, Vector2{b.pos.x, b.pos.y - 10}) < S.radius + HULL[o.species].radius + 4) {
-                Kill(W, p, j, i);
-                o.meat = 0.45f; // it eats most of it; the scraps are what the hermit crabs come for
-                b.act = BeastAct::Eat; b.actT = 0; b.hunger = 0;
-            }
-        }
         break;
     }
     case HS_BRITTLE: { // a fragile mat: a hard landing or a sprint across it breaks it; it grows back
@@ -851,6 +870,69 @@ void HullHooks(BeastWorld& W, PlatformState& p, int i, float dt) {
     }
 }
 
+// ---------------------------------------------------------------- behaviours any biome's species can have
+// A parasite (hull-leech, flea swarm, cave leech) rides its host and feeds; a hard sprint or the host dying
+// shakes it loose; it drifts or crawls a while, then goes after the nearest host it can find.
+void ParasiteTick(BeastWorld& W, int i, float dt) {
+    Beast& b = W.beasts[i];
+    const BiomeDef* B = Biome(W.biome);
+    if (b.latched >= 0) {
+        Beast& h = W.beasts[b.latched];
+        if (!Alive(h) || h.id != b.targetId || h.hidden) { b.latched = -1; b.act = BeastAct::Drift; b.actT = 0; return; }
+        const SpeciesDef& HS = Sp(W.biome, h.species);
+        b.pos = Add(h.pos, Vector2{-h.facing * HS.radius * 0.6f, -HS.radius * (B && B->water ? -0.5f : 0.7f)});
+        b.vel = h.vel;
+        b.act = BeastAct::Latched;
+        h.hunger = Clamp01(h.hunger + 0.004f * dt); // it's feeding on its host
+        if (Len(h.vel) > 260 && h.act != BeastAct::Strike) { b.latched = -1; b.act = BeastAct::Drift; b.actT = 0; } // shaken loose by a hard sprint
+        return;
+    }
+    if (b.act == BeastAct::Drift && Sp(W.biome, b.species).move == MoveMode::Swim) { b.vel.y = std::min(b.vel.y + 30 * dt, 35.0f); b.vel.x = sinf(b.phase * 1.3f) * 14; }
+    if (b.act != BeastAct::Follow && b.act != BeastAct::Flee && (b.act != BeastAct::Drift || b.actT > 6)) { // stunned a while, then it goes looking
+        if (b.cooldown <= 0) {
+            b.cooldown = 3;
+            int best = -1; float bd = 220;
+            for (int j = 0; j < (int)W.beasts.size(); j++) {
+                const Beast& h = W.beasts[j];
+                if (!Alive(h) || h.hidden || !Has(Sp(W.biome, h.species), T_HOST)) continue;
+                float d = Dist(h.pos, b.pos);
+                if (d < bd) { bd = d; best = j; }
+            }
+            if (best >= 0) { b.act = BeastAct::Follow; b.target = best; b.targetId = W.beasts[best].id; b.actT = 0; }
+        }
+    }
+    if (b.act == BeastAct::Follow && Valid(W, b.target, b.targetId) && Dist(W.beasts[b.target].pos, b.pos) < 14 + Sp(W.biome, W.beasts[b.target].species).radius * 0.5f) b.latched = b.target;
+    if (b.act == BeastAct::Follow && b.actT > 15) { b.act = BeastAct::Drift; b.actT = 0; }
+}
+
+// A trap (stinging anemone, orb web, tube worm's plume): anything it can eat that touches it, it keeps.
+void TrapTick(BeastWorld& W, PlatformState& p, int i) {
+    Beast& b = W.beasts[i];
+    const SpeciesDef& S = Sp(W.biome, b.species);
+    if (b.act == BeastAct::Eat && b.actT > 1.6f) { b.act = BeastAct::Idle; b.actT = 0; }
+    if (b.act == BeastAct::Hide) { if (b.actT > 1.2f) { b.act = BeastAct::Idle; b.actT = 0; } return; } // pulled in (a tube worm startled)
+    Vector2 at{b.pos.x, b.pos.y - S.radius};
+    for (int j = 0; j < (int)W.beasts.size(); j++) {
+        Beast& o = W.beasts[j];
+        if (!Alive(o) || o.hidden || o.act == BeastAct::Puffed || Pref(W.biome, b.species, o.species) <= 0) continue;
+        if (Dist(o.pos, at) < S.radius + Sp(W.biome, o.species).radius + 4) {
+            Kill(W, p, j, i);
+            o.meat = 0.45f; // it eats most of it; the scraps are what the scavengers come for
+            b.act = BeastAct::Eat; b.actT = 0; b.hunger = 0;
+        }
+    }
+}
+
+// A flasher (glow jelly, glow-beetle): a fright makes it light up - which startles some, and shows it to others.
+void FlashTick(BeastWorld& W, int i, float dt) {
+    Beast& b = W.beasts[i];
+    b.flashT -= dt;
+    if (b.flashT <= 0 && b.cooldown <= 0 && b.fear > 0.45f) {
+        b.flashT = 1.4f; b.cooldown = 4.0f;
+        W.sounds.push_back({b.pos, 0.35f, 0.3f, i});
+    }
+}
+
 // ---------------------------------------------------------------- one beast's tick
 void UpdateBeast(BeastWorld& W, PlatformState& p, int i, float dt) {
     Beast& b = W.beasts[i];
@@ -860,18 +942,22 @@ void UpdateBeast(BeastWorld& W, PlatformState& p, int i, float dt) {
     b.cooldown -= dt;
     b.shoveT -= dt;
 
-    if (S.move == MoveMode::Sessile) { // anemones and brittle-star mats don't decide anything: their hooks are all they do
-        if (W.biome == PL_HULL) HullHooks(W, p, i, dt);
+    const BiomeDef* BD = Biome(W.biome);
+    if (S.move == MoveMode::Sessile) { // anemones, webs and brittle-star mats don't decide anything: their hooks are all they do
+        if (Has(S, T_TRAP)) TrapTick(W, p, i);
+        if (BD && BD->hooks) BD->hooks(W, p, i, dt);
         return;
     }
     Perceive(W, p, i);
     Drives(W, i, dt);
-    if (W.biome == PL_HULL) HullHooks(W, p, i, dt);
+    if (Has(S, T_PARASITE)) ParasiteTick(W, i, dt);
+    if (Has(S, T_FLASH)) FlashTick(W, i, dt);
+    if (BD && BD->hooks) BD->hooks(W, p, i, dt);
     if (!Alive(b)) return;
     if (b.pers.abnormal == Abnormal::RabidEnraged) { b.health -= dt * 0.015f; if (b.health <= 0) { Kill(W, p, i, -1); return; } }
 
     // think: re-choose every so often (sooner for sharp beasts), or at once when newly frightened
-    bool leech = W.biome == PL_HULL && b.species == HS_LEECH;
+    bool leech = Has(S, T_PARASITE);
     bool locked = b.act == BeastAct::Coil || b.act == BeastAct::Strike || b.act == BeastAct::Eat || b.act == BeastAct::Puffed ||
                   b.act == BeastAct::Latched || (leech && (b.act == BeastAct::Drift || b.act == BeastAct::Follow));
     b.thinkT -= dt;
@@ -881,7 +967,7 @@ void UpdateBeast(BeastWorld& W, PlatformState& p, int i, float dt) {
         bool abn = b.pers.abnormal != Abnormal::None && ChooseAbnormal(W, p, i, c);
         if (!abn) c = ChooseUtility(W, p, i);
         // schooling fish follow their school's leader unless they're scared on their own account
-        if (S.social && S.move != MoveMode::Walk && b.school >= 0 && !abn && c.act != BeastAct::Flee && c.act != BeastAct::Hunt) {
+        if (S.social && (S.move == MoveMode::Swim || S.move == MoveMode::Fly) && b.school >= 0 && !abn && c.act != BeastAct::Flee && c.act != BeastAct::Hunt) {
             for (int j = 0; j < i; j++) {
                 const Beast& l = W.beasts[j];
                 if (Alive(l) && l.school == b.school && !l.hidden) {
@@ -969,10 +1055,10 @@ void UpdateBeast(BeastWorld& W, PlatformState& p, int i, float dt) {
         go = Add(tp, Mul(tv, lead));
         speed = d < S.sight * 0.7f ? sprint : spd * 1.2f;
         // the big hunters telegraph: an eel coils before it strikes, a crab winds up before it charges
-        bool striker = W.biome == PL_HULL && (b.species == HS_EEL || b.species == HS_CRAB);
-        float strikeR = b.species == HS_EEL ? 120.0f : 90.0f;
+        bool striker = Has(S, T_STRIKER);
+        float strikeR = S.reach > 0 ? S.reach : 110.0f;
         if (striker && b.act == BeastAct::Hunt && d < strikeR && b.cooldown <= 0 && W.nav.LineOfSight(b.pos, tp) &&
-            (b.species != HS_CRAB || fabsf(tp.y - b.pos.y) < TILE * 1.3f)) {
+            (!Has(S, T_CHARGER) || fabsf(tp.y - b.pos.y) < TILE * 1.3f)) {
             b.act = BeastAct::Coil; b.actT = 0; b.goal = go;
             W.sounds.push_back({b.pos, 0.25f, 0.3f, i});
         }
@@ -983,33 +1069,33 @@ void UpdateBeast(BeastWorld& W, PlatformState& p, int i, float dt) {
     case BeastAct::Coil: { // a still, visible tell - then the lunge
         speed = 0; go = b.pos;
         b.vel = Mul(b.vel, 0.85f);
-        float coilT = (b.species == HS_EEL ? 0.5f : 0.4f) - 0.15f * b.pers.aggression;
+        float coilT = (Has(S, T_CHARGER) ? 0.4f : 0.5f) - 0.15f * b.pers.aggression;
         if (b.actT > coilT) {
             Vector2 tp, tv;
             if (targetPos(tp, tv)) { float lead = b.pers.intelligence * 0.25f; b.goal = Add(tp, Mul(tv, lead)); }
             b.act = BeastAct::Strike; b.actT = 0;
             Vector2 dir = Norm(Sub(b.goal, b.pos));
-            if (S.move == MoveMode::Walk) { b.vel.x = (dir.x >= 0 ? 1 : -1) * sprint * 1.2f; if (dir.y < -0.5f && b.grounded) b.vel.y = -520; }
+            if (S.move == MoveMode::Walk) { b.vel.x = (dir.x >= 0 ? 1 : -1) * sprint * 1.2f; if (dir.y < -0.5f && b.grounded) b.vel.y = -520; else if (!Has(S, T_CHARGER) && b.grounded) b.vel.y = -260; } // a pounce leaves the ground
             else b.vel = Mul(dir, sprint * 1.25f);
         }
         break;
     }
     case BeastAct::Strike: {
         go = b.goal; speed = sprint * 1.25f;
-        float dur = b.species == HS_CRAB ? 1.1f : 0.4f;
+        float dur = Has(S, T_CHARGER) ? 1.1f : 0.4f;
         if (b.actT > dur) { b.act = BeastAct::Hunt; b.actT = 0; b.cooldown = 1.3f - 0.4f * b.pers.aggression; }
         break;
     }
     case BeastAct::Ambush: { // lying in wait: the octopus camouflaged in place, the eel in its breach with only its head out
         speed = 0; go = b.pos;
-        if (W.biome == PL_HULL && b.species == HS_EEL && b.den >= 0) {
+        if (Has(S, T_DEN_AMBUSH) && b.den >= 0) {
             if (!b.hidden) { if (Dist(DenMouth(W, b.den), b.pos) < 16) EnterDen(W, b, b.den); else { go = DenMouth(W, b.den); speed = spd; } }
             b.special2 = 1; // head out
         }
         // anything tasty that comes close gets struck at
-        for (const auto& m : b.mem) if (m.kind == MEM_PREY && Recall(b, m, W.time) > 0.2f && Dist(m.pos, b.pos) < (b.species == HS_EEL ? 110.0f : 60.0f) && PreyScore(W, b, m) > 0.05f) {
+        for (const auto& m : b.mem) if (m.kind == MEM_PREY && Recall(b, m, W.time) > 0.2f && Dist(m.pos, b.pos) < (Has(S, T_DEN_AMBUSH) ? 110.0f : 60.0f) && PreyScore(W, b, m) > 0.05f) {
             LeaveDen(W, b); b.special2 = 0;
-            b.target = m.source; b.targetId = m.sid; b.act = BeastAct::Coil; b.actT = b.species == HS_OCTOPUS ? 0.3f : 0.0f; b.goal = m.pos;
+            b.target = m.source; b.targetId = m.sid; b.act = BeastAct::Coil; b.actT = Has(S, T_CAMO) ? 0.3f : 0.0f; b.goal = m.pos;
             break;
         }
         break;
@@ -1039,7 +1125,13 @@ void UpdateBeast(BeastWorld& W, PlatformState& p, int i, float dt) {
             go = c.pos; speed = spd * 1.2f;
             if (Dist(c.pos, b.pos) < S.radius + 16) {
                 if (b.pers.abnormal == Abnormal::Kleptomaniac || b.pers.abnormal == Abnormal::CovetousHoarder) { b.carry = b.target; b.act = BeastAct::Flee; b.goal = b.den >= 0 ? DenMouth(W, b.den) : b.territory; }
-                else { b.act = BeastAct::Eat; b.actT = 0; }
+                else {
+                    if (Has(S, T_KLEPTO)) for (int j = 0; j < (int)W.beasts.size(); j++) { // the thief barges in: whoever was eating is startled off it
+                        Beast& o = W.beasts[j];
+                        if (j != i && Alive(o) && o.act == BeastAct::Eat && o.target == b.target) { Remember(o, MEM_THREAT, i, b.id, b.pos, b.vel, 0.9f, W.time); o.act = BeastAct::Flee; o.goal = FleeTarget(W, j, b.pos); o.actT = 0; }
+                    }
+                    b.act = BeastAct::Eat; b.actT = 0;
+                }
             }
         } else { // following a scent, not a body: walk up the gradient
             go = b.goal; speed = spd;
@@ -1086,10 +1178,16 @@ void UpdateBeast(BeastWorld& W, PlatformState& p, int i, float dt) {
     }
     if (b.hidden) return;
     Motor(W, p, i, go, speed, dt);
+    // moving about makes a little noise - the scurry, the scrabble of claws - that hunters listen for
+    b.noiseT -= dt;
+    if (b.noiseT <= 0 && S.move != MoveMode::Swim && Len(b.vel) > S.speed * 0.5f) {
+        b.noiseT = 0.5f + 0.4f * Hash((unsigned)b.id, (unsigned)(W.time * 10));
+        W.sounds.push_back({b.pos, std::min(0.3f, 0.08f + 0.03f * sqrtf(b.mass)) * (b.act == BeastAct::Hunt && b.pers.intelligence > 0.6f ? 0.3f : 1.0f), 0.25f, i}); // a clever stalker places its feet
+    }
 
     // got stuck (a wall a dim beast can't route around, a ledge a walker can't hop): give up on this goal
     if (Dist(b.pos, b.lastPos) > 6) { b.lastPos = b.pos; b.stuckT = 0; }
-    else if (speed > 0) { b.stuckT += dt; if (b.stuckT > 2.0f + 2.0f * (1 - b.pers.intelligence)) { b.stuckT = 0; b.path.clear(); b.goal = WanderTarget(W, i); if (b.act != BeastAct::Hunt) b.act = BeastAct::Wander; } }
+    else if (speed > 0 && b.act != BeastAct::Drift && b.act != BeastAct::Latched) { b.stuckT += dt; if (b.stuckT > 2.0f + 2.0f * (1 - b.pers.intelligence)) { b.stuckT = 0; b.path.clear(); b.goal = WanderTarget(W, i); if (b.act != BeastAct::Hunt) b.act = BeastAct::Wander; } }
 
     // contact: the catch
     if (b.act == BeastAct::Hunt || b.act == BeastAct::Strike || b.act == BeastAct::Guard || b.act == BeastAct::Mob) {
@@ -1097,7 +1195,17 @@ void UpdateBeast(BeastWorld& W, PlatformState& p, int i, float dt) {
             Beast& t = W.beasts[b.target];
             const SpeciesDef& TS = Sp(W.biome, t.species);
             if (Alive(t) && !t.hidden && Dist(t.pos, b.pos) < (S.radius + TS.radius) * 0.9f + 4) {
-                if (t.act == BeastAct::Puffed) { Hurt(W, p, i, 0.35f, t.species, false); b.act = BeastAct::Flee; b.goal = FleeTarget(W, i, t.pos); b.actT = 0; } // a mouthful of spines
+                bool eats = Pref(W.biome, b.species, t.species) > 0 || b.pers.abnormal == Abnormal::GluttonousDevourer || b.pers.abnormal == Abnormal::RabidEnraged;
+                if (t.act == BeastAct::Puffed || (Has(TS, T_TOXIC) && b.act != BeastAct::Mob)) { // a mouthful of spines, or of poison: spat out, and remembered
+                    Hurt(W, p, i, 0.35f, t.species, false); b.act = BeastAct::Flee; b.goal = FleeTarget(W, i, t.pos); b.actT = 0;
+                    if (Has(TS, T_TOXIC)) t.vel = Add(t.vel, Mul(Norm(Sub(t.pos, b.pos)), 200));
+                }
+                else if (!eats && b.act != BeastAct::Mob && b.act != BeastAct::Guard) { // a defensive charge: it bowls the thing over and hurts it, it doesn't eat it
+                    Hurt(W, p, b.target, 0.4f, b.species, false);
+                    Remember(t, MEM_THREAT, i, b.id, b.pos, b.vel, 1.0f, W.time);
+                    t.vel = Add(t.vel, Vector2{(t.pos.x > b.pos.x ? 1.0f : -1.0f) * 300, -200});
+                    b.act = BeastAct::Wander; b.thinkT = 0.5f; b.cooldown = 2.0f;
+                }
                 else if (b.act == BeastAct::Mob || (b.act == BeastAct::Guard && t.mass > b.mass * 1.5f)) { // harassment, not a kill
                     Remember(t, MEM_THREAT, i, b.id, b.pos, b.vel, 0.9f, W.time);
                     Hurt(W, p, b.target, 0.15f * dt, b.species, false);
@@ -1140,17 +1248,27 @@ void UpdateBeast(BeastWorld& W, PlatformState& p, int i, float dt) {
     }
     // a suicidal beast that reaches its hazard, or anything panicked into one, dies on it
     int tx = (int)floorf(b.pos.x / TILE), ty = (int)floorf(b.pos.y / TILE);
-    if (W.nav.Hazard(tx, ty) && (b.pers.abnormal == Abnormal::SuicidalSelfDestructive || S.move == MoveMode::Walk)) Kill(W, p, i, -1);
-    // stray torpedoes and cannonballs kill small things in their way
-    for (const auto& s : p.shots) if ((s.kind == 4 || s.kind == 5) && Dist(s.pos, b.pos) < S.radius + 8 && b.mass < 5) { Kill(W, p, i, -1); break; }
+    if (W.nav.Hazard(tx, ty) && (b.pers.abnormal == Abnormal::SuicidalSelfDestructive || S.move == MoveMode::Walk || S.move == MoveMode::Climb)) { W.deaths[1]++; if (getenv("DEPTH_BEASTLOG")) TraceLog(LOG_WARNING, "  hazard death: %s %s at tile (%d,%d) %c below %c waterY %.0f vel (%.0f,%.0f)", Sp(W.biome, b.species).name, BeastActName(b.act), tx, ty, PlatTileAt(p, tx, ty), PlatTileAt(p, tx, ty + 1), p.waterY, b.vel.x, b.vel.y); Kill(W, p, i, -1); return; }
+    // stray shots kill what's in their way: torpedoes and cannonballs anything smallish, a musket ball anything
+    // small, an explosion anything in its blast (friendly fire - the pirates don't aim around the ship's cat)
+    for (const auto& s : p.shots) {
+        float r = s.kind == 2 ? 40.0f : S.radius + 8;
+        float maxMass = s.kind == 0 ? 3.0f : s.kind == 2 ? 15.0f : (s.kind == 4 || s.kind == 5 || s.kind == 6) ? 5.0f : 0.0f;
+        if (b.mass < maxMass && Dist(s.pos, b.pos) < r) { W.deaths[3]++; Kill(W, p, i, -1); return; }
+    }
+    // the sea: anything that falls in off the Pirate Ship's decks drowns
+    if (p.waterY > 0 && b.pos.y > p.waterY + 8 && S.move != MoveMode::Fly) { W.deaths[2]++; Kill(W, p, i, -1); }
 }
 
-void UpdateCorpse(BeastWorld& W, int i, float dt) {
+void UpdateCorpse(BeastWorld& W, const PlatformState& p, int i, float dt) {
     Beast& b = W.beasts[i];
     const SpeciesDef& S = Sp(W.biome, b.species);
     b.corpseT += dt;
     b.vel.x *= 0.95f;
-    b.vel.y = std::min(b.vel.y + 60 * dt, S.move == MoveMode::Walk ? 600.0f : 40.0f); // bodies sink slowly in water
+    const BiomeDef* B = Biome(W.biome);
+    if (B && !B->water) b.vel.y = std::min(b.vel.y + WALK_G * dt, 700.0f); // in air a body drops
+    else b.vel.y = std::min(b.vel.y + 60 * dt, S.move == MoveMode::Walk ? 600.0f : 40.0f); // bodies sink slowly in water
+    if (p.waterY > 0 && b.pos.y > p.waterY) { b.vel = {b.vel.x * 0.9f, 10}; if (b.pos.y > p.waterY + 40) b.life = BeastLife::Gone; } // sinks away under the waves
     bool g;
     Collide(W.nav, b.pos, b.vel, HalfW(S, b), HalfH(S, b), dt, g);
     W.scent.Emit(W.scent.blood, b.pos, 8.0f * b.meat * dt * (b.corpseT < 12 ? 1.0f : 0.4f));
@@ -1269,7 +1387,60 @@ void SpawnHull(BeastWorld& W, PlatformState& p) {
     }
     W.hides = 0;
 }
-}  // namespace
+bool HullLethal(const BeastWorld& W, const Beast& b) {
+    (void)W;
+    if (b.species == HS_PUFFER) return b.act == BeastAct::Puffed;
+    return HULL[b.species].lethal;
+}
+bool HullTouch(const BeastWorld& W, const Beast& b, Rectangle diver) {
+    (void)W;
+    if (b.life != BeastLife::Alive) return false;
+    if (b.species == HS_EEL && b.hidden && b.act == BeastAct::Ambush) return CheckCollisionCircleRec({b.pos.x, b.pos.y - 22}, 8, diver); // its head out of the breach bites too
+    if (b.hidden) return false;
+    if (b.species == HS_PUFFER && b.act == BeastAct::Puffed) return CheckCollisionCircleRec(b.pos, 16, diver);
+    if (b.species == HS_EEL) // an eel's body is as dangerous as its jaws, a couple of segments back
+        for (int k = 1; k <= 3; k++) if (CheckCollisionCircleRec(b.spine[k], HULL[HS_EEL].radius * 0.6f, diver)) return true;
+    return false;
+}
+const BiomeDef& HullBiome() {
+    static const BiomeDef B = [] {
+        BiomeDef d;
+        d.level = PL_HULL; d.species = HULL; d.count = HS_COUNT; d.web = HULL_WEB; d.webN = (int)(sizeof(HULL_WEB) / sizeof(HULL_WEB[0]));
+        d.water = true; d.clarity = 0.9f; d.daylight = 0.6f; d.arenaLimit = true;
+        d.spawn = SpawnHull; d.hooks = HullHooks; d.lethal = HullLethal; d.touch = HullTouch;
+        return d;
+    }();
+    return B;
+}
+
+// ---------------------------------------------------------------- spawning helpers shared by every biome
+void Spots::Build(const BeastWorld& W, const PlatformState& p, int x0, int x1) {
+    const NavGrid& N = W.nav;
+    floor.clear();
+    for (int x = x0; x < x1; x++) {
+        if (x * TILE > W.limitX - 2 * TILE) break;
+        for (int y = 2; y < N.h - 1; y++) {
+            if (!N.Standable(x, y) || N.Hazard(x, y)) continue;
+            char below = PlatTileAt(p, x, y + 1);
+            if (below == 'x' || below == 'g' || below == 't' || below == 'f') continue;
+            if (p.waterY > 0 && (y + 1) * TILE > p.waterY) continue;
+            floor.push_back({x * TILE + 16.0f, (float)y});
+            break;
+        }
+    }
+}
+Vector2 Spots::Above(const BeastWorld& W, Vector2 f, int band) const {
+    int y = std::max(2, (int)f.y - band);
+    while (y < (int)f.y && !W.nav.Open((int)(f.x / TILE), y)) y++;
+    return {f.x, y * TILE + 16.0f};
+}
+int SpawnCorpse(BeastWorld& W, int species, Vector2 at, float meat) {
+    int k = NewBeast(W, species, at);
+    Beast& c = W.beasts[k];
+    c.life = BeastLife::Corpse; c.corpseT = 0; c.meat = meat; c.act = BeastAct::Idle; c.vel = {0, 0};
+    return k;
+}}  // namespace bk
+using namespace bk;
 
 // ---------------------------------------------------------------- scent grid (reference 4.1)
 void ScentGrid::Init(int cw, int chh, float cellPx) {
@@ -1338,8 +1509,9 @@ int NavGrid::FloorBelow(int x, int y) const {
 bool NavGrid::FindPath(MoveMode m, Vector2 from, Vector2 to, std::vector<Vector2>& out, int maxExpand) const {
     out.clear();
     if (w <= 0 || h <= 0 || m == MoveMode::Sessile) return false;
-    bool walk = m == MoveMode::Walk;
-    auto valid = [&](int x, int y) { return walk ? Standable(x, y) : Open(x, y); };
+    bool walk = m == MoveMode::Walk, climb = m == MoveMode::Climb;
+    auto surface = [&](int x, int y) { for (int dy = -1; dy <= 1; dy++) for (int dx = -1; dx <= 1; dx++) if ((dx || dy) && Solid(x + dx, y + dy)) return true; return false; };
+    auto valid = [&](int x, int y) { return walk ? Standable(x, y) : climb ? Open(x, y) && surface(x, y) : Open(x, y); };
     auto snap = [&](Vector2 v, int& x, int& y) -> bool {
         x = std::clamp((int)floorf(v.x / tile), 0, w - 1);
         y = std::clamp((int)floorf(v.y / tile), 0, h - 1);
@@ -1365,7 +1537,8 @@ bool NavGrid::FindPath(MoveMode m, Vector2 from, Vector2 to, std::vector<Vector2
     int expanded = 0, bestK = sk; float bestH = H(sx, sy);
     auto push = [&](int from_k, int x, int y, float cost) {
         int k = y * w + x;
-        float ng = g[from_k] + cost + (Hazard(x, y) ? (walk ? 25.0f : 8.0f) : 0.0f);
+        if ((walk || climb) && (Hazard(x, y) || Hazard(x, y + 1))) return; // walkers never plan a route through spikes or the sea
+        float ng = g[from_k] + cost + (Hazard(x, y) ? 8.0f : 0.0f);
         if (stamp[k] == curStamp && g[k] <= ng) return;
         stamp[k] = curStamp; g[k] = ng; parent[k] = from_k;
         open.push({ng + H(x, y), ng, k});
@@ -1383,7 +1556,7 @@ bool NavGrid::FindPath(MoveMode m, Vector2 from, Vector2 to, std::vector<Vector2
                 for (int dx = -1; dx <= 1; dx++) {
                     if (!dx && !dy) continue;
                     int nx = x + dx, ny = y + dy;
-                    if (!Open(nx, ny)) continue;
+                    if (!Open(nx, ny) || (climb && !surface(nx, ny))) continue;
                     if (dx && dy && (!Open(x + dx, y) || !Open(x, y + dy))) continue;
                     push(cur.k, nx, ny, dx && dy ? 1.414f : 1.0f);
                 }
@@ -1430,13 +1603,14 @@ const char* BeastActName(BeastAct a) {
     return n[(int)a];
 }
 const SpeciesDef& BeastSpecies(int biome, int species) { return Sp(biome, species); }
-int BeastSpeciesCount(int biome) { return biome == PL_HULL ? HS_COUNT : 0; }
-bool BeastsUsed(int level) { return level == PL_HULL; }
+int BeastSpeciesCount(int biome) { const BiomeDef* B = Biome(biome); return B ? B->count : 0; }
+bool BeastsUsed(int level) { return Biome(level) != nullptr; }
 
 void BeastsBuild(PlatformState& p, unsigned seed) {
     BeastWorld& W = p.fauna;
     W = BeastWorld{};
-    if (!BeastsUsed(p.level) || p.verifying) return;
+    const BiomeDef* B = Biome(p.level);
+    if (!B || p.verifying) return;
     W.biome = p.level;
     W.active = true;
     W.seed = seed * 2654435761u + 977u;
@@ -1449,14 +1623,16 @@ void BeastsBuild(PlatformState& p, unsigned seed) {
         for (int x = 0; x < N.w; x++) {
             N.solid[y * N.w + x] = PlatSolid(p, x, y) ? 1 : 0;
             char c = PlatTileAt(p, x, y);
-            N.hazard[y * N.w + x] = (c == 'x' || c == 'g') ? 1 : 0;
+            N.hazard[y * N.w + x] = (c == 'x' || c == 'g' || (p.waterY > 0 && (y + 1) * TILE > p.waterY + TILE)) ? 1 : 0; // spikes, mines, and the sea under the Pirate Ship
+            if (c == 'o') W.lamps.push_back({x * TILE + 16.0f, y * TILE + 16.0f});
         }
     W.scent.Init(N.w, N.h, TILE);
-    if (p.level == PL_HULL && !p.partX.empty()) W.limitX = p.partX.back() * TILE; // stay out of the Kraken's arena
+    if (B->arenaLimit && !p.partX.empty()) W.limitX = p.partX.back() * TILE; // stay out of the boss's arena
     for (int y = 0; y < N.h; y++)
         for (int x = 0; x < N.w; x++)
             if (PlatTileAt(p, x, y) == 'D' && x * TILE < W.limitX) { Den d; d.tx = x; d.ty = y; d.pos = {x * TILE + 16.0f, y * TILE + 0.0f}; W.dens.push_back(d); }
-    if (p.level == PL_HULL) SpawnHull(W, p);
+    if (B->spawn) B->spawn(W, p);
+    W.hides = 0;
 }
 
 void BeastsNoise(PlatformState& p, Vector2 at, float intensity) {
@@ -1476,9 +1652,52 @@ void BeastsDiverRespawned(PlatformState& p, Vector2 at) {
     }
 }
 
-void BeastsUpdate(PlatformState& p, float dt) {
-    BeastWorld& W = p.fauna;
+// ---------------------------------------------------------------- the gait (procedural animation, see ik.h)
+// A walker's feet stay planted where they landed while the body moves over them; when a foot falls too far
+// behind where it ought to be, it lifts and steps ahead of the body - diagonal pairs taking turns, so a trot
+// reads as a trot at any speed, and a beast on a slope or a step puts its feet on the real ground.
+Vector2 BeastHip(const Beast& b, const SpeciesDef& S, int leg) {
+    float r = S.radius * b.scale;
+    float x = leg < 2 ? r * 0.55f : -r * 0.5f;
+    float depth = (leg % 2 == 0) ? 1.5f : -1.5f;
+    return {b.pos.x + b.facing * x + depth, b.pos.y + r * 0.15f};
+}
+void UpdateGait(const BeastWorld& W, Beast& b, const SpeciesDef& S, float dt) {
+    float r = S.radius * b.scale, legLen = HalfH(S, b) + r * 0.2f;
+    float speed = fabsf(b.vel.x), stride = r * 0.6f + speed * 0.07f;
+    float dur = std::clamp(0.3f - speed / 900.0f, 0.09f, 0.3f);
+    for (int k = 0; k < LEGS; k++) {
+        Leg& L = b.legs[k];
+        Vector2 hip = BeastHip(b, S, k);
+        // the ground under this hip: the top of the first solid tile within reach
+        int tx = (int)floorf(hip.x / TILE), ty = (int)floorf(hip.y / TILE);
+        float ground = -1;
+        for (int y = ty; y <= ty + 1 + (int)(legLen / TILE); y++) if (W.nav.Solid(tx, y)) { ground = y * TILE; break; }
+        bool reach = ground >= 0 && ground - hip.y <= legLen * 1.6f;
+        Vector2 rest = reach ? Vector2{hip.x + b.vel.x * 0.08f, ground} : Vector2{hip.x - b.vel.x * 0.03f, hip.y + legLen * 0.75f};
+        if (!L.init) { L.foot = L.from = L.to = rest; L.t = 1; L.init = true; }
+        if (!reach || !b.grounded) { L.foot = Add(L.foot, Mul(Sub(rest, L.foot), std::min(1.0f, dt * 14))); L.t = 1; continue; } // tucked up in a leap
+        if (L.t < 1) {
+            L.t = std::min(1.0f, L.t + dt / dur);
+            float e = L.t * L.t * (3 - 2 * L.t);
+            L.foot = Add(L.from, Mul(Sub(L.to, L.from), e));
+            L.foot.y -= sinf(L.t * PI) * std::min(r * 0.5f, 3 + speed * 0.02f); // the lift
+            continue;
+        }
+        const Leg& partner = b.legs[k ^ 1]; // the other leg of the same end must be down before this one goes
+        const Leg& diag = b.legs[3 - k];     // and its diagonal partner steps with it
+        if (partner.t < 1 && diag.t >= 1 && partner.t < 0.6f) continue;
+        if (Dist(L.foot, rest) > stride || fabsf(L.foot.y - ground) > 2) {
+            L.from = L.foot;
+            L.to = {rest.x + b.vel.x * dur * 0.7f, ground};
+            L.t = 0;
+        } else L.foot.y = ground;
+    }
+}
+
+void BeastsUpdate(PlatformState& p, float dt) {    BeastWorld& W = p.fauna;
     if (!W.active) return;
+    const BiomeDef* B = Biome(W.biome);
     dt = std::min(dt, 0.05f);
     W.time += dt;
     W.replansLeft = 8;
@@ -1486,20 +1705,25 @@ void BeastsUpdate(PlatformState& p, float dt) {
     W.sounds.erase(std::remove_if(W.sounds.begin(), W.sounds.end(), [](const SoundEvent& s) { return s.life <= 0; }), W.sounds.end());
     for (auto& k : W.ink) k.life -= dt;
     W.ink.erase(std::remove_if(W.ink.begin(), W.ink.end(), [](const InkPuff& k) { return k.life <= 0; }), W.ink.end());
+    // this tick's lights: whatever is flashing
+    W.lights.clear();
+    for (const auto& b : W.beasts) if (Alive(b) && b.flashT > 0) W.lights.push_back({b.pos, 5 * TILE, 1.0f});
     Diver dv = SeeDiver(p);
+    bool deaf = B && B->ignoreDiver;
     W.scentT += dt;
     if (W.scentT >= 0.05f) {
-        if (dv.alive) W.scent.Emit(W.scent.trail, dv.pos, 1.2f);
+        if (dv.alive && !deaf) W.scent.Emit(W.scent.trail, dv.pos, 1.2f);
         W.scent.Step(W.scentT, W.nav.solid);
         W.scentT = 0;
     }
     // the diver's footfalls: running is quieter than landing, but it carries
     W.noiseT -= dt;
-    if (dv.alive && p.onGround && fabsf(p.vel.x) > 200 && W.noiseT <= 0) { W.noiseT = 0.35f; W.sounds.push_back({dv.pos, 0.18f, 0.3f, -1}); }
+    if (dv.alive && !deaf && p.onGround && fabsf(p.vel.x) > 200 && W.noiseT <= 0) { W.noiseT = 0.35f; W.sounds.push_back({dv.pos, 0.18f, 0.3f, -1}); }
+    if (B && B->tick) B->tick(W, p, dt);
     for (int i = 0; i < (int)W.beasts.size(); i++) {
         Beast& b = W.beasts[i];
         if (b.life == BeastLife::Gone) continue;
-        if (b.life == BeastLife::Corpse) { UpdateCorpse(W, i, dt); continue; }
+        if (b.life == BeastLife::Corpse) { UpdateCorpse(W, p, i, dt); continue; }
         UpdateBeast(W, p, i, dt);
         // segmented bodies trail behind the head
         const SpeciesDef& S = Sp(W.biome, b.species);
@@ -1510,6 +1734,7 @@ void BeastsUpdate(PlatformState& p, float dt) {
             float l = Len(d);
             if (l > seg) b.spine[k] = Add(b.spine[k - 1], Mul(d, seg / l));
         }
+        if (S.move == MoveMode::Walk && !b.hidden && b.life == BeastLife::Alive) UpdateGait(W, b, S, dt);
     }
     Repopulate(W, p, dt);
 }
@@ -1517,29 +1742,22 @@ void BeastsUpdate(PlatformState& p, float dt) {
 bool BeastLethalNow(const PlatformState& p, const Beast& b) {
     const BeastWorld& W = p.fauna;
     if (b.life != BeastLife::Alive || b.hidden) return false;
-    const SpeciesDef& S = Sp(W.biome, b.species);
-    if (!S.lethal) return false;
-    if (W.biome == PL_HULL && b.species == HS_PUFFER) return b.act == BeastAct::Puffed;
-    return true;
+    const BiomeDef* B = Biome(W.biome);
+    if (B && B->lethal) return B->lethal(W, b);
+    return Sp(W.biome, b.species).lethal;
 }
 bool BeastsTouchDiver(const PlatformState& p, Rectangle diver) {
     const BeastWorld& W = p.fauna;
     if (!W.active) return false;
+    const BiomeDef* B = Biome(W.biome);
     for (const auto& b : W.beasts) {
-        if (W.biome == PL_HULL && b.species == HS_EEL && b.life == BeastLife::Alive && b.hidden && b.act == BeastAct::Ambush) {
-            if (CheckCollisionCircleRec({b.pos.x, b.pos.y - 22}, 8, diver)) return true; // its head out of the breach bites too
-            continue;
-        }
+        if (B && B->touch && B->touch(W, b, diver)) return true;
         if (!BeastLethalNow(p, b)) continue;
         const SpeciesDef& S = Sp(W.biome, b.species);
-        float r = (W.biome == PL_HULL && b.species == HS_PUFFER) ? 16.0f : S.radius * b.scale * 0.85f;
-        if (CheckCollisionCircleRec(b.pos, r, diver)) return true;
-        if (W.biome == PL_HULL && b.species == HS_EEL) // an eel's body is as dangerous as its jaws, a couple of segments back
-            for (int k = 1; k <= 3; k++) if (CheckCollisionCircleRec(b.spine[k], S.radius * 0.6f, diver)) return true;
+        if (CheckCollisionCircleRec(b.pos, S.radius * b.scale * 0.85f, diver)) return true;
     }
     return false;
 }
-
 // ---------------------------------------------------------------- depth.exe --verify-beasts
 bool VerifyBeasts() {
     bool ok = true;

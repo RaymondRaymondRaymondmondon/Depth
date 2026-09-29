@@ -325,7 +325,7 @@ int main(int argc, char** argv) {
     }
     if (argc >= 2 && strcmp(argv[1], "--verify-pirate-ecosystem") == 0) {
         SetTraceLogLevel(LOG_WARNING);
-        return VerifyPirateEcosystem() ? 0 : 1;
+        return VerifyBeastBiome(PL_PIRATE) ? 0 : 1;
     }
     if (argc >= 2 && strcmp(argv[1], "--verify-island-ecosystem") == 0) {
         SetTraceLogLevel(LOG_WARNING);

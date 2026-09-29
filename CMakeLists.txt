@@ -40,5 +40,6 @@ add_executable(depth
     src/chargen.cpp
     src/abyss.cpp
     src/beasts.cpp
+    src/beasts_biomes.cpp
 )
 target_link_libraries(depth PRIVATE raylib)
