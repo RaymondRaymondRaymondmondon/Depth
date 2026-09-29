@@ -1051,7 +1051,7 @@ void StepPlayer(PlatformState& p, float dir, bool jumpHeld) {
     p.slickT -= STEP;
     if (p.pose == 1) { // the ground slide: nearly frictionless, it carries on under its own momentum
         float s = p.vel.x > 0 ? 1.0f : -1.0f;
-        p.vel.x -= s * SLIDE_FRICTION * STEP;
+        p.vel.x -= s * SLIDE_FRICTION * (p.slickT > 0 ? 0.3f : 1.0f) * STEP; // on glassy slime a slide barely slows
         if (p.vel.x * s < 0) p.vel.x = 0;
         bool end = !p.onGround || fabsf(p.vel.x) < 90 || !p.inDown;
         if (end && HeadroomToStand(p)) p.pose = 0;
@@ -1215,10 +1215,11 @@ void StepPlayer(PlatformState& p, float dir, bool jumpHeld) {
         bool soft = !p.verifying && BeastsSoftLanding(p); // cannon-moss soaks up the landing: no sound, no stun
         float launch = p.verifying ? 0.0f : BeastsLandingLaunch(p, fallSpeed); // a root-sponge or a drum-fungus throws you back up
         if (launch > 0) { p.vel.y = -launch; p.onGround = false; p.dashReady = true; soft = true; p.scale = {0.8f, 1.25f}; }
+        if (launch < 0) soft = true;
         if (fallSpeed > 250 && !soft) BeastsNoise(p, {p.pos.x + PW / 2, p.pos.y + PH}, std::min(1.4f, fallSpeed / 600.0f)); // a hard landing carries a long way
         if (p.pose == 4 || p.pose == 7 || p.pose == 8) p.pose = 0;
         // the impact roll: Down and a direction as you land turn the fall into forward speed ...
-        if (launch > 0) {} // (already airborne again)
+        if (launch != 0) {} // (already airborne again, or turned sideways by prism-moss)
         else if (fallSpeed > ROLL_MIN_V && p.downBuf > 0 && dir != 0 && !p.verifying) {
             p.pose = 2; p.moveT = ROLL_T; p.boostT = 0.8f;
             p.vel.x = std::clamp(p.vel.x + dir * 0.7f * fallSpeed, -RUN * 1.8f, RUN * 1.8f);
@@ -4851,7 +4852,75 @@ void DrawAtlantisBeast(const PlatformState& p, const Beast& b, float t) {
         DrawCircle((int)(pts[0].x + hd.x * 2), (int)(pts[0].y - 2), 1.4f, Color{140, 240, 250, 255});
         break;
     }
+    case AS_OLEVIATHAN: { // the Orichalcum Leviathan: a gentle whale crusted in glowing Atlantean crystal
+        Color hide{60, 70, 96, 255}, crystal{250, 200, 90, 255};
+        float bob = sinf(t * 0.6f + b.phase) * 2;
+        DrawEllipse((int)x, (int)(y + bob), 68, 22, FAUNA_INK); DrawEllipse((int)x, (int)(y + bob), 66, 20, hide);
+        DrawEllipse((int)x, (int)(y + bob + 9), 56, 9, Color{120, 128, 150, 255});
+        DrawTri({x - f * 64, y + bob}, {x - f * 90, y + bob - 16}, {x - f * 84, y + bob + 2}, hide); DrawTri({x - f * 64, y + bob}, {x - f * 90, y + bob + 16}, {x - f * 84, y + bob + 2}, hide);
+        for (int k = 0; k < 8; k++) { float cx = x - 48 + k * 13, ch = 8 + (k * 5 % 4) * 3, gl = 0.6f + 0.4f * sinf(t * 2 + k); DrawTri({cx - 4, y + bob - 18}, {cx + 4, y + bob - 18}, {cx, y + bob - 18 - ch}, Fade(crystal, gl)); }
+        DrawRectangle((int)x - 60, (int)(y + bob - 24), 120, 3, Fade(crystal, 0.5f)); // the ridge you ride on
+        DrawCircle((int)(x + f * 52), (int)(y + bob - 2), 2.2f, Color{250, 230, 160, 255});
+        break;
+    }
+    case AS_SCOURGE: { // Poseidon's Scourge: a colossal golden serpent, its body trailing back out of the dark
+        Color gold{210, 170, 60, 255}, dark{120, 90, 30, 255};
+        Vector2 prev = b.pos;
+        for (int k = 1; k <= 14; k++) { Vector2 q{b.pos.x - b.facing * k * 22 + sinf(t * 3 - k * 0.6f) * 3, b.pos.y + sinf(t * 2.5f - k * 0.5f) * 18}; float w = 30 - k * 1.2f; DrawLineEx(prev, q, w + 4, FAUNA_INK); DrawLineEx(prev, q, w, k % 2 ? gold : Tone(gold, -0.15f)); DrawLineEx({prev.x, prev.y + w * 0.3f}, {q.x, q.y + w * 0.3f}, w * 0.3f, dark); prev = q; }
+        Vector2 h = b.pos;
+        DrawEllipse((int)h.x, (int)h.y, 30, 20, FAUNA_INK); DrawEllipse((int)h.x, (int)h.y, 28, 18, gold);
+        for (int k = 0; k < 5; k++) DrawTri({h.x - 14 + k * 7, h.y - 16}, {h.x - 10 + k * 7, h.y - 16}, {h.x - 12 + k * 7, h.y - 32 - (k % 2) * 6}, Color{250, 230, 150, 255}); // the crown of spines
+        DrawTri({h.x + b.facing * 20, h.y - 4}, {h.x + b.facing * 44, h.y - 14}, {h.x + b.facing * 44, h.y + 16}, Color{90, 20, 30, 255}); // the gape
+        for (int k = 0; k < 4; k++) DrawTri({h.x + b.facing * (24 + k * 5), h.y - 6}, {h.x + b.facing * (27 + k * 5), h.y - 6}, {h.x + b.facing * (25 + k * 5), h.y}, WHITE);
+        DrawCircle((int)(h.x + b.facing * 10), (int)h.y - 6, 3.5f, Color{255, 90, 40, 255});
+        break;
+    }
+    case AS_CMINNOW: { // crystal-minnows: a sliver of stored light; startled, a blinding flash
+        bool flash = b.flashT > 0;
+        if (flash) DrawCircle((int)x, (int)y, 28, Fade(Color{255, 250, 220, 255}, 0.35f * std::min(1.0f, b.flashT)));
+        DrawEllipse((int)x, (int)y, 3.5f, 1.4f, flash ? WHITE : Color{180, 230, 240, 255});
+        DrawTri({x - f * 3, y}, {x - f * 6, y - 2}, {x - f * 6, y + 2}, Color{150, 210, 230, 255});
+        break;
+    }
+    case AS_SNAIL: { // a mosaic-snail: a shell of tiny coloured tiles
+        DrawEllipse((int)x - (int)f * 2, (int)y + 2, 6, 2, Color{170, 200, 190, 255});
+        DrawCircle((int)x, (int)y - 2, 4.5f, FAUNA_INK);
+        for (int k = 0; k < 6; k++) DrawRectangle((int)(x - 3 + (k % 3) * 2), (int)(y - 5 + (k / 3) * 3), 2, 2, k % 3 == 0 ? Color{200, 80, 60, 255} : k % 3 == 1 ? Color{60, 120, 200, 255} : Color{230, 200, 90, 255});
+        break;
+    }
+    case AS_SUNKELP: { // sun-crystal kelp: fronds holding a blazing crystal
+        for (int k = 0; k < 3; k++) { float sw = sinf(t + k) * 3; DrawLineEx({x + (k - 1) * 3.0f, y}, {x + (k - 1) * 3.0f + sw, y - 24}, 2, Color{70, 120, 80, 255}); }
+        DrawCircle((int)x, (int)y - 26, 22, Fade(Color{255, 240, 170, 255}, 0.18f));
+        DrawTri({x - 5, y - 24}, {x + 5, y - 24}, {x, y - 36}, Color{255, 240, 170, 255});
+        break;
+    }
+    case AS_PRISM: { // prism-moss: faceted, rainbow-glinting
+        for (int k = 0; k < 8; k++) { float hx = x - 14 + k * 4, hh = 3 + (k % 3) * 2; Color c = k % 3 == 0 ? Color{240, 120, 200, 255} : k % 3 == 1 ? Color{120, 220, 240, 255} : Color{240, 230, 120, 255}; if (b.flashT > 0) c = WHITE; DrawTri({hx - 2, y}, {hx + 2, y}, {hx, y - hh}, c); }
+        break;
+    }
+    case AS_AVINE: { // an aqueduct-vine hanging from the stonework
+        float len = b.special2, sw = sinf(t * 0.9f + b.phase) * 6 + (b.act == BeastAct::Eat ? b.facing * 14 * (1 - std::min(1.0f, b.actT / 0.5f)) : 0);
+        Vector2 prev{x, y};
+        for (int k = 1; k <= 8; k++) { Vector2 q{x + sw * k / 8.0f, y + len * k / 8.0f}; DrawLineEx(prev, q, 4, FAUNA_INK); DrawLineEx(prev, q, 2.6f, Color{90, 130, 70, 255}); if (k % 2) DrawEllipse((int)q.x + 3, (int)q.y, 3, 1.5f, Color{110, 160, 80, 255}); prev = q; }
+        break;
+    }
+    case AS_LILY: { // a stasis-lily: a pale bud full of gel
+        if (b.act == BeastAct::Drift) { DrawEllipse((int)x, (int)y - 3, 6, 2, Color{150, 200, 190, 255}); break; }
+        DrawLineEx({x, y}, {x, y - 8}, 1.5f, Color{80, 130, 90, 255});
+        for (int k = 0; k < 5; k++) { float an = -PI / 2 + (k - 2) * 0.5f; DrawEllipse((int)(x + cosf(an) * 5), (int)(y - 10 + sinf(an) * 4), 3, 5, Color{210, 250, 240, 255}); }
+        break;
+    }
+    case AS_RUINSPORE: { // ruin-spore: a crust of grey fungus in a fractured block
+        if (b.act == BeastAct::Drift) break;
+        for (int k = 0; k < 6; k++) DrawCircle((int)(x - 8 + k * 3), (int)(y - 3 - (k % 2) * 2), 2.2f, Color{150, 150, 140, 255});
+        DrawLineEx({x - 10, y - 8}, {x + 2, y - 14}, 1, FAUNA_INK); DrawLineEx({x + 2, y - 14}, {x + 10, y - 9}, 1, FAUNA_INK); // the crack it has opened
+        break;
+    }
     default: DrawCircle((int)x, (int)y, 5, Color{200, 200, 200, 255}); break;
+    }
+    if (b.species == AS_GUARDIAN && b.life == BeastLife::Alive) { // the Phalanx: its charge, and its hard-light beam
+        if (b.anchor.x > 0) DrawCircle((int)x, (int)y - 6, 10 + b.anchor.x * 20, Fade(Color{160, 240, 255, 255}, 0.3f));
+        if (b.special2 > 0) { float x0 = std::min(x, b.goal.x), x1 = std::max(x, b.goal.x); DrawRectangle((int)x0, (int)y - 16, (int)(x1 - x0), 32, Fade(Color{190, 250, 255, 255}, 0.6f)); DrawRectangle((int)x0, (int)y - 4, (int)(x1 - x0), 8, WHITE); }
     }
     (void)p;
 }
@@ -5146,6 +5215,7 @@ void DrawBeastProps(const PlatformState& p, float t) {
     for (const auto& k : p.fauna.props) { // a lit powder keg, its fuse spitting faster as it burns down
         float x = k.pos.x, y = k.pos.y;
         if (p.fauna.biome == PL_CAVE) { DrawCircle((int)x, (int)y, 3.5f, FAUNA_INK); DrawCircle((int)x, (int)y, 2.6f, Color{110, 104, 100, 255}); continue; } // an Echo-Stalker's thrown stone
+        if (p.fauna.biome == PL_ATLANTIS) { DrawEllipse((int)x, (int)y - 1, 9, 2, Fade(Color{200, 240, 255, 255}, 0.45f * (1 - k.t / 25))); continue; } // a mosaic-snail's glassy slime
         DrawRectangle((int)x - 6, (int)y - 7, 12, 13, FAUNA_INK);
         DrawRectangle((int)x - 5, (int)y - 6, 10, 11, Color{120, 80, 44, 255});
         DrawRectangle((int)x - 5, (int)y - 3, 10, 1, Color{70, 70, 76, 255}); DrawRectangle((int)x - 5, (int)y + 2, 10, 1, Color{70, 70, 76, 255});

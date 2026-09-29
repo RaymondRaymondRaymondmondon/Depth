@@ -222,7 +222,7 @@ void BeastsNoise(PlatformState& p, Vector2 at, float intensity); // the diver's 
 void BeastsDiverRespawned(PlatformState& p, Vector2 at);          // lethal beasts near a checkpoint scatter instead of camping it
 void BeastsTerrainChanged(PlatformState& p);
 bool BeastsSoftLanding(const PlatformState& p);                    // landing on cannon-moss: silent, and no stun
-float BeastsLandingLaunch(PlatformState& p, float fallSpeed);        // landing on a root-sponge or a drum-fungus: the upward speed it throws you back with (0 = none)                       // the tiles changed (a ship snapped): re-read the map, move dens, drop routes
+float BeastsLandingLaunch(PlatformState& p, float fallSpeed);        // landing on a root-sponge or a drum-fungus: the upward speed it throws you back with (0 = none; -1 = handled another way: prism-moss turned it sideways)                       // the tiles changed (a ship snapped): re-read the map, move dens, drop routes
 bool BeastLethalNow(const PlatformState& p, const Beast& b);     // is touching this beast fatal right now?
 bool BeastsTouchDiver(const PlatformState& p, Rectangle diver);  // any lethal contact this frame
 const SpeciesDef& BeastSpecies(int biome, int species);
@@ -247,5 +247,7 @@ enum PipeSpecies { PP_MOTH, PP_SPIDER, PP_CENTIPEDE, PP_RAT, PP_MITE, PP_PILLBUG
 // the user's Weeds web, merged with ParkourReference1.3's Seaweed (beasts_weeds.cpp): WS_SHARK is the Leviathan Tiger Shark, WS_CRAB the Bristle-Crab
 enum WeedsSpecies { WS_PLANKTON, WS_SEAHORSE, WS_BARRACUDA, WS_MERMAN, WS_SHARK, WS_RAY, WS_CRAB, WS_FUNGUS,
                     WS_MANATEE, WS_OCTOSTALKER, WS_HMANTIS, WS_SARDINE, WS_BLOODKELP, WS_LANEMONE, WS_AIRWEED, WS_TANGLE, WS_SPOREPOD, WS_COUNT };
-enum AtlantisSpecies { AS_WISP, AS_SHRIMP, AS_ANGLER, AS_LOSTONE, AS_GUARDIAN, AS_EEL, AS_COUNT };
+// merged with ParkourReference1.3's Atlantis (beasts_atlantis.cpp): AS_GUARDIAN is the Phalanx Crustacean, AS_EEL the Gargoyle-Moray
+enum AtlantisSpecies { AS_WISP, AS_SHRIMP, AS_ANGLER, AS_LOSTONE, AS_GUARDIAN, AS_EEL,
+                       AS_OLEVIATHAN, AS_SCOURGE, AS_CMINNOW, AS_SNAIL, AS_SUNKELP, AS_PRISM, AS_AVINE, AS_LILY, AS_RUINSPORE, AS_COUNT };
 bool VerifyBeastBiome(int level); // depth.exe --verify-<biome>-ecosystem: the biome's own food web and chain reactions

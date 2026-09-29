@@ -1781,8 +1781,18 @@ bool BeastsSoftLanding(const PlatformState& p) {
 
 float BeastsLandingLaunch(PlatformState& p, float fallSpeed) {
     BeastWorld& W = p.fauna;
-    if (!W.active || W.biome != PL_ISLAND || fallSpeed < 250) return 0;
+    if (!W.active || fallSpeed < 250) return 0;
     Rectangle r = PlatDiverBox(p);
+    if (W.biome == PL_ATLANTIS) { // prism-moss: the fall is turned into a dash along the ground
+        for (auto& b : W.beasts)
+            if (b.life == BeastLife::Alive && b.species == AS_PRISM && fabsf(b.pos.x - (r.x + r.width / 2)) < 18 && fabsf(b.pos.y - (r.y + r.height)) < 12) {
+                float s = p.vel.x != 0 ? (p.vel.x > 0 ? 1.0f : -1.0f) : (p.facingRight ? 1.0f : -1.0f);
+                p.vel.x = s * std::min(fallSpeed * 0.95f, 720.0f); p.boostT = 0.6f; b.flashT = 0.4f;
+                return -1;
+            }
+        return 0;
+    }
+    if (W.biome != PL_ISLAND) return 0;
     for (auto& b : W.beasts) {
         if (b.life != BeastLife::Alive || fabsf(b.pos.x - (r.x + r.width / 2)) > 18 || fabsf(b.pos.y - (r.y + r.height)) > 12) continue;
         if (b.species == IS_SPONGE) { b.flashT = 0.3f; return std::max(fallSpeed * 0.97f, 420.0f); } // compresses and springs back: all of it

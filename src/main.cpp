@@ -224,6 +224,7 @@ static void TakeShots(const Game& base, const std::string& dir) {
         {"fauna_hull2", [](Game& g) { ShotAtFauna(g, PL_HULL, 404, 6, 1); }},
         {"fauna_hull13_whale", [](Game& g) { ShotHull13(g, 0); }},
         {"pirate_kraken_slam", [](Game& g) { ShotKraken(g, 0); }},
+        {"atlantis13_leviathan", [](Game& g) { ShotAtFauna(g, PL_ATLANTIS, 808, 2, 0, AS_OLEVIATHAN); }},
         {"weeds13_manatee", [](Game& g) { ShotAtFauna(g, PL_WEEDS, 707, 2, 0, WS_MANATEE); }},
         {"weeds13_mantis", [](Game& g) { ShotAtFauna(g, PL_WEEDS, 707, 2, 0, WS_HMANTIS); }},
         {"island13_beetle", [](Game& g) { ShotAtFauna(g, PL_ISLAND, 303, 2, 0, IS_GBEETLE); }},

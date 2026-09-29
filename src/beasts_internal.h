@@ -92,6 +92,12 @@ bool Weeds13Touch(const BeastWorld& W, const Beast& b, Rectangle diver);
 void Weeds13Tick(BeastWorld& W, PlatformState& p, float dt);
 void Weeds13Spawn(BeastWorld& W, PlatformState& p);
 bool VerifyWeeds13();
+// Atlantis merged with ParkourReference1.3 (beasts_atlantis.cpp)
+void Atlantis13Hook(BeastWorld& W, PlatformState& p, int i, float dt);
+bool Atlantis13Touch(const BeastWorld& W, const Beast& b, Rectangle diver);
+void Atlantis13Tick(BeastWorld& W, PlatformState& p, float dt);
+void Atlantis13Spawn(BeastWorld& W, PlatformState& p);
+bool VerifyAtlantis13();
 
 const SpeciesDef& Sp(int biome, int s);
 float Pref(int biome, int pred, int prey);

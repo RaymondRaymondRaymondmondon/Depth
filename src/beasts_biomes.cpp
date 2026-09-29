@@ -690,14 +690,25 @@ const SpeciesDef ATLANTIS[AS_COUNT] = {
     {"Temple Shrimp",    MoveMode::Swim,    0.1f,  4,   40, 160,  700,   90, 2.6f, 0.8f, 0.5f, 0.012f, 0.8f,  0.0f, false, true,  2, 12, 0.6f, 0.3f, 0},
     {"Anglerfish",       MoveMode::Swim,    6.0f, 10,   30, 280,  900,  200, 2.0f, 0.6f, 0.6f, 0.018f, 0.2f,  0.4f, true,  false, 3,  3, 0.5f, 0.3f, T_STRIKER | T_CAMO, 90},
     {"Lost One",         MoveMode::Walk,   60.0f, 10,   30,  90,  500,  120, 2.0f, 1.0f, 0.8f, 0.015f, 0.0f,  0.6f, true,  true,  0,  4, 0.6f, 1.0f, 0},
-    {"Stone Guardian",   MoveMode::Walk,    6.0f, 12,   25, 260, 1200,  150, 1.6f, 0.7f, 0.3f, 0.010f, 0.1f,  0.4f, true,  false, 0,  3, 0.8f, 0.3f, T_CAMO | T_STRIKER | T_CHARGER, 110},
-    {"Glyph Eel",        MoveMode::Swim,    5.0f,  9,   90, 320, 1100,  220, 1.9f, 0.8f, 0.9f, 0.025f, 0.2f,  0.5f, true,  false, 2,  3, 0.9f, 0.4f, T_STRIKER | T_DEN_AMBUSH | T_CARRY, 120},
+    {"Phalanx Crustacean", MoveMode::Walk,  6.0f, 12,   25, 260, 1200,  150, 1.6f, 0.7f, 0.3f, 0.010f, 0.1f,  0.4f, true,  false, 0,  3, 0.8f, 0.3f, T_CAMO | T_STRIKER | T_CHARGER, 110},
+    {"Gargoyle-Moray",   MoveMode::Swim,    5.0f,  9,   90, 320, 1100,  220, 1.9f, 0.8f, 0.9f, 0.025f, 0.2f,  0.5f, true,  false, 2,  3, 0.9f, 0.4f, T_STRIKER | T_DEN_AMBUSH | T_CARRY, 120},
+    // ParkourReference1.3's Atlantis (beasts_atlantis.cpp)
+    {"Orichalcum Leviathan", MoveMode::Swim, 400.0f, 20, 0,  0,    0,  160, 2.0f, 0.5f, 0.2f, 0.000f, 0.0f,  0.0f, false, false, 3,  0, 0.0f, 0.0f, T_GIANT},
+    {"Poseidon's Scourge", MoveMode::Swim, 5000.0f, 30, 0,  0,    0,  600, PI,   1.0f, 1.0f, 0.000f, 0.0f,  0.6f, false, false, 0,  0, 0.0f, 0.0f, T_GIANT},
+    {"Crystal-Minnow",   MoveMode::Swim,    0.05f, 3,   50, 220, 1000,  120, 2.6f, 0.6f, 0.2f, 0.006f, 0.9f,  0.0f, false, true,  2, 16, 0.0f, 0.0f, T_FLASH},
+    {"Mosaic-Snail",     MoveMode::Walk,    0.3f,  5,   10,  20,  200,   40, PI,   0.3f, 0.3f, 0.004f, 0.3f,  0.0f, false, false, 0,  6, 0.2f, 0.0f, 0},
+    {"Sun-Crystal Kelp", MoveMode::Sessile, 1.0f, 10,    0,   0,    0,    0, PI,   0.0f, 0.0f, 0.000f, 0.0f,  0.0f, false, false, 0,  0, 0.0f, 0.0f, T_FLORA},
+    {"Prism-Moss",       MoveMode::Sessile, 0.5f, 14,    0,   0,    0,    0, PI,   0.0f, 0.0f, 0.000f, 0.0f,  0.0f, false, false, 0,  0, 0.0f, 0.0f, T_FLORA},
+    {"Aqueduct-Vine",    MoveMode::Sessile, 1.0f,  8,    0,   0,    0,    0, PI,   0.0f, 0.0f, 0.000f, 0.0f,  0.0f, false, false, 0,  0, 0.0f, 0.0f, T_FLORA},
+    {"Stasis-Lily",      MoveMode::Sessile, 0.5f,  9,    0,   0,    0,    0, PI,   0.0f, 0.0f, 0.000f, 0.0f,  0.0f, false, false, 0,  0, 0.0f, 0.0f, T_FLORA},
+    {"Ruin-Spore",       MoveMode::Sessile, 0.5f,  9,    0,   0,    0,    0, PI,   0.0f, 0.0f, 0.000f, 0.0f,  0.0f, false, false, 0,  0, 0.0f, 0.0f, T_FLORA},
 };
 const FoodEdge ATLANTIS_WEB[] = {
     {AS_SHRIMP, AS_WISP, 0.9f},
     {AS_ANGLER, AS_SHRIMP, 1.0f}, {AS_ANGLER, AS_WISP, 0.6f},
     {AS_EEL, AS_SHRIMP, 0.9f},    {AS_EEL, AS_ANGLER, 0.3f},
     {AS_GUARDIAN, AS_SHRIMP, 0.4f}, {AS_GUARDIAN, AS_LOSTONE, 0.3f},
+    {AS_ANGLER, AS_CMINNOW, 0.8f}, {AS_EEL, AS_CMINNOW, 0.6f}, {AS_SHRIMP, AS_SNAIL, 0.3f}, {AS_LOSTONE, AS_SNAIL, 0.2f},
 };
 static void SpawnAtlantis(BeastWorld& W, PlatformState& p) {
     Spots sp; sp.Build(W, p, 12, W.nav.w - 8);
@@ -713,6 +724,7 @@ static void SpawnAtlantis(BeastWorld& W, PlatformState& p) {
         int b = NewBeast(W, AS_EEL, DenMouth(W, d));
         W.beasts[b].den = d; EnterDen(W, W.beasts[b], d); W.beasts[b].act = BeastAct::Ambush;
     }
+    Atlantis13Spawn(W, p);
 }
 static void AtlantisHooks(BeastWorld& W, PlatformState& p, int i, float dt) {
     Beast& b = W.beasts[i];
@@ -726,10 +738,11 @@ static void AtlantisHooks(BeastWorld& W, PlatformState& p, int i, float dt) {
     case AS_GUARDIAN: { // stone among stone while it keeps still
         bool still = Len(b.vel) < 12;
         b.special = Clamp01(b.special + (still ? 0.4f : -1.5f) * dt);
+        Atlantis13Hook(W, p, i, dt); // the Phalanx's hard-light shockwave (beasts_atlantis.cpp)
         break;
     }
     case AS_WISP: b.flashT = std::max(b.flashT, 0.05f); break; // a faint glow of its own
-    default: break;
+    default: Atlantis13Hook(W, p, i, dt); break;
     }
     (void)p;
 }
@@ -761,16 +774,16 @@ static bool AtlantisLethal(const BeastWorld& W, const Beast& b) {
 static bool AtlantisTouch(const BeastWorld& W, const Beast& b, Rectangle diver) {
     (void)W;
     if (b.species == AS_EEL && b.life == BeastLife::Alive && b.hidden && b.act == BeastAct::Ambush) return CheckCollisionCircleRec({b.pos.x, b.pos.y - 22}, 8, diver);
-    return false;
+    return Atlantis13Touch(W, b, diver);
 }
 const BiomeDef& AtlantisBiome() {
     static const BiomeDef B = [] {
         BiomeDef d;
         d.level = PL_ATLANTIS; d.species = ATLANTIS; d.count = AS_COUNT; d.web = ATLANTIS_WEB; d.webN = (int)(sizeof(ATLANTIS_WEB) / sizeof(ATLANTIS_WEB[0]));
         d.water = true; d.clarity = 0.6f; d.daylight = 0.08f;
-        static const float SIZES[AS_COUNT] = {0.6f, 0.8f, 1.8f, 1.4f, 1.8f, 1.8f};
+        static const float SIZES[AS_COUNT] = {0.6f, 0.8f, 1.8f, 1.4f, 1.8f, 2.2f, 1, 1, 0.6f, 1, 1, 1, 1, 1, 1};
         d.sizes = SIZES;
-        d.spawn = SpawnAtlantis; d.hooks = AtlantisHooks; d.extras = AtlantisExtras; d.lethal = AtlantisLethal; d.touch = AtlantisTouch;
+        d.spawn = SpawnAtlantis; d.hooks = AtlantisHooks; d.extras = AtlantisExtras; d.lethal = AtlantisLethal; d.touch = AtlantisTouch; d.tick = Atlantis13Tick;
         return d;
     }();
     return B;
@@ -1224,6 +1237,7 @@ static bool VerifyAtlantis() {
         for (int f = 0; f < 60 * 3 && !heard; f++) { BeastsUpdate(p, 1 / 60.0f); if (W.beasts[lo].act == BeastAct::Investigate) heard = true; }
         if (!heard) fail("a Lost One never went after a noise");
     }
+    if (!VerifyAtlantis13()) ok = false;
     if (ok) TraceLog(LOG_WARNING, "verify-atlantis-ecosystem: OK - lure and catch, the guardian's ambush, and the Lost Ones hunting by sound all confirmed");
     return ok;
 }
