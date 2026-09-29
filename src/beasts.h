@@ -226,6 +226,7 @@ bool BeastsSoftLanding(const PlatformState& p);                    // landing on
 float BeastsLandingLaunch(PlatformState& p, float fallSpeed);        // landing on a root-sponge or a drum-fungus: the upward speed it throws you back with (0 = none; -1 = handled another way: prism-moss turned it sideways)                       // the tiles changed (a ship snapped): re-read the map, move dens, drop routes
 bool BeastLethalNow(const PlatformState& p, const Beast& b);     // is touching this beast fatal right now?
 bool BeastsTouchDiver(const PlatformState& p, Rectangle diver);  // any lethal contact this frame
+const char* BeastsKiller(const PlatformState& p, Rectangle diver, const char** tip); // which beast that was, and one counter-tip (nullptr if none)
 const SpeciesDef& BeastSpecies(int biome, int species);
 float BeastSize(int biome, int species);                 // its drawn size (1 = the base art)
 int BeastSpeciesCount(int biome);

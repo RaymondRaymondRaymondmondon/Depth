@@ -5972,7 +5972,11 @@ void ScenePlatformer(Game& g) {
             Rectangle pr = PlayerBox(p);
             for (auto& e : p.enemies) if (EnemyHits(e, pr)) Die(p);
             for (auto& s : p.shots) if (ShotHits(s, pr)) Die(p);
-            if (BeastsTouchDiver(p, pr)) Die(p); // a crab, an eel, a puffed pufferfish - see BeastLethalNow
+            if (BeastsTouchDiver(p, pr)) { // a crab, an eel, a puffed pufferfish - see BeastLethalNow
+                const char* tip = nullptr; const char* who = BeastsKiller(p, pr, &tip);
+                if (who && p.deathTimer <= 0) { p.deathCause = TextFormat("Taken by the %s", who); p.deathTip = tip ? tip : ""; p.causeT = 5.0f; }
+                Die(p);
+            }
             PlatBoss& b = p.boss;
             bool falling = p.vel.y > 0;
             if (b.type == 'K' && !b.defeated) {
@@ -6150,6 +6154,12 @@ void ScenePlatformer(Game& g) {
     Txt(TextFormat(p.checkpoints ? "Checkpoint %d/%d" : "Section %d/%d", std::min(p.checkpointChunk + 1, sections), sections), 530, 18, 19, Pal::Paper);
 
     Txt(TextFormat("Deaths %d", p.deaths), 720, 18, 19, Pal::Paper);
+    if (p.causeT > 0 && !p.deathCause.empty()) { // what killed you, and one way to beat it
+        float a = std::min(1.0f, p.causeT);
+        DrawTextCenteredBold(p.deathCause.c_str(), SCREEN_W / 2.0f, 86, 22, Fade(Color{255, 190, 150, 255}, a));
+        DrawTextCenteredBold(p.deathTip.c_str(), SCREEN_W / 2.0f, 112, 15, Fade(Pal::Paper, a));
+        p.causeT -= GetFrameTime();
+    }
     Txt(TextFormat("%.1fs", p.time), 840, 18, 19, Pal::Paper);
     if (p.boss.type && !p.boss.defeated && p.pos.x > (p.w - CH_W - 2) * (float)T) {
         const char* name = p.boss.type == 'K' ? "KRAKEN" : p.ghost ? "GHOST BLACKBEARD" : "BLACKBEARD";

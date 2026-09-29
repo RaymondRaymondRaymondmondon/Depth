@@ -5,6 +5,7 @@
 #include "beasts_internal.h"
 #include <queue>
 #include <cstdlib>
+#include <cstring>
 
 namespace bk {
 
@@ -2009,6 +2010,49 @@ bool BeastsTouchDiver(const PlatformState& p, Rectangle diver) {
     }
     return false;
 }
+const char* BeastsKiller(const PlatformState& p, Rectangle diver, const char** tip) {
+    const BeastWorld& W = p.fauna;
+    if (!W.active) return nullptr;
+    const BiomeDef* B = Biome(W.biome);
+    for (const auto& b : W.beasts) {
+        bool hit = B && B->touch && B->touch(W, b, diver);
+        if (!hit && BeastLethalNow(p, b)) {
+            const SpeciesDef& S = Sp(W.biome, b.species);
+            float k = BeastSize(W.biome, b.species);
+            Vector2 c = S.move == MoveMode::Walk || S.move == MoveMode::Climb ? Vector2{b.pos.x, b.pos.y + HalfH(S, b) - HalfH(S, b) * k} : b.pos;
+            hit = CheckCollisionCircleRec(c, S.radius * b.scale * 0.85f * k, diver);
+        }
+        if (!hit) continue;
+        const char* name = Sp(W.biome, b.species).name;
+        // one counter per creature, by name - what the level gives you to beat it
+        static const struct { const char* key; const char* tip; } TIPS[] = {
+            {"Megalodon", "It can't reach into a crevice or under the whale - and hull-kelp holds you against its turbulence."},
+            {"Siphon", "Its pull has a tell - the tube's rim flexes. Strike a hydroid to stun it, or hold on to something."},
+            {"Crusher", "Near the deck and hunting you, it slams the plating - get off the deck or out of reach."},
+            {"Kraken", "Its shadow shows where the arm will land; a wrapped hull is about to snap - get off the tear."},
+            {"Mimic", "Stop on the ratlines before you leap: the fake rope twitches. A lantern weed shows it too."},
+            {"Mantis", "It only fires on fast movement across its line - walk past its porthole."},
+            {"Mangrove", "It waits at the foot of drops - land on the move, or lure its snap through a dart-vine."},
+            {"Centipede", "Hard landings and booms wake it - when the drums start, move off the shuddering ground."},
+            {"Serpent", "It rears before it strikes - get away from its ravine, and don't stand still."},
+            {"Echo", "It hunts by sound: stand still, or slide through cave-cabbage to lose it. The stones it throws are tests."},
+            {"Tremor", "Sprinting and dashing wake it - when the loaches bolt and the floor shudders, stop or turn back."},
+            {"Arachnid", "Slide under its webs. Glow-shrimp fluid on your suit shows them; the husk is the warning."},
+            {"Octopus-Stalker", "It strikes what passes fast - slow down along kelp stalks, or pass inside a sardine school."},
+            {"Harpoon", "It locks its aim during the windup - move once it glows. Popping an air-weed stuns it."},
+            {"Phalanx", "Fast movement in its row sets it off - walk, or freeze its charge with a stasis-lily."},
+            {"Scourge", "Keep moving - it only catches a diver who stops."},
+            {"Leviathan", "It follows blood - graze blood-kelp away from your path, and never linger where it cruises."},
+            {"Leech", "It drops on anything warm passing under it - look up, and pass quickly."},
+            {"Eel", "Eels strike from their holes and with their bodies: give breaches a wide berth."},
+        };
+        *tip = "It was hunting you: break its line of sight, or use the flora around you.";
+        for (const auto& t : TIPS) if (strstr(name, t.key)) { *tip = t.tip; break; }
+        return name;
+    }
+    return nullptr;
+}
+
 // ---------------------------------------------------------------- depth.exe --verify-beasts
 bool VerifyBeasts() {
     bool ok = true;
