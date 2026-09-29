@@ -2213,6 +2213,11 @@ bool VerifyBeasts() {
         PlatBuildLevel(p);
         if (p.spawns.size() < 3) continue;
         Vector2 at = p.spawns[p.spawns.size() / 2];
+        if (lv == PL_PIRATE) { // stand on the deck at that point, not up in the rigging where a checkpoint can be
+            int cx = (int)(at.x / TILE), best = -1;
+            for (int y = 2; y < p.fauna.nav.h - 1; y++) if (p.fauna.nav.Standable(cx, y) && PlatTileAt(p, cx, y + 1) == '#' && (y + 1) * TILE < p.waterY) best = y;
+            if (best >= 0) at = {cx * TILE + 6.0f, (best + 1) * TILE - 26.0f};
+        }
         int seen = 0; float last = p.fauna.lastNearKill;
         for (int f = 0; f < 60 * 120; f++) {
             p.pos = at; p.vel = {0, 0}; p.deathTimer = 0; p.onGround = true;
