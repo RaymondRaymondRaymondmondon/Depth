@@ -4691,6 +4691,76 @@ void DrawWeedsBeast(const PlatformState& p, const Beast& b, float t) {
         for (int k = 0; k < 4; k++) { float bx = x - 5 + k * 3.5f, h = 5 + (k % 2) * 4 + Hs(b.id * 1.3f + k) * 3; DrawLineEx({bx, y + 3}, {bx, y + 3 - h}, 1.2f, Color{200, 196, 170, 255}); DrawEllipse((int)bx, (int)(y + 3 - h), 2.8f, 1.8f, Color{180, 230, 200, 255}); DrawEllipse((int)bx, (int)(y + 3 - h), 5, 3, Fade(Color{160, 255, 210, 255}, 0.15f * glow)); }
         break;
     }
+    case WS_MANATEE: { // the Goliath Manatee: vast, wrinkled, slow; a paddle tail; its broad back a platform
+        Color c{120, 116, 110, 255}, belly{160, 154, 146, 255};
+        float bob = sinf(t * 0.8f + b.phase) * 1.5f;
+        DrawEllipse((int)x, (int)(y + bob), 56, 22, FAUNA_INK); DrawEllipse((int)x, (int)(y + bob), 54, 20, c);
+        DrawEllipse((int)x, (int)(y + bob + 8), 46, 10, belly);
+        float tl = sinf(t * 1.2f + b.phase) * 6;
+        DrawEllipse((int)(x - f * 58), (int)(y + bob + tl * 0.3f), 14, 9 + tl * 0.2f, FAUNA_INK); DrawEllipse((int)(x - f * 58), (int)(y + bob + tl * 0.3f), 13, 8 + tl * 0.2f, c); // the paddle
+        DrawEllipse((int)(x + f * 52), (int)(y + bob + 4), 14, 11, c); // the snout, browsing
+        DrawCircle((int)(x + f * 58), (int)(y + bob - 2), 1.6f, FAUNA_INK);
+        for (int k = 0; k < 4; k++) DrawLineEx({x - 30 + k * 16, y + bob - 16}, {x - 26 + k * 16, y + bob - 6}, 1, Tone(c, -0.25f)); // wrinkles and old scars
+        DrawTri({x + f * 20, y + bob + 12}, {x + f * 4, y + bob + 26}, {x + f * 14, y + bob + 12}, Tone(c, -0.15f)); // a flipper
+        break;
+    }
+    case WS_OCTOSTALKER: { // the Mimic Octopus-Stalker: when still, one more stripe of kelp on the stalk
+        bool shown = b.act != BeastAct::Ambush || b.special < 0.5f;
+        Color kelp{70, 110, 50, 255}, skin{190, 150, 90, 255};
+        Color c = shown ? skin : kelp;
+        DrawEllipse((int)b.anchor.x, (int)b.anchor.y, 7, 10, Fade(FAUNA_INK, shown ? 1.0f : 0.4f)); DrawEllipse((int)b.anchor.x, (int)b.anchor.y, 6, 9, c);
+        if (shown) { DrawCircle((int)b.anchor.x - 2, (int)b.anchor.y - 3, 1.4f, Color{250, 220, 90, 255}); for (int k = 0; k < 3; k++) DrawLineEx({b.anchor.x - 5, b.anchor.y - 4 + k * 4}, {b.anchor.x + 5, b.anchor.y - 3 + k * 4}, 1, Color{90, 60, 40, 255}); } // banded, and its eye
+        Vector2 tip = b.territory;
+        for (int k = 0; k < 3; k++) { Vector2 end = (b.act == BeastAct::Strike || b.act == BeastAct::Wander) && k == 0 ? tip : Vector2{b.anchor.x + (k - 1) * 3.0f + sinf(t * 2 + k) * 2, b.anchor.y + 14 + k * 3.0f}; DrawLineEx(b.anchor, end, 3, Fade(FAUNA_INK, shown ? 1.0f : 0.4f)); DrawLineEx(b.anchor, end, 2, c); }
+        break;
+    }
+    case WS_HMANTIS: { // the Harpoon Mantis in its burrow: stalked eyes, a cocked club; the strike, a white streak
+        float px = b.anchor.x, py = b.anchor.y;
+        bool cock = b.act == BeastAct::Coil;
+        DrawEllipse((int)px, (int)py, 9, 7, FAUNA_INK); DrawEllipse((int)px, (int)py, 8, 6, Color{20, 30, 30, 255}); // the burrow
+        DrawRectangle((int)(px + f * 1) - 3, (int)py - 3, 7, 6, Color{80, 180, 150, 255});
+        for (int e = -1; e <= 1; e += 2) DrawCircle((int)(px + f * 3 + e * 2), (int)py - 7, 1.8f, b.stunT > 0 ? Color{120, 120, 120, 255} : cock ? Color{255, 80, 60, 255} : Color{250, 210, 80, 255});
+        if (cock) DrawCircleLines((int)px, (int)py, 10 + sinf(t * 40) * 2, Color{255, 120, 90, 255}); // the tell
+        if (b.act == BeastAct::Strike) { DrawLineEx(b.anchor, b.territory, 2, Color{240, 250, 255, 255}); DrawCircleV(b.territory, 4, Color{255, 255, 255, 255}); }
+        if (b.stunT > 0) for (int k = 0; k < 3; k++) DrawCircle((int)(px + cosf(t * 5 + k * 2) * 8), (int)(py - 10), 1.2f, Color{200, 240, 255, 255});
+        break;
+    }
+    case WS_SARDINE: { // silver-fin sardines: a glint of silver, flickering as the school turns
+        bool glint = fmodf(t * 3 + b.phase, 2.0f) < 0.2f;
+        DrawEllipse((int)x, (int)y, 4, 1.6f, glint ? Color{250, 250, 255, 255} : Color{170, 190, 205, 255});
+        DrawTri({x - f * 4, y}, {x - f * 7, y - 2}, {x - f * 7, y + 2}, Color{140, 160, 180, 255});
+        break;
+    }
+    case WS_BLOODKELP: { // blood-kelp: dark red fronds, bleeding when grazed
+        bool bleeding = b.flashT > 0;
+        for (int k = 0; k < 3; k++) { float sw = sinf(t * 1.2f + k + b.phase) * 4; Vector2 prev{x + (k - 1) * 3.0f, y}; for (int j = 1; j <= 5; j++) { Vector2 q{x + (k - 1) * 3.0f + sw * j / 5.0f, y - j * 8.0f}; DrawLineEx(prev, q, 3.5f - j * 0.3f, Color{120, 30, 40, 255}); prev = q; } }
+        if (bleeding) for (int k = 0; k < 4; k++) DrawCircle((int)(x + sinf(t * 2 + k) * 6), (int)(y - 20 - fmodf(t * 12 + k * 9, 30)), 2.5f, Fade(Color{200, 40, 50, 255}, 0.4f));
+        break;
+    }
+    case WS_LANEMONE: { // a luminescent anemone: the one safe light in the murk
+        float gl = 0.75f + 0.25f * sinf(t * 1.5f + b.phase);
+        DrawCircle((int)x, (int)y - 10, 30, Fade(Color{140, 220, 255, 255}, 0.07f * gl));
+        DrawRectangle((int)x - 4, (int)y - 8, 8, 8, Color{90, 70, 110, 255});
+        for (int k = -4; k <= 4; k++) { float an = k * 0.25f + sinf(t * 2 + k) * 0.1f; Vector2 tip{x + sinf(an) * 12, y - 8 - cosf(an) * 12}; DrawLineEx({x, y - 8}, tip, 1.6f, Fade(Color{160, 230, 255, 255}, gl)); DrawCircleV(tip, 1.4f, Fade(WHITE, gl)); }
+        break;
+    }
+    case WS_AIRWEED: { // air-weed: bulbs of trapped gas on a stalk
+        if (b.act == BeastAct::Drift) { DrawLineEx({x, y}, {x, y - 6}, 1.5f, Color{80, 120, 70, 255}); break; }
+        DrawLineEx({x, y}, {x + sinf(t) * 2, y - 14}, 1.5f, Color{80, 120, 70, 255});
+        for (int k = 0; k < 3; k++) { float bx = x + (k - 1) * 5 + sinf(t * 1.5f + k) * 1.5f, by = y - 14 - (k % 2) * 5; DrawCircle((int)bx, (int)by, 4.5f, FAUNA_INK); DrawCircle((int)bx, (int)by, 3.8f, Color{170, 220, 200, 200}); DrawCircle((int)bx - 1, (int)by - 1, 1.2f, WHITE); }
+        break;
+    }
+    case WS_TANGLE: { // tangle-vine: a knotted wall of tough kelp, three tiles high
+        for (int k = 0; k < 7; k++) { float sx = x - 14 + k * 4.5f; Vector2 prev{sx, y}; for (int j = 1; j <= 6; j++) { Vector2 q{sx + sinf(j * 1.3f + k + t * 0.6f) * 6, y - j * 16.0f}; DrawLineEx(prev, q, 3, Color{40, 70, 36, 255}); prev = q; } }
+        for (int j = 0; j < 5; j++) DrawLineEx({x - 16, y - 12 - j * 18.0f}, {x + 16, y - 20 - j * 18.0f}, 2, Color{56, 90, 44, 255}); // woven across
+        break;
+    }
+    case WS_SPOREPOD: { // a spore-pod, swollen and ripe
+        if (b.act == BeastAct::Drift) { DrawEllipse((int)x, (int)y - 3, 6, 3, Color{110, 100, 80, 255}); break; }
+        DrawEllipse((int)x, (int)y - 8, 8, 9, FAUNA_INK); DrawEllipse((int)x, (int)y - 8, 7, 8, Color{180, 160, 110, 255});
+        for (int k = 0; k < 5; k++) DrawCircle((int)(x - 4 + k * 2), (int)(y - 10 + (k % 2) * 4), 1, Color{120, 100, 60, 255});
+        break;
+    }
     default: DrawCircle((int)x, (int)y, 5, Color{200, 200, 200, 255}); break;
     }
     (void)p;

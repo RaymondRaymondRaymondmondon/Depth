@@ -683,3 +683,13 @@ Progress: the Cave is now a flooded cave with its whole 1.3 roster (see CLAUDE.m
 ## >>> OVERNIGHT BRIEF (2026-09-29) - the current master plan <<<
 See memory depth-overnight-brief.md / depth-overnight-answers.md (copied here in short): (1) finish all of 1.2 + 1.3 (Island in progress -> Weeds merge -> Atlantis -> Abyss roster -> movement pass 2); (2) every food web visibly playing out; (3) full random generation, a new layout every dive, harder overall, difficulty order Pipes<Hull<Pirate<Island<Cave<Weeds<Atlantis<Abyss, unlock chain, checkpoints kept; (4) art pass: living, unique backgrounds per level (Island: volcano/villages/temples/altars/jungle/beach/rivers/day-night), scripted background food-web fights every 20-40 s; (5) Abyss overhaul: same descent, ~2x wider, ledges/caves, lamp-cone light, semi-real terrifying art, 1.2+1.3 roster; (6) restyle Hull Kraken + Blackbeard with move-aware attacks; (7) full QA. Off-limits: hub, Flats, expeditions. At 93% usage: checkpoint, schedule a resume task, pause.
 (8) Periscope dossier: a file-folder button on each level in the Periscope opens a detailed sheet of every beast, flora and the drawn food web, with a creative level description.
+
+### STATUS at f7d06e5 (2026-09-29, ~07:35) - resume from here
+1.3 DONE: Hull (beasts_hull.cpp), Pirate Ship incl. Grand Kraken proven snaps (beasts_pirate.cpp), Cave made underwater + roster
+(beasts_cave.cpp), Island (beasts_island.cpp). Pattern per biome: species appended to the enum/table in beasts.h/beasts_biomes.cpp,
+a biome file with <Biome>13Hook/Touch/Tick(director)/Spawn(planner)/Verify<Biome>13 (called from VerifyBeastBiome), draw cases in
+platformer.cpp Draw<Biome>Beast, shots <biome>13_* in main.cpp, notes in CLAUDE.md. Helpers: $env:TEMP\rep.ps1 (Rep with mixed line
+endings). NEXT: Weeds merge (1.3 section "5. The Seaweed", docs line ~345; WS_ enum), Atlantis merge ("6. Atlantis", line ~415; AS_),
+Abyss 1.2+1.3 roster during the Abyss overhaul (abyss.cpp), then 1.2 leftovers (slimy walls, movement pass 2 with the path search
+taught slide/dash/ledge/pole), then the rest of the OVERNIGHT BRIEF in order.
+(9) FINAL: sound, all synthesized: per-level ambient score, beast voices, player SFX, death/pain sounds, micro-events (talon grab + squeal, shark bite crunch), drafts/currents, movement; volume sliders on the Periscope.

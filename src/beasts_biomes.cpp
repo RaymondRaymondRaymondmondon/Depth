@@ -543,16 +543,28 @@ const SpeciesDef WEEDS[WS_COUNT] = {
     {"Kelp Seahorse",    MoveMode::Swim,    0.2f,  5,   25,  90,  500,  120, 2.6f, 0.5f, 0.3f, 0.012f, 0.8f,  0.0f, false, false, 2,  8, 0.7f, 0.0f, T_CAMO},
     {"Barracuda",        MoveMode::Swim,    4.0f,  9,   90, 380, 1300,  260, 1.4f, 0.6f, 0.6f, 0.022f, 0.3f,  0.3f, true,  true,  3,  5, 0.2f, 0.2f, T_STRIKER, 130},
     {"Merman",           MoveMode::Swim,   70.0f, 12,   70, 240,  900,  300, 2.2f, 0.8f, 0.7f, 0.018f, 0.0f,  0.35f, true,  true,  2,  2, 0.6f, 0.3f, T_STRIKER | T_CARRY, 110},
-    {"Tiger Shark",      MoveMode::Swim,   90.0f, 12,   80, 270,  800,  280, 1.8f, 0.9f, 1.0f, 0.020f, 0.0f,  0.35f, true,  false, 3,  2, 0.3f, 0.8f, T_STRIKER | T_CARRY, 120},
+    {"Leviathan Tiger Shark", MoveMode::Swim, 90.0f, 12, 80, 270,  800,  280, 1.8f, 0.9f, 1.0f, 0.020f, 0.0f,  0.35f, true,  false, 3,  2, 0.3f, 0.8f, T_STRIKER | T_CARRY, 120},
     {"Electric Ray",     MoveMode::Swim,    6.0f, 12,   30, 150,  400,  150, PI,   0.7f, 0.6f, 0.008f, 0.5f,  0.0f, true,  false, 0,  4, 0.6f, 0.0f, 0},
-    {"Scavenger Crab",   MoveMode::Walk,    0.5f,  6,   40, 110,  700,  130, 2.4f, 0.6f, 0.9f, 0.020f, 0.6f,  0.0f, false, true,  0,  6, 0.7f, 1.0f, T_MOBBER},
+    {"Bristle-Crab",     MoveMode::Walk,    0.5f,  6,   40, 110,  700,  130, 2.4f, 0.6f, 0.9f, 0.020f, 0.6f,  0.0f, false, true,  0,  6, 0.7f, 1.0f, T_MOBBER},
     {"Parasitic Fungus", MoveMode::Sessile, 0.1f,  6,    0,   0,    0,   40, PI,   0.0f, 0.8f, 0.006f, 0.0f,  0.0f, false, false, 0,  4, 0.0f, 0.0f, 0},
+    // ParkourReference1.3's Seaweed (beasts_weeds.cpp)
+    {"Goliath Manatee",  MoveMode::Swim,  400.0f, 20,   30,  50,   80,  160, 2.0f, 0.5f, 1.0f, 0.004f, 0.0f,  0.0f, false, false, 3,  0, 0.0f, 0.0f, T_GIANT},
+    {"Mimic Octopus-Stalker", MoveMode::Swim, 8.0f, 11,  0,   0,    0,  180, PI,   0.8f, 0.6f, 0.010f, 0.0f,  0.7f, false, false, 0,  0, 0.0f, 0.0f, T_GIANT | T_CAMO},
+    {"Harpoon Mantis",   MoveMode::Walk,    3.0f,  9,    0,   0,    0,  300, PI,   0.6f, 0.3f, 0.010f, 0.0f,  0.6f, false, false, 0,  0, 0.0f, 0.0f, T_GIANT},
+    {"Silver-Fin Sardine", MoveMode::Swim,  0.1f,  4,   70, 260, 1100,  150, 2.6f, 0.7f, 0.2f, 0.010f, 0.9f,  0.0f, false, true,  3, 30, 0.0f, 0.0f, 0},
+    {"Blood-Kelp",       MoveMode::Sessile, 1.0f, 10,    0,   0,    0,    0, PI,   0.0f, 0.0f, 0.000f, 0.0f,  0.0f, false, false, 0,  0, 0.0f, 0.0f, T_FLORA},
+    {"Luminescent Anemone", MoveMode::Sessile, 1.0f, 11, 0,  0,    0,    0, PI,   0.0f, 0.0f, 0.000f, 0.0f,  0.0f, false, false, 0,  0, 0.0f, 0.0f, T_FLORA},
+    {"Air-Weed",         MoveMode::Sessile, 0.5f, 10,    0,   0,    0,    0, PI,   0.0f, 0.0f, 0.000f, 0.0f,  0.0f, false, false, 0,  0, 0.0f, 0.0f, T_FLORA},
+    {"Tangle-Vine",      MoveMode::Sessile, 2.0f, 16,    0,   0,    0,    0, PI,   0.0f, 0.0f, 0.000f, 0.0f,  0.0f, false, false, 0,  0, 0.0f, 0.0f, T_FLORA},
+    {"Spore-Pod",        MoveMode::Sessile, 0.5f,  9,    0,   0,    0,    0, PI,   0.0f, 0.0f, 0.000f, 0.0f,  0.0f, false, false, 0,  0, 0.0f, 0.0f, T_FLORA},
 };
 const FoodEdge WEEDS_WEB[] = {
     {WS_SEAHORSE, WS_PLANKTON, 1.0f},
     {WS_MERMAN, WS_SEAHORSE, 0.7f}, {WS_MERMAN, WS_BARRACUDA, 0.8f}, {WS_MERMAN, WS_SHARK, 0.3f},
     {WS_SHARK, WS_SEAHORSE, 0.5f},  {WS_SHARK, WS_MERMAN, 0.5f},    {WS_SHARK, WS_BARRACUDA, 0.6f},
     {WS_BARRACUDA, WS_SEAHORSE, 0.5f},
+    {WS_BARRACUDA, WS_SARDINE, 0.9f}, {WS_MERMAN, WS_SARDINE, 0.5f}, {WS_SHARK, WS_SARDINE, 0.3f}, {WS_SEAHORSE, WS_SARDINE, 0.0f},
+    {WS_SARDINE, WS_PLANKTON, 0.8f}, {WS_SHARK, WS_MANATEE, 0.2f},
 };
 
 static void SpawnWeeds(BeastWorld& W, PlatformState& p) {
@@ -573,6 +585,7 @@ static void SpawnWeeds(BeastWorld& W, PlatformState& p) {
     for (int k = 0; k < 4; k++) NewBeast(W, WS_RAY, sp.Above(W, sp.At(0.12f + 0.24f * k + Hash(s, 60 + k) * 0.08f), 0));
     for (int k = 0; k < 2; k++) Pack(W, WS_CRAB, NearDenFloor(W, sp, 0.3f + 0.4f * k, 6), 3, 140 + k, 40, 0, 700 + k * 10);
     for (int k = 0; k < 2; k++) { Vector2 f = sp.At(0.4f + 0.3f * k); NewBeast(W, WS_FUNGUS, {f.x, (f.y + 1) * TILE - 3}); }
+    Weeds13Spawn(W, p);
 }
 
 // A ray's discharge: everything alive close by is shocked (the small die of it), and whatever it kills lies electrified.
@@ -624,7 +637,7 @@ static void WeedsHooks(BeastWorld& W, PlatformState& p, int i, float dt) {
         }
         break;
     }
-    default: break;
+    default: Weeds13Hook(W, p, i, dt); break; // the 1.3 roster (beasts_weeds.cpp)
     }
 }
 static void WeedsExtras(BeastWorld& W, const PlatformState& p, int i, Choice& best) {
@@ -649,6 +662,7 @@ static bool WeedsLethal(const BeastWorld& W, const Beast& b) {
 }
 static bool WeedsTouch(const BeastWorld& W, const Beast& b, Rectangle diver) {
     (void)W;
+    if (Weeds13Touch(W, b, diver)) return true;
     return b.species == WS_RAY && b.life == BeastLife::Alive && b.special > 0 && CheckCollisionCircleRec(b.pos, 60, diver); // the discharge reaches
 }
 const BiomeDef& WeedsBiome() {
@@ -656,9 +670,9 @@ const BiomeDef& WeedsBiome() {
         BiomeDef d;
         d.level = PL_WEEDS; d.species = WEEDS; d.count = WS_COUNT; d.web = WEEDS_WEB; d.webN = (int)(sizeof(WEEDS_WEB) / sizeof(WEEDS_WEB[0]));
         d.water = true; d.clarity = 0.85f; d.daylight = 0.7f;
-        static const float SIZES[WS_COUNT] = {0.5f, 0.8f, 1.5f, 3.5f, 3.6f, 1.0f, 0.8f, 0.7f};
+        static const float SIZES[WS_COUNT] = {0.5f, 0.8f, 1.5f, 3.5f, 4.2f, 1.0f, 0.8f, 0.7f, 1, 1, 1, 0.6f, 1, 1, 1, 1, 1}; // the Leviathan, bigger still
         d.sizes = SIZES;
-        d.spawn = SpawnWeeds; d.hooks = WeedsHooks; d.extras = WeedsExtras; d.lethal = WeedsLethal; d.touch = WeedsTouch;
+        d.spawn = SpawnWeeds; d.hooks = WeedsHooks; d.extras = WeedsExtras; d.lethal = WeedsLethal; d.touch = WeedsTouch; d.tick = Weeds13Tick;
         return d;
     }();
     return B;
@@ -1160,6 +1174,7 @@ static bool VerifyWeeds() {
         if (!killed) fail("a hungry tiger shark never caught a barracuda");
         if (!carried) fail("the shark never carried its kill off");
     }
+    if (!VerifyWeeds13()) ok = false;
     if (ok) TraceLog(LOG_WARNING, "verify-weeds-ecosystem: OK - grazing, ray discharge/electrified body/crab scavenging, and the shark's carry-off all confirmed");
     return ok;
 }

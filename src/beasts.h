@@ -244,6 +244,8 @@ enum IslandSpecies { IS_BOAR, IS_SNAKE, IS_LIZARD, IS_BAT, IS_SPIDER, IS_CRAB, I
 enum CaveSpecies { CS_CUSK, CS_JELLY, CS_OLM, CS_ISOPOD, CS_LEECH, CS_WORM, CS_GSHRIMP,
                    CS_LOACH, CS_CTORTOISE, CS_STALKER, CS_TREMOR, CS_ARACHNID, CS_LSHROOM, CS_LICHEN, CS_VSPORE, CS_CABBAGE, CS_NROOT, CS_COUNT };
 enum PipeSpecies { PP_MOTH, PP_SPIDER, PP_CENTIPEDE, PP_RAT, PP_MITE, PP_PILLBUG, PP_MOUSE, PP_ROACH, PP_GLOW, PP_CRICKET, PP_COUNT };
-enum WeedsSpecies { WS_PLANKTON, WS_SEAHORSE, WS_BARRACUDA, WS_MERMAN, WS_SHARK, WS_RAY, WS_CRAB, WS_FUNGUS, WS_COUNT };
+// the user's Weeds web, merged with ParkourReference1.3's Seaweed (beasts_weeds.cpp): WS_SHARK is the Leviathan Tiger Shark, WS_CRAB the Bristle-Crab
+enum WeedsSpecies { WS_PLANKTON, WS_SEAHORSE, WS_BARRACUDA, WS_MERMAN, WS_SHARK, WS_RAY, WS_CRAB, WS_FUNGUS,
+                    WS_MANATEE, WS_OCTOSTALKER, WS_HMANTIS, WS_SARDINE, WS_BLOODKELP, WS_LANEMONE, WS_AIRWEED, WS_TANGLE, WS_SPOREPOD, WS_COUNT };
 enum AtlantisSpecies { AS_WISP, AS_SHRIMP, AS_ANGLER, AS_LOSTONE, AS_GUARDIAN, AS_EEL, AS_COUNT };
 bool VerifyBeastBiome(int level); // depth.exe --verify-<biome>-ecosystem: the biome's own food web and chain reactions

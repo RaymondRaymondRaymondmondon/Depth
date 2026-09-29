@@ -86,6 +86,12 @@ bool Island13Touch(const BeastWorld& W, const Beast& b, Rectangle diver);
 void Island13Tick(BeastWorld& W, PlatformState& p, float dt);
 void Island13Spawn(BeastWorld& W, PlatformState& p);
 bool VerifyIsland13();
+// the Weeds' merge with ParkourReference1.3's Seaweed (beasts_weeds.cpp)
+void Weeds13Hook(BeastWorld& W, PlatformState& p, int i, float dt);
+bool Weeds13Touch(const BeastWorld& W, const Beast& b, Rectangle diver);
+void Weeds13Tick(BeastWorld& W, PlatformState& p, float dt);
+void Weeds13Spawn(BeastWorld& W, PlatformState& p);
+bool VerifyWeeds13();
 
 const SpeciesDef& Sp(int biome, int s);
 float Pref(int biome, int pred, int prey);
