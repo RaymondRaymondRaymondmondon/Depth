@@ -1345,6 +1345,25 @@ GenLevel GenerateLevel(int level, unsigned seed, float scale) {
         }
         if (getenv("DEPTH_GENLOG")) fprintf(stderr, "movement set-pieces for level %d: %d of %d\n", level, made, need);
     }
+    // slimy walls (ParkourReference1.2) in the underwater levels: tall wall faces well away from the critical path get a
+    // coat of slime - no grip, no wall jump - so an off-route climb is refused, never the proven one
+    if (level == 1 || level == 4 || level == 5 || level == 6) {
+        int slimed = 0, want = 4 + level;
+        for (int x = 16; x + 16 < (int)out.rows[0].size() && slimed < want; x++) {
+            bool nearRoute = false;
+            for (const GenWaypoint& w : out.path) if (abs(w.tx - x) < 7) { nearRoute = true; break; }
+            if (nearRoute || !rng.C(0.08f)) continue;
+            for (int y = 3; y + 4 < (int)out.rows.size(); y++) {
+                int sd = out.rows[y][x + 1] == '.' ? 1 : out.rows[y][x - 1] == '.' ? -1 : 0;
+                if (sd == 0) continue;
+                bool tall = true;
+                for (int k = 0; k < 4 && tall; k++) tall = out.rows[y + k][x] == '#' && out.rows[y + k][x + sd] == '.';
+                if (!tall) continue;
+                for (int k = 0; k < 4; k++) out.rows[y + k][x] = 's';
+                slimed++; x += 10; break;
+            }
+        }
+    }
     // the Island's shallow pools (the user): water over the jungle floor on a few flat stretches - wading slows you
     if (level == 3) {
         int pools = 0;
