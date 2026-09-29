@@ -732,3 +732,6 @@ Item (4) DONE (first pass): every level has a day/night-aware living background 
 
 ### STATUS at eb666d5 - RESUME HERE
 DONE: (4) backgrounds, (5) Abyss semi-real creature models + cel lighting (LitSphere/LitCyl/LitCapsule in abyss.cpp), (6) bosses (Kraken sweep = slide under; Blackbeard blunderbuss after hit 1 = slide under; verify-moves 1b proves both; Kraken abyssal-red restyle; Blackbeard braids), (8) Periscope dossier (dossier.cpp; Game::platSeen saved as 'seen' line; shots dossier_*). NEXT: (7) QA pass - run every verifier, look at all shots for art/scale issues; then (9) sound (synthesized; per-level ambient; beast voices; SFX; volume sliders on the Periscope).
+
+### STATUS after the sound pass - RESUME HERE
+The OVERNIGHT BRIEF items (1)-(9) are all done at a first complete pass (see CLAUDE.md 'Overnight brief, second half'). Remaining optional polish: sub-theme mixing for the non-Island builders; more required-move set-pieces in Atlantis; richer Pirate/Island scores; per-level footstep surfaces for more tiles. Keep running --verify, --verify-moves, --verify-beasts, the six --verify-*-ecosystem, --verify-abyss and --audio-test after changes.

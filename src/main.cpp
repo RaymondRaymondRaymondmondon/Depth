@@ -527,6 +527,7 @@ int main(int argc, char** argv) {
         InitAudioDevice(); // only for real play: the tools above run silently
         AudioInit();       // the parkour section's synthesizer (sound.cpp)
         if (LoadGame(g)) Toast(g, "Welcome back aboard. Your progress was loaded.");
+        if (argc >= 3 && strcmp(argv[1], "--play") == 0) { int lv = atoi(argv[2]); if (lv >= PL_COUNT) { StartAbyss(g); g.scene = Scene::Abyss; } else StartPlatform(g, std::clamp(lv, 0, PL_COUNT - 1), true); } // developer: straight into a dive (nothing is unlocked or saved by it)
         Scene last = g.scene;
         while (!WindowShouldClose()) {
             g.time += GetFrameTime();

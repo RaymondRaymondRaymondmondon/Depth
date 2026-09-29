@@ -23,7 +23,7 @@
 
 namespace {
 
-constexpr int SR = 44100, BLOCK = 1024, CTRL = 32; // sample rate, stream buffer, control-rate block
+constexpr int SR = 44100, BLOCK = 2048, CTRL = 32; // sample rate, stream buffer, control-rate block
 constexpr float TAU = 6.2831853f;
 AudioStream gStream{};
 bool gReady = false;
