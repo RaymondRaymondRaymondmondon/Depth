@@ -1,4 +1,6 @@
 #include "levelgen.h"
+#include <cstdlib>
+#include <cstdio>
 #include <algorithm>
 #include <cmath>
 #include <random>
@@ -1282,6 +1284,65 @@ GenLevel GenerateLevel(int level, unsigned seed, float scale) {
     out.h = P.H;
     out.rows = g.r;
     for (const Plat& p : pl) out.path.push_back({p.wx, p.y - 1, p.tag});
+    // ---- movement pass 2: set-pieces that REQUIRE the diver's extra moves (the user: "yes, everywhere", ramping with the
+    //      level order). On long plain stretches of the critical path: a dash gap (a spike bed wider than any plain jump:
+    //      jump, then dash) or a ledge wall (a block a tile taller than a jump: grab the lip and haul up). The validator
+    //      proves each one; a draw that can't be crossed is thrown away like any other.
+    {
+        const int want[7] = {1, 2, 2, 3, 3, 4, 4};
+        int need = level >= 0 && level < 7 ? want[level] : 2, made = 0;
+        auto at = [&](int x, int y) -> char { return y >= 0 && y < (int)out.rows.size() && x >= 0 && x < (int)out.rows[y].size() ? out.rows[y][x] : '#'; };
+        auto set = [&](int x, int y, char c) { if (y >= 0 && y < (int)out.rows.size() && x >= 0 && x < (int)out.rows[y].size()) out.rows[y][x] = c; };
+        auto open = [&](int x, int y) { char c = at(x, y); return c == '.' || c == 'o' || c == 'w' || c == 'l'; };
+        for (size_t i = 0; i + 1 < out.path.size() && made < need; i++) {
+            // a run of waypoints on one row over plain floor: merge them into one long stretch
+            size_t j = i + 1;
+            while (j + 1 < out.path.size() && out.path[j].ty == out.path[i].ty && out.path[j].tag == SetPiece::None && out.path[j + 1].ty == out.path[i].ty && out.path[j + 1].tx > out.path[j].tx && out.path[j + 1].tx - out.path[i].tx < 26) j++;
+            if (j > i + 1) {
+                bool flat = true;
+                for (int x = out.path[i].tx; x <= out.path[j].tx && flat; x++) { char fl = at(x, out.path[i].ty + 1); flat = fl == '#' || fl == 'R' || fl == 'D'; }
+                if (flat && out.path[j].tx - out.path[i].tx >= 12) out.path.erase(out.path.begin() + i + 1, out.path.begin() + j);
+            }
+            GenWaypoint a = out.path[i], b = out.path[i + 1];
+            if (a.tag == SetPiece::None && b.tag == SetPiece::None && a.ty == b.ty) { // an existing jump, widened into a dash gap
+                auto solidFloor = [&](int x) { char fl = at(x, a.ty + 1); return fl == '#' || fl == 'R' || fl == 'D' || fl == '=' ; };
+                int ea = a.tx; while (ea + 1 < b.tx && solidFloor(ea + 1)) ea++;
+                int sb = b.tx; while (sb - 1 > ea && solidFloor(sb - 1)) sb--;
+                int gap = sb - ea - 1, eb = sb; while (eb + 1 < (int)out.rows[0].size() - 1 && eb - sb < 40 && solidFloor(eb + 1)) eb++;
+                int k = 7 + (level >= 4 ? 1 : 0) - gap;
+                bool clear = true;
+                for (int x = ea; x <= sb + k + 1 && clear; x++) for (int r = 1; r <= 4 && clear; r++) clear = open(x, a.ty - r + 1) || x <= ea;
+                if (gap >= 4 && gap <= 6 && k > 0 && eb - sb + 1 >= k + 3 && clear && at(sb, a.ty + 1) == '#') {
+                    for (int x = sb; x < sb + k; x++) set(x, a.ty + 1, 'x');
+                    if (out.path[i + 1].tx < sb + k + 1) out.path[i + 1].tx = sb + k + 1;
+                    made++; i += 1;
+                    continue;
+                }
+            }
+            if (a.tag != SetPiece::None || b.tag != SetPiece::None || a.ty != b.ty || b.tx - a.tx < 12) continue;
+            if (rng.C(0.5f) && made > 0) continue; // spread them out
+            int y = a.ty, x0 = a.tx + 2, x1 = b.tx - 2;
+            bool plain = true;
+            for (int x = x0 - 2; x <= x1 + 2 && plain; x++) { char fl = at(x, y + 1); plain = fl == '#' || fl == 'R' || fl == 'D'; for (int k = 0; k <= 5 && plain; k++) plain = open(x, y - k); }
+            if (!plain) continue;
+            bool dash = made % 2 == 0;
+            if (dash) { // a spike bed seven or eight tiles wide
+                int w = 7 + (level >= 4 ? 1 : 0), gx = x0 + (x1 - x0 - w) / 2;
+                if (x1 - x0 < w + 2) continue;
+                for (int x = gx; x < gx + w; x++) set(x, y + 1, 'x');
+                out.path.insert(out.path.begin() + i + 1, GenWaypoint{gx + w + 1, y, SetPiece::None});
+                out.path.insert(out.path.begin() + i + 1, GenWaypoint{gx - 1, y, SetPiece::None});
+            } else { // a block four tiles tall, three wide
+                int bx = x0 + (x1 - x0) / 2 - 1;
+                for (int x = bx; x < bx + 3; x++) for (int k = 0; k < 4; k++) set(x, y - k, '#');
+                out.path.insert(out.path.begin() + i + 1, GenWaypoint{bx + 4, y, SetPiece::None});
+                out.path.insert(out.path.begin() + i + 1, GenWaypoint{bx + 1, y - 4, SetPiece::None});
+                out.path.insert(out.path.begin() + i + 1, GenWaypoint{bx - 2, y, SetPiece::None});
+            }
+            made++; i += 3;
+        }
+        if (getenv("DEPTH_GENLOG")) fprintf(stderr, "movement set-pieces for level %d: %d of %d\n", level, made, need);
+    }
     // pass-2 dressing (cover crates, warriors, dens, gunners) must never sit in a standing cell of the critical path
     // (it made most Island draws unwinnable: a crate on the spot you had to stand)
     for (const GenWaypoint& w : out.path)
