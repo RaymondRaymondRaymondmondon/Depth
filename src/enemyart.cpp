@@ -9,6 +9,7 @@
 //  Done so far: the Cave's crustaceans and the Island's tribe.
 // ============================================================================
 #include "game.h"
+#include "rig.h"
 #include <algorithm>
 #include <cmath>
 
@@ -34,7 +35,11 @@ void Limb2(const Ctx& c, V a, V b, V d, float w0, float w1, float w2, Color col)
 void Line(const Ctx& c, V a, V b, float w, Color col) { DrawLineEx(c.P(a.x, a.y), c.P(b.x, b.y), std::max(1.0f, w * c.k), col); }
 void Tri(const Ctx& c, V a, V b, V d, Color col) { DrawTri(c.P(a.x, a.y), c.P(b.x, b.y), c.P(d.x, d.y), col); }
 void Quad(const Ctx& c, V a, V b, V d, V e, Color col) { ShadeQuad(c.P(a.x, a.y), c.P(b.x, b.y), c.P(d.x, d.y), c.P(e.x, e.y), col); }
-void Dot(const Ctx& c, float x, float y, float r, Color col) { DrawCircleV(c.P(x, y), std::max(1.0f, r * c.k), col); }
+bool gBlink = false; // the creature being drawn has its eyes shut this instant: small bright glints (its eyes) are skipped
+void Dot(const Ctx& c, float x, float y, float r, Color col) {
+    if (gBlink && r <= 1.8f && (0.299f * col.r + 0.587f * col.g + 0.114f * col.b) > 110) return;
+    DrawCircleV(c.P(x, y), std::max(1.0f, r * c.k), col);
+}
 void Bar(const Ctx& c, float x, float y, float w, float h, Color col) { Vector2 p = c.P(x, y); DrawRectangle((int)p.x, (int)p.y, std::max(1, (int)(w * c.k)), std::max(1, (int)(h * c.k)), col); }
 
 // a hard crescent of black on the lower-right rim of a round mass, away from the upper-left light
@@ -1265,7 +1270,7 @@ bool DrawRichEnemy(const Enemy& e, Rectangle r, float t) {
         case EnemyType::ElectricEel: fn = ElectricEel; H = 132; W = 240; break;
         case EnemyType::GreatWhite: fn = GreatWhite; H = 128; W = 250; break;
         case EnemyType::LostInfantry: fn = LostInfantry; H = 132; W = 130; break;
-        case EnemyType::LostCultist: fn = LostCultist; H = 128; W = 110; break;
+        case EnemyType::LostCultist: DrawRigCultist(e, r, t); return true; // rebuilt on the shared rig (rigfigs.cpp)
         case EnemyType::ArmorLostOne: fn = ArmoredLostOne; H = 222; W = 190; break;
         case EnemyType::AlienHorror: fn = AlienHorror; H = 200; W = 200; break;
         case EnemyType::Cthulhu: fn = Cthulhu; H = 340; W = 470; break;
@@ -1280,6 +1285,33 @@ bool DrawRichEnemy(const Enemy& e, Rectangle r, float t) {
     }
     float k = std::min(r.height / H, 1.5f * r.width / W);
     Ctx c{r.x + r.width / 2, r.y + r.height, k, t, e.uid};
+    rig::Instance& in = rig::Get(1000000 + e.uid);
+    rig::Tick(in, t);
+    gBlink = in.face.Closed();
     fn(c);
+    gBlink = false;
+    // secondary motion: something caught on every creature trails in the water - kelp, a feather, hair, a rag, a line
+    struct Hang { float ax, ay; int kind; };
+    static const Hang HANG[(int)EnemyType::COUNT] = {
+        {0.15f, 0.7f, 0}, {0.2f, 0.6f, 0}, {0.0f, 0.8f, 0}, {0.25f, 0.6f, 4},          // louse, shrimp, worm, lobster (the harpoon's line)
+        {0.1f, 0.7f, 0}, {0.0f, 0.85f, 3}, {0.1f, 0.55f, 4}, {0.1f, 0.7f, 0},          // dysformed, ghost worm, lost diver, queen
+        {0.0f, 0.8f, 1}, {0.35f, 0.55f, 4}, {0.0f, 0.85f, 1}, {0.05f, 0.85f, 1}, {0.0f, 0.8f, 1}, {0.1f, 0.8f, 3}, // the tribe
+        {0.05f, 0.85f, 2}, {0.08f, 0.85f, 2}, {0.2f, 0.3f, 2}, {0.3f, 0.5f, 0}, {0.3f, 0.45f, 4}, {0.05f, 0.85f, 2}, // the Weeds
+        {0.03f, 0.8f, 3}, {0.0f, 0.8f, 5}, {0.05f, 0.8f, 5}, {0.0f, 0.6f, 3}, {0.1f, 0.75f, 0},                     // Atlantis
+    };
+    const Hang& hg = HANG[std::clamp((int)e.type, 0, (int)EnemyType::COUNT - 1)];
+    Vector2 anc = c.P(hg.ax * W, -hg.ay * H);
+    Vector2 off = rig::WorldOffset(), d{off.x - in.lastOff.x, off.y - in.lastOff.y};
+    in.lastOff = off;
+    bool jump = fabsf(d.x) > 160 || fabsf(d.y) > 160 || in.chains.empty() || in.dt == 0;
+    static const Color KC[6] = {{40, 110, 70, 255}, {176, 60, 40, 255}, {40, 120, 124, 255}, {214, 204, 180, 255}, {150, 130, 96, 255}, {70, 70, 78, 255}};
+    static const rig::Mat KM[6] = {rig::WET, rig::CLOTH, rig::WET, rig::CLOTH, rig::CLOTH, rig::METAL};
+    if (jump) { in.chains.assign(1, rig::Chain{}); in.chains[0].Init(anc, 6, 6 * k, {0, 1}); in.chains[0].stiff = 0.2f; }
+    else in.chains[0].Shift(d);
+    rig::Chain& ch = in.chains[0];
+    ch.col = KC[hg.kind]; ch.mat = KM[hg.kind];
+    ch.width0 = hg.kind == 5 ? 1.6f : hg.kind == 4 ? 1.2f : 2.6f; ch.width1 = hg.kind >= 4 ? ch.width0 : 0.8f;
+    ch.Step(anc, {0.12f, 1}, in.dt, rig::Current());
+    ch.Draw(k);
     return true;
 }

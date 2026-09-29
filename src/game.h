@@ -590,7 +590,12 @@ EnemyType LocationLevelBoss(Location loc);
 int MiniBossChance(int levelValue);                       // percent chance of a mini-boss encounter at a depth level
 const char* RegionDebuffName(Location loc);
 void DrawBestiaryFigure(const Enemy& e, Rectangle r, float t); // the new creatures (render.cpp)
-bool DrawRichEnemy(const Enemy& e, Rectangle r, float t);      // the richly drawn creatures (enemyart.cpp); false = not one of them yet
+bool DrawRichEnemy(const Enemy& e, Rectangle r, float t);
+// ---------- rigfigs.cpp: figures rebuilt on the shared rig (rig.h) ----------
+void DrawRigCaptain(const Hero& h, Vector2 feet, float s, bool faceRight, float walk, float t, const Pose& pose);
+void DrawRigCultist(const Enemy& e, Rectangle r, float t);
+void RigSetActing(int clip, float t);
+void DrawFigureSheet(bool heroSheet, int index, float t); // dungeon.cpp: one figure in idle, walk, windup, strike, hit, death   // the combat clip (rig::ClipId, -1 none) and its time for the next enemy drawn      // the richly drawn creatures (enemyart.cpp); false = not one of them yet
 void DebugSetEnemies(Game& g, Location loc, const std::vector<EnemyType>& types); // debug: a hand-picked enemy line-up in the first fight
 void GiveXP(Game& g, Hero& h, int amount);
 int XpForNextLevel(const Hero& h);
@@ -667,6 +672,31 @@ void BeginBackdrop();          // draw distant scenery softly out of focus...
 void EndBackdrop(float blur);  // ...and lay it into the scene
 void DrawItemIcon(ItemKind kind, int relicId, Vector2 c, float s); // a carried item, drawn at radius ~s
 void InkPass(float ink, float hatch); // Darkest Dungeon-style inking and crosshatching over the world drawn so far
+
+// ---------- the painterly light rig (Master Reference, "Shared visual direction") ----------
+// One strong key light per scene (the flashlight, the salon's lamps), a cool fill from the water, a rim on the side
+// away from the key, and a fog colour for the veils between parallax layers. The figure shader and the rig's
+// materials read it; scenes set it each frame (BeginFrame resets it to a neutral default).
+struct SceneLight {
+    Vector2 keyDir{-0.55f, -0.83f};      // screen-space direction TOWARD the key light
+    Color key{255, 232, 196, 255};       // warm lamp light on the lit side
+    Color fill{110, 150, 176, 255};      // cool water light filling the shadow side
+    Color rim{150, 214, 230, 255};       // the edge light away from the key
+    Color fog{24, 52, 62, 255};          // the scene's fog, between layers
+    float keyAmt = 1, fillAmt = 1, rimAmt = 1;
+};
+void SetSceneLight(const SceneLight& l);
+const SceneLight& CurSceneLight();
+// A location's muted paper palette: five base tones (umbers, slates, sea-greens) and two hot accents. InkPass pulls
+// low-saturation colour toward the palette's hues (keeping each pixel's value), so every scene sits in its family.
+struct Palette { Color base[5]; Color accent[2]; };
+const Palette& LocationPalette(Location loc);   // data.cpp
+const Palette& SalonPalette();
+SceneLight LocationLight(Location loc, float light01); // the flashlight is the key; low light drops the fill, raises the rim, closes the fog
+SceneLight SalonLight();
+void SetInkLook(const Palette* pal, float palAmt, unsigned seed); // the next InkPass: palette pull, and ink flecks fixed per seed
+void FogVeil(float amount);    // a veil of the scene's fog colour over everything drawn so far (between parallax layers)
+extern bool gSilhouette;       // --silhouette: figures render solid black, to check they read from their shape alone
 
 // ---------- ui.cpp ----------
 int MeasureTxt(const std::string& s, int size, bool bold = false);

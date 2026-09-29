@@ -1183,6 +1183,8 @@ void DebugPetCat() { cat.pos = cat.target = {-150, 640}; cat.purr = 3; cat.wait 
 void SceneHub(Game& g) {
     float dt = GetFrameTime(), t = g.time;
     SetPost(0.5f, 0.03f, 0.4f);
+    SetSceneLight(SalonLight());               // oil lamps overhead, the window's blue fill, candle rim light
+    SetInkLook(&SalonPalette(), 0.22f, 77);
     Vector2 m = GetMousePosition();
     bool mouseInRoom = m.y > 46 && m.y < HUD_Y;
     UpdateLife(g, dt);

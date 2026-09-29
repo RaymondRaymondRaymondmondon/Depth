@@ -509,6 +509,9 @@ int main(int argc, char** argv) {
     const char* spriteFile = argc >= 3 && strcmp(argv[1], "--sprites") == 0 ? argv[2] : nullptr;
     const char* galleryBase = argc >= 3 && strcmp(argv[1], "--gallery") == 0 ? argv[2] : nullptr;
     const bool flatsUiTest = argc >= 2 && strcmp(argv[1], "--flats-ui-test") == 0;
+    // --figures <dir> [filter]: a sheet per hero and enemy (idle, walk, windup, strike, hit, death) as <dir>/fig_<name>.png
+    // --silhouette [dir] [filter]: the same sheets with every figure solid black, as <dir>/sil_<name>.png
+    const bool figSheets = argc >= 3 && strcmp(argv[1], "--figures") == 0, silSheets = argc >= 2 && strcmp(argv[1], "--silhouette") == 0;
 
     SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_RESIZABLE);
     InitWindow(SCREEN_W, SCREEN_H, "Depth");
@@ -525,6 +528,20 @@ int main(int argc, char** argv) {
         g.scene = Scene::Cards;
         DebugFlatsAutoplay(argc >= 3 ? atoi(argv[2]) : 10);
         for (int f = 0; f < 200000 && FlatsAutoplayActive(); f++) { g.time += 1 / 60.0f; BeginFrame(); RunScene(g); EndFrame(g.time); }
+    } else if (figSheets || silSheets) {
+        std::string dir = argc >= 3 ? argv[2] : "shots";
+        const char* filter = argc >= 4 ? argv[3] : nullptr;
+        gSilhouette = silSheets;
+        for (int kind = 0; kind < 2; kind++)
+            for (int i = 0; i < (kind == 0 ? (int)HeroClass::COUNT : (int)EnemyType::COUNT); i++) {
+                std::string name = kind == 0 ? ClassName((HeroClass)i) : MakeEnemy((EnemyType)i, 1).name;
+                for (char& ch : name) ch = isalnum((unsigned char)ch) ? (char)tolower((unsigned char)ch) : '_';
+                if (filter && name.find(filter) == std::string::npos) continue;
+                for (int f = 0; f < 70; f++) { g.time += 1 / 60.0f; BeginFrame(); SetPost(0.3f, 0.02f, 0.2f); DrawFigureSheet(kind == 0, i, g.time); EndFrame(g.time); }
+                std::string path = dir + (silSheets ? "/sil_" : "/fig_") + name + ".png";
+                TraceLog(LOG_INFO, "sheet %s: %s", path.c_str(), SaveFrameShot(path.c_str()) ? "ok" : "FAILED");
+            }
+        gSilhouette = false;
     } else if (spriteFile) {
         MakeSpriteSheet(spriteFile);
     } else if (galleryBase) {

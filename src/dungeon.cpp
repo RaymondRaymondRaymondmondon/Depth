@@ -1,7 +1,8 @@
-﻿// ============================================================================
+// ============================================================================
 //  DEPTH - the roguelike expedition: rooms, the flashlight, and combat.
 // ============================================================================
 #include "game.h"
+#include "rig.h"
 #include "sprite_renderer.h"
 #include "rlgl.h"
 #include "relics.h"
@@ -1525,7 +1526,7 @@ static void DrawCaveLayers(Game& g) {
     // 2. the far cave walls
     if (g.dungeon.loc == Location::Cave) DrawRidge(LayerOffset(g, 0.12f), 318, 70, 3, false, Color{16, 44, 56, 255}, 70);
     if (g.dungeon.loc == Location::Cave) DrawRidge(LayerOffset(g, 0.2f), 372, 50, 11, false, Color{19, 48, 60, 255}, 40);
-    DrawRectangle(0, 0, SCREEN_W, SCREEN_H, Color{30, 70, 84, 40}); // fog between layers
+    FogVeil(0.16f);   // fog between layers, in the scene's own fog colour
     Repeat(LayerOffset(g, 0.16f), 900, [&](float sx, float wx) { // schools of fish drifting past
         float dir = Hash1(wx) > 0.5f ? 1.0f : -1.0f, cx = sx + fmodf(t * 14 * dir + 9000, 900.0f) - 450, cy = 150 + Hash1(wx + 1) * 170;
         for (int f = 0; f < 16; f++) {
@@ -1555,7 +1556,7 @@ static void DrawCaveLayers(Game& g) {
         DrawLineEx({x + 150, base - 180}, {x + 230, base - 170}, 4, wreck);
         DrawRectangle((int)x - 20, (int)base - 30, 300, 30, wreck);
     });
-    DrawRectangle(0, 0, SCREEN_W, SCREEN_H, Color{30, 70, 84, 30});
+    FogVeil(0.12f);
     BeginBlendMode(BLEND_ADDITIVE);
     Repeat(LayerOffset(g, 0.38f), 520 - 180 * deep, [&](float sx, float wx) { // jellyfish, glowing faintly
         float x = sx + Hash1(wx) * 200, y = 140 + Hash1(wx + 2) * 180 + sinf(t * 0.6f + wx) * 18, pulse = 0.85f + 0.15f * sinf(t * 2.2f + wx);
@@ -1590,6 +1591,7 @@ static void DrawCaveLayers(Game& g) {
             prev = p;
         }
     });
+    FogVeil(0.06f);   // a thinner veil: the near layers are closer
     // 5. the near wall behind the fighters, studded with glowing crystals
     float off5 = LayerOffset(g, 0.7f);
     DrawTiled(Tex::Rock, {0, 392, (float)SCREEN_W, 64}, 1.2f, Color{70, 86, 92, 255}, {-off5 / 1.2f, 0});
@@ -2042,8 +2044,22 @@ static void DrawUnitFigures(Game& g) {
                 if (er.Ready()) { er.Draw(feet, std::max(0.2f, r.height / 200.0f) * fx.sx, t, fx.tint); continue; }
             }
         }
+        rig::SetWorldOffset({feet.x - ff.x, feet.y - ff.y});
+        {   // rig figures play a clip for what they are doing: a cast, a strike, a flinch
+            const UnitAnim* a = FindAnim(g, false, e.uid);
+            int clip = -1;
+            if (a) switch (a->kind) {
+                case Anim::Ranged: case Anim::Buff: case Anim::Heal: clip = rig::CL_CAST; break;
+                case Anim::Melee: clip = rig::CL_SLASH; break;
+                case Anim::Hurt: clip = e.alive ? rig::CL_HIT : rig::CL_DEATH; break;
+                case Anim::Dodge: clip = rig::CL_DODGE; break;
+                default: break;
+            }
+            RigSetActing(clip, a && a->dur > 0 ? a->t / a->dur * rig::GetClip(clip < 0 ? 0 : clip).dur : 0);
+        }
         BeginFigure(); // draw on the figure canvas, lined up so its feet land on FigureFeet()
         DrawEnemyFigure(e, {ff.x - r.width / 2, ff.y - r.height, r.width, r.height}, t);
+        RigSetActing(-1, 0);
         float breathe = 1 + 0.012f * sinf(t * 1.7f + e.uid * 1.3f);                               // it breathes, slowly
         EndFigure(feet, fx.tint, fx.sx / breathe, fx.sy * breathe);
     }
@@ -2711,6 +2727,12 @@ void SceneDungeon(Game& g) {
     }
 
     // ---------------- drawing
+    {   // the light rig: the flashlight is the key; the location's palette, its current, and ink flecks fixed per run
+        SetSceneLight(LocationLight(d.loc, d.lightShown / 100.0f));
+        SetInkLook(&LocationPalette(d.loc), 0.32f, d.visSeed);
+        const Vector2 CURRENT[LOCATION_COUNT] = {{-40, 0}, {-90, -10}, {-70, -20}, {-30, 10}};
+        rig::SetCurrent({CURRENT[(int)d.loc].x * (1 + 0.5f * sinf(g.time * 0.4f)), CURRENT[(int)d.loc].y});
+    }
     DrawCaveLayers(g);
     DrawRegionFloor(g);
     DrawSeededSilhouettes(g);
@@ -2991,4 +3013,64 @@ void DrawBestiarySpritePage(int page, float t) {
         Txt(sk, x - MeasureTxt(sk, 11) / 2.0f, y + 48, 11, Color{170, 176, 170, 255});
     }
     (void)total;
+}
+
+// ---------------------------------------------------------------- figure sheets (depth.exe --figures / --silhouette)
+// One figure in every state: idle, walking, the windup and the strike of its attack, a hit, and death. Drawn under
+// its location's light rig on a plain ground, so the figure itself is what's judged.
+void DrawFigureSheet(bool heroSheet, int index, float t) {
+    static Game sg;
+    Location loc = Location::Cave;
+    if (!heroSheet) loc = index <= 7 ? Location::Cave : index <= 13 ? Location::Island : index <= 19 ? Location::Weeds : Location::Atlantis;
+    SetSceneLight(LocationLight(loc, 0.85f));
+    SetInkLook(&LocationPalette(loc), 0.3f, 1234);
+    rig::SetCurrent({-40, 0});
+    const Palette& pal = LocationPalette(loc);
+    if (gSilhouette) DrawRectangle(0, 0, SCREEN_W, SCREEN_H, Color{226, 218, 198, 255});
+    else {
+        DrawVGradient({0, 0, (float)SCREEN_W, 560}, pal.base[2], pal.base[1]);
+        DrawVGradient({0, 560, (float)SCREEN_W, 160}, pal.base[1], pal.base[0]);
+        FogVeil(0.2f);
+    }
+    const char* LABEL[6] = {"idle", "walk", "windup", "strike", "hit", "death"};
+    for (int i = 0; i < 6; i++) {
+        float cx = 110 + i * 212.0f, fy = 560;
+        if (!gSilhouette) DrawEllipse((int)cx, (int)fy, 70, 12, Fade(BLACK, 0.35f));
+        sg.dungeon.anims.clear();
+        if (heroSheet) {
+            Hero h{};
+            h.cls = (HeroClass)index; h.id = 50000 + index * 10 + i; h.outfit = -1;
+            Anim kind = i == 2 || i == 3 ? Anim::Melee : i == 4 ? Anim::Hurt : Anim::None;
+            float dur = kind == Anim::Melee ? 0.9f : 0.6f, u = i == 2 ? 0.24f : i == 3 ? 0.4f : 0.1f;
+            if (kind != Anim::None) sg.dungeon.anims.push_back({true, h.id, kind, u * dur, dur});
+            AnimFx fx = HeroAnimFx(sg, h);
+            if (i == 5) { fx.pose.crouch = 1.0f; fx.pose.headDown = 1.0f; fx.pose.lean = 0.5f;
+                          rig::Instance& in = rig::Get(h.id); if (in.reaction != rig::CL_DEATH) { in.reaction = rig::CL_DEATH; in.reactT = 0; } }
+            DrawCrewFigureInked(h, {cx + fx.dx * 0.5f, fy}, 1.35f, true, i == 1 ? t * 9 : 0, t, fx.pose, fx.tint);
+        } else {
+            Enemy e = MakeEnemy((EnemyType)index, 60000 + index * 10 + i);
+            Anim kind = i == 2 || i == 3 ? Anim::Melee : i == 4 || i == 5 ? Anim::Hurt : Anim::None;
+            float dur = 0.9f, u = i == 2 ? 0.14f : i == 3 ? 0.32f : i == 4 ? 0.1f : 0.5f;
+            if (i == 5) e.alive = false;
+            if (kind != Anim::None) sg.dungeon.anims.push_back({false, e.uid, kind, u * dur, dur});
+            AnimFx fx = EnemyAnimFx(sg, e);
+            if (i == 5) fx.tint.a = 255;   // held at the moment of death, not faded out
+            int span = std::max(1, e.span);
+            float w = span >= 3 ? 374.0f : span == 2 ? 249.0f : e.boss ? 116.0f : 90.0f, hgt = span >= 3 ? 310.0f : span == 2 ? 245.0f : e.boss ? 210.0f : 130.0f;
+            float k = span > 1 || e.boss ? std::min({1.0f, 120.0f / w, 300.0f / hgt}) : std::min({1.4f, 200.0f / w, 380.0f / hgt}); // big ones draw well past their rects
+            w *= k; hgt *= k;
+            Vector2 feet{cx + fx.dx * 0.5f * k, fy + fx.dy}, ff = FigureFeet();
+            rig::SetWorldOffset({feet.x - ff.x, feet.y - ff.y});
+            int clip = i == 1 ? -1 : i == 2 || i == 3 ? rig::CL_SLASH : i == 4 ? rig::CL_HIT : i == 5 ? rig::CL_DEATH : -1;
+            RigSetActing(clip, clip < 0 ? 0 : u * rig::GetClip(clip).dur * (i == 5 ? 3.0f : 1.0f));
+            BeginFigure();
+            DrawEnemyFigure(e, {ff.x - w / 2, ff.y - hgt, w, hgt}, t + (i == 1 ? 0.7f : 0));
+            EndFigure(feet, fx.tint, fx.sx, fx.sy);
+            RigSetActing(-1, 0);
+        }
+    }
+    InkPass(1.0f, 1.0f);
+    std::string title = (heroSheet ? std::string(ClassName((HeroClass)index)) : MakeEnemy((EnemyType)index, 1).name) + (gSilhouette ? "  (silhouette)" : "");
+    DrawTextCenteredBold(title, SCREEN_W / 2.0f, 40, 30, gSilhouette ? Color{20, 16, 14, 255} : Pal::Paper);
+    for (int i = 0; i < 6; i++) DrawTextCentered(LABEL[i], 110 + i * 212.0f, 600, 20, gSilhouette ? Color{60, 50, 40, 255} : Color{200, 206, 200, 255});
 }

@@ -315,6 +315,54 @@ const char* LocationDesc(Location loc) {
     }
 }
 
+// ---------------------------------------------------------------- palettes and light rigs (Master Reference)
+// Five muted base tones, dark to light (umbers, slates, sea-greens), and two saturated accents for blood, glow,
+// gold and eyes. InkPass pulls low-saturation colour toward these hues.
+const Palette& LocationPalette(Location loc) {
+    static const Palette P[LOCATION_COUNT] = {
+        // the Cave: slate-teal water, wet umber rock, bone; accents: mould glow and coral blood
+        {{{14, 24, 28, 255}, {34, 56, 60, 255}, {70, 88, 84, 255}, {120, 128, 112, 255}, {196, 190, 164, 255}}, {{96, 214, 206, 255}, {196, 64, 52, 255}}},
+        // the Island: basalt, ochre, dried palm, sun-bleached bone; accents: eclipse fire and totem red
+        {{{24, 18, 20, 255}, {64, 44, 36, 255}, {118, 88, 60, 255}, {170, 140, 96, 255}, {226, 204, 160, 255}}, {{250, 150, 50, 255}, {176, 40, 36, 255}}},
+        // the Weeds: deep kelp green, olive, sand; accents: siren pink and ray glow
+        {{{12, 24, 18, 255}, {30, 58, 40, 255}, {68, 96, 62, 255}, {128, 138, 96, 255}, {200, 196, 150, 255}}, {{236, 120, 140, 255}, {120, 230, 200, 255}}},
+        // Atlantis: drowned marble, verdigris, void; accents: void violet and the eye's pale gold
+        {{{14, 14, 24, 255}, {38, 42, 58, 255}, {80, 96, 100, 255}, {140, 150, 140, 255}, {210, 206, 190, 255}}, {{190, 120, 255, 255}, {236, 214, 140, 255}}},
+    };
+    return P[std::clamp((int)loc, 0, LOCATION_COUNT - 1)];
+}
+const Palette& SalonPalette() {
+    // mahogany, brass-dark, sea-blue shadow, lamp-lit paper; accents: brass and the window's blue
+    static const Palette P{{{20, 16, 18, 255}, {58, 36, 28, 255}, {110, 76, 50, 255}, {176, 136, 90, 255}, {232, 212, 170, 255}}, {{226, 176, 80, 255}, {90, 170, 210, 255}}};
+    return P;
+}
+SceneLight LocationLight(Location loc, float light01) {
+    SceneLight l;
+    float L = std::clamp(light01, 0.0f, 1.0f);
+    const Palette& p = LocationPalette(loc);
+    auto mix = [](Color a, Color b, float k) { return Color{(unsigned char)(a.r + (b.r - a.r) * k), (unsigned char)(a.g + (b.g - a.g) * k), (unsigned char)(a.b + (b.b - a.b) * k), 255}; };
+    l.keyDir = {-0.62f, -0.78f};                 // the flashlight, carried by the party on the left, raised
+    l.key = mix(Color{255, 214, 160, 255}, Color{255, 238, 206, 255}, L);
+    l.fill = mix(p.base[1], p.base[2], 0.5f);
+    l.rim = mix(p.accent[0], Color{200, 230, 236, 255}, 0.45f);
+    l.fog = p.base[1];
+    l.keyAmt = 0.6f + 0.4f * L;
+    l.fillAmt = 0.35f + 0.65f * L;              // at low light the fill drops...
+    l.rimAmt = 1.0f + 0.9f * (1 - L);           // ...the rim rises...
+    l.fog.a = (unsigned char)(26 + 40 * (1 - L)); // ...and the fog closes in
+    return l;
+}
+SceneLight SalonLight() {
+    SceneLight l;
+    l.keyDir = {-0.45f, -0.89f};                 // oil lamps overhead, a little to the left
+    l.key = {255, 214, 150, 255};
+    l.fill = {90, 150, 196, 255};                // the sea's blue through the great window
+    l.rim = {255, 190, 110, 255};                // candlelight from the card table
+    l.fog = {40, 52, 64, 40};
+    l.keyAmt = 1.0f; l.fillAmt = 0.9f; l.rimAmt = 0.8f;
+    return l;
+}
+
 const char* ClassName(HeroClass c) {
     switch (c) {
         case HeroClass::Nurse: return "Nurse";

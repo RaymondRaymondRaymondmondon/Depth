@@ -9,6 +9,7 @@
 // ============================================================================
 #include "game.h"
 #include "sprite_renderer.h"
+#include "rig.h"
 #include <map>
 #include <cctype>
 #include "relics.h"
@@ -27,6 +28,8 @@ struct ArtState {
     int locBlurTexel = -1;
     int locTime = -1, locRes = -1, locVig = -1, locGrain = -1, locBloom = -1;
     int locFigTexel = -1, locFigOutline = -1, locFigVib = -1, locFigInk = -1, locInkRes = -1, locInkAmt = -1, locInkHatch = -1;
+    int locFigKey = -1, locFigKeyCol = -1, locFigFillCol = -1, locFigRimCol = -1, locFigAmts = -1;
+    int locInkPal = -1, locInkPalL = -1, locInkPalAmt = -1, locInkSeed = -1;
     float vignette = 0.45f, grain = 0.03f, bloom = 0.35f;
     bool lightsOpen = false;
 };
@@ -49,6 +52,9 @@ uniform vec2 uTexel;
 uniform float uOutline;
 uniform float uVibrance;
 uniform float uInkStyle;
+uniform vec2 uKey;      // toward the key light, in texture space (y up)
+uniform vec3 uKeyCol, uFillCol, uRimCol;
+uniform vec3 uAmts;     // key, fill, rim strengths
 out vec4 finalColor;
 const vec3 INK = vec3(0.055, 0.042, 0.036);
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
@@ -76,34 +82,47 @@ void main() {
     float edge = length(l - r) + length(u - dn);
     vec3 col = c.rgb;
     col *= mix(0.92, 1.0, smoothstep(0.45, 0.95, nearA));         // the form turns away at its edges
-    float toward = texture(texture0, uv + vec2(-3.0, 3.0) * uTexel).a;
-    float away = texture(texture0, uv + vec2(3.0, -3.0) * uTexel).a;
-    col *= 1.0 + 0.25 * (away - toward);                          // light from the upper left
-    // a thin, cool rim of reflected light along the shadowed edge, as in Darkest Dungeon's portraits
-    float rimEdge = 1.0 - texture(texture0, uv + vec2(2.0, -1.0) * uTexel).a;
-    col += vec3(0.05, 0.08, 0.09) * rimEdge * (1.0 - toward * 0.5);
-    if (uInkStyle > 0.01) { // an ink drawing, like the cards: black linework, diagonal hatching and dithered stipple over a dusky paper tone.
-        // Built straight from the lit, pre-tint colour above: the legacy cel-band/rim pipeline below is for the painted look, and
-        // compounds into near-black once fed through ink thresholding, so ink drawings skip it entirely.
-        float lv = dot(col, vec3(0.299, 0.587, 0.114));
-        vec3 hue = col / max(lv, 0.08);
-        vec3 paper = mix(vec3(0.72, 0.62, 0.46), clamp(hue * 0.85, 0.0, 1.3) * 0.68, 0.30);
-        float v = clamp(pow(lv, 0.55) * 1.05, 0.0, 1.15);
+    // the scene's light rig: a warm key on the side toward it, the water's cool fill in the shadow, a rim on the far edge
+    float toward = texture(texture0, uv + uKey * 4.2 * uTexel).a;
+    float away = texture(texture0, uv - uKey * 4.2 * uTexel).a;
+    col *= 1.0 + 0.25 * (away - toward);
+    col = mix(col, col * uKeyCol * 1.12, 0.30 * uAmts.x * (1.0 - toward));
+    col = mix(col, col * uFillCol * 1.25, 0.26 * uAmts.y * (1.0 - away) * toward);
+    float rimEdge = 1.0 - texture(texture0, uv - uKey * 2.2 * uTexel).a;
+    col += uRimCol * 0.16 * uAmts.z * rimEdge * (1.0 - toward * 0.5);
+    if (uInkStyle > 0.01) {
+        // The Darkest Dungeon finish (Master Reference): the lit colour kept, cut into three cel bands, the deepest shadow
+        // falling to solid black shapes, and cross-hatching laid ALONG the form (perpendicular to the way the light
+        // changes across it) in the shadow band only. Bands are judged relative to the part's own local brightness, so
+        // a navy coat and a bone-white apron both get a lit side, a shade and a black core.
         vec2 hpx = uv / uTexel;
-        float diag = fract((hpx.x + hpx.y) / 6.0);
-        bool hatch = v < 0.42 && diag < 0.24;                  // one clean diagonal hatch band, not scattered dots
-        float thr = bayerF(floor(hpx / 3.0));                  // a smooth 3px-block dither for the fill, matching the cards
-        float d = clamp((0.72 - v) / 0.58, 0.0, 1.0);
+        float lv = dot(col, vec3(0.299, 0.587, 0.114));
+        float loc = 0.0;
+        for (int i = 0; i < 8; i++) { float a = float(i) * 0.7854; loc += dot(texture(texture0, uv + vec2(cos(a), sin(a)) * 7.0 * uTexel).rgb, vec3(0.299, 0.587, 0.114)); }
+        loc = max(loc / 8.0, 0.03);
+        float rel = lv / loc;                                   // > 1 on the lit side of a form, < 1 in its shade
+        float lightness = clamp(0.55 * rel + 0.9 * lv, 0.0, 2.0); // relative shape, plus a little absolute value
+        vec2 gr = vec2(dot(r - l, vec3(0.333)), dot(u - dn, vec3(0.333)));
+        vec2 tng = length(gr) > 0.015 ? normalize(vec2(-gr.y, gr.x)) : vec2(0.7071, 0.7071);
+        float h1 = abs(fract(dot(hpx, tng) / 3.6) - 0.5) * 2.0;                       // hatch lines along the form
+        float h2 = abs(fract(dot(hpx, vec2(-tng.y, tng.x)) / 3.6) - 0.5) * 2.0;        // and across it, deeper in
+        float sat = max(col.r, max(col.g, col.b)) - min(col.r, min(col.g, col.b));
+        vec3 hue = mix(vec3(lv), col, 1.25);                                           // class colours read strongly
         vec3 outc;
-        if (edge > 0.6 || hatch || thr < d * 0.55) outc = INK;
-        else if (thr < d * 1.05) outc = vec3(0.38, 0.27, 0.20);
-        else outc = paper * (0.70 + 0.30 * v);                 // dusky rather than bright, so it sits in a dim scene instead of glowing
-        // uInkStyle blends toward the plain lit colour instead of a hard switch, so the effect's
-        // strength can be dialed back without turning it off outright.
+        if (lightness < 0.42) outc = mix(INK, hue * 0.35, 0.18);                       // the black block shadow
+        else if (lightness < 0.66) {                                                   // the shade band, hatched
+            outc = hue * 0.62;
+            float d = clamp((0.66 - lightness) / 0.24, 0.0, 1.0);
+            if (h1 < 0.18 + 0.32 * d) outc = mix(outc, INK, 0.8);
+            if (d > 0.55 && h2 < 0.22) outc = mix(outc, INK, 0.7);
+        } else if (lightness < 0.98) outc = hue * 0.92;                                // the mid tone
+        else outc = hue * 1.12 + vec3(0.03, 0.025, 0.01);                              // the lit plane
+        outc = mix(outc, INK, smoothstep(0.35, 0.9, edge) * 0.8);                      // linework between parts
+        outc += (hash(floor(hpx / 2.0)) - 0.5) * 0.03;                                 // a little paper tooth
+        if (uVibrance > 0.0) { float l2 = dot(outc, vec3(0.299, 0.587, 0.114)); outc = mix(vec3(l2), outc, 1.0 + 0.3 * uVibrance) * vec3(1.05, 1.0, 0.92); }
         finalColor = vec4(mix(col, outc, uInkStyle) * fragColor.rgb, fragColor.a);
         return;
-    }
-    col = mix(col, INK, smoothstep(0.35, 0.9, edge) * 0.75);      // linework between parts
+    }    col = mix(col, INK, smoothstep(0.35, 0.9, edge) * 0.75);      // linework between parts
     // a little painted texture, so surfaces read as cloth, skin and metal rather than flat colour
     vec2 cell = floor(uv / uTexel / 2.0);
     col *= 0.975 + 0.05 * fract(sin(dot(cell, vec2(12.9898, 78.233))) * 43758.5453);
@@ -150,6 +169,10 @@ uniform sampler2D texture0;
 uniform vec2 uRes;
 uniform float uInk;
 uniform float uHatch;
+uniform vec3 uPal[5];
+uniform float uPalL[5];
+uniform float uPalAmt;
+uniform float uSeed;
 out vec4 finalColor;
 float lum(vec3 c) { return dot(c, vec3(0.299, 0.587, 0.114)); }
 float L(vec2 o) { return lum(texture(texture0, fragTexCoord + o / uRes).rgb); }
@@ -175,6 +198,32 @@ void main() {
     col = mix(col, col * vec3(1.07, 1.0, 0.87), 0.30);   // a warm, aged-paper cast
     col += (hash(floor(px / 2.0)) - 0.5) * 0.04;
     col = mix(vec3(lum(col)) * vec3(1.05, 1.0, 0.92), col, 0.86);
+    // the location's palette: muted colour takes the palette's hue at its own value; saturated accents keep theirs
+    if (uPalAmt > 0.0) {
+        float lv = lum(col);
+        vec3 pc = uPal[0];
+        for (int i = 0; i < 4; i++) if (lv > uPalL[i]) pc = mix(uPal[i], uPal[i + 1], clamp((lv - uPalL[i]) / max(uPalL[i + 1] - uPalL[i], 0.01), 0.0, 1.0));
+        pc = pc / max(lum(pc), 0.02) * lv;
+        float sat = max(col.r, max(col.g, col.b)) - min(col.r, min(col.g, col.b));
+        col = mix(col, pc, uPalAmt * (1.0 - smoothstep(0.12, 0.40, sat)));
+    }
+    // a faint paper tooth that never scrolls
+    float fib = hash(floor(vec2(px.x / 3.0, px.y / 9.0))) * 0.6 + hash(floor(px / 5.0)) * 0.4;
+    col *= 0.975 + 0.04 * fib;
+    // a few ink flecks, fixed per run: spattered where the pen was shaken, heavier toward the edges
+    vec2 cell = floor(px / 84.0);
+    float h = hash(cell + vec2(uSeed * 0.137, uSeed * 0.071));
+    vec2 ctr = (cell + vec2(hash(cell + 3.1 + uSeed), hash(cell + 7.7 - uSeed))) * 84.0;
+    vec2 ndc = px / uRes - 0.5;
+    float edge = smoothstep(0.25, 0.62, length(ndc * vec2(1.0, 1.25)));
+    if (h > 0.93 - edge * 0.12) {
+        float r = 1.2 + 3.2 * hash(cell + 11.0 + uSeed);
+        float d = length(px - ctr);
+        if (d < r) col = mix(col, vec3(0.04, 0.03, 0.03), 0.78);
+        else if (d < r * 3.0 && hash(floor(px / 1.5)) > 0.93) col = mix(col, vec3(0.04, 0.03, 0.03), 0.6); // the spray around it
+    }
+    // an inked vignette: the corners go down into the paper
+    col *= 1.0 - 0.22 * smoothstep(0.42, 0.78, length(ndc * vec2(1.0, 1.2)));
     finalColor = vec4(col, 1.0);
 }
 )";
@@ -415,6 +464,29 @@ void InitArt() {
     A.locInkRes = GetShaderLocation(A.ink, "uRes");
     A.locInkAmt = GetShaderLocation(A.ink, "uInk");
     A.locInkHatch = GetShaderLocation(A.ink, "uHatch");
+    A.locInkPal = GetShaderLocation(A.ink, "uPal");
+    A.locInkPalL = GetShaderLocation(A.ink, "uPalL");
+    A.locInkPalAmt = GetShaderLocation(A.ink, "uPalAmt");
+    A.locInkSeed = GetShaderLocation(A.ink, "uSeed");
+    A.locFigKey = GetShaderLocation(A.figShader, "uKey");
+    A.locFigKeyCol = GetShaderLocation(A.figShader, "uKeyCol");
+    A.locFigFillCol = GetShaderLocation(A.figShader, "uFillCol");
+    A.locFigRimCol = GetShaderLocation(A.figShader, "uRimCol");
+    A.locFigAmts = GetShaderLocation(A.figShader, "uAmts");
+}
+
+// ============================================================= the light rig and the palette
+static SceneLight gLight;
+static const Palette* gInkPal = nullptr;
+static float gInkPalAmt = 0;
+static unsigned gInkSeed = 0;
+bool gSilhouette = false;
+void SetSceneLight(const SceneLight& l) { gLight = l; }
+const SceneLight& CurSceneLight() { return gLight; }
+void SetInkLook(const Palette* pal, float palAmt, unsigned seed) { gInkPal = pal; gInkPalAmt = palAmt; gInkSeed = seed; }
+void FogVeil(float amount) {
+    Color f = gLight.fog;
+    DrawRectangle(0, 0, SCREEN_W, SCREEN_H, Color{f.r, f.g, f.b, (unsigned char)std::clamp(amount * 255.0f, 0.0f, 255.0f)});
 }
 
 void UnloadArt() {
@@ -468,6 +540,8 @@ void EnterScene() {
 }
 
 void BeginFrame() {
+    gLight = SceneLight{};        // each scene sets its own light rig; this is the neutral default
+    gInkPal = nullptr; gInkPalAmt = 0;
     EnterScene();
     ClearBackground(Pal::SeaDeep);
 }
@@ -805,6 +879,19 @@ void InkPass(float ink, float hatch) {
     SetShaderValue(A.ink, A.locInkRes, res, SHADER_UNIFORM_VEC2);
     SetShaderValue(A.ink, A.locInkAmt, &ink, SHADER_UNIFORM_FLOAT);
     SetShaderValue(A.ink, A.locInkHatch, &hatch, SHADER_UNIFORM_FLOAT);
+    {
+        float pal[15] = {}, palL[5] = {}, amt = gInkPal ? gInkPalAmt : 0.0f, seed = (float)(gInkSeed % 997);
+        if (gInkPal) {
+            Color c[5]; for (int i = 0; i < 5; i++) c[i] = gInkPal->base[i];
+            auto L = [](Color k) { return (0.299f * k.r + 0.587f * k.g + 0.114f * k.b) / 255.0f; };
+            std::sort(c, c + 5, [&](Color a, Color b) { return L(a) < L(b); });
+            for (int i = 0; i < 5; i++) { pal[i * 3] = c[i].r / 255.0f; pal[i * 3 + 1] = c[i].g / 255.0f; pal[i * 3 + 2] = c[i].b / 255.0f; palL[i] = L(c[i]); }
+        }
+        SetShaderValueV(A.ink, A.locInkPal, pal, SHADER_UNIFORM_VEC3, 5);
+        SetShaderValueV(A.ink, A.locInkPalL, palL, SHADER_UNIFORM_FLOAT, 5);
+        SetShaderValue(A.ink, A.locInkPalAmt, &amt, SHADER_UNIFORM_FLOAT);
+        SetShaderValue(A.ink, A.locInkSeed, &seed, SHADER_UNIFORM_FLOAT);
+    }
     BeginShaderMode(A.ink);
     DrawTextureRec(A.scene.texture, {0, 0, (float)SCREEN_W * SS, -(float)SCREEN_H * SS}, {0, 0}, WHITE);
     EndShaderMode();
@@ -860,8 +947,25 @@ void EndFigure(Vector2 feet, Color tint, float sx, float sy) {
     SetShaderValue(A.figShader, A.locFigOutline, &outline, SHADER_UNIFORM_FLOAT);
     float vib = gDiveGear ? 0.0f : 1.0f;   // every figure drawn off-expedition gets the Nautilus's warm, vivid look
     SetShaderValue(A.figShader, A.locFigVib, &vib, SHADER_UNIFORM_FLOAT);
-    float inkStyle = 0.62f;  // every figure is an ink illustration, but blended rather than pure so it doesn't overwhelm the art
+    float inkStyle = 0.9f;   // the Darkest Dungeon finish: cel bands, black shadow shapes, hatching along the form
     SetShaderValue(A.figShader, A.locFigInk, &inkStyle, SHADER_UNIFORM_FLOAT);
+    {
+        float kl = sqrtf(gLight.keyDir.x * gLight.keyDir.x + gLight.keyDir.y * gLight.keyDir.y);
+        float key[2] = {kl > 0 ? gLight.keyDir.x / kl : -0.55f, kl > 0 ? -gLight.keyDir.y / kl : 0.83f}; // texture space: y up
+        auto v3 = [](Color c, float* o) { o[0] = c.r / 255.0f; o[1] = c.g / 255.0f; o[2] = c.b / 255.0f; };
+        float kc[3], fc[3], rc[3], amts[3] = {gLight.keyAmt, gLight.fillAmt, gLight.rimAmt};
+        v3(gLight.key, kc); v3(gLight.fill, fc); v3(gLight.rim, rc);
+        SetShaderValue(A.figShader, A.locFigKey, key, SHADER_UNIFORM_VEC2);
+        SetShaderValue(A.figShader, A.locFigKeyCol, kc, SHADER_UNIFORM_VEC3);
+        SetShaderValue(A.figShader, A.locFigFillCol, fc, SHADER_UNIFORM_VEC3);
+        SetShaderValue(A.figShader, A.locFigRimCol, rc, SHADER_UNIFORM_VEC3);
+        SetShaderValue(A.figShader, A.locFigAmts, amts, SHADER_UNIFORM_VEC3);
+    }
+    if (gSilhouette) { // the figure as a solid black shape: does it read from its outline alone?
+        DrawTexturePro(A.fig.texture, {0, 0, (float)FIG_W * SS, -(float)FIG_H * SS},
+                       {roundf(feet.x - FIG_FEET.x * sx), roundf(feet.y - FIG_FEET.y * sy), (float)FIG_W * sx, (float)FIG_H * sy}, {0, 0}, 0, Color{0, 0, 0, tint.a});
+        return;
+    }
     BeginShaderMode(A.figShader);
     DrawTexturePro(A.fig.texture, {0, 0, (float)FIG_W * SS, -(float)FIG_H * SS},
                    {roundf(feet.x - FIG_FEET.x * sx), roundf(feet.y - FIG_FEET.y * sy), (float)FIG_W * sx, (float)FIG_H * sy}, {0, 0}, 0, tint); // squash and stretch, about the feet
@@ -871,7 +975,10 @@ void EndFigure(Vector2 feet, Color tint, float sx, float sy) {
 // ============================================================= shaded forms
 // Light comes from the upper left. Limbs are shaded like cylinders, heads and joints like spheres,
 // torsos with a lit side and a shadow side, so every part reads as a solid form.
-static const Vector2 TO_LIGHT = {-0.55f, -0.83f};
+static Vector2 ToLight() {
+    float l = sqrtf(gLight.keyDir.x * gLight.keyDir.x + gLight.keyDir.y * gLight.keyDir.y);
+    return l > 1e-3f ? Vector2{gLight.keyDir.x / l, gLight.keyDir.y / l} : Vector2{-0.55f, -0.83f};
+}
 
 Color Tone(Color c, float k) {
     if (k < 0) return ColorBrightness(c, std::max(-0.95f, k * 0.8f));
@@ -888,6 +995,7 @@ static void Vtx(Vector2 p, Color c) {
 void ShadeBall(Vector2 c, float r, Color col) {
     DrawCircleV(c, r, Tone(col, -0.5f));
     Color lit = Tone(col, 0.15f);
+    Vector2 TO_LIGHT = ToLight();
     DrawCircleGradient((int)(c.x + TO_LIGHT.x * r * 0.32f), (int)(c.y + TO_LIGHT.y * r * 0.32f), r * 0.82f, lit, Fade(lit, 0));
 }
 
@@ -896,7 +1004,7 @@ void ShadeLimb(Vector2 a, Vector2 b, float wa, float wb, Color c) {
     ShadeBall(a, wa, c);
     ShadeBall(b, wb, c);
     if (len < 0.01f) return;
-    Vector2 n{-dy / len, dx / len};
+    Vector2 n{-dy / len, dx / len}, TO_LIGHT = ToLight();
     float face = n.x * TO_LIGHT.x + n.y * TO_LIGHT.y;
     auto shade = [&](float t) {
         float nz = sqrtf(std::max(0.0f, 1 - t * t));
@@ -917,6 +1025,7 @@ void ShadeLimb(Vector2 a, Vector2 b, float wa, float wb, Color c) {
 
 // A four-cornered panel (torso, coat, apron) lit from the left: rim, highlight band, core shadow.
 void ShadeQuad(Vector2 tl, Vector2 tr, Vector2 br, Vector2 bl, Color c) {
+    if (ToLight().x > 0.15f) { std::swap(tl, tr); std::swap(bl, br); } // a key light from the right: the lit band on the right
     const float U[4] = {0, 0.28f, 0.62f, 1}, K[4] = {-0.1f, 0.2f, -0.12f, -0.55f};
     auto lerp = [](Vector2 a, Vector2 b, float u) { return Vector2{a.x + (b.x - a.x) * u, a.y + (b.y - a.y) * u}; };
     rlBegin(RL_TRIANGLES);
@@ -935,6 +1044,7 @@ void ShadeQuad(Vector2 tl, Vector2 tr, Vector2 br, Vector2 bl, Color c) {
 // the figure for combat animations: leaning, crouching, raising or thrusting the weapon arm.
 bool gDiveGear = false;
 void DrawCrewFigure(const Hero& h, Vector2 ft, float s, bool right, float walk, float t, const Pose& pose) {
+    if (h.cls == HeroClass::Captain && h.outfit < 0) { DrawRigCaptain(h, ft, s, right, walk, t, pose); return; } // rebuilt on the shared rig
     float f = right ? 1.0f : -1.0f, x = ft.x;
     int seed = h.id * 7919 + 13;
     const Color skins[4] = {{226, 186, 152, 255}, {198, 150, 112, 255}, {160, 110, 78, 255}, {108, 74, 52, 255}};
@@ -1499,7 +1609,7 @@ void DrawCrewFigure(const Hero& h, Vector2 ft, float s, bool right, float walk, 
         DrawCircleSector(P(-3, -152), 11.8f * s, f > 0 ? 90 : 0, f > 0 ? 180 : 90, 10, hair);
         for (int k = 0; k < 4; k++) DrawLineEx(P(-9 + k * 4.0f, -165), P(-7 + k * 4.5f, -157), 0.9f * s, Tone(hair, -0.35f)); // strands
         Q(P(2, -156.4f), P(12.6f, -156.4f), P(12.6f, -148.6f), P(2, -149.2f), Color{6, 8, 12, 255}); // the eyes are lost under a heavy brow shadow
-        DrawCircleV(P(9.4f, -152.4f), 0.85f * s, Color{214, 220, 206, 255});                          // just a pinprick of light in it
+        if (!rig::Get(2000000 + h.id).face.Closed()) DrawCircleV(P(9.4f, -152.4f), 0.85f * s, Color{214, 220, 206, 255}); // just a pinprick of light in it (it blinks)
         ShadeBall(P(12, -148), 2.6f * s, skin);              // nose
         DrawCircleV(P(12, -146.5f), 0.8f * s, Tone(skin, -0.55f));
         DrawLineEx(P(7.5f, -142.8f), P(11.5f, -143.2f), 1.3f * s, Color{150, 80, 70, 255}); // lips
@@ -1581,6 +1691,35 @@ void DrawCrewFigure(const Hero& h, Vector2 ft, float s, bool right, float walk, 
         }
     }
 
+    {   // secondary motion (Master Reference): something on every figure hangs and trails - a ribbon, a lanyard, a rag, a cable
+        rig::Instance& in = rig::Get(2000000 + h.id);
+        rig::Tick(in, t);
+        struct Hang { float x, y; Color c; float w0, w1; int n; float seg; rig::Mat m; };
+        Hang hg{10, -92, Color{110, 84, 56, 255}, 1.4f, 1.0f, 5, 5, rig::CLOTH};                              // a lanyard from the belt
+        if (!npc) switch (h.cls) {
+            case HeroClass::Nurse:    hg = {-12, -155, Color{176, 40, 36, 255}, 1.8f, 1.2f, 5, 5, rig::CLOTH}; break;   // a ribbon from her bun
+            case HeroClass::Diver:    hg = {-12, -92, Color{150, 130, 96, 255}, 1.3f, 1.3f, 6, 5, rig::CLOTH}; break;   // a coiled line, loose end trailing
+            case HeroClass::Mechanic: hg = {-14, -92, Color{174, 90, 60, 255}, 3.0f, 2.2f, 4, 6, rig::CLOTH}; break;    // an oily rag in the back pocket
+            case HeroClass::Whaler:   hg = {8, -133, Color{146, 62, 52, 255}, 3.4f, 2.4f, 5, 6, rig::CLOTH}; break;     // the scarf's end
+            case HeroClass::Stowaway: hg = {12, -92, Color{170, 140, 90, 255}, 2.2f, 1.4f, 5, 5, rig::CLOTH}; break;    // the rope belt's end
+            case HeroClass::Merman:   hg = {-10, -90, Color{40, 110, 80, 255}, 2.6f, 1.0f, 6, 6, rig::WET}; break;      // a kelp strand
+            case HeroClass::Queen:    hg = {-9, -166, Color{150, 80, 170, 255}, 2.4f, 0.8f, 5, 5, rig::CLOTH}; break;   // a feather from the crown
+            case HeroClass::Robot:    hg = {-16, -128, Color{50, 48, 46, 255}, 1.8f, 1.8f, 6, 6, rig::METAL}; break;    // a loose cable
+            case HeroClass::Octopus:  hg = {-10, -96, Tone(top, -0.1f), 3.2f, 0.8f, 6, 6, rig::WET}; break;             // a trailing arm
+            case HeroClass::Wisp:     hg = {-6, -100, Fade(top, 0.8f), 3.0f, 0.6f, 6, 6, rig::GLOW}; break;             // a trailing wisp of light
+            default: break;
+        }
+        Vector2 anc = P(hg.x, hg.y);
+        Vector2 off = rig::WorldOffset(), d{off.x - in.lastOff.x, off.y - in.lastOff.y};
+        in.lastOff = off;
+        bool jump = fabsf(d.x) > 160 || fabsf(d.y) > 160 || in.chains.empty() || in.dt == 0;
+        if (jump) { in.chains.assign(1, rig::Chain{}); in.chains[0].Init(anc, hg.n, hg.seg * s, {0, 1}); in.chains[0].stiff = 0.25f; }
+        else in.chains[0].Shift(d);
+        rig::Chain& ch = in.chains[0];
+        ch.col = hg.c; ch.width0 = hg.w0; ch.width1 = hg.w1; ch.mat = hg.m;
+        ch.Step(anc, {-0.15f * f, 1}, in.dt, rig::Current());
+        ch.Draw(s);
+    }
     // --- the weapon arm, in front of everything, posed by `pose`
     float rz = ease(pose.raise), rc = ease(pose.reach);
     Vector2 sh = P(14, -128 + br);
@@ -1688,7 +1827,10 @@ void DrawCrewFigure(const Hero& h, Vector2 ft, float s, bool right, float walk, 
 void DrawCrewFigureInked(const Hero& h, Vector2 feet, float s, bool right, float walk, float t, const Pose& pose, Color tint) {
     // ART HOOK: painted, skeletal explorers. If assets/characters/<class>/skeleton.txt exists (e.g. characters/diver/), the hero is drawn
     // from its high-resolution attachments exactly as painted: no figure shader, no ink pass, no tint, no rust. Otherwise the procedural figure below is used.
-    if (h.outfit < 0) {
+    // Only the Siren and the Wisp have real painted art; the other classes' generated placeholder sets (assets/characters/*)
+    // drew broken, oversized blocks, so they stay procedural, and classes rebuilt on the shared rig always are.
+    bool onRig = h.cls != HeroClass::Siren && h.cls != HeroClass::Wisp;
+    if (h.outfit < 0 && !onRig) {
         static std::map<int, art::CharacterRenderer> painted;
         std::string folder = ClassName(h.cls);
         for (auto& ch : folder) ch = (char)tolower(ch);
@@ -1704,6 +1846,7 @@ void DrawCrewFigureInked(const Hero& h, Vector2 feet, float s, bool right, float
             }
         }
     }
+    rig::SetWorldOffset({feet.x - FIG_FEET.x, feet.y - FIG_FEET.y});
     BeginFigure();
     DrawCrewFigure(h, FIG_FEET, s, right, walk, t, pose);
     EndFigure(feet, tint);
