@@ -420,6 +420,8 @@ struct PlatformState {
     float fallTop = 0;               // the highest point of the current fall (a long drop stuns; a short one never does)
     unsigned long long seenAtStart = 0; // the dossier's entries for this level when the dive began: a species new to it gets a first-meeting hint
     std::vector<std::pair<int, float>> hinted; // (species, when it was first met this dive)
+    struct BgHunt { int pred = -1, prey = -1; float start = 0, dur = 7, x0 = 0, y0 = 0, worldX = 0, depth = 0.4f; int dir = 1; bool caught = true; };
+    BgHunt bgHunt; float bgHuntNext = 10; // the food web at work in the middle distance (DrawBackgroundWeb): a real pairing from the level's web, now and then
     float boostT = 0;                // a boosted move's extra speed isn't clawed back in the air until this runs out
     bool dashReady = true;           // one dash per jump: back on landing, on a wall, a pole or a ledge
     Vector2 dashDir{0, 0};

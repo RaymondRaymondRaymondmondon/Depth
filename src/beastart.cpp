@@ -13,6 +13,7 @@
 namespace {
 px::Canvas gCv;
 float gPxCell = 2; // world units per art pixel before the size transform
+float gPxAlpha = 1; // a fade on everything drawn (distant creatures in the background web)
 constexpr float PIf = 3.14159265f;
 Vector2 Add(Vector2 a, Vector2 b) { return {a.x + b.x, a.y + b.y}; }
 Vector2 Sub(Vector2 a, Vector2 b) { return {a.x - b.x, a.y - b.y}; }
@@ -41,11 +42,12 @@ struct Pen {
     void Chain(const Vector2* p, int n, const float* r, int m, float z = 0) { Vector2 cp[64]; float cr[64]; n = std::min(n, 64); for (int k = 0; k < n; k++) { cp[k] = C(p[k]); cr[k] = Rr(r[k]); } gCv.Chain(cp, n, cr, m, Rr(z)); }
     void Tri(Vector2 a, Vector2 b, Vector2 c, int m, float z = 0, float nx = 0, float ny = -0.4f) { gCv.Tri(C(a), C(b), C(c), m, Rr(z), nx, ny); }
     void Dot(Vector2 p, int m, float z = 500) { Vector2 c = C(p); gCv.Dot((int)floorf(c.x), (int)floorf(c.y), m, Rr(z)); }
-    void Draw(const px::Mat* M, int n, float alpha = 1) { px::Render(gCv, M, n, origin, gPxCell, false, alpha); }
+    void Draw(const px::Mat* M, int n, float alpha = 1) { px::Render(gCv, M, n, origin, gPxCell, false, alpha * gPxAlpha); }
 };
 } // namespace
 
-void PxSetScale(float sz) { gPxCell = 2.0f / std::clamp(sz, 0.25f, 8.0f); }
+void PxSetScale(float sz) { gPxCell = 2.0f / std::clamp(sz, 0.1f, 8.0f); }
+void PxSetAlpha(float a) { gPxAlpha = a; }
 
 // ---------------------------------------------------------------- the Timber-Shell Tortoise (the Pirate Ship), and the Cave's Crystal-Shelled one
 void PxTortoise(Vector2 c, float facing, float phase, bool moving, bool dead, float t, bool crystal) {

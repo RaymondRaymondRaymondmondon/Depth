@@ -5,6 +5,7 @@ struct PlatformState;
 struct Beast;
 
 void PxSetScale(float sz); // the size the draw loop grows the next creature by (so its art pixels stay two world pixels)
+void PxSetAlpha(float a);  // fade everything drawn after this (1 = solid)
 void PxTortoise(Vector2 shellCentre, float facing, float phase, bool moving, bool dead, float t, bool crystal = false);
 void PxCentipede(Vector2 anchor, Vector2 head, float t, float facing);
 void PxSerpentLair(Vector2 groundAt, float t, bool serpentHome);
