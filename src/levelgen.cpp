@@ -526,7 +526,8 @@ static void BuildIsland(Grid& g, std::vector<Plat>& pl, Rng& rng, GenLevel& out,
             int r = rng.I(0, 99);
             // idol climbs and village stands - the two worship-site features - dominate; the seed's variant
             // leans further into whichever of the two (or the standing-statue ridge, favouring idols) it rolled
-            int ruinBias = variant == 0 || variant == 2 ? 14 : 0, villageBias = variant == 1 ? 14 : 0;
+            int seg = (variant + x * 3 / std::max(1, P.length)) % 3; // the run moves through 2-3 sub-themes along its length (the user): temple ground, stilt village, statue ridge
+            int ruinBias = seg == 0 || seg == 2 ? 14 : 0, villageBias = seg == 1 ? 14 : 0;
             kind = r < 30 + ruinBias ? 0 : r < 45 ? 1 : r < 57 ? 2 : r < 70 ? 3 : r < 92 + villageBias ? 4 : 5;
             if (kind != lastKind || tries > 6) break;
         }
