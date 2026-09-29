@@ -257,7 +257,7 @@ float Lunge(const PlatEnemy& e) { // how far an ambusher has stepped out of his 
 bool EnemyHits(const PlatEnemy& e, Rectangle pr) {
     if (e.type == 'P') {
         if (e.state == 0) return false;
-        if (e.state == 2 && e.timer > 0.08f) {
+        if ((e.state == 2 || e.state == 5) && e.timer > 0.08f) {
             Rectangle blade{e.dir > 0 ? e.pos.x + 18 : e.pos.x - 18, e.pos.y + 10, 22, 8};
             if (CheckCollisionRecs(pr, blade)) return true;
         }
@@ -293,10 +293,36 @@ void UpdateEnemies(PlatformState& p, float dt) {
                     else if (e.timer > 0) e.timer = 0;
                     break;
                 case 1: if (e.timer > AMB_OUT) { e.state = 2; e.timer = 0; } break;
-                case 2: if (e.timer > AMB_STAB) { e.state = 3; e.timer = 0; } break;
-                default: if (e.timer > AMB_BACK) { e.state = 0; e.timer = -1.1f; } break; // a pause before he'll come out again
+                case 2:
+                    if (e.timer > AMB_STAB) {
+                        // some come back in at once; the bolder ones step out onto the deck and stay a while
+                        bool stays = p.level != PL_CAVE && Rnd(0, 1) < 0.2f + 0.55f * e.personality.aggression;
+                        e.state = stays ? 4 : 3; e.timer = 0;
+                        if (stays) { e.aim = {Rnd(3.0f, 7.0f), 0}; e.pos.x = e.home.x + 5 + e.dir * Lunge(e); }
+                    }
+                    break;
+                case 3: if (e.timer > AMB_BACK) { e.state = 0; e.timer = -1.1f; } break; // a pause before he'll come out again
+                case 4: { // out on deck: paces by his door, closes in on the diver if he sees them, stabs, then heads back in
+                    e.aim.x -= dt;
+                    float doorX = e.home.x + 5, px = pc.x - 11;
+                    bool sees = fabsf(dy) < 1.5f * T && fabsf(dx) < 6.0f * T;
+                    bool home = e.aim.x <= 0 || fabsf(dx) > 10.0f * T;
+                    float want = home ? doorX : sees ? px : doorX + sinf(e.t * 0.8f) * 2.5f * T;
+                    float mv = want < e.pos.x - 2 ? -1.0f : want > e.pos.x + 2 ? 1.0f : 0.0f;
+                    if (mv != 0) {
+                        float nx = e.pos.x + mv * (sees && !home ? 70.0f : 50.0f) * dt;
+                        int ftx = (int)floorf((mv > 0 ? nx + 18 : nx - 2) / T), fty = (int)floorf((e.pos.y + 15) / T);
+                        if (!Solid(p, ftx, fty) && Solid(p, ftx, fty + 1)) e.pos.x = nx; // never walks off his deck
+                        e.dir = mv;
+                    }
+                    if (sees && !home) e.dir = dx < 0 ? -1.0f : 1.0f;
+                    if (home && fabsf(e.pos.x - doorX) < 3) { e.pos.x = doorX; e.state = 3; e.timer = 0; }
+                    else if (!home && sees && fabsf(px - e.pos.x) < 1.4f * T) { e.state = 5; e.timer = 0; }
+                    break;
+                }
+                default: if (e.timer > AMB_STAB) { e.state = 4; e.timer = 0; } break; // 5: a stab out on deck
             }
-            e.pos = {e.home.x + 5 + e.dir * Lunge(e), e.home.y + T - 30};
+            if (e.state <= 3) e.pos = {e.home.x + 5 + e.dir * Lunge(e), e.home.y + T - 30};
         } else if (e.type == 'G') { // behind his barrel: aims at you, fires, reloads
             float dx = pc.x - (e.pos.x + 11), dy = pc.y - (e.pos.y + 10);
             bool inRange = fabsf(dx) < 15.0f * T && fabsf(dy) < 7.0f * T;
@@ -736,7 +762,15 @@ void ScanTiles(PlatformState& p) {
             switch (ch) {
                 case 'S': p.startPos = {x + 6, y + T - PH}; break;
                 case 'c': { PlatEnemy pe{'c', {x - 1, y + T - 18}, {x, y}, -1, 0}; pe.personality = RollEnemyTraits(x, y); p.enemies.push_back(pe); break; }
-                case 'P': { PlatEnemy pe{'P', {x + 5, y + T - 30}, {x, y}, -1, 0}; pe.personality = RollEnemyTraits(x, y); p.enemies.push_back(pe); break; }
+                case 'P': {
+                    if (p.level == PL_CAVE) { // a stalactite spider needs a ceiling to hang from - none within reach, no spider
+                        int roof = -1;
+                        for (int yy = r - 2; yy >= std::max(0, r - 12) && roof < 0; yy--) if (Solid(p, c, yy)) roof = yy;
+                        if (roof < 0) { ch = '.'; break; }
+                        PlatEnemy pe{'P', {x + 5, y + T - 30}, {x, y}, -1, 0}; pe.personality = RollEnemyTraits(x, y); pe.aim = {0, (roof + 1) * (float)T}; p.enemies.push_back(pe); break;
+                    }
+                    PlatEnemy pe{'P', {x + 5, y + T - 30}, {x, y}, -1, 0}; pe.personality = RollEnemyTraits(x, y); p.enemies.push_back(pe); break;
+                }
                 case 'G': { PlatEnemy pe{'G', {x + 6, y + T - 30}, {x, y}, -1, 0, 0, Rnd(0, 1.2f)}; pe.personality = RollEnemyTraits(x, y); p.enemies.push_back(pe); break; }
                 case 'p': { PlatEnemy pe{'p', {x + 16, y + 16}, {x + 16, y + 16}, 1, 0}; pe.personality = RollEnemyTraits(x, y); p.enemies.push_back(pe); break; }
                 case 'e': { PlatEnemy pe{'e', {x + 16, y + 400}, {x + 16, y}, 1, c * 0.37f}; pe.personality = RollEnemyTraits(x, y); p.enemies.push_back(pe); break; }
@@ -1281,11 +1315,13 @@ void BackgroundSystem::Setup(int lv) {
         foreLayer = {1.35f, 1.2f, [cw, ch](const PlatformState& p, float t, float ox, float oy) { // near kelp and coral, dark against the lens
             (void)p; (void)oy;
             Layer(ox / 1.35f, 1.35f, 520, cw, [&](float x, float wx) {
-                if (x > 110 && x < cw - 110) return; // only at the edges of the lens: kelp across the middle of the frame hides the platforms
+                // only at the edges of the lens (kelp across the middle hides the platforms), fading rather than popping
+                float edge = std::clamp((fabsf(x - cw * 0.5f) - cw * 0.3f) / (cw * 0.13f), 0.0f, 1.0f);
+                if (edge <= 0.01f) return;
                 Vector2 prev{x, ch + 4};
                 for (int s = 1; s <= 8; s++) {
                     Vector2 q{x + sinf(t * 0.8f + wx + s * 0.5f) * s * 2.2f, ch - s * 20.0f * (0.6f + Hs(wx) * 0.5f)};
-                    DrawLineEx(prev, q, 8.0f - s * 0.85f, Fade(Color{4, 12, 14, 255}, 0.88f));
+                    DrawLineEx(prev, q, 8.0f - s * 0.85f, Fade(Color{4, 12, 14, 255}, 0.88f * edge));
                     prev = q;
                 }
             });
@@ -1338,10 +1374,12 @@ void BackgroundSystem::Setup(int lv) {
         foreLayer = {1.3f, 1.15f, [cw, ch](const PlatformState& p, float t, float ox, float oy) { // hanging vines and near leaves, dark against the lens
             (void)p; (void)oy;
             Layer(ox / 1.3f, 1.3f, 260, cw, [&](float x, float wx) {
-                if (x > 100 && x < cw - 100) return; // only at the edges of the lens
+                // they frame the edges of the lens and fade out toward the middle - smoothly, so nothing pops in or out as you walk
+                float edge = std::clamp((fabsf(x - cw * 0.5f) - cw * 0.28f) / (cw * 0.14f), 0.0f, 1.0f);
+                if (edge <= 0.01f) return;
                 float len = 60 + Hs(wx) * 120, sway = sinf(t * 0.6f + wx) * 10;
-                for (float yy = 0; yy < len; yy += 10) DrawRectangle((int)(x + sway * yy / len), (int)yy, 4, 8, Color{20, 30, 14, 255});
-                DrawEllipse((int)(x + sway), (int)len, 14, 8, Color{16, 26, 12, 255});
+                for (float yy = 0; yy < len; yy += 10) DrawRectangle((int)(x + sway * yy / len), (int)yy, 4, 8, Fade(Color{20, 30, 14, 255}, edge));
+                DrawEllipse((int)(x + sway), (int)len, 14, 8, Fade(Color{16, 26, 12, 255}, edge));
             });
         }};
     } else if (lv == PL_CAVE) {
@@ -1369,8 +1407,9 @@ void BackgroundSystem::Setup(int lv) {
         foreLayer = {1.3f, 1.15f, [cw, ch](const PlatformState& p, float t, float ox, float oy) { // jagged rock framing the lens, dark against the lamp
             (void)p; (void)t; (void)oy;
             Layer(ox / 1.3f, 1.3f, 300, cw, [&](float x, float wx) {
-                if (x > 100 && x < cw - 100) return;
-                float h = 40 + Hs(wx) * 90;
+                float edge = std::clamp((fabsf(x - cw * 0.5f) - cw * 0.3f) / (cw * 0.13f), 0.0f, 1.0f); // edges of the lens, fading in and out
+                if (edge <= 0.01f) return;
+                float h = (40 + Hs(wx) * 90) * edge;
                 DrawTri({x - 30, 0}, {x + 30, 0}, {x, h}, Color{3, 2, 3, 255});
                 DrawTri({x - 26, ch}, {x + 26, ch}, {x, ch - h * 0.7f}, Color{3, 2, 3, 255});
             });
@@ -2724,10 +2763,12 @@ void DrawEnemy(const PlatEnemy& e, float t, int level = -1) {
                 for (int k = -1; k <= 1; k++) DrawCircle((int)(cx + k * 4.0f), (int)cy - 2, 0.9f, Fade(Color{140, 230, 90, 255}, 0.7f + 0.3f * sinf(e.t * 3 + k)));
             }
         } break;        case 'P': {
-            float open = e.state == 1 ? e.timer / AMB_OUT : e.state == 2 ? 1 : e.state == 3 ? 1 - e.timer / AMB_BACK : 0;
+            float open = e.state == 1 ? e.timer / AMB_OUT : e.state == 2 || e.state >= 4 ? 1 : e.state == 3 ? 1 - e.timer / AMB_BACK : 0;
             float dx = e.home.x, dy = e.home.y - T; // the doorway fills this tile and the one above
             if (cave) { // a Stalactite Spider: no door at all - a crack overhead, a silk thread, and a many-legged drop
-                Vector2 crack{dx + T / 2.0f, dy - 2}, body{crack.x, crack.y + open * (T * 1.5f + 6)};
+                // it hangs from the real ceiling above its spot, and drops the whole way down on its thread to strike
+                float ceilY = e.aim.y > 0 ? e.aim.y : dy - 2, low = dy + 2 * T - 10; // (the ceiling row is found at spawn)
+                Vector2 crack{dx + T / 2.0f, ceilY}, body{crack.x, ceilY + 10 + open * std::max(0.0f, low - ceilY - 10)};
                 DrawTri({crack.x - 8, crack.y}, {crack.x + 8, crack.y}, {crack.x, crack.y - 10}, Color{16, 14, 16, 255}); // the crack it hangs from
                 if (open > 0.02f) DrawLineEx(crack, body, 1, Fade(Color{220, 220, 220, 255}, 0.7f)); // the silk thread
                 Color c{30, 26, 30, 255}, lt{70, 60, 68, 255};
@@ -2769,10 +2810,11 @@ void DrawEnemy(const PlatEnemy& e, float t, int level = -1) {
                 DrawRectangle((int)hinge + (int)leaf - 7, (int)dy + T, 3, 3, Pal::Brass); // handle
                 break;
             }
-            float cx = x + 11, lean = e.state == 2 ? f * 3 : 0;
+            float cx = x + 11, lean = e.state == 2 || e.state == 5 ? f * 3 : 0;
+            float stride = e.state == 4 ? sinf(t * 11 + e.home.x) * 2.0f : 0.0f; // walking the deck
             if (gGhost) { // the skeleton pirate: same lunge, bare bone
                 DrawSkeletonBody(x, y, f, t, lean);
-                float ang = e.state == 1 ? -1.2f : e.state == 2 ? -0.05f : 0.7f;
+                float ang = e.state == 1 ? -1.2f : e.state == 2 || e.state == 5 ? -0.05f : e.state == 4 ? -0.6f : 0.7f;
                 Vector2 hand{cx + f * 8 + lean, y + 14}, tip{hand.x + f * cosf(ang) * 18, hand.y + sinf(ang) * 18};
                 DrawLineEx(hand, tip, 3.5f, Color{8, 8, 12, 255}); DrawLineEx(hand, tip, 2, Color{170, 210, 200, 255});
                 if (e.state == 2 && e.timer < 0.15f) DrawLineEx({tip.x - f * 10, tip.y - 3}, {tip.x + f * 4, tip.y}, 1, Fade(Color{150, 255, 210, 255}, 0.8f));
@@ -2782,8 +2824,8 @@ void DrawEnemy(const PlatEnemy& e, float t, int level = -1) {
             Color shirt = island ? Color{74, 58, 40, 255} : Color{232, 228, 216, 255}; // bare chest with a woven sash, not a shirt, on the Island
             Color stripe = island ? Color{200, 170, 60, 255} : Color{150, 36, 34, 255};
             Color trousers = island ? Color{86, 62, 34, 255} : Color{56, 46, 72, 255}; // a grass/bark skirt
-            DrawRectangleRec({cx - 6, y + 21, 5, 9}, trousers);
-            DrawRectangleRec({cx + 1 + (e.state == 2 ? f * 3 : 0), y + 21, 5, 9}, trousers);
+            DrawRectangleRec({cx - 6 + stride, y + 21, 5, 9}, trousers);
+            DrawRectangleRec({cx + 1 + (e.state == 2 || e.state == 5 ? f * 3 : 0) - stride, y + 21, 5, 9}, trousers);
             DrawRectangleRec({cx - 7, y + 28, 6, 2}, Color{30, 24, 22, 255});
             DrawRectangleRec({cx - 8 + lean, y + 9, 16, 13}, shirt);                               // striped shirt, or the Island's bare chest
             for (int k = 0; k < 3; k++) DrawRectangleRec({cx - 8 + lean, y + 11 + k * 4.0f, 16, 2}, stripe);
@@ -2795,7 +2837,7 @@ void DrawEnemy(const PlatEnemy& e, float t, int level = -1) {
             DrawRectangleRec({cx + f * 1 + lean, y + 2, 4, 2}, Color{20, 16, 16, 255});             // eye patch strap
             DrawCircle((int)(cx + f * 3 + lean), (int)y + 4, 1.5f, Color{255, 220, 150, 255});     // a mean eye
             // the cutlass (or the Island's spear): raised on the way out, thrust at the stab, trailing on the way back
-            float ang = e.state == 1 ? -1.2f : e.state == 2 ? -0.05f : 0.7f;
+            float ang = e.state == 1 ? -1.2f : e.state == 2 || e.state == 5 ? -0.05f : e.state == 4 ? -0.6f : 0.7f; // on deck: held ready
             Vector2 hand{cx + f * 8 + lean, y + 14};
             Vector2 tip{hand.x + f * cosf(ang) * 18, hand.y + sinf(ang) * 18};
             DrawLineEx(hand, tip, 2.5f, island ? Color{90, 66, 40, 255} : Color{214, 220, 226, 255});
@@ -3165,7 +3207,7 @@ void DrawBeastLegs(const Beast& b, const SpeciesDef& S, bool nearSide, float thi
 // tails stretch out behind a running animal like rope.)
 void DrawBeastTail(const Beast& b, Vector2 root, float lift, float lash, float w0, float w1, Color c, int segs = 5) {
     float f = b.facing, speed = fabsf(b.vel.x);
-    float len = 2.2f + w0 * 1.4f;                             // segment length scales with the tail's thickness
+    float len = 1.6f + w0 * 0.8f;                             // segment length scales with the tail's thickness
     float base = (f > 0 ? PI : 0.0f) + f * (lift * 1.1f - 0.25f); // straight back (y is down: a larger angle lifts it when facing right)
     base -= f * std::min(0.4f, speed / 500.0f);                  // swept back flatter as it runs
     Vector2 pts[9];
@@ -3770,7 +3812,14 @@ void DrawFauna(const PlatformState& p, float t, int c0, int c1) {
         for (const auto& b : W.beasts) {
             if (b.life == BeastLife::Gone || b.pos.x < x0 || b.pos.x > x1) continue;
             if ((pass == 0) != (b.life == BeastLife::Corpse)) continue;
-            if (b.hidden) { if (W.biome == PL_HULL && b.species == HS_EEL && b.act == BeastAct::Ambush) DrawEelPeek(b, t); continue; }
+            // drawn at its size - bigger the higher up the food chain - grown about its feet so it stays on the ground
+            const SpeciesDef& SD = BeastSpecies(W.biome, b.species);
+            float sz = BeastSize(W.biome, b.species);
+            bool ground = SD.move == MoveMode::Walk || SD.move == MoveMode::Climb;
+            Vector2 piv{b.pos.x, b.pos.y + (ground ? std::min(12.0f, SD.radius * b.scale * 0.6f) : 0.0f)};
+            if (b.hidden) piv = {b.pos.x, b.pos.y - 8};
+            rlPushMatrix(); rlTranslatef(piv.x, piv.y, 0); rlScalef(sz, sz, 1); rlTranslatef(-piv.x, -piv.y, 0);
+            if (b.hidden) { if (W.biome == PL_HULL && b.species == HS_EEL && b.act == BeastAct::Ambush) DrawEelPeek(b, t); rlPopMatrix(); continue; }
             // a body: death throes for the first moment, then it jerks with each bite and shrinks as it's eaten
             bool body = b.life == BeastLife::Corpse, xf = false;
             if (body) {
@@ -3792,6 +3841,7 @@ void DrawFauna(const PlatformState& p, float t, int c0, int c1) {
             else if (W.biome == PL_CAVE) DrawCaveBeast(p, b, t);
             else if (W.biome == PL_PIPES) DrawPipesBeast(p, b, t);
             if (xf) rlPopMatrix();
+            rlPopMatrix();
         }
 }
 

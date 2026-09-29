@@ -38,11 +38,11 @@ static void Hunted(BeastWorld& W, int i, int target, int tid) { // force a hunt 
 //            name              move            mass  rad  speed sprint accel sight  fov   hear smell hunger  dFear dPrey lethal social band pop  den   scav   traits
 const SpeciesDef PIRATE[PS_COUNT] = {
     {"Bilge Rat",        MoveMode::Walk,   0.4f,  6,   60, 170,  900,  150, 2.6f, 0.8f, 0.9f, 0.020f, 0.7f,  0.0f, false, true,  0, 10, 0.8f, 1.0f, T_MOBBER | T_HOST},
-    {"Ship's Cat",       MoveMode::Walk,   4.0f,  9,   55, 260, 1200,  220, 1.8f, 0.9f, 0.6f, 0.018f, 0.45f, 0.0f, false, false, 0,  2, 0.5f, 0.3f, T_STRIKER | T_HOST, 80},
+    {"Ship's Cat",       MoveMode::Walk,   4.0f,  9,   55, 260, 1200,  220, 1.8f, 0.9f, 0.6f, 0.018f, 0.45f, 0.0f, false, false, 0,  2, 0.5f, 0.3f, T_STRIKER | T_HOST | T_CARRY, 80},
     {"Powder Monkey",    MoveMode::Walk,   3.0f,  8,   70, 220, 1000,  170, 2.4f, 0.8f, 0.5f, 0.015f, 0.6f,  0.0f, false, true,  0,  3, 0.6f, 0.6f, T_KLEPTO},
-    {"Guard Dog",        MoveMode::Walk,  12.0f, 11,   60, 250, 1100,  200, 2.0f, 0.9f, 1.0f, 0.020f, 0.25f, 0.3f, true,  false, 0,  2, 0.6f, 0.5f, T_STRIKER | T_HOST, 70},
+    {"Guard Dog",        MoveMode::Walk,  12.0f, 11,   60, 250, 1100,  200, 2.0f, 0.9f, 1.0f, 0.020f, 0.25f, 0.3f, true,  false, 0,  2, 0.6f, 0.5f, T_STRIKER | T_HOST | T_CARRY, 70},
     {"Flea Swarm",       MoveMode::Fly,    0.02f, 4,   30,  90,  400,   60, PI,   0.3f, 0.9f, 0.020f, 0.1f,  0.0f, false, false, 1,  2, 0.0f, 0.0f, T_PARASITE},
-    {"Barn Owl",         MoveMode::Fly,    2.0f,  9,   60, 300,  900,  280, 1.4f, 1.0f, 0.3f, 0.020f, 0.35f, 0.0f, false, false, 4,  2, 0.7f, 0.2f, T_STRIKER | T_ECHO, 150},
+    {"Barn Owl",         MoveMode::Fly,    2.0f,  9,   60, 300,  900,  380, 1.4f, 1.0f, 0.3f, 0.020f, 0.35f, 0.0f, false, false, 4,  2, 0.7f, 0.2f, T_STRIKER | T_ECHO | T_CARRY, 150},
     {"Gull",             MoveMode::Fly,    0.8f,  7,   80, 240,  700,  240, 2.6f, 0.5f, 0.5f, 0.020f, 0.6f,  0.0f, false, true,  5,  6, 0.2f, 1.0f, T_MOBBER | T_KLEPTO},
     {"Albatross",        MoveMode::Fly,    9.0f, 12,   70, 160,  250,  300, 2.6f, 0.4f, 0.6f, 0.006f, 0.3f,  0.0f, false, false, 9,  1, 0.0f, 0.4f, 0},
 };
@@ -152,6 +152,8 @@ const BiomeDef& PirateBiome() {
         BiomeDef d;
         d.level = PL_PIRATE; d.species = PIRATE; d.count = PS_COUNT; d.web = PIRATE_WEB; d.webN = (int)(sizeof(PIRATE_WEB) / sizeof(PIRATE_WEB[0]));
         d.water = false; d.clarity = 0.7f; d.daylight = 0.5f; d.arenaLimit = true;
+        static const float SIZES[PS_COUNT] = {1.0f, 1.3f, 1.3f, 1.7f, 1.0f, 1.5f, 1.2f, 1.8f};
+        d.sizes = SIZES;
         d.spawn = SpawnPirate; d.hooks = PirateHooks; d.tick = PirateTick; d.lethal = PirateLethal;
         return d;
     }();
@@ -175,7 +177,7 @@ const SpeciesDef ISLAND[IS_COUNT] = {
     {"Coconut Crab",     MoveMode::Walk,    4.0f,  9,   35, 120,  800,  140, 2.2f, 0.6f, 0.9f, 0.015f, 0.6f,  0.0f, false, false, 0,  3, 0.7f, 1.0f, 0},
     {"Dart Frog",        MoveMode::Walk,    0.3f,  5,   40, 160,  900,  120, 2.4f, 0.6f, 0.3f, 0.010f, 0.8f,  0.0f, false, false, 0,  6, 0.6f, 0.0f, T_TOXIC},
     {"Gull",             MoveMode::Fly,     0.8f,  7,   80, 240,  700,  240, 2.6f, 0.5f, 0.5f, 0.020f, 0.6f,  0.0f, false, true,  6,  5, 0.2f, 1.0f, T_MOBBER | T_KLEPTO},
-    {"Hunting Dog",      MoveMode::Walk,   20.0f, 11,   70, 300, 1200,  200, 2.0f, 0.9f, 1.0f, 0.018f, 0.2f,  0.5f, false, true,  0,  3, 0.5f, 0.6f, T_STRIKER, 70},
+    {"Hunting Dog",      MoveMode::Walk,   20.0f, 11,   70, 300, 1200,  200, 2.0f, 0.9f, 1.0f, 0.018f, 0.2f,  0.5f, false, true,  0,  3, 0.5f, 0.6f, T_STRIKER | T_CARRY, 70},
     {"Coconut",          MoveMode::Sessile, 0.5f,  5,    0,   0,    0,    0, 0,    0.0f, 0.0f, 0.000f, 0.0f,  0.0f, false, false, 0,  0, 0.0f, 0.0f, 0},
 };
 const FoodEdge ISLAND_WEB[] = {
@@ -238,6 +240,8 @@ const BiomeDef& IslandBiome() {
         BiomeDef d;
         d.level = PL_ISLAND; d.species = ISLAND; d.count = IS_COUNT; d.web = ISLAND_WEB; d.webN = (int)(sizeof(ISLAND_WEB) / sizeof(ISLAND_WEB[0]));
         d.water = false; d.clarity = 0.85f; d.daylight = 0.8f;
+        static const float SIZES[IS_COUNT] = {1.7f, 1.4f, 1.4f, 1.0f, 1.1f, 1.3f, 1.0f, 1.2f, 1.5f, 1.0f};
+        d.sizes = SIZES;
         d.spawn = SpawnIsland; d.hooks = IslandHooks; d.lethal = IslandLethal;
         return d;
     }();
@@ -253,7 +257,7 @@ const BiomeDef& IslandBiome() {
 // snap back into their tubes at the slightest tremor.
 //            name              move              mass  rad  speed sprint accel sight  fov   hear smell hunger  dFear dPrey lethal social band pop  den   scav  traits
 const SpeciesDef CAVE[CS_COUNT] = {
-    {"Cave Bat",         MoveMode::Fly,     0.5f,  6,   80, 250,  900,  170, PI,   1.0f, 0.4f, 0.020f, 0.7f,  0.0f, false, true,  4,  8, 0.95f, 0.0f, T_ROOST | T_ECHO},
+    {"Cave Bat",         MoveMode::Fly,     0.5f,  6,   80, 250,  900,  170, PI,   1.0f, 0.4f, 0.020f, 0.7f,  0.0f, false, true,  4,  8, 0.95f, 0.0f, T_ROOST | T_ECHO | T_CARRY},
     {"Glow Jelly",       MoveMode::Fly,     0.4f,  7,   14,  45,  120,   80, PI,   0.4f, 0.2f, 0.006f, 0.5f,  0.0f, false, false, 3,  5, 0.0f, 0.0f, T_FLASH},
     {"Pale Salamander",  MoveMode::Walk,    2.0f,  9,   35, 190, 1000,   90, 1.6f, 1.0f, 1.0f, 0.016f, 0.5f,  0.0f, false, false, 0,  3, 0.6f, 0.4f, T_STRIKER | T_HOST, 60},
     {"Fungal Beetle",    MoveMode::Walk,    0.6f,  6,   25, 110,  700,  100, 2.0f, 0.7f, 0.8f, 0.012f, 0.7f,  0.0f, false, false, 0,  6, 0.6f, 1.0f, 0},
@@ -362,6 +366,8 @@ const BiomeDef& CaveBiome() {
         BiomeDef d;
         d.level = PL_CAVE; d.species = CAVE; d.count = CS_COUNT; d.web = CAVE_WEB; d.webN = (int)(sizeof(CAVE_WEB) / sizeof(CAVE_WEB[0]));
         d.water = false; d.clarity = 0.55f; d.daylight = 0.06f;
+        static const float SIZES[CS_COUNT] = {1.1f, 1.4f, 1.6f, 1.1f, 1.0f, 1.4f, 1.0f};
+        d.sizes = SIZES;
         d.spawn = SpawnCave; d.hooks = CaveHooks; d.extras = CaveExtras; d.lethal = CaveLethal;
         return d;
     }();
@@ -470,6 +476,8 @@ const BiomeDef& PipesBiome() {
         BiomeDef d;
         d.level = PL_PIPES; d.species = PIPES; d.count = PP_COUNT; d.web = PIPES_WEB; d.webN = (int)(sizeof(PIPES_WEB) / sizeof(PIPES_WEB[0]));
         d.water = false; d.ignoreDiver = true; d.clarity = 0.5f; d.daylight = 0.08f;
+        static const float SIZES[PP_COUNT] = {1.0f, 1.0f, 1.3f, 1.2f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.1f};
+        d.sizes = SIZES;
         d.spawn = SpawnPipes; d.hooks = PipesHooks; d.extras = PipesExtras;
         return d;
     }();
@@ -608,7 +616,25 @@ static bool VerifyPirate() {
         for (int f = 0; f < 60 * 20 && !stole; f++) { BeastsUpdate(p, 1 / 60.0f); if (W.beasts[gull].act == BeastAct::Eat) stole = true; }
         if (!stole) fail("a hungry gull never snatched the cat's meal");
     }
-    if (ok) TraceLog(LOG_WARNING, "verify-pirate-ecosystem: OK - stalk/pounce, gunfire/keg/blast/fleas/berserk, and gull theft all confirmed");
+    // 4) a barn owl takes a rat in the open, carries it off in its talons, and eats it somewhere else
+    {
+        PlatformState p; Bench(p, PL_PIRATE, 50, 16); BenchBuild(p);
+        BeastWorld& W = p.fauna;
+        int owl = Put(W, PS_OWL, {15 * TILE, 5 * TILE}); W.beasts[owl].hunger = 1; W.beasts[owl].pers.aggression = 0.9f;
+        int rat = Put(W, PS_RAT, {21 * TILE, 13 * TILE + 26}); W.beasts[rat].pers.wanderlust = 0;
+        bool carried = false, ate = false; Vector2 killAt{0, 0};
+        for (int f = 0; f < 60 * 30 && !ate; f++) {
+            BeastsUpdate(p, 1 / 60.0f);
+            const Beast& o = W.beasts[owl];
+            if (W.beasts[rat].life == BeastLife::Corpse && killAt.x == 0) killAt = W.beasts[rat].pos;
+            if (o.carry == rat && killAt.x != 0 && Dist(W.beasts[rat].pos, killAt) > 2 * TILE) carried = true;
+            if (carried && o.act == BeastAct::Eat) ate = true;
+            if (getenv("DEPTH_BEASTLOG") && f % 60 == 0) TraceLog(LOG_WARNING, "  owl t=%d %s (%.0f,%.0f) tgt %d carry %d | rat %s life %d (%.0f,%.0f) fear %.2f", f / 60, BeastActName(o.act), o.pos.x, o.pos.y, o.target, o.carry, BeastActName(W.beasts[rat].act), (int)W.beasts[rat].life, W.beasts[rat].pos.x, W.beasts[rat].pos.y, W.beasts[rat].fear);
+        }
+        if (!carried) fail("a barn owl never carried a rat off in its talons");
+        if (!ate) fail("the owl never ate what it carried off");
+    }
+    if (ok) TraceLog(LOG_WARNING, "verify-pirate-ecosystem: OK - stalk/pounce, gunfire/keg/blast/fleas/berserk, gull theft and owl carry-off all confirmed");
     return ok;
 }
 

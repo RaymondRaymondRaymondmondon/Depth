@@ -135,6 +135,7 @@ enum BeastTrait : unsigned {
     T_LIGHTSEEK = 1u << 15, // drifts toward light (moth)
     T_ROOST = 1u << 16,     // hangs from the ceiling at rest rather than lying in a den (bat, leech)
     T_KLEPTO = 1u << 17,    // steals a meal out from under whoever is eating it (gull)
+    T_CARRY = 1u << 18,     // carries its kill off - in its jaws, or a bird in its talons - to its den or a safe perch, and eats it there
 };
 struct FoodEdge { int pred, prey; float pref; };
 Vector2 BeastHip(const Beast& b, const SpeciesDef& S, int leg); // where a walker's leg joins its body (for drawing with ik::Knee)
@@ -188,6 +189,7 @@ struct BeastWorld {
     std::vector<BeastLight> lights;   // this tick's flashes, lamps and glow
     std::vector<Vector2> lamps;       // the level's fixed light pools ('o')
     std::vector<BeastProp> props;
+    std::vector<int> dynamic;         // cells that can change at runtime (fragile scaffolding), re-checked every tick
     ScentGrid scent;
     NavGrid nav;
     float time = 0, scentT = 0, repopT = 0, noiseT = 0;
@@ -207,6 +209,7 @@ void BeastsDiverRespawned(PlatformState& p, Vector2 at);          // lethal beas
 bool BeastLethalNow(const PlatformState& p, const Beast& b);     // is touching this beast fatal right now?
 bool BeastsTouchDiver(const PlatformState& p, Rectangle diver);  // any lethal contact this frame
 const SpeciesDef& BeastSpecies(int biome, int species);
+float BeastSize(int biome, int species);                 // its drawn size (1 = the base art)
 int BeastSpeciesCount(int biome);
 bool VerifyBeasts();                                       // depth.exe --verify-beasts
 

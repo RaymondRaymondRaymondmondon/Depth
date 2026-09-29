@@ -46,6 +46,7 @@ struct BiomeDef {
     float clarity = 0.6f;     // how far sight carries (water haze, darkness)
     float daylight = 0.1f;    // ambient light where nothing else lights it
     bool arenaLimit = false;  // a boss arena is appended past the last part: keep out of it
+    const float* sizes = nullptr; // how big each species is drawn (and bites), relative to its base art - higher up the food chain, bigger
     void (*spawn)(BeastWorld&, PlatformState&) = nullptr;
     void (*hooks)(BeastWorld&, PlatformState&, int, float) = nullptr;       // per-beast species behaviour (before thinking)
     void (*extras)(BeastWorld&, const PlatformState&, int, Choice&) = nullptr; // extra utility options
