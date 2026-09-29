@@ -90,8 +90,13 @@ void KrakenHook(BeastWorld& W, PlatformState& p, int i, float dt) {
         if (b.cooldown > 0 || !dv.alive) break;
         int snap = (b.target == KE_SLAM || b.carry < 0) ? ChooseSnap(p, dv) : -1;
         if (snap >= 0 && (b.special2 > 0 || b.special > 10 || R(W) < 0.5f)) { // the signature: wrap a ship and break it
+            // one attack (the user): an arm rears out of the sea over the ship, the timbers groan, and the slam itself breaks her
+            const GenSnap& sn = p.snaps[snap];
+            float cx = sn.col * T + 16, side = dv.pos.x < cx ? 1.0f : -1.0f; // it rises on the far side of the break from you
+            b.anchor = {cx + side * R(W, 4, 6) * T, sea};
+            b.goal = {cx, (sn.bottom - 4 - p.genTop) * T};
             b.target = KE_SNAP; b.carry = snap; b.act = BeastAct::Coil; b.actT = 0;
-            W.sounds.push_back({{p.snaps[snap].col * T + 16, sea}, 1.0f, 0.6f, i});
+            W.sounds.push_back({{cx, sea}, 1.0f, 0.6f, i});
         } else { // a slam across the deck where the diver stands (or is about to)
             float side = R(W) < 0.5f ? -1.0f : 1.0f;
             b.anchor = {dv.pos.x + side * R(W, 4, 7) * T, sea};
@@ -101,11 +106,10 @@ void KrakenHook(BeastWorld& W, PlatformState& p, int i, float dt) {
         break;
     }
     case BeastAct::Coil: {
-        if (b.target == KE_SNAP) { if (b.actT > 2.2f) { PlatSnapShip(p, b.carry); b.special2++; b.act = BeastAct::Eat; b.actT = 0; } }
-        else if (b.actT > 1.1f) { b.act = BeastAct::Strike; b.actT = 0; }
+        if (b.actT > (b.target == KE_SNAP ? 1.8f : 1.1f)) { b.act = BeastAct::Strike; b.actT = 0; } // a snap gets a longer tell: the hull groans first
         break;
     }
-    case BeastAct::Strike: if (b.actT > 0.22f) { SlamImpact(W, p, i); b.act = BeastAct::Eat; b.actT = 0; } break;
+    case BeastAct::Strike: if (b.actT > 0.22f) { SlamImpact(W, p, i); if (b.target == KE_SNAP && b.carry >= 0) { PlatSnapShip(p, b.carry); b.special2++; } b.act = BeastAct::Eat; b.actT = 0; } break; // the slam that lands on the break tears the ship in two
     case BeastAct::Eat: if (b.actT > (b.target == KE_SNAP ? 0.8f : 0.5f)) { b.act = BeastAct::Wander; b.actT = 0; } break;
     case BeastAct::Wander: if (b.actT > 0.8f) { b.act = BeastAct::Idle; b.actT = 0; b.cooldown = R(W, 2.5f, 4.0f); if (b.target == KE_SNAP) b.carry = -1; } break;
     default: b.act = BeastAct::Idle; break;

@@ -5627,20 +5627,20 @@ void DrawPirateBeast(const PlatformState& p, const Beast& b, float t) {
             DrawRectangle((int)(x + e * 70 + look) - 2, (int)(by - 60), 4, 20, Fade(Color{20, 10, 16, 255}, 0.9f * rise));
         }
         Color skin{124, 46, 60, 255};
-        bool slam = b.target == 1 && (b.act == BeastAct::Coil || b.act == BeastAct::Strike || b.act == BeastAct::Eat || b.act == BeastAct::Wander);
+        bool slam = (b.target == 1 || b.target == 2) && (b.act == BeastAct::Coil || b.act == BeastAct::Strike || b.act == BeastAct::Eat || b.act == BeastAct::Wander);
         if (slam) {
             if (b.act == BeastAct::Coil) { // the tell: its shadow grows over where it will land, and the water boils where it rises
-                float u = std::clamp(b.actT / 1.1f, 0.0f, 1.0f);
+                float u = std::clamp(b.actT / (b.target == 2 ? 1.8f : 1.1f), 0.0f, 1.0f);
                 DrawEllipse((int)b.goal.x, (int)b.goal.y + 4, 16 + 34 * u, 5, Fade(BLACK, 0.2f + 0.35f * u));
                 for (int k = 0; k < 5; k++) DrawCircle((int)(b.anchor.x + sinf(t * 9 + k) * 14), (int)(b.anchor.y - fmodf(t * 40 + k * 9, 20)), 2, Color{220, 236, 250, 200});
             }
             DrawTentacle(b.anchor, b.territory, 19, t, (float)b.id, skin);
         }
-        if (b.target == 2 && b.carry >= 0 && b.carry < (int)p.snaps.size() && (b.act == BeastAct::Coil || b.act == BeastAct::Eat)) { // two arms wrapped round the hull at the snap point
+        if (b.target == 2 && b.carry >= 0 && b.carry < (int)p.snaps.size() && (b.act == BeastAct::Coil || b.act == BeastAct::Strike || b.act == BeastAct::Eat)) { // a second arm hugs the hull at the break while the first rears to slam it
             const GenSnap& sn = p.snaps[b.carry];
             float cx = sn.col * (float)T + 16, deckY = (sn.bottom - 4 - p.genTop) * (float)T;
-            float u = b.act == BeastAct::Coil ? std::clamp(b.actT / 2.2f, 0.0f, 1.0f) : 1.0f;
-            for (int side = -1; side <= 1; side += 2) {
+            float u = b.act == BeastAct::Coil ? std::clamp(b.actT / 1.8f, 0.0f, 1.0f) : 1.0f;
+            for (int side = (b.anchor.x > cx ? -1 : 1), n = 0; n < 1; n++) {
                 Vector2 base{cx + side * 4.5f * T, sea + 10};
                 Vector2 tip{cx + side * (1.4f - 1.2f * u) * T, deckY - 60 * (1 - u) - 12 + (b.act == BeastAct::Eat ? 40 * std::min(1.0f, b.actT / 0.4f) : 0)};
                 DrawTentacle(base, tip, 17, t, side * 3.0f, skin);
