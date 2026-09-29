@@ -5903,6 +5903,13 @@ void DrawBlackbeard(const PlatformState& p, const PlatBoss& b, float t) {
     DrawCircleV(head, 8, skin);
     DrawEllipse((int)head.x, (int)(head.y + 8), 11, 10, INKC);                                 // the famous beard...
     DrawEllipse((int)head.x, (int)(head.y + 7), 9, 8, gGhost ? Color{40, 130, 96, 255} : Color{22, 20, 22, 255});
+    for (int k = -1; k <= 1; k += 2) { // two long braids hanging from it, tied with red ribbon, swinging as he moves
+        float swing = sinf(t * 3 + k) * 2 + (an == BBAnim::Charge ? -f * 5.0f : 0.0f);
+        Vector2 b0{head.x + k * 4.0f, head.y + 13}, b1{head.x + k * 5.0f + swing, head.y + 24};
+        DrawLineEx(b0, b1, 4.2f, INKC); DrawLineEx(b0, b1, 2.4f, gGhost ? Color{40, 130, 96, 255} : Color{30, 26, 28, 255});
+        DrawRectangle((int)b1.x - 2, (int)b1.y - 3, 4, 2, gGhost ? Color{120, 255, 190, 255} : Color{190, 30, 40, 255});
+    }
+    DrawLineEx(P(-11 - flare * 0.8f, -9 + sway), P(11, -11 - sway), 1.6f, gGhost ? Color{110, 200, 180, 255} : Color{200, 160, 70, 255}); // the coat's gold-braided hem
     for (int k = 0; k < 3; k++) {                                                              // ...with fuses smoking in it
         Vector2 fz{head.x - 6 + k * 6.0f, head.y + 12};
         DrawCircleV(fz, 1.5f, Color{255, 140, 40, 255});
