@@ -6959,7 +6959,7 @@ int VerifyPlatformLevels() {
     int failures = getenv("DEPTH_SHAFTS") ? VerifyShafts() : 0; // slow: set DEPTH_SHAFTS=1 to re-prove the shaft dimensions
     for (int lv = 0; lv < PL_COUNT; lv++) {
         const LevelDef& L = Lv(lv);
-        const int SEEDS = gValidateShafts ? 2 : 4;
+        const int SEEDS = getenv("DEPTH_SEEDS") ? std::max(1, atoi(getenv("DEPTH_SEEDS"))) : gValidateShafts ? 2 : 4; // DEPTH_SEEDS=N: a wider sweep for QA
         int firstTry = 0, totalAttempts = 0, worstAttempts = 0, hopsFailed = 0, snapsTried = 0, snapsProven = 0;
         for (int seed = 1; seed <= SEEDS; seed++) {
             int attempts = 0;
