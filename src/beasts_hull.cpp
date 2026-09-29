@@ -337,7 +337,19 @@ void MegalodonHook(BeastWorld& W, PlatformState& p, int i, float dt) {
         Vector2 dir = b.goal;
         b.vel = Mul(dir, 640 * fit);
         Vector2 np = Add(b.pos, Mul(b.vel, dt));
-        if (!Clear(W.nav, np, 2, 1) || b.actT > 0.6f) { b.act = BeastAct::Hunt; b.actT = 0; b.cooldown = 2.2f; b.vel = Mul(b.vel, 0.2f); break; }
+        if (!Clear(W.nav, np, 2, 1) || b.actT > 0.6f) {
+            Vector2 jaw = Add(JawOf(b), Mul(dir, 20));
+            int jx = (int)floorf(jaw.x / T), jy = (int)floorf(jaw.y / T);
+            for (int dy = -1; dy <= 1; dy++) for (int dx = -1; dx <= 1; dx++) // it bites into the superstructure: a torn scar, shards and a crash
+                if (W.nav.Solid(jx + dx, jy + dy) && W.nav.Open(jx + dx - (dir.x > 0 ? 1 : -1), jy + dy) && W.scars.size() < 64) {
+                    Vector2 at{(jx + dx) * T + (dir.x > 0 ? 4.0f : T - 4.0f), (jy + dy) * T + 16.0f};
+                    W.scars.push_back(at);
+                    W.sounds.push_back({at, 1.0f, 0.4f, i});
+                    if (!p.verifying) PlatBurst(p, at, 16, Color{150, 156, 160, 255}, 220, 0.8f, 3);
+                    dy = 2; break;
+                }
+            b.act = BeastAct::Hunt; b.actT = 0; b.cooldown = 2.2f; b.vel = Mul(b.vel, 0.2f); break;
+        }
         b.pos = np;
         b.facing = dir.x >= 0 ? 1.0f : -1.0f;
         for (int j = 0; j < (int)W.beasts.size(); j++) { // what's in the jaws is taken, whatever it is

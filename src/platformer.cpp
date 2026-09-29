@@ -4709,6 +4709,12 @@ void DrawFauna(const PlatformState& p, float t, int c0, int c1) {
         Color cc = k.kind == 1 ? Color{150, 190, 90, 255} : k.kind == 2 ? Color{120, 116, 110, 255} : k.kind == 3 ? Color{160, 84, 40, 255} : Color{24, 16, 32, 255}; // ink, spores, powder smoke, rust
         for (int i = 0; i < 4; i++) DrawCircle((int)(k.pos.x + sinf(t + i * 1.7f) * r * 0.3f), (int)(k.pos.y + cosf(t * 0.8f + i) * r * 0.2f - (k.kind == 2 ? (1 - u) * 20 : 0)), r * (0.5f + 0.15f * i), Fade(cc, (k.kind == 0 ? 0.16f : 0.22f) * u));
     }
+    for (const auto& sc : W.scars) { // the megalodon's bites: a torn, jagged dent in the plating, raw metal at the edges
+        if (sc.x < x0 || sc.x > x1) continue;
+        DrawEllipse((int)sc.x, (int)sc.y, 11, 13, FAUNA_INK);
+        DrawEllipse((int)sc.x, (int)sc.y, 9, 11, Color{30, 32, 38, 255});
+        for (int k = 0; k < 7; k++) { float a = k * 0.9f; DrawTri({sc.x + cosf(a) * 10, sc.y + sinf(a) * 12}, {sc.x + cosf(a + 0.3f) * 6, sc.y + sinf(a + 0.3f) * 7}, {sc.x + cosf(a - 0.3f) * 6, sc.y + sinf(a - 0.3f) * 7}, Color{176, 180, 184, 255}); }
+    }
     for (const auto& d : W.dens) {
         if (d.pos.x < x0 || d.pos.x > x1) continue;
         if (W.biome == PL_HULL) DrawHullDen(p, d, t);

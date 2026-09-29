@@ -633,8 +633,9 @@ per-species sizes, the Periscope chart, and the diver's extra moves (--verify-mo
 Progress 2026-09-29 (after compaction): item 1 DONE (5a8569a + follow-up): the whole Hull 1.3 roster, flora, movers, slime,
 the runtime director for the megalodon and the ecology planner with its cover check (see CLAUDE.md "ParkourReference1.3: the Hull
 first"). Item 2 DONE for the engine (injuries, herding, stun; lame-leg drawing). Item 3 partly DONE: planner + director + verifier
-for cover; STILL TO DO there: 'd' destructible tiles the megalodon bites (generator must keep them off the proven route; --verify
-must still pass with them removed), and siphon lairs at 'v' ballast vents when a Hull has no suitable wall.
+for cover; Design call: the megalodon's bites tear visible scars and shards out of the plating it lunges into (BeastWorld::scars)
+but never change tiles, so every proven route stays proven (real 'd' tiles would need a second path-search validation per
+level). STILL TO DO there: siphon lairs at 'v' ballast vents when a Hull has no suitable wall.
 To do, in order:
 1. (DONE) **Hull 1.3 roster** (plan above): merge HS_EEL -> Electric Hull-Crusher Eel (bigger, a slam shockwave along the deck that knocks
    the diver's momentum and shatters rust-algae; keep its den ambush), HS_SPRAT -> Pilot-Fish (ride the hull's boundary layer, band 1;

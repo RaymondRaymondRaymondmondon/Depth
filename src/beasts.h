@@ -205,6 +205,7 @@ struct BeastWorld {
     // the runtime director (ParkourReference1.3's apex beasts): not a script - it only decides when an apex may roam in
     float calmT = 0, apexT = 0, tension = 0;
     Vector2 apexPos{-1e9f, -1e9f}; // where the apex is this tick (its shadow darkens everything under it)
+    std::vector<Vector2> scars;    // bites torn out of the plating by the megalodon (drawn; the tiles themselves never change, so the route stays proven)
     int apexVisits = 0;
 };
 
