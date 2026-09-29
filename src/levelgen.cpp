@@ -68,13 +68,14 @@ struct Params {
 
 Params ParamsFor(int level) {
     switch (level) {
-        case 0: return {0.70f, 230, 40, 4, 9, 2, 3, 1, true, 0.0f, 0, 0, 0.48f};     // the Pipes: still forgiving, no wall jumps, but tighter gaps and denser set-pieces than before
-        case 1: return {0.84f, 300, 64, 2, 5, 3, 4, 2, false, 0.42f, 9, 14, 0.27f};   // the Hull: verticality, shafts, footholds
-        case 2: return {0.95f, 310, 64, 1, 3, 3, 4, 3, false, 0.38f, 10, 14, 0.24f}; // the Pirate Ship: tiny footholds at the arc's edge
-        case 3: return {0.91f, 340, 64, 1, 3, 3, 4, 3, false, 0.38f, 10, 15, 0.30f}; // the Island: harder than the Pirate Ship - narrower canopy footholds
-        case 4: return {0.93f, 350, 64, 1, 3, 3, 5, 3, false, 0.44f, 10, 15, 0.34f}; // the Cave: harder than the Island - a denser run of shaft climbs, in the dark
-        case 5: return {0.95f, 360, 64, 1, 3, 3, 5, 3, false, 0.40f, 10, 15, 0.36f}; // the Weeds: harder again - most of the way is kelp floats at the arc's edge
-        default: return {0.97f, 380, 64, 1, 3, 3, 5, 3, false, 0.44f, 10, 15, 0.38f}; // Atlantis: the hardest - tight masonry hops, in and out of the drowned buildings
+        // harder overall (the user), ramping strictly with the unlock order; longer toward the end (clean runs ~1.5 min -> ~4.5 min)
+        case 0: return {0.76f, 230, 40, 4, 9, 2, 3, 1, true, 0.0f, 0, 0, 0.52f};     // the Pipes: still forgiving, no wall jumps, but tighter gaps and denser set-pieces than before
+        case 1: return {0.88f, 300, 64, 2, 5, 3, 4, 2, false, 0.44f, 9, 14, 0.31f};   // the Hull: verticality, shafts, footholds
+        case 2: return {0.95f, 320, 64, 1, 3, 3, 4, 3, false, 0.40f, 10, 14, 0.30f}; // the Pirate Ship: tiny footholds at the arc's edge
+        case 3: return {0.955f, 360, 64, 1, 3, 3, 4, 3, false, 0.40f, 10, 15, 0.36f}; // the Island: harder than the Pirate Ship - narrower canopy footholds
+        case 4: return {0.96f, 390, 64, 1, 3, 3, 5, 3, false, 0.46f, 10, 15, 0.40f}; // the Cave: harder than the Island - a denser run of shaft climbs, in the dark
+        case 5: return {0.965f, 420, 64, 1, 3, 3, 5, 3, false, 0.44f, 10, 15, 0.42f}; // the Weeds: harder again - most of the way is kelp floats at the arc's edge
+        default: return {0.97f, 460, 64, 1, 3, 3, 5, 3, false, 0.48f, 10, 15, 0.44f}; // Atlantis: the hardest - tight masonry hops, in and out of the drowned buildings
     }
 }
 }  // namespace
