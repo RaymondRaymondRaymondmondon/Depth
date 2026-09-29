@@ -1952,6 +1952,7 @@ void BeastsUpdate(PlatformState& p, float dt) {    BeastWorld& W = p.fauna;
                 if (sc < bs) { bs = sc; bp = i; bq = j; }
             }
         }
+        if (getenv("DEPTH_BEASTLOG")) TraceLog(LOG_WARNING, "  web director: level %d picks %s -> %s", W.biome, bp >= 0 ? Sp(W.biome, W.beasts[bp].species).name : "nothing", bq >= 0 ? Sp(W.biome, W.beasts[bq].species).name : "-");
         if (bp >= 0) {
             Beast& pr = W.beasts[bp];
             if (pr.hidden) LeaveDen(W, pr);
@@ -1966,7 +1967,14 @@ void BeastsUpdate(PlatformState& p, float dt) {    BeastWorld& W = p.fauna;
                 const SpeciesDef& QS = Sp(W.biome, q.species);
                 if (!Alive(q) || Has(QS, T_GIANT | T_FLORA) || QS.move == MoveMode::Sessile || q.mass > 5 || Dist(q.pos, dv.pos) < 16 * TILE || Dist(q.pos, dv.pos) > 45 * TILE) continue;
                 if (q.hidden) LeaveDen(W, q);
-                q.act = BeastAct::Explore; q.goal = {dv.pos.x + R(W, -8, 8) * TILE, q.pos.y}; q.actT = 0; q.thinkT = 4; moved++;
+                q.act = BeastAct::Explore; q.goal = {dv.pos.x + R(W, -8, 8) * TILE, dv.pos.y}; q.actT = 0; q.thinkT = 4; moved++;
+                for (int i = 0; i < (int)W.beasts.size(); i++) { // and something that eats it follows the same way
+                    Beast& pr = W.beasts[i];
+                    if (!Alive(pr) || Has(Sp(W.biome, pr.species), T_GIANT | T_FLORA) || Pref(W.biome, pr.species, q.species) <= 0 || Dist(pr.pos, dv.pos) > 50 * TILE || pr.act == BeastAct::Hunt) continue;
+                    if (pr.hidden) LeaveDen(W, pr);
+                    pr.act = BeastAct::Explore; pr.goal = {dv.pos.x + R(W, -6, 6) * TILE, dv.pos.y}; pr.actT = 0; pr.thinkT = 4; pr.hunger = std::max(pr.hunger, 0.8f);
+                    break;
+                }
             }
             W.webT = 6; // look again soon
         }
