@@ -326,10 +326,15 @@ void Island13Spawn(BeastWorld& W, PlatformState& p) {
         break;
     }
     // the Arch-Serpent's lairs: burrows in open ground with headroom to rear, spread along the island
-    for (float fr : {0.3f, 0.58f, 0.84f}) {
-        Vector2 f = S.At(fr); bool room = true;
-        for (int y = (int)f.y - 9; y < (int)f.y && room; y++) room = W.nav.Open((int)floorf(f.x / T), y);
-        if (room) W.lairs.push_back(root(f));
+    auto roomy = [&](Vector2 f) { // a broad, open stretch of ground: never perched on a pillar
+        int cx = (int)floorf(f.x / T), fy = (int)f.y + 1;
+        for (int dx = -4; dx <= 4; dx++) { if (!W.nav.Solid(cx + dx, fy) || !W.nav.Open(cx + dx, fy - 1)) return false; for (int y = fy - 7; y < fy; y++) if (!W.nav.Open(cx + dx, y)) return false; }
+        return true;
+    };
+    for (float fr : {0.3f, 0.58f, 0.84f}) { // the nearest roomy spot to each third of the way
+        float want = S.At(fr).x, bd = 25 * T; int best = -1;
+        for (int i = 0; i < (int)S.floor.size(); i++) { float d = fabsf(S.floor[i].x - want); if (d < bd && roomy(S.floor[i])) { bd = d; best = i; } }
+        if (best >= 0) { Vector2 L = root(S.floor[best]); bool dup = false; for (auto& o : W.lairs) if (fabsf(o.x - L.x) < 20 * T) dup = true; if (!dup) W.lairs.push_back(L); }
     }
     { int b = NewBeast(W, IS_CENTIPEDE, root(S.At(0.5f))); W.beasts[b].anchor = root(S.At(0.5f)); W.beasts[b].den = -1; W.beasts[b].pers.abnormal = Abnormal::None; }
 }

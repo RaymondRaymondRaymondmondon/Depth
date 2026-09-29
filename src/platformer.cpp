@@ -4458,6 +4458,7 @@ void DrawIslandBeast(const PlatformState& p, const Beast& b, float t) {
     bool dead = b.life == BeastLife::Corpse;
     bool fleeing = b.act == BeastAct::Flee || b.act == BeastAct::Hide;
     bool coil = b.act == BeastAct::Coil, strike = b.act == BeastAct::Strike;
+    if (!dead && PxDrawIslandBeast(p, b, t)) return; // the shaded pixel sprites (beastart.cpp)
     if (b.species == IS_COCONUT) { // a fallen coconut, cracked open as it's eaten
         DrawCircle((int)x, (int)y, 5.5f, FAUNA_INK); DrawCircle((int)x, (int)y, 4.5f, Color{120, 80, 44, 255});
         if (b.meat < 0.95f) { DrawCircle((int)x, (int)y - 1, 3.2f, Color{244, 240, 226, 255}); DrawCircle((int)x, (int)y - 1, 1.6f, Color{200, 190, 170, 255}); }
@@ -4706,6 +4707,10 @@ void DrawCaveBeast(const PlatformState& p, const Beast& b, float t) {
         float r = S.radius * s;
         DrawEllipse((int)x, (int)y + 1, r * 1.1f + 1, r * 0.5f + 1, FAUNA_INK);
         DrawEllipse((int)x, (int)y + 1, r * 1.1f, r * 0.5f, Color{120, 116, 120, 255});
+        return;
+    }
+    if (PxDrawCaveBeast(p, b, t)) { // the shaded pixel sprites (beastart.cpp), and the Echo-Stalker's sonar and daze on top
+        if (b.species == CS_STALKER) { Vector2 head{x + f * 12, y - 4}; for (int k = 0; k < 3; k++) DrawCircleLines((int)head.x, (int)head.y, 6 + k * 3 + fmodf(t * 8, 3), Fade(Color{200, 220, 240, 255}, b.special2 > 0 ? 0.0f : 0.12f)); if (b.special2 > 0) for (int k = 0; k < 3; k++) DrawCircle((int)(head.x + cosf(t * 5 + k * 2) * 7), (int)(head.y - 8 + sinf(t * 5 + k * 2) * 2), 1, Color{220, 220, 255, 255}); }
         return;
     }
     switch (b.species) {
@@ -5038,6 +5043,21 @@ void DrawWeedsBeast(const PlatformState& p, const Beast& b, float t) {
         if (b.special2 > 0) for (int k = 0; k < 3; k++) { float a = t * 7 + k * 2.1f; DrawLineEx({x + cosf(a) * 4, y + sinf(a) * 2}, {x + cosf(a) * 11, y + sinf(a) * 5 - 3}, 1.2f, Fade(Color{180, 230, 255, 255}, 0.5f + 0.5f * sinf(t * 23 + k))); } // still crackling
         return;
     }
+    if (!dead && PxDrawWeedsBeast(p, b, t)) { // the shaded pixel sprites (beastart.cpp), and a ray's discharge on top
+        if (b.species == WS_RAY && b.special > 0) for (int k = 0; k < 8; k++) {
+            float a = k * PI / 4 + t * 9, r0 = 8, r1 = 30 + Hs(t * 13 + k) * 30;
+            Vector2 m1{x + cosf(a) * (r0 + r1) * 0.5f + Hs(t * 7 + k) * 6 - 3, y + sinf(a) * (r0 + r1) * 0.5f};
+            DrawLineEx({x + cosf(a) * r0, y + sinf(a) * r0}, m1, 2, Color{210, 240, 255, 230}); DrawLineEx(m1, {x + cosf(a) * r1, y + sinf(a) * r1}, 1.4f, Color{150, 210, 255, 200});
+        }
+        return;
+    }
+    if (!dead && b.species == WS_HMANTIS) { // the mantis's tell ring and harpoon streak, over its shaded sprite
+        float px0 = b.anchor.x, py0 = b.anchor.y;
+        if (coil) DrawCircleLines((int)px0, (int)py0, 10 + sinf(t * 40) * 2, Color{255, 120, 90, 255});
+        if (b.act == BeastAct::Strike) { DrawLineEx(b.anchor, b.territory, 2, Color{240, 250, 255, 255}); DrawCircleV(b.territory, 4, Color{255, 255, 255, 255}); }
+        if (b.stunT > 0) for (int k = 0; k < 3; k++) DrawCircle((int)(px0 + cosf(t * 5 + k * 2) * 8), (int)(py0 - 10), 1.2f, Color{200, 240, 255, 255});
+        return;
+    }
     switch (b.species) {
     case WS_PLANKTON: // a drifting cloud of green motes and spores
         for (int k = 0; k < 7; k++) { float a = k * 0.9f + t * 0.6f + b.phase, r = 3 + (k % 3) * 2.5f; DrawCircle((int)(x + cosf(a) * r), (int)(y + sinf(a * 1.3f) * r * 0.7f), 1.2f, Fade(Color{150, 220, 120, 255}, 0.55f + 0.3f * sinf(t * 3 + k))); }
@@ -5215,6 +5235,13 @@ void DrawAtlantisBeast(const PlatformState& p, const Beast& b, float t) {
         float r = S.radius;
         DrawEllipse((int)x, (int)y + 1, r * 1.2f + 1, r * 0.5f + 1, FAUNA_INK);
         DrawEllipse((int)x, (int)y + 1, r * 1.2f, r * 0.5f, Color{90, 100, 116, 255});
+        return;
+    }
+    if (PxDrawAtlantisBeast(p, b, t)) { // the shaded pixel sprites (beastart.cpp), and the Phalanx's charge and beam on top
+        if (b.species == AS_GUARDIAN) {
+            if (b.anchor.x > 0) DrawCircle((int)x, (int)y - 6, 10 + b.anchor.x * 20, Fade(Color{160, 240, 255, 255}, 0.3f));
+            if (b.special2 > 0) { float x0 = std::min(x, b.goal.x), x1 = std::max(x, b.goal.x); DrawRectangle((int)x0, (int)y - 16, (int)(x1 - x0), 32, Fade(Color{190, 250, 255, 255}, 0.6f)); DrawRectangle((int)x0, (int)y - 4, (int)(x1 - x0), 8, WHITE); }
+        }
         return;
     }
     switch (b.species) {
@@ -5655,6 +5682,7 @@ void DrawFauna(const PlatformState& p, float t, int c0, int c1) {
     const BeastWorld& W = p.fauna;
     if (!W.active) return;
     float x0 = (c0 - 8) * (float)T, x1 = (c1 + 9) * (float)T; // wide: a giant's body reaches well past its centre
+    PxSetScale(1);
     for (const auto& L : W.lairs) { // the Arch-Serpent's lairs: always there, its eyes in the dark while it's home
         if (L.x < x0 - 120 || L.x > x1 + 120) continue;
         bool out = false;
@@ -5732,6 +5760,7 @@ void DrawFauna(const PlatformState& p, float t, int c0, int c1) {
             Vector2 piv{b.pos.x, b.pos.y + (ground ? std::min(12.0f, SD.radius * b.scale * 0.6f) : 0.0f)};
             if (b.hidden) piv = {b.pos.x, b.pos.y - 8};
             rlPushMatrix(); rlTranslatef(piv.x, piv.y, 0); rlScalef(sz, sz, 1); rlTranslatef(-piv.x, -piv.y, 0);
+            PxSetScale(sz); // (shaded pixel sprites draw finer by the same factor, so their pixels stay on the art grid)
             if (b.hidden && W.biome == PL_HULL && b.species == HS_SIPHON) { rlPopMatrix(); DrawSiphon(p, b, t); continue; }
             if (b.hidden) { if ((W.biome == PL_HULL && b.species == HS_EEL || W.biome == PL_ATLANTIS && b.species == AS_EEL) && b.act == BeastAct::Ambush) DrawEelPeek(b, t); rlPopMatrix(); continue; }
             // a body: death throes for the first moment, then it jerks with each bite and shrinks as it's eaten
@@ -6705,7 +6734,29 @@ void DrawPlatformSpritePage(int page, float t) {
     p.tiles.assign(1, std::string(40, '.'));
     p.w = 40;
     p.h = 1;
+    if (page >= 4 && page <= 7) { // a gallery of one biome's creatures, each on its own, at twice game scale
+        const int biomes[4] = {PL_ISLAND, PL_CAVE, PL_WEEDS, PL_ATLANTIS};
+        int lv = biomes[page - 4], n = BeastSpeciesCount(lv);
+        Camera2D cam{}; cam.zoom = ZOOM * 2; BeginMode2D(cam);
+        for (int s = 0; s < n; s++) {
+            Beast b; b.species = s; b.facing = 1; b.phase = t * 3 + s; b.life = BeastLife::Alive; b.act = (s % 3 == 0) ? BeastAct::Strike : BeastAct::Wander; b.actT = 0.2f;
+            b.pos = {60.0f + (s % 6) * 105, 70.0f + (s / 6) * 95}; b.vel = {40, 0};
+            b.anchor = {b.pos.x, b.pos.y + 20}; b.territory = {b.pos.x + 20, b.pos.y - 30}; b.goal = b.territory; b.grounded = true;
+            for (int k = 0; k < SPINE; k++) b.spine[k] = {b.pos.x - k * 6.0f, b.pos.y + sinf(k * 0.9f) * 2};
+            float sz = BeastSize(lv, s);
+            rlPushMatrix(); rlTranslatef(b.pos.x, b.pos.y, 0); rlScalef(sz, sz, 1); rlTranslatef(-b.pos.x, -b.pos.y, 0);
+            PxSetScale(sz);
+            PlatformState q; q.level = lv; q.fauna.biome = lv;
+            if (lv == PL_ISLAND) DrawIslandBeast(q, b, t); else if (lv == PL_CAVE) DrawCaveBeast(q, b, t); else if (lv == PL_WEEDS) DrawWeedsBeast(q, b, t); else DrawAtlantisBeast(q, b, t);
+            rlPopMatrix();
+        }
+        EndMode2D(); EndLayer();
+        DrawTexturePro(PixelRT().texture, {0, 0, PIXEL_W + 2.0f, -(PIXEL_H + 2.0f)}, {-PX, -PX, (PIXEL_W + 2) * PX, (PIXEL_H + 2) * PX}, {0, 0}, 0, WHITE);
+        for (int s = 0; s < n; s++) Txt(BeastSpecies(lv, s).name, (60.0f + (s % 6) * 105) * 2 - 40, (70.0f + (s / 6) * 95) * 2 + 60, 12, Pal::Paper);
+        return;
+    }
     if (page == 3) { // the shaded pixel-sprite creatures (beastart.cpp), at game scale, a few poses each
+        PxSetScale(1);
         Camera2D cam{}; cam.zoom = ZOOM * (getenv("DEPTH_PAGEZOOM") ? (float)atof(getenv("DEPTH_PAGEZOOM")) : 1.0f); if (getenv("DEPTH_PAGEX")) cam.target = {(float)atof(getenv("DEPTH_PAGEX")), (float)atof(getenv("DEPTH_PAGEY"))}; BeginMode2D(cam);
         for (int k = 0; k < 3; k++) PxTortoise({110.0f + k * 190, 110}, k == 1 ? -1.0f : 1.0f, t * 3 + k, k != 0, false, t + k);
         PxTortoise({700, 90}, 1, t * 3, true, false, t, true);

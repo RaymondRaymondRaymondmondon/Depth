@@ -98,18 +98,17 @@ static int PatternAt(const Mat& m, float uu, float vv, int x, int y) {
 void Render(const Canvas& cv, const Mat* mats, int nMats, Vector2 world, float cell, bool flipX, float alpha, Color ink) {
     static const float BAYER[4][4] = {{0, 8, 2, 10}, {12, 4, 14, 6}, {3, 11, 1, 9}, {15, 7, 13, 5}};
     const float Lx = -0.55f, Ly = -0.62f, Lz = 0.56f; // light from the upper left, a little in front
-    int ox = (int)roundf(world.x / cell) * (int)cell, oy = (int)roundf(world.y / cell) * (int)cell; // on the art grid
-    int ic = (int)cell;
+    float ox = world.x, oy = world.y, ic = cell; // (the caller lines the origin up on the art grid; cell may be fractional under a size transform)
     unsigned char A = (unsigned char)(255 * std::clamp(alpha, 0.0f, 1.0f));
     auto filled = [&](int x, int y) { return x >= 0 && y >= 0 && x < cv.w && y < cv.h && cv.mat[y * cv.w + x] >= 0; };
     for (int y = 0; y < cv.h; y++) for (int x = 0; x < cv.w; x++) {
         int i = y * cv.w + x;
-        int sx = ox + (flipX ? (cv.w - 1 - x) : x) * ic, sy = oy + y * ic;
+        float sx = ox + (flipX ? (cv.w - 1 - x) : x) * ic, sy = oy + y * ic;
         int m = cv.mat[i];
         if (m < 0) { // the ink outline round the silhouette
             bool edge = false;
             for (int d = 0; d < 4 && !edge; d++) { int qx = x + (d == 0) - (d == 1), qy = y + (d == 2) - (d == 3); if (filled(qx, qy) && cv.mat[qy * cv.w + qx] < nMats && !mats[cv.mat[qy * cv.w + qx]].emissive) edge = true; }
-            if (edge) DrawRectangle(sx, sy, ic, ic, Color{ink.r, ink.g, ink.b, A});
+            if (edge) DrawRectangleRec({sx, sy, ic, ic}, Color{ink.r, ink.g, ink.b, A});
             continue;
         }
         if (m >= nMats) continue;
@@ -129,7 +128,7 @@ void Render(const Canvas& cv, const Mat* mats, int nMats, Vector2 world, float c
         Color c = M.ramp[band];
         if (!M.emissive && M.pattern != PAT_NONE && M.accent.a > 0 && PatternAt(M, cv.u[i], cv.v[i], x, y)) c = Mul(M.accent, 0.62f + 0.14f * band); // the accent is shaded too
         c.a = A;
-        DrawRectangle(sx, sy, ic, ic, c);
+        DrawRectangleRec({sx, sy, ic, ic}, c);
     }
 }
 
