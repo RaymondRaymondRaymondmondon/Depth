@@ -223,6 +223,31 @@ void PopulateEcosystem(AbyssState& a) {
         AbyssCreature& lv = spawn(AbyssCreatureKind::Leviathan, 250.0f + k * 380.0f, Hash2(k + 9000, a.seed * 9.0f) * 2 * PI, 5.5f, AbyssCreatureState::Idle);
         lv.stateTimer = Hash1((float)(k + 1) * 3.7f) * 8.0f; // desynchronise the two patrols
     }
+    // ---- ParkourReference1.3's Abyss roster ----
+    for (float d : {420.0f, ABYSS_DEPTH_SPAN - 30.0f}) // the Whale-Fall Scavengers on their skeletons: vast, unbothered, a roof against suction
+        spawn(AbyssCreatureKind::WhaleFall, d, Hash2(d + 12000, a.seed * 1.7f) * 2 * PI, 4.0f, AbyssCreatureState::Idle);
+    for (float d : {300.0f, 560.0f, 780.0f}) { // Angler-Cephalopods, each in a patch of void-moss with its lure out in front
+        float ang = Hash2(d + 12100, a.seed * 2.3f) * 2 * PI;
+        spawn(AbyssCreatureKind::VoidMoss, d, ang, 0.4f, AbyssCreatureState::Idle);
+        AbyssCreature& q = spawn(AbyssCreatureKind::AnglerCephalopod, d, ang, 1.0f, AbyssCreatureState::Idle);
+        q.home = ShaftPos(d + 1.5f, ang, 3.2f, a.seed); // where the lure dangles
+    }
+    for (float d : {350.0f, 650.0f}) { // Pressure-Ghosts drift in the middle of the shaft
+        AbyssCreature& gh = spawn(AbyssCreatureKind::PressureGhost, d, 0, 0, AbyssCreatureState::Idle);
+        gh.pos = gh.home = {0, -d, 0};
+        gh.stateTimer = Hash1(d) * 6;
+    }
+    for (const auto& z : a.zones) if (z.kind == AbyssZoneKind::Vent) { // tube worms round the vents; krill tracing the updraft
+        for (int k = 0; k < 3; k++) spawn(AbyssCreatureKind::VentWorms, z.depth + z.span * (0.2f + 0.3f * k), z.angle + (k - 1) * 0.25f, 0.3f, AbyssCreatureState::Idle);
+        for (int k = 0; k < 14; k++) { AbyssCreature& kr = spawn(AbyssCreatureKind::TrenchKrill, z.depth + z.span * Hash1(z.depth + k), z.angle + (Hash1(k * 3.1f) - 0.5f) * 0.4f, 1.5f + Hash1(k * 7.7f) * 2, AbyssCreatureState::Idle); kr.phase = k * 0.7f; }
+    }
+    for (float d = 110; d < ABYSS_DEPTH_SPAN - 40; d += 95 + Hash1(d + 13000) * 40) { // the other flora along the walls
+        float ang = Hash2(d + 13000, a.seed * 3.1f) * 2 * PI;
+        int kind = (int)(Hash2(d, a.seed * 3.7f) * 4);
+        AbyssCreatureKind k = kind == 0 ? AbyssCreatureKind::PressureBulb : kind == 1 ? AbyssCreatureKind::AbyssalCoral : kind == 2 ? AbyssCreatureKind::GhostKelp : AbyssCreatureKind::VoidMoss;
+        spawn(k, d, ang, 0.5f, AbyssCreatureState::Idle);
+        if (k == AbyssCreatureKind::AbyssalCoral) for (int j = 0; j < 4; j++) { AbyssCreature& hf = spawn(AbyssCreatureKind::SlimeHagfish, d + j * 1.2f, ang + 0.2f, 2.0f + j * 0.4f, AbyssCreatureState::Idle); hf.phase = j * 1.3f; }
+    }
 }
 
 // A dash or a shattering sponge disturbs the Bioluminescent Plankton, briefly lighting the trench and
@@ -496,8 +521,106 @@ static void StepAbyss(Game& g, float dt, Vector2 drift, bool dashPressed, bool g
                 }
                 break;
             }
+            // ---- ParkourReference1.3 ----
+            case AbyssCreatureKind::WhaleFall: // it grazes the skeleton, slowly shifting along the wall; nothing bothers it
+                c.wallAngle += sinf(a.time * 0.05f + c.phase) * 0.02f * dt;
+                c.pos = ShaftPos(c.depth, c.wallAngle, 4.0f, a.seed);
+                break;
+            case AbyssCreatureKind::AnglerCephalopod: {
+                c.stateTimer += dt;
+                float dLure = Vector3Distance(a.playerPos, c.home), dBody = Vector3Distance(a.playerPos, c.pos);
+                if (c.state == AbyssCreatureState::Idle && a.invisT <= 0 && (dLure < 2.6f || dBody < 3.0f)) { c.state = AbyssCreatureState::Investigating; c.stateTimer = 0; } // the tell: the lure goes dark
+                else if (c.state == AbyssCreatureState::Investigating && c.stateTimer > 0.6f) { c.state = AbyssCreatureState::Lunging; c.stateTimer = 0; c.vel = Vector3Scale(Vector3Normalize(Vector3Subtract(a.playerPos, c.pos)), 16.0f); }
+                else if (c.state == AbyssCreatureState::Lunging) {
+                    c.pos = Vector3Add(c.pos, Vector3Scale(c.vel, dt));
+                    if (Vector3Distance(c.pos, a.playerPos) < 1.4f) HazardHit(a, c.pos, 34.0f, 10.0f); // the beak
+                    if (c.stateTimer > 0.5f) { c.state = AbyssCreatureState::Fleeing; c.stateTimer = 0; }
+                } else if (c.state == AbyssCreatureState::Fleeing) { // back into its moss
+                    Vector3 lair = ShaftPos(c.depth, c.wallAngle, 1.0f, a.seed);
+                    c.pos = Vector3Add(c.pos, Vector3Scale(Vector3Subtract(lair, c.pos), std::min(1.0f, dt * 2)));
+                    if (c.stateTimer > 3.0f) c.state = AbyssCreatureState::Idle;
+                }
+                break;
+            }
+            case AbyssCreatureKind::PressureGhost: { // drifts, swells (the tell), then inhales: suction toward it
+                c.stateTimer += dt;
+                c.pos = Vector3Add(c.home, {sinf(a.time * 0.2f + c.phase) * 3, sinf(a.time * 0.13f) * 4, cosf(a.time * 0.17f + c.phase) * 3});
+                float cyc = fmodf(c.stateTimer, 10.0f);
+                c.state = cyc < 6.5f ? AbyssCreatureState::Idle : cyc < 8.0f ? AbyssCreatureState::Investigating : AbyssCreatureState::Hunting;
+                if (c.state == AbyssCreatureState::Hunting) {
+                    Vector3 to = Vector3Subtract(c.pos, a.playerPos);
+                    float d = Vector3Length(to);
+                    bool sheltered = false;
+                    for (const auto& w : a.creatures) if (w.kind == AbyssCreatureKind::WhaleFall && Vector3Distance(w.pos, a.playerPos) < 6.0f && a.playerPos.y < w.pos.y + 1.0f) sheltered = true; // under its back
+                    if (d < 30.0f && !sheltered) a.playerVel = Vector3Add(a.playerVel, Vector3Scale(Vector3Normalize(to), 26.0f * (1 - d / 30.0f) * dt * 2.2f));
+                    if (d < 3.2f) HazardHit(a, c.pos, 20.0f, 6.0f);
+                }
+                break;
+            }
+            case AbyssCreatureKind::TrenchMaw: { // rises up the shaft; driven back by a pressure-bulb's blast; sinks away in time
+                c.stateTimer += dt;
+                if (c.state == AbyssCreatureState::Fleeing || c.stateTimer > 25.0f) {
+                    c.state = AbyssCreatureState::Fleeing; c.pos.y -= 12.0f * dt;
+                    if (c.pos.y < a.playerPos.y - 60.0f) { c.alive = false; c.state = AbyssCreatureState::Shattered; a.mawT = 0; }
+                    break;
+                }
+                float speed = c.state == AbyssCreatureState::Dislodged ? -10.0f : (a.playerPos.y - c.pos.y > 25 ? 11.0f : 6.5f); // (recoiling, it sinks)
+                if (c.state == AbyssCreatureState::Dislodged && c.stateTimer > 3.0f) { c.state = AbyssCreatureState::Hunting; }
+                c.pos.y += speed * dt;
+                c.pos.x += (a.playerPos.x - c.pos.x) * std::min(1.0f, dt * 0.6f); c.pos.z += (a.playerPos.z - c.pos.z) * std::min(1.0f, dt * 0.6f);
+                if (fabsf(a.playerPos.y - c.pos.y) < 3.0f && Vector2Length({a.playerPos.x - c.pos.x, a.playerPos.z - c.pos.z}) < 8.0f) HazardHit(a, c.pos, 60.0f, 18.0f); // swallowed
+                break;
+            }
+            case AbyssCreatureKind::SlimeHagfish: { // writhing near the coral; drawn to blood
+                Vector3 target = c.home;
+                for (const auto& o : a.creatures) if (o.kind == AbyssCreatureKind::AbyssalCoral && o.stateTimer > 0 && Vector3Distance(o.pos, c.pos) < 40) target = o.pos; // fresh blood on the coral
+                Vector3 goal = Vector3Add(target, {sinf(a.time * 2 + c.phase) * 1.5f, cosf(a.time * 1.7f + c.phase) * 1.0f, cosf(a.time * 2.3f + c.phase) * 1.5f});
+                c.pos = Vector3Add(c.pos, Vector3Scale(Vector3Subtract(goal, c.pos), std::min(1.0f, dt * 1.5f)));
+                break;
+            }
+            case AbyssCreatureKind::VoidMoss: if (a.isDashing && Vector3Distance(c.pos, a.playerPos) < 2.2f) a.invisT = 3.0f; break; // dash through it: unseen
+            case AbyssCreatureKind::GhostKelp:
+                if (Vector3Distance(c.pos, a.playerPos) < 1.8f && c.stateTimer <= 0) { a.stamina = std::min(100.0f, a.stamina + 35); a.dashCooldown = 0; c.stateTimer = 8; } // everything reset
+                c.stateTimer -= dt;
+                break;
+            case AbyssCreatureKind::PressureBulb:
+                if (c.stateTimer <= 0 && Vector3Distance(c.pos, a.playerPos) < 1.8f) { // it implodes: a concussive shockwave
+                    c.stateTimer = 12;
+                    Disturb(a, c.pos, 30.0f);
+                    for (auto& o : a.creatures) {
+                        float d2 = Vector3Distance(o.pos, c.pos);
+                        if (o.kind == AbyssCreatureKind::TrenchMaw && d2 < 18.0f) { o.state = AbyssCreatureState::Dislodged; o.stateTimer = 0; }
+                        else if (d2 < 9.0f && (o.kind == AbyssCreatureKind::GulperEel || o.kind == AbyssCreatureKind::VampireSquid || o.kind == AbyssCreatureKind::AnglerCephalopod || o.kind == AbyssCreatureKind::TrenchWorm)) { o.state = AbyssCreatureState::Idle; o.vel = {0, 0, 0}; o.stateTimer = -2.5f; }
+                    }
+                }
+                c.stateTimer -= dt;
+                break;
+            case AbyssCreatureKind::AbyssalCoral: {
+                c.stateTimer -= dt;
+                for (auto& o : a.creatures) if ((o.kind == AbyssCreatureKind::GulperEel || o.kind == AbyssCreatureKind::VampireSquid) && o.state == AbyssCreatureState::Hunting && Vector3Distance(o.pos, c.pos) < 2.0f) {
+                    o.health -= 0.5f * dt; o.vel = Vector3Scale(o.vel, 0.7f); c.stateTimer = 10; // shredded: blood in the water
+                }
+                if (Vector3Distance(c.pos, a.playerPos) < 1.4f) HazardHit(a, c.pos, 10.0f, 5.0f);
+                break;
+            }
             default: break;
         }
+    }
+    // hunters lose a diver they can't see (void-moss)
+    a.invisT = std::max(0.0f, a.invisT - dt);
+    if (a.invisT > 0) for (auto& c : a.creatures) if ((c.kind == AbyssCreatureKind::GulperEel || c.kind == AbyssCreatureKind::VampireSquid) && c.state == AbyssCreatureState::Hunting) c.state = AbyssCreatureState::Idle;
+    // slime-hagfish mucus: the water round them is slick - you drop faster
+    for (const auto& c : a.creatures) if (c.kind == AbyssCreatureKind::SlimeHagfish && Vector3Distance(c.pos, a.playerPos) < 5.0f) { a.playerVel.y -= 6.0f * dt; break; }
+    // the director: after a long enough calm, the Trench-Maw rises from below
+    if (a.hazardIFrame > 0.45f) a.lastHitT = a.time;
+    a.mawT += dt;
+    bool maw = false;
+    for (const auto& c : a.creatures) if (c.kind == AbyssCreatureKind::TrenchMaw && c.alive && c.state != AbyssCreatureState::Shattered) maw = true;
+    if (!maw && a.mawT > (a.mawVisits == 0 ? 75.0f : 120.0f) && a.time - a.lastHitT > 20.0f && depth > 150 && depth < ABYSS_DEPTH_SPAN - 80) {
+        AbyssCreature m; m.kind = AbyssCreatureKind::TrenchMaw; m.state = AbyssCreatureState::Hunting; m.depth = depth + 45;
+        m.pos = m.home = {a.playerPos.x, a.playerPos.y - 45.0f, a.playerPos.z};
+        a.creatures.push_back(m);
+        a.mawVisits++; a.mawT = 0;
     }
     // downdraft dislodges clinging isopods near the shaft centre
     if (inDowndraft) for (auto& c : a.creatures)
@@ -875,8 +998,62 @@ void SceneAbyss(Game& g) {
                 DrawSphere(Vector3Add(c.pos, {-0.9f, 0.6f, -7.5f}), 0.2f, Fade(Color{255, 220, 140, 255}, passing ? 0.9f : 0.4f));
                 break;
             }
+            // ---- ParkourReference1.3 ----
+            case AbyssCreatureKind::WhaleFall: { // a whale's ribcage on the wall, and the vast isopod grazing it
+                Vector3 inward = Vector3Normalize({-c.pos.x, 0, -c.pos.z});
+                Vector3 side{-inward.z, 0, inward.x};
+                for (int r = 0; r < 7; r++) { Vector3 base = Vector3Add(c.pos, Vector3Add(Vector3Scale(side, (r - 3) * 0.9f), {0, -1.2f, 0})); DrawCylinderEx(base, Vector3Add(base, Vector3Add(Vector3Scale(inward, 2.2f), {0, 2.4f, 0})), 0.14f, 0.06f, 5, Fogged(Color{210, 200, 180, 255}, base)); } // ribs
+                Color shell = Fogged(Color{130, 120, 112, 255}, c.pos);
+                for (int s = 0; s < 7; s++) { float k = s / 6.0f; Vector3 p = Vector3Add(c.pos, Vector3Add(Vector3Scale(side, (k - 0.5f) * 5.0f), Vector3Scale(inward, 0.8f))); DrawSphere(p, 1.25f - fabsf(k - 0.5f) * 0.9f, Tone(shell, (s % 2) * -0.12f)); } // armoured segments
+                for (int l = 0; l < 7; l++) { Vector3 p = Vector3Add(c.pos, Vector3Add(Vector3Scale(side, (l - 3) * 0.7f), Vector3Scale(inward, 1.4f))); DrawCylinderEx(p, Vector3Add(p, {sinf(a.time + l) * 0.1f, -1.0f, 0}), 0.08f, 0.04f, 4, Tone(shell, -0.3f)); }
+                break;
+            }
+            case AbyssCreatureKind::AnglerCephalopod: {
+                bool dark = c.state != AbyssCreatureState::Idle;
+                if (!dark) { DrawSphere(c.home, 0.22f, Color{190, 255, 230, 255}); DrawSphere(c.home, 0.7f, Fade(Color{150, 255, 220, 255}, 0.12f)); } // the lure: it looks like ghost-kelp
+                DrawCylinderEx(c.pos, c.home, 0.03f, 0.02f, 4, Fogged(Color{90, 40, 60, 255}, c.home));
+                Color sk = Fogged(Color{120, 30, 50, 255}, c.pos);
+                DrawSphere(c.pos, 0.7f, sk); DrawSphere(Vector3Add(c.pos, {0, 0.5f, 0}), 0.45f, Tone(sk, 0.1f));
+                for (int t2 = 0; t2 < 8; t2++) { float ta = t2 * PI / 4 + c.phase; Vector3 dir{cosf(ta) * 0.6f, -0.8f, sinf(ta) * 0.6f}; if (c.state == AbyssCreatureState::Lunging) dir = Vector3Add(Vector3Scale(Vector3Normalize(c.vel), 0.8f), Vector3Scale(dir, 0.3f)); DrawCylinderEx(c.pos, Vector3Add(c.pos, Vector3Scale(dir, 1.6f + 0.2f * sinf(a.time * 4 + t2))), 0.1f, 0.02f, 4, sk); }
+                if (c.state == AbyssCreatureState::Investigating) DrawSphere(c.pos, 1.2f, Fade(Color{255, 60, 60, 255}, 0.08f + 0.06f * sinf(a.time * 30))); // the tell
+                break;
+            }
+            case AbyssCreatureKind::PressureGhost: { // translucent, enormous, its bell swelling before it breathes in
+                float swell = c.state == AbyssCreatureState::Investigating ? 1.0f + 0.25f * sinf(a.time * 12) : c.state == AbyssCreatureState::Hunting ? 1.35f : 1.0f;
+                Color jelly = Fogged(Color{170, 150, 255, 255}, c.pos);
+                DrawSphere(c.pos, 3.6f * swell, Fade(jelly, 0.10f));
+                DrawSphere(Vector3Add(c.pos, {0, 0.6f, 0}), 2.6f * swell, Fade(jelly, 0.10f));
+                DrawSphere(c.pos, 1.0f, Fade(Color{220, 200, 255, 255}, 0.25f)); // its glowing gut
+                for (int t2 = 0; t2 < 12; t2++) { float ta = t2 * PI / 6 + a.time * 0.2f; Vector3 root = Vector3Add(c.pos, {cosf(ta) * 3.0f, -1.5f, sinf(ta) * 3.0f}); DrawCylinderEx(root, Vector3Add(root, {sinf(a.time + t2) * 0.8f, -7.0f, cosf(a.time * 0.8f + t2) * 0.8f}), 0.06f, 0.01f, 3, Fade(jelly, 0.25f)); }
+                if (c.state == AbyssCreatureState::Hunting) for (int k = 0; k < 10; k++) { float u = fmodf(a.time * 1.5f + k * 0.1f, 1.0f); float ta = k * 0.63f; Vector3 far = Vector3Add(c.pos, {cosf(ta) * 14 * (1 - u), sinf(ta * 1.7f) * 8 * (1 - u), sinf(ta) * 14 * (1 - u)}); DrawSphere(far, 0.08f, Fade(WHITE, 0.4f)); } // the water rushing in
+                break;
+            }
+            case AbyssCreatureKind::TrenchMaw: { // the colossal gulper: a jaw wider than the trench, rising out of the black
+                Color flesh = Fogged(Color{40, 26, 36, 255}, c.pos);
+                DrawCylinderEx(Vector3Add(c.pos, {0, -30, 0}), c.pos, 3.0f, 9.0f, 24, flesh); // its throat and body, below
+                for (int k = 0; k < 28; k++) { float ta = k * 2 * PI / 28; Vector3 root = Vector3Add(c.pos, {cosf(ta) * 8.5f, 0, sinf(ta) * 8.5f}); DrawCylinderEx(root, Vector3Add(root, {-cosf(ta) * 1.2f, 2.2f + (k % 3) * 0.6f, -sinf(ta) * 1.2f}), 0.25f, 0.02f, 4, Fogged(Color{230, 220, 200, 255}, root)); } // a ring of needle teeth
+                DrawCylinderEx(Vector3Add(c.pos, {0, -0.3f, 0}), c.pos, 8.4f, 8.4f, 28, Fogged(Color{90, 20, 30, 255}, c.pos)); // the maw's dark red throat
+                for (int k = 0; k < 6; k++) { float ta = k * PI / 3 + a.time * 0.3f; DrawSphere(Vector3Add(c.pos, {cosf(ta) * 9.4f, 0.5f, sinf(ta) * 9.4f}), 0.25f, Color{255, 230, 150, 255}); } // photophores round the lip - the only warning you see coming
+                break;
+            }
+            case AbyssCreatureKind::TrenchKrill: { // only lit in your wake
+                float d = Vector3Distance(c.pos, a.playerPos);
+                if (d < 7.0f) DrawSphere(Vector3Add(c.pos, {sinf(a.time * 2 + c.phase) * 0.3f, fmodf(a.time * 2 + c.phase, 3.0f), 0}), 0.06f, Fade(Color{120, 240, 255, 255}, 1 - d / 7.0f));
+                break;
+            }
+            case AbyssCreatureKind::SlimeHagfish: { Vector3 f2 = Vector3Add(c.pos, {cosf(a.time * 3 + c.phase) * 0.4f, 0, sinf(a.time * 3 + c.phase) * 0.4f}); DrawCylinderEx(c.pos, f2, 0.1f, 0.06f, 5, Fogged(Color{170, 140, 150, 255}, c.pos)); DrawSphere(c.pos, 0.35f, Fade(Color{200, 220, 200, 255}, 0.08f)); break; } // pale eels in a cloud of mucus
+            case AbyssCreatureKind::VentWorms: for (int k = 0; k < 7; k++) { Vector3 b2 = Vector3Add(c.pos, {(k % 3 - 1) * 0.3f, 0, (k / 3 - 1) * 0.3f}); DrawCylinderEx(b2, Vector3Add(b2, {0, 1.4f + (k % 2) * 0.5f, 0}), 0.08f, 0.07f, 5, Fogged(Color{230, 225, 210, 255}, b2)); DrawSphere(Vector3Add(b2, {0, 1.5f + (k % 2) * 0.5f, 0}), 0.13f, Fogged(Color{220, 40, 50, 255}, b2)); } break;
+            case AbyssCreatureKind::VoidMoss: DrawSphere(c.pos, 1.3f, Color{0, 0, 0, 255}); DrawSphere(c.pos, 1.6f, Fade(BLACK, 0.5f)); break; // a hole in the light itself
+            case AbyssCreatureKind::PressureBulb: if (c.stateTimer <= 0) { DrawSphere(c.pos, 0.55f, Fogged(Color{120, 200, 150, 255}, c.pos)); DrawSphere(c.pos, 0.7f, Fade(Color{150, 255, 180, 255}, 0.12f + 0.06f * sinf(a.time * 3))); } else if (c.stateTimer > 11.3f) DrawSphere(c.pos, (12 - c.stateTimer) * 15, Fade(WHITE, (c.stateTimer - 11.3f))); break;
+            case AbyssCreatureKind::AbyssalCoral: for (int k = 0; k < 6; k++) { float ta = k * 1.05f; Vector3 tip = Vector3Add(c.pos, {cosf(ta) * 0.7f, 0.8f + (k % 2) * 0.4f, sinf(ta) * 0.7f}); DrawCylinderEx(c.pos, tip, 0.12f, 0.01f, 4, Fogged(c.stateTimer > 0 ? Color{200, 40, 50, 255} : Color{160, 60, 90, 255}, c.pos)); } break;
+            case AbyssCreatureKind::GhostKelp: for (int k = 0; k < 4; k++) { Vector3 b2 = Vector3Add(c.pos, {(k - 1.5f) * 0.25f, 0, 0}); DrawCylinderEx(b2, Vector3Add(b2, {sinf(a.time + k) * 0.4f, 2.5f, 0}), 0.06f, 0.03f, 4, Fade(Color{220, 240, 250, 255}, c.stateTimer > 0 ? 0.2f : 0.6f)); } break;
             default: DrawSphere(c.pos, 0.4f, col); break;
         }
+    }
+    { // depth markers: old survey buoys every hundred metres, and the floor at the bottom
+        for (int m = 100; m < (int)ABYSS_DEPTH_SPAN; m += 100) { Vector3 bp = ShaftPos((float)m, 0.3f, 0.6f, a.seed); if (fabsf(bp.y - a.playerPos.y) < 40) { DrawSphere(bp, 0.3f, Fogged(Color{255, 120, 60, 255}, bp)); DrawSphere(bp, 0.6f, Fade(Color{255, 140, 80, 255}, 0.15f + 0.1f * sinf(a.time * 4))); } }
+        float floorY = -(ABYSS_DEPTH_SPAN - 8.0f);
+        if (a.playerPos.y - floorY < 60) DrawCylinderEx({0, floorY - 1, 0}, {0, floorY, 0}, 24, 24, 32, Fogged(Color{50, 48, 44, 255}, {0, floorY, 0}));
     }
     for (auto& p : a.puffs) {
         float k = 1.0f - p.life / p.maxLife;

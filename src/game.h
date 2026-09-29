@@ -450,6 +450,14 @@ enum class AbyssCreatureKind {
     BrineSlug,   // slow, heavy, crushing - the hazard that makes the bowling-lane set-piece work
     RockLedge,   // a plain, permanent stone shelf: unlike a Glass Sponge it never shatters, so a diver can
                  // always find somewhere to wait out whatever's patrolling below
+    // ParkourReference1.3, "7. The Abyss"
+    WhaleFall,        // the Whale-Fall Scavenger: a gargantuan armoured isopod on a whale skeleton; its flat back is cover from suction
+    AnglerCephalopod, // hides in void-moss, dangling a lure that looks like ghost-kelp; comes too close and its beak has you
+    PressureGhost,    // a vast translucent jellyfish that swells, then inhales: violent suction toward it
+    TrenchMaw,        // the apex: a colossal gulper rising up the shaft, jaw wider than the trench; a pressure-bulb's blast drives it back
+    TrenchKrill,      // swarms that only light up in your wake, tracing the currents
+    SlimeHagfish,     // drawn by blood; their mucus makes the water around them slick - you fall faster there
+    VentWorms, VoidMoss, PressureBulb, AbyssalCoral, GhostKelp, // the flora
 };
 
 // A set-piece band of depth, generated once from the level seed (see PopulateEcosystem): the trench's own
@@ -500,6 +508,9 @@ struct AbyssState {
     bool downdraftActive = false;
     float downdraftTimer = 0;
     float hazardIFrame = 0;           // brief immunity after any hazard hit, so one crush doesn't chain into ten
+    float invisT = 0;                 // dashed through void-moss: visual hunters can't see you
+    float lastHitT = 0;               // when the last hazard hit (the director waits for calm)
+    float mawT = 0; int mawVisits = 0;  // the Trench-Maw director
     float genDepth = 0;               // deepest point the generator has populated so far (streams downward)
     std::vector<AbyssCreature> creatures;
     std::vector<AbyssPlanktonPuff> puffs;
