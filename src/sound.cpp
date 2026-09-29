@@ -102,35 +102,10 @@ Allp gApL[2], gApR[2];
 float gRevFb = 0.8f, gRevDamp = 0.3f, gRevWet = 0.25f;
 
 // ---- the level's score and ambience
-struct Score {
-    float root; int scale[8]; int n; float bpm;
-    int padWave; float padCut, padGain, padDet;
-    int leadWave; float leadCut, leadGain, leadProb; int leadOct; float leadBeats; float leadFm;
-    float bassGain;
-    float rev, damp, wet;
-};
-const Score SCORES[PL_COUNT + 1] = {
-    // the Pipes: D dorian, slow, dark saw pads and metallic bell tones that ring down the ducts
-    {73.42f, {0, 2, 3, 5, 7, 9, 10}, 7, 58, W_SAW, 650, 0.05f, 0.004f, W_FM, 2600, 0.05f, 0.22f, 2, 3.0f, 2.76f, 0.05f, 0.86f, 0.35f, 0.32f},
-    // the Hull: A minor pentatonic, open water: soft sine pads, long gliding whale-like lead notes
-    {55.0f, {0, 3, 5, 7, 10}, 5, 50, W_TRI, 900, 0.06f, 0.003f, W_SINE, 1800, 0.05f, 0.18f, 3, 4.0f, 0, 0.05f, 0.9f, 0.5f, 0.38f},
-    // the Pirate Ship: E aeolian, a slow 6/8 lilt: a reedy squeezebox pad and a fiddle lead
-    {82.41f, {0, 2, 3, 5, 7, 8, 10}, 7, 72, W_SQR, 1100, 0.035f, 0.006f, W_SAW, 2200, 0.04f, 0.3f, 2, 1.5f, 0, 0.05f, 0.62f, 0.4f, 0.14f},
-    // the Island: G major pentatonic, marimba by day and a wooden flute by night, over a soft log drum
-    {98.0f, {0, 2, 4, 7, 9}, 5, 84, W_SINE, 1400, 0.05f, 0.003f, W_SINE, 4000, 0.06f, 0.35f, 2, 1.0f, 4.0f, 0.04f, 0.55f, 0.5f, 0.12f},
-    // the Cave: C phrygian, very slow; a drone and glassy plinks, like tuned drips, in a huge reverb
-    {65.41f, {0, 1, 3, 5, 7, 8, 10}, 7, 44, W_SINE, 500, 0.06f, 0.002f, W_SINE, 5000, 0.045f, 0.2f, 3, 2.0f, 3.0f, 0.06f, 0.93f, 0.25f, 0.5f},
-    // the Weeds: F lydian, shimmering chorus pads and a harp
-    {87.31f, {0, 2, 4, 6, 7, 9, 11}, 7, 66, W_TRI, 1600, 0.05f, 0.007f, W_SAW, 3000, 0.045f, 0.33f, 2, 1.0f, 0, 0.04f, 0.8f, 0.45f, 0.3f},
-    // Atlantis: B-flat harmonic minor, a drowned choir and deep bells
-    {58.27f, {0, 2, 3, 5, 7, 8, 11}, 7, 48, W_SAW, 1800, 0.045f, 0.005f, W_FM, 2000, 0.05f, 0.2f, 2, 4.0f, 1.41f, 0.05f, 0.92f, 0.35f, 0.42f},
-    // the Abyss: F locrian, barely moving: a sub drone, a dissonant cluster, a far-off groan now and then
-    {43.65f, {0, 1, 3, 5, 6, 8, 10}, 7, 36, W_SINE, 400, 0.07f, 0.002f, W_SINE, 700, 0.05f, 0.1f, 1, 6.0f, 0, 0.08f, 0.95f, 0.3f, 0.45f},
-};
 int gLevel = -1;
 bool gUnderwater = false;
 float gScene = 0, gSceneTarget = 0; // the score and ambience fade in and out with the parkour section
-float gBeatT = 0; int gBeat = 0; int gChord = 0; int gLeadDeg = 7;
+
 float gDay = 1, gFlow = 0, gFlowS = 0, gSlide = 0, gSlideS = 0, gTension = 0, gTensionS = 0;
 Vector2 gEar{0, 0};
 float gCallCool = 0;
@@ -140,10 +115,7 @@ std::vector<Bed> gBeds;
 Biquad gFlowF, gSlideF, gSlideF2, gUwL, gUwR;
 float gAmbT = 0, gClock = 0;
 
-float Note(const Score& s, int deg, int oct) { // a scale degree (any integer) to Hz
-    int n = s.n, o = (deg >= 0 ? deg / n : -((-deg + n - 1) / n)), d = deg - o * n;
-    return s.root * powf(2.0f, oct + o + s.scale[d] / 12.0f);
-}
+
 
 void PanGains(float pan, float& gl, float& gr) { pan = std::clamp(pan, -1.0f, 1.0f); gl = sqrtf((1 - pan) * 0.5f) * 1.414f; gr = sqrtf((1 + pan) * 0.5f) * 1.414f; }
 
@@ -201,12 +173,12 @@ void PlaySfx(Sfx s, Ctx c) {
     case Sfx::Step: {
         Voice& v = Puff(c, 2200, 700, 0.03f, 0.07f); v.hp = 300; v.decPow = 2.2f;
         Voice& w = Tone(c, W_SINE, 95, 60, 0.05f, 0.08f); w.decPow = 2.5f;
-        if (c.pitch > 1.3f) { Voice& r = Tone(c, W_FM, 900, 880, 0.18f, 0.025f); r.fmRatio = 2.7f; r.fmIndex = 1.2f; r.fmIndex1 = 0.1f; } // steel rings
+        if (c.pitch > 1.3f) { Voice& r = Tone(c, W_FM, 420, 415, 0.12f, 0.015f); r.fmRatio = 2.7f; r.fmIndex = 0.8f; r.fmIndex1 = 0.1f; } // pipe steel rings, low and short
         break; }
     case Sfx::WallJump: { Voice& v = Puff(c, 1800, 1200, 0.07f, 0.15f); v.fa0 = 1500; v.fa1 = 1100; PlaySfx(Sfx::Jump, c); break; }
     case Sfx::Dash: Whoosh(c, uw ? 300 : 500, uw ? 1400 : 2600, 0.24f, 0.38f); if (uw) for (int k = 0; k < 4; k++) Bubble(c, 0.05f + k * 0.03f, RR(0.7f, 1.2f)); break;
     case Sfx::Roll: for (int k = 0; k < 3; k++) Thud(c, 110 - k * 10, 0.15f, k * 0.09f); Whoosh(c, 400, 900, 0.25f, 0.12f); break;
-    case Sfx::Stun: Thud(c, 60, 0.5f); Vox(c, 170, 110, 0.35f, 0.16f, 700, 450, 1150, 850, 0.05f); { Voice& r = Tone(c, W_SINE, 2400, 2300, 0.6f, 0.03f, 0.1f); r.tremR = 14; r.tremD = 0.8f; } break;
+    case Sfx::Stun: Thud(c, 60, 0.4f); Vox(c, 160, 110, 0.3f, 0.1f, 700, 450, 1150, 850, 0.05f); break;
     case Sfx::Grab: Puff(c, 3000, 1500, 0.05f, 0.12f).hp = 900; Thud(c, 130, 0.12f, 0.02f); break;
     case Sfx::Backflip: Whoosh(c, 700, 2000, 0.3f, 0.22f); break;
     case Sfx::Glide: Whoosh(c, 300, 500, 0.5f, 0.1f); break;
@@ -215,12 +187,14 @@ void PlaySfx(Sfx s, Ctx c) {
         for (int k = 0; k < 8; k++) Bubble(c, 0.1f + k * 0.05f, RR(0.6f, 1.6f));
         break; }
     case Sfx::Wade: { Voice& v = Puff(c, 2400, 900, 0.15f, 0.08f); v.fa0 = 1200; v.fa1 = 800; break; }
-    case Sfx::Death: // a cry cut short, and the thud
-        Vox(c, 260, 170, 0.5f, 0.22f, 850, 500, 1250, 950); Thud(c, 60, 0.4f, 0.25f); break;
-    case Sfx::DeathWater: // muffled - the cry comes out as a burst of bubbles
-        { Voice& v = Vox(c, 230, 150, 0.45f, 0.14f, 700, 450, 1100, 900); v.cut0 = 900; v.cut1 = 500; }
-        for (int k = 0; k < 16; k++) Bubble(c, 0.05f + k * 0.035f, RR(0.5f, 1.8f));
-        break;
+    case Sfx::Death: { // (the user found the cry annoying) a soft falling tone and a muffled thud
+        Voice& v = Tone(c, W_SINE, 330, 150, 0.9f, 0.12f); v.decPow = 1.5f; v.send = 0.6f; v.curve = 0.7f;
+        Thud(c, 55, 0.25f, 0.04f);
+        break; }
+    case Sfx::DeathWater: {
+        Voice& v = Tone(c, W_SINE, 300, 140, 1.0f, 0.1f); v.decPow = 1.5f; v.send = 0.7f; v.curve = 0.7f;
+        for (int k = 0; k < 6; k++) Bubble(c, 0.05f + k * 0.07f, RR(0.9f, 1.8f));
+        break; }
     case Sfx::Respawn: { Voice& a = Tone(c, W_SINE, 660, 660, 0.9f, 0.08f); a.send = 0.6f; Voice& b = Tone(c, W_SINE, 990, 990, 0.9f, 0.06f, 0.12f); b.send = 0.6f; break; }
     case Sfx::Win: for (int k = 0; k < 4; k++) { float f = 392 * powf(2, (k == 0 ? 0 : k == 1 ? 4 : k == 2 ? 7 : 12) / 12.0f); Voice& v = Tone(c, W_FM, f, f, 0.9f, 0.1f, k * 0.12f); v.fmRatio = 4; v.fmIndex = 1.5f; v.fmIndex1 = 0; v.send = 0.5f; } break;
     case Sfx::Launch: { Voice& v = Tone(c, W_SINE, 110, 520, 0.35f, 0.25f); v.vibR = 18; v.vibD = 0.05f; v.curve = 0.7f; Thud(c, 80, 0.3f); break; }
@@ -332,7 +306,7 @@ void PlayBeast(Arch a, int cue, float pf, float big, Ctx c) {
         break; }
     case A_KRAKEN: { Voice& v = Tone(c, W_SAW, 70 * pf * up, 50 * pf * up, (death ? 2.5f : 1.2f) * d, 0.22f); v.fa0 = 380; v.fa1 = 280; v.fb0 = 800; v.fb1 = 600; v.fq = 5; v.tremR = 10; v.tremD = 0.4f; v.atk = 0.15f; v.send = 0.5f;
         for (int k = 0; k < 5; k++) Bubble(c, 0.1f + k * 0.1f, 2); if (strike) Whoosh(c, 200, 700, 0.4f, 0.3f); break; }
-    case A_JELLY: { float f = 700 * pf; for (int k = 0; k < 2; k++) { Voice& v = Tone(c, W_FM, f * (k ? 1.5f : 1), f * (k ? 1.5f : 1), 1.2f, 0.035f, k * 0.2f); v.fmRatio = 3.5f; v.fmIndex = 1; v.fmIndex1 = 0; v.atk = 0.02f; v.send = 0.7f; } break; } // a glassy chime
+    case A_JELLY: { float f = 260 * pf; for (int k = 0; k < 2; k++) { Voice& v = Tone(c, W_SINE, f * (k ? 1.5f : 1), f * (k ? 1.5f : 1), 1.0f, 0.02f, k * 0.2f); v.atk = 0.1f; v.send = 0.7f; } break; } // a soft low hum (the high chime was grating)
     case A_WORM: { Voice& v = Puff(c, 220, 140, 1.5f * d, 0.25f); v.atk = 0.4f; v.tremR = 6; v.tremD = 0.5f; Voice& s2 = Tone(c, W_SINE, 38, 34, 1.5f * d, 0.2f); s2.atk = 0.4f; break; } // a rumble in the rock
     case A_HUMAN: { // mermen and Lost Ones: a voice, eerie and wordless
         float f = (a == A_HUMAN ? 150 : 150) * pf * up;
@@ -376,9 +350,9 @@ void AmbientEvents(float dt) {
     auto chance = [&](float perSec) { return R01() < perSec * dt; };
     switch (gLevel) {
     case PL_PIPES:
-        if (chance(0.25f)) { pan(); c.vol = RR(0.3f, 0.9f); Voice& v = Tone(c, W_FM, RR(300, 700), 0, 0.9f, 0.04f); v.f1 = v.f0 * 0.99f; v.fmRatio = 2.76f; v.fmIndex = 2.5f; v.fmIndex1 = 0.1f; v.send = 0.7f; } // a clank somewhere in the ducts
+        if (chance(0.025f)) { pan(); c.vol = RR(0.3f, 0.7f); Voice& v = Tone(c, W_FM, RR(200, 400), 0, 0.9f, 0.03f); v.f1 = v.f0 * 0.99f; v.fmRatio = 2.76f; v.fmIndex = 2.5f; v.fmIndex1 = 0.1f; v.send = 0.7f; } // a clank somewhere in the ducts
         if (chance(0.12f)) { pan(); Voice& v = Puff(c, 6000, 3000, RR(0.6f, 1.5f), 0.05f); v.hp = 2500; v.atk = 0.1f; } // a valve venting steam
-        if (chance(0.08f)) { pan(); for (int k = 0; k < 3; k++) { Voice& v = Tone(c, W_SINE, 1500, 900, 0.05f, 0.04f, k * 0.12f); v.send = 0.8f; } } // a drip on steel
+        if (chance(0.05f)) { pan(); for (int k = 0; k < 3; k++) { Voice& v = Tone(c, W_SINE, 800, 500, 0.05f, 0.025f, k * 0.12f); v.send = 0.8f; } } // a drip on steel
         break;
     case PL_HULL: case PL_WEEDS:
         if (chance(0.6f)) { pan(); c.vol = RR(0.2f, 0.6f); for (int k = 0; k < 1 + (int)(R01() * 3); k++) Bubble(c, k * 0.06f, RR(0.6f, 1.6f)); }
@@ -406,73 +380,302 @@ void AmbientEvents(float dt) {
         break;
     default: // the Abyss
         if (chance(0.04f)) { pan(); c.vol = 0.5f; Voice& v = Tone(c, W_SINE, RR(40, 60), 0, 4.0f, 0.12f); v.f1 = v.f0 * RR(0.6f, 1.3f); v.atk = 1.2f; v.vibR = 3; v.vibD = 0.03f; v.send = 0.9f; } // something vast, far below
-        if (chance(0.1f)) { pan(); c.vol = 0.4f; Voice& v = Tone(c, W_SINE, 1800, 1700, 0.8f, 0.015f); v.send = 1; } // the pressure pinging in your helmet
+
         break;
     }
 }
 
-void ScoreBeat() {
-    if (gLevel < 0) return;
-    const Score& s = SCORES[gLevel];
-    float beat = 60.0f / s.bpm;
+// ---------------------------------------------------------------- the score
+// Each level has a long, evolving synth track (the user: "evolving sounds that build on top of each other ... a very
+// long track for each level"). A Song is a scale, a tempo, chord progressions and a set of Layers - drone, pads,
+// arpeggios, bass, a lead that develops a motif (or, on the Pirate Ship, plays a composed shanty), drums, chants,
+// rare accents. The track runs through twelve sections of sixteen bars (8-12 minutes); each layer is active in some
+// sections only and fades in and out over four bars, the arpeggios slowly mutate, the filters open and close with
+// the section's intensity, and an apex nearby pushes the intensity up. After the twelfth section it goes round
+// again with the progressions, motifs and patterns re-rolled, so it never repeats exactly.
+enum Inst { I_PAD, I_WARM_PAD, I_CHOIR, I_ORGAN, I_ARP_SAW, I_ARP_SQR, I_PLUCK, I_BELL, I_MARIMBA, I_FLUTE, I_FIDDLE, I_SYNTH_LEAD,
+            I_SUB_BASS, I_SAW_BASS, I_DRONE, I_KICK, I_SNARE, I_HAT, I_LOGDRUM, I_HANDDRUM, I_SHAKER, I_CLANK, I_GLASS, I_WHALE,
+            I_SQUEEZE, I_CHUFF };
+enum Role { R_DRONE, R_PAD, R_ARP, R_BASS, R_LEAD, R_DRUM, R_CHANT, R_STAB, R_ACCENT };
+struct Layer {
+    int role = R_PAD, inst = I_PAD, altInst = -1; // altInst: played instead at night (the Island's flute)
+    float gain = 0.03f; uint32_t mask = 0xFFF; int oct = 1; float pan = 0;
+    int pat[16] = {}, base[16] = {}, pit[16] = {}; int steps = 16;
+    int barMod = 0;                     // chants: 0 every bar, 1 only even bars (the call), 2 only odd bars (the response)
+    bool mutate = false, echo = false, absolute = false; // absolute: a composed melody in scale degrees, not relative to the chord
+    float accentProb = 0;               // accents: chance per bar
+    std::vector<std::pair<int, int>> motif; // lead: (degree, ticks); -99 = rest
+    int phrase = -1, nextTick = 0, phraseBase = 0;
+    float cur = 0;
+};
+struct Song {
+    float root = 65.41f; int scale[8] = {0, 2, 3, 5, 7, 8, 10}; int n = 7;
+    float bpm = 60; int tpb = 16, tpbeat = 4, barsPerSection = 16, sections = 12;
+    int progA[16] = {0}, nA = 1, progB[16] = {0}, nB = 1, chordBars = 2; uint32_t sectionB = 0;
+    std::vector<Layer> layers;
+    float rev = 0.85f, damp = 0.35f, wet = 0.3f;
+};
+Song gSong;
+int gTick = 0; float gTickT = 0;
+const float ARC[12] = {0.12f, 0.22f, 0.32f, 0.42f, 0.52f, 0.48f, 0.62f, 0.76f, 0.88f, 0.7f, 0.45f, 0.25f}; // the track's rise and fall
+
+float Note(const Song& s, int deg, int oct) { // a scale degree (any integer) to Hz
+    int n = s.n, o = (deg >= 0 ? deg / n : -((-deg + n - 1) / n)), d = deg - o * n;
+    return s.root * powf(2.0f, oct + o + s.scale[d] / 12.0f);
+}
+float TickDur() { return 60.0f / gSong.bpm / gSong.tpbeat; }
+
+void PlayInst(int inst, float f, float dur, float gain, float pan, float bright, bool echo = false) {
     Ctx c{1, 1, 1, 1, B_MUSIC, 0.5f};
-    if (gBeat % 8 == 0) { // a new chord: I, IV, V or vi of the level's scale, slow to swell and slow to fade
-        static const int CH[4] = {0, 3, 4, 5};
-        gChord = CH[(int)(R01() * 4)] % s.n;
-        int deg[3] = {gChord, gChord + 2, gChord + 4};
-        for (int k = 0; k < 3; k++) {
-            PanGains(-0.5f + k * 0.5f, c.gl, c.gr);
-            Voice& v = Tone(c, s.padWave, Note(s, deg[k], 1), 0, beat * 10, s.padGain);
-            v.f1 = v.f0; v.atk = beat * 2.5f; v.hold = beat * 4; v.decPow = 1; v.det = s.padDet; v.cut0 = v.cut1 = s.padCut; v.send = 0.6f;
-            if (gLevel == PL_ATLANTIS) { v.fa0 = v.fa1 = 750; v.fb0 = v.fb1 = 1150; v.fq = 5; v.vibR = 5; v.vibD = 0.008f; v.gain *= 2.2f; } // a drowned choir: "aah"
-            if (gLevel == PL_PIRATE) { v.tremR = 5.5f; v.tremD = 0.25f; } // the squeezebox's bellows
+    PanGains(pan, c.gl, c.gr);
+    auto make = [&](float delay, float g) -> Voice& {
+        switch (inst) {
+        case I_PAD: { Voice& v = Tone(c, W_SAW, f, f, dur, g, delay); v.det = 0.006f; v.atk = dur * 0.3f; v.hold = dur * 0.3f; v.decPow = 1; v.cut0 = v.cut1 = 450 + 2200 * bright; v.send = 0.6f; return v; }
+        case I_WARM_PAD: { Voice& v = Tone(c, W_TRI, f, f, dur, g, delay); v.det = 0.007f; v.atk = dur * 0.35f; v.hold = dur * 0.25f; v.decPow = 1; v.cut0 = v.cut1 = 700 + 1800 * bright; v.send = 0.65f; return v; }
+        case I_CHOIR: { Voice& v = Tone(c, W_SAW, f, f, dur, g * 2.2f, delay); v.det = 0.005f; v.atk = dur * 0.3f; v.hold = dur * 0.3f; v.decPow = 1; v.fa0 = v.fa1 = 750; v.fb0 = v.fb1 = 1150; v.fq = 5; v.vibR = 5; v.vibD = 0.008f; v.send = 0.7f; return v; }
+        case I_ORGAN: { Voice& v = Tone(c, W_FM, f, f, dur, g, delay); v.fmRatio = 2; v.fmIndex = 0.7f; v.atk = 0.08f; v.hold = dur * 0.6f; v.decPow = 1; v.send = 0.6f; return v; }
+        case I_ARP_SAW: case I_ARP_SQR: { Voice& v = Tone(c, inst == I_ARP_SAW ? W_SAW : W_SQR, f, f, dur, g, delay); v.atk = 0.004f; v.decPow = 2; v.cut0 = 500 + 3500 * bright; v.cut1 = v.cut0 * 0.35f; v.q = 1.4f; v.send = 0.45f; return v; }
+        case I_PLUCK: { Voice& v = Tone(c, W_SAW, f, f, dur, g, delay); v.atk = 0.002f; v.decPow = 2.6f; v.cut0 = 1800 + 2500 * bright; v.cut1 = 400; v.send = 0.55f; return v; }
+        case I_BELL: { Voice& v = Tone(c, W_FM, f, f, dur, g, delay); v.fmRatio = 3.5f; v.fmIndex = 2.2f; v.fmIndex1 = 0.1f; v.atk = 0.002f; v.decPow = 1.6f; v.send = 0.7f; return v; }
+        case I_MARIMBA: { Voice& v = Tone(c, W_FM, f, f, std::min(dur, 0.6f), g, delay); v.fmRatio = 4; v.fmIndex = 1.8f; v.fmIndex1 = 0; v.atk = 0.002f; v.decPow = 3; v.send = 0.35f; return v; }
+        case I_FLUTE: { Voice& v = Tone(c, W_SINE, f, f, dur, g, delay); v.noiseMix = 0.1f; v.atk = 0.09f; v.hold = dur * 0.4f; v.vibR = 5; v.vibD = 0.01f; v.send = 0.55f; return v; }
+        case I_FIDDLE: { Voice& v = Tone(c, W_SAW, f, f, dur, g, delay); v.atk = 0.05f; v.hold = dur * 0.5f; v.vibR = 5.5f; v.vibD = 0.012f; v.fa0 = v.fa1 = 1100; v.fb0 = v.fb1 = 2400; v.fq = 3; v.send = 0.45f; return v; }
+        case I_SYNTH_LEAD: { Voice& v = Tone(c, W_SAW, f * 0.985f, f, dur, g, delay); v.curve = 0.08f; v.det = 0.004f; v.atk = 0.015f; v.hold = dur * 0.55f; v.decPow = 1.4f; v.cut0 = 900 + 2600 * bright; v.cut1 = v.cut0 * 0.7f; v.vibR = 5; v.vibD = 0.006f; v.send = 0.45f; return v; }
+        case I_SUB_BASS: { Voice& v = Tone(c, W_SINE, f, f, dur, g, delay); v.atk = 0.01f; v.hold = dur * 0.5f; v.decPow = 1.2f; v.send = 0.15f; return v; }
+        case I_SAW_BASS: { Voice& v = Tone(c, W_SAW, f, f, dur, g, delay); v.atk = 0.004f; v.decPow = 1.5f; v.cut0 = 260 + 900 * bright; v.cut1 = 180; v.q = 1.5f; v.send = 0.12f; return v; }
+        case I_DRONE: { Voice& v = Tone(c, W_TRI, f, f, dur, g, delay); v.det = 0.003f; v.atk = dur * 0.4f; v.hold = dur * 0.3f; v.decPow = 1; v.cut0 = v.cut1 = 350 + 700 * bright; v.send = 0.5f; return v; }
+        case I_KICK: { Voice& v = Tone(c, W_SINE, 115, 44, 0.35f, g * 1.6f, delay); v.curve = 0.35f; v.decPow = 2.2f; v.send = 0.1f; return v; }
+        case I_SNARE: { for (int k = 0; k < 3; k++) { Voice& v = Tone(c, W_NOISE, 100, 100, 0.07f, g, delay + k * 0.012f); v.fa0 = v.fa1 = 1400; v.fq = 1.5f; v.decPow = 2.6f; v.send = 0.35f; } Voice& v = Tone(c, W_NOISE, 100, 100, 0.16f, g * 0.6f, delay + 0.03f); v.hp = 900; v.decPow = 2.4f; v.send = 0.4f; return v; } // a hand clap
+        case I_HAT: { Voice& v = Tone(c, W_NOISE, 100, 100, 0.045f, g, delay); v.hp = 7000; v.decPow = 3; v.send = 0.2f; return v; }
+        case I_LOGDRUM: { Voice& v = Tone(c, W_FM, f, f * 0.7f, 0.3f, g * 1.4f, delay); v.fmRatio = 1.6f; v.fmIndex = 1.2f; v.fmIndex1 = 0; v.curve = 0.4f; v.decPow = 2.4f; v.send = 0.3f; return v; }
+        case I_HANDDRUM: { Voice& v = Tone(c, W_SINE, 280, 190, 0.12f, g, delay); v.curve = 0.4f; v.decPow = 2.5f; Voice& s = Tone(c, W_NOISE, 100, 100, 0.03f, g * 0.5f, delay); s.fa0 = s.fa1 = 2500; s.fq = 2; return v; }
+        case I_SHAKER: { Voice& v = Tone(c, W_NOISE, 100, 100, 0.08f, g, delay); v.hp = 5000; v.atk = 0.02f; v.decPow = 2; v.send = 0.2f; return v; }
+        case I_CLANK: { Voice& v = Tone(c, W_FM, f, f * 0.99f, 1.4f, g, delay); v.fmRatio = 2.76f; v.fmIndex = 2.6f; v.fmIndex1 = 0.2f; v.atk = 0.002f; v.decPow = 1.8f; v.send = 0.85f; return v; }
+        case I_GLASS: { Voice& v = Tone(c, W_FM, f, f, 1.2f, g, delay); v.fmRatio = 3; v.fmIndex = 1; v.fmIndex1 = 0; v.atk = 0.002f; v.decPow = 2.5f; v.send = 0.85f; return v; }
+        case I_WHALE: { Voice& v = Tone(c, W_SINE, f, f * RR(1.15f, 1.4f), dur, g, delay); v.atk = dur * 0.3f; v.vibR = 4; v.vibD = 0.015f; v.curve = 1.5f; v.send = 0.85f; return v; }
+        case I_SQUEEZE: { Voice& v = Tone(c, W_SQR, f, f, dur, g, delay); v.atk = 0.02f; v.decPow = 1.3f; v.fa0 = v.fa1 = 900; v.fb0 = v.fb1 = 1900; v.fq = 2.5f; v.tremR = 6; v.tremD = 0.2f; v.send = 0.35f; return v; }
+        default: { Voice& v = Tone(c, W_NOISE, 100, 100, 0.1f, g, delay); v.cut0 = v.cut1 = 1100; v.atk = 0.004f; v.decPow = 2.2f; v.send = 0.35f; return v; } // I_CHUFF: a piston's breath
         }
-        PanGains(0, c.gl, c.gr);
-        Voice& b = Tone(c, W_SINE, Note(s, gChord, 0), 0, beat * 9, s.bassGain);
-        b.f1 = b.f0; b.atk = beat; b.hold = beat * 5; b.decPow = 1; b.send = 0.3f;
-        if (gLevel == PL_COUNT) { Voice& cl = Tone(c, W_SINE, Note(s, gChord + 1, 1), 0, beat * 9, s.padGain * 0.5f); cl.f1 = cl.f0 * 1.01f; cl.atk = beat * 3; cl.send = 0.9f; } // the Abyss's cluster: a second that never resolves
+    };
+    make(0, gain);
+    if (echo) { float d = 60.0f / gSong.bpm * 0.75f; make(d, gain * 0.38f); make(d * 2, gain * 0.15f); } // a dotted-eighth echo
+}
+void PlayChant(float f, int vowel, float dur, float gain, float pan) { // a group of voices on one syllable: "ho", "ha", "ey", "oo"
+    static const float FA[5][2] = {{0, 0}, {450, 800}, {800, 1200}, {500, 1750}, {350, 700}};
+    Ctx c{1, 1, 1, 1, B_MUSIC, 0.5f};
+    for (int k = 0; k < 3; k++) {
+        PanGains(pan + (k - 1) * 0.3f, c.gl, c.gr);
+        float ff = f * (k == 2 ? 0.5f : 1.0f) * (1 + (k - 1) * 0.004f); // unison, and one voice an octave down
+        Voice& v = Tone(c, W_SAW, ff * 1.02f, ff, dur, gain * (k == 2 ? 0.6f : 1.0f), k * 0.012f);
+        v.curve = 0.1f; v.atk = 0.03f; v.hold = dur * 0.5f; v.decPow = 1.3f; v.noiseMix = 0.08f; v.vibR = 5.5f; v.vibD = 0.015f;
+        v.fa0 = v.fa1 = FA[vowel][0]; v.fb0 = v.fb1 = FA[vowel][1]; v.fq = 6; v.send = 0.5f;
     }
-    // the lead: sparse, walking the scale
-    float prob = s.leadProb * (gLevel == PL_COUNT ? 0.3f : 1);
-    if (R01() < prob) {
-        int step = (int)(R01() * 5) - 2; if (step == 0) step = 1;
-        gLeadDeg = std::clamp(gLeadDeg + step, s.n, s.n * 3);
-        if (R01() < 0.3f) gLeadDeg = gChord + s.n * (1 + (int)(R01() * 2)); // lean back to the chord
-        PanGains(RR(-0.4f, 0.4f), c.gl, c.gr);
-        float f = Note(s, gLeadDeg, s.leadOct - 1);
-        Voice& v = Tone(c, s.leadWave, f, f, beat * s.leadBeats, s.leadGain);
-        v.cut0 = v.cut1 = s.leadCut; v.send = 0.55f;
-        switch (gLevel) {
-        case PL_PIPES: v.fmRatio = s.leadFm; v.fmIndex = 2.2f; v.fmIndex1 = 0.1f; v.atk = 0.003f; v.decPow = 2.2f; break; // struck steel
-        case PL_HULL: v.atk = beat * 0.8f; v.vibR = 4; v.vibD = 0.012f; v.f1 = f * (R01() < 0.3f ? 1.06f : 1.0f); break; // a slow, singing line
-        case PL_PIRATE: v.atk = 0.08f; v.vibR = 5.5f; v.vibD = 0.012f; v.fa0 = v.fa1 = 1100; v.fb0 = v.fb1 = 2400; v.fq = 3; v.gain *= 1.3f; break; // a fiddle
-        case PL_ISLAND:
-            if (gDay > 0.4f) { v.wave = W_FM; v.fmRatio = 4; v.fmIndex = 1.8f; v.fmIndex1 = 0; v.atk = 0.002f; v.decPow = 3; v.dur = beat * 0.9f; } // a marimba by day
-            else { v.wave = W_SINE; v.noiseMix = 0.12f; v.atk = 0.12f; v.vibR = 5; v.vibD = 0.01f; v.f0 = v.f1 = f * 2; } // a wooden flute by night
+}
+
+int ChordTone(const Song& s, int chord, int k) { return chord + (k % 3) * 2 + (k / 3) * s.n; }
+int FifthIdx(const Song& s) { for (int k = 0; k < s.n; k++) if (s.scale[k] == 7) return k; return s.n / 2; }
+
+std::vector<std::pair<int, int>> MakeMotif(const Song& s) { // a short phrase the lead keeps coming back to and developing
+    std::vector<std::pair<int, int>> m;
+    int total = 0, limit = s.tpb * 3, deg = 0;
+    const int durs[4] = {s.tpbeat, s.tpbeat, s.tpbeat * 2, s.tpbeat / 2 > 0 ? s.tpbeat / 2 : 1};
+    while (total < limit) {
+        int d = durs[(int)(R01() * 4)];
+        if (total + d > limit) d = limit - total;
+        if (R01() < 0.15f && total > 0) m.push_back({-99, d});
+        else { deg = std::clamp(deg + (int)(R01() * 5) - 2, -2, s.n + 2); m.push_back({deg, d}); }
+        total += d;
+    }
+    return m;
+}
+void Pat(Layer& L, std::initializer_list<int> v, int steps) { int k = 0; for (int x : v) { if (k < 16) L.pat[k] = L.base[k] = x; k++; } L.steps = steps; }
+void Pit(Layer& L, std::initializer_list<int> v) { int k = 0; for (int x : v) if (k < 16) L.pit[k++] = x; }
+uint32_t Sec(std::initializer_list<int> v) { uint32_t m = 0; for (int x : v) m |= 1u << x; return m; }
+uint32_t Span(int a, int b) { uint32_t m = 0; for (int x = a; x <= b; x++) m |= 1u << x; return m; }
+
+Song MakeSong(int lv) {
+    Song s;
+    auto add = [&](int role, int inst, float gain, uint32_t mask, int oct) -> Layer& { Layer L; L.role = role; L.inst = inst; L.gain = gain; L.mask = mask; L.oct = oct; for (auto& x : L.pat) x = -1; for (auto& x : L.base) x = -1; s.layers.push_back(L); return s.layers.back(); };
+    auto prog = [&](int* p, int& n, std::initializer_list<int> v) { n = 0; for (int x : v) p[n++] = x; };
+    switch (lv) {
+    case PL_PIPES: { // synth-forward: a pulsing analogue sequence over a saw pad, a piston rhythm, and only the odd clang of the pipes
+        s.root = 73.42f; { int sc[7] = {0, 2, 3, 5, 7, 9, 10}; memcpy(s.scale, sc, sizeof sc); } s.n = 7; s.bpm = 100;
+        prog(s.progA, s.nA, {0, 3, 5, 4}); prog(s.progB, s.nB, {5, 3, 0, 6}); s.chordBars = 2; s.sectionB = Sec({4, 5, 8, 9});
+        add(R_DRONE, I_DRONE, 0.055f, Span(0, 11), 0);
+        add(R_PAD, I_PAD, 0.03f, Span(1, 10), 1);
+        { Layer& L = add(R_ARP, I_ARP_SQR, 0.028f, Span(2, 10), 2); Pat(L, {0, 1, 2, 3, 2, 1, 0, 1, 0, 2, 3, 4, 3, 2, 1, 2}, 16); L.mutate = true; L.pan = 0.25f; }
+        { Layer& L = add(R_ARP, I_ARP_SAW, 0.018f, Span(6, 9), 3); Pat(L, {0, -1, 2, -1, 3, -1, 2, -1, 4, -1, 3, -1, 2, -1, 1, -1}, 16); L.mutate = true; L.pan = -0.35f; }
+        { Layer& L = add(R_BASS, I_SAW_BASS, 0.06f, Span(3, 9), 0); Pat(L, {1, 0, 1, 0, 1, 0, 2, 0, 1, 0, 1, 0, 3, 0, 2, 0}, 16); }
+        { Layer& L = add(R_LEAD, I_SYNTH_LEAD, 0.034f, Sec({5, 6, 7, 8, 9}), 2); L.motif = MakeMotif(s); }
+        { Layer& L = add(R_DRUM, I_CHUFF, 0.05f, Span(4, 9), 0); Pat(L, {6, 0, 0, 3, 0, 0, 5, 0, 6, 0, 0, 3, 0, 0, 5, 2}, 16); }
+        { Layer& L = add(R_DRUM, I_KICK, 0.06f, Span(6, 8), 0); Pat(L, {8, 0, 0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0, 0, 0, 0}, 16); }
+        { Layer& L = add(R_DRUM, I_HAT, 0.022f, Span(5, 9), 0); Pat(L, {0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 3}, 16); }
+        { Layer& L = add(R_ACCENT, I_CLANK, 0.03f, Span(0, 11), 2); L.accentProb = 0.07f; } // a pipe rings, now and then
+        s.rev = 0.84f; s.damp = 0.35f; s.wet = 0.3f;
+        break; }
+    case PL_HULL: { // the open-water synth the user liked: slow quartal pads, a soft echoing pluck, a singing lead
+        s.root = 55.0f; { int sc[5] = {0, 3, 5, 7, 10}; memcpy(s.scale, sc, sizeof sc); } s.n = 5; s.bpm = 62;
+        prog(s.progA, s.nA, {0, 3, 2, 4}); prog(s.progB, s.nB, {2, 0, 3, 1}); s.chordBars = 4; s.sectionB = Sec({4, 5, 8, 9});
+        add(R_DRONE, I_DRONE, 0.065f, Span(0, 11), 0);
+        add(R_PAD, I_WARM_PAD, 0.04f, Span(1, 11), 1);
+        { Layer& L = add(R_ARP, I_PLUCK, 0.022f, Span(3, 9), 2); Pat(L, {0, -1, 2, -1, -1, 1, -1, -1, 3, -1, -1, 2, -1, -1, 1, -1}, 16); L.echo = true; L.mutate = true; }
+        { Layer& L = add(R_LEAD, I_WHALE, 0.04f, Sec({2, 3, 5, 6, 7, 8, 10}), 2); L.motif = MakeMotif(s); }
+        { Layer& L = add(R_BASS, I_SUB_BASS, 0.06f, Span(4, 10), 0); Pat(L, {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, 16); }
+        add(R_PAD, I_PAD, 0.02f, Span(6, 9), 2);
+        { Layer& L = add(R_DRUM, I_KICK, 0.035f, Span(6, 8), 0); Pat(L, {6, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0}, 16); }
+        s.rev = 0.9f; s.damp = 0.5f; s.wet = 0.38f;
+        break; }
+    case PL_PIRATE: { // a synth sea shanty in 6/8: stomp and clap, an oom-pah squeezebox, and a tune of its own on a lead synth
+        s.root = 82.41f; { int sc[7] = {0, 2, 3, 5, 7, 8, 10}; memcpy(s.scale, sc, sizeof sc); } s.n = 7; s.bpm = 68; s.tpb = 12; s.tpbeat = 6; s.barsPerSection = 32; // the tune twice through per section
+        prog(s.progA, s.nA, {0, 0, 5, 3, 0, 0, 4, 0, 0, 4, 3, 6, 0, 2, 6, 0}); prog(s.progB, s.nB, {0, 0, 5, 3, 0, 0, 4, 0, 0, 4, 3, 6, 0, 2, 6, 0}); s.chordBars = 1;
+        { Layer& L = add(R_BASS, I_SAW_BASS, 0.07f, Span(1, 11), 0); Pat(L, {1, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0}, 12); }
+        { Layer& L = add(R_STAB, I_SQUEEZE, 0.026f, Span(0, 11), 1); Pat(L, {0, 0, 4, 0, 3, 0, 0, 0, 4, 0, 3, 0}, 12); }
+        { Layer& L = add(R_DRUM, I_KICK, 0.07f, Span(1, 11), 0); Pat(L, {8, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0, 0}, 12); }
+        { Layer& L = add(R_DRUM, I_SNARE, 0.05f, Span(3, 10), 0); Pat(L, {0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0, 0}, 12); }
+        { Layer& L = add(R_DRUM, I_SHAKER, 0.02f, Span(5, 9), 0); Pat(L, {3, 0, 2, 0, 2, 0, 3, 0, 2, 0, 2, 0}, 12); }
+        // the tune (an original shanty): eight bars of call, eight of chorus, in scale degrees of E minor
+        std::vector<std::pair<int, int>> tune = {
+            {4, 4}, {4, 2}, {4, 2}, {3, 2}, {2, 2},   {0, 4}, {2, 2}, {4, 6},   {5, 4}, {5, 2}, {4, 2}, {3, 2}, {2, 2},   {3, 6}, {1, 6},
+            {4, 4}, {4, 2}, {4, 2}, {3, 2}, {2, 2},   {0, 4}, {2, 2}, {4, 4}, {6, 2},   {7, 4}, {6, 2}, {4, 2}, {3, 2}, {1, 2},   {0, 12},
+            {7, 6}, {6, 6},   {4, 4}, {5, 2}, {4, 6},   {3, 4}, {4, 2}, {5, 2}, {4, 2}, {3, 2},   {1, 6}, {-99, 6},
+            {7, 6}, {6, 6},   {4, 4}, {5, 2}, {7, 4}, {6, 2},   {4, 4}, {3, 2}, {1, 2}, {2, 2}, {1, 2},   {0, 12}};
+        { Layer& L = add(R_LEAD, I_SYNTH_LEAD, 0.05f, Sec({2, 3, 6, 7, 8, 10}), 2); L.motif = tune; L.absolute = true; L.pan = 0.1f; }
+        { Layer& L = add(R_LEAD, I_ARP_SQR, 0.022f, Sec({7, 8}), 3); L.motif = tune; L.absolute = true; L.pan = -0.3f; } // doubled an octave up at the height
+        { Layer& L = add(R_LEAD, I_FIDDLE, 0.03f, Sec({4, 5, 9}), 2); L.motif = tune; L.absolute = true; L.pan = 0.3f; }
+        { Layer& L = add(R_ARP, I_ARP_SAW, 0.018f, Span(4, 9), 3); Pat(L, {0, -1, 2, -1, 1, -1, 3, -1, 2, -1, 1, -1}, 12); L.mutate = true; }
+        add(R_PAD, I_PAD, 0.022f, Span(6, 10), 1);
+        s.rev = 0.62f; s.damp = 0.4f; s.wet = 0.16f;
+        break; }
+    case PL_ISLAND: { // ambient synth under the jungle, a log drum, and the tribe's chanting - a call and its answer
+        s.root = 98.0f; { int sc[5] = {0, 2, 4, 7, 9}; memcpy(s.scale, sc, sizeof sc); } s.n = 5; s.bpm = 84;
+        prog(s.progA, s.nA, {0, 3, 1, 4}); prog(s.progB, s.nB, {3, 0, 4, 2}); s.chordBars = 2; s.sectionB = Sec({5, 6, 9});
+        add(R_DRONE, I_DRONE, 0.05f, Span(0, 11), 0);
+        add(R_PAD, I_WARM_PAD, 0.035f, Span(1, 11), 1);
+        { Layer& L = add(R_DRUM, I_LOGDRUM, 0.06f, Span(2, 10), 0); Pat(L, {8, 0, 0, 5, 0, 0, 6, 0, 0, 0, 7, 0, 0, 4, 0, 0}, 16); }
+        { Layer& L = add(R_DRUM, I_HANDDRUM, 0.035f, Span(3, 9), 0); Pat(L, {0, 0, 4, 0, 5, 0, 0, 3, 0, 4, 0, 0, 5, 0, 3, 4}, 16); }
+        { Layer& L = add(R_DRUM, I_SHAKER, 0.018f, Span(4, 9), 0); Pat(L, {3, 0, 2, 0, 3, 0, 2, 0, 3, 0, 2, 0, 3, 0, 2, 2}, 16); }
+        { Layer& L = add(R_CHANT, I_CHOIR, 0.045f, Sec({3, 4, 6, 7, 8}), 1); Pat(L, {1, 0, 1, 0, 2, 0, 0, 0, 3, 0, 3, 0, 1, 0, 0, 0}, 16); Pit(L, {2, 0, 2, 0, 1, 0, 0, 0, 3, 0, 2, 0, 0, 0, 0, 0}); L.barMod = 1; L.pan = -0.2f; } // the call
+        { Layer& L = add(R_CHANT, I_CHOIR, 0.04f, Sec({3, 4, 6, 7, 8}), 1); Pat(L, {2, 0, 2, 0, 2, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0}, 16); Pit(L, {0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}); L.barMod = 2; L.pan = 0.2f; }  // the answer
+        { Layer& L = add(R_LEAD, I_MARIMBA, 0.038f, Sec({2, 5, 6, 9, 10}), 2); L.altInst = I_FLUTE; L.motif = MakeMotif(s); }
+        { Layer& L = add(R_ARP, I_MARIMBA, 0.018f, Span(5, 8), 2); Pat(L, {0, -1, 1, 2, -1, 1, -1, 3, 0, -1, 2, -1, 1, -1, 3, -1}, 16); L.mutate = true; }
+        s.rev = 0.6f; s.damp = 0.5f; s.wet = 0.15f;
+        break; }
+    case PL_CAVE: { // dark ambient: a drone, tuned drips echoing off the rock, a far choir, a slow deep pulse
+        s.root = 65.41f; { int sc[7] = {0, 1, 3, 5, 7, 8, 10}; memcpy(s.scale, sc, sizeof sc); } s.n = 7; s.bpm = 52;
+        prog(s.progA, s.nA, {0, 1, 0, 5}); prog(s.progB, s.nB, {5, 6, 1, 0}); s.chordBars = 4; s.sectionB = Sec({5, 6, 9});
+        add(R_DRONE, I_DRONE, 0.075f, Span(0, 11), 0);
+        add(R_PAD, I_WARM_PAD, 0.03f, Span(2, 10), 1);
+        { Layer& L = add(R_ARP, I_GLASS, 0.018f, Span(1, 10), 2); Pat(L, {0, -1, -1, -1, -1, -1, 2, -1, -1, -1, 1, -1, -1, -1, -1, -1}, 16); L.echo = true; L.mutate = true; }
+        { Layer& L = add(R_BASS, I_SUB_BASS, 0.06f, Span(4, 9), 0); Pat(L, {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, 16); }
+        { Layer& L = add(R_LEAD, I_CHOIR, 0.022f, Sec({6, 7, 8, 9}), 1); L.motif = MakeMotif(s); }
+        { Layer& L = add(R_DRUM, I_KICK, 0.03f, Span(5, 8), 0); Pat(L, {6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, 16); }
+        s.rev = 0.93f; s.damp = 0.25f; s.wet = 0.5f;
+        break; }
+    case PL_WEEDS: { // bright and swaying: shimmering pads, a harp in echoes, bells, a gentle shaker
+        s.root = 87.31f; { int sc[7] = {0, 2, 4, 6, 7, 9, 11}; memcpy(s.scale, sc, sizeof sc); } s.n = 7; s.bpm = 72;
+        prog(s.progA, s.nA, {0, 1, 0, 4}); prog(s.progB, s.nB, {5, 1, 3, 4}); s.chordBars = 2; s.sectionB = Sec({4, 5, 8, 9});
+        add(R_PAD, I_WARM_PAD, 0.04f, Span(0, 11), 1);
+        { Layer& L = add(R_ARP, I_PLUCK, 0.024f, Span(1, 10), 2); Pat(L, {0, 1, 2, 3, 4, 3, 2, 1, 0, 2, 4, 5, 4, 2, 1, -1}, 16); L.echo = true; L.mutate = true; }
+        { Layer& L = add(R_BASS, I_SUB_BASS, 0.05f, Span(3, 9), 0); Pat(L, {1, 0, 0, 0, 0, 0, 2, 0, 1, 0, 0, 0, 0, 0, 0, 0}, 16); }
+        { Layer& L = add(R_LEAD, I_BELL, 0.028f, Span(4, 9), 2); L.motif = MakeMotif(s); }
+        { Layer& L = add(R_DRUM, I_SHAKER, 0.016f, Span(3, 9), 0); Pat(L, {3, 0, 2, 0, 3, 0, 2, 0, 3, 0, 2, 0, 3, 0, 2, 0}, 16); }
+        { Layer& L = add(R_DRUM, I_HANDDRUM, 0.025f, Span(5, 8), 0); Pat(L, {5, 0, 0, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0, 0, 0}, 16); }
+        add(R_PAD, I_PAD, 0.018f, Span(6, 9), 2);
+        s.rev = 0.8f; s.damp = 0.45f; s.wet = 0.3f;
+        break; }
+    case PL_ATLANTIS: { // a drowned cathedral: choir and organ, bells turning slowly, a deep tom
+        s.root = 58.27f; { int sc[7] = {0, 2, 3, 5, 7, 8, 11}; memcpy(s.scale, sc, sizeof sc); } s.n = 7; s.bpm = 54;
+        prog(s.progA, s.nA, {0, 5, 3, 4}); prog(s.progB, s.nB, {5, 3, 6, 4}); s.chordBars = 4; s.sectionB = Sec({5, 6, 9});
+        add(R_DRONE, I_DRONE, 0.06f, Span(0, 11), 0);
+        add(R_PAD, I_CHOIR, 0.045f, Span(1, 11), 1);
+        add(R_PAD, I_ORGAN, 0.022f, Span(4, 9), 1);
+        { Layer& L = add(R_ARP, I_BELL, 0.022f, Span(3, 9), 2); Pat(L, {0, -1, 1, -1, 2, -1, 3, -1, 2, -1, 1, -1, 0, -1, -1, -1}, 16); L.mutate = true; }
+        { Layer& L = add(R_LEAD, I_FLUTE, 0.03f, Span(5, 8), 2); L.motif = MakeMotif(s); }
+        { Layer& L = add(R_BASS, I_SUB_BASS, 0.05f, Span(3, 10), 0); Pat(L, {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, 16); }
+        { Layer& L = add(R_DRUM, I_LOGDRUM, 0.05f, Span(5, 9), 0); Pat(L, {7, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0}, 16); }
+        s.rev = 0.92f; s.damp = 0.35f; s.wet = 0.42f;
+        break; }
+    default: { // the Abyss: a drone and a cluster that never resolves, a far groan, glass, and a heartbeat when it gets close
+        s.root = 43.65f; { int sc[7] = {0, 1, 3, 5, 6, 8, 10}; memcpy(s.scale, sc, sizeof sc); } s.n = 7; s.bpm = 40;
+        prog(s.progA, s.nA, {0, 1, 0, 4}); prog(s.progB, s.nB, {1, 0, 4, 0}); s.chordBars = 4; s.sectionB = Sec({6, 7});
+        add(R_DRONE, I_DRONE, 0.085f, Span(0, 11), 0);
+        add(R_PAD, I_WARM_PAD, 0.03f, Span(2, 10), 1);
+        { Layer& L = add(R_ACCENT, I_WHALE, 0.05f, Span(0, 11), 1); L.accentProb = 0.08f; }
+        { Layer& L = add(R_ARP, I_GLASS, 0.014f, Span(4, 8), 2); Pat(L, {0, -1, -1, -1, -1, -1, -1, -1, 1, -1, -1, -1, -1, -1, -1, -1}, 16); L.echo = true; L.mutate = true; }
+        { Layer& L = add(R_DRUM, I_KICK, 0.04f, Span(6, 9), 0); Pat(L, {6, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, 16); }
+        s.rev = 0.95f; s.damp = 0.3f; s.wet = 0.45f;
+        break; }
+    }
+    return s;
+}
+
+void MusicTick() {
+    if (gLevel < 0) return;
+    Song& S = gSong;
+    int bar = gTick / S.tpb, step = gTick % S.tpb, bps = S.barsPerSection, total = bps * S.sections;
+    int section = (bar / bps) % S.sections;
+    if (bar % total == 0 && step == 0 && bar > 0) { // round again: re-roll what makes this pass its own
+        for (auto& L : S.layers) { if (!L.absolute && !L.motif.empty()) L.motif = MakeMotif(S); for (int k = 0; k < 16; k++) L.pat[k] = L.base[k]; }
+        if (R01() < 0.5f) { std::swap(S.progA, S.progB); std::swap(S.nA, S.nB); }
+    }
+    bool isB = (S.sectionB >> section) & 1;
+    const int* pr = isB ? S.progB : S.progA; int np = isB ? S.nB : S.nA;
+    int chord = pr[(bar / S.chordBars) % np];
+    float inten = std::clamp(ARC[section % 12] + 0.3f * gTensionS, 0.0f, 1.0f);
+    float bright = std::clamp(0.2f + 0.65f * inten + 0.12f * sinf(gTick * TickDur() * 0.03f), 0.0f, 1.0f);
+    float barDur = TickDur() * S.tpb;
+    bool barStart = step == 0, chordStart = barStart && bar % S.chordBars == 0;
+    for (auto& L : S.layers) {
+        float target = ((L.mask >> section) & 1) ? L.gain : 0.0f;
+        float rate = L.gain / (S.tpb * 4.0f); // four bars to fade in or out
+        L.cur = L.cur < target ? std::min(target, L.cur + rate) : std::max(target, L.cur - rate);
+        if (L.cur < 0.0005f) { L.phrase = -1; continue; }
+        float g = L.cur * (0.75f + 0.5f * inten);
+        int inst = L.altInst >= 0 && gDay < 0.4f ? L.altInst : L.inst;
+        switch (L.role) {
+        case R_DRONE:
+            if (barStart && bar % 4 == 0) { float d = barDur * 4 * 1.3f; PlayInst(inst, Note(S, 0, L.oct), d, g, -0.2f, bright); PlayInst(inst, Note(S, FifthIdx(S), L.oct), d, g * 0.6f, 0.2f, bright); }
             break;
-        case PL_CAVE: v.wave = W_FM; v.fmRatio = 3; v.fmIndex = 1.2f; v.fmIndex1 = 0; v.atk = 0.002f; v.decPow = 2.5f; v.send = 0.9f; v.f0 = v.f1 = f * 2; break; // a tuned drip
-        case PL_WEEDS: v.atk = 0.002f; v.decPow = 2.6f; v.dur = beat * 1.6f; v.cut0 = 4000; v.cut1 = 800; break; // a harp
-        case PL_ATLANTIS: v.fmRatio = s.leadFm; v.fmIndex = 3; v.fmIndex1 = 0.2f; v.atk = 0.002f; v.decPow = 1.4f; v.send = 0.85f; break; // a deep bell
-        default: v.atk = beat; v.vibR = 3; v.vibD = 0.03f; v.f1 = f * 0.8f; v.send = 0.95f; break; // a groan from the dark
-        }
-    }
-    // an apex is near: the score tightens - a low tremolo string under everything, and a pulse on every beat
-    if (gTensionS > 0.25f) {
-        PanGains(0, c.gl, c.gr);
-        Voice& pl = Tone(c, W_SINE, Note(s, gChord, 0), 0, beat * 0.9f, 0.09f * gTensionS);
-        pl.f1 = pl.f0 * 0.7f; pl.curve = 0.4f; pl.decPow = 2.5f; pl.send = 0.4f;
-        if (gBeat % 4 == 0) {
-            for (int k = 0; k < 2; k++) {
-                PanGains(k ? 0.5f : -0.5f, c.gl, c.gr);
-                Voice& tr = Tone(c, W_SAW, Note(s, gChord + k * 1, 1), 0, beat * 4.2f, 0.035f * gTensionS);
-                tr.f1 = tr.f0; tr.cut0 = tr.cut1 = 900; tr.tremR = 7.5f; tr.tremD = 0.6f; tr.atk = beat; tr.decPow = 1; tr.send = 0.5f;
+        case R_PAD:
+            if (chordStart) { int nt = inten > 0.6f ? 4 : 3; for (int k = 0; k < nt; k++) PlayInst(inst, Note(S, ChordTone(S, chord, k), L.oct), barDur * S.chordBars * 1.2f, g / sqrtf((float)nt), -0.5f + k * 0.33f, bright); }
+            break;
+        case R_ARP: {
+            if (L.mutate && barStart && bar % 4 == 0 && R01() < 0.3f) { int k = (int)(R01() * L.steps); L.pat[k] = R01() < 0.25f ? -1 : (int)(R01() * 5); } // the sequence drifts
+            int v = L.pat[step % L.steps];
+            if (v >= 0 && R01() < 0.55f + 0.45f * inten) PlayInst(inst, Note(S, ChordTone(S, chord, v), L.oct), TickDur() * 2.5f, g, L.pan + 0.3f * sinf(gTick * 0.05f), bright, L.echo);
+            break; }
+        case R_BASS: { int v = L.pat[step % L.steps]; if (v > 0) PlayInst(inst, Note(S, v == 2 ? chord + 2 * 2 : chord, L.oct + (v == 3 ? 1 : 0)), TickDur() * (S.tpbeat * 1.8f), g, 0, bright); break; }
+        case R_STAB: { int v = L.pat[step % L.steps]; if (v > 0) for (int k = 0; k < 3; k++) PlayInst(inst, Note(S, ChordTone(S, chord, k), L.oct), TickDur() * 1.6f, g * v / 6.0f, -0.3f + k * 0.3f, bright); break; }
+        case R_DRUM: { int v = L.pat[step % L.steps]; if (v > 0 && (inten > 0.3f || R01() < 0.7f)) PlayInst(inst, Note(S, 0, 2), 0.3f, g * v / 7.0f, L.pan, bright); break; }
+        case R_CHANT: {
+            if ((L.barMod == 1 && bar % 2 != 0) || (L.barMod == 2 && bar % 2 == 0)) break;
+            int v = L.pat[step % L.steps];
+            if (v > 0) PlayChant(Note(S, chord + L.pit[step % L.steps], L.oct + 1), v, TickDur() * 1.8f, g, L.pan);
+            break; }
+        case R_ACCENT:
+            if (barStart && R01() < L.accentProb) PlayInst(inst, Note(S, chord + (int)(R01() * 3) * 2, L.oct), barDur * 1.5f, g, RR(-0.7f, 0.7f), bright);
+            break;
+        case R_LEAD: {
+            int period = L.absolute ? 16 : 4; // a composed tune runs sixteen bars; a motif phrase starts every four
+            if (barStart && bar % period == 0 && !L.motif.empty()) {
+                L.phrase = 0; L.nextTick = gTick;
+                L.phraseBase = L.absolute ? 0 : chord;
+                if (!L.absolute && R01() < 0.35f) { auto& m = L.motif[(int)(R01() * L.motif.size())]; if (m.first != -99) m.first += R01() < 0.5f ? 1 : -1; } // develop it a little each time
             }
+            if (L.phrase >= 0 && gTick == L.nextTick) {
+                auto m = L.motif[L.phrase];
+                if (m.first != -99) PlayInst(inst, Note(S, L.phraseBase + m.first, L.oct - 1), TickDur() * m.second * 1.05f, g, L.pan, bright, L.echo);
+                L.nextTick += m.second;
+                if (++L.phrase >= (int)L.motif.size()) L.phrase = -1;
+            }
+            break; }
         }
     }
-    // the level's own pulse
-    if (gLevel == PL_ISLAND && (gBeat % 4 == 0 || gBeat % 4 == 3)) { PanGains(0.2f, c.gl, c.gr); Voice& d = Tone(c, W_SINE, 150, 70, 0.3f, 0.07f); d.curve = 0.4f; d.decPow = 2.5f; d.send = 0.2f; } // a log drum, soft
-    if (gLevel == PL_PIPES && gBeat % 16 == 8 && R01() < 0.6f) { PanGains(RR(-0.6f, 0.6f), c.gl, c.gr); Voice& d = Tone(c, W_FM, 110, 110, 1.6f, 0.05f); d.fmRatio = 2.76f; d.fmIndex = 3; d.fmIndex1 = 0.3f; d.send = 0.8f; } // the ship's heart
-    if (gLevel == PL_COUNT && gBeat % 12 == 0) { Voice& d = Tone(c, W_SINE, 45, 38, 0.5f, 0.1f); d.curve = 0.5f; Voice& d2 = Tone(c, W_SINE, 45, 38, 0.5f, 0.07f, 0.35f); d2.curve = 0.5f; } // a slow heartbeat
+    // an apex is near: under everything, a low tremolo string and a pulse on every beat
+    if (gTensionS > 0.25f && step % S.tpbeat == 0) {
+        PlayInst(I_SUB_BASS, Note(S, chord, 0), TickDur() * S.tpbeat * 0.9f, 0.08f * gTensionS, 0, bright);
+        if (barStart && bar % 2 == 0) for (int k = 0; k < 2; k++) { Ctx c{1, 1, 1, 1, B_MUSIC, 0.5f}; PanGains(k ? 0.5f : -0.5f, c.gl, c.gr); Voice& tr = Tone(c, W_SAW, Note(S, chord + k, 1), 0, barDur * 2.1f, 0.03f * gTensionS); tr.f1 = tr.f0; tr.cut0 = tr.cut1 = 900; tr.tremR = 7.5f; tr.tremD = 0.6f; tr.atk = barDur * 0.3f; tr.decPow = 1; tr.send = 0.5f; }
+    }
 }
 
 void Render(float* out, int frames) {
@@ -486,10 +689,10 @@ void Render(float* out, int frames) {
         gClock += blockT;
         gScene += (gSceneTarget - gScene) * std::min(1.0f, blockT * 0.8f);
         if (gLevel >= 0 && gSceneTarget > 0) {
-            gBeatT += blockT;
-            float beat = 60.0f / SCORES[gLevel].bpm;
-            if (gLevel == PL_PIRATE && gBeat % 2 == 1) beat *= 1.25f; // a lilt
-            if (gBeatT >= beat) { gBeatT -= beat; ScoreBeat(); gBeat++; }
+            gTickT += blockT;
+            float td = TickDur();
+            if (gSong.tpbeat == 6 && (gTick % 2) == 1) td *= 1.0f; // (straight 16ths)
+            while (gTickT >= td) { gTickT -= td; MusicTick(); gTick++; }
             gAmbT += blockT;
             if (gAmbT >= 0.05f) { AmbientEvents(gAmbT); gAmbT = 0; }
         }
@@ -607,9 +810,9 @@ void AudioLevel(int level) {
     gLevel = level;
     if (level < 0) return;
     gUnderwater = level == PL_HULL || level == PL_CAVE || level == PL_WEEDS || level == PL_ATLANTIS || level == PL_COUNT;
-    const Score& s = SCORES[level];
-    gRevFb = s.rev; gRevDamp = s.damp; gRevWet = s.wet;
-    gBeat = 0; gBeatT = 0; gLeadDeg = s.n * 2;
+    gSong = MakeSong(level); // a fresh arrangement: the motifs and patterns are rolled anew each time
+    gRevFb = gSong.rev; gRevDamp = gSong.damp; gRevWet = gSong.wet;
+    gTick = 0; gTickT = 0;
     for (auto& v : gV) if (v.bus != B_SFX) v.on = false;
     SetupBeds(level);
 }
@@ -715,6 +918,24 @@ bool AudioSelfTest(const char* wavPath) {
         for (auto& v : gV) v.on = false;
     }
     printf("render speed: %.1fx real time\n", (renderedFrames / (double)SR) / (renderMs / 1000.0));
+    // the whole of each level's track, section by section: every section must sound, and the arc should rise and fall
+    for (int lv = 0; lv <= PL_COUNT; lv++) {
+        for (auto& v : gV) v.on = false;
+        gLevel = -1; AudioLevel(lv); gSceneTarget = 1; gScene = 1; gTension = gTensionS = 0; gBeds.clear();
+        float secDur = TickDur() * gSong.tpb * gSong.barsPerSection;
+        int N = (int)(secDur * SR);
+        std::vector<float> b(N * 2);
+        printf("%-10s %4.1f min:", lv < PL_COUNT ? TextFormat("track %d", lv) : "abyss", secDur * gSong.sections / 60);
+        for (int sct = 0; sct < gSong.sections; sct++) {
+            for (int at = 0; at < N; at += BLOCK) Render(&b[at * 2], std::min(BLOCK, N - at));
+            double sum = 0; float pk = 0; int bad = 0; for (float x : b) { if (!std::isfinite(x)) bad++; else { sum += x * x; pk = std::max(pk, fabsf(x)); } }
+            float db = 20 * log10f(std::max(1e-6f, sqrtf((float)(sum / b.size()))));
+            printf(" %.0f", db);
+            if (bad || db < -50 || pk > 0.97f) { ok = false; printf("!"); }
+            if (wavPath && (lv == PL_PIRATE || lv == PL_ISLAND) && sct % 3 == 2) all.insert(all.end(), b.begin(), b.begin() + std::min((size_t)b.size(), (size_t)SR * 2 * 20)); // 20 s samples of those two into the file
+        }
+        printf(" dB\n");
+    }
     // every effect, and every beast voice for every cue, alone: none may come out silent or broken
     AudioLevel(PL_PIRATE); gSceneTarget = 0; gScene = 0;
     auto solo = [&](auto fire) { for (auto& v : gV) v.on = false; fire(); std::vector<float> b(SR * 2 * 2); for (int at = 0; at < SR * 2; at += BLOCK) Render(&b[at * 2], std::min(BLOCK, SR * 2 - at)); float pk = 0; int bad = 0; for (float x : b) { if (!std::isfinite(x)) bad++; else pk = std::max(pk, fabsf(x)); } return bad ? -1.0f : pk; };

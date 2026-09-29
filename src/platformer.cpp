@@ -1017,7 +1017,7 @@ bool WallIsBarnacle(const PlatformState& p, int side) { // the wall you are wall
 constexpr float GHOST_SPEED = 1.6f;
 // ---- the diver's extra moves (ParkourReference1.2, "Traversal States & Physics Constants")
 constexpr float LOW_DH = 12;             // sliding or rolling, the diver is this much shorter
-constexpr float STUN_V = 860, STUN_T = 0.7f; // a landing faster than this (a drop taller than any jump) stuns - unless you roll
+constexpr float STUN_V = 860, STUN_T = 0.45f, STUN_DROP = 9 * 32.0f; // only a real drop (9+ tiles of free fall) stuns, briefly - unless you roll; short falls never stop you (the user)
 constexpr float ROLL_T = 0.38f, ROLL_MIN_V = 480;
 constexpr float SLIDE_MIN_V = RUN * 0.55f, SLIDE_FRICTION = 380;
 constexpr float DASH_V = 640, DASH_T = 0.14f, WATER_DASH_V = 600, WATER_DASH_T = 0.18f;
@@ -1203,11 +1203,11 @@ void StepPlayer(PlatformState& p, float dir, bool jumpHeld) {
                 break;
             }
     }
-    // the parachute brake (hold Down while falling) and the hydro-glide (hold jump while falling underwater)
+    // the slowed fall: hold Up while falling - a parachute brake in the air, a hydro-glide underwater (the user's call; Down stays the slide and the roll)
     if (!p.onGround && !dashing && p.pose != 8 && p.pose != 6 && !p.onWeed && !p.wallSide && p.vel.y > 0) {
-        if (p.inDown && dir == 0 && (p.pose == 0 || p.pose == 4 || p.pose == 7)) p.pose = 4; // (Down with a direction is the roll's stance instead)
-        else if (p.pose == 7 && !jumpHeld) p.pose = 0;      // the glide lasts while jump is held
-        else if (p.pose == 4 && (!p.inDown || dir != 0)) p.pose = 0;
+        if (p.upHeld && !p.inDown && (p.pose == 0 || p.pose == 4 || p.pose == 7)) p.pose = water ? 7 : 4; // steerable: a direction drifts you while you sink
+        else if (p.pose == 7 && !p.upHeld && !jumpHeld) p.pose = 0;
+        else if (p.pose == 4 && !p.upHeld) p.pose = 0;
     } else if ((p.pose == 4 || p.pose == 7) && (p.onGround || p.onWeed || p.wallSide)) p.pose = 0;
 
     // gravity is stronger once the jump button is released (short hops) and when falling (snappy arcs)
@@ -1272,7 +1272,7 @@ void StepPlayer(PlatformState& p, float dir, bool jumpHeld) {
             p.vel.x = std::clamp(p.vel.x + dir * 0.7f * fallSpeed, -RUN * 1.8f, RUN * 1.8f);
             p.facingRight = dir > 0;
             Dust(p, {p.pos.x + PW / 2, p.pos.y + PH}, 6, dir);
-        } else if (fallSpeed > STUN_V && !p.verifying && !soft) { // ... and without one, a drop taller than any jump leaves you reeling
+        } else if (fallSpeed > STUN_V && p.pos.y - p.fallTop > STUN_DROP && !p.verifying && !soft) { // ... and without one, a drop taller than any jump leaves you reeling
             bool crumbly = false;
             for (int tx = (int)floorf((p.pos.x + 3) / T); tx <= (int)floorf((p.pos.x + PW - 3) / T); tx++) if (At(p, tx, (int)floorf((p.pos.y + PH + 1) / T)) == 'f') crumbly = true;
             if (!crumbly) { p.pose = 3; p.moveT = STUN_T; p.vel.x = 0; p.scale = {1.35f, 0.7f}; } // (never on scaffolding that's about to give way)
@@ -1298,6 +1298,7 @@ void StepPlayer(PlatformState& p, float dir, bool jumpHeld) {
             } else i++;
         }
     }
+    if (p.onGround || p.vel.y <= 0 || p.onWeed || p.wallSide || p.pose == 4 || p.pose == 7 || p.pose == 9) p.fallTop = p.pos.y; // a fall is measured from where it really began
     p.scale.x += (1 - p.scale.x) * std::min(1.0f, STEP * 14);
     p.scale.y += (1 - p.scale.y) * std::min(1.0f, STEP * 14);
     if (p.onGround) p.runAnim += fabsf(p.vel.x) * STEP * 0.055f;
@@ -6334,7 +6335,7 @@ bool VerifyMoves() {
     {
         PlatformState p; stage(p, PL_PIRATE, 40, 60, 55); p.pos.y = 4 * (float)T; p.onGround = false;
         PlatformState q = p;
-        run(p, 90, 0, false, false); run(q, 90, 0, false, true);
+        run(p, 90, 0, false, false); run(q, 90, 0, false, false, true); // hold Up
         TraceLog(LOG_WARNING, "verify-moves: in 1.5 s a plain fall drops %.0f px, the brake %.0f px", p.pos.y - 4 * T, q.pos.y - 4 * T);
         if (q.pos.y - 4 * T > (p.pos.y - 4 * T) * 0.45f) fail("the parachute brake didn't slow the fall enough");
     }

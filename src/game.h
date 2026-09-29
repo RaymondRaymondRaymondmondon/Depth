@@ -417,6 +417,7 @@ struct PlatformState {
     int dashReq = 0;                 // a double-tap asked for a dash this frame: -1 left, 1 right
     int pose = 0;                    // 0 normal, 1 slide, 2 roll, 3 stunned, 4 brake, 5 dash, 6 balance on a pole tip, 7 hydro-glide, 8 backflip, 9 ledge hang
     float moveT = 0;                 // time left (or spent) in the current pose
+    float fallTop = 0;               // the highest point of the current fall (a long drop stuns; a short one never does)
     float boostT = 0;                // a boosted move's extra speed isn't clawed back in the air until this runs out
     bool dashReady = true;           // one dash per jump: back on landing, on a wall, a pole or a ledge
     Vector2 dashDir{0, 0};

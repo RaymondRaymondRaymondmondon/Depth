@@ -41,7 +41,7 @@ char TileAt(const PlatformState& p, float x, float y) {
     return p.tiles[ty][tx];
 }
 float SurfacePitch(const PlatformState& p, char under) { // what the boots are on: steel rings, wood thunks, sand and weed hush
-    if (under == '=' || under == '|' || p.level == PL_PIPES || (p.level == PL_HULL && under == '#')) return 1.45f;
+    if (p.level == PL_PIPES && (under == '=' || under == '|')) return 1.45f; // only bare pipe rings
     if (p.level == PL_PIRATE) return 0.85f;
     if (p.level == PL_ISLAND || p.level == PL_WEEDS) return 0.75f;
     return 1.0f;
@@ -197,11 +197,11 @@ void ParkourAudio(const PlatformState& p, float dt) {
                         }
                 } else if (bb.life == BeastLife::Alive) {
                     if (bb.act == BeastAct::Strike && q.act != BeastAct::Strike) BeastSound(S.name, size, CUE_STRIKE, bb.pos);
-                    if (bb.act == BeastAct::Flee && q.act != BeastAct::Flee && bb.fear > 0.4f && q.alarmT <= 0 && !BeastIsSilent(S.name)) { BeastSound(S.name, size, CUE_ALARM, bb.pos, 0.8f); q.alarmT = 3; }
+                    if (bb.act == BeastAct::Flee && q.act != BeastAct::Flee && bb.fear > 0.4f && q.alarmT <= 0 && !(S.traits & T_FLORA) && !BeastIsSilent(S.name)) { BeastSound(S.name, size, CUE_ALARM, bb.pos, 0.8f); q.alarmT = 3; }
                     if (bb.health < q.health - 0.05f) BeastSound(S.name, size, CUE_PAIN, bb.pos);
                     if (bb.carry >= 0 && q.carry < 0) BeastSound(S.name, size, CUE_GRAB, bb.pos);
                     if (bb.act == BeastAct::Eat) { q.chewT -= dt; if (q.chewT <= 0) { BeastSound(S.name, size, CUE_CHEW, bb.pos, 0.55f); q.chewT = 0.7f + 0.6f * (float)GetRandomValue(0, 100) / 100; } }
-                    if (!bb.hidden && bb.act != BeastAct::Eat && !BeastIsSilent(S.name) && (float)GetRandomValue(0, 100000) / 100000 < BeastCallRate(S.name) * dt) BeastSound(S.name, size, CUE_CALL, bb.pos);
+                    if (!bb.hidden && bb.act != BeastAct::Eat && !(S.traits & T_FLORA) && !BeastIsSilent(S.name) && (float)GetRandomValue(0, 100000) / 100000 < BeastCallRate(S.name) * dt) BeastSound(S.name, size, CUE_CALL, bb.pos);
                 }
                 q.act = bb.act; q.life = bb.life; q.health = bb.health; q.carry = bb.carry;
             }

@@ -654,6 +654,6 @@ void ScenePeriscope(Game& g) {
     Txt(g.platHard ? "Every gear, mine, spiked ball and jet. +50% bonus gold." : "Gentler hazards (no gears, shorter jets), brighter lamp.", 320, 643, 15, Pal::Paper);
     if (Button({700, 632, 250, 40}, g.platCheckpoints ? "Checkpoints: ON" : "Checkpoints: OFF", true, 17)) g.platCheckpoints = !g.platCheckpoints;
     Txt(g.platCheckpoints ? "Respawn in the section you reached,\nbut no relics can be won." : "A death sends you back to the start.\nRelics can be won.", 960, 634, 15, Pal::Paper);
-    const char* help = "A/D move | Space jump | Down: slide, brake, roll on landing, slide poles | double-tap a direction: dash | Shift+jump on a pole: backflip | Esc";
+    const char* help = "A/D move | Space jump | hold Up while falling: glide | Down: slide, roll on landing, slide poles | double-tap: dash | Shift+jump on a pole: backflip";
     TxtShadow(help, SCREEN_W / 2.0f - MeasureTxt(help, 16) / 2.0f, 690, 16, Color{220, 200, 160, 255});
 }
