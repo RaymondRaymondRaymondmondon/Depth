@@ -194,6 +194,7 @@ bool TouchesHazard(const PlatformState& p) {
             char c = At(p, tx, ty);
             if (c == 'x' && ty <= y1 && CheckCollisionRecs(pr, {tx * (float)T + 3, ty * (float)T + 12, T - 6.0f, T - 12.0f})) return true;
             if (c == 'g' && ty <= y1 && CheckCollisionCircleRec({tx * (float)T + 16, ty * (float)T + 16}, 13, pr)) return true;
+            if (c == 'h' && ty <= y1 && CheckCollisionRecs(pr, {tx * (float)T, ty * (float)T, (float)T, 16.0f})) return true; // a low beam: slide under it
             if (c == 't' && JetOn(p, tx) && CheckCollisionRecs(pr, {tx * (float)T + 7, (ty - 3) * (float)T, T - 14.0f, 3.0f * T})) return true;
         }
     return false;
@@ -2710,6 +2711,13 @@ void DrawTile(const PlatformState& p, char c, int x, int y, float t) {
                     DrawRectangle((int)(px + 7 + sinf(ph * 6 + k) * 5), (int)(py - ph * 5.4f * T), 8 + (int)(ph * 12), 8, Fade(Color{240, 245, 250, 255}, 0.6f * (1 - ph)));
                 }
             else DrawRectangle((int)px + 12, (int)(py - 6 - fmodf(p.time * 12, 8.0f)), 6, 4, Fade(Color{240, 245, 250, 255}, 0.25f));
+        } break;
+        case 'h': { // a low beam across the way (movement pass 2): a standing diver hits it, a sliding one passes under
+            Color beam = p.level == PL_PIPES ? Color{150, 110, 60, 255} : p.level == PL_PIRATE ? Color{110, 76, 44, 255} : p.level == PL_ATLANTIS ? Color{170, 170, 160, 255} : Color{96, 90, 84, 255};
+            DrawRectangle((int)px - 1, (int)py - 1, T + 2, 17, Color{8, 8, 10, 255});
+            DrawRectangle((int)px, (int)py, T, 15, beam);
+            DrawRectangle((int)px, (int)py, T, 2, Tone(beam, 0.3f));
+            for (int k = 0; k < 4; k++) DrawTri({px + 3 + k * 8.0f, py + 15}, {px + 7 + k * 8.0f, py + 15}, {px + 5 + k * 8.0f, py + 21}, Color{200, 190, 170, 255}); // teeth on its underside
         } break;
         case '~': { // a shallow pool (the Island): clear water over the floor, ripples, a glint
             DrawRectangle((int)px, (int)py + 10, T, T - 10, Color{70, 150, 170, 150});
@@ -6356,12 +6364,14 @@ bool Crossable(PlatformState& p, float goalX, bool jets, long& expanded, float g
         SimNode cur = nodes[open.top().idx];
         open.pop();
         expanded++;
-        for (int act = 0; act < 8; act++) { // run left/none/right, jump held or not - and (movement pass 2) a dash either way
-                int dir = act < 6 ? act / 2 - 1 : (act == 6 ? -1 : 1), held = act < 6 ? act % 2 : (cur.held ? 1 : 0);
-                bool dashAct = act >= 6;
+        for (int act = 0; act < 10; act++) { // run left/none/right, jump held or not - and (movement pass 2) a dash or a slide either way
+                int dir = act < 6 ? act / 2 - 1 : ((act - 6) % 2 == 0 ? -1 : 1), held = act < 6 ? act % 2 : (cur.held ? 1 : 0);
+                bool dashAct = act == 6 || act == 7, slideAct = act >= 8;
                 if (dashAct && (!cur.dashReady || cur.pose == 5)) continue;
+                if (slideAct && !cur.onGround && cur.pose != 1) continue; // a slide starts on the ground (or carries on)
                 Restore(p, cur);
                 if (dashAct) p.dashReq = dir;
+                if (slideAct) p.inDown = true;
                 if (held && !cur.held) p.jumpBuffer = JUMP_BUFFER;
                 bool dead = false;
                 for (int k = 0; k < SUB && !dead; k++) {

@@ -1327,6 +1327,13 @@ GenLevel GenerateLevel(int level, unsigned seed, float scale) {
             bool plain = true;
             for (int x = x0 - 2; x <= x1 + 2 && plain; x++) { char fl = at(x, y + 1); plain = fl == '#' || fl == 'R' || fl == 'D'; for (int k = 0; k <= 5 && plain; k++) plain = open(x, y - k); }
             if (!plain) continue;
+            if (made % 3 == 2 && x1 - x0 >= 8) { // a low beam to slide under: a run-up, then two tiles of beam at head height
+                int bx = x0 + 4;
+                for (int x = bx; x < bx + 2; x++) set(x, y, 'h');
+                out.path.insert(out.path.begin() + i + 1, GenWaypoint{bx + 3, y, SetPiece::None});
+                made++; i += 2;
+                continue;
+            }
             bool dash = made % 2 == 0;
             if (dash) { // a spike bed seven or eight tiles wide
                 int w = 7 + (level >= 4 ? 1 : 0), gx = x0 + (x1 - x0 - w) / 2;
