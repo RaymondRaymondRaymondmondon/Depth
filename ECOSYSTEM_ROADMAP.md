@@ -735,3 +735,6 @@ DONE: (4) backgrounds, (5) Abyss semi-real creature models + cel lighting (LitSp
 
 ### STATUS after the sound pass - RESUME HERE
 The OVERNIGHT BRIEF items (1)-(9) are all done at a first complete pass (see CLAUDE.md 'Overnight brief, second half'). Remaining optional polish: sub-theme mixing for the non-Island builders; more required-move set-pieces in Atlantis; richer Pirate/Island scores; per-level footstep surfaces for more tiles. Keep running --verify, --verify-moves, --verify-beasts, the six --verify-*-ecosystem, --verify-abyss and --audio-test after changes.
+
+### STATUS at 7a65abd - RESUME HERE
+Overnight brief complete, plus the optional polish (sub-theme mixing in four builders; Atlantis/Island move set-pieces). Everything verifies (24-seed sweep all first-draw valid; all beast/ecosystem/moves/abyss verifiers; --audio-test). Possible next steps if asked: richer per-level footstep surfaces, per-species unique calls beyond archetype+hash, more background scenes per level (currently one scripted fight each), Island move set-pieces (avg 1.2 of 3).
