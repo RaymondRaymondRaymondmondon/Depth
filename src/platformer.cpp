@@ -141,7 +141,7 @@ bool Solid(const PlatformState& p, int tx, int ty) {
     if (tx < 0 || tx >= p.w) return true; // level edges act as walls
     if (ty < 0 || ty >= p.h) return false;
     char c = p.tiles[ty][tx];
-    return c == '#' || c == 't' || c == '=' || c == '|' || c == 'k' || c == 'f' || c == 'v' || c == 'b' || c == 'r' || c == 'R' || c == 'T' || c == 'N' || c == 'y' || c == 'D';
+    return c == '#' || c == 't' || c == '=' || c == '|' || c == 'k' || c == 'f' || c == 'v' || c == 'b' || c == 's' || c == 'r' || c == 'R' || c == 'T' || c == 'N' || c == 'y' || c == 'D';
 }
 
 // Moves a box one axis at a time and pushes it out of solid tiles.
@@ -963,6 +963,12 @@ void Respawn(PlatformState& p) {
 // ---------------------------------------------------------------- the player
 // Steam vents ('v', set into the floor) blow a column of steam 5 tiles high for 1.6 s of every 2.6 s, lifting the diver.
 bool VentOn(const PlatformState& p, int tx) { return fmodf(p.time + (tx % 7) * 0.37f, 2.6f) < 1.6f; }
+bool WallIsSlime(const PlatformState& p, int side) { // the wall at the diver's side is slimed over
+    float x = side > 0 ? p.pos.x + PW + 0.5f : p.pos.x - 0.5f;
+    int tx = (int)floorf(x / T);
+    for (int ty = (int)floorf((p.pos.y + 4) / T); ty <= (int)floorf((p.pos.y + PH - 4) / T); ty++) if (At(p, tx, ty) == 's') return true;
+    return false;
+}
 bool WallIsBarnacle(const PlatformState& p, int side) { // the wall you are wall-jumping off is lined with barnacles: springy
     float x = side > 0 ? p.pos.x + PW + 0.5f : p.pos.x - 0.5f;
     int tx = (int)floorf(x / T);
@@ -1068,6 +1074,7 @@ void StepPlayer(PlatformState& p, float dir, bool jumpHeld) {
     // wall slide: in the air, pressing into a wall
     p.wallSide = 0;
     if (!p.onGround && dir != 0 && !dashing && TouchWall(p, (int)dir)) p.wallSide = (int)dir;
+    if (p.wallSide != 0 && WallIsSlime(p, p.wallSide)) { p.wallSide = 0; p.vel.y = std::max(p.vel.y, 320.0f); } // slime: no grip, no wall jump - straight down
     if (p.wallSide) { p.wallCoyote = 0.08f; p.lockSide = p.wallSide; p.dashReady = true; if (p.pose == 4 || p.pose == 7) p.pose = 0; }
     else p.wallCoyote -= STEP;
 
@@ -2702,6 +2709,13 @@ void DrawTile(const PlatformState& p, char c, int x, int y, float t) {
                     DrawRectangle((int)(px + 7 + sinf(ph * 6 + k) * 5), (int)(py - ph * 5.4f * T), 8 + (int)(ph * 12), 8, Fade(Color{240, 245, 250, 255}, 0.6f * (1 - ph)));
                 }
             else DrawRectangle((int)px + 12, (int)(py - 6 - fmodf(p.time * 12, 8.0f)), 6, 4, Fade(Color{240, 245, 250, 255}, 0.25f));
+        } break;
+        case 's': { // a slimy wall (ParkourReference1.2): a glistening coat - you slide straight down it and can't jump off it
+            DrawSolid(p, x, y);
+            Color slime = p.level == PL_CAVE ? Color{60, 110, 90, 200} : p.level == PL_ATLANTIS ? Color{70, 130, 120, 200} : Color{78, 135, 82, 200};
+            DrawRectangle((int)px, (int)py, T, T, Fade(slime, 0.55f));
+            for (int k = 0; k < 3; k++) { float dx = px + 5 + k * 10 + Hs(x * 2.1f + k) * 4, drip = fmodf(t * (8 + k * 3) + Hs(y * 3.3f + k) * 30, 30); DrawRectangle((int)dx, (int)(py + drip), 2, 5, Fade(Color{150, 220, 160, 255}, 0.7f)); } // runs of slime
+            DrawRectangle((int)px + 3, (int)py + 3, 3, T - 6, Fade(WHITE, 0.18f + 0.1f * sinf(t * 2 + x))); // the wet sheen
         } break;
         case 'b': {
             DrawSolid(p, x, y);
@@ -5871,7 +5885,18 @@ bool VerifyMoves() {
         run(q, 120, 1, false, false); run(r, 120, 1, false, false);
         if (r.pos.x - q.pos.x < 30) fail("slime (slickT) didn't raise the diver's top speed");
     }
-    if (ok) TraceLog(LOG_WARNING, "verify-moves: OK - slide and slide-jump, stun and impact roll, parachute brake, dash (land and water), hydro-glide, pole tip and backflip, ledge grab, movers, slime");
+    // 10) a slimy wall (1.2): pressing into it gives no grip - you slide straight down and can't wall-jump off it
+    {
+        PlatformState p; stage(p, PL_CAVE, 40, 40, 35);
+        for (int y = 5; y < 35; y++) p.tiles[y][12] = 's';
+        p.pos = {12 * (float)T - PW - 0.5f, 10 * (float)T}; p.onGround = false; p.vel = {0, 0};
+        run(p, 60, 1, false, false);
+        float vy = p.vel.y, x0 = p.pos.x;
+        run(p, 2, 1, true, false); run(p, 20, 1, false, false);
+        if (vy < 300) fail("a slimy wall still gave grip");
+        if (p.pos.x < x0 - 30) fail("a slimy wall still allowed a wall jump");
+    }
+    if (ok) TraceLog(LOG_WARNING, "verify-moves: OK - slide and slide-jump, stun and impact roll, parachute brake, dash (land and water), hydro-glide, pole tip and backflip, ledge grab, movers, slime, slimy walls");
     return ok;
 }
 void ScenePlatformer(Game& g) {
