@@ -221,7 +221,8 @@ void BeastsUpdate(PlatformState& p, float dt);
 void BeastsNoise(PlatformState& p, Vector2 at, float intensity); // the diver's footfalls, landings, gunfire, blasts
 void BeastsDiverRespawned(PlatformState& p, Vector2 at);          // lethal beasts near a checkpoint scatter instead of camping it
 void BeastsTerrainChanged(PlatformState& p);
-bool BeastsSoftLanding(const PlatformState& p);                    // landing on cannon-moss: silent, and no stun                       // the tiles changed (a ship snapped): re-read the map, move dens, drop routes
+bool BeastsSoftLanding(const PlatformState& p);                    // landing on cannon-moss: silent, and no stun
+float BeastsLandingLaunch(PlatformState& p, float fallSpeed);        // landing on a root-sponge or a drum-fungus: the upward speed it throws you back with (0 = none)                       // the tiles changed (a ship snapped): re-read the map, move dens, drop routes
 bool BeastLethalNow(const PlatformState& p, const Beast& b);     // is touching this beast fatal right now?
 bool BeastsTouchDiver(const PlatformState& p, Rectangle diver);  // any lethal contact this frame
 const SpeciesDef& BeastSpecies(int biome, int species);
@@ -236,7 +237,9 @@ enum HullSpecies { HS_PILOT, HS_SHRIMP, HS_OCTOPUS, HS_PUFFER, HS_LEECH, HS_ANEM
 // ParkourReference1.3 on the (above-water) fleet: the Grand Kraken, then the rest of the roster (beasts_pirate.cpp)
 enum PirateSpecies { PS_RAT, PS_CAT, PS_MONKEY, PS_DOG, PS_FLEA, PS_OWL, PS_GULL, PS_ALBATROSS,
                      PS_KRAKEN, PS_TORTOISE, PS_CUTTLE, PS_MANTIS, PS_BORER, PS_MOTH, PS_CMOSS, PS_ROT, PS_MKELP, PS_BARNACLE, PS_LANTERN, PS_COUNT };
-enum IslandSpecies { IS_BOAR, IS_SNAKE, IS_LIZARD, IS_BAT, IS_SPIDER, IS_CRAB, IS_FROG, IS_GULL, IS_DOG, IS_COCONUT, IS_COUNT };
+// ParkourReference1.3 on the (above-water) Island: beasts_island.cpp
+enum IslandSpecies { IS_BOAR, IS_SNAKE, IS_LIZARD, IS_BAT, IS_SPIDER, IS_CRAB, IS_FROG, IS_GULL, IS_DOG, IS_COCONUT,
+                     IS_GBEETLE, IS_MSTALKER, IS_CENTIPEDE, IS_SERPENT, IS_SKIPPER, IS_FIREFLY, IS_DRUM, IS_DARTVINE, IS_RAZOR, IS_BLOOM, IS_SPONGE, IS_COUNT };
 // the Cave is a flooded cave: the older roster made aquatic, then ParkourReference1.3's (beasts_cave.cpp)
 enum CaveSpecies { CS_CUSK, CS_JELLY, CS_OLM, CS_ISOPOD, CS_LEECH, CS_WORM, CS_GSHRIMP,
                    CS_LOACH, CS_CTORTOISE, CS_STALKER, CS_TREMOR, CS_ARACHNID, CS_LSHROOM, CS_LICHEN, CS_VSPORE, CS_CABBAGE, CS_NROOT, CS_COUNT };

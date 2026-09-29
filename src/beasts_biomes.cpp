@@ -195,12 +195,26 @@ const SpeciesDef ISLAND[IS_COUNT] = {
     {"Gull",             MoveMode::Fly,     0.8f,  7,   80, 240,  700,  240, 2.6f, 0.5f, 0.5f, 0.020f, 0.6f,  0.0f, false, true,  6,  5, 0.2f, 1.0f, T_MOBBER | T_KLEPTO},
     {"Hunting Dog",      MoveMode::Walk,   20.0f, 11,   70, 300, 1200,  200, 2.0f, 0.9f, 1.0f, 0.018f, 0.2f,  0.5f, false, true,  0,  3, 0.5f, 0.6f, T_STRIKER | T_CARRY, 70},
     {"Coconut",          MoveMode::Sessile, 0.5f,  5,    0,   0,    0,    0, 0,    0.0f, 0.0f, 0.000f, 0.0f,  0.0f, false, false, 0,  0, 0.0f, 0.0f, 0},
+    // ParkourReference1.3 (beasts_island.cpp), above water
+    {"Goliath Island Beetle", MoveMode::Walk, 300.0f, 16, 20, 30, 200, 120, 2.0f, 0.4f, 0.3f, 0.004f, 0.0f, 0.0f, false, false, 0, 0, 0.0f, 0.0f, T_GIANT},
+    {"Mangrove Stalker", MoveMode::Walk,   30.0f, 12,    0,   0,    0,  200, PI,   0.8f, 0.6f, 0.010f, 0.0f,  0.8f, false, false, 0,  0, 0.0f, 0.0f, T_GIANT | T_CAMO},
+    {"Totem-Centipede",  MoveMode::Sessile, 200.0f, 14,  0,   0,    0,    0, PI,   1.0f, 0.0f, 0.000f, 0.0f,  0.8f, false, false, 0,  0, 0.0f, 0.0f, T_GIANT},
+    {"Arch-Serpent",     MoveMode::Swim, 5000.0f, 40,    0,   0,    0,  600, PI,   1.0f, 1.0f, 0.000f, 0.0f,  0.5f, false, false, 0,  0, 0.0f, 0.0f, T_GIANT},
+    {"Tidal Mud-Skipper", MoveMode::Walk,   0.2f,  4,   50, 200,  900,  120, 2.4f, 0.8f, 0.3f, 0.008f, 0.9f,  0.0f, false, true,  0,  8, 0.4f, 0.0f, 0},
+    {"Glow-Firefly",     MoveMode::Fly,    0.02f, 3,   30, 120,  600,   80, PI,   0.3f, 0.2f, 0.004f, 0.6f,  0.0f, false, true,  2,  0, 0.0f, 0.0f, 0},
+    {"Tribal Drum-Fungus", MoveMode::Sessile, 1.0f, 12,  0,   0,    0,    0, PI,   0.0f, 0.0f, 0.000f, 0.0f,  0.0f, false, false, 0,  0, 0.0f, 0.0f, T_FLORA},
+    {"Poison-Dart Vine", MoveMode::Sessile, 0.3f,  6,    0,   0,    0,    0, PI,   0.0f, 0.0f, 0.000f, 0.0f,  0.0f, false, false, 0,  0, 0.0f, 0.0f, T_FLORA},
+    {"Razor-Palm Roots", MoveMode::Sessile, 1.0f, 14,    0,   0,    0,    0, PI,   0.0f, 0.0f, 0.000f, 0.0f,  0.0f, false, false, 0,  0, 0.0f, 0.0f, T_FLORA},
+    {"Idol's Bloom",     MoveMode::Sessile, 0.2f,  8,    0,   0,    0,    0, PI,   0.0f, 0.0f, 0.000f, 0.0f,  0.0f, false, false, 0,  0, 0.0f, 0.0f, T_FLORA},
+    {"Mangrove Root-Sponge", MoveMode::Sessile, 1.0f, 14, 0,  0,    0,    0, PI,   0.0f, 0.0f, 0.000f, 0.0f,  0.0f, false, false, 0,  0, 0.0f, 0.0f, T_FLORA},
 };
 const FoodEdge ISLAND_WEB[] = {
     {IS_SNAKE, IS_FROG, 0.5f},  {IS_SNAKE, IS_BAT, 0.7f},   {IS_SNAKE, IS_LIZARD, 0.2f},
     {IS_LIZARD, IS_FROG, 0.4f}, {IS_LIZARD, IS_CRAB, 0.3f}, {IS_LIZARD, IS_SNAKE, 0.3f},
     {IS_DOG, IS_LIZARD, 0.6f},  {IS_DOG, IS_CRAB, 0.3f},
     {IS_SPIDER, IS_BAT, 0.6f},  {IS_SPIDER, IS_FROG, 0.2f},
+    {IS_LIZARD, IS_SKIPPER, 0.6f}, {IS_SNAKE, IS_SKIPPER, 0.5f}, {IS_BAT, IS_FIREFLY, 0.6f},
+    {IS_MSTALKER, IS_BOAR, 0.4f}, {IS_MSTALKER, IS_LIZARD, 0.5f}, {IS_MSTALKER, IS_DOG, 0.4f}, {IS_SERPENT, IS_BOAR, 0.3f},
 };
 
 static void SpawnIsland(BeastWorld& W, PlatformState& p) {
@@ -216,6 +230,7 @@ static void SpawnIsland(BeastWorld& W, PlatformState& p) {
     for (int k = 0; k < 6; k++) NewBeast(W, IS_FROG, sp.Stand(sp.At(0.08f + 0.15f * k + Hash(s, 60 + k) * 0.05f), 5));
     Pack(W, IS_GULL, sp.Above(W, sp.At(0.55f), 7), 5, 60, 90, 40, 700);
     Pack(W, IS_DOG, sp.Stand(sp.At(0.45f + Hash(s, 70) * 0.2f), 11), 2, 70, 30, 0, 800);
+    Island13Spawn(W, p);
 }
 
 static void IslandHooks(BeastWorld& W, PlatformState& p, int i, float dt) {
@@ -241,7 +256,7 @@ static void IslandHooks(BeastWorld& W, PlatformState& p, int i, float dt) {
             Remember(b, MEM_FOOD, c, W.beasts[c].id, W.beasts[c].pos, {0, 0}, 1.0f, W.time);
         }
         break;
-    default: break;
+    default: Island13Hook(W, p, i, dt); break; // the 1.3 roster (beasts_island.cpp)
     }
     (void)p;
 }
@@ -256,9 +271,9 @@ const BiomeDef& IslandBiome() {
         BiomeDef d;
         d.level = PL_ISLAND; d.species = ISLAND; d.count = IS_COUNT; d.web = ISLAND_WEB; d.webN = (int)(sizeof(ISLAND_WEB) / sizeof(ISLAND_WEB[0]));
         d.water = false; d.clarity = 0.85f; d.daylight = 0.8f;
-        static const float SIZES[IS_COUNT] = {1.7f, 1.4f, 1.4f, 1.0f, 1.1f, 1.3f, 1.0f, 1.2f, 1.5f, 1.0f};
+        static const float SIZES[IS_COUNT] = {1.7f, 1.4f, 1.4f, 1.0f, 1.1f, 1.3f, 1.0f, 1.2f, 1.5f, 1.0f, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
         d.sizes = SIZES;
-        d.spawn = SpawnIsland; d.hooks = IslandHooks; d.lethal = IslandLethal;
+        d.spawn = SpawnIsland; d.hooks = IslandHooks; d.lethal = IslandLethal; d.touch = Island13Touch; d.tick = Island13Tick;
         return d;
     }();
     return B;
@@ -974,6 +989,7 @@ static bool VerifyIsland() {
         }
         if (!caught) fail("an orb web never caught a bat flying through it");
     }
+    if (!VerifyIsland13()) ok = false;
     if (ok) TraceLog(LOG_WARNING, "verify-island-ecosystem: OK - boar charge, coconut cut/steal, bat burst, dart-frog lesson and web catch all confirmed");
     return ok;
 }

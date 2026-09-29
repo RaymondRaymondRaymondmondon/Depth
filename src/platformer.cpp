@@ -1213,10 +1213,13 @@ void StepPlayer(PlatformState& p, float dir, bool jumpHeld) {
         if (fallSpeed > 400) Dust(p, {p.pos.x + PW / 2, p.pos.y + PH}, 6, 0);
         if (fallSpeed > 300 && water) Bubbles(p, {p.pos.x + PW / 2, p.pos.y + PH - 3}, 6, 12);
         bool soft = !p.verifying && BeastsSoftLanding(p); // cannon-moss soaks up the landing: no sound, no stun
+        float launch = p.verifying ? 0.0f : BeastsLandingLaunch(p, fallSpeed); // a root-sponge or a drum-fungus throws you back up
+        if (launch > 0) { p.vel.y = -launch; p.onGround = false; p.dashReady = true; soft = true; p.scale = {0.8f, 1.25f}; }
         if (fallSpeed > 250 && !soft) BeastsNoise(p, {p.pos.x + PW / 2, p.pos.y + PH}, std::min(1.4f, fallSpeed / 600.0f)); // a hard landing carries a long way
         if (p.pose == 4 || p.pose == 7 || p.pose == 8) p.pose = 0;
         // the impact roll: Down and a direction as you land turn the fall into forward speed ...
-        if (fallSpeed > ROLL_MIN_V && p.downBuf > 0 && dir != 0 && !p.verifying) {
+        if (launch > 0) {} // (already airborne again)
+        else if (fallSpeed > ROLL_MIN_V && p.downBuf > 0 && dir != 0 && !p.verifying) {
             p.pose = 2; p.moveT = ROLL_T; p.boostT = 0.8f;
             p.vel.x = std::clamp(p.vel.x + dir * 0.7f * fallSpeed, -RUN * 1.8f, RUN * 1.8f);
             p.facingRight = dir > 0;
@@ -4124,6 +4127,101 @@ void DrawIslandBeast(const PlatformState& p, const Beast& b, float t) {
     case IS_DOG: {
         Color coats[3] = {{176, 132, 84, 255}, {120, 90, 60, 255}, {210, 196, 170, 255}};
         DrawDog(b, S, t, coats[b.id % 3], false, true);
+        break;
+    }
+    case IS_GBEETLE: { // the Goliath beetle: a flat stone shell carved with the tribe's idols, six slow legs
+        float fy = b.anchor.y, top = fy - 44;
+        Color stone{120, 116, 104, 255}, dark{70, 66, 60, 255};
+        for (int k = 0; k < 6; k++) { float lx = x - 26 + k * 10.4f, lift = fabsf(b.vel.x) > 2 ? std::max(0.0f, sinf(b.phase * 3 + k * 2.1f)) * 3 : 0; DrawLineEx({lx, fy - 16}, {lx + f * 4, fy - lift}, 3, FAUNA_INK); DrawLineEx({lx, fy - 16}, {lx + f * 4, fy - lift}, 2, dark); }
+        DrawEllipse((int)x, (int)(fy - 26), 40, 16, FAUNA_INK); DrawEllipse((int)x, (int)(fy - 26), 38, 14, stone);
+        DrawRectangle((int)x - 36, (int)top, 72, 8, stone); DrawRectangle((int)x - 36, (int)top, 72, 2, Tone(stone, 0.3f)); // the flat top
+        for (int k = 0; k < 3; k++) { float ix = x - 20 + k * 20; DrawRectangle((int)ix - 3, (int)top - 12, 6, 12, Color{150, 110, 70, 255}); DrawRectangle((int)ix - 2, (int)top - 10, 1, 1, FAUNA_INK); DrawRectangle((int)ix + 1, (int)top - 10, 1, 1, FAUNA_INK); } // little carved idols
+        for (int k = 0; k < 4; k++) DrawLineEx({x - 30 + k * 18, fy - 34}, {x - 24 + k * 18, fy - 20}, 1, dark); // glyphs
+        DrawEllipse((int)(x + f * 40), (int)(fy - 20), 8, 6, dark); DrawLineEx({x + f * 46, fy - 22}, {x + f * 54, fy - 30}, 2, dark); // the horn
+        break;
+    }
+    case IS_MSTALKER: { // the Mangrove Stalker: a gnarled, root-coloured reptile - nearly invisible until it moves
+        float camo = b.act == BeastAct::Ambush ? 0.75f : 0.0f;
+        Color c = Fade(Color{86, 96, 60, 255}, 1 - camo * 0.6f);
+        Vector2 a = b.anchor, jaw = b.territory;
+        DrawEllipse((int)a.x, (int)a.y + 2, 18, 6, Fade(FAUNA_INK, 1 - camo * 0.6f)); DrawEllipse((int)a.x, (int)a.y + 2, 17, 5, c);
+        for (int k = 0; k < 5; k++) DrawRectangle((int)(a.x - 14 + k * 6), (int)a.y - 3, 3, 2, Fade(Color{60, 70, 40, 255}, 1 - camo * 0.6f)); // scutes
+        bool open = b.act == BeastAct::Coil || b.act == BeastAct::Strike;
+        DrawLineEx(a, jaw, 7, Fade(FAUNA_INK, 1 - camo * 0.6f)); DrawLineEx(a, jaw, 5, c);
+        if (open) { DrawTri(jaw, {jaw.x + b.facing * 12, jaw.y - 7}, {jaw.x + b.facing * 12, jaw.y + 5}, Color{150, 40, 50, 255}); for (int k = 0; k < 3; k++) DrawRectangle((int)(jaw.x + b.facing * (3 + k * 3)), (int)jaw.y - 4, 1, 2, WHITE); }
+        DrawCircle((int)(a.x + b.facing * 8), (int)a.y - 3, 1.5f, open ? Color{255, 200, 60, 255} : Fade(Color{220, 200, 80, 255}, 0.5f)); // its eye, the giveaway
+        if (b.stunT > 0) for (int k = 0; k < 3; k++) DrawCircle((int)(jaw.x + cosf(t * 5 + k * 2) * 8), (int)(jaw.y - 8), 1.2f, Color{170, 240, 120, 255}); // paralysed
+        break;
+    }
+    case IS_CENTIPEDE: { // the Totem-Centipede: segments carved like a totem pole; while it wakes, the tribe's drums
+        if (b.act == BeastAct::Coil) {
+            for (int k = 0; k < 5; k++) DrawRectangle((int)(b.anchor.x - 24 + k * 12 + sinf(t * 60 + k) * 2), (int)(b.anchor.y - 3), 6, 3, Color{180, 150, 100, 255});
+            for (int d = -1; d <= 1; d += 2) { float beat = fmodf(t * 3, 1.0f); DrawCircleLines((int)(b.anchor.x + d * 7 * (float)T), (int)(b.anchor.y - 5 * (float)T), 10 + beat * 30, Fade(Color{255, 200, 120, 255}, 1 - beat)); } // drums from the villages
+            break;
+        }
+        if (b.act != BeastAct::Strike && b.act != BeastAct::Wander) break;
+        Vector2 a = b.anchor, h = b.territory;
+        for (int k = 0; k < 7; k++) {
+            Vector2 q{a.x + (h.x - a.x) * k / 6.0f + sinf(t * 20 + k) * 2, a.y + (h.y - a.y) * k / 6.0f};
+            DrawRectangle((int)q.x - 14, (int)q.y - 8, 28, 16, FAUNA_INK); DrawRectangle((int)q.x - 13, (int)q.y - 7, 26, 14, k % 2 ? Color{140, 70, 50, 255} : Color{180, 120, 60, 255});
+            DrawRectangle((int)q.x - 6, (int)q.y - 3, 3, 3, FAUNA_INK); DrawRectangle((int)q.x + 3, (int)q.y - 3, 3, 3, FAUNA_INK); // a carved face on each segment
+            DrawLineEx({q.x - 13, q.y}, {q.x - 22, q.y + 6}, 2, FAUNA_INK); DrawLineEx({q.x + 13, q.y}, {q.x + 22, q.y + 6}, 2, FAUNA_INK); // legs
+        }
+        DrawTri({h.x - 10, h.y - 6}, {h.x + 10, h.y - 6}, {h.x, h.y - 22}, Color{200, 60, 50, 255}); // mandibles
+        break;
+    }
+    case IS_SERPENT: { // the Arch-Serpent: a colossal neck rising out of the ravine, horned, sea-green
+        Vector2 a = b.anchor, h = b.territory;
+        Color scale{50, 110, 100, 255}, belly{200, 190, 140, 255};
+        Vector2 prev = {a.x, a.y + 40};
+        for (int k = 1; k <= 12; k++) {
+            float u = k / 12.0f;
+            Vector2 q{a.x + (h.x - a.x) * u + sinf(u * PI) * 40 * (h.x > a.x ? -1 : 1), a.y + 40 + (h.y - a.y - 40) * u};
+            float w = 30 - u * 12;
+            DrawLineEx(prev, q, w + 4, FAUNA_INK); DrawLineEx(prev, q, w, scale); DrawLineEx({prev.x + 4, prev.y}, {q.x + 4, q.y}, w * 0.35f, belly);
+            prev = q;
+        }
+        DrawEllipse((int)h.x, (int)h.y, 26, 16, FAUNA_INK); DrawEllipse((int)h.x, (int)h.y, 24, 14, scale);
+        DrawTri({h.x - 14, h.y - 10}, {h.x - 8, h.y - 12}, {h.x - 20, h.y - 34}, Color{230, 220, 190, 255}); DrawTri({h.x + 14, h.y - 10}, {h.x + 8, h.y - 12}, {h.x + 20, h.y - 34}, Color{230, 220, 190, 255}); // horns
+        bool strike = b.act == BeastAct::Strike || b.act == BeastAct::Coil;
+        for (int e = -1; e <= 1; e += 2) DrawCircle((int)(h.x + e * 10), (int)h.y - 3, 3, strike ? Color{255, 220, 80, 255} : Color{200, 180, 90, 255});
+        if (strike) DrawTri({h.x - 12, h.y + 6}, {h.x + 12, h.y + 6}, {h.x, h.y + 22}, Color{110, 20, 30, 255});
+        break;
+    }
+    case IS_SKIPPER: { // a mud-skipper: bug-eyed, finned, skipping
+        Color c{150, 130, 90, 255};
+        DrawEllipse((int)x, (int)y, 5, 2.5f, c); DrawTri({x - f * 5, y}, {x - f * 9, y - 3}, {x - f * 9, y + 2}, c);
+        DrawCircle((int)(x + f * 3), (int)y - 3, 1.4f, Color{240, 240, 220, 255}); DrawRectangle((int)(x + f * 3), (int)y - 3, 1, 1, FAUNA_INK);
+        break;
+    }
+    case IS_FIREFLY: { float gl = 0.5f + 0.5f * sinf(t * 6 + b.phase * 3); DrawCircle((int)x, (int)y, 4, Fade(Color{255, 240, 120, 255}, 0.25f * gl)); DrawRectangle((int)x, (int)y, 2, 2, Fade(Color{255, 250, 170, 255}, 0.5f + 0.5f * gl)); break; }
+    case IS_DRUM: { // a tribal drum-fungus: a taut cap, painted by the tribe
+        float sq = b.flashT > 0 ? 4.0f : 0.0f;
+        DrawRectangle((int)x - 3, (int)(y - 10 + sq), 6, (int)(10 - sq), Color{210, 200, 170, 255});
+        DrawEllipse((int)x, (int)(y - 11 + sq), 13, 5 - sq * 0.5f, FAUNA_INK); DrawEllipse((int)x, (int)(y - 11 + sq), 12, 4 - sq * 0.5f, Color{190, 90, 60, 255});
+        for (int k = -1; k <= 1; k++) DrawRectangle((int)(x + k * 6) - 1, (int)(y - 12 + sq), 2, 2, Color{240, 220, 160, 255});
+        break;
+    }
+    case IS_DARTVINE: { // a poison-dart vine hanging from a bough, beaded with neurotoxin
+        float len = b.special2;
+        Vector2 prev{x, y};
+        for (int k = 1; k <= 6; k++) { Vector2 q{x + sinf(t * 1.3f + k * 0.8f) * 2 * k / 6.0f, y + len * k / 6.0f}; DrawLineEx(prev, q, 3, FAUNA_INK); DrawLineEx(prev, q, 2, Color{60, 120, 50, 255}); if (k % 2 == 0) DrawCircle((int)q.x + 2, (int)q.y, 1.4f, Color{200, 80, 220, 255}); prev = q; }
+        if (fmodf(t + b.phase, 2.0f) < 0.3f) DrawCircle((int)x, (int)(y + len + fmodf(t * 40, 20)), 1, Color{220, 120, 240, 255}); // a drip
+        break;
+    }
+    case IS_RAZOR: { for (int k = 0; k < 6; k++) { float rx = x - 14 + k * 5.5f, h = 6 + (k * 7 % 4) * 2; DrawTri({rx - 2, y}, {rx + 2, y}, {rx + (k % 2 ? 3 : -3), y - h}, Color{110, 80, 50, 255}); DrawLineEx({rx, y - 1}, {rx + (k % 2 ? 3 : -3), y - h}, 1, Color{220, 200, 170, 255}); } break; }
+    case IS_BLOOM: { // Idol's bloom: a rare pale flower, misting when brushed
+        DrawLineEx({x, y}, {x, y - 10}, 1.5f, Color{60, 120, 60, 255});
+        for (int k = 0; k < 5; k++) { float an = k * 1.256f + t * 0.3f; DrawEllipse((int)(x + cosf(an) * 4), (int)(y - 12 + sinf(an) * 3), 3, 2, Color{250, 220, 240, 255}); }
+        DrawCircle((int)x, (int)y - 12, 2, Color{255, 230, 120, 255});
+        if (b.flashT > 0) DrawCircle((int)x, (int)y - 12, 16 * (1 - b.flashT), Fade(Color{255, 230, 250, 255}, b.flashT));
+        break;
+    }
+    case IS_SPONGE: { // a mangrove root-sponge: a springy pad in a cradle of roots
+        float sq = b.flashT > 0 ? 5.0f : 0.0f;
+        for (int k = -2; k <= 2; k++) DrawLineEx({x + k * 5, y}, {x + k * 7, y - 6}, 2, Color{100, 70, 40, 255});
+        DrawEllipse((int)x, (int)(y - 8 + sq), 14 + sq, 5 - sq * 0.6f, FAUNA_INK); DrawEllipse((int)x, (int)(y - 8 + sq), 13 + sq, 4 - sq * 0.6f, Color{200, 170, 90, 255});
+        for (int k = 0; k < 5; k++) DrawRectangle((int)(x - 9 + k * 4), (int)(y - 9 + sq), 1, 1, Color{140, 110, 60, 255}); // pores
         break;
     }
     default: DrawCircle((int)x, (int)y, 6, Color{200, 200, 200, 255}); break;

@@ -1779,6 +1779,23 @@ bool BeastsSoftLanding(const PlatformState& p) {
     return false;
 }
 
+float BeastsLandingLaunch(PlatformState& p, float fallSpeed) {
+    BeastWorld& W = p.fauna;
+    if (!W.active || W.biome != PL_ISLAND || fallSpeed < 250) return 0;
+    Rectangle r = PlatDiverBox(p);
+    for (auto& b : W.beasts) {
+        if (b.life != BeastLife::Alive || fabsf(b.pos.x - (r.x + r.width / 2)) > 18 || fabsf(b.pos.y - (r.y + r.height)) > 12) continue;
+        if (b.species == IS_SPONGE) { b.flashT = 0.3f; return std::max(fallSpeed * 0.97f, 420.0f); } // compresses and springs back: all of it
+        if (b.species == IS_DRUM && fallSpeed > 300) { // BOOM: high into the air - and every centipede on the island feels it
+            b.flashT = 0.4f;
+            W.sounds.push_back({b.pos, 1.6f, 0.6f, -1});
+            AddCloud(W, {b.pos.x, b.pos.y - 8}, 5 * TILE, 0.5f, 4);
+            return 1050;
+        }
+    }
+    return 0;
+}
+
 void BeastsNoise(PlatformState& p, Vector2 at, float intensity) {
     if (!p.fauna.active) return;
     p.fauna.sounds.push_back({at, intensity, 0.35f, -1});

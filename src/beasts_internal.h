@@ -80,6 +80,12 @@ bool Cave13Touch(const BeastWorld& W, const Beast& b, Rectangle diver);
 void Cave13Tick(BeastWorld& W, PlatformState& p, float dt);
 void Cave13Spawn(BeastWorld& W, PlatformState& p);
 bool VerifyCave13();
+// the Island's ParkourReference1.3 roster (beasts_island.cpp)
+void Island13Hook(BeastWorld& W, PlatformState& p, int i, float dt);
+bool Island13Touch(const BeastWorld& W, const Beast& b, Rectangle diver);
+void Island13Tick(BeastWorld& W, PlatformState& p, float dt);
+void Island13Spawn(BeastWorld& W, PlatformState& p);
+bool VerifyIsland13();
 
 const SpeciesDef& Sp(int biome, int s);
 float Pref(int biome, int pred, int prey);
