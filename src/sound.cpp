@@ -131,7 +131,7 @@ int gLevel = -1;
 bool gUnderwater = false;
 float gScene = 0, gSceneTarget = 0; // the score and ambience fade in and out with the parkour section
 float gBeatT = 0; int gBeat = 0; int gChord = 0; int gLeadDeg = 7;
-float gDay = 1, gFlow = 0, gFlowS = 0, gSlide = 0, gSlideS = 0;
+float gDay = 1, gFlow = 0, gFlowS = 0, gSlide = 0, gSlideS = 0, gTension = 0, gTensionS = 0;
 Vector2 gEar{0, 0};
 float gCallCool = 0;
 
@@ -456,6 +456,19 @@ void ScoreBeat() {
         default: v.atk = beat; v.vibR = 3; v.vibD = 0.03f; v.f1 = f * 0.8f; v.send = 0.95f; break; // a groan from the dark
         }
     }
+    // an apex is near: the score tightens - a low tremolo string under everything, and a pulse on every beat
+    if (gTensionS > 0.25f) {
+        PanGains(0, c.gl, c.gr);
+        Voice& pl = Tone(c, W_SINE, Note(s, gChord, 0), 0, beat * 0.9f, 0.09f * gTensionS);
+        pl.f1 = pl.f0 * 0.7f; pl.curve = 0.4f; pl.decPow = 2.5f; pl.send = 0.4f;
+        if (gBeat % 4 == 0) {
+            for (int k = 0; k < 2; k++) {
+                PanGains(k ? 0.5f : -0.5f, c.gl, c.gr);
+                Voice& tr = Tone(c, W_SAW, Note(s, gChord + k * 1, 1), 0, beat * 4.2f, 0.035f * gTensionS);
+                tr.f1 = tr.f0; tr.cut0 = tr.cut1 = 900; tr.tremR = 7.5f; tr.tremD = 0.6f; tr.atk = beat; tr.decPow = 1; tr.send = 0.5f;
+            }
+        }
+    }
     // the level's own pulse
     if (gLevel == PL_ISLAND && (gBeat % 4 == 0 || gBeat % 4 == 3)) { PanGains(0.2f, c.gl, c.gr); Voice& d = Tone(c, W_SINE, 150, 70, 0.3f, 0.07f); d.curve = 0.4f; d.decPow = 2.5f; d.send = 0.2f; } // a log drum, soft
     if (gLevel == PL_PIPES && gBeat % 16 == 8 && R01() < 0.6f) { PanGains(RR(-0.6f, 0.6f), c.gl, c.gr); Voice& d = Tone(c, W_FM, 110, 110, 1.6f, 0.05f); d.fmRatio = 2.76f; d.fmIndex = 3; d.fmIndex1 = 0.3f; d.send = 0.8f; } // the ship's heart
@@ -481,6 +494,7 @@ void Render(float* out, int frames) {
             if (gAmbT >= 0.05f) { AmbientEvents(gAmbT); gAmbT = 0; }
         }
         gFlowS += (gFlow - gFlowS) * std::min(1.0f, blockT * 3);
+        gTensionS += (gTension - gTensionS) * std::min(1.0f, blockT * 0.5f); // tension comes on over a couple of seconds and ebbs slowly
         gSlideS += (gSlide - gSlideS) * std::min(1.0f, blockT * 12);
         gFlowF.Set(2, (gUnderwater ? 350 : 600) + 500 * gFlowS + 150 * sinf(gClock * 0.7f), 1.2f);
         gSlideF.Set(1, 900, 0.7f); gSlideF2.Set(0, 3500, 0.7f);
@@ -603,6 +617,7 @@ void AudioListener(Vector2 at) { gEar = at; }
 void AudioDay(float d) { gDay = d; }
 void AudioFlow(float a) { gFlow = std::clamp(a, 0.0f, 1.0f); }
 void AudioSlide(float a) { gSlide = std::clamp(a, 0.0f, 1.0f); }
+void AudioTension(float a) { gTension = std::clamp(a, 0.0f, 1.0f); }
 
 static bool Place(Vector2 at, float vol, Ctx& c, float range = 1100) {
     float dx = at.x - gEar.x, dy = at.y - gEar.y, d = sqrtf(dx * dx + dy * dy);
@@ -678,6 +693,7 @@ bool AudioSelfTest(const char* wavPath) {
     double renderMs = 0; int renderedFrames = 0;
     for (int lv = 0; lv <= PL_COUNT; lv++) {
         AudioLevel(lv); gSceneTarget = 1; gScene = 1; gDay = lv == PL_ISLAND ? 0.2f : 1.0f; gEar = {0, 0};
+        gTension = gTensionS = lv == PL_HULL ? 1.0f : 0.0f; // the Hull pass also plays the apex tension
         const int SECS = 8, N = SR * SECS;
         std::vector<float> buf(N * 2);
         int fired = 0;

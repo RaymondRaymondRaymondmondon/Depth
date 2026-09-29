@@ -168,6 +168,14 @@ void ParkourAudio(const PlatformState& p, float dt) {
             if (b.defeated && !P.defeated) SfxAt(Sfx::BBDeath, at);
         }
 
+        // ---- an apex near the diver (the director's megalodon, kraken, serpent, leviathan...) or a boss fight: the score tightens
+        {
+            float tension = 0;
+            const BeastWorld& Wt = p.fauna;
+            if (Wt.active && Wt.apexPos.x > -1e8f) { float d = sqrtf((Wt.apexPos.x - ear.x) * (Wt.apexPos.x - ear.x) + (Wt.apexPos.y - ear.y) * (Wt.apexPos.y - ear.y)); tension = std::clamp(1.3f - d / 900, 0.0f, 1.0f); }
+            if (p.boss.type && !p.boss.defeated && p.pos.x > (p.w - 26) * 32.0f) tension = 1;
+            AudioTension(alive ? tension : 0);
+        }
         // ---- the beasts: calls, alarms, strikes, pain, deaths, grabs and chewing
         const BeastWorld& W = p.fauna;
         if (W.active) {
@@ -240,6 +248,7 @@ void AbyssAudio(const AbyssState& a, float dt) {
             } else if ((float)GetRandomValue(0, 100000) / 100000 < 0.02f * dt) AbyssSound((int)c.kind, CUE_CALL, d, pan);
         }
     }
+    AudioTension(a.mawT > 0 ? 1.0f : 0.0f);
     AudioFlow(a.isGliding ? 0.6f : std::min(0.5f, sqrtf(a.playerVel.x * a.playerVel.x + a.playerVel.y * a.playerVel.y + a.playerVel.z * a.playerVel.z) / 20));
     AudioSlide(0);
     A.dead = a.dead; A.won = a.won; A.dashing = a.isDashing; A.iframe = a.hazardIFrame; A.maw = a.mawT;

@@ -25,6 +25,7 @@ void AudioListener(Vector2 at);         // where the diver's ears are (world px)
 void AudioDay(float daylight);          // 0 night .. 1 noon (the Island's crickets and flutes come out at night)
 void AudioFlow(float amount);           // a draught or current around the diver, 0..1 (a subtle whoosh)
 void AudioSlide(float amount);          // the scrape of a slide, 0..1
+void AudioTension(float amount);        // an apex predator is near: the score tightens, 0..1
 void SfxAt(Sfx s, Vector2 at, float vol = 1, float pitch = 1);
 void Sfx2D(Sfx s, float vol = 1, float pitch = 1, float pan = 0);
 void BeastSound(const char* name, float size, int cue, Vector2 at, float vol = 1); // every species gets its own voice from its name and size
