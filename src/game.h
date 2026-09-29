@@ -353,7 +353,7 @@ struct BeakChargeState {
     float fromX = 0, toX = 0, x = 0; // dash endpoints and current position
     float dir = 1;
 };
-enum class KrakenMove { TentacleSlam = 0, InkFlood = 1, Lunge = 2, TentacleReach = 3, InkRain = 4, BeakCharge = 5 };
+enum class KrakenMove { TentacleSlam = 0, InkFlood = 1, Lunge = 2, TentacleReach = 3, InkRain = 4, BeakCharge = 5, Sweep = 6 };
 
 struct PlatBoss {
     char type = 0;               // 'K' Kraken, 'B' Blackbeard, 0 = none
@@ -373,6 +373,7 @@ struct PlatBoss {
     bool inkSafeRight = false;                    // which half of the arena the ink cloud leaves clear
     float lungeT = -1;                            // Kraken lunge: seconds since it began, < 0 = idle
     float lungeFromX = 0, lungeToX = 0;           // sweep endpoints
+    float sweepT = -1, sweepY = 0, sweepDir = 1;  // Kraken sweep: an arm swung flat across the arena at head height (slide under it); < 0 = idle
     bool defeated = false;
 };
 

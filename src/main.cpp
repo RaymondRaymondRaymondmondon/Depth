@@ -218,7 +218,7 @@ static void TakeShots(const Game& base, const std::string& dir) {
                                           Vector2 c = g.plat.critters.size() > 3 ? g.plat.critters[3].home : Vector2{700, 450};
                                           g.plat.pos = {c.x - 130, c.y - 26}; }},
         {"hull", [](Game& g) { g.platLayouts[PL_HULL] = {404, 100}; StartPlatform(g, PL_HULL); g.plat.pos = g.plat.spawns[1]; }},
-        {"hull_shaft", [](Game& g) { g.platLayouts[PL_HULL] = {505, 100}; StartPlatform(g, PL_HULL); g.plat.pos = g.plat.spawns[3]; }},        {"hull_kraken", [](Game& g) { StartPlatform(g, PL_HULL); g.plat.pos = {(g.plat.w - 24) * 32 + 420.0f, 200}; g.plat.boss.state = 2; }},
+        {"hull_shaft", [](Game& g) { g.platLayouts[PL_HULL] = {505, 100}; StartPlatform(g, PL_HULL); g.plat.pos = g.plat.spawns[3]; }},        {"hull_kraken", [](Game& g) { StartPlatform(g, PL_HULL); g.plat.pos = {(g.plat.w - 24) * 32 + 420.0f, 200}; g.plat.boss.state = 2; }},        {"hull_kraken_sweep", [](Game& g) { StartPlatform(g, PL_HULL); g.plat.pos = {(g.plat.w - 24) * 32 + 760.0f, 200}; PlatformState& q = g.plat; int c = (int)(q.pos.x / 32), r = (int)(q.pos.y / 32); while (r < q.h - 1 && q.tiles[r][c] != '#') r++; q.pos.y = r * 32.0f - 26; q.onGround = true; g.plat.boss.sweepT = -0.0001f; g.plat.boss.sweepT = 0.001f - 0.35f + 0.35f; g.plat.boss.sweepDir = 1; g.plat.boss.sweepY = g.plat.pos.y + 26; }},
         {"pirate", [](Game& g) { g.platLayouts[PL_PIRATE] = {606, 100}; StartPlatform(g, PL_PIRATE); g.plat.pos = g.plat.spawns[1]; }},
         {"fauna_hull", [](Game& g) { ShotAtFauna(g, PL_HULL, 404, 6); }},
         {"fauna_hull2", [](Game& g) { ShotAtFauna(g, PL_HULL, 404, 6, 1); }},
@@ -305,7 +305,7 @@ static void TakeShots(const Game& base, const std::string& dir) {
         {"pirate_gap", [](Game& g) { ShotAtPiece(g, PL_PIRATE, SetPiece::ShipGap, false, 2); }},
         {"pirate_ladder", [](Game& g) { ShotAtPiece(g, PL_PIRATE, SetPiece::MastLadder, false, 1); }},
         {"pipes_drop", [](Game& g) { ShotAtPiece(g, PL_PIPES, SetPiece::PipeDrop, false, 1); }},
-        {"pirate_ghost", [](Game& g) { ShotAtPiece(g, PL_PIRATE, SetPiece::ShipGap, true, 3); }},        {"pirate_boss", [](Game& g) { StartPlatform(g, PL_PIRATE); g.plat.pos = {(g.plat.w - 24) * 32 + 150.0f, g.plat.boss.home.y + 40}; }},
+        {"pirate_ghost", [](Game& g) { ShotAtPiece(g, PL_PIRATE, SetPiece::ShipGap, true, 3); }},        {"pirate_boss", [](Game& g) { StartPlatform(g, PL_PIRATE); g.plat.pos = {(g.plat.w - 24) * 32 + 150.0f, g.plat.boss.home.y + 40}; }},        {"pirate_blunderbuss", [](Game& g) { StartPlatform(g, PL_PIRATE); g.plat.pos = {(g.plat.w - 24) * 32 + 150.0f, g.plat.boss.home.y + 40}; g.plat.boss.hp = 2; g.plat.boss.state = 6; g.plat.boss.timer = -2.0f; g.plat.boss.dir = -1; }},
     };
     std::vector<Shot> all(std::begin(shots), std::end(shots));
     // the Flats showcase: every card and component (depth.exe --shots shots/Flats flats)

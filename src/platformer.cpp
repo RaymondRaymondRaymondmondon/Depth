@@ -552,6 +552,15 @@ Rectangle BeakBody(const BeakChargeState& s) { return {s.x - 55, s.y - 34, 110, 
 Rectangle BeakTip(const BeakChargeState& s) { return {s.dir > 0 ? s.x + 40 : s.x - 40 - 62, s.y - 14, 62, 28}; }
 bool BeakDeadly(const BeakChargeState& s) { return s.active && s.t >= 0.9f && s.t < 2.05f; }
 bool ReachDeadly(const TentacleReachState& s) { return s.active && s.t >= 0.8f && s.t < 3.0f; }
+// The sweep: 0.9 s of warning (the arm coils up out of the water at one side), then it scythes across in 0.75 s.
+// Its band covers a standing diver's head but stops just above a sliding one (the slide box is 12 px lower).
+constexpr float KRAKEN_SWEEP_WARN = 0.9f, KRAKEN_SWEEP_TIME = 0.75f, KRAKEN_SWEEP_END = KRAKEN_SWEEP_WARN + KRAKEN_SWEEP_TIME + 0.3f;
+float KrakenSweepX(const PlatBoss& b, float arenaX) {
+    float u = std::clamp((b.sweepT - KRAKEN_SWEEP_WARN) / KRAKEN_SWEEP_TIME, 0.0f, 1.0f);
+    float x0 = b.sweepDir > 0 ? arenaX - 2 * T : arenaX + 26 * T, x1 = b.sweepDir > 0 ? arenaX + 26 * T : arenaX - 2 * T;
+    return x0 + (x1 - x0) * u;
+}
+Rectangle KrakenSweepBox(const PlatBoss& b, float arenaX) { return {KrakenSweepX(b, arenaX) - 46, b.sweepY - PH - 8, 92, 18}; } // bottom edge 16 px above the feet: a slide (14 px tall) passes under with 2 px to spare
 
 // Advance the three new Kraken attacks.
 void UpdateKrakenAttacks(PlatformState& p, float dt, float arenaX) {
@@ -618,13 +627,19 @@ void UpdateBoss(PlatformState& p, float dt) {
         UpdateKrakenAttacks(p, dt, arenaX);
         if (b.inkT >= 0 && (b.inkT += dt) > 2.0f) b.inkT = -1;
         if (b.lungeT >= 0 && (b.lungeT += dt) > 1.3f) b.lungeT = -1;
+        if (b.sweepT >= 0 && (b.sweepT += dt) > KRAKEN_SWEEP_END) b.sweepT = -1;
         switch (b.state) {
             case 0: // submerged: picks one move for this cycle -- a tentacle strike (maybe a bluff), a
                      // spray of ink that floods half the arena, or a fast lunge sweeping across it
                 if (!b.defeated && playerInArena && b.timer > 0.3f && b.timer < 1.0f && b.moveKind == -1) {
-                    b.moveKind = GetRandomValue(0, 5);
+                    b.moveKind = GetRandomValue(0, 6);
                     float px = p.pos.x + PW / 2;
-                    if (b.moveKind == (int)KrakenMove::TentacleReach) {
+                    if (b.moveKind == (int)KrakenMove::Sweep && !p.onGround) b.moveKind = (int)KrakenMove::Lunge; // the sweep is aimed at a diver standing on something
+                    if (b.moveKind == (int)KrakenMove::Sweep) { // an arm swung flat across the arena at your head height: slide under it
+                        b.sweepT = 0;
+                        b.sweepY = p.pos.y + PH;           // the height of your feet when it chose
+                        b.sweepDir = px > arenaMid ? -1.0f : 1.0f; // it comes from the side you're not near, so there's time to read it
+                    } else if (b.moveKind == (int)KrakenMove::TentacleReach) {
                         b.reach = TentacleReachState{};
                         b.reach.active = true;
                         b.reach.base[0] = {pitL, KrakenOrigin(p) + 16.0f * T};
@@ -666,7 +681,7 @@ void UpdateBoss(PlatformState& p, float dt) {
                     }
                 }
                 if (b.defeated) break;
-                if (b.timer > 2.9f && playerInArena && !b.reach.active && !b.rain.active && !b.beak.active) { b.state = 1; b.timer = 0; }
+                if (b.timer > 2.9f && playerInArena && !b.reach.active && !b.rain.active && !b.beak.active && b.sweepT < 0) { b.state = 1; b.timer = 0; }
                 break;
             case 1: if (b.timer > 0.5f) { b.state = 2; b.timer = 0; } break;
             case 2: if (b.timer > 2.2f) { b.state = 3; b.timer = 0; } break;
@@ -689,6 +704,10 @@ void UpdateBoss(PlatformState& p, float dt) {
                     b.vel.x = 0;
                     b.timer = 0;
                     b.state = (b.volley++ % 2 == 0 && fabsf(px - bx) > 2.5f * T) || p.pos.y + PH < b.pos.y ? 4 : 1; // a shot, or a charge
+                    // once he's been hit he also carries a blunderbuss: a fan of shot at head height and above, so the only
+                    // way through is to slide under it (a jump flies into the upper pellets)
+                    bool level = fabsf(p.pos.y + PH - (b.pos.y + BB_H)) < 6 && p.onGround;
+                    if (hits >= 1 && level && fabsf(px - bx) > 3.5f * T && GetRandomValue(0, 99) < 45) b.state = 6;
                 }
                 break;
             case 1: // wind-up: he lowers his head and paws the boards
@@ -712,6 +731,20 @@ void UpdateBoss(PlatformState& p, float dt) {
                     b.state = b.volley % 2 == 0 ? 4 : 0; // fires twice in a row from the second hit on
                     b.volley += b.state == 4;
                     b.timer = b.state == 4 ? 0.08f : 0;
+                }
+                break;
+            case 6: // the blunderbuss: he shoulders it (a long, readable wind-up), then it roars
+                b.vel.x = 0;
+                b.dir = px < bx ? -1.0f : 1.0f;
+                if (b.timer > (p.hard ? 0.7f : 0.85f)) {
+                    float feet = b.pos.y + BB_H;
+                    Vector2 muzzle{bx + b.dir * 30, feet - 21};
+                    for (int k = 0; k < 7; k++) { // the lowest pellet flies flat at head height; the rest fan upward over any jump
+                        float rise = k == 0 ? 0.0f : 40.0f + k * 55.0f;
+                        p.shots.push_back({{muzzle.x, k == 0 ? feet - 21 : feet - 21 - k * 3.0f}, {b.dir * 470, -rise}, 4, 0});
+                    }
+                    Burst(p, muzzle, 18, Color{255, 200, 110, 255}, 220, 0.35f, 3);
+                    b.state = 3; b.timer = -0.3f; // the kick staggers him a moment
                 }
                 break;
             case 5: // dazed after hitting a wall: now he can be stomped, but not for long
@@ -5703,7 +5736,7 @@ void DrawBossBack(const PlatformState& p, float t) {
     float arenaX = (p.w - CH_W) * (float)T;
     float sink = b.defeated && b.state == 4 ? std::min(1.0f, b.timer / 3.0f) * 300 : 0;
     Vector2 body{arenaX + 13 * T, KrakenOrigin(p) + 17.5f * T + sink};
-    Color deeper{30, 13, 40, 255};
+    Color deeper{40, 14, 26, 255};
     for (int k = 0; k < 7; k++) { // great arms churning in the abyss beneath everything
         float bx = body.x - 300 + k * 100, sw = sinf(t * 0.6f + k) * 60;
         DrawTentacle({bx, body.y}, {bx + sw, KrakenOrigin(p) + 3.0f * T + (k % 3) * 40 + sink}, 20, t * 0.4f, k * 1.7f, deeper);
@@ -5714,7 +5747,8 @@ void DrawBossBack(const PlatformState& p, float t) {
 // shadow and mottled skin, translucent glowing organs showing through, barnacles and suckers, a heavy brow
 // shadow over great slit eyes that follow you, and a dark beak. `beakDir` (+1/-1) draws it charging sideways.
 void DrawKrakenHeadArt(float cx, float top, float S, float t, bool blink, float look, float beakDir = 0) {
-    Color skin = blink ? WHITE : Color{92, 62, 86, 255}, mid{70, 46, 66, 255}, dk{46, 30, 46, 255}, ink{12, 8, 14, 255};
+    // a deep-water red: an abyssal octopus's skin, mottled wine over bruise-purple, pale where old wounds healed
+    Color skin = blink ? WHITE : Color{120, 52, 70, 255}, mid{86, 36, 56, 255}, dk{52, 22, 40, 255}, ink{12, 6, 12, 255};
     float pulse = 0.5f + 0.5f * sinf(t * 3);
     float f = beakDir != 0 ? beakDir : 0;
     for (int k = -3; k <= 3; k++) // a crown of arms writhing behind and below the head
@@ -5736,11 +5770,23 @@ void DrawKrakenHeadArt(float cx, float top, float S, float t, bool blink, float 
         DrawTri({bx - 4 * S, by + 6 * S}, {bx + 4 * S, by + 6 * S}, {bx, by - 2 * S}, Color{184, 176, 152, 255});
         DrawTri({bx, by - 2 * S}, {bx + 4 * S, by + 6 * S}, {bx + 1 * S, by + 6 * S}, ink);
     }
-    for (int s = -1; s <= 1; s += 2) { // vast eyes under a heavy black brow
+    for (int k = 0; k < 7; k++) { // chromatophores: waves of dark colour rolling over the mantle, the way a real octopus flushes when it hunts
+        float ph = fmodf(t * 0.7f + k * 0.14f, 1.0f);
+        Vector2 cp{cx - 44 * S + ph * 88 * S, top + (10 + (k * 11) % 34) * S};
+        if (((cp.x - cx) * (cp.x - cx)) / (50 * 50 * S * S) + ((cp.y - top - 28 * S) * (cp.y - top - 28 * S)) / (36 * 36 * S * S) < 1)
+            DrawCircleV(cp, (3 + 2 * sinf(ph * PI)) * S, Fade(Color{120, 30, 50, 255}, 0.5f * sinf(ph * PI)));
+    }
+    DrawLineEx({cx - 30 * S, top + 18 * S}, {cx - 12 * S, top + 30 * S}, 2.2f * S, Color{150, 110, 130, 255});               // an old scar: three raked gouges
+    DrawLineEx({cx - 26 * S, top + 14 * S}, {cx - 8 * S, top + 26 * S}, 1.6f * S, Color{150, 110, 130, 255});
+    DrawLineEx({cx - 22 * S, top + 11 * S}, {cx - 6 * S, top + 21 * S}, 1.2f * S, Color{150, 110, 130, 255});
+    for (int k = 0; k < 4; k++) DrawEllipse((int)(cx - 30 * S + k * 16 * S), (int)(top + 6 * S + (k % 2) * 3 * S), 6 * S, 1.6f * S, Fade(Color{220, 200, 230, 255}, 0.55f)); // wet highlights along the crown
+    for (int s = -1; s <= 1; s += 2) { // vast eyes under a heavy black brow: a gold iris and the flat bar pupil of an octopus
         float ex = cx + s * 24 * S, ey = top + 42 * S;
         DrawEllipse((int)ex, (int)ey, 14 * S, 11 * S, ink);
         DrawEllipse((int)ex, (int)ey, 12 * S, 9 * S, Color{206, 176, 70, 255});
-        DrawRectangle((int)(ex - 2 * S + look * S), (int)(ey - 8 * S), (int)(4 * S), (int)(16 * S), ink);
+        DrawEllipse((int)ex, (int)(ey + 2 * S), 10 * S, 6 * S, Color{176, 120, 40, 255});                                                   // the iris darkening toward the lid
+        DrawRectangle((int)(ex - 8 * S + look * S), (int)(ey - 1.5f * S), (int)(16 * S), (int)(3.5f * S), ink);                             // the bar pupil
+        DrawCircleV({ex - 5 * S, ey - 4 * S}, 1.6f * S, Fade(WHITE, 0.8f));                                                                  // a wet glint
         DrawTri({ex - 14 * S, ey - 4 * S}, {ex + 14 * S, ey - 4 * S}, {ex + s * 4 * S, ey - 16 * S}, ink);                                  // the brow
     }
     for (int k = -2; k <= 2; k++) DrawCircle((int)(cx + k * 12 * S), (int)(top + 62 * S), 2.6f * S, Color{150, 120, 116, 255});             // suckers
@@ -5759,7 +5805,7 @@ BBAnim BBAnimOf(const PlatBoss& b) {
         case 0: return fabsf(b.vel.x) > 1 ? BBAnim::Walk : BBAnim::Idle;
         case 1: return BBAnim::Windup;
         case 2: return BBAnim::Charge;
-        case 4: return BBAnim::AimPistol;
+        case 4: case 6: return BBAnim::AimPistol;
         case 5: return BBAnim::Dazed;
         default: return BBAnim::Recover;
     }
@@ -5796,7 +5842,9 @@ void DrawBlackbeard(const PlatformState& p, const PlatBoss& b, float t) {
     switch (an) {
         case BBAnim::Windup: handF = P(-12, -78); handB = P(-8, -44); break;                        // cutlass raised behind
         case BBAnim::Charge: handF = P(22, -50 - sinf(w) * 2); handB = P(-10, -46); break;           // lunging forward
-        case BBAnim::AimPistol: { Vector2 aim{p.pos.x + PW / 2, p.pos.y + PH / 2}; float ang = atan2f(aim.y - shFront.y, aim.x - shFront.x); handF = {shFront.x + cosf(ang) * 26, shFront.y + sinf(ang) * 26}; handB = P(-6, -44); break; }
+        case BBAnim::AimPistol:
+            if (b.state == 6) { handF = P(16, -24); handB = P(4, -28); break; } // the blunderbuss, braced low at the hip
+            { Vector2 aim{p.pos.x + PW / 2, p.pos.y + PH / 2}; float ang = atan2f(aim.y - shFront.y, aim.x - shFront.x); handF = {shFront.x + cosf(ang) * 26, shFront.y + sinf(ang) * 26}; handB = P(-6, -44); break; }
         case BBAnim::Dazed: handF = P(10, -30); handB = P(-6, -30); break;
         case BBAnim::Walk: handF = P(12 + sinf(w) * 5, -46); handB = P(-8 - sinf(w) * 5, -44); break;
         default: handF = P(14, -48); handB = P(-8, -44); break;
@@ -5828,7 +5876,15 @@ void DrawBlackbeard(const PlatformState& p, const PlatBoss& b, float t) {
     // ---- near arm with the cutlass or the pistol
     limb(shFront, elbowF, 7.5f, coat); limb(elbowF, handF, 6.5f, coat);
     DrawCircleV(handF, 4.5f, skin);
-    if (an == BBAnim::AimPistol) { // a pistol, levelled
+    if (b.state == 6) { // the blunderbuss: a stock under the arm, a long barrel and a flared brass bell, a fuse of light running along it
+        Vector2 stock = P(-4, -26), bell = P(34, -21);
+        DrawLineEx(stock, handF, 7, INKC); DrawLineEx(stock, handF, 4.5f, Color{110, 70, 40, 255});
+        DrawLineEx(handF, bell, 6, INKC); DrawLineEx(handF, bell, 3.6f, Color{150, 120, 60, 255});
+        DrawTri({bell.x, bell.y - 7}, {bell.x, bell.y + 7}, {bell.x - f * 8, bell.y}, INKC);
+        DrawTri({bell.x, bell.y - 5}, {bell.x, bell.y + 5}, {bell.x - f * 6, bell.y}, Color{200, 160, 70, 255});
+        float u = std::clamp(b.timer / 0.85f, 0.0f, 1.0f);
+        for (float dd = 40; dd < 40 + 120 * u; dd += 12) { DrawRectangle((int)(cx + f * dd), (int)(fy - 22), 2, 2, Fade(Color{255, 90, 60, 255}, 0.55f)); for (int k = 1; k < 4; k++) DrawRectangle((int)(cx + f * dd), (int)(fy - 22 - (dd - 40) * k * 0.12f), 2, 2, Fade(Color{255, 90, 60, 255}, 0.3f)); } // the spread, traced out
+    } else if (an == BBAnim::AimPistol) { // a pistol, levelled
         float ang = atan2f(handF.y - shFront.y, handF.x - shFront.x);
         Vector2 muzzle{handF.x + cosf(ang) * 14, handF.y + sinf(ang) * 14};
         DrawLineEx(handF, muzzle, 5.5f, INKC); DrawLineEx(handF, muzzle, 3.2f, Color{90, 90, 100, 255});
@@ -5878,7 +5934,7 @@ void DrawBlackbeard(const PlatformState& p, const PlatBoss& b, float t) {
 void DrawBoss(const PlatformState& p, float t) {
     const PlatBoss& b = p.boss;
     if (b.type == 'K') {
-        Color arm{86, 58, 80, 255};
+        Color arm{110, 46, 62, 255};
         for (int i = 0; i < 2; i++) {
             if (b.tentT[i] < 0) continue;
             if (b.tentT[i] < 0.75f) { // warning: churning water below, or a shadow falling from above
@@ -5915,6 +5971,22 @@ void DrawBoss(const PlatformState& p, float t) {
                 DrawEllipse((int)lx, (int)(KrakenOrigin(p) + 10.5f * T), 44, 26, wake);
                 DrawEllipse((int)lx, (int)(KrakenOrigin(p) + 10.5f * T), 30, 16, Fade(Color{150, 90, 170, 255}, 0.8f));
                 for (int k = 0; k < 4; k++) DrawCircle((int)(lx - (b.lungeToX > b.lungeFromX ? 1 : -1) * k * 14), (int)(KrakenOrigin(p) + 10.5f * T + Rnd(-8, 8)), 6, Fade(WHITE, 0.4f));
+            }
+        }
+        if (b.sweepT >= 0) { // the sweep: an arm coils up out of the water at one side, then scythes flat across at head height
+            float arenaX = (p.w - CH_W) * (float)T, water = KrakenOrigin(p) + 16.0f * T;
+            float sideX = b.sweepDir > 0 ? arenaX - 1.5f * T : arenaX + 25.5f * T, headY = b.sweepY - PH + 1;
+            if (b.sweepT < KRAKEN_SWEEP_WARN) {
+                float u = b.sweepT / KRAKEN_SWEEP_WARN;
+                DrawTentacle({sideX, water + 30}, {sideX + b.sweepDir * 20 * u, water - (water - headY) * u - 30 * u}, 18, t * 3, 1.3f, arm); // rearing up, coiled
+                float a = 0.2f + 0.3f * fabsf(sinf(t * 12));
+                DrawRectangle((int)arenaX, (int)(b.sweepY - PH - 8), 24 * T, 18, Fade(Color{150, 40, 40, 255}, a)); // the band it will sweep
+                for (int k = 0; k < 10; k++) { float x = b.sweepDir > 0 ? arenaX + 20 + k * 72.0f : arenaX + 24 * T - 20 - k * 72.0f; DrawTri({x, b.sweepY - PH - 6}, {x, b.sweepY - PH + 8}, {x + b.sweepDir * 16, b.sweepY - PH + 1}, Fade(Color{230, 90, 80, 255}, a + 0.3f)); }            } else {
+                float sx = KrakenSweepX(b, arenaX);
+                DrawTentacle({sideX, water + 30}, {sideX, headY}, 22, t * 4, 1.3f, arm);                  // the root of the arm, up out of the water at the side
+                DrawTentacle({sideX, headY}, {sx + b.sweepDir * 40, headY}, 20, t * 6, 2.1f, arm);        // ...then dragged flat across at head height
+                for (float x = sideX; b.sweepDir > 0 ? x < sx : x > sx; x += b.sweepDir * 22) DrawCircle((int)x, (int)headY + 7, 3, Color{230, 190, 200, 255}); // a row of suckers on its underside
+                for (int k = 0; k < 6; k++) DrawCircle((int)(sx - b.sweepDir * k * 16), (int)(headY + Rnd(-6, 6)), 3, Fade(WHITE, 0.5f - k * 0.07f)); // the wash behind it
             }
         }
         if (b.reach.active) { // the tracking tentacles, and the marks they are homing on
@@ -6126,6 +6198,40 @@ bool VerifyMoves() {
         TraceLog(LOG_WARNING, "verify-moves: plain running jump %.0f px, slide-jump %.0f px", a.pos.x - ax0, b.pos.x - bx0);
         if (b.pos.x - bx0 <= a.pos.x - ax0) fail("a slide-jump didn't carry further than a plain running jump");
     }
+    // 1b) the boss attacks built for the slide: the Kraken's sweep band and Blackbeard's blunderbuss fan both clear a sliding
+    //     diver and catch a standing one, and no jump gets over the blunderbuss
+    {
+        PlatformState p; stage(p, PL_HULL, 80, 20, 15);
+        float feet = 15.0f * T;
+        PlatBoss kb; kb.sweepY = feet; kb.sweepDir = 1; kb.sweepT = KRAKEN_SWEEP_WARN;
+        auto swept = [&](const PlatformState& q) { for (float st = 0; st < KRAKEN_SWEEP_TIME; st += 0.005f) { kb.sweepT = KRAKEN_SWEEP_WARN + st; if (CheckCollisionRecs(PlayerBox(q), KrakenSweepBox(kb, 0))) return true; } return false; };
+        if (!swept(p)) fail("the Kraken's sweep missed a standing diver");
+        run(p, 60, 1, false, false); run(p, 3, 1, false, true);
+        if (p.pose == 1 && swept(p)) fail("the Kraken's sweep caught a sliding diver");
+        // Blackbeard's blunderbuss, fired from 5 tiles away
+        auto volley = [&](PlatformState& q, float muzzleX, float dir) {
+            q.shots.clear();
+            for (int k = 0; k < 7; k++) { float rise = k == 0 ? 0.0f : 40.0f + k * 55.0f; q.shots.push_back({{muzzleX, k == 0 ? feet - 21 : feet - 21 - k * 3.0f}, {dir * 470, -rise}, 4, 0}); }
+        };
+        auto hitBy = [&](PlatformState& q, int frames, float dir, int jumpAt, bool down) {
+            for (int k = 0; k < frames; k++) {
+                if (k == jumpAt) q.jumpBuffer = 0.1f;
+                q.inDown = down; q.upHeld = false; q.shiftHeld = false;
+                StepPlayer(q, dir, k >= jumpAt && jumpAt >= 0);
+                for (auto& s : q.shots) { s.pos.x += s.vel.x * STEP; s.pos.y += s.vel.y * STEP; if (ShotHits(s, PlayerBox(q))) return true; }
+            }
+            return false;
+        };
+        PlatformState st; stage(st, PL_PIRATE, 80, 20, 15); st.pos.x = 20 * (float)T; volley(st, st.pos.x + 5 * T, -1);
+        if (!hitBy(st, 240, 0, -1, false)) fail("the blunderbuss missed a diver standing in front of it");
+        int jumpsThrough = 0;
+        for (int j = 0; j < 60; j += 3) { PlatformState jq; stage(jq, PL_PIRATE, 80, 20, 15); jq.pos.x = 20 * (float)T; volley(jq, jq.pos.x + 5 * T, -1); if (!hitBy(jq, 240, 0, j, false)) jumpsThrough++; }
+        if (jumpsThrough > 0) { fail("a jump got over Blackbeard's blunderbuss"); TraceLog(LOG_WARNING, "verify-moves: %d of 20 jump timings cleared the blunderbuss", jumpsThrough); }
+        PlatformState sq; stage(sq, PL_PIRATE, 80, 20, 15); sq.pos.x = 10 * (float)T;
+        run(sq, 60, 1, false, false); run(sq, 3, 1, false, true);
+        volley(sq, sq.pos.x + 5 * T, -1);
+        if (hitBy(sq, 120, 1, -1, true)) fail("the blunderbuss hit a diver sliding under it");
+    }
     // 2) a hard landing stuns; the same landing with Down and a direction rolls instead, turning the fall into speed
     {
         PlatformState p; stage(p, PL_ISLAND, 60, 40, 35); p.pos.y = 5 * (float)T; p.onGround = false;
@@ -6318,6 +6424,10 @@ void ScenePlatformer(Game& g) {
                     float arenaX = (p.w - CH_W) * (float)T, arenaMid = arenaX + 11.5f * T;
                     bool inCloud = b.inkSafeRight ? p.pos.x + PW < arenaMid : p.pos.x > arenaMid;
                     if (inCloud) Die(p);
+                }
+                if (b.sweepT >= KRAKEN_SWEEP_WARN && b.sweepT < KRAKEN_SWEEP_WARN + KRAKEN_SWEEP_TIME && CheckCollisionRecs(pr, KrakenSweepBox(b, (p.w - CH_W) * (float)T))) {
+                    p.deathCause = "Swept off by the Kraken's arm"; p.deathTip = "Run and press Down to slide under the sweep."; p.causeT = 5.0f;
+                    Die(p);
                 }
                 if (b.lungeT >= 0.15f && b.lungeT < 1.15f) { // the head skims the surface, sweeping across
                     float u = (b.lungeT - 0.15f) / 1.0f, lx = b.lungeFromX + (b.lungeToX - b.lungeFromX) * u;
