@@ -46,22 +46,26 @@ CavernInfo CavernAt(float depth, unsigned seed) {
 // angle where one is present, tapering off with angular distance so it reads as a distinct room, not a
 // wider pipe.
 float TrenchRadius(float depth, float angle, unsigned seed) {
-    float band = 10.0f + 3.0f * sinf(depth * 0.045f + seed * 0.7f);
+    float band = 20.0f + 5.0f * sinf(depth * 0.045f + seed * 0.7f); // twice as wide as it was (the user: room to dodge what comes for you)
     float jag = 0;
     for (int o = 0; o < 3; o++) {
         float freq = 3.0f + o * 5.0f;
-        jag += (Hash2(cosf(angle) * freq + seed * 3.1f, depth * 0.08f + o * 11.0f) - 0.5f) * (1.4f / (o + 1));
+        jag += (Hash2(cosf(angle) * freq + seed * 3.1f, depth * 0.08f + o * 11.0f) - 0.5f) * (2.6f / (o + 1));
     }
+    // ledges and alcoves: every so often the wall steps in (a shelf to shelter under) or caves out (a pocket to hide in)
+    float pocket = Hash2(floorf(depth / 18.0f) + seed * 0.37f, floorf(angle * 3.0f / PI));
+    if (pocket > 0.86f) band += 5.0f * sinf(fmodf(depth, 18.0f) / 18.0f * PI); // an alcove
+    else if (pocket < 0.10f) band -= 3.5f * sinf(fmodf(depth, 18.0f) / 18.0f * PI); // a jutting shelf
     CavernInfo cav = CavernAt(depth, seed);
     if (cav.active) {
         float da = atan2f(sinf(angle - cav.angle), cosf(angle - cav.angle));
-        band += cav.t * expf(-(da * da) / (0.85f * 0.85f)) * 16.0f;
+        band += cav.t * expf(-(da * da) / (0.85f * 0.85f)) * 24.0f;
     }
     return std::max(3.2f, band + jag);
 }
 
-constexpr int RING_SEGMENTS = 18;
-constexpr float RING_STEP = 6.0f;
+constexpr int RING_SEGMENTS = 40;
+constexpr float RING_STEP = 3.0f;
 
 // The trench wall is a GPU mesh built once per seed (never stored in Game/AbyssState - those get plain-
 // data-copied around by debug tooling, and a raylib Model holds live GPU handles that must not be duplicated).
@@ -610,6 +614,68 @@ static void EnsurePressureShader() {
     gPressureReady = true;
 }
 
+// The trench rock, lit for real: the diver's lamp is a spotlight (a cone with a hot centre and soft edge, falling
+// off with distance), the rock gets grain and relief from 3D value noise perturbing its normal and albedo, faint
+// bioluminescent flecks glow on their own, and everything drowns in an exponential black fog - past a dozen metres
+// there is nothing. (ParkourReference1.2: void black, cyan glass, abyssal magenta; the user: semi-real, terrifying,
+// reduced visibility.)
+static Shader gRockShader{};
+static bool gRockReady = false;
+static int gRkLight = -1, gRkDir = -1, gRkCam = -1, gRkTime = -1, gRkFog = -1;
+static const char* ROCK_VS = R"(#version 330
+in vec3 vertexPosition; in vec3 vertexNormal; in vec4 vertexColor;
+uniform mat4 mvp; uniform mat4 matModel;
+out vec3 vPos; out vec3 vNormal; out vec4 vColor;
+void main() { vPos = (matModel * vec4(vertexPosition, 1.0)).xyz; vNormal = vertexNormal; vColor = vertexColor; gl_Position = mvp * vec4(vertexPosition, 1.0); }
+)";
+static const char* ROCK_FS = R"(#version 330
+in vec3 vPos; in vec3 vNormal; in vec4 vColor;
+uniform vec3 uLight; uniform vec3 uDir; uniform vec3 uCam; uniform float uTime; uniform float uFog;
+out vec4 finalColor;
+float h(vec3 p) { return fract(sin(dot(p, vec3(12.9898, 78.233, 45.164))) * 43758.5453); }
+float vnoise(vec3 p) { vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(mix(h(i), h(i + vec3(1,0,0)), f.x), mix(h(i + vec3(0,1,0)), h(i + vec3(1,1,0)), f.x), f.y),
+             mix(mix(h(i + vec3(0,0,1)), h(i + vec3(1,0,1)), f.x), mix(h(i + vec3(0,1,1)), h(i + vec3(1,1,1)), f.x), f.y), f.z); }
+float fbm(vec3 p) { float a = 0.5, s = 0.0; for (int k = 0; k < 4; k++) { s += a * vnoise(p); p *= 2.07; a *= 0.5; } return s; }
+void main() {
+  vec3 p = vPos;
+  float e = 0.15, n0 = fbm(p * 0.9);
+  vec3 grad = vec3(fbm((p + vec3(e,0,0)) * 0.9) - n0, fbm((p + vec3(0,e,0)) * 0.9) - n0, fbm((p + vec3(0,0,e)) * 0.9) - n0) / e;
+  vec3 N = normalize(normalize(vNormal) - grad * 0.9);
+  float strata = 0.5 + 0.5 * sin(p.y * 1.7 + fbm(p * 0.3) * 6.0);
+  vec3 albedo = vColor.rgb * mix(0.55, 1.15, n0) * mix(0.8, 1.05, strata);
+  albedo = mix(albedo, vec3(0.05, 0.10, 0.08), smoothstep(0.55, 0.75, fbm(p * 2.3)));
+  vec3 L = uLight - p; float d = length(L); L /= d;
+  float cone = smoothstep(0.55, 0.92, dot(-L, normalize(uDir)));
+  float atten = 1.0 / (1.0 + 0.02 * d + 0.0022 * d * d);
+  float diff = max(dot(N, L), 0.0);
+  vec3 V = normalize(uCam - p), H = normalize(L + V);
+  float spec = pow(max(dot(N, H), 0.0), 24.0) * 0.35;
+  float halo = 0.10 / (1.0 + 0.5 * d * d);
+  vec3 lit = albedo * (0.02 + (diff * cone * 3.2 + halo + diff * 0.10) * atten) + vec3(spec * cone * atten);
+  float fleck = step(0.985, h(floor(p * 3.0))) * (0.5 + 0.5 * sin(uTime * 1.3 + h(floor(p * 3.0)) * 40.0));
+  lit += vec3(0.1, 0.8, 0.9) * fleck * 0.25;
+  float fog = 1.0 - exp(-uFog * length(uCam - p));
+  finalColor = vec4(mix(lit, vec3(0.004, 0.006, 0.012), clamp(fog, 0.0, 1.0)), 1.0);
+}
+)";
+static void EnsureRockShader() {
+    if (gRockReady) return;
+    gRockShader = LoadShaderFromMemory(ROCK_VS, ROCK_FS);
+    gRockShader.locs[SHADER_LOC_MATRIX_MVP] = GetShaderLocation(gRockShader, "mvp");
+    gRockShader.locs[SHADER_LOC_MATRIX_MODEL] = GetShaderLocation(gRockShader, "matModel");
+    gRkLight = GetShaderLocation(gRockShader, "uLight"); gRkDir = GetShaderLocation(gRockShader, "uDir"); gRkCam = GetShaderLocation(gRockShader, "uCam");
+    gRkTime = GetShaderLocation(gRockShader, "uTime"); gRkFog = GetShaderLocation(gRockShader, "uFog");
+    gRockReady = true;
+}
+// Everything else in the trench fades into the same fog (creatures and props are drawn unlit).
+static Vector3 gFogCam{0, 0, 0};
+static float gFogDensity = 0.09f;
+static Color Fogged(Color c, Vector3 at) {
+    float f = std::clamp(1.0f - expf(-gFogDensity * Vector3Distance(gFogCam, at)), 0.0f, 1.0f);
+    return Color{(unsigned char)(c.r * (1 - f) + 1 * f), (unsigned char)(c.g * (1 - f) + 2 * f), (unsigned char)(c.b * (1 - f) + 3 * f), (unsigned char)(c.a * (1 - f * 0.6f))};
+}
+
 void SceneAbyss(Game& g) {
     AbyssState& a = g.abyss;
     bool over = a.dead || a.won;
@@ -672,7 +738,19 @@ void SceneAbyss(Game& g) {
     BeginLayer(Mode3DRT());
     ClearBackground(Color{2, 3, 6, 255}); // the Void Canvas: near-Vantablack, no visible back wall
     BeginMode3D(cam);
+    gFogCam = camPos;
+    gFogDensity = 0.035f + 0.035f * std::clamp(a.depth / ABYSS_DEPTH_SPAN, 0.0f, 1.0f); // it closes in the deeper you go
     if (gTrenchReady) {
+        EnsureRockShader();
+        Vector3 lampPos = Vector3Add(a.playerPos, {0, 0.4f, 0});
+        Vector3 lampDir = Vector3Normalize(Vector3Subtract(cam.target, cam.position)); // the helmet lamp points where you look
+        lampDir = Vector3Normalize(Vector3Add(lampDir, {0, -0.35f, 0}));                // and a little down the shaft
+        SetShaderValue(gRockShader, gRkLight, &lampPos, SHADER_UNIFORM_VEC3);
+        SetShaderValue(gRockShader, gRkDir, &lampDir, SHADER_UNIFORM_VEC3);
+        SetShaderValue(gRockShader, gRkCam, &camPos, SHADER_UNIFORM_VEC3);
+        SetShaderValue(gRockShader, gRkTime, &a.time, SHADER_UNIFORM_FLOAT);
+        SetShaderValue(gRockShader, gRkFog, &gFogDensity, SHADER_UNIFORM_FLOAT);
+        gTrenchModel.materials[0].shader = gRockShader;
         // seen from inside the shaft, looking outward at the wall: whichever winding that is, don't
         // gamble on it - the trench must never disappear because the camera ended up on its "back" side.
         rlDisableBackfaceCulling();
@@ -697,7 +775,7 @@ void SceneAbyss(Game& g) {
 
     for (auto& c : a.creatures) {
         if (c.state == AbyssCreatureState::Shattered) continue;
-        Color col = KindColor(c.kind);
+        Color col = Fogged(KindColor(c.kind), c.pos);
         // Facing along current velocity when moving, otherwise a stable per-entity default - so a lunging
         // Trench Worm or a hunting Eel visibly orients toward its target instead of always pointing one way.
         Vector3 face = Vector3LengthSqr(c.vel) > 0.05f ? Vector3Normalize(c.vel) : Vector3{cosf(c.wallAngle + PI), 0, sinf(c.wallAngle + PI)};
@@ -805,9 +883,47 @@ void SceneAbyss(Game& g) {
         DrawSphere(p.pos, p.radius / 12.0f * k, Fade(Color{140, 255, 220, 255}, 0.35f * k));
     }
     for (auto& m : a.snow) DrawSphere(m.pos, 0.045f, Fade(Color{200, 220, 235, 255}, 0.5f));
-    Color playerCol = a.isGliding ? Color{200, 240, 255, 255} : Color{230, 200, 160, 255};
-    DrawCapsule(Vector3Add(a.playerPos, {0, 0.5f, 0}), Vector3Add(a.playerPos, {0, -0.5f, 0}), 0.4f, 8, 4, playerCol);
-    DrawSphere(a.playerPos, 0.55f, Fade(Color{180, 255, 240, 255}, 0.18f)); // the player's own weak bioluminescent glow
+    { // the diver: brass helmet with its porthole and lamp, a teal canvas suit, an air tank, kicking legs and fins
+        Vector3 P = a.playerPos, V = a.playerVel;
+        Vector3 up = Vector3Normalize({-V.x * 0.08f, 1.0f, -V.z * 0.08f}); // leans into the way it drifts
+        if (a.isGliding) up = Vector3Normalize({-V.x * 0.3f, 0.6f, -V.z * 0.3f});
+        Vector3 fwd = Vector3Normalize(Vector3Subtract(cam.target, cam.position)); fwd.y = 0;
+        if (Vector3Length(fwd) < 0.01f) fwd = {0, 0, 1};
+        fwd = Vector3Normalize(Vector3Subtract(fwd, Vector3Scale(up, Vector3DotProduct(fwd, up))));
+        Vector3 right = Vector3CrossProduct(fwd, up);
+        auto at = [&](float r, float u, float f) { return Vector3Add(P, Vector3Add(Vector3Scale(right, r), Vector3Add(Vector3Scale(up, u), Vector3Scale(fwd, f)))); };
+        Color suit{40, 110, 118, 255}, suitDk{26, 76, 84, 255}, brass{196, 150, 70, 255}, steel{120, 126, 132, 255};
+        float kick = sinf(a.time * (a.isGliding ? 4.0f : 7.0f)) * 0.18f;
+        DrawCylinderEx(at(0, -0.05f, -0.26f), at(0, 0.45f, -0.26f), 0.13f, 0.13f, 10, steel);  // the air tank
+        DrawCapsule(at(0, -0.25f, 0), at(0, 0.3f, 0), 0.24f, 10, 6, suit);                       // torso
+        DrawSphere(at(0, 0.05f, 0.05f), 0.2f, suitDk);                                            // weight belt
+        for (int sd = -1; sd <= 1; sd += 2) {
+            DrawCapsule(at(sd * 0.28f, 0.28f, 0), at(sd * 0.42f, -0.05f, 0.12f + sd * kick * 0.3f), 0.08f, 6, 3, suit); // arms
+            DrawSphere(at(sd * 0.43f, -0.08f, 0.13f), 0.08f, brass);                                                      // gloves
+            Vector3 knee = at(sd * 0.12f, -0.55f, sd * kick);
+            Vector3 foot = at(sd * 0.13f, -0.95f, -sd * kick * 1.4f);
+            DrawCapsule(at(sd * 0.11f, -0.25f, 0), knee, 0.1f, 6, 3, suit);
+            DrawCapsule(knee, foot, 0.09f, 6, 3, suitDk);
+            DrawTriangle3D(foot, at(sd * 0.13f, -1.25f, -sd * kick * 1.8f + 0.15f), at(sd * 0.13f, -1.22f, -sd * kick * 1.8f - 0.12f), Color{30, 36, 40, 255}); // fins
+            DrawTriangle3D(foot, at(sd * 0.13f, -1.22f, -sd * kick * 1.8f - 0.12f), at(sd * 0.13f, -1.25f, -sd * kick * 1.8f + 0.15f), Color{30, 36, 40, 255});
+        }
+        Vector3 head = at(0, 0.62f, 0.02f);
+        DrawSphere(head, 0.3f, brass);                                                 // the brass helmet
+        DrawCylinderEx(at(0, 0.36f, 0), at(0, 0.44f, 0), 0.3f, 0.3f, 12, Tone(brass, -0.3f)); // its collar
+        Vector3 port = at(0, 0.62f, 0.28f);
+        DrawSphere(port, 0.15f, Color{20, 40, 46, 255});                               // the porthole
+        DrawSphere(Vector3Add(port, Vector3Scale(fwd, 0.04f)), 0.1f, Color{120, 220, 230, 200});
+        Vector3 lamp = at(0, 0.9f, 0.1f);
+        DrawSphere(lamp, 0.08f, Color{255, 250, 220, 255});                           // the helmet lamp
+        Vector3 beamDir = Vector3Normalize(Vector3Add(Vector3Normalize(Vector3Subtract(cam.target, cam.position)), {0, -0.35f, 0}));
+        DrawCylinderEx(lamp, Vector3Add(lamp, Vector3Scale(beamDir, 7.0f)), 0.08f, 2.6f, 18, Fade(Color{255, 245, 210, 255}, 0.045f)); // the beam, in the silt
+        DrawCylinderEx(lamp, Vector3Add(lamp, Vector3Scale(beamDir, 3.5f)), 0.05f, 1.0f, 12, Fade(Color{255, 245, 210, 255}, 0.05f));
+        if (a.isGliding) DrawSphere(P, 0.9f, Fade(Color{180, 255, 240, 255}, 0.06f));
+        for (int k = 0; k < 3; k++) { // breath bubbles rising from the helmet
+            float t2 = fmodf(a.time * 0.9f + k * 0.33f, 1.0f);
+            DrawSphere(Vector3Add(head, {sinf(a.time * 3 + k) * 0.1f, 0.3f + t2 * 1.4f, 0}), 0.04f + 0.02f * k, Fade(Color{200, 240, 255, 255}, 0.5f * (1 - t2)));
+        }
+    }
     EndMode3D();
     EndLayer(); // back to the main scene canvas
 
