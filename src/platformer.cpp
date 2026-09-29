@@ -4296,6 +4296,16 @@ void DrawSiphon(const PlatformState& p, const Beast& b, float t) {
     Color steel{104, 112, 118, 255};
     float ex = x + f * 16, flex = coil ? 1.5f + sinf(t * 30) * 1.5f : 0;
     float lx = std::min(x, ex);
+    { // the exhaust duct it lives in: a big riveted pipe coming down the hull wall and turning out through an elbow
+        float dx = x - f * 2 - 11, top = y - 3 * T;
+        DrawRectangle((int)dx - 1, (int)top, 24, (int)(y - top - 10), FAUNA_INK);
+        DrawRectangle((int)dx, (int)top, 22, (int)(y - top - 10), Color{88, 96, 102, 255});
+        DrawRectangle((int)dx + 3, (int)top, 4, (int)(y - top - 10), Color{130, 138, 144, 255});
+        DrawRectangle((int)dx + 17, (int)top, 3, (int)(y - top - 10), Color{60, 66, 70, 255});
+        for (float yy = top + 10; yy < y - 14; yy += 22) { DrawRectangle((int)dx - 3, (int)yy, 28, 4, Color{70, 76, 82, 255}); for (int k = 0; k < 3; k++) DrawRectangle((int)dx + 2 + k * 8, (int)yy + 1, 2, 2, Color{180, 180, 170, 255}); } // flange rings
+        DrawRectangle((int)dx + 6, (int)top + 20, 3, 24, Color{128, 66, 36, 200}); // rust streaks
+        for (int k = 0; k < 6; k++) { float u = fmodf(t * 0.5f + k / 6.0f, 1.0f); DrawCircle((int)(ex + f * (60 - u * 56)), (int)(y + sinf(k * 1.7f + t) * 16 * (1 - u)), 1.2f, Fade(Color{200, 236, 250, 255}, 0.5f * u)); } // the water, always drawn in toward the mouth
+    }
     DrawRectangle((int)lx - 1, (int)(y - 17 - flex), 18, (int)(34 + flex * 2), FAUNA_INK); // the pipe stub out of the plating
     DrawRectangle((int)lx, (int)(y - 16 - flex), 16, (int)(32 + flex * 2), steel);
     DrawRectangle((int)lx, (int)(y - 16 - flex), 16, 3, Tone(steel, 0.35f));
@@ -6207,6 +6217,7 @@ void StartPlatform(Game& g, int level, bool freshLayout) {
     if (freshLayout || !PlatLayoutValid(g, level)) GeneratePlatLayout(g, level); // every dive is a new random level (the user); deaths replay it
     g.plat = PlatformState{};
     g.plat.level = level;
+    g.plat.seenAtStart = g.platSeen[level];
     g.plat.layoutCode = PlatLayoutCode(g, level);
     g.plat.layout = g.platLayouts[level];
     g.plat.ghost = level == PL_PIRATE && g.plat.layout.size() >= 3 && g.plat.layout[2] != 0;
@@ -6676,6 +6687,31 @@ void ScenePlatformer(Game& g) {
     EndLayer();
     DrawTexturePro(PixelRT().texture, {0, 0, PIXEL_W + 2.0f, -(PIXEL_H + 2.0f)},
                    {-PX, -PX, (PIXEL_W + 2) * PX, (PIXEL_H + 2) * PX}, {0, 0}, 0, WHITE); // whole-pixel placement only
+    { // first-meeting hints: over a plant or creature new to the dossier, a line on what it is for (a few seconds, the first time)
+        int shown = 0; unsigned long long done = 0;
+        for (const auto& b : p.fauna.beasts) {
+            bool tubed = p.level == PL_HULL && b.species == HS_SIPHON; // (always "hidden" in its tube, but its tube is plain to see)
+            if (b.life != BeastLife::Alive || (b.hidden && !tubed) || b.species >= 64 || ((p.seenAtStart >> b.species) & 1) || ((done >> b.species) & 1) || shown >= 2) continue;
+            const char* name = BeastSpecies(p.level, b.species).name; const char* hint = name ? BeastHint(name) : nullptr;
+            if (!hint || fabsf(b.pos.x - p.pos.x) > 6 * T || fabsf(b.pos.y - p.pos.y) > 5 * T) continue;
+            float first = -1;
+            for (auto& h : p.hinted) if (h.first == b.species) first = h.second;
+            if (first < 0) { p.hinted.push_back({b.species, p.time}); first = p.time; }
+            float age = p.time - first;
+            if (age > 7) continue;
+            float a = std::min(1.0f, age * 3) * std::min(1.0f, (7 - age) * 1.5f);
+            done |= 1ull << b.species;
+            Vector2 c = GetWorldToScreen2D({tubed ? b.anchor.x : b.pos.x, (tubed ? b.anchor.y : b.pos.y) - 30}, cam);
+            c = {c.x * PX - PX, c.y * PX - PX - shown * 44};
+            std::string line = std::string(name) + ": " + hint;
+            float w = MeasureTxt(line, 15) + 20.0f;
+            Rectangle r{std::clamp(c.x - w / 2, 8.0f, SCREEN_W - w - 8), std::clamp(c.y - 36, 64.0f, SCREEN_H - 50.0f), w, 30};
+            DrawRectangleRounded(r, 0.3f, 6, Fade(Color{232, 220, 190, 255}, 0.92f * a));
+            DrawRectangleRoundedLinesEx(r, 0.3f, 6, 2, Fade(Pal::BrassDk, a));
+            Txt(line, r.x + 10, r.y + 7, 15, Fade(Pal::Ink, a));
+            shown++;
+        }
+    }
     if (p.deathTimer > 0) DrawRectangle(0, 0, SCREEN_W, SCREEN_H, Fade(Pal::Bad, p.deathTimer * 0.5f));
 
     // ---------------- HUD

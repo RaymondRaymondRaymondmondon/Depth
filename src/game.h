@@ -418,6 +418,8 @@ struct PlatformState {
     int pose = 0;                    // 0 normal, 1 slide, 2 roll, 3 stunned, 4 brake, 5 dash, 6 balance on a pole tip, 7 hydro-glide, 8 backflip, 9 ledge hang
     float moveT = 0;                 // time left (or spent) in the current pose
     float fallTop = 0;               // the highest point of the current fall (a long drop stuns; a short one never does)
+    unsigned long long seenAtStart = 0; // the dossier's entries for this level when the dive began: a species new to it gets a first-meeting hint
+    std::vector<std::pair<int, float>> hinted; // (species, when it was first met this dive)
     float boostT = 0;                // a boosted move's extra speed isn't clawed back in the air until this runs out
     bool dashReady = true;           // one dash per jump: back on landing, on a wall, a pole or a ledge
     Vector2 dashDir{0, 0};
@@ -730,6 +732,7 @@ void SceneBookshelf(Game& g);
 void ScenePeriscope(Game& g);
 bool DossierButton(Rectangle r);   // dossier.cpp: the file-folder button on the Periscope
 bool DrawDossier(Game& g);          // ...and the open dossier
+const char* BeastHint(const char* name); // dossier.cpp: what a plant or creature is for, in a line (first-meeting hints)
 void ParkourAudio(const PlatformState& p, float dt); // sound_parkour.cpp: the platform levels' sound cues
 void AbyssAudio(const AbyssState& a, float dt);
 void DrawVolumeSliders(Rectangle r);  // master / music / effects / ambience, on the Periscope

@@ -195,6 +195,34 @@ void DrawManila(Rectangle r, bool hover) { // a file folder: a tab on top, the f
 
 } // namespace
 
+// A one-line "what it's for", shown over a plant or creature the first time you meet it (ScenePlatformer)
+const char* BeastHint(const char* name) {
+    static const struct { const char* key; const char* hint; } H[] = {
+        {"Hull-Kelp", "hold on to it: turbulence can't tear you loose"}, {"Hydroids", "hit it at speed: stuns everything near - the siphon too"},
+        {"Pressure-Anemone", "dash into it: its jet launches you"}, {"Rust-Algae", "rush through: a blinding cloud behind you"},
+        {"Barnacle-Mites", "dash through: slick, and faster"}, {"Metal-Eater", "it eats at anything heavy on your tail"},
+        {"Siphon", "its tube pulls you in - strike a hydroid to stun it"}, {"Hull-Grazer", "ride its back: the megalodon can't reach you there"},
+        {"Cannon-Moss", "land on it: silent, and no stun"}, {"Ship-Rot", "strike it: a spore cloud"}, {"Mast-Kelp", "dash through: it swings back at pursuers"},
+        {"Barnacle-Cluster", "walk past it - never dash into it"}, {"Lantern Weed", "its light shows the rigging-mimic"},
+        {"Rigging-Mimic", "stop on the ladder before you leap"}, {"Cannoneer", "walk past its porthole - don't sprint"},
+        {"Wood-Borer", "rotten planks give way behind you"}, {"Timber-Shell", "ride its shell"},
+        {"Drum-Fungus", "land on it: a high bounce - and a boom"}, {"Dart Vine", "never touch it - lure a strike through it"},
+        {"Razor-Palm", "jump the roots at a sprint"}, {"Idol's Bloom", "brush past: your dash is fresh again"}, {"Root-Sponge", "land on it: it bounces you back up"},
+        {"Mangrove Stalker", "it snaps at the foot of drops - land moving"}, {"Goliath Island", "ride its back"}, {"Glow-Firefly", "its dust on your suit wakes the centipede"},
+        {"Lantern-Shroom", "steady light: it shows the arachnid's webs"}, {"Acid-Lichen", "deadly to touch"}, {"Vibration-Spore", "strike it: deafens the stalkers"},
+        {"Cave-Cabbage", "slide through: everything forgets you"}, {"Nerve-Root", "it twitches when the worm is coming"}, {"Crystal-Shelled", "walk under it: leeches can't reach you"},
+        {"Echo-Stalker", "it hunts by sound - stand still"}, {"Tremor Worm", "sprinting wakes it"}, {"Glow-Shrimp", "their glow on your suit shows the webs"},
+        {"Blood-Kelp", "grazed, it bleeds - and the Leviathan comes"}, {"Luminescent Anemone", "safe light: stalkers can't see you in it"},
+        {"Air-Weed", "pop it: it shoots you up, and stuns the mantis"}, {"Tangle-Vine", "it drags at you - pass quickly"}, {"Spore-Pod", "a blinding cloud"},
+        {"Goliath Manatee", "ride its back"}, {"Silver-Fin", "hide inside the school"}, {"Electric Ray", "never bump into it"}, {"Harpoon Mantis", "move the moment it glows"},
+        {"Sun-Crystal", "its glare blinds the gargoyle-morays"}, {"Prism-Moss", "a hard landing turns into a sideways dash"}, {"Aqueduct-Vine", "swing: Up or Down turns it"},
+        {"Stasis-Lily", "strike it: everything near freezes"}, {"Ruin-Spore", "strike it: the stonework comes down behind you"}, {"Crystal-Minnow", "dash through: a blinding flash"},
+        {"Mosaic-Snail", "its slime makes you slick"}, {"Orichalcum", "ride it across"}, {"Phalanx", "walk in its row - never run"},
+    };
+    for (const auto& h : H) if (strstr(name, h.key)) return h.hint;
+    return nullptr;
+}
+
 bool DossierButton(Rectangle r) {
     bool hover = CheckCollisionPointRec(GetMousePosition(), r);
     DrawManila(r, hover);
