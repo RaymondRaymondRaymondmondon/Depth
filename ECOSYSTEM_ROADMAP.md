@@ -580,3 +580,21 @@ loop) is the key ask, so this likely wants a genuine steering/pathing behavior (
 over the level's actual solid tiles, or a noise-driven wander target that relocates itself periodically) rather
 than the current leash-and-return model, at least for creatures that roll high on this trait. Roll it into the
 same pass as the swim/flock/death work above, since it touches the same movement helpers.
+
+### Checkpoint (paused at the 5-hour usage limit) - where to resume
+Done this round: pirates sometimes stay out on deck; cave spiders hang from the real ceiling; foreground
+vines/kelp/rock fade instead of popping; beasts re-read broken fragile tiles; predators carry kills (T_CARRY: owls
+in talons, eels/cats/dogs/octopus/bats in jaws) - tested by --verify-pirate-ecosystem; per-species draw sizes
+(BiomeDef::sizes, BeastSize) scale up the food chain; **the Weeds and Atlantis are built** (PL_WEEDS, PL_ATLANTIS:
+BuildWeeds/BuildAtlantis in levelgen.cpp, tile art, backgrounds, 460/560 gold, both valid on the first draw) and
+the Periscope is now a chart (list left, detail right, all 8 dives incl. the Abyss).
+Still to do, in order:
+1. Beast biomes for the Weeds (the user's web: phytoplankton/spores -> kelp seahorses -> mermen + tiger sharks;
+   barracuda -> mermen; mermen <-> tiger sharks; barracuda/mermen/sharks -> electric rays; a ray's death or shock
+   -> electrified corpse -> scavenger crabs + parasitic fungi. Sizes vs the diver: plankton, seahorses, crabs, fungi
+   smaller (different from each other); electric ray about the diver's size; barracuda a little larger; tiger shark
+   and merman 3-4x) and for Atlantis (its own web, distinct). Add WeedsBiome()/AtlantisBiome() in beasts_biomes.cpp,
+   Biome() cases in beasts.cpp, VerifyBeastBiome cases, a --verify flag each, draw functions + dens in platformer.cpp.
+2. Sizes for the other biomes may need a second look at play scale (shots: `--shots shots fauna`).
+3. Remove the old "Still uncharted: the Island, the Weeds, and Atlantis." help line in hub.cpp.
+4. Update CLAUDE.md (new levels, periscope chart, T_CARRY, sizes).

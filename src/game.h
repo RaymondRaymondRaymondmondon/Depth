@@ -295,7 +295,7 @@ struct DungeonState {
 };
 
 // ---------- platformer ----------
-enum PlatLevel { PL_PIPES, PL_HULL, PL_PIRATE, PL_ISLAND, PL_CAVE, PL_COUNT };
+enum PlatLevel { PL_PIPES, PL_HULL, PL_PIRATE, PL_ISLAND, PL_CAVE, PL_WEEDS, PL_ATLANTIS, PL_COUNT };
 
 // PersonalityProfile (rolled per creature from the level's seed) lives in beasts.h, with the living-AI engine.
 
@@ -515,6 +515,7 @@ struct Game {
     bool platHard = false;                   // Periscope option: the full-strength layouts
     bool platCheckpoints = false;            // Periscope option: checkpoints, at the cost of the relic
     bool platHullBoss = true;                // Periscope option: fight the Kraken (only chance of a relic)
+    int periscopeSel = 0;                    // which dive the Periscope's chart has open (not saved)
     bool platPirateBoss = true;              // Periscope option: fight Blackbeard (guarantees relic(s))
     bool abyssCleared = false;               // reached the bottom of the Open Abyss's trench at least once
     float abyssBest = 0;                     // best depth ever reached there (metres), 0 = never dived

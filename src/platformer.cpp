@@ -122,10 +122,13 @@ const LevelDef& Lv(int level) {
         d[PL_PIRATE] = {"The Pirate Ship", P(CABIN_ARENA, 0, 2), P(CABIN_ARENA_NOBOSS, 0, 2), 0, 200, '#', false, '.'};
         d[PL_ISLAND] = {"The Island", Part{}, Part{}, 0, 300, '#', false, '.'}; // no boss arena yet - the crossing itself ends the level, like the Pipes
         d[PL_CAVE] = {"The Cave", Part{}, Part{}, 0, 380, '#', true, '#'}; // no boss arena yet; dark like the Pipes - lamp-lit only
+        d[PL_WEEDS] = {"The Weeds", Part{}, Part{}, 0, 460, '#', false, '.'}; // a sunlit kelp forest; no boss arena
+        d[PL_ATLANTIS] = {"Atlantis", Part{}, Part{}, 0, 560, '#', true, '.'}; // the drowned city: deep, lamp-lit, glyph-lit; no boss arena yet
         return d;
     }();
     return defs[level];
 }
+bool PlatHasArena(int level) { return level == PL_HULL || level == PL_PIRATE; } // only these two end in a boss arena; the rest end in an exit
 float Rnd(float lo, float hi) { return lo + (hi - lo) * GetRandomValue(0, 10000) / 10000.0f; }
 
 // ---------------------------------------------------------------- tiles and collision
@@ -838,7 +841,7 @@ void BuildLevel(PlatformState& p) {
     unsigned seed = p.layout.empty() ? 1u : (unsigned)p.layout[0];
     float scale = p.layout.size() > 1 ? p.layout[1] / 100.0f : 1.0f;
     GenLevel gl = GenerateLevel(p.level, seed, scale);
-    const Part* arena = (p.level == PL_PIPES || p.level == PL_ISLAND || p.level == PL_CAVE) ? nullptr : &(p.bossEnabled ? L.last : L.lastNoBoss);
+    const Part* arena = !PlatHasArena(p.level) ? nullptr : &(p.bossEnabled ? L.last : L.lastNoBoss);
     BuildFromGrid(p, gl, arena, L.fill, L.fillAbove);
     if (!p.hard) // Normal: mines and spiked balls become a plain spiked bed underfoot instead of vanishing outright, and the jets fire on a shorter, gentler window (see JetOn) rather than going cold
         for (auto& row : p.tiles)
@@ -1382,8 +1385,105 @@ void BackgroundSystem::Setup(int lv) {
                 DrawEllipse((int)(x + sway), (int)len, 14, 8, Fade(Color{16, 26, 12, 255}, edge));
             });
         }};
-    } else if (lv == PL_CAVE) {
-        farLayer = {0.1f, 0.1f, [cw, ch](const PlatformState& p, float t, float ox, float oy) { // near-black rock strata, lost past the lamp's reach
+    } else if (lv == PL_WEEDS) {
+        farLayer = {0.1f, 0.1f, [cw, ch](const PlatformState& p, float t, float ox, float oy) { // sunlit green water: shafts of light from the surface, the forest fading into haze
+            (void)p; (void)oy;
+            DrawRectangleGradientV(0, 0, (int)cw, (int)ch, Color{96, 170, 150, 255}, Color{22, 70, 70, 255});
+            for (int k = 0; k < 7; k++) { // god-rays, slanting and slowly shifting
+                float x0 = fmodf(k * 211.0f - ox * 0.05f + t * 6 + 9000, cw + 300) - 150, w = 40 + (k % 3) * 25;
+                DrawTri({x0, 0}, {x0 + w, 0}, {x0 + w * 0.5f + 160, ch}, Fade(Color{220, 250, 210, 255}, 0.07f + 0.03f * sinf(t * 0.5f + k)));
+            }
+            Layer(ox / 0.1f, 0.1f, 60, cw, [&](float x, float wx) { // the far forest, a wall of pale stalks
+                float h = ch * (0.5f + Hs(wx) * 0.45f);
+                DrawRectangle((int)x, (int)(ch - h), 5, (int)h, Color{44, 104, 90, 255});
+            });
+        }};
+        midLayer = {0.4f, 0.4f, [cw, ch](const PlatformState& p, float t, float ox, float oy) { // tall kelp with its floats, a school of fish drifting through, rock stacks
+            (void)p; (void)oy;
+            Layer(ox / 0.4f, 0.4f, 180, cw, [&](float x, float wx) { // sea-stacks of reef rock
+                if (Hs(wx + 7) < 0.55f) return;
+                float h = ch * (0.25f + Hs(wx) * 0.35f), w = 50 + Hs(wx + 1) * 40;
+                DrawRectangle((int)x, (int)(ch - h), (int)w, (int)h, Color{30, 64, 62, 255});
+                DrawRectangle((int)x, (int)(ch - h), (int)w, 6, Color{110, 120, 90, 255});
+            });
+            Layer(ox / 0.4f, 0.4f, 120, cw, [&](float x, float wx) {
+                Vector2 prev{x, ch};
+                int n = 18 + (int)(Hs(wx) * 14);
+                for (int s = 1; s <= n; s++) {
+                    Vector2 q{x + sinf(t * 0.8f + wx + s * 0.3f) * s * 0.9f, ch - s * 18.0f};
+                    DrawLineEx(prev, q, 4.0f, Fade(Color{36, 96, 60, 255}, 0.55f));
+                    if (s % 4 == 0) { DrawEllipse((int)q.x + 5, (int)q.y, 4, 3, Color{120, 110, 50, 255}); DrawTri(q, {q.x + 14, q.y - 6}, {q.x + 4, q.y + 4}, Color{50, 120, 70, 255}); }
+                    prev = q;
+                }
+            });
+            for (int k = 0; k < 12; k++) { // a school of small fish wheeling far off
+                float sx2 = fmodf(k * 23.0f - ox * 0.3f + t * 30 + 9000, cw + 200) - 100, sy2 = ch * 0.3f + sinf(t * 0.7f + k * 0.4f) * 30 + (k % 4) * 8;
+                DrawEllipse((int)sx2, (int)sy2, 4, 1.5f, Fade(Color{200, 230, 220, 255}, 0.5f));
+            }
+        }};
+        foreLayer = {1.3f, 1.15f, [cw, ch](const PlatformState& p, float t, float ox, float oy) { // near kelp fronds at the edges of the lens
+            (void)p; (void)oy;
+            Layer(ox / 1.3f, 1.3f, 300, cw, [&](float x, float wx) {
+                float edge = std::clamp((fabsf(x - cw * 0.5f) - cw * 0.3f) / (cw * 0.13f), 0.0f, 1.0f);
+                if (edge <= 0.01f) return;
+                Vector2 prev{x, ch + 4};
+                for (int s = 1; s <= 12; s++) {
+                    Vector2 q{x + sinf(t * 0.7f + wx + s * 0.4f) * s * 2.0f, ch - s * 26.0f * (0.6f + Hs(wx) * 0.5f)};
+                    DrawLineEx(prev, q, 10.0f - s * 0.5f, Fade(Color{8, 30, 20, 255}, 0.85f * edge));
+                    prev = q;
+                }
+            });
+        }};
+    } else if (lv == PL_ATLANTIS) {
+        farLayer = {0.06f, 0.06f, [cw, ch](const PlatformState& p, float t, float ox, float oy) { // the deep: a pale eye of light far above, and the skyline of the drowned city
+            (void)p; (void)oy;
+            DrawRectangleGradientV(0, 0, (int)cw, (int)ch, Color{20, 34, 58, 255}, Color{4, 8, 16, 255});
+            DrawCircle((int)(cw * 0.62f), 70, 60, Fade(Color{170, 210, 230, 255}, 0.10f)); DrawCircle((int)(cw * 0.62f), 70, 26, Fade(Color{200, 230, 240, 255}, 0.16f)); // the pale eye
+            Layer(ox / 0.06f, 0.06f, 140, cw, [&](float x, float wx) { // domes, towers and stepped temples
+                float h = ch * (0.25f + Hs(wx) * 0.35f), w = 40 + Hs(wx + 1) * 60;
+                Color c{14, 24, 40, 255};
+                int kind = (int)(Hs(wx + 5) * 3);
+                DrawRectangle((int)x, (int)(ch - h), (int)w, (int)h, c);
+                if (kind == 0) DrawCircle((int)(x + w / 2), (int)(ch - h), w * 0.45f, c);                                         // a dome
+                else if (kind == 1) { DrawRectangle((int)(x + w * 0.35f), (int)(ch - h - 60), (int)(w * 0.3f), 60, c); DrawTri({x + w * 0.3f, ch - h - 60}, {x + w * 0.7f, ch - h - 60}, {x + w * 0.5f, ch - h - 90}, c); } // a spire
+                else for (int k = 1; k <= 3; k++) DrawRectangle((int)(x + k * 6), (int)(ch - h - k * 14), (int)(w - k * 12), 14, c); // a stepped temple
+                if (Hs(wx + 9) > 0.6f) DrawRectangle((int)(x + w / 2 - 2), (int)(ch - h * 0.6f), 4, 6, Fade(Color{120, 220, 240, 255}, 0.35f + 0.15f * sinf(t + wx))); // a window still glowing
+            });
+        }};
+        midLayer = {0.35f, 0.35f, [cw, ch](const PlatformState& p, float t, float ox, float oy) { // nearer ruins: colonnades, broken arches and fallen statues
+            (void)p; (void)oy;
+            Layer(ox / 0.35f, 0.35f, 120, cw, [&](float x, float wx) {
+                Color c{24, 36, 54, 255}, lt{40, 56, 78, 255};
+                int kind = (int)(Hs(wx) * 3);
+                if (kind == 0) { // a column, whole or broken
+                    float h = ch * (0.3f + Hs(wx + 2) * 0.4f);
+                    DrawRectangle((int)x, (int)(ch - h), 22, (int)h, c); DrawRectangle((int)x + 3, (int)(ch - h), 3, (int)h, lt);
+                    DrawRectangle((int)x - 4, (int)(ch - h), 30, 8, c);
+                } else if (kind == 1) { // an arch
+                    float h = ch * 0.45f;
+                    DrawRectangle((int)x, (int)(ch - h), 16, (int)h, c); DrawRectangle((int)x + 70, (int)(ch - h), 16, (int)h, c);
+                    DrawRing({x + 43, ch - h}, 27, 43, 180, 360, 16, c);
+                } else { // a fallen statue''s head, half buried
+                    DrawCircle((int)x + 30, (int)(ch - 20), 34, c);
+                    DrawRectangle((int)x + 14, (int)(ch - 30), 10, 4, lt); DrawRectangle((int)x + 36, (int)(ch - 30), 10, 4, lt);
+                }
+            });
+            for (int k = 0; k < 30; k++) { // slow motes of silt glinting in the glyph-light
+                float sx2 = fmodf(k * 89.0f - ox * 0.6f + 9000, cw), sy2 = fmodf(k * 47.0f + t * (4 + k % 3 * 2), ch);
+                DrawRectangle((int)sx2, (int)sy2, 1, 1, Fade(Color{160, 220, 240, 255}, 0.35f));
+            }
+        }};
+        foreLayer = {1.3f, 1.15f, [cw, ch](const PlatformState& p, float t, float ox, float oy) { // broken column shafts framing the lens
+            (void)p; (void)t; (void)oy;
+            Layer(ox / 1.3f, 1.3f, 340, cw, [&](float x, float wx) {
+                float edge = std::clamp((fabsf(x - cw * 0.5f) - cw * 0.3f) / (cw * 0.13f), 0.0f, 1.0f);
+                if (edge <= 0.01f) return;
+                float h = (120 + Hs(wx) * 200) * edge;
+                DrawRectangle((int)x - 20, (int)(ch - h), 40, (int)h, Color{4, 6, 10, 255});
+                DrawTri({x - 20, ch - h}, {x + 20, ch - h}, {x + 6, ch - h - 18 * edge}, Color{4, 6, 10, 255});
+            });
+        }};
+    } else if (lv == PL_CAVE) {        farLayer = {0.1f, 0.1f, [cw, ch](const PlatformState& p, float t, float ox, float oy) { // near-black rock strata, lost past the lamp's reach
             (void)p; (void)t; (void)oy;
             DrawRectangleGradientV(0, 0, (int)cw, (int)ch, Color{14, 12, 16, 255}, Color{4, 3, 5, 255});
             Layer(ox / 0.1f, 0.1f, 160, cw, [&](float x, float wx) {
@@ -1784,6 +1884,46 @@ void DrawSolid(const PlatformState& p, int x, int y) {
             }
             if (h2 > 0.75f) DrawLineEx({px + 8, py + 10}, {px + 15, py + 22}, 1.4f, ink); // a crack in the stone underneath
         } break;
+        case PL_WEEDS: {
+            // the seabed of a sunlit kelp forest: pale rippled sand over dark reef rock, seagrass and shells on the open tops
+            uint8_t m = SolidMask(p, x, y);
+            bool inner = m == 15;
+            float h1 = Hs(x * 3.9f + y * 7.3f), h2 = Hs(x * 5.7f + y * 3.1f + 3);
+            Color rock{46, 62, 60, 255}, ink{8, 12, 12, 255};
+            DrawRectangle((int)px, (int)py, T, T, inner ? Color{36, 50, 50, 255} : rock);
+            if (inner) { if (h1 > 0.8f) DrawCircle((int)(px + 8 + h2 * 16), (int)(py + 8 + h1 * 14), 2, Color{56, 74, 70, 255}); break; }
+            if (!(m & 1)) { // open top: sand
+                DrawRectangle((int)px, (int)py, T, 7, Color{196, 180, 132, 255});
+                DrawRectangle((int)px, (int)py + 7, T, 2, Color{150, 136, 96, 255});
+                for (int k = 0; k < 3; k++) DrawRectangle((int)px + 2 + k * 11 + (int)(h1 * 4), (int)py + 3 + (k % 2), 6, 1, Color{224, 212, 170, 255}); // ripples
+                for (int k = 0; k < 3; k++) { float bx = px + 4 + k * 10 + h2 * 3, sw = sinf(p.time * 1.6f + x + k) * 2.5f, bh = 5 + Hs(x * 2.3f + k) * 7; DrawLineEx({bx, py + 1}, {bx + sw, py - bh}, 1.6f, Color{70, 140, 90, 255}); } // seagrass
+                if (h2 > 0.85f) { DrawCircle((int)(px + 20), (int)py + 3, 2.5f, Color{236, 206, 196, 255}); DrawCircle((int)(px + 20), (int)py + 3, 1, Color{190, 140, 130, 255}); } // a shell
+            }
+            if (!(m & 4)) for (int k = 0; k < 2; k++) { float bx = px + 8 + k * 14, sw = sinf(p.time * 1.3f + x + k) * 2; DrawLineEx({bx, py + T - 2}, {bx + sw, py + T + 6}, 3, ink); DrawLineEx({bx, py + T - 2}, {bx + sw, py + T + 6}, 1.6f, Color{60, 120, 86, 255}); }
+            if (h1 > 0.84f) Barnacles(px + 6 + h2 * 16, py + 12 + h1 * 10);
+        } break;
+        case PL_ATLANTIS: {
+            // the drowned city's masonry: pale dressed stone in courses, a carved meander along every open top, glyphs that still glow
+            uint8_t m = SolidMask(p, x, y);
+            bool inner = m == 15;
+            float h1 = Hs(x * 4.3f + y * 6.1f), h2 = Hs(x * 2.7f + y * 8.9f + 2);
+            Color stone = inner ? Color{64, 70, 82, 255} : Color{112, 118, 126, 255}, joint{48, 52, 64, 255}, lt{156, 162, 166, 255};
+            DrawRectangle((int)px, (int)py, T, T, stone);
+            int off = (y % 2) * 16; // courses of ashlar, the joints staggered row to row
+            DrawRectangle((int)px, (int)py + 15, T, 2, joint);
+            DrawRectangle((int)px + ((off + 0) % T), (int)py, 2, 15, joint);
+            DrawRectangle((int)px + ((off + 16) % T), (int)py + 17, 2, 15, joint);
+            if (inner) { if (h1 > 0.9f) DrawRectangle((int)px + 10, (int)py + 6, 12, 4, Fade(Color{120, 220, 230, 255}, 0.25f + 0.1f * sinf(p.time * 1.5f + x))); break; }
+            DrawRectangle((int)px + 1, (int)py + 1, T - 2, 2, lt);
+            if (!(m & 1)) { // a carved meander band along the top
+                DrawRectangle((int)px, (int)py, T, 8, Color{140, 146, 150, 255});
+                for (int k = 0; k < 4; k++) { int kx = (int)px + k * 8; DrawRectangle(kx + 1, (int)py + 2, 6, 1, joint); DrawRectangle(kx + 6, (int)py + 2, 1, 4, joint); DrawRectangle(kx + 3, (int)py + 5, 4, 1, joint); DrawRectangle(kx + 3, (int)py + 3, 1, 3, joint); }
+                if (h2 > 0.7f) DrawRectangle((int)px + 4 + (int)(h1 * 16), (int)py - 2, 6, 2, Color{70, 120, 90, 255}); // weed on the ledge
+            }
+            if (!(m & 2) && h1 > 0.75f) DrawTri({px + T, py + 6}, {px + T, py + 18}, {px + T - 5, py + 12}, joint); // a chipped corner
+            if (h2 > 0.88f) { float gl = 0.35f + 0.25f * sinf(p.time * 2 + x * 0.7f); DrawRectangle((int)px + 12, (int)py + 18, 2, 8, Fade(Color{140, 230, 240, 255}, gl)); DrawRectangle((int)px + 9, (int)py + 21, 8, 2, Fade(Color{140, 230, 240, 255}, gl)); } // a glyph, still faintly lit
+            if (h1 > 0.8f) DrawLineEx({px + 6, py + 20}, {px + 13, py + 30}, 1.2f, Color{30, 34, 44, 255}); // a crack
+        } break;
         case PL_CAVE: {
             // bare stratified rock: no moss, no coral, no timber - jagged mineral seams and a rare crystal glint, lit only by the lamp
             uint8_t m = SolidMask(p, x, y);
@@ -1839,6 +1979,7 @@ void DrawDepth(const PlatformState& p, int x, int y) {
     char c = p.tiles[y][x];
     float px = x * (float)T, py = y * (float)T;
     if (c == '=' || c == '|') {
+        if (p.level == PL_WEEDS) return; // a kelp float casts no box of shadow
         DrawRectangle((int)px + 5, (int)py + 5, T, T, Color{0, 0, 0, 80});
         return;
     }
@@ -1849,6 +1990,8 @@ void DrawDepth(const PlatformState& p, int x, int y) {
         case PL_HULL: topC = {124, 142, 154, 255}; sideC = {30, 38, 48, 255}; break;
         case PL_ISLAND: topC = {96, 132, 66, 255}; sideC = {46, 36, 24, 255}; break;
         case PL_CAVE: topC = {56, 50, 54, 255}; sideC = {18, 15, 17, 255}; break;
+        case PL_WEEDS: topC = {176, 160, 116, 255}; sideC = {44, 56, 52, 255}; break;
+        case PL_ATLANTIS: topC = {150, 160, 168, 255}; sideC = {38, 44, 58, 255}; break;
         default: topC = {150, 104, 64, 255}; sideC = {64, 40, 24, 255}; break;
     }
     if (!Solid(p, x, y - 1)) {
@@ -1871,7 +2014,7 @@ void DrawPillarCaps(const PlatformState& p, int x, int y) {
     if (!top && !bottom) return;
     float px = x * (float)T, py = y * (float)T;
     float capY = top ? py : py + T - 8;
-    Color plate = p.level == PL_PIPES ? Color{184, 140, 60, 255} : p.level == PL_HULL ? Color{128, 78, 46, 255} : p.level == PL_ISLAND ? Color{110, 84, 50, 255} : p.level == PL_CAVE ? Color{90, 84, 88, 255} : Color{92, 70, 60, 255};
+    Color plate = p.level == PL_PIPES ? Color{184, 140, 60, 255} : p.level == PL_HULL ? Color{128, 78, 46, 255} : p.level == PL_ISLAND ? Color{110, 84, 50, 255} : p.level == PL_CAVE ? Color{90, 84, 88, 255} : p.level == PL_WEEDS ? Color{120, 110, 80, 255} : p.level == PL_ATLANTIS ? Color{176, 180, 170, 255} : Color{92, 70, 60, 255};
     Color dark = ColorBrightness(plate, -0.5f);
     float x0 = (!L1 ? px : px - 0) - (!L1 ? 4 : 0), x1 = (!R1 ? px + T + 4 : px + T);
     DrawRectangle((int)x0, (int)capY, (int)(x1 - x0), 8, dark);
@@ -1908,6 +2051,8 @@ void DrawHazardOverlay(const PlatformState& p, int c0, int c1, int r0, int r1, f
             } else if (p.level == PL_PIRATE) {
                 DrawRectangle((int)px + 3, (int)py + 14, 2, 10, Color{200, 180, 130, 255});
                 DrawRectangle((int)px + T - 5, (int)py + 14, 2, 10, Color{200, 180, 130, 255});
+            } else if (p.level == PL_WEEDS) { // kelp fronds leaning over the urchins
+                for (int k = 0; k < 2; k++) { float sway = sinf(t * 1.6f + x + k * 2) * 3, bx = px + (k ? T - 6 : 4); DrawLineEx({bx, py + T}, {bx + sway, py + 8}, 3, Color{60, 110, 60, 255}); }
             } else if (p.level == PL_ISLAND) { // broad leaves curling over the thorn bed
                 for (int k = 0; k < 2; k++) { float bx = px + (k ? T - 8 : 6); DrawEllipse((int)bx, (int)py + 10, 6, 3, Color{70, 112, 46, 220}); }
             } else {
@@ -1922,7 +2067,7 @@ void DrawTileGrit(const PlatformState& p, int x, int y) {
     float px = x * (float)T, py = y * (float)T;
     float h1 = Hs(x * 3.1f + y * 7.7f), h2 = Hs(x * 5.3f + y * 2.9f + 4), h3 = Hs(x * 1.7f + y * 9.1f + 9);
     if (h1 > 0.55f) { // a rust streak
-        Color rust = p.level == PL_PIRATE ? Color{70, 44, 26, 150} : p.level == PL_ISLAND ? Color{56, 82, 40, 150} : p.level == PL_CAVE ? Color{70, 100, 110, 130} : Color{120, 62, 34, 150};
+        Color rust = p.level == PL_PIRATE ? Color{70, 44, 26, 150} : p.level == PL_ISLAND ? Color{56, 82, 40, 150} : p.level == PL_CAVE ? Color{70, 100, 110, 130} : p.level == PL_WEEDS ? Color{60, 96, 70, 140} : p.level == PL_ATLANTIS ? Color{60, 110, 120, 130} : Color{120, 62, 34, 150};
         DrawRectangle((int)px + 6 + (int)(h2 * 16), (int)py + 4, 3, 8 + (int)(h3 * 20), rust);
         DrawRectangle((int)px + 7 + (int)(h2 * 16), (int)py + 4, 1, 8 + (int)(h3 * 20), Fade(BLACK, 0.4f));
     }
@@ -2165,6 +2310,28 @@ void DrawTile(const PlatformState& p, char c, int x, int y, float t) {
                 else if (x % 4 == 1) { float sw = sinf(p.time * 1.5f + x) * 1.5f; DrawTri({px + 4, py + 19}, {px + 28, py + 19}, {px + 16 + sw, py + 34}, Color{8, 8, 12, 255}); DrawTri({px + 6, py + 19}, {px + 26, py + 19}, {px + 16 + sw, py + 31}, Color{184, 176, 152, 255}); }   // a furled sail
                 break;
             }
+            if (p.level == PL_WEEDS) { // a kelp float: a raft of gas bladders on its own stalk, bobbing
+                float bob = sinf(p.time * 1.4f + x * 0.9f) * 1.5f;
+                for (int k = 0; k < 3; k++) {
+                    float bx = px + 6 + k * 10, by = py + 8 + bob + (k % 2);
+                    DrawEllipse((int)bx, (int)by, 7, 6, Color{8, 12, 10, 255});
+                    DrawEllipse((int)bx, (int)by, 5.5f, 4.5f, Color{150, 132, 60, 255});
+                    DrawEllipse((int)bx - 1, (int)by - 2, 2.5f, 1.5f, Color{210, 196, 120, 255});
+                }
+                DrawLineEx({px, py + 12 + bob}, {px + T, py + 12 + bob}, 3, Color{92, 110, 50, 255}); // the frond they grow from
+                for (int k = 0; k < 2; k++) DrawTri({px + 4 + k * 16, py + 13 + bob}, {px + 12 + k * 16, py + 13 + bob}, {px + 10 + k * 16, py + 22 + bob}, Color{80, 130, 70, 255});
+                break;
+            }
+            if (p.level == PL_ATLANTIS) { // an aqueduct span: a stone channel on its arches, water still spilling over the lip
+                uint8_t am = TileMask(p, x, y, [](char c) { return c == '=' || c == '#'; });
+                DrawRectangle((int)px, (int)py, T, 14, Color{16, 18, 26, 255});
+                DrawRectangle((int)px, (int)py + 1, T, 12, Color{124, 130, 136, 255});
+                DrawRectangle((int)px, (int)py + 1, T, 3, Color{164, 170, 172, 255});
+                for (int k = 0; k < 2; k++) DrawRectangle((int)px + 4 + k * 16, (int)py + 5, 1, 8, Color{64, 70, 82, 255});
+                if (!(am & 4)) DrawRing({px + 16, py + 14}, 12, 15, 0, 180, 12, Color{96, 102, 112, 255}); // the arch under it
+                if (x % 3 == 0) for (int k = 0; k < 4; k++) { float ph = fmodf(p.time * 1.5f + k * 0.25f + x, 1.0f); DrawRectangle((int)px + 20, (int)(py + 12 + ph * 16), 2, 3, Fade(Color{180, 220, 240, 255}, 0.5f * (1 - ph))); } // a trickle over the lip
+                break;
+            }
             Color pipe = p.level == PL_PIPES ? Color{176, 104, 62, 255} : Color{120, 124, 118, 255};
             uint8_t m = TileMask(p, x, y, [](char c) { return c == '=' || c == '|'; });
             bool hasW = m & 8, hasE = m & 2, up = m & 1, down = m & 4;
@@ -2254,6 +2421,14 @@ void DrawTile(const PlatformState& p, char c, int x, int y, float t) {
             for (auto& c : p.crumbles) if (c.tx == x && c.ty == y) shake = (fmodf(c.t * 40, 2) < 1 ? -2.0f : 2.0f) * std::min(1.0f, c.t * 4);
             float ox = px + shake;
             const Color ink{8, 8, 12, 255};
+            if (p.level == PL_ATLANTIS) { // a loose, cracked stone of the span: grit sifting out of it as it shifts
+                DrawRectangle((int)ox, (int)py, T, 14, ink);
+                DrawRectangle((int)ox + 1, (int)py + 1, T - 2, 12, Color{118, 110, 102, 255});
+                DrawRectangle((int)ox + 1, (int)py + 1, T - 2, 3, Color{150, 142, 132, 255});
+                DrawLineEx({ox + 10, py + 1}, {ox + 14, py + 8}, 1.2f, ink); DrawLineEx({ox + 14, py + 8}, {ox + 11, py + 13}, 1.2f, ink); DrawLineEx({ox + 20, py + 2}, {ox + 24, py + 12}, 1.0f, ink);
+                if (shake != 0) for (int k = 0; k < 3; k++) DrawRectangle((int)ox + 6 + k * 9, (int)(py + 15 + fmodf(p.time * 40 + k * 5, 10)), 2, 2, Color{150, 142, 132, 200});
+                break;
+            }
             DrawRectangle((int)ox, (int)py, T, 13, ink);
             DrawRectangle((int)ox + 2, (int)py + 2, T - 4, 9, Color{124, 84, 48, 255});
             DrawRectangle((int)ox + 2, (int)py + 2, T - 4, 2, Color{178, 134, 82, 255});
@@ -2266,6 +2441,19 @@ void DrawTile(const PlatformState& p, char c, int x, int y, float t) {
         } break;
         case 'v': { // a steam vent set into the floor: a brass grate, and a plume whenever it erupts
             DrawSolid(p, x, y);
+            if (p.level == PL_WEEDS || p.level == PL_ATLANTIS) { // a warm seep in the rock (the Weeds), an old fountain's mouth (Atlantis): a column of rising water full of bubbles
+                bool at = p.level == PL_ATLANTIS;
+                if (at) { DrawRectangle((int)px - 2, (int)py - 6, T + 4, 8, Color{16, 18, 26, 255}); DrawRectangle((int)px, (int)py - 5, T, 6, Color{140, 146, 150, 255}); DrawCircle((int)px + 16, (int)py - 2, 5, Color{30, 60, 80, 255}); }
+                else { DrawEllipse((int)px + 16, (int)py + 2, 13, 5, Color{30, 24, 22, 255}); DrawEllipse((int)px + 16, (int)py + 1, 8, 3, Color{220, 120, 60, 200}); }
+                bool on = VentOn(p, x);
+                for (int k = 0; k < (on ? 14 : 3); k++) {
+                    float ph = fmodf(p.time * (on ? 1.1f : 0.5f) + k * 0.09f + x * 0.13f, 1.0f);
+                    float bx = px + 16 + sinf(ph * 9 + k) * (4 + ph * 6), by = py - ph * (on ? 5.4f : 1.2f) * T;
+                    DrawCircleLines((int)bx, (int)by, 2 + (k % 3), Fade(Color{210, 240, 250, 255}, (on ? 0.7f : 0.4f) * (1 - ph)));
+                }
+                if (on) DrawRectangle((int)px + 6, (int)(py - 5.4f * T), T - 12, (int)(5.4f * T), Fade(Color{200, 236, 250, 255}, 0.06f)); // the shimmer of the current
+                break;
+            }
             DrawRectangle((int)px + 3, (int)py, T - 6, 5, Color{20, 16, 14, 255});
             for (int k = 0; k < 4; k++) DrawRectangle((int)px + 5 + k * 6, (int)py, 2, 5, Color{176, 132, 56, 255});
             DrawRectangle((int)px + 2, (int)py - 1, T - 4, 2, Color{184, 140, 60, 255});
@@ -2308,7 +2496,11 @@ void DrawTile(const PlatformState& p, char c, int x, int y, float t) {
                     float ph = fmodf(t * 1.6f + k * 0.33f + x * 0.17f, 1.0f);
                     DrawRectangle((int)(px + T / 2 + sinf(ph * 6 + k) * 6) - 3, (int)(py + 14 - ph * 30), 6 + (int)(ph * 6), 4, Fade(Color{240, 245, 250, 255}, 0.75f * (1 - ph)));
                 }
-            } else if (p.level == PL_HULL) { // an urchin nested in a barnacle-crusted seam
+            } else if (p.level == PL_ATLANTIS) { // a broken floor: shards of dark glassy stone standing up out of the cracked paving
+                DrawRectangle((int)px, (int)py + 16, T, T - 16, Color{16, 18, 26, 255});
+                DrawRectangle((int)px, (int)py + 16, T, 2, Color{96, 102, 112, 255});
+                for (int k = 0; k < 4; k++) { float bx = px + 2 + k * 8.0f, hh = 10 + Hs(x * 3.1f + k) * 8; DrawTri({bx, py + 18}, {bx + 7, py + 18}, {bx + 2 + (k % 2) * 3, py + 18 - hh}, Color{36, 44, 64, 255}); DrawLineEx({bx + 2, py + 17}, {bx + 2 + (k % 2) * 3, py + 19 - hh}, 1, Color{120, 170, 200, 200}); }
+            } else if (p.level == PL_HULL || p.level == PL_WEEDS) { // an urchin nested in a barnacle-crusted seam
                 DrawRectangle((int)px, (int)py + 16, T, T - 16, Color{30, 22, 26, 255});                 // dark rust seam
                 DrawRectangle((int)px, (int)py + 16, T, 2, Color{120, 64, 34, 255});                     // rust line
                 for (int k = 0; k < 4; k++) DrawRectangle((int)px + 4 + k * 8, (int)py + 14 - (k % 2) * 2, 6, 4, Color{204, 198, 176, 255}); // barnacles
@@ -2367,6 +2559,24 @@ void DrawTile(const PlatformState& p, char c, int x, int y, float t) {
         case 't': {
             DrawSolid(p, x, y);
             float cyc = JetCycle(p, x);
+            if (p.level == PL_WEEDS) { // a ray buried in the sand: only its eyes and the outline of its disc show - until it shocks
+                DrawEllipse((int)px + 16, (int)py + 3, 15, 4, Color{176, 160, 116, 255});
+                DrawEllipse((int)px + 16, (int)py + 2, 12, 2.5f, Color{150, 136, 96, 255});
+                DrawCircle((int)px + 11, (int)py + 1, 1.5f, Color{20, 20, 20, 255}); DrawCircle((int)px + 21, (int)py + 1, 1.5f, Color{20, 20, 20, 255});
+                if (cyc < 1.1f) for (int k = 0; k < 5; k++) { // the shock: forked arcs crackling up out of the sand
+                    float a0 = -PI / 2 + (k - 2) * 0.35f, len = 20 + Hs(t * 17 + k) * 30;
+                    Vector2 s0{px + 16, py}, m1{s0.x + cosf(a0) * len * 0.5f + Hs(t * 31 + k) * 8 - 4, s0.y + sinf(a0) * len * 0.5f}, e1{s0.x + cosf(a0) * len, s0.y + sinf(a0) * len};
+                    DrawLineEx(s0, m1, 2, Color{200, 240, 255, 230}); DrawLineEx(m1, e1, 1.5f, Color{150, 220, 255, 200});
+                } else if (cyc > 2.1f) DrawCircle((int)px + 16, (int)py, 3, Fade(Color{170, 230, 255, 255}, 0.5f + 0.5f * sinf(t * 30))); // a flicker: it's charging
+                break;
+            }
+            if (p.level == PL_ATLANTIS) { // a rune plate set into the paving: its glyph flares and anything standing on it burns
+                DrawRectangle((int)px + 3, (int)py, T - 6, 5, Color{30, 36, 48, 255});
+                float on = cyc < 1.1f ? 1.0f : cyc > 2.1f ? 0.4f + 0.3f * sinf(t * 25) : 0.15f;
+                DrawRectangle((int)px + 13, (int)py, 6, 5, Fade(Color{140, 240, 250, 255}, on)); DrawRectangle((int)px + 7, (int)py + 2, 18, 1, Fade(Color{140, 240, 250, 255}, on));
+                if (cyc < 1.1f) for (int k = 0; k < 7; k++) { float ph = fmodf(t * 3 + k * 0.14f, 1.0f); DrawRectangle((int)(px + 6 + k * 3), (int)(py - ph * 2.5f * T), 2, 6, Fade(Color{140, 240, 250, 255}, 0.8f * (1 - ph))); }
+                break;
+            }
             if (p.level == PL_ISLAND) { // a poison-frog mud wallow: no grate, no tall jet - just a rim of churned mud that bubbles low when it's "on"
                 DrawEllipse((int)px + 16, (int)py + 2, 15, 5, Color{58, 44, 26, 255});
                 DrawEllipse((int)px + 16, (int)py + 1, 12, 3.5f, Color{74, 96, 40, 200});
@@ -2393,7 +2603,7 @@ void DrawTile(const PlatformState& p, char c, int x, int y, float t) {
         case 'o': {
             // No marker: just a faint pool of ambient light, the kind of cue the diver has to read (light ahead, a lit passage), never an arrow.
             float fl = 0.8f + 0.2f * sinf(t * 2.3f + x * 1.7f);
-            Color lc = p.level == PL_HULL ? Color{60, 170, 170, 255} : p.level == PL_CAVE ? Color{110, 220, 190, 255} : gGhost ? Color{90, 220, 180, 255} : Color{255, 170, 80, 255};
+            Color lc = p.level == PL_HULL ? Color{60, 170, 170, 255} : p.level == PL_CAVE ? Color{110, 220, 190, 255} : p.level == PL_WEEDS ? Color{230, 240, 170, 255} : p.level == PL_ATLANTIS ? Color{140, 230, 250, 255} : gGhost ? Color{90, 220, 180, 255} : Color{255, 170, 80, 255};
             DrawCircle((int)px + T / 2, (int)py + T / 2, 30, Fade(lc, 0.05f * fl));
             DrawCircle((int)px + T / 2, (int)py + T / 2, 16, Fade(lc, 0.06f * fl));
         } break;
@@ -2419,6 +2629,23 @@ void DrawTile(const PlatformState& p, char c, int x, int y, float t) {
                 float glow = 0.5f + 0.5f * sinf(t * 4);
                 DrawEllipse((int)px + 16, (int)py + 6, 9, 7 + glow * 2, Fade(Color{255, 220, 100, 255}, 0.5f));
                 for (int k = 0; k < 3; k++) DrawEllipse((int)px - 2 + k * 6, (int)py - 24, 5, 3, Color{78, 118, 52, 255}); // moss along the crown
+            } else if (p.level == PL_WEEDS) { // a giant clam gaping open at the forest's edge, a pearl of light inside: the way on
+                float open = 0.7f + 0.15f * sinf(t * 1.5f);
+                DrawEllipse((int)px + 16, (int)py + 20, 30, 12, Color{8, 12, 12, 255});
+                DrawEllipse((int)px + 16, (int)py + 18, 28, 10, Color{150, 150, 176, 255});                    // the lower shell
+                for (int k = -3; k <= 3; k++) DrawLineEx({px + 16, py + 26}, {px + 16 + k * 8.0f, py + 12}, 1.5f, Color{110, 110, 140, 255});
+                DrawEllipse((int)px + 16, (int)(py + 6 - open * 18), 28, 9, Color{170, 170, 196, 255});         // the upper shell, raised
+                DrawEllipse((int)px + 16, (int)py + 8, 22, 8 * open, Color{220, 150, 170, 255});                // the soft mantle
+                float glow = 0.6f + 0.4f * sinf(t * 3);
+                DrawCircle((int)px + 16, (int)py + 6, 7, Color{250, 248, 236, 255}); DrawCircle((int)px + 16, (int)py + 6, 16, Fade(Color{255, 250, 220, 255}, 0.25f * glow));
+            } else if (p.level == PL_ATLANTIS) { // the city gate: two great doors under a lintel carved with an eye, standing open on light
+                DrawRectangle((int)px - 20, (int)py - 50, 72, 82, Color{16, 18, 26, 255});
+                DrawRectangle((int)px - 18, (int)py - 48, 68, 10, Color{150, 156, 160, 255});                  // the lintel
+                DrawEllipse((int)px + 16, (int)py - 43, 10, 4, Color{30, 36, 48, 255}); DrawCircle((int)px + 16, (int)py - 43, 2.5f, Color{140, 240, 250, 255}); // the carved eye
+                DrawRectangle((int)px - 18, (int)py - 38, 8, 70, Color{120, 126, 134, 255}); DrawRectangle((int)px + 42, (int)py - 38, 8, 70, Color{120, 126, 134, 255}); // jambs
+                float glow = 0.6f + 0.4f * sinf(t * 2);
+                DrawRectangle((int)px - 10, (int)py - 38, 52, 70, Fade(Color{150, 230, 250, 255}, 0.35f * glow));
+                DrawRectangle((int)px - 10, (int)py - 38, 10, 70, Color{76, 82, 96, 255}); DrawRectangle((int)px + 32, (int)py - 38, 10, 70, Color{76, 82, 96, 255}); // the doors, swung in
             } else if (p.level == PL_CAVE) { // a fissure in the rock, packed with glowing crystal - the way up and out
                 DrawRectangle((int)px - 4, (int)py - 30, 40, 56, Color{20, 18, 20, 255});
                 DrawRectangle((int)px - 2, (int)py - 28, 36, 52, Color{10, 9, 10, 255});
@@ -4511,7 +4738,7 @@ void ScenePlatformer(Game& g) {
         Rectangle panel{380, 190, 520, 300};
         Panel(panel);
         const LevelDef& L = Lv(p.level);
-        DrawTextCenteredBold(p.level == PL_PIPES ? "Valve reached!" : p.level == PL_HULL ? "Back inside!" : p.level == PL_ISLAND ? "Idol reached!" : p.level == PL_CAVE ? "Daylight ahead!" : "Treasure claimed!", panel.x + panel.width / 2, panel.y + 24, 34, Pal::Good);
+        DrawTextCenteredBold(p.level == PL_PIPES ? "Valve reached!" : p.level == PL_HULL ? "Back inside!" : p.level == PL_ISLAND ? "Idol reached!" : p.level == PL_CAVE ? "Daylight ahead!" : p.level == PL_WEEDS ? "Through the forest!" : p.level == PL_ATLANTIS ? "The gate opens!" : "Treasure claimed!", panel.x + panel.width / 2, panel.y + 24, 34, Pal::Good);
         DrawTextCentered(TextFormat(p.level == PL_PIPES ? "Payout (with speed bonus): %d gold" : p.ghost && p.level == PL_PIRATE ? "Ghost Ship payout, doubled: %d gold" : "Payout: %d gold", p.reward), panel.x + panel.width / 2, panel.y + 88, 21, Pal::Ink);
         DrawTextCentered(TextFormat("Time %.1fs  (best %.1fs)    Deaths %d", p.time, g.platBest[p.level], p.deaths), panel.x + panel.width / 2, panel.y + 124, 19, Pal::BrassDk);
         if (p.relic >= 0 && p.relic2 >= 0)
@@ -4715,7 +4942,7 @@ bool ValidateGenerated(int level, const GenLevel& gl, int* failedHop, float* sol
     p.level = level;
     p.hard = true;
     p.verifying = true;
-    BuildFromGrid(p, gl, (level == PL_PIPES || level == PL_ISLAND || level == PL_CAVE) ? nullptr : &L.last, L.fill, L.fillAbove);
+    BuildFromGrid(p, gl, !PlatHasArena(level) ? nullptr : &L.last, L.fill, L.fillAbove);
     bool jets = false;
     for (auto& row : p.tiles) jets |= row.find_first_of("tv") != std::string::npos;
     p.exitOpen = false;
@@ -4770,7 +4997,7 @@ static int VerifyShafts() {
 // shaft climbs included), how wide it is, and how many hazards and enemies it holds, averaged over several seeds.
 static void PrintLevelMetrics() {
     gValidateShafts = true;
-    const char* names[PL_COUNT] = {"Pipes", "Hull", "Pirate Ship", "Island", "Cave"};
+    const char* names[PL_COUNT] = {"Pipes", "Hull", "Pirate Ship", "Island", "Cave", "Weeds", "Atlantis"};
     for (int lv = 0; lv < PL_COUNT; lv++) {
         double time = 0, wide = 0, hops = 0, hazards = 0, foes = 0, coins = 0;
         int n = 0;
@@ -4833,7 +5060,7 @@ int VerifyPlatformLevels() {
         printf("    validation: %.0f ms per draw on average\n", gMs[lv] / std::max(1, gDraws[lv]));
         printf("    hops searched: %ld, %.0f states each on average, largest %ld\n", gHopExpanded[lv][1], gHopExpanded[lv][0] / (double)std::max(1L, gHopExpanded[lv][1]), gHopExpanded[lv][2]);
         fflush(stdout);
-        if (lv != PL_PIPES && lv != PL_ISLAND && lv != PL_CAVE) { // the arenas: from the landing to the exit, with the boss switched on and off
+        if (PlatHasArena(lv)) { // the arenas: from the landing to the exit, with the boss switched on and off
             for (int nb = 0; nb < 2; nb++) {
                 PlatformState p;
                 p.level = lv; p.hard = true; p.verifying = true;

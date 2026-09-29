@@ -70,7 +70,9 @@ Params ParamsFor(int level) {
         case 1: return {0.84f, 300, 64, 2, 5, 3, 4, 2, false, 0.42f, 9, 14, 0.27f};   // the Hull: verticality, shafts, footholds
         case 2: return {0.95f, 310, 64, 1, 3, 3, 4, 3, false, 0.38f, 10, 14, 0.24f}; // the Pirate Ship: tiny footholds at the arc's edge
         case 3: return {0.91f, 340, 64, 1, 3, 3, 4, 3, false, 0.38f, 10, 15, 0.30f}; // the Island: harder than the Pirate Ship - narrower canopy footholds
-        default: return {0.93f, 350, 64, 1, 3, 3, 5, 3, false, 0.44f, 10, 15, 0.34f}; // the Cave: harder than the Island - a denser run of shaft climbs, in the dark
+        case 4: return {0.93f, 350, 64, 1, 3, 3, 5, 3, false, 0.44f, 10, 15, 0.34f}; // the Cave: harder than the Island - a denser run of shaft climbs, in the dark
+        case 5: return {0.95f, 360, 64, 1, 3, 3, 5, 3, false, 0.40f, 10, 15, 0.36f}; // the Weeds: harder again - most of the way is kelp floats at the arc's edge
+        default: return {0.97f, 380, 64, 1, 3, 3, 5, 3, false, 0.44f, 10, 15, 0.38f}; // Atlantis: the hardest - tight masonry hops, in and out of the drowned buildings
     }
 }
 }  // namespace
@@ -690,6 +692,269 @@ static void BuildCave(Grid& g, std::vector<Plat>& pl, Rng& rng, GenLevel& out, c
     wOut = fx + 7;
     out.exitRow = curF - 1;
 }
+// The Weeds: a kelp forest in open, sunlit water - and unlike every other level, the ground is the danger. Long
+// stretches of seabed are carpeted with urchins or lie over electric sand where rays have buried themselves, so the way
+// across is up in the forest: kelp floats strung along the canopy (the stalks under them are climbable and break a
+// fall), rock stacks to scale, a sea-stack chimney, and warm currents that lift you out of the gullies.
+//   kelp canopy      a run of small floats at the arc's edge, bobbing at different heights, over an urchin carpet
+//   stack climb      rock stacks stepping up out of the kelp, then a leap back down
+//   ray flats        open sand where rays lie buried and shock on a timer
+//   urchin gully     a gully too wide to step over, floored with urchins
+//   current          a warm vent that lifts you onto a rock stack too tall to jump
+//   stack chimney    a wall-jump chimney between two sea-stacks crusted with barnacles
+static void BuildWeeds(Grid& g, std::vector<Plat>& pl, Rng& rng, GenLevel& out, const Params& P, int& wOut) {
+    const int H = g.h, F = H - 6;
+    g.rect(0, F, g.w - 1, H - 1, '#');       // the seabed and the rock under it
+    auto stack = [&](int x0, int width, int top) { g.rect(x0, top, x0 + width - 1, H - 1, '#'); };
+    auto stalk = [&](int x0, int top, int bottom) { for (int y = top; y < bottom; y++) if (g.get(x0, y) == '.') g.set(x0, y, 'w'); };
+    Plat start{2, 9, F, C_START, '#', SetPiece::None, 0, 3};
+    pl.push_back(start);
+    JumpArc a0 = CalculateValidJumpArc(0);
+    int gm = std::max(3, (int)std::floor((a0.maxReach * P.safety - 12) / kin::TILE));
+    auto gapFor = [&](int riseTiles) {
+        JumpArc a = CalculateValidJumpArc(riseTiles * kin::TILE);
+        if (!a.reachable) return 1;
+        return std::max(1, (int)std::floor((a.maxReach * P.safety - 12) / kin::TILE) - 1);
+    };
+    auto landOnSeabed = [&](int fromX, int fromY) { // leap from a height back down to a patch of clean seabed
+        int gap = std::max(1, gapFor(fromY - F) - rng.I(0, 1));
+        Plat land{fromX + gap, fromX + gap + 3, F, C_JUMP, '#', SetPiece::None, gap, fromX + gap};
+        for (int xx = land.x0 - 1; xx <= land.x1 + 1; xx++) if (g.get(xx, F) != '#') g.set(xx, F, '#');
+        pl.push_back(land);
+        return land.x1 + 1;
+    };
+    int x = 12, lastKind = -1, guard = 0;
+    while (x < P.length && guard++ < 70) {
+        int kind;
+        for (int tries = 0;; tries++) {
+            int r = rng.I(0, 99);
+            kind = r < 32 ? 0 : r < 48 ? 1 : r < 62 ? 2 : r < 74 ? 3 : r < 86 ? 4 : 5;
+            if (kind != lastKind || tries > 6) break;
+        }
+        lastKind = kind;
+        switch (kind) {
+            case 0: { // kelp canopy
+                Plat before{x - 3, x - 1, F, C_JUMP, '#', SetPiece::None, 0, x - 1};
+                pl.push_back(before);
+                int n = rng.I(4, 6), px = x, py = F;
+                for (int k = 0; k < n; k++) {
+                    int ny = std::clamp(py - (k == 0 ? 3 : rng.I(-1, 1)), F - 7, F - 3);
+                    int gap = std::max(1, gapFor(py - ny) - rng.I(0, 1)), wdt = rng.I(1, 2);
+                    int fx = px + gap;
+                    g.rect(fx, ny, fx + wdt - 1, ny, '=');
+                    stalk(fx, ny + 1, F);                                   // the float's own stalk down to the seabed
+                    Plat fl{fx, fx + wdt - 1, ny, C_JUMP, '=', SetPiece::None, gap, fx};
+                    pl.push_back(fl);
+                    px = fx + wdt; py = ny;
+                }
+                for (int xx = x; xx < px; xx++) if (g.get(xx, F) == '#') g.set(xx, F, 'x'); // don't touch the bottom
+                if (rng.C(0.5f)) g.set(x + (px - x) / 2, F - 9 >= 2 ? F - 9 : 2, 'o');         // sunlight slanting through the canopy
+                x = landOnSeabed(px, py);
+                out.setPieces[(int)SetPiece::CrumbleRun]++;
+            } break;
+            case 1: { // stack climb
+                Plat before{x - 3, x - 1, F, C_JUMP, '#', SetPiece::None, 0, x - 1};
+                pl.push_back(before);
+                int steps = rng.I(2, 3), px = x, py = F;
+                for (int k = 0; k < steps; k++) {
+                    int rise = 2, gap = std::max(1, gapFor(rise) - rng.I(0, 1)), sw = rng.I(2, 3);
+                    stalk(px, F - rng.I(3, 5), F);                          // kelp in the gap between the stacks
+                    px += gap; py -= rise;
+                    stack(px, sw, py);
+                    Plat st{px, px + sw - 1, py, C_JUMP, '#', SetPiece::None, gap, px + 1};
+                    pl.push_back(st);
+                    px += sw;
+                }
+                x = landOnSeabed(px, py);
+            } break;
+            case 2: { // ray flats
+                int len = 20;
+                for (int i = 3; i < len - 2; i += 5) g.set(x + i, F, 't');
+                Plat run{x, x + len - 1, F, C_JUMP, '#', SetPiece::None, 0, x + 1};
+                pl.push_back(run);
+                x += len;
+            } break;
+            case 3: { // urchin gully
+                int gw = std::clamp(gm - 1, 4, 6);
+                for (int xx = x; xx < x + gw; xx++) g.set(xx, F, 'x');
+                Plat before{x - 3, x - 1, F, C_JUMP, '#', SetPiece::None, 0, x - 1};
+                Plat after{x + gw, x + gw + 3, F, C_JUMP, '#', SetPiece::None, gw, x + gw};
+                pl.push_back(before); pl.push_back(after);
+                stalk(x + gw / 2, F - 4, F);
+                out.setPieces[(int)SetPiece::ShipGap]++;
+                x += gw + 4;
+            } break;
+            case 4: { // current: a warm vent lifts you onto a stack too tall to jump
+                Plat before{x - 3, x, F, C_JUMP, '#', SetPiece::None, 0, x - 1};
+                pl.push_back(before);
+                g.set(x, F, 'v');
+                stack(x + 1, 5, F - 5);
+                g.rect(x, F - 11, x, F - 1, '.');                         // the column of rising water above the vent
+                Plat top{x + 1, x + 5, F - 5, C_STEAM, '#', SetPiece::SteamBoost, 0, x + 2};
+                pl.push_back(top);
+                out.setPieces[(int)SetPiece::SteamBoost]++;
+                x = landOnSeabed(x + 6, F - 5);
+            } break;
+            default: { // stack chimney
+                int iw = rng.I(3, 4);
+                int Hs = std::min(rng.I(P.shaftMin, P.shaftMax), MaxUpShaft(iw, true));
+                Plat tunnel{x, x + 2, F, C_JUMP, '#', SetPiece::None, 0, x + 1};
+                pl.push_back(tunnel);
+                Plat top = CarveShaft(g, tunnel, true, iw, Hs, true, rng.I(1, 2));
+                pl.push_back(top);
+                out.setPieces[(int)top.tag]++;
+                x = landOnSeabed(top.x1 + 1, top.y);
+            } break;
+        }
+        int breath = rng.I(4, 7);
+        if (rng.C(0.6f)) for (int i = 0; i < 2; i++) stalk(x + 1 + i * 2, F - rng.I(4, 7), F); // a clump of kelp on the clean seabed
+        x += breath;
+    }
+    int fx = x + 3;
+    Plat fin{fx, fx + 6, F, C_JUMP, '#', SetPiece::None, 0, fx + 1};
+    pl.push_back(fin);
+    g.set(fx + 3, F - 1, 'E');
+    wOut = fx + 7;
+    out.exitRow = F - 1;
+}
+
+// Atlantis: a drowned city, crossed street by street - and the only level you spend half your time inside. Its shape is
+// architecture: buildings you run through, stairs up to their roofs, and the broken works between them.
+//   temple hall     through a great building: a low-ceilinged hall with a shattered floor to leap and rune plates that flare
+//   grand stair     a stairway up the face of a building, a run across its roof, and a drop back to the street
+//   aqueduct        a broken aqueduct on piers over a flooded street full of shards: missing spans and loose stones
+//   colonnade       the stumps of a fallen colonnade, each a different height, over shards
+//   tower           a wall-jump climb inside a ruined tower, out over its broken top
+//   fountain plaza  a plaza whose old fountain still breathes a current strong enough to lift you onto a balcony
+static void BuildAtlantis(Grid& g, std::vector<Plat>& pl, Rng& rng, GenLevel& out, const Params& P, int& wOut) {
+    const int H = g.h, F = H - 6;
+    g.rect(0, F, g.w - 1, H - 1, '#');       // the paving of the drowned streets
+    auto block = [&](int x0, int x1, int top) { g.rect(x0, top, x1, H - 1, '#'); };
+    Plat start{2, 9, F, C_START, '#', SetPiece::None, 0, 3};
+    pl.push_back(start);
+    JumpArc a0 = CalculateValidJumpArc(0);
+    int gm = std::max(3, (int)std::floor((a0.maxReach * P.safety - 12) / kin::TILE));
+    auto gapFor = [&](int riseTiles) {
+        JumpArc a = CalculateValidJumpArc(riseTiles * kin::TILE);
+        if (!a.reachable) return 1;
+        return std::max(1, (int)std::floor((a.maxReach * P.safety - 12) / kin::TILE) - 1);
+    };
+    auto dropToStreet = [&](int fromX, int fromY) {
+        int gap = std::max(1, gapFor(fromY - F) - rng.I(0, 1));
+        Plat land{fromX + gap, fromX + gap + 3, F, C_JUMP, '#', SetPiece::None, gap, fromX + gap};
+        for (int xx = land.x0 - 1; xx <= land.x1 + 1; xx++) if (g.get(xx, F) != '#') g.set(xx, F, '#');
+        pl.push_back(land);
+        return land.x1 + 1;
+    };
+    int x = 12, lastKind = -1, guard = 0;
+    while (x < P.length && guard++ < 70) {
+        int kind;
+        for (int tries = 0;; tries++) {
+            int r = rng.I(0, 99);
+            kind = r < 24 ? 0 : r < 42 ? 1 : r < 58 ? 2 : r < 74 ? 3 : r < 88 ? 4 : 5;
+            if (kind != lastKind || tries > 6) break;
+        }
+        lastKind = kind;
+        switch (kind) {
+            case 0: { // temple hall
+                int L = rng.I(15, 19), top = F - 9, pit = std::clamp(gm - 2, 2, 3);
+                block(x, x + L - 1, top);
+                g.rect(x, F - 6, x + L - 1, F - 1, '.');                  // the hall itself, open at both ends
+                int mid = x + L / 2 - pit / 2;
+                for (int xx = mid; xx < mid + pit; xx++) g.set(xx, F, 'x'); // a shattered floor
+                g.set(x + 3, F, 't');                                      // a rune plate before it
+                if (L >= 17) g.set(x + L - 4, F, 't');
+                for (int xx = x + 2; xx < x + L - 2; xx += 5) g.set(xx, F - 5, 'o'); // lamps of pale glyph-light along the ceiling
+                Plat before{x, mid - 1, F, C_JUMP, '#', SetPiece::None, 0, mid - 2};
+                Plat after{mid + pit, x + L - 1, F, C_JUMP, '#', SetPiece::None, pit, mid + pit};
+                pl.push_back(before); pl.push_back(after);
+                x += L;
+            } break;
+            case 1: { // grand stair
+                int steps = rng.I(3, 5), sx = x, sy = F;
+                for (int k = 0; k < steps; k++) {
+                    sy -= 1;
+                    block(sx, sx + 1, sy);
+                    Plat st{sx, sx + 1, sy, C_JUMP, '#', SetPiece::None, 0, sx};
+                    pl.push_back(st);
+                    sx += 2;
+                }
+                int roof = rng.I(5, 8);
+                block(sx, sx + roof - 1, sy);
+                Plat r{sx, sx + roof - 1, sy, C_JUMP, '#', SetPiece::None, 0, sx + 1};
+                pl.push_back(r);
+                if (rng.C(0.5f)) g.set(sx + roof - 2, sy, 't');
+                x = dropToStreet(sx + roof, sy);
+            } break;
+            case 2: { // aqueduct
+                Plat before{x - 3, x - 1, F, C_JUMP, '#', SetPiece::None, 0, x - 1};
+                pl.push_back(before);
+                int y = F - 3, gap0 = std::max(1, gapFor(3) - 1);
+                int px = x + gap0, spans = rng.I(3, 4), loose = rng.I(1, spans - 1), lastGap = 0;
+                int x0 = x;
+                for (int k = 0; k < spans; k++) {
+                    int len = rng.I(3, 4);
+                    char ch = k == loose ? 'f' : '=';
+                    g.rect(px, y, px + len - 1, y, ch);
+                    if (ch == '=') g.rect(px + len / 2, y + 1, px + len / 2, F - 1, '#'); // a pier under the span
+                    Plat sp{px, px + len - 1, y, C_JUMP, ch, ch == 'f' ? SetPiece::CrumbleRun : SetPiece::None, k == 0 ? gap0 : 0, px};
+                    pl.push_back(sp);
+                    lastGap = std::max(1, gapFor(0) - rng.I(1, 2));
+                    px += len + lastGap;
+                }
+                px -= lastGap; // (the gap after the last span isn't used)
+                for (int xx = x0; xx < px; xx++) if (g.get(xx, F) == '#' && g.get(xx, F - 1) == '.') g.set(xx, F, 'x'); // shards in the flooded street
+                out.setPieces[(int)SetPiece::CrumbleRun]++;
+                x = dropToStreet(px, y);
+            } break;
+            case 3: { // colonnade
+                Plat before{x - 3, x - 1, F, C_JUMP, '#', SetPiece::None, 0, x - 1};
+                pl.push_back(before);
+                int n = rng.I(4, 5), px = x - 1, py = F;
+                for (int k = 0; k < n; k++) {
+                    int ny = std::clamp(py - rng.I(-1, 2), F - 5, F - 2), gap = std::max(1, gapFor(py - ny) - rng.I(0, 1));
+                    int cx = px + gap, cw = rng.I(1, 2);
+                    block(cx, cx + cw - 1, ny);
+                    Plat col{cx, cx + cw - 1, ny, C_JUMP, '#', SetPiece::None, gap, cx};
+                    pl.push_back(col);
+                    px = cx + cw - 1; py = ny;
+                }
+                for (int xx = x; xx <= px; xx++) if (g.get(xx, F) == '#' && g.get(xx, F - 1) == '.') g.set(xx, F, 'x');
+                x = dropToStreet(px + 1, py);
+            } break;
+            case 4: { // tower
+                int iw = rng.I(3, 4);
+                int Hs = std::min(rng.I(P.shaftMin, P.shaftMax), MaxUpShaft(iw, false));
+                Plat tunnel{x, x + 2, F, C_JUMP, '#', SetPiece::None, 0, x + 1};
+                pl.push_back(tunnel);
+                Plat top = CarveShaft(g, tunnel, true, iw, Hs, false, rng.I(1, 2));
+                pl.push_back(top);
+                out.setPieces[(int)top.tag]++;
+                g.set(top.x0 + 1, top.y - 3 >= 2 ? top.y - 3 : 2, 'o'); // a glyph burning at the tower's top
+                x = dropToStreet(top.x1 + 1, top.y);
+            } break;
+            default: { // fountain plaza
+                Plat before{x - 3, x, F, C_JUMP, '#', SetPiece::None, 0, x - 1};
+                pl.push_back(before);
+                g.set(x, F, 'v');
+                block(x + 1, x + 6, F - 5);
+                g.rect(x, F - 11, x, F - 1, '.');
+                Plat balcony{x + 1, x + 6, F - 5, C_STEAM, '#', SetPiece::SteamBoost, 0, x + 2};
+                pl.push_back(balcony);
+                g.set(x + 4, F - 8, 'o');
+                out.setPieces[(int)SetPiece::SteamBoost]++;
+                x = dropToStreet(x + 7, F - 5);
+            } break;
+        }
+        x += rng.I(4, 7);
+    }
+    int fx = x + 3;
+    Plat fin{fx, fx + 6, F, C_JUMP, '#', SetPiece::None, 0, fx + 1};
+    pl.push_back(fin);
+    g.set(fx + 3, F - 1, 'E');
+    wOut = fx + 7;
+    out.exitRow = F - 1;
+}
 // ---------------------------------------------------------------------------- creature dens
 // ParkourReference1.2.pdf's "Poisson-disc den spawner": the burrows, breaches and nests where a level's creatures
 // hide, rest, and come back out of after something's been eaten (see beasts.h). A den is a floor tile ('#' -> 'D')
@@ -897,7 +1162,9 @@ GenLevel GenerateLevel(int level, unsigned seed, float scale) {
         if (level == 1) BuildTrench(g, pl, rng, out, P, w);
         else if (level == 2) BuildFleet(g, pl, rng, out, P, w);
         else if (level == 3) BuildIsland(g, pl, rng, out, P, w, islandVariant);
-        else BuildCave(g, pl, rng, out, P, w);
+        else if (level == 4) BuildCave(g, pl, rng, out, P, w);
+        else if (level == 5) BuildWeeds(g, pl, rng, out, P, w);
+        else BuildAtlantis(g, pl, rng, out, P, w);
     } else {
     // ---- pass 1: the critical path
     int guard = 0;

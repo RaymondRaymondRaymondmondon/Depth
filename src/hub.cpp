@@ -549,87 +549,104 @@ void SceneBookshelf(Game& g) {
             "tentacles and stomp its head three times for a relic. Or just run for the airlock.\n\n"
             "THE PIRATE SHIP (hard): the longest leaps, pirates, parakeets and fire vents. Stomp Blackbeard three times to claim the treasure.\n\n"
             "THE ISLAND (harder still): a tropical crossing among idols and shrines, freshly themed each run. Tribal warriors ambush from cover, and a charging boar is instant death.\n\n"
-            "THE CAVE (hardest yet): a winding tunnel system, climbed and dropped through in the dark. Stalactite Spiders ambush from cracks in the rock.\n\n"
+            "THE CAVE (harder): a winding tunnel system, climbed and dropped through in the dark. Stalactite Spiders ambush from cracks in the rock.\n\n"
+            "THE WEEDS (harder still): a kelp forest where the seabed is the danger - cross up in the canopy.\n\n"
+            "ATLANTIS (hardest): the drowned city, run through in the dark by glyph-light.\n\n"
             "Clearing a level unlocks the next one and reshuffles its layout. Controls: A/D or arrows, Space/W/Up to jump, Esc to give up. A gamepad works too.",
             body, 17, Pal::Ink);
     }
 }
 
 // ============================================================ periscope
+// A chart of every dive: the list down the left (locked ones greyed, cleared ones ticked), the selected dive in full
+// on the right. Eight dives don't fit side by side as cards, and this way there's room to read each one.
 void ScenePeriscope(Game& g) {
     DrawCabinBackground();
     if (BackButton(g)) return;
     DrawSceneTitle("The Periscope", "Platforming runs: your crew stays safe, and there's gold to be had");
     DrawGoldBadge(g);
-    struct Lvl { const char* diff; const char* desc; const char* reward; };
+    struct Lvl { const char* diff; const char* desc; const char* reward; Color tint; };
     const Lvl lv[PL_COUNT] = {
-        {"FIRST DIVE", "A long crawl through the Nautilus's steam pipes. No enemies, just hard jumps: steam vents, a shaft to plunge down, and chimneys to wall-jump up.",
-         "60 gold at the valve, up to +60 for a fast run"},
-        {"SECOND DIVE", "Cross the top of the Nautilus's hull: long runs of deck, torpedoes, live plating and mines, and reef walls that force you down through rock tunnels. The Kraken lairs at the end. One touch is fatal.",
-         "120 gold, and a relic roll if you beat the Kraken"},
-        {"THIRD DIVE", "Board a pirate ship: across the deck, down the hatch into the hold, up the companionway to the captain's cabin. Pirates burst out of doors and shoot from cover.",
-         "200 gold and a relic (a Ghost Ship pays double and two relics)"},
-        {"FOURTH DIVE", "A tropical island rises from the Shallows, thick with carved idols and untouched shrines to gods no one's named: stepped stone temples, a stilt village strung with totems, or a ridge of standing statues, seeded fresh each run. Tribal warriors ambush from cover, a coiled viper waits in the canyon mud, and a charging boar is death on four legs.",
-         "300 gold"},
-        {"FIFTH DIVE", "A winding tunnel system beneath the Shallows: chained wall-jump shafts climb and drop through solid rock, lit only by your own lamp. Stalactite Spiders wait in cracks overhead, and Cave Leeches drop from the ceiling near anything that stirs the dark.",
-         "380 gold"},
+        {"FIRST DIVE", "A long crawl through the Nautilus's steam pipes. No enemies, just hard jumps: steam vents, a shaft to plunge down, and chimneys to wall-jump up. The vermin down here pay you no mind at all.",
+         "60 gold at the valve, up to +60 for a fast run", Pal::Copper},
+        {"SECOND DIVE", "Cross the top of the Nautilus's hull: long runs of deck, torpedoes, live plating and mines, and reef walls that force you down through rock tunnels. Moray eels hunt out of the breaches. The Kraken lairs at the end.",
+         "120 gold, and a relic roll if you beat the Kraken", Color{50, 110, 130, 255}},
+        {"THIRD DIVE", "Board a pirate ship: across the deck, down the hatch into the hold, up the companionway to the captain's cabin. Pirates burst out of doors and shoot from cover, and a guard dog gone mad with fleas is death.",
+         "200 gold and a relic (a Ghost Ship pays double and two relics)", Color{70, 50, 90, 255}},
+        {"FOURTH DIVE", "A tropical island thick with carved idols and shrines to gods no one's named: stepped temples, a stilt village, a ridge of statues. Warriors ambush from cover; a cornered boar charges, and a tree snake strikes.",
+         "300 gold", Color{60, 100, 46, 255}},
+        {"FIFTH DIVE", "A winding tunnel system beneath the Shallows: chained wall-jump shafts climb and drop through solid rock, lit only by your lamp. Stalactite spiders wait in cracks overhead, and leeches drop from the ceiling onto anything warm.",
+         "380 gold", Color{50, 46, 52, 255}},
+        {"SIXTH DIVE", "A sunlit kelp forest where the seabed itself is the danger: urchin carpets, and electric rays buried in the sand. Cross up in the canopy on kelp floats, ride the warm currents, and keep away from the sharks and mermen that rule it.",
+         "460 gold", Color{40, 120, 90, 255}},
+        {"SEVENTH DIVE", "Atlantis, drowned: run through its temple halls, up its grand stairs and across broken aqueducts and fallen colonnades, in the dark, by the light of glyphs that still burn. Rune plates flare underfoot. Its guardians have not left.",
+         "560 gold", Color{40, 70, 110, 255}},
     };
-    // Six cards now (five platform levels plus the Abyss) - narrower and tighter-packed than the original
-    // three, so every card (including the Abyss, appended after PL_COUNT) fits on screen without scrolling.
-    const float cardW = 198, cardX0 = 14, cardStride = 210;
-    for (int i = 0; i < PL_COUNT; i++) {
-        bool open = i == 0 || g.platCleared[i - 1];
-        Rectangle c{cardX0 + i * cardStride, 110, cardW, 510};
-        Panel(c, open ? Pal::Paper : Color{176, 168, 150, 255});
-        Color top = i == 0 ? Pal::Copper : i == 1 ? Color{50, 110, 130, 255} : i == 2 ? Color{70, 50, 90, 255} : i == 3 ? Color{60, 100, 46, 255} : Color{50, 46, 52, 255};
-        DrawVGradient({c.x + 14, c.y + 14, c.width - 28, 120}, ColorBrightness(top, 0.15f), ColorBrightness(top, -0.35f));
-        DrawTextCenteredBold(PlatLevelName(i), c.x + c.width / 2, c.y + 46, 28, Pal::Paper);
-        DrawTextCenteredBold(lv[i].diff, c.x + c.width / 2, c.y + 90, 17, Pal::Paper);
-        DrawWrapped(lv[i].desc, {c.x + 20, c.y + 150, c.width - 40, 110}, 15, Pal::Ink);
-        DrawWrapped(TextFormat("Reward: %s", lv[i].reward), {c.x + 20, c.y + 262, c.width - 40, 40}, 14, Pal::BrassDk);
+    const int N = PL_COUNT + 1; // the platform dives, then the Open Abyss
+    auto isOpen = [&](int i) { return i < PL_COUNT ? (i == 0 || g.platCleared[i - 1]) : g.platCleared[PL_PIRATE]; };
+    auto cleared = [&](int i) { return i < PL_COUNT ? g.platCleared[i] : g.abyssCleared; };
+    g.periscopeSel = std::clamp(g.periscopeSel, 0, N - 1);
+    // ---- the chart: one row per dive
+    const float lx = 36, ly = 104, lw = 380, rowH = 62;
+    Panel({lx - 8, ly - 8, lw + 16, N * rowH + 12}, Color{176, 168, 150, 255});
+    for (int i = 0; i < N; i++) {
+        Rectangle r{lx, ly + i * rowH, lw, rowH - 6};
+        bool open = isOpen(i), sel = i == g.periscopeSel;
+        bool hover = CheckCollisionPointRec(GetMousePosition(), r);
+        if (hover && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) g.periscopeSel = i;
+        Color tint = i < PL_COUNT ? lv[i].tint : Color{10, 40, 58, 255};
+        DrawRectangleRounded(r, 0.15f, 4, sel ? ColorBrightness(tint, 0.1f) : hover ? ColorBrightness(tint, -0.2f) : Fade(ColorBrightness(tint, -0.35f), open ? 1.0f : 0.55f));
+        if (sel) DrawRectangleRoundedLinesEx(r, 0.15f, 4, 3, Color{230, 190, 100, 255});
+        const char* name = i < PL_COUNT ? PlatLevelName(i) : "The Open Abyss";
+        const char* diff = i < PL_COUNT ? lv[i].diff : "THE DEEP";
+        TxtBold(name, r.x + 14, r.y + 8, 22, open ? Pal::Paper : Color{180, 176, 168, 255});
+        Txt(diff, r.x + 14, r.y + 34, 14, Fade(Pal::Paper, 0.8f));
+        const char* status = !open ? "locked" : cleared(i) ? "cleared" : "open";
+        Color sc = !open ? Color{190, 150, 120, 255} : cleared(i) ? Color{170, 230, 150, 255} : Color{240, 220, 160, 255};
+        TxtBold(status, r.x + r.width - 14 - MeasureTxt(status, 15), r.y + 10, 15, sc);
+        if (i < PL_COUNT && g.platBest[i] > 0) Txt(TextFormat("best %.1fs", g.platBest[i]), r.x + r.width - 14 - MeasureTxt(TextFormat("best %.1fs", g.platBest[i]), 13), r.y + 32, 13, Fade(Pal::Paper, 0.75f));
+    }
+    // ---- the selected dive in full
+    int i = g.periscopeSel;
+    bool open = isOpen(i);
+    Rectangle c{446, 96, 800, 530};
+    Panel(c, open ? Pal::Paper : Color{176, 168, 150, 255});
+    Color tint = i < PL_COUNT ? lv[i].tint : Color{10, 40, 58, 255};
+    DrawVGradient({c.x + 16, c.y + 16, c.width - 32, 96}, ColorBrightness(tint, 0.15f), ColorBrightness(tint, -0.35f));
+    DrawTextCenteredBold(i < PL_COUNT ? PlatLevelName(i) : "The Open Abyss", c.x + c.width / 2, c.y + 44, 34, Pal::Paper);
+    DrawTextCenteredBold(i < PL_COUNT ? lv[i].diff : "A TRUE VERTICAL DESCENT", c.x + c.width / 2, c.y + 86, 18, Pal::Paper);
+    if (i < PL_COUNT) {
+        DrawWrapped(lv[i].desc, {c.x + 30, c.y + 130, c.width - 60, 150}, 18, Pal::Ink);
+        DrawWrapped(TextFormat("Reward: %s", lv[i].reward), {c.x + 30, c.y + 280, c.width - 60, 30}, 17, Pal::BrassDk);
         if (open) {
-            TxtBold(TextFormat("Layout: %s", PlatLayoutCode(g, i).c_str()), c.x + 20, c.y + 312, 15, Pal::Ink);
-            if (g.platBest[i] > 0) Txt(TextFormat("Best %.1fs", g.platBest[i]), c.x + 190, c.y + 314, 14, Pal::BrassDk);
+            TxtBold(TextFormat("Layout: %s", PlatLayoutCode(g, i).c_str()), c.x + 30, c.y + 318, 17, Pal::Ink);
+            if (g.platBest[i] > 0) Txt(TextFormat("Best %.1fs", g.platBest[i]), c.x + 420, c.y + 320, 16, Pal::BrassDk);
             if (i == PL_HULL) {
-                if (Button({c.x + 20, c.y + 342, c.width - 40, 32}, g.platHullBoss ? "Kraken: ON (relic chance)" : "Kraken: OFF (no relic)", true, 12))
-                    g.platHullBoss = !g.platHullBoss;
+                if (Button({c.x + 30, c.y + 356, 360, 36}, g.platHullBoss ? "Kraken: ON (relic chance)" : "Kraken: OFF (no relic)", true, 15)) g.platHullBoss = !g.platHullBoss;
             } else if (i == PL_PIRATE) {
-                if (Button({c.x + 20, c.y + 342, c.width - 40, 32}, g.platPirateBoss ? "Blackbeard: ON (relic(s))" : "Blackbeard: OFF (no relic)", true, 12))
-                    g.platPirateBoss = !g.platPirateBoss;
+                if (Button({c.x + 30, c.y + 356, 360, 36}, g.platPirateBoss ? "Blackbeard: ON (relic(s))" : "Blackbeard: OFF (no relic)", true, 15)) g.platPirateBoss = !g.platPirateBoss;
             }
-            if (Button({c.x + 20, c.y + 388, c.width - 40, 44}, "Dive in")) { StartPlatform(g, i); return; }
-            if (Button({c.x + 20, c.y + 440, c.width - 40, 40}, "Reshuffle (10g)", g.gold >= 10)) {
+            if (Button({c.x + 30, c.y + 414, 360, 52}, "Dive in", true, 24)) { StartPlatform(g, i); return; }
+            if (Button({c.x + 410, c.y + 414, 360, 52}, "Reshuffle (10g)", g.gold >= 10, 20)) {
                 g.gold -= 10;
                 GeneratePlatLayout(g, i);
                 Toast(g, "The sections rattle and rearrange themselves...");
             }
         } else {
-            DrawWrapped(TextFormat("Locked: clear %s first", PlatLevelName(i - 1)), {c.x + 20, c.y + 370, c.width - 40, 60}, 16, Pal::BrassDk);
+            DrawWrapped(TextFormat("Locked: clear %s first", PlatLevelName(i - 1)), {c.x + 30, c.y + 380, c.width - 60, 60}, 20, Pal::BrassDk);
         }
-    }
-    // The Open Abyss: a fourth, deeper dive - a genuinely 3D vertical descent, not another platform chunk-layout,
-    // so it gets its own card style rather than pretending to fit the Pipes/Hull/Pirate Ship machinery above.
-    {
-        bool open = g.platCleared[PL_PIRATE];
-        Rectangle c{cardX0 + PL_COUNT * cardStride, 110, cardW, 510};
-        Panel(c, open ? Pal::Paper : Color{176, 168, 150, 255});
-        DrawVGradient({c.x + 14, c.y + 14, c.width - 28, 120}, ColorBrightness(Color{10, 40, 58, 255}, 0.3f), ColorBrightness(Color{4, 14, 22, 255}, -0.2f));
-        DrawTextCenteredBold("The Open Abyss", c.x + c.width / 2, c.y + 46, 26, Color{200, 240, 255, 255});
-        DrawTextCenteredBold("FOURTH DIVE", c.x + c.width / 2, c.y + 90, 17, Pal::Paper);
-        DrawWrapped("A true vertical descent, far past the hull. Dash and hydro-glide past a bowling lane "
-                    "of dislodging Isopods, a Siphonophore maze, a weightless brine pool, and whatever a "
-                    "passing Leviathan leaves behind.",
-                    {c.x + 20, c.y + 150, c.width - 40, 110}, 15, Pal::Ink);
-        DrawWrapped(TextFormat("Reward: %d gold and a relic at the bottom", ABYSS_PAYOUT), {c.x + 20, c.y + 262, c.width - 40, 40}, 14, Pal::BrassDk);
+    } else { // the Open Abyss: a genuinely 3D vertical descent, not a platform level
+        DrawWrapped("A true vertical descent, far past the hull. Dash and hydro-glide past a bowling lane of dislodging Isopods, a Siphonophore maze, "
+                    "a weightless brine pool, and whatever a passing Leviathan leaves behind.", {c.x + 30, c.y + 130, c.width - 60, 150}, 18, Pal::Ink);
+        DrawWrapped(TextFormat("Reward: %d gold and a relic at the bottom", ABYSS_PAYOUT), {c.x + 30, c.y + 280, c.width - 60, 30}, 17, Pal::BrassDk);
         if (open) {
-            if (g.abyssBest > 0) TxtBold(TextFormat("Best depth: %d m%s", (int)g.abyssBest, g.abyssCleared ? " (cleared)" : ""), c.x + 20, c.y + 312, 15, Pal::Ink);
-            Txt("Stamina is air, warmth, and health down here:\nhazards drain it, and it runs out only once.", c.x + 20, c.y + 342, 13, Fade(Pal::Ink, 0.75f));
-            if (Button({c.x + 20, c.y + 388, c.width - 40, 44}, "Dive in")) { StartAbyss(g); g.scene = Scene::Abyss; return; }
+            if (g.abyssBest > 0) TxtBold(TextFormat("Best depth: %d m%s", (int)g.abyssBest, g.abyssCleared ? " (cleared)" : ""), c.x + 30, c.y + 318, 17, Pal::Ink);
+            Txt("Stamina is air, warmth and health down here: hazards drain it, and it runs out only once.", c.x + 30, c.y + 352, 15, Fade(Pal::Ink, 0.75f));
+            if (Button({c.x + 30, c.y + 414, 360, 52}, "Dive in", true, 24)) { StartAbyss(g); g.scene = Scene::Abyss; return; }
         } else {
-            DrawWrapped("Locked: clear the Pirate Ship first", {c.x + 20, c.y + 370, c.width - 40, 60}, 16, Pal::BrassDk);
+            DrawWrapped("Locked: clear the Pirate Ship first", {c.x + 30, c.y + 380, c.width - 60, 60}, 20, Pal::BrassDk);
         }
-    }
-    // run options, kept between sessions
+    }    // run options, kept between sessions
     if (Button({60, 632, 250, 40}, g.platHard ? "Difficulty: HARD" : "Difficulty: Normal", true, 17)) g.platHard = !g.platHard;
     Txt(g.platHard ? "Every gear, mine, spiked ball and jet. +50% bonus gold." : "No gears, mines, spiked balls or jets, and a brighter lamp.", 320, 643, 15, Pal::Paper);
     if (Button({700, 632, 250, 40}, g.platCheckpoints ? "Checkpoints: ON" : "Checkpoints: OFF", true, 17)) g.platCheckpoints = !g.platCheckpoints;
