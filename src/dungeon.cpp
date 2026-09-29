@@ -51,7 +51,7 @@ static int EnemyPos(Game& g, int uid) {
 // ---------------------------------------------------------------- layout
 // Heroes stand on the left with rank 1 closest to the middle; enemies mirror them on the right. A big enemy fills
 // several ranks (span) but is still one enemy: it can be hit, and can act, from any rank it fills.
-static Rectangle HeroRect(int pos) { float cx = 520 - pos * 125.0f; return {cx - 45, 300, 90, 160}; }
+static Rectangle HeroRect(int pos) { float cx = 520 - pos * 125.0f; return {cx - 50, 250, 100, 210}; } // Darkest Dungeon scale: the fighters fill the stage
 static int EnemySpan(const Enemy& e) { return std::max(1, e.span); }
 static int SlotStart(Game& g, int idx) { int s = 0; for (int i = 0; i < idx && i < (int)g.dungeon.enemies.size(); i++) s += EnemySpan(g.dungeon.enemies[i]); return s; }
 static int SlotsUsed(Game& g) { return SlotStart(g, (int)g.dungeon.enemies.size()); }
@@ -66,10 +66,10 @@ static Rectangle EnemyRect(Game& g, int pos) {
     bool boss = false;
     if (pos >= 0 && pos < (int)g.dungeon.enemies.size()) { slot = SlotStart(g, pos); span = EnemySpan(g.dungeon.enemies[pos]); boss = g.dungeon.enemies[pos].boss; }
     float cx = 760 + (slot + (span - 1) * 0.5f) * 125.0f, w = 90 + (span - 1) * 125.0f + (span > 1 ? 34 : 0);
-    if (span >= 3) return {cx - w / 2, 150, w, 310};
-    if (span == 2) return {cx - w / 2, 215, w, 245};
-    if (boss) return {cx - 58, 250, 116, 210};
-    return {cx - 45, 330, 90, 130};
+    if (span >= 3) return {cx - w / 2, 120, w, 340};
+    if (span == 2) return {cx - w / 2, 185, w, 275};
+    if (boss) return {cx - 64, 220, 128, 240};
+    return {cx - 56, 290, 112, 170};  // Darkest Dungeon scale: the fighters fill the stage
 }
 
 static void Float(Game& g, Rectangle r, const std::string& t, Color c) {
@@ -2022,7 +2022,7 @@ static void DrawUnitFigures(Game& g) {
         fx.pose = SpringPose(h->id, fx.pose, fx.dx, dt);
         Vector2 feet{ShownX(h->id, r.x + r.width / 2, dt) + fx.dx + gShake.x, r.y + r.height + fx.dy + gShake.y};
         DrawShadowBlob({feet.x, r.y + r.height}, 38);
-        DrawCrewFigureInked(*h, feet, 1.08f, true, walking ? d.walkT * 9 + p * 1.3f : 0, t, fx.pose, fx.tint);
+        DrawCrewFigureInked(*h, feet, 1.42f, true, walking ? d.walkT * 9 + p * 1.3f : 0, t, fx.pose, fx.tint);
     }
     for (int p = 0; p < (int)d.enemies.size(); p++) {
         const Enemy& e = d.enemies[p];
@@ -3033,8 +3033,11 @@ void DrawFigureSheet(bool heroSheet, int index, float t) {
         FogVeil(0.2f);
     }
     const char* LABEL[6] = {"idle", "walk", "windup", "strike", "hit", "death"};
+    bool big = getenv("DEPTH_SHEET_BIG") != nullptr;   // a close-up: idle and strike, large, to judge the drawing itself
+    float bigK = big ? (heroSheet ? 2.3f : 1.6f) : 1.0f;
     for (int i = 0; i < 6; i++) {
-        float cx = 110 + i * 212.0f, fy = 560;
+        if (big && i != 0 && i != 3) continue;
+        float cx = big ? (i == 0 ? 330.0f : 900.0f) : 110 + i * 212.0f, fy = big ? 690.0f : 560.0f;
         if (!gSilhouette) DrawEllipse((int)cx, (int)fy, 70, 12, Fade(BLACK, 0.35f));
         sg.dungeon.anims.clear();
         if (heroSheet) {
@@ -3046,7 +3049,7 @@ void DrawFigureSheet(bool heroSheet, int index, float t) {
             AnimFx fx = HeroAnimFx(sg, h);
             if (i == 5) { fx.pose.crouch = 1.0f; fx.pose.headDown = 1.0f; fx.pose.lean = 0.5f;
                           rig::Instance& in = rig::Get(h.id); if (in.reaction != rig::CL_DEATH) { in.reaction = rig::CL_DEATH; in.reactT = 0; } }
-            DrawCrewFigureInked(h, {cx + fx.dx * 0.5f, fy}, 1.35f, true, i == 1 ? t * 9 : 0, t, fx.pose, fx.tint);
+            DrawCrewFigureInked(h, {cx + fx.dx * 0.5f, fy}, 1.35f * bigK * 0.8f, true, i == 1 ? t * 9 : 0, t, fx.pose, fx.tint);
         } else {
             Enemy e = MakeEnemy((EnemyType)index, 60000 + index * 10 + i);
             Anim kind = i == 2 || i == 3 ? Anim::Melee : i == 4 || i == 5 ? Anim::Hurt : Anim::None;
@@ -3058,7 +3061,7 @@ void DrawFigureSheet(bool heroSheet, int index, float t) {
             int span = std::max(1, e.span);
             float w = span >= 3 ? 374.0f : span == 2 ? 249.0f : e.boss ? 116.0f : 90.0f, hgt = span >= 3 ? 310.0f : span == 2 ? 245.0f : e.boss ? 210.0f : 130.0f;
             float k = span > 1 || e.boss ? std::min({1.0f, 120.0f / w, 300.0f / hgt}) : std::min({1.4f, 200.0f / w, 380.0f / hgt}); // big ones draw well past their rects
-            w *= k; hgt *= k;
+            k *= bigK; w *= k; hgt *= k;
             Vector2 feet{cx + fx.dx * 0.5f * k, fy + fx.dy}, ff = FigureFeet();
             rig::SetWorldOffset({feet.x - ff.x, feet.y - ff.y});
             int clip = i == 1 ? -1 : i == 2 || i == 3 ? rig::CL_SLASH : i == 4 ? rig::CL_HIT : i == 5 ? rig::CL_DEATH : -1;
@@ -3072,5 +3075,5 @@ void DrawFigureSheet(bool heroSheet, int index, float t) {
     InkPass(1.0f, 1.0f);
     std::string title = (heroSheet ? std::string(ClassName((HeroClass)index)) : MakeEnemy((EnemyType)index, 1).name) + (gSilhouette ? "  (silhouette)" : "");
     DrawTextCenteredBold(title, SCREEN_W / 2.0f, 40, 30, gSilhouette ? Color{20, 16, 14, 255} : Pal::Paper);
-    for (int i = 0; i < 6; i++) DrawTextCentered(LABEL[i], 110 + i * 212.0f, 600, 20, gSilhouette ? Color{60, 50, 40, 255} : Color{200, 206, 200, 255});
+    if (!big) for (int i = 0; i < 6; i++) DrawTextCentered(LABEL[i], 110 + i * 212.0f, 600, 20, gSilhouette ? Color{60, 50, 40, 255} : Color{200, 206, 200, 255});
 }

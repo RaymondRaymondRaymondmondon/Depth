@@ -91,34 +91,21 @@ void main() {
     float rimEdge = 1.0 - texture(texture0, uv - uKey * 2.2 * uTexel).a;
     col += uRimCol * 0.16 * uAmts.z * rimEdge * (1.0 - toward * 0.5);
     if (uInkStyle > 0.01) {
-        // The Darkest Dungeon finish (Master Reference): the lit colour kept, cut into three cel bands, the deepest shadow
-        // falling to solid black shapes, and cross-hatching laid ALONG the form (perpendicular to the way the light
-        // changes across it) in the shadow band only. Bands are judged relative to the part's own local brightness, so
-        // a navy coat and a bone-white apron both get a lit side, a shade and a black core.
+        // The Darkest Dungeon finish (Master Reference). The forms arrive already shaded in flat lit and shadow planes
+        // (BeginFigure turns on flat shading); here they get heavy linework where parts meet, and cross-hatching laid along
+        // the form inside the shadow planes only, thicker the darker the plane. Surfaces stay clean.
+        vec3 base = texture(texture0, uv).rgb;
         vec2 hpx = uv / uTexel;
-        float lv = dot(col, vec3(0.299, 0.587, 0.114));
-        float loc = 0.0;
-        for (int i = 0; i < 8; i++) { float a = float(i) * 0.7854; loc += dot(texture(texture0, uv + vec2(cos(a), sin(a)) * 7.0 * uTexel).rgb, vec3(0.299, 0.587, 0.114)); }
-        loc = max(loc / 8.0, 0.03);
-        float rel = lv / loc;                                   // > 1 on the lit side of a form, < 1 in its shade
-        float lightness = clamp(0.55 * rel + 0.9 * lv, 0.0, 2.0); // relative shape, plus a little absolute value
+        float lv = dot(base, vec3(0.299, 0.587, 0.114));
         vec2 gr = vec2(dot(r - l, vec3(0.333)), dot(u - dn, vec3(0.333)));
-        vec2 tng = length(gr) > 0.015 ? normalize(vec2(-gr.y, gr.x)) : vec2(0.7071, 0.7071);
-        float h1 = abs(fract(dot(hpx, tng) / 3.6) - 0.5) * 2.0;                       // hatch lines along the form
-        float h2 = abs(fract(dot(hpx, vec2(-tng.y, tng.x)) / 3.6) - 0.5) * 2.0;        // and across it, deeper in
-        float sat = max(col.r, max(col.g, col.b)) - min(col.r, min(col.g, col.b));
-        vec3 hue = mix(vec3(lv), col, 1.25);                                           // class colours read strongly
-        vec3 outc;
-        if (lightness < 0.42) outc = mix(INK, hue * 0.35, 0.18);                       // the black block shadow
-        else if (lightness < 0.66) {                                                   // the shade band, hatched
-            outc = hue * 0.62;
-            float d = clamp((0.66 - lightness) / 0.24, 0.0, 1.0);
-            if (h1 < 0.18 + 0.32 * d) outc = mix(outc, INK, 0.8);
-            if (d > 0.55 && h2 < 0.22) outc = mix(outc, INK, 0.7);
-        } else if (lightness < 0.98) outc = hue * 0.92;                                // the mid tone
-        else outc = hue * 1.12 + vec3(0.03, 0.025, 0.01);                              // the lit plane
-        outc = mix(outc, INK, smoothstep(0.35, 0.9, edge) * 0.8);                      // linework between parts
-        outc += (hash(floor(hpx / 2.0)) - 0.5) * 0.03;                                 // a little paper tooth
+        vec2 tng = length(gr) > 0.02 ? normalize(vec2(-gr.y, gr.x)) : vec2(0.7071, 0.7071);
+        float h1 = abs(fract(dot(hpx, tng) / 5.0) - 0.5) * 2.0;
+        float h2 = abs(fract(dot(hpx, vec2(tng.y, -tng.x)) / 5.0) - 0.5) * 2.0;
+        float satc = max(col.r, max(col.g, col.b)) - min(col.r, min(col.g, col.b));
+        vec3 outc = mix(vec3(lv) * vec3(1.02, 0.98, 0.94), col, 0.95 - 0.35 * smoothstep(0.3, 0.7, satc)); // muted: the loudest colours are pulled back hardest
+        float dark = clamp((0.10 - lv) / 0.08, 0.0, 1.0);                               // only the very deepest shade gets a second pass
+        if (dark > 0.5 && h2 < 0.10) outc = mix(outc, INK, 0.5);
+        outc = mix(outc, INK, smoothstep(0.30, 0.8, edge) * 0.9);                        // heavy linework between parts
         if (uVibrance > 0.0) { float l2 = dot(outc, vec3(0.299, 0.587, 0.114)); outc = mix(vec3(l2), outc, 1.0 + 0.3 * uVibrance) * vec3(1.05, 1.0, 0.92); }
         finalColor = vec4(mix(col, outc, uInkStyle) * fragColor.rgb, fragColor.a);
         return;
@@ -481,6 +468,7 @@ static const Palette* gInkPal = nullptr;
 static float gInkPalAmt = 0;
 static unsigned gInkSeed = 0;
 bool gSilhouette = false;
+static bool gFlatShade = false; // on while a figure is drawn: forms get flat lit and shadow planes (see ShadeBall)
 void SetSceneLight(const SceneLight& l) { gLight = l; }
 const SceneLight& CurSceneLight() { return gLight; }
 void SetInkLook(const Palette* pal, float palAmt, unsigned seed) { gInkPal = pal; gInkPalAmt = palAmt; gInkSeed = seed; }
@@ -928,6 +916,7 @@ void EndCanvas() {
 // Figures are drawn on a separate transparent canvas. The blend mode keeps its alpha solid wherever
 // shading is layered on top, and culling is off so shapes can be wound either way.
 void BeginFigure() {
+    gFlatShade = true;
     BeginLayer(A.fig);
     ClearBackground(BLANK);
     PushScale(); // characters are painted at double resolution too
@@ -938,16 +927,17 @@ void BeginFigure() {
 }
 
 void EndFigure(Vector2 feet, Color tint, float sx, float sy) {
+    gFlatShade = false;
     rlDrawRenderBatchActive();
     rlEnableBackfaceCulling();
     EndBlendMode();
     EndLayer();
-    float texel[2] = {1.0f / FIG_W, 1.0f / FIG_H}, outline = 2.6f;
+    float texel[2] = {1.0f / FIG_W, 1.0f / FIG_H}, outline = 3.4f;   // heavy ink, as in Darkest Dungeon
     SetShaderValue(A.figShader, A.locFigTexel, texel, SHADER_UNIFORM_VEC2);
     SetShaderValue(A.figShader, A.locFigOutline, &outline, SHADER_UNIFORM_FLOAT);
     float vib = gDiveGear ? 0.0f : 1.0f;   // every figure drawn off-expedition gets the Nautilus's warm, vivid look
     SetShaderValue(A.figShader, A.locFigVib, &vib, SHADER_UNIFORM_FLOAT);
-    float inkStyle = 0.9f;   // the Darkest Dungeon finish: cel bands, black shadow shapes, hatching along the form
+    float inkStyle = 1.0f;   // the Darkest Dungeon finish: flat planes, heavy linework, hatching in the shadow planes
     SetShaderValue(A.figShader, A.locFigInk, &inkStyle, SHADER_UNIFORM_FLOAT);
     {
         float kl = sqrtf(gLight.keyDir.x * gLight.keyDir.x + gLight.keyDir.y * gLight.keyDir.y);
@@ -992,7 +982,36 @@ static void Vtx(Vector2 p, Color c) {
     rlVertex2f(p.x, p.y);
 }
 
+// Figures are shaded the Darkest Dungeon way: each form has a FLAT lit colour and a FLAT shadow colour with a crisp
+// terminator between them (no soft gradients), a small highlight, and the heavy ink comes from the figure shader.
+static Color ShadowOf(Color c) { // darker, desaturated, pulled a little toward the scene's fill
+    float l = 0.299f * c.r + 0.587f * c.g + 0.114f * c.b;
+    Color f = gLight.fill;
+    auto ch = [&](float v, float fv) { return (unsigned char)std::clamp((v * 0.42f + l * 0.1f) * 0.9f + fv * 0.06f, 0.0f, 255.0f); };
+    return {ch(c.r, f.r), ch(c.g, f.g), ch(c.b, f.b), c.a};
+}
+static Color LitOf(Color c) { // the lit plane: the colour itself, warmed a touch by the key
+    Color k = gLight.key;
+    auto ch = [&](float v, float kv) { return (unsigned char)std::clamp(v * (0.9f + 0.16f * kv / 255.0f), 0.0f, 255.0f); };
+    return {ch(c.r, k.r), ch(c.g, k.g), ch(c.b, k.b), c.a};
+}
 void ShadeBall(Vector2 c, float r, Color col) {
+    if (gFlatShade) {
+        Vector2 L = ToLight();
+        DrawCircleV(c, r, ShadowOf(col));
+        DrawCircleV({c.x + L.x * r * 0.2f, c.y + L.y * r * 0.2f}, r * 0.79f, LitOf(col));                 // a crescent of shade on the far side
+        if (r > 6) { // hatch strokes across the crescent, following the curve
+            float a0 = atan2f(-L.y, -L.x) * RAD2DEG;
+            Color ink{14, 10, 10, 150};
+            for (int k = -2; k <= 2; k++) {
+                float a = (a0 + k * 16) * DEG2RAD;
+                Vector2 o{cosf(a), sinf(a)};
+                DrawLineEx({c.x + o.x * r * 0.72f, c.y + o.y * r * 0.72f}, {c.x + o.x * r * 0.97f, c.y + o.y * r * 0.97f}, std::max(1.0f, r * 0.07f), ink);
+            }
+        }
+        if (r > 3.5f) DrawCircleV({c.x + L.x * r * 0.46f, c.y + L.y * r * 0.46f}, r * 0.1f, Fade(Tone(col, 0.6f), 0.5f)); // a small highlight
+        return;
+    }
     DrawCircleV(c, r, Tone(col, -0.5f));
     Color lit = Tone(col, 0.15f);
     Vector2 TO_LIGHT = ToLight();
@@ -1006,6 +1025,39 @@ void ShadeLimb(Vector2 a, Vector2 b, float wa, float wb, Color c) {
     if (len < 0.01f) return;
     Vector2 n{-dy / len, dx / len}, TO_LIGHT = ToLight();
     float face = n.x * TO_LIGHT.x + n.y * TO_LIGHT.y;
+    if (gFlatShade) { // two flat tones split along the limb, the split shifting with how squarely it faces the light
+        float split = std::clamp(-face * 0.9f, -0.75f, 0.75f);   // t > split is the lit side when face > 0
+        Color lit = LitOf(c), sh = ShadowOf(c);
+        auto P2 = [&](Vector2 o, float w, float t) { return Vector2{o.x + n.x * w * t, o.y + n.y * w * t}; };
+        rlBegin(RL_TRIANGLES);
+        float ts[3] = {-1, split, 1};
+        for (int i = 0; i < 2; i++) {
+            bool litSide = face >= 0 ? i == 1 : i == 0;
+            Color cc = litSide ? lit : sh;
+            Vector2 A0 = P2(a, wa, ts[i]), A1 = P2(a, wa, ts[i + 1]), B0 = P2(b, wb, ts[i]), B1 = P2(b, wb, ts[i + 1]);
+            Vtx(A0, cc); Vtx(A1, cc); Vtx(B1, cc);
+            Vtx(A0, cc); Vtx(B1, cc); Vtx(B0, cc);
+        }
+        rlEnd();
+        if (wa + wb > 7) { // contour hatching: short strokes across the shadow strip, wrapping round the form
+            int nH = std::max(2, (int)(len / 5.5f));
+            float tIn = split, tOut = face >= 0 ? -1.0f : 1.0f;
+            if (face < 0) { tIn = split; tOut = 1.0f; }
+            Color ink{14, 10, 10, 140};
+            for (int k = 1; k < nH; k++) {
+                float u = k / (float)nH;
+                Vector2 o{a.x + dx * u, a.y + dy * u};
+                float w = wa + (wb - wa) * u;
+                float tt = tIn + (tOut - tIn) * 0.35f;
+                DrawLineEx(P2(o, w, tt), P2(o, w, tOut * 0.96f), std::max(1.0f, w * 0.12f), ink);
+            }
+        }
+        if (wa + wb > 5) { // a highlight streak along the lit side
+            float ht = face >= 0 ? 0.62f : -0.62f;
+            DrawLineEx(P2({a.x + dx * 0.2f, a.y + dy * 0.2f}, wa, ht), P2({a.x + dx * 0.72f, a.y + dy * 0.72f}, wb, ht), std::max(1.0f, (wa + wb) * 0.1f), Fade(Tone(c, 0.6f), 0.55f));
+        }
+        return;
+    }
     auto shade = [&](float t) {
         float nz = sqrtf(std::max(0.0f, 1 - t * t));
         return Tone(c, t * face * 0.8f + nz * 0.3f - 0.15f - (1 - nz) * 0.35f);
@@ -1026,6 +1078,28 @@ void ShadeLimb(Vector2 a, Vector2 b, float wa, float wb, Color c) {
 // A four-cornered panel (torso, coat, apron) lit from the left: rim, highlight band, core shadow.
 void ShadeQuad(Vector2 tl, Vector2 tr, Vector2 br, Vector2 bl, Color c) {
     if (ToLight().x > 0.15f) { std::swap(tl, tr); std::swap(bl, br); } // a key light from the right: the lit band on the right
+    if (gFlatShade) { // a lit plane and a shadow plane, a crisp line between, a thin highlight near the lit edge
+        auto lerp = [](Vector2 a, Vector2 b, float u) { return Vector2{a.x + (b.x - a.x) * u, a.y + (b.y - a.y) * u}; };
+        const float U2[3] = {0, 0.58f, 1};
+        rlBegin(RL_TRIANGLES);
+        for (int i = 0; i < 2; i++) {
+            Color cc = i == 0 ? LitOf(c) : ShadowOf(c);
+            Vector2 t0 = lerp(tl, tr, U2[i]), t1 = lerp(tl, tr, U2[i + 1]), b0 = lerp(bl, br, U2[i]), b1 = lerp(bl, br, U2[i + 1]);
+            Vtx(t0, cc); Vtx(t1, cc); Vtx(b1, cc);
+            Vtx(t0, cc); Vtx(b1, cc); Vtx(b0, cc);
+        }
+        rlEnd();
+        Vector2 h0 = lerp(tl, tr, 0.1f), h1 = lerp(bl, br, 0.1f);
+        DrawLineEx(lerp(h0, h1, 0.08f), lerp(h0, h1, 0.6f), 1.2f, Fade(Tone(c, 0.55f), 0.45f));
+        float hgt = sqrtf((bl.x - tl.x) * (bl.x - tl.x) + (bl.y - tl.y) * (bl.y - tl.y));
+        int nH = (int)(hgt / 6);
+        for (int k = 1; k < nH; k++) { // strokes across the shadow plane, from its edge inward
+            float u = k / (float)nH;
+            Vector2 L0 = lerp(lerp(tl, tr, 0.68f), lerp(bl, br, 0.68f), u), L1 = lerp(lerp(tl, tr, 0.97f), lerp(bl, br, 0.97f), u);
+            DrawLineEx(L0, L1, 1.1f, Color{14, 10, 10, 120});
+        }
+        return;
+    }
     const float U[4] = {0, 0.28f, 0.62f, 1}, K[4] = {-0.1f, 0.2f, -0.12f, -0.55f};
     auto lerp = [](Vector2 a, Vector2 b, float u) { return Vector2{a.x + (b.x - a.x) * u, a.y + (b.y - a.y) * u}; };
     rlBegin(RL_TRIANGLES);

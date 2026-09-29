@@ -122,12 +122,16 @@ void DrawRigCaptain(const Hero& h, Vector2 ft, float s, bool right, float walk, 
             const Chain& c = in.chains[i == 0 ? 1 : 2];
             for (size_t k = 1; k < c.p.size(); k++) DrawLineEx(c.p[k - 1], c.p[k], 1.3f * s, i == 2 ? brass : Fade(brass, 0.0f));
         }
+        for (size_t k = 1; k < in.chains[1].p.size(); k++) { // two folds running down the front skirt
+            DrawLineEx(L2(in.chains[1].p[k - 1], in.chains[2].p[k - 1], 0.35f), L2(in.chains[1].p[k], in.chains[2].p[k], 0.3f), 1.2f * s, Fade(Color{10, 10, 20, 255}, 0.6f));
+            DrawLineEx(L2(in.chains[1].p[k - 1], in.chains[2].p[k - 1], 0.7f), L2(in.chains[1].p[k], in.chains[2].p[k], 0.72f), 1.0f * s, Fade(Color{10, 10, 20, 255}, 0.5f));
+        }
         DrawLineEx(in.chains[1].Tip(), in.chains[2].Tip(), 1.8f * s, brass);
         DrawLineEx(in.chains[0].Tip(), in.chains[1].Tip(), 1.4f * s, Tone(brass, -0.3f));
     });
     // --- the torso: the greatcoat, lapels, buttons, sash, medals, epaulettes
     parts.Add(0, [&] {
-        MQuad(S.Chest(-19, -22), S.Chest(20, -22), S.Hips(16, 2), S.Hips(-16, 2), coat, CLOTH);
+        MQuad(S.Chest(-21, -23), S.Chest(22, -23), S.Hips(14, 1), S.Hips(-14, 1), coat, CLOTH);   // broad at the chest, narrow at the waist
         MQuad(S.Chest(4, -24), S.Chest(10, -24), S.Chest(7, 8), S.Chest(2, 8), Tone(coat, 0.25f), CLOTH);   // the lapel
         DrawTri(S.Chest(14, -24), S.Chest(5, -24), S.Chest(10, -6), Color{226, 222, 212, 255});           // the shirt front
         for (int k = 0; k < 3; k++) MBall(S.Chest(12, -13 + k * 10.0f), 1.9f * s, brass, METAL);
@@ -141,37 +145,46 @@ void DrawRigCaptain(const Hero& h, Vector2 ft, float s, bool right, float walk, 
         }
         Vector2 chainA = S.Chest(-6, -20), chainB = S.Chest(10, -3);                                       // a watch chain looped into a pocket
         for (int k = 0; k <= 5; k++) { float u = k / 5.0f; Vector2 p = L2(chainA, chainB, u); DrawCircleV({p.x, p.y + sinf(u * PI) * 3.2f * s}, 0.9f * s, brass); }
-        MBall(S.p[SH_B], 8.0f * s, brass, METAL);                                                          // epaulettes, big: the shoulders read wide
-        for (int k = 0; k < 4; k++) DrawLineEx(Off(S.p[SH_B], -5 + k * 3.0f, 5, s, f), Off(S.p[SH_B], -5 + k * 3.0f, 10, s, f), 1.3f * s, Pal::BrassDk);
+        MLimb(Off(S.p[SH_B], -7, 1, s, f), Off(S.p[SH_B], 6, -1, s, f), 5.6f * s, 5.0f * s, Tone(brass, -0.1f), METAL); // an epaulette: a flat dome
+        for (int k = 0; k < 6; k++) DrawLineEx(Off(S.p[SH_B], -8 + k * 2.8f, 4, s, f), Off(S.p[SH_B], -8 + k * 2.9f, 12, s, f), 1.4f * s, Pal::BrassDk); // its fringe
+        for (int k = 0; k < 3; k++) DrawLineEx(S.Chest(-12 + k * 9.0f, -18), S.Hips(-10 + k * 9.0f, -14), 1.2f * s, Fade(Color{10, 10, 20, 255}, 0.55f)); // folds down the coat
     });
     // --- the sash end, hanging from the hip in front of the coat
     parts.Add(0.2f, [&] { in.chains[3].Draw(s); });
-    // --- the head: small, under a peaked cap, eyes under the brim
+    // --- the head: a square jaw, a heavy nose, eyes sunk in the shadow of the cap's peak, a grey beard on some
     parts.Add(0.5f, [&] {
-        MLimb(S.p[NECK], S.Head(0, 6), 5.6f * s, 5.4f * s, Tone(skin, -0.3f), SKIN);
-        Vector2 hc = S.p[HEAD];
-        MBall(S.Head(-9, 1), 2.8f * s, Tone(skin, -0.12f), SKIN);                                          // the ear
-        MBall(hc, 10.6f * s, skin, SKIN);
-        MBall(S.Head(4, 5.5f), 7.2f * s, skin, SKIN);                                                       // the jaw
-        if (seed % 2) { // a grey beard
-            MBall(S.Head(4, 9), 7.4f * s, Color{204, 200, 192, 255}, CLOTH);
-            for (int k = 0; k < 4; k++) DrawLineEx(S.Head(0 + k * 3.0f, 9), S.Head(1 + k * 3.0f, 15), 0.8f * s, Color{160, 156, 150, 255});
+        MLimb(S.p[NECK], S.Head(0, 7), 6.4f * s, 6.2f * s, skin, SKIN);                                       // a thick neck
+        MBall(S.Head(-8.5f, 1), 3.0f * s, Tone(skin, -0.1f), SKIN);                                        // the ear
+        MBall(S.p[HEAD], 12.4f * s, skin, SKIN);                                                            // the skull
+        MQuad(S.Head(-5, 1), S.Head(10, 0), S.Head(9, 11), S.Head(-2, 12.5f), skin, SKIN);                  // a square jaw
+        MLimb(S.Head(9.5f, -2), S.Head(13.5f, 4.5f), 2.0f * s, 3.0f * s, Tone(skin, 0.05f), SKIN);          // the nose
+        DrawLineEx(S.Head(4, 5), S.Head(6, 9.5f), 1.1f * s, Fade(Color{40, 20, 16, 255}, 0.6f));           // the cheek's crease
+        // the shadow of the cap's peak across the eyes, and two eyes in it that catch the light (and blink)
+        DrawTri(S.Head(-3, -6), S.Head(15, -6), S.Head(13, -0.5f), Color{30, 16, 14, 190});
+        DrawTri(S.Head(-3, -6), S.Head(13, -0.5f), S.Head(-1, 0), Color{30, 16, 14, 190});
+        DrawLineEx(S.Head(1, -5), S.Head(12, -4.2f), 1.6f * s, Color{40, 26, 20, 255});                     // a heavy brow
+        for (int k = 0; k < 2; k++) {
+            Vector2 e = S.Head(k ? 9.5f : 3.5f, -2.5f);
+            DrawEllipse((int)e.x, (int)e.y, (k ? 1.9f : 2.4f) * s, 1.2f * s, Color{120, 110, 96, 255});
+            if (!in.face.Closed()) { DrawCircleV({e.x + f * 0.5f * s, e.y}, 0.95f * s, Color{30, 22, 20, 255}); DrawCircleV({e.x + f * 0.2f * s, e.y - 0.3f * s}, 0.35f * s, Color{236, 230, 214, 255}); }
+            else DrawLineEx({e.x - 2.2f * s, e.y}, {e.x + 2.2f * s, e.y + 0.3f * s}, 0.9f * s, Color{30, 20, 18, 255});
         }
-        MBall(S.Head(10, 2.5f), 2.5f * s, skin, SKIN);                                                      // the nose
-        MQuad(S.Head(-2, -5.8f), S.Head(12, -5.8f), S.Head(12, 0.5f), S.Head(-2, 0.2f), Fade(Color{6, 8, 12, 255}, 0.55f), SKIN); // the brow's shadow
-        DrawEyes(in.face, S.Head(3.5f, -1.8f), 5.4f, 1.7f, s, f, Tone(skin, -0.2f), Color{70, 96, 120, 255});
-        if (!(seed % 2)) DrawMouth(in.face, S.Head(7.5f, 7.5f), 5.5f, s, f, Color{150, 80, 70, 255});
-        else if (in.face.mouth) DrawMouth(in.face, S.Head(7.5f, 7.5f), 4.5f, s, f, Color{120, 70, 60, 255});
-        // the cap: crown, brass band, badge, and a peak that shades the eyes
-        MQuad(S.Head(-11, -18), S.Head(12, -16), S.Head(12, -7), S.Head(-10, -7), Color{26, 26, 32, 255}, CLOTH);
-        MQuad(S.Head(-10, -9), S.Head(12, -9), S.Head(12, -6), S.Head(-10, -6), brass, METAL);
-        MBall(S.Head(7, -13), 2.3f * s, brass, METAL);
-        MLimb(S.Head(4, -6), S.Head(17, -4.5f), 2.2f * s, 1.3f * s, Color{16, 16, 20, 255}, WET);
-        // the flip-down ocular lens over one eye
-        DrawRing(S.Head(3.5f, -1.8f), 2.6f * s, 3.4f * s, 0, 360, 14, brass);
-        DrawCircleV(S.Head(3.5f, -1.8f), 2.4f * s, Fade(Color{150, 206, 214, 255}, 0.4f));
-    });
-    // --- the weapon arm, the cutlass and the big gloved hand, in front of everything
+        if (seed % 2) { // a grey beard and moustache, cut square
+            Color gb{196, 192, 184, 255};
+            MQuad(S.Head(-3, 4), S.Head(11, 4), S.Head(9, 16), S.Head(0, 16.5f), gb, CLOTH);
+            MLimb(S.Head(5, 5.5f), S.Head(14, 6.5f), 2.2f * s, 1.6f * s, gb, CLOTH);
+            for (int k = 0; k < 4; k++) DrawLineEx(S.Head(1 + k * 2.5f, 8), S.Head(1.5f + k * 2.5f, 15), 0.8f * s, Tone(gb, -0.4f));
+            if (in.face.mouth) DrawEllipse((int)S.Head(9, 9).x, (int)S.Head(9, 9).y, 2.4f * s, 1.6f * s, Color{30, 12, 12, 255});
+        } else {
+            DrawMouth(in.face, S.Head(8, 8.5f), 6.0f, s, f, Color{120, 64, 56, 255});
+            for (int k = 0; k < 10; k++) DrawCircleV(S.Head(1 + (k % 5) * 2.2f, 9 + (k / 5) * 2.0f), 0.45f * s, Fade(Color{40, 30, 26, 255}, 0.6f)); // stubble
+        }
+        // the naval cap: a broad crown sloping forward, a brass band and badge, a black peak
+        MQuad(S.Head(-12, -19), S.Head(14, -21), S.Head(13, -8), S.Head(-11, -7), Color{28, 28, 36, 255}, CLOTH);
+        MQuad(S.Head(-11, -9), S.Head(13, -10), S.Head(13, -6.5f), S.Head(-11, -6), Tone(brass, -0.15f), METAL);
+        MBall(S.Head(7, -14), 2.4f * s, brass, METAL);
+        MLimb(S.Head(3, -6.5f), S.Head(17, -5), 2.4f * s, 1.4f * s, Color{12, 12, 16, 255}, WET);
+    });    // --- the weapon arm, the cutlass and the big gloved hand, in front of everything
     parts.Add(1.0f, [&] {
         MLimb(S.p[SH_F], S.p[EL_F], 8.8f * s, 7.6f * s, coat, CLOTH);
         MLimb(S.p[EL_F], S.p[WR_F], 7.6f * s, 6.4f * s, coat, CLOTH);
@@ -186,8 +199,8 @@ void DrawRigCaptain(const Hero& h, Vector2 ft, float s, bool right, float walk, 
         MBall(Off(S.p[WR_F], 4, -3, s, f), 3.0f * s, glove, CLOTH);                                          // the thumb
         DrawRing(W(1), 5.6f * s, 7.4f * s, 0, 360, 16, brass);                                               // the basket guard
         MBall(W(-8), 2.6f * s, brass, METAL);                                                                // the pommel
-        MBall(S.p[SH_F], 8.4f * s, brass, METAL);                                                            // the near epaulette
-        for (int k = 0; k < 4; k++) DrawLineEx(Off(S.p[SH_F], -5 + k * 3.0f, 5, s, f), Off(S.p[SH_F], -5 + k * 3.0f, 11, s, f), 1.3f * s, Pal::BrassDk);
+        MLimb(Off(S.p[SH_F], -6, -1, s, f), Off(S.p[SH_F], 7, 1, s, f), 6.0f * s, 5.4f * s, brass, METAL);     // the near epaulette
+        for (int k = 0; k < 6; k++) DrawLineEx(Off(S.p[SH_F], -7 + k * 2.9f, 4, s, f), Off(S.p[SH_F], -7 + k * 3.0f, 13, s, f), 1.4f * s, Pal::BrassDk);
     });
     parts.Draw();
 }
@@ -266,11 +279,11 @@ void DrawRigCultist(const Enemy& e, Rectangle r, float t) {
     parts.Add(-1, [&] { for (int i = 0; i < RAGS; i++) in.chains[3 + i].Draw(s); });
     parts.Add(0, [&] {
         Vector2 sl = S.Chest(-16, -22), sr = S.Chest(15, -22);
-        MQuad(sl, sr, hem[RAGS - 1], hem[0], robeDk, CLOTH);                                                 // the outer robe
-        MQuad(S.Chest(-14, -22), S.Chest(2, -22), L2(hem[0], hem[RAGS - 1], 0.52f), hem[0], robe, CLOTH);   // its lit side
-        MQuad(S.Chest(-3, -22), S.Chest(6, -22), L2(hem[0], hem[RAGS - 1], 0.62f), L2(hem[0], hem[RAGS - 1], 0.44f), Tone(trim, -0.35f), CLOTH); // an embroidered panel
+        MQuad(sl, sr, hem[RAGS - 1], hem[0], robe, CLOTH);                                                   // the robe
+        for (int k = 0; k < 4; k++) DrawLineEx(L2(sl, sr, 0.15f + k * 0.22f), L2(hem[0], hem[RAGS - 1], 0.1f + k * 0.27f), 1.2f * s, Fade(Color{10, 6, 16, 255}, 0.55f)); // folds falling to the hem
+        MQuad(S.Chest(-3, -22), S.Chest(6, -22), L2(hem[0], hem[RAGS - 1], 0.62f), L2(hem[0], hem[RAGS - 1], 0.44f), Tone(trim, -0.6f), CLOTH); // an embroidered panel
         for (int i = 0; i < 5; i++) DrawLineEx(S.Chest(-1 + i * 0.4f, -16 + i * 12.0f), S.Chest(6 + i * 0.6f, -12 + i * 12.0f), 1.0f * s, Fade(glow, 0.5f + 0.4f * sinf(t * 2 + i)));
-        MLimb(S.Hips(-20, 4), S.Hips(18, 4), 3.2f * s, 3.2f * s, Tone(trim, -0.2f), CLOTH);                  // the cord at the waist
+        MLimb(S.Hips(-20, 4), S.Hips(18, 4), 2.6f * s, 2.6f * s, Color{120, 100, 70, 255}, CLOTH);                  // the cord at the waist
     });
     // the censer on its cord, swinging
     parts.Add(0.3f, [&] {

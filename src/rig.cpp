@@ -49,7 +49,7 @@ void MBall(Vector2 c, float r, Color col, Mat m) {
     ShadeBall(c, r, col);
     Vector2 k = KeyDir();
     switch (m) {
-        case METAL: DrawCircleV({c.x + k.x * r * 0.45f, c.y + k.y * r * 0.45f}, std::max(1.0f, r * 0.22f), Fade(ColorBrightness(KeyCol(), 0.2f), 0.9f)); break;
+        case METAL: DrawCircleV({c.x + k.x * r * 0.45f, c.y + k.y * r * 0.45f}, std::max(1.0f, r * 0.12f), Fade(ColorBrightness(KeyCol(), 0.2f), 0.7f)); break;
         case WET: DrawCircleV({c.x + k.x * r * 0.5f, c.y + k.y * r * 0.5f}, std::max(1.0f, r * 0.14f), Fade(WHITE, 0.7f)); break;
         case SHELL: DrawRing(c, r * 0.55f, r * 0.62f, 0, 360, 16, Fade(Tone(col, -0.45f), 0.6f)); break;
         case GLOW: Glow(c, r * 3.2f, Fade(col, 0.4f)); break;
