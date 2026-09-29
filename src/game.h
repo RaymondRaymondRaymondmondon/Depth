@@ -10,6 +10,7 @@
 #include <functional>
 #include <string>
 #include <vector>
+#include "chart.h"
 
 constexpr int SCREEN_W   = 1280;
 constexpr int SCREEN_H   = 720;
@@ -197,7 +198,7 @@ struct Enemy {
 struct FloatText { Vector2 pos; std::string text; Color color; float life; };
 struct TurnEntry { bool hero; int id; int init; };
 
-enum class RoomType { Fight, Treasure, Boss };
+enum class RoomType { Fight, Treasure, Boss, Entrance, Curio, Rest, Shrine, Empty }; // Empty: a quiet junction on the way
 
 // Things the crew can pick up and carry through an expedition: a battery to burn for light, a bandage
 // to patch someone up on the spot, a key that opens a locked chest, or a relic found still loose (not
@@ -206,7 +207,13 @@ enum class RoomType { Fight, Treasure, Boss };
 enum class ItemKind { Battery, Bandage, Key, Relic };
 struct InvItem { ItemKind kind; int relicId = -1; };
 constexpr int INV_SLOTS = 5;
-enum class DPhase { Corridor, Walking, Combat, RoomClear, Treasure, Victory, Retreat, Defeat };
+enum class DPhase { Corridor, Walking, Combat, RoomClear, Treasure, Victory, Retreat, Defeat, Event };
+// what an expedition sets out to do, chosen at the Helm (Master Reference: one objective per expedition, with a bonus)
+enum class Objective { Slay, Chart, Salvage, Cleanse, COUNT };
+const char* ObjectiveName(Objective o);
+const char* ObjectiveText(Objective o);
+// an event on the way or in a room that needs the player: a trap, a curio, a camp, a shrine, a blocked passage
+enum class EventKind { None, Trap, Curio, Rest, Shrine, Blocked, Loot };
 
 // Dungeon difficulty levels. Clearing one unlocks the next; earlier ones stay available.
 constexpr int CAVE_TIERS = 5;
@@ -267,8 +274,26 @@ struct DungeonState {
     float batteryT = 0;            // counts down while a battery is being swapped in
     float lightShown = 100;        // the flashlight as drawn: eases toward `light`
     std::string levelUps;
-    std::vector<RoomType> rooms;
+    std::vector<RoomType> rooms;   // (the old linear run: unused since the sonar chart, kept for the boss simulator's one-room fights)
     int roomIndex = -1;
+    // ---------- the sonar chart (chart.h)
+    Chart chart;
+    int curRoom = 0;               // where the party stands
+    int walkEdge = -1, walkDest = -1, walkSeg = 0, walkSegs = 0; // the corridor being walked, and how far along it
+    bool walkForward = true, walkRevisit = false;
+    bool inHall = false;           // the fight under way is a hallway fight (in a corridor, not a room)
+    int ambushSeg = -1;            // a revisited corridor's ambush: which segment it springs on (-1: none)
+    Objective objective = Objective::Slay;
+    bool objectiveDone = false;
+    int fightsWon = 0;
+    int minisMet = 0;              // mini-bosses met this expedition (at most MAX_MINIS_PER_RUN)
+    EventKind event = EventKind::None;
+    std::string eventTitle, eventBody;
+    int eventStage = 0;            // 0 the choice, 1 the outcome shown
+    int eventArg = 0;              // which curio (or shrine)
+    bool eventAmbush = false;      // the outcome ends in a fight (a curio's ambush, a night attack at camp)
+    int blessFights = 0;           // a shrine's blessing: the next few fights hit harder
+    bool scopeOpen = false;        // the sonar scope pulled up full size while walking or fighting (Tab)
     float light = 100;
     int lootGold = 0;
     std::vector<int> lootRelics;
@@ -564,6 +589,7 @@ struct Game {
     int dossierPick = -1;                    // the entry selected in it
     int tierCleared[LOCATION_COUNT] = {-1, -1, -1, -1}; // highest level beaten, per location (-1 = none)
     int tierSel[LOCATION_COUNT] = {0, 0, 0, 0};         // the level chosen at the Helm, per location
+    Objective objectiveSel = Objective::Slay;             // the objective chosen at the Helm for the next expedition (not saved)
     std::string toast;
     float toastTimer = 0;
     float time = 0;
@@ -615,6 +641,9 @@ const char* UpgradeDesc(int u, int level); // what the given level does
 int UpgradePrice(int level);                // price to buy the given level
 int LoadoutCount(const Hero& h);
 void ScaleEnemyForTier(Enemy& e, int tier);
+int ChartTrapSpotChance();
+int ChartRevisitAmbush();
+int ChartNightAmbush();
 
 // ---------- save.cpp ----------
 bool SaveGame(const Game& g);
@@ -784,6 +813,8 @@ void SceneWorkshop(Game& g);
 void StartDungeon(Game& g, Location loc);
 void SceneDungeon(Game& g);
 void DebugEnterCombat(Game& g, Location loc = Location::Cave); // debug: jump straight into the first fight
+void DebugChartWalk(Game& g, int dest);   // --shots: walking a corridor on the chart
+void DebugChartEvent(Game& g, int kind);  // --shots: 1 a curio, 2 a camp
 void SimulateBossFight(int runs, int level, int tier, int enemyType, bool randomPlayer); // debug: one boss, many fights
 void SimulateExpeditions(int runs, int level, bool randomPlayer, int tier = 0); // debug: auto-play expeditions and print the results
 

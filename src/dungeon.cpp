@@ -3,6 +3,7 @@
 // ============================================================================
 #include "game.h"
 #include "rig.h"
+#include "sound.h"
 #include "sprite_renderer.h"
 #include "rlgl.h"
 #include "relics.h"
@@ -38,6 +39,7 @@ static int EnemyAccBonus(const Game& g) { float l = g.dungeon.light; return l >=
 static int HeroAccBonus(const Game& g) { return g.dungeon.light >= 75 ? 5 : 0; }
 static const char* LightName(float l) { return l >= 75 ? "Bright" : l >= 50 ? "Dim" : l > 0 ? "Murky" : "Pitch Black"; }
 
+static bool BossFightNow(const DungeonState& d);
 // ---------------------------------------------------------------- lookups
 static int PartySize(Game& g) { int n = 0; for (int id : g.party) if (id >= 0) n++; return n; }
 static Hero* PartyAt(Game& g, int pos) { return (pos < 0 || pos >= PARTY_SIZE) ? nullptr : FindHero(g, g.party[pos]); }
@@ -538,13 +540,15 @@ static void RoomCleared(Game& g) {
     auto& d = g.dungeon;
     for (int id : g.party)
         if (Hero* h = FindHero(g, id)) { h->st = Status{}; }
-    bool boss = d.rooms[d.roomIndex] == RoomType::Boss;
-    d.roomGold = (int)(Roll(boss ? 30 : 10, boss ? 50 : 22) * LootMult(g)); // kept modest: gold should stay scarce
+    bool boss = BossFightNow(d);
+    d.fightsWon++;
+    if (!d.inHall && !d.chart.rooms.empty()) d.chart.rooms[d.curRoom].cleared = true;
+    d.roomGold = (int)(Roll(boss ? 30 : d.inHall ? 5 : 10, boss ? 50 : d.inHall ? 12 : 22) * LootMult(g)); // kept modest: gold should stay scarce
     d.roomRelic = -1;
     if (boss && Chance(50)) { d.roomRelic = Roll(0, (int)Relics().size() - 1); d.lootRelics.push_back(d.roomRelic); }
     if (d.miniFight) d.roomGold = d.roomGold * 8 / 5; // a mini-boss guards better loot
     d.lootGold += d.roomGold;
-    d.pendingItem = !boss && Chance(d.miniFight ? 85 : 40); // something dropped among the wreckage, worth a look
+    d.pendingItem = !boss && Chance(d.miniFight ? 85 : d.inHall ? 20 : 40); // something dropped among the wreckage, worth a look
     if (d.pendingItem) d.pendingItemVal = RollFoundItem();
     if (d.miniFight && Chance(35)) { d.pendingItem = true; d.pendingItemVal = {ItemKind::Relic, Roll(0, (int)Relics().size() - 1)}; }
     d.phase = boss ? DPhase::Victory : DPhase::RoomClear;
@@ -629,29 +633,27 @@ static void StartTurn(Game& g) {
     }
 }
 
-// ---------------------------------------------------------------- rooms
+// ---------------------------------------------------------------- rooms and the chart
 static int gForceEnemy = -1; // the boss simulator sets this to fight one particular enemy
-static void EnterNextRoom(Game& g) {
+static RoomType CurRoomType(const DungeonState& d) { return d.chart.rooms.empty() ? RoomType::Fight : d.chart.rooms[d.curRoom].type; }
+static bool BossFightNow(const DungeonState& d) { return !d.inHall && CurRoomType(d) == RoomType::Boss; }
+static void BeginEvent(Game& g, EventKind k);
+static bool ObjectiveMet(Game& g);
+// a corridor drains what a room used to, spread over its stretches (half on a passage walked before)
+static float StretchDrain(Game& g) {
+    const ChartParams& P = ChartParamsFor(g.dungeon.tier);
+    if (getenv("DEPTH_LINEAR")) return (float)LightDrainPerRoom(g);
+    return LightDrainPerRoom(g) * CHART_STRETCH_DRAIN * 2.0f / (P.segMin + P.segMax) * (g.dungeon.walkRevisit ? 0.5f : 1.0f);
+}
+
+
+// a fight: in a room (a mini-boss more likely the deeper you go), in a hallway (a weaker group), or the boss
+static void StartFight(Game& g, bool hall) {
     auto& d = g.dungeon;
-    d.roomIndex++;
+    d.inHall = hall;
     d.enemies.clear();
     d.log.clear();
     d.floats.clear();
-    RoomType rt = d.rooms[d.roomIndex];
-    if (rt == RoomType::Treasure) {
-        d.roomIsChest = Chance(35); // sometimes it's locked, and only a carried key opens it
-        d.chestOpened = false;
-        d.roomGold = d.roomIsChest ? 0 : (int)(Roll(18, 36) * LootMult(g));
-        d.roomRelic = -1;
-        d.pendingItem = false;
-        if (!d.roomIsChest) {
-            d.lootGold += d.roomGold;
-            // the relic here, if any, is loose -- carry it home in the inventory rather than an automatic find
-            if (Chance(30)) { d.pendingItem = true; d.pendingItemVal = {ItemKind::Relic, Roll(0, (int)Relics().size() - 1)}; }
-        }
-        d.phase = DPhase::Treasure;
-        return;
-    }
     int level = CAVE_TIER_LEVEL[d.tier];
     auto pickFrom = [&](const std::vector<EnemyType>& pool) { return pool[Roll(0, (int)pool.size() - 1)]; };
     auto standards = LocationStandards(d.loc), supports = LocationSupports(d.loc), minis = LocationMinis(d.loc);
@@ -662,13 +664,17 @@ static void EnterNextRoom(Game& g) {
         d.miniFight = b.tier == 1;
         int adds = b.span >= 3 ? 1 : Roll(1, 2);
         for (int i = 0; i < adds; i++) d.enemies.push_back(MakeEnemy(pickFrom(standards), d.nextUid++));
-    } else if (rt == RoomType::Boss) { // the location's level boss stands in front, with its own to back it up
+    } else if (hall) { // caught in the passage: two or three of the ordinary kind
+        int count = Roll(0, 99) < 70 ? 2 : 3;   // a passage is narrow: mostly a pair
+        for (int i = 0; i < count; i++) d.enemies.push_back(MakeEnemy(pickFrom(standards), d.nextUid++));
+        Log(g, "Something moves in the passage!");
+    } else if (CurRoomType(d) == RoomType::Boss) { // the location's level boss stands in front, with its own to back it up
         d.enemies.push_back(MakeEnemy(LocationLevelBoss(d.loc), d.nextUid++));
-        int adds = 1; // the boss fills three ranks, so only one retainer fits beside it
-        for (int i = 0; i < adds; i++) d.enemies.push_back(MakeEnemy(i == adds - 1 && Chance(50) ? pickFrom(supports) : pickFrom(standards), d.nextUid++));
+        d.enemies.push_back(MakeEnemy(Chance(50) ? pickFrom(supports) : pickFrom(standards), d.nextUid++)); // the boss fills three ranks: one retainer fits
         Log(g, std::string(LocationBossName(d.loc)) + " rises to meet you...");
-    } else if (Chance(MiniBossChance(level))) { // a mini-boss: more likely the deeper you go
+    } else if (d.minisMet < MAX_MINIS_PER_RUN && Chance(MiniBossChance(level))) {
         d.miniFight = true;
+        d.minisMet++;
         d.enemies.push_back(MakeEnemy(pickFrom(minis), d.nextUid++));
         int adds = Roll(1, 2);
         for (int i = 0; i < adds; i++) d.enemies.push_back(MakeEnemy(pickFrom(standards), d.nextUid++));
@@ -678,13 +684,151 @@ static void EnterNextRoom(Game& g) {
         for (int i = 0; i < count; i++) d.enemies.push_back(MakeEnemy(pickFrom(standards), d.nextUid++));
         if (Chance(50)) d.enemies.back() = MakeEnemy(pickFrom(supports), d.nextUid - 1); // a support hangs back at the rear
         Log(g, "Something stirs in the dark...");
-    }    for (auto& e : d.enemies) ScaleEnemyForTier(e, d.tier);
+    }
+    for (auto& e : d.enemies) ScaleEnemyForTier(e, d.tier);
+    if (d.blessFights > 0) { // a shrine's blessing
+        d.blessFights--;
+        for (int id : g.party) if (Hero* h = FindHero(g, id)) { h->st.buffDmg = 25; h->st.buffTurns = 4; }
+        Log(g, "The shrine's blessing steadies the crew's hands.");
+    }
     d.anims.clear();
     d.shots.clear();
     d.pending = PendingAction{};
     d.round = 0;
     BeginRound(g);
     d.phase = DPhase::Combat;
+}
+
+// what the crew know: rooms near where they stand show on the scope (further with a better Sonar Array)
+static void Reveal(Game& g, int extra = 0) {
+    auto& d = g.dungeon;
+    auto& c = d.chart;
+    int sonar = g.upgrades[UP_SONAR], steps = (sonar >= 2 ? 2 : 1) + extra;
+    for (int id : g.party) if (Hero* h = FindHero(g, id))   // the Awakened Lantern lights the way further
+        for (int rid : h->relics) if (rid >= 0 && rid < (int)Relics().size() && Relics()[rid].name == "Awakened Lantern") { steps++; break; }
+    if (sonar >= 3) for (auto& r : c.rooms) r.known = true;   // the whole layout, without what's in it
+    std::vector<int> dist(c.rooms.size(), -1), q{d.curRoom};
+    dist[d.curRoom] = 0;
+    for (size_t i = 0; i < q.size(); i++) {
+        int r = q[i];
+        c.rooms[r].known = c.rooms[r].scouted = true;
+        if (dist[r] >= steps) continue;
+        for (int o : c.Neighbours(r)) if (dist[o] < 0) { dist[o] = dist[r] + 1; q.push_back(o); }
+    }
+}
+
+// the Helm's objective: has it been met?
+static bool ObjectiveMet(Game& g) {
+    auto& d = g.dungeon;
+    auto& c = d.chart;
+    int visited = 0, treasures = 0, opened = 0, fights = 0, won = 0;
+    for (auto& r : c.rooms) {
+        visited += r.visited;
+        if (r.type == RoomType::Treasure) { treasures++; opened += r.cleared; }
+        if (r.type == RoomType::Fight || r.type == RoomType::Boss) { fights++; won += r.cleared; }
+    }
+    switch (d.objective) {
+        case Objective::Chart: return visited * 10 >= (int)c.rooms.size() * 9;
+        case Objective::Salvage: return treasures > 0 && opened == treasures;
+        case Objective::Cleanse: return fights > 0 && won == fights;
+        default: return c.rooms[c.boss].cleared;
+    }
+}
+
+static void OpenEvent(Game& g, EventKind k, const std::string& title, const std::string& body) {
+    auto& d = g.dungeon;
+    d.event = k; d.eventTitle = title; d.eventBody = body; d.eventStage = 0;
+    d.phase = DPhase::Event;
+}
+
+// the party has reached the room at the end of the corridor
+static void ArriveRoom(Game& g) {
+    auto& d = g.dungeon;
+    auto& c = d.chart;
+    d.curRoom = d.walkDest;
+    d.walkEdge = -1; d.walkDest = -1;
+    ChartRoom& r = c.rooms[d.curRoom];
+    r.visited = true;
+    Reveal(g);
+    d.roomIndex++;
+    d.pendingItem = false;
+    if (r.cleared) { d.phase = DPhase::Corridor; d.corridorT = 0; return; }
+    switch (r.type) {
+        case RoomType::Treasure:
+            d.roomIsChest = Chance(35); // sometimes it's locked, and only a carried key opens it
+            d.chestOpened = false;
+            d.roomGold = d.roomIsChest ? 0 : (int)(Roll(18, 36) * LootMult(g));
+            d.roomRelic = -1;
+            if (!d.roomIsChest) {
+                d.lootGold += d.roomGold;
+                r.cleared = true;
+                if (Chance(30)) { d.pendingItem = true; d.pendingItemVal = {ItemKind::Relic, Roll(0, (int)Relics().size() - 1)}; }
+            }
+            d.phase = DPhase::Treasure;
+            return;
+        case RoomType::Curio: BeginEvent(g, EventKind::Curio); return;
+        case RoomType::Rest: OpenEvent(g, EventKind::Rest, "A place to rest", "A dry ledge above the water, out of the current. The crew could make camp here: bind wounds, eat, sleep in turns. Something may come in the night."); return;
+        case RoomType::Shrine: BeginEvent(g, EventKind::Shrine); return;
+        case RoomType::Entrance: case RoomType::Empty: r.cleared = true; d.phase = DPhase::Corridor; d.corridorT = 0; return;
+        default: StartFight(g, false); return;
+    }
+}
+
+// what waits on one stretch of the corridor, if anything
+static void ResolveSegment(Game& g) {
+    auto& d = g.dungeon;
+    ChartEdge& e = d.chart.edges[d.walkEdge];
+    int si = d.walkForward ? d.walkSeg : (int)e.segs.size() - 1 - d.walkSeg;
+    CorridorEvent ev = e.segs[si];
+    if (d.walkRevisit && d.walkSeg == d.ambushSeg) { d.ambushSeg = -1; Log(g, "An ambush in a passage you thought was safe!"); StartFight(g, true); return; }
+    e.segs[si] = ev == CorridorEvent::Blocked ? ev : CorridorEvent::None; // resolved (a blocked passage stays blocked until cleared)
+    switch (ev) {
+        case CorridorEvent::HallFight: StartFight(g, true); return;
+        case CorridorEvent::Trap: BeginEvent(g, EventKind::Trap); return;
+        case CorridorEvent::Loot: BeginEvent(g, EventKind::Loot); return;
+        case CorridorEvent::Curio: BeginEvent(g, EventKind::Curio); return;
+        case CorridorEvent::Blocked: OpenEvent(g, EventKind::Blocked, "A blocked passage", "Rockfall and wreckage choke the passage. A battery's charge through the old blasting cap would clear it; otherwise, turn back and go round."); return;
+        default: break;
+    }
+    // nothing here: on to the next stretch, or into the room
+    d.walkSeg++;
+    if (d.walkSeg >= d.walkSegs) ArriveRoom(g);
+    else { d.walkT = 0; d.light = std::max(0.0f, d.light - StretchDrain(g)); }
+}
+
+// after an event or a hallway fight in the corridor: carry on walking, or arrive
+static void ResumeWalk(Game& g) {
+    auto& d = g.dungeon;
+    d.inHall = false;
+    if (d.walkEdge < 0) { d.phase = DPhase::Corridor; d.corridorT = 0; return; }
+    d.walkSeg++;
+    if (d.walkSeg >= d.walkSegs) { ArriveRoom(g); return; }
+    d.phase = DPhase::Walking;
+    d.walkT = 0;
+    d.light = std::max(0.0f, d.light - StretchDrain(g));
+}
+
+// set off down the corridor to a neighbouring room
+static void BeginWalk(Game& g, int dest) {
+    auto& d = g.dungeon;
+    int e = d.chart.EdgeBetween(d.curRoom, dest);
+    if (e < 0) return;
+    ChartEdge& ed = d.chart.edges[e];
+    d.walkEdge = e; d.walkDest = dest; d.walkSeg = 0; d.walkSegs = (int)ed.segs.size();
+    d.walkForward = ed.a == d.curRoom;
+    d.walkRevisit = ed.walked > 0;
+    d.ambushSeg = d.walkRevisit && Chance(ChartRevisitAmbush()) ? Roll(0, d.walkSegs - 1) : -1; // a revisited corridor: no scripted fights, but maybe an ambush
+    ed.walked++;
+    d.light = std::max(0.0f, d.light - StretchDrain(g));
+    d.phase = DPhase::Walking;
+    d.walkT = 0;
+}
+
+// (kept for the older callers: the boss simulator and the debug shots) - into a fight at the next room on the way
+static void EnterNextRoom(Game& g) {
+    auto& d = g.dungeon;
+    d.roomIndex++;
+    StartFight(g, false);
 }
 
 void StartDungeon(Game& g, Location loc) {
@@ -697,20 +841,214 @@ void StartDungeon(Game& g, Location loc) {
     d.atmos = GetRandomValue(0, 2);
     int li = (int)loc;
     d.tier = std::clamp(g.tierSel[li], 0, std::min(CAVE_TIERS - 1, g.tierCleared[li] + 1));
-    int lvl = CAVE_TIER_LEVEL[d.tier], rooms = lvl >= 3 ? 4 : 3;
-    bool anyFight = false;
-    for (int i = 0; i < rooms; i++) {
-        RoomType t = Chance(70) ? RoomType::Fight : RoomType::Treasure;
-        anyFight |= t == RoomType::Fight;
-        d.rooms.push_back(t);
+    d.chart = GenerateChart(d.tier, (unsigned)GetRandomValue(1, 2000000000));
+    if (getenv("DEPTH_LINEAR")) { // balance baseline: the old linear run (3 or 4 rooms, 70% fights, then the boss) as a straight chart
+        Chart c;
+        int lvl = CAVE_TIER_LEVEL[d.tier], n = lvl >= 3 ? 4 : 3;
+        auto add = [&](RoomType t) { ChartRoom r; r.type = t; r.gx = (int)c.rooms.size(); r.gy = 0; c.rooms.push_back(r); };
+        add(RoomType::Entrance);
+        bool anyFight = false;
+        for (int i = 0; i < n; i++) { bool f = Chance(70); anyFight |= f; add(f ? RoomType::Fight : RoomType::Treasure); }
+        if (!anyFight) c.rooms[1].type = RoomType::Fight;
+        add(RoomType::Boss);
+        for (int i = 1; i < (int)c.rooms.size(); i++) c.edges.push_back({i - 1, i, {CorridorEvent::None}, 0, false});
+        c.entrance = 0; c.boss = (int)c.rooms.size() - 1;
+        c.rooms[0].known = c.rooms[0].scouted = c.rooms[0].visited = c.rooms[0].cleared = true;
+        d.chart = c;
     }
-    if (!anyFight) d.rooms[Roll(0, rooms - 1)] = RoomType::Fight;
-    d.rooms.push_back(RoomType::Boss);
+    d.curRoom = d.chart.entrance;
+    d.objective = g.objectiveSel;
+    Reveal(g);
+    d.rooms.assign(1, RoomType::Fight);
     for (int id : g.party)
         if (Hero* h = FindHero(g, id)) { h->st = Status{}; h->deathsDoor = false; h->hp = std::max(1, h->hp); }
     g.scene = Scene::Dungeon;
 }
+// ---------------------------------------------------------------- the chart's events
+// Curios: about five per location and six found anywhere (Stage 7 adds the supplies that force a good outcome).
+struct CurioDef { const char* name; const char* look; bool cursed; };
+static const CurioDef CURIOS[] = {
+    // the Cave
+    {"A barnacled sea chest", "Crusted shut with barnacles, half sunk in the silt.", false},
+    {"A drowned sailor's locker", "Stencilled with a ship's name nobody remembers. Something knocks inside.", false},
+    {"A glowing anemone bed", "It pulses with a soft light, and the water around it is warm.", false},
+    {"A diver's skeleton, still suited", "The helmet is cracked. One gloved hand still grips a satchel.", false},
+    {"A crystal-studded shelf", "Crystals grow from the rock like teeth, humming faintly.", false},
+    // the Island
+    {"A tribal idol", "A squat idol with shell eyes. Offerings lie rotting at its feet.", false},
+    {"A bone totem", "Skulls of fish and men, lashed together with sinew.", false},
+    {"A smoking offering bowl", "The embers are still warm. The smoke smells sweet and wrong.", false},
+    {"A cache of palm-leaf scrolls", "Bundled in waxed cloth, marked with the tide's glyph.", false},
+    {"A shipwrecked sea-chest", "Washed up and wedged between two roots.", false},
+    // the Weeds
+    {"A kelp-wrapped cage", "Something small and bright is caught inside, pressed against the bars.", false},
+    {"A giant clam", "Big enough to swallow a man. It is very slightly open.", false},
+    {"A merfolk trinket hoard", "Buttons, coins, a compass, a doll's head: all very carefully arranged.", false},
+    {"A sunken rowboat", "Upside down on the kelp, its oars still lashed in.", false},
+    {"A pale egg cluster", "Soft, translucent, and something inside is moving.", false},
+    // Atlantis
+    {"A cult altar", "Black stone, a groove for blood, a sigil that hurts to look at.", true},
+    {"A broken statue with a hollow chest", "A drowned king, and something glinting where his heart should be.", false},
+    {"A glyph-carved tablet", "The glyphs rearrange themselves while you watch.", false},
+    {"An amphora sealed with wax", "Still sealed after all these centuries.", false},
+    {"A mirror of black bronze", "Your reflection is a moment late.", false},
+    // anywhere
+    {"A floating bottle with a note", "Corked tight. The paper inside is still dry.", false},
+    {"A rusted diving bell", "Its porthole is fogged from the inside.", false},
+    {"A school of glowing fish", "They circle you, curious, and don't flee.", false},
+    {"An old anchor chain", "It runs down into the dark further than the lamp can follow.", false},
+    {"A strongbox", "Iron-bound, with a keyhole shaped like a starfish.", false},
+    {"A tangle of fishing net", "Floats, hooks, a lost lure, and the shape of something caught.", false},
+};
+constexpr int CURIO_COUNT = sizeof(CURIOS) / sizeof(CURIOS[0]);
+static int PickCurio(const DungeonState& d) { return Chance(70) ? (int)d.loc * 5 + Roll(0, 4) : 20 + Roll(0, 5); }
 
+static Hero* RandomPartyHero(Game& g) {
+    std::vector<Hero*> hs;
+    for (int id : g.party) if (Hero* h = FindHero(g, id)) hs.push_back(h);
+    return hs.empty() ? nullptr : hs[Roll(0, (int)hs.size() - 1)];
+}
+static void Hurt(Game& g, Hero& h, int dmg) { h.hp = std::max(1, h.hp - dmg); (void)g; }
+static void Nerve(Hero& h, int n) { h.stress = std::clamp(h.stress + n, 0, 100); if (h.stress >= 100) h.rattled = true; }
+
+// opens an event, working out anything that happens the moment it springs
+static void BeginEvent(Game& g, EventKind k) {
+    auto& d = g.dungeon;
+    d.eventAmbush = false;
+    switch (k) {
+    case EventKind::Trap: {
+        bool spotter = false;
+        for (int id : g.party) if (Hero* h = FindHero(g, id)) spotter |= h->cls == HeroClass::Diver || h->cls == HeroClass::Whaler;
+        if (spotter && Chance(ChartTrapSpotChance())) {
+            int gold = (int)(Roll(4, 9) * LootMult(g));
+            d.lootGold += gold;
+            OpenEvent(g, k, "A trap, disarmed", TextFormat("A trip-line in the silt, strung to a rusted spring-harpoon. Sharp eyes caught it; the crew take it apart and salvage %d gold of brass.", gold));
+        } else {
+            Hero* h = RandomPartyHero(g);
+            if (!h) { OpenEvent(g, k, "A trap", "It springs on nothing."); break; }
+            int kind = Roll(0, 2);
+            if (kind == 0) { Hurt(g, *h, Roll(2, 4)); OpenEvent(g, k, "A trap!", h->name + " steps on a nest of rusted barbs and bleeds."); }
+            else if (kind == 1) { Hurt(g, *h, Roll(2, 4)); h->st.poisonDmg = 2; h->st.poisonTurns = 2; OpenEvent(g, k, "A trap!", h->name + " is stung by a spined thing hidden in the weed. The poison lingers."); }
+            else { Nerve(*h, 9); OpenEvent(g, k, "A trap!", "A dead-man's rattle of bones on a line: the whole passage clatters. " + h->name + "'s nerves are shot."); }
+        }
+        d.eventStage = 1;
+    } break;
+    case EventKind::Loot: {
+        if (Chance(55)) { int gold = (int)(Roll(6, 14) * LootMult(g)); d.lootGold += gold; OpenEvent(g, k, "Loose loot", TextFormat("Something catches the lamp: %d gold in a split purse.", gold)); }
+        else { d.pendingItem = true; d.pendingItemVal = RollFoundItem(); OpenEvent(g, k, "Loose loot", "Something catches the lamp, half-buried in the silt."); }
+        d.eventStage = 1;
+    } break;
+    case EventKind::Curio: {
+        d.eventArg = PickCurio(d);
+        const CurioDef& c = CURIOS[d.eventArg];
+        OpenEvent(g, k, c.name, c.look);
+    } break;
+    case EventKind::Shrine: {
+        const char* NAMES[LOCATION_COUNT] = {"A drowned altar to the tide", "A basalt shrine to the Sun", "A kelp-grown shrine of the merfolk", "A shrine to the Sleeper"};
+        OpenEvent(g, k, NAMES[(int)d.loc], "Old offerings lie on it. The crew could pray here, and hope something listens kindly.");
+    } break;
+    default: break;
+    }
+}
+
+// the choice made on an event (0 the first option: inspect, camp, pray, clear the passage; 1 leave, press on, turn back)
+static void ChooseEvent(Game& g, int choice) {
+    auto& d = g.dungeon;
+    if (d.eventStage == 1) { // the outcome has been read: carry on
+        d.event = EventKind::None;
+        bool inCorridor = d.walkEdge >= 0;
+        if (!inCorridor && !d.chart.rooms.empty()) d.chart.rooms[d.curRoom].cleared = true;
+        if (d.eventAmbush) { d.eventAmbush = false; StartFight(g, true); return; }
+        if (inCorridor) ResumeWalk(g); else { d.phase = DPhase::Corridor; d.corridorT = 0; }
+        return;
+    }
+    switch (d.event) {
+    case EventKind::Curio: {
+        if (choice != 0) { d.eventBody = "You leave it be."; break; }
+        const CurioDef& c = CURIOS[d.eventArg];
+        int roll = Roll(0, 99);
+        Hero* h = RandomPartyHero(g);
+        if (c.cursed) roll = 40 + roll * 60 / 100;   // no safe way to touch it
+        if (roll < 28) { int gold = (int)(Roll(10, 24) * LootMult(g)); d.lootGold += gold; d.eventBody = TextFormat("Inside: %d gold.", gold); }
+        else if (roll < 36) { d.pendingItem = true; d.pendingItemVal = {ItemKind::Relic, Roll(0, (int)Relics().size() - 1)}; d.eventBody = "Inside, wrapped in oilcloth: a relic."; }
+        else if (roll < 48) { d.blessFights++; d.eventBody = "A warmth spreads through the crew. They'll fight the better for it."; }
+        else if (roll < 54) { for (auto& r : d.chart.rooms) r.known = true; Reveal(g, 1); d.eventBody = "Rolled up inside: a scrap of sea-chart, and the passages ahead are drawn on it."; }
+        else if (roll < 60) { for (int id : g.party) if (Hero* x = FindHero(g, id)) { x->hp = std::min(GetStats(*x).maxHp, x->hp + 4); Nerve(*x, -8); } d.eventBody = "It soothes: wounds close a little, nerves settle."; }
+        else if (roll < 78) { if (h) Nerve(*h, 14); for (int id : g.party) if (Hero* x = FindHero(g, id)) Nerve(*x, 4); d.eventBody = h ? h->name + " recoils from what's inside. Everyone is a little shaken." : "Nothing, and somehow that is worse."; }
+        else if (roll < 90) { if (h) Hurt(g, *h, Roll(3, 5)); d.eventBody = h ? h->name + " is cut by something sharp inside." : "It bites."; }
+        else { d.eventAmbush = true; d.eventBody = "It was bait. Something comes out of the dark!"; }
+    } break;
+    case EventKind::Rest: {
+        if (choice != 0) { d.eventBody = "The crew press on without resting."; break; }
+        for (int id : g.party) if (Hero* x = FindHero(g, id)) { x->hp = std::min(GetStats(*x).maxHp, x->hp + GetStats(*x).maxHp * 2 / 5); Nerve(*x, -20); }
+        d.eventAmbush = Chance(ChartNightAmbush());
+        d.eventBody = d.eventAmbush ? "They bind their wounds and sleep in turns... and in the night, something finds the camp!"
+                                    : "They bind their wounds, eat, and sleep in turns. Nothing comes. Morning, of a kind.";
+    } break;
+    case EventKind::Shrine: {
+        if (choice != 0) { d.eventBody = "You leave the shrine to its own."; break; }
+        if (Chance(60)) { d.blessFights += 2; d.eventBody = "The water stills. The crew feel watched over: their next two fights will go better."; }
+        else { for (int id : g.party) if (Hero* x = FindHero(g, id)) Nerve(*x, 12); d.eventBody = "Something answers, and it isn't kind. Every nerve jangles."; }
+    } break;
+    case EventKind::Blocked: {
+        ChartEdge& e = d.chart.edges[d.walkEdge];
+        int si = d.walkForward ? d.walkSeg : (int)e.segs.size() - 1 - d.walkSeg;
+        if (choice == 0 && g.batteries > 0) {
+            g.batteries--;
+            e.segs[si] = CorridorEvent::None;
+            d.event = EventKind::None;
+            d.eventBody = "";
+            ResumeWalk(g);
+            return;
+        }
+        // turn back: the party returns to the room they came from
+        d.walkEdge = -1; d.walkDest = -1;
+        d.event = EventKind::None;
+        d.phase = DPhase::Corridor; d.corridorT = 0;
+        return;
+    }
+    default: break;
+    }
+    d.eventStage = 1;
+}
+
+// the auto-player's route: the fewest fights to the boss, with detours for loot and rest when it can afford them
+static void SimChooseRoute(Game& g, bool randomPlayer) {
+    auto& d = g.dungeon;
+    auto& c = d.chart;
+    std::vector<int> nb = c.Neighbours(d.curRoom);
+    if (nb.empty()) { d.phase = DPhase::Retreat; return; }
+    int dest = -1;
+    if (!randomPlayer && d.light < 35 && g.batteries > 0) { g.batteries--; d.light = std::min(100.0f, d.light + 40); }
+    if (randomPlayer) dest = nb[Roll(0, (int)nb.size() - 1)];
+    else {
+        float hp = 0; int n = 0;
+        for (int id : g.party) if (Hero* h = FindHero(g, id)) { hp += (float)h->hp / GetStats(*h).maxHp; n++; }
+        hp = n ? hp / n : 0;
+        for (int o : nb) {
+            const ChartRoom& r = c.rooms[o];
+            if (r.cleared || !r.scouted) continue;
+            if (r.type == RoomType::Rest && hp < 0.6f) { dest = o; break; }
+            if ((r.type == RoomType::Treasure || r.type == RoomType::Curio) && d.light > 40 && hp > 0.5f) { dest = o; break; }
+        }
+        if (dest < 0 && hp < 0.55f) // hurt: make for a rest room if one is close
+            for (int r = 0; r < (int)c.rooms.size() && dest < 0; r++)
+                if (c.rooms[r].type == RoomType::Rest && !c.rooms[r].cleared && c.rooms[r].known) {
+                    std::vector<int> p = ChartPath(c, d.curRoom, r, g.batteries == 0);
+                    if (p.size() > 1 && p.size() <= 3) dest = p[1];
+                }
+        if (dest < 0) {
+            std::vector<int> path = ChartPath(c, d.curRoom, c.boss, g.batteries == 0);
+            dest = path.size() > 1 ? path[1] : nb[0];
+        }
+    }
+    BeginWalk(g, dest);
+}
+static void SimResolveEvent(Game& g) {
+    auto& d = g.dungeon;
+    if (d.event == EventKind::Blocked) { ChooseEvent(g, g.batteries > 0 ? 0 : 1); return; }
+    ChooseEvent(g, 0);
+}
 void DebugSetEnemies(Game& g, Location loc, const std::vector<EnemyType>& types) {
     DebugEnterCombat(g, loc);
     auto& d = g.dungeon;
@@ -720,9 +1058,14 @@ void DebugSetEnemies(Game& g, Location loc, const std::vector<EnemyType>& types)
 
 void DebugEnterCombat(Game& g, Location loc) {
     StartDungeon(g, loc);
-    for (auto& r : g.dungeon.rooms) if (r != RoomType::Boss) r = RoomType::Fight;
-    g.dungeon.light = 60;
-    EnterNextRoom(g);
+    auto& d = g.dungeon;
+    std::vector<int> route = ChartPath(d.chart, d.chart.entrance, d.chart.boss);
+    d.curRoom = route.size() > 1 ? route[1] : d.chart.entrance;
+    d.chart.rooms[d.curRoom].type = RoomType::Fight;
+    d.chart.rooms[d.curRoom].visited = true;
+    Reveal(g);
+    d.light = 60;
+    StartFight(g, false);
 }
 
 static void ApplyResults(Game& g) {
@@ -730,6 +1073,15 @@ static void ApplyResults(Game& g) {
     if (d.resultsApplied) return;
     d.resultsApplied = true;
     bool win = d.phase == DPhase::Victory;
+    if (win && !d.chart.rooms.empty()) d.objectiveDone = d.objectiveDone || ObjectiveMet(g); // a retreat forfeits the objective's bonus
+    float xpMult = 1;
+    if (win && d.objectiveDone) switch (d.objective) {
+        case Objective::Slay: xpMult = 1.25f; break;
+        case Objective::Cleanse: xpMult = 1.4f; break;
+        case Objective::Chart: d.lootGold = d.lootGold * 3 / 2; d.lootRelics.push_back(Roll(0, (int)Relics().size() - 1)); break;
+        case Objective::Salvage: d.lootRelics.push_back(Roll(0, (int)Relics().size() - 1)); break;
+        default: break;
+    }
     if (d.phase != DPhase::Defeat) {
         g.gold += d.lootGold;
         for (int r : d.lootRelics) g.relicStorage.push_back(r);
@@ -744,7 +1096,7 @@ static void ApplyResults(Game& g) {
             Hero* h = FindHero(g, id);
             if (!h) continue;
             int before = h->level;
-            GiveXP(g, *h, win ? 3 + lvl * 3 : 1 + lvl);   // deeper tiers pay off far faster than grinding the Shallows
+            GiveXP(g, *h, (int)((win ? 3 + lvl * 3 : 1 + lvl) * xpMult + 0.5f));   // deeper tiers pay off far faster than grinding the Shallows
             if (h->level > before) d.levelUps += (d.levelUps.empty() ? "" : ", ") + h->name + TextFormat(" reached level %d", h->level);
             if (!win) {
                 h->stress = std::min(100, h->stress + 10);
@@ -819,7 +1171,7 @@ static void SimCombatStep(Game& g, bool randomPlayer) { // one unit's turn, play
 // The default player heals anyone below 40% HP and otherwise uses its hardest-hitting attack on the
 // weakest enemy it can reach; "random" picks any usable ability and target instead.
 void SimulateExpeditions(int runs, int level, bool randomPlayer, int tier) {
-    int wins = 0, losses = 0, deaths = 0, anyDeath = 0, rattled = 0, wipeRoom[8] = {0};
+    int wins = 0, losses = 0, deaths = 0, anyDeath = 0, rattled = 0, wipeRoom[8] = {0}, retreats = 0;
     std::unordered_map<std::string, int> killers; // what was standing when the crew went down
     for (int r = 0; r < runs; r++) {
         Game g;
@@ -839,9 +1191,11 @@ void SimulateExpeditions(int runs, int level, bool randomPlayer, int tier) {
         StartDungeon(g, Location::Cave);
         auto& d = g.dungeon;
         int steps = 0;
-        while (steps++ < 20000) {
-            if (d.phase == DPhase::Corridor) { d.light = std::max(0.0f, d.light - LightDrainPerRoom(g)); EnterNextRoom(g); continue; }
-            if (d.phase == DPhase::Treasure || d.phase == DPhase::RoomClear) { d.phase = DPhase::Corridor; continue; }
+        while (steps++ < 40000) {
+            if (d.phase == DPhase::Corridor) { SimChooseRoute(g, randomPlayer); continue; }
+            if (d.phase == DPhase::Walking) { ResolveSegment(g); continue; }
+            if (d.phase == DPhase::Event) { SimResolveEvent(g); continue; }
+            if (d.phase == DPhase::Treasure || d.phase == DPhase::RoomClear) { d.pendingItem = false; if (d.walkEdge >= 0) ResumeWalk(g); else { d.phase = DPhase::Corridor; } continue; }
             if (d.phase != DPhase::Combat) break;
             SimCombatStep(g, randomPlayer);
         }
@@ -849,11 +1203,12 @@ void SimulateExpeditions(int runs, int level, bool randomPlayer, int tier) {
         deaths += lost;
         anyDeath += lost > 0;
         for (auto& h : g.roster) if (h.rattled) { rattled++; break; }
-        if (d.phase == DPhase::Victory) wins++; else { losses++; wipeRoom[std::clamp(d.roomIndex, 0, 7)]++; for (auto& e : d.enemies) if (e.alive) killers[e.name]++; }
+        if (d.phase == DPhase::Victory) wins++; else { losses++; wipeRoom[std::clamp(d.roomIndex, 0, 7)]++;
+            if (d.phase == DPhase::Retreat) retreats++; for (auto& e : d.enemies) if (e.alive) killers[e.name]++; }
     }
     printf("Simulated %d expeditions, crew level %d, cave level %d (%s player):\n", runs, level, CAVE_TIER_LEVEL[tier],
            randomPlayer ? "random" : "sensible");
-    printf("  wins %.1f%%   wipes %.1f%%\n", 100.0 * wins / runs, 100.0 * losses / runs);
+    printf("  wins %.1f%%   wipes %.1f%%   (of which retreats %.1f%%)\n", 100.0 * wins / runs, 100.0 * (losses - retreats) / runs, 100.0 * retreats / runs);
     printf("  runs with a death %.1f%%   avg deaths %.2f   runs with someone rattled %.1f%%\n",
            100.0 * anyDeath / runs, (double)deaths / runs, 100.0 * rattled / runs);
     printf("  wipes by room:");
@@ -2424,11 +2779,9 @@ static void DrawLocationTint(Game& g, bool fx) {
     DrawVGradient({0, 0, (float)SCREEN_W, 58}, Color{10, 18, 24, 240}, Color{16, 28, 36, 220});
     DrawRectangle(0, 56, SCREEN_W, 3, Pal::BrassDk);
     TxtShadow(TextFormat("%s  -  %s (Lv %d)", LocationName(d.loc), CAVE_TIER_NAME[d.tier], CAVE_TIER_LEVEL[d.tier]), 20, 15, 22, Pal::Brass, true);
-    for (int i = 0; i < (int)d.rooms.size(); i++) {
-        float x = 380 + i * 30.0f;
-        Color c = i < d.roomIndex ? Pal::Good : i == d.roomIndex ? Pal::Brass : Color{90, 100, 104, 255};
-        if (d.rooms[i] == RoomType::Boss) DrawPoly({x + 10, 28}, 4, 12, 45, c);
-        else DrawCircle((int)x + 10, 28, 8, c);
+    if (!d.chart.rooms.empty()) {
+        int visited = 0; for (auto& r : d.chart.rooms) visited += r.visited;
+        Txt(TextFormat("%s  %d/%d  (Tab)", ObjectiveName(d.objective), visited, (int)d.chart.rooms.size()), 350, 22, 13, ObjectiveMet(g) ? Pal::Good : Color{190, 200, 196, 255});
     }
     Txt("Light", 590, 6, 16, Pal::Paper);
     DrawBar({590, 28, 180, 14}, d.lightShown / 100.0f, Color{250, 220, 120, 255});
@@ -2686,6 +3039,106 @@ static void UpdateEffects(Game& g, float dt) {
     gShake = {sinf(g.time * 70) * k, cosf(g.time * 57) * k * 0.6f};
 }
 
+// ---------------------------------------------------------------- the sonar scope
+// The chart, read off the Nautilus's sonar: a round phosphor scope in a brass bezel. Rooms are ink glyphs, corridors
+// faint dotted echoes, the party a bright blip; rooms not yet scouted are a soft "?" echo. A sweep passes every two
+// seconds and brightens what it crosses. The phosphor follows the flashlight: as the light fails, the scope dims and
+// static crackles across it. Returns the room clicked (only rooms next to the party, and only if interactive).
+static int DrawSonarScope(Game& g, Vector2 c, float R, bool interactive) {
+    auto& d = g.dungeon;
+    auto& ch = d.chart;
+    float t = g.time, L = std::clamp(d.lightShown / 100.0f, 0.0f, 1.0f), phos = 0.35f + 0.65f * L;
+    int W = 1, H = 1;
+    for (auto& r : ch.rooms) { W = std::max(W, r.gx + 1); H = std::max(H, r.gy + 1); }
+    float span = R * 1.45f, cell = std::min(span / std::max(1, W - 1), span * 0.75f / std::max(1, H - 1));
+    auto pos = [&](int r) { return Vector2{c.x + (ch.rooms[r].gx - (W - 1) * 0.5f) * cell, c.y + (ch.rooms[r].gy - (H - 1) * 0.5f) * cell}; };
+    // the bezel and the glass
+    DrawCircleV({c.x + 5, c.y + 7}, R + 26, Fade(BLACK, 0.5f));
+    DrawCircleV(c, R + 26, Pal::BrassDk);
+    DrawRing(c, R + 6, R + 22, 0, 360, 72, Pal::Brass);
+    for (int k = 0; k < 16; k++) { float a = k * PI / 8; DrawCircleV({c.x + cosf(a) * (R + 14), c.y + sinf(a) * (R + 14)}, 3, Pal::BrassDk); }
+    DrawCircleV(c, R + 4, Color{4, 18, 10, 255});
+    Color ph{(unsigned char)(70 + 90 * phos), (unsigned char)(170 + 85 * phos), (unsigned char)(100 + 60 * phos), 255};
+    for (int k = 1; k <= 3; k++) DrawRing(c, R * k / 3.0f - 0.8f, R * k / 3.0f + 0.8f, 0, 360, 64, Fade(ph, 0.12f * phos));
+    DrawLineEx({c.x - R, c.y}, {c.x + R, c.y}, 1, Fade(ph, 0.08f));
+    DrawLineEx({c.x, c.y - R}, {c.x, c.y + R}, 1, Fade(ph, 0.08f));
+    float sweep = fmodf(t / 2.0f, 1.0f) * 2 * PI;   // a sweep every two seconds
+    for (int k = 0; k < 14; k++) DrawCircleSector(c, R, (sweep * RAD2DEG) - (k + 1) * 4, (sweep * RAD2DEG) - k * 4, 3, Fade(ph, 0.1f * phos * (1 - k / 14.0f)));
+    DrawLineEx(c, {c.x + cosf(sweep) * R, c.y + sinf(sweep) * R}, 2, Fade(ph, 0.8f * phos));
+    auto lit = [&](Vector2 p) { // how freshly the sweep has passed over a point
+        float a = atan2f(p.y - c.y, p.x - c.x);
+        if (a < 0) a += 2 * PI;
+        float since = fmodf(sweep - a + 4 * PI, 2 * PI);
+        return 1.0f + 0.9f * std::max(0.0f, 1 - since / 1.2f);
+    };
+    // corridors: faint dotted echoes, with a bigger dot for each stretch
+    for (int e = 0; e < (int)ch.edges.size(); e++) {
+        const ChartEdge& ed = ch.edges[e];
+        if (!ch.rooms[ed.a].known || !ch.rooms[ed.b].known) continue;
+        Vector2 a = pos(ed.a), b = pos(ed.b);
+        bool walked = ed.walked > 0;
+        for (int k = 0; k <= 12; k++) { Vector2 p{a.x + (b.x - a.x) * k / 12, a.y + (b.y - a.y) * k / 12}; DrawCircleV(p, 1.2f, Fade(ph, (walked ? 0.45f : 0.2f) * phos * lit(p))); }
+        for (int s = 0; s < (int)ed.segs.size(); s++) {
+            float u = (s + 0.5f) / ed.segs.size();
+            Vector2 p{a.x + (b.x - a.x) * u, a.y + (b.y - a.y) * u};
+            DrawCircleV(p, 2.6f, Fade(ph, (walked ? 0.6f : 0.35f) * phos * lit(p)));
+        }
+    }
+    // rooms: ink glyphs
+    Vector2 m = GetMousePosition();
+    int hovered = -1;
+    std::vector<int> nb = ch.Neighbours(d.curRoom);
+    for (int r = 0; r < (int)ch.rooms.size(); r++) {
+        const ChartRoom& room = ch.rooms[r];
+        if (!room.known) continue;
+        Vector2 p = pos(r);
+        float a = phos * lit(p) * (room.cleared ? 0.55f : 1.0f);
+        float rr = cell * 0.2f;
+        bool adj = std::find(nb.begin(), nb.end(), r) != nb.end() && d.phase == DPhase::Corridor;
+        if (interactive && adj && CheckCollisionPointCircle(m, p, rr + 10)) hovered = r;
+        DrawRectangleRounded({p.x - rr, p.y - rr, rr * 2, rr * 2}, 0.3f, 6, Fade(Color{6, 30, 16, 255}, 0.95f));
+        DrawRectangleRoundedLinesEx({p.x - rr, p.y - rr, rr * 2, rr * 2}, 0.3f, 6, hovered == r ? 3.0f : 1.5f,
+                                    Fade(hovered == r ? Color{220, 255, 220, 255} : ph, adj ? std::min(1.0f, a * 1.3f) : a * 0.8f));
+        Color gc = Fade(ph, std::min(1.0f, a));
+        float s = rr * 0.6f;
+        if (!room.scouted) DrawTextCenteredBold("?", p.x, p.y - s, (int)(s * 2), Fade(ph, a * 0.7f));
+        else switch (room.type) {
+            case RoomType::Fight: DrawLineEx({p.x - s, p.y - s}, {p.x + s, p.y + s}, 2.5f, gc); DrawLineEx({p.x + s, p.y - s}, {p.x - s, p.y + s}, 2.5f, gc); break;   // crossed blades
+            case RoomType::Treasure: DrawRectangleLinesEx({p.x - s, p.y - s * 0.5f, s * 2, s * 1.3f}, 2, gc); DrawLineEx({p.x - s, p.y}, {p.x + s, p.y}, 2, gc); break; // a chest
+            case RoomType::Boss: DrawRing(p, s * 0.7f, s * 1.05f, 0, 360, 20, gc); DrawCircleV({p.x - s * 0.35f, p.y - s * 0.1f}, s * 0.18f, gc); DrawCircleV({p.x + s * 0.35f, p.y - s * 0.1f}, s * 0.18f, gc); break; // a skull
+            case RoomType::Entrance: DrawTri({p.x - s * 0.6f, p.y - s}, {p.x - s * 0.6f, p.y + s}, {p.x + s, p.y}, gc); break;   // the way in
+            case RoomType::Curio: DrawPoly(p, 4, s, 45, gc); DrawCircleV(p, s * 0.3f, Color{6, 30, 16, 255}); break;                // a diamond
+            case RoomType::Rest: DrawTri({p.x - s, p.y + s * 0.7f}, {p.x + s, p.y + s * 0.7f}, {p.x, p.y - s}, gc); DrawLineEx({p.x, p.y - s}, {p.x, p.y + s * 0.7f}, 2, Color{6, 30, 16, 255}); break; // a tent
+            case RoomType::Empty: DrawRing(p, s * 0.25f, s * 0.45f, 0, 360, 12, gc); break;                                           // a quiet junction
+            default: DrawRectangleLinesEx({p.x - s * 0.3f, p.y - s, s * 0.6f, s * 2}, 2, gc); DrawLineEx({p.x - s * 0.8f, p.y - s}, {p.x + s * 0.8f, p.y - s}, 2, gc); break; // Shrine: a pillar
+        }
+        if (room.cleared && room.type != RoomType::Entrance) DrawLineEx({p.x + rr * 0.3f, p.y + rr * 0.95f}, {p.x + rr, p.y + rr * 0.35f}, 2, Fade(ph, 0.8f));
+    }
+    // the party: a bright blip, where it is (or how far along the corridor)
+    Vector2 blip = pos(d.curRoom);
+    if (d.walkEdge >= 0 && d.walkDest >= 0) {
+        float u = (d.walkSeg + std::min(1.0f, d.walkT / 1.2f)) / std::max(1, d.walkSegs);
+        Vector2 b = pos(d.walkDest);
+        blip = {blip.x + (b.x - blip.x) * u, blip.y + (b.y - blip.y) * u};
+    }
+    float pulse = 0.6f + 0.4f * sinf(t * 6);
+    DrawCircleV(blip, 6 + 3 * pulse, Fade(Color{230, 255, 230, 255}, 0.25f));
+    DrawCircleV(blip, 5, Color{230, 255, 230, 255});
+    // static as the light fails
+    int crackle = (int)((1 - L) * 60);
+    for (int k = 0; k < crackle; k++) {
+        float a = GetRandomValue(0, 628) / 100.0f, rr = R * sqrtf(GetRandomValue(0, 1000) / 1000.0f);
+        DrawCircleV({c.x + cosf(a) * rr, c.y + sinf(a) * rr}, 1, Fade(ph, 0.5f));
+    }
+    if (L < 0.4f && fmodf(t * 7, 1.0f) < 0.15f) {
+        float y = c.y + (GetRandomValue(-100, 100) / 100.0f) * R * 0.8f, hw = sqrtf(std::max(0.0f, R * R - (y - c.y) * (y - c.y)));
+        DrawLineEx({c.x - hw, y}, {c.x + hw, y}, 2, Fade(ph, 0.35f));
+    }
+    DrawCircleSector(c, R, 200, 240, 12, Fade(WHITE, 0.04f)); // a glint on the glass
+    if (hovered >= 0 && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) return hovered;
+    return -1;
+}
+
 // ---------------------------------------------------------------- the scene
 void SceneDungeon(Game& g) {
     auto& d = g.dungeon;
@@ -2696,9 +3149,9 @@ void SceneDungeon(Game& g) {
     // ---------------- walking between rooms: the whole cave slides past
     if (d.phase == DPhase::Walking) {
         d.walkT += dt;
-        float speed = 240 * std::min(1.0f, d.walkT / 0.3f) * std::min(1.0f, std::max(0.0f, (2.0f - d.walkT) / 0.3f));
+        float speed = 240 * std::min(1.0f, d.walkT / 0.25f) * std::min(1.0f, std::max(0.0f, (1.2f - d.walkT) / 0.25f));
         d.scroll += speed * dt;
-        if (d.walkT >= 2.0f) EnterNextRoom(g);
+        if (d.walkT >= 1.2f) ResolveSegment(g);
     }
 
     // ---------------- combat logic
@@ -2762,6 +3215,11 @@ void SceneDungeon(Game& g) {
     d.floats.erase(std::remove_if(d.floats.begin(), d.floats.end(), [](const FloatText& f) { return f.life <= 0; }), d.floats.end());
     DrawTopBar(g);
     if (d.phase != DPhase::Combat && d.phase != DPhase::Walking) DrawInventoryBar(g);
+    if (IsKeyPressed(KEY_TAB)) d.scopeOpen = !d.scopeOpen;
+    if (d.phase == DPhase::Walking || d.phase == DPhase::Combat) {
+        if (d.scopeOpen) { DrawRectangle(0, 0, SCREEN_W, SCREEN_H, Fade(BLACK, 0.45f)); DrawSonarScope(g, {640, 340}, 240, false); DrawTextCentered("Tab to close the scope", 640, 640, 16, Pal::Paper); }
+        else if (d.phase == DPhase::Walking) DrawSonarScope(g, {1170, 590}, 78, false);
+    }
 
     if (!d.log.empty()) {
         DrawRectangleRounded({380, 66, 520, 20.0f * d.log.size() + 14}, 0.1f, 6, Color{8, 16, 22, 180});
@@ -2773,38 +3231,77 @@ void SceneDungeon(Game& g) {
     switch (d.phase) {
         case DPhase::Walking: break;
         case DPhase::Corridor: {
-            // The party takes a breath before the choice comes up; the panel then eases down into place,
-            // and its buttons only work once it has settled (and while no battery is being swapped).
+            // The party takes a breath before the chart comes up; the scope then rises into place, and it only
+            // answers clicks once it has settled (and while no battery is being swapped).
             const float DELAY = 1.4f, SLIDE = 0.45f;
-            if (d.corridorT < DELAY) {
-                if (d.roomIndex >= 0) DrawTextCentered("The crew catch their breath...", SCREEN_W / 2.0f, 610, 20, Color{200, 210, 210, 200});
+            if (d.corridorT < DELAY && d.roomIndex >= 0) {
+                DrawTextCentered("The crew catch their breath...", SCREEN_W / 2.0f, 610, 20, Color{200, 210, 210, 200});
                 break;
             }
-            float u = std::min(1.0f, (d.corridorT - DELAY) / SLIDE), ease = 1 - (1 - u) * (1 - u) * (1 - u);
+            float u = std::min(1.0f, std::max(0.0f, d.corridorT - (d.roomIndex >= 0 ? DELAY : 0)) / SLIDE), ease = 1 - (1 - u) * (1 - u) * (1 - u);
             bool ready = u >= 1 && d.batteryT <= 0;
-            Rectangle p{400, 150 - (1 - ease) * 260, 480, 270};
+            DrawRectangle(0, 0, SCREEN_W, SCREEN_H, Fade(BLACK, 0.5f * ease));
+            int pick = DrawSonarScope(g, {470, 350 + (1 - ease) * 520}, 250, ready);
+            Rectangle p{800, 90 + (1 - ease) * 560, 450, 470};
             Panel(p);
-            const char* head = d.roomIndex < 0 ? "At the cave mouth" : TextFormat("Room %d of %d cleared", d.roomIndex + 1, (int)d.rooms.size());
-            DrawTextCenteredBold(head, p.x + p.width / 2, p.y + 20, 28, Pal::Ink);
-            bool nextIsBoss = d.rooms[d.roomIndex + 1] == RoomType::Boss;
-            DrawTextCentered(nextIsBoss ? "Heavy clacking echoes from the next chamber..." : "The passage winds deeper.",
-                             p.x + p.width / 2, p.y + 60, 18, nextIsBoss ? Pal::Bad : Pal::BrassDk);
+            DrawTextCenteredBold("The sonar chart", p.x + p.width / 2, p.y + 18, 28, Pal::Ink);
+            TxtBold(TextFormat("Objective: %s", ObjectiveName(d.objective)), p.x + 26, p.y + 62, 18, Pal::BrassDk);
+            DrawWrapped(ObjectiveText(d.objective), {p.x + 26, p.y + 86, p.width - 52, 40}, 15, Pal::Ink);
+            bool met = ObjectiveMet(g);
+            int visited = 0; for (auto& r : d.chart.rooms) visited += r.visited;
+            Txt(TextFormat("Rooms visited %d / %d   %s", visited, (int)d.chart.rooms.size(), met ? "- objective complete!" : ""), p.x + 26, p.y + 126, 15, met ? Pal::Good : Pal::BrassDk);
+            DrawWrapped("Click a room next to the party to go there. Every stretch of corridor drains light (half as much on a passage you've walked). "
+                        "The short way to the boss runs through fights; treasure, curios and rest lie off it.",
+                        {p.x + 26, p.y + 156, p.width - 52, 100}, 15, Pal::Ink);
             int drain = LightDrainPerRoom(g);
-            if (Button({p.x + 40, p.y + 96, 400, 46}, TextFormat(nextIsBoss ? "Face the Lobster  (-%d light)" : "Advance  (-%d light)", drain), ready)) {
-                d.light = std::max(0.0f, d.light - drain);
-                d.phase = DPhase::Walking;
-                d.walkT = 0;
-            }
+            Txt(TextFormat("Light: %d%%   (about -%d a corridor)", (int)d.light, (int)(StretchDrain(g) * (ChartParamsFor(d.tier).segMin + ChartParamsFor(d.tier).segMax) / 2 + 0.5f)), p.x + 26, p.y + 262, 16, Pal::BrassDk);
+            (void)drain;
             const char* swap = d.batteryT > 0 ? "Swapping the battery..." : TextFormat("Swap in a battery  (+40 light)   [%d left]", g.batteries);
-            if (Button({p.x + 40, p.y + 150, 400, 42}, swap, ready && g.batteries > 0 && d.light < 100)) {
+            if (Button({p.x + 25, p.y + 292, 400, 42}, swap, ready && g.batteries > 0 && d.light < 100)) {
                 g.batteries--;
                 d.light = std::min(100.0f, d.light + 40);
                 d.batteryT = 1.4f;
             }
-            if (Button({p.x + 40, p.y + 200, 400, 42}, d.roomIndex < 0 ? "Turn back" : "Retreat with the loot (+10 stress)", ready)) {
-                if (d.roomIndex < 0) { g.scene = Scene::Hub; return; }
+            {   // a Diver can scout ahead once per room (Mark the Prey, out of combat): what lies two rooms on shows up
+                bool diver = false;
+                for (int id : g.party) if (Hero* h = FindHero(g, id)) diver |= h->cls == HeroClass::Diver;
+                static int scoutedAt = -1;
+                if (diver && scoutedAt != d.curRoom * 1000 + d.roomIndex && Button({p.x + 25, p.y + 344, 195, 42}, "Scout ahead (Diver)", ready)) { Reveal(g, 1); scoutedAt = d.curRoom * 1000 + d.roomIndex; PlayCue("hub.sonar", 0.6f); }
+            }
+            if (met && d.objective != Objective::Slay) {
+                if (Button({p.x + 230, p.y + 344, 195, 42}, "Return triumphant", ready)) { d.objectiveDone = true; d.phase = DPhase::Victory; PlayCue("ui.confirm"); }
+            }
+            if (Button({p.x + 25, p.y + 396, 400, 42}, d.roomIndex < 0 ? "Turn back to the Nautilus" : "Retreat with the loot (+10 nerves)", ready)) {
+                if (d.roomIndex < 0 && d.lootGold == 0) { g.scene = Scene::Hub; return; }
                 d.phase = DPhase::Retreat;
             }
+            if (pick >= 0) { BeginWalk(g, pick); PlayCue("ui.confirm", 0.7f); }
+        } break;
+
+        case DPhase::Event: {
+            Rectangle main{340, 90, 600, 300};
+            Panel(main);
+            DrawTextCenteredBold(d.eventTitle.c_str(), main.x + main.width / 2, main.y + 20, 28, d.event == EventKind::Trap ? Pal::Bad : Pal::Ink);
+            DrawWrapped(d.eventBody, {main.x + 36, main.y + 66, main.width - 72, 150}, 17, Pal::Ink);
+            if (d.eventStage == 1) {
+                if (d.pendingItem) DrawFoundItemPanel(g, main);
+                if (Button({main.x + main.width / 2 - 140, main.y + main.height - 50, 280, 42}, d.eventAmbush ? "To arms!" : d.pendingItem ? "Move on (leave it)" : "Continue")) {
+                    d.pendingItem = false;
+                    ChooseEvent(g, 0);
+                }
+                break;
+            }
+            const char* A = "", *B = "";
+            bool aOk = true;
+            switch (d.event) {
+                case EventKind::Curio: A = "Inspect it"; B = "Leave it"; break;
+                case EventKind::Rest: A = "Make camp"; B = "Press on"; break;
+                case EventKind::Shrine: A = "Pray"; B = "Leave it"; break;
+                case EventKind::Blocked: A = g.batteries > 0 ? TextFormat("Clear it  (1 battery, %d left)", g.batteries) : "Clear it  (no batteries)"; B = "Turn back"; aOk = g.batteries > 0; break;
+                default: A = "Continue"; B = nullptr; break;
+            }
+            if (Button({main.x + 40, main.y + main.height - 52, 250, 42}, A, aOk)) ChooseEvent(g, 0);
+            if (B && Button({main.x + 310, main.y + main.height - 52, 250, 42}, B)) ChooseEvent(g, 1);
         } break;
 
         case DPhase::Treasure: {
@@ -2817,6 +3314,8 @@ void SceneDungeon(Game& g) {
             DrawFoundItemPanel(g, main);
             bool blocked = d.pendingItem || (d.roomIsChest && !d.chestOpened);
             if (Button({main.x + main.width / 2 - 130, main.y + main.height - 46, 260, 42}, blocked ? "Move on (leave anything unclaimed)" : "Continue")) {
+                d.pendingItem = false;
+                if (!d.chart.rooms.empty()) d.chart.rooms[d.curRoom].cleared = !d.roomIsChest || d.chestOpened; // a locked chest waits for a key
                 d.phase = DPhase::Corridor; d.corridorT = 0;
             }
         } break;
@@ -2829,7 +3328,9 @@ void SceneDungeon(Game& g) {
                         {main.x + 36, main.y + 66, main.width - 72, 130}, 17, Pal::Ink);
             DrawFoundItemPanel(g, main);
             if (Button({main.x + main.width / 2 - 130, main.y + main.height - 46, 260, 42}, d.pendingItem ? "Move on (leave it)" : "Continue")) {
-                d.phase = DPhase::Corridor; d.corridorT = 0;
+                d.pendingItem = false;
+                if (d.walkEdge >= 0) ResumeWalk(g); // a hallway fight: on down the corridor
+                else { d.phase = DPhase::Corridor; d.corridorT = 0; }
             }
         } break;
 
@@ -2844,10 +3345,13 @@ void SceneDungeon(Game& g) {
             if (d.phase == DPhase::Victory) {
                 title = "Expedition complete!";
                 tc = Pal::Good;
-                body = TextFormat("%s is beaten. You bring home %d gold", LocationBossName(d.loc), d.lootGold);
+                bool bossDown = d.chart.rooms.empty() || d.chart.rooms[d.chart.boss].cleared;
+                body = bossDown ? TextFormat("%s is beaten. You bring home %d gold", LocationBossName(d.loc), d.lootGold)
+                                : TextFormat("Objective complete: %s. You bring home %d gold", ObjectiveName(d.objective), d.lootGold);
                 for (int r : d.lootRelics) body += ", a " + Relics()[r].name;
                 body += ", and as a reward for finishing: a " + Relics()[d.rewardRelic].name + ".";
-                body += TextFormat("\n\nSurvivors earn %d XP.", 5 + lvl * 2);
+                if (d.objectiveDone) body += TextFormat("\nObjective bonus (%s): %s", ObjectiveName(d.objective), ObjectiveText(d.objective));
+                body += TextFormat("\n\nSurvivors earn XP (%d base).", 3 + lvl * 3);
                 if (d.tier + 1 < CAVE_TIERS && g.tierCleared[(int)d.loc] == d.tier)
                     body += TextFormat(" %s level %d (%s) is now open at the Helm.", LocationName(d.loc), CAVE_TIER_LEVEL[d.tier + 1], CAVE_TIER_NAME[d.tier + 1]);
             } else if (d.phase == DPhase::Retreat) {
@@ -3079,3 +3583,7 @@ void DrawFigureSheet(bool heroSheet, int index, float t) {
     DrawTextCenteredBold(title, SCREEN_W / 2.0f, 40, 30, gSilhouette ? Color{20, 16, 14, 255} : Pal::Paper);
     if (!big) for (int i = 0; i < 6; i++) DrawTextCentered(LABEL[i], 110 + i * 212.0f, 600, 20, gSilhouette ? Color{60, 50, 40, 255} : Color{200, 206, 200, 255});
 }
+
+// --shots: the chart's screens
+void DebugChartWalk(Game& g, int dest) { BeginWalk(g, dest); g.dungeon.walkT = 0.3f; }
+void DebugChartEvent(Game& g, int kind) { if (kind == 1) BeginEvent(g, EventKind::Curio); else OpenEvent(g, EventKind::Rest, "A place to rest", "A dry ledge above the water, out of the current. The crew could make camp here: bind wounds, eat, sleep in turns. Something may come in the night."); }

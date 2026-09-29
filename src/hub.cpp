@@ -44,9 +44,9 @@ void SceneHelm(Game& g) {
             if (Button(chip, open ? TextFormat("Lv %d", CAVE_TIER_LEVEL[k]) : "?", open, 14)) g.tierSel[li] = k;
             if (k <= g.tierCleared[li]) DrawCircle((int)(chip.x + chip.width - 4), (int)chip.y + 4, 4, Pal::Good);
         }
-        int lvl = CAVE_TIER_LEVEL[g.tierSel[li]], rooms = lvl >= 3 ? 4 : 3;
+        int lvl = CAVE_TIER_LEVEL[g.tierSel[li]], rooms = ChartParamsFor(g.tierSel[li]).rooms;
         TxtBold(TextFormat("%s  (level %d)", CAVE_TIER_NAME[g.tierSel[li]], lvl), c.x + 16, c.y + 232, 16, Pal::Ink);
-        Txt(TextFormat("%d rooms + %s.  Loot x%.1f", rooms, LocationBossName(loc), 1.0f + 0.35f * lvl), c.x + 16, c.y + 253, 14, Pal::BrassDk);
+        Txt(TextFormat("A chart of %d rooms, %s at the end.  Loot x%.1f", rooms, LocationBossName(loc), 1.0f + 0.35f * lvl), c.x + 16, c.y + 253, 13, Pal::BrassDk);
         if (Button({c.x + 20, c.y + 276, c.width - 40, 42}, "Embark", partyCount > 0)) {
             StartDungeon(g, loc);
             return;
@@ -55,6 +55,13 @@ void SceneHelm(Game& g) {
 
     Panel({50, 450, 880, 250});
     TxtBold("Expedition party", 70, 464, 23, Pal::Ink);
+    // the objective for this expedition (Master Reference): one, with a bonus when it's met
+    Txt("Objective:", 330, 470, 15, Pal::BrassDk);
+    for (int o = 0; o < (int)Objective::COUNT; o++) {
+        Rectangle b{410 + o * 128.0f, 462, 122, 32};
+        if (g.objectiveSel == (Objective)o) DrawRectangleRounded({b.x - 3, b.y - 3, b.width + 6, b.height + 6}, 0.3f, 6, Pal::Teal);
+        if (Button(b, ObjectiveName((Objective)o), true, 12)) g.objectiveSel = (Objective)o;
+    }
     bool anyEmptyLoadout = false;
     for (int k = 0; k < PARTY_SIZE; k++) {
         Hero* h = FindHero(g, g.party[k]);
@@ -79,7 +86,7 @@ void SceneHelm(Game& g) {
 
     Panel({950, 450, 280, 250});
     TxtBold("Provisions", 970, 464, 23, Pal::Ink);
-    DrawWrapped(TextFormat("Each room ahead drains %d light. Batteries recharge it by 40.", LightDrainPerRoom(g)), {970, 500, 240, 80}, 16, Pal::Ink);
+    DrawWrapped(TextFormat("Each corridor drains about %d light (half on one walked before). Batteries recharge it by 40.", (int)(LightDrainPerRoom(g) * CHART_STRETCH_DRAIN)), {970, 500, 240, 80}, 15, Pal::Ink);
     Txt(TextFormat("Batteries: %d", g.batteries), 970, 580, 21, Pal::Ink);
     if (Button({970, 620, 240, 44}, "Buy battery (15g)", g.gold >= 15)) {
         g.gold -= 15;

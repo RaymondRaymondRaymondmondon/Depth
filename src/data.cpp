@@ -934,3 +934,42 @@ const CueDef* CueTable(int& count) {
     count = (int)(sizeof(C) / sizeof(C[0]));
     return C;
 }
+
+// ---------------------------------------------------------------- the sonar chart's numbers, per tier (Master Reference)
+//   rooms, corridor segments (min, max), fights on the shortest route, loops, curios (rooms and corridors), rest rooms
+const ChartParams& ChartParamsFor(int tier) {
+    static const ChartParams P[CAVE_TIERS] = {
+        {6, 2, 2, 2, 1, 2, 1},    // cave level 0
+        {8, 2, 3, 3, 1, 3, 1},    // level 1
+        {10, 3, 3, 3, 2, 4, 1},   // level 3
+        {12, 3, 4, 4, 2, 5, 2},   // level 5
+        {14, 4, 4, 4, 3, 6, 2},   // level 6
+    };
+    return P[std::clamp(tier, 0, CAVE_TIERS - 1)];
+}
+const char* ObjectiveName(Objective o) {
+    switch (o) {
+        case Objective::Chart: return "Chart the depths";
+        case Objective::Salvage: return "Salvage";
+        case Objective::Cleanse: return "Cleanse";
+        default: return "Slay the boss";
+    }
+}
+const char* ObjectiveText(Objective o) {
+    switch (o) {
+        case Objective::Chart: return "Visit 90% of the rooms. +50% gold and a relic.";
+        case Objective::Salvage: return "Open every treasure room. +1 relic.";
+        case Objective::Cleanse: return "Win every fight on the map. +40% XP.";
+        default: return "Kill the boss. +25% XP.";
+    }
+}
+// the numbers the chart's events use
+extern const float CHART_HALLFIGHT = 0.0f, CHART_TRAP = 0.09f, CHART_LOOT = 0.12f; // hallway fights come only from the generator's fewest-fights top-up
+extern const int MAX_MINIS_PER_RUN = 2;         // a chart has more fight rooms than the old run: at most two of them hold a mini-boss
+extern const float CHART_STRETCH_DRAIN = 0.85f; // a corridor drains what a room did, spread over its stretches (the doc says each stretch drains a room's worth: too harsh on the long deep charts, see docs/MASTER_PROGRESS.md)
+const int TRAP_SPOT_CHANCE = 50;       // a Diver or Whaler spots a trap and disarms it
+const int REVISIT_AMBUSH = 15;         // a corridor walked again: the chance of an ambush
+const int NIGHT_AMBUSH = 20;           // camping at a rest room: the chance of a night ambush
+int ChartTrapSpotChance() { return TRAP_SPOT_CHANCE; }
+int ChartRevisitAmbush() { return REVISIT_AMBUSH; }
+int ChartNightAmbush() { return NIGHT_AMBUSH; }

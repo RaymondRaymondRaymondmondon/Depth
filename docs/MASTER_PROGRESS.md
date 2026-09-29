@@ -7,8 +7,8 @@ The plan is `Depth — Master Reference for Claude Code.pdf` (project root). One
 | 1 | Shared rig, clips, chains, three-light rig, palettes, --silhouette | Built. User: right direction, a ways to go; flat-plane shading pass done; figures keep improving in stage 5 |
 | 2 | Salon rebuilt in depth: stations as props, arcade cabinet, study hatch, roster edge, Embark | Done (hands/dealer move fully onto the rig in stage 5) |
 | 3 | Sound architecture: buses, cue registry, reverb, salon music and ambience | Done (--audio-test passes for the salon) |
-| 4 | Sonar chart expeditions | Next |
-| 5 | Expedition visual overhaul on the rig | |
+| 4 | Sonar chart expeditions | Done (--gen-chart 10,000/10,000; --sim within 10 points of the linear baseline at every tier) |
+| 5 | Expedition visual overhaul on the rig | Next |
 | 6 | EnemyBrain | |
 | 7 | New expedition systems, the Trench and the Hadal | |
 | 8 | Expedition sound | |

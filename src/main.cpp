@@ -208,6 +208,12 @@ static void TakeShots(const Game& base, const std::string& dir) {
         {"crew_art_3", [](Game& g) { g.dungeon.light = 60; DebugEnterCombat(g); HeroClass cls[4] = {HeroClass::Robot, HeroClass::Octopus, HeroClass::Siren, HeroClass::Wisp};
                                       for (int p = 0; p < PARTY_SIZE; p++) if (Hero* h = FindHero(g, g.party[p])) h->cls = cls[p]; }},
         {"combat_dark", [](Game& g) { DebugEnterCombat(g); g.dungeon.light = 10; }},
+        {"chart", [](Game& g) { g.tierSel[0] = 2; g.tierCleared[0] = 4; StartDungeon(g, Location::Cave); g.dungeon.corridorT = 5; g.dungeon.light = 80; g.dungeon.lightShown = 80; }},
+        {"chart_dark", [](Game& g) { g.tierSel[0] = 4; g.tierCleared[0] = 4; g.upgrades[UP_SONAR] = 3; StartDungeon(g, Location::Cave); g.dungeon.corridorT = 5; g.dungeon.light = 15; g.dungeon.lightShown = 15; }},
+        {"chart_walk", [](Game& g) { StartDungeon(g, Location::Cave); auto n = g.dungeon.chart.Neighbours(g.dungeon.curRoom); g.dungeon.chart.edges[g.dungeon.chart.EdgeBetween(g.dungeon.curRoom, n[0])].segs.assign(3, CorridorEvent::None); DebugChartWalk(g, n[0]); }},
+        {"chart_curio", [](Game& g) { StartDungeon(g, Location::Atlantis); DebugChartEvent(g, 1); }},
+        {"chart_camp", [](Game& g) { StartDungeon(g, Location::Weeds); DebugChartEvent(g, 2); }},
+        {"helm_objective", [](Game& g) { g.scene = Scene::Helm; g.objectiveSel = Objective::Chart; }},
         {"combat_walk", [](Game& g) { DebugEnterCombat(g); g.dungeon.phase = DPhase::Walking; g.dungeon.walkT = 0.4f; }},
         {"combat_deep", [](Game& g) { g.tierCleared[(int)Location::Cave] = 4; g.tierSel[(int)Location::Cave] = 3; DebugEnterCombat(g); }},
         {"foes_crab", [](Game& g) { DebugSetEnemies(g, Location::Cave, {EnemyType::SeaLouse, EnemyType::CaveShrimp, EnemyType::DysCrustacean, EnemyType::SeaLouse}); }},
@@ -519,6 +525,21 @@ int main(int argc, char** argv) {
     if (argc >= 2 && strcmp(argv[1], "--verify-abyss") == 0) {
         SetTraceLogLevel(LOG_WARNING);
         return VerifyAbyss() ? 0 : 1;
+    }
+    // --gen-chart <tier 0-4> <seed> [count]: print an expedition chart and check the generation rules (on `count` seeds from `seed`)
+    if (argc >= 4 && strcmp(argv[1], "--gen-chart") == 0) {
+        int tier = std::clamp(atoi(argv[2]), 0, CAVE_TIERS - 1), count = argc >= 5 ? std::max(1, atoi(argv[4])) : 1, bad = 0;
+        unsigned seed = (unsigned)atoi(argv[3]);
+        for (int i = 0; i < count; i++) {
+            Chart c = GenerateChart(tier, seed + i);
+            std::string why;
+            bool ok = CheckChart(c, tier, why);
+            if (i == 0) printf("%s", ChartAscii(c).c_str());
+            if (!ok) { bad++; printf("seed %u breaks the rules: %s\n", seed + i, why.c_str()); }
+            if (i == 0) printf("tier %d (cave level %d): %d rooms, %d corridors, fewest fights to the boss %d\n", tier, CAVE_TIER_LEVEL[tier], (int)c.rooms.size(), (int)c.edges.size(), ChartFightsTo(c, c.entrance, c.boss));
+        }
+        printf("%d of %d charts follow the rules\n", count - bad, count);
+        return bad ? 1 : 0;
     }
     if (argc >= 2 && strcmp(argv[1], "--gen-siren-art") == 0) {
         return GenerateSirenArt() ? 0 : 1;
