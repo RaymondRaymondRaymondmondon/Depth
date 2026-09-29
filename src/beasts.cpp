@@ -1538,6 +1538,13 @@ void Spots::Build(const BeastWorld& W, const PlatformState& p, int x0, int x1) {
     floor.clear();
     for (int x = x0; x < x1; x++) {
         if (x * TILE > W.limitX - 2 * TILE) break;
+        if (W.biome == PL_PIRATE) { // the fleet: the deck (the lowest plank over the sea), never a yard, a rope or a crate top
+            int best = -1;
+            for (int y = 2; y < N.h - 1; y++)
+                if (N.Standable(x, y) && !N.Hazard(x, y) && PlatTileAt(p, x, y + 1) == '#' && (p.waterY <= 0 || (y + 1) * TILE < p.waterY)) best = y;
+            if (best >= 0) floor.push_back({x * TILE + 16.0f, (float)best});
+            continue;
+        }
         for (int y = 2; y < N.h - 1; y++) {
             if (!N.Standable(x, y) || N.Hazard(x, y)) continue;
             char below = PlatTileAt(p, x, y + 1);
