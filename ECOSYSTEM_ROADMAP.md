@@ -693,3 +693,19 @@ endings). NEXT: Weeds merge (1.3 section "5. The Seaweed", docs line ~345; WS_ e
 Abyss 1.2+1.3 roster during the Abyss overhaul (abyss.cpp), then 1.2 leftovers (slimy walls, movement pass 2 with the path search
 taught slide/dash/ledge/pole), then the rest of the OVERNIGHT BRIEF in order.
 (9) FINAL: sound, all synthesized: per-level ambient score, beast voices, player SFX, death/pain sounds, micro-events (talon grab + squeal, shark bite crunch), drafts/currents, movement; volume sliders on the Periscope.
+
+### STATUS at 00ffbfa (2026-09-29 ~07:50) - RESUME HERE
+1.3 rosters DONE for Hull, Pirate (Grand Kraken proven snaps), Cave (now underwater), Island, Weeds (Seaweed merge), Atlantis
+(files beasts_<biome>.cpp; all verifiers pass; notes per biome in CLAUDE.md). The Pipes get no 1.3 content (user). NEXT in the
+OVERNIGHT BRIEF order:
+ (1b) the Abyss: read abyss.cpp + docs 1.2 "Abyss" and 1.3 "7. The Abyss" (docs/ParkourReference1.3.txt line ~490); overhaul per
+      the user's answers (same vertical descent, ~2x wider, ledges/caves to dodge into, lamp cone as main light, reduced visibility,
+      semi-real higher-res shading - may leave pixel art, finite with a bottom/exit/payout and depth markers, roster from 1.2+1.3).
+ (1c) 1.2 leftovers: slimy walls; movement pass 2 (teach the path search slide/dash/ledge/pole; set-pieces that REQUIRE them,
+      everywhere, ramping with level order).
+ (2) food webs visibly playing out; (3) random generation every dive + harder + unlock chain + mixed sub-themes + scaled payouts +
+ Normal/Hard kept + island shallow pools + death-cause line with a tip; (4) backgrounds (vivid, unique per level, 4-min day/night,
+ scripted background fights every 20-40 s); (5) Abyss art (part of 1b); (6) Kraken + Blackbeard restyle; (8) Periscope dossier
+ (discovered entries); (7) QA; (9) sound LAST (synthesized, per-level ambient score, beast voices, SFX, volume sliders).
+At 93% of the 5-hour limit: checkpoint, then create a one-time scheduled task (mcp__scheduled-tasks__create_scheduled_task, fireAt =
+the reset time + 2 min) whose prompt says: continue the Depth overnight work from memory depth-overnight-brief + this section.
