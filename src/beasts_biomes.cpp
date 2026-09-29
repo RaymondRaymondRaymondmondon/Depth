@@ -273,19 +273,33 @@ const BiomeDef& IslandBiome() {
 // snap back into their tubes at the slightest tremor.
 //            name              move              mass  rad  speed sprint accel sight  fov   hear smell hunger  dFear dPrey lethal social band pop  den   scav  traits
 const SpeciesDef CAVE[CS_COUNT] = {
-    {"Cave Bat",         MoveMode::Fly,     0.5f,  6,   80, 250,  900,  170, PI,   1.0f, 0.4f, 0.020f, 0.7f,  0.0f, false, true,  4,  8, 0.95f, 0.0f, T_ROOST | T_ECHO | T_CARRY},
-    {"Glow Jelly",       MoveMode::Fly,     0.4f,  7,   14,  45,  120,   80, PI,   0.4f, 0.2f, 0.006f, 0.5f,  0.0f, false, false, 3,  5, 0.0f, 0.0f, T_FLASH},
-    {"Pale Salamander",  MoveMode::Walk,    2.0f,  9,   35, 190, 1000,   90, 1.6f, 1.0f, 1.0f, 0.016f, 0.5f,  0.0f, false, false, 0,  3, 0.6f, 0.4f, T_STRIKER | T_HOST, 60},
-    {"Fungal Beetle",    MoveMode::Walk,    0.6f,  6,   25, 110,  700,  100, 2.0f, 0.7f, 0.8f, 0.012f, 0.7f,  0.0f, false, false, 0,  6, 0.6f, 1.0f, 0},
+    // the Cave is a flooded cave (the user's correction): its animals are aquatic now - same roles, same behaviours
+    {"Cave Cusk-Eel",    MoveMode::Swim,    0.5f,  6,   80, 250,  900,  170, PI,   1.0f, 0.4f, 0.020f, 0.7f,  0.0f, false, true,  4,  8, 0.95f, 0.0f, T_ROOST | T_ECHO | T_CARRY}, // hunts by its lateral line, rests in ceiling crevices
+    {"Glow Jelly",       MoveMode::Swim,    0.4f,  7,   14,  45,  120,   80, PI,   0.4f, 0.2f, 0.006f, 0.5f,  0.0f, false, false, 3,  5, 0.0f, 0.0f, T_FLASH},
+    {"Blind Olm",        MoveMode::Walk,    2.0f,  9,   35, 190, 1000,   90, 1.6f, 1.0f, 1.0f, 0.016f, 0.5f,  0.0f, false, false, 0,  3, 0.6f, 0.4f, T_STRIKER | T_HOST, 60},
+    {"Silt Isopod",      MoveMode::Walk,    0.6f,  6,   25, 110,  700,  100, 2.0f, 0.7f, 0.8f, 0.012f, 0.7f,  0.0f, false, false, 0,  6, 0.6f, 1.0f, 0},
     {"Cave Leech",       MoveMode::Climb,   0.2f,  5,   18,  40,  300,   60, PI,   0.8f, 1.0f, 0.015f, 0.2f,  0.0f, false, false, 0,  5, 0.0f, 0.0f, T_ROOST},
     {"Giant Tube Worm",  MoveMode::Sessile, 3.0f, 10,    0,   0,    0,   50, PI,   0.9f, 0.0f, 0.010f, 0.0f,  0.0f, false, false, 0,  3, 0.0f, 0.0f, T_TRAP},
-    {"Cave Moth",        MoveMode::Fly,     0.1f,  4,   45, 130,  600,  160, PI,   0.5f, 0.3f, 0.010f, 0.6f,  0.0f, false, false, 3, 10, 0.2f, 0.0f, T_LIGHTSEEK},
+    {"Glow-Shrimp",      MoveMode::Swim,    0.1f,  4,   45, 130,  600,  160, PI,   0.5f, 0.3f, 0.010f, 0.6f,  0.0f, false, false, 3, 10, 0.2f, 0.0f, T_LIGHTSEEK}, // 1.3's fodder: they swarm round anything that glows
+    // ParkourReference1.3 (beasts_cave.cpp)
+    {"Blind Cave Loach", MoveMode::Swim,    0.3f,  5,   30, 150,  600,   40, PI,   1.0f, 0.4f, 0.008f, 0.8f,  0.0f, false, true,  1,  8, 0.4f, 0.2f, 0},
+    {"Crystal-Shelled Tortoise", MoveMode::Walk, 300.0f, 18, 20, 30, 200, 120, 2.0f, 0.5f, 0.3f, 0.004f, 0.0f, 0.0f, false, false, 0, 0, 0.0f, 0.0f, T_GIANT},
+    {"Echo-Stalker",     MoveMode::Walk,   20.0f, 12,   60, 280, 1200,   10, 0.1f, 1.6f, 0.9f, 0.015f, 0.0f,  0.8f, true,  false, 0,  0, 0.0f, 0.4f, T_STRIKER | T_ECHO, 90},
+    {"Tremor Worm",      MoveMode::Sessile, 200.0f, 14,  0,   0,    0,    0, PI,   1.0f, 0.0f, 0.000f, 0.0f,  0.8f, false, false, 0,  0, 0.0f, 0.0f, T_GIANT},
+    {"Abyssal Arachnid", MoveMode::Climb, 400.0f, 20,   70, 360,  900,  260, PI,   1.0f, 0.6f, 0.010f, 0.0f,  0.8f, false, false, 0,  0, 0.0f, 0.3f, T_GIANT},
+    {"Lantern-Shroom",   MoveMode::Sessile, 0.5f,  8,    0,   0,    0,    0, PI,   0.0f, 0.0f, 0.000f, 0.0f,  0.0f, false, false, 0,  0, 0.0f, 0.0f, T_FLORA},
+    {"Acid-Lichen",      MoveMode::Sessile, 0.5f, 10,    0,   0,    0,    0, PI,   0.0f, 0.0f, 0.000f, 0.0f,  0.0f, false, false, 0,  0, 0.0f, 0.0f, T_FLORA},
+    {"Vibration-Spore",  MoveMode::Sessile, 0.5f,  9,    0,   0,    0,    0, PI,   0.0f, 0.0f, 0.000f, 0.0f,  0.0f, false, false, 0,  0, 0.0f, 0.0f, T_FLORA},
+    {"Cave-Cabbage",     MoveMode::Sessile, 1.0f, 14,    0,   0,    0,    0, PI,   0.0f, 0.0f, 0.000f, 0.0f,  0.0f, false, false, 0,  0, 0.0f, 0.0f, T_FLORA},
+    {"Nerve-Root",       MoveMode::Sessile, 0.5f, 10,    0,   0,    0,    0, PI,   0.0f, 0.0f, 0.000f, 0.0f,  0.0f, false, false, 0,  0, 0.0f, 0.0f, T_FLORA},
 };
 const FoodEdge CAVE_WEB[] = {
-    {CS_BAT, CS_MOTH, 1.0f},
-    {CS_SALAMANDER, CS_BEETLE, 0.7f}, {CS_SALAMANDER, CS_MOTH, 0.5f}, {CS_SALAMANDER, CS_LEECH, 0.3f},
-    {CS_WORM, CS_MOTH, 1.0f}, {CS_WORM, CS_JELLY, 0.4f},
-    {CS_JELLY, CS_MOTH, 0.8f},
+    {CS_CUSK, CS_GSHRIMP, 1.0f},
+    {CS_OLM, CS_ISOPOD, 0.7f}, {CS_OLM, CS_GSHRIMP, 0.5f}, {CS_OLM, CS_LEECH, 0.3f},
+    {CS_WORM, CS_GSHRIMP, 1.0f}, {CS_WORM, CS_JELLY, 0.4f},
+    {CS_JELLY, CS_GSHRIMP, 0.8f},
+    {CS_OLM, CS_LOACH, 0.6f}, {CS_CUSK, CS_LOACH, 0.5f}, {CS_STALKER, CS_OLM, 0.6f}, {CS_STALKER, CS_LOACH, 0.4f}, {CS_STALKER, CS_CUSK, 0.3f},
+    {CS_ARACHNID, CS_STALKER, 0.6f}, {CS_ARACHNID, CS_OLM, 0.5f},
 };
 
 // A ceiling above a floor spot: the underside of the first solid tile going up (for roosting leeches).
@@ -298,23 +312,24 @@ static void SpawnCave(BeastWorld& W, PlatformState& p) {
     Spots sp; sp.Build(W, p, 12, W.nav.w - 8);
     if (sp.floor.empty()) return;
     unsigned s = W.seed;
-    for (int k = 0; k < 2; k++) Pack(W, CS_BAT, sp.Above(W, sp.At(0.2f + 0.5f * k + Hash(s, 10 + k) * 0.1f), 5), 4, 80 + k, 40, 20, 100 + k * 10);
+    for (int k = 0; k < 2; k++) Pack(W, CS_CUSK, sp.Above(W, sp.At(0.2f + 0.5f * k + Hash(s, 10 + k) * 0.1f), 5), 4, 80 + k, 40, 20, 100 + k * 10);
     for (int k = 0; k < 5; k++) NewBeast(W, CS_JELLY, sp.Above(W, sp.At(0.1f + 0.18f * k + Hash(s, 20 + k) * 0.08f), 3 + (k % 3)));
-    for (int k = 0; k < 3; k++) NewBeast(W, CS_SALAMANDER, NearDenFloor(W, sp, 0.15f + 0.3f * k + Hash(s, 30 + k) * 0.1f, 9));
-    for (int k = 0; k < 6; k++) NewBeast(W, CS_BEETLE, sp.Stand(sp.At(0.08f + 0.15f * k + Hash(s, 40 + k) * 0.06f), 6));
+    for (int k = 0; k < 3; k++) NewBeast(W, CS_OLM, NearDenFloor(W, sp, 0.15f + 0.3f * k + Hash(s, 30 + k) * 0.1f, 9));
+    for (int k = 0; k < 6; k++) NewBeast(W, CS_ISOPOD, sp.Stand(sp.At(0.08f + 0.15f * k + Hash(s, 40 + k) * 0.06f), 6));
     for (int k = 0, n = 0; k < 40 && n < 5; k++) {
         Vector2 c;
         if (!CeilingAbove(W, sp.At(Hash(s, 50 + k)), c)) continue;
         int b = NewBeast(W, CS_LEECH, c); W.beasts[b].territory = c; W.beasts[b].act = BeastAct::Ambush; n++;
     }
     for (int k = 0; k < 3; k++) { Vector2 f = sp.At(0.2f + 0.3f * k + Hash(s, 60 + k) * 0.1f); NewBeast(W, CS_WORM, {f.x, (f.y + 1) * TILE - 2}); }
-    for (int k = 0; k < 10; k++) NewBeast(W, CS_MOTH, sp.Above(W, sp.At(0.05f + 0.095f * k), 2 + (k % 4)));
-    for (auto& b : W.beasts) if (b.species == CS_JELLY || b.species == CS_MOTH) b.territory = b.pos;
+    for (int k = 0; k < 10; k++) NewBeast(W, CS_GSHRIMP, sp.Above(W, sp.At(0.05f + 0.095f * k), 2 + (k % 4)));
+    for (auto& b : W.beasts) if (b.species == CS_JELLY || b.species == CS_GSHRIMP) b.territory = b.pos;
+    Cave13Spawn(W, p);
 }
 
 static void CaveExtras(BeastWorld& W, const PlatformState& p, int i, Choice& best) {
     Beast& b = W.beasts[i];
-    if (b.species == CS_MOTH && b.fear < 0.5f) { // the moth to the flame: the brightest light it can see
+    if (b.species == CS_GSHRIMP && b.fear < 0.5f) { // the moth to the flame: the brightest light it can see
         Vector2 at{0, 0}; float bright = 0;
         for (const auto& l : W.lights) { float d = Dist(l.pos, b.pos); if (d < 9 * TILE && l.strength / (1 + d / TILE) > bright) { bright = l.strength / (1 + d / TILE); at = l.pos; } }
         for (const auto& l : W.lamps) { float d = Dist(l, b.pos); if (d < 9 * TILE && 0.7f / (1 + d / TILE) > bright) { bright = 0.7f / (1 + d / TILE); at = l; } }
@@ -328,7 +343,7 @@ static void CaveExtras(BeastWorld& W, const PlatformState& p, int i, Choice& bes
 static void CaveHooks(BeastWorld& W, PlatformState& p, int i, float dt) {
     Beast& b = W.beasts[i];
     switch (b.species) {
-    case CS_BEETLE: // cornered, it bursts: a spore cloud that blinds whatever's after it
+    case CS_ISOPOD: // cornered, it bursts: a spore cloud that blinds whatever's after it
         if (b.fear > 0.5f && b.cooldown <= 0) {
             for (const auto& m : b.mem) if (m.kind == MEM_THREAT && Recall(b, m, W.time) > 0.3f && Dist(m.pos, b.pos) < 70) {
                 AddCloud(W, b.pos, 58, 2.4f, 1);
@@ -370,21 +385,22 @@ static void CaveHooks(BeastWorld& W, PlatformState& p, int i, float dt) {
         }
         break;
     }
-    default: break;
+    default: Cave13Hook(W, p, i, dt); break; // the 1.3 roster (beasts_cave.cpp)
     }
 }
 static bool CaveLethal(const BeastWorld& W, const Beast& b) {
     (void)W;
+    if (b.species == CS_STALKER) return b.act == BeastAct::Coil || b.act == BeastAct::Strike || b.act == BeastAct::Hunt; // its jaws, when it has you
     return b.species == CS_LEECH && b.special == 1 && b.vel.y > 60; // a leech coming down on you
 }
 const BiomeDef& CaveBiome() {
     static const BiomeDef B = [] {
         BiomeDef d;
         d.level = PL_CAVE; d.species = CAVE; d.count = CS_COUNT; d.web = CAVE_WEB; d.webN = (int)(sizeof(CAVE_WEB) / sizeof(CAVE_WEB[0]));
-        d.water = false; d.clarity = 0.55f; d.daylight = 0.06f;
-        static const float SIZES[CS_COUNT] = {1.1f, 1.4f, 1.6f, 1.1f, 1.0f, 1.4f, 1.0f};
+        d.water = true; d.clarity = 0.5f; d.daylight = 0.04f; // pitch-black water
+        static const float SIZES[CS_COUNT] = {1.1f, 1.4f, 1.6f, 1.1f, 1.0f, 1.4f, 1.0f, 1.0f, 1, 2.2f, 1, 1, 1, 1, 1, 1, 1};
         d.sizes = SIZES;
-        d.spawn = SpawnCave; d.hooks = CaveHooks; d.extras = CaveExtras; d.lethal = CaveLethal;
+        d.spawn = SpawnCave; d.hooks = CaveHooks; d.extras = CaveExtras; d.lethal = CaveLethal; d.touch = Cave13Touch; d.tick = Cave13Tick;
         return d;
     }();
     return B;
@@ -969,7 +985,7 @@ static bool VerifyCave() {
     {
         PlatformState p; Bench(p, PL_CAVE, 40, 14); p.tiles[6][30] = 'o'; BenchBuild(p);
         BeastWorld& W = p.fauna;
-        int moth = Put(W, CS_MOTH, {12 * TILE, 8 * TILE});
+        int moth = Put(W, CS_GSHRIMP, {12 * TILE, 8 * TILE});
         bool reached = false;
         for (int f = 0; f < 60 * 20 && !reached; f++) { BeastsUpdate(p, 1 / 60.0f); if (Dist(W.beasts[moth].pos, {30 * TILE + 16, 6 * TILE + 16}) < 3 * TILE) reached = true; }
         if (!reached) fail("a cave moth never found its way to the light");
@@ -995,8 +1011,8 @@ static bool VerifyCave() {
     {
         PlatformState p; Bench(p, PL_CAVE, 40, 14); BenchBuild(p);
         BeastWorld& W = p.fauna;
-        int sal = Put(W, CS_SALAMANDER, {16 * TILE, 11 * TILE + 24}); W.beasts[sal].hunger = 1; W.beasts[sal].pers.aggression = 0.9f;
-        int bee = Put(W, CS_BEETLE, {19 * TILE, 11 * TILE + 26}); W.beasts[bee].pers.bravery = 0.2f;
+        int sal = Put(W, CS_OLM, {16 * TILE, 11 * TILE + 24}); W.beasts[sal].hunger = 1; W.beasts[sal].pers.aggression = 0.9f;
+        int bee = Put(W, CS_ISOPOD, {19 * TILE, 11 * TILE + 26}); W.beasts[bee].pers.bravery = 0.2f;
         bool burst = false;
         for (int f = 0; f < 60 * 20 && !burst; f++) { BeastsUpdate(p, 1 / 60.0f); for (const auto& c : W.ink) if (c.kind == 1) burst = true;
             if (getenv("DEPTH_BEASTLOG") && f % 60 == 0) { const Beast& a = W.beasts[sal]; const Beast& c = W.beasts[bee]; int np = 0; float bs = 0; for (const auto& m : a.mem) if (m.kind == MEM_PREY && m.strength > 0) { np++; bs = std::max(bs, Recall(a, m, W.time)); } TraceLog(LOG_WARNING, "  beetle t=%d sal %s (%.0f) tgt %d prey mems %d best %.2f hunger %.2f sounds %d | beetle %s (%.0f) fear %.2f life %d", f / 60, BeastActName(a.act), a.pos.x, a.target, np, bs, a.hunger, (int)W.sounds.size(), BeastActName(c.act), c.pos.x, c.fear, (int)c.life); } }
@@ -1006,8 +1022,8 @@ static bool VerifyCave() {
     {
         PlatformState p; Bench(p, PL_CAVE, 40, 14); BenchBuild(p);
         BeastWorld& W = p.fauna;
-        int bat = Put(W, CS_BAT, {12 * TILE, 6 * TILE}); W.beasts[bat].hunger = 1; W.beasts[bat].pers.aggression = 0.9f;
-        int moth = Put(W, CS_MOTH, {18 * TILE, 7 * TILE});
+        int bat = Put(W, CS_CUSK, {12 * TILE, 6 * TILE}); W.beasts[bat].hunger = 1; W.beasts[bat].pers.aggression = 0.9f;
+        int moth = Put(W, CS_GSHRIMP, {18 * TILE, 7 * TILE});
         bool ate = false;
         for (int f = 0; f < 60 * 20 && !ate; f++) { BeastsUpdate(p, 1 / 60.0f); if (W.beasts[moth].life != BeastLife::Alive) ate = true; }
         if (!ate) fail("a hungry bat never caught a moth");
@@ -1021,6 +1037,7 @@ static bool VerifyCave() {
         BeastsUpdate(p, 1 / 60.0f);
         if (W.beasts[worm].act != BeastAct::Hide) fail("a tube worm didn't pull in at a tremor beside it");
     }
+    if (!VerifyCave13()) ok = false;
     if (ok) TraceLog(LOG_WARNING, "verify-cave-ecosystem: OK - moth to light, ceiling-leech drop (lethal), spore burst, bat hunt and tube-worm retract all confirmed");
     return ok;
 }

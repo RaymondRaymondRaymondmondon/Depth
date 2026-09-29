@@ -207,6 +207,9 @@ struct BeastWorld {
     Vector2 apexPos{-1e9f, -1e9f}; // where the apex is this tick (its shadow darkens everything under it)
     int diverPose = 0;             // the diver's pose this tick (a dash into a barnacle-cluster is fatal; see BeastsUpdate)
     bool diverOnPole = false;      // on a ratline or kelp this tick (a rigging-mimic watches for the leap off it)
+    float glowSuitT = 0;           // the Cave: glow-shrimp fluid on the diver's suit - it shows up the arachnid's webs it brushes
+    struct Web { Vector2 top, bottom; float t = 0; bool revealed = false; };
+    std::vector<Web> webs;         // the Abyssal Arachnid's webs: a sheet from a tunnel's ceiling down to 20 px off the floor (slide under)
     std::vector<Vector2> scars;    // bites torn out of the plating by the megalodon (drawn; the tiles themselves never change, so the route stays proven)
     int apexVisits = 0;
 };
@@ -234,7 +237,9 @@ enum HullSpecies { HS_PILOT, HS_SHRIMP, HS_OCTOPUS, HS_PUFFER, HS_LEECH, HS_ANEM
 enum PirateSpecies { PS_RAT, PS_CAT, PS_MONKEY, PS_DOG, PS_FLEA, PS_OWL, PS_GULL, PS_ALBATROSS,
                      PS_KRAKEN, PS_TORTOISE, PS_CUTTLE, PS_MANTIS, PS_BORER, PS_MOTH, PS_CMOSS, PS_ROT, PS_MKELP, PS_BARNACLE, PS_LANTERN, PS_COUNT };
 enum IslandSpecies { IS_BOAR, IS_SNAKE, IS_LIZARD, IS_BAT, IS_SPIDER, IS_CRAB, IS_FROG, IS_GULL, IS_DOG, IS_COCONUT, IS_COUNT };
-enum CaveSpecies { CS_BAT, CS_JELLY, CS_SALAMANDER, CS_BEETLE, CS_LEECH, CS_WORM, CS_MOTH, CS_COUNT };
+// the Cave is a flooded cave: the older roster made aquatic, then ParkourReference1.3's (beasts_cave.cpp)
+enum CaveSpecies { CS_CUSK, CS_JELLY, CS_OLM, CS_ISOPOD, CS_LEECH, CS_WORM, CS_GSHRIMP,
+                   CS_LOACH, CS_CTORTOISE, CS_STALKER, CS_TREMOR, CS_ARACHNID, CS_LSHROOM, CS_LICHEN, CS_VSPORE, CS_CABBAGE, CS_NROOT, CS_COUNT };
 enum PipeSpecies { PP_MOTH, PP_SPIDER, PP_CENTIPEDE, PP_RAT, PP_MITE, PP_PILLBUG, PP_MOUSE, PP_ROACH, PP_GLOW, PP_CRICKET, PP_COUNT };
 enum WeedsSpecies { WS_PLANKTON, WS_SEAHORSE, WS_BARRACUDA, WS_MERMAN, WS_SHARK, WS_RAY, WS_CRAB, WS_FUNGUS, WS_COUNT };
 enum AtlantisSpecies { AS_WISP, AS_SHRIMP, AS_ANGLER, AS_LOSTONE, AS_GUARDIAN, AS_EEL, AS_COUNT };

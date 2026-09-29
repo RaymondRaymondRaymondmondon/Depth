@@ -74,6 +74,12 @@ bool Pirate13Touch(const BeastWorld& W, const Beast& b, Rectangle diver);
 void PirateDirector(BeastWorld& W, PlatformState& p, float dt);
 void Pirate13Spawn(BeastWorld& W, PlatformState& p);
 bool VerifyPirate13();
+// the (flooded) Cave's ParkourReference1.3 roster (beasts_cave.cpp)
+void Cave13Hook(BeastWorld& W, PlatformState& p, int i, float dt);
+bool Cave13Touch(const BeastWorld& W, const Beast& b, Rectangle diver);
+void Cave13Tick(BeastWorld& W, PlatformState& p, float dt);
+void Cave13Spawn(BeastWorld& W, PlatformState& p);
+bool VerifyCave13();
 
 const SpeciesDef& Sp(int biome, int s);
 float Pref(int biome, int pred, int prey);

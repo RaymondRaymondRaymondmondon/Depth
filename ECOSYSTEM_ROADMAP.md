@@ -678,3 +678,4 @@ ship-rot fungus (spore cloud + rot scent for scavengers), mast-kelp (dash throug
 1.3 pass (next after the Pirate Ship) must: add PL_CAVE to WaterLevel() (water dash/glide), water visuals (tint, bubbles,
 caustics, drifting silt), CaveBiome water=true, and an aquatic roster from the 1.3 Cave section (bats/moths/beetles replaced).
 Progress: the whole Pirate Ship 1.3 roster is DONE (see CLAUDE.md). Next biome: the Cave, now an underwater cave (the user's correction), then the Island (above water), the Seaweed/Weeds, Atlantis and the Abyss.
+Progress: the Cave is now a flooded cave with its whole 1.3 roster (see CLAUDE.md). Remaining biomes for 1.3: the Island (above water), the Seaweed/Weeds (merge into the user's web), Atlantis, the Abyss (abyss.cpp). Then movement pass 2.
