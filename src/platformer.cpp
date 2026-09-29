@@ -798,9 +798,6 @@ void BuildFromGrid(PlatformState& p, const GenLevel& gl, const Part* arena, char
 
 // Builds (or rebuilds, after a death) the whole level from its seed: coins, enemies and the boss all come back.
 static void PopulateCritters(PlatformState& p, unsigned seed); // defined below Hs(), which it needs
-static void PopulatePipeLife(PlatformState& p, unsigned seed); // defined below Hs(), which it needs
-static void PopulateIslandLife(PlatformState& p, unsigned seed); // defined below Hs(), which it needs
-static void PopulateCaveLife(PlatformState& p, unsigned seed);   // defined below Hs(), which it needs
 
 void BuildLevel(PlatformState& p) {
     const LevelDef& L = Lv(p.level);
@@ -817,25 +814,12 @@ void BuildLevel(PlatformState& p) {
     p.shots.clear();
     p.checkpointChunk = 0;
     p.critters.clear();
-    p.pipeLife.clear();
-    p.lightSpots.clear();
-    p.islandLife.clear();
-    p.caveLife.clear();
     // The Pipes have no enemies (CLAUDE.md) - this is ambient duct life, not a hazard: no collision or
     // death check anywhere touches p.critters. Skipped headlessly: the path-search rebuilds many
     // PlatformState instances rapidly and never renders, so there is nothing for this to add there.
     if (p.level == PL_PIPES && !p.verifying) PopulateCritters(p, seed);
-    // The Pipes' real 10-species chain (ECOSYSTEM_BESTIARY.md), alongside the ambient critters above -
-    // it never reacts to the diver, so it's harmless to run next to them. Same headless skip, same reason.
-    if (p.level == PL_PIPES && !p.verifying) PopulatePipeLife(p, seed);
-    // The Island's real 9-species chain on top of its existing Warriors/Gunners (ECOSYSTEM_BESTIARY.md) -
-    // same headless skip, for the same reason.
-    if (p.level == PL_ISLAND && !p.verifying) PopulateIslandLife(p, seed);
-    // The Cave's real 6-species chain on top of its existing Stalactite Spiders (ECOSYSTEM_BESTIARY.md) -
-    // same headless skip, for the same reason.
-    if (p.level == PL_CAVE && !p.verifying) PopulateCaveLife(p, seed);
-    // The living-AI creatures (beasts.h): the Hull's whole food web, including its crabs and eels - the
-    // engine takes those two out of p.enemies and runs them as hunters with dens of their own.
+    // The living-AI creatures (beasts.h): every level's food web, dens and all. In the Hull the engine also takes
+    // the generator's crabs and eels out of p.enemies and runs them as hunters with dens of their own.
     BeastsBuild(p, seed);
 }
 int PartAt(const PlatformState& p, float x) {
@@ -1110,629 +1094,6 @@ static void EcoWander(PlatformState& p, Ent& e, float speed, float leash) {
     if (Solid(p, ftx, fty) || !Solid(p, ftx, fty + 1)) e.dir = -e.dir;
     else e.pos.x = nx;
     if (fabsf(e.pos.x - e.home.x) > leash) e.dir = e.home.x < e.pos.x ? -1.0f : 1.0f;
-}
-
-// ---------------------------------------------------------------- the Island's real ecosystem chain
-// ECOSYSTEM_BESTIARY.md, "The Island": on top of the existing Warriors/Gunners ('P'/'G', real hazards placed
-// by the generator itself), a stray shot passing a Boar sends it Charging - the one real hazard in this
-// overlay, same shape as the Pirate Ship's Berserk Guard Dog. The charge's rumble sends roosting Fruit Bats
-// Swarming and wakes a coiled Snake to go Dropping; a Web-Spinning Spider's fixed web Catches a Swarming Bat
-// that strays too close (freed after a moment, mirrors the Pipes' Water-Spider/Moth); a Hunting Dog that
-// notices a Charging Boar goes Tracking toward it. A Coconut Crab periodically Cuts a coconut loose; a
-// Territorial Seagull Circling nearby Dives to steal it, then returns. Monitor Lizards and Poison Dart Frogs
-// are ambient scenery (the Lizard just idles near its spot; the Frog hops).
-constexpr float ISLAND_BOAR_STRAY_R = 70, ISLAND_BOAR_SPEED = 110, ISLAND_SNAKE_DROP_R = 90, ISLAND_SNAKE_DROP_T = 0.6f;
-constexpr float ISLAND_BAT_SWARM_R = 90, ISLAND_BAT_SWARM_T = 2.2f, ISLAND_SPIDER_WEB_R = 30, ISLAND_BAT_CAUGHT_T = 1.0f;
-constexpr float ISLAND_CRAB_CUT_CYCLE = 4.0f, ISLAND_CRAB_CUT_DUR = 1.0f, ISLAND_SEAGULL_DIVE_R = 140, ISLAND_DOG_TRACK_R = 110;
-
-static void PopulateIslandLife(PlatformState& p, unsigned seed) {
-    int idx = 0;
-    for (int x = 2; x < p.w - 2; x++) {
-        int fy = -1;
-        for (int y = 1; y < p.h - 1; y++) if (!Solid(p, x, y) && Solid(p, x, y + 1)) { fy = y; break; }
-        if (fy < 0) continue;
-        float roll = Hs2((float)x, (float)seed * 7.3f + 6);
-        if (roll > 0.16f) continue; // sparse, same density as the Pirate Ship's overlay
-        float pick = Hs2((float)x, (float)seed * 7.3f + 7);
-        IslandEcoKind kind = pick < 0.16f ? IslandEcoKind::Boar : pick < 0.28f ? IslandEcoKind::Snake
-                            : pick < 0.42f ? IslandEcoKind::Lizard : pick < 0.56f ? IslandEcoKind::Bat
-                            : pick < 0.64f ? IslandEcoKind::Spider : pick < 0.76f ? IslandEcoKind::Crab
-                            : pick < 0.86f ? IslandEcoKind::Frog : pick < 0.94f ? IslandEcoKind::Seagull : IslandEcoKind::Dog;
-        PlatIslandLife e;
-        e.kind = kind;
-        float baseY = (kind == IslandEcoKind::Bat || kind == IslandEcoKind::Spider || kind == IslandEcoKind::Seagull) ? std::max(2.0f, fy - Hs2((float)x, seed * 8.3f) * 5.0f - 3.0f) : (float)fy;
-        e.home = e.pos = {x * (float)T + T / 2.0f, baseY * (float)T + T - 3};
-        e.personality = {Hs2(idx * 3.0f + 1, (float)seed + 1900), Hs2(idx * 3.0f + 2, (float)seed + 1900), Hs2(idx * 3.0f + 3, (float)seed + 1900), Hs2(idx * 3.0f + 4, (float)seed + 1900)};
-        e.dir = Hs2(idx * 5.0f, (float)seed + 1900) > 0.5f ? 1.0f : -1.0f;
-        e.phase = Hs2(idx * 9.0f, (float)seed + 1900) * 6.28f;
-        e.state = kind == IslandEcoKind::Seagull ? IslandEcoState::Circling : kind == IslandEcoKind::Spider ? IslandEcoState::Idle : IslandEcoState::Wander;
-        idx++;
-        p.islandLife.push_back(e);
-        if (idx > 40) break;
-    }
-}
-
-void UpdateIslandLife(PlatformState& p, float dt) {
-    if (p.islandLife.empty()) return;
-    Rectangle pr = PlayerBox(p);
-    for (auto& e : p.islandLife) {
-        e.phase += dt;
-        e.stateTimer += dt;
-        switch (e.kind) {
-        case IslandEcoKind::Boar:
-            if (e.state == IslandEcoState::Charging) {
-                float nx = e.pos.x + e.dir * ISLAND_BOAR_SPEED * dt;
-                int ftx = (int)floorf((e.dir > 0 ? nx + 8 : nx - 8) / T), fty = (int)floorf((e.pos.y - 2) / T);
-                if (!Solid(p, ftx, fty) && Solid(p, ftx, fty + 1)) e.pos.x = nx; else { e.state = IslandEcoState::Wander; e.stateTimer = 0; }
-                if (e.stateTimer > 2.5f) { e.state = IslandEcoState::Wander; e.stateTimer = 0; }
-            } else {
-                bool struck = false;
-                for (auto& s : p.shots) { float dx = s.pos.x - e.pos.x, dy = s.pos.y - e.pos.y; if (dx * dx + dy * dy < ISLAND_BOAR_STRAY_R * ISLAND_BOAR_STRAY_R) struck = true; }
-                if (struck) {
-                    e.state = IslandEcoState::Charging; e.stateTimer = 0;
-                    e.dir = pr.x < e.pos.x ? -1.0f : 1.0f;
-                } else EcoWander(p, e, fmodf(e.phase, 2.6f) > 1.8f ? (28 + e.personality.energy * 18) * dt : 0, 48);
-            }
-            break;
-        case IslandEcoKind::Snake:
-            if (e.state == IslandEcoState::Dropping) { if (e.stateTimer > ISLAND_SNAKE_DROP_T) { e.state = IslandEcoState::Idle; e.stateTimer = 0; } }
-            else {
-                for (auto& b : p.islandLife) if (b.kind == IslandEcoKind::Boar && b.state == IslandEcoState::Charging) {
-                    float dx = b.pos.x - e.pos.x, dy = b.pos.y - e.pos.y;
-                    if (dx * dx + dy * dy < ISLAND_SNAKE_DROP_R * ISLAND_SNAKE_DROP_R) { e.state = IslandEcoState::Dropping; e.stateTimer = 0; break; }
-                }
-            }
-            break;
-        case IslandEcoKind::Lizard:
-            EcoWander(p, e, fmodf(e.phase, 3.2f) > 2.5f ? (14 + e.personality.energy * 10) * dt : 0, 40);
-            break;
-        case IslandEcoKind::Bat:
-            if (e.state == IslandEcoState::Swarming || e.state == IslandEcoState::Caught) {
-                if (e.state == IslandEcoState::Swarming) {
-                    e.pos.x = e.home.x + sinf(e.phase * 5.0f) * 50; e.pos.y = e.home.y + cosf(e.phase * 4.0f) * 14;
-                    for (auto& s : p.islandLife) if (s.kind == IslandEcoKind::Spider) {
-                        float dx = s.pos.x - e.pos.x, dy = s.pos.y - e.pos.y;
-                        if (dx * dx + dy * dy < ISLAND_SPIDER_WEB_R * ISLAND_SPIDER_WEB_R) { e.state = IslandEcoState::Caught; e.stateTimer = 0; e.pos = s.pos; break; }
-                    }
-                } else if (e.stateTimer > ISLAND_BAT_CAUGHT_T) { e.state = IslandEcoState::Swarming; e.stateTimer = 0; }
-                if (e.state == IslandEcoState::Swarming && e.stateTimer > ISLAND_BAT_SWARM_T) { e.state = IslandEcoState::Idle; e.stateTimer = 0; }
-            } else {
-                for (auto& b : p.islandLife) if (b.kind == IslandEcoKind::Boar && b.state == IslandEcoState::Charging) {
-                    float dx = b.pos.x - e.pos.x, dy = b.pos.y - e.pos.y;
-                    if (dx * dx + dy * dy < ISLAND_BAT_SWARM_R * ISLAND_BAT_SWARM_R) { e.state = IslandEcoState::Swarming; e.stateTimer = 0; break; }
-                }
-            }
-            break;
-        case IslandEcoKind::Spider: break; // stays put; Bats check its web above
-        case IslandEcoKind::Crab:
-            if (e.state == IslandEcoState::Cutting) { if (e.stateTimer > ISLAND_CRAB_CUT_DUR) { e.state = IslandEcoState::Idle; e.stateTimer = 0; } }
-            else if (e.stateTimer > ISLAND_CRAB_CUT_CYCLE) { e.state = IslandEcoState::Cutting; e.stateTimer = 0; }
-            break;
-        case IslandEcoKind::Frog:
-            e.pos.x = e.home.x + sinf(e.phase * 2.0f) * (fmodf(e.phase, 3.0f) < 0.3f ? 10.0f : 0.0f);
-            break;
-        case IslandEcoKind::Seagull:
-            if (e.state == IslandEcoState::Circling) {
-                e.pos.x = e.home.x + sinf(e.phase * 0.5f) * 44; e.pos.y = e.home.y + cosf(e.phase * 0.4f) * 10;
-                if (e.personality.aggression > 0.3f) for (auto& c : p.islandLife) if (c.kind == IslandEcoKind::Crab && c.state == IslandEcoState::Cutting) {
-                    float dx = c.pos.x - e.pos.x, dy = c.pos.y - e.pos.y;
-                    if (dx * dx + dy * dy < ISLAND_SEAGULL_DIVE_R * ISLAND_SEAGULL_DIVE_R) { e.state = IslandEcoState::Diving; e.stateTimer = 0; break; }
-                }
-            } else if (e.stateTimer > 0.6f) { e.state = IslandEcoState::Circling; e.stateTimer = 0; }
-            break;
-        case IslandEcoKind::Dog:
-            if (e.state == IslandEcoState::Tracking) {
-                float dx = e.home.x - e.pos.x; // tracks back toward whatever triggered it, near its own patrol
-                e.dir = dx < 0 ? -1.0f : 1.0f;
-                if (e.stateTimer > 1.4f) { e.state = IslandEcoState::Wander; e.stateTimer = 0; }
-                else EcoWander(p, e, (30 + e.personality.energy * 16) * dt, 60);
-            } else {
-                bool trail = false;
-                for (auto& b : p.islandLife) if (b.kind == IslandEcoKind::Boar && b.state == IslandEcoState::Charging) {
-                    float dx = b.pos.x - e.pos.x, dy = b.pos.y - e.pos.y;
-                    if (dx * dx + dy * dy < ISLAND_DOG_TRACK_R * ISLAND_DOG_TRACK_R) trail = true;
-                }
-                if (trail) { e.state = IslandEcoState::Tracking; e.stateTimer = 0; }
-                else EcoWander(p, e, fmodf(e.phase, 3.0f) > 2.2f ? (22 + e.personality.energy * 12) * dt : 0, 46);
-            }
-            break;
-        }
-    }
-}
-
-void DrawIslandLife(const PlatIslandLife& e, float t) {
-    int x = (int)e.pos.x, y = (int)e.pos.y;
-    Color ink = Fade(BLACK, 0.55f);
-    switch (e.kind) {
-    case IslandEcoKind::Boar: {
-        bool charging = e.state == IslandEcoState::Charging;
-        Color c = charging ? Color{110, 66, 40, 255} : Color{130, 90, 56, 255};
-        DrawEllipse(x, y - 6, 11, 7, c);
-        DrawCircle(x - (int)e.dir * 10, y - 8, 5, c);
-        DrawTri({x - e.dir * 14, y - 8.0f}, {x - e.dir * 18, y - 6.0f}, {x - e.dir * 14, y - 4.0f}, Color{230, 224, 210, 255}); // a tusk
-        if (charging) for (int k = 0; k < 3; k++) DrawCircle((int)(x + e.dir * (-6 - k * 5)), y + 3, 1.4f, Fade(Color{200, 190, 170, 200}, 0.6f)); // dust
-        break;
-    }
-    case IslandEcoKind::Snake: {
-        Color c{74, 128, 54, 255}, band{44, 34, 22, 255};
-        float drop = e.state == IslandEcoState::Dropping ? std::min(1.0f, e.stateTimer / ISLAND_SNAKE_DROP_T) : 0.0f;
-        Vector2 prev{(float)x, y - 2.0f - drop * 14};
-        for (int k = 1; k <= 3; k++) {
-            Vector2 q{x + sinf(t * 6 + k * 1.3f) * 5.0f, y - 2 - k * 4.0f - drop * 14};
-            DrawLineEx(prev, q, 3.4f, c);
-            if (k % 2 == 0) DrawCircleV(q, 1.3f, band);
-            prev = q;
-        }
-        DrawCircleV(prev, 2.4f, c); DrawCircleV(prev, 2.4f, Fade(ink, 0.3f));
-        break;
-    }
-    case IslandEcoKind::Lizard: {
-        Color c = Color{86, 120, 58, 255};
-        DrawEllipse(x, y - 4, 10, 4.5f, c);
-        DrawCircle(x - (int)e.dir * 9, y - 5, 3, c);
-        DrawLineEx({x + e.dir * 9.0f, y - 3.0f}, {x + e.dir * 18.0f, y - 1.0f}, 2, Fade(c, 0.85f));
-        break;
-    }
-    case IslandEcoKind::Bat: {
-        float flap = sinf(t * 16) * 4;
-        Color wing{58, 50, 54, 220};
-        DrawTri({x - 2.0f, y - 2.0f}, {x - 14.0f, y - 6.0f - flap}, {x - 10.0f, y + 4.0f}, wing);
-        DrawTri({x + 2.0f, y - 2.0f}, {x + 14.0f, y - 6.0f - flap}, {x + 10.0f, y + 4.0f}, wing);
-        DrawEllipse(x, y, 5, 4, Color{74, 62, 56, 255});
-        break;
-    }
-    case IslandEcoKind::Spider: {
-        Color c = Color{40, 34, 30, 255};
-        for (int k = 0; k < 6; k++) { float a = k * PI / 3; DrawLineEx({(float)x, (float)y}, {x + cosf(a) * 22, y + sinf(a) * 22}, 1, Fade(Color{220, 220, 220, 255}, 0.5f)); } // the web
-        DrawCircle(x, y, 4, c);
-        break;
-    }
-    case IslandEcoKind::Crab: {
-        bool cutting = e.state == IslandEcoState::Cutting;
-        Color c = Color{200, 90, 50, 255};
-        DrawEllipse(x, y - 5, 8, 6, c);
-        if (cutting) for (int s = -1; s <= 1; s += 2) DrawLineEx({x + s * 6.0f, y - 8.0f}, {x + s * 10.0f, y - 14.0f}, 2, c); // claws raised, snipping
-        break;
-    }
-    case IslandEcoKind::Frog: {
-        Color c = Color{80, 150, 70, 255};
-        DrawEllipse(x, y - 3, 6, 4.5f, c);
-        DrawCircle(x - 3, y - 6, 1.4f, Color{20, 20, 20, 255}); DrawCircle(x + 3, y - 6, 1.4f, Color{20, 20, 20, 255});
-        break;
-    }
-    case IslandEcoKind::Seagull: {
-        Color c = Color{225, 222, 214, 255};
-        float flap = e.state == IslandEcoState::Diving ? 0 : sinf(t * 8) * 3;
-        DrawLineEx({x - 12.0f, y - flap}, {(float)x, (float)y}, 2, c); DrawLineEx({(float)x, (float)y}, {x + 12.0f, y - flap}, 2, c);
-        break;
-    }
-    case IslandEcoKind::Dog: {
-        bool tracking = e.state == IslandEcoState::Tracking;
-        Color c = tracking ? Color{110, 82, 56, 255} : Color{140, 108, 76, 255};
-        DrawCircle(x, y - 6, 6, c);
-        DrawCircle(x + (int)e.dir * 8, y - 8, 4, c);
-        DrawCircleLines(x, y - 6, 6, ink);
-        break;
-    }
-    }
-}
-
-// ---------------------------------------------------------------- the Cave's real ecosystem chain
-// ECOSYSTEM_BESTIARY.md, "The Cave": on top of the existing Stalactite Spiders ('P', a real hazard placed by
-// the generator itself, reused with its own cave art), a Bioluminescent Jelly Flashes when the diver passes
-// close by; a Pale Salamander Hunts whichever Jelly just flashed (a cosmetic chase - the light is how it
-// finds prey in the pitch dark); a Fungal Beetle Bursts into a spore cloud on its own slow clock whenever a
-// Salamander is Hunting nearby; a Cave Leech clinging to the ceiling Drops when a spore cloud or a flashing
-// Jelly is near it - the one real hazard in this overlay, same shape as the Island's Charging Boar. A nearby
-// Spider bursting its ambush sends roosting Cave Bats Swarming; a Dropping Leech's impact briefly Retracts
-// any nearby Giant Tube Worm.
-constexpr float CAVE_JELLY_FLASH_R = 60, CAVE_JELLY_FLASH_T = 1.4f, CAVE_SALAMANDER_HUNT_R = 110;
-constexpr float CAVE_BEETLE_BURST_CYCLE = 3.5f, CAVE_BEETLE_BURST_DUR = 0.9f, CAVE_LEECH_DROP_R = 70, CAVE_LEECH_DROP_T = 1.2f;
-constexpr float CAVE_BAT_SWARM_R = 90, CAVE_BAT_SWARM_T = 2.0f, CAVE_WORM_RETRACT_R = 50, CAVE_WORM_RETRACT_T = 1.0f;
-
-static void PopulateCaveLife(PlatformState& p, unsigned seed) {
-    int idx = 0;
-    for (int x = 2; x < p.w - 2; x++) {
-        int fy = -1;
-        for (int y = 1; y < p.h - 1; y++) if (!Solid(p, x, y) && Solid(p, x, y + 1)) { fy = y; break; }
-        if (fy < 0) continue;
-        float roll = Hs2((float)x, (float)seed * 7.3f + 8);
-        if (roll > 0.17f) continue; // sparse, same density as the Island's overlay
-        float pick = Hs2((float)x, (float)seed * 7.3f + 9);
-        CaveEcoKind kind = pick < 0.18f ? CaveEcoKind::Bat : pick < 0.40f ? CaveEcoKind::Jelly
-                          : pick < 0.60f ? CaveEcoKind::Salamander : pick < 0.76f ? CaveEcoKind::Beetle
-                          : pick < 0.90f ? CaveEcoKind::Leech : CaveEcoKind::TubeWorm;
-        PlatCaveLife e;
-        e.kind = kind;
-        float baseY = (kind == CaveEcoKind::Bat || kind == CaveEcoKind::Leech) ? std::max(2.0f, fy - Hs2((float)x, seed * 8.5f) * 6.0f - 3.0f) : (float)fy;
-        e.home = e.pos = {x * (float)T + T / 2.0f, baseY * (float)T + T - 3};
-        e.personality = {Hs2(idx * 3.0f + 1, (float)seed + 2900), Hs2(idx * 3.0f + 2, (float)seed + 2900), Hs2(idx * 3.0f + 3, (float)seed + 2900), Hs2(idx * 3.0f + 4, (float)seed + 2900)};
-        e.dir = Hs2(idx * 5.0f, (float)seed + 2900) > 0.5f ? 1.0f : -1.0f;
-        e.phase = Hs2(idx * 9.0f, (float)seed + 2900) * 6.28f;
-        e.state = kind == CaveEcoKind::Bat ? CaveEcoState::Roost : kind == CaveEcoKind::Leech ? CaveEcoState::Clinging
-                : kind == CaveEcoKind::TubeWorm ? CaveEcoState::Idle : CaveEcoState::Wander;
-        idx++;
-        p.caveLife.push_back(e);
-        if (idx > 40) break;
-    }
-}
-
-void UpdateCaveLife(PlatformState& p, float dt) {
-    if (p.caveLife.empty()) return;
-    Rectangle pr = PlayerBox(p);
-    Vector2 pc{pr.x + pr.width / 2, pr.y + pr.height / 2};
-    for (auto& e : p.caveLife) {
-        e.phase += dt;
-        e.stateTimer += dt;
-        switch (e.kind) {
-        case CaveEcoKind::Jelly:
-            e.pos.x = e.home.x + sinf(e.phase * 0.6f) * 10; e.pos.y = e.home.y + cosf(e.phase * 0.5f) * 6;
-            if (e.state == CaveEcoState::Flash) { if (e.stateTimer > CAVE_JELLY_FLASH_T) { e.state = CaveEcoState::Idle; e.stateTimer = 0; } }
-            else { float dx = pc.x - e.pos.x, dy = pc.y - e.pos.y; if (dx * dx + dy * dy < CAVE_JELLY_FLASH_R * CAVE_JELLY_FLASH_R) { e.state = CaveEcoState::Flash; e.stateTimer = 0; } }
-            break;
-        case CaveEcoKind::Salamander:
-            if (e.state == CaveEcoState::Hunting) {
-                if (e.stateTimer > 1.8f) { e.state = CaveEcoState::Wander; e.stateTimer = 0; }
-                else EcoWander(p, e, (34 + e.personality.energy * 16) * dt, 70);
-            } else {
-                for (auto& j : p.caveLife) if (j.kind == CaveEcoKind::Jelly && j.state == CaveEcoState::Flash) {
-                    float dx = j.pos.x - e.pos.x, dy = j.pos.y - e.pos.y;
-                    if (dx * dx + dy * dy < CAVE_SALAMANDER_HUNT_R * CAVE_SALAMANDER_HUNT_R) { e.state = CaveEcoState::Hunting; e.stateTimer = 0; e.dir = j.pos.x < e.pos.x ? -1.0f : 1.0f; break; }
-                }
-                if (e.state != CaveEcoState::Hunting) EcoWander(p, e, fmodf(e.phase, 3.2f) > 2.4f ? (16 + e.personality.energy * 10) * dt : 0, 44);
-            }
-            break;
-        case CaveEcoKind::Beetle:
-            if (e.state == CaveEcoState::Bursting) { if (e.stateTimer > CAVE_BEETLE_BURST_DUR) { e.state = CaveEcoState::Idle; e.stateTimer = 0; } }
-            else if (e.stateTimer > CAVE_BEETLE_BURST_CYCLE) {
-                bool near = false;
-                for (auto& s : p.caveLife) if (s.kind == CaveEcoKind::Salamander && s.state == CaveEcoState::Hunting) {
-                    float dx = s.pos.x - e.pos.x, dy = s.pos.y - e.pos.y; if (dx * dx + dy * dy < CAVE_SALAMANDER_HUNT_R * CAVE_SALAMANDER_HUNT_R) near = true;
-                }
-                if (near) { e.state = CaveEcoState::Bursting; e.stateTimer = 0; }
-            }
-            break;
-        case CaveEcoKind::Leech:
-            if (e.state == CaveEcoState::Dropping) { if (e.stateTimer > CAVE_LEECH_DROP_T) { e.state = CaveEcoState::Clinging; e.stateTimer = 0; } }
-            else {
-                for (auto& o : p.caveLife) {
-                    bool trigger = (o.kind == CaveEcoKind::Beetle && o.state == CaveEcoState::Bursting) || (o.kind == CaveEcoKind::Jelly && o.state == CaveEcoState::Flash);
-                    if (!trigger) continue;
-                    float dx = o.pos.x - e.pos.x, dy = o.pos.y - e.pos.y;
-                    if (dx * dx + dy * dy < CAVE_LEECH_DROP_R * CAVE_LEECH_DROP_R) { e.state = CaveEcoState::Dropping; e.stateTimer = 0; break; }
-                }
-            }
-            break;
-        case CaveEcoKind::Bat:
-            if (e.state == CaveEcoState::Swarming) { if (e.stateTimer > CAVE_BAT_SWARM_T) { e.state = CaveEcoState::Roost; e.stateTimer = 0; } else { e.pos.x = e.home.x + sinf(e.phase * 5.0f) * 40; e.pos.y = e.home.y + cosf(e.phase * 4.0f) * 12; } }
-            else for (auto& s : p.enemies) if (s.type == 'P' && s.state == 2) {
-                float dx = s.pos.x - e.pos.x, dy = s.pos.y - e.pos.y;
-                if (dx * dx + dy * dy < CAVE_BAT_SWARM_R * CAVE_BAT_SWARM_R) { e.state = CaveEcoState::Swarming; e.stateTimer = 0; break; }
-            }
-            break;
-        case CaveEcoKind::TubeWorm:
-            if (e.state == CaveEcoState::Retracted) { if (e.stateTimer > CAVE_WORM_RETRACT_T) { e.state = CaveEcoState::Idle; e.stateTimer = 0; } }
-            else for (auto& l : p.caveLife) if (l.kind == CaveEcoKind::Leech && l.state == CaveEcoState::Dropping) {
-                float dx = l.pos.x - e.pos.x, dy = l.pos.y - e.pos.y;
-                if (dx * dx + dy * dy < CAVE_WORM_RETRACT_R * CAVE_WORM_RETRACT_R) { e.state = CaveEcoState::Retracted; e.stateTimer = 0; break; }
-            }
-            break;
-        }
-    }
-}
-
-void DrawCaveLife(const PlatCaveLife& e, float t) {
-    int x = (int)e.pos.x, y = (int)e.pos.y;
-    switch (e.kind) {
-    case CaveEcoKind::Jelly: {
-        bool flash = e.state == CaveEcoState::Flash;
-        Color c = flash ? Color{170, 240, 230, 255} : Color{70, 130, 130, 200};
-        DrawCircle(x, y, flash ? 8.0f : 6.0f, Fade(c, flash ? 0.9f : 0.5f));
-        for (int k = 0; k < 3; k++) DrawLineEx({x - 3.0f + k * 3, y + 4.0f}, {x - 3.0f + k * 3 + sinf(t * 3 + k) * 2, y + 10.0f}, 1, Fade(c, 0.5f));
-        break;
-    }
-    case CaveEcoKind::Salamander: {
-        bool hunting = e.state == CaveEcoState::Hunting;
-        Color c = hunting ? Color{224, 224, 210, 255} : Color{200, 198, 186, 255};
-        DrawEllipse(x, y - 4, 9, 3.5f, c);
-        DrawCircle(x - (int)e.dir * 8, y - 4, 2.8f, c);
-        DrawLineEx({x + e.dir * 8.0f, y - 3.0f}, {x + e.dir * 15.0f, y - 1.0f}, 1.6f, Fade(c, 0.8f));
-        if (hunting) { DrawCircle(x - (int)e.dir * 10, y - 5, 0.8f, Color{240, 200, 60, 255}); }
-        break;
-    }
-    case CaveEcoKind::Beetle: {
-        bool burst = e.state == CaveEcoState::Bursting;
-        Color c = Color{90, 70, 50, 255};
-        DrawEllipse(x, y - 3, 5, 4, c);
-        if (burst) for (int k = 0; k < 8; k++) { float a = k * PI / 4 + t * 2; DrawCircle((int)(x + cosf(a) * (6 + t * 2)), (int)(y - 3 + sinf(a) * (6 + t * 2)), 1.4f, Fade(Color{150, 200, 90, 255}, 0.6f)); }
-        break;
-    }
-    case CaveEcoKind::Leech: {
-        bool dropping = e.state == CaveEcoState::Dropping;
-        Color c = dropping ? Color{130, 30, 40, 255} : Color{90, 40, 50, 255};
-        float stretch = dropping ? std::min(1.0f, e.stateTimer * 3) : 0.0f;
-        DrawLineEx({(float)x, y - 8.0f - stretch * 10}, {(float)x, (float)y}, 4, c);
-        DrawEllipse(x, y, 3.5f, 3, c);
-        break;
-    }
-    case CaveEcoKind::Bat: {
-        float flap = sinf(t * 16) * 4;
-        Color wing{50, 44, 48, 220}, body{66, 58, 62, 255};
-        DrawTri({x - e.dir * 2, y - 2.0f}, {x - e.dir * 14, y - 6.0f - flap}, {x - e.dir * 10, y + 4.0f}, wing);
-        DrawTri({x + e.dir * 2, y - 2.0f}, {x + e.dir * 14, y - 6.0f - flap}, {x + e.dir * 10, y + 4.0f}, wing);
-        DrawEllipse(x, y, 5, 4, body);
-        break;
-    }
-    case CaveEcoKind::TubeWorm: {
-        bool retracted = e.state == CaveEcoState::Retracted;
-        Color c = Color{180, 100, 110, 255};
-        float len = retracted ? 3.0f : 12.0f + sinf(t * 1.5f + e.phase) * 2.0f;
-        DrawLineEx({(float)x, (float)y}, {x + e.dir * len, (float)y}, 5, Color{60, 40, 44, 255});
-        DrawLineEx({(float)x, (float)y}, {x + e.dir * len, (float)y}, 3, c);
-        DrawCircleV({x + e.dir * len, (float)y}, 2.2f, Color{220, 160, 170, 255});
-        break;
-    }
-    }
-}
-
-// ---------------------------------------------------------------- the Pipes' real ecosystem chain
-// ECOSYSTEM_BESTIARY.md, "The Pipes": "Entities ignore the player; all hazards stem from systemic chaos and
-// collateral physics" - the one biome whose chain never reacts to the diver at all (CLAUDE.md: the Pipes have
-// no enemies), it just runs on its own. Dust Moths flutter toward the duct's surviving light leaks;
-// Water-Spiders web them at their post; Centipedes come eat a caught Moth, freeing it; Blind Pipe-Rats hunt a
-// feeding Centipede by vibration and, if aggressive, bite the pipe to reach it; Rust-Mites swarm out at a bite
-// to feed on the flakes; a Pillbug touched by a swarming Mite curls up and rolls; Scavenger Mice hunt an
-// uncurled Pillbug but flee a rolling one; a Cockroach that finds a Mouse near a rolled Pillbug's scraps
-// fights it; a Glow-Beetle near a fight flashes; a Cave Cricket near a flash panics and stampedes off.
-constexpr float PIPE_MOTH_LIGHT_R = 220, PIPE_WEB_R = 26, PIPE_EAT_R = 30, PIPE_RAT_HUNT_R = 90, PIPE_RAT_BITE_R = 20;
-constexpr float PIPE_MITE_SWARM_T = 3.0f, PIPE_MITE_CURL_R = 22, PIPE_ROLL_SPEED = 130, PIPE_MOUSE_HUNT_R = 110;
-constexpr float PIPE_MOUSE_FLEE_R = 24, PIPE_FIGHT_R = 26, PIPE_BEETLE_FLASH_R = 30, PIPE_FLASH_LIFE = 0.5f, PIPE_CRICKET_PANIC_R = 60, PIPE_CRICKET_BUMP_R = 22;
-
-static void PopulatePipeLife(PlatformState& p, unsigned seed) {
-    p.lightSpots.clear();
-    for (int r = 0; r < p.h; r++) for (int c = 0; c < p.w; c++) if (p.tiles[r][c] == 'o') p.lightSpots.push_back({c * (float)T + T / 2.0f, r * (float)T + T / 2.0f});
-    int idx = 0;
-    for (int x = 2; x < p.w - 2; x++) {
-        int fy = -1;
-        for (int y = 1; y < p.h - 1; y++) if (!Solid(p, x, y) && Solid(p, x, y + 1)) { fy = y; break; }
-        if (fy < 0) continue;
-        float roll = Hs2((float)x, (float)seed * 7.3f + 4);
-        if (roll > 0.3f) continue; // a whole ten-species chain: denser ground than the Hull's, still not wall-to-wall
-        float pick = Hs2((float)x, (float)seed * 7.3f + 5);
-        PipeKind kind = pick < 0.20f ? PipeKind::Moth : pick < 0.28f ? PipeKind::Spider : pick < 0.40f ? PipeKind::Centipede
-                      : pick < 0.50f ? PipeKind::PipeRat : pick < 0.60f ? PipeKind::RustMite : pick < 0.70f ? PipeKind::Pillbug
-                      : pick < 0.80f ? PipeKind::ScavMouse : pick < 0.88f ? PipeKind::Cockroach : pick < 0.94f ? PipeKind::GlowBeetle
-                      : PipeKind::CaveCricket;
-        PlatPipeLife e;
-        e.kind = kind;
-        e.home = e.pos = {x * (float)T + T / 2.0f, fy * (float)T + T - 3};
-        e.personality = {Hs2(idx * 3.0f + 1, (float)seed), Hs2(idx * 3.0f + 2, (float)seed), Hs2(idx * 3.0f + 3, (float)seed), Hs2(idx * 3.0f + 4, (float)seed)};
-        e.dir = Hs2(idx * 5.0f, (float)seed) > 0.5f ? 1.0f : -1.0f;
-        e.phase = Hs2(idx * 9.0f, (float)seed) * 6.28f;
-        idx++;
-        p.pipeLife.push_back(e);
-        if (idx > 55) break;
-    }
-}
-
-static void PipeWander(PlatformState& p, PlatPipeLife& e, float speed, float leash) {
-    if (speed <= 0) return;
-    float nx = e.pos.x + e.dir * speed;
-    int ftx = (int)floorf((e.dir > 0 ? nx + 6 : nx - 6) / T), fty = (int)floorf((e.pos.y - 2) / T);
-    if (Solid(p, ftx, fty) || !Solid(p, ftx, fty + 1)) e.dir = -e.dir;
-    else e.pos.x = nx;
-    if (fabsf(e.pos.x - e.home.x) > leash) e.dir = e.home.x < e.pos.x ? -1.0f : 1.0f;
-}
-
-void UpdatePipeLife(PlatformState& p, float dt) {
-    if (p.pipeLife.empty()) return;
-    for (auto& e : p.pipeLife) {
-        e.phase += dt;
-        e.stateTimer += dt;
-        switch (e.kind) {
-        case PipeKind::Moth: {
-            if (e.state == PipeState::Caught) break; // stuck in a web until a Centipede frees it
-            const Vector2* light = nullptr; float best = PIPE_MOTH_LIGHT_R * PIPE_MOTH_LIGHT_R;
-            for (auto& l : p.lightSpots) { float dx = l.x - e.pos.x, dy = l.y - e.pos.y, d = dx * dx + dy * dy; if (d < best) { best = d; light = &l; } }
-            if (light) {
-                float dx = light->x - e.pos.x, dy = light->y - e.pos.y, d = sqrtf(dx * dx + dy * dy);
-                float speed = (24 + e.personality.energy * 20) * dt;
-                if (d > 4) { e.pos.x += dx / d * speed; e.pos.y += dy / d * speed * 0.6f; }
-                e.state = PipeState::Flying;
-            } else e.state = PipeState::Idle;
-            // caught by any Water-Spider's web it flies through
-            for (auto& s : p.pipeLife) if (s.kind == PipeKind::Spider) {
-                float sdx = s.pos.x - e.pos.x, sdy = s.pos.y - e.pos.y;
-                if (sdx * sdx + sdy * sdy < PIPE_WEB_R * PIPE_WEB_R) { e.state = PipeState::Caught; e.pos = s.pos; }
-            }
-            break;
-        }
-        case PipeKind::Spider: break; // stationary at its web - drawn as caught Moths orbit it
-        case PipeKind::Centipede: {
-            PlatPipeLife* target = nullptr; float best = 1e9f;
-            for (auto& m : p.pipeLife) if (m.kind == PipeKind::Moth && m.state == PipeState::Caught) {
-                float dx = m.pos.x - e.pos.x, dy = m.pos.y - e.pos.y, d = dx * dx + dy * dy;
-                if (d < best) { best = d; target = &m; }
-            }
-            if (target) {
-                e.state = PipeState::Hunting;
-                float dx = target->pos.x - e.pos.x;
-                float speed = (30 + e.personality.energy * 25) * dt;
-                if (fabsf(dx) > 4) e.pos.x += (dx < 0 ? -1.0f : 1.0f) * speed; else e.pos.y += (target->pos.y - e.pos.y > 0 ? 1.0f : -1.0f) * speed;
-                float ex = target->pos.x - e.pos.x, ey = target->pos.y - e.pos.y;
-                if (ex * ex + ey * ey < PIPE_EAT_R * PIPE_EAT_R) { target->state = PipeState::Flying; target->home = target->pos; } // eaten - freed to flutter off and disturbs the web
-            } else e.state = PipeState::Idle;
-            break;
-        }
-        case PipeKind::PipeRat: {
-            PlatPipeLife* target = nullptr; float best = PIPE_RAT_HUNT_R * PIPE_RAT_HUNT_R;
-            for (auto& c : p.pipeLife) if (c.kind == PipeKind::Centipede && c.state == PipeState::Hunting) {
-                float dx = c.pos.x - e.pos.x, dy = c.pos.y - e.pos.y, d = dx * dx + dy * dy;
-                if (d < best) { best = d; target = &c; }
-            }
-            if (target) {
-                e.state = PipeState::Hunting;
-                float dx = target->pos.x - e.pos.x;
-                e.dir = dx < 0 ? -1.0f : 1.0f;
-                PipeWander(p, e, (26 + e.personality.energy * 20) * dt, 1e9f);
-                float ex = target->pos.x - e.pos.x, ey = target->pos.y - e.pos.y;
-                if (e.personality.aggression > 0.6f && ex * ex + ey * ey < PIPE_RAT_BITE_R * PIPE_RAT_BITE_R) e.state = PipeState::Biting;
-            } else e.state = PipeState::Idle;
-            break;
-        }
-        case PipeKind::RustMite: {
-            bool biteNearby = false;
-            for (auto& r : p.pipeLife) if (r.kind == PipeKind::PipeRat && r.state == PipeState::Biting) {
-                float dx = r.pos.x - e.pos.x, dy = r.pos.y - e.pos.y;
-                if (dx * dx + dy * dy < PIPE_RAT_HUNT_R * PIPE_RAT_HUNT_R) biteNearby = true;
-            }
-            if (biteNearby) { e.state = PipeState::Swarming; e.stateTimer = 0; }
-            else if (e.state == PipeState::Swarming && e.stateTimer > PIPE_MITE_SWARM_T) e.state = PipeState::Idle;
-            if (e.state == PipeState::Swarming) {
-                PipeWander(p, e, (40 + e.personality.energy * 30) * dt, 60);
-                for (auto& b : p.pipeLife) if (b.kind == PipeKind::Pillbug && b.state == PipeState::Idle) {
-                    float dx = b.pos.x - e.pos.x, dy = b.pos.y - e.pos.y;
-                    if (dx * dx + dy * dy < PIPE_MITE_CURL_R * PIPE_MITE_CURL_R) { b.state = PipeState::Curled; b.stateTimer = 0; }
-                }
-            } else PipeWander(p, e, fmodf(e.phase, 3.0f) > 2.4f ? 10 * dt : 0, 24);
-            break;
-        }
-        case PipeKind::Pillbug:
-            if (e.state == PipeState::Curled) {
-                if (e.stateTimer > 0.4f) { e.state = PipeState::Rolling; e.stateTimer = 0; }
-            } else if (e.state == PipeState::Rolling) {
-                float speed = PIPE_ROLL_SPEED * dt;
-                float nx = e.pos.x + e.dir * speed;
-                int ftx = (int)floorf((e.dir > 0 ? nx + 6 : nx - 6) / T), fty = (int)floorf((e.pos.y - 2) / T);
-                if (Solid(p, ftx, fty) || !Solid(p, ftx, fty + 1)) { e.dir = -e.dir; e.state = PipeState::Idle; e.stateTimer = 0; }
-                else e.pos.x = nx;
-                for (auto& m : p.pipeLife) if (m.kind == PipeKind::ScavMouse) { // a rolling shell scares off a hunting Mouse
-                    float dx = m.pos.x - e.pos.x, dy = m.pos.y - e.pos.y;
-                    if (dx * dx + dy * dy < PIPE_MOUSE_FLEE_R * PIPE_MOUSE_FLEE_R) { m.state = PipeState::Fleeing; m.stateTimer = 0; m.dir = dx < 0 ? -1.0f : 1.0f; }
-                }
-            } else PipeWander(p, e, fmodf(e.phase, 2.8f) > 2.2f ? (14 + e.personality.energy * 8) * dt : 0, 30);
-            break;
-        case PipeKind::ScavMouse: {
-            if (e.state == PipeState::Fleeing) {
-                if (e.stateTimer > 1.2f) e.state = PipeState::Idle;
-                PipeWander(p, e, (55 + e.personality.energy * 25) * dt, 1e9f);
-                break;
-            }
-            PlatPipeLife* target = nullptr; float best = PIPE_MOUSE_HUNT_R * PIPE_MOUSE_HUNT_R;
-            for (auto& b : p.pipeLife) if (b.kind == PipeKind::Pillbug && b.state == PipeState::Idle) {
-                float dx = b.pos.x - e.pos.x, dy = b.pos.y - e.pos.y, d = dx * dx + dy * dy;
-                if (d < best) { best = d; target = &b; }
-            }
-            if (target) { e.state = PipeState::Hunting; e.dir = target->pos.x < e.pos.x ? -1.0f : 1.0f; PipeWander(p, e, (24 + e.personality.energy * 16) * dt, 1e9f); }
-            else e.state = PipeState::Idle;
-            // a Cockroach nearby a Mouse still lingering over a Pillbug's scraps (one it already fled from) picks a fight
-            for (auto& r : p.pipeLife) if (r.kind == PipeKind::Cockroach) {
-                float dx = r.pos.x - e.pos.x, dy = r.pos.y - e.pos.y;
-                if (dx * dx + dy * dy < PIPE_FIGHT_R * PIPE_FIGHT_R && e.personality.aggression > 0.4f) { e.state = PipeState::Fighting; r.state = PipeState::Fighting; r.stateTimer = e.stateTimer = 0; }
-            }
-            break;
-        }
-        case PipeKind::Cockroach:
-            if (e.state == PipeState::Fighting) {
-                if (e.stateTimer > 1.0f) e.state = PipeState::Idle;
-                for (auto& g : p.pipeLife) if (g.kind == PipeKind::GlowBeetle) { // stepped on mid-scuffle
-                    float dx = g.pos.x - e.pos.x, dy = g.pos.y - e.pos.y;
-                    if (dx * dx + dy * dy < PIPE_BEETLE_FLASH_R * PIPE_BEETLE_FLASH_R) { g.state = PipeState::Flash; g.stateTimer = 0; }
-                }
-            } else PipeWander(p, e, fmodf(e.phase, 2.4f) > 1.9f ? (16 + e.personality.energy * 10) * dt : 0, 40);
-            break;
-        case PipeKind::GlowBeetle:
-            if (e.state == PipeState::Flash && e.stateTimer > PIPE_FLASH_LIFE) e.state = PipeState::Idle;
-            break;
-        case PipeKind::CaveCricket:
-            if (e.state == PipeState::Panic) {
-                if (e.stateTimer > 0.8f) e.state = PipeState::Idle;
-                else {
-                    PipeWander(p, e, (70 + e.personality.energy * 50) * dt, 1e9f); // jumps wildly, ignoring its own leash - the stampede
-                    // "jumping wildly into other entities, triggering a chain-reaction stampede": a panicking
-                    // Cricket jumping into another Cricket sets it off too (the cascade proper); anything else
-                    // it jumps into just gets jolted out of the way.
-                    for (auto& o : p.pipeLife) {
-                        if (&o == &e) continue;
-                        float dx = o.pos.x - e.pos.x, dy = o.pos.y - e.pos.y;
-                        if (dx * dx + dy * dy >= PIPE_CRICKET_BUMP_R * PIPE_CRICKET_BUMP_R) continue;
-                        if (o.kind == PipeKind::CaveCricket) { if (o.state != PipeState::Panic) { o.state = PipeState::Panic; o.stateTimer = 0; } }
-                        else o.dir = -o.dir;
-                    }
-                }
-            } else {
-                for (auto& g : p.pipeLife) if (g.kind == PipeKind::GlowBeetle && g.state == PipeState::Flash) {
-                    float dx = g.pos.x - e.pos.x, dy = g.pos.y - e.pos.y;
-                    if (dx * dx + dy * dy < PIPE_CRICKET_PANIC_R * PIPE_CRICKET_PANIC_R) { e.state = PipeState::Panic; e.stateTimer = 0; }
-                }
-                if (e.state != PipeState::Panic) PipeWander(p, e, fmodf(e.phase, 1.6f) > 1.3f ? (20 + e.personality.energy * 14) * dt : 0, 26);
-            }
-            break;
-        }
-    }
-}
-
-// Small flat pixel-art per species, same shape-language as DrawCritter/DrawEcoLife.
-void DrawPipeLife(const PlatPipeLife& e, float t) {
-    int x = (int)e.pos.x, y = (int)e.pos.y;
-    switch (e.kind) {
-    case PipeKind::Moth: {
-        Color c = Color{225, 220, 190, 220};
-        float wing = sinf(t * 18 + e.phase) * 3;
-        DrawLineEx({x - wing, y - 4.0f}, {(float)x, (float)y}, 1.5f, c);
-        DrawLineEx({x + wing, y - 4.0f}, {(float)x, (float)y}, 1.5f, c);
-        break;
-    }
-    case PipeKind::Spider: {
-        Color c = Color{70, 60, 60, 255};
-        DrawCircleLines(x, y - 5, 12, Fade(Color{220, 220, 230, 255}, 0.3f)); // the web
-        DrawCircle(x, y - 5, 3, c);
-        break;
-    }
-    case PipeKind::Centipede: {
-        Color c = Color{150, 110, 60, 255};
-        for (int k = 0; k < 5; k++) DrawRectangle(x - 6 + k * 3 - (e.dir > 0 ? 0 : 0), y - 2 + (int)(sinf(t * 10 + k + e.phase) * 1.5f), 3, 2, c);
-        break;
-    }
-    case PipeKind::PipeRat: {
-        Color c = e.state == PipeState::Biting ? Color{200, 90, 90, 255} : Color{120, 110, 110, 255};
-        DrawRectangle(x - 4, y - 4, 8, 4, c);
-        DrawRectangle(x + (e.dir > 0 ? 3 : -5), y - 5, 2, 2, c);
-        break;
-    }
-    case PipeKind::RustMite: {
-        Color c = e.state == PipeState::Swarming ? Color{200, 110, 60, 255} : Color{150, 90, 55, 255};
-        DrawCircle(x, y - 3, e.state == PipeState::Swarming ? 3 : 2, c);
-        break;
-    }
-    case PipeKind::Pillbug: {
-        Color c = Color{130, 130, 110, 255};
-        if (e.state == PipeState::Curled || e.state == PipeState::Rolling) DrawCircle(x, y - 3, 4, c);
-        else DrawRectangle(x - 4, y - 4, 8, 4, c);
-        break;
-    }
-    case PipeKind::ScavMouse: {
-        Color c = e.state == PipeState::Fleeing ? Color{200, 190, 180, 255} : Color{140, 130, 120, 255};
-        DrawRectangle(x - 4, y - 3, 8, 3, c);
-        DrawCircle(x + (e.dir > 0 ? -5 : 5), y - 4, 2, c); // tail-end blob, mouse faces opposite its tail
-        break;
-    }
-    case PipeKind::Cockroach: {
-        Color c = e.state == PipeState::Fighting ? Color{130, 80, 50, 255} : Color{90, 65, 45, 255};
-        DrawRectangle(x - 4, y - 3, 8, 3, c);
-        break;
-    }
-    case PipeKind::GlowBeetle: {
-        if (e.state == PipeState::Flash) DrawCircle(x, y - 4, 10, Fade(Color{255, 250, 200, 255}, 0.5f));
-        DrawCircle(x, y - 4, 3, e.state == PipeState::Flash ? Color{255, 240, 150, 255} : Color{160, 200, 120, 255});
-        break;
-    }
-    case PipeKind::CaveCricket: {
-        Color c = e.state == PipeState::Panic ? Color{210, 200, 120, 255} : Color{150, 160, 100, 255};
-        DrawRectangle(x - 3, y - 4, 6, 4, c);
-        break;
-    }
-    }
 }
 
 template <typename F>
@@ -3786,26 +3147,25 @@ void DrawBeastLegs(const Beast& b, const SpeciesDef& S, bool nearSide, float thi
         DrawCircleV(foot, thick * 0.6f, Tone(col, -0.2f));
     }
 }
-// A tail laid along the beast's own trailing spine, lifted or lashing by mood.
+// A tail of fixed length, bent segment by segment: lifted by mood (lift 0 droops, 1 stands up), lashing when it's
+// agitated, and swept back by the animal's own speed. (It used to follow the body's movement trail, which made
+// tails stretch out behind a running animal like rope.)
 void DrawBeastTail(const Beast& b, Vector2 root, float lift, float lash, float w0, float w1, Color c, int segs = 5) {
-    Vector2 prev = root;
-    for (int k = 1; k <= segs; k++) {
-        float u = k / (float)segs;
-        Vector2 sp = b.spine[std::min(SPINE - 1, k)];
-        Vector2 q{root.x + (sp.x - b.pos.x) * 0.9f - b.facing * k * 2.5f, root.y + (sp.y - b.pos.y) * 0.9f - lift * u * u * 10 + sinf(b.phase * 3 + k) * lash * u};
-        DrawLineEx(prev, q, w0 + (w1 - w0) * u + 2, FAUNA_INK);
-        prev = q;
+    float f = b.facing, speed = fabsf(b.vel.x);
+    float len = 2.2f + w0 * 1.4f;                             // segment length scales with the tail's thickness
+    float base = (f > 0 ? PI : 0.0f) + f * (lift * 1.1f - 0.25f); // straight back (y is down: a larger angle lifts it when facing right)
+    base -= f * std::min(0.4f, speed / 500.0f);                  // swept back flatter as it runs
+    Vector2 pts[9];
+    pts[0] = root;
+    int n = std::min(segs, 8);
+    for (int k = 1; k <= n; k++) {
+        float u = k / (float)n;
+        float a = base + f * (lift * 0.35f * u) + sinf(b.phase * 3 - k * 0.8f) * lash * 0.12f * u;
+        pts[k] = {pts[k - 1].x + cosf(a) * len, pts[k - 1].y + sinf(a) * len};
     }
-    prev = root;
-    for (int k = 1; k <= segs; k++) {
-        float u = k / (float)segs;
-        Vector2 sp = b.spine[std::min(SPINE - 1, k)];
-        Vector2 q{root.x + (sp.x - b.pos.x) * 0.9f - b.facing * k * 2.5f, root.y + (sp.y - b.pos.y) * 0.9f - lift * u * u * 10 + sinf(b.phase * 3 + k) * lash * u};
-        DrawLineEx(prev, q, w0 + (w1 - w0) * u, c);
-        prev = q;
-    }
-}
-// A bird: body, head and beak, and two wings that flap (or hold a glide, or fold back in a dive).
+    for (int k = 0; k < n; k++) { float u = k / (float)n; DrawLineEx(pts[k], pts[k + 1], w0 + (w1 - w0) * u + 2, FAUNA_INK); }
+    for (int k = 0; k < n; k++) { float u = k / (float)n; DrawLineEx(pts[k], pts[k + 1], w0 + (w1 - w0) * u, c); }
+}// A bird: body, head and beak, and two wings that flap (or hold a glide, or fold back in a dive).
 void DrawBird(const Beast& b, float t, float span, float bodyR, Color body, Color wing, Color beak, float flapRate, bool diving) {
     float x = b.pos.x, y = b.pos.y, f = b.facing;
     float speed = sqrtf(b.vel.x * b.vel.x + b.vel.y * b.vel.y);
@@ -3830,6 +3190,409 @@ void DrawBird(const Beast& b, float t, float span, float bodyR, Color body, Colo
     DrawCircle((int)(x + f * bodyR * 1.3f), (int)(y - bodyR * 0.65f), 1.0f, FAUNA_INK);
 }
 
+// A dog (the Pirate Ship's guard dogs, the Island's hunting dogs): wags when content, hackles and foam when berserk.
+void DrawDog(const Beast& b, const SpeciesDef& S, float t, Color c, bool berserk, bool lean) {
+    float x = b.pos.x, y = b.pos.y, f = b.facing, s = b.scale;
+    Color muzzle = Tone(c, 0.35f);
+    x += berserk ? sinf(t * 40) * 1.2f : 0;
+    float sniff = (b.act == BeastAct::Hunt && !berserk && lean) ? 3.0f : 0.0f; // nose down on a trail
+    DrawBeastLegs(b, S, false, lean ? 2.4f : 3.0f, c, -0.5f, 0.9f);
+    DrawBeastTail(b, {x - f * 11, y - 4}, berserk ? 0.2f : 0.9f, berserk ? 0.5f : fmodf(t, 4) < 1 ? 3.0f : 0.8f, 3.0f, 1.8f, c, 4);
+    DrawEllipse((int)x, (int)y - 2, (lean ? 12.0f : 13.0f) * s, (lean ? 6.0f : 7.5f) * s, FAUNA_INK);
+    DrawEllipse((int)x, (int)y - 2, (lean ? 11.0f : 12.0f) * s, (lean ? 5.0f : 6.5f) * s, c);
+    if (berserk) for (int k = 0; k < 5; k++) DrawTri({x - 6.0f + k * 3, y - 7}, {x - 5.0f + k * 3, y - 12 - (k % 2) * 2}, {x - 4.0f + k * 3, y - 7}, Tone(c, -0.3f));
+    Vector2 head{x + f * 12, y - 8 + sniff};
+    DrawCircleV(head, 6.0f * s, FAUNA_INK); DrawCircleV(head, 5.0f * s, c);
+    DrawEllipse((int)(head.x + f * 5), (int)head.y + 2, 4.5f, 3.2f, FAUNA_INK); DrawEllipse((int)(head.x + f * 5), (int)head.y + 2, 3.8f, 2.5f, muzzle);
+    if (lean) DrawTri({head.x - f * 1, head.y - 4}, {head.x - f * 2, head.y - 10}, {head.x + f * 2, head.y - 4}, Tone(c, -0.2f)); // pricked ears
+    else DrawTri({head.x - f * 2, head.y - 4}, {head.x - f * 5, head.y + 3}, {head.x - f * 1, head.y + 1}, Tone(c, -0.3f));
+    DrawCircle((int)(head.x + f * 2), (int)head.y - 2, berserk ? 1.5f : 1.0f, berserk ? Color{255, 60, 40, 255} : FAUNA_INK);
+    DrawCircle((int)(head.x + f * 8.5f), (int)head.y + 1, 1.2f, FAUNA_INK);
+    if (berserk || b.act == BeastAct::Coil) { DrawRectangle((int)(head.x + f * 4), (int)head.y + 4, 4, 1, WHITE); if (berserk) DrawCircle((int)(head.x + f * 6), (int)head.y + 6, 1.3f, Fade(WHITE, 0.8f)); }
+    DrawBeastLegs(b, S, true, lean ? 2.4f : 3.0f, c, -0.5f, 0.9f);
+}
+
+void DrawIslandBeast(const PlatformState& p, const Beast& b, float t) {
+    const SpeciesDef& S = BeastSpecies(PL_ISLAND, b.species);
+    float x = b.pos.x, y = b.pos.y, f = b.facing, s = b.scale;
+    bool dead = b.life == BeastLife::Corpse;
+    bool fleeing = b.act == BeastAct::Flee || b.act == BeastAct::Hide;
+    bool coil = b.act == BeastAct::Coil, strike = b.act == BeastAct::Strike;
+    if (b.species == IS_COCONUT) { // a fallen coconut, cracked open as it's eaten
+        DrawCircle((int)x, (int)y, 5.5f, FAUNA_INK); DrawCircle((int)x, (int)y, 4.5f, Color{120, 80, 44, 255});
+        if (b.meat < 0.95f) { DrawCircle((int)x, (int)y - 1, 3.2f, Color{244, 240, 226, 255}); DrawCircle((int)x, (int)y - 1, 1.6f, Color{200, 190, 170, 255}); }
+        DrawCircle((int)x - 2, (int)y - 2, 0.8f, Color{60, 40, 24, 255}); DrawCircle((int)x + 1, (int)y - 3, 0.8f, Color{60, 40, 24, 255});
+        return;
+    }
+    if (dead) {
+        float r = S.radius * s;
+        DrawEllipse((int)x, (int)y + 1, r * 1.1f + 1, r * 0.55f + 1, FAUNA_INK);
+        DrawEllipse((int)x, (int)y + 1, r * 1.1f, r * 0.55f, Color{112, 100, 92, 255});
+        if (b.meat < 0.7f) for (int k = 0; k < 3; k++) DrawRectangle((int)(x - 5 + k * 4), (int)y, 2, 2, Color{220, 210, 190, 255});
+        return;
+    }
+    switch (b.species) {
+    case IS_BOAR: {
+        Color c{96, 70, 52, 255}, bristle{60, 44, 34, 255};
+        float low = coil ? 3.0f : 0.0f; // head down, pawing, before it goes
+        DrawBeastLegs(b, S, false, 3.4f, c, -0.3f, 0.7f);
+        DrawEllipse((int)x, (int)y - 3, 15.0f * s, 9.5f * s, FAUNA_INK);
+        DrawEllipse((int)x, (int)y - 3, 14.0f * s, 8.5f * s, c);
+        for (int k = 0; k < 7; k++) DrawTri({x - 9.0f + k * 3, y - 10}, {x - 8.0f + k * 3, y - 15 - (coil || strike ? 3 : 0)}, {x - 7.0f + k * 3, y - 10}, bristle); // the ridge of bristles
+        Vector2 head{x + f * 14, y - 3 + low};
+        DrawCircleV(head, 7.5f * s, FAUNA_INK); DrawCircleV(head, 6.5f * s, c);
+        DrawEllipse((int)(head.x + f * 6), (int)head.y + 2, 3.5f, 3.2f, FAUNA_INK); DrawEllipse((int)(head.x + f * 6), (int)head.y + 2, 2.8f, 2.6f, Color{170, 120, 110, 255}); // snout
+        DrawTri({head.x + f * 3, head.y + 4}, {head.x + f * 9, head.y - 2}, {head.x + f * 4, head.y + 1}, Color{236, 228, 208, 255}); // a tusk
+        DrawCircle((int)(head.x + f * 1), (int)head.y - 3, 1.1f, coil || strike ? Color{255, 90, 50, 255} : FAUNA_INK);
+        DrawTri({head.x - f * 3, head.y - 5}, {head.x - f * 1, head.y - 11}, {head.x + f * 1, head.y - 5}, bristle);
+        if (strike) for (int k = 0; k < 3; k++) DrawCircle((int)(x - f * (12 + k * 6)), (int)y + 6, 2.0f - k * 0.4f, Fade(Color{200, 186, 150, 255}, 0.6f)); // dust kicked up
+        DrawBeastLegs(b, S, true, 3.4f, c, -0.3f, 0.7f);
+        break;
+    }
+    case IS_SNAKE: { // along its own spine; fades into the branch when camouflaged, jaws wide when it strikes
+        float camo = std::clamp(b.special, 0.0f, 1.0f), alpha = 1.0f - 0.7f * camo;
+        Color c = Fade(Color{80, 132, 58, 255}, alpha), belly = Fade(Color{190, 196, 110, 255}, alpha);
+        Vector2 pts[SPINE];
+        for (int k = 0; k < SPINE; k++) pts[k] = b.spine[k];
+        if (coil) for (int k = 1; k < SPINE; k++) { pts[k].x -= f * sinf(k * 1.4f) * 3; pts[k].y += cosf(k * 1.4f) * 4; } // drawn back into an S
+        DrawSpineBody(pts, SPINE, 3.2f * s, 1.2f * s, coil ? 0.8f : 2.2f, b.phase, c, belly);
+        for (int k = 1; k < SPINE; k += 2) DrawCircle((int)pts[k].x, (int)pts[k].y - 1, 1.0f, Fade(Color{40, 34, 20, 255}, alpha)); // bands
+        Vector2 hd{pts[0].x - pts[1].x, pts[0].y - pts[1].y}; float hl = sqrtf(hd.x * hd.x + hd.y * hd.y); hd = hl > 0.01f ? Vector2{hd.x / hl, hd.y / hl} : Vector2{f, 0};
+        if (strike || coil) DrawTri(pts[0], {pts[0].x + hd.x * 6 - hd.y * 3, pts[0].y + hd.y * 6 + hd.x * 3}, {pts[0].x + hd.x * 6 + hd.y * 3, pts[0].y + hd.y * 6 - hd.x * 3}, Color{190, 60, 80, 255});
+        else if (fmodf(t * 1.5f + b.phase, 2.0f) < 0.25f) DrawLineEx(pts[0], {pts[0].x + hd.x * 7, pts[0].y + hd.y * 7}, 1.0f, Color{200, 40, 60, 255}); // the tongue, tasting
+        DrawCircle((int)(pts[0].x + hd.x), (int)(pts[0].y - 2), 0.9f, Fade(Color{240, 200, 40, 255}, std::max(alpha, 0.6f)));
+        break;
+    }
+    case IS_LIZARD: {
+        Color c{104, 110, 72, 255}, spots{70, 76, 48, 255};
+        bool basking = b.act == BeastAct::Rest || (sqrtf(b.vel.x * b.vel.x) < 5 && b.act == BeastAct::Wander);
+        DrawBeastLegs(b, S, false, 2.4f, c, 0.9f, 0.9f); // sprawling legs, elbows out
+        DrawBeastTail(b, {x - f * 10, y + 1}, -0.1f, 1.2f, 3.4f, 1.0f, c, 7);
+        DrawEllipse((int)x, (int)y, 12.0f * s, 5.0f * s, FAUNA_INK);
+        DrawEllipse((int)x, (int)y, 11.0f * s, 4.0f * s, c);
+        for (int k = 0; k < 4; k++) DrawCircle((int)(x - 7 + k * 4), (int)y - 2, 1.1f, spots);
+        Vector2 head{x + f * 13, y - (basking ? 3.0f : 1.0f)};
+        DrawEllipse((int)head.x, (int)head.y, 5.5f, 3.4f, FAUNA_INK); DrawEllipse((int)head.x, (int)head.y, 4.6f, 2.6f, c);
+        DrawCircle((int)(head.x + f * 1), (int)head.y - 1, 0.9f, FAUNA_INK);
+        if (fmodf(t * 0.8f + b.phase, 3.0f) < 0.3f) DrawLineEx({head.x + f * 4, head.y}, {head.x + f * 10, head.y - 1}, 1.2f, Color{230, 200, 200, 255}); // forked tongue
+        DrawBeastLegs(b, S, true, 2.4f, c, 0.9f, 0.9f);
+        break;
+    }
+    case IS_BAT: {
+        bool hanging = b.act == BeastAct::Rest || b.act == BeastAct::Idle;
+        if (hanging && sqrtf(b.vel.x * b.vel.x + b.vel.y * b.vel.y) < 15) { // wrapped in its wings, upside down
+            DrawEllipse((int)x, (int)y, 4.5f, 7, FAUNA_INK); DrawEllipse((int)x, (int)y, 3.6f, 6, Color{70, 52, 48, 255});
+            DrawCircle((int)x, (int)y + 5, 2.6f, Color{150, 100, 70, 255});
+            break;
+        }
+        float flap = sinf(t * 18 + b.phase * 3) * 5;
+        Color wing{66, 48, 50, 235}, fur{150, 100, 70, 255};
+        for (int side = -1; side <= 1; side += 2) {
+            Vector2 root{x, y - 1}, el{x + side * 7.0f, y - 4 - flap}, tip{x + side * 14.0f, y - flap * 0.5f};
+            DrawTri(root, el, {x + side * 5.0f, y + 3}, wing); DrawTri(el, tip, {x + side * 9.0f, y + 3}, wing);
+            DrawLineEx(root, el, 1.2f, FAUNA_INK); DrawLineEx(el, tip, 1.0f, FAUNA_INK);
+        }
+        DrawEllipse((int)x, (int)y, 3.8f, 3.2f, fur);
+        DrawCircle((int)(x + f * 2.5f), (int)y - 2, 2.2f, fur);
+        DrawCircle((int)(x + f * 3.2f), (int)y - 2.5f, 0.6f, FAUNA_INK);
+        break;
+    }
+    case IS_SPIDER: { // the orb web and its owner at the hub; a fed spider wraps its catch
+        float wr = 16;
+        for (int k = 0; k < 8; k++) { float a = k * PI / 4; DrawLineEx({x, y}, {x + cosf(a) * wr, y + sinf(a) * wr}, 0.6f, Fade(Color{235, 235, 235, 255}, 0.45f)); }
+        for (int r = 4; r <= 16; r += 4) DrawPolyLines({x, y}, 8, (float)r, 22.5f, Fade(Color{235, 235, 235, 255}, 0.35f));
+        if (b.act == BeastAct::Eat) DrawEllipse((int)x + 5, (int)y + 5, 3, 4, Color{230, 226, 210, 255}); // a wrapped bundle
+        for (int k = 0; k < 4; k++) for (int side = -1; side <= 1; side += 2) DrawLineEx({x, y}, {x + side * (4 + k), y - 3 + k * 2.2f + sinf(t * 2 + k) * 0.5f}, 0.9f, FAUNA_INK);
+        DrawCircle((int)x, (int)y, 3.0f, Color{230, 190, 40, 255}); DrawCircle((int)x, (int)y + 3, 2.2f, FAUNA_INK);
+        break;
+    }
+    case IS_CRAB: {
+        Color c{206, 96, 52, 255}, dark = Tone(c, -0.3f);
+        bool cutting = b.special > 12;
+        for (int side = 0; side < 2; side++) for (int k = 0; k < 3; k++) { // eight jointed legs, stepping
+            float ph = b.phase * 8 + k * 2.1f + side * 1.3f, lift = sqrtf(b.vel.x * b.vel.x) > 5 ? std::max(0.0f, sinf(ph)) * 2 : 0;
+            float sx = (side ? 1 : -1);
+            Vector2 hip{x + sx * (3 + k * 2.0f), y - 2}, foot{x + sx * (10 + k * 3.0f), y + 6 - lift};
+            Vector2 knee = ik::Knee(hip, foot, 6, 6, sx);
+            DrawLineEx(hip, knee, 2.4f, FAUNA_INK); DrawLineEx(knee, foot, 2.0f, FAUNA_INK);
+            DrawLineEx(hip, knee, 1.4f, side ? c : dark); DrawLineEx(knee, foot, 1.1f, side ? c : dark);
+        }
+        DrawEllipse((int)x, (int)y - 3, 10 * s, 6.5f * s, FAUNA_INK); DrawEllipse((int)x, (int)y - 3, 9 * s, 5.5f * s, c);
+        float snip = cutting ? sinf(t * 16) * 2 : 0;
+        for (int side = -1; side <= 1; side += 2) { // the great claws, raised to cut
+            Vector2 sh{x + f * 6 + side * 2, y - 5}, cl{x + f * 13 + side * 3, y - (cutting ? 18 : 9) + snip * side};
+            DrawLineEx(sh, cl, 3.6f, FAUNA_INK); DrawLineEx(sh, cl, 2.4f, c);
+            DrawCircleV(cl, 3.2f, FAUNA_INK); DrawCircleV(cl, 2.4f, Tone(c, 0.2f));
+        }
+        DrawCircle((int)(x + f * 4), (int)y - 8, 1.0f, FAUNA_INK); DrawCircle((int)(x + f * 7), (int)y - 8, 1.0f, FAUNA_INK);
+        break;
+    }
+    case IS_FROG: {
+        Color cols[3] = {{40, 160, 220, 255}, {240, 200, 40, 255}, {230, 70, 50, 255}};
+        Color c = cols[b.id % 3];
+        bool air = !b.grounded;
+        float stretch = air ? 1.4f : 1.0f;
+        DrawEllipse((int)x, (int)y, 5.5f * s * stretch, 4.2f * s / stretch, FAUNA_INK);
+        DrawEllipse((int)x, (int)y, 4.6f * s * stretch, 3.4f * s / stretch, c);
+        for (int k = 0; k < 3; k++) DrawCircle((int)(x - 2 + k * 2), (int)y - 1 + (k % 2), 0.8f, FAUNA_INK); // the warning spots
+        if (air) DrawLineEx({x - f * 3, y + 2}, {x - f * 9, y + 5}, 1.6f, c); // legs flung back mid-hop
+        else { DrawLineEx({x - f * 3, y + 2}, {x - f * 5, y + 4}, 1.8f, c); DrawLineEx({x + f * 2, y + 2}, {x + f * 3, y + 4}, 1.4f, c); }
+        DrawCircle((int)(x + f * 2.5f), (int)y - 3, 1.4f, FAUNA_INK); DrawCircle((int)(x + f * 2.8f), (int)y - 3.3f, 0.5f, WHITE);
+        break;
+    }
+    case IS_GULL:
+        DrawBird(b, t, 18 * s, 5 * s, Color{240, 238, 232, 255}, Color{156, 160, 168, 255}, Color{236, 196, 60, 255}, 11, strike);
+        break;
+    case IS_DOG: {
+        Color coats[3] = {{176, 132, 84, 255}, {120, 90, 60, 255}, {210, 196, 170, 255}};
+        DrawDog(b, S, t, coats[b.id % 3], false, true);
+        break;
+    }
+    default: DrawCircle((int)x, (int)y, 6, Color{200, 200, 200, 255}); break;
+    }
+    if (b.pers.abnormal == Abnormal::RabidEnraged) DrawCircle((int)(x + f * 6), (int)(y - 6), 1.4f, Color{255, 40, 30, 255});
+    if (b.pers.abnormal == Abnormal::SymbioticCompanion) DrawCircle((int)x, (int)y, 18, Fade(Color{255, 240, 170, 255}, 0.10f + 0.05f * sinf(t * 3)));
+    (void)p; (void)fleeing;
+}
+// A burrow under the roots of the jungle floor, fringed with fern.
+void DrawIslandDen(const PlatformState& p, const Den& d, float t) {
+    const BeastWorld& W = p.fauna;
+    float x = d.pos.x, y = d.pos.y;
+    DrawEllipse((int)x, (int)y + 2, 11, 6, FAUNA_INK);
+    DrawEllipse((int)x, (int)y + 2, 9.5f, 4.6f, Color{26, 18, 12, 255});
+    for (int k = 0; k < 3; k++) DrawLineEx({x - 10 + k * 8.0f, y - 1}, {x - 8 + k * 8.0f + sinf(k * 2.0f) * 3, y + 6}, 1.6f, Color{96, 70, 46, 255}); // roots
+    for (int k = -1; k <= 1; k += 2) for (int j = 0; j < 4; j++) { float a = -PI / 2 + k * (0.5f + j * 0.28f) + sinf(t * 1.2f + j) * 0.05f; DrawLineEx({x + k * 9.0f, y}, {x + k * 9.0f + cosf(a) * 9, y + sinf(a) * 9}, 2.0f, Color{60, 130, 60, 255}); } // ferns
+    int inside = 0;
+    for (const auto& b : W.beasts) if (b.life == BeastLife::Alive && b.hidden && fabsf(b.pos.x - x) < 4) inside++;
+    if (inside && fmodf(t * 0.8f + x * 0.013f, 3.5f) < 2.6f) { DrawCircle((int)x - 2, (int)y + 2, 0.9f, Color{250, 220, 120, 255}); DrawCircle((int)x + 2, (int)y + 2, 0.9f, Color{250, 220, 120, 255}); }
+}
+// A many-legged crawler (centipede) laid along its spine, legs rippling down the body in a wave.
+void DrawCrawler(const Beast& b, float t, int segs, float r, Color c, Color leg) {
+    Vector2 pts[SPINE];
+    int n = std::min(segs, SPINE);
+    for (int k = 0; k < n; k++) pts[k] = b.spine[k];
+    for (int k = 0; k < n; k++) { // legs first, each pair a beat behind the one before
+        Vector2 a = pts[std::max(0, k - 1)], z = pts[std::min(n - 1, k + 1)];
+        Vector2 d{z.x - a.x, z.y - a.y}; float l = sqrtf(d.x * d.x + d.y * d.y); Vector2 nrm = l > 0.01f ? Vector2{-d.y / l, d.x / l} : Vector2{0, 1};
+        float wave = sinf(b.phase * 10 - k * 1.1f) * 2.5f;
+        for (int side = -1; side <= 1; side += 2) DrawLineEx(pts[k], {pts[k].x + nrm.x * side * (r + 3) + wave * d.x / std::max(1.0f, l), pts[k].y + nrm.y * side * (r + 3) + wave * d.y / std::max(1.0f, l)}, 1.0f, leg);
+    }
+    DrawSpineBody(pts, n, r, r * 0.7f, 0.6f, b.phase, c, Tone(c, -0.25f));
+    for (int k = 1; k < n; k++) DrawCircleV(pts[k], 0.8f, Tone(c, -0.45f)); // segment joints
+    DrawCircleV(pts[0], r * 0.5f, Tone(c, -0.35f));
+}
+
+void DrawCaveBeast(const PlatformState& p, const Beast& b, float t) {
+    const SpeciesDef& S = BeastSpecies(PL_CAVE, b.species);
+    float x = b.pos.x, y = b.pos.y, f = b.facing, s = b.scale;
+    bool dead = b.life == BeastLife::Corpse;
+    if (dead) {
+        float r = S.radius * s;
+        DrawEllipse((int)x, (int)y + 1, r * 1.1f + 1, r * 0.5f + 1, FAUNA_INK);
+        DrawEllipse((int)x, (int)y + 1, r * 1.1f, r * 0.5f, Color{120, 116, 120, 255});
+        return;
+    }
+    switch (b.species) {
+    case CS_BAT: {
+        bool hanging = (b.act == BeastAct::Rest || b.act == BeastAct::Idle) && sqrtf(b.vel.x * b.vel.x + b.vel.y * b.vel.y) < 15;
+        if (hanging) { DrawEllipse((int)x, (int)y, 4.5f, 7, FAUNA_INK); DrawEllipse((int)x, (int)y, 3.6f, 6, Color{56, 50, 58, 255}); DrawCircle((int)x, (int)y + 5, 2.4f, Color{80, 72, 80, 255}); break; }
+        float flap = sinf(t * 20 + b.phase * 3) * 5;
+        Color wing{44, 40, 50, 240}, fur{86, 78, 88, 255};
+        for (int side = -1; side <= 1; side += 2) {
+            Vector2 root{x, y - 1}, el{x + side * 7.0f, y - 4 - flap}, tip{x + side * 14.0f, y - flap * 0.5f};
+            DrawTri(root, el, {x + side * 5.0f, y + 3}, wing); DrawTri(el, tip, {x + side * 9.0f, y + 3}, wing);
+            DrawLineEx(root, el, 1.2f, FAUNA_INK); DrawLineEx(el, tip, 1.0f, FAUNA_INK);
+        }
+        DrawEllipse((int)x, (int)y, 3.8f, 3.2f, fur);
+        for (int e = -1; e <= 1; e += 2) DrawTri({x + e * 1.0f + f, y - 3}, {x + e * 2.5f + f, y - 7}, {x + e * 2.8f + f, y - 2}, fur); // big ears: it hunts by them
+        break;
+    }
+    case CS_JELLY: {
+        float glow = b.flashT > 0 ? 1.0f : 0.35f + 0.1f * sinf(t * 2 + b.phase);
+        Color c{120, 230, 220, 255};
+        if (b.flashT > 0) { DrawCircle((int)x, (int)y, 34, Fade(c, 0.12f)); DrawCircle((int)x, (int)y, 18, Fade(c, 0.2f)); }
+        DrawCircle((int)x, (int)y, 9, Fade(c, 0.12f * glow + 0.05f));
+        for (int k = 0; k < 5; k++) { // trailing tentacles, streaming behind as it drifts
+            float a = sinf(t * 2.2f + k + b.phase) * 3;
+            DrawLineEx({x - 5.0f + k * 2.5f, y + 3}, {x - 5.0f + k * 2.5f + a - b.vel.x * 0.05f, y + 13 + (k % 2) * 3}, 1.0f, Fade(c, 0.35f + 0.4f * glow));
+        }
+        float pulse = 1 + 0.08f * sinf(t * 3 + b.phase);
+        DrawEllipse((int)x, (int)y, 7.0f * pulse, 5.0f / pulse, Fade(c, 0.35f + 0.45f * glow));
+        DrawEllipse((int)x, (int)y - 1, 4.0f * pulse, 2.4f / pulse, Fade(WHITE, 0.3f + 0.5f * glow));
+        break;
+    }
+    case CS_SALAMANDER: {
+        Color c{226, 214, 206, 255}, gill{210, 120, 130, 255};
+        bool strike = b.act == BeastAct::Strike;
+        DrawBeastLegs(b, S, false, 1.8f, c, 0.9f, 0.9f);
+        DrawBeastTail(b, {x - f * 8, y}, -0.05f, 2.0f, 3.0f, 0.8f, c, 7);
+        DrawEllipse((int)x, (int)y - 1, 10 * s, 4.5f * s, FAUNA_INK); DrawEllipse((int)x, (int)y - 1, 9 * s, 3.6f * s, c);
+        Vector2 head{x + f * 10, y - 2};
+        DrawEllipse((int)head.x, (int)head.y, 5, 3.6f, FAUNA_INK); DrawEllipse((int)head.x, (int)head.y, 4.2f, 2.8f, c);
+        for (int k = 0; k < 3; k++) DrawLineEx({head.x - f * 3, head.y - 1}, {head.x - f * (6 + k), head.y - 5 + k * 2 + sinf(t * 3 + k) * 0.8f}, 1.3f, gill); // feathery gills
+        DrawCircle((int)(head.x + f * 2), (int)head.y - 1, 0.6f, Color{150, 140, 150, 255}); // vestigial eyes
+        if (strike || b.act == BeastAct::Coil) DrawLineEx({head.x + f * 4, head.y + 1}, {head.x + f * (strike ? 18 : 6), head.y + 2}, 1.4f, Color{220, 110, 120, 255}); // the tongue, shot out
+        DrawBeastLegs(b, S, true, 1.8f, c, 0.9f, 0.9f);
+        break;
+    }
+    case CS_BEETLE: {
+        Color shell{90, 70, 52, 255}, cap{190, 150, 110, 255};
+        for (int k = 0; k < 3; k++) for (int side = 0; side < 2; side++) {
+            float ph = b.phase * 12 + k * 2 + side * 3.1f, lift = fabsf(b.vel.x) > 4 ? std::max(0.0f, sinf(ph)) * 1.5f : 0;
+            DrawLineEx({x - 3 + k * 3.0f, y}, {x - 5 + k * 4.0f + (side ? 1 : -1), y + 5 - lift}, 1.0f, FAUNA_INK);
+        }
+        DrawEllipse((int)x, (int)y - 1, 6, 4.5f, FAUNA_INK); DrawEllipse((int)x, (int)y - 1, 5, 3.6f, shell);
+        for (int k = 0; k < 3; k++) { float gx = x - 3 + k * 3.0f; DrawRectangle((int)gx, (int)y - 7, 1, 3, Color{220, 210, 190, 255}); DrawEllipse((int)gx, (int)y - 7, 2.2f, 1.2f, cap); } // the fungus it carries
+        if (b.cooldown > 6) for (int k = 0; k < 6; k++) DrawCircle((int)(x + sinf(t * 3 + k) * 8), (int)(y - 8 - k * 2), 1.2f, Fade(Color{170, 210, 110, 255}, 0.6f));
+        break;
+    }
+    case CS_LEECH: {
+        Color c{110, 36, 50, 255};
+        bool hanging = b.special == 0, dropping = b.special == 1;
+        float len = hanging ? 7 + sinf(t * 2 + b.phase) * 2 : 5;
+        if (hanging) { // dangling, questing for warmth below
+            DrawLineEx({x, y - 6}, {x + sinf(t * 1.5f + b.phase) * 2, y - 6 + len}, 5, FAUNA_INK);
+            DrawLineEx({x, y - 6}, {x + sinf(t * 1.5f + b.phase) * 2, y - 6 + len}, 3.4f, c);
+            DrawCircle((int)(x + sinf(t * 1.5f + b.phase) * 2), (int)(y - 6 + len), 2.4f, Tone(c, 0.2f));
+        } else {
+            DrawEllipse((int)x, (int)y, dropping ? 3.5f : 6, dropping ? 6 : 3, FAUNA_INK);
+            DrawEllipse((int)x, (int)y, dropping ? 2.6f : 5, dropping ? 5 : 2.2f, c);
+            if (dropping) DrawCircle((int)x, (int)y + 5, 2.0f, Color{200, 80, 90, 255}); // the sucker, first
+        }
+        break;
+    }
+    case CS_WORM: {
+        bool in = b.act == BeastAct::Hide;
+        float out = in ? std::min(1.0f, b.actT / 1.2f) * 0.2f : std::min(1.0f, b.actT * 0.8f + 0.2f);
+        DrawRectangle((int)x - 4, (int)y - 16, 8, 16, FAUNA_INK);
+        DrawRectangle((int)x - 3, (int)y - 16, 6, 16, Color{220, 214, 196, 255}); // the chalky tube
+        if (out > 0.1f) {
+            Color plume{220, 50, 60, 255};
+            for (int k = -3; k <= 3; k++) {
+                float a = k * 0.22f + sinf(t * 1.6f + k) * 0.08f, len = 14 * out;
+                DrawLineEx({x, y - 16}, {x + sinf(a) * len, y - 16 - cosf(a) * len}, 2.2f, plume);
+            }
+            DrawCircle((int)x, (int)y - 16, 3 * out + 1, Tone(plume, -0.2f));
+        }
+        break;
+    }
+    case CS_MOTH: {
+        Color c{200, 190, 160, 230};
+        float w = sinf(t * 22 + b.phase * 4) * 3.5f;
+        DrawTri({x, y}, {x - 5, y - 2 - w}, {x - 3, y + 3}, c); DrawTri({x, y}, {x + 5, y - 2 - w}, {x + 3, y + 3}, c);
+        DrawEllipse((int)x, (int)y, 1.5f, 3, Color{120, 110, 90, 255});
+        break;
+    }
+    default: DrawCircle((int)x, (int)y, 5, Color{200, 200, 200, 255}); break;
+    }
+    if (b.pers.abnormal == Abnormal::SymbioticCompanion) DrawCircle((int)x, (int)y, 18, Fade(Color{190, 255, 230, 255}, 0.10f + 0.05f * sinf(t * 3)));
+    (void)p;
+}
+
+void DrawPipesBeast(const PlatformState& p, const Beast& b, float t) {
+    const SpeciesDef& S = BeastSpecies(PL_PIPES, b.species);
+    float x = b.pos.x, y = b.pos.y, f = b.facing, s = b.scale;
+    if (b.life == BeastLife::Corpse) { DrawEllipse((int)x, (int)y + 1, S.radius + 1, S.radius * 0.5f + 1, FAUNA_INK); DrawEllipse((int)x, (int)y + 1, S.radius, S.radius * 0.5f, Color{110, 104, 98, 255}); return; }
+    switch (b.species) {
+    case PP_MOTH: {
+        Color c{214, 206, 184, 230};
+        float w = sinf(t * 20 + b.phase * 4) * 3;
+        DrawTri({x, y}, {x - 5, y - 2 - w}, {x - 3, y + 2}, c); DrawTri({x, y}, {x + 5, y - 2 - w}, {x + 3, y + 2}, c);
+        DrawRectangle((int)x - 1, (int)y - 2, 2, 5, Color{120, 110, 90, 255});
+        break;
+    }
+    case PP_SPIDER: {
+        for (int r = 5; r <= 13; r += 4) DrawCircleLines((int)x, (int)y, (float)r, Fade(Color{200, 214, 230, 255}, 0.3f));
+        for (int k = 0; k < 6; k++) { float a = k * PI / 3; DrawLineEx({x, y}, {x + cosf(a) * 13, y + sinf(a) * 13}, 0.6f, Fade(Color{200, 214, 230, 255}, 0.4f)); }
+        for (int k = 0; k < 4; k++) for (int side = -1; side <= 1; side += 2) { Vector2 hip{x, y}, foot{x + side * (5 + k), y - 2 + k * 2.0f}; Vector2 kn = ik::Knee(hip, foot, 4, 4, -side); DrawLineEx(hip, kn, 1.0f, FAUNA_INK); DrawLineEx(kn, foot, 1.0f, FAUNA_INK); }
+        DrawCircle((int)x, (int)y, 3, Color{60, 70, 90, 255}); DrawCircle((int)x, (int)y + 3, 2, Color{40, 46, 60, 255});
+        if (b.act == BeastAct::Eat) DrawEllipse((int)x + 4, (int)y + 4, 2, 3, Color{220, 216, 200, 255});
+        break;
+    }
+    case PP_CENTIPEDE: DrawCrawler(b, t, 7, 2.6f, Color{170, 96, 50, 255}, Color{110, 60, 30, 255}); break;
+    case PP_RAT: {
+        Color c{120, 110, 104, 255}, pink{210, 150, 150, 255};
+        DrawBeastLegs(b, S, false, 1.6f, c, -0.6f, 0.8f);
+        DrawBeastTail(b, {x - f * 6, y + 1}, 0.1f, 1.5f, 1.8f, 0.8f, pink, 6);
+        DrawEllipse((int)x, (int)y, 8.5f * s, 5.2f * s, FAUNA_INK); DrawEllipse((int)x, (int)y, 7.5f * s, 4.3f * s, c);
+        DrawTri({x + f * 5, y - 3}, {x + f * 5, y + 3}, {x + f * 12, y + 1}, c);
+        DrawCircleV({x + f * 12, y + 1}, 1.0f, pink);
+        DrawCircle((int)(x + f * 5), (int)y - 4, 2.4f, pink);
+        DrawCircle((int)(x + f * 7), (int)y - 1, 0.9f, Color{200, 200, 210, 255}); // milky, blind eye
+        for (int k = 0; k < 3; k++) DrawLineEx({x + f * 11, y}, {x + f * 16, y - 2 + k * 2.0f}, 0.6f, Color{220, 220, 220, 200}); // whiskers: how it sees
+        DrawBeastLegs(b, S, true, 1.6f, c, -0.6f, 0.8f);
+        break;
+    }
+    case PP_MITE: DrawCircle((int)x, (int)y, 2.2f, FAUNA_INK); DrawCircle((int)x, (int)y, 1.6f, Color{190, 90, 50, 255}); break;
+    case PP_PILLBUG: {
+        Color c{110, 116, 126, 255};
+        if (b.act == BeastAct::Puffed) { // a rolling armoured ball
+            DrawCircle((int)x, (int)y + 1, 5.2f, FAUNA_INK); DrawCircle((int)x, (int)y + 1, 4.4f, c);
+            float r = b.pos.x * 0.2f;
+            for (int k = 0; k < 3; k++) DrawLineEx({x + cosf(r + k) * 4, y + 1 + sinf(r + k) * 4}, {x - cosf(r + k) * 4, y + 1 - sinf(r + k) * 4}, 0.8f, Tone(c, -0.35f));
+            break;
+        }
+        DrawEllipse((int)x, (int)y, 6, 3.6f, FAUNA_INK); DrawEllipse((int)x, (int)y, 5, 2.8f, c);
+        for (int k = 0; k < 4; k++) DrawLine((int)(x - 4 + k * 2.5f), (int)y - 2, (int)(x - 4 + k * 2.5f), (int)y + 2, Tone(c, -0.35f));
+        break;
+    }
+    case PP_MOUSE: {
+        Color c{150, 124, 96, 255};
+        DrawBeastLegs(b, S, false, 1.2f, c, -0.6f, 0.8f);
+        DrawBeastTail(b, {x - f * 4, y}, 0.3f, 1.2f, 1.2f, 0.6f, Color{200, 160, 150, 255}, 5);
+        DrawEllipse((int)x, (int)y, 5.5f, 3.8f, FAUNA_INK); DrawEllipse((int)x, (int)y, 4.6f, 3.0f, c);
+        DrawCircle((int)(x + f * 4), (int)y - 1, 2.8f, c);
+        DrawCircle((int)(x + f * 3), (int)y - 4, 2.0f, Color{210, 170, 160, 255}); // round ear
+        DrawCircle((int)(x + f * 5), (int)y - 1, 0.8f, FAUNA_INK);
+        DrawBeastLegs(b, S, true, 1.2f, c, -0.6f, 0.8f);
+        break;
+    }
+    case PP_ROACH: {
+        Color c{110, 64, 36, 255};
+        for (int k = 0; k < 3; k++) { float ph = b.phase * 14 + k * 2; DrawLineEx({x - 2 + k * 2.0f, y}, {x - 4 + k * 3.0f + cosf(ph), y + 4}, 0.9f, FAUNA_INK); }
+        DrawEllipse((int)x, (int)y - 1, 6, 3.2f, FAUNA_INK); DrawEllipse((int)x, (int)y - 1, 5, 2.5f, c);
+        DrawLine((int)x, (int)y - 3, (int)x, (int)y + 1, Tone(c, -0.3f));
+        for (int k = 0; k < 2; k++) DrawLineEx({x + f * 5, y - 2}, {x + f * (11 + k), y - 6 + k * 2 + sinf(t * 7 + k) * 1.5f}, 0.6f, c); // antennae, feeling
+        break;
+    }
+    case PP_GLOW: {
+        Color g{190, 250, 140, 255};
+        if (b.flashT > 0) { DrawCircle((int)x, (int)y, 30, Fade(g, 0.16f)); DrawCircle((int)x, (int)y, 14, Fade(g, 0.3f)); }
+        DrawEllipse((int)x, (int)y, 5, 3.4f, FAUNA_INK); DrawEllipse((int)x, (int)y, 4, 2.6f, Color{50, 60, 40, 255});
+        DrawCircle((int)(x - f * 2), (int)y, 2.0f, Fade(g, b.flashT > 0 ? 1.0f : 0.4f + 0.2f * sinf(t * 2 + b.phase)));
+        break;
+    }
+    case PP_CRICKET: {
+        Color c{150, 130, 100, 255};
+        bool air = !b.grounded;
+        DrawEllipse((int)x, (int)y - 1, 5.5f, 3.2f, FAUNA_INK); DrawEllipse((int)x, (int)y - 1, 4.6f, 2.5f, c);
+        Vector2 hip{x - f * 2, y - 1}, foot = air ? Vector2{x - f * 9, y + 4} : Vector2{x - f * 4, y + 4};
+        Vector2 kn = ik::Knee(hip, foot, 6, 6, f);
+        DrawLineEx(hip, kn, 1.6f, Tone(c, -0.2f)); DrawLineEx(kn, foot, 1.2f, Tone(c, -0.2f)); // the great jumping leg
+        for (int k = 0; k < 2; k++) DrawLineEx({x + f * 4, y - 2}, {x + f * (12 + k * 3), y - 8 + k * 3}, 0.6f, c);
+        break;
+    }
+    default: DrawCircle((int)x, (int)y, 4, Color{200, 200, 200, 255}); break;
+    }
+    (void)p;
+}
+// Cave dens: a crack in the rock, glistening; Pipes dens: a rust-hole gnawed through a duct plate.
+void DrawCaveDen(const PlatformState& p, const Den& d, float t) {
+    float x = d.pos.x, y = d.pos.y;
+    DrawEllipse((int)x, (int)y + 2, 10, 5, FAUNA_INK); DrawEllipse((int)x, (int)y + 2, 8.5f, 3.8f, Color{8, 10, 14, 255});
+    for (int k = 0; k < 3; k++) DrawCircle((int)(x - 7 + k * 7), (int)y - 1, 1.0f, Fade(Color{150, 190, 200, 255}, 0.3f + 0.2f * sinf(t * 2 + k)));
+    int inside = 0;
+    for (const auto& b : p.fauna.beasts) if (b.life == BeastLife::Alive && b.hidden && fabsf(b.pos.x - x) < 4) inside++;
+    if (inside && fmodf(t * 0.8f + x * 0.013f, 3.5f) < 2.6f) { DrawCircle((int)x - 2, (int)y + 2, 0.9f, Color{200, 230, 255, 255}); DrawCircle((int)x + 2, (int)y + 2, 0.9f, Color{200, 230, 255, 255}); }
+}
+void DrawPipesDen(const PlatformState& p, const Den& d, float t) {
+    float x = d.pos.x, y = d.pos.y;
+    DrawEllipse((int)x, (int)y + 2, 8, 4.5f, FAUNA_INK); DrawEllipse((int)x, (int)y + 2, 6.5f, 3.2f, Color{14, 10, 8, 255});
+    DrawRing({x, y + 2}, 7, 9, 180, 360, 10, Color{150, 70, 36, 220}); // rust flaking round the hole
+    int inside = 0;
+    for (const auto& b : p.fauna.beasts) if (b.life == BeastLife::Alive && b.hidden && fabsf(b.pos.x - x) < 4) inside++;
+    if (inside && fmodf(t * 0.8f + x * 0.013f, 3.5f) < 2.6f) { DrawCircle((int)x - 2, (int)y + 2, 0.8f, Color{250, 220, 140, 255}); DrawCircle((int)x + 2, (int)y + 2, 0.8f, Color{250, 220, 140, 255}); }
+}
 void DrawPirateBeast(const PlatformState& p, const Beast& b, float t) {
     const SpeciesDef& S = BeastSpecies(PL_PIRATE, b.species);
     float x = b.pos.x, y = b.pos.y, f = b.facing, s = b.scale;
@@ -3909,26 +3672,9 @@ void DrawPirateBeast(const PlatformState& p, const Beast& b, float t) {
         DrawBeastLegs(b, S, true, 2.0f, c, 0.8f, 0.8f);
         break;
     }
-    case PS_DOG: {
-        bool berserk = b.special > 0;
-        Color c = body(berserk ? Color{150, 92, 70, 255} : ((coat % 2) ? Color{150, 112, 70, 255} : Color{70, 62, 58, 255})), muzzle = Tone(c, 0.35f);
-        float shake = berserk ? sinf(t * 40) * 1.2f : 0;
-        x += shake;
-        DrawBeastLegs(b, S, false, 3.0f, c, -0.5f, 0.9f);
-        DrawBeastTail(b, {x - f * 11, y - 4}, berserk ? 0.2f : 0.9f, berserk ? 0.5f : fmodf(t, 4) < 1 ? 3.0f : 0.8f, 3.0f, 1.8f, c, 4); // a wag when it's content
-        DrawEllipse((int)x, (int)y - 2, 13.0f * s, 7.5f * s, FAUNA_INK);
-        DrawEllipse((int)x, (int)y - 2, 12.0f * s, 6.5f * s, c);
-        if (berserk) for (int k = 0; k < 5; k++) DrawTri({x - 6.0f + k * 3, y - 7}, {x - 5.0f + k * 3, y - 12 - (k % 2) * 2}, {x - 4.0f + k * 3, y - 7}, Tone(c, -0.3f)); // hackles
-        Vector2 head{x + f * 12, y - 8};
-        DrawCircleV(head, 6.0f * s, FAUNA_INK); DrawCircleV(head, 5.0f * s, c);
-        DrawEllipse((int)(head.x + f * 5), (int)head.y + 2, 4.5f, 3.2f, FAUNA_INK); DrawEllipse((int)(head.x + f * 5), (int)head.y + 2, 3.8f, 2.5f, muzzle);
-        DrawTri({head.x - f * 2, head.y - 4}, {head.x - f * 5, head.y + 3}, {head.x - f * 1, head.y + 1}, Tone(c, -0.3f)); // floppy ear
-        DrawCircle((int)(head.x + f * 2), (int)head.y - 2, berserk ? 1.5f : 1.0f, berserk ? Color{255, 60, 40, 255} : FAUNA_INK);
-        DrawCircle((int)(head.x + f * 8.5f), (int)head.y + 1, 1.2f, FAUNA_INK);
-        if (berserk || b.act == BeastAct::Coil) { DrawRectangle((int)(head.x + f * 4), (int)head.y + 4, 4, 1, WHITE); if (berserk) DrawCircle((int)(head.x + f * 6), (int)head.y + 6, 1.3f, Fade(WHITE, 0.8f)); } // bared teeth, foam
-        DrawBeastLegs(b, S, true, 3.0f, c, -0.5f, 0.9f);
+    case PS_DOG:
+        DrawDog(b, S, t, body(b.special > 0 ? Color{150, 92, 70, 255} : ((coat % 2) ? Color{150, 112, 70, 255} : Color{70, 62, 58, 255})), b.special > 0, false);
         break;
-    }
     case PS_FLEA: {
         Color c{40, 30, 24, 230};
         int n = b.act == BeastAct::Latched ? 5 : 9;
@@ -4002,6 +3748,9 @@ void DrawFauna(const PlatformState& p, float t, int c0, int c1) {
         if (d.pos.x < x0 || d.pos.x > x1) continue;
         if (W.biome == PL_HULL) DrawHullDen(p, d, t);
         else if (W.biome == PL_PIRATE) DrawPirateDen(p, d, t);
+        else if (W.biome == PL_ISLAND) DrawIslandDen(p, d, t);
+        else if (W.biome == PL_CAVE) DrawCaveDen(p, d, t);
+        else if (W.biome == PL_PIPES) DrawPipesDen(p, d, t);
     }
     DrawBeastProps(p, t);
     for (int pass = 0; pass < 2; pass++) // corpses first, the living over them
@@ -4011,6 +3760,9 @@ void DrawFauna(const PlatformState& p, float t, int c0, int c1) {
             if (b.hidden) { if (W.biome == PL_HULL && b.species == HS_EEL && b.act == BeastAct::Ambush) DrawEelPeek(b, t); continue; }
             if (W.biome == PL_HULL) DrawHullBeast(p, b, t);
             else if (W.biome == PL_PIRATE) DrawPirateBeast(p, b, t);
+            else if (W.biome == PL_ISLAND) DrawIslandBeast(p, b, t);
+            else if (W.biome == PL_CAVE) DrawCaveBeast(p, b, t);
+            else if (W.biome == PL_PIPES) DrawPipesBeast(p, b, t);
         }
 }
 
@@ -4423,245 +4175,6 @@ bool VerifyCritters() {
     return true;
 }
 
-// depth.exe --verify-pipe-ecosystem: proves the Pipes' 10-species chain fires, entirely on synthetic setups
-// the same way --verify-hull-ecosystem does - and additionally proves the diver never has any effect on it
-// at all, since "entities ignore the player" is this biome's whole point (ECOSYSTEM_BESTIARY.md).
-bool VerifyPipeEcosystem() {
-    auto flatFloor = [](int w, int h, int floorRow) {
-        PlatformState p;
-        p.w = w; p.h = h;
-        p.tiles.assign(h, std::string(w, '.'));
-        for (int x = 0; x < w; x++) p.tiles[floorRow][x] = '#';
-        p.pos = {-1000, -1000}; // the diver is nowhere near any of this - the point of the test
-        return p;
-    };
-    // 1) a real generated Pipes layout spawns several distinct species
-    {
-        PlatformState p;
-        p.level = PL_PIPES;
-        p.layout = {11, 100};
-        BuildLevel(p);
-        int kinds[10] = {0};
-        for (auto& e : p.pipeLife) kinds[(int)e.kind]++;
-        int distinct = 0;
-        for (int k = 0; k < 10; k++) if (kinds[k] > 0) distinct++;
-        if (distinct < 4) { TraceLog(LOG_WARNING, "verify-pipe-ecosystem: FAILED - only %d distinct species spawned in a real layout", distinct); return false; }
-        TraceLog(LOG_WARNING, "verify-pipe-ecosystem: a real layout spawned %d distinct species (%d total)", distinct, (int)p.pipeLife.size());
-    }
-    float fy = 15.0f * T + T - 3;
-    // 2) a Moth flies to a light and a Water-Spider's web catches it; a Centipede then eats it and frees it
-    {
-        PlatformState p = flatFloor(40, 20, 15);
-        p.lightSpots = {{20.0f * T, fy}};
-        PlatPipeLife moth; moth.kind = PipeKind::Moth; moth.home = moth.pos = {15.0f * T, fy}; // within PIPE_MOTH_LIGHT_R of the light below
-        PlatPipeLife spider; spider.kind = PipeKind::Spider; spider.home = spider.pos = {20.0f * T, fy};
-        p.pipeLife = {moth, spider};
-        bool caught = false;
-        for (int f = 0; f < 900 && !caught; f++) { UpdatePipeLife(p, 1 / 60.0f); if (p.pipeLife[0].state == PipeState::Caught) caught = true; }
-        if (!caught) { TraceLog(LOG_WARNING, "verify-pipe-ecosystem: FAILED - a Moth never flew into a Water-Spider's web"); return false; }
-        PlatPipeLife centipede; centipede.kind = PipeKind::Centipede; centipede.home = centipede.pos = {20.0f * T, fy}; // right on the web - eats immediately
-        p.pipeLife.push_back(centipede);
-        UpdatePipeLife(p, 1 / 60.0f);
-        if (p.pipeLife[0].state == PipeState::Caught) { TraceLog(LOG_WARNING, "verify-pipe-ecosystem: FAILED - a Centipede never freed a caught Moth"); return false; }
-    }
-    // 3) an aggressive Pipe-Rat hunts a feeding Centipede and bites, waking a swarm of Rust-Mites, which curl
-    // a nearby Pillbug into rolling, which scares off a hunting Scavenger Mouse
-    {
-        PlatformState p = flatFloor(40, 20, 15);
-        PlatPipeLife moth; moth.kind = PipeKind::Moth; moth.home = moth.pos = {20.0f * T, fy}; moth.state = PipeState::Caught; // gives the Centipede below a real reason to be Hunting
-        PlatPipeLife centipede; centipede.kind = PipeKind::Centipede; centipede.home = centipede.pos = {20.0f * T, fy};
-        PlatPipeLife rat; rat.kind = PipeKind::PipeRat; rat.home = rat.pos = {20.0f * T + 5, fy}; rat.personality.aggression = 0.9f;
-        PlatPipeLife mite; mite.kind = PipeKind::RustMite; mite.home = mite.pos = {20.0f * T, fy};
-        PlatPipeLife bug; bug.kind = PipeKind::Pillbug; bug.home = bug.pos = {20.0f * T, fy};
-        PlatPipeLife mouse; mouse.kind = PipeKind::ScavMouse; mouse.home = mouse.pos = {20.0f * T, fy}; mouse.dir = -1;
-        p.pipeLife = {moth, centipede, rat, mite, bug, mouse};
-        bool bit = false, swarmed = false, curled = false, rolling = false, fled = false;
-        for (int f = 0; f < 600; f++) {
-            UpdatePipeLife(p, 1 / 60.0f);
-            if (p.pipeLife[2].state == PipeState::Biting) bit = true;
-            if (p.pipeLife[3].state == PipeState::Swarming) swarmed = true;
-            if (p.pipeLife[4].state == PipeState::Curled) curled = true;
-            if (p.pipeLife[4].state == PipeState::Rolling) rolling = true;
-            if (p.pipeLife[5].state == PipeState::Fleeing) fled = true;
-        }
-        if (!bit) { TraceLog(LOG_WARNING, "verify-pipe-ecosystem: FAILED - an aggressive Pipe-Rat never bit into the pipe"); return false; }
-        if (!swarmed) { TraceLog(LOG_WARNING, "verify-pipe-ecosystem: FAILED - the bite never woke a Rust-Mite swarm"); return false; }
-        if (!curled) { TraceLog(LOG_WARNING, "verify-pipe-ecosystem: FAILED - a swarming Mite never curled up a Pillbug"); return false; }
-        if (!rolling) { TraceLog(LOG_WARNING, "verify-pipe-ecosystem: FAILED - a curled Pillbug never started rolling"); return false; }
-        if (!fled) { TraceLog(LOG_WARNING, "verify-pipe-ecosystem: FAILED - a rolling Pillbug never scared off the hunting Mouse"); return false; }
-    }
-    // 4) a Cockroach fighting a Mouse flashes a nearby Glow-Beetle, which panics a nearby Cave Cricket
-    {
-        PlatformState p = flatFloor(40, 20, 15);
-        PlatPipeLife mouse; mouse.kind = PipeKind::ScavMouse; mouse.home = mouse.pos = {20.0f * T, fy};
-        PlatPipeLife roach; roach.kind = PipeKind::Cockroach; roach.home = roach.pos = {20.0f * T + 5, fy}; roach.personality.aggression = 0.9f;
-        PlatPipeLife beetle; beetle.kind = PipeKind::GlowBeetle; beetle.home = beetle.pos = {20.0f * T, fy};
-        PlatPipeLife cricket; cricket.kind = PipeKind::CaveCricket; cricket.home = cricket.pos = {20.0f * T, fy};
-        PlatPipeLife cricket2; cricket2.kind = PipeKind::CaveCricket; cricket2.home = cricket2.pos = {20.0f * T, fy}; // right where the first will jump - the cascade should catch it too
-        p.pipeLife = {mouse, roach, beetle, cricket, cricket2};
-        bool flashed = false, panicked = false, cascaded = false;
-        for (int f = 0; f < 300; f++) {
-            UpdatePipeLife(p, 1 / 60.0f);
-            if (p.pipeLife[2].state == PipeState::Flash) flashed = true;
-            if (p.pipeLife[3].state == PipeState::Panic) panicked = true;
-            if (p.pipeLife[4].state == PipeState::Panic) cascaded = true;
-        }
-        if (!flashed) { TraceLog(LOG_WARNING, "verify-pipe-ecosystem: FAILED - a fight never made a Glow-Beetle flash"); return false; }
-        if (!panicked) { TraceLog(LOG_WARNING, "verify-pipe-ecosystem: FAILED - a flash never panicked a Cave Cricket into stampeding"); return false; }
-        if (!cascaded) { TraceLog(LOG_WARNING, "verify-pipe-ecosystem: FAILED - a panicking Cricket never triggered a chain-reaction stampede into a second Cricket"); return false; }
-    }
-    // 5) none of it ever moves toward, or away from, the diver - it's a fixed point far from every setup above,
-    // so any positional drift correlated with distance-to-player would show up as blown-up or NaN positions
-    // if this code accidentally read p.pos anywhere; walk a full real level's worth of frames to be sure
-    {
-        PlatformState p;
-        p.level = PL_PIPES;
-        p.layout = {11, 100};
-        BuildLevel(p);
-        for (int f = 0; f < 600; f++) {
-            p.pos = {(float)f / 600.0f * p.w * T, 400}; // the diver sweeps the whole level - the chain must never notice
-            UpdatePipeLife(p, 1 / 60.0f);
-            for (const auto& e : p.pipeLife)
-                if (std::isnan(e.pos.x) || std::isnan(e.pos.y) || fabsf(e.pos.x) > 1e7f || fabsf(e.pos.y) > 1e7f) {
-                    TraceLog(LOG_WARNING, "verify-pipe-ecosystem: FAILED - an entity's position blew up");
-                    return false;
-                }
-        }
-    }
-    TraceLog(LOG_WARNING, "verify-pipe-ecosystem: OK - web/eat, bite/swarm/curl/roll/flee, and flash/panic chains all confirmed, none of it reacting to the diver");
-    return true;
-}
-
-// depth.exe --verify-island-ecosystem: proves the Island's chain fires, the same synthetic-setup shape as
-// the Hull/Pipes/Pirate Ship verifiers above.
-bool VerifyIslandEcosystem() {
-    // 1) a real generated Island layout spawns several distinct species
-    {
-        PlatformState p;
-        p.level = PL_ISLAND;
-        p.layout = {9, 100};
-        BuildLevel(p);
-        int kinds[9] = {0};
-        for (auto& e : p.islandLife) kinds[(int)e.kind]++;
-        int distinct = 0;
-        for (int k = 0; k < 9; k++) if (kinds[k] > 0) distinct++;
-        if (distinct < 3) { TraceLog(LOG_WARNING, "verify-island-ecosystem: FAILED - only %d distinct species spawned in a real layout", distinct); return false; }
-        TraceLog(LOG_WARNING, "verify-island-ecosystem: a real layout spawned %d distinct species (%d total)", distinct, (int)p.islandLife.size());
-    }
-    // 2) a stray shot near a Boar sends it Charging (a real hazard), which sends a nearby Bat Swarming, a
-    // nearby Snake Dropping, and a nearby Dog Tracking - and a Swarming Bat is caught by a nearby Spider's web
-    {
-        PlatformState p;
-        p.w = 20; p.h = 20;
-        p.tiles.assign(p.h, std::string(p.w, '.'));
-        float fy = 10.0f * T + T - 3;
-        PlatIslandLife boar; boar.kind = IslandEcoKind::Boar; boar.home = boar.pos = {10.0f * T, fy}; boar.state = IslandEcoState::Wander;
-        PlatIslandLife snake; snake.kind = IslandEcoKind::Snake; snake.home = snake.pos = {10.0f * T, fy}; snake.state = IslandEcoState::Idle;
-        PlatIslandLife bat; bat.kind = IslandEcoKind::Bat; bat.home = bat.pos = {10.0f * T, fy}; bat.state = IslandEcoState::Idle;
-        PlatIslandLife spider; spider.kind = IslandEcoKind::Spider; spider.home = spider.pos = {10.0f * T, fy}; spider.state = IslandEcoState::Idle;
-        PlatIslandLife dog; dog.kind = IslandEcoKind::Dog; dog.home = dog.pos = {10.0f * T, fy}; dog.state = IslandEcoState::Wander;
-        p.islandLife = {boar, snake, bat, spider, dog};
-        p.pos = {-1000, -1000}; // well clear - the stray shot itself is the trigger, not the diver
-        p.shots.push_back({{10.0f * T, fy}, {0, 0}, 5.0f, 0});
-        bool charging = false, dropping = false, swarming = false, tracking = false, caught = false;
-        for (int f = 0; f < 400; f++) {
-            UpdateIslandLife(p, 1 / 60.0f);
-            if (p.islandLife[0].state == IslandEcoState::Charging) charging = true;
-            if (p.islandLife[1].state == IslandEcoState::Dropping) dropping = true;
-            if (p.islandLife[2].state == IslandEcoState::Swarming) swarming = true;
-            if (p.islandLife[2].state == IslandEcoState::Caught) caught = true;
-            if (p.islandLife[4].state == IslandEcoState::Tracking) tracking = true;
-        }
-        if (!charging) { TraceLog(LOG_WARNING, "verify-island-ecosystem: FAILED - the stray shot never sent the Boar Charging"); return false; }
-        if (!dropping) { TraceLog(LOG_WARNING, "verify-island-ecosystem: FAILED - the Charging Boar never woke the coiled Snake"); return false; }
-        if (!swarming) { TraceLog(LOG_WARNING, "verify-island-ecosystem: FAILED - the Charging Boar never sent the Bat Swarming"); return false; }
-        if (!caught) { TraceLog(LOG_WARNING, "verify-island-ecosystem: FAILED - the Swarming Bat never got caught in the Spider's web"); return false; }
-        if (!tracking) { TraceLog(LOG_WARNING, "verify-island-ecosystem: FAILED - the Charging Boar never sent the Dog Tracking"); return false; }
-        // now confirm the Charging Boar is an actual hazard
-        p.islandLife[0].state = IslandEcoState::Charging;
-        p.pos = {p.islandLife[0].pos.x - PW / 2, p.islandLife[0].pos.y - PH / 2};
-        Rectangle pr = PlayerBox(p);
-        bool hazard = CheckCollisionRecs(pr, {p.islandLife[0].pos.x - 12, p.islandLife[0].pos.y - 13, 24, 19});
-        if (!hazard) { TraceLog(LOG_WARNING, "verify-island-ecosystem: FAILED - a Charging Boar standing on the diver isn't a hazard"); return false; }
-    }
-    // 3) a Coconut Crab's periodic Cutting draws a nearby Seagull into a Dive
-    {
-        PlatformState p;
-        p.w = 20; p.h = 20;
-        p.tiles.assign(p.h, std::string(p.w, '.'));
-        float fy = 10.0f * T + T - 3;
-        PlatIslandLife crab; crab.kind = IslandEcoKind::Crab; crab.home = crab.pos = {10.0f * T, fy}; crab.state = IslandEcoState::Idle; crab.stateTimer = ISLAND_CRAB_CUT_CYCLE + 0.1f;
-        PlatIslandLife gull; gull.kind = IslandEcoKind::Seagull; gull.home = gull.pos = {10.0f * T, fy}; gull.state = IslandEcoState::Circling; gull.personality.aggression = 0.9f;
-        p.islandLife = {crab, gull};
-        p.pos = {-1000, -1000};
-        bool diving = false;
-        for (int f = 0; f < 300 && !diving; f++) { UpdateIslandLife(p, 1 / 60.0f); if (p.islandLife[1].state == IslandEcoState::Diving) diving = true; }
-        if (!diving) { TraceLog(LOG_WARNING, "verify-island-ecosystem: FAILED - the Cutting Crab never drew the Seagull into a dive"); return false; }
-    }
-    TraceLog(LOG_WARNING, "verify-island-ecosystem: OK - charge/swarm/drop/track/web-catch and cut/dive chains both confirmed, and the Charging Boar is a real hazard");
-    return true;
-}
-
-// depth.exe --verify-cave-ecosystem: proves the Cave's chain fires, the same synthetic-setup shape as the
-// Hull/Pipes/Pirate Ship/Island verifiers above.
-bool VerifyCaveEcosystem() {
-    // 1) a real generated Cave layout spawns several distinct species
-    {
-        PlatformState p;
-        p.level = PL_CAVE;
-        p.layout = {9, 100};
-        BuildLevel(p);
-        int kinds[6] = {0};
-        for (auto& e : p.caveLife) kinds[(int)e.kind]++;
-        int distinct = 0;
-        for (int k = 0; k < 6; k++) if (kinds[k] > 0) distinct++;
-        if (distinct < 3) { TraceLog(LOG_WARNING, "verify-cave-ecosystem: FAILED - only %d distinct species spawned in a real layout", distinct); return false; }
-        TraceLog(LOG_WARNING, "verify-cave-ecosystem: a real layout spawned %d distinct species (%d total)", distinct, (int)p.caveLife.size());
-    }
-    // 2) the diver's proximity flashes a Jelly -> a nearby Salamander Hunts it -> a nearby Beetle Bursts ->
-    // a nearby Leech Drops (a real hazard) -> a nearby Tube Worm Retracts; and a nearby Spider's ambush burst
-    // sends a nearby Bat Swarming
-    {
-        PlatformState p;
-        p.w = 20; p.h = 20;
-        p.tiles.assign(p.h, std::string(p.w, '.'));
-        float fy = 10.0f * T + T - 3;
-        PlatCaveLife jelly; jelly.kind = CaveEcoKind::Jelly; jelly.home = jelly.pos = {10.0f * T, fy}; jelly.state = CaveEcoState::Idle;
-        PlatCaveLife sal; sal.kind = CaveEcoKind::Salamander; sal.home = sal.pos = {10.0f * T, fy}; sal.state = CaveEcoState::Wander;
-        PlatCaveLife beetle; beetle.kind = CaveEcoKind::Beetle; beetle.home = beetle.pos = {10.0f * T, fy}; beetle.state = CaveEcoState::Idle; beetle.stateTimer = CAVE_BEETLE_BURST_CYCLE + 0.1f;
-        PlatCaveLife leech; leech.kind = CaveEcoKind::Leech; leech.home = leech.pos = {10.0f * T, fy}; leech.state = CaveEcoState::Clinging;
-        PlatCaveLife worm; worm.kind = CaveEcoKind::TubeWorm; worm.home = worm.pos = {10.0f * T, fy}; worm.state = CaveEcoState::Idle;
-        PlatCaveLife bat; bat.kind = CaveEcoKind::Bat; bat.home = bat.pos = {10.0f * T, fy}; bat.state = CaveEcoState::Roost;
-        p.caveLife = {jelly, sal, beetle, leech, worm, bat};
-        p.pos = {10.0f * T - PW / 2, fy - PH}; // right on top of the Jelly, close enough to flash it
-        p.enemies.push_back(PlatEnemy{'P', {10.0f * T, fy}, {10.0f * T, fy}, -1, 0}); p.enemies[0].state = 2; // a Spider mid-ambush
-        bool flash = false, hunting = false, bursting = false, dropping = false, retracted = false, swarming = false;
-        for (int f = 0; f < 400; f++) {
-            UpdateCaveLife(p, 1 / 60.0f);
-            if (p.caveLife[0].state == CaveEcoState::Flash) flash = true;
-            if (p.caveLife[1].state == CaveEcoState::Hunting) hunting = true;
-            if (p.caveLife[2].state == CaveEcoState::Bursting) bursting = true;
-            if (p.caveLife[3].state == CaveEcoState::Dropping) dropping = true;
-            if (p.caveLife[4].state == CaveEcoState::Retracted) retracted = true;
-            if (p.caveLife[5].state == CaveEcoState::Swarming) swarming = true;
-        }
-        if (!flash) { TraceLog(LOG_WARNING, "verify-cave-ecosystem: FAILED - the diver's proximity never flashed the Jelly"); return false; }
-        if (!hunting) { TraceLog(LOG_WARNING, "verify-cave-ecosystem: FAILED - the flashing Jelly never drew the Salamander into Hunting"); return false; }
-        if (!bursting) { TraceLog(LOG_WARNING, "verify-cave-ecosystem: FAILED - the Hunting Salamander never triggered the Beetle's Burst"); return false; }
-        if (!dropping) { TraceLog(LOG_WARNING, "verify-cave-ecosystem: FAILED - neither the Beetle's spore cloud nor the flashing Jelly ever dropped the Leech"); return false; }
-        if (!retracted) { TraceLog(LOG_WARNING, "verify-cave-ecosystem: FAILED - the Dropping Leech never retracted the nearby Tube Worm"); return false; }
-        if (!swarming) { TraceLog(LOG_WARNING, "verify-cave-ecosystem: FAILED - the Spider's ambush burst never sent the Bat Swarming"); return false; }
-        // now confirm the Dropping Leech is an actual hazard
-        p.caveLife[3].state = CaveEcoState::Dropping;
-        p.pos = {p.caveLife[3].pos.x - PW / 2, p.caveLife[3].pos.y - PH / 2};
-        Rectangle pr = PlayerBox(p);
-        bool hazard = CheckCollisionRecs(pr, {p.caveLife[3].pos.x - 8, p.caveLife[3].pos.y - 18, 16, 22});
-        if (!hazard) { TraceLog(LOG_WARNING, "verify-cave-ecosystem: FAILED - a Dropping Leech standing on the diver isn't a hazard"); return false; }
-    }
-    TraceLog(LOG_WARNING, "verify-cave-ecosystem: OK - flash/hunt/burst/drop/retract and ambush/swarm chains both confirmed, and the Dropping Leech is a real hazard");
-    return true;
-}
-
 // The darkness of the ducts, drawn in bands (it suits the pixel art) around the diver's helmet lamp.
 static void DrawLampDarkness(Vector2 c, float r, float maxA) {
     const int B = 6;
@@ -4719,10 +4232,7 @@ void ScenePlatformer(Game& g) {
         float ed = p.ghost ? dt * GHOST_SPEED : dt; // ghosts move, aim, fire and charge 1.6x faster
         UpdateEnemies(p, ed);
         UpdateCritters(p, dt); // ambient duct life - never touched by ghost speed, it isn't part of the challenge
-        UpdatePipeLife(p, dt); // the Pipes' real ecosystem chain - ignores the diver entirely, so likewise untouched by ghost speed (Pirate-only anyway)
-        BeastsUpdate(p, dt);   // the living-AI creatures (the Hull, for now) - real time, never ghost-sped
-        UpdateIslandLife(p, dt); // the Island's ecosystem chain - no Ghost Ship variant, always real time
-        UpdateCaveLife(p, dt);   // the Cave's ecosystem chain - no Ghost Ship variant, always real time
+        BeastsUpdate(p, dt);   // the living-AI creatures - real time, never ghost-sped
         UpdateBoss(p, ed);
         UpdateLaunchers(p, ed);
         UpdateShots(p, ed);
@@ -4733,10 +4243,6 @@ void ScenePlatformer(Game& g) {
             for (auto& e : p.enemies) if (EnemyHits(e, pr)) Die(p);
             for (auto& s : p.shots) if (ShotHits(s, pr)) Die(p);
             if (BeastsTouchDiver(p, pr)) Die(p); // a crab, an eel, a puffed pufferfish - see BeastLethalNow
-            for (auto& il : p.islandLife) // only a Charging Boar is a hazard - everything else in the Island's chain is scenery
-                if (il.kind == IslandEcoKind::Boar && il.state == IslandEcoState::Charging && CheckCollisionRecs(pr, {il.pos.x - 12, il.pos.y - 13, 24, 19})) Die(p);
-            for (auto& cl : p.caveLife) // only a Dropping Leech is a hazard - everything else in the Cave's chain is scenery
-                if (cl.kind == CaveEcoKind::Leech && cl.state == CaveEcoState::Dropping && CheckCollisionRecs(pr, {cl.pos.x - 8, cl.pos.y - 18, 16, 22})) Die(p);
             PlatBoss& b = p.boss;
             bool falling = p.vel.y > 0;
             if (b.type == 'K' && !b.defeated) {
@@ -4861,10 +4367,7 @@ void ScenePlatformer(Game& g) {
     DrawBoss(p, t);
     for (auto& e : p.enemies) DrawEnemy(e, t, p.level);
     for (auto& c : p.critters) DrawCritter(c, t);
-    for (auto& e : p.pipeLife) DrawPipeLife(e, t);
     DrawFauna(p, t, c0, c1);
-    for (auto& e : p.islandLife) DrawIslandLife(e, t);
-    for (auto& e : p.caveLife) DrawCaveLife(e, t);
     DrawShots(p, t);
     DrawSea(p, t, viewW, viewH);
     for (auto& pt : p.particles) {

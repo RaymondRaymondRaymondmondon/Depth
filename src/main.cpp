@@ -61,7 +61,40 @@ static void ShotAtPiece(Game& g, int level, SetPiece sp, bool ghost = false, int
             break;
         }
 }
-static const char* gShotFilter = nullptr; // depth.exe --shots <folder> <text>: only screens whose name contains <text>
+// Starts a platform level, lets its creatures live a few seconds out of the diver's sight, then stands the diver at
+// the busiest spot (the beast with the most others near it) - depth.exe --shots shots fauna
+static void ShotAtFauna(Game& g, int level, int seed, float secs, int pick = 0) {
+    g.platLayouts[level] = {seed, 100};
+    StartPlatform(g, level);
+    PlatformState& p = g.plat;
+    float keep = p.deathTimer;
+    p.deathTimer = 1;
+    for (int f = 0; f < (int)(secs * 60); f++) BeastsUpdate(p, 1 / 60.0f);
+    p.deathTimer = keep;
+    std::vector<std::pair<int, int>> ranked;
+    for (int i = 0; i < (int)p.fauna.beasts.size(); i++) {
+        const Beast& b = p.fauna.beasts[i];
+        if (b.life != BeastLife::Alive || b.hidden) continue;
+        int n = 0;
+        for (const auto& o : p.fauna.beasts) if (o.life != BeastLife::Gone && !o.hidden && fabsf(o.pos.x - b.pos.x) < 280 && fabsf(o.pos.y - b.pos.y) < 160) n++;
+        ranked.push_back({-n, i});
+    }
+    std::sort(ranked.begin(), ranked.end());
+    // skip clusters too close to one already picked, so each pick shows a different place
+    std::vector<Vector2> used;
+    for (const auto& r : ranked) {
+        Vector2 at = p.fauna.beasts[r.second].pos;
+        bool near = false;
+        for (auto u : used) if (fabsf(u.x - at.x) < 600) near = true;
+        if (near) continue;
+        used.push_back(at);
+        if ((int)used.size() > pick) {
+            p.pos = {at.x - 120, at.y - 40};
+            for (int y = (int)(at.y / 32); y < p.h - 1; y++) if (PlatSolid(p, (int)(p.pos.x / 32) + 0, y + 1)) { p.pos.y = y * 32.0f + 32 - 28; break; }
+            return;
+        }
+    }
+}static const char* gShotFilter = nullptr; // depth.exe --shots <folder> <text>: only screens whose name contains <text>
 static void TakeShots(const Game& base, const std::string& dir) {
     struct Shot { const char* name; std::function<void(Game&)> setup; };
     const Shot shots[] = {
@@ -139,7 +172,16 @@ static void TakeShots(const Game& base, const std::string& dir) {
         {"hull", [](Game& g) { g.platLayouts[PL_HULL] = {404, 100}; StartPlatform(g, PL_HULL); g.plat.pos = g.plat.spawns[1]; }},
         {"hull_shaft", [](Game& g) { g.platLayouts[PL_HULL] = {505, 100}; StartPlatform(g, PL_HULL); g.plat.pos = g.plat.spawns[3]; }},        {"hull_kraken", [](Game& g) { StartPlatform(g, PL_HULL); g.plat.pos = {(g.plat.w - 24) * 32 + 420.0f, 200}; g.plat.boss.state = 2; }},
         {"pirate", [](Game& g) { g.platLayouts[PL_PIRATE] = {606, 100}; StartPlatform(g, PL_PIRATE); g.plat.pos = g.plat.spawns[1]; }},
-        {"island", [](Game& g) { g.platLayouts[PL_ISLAND] = {303, 100}; StartPlatform(g, PL_ISLAND); }},
+        {"fauna_hull", [](Game& g) { ShotAtFauna(g, PL_HULL, 404, 6); }},
+        {"fauna_hull2", [](Game& g) { ShotAtFauna(g, PL_HULL, 404, 6, 1); }},
+        {"fauna_pirate", [](Game& g) { ShotAtFauna(g, PL_PIRATE, 606, 6); }},
+        {"fauna_pirate2", [](Game& g) { ShotAtFauna(g, PL_PIRATE, 606, 6, 1); }},
+        {"fauna_island", [](Game& g) { ShotAtFauna(g, PL_ISLAND, 303, 6); }},
+        {"fauna_island2", [](Game& g) { ShotAtFauna(g, PL_ISLAND, 303, 6, 1); }},
+        {"fauna_cave", [](Game& g) { ShotAtFauna(g, PL_CAVE, 505, 6); }},
+        {"fauna_cave2", [](Game& g) { ShotAtFauna(g, PL_CAVE, 505, 6, 1); }},
+        {"fauna_pipes", [](Game& g) { ShotAtFauna(g, PL_PIPES, 303, 6); }},
+        {"fauna_pipes2", [](Game& g) { ShotAtFauna(g, PL_PIPES, 303, 6, 1); }},        {"island", [](Game& g) { g.platLayouts[PL_ISLAND] = {303, 100}; StartPlatform(g, PL_ISLAND); }},
         {"island_village", [](Game& g) { g.platLayouts[PL_ISLAND] = {304, 100}; StartPlatform(g, PL_ISLAND); }},
         {"cave2", [](Game& g) { g.platLayouts[PL_CAVE] = {505, 100}; StartPlatform(g, PL_CAVE); }},
         {"pirate_hatch", [](Game& g) { g.platLayouts[PL_PIRATE] = {707, 100}; StartPlatform(g, PL_PIRATE); g.plat.pos = g.plat.spawns[3]; }},
@@ -321,7 +363,7 @@ int main(int argc, char** argv) {
     }
     if (argc >= 2 && strcmp(argv[1], "--verify-pipe-ecosystem") == 0) {
         SetTraceLogLevel(LOG_WARNING);
-        return VerifyPipeEcosystem() ? 0 : 1;
+        return VerifyBeastBiome(PL_PIPES) ? 0 : 1;
     }
     if (argc >= 2 && strcmp(argv[1], "--verify-pirate-ecosystem") == 0) {
         SetTraceLogLevel(LOG_WARNING);
@@ -329,11 +371,11 @@ int main(int argc, char** argv) {
     }
     if (argc >= 2 && strcmp(argv[1], "--verify-island-ecosystem") == 0) {
         SetTraceLogLevel(LOG_WARNING);
-        return VerifyIslandEcosystem() ? 0 : 1;
+        return VerifyBeastBiome(PL_ISLAND) ? 0 : 1;
     }
     if (argc >= 2 && strcmp(argv[1], "--verify-cave-ecosystem") == 0) {
         SetTraceLogLevel(LOG_WARNING);
-        return VerifyCaveEcosystem() ? 0 : 1;
+        return VerifyBeastBiome(PL_CAVE) ? 0 : 1;
     }
     if (argc >= 2 && strcmp(argv[1], "--verify-abyss") == 0) {
         SetTraceLogLevel(LOG_WARNING);

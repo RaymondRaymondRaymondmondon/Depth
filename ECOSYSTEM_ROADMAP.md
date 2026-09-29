@@ -92,8 +92,20 @@ shaders/auto-tiling. It is written for SFML; everything is implemented in raylib
   life) checks routing, LOS, hunt/eat/scavenge, hiding, straggler selection (the confusion effect: a
   strike into a tight school usually misses and the hunter re-targets the loneliest fish), roaming,
   and the abnormal rates.
-- Next: propagate the engine to Pipes (creature-side only), Pirate, Island, Cave with per-biome species
-  tables and den art; then the PDF's player-physics and IK sections; then Weeds and Atlantis.
+- **Propagated to all five levels** (beasts_biomes.cpp): Pirate Ship (rats, ship's cats, powder monkeys with
+  lit kegs, guard dogs and their fleas, barn owls, gulls, an albatross), Island (boar, tree snakes, monitor
+  lizards, fruit bats, orb spiders, coconut crabs and their coconuts, dart frogs, gulls, hunting dogs), Cave
+  (bats, glow jellies, blind salamanders, fungal beetles, ceiling leeches, tube worms, moths), Pipes (moths,
+  water-spiders, centipedes, blind pipe-rats, rust-mites, pillbugs, mice, cockroaches, glow-beetles, crickets;
+  none of it notices the diver). The old scripted chains and their structs are removed; the old verifier flags
+  now run each biome's new tests.
+- Engine additions on the way: prey hears predators and hunters hear prey (the dark levels run on sound),
+  hungry predators forage, loud crashes startle the skittish, the level's own enemies are threats, stray shots
+  and blasts kill (friendly fire), walkers have ledge sense and judge every leap's landing (`SafeArc`), bodies on
+  spikes are left alone, scavengers give up on meals they can't reach.
+- IK (PDF "Procedural Animation"): `ik.h` FABRIK + two-bone knee; planted-foot diagonal gaits for walkers.
+- Next: more IK (octopus arms and tentacles reaching with FABRIK, death throes and being-eaten animation),
+  art polish at play scale (creatures read small), then the PDF's player-physics section, then Weeds and Atlantis.
 
 ## Status as of commit cd1fe26: Island and Cave both built; Weeds and Atlantis next
 

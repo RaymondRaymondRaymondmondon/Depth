@@ -322,63 +322,7 @@ struct PlatCritter {
     CritterState state = CritterState::Idle;
     float stateTimer = 0, phase = 0;      // phase: per-critter offset so a cluster doesn't move in lockstep
 };
-// (The Hull's creatures run on the living-AI engine - see beasts.h / PlatformState::fauna.)
-// The Pipes' real ecosystem chain (ECOSYSTEM_BESTIARY.md, "The Pipes"): unlike every other biome's chain,
-// "entities ignore the player; all hazards stem from systemic chaos and collateral physics" - so this one
-// never reacts to the diver at all (CLAUDE.md: the Pipes have no enemies), it just runs. Dust Moths flutter
-// to bioluminescent leaks; Water-Spiders web them at pipe bends; Centipedes eat the trapped Moths; Blind
-// Pipe-Rats hunt Centipedes by vibration and bite into rusted pipe to reach them; Rust-Mites swarm out to
-// feed on the flakes; Pillbugs curl up and roll when touched by a Mite; Scavenger Mice hunt loose Pillbugs
-// but flee a rolling one; Cockroaches fight Mice over scraps; Glow-Beetles flash when stepped on by a fight;
-// Cave Crickets panic and stampede at the flash. Same one-struct-many-kinds shape as PlatEcoLife.
-enum class PipeKind { Moth, Spider, Centipede, PipeRat, RustMite, Pillbug, ScavMouse, Cockroach, GlowBeetle, CaveCricket };
-enum class PipeState { Idle, Wander, Flying, Caught, Hunting, Biting, Swarming, Curled, Rolling, Fleeing, Fighting, Flash, Panic };
-struct PlatPipeLife {
-    PipeKind kind;
-    Vector2 pos{0, 0}, home{0, 0};
-    PersonalityProfile personality;
-    float dir = 1;
-    PipeState state = PipeState::Idle;
-    float stateTimer = 0, phase = 0;
-};
-// The Island's own ten-species chain (ECOSYSTEM_BESTIARY.md, "The Island"), same architecture as the Pirate
-// Ship's above. The Warriors/Gunners themselves are the 'P'/'G' enemy tiles (real hazards, placed by the
-// generator); this overlay is the rest of the food web. A stray shot passing a Boar sends it Charging - the
-// one real hazard in this chain, same shape as the Berserk Guard Dog; its rumble sends roosting Bats
-// Swarming, and a coiled Snake Dropping onto it. A Web-Spinning Spider's fixed web catches a Swarming Bat
-// (freed after a moment, mirrors the Pipes' Water-Spider/Moth). A Coconut Crab periodically Cuts a coconut
-// loose; a Seagull Circling nearby Dives to steal it, then returns. A Hunting Dog that notices a Charging
-// Boar or a Fleeing creature nearby goes Tracking toward it. Monitor Lizards and Poison Dart Frogs are
-// simpler ambient scenery (the Lizard bares its teeth if approached; the Frog just hops).
-enum class IslandEcoKind { Boar, Snake, Lizard, Bat, Spider, Crab, Frog, Seagull, Dog };
-enum class IslandEcoState { Idle, Wander, Charging, Dropping, Swarming, Caught, Cutting, Circling, Diving, Tracking };
-struct PlatIslandLife {
-    IslandEcoKind kind;
-    Vector2 pos{0, 0}, home{0, 0};
-    PersonalityProfile personality;
-    float dir = 1;
-    IslandEcoState state = IslandEcoState::Idle;
-    float stateTimer = 0, phase = 0;
-};
-// The Cave's own six-species chain (ECOSYSTEM_BESTIARY.md, "The Cave"), same architecture again. The
-// Stalactite Spiders are the 'P' ambush tiles themselves (real hazards, placed by the generator); this
-// overlay is the rest of the chain. A Bioluminescent Jelly Flashes when the diver dashes near it; a Pale
-// Salamander Hunts whichever Jelly just flashed (cosmetic chase - the light is how it finds prey in the
-// dark); a Fungal Beetle Bursts into a spore cloud on its own slow clock whenever a Salamander is Hunting
-// nearby; a Cave Leech clinging to the ceiling Drops when a spore cloud or a flashing Jelly is near it - the
-// one real hazard in this chain, same shape as the Island's Charging Boar. Cave Bats Roost until a nearby
-// Stalactite Spider bursts its ambush, then go Swarming. Giant Tube Worms are simpler ambient scenery,
-// Retracting briefly whenever a Leech Drops nearby (a heavy impact spooks them into the wall).
-enum class CaveEcoKind { Bat, Jelly, Salamander, Beetle, Leech, TubeWorm };
-enum class CaveEcoState { Idle, Wander, Roost, Swarming, Flash, Hunting, Bursting, Clinging, Dropping, Retracted };
-struct PlatCaveLife {
-    CaveEcoKind kind;
-    Vector2 pos{0, 0}, home{0, 0};
-    PersonalityProfile personality;
-    float dir = 1;
-    CaveEcoState state = CaveEcoState::Idle;
-    float stateTimer = 0, phase = 0;
-};
+// (Every level's creatures run on the living-AI engine - see beasts.h / PlatformState::fauna.)
 struct PlatShot { Vector2 pos, vel; float life; int kind; }; // 0 musket ball, 1 lit bomb, 2 explosion, 3 falling ink, 4 torpedo, 5 cannonball, 6 rolling barrel
 struct PlatLauncher { int tx, ty; char type; float t; }; // a torpedo tube (T), a deck cannon (N) or a barrel chute (y): fires on a timer, with a warning before
 struct PlatParticle { Vector2 p, v; float life, max, size; Color c; };
@@ -443,11 +387,7 @@ struct PlatformState {
     int checkpointChunk = 0;
     std::vector<PlatEnemy> enemies;
     std::vector<PlatCritter> critters; // ambient duct life (Pipes only) - see PlatCritter; never a hazard
-    std::vector<PlatPipeLife> pipeLife; // Pipes only - see PlatPipeLife; never a hazard, never reacts to the diver
-    std::vector<Vector2> lightSpots;    // Pipes only - the few surviving 'o' bioluminescent leaks Dust Moths fly toward
-    std::vector<PlatIslandLife> islandLife; // Island only - see PlatIslandLife; a Charging Boar IS a hazard
-    std::vector<PlatCaveLife> caveLife;     // Cave only - see PlatCaveLife; a Dropping Leech IS a hazard
-    BeastWorld fauna;                       // the living-AI creatures (beasts.h) - the Hull first, other levels as they move over
+    BeastWorld fauna;                       // the living-AI creatures (beasts.h), every level
     PlatBoss boss;
     std::vector<PlatParticle> particles;
     int coins = 0, deaths = 0, reward = 0, relic = -1, relic2 = -1; // relic2: Blackbeard sometimes leaves a second
@@ -780,6 +720,3 @@ void SceneAbyss(Game& g);
 void UpdateAbyss(Game& g, float dt); // the fixed-step simulation, callable headlessly for --verify
 bool VerifyAbyss();                  // debug: proves a run can descend past the first downdraft/sponge gauntlet
 bool VerifyCritters();               // debug (depth.exe --verify-critters): proves the Pipes' ambient duct life spawns and reacts
-bool VerifyPipeEcosystem();           // debug (depth.exe --verify-pipe-ecosystem): proves the Pipes' 10-species chain (web -> bite -> curl/roll -> flash -> panic) fires, entirely without the diver
-bool VerifyIslandEcosystem();         // debug (depth.exe --verify-island-ecosystem): proves the Island's chain (charge -> swarm/drop, web catch, coconut steal, dog tracking) fires
-bool VerifyCaveEcosystem();           // debug (depth.exe --verify-cave-ecosystem): proves the Cave's chain (flash -> hunt -> burst -> drop, bat swarm, tube worm retract) fires

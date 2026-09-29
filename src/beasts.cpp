@@ -205,7 +205,8 @@ void Perceive(BeastWorld& W, const PlatformState& p, int i) {
         if (o.life == BeastLife::Gone || o.hidden) continue;
         if (fabsf(o.pos.x - b.pos.x) > range || fabsf(o.pos.y - b.pos.y) > range) continue;
         if (o.life == BeastLife::Corpse) {
-            if (S.scavenge <= 0 && Pref(W.biome, b.species, o.species) <= 0) continue;
+            if ((S.scavenge <= 0 && Pref(W.biome, b.species, o.species) <= 0) || o.id == b.ignoreId) continue;
+            if (S.move != MoveMode::Fly && S.move != MoveMode::Swim && (W.nav.Hazard((int)floorf(o.pos.x / TILE), (int)floorf(o.pos.y / TILE)) || W.nav.Hazard((int)floorf(o.pos.x / TILE), (int)floorf(o.pos.y / TILE) + 1))) continue; // a body on the spikes stays there
             float v = visual(o.pos, {0, 0}, 0);
             if (v > 0.06f) Remember(b, MEM_FOOD, j, o.id, o.pos, {0, 0}, v * o.meat, W.time);
             continue;
@@ -257,7 +258,12 @@ void Perceive(BeastWorld& W, const PlatformState& p, int i) {
         if (s.source >= 0 && s.source < (int)W.beasts.size() && Alive(W.beasts[s.source]) && heard > 0.015f &&
             Pref(W.biome, b.species, W.beasts[s.source].species) > 0 && W.beasts[s.source].act != BeastAct::Puffed)
             Remember(b, MEM_PREY, s.source, W.beasts[s.source].id, s.pos, W.beasts[s.source].vel, std::min(0.6f, heard * 6), W.time);
+        // ...and prey listens for its hunters: in the dark, the scrabble of claws coming is all the warning there is
+        if (s.source >= 0 && s.source < (int)W.beasts.size() && heard > 0.015f && IsThreat(W, b, W.beasts[s.source]))
+            Remember(b, MEM_THREAT, s.source, W.beasts[s.source].id, s.pos, W.beasts[s.source].vel, std::min(0.7f, heard * 7), W.time);
         if (heard > 0.12f) Remember(b, MEM_SOUND, s.source, 0, s.pos, {0, 0}, heard, W.time);
+        // a sudden crash (a charge, a blast, a gunshot) close by startles the skittish, whatever made it
+        if (heard > 0.45f && S.diverFear >= 0.6f && s.intensity >= 0.7f && s.source != i) Remember(b, MEM_THREAT, s.source >= 0 ? s.source : -1, s.source >= 0 && s.source < (int)W.beasts.size() ? W.beasts[s.source].id : 0, s.pos, {0, 0}, std::min(0.8f, heard), W.time);
     }
     // blood in the water: scavengers and keen-nosed hunters smell a kill from well out of sight
     if (S.smell > 0.4f && (S.scavenge > 0 || S.diverPrey > 0)) {
@@ -349,7 +355,8 @@ float PreyScore(const BeastWorld& W, const Beast& b, const BeastMemory& m) {
         }
         if (o.straggler && o.act == BeastAct::Flee) iso += 0.3f + 0.5f * b.pers.intelligence;
     }
-    float d = Dist(m.pos, b.pos), ease = std::clamp(1.0f - d / (S.sight * 1.3f), 0.1f, 1.0f);
+    float reachSense = std::max(S.sight, 60 + 160 * S.hearing); // a blind hunter's world is as big as its ears
+    float d = Dist(m.pos, b.pos), ease = std::clamp(1.0f - d / (reachSense * 1.3f), 0.1f, 1.0f);
     return b.hunger * std::max(0.0f, suit * pref - risk) * recall * (0.55f + 0.45f * ease) * iso;
 }
 
@@ -615,8 +622,25 @@ Vector2 RouteToward(BeastWorld& W, Beast& b, const SpeciesDef& S, Vector2 target
     return wp;
 }
 
-void Motor(BeastWorld& W, const PlatformState& p, int i, Vector2 target, float speed, float dt) {
-    Beast& b = W.beasts[i];
+// Before it leaps, an animal judges the landing: the arc is traced through the tiles, and a leap that comes down
+// on spikes, in the sea or into a drop with no bottom isn't taken.
+bool SafeArc(const NavGrid& N, Vector2 pos, Vector2 vel, float hw, float hh) {
+    const float dt = 1 / 60.0f;
+    for (int k = 0; k < 120; k++) {
+        vel.y = std::min(vel.y + WALK_G * dt, 900.0f);
+        Vector2 next{pos.x + vel.x * dt, pos.y + vel.y * dt};
+        int cx = (int)floorf((next.x + (vel.x > 0 ? hw : -hw)) / TILE), cyb = (int)floorf(pos.y / TILE);
+        if (N.Solid(cx, cyb)) { vel.x = 0; next.x = pos.x; } // bumps a wall: drops straight down from there
+        pos = next;
+        int fx = (int)floorf(pos.x / TILE), fy = (int)floorf((pos.y + hh) / TILE);
+        if (N.Hazard(fx, fy) || N.Hazard(fx, (int)floorf(pos.y / TILE))) return false;
+        if (vel.y > 0 && N.Solid(fx, fy)) return !N.Hazard(fx, fy - 1);
+        if (pos.y > N.h * TILE) return false;
+    }
+    return false;
+}
+
+void Motor(BeastWorld& W, const PlatformState& p, int i, Vector2 target, float speed, float dt) {    Beast& b = W.beasts[i];
     const SpeciesDef& S = Sp(W.biome, b.species);
     if (S.move == MoveMode::Sessile) { b.vel = {0, 0}; return; }
     target.x = std::min(target.x, W.limitX - TILE);
@@ -628,13 +652,14 @@ void Motor(BeastWorld& W, const PlatformState& p, int i, Vector2 target, float s
         // ledge sense: an animal won't walk off into a drop it can't see the bottom of, onto spikes, or into the
         // sea - unless its planned route says the landing over there is good (a hop across a gap)
         int feetY = (int)floorf((b.pos.y + hh - 1) / TILE);
-        auto safeCol = [&](int x, int y0) { for (int k = 0; k <= 6; k++) { int y = y0 + k; if (W.nav.Hazard(x, y)) return false; if (W.nav.Solid(x, y)) return true; } return false; };
         bool onPath = !b.path.empty() && b.pathI < (int)b.path.size() && Dist(wp, b.path[b.pathI]) < 1;
+        int drop = onPath ? 8 : 3; // a planned route knows how far down the landing is; off the route, it won't risk more than a short hop down
+        auto safeCol = [&](int x, int y0) { for (int k = 0; k <= drop; k++) { int y = y0 + k; if (W.nav.Hazard(x, y)) return false; if (W.nav.Solid(x, y)) return true; } return false; };
         int aheadX = (int)floorf((b.pos.x + (dx > 0 ? 1 : -1) * (hw + 4)) / TILE);
         bool reckless = b.pers.abnormal == Abnormal::SuicidalSelfDestructive || b.act == BeastAct::Strike;
         bool safe = onPath ? safeCol((int)floorf(wp.x / TILE), (int)floorf(wp.y / TILE)) || safeCol(aheadX, feetY) : safeCol(aheadX, feetY);
         if (b.grounded && !safe && !reckless) { want = 0; b.vel.x *= 0.5f; }
-        float ax = S.accel * (b.grounded ? 1.0f : 0.45f) * dt;
+        float ax = S.accel * (b.grounded ? 1.0f : 0.12f) * dt; // barely any steering once it's left the ground
         b.vel.x += std::clamp(want - b.vel.x, -ax, ax);
         b.hopT -= dt;
         if (b.grounded && b.hopT <= 0) {
@@ -649,12 +674,20 @@ void Motor(BeastWorld& W, const PlatformState& p, int i, Vector2 target, float s
             if (up || gap || (climbable && wy <= cy)) {
                 float rise = (climbable ? (cy - top) : std::max(1, cy - wy)) * TILE + 18;
                 b.vel.y = -sqrtf(2 * WALK_G * rise);
-                float carry = gap ? fabsf(dx) : std::min(fabsf(dx), TILE * 1.2f); // just far enough to land - not over the bulwark
-                b.vel.x = sx * std::min(carry * 2.6f + 30, S.sprint);
+                // just far enough to land - on top of the riser, not over it and into whatever is behind
+                float carry = gap ? fabsf(dx) : climbable ? fabsf(ahead * TILE + 16 - b.pos.x) : std::min(fabsf(dx), TILE * 1.0f);
+                float flight = (-b.vel.y / WALK_G) * (gap ? 1.8f : 1.25f);
+                float vy = b.vel.y, vx = sx * std::min(carry / std::max(0.1f, flight), S.sprint);
+                b.vel.y = 0;
+                if (b.pers.abnormal == Abnormal::SuicidalSelfDestructive || SafeArc(W.nav, b.pos, {vx, vy}, hw, hh)) { b.vel.y = vy; b.vel.x = vx; }
+                else { b.vel.x *= 0.3f; b.stuckT += 0.5f; } // it looks, and thinks better of it
                 b.hopT = 0.25f; // a hop settles before the next one
             }
         }
         b.vel.y = std::min(b.vel.y + WALK_G * dt, 900.0f);
+    } else if (S.move == MoveMode::Climb && b.act == BeastAct::Drift) { // a crawler that has let go simply falls
+        b.vel.x *= 0.9f;
+        b.vel.y = std::min(b.vel.y + WALK_G * dt, 700.0f);
     } else {
         Vector2 desired = Mul(Norm(Sub(wp, b.pos)), speed);
         if (Dist(wp, b.pos) < 6) desired = {0, 0};
@@ -1060,7 +1093,7 @@ void UpdateBeast(BeastWorld& W, PlatformState& p, int i, float dt) {
         if (striker && b.act == BeastAct::Hunt && d < strikeR && b.cooldown <= 0 && W.nav.LineOfSight(b.pos, tp) &&
             (!Has(S, T_CHARGER) || fabsf(tp.y - b.pos.y) < TILE * 1.3f)) {
             b.act = BeastAct::Coil; b.actT = 0; b.goal = go;
-            W.sounds.push_back({b.pos, 0.25f, 0.3f, i});
+            W.sounds.push_back({b.pos, Has(S, T_CHARGER) && b.mass > 20 ? 0.9f : 0.25f, 0.3f, i}); // a boar's snort and stamp carries
         }
         // stalkers (the clever and the patient) close in slowly while the target isn't looking
         if (b.act == BeastAct::Hunt && b.pers.intelligence > 0.6f && d > strikeR && d < S.sight * 0.8f && b.target != BEAST_DIVER) speed = spd * 0.8f;
@@ -1123,6 +1156,7 @@ void UpdateBeast(BeastWorld& W, PlatformState& p, int i, float dt) {
         if (b.target >= 0 && Valid(W, b.target, b.targetId) && W.beasts[b.target].life == BeastLife::Corpse) {
             Beast& c = W.beasts[b.target];
             go = c.pos; speed = spd * 1.2f;
+            if (b.actT > 12) { b.ignoreId = b.targetId; Forget(b, b.target, b.targetId); b.act = BeastAct::Wander; b.thinkT = 0; b.cooldown = std::max(b.cooldown, 4.0f); break; } // can't get to it: gives up and forgets it
             if (Dist(c.pos, b.pos) < S.radius + 16) {
                 if (b.pers.abnormal == Abnormal::Kleptomaniac || b.pers.abnormal == Abnormal::CovetousHoarder) { b.carry = b.target; b.act = BeastAct::Flee; b.goal = b.den >= 0 ? DenMouth(W, b.den) : b.territory; }
                 else {
@@ -1196,7 +1230,9 @@ void UpdateBeast(BeastWorld& W, PlatformState& p, int i, float dt) {
             const SpeciesDef& TS = Sp(W.biome, t.species);
             if (Alive(t) && !t.hidden && Dist(t.pos, b.pos) < (S.radius + TS.radius) * 0.9f + 4) {
                 bool eats = Pref(W.biome, b.species, t.species) > 0 || b.pers.abnormal == Abnormal::GluttonousDevourer || b.pers.abnormal == Abnormal::RabidEnraged;
-                if (t.act == BeastAct::Puffed || (Has(TS, T_TOXIC) && b.act != BeastAct::Mob)) { // a mouthful of spines, or of poison: spat out, and remembered
+                if (Has(TS, T_CURL) && t.act != BeastAct::Puffed && R(W) < 0.75f) { t.act = BeastAct::Puffed; t.actT = 0; t.facing = t.pos.x > b.pos.x ? 1.0f : -1.0f; } // the reflex: grabbed at, it rolls up
+                if (t.act == BeastAct::Puffed && Has(TS, T_CURL)) { b.act = BeastAct::Wander; b.thinkT = 1.0f; b.cooldown = 2; t.vel.x += (t.pos.x > b.pos.x ? 1 : -1) * 120.0f; } // an armoured ball: nothing to bite, and it rolls away
+                else if (t.act == BeastAct::Puffed || (Has(TS, T_TOXIC) && b.act != BeastAct::Mob)) { // a mouthful of spines, or of poison: spat out, and remembered
                     Hurt(W, p, i, 0.35f, t.species, false); b.act = BeastAct::Flee; b.goal = FleeTarget(W, i, t.pos); b.actT = 0;
                     if (Has(TS, T_TOXIC)) t.vel = Add(t.vel, Mul(Norm(Sub(t.pos, b.pos)), 200));
                 }
@@ -1248,7 +1284,8 @@ void UpdateBeast(BeastWorld& W, PlatformState& p, int i, float dt) {
     }
     // a suicidal beast that reaches its hazard, or anything panicked into one, dies on it
     int tx = (int)floorf(b.pos.x / TILE), ty = (int)floorf(b.pos.y / TILE);
-    if (W.nav.Hazard(tx, ty) && (b.pers.abnormal == Abnormal::SuicidalSelfDestructive || S.move == MoveMode::Walk || S.move == MoveMode::Climb)) { W.deaths[1]++; if (getenv("DEPTH_BEASTLOG")) TraceLog(LOG_WARNING, "  hazard death: %s %s at tile (%d,%d) %c below %c waterY %.0f vel (%.0f,%.0f)", Sp(W.biome, b.species).name, BeastActName(b.act), tx, ty, PlatTileAt(p, tx, ty), PlatTileAt(p, tx, ty + 1), p.waterY, b.vel.x, b.vel.y); Kill(W, p, i, -1); return; }
+    bool impaled = W.nav.Hazard(tx, ty) && (S.move == MoveMode::Walk || S.move == MoveMode::Climb) && (b.mass >= 1.5f || b.vel.y > 250); // a light critter can pick its way between spikes; landing on them is another matter
+    if (W.nav.Hazard(tx, ty) && (b.pers.abnormal == Abnormal::SuicidalSelfDestructive || impaled)) { W.deaths[1]++; if (getenv("DEPTH_BEASTLOG")) TraceLog(LOG_WARNING, "  hazard death: %s %s at tile (%d,%d) %c below %c vel (%.0f,%.0f) goal (%d,%d) path %d/%d lastPos (%d,%d) hop %.2f", Sp(W.biome, b.species).name, BeastActName(b.act), tx, ty, PlatTileAt(p, tx, ty), PlatTileAt(p, tx, ty + 1), b.vel.x, b.vel.y, (int)(b.goal.x / TILE), (int)(b.goal.y / TILE), b.pathI, (int)b.path.size(), (int)(b.lastPos.x / TILE), (int)(b.lastPos.y / TILE), b.hopT); Kill(W, p, i, -1); return; }
     // stray shots kill what's in their way: torpedoes and cannonballs anything smallish, a musket ball anything
     // small, an explosion anything in its blast (friendly fire - the pirates don't aim around the ship's cat)
     for (const auto& s : p.shots) {

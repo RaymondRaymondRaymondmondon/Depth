@@ -90,6 +90,7 @@ struct Beast {
     float special = 0, special2 = 0, cooldown = 0, flashT = 0;
     int latched = -1;             // parasites riding a host
     int carry = -1;               // hoarders dragging a corpse
+    int ignoreId = 0;             // a meal it gave up on (out of reach) - it stops noticing it
     Vector2 territory{0, 0};
     Vector2 spine[SPINE];         // segmented bodies follow the head (serpentine / tail animation)
     Leg legs[LEGS];               // walkers plant their feet and step (see ik.h and UpdateGait)

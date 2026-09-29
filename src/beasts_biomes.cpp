@@ -158,6 +158,323 @@ const BiomeDef& PirateBiome() {
     return B;
 }
 
+// ============================================================ the Island
+// ECOSYSTEM_BESTIARY.md, "The Island": wild boar root about the shrines and, cornered, turn and charge whatever
+// pressed them - the diver included; tree snakes lie camouflaged along branches and ledges and drop on frogs,
+// bats and lizards; monitor lizards bask and scavenge; fruit bats roost in colonies and burst out at any crash;
+// orb spiders hang webs that catch them; coconut crabs cut coconuts loose, and the thud brings gulls to steal
+// them; poison dart frogs are left alone by anything that's bitten one before; and the villagers' hunting dogs
+// run in pairs, nose down on the diver's trail, and shove - which, on a cliff, is enough.
+//            name              move              mass  rad  speed sprint accel sight  fov   hear smell hunger  dFear dPrey lethal social band pop  den   scav  traits
+const SpeciesDef ISLAND[IS_COUNT] = {
+    {"Wild Boar",        MoveMode::Walk,   60.0f, 13,   50, 290, 1100,  180, 1.8f, 0.9f, 1.0f, 0.012f, 0.5f,  0.0f, true,  false, 0,  3, 0.5f, 0.6f, T_STRIKER | T_CHARGER | T_DEFENSIVE, 150},
+    {"Tree Snake",       MoveMode::Climb,   1.5f,  6,   35, 260,  900,  130, 1.5f, 0.4f, 0.9f, 0.015f, 0.4f,  0.0f, true,  false, 0,  3, 0.8f, 0.0f, T_STRIKER | T_CAMO, 70},
+    {"Monitor Lizard",   MoveMode::Walk,    8.0f, 10,   40, 200, 1000,  200, 2.0f, 0.5f, 0.9f, 0.010f, 0.6f,  0.0f, false, false, 0,  2, 0.5f, 1.0f, 0},
+    {"Fruit Bat",        MoveMode::Fly,     0.5f,  6,   70, 230,  900,  150, PI,   1.0f, 0.5f, 0.015f, 0.8f,  0.0f, false, true,  4, 10, 0.95f, 0.3f, T_ROOST | T_ECHO},
+    {"Orb Spider",       MoveMode::Sessile, 0.3f, 12,    0,   0,    0,   40, PI,   0.3f, 0.0f, 0.010f, 0.0f,  0.0f, false, false, 0,  3, 0.0f, 0.0f, T_TRAP},
+    {"Coconut Crab",     MoveMode::Walk,    4.0f,  9,   35, 120,  800,  140, 2.2f, 0.6f, 0.9f, 0.015f, 0.6f,  0.0f, false, false, 0,  3, 0.7f, 1.0f, 0},
+    {"Dart Frog",        MoveMode::Walk,    0.3f,  5,   40, 160,  900,  120, 2.4f, 0.6f, 0.3f, 0.010f, 0.8f,  0.0f, false, false, 0,  6, 0.6f, 0.0f, T_TOXIC},
+    {"Gull",             MoveMode::Fly,     0.8f,  7,   80, 240,  700,  240, 2.6f, 0.5f, 0.5f, 0.020f, 0.6f,  0.0f, false, true,  6,  5, 0.2f, 1.0f, T_MOBBER | T_KLEPTO},
+    {"Hunting Dog",      MoveMode::Walk,   20.0f, 11,   70, 300, 1200,  200, 2.0f, 0.9f, 1.0f, 0.018f, 0.2f,  0.5f, false, true,  0,  3, 0.5f, 0.6f, T_STRIKER, 70},
+    {"Coconut",          MoveMode::Sessile, 0.5f,  5,    0,   0,    0,    0, 0,    0.0f, 0.0f, 0.000f, 0.0f,  0.0f, false, false, 0,  0, 0.0f, 0.0f, 0},
+};
+const FoodEdge ISLAND_WEB[] = {
+    {IS_SNAKE, IS_FROG, 0.5f},  {IS_SNAKE, IS_BAT, 0.7f},   {IS_SNAKE, IS_LIZARD, 0.2f},
+    {IS_LIZARD, IS_FROG, 0.4f}, {IS_LIZARD, IS_CRAB, 0.3f}, {IS_LIZARD, IS_SNAKE, 0.3f},
+    {IS_DOG, IS_LIZARD, 0.6f},  {IS_DOG, IS_CRAB, 0.3f},
+    {IS_SPIDER, IS_BAT, 0.6f},  {IS_SPIDER, IS_FROG, 0.2f},
+};
+
+static void SpawnIsland(BeastWorld& W, PlatformState& p) {
+    Spots sp; sp.Build(W, p, 12, W.nav.w - 8);
+    if (sp.floor.empty()) return;
+    unsigned s = W.seed;
+    for (int k = 0; k < 3; k++) NewBeast(W, IS_BOAR, NearDenFloor(W, sp, 0.12f + 0.3f * k + Hash(s, 10 + k) * 0.15f, 13));
+    for (int k = 0; k < 3; k++) { int b = NewBeast(W, IS_SNAKE, sp.Stand(sp.At(0.2f + 0.28f * k + Hash(s, 20 + k) * 0.1f), 6)); W.beasts[b].special = 1; }
+    for (int k = 0; k < 2; k++) NewBeast(W, IS_LIZARD, sp.Stand(sp.At(0.3f + 0.4f * k), 10));
+    for (int k = 0; k < 2; k++) Pack(W, IS_BAT, sp.Above(W, sp.At(0.25f + 0.5f * k + Hash(s, 30 + k) * 0.1f), 5), 5, 50 + k, 50, 20, 300 + k * 10);
+    for (int k = 0; k < 3; k++) NewBeast(W, IS_SPIDER, sp.Above(W, sp.At(0.18f + 0.3f * k + Hash(s, 40 + k) * 0.08f), 3));
+    for (int k = 0; k < 3; k++) NewBeast(W, IS_CRAB, NearDenFloor(W, sp, 0.1f + 0.33f * k + Hash(s, 50 + k) * 0.1f, 9));
+    for (int k = 0; k < 6; k++) NewBeast(W, IS_FROG, sp.Stand(sp.At(0.08f + 0.15f * k + Hash(s, 60 + k) * 0.05f), 5));
+    Pack(W, IS_GULL, sp.Above(W, sp.At(0.55f), 7), 5, 60, 90, 40, 700);
+    Pack(W, IS_DOG, sp.Stand(sp.At(0.45f + Hash(s, 70) * 0.2f), 11), 2, 70, 30, 0, 800);
+}
+
+static void IslandHooks(BeastWorld& W, PlatformState& p, int i, float dt) {
+    Beast& b = W.beasts[i];
+    switch (b.species) {
+    case IS_SNAKE: { // camouflage along its branch while it keeps still
+        bool still = Len(b.vel) < 20;
+        b.special = Clamp01(b.special + (still ? 0.3f : -0.9f) * dt);
+        break;
+    }
+    case IS_FROG: // it hops rather than walks
+        if (b.grounded && fabsf(b.vel.x) > 10 && b.hopT <= 0) { b.vel.y = -260 - 120 * b.pers.energy; b.vel.x *= 1.6f; b.hopT = 0.5f; }
+        break;
+    case IS_CRAB: // now and then, calm and not too full, it climbs and cuts a coconut down - thud
+        b.special -= dt;
+        if (b.special <= 0 && b.fear < 0.2f && (b.act == BeastAct::Wander || b.act == BeastAct::Idle)) {
+            b.special = 14 + 12 * Hash((unsigned)b.id, (unsigned)W.time);
+            Vector2 at{b.pos.x + b.facing * 20, b.pos.y - 3 * TILE};
+            while (at.y < b.pos.y && W.nav.Solid((int)floorf(at.x / TILE), (int)floorf(at.y / TILE))) at.y += TILE / 2; // from the lowest open bough
+            int c = SpawnCorpse(W, IS_COCONUT, at, 1.0f);
+            W.beasts[c].vel = {b.facing * 30, 0};
+            W.sounds.push_back({b.pos, 0.55f, 0.4f, -1});
+            Remember(b, MEM_FOOD, c, W.beasts[c].id, W.beasts[c].pos, {0, 0}, 1.0f, W.time);
+        }
+        break;
+    default: break;
+    }
+    (void)p;
+}
+static bool IslandLethal(const BeastWorld& W, const Beast& b) {
+    (void)W;
+    if (b.species == IS_BOAR) return b.act == BeastAct::Strike; // a charging boar
+    if (b.species == IS_SNAKE) return b.act == BeastAct::Strike; // a striking snake
+    return false;
+}
+const BiomeDef& IslandBiome() {
+    static const BiomeDef B = [] {
+        BiomeDef d;
+        d.level = PL_ISLAND; d.species = ISLAND; d.count = IS_COUNT; d.web = ISLAND_WEB; d.webN = (int)(sizeof(ISLAND_WEB) / sizeof(ISLAND_WEB[0]));
+        d.water = false; d.clarity = 0.85f; d.daylight = 0.8f;
+        d.spawn = SpawnIsland; d.hooks = IslandHooks; d.lethal = IslandLethal;
+        return d;
+    }();
+    return B;
+}
+// ============================================================ the Cave
+// ECOSYSTEM_BESTIARY.md, "The Cave": it's dark here, so light is everything. Cave moths drift toward any glow -
+// the diver's lamp, a light pool, a jelly's flash; drifting glow-jellies flash when disturbed, which draws the
+// moths in to be stung, and shows everything nearby to whatever is hunting; bats hunt the moths by echo and roost
+// in colonies; blind pale salamanders hunt by ear and tongue; fungal beetles, cornered, burst into a spore cloud
+// that blinds; cave leeches hang from the ceiling and drop on anything warm that passes under - the diver too,
+// and a dropping leech is the one creature here that kills; giant tube worms comb the air with their plumes and
+// snap back into their tubes at the slightest tremor.
+//            name              move              mass  rad  speed sprint accel sight  fov   hear smell hunger  dFear dPrey lethal social band pop  den   scav  traits
+const SpeciesDef CAVE[CS_COUNT] = {
+    {"Cave Bat",         MoveMode::Fly,     0.5f,  6,   80, 250,  900,  170, PI,   1.0f, 0.4f, 0.020f, 0.7f,  0.0f, false, true,  4,  8, 0.95f, 0.0f, T_ROOST | T_ECHO},
+    {"Glow Jelly",       MoveMode::Fly,     0.4f,  7,   14,  45,  120,   80, PI,   0.4f, 0.2f, 0.006f, 0.5f,  0.0f, false, false, 3,  5, 0.0f, 0.0f, T_FLASH},
+    {"Pale Salamander",  MoveMode::Walk,    2.0f,  9,   35, 190, 1000,   90, 1.6f, 1.0f, 1.0f, 0.016f, 0.5f,  0.0f, false, false, 0,  3, 0.6f, 0.4f, T_STRIKER | T_HOST, 60},
+    {"Fungal Beetle",    MoveMode::Walk,    0.6f,  6,   25, 110,  700,  100, 2.0f, 0.7f, 0.8f, 0.012f, 0.7f,  0.0f, false, false, 0,  6, 0.6f, 1.0f, 0},
+    {"Cave Leech",       MoveMode::Climb,   0.2f,  5,   18,  40,  300,   60, PI,   0.8f, 1.0f, 0.015f, 0.2f,  0.0f, false, false, 0,  5, 0.0f, 0.0f, T_ROOST},
+    {"Giant Tube Worm",  MoveMode::Sessile, 3.0f, 10,    0,   0,    0,   50, PI,   0.9f, 0.0f, 0.010f, 0.0f,  0.0f, false, false, 0,  3, 0.0f, 0.0f, T_TRAP},
+    {"Cave Moth",        MoveMode::Fly,     0.1f,  4,   45, 130,  600,  160, PI,   0.5f, 0.3f, 0.010f, 0.6f,  0.0f, false, false, 3, 10, 0.2f, 0.0f, T_LIGHTSEEK},
+};
+const FoodEdge CAVE_WEB[] = {
+    {CS_BAT, CS_MOTH, 1.0f},
+    {CS_SALAMANDER, CS_BEETLE, 0.7f}, {CS_SALAMANDER, CS_MOTH, 0.5f}, {CS_SALAMANDER, CS_LEECH, 0.3f},
+    {CS_WORM, CS_MOTH, 1.0f}, {CS_WORM, CS_JELLY, 0.4f},
+    {CS_JELLY, CS_MOTH, 0.8f},
+};
+
+// A ceiling above a floor spot: the underside of the first solid tile going up (for roosting leeches).
+static bool CeilingAbove(const BeastWorld& W, Vector2 f, Vector2& out) {
+    int x = (int)(f.x / TILE);
+    for (int y = (int)f.y - 1; y > 0; y--) if (W.nav.Solid(x, y)) { if ((int)f.y - y < 3) return false; out = {f.x, (y + 1) * TILE + 6.0f}; return true; }
+    return false;
+}
+static void SpawnCave(BeastWorld& W, PlatformState& p) {
+    Spots sp; sp.Build(W, p, 12, W.nav.w - 8);
+    if (sp.floor.empty()) return;
+    unsigned s = W.seed;
+    for (int k = 0; k < 2; k++) Pack(W, CS_BAT, sp.Above(W, sp.At(0.2f + 0.5f * k + Hash(s, 10 + k) * 0.1f), 5), 4, 80 + k, 40, 20, 100 + k * 10);
+    for (int k = 0; k < 5; k++) NewBeast(W, CS_JELLY, sp.Above(W, sp.At(0.1f + 0.18f * k + Hash(s, 20 + k) * 0.08f), 3 + (k % 3)));
+    for (int k = 0; k < 3; k++) NewBeast(W, CS_SALAMANDER, NearDenFloor(W, sp, 0.15f + 0.3f * k + Hash(s, 30 + k) * 0.1f, 9));
+    for (int k = 0; k < 6; k++) NewBeast(W, CS_BEETLE, sp.Stand(sp.At(0.08f + 0.15f * k + Hash(s, 40 + k) * 0.06f), 6));
+    for (int k = 0, n = 0; k < 40 && n < 5; k++) {
+        Vector2 c;
+        if (!CeilingAbove(W, sp.At(Hash(s, 50 + k)), c)) continue;
+        int b = NewBeast(W, CS_LEECH, c); W.beasts[b].territory = c; W.beasts[b].act = BeastAct::Ambush; n++;
+    }
+    for (int k = 0; k < 3; k++) { Vector2 f = sp.At(0.2f + 0.3f * k + Hash(s, 60 + k) * 0.1f); NewBeast(W, CS_WORM, {f.x, (f.y + 1) * TILE - 2}); }
+    for (int k = 0; k < 10; k++) NewBeast(W, CS_MOTH, sp.Above(W, sp.At(0.05f + 0.095f * k), 2 + (k % 4)));
+    for (auto& b : W.beasts) if (b.species == CS_JELLY || b.species == CS_MOTH) b.territory = b.pos;
+}
+
+static void CaveExtras(BeastWorld& W, const PlatformState& p, int i, Choice& best) {
+    Beast& b = W.beasts[i];
+    if (b.species == CS_MOTH && b.fear < 0.5f) { // the moth to the flame: the brightest light it can see
+        Vector2 at{0, 0}; float bright = 0;
+        for (const auto& l : W.lights) { float d = Dist(l.pos, b.pos); if (d < 9 * TILE && l.strength / (1 + d / TILE) > bright) { bright = l.strength / (1 + d / TILE); at = l.pos; } }
+        for (const auto& l : W.lamps) { float d = Dist(l, b.pos); if (d < 9 * TILE && 0.7f / (1 + d / TILE) > bright) { bright = 0.7f / (1 + d / TILE); at = l; } }
+        Diver dv = SeeDiver(p);
+        if (dv.alive) { float d = Dist(dv.pos, b.pos); if (d < 9 * TILE && 0.9f / (1 + d / TILE) > bright) { bright = 0.9f / (1 + d / TILE); at = Add(dv.pos, Vector2{0, -12}); } } // the helmet lamp
+        if (bright > 0) Consider(b, best, BeastAct::Investigate, 0.45f + bright, -1, 0, Add(at, Vector2{sinf(b.phase * 2) * 18, cosf(b.phase * 1.7f) * 12}));
+    }
+    if (b.species == CS_JELLY) Consider(b, best, BeastAct::Wander, 0.3f, -1, 0, b.territory); // it drifts where the air takes it
+}
+
+static void CaveHooks(BeastWorld& W, PlatformState& p, int i, float dt) {
+    Beast& b = W.beasts[i];
+    switch (b.species) {
+    case CS_BEETLE: // cornered, it bursts: a spore cloud that blinds whatever's after it
+        if (b.fear > 0.5f && b.cooldown <= 0) {
+            for (const auto& m : b.mem) if (m.kind == MEM_THREAT && Recall(b, m, W.time) > 0.3f && Dist(m.pos, b.pos) < 70) {
+                AddCloud(W, b.pos, 58, 2.4f, 1);
+                W.sounds.push_back({b.pos, 0.5f, 0.3f, i});
+                b.cooldown = 9;
+                if (!p.verifying) PlatBurst(p, b.pos, 14, Color{160, 200, 100, 255}, 70, 1.0f, 3);
+                break;
+            }
+        }
+        break;
+    case CS_WORM: { // any tremor near its tube and it's gone - then slowly back out
+        if (b.act == BeastAct::Hide) break;
+        bool tremor = false;
+        for (const auto& s : W.sounds) if (s.source != i && Dist(s.pos, b.pos) < 70 && s.intensity > 0.12f) tremor = true;
+        Diver dv = SeeDiver(p);
+        if (dv.alive && Dist(dv.pos, b.pos) < 50) tremor = true;
+        if (tremor) { b.act = BeastAct::Hide; b.actT = 0; }
+        break;
+    }
+    case CS_LEECH: { // 0 hanging from the ceiling, 1 dropping, 2 crawling back up to its spot
+        if (b.special == 0) {
+            b.pos = b.territory; b.vel = {0, 0}; b.act = BeastAct::Ambush; b.thinkT = 1;
+            if (b.cooldown > 0) break;
+            bool below = false;
+            Diver dv = SeeDiver(p);
+            if (dv.alive && fabsf(dv.pos.x - b.pos.x) < 14 && dv.pos.y > b.pos.y && dv.pos.y - b.pos.y < 11 * TILE && W.nav.LineOfSight(b.pos, dv.pos)) below = true;
+            for (const auto& o : W.beasts) if (Alive(o) && !o.hidden && o.species != CS_LEECH && Sp(W.biome, o.species).move != MoveMode::Fly && fabsf(o.pos.x - b.pos.x) < 12 && o.pos.y > b.pos.y && o.pos.y - b.pos.y < 11 * TILE) below = true;
+            if (below) { b.special = 1; b.act = BeastAct::Drift; b.actT = 0; b.vel = {0, 40}; W.sounds.push_back({b.pos, 0.2f, 0.2f, i}); }
+        } else if (b.special == 1) {
+            b.act = BeastAct::Drift; b.thinkT = 1;
+            for (int j = 0; j < (int)W.beasts.size(); j++) { // landing on something warm: it bites, and drops off
+                Beast& o = W.beasts[j];
+                if (j != i && Alive(o) && o.species != CS_LEECH && Dist(o.pos, b.pos) < Sp(W.biome, o.species).radius + 5) { Hurt(W, p, j, 0.3f, CS_LEECH, false); Remember(o, MEM_THREAT, i, b.id, b.pos, {0, 0}, 1, W.time); b.special = 2; b.actT = 0; }
+            }
+            if (b.grounded || b.actT > 3) { b.special = 2; b.actT = 0; }
+        } else {
+            b.act = BeastAct::Explore; b.goal = b.territory; b.thinkT = 1; // crawls back up the wall to its spot
+            if (Dist(b.pos, b.territory) < 22 || b.actT > 40) { b.special = 0; b.cooldown = 4; b.pos = b.territory; }
+        }
+        break;
+    }
+    default: break;
+    }
+}
+static bool CaveLethal(const BeastWorld& W, const Beast& b) {
+    (void)W;
+    return b.species == CS_LEECH && b.special == 1 && b.vel.y > 60; // a leech coming down on you
+}
+const BiomeDef& CaveBiome() {
+    static const BiomeDef B = [] {
+        BiomeDef d;
+        d.level = PL_CAVE; d.species = CAVE; d.count = CS_COUNT; d.web = CAVE_WEB; d.webN = (int)(sizeof(CAVE_WEB) / sizeof(CAVE_WEB[0]));
+        d.water = false; d.clarity = 0.55f; d.daylight = 0.06f;
+        d.spawn = SpawnCave; d.hooks = CaveHooks; d.extras = CaveExtras; d.lethal = CaveLethal;
+        return d;
+    }();
+    return B;
+}
+// ============================================================ the Pipes
+// ECOSYSTEM_BESTIARY.md, "The Pipes": "Entities ignore the player; all hazards stem from systemic chaos" - nothing
+// here notices the diver at all (CLAUDE.md: the Pipes have no enemies), it just lives. Dust moths drift to the
+// duct's surviving light leaks; water-spiders web them; centipedes crawl the walls and ceilings after crickets
+// and pillbugs and pick the webs clean; blind pipe-rats hunt by ear in pairs; rust-mites swarm over the pipes;
+// pillbugs curl into armoured balls and roll; scavenger mice pick over everything and cockroaches steal from
+// them; a glow-beetle bumped in the dark flashes, and the cave crickets bolt from the flash in a stampede that
+// sets the next ones off.
+//            name              move              mass  rad  speed sprint accel sight  fov   hear smell hunger  dFear dPrey lethal social band pop  den   scav  traits
+const SpeciesDef PIPES[PP_COUNT] = {
+    {"Dust Moth",        MoveMode::Fly,     0.1f,  4,   40, 120,  600,  140, PI,   0.4f, 0.2f, 0.010f, 0.6f,  0.0f, false, false, 2,  8, 0.1f, 0.0f, T_LIGHTSEEK},
+    {"Water-Spider",     MoveMode::Sessile, 0.3f, 11,    0,   0,    0,   40, PI,   0.4f, 0.0f, 0.010f, 0.0f,  0.0f, false, false, 0,  4, 0.0f, 0.0f, T_TRAP},
+    {"Centipede",        MoveMode::Climb,   1.0f,  7,   45, 150,  800,  110, 2.0f, 0.8f, 0.9f, 0.016f, 0.4f,  0.0f, false, false, 0,  4, 0.6f, 1.0f, T_STRIKER, 50},
+    {"Blind Pipe-Rat",   MoveMode::Walk,    0.6f,  7,   55, 170,  900,   40, 1.2f, 1.0f, 1.0f, 0.018f, 0.5f,  0.0f, false, true,  0,  4, 0.8f, 0.6f, T_MOBBER},
+    {"Rust-Mite",        MoveMode::Walk,    0.02f, 3,   30,  70,  500,   60, PI,   0.4f, 0.6f, 0.010f, 0.8f,  0.0f, false, true,  0, 12, 0.4f, 0.5f, T_MOBBER},
+    {"Pillbug",          MoveMode::Walk,    0.15f, 5,   20,  60,  400,   70, PI,   0.6f, 0.5f, 0.008f, 0.8f,  0.0f, false, false, 0,  6, 0.5f, 0.6f, T_CURL},
+    {"Scavenger Mouse",  MoveMode::Walk,    0.3f,  5,   60, 190, 1000,  120, 2.4f, 0.8f, 0.9f, 0.018f, 0.7f,  0.0f, false, false, 0,  4, 0.8f, 1.0f, 0},
+    {"Cockroach",        MoveMode::Walk,    0.3f,  5,   55, 200, 1100,   90, 2.4f, 0.7f, 0.9f, 0.014f, 0.6f,  0.0f, false, false, 0,  6, 0.6f, 1.0f, T_KLEPTO},
+    {"Glow-Beetle",      MoveMode::Walk,    0.2f,  5,   25,  90,  500,   80, 2.0f, 0.6f, 0.4f, 0.008f, 0.7f,  0.0f, false, false, 0,  4, 0.5f, 0.5f, T_FLASH},
+    {"Cave Cricket",     MoveMode::Walk,    0.15f, 5,   35, 200,  900,  100, PI,   0.9f, 0.3f, 0.010f, 0.9f,  0.0f, false, true,  0,  8, 0.4f, 0.4f, 0},
+};
+const FoodEdge PIPES_WEB[] = {
+    {PP_SPIDER, PP_MOTH, 1.0f}, {PP_SPIDER, PP_MITE, 0.3f},
+    {PP_CENTIPEDE, PP_CRICKET, 0.5f}, {PP_CENTIPEDE, PP_PILLBUG, 0.4f}, {PP_CENTIPEDE, PP_MITE, 0.4f},
+    {PP_RAT, PP_CENTIPEDE, 0.8f}, {PP_RAT, PP_CRICKET, 0.6f}, {PP_RAT, PP_MOUSE, 0.3f}, {PP_RAT, PP_ROACH, 0.5f},
+    {PP_MOUSE, PP_PILLBUG, 0.8f}, {PP_MOUSE, PP_MITE, 0.5f},
+};
+
+static void SpawnPipes(BeastWorld& W, PlatformState& p) {
+    Spots sp; sp.Build(W, p, 10, W.nav.w - 8);
+    if (sp.floor.empty()) return;
+    unsigned s = W.seed;
+    for (int k = 0; k < 8; k++) { int b = NewBeast(W, PP_MOTH, sp.Above(W, sp.At(0.05f + 0.12f * k + Hash(s, 10 + k) * 0.05f), 2)); W.beasts[b].territory = W.beasts[b].pos; }
+    for (int k = 0; k < 4; k++) { // webs strung near the light leaks where the moths come, else anywhere
+        Vector2 at = sp.Above(W, sp.At(0.15f + 0.22f * k), 2);
+        if (!W.lamps.empty()) { Vector2 l = W.lamps[(size_t)(Hash(s, 20 + k) * W.lamps.size()) % W.lamps.size()]; at = {l.x + (Hash(s, 30 + k) - 0.5f) * 80, l.y + 20}; if (W.nav.Solid((int)(at.x / TILE), (int)(at.y / TILE))) at = l; }
+        NewBeast(W, PP_SPIDER, at);
+    }
+    for (int k = 0; k < 4; k++) NewBeast(W, PP_CENTIPEDE, sp.Stand(sp.At(0.1f + 0.24f * k + Hash(s, 40 + k) * 0.1f), 7));
+    for (int k = 0; k < 2; k++) Pack(W, PP_RAT, NearDenFloor(W, sp, 0.2f + 0.5f * k, 7), 2, 90 + k, 30, 0, 500 + k * 10);
+    for (int k = 0; k < 2; k++) Pack(W, PP_MITE, sp.Stand(sp.At(0.3f + 0.4f * k), 3), 6, 95 + k, 50, 0, 600 + k * 10);
+    for (int k = 0; k < 6; k++) NewBeast(W, PP_PILLBUG, sp.Stand(sp.At(0.07f + 0.15f * k + Hash(s, 70 + k) * 0.05f), 5));
+    for (int k = 0; k < 4; k++) NewBeast(W, PP_MOUSE, NearDenFloor(W, sp, 0.12f + 0.24f * k, 5));
+    for (int k = 0; k < 6; k++) NewBeast(W, PP_ROACH, sp.Stand(sp.At(0.1f + 0.15f * k + Hash(s, 90 + k) * 0.05f), 5));
+    for (int k = 0; k < 4; k++) NewBeast(W, PP_GLOW, sp.Stand(sp.At(0.18f + 0.22f * k), 5));
+    for (int k = 0; k < 2; k++) Pack(W, PP_CRICKET, sp.Stand(sp.At(0.25f + 0.45f * k + Hash(s, 110 + k) * 0.1f), 5), 4, 98 + k, 60, 0, 900 + k * 10);
+}
+
+static void PipesExtras(BeastWorld& W, const PlatformState& p, int i, Choice& best) {
+    Beast& b = W.beasts[i];
+    (void)p;
+    if (b.species == PP_MOTH && b.fear < 0.5f) { // drawn to the light leaks (never the diver's lamp: it isn't part of their world)
+        Vector2 at{0, 0}; float bright = 0;
+        for (const auto& l : W.lamps) { float d = Dist(l, b.pos); if (d < 12 * TILE && 0.8f / (1 + d / TILE) > bright) { bright = 0.8f / (1 + d / TILE); at = l; } }
+        for (const auto& l : W.lights) { float d = Dist(l.pos, b.pos); if (d < 8 * TILE && l.strength / (1 + d / TILE) > bright) { bright = l.strength / (1 + d / TILE); at = l.pos; } }
+        if (bright > 0) Consider(b, best, BeastAct::Investigate, 0.45f + bright, -1, 0, Add(at, Vector2{sinf(b.phase * 2) * 20, cosf(b.phase * 1.7f) * 14}));
+    }
+}
+
+static void PipesHooks(BeastWorld& W, PlatformState& p, int i, float dt) {
+    Beast& b = W.beasts[i];
+    switch (b.species) {
+    case PP_PILLBUG: // grabbed at, it curls into a ball that nothing can bite; a curled bug on the move rolls
+        if (b.act == BeastAct::Puffed) {
+            if (b.actT > 3.5f && b.fear < 0.3f) { b.act = BeastAct::Idle; b.actT = 0; b.thinkT = 0; }
+            if (fabsf(b.vel.x) < 30 && b.actT < 0.3f) b.vel.x = b.facing * 140; // the roll
+            break;
+        }
+        for (const auto& m : b.mem) if (m.kind == MEM_THREAT && Recall(b, m, W.time) > 0.15f && Dist(m.pos, b.pos) < 50) {
+            b.act = BeastAct::Puffed; b.actT = 0; b.facing = b.pos.x > m.pos.x ? 1.0f : -1.0f;
+            W.sounds.push_back({b.pos, 0.15f, 0.2f, i});
+            break;
+        }
+        break;
+    case PP_CRICKET: { // a flash in the dark and it bolts in great hops - and a bolting cricket sets the next ones off
+        if (b.special > 0) {
+            b.special -= dt;
+            b.act = BeastAct::Flee; b.thinkT = 0.5f;
+            if (b.grounded && b.hopT <= 0) { b.vel.y = -380; b.vel.x = b.facing * 220; b.hopT = 0.45f; }
+            for (auto& o : W.beasts) if (&o != &b && Alive(o) && Dist(o.pos, b.pos) < 22) {
+                if (o.species == PP_CRICKET && o.special <= 0) { o.special = 1.6f; o.facing = b.facing; } // the stampede
+                else if (o.species != PP_CRICKET) { o.vel.x += b.facing * 90; Remember(o, MEM_THREAT, i, b.id, b.pos, b.vel, 0.6f, W.time); } // anything else it crashes into is sent flying
+            }
+            if (b.special <= 0) b.act = BeastAct::Wander;
+            break;
+        }
+        for (const auto& l : W.lights) if (Dist(l.pos, b.pos) < 70 && Dist(l.pos, b.pos) > 1) { b.special = 1.6f; b.facing = b.pos.x > l.pos.x ? 1.0f : -1.0f; break; }
+        if (b.grounded && fabsf(b.vel.x) > 12 && b.hopT <= 0) { b.vel.y = -220; b.hopT = 0.7f; } // it gets about in hops anyway
+        break;
+    }
+    case PP_GLOW: // bumped or frightened, it flashes (FlashTick) - anything knocking into it counts
+        if (b.flashT <= 0 && b.cooldown <= 0)
+            for (const auto& o : W.beasts) if (&o != &b && Alive(o) && !o.hidden && Dist(o.pos, b.pos) < 12 && Len(o.vel) > 60) { b.flashT = 1.2f; b.cooldown = 4; W.sounds.push_back({b.pos, 0.35f, 0.3f, i}); break; }
+        break;
+    default: break;
+    }
+    (void)p;
+}
+const BiomeDef& PipesBiome() {
+    static const BiomeDef B = [] {
+        BiomeDef d;
+        d.level = PL_PIPES; d.species = PIPES; d.count = PP_COUNT; d.web = PIPES_WEB; d.webN = (int)(sizeof(PIPES_WEB) / sizeof(PIPES_WEB[0]));
+        d.water = false; d.ignoreDiver = true; d.clarity = 0.5f; d.daylight = 0.08f;
+        d.spawn = SpawnPipes; d.hooks = PipesHooks; d.extras = PipesExtras;
+        return d;
+    }();
+    return B;
+}
 // ============================================================ test benches (depth.exe --verify-<biome>-ecosystem)
 // A synthetic box of floor and walls in a biome's world, with nobody in it yet: the diver parked far away.
 static void Bench(PlatformState& p, int level, int w, int h) {
@@ -295,15 +612,207 @@ static bool VerifyPirate() {
     return ok;
 }
 
+static bool VerifyIsland() {
+    bool ok = true;
+    auto fail = [&](const char* what) { TraceLog(LOG_WARNING, "verify-island-ecosystem: FAILED - %s", what); ok = false; };
+    ok &= RealLevel(PL_ISLAND, "island-ecosystem", 7, 3, 3);
+    // 1) a cornered boar turns on the diver pressing it - and a charging boar kills
+    {
+        PlatformState p; Bench(p, PL_ISLAND, 40, 14); BenchBuild(p);
+        BeastWorld& W = p.fauna;
+        int boar = Put(W, IS_BOAR, {20 * TILE, 11 * TILE + 24}); W.beasts[boar].pers.bravery = 0.9f; W.beasts[boar].pers.aggression = 0.8f; W.beasts[boar].facing = -1;
+        p.deathTimer = 0; p.pos = {15 * TILE, 11 * TILE - 10}; p.vel = {0, 0}; p.onGround = true;
+        bool charged = false, lethal = false;
+        for (int f = 0; f < 60 * 10 && !lethal; f++) {
+            BeastsUpdate(p, 1 / 60.0f);
+            p.pos.x = std::min(p.pos.x + 1.0f, 19.0f * TILE); // edging closer
+            if (W.beasts[boar].act == BeastAct::Coil || W.beasts[boar].act == BeastAct::Strike) charged = true;
+            if (BeastLethalNow(p, W.beasts[boar])) lethal = true;
+        }
+        if (!charged) fail("a brave boar never turned and charged the diver crowding it");
+        if (!lethal) fail("a charging boar isn't a hazard");
+    }
+    // 2) a coconut crab cuts a coconut down, and something (a gull, a lizard, the crab) eats it
+    {
+        PlatformState p; Bench(p, PL_ISLAND, 40, 14); BenchBuild(p);
+        BeastWorld& W = p.fauna;
+        int crab = Put(W, IS_CRAB, {20 * TILE, 11 * TILE + 26}); W.beasts[crab].special = 0; W.beasts[crab].hunger = 0.2f;
+        int gull = Put(W, IS_GULL, {12 * TILE, 6 * TILE}); W.beasts[gull].hunger = 1;
+        bool cut = false, eaten = false;
+        for (int f = 0; f < 60 * 30 && !eaten; f++) {
+            BeastsUpdate(p, 1 / 60.0f);
+            for (const auto& b : W.beasts) {
+                if (b.species == IS_COCONUT && b.life == BeastLife::Corpse) cut = true;
+                if (b.act == BeastAct::Eat && Valid(W, b.target, b.targetId) && W.beasts[b.target].species == IS_COCONUT) eaten = true;
+            }
+        }
+        if (!cut) fail("a coconut crab never cut a coconut down");
+        if (!eaten) fail("nothing ever ate the fallen coconut");
+    }
+    // 3) a crash close by bursts a roosting bat colony
+    {
+        PlatformState p; Bench(p, PL_ISLAND, 40, 14); BenchBuild(p);
+        BeastWorld& W = p.fauna;
+        int bat = Put(W, IS_BAT, {20 * TILE, 5 * TILE}); W.beasts[bat].pers.bravery = 0.3f;
+        W.sounds.push_back({{21 * TILE, 8 * TILE}, 1.0f, 0.5f, -1});
+        bool fled = false;
+        for (int f = 0; f < 60 * 2 && !fled; f++) { BeastsUpdate(p, 1 / 60.0f); if (W.beasts[bat].act == BeastAct::Flee) fled = true; }
+        if (!fled) fail("a crash beside a bat didn't send it flying off");
+    }
+    // 4) a lizard that bites a dart frog spits it out, and won't go for frogs again
+    {
+        PlatformState p; Bench(p, PL_ISLAND, 40, 14); BenchBuild(p);
+        BeastWorld& W = p.fauna;
+        int liz = Put(W, IS_LIZARD, {15 * TILE, 11 * TILE + 26}); W.beasts[liz].hunger = 1; W.beasts[liz].pers.aggression = 0.9f; W.beasts[liz].pers.bravery = 0.8f;
+        int frog = Put(W, IS_FROG, {19 * TILE, 11 * TILE + 26}); W.beasts[frog].pers.bravery = 0.9f;
+        bool learned = false;
+        for (int f = 0; f < 60 * 30 && !learned; f++) { BeastsUpdate(p, 1 / 60.0f); if (W.beasts[liz].trauma >> IS_FROG & 1) learned = true; }
+        if (!learned) fail("a lizard never bit a dart frog and learned from it");
+        if (W.beasts[frog].life != BeastLife::Alive) fail("the dart frog was eaten despite its poison");
+    }
+    // 5) an orb web catches a bat that flies into it
+    {
+        PlatformState p; Bench(p, PL_ISLAND, 40, 14); BenchBuild(p);
+        BeastWorld& W = p.fauna;
+        NewBeast(W, IS_SPIDER, {20 * TILE, 6 * TILE});
+        int bat = Put(W, IS_BAT, {17 * TILE, 5 * TILE + 20});
+        bool caught = false;
+        for (int f = 0; f < 60 * 20 && !caught; f++) {
+            BeastsUpdate(p, 1 / 60.0f);
+            if (f < 60 * 3) { W.beasts[bat].vel = {60, 0}; W.beasts[bat].act = BeastAct::Wander; W.beasts[bat].goal = {24 * TILE, 5 * TILE + 20}; }
+            if (W.beasts[bat].life != BeastLife::Alive) caught = true;
+        }
+        if (!caught) fail("an orb web never caught a bat flying through it");
+    }
+    if (ok) TraceLog(LOG_WARNING, "verify-island-ecosystem: OK - boar charge, coconut cut/steal, bat burst, dart-frog lesson and web catch all confirmed");
+    return ok;
+}
+static bool VerifyCave() {
+    bool ok = true;
+    auto fail = [&](const char* what) { TraceLog(LOG_WARNING, "verify-cave-ecosystem: FAILED - %s", what); ok = false; };
+    ok &= RealLevel(PL_CAVE, "cave-ecosystem", 6, 3, 5);
+    // 1) a moth in the dark finds its way to a light
+    {
+        PlatformState p; Bench(p, PL_CAVE, 40, 14); p.tiles[6][30] = 'o'; BenchBuild(p);
+        BeastWorld& W = p.fauna;
+        int moth = Put(W, CS_MOTH, {12 * TILE, 8 * TILE});
+        bool reached = false;
+        for (int f = 0; f < 60 * 20 && !reached; f++) { BeastsUpdate(p, 1 / 60.0f); if (Dist(W.beasts[moth].pos, {30 * TILE + 16, 6 * TILE + 16}) < 3 * TILE) reached = true; }
+        if (!reached) fail("a cave moth never found its way to the light");
+    }
+    // 2) a leech drops from the ceiling onto the diver walking under it, and a dropping leech kills
+    {
+        PlatformState p; Bench(p, PL_CAVE, 40, 14); BenchBuild(p);
+        BeastWorld& W = p.fauna;
+        int leech = Put(W, CS_LEECH, {20 * TILE + 16, 1 * TILE + 6}); W.beasts[leech].territory = W.beasts[leech].pos;
+        p.deathTimer = 0; p.pos = {20 * TILE + 8, 11 * TILE - 8}; p.vel = {0, 0};
+        bool dropped = false, lethal = false, touched = false;
+        for (int f = 0; f < 60 * 4; f++) {
+            BeastsUpdate(p, 1 / 60.0f);
+            if (W.beasts[leech].special == 1) dropped = true;
+            if (BeastLethalNow(p, W.beasts[leech])) lethal = true;
+            if (BeastsTouchDiver(p, PlatDiverBox(p))) touched = true;
+            if (getenv("DEPTH_BEASTLOG") && f % 6 == 0 && f < 120) { const Beast& l = W.beasts[leech]; Rectangle d = PlatDiverBox(p); TraceLog(LOG_WARNING, "  leech f=%d sp %.0f act %s pos (%.0f,%.0f) vel %.0f hidden %d | diver box (%.0f,%.0f %.0fx%.0f)", f, l.special, BeastActName(l.act), l.pos.x, l.pos.y, l.vel.y, (int)l.hidden, d.x, d.y, d.width, d.height); }
+        }
+        if (!dropped) fail("a ceiling leech never dropped on the diver passing under it");
+        if (!lethal || !touched) fail("a dropping leech isn't a hazard to the diver under it");
+    }
+    // 3) a fungal beetle hunted by a salamander bursts into a blinding spore cloud
+    {
+        PlatformState p; Bench(p, PL_CAVE, 40, 14); BenchBuild(p);
+        BeastWorld& W = p.fauna;
+        int sal = Put(W, CS_SALAMANDER, {16 * TILE, 11 * TILE + 24}); W.beasts[sal].hunger = 1; W.beasts[sal].pers.aggression = 0.9f;
+        int bee = Put(W, CS_BEETLE, {19 * TILE, 11 * TILE + 26}); W.beasts[bee].pers.bravery = 0.2f;
+        bool burst = false;
+        for (int f = 0; f < 60 * 20 && !burst; f++) { BeastsUpdate(p, 1 / 60.0f); for (const auto& c : W.ink) if (c.kind == 1) burst = true;
+            if (getenv("DEPTH_BEASTLOG") && f % 60 == 0) { const Beast& a = W.beasts[sal]; const Beast& c = W.beasts[bee]; int np = 0; float bs = 0; for (const auto& m : a.mem) if (m.kind == MEM_PREY && m.strength > 0) { np++; bs = std::max(bs, Recall(a, m, W.time)); } TraceLog(LOG_WARNING, "  beetle t=%d sal %s (%.0f) tgt %d prey mems %d best %.2f hunger %.2f sounds %d | beetle %s (%.0f) fear %.2f life %d", f / 60, BeastActName(a.act), a.pos.x, a.target, np, bs, a.hunger, (int)W.sounds.size(), BeastActName(c.act), c.pos.x, c.fear, (int)c.life); } }
+        if (!burst) fail("a beetle a salamander was after never burst its spores");
+    }
+    // 4) a hungry bat catches a moth on the wing
+    {
+        PlatformState p; Bench(p, PL_CAVE, 40, 14); BenchBuild(p);
+        BeastWorld& W = p.fauna;
+        int bat = Put(W, CS_BAT, {12 * TILE, 6 * TILE}); W.beasts[bat].hunger = 1; W.beasts[bat].pers.aggression = 0.9f;
+        int moth = Put(W, CS_MOTH, {18 * TILE, 7 * TILE});
+        bool ate = false;
+        for (int f = 0; f < 60 * 20 && !ate; f++) { BeastsUpdate(p, 1 / 60.0f); if (W.beasts[moth].life != BeastLife::Alive) ate = true; }
+        if (!ate) fail("a hungry bat never caught a moth");
+    }
+    // 5) a tube worm snaps back into its tube at a tremor
+    {
+        PlatformState p; Bench(p, PL_CAVE, 40, 14); BenchBuild(p);
+        BeastWorld& W = p.fauna;
+        int worm = NewBeast(W, CS_WORM, {20 * TILE, 12 * TILE - 2});
+        W.sounds.push_back({{21 * TILE, 11 * TILE}, 0.3f, 0.3f, -1});
+        BeastsUpdate(p, 1 / 60.0f);
+        if (W.beasts[worm].act != BeastAct::Hide) fail("a tube worm didn't pull in at a tremor beside it");
+    }
+    if (ok) TraceLog(LOG_WARNING, "verify-cave-ecosystem: OK - moth to light, ceiling-leech drop (lethal), spore burst, bat hunt and tube-worm retract all confirmed");
+    return ok;
+}
+
+static bool VerifyPipes() {
+    bool ok = true;
+    auto fail = [&](const char* what) { TraceLog(LOG_WARNING, "verify-pipe-ecosystem: FAILED - %s", what); ok = false; };
+    ok &= RealLevel(PL_PIPES, "pipe-ecosystem", 8, 3, 1);
+    // 1) nothing notices the diver, even standing among them
+    {
+        PlatformState p; Bench(p, PL_PIPES, 40, 14); BenchBuild(p);
+        BeastWorld& W = p.fauna;
+        int mouse = Put(W, PP_MOUSE, {20 * TILE, 11 * TILE + 26}), cr = Put(W, PP_CRICKET, {22 * TILE, 11 * TILE + 26});
+        p.deathTimer = 0; p.pos = {21 * TILE, 11 * TILE - 8};
+        for (int f = 0; f < 60 * 3; f++) { BeastsUpdate(p, 1 / 60.0f); p.vel.x = f % 60 < 30 ? 300.0f : -300.0f; p.onGround = true; BeastsNoise(p, {p.pos.x, p.pos.y}, 1.0f); }
+        for (int i : {mouse, cr}) for (const auto& m : W.beasts[i].mem) if (m.strength > 0 && (m.source == BEAST_DIVER || m.source == -1)) { fail("a Pipes creature noticed the diver"); i = 1 << 30; break; }
+    }
+    // 2) a water-spider's web by a light leak catches a moth drawn to the light
+    {
+        PlatformState p; Bench(p, PL_PIPES, 40, 14); p.tiles[6][28] = 'o'; BenchBuild(p);
+        BeastWorld& W = p.fauna;
+        NewBeast(W, PP_SPIDER, {28 * TILE + 16, 7 * TILE + 10});
+        int moth = Put(W, PP_MOTH, {12 * TILE, 8 * TILE});
+        bool caught = false;
+        for (int f = 0; f < 60 * 30 && !caught; f++) { BeastsUpdate(p, 1 / 60.0f); if (W.beasts[moth].life != BeastLife::Alive) caught = true; }
+        if (!caught) fail("a moth drawn to a light leak never got caught in the web beside it");
+    }
+    // 3) a glow-beetle's flash stampedes the crickets, each setting off the next
+    {
+        PlatformState p; Bench(p, PL_PIPES, 60, 14); BenchBuild(p);
+        BeastWorld& W = p.fauna;
+        int glow = Put(W, PP_GLOW, {20 * TILE, 11 * TILE + 26});
+        int c1 = Put(W, PP_CRICKET, {21 * TILE, 11 * TILE + 26}), c2 = Put(W, PP_CRICKET, {26 * TILE, 11 * TILE + 26}), c3 = Put(W, PP_CRICKET, {29 * TILE, 11 * TILE + 26});
+        for (int c : {c1, c2, c3}) W.beasts[c].pers.wanderlust = 0;
+        W.beasts[glow].flashT = 1.2f;
+        bool a = false, b = false, c = false;
+        for (int f = 0; f < 60 * 5; f++) {
+            BeastsUpdate(p, 1 / 60.0f);
+            a |= W.beasts[c1].special > 0; b |= W.beasts[c2].special > 0; c |= W.beasts[c3].special > 0;
+            if (f == 0) W.beasts[glow].flashT = 1.2f;
+        }
+        if (!a) fail("a glow-beetle's flash never panicked the cricket beside it");
+        if (!b || !c) fail("the panicking cricket never set off a stampede of the others");
+    }
+    // 4) a pillbug a mouse is after curls up - and isn't eaten
+    {
+        PlatformState p; Bench(p, PL_PIPES, 40, 14); BenchBuild(p);
+        BeastWorld& W = p.fauna;
+        int mouse = Put(W, PP_MOUSE, {16 * TILE, 11 * TILE + 26}); W.beasts[mouse].hunger = 1; W.beasts[mouse].pers.aggression = 0.9f;
+        int bug = Put(W, PP_PILLBUG, {19 * TILE, 11 * TILE + 26});
+        bool curled = false;
+        for (int f = 0; f < 60 * 15; f++) { BeastsUpdate(p, 1 / 60.0f); if (W.beasts[bug].act == BeastAct::Puffed) curled = true; }
+        if (!curled) fail("a pillbug never curled up with a mouse after it");
+    }
+    if (ok) TraceLog(LOG_WARNING, "verify-pipe-ecosystem: OK - the diver ignored, moth to light into a web, flash stampede and pillbug curl all confirmed");
+    return ok;
+}
 // ============================================================ not yet moved over (their old overlays still run)
-const BiomeDef& IslandBiome() { static const BiomeDef B; return B; }
-const BiomeDef& CaveBiome() { static const BiomeDef B; return B; }
-const BiomeDef& PipesBiome() { static const BiomeDef B; return B; }
 }  // namespace bk
 
 bool VerifyBeastBiome(int level) {
     switch (level) {
     case PL_PIRATE: return bk::VerifyPirate();
+    case PL_ISLAND: return bk::VerifyIsland();
+    case PL_CAVE: return bk::VerifyCave();
+    case PL_PIPES: return bk::VerifyPipes();
     default: return false;
     }
 }
