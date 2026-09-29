@@ -724,3 +724,180 @@ bool PxDrawAtlantisBeast(const PlatformState& p, const Beast& b, float t) {
     default: return false;
     }
 }
+
+// ================================================================ the Island's scenery, baked once into textures
+// Palms (three sway frames each), jungle trees, stilt huts, stone idols and a totem, the stepped temple, the volcano,
+// the altar, fern clumps, a fishing canoe and villagers - modelled like the creatures, rendered once at one texel
+// per canvas pixel, then laid out in the parallax layers and tinted through the day (DrawIslandArt).
+#include <functional>
+#include <vector>
+namespace {
+struct Baked { RenderTexture2D rt{}; int w = 0, h = 0; };
+std::vector<Baked> gIslandArt; // indexed by IslandArt*frame
+Baked Bake(int w, int h, const std::function<void(Pen&)>& build, const px::Mat* M, int n) {
+    Baked b; b.w = w; b.h = h; b.rt = LoadRenderTexture(w, h);
+    SetTextureFilter(b.rt.texture, TEXTURE_FILTER_POINT);
+    BeginLayer(b.rt); ClearBackground(BLANK);
+    float oldCell = gPxCell, oldA = gPxAlpha; gPxCell = 1; gPxAlpha = 1;
+    { Pen P(0, 0, (float)w - 1, (float)h - 1); build(P); P.Draw(M, n); }
+    gPxCell = oldCell; gPxAlpha = oldA;
+    EndLayer();
+    return b;
+}
+} // namespace
+
+void IslandArtPrepare() {
+    if (!gIslandArt.empty()) return;
+    // ---- palms: a ringed, curving trunk; seven drooping fronds (three frames of the breeze); coconuts
+    for (int v = 0; v < 3; v++) for (int fr = 0; fr < 3; fr++) {
+        enum { TRUNK, LEAF, LEAF2, NUT };
+        px::Mat M[4] = {R({120, 96, 66, 255}, px::PAT_RINGS, 0.8f), R({64, 128, 58, 255}), R({48, 100, 46, 255}), R({110, 76, 40, 255})};
+        int W = 76, H = 100;
+        gIslandArt.push_back(Bake(W, H, [&](Pen& P) {
+            float lean = (v - 1) * 10.0f, sway = (fr - 1) * 1.6f, hh = 70 + v * 8.0f;
+            Vector2 tr[6]; float rr[6];
+            for (int k = 0; k < 6; k++) { float u = k / 5.0f; tr[k] = {W / 2.0f + lean * u * u, H - 2 - hh * u}; rr[k] = 3.4f - u * 1.4f; }
+            P.Chain(tr, 6, rr, TRUNK, 4);
+            Vector2 crown = tr[5];
+            for (int k = 0; k < 7; k++) {
+                float a = -PIf * 0.95f + k * PIf * 0.95f / 6 + sway * 0.05f, len = 22 + (k % 3) * 4.0f;
+                Vector2 pts[5]; float fr2[5];
+                for (int j = 0; j < 5; j++) { float u = j / 4.0f; pts[j] = {crown.x + cosf(a) * len * u + sway * u * u, crown.y + sinf(a) * len * u * 0.55f + u * u * 12}; fr2[j] = 2.2f - u * 1.6f; }
+                P.Chain(pts, 5, fr2, k % 2 ? LEAF : LEAF2, 10 + (k % 3));
+                for (int j = 1; j < 5; j++) P.Limb(pts[j], {pts[j].x + (j % 2 ? 2.0f : -2.0f), pts[j].y + 3}, 0.6f, 0.3f, LEAF2, 9); // the leaflets
+            }
+            for (int k = 0; k < 3; k++) P.Ball({crown.x - 2 + k * 2.0f, crown.y + 3 + (k % 2)}, 1.8f, 1.8f, NUT, 14);
+        }, M, 4));
+    }
+    // ---- jungle trees: a buttressed trunk and a heaped canopy of leaf masses
+    for (int v = 0; v < 2; v++) {
+        enum { BARK, LEAF, LEAF2, LEAF3 };
+        px::Mat M[4] = {R({92, 72, 52, 255}, px::PAT_BANDS, 0.6f), R(v ? Color{58, 110, 56, 255} : Color{70, 124, 52, 255}, px::PAT_SPECKLE), R(v ? Color{44, 88, 48, 255} : Color{52, 100, 44, 255}, px::PAT_SPECKLE), R({90, 150, 70, 255}, px::PAT_SPECKLE)};
+        int W = 110, H = 130;
+        gIslandArt.push_back(Bake(W, H, [&](Pen& P) {
+            P.Limb({W / 2.0f, H - 2.0f}, {W / 2.0f + 3, H - 70.0f}, 6, 4, BARK, 4);
+            P.Limb({W / 2.0f - 12, H - 2.0f}, {W / 2.0f - 2, H - 22.0f}, 3, 1, BARK, 3); P.Limb({W / 2.0f + 13, H - 2.0f}, {W / 2.0f + 3, H - 20.0f}, 3, 1, BARK, 3); // buttress roots
+            const float C[9][4] = {{0, -78, 26, 18}, {-26, -70, 20, 15}, {26, -72, 21, 16}, {-14, -94, 20, 15}, {16, -96, 19, 14}, {0, -108, 16, 12}, {-34, -86, 12, 10}, {34, -88, 12, 10}, {0, -64, 22, 10}};
+            for (int k = 0; k < 9; k++) P.Ball({W / 2.0f + C[k][0], H + C[k][1]}, C[k][2], C[k][3], k == 8 ? LEAF2 : k == 5 ? LEAF3 : k % 2 ? LEAF : LEAF2, 10 + k);
+        }, M, 4));
+    }
+    // ---- stilt huts: bamboo walls, a layered thatch roof, a doorway, a ladder
+    for (int v = 0; v < 2; v++) {
+        enum { POST, WALL, THATCH, THATCH2, DARK, LADDER };
+        px::Mat M[6] = {R({96, 70, 44, 255}), R({176, 140, 86, 255}, px::PAT_BANDS, 0.5f), R({206, 176, 104, 255}), R({170, 140, 80, 255}), R({30, 22, 18, 255}), R({130, 98, 60, 255})};
+        int W = 64, H = 70;
+        gIslandArt.push_back(Bake(W, H, [&](Pen& P) {
+            float floorY = H - 16.0f, wall = 18 + v * 4.0f;
+            for (int k = 0; k < 4; k++) P.Limb({8 + k * 16.0f, H - 2.0f}, {8 + k * 16.0f, floorY}, 1.6f, 1.6f, POST, 2 + (k % 2));
+            P.Limb({4, floorY}, {W - 4.0f, floorY}, 2.2f, 2.2f, POST, 6);
+            P.Tri({8, floorY - 1}, {W - 8.0f, floorY - 1}, {W - 8.0f, floorY - wall}, WALL, 8, 0, 0); P.Tri({8, floorY - 1}, {8, floorY - wall}, {W - 8.0f, floorY - wall}, WALL, 8, 0, 0);
+            P.Tri({W / 2.0f - 5, floorY - 1}, {W / 2.0f + 5, floorY - 1}, {W / 2.0f + 5, floorY - 12}, DARK, 9, 0, 0); P.Tri({W / 2.0f - 5, floorY - 1}, {W / 2.0f - 5, floorY - 12}, {W / 2.0f + 5, floorY - 12}, DARK, 9, 0, 0);
+            for (int k = 0; k < 5; k++) { float y = floorY - wall - 2 - k * 5.0f, half = W / 2.0f + 4 - k * 6.0f; P.Limb({W / 2.0f - half, y + 3}, {W / 2.0f + half, y + 3}, 3, 3, k % 2 ? THATCH : THATCH2, 12 + k); } // thatch in layers
+            for (int k = 0; k < 4; k++) P.Limb({W / 2.0f - 3, floorY + 2 + k * 4.0f}, {W / 2.0f + 3, floorY + 2 + k * 4.0f}, 0.7f, 0.7f, LADDER, 20);
+            P.Limb({W / 2.0f - 3, floorY}, {W / 2.0f - 3, H - 2.0f}, 0.8f, 0.8f, LADDER, 19); P.Limb({W / 2.0f + 3, floorY}, {W / 2.0f + 3, H - 2.0f}, 0.8f, 0.8f, LADDER, 19);
+        }, M, 6));
+    }
+    // ---- a stone idol head on its body, and a carved totem
+    for (int v = 0; v < 2; v++) {
+        enum { STONE, DARK, MOSS, PAINT };
+        px::Mat M[4] = {R({126, 118, 108, 255}, px::PAT_SPECKLE), R({58, 54, 52, 255}), R({78, 118, 60, 255}, px::PAT_SPECKLE), R({170, 60, 40, 255})};
+        int W = 40, H = 84;
+        gIslandArt.push_back(Bake(W, H, [&](Pen& P) {
+            if (v == 0) {
+                P.Ball({W / 2.0f, H - 18.0f}, 13, 17, STONE, 4, H - 2.0f);                          // the body, sunk in the ground
+                P.Ball({W / 2.0f, H - 48.0f}, 11, 20, STONE, 10);                                   // the long head
+                P.Limb({W / 2.0f - 9, H - 58.0f}, {W / 2.0f + 9, H - 58.0f}, 3, 3, STONE, 14);       // the heavy brow
+                P.Limb({W / 2.0f + 2, H - 56.0f}, {W / 2.0f + 5, H - 42.0f}, 2.6f, 3.2f, STONE, 16); // the nose
+                P.Limb({W / 2.0f - 5, H - 36.0f}, {W / 2.0f + 6, H - 36.0f}, 1.4f, 1.4f, DARK, 15);  // the lips
+                P.Ball({W / 2.0f - 4, H - 52.0f}, 2.2f, 1.6f, DARK, 15); P.Ball({W / 2.0f + 5, H - 52.0f}, 2.2f, 1.6f, DARK, 15);
+                P.Ball({W / 2.0f, H - 68.0f}, 10, 4, MOSS, 12);                                      // moss on its crown
+            } else {
+                for (int k = 0; k < 3; k++) { // a carved pole: three stacked faces, square-cut, painted
+                    float y1 = H - 2 - k * 22.0f, y0 = y1 - 21, x0 = W / 2.0f - 9, x1 = W / 2.0f + 9;
+                    P.Tri({x0, y1}, {x1, y1}, {x1, y0}, STONE, 6 + k, 0, -0.1f); P.Tri({x0, y1}, {x0, y0}, {x1, y0}, STONE, 6 + k, 0, -0.1f);
+                    P.Limb({x0, y0 + 1}, {x1, y0 + 1}, 1.2f, 1.2f, DARK, 8 + k);                                            // the cut between the faces
+                    P.Ball({W / 2.0f - 4, y0 + 7}, 2.4f, 1.8f, DARK, 12); P.Ball({W / 2.0f + 4, y0 + 7}, 2.4f, 1.8f, DARK, 12); // eyes
+                    P.Limb({W / 2.0f, y0 + 8}, {W / 2.0f, y0 + 13}, 1.4f, 2, STONE, 13);                                     // a nose
+                    P.Limb({W / 2.0f - 5, y0 + 16}, {W / 2.0f + 5, y0 + 16}, 1.2f, 1.2f, PAINT, 12);                         // a painted mouth
+                }
+                P.Tri({W / 2.0f - 9, H - 60.0f}, {1, H - 70.0f}, {W / 2.0f - 9, H - 52.0f}, PAINT, 10); P.Tri({W / 2.0f + 9, H - 60.0f}, {W - 1.0f, H - 70.0f}, {W / 2.0f + 9, H - 52.0f}, PAINT, 10); // the carved wings
+            }
+        }, M, 4));
+    }
+    // ---- the stepped temple: blocks of stone, a central stair, a shrine on top
+    {
+        enum { STONE, STONE2, STAIR, DARK, MOSS };
+        px::Mat M[5] = {R({138, 130, 112, 255}, px::PAT_SCUTES, 1.2f), R({116, 110, 96, 255}, px::PAT_SCUTES, 1.2f), R({168, 160, 138, 255}, px::PAT_BANDS, 0.4f), R({26, 22, 22, 255}), R({80, 120, 62, 255}, px::PAT_SPECKLE)};
+        int W = 180, H = 120;
+        gIslandArt.push_back(Bake(W, H, [&](Pen& P) {
+            for (int k = 0; k < 5; k++) {
+                float half = 84 - k * 14.0f, y1 = H - 2 - k * 18.0f, y0 = y1 - 18;
+                P.Tri({W / 2.0f - half, y1}, {W / 2.0f + half, y1}, {W / 2.0f + half, y0}, k % 2 ? STONE : STONE2, 4 + k, 0, -0.1f);
+                P.Tri({W / 2.0f - half, y1}, {W / 2.0f - half, y0}, {W / 2.0f + half, y0}, k % 2 ? STONE : STONE2, 4 + k, 0, -0.1f);
+                P.Limb({W / 2.0f - half, y0}, {W / 2.0f + half, y0}, 1.2f, 1.2f, STAIR, 5 + k); // the lit lip of the tier
+                if (k % 2 == 0) P.Ball({W / 2.0f - half + 8, y0 + 3}, 6, 2.4f, MOSS, 6 + k);
+            }
+            P.Tri({W / 2.0f - 8, H - 2.0f}, {W / 2.0f + 8, H - 2.0f}, {W / 2.0f + 5, H - 92.0f}, STAIR, 20, 0, -0.2f); P.Tri({W / 2.0f - 8, H - 2.0f}, {W / 2.0f - 5, H - 92.0f}, {W / 2.0f + 5, H - 92.0f}, STAIR, 20, 0, -0.2f);
+            P.Tri({W / 2.0f - 12, H - 92.0f}, {W / 2.0f + 12, H - 92.0f}, {W / 2.0f + 12, H - 112.0f}, STONE, 22, 0, 0); P.Tri({W / 2.0f - 12, H - 92.0f}, {W / 2.0f - 12, H - 112.0f}, {W / 2.0f + 12, H - 112.0f}, STONE, 22, 0, 0); // the shrine
+            P.Tri({W / 2.0f - 5, H - 92.0f}, {W / 2.0f + 5, H - 92.0f}, {W / 2.0f + 5, H - 104.0f}, DARK, 24, 0, 0); P.Tri({W / 2.0f - 5, H - 92.0f}, {W / 2.0f - 5, H - 104.0f}, {W / 2.0f + 5, H - 104.0f}, DARK, 24, 0, 0);
+            P.Tri({W / 2.0f - 15, H - 112.0f}, {W / 2.0f + 15, H - 112.0f}, {W / 2.0f, H - 119.0f}, STONE2, 23, 0, -0.6f);
+        }, M, 5));
+    }
+    // ---- the volcano: two faces of a cone catching the light differently, ridged, with a broken crater rim
+    {
+        enum { LIT, SHADE, RIDGE, RIM, ASH };
+        px::Mat M[5] = {R({112, 92, 84, 255}, px::PAT_SPECKLE), R({70, 58, 60, 255}, px::PAT_SPECKLE), R({52, 42, 44, 255}), R({90, 70, 64, 255}), R({140, 132, 124, 255}, px::PAT_SPECKLE)};
+        int W = 340, H = 170;
+        gIslandArt.push_back(Bake(W, H, [&](Pen& P) {
+            Vector2 peakL{W / 2.0f - 22, 12}, peakR{W / 2.0f + 22, 12};
+            P.Tri({2, H - 2.0f}, {W / 2.0f, H - 2.0f}, peakL, LIT, 4, -0.55f, -0.45f); P.Tri({W / 2.0f, H - 2.0f}, peakR, peakL, LIT, 4, -0.2f, -0.5f);
+            P.Tri({W / 2.0f, H - 2.0f}, {W - 3.0f, H - 2.0f}, peakR, SHADE, 4, 0.6f, -0.3f);
+            for (int k = 0; k < 7; k++) { float x0 = W / 2.0f - 20 + k * 7.0f, x1 = W / 2.0f - 120 + k * 42.0f; P.Limb({x0, 16}, {x1, H - 4.0f}, 1.2f, 2.4f, RIDGE, 6); } // gullies down its flanks
+            P.Limb(peakL, peakR, 3, 3, RIM, 8);
+
+        }, M, 5));
+    }
+    // ---- the altar: a slab on two stones, a skull and offering bowls
+    {
+        enum { STONE, DARK, BONE, BOWL };
+        px::Mat M[4] = {R({130, 124, 112, 255}, px::PAT_SPECKLE), R({40, 34, 32, 255}), R({226, 218, 196, 255}), R({150, 90, 50, 255})};
+        gIslandArt.push_back(Bake(56, 30, [&](Pen& P) {
+            P.Ball({14, 22}, 7, 7, STONE, 4, 28); P.Ball({42, 22}, 7, 7, STONE, 4, 28);
+            P.Limb({6, 15}, {50, 15}, 4, 4, STONE, 8);
+            P.Ball({28, 9}, 4, 3.4f, BONE, 12); P.Dot({27, 9}, DARK); P.Dot({29, 9}, DARK);
+            P.Ball({16, 10}, 3, 1.6f, BOWL, 11); P.Ball({40, 10}, 3, 1.6f, BOWL, 11);
+        }, M, 4));
+    }
+    // ---- fern clumps and bushes for the jungle floor
+    for (int v = 0; v < 2; v++) {
+        enum { LEAF, LEAF2, LEAF3 };
+        px::Mat M[3] = {R({58, 118, 52, 255}), R({44, 92, 44, 255}), R({86, 148, 64, 255})};
+        gIslandArt.push_back(Bake(60, 34, [&](Pen& P) {
+            if (v == 0) for (int k = 0; k < 9; k++) { float a = -PIf + k * PIf / 8; Vector2 b0{30, 32}, tip{30 + cosf(a) * 26, 32 + sinf(a) * 22}, mid = Lerp(b0, tip, 0.5f); mid.y -= 5; P.Limb(b0, mid, 2.2f, 1.8f, k % 2 ? LEAF : LEAF2, 4 + k % 3); P.Limb(mid, tip, 1.8f, 0.5f, k % 3 == 0 ? LEAF3 : LEAF, 5 + k % 3); }
+            else for (int k = 0; k < 6; k++) P.Ball({10 + k * 8.0f, 26 - (k % 2) * 5.0f}, 9, 8, k % 3 == 0 ? LEAF3 : k % 2 ? LEAF : LEAF2, 4 + k);
+        }, M, 3));
+    }
+    // ---- a fishing canoe with its fisher, and villagers (two poses each)
+    {
+        enum { WOOD, SKIN, CLOTH, DARK };
+        px::Mat M[4] = {R({120, 84, 50, 255}, px::PAT_BANDS, 0.5f), R({150, 100, 70, 255}), R({190, 70, 50, 255}), R({40, 30, 24, 255})};
+        gIslandArt.push_back(Bake(44, 22, [&](Pen& P) {
+            P.Limb({4, 16}, {40, 16}, 3, 3, WOOD, 4); P.Tri({1, 13}, {6, 13}, {4, 19}, WOOD, 5); P.Tri({38, 13}, {43, 13}, {40, 19}, WOOD, 5);
+            P.Limb({22, 13}, {23, 6}, 2.4f, 2, CLOTH, 8); P.Ball({23, 4}, 2.2f, 2.2f, SKIN, 10);
+            P.Limb({18, 4}, {30, 18}, 0.6f, 0.6f, DARK, 12);
+        }, M, 4));
+        for (int v = 0; v < 4; v++) gIslandArt.push_back(Bake(14, 22, [&](Pen& P) {
+            float st = (v % 2) ? 2.0f : -2.0f;
+            P.Limb({7, 12}, {7 - st, 20}, 1.2f, 1, SKIN, 2); P.Limb({7, 12}, {7 + st, 20}, 1.2f, 1, SKIN, 6);
+            P.Limb({7, 12}, {7, 6}, 2.4f, 2, v / 2 ? CLOTH : SKIN, 4); P.Ball({7, 11}, 2.6f, 2, CLOTH, 5);
+            P.Ball({7, 4}, 2.2f, 2.2f, SKIN, 8); P.Limb({7, 7}, {10, 10 + st * 0.5f}, 0.9f, 0.8f, SKIN, 9);
+        }, M, 4));
+    }
+}
+
+void DrawIslandArt(int id, Vector2 bottomCentre, Color tint, bool flip) {
+    if (id < 0 || id >= (int)gIslandArt.size()) return;
+    const Baked& b = gIslandArt[id];
+    Rectangle src{0, 0, (float)(flip ? -b.w : b.w), (float)-b.h};
+    DrawTextureRec(b.rt.texture, src, {floorf(bottomCentre.x - b.w / 2.0f), floorf(bottomCentre.y - b.h)}, tint);
+}

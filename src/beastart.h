@@ -15,3 +15,7 @@ bool PxDrawIslandBeast(const PlatformState& p, const Beast& b, float t);
 bool PxDrawCaveBeast(const PlatformState& p, const Beast& b, float t);
 bool PxDrawWeedsBeast(const PlatformState& p, const Beast& b, float t);
 bool PxDrawAtlantisBeast(const PlatformState& p, const Beast& b, float t);
+// the Island's scenery, baked once into textures (call IslandArtPrepare outside any other layer, e.g. before the frame's canvas)
+enum IslandArtId { IA_PALM = 0 /* 3 variants x 3 sway frames: IA_PALM + v*3 + frame */, IA_TREE = 9, IA_HUT = 11, IA_IDOL = 13, IA_TOTEM = 14, IA_TEMPLE = 15, IA_VOLCANO = 16, IA_ALTAR = 17, IA_FERN = 18, IA_BUSH = 19, IA_CANOE = 20, IA_VILLAGER = 21 /* 4: two poses x two garbs */ };
+void IslandArtPrepare();
+void DrawIslandArt(int id, Vector2 bottomCentre, Color tint, bool flip = false);
