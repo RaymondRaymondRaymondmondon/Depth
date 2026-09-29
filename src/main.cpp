@@ -581,6 +581,10 @@ int main(int argc, char** argv) {
             if (IsKeyPressed(KEY_F11)) ToggleBorderlessWindowed();   // F11: fill the screen (the frame is letterboxed to fit)
             BeginFrame();
             RunScene(g);
+            {   // aboard the Nautilus (the salon and its station screens) the waltz and the ship's bed play
+                bool aboard = g.scene != Scene::Platformer && g.scene != Scene::Abyss && g.scene != Scene::Dungeon;
+                AudioHub(aboard, g.scene == Scene::Hub ? -1 : (int)g.scene, g.mourning);
+            }
             AudioFrame(GetFrameTime(), g.scene == Scene::Platformer || g.scene == Scene::Abyss);
             DrawToast(g);
             EndFrame(g.time);

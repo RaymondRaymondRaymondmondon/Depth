@@ -555,6 +555,7 @@ struct Game {
     bool platCheckpoints = false;            // Periscope option: checkpoints, at the cost of the relic
     bool platHullBoss = true;                // Periscope option: fight the Kraken (only chance of a relic)
     int periscopeSel = 0;                    // which dive the Periscope's chart has open (not saved)
+    bool mourning = false;                   // a crew member died on the last expedition: the salon's music is the organ alone until the next one (not saved)
     bool platPirateBoss = true;              // Periscope option: fight Blackbeard (guarantees relic(s))
     bool abyssCleared = false;               // reached the bottom of the Open Abyss's trench at least once
     float abyssBest = 0;                     // best depth ever reached there (metres), 0 = never dived

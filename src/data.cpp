@@ -885,3 +885,52 @@ void InitGame(Game& g) {
     RefreshRadar(g);
     // platform layouts are generated (and validated, which takes a moment) the first time each level is started
 }
+
+// ---------------------------------------------------------------- the cue registry (Master Reference, "Sound design")
+// Every sound outside the parkour section is a named cue: bus, recipe, base frequency, length, gain, pitch
+// variation, filter/length variants, priority (0-3, low dropped first), max at once, and whether it ducks the music.
+#include "sound.h"
+const CueDef* CueTable(int& count) {
+    static const CueDef C[] = {
+        // --- UI
+        {"ui.hover", CB_UI, CR_TICK, 2400, 0.03f, 0.08f, 0.06f, 4, 0, 2, false},
+        {"ui.click", CB_UI, CR_CLICK, 1500, 0.06f, 0.16f, 0.05f, 3, 1, 2, false},
+        {"ui.confirm", CB_UI, CR_CONFIRM, 660, 0.35f, 0.14f, 0.03f, 3, 2, 2, false},
+        {"ui.cancel", CB_UI, CR_CANCEL, 440, 0.25f, 0.12f, 0.03f, 3, 1, 2, false},
+        {"ui.error", CB_UI, CR_ERROR, 110, 0.25f, 0.3f, 0.04f, 3, 2, 1, false},
+        {"ui.levelup", CB_UI, CR_FANFARE, 262, 1.4f, 0.16f, 0.0f, 1, 3, 1, true},
+        {"ui.chalk", CB_UI, CR_CHALK, 3000, 0.25f, 0.12f, 0.1f, 5, 0, 3, false},
+        {"ui.drag", CB_UI, CR_TICK, 900, 0.05f, 0.1f, 0.06f, 3, 0, 2, false},
+        {"ui.drop", CB_UI, CR_THUD, 160, 0.16f, 0.3f, 0.05f, 3, 1, 2, false},
+        // --- the salon's stations: hover, open, embark
+        {"hub.plaque", CB_UI, CR_PLAQUE, 1800, 0.18f, 0.1f, 0.05f, 4, 0, 1, false},
+        {"hub.panel", CB_UI, CR_WHOOSH, 500, 0.35f, 0.16f, 0.06f, 3, 2, 1, false},
+        {"hub.latch", CB_UI, CR_LATCH, 1200, 0.3f, 0.2f, 0.05f, 4, 2, 1, false},
+        {"hub.wheel", CB_SFX, CR_CREAK, 220, 0.7f, 0.14f, 0.08f, 5, 1, 1, false},
+        {"hub.sonar", CB_SFX, CR_SONAR, 1100, 1.6f, 0.12f, 0.02f, 3, 1, 1, false},
+        {"hub.organ", CB_SFX, CR_ORGAN2, 146.8f, 1.6f, 0.14f, 0.0f, 3, 1, 1, false},
+        {"hub.candle", CB_SFX, CR_FLARE, 600, 0.5f, 0.14f, 0.08f, 4, 1, 1, false},
+        {"hub.jelly", CB_SFX, CR_JELLYHUM, 180, 1.2f, 0.1f, 0.04f, 3, 1, 1, false},
+        {"hub.gauge", CB_SFX, CR_GAUGE, 3000, 0.2f, 0.12f, 0.1f, 4, 0, 2, false},
+        {"hub.hatch", CB_SFX, CR_WHEEL, 700, 0.8f, 0.16f, 0.06f, 3, 1, 1, false},
+        {"hub.rungs", CB_SFX, CR_RUNGS, 380, 0.9f, 0.16f, 0.06f, 3, 1, 1, false},
+        {"hub.door", CB_SFX, CR_DOOR, 180, 0.8f, 0.14f, 0.06f, 3, 1, 1, false},
+        {"hub.ladder", CB_SFX, CR_LADDER, 300, 0.6f, 0.12f, 0.06f, 3, 1, 1, false},
+        {"hub.gear", CB_SFX, CR_GEAR, 900, 0.7f, 0.1f, 0.06f, 3, 1, 1, false},
+        {"hub.periscope", CB_SFX, CR_CREAK, 330, 0.6f, 0.12f, 0.06f, 3, 1, 1, false},
+        {"hub.token", CB_SFX, CR_TOKEN, 1400, 0.9f, 0.2f, 0.04f, 3, 2, 1, false},
+        {"hub.embark", CB_SFX, CR_SPOOL, 60, 2.6f, 0.26f, 0.02f, 2, 3, 1, true},
+        {"hub.tilt", CB_SFX, CR_TILT, 90, 2.0f, 0.2f, 0.05f, 3, 2, 1, false},
+        // --- the salon's ambience events
+        {"amb.clock", CB_AMB, CR_CLOCK, 2200, 0.05f, 0.05f, 0.02f, 2, 0, 2, false},
+        {"amb.creak", CB_AMB, CR_CREAK, 110, 1.4f, 0.07f, 0.12f, 6, 0, 2, false},
+        {"amb.step", CB_AMB, CR_STEP, 120, 0.12f, 0.08f, 0.1f, 5, 0, 4, false},
+        {"amb.organbreath", CB_AMB, CR_WHOOSH, 180, 2.6f, 0.05f, 0.05f, 3, 0, 1, false},
+        // --- instruments the scores use as one-shots (checked by --audio-test like every other cue)
+        {"mus.pluck", CB_MUSIC, CR_PLUCK, 440, 1.2f, 0.1f, 0.0f, 3, 1, 8, false},
+        {"mus.bell", CB_MUSIC, CR_BELL, 880, 1.4f, 0.08f, 0.0f, 3, 1, 8, false},
+        {"mus.drum", CB_MUSIC, CR_DRUM, 70, 0.4f, 0.2f, 0.03f, 3, 1, 4, false},
+    };
+    count = (int)(sizeof(C) / sizeof(C[0]));
+    return C;
+}

@@ -159,6 +159,7 @@ static void Cleanup(Game& g) {
     bool anyDead = false;
     for (auto& h : g.roster) if (h.dead) anyDead = true;
     if (!anyDead) return;
+    g.mourning = true;   // the salon mourns them when the party comes home
     for (auto& h : g.roster)
         if (h.dead) for (auto& id : g.party) if (id == h.id) id = -1;
     g.roster.erase(std::remove_if(g.roster.begin(), g.roster.end(), [](const Hero& h) { return h.dead; }), g.roster.end());
@@ -687,6 +688,7 @@ static void EnterNextRoom(Game& g) {
 }
 
 void StartDungeon(Game& g, Location loc) {
+    g.mourning = false;
     CompactParty(g);
     g.dungeon = DungeonState{};
     auto& d = g.dungeon;

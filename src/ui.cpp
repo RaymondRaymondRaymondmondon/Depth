@@ -3,6 +3,7 @@
 // ============================================================================
 #include "game.h"
 #include "rlgl.h"
+#include "sound.h"
 #include <algorithm>
 #include <cmath>
 
@@ -59,7 +60,14 @@ bool Button(Rectangle r, const char* text, bool enabled, int fontSize) {
     Color tc = !enabled ? Color{120, 116, 104, 255} : hover ? Color{255, 240, 200, 255} : Color{226, 214, 186, 255};
     TxtBold(text, tx, ty + 2, fs, Color{0, 0, 0, 230});
     TxtBold(text, tx, ty, fs, tc);
-    return hover && IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
+    // sound: a tick as the mouse comes onto a button, a click when it's pressed
+    static float lastKey = 0;
+    float key = r.x * 7.13f + r.y * 3.71f + r.width;
+    if (hover && key != lastKey) { PlayCue("ui.hover"); lastKey = key; }
+    else if (!hover && key == lastKey) lastKey = 0;
+    bool pressed = hover && IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
+    if (pressed) PlayCue("ui.click");
+    return pressed;
 }
 
 // A stained parchment sheet in a frame of dark wood and riveted iron, its corners bracketed and its edges
@@ -140,6 +148,7 @@ void DrawToast(Game& g) {
 
 bool BackButton(Game& g) {
     if (Button({20, 20, 190, 44}, "< The Nautilus")) {
+        PlayCue("ui.cancel");
         g.scene = Scene::Hub;
         g.dismissArmed = -1;
         return true;

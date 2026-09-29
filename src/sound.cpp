@@ -50,8 +50,8 @@ struct Biquad {
     float Run(float x) { float y = b0 * x + z1; z1 = b1 * x - a1 * y + z2; z2 = b2 * x - a2 * y; return y; }
 };
 
-enum Osc { W_SINE, W_TRI, W_SAW, W_SQR, W_NOISE, W_FM };
-enum Bus { B_SFX, B_MUSIC, B_AMB };
+enum Osc { W_SINE, W_TRI, W_SAW, W_SQR, W_NOISE, W_FM, W_PLUCK };
+enum Bus { B_SFX, B_MUSIC, B_AMB, B_UI, B_VOICE };   // the same order as CueBus
 
 struct Voice {
     bool on = false;
@@ -69,8 +69,15 @@ struct Voice {
     float ph = 0, ph2 = 0, ph3 = 0, fcur = 440, env0 = 0, env1 = 0, fmi = 0;
     int ctr = 0;
     Biquad lp, hpf, fa, fb;
+    int cue = -1, inst = 0, prio = 0;         // which registered cue (and which playing of it) this voice belongs to
+    int ksLen = 0, ksI = 0;                   // a plucked string (Karplus-Strong): its delay line lives in gKs
+    float ksDecay = 0.996f;
 };
 Voice gV[128];
+float gKs[128][1024];                        // the plucked strings' delay lines, one per voice slot (kept out of Voice so it stays small)
+int gTagCue = -1, gTagInst = 0, gTagPrio = 0; // voices started while a cue is being built are tagged with it
+int gNextInst = 1;
+float gDuck = 0, gVoiceS = 0;                // music ducking (combat impacts), and how much a voice is speaking
 
 Voice& NewVoice(int bus = B_SFX) {
     int pick = -1; float worst = -1;
@@ -83,6 +90,7 @@ Voice& NewVoice(int bus = B_SFX) {
     gV[pick] = Voice{};
     gV[pick].on = true;
     gV[pick].bus = bus;
+    gV[pick].cue = gTagCue; gV[pick].inst = gTagInst; gV[pick].prio = gTagPrio;
     return gV[pick];
 }
 
@@ -678,8 +686,245 @@ void MusicTick() {
     }
 }
 
+// ================================================================ the rest of the ship's sound (Master Reference)
+// ---------------------------------------------------------------- a generated convolution reverb
+// Each room type's impulse is built from filtered noise: a handful of early reflections, then a tail that decays
+// exponentially and darkens as it goes. It is convolved in 512-sample partitions by FFT (overlap-save), so even the
+// three-second cave costs little.
+struct Cpx { float r, i; };
+void FFT(Cpx* a, int n, bool inv) {
+    for (int i = 1, j = 0; i < n; i++) { int bit = n >> 1; for (; j & bit; bit >>= 1) j ^= bit; j ^= bit; if (i < j) std::swap(a[i], a[j]); }
+    for (int len = 2; len <= n; len <<= 1) {
+        float ang = TAU / len * (inv ? 1 : -1);
+        Cpx wl{cosf(ang), sinf(ang)};
+        for (int i = 0; i < n; i += len) {
+            Cpx w{1, 0};
+            for (int j = 0; j < len / 2; j++) {
+                Cpx u = a[i + j], v = a[i + j + len / 2];
+                Cpx t{v.r * w.r - v.i * w.i, v.r * w.i + v.i * w.r};
+                a[i + j] = {u.r + t.r, u.i + t.i};
+                a[i + j + len / 2] = {u.r - t.r, u.i - t.i};
+                w = {w.r * wl.r - w.i * wl.i, w.r * wl.i + w.i * wl.r};
+            }
+        }
+    }
+    if (inv) for (int i = 0; i < n; i++) { a[i].r /= n; a[i].i /= n; }
+}
+struct ConvRev {
+    static constexpr int B = 512, N = 1024, H = N / 2 + 1;
+    int P = 0, xPos = 0, pos = 0, room = -1;
+    std::vector<std::vector<Cpx>> HL, HR, X;
+    std::vector<float> in = std::vector<float>(B, 0), prev = std::vector<float>(B, 0), outL = std::vector<float>(B, 0), outR = std::vector<float>(B, 0);
+    void Build(int r) {
+        room = r;
+        //                 T60  predelay(ms) bright early  gain
+        const float PR[RR_COUNT][5] = {{1.4f, 12, 0.55f, 8, 0.32f},   // the salon: wood and brass, warm, not long
+                                       {3.0f, 24, 0.35f, 14, 0.30f},  // a cave: long, dark, many reflections
+                                       {1.8f, 8, 0.3f, 4, 0.26f},     // kelp: soft, absorbent
+                                       {2.4f, 30, 0.7f, 10, 0.3f},    // a stone hall (Atlantis): bright and long
+                                       {0.9f, 60, 0.4f, 2, 0.2f}};    // the open sea: little but a far return
+        const float* p = PR[std::clamp(r, 0, RR_COUNT - 1)];
+        int len = (int)(p[0] * SR);
+        P = (len + B - 1) / B;
+        HL.assign(P, std::vector<Cpx>(H)); HR.assign(P, std::vector<Cpx>(H)); X.assign(P, std::vector<Cpx>(H, Cpx{0, 0}));
+        for (int ch = 0; ch < 2; ch++) {
+            std::vector<float> ir(P * B, 0);
+            uint32_t seed = 0x1234567u + ch * 7919u + r * 104729u;
+            auto rnd = [&]() { seed ^= seed << 13; seed ^= seed >> 17; seed ^= seed << 5; return (float)(seed & 0xFFFFFF) / 8388608.0f - 1.0f; };
+            int pre = (int)(p[1] * SR / 1000);
+            for (int e = 0; e < (int)p[3]; e++) { int at = pre + (int)((0.004f + 0.07f * (e + rnd() * 0.5f + 0.5f) / p[3]) * SR); if (at < len) ir[at] += rnd() * 0.7f * (1 - e / p[3] * 0.6f); }
+            float lp = 0;
+            for (int n = pre; n < len; n++) {
+                float u = (float)n / len, env = expf(-6.9f * n / (p[0] * SR));
+                float a = std::clamp(p[2] * (1 - 0.8f * u), 0.03f, 0.95f); // the tail darkens as it decays
+                lp += (rnd() - lp) * a;
+                ir[n] += lp * env * 0.6f;
+            }
+            double e2 = 0; for (float x : ir) e2 += x * x;
+            float norm = p[4] / (float)sqrt(std::max(1e-9, e2));
+            std::vector<Cpx> buf(N);
+            for (int q = 0; q < P; q++) {
+                for (int k = 0; k < N; k++) buf[k] = {k < B ? ir[q * B + k] * norm : 0.0f, 0};
+                FFT(buf.data(), N, false);
+                for (int k = 0; k < H; k++) (ch ? HR : HL)[q][k] = buf[k];
+            }
+        }
+        xPos = 0; pos = 0;
+        std::fill(prev.begin(), prev.end(), 0.0f); std::fill(outL.begin(), outL.end(), 0.0f); std::fill(outR.begin(), outR.end(), 0.0f);
+    }
+    void Process() {
+        std::vector<Cpx> f(N);
+        for (int k = 0; k < N; k++) f[k] = {k < B ? prev[k] : in[k - B], 0};
+        FFT(f.data(), N, false);
+        for (int k = 0; k < H; k++) X[xPos][k] = f[k];
+        for (int ch = 0; ch < 2; ch++) {
+            auto& Hs = ch ? HR : HL;
+            std::vector<Cpx> y(N, Cpx{0, 0});
+            for (int q = 0; q < P; q++) {
+                const auto& x = X[(xPos - q + P) % P];
+                const auto& h = Hs[q];
+                for (int k = 0; k < H; k++) { y[k].r += x[k].r * h[k].r - x[k].i * h[k].i; y[k].i += x[k].r * h[k].i + x[k].i * h[k].r; }
+            }
+            for (int k = 1; k < N / 2; k++) y[N - k] = {y[k].r, -y[k].i};
+            FFT(y.data(), N, true);
+            auto& o = ch ? outR : outL;
+            for (int k = 0; k < B; k++) o[k] = y[B + k].r;   // overlap-save: the second half is the clean block
+        }
+        prev = in;
+        xPos = (xPos + 1) % P;
+    }
+    void Run(float x, float& l, float& r) {
+        if (P == 0) { l = r = 0; return; }
+        l = outL[pos]; r = outR[pos]; in[pos] = x;
+        if (++pos == B) { Process(); pos = 0; }
+    }
+};
+ConvRev gConv;
+int gRoomWant = RR_SALON;
+
+// ---------------------------------------------------------------- registered cues
+int FindCue(const char* name) {
+    int n; const CueDef* c = CueTable(n);
+    for (int i = 0; i < n; i++) if (strcmp(c[i].name, name) == 0) return i;
+    return -1;
+}
+void KillInstance(int inst) { for (auto& v : gV) if (v.on && v.inst == inst) v.on = false; }
+// Builds cue `idx` from its recipe. Voices started in here are tagged with the cue (see NewVoice).
+void BuildCue(int idx, float vol, float pan) {
+    int n; const CueDef& d = CueTable(n)[idx];
+    int bus = d.bus;
+    // how many of it are sounding, and how full the effect voices are
+    if (bus != CB_MUSIC && bus != CB_AMB) {
+        int oldest = 1 << 30, instances = 0, used = 0, lowInst = -1, lowPrio = 99;
+        std::vector<int> seen;
+        for (auto& v : gV) {
+            if (!v.on) continue;
+            if (v.bus == B_SFX || v.bus == B_UI || v.bus == B_VOICE) { used++; if (v.cue >= 0 && v.prio < lowPrio) { lowPrio = v.prio; lowInst = v.inst; } }
+            if (v.cue == idx && std::find(seen.begin(), seen.end(), v.inst) == seen.end()) { seen.push_back(v.inst); instances++; oldest = std::min(oldest, v.inst); }
+        }
+        if (instances >= d.maxSim) KillInstance(oldest);
+        if (used >= 24) { if (lowInst >= 0 && lowPrio <= d.priority) KillInstance(lowInst); else return; } // the 24-voice cap: low priority goes first
+    }
+    int k = d.variants > 1 ? GetRandomValue(0, d.variants - 1) : 0;
+    float kv = d.variants > 1 ? (float)k / (d.variants - 1) : 0.5f;
+    float pitch = 1 + RR(-d.pitchVar, d.pitchVar), lenK = 0.88f + 0.24f * kv, cutK = 0.9f + 0.2f * (1 - kv);
+    Ctx c{vol, pitch, 1, 1, bus, bus == B_UI ? 0.08f : 0.3f};
+    PanGains(pan, c.gl, c.gr);
+    gTagCue = idx; gTagInst = gNextInst++; gTagPrio = d.priority;
+    float f = d.freq, dur = d.dur * lenK, g = d.gain;
+    switch (d.recipe) {
+    case CR_TICK: { Voice& v = Tone(c, W_SINE, f, f * 0.8f, dur, g); v.decPow = 2.5f; Voice& w = Puff(c, 6000 * cutK, 4000, 0.012f, g * 0.4f); w.hp = 2500; break; }
+    case CR_CLICK: { Voice& w = Puff(c, 5000 * cutK, 2000, 0.018f, g * 0.9f); w.hp = 1200; Voice& v = Tone(c, W_SINE, f, f * 0.6f, dur, g * 0.6f); v.decPow = 3; break; }
+    case CR_CONFIRM: for (int i = 0; i < 2; i++) { Voice& v = Tone(c, W_FM, f * (i ? 1.5f : 1), 0, dur, g, i * 0.08f); v.f1 = v.f0; v.fmRatio = 3.01f; v.fmIndex = 1.4f; v.fmIndex1 = 0.1f; v.decPow = 2; } break;
+    case CR_CANCEL: for (int i = 0; i < 2; i++) { Voice& v = Tone(c, W_FM, f * (i ? 0.75f : 1), 0, dur, g, i * 0.08f); v.f1 = v.f0; v.fmRatio = 2.0f; v.fmIndex = 1.0f; v.fmIndex1 = 0.1f; v.decPow = 2; } break;
+    case CR_ERROR: { Voice& v = Tone(c, W_SQR, f, f * 0.9f, dur, g * 0.5f); v.cut0 = v.cut1 = 600 * cutK; Thud(c, 80, g * 0.8f); break; }
+    case CR_WHOOSH: Whoosh(c, f * 0.6f, f * 2.2f * cutK, dur, g); break;
+    case CR_LATCH: { Voice& w = Puff(c, 7000, 3000, 0.02f, g); w.hp = 2500; Voice& v = Tone(c, W_FM, f, 0, dur, g * 0.5f, 0.01f); v.f1 = v.f0; v.fmRatio = 3.1f; v.fmIndex = 2.5f; v.fmIndex1 = 0.2f; v.decPow = 2.5f; break; }
+    case CR_PLAQUE: { Voice& v = Tone(c, W_NOISE, 100, 100, dur, g); v.fa0 = f * 0.7f; v.fa1 = f * 1.4f * cutK; v.fq = 4; v.atk = dur * 0.4f; Voice& t = Tone(c, W_SINE, f * 2, f * 2, 0.15f, g * 0.25f, dur * 0.8f); t.decPow = 2; break; }
+    case CR_CREAK: { Voice& v = Tone(c, W_SAW, f, f * RR(0.85f, 1.2f), dur, g); v.fa0 = v.fa1 = RR(380, 620) * cutK; v.fq = 9; v.vibR = RR(7, 13); v.vibD = 0.07f; v.atk = dur * 0.2f; v.send = 0.5f; break; }
+    case CR_SONAR: for (int e = 0; e < 3; e++) { Voice& v = Tone(c, W_SINE, f, f * 0.97f, 0.5f, g * (e ? 0.35f / e : 1), e * 0.38f); v.decPow = 1.6f; v.send = 0.6f; } break;
+    case CR_ORGAN2: for (int i = 0; i < 2; i++) for (int h = 1; h <= 3; h++) { Voice& v = Tone(c, W_SINE, f * (i ? 1.5f : 1) * h, 0, dur * 0.55f, g / (h * h), i * dur * 0.45f); v.f1 = v.f0; v.atk = 0.08f; v.decPow = 0.8f; v.send = 0.6f; } break;
+    case CR_FLARE: { Voice& v = Puff(c, 1400 * cutK, 300, dur, g); v.atk = 0.03f; Voice& w = Tone(c, W_SINE, 90, 60, dur * 0.6f, g * 0.5f); w.decPow = 2; break; }
+    case CR_JELLYHUM: for (int i = 0; i < 2; i++) { Voice& v = Tone(c, W_FM, f * (i ? 1.5f : 1), 0, dur, g * (i ? 0.5f : 1), i * 0.1f); v.f1 = v.f0 * 1.01f; v.fmRatio = 2.0f; v.fmIndex = 0.8f; v.atk = dur * 0.35f; v.decPow = 1.2f; v.send = 0.7f; } break;
+    case CR_GAUGE: for (int i = 0; i < 3; i++) { Voice& v = Puff(c, 9000, 6000, 0.008f, g, i * RR(0.03f, 0.07f)); v.hp = f; } break;
+    case CR_WHEEL: for (int i = 0; i < 6; i++) { Voice& w = Puff(c, 5000 * cutK, 3000, 0.02f, g, i * 0.11f); w.hp = 1500; Voice& v = Tone(c, W_FM, f, 0, 0.12f, g * 0.25f, i * 0.11f); v.f1 = v.f0; v.fmRatio = 2.7f; v.fmIndex = 1.5f; v.decPow = 3; } break;
+    case CR_RUNGS: for (int i = 0; i < 4; i++) { Voice& v = Tone(c, W_SINE, f * (1 - i * 0.04f), f * 0.7f, 0.09f, g, i * dur / 4); v.decPow = 3; Voice& w = Tone(c, W_NOISE, 100, 100, 0.03f, g * 0.5f, i * dur / 4); w.fa0 = w.fa1 = 900; w.fq = 3; } break;
+    case CR_SPOOL: { Voice& v = Tone(c, W_SAW, f, f * 3.2f, dur, g * 0.6f); v.cut0 = 200; v.cut1 = 1800; v.atk = dur * 0.5f; v.decPow = 1; v.det = 0.01f; Voice& r = Puff(c, 180, 700, dur, g * 0.7f); r.atk = dur * 0.4f; Voice& h = Puff(c, 6000, 3000, 0.7f, g * 0.3f, dur * 0.85f); h.hp = 2000; break; }
+    case CR_TILT: { Voice& v = Tone(c, W_SAW, f, f * 0.8f, dur, g); v.fa0 = 300; v.fa1 = 260; v.fq = 6; v.atk = 0.4f; v.vibR = 3; v.vibD = 0.05f; v.send = 0.6f; for (int i = 0; i < 3; i++) { Voice& w = Tone(c, W_SAW, RR(140, 220), 0, 0.4f, g * 0.3f, 0.3f + i * 0.45f); w.f1 = w.f0 * 0.9f; w.fa0 = w.fa1 = 500; w.fq = 9; } break; }
+    case CR_CLOCK: { Voice& v = Tone(c, W_SINE, f * (k % 2 ? 0.8f : 1), f * 0.7f, dur, g); v.decPow = 3; Voice& w = Puff(c, 8000, 5000, 0.006f, g * 0.6f); w.hp = 3000; break; }
+    case CR_STEP: { Voice& v = Tone(c, W_SINE, f, f * 0.6f, dur, g); v.decPow = 2.5f; Voice& w = Puff(c, 900 * cutK, 300, dur, g * 0.6f); w.decPow = 2.5f; break; }
+    case CR_GEAR: { for (int i = 0; i < 8; i++) { Voice& w = Puff(c, 8000, 5000, 0.01f, g, i * dur / 8); w.hp = 3000; } Voice& v = Tone(c, W_TRI, f, f * 1.6f, dur, g * 0.3f); v.atk = 0.1f; break; }
+    case CR_DOOR: { Voice& v = Tone(c, W_SAW, f, f * 1.5f, dur, g); v.fa0 = 450; v.fa1 = 700; v.fq = 10; v.vibR = 11; v.vibD = 0.08f; v.atk = 0.1f; Thud(c, 90, g * 0.6f, dur * 0.9f); break; }
+    case CR_LADDER: { Voice& r = Puff(c, 500 * cutK, 350, dur, g); r.tremR = 14; r.tremD = 0.5f; Voice& v = Tone(c, W_SINE, 1400, 1700, 0.12f, g * 0.25f, dur * 0.7f); v.vibR = 20; v.vibD = 0.02f; break; }
+    case CR_FANFARE: { const float st[4] = {1, 1.26f, 1.5f, 2}; for (int i = 0; i < 4; i++) { Voice& v = Tone(c, W_SAW, f * st[i], 0, i == 3 ? dur * 0.6f : 0.2f, g, i * 0.13f); v.f1 = v.f0; v.cut0 = 2200; v.cut1 = 1200; v.det = 0.005f; v.atk = 0.02f; v.decPow = i == 3 ? 1.2f : 2; v.send = 0.5f; } break; }
+    case CR_CHALK: { Voice& v = Tone(c, W_NOISE, 100, 100, dur, g); v.fa0 = f * cutK; v.fa1 = f * 0.8f; v.fq = 5; v.tremR = 30; v.tremD = 0.6f; break; }
+    case CR_PLUCK: { Voice& v = Tone(c, W_PLUCK, f, f, dur, g); v.atk = 0.001f; v.decPow = 1; v.hold = dur * 0.5f; v.send = 0.4f; break; }
+    case CR_BELL: { Voice& v = Tone(c, W_FM, f, f, dur, g); v.fmRatio = 5.4f; v.fmIndex = 1.8f; v.fmIndex1 = 0.1f; v.atk = 0.002f; v.decPow = 2.2f; v.send = 0.5f; break; }
+    case CR_THUD: Thud(c, f, g); break;
+    case CR_TOKEN: { Voice& v = Tone(c, W_FM, f, f, 0.4f, g * 0.6f); v.fmRatio = 3.3f; v.fmIndex = 2; v.fmIndex1 = 0.2f; v.decPow = 2.5f; for (int i = 0; i < 6; i++) { Voice& w = Puff(c, 6000 - i * 600, 3000, 0.015f, g * 0.4f, 0.1f + i * (0.08f - i * 0.006f)); w.hp = 1500; } Thud(c, 110, g * 0.8f, dur * 0.85f); break; }
+    case CR_DRUM: { Voice& v = Tone(c, W_SINE, f * 2, f, dur, g); v.curve = 0.3f; v.decPow = 2; Puff(c, 1200, 300, 0.05f, g * 0.5f); break; }
+    default: break;
+    }
+    gTagCue = -1; gTagInst = 0; gTagPrio = 0;
+    if (d.duck) gDuck = 1;
+}
+
+// ---------------------------------------------------------------- the salon: a Verne-era waltz and the ship's bed
+// Harmonium and music box in 3/4, D minor turning to F: an oom-pah-pah under a composed sixteen-bar tune that
+// varies each time round (up an octave, a breath of rests, a counter-line). An open station adds its motif; when a
+// crew member has died the waltz stops and the organ plays alone.
+struct HubMusic { bool on = false; int station = -1; bool mourning = false; float s = 0; int tick = 0; float tickT = 0; };
+HubMusic gHub;
+Biquad gDeckL, gDeckR;       // the Study: the waltz heard through the deck
+struct HubBed { float ph = 0; Biquad flt; };
+HubBed gHubHum, gHubWater;
+float gHubAmbT = 0, gClockT = 0;
+float Midi(float m) { return 440.0f * powf(2.0f, (m - 69) / 12.0f); }
+const int WALTZ_CHORD[16][3] = {{50, 53, 57}, {55, 58, 62}, {50, 53, 57}, {50, 53, 57}, {48, 52, 55}, {50, 53, 57}, {48, 52, 55}, {53, 57, 60},
+                                {55, 58, 62}, {50, 53, 57}, {57, 61, 64}, {50, 53, 57}, {53, 57, 60}, {55, 58, 62}, {57, 61, 64}, {50, 53, 57}};
+struct MNote { int m; int beats; };
+const MNote WALTZ_TUNE[] = {{69, 3}, {74, 1}, {72, 1}, {70, 1}, {69, 2}, {67, 1}, {65, 3}, {64, 1}, {65, 1}, {67, 1}, {69, 2}, {62, 1}, {64, 1}, {65, 1}, {67, 1}, {69, 3},
+                            {70, 1}, {69, 1}, {67, 1}, {65, 2}, {69, 1}, {67, 1}, {65, 1}, {64, 1}, {62, 3}, {65, 1}, {67, 1}, {69, 1}, {70, 2}, {74, 1}, {73, 2}, {76, 1}, {74, 3}};
+float HubTickDur() { return 60.0f / 84.0f / 2; } // eighth notes of a waltz at 84 to the beat
+void Harmonium(float f, float dur, float gain, float pan) {
+    Ctx c{1, 1, 1, 1, B_MUSIC, 0.45f}; PanGains(pan, c.gl, c.gr);
+    Voice& v = Tone(c, W_SAW, f, f, dur, gain); v.det = 0.004f; v.cut0 = v.cut1 = 1500; v.q = 0.9f; v.atk = std::min(0.09f, dur * 0.3f); v.decPow = 0.7f; v.tremR = 5.5f; v.tremD = 0.08f;
+}
+void MusicBox(float f, float gain, float pan) {
+    Ctx c{1, 1, 1, 1, B_MUSIC, 0.55f}; PanGains(pan, c.gl, c.gr);
+    Voice& v = Tone(c, W_FM, f, f, 1.7f, gain); v.fmRatio = 5.4f; v.fmIndex = 1.5f; v.fmIndex1 = 0.08f; v.atk = 0.002f; v.decPow = 2.3f;
+}
+void OrganChord(const int* ch, float dur, float gain) {
+    Ctx c{1, 1, 1, 1, B_MUSIC, 0.7f};
+    for (int i = -1; i < 3; i++) {
+        float f = Midi(i < 0 ? ch[0] - 12 : ch[i]);
+        for (int h = 1; h <= 2; h++) { PanGains(i * 0.25f, c.gl, c.gr); Voice& v = Tone(c, W_SINE, f * h, f * h, dur, gain / h); v.atk = dur * 0.25f; v.decPow = 0.6f; v.vibR = 4.5f; v.vibD = 0.002f; }
+    }
+}
+void HubTick() {
+    int t = gHub.tick, bar = (t / 6) % 16, cycle = t / 96, step = t % 6;
+    const int* ch = WALTZ_CHORD[bar];
+    if (gHub.mourning) { // the organ alone, slow
+        if (t % 12 == 0) OrganChord(ch, HubTickDur() * 12 * 1.05f, 0.03f);
+        return;
+    }
+    // oom-pah-pah
+    if (step == 0) Harmonium(Midi(ch[0] - 12), HubTickDur() * 2.6f, 0.07f, -0.1f);
+    if (step == 2 || step == 4) for (int i = 0; i < 3; i++) Harmonium(Midi(ch[i] + (i == 0 ? 12 : 0)), HubTickDur() * 1.1f, 0.025f, 0.15f);
+    // the tune on the music box: which note starts on this eighth?
+    bool breath = cycle % 3 == 2 && bar >= 8 && bar < 12;
+    int at = 0;
+    for (const MNote& n : WALTZ_TUNE) {
+        if (at == (t % 96) && !breath) MusicBox(Midi(n.m + 12 + (cycle % 2 ? 12 : 0)), 0.065f, 0.25f);
+        at += n.beats * 2;
+    }
+    // the open station's motif
+    Ctx c{1, 1, 1, 1, B_MUSIC, 0.5f};
+    switch ((Scene)gHub.station) {
+    case Scene::SickLeave: if (t % 12 == 0) OrganChord(ch, HubTickDur() * 12, 0.012f); break;
+    case Scene::Radar: { PanGains(0.4f, c.gl, c.gr); Voice& v = Tone(c, W_SINE, Midi(ch[step % 3] + 24), 0, 0.35f, 0.018f); v.f1 = v.f0; v.decPow = 2; v.send = 0.8f; break; }
+    case Scene::Cards: { Voice& v = Puff(c, 7000, 4000, 0.03f, step == 0 ? 0.05f : 0.025f); v.hp = 2500; break; }
+    case Scene::Workshop: if (step == 0) { Voice& v = Tone(c, W_FM, 1320, 1320, 0.5f, 0.02f); v.fmRatio = 2.76f; v.fmIndex = 2; v.fmIndex1 = 0.2f; v.decPow = 2.5f; } break;
+    case Scene::Helm: if (step == 0) { Voice& v = Tone(c, W_SAW, Midi(ch[0] - 12), 0, HubTickDur() * 6, 0.02f); v.f1 = v.f0; v.cut0 = v.cut1 = 500; v.atk = 0.2f; v.decPow = 0.8f; } break;
+    case Scene::Bookshelf: if (bar % 2 == 0) { Voice& v = Tone(c, W_PLUCK, Midi(ch[step % 3] + 24), 0, 0.8f, 0.03f); v.f1 = v.f0; v.decPow = 1; } break;
+    case Scene::Crew: { at = 0; for (const MNote& n : WALTZ_TUNE) { if (at == (t % 96)) { Voice& v = Tone(c, W_SINE, Midi(n.m + 12), 0, n.beats * HubTickDur() * 1.8f, 0.012f); v.f1 = v.f0; v.vibR = 5; v.vibD = 0.01f; v.atk = 0.05f; } at += n.beats * 2; } break; }
+    case Scene::Ward: if (step == 3) MusicBox(Midi(ch[1] + 12), 0.018f, -0.3f); break;
+    case Scene::Arcade: { at = 0; for (const MNote& n : WALTZ_TUNE) { if (at == (t % 96)) { Voice& v = Tone(c, W_SQR, Midi(n.m + 24), 0, n.beats * HubTickDur() * 1.2f, 0.01f); v.f1 = v.f0; v.cut0 = v.cut1 = 3000; } at += n.beats * 2; } break; }
+    default: break;
+    }
+}
+// the salon's little sounds: the wall clock, the hull creaking with the roll, footsteps of the hands overhead
+void HubEvents(float dt) {
+    gClockT += dt;
+    if (gClockT >= 1.0f) { gClockT -= 1.0f; static int tk = 0; BuildCue(FindCue("amb.clock"), 0.35f + 0.1f * (tk++ % 2), 0.55f); }
+    auto chance = [&](float perSec) { return R01() < perSec * dt; };
+    if (chance(0.12f)) BuildCue(FindCue("amb.creak"), RR(0.4f, 0.9f), RR(-0.8f, 0.8f));
+    if (chance(0.05f)) { float p = RR(-0.9f, 0.9f); for (int k = 0; k < GetRandomValue(3, 6); k++) { int ci = FindCue("amb.step"); if (ci >= 0) { gTagCue = ci; Ctx c{0.3f, 1, 1, 1, B_AMB, 0.4f}; PanGains(p, c.gl, c.gr); Voice& v = Tone(c, W_SINE, 120, 72, 0.12f, 0.08f, k * 0.45f); v.decPow = 2.5f; gTagCue = -1; } } }
+    if ((gHub.mourning || (Scene)gHub.station == Scene::SickLeave) && chance(0.1f)) BuildCue(FindCue("amb.organbreath"), 0.6f, -0.5f);
+}
 void Render(float* out, int frames) {
     EnsureRev();
+    if (gConv.room != gRoomWant) gConv.Build(gRoomWant);
     const float dtS = 1.0f / SR;
     float muL = 0, muR = 0; (void)muL; (void)muR;
     for (int base = 0; base < frames; base += CTRL) {
@@ -696,6 +941,18 @@ void Render(float* out, int frames) {
             gAmbT += blockT;
             if (gAmbT >= 0.05f) { AmbientEvents(gAmbT); gAmbT = 0; }
         }
+        gHub.s += ((gHub.on ? 1.0f : 0.0f) - gHub.s) * std::min(1.0f, blockT * 0.7f);
+        if (gHub.on) {
+            gHub.tickT += blockT;
+            while (gHub.tickT >= HubTickDur()) { gHub.tickT -= HubTickDur(); HubTick(); gHub.tick++; }
+            gHubAmbT += blockT;
+            if (gHubAmbT >= 0.05f) { HubEvents(gHubAmbT); gHubAmbT = 0; }
+        }
+        gDuck = std::max(0.0f, gDuck - blockT * 2.0f);
+        { bool speaking = false; for (auto& v : gV) if (v.on && v.bus == B_VOICE) { speaking = true; break; } gVoiceS += ((speaking ? 1.0f : 0.0f) - gVoiceS) * std::min(1.0f, blockT * 8); }
+        bool deck = gHub.on && (Scene)gHub.station == Scene::Study;
+        gDeckL.Set(0, deck ? 500.0f : 18000.0f, 0.707f); gDeckR.Set(0, deck ? 500.0f : 18000.0f, 0.707f);
+        gHubWater.flt.Set(0, 260 + 80 * sinf(gClock * 0.21f), 0.8f);
         gFlowS += (gFlow - gFlowS) * std::min(1.0f, blockT * 3);
         gTensionS += (gTension - gTensionS) * std::min(1.0f, blockT * 0.5f); // tension comes on over a couple of seconds and ebbs slowly
         gSlideS += (gSlide - gSlideS) * std::min(1.0f, blockT * 12);
@@ -715,9 +972,11 @@ void Render(float* out, int frames) {
             v.fmi = v.fmIndex1 >= 0 ? v.fmIndex + (v.fmIndex1 - v.fmIndex) * u : v.fmIndex;
             v.env0 = EnvAt(v, v.t); v.env1 = EnvAt(v, v.t + blockT);
         }
-        float busG[3] = {gVol.sfx, gVol.music * gScene, gVol.ambience * gScene};
+        float voiceDuck = 1 - 0.37f * gVoiceS;   // a voice ducks everything else 4 dB
+        float musicLevel = std::max(gScene, gHub.s) * (1 - 0.29f * gDuck); // combat impacts duck the music 3 dB
+        float busG[5] = {gVol.sfx * voiceDuck, gVol.music * musicLevel * voiceDuck, gVol.ambience * std::max(gScene, gHub.s) * voiceDuck, gVol.sfx, gVol.sfx};
         for (int i = 0; i < n; i++) {
-            float sL = 0, sR = 0, mL = 0, mR = 0, send = 0;
+            float sL = 0, sR = 0, mL = 0, mR = 0, send = 0, uL = 0, uR = 0, musL = 0, musR = 0;
             float fi = (float)i / n;
             for (auto& v : gV) {
                 if (!v.on) continue;
@@ -732,6 +991,14 @@ void Render(float* out, int frames) {
                 case W_SAW: s = 2 * v.ph - 1; break;
                 case W_SQR: s = v.ph < 0.5f ? 0.7f : -0.7f; break;
                 case W_NOISE: s = Noise(); break;
+                case W_PLUCK: {
+                    float* ks = gKs[&v - gV];
+                    if (v.ksLen == 0) { v.ksLen = std::clamp((int)(SR / std::max(20.0f, f)), 2, 1023); for (int k = 0; k < v.ksLen; k++) ks[k] = Noise(); v.ksI = 0; }
+                    s = ks[v.ksI];
+                    int nx = v.ksI + 1 < v.ksLen ? v.ksI + 1 : 0;
+                    ks[v.ksI] = (ks[v.ksI] + ks[nx]) * 0.5f * v.ksDecay;
+                    v.ksI = nx;
+                } break;
                 default: v.ph2 += f * v.fmRatio * dtS; if (v.ph2 >= 1) v.ph2 -= 1; s = sinf(TAU * v.ph + v.fmi * sinf(TAU * v.ph2)); break;
                 }
                 if (v.det > 0) { v.ph3 += f * (1 + v.det) * dtS; if (v.ph3 >= 1) v.ph3 -= 1; s = 0.6f * s + 0.6f * (v.wave == W_SAW ? 2 * v.ph3 - 1 : v.wave == W_TRI ? 1 - 4 * fabsf(v.ph3 - 0.5f) : sinf(TAU * v.ph3)); }
@@ -743,6 +1010,8 @@ void Render(float* out, int frames) {
                 if (v.tremD > 0) e *= 1 - v.tremD * (0.5f + 0.5f * sinf(TAU * v.tremR * v.t));
                 s *= e * v.gain * busG[v.bus];
                 if (v.bus == B_SFX) { sL += s * v.gl; sR += s * v.gr; }
+                else if (v.bus == B_UI || v.bus == B_VOICE) { uL += s * v.gl; uR += s * v.gr; }
+                else if (v.bus == B_MUSIC) { musL += s * v.gl; musR += s * v.gr; }
                 else { mL += s * v.gl; mR += s * v.gr; }
                 send += s * v.send;
                 v.t += dtS;
@@ -762,6 +1031,17 @@ void Render(float* out, int frames) {
                 mL += s; mR += s * (b.type == 1 ? 0.8f : 1.0f);
                 send += s * 0.3f;
             }
+            // the music (heard through the deck from the Study)
+            mL += gDeckL.Run(musL); mR += gDeckR.Run(musR);
+            // the salon's bed: the engine's hum, and the sea against the great window
+            if (gHub.s > 0.01f) {
+                gHubHum.ph += 50 * dtS; if (gHubHum.ph >= 1) gHubHum.ph -= 1;
+                float hum = (sinf(TAU * gHubHum.ph) + 0.4f * sinf(TAU * gHubHum.ph * 2) + 0.2f * sinf(TAU * gHubHum.ph * 3)) * 0.022f;
+                float water = gHubWater.flt.Run(Noise()) * 0.05f * (0.6f + 0.4f * sinf(gClock * 0.33f));
+                float amb = (hum + water) * gVol.ambience * gHub.s * voiceDuck;
+                mL += amb; mR += amb * 0.9f + water * 0.01f;
+                send += amb * 0.2f;
+            }
             // the draught or current around the diver, and a slide's scrape
             if (gFlowS > 0.01f) { float s = gFlowF.Run(Noise()) * gFlowS * 0.18f * gVol.sfx; sL += s; sR += s; }
             if (gSlideS > 0.01f) { float s = gSlideF2.Run(gSlideF.Run(Noise())) * gSlideS * 0.1f * gVol.sfx; sL += s; sR += s; }
@@ -771,7 +1051,11 @@ void Render(float* out, int frames) {
             float rin = send * 0.25f, rL = 0, rR = 0;
             for (int k = 0; k < 4; k++) { rL += gCombL[k].Run(rin, gRevFb, gRevDamp); rR += gCombR[k].Run(rin, gRevFb, gRevDamp); }
             for (int k = 0; k < 2; k++) { rL = gApL[k].Run(rL); rR = gApR[k].Run(rR); }
-            float L = (sL + mL + rL * gRevWet) * gVol.master, R = (sR + mR + rR * gRevWet) * gVol.master;
+            // outside the parkour section, rooms ring with the generated convolution reverb instead
+            float cw = gHub.s > gScene ? 1.0f : 0.0f, cL = 0, cR = 0;
+            if (gHub.s > 0.002f) gConv.Run(send * cw, cL, cR);   // only while a room is sounding
+            rL = rL * (1 - cw) + cL * 2.2f; rR = rR * (1 - cw) + cR * 2.2f;
+            float L = (sL + mL + uL + rL * gRevWet) * gVol.master, R = (sR + mR + uR + rR * gRevWet) * gVol.master;
             out[(base + i) * 2] = tanhf(L);
             out[(base + i) * 2 + 1] = tanhf(R);
         }
@@ -781,6 +1065,18 @@ void Render(float* out, int frames) {
 } // namespace
 
 AudioVolumes& Volumes() { return gVol; }
+
+int CueIndex(const char* name) { return FindCue(name); }
+void PlayCue(const char* name, float vol, float pan) {
+    if (!gReady) return;
+    int i = FindCue(name);
+    if (i >= 0) BuildCue(i, vol, pan);
+}
+void AudioHub(bool on, int station, bool mourning) {
+    gHub.on = on; gHub.station = station; gHub.mourning = mourning;
+    if (on) gRoomWant = RR_SALON;
+}
+void AudioRoom(int room) { gRoomWant = std::clamp(room, 0, RR_COUNT - 1); }
 
 void AudioInit() {
     if (!IsAudioDeviceReady() || gReady) return;
@@ -944,6 +1240,35 @@ bool AudioSelfTest(const char* wavPath) {
     for (const char* b : beasts) for (int cue = 0; cue < 7; cue++) { float pk = solo([&] { gCallCool = 0; BeastSound(b, 1.0f, cue, {0, 0}); }); if (pk < 0.01f && !(cue <= CUE_ALARM && strstr(b, "Fungus")) && !(cue == CUE_CALL && strstr(b, "Shark"))) { printf("  %s cue %d is silent or broken (peak %.3f)\n", b, cue, pk); silent++; } }
     printf("%d silent or broken voices\n", silent);
     if (silent) ok = false;
+    // the salon: the waltz and its bed, mourning, and each station's motif; then every registered cue on its own
+    gLevel = -1; gSceneTarget = 0; gScene = 0;
+    auto hubPass = [&](const char* label, int station, bool mourning, float secs) {
+        for (auto& v : gV) v.on = false;
+        gHub = HubMusic{}; gHub.on = true; gHub.station = station; gHub.mourning = mourning; gHub.s = 1;
+        int N = (int)(SR * secs);
+        std::vector<float> b(N * 2);
+        for (int at = 0; at < N; at += BLOCK) Render(&b[at * 2], std::min(BLOCK, N - at));
+        double sum = 0; float pk = 0; int bad = 0; for (float x : b) { if (!std::isfinite(x)) bad++; else { sum += x * x; pk = std::max(pk, fabsf(x)); } }
+        float db = 20 * log10f(std::max(1e-6f, sqrtf((float)(sum / b.size()))));
+        bool pass = !bad && db > -45 && pk < 0.97f;
+        printf("salon %-12s rms %5.1f dB  peak %.2f%s\n", label, db, pk, pass ? "" : "  FAIL");
+        if (!pass) ok = false;
+        if (wavPath && station < 0 && !mourning) all.insert(all.end(), b.begin(), b.end());
+    };
+    hubPass("waltz", -1, false, 20);
+    hubPass("mourning", -1, true, 12);
+    const Scene stations[] = {Scene::Helm, Scene::Crew, Scene::Radar, Scene::Ward, Scene::SickLeave, Scene::Bookshelf, Scene::Workshop, Scene::Cards, Scene::Arcade, Scene::Study};
+    const char* stationNames[] = {"helm", "crew", "radar", "ward", "sick bay", "library", "workshop", "cards", "arcade", "study"};
+    for (int i = 0; i < 10; i++) hubPass(stationNames[i], (int)stations[i], false, 8);
+    gHub = HubMusic{};
+    int nc; const CueDef* cues = CueTable(nc);
+    int silentCues = 0;
+    for (int i = 0; i < nc; i++) {
+        float pk = solo([&] { BuildCue(i, 1, 0); });
+        if (pk < 0.01f || pk > 0.97f) { printf("  cue %s is %s (peak %.3f)\n", cues[i].name, pk < 0.01f ? "silent" : "clipping", pk); silentCues++; }
+    }
+    printf("%d registered cues, %d silent or clipping\n", nc, silentCues);
+    if (silentCues) ok = false;
     if (wavPath) {
         std::vector<short> pcm(all.size());
         for (size_t i = 0; i < all.size(); i++) pcm[i] = (short)(std::clamp(all[i], -1.0f, 1.0f) * 32000);

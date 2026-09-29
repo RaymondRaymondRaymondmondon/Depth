@@ -10,6 +10,7 @@
 //  size its distance calls for. The crew and the ship's cat wander the floor.
 // ============================================================================
 #include "game.h"
+#include "sound.h"
 #include "rlgl.h"
 #include <algorithm>
 #include <cmath>
@@ -1482,11 +1483,12 @@ bool SalonHudInput(Game& g) {
     if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) { int k = slotAt(m); if (k >= 0) { g.party[k] = -1; return true; } }
     if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
         int i = rosterAt(m), k = slotAt(m);
-        if (i >= 0) { gDragId = g.roster[i].id; gDragFrom = m; gDragMoved = false; gDragFromParty = false; return true; }
+        if (i >= 0) { gDragId = g.roster[i].id; gDragFrom = m; gDragMoved = false; gDragFromParty = false; PlayCue("ui.drag"); return true; }
         if (k >= 0 && g.party[k] >= 0) { gDragId = g.party[k]; gDragFrom = m; gDragMoved = false; gDragFromParty = true; return true; }
         if (CheckCollisionPointRec(m, EmbarkRect())) {
             int n = 0; for (int id : g.party) if (id >= 0) n++;
-            if (n == PARTY_SIZE) g.scene = Scene::Helm; else Toast(g, "Embark needs a full party of four: drag crew from the roster onto the slots.");
+            if (n == PARTY_SIZE) { g.scene = Scene::Helm; PlayCue("hub.embark"); PlayCue("hub.tilt", 0.7f); }
+            else { Toast(g, "Embark needs a full party of four: drag crew from the roster onto the slots."); PlayCue("ui.error"); }
             return true;
         }
     }
@@ -1499,8 +1501,8 @@ bool SalonHudInput(Game& g) {
                 int k = slotAt(m), from = -1;
                 for (int j = 0; j < PARTY_SIZE; j++) if (g.party[j] == h->id) from = j;
                 if (k >= 0) {
-                    if (h->onLeave > 0) Toast(g, h->name + " is resting in the Sick Bay and sits this voyage out.");
-                    else { if (from >= 0) g.party[from] = g.party[k]; g.party[k] = h->id; }
+                    if (h->onLeave > 0) { Toast(g, h->name + " is resting in the Sick Bay and sits this voyage out."); PlayCue("ui.error"); }
+                    else { if (from >= 0) g.party[from] = g.party[k]; g.party[k] = h->id; PlayCue("ui.drop"); }
                 } else if (gDragFromParty && from >= 0 && m.y < HUD_Y) g.party[from] = -1;   // dragged off the bar: out of the party
             }
             gDragId = -1; gDragMoved = false;
@@ -1650,6 +1652,16 @@ static void SalonFrame(Game& g, bool live, int heldStation) {
     if (mouseInRoom && !hovPerson && !hovCat)
         for (int i : order) if (CheckCollisionPointRec(m, stationRect[i])) { hovered = i; break; }
     if (gDebugHover >= 0) hovered = gDebugHover;
+    static int lastHover = -1;
+    if (live && hovered != lastHover && hovered >= 0) { // a new station under the mouse: its plaque slides up, and it answers
+        PlayCue("hub.plaque", 0.8f);
+        const char* HOVER_CUE[ST_COUNT] = {"hub.door", "hub.ladder", "hub.sonar", "hub.wheel", "hub.periscope", "hub.gear", "hub.organ", "hub.candle", "hub.candle", "hub.jelly", "hub.hatch"};
+        float pan = std::clamp((stationRect[hovered].x + stationRect[hovered].width / 2 - CX) / 640.0f, -1.0f, 1.0f);
+        PlayCue(HOVER_CUE[hovered], 0.7f, pan);
+        if (hovered == ST_ARCADE) PlayCue("hub.gauge", 0.5f, pan);
+        if (hovered == ST_STUDY) PlayCue("hub.rungs", 0.5f, pan);
+    }
+    if (live) lastHover = hovered;
     for (int i = 0; i < ST_COUNT; i++) { // each station eases into and out of its hover motion
         float want = i == hovered || i == heldStation ? 1.0f : 0.0f;
         gHov[i] += (want - gHov[i]) * std::min(1.0f, dt * 6);
@@ -1727,6 +1739,9 @@ static void SalonFrame(Game& g, bool live, int heldStation) {
     }
     if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && mouseInRoom && !hovPerson && !hovCat && hovered >= 0) {
         g.scene = STATIONS[hovered].target;
+        if (hovered == ST_ARCADE) PlayCue("hub.token");
+        else if (hovered == ST_STUDY) { PlayCue("hub.hatch"); PlayCue("hub.rungs"); }
+        else { PlayCue("hub.panel"); PlayCue("hub.latch"); }
         if (g.scene == Scene::Crew && !FindHero(g, g.selectedHero) && !g.roster.empty()) g.selectedHero = g.roster[0].id;
     }
 }
