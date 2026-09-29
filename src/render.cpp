@@ -468,6 +468,9 @@ static const Palette* gInkPal = nullptr;
 static float gInkPalAmt = 0;
 static unsigned gInkSeed = 0;
 bool gSilhouette = false;
+static Rectangle gFigClip{};
+static bool gFigClipOn = false;
+void SetFigureClip(const Rectangle* r) { gFigClipOn = r != nullptr; if (r) gFigClip = *r; }
 static bool gFlatShade = false; // on while a figure is drawn: forms get flat lit and shadow planes (see ShadeBall)
 void SetSceneLight(const SceneLight& l) { gLight = l; }
 const SceneLight& CurSceneLight() { return gLight; }
@@ -522,12 +525,19 @@ static void EndTarget() {
     if (targetScaled) { rlPopMatrix(); targetScaled = false; }
     EndTextureMode();
 }
+static Vector2 gSlide{0, 0}; // a station panel sliding in: everything drawn into the scene after it is set moves with it
 void EnterScene() {
     BeginTextureMode(A.scene);
     PushScale(); // everything is drawn in screen units onto the double-size scene
+    if (gSlide.x != 0 || gSlide.y != 0) rlTranslatef(gSlide.x, gSlide.y, 0);
+}
+void SetSceneSlide(Vector2 d) {
+    rlTranslatef(d.x - gSlide.x, d.y - gSlide.y, 0); // takes effect at once on the scene being drawn...
+    gSlide = d;                                       // ...and again whenever the scene is re-entered after a layer
 }
 
 void BeginFrame() {
+    gSlide = {0, 0};
     gLight = SceneLight{};        // each scene sets its own light rig; this is the neutral default
     gInkPal = nullptr; gInkPalAmt = 0;
     EnterScene();
@@ -956,10 +966,12 @@ void EndFigure(Vector2 feet, Color tint, float sx, float sy) {
                        {roundf(feet.x - FIG_FEET.x * sx), roundf(feet.y - FIG_FEET.y * sy), (float)FIG_W * sx, (float)FIG_H * sy}, {0, 0}, 0, Color{0, 0, 0, tint.a});
         return;
     }
+    if (gFigClipOn) BeginScissorMode((int)(gFigClip.x * SS), (int)(gFigClip.y * SS), (int)(gFigClip.width * SS), (int)(gFigClip.height * SS));
     BeginShaderMode(A.figShader);
     DrawTexturePro(A.fig.texture, {0, 0, (float)FIG_W * SS, -(float)FIG_H * SS},
                    {roundf(feet.x - FIG_FEET.x * sx), roundf(feet.y - FIG_FEET.y * sy), (float)FIG_W * sx, (float)FIG_H * sy}, {0, 0}, 0, tint); // squash and stretch, about the feet
     EndShaderMode();
+    if (gFigClipOn) EndScissorMode();
 }
 
 // ============================================================= shaded forms
@@ -1924,6 +1936,23 @@ void DrawCrewFigureInked(const Hero& h, Vector2 feet, float s, bool right, float
     BeginFigure();
     DrawCrewFigure(h, FIG_FEET, s, right, walk, t, pose);
     EndFigure(feet, tint);
+}
+
+// Head and shoulders, for the roster and the party slots: the figure drawn large and clipped to the frame.
+void DrawPortrait(const Hero& h, Rectangle r, float t) {
+    float s = r.height / 46.0f;
+    Vector2 feet{r.x + r.width * 0.5f - 3 * s, r.y + r.height * 0.42f + 152 * s};
+    bool painted = h.cls == HeroClass::Siren || h.cls == HeroClass::Wisp; // drawn straight to the scene: clip it directly
+    if (painted) {
+        rlDrawRenderBatchActive();
+        BeginScissorMode((int)(r.x * SS), (int)(r.y * SS), (int)(r.width * SS), (int)(r.height * SS));
+        DrawCrewFigureInked(h, feet, s, true, 0, t, Pose{});
+        EndScissorMode();
+    } else {
+        SetFigureClip(&r);
+        DrawCrewFigureInked(h, feet, s, true, 0, t, Pose{});
+        SetFigureClip(nullptr);
+    }
 }
 
 // ============================================================================

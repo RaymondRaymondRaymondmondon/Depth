@@ -17,13 +17,19 @@
 
 namespace {
 // ---------------------------------------------------------------- the room and the camera
-constexpr float FOCAL = 440, CX = SCREEN_W / 2.0f, CY = 320, EYE = 230;
+// The room is framed left of centre: the roster stands along the right edge, as in Darkest Dungeon's hamlet.
+constexpr float FOCAL = 440, CX = 560, CY = 320, EYE = 230;
 constexpr float RW = 720, RH = 600, Z_NEAR = 290, Z_BACK = 1150;
 constexpr float HUD_Y = 654, CREW_H = 190; // a crew member's height in room units
-constexpr float PERI_X = 150, PERI_Z = 560;
+constexpr float PERI_X = 110, PERI_Z = 560;
+constexpr float ARC_X = -400, ARC_Z = 380;   // the Deep Arcade cabinet, riveted into the near bulkhead on the left
+constexpr float HATCH_Z = 470;               // the Study hatch, set into the deck, front and centre
+constexpr float ROSTER_X = 1128;             // the roster column along the right edge
+// The camera drifts a little opposite the mouse (up to ~1.5% of the screen), so the room has depth without moving.
+float gCamX = 0, gCamY = 0;
 constexpr float WARD_X = 590; // the Ward's cabinet, in the back right corner // the periscope stands between the great window and the Ward
 
-Vector2 Proj(float X, float Y, float Z) { return {CX + X * FOCAL / Z, CY - (Y - EYE) * FOCAL / Z}; }
+Vector2 Proj(float X, float Y, float Z) { return {CX + (X - gCamX) * FOCAL / Z, CY - (Y - EYE - gCamY) * FOCAL / Z}; }
 Vector2 Proj(Vector3 p) { return Proj(p.x, p.y, p.z); }
 float Px(float Z) { return FOCAL / Z; }
 Vector3 Mix(Vector3 a, Vector3 b, float t) { return {a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, a.z + (b.z - a.z) * t}; }
@@ -99,9 +105,11 @@ float Hash01(int a, int b) {
     return ((h ^ (h >> 16)) & 0xffff) / 65535.0f;
 }
 float RandF(float lo, float hi) { return lo + (hi - lo) * GetRandomValue(0, 10000) / 10000.0f; }
+// a phase that advances at a rate you can change without it jumping (the radar sweep speeding up on hover ...)
+float Spin(int slot, float rate) { static float acc[16] = {}; acc[slot] += GetFrameTime() * rate; return acc[slot]; }
 
 // ---------------------------------------------------------------- stations
-enum StationId { ST_CREW, ST_LIBRARY, ST_RADAR, ST_HELM, ST_PERISCOPE, ST_WORKSHOP, ST_SICKBAY, ST_WARD, ST_CARDS, ST_COUNT };
+enum StationId { ST_CREW, ST_LIBRARY, ST_RADAR, ST_HELM, ST_PERISCOPE, ST_WORKSHOP, ST_SICKBAY, ST_WARD, ST_CARDS, ST_ARCADE, ST_STUDY, ST_COUNT };
 struct Station { Scene target; const char* name; const char* hint; Vector2 stand; }; // stand = (X, Z) where crew gather
 const Station STATIONS[ST_COUNT] = {
     {Scene::Crew, "Crew Quarters", "Choose your party, fit relics, and pick each crew member's abilities.", {-540, 620}},
@@ -112,8 +120,11 @@ const Station STATIONS[ST_COUNT] = {
     {Scene::Workshop, "Workshop", "Upgrade the Nautilus: reflectors, bunks, sonar and infirmary gear.", {540, 900}},
     {Scene::SickLeave, "Sick Bay", "Rattled crew can rest by the organ and steady their nerves.", {-400, 930}},
     {Scene::Ward, "The Ward", "Patch up injured crew.", {400, 930}},
-    {Scene::Cards, "The Card Table", "Play Flats against the ship's dealer: a card-sharp's way to earn gold when you're short.", {-260, 630}},
+    {Scene::Cards, "The Card Table", "Play Flats against the ship's dealer: a card-sharp's way to earn gold when you're short.", {250, 600}},
+    {Scene::Arcade, "The Deep Arcade", "A cabinet riveted into the bulkhead: games for more than one player.", {-330, 570}},
+    {Scene::Study, "The Study Hatch", "A brass hatch in the deck, and a ladder down to the Study.", {0, 560}},
 };
+float gHov[ST_COUNT] = {};   // how hovered each station is, eased: drives its hover motion (the wheel spins, the door swings ...)
 Rectangle stationRect[ST_COUNT];
 
 // ---------------------------------------------------------------- life aboard
@@ -130,7 +141,12 @@ const Npc NPCS[] = {
 };
 constexpr int NPC_COUNT = sizeof(NPCS) / sizeof(NPCS[0]);
 struct Walker { int id; Vector2 pos, target; float wait, phase; bool right, atPost; };
-struct Cat { Vector2 pos{120, 700}, target{120, 700}; float wait = 3, phase = 0, purr = 0; bool right = true, asleep = false; };
+struct Cat {
+    Vector2 pos{120, 700}, target{120, 700}; float wait = 3, phase = 0, purr = 0; bool right = true, asleep = false;
+    float y = 0;                 // height off the deck: it likes to sit on the arcade cabinet and the chart table
+    int perch = 0, goal = 0;     // 0 the deck, 1 the arcade cabinet, 2 the chart table (goal: where it is heading)
+    float hop = -1; Vector2 hopFrom{}, hopTo{}; float hopY0 = 0, hopY1 = 0;
+};
 Rectangle catRect{};   // where the cat is on screen, for clicking
 Vector2 catHead{};     // where its head is on screen, for the hearts
 std::vector<Walker> walkers;
@@ -138,8 +154,8 @@ Cat cat;
 
 // Furniture on the floor, as circles (X, Z, radius) that people and the cat walk around.
 struct Obstacle { float x, z, r; };
-const Obstacle OBSTACLES[] = {{0, 900, 95}, {-255, 900, 105}, {150, 560, 45}, {-430, 1010, 175}, {430, 1010, 170}, {-260, 760, 95}};
-constexpr float CARD_X = -260, CARD_Z = 700, DEALER_Z = 785; // the card table, and the dealer seated behind it
+const Obstacle OBSTACLES[] = {{0, 900, 95}, {-255, 900, 105}, {110, 560, 45}, {-430, 1010, 175}, {430, 1010, 170}};
+constexpr float CARD_X = 330, CARD_Z = 450, DEALER_Z = 525; // the card table (foreground right), and the dealer seated behind it
 
 const Hero& NpcHero(int i) {
     static Hero heroes[NPC_COUNT];
@@ -236,13 +252,45 @@ void UpdateLife(Game& g, float dt) {
         w.pos = np;
         w.phase += dt * 7.5f;
     }
+    // the cat's perches: up on the arcade cabinet, or on the chart table by the helm
+    const Vector2 PERCH_AT[3] = {{0, 0}, {ARC_X, ARC_Z - 2}, {-255, 890}}, PERCH_FOOT[3] = {{0, 0}, {ARC_X + 80, 545}, {-150, 790}};
+    const float PERCH_Y[3] = {0, 262, 150};
+    if (cat.hop >= 0) { // mid-leap
+        cat.hop += dt / 0.5f;
+        float u = std::min(1.0f, cat.hop);
+        cat.pos = {cat.hopFrom.x + (cat.hopTo.x - cat.hopFrom.x) * u, cat.hopFrom.y + (cat.hopTo.y - cat.hopFrom.y) * u};
+        cat.y = cat.hopY0 + (cat.hopY1 - cat.hopY0) * u + sinf(u * PI) * 60;
+        cat.phase += dt * 10;
+        if (cat.hop >= 1) { cat.hop = -1; cat.y = cat.hopY1; }
+        return;
+    }
     if (cat.purr > 0) { cat.asleep = false; cat.purr -= dt; cat.wait = std::max(cat.wait, cat.purr + 0.5f); } // a scratch behind the ears: it stays put
-    if (cat.wait > 0) { cat.wait -= dt; cat.phase = 0; if (cat.wait <= 0) { cat.asleep = false; cat.target = FloorSpot(); } }
-    else {
+    if (cat.wait > 0) {
+        cat.wait -= dt; cat.phase = 0;
+        if (cat.wait <= 0) {
+            cat.asleep = false;
+            if (cat.perch) { // down off its perch first
+                cat.hop = 0; cat.hopFrom = cat.pos; cat.hopTo = PERCH_FOOT[cat.perch]; cat.hopY0 = cat.y; cat.hopY1 = 0; cat.perch = 0; cat.goal = 0;
+                cat.wait = RandF(0.5f, 1.5f);
+                return;
+            }
+            int r = GetRandomValue(0, 99);
+            cat.goal = r < 14 ? 1 : r < 24 ? 2 : 0;
+            cat.target = cat.goal ? PERCH_FOOT[cat.goal] : FloorSpot();
+        }
+    } else {
         Vector2 d{cat.target.x - cat.pos.x, cat.target.y - cat.pos.y};
         float len = sqrtf(d.x * d.x + d.y * d.y), step = 55 * dt;
-        if (len <= step + 2) { cat.pos = cat.target; cat.asleep = GetRandomValue(0, 99) < 30; cat.wait = cat.asleep ? RandF(16, 34) : RandF(3, 10); }
-        else {
+        if (len <= step + 2) {
+            cat.pos = cat.target;
+            if (cat.goal) { // up it goes, and settles there a while
+                cat.hop = 0; cat.hopFrom = cat.pos; cat.hopTo = PERCH_AT[cat.goal]; cat.hopY0 = 0; cat.hopY1 = PERCH_Y[cat.goal];
+                cat.perch = cat.goal; cat.right = cat.goal == 1 ? false : cat.right;
+                cat.asleep = GetRandomValue(0, 99) < 40; cat.wait = RandF(12, 26);
+                return;
+            }
+            cat.asleep = GetRandomValue(0, 99) < 30; cat.wait = cat.asleep ? RandF(16, 34) : RandF(3, 10);
+        } else {
             Vector2 np = Steer(cat.pos, cat.target, step);
             cat.right = np.x > cat.pos.x;
             cat.pos = np;
@@ -403,6 +451,13 @@ void ArtCrewDoor(float w, float h, float t) {
         DrawCircleV({w - 26, y}, 3, Color{60, 66, 64, 255});
     }
     DrawRing({w - 22, h * 0.55f}, 9, 14, 0, 360, 20, Color{170, 40, 36, 255});
+    // the door leaf, half open; it swings wider when you look at it
+    float open = 0.3f + 0.45f * gHov[0];
+    float lw = in.width * (1 - open);
+    DrawTiled(Tex::Wood, {in.x, in.y, lw, in.height}, 0.6f, Color{96, 64, 44, 255});
+    DrawRectangle((int)(in.x + lw - 6), (int)in.y, 6, (int)in.height, Color{40, 28, 20, 255});
+    if (lw > 40) { DrawCircleV({in.x + lw * 0.5f, in.y + 90}, std::min(22.0f, lw * 0.3f), Pal::BrassDk); DrawCircleV({in.x + lw * 0.5f, in.y + 90}, std::min(16.0f, lw * 0.22f), Color{40, 70, 80, 255}); }
+    DrawCircleV({in.x + lw - 16, in.y + in.height * 0.55f}, 5, Pal::Brass);
     (void)t;
 }
 
@@ -433,12 +488,14 @@ void ArtLibrary(float w, float h, float t) {
         }
         DrawRectangle((int)bc.x - 6, (int)bc.y - 10, (int)bc.width + 12, 16, Color{96, 60, 38, 255});
     }
-    for (int k = 1; k < 16; k++) { // rolling ladder
+    float lx = w * 0.62f - gHov[1] * w * 0.34f; // the rolling ladder slides along its rail when you look at it
+    DrawLineEx({12, 66}, {w - 12, 66}, 4, Pal::BrassDk);
+    for (int k = 1; k < 16; k++) {
         float f = k / 16.0f;
-        DrawLineEx({w * 0.62f + f * 40, 70 + f * (h - 70)}, {w * 0.62f + 40 + f * 40, 70 + f * (h - 70)}, 5, Color{110, 72, 44, 255});
+        DrawLineEx({lx + f * 40, 70 + f * (h - 70)}, {lx + 40 + f * 40, 70 + f * (h - 70)}, 5, Color{110, 72, 44, 255});
     }
-    DrawLineEx({w * 0.62f, 70}, {w * 0.62f + 40, h}, 6, Color{136, 90, 56, 255});
-    DrawLineEx({w * 0.62f + 40, 70}, {w * 0.62f + 80, h}, 6, Color{136, 90, 56, 255});
+    DrawLineEx({lx, 70}, {lx + 40, h}, 6, Color{136, 90, 56, 255});
+    DrawLineEx({lx + 40, 70}, {lx + 80, h}, 6, Color{136, 90, 56, 255});
     (void)t;
 }
 
@@ -452,7 +509,7 @@ void ArtRadar(float w, float h, float t) {
     DrawRing(c, 78, 88, 0, 360, 48, Pal::Brass);
     DrawCircleV(c, 78, Color{6, 30, 18, 255});
     for (int k = 1; k <= 3; k++) DrawRing(c, 25.0f * k - 1, 25.0f * k + 1, 0, 360, 48, Color{40, 150, 80, 140});
-    float a = t * 1.6f, ad = fmodf(a * RAD2DEG, 360);
+    float a = Spin(0, 1.6f * (1 + 2.2f * gHov[2])), ad = fmodf(a * RAD2DEG, 360);
     for (int k = 0; k < 12; k++) DrawCircleSector(c, 77, ad - (k + 1) * 5, ad - k * 5, 3, Color{80, 255, 140, (unsigned char)(80 * (1 - k / 12.0f))});
     DrawLineEx(c, {c.x + cosf(a) * 77, c.y + sinf(a) * 77}, 3, Color{150, 255, 180, 255});
     const Vector2 blips[4] = {{30, -26}, {-44, 16}, {14, 50}, {-18, -56}};
@@ -499,7 +556,7 @@ void ArtWorkshop(float w, float h, float t) {
     DrawRectangle((int)pb.x + 140, (int)pb.y + 40, 100, 40, tool);
     for (int k = 0; k < 14; k++) DrawTri({pb.x + 140 + k * 7.0f, pb.y + 80}, {pb.x + 147 + k * 7.0f, pb.y + 80}, {pb.x + 143 + k * 7.0f, pb.y + 88}, tool);
     DrawRing({pb.x + 190, pb.y + 170}, 20, 28, 0, 360, 24, Color{170, 150, 100, 255});
-    float sp = t * 0.6f, r1 = 70, r2 = 44, r3 = 34;
+    float sp = Spin(1, 0.6f * (1 + 3 * gHov[5])), r1 = 70, r2 = 44, r3 = 34;
     Vector2 g1{w * 0.78f, 170};
     DrawGear(g1, r1, 12, sp, Pal::Brass);
     DrawGear({g1.x + r1 * 0.55f, g1.y + r1 + r2 - 6}, r2, 8, -sp * r1 / r2 + 0.2f, Pal::Copper);
@@ -554,6 +611,8 @@ void DrawOrgan(float t, bool playing) {
             DrawRectangleGradientH((int)x + 11, (int)(-160 - hh), 11, (int)hh, Color{236, 196, 120, 255}, Color{120, 84, 36, 255});
             DrawEllipse((int)x + 11, (int)(-160 - hh * 0.22f), 6, 3, Color{40, 28, 16, 255});
         }
+        float hum = std::max(playing ? 0.6f : 0.0f, gHov[6]) * (0.7f + 0.3f * sinf(t * 3));
+        if (hum > 0.02f) for (int k = 0; k < 15; k++) Glow({-159.0f + k * 24, -420}, 60, Color{255, 200, 120, (unsigned char)(50 * hum)});
         DrawRectangle(-190, -170, 380, 170, Color{70, 40, 26, 255});           // console
         DrawRectangle(-190, -170, 380, 12, Color{110, 70, 42, 255});
         DrawRectangle(-150, -110, 300, 22, Color{236, 230, 214, 255});         // keys
@@ -625,7 +684,7 @@ void DrawHelmFurniture(float t) {
         DrawEllipse(0, -2, 60, 12, Color{50, 34, 22, 255});
         // the wheel
         Vector2 hc{0, -210};
-        float rot = t * 0.12f;
+        float rot = Spin(2, 0.12f + 1.4f * gHov[3]);
         Color wood{128, 82, 46, 255}, woodDk{84, 52, 30, 255};
         for (int k = 0; k < 8; k++) {
             float a = rot + k * PI / 4;
@@ -641,6 +700,13 @@ void DrawHelmFurniture(float t) {
         DrawCircleV(hc, 24, Pal::BrassDk);
         DrawCircleV(hc, 18, Pal::Brass);
         DrawBrassPlate({-70, -44, 140, 28}, "THE HELM", 15);
+        if (gHov[3] > 0.05f) { // a glint runs round the brass rim
+            float ga = t * 3;
+            Vector2 gp{hc.x + cosf(ga) * 87, hc.y + sinf(ga) * 87};
+            DrawCircleV(gp, 5 * gHov[3], Fade(WHITE, 0.8f * gHov[3]));
+            DrawLineEx({gp.x - 12, gp.y}, {gp.x + 12, gp.y}, 2, Fade(WHITE, 0.6f * gHov[3]));
+            DrawLineEx({gp.x, gp.y - 12}, {gp.x, gp.y + 12}, 2, Fade(WHITE, 0.6f * gHov[3]));
+        }
         // the chart table beside it
         DrawRectangle(-342, -120, 12, 120, Color{90, 58, 36, 255});
         DrawRectangle(-182, -120, 12, 120, Color{90, 58, 36, 255});
@@ -665,10 +731,13 @@ void DrawPeriscope(float t) {
         DrawCircleV({0, -300}, 20, Color{30, 28, 26, 255});
         DrawCircleV({0, -300}, 12, Color{20, 40, 50, 255});
         DrawCircleV({-4, -304}, 4, Color{150, 220, 230, 220});
+        float fold = gHov[4]; // the handles fold out when you look at it
         for (int k = -1; k <= 1; k += 2) {
-            DrawPipeH(k < 0 ? -110 : 46, k < 0 ? -46 : 110, -286, 6, Color{80, 84, 82, 255});
-            DrawRectangleRounded({k < 0 ? -124.0f : 98.0f, -298, 26, 24}, 0.5f, 6, Color{30, 26, 24, 255});
+            float reach = 64 + 34 * fold;
+            DrawPipeH(k < 0 ? -46 - reach : 46, k < 0 ? -46 : 46 + reach, -286 + 18 * (1 - fold), 6, Color{80, 84, 82, 255});
+            DrawRectangleRounded({k < 0 ? -60 - reach : 34 + reach, -298 + 18 * (1 - fold), 26, 24}, 0.5f, 6, Color{30, 26, 24, 255});
         }
+        DrawCircleV({-4 + sinf(t * 0.4f) * 3 + 6 * fold, -304}, 4, Color{150, 220, 230, 220}); // the lens catches the light as it turns
         DrawBrassPlate({-70, -400, 140, 26}, "PERISCOPE", 14);
     });
 }
@@ -855,7 +924,7 @@ Vector2 DrawCatAt(Vector2 feet, float k, bool right, bool sitting, bool purring,
     return {X(hx), origin.y + hy * ps};
 }void DrawCat(float t) {
     float Z = cat.pos.y, k = Px(Z) * 2.7f;
-    Vector2 feet = Proj(cat.pos.x, 0, Z);
+    Vector2 feet = Proj(cat.pos.x, cat.y, Z);
     catRect = {feet.x - 28 * k, feet.y - 46 * k, 56 * k, 48 * k};
     catHead = DrawCatAt(feet, k, cat.right, cat.wait > 0, cat.purr > 0, cat.phase, t, cat.pos.x, cat.asleep && cat.purr <= 0);
 }
@@ -1034,20 +1103,32 @@ void DrawCardDealer(float t) {
     DrawLineEx(P(1, -160 + br), P(2, -151 + br), 1.4f * k, Tone(wax, -0.4f));                      // the nose
     DrawLineEx(P(-12, -164 + br), P(12, -164 + br), 3 * k, Color{50, 52, 56, 255});               // heavy brow
     DrawLineEx(P(-8, -142 + br), P(8, -142 + br), 2.2f * k, Color{36, 32, 34, 255});               // flat mouth
+    bool blink = fmodf(t, 4.3f) < 0.13f;
     for (int e = -1; e <= 1; e += 2)
-        DrawEllipse((int)P(e * 6.5f, -159 + br).x, (int)P(e * 6.5f, -159 + br).y, 3.6f * k, 2.4f * k, Color{214, 226, 255, 255});
-    ShadeLimb(P(-30, -128), P(-38, -108), 10, 9, cloak);                                            // arms reaching to the felt
-    ShadeLimb(P(30, -128), P(40, -108), 10, 9, cloak);
-    ShadeBall(P(-38, -111), 5.6f, brass); ShadeBall(P(40, -111), 5.6f, brass);                     // cuffs
-    ShadeBall(P(-38, -106), 7, glove);
-    ShadeBall(P(40, -106), 7, glove);
-    DrawRing(P(-41, -103), 1.6f * k, 2.6f * k, 0, 360, 8, brass); DrawRing(P(43, -103), 1.6f * k, 2.6f * k, 0, 360, 8, brass); // rings on the gloves
+        if (!blink) DrawEllipse((int)P(e * 6.5f, -159 + br).x, (int)P(e * 6.5f, -159 + br).y, 3.6f * k, 2.4f * k, Color{214, 226, 255, 255});
+        else DrawLineEx(P(e * 6.5f - 3.5f, -159 + br), P(e * 6.5f + 3.5f, -158.5f + br), 1.2f * k, Color{30, 30, 36, 255});
+    float shuf = sinf(t * 7) * 5 * (fmodf(t, 6.5f) > 1.2f ? 1.0f : 0.0f);                         // always shuffling, except while he flicks a card
+    float hlx = -38 + 10 + shuf, hrx = 40 - 10 - shuf;
+    ShadeLimb(P(-30, -128), P(hlx, -108), 10, 9, cloak);                                            // arms reaching to the felt
+    ShadeLimb(P(30, -128), P(hrx, -108), 10, 9, cloak);
+    ShadeBall(P(hlx, -111), 5.6f, brass); ShadeBall(P(hrx, -111), 5.6f, brass);                     // cuffs
+    ShadeBall(P(hlx, -106), 7, glove);
+    ShadeBall(P(hrx, -106), 7, glove);
+    DrawRing(P(hlx - 3, -103), 1.6f * k, 2.6f * k, 0, 360, 8, brass); DrawRing(P(hrx + 3, -103), 1.6f * k, 2.6f * k, 0, 360, 8, brass); // rings on the gloves
+    for (int c = 0; c < 4; c++) DrawRectanglePro({P(0, -106).x + shuf * k * (c % 2 ? 0.6f : -0.6f), P(0, -106 - c * 1.2f).y, 13 * k, 18 * k}, {6.5f * k, 9 * k}, 0, c == 3 ? Color{228, 196, 148, 255} : Color{90, 40, 40, 255}); // the deck between his hands
     ShadeBall(P(0, -124 + br), 4.5f, brass); DrawCircleV(P(0, -124 + br), 1.9f * k, Color{90, 200, 220, 255}); // a brooch at the throat, its gem the table's glow
     DrawLineEx(P(0, -121 + br), P(-16, -100), 0.9f * k, brass); DrawCircleV(P(-16, -99), 2.1f * k, brass); // a watch chain
     EndFigure(feet);
-    for (int e = -1; e <= 1; e += 2) { // his eyes catch the light
+    if (fmodf(t, 4.3f) >= 0.13f) for (int e = -1; e <= 1; e += 2) { // his eyes catch the light
         Vector2 eye{feet.x + (P(e * 6.5f, -159).x - o.x), feet.y + (P(e * 6.5f, -159).y - o.y)};
         Glow(eye, 18 * k, Color{150, 170, 255, 110});
+    }
+    float fl = fmodf(t, 6.5f);
+    if (fl < 1.2f) { // now and then he flicks a card into the air and catches it
+        float u = fl / 1.2f;
+        Vector2 c0{feet.x + (P(0, -110).x - o.x), feet.y + (P(0, -110).y - o.y)};
+        Vector2 cp{c0.x + sinf(u * PI) * 8 * k, c0.y - sinf(u * PI) * 70 * k};
+        DrawRectanglePro({cp.x, cp.y, 12 * k, 17 * k}, {6 * k, 8.5f * k}, u * 720, (int)(u * 4) % 2 ? Color{228, 196, 148, 255} : Color{90, 40, 40, 255});
     }
     Glow({feet.x + (P(0, -124).x - o.x), feet.y + (P(0, -124).y - o.y)}, 10 * k, Color{90, 200, 220, 120}); // the brooch glows
 }
@@ -1067,18 +1148,166 @@ void DrawCardTable(float t) {
         for (int c = -1; c <= 1; c += 2) { // a candle at either end of the table
             float x = c * 66.0f;
             DrawRectangle((int)x - 3, -128, 6, 22, Color{236, 228, 200, 255});
-            DrawEllipse((int)x, -132, 3.2f, 6.5f + sinf(t * 10 + c) * 1.2f, Color{255, 210, 120, 255});
-            Glow({x, -132}, 34, Color{255, 190, 100, 90});
+            float flare = 1 + 0.9f * gHov[8];
+            DrawEllipse((int)x, -132 - 3 * gHov[8], 3.2f * flare, (6.5f + sinf(t * 10 + c) * 1.2f) * flare, Color{255, 210, 120, 255});
+            Glow({x, -132}, 34 * flare, Color{255, 190, 100, (unsigned char)(90 + 60 * gHov[8])});
         }
         DrawBrassPlate({-46, -60, 92, 22}, "FLATS", 14);
     });
+}
+// ---------------------------------------------------------------- the Deep Arcade cabinet, the Study hatch, the near lamps
+// The Deep Arcade: mahogany panels in tarnished brass, riveted into the near bulkhead, copper pipes running into the
+// wall, a porthole screen playing its attract loop, a marquee of etched glass lit by a tank of jellyfish, a throttle
+// lever and valve wheels for controls, two pressure gauges (players online, open lobbies), and a steam vent.
+void DrawArcadeCabinet(float t) {
+    float h = gHov[ST_ARCADE];
+    Billboard(ARC_X, 0, ARC_Z, [&] {
+        rlPushMatrix(); rlScalef(0.74f, 0.74f, 1);   // a cabinet a man stands at, not a wardrobe
+        Color mahog{96, 46, 30, 255}, mahogLt{140, 70, 42, 255}, brass{150, 112, 56, 255};
+        DrawPipeH(-190, -58, -236, 6, Pal::Copper);                      // pipes into the bulkhead
+        DrawPipeH(-190, -58, -40, 5, Pal::Copper);
+        DrawFlange({-80, -236}, 7, false, Pal::BrassDk);
+        DrawEllipse(0, -2, 76, 12, Color{20, 12, 8, 255});
+        DrawRectangleGradientH(-62, -262, 62, 262, Tone(mahog, -0.3f), mahogLt);   // the body
+        DrawRectangleGradientH(0, -262, 62, 262, mahogLt, Tone(mahog, -0.35f));
+        DrawRectangleLinesEx({-62, -262, 124, 262}, 5, brass);
+        for (int k = 0; k < 9; k++) { DrawCircleV({-56, -250 + k * 30.0f}, 2.2f, Pal::BrassDk); DrawCircleV({56, -250 + k * 30.0f}, 2.2f, Pal::BrassDk); }
+        // the marquee: etched glass, backlit by jellyfish drifting in a tank
+        Rectangle mq{-58, -312, 116, 50};
+        DrawRectangleRec({mq.x - 4, mq.y - 4, mq.width + 8, mq.height + 8}, brass);
+        DrawVGradient(mq, Color{14, 60, 72, 255}, Color{6, 24, 34, 255});
+        for (int j = 0; j < 3; j++) { // the jellyfish
+            float jx = -36 + j * 36 + sinf(t * 0.7f + j * 2) * 6, jy = -290 + sinf(t * 1.1f + j) * 6, pulse = 0.85f + 0.15f * sinf(t * 3 + j);
+            Color jc{150, 220, 255, (unsigned char)(150 + 100 * h)};
+            DrawCircleSector({jx, jy}, 8 * pulse, 180, 360, 12, jc);
+            for (int k = 0; k < 4; k++) DrawLineEx({jx - 6 + k * 4.0f, jy}, {jx - 6 + k * 4.0f + sinf(t * 2 + k) * 2, jy + 12}, 1, jc);
+            Glow({jx, jy}, 26 + 14 * h, Color{120, 210, 255, (unsigned char)(50 + 70 * h)});
+        }
+        TxtBold("THE DEEP ARCADE", -52, -272, 11, Color{220, 240, 236, 220});
+        // the porthole screen, playing the attract loop of its four games
+        Vector2 sc{0, -196};
+        DrawCircleV(sc, 44, Pal::BrassDk);
+        DrawRing(sc, 36, 44, 0, 360, 36, brass);
+        for (int k = 0; k < 10; k++) { float a = k * PI / 5; DrawCircleV({sc.x + cosf(a) * 40, sc.y + sinf(a) * 40}, 2.4f, Pal::BrassDk); }
+        DrawCircleV(sc, 35, Color{16, 84, 90, 255});
+        Glow(sc, 60, Color{80, 230, 220, 60});
+        int game = (int)fmodf(t / 3.0f, 4.0f);
+        Color scr{150, 255, 236, 255};
+        switch (game) {
+            case 0: DrawRectangleLinesEx({-18, -210, 16, 24}, 2, scr); DrawRectangleLinesEx({2, -206, 16, 24}, 2, scr); break;                  // Flats Duel: two cards
+            case 1: DrawLineEx({-20, -196}, {18, -196}, 2, scr); DrawTri({-14, -196}, {10, -196}, {-2, -188}, scr); DrawLineEx({8, -196}, {12, -176}, 1, scr); break; // the Trawl
+            case 2: for (int c = 0; c < 3; c++) { float cx = -16 + fmodf(t * 20 + c * 11, 32.0f); DrawCircleV({cx, -188 - c * 8.0f}, 3, scr); } break;       // Scuttle: crabs racing
+            default: DrawTri({-20, -182}, {-4, -182}, {-12, -196}, scr); DrawTri({2, -182}, {20, -182}, {11, -200}, scr); DrawLineEx({11, -200}, {11, -212}, 2, scr); break; // Fathoms
+        }
+        DrawCircleSector(sc, 33, 200, 240, 12, Fade(WHITE, 0.08f));
+        // the controls: a slanted deck with a ship's throttle and two valve wheels
+        DrawTri({-62, -140}, {62, -140}, {62, -118}, Tone(mahog, -0.2f));
+        DrawTri({-62, -140}, {62, -118}, {-62, -118}, Tone(mahog, -0.2f));
+        float lever = -0.4f + 0.25f * sinf(t * 0.8f) * (0.3f + h);
+        DrawLineEx({-30, -128}, {-30 + sinf(lever) * 26, -128 - cosf(lever) * 26}, 4, Color{60, 60, 64, 255});
+        DrawCircleV({-30 + sinf(lever) * 26, -128 - cosf(lever) * 26}, 5, Color{170, 40, 36, 255});
+        for (int w = 0; w < 2; w++) {
+            Vector2 wc{12 + w * 26.0f, -130};
+            float a0 = Spin(3 + w, 0.4f + 3 * h) * (w ? -1 : 1);
+            DrawRing(wc, 7, 9, 0, 360, 16, Color{150, 40, 36, 255});
+            for (int k = 0; k < 3; k++) DrawLineEx(wc, {wc.x + cosf(a0 + k * 2.09f) * 8, wc.y + sinf(a0 + k * 2.09f) * 8}, 1.5f, Color{150, 40, 36, 255});
+        }
+        // the pressure gauges: players online, open lobbies (they twitch when you look)
+        DrawGauge({-30, -88}, 13, 0.3f + h * 0.08f * sinf(t * 23), Color{236, 228, 206, 255});
+        DrawGauge({30, -88}, 13, 0.55f + h * 0.08f * sinf(t * 19 + 1), Color{236, 228, 206, 255});
+        // the token slot and its pneumatic tube, and a vent that puffs steam now and then
+        DrawRectangle(-6, -60, 12, 5, Color{20, 16, 14, 255});
+        DrawPipeV(50, -262, -60, 4, Tone(brass, 0.1f));
+        DrawRectangle(-40, -30, 80, 10, Color{40, 30, 24, 255});
+        if (fmodf(t, 7.3f) < 1.2f) for (int k = 0; k < 4; k++) { float ph = fmodf(t, 7.3f) / 1.2f; DrawCircleV({-40 - ph * 40 - k * 6, -25 - ph * 30 - k * 4}, 6 + ph * 8, Fade(WHITE, 0.25f * (1 - ph))); }
+        rlPopMatrix();
+    });
+}
+
+// The hatch to the Study: a brass ring in the deck with a wheel lock, a glowing chevron in front of it.
+Rectangle DrawStudyHatch(float t) {
+    float h = gHov[ST_STUDY];
+    Vector2 c = Proj(0, 0, HATCH_Z), f = Proj(0, 0, HATCH_Z - 70), b = Proj(0, 0, HATCH_Z + 70);
+    float rx = 82 * Px(HATCH_Z), ry = (f.y - b.y) * 0.5f * 82 / 70;
+    DrawEllipse((int)c.x, (int)c.y, rx + 10, ry + 6, Color{30, 22, 16, 255});
+    DrawEllipse((int)c.x, (int)c.y, rx + 6, ry + 4, Pal::BrassDk);
+    DrawEllipse((int)c.x, (int)c.y, rx, ry, Pal::Brass);
+    DrawEllipse((int)c.x, (int)c.y, rx - 6, ry - 4, Color{92, 96, 94, 255});                                  // the steel cover
+    for (int k = 0; k < 12; k++) { float a = k * PI / 6; DrawCircleV({c.x + cosf(a) * (rx - 3), c.y + sinf(a) * (ry - 2)}, 2, Pal::BrassDk); }
+    if (h > 0.02f) { // light rises from below as the wheel turns
+        BeginBlendMode(BLEND_ADDITIVE);
+        DrawEllipse((int)c.x, (int)c.y, rx * (0.4f + 0.6f * h), ry * (0.4f + 0.6f * h), Color{255, 200, 120, (unsigned char)(60 * h)});
+        EndBlendMode();
+        Glow({c.x, c.y - 20}, 90 * h, Color{255, 200, 120, (unsigned char)(90 * h)});
+    }
+    float a0 = Spin(5, 0.2f + 2.5f * h);
+    for (int k = 0; k < 4; k++) DrawLineEx(c, {c.x + cosf(a0 + k * PI / 2) * rx * 0.45f, c.y + sinf(a0 + k * PI / 2) * ry * 0.45f}, 4, Color{150, 40, 36, 255});
+    DrawEllipseLines((int)c.x, (int)c.y, rx * 0.45f, ry * 0.45f, Color{150, 40, 36, 255});
+    DrawEllipse((int)c.x, (int)c.y, 6, 4, Pal::Brass);
+    // the chevron on the deck in front, pointing down, glowing
+    float pulse = 0.55f + 0.45f * sinf(t * 2.4f);
+    Vector2 cv = Proj(0, 0, HATCH_Z - 100);
+    Color gc{255, 200, 110, (unsigned char)(140 + 100 * pulse)};
+    DrawTri({cv.x - 22, cv.y - 6}, {cv.x + 22, cv.y - 6}, {cv.x, cv.y + 8}, gc);
+    DrawTri({cv.x - 12, cv.y - 6}, {cv.x + 12, cv.y - 6}, {cv.x, cv.y + 2}, Color{60, 40, 20, 255});
+    Glow(cv, 26, Color{255, 190, 100, (unsigned char)(60 * pulse)});
+    return {c.x - rx - 10, c.y - ry - 30, rx * 2 + 20, ry * 2 + 60};
+}
+
+// Two oil lamps hang in the foreground, swaying with the ship's roll.
+float ShipRoll(float t) { return 0.055f * sinf(t * 0.45f) + 0.015f * sinf(t * 1.3f); }
+Vector2 NearLampPos(int i, float t) {
+    float X = i ? 250.0f : -330.0f, Z = 330, L = 262;
+    Vector2 top = Proj(X, RH, Z);
+    float a = ShipRoll(t + i * 0.3f), k = Px(Z);
+    return {top.x + sinf(a) * L * k, top.y + cosf(a) * L * k};
+}
+void DrawNearLamps(float t) {
+    for (int i = 0; i < 2; i++) {
+        float X = i ? 250.0f : -330.0f, Z = 330, k = Px(Z);
+        Vector2 top = Proj(X, RH, Z), lp = NearLampPos(i, t);
+        for (int c = 0; c < 10; c++) { Vector2 p{top.x + (lp.x - top.x) * c / 10, top.y + (lp.y - top.y) * c / 10}; DrawRing(p, 1.5f * k, 3 * k, 0, 360, 8, Pal::BrassDk); }
+        DrawEllipse((int)lp.x, (int)(lp.y + 6 * k), 18 * k, 5 * k, Pal::BrassDk);                  // the cap
+        DrawRectangleRounded({lp.x - 14 * k, lp.y + 8 * k, 28 * k, 34 * k}, 0.4f, 6, Color{255, 214, 150, 230});   // the glass
+        for (int s = -1; s <= 1; s++) DrawLineEx({lp.x + s * 12 * k, lp.y + 8 * k}, {lp.x + s * 12 * k, lp.y + 42 * k}, 2 * k, Pal::BrassDk); // the cage
+        DrawEllipse((int)lp.x, (int)(lp.y + 44 * k), 16 * k, 5 * k, Pal::BrassDk);
+        DrawEllipse((int)lp.x, (int)(lp.y + 26 * k), 4 * k, 8 * k + sinf(t * 11 + i) * k, Color{255, 240, 200, 255});
+    }
+}
+
+// Light off the great window, rippling across the ceiling.
+void DrawCeilingCaustics(float t) {
+    BeginBlendMode(BLEND_ADDITIVE);
+    for (int i = 0; i < 14; i++) {
+        float z0 = 760 + i * 28.0f;
+        Vector2 prev = Proj(-RW + 40, RH, z0);
+        for (float x = -RW + 40; x <= RW - 40; x += 40) {
+            float z = z0 + sinf(x * 0.012f + t * 0.9f + i) * 14 + sinf(x * 0.031f - t * 1.3f) * 6;
+            Vector2 p = Proj(x, RH, z);
+            DrawLineEx(prev, p, 1.6f, Color{120, 200, 220, (unsigned char)(14 + (i % 3) * 5)});
+            prev = p;
+        }
+    }
+    EndBlendMode();
+}
+
+// Bubbles rising out of the periscope well (drawn after the ink pass: bright specks).
+void DrawPeriscopeBubbles(float t) {
+    Vector2 base = Proj(PERI_X, 0, PERI_Z);
+    float k = Px(PERI_Z);
+    BeginBlendMode(BLEND_ADDITIVE);
+    for (int i = 0; i < 9; i++) {
+        float ph = fmodf(t * 0.35f + i * 0.111f, 1.0f);
+        DrawCircleV({base.x + (sinf(t * 2 + i * 1.7f) * 10 + (i % 3 - 1) * 22) * k, base.y - ph * 300 * k}, (1.6f + (i % 3)) * k, Color{200, 236, 244, (unsigned char)(120 * (1 - ph))});
+    }
+    EndBlendMode();
 }
 // ---------------------------------------------------------------- lighting
 void DrawSalonLighting(float t, int hovered, const std::vector<Vector2>& personLights) {
     LightsBegin(Color{118, 118, 122, 255});
     // a soft warm fill on whoever's out on the floor, so the crew and cat read as lit figures wherever they
     // walk instead of going nearly silhouette-black between the room's fixed light pools
-    for (const Vector2& at : personLights) AddLight(at, 210, Color{255, 220, 176, 255}, 0.7f);
+    for (const Vector2& at : personLights) AddLight(at, 250, Color{255, 220, 176, 255}, 1.0f);
     Color warm{255, 206, 140, 255}, sea{70, 150, 170, 255};
     float flick = 0.93f + 0.07f * sinf(t * 9) * sinf(t * 3.1f);
     Vector2 ch = Proj(0, 450, 760);
@@ -1095,11 +1324,15 @@ void DrawSalonLighting(float t, int hovered, const std::vector<Vector2>& personL
     AddLight(Proj(CARD_X - 60, 130, CARD_Z), 90, Color{255, 190, 110, 255}, 0.6f);      // and its candle
     AddCone(Proj(430, 470, 1010), PI / 2, 0.45f, 180, Color{255, 250, 232, 255}); // surgical lamp
     if (fmodf(t, 6) < 2.2f) AddLight(Proj(RW, 90, 1010), 120, Color{255, 170, 80, 255}, 0.7f);
+    for (int i = 0; i < 2; i++) AddLight(NearLampPos(i, t), 260, Color{255, 206, 140, 255}, 0.55f * flick);   // the near lamps
+    AddLight(Proj(ARC_X, 200, ARC_Z), 150 + 60 * gHov[ST_ARCADE], Color{90, 220, 230, 255}, 0.6f + 0.4f * gHov[ST_ARCADE]); // the arcade's glow
+    AddLight(Proj(WARD_X, 470, Z_BACK), 120, Color{255, 250, 232, 255}, 0.3f + 0.7f * gHov[ST_WARD]);                    // the ward's lamp brightens
     if (hovered >= 0) {
         Rectangle r = stationRect[hovered];
         AddLight({r.x + r.width / 2, r.y + r.height / 2}, std::max(r.width, r.height) * 0.8f + 60, Color{255, 230, 190, 255}, 0.4f);
     }
     LightsEnd();
+    for (int i = 0; i < 2; i++) Glow(NearLampPos(i, t), 70, Color{255, 200, 120, 110});
     Glow(ch, 80, Color{255, 200, 120, 90});
     for (int s = -1; s <= 1; s += 2)
         for (float z : {720.0f, 1100.0f}) Glow(Proj(s * (RW - 10), 400, z), 24 * Px(z) * 2, Color{255, 200, 120, 150});
@@ -1116,41 +1349,166 @@ void DrawDustMotes(float t) {
     EndBlendMode();
 }
 
-// ---------------------------------------------------------------- HUD
+// ---------------------------------------------------------------- HUD: Darkest Dungeon's framing
+// The roster along the right edge, the ship's stores at the bottom left, the four party slots and one Embark
+// button at the bottom. Drag a crew member from the roster onto a party slot; drag them off to remove them.
+int gDragId = -1;           // the crew member being dragged (-1: none)
+Vector2 gDragFrom{};
+bool gDragMoved = false, gDragFromParty = false;
+int gDebugHover = -1;       // --shots: pretend this station is hovered
+Rectangle RosterCard(int i) { return {ROSTER_X, 86 + i * 46.0f, 146, 43}; }
+Rectangle PartySlot(int k) { return {262 + k * 118.0f, HUD_Y + 7, 112, 54}; }
+Rectangle EmbarkRect() { return {742, HUD_Y + 9, 186, 50}; }
+
+bool Injured(const Hero& h) { return h.hp < GetStats(h).maxHp * 0.6f; }
+
+// A small ink plate, as on the combat HUD
+void InkPlate(Rectangle r, Color edge) {
+    DrawRectangleRounded({r.x + 2, r.y + 3, r.width, r.height}, 0.18f, 6, Fade(BLACK, 0.5f));
+    DrawRectangleRounded(r, 0.18f, 6, Color{18, 16, 14, 238});
+    DrawRectangleRoundedLinesEx(r, 0.18f, 6, 1.6f, edge);
+}
+
+void DrawStatusGlyph(const Hero& h, Vector2 c) {
+    if (h.onLeave > 0) { TxtBold("z", c.x - 4, c.y - 9, 16, Color{160, 170, 220, 255}); return; }
+    if (h.rattled) { DrawRing(c, 3, 6, 0, 300, 10, Pal::Stress); return; }
+    if (Injured(h)) { DrawRectangle((int)c.x - 1, (int)c.y - 5, 3, 11, Pal::Bad); DrawRectangle((int)c.x - 5, (int)c.y - 1, 11, 3, Pal::Bad); return; }
+    DrawCircleV(c, 4, Pal::Good);
+}
+
+void DrawRosterCard(Game& g, const Hero& h, Rectangle r, float t, bool hot) {
+    int rank = -1;
+    for (int k = 0; k < PARTY_SIZE; k++) if (g.party[k] == h.id) rank = k;
+    InkPlate(r, hot ? Pal::Brass : rank >= 0 ? Pal::BrassDk : Color{70, 60, 46, 255});
+    Rectangle pr{r.x + 3, r.y + 3, 38, r.height - 6};
+    DrawRectangleRec(pr, Color{38, 44, 46, 255});
+    DrawPortrait(h, pr, t);
+    DrawRectangleLinesEx(pr, 1, Pal::BrassDk);
+    TxtBold(h.name, r.x + 46, r.y + 2, 13, Pal::Paper);
+    Txt(ClassName(h.cls), r.x + 46, r.y + 17, 10, Color{190, 176, 140, 255});
+    for (int l = 0; l < 6; l++) DrawCircleV({r.x + 50 + l * 7.0f, r.y + 32}, 2.2f, l < h.level ? Pal::Brass : Color{60, 54, 44, 255}); // level pips
+    Stats s = GetStats(h);
+    DrawBar({r.x + 94, r.y + 29, 44, 4}, (float)h.hp / s.maxHp, Pal::Good);
+    DrawBar({r.x + 94, r.y + 35, 44, 3}, h.stress / 100.0f, Pal::Stress);
+    DrawStatusGlyph(h, {r.x + r.width - 10, r.y + 11});
+    if (rank >= 0) { DrawCircleV({r.x + r.width - 26, r.y + 11}, 7, Pal::BrassDk); TxtBold(std::to_string(rank + 1), r.x + r.width - 29, r.y + 4, 12, Pal::Paper); }
+    if (h.rattled || h.onLeave > 0 || Injured(h)) { // dimmed, with an ink cross
+        DrawRectangleRounded(r, 0.18f, 6, Color{0, 0, 0, 110});
+        DrawLineEx({pr.x + 4, pr.y + 4}, {pr.x + pr.width - 4, pr.y + pr.height - 4}, 3, Color{12, 8, 8, 220});
+        DrawLineEx({pr.x + pr.width - 4, pr.y + 4}, {pr.x + 4, pr.y + pr.height - 4}, 3, Color{12, 8, 8, 220});
+    }
+}
+
 void DrawSalonHud(Game& g, int hovered, const std::string& hint, bool active) {
+    float t = g.time;
+    Vector2 m = GetMousePosition();
+    // the top bar: just the ship's name and where she is
     DrawVGradient({0, 0, (float)SCREEN_W, 46}, Color{8, 12, 14, 235}, Color{16, 22, 26, 215});
     DrawRectangle(0, 44, SCREEN_W, 2, Pal::BrassDk);
     TxtShadow("THE NAUTILUS", 20, 9, 28, Pal::Brass, true);
     Txt(TextFormat("The grand salon   -   Depth %.0f fathoms", 212 + sinf(g.time * 0.05f) * 3), 262, 16, 15, Color{180, 190, 186, 255});
-    DrawCircle(890, 23, 10, Pal::Brass);
-    DrawCircle(887, 20, 4, Color{255, 240, 190, 255});
-    TxtBold(TextFormat("%d gold", g.gold), 908, 12, 21, Pal::Brass);
-    Txt(TextFormat("Batteries %d", g.batteries), 1030, 15, 17, Pal::Paper);
-    Txt(TextFormat("Relics %d", (int)g.relicStorage.size()), 1160, 15, 17, Pal::Paper);
-
-    float hw = (float)MeasureTxt(hint, 19);
-    DrawRectangleRounded({SCREEN_W / 2 - hw / 2 - 16, HUD_Y - 40, hw + 32, 32}, 0.5f, 8, Color{8, 12, 14, 180});
-    TxtShadow(hint, SCREEN_W / 2 - hw / 2, HUD_Y - 34, 19, active ? Pal::Paper : Color{200, 196, 180, 200});
-
-    DrawVGradient({0, HUD_Y, (float)SCREEN_W, SCREEN_H - HUD_Y}, Color{12, 18, 22, 235}, Color{6, 10, 12, 250});
+    // the hint, above the bottom bar
+    float hw = (float)MeasureTxt(hint, 18);
+    float hx = std::min(ROSTER_X - 12 - hw / 2 - 16, CX);
+    DrawRectangleRounded({hx - hw / 2 - 16, HUD_Y - 38, hw + 32, 30}, 0.5f, 8, Color{8, 12, 14, 185});
+    TxtShadow(hint, hx - hw / 2, HUD_Y - 33, 18, active ? Pal::Paper : Color{200, 196, 180, 200});
+    // the bottom bar
+    DrawVGradient({0, HUD_Y, (float)SCREEN_W, SCREEN_H - HUD_Y}, Color{14, 12, 10, 240}, Color{6, 6, 6, 252});
     DrawRectangle(0, (int)HUD_Y, SCREEN_W, 2, Pal::BrassDk);
+    // the ship's stores, bottom left
+    Rectangle res{12, HUD_Y + 8, 238, 52};
+    InkPlate(res, Pal::BrassDk);
+    DrawCircle((int)res.x + 20, (int)res.y + 18, 9, Pal::Brass); DrawCircle((int)res.x + 17, (int)res.y + 15, 3, Color{255, 240, 190, 255});
+    TxtBold(TextFormat("%d", g.gold), res.x + 34, res.y + 8, 19, Pal::Brass);
+    DrawRectangle((int)res.x + 110, (int)res.y + 10, 10, 16, Color{90, 120, 90, 255}); DrawRectangle((int)res.x + 112, (int)res.y + 7, 6, 3, Pal::BrassDk); // a battery
+    Txt(TextFormat("%d", g.batteries), res.x + 126, res.y + 9, 17, Pal::Paper);
+    DrawPoly({res.x + 178, res.y + 18}, 4, 8, 45, Color{150, 110, 200, 255});                                                         // a stored relic
+    Txt(TextFormat("%d", (int)g.relicStorage.size()), res.x + 192, res.y + 9, 17, Pal::Paper);
+    Txt("gold          batteries      relics", res.x + 14, res.y + 33, 11, Color{150, 140, 116, 255});
+    // the four party slots, drop targets
+    int partyCount = 0;
     for (int k = 0; k < PARTY_SIZE; k++) {
+        Rectangle c = PartySlot(k);
         Hero* h = FindHero(g, g.party[k]);
-        Rectangle c{250 + k * 202.0f, HUD_Y + 8, 194, 52};
-        DrawRectangleRounded(c, 0.2f, 6, Color{24, 32, 36, 255});
-        DrawRectangleRoundedLinesEx(c, 0.2f, 6, 1.5f, Color{70, 64, 50, 255});
-        if (!h) { Txt(TextFormat("Rank %d: empty", k + 1), c.x + 12, c.y + 17, 15, Color{120, 124, 120, 255}); continue; }
-        DrawRectangle((int)c.x + 4, (int)c.y + 8, 4, (int)c.height - 16, ClassColor(h->cls));
-        TxtBold(TextFormat("%d. %s", k + 1, h->name.c_str()), c.x + 14, c.y + 5, 15, Pal::Paper);
-        Txt(TextFormat("%s  Lv %d", ClassName(h->cls), h->level), c.x + 14, c.y + 23, 12, Color{190, 180, 150, 255});
+        if (h) partyCount++;
+        bool over = gDragId >= 0 && gDragMoved && CheckCollisionPointRec(m, c);
+        InkPlate(c, over ? Pal::Brass : Pal::BrassDk);
+        if (!h) { DrawTextCentered(TextFormat("Rank %d", k + 1), c.x + c.width / 2, c.y + 12, 14, Color{120, 112, 96, 255}); DrawTextCentered("drag crew here", c.x + c.width / 2, c.y + 30, 11, Color{100, 94, 80, 255}); continue; }
+        Rectangle pr{c.x + 4, c.y + 4, 40, c.height - 8};
+        DrawRectangleRec(pr, Color{38, 44, 46, 255});
+        if (!(gDragId == h->id && gDragMoved)) DrawPortrait(*h, pr, t);
+        DrawRectangleLinesEx(pr, 1, Pal::BrassDk);
+        TxtBold(h->name, c.x + 49, c.y + 5, 12, Pal::Paper);
+        Txt(TextFormat("Lv %d", h->level), c.x + 49, c.y + 21, 11, Color{190, 176, 140, 255});
         Stats s = GetStats(*h);
-        DrawBar({c.x + 14, c.y + 40, 170, 5}, (float)h->hp / s.maxHp, Pal::Good);
-        DrawBar({c.x + 14, c.y + 47, 170, 3}, h->stress / 100.0f, Pal::Stress);
-        if (h->rattled) TxtBold("RATTLED", c.x + c.width - 64, c.y + 7, 11, Pal::Bad);
+        DrawBar({c.x + 49, c.y + 38, 56, 4}, (float)h->hp / s.maxHp, Pal::Good);
+        DrawBar({c.x + 49, c.y + 44, 56, 3}, h->stress / 100.0f, Pal::Stress);
+        TxtBold(std::to_string(k + 1), c.x + c.width - 14, c.y + 4, 12, Pal::BrassDk);
     }
+    // Embark: red and brass, lit only when the party is full
+    Rectangle e = EmbarkRect();
+    bool ready = partyCount == PARTY_SIZE, hotE = ready && CheckCollisionPointRec(m, e);
+    DrawRectangleRounded({e.x + 3, e.y + 4, e.width, e.height}, 0.3f, 8, Fade(BLACK, 0.5f));
+    DrawRectangleRounded(e, 0.3f, 8, ready ? (hotE ? Color{190, 50, 40, 255} : Color{150, 36, 30, 255}) : Color{60, 30, 28, 255});
+    DrawRectangleRoundedLinesEx(e, 0.3f, 8, 3, ready ? Pal::Brass : Color{90, 70, 50, 255});
+    if (ready) Glow({e.x + e.width / 2, e.y + e.height / 2}, 70, Color{255, 120, 80, (unsigned char)(40 + 30 * sinf(t * 3))});
+    DrawTextCenteredBold("EMBARK", e.x + e.width / 2, e.y + 8, 22, ready ? Pal::Paper : Color{140, 120, 100, 255});
+    DrawTextCentered(ready ? "to the Helm" : TextFormat("party %d / 4", partyCount), e.x + e.width / 2, e.y + 32, 12, ready ? Color{240, 210, 170, 255} : Color{130, 110, 90, 255});
+    // the roster, along the right edge
+    DrawVGradient({ROSTER_X - 8, 46, (float)SCREEN_W - ROSTER_X + 8, HUD_Y - 46}, Color{10, 10, 10, 150}, Color{10, 10, 10, 210});
+    DrawRectangle((int)ROSTER_X - 8, 46, 2, (int)HUD_Y - 46, Pal::BrassDk);
+    TxtBold(TextFormat("ROSTER  %d / %d", (int)g.roster.size(), MaxRoster(g)), ROSTER_X + 6, 58, 15, Pal::Brass);
+    for (size_t i = 0; i < g.roster.size() && i < 12; i++) {
+        Rectangle r = RosterCard((int)i);
+        const Hero& h = g.roster[i];
+        if (gDragId == h.id && gDragMoved) { InkPlate(r, Color{50, 44, 36, 255}); continue; }
+        DrawRosterCard(g, h, r, t, CheckCollisionPointRec(m, r) && gDragId < 0);
+    }
+    // the portrait being dragged
+    if (gDragId >= 0 && gDragMoved)
+        if (Hero* h = FindHero(g, gDragId)) {
+            Rectangle r{m.x - 20, m.y - 26, 40, 50};
+            InkPlate({r.x - 3, r.y - 3, r.width + 6, r.height + 6}, Pal::Brass);
+            DrawPortrait(*h, r, t);
+        }
     (void)hovered;
 }
-}  // namespace
+
+// Mouse handling for the roster, the party slots and Embark. Returns true if the mouse is busy with them.
+bool SalonHudInput(Game& g) {
+    Vector2 m = GetMousePosition();
+    auto slotAt = [&](Vector2 p) { for (int k = 0; k < PARTY_SIZE; k++) if (CheckCollisionPointRec(p, PartySlot(k))) return k; return -1; };
+    auto rosterAt = [&](Vector2 p) { for (size_t i = 0; i < g.roster.size() && i < 12; i++) if (CheckCollisionPointRec(p, RosterCard((int)i))) return (int)i; return -1; };
+    if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) { int k = slotAt(m); if (k >= 0) { g.party[k] = -1; return true; } }
+    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+        int i = rosterAt(m), k = slotAt(m);
+        if (i >= 0) { gDragId = g.roster[i].id; gDragFrom = m; gDragMoved = false; gDragFromParty = false; return true; }
+        if (k >= 0 && g.party[k] >= 0) { gDragId = g.party[k]; gDragFrom = m; gDragMoved = false; gDragFromParty = true; return true; }
+        if (CheckCollisionPointRec(m, EmbarkRect())) {
+            int n = 0; for (int id : g.party) if (id >= 0) n++;
+            if (n == PARTY_SIZE) g.scene = Scene::Helm; else Toast(g, "Embark needs a full party of four: drag crew from the roster onto the slots.");
+            return true;
+        }
+    }
+    if (gDragId >= 0) {
+        if (fabsf(m.x - gDragFrom.x) + fabsf(m.y - gDragFrom.y) > 6) gDragMoved = true;
+        if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
+            Hero* h = FindHero(g, gDragId);
+            if (!gDragMoved && h) { g.selectedHero = h->id; g.scene = Scene::Crew; }  // a click: open Crew Quarters on them
+            else if (h) {
+                int k = slotAt(m), from = -1;
+                for (int j = 0; j < PARTY_SIZE; j++) if (g.party[j] == h->id) from = j;
+                if (k >= 0) {
+                    if (h->onLeave > 0) Toast(g, h->name + " is resting in the Sick Bay and sits this voyage out.");
+                    else { if (from >= 0) g.party[from] = g.party[k]; g.party[k] = h->id; }
+                } else if (gDragFromParty && from >= 0 && m.y < HUD_Y) g.party[from] = -1;   // dragged off the bar: out of the party
+            }
+            gDragId = -1; gDragMoved = false;
+        }
+        return true;
+    }
+    return m.y >= HUD_Y || m.x >= ROSTER_X - 8;
+}}  // namespace
 
 // For the sprite sheet: the ship's hands in their work poses, walking, and the cat.
 void DrawSalonSpritePage(float t) {
@@ -1180,20 +1538,29 @@ void DrawSalonSpritePage(float t) {
 void DebugPetCat() { cat.pos = cat.target = {-150, 640}; cat.purr = 3; cat.wait = 4; cat.right = true; }
 
 // ============================================================ the salon scene
-void SceneHub(Game& g) {
+// live: the hub itself (hover, clicks, the HUD). Otherwise the room is a backdrop behind a station's panel, with that
+// station held in its "hovered" motion (the periscope's handles out, the organ humming ...).
+static void SalonFrame(Game& g, bool live, int heldStation) {
     float dt = GetFrameTime(), t = g.time;
     SetPost(0.5f, 0.03f, 0.4f);
     SetSceneLight(SalonLight());               // oil lamps overhead, the window's blue fill, candle rim light
     SetInkLook(&SalonPalette(), 0.22f, 77);
     Vector2 m = GetMousePosition();
-    bool mouseInRoom = m.y > 46 && m.y < HUD_Y;
+    bool hudBusy = live && SalonHudInput(g);
+    bool mouseInRoom = live && !hudBusy && m.y > 46 && m.y < HUD_Y && m.x < ROSTER_X - 8;
+    // the camera drifts opposite the cursor: up to ~1.5% of the screen at the near plane
+    if (live) {
+        float tx = std::clamp((m.x - CX) / 640.0f, -1.0f, 1.0f) * 13, ty = std::clamp((m.y - 360) / 360.0f, -1.0f, 1.0f) * -8;
+        gCamX += (tx - gCamX) * std::min(1.0f, dt * 3); gCamY += (ty - gCamY) * std::min(1.0f, dt * 3);
+    }
     UpdateLife(g, dt);
     std::vector<const Hero*> resting;
     for (auto& h : g.roster) if (h.onLeave > 0) resting.push_back(&h);
 
-    // --- the room, back to front
+    // --- the far band: the window, the back wall, the organ, the ward
     DrawOcean(t);
     DrawShell(t);
+    DrawCeilingCaustics(t);
     DrawGreatWindow(t);
     DrawPainting(-520, 590, 130, 60, 0);
     DrawPainting(WARD_X, 590, 120, 80, 1);
@@ -1207,33 +1574,54 @@ void SceneHub(Game& g) {
     stationRect[ST_WORKSHOP] = PaintWall(RW, 740, 1080, 0, 510, 645, [&](float w, float h) { ArtWorkshop(w, h, t); });
     DrawWallPipes(t);
 
-    // furniture and people on the floor, far to near
+    // --- the midground and the foreground: furniture and people on the floor, far to near, with veils of fog between
     struct Item { float z; std::function<void()> draw; };
     std::vector<Item> items;
+    items.push_back({1040, [&] { FogVeil(0.05f); }});                     // fog between the far band and the midground
     items.push_back({1010, [&] { DrawChaise(t, resting); }});
     items.push_back({1010, [&] { DrawOperatingTable(t); }});
     items.push_back({900, [&] { DrawHelmFurniture(t); }});
     items.push_back({PERI_Z, [&] { DrawPeriscope(t); }});
-    items.push_back({cat.pos.y, [&] { DrawCat(t); }});
+    items.push_back({cat.perch == 1 ? ARC_Z - 1 : cat.pos.y, [&] { DrawCat(t); }});
     items.push_back({DEALER_Z, [&] { DrawCardDealer(t); }});
     items.push_back({CARD_Z, [&] { DrawCardTable(t); }});
-    struct Person { Walker* w; const Hero* h; Vector2 feet; float s; Rectangle r; };
+    items.push_back({500, [&] { FogVeil(0.03f); }});                      // and a thinner one before the foreground
+    items.push_back({ARC_Z, [&] { DrawArcadeCabinet(t); }});
+    Rectangle hatchR{};
+    items.push_back({HATCH_Z + 60, [&] { hatchR = DrawStudyHatch(t); }});
+    struct Person { Walker* w; const Hero* h; Vector2 feet; float s; Rectangle r; Pose pose; };
     std::vector<Person> people;
     for (auto& w : walkers) {
         const Hero* h = &NpcHero(w.id);
         float s = CREW_H / 165.0f * Px(w.pos.y);
         Vector2 feet = Proj(w.pos.x, 0, w.pos.y);
-        people.push_back({&w, h, feet, s, {feet.x - 22 * s, feet.y - 165 * s, 44 * s, 165 * s}});
+        people.push_back({&w, h, feet, s, {feet.x - 22 * s, feet.y - 165 * s, 44 * s, 165 * s}, WorkPose(w, t)});
+    }
+    // now and then one of the off-duty hands is at the arcade cabinet, glancing back when you come near
+    static Walker arcadeW{0, {ARC_X + 100, ARC_Z + 40}, {ARC_X + 100, ARC_Z + 40}, 5, 0, false, true};
+    if (fmodf(t, 75) > 25 && fmodf(t, 75) < 55) {
+        int who = -1;
+        for (int i = 0; i < NPC_COUNT && who < 0; i++) { bool busy = false; for (auto& w : walkers) busy |= w.id == i; if (!busy) who = i; }
+        if (who >= 0) {
+            arcadeW.id = who;
+            Vector2 feet = Proj(arcadeW.pos.x, 0, arcadeW.pos.y);
+            float s = CREW_H / 165.0f * Px(arcadeW.pos.y);
+            bool near = live && fabsf(m.x - feet.x) < 150 && m.y > feet.y - 260 && m.y < feet.y + 40;
+            arcadeW.right = near;                                    // he turns to look at you
+            Pose p; p.reach = near ? 0.1f : 0.45f + 0.08f * sinf(t * 7); p.lean = near ? 0 : 0.14f; p.headDown = near ? -0.2f : 0.1f;
+            people.push_back({&arcadeW, &NpcHero(who), feet, s, {feet.x - 22 * s, feet.y - 165 * s, 44 * s, 165 * s}, p});
+        }
     }
     for (auto& p : people)
         items.push_back({p.w->pos.y, [&, pp = &p] {
             DrawShadowBlob(pp->feet, 30 * pp->s);
-            DrawCrewFigureInked(*pp->h, pp->feet, pp->s, pp->w->right, pp->w->phase, t, WorkPose(*pp->w, t));
+            DrawCrewFigureInked(*pp->h, pp->feet, pp->s, pp->w->right, pp->w->phase, t, pp->pose);
         }});
     std::stable_sort(items.begin(), items.end(), [](const Item& a, const Item& b) { return a.z > b.z; });
     for (auto& it : items) it.draw();
     DrawChandelier(t);
     DrawCrossPipe(t);
+    DrawNearLamps(t);
 
     // where the furniture stations sit on screen (for hovering)
     auto around = [&](float X, float Z, float w, float hgt) {
@@ -1243,6 +1631,8 @@ void SceneHub(Game& g) {
     stationRect[ST_HELM] = around(-90, 900, 480, 360);
     stationRect[ST_CARDS] = around(CARD_X, DEALER_Z - 40, 240, 200);
     stationRect[ST_PERISCOPE] = around(PERI_X, PERI_Z, 140, 420);
+    stationRect[ST_ARCADE] = around(ARC_X, ARC_Z, 100, 240);
+    stationRect[ST_STUDY] = hatchR;
     Rectangle organR{organBase.x - 200 * kb, organBase.y - 560 * kb, 400 * kb, 560 * kb}, chaise = around(-430, 1010, 330, 170);
     stationRect[ST_SICKBAY] = {std::min(organR.x, chaise.x), organR.y, std::max(organR.x + organR.width, chaise.x + chaise.width) - std::min(organR.x, chaise.x),
                                chaise.y + chaise.height - organR.y};
@@ -1256,28 +1646,41 @@ void SceneHub(Game& g) {
     if (mouseInRoom && !hovCat)
         for (auto& p : people) if (CheckCollisionPointRec(m, p.r) && (!hovPerson || p.w->pos.y < hovPerson->w->pos.y)) hovPerson = &p;
     int hovered = -1;
-    const int order[ST_COUNT] = {ST_CARDS, ST_HELM, ST_PERISCOPE, ST_SICKBAY, ST_WARD, ST_CREW, ST_LIBRARY, ST_RADAR, ST_WORKSHOP};
+    const int order[ST_COUNT] = {ST_STUDY, ST_ARCADE, ST_CARDS, ST_HELM, ST_PERISCOPE, ST_SICKBAY, ST_WARD, ST_CREW, ST_LIBRARY, ST_RADAR, ST_WORKSHOP};
     if (mouseInRoom && !hovPerson && !hovCat)
         for (int i : order) if (CheckCollisionPointRec(m, stationRect[i])) { hovered = i; break; }
+    if (gDebugHover >= 0) hovered = gDebugHover;
+    for (int i = 0; i < ST_COUNT; i++) { // each station eases into and out of its hover motion
+        float want = i == hovered || i == heldStation ? 1.0f : 0.0f;
+        gHov[i] += (want - gHov[i]) * std::min(1.0f, dt * 6);
+        if (gDebugHover >= 0 || !live) gHov[i] = want;
+    }
 
     std::vector<Vector2> personLights;
     for (auto& p : people) personLights.push_back({p.feet.x, p.feet.y - 100 * p.s});
-    personLights.push_back({Proj(cat.pos.x, 40, cat.pos.y)});
-    DrawSalonLighting(t, hovered, personLights);
+    personLights.push_back({Proj(cat.pos.x, 40 + cat.y, cat.pos.y)});
+    DrawSalonLighting(t, live ? hovered : -1, personLights);
     for (auto& p : people)
         if (p.h->rattled) Glow({p.feet.x, p.r.y - 6}, 20 + sinf(t * 5) * 3, Fade(Pal::Stress, 0.5f));
-    if (hovered >= 0) {
-        Rectangle r = stationRect[hovered];
-        float pulse = 0.55f + 0.45f * sinf(t * 5);
-        DrawRectangleRoundedLinesEx({r.x - 8, r.y - 8, r.width + 16, r.height + 16}, 0.06f, 6, 3, Fade(Color{255, 214, 150, 255}, pulse));
-    }
     InkPass(1.0f, 1.0f);
     DrawDustMotes(t);
     DrawCeilingSteam(t);
+    DrawPeriscopeBubbles(t);
     DrawPurrHearts(t);
+    if (!live) return;
 
+    // the hovered station: a warm edge and its brass plaque
+    if (hovered >= 0) {
+        Rectangle r = stationRect[hovered];
+        float pulse = 0.45f + 0.35f * sinf(t * 4);
+        DrawRectangleRoundedLinesEx({r.x - 6, r.y - 6, r.width + 12, r.height + 12}, 0.06f, 6, 2, Fade(Color{255, 214, 150, 255}, pulse * 0.6f));
+        const char* nm = STATIONS[hovered].name;
+        float pw = (float)MeasureTxt(nm, 17, true) + 44;
+        float px = std::clamp(r.x + r.width / 2 - pw / 2, 8.0f, ROSTER_X - 16 - pw), py = std::max(52.0f, r.y - 38);
+        DrawBrassPlate({px, py, pw, 30}, nm, 17);
+    }
     // --- labels, hints, HUD
-    std::string hint = "Every station in the salon can be clicked. Your expedition crew wait in Crew Quarters.";
+    std::string hint = "Every station in the salon can be clicked. Drag crew from the roster onto the party slots, then Embark.";
     if (hovCat) {
         std::string label = "Barnacle, the ship's cat";
         float w = (float)MeasureTxt(label, 16, true);
@@ -1300,10 +1703,10 @@ void SceneHub(Game& g) {
     }
     DrawSalonHud(g, hovered, hint, hovered >= 0 || hovPerson || hovCat);
 
-    // New game, with a second click to confirm
+    // New game, with a second click to confirm (a small plate at the top right)
     static float armed = 0;
     armed = std::max(0.0f, armed - dt);
-    if (Button({18, HUD_Y + 12, 210, 44}, armed > 0 ? "Click again to confirm" : "Start a new game", true, 17)) {
+    if (Button({SCREEN_W - 200.0f, 8, 188, 30}, armed > 0 ? "Click again to confirm" : "Start a new game", true, 14)) {
         if (armed > 0) {
             DeleteSave();
             g = Game{};
@@ -1326,4 +1729,103 @@ void SceneHub(Game& g) {
         g.scene = STATIONS[hovered].target;
         if (g.scene == Scene::Crew && !FindHero(g, g.selectedHero) && !g.roster.empty()) g.selectedHero = g.roster[0].id;
     }
+}
+
+void SceneHub(Game& g) { SalonFrame(g, true, -1); }
+void DebugSalonHover(int station) { gDebugHover = station; }
+void DrawSalonBackdrop(Game& g, Scene station) {
+    int held = -1;
+    for (int i = 0; i < ST_COUNT; i++) if (STATIONS[i].target == station) held = i;
+    SalonFrame(g, false, held);
+}
+
+// ============================================================ the Study (below the hatch): under refit for now
+void SceneStudy(Game& g) {
+    float t = g.time;
+    SetPost(0.45f, 0.03f, 0.3f);
+    SetSceneLight(SalonLight());
+    SetInkLook(&SalonPalette(), 0.25f, 91);
+    // a narrow iron room below the salon, lit by one lantern: a locked round door with a brass sign, the ladder back up
+    DrawVGradient({0, 0, (float)SCREEN_W, (float)SCREEN_H}, Color{34, 30, 28, 255}, Color{12, 10, 10, 255});
+    DrawTiled(Tex::Metal, {140, 60, 1000, 560}, 0.9f, Color{70, 74, 72, 255});
+    for (int i = 0; i < 5; i++) { float x = 170 + i * 240.0f; DrawRectangleGradientH((int)x - 12, 60, 12, 560, Color{30, 32, 32, 255}, Color{80, 84, 82, 255}); DrawRectangleGradientH((int)x, 60, 12, 560, Color{80, 84, 82, 255}, Color{26, 28, 28, 255}); }
+    DrawRectangle(0, 600, SCREEN_W, 120, Color{24, 18, 14, 255});
+    DrawTiled(Tex::Wood, {0, 600, (float)SCREEN_W, 30}, 0.8f, Color{90, 60, 40, 255});
+    Vector2 dc{700, 350};
+    DrawCircleV({dc.x + 6, dc.y + 8}, 190, Fade(BLACK, 0.5f));
+    DrawCircleV(dc, 190, Pal::BrassDk);
+    DrawRing(dc, 168, 186, 0, 360, 64, Pal::Brass);
+    DrawCircleV(dc, 166, Color{70, 64, 58, 255});
+    for (int k = 0; k < 16; k++) { float a = k * PI / 8; DrawCircleV({dc.x + cosf(a) * 177, dc.y + sinf(a) * 177}, 4, Color{60, 44, 26, 255}); }
+    for (int k = 0; k < 6; k++) { float a = k * PI / 3 + 0.3f; DrawLineEx(dc, {dc.x + cosf(a) * 70, dc.y + sinf(a) * 70}, 9, Color{120, 40, 36, 255}); }
+    DrawRing(dc, 62, 74, 0, 360, 40, Color{120, 40, 36, 255});
+    DrawCircleV(dc, 16, Pal::Brass);
+    DrawLineEx({dc.x - 150, dc.y - 40}, {dc.x + 150, dc.y + 40}, 10, Color{60, 58, 56, 255});   // a bar chained across it
+    DrawLineEx({dc.x - 150, dc.y + 40}, {dc.x + 150, dc.y - 40}, 10, Color{60, 58, 56, 255});
+    DrawCircleV(dc, 20, Color{50, 50, 52, 255});
+    DrawBrassPlate({dc.x - 110, dc.y + 120, 220, 40}, "UNDER REFIT", 22);
+    // the ladder back up, on the left, in the light from the hatch
+    for (int s = 0; s < 2; s++) DrawRectangle(190 + s * 70, 0, 10, 610, Color{120, 86, 50, 255});
+    for (float y = 20; y < 600; y += 44) DrawRectangle(190, (int)y, 80, 8, Color{140, 100, 60, 255});
+    LightsBegin(Color{112, 104, 96, 255});
+    AddLight({235, 0}, 520, Color{255, 210, 150, 255}, 1.0f);
+    AddLight({980, 170}, 520, Color{255, 190, 110, 255}, 0.9f + 0.1f * sinf(t * 9));
+    AddLight({700, 350}, 420, Color{200, 170, 130, 255}, 0.6f);
+    LightsEnd();
+    Glow({980, 170}, 40, Color{255, 190, 110, 120});
+    InkPass(1.0f, 1.0f);
+    DrawSceneTitle("The Study", "Beneath the salon. The shipwrights are still at work down here.");
+    DrawWrapped("A study with its own purpose is being fitted out below the salon. The door stays locked until the refit is done.", {740, 580, 500, 60}, 17, Pal::Paper);
+    if (Button({160, 630, 220, 48}, "Climb the ladder", true, 18) || BackButton(g)) g.scene = Scene::Hub;
+}
+
+// ============================================================ the Deep Arcade (the cabinet; its games come aboard later)
+void SceneArcade(Game& g) {
+    float t = g.time;
+    DrawCabinBackground();
+    if (BackButton(g)) return;
+    // the porthole screen, close up: a rotating brass drum of four engraved reels
+    Vector2 c{SCREEN_W / 2.0f, 380};
+    DrawCircleV({c.x + 8, c.y + 10}, 300, Fade(BLACK, 0.5f));
+    DrawCircleV(c, 300, Pal::BrassDk);
+    DrawRing(c, 270, 296, 0, 360, 90, Pal::Brass);
+    for (int k = 0; k < 20; k++) { float a = k * PI / 10; DrawCircleV({c.x + cosf(a) * 283, c.y + sinf(a) * 283}, 6, Pal::BrassDk); }
+    DrawCircleV(c, 268, Color{10, 54, 60, 255});
+    Glow(c, 360, Color{60, 220, 210, 50});
+    TxtBold("THE DEEP ARCADE", c.x - MeasureTxt("THE DEEP ARCADE", 30, true) / 2.0f, c.y - 250, 30, Color{180, 255, 240, 255});
+    struct Reel { const char* name; const char* players; const char* length; const char* line; };
+    const Reel reels[4] = {
+        {"Flats Duel", "2 players", "8-12 min", "Flats against a person: a best of three at the table."},
+        {"The Trawl", "1-4 co-op", "15-25 min", "Fish the deep by night, fill the quota, don't wake what's below."},
+        {"Scuttle", "2-4 players", "5-10 min", "A fast crab-racing card game anyone can learn in one hand."},
+        {"Fathoms", "2-6 players", "20-30 min", "The island strategy game: six factions of the deep."},
+    };
+    static int sel = 0;
+    static float drum = 0;
+    drum += (sel - drum) * std::min(1.0f, GetFrameTime() * 8);
+    float wheel = GetMouseWheelMove();
+    if (wheel < 0 || IsKeyPressed(KEY_DOWN)) sel = std::min(3, sel + 1);
+    if (wheel > 0 || IsKeyPressed(KEY_UP)) sel = std::max(0, sel - 1);
+    for (int i = 0; i < 4; i++) {
+        float off = (i - drum) * 92;
+        if (fabsf(off) > 120) continue;
+        float sc = 1 - fabsf(off) / 400;
+        Rectangle r{c.x - 230 * sc, c.y - 40 + off - 34 * sc, 460 * sc, 68 * sc};
+        bool on = i == sel;
+        DrawRectangleRounded(r, 0.25f, 8, on ? Color{30, 120, 118, 255} : Color{16, 60, 64, 255});
+        DrawRectangleRoundedLinesEx(r, 0.25f, 8, 2, on ? Pal::Brass : Pal::BrassDk);
+        DrawTextCenteredBold(reels[i].name, c.x, r.y + 8 * sc, (int)(26 * sc), on ? Color{220, 255, 244, 255} : Color{120, 170, 166, 255});
+        if (on) DrawTextCentered(TextFormat("%s   -   %s", reels[i].players, reels[i].length), c.x, r.y + 40, 15, Color{180, 230, 220, 255});
+        if (CheckCollisionPointRec(GetMousePosition(), r) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) sel = i;
+    }
+    DrawWrapped(reels[sel].line, {c.x - 200, c.y + 100, 400, 50}, 17, Color{200, 240, 232, 255});
+    // the three valve-wheel buttons: not wired up yet
+    const char* valves[3] = {"Host", "Join", "Browse"};
+    for (int k = 0; k < 3; k++) {
+        Vector2 v{c.x - 120 + k * 120.0f, c.y + 180};
+        DrawRing(v, 22, 28, 0, 360, 24, Color{120, 40, 36, 255});
+        for (int s = 0; s < 3; s++) DrawLineEx(v, {v.x + cosf(t * 0.3f + s * 2.09f) * 24, v.y + sinf(t * 0.3f + s * 2.09f) * 24}, 3, Color{120, 40, 36, 255});
+        DrawTextCentered(valves[k], v.x, v.y + 34, 15, Color{140, 170, 166, 255});
+    }
+    DrawTextCentered("The arcade's wiring is still being run. Its games come aboard in a later refit.", c.x, 700, 16, Pal::Paper);
 }

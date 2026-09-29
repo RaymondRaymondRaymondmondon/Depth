@@ -20,9 +20,13 @@
 #include <functional>
 #include <string>
 
+Game* gCurrentGame = nullptr;
 static void RunScene(Game& g) {
     gDiveGear = g.scene == Scene::Dungeon;   // masks and helmets only on expedition
+    gCurrentGame = &g;
     switch (g.scene) {
+        case Scene::Study:      SceneStudy(g); break;
+        case Scene::Arcade:     SceneArcade(g); break;
         case Scene::Hub:        SceneHub(g); break;
         case Scene::Helm:       SceneHelm(g); break;
         case Scene::Crew:       SceneCrew(g); break;
@@ -37,6 +41,7 @@ static void RunScene(Game& g) {
         case Scene::Cards:      SceneCards(g); break;
         case Scene::Abyss:      SceneAbyss(g); break;
     }
+    EndStationPanel();
 }
 
 // Starts a platform level on the first generator seed that contains the given set-piece, standing just before it.
@@ -150,6 +155,21 @@ static void TakeShots(const Game& base, const std::string& dir) {
     const Shot shots[] = {
         {"hub", [](Game& g) { g.scene = Scene::Hub; }},
         {"hub_cat", [](Game& g) { g.scene = Scene::Hub; DebugPetCat(); }},
+        {"hub_hover_crew", [](Game& g) { g.scene = Scene::Hub; DebugSalonHover(0); }},
+        {"hub_hover_library", [](Game& g) { g.scene = Scene::Hub; DebugSalonHover(1); }},
+        {"hub_hover_radar", [](Game& g) { g.scene = Scene::Hub; DebugSalonHover(2); }},
+        {"hub_hover_helm", [](Game& g) { g.scene = Scene::Hub; DebugSalonHover(3); }},
+        {"hub_hover_periscope", [](Game& g) { g.scene = Scene::Hub; DebugSalonHover(4); }},
+        {"hub_hover_workshop", [](Game& g) { g.scene = Scene::Hub; DebugSalonHover(5); }},
+        {"hub_hover_sickbay", [](Game& g) { g.scene = Scene::Hub; DebugSalonHover(6); }},
+        {"hub_hover_ward", [](Game& g) { g.scene = Scene::Hub; DebugSalonHover(7); }},
+        {"hub_hover_cards", [](Game& g) { g.scene = Scene::Hub; DebugSalonHover(8); }},
+        {"hub_hover_arcade", [](Game& g) { g.scene = Scene::Hub; DebugSalonHover(9); }},
+        {"hub_hover_study", [](Game& g) { g.scene = Scene::Hub; DebugSalonHover(10); }},
+        {"study", [](Game& g) { g.scene = Scene::Study; }},
+        {"arcade", [](Game& g) { g.scene = Scene::Arcade; }},
+        {"panel_ward", [](Game& g) { g.scene = Scene::Ward; }},
+        {"panel_sickbay", [](Game& g) { g.scene = Scene::SickLeave; }},
         {"flats_menu", [](Game& g) { g.scene = Scene::Cards; }},
         {"flats_play", [](Game& g) { g.scene = Scene::Cards; DebugFlatsDeal(); }},
         {"flats_combat", [](Game& g) { g.scene = Scene::Cards; DebugFlatsCombat(); }},
@@ -342,6 +362,7 @@ static void TakeShots(const Game& base, const std::string& dir) {
     for (const auto& s : all) {
         if (gShotFilter && !strstr(s.name, gShotFilter)) continue;
         Game g = base;
+        DebugSalonHover(-1);
         s.setup(g);
         for (int f = 0; f < 90; f++) {
             g.time += 1 / 60.0f;

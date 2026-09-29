@@ -33,7 +33,7 @@ const Color Bad     = {225, 70, 70, 255};
 const Color Stress  = {170, 120, 230, 255};
 }  // namespace Pal
 
-enum class Scene { Hub, Helm, Crew, Radar, Ward, SickLeave, Bookshelf, Periscope, Workshop, Dungeon, Platformer, Cards, Abyss };
+enum class Scene { Hub, Helm, Crew, Radar, Ward, SickLeave, Bookshelf, Periscope, Workshop, Dungeon, Platformer, Cards, Abyss, Study, Arcade };
 
 // Workshop upgrades. Each has levels 0..UPGRADE_MAX.
 enum Upgrade { UP_REFLECTOR, UP_BUNKS, UP_SONAR, UP_INFIRMARY, UP_CARGO, UP_COUNT };
@@ -714,7 +714,16 @@ void DrawToast(Game& g);
 bool BackButton(Game& g);
 void DrawSceneTitle(const char* title, const char* subtitle);
 void DrawGoldBadge(const Game& g);
-void DrawCabinBackground();
+void DrawCabinBackground();   // station screens: the salon behind (dimmed), and the panel slides in from the station's side
+void EndStationPanel();       // RunScene: end the slide-in offset DrawCabinBackground set (safe to call always)
+void SetSceneSlide(Vector2 d); // render.cpp: offset everything drawn into the scene from now on (a panel sliding in)
+void DrawSalonBackdrop(Game& g, Scene station); // salon.cpp: the room as a backdrop behind a station's panel (no hover, no HUD)
+void SceneStudy(Game& g);     // the Study below the hatch (under refit for now)
+void SceneArcade(Game& g);    // the Deep Arcade cabinet (its games arrive with the arcade stages)
+void SetFigureClip(const Rectangle* r); // clip the next EndFigure composites to r (portraits); nullptr turns it off
+void DrawPortrait(const Hero& h, Rectangle r, float t); // head and shoulders of a crew member, clipped to r
+void DebugSalonHover(int station); // --shots: hold a salon station hovered (-1 off)
+extern Game* gCurrentGame;    // the game RunScene is drawing (for backdrops that need it)
 std::string RankString(int mask);
 extern bool gDiveGear;   // true only on an expedition: the crew wear masks and helmets there and take them off aboard the Nautilus
 

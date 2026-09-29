@@ -2,6 +2,8 @@
 //  DEPTH - small immediate-mode UI helpers
 // ============================================================================
 #include "game.h"
+#include "rlgl.h"
+#include <algorithm>
 #include <cmath>
 
 static const Font& F(bool bold) { return bold ? BoldFont() : BodyFont(); }
@@ -164,32 +166,31 @@ void DrawGoldBadge(const Game& g) {
     Txt(TextFormat("Batteries %d", g.batteries), r.x + 118, r.y + 15, 17, Pal::Paper);
 }
 
-// Station screens sit in a dim, lamp-lit corner of the hull.
+// Station screens are panels over the salon, as in Darkest Dungeon's hamlet: the room stays visible behind a
+// dark veil, and the panel slides in from the side of the room the station stands on.
+static bool gPanelPushed = false;
 void DrawCabinBackground() {
+    Game* g = gCurrentGame;
+    if (g) DrawSalonBackdrop(*g, g->scene);
     SetPost(0.28f, 0.02f, 0.06f); // parchment is bright: keep bloom low so text stays crisp
-    float t = (float)GetTime();
-    DrawTiled(Tex::Metal, {0, 0, (float)SCREEN_W, (float)SCREEN_H}, 1.0f, Color{104, 120, 118, 255});
-    for (int i = 0; i < 6; i++) { // hull ribs
-        float x = 110 + i * 212.0f;
-        DrawRectangleGradientH((int)x - 14, 0, 14, SCREEN_H, Color{40, 50, 50, 255}, Color{92, 108, 104, 255});
-        DrawRectangleGradientH((int)x, 0, 14, SCREEN_H, Color{92, 108, 104, 255}, Color{34, 42, 42, 255});
+    DrawRectangle(0, 0, SCREEN_W, SCREEN_H, Color{6, 8, 10, 178});   // the room darkens behind the panel
+    // the slide-in: left-hand stations come from the left, right-hand ones from the right, the Helm rises from below
+    static Scene last = Scene::Hub;
+    static double enteredAt = 0;
+    Scene now = g ? g->scene : Scene::Hub;
+    if (now != last) { last = now; enteredAt = GetTime(); }
+    float u = std::clamp((float)(GetTime() - enteredAt) / 0.32f, 0.0f, 1.0f), e = 1 - (1 - u) * (1 - u) * (1 - u);
+    float dx = 0, dy = 0;
+    switch (now) {
+        case Scene::Crew: case Scene::Bookshelf: case Scene::SickLeave: dx = -1; break;
+        case Scene::Radar: case Scene::Workshop: case Scene::Ward: case Scene::Periscope: dx = 1; break;
+        default: dy = 1; break;
     }
-    DrawPipeH(0, SCREEN_W, 84, 9, Pal::Copper);
-    DrawPipeH(0, SCREEN_W, 104, 6, Color{120, 124, 118, 255});
-    for (int i = 0; i < 5; i++) DrawFlange({150 + i * 260.0f, 84}, 9, false, Pal::BrassDk);
-    DrawVGradient({0, SCREEN_H - 90.0f, (float)SCREEN_W, 90}, Fade(BLACK, 0), Fade(BLACK, 0.5f));
-
-    LightsBegin(Color{58, 66, 72, 255});
-    for (int i = 0; i < 4; i++) {
-        float flick = 0.92f + 0.08f * sinf(t * 13 + i * 2.1f) * sinf(t * 3.7f + i);
-        AddLight({160 + i * 320.0f, 120}, 520, Color{255, 206, 140, 255}, 0.75f * flick);
-    }
-    AddLight({SCREEN_W / 2.0f, SCREEN_H / 2.0f}, 900, Color{90, 110, 120, 255}, 0.6f);
-    LightsEnd();
-    for (int i = 0; i < 4; i++) Glow({160 + i * 320.0f, 118}, 34, Color{255, 200, 120, 120});
-    InkPass(0.9f, 1.0f);
+    if (u < 1) { SetSceneSlide({dx * (1 - e) * SCREEN_W * 0.45f, dy * (1 - e) * SCREEN_H * 0.4f}); gPanelPushed = true; }
 }
-
+void EndStationPanel() {
+    if (gPanelPushed) { SetSceneSlide({0, 0}); gPanelPushed = false; }
+}
 std::string RankString(int mask) {
     // Turns a rank mask into "1-2", "2-4" or "1, 3"
     std::vector<int> r;

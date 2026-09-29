@@ -1,12 +1,12 @@
-﻿# Master Reference progress log
+# Master Reference progress log
 
 The plan is `Depth — Master Reference for Claude Code.pdf` (project root). One stage at a time; each ends at its Definition of Done.
 
 | Stage | Work | Status |
 |---|---|---|
-| 1 | Shared rig, clips, chains, three-light rig, palettes, --silhouette | Built. Gate: the user's approval of the Captain and the Lost One Cultist beside a Darkest Dungeon screenshot |
-| 2 | Salon rebuilt in depth: stations as props, arcade cabinet, study hatch, roster edge, Embark | Next |
-| 3 | Sound architecture: buses, cue registry, reverb, salon music and ambience | |
+| 1 | Shared rig, clips, chains, three-light rig, palettes, --silhouette | Built. User: right direction, a ways to go; flat-plane shading pass done; figures keep improving in stage 5 |
+| 2 | Salon rebuilt in depth: stations as props, arcade cabinet, study hatch, roster edge, Embark | Done (hands/dealer move fully onto the rig in stage 5) |
+| 3 | Sound architecture: buses, cue registry, reverb, salon music and ambience | Next |
 | 4 | Sonar chart expeditions | |
 | 5 | Expedition visual overhaul on the rig | |
 | 6 | EnemyBrain | |
