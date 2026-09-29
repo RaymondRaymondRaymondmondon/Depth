@@ -62,6 +62,12 @@ const BiomeDef& CaveBiome();
 const BiomeDef& PipesBiome();
 const BiomeDef& WeedsBiome();
 const BiomeDef& AtlantisBiome();
+// the Hull's ParkourReference1.3 roster (beasts_hull.cpp)
+void Hull13Hook(BeastWorld& W, PlatformState& p, int i, float dt);
+bool Hull13Touch(const BeastWorld& W, const Beast& b, Rectangle diver);
+void HullTick(BeastWorld& W, PlatformState& p, float dt);
+void Hull13Spawn(BeastWorld& W, PlatformState& p);
+bool VerifyHull13();
 
 const SpeciesDef& Sp(int biome, int s);
 float Pref(int biome, int pred, int prey);

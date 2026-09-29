@@ -17,7 +17,7 @@ namespace bk {
 // diver is on the menu for the eels and the crabs.
 //            name              move              mass  rad  speed sprint accel sight  fov   hear smell hunger dFear dPrey lethal social band pop  den    scav  traits
 const SpeciesDef HULL[HS_COUNT] = {
-    {"Sprat",            MoveMode::Swim,    0.2f,  5,   70, 230,  900,  170, 2.6f, 0.7f, 0.2f, 0.010f, 0.9f,  0.0f, false, true,  5, 24, 0.05f, 0.0f},
+    {"Pilot-Fish",       MoveMode::Swim,    0.2f,  5,   80, 250, 1000,  170, 2.6f, 0.7f, 0.2f, 0.010f, 0.9f,  0.0f, false, true,  1, 24, 0.05f, 0.0f},
     {"Cleaner Shrimp",   MoveMode::Swim,    0.05f, 5,   45, 190,  800,  120, 2.8f, 0.6f, 0.5f, 0.012f, 0.8f,  0.0f, false, false, 1,  8, 0.80f, 0.2f, T_GROOMER},
     {"Octopus",          MoveMode::Swim,    3.0f,  9,   55, 260,  700,  200, 2.4f, 0.4f, 0.6f, 0.020f, 0.5f,  0.0f, false, false, 0,  4, 0.70f, 0.3f, T_CAMO | T_HOST | T_CARRY},
     {"Pufferfish",       MoveMode::Swim,    1.0f,  8,   40, 150,  500,  140, 2.6f, 0.5f, 0.3f, 0.012f, 0.6f,  0.0f, true,  false, 3,  5, 0.30f, 0.0f, T_HOST},
@@ -26,13 +26,26 @@ const SpeciesDef HULL[HS_COUNT] = {
     {"Hermit Crab",      MoveMode::Walk,    0.5f,  7,   45, 110,  600,  150, 2.4f, 0.5f, 0.9f, 0.020f, 0.7f,  0.0f, false, true,  0,  7, 0.60f, 1.0f, T_MOBBER},
     {"Brittle-Star",     MoveMode::Sessile, 0.3f, 10,    0,   0,    0,   40, PI,   0.3f, 0.0f, 0.005f, 0.4f,  0.0f, false, false, 0,  5, 0.00f, 0.0f},
     {"Barnacle Crab",    MoveMode::Walk,    2.5f, 13,   70, 150,  900,  190, 1.6f, 0.6f, 0.8f, 0.020f, 0.2f,  0.7f, true,  false, 0,  0, 0.40f, 1.0f, T_STRIKER | T_CHARGER, 90},
-    {"Moray Eel",        MoveMode::Swim,    8.0f, 10,  110, 330, 1100,  240, 1.9f, 0.8f, 0.9f, 0.030f, 0.15f, 0.8f, true,  false, 2,  2, 0.90f, 0.6f, T_STRIKER | T_DEN_AMBUSH | T_GROOMED | T_HOST | T_CARRY, 120},
+    {"Hull-Crusher Eel", MoveMode::Swim,   12.0f, 10,  110, 330, 1100,  240, 1.9f, 0.8f, 0.9f, 0.030f, 0.15f, 0.8f, true,  false, 2,  2, 0.90f, 0.6f, T_STRIKER | T_DEN_AMBUSH | T_GROOMED | T_HOST | T_CARRY, 120},
+    // ParkourReference1.3 (beasts_hull.cpp): the giants move themselves; the flora and the mites only react
+    {"Hull-Grazer Whale", MoveMode::Swim,  400.0f, 20,  38,  60,   80,  200, 2.0f, 0.5f, 0.2f, 0.004f, 0.0f,  0.0f, false, false, 3,  0, 0.00f, 0.0f, T_GIANT},
+    {"Siphon Octopus",   MoveMode::Swim,    6.0f, 12,    0,   0,    0,  260, PI,   0.9f, 0.6f, 0.020f, 0.0f,  0.6f, false, false, 0,  0, 0.00f, 0.4f, T_GIANT | T_CAMO},
+    {"Steel-Biter Megalodon", MoveMode::Swim, 900.0f, 30, 130, 640, 400, 420, 2.2f, 1.0f, 1.0f, 0.010f, 0.0f, 0.6f, false, false, 6, 0, 0.00f, 0.3f, T_GIANT},
+    {"Barnacle-Mites",   MoveMode::Sessile, 0.2f, 10,    0,   0,    0,   30, PI,   0.2f, 0.0f, 0.000f, 0.0f,  0.0f, false, false, 0,  0, 0.00f, 0.0f, T_FLORA},
+    {"Rust-Algae",       MoveMode::Sessile, 0.5f, 12,    0,   0,    0,    0, PI,   0.0f, 0.0f, 0.000f, 0.0f,  0.0f, false, false, 0,  0, 0.00f, 0.0f, T_FLORA},
+    {"Bio-Electric Hydroids", MoveMode::Sessile, 0.3f, 9, 0,  0,    0,    0, PI,   0.0f, 0.0f, 0.000f, 0.0f,  0.0f, false, false, 0,  0, 0.00f, 0.0f, T_FLORA},
+    {"Pressure-Anemone", MoveMode::Sessile, 2.0f, 12,    0,   0,    0,    0, PI,   0.0f, 0.0f, 0.000f, 0.0f,  0.0f, false, false, 0,  0, 0.00f, 0.0f, T_FLORA},
+    {"Metal-Eater Moss", MoveMode::Sessile, 0.5f, 14,    0,   0,    0,    0, PI,   0.0f, 0.0f, 0.000f, 0.0f,  0.0f, false, false, 0,  0, 0.00f, 0.0f, T_FLORA},
+    {"Hull-Kelp",        MoveMode::Sessile, 1.0f,  8,    0,   0,    0,    0, PI,   0.0f, 0.0f, 0.000f, 0.0f,  0.0f, false, false, 0,  0, 0.00f, 0.0f, T_FLORA},
 };
 const FoodEdge HULL_WEB[] = {
-    {HS_EEL, HS_SPRAT, 0.9f},    {HS_EEL, HS_PUFFER, 0.5f},   {HS_EEL, HS_OCTOPUS, 0.7f}, {HS_EEL, HS_HERMIT, 0.35f},
-    {HS_OCTOPUS, HS_SHRIMP, 1.0f}, {HS_OCTOPUS, HS_SPRAT, 0.6f}, {HS_OCTOPUS, HS_HERMIT, 0.7f},
+    {HS_EEL, HS_PILOT, 0.9f},    {HS_EEL, HS_PUFFER, 0.5f},   {HS_EEL, HS_OCTOPUS, 0.7f}, {HS_EEL, HS_HERMIT, 0.35f},
+    {HS_OCTOPUS, HS_SHRIMP, 1.0f}, {HS_OCTOPUS, HS_PILOT, 0.6f}, {HS_OCTOPUS, HS_HERMIT, 0.7f},
     {HS_CRAB, HS_HERMIT, 0.5f},  {HS_CRAB, HS_SHRIMP, 0.35f}, {HS_CRAB, HS_OCTOPUS, 0.4f},
-    {HS_ANEMONE, HS_LEECH, 1.0f}, {HS_ANEMONE, HS_SPRAT, 0.4f}, {HS_ANEMONE, HS_SHRIMP, 0.25f},
+    {HS_ANEMONE, HS_LEECH, 1.0f}, {HS_ANEMONE, HS_PILOT, 0.4f}, {HS_ANEMONE, HS_SHRIMP, 0.25f},
+    {HS_SIPHON, HS_PILOT, 1.0f}, {HS_SIPHON, HS_HERMIT, 0.7f}, {HS_SIPHON, HS_SHRIMP, 0.5f}, {HS_SIPHON, HS_PUFFER, 0.3f},
+    {HS_MEGALODON, HS_EEL, 0.8f}, {HS_MEGALODON, HS_OCTOPUS, 0.7f}, {HS_MEGALODON, HS_CRAB, 0.5f}, {HS_MEGALODON, HS_PUFFER, 0.3f},
+    {HS_MEGALODON, HS_PILOT, 0.05f}, // too small to bother with - but the pilot-fish scatter when it comes: the warning
 };
 const SpeciesDef FALLBACK = {"Creature", MoveMode::Walk, 1, 8, 50, 120, 600, 150, 2.0f, 0.5f, 0.5f, 0.01f, 0.5f, 0, false, false, 0, 0, 0.5f, 0.3f};
 
@@ -77,7 +90,7 @@ int NearestDen(const BeastWorld& W, Vector2 at, float maxD) {
     return best;
 }
 bool InCloud(const BeastWorld& W, Vector2 at) {
-    for (const auto& k : W.ink) if (Dist(k.pos, at) < k.r) return true;
+    for (const auto& k : W.ink) if (k.kind != 4 && Dist(k.pos, at) < k.r) return true; // (kind 4 is a shock ring, not a cloud)
     return false;
 }
 void AddCloud(BeastWorld& W, Vector2 at, float r, float life, int kind) { W.ink.push_back({at, life, r, life, kind}); }
@@ -90,6 +103,7 @@ float LightAt(const PlatformState& p, const BeastWorld& W, Vector2 at) {
     const BiomeDef* B = Biome(W.biome);
     float base = B ? B->daylight : 0.1f;
     if (W.biome == PL_HULL) base = std::clamp(0.85f - (W.nav.FloorBelow(tx, ty) - ty) / 30.0f, 0.15f, 0.85f);
+    if (fabsf(at.x - W.apexPos.x) < 7 * TILE && at.y > W.apexPos.y) base *= 0.45f; // the apex's shadow eclipses the light under it
     for (const auto& l : W.lamps) { float d = Dist(l, at); if (d < 4 * TILE) base = std::max(base, 0.9f - d / (4 * TILE) * 0.8f); }
     for (const auto& l : W.lights) { float d = Dist(l.pos, at); if (d < l.r) base = std::max(base, l.strength * (1 - d / l.r)); }
     Diver dv = SeeDiver(p);
@@ -206,7 +220,7 @@ void Perceive(BeastWorld& W, const PlatformState& p, int i) {
     for (int j = 0; j < (int)W.beasts.size(); j++) {
         if (j == i) continue;
         Beast& o = W.beasts[j];
-        if (o.life == BeastLife::Gone || o.hidden) continue;
+        if (o.life == BeastLife::Gone || o.hidden || Has(Sp(W.biome, o.species), T_FLORA)) continue;
         if (fabsf(o.pos.x - b.pos.x) > range || fabsf(o.pos.y - b.pos.y) > range) continue;
         if (o.life == BeastLife::Corpse) {
             if ((S.scavenge <= 0 && Pref(W.biome, b.species, o.species) <= 0) || o.id == b.ignoreId) continue;
@@ -358,6 +372,7 @@ float PreyScore(const BeastWorld& W, const Beast& b, const BeastMemory& m) {
             iso = 1.0f + (0.5f + 1.2f * b.pers.intelligence) / (float)std::max(1, n - 1);
         }
         if (o.straggler && o.act == BeastAct::Flee) iso += 0.3f + 0.5f * b.pers.intelligence;
+        iso *= 1.0f + 1.5f * (1 - Clamp01(o.health)); // ParkourReference1.3: the wounded are the ones that get taken
     }
     float reachSense = std::max(S.sight, 60 + 160 * S.hearing); // a blind hunter's world is as big as its ears
     float d = Dist(m.pos, b.pos), ease = std::clamp(1.0f - d / (reachSense * 1.3f), 0.1f, 1.0f);
@@ -448,7 +463,7 @@ bool ChooseAbnormal(BeastWorld& W, const PlatformState& p, int i, Choice& c) {
         int best = -1; float bd = r;
         for (int j = 0; j < (int)W.beasts.size(); j++) {
             const Beast& o = W.beasts[j];
-            if (j == i || !Alive(o) || o.hidden) continue;
+            if (j == i || !Alive(o) || o.hidden || Has(Sp(W.biome, o.species), T_FLORA)) continue;
             if (smallerOnly && o.mass >= b.mass * 0.9f) continue;
             float d = Dist(o.pos, b.pos);
             if (d < bd && W.nav.LineOfSight(b.pos, o.pos)) { bd = d; best = j; }
@@ -663,7 +678,7 @@ void Motor(BeastWorld& W, const PlatformState& p, int i, Vector2 target, float s
         bool reckless = b.pers.abnormal == Abnormal::SuicidalSelfDestructive || b.act == BeastAct::Strike;
         bool safe = onPath ? safeCol((int)floorf(wp.x / TILE), (int)floorf(wp.y / TILE)) || safeCol(aheadX, feetY) : safeCol(aheadX, feetY);
         if (b.grounded && !safe && !reckless) { want = 0; b.vel.x *= 0.5f; }
-        float ax = S.accel * (b.grounded ? 1.0f : 0.12f) * dt; // barely any steering once it's left the ground
+        float ax = S.accel * (b.grounded ? 1.0f : 0.12f) * dt * (0.5f + 0.5f * Clamp01(b.health)); // barely any steering once it's left the ground
         b.vel.x += std::clamp(want - b.vel.x, -ax, ax);
         b.hopT -= dt;
         if (b.grounded && b.hopT <= 0) {
@@ -714,13 +729,13 @@ void Motor(BeastWorld& W, const PlatformState& p, int i, Vector2 target, float s
         }
         // everyone gives each other a little room
         for (const auto& o : W.beasts) {
-            if (&o == &b || !Alive(o) || o.hidden) continue;
+            if (&o == &b || !Alive(o) || o.hidden || Has(Sp(W.biome, o.species), T_FLORA)) continue;
             float minD = (S.radius + Sp(W.biome, o.species).radius) * 0.9f;
             Vector2 d = Sub(b.pos, o.pos); float dd = Len(d);
             if (dd < minD && dd > 0.01f) desired = Add(desired, Mul(d, 40.0f / dd));
         }
         Vector2 dv = Sub(desired, b.vel);
-        float mag = Len(dv), maxA = S.accel * dt;
+        float mag = Len(dv), maxA = S.accel * dt * (0.5f + 0.5f * Clamp01(b.health)); // a wounded animal turns wide
         if (mag > maxA) dv = Mul(dv, maxA / mag);
         b.vel = Add(b.vel, dv);
         float sp = Len(b.vel), cap = S.sprint * 1.3f * b.scale;
@@ -923,7 +938,7 @@ void HullHooks(BeastWorld& W, PlatformState& p, int i, float dt) {
         }
         break;
     }
-    default: break;
+    default: Hull13Hook(W, p, i, dt); break; // the 1.3 roster (beasts_hull.cpp)
     }
 }
 
@@ -1005,12 +1020,24 @@ void UpdateBeast(BeastWorld& W, PlatformState& p, int i, float dt) {
         if (BD && BD->hooks) BD->hooks(W, p, i, dt);
         return;
     }
+    if (b.stunT > 0 && !Has(S, T_GIANT)) { // stunned (a hydroid's shock, a slam, a jet): senseless, it drifts or drops
+        b.stunT -= dt;
+        b.vel.x *= 0.92f;
+        if (S.move == MoveMode::Swim && BD && BD->water) b.vel.y = std::min(b.vel.y * 0.92f + 40 * dt, 40.0f);
+        else b.vel.y = std::min(b.vel.y + WALK_G * dt, 700.0f);
+        bool g;
+        Collide(W.nav, b.pos, b.vel, HalfW(S, b), HalfH(S, b), dt, g);
+        b.grounded = g;
+        if (b.act == BeastAct::Coil || b.act == BeastAct::Strike || b.act == BeastAct::Puffed) { b.act = BeastAct::Hunt; b.actT = 0; }
+        return;
+    }
     Perceive(W, p, i);
     Drives(W, i, dt);
     if (Has(S, T_PARASITE)) ParasiteTick(W, i, dt);
     if (Has(S, T_FLASH)) FlashTick(W, i, dt);
     if (BD && BD->hooks) BD->hooks(W, p, i, dt);
     if (!Alive(b)) return;
+    if (Has(S, T_GIANT)) return; // its hook moved it
     if (b.pers.abnormal == Abnormal::RabidEnraged) { b.health -= dt * 0.015f; if (b.health <= 0) { Kill(W, p, i, -1); return; } }
 
     // think: re-choose every so often (sooner for sharp beasts), or at once when newly frightened
@@ -1057,6 +1084,10 @@ void UpdateBeast(BeastWorld& W, PlatformState& p, int i, float dt) {
     };
     float spd = S.speed * (0.8f + 0.4f * b.pers.energy);
     float sprint = S.sprint * (0.85f + 0.3f * b.pers.energy) * (b.pers.abnormal == Abnormal::HyperProtectiveParent && b.act == BeastAct::Guard ? 2.2f : 1.0f);
+    // persistent injuries (ParkourReference1.3): a wounded animal is slower for good, and it bleeds into the water
+    float fit = 0.55f + 0.45f * Clamp01(b.health);
+    spd *= fit; sprint *= fit;
+    if (b.health < 0.8f) W.scent.Emit(W.scent.blood, b.pos, (1 - b.health) * 1.2f * dt);
     Vector2 go = b.goal;
     float speed = spd * 0.7f;
 
@@ -1403,9 +1434,9 @@ void SpawnHull(BeastWorld& W, PlatformState& p) {
     unsigned s = W.seed;
     // sprat schools
     for (int sc = 0; sc < 3; sc++) {
-        Vector2 c = swimAt(floorAt(Hash(s, 100 + sc) * 0.9f + 0.05f), HULL[HS_SPRAT].band);
+        Vector2 c = swimAt(floorAt(Hash(s, 100 + sc) * 0.9f + 0.05f), HULL[HS_PILOT].band);
         for (int k = 0; k < 8; k++) {
-            int b = NewBeast(W, HS_SPRAT, Add(c, Vector2{Hash(s, 200 + sc * 10 + k) * 40 - 20, Hash(s, 300 + sc * 10 + k) * 30 - 15}));
+            int b = NewBeast(W, HS_PILOT, Add(c, Vector2{Hash(s, 200 + sc * 10 + k) * 40 - 20, Hash(s, 300 + sc * 10 + k) * 30 - 15}));
             W.beasts[b].school = sc;
         }
     }
@@ -1465,6 +1496,7 @@ void SpawnHull(BeastWorld& W, PlatformState& p) {
         EnterDen(W, W.beasts[b], d);
         W.beasts[b].act = BeastAct::Ambush;
     }
+    Hull13Spawn(W, p);
     W.hides = 0;
 }
 bool HullLethal(const BeastWorld& W, const Beast& b) {
@@ -1475,11 +1507,14 @@ bool HullLethal(const BeastWorld& W, const Beast& b) {
 bool HullTouch(const BeastWorld& W, const Beast& b, Rectangle diver) {
     (void)W;
     if (b.life != BeastLife::Alive) return false;
+    if (Hull13Touch(W, b, diver)) return true;
     if (b.species == HS_EEL && b.hidden && b.act == BeastAct::Ambush) return CheckCollisionCircleRec({b.pos.x, b.pos.y - 22}, 8, diver); // its head out of the breach bites too
     if (b.hidden) return false;
     if (b.species == HS_PUFFER && b.act == BeastAct::Puffed) return CheckCollisionCircleRec(b.pos, 16, diver);
-    if (b.species == HS_EEL) // an eel's body is as dangerous as its jaws, a couple of segments back (drawn at 2.2x about its head)
-        for (int k = 1; k <= 3; k++) { Vector2 q = Add(b.pos, Mul(Sub(b.spine[k], b.pos), 2.2f)); if (CheckCollisionCircleRec(q, HULL[HS_EEL].radius * 0.6f * 2.2f, diver)) return true; }
+    if (b.species == HS_EEL && b.stunT <= 0) { // an eel's body is as dangerous as its jaws, a couple of segments back (drawn scaled about its head)
+        float k = BeastSize(PL_HULL, HS_EEL);
+        for (int s = 1; s <= 3; s++) { Vector2 q = Add(b.pos, Mul(Sub(b.spine[s], b.pos), k)); if (CheckCollisionCircleRec(q, HULL[HS_EEL].radius * 0.6f * k, diver)) return true; }
+    }
     return false;
 }
 const BiomeDef& HullBiome() {
@@ -1487,9 +1522,10 @@ const BiomeDef& HullBiome() {
         BiomeDef d;
         d.level = PL_HULL; d.species = HULL; d.count = HS_COUNT; d.web = HULL_WEB; d.webN = (int)(sizeof(HULL_WEB) / sizeof(HULL_WEB[0]));
         d.water = true; d.clarity = 0.9f; d.daylight = 0.6f; d.arenaLimit = true;
-        static const float SIZES[HS_COUNT] = {0.9f, 1.1f, 1.6f, 1.2f, 1.0f, 1.3f, 1.2f, 1.1f, 1.0f, 2.2f}; // the moray, top of this web, is big
+        static const float SIZES[HS_COUNT] = {0.9f, 1.1f, 1.6f, 1.2f, 1.0f, 1.3f, 1.2f, 1.1f, 1.0f, 2.8f, // the Hull-Crusher eel is big
+                                              1, 1, 1, 1, 1, 1, 1, 1, 1};                           // the giants are drawn at their own scale
         d.sizes = SIZES;
-        d.spawn = SpawnHull; d.hooks = HullHooks; d.lethal = HullLethal; d.touch = HullTouch;
+        d.spawn = SpawnHull; d.hooks = HullHooks; d.lethal = HullLethal; d.touch = HullTouch; d.tick = HullTick;
         return d;
     }();
     return B;
@@ -1577,6 +1613,7 @@ bool NavGrid::LineOfSight(Vector2 a, Vector2 b) const {
     float tmy = dy != 0 ? (sy > 0 ? (y + 1) * tile - a.y : a.y - y * tile) / fabsf(dy) : 1e30f;
     for (int guard = 0; guard < 400; guard++) {
         if (x == ex && y == ey) return true;
+        if (std::min(tmx, tmy) >= 1.0f) return true; // the segment ends inside this cell (a line through a corner can skip the end cell itself)
         if (tmx < tmy) { tmx += tdx; x += sx; } else { tmy += tdy; y += sy; }
         if (x == ex && y == ey) return true;
         if (Solid(x, y)) return false;
@@ -1692,6 +1729,7 @@ bool BeastsUsed(int level) { return Biome(level) != nullptr; }
 void BeastsBuild(PlatformState& p, unsigned seed) {
     BeastWorld& W = p.fauna;
     W = BeastWorld{};
+    p.movers.clear(); p.onMover = -1; p.anchored = false; p.slickT = 0;
     const BiomeDef* B = Biome(p.level);
     if (!B || p.verifying) return;
     W.biome = p.level;
@@ -1729,6 +1767,7 @@ void BeastsDiverRespawned(PlatformState& p, Vector2 at) {
     if (!W.active) return;
     for (int i = 0; i < (int)W.beasts.size(); i++) {
         Beast& b = W.beasts[i];
+        if (Alive(b) && Has(Sp(W.biome, b.species), T_GIANT) && Sp(W.biome, b.species).diverPrey > 0 && Sp(W.biome, b.species).move != MoveMode::Sessile && b.anchor.y == 0) { b.act = BeastAct::Flee; b.actT = 0; b.anchor = {b.pos.x < at.x ? -1.0f : 1.0f, 0}; } // an apex leaves
         if (!Alive(b) || b.hidden || !Sp(W.biome, b.species).lethal || Dist(b.pos, at) > 8 * TILE) continue;
         for (auto& m : b.mem) if (m.source == BEAST_DIVER) m.strength = 0; // loses the trail
         b.act = BeastAct::Flee; b.actT = 0; b.thinkT = 1.5f; b.cooldown = 2.5f; b.target = -1;
@@ -1803,7 +1842,23 @@ void BeastsUpdate(PlatformState& p, float dt) {    BeastWorld& W = p.fauna;
     // the diver's footfalls: running is quieter than landing, but it carries
     W.noiseT -= dt;
     if (dv.alive && !deaf && p.onGround && fabsf(p.vel.x) > 200 && W.noiseT <= 0) { W.noiseT = 0.35f; W.sounds.push_back({dv.pos, 0.18f, 0.3f, -1}); }
+    p.movers.clear(); // rebuilt by whatever carries the diver this tick (a whale's back)
     if (B && B->tick) B->tick(W, p, dt);
+    // proximity herding (ParkourReference1.3): sprinting, sliding or dashing right past small fauna scares them into
+    // motion along your line - which can drive them straight into something that eats them
+    bool rushing = dv.alive && !deaf && (p.pose == 5 || p.pose == 1 || p.pose == 2 || Len(dv.vel) > 330);
+    if (rushing)
+        for (int i = 0; i < (int)W.beasts.size(); i++) {
+            Beast& b = W.beasts[i];
+            const SpeciesDef& S = Sp(W.biome, b.species);
+            if (!Alive(b) || b.hidden || b.mass >= 1.5f || S.move == MoveMode::Sessile || Has(S, T_GIANT | T_FLORA) || b.latched >= 0 || Dist(b.pos, dv.pos) > 72) continue;
+            Vector2 along = Norm(dv.vel), away = Norm(Sub(b.pos, dv.pos));
+            Vector2 push = Norm(Add(Mul(along, 0.8f), Mul(away, 0.6f)));
+            if (S.move == MoveMode::Walk) push = {push.x >= 0 ? 1.0f : -1.0f, 0};
+            b.vel = Add(b.vel, Mul(push, 900 * dt));
+            Remember(b, MEM_THREAT, BEAST_DIVER, 0, dv.pos, dv.vel, 1.0f, W.time);
+            if (b.act != BeastAct::Flee) { b.act = BeastAct::Flee; b.actT = 0; b.thinkT = 0.6f; b.goal = Add(b.pos, Mul(push, 5 * TILE)); }
+        }
     // the ground changing under them: a broken platform is gone for everyone - routes across it are thrown away
     bool changed = false;
     for (int k : W.dynamic) {
@@ -1832,7 +1887,7 @@ void BeastsUpdate(PlatformState& p, float dt) {    BeastWorld& W = p.fauna;
 
 bool BeastLethalNow(const PlatformState& p, const Beast& b) {
     const BeastWorld& W = p.fauna;
-    if (b.life != BeastLife::Alive || b.hidden) return false;
+    if (b.life != BeastLife::Alive || b.hidden || b.stunT > 0) return false;
     const BiomeDef* B = Biome(W.biome);
     if (B && B->lethal) return B->lethal(W, b);
     return Sp(W.biome, b.species).lethal;
@@ -1908,7 +1963,7 @@ bool VerifyBeasts() {
         BeastWorld& W = p.fauna;
         int eel = NewBeast(W, HS_EEL, {10 * TILE, 8 * TILE});
         W.beasts[eel].pers.aggression = 0.9f; W.beasts[eel].pers.intelligence = 0.8f; W.beasts[eel].hunger = 0.9f; W.beasts[eel].pers.abnormal = Abnormal::None;
-        int sprat = NewBeast(W, HS_SPRAT, {17 * TILE, 8 * TILE});
+        int sprat = NewBeast(W, HS_PILOT, {17 * TILE, 8 * TILE});
         W.beasts[sprat].pers.abnormal = Abnormal::None; W.beasts[sprat].straggler = false;
         int hermit = NewBeast(W, HS_HERMIT, {30 * TILE, 13 * TILE + 10});
         W.beasts[hermit].pers.abnormal = Abnormal::None; W.beasts[hermit].hunger = 0.9f;
@@ -1951,7 +2006,7 @@ bool VerifyBeasts() {
             W.seed = 777 + t * 31; W.rng = W.seed | 1;
             int strag = -1;
             for (int k = 0; k < 8; k++) {
-                int s = NewBeast(W, HS_SPRAT, {30 * TILE + (k % 4) * 12.0f, 8 * TILE + (k / 4) * 12.0f});
+                int s = NewBeast(W, HS_PILOT, {30 * TILE + (k % 4) * 12.0f, 8 * TILE + (k / 4) * 12.0f});
                 W.beasts[s].school = 0; W.beasts[s].straggler = k == 5; W.beasts[s].pers.abnormal = Abnormal::None;
                 if (k == 5) { strag = s; W.beasts[s].pos.x += 30; W.beasts[s].pers.bravery = 0.05f; W.beasts[s].pers.intelligence = 0.1f; }
             }
@@ -1960,7 +2015,7 @@ bool VerifyBeasts() {
             int dead = -1, f = 0;
             for (; f < 60 * 25 && dead < 0; f++) {
                 BeastsUpdate(p, 1 / 60.0f);
-                for (int i = 0; i < (int)W.beasts.size(); i++) if (W.beasts[i].species == HS_SPRAT && W.beasts[i].life != BeastLife::Alive) { dead = i; break; }
+                for (int i = 0; i < (int)W.beasts.size(); i++) if (W.beasts[i].species == HS_PILOT && W.beasts[i].life != BeastLife::Alive) { dead = i; break; }
             }
             if (dead == strag) stragglerFirst++;
             if (getenv("DEPTH_BEASTLOG")) TraceLog(LOG_WARNING, "  school trial %d: first kill %s after %.1fs", t, dead < 0 ? "none" : dead == strag ? "the straggler" : "a schooled fish", f / 60.0f);
@@ -2047,6 +2102,7 @@ bool VerifyBeasts() {
         if (!sane(p)) fail("a minute of Hull life blew up a position");
         TraceLog(LOG_WARNING, "verify-beasts: a minute of Hull life - %d kills, %d bodies cleared, %d births, %d den visits", W.kills, W.scavenged, W.births, W.hides);
     }
+    if (!VerifyHull13()) ok = false;
     if (ok) TraceLog(LOG_WARNING, "verify-beasts: OK - routing, sight lines, hunting, eating, scavenging, hiding, schooling, roaming and the abnormal profiles all check out");
     return ok;
 }

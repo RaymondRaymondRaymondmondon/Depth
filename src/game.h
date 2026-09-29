@@ -420,6 +420,12 @@ struct PlatformState {
     Vector2 dashDir{0, 0};
     float downBuf = 0;               // Down was pressed moments ago: the window for an impact roll
     int ledgeTx = 0, ledgeTy = 0;    // the ledge being hung from
+    // ParkourReference1.3: the creatures and flora push back on the diver (all set by beasts.cpp, never while verifying)
+    float slickT = 0;                // crushed barnacle-mite slime on the suit: less drag, a higher top speed for a moment
+    struct Mover { Rectangle r; Vector2 vel; };
+    std::vector<Mover> movers;       // moving solid tops the diver can land on and ride (a grazing whale's back)
+    int onMover = -1;                // the mover being ridden
+    bool anchored = false;           // holding hull-kelp or a pole, hanging on a ledge, or under a low ceiling: turbulence can't tear you loose
     bool ghost = false;              // the rare Ghost Ship: undead crew, fog, and everything 1.6x faster
     struct Crumble { int tx, ty; float t; };
     std::vector<Crumble> crumbles;   // fragile scaffolding that has been stepped on and is shaking

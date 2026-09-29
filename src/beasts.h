@@ -91,6 +91,8 @@ struct Beast {
     int latched = -1;             // parasites riding a host
     int carry = -1;               // hoarders dragging a corpse
     int ignoreId = 0;             // a meal it gave up on (out of reach) - it stops noticing it
+    float stunT = 0;              // stunned (a hydroid's shock, a slam): it drifts, senseless, until this runs out
+    Vector2 anchor{0, 0};         // giants and lair-bound hunters: a fixed point of their own (a siphon's tube mouth, a shark's exit)
     Vector2 territory{0, 0};
     Vector2 spine[SPINE];         // segmented bodies follow the head (serpentine / tail animation)
     Leg legs[LEGS];               // walkers plant their feet and step (see ik.h and UpdateGait)
@@ -136,6 +138,8 @@ enum BeastTrait : unsigned {
     T_ROOST = 1u << 16,     // hangs from the ceiling at rest rather than lying in a den (bat, leech)
     T_KLEPTO = 1u << 17,    // steals a meal out from under whoever is eating it (gull)
     T_CARRY = 1u << 18,     // carries its kill off - in its jaws, or a bird in its talons - to its den or a safe perch, and eats it there
+    T_FLORA = 1u << 19,     // a plant or growth (ParkourReference1.3's flora): never prey, never a threat - its hooks are all it does
+    T_GIANT = 1u << 20,     // too big for the ordinary motor (a whale, a megalodon, a siphon in its tube): it senses, but its biome hook moves it
 };
 struct FoodEdge { int pred, prey; float pref; };
 Vector2 BeastHip(const Beast& b, const SpeciesDef& S, int leg); // where a walker's leg joins its body (for drawing with ik::Knee)
@@ -198,6 +202,10 @@ struct BeastWorld {
     unsigned seed = 1, rng = 1;
     int kills = 0, scavenged = 0, births = 0, hides = 0, abnormals = 0; // running tallies, read by --verify-beasts
     int deaths[4] = {0, 0, 0, 0}; // how they died: eaten or killed by a beast, a hazard, the sea, a shot or blast
+    // the runtime director (ParkourReference1.3's apex beasts): not a script - it only decides when an apex may roam in
+    float calmT = 0, apexT = 0, tension = 0;
+    Vector2 apexPos{-1e9f, -1e9f}; // where the apex is this tick (its shadow darkens everything under it)
+    int apexVisits = 0;
 };
 
 // The host (platformer.cpp) calls these.
@@ -214,7 +222,9 @@ int BeastSpeciesCount(int biome);
 bool VerifyBeasts();                                       // depth.exe --verify-beasts
 
 // Hull species indices (biome = PL_HULL).
-enum HullSpecies { HS_SPRAT, HS_SHRIMP, HS_OCTOPUS, HS_PUFFER, HS_LEECH, HS_ANEMONE, HS_HERMIT, HS_BRITTLE, HS_CRAB, HS_EEL, HS_COUNT };
+// ParkourReference1.3 merged the sprats into pilot-fish and the moray into the Hull-Crusher eel; the rest are new.
+enum HullSpecies { HS_PILOT, HS_SHRIMP, HS_OCTOPUS, HS_PUFFER, HS_LEECH, HS_ANEMONE, HS_HERMIT, HS_BRITTLE, HS_CRAB, HS_EEL,
+                  HS_WHALE, HS_SIPHON, HS_MEGALODON, HS_MITES, HS_RUST, HS_HYDROID, HS_PANEMONE, HS_MOSS, HS_KELP, HS_COUNT };
 enum PirateSpecies { PS_RAT, PS_CAT, PS_MONKEY, PS_DOG, PS_FLEA, PS_OWL, PS_GULL, PS_ALBATROSS, PS_COUNT };
 enum IslandSpecies { IS_BOAR, IS_SNAKE, IS_LIZARD, IS_BAT, IS_SPIDER, IS_CRAB, IS_FROG, IS_GULL, IS_DOG, IS_COCONUT, IS_COUNT };
 enum CaveSpecies { CS_BAT, CS_JELLY, CS_SALAMANDER, CS_BEETLE, CS_LEECH, CS_WORM, CS_MOTH, CS_COUNT };

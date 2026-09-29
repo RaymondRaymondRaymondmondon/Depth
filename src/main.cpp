@@ -103,7 +103,27 @@ static void ShotAtFauna(Game& g, int level, int seed, float secs, int pick = 0, 
             return;
         }
     }
-}static const char* gShotFilter = nullptr; // depth.exe --shots <folder> <text>: only screens whose name contains <text>
+}
+// The Hull's ParkourReference1.3 roster, posed: 0 the whale (the diver on its back), 1 a siphon mid-pull, 2 the
+// megalodon winding up to strike, 3 hull-kelp and the flora near it.
+static void ShotHull13(Game& g, int which) {
+    ShotAtFauna(g, PL_HULL, 404, 3, 0, which == 3 ? HS_KELP : HS_WHALE);
+    PlatformState& p = g.plat;
+    auto& B = p.fauna.beasts;
+    auto find = [&](int sp) { for (int i = 0; i < (int)B.size(); i++) if (B[i].life == BeastLife::Alive && B[i].species == sp) return i; return -1; };
+    if (which == 0) { int w = find(HS_WHALE); if (w >= 0) { p.pos = {B[w].pos.x - 10, B[w].pos.y - 27 - 26}; p.vel = {0, 0}; for (int f = 0; f < 30; f++) BeastsUpdate(p, 1 / 60.0f); } }
+    if (which == 1) {
+        int s = find(HS_SIPHON);
+        if (s >= 0) { p.pos = {B[s].anchor.x + B[s].facing * 110 - 10, B[s].anchor.y - 10}; B[s].act = BeastAct::Strike; B[s].actT = -1.0f; B[s].stunT = 0; }
+    }
+    if (which == 2) {
+        p.fauna.apexT = 999; p.fauna.calmT = 999; p.fauna.tension = 0;
+        int m = -1;
+        for (int f = 0; f < 60 && m < 0; f++) { BeastsUpdate(p, 1 / 60.0f); m = find(HS_MEGALODON); }
+        if (m >= 0) { B[m].pos = {p.pos.x - 6 * 32.0f, p.pos.y - 3 * 32.0f}; B[m].facing = 1; B[m].act = BeastAct::Coil; B[m].actT = 0.5f; B[m].target = BEAST_DIVER; }
+    }
+}
+static const char* gShotFilter = nullptr; // depth.exe --shots <folder> <text>: only screens whose name contains <text>
 static void TakeShots(const Game& base, const std::string& dir) {
     struct Shot { const char* name; std::function<void(Game&)> setup; };
     const Shot shots[] = {
@@ -183,6 +203,10 @@ static void TakeShots(const Game& base, const std::string& dir) {
         {"pirate", [](Game& g) { g.platLayouts[PL_PIRATE] = {606, 100}; StartPlatform(g, PL_PIRATE); g.plat.pos = g.plat.spawns[1]; }},
         {"fauna_hull", [](Game& g) { ShotAtFauna(g, PL_HULL, 404, 6); }},
         {"fauna_hull2", [](Game& g) { ShotAtFauna(g, PL_HULL, 404, 6, 1); }},
+        {"fauna_hull13_whale", [](Game& g) { ShotHull13(g, 0); }},
+        {"fauna_hull13_siphon", [](Game& g) { ShotHull13(g, 1); }},
+        {"fauna_hull13_megalodon", [](Game& g) { ShotHull13(g, 2); }},
+        {"fauna_hull13_flora", [](Game& g) { ShotHull13(g, 3); }},
         {"fauna_pirate", [](Game& g) { ShotAtFauna(g, PL_PIRATE, 606, 6); }},
         {"fauna_pirate2", [](Game& g) { ShotAtFauna(g, PL_PIRATE, 606, 6, 1); }},
         {"fauna_island", [](Game& g) { ShotAtFauna(g, PL_ISLAND, 303, 6); }},
