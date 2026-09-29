@@ -152,12 +152,14 @@ static void BuildTrench(Grid& g, std::vector<Plat>& pl, Rng& rng, GenLevel& out,
     JumpArc a0 = CalculateValidJumpArc(0);
     int gm = std::max(3, (int)std::floor((a0.maxReach * P.safety - 12) / kin::TILE));   // the widest breach a plain jump clears
     int x = 12, lastKind = -1, towers = 0, guard = 0;
+    const int emph[3] = {rng.I(1, 7), rng.I(1, 7), rng.I(1, 7)}; // never the tower: it has its own spacing rule
     while (x < P.length && guard++ < 60) {
         // ---- choose a feature: weighted, and never the one before; towers no more than one in three
         int kind;
         for (int tries = 0;; tries++) {
             int r = rng.I(0, 99);
             kind = r < 13 ? 0 : r < 28 ? 1 : r < 41 ? 2 : r < 53 ? 3 : r < 64 ? 4 : r < 76 ? 5 : r < 88 ? 6 : 7;
+            if (rng.C(0.35f)) kind = emph[std::min(2, x * 3 / std::max(1, P.length))]; // each third of the run leans on its own feature (sub-themes, mixed per run)
             if (kind != lastKind && !(kind == 0 && towers > 0 && guard % 3 != 0) && (kind != 0 || x > 40)) break;
             if (tries > 12) { kind = (lastKind + 1) % 8; break; }
         }
@@ -642,12 +644,14 @@ static void BuildCave(Grid& g, std::vector<Plat>& pl, Rng& rng, GenLevel& out, c
     Plat start{2, 9, F, C_START, '#', SetPiece::None, 0, 3};
     pl.push_back(start);
     int x = 12, curF = F, lastKind = -1, guard = 0, shaftsInRow = 0;
+    const int emph[3] = {rng.I(0, 4), rng.I(0, 4), rng.I(0, 4)};
     while (x < P.length && guard++ < 70) {
         int kind;
         for (int tries = 0;; tries++) {
             int r = rng.I(0, 99);
             // shafts dominate; the other four are connectors that only ever show up between climbs
             kind = r < 48 ? 0 : r < 63 ? 1 : r < 78 ? 2 : r < 90 ? 3 : 4;
+            if (rng.C(0.3f)) kind = emph[std::min(2, x * 3 / std::max(1, P.length))]; // each third of the run leans on its own feature
             if (kind == 0 && shaftsInRow >= 3) kind = 1 + rng.I(0, 3); // never more than three shafts in a row, or it stops reading as a path
             if (kind != lastKind || tries > 6) break;
         }
@@ -751,11 +755,13 @@ static void BuildWeeds(Grid& g, std::vector<Plat>& pl, Rng& rng, GenLevel& out, 
         return land.x1 + 1;
     };
     int x = 12, lastKind = -1, guard = 0;
+    const int emph[3] = {rng.I(0, 5), rng.I(0, 5), rng.I(0, 5)};
     while (x < P.length && guard++ < 70) {
         int kind;
         for (int tries = 0;; tries++) {
             int r = rng.I(0, 99);
             kind = r < 32 ? 0 : r < 48 ? 1 : r < 62 ? 2 : r < 74 ? 3 : r < 86 ? 4 : 5;
+            if (rng.C(0.35f)) kind = emph[std::min(2, x * 3 / std::max(1, P.length))]; // each third of the forest leans on its own feature
             if (kind != lastKind || tries > 6) break;
         }
         lastKind = kind;
@@ -874,11 +880,13 @@ static void BuildAtlantis(Grid& g, std::vector<Plat>& pl, Rng& rng, GenLevel& ou
         return land.x1 + 1;
     };
     int x = 12, lastKind = -1, guard = 0;
+    const int emph[3] = {rng.I(0, 5), rng.I(0, 5), rng.I(0, 5)};
     while (x < P.length && guard++ < 70) {
         int kind;
         for (int tries = 0;; tries++) {
             int r = rng.I(0, 99);
             kind = r < 24 ? 0 : r < 42 ? 1 : r < 58 ? 2 : r < 74 ? 3 : r < 88 ? 4 : 5;
+            if (rng.C(0.35f)) kind = emph[std::min(2, x * 3 / std::max(1, P.length))]; // each third of the city leans on its own quarter
             if (kind != lastKind || tries > 6) break;
         }
         lastKind = kind;
