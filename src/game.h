@@ -409,6 +409,17 @@ struct PlatformState {
     float waterY = 0;                // the sea's surface in world pixels (the Pirate Ship); 0 when there is none
     bool onWeed = false;             // the diver is among seaweed: it slows a fall and can be climbed
     int climbDir = 0;                // -1 up, 1 down: held keys, read only while on weed (never set by the path search)
+    // The diver's extra moves (ParkourReference1.2, "Traversal States"). All are driven by inputs the path search never
+    // presses, so --verify sees exactly the old movement; see StepPlayer.
+    bool inDown = false, upHeld = false, shiftHeld = false; // held this frame (player input only)
+    int dashReq = 0;                 // a double-tap asked for a dash this frame: -1 left, 1 right
+    int pose = 0;                    // 0 normal, 1 slide, 2 roll, 3 stunned, 4 brake, 5 dash, 6 balance on a pole tip, 7 hydro-glide, 8 backflip, 9 ledge hang
+    float moveT = 0;                 // time left (or spent) in the current pose
+    float boostT = 0;                // a boosted move's extra speed isn't clawed back in the air until this runs out
+    bool dashReady = true;           // one dash per jump: back on landing, on a wall, a pole or a ledge
+    Vector2 dashDir{0, 0};
+    float downBuf = 0;               // Down was pressed moments ago: the window for an impact roll
+    int ledgeTx = 0, ledgeTy = 0;    // the ledge being hung from
     bool ghost = false;              // the rare Ghost Ship: undead crew, fog, and everything 1.6x faster
     struct Crumble { int tx, ty; float t; };
     std::vector<Crumble> crumbles;   // fragile scaffolding that has been stepped on and is shaking
@@ -720,4 +731,5 @@ void StartAbyss(Game& g);
 void SceneAbyss(Game& g);
 void UpdateAbyss(Game& g, float dt); // the fixed-step simulation, callable headlessly for --verify
 bool VerifyAbyss();                  // debug: proves a run can descend past the first downdraft/sponge gauntlet
+bool VerifyMoves();                  // debug (depth.exe --verify-moves): the diver's extra moves, through the real physics step
 bool VerifyCritters();               // debug (depth.exe --verify-critters): proves the Pipes' ambient duct life spawns and reacts

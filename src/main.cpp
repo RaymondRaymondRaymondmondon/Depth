@@ -391,6 +391,10 @@ int main(int argc, char** argv) {
         SetTraceLogLevel(LOG_WARNING);
         return VerifyCritters() ? 0 : 1;
     }
+    if (argc >= 2 && strcmp(argv[1], "--verify-moves") == 0) {
+        SetTraceLogLevel(LOG_WARNING);
+        return VerifyMoves() ? 0 : 1;
+    }
     if (argc >= 2 && strcmp(argv[1], "--verify-beasts") == 0) {
         SetTraceLogLevel(LOG_WARNING);
         return VerifyBeasts() ? 0 : 1;

@@ -180,7 +180,10 @@ bool TouchWall(const PlatformState& p, int side) {
 float JetCycle(const PlatformState& p, int tx) { return fmodf(p.time + (tx % 5) * 0.5f, 2.4f); }
 bool JetOn(const PlatformState& p, int tx) { return JetCycle(p, tx) < (p.hard ? 1.1f : 0.7f); }   // Normal: a shorter, gentler window, but the jet still fires
 
-Rectangle PlayerBox(const PlatformState& p) { return {p.pos.x + 3, p.pos.y + 3, PW - 6, PH - 5}; }
+Rectangle PlayerBox(const PlatformState& p) { // sliding or rolling (poses 1 and 2), the diver is 12 px shorter, feet where they were
+    float dh = (p.pose == 1 || p.pose == 2) ? 12.0f : 0.0f;
+    return {p.pos.x + 3, p.pos.y + 3 + dh, PW - 6, PH - 5 - dh};
+}
 
 bool TouchesHazard(const PlatformState& p) {
     Rectangle pr = PlayerBox(p);
@@ -917,34 +920,143 @@ bool WallIsBarnacle(const PlatformState& p, int side) { // the wall you are wall
     return false;
 }
 constexpr float GHOST_SPEED = 1.6f;
+// ---- the diver's extra moves (ParkourReference1.2, "Traversal States & Physics Constants")
+constexpr float LOW_DH = 12;             // sliding or rolling, the diver is this much shorter
+constexpr float STUN_V = 860, STUN_T = 0.7f; // a landing faster than this (a drop taller than any jump) stuns - unless you roll
+constexpr float ROLL_T = 0.38f, ROLL_MIN_V = 480;
+constexpr float SLIDE_MIN_V = RUN * 0.55f, SLIDE_FRICTION = 380;
+constexpr float DASH_V = 640, DASH_T = 0.14f, WATER_DASH_V = 600, WATER_DASH_T = 0.18f;
+constexpr float BRAKE_FALL = 170, GLIDE_FALL = 190;
+bool WaterLevel(const PlatformState& p) { return p.level == PL_HULL || p.level == PL_WEEDS || p.level == PL_ATLANTIS; }
+bool LowPose(const PlatformState& p) { return p.pose == 1 || p.pose == 2; }
+bool Climbable(char c) { return c == 'w' || c == 'l'; }
+bool HeadroomToStand(const PlatformState& p) { // room to stand back up out of a slide
+    int x0 = (int)floorf((p.pos.x + 1) / T), x1 = (int)floorf((p.pos.x + PW - 1) / T), ty = (int)floorf((p.pos.y + 1) / T);
+    for (int tx = x0; tx <= x1; tx++) if (Solid(p, tx, ty)) return false;
+    return true;
+}
 void StepPlayer(PlatformState& p, float dir, bool jumpHeld) {
+    const bool water = WaterLevel(p);
+    p.downBuf = p.inDown ? 0.15f : p.downBuf - STEP;
     if (p.wallLock > 0) {
         p.wallLock -= STEP;
         if (dir == (float)p.lockSide) dir = 0; // right after a wall jump, pushing back into the wall is ignored
     }
-    float target = dir * RUN * (1 + p.speedPct / 100.0f), accel; // the lead hero's relics (a syringe) quicken the run
-    if (p.onGround) accel = dir == 0 ? DECEL_GROUND : p.vel.x * dir < 0 ? DECEL_GROUND + ACCEL_GROUND : ACCEL_GROUND;
-    else accel = dir == 0 ? DECEL_AIR : ACCEL_AIR;
-    if (p.vel.x < target) p.vel.x = std::min(target, p.vel.x + accel * STEP);
-    else if (p.vel.x > target) p.vel.x = std::max(target, p.vel.x - accel * STEP);
-    if (dir != 0 && p.wallLock <= 0) p.facingRight = dir > 0;
+    // ---- poses that take control away for a moment
+    if (p.pose == 3) { p.moveT -= STEP; dir = 0; p.jumpBuffer = 0; if (p.moveT <= 0) p.pose = 0; } // stunned by a hard landing
+    if (p.pose == 2) { p.moveT -= STEP; dir = p.vel.x > 0 ? 1.0f : -1.0f; if (p.moveT <= 0 && HeadroomToStand(p)) p.pose = 0; } // the roll carries you
+    if (p.pose == 8) { p.moveT -= STEP; if (p.moveT <= 0 || p.onGround) p.pose = 0; }
+    // ---- the ledge hang: hands on the lip, feet against the wall
+    if (p.pose == 9) {
+        p.vel = {0, 0};
+        p.dashReady = true;
+        if (p.jumpBuffer > 0 || p.upHeld) { // haul up and over
+            float top = p.ledgeTy * (float)T;
+            p.pos = {p.ledgeTx * (float)T + (p.lockSide > 0 ? 2.0f : T - PW - 2.0f), top - PH};
+            p.pose = 0; p.jumpBuffer = 0; p.onGround = true; p.scale = {1.2f, 0.85f};
+            Dust(p, {p.pos.x + PW / 2, p.pos.y + PH}, 4, 0);
+            return;
+        }
+        if (p.inDown || dir == -(float)p.lockSide) { p.pose = 0; p.pos.x -= p.lockSide * 2.0f; } // let go
+        else return;
+    }
+    // ---- a dash: double-tap a direction. On land, a flat burst that holds your height; underwater, any of eight ways
+    if (p.dashReq != 0 && p.dashReady && p.pose != 3 && p.pose != 2) {
+        Vector2 d{(float)p.dashReq, 0};
+        if (water) { if (p.upHeld) d.y = -1; else if (p.inDown) d.y = 1; float l = sqrtf(d.x * d.x + d.y * d.y); d = {d.x / l, d.y / l}; }
+        p.dashDir = d; p.pose = 5; p.moveT = water ? WATER_DASH_T : DASH_T; p.dashReady = false;
+        p.facingRight = d.x > 0;
+        p.scale = {1.3f, 0.8f};
+        BeastsNoise(p, {p.pos.x + PW / 2, p.pos.y + PH / 2}, 0.5f); // the reference: a dash is heard
+        if (water) Bubbles(p, {p.pos.x + PW / 2, p.pos.y + PH / 2}, 8, 10);
+    }
+    p.dashReq = 0;
+    bool dashing = p.pose == 5;
+    if (dashing) {
+        p.moveT -= STEP;
+        float v = water ? WATER_DASH_V : DASH_V;
+        p.vel = {p.dashDir.x * v, p.dashDir.y * v};
+        if (!p.verifying && GetRandomValue(0, 2) == 0) p.particles.push_back({{p.pos.x + PW / 2, p.pos.y + PH / 2 + Rnd(-8, 8)}, {-p.dashDir.x * 60, 0}, 0.25f, 0.25f, 3, water ? Color{200, 236, 250, 200} : Color{240, 240, 230, 200}}); // the streak behind
+        if (p.moveT <= 0) {
+            p.pose = 0;
+            if (water) p.vel = {p.vel.x * 0.3f, p.vel.y * 0.3f}; // the water takes it straight back: heavy drag after the burst
+            else p.boostT = 0.4f;
+        }
+    }
+
+    // ---- running (not while sliding, rolling or dashing)
+    if (!dashing && p.pose != 1 && p.pose != 2) {
+        float target = dir * RUN * (1 + p.speedPct / 100.0f), accel; // the lead hero's relics (a syringe) quicken the run
+        if (p.pose == 4) target *= 0.6f;                                // spread out against the water, drifting
+        if (p.onGround) accel = dir == 0 ? DECEL_GROUND : p.vel.x * dir < 0 ? DECEL_GROUND + ACCEL_GROUND : ACCEL_GROUND;
+        else accel = dir == 0 ? DECEL_AIR : ACCEL_AIR;
+        // a boosted move (slide-jump, roll, pole hop, backflip, dash) keeps its extra speed through the air a while
+        if (!p.onGround && p.boostT > 0 && dir != 0 && p.vel.x * dir > fabsf(target)) accel = 260;
+        if (p.vel.x < target) p.vel.x = std::min(target, p.vel.x + accel * STEP);
+        else if (p.vel.x > target) p.vel.x = std::max(target, p.vel.x - accel * STEP);
+    }
+    p.boostT -= STEP;
+    if (p.pose == 1) { // the ground slide: nearly frictionless, it carries on under its own momentum
+        float s = p.vel.x > 0 ? 1.0f : -1.0f;
+        p.vel.x -= s * SLIDE_FRICTION * STEP;
+        if (p.vel.x * s < 0) p.vel.x = 0;
+        bool end = !p.onGround || fabsf(p.vel.x) < 90 || !p.inDown;
+        if (end && HeadroomToStand(p)) p.pose = 0;
+        if (!p.verifying && GetRandomValue(0, 3) == 0) Dust(p, {p.pos.x + PW / 2, p.pos.y + PH}, 1, -s);
+    }
+    if (p.pose == 2) { float s = p.vel.x > 0 ? 1.0f : -1.0f; p.vel.x -= s * 300 * STEP; }
+    if (dir != 0 && p.wallLock <= 0 && p.pose != 1 && p.pose != 2 && !dashing) p.facingRight = dir > 0;
+    // start a slide: Down while running on the ground
+    if (p.pose == 0 && p.onGround && p.inDown && fabsf(p.vel.x) > SLIDE_MIN_V) {
+        p.pose = 1; p.vel.x *= 1.12f; p.scale = {1.25f, 0.8f};
+        BeastsNoise(p, {p.pos.x + PW / 2, p.pos.y + PH}, 0.3f);
+    }
 
     // wall slide: in the air, pressing into a wall
     p.wallSide = 0;
-    if (!p.onGround && dir != 0 && TouchWall(p, (int)dir)) p.wallSide = (int)dir;
-    if (p.wallSide) { p.wallCoyote = 0.08f; p.lockSide = p.wallSide; }
+    if (!p.onGround && dir != 0 && !dashing && TouchWall(p, (int)dir)) p.wallSide = (int)dir;
+    if (p.wallSide) { p.wallCoyote = 0.08f; p.lockSide = p.wallSide; p.dashReady = true; if (p.pose == 4 || p.pose == 7) p.pose = 0; }
     else p.wallCoyote -= STEP;
 
-    p.coyote = p.onGround ? COYOTE : p.coyote - STEP;
+    // the ledge grab: falling past the lip of a wall you're pushing into, with open space above it
+    if (!p.onGround && !dashing && p.vel.y > 0 && p.wallSide != 0 && p.pose != 9 && p.lockSide != 0) {
+        int tx = (int)floorf((p.wallSide > 0 ? p.pos.x + PW + 1 : p.pos.x - 1) / T);
+        int handY = (int)floorf((p.pos.y + 2) / T);
+        if (Solid(p, tx, handY) && !Solid(p, tx, handY - 1) && !Solid(p, tx, handY - 2) && At(p, tx, handY) != 'f' && At(p, tx, handY) != 'x' &&
+            p.pos.y + 2 - handY * (float)T < 14 && !p.verifying) {
+            p.pose = 9; p.ledgeTx = tx; p.ledgeTy = handY; p.vel = {0, 0};
+            p.pos.y = handY * (float)T - 2;
+            p.scale = {0.9f, 1.1f};
+            return;
+        }
+    }
+
+    p.coyote = p.onGround || p.pose == 6 ? COYOTE : p.coyote - STEP;
     p.jumpBuffer -= STEP;
     if (p.jumpBuffer > 0) {
-        if (p.coyote > 0) {
-            p.vel.y = -JUMP_V * (1 + p.jumpPct / 100.0f);
+        bool fromPole = p.onWeed || p.pose == 6;
+        if (fromPole && p.shiftHeld && dir != 0) { // the pole backflip: kicked off the pole, higher and faster than a plain jump
+            p.vel.y = -JUMP_V * 1.18f * (1 + p.jumpPct / 100.0f);
+            p.vel.x = dir * RUN * 1.2f;
+            p.pose = 8; p.moveT = 0.45f; p.coyote = p.jumpBuffer = 0; p.onGround = false; p.dashReady = true; p.boostT = 0.8f;
+            p.scale = {0.7f, 1.35f};
+            BeastsNoise(p, {p.pos.x + PW / 2, p.pos.y + PH}, 0.25f);
+        } else if (p.coyote > 0) {
+            // a pole hop: jumping forward off a horizontal pole (a pipe, a spar, a kelp float) is a flatter, faster leap
+            bool onBar = false;
+            if (p.onGround) for (int tx = (int)floorf((p.pos.x + 3) / T); tx <= (int)floorf((p.pos.x + PW - 3) / T); tx++) if (At(p, tx, (int)floorf((p.pos.y + PH + 1) / T)) == '=') onBar = true;
+            bool hop = onBar && dir != 0 && !p.verifying && p.shiftHeld == false && p.inDown == false && p.pose == 0 && fabsf(p.vel.x) > RUN * 0.5f;
+            bool slideJump = p.pose == 1;
+            p.vel.y = -JUMP_V * (1 + p.jumpPct / 100.0f) * (hop ? 0.9f : 1.0f);
+            if (hop) p.vel.x = dir * std::max(fabsf(p.vel.x), RUN * 1.25f);
+            if (slideJump) { float s = p.vel.x > 0 ? 1.0f : -1.0f; p.vel.x = s * std::min(fabsf(p.vel.x) * 1.25f + 60, RUN * 1.7f); p.pose = 0; p.boostT = 0.8f; } // the slide-jump boost
+            if (hop) p.boostT = 0.6f;
+            if (p.pose == 6) p.pose = 0;
             p.coyote = p.jumpBuffer = 0;
             p.onGround = false;
             p.scale = {0.72f, 1.32f};
             Dust(p, {p.pos.x + PW / 2, p.pos.y + PH}, 5, -p.vel.x / RUN);
-            if (p.level == PL_HULL) Bubbles(p, {p.pos.x + PW / 2, p.pos.y + PH - 4}, 5);
+            if (water) Bubbles(p, {p.pos.x + PW / 2, p.pos.y + PH - 4}, 5);
             BeastsNoise(p, {p.pos.x + PW / 2, p.pos.y + PH}, 0.2f); // a kick off the deck is heard by anything close
         } else if (p.wallCoyote > 0) {
             float spring = WallIsBarnacle(p, p.lockSide) ? 1.5f : 1.0f; // barnacle springboards fling you 1.5x
@@ -955,32 +1067,62 @@ void StepPlayer(PlatformState& p, float dir, bool jumpHeld) {
             p.facingRight = p.lockSide < 0;
             p.scale = {0.75f, 1.28f};
             Dust(p, {p.lockSide > 0 ? p.pos.x + PW : p.pos.x, p.pos.y + PH / 2}, 5, (float)-p.lockSide);
+        } else if (water && !p.verifying && p.vel.y > -120 && !dashing && p.pose == 0) { // underwater, jump again on the way down: the hydro-glide
+            p.pose = 7; p.jumpBuffer = 0; p.scale = {1.2f, 0.9f};
+            Bubbles(p, {p.pos.x + PW / 2, p.pos.y + PH / 2}, 4);
         }
     }
 
-    // seaweed: it slows a fall, lets the diver hang on, and can be climbed up or down
+    // seaweed, kelp, ratlines - climbable poles: they slow a fall, you can climb up them or slide down them fast
     {
         p.onWeed = false;
         for (int ty = (int)floorf((p.pos.y + 2) / T); ty <= (int)floorf((p.pos.y + PH - 2) / T) && !p.onWeed; ty++)
-            for (int tx = (int)floorf((p.pos.x + 3) / T); tx <= (int)floorf((p.pos.x + PW - 3) / T); tx++) if (At(p, tx, ty) == 'w' || At(p, tx, ty) == 'l') { p.onWeed = true; break; }
-        if (p.onWeed) p.coyote = COYOTE; // you can always jump off it
+            for (int tx = (int)floorf((p.pos.x + 3) / T); tx <= (int)floorf((p.pos.x + PW - 3) / T); tx++) if (Climbable(At(p, tx, ty))) { p.onWeed = true; break; }
+        if (p.onWeed) { p.coyote = COYOTE; p.dashReady = true; }
+    }
+    // balancing on a pole's tip: climbing up off the top of a pole leaves you standing on it
+    if (p.onWeed && p.climbDir < 0 && !p.verifying) {
+        int cx = (int)floorf((p.pos.x + PW / 2) / T), feet = (int)floorf((p.pos.y + PH - 2) / T);
+        if (Climbable(At(p, cx, feet)) && !Climbable(At(p, cx, feet - 1)) && !Solid(p, cx, feet - 1) && p.pos.y + PH <= feet * (float)T + 6) {
+            p.pose = 6; p.pos.y = feet * (float)T - PH; p.vel.y = 0;
+        }
+    }
+    if (p.pose == 6) {
+        int cx = (int)floorf((p.pos.x + PW / 2) / T), below = (int)floorf((p.pos.y + PH + 2) / T);
+        if (!Climbable(At(p, cx, below)) || dir != 0 || p.inDown) p.pose = 0; // stepped off it, or slid back down
+        else { p.vel = {0, 0}; p.coyote = COYOTE; p.dashReady = true; }
     }
     if (!p.verifying && p.level == PL_HULL && GetRandomValue(0, 160) == 0) // the diver's exhaled air rises from the helmet
         p.particles.push_back({{p.pos.x + PW / 2 + (p.facingRight ? 5.0f : -5.0f), p.pos.y + 3}, {(float)GetRandomValue(-10, 10), -36}, 1.8f, 1.8f, -(float)GetRandomValue(2, 4), Color{196, 236, 250, 255}});
-    // a steam vent's column lifts whoever is in it
+    // a steam vent's column (or a warm current, or an old fountain) lifts whoever is in it - a glider more
     {
         int vx = (int)floorf((p.pos.x + PW / 2) / T), vy = (int)floorf((p.pos.y + PH - 1) / T);
         for (int k = 0; k <= 5; k++)
             if (At(p, vx, vy + k) == 'v') {
-                if (VentOn(p, vx)) p.vel.y = std::max(p.vel.y - 9000 * STEP, -540.0f);
+                if (VentOn(p, vx)) p.vel.y = std::max(p.vel.y - (p.pose == 7 ? 13000 : 9000) * STEP, -540.0f);
                 break;
             }
     }
+    // the parachute brake (hold Down while falling) and the hydro-glide (hold jump while falling underwater)
+    if (!p.onGround && !dashing && p.pose != 8 && p.pose != 6 && !p.onWeed && !p.wallSide && p.vel.y > 0) {
+        if (p.inDown && dir == 0 && (p.pose == 0 || p.pose == 4 || p.pose == 7)) p.pose = 4; // (Down with a direction is the roll's stance instead)
+        else if (p.pose == 7 && !jumpHeld) p.pose = 0;      // the glide lasts while jump is held
+        else if (p.pose == 4 && (!p.inDown || dir != 0)) p.pose = 0;
+    } else if ((p.pose == 4 || p.pose == 7) && (p.onGround || p.onWeed || p.wallSide)) p.pose = 0;
+
     // gravity is stronger once the jump button is released (short hops) and when falling (snappy arcs)
-    p.vel.y += (p.vel.y < 0 ? (jumpHeld ? GRAV_UP : GRAV_UP_RELEASED) : GRAV_DOWN) * STEP;
+    if (!dashing && p.pose != 6) {
+        float g = p.vel.y < 0 ? (jumpHeld ? GRAV_UP : GRAV_UP_RELEASED) : GRAV_DOWN;
+        if (p.pose == 4) g *= 0.2f;   // spread flat against the water: a fraction of the pull
+        if (p.pose == 7) g *= 0.35f;  // the glide: gravity cut by 65%
+        p.vel.y += g * STEP;
+    }
+    if (p.pose == 4 && p.vel.y > BRAKE_FALL) p.vel.y -= (p.vel.y - BRAKE_FALL) * std::min(1.0f, 10 * STEP);
+    if (p.pose == 7 && p.vel.y > GLIDE_FALL) p.vel.y -= (p.vel.y - GLIDE_FALL) * std::min(1.0f, 8 * STEP);
     if (p.wallSide && p.vel.y > WALL_SLIDE) p.vel.y = std::max(WALL_SLIDE, p.vel.y - 6000 * STEP);
-    if (p.onWeed) { // hanging in the weed
-        if (p.climbDir != 0) p.vel.y = p.climbDir * 150.0f;
+    if (p.onWeed && p.pose != 8) { // hanging on the pole
+        if (p.climbDir < 0) p.vel.y = -150.0f;
+        else if (p.climbDir > 0) p.vel.y = 380.0f; // sliding down it, fast
         else p.vel.y = std::min(p.vel.y, 60.0f);
         p.vel.x = std::clamp(p.vel.x, -140.0f, 140.0f);
     }
@@ -988,12 +1130,29 @@ void StepPlayer(PlatformState& p, float dir, bool jumpHeld) {
 
     bool was = p.onGround, wall;
     float fallSpeed = p.vel.y;
-    MoveAndCollide(p, p.pos, p.vel, PW, PH, STEP, p.onGround, wall);
+    if (LowPose(p)) { // sliding or rolling, the hitbox is short: the top comes down, the feet stay put
+        Vector2 lp{p.pos.x, p.pos.y + LOW_DH};
+        MoveAndCollide(p, lp, p.vel, PW, PH - LOW_DH, STEP, p.onGround, wall);
+        p.pos = {lp.x, lp.y - LOW_DH};
+    } else MoveAndCollide(p, p.pos, p.vel, PW, PH, STEP, p.onGround, wall);
+    if (p.onGround) p.dashReady = true;
     if (p.onGround && !was) {
         p.scale = {1.0f + std::min(0.35f, fallSpeed / 2400), 1.0f - std::min(0.3f, fallSpeed / 2800)};
         if (fallSpeed > 400) Dust(p, {p.pos.x + PW / 2, p.pos.y + PH}, 6, 0);
-        if (fallSpeed > 300 && p.level == PL_HULL) Bubbles(p, {p.pos.x + PW / 2, p.pos.y + PH - 3}, 6, 12);
+        if (fallSpeed > 300 && water) Bubbles(p, {p.pos.x + PW / 2, p.pos.y + PH - 3}, 6, 12);
         if (fallSpeed > 250) BeastsNoise(p, {p.pos.x + PW / 2, p.pos.y + PH}, std::min(1.4f, fallSpeed / 600.0f)); // a hard landing carries a long way
+        if (p.pose == 4 || p.pose == 7 || p.pose == 8) p.pose = 0;
+        // the impact roll: Down and a direction as you land turn the fall into forward speed ...
+        if (fallSpeed > ROLL_MIN_V && p.downBuf > 0 && dir != 0 && !p.verifying) {
+            p.pose = 2; p.moveT = ROLL_T; p.boostT = 0.8f;
+            p.vel.x = std::clamp(p.vel.x + dir * 0.7f * fallSpeed, -RUN * 1.8f, RUN * 1.8f);
+            p.facingRight = dir > 0;
+            Dust(p, {p.pos.x + PW / 2, p.pos.y + PH}, 6, dir);
+        } else if (fallSpeed > STUN_V && !p.verifying) { // ... and without one, a drop taller than any jump leaves you reeling
+            bool crumbly = false;
+            for (int tx = (int)floorf((p.pos.x + 3) / T); tx <= (int)floorf((p.pos.x + PW - 3) / T); tx++) if (At(p, tx, (int)floorf((p.pos.y + PH + 1) / T)) == 'f') crumbly = true;
+            if (!crumbly) { p.pose = 3; p.moveT = STUN_T; p.vel.x = 0; p.scale = {1.35f, 0.7f}; } // (never on scaffolding that's about to give way)
+        }
     }
     if (!p.verifying) { // fragile scaffolding: shakes when stood on, and is gone half a second later
         if (p.onGround)
@@ -1035,7 +1194,6 @@ void StepPlayer(PlatformState& p, float dir, bool jumpHeld) {
         }
     if (TouchesHazard(p) || p.pos.y > DeathY(p)) Die(p);
 }
-
 // ---------------------------------------------------------------- drawing: backgrounds
 // Every level's scenery is several layers deep; each layer scrolls at its own speed, so the far
 // ones barely move and the near ones sweep past.
@@ -2681,6 +2839,40 @@ void DrawDiverShape(const PlatformState& p, bool outline) {
     auto R = [&](int x, int y, int w, int h, Color c) { // a rectangle of art pixels; the outline pass paints it all ink
         DrawRectangle((int)(x * ART), (int)(y * ART), (int)(w * ART), (int)(h * ART), outline ? OUTLINE : c);
     };
+    // ---- the extra moves' poses, drawn as their own shapes (pixel art: whole art pixels, never rotated)
+    auto helmet = [&](int hx, int hy) { // the dome with its visor, top-left at (hx, hy), 6 x 5
+        R(hx + 1, hy, 4, 1, HELMET_BASE); R(hx, hy + 1, 6, 4, HELMET_BASE); R(hx, hy + 1, 2, 1, HELMET_LIGHT);
+        R(hx, hy + 3, 6, 1, HELMET_DARK); R(hx + 3, hy + 1, 3, 2, VISOR_GLOW); if (!outline) R(hx + 4, hy + 1, 1, 1, VISOR_INNER);
+    };
+    if (p.pose == 1) { // the slide: laid back, boots first, skimming the floor
+        R(-8, -4, 2, 3, TANKS_METAL);                                   // tanks, dragging behind
+        R(-6, -5, 6, 3, SUIT_MAIN); R(-6, -3, 6, 1, SUIT_SHADOW);       // the torso, lying back
+        R(0, -3, 3, 2, SUIT_MAIN); R(3, -3, 3, 2, BOOTS_LEAD); R(3, -3, 3, 1, BOOTS_HI); // legs and boots out front
+        R(-4, -6, 1, 1, SUIT_MAIN); R(-3, -2, 3, 1, HELMET_DARK);       // a trailing hand
+        helmet(-11, -8);
+        return;
+    }
+    if (p.pose == 2 || p.pose == 8) { // the roll and the backflip: a tucked ball turning over, four frames
+        float t = p.pose == 2 ? (ROLL_T - p.moveT) / ROLL_T : (0.45f - p.moveT) / 0.45f;
+        int fr = ((int)(t * 8)) % 4;
+        if (p.pose == 8) fr = 3 - fr; // a flip turns backward
+        int by = p.pose == 2 ? -8 : -12;
+        R(-4, by, 8, 8, SUIT_MAIN); R(-4, by + 6, 8, 2, SUIT_SHADOW);
+        const int hx[4] = {-3, 1, -3, -7}, hy[4] = {-5, -1, 3, -1};   // the helmet goes round: top, front, bottom, back
+        helmet(hx[fr], by + 4 + hy[fr] - 2);
+        const int bx[4] = {-3, -6, -1, 3}, byo[4] = {5, 0, -3, 1};
+        R(bx[fr], by + 3 + byo[fr], 3, 2, BOOTS_LEAD);
+        return;
+    }
+    if (p.pose == 9) { // hanging from a ledge: arms straight up to the lip, boots against the wall
+        R(1, -18, 1, 5, SUIT_MAIN); R(-2, -18, 1, 5, SUIT_SHADOW); R(1, -19, 1, 1, HELMET_BASE); R(-2, -19, 1, 1, HELMET_BASE);
+        helmet(-3, -14);
+        R(-3, -9, 6, 5, SUIT_MAIN); R(-3, -9, 1, 5, SUIT_SHADOW); R(-3, -5, 6, 1, HELMET_DARK);
+        R(-6, -9, 2, 5, TANKS_METAL);
+        R(-2, -4, 2, 2, SUIT_SHADOW); R(1, -4, 2, 2, SUIT_MAIN); R(-2, -2, 3, 2, BOOTS_LEAD); R(1, -2, 3, 2, BOOTS_LEAD);
+        return;
+    }
+    bool spread = p.pose == 4 || p.pose == 7 || p.pose == 6; // braking, gliding, balancing: arms and legs flung wide
     // squash and stretch, in whole art pixels only: the body sinks a pixel on landing and rises one when launched
     int sqy = p.scale.y < 0.88f ? 1 : p.scale.y > 1.16f ? -1 : 0;
     auto B = [&](int x, int y, int w, int h, Color c) { R(x, y + sqy, w, h, c); };
@@ -2704,13 +2896,15 @@ void DrawDiverShape(const PlatformState& p, bool outline) {
         R(-4 + step, -2, 3, 1, BOOTS_HI); R(1 - step, -2, 3, 1, BOOTS_HI);
     }
     // the far arm, then the torso with its brass collar and weight belt
-    if (!sliding) B(-4 + lean, -8, 1, 4, SUIT_SHADOW);
+    if (spread) { B(-8 + lean, -9, 5, 1, SUIT_SHADOW); B(-9 + lean, -9, 1, 1, HELMET_BASE); }
+    else if (!sliding) B(-4 + lean, -8, 1, 4, SUIT_SHADOW);
     B(-3 + lean, -9, 6, 5, SUIT_MAIN);
     B(-3 + lean, -9, 1, 5, SUIT_SHADOW);
     B(-3 + lean, -5, 6, 1, HELMET_DARK); B(0 + lean, -5, 1, 1, HELMET_LIGHT);
     B(-3 + lean, -9, 6, 1, HELMET_BASE);
     // the near arm: reaching for the wall when sliding, swinging with the stride otherwise
-    if (sliding) { B(2 + lean, -12, 2, 5, SUIT_MAIN); B(2 + lean, -13, 2, 1, HELMET_BASE); }
+    if (spread) { B(3 + lean, -9, 5, 1, SUIT_MAIN); B(8 + lean, -9, 1, 1, HELMET_BASE); }
+    else if (sliding) { B(2 + lean, -12, 2, 5, SUIT_MAIN); B(2 + lean, -13, 2, 1, HELMET_BASE); }
     else { B(3 + lean, -8, 1, 3, SUIT_MAIN); B(3 + lean, -5, 1, 1, HELMET_BASE); }
     // the helmet: a copper dome with a gold highlight and a shadowed underside
     B(-2 + lean, -14, 4, 1, HELMET_BASE);
@@ -2742,6 +2936,10 @@ void DrawDiver(const PlatformState& p) {
     }
     rlDrawRenderBatchActive();
     rlEnableBackfaceCulling();
+    if (p.pose == 3) for (int k = 0; k < 3; k++) { // reeling from a hard landing: stars wheel round the helmet
+        float a = p.time * 7 + k * 2.09f;
+        DrawRectangle((int)(feetX + cosf(a) * 12) - 1, (int)(feetY - 32 + sinf(a) * 4) - 1, 3, 3, Color{255, 230, 120, 255});
+    }
     BeginBlendMode(BLEND_ADDITIVE);                                    // the visor's glow
     DrawCircleV({feetX + (p.facingRight ? 3.0f : -3.0f) * ART, feetY - 12.0f * ART}, 10, Color{0, 200, 220, 40});
     EndBlendMode();
@@ -4733,6 +4931,113 @@ static void DrawLampDarkness(Vector2 c, float r, float maxA) {
     DrawRing(c, r, 1600, 0, 360, 64, Fade(BLACK, maxA));
 }
 
+// depth.exe --verify-moves: the diver's extra moves (ParkourReference1.2), driven through the real StepPlayer with
+// scripted inputs on small synthetic stages - and a check that none of it fires for the path search.
+bool VerifyMoves() {
+    bool ok = true;
+    auto fail = [&](const char* what) { TraceLog(LOG_WARNING, "verify-moves: FAILED - %s", what); ok = false; };
+    auto stage = [](PlatformState& p, int level, int w, int h, int floorY) {
+        p = PlatformState{};
+        p.level = level; p.w = w; p.h = h;
+        p.tiles.assign(h, std::string(w, '.'));
+        for (int x = 0; x < w; x++) for (int y = floorY; y < h; y++) p.tiles[y][x] = '#';
+        p.pos = {3 * (float)T, (floorY) * (float)T - PH}; p.onGround = true;
+    };
+    auto run = [](PlatformState& p, int frames, float dir, bool jump, bool down, bool up = false, bool shift = false) {
+        for (int k = 0; k < frames; k++) { p.inDown = down; p.upHeld = up; p.shiftHeld = shift; StepPlayer(p, dir, jump); if (p.deathTimer > 0) break; }
+    };
+    // 1) a running slide: Down at speed ducks the hitbox and carries you, then a slide-jump flies further than a plain jump
+    {
+        PlatformState p; stage(p, PL_ISLAND, 80, 20, 15);
+        run(p, 60, 1, false, false);
+        run(p, 3, 1, false, true);
+        if (p.pose != 1) fail("Down while running didn't start a slide");
+        else if (PlayerBox(p).height > PH - 10) fail("the slide didn't lower the hitbox");
+        float slideStart = p.pos.x;
+        run(p, 30, 0, false, true);
+        if (p.pos.x - slideStart < 40) fail("the slide didn't carry the diver on under its own momentum");
+        PlatformState a; stage(a, PL_ISLAND, 80, 20, 15); run(a, 60, 1, false, false); a.jumpBuffer = 0.1f; float ax0 = a.pos.x; run(a, 1, 1, true, false); int fa = 0; while (!a.onGround && fa < 400) { run(a, 1, 1, true, false); fa++; }
+        PlatformState b; stage(b, PL_ISLAND, 80, 20, 15); run(b, 60, 1, false, false); run(b, 3, 1, false, true); b.jumpBuffer = 0.1f; float bx0 = b.pos.x; run(b, 1, 1, true, true); int fb = 0; while (!b.onGround && fb < 400) { run(b, 1, 1, true, false); fb++; }
+        TraceLog(LOG_WARNING, "verify-moves: plain running jump %.0f px, slide-jump %.0f px", a.pos.x - ax0, b.pos.x - bx0);
+        if (b.pos.x - bx0 <= a.pos.x - ax0) fail("a slide-jump didn't carry further than a plain running jump");
+    }
+    // 2) a hard landing stuns; the same landing with Down and a direction rolls instead, turning the fall into speed
+    {
+        PlatformState p; stage(p, PL_ISLAND, 60, 40, 35); p.pos.y = 5 * (float)T; p.onGround = false;
+        for (int k = 0; k < 900 && !p.onGround; k++) run(p, 1, 0, false, false);
+        if (p.pose != 3) fail("a drop taller than any jump didn't stun the diver on landing");
+        PlatformState r; stage(r, PL_ISLAND, 60, 40, 35); r.pos.y = 5 * (float)T; r.onGround = false;
+        bool rolled = false;
+        for (int k = 0; k < 600 && !rolled; k++) { run(r, 1, 1, false, true); rolled = r.pose == 2; }
+        if (!rolled) fail("Down and a direction on a hard landing didn't roll");
+        else if (fabsf(r.vel.x) < RUN) fail("the roll didn't convert the fall into forward speed");
+    }
+    // 3) the parachute brake falls far slower than a plain fall
+    {
+        PlatformState p; stage(p, PL_PIRATE, 40, 60, 55); p.pos.y = 4 * (float)T; p.onGround = false;
+        PlatformState q = p;
+        run(p, 90, 0, false, false); run(q, 90, 0, false, true);
+        TraceLog(LOG_WARNING, "verify-moves: in 1.5 s a plain fall drops %.0f px, the brake %.0f px", p.pos.y - 4 * T, q.pos.y - 4 * T);
+        if (q.pos.y - 4 * T > (p.pos.y - 4 * T) * 0.45f) fail("the parachute brake didn't slow the fall enough");
+    }
+    // 4) dash: on land a flat burst that holds height; underwater, straight up if Up is held; only one per jump
+    {
+        PlatformState p; stage(p, PL_ISLAND, 80, 30, 25); p.pos = {10 * (float)T, 10 * (float)T}; p.onGround = false; p.vel = {0, 0};
+        p.dashReq = 1; float x0 = p.pos.x, y0 = p.pos.y;
+        run(p, 34, 0, false, false);
+        if (p.pos.x - x0 < 70) fail("a land dash didn't burst forward");
+        if (p.pos.y - y0 > 40) fail("a land dash didn't hold the diver's height");
+        p.dashReq = 1; run(p, 1, 0, false, false);
+        if (p.pose == 5) fail("a second dash worked in the same jump");
+        PlatformState w; stage(w, PL_WEEDS, 80, 30, 25); w.pos = {10 * (float)T, 15 * (float)T}; w.onGround = false; w.vel = {0, 0};
+        w.dashReq = 1; w.upHeld = true; float wy = w.pos.y;
+        w.inDown = false; StepPlayer(w, 0, false); run(w, 42, 0, false, false, true);
+        TraceLog(LOG_WARNING, "verify-moves: water dash with Up rose %.0f px (pose %d dir %.2f,%.2f)", wy - w.pos.y, w.pose, w.dashDir.x, w.dashDir.y);
+        if (wy - w.pos.y < 40) fail("an underwater dash with Up held didn't rise");
+    }
+    // 5) hydro-glide: underwater, a second jump press on the way down cuts the fall
+    {
+        PlatformState p; stage(p, PL_WEEDS, 40, 60, 55); p.pos.y = 4 * (float)T; p.onGround = false; p.vel.y = 100;
+        PlatformState q = p;
+        q.jumpBuffer = 0.1f; StepPlayer(q, 0, true);
+        if (q.pose != 7) fail("pressing jump while falling underwater didn't start a hydro-glide");
+        run(p, 90, 0, false, false); run(q, 90, 0, true, false);
+        if (q.pos.y - p.pos.y > -60) fail("the glide didn't fall slower than a plain fall");
+    }
+    // 6) poles: climbing off the top leaves the diver balanced on the tip; a Shift backflip from a pole outjumps a plain jump
+    {
+        PlatformState p; stage(p, PL_WEEDS, 40, 30, 25);
+        for (int y = 18; y < 25; y++) p.tiles[y][10] = 'w';
+        p.pos = {10 * (float)T + 6, 23 * (float)T - PH + 10}; p.onGround = false;
+        bool tip = false;
+        for (int k = 0; k < 400 && !tip; k++) { p.climbDir = -1; run(p, 1, 0, false, false, true); tip = p.pose == 6; }
+        if (!tip) fail("climbing off the top of a pole didn't balance the diver on its tip");
+        PlatformState a = p, b = p; a.climbDir = b.climbDir = 0; a.pose = b.pose = 6;
+        a.jumpBuffer = b.jumpBuffer = 0.1f;
+        run(a, 1, 1, true, false); run(b, 1, 1, true, false, false, true);
+        float ay = a.pos.y, by = b.pos.y;
+        for (int k = 0; k < 40; k++) { run(a, 1, 1, true, false); run(b, 1, 1, true, false); ay = std::min(ay, a.pos.y); by = std::min(by, b.pos.y); }
+        if (by >= ay) fail("a pole backflip didn't go higher than a plain jump off the pole");
+    }
+    // 7) a ledge grab: falling past a lip you're pushing into catches you; Up hauls you over
+    {
+        PlatformState p; stage(p, PL_ATLANTIS, 40, 30, 25);
+        for (int y = 15; y < 25; y++) for (int x = 12; x < 16; x++) p.tiles[y][x] = '#';
+        p.pos = {12 * (float)T - PW - 1, 15 * (float)T - PH + 6}; p.onGround = false; p.vel = {0, 0}; // a jump that fell just short: body below the lip
+        bool hung = false;
+        for (int k = 0; k < 200 && !hung; k++) { run(p, 1, 1, false, false); hung = p.pose == 9; }
+        if (!hung) fail("falling past a ledge while pushing into it didn't catch hold");
+        else { run(p, 2, 0, false, false, true); if (p.pos.y + PH > 15 * T + 2) fail("Up didn't haul the diver up onto the ledge"); }
+    }
+    // 8) the path search never presses any of it: with no extra input the movement is exactly the old one
+    {
+        PlatformState p; stage(p, PL_WEEDS, 80, 40, 35); p.verifying = true; p.pos.y = 5 * (float)T; p.onGround = false;
+        run(p, 400, 1, true, false);
+        if (p.pose != 0) fail("a pose changed during the path search's movement");
+    }
+    if (ok) TraceLog(LOG_WARNING, "verify-moves: OK - slide and slide-jump, stun and impact roll, parachute brake, dash (land and water), hydro-glide, pole tip and backflip, ledge grab");
+    return ok;
+}
 void ScenePlatformer(Game& g) {
     auto& p = g.plat;
     gGhost = p.ghost;
@@ -4760,6 +5065,22 @@ void ScenePlatformer(Game& g) {
             jumpHeld |= IsGamepadButtonDown(0, GAMEPAD_BUTTON_RIGHT_FACE_DOWN);
         }
         if (jumpPressed) p.jumpBuffer = JUMP_BUFFER;
+        // the extra moves: Down (slide, roll, brake, pole slide), a double-tap of a direction (dash), Shift (pole backflip)
+        {
+            static float lastTap[2] = {-9, -9};
+            p.inDown = IsKeyDown(KEY_S) || IsKeyDown(KEY_DOWN);
+            p.upHeld = IsKeyDown(KEY_W) || IsKeyDown(KEY_UP);
+            p.shiftHeld = IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT);
+            if (IsKeyPressed(KEY_D) || IsKeyPressed(KEY_RIGHT)) { if (p.time - lastTap[1] < 0.25f) p.dashReq = 1; lastTap[1] = p.time; }
+            if (IsKeyPressed(KEY_A) || IsKeyPressed(KEY_LEFT)) { if (p.time - lastTap[0] < 0.25f) p.dashReq = -1; lastTap[0] = p.time; }
+            if (IsGamepadAvailable(0)) {
+                float ay = GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_Y);
+                p.inDown |= ay > 0.5f || IsGamepadButtonDown(0, GAMEPAD_BUTTON_LEFT_FACE_DOWN);
+                p.upHeld |= ay < -0.5f || IsGamepadButtonDown(0, GAMEPAD_BUTTON_LEFT_FACE_UP);
+                p.shiftHeld |= IsGamepadButtonDown(0, GAMEPAD_BUTTON_LEFT_TRIGGER_1);
+                if (IsGamepadButtonPressed(0, GAMEPAD_BUTTON_RIGHT_FACE_LEFT)) p.dashReq = dir != 0 ? (int)dir : (p.facingRight ? 1 : -1);
+            }
+        }
         p.time += dt;
 
         if (p.deathTimer > 0) {

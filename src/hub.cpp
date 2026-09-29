@@ -552,7 +552,7 @@ void SceneBookshelf(Game& g) {
             "THE CAVE (harder): a winding tunnel system, climbed and dropped through in the dark. Stalactite Spiders ambush from cracks in the rock.\n\n"
             "THE WEEDS (harder still): a kelp forest where the seabed is the danger - cross up in the canopy.\n\n"
             "ATLANTIS (hardest): the drowned city, run through in the dark by glyph-light.\n\n"
-            "Clearing a level unlocks the next one and reshuffles its layout. Controls: A/D or arrows, Space/W/Up to jump, Esc to give up. A gamepad works too.",
+            "Clearing a level unlocks the next one and reshuffles its layout. Controls: A/D or arrows, Space/W/Up to jump, Esc to give up. Down slides when running, brakes a fall, and rolls you out of a hard landing (with a direction) - land hard without rolling and you reel for a moment. Double-tap a direction to dash (underwater, add Up or Down to aim it); press jump again while falling underwater to hydro-glide. On kelp and ratlines, Down slides, climbing off the top balances you on the tip, and Shift+direction+jump is a backflip. Push into a wall as you fall past its lip to grab the ledge; Up hauls you over. A gamepad works too.",
             body, 17, Pal::Ink);
     }
 }
@@ -651,6 +651,6 @@ void ScenePeriscope(Game& g) {
     Txt(g.platHard ? "Every gear, mine, spiked ball and jet. +50% bonus gold." : "No gears, mines, spiked balls or jets, and a brighter lamp.", 320, 643, 15, Pal::Paper);
     if (Button({700, 632, 250, 40}, g.platCheckpoints ? "Checkpoints: ON" : "Checkpoints: OFF", true, 17)) g.platCheckpoints = !g.platCheckpoints;
     Txt(g.platCheckpoints ? "Respawn in the section you reached,\nbut no relics can be won." : "A death sends you back to the start.\nRelics can be won.", 960, 634, 15, Pal::Paper);
-    const char* help = "A/D or arrows to move   |   Space to jump: hold for height, jump off walls   |   Esc to give up   |   Only bosses can be stomped";
+    const char* help = "A/D move | Space jump | Down: slide, brake, roll on landing, slide poles | double-tap a direction: dash | Shift+jump on a pole: backflip | Esc";
     TxtShadow(help, SCREEN_W / 2.0f - MeasureTxt(help, 16) / 2.0f, 690, 16, Color{220, 200, 160, 255});
 }
