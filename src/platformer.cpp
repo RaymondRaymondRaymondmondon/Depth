@@ -2966,16 +2966,29 @@ void DrawHullBeast(const PlatformState& p, const Beast& b, float t) {
         skin = body(skin);
         float alpha = 1.0f - 0.82f * camo;
         Vector2 back = speed > 20 ? Vector2{-b.vel.x / speed, -b.vel.y / speed} : Vector2{0, 1};
-        for (int k = 0; k < 8; k++) { // eight arms, trailing away from the way it's moving and curling at the tips
+        // what it's reaching for: its prey (or the diver), if it's within an arm's length
+        bool reachFor = false; Vector2 prey{0, 0};
+        if (!dead && (b.act == BeastAct::Coil || b.act == BeastAct::Strike || b.act == BeastAct::Hunt || b.act == BeastAct::Eat)) {
+            if (b.target >= 0 && b.target < (int)W.beasts.size() && W.beasts[b.target].id == b.targetId) { prey = W.beasts[b.target].pos; reachFor = true; }
+            else if (b.target == BEAST_DIVER) { Rectangle d = PlatDiverBox(p); prey = {d.x + d.width / 2, d.y + d.height / 2}; reachFor = true; }
+            if (reachFor && sqrtf((prey.x - x) * (prey.x - x) + (prey.y - y) * (prey.y - y)) > 34 * s) reachFor = false;
+        }
+        for (int k = 0; k < 8; k++) { // eight arms, each a FABRIK chain: trailing and curling as it moves, the front pair reaching for prey
             float a0 = (k - 3.5f) * 0.32f, sw = sinf(t * 4 + k * 0.8f + b.phase) * 0.35f;
             float ca = cosf(a0 + sw), sa = sinf(a0 + sw);
             Vector2 dir{back.x * ca - back.y * sa, back.x * sa + back.y * ca};
             float len = (13 + (k % 3) * 2) * s * (speed > 60 ? 1.3f : 1.0f);
-            Vector2 mid{x + dir.x * len * 0.55f, y + 4 + dir.y * len * 0.55f}, tip{x + dir.x * len + sinf(t * 6 + k) * 2, y + 4 + dir.y * len};
-            DrawLineEx({x, y + 3}, mid, 3.4f, Fade(FAUNA_INK, alpha));
-            DrawLineEx(mid, tip, 2.2f, Fade(FAUNA_INK, alpha));
-            DrawLineEx({x, y + 3}, mid, 2.4f, Fade(skin, alpha));
-            DrawLineEx(mid, tip, 1.4f, Fade(skin, alpha));
+            Vector2 root{x + (k - 3.5f) * 1.2f, y + 3};
+            Vector2 goal{x + dir.x * len + sinf(t * 6 + k) * 2, y + 4 + dir.y * len};
+            if (reachFor && (k == 3 || k == 4 || (b.act == BeastAct::Eat && (k == 2 || k == 5))))
+                goal = {prey.x + sinf(t * 9 + k) * 2, prey.y + cosf(t * 7 + k) * 2}; // wrapped round it
+            Vector2 ch[5] = {root, root, root, root, root};
+            float seg = len * 0.27f, lens[4] = {seg, seg, seg * 0.9f, seg * 0.8f};
+            for (int j = 1; j < 5; j++) ch[j] = {root.x + dir.x * seg * j, root.y + dir.y * seg * j}; // start straight, then solve
+            ik::Fabrik(ch, 5, lens, goal, 6);
+            for (int j = 0; j < 4; j++) DrawLineEx(ch[j], ch[j + 1], 3.6f - j * 0.5f, Fade(FAUNA_INK, alpha));
+            for (int j = 0; j < 4; j++) DrawLineEx(ch[j], ch[j + 1], 2.6f - j * 0.45f, Fade(skin, alpha));
+            if (k % 2 == 0) for (int j = 1; j < 4; j++) DrawCircleV(ch[j], 0.7f, Fade(Tone(skin, 0.4f), alpha));
         }
         DrawEllipse((int)x, (int)(y - 3), 9.5f * s, 8.5f * s, Fade(FAUNA_INK, alpha));
         DrawEllipse((int)x, (int)(y - 3), 8.5f * s, 7.5f * s, Fade(skin, alpha));
@@ -3758,11 +3771,27 @@ void DrawFauna(const PlatformState& p, float t, int c0, int c1) {
             if (b.life == BeastLife::Gone || b.pos.x < x0 || b.pos.x > x1) continue;
             if ((pass == 0) != (b.life == BeastLife::Corpse)) continue;
             if (b.hidden) { if (W.biome == PL_HULL && b.species == HS_EEL && b.act == BeastAct::Ambush) DrawEelPeek(b, t); continue; }
+            // a body: death throes for the first moment, then it jerks with each bite and shrinks as it's eaten
+            bool body = b.life == BeastLife::Corpse, xf = false;
+            if (body) {
+                float throes = std::max(0.0f, 1 - b.corpseT / 0.9f);
+                bool bitten = false;
+                for (const auto& o : W.beasts) if (o.life == BeastLife::Alive && o.act == BeastAct::Eat && o.target >= 0 && o.target < (int)W.beasts.size() && &W.beasts[o.target] == &b) { bitten = true; break; }
+                float jx = throes * sinf(t * 47 + b.id) * 2.5f + (bitten ? sinf(t * 23) * 1.2f : 0), jy = bitten ? fabsf(sinf(t * 17)) * -1.0f : 0;
+                float k = 0.55f + 0.45f * std::clamp(b.meat, 0.0f, 1.0f);
+                rlPushMatrix(); xf = true;
+                rlTranslatef(b.pos.x + jx, b.pos.y + jy, 0);
+                rlRotatef(throes * sinf(t * 31 + b.id) * 18.0f, 0, 0, 1);
+                rlScalef(k, k, 1);
+                rlTranslatef(-b.pos.x, -b.pos.y, 0);
+                if (throes > 0.6f && !p.verifying) DrawCircleLines((int)b.pos.x, (int)b.pos.y, 10 + (1 - throes) * 30, Fade(WHITE, (throes - 0.6f) * 1.2f)); // the moment it dies
+            }
             if (W.biome == PL_HULL) DrawHullBeast(p, b, t);
             else if (W.biome == PL_PIRATE) DrawPirateBeast(p, b, t);
             else if (W.biome == PL_ISLAND) DrawIslandBeast(p, b, t);
             else if (W.biome == PL_CAVE) DrawCaveBeast(p, b, t);
             else if (W.biome == PL_PIPES) DrawPipesBeast(p, b, t);
+            if (xf) rlPopMatrix();
         }
 }
 
