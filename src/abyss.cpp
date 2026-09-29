@@ -616,7 +616,7 @@ static void StepAbyss(Game& g, float dt, Vector2 drift, bool dashPressed, bool g
     a.mawT += dt;
     bool maw = false;
     for (const auto& c : a.creatures) if (c.kind == AbyssCreatureKind::TrenchMaw && c.alive && c.state != AbyssCreatureState::Shattered) maw = true;
-    if (!maw && a.mawT > (a.mawVisits == 0 ? 75.0f : 120.0f) && a.time - a.lastHitT > 20.0f && depth > 150 && depth < ABYSS_DEPTH_SPAN - 80) {
+    if (!maw && !a.verifying && a.mawT > (a.mawVisits == 0 ? 75.0f : 120.0f) && a.time - a.lastHitT > 20.0f && depth > 150 && depth < ABYSS_DEPTH_SPAN - 80) {
         AbyssCreature m; m.kind = AbyssCreatureKind::TrenchMaw; m.state = AbyssCreatureState::Hunting; m.depth = depth + 45;
         m.pos = m.home = {a.playerPos.x, a.playerPos.y - 45.0f, a.playerPos.z};
         a.creatures.push_back(m);
@@ -1117,6 +1117,13 @@ void SceneAbyss(Game& g) {
 
     TxtBold("The Open Abyss", 20, 16, 24, Color{140, 220, 255, 255});
     Txt(TextFormat("Depth: %d m", (int)a.depth), 20, 46, 16, Pal::Paper);
+    for (const auto& c : a.creatures) if (c.kind == AbyssCreatureKind::TrenchMaw && c.state != AbyssCreatureState::Shattered && c.state != AbyssCreatureState::Fleeing) { // the one warning the Abyss gives
+        float pulse = 0.5f + 0.5f * sinf(a.time * 6);
+        TxtBold("Something vast is rising beneath you", 20, 100, 18, Fade(Color{255, 160, 120, 255}, 0.5f + 0.5f * pulse));
+        Txt("A pressure-bulb's blast will drive it back. Or climb a vent.", 20, 124, 14, Fade(Pal::Paper, 0.7f));
+        break;
+    }
+    if (a.invisT > 0) Txt("Hidden in the void-moss", 20, 150, 14, Color{150, 150, 200, 255});
     DrawBar({20, 68, 220, 14}, a.stamina / 100.0f, Color{120, 230, 255, 255});
     Txt("Stamina", 20, 84, 12, Fade(Pal::Paper, 0.7f));
     Txt("WASD/arrows drift (double-tap to dash) - Space also dashes - Shift glide (aim up: parachute, down in a downdraft: slipstream) - Mouse: look - Esc: leave", 20, SCREEN_H - 30, 13, Fade(Pal::Paper, 0.6f));
@@ -1151,7 +1158,8 @@ bool VerifyAbyss() {
             if (c.state == AbyssCreatureState::Shattered) continue;
             switch (c.kind) {
                 case AbyssCreatureKind::GulperEel: case AbyssCreatureKind::VampireSquid: case AbyssCreatureKind::TrenchWorm:
-                case AbyssCreatureKind::BrineSlug: case AbyssCreatureKind::Siphonophore: case AbyssCreatureKind::Leviathan: break;
+                case AbyssCreatureKind::BrineSlug: case AbyssCreatureKind::Siphonophore: case AbyssCreatureKind::Leviathan:
+                case AbyssCreatureKind::AnglerCephalopod: case AbyssCreatureKind::PressureGhost: case AbyssCreatureKind::TrenchMaw: case AbyssCreatureKind::AbyssalCoral: break;
                 default: continue;
             }
             float d = Vector3Distance(c.pos, g.abyss.playerPos);
@@ -1165,6 +1173,23 @@ bool VerifyAbyss() {
         StepAbyss(g, dt, drift, false, glide, glide, false);
         if (std::isnan(g.abyss.playerPos.x) || std::isnan(g.abyss.playerPos.y)) return false;
     }
-    if (g.abyss.won) return true;
-    return !g.abyss.dead && g.abyss.depth > 50.0f; // didn't finish the slice's depth, but didn't stall at the top or die either
+    bool descent = g.abyss.won || (!g.abyss.dead && g.abyss.depth > 50.0f); // didn't finish the slice's depth, but didn't stall at the top or die either
+    if (!descent) return false;
+    // the 1.3 roster: a pressure-bulb's blast drives the Trench-Maw back; dashing through void-moss hides you; ghost-kelp refills you
+    {
+        Game h; h.abyss.verifying = true; StartAbyss(h);
+        AbyssState& a = h.abyss;
+        a.creatures.clear();
+        a.playerPos = {0, -300, 0}; a.playerVel = {0, 0, 0};
+        AbyssCreature maw; maw.kind = AbyssCreatureKind::TrenchMaw; maw.state = AbyssCreatureState::Hunting; maw.pos = {0, -312, 0}; a.creatures.push_back(maw);
+        AbyssCreature bulb; bulb.kind = AbyssCreatureKind::PressureBulb; bulb.pos = {0.5f, -300, 0}; a.creatures.push_back(bulb);
+        AbyssCreature moss; moss.kind = AbyssCreatureKind::VoidMoss; moss.pos = {0, -300, 0.5f}; a.creatures.push_back(moss);
+        AbyssCreature kelp; kelp.kind = AbyssCreatureKind::GhostKelp; kelp.pos = {0.4f, -300, 0.4f}; a.creatures.push_back(kelp);
+        a.isDashing = true; a.dashTimer = 0.3f; a.stamina = 40;
+        StepAbyss(h, dt, {0, 0}, false, false, false, false);
+        if (a.creatures[0].state != AbyssCreatureState::Dislodged) { TraceLog(LOG_WARNING, "verify-abyss: FAILED - a pressure-bulb didn't drive the Trench-Maw back"); return false; }
+        if (a.invisT <= 0) { TraceLog(LOG_WARNING, "verify-abyss: FAILED - dashing through void-moss didn't hide the diver"); return false; }
+        if (a.stamina < 60) { TraceLog(LOG_WARNING, "verify-abyss: FAILED - ghost-kelp didn't refill the diver"); return false; }
+    }
+    return true;
 }
