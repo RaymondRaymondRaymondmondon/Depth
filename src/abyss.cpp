@@ -1107,7 +1107,7 @@ void SceneAbyss(Game& g) {
             case AbyssCreatureKind::WhaleFall: { // a whale's ribcage on the wall, and the vast isopod grazing it
                 Vector3 inward = Vector3Normalize({-c.pos.x, 0, -c.pos.z});
                 Vector3 side{-inward.z, 0, inward.x};
-                for (int r = 0; r < 7; r++) { Vector3 base = Vector3Add(c.pos, Vector3Add(Vector3Scale(side, (r - 3) * 0.9f), {0, -1.2f, 0})); DrawCylinderEx(base, Vector3Add(base, Vector3Add(Vector3Scale(inward, 2.2f), {0, 2.4f, 0})), 0.14f, 0.06f, 5, Fogged(Color{210, 200, 180, 255}, base)); } // ribs
+                for (int r = 0; r < 7; r++) { Vector3 base = Vector3Add(c.pos, Vector3Add(Vector3Scale(side, (r - 3) * 0.9f), {0, -1.2f, 0})); LitCyl(base, Vector3Add(base, Vector3Add(Vector3Scale(inward, 2.2f), {0, 2.4f, 0})), 0.14f, 0.06f, 5, Fogged(Color{210, 200, 180, 255}, base)); } // ribs
                 Color shell = Fogged(Color{130, 120, 112, 255}, c.pos);
                 for (int s = 0; s < 7; s++) { float k = s / 6.0f; Vector3 p = Vector3Add(c.pos, Vector3Add(Vector3Scale(side, (k - 0.5f) * 5.0f), Vector3Scale(inward, 0.8f))); DrawSphere(p, 1.25f - fabsf(k - 0.5f) * 0.9f, Tone(shell, (s % 2) * -0.12f)); } // armoured segments
                 for (int l = 0; l < 7; l++) { Vector3 p = Vector3Add(c.pos, Vector3Add(Vector3Scale(side, (l - 3) * 0.7f), Vector3Scale(inward, 1.4f))); DrawCylinderEx(p, Vector3Add(p, {sinf(a.time + l) * 0.1f, -1.0f, 0}), 0.08f, 0.04f, 4, Tone(shell, -0.3f)); }
@@ -1116,7 +1116,7 @@ void SceneAbyss(Game& g) {
             case AbyssCreatureKind::AnglerCephalopod: {
                 bool dark = c.state != AbyssCreatureState::Idle;
                 if (!dark) { DrawSphere(c.home, 0.22f, Color{190, 255, 230, 255}); DrawSphere(c.home, 0.7f, Fade(Color{150, 255, 220, 255}, 0.12f)); } // the lure: it looks like ghost-kelp
-                DrawCylinderEx(c.pos, c.home, 0.03f, 0.02f, 4, Fogged(Color{90, 40, 60, 255}, c.home));
+                LitCyl(c.pos, c.home, 0.03f, 0.02f, 4, Fogged(Color{90, 40, 60, 255}, c.home));
                 Color sk = Fogged(Color{120, 30, 50, 255}, c.pos);
                 DrawSphere(c.pos, 0.7f, sk); DrawSphere(Vector3Add(c.pos, {0, 0.5f, 0}), 0.45f, Tone(sk, 0.1f));
                 for (int t2 = 0; t2 < 8; t2++) { float ta = t2 * PI / 4 + c.phase; Vector3 dir{cosf(ta) * 0.6f, -0.8f, sinf(ta) * 0.6f}; if (c.state == AbyssCreatureState::Lunging) dir = Vector3Add(Vector3Scale(Vector3Normalize(c.vel), 0.8f), Vector3Scale(dir, 0.3f)); DrawCylinderEx(c.pos, Vector3Add(c.pos, Vector3Scale(dir, 1.6f + 0.2f * sinf(a.time * 4 + t2))), 0.1f, 0.02f, 4, sk); }
@@ -1136,8 +1136,8 @@ void SceneAbyss(Game& g) {
             case AbyssCreatureKind::TrenchMaw: { // the colossal gulper: a jaw wider than the trench, rising out of the black
                 Color flesh = Fogged(Color{40, 26, 36, 255}, c.pos);
                 DrawCylinderEx(Vector3Add(c.pos, {0, -30, 0}), c.pos, 3.0f, 9.0f, 24, flesh); // its throat and body, below
-                for (int k = 0; k < 28; k++) { float ta = k * 2 * PI / 28; Vector3 root = Vector3Add(c.pos, {cosf(ta) * 8.5f, 0, sinf(ta) * 8.5f}); DrawCylinderEx(root, Vector3Add(root, {-cosf(ta) * 1.2f, 2.2f + (k % 3) * 0.6f, -sinf(ta) * 1.2f}), 0.25f, 0.02f, 4, Fogged(Color{230, 220, 200, 255}, root)); } // a ring of needle teeth
-                DrawCylinderEx(Vector3Add(c.pos, {0, -0.3f, 0}), c.pos, 8.4f, 8.4f, 28, Fogged(Color{90, 20, 30, 255}, c.pos)); // the maw's dark red throat
+                for (int k = 0; k < 28; k++) { float ta = k * 2 * PI / 28; Vector3 root = Vector3Add(c.pos, {cosf(ta) * 8.5f, 0, sinf(ta) * 8.5f}); LitCyl(root, Vector3Add(root, {-cosf(ta) * 1.2f, 2.2f + (k % 3) * 0.6f, -sinf(ta) * 1.2f}), 0.25f, 0.02f, 4, Fogged(Color{230, 220, 200, 255}, root)); } // a ring of needle teeth
+                LitCyl(Vector3Add(c.pos, {0, -0.3f, 0}), c.pos, 8.4f, 8.4f, 28, Fogged(Color{90, 20, 30, 255}, c.pos)); // the maw's dark red throat
                 for (int k = 0; k < 6; k++) { float ta = k * PI / 3 + a.time * 0.3f; DrawSphere(Vector3Add(c.pos, {cosf(ta) * 9.4f, 0.5f, sinf(ta) * 9.4f}), 0.25f, Color{255, 230, 150, 255}); } // photophores round the lip - the only warning you see coming
                 break;
             }
