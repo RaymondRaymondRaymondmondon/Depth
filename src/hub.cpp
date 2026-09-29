@@ -537,7 +537,7 @@ void SceneBookshelf(Game& g) {
             "BRINE WORM: slow, but spits poison at any rank. Its poison stacks, so cure it early.\n\n"
             "THE LOBSTER (mini boss): heavily armored. Crushing Claw can stun, Tail Sweep hits your front two ranks, and its clacking frays everyone's nerves. "
             "Bleed and poison ignore its armor, and marking it helps everyone hit harder.\n\n"
-            "Still uncharted: the Island, the Weeds, and Atlantis.",
+            "Charted: the Island, the Cave, the Weeds and Atlantis are open to explore in turn.",
             body, 18, Pal::Ink);
     } else {
         DrawWrapped(

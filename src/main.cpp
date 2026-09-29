@@ -63,7 +63,7 @@ static void ShotAtPiece(Game& g, int level, SetPiece sp, bool ghost = false, int
 }
 // Starts a platform level, lets its creatures live a few seconds out of the diver's sight, then stands the diver at
 // the busiest spot (the beast with the most others near it) - depth.exe --shots shots fauna
-static void ShotAtFauna(Game& g, int level, int seed, float secs, int pick = 0) {
+static void ShotAtFauna(Game& g, int level, int seed, float secs, int pick = 0, int species = -1) {
     g.platLayouts[level] = {seed, 100};
     StartPlatform(g, level);
     PlatformState& p = g.plat;
@@ -74,7 +74,7 @@ static void ShotAtFauna(Game& g, int level, int seed, float secs, int pick = 0) 
     std::vector<std::pair<int, int>> ranked;
     for (int i = 0; i < (int)p.fauna.beasts.size(); i++) {
         const Beast& b = p.fauna.beasts[i];
-        if (b.life != BeastLife::Alive || b.hidden) continue;
+        if (b.life != BeastLife::Alive || b.hidden || (species >= 0 && b.species != species)) continue;
         int n = 0;
         for (const auto& o : p.fauna.beasts) if (o.life != BeastLife::Gone && !o.hidden && fabsf(o.pos.x - b.pos.x) < 280 && fabsf(o.pos.y - b.pos.y) < 160) n++;
         ranked.push_back({-n, i});
@@ -89,8 +89,17 @@ static void ShotAtFauna(Game& g, int level, int seed, float secs, int pick = 0) 
         if (near) continue;
         used.push_back(at);
         if ((int)used.size() > pick) {
-            p.pos = {at.x - 120, at.y - 40};
-            for (int y = (int)(at.y / 32); y < p.h - 1; y++) if (PlatSolid(p, (int)(p.pos.x / 32) + 0, y + 1)) { p.pos.y = y * 32.0f + 32 - 28; break; }
+            // stand the diver on safe floor nearby - back from a big hunter, or it'd take the diver before the shot
+            float want = at.x - (species >= 0 ? 330.0f : 120.0f);
+            for (int d = 0; d < 30; d++) for (int sgn = -1; sgn <= 1; sgn += 2) {
+                int cx = (int)(want / 32) + d * sgn;
+                for (int y = std::max(1, (int)(at.y / 32) - 8); y < p.h - 1; y++) {
+                    if (PlatSolid(p, cx, y)) break;
+                    char below = PlatTileAt(p, cx, y + 1);
+                    if (PlatSolid(p, cx, y + 1) && below != 'x' && below != 't' && below != 'g' && !PlatSolid(p, cx, y - 1)) { p.pos = {cx * 32.0f + 6, y * 32.0f + 32 - 28}; BeastsDiverRespawned(p, p.pos); return; }
+                }
+            }
+            p.pos = {want, at.y - 40};
             return;
         }
     }
@@ -186,6 +195,23 @@ static void TakeShots(const Game& base, const std::string& dir) {
         {"plat_atlantis", [](Game& g) { g.platLayouts[PL_ATLANTIS] = {808, 100}; StartPlatform(g, PL_ATLANTIS); }},
         {"plat_atlantis2", [](Game& g) { g.platLayouts[PL_ATLANTIS] = {808, 100}; StartPlatform(g, PL_ATLANTIS); g.plat.pos = g.plat.spawns[4]; }},
         {"fauna_weeds", [](Game& g) { ShotAtFauna(g, PL_WEEDS, 707, 6); }},
+        {"fauna_weeds_shark", [](Game& g) { ShotAtFauna(g, PL_WEEDS, 707, 4, 0, WS_SHARK); }},
+        {"fauna_weeds_merman", [](Game& g) { ShotAtFauna(g, PL_WEEDS, 712, 2, 0, WS_MERMAN); }},
+        {"fauna_weeds_ray", [](Game& g) { ShotAtFauna(g, PL_WEEDS, 707, 4, 0, WS_RAY); }},
+        {"fauna_weeds_lineup", [](Game& g) { // well-fed, calm big animals posed beside the diver, to judge their size
+            g.platLayouts[PL_WEEDS] = {707, 100}; StartPlatform(g, PL_WEEDS);
+            PlatformState& p = g.plat;
+            for (auto& b : p.fauna.beasts) b.life = BeastLife::Gone;
+            int kinds[4] = {WS_MERMAN, WS_SHARK, WS_RAY, WS_BARRACUDA};
+            for (int k = 0; k < 4; k++) {
+                p.fauna.beasts.emplace_back();
+                Beast& b = p.fauna.beasts.back();
+                b.species = kinds[k]; b.id = 9000 + k; b.pos = {p.pos.x + 120 + k * 130.0f, p.pos.y - 60 - (k % 2) * 40}; b.facing = -1; b.hunger = 0; b.act = BeastAct::Idle; b.thinkT = 99;
+                for (auto& s : b.spine) s = {b.pos.x + 20, b.pos.y};
+            }
+        }},
+        {"fauna_atlantis_angler", [](Game& g) { ShotAtFauna(g, PL_ATLANTIS, 808, 4, 0, AS_ANGLER); }},
+        {"fauna_atlantis_guardian", [](Game& g) { ShotAtFauna(g, PL_ATLANTIS, 808, 4, 0, AS_GUARDIAN); }},
         {"fauna_weeds2", [](Game& g) { ShotAtFauna(g, PL_WEEDS, 707, 6, 1); }},
         {"fauna_atlantis", [](Game& g) { ShotAtFauna(g, PL_ATLANTIS, 808, 6); }},
         {"fauna_atlantis2", [](Game& g) { ShotAtFauna(g, PL_ATLANTIS, 808, 6, 1); }},
@@ -384,6 +410,14 @@ int main(int argc, char** argv) {
     if (argc >= 2 && strcmp(argv[1], "--verify-cave-ecosystem") == 0) {
         SetTraceLogLevel(LOG_WARNING);
         return VerifyBeastBiome(PL_CAVE) ? 0 : 1;
+    }
+    if (argc >= 2 && strcmp(argv[1], "--verify-weeds-ecosystem") == 0) {
+        SetTraceLogLevel(LOG_WARNING);
+        return VerifyBeastBiome(PL_WEEDS) ? 0 : 1;
+    }
+    if (argc >= 2 && strcmp(argv[1], "--verify-atlantis-ecosystem") == 0) {
+        SetTraceLogLevel(LOG_WARNING);
+        return VerifyBeastBiome(PL_ATLANTIS) ? 0 : 1;
     }
     if (argc >= 2 && strcmp(argv[1], "--verify-abyss") == 0) {
         SetTraceLogLevel(LOG_WARNING);

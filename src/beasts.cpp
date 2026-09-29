@@ -44,6 +44,8 @@ const BiomeDef* Biome(int level) {
     case PL_ISLAND: B = &IslandBiome(); break;
     case PL_CAVE: B = &CaveBiome(); break;
     case PL_PIPES: B = &PipesBiome(); break;
+    case PL_WEEDS: B = &WeedsBiome(); break;
+    case PL_ATLANTIS: B = &AtlantisBiome(); break;
     default: break;
     }
     return B && B->count > 0 ? B : nullptr;
@@ -1148,7 +1150,7 @@ void UpdateBeast(BeastWorld& W, PlatformState& p, int i, float dt) {
             b.special2 = 1; // head out
         }
         // anything tasty that comes close gets struck at
-        for (const auto& m : b.mem) if (m.kind == MEM_PREY && Recall(b, m, W.time) > 0.2f && Dist(m.pos, b.pos) < (Has(S, T_DEN_AMBUSH) ? 110.0f : 60.0f) && PreyScore(W, b, m) > 0.05f) {
+        for (const auto& m : b.mem) if (m.kind == MEM_PREY && Recall(b, m, W.time) > (Dist(m.pos, b.pos) < 40 ? 0.08f : 0.2f) && Dist(m.pos, b.pos) < (Has(S, T_DEN_AMBUSH) ? 110.0f : 60.0f) && (PreyScore(W, b, m) > 0.05f || (m.source >= 0 && Dist(m.pos, b.pos) < 40))) { // anything edible that comes right up to an ambusher gets taken
             LeaveDen(W, b); b.special2 = 0;
             b.target = m.source; b.targetId = m.sid; b.act = BeastAct::Coil; b.actT = Has(S, T_CAMO) ? 0.3f : 0.0f; b.goal = m.pos;
             break;

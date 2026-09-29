@@ -598,3 +598,5 @@ Still to do, in order:
 2. Sizes for the other biomes may need a second look at play scale (shots: `--shots shots fauna`).
 3. Remove the old "Still uncharted: the Island, the Weeds, and Atlantis." help line in hub.cpp.
 4. Update CLAUDE.md (new levels, periscope chart, T_CARRY, sizes).
+### Resumed: done
+Weeds and Atlantis creatures built (WeedsBiome/AtlantisBiome, tests via --verify-weeds-ecosystem / --verify-atlantis-ecosystem, art, dens). Shots: fauna_weeds_lineup (size check), fauna_weeds_shark, fauna_atlantis_*. Next: the PDF's player-physics section (slide, impact roll, poles, hydro-glide, water dash, parachute brake).

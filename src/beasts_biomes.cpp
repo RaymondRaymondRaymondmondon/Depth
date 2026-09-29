@@ -483,6 +483,237 @@ const BiomeDef& PipesBiome() {
     }();
     return B;
 }
+// ============================================================ the Weeds
+// The user's web for the kelp forest: phytoplankton and spores feed the kelp seahorses; seahorses feed the mermen and
+// the tiger sharks; the mermen hunt barracuda; mermen and tiger sharks hunt each other. Everything big that blunders
+// into an electric ray gets shocked - the energy of the whole web ends up in the rays - and a shocked body lies
+// electrified, which is what the scavenger crabs and the parasitic fungi live on. Sizes against the diver: plankton,
+// seahorses, crabs and fungi are all smaller (and different from each other); a ray is about the diver's size; a
+// barracuda a little larger; the tiger sharks and mermen three to four times the size.
+//            name              move              mass  rad  speed sprint accel sight  fov   hear smell hunger  dFear dPrey lethal social band pop  den   scav  traits
+const SpeciesDef WEEDS[WS_COUNT] = {
+    {"Phytoplankton",    MoveMode::Swim,    0.02f, 4,   12,  30,  200,   40, PI,   0.1f, 0.1f, 0.000f, 0.3f,  0.0f, false, true,  4, 16, 0.0f, 0.0f, 0},
+    {"Kelp Seahorse",    MoveMode::Swim,    0.2f,  5,   25,  90,  500,  120, 2.6f, 0.5f, 0.3f, 0.012f, 0.8f,  0.0f, false, false, 2,  8, 0.7f, 0.0f, T_CAMO},
+    {"Barracuda",        MoveMode::Swim,    4.0f,  9,   90, 380, 1300,  260, 1.4f, 0.6f, 0.6f, 0.022f, 0.3f,  0.3f, true,  true,  3,  5, 0.2f, 0.2f, T_STRIKER, 130},
+    {"Merman",           MoveMode::Swim,   70.0f, 12,   70, 240,  900,  300, 2.2f, 0.8f, 0.7f, 0.018f, 0.0f,  0.35f, true,  true,  2,  2, 0.6f, 0.3f, T_STRIKER | T_CARRY, 110},
+    {"Tiger Shark",      MoveMode::Swim,   90.0f, 12,   80, 270,  800,  280, 1.8f, 0.9f, 1.0f, 0.020f, 0.0f,  0.35f, true,  false, 3,  2, 0.3f, 0.8f, T_STRIKER | T_CARRY, 120},
+    {"Electric Ray",     MoveMode::Swim,    6.0f, 12,   30, 150,  400,  150, PI,   0.7f, 0.6f, 0.008f, 0.5f,  0.0f, true,  false, 0,  4, 0.6f, 0.0f, 0},
+    {"Scavenger Crab",   MoveMode::Walk,    0.5f,  6,   40, 110,  700,  130, 2.4f, 0.6f, 0.9f, 0.020f, 0.6f,  0.0f, false, true,  0,  6, 0.7f, 1.0f, T_MOBBER},
+    {"Parasitic Fungus", MoveMode::Sessile, 0.1f,  6,    0,   0,    0,   40, PI,   0.0f, 0.8f, 0.006f, 0.0f,  0.0f, false, false, 0,  4, 0.0f, 0.0f, 0},
+};
+const FoodEdge WEEDS_WEB[] = {
+    {WS_SEAHORSE, WS_PLANKTON, 1.0f},
+    {WS_MERMAN, WS_SEAHORSE, 0.7f}, {WS_MERMAN, WS_BARRACUDA, 0.8f}, {WS_MERMAN, WS_SHARK, 0.3f},
+    {WS_SHARK, WS_SEAHORSE, 0.5f},  {WS_SHARK, WS_MERMAN, 0.5f},    {WS_SHARK, WS_BARRACUDA, 0.6f},
+    {WS_BARRACUDA, WS_SEAHORSE, 0.5f},
+};
+
+static void SpawnWeeds(BeastWorld& W, PlatformState& p) {
+    Spots sp; sp.Build(W, p, 12, W.nav.w - 8);
+    if (sp.floor.empty()) return;
+    unsigned s = W.seed;
+    for (int k = 0; k < 2; k++) Pack(W, WS_PLANKTON, sp.Above(W, sp.At(0.2f + 0.45f * k), 5), 8, 110 + k, 70, 40, 100 + k * 20);
+    // seahorses cling among the kelp stalks
+    std::vector<Vector2> kelp;
+    for (int y = 1; y < W.nav.h; y++) for (int x = 12; x < W.nav.w - 8; x++) if (PlatTileAt(p, x, y) == 'w') kelp.push_back({x * TILE + 16.0f, y * TILE + 16.0f});
+    for (int k = 0; k < 8; k++) {
+        Vector2 at = !kelp.empty() ? kelp[(size_t)(Hash(s, 200 + k) * kelp.size()) % kelp.size()] : sp.Above(W, sp.At(0.1f * k + 0.05f), 2);
+        int b = NewBeast(W, WS_SEAHORSE, at); W.beasts[b].special = 1; W.beasts[b].territory = at;
+    }
+    Pack(W, WS_BARRACUDA, sp.Above(W, sp.At(0.35f + Hash(s, 30) * 0.2f), 4), 5, 120, 90, 30, 300);
+    Pack(W, WS_MERMAN, sp.Above(W, sp.At(0.55f + Hash(s, 40) * 0.2f), 3), 2, 130, 60, 20, 400);
+    for (int k = 0; k < 2; k++) { int b = NewBeast(W, WS_SHARK, sp.Above(W, sp.At(0.25f + 0.5f * k), 5)); W.beasts[b].pers.wanderlust = std::max(W.beasts[b].pers.wanderlust, 0.7f); }
+    for (int k = 0; k < 4; k++) NewBeast(W, WS_RAY, sp.Above(W, sp.At(0.12f + 0.24f * k + Hash(s, 60 + k) * 0.08f), 0));
+    for (int k = 0; k < 2; k++) Pack(W, WS_CRAB, NearDenFloor(W, sp, 0.3f + 0.4f * k, 6), 3, 140 + k, 40, 0, 700 + k * 10);
+    for (int k = 0; k < 2; k++) { Vector2 f = sp.At(0.4f + 0.3f * k); NewBeast(W, WS_FUNGUS, {f.x, (f.y + 1) * TILE - 3}); }
+}
+
+// A ray's discharge: everything alive close by is shocked (the small die of it), and whatever it kills lies electrified.
+static void Discharge(BeastWorld& W, PlatformState& p, int i) {
+    Beast& r = W.beasts[i];
+    r.special = 0.8f; r.cooldown = 3.5f;
+    W.sounds.push_back({r.pos, 1.0f, 0.4f, i});
+    for (int j = 0; j < (int)W.beasts.size(); j++) {
+        Beast& o = W.beasts[j];
+        if (j == i || !Alive(o) || o.hidden || o.species == WS_RAY || Dist(o.pos, r.pos) > 72) continue;
+        Hurt(W, p, j, o.mass < 2 ? 1.2f : 0.7f, WS_RAY, false); // the small die of it; the big are hurt
+        if (o.life == BeastLife::Corpse) o.special2 = 1; // electrified
+        else { Remember(o, MEM_THREAT, i, r.id, r.pos, {0, 0}, 1.0f, W.time); o.vel = Add(o.vel, Mul(Norm(Sub(o.pos, r.pos)), 220)); }
+    }
+    if (!p.verifying) PlatBurst(p, r.pos, 18, Color{180, 230, 255, 255}, 160, 0.3f, 2);
+}
+static void WeedsHooks(BeastWorld& W, PlatformState& p, int i, float dt) {
+    Beast& b = W.beasts[i];
+    switch (b.species) {
+    case WS_SEAHORSE: { // it holds still among the kelp, and all but vanishes
+        bool still = Len(b.vel) < 18;
+        b.special = Clamp01(b.special + (still ? 0.3f : -0.9f) * dt);
+        break;
+    }
+    case WS_PLANKTON: // it only drifts; the current carries the cloud
+        b.vel.x += sinf(W.time * 0.3f + b.id) * 4 * dt;
+        break;
+    case WS_RAY: {
+        b.special -= dt;
+        if (b.special > 0 || b.cooldown > 0) break;
+        bool pressed = false;
+        for (const auto& o : W.beasts) if (Alive(o) && !o.hidden && o.species != WS_RAY && o.mass > 1 && Dist(o.pos, b.pos) < 48) pressed = true; // something big bumped it
+        Diver dv = SeeDiver(p);
+        if (dv.alive && Dist(dv.pos, b.pos) < 44) pressed = true;
+        if (pressed || (b.fear > 0.7f && R(W) < 0.02f)) Discharge(W, p, i);
+        break;
+    }
+    case WS_FUNGUS: { // it grows on the dead - an electrified body most of all - and spreads from it
+        for (int j = 0; j < (int)W.beasts.size(); j++) {
+            Beast& c = W.beasts[j];
+            if (c.life != BeastLife::Corpse || Dist(c.pos, b.pos) > 60) continue;
+            c.meat -= dt * (c.special2 > 0 ? 0.12f : 0.04f);
+            if (c.meat <= 0.02f) {
+                c.life = BeastLife::Gone; W.scavenged++;
+                int n = 0; for (const auto& o : W.beasts) n += o.species == WS_FUNGUS && o.life == BeastLife::Alive;
+                if (n < 10) { int k = NewBeast(W, WS_FUNGUS, {c.pos.x, c.pos.y}); W.beasts[k].vel = {0, 0}; W.births++; }
+            }
+            break;
+        }
+        break;
+    }
+    default: break;
+    }
+}
+static void WeedsExtras(BeastWorld& W, const PlatformState& p, int i, Choice& best) {
+    Beast& b = W.beasts[i];
+    (void)p;
+    if (b.species == WS_CRAB) { // an electrified body draws them from far off
+        for (int j = 0; j < (int)W.beasts.size(); j++) {
+            const Beast& c = W.beasts[j];
+            if (c.life == BeastLife::Corpse && c.special2 > 0 && c.id != b.ignoreId && Dist(c.pos, b.pos) < 14 * TILE) { Consider(b, best, BeastAct::Scavenge, 0.7f + 0.3f * b.hunger, j, c.id, c.pos); break; }
+        }
+    }
+    if (b.species == WS_SEAHORSE && b.fear < 0.3f && b.hunger < 0.6f) Consider(b, best, BeastAct::Ambush, 0.3f, -1, 0, b.pos); // clinging still among the kelp, grazing what drifts past
+}
+static bool WeedsLethal(const BeastWorld& W, const Beast& b) {
+    (void)W;
+    switch (b.species) {
+    case WS_BARRACUDA: return b.act == BeastAct::Strike || b.act == BeastAct::Coil;
+    case WS_MERMAN: case WS_SHARK: return b.act == BeastAct::Coil || b.act == BeastAct::Strike || (b.act == BeastAct::Hunt && b.target == BEAST_DIVER); // cruising past, it ignores you; coming for you, it kills
+    case WS_RAY: return b.special > 0;
+    default: return false;
+    }
+}
+static bool WeedsTouch(const BeastWorld& W, const Beast& b, Rectangle diver) {
+    (void)W;
+    return b.species == WS_RAY && b.life == BeastLife::Alive && b.special > 0 && CheckCollisionCircleRec(b.pos, 60, diver); // the discharge reaches
+}
+const BiomeDef& WeedsBiome() {
+    static const BiomeDef B = [] {
+        BiomeDef d;
+        d.level = PL_WEEDS; d.species = WEEDS; d.count = WS_COUNT; d.web = WEEDS_WEB; d.webN = (int)(sizeof(WEEDS_WEB) / sizeof(WEEDS_WEB[0]));
+        d.water = true; d.clarity = 0.85f; d.daylight = 0.7f;
+        static const float SIZES[WS_COUNT] = {0.5f, 0.8f, 1.5f, 3.5f, 3.6f, 1.0f, 0.8f, 0.7f};
+        d.sizes = SIZES;
+        d.spawn = SpawnWeeds; d.hooks = WeedsHooks; d.extras = WeedsExtras; d.lethal = WeedsLethal; d.touch = WeedsTouch;
+        return d;
+    }();
+    return B;
+}
+
+// ============================================================ Atlantis
+// The drowned city has its own web, lit by the glyphs: glyph wisps - motes of living light - drift toward anything
+// glowing; blind temple shrimp school after the wisps; anglerfish hang in the dark halls with a lure of their own, and
+// what comes to the light is eaten; glyph eels wait in the broken masonry for the shrimp; the stone guardians sit so
+// still among the rubble that they are rubble, until something small passes; and the Lost Ones - the drowned citizens
+// themselves - shuffle through the streets after any sound, and pick over whatever the others leave.
+//            name              move              mass  rad  speed sprint accel sight  fov   hear smell hunger  dFear dPrey lethal social band pop  den   scav  traits
+const SpeciesDef ATLANTIS[AS_COUNT] = {
+    {"Glyph Wisp",       MoveMode::Swim,    0.02f, 3,   20,  60,  300,   80, PI,   0.1f, 0.1f, 0.000f, 0.4f,  0.0f, false, true,  3, 12, 0.0f, 0.0f, T_LIGHTSEEK},
+    {"Temple Shrimp",    MoveMode::Swim,    0.1f,  4,   40, 160,  700,   90, 2.6f, 0.8f, 0.5f, 0.012f, 0.8f,  0.0f, false, true,  2, 12, 0.6f, 0.3f, 0},
+    {"Anglerfish",       MoveMode::Swim,    6.0f, 10,   30, 280,  900,  200, 2.0f, 0.6f, 0.6f, 0.018f, 0.2f,  0.4f, true,  false, 3,  3, 0.5f, 0.3f, T_STRIKER | T_CAMO, 90},
+    {"Lost One",         MoveMode::Walk,   60.0f, 10,   30,  90,  500,  120, 2.0f, 1.0f, 0.8f, 0.015f, 0.0f,  0.6f, true,  true,  0,  4, 0.6f, 1.0f, 0},
+    {"Stone Guardian",   MoveMode::Walk,    6.0f, 12,   25, 260, 1200,  150, 1.6f, 0.7f, 0.3f, 0.010f, 0.1f,  0.4f, true,  false, 0,  3, 0.8f, 0.3f, T_CAMO | T_STRIKER | T_CHARGER, 110},
+    {"Glyph Eel",        MoveMode::Swim,    5.0f,  9,   90, 320, 1100,  220, 1.9f, 0.8f, 0.9f, 0.025f, 0.2f,  0.5f, true,  false, 2,  3, 0.9f, 0.4f, T_STRIKER | T_DEN_AMBUSH | T_CARRY, 120},
+};
+const FoodEdge ATLANTIS_WEB[] = {
+    {AS_SHRIMP, AS_WISP, 0.9f},
+    {AS_ANGLER, AS_SHRIMP, 1.0f}, {AS_ANGLER, AS_WISP, 0.6f},
+    {AS_EEL, AS_SHRIMP, 0.9f},    {AS_EEL, AS_ANGLER, 0.3f},
+    {AS_GUARDIAN, AS_SHRIMP, 0.4f}, {AS_GUARDIAN, AS_LOSTONE, 0.3f},
+};
+static void SpawnAtlantis(BeastWorld& W, PlatformState& p) {
+    Spots sp; sp.Build(W, p, 12, W.nav.w - 8);
+    if (sp.floor.empty()) return;
+    unsigned s = W.seed;
+    for (int k = 0; k < 3; k++) Pack(W, AS_WISP, sp.Above(W, sp.At(0.15f + 0.3f * k), 3), 4, 150 + k, 60, 40, 100 + k * 10);
+    for (int k = 0; k < 2; k++) Pack(W, AS_SHRIMP, sp.Above(W, sp.At(0.3f + 0.4f * k), 2), 6, 160 + k, 50, 20, 200 + k * 10);
+    for (int k = 0; k < 3; k++) { int b = NewBeast(W, AS_ANGLER, sp.Above(W, sp.At(0.2f + 0.3f * k + Hash(s, 30 + k) * 0.1f), 3)); W.beasts[b].special = 1; }
+    for (int k = 0; k < 2; k++) Pack(W, AS_LOSTONE, NearDenFloor(W, sp, 0.25f + 0.45f * k, 10), 2, 170 + k, 40, 0, 400 + k * 10);
+    for (int k = 0; k < 3; k++) { int b = NewBeast(W, AS_GUARDIAN, sp.Stand(sp.At(0.15f + 0.3f * k + Hash(s, 50 + k) * 0.1f), 12)); W.beasts[b].special = 1; }
+    for (int k = 0; k < 3 && !W.dens.empty(); k++) {
+        int d = (int)(Hash(s, 60 + k) * W.dens.size()) % (int)W.dens.size();
+        int b = NewBeast(W, AS_EEL, DenMouth(W, d));
+        W.beasts[b].den = d; EnterDen(W, W.beasts[b], d); W.beasts[b].act = BeastAct::Ambush;
+    }
+}
+static void AtlantisHooks(BeastWorld& W, PlatformState& p, int i, float dt) {
+    Beast& b = W.beasts[i];
+    switch (b.species) {
+    case AS_ANGLER: { // it hangs still in the dark and keeps its lure lit: the light is the trap
+        bool still = Len(b.vel) < 20;
+        b.special = Clamp01(b.special + (still ? 0.3f : -0.9f) * dt);
+        b.flashT = 0.2f; // its lure is a light everything else can see by, and swims toward
+        break;
+    }
+    case AS_GUARDIAN: { // stone among stone while it keeps still
+        bool still = Len(b.vel) < 12;
+        b.special = Clamp01(b.special + (still ? 0.4f : -1.5f) * dt);
+        break;
+    }
+    case AS_WISP: b.flashT = std::max(b.flashT, 0.05f); break; // a faint glow of its own
+    default: break;
+    }
+    (void)p;
+}
+static void AtlantisExtras(BeastWorld& W, const PlatformState& p, int i, Choice& best) {
+    Beast& b = W.beasts[i];
+    if (b.species == AS_WISP && b.fear < 0.5f) { // toward the brightest light: a glyph, a lure, the diver's lamp
+        Vector2 at{0, 0}; float bright = 0;
+        for (const auto& l : W.lights) { float d = Dist(l.pos, b.pos); if (d < 10 * TILE && d > 1 && l.strength / (1 + d / TILE) > bright) { bright = l.strength / (1 + d / TILE); at = l.pos; } }
+        for (const auto& l : W.lamps) { float d = Dist(l, b.pos); if (d < 10 * TILE && 0.6f / (1 + d / TILE) > bright) { bright = 0.6f / (1 + d / TILE); at = l; } }
+        Diver dv = SeeDiver(p);
+        if (dv.alive) { float d = Dist(dv.pos, b.pos); if (d < 9 * TILE && 0.8f / (1 + d / TILE) > bright) { bright = 0.8f / (1 + d / TILE); at = Add(dv.pos, Vector2{0, -12}); } }
+        if (bright > 0) Consider(b, best, BeastAct::Investigate, 0.45f + bright, -1, 0, Add(at, Vector2{sinf(b.phase * 2) * 16, cosf(b.phase * 1.7f) * 10}));
+    }
+    if (b.species == AS_GUARDIAN && b.fear < 0.3f) Consider(b, best, BeastAct::Ambush, 0.5f, -1, 0, b.pos); // it settles, and becomes rubble
+    if (b.species == AS_LOSTONE && b.fear < 0.5f) { // the drowned hunt by ear: any sound draws them, the louder the surer
+        float bs = 0; Vector2 at{0, 0};
+        for (const auto& m : b.mem) if (m.kind == MEM_SOUND) { float r = Recall(b, m, W.time); if (r > bs) { bs = r; at = m.pos; } }
+        if (bs > 0.05f && Dist(at, b.pos) > TILE) Consider(b, best, BeastAct::Investigate, 0.45f + bs, -1, 0, at);
+    }
+}
+static bool AtlantisLethal(const BeastWorld& W, const Beast& b) {
+    (void)W;
+    switch (b.species) {
+    case AS_ANGLER: case AS_LOSTONE: case AS_EEL: return true;
+    case AS_GUARDIAN: return b.act == BeastAct::Strike || b.act == BeastAct::Coil; // rubble, until it moves
+    default: return false;
+    }
+}
+static bool AtlantisTouch(const BeastWorld& W, const Beast& b, Rectangle diver) {
+    (void)W;
+    if (b.species == AS_EEL && b.life == BeastLife::Alive && b.hidden && b.act == BeastAct::Ambush) return CheckCollisionCircleRec({b.pos.x, b.pos.y - 22}, 8, diver);
+    return false;
+}
+const BiomeDef& AtlantisBiome() {
+    static const BiomeDef B = [] {
+        BiomeDef d;
+        d.level = PL_ATLANTIS; d.species = ATLANTIS; d.count = AS_COUNT; d.web = ATLANTIS_WEB; d.webN = (int)(sizeof(ATLANTIS_WEB) / sizeof(ATLANTIS_WEB[0]));
+        d.water = true; d.clarity = 0.6f; d.daylight = 0.08f;
+        static const float SIZES[AS_COUNT] = {0.6f, 0.8f, 1.8f, 1.4f, 1.8f, 1.8f};
+        d.sizes = SIZES;
+        d.spawn = SpawnAtlantis; d.hooks = AtlantisHooks; d.extras = AtlantisExtras; d.lethal = AtlantisLethal; d.touch = AtlantisTouch;
+        return d;
+    }();
+    return B;
+}
 // ============================================================ test benches (depth.exe --verify-<biome>-ecosystem)
 // A synthetic box of floor and walls in a biome's world, with nobody in it yet: the diver parked far away.
 static void Bench(PlatformState& p, int level, int w, int h) {
@@ -830,6 +1061,107 @@ static bool VerifyPipes() {
     if (ok) TraceLog(LOG_WARNING, "verify-pipe-ecosystem: OK - the diver ignored, moth to light into a web, flash stampede and pillbug curl all confirmed");
     return ok;
 }
+static bool VerifyWeeds() {
+    bool ok = true;
+    auto fail = [&](const char* what) { TraceLog(LOG_WARNING, "verify-weeds-ecosystem: FAILED - %s", what); ok = false; };
+    ok &= RealLevel(PL_WEEDS, "weeds-ecosystem", 7, 3, 707);
+    // 1) a seahorse grazes the plankton
+    {
+        PlatformState p; Bench(p, PL_WEEDS, 40, 14); BenchBuild(p);
+        BeastWorld& W = p.fauna;
+        int sh = Put(W, WS_SEAHORSE, {18 * TILE, 8 * TILE}); W.beasts[sh].hunger = 1; W.beasts[sh].pers.aggression = 0.9f;
+        int pk = Put(W, WS_PLANKTON, {21 * TILE, 8 * TILE});
+        bool ate = false;
+        for (int f = 0; f < 60 * 20 && !ate; f++) { BeastsUpdate(p, 1 / 60.0f); if (W.beasts[pk].life != BeastLife::Alive) ate = true; }
+        if (!ate) fail("a hungry seahorse never grazed the plankton drifting by");
+    }
+    // 2) something big bumps a ray: the discharge kills the small nearby, the body lies electrified, and the crabs come for it
+    {
+        PlatformState p; Bench(p, PL_WEEDS, 40, 14); BenchBuild(p);
+        BeastWorld& W = p.fauna;
+        int ray = Put(W, WS_RAY, {20 * TILE, 11 * TILE + 20});
+        int sh = Put(W, WS_SEAHORSE, {20 * TILE + 24, 11 * TILE + 4});
+        Put(W, WS_BARRACUDA, {20 * TILE - 20, 11 * TILE + 10});
+        int crab = Put(W, WS_CRAB, {27 * TILE, 11 * TILE + 26}); W.beasts[crab].hunger = 0.8f;
+        bool shocked = false, electrified = false, scav = false;
+        for (int f = 0; f < 60 * 25 && !scav; f++) {
+            BeastsUpdate(p, 1 / 60.0f);
+            if (W.beasts[ray].special > 0) shocked = true;
+            if (W.beasts[sh].life == BeastLife::Corpse && W.beasts[sh].special2 > 0) electrified = true;
+            if (W.beasts[crab].act == BeastAct::Eat) scav = true;
+        }
+        if (!shocked) fail("a barracuda bumping a ray never set off its discharge");
+        if (!electrified) fail("the discharge never left an electrified body");
+        if (!scav) fail("the scavenger crabs never came for the electrified body");
+        if (shocked) { W.beasts[ray].special = 0.5f; Rectangle d{W.beasts[ray].pos.x + 20, W.beasts[ray].pos.y - 14, 16, 28}; if (!BeastsTouchDiver(p, d)) fail("a ray's discharge doesn't reach the diver beside it"); }
+    }
+    // 3) a tiger shark takes a seahorse and carries it off
+    {
+        PlatformState p; Bench(p, PL_WEEDS, 50, 16); BenchBuild(p);
+        BeastWorld& W = p.fauna;
+        int shark = Put(W, WS_SHARK, {12 * TILE, 8 * TILE}); W.beasts[shark].hunger = 1; W.beasts[shark].pers.aggression = 0.9f;
+        int sh = Put(W, WS_BARRACUDA, {20 * TILE, 8 * TILE}); W.beasts[sh].school = -1;
+        bool killed = false, carried = false;
+        for (int f = 0; f < 60 * 25 && !carried; f++) {
+            BeastsUpdate(p, 1 / 60.0f);
+            if (W.beasts[sh].life != BeastLife::Alive) killed = true;
+            if (W.beasts[shark].carry == sh) carried = true;
+        }
+        if (!killed) fail("a hungry tiger shark never caught a barracuda");
+        if (!carried) fail("the shark never carried its kill off");
+    }
+    if (ok) TraceLog(LOG_WARNING, "verify-weeds-ecosystem: OK - grazing, ray discharge/electrified body/crab scavenging, and the shark's carry-off all confirmed");
+    return ok;
+}
+static bool VerifyAtlantis() {
+    bool ok = true;
+    auto fail = [&](const char* what) { TraceLog(LOG_WARNING, "verify-atlantis-ecosystem: FAILED - %s", what); ok = false; };
+    ok &= RealLevel(PL_ATLANTIS, "atlantis-ecosystem", 6, 3, 808);
+    // 1) a wisp drifts to an anglerfish's lure, and the angler eats what the light brings in
+    {
+        PlatformState p; Bench(p, PL_ATLANTIS, 40, 14); BenchBuild(p);
+        BeastWorld& W = p.fauna;
+        int ang = Put(W, AS_ANGLER, {24 * TILE, 7 * TILE}); W.beasts[ang].hunger = 1; W.beasts[ang].pers.aggression = 0.9f;
+        int wisp = Put(W, AS_WISP, {14 * TILE, 7 * TILE});
+        int shrimp = Put(W, AS_SHRIMP, {11 * TILE, 7 * TILE}); W.beasts[shrimp].hunger = 1;
+        bool drawn = false, eaten = false;
+        for (int f = 0; f < 60 * 30 && !eaten; f++) {
+            BeastsUpdate(p, 1 / 60.0f);
+            if (Dist(W.beasts[wisp].pos, W.beasts[ang].pos) < 4 * TILE) drawn = true;
+            if (W.beasts[ang].act == BeastAct::Eat) eaten = true;
+            if (getenv("DEPTH_BEASTLOG") && f % 60 == 0) { const Beast& a = W.beasts[ang]; int np = 0; float br = 0; for (const auto& m : a.mem) if (m.kind == MEM_PREY && m.strength > 0) { np++; br = std::max(br, Recall(a, m, W.time)); } TraceLog(LOG_WARNING, "  angler t=%d %s (%.0f,%.0f) tgt %d camo %.2f prey %d/%.2f | wisp %s (%.0f,%.0f) life %d | shrimp %s (%.0f,%.0f) life %d", f / 60, BeastActName(a.act), a.pos.x, a.pos.y, a.target, a.special, np, br, BeastActName(W.beasts[wisp].act), W.beasts[wisp].pos.x, W.beasts[wisp].pos.y, (int)W.beasts[wisp].life, BeastActName(W.beasts[shrimp].act), W.beasts[shrimp].pos.x, W.beasts[shrimp].pos.y, (int)W.beasts[shrimp].life); }
+        }
+        if (!drawn) fail("a glyph wisp was never drawn to the anglerfish's lure");
+        if (!eaten) fail("the anglerfish never ate what its lure brought in");
+    }
+    // 2) a stone guardian settles into the rubble, then strikes at a shrimp passing close
+    {
+        PlatformState p; Bench(p, PL_ATLANTIS, 40, 14); BenchBuild(p);
+        BeastWorld& W = p.fauna;
+        int gd = Put(W, AS_GUARDIAN, {20 * TILE, 11 * TILE + 20}); W.beasts[gd].hunger = 1; W.beasts[gd].pers.aggression = 0.9f; W.beasts[gd].pers.wanderlust = 0;
+        bool hidden = false, struck = false;
+        for (int f = 0; f < 60 * 25 && !struck; f++) {
+            BeastsUpdate(p, 1 / 60.0f);
+            if (W.beasts[gd].special > 0.8f) hidden = true;
+            if (f == 60 * 5) Put(W, AS_SHRIMP, {17 * TILE, 11 * TILE + 10});
+            if (W.beasts[gd].act == BeastAct::Coil || W.beasts[gd].act == BeastAct::Strike) struck = true;
+        }
+        if (!hidden) fail("a stone guardian never settled into the rubble");
+        if (!struck) fail("a hidden guardian never struck at a shrimp passing close");
+    }
+    // 3) a Lost One shuffles toward a noise
+    {
+        PlatformState p; Bench(p, PL_ATLANTIS, 40, 14); BenchBuild(p);
+        BeastWorld& W = p.fauna;
+        int lo = Put(W, AS_LOSTONE, {10 * TILE, 11 * TILE + 22}); W.beasts[lo].pers.curiosity = 0.9f;
+        W.sounds.push_back({{16 * TILE, 11 * TILE}, 1.0f, 0.4f, -1});
+        bool heard = false;
+        for (int f = 0; f < 60 * 3 && !heard; f++) { BeastsUpdate(p, 1 / 60.0f); if (W.beasts[lo].act == BeastAct::Investigate) heard = true; }
+        if (!heard) fail("a Lost One never went after a noise");
+    }
+    if (ok) TraceLog(LOG_WARNING, "verify-atlantis-ecosystem: OK - lure and catch, the guardian's ambush, and the Lost Ones hunting by sound all confirmed");
+    return ok;
+}
 // ============================================================ not yet moved over (their old overlays still run)
 }  // namespace bk
 
@@ -839,6 +1171,8 @@ bool VerifyBeastBiome(int level) {
     case PL_ISLAND: return bk::VerifyIsland();
     case PL_CAVE: return bk::VerifyCave();
     case PL_PIPES: return bk::VerifyPipes();
+    case PL_WEEDS: return bk::VerifyWeeds();
+    case PL_ATLANTIS: return bk::VerifyAtlantis();
     default: return false;
     }
 }

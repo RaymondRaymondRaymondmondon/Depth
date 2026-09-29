@@ -3875,6 +3875,244 @@ void DrawPipesDen(const PlatformState& p, const Den& d, float t) {
     for (const auto& b : p.fauna.beasts) if (b.life == BeastLife::Alive && b.hidden && fabsf(b.pos.x - x) < 4) inside++;
     if (inside && fmodf(t * 0.8f + x * 0.013f, 3.5f) < 2.6f) { DrawCircle((int)x - 2, (int)y + 2, 0.8f, Color{250, 220, 140, 255}); DrawCircle((int)x + 2, (int)y + 2, 0.8f, Color{250, 220, 140, 255}); }
 }
+// ---------------------------------------------------------------- the Weeds and Atlantis
+// Drawn at base size; DrawFauna scales each species up the food chain (the sharks and mermen three to four times
+// the diver). Swimmers are laid out along a heading taken from their own trailing spine, so they turn and bank.
+Vector2 SwimBack(const Beast& b) { // unit vector from the head toward the tail
+    Vector2 d{b.spine[2].x - b.pos.x, b.spine[2].y - b.pos.y};
+    float l = sqrtf(d.x * d.x + d.y * d.y);
+    return l > 2 ? Vector2{d.x / l, d.y / l} : Vector2{-b.facing, 0};
+}
+// A fish body along its heading: a lens of two triangles fans with an ink rim, a forked tail that beats.
+void DrawFishBody(const Beast& b, float len, float girth, Color back, Color belly, float tailBeat, float tailSize) {
+    Vector2 bk = SwimBack(b), n{-bk.y, bk.x};
+    if (n.y > 0) n = {-n.x, -n.y}; // n points up (the back)
+    Vector2 head{b.pos.x - bk.x * len * 0.5f, b.pos.y - bk.y * len * 0.5f}, tailRoot{b.pos.x + bk.x * len * 0.45f, b.pos.y + bk.y * len * 0.45f};
+    Vector2 top{b.pos.x + n.x * girth, b.pos.y + n.y * girth}, bot{b.pos.x - n.x * girth * 0.9f, b.pos.y - n.y * girth * 0.9f};
+    Vector2 sw{n.x * tailBeat, n.y * tailBeat};
+    Vector2 t1{tailRoot.x + bk.x * tailSize + n.x * tailSize * 0.8f + sw.x, tailRoot.y + bk.y * tailSize + n.y * tailSize * 0.8f + sw.y};
+    Vector2 t2{tailRoot.x + bk.x * tailSize - n.x * tailSize * 0.8f + sw.x, tailRoot.y + bk.y * tailSize - n.y * tailSize * 0.8f + sw.y};
+    DrawTri(tailRoot, t1, t2, FAUNA_INK);
+    DrawTri({tailRoot.x - bk.x * 2, tailRoot.y - bk.y * 2}, {t1.x - bk.x * 1.5f, t1.y - bk.y * 1.5f}, {t2.x - bk.x * 1.5f, t2.y - bk.y * 1.5f}, back);
+    auto inflate = [&](Vector2 v, float k) { return Vector2{b.pos.x + (v.x - b.pos.x) * k, b.pos.y + (v.y - b.pos.y) * k}; };
+    DrawTri(inflate(head, 1.08f), inflate(top, 1.15f), inflate(tailRoot, 1.08f), FAUNA_INK); DrawTri(inflate(head, 1.08f), inflate(bot, 1.15f), inflate(tailRoot, 1.08f), FAUNA_INK);
+    DrawTri(head, top, tailRoot, back); DrawTri(head, bot, tailRoot, belly);
+}
+
+void DrawWeedsBeast(const PlatformState& p, const Beast& b, float t) {
+    const SpeciesDef& S = BeastSpecies(PL_WEEDS, b.species);
+    float x = b.pos.x, y = b.pos.y, f = b.facing;
+    bool dead = b.life == BeastLife::Corpse, strike = b.act == BeastAct::Strike, coil = b.act == BeastAct::Coil, fleeing = b.act == BeastAct::Flee;
+    float beat = sinf(b.phase * (fleeing ? 14.0f : 7.0f));
+    if (dead && b.species != WS_FUNGUS) {
+        float r = S.radius;
+        DrawEllipse((int)x, (int)y + 1, r * 1.2f + 1, r * 0.5f + 1, FAUNA_INK);
+        DrawEllipse((int)x, (int)y + 1, r * 1.2f, r * 0.5f, Color{130, 136, 140, 255});
+        if (b.special2 > 0) for (int k = 0; k < 3; k++) { float a = t * 7 + k * 2.1f; DrawLineEx({x + cosf(a) * 4, y + sinf(a) * 2}, {x + cosf(a) * 11, y + sinf(a) * 5 - 3}, 1.2f, Fade(Color{180, 230, 255, 255}, 0.5f + 0.5f * sinf(t * 23 + k))); } // still crackling
+        return;
+    }
+    switch (b.species) {
+    case WS_PLANKTON: // a drifting cloud of green motes and spores
+        for (int k = 0; k < 7; k++) { float a = k * 0.9f + t * 0.6f + b.phase, r = 3 + (k % 3) * 2.5f; DrawCircle((int)(x + cosf(a) * r), (int)(y + sinf(a * 1.3f) * r * 0.7f), 1.2f, Fade(Color{150, 220, 120, 255}, 0.55f + 0.3f * sinf(t * 3 + k))); }
+        break;
+    case WS_SEAHORSE: { // upright, curled tail, a long snout; the dorsal fin flutters; it fades into the kelp when still
+        float a = 1.0f - 0.75f * std::clamp(b.special, 0.0f, 1.0f);
+        Color c = Fade(Color{214, 170, 70, 255}, a), dk = Fade(Color{150, 100, 40, 255}, a);
+        float bob = sinf(t * 2 + b.phase) * 1.2f;
+        for (int k = 0; k < 5; k++) { float u = k / 4.0f; DrawCircle((int)(x + sinf(u * 2.6f) * 3 * f), (int)(y - 6 + k * 3 + bob), 3.2f - u * 1.6f, Fade(FAUNA_INK, a)); DrawCircle((int)(x + sinf(u * 2.6f) * 3 * f), (int)(y - 6 + k * 3 + bob), 2.4f - u * 1.4f, c); }
+        DrawCircleLines((int)(x - f * 2), (int)(y + 9 + bob), 2.5f, dk);                                      // the curled tail
+        DrawCircle((int)x, (int)(y - 8 + bob), 3.2f, c); DrawLineEx({x + f * 2, y - 8 + bob}, {x + f * 7, y - 7 + bob}, 1.6f, c); // head and snout
+        DrawTri({x - f * 2, y - 3 + bob}, {x - f * (6 + sinf(t * 20) * 1.5f), y - 1 + bob}, {x - f * 2, y + 2 + bob}, Fade(Color{240, 210, 120, 255}, a * 0.8f)); // the fin
+        DrawCircle((int)(x + f * 1), (int)(y - 9 + bob), 0.7f, Fade(FAUNA_INK, a));
+        break;
+    }
+    case WS_BARRACUDA: {
+        DrawFishBody(b, 22, 3.6f, Color{120, 140, 150, 255}, Color{210, 220, 222, 255}, beat * 2, 5);
+        Vector2 bk = SwimBack(b), head{x - bk.x * 11, y - bk.y * 11};
+        for (int k = 0; k < 4; k++) DrawRectangle((int)(x - bk.x * (k * 4 - 6)), (int)(y - bk.y * (k * 4 - 6)) - 2, 2, 3, Color{60, 70, 80, 255}); // bars along the flank
+        if (strike || coil) DrawTri(head, {head.x - bk.x * 5, head.y - bk.y * 5 - 2}, {head.x - bk.x * 5, head.y - bk.y * 5 + 3}, Color{70, 20, 30, 255}); // the underslung jaw, gaping
+        DrawCircle((int)(head.x + bk.x * 3), (int)(head.y + bk.y * 3 - 1), 1.1f, FAUNA_INK);
+        break;
+    }
+    case WS_SHARK: { // a tiger shark: blunt head, stripes, a tall dorsal fin; jaws open when it comes in
+        Vector2 bk = SwimBack(b), n{-bk.y, bk.x};
+        if (n.y > 0) n = {-n.x, -n.y};
+        DrawFishBody(b, 34, 6.5f, Color{110, 116, 108, 255}, Color{214, 210, 196, 255}, beat * 3, 9);
+        Vector2 fin{x + n.x * 6, y + n.y * 6};
+        DrawTri({fin.x - bk.x * 4, fin.y - bk.y * 4}, {fin.x + bk.x * 6, fin.y + bk.y * 6}, {fin.x + n.x * 8 + bk.x * 4, fin.y + n.y * 8 + bk.y * 4}, Color{90, 96, 88, 255}); // dorsal
+        for (int k = 0; k < 5; k++) { Vector2 q{x + bk.x * (k * 4 - 8) + n.x * 3, y + bk.y * (k * 4 - 8) + n.y * 3}; DrawLineEx(q, {q.x + n.x * 2.5f + bk.x * 1.5f, q.y + n.y * 2.5f + bk.y * 1.5f}, 1.4f, Color{60, 62, 56, 255}); } // the tiger stripes
+        Vector2 head{x - bk.x * 16, y - bk.y * 16};
+        float gape = coil ? 0.7f : strike ? 1.0f : b.act == BeastAct::Eat ? 0.5f * fabsf(sinf(t * 10)) : 0.1f;
+        DrawTri({head.x + bk.x * 5, head.y + bk.y * 5 - n.y * 0.5f}, {head.x - bk.x * 1 - n.x * 3 * gape, head.y - bk.y * 1 - n.y * 3 * gape + 1}, {head.x + bk.x * 2 - n.x * 5 * gape, head.y + bk.y * 2 - n.y * 5 * gape}, Color{90, 24, 34, 255});
+        if (gape > 0.4f) for (int k = 0; k < 3; k++) DrawRectangle((int)(head.x + bk.x * (1 + k * 1.5f)), (int)(head.y + bk.y * (1 + k * 1.5f)), 1, 1, WHITE);
+        DrawCircle((int)(head.x + bk.x * 4 + n.x * 1.5f), (int)(head.y + bk.y * 4 + n.y * 1.5f), 0.9f, FAUNA_INK);
+        for (int k = 0; k < 3; k++) DrawLineEx({head.x + bk.x * (7 + k * 1.5f), head.y + bk.y * (7 + k * 1.5f) - 1.5f}, {head.x + bk.x * (7 + k * 1.5f), head.y + bk.y * (7 + k * 1.5f) + 1.5f}, 0.8f, Color{60, 62, 56, 255}); // gill slits
+        break;
+    }
+    case WS_MERMAN: { // a man to the waist, a great fish tail below; a trident held in a two-bone arm
+        Vector2 bk = SwimBack(b);
+        Color skin{150, 176, 150, 255}, scale{56, 110, 110, 255}, hair{30, 50, 44, 255};
+        // the tail, trailing and beating
+        Vector2 prev{x + bk.x * 3, y + bk.y * 3 + 3};
+        for (int k = 1; k <= 5; k++) {
+            float u = k / 5.0f, w = sinf(b.phase * 6 - k * 0.9f) * 2.5f * u;
+            Vector2 q{x + bk.x * (3 + k * 3.2f) - bk.y * w, y + bk.y * (3 + k * 3.2f) + 3 + bk.x * w};
+            DrawLineEx(prev, q, 7.0f - u * 4 + 2, FAUNA_INK); DrawLineEx(prev, q, 7.0f - u * 4, scale);
+            prev = q;
+        }
+        DrawTri(prev, {prev.x + bk.x * 5 - 4, prev.y - 5}, {prev.x + bk.x * 5 + 4, prev.y + 5}, Color{70, 140, 140, 255}); // the flukes
+        // the torso, leaning into the swim
+        Vector2 chest{x - bk.x * 3, y - bk.y * 3 - 2}, head{x - bk.x * 7, y - bk.y * 7 - 5};
+        DrawLineEx({x + bk.x * 2, y + bk.y * 2 + 2}, chest, 8, FAUNA_INK); DrawLineEx({x + bk.x * 2, y + bk.y * 2 + 2}, chest, 6, skin);
+        DrawCircleV(head, 4.2f, FAUNA_INK); DrawCircleV(head, 3.4f, skin);
+        for (int k = 0; k < 4; k++) DrawLineEx(head, {head.x + bk.x * (5 + k) + sinf(t * 2 + k) * 1.5f, head.y + bk.y * (5 + k) - 2 + k}, 1.4f, hair); // streaming hair
+        DrawCircle((int)(head.x - bk.x * 1.6f), (int)head.y - 1, 0.8f, Color{230, 240, 120, 255});
+        // the trident arm: shoulder to hand by IK, levelled at the target when it strikes
+        Vector2 sh{chest.x, chest.y - 1}, hand{chest.x - bk.x * (strike ? 10 : coil ? 3 : 6), chest.y - bk.y * 6 + (coil ? -5 : 2)};
+        Vector2 el = ik::Knee(sh, hand, 5, 5, f);
+        DrawLineEx(sh, el, 3, FAUNA_INK); DrawLineEx(el, hand, 3, FAUNA_INK); DrawLineEx(sh, el, 2, skin); DrawLineEx(el, hand, 2, skin);
+        Vector2 tip{hand.x - bk.x * 12, hand.y - bk.y * 12}, butt{hand.x + bk.x * 6, hand.y + bk.y * 6};
+        DrawLineEx(butt, tip, 1.4f, Color{200, 170, 90, 255});
+        for (int k = -1; k <= 1; k++) DrawLineEx(tip, {tip.x - bk.x * 3 + bk.y * k * 2, tip.y - bk.y * 3 - bk.x * k * 2}, 1, Color{220, 200, 120, 255});
+        break;
+    }
+    case WS_RAY: { // a flat disc undulating along its edges, a whip tail; blue-white arcs when it discharges
+        float wave = sinf(b.phase * 4) * 2;
+        Color c{120, 110, 96, 255};
+        DrawTri({x - 13, y + wave * 0.5f}, {x + 13, y - wave * 0.5f}, {x, y - 7}, FAUNA_INK); DrawTri({x - 13, y + wave * 0.5f}, {x + 13, y - wave * 0.5f}, {x, y + 6}, FAUNA_INK);
+        DrawTri({x - 12, y + wave * 0.5f}, {x + 12, y - wave * 0.5f}, {x, y - 6}, c); DrawTri({x - 12, y + wave * 0.5f}, {x + 12, y - wave * 0.5f}, {x, y + 5}, Tone(c, 0.2f));
+        DrawLineEx({x - f * 5, y + 1}, {x - f * 16, y + 2 + sinf(t * 3) * 2}, 1.2f, c);
+        DrawCircle((int)(x + f * 3) - 2, (int)y - 2, 0.9f, FAUNA_INK); DrawCircle((int)(x + f * 3) + 2, (int)y - 2, 0.9f, FAUNA_INK);
+        for (int k = 0; k < 3; k++) DrawCircle((int)(x - 4 + k * 4), (int)y + 1, 1.1f, Color{200, 220, 240, 150});
+        if (b.special > 0) for (int k = 0; k < 8; k++) { // the discharge
+            float a = k * PI / 4 + t * 9, r0 = 8, r1 = 30 + Hs(t * 13 + k) * 30;
+            Vector2 m1{x + cosf(a) * (r0 + r1) * 0.5f + Hs(t * 7 + k) * 6 - 3, y + sinf(a) * (r0 + r1) * 0.5f};
+            DrawLineEx({x + cosf(a) * r0, y + sinf(a) * r0}, m1, 2, Color{210, 240, 255, 230}); DrawLineEx(m1, {x + cosf(a) * r1, y + sinf(a) * r1}, 1.4f, Color{150, 210, 255, 200});
+        }
+        break;
+    }
+    case WS_CRAB: {
+        Color c{190, 110, 70, 255};
+        for (int side = -1; side <= 1; side += 2) for (int k = 0; k < 3; k++) { float ph = b.phase * 10 + k * 2 + side, lift = fabsf(b.vel.x) > 4 ? std::max(0.0f, sinf(ph)) * 1.5f : 0; Vector2 hip{x + side * 2.0f, y}, foot{x + side * (6 + k * 2.0f), y + 4 - lift}; Vector2 kn = ik::Knee(hip, foot, 4, 4, (float)side); DrawLineEx(hip, kn, 1.2f, FAUNA_INK); DrawLineEx(kn, foot, 1.0f, FAUNA_INK); }
+        DrawEllipse((int)x, (int)y - 1, 6, 4, FAUNA_INK); DrawEllipse((int)x, (int)y - 1, 5, 3.2f, c);
+        float snip = b.act == BeastAct::Eat ? sinf(t * 16) * 1.5f : 0;
+        for (int side = -1; side <= 1; side += 2) DrawCircle((int)(x + f * 6 + side * 2), (int)(y - 4 + snip * side), 1.8f, Tone(c, 0.15f));
+        break;
+    }
+    case WS_FUNGUS: { // a cluster of pale, glowing caps on thin stalks
+        float glow = 0.5f + 0.3f * sinf(t * 1.5f + b.phase);
+        for (int k = 0; k < 4; k++) { float bx = x - 5 + k * 3.5f, h = 5 + (k % 2) * 4 + Hs(b.id * 1.3f + k) * 3; DrawLineEx({bx, y + 3}, {bx, y + 3 - h}, 1.2f, Color{200, 196, 170, 255}); DrawEllipse((int)bx, (int)(y + 3 - h), 2.8f, 1.8f, Color{180, 230, 200, 255}); DrawEllipse((int)bx, (int)(y + 3 - h), 5, 3, Fade(Color{160, 255, 210, 255}, 0.15f * glow)); }
+        break;
+    }
+    default: DrawCircle((int)x, (int)y, 5, Color{200, 200, 200, 255}); break;
+    }
+    (void)p;
+}
+
+void DrawAtlantisBeast(const PlatformState& p, const Beast& b, float t) {
+    const SpeciesDef& S = BeastSpecies(PL_ATLANTIS, b.species);
+    float x = b.pos.x, y = b.pos.y, f = b.facing;
+    bool dead = b.life == BeastLife::Corpse, strike = b.act == BeastAct::Strike, coil = b.act == BeastAct::Coil;
+    float beat = sinf(b.phase * 7);
+    if (dead) {
+        float r = S.radius;
+        DrawEllipse((int)x, (int)y + 1, r * 1.2f + 1, r * 0.5f + 1, FAUNA_INK);
+        DrawEllipse((int)x, (int)y + 1, r * 1.2f, r * 0.5f, Color{90, 100, 116, 255});
+        return;
+    }
+    switch (b.species) {
+    case AS_WISP: {
+        float g = 0.6f + 0.4f * sinf(t * 5 + b.phase);
+        DrawCircle((int)x, (int)y, 9, Fade(Color{140, 240, 250, 255}, 0.12f * g)); DrawCircle((int)x, (int)y, 3, Fade(Color{200, 255, 255, 255}, 0.8f * g));
+        DrawLineEx({x, y}, {x - b.vel.x * 0.06f, y - b.vel.y * 0.06f}, 1.2f, Fade(Color{140, 240, 250, 255}, 0.4f));
+        break;
+    }
+    case AS_SHRIMP: { // pale, eyeless, translucent
+        Color c = Fade(Color{220, 214, 230, 255}, 0.8f);
+        for (int k = 0; k < 5; k++) { float u = k / 4.0f; DrawCircle((int)(x - f * (k * 2.4f - 4)), (int)(y + u * u * 4), 2.8f - u, c); }
+        for (int k = 0; k < 2; k++) DrawLineEx({x + f * 4, y - 1}, {x + f * (14 + k * 3), y - 7 + k * 2 + sinf(t * 4 + k) * 2}, 0.8f, Fade(WHITE, 0.6f));
+        break;
+    }
+    case AS_ANGLER: { // a black bulb of a body, a gape of needle teeth, and the lure - the only light it shows
+        float camo = std::clamp(b.special, 0.0f, 1.0f), a = 1.0f - 0.6f * camo;
+        Color c = Fade(Color{40, 36, 44, 255}, a);
+        DrawCircle((int)x, (int)y, 11, Fade(FAUNA_INK, a)); DrawCircle((int)x, (int)y, 10, c);
+        DrawTri({x - f * 9, y}, {x - f * 17, y - 5 + beat * 2}, {x - f * 17, y + 5 + beat * 2}, c);
+        float gape = coil ? 0.9f : strike ? 1.0f : b.act == BeastAct::Eat ? 0.6f * fabsf(sinf(t * 10)) : 0.3f;
+        DrawTri({x + f * 4, y + 1}, {x + f * 12, y - 2 - gape * 4}, {x + f * 12, y + 4 + gape * 5}, Color{20, 6, 12, 255});
+        for (int k = 0; k < 4; k++) { DrawLineEx({x + f * (6 + k * 1.8f), y - 1 - gape * 2}, {x + f * (6 + k * 1.8f), y + 1 - gape * 1}, 0.8f, Color{230, 230, 220, 255}); DrawLineEx({x + f * (6 + k * 1.8f), y + 3 + gape * 3}, {x + f * (6 + k * 1.8f), y + 1 + gape * 2}, 0.8f, Color{230, 230, 220, 255}); }
+        Vector2 stalkTip{x + f * 14 + sinf(t * 1.3f) * 2, y - 16 + cosf(t * 1.7f) * 2};
+        DrawLineEx({x + f * 2, y - 9}, {x + f * 8, y - 18}, 1.2f, Fade(c, 1)); DrawLineEx({x + f * 8, y - 18}, stalkTip, 1.2f, Fade(c, 1));
+        float g = 0.7f + 0.3f * sinf(t * 3);
+        DrawCircleV(stalkTip, 12, Fade(Color{150, 250, 240, 255}, 0.12f * g)); DrawCircleV(stalkTip, 2.6f, Color{210, 255, 250, 255}); // the lure
+        DrawCircle((int)(x + f * 4), (int)y - 5, 1.2f, Fade(Color{220, 230, 140, 255}, a));
+        break;
+    }
+    case AS_LOSTONE: { // a drowned citizen: hunched, robes shredding in the current, eyes gone to glyph-light
+        Color robe{70, 78, 96, 255}, flesh{120, 140, 140, 255};
+        DrawBeastLegs(b, S, false, 2.4f, Tone(robe, -0.2f), 0.6f, 0.6f);
+        float sway = sinf(t * 1.2f + b.phase) * 1.5f;
+        DrawTri({x - 7, y + 4}, {x + 7, y + 4}, {x + sway, y - 12}, FAUNA_INK); DrawTri({x - 6, y + 3}, {x + 6, y + 3}, {x + sway, y - 11}, robe);
+        for (int k = 0; k < 3; k++) DrawLineEx({x - 5 + k * 5.0f, y + 3}, {x - 5 + k * 5.0f + sinf(t * 2 + k) * 3, y + 9}, 1.4f, robe); // tatters
+        Vector2 head{x + f * 3 + sway, y - 13};
+        DrawCircleV(head, 4, FAUNA_INK); DrawCircleV(head, 3.2f, flesh);
+        DrawCircle((int)(head.x + f * 1.5f), (int)head.y - 1, 1.1f, Color{140, 240, 250, 255}); // the glyph-lit eye
+        Vector2 sh{x + f * 2 + sway, y - 7}, hand{x + f * 10, y - 4 + sinf(t * 1.5f) * 2}; // reaching ahead as it shuffles
+        Vector2 el = ik::Knee(sh, hand, 5, 5, -f);
+        DrawLineEx(sh, el, 2, flesh); DrawLineEx(el, hand, 1.8f, flesh);
+        DrawBeastLegs(b, S, true, 2.4f, robe, 0.6f, 0.6f);
+        break;
+    }
+    case AS_GUARDIAN: { // a crab of carved stone: fully camouflaged it is a heap of masonry; moving, legs and claws unfold from it
+        float camo = std::clamp(b.special, 0.0f, 1.0f);
+        Color stone{116, 122, 130, 255}, dk{60, 64, 76, 255};
+        if (camo < 0.7f) for (int side = 0; side < 2; side++) for (int k = 0; k < 3; k++) {
+            float ph = b.phase * 7 + k * 2 + side * 3, lift = fabsf(b.vel.x) > 5 ? std::max(0.0f, sinf(ph)) * 2 : 0, sx = side ? 1.0f : -1.0f;
+            Vector2 hip{x + sx * (4 + k * 2), y - 2}, foot{x + sx * (11 + k * 3), y + 7 - lift}; Vector2 kn = ik::Knee(hip, foot, 7, 7, sx);
+            DrawLineEx(hip, kn, 3, FAUNA_INK); DrawLineEx(kn, foot, 2.4f, FAUNA_INK); DrawLineEx(hip, kn, 2, stone); DrawLineEx(kn, foot, 1.6f, stone);
+        }
+        DrawRectangle((int)x - 12, (int)y - 9, 24, 14, FAUNA_INK); DrawRectangle((int)x - 11, (int)y - 8, 22, 12, stone);   // the carved block of its shell
+        DrawRectangle((int)x - 11, (int)y - 3, 22, 1, dk); DrawRectangle((int)x - 3, (int)y - 8, 1, 5, dk);
+        if (camo < 0.7f) { // claws out, and eyes
+            float open = coil || strike ? 1.0f : 0.3f;
+            for (int side = -1; side <= 1; side += 2) { Vector2 cl{x + f * 14 + side * 3, y - 6 - open * 4}; DrawRectangle((int)cl.x - 3, (int)cl.y - 2, 6, 5, stone); DrawRectangle((int)cl.x - 3, (int)cl.y + 1, 6, 1, dk); }
+            DrawCircle((int)(x + f * 5), (int)y - 10, 1.2f, Color{140, 240, 250, 255}); DrawCircle((int)(x + f * 8), (int)y - 10, 1.2f, Color{140, 240, 250, 255});
+        }
+        break;
+    }
+    case AS_EEL: {
+        Color c{50, 60, 90, 255}, belly{120, 130, 150, 255};
+        Vector2 pts[SPINE];
+        for (int k = 0; k < SPINE; k++) pts[k] = b.spine[k];
+        if (coil) for (int k = 1; k < SPINE; k++) pts[k].y += sinf(k * 1.3f) * 5;
+        DrawSpineBody(pts, SPINE, 5.5f, 2.0f, coil ? 1.5f : 3.0f, b.phase, c, belly);
+        for (int k = 1; k < SPINE; k += 2) DrawCircle((int)pts[k].x, (int)pts[k].y - 1, 1.2f, Fade(Color{140, 240, 250, 255}, 0.6f + 0.3f * sinf(t * 3 + k))); // glowing glyph marks
+        Vector2 hd{pts[0].x - pts[1].x, pts[0].y - pts[1].y}; float hl = sqrtf(hd.x * hd.x + hd.y * hd.y); hd = hl > 0.01f ? Vector2{hd.x / hl, hd.y / hl} : Vector2{f, 0};
+        float open = coil ? 0.6f : strike ? 0.45f : 0.15f;
+        Vector2 j{pts[0].x + hd.x * 4, pts[0].y + hd.y * 4};
+        DrawTri(j, {j.x + hd.x * 9 - hd.y * 9 * open, j.y + hd.y * 9 + hd.x * 9 * open}, {j.x + hd.x * 9 + hd.y * 9 * open, j.y + hd.y * 9 - hd.x * 9 * open}, Color{40, 14, 24, 255});
+        DrawCircle((int)(pts[0].x + hd.x * 2), (int)(pts[0].y - 2), 1.4f, Color{140, 240, 250, 255});
+        break;
+    }
+    default: DrawCircle((int)x, (int)y, 5, Color{200, 200, 200, 255}); break;
+    }
+    (void)p;
+}
+// A kelp holdfast hollow (the Weeds); a niche in broken masonry (Atlantis).
+void DrawWeedsDen(const PlatformState& p, const Den& d, float t) {
+    float x = d.pos.x, y = d.pos.y;
+    DrawEllipse((int)x, (int)y + 2, 11, 5, FAUNA_INK); DrawEllipse((int)x, (int)y + 2, 9, 3.8f, Color{16, 24, 20, 255});
+    for (int k = 0; k < 5; k++) { float a = PI + k * PI / 4; DrawLineEx({x + cosf(a) * 9, y + 2 + sinf(a) * 4}, {x + cosf(a) * 14, y + 3}, 2, Color{90, 80, 40, 255}); } // the holdfast's roots
+    int inside = 0; for (const auto& b : p.fauna.beasts) if (b.life == BeastLife::Alive && b.hidden && fabsf(b.pos.x - x) < 4) inside++;
+    if (inside && fmodf(t * 0.8f + x * 0.013f, 3.5f) < 2.6f) { DrawCircle((int)x - 2, (int)y + 2, 0.9f, Color{230, 240, 170, 255}); DrawCircle((int)x + 2, (int)y + 2, 0.9f, Color{230, 240, 170, 255}); }
+}
+void DrawAtlantisDen(const PlatformState& p, const Den& d, float t) {
+    float x = d.pos.x, y = d.pos.y;
+    DrawRectangle((int)x - 9, (int)y - 2, 18, 9, FAUNA_INK); DrawRectangle((int)x - 8, (int)y - 1, 16, 7, Color{8, 10, 18, 255});
+    DrawRectangle((int)x - 10, (int)y - 4, 20, 3, Color{140, 146, 150, 255}); // a broken lintel over the hole
+    int inside = 0; for (const auto& b : p.fauna.beasts) if (b.life == BeastLife::Alive && b.hidden && fabsf(b.pos.x - x) < 4 && !(b.species == AS_EEL && b.act == BeastAct::Ambush)) inside++;
+    if (inside && fmodf(t * 0.8f + x * 0.013f, 3.5f) < 2.6f) { DrawCircle((int)x - 2, (int)y + 2, 0.9f, Color{140, 240, 250, 255}); DrawCircle((int)x + 2, (int)y + 2, 0.9f, Color{140, 240, 250, 255}); }
+}
 void DrawPirateBeast(const PlatformState& p, const Beast& b, float t) {
     const SpeciesDef& S = BeastSpecies(PL_PIRATE, b.species);
     float x = b.pos.x, y = b.pos.y, f = b.facing, s = b.scale;
@@ -4033,6 +4271,8 @@ void DrawFauna(const PlatformState& p, float t, int c0, int c1) {
         else if (W.biome == PL_ISLAND) DrawIslandDen(p, d, t);
         else if (W.biome == PL_CAVE) DrawCaveDen(p, d, t);
         else if (W.biome == PL_PIPES) DrawPipesDen(p, d, t);
+        else if (W.biome == PL_WEEDS) DrawWeedsDen(p, d, t);
+        else if (W.biome == PL_ATLANTIS) DrawAtlantisDen(p, d, t);
     }
     DrawBeastProps(p, t);
     for (int pass = 0; pass < 2; pass++) // corpses first, the living over them
@@ -4046,7 +4286,7 @@ void DrawFauna(const PlatformState& p, float t, int c0, int c1) {
             Vector2 piv{b.pos.x, b.pos.y + (ground ? std::min(12.0f, SD.radius * b.scale * 0.6f) : 0.0f)};
             if (b.hidden) piv = {b.pos.x, b.pos.y - 8};
             rlPushMatrix(); rlTranslatef(piv.x, piv.y, 0); rlScalef(sz, sz, 1); rlTranslatef(-piv.x, -piv.y, 0);
-            if (b.hidden) { if (W.biome == PL_HULL && b.species == HS_EEL && b.act == BeastAct::Ambush) DrawEelPeek(b, t); rlPopMatrix(); continue; }
+            if (b.hidden) { if ((W.biome == PL_HULL && b.species == HS_EEL || W.biome == PL_ATLANTIS && b.species == AS_EEL) && b.act == BeastAct::Ambush) DrawEelPeek(b, t); rlPopMatrix(); continue; }
             // a body: death throes for the first moment, then it jerks with each bite and shrinks as it's eaten
             bool body = b.life == BeastLife::Corpse, xf = false;
             if (body) {
@@ -4067,6 +4307,8 @@ void DrawFauna(const PlatformState& p, float t, int c0, int c1) {
             else if (W.biome == PL_ISLAND) DrawIslandBeast(p, b, t);
             else if (W.biome == PL_CAVE) DrawCaveBeast(p, b, t);
             else if (W.biome == PL_PIPES) DrawPipesBeast(p, b, t);
+            else if (W.biome == PL_WEEDS) DrawWeedsBeast(p, b, t);
+            else if (W.biome == PL_ATLANTIS) DrawAtlantisBeast(p, b, t);
             if (xf) rlPopMatrix();
             rlPopMatrix();
         }

@@ -219,4 +219,6 @@ enum PirateSpecies { PS_RAT, PS_CAT, PS_MONKEY, PS_DOG, PS_FLEA, PS_OWL, PS_GULL
 enum IslandSpecies { IS_BOAR, IS_SNAKE, IS_LIZARD, IS_BAT, IS_SPIDER, IS_CRAB, IS_FROG, IS_GULL, IS_DOG, IS_COCONUT, IS_COUNT };
 enum CaveSpecies { CS_BAT, CS_JELLY, CS_SALAMANDER, CS_BEETLE, CS_LEECH, CS_WORM, CS_MOTH, CS_COUNT };
 enum PipeSpecies { PP_MOTH, PP_SPIDER, PP_CENTIPEDE, PP_RAT, PP_MITE, PP_PILLBUG, PP_MOUSE, PP_ROACH, PP_GLOW, PP_CRICKET, PP_COUNT };
+enum WeedsSpecies { WS_PLANKTON, WS_SEAHORSE, WS_BARRACUDA, WS_MERMAN, WS_SHARK, WS_RAY, WS_CRAB, WS_FUNGUS, WS_COUNT };
+enum AtlantisSpecies { AS_WISP, AS_SHRIMP, AS_ANGLER, AS_LOSTONE, AS_GUARDIAN, AS_EEL, AS_COUNT };
 bool VerifyBeastBiome(int level); // depth.exe --verify-<biome>-ecosystem: the biome's own food web and chain reactions

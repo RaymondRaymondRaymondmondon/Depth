@@ -60,6 +60,8 @@ const BiomeDef& PirateBiome();
 const BiomeDef& IslandBiome();
 const BiomeDef& CaveBiome();
 const BiomeDef& PipesBiome();
+const BiomeDef& WeedsBiome();
+const BiomeDef& AtlantisBiome();
 
 const SpeciesDef& Sp(int biome, int s);
 float Pref(int biome, int pred, int prey);
