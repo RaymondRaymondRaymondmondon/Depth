@@ -674,3 +674,7 @@ worms (on 'f' planking: dashing across makes it collapse behind you, dropping pu
 air: nest in open chests, herded they flash a curtain that distracts the cuttlefish), flora: cannon-moss (silent landings),
 ship-rot fungus (spore cloud + rot scent for scavengers), mast-kelp (dash through: a beam swings into pursuers), barnacle-cluster
 (fatal if dashed into, shreds big pursuers), Siren's lantern weed (light that reveals mimics). Then the planner for the fleet.
+**User correction (2026-09-29): the Cave is an UNDERWATER cave.** Only the Pirate Ship and the Island stay above water. The Cave's
+1.3 pass (next after the Pirate Ship) must: add PL_CAVE to WaterLevel() (water dash/glide), water visuals (tint, bubbles,
+caustics, drifting silt), CaveBiome water=true, and an aquatic roster from the 1.3 Cave section (bats/moths/beetles replaced).
+Progress: the whole Pirate Ship 1.3 roster is DONE (see CLAUDE.md). Next biome: the Cave, now an underwater cave (the user's correction), then the Island (above water), the Seaweed/Weeds, Atlantis and the Abyss.

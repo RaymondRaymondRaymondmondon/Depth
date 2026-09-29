@@ -205,6 +205,8 @@ struct BeastWorld {
     // the runtime director (ParkourReference1.3's apex beasts): not a script - it only decides when an apex may roam in
     float calmT = 0, apexT = 0, tension = 0;
     Vector2 apexPos{-1e9f, -1e9f}; // where the apex is this tick (its shadow darkens everything under it)
+    int diverPose = 0;             // the diver's pose this tick (a dash into a barnacle-cluster is fatal; see BeastsUpdate)
+    bool diverOnPole = false;      // on a ratline or kelp this tick (a rigging-mimic watches for the leap off it)
     std::vector<Vector2> scars;    // bites torn out of the plating by the megalodon (drawn; the tiles themselves never change, so the route stays proven)
     int apexVisits = 0;
 };
@@ -215,7 +217,8 @@ void BeastsBuild(PlatformState& p, unsigned seed);         // nav, scent, dens, 
 void BeastsUpdate(PlatformState& p, float dt);
 void BeastsNoise(PlatformState& p, Vector2 at, float intensity); // the diver's footfalls, landings, gunfire, blasts
 void BeastsDiverRespawned(PlatformState& p, Vector2 at);          // lethal beasts near a checkpoint scatter instead of camping it
-void BeastsTerrainChanged(PlatformState& p);                       // the tiles changed (a ship snapped): re-read the map, move dens, drop routes
+void BeastsTerrainChanged(PlatformState& p);
+bool BeastsSoftLanding(const PlatformState& p);                    // landing on cannon-moss: silent, and no stun                       // the tiles changed (a ship snapped): re-read the map, move dens, drop routes
 bool BeastLethalNow(const PlatformState& p, const Beast& b);     // is touching this beast fatal right now?
 bool BeastsTouchDiver(const PlatformState& p, Rectangle diver);  // any lethal contact this frame
 const SpeciesDef& BeastSpecies(int biome, int species);

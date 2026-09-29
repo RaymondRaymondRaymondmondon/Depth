@@ -1771,6 +1771,14 @@ void BeastsTerrainChanged(PlatformState& p) {
     for (auto& b : W.beasts) { b.path.clear(); b.replanT = 0; if (b.hidden && b.den >= 0) b.pos = {W.dens[b.den].pos.x, W.dens[b.den].pos.y + 6}; }
 }
 
+bool BeastsSoftLanding(const PlatformState& p) {
+    const BeastWorld& W = p.fauna;
+    if (!W.active || W.biome != PL_PIRATE) return false;
+    Rectangle r = PlatDiverBox(p);
+    for (const auto& b : W.beasts) if (b.life == BeastLife::Alive && b.species == PS_CMOSS && fabsf(b.pos.x - (r.x + r.width / 2)) < 20 && fabsf(b.pos.y - (r.y + r.height)) < 10) return true;
+    return false;
+}
+
 void BeastsNoise(PlatformState& p, Vector2 at, float intensity) {
     if (!p.fauna.active) return;
     p.fauna.sounds.push_back({at, intensity, 0.35f, -1});
@@ -1857,6 +1865,7 @@ void BeastsUpdate(PlatformState& p, float dt) {    BeastWorld& W = p.fauna;
     W.noiseT -= dt;
     if (dv.alive && !deaf && p.onGround && fabsf(p.vel.x) > 200 && W.noiseT <= 0) { W.noiseT = 0.35f; W.sounds.push_back({dv.pos, 0.18f, 0.3f, -1}); }
     p.movers.clear(); // rebuilt by whatever carries the diver this tick (a whale's back)
+    W.diverPose = p.pose;
     if (B && B->tick) B->tick(W, p, dt);
     // proximity herding (ParkourReference1.3): sprinting, sliding or dashing right past small fauna scares them into
     // motion along your line - which can drive them straight into something that eats them

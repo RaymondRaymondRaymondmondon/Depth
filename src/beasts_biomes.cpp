@@ -82,6 +82,7 @@ static void SpawnPirate(BeastWorld& W, PlatformState& p) {
     for (int k = 0; k < 2; k++) NewBeast(W, PS_OWL, sp.Above(W, sp.At(0.25f + 0.5f * k), 5));
     Pack(W, PS_GULL, sp.Above(W, sp.At(0.5f + Hash(s, 60) * 0.3f), 6), 6, 40, 90, 40, 600);
     NewBeast(W, PS_ALBATROSS, sp.Above(W, sp.At(0.6f), 9));
+    Pirate13Spawn(W, p);
 }
 
 // A powder keg goes off: the small die, everything else is knocked flat, and fleas are shaken loose.

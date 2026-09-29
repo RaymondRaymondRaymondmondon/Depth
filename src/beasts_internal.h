@@ -72,6 +72,7 @@ bool VerifyHull13();
 void Pirate13Hook(BeastWorld& W, PlatformState& p, int i, float dt);
 bool Pirate13Touch(const BeastWorld& W, const Beast& b, Rectangle diver);
 void PirateDirector(BeastWorld& W, PlatformState& p, float dt);
+void Pirate13Spawn(BeastWorld& W, PlatformState& p);
 bool VerifyPirate13();
 
 const SpeciesDef& Sp(int biome, int s);

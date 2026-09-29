@@ -1212,7 +1212,8 @@ void StepPlayer(PlatformState& p, float dir, bool jumpHeld) {
         p.scale = {1.0f + std::min(0.35f, fallSpeed / 2400), 1.0f - std::min(0.3f, fallSpeed / 2800)};
         if (fallSpeed > 400) Dust(p, {p.pos.x + PW / 2, p.pos.y + PH}, 6, 0);
         if (fallSpeed > 300 && water) Bubbles(p, {p.pos.x + PW / 2, p.pos.y + PH - 3}, 6, 12);
-        if (fallSpeed > 250) BeastsNoise(p, {p.pos.x + PW / 2, p.pos.y + PH}, std::min(1.4f, fallSpeed / 600.0f)); // a hard landing carries a long way
+        bool soft = !p.verifying && BeastsSoftLanding(p); // cannon-moss soaks up the landing: no sound, no stun
+        if (fallSpeed > 250 && !soft) BeastsNoise(p, {p.pos.x + PW / 2, p.pos.y + PH}, std::min(1.4f, fallSpeed / 600.0f)); // a hard landing carries a long way
         if (p.pose == 4 || p.pose == 7 || p.pose == 8) p.pose = 0;
         // the impact roll: Down and a direction as you land turn the fall into forward speed ...
         if (fallSpeed > ROLL_MIN_V && p.downBuf > 0 && dir != 0 && !p.verifying) {
@@ -1220,7 +1221,7 @@ void StepPlayer(PlatformState& p, float dir, bool jumpHeld) {
             p.vel.x = std::clamp(p.vel.x + dir * 0.7f * fallSpeed, -RUN * 1.8f, RUN * 1.8f);
             p.facingRight = dir > 0;
             Dust(p, {p.pos.x + PW / 2, p.pos.y + PH}, 6, dir);
-        } else if (fallSpeed > STUN_V && !p.verifying) { // ... and without one, a drop taller than any jump leaves you reeling
+        } else if (fallSpeed > STUN_V && !p.verifying && !soft) { // ... and without one, a drop taller than any jump leaves you reeling
             bool crumbly = false;
             for (int tx = (int)floorf((p.pos.x + 3) / T); tx <= (int)floorf((p.pos.x + PW - 3) / T); tx++) if (At(p, tx, (int)floorf((p.pos.y + PH + 1) / T)) == 'f') crumbly = true;
             if (!crumbly) { p.pose = 3; p.moveT = STUN_T; p.vel.x = 0; p.scale = {1.35f, 0.7f}; } // (never on scaffolding that's about to give way)
@@ -4716,6 +4717,112 @@ void DrawPirateBeast(const PlatformState& p, const Beast& b, float t) {
     case PS_ALBATROSS:
         DrawBird(b, t, 40 * s, 7 * s, body(Color{240, 238, 232, 255}), body(Color{70, 68, 72, 255}), Color{226, 190, 150, 255}, 3.5f, false);
         break;
+    case PS_TORTOISE: { // the Timber-Shell Tortoise: a dome of shell heaped with sunken cannonballs and broken planks
+        Color shell = body(Color{96, 84, 60, 255}), skin = body(Color{120, 128, 96, 255});
+        float step = sinf(b.phase * 2) * (fabsf(b.vel.x) > 2 ? 2.0f : 0.0f);
+        for (int k = 0; k < 4; k++) { // four stumpy legs, stepping in turn
+            float lx = x + (k < 2 ? 22 : -22) * f + (k % 2 ? 6 : -6), lift = (k % 2 == 0 ? step : -step);
+            DrawRectangle((int)lx - 6, (int)(y + 4 - std::max(0.0f, lift)), 12, (int)(16 + std::min(0.0f, lift)), FAUNA_INK);
+            DrawRectangle((int)lx - 5, (int)(y + 5 - std::max(0.0f, lift)), 10, (int)(14 + std::min(0.0f, lift)), skin);
+        }
+        DrawEllipse((int)(x + f * 44), (int)(y + 2), 11, 8, FAUNA_INK); DrawEllipse((int)(x + f * 44), (int)(y + 2), 10, 7, skin); // the head
+        DrawCircle((int)(x + f * 48), (int)y, 1.6f, FAUNA_INK);
+        DrawEllipse((int)x, (int)y, 42, 26, FAUNA_INK);
+        DrawEllipse((int)x, (int)y, 40, 24, shell);
+        DrawRectangle((int)x - 40, (int)y, 80, 10, Tone(shell, -0.35f)); // the shell's rim
+        for (int k = 0; k < 5; k++) DrawRectangle((int)(x - 30 + k * 13), (int)(y - 18 + (k % 2) * 5), 12, 3, Color{130, 96, 60, 255}); // planks
+        for (int k = 0; k < 4; k++) { float cx2 = x - 24 + k * 16; DrawCircle((int)cx2, (int)(y - 12 - (k % 2) * 6), 4.5f, FAUNA_INK); DrawCircle((int)cx2, (int)(y - 12 - (k % 2) * 6), 3.6f, Color{60, 62, 66, 255}); } // cannonballs
+        break;
+    }
+    case PS_CUTTLE: { // the Rigging-Mimic: a fraying rope - until it isn't
+        Vector2 top = b.anchor, tip = b.territory;
+        bool shown = b.act != BeastAct::Ambush;
+        Color rope{150, 128, 90, 255}, flesh = body(Color{170, 90, 110, 255});
+        Color c = shown ? flesh : rope;
+        Vector2 prev = top;
+        for (int k = 1; k <= 8; k++) {
+            float u = k / 8.0f;
+            Vector2 q{top.x + (tip.x - top.x) * u + sinf(t * 2 + u * 5 + b.phase) * 2 * u, top.y + (tip.y - top.y) * u};
+            DrawLineEx(prev, q, 4, FAUNA_INK); DrawLineEx(prev, q, 2.5f, c);
+            if (!shown && k % 2 == 0) DrawLineEx({q.x - 2, q.y - 2}, {q.x + 2, q.y + 1}, 1, Tone(rope, -0.3f)); // the lay of the rope
+            if (shown && k % 2 == 0) DrawCircle((int)q.x, (int)q.y, 1, Color{230, 200, 210, 255});   // suckers
+            prev = q;
+        }
+        if (!shown) { DrawLineEx(tip, {tip.x - 3, tip.y + 5}, 1, rope); DrawLineEx(tip, {tip.x + 3, tip.y + 4}, 1, rope); } // the frayed end
+        if (b.act == BeastAct::Flee || b.act == BeastAct::Coil || b.act == BeastAct::Strike) { // its body, up on the yard
+            DrawEllipse((int)top.x, (int)top.y - 4, 12, 7, FAUNA_INK); DrawEllipse((int)top.x, (int)top.y - 4, 11, 6, flesh);
+            DrawEllipse((int)(top.x + 4), (int)top.y - 5, 3, 2, Color{240, 220, 120, 255});
+            DrawRectangle((int)(top.x + 3), (int)top.y - 5, 3, 1, FAUNA_INK); // the W-shaped pupil, near enough
+        }
+        break;
+    }
+    case PS_MANTIS: { // in a crate's porthole: eyes on stalks and folded clubs; the strike, a streak of boiling water
+        float px = b.anchor.x, py = b.anchor.y;
+        bool cock = b.act == BeastAct::Coil;
+        DrawCircle((int)px, (int)py - 2, 7, FAUNA_INK); DrawCircle((int)px, (int)py - 2, 6, Color{30, 20, 18, 255}); // the porthole
+        Color shell{60, 160, 120, 255};
+        DrawRectangle((int)(px - 3 + f * 2), (int)py - 5, 6, 6, shell);
+        for (int e = -1; e <= 1; e += 2) { DrawLineEx({px + f * 3, py - 5}, {px + f * 5 + e * 2, py - 11}, 1, shell); DrawCircle((int)(px + f * 5 + e * 2), (int)py - 12, 1.8f, cock ? Color{255, 90, 60, 255} : Color{250, 200, 80, 255}); }
+        DrawLineEx({px + f * 3, py}, {px + f * (cock ? 1.0f : 8.0f), py + 2}, 2, Color{230, 90, 70, 255}); // the club
+        if (b.act == BeastAct::Strike) {
+            DrawLineEx(b.anchor, b.goal, 3, Fade(Color{220, 240, 255, 255}, 0.7f));
+            DrawCircleV(b.goal, 9 + sinf(t * 60) * 2, Fade(Color{240, 250, 255, 255}, 0.85f));
+            DrawCircleLines((int)b.goal.x, (int)b.goal.y, 14, Color{190, 230, 255, 255});
+        }
+        break;
+    }
+    case PS_BORER: { // worm-riddled planks: holes, sawdust, a worm's head now and then
+        int x0 = (int)b.anchor.x, row = (int)b.anchor.y, n = (int)b.special2;
+        for (int k = 0; k < n * 3; k++) {
+            float hx = x0 * (float)T + fmodf(k * 37.0f + b.id * 11.0f, n * (float)T), hy = row * (float)T + 3 + fmodf(k * 13.0f, 10);
+            DrawRectangle((int)hx, (int)hy, 2, 2, Color{40, 26, 18, 255});
+            if (b.act != BeastAct::Drift && k % 5 == 0 && fmodf(t * 0.8f + k, 3.0f) < 0.4f) DrawRectangle((int)hx, (int)hy - 2, 2, 2, Color{230, 200, 170, 255});
+        }
+        break;
+    }
+    case PS_MOTH: { // copper-scale moths: a glint of metal wings, flaring bright when they're scared
+        float flap = sinf(t * 30 + b.phase * 5) * 3;
+        Color wing = b.flashT > 0 ? Color{255, 230, 150, 255} : Color{200, 130, 70, 255};
+        DrawTri({x, y}, {x - 5, y - 2 - flap}, {x - 2, y + 2}, wing); DrawTri({x, y}, {x + 5, y - 2 - flap}, {x + 2, y + 2}, wing);
+        DrawRectangle((int)x - 1, (int)y - 1, 2, 3, Color{60, 40, 30, 255});
+        if (b.flashT > 0) DrawCircle((int)x, (int)y, 7, Fade(Color{255, 220, 140, 255}, 0.35f));
+        break;
+    }
+    case PS_CMOSS: { // spongy cannon-moss heaped round a sunken cannonball
+        DrawCircle((int)x, (int)y - 5, 6, Color{60, 62, 66, 255});
+        for (int k = 0; k < 14; k++) { float hx = fmodf(k * 7.3f + b.id, 32) - 16, hy = -fmodf(k * 3.1f, 7); DrawCircle((int)(x + hx), (int)(y + hy), 3, k % 2 ? Color{110, 140, 70, 255} : Color{80, 110, 56, 255}); }
+        break;
+    }
+    case PS_ROT: { // ship-rot: pale shelf fungus on the timbers; burst, a stain
+        if (b.act == BeastAct::Drift) { DrawEllipse((int)x, (int)y - 2, 10, 3, Color{90, 90, 60, 200}); break; }
+        for (int k = 0; k < 4; k++) { float cy = y - 3 - k * 4; DrawEllipse((int)(x + (k % 2 ? 3 : -3)), (int)cy, 8 - k, 3, FAUNA_INK); DrawEllipse((int)(x + (k % 2 ? 3 : -3)), (int)cy, 7 - k, 2, Color{210, 200, 150, 255}); }
+        break;
+    }
+    case PS_MKELP: { // mast-kelp lashed round a broken spar; snapped, the spar swings
+        bool swing = b.act == BeastAct::Eat;
+        float ang = swing ? b.facing * (1.4f - b.actT) * 1.2f : 0.0f;
+        Vector2 pivot{x, y - 44}, end{x + sinf(ang) * 44, y - 44 + cosf(ang) * 44};
+        DrawLineEx(pivot, end, 7, FAUNA_INK); DrawLineEx(pivot, end, 5, Color{120, 86, 52, 255}); // the spar
+        if (b.act != BeastAct::Drift && !swing) for (int k = 0; k < 6; k++) DrawLineEx({x - 5, y - 6 - k * 7.0f}, {x + 5, y - 10 - k * 7.0f}, 2.5f, Color{70, 100, 50, 255}); // the kelp wrapped round it
+        else DrawLineEx({x, y - 44}, {x + 6, y - 30}, 2, Color{70, 100, 50, 255}); // parted
+        break;
+    }
+    case PS_BARNACLE: { // a razor-edged clump of barnacles
+        for (int k = 0; k < 7; k++) {
+            float hx = x - 10 + k * 3.3f, hh = 5 + (k * 5 % 4) * 2;
+            DrawTri({hx - 3, y}, {hx + 3, y}, {hx, y - hh}, FAUNA_INK);
+            DrawTri({hx - 2, y}, {hx + 2, y}, {hx, y - hh + 1}, Color{214, 206, 190, 255});
+            DrawRectangle((int)hx, (int)(y - hh + 2), 1, 1, Color{60, 40, 50, 255});
+        }
+        break;
+    }
+    case PS_LANTERN: { // Siren's lantern weed: pulsing bulbs on a trailing stem
+        float pulse = 0.6f + 0.4f * sinf(t * 2.5f + b.phase);
+        DrawCircle((int)x, (int)y - 14, 16 * pulse + 6, Fade(Color{120, 255, 210, 255}, 0.12f));
+        DrawLineEx({x, y}, {x + sinf(t) * 3, y - 16}, 2, Color{60, 120, 90, 255});
+        for (int k = 0; k < 3; k++) DrawCircle((int)(x + sinf(t + k) * 3 + (k - 1) * 4), (int)(y - 12 - k * 3), 2.5f, Color{(unsigned char)(150 + 100 * pulse), 255, 220, 255});
+        break;
+    }
     case PS_KRAKEN: { // the Grand Kraken: a vast shape under the fleet, and its arms out of the sea
         float sea = p.waterY;
         float rise = b.act == BeastAct::Explore ? std::clamp(b.actT / 3, 0.0f, 1.0f) : b.act == BeastAct::Flee ? 1 - std::clamp(b.actT / 3, 0.0f, 1.0f) : 1.0f;
