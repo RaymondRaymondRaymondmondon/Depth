@@ -1644,7 +1644,7 @@ void BackgroundSystem::Setup(int lv) {
                 float period = 26.0f, e = floorf((t + 8) / period), u = (t + 8 - e * period) / 6.0f;
                 float day = Daylight(p);
                 Color fishC = LerpC(Color{70, 110, 130, 255}, Color{170, 210, 220, 255}, day), shC = LerpC(Color{4, 12, 20, 255}, Color{16, 38, 52, 255}, day);
-                float bx = cw * (0.25f + 0.5f * Hs(e * 2.1f)), by = ch * (0.35f + 0.2f * Hs(e + 3));
+                float bx = cw * (0.2f + 0.6f * Hs(e * 2.1f)), by = ch * (0.16f + 0.14f * Hs(e + 3)); // high in the blue, well above the route
                 float hit = std::clamp((u - 0.45f) * 6, 0.0f, 1.0f);   // how far the ball has burst apart
                 for (int k = 0; k < 36; k++) { // the ball wheels, then bursts as the shark cuts through it
                     float a = t * 1.4f + k * 0.52f, r = 14 + (k % 5) * 4;
@@ -1876,7 +1876,7 @@ void BackgroundSystem::Setup(int lv) {
                 if (u < 1.0f) {
                     float day = Daylight(p);
                     Color sil = LerpC(Color{6, 20, 22, 255}, Color{20, 60, 58, 255}, day);
-                    float cx = cw * (0.25f + 0.5f * Hs(e * 1.9f)), cy = ch * (0.3f + 0.2f * Hs(e + 7));
+                    float cx = cw * (0.2f + 0.6f * Hs(e * 1.9f)), cy = ch * (0.14f + 0.12f * Hs(e + 7)); // up in the far canopy, clear of the real sharks on your path
                     // the barracuda cruises in from the left until the spear takes it
                     float spear = std::clamp((u - 0.25f) * 10, 0.0f, 1.0f);
                     Vector2 bar{cx - 140 + std::min(u, 0.3f) * 400, cy + 10};
@@ -1897,7 +1897,7 @@ void BackgroundSystem::Setup(int lv) {
                         float s = (u - 0.35f) / 0.65f;
                         Vector2 sh{cx - 260 + s * 560, cy + 30 - sinf(s * PI) * 36};
                         float tail = sinf(t * 7) * 7;
-                        DrawEllipse((int)sh.x, (int)sh.y, 50, 11, sil);
+                        DrawEllipse((int)sh.x, (int)sh.y, 36, 8, sil);
                         DrawTri({sh.x - 44, sh.y}, {sh.x - 76, sh.y - 20 + tail}, {sh.x - 70, sh.y + 14 + tail}, sil);
                         DrawTri({sh.x - 6, sh.y - 9}, {sh.x + 12, sh.y - 9}, {sh.x - 10, sh.y - 30}, sil);
                         for (int k = 0; k < 5; k++) DrawRectangle((int)sh.x - 30 + k * 12, (int)sh.y - 8, 3, 8, Tone(sil, 0.25f)); // its bars
@@ -1974,23 +1974,23 @@ void BackgroundSystem::Setup(int lv) {
             {
                 float period = 31.0f, e = floorf((t + 5) / period), u = (t + 5 - e * period) / 7.0f;
                 if (u < 1.0f) {
-                    float ax = cw * (0.25f + 0.5f * Hs(e * 4.1f)), ay = ch * (0.35f + 0.2f * Hs(e + 2));
+                    float ax = cw * (0.2f + 0.6f * Hs(e * 4.1f)), ay = ch * (0.14f + 0.14f * Hs(e + 2)); // high up and far off: scenery, never mistaken for a threat on your path
                     float snap = u > 0.62f && u < 0.7f ? 1.0f : 0.0f;
-                    Vector2 lure{ax - 18 + sinf(t * 2) * 2, ay - 16};
+                    Vector2 lure{ax - 11 + sinf(t * 2) * 1.5f, ay - 10};
                     BeginBlendMode(BLEND_ADDITIVE);
-                    if (u < 0.66f || u > 0.8f) DrawCircleV(lure, 10, Fade(Color{120, 230, 255, 255}, 0.25f + 0.15f * sinf(t * 5)));
-                    DrawCircleV(lure, 2.5f, Color{180, 245, 255, 255});
+                    if (u < 0.66f || u > 0.8f) DrawCircleV(lure, 6, Fade(Color{120, 230, 255, 255}, 0.18f + 0.1f * sinf(t * 5)));
+                    DrawCircleV(lure, 1.5f, Color{150, 220, 240, 200});
                     EndBlendMode();
-                    Color af{8, 12, 20, 255};
-                    DrawEllipse((int)ax, (int)ay, 20, 14, af);                                                      // the angler, black on black
-                    DrawLineEx({ax - 4, ay - 12}, lure, 1, af);                                                     // its rod
-                    DrawTri({ax - 20, ay - 2 - snap * 10}, {ax - 4, ay}, {ax - 20, ay + 8 + snap * 6}, Color{2, 2, 6, 255}); // the jaw, gaping on the strike
-                    for (int k = 0; k < 4; k++) DrawTri({ax - 18 + k * 4, ay - 1}, {ax - 16 + k * 4, ay - 1}, {ax - 17 + k * 4, ay + 3}, Color{200, 210, 220, 255}); // needle teeth
-                    DrawTri({ax + 18, ay}, {ax + 30, ay - 8}, {ax + 30, ay + 8}, af);
+                    Color af{12, 18, 30, 255};
+                    DrawEllipse((int)ax, (int)ay, 12, 8, af);                                                      // the angler, black on black
+                    DrawLineEx({ax - 3, ay - 7}, lure, 1, af);                                                     // its rod
+                    DrawTri({ax - 12, ay - 1 - snap * 6}, {ax - 2, ay}, {ax - 12, ay + 5 + snap * 4}, Color{4, 6, 10, 255}); // the jaw, gaping on the strike
+                    for (int k = 0; k < 3; k++) DrawPixel((int)(ax - 11 + k * 3), (int)ay + 1, Color{80, 90, 100, 255}); // needle teeth, a glint at this distance
+                    DrawTri({ax + 11, ay}, {ax + 18, ay - 5}, {ax + 18, ay + 5}, af);
                     if (u < 0.66f) { // the minnow flickers in toward the light
                         float m = std::min(u / 0.66f, 1.0f);
-                        Vector2 mn{lure.x - 90 + m * 80, lure.y + 20 - m * 18 + sinf(t * 6) * 3};
-                        DrawEllipse((int)mn.x, (int)mn.y, 4, 1.5f, Fade(Color{190, 240, 255, 255}, 0.8f));
+                        Vector2 mn{lure.x - 60 + m * 54, lure.y + 14 - m * 12 + sinf(t * 6) * 2};
+                        DrawEllipse((int)mn.x, (int)mn.y, 2.5f, 1, Fade(Color{190, 240, 255, 255}, 0.6f));
                     }
                 }
             }
@@ -2046,7 +2046,7 @@ void BackgroundSystem::Setup(int lv) {
             {
                 float period = 24.0f, e = floorf((t + 3) / period), u = (t + 3 - e * period) / 5.0f;
                 if (u < 1.0f) {
-                    float cx = cw * (0.25f + 0.5f * Hs(e * 5.3f)), cy = ch * (0.4f + 0.25f * Hs(e + 9));
+                    float cx = cw * (0.2f + 0.6f * Hs(e * 5.3f)), cy = ch * (0.15f + 0.18f * Hs(e + 9));
                     bool eaten = u > 0.5f;
                     if (!eaten) { BeginBlendMode(BLEND_ADDITIVE); DrawCircle((int)(cx + sinf(t * 3) * 6), (int)cy, 8, Fade(Color{90, 200, 255, 255}, 0.3f)); DrawCircle((int)(cx + sinf(t * 3) * 6), (int)cy, 2, Color{160, 230, 255, 255}); EndBlendMode(); }
                     float lunge = std::clamp((u - 0.35f) * 7, 0.0f, 1.0f) * (1 - std::clamp((u - 0.6f) * 3, 0.0f, 1.0f));
