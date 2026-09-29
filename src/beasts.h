@@ -205,6 +205,7 @@ struct BeastWorld {
     // the runtime director (ParkourReference1.3's apex beasts): not a script - it only decides when an apex may roam in
     float calmT = 0, apexT = 0, tension = 0;
     Vector2 apexPos{-1e9f, -1e9f}; // where the apex is this tick (its shadow darkens everything under it)
+    float webT = 0, lastNearKill = -1e9f; // the food-web director: keeps a hunt playing out where the diver can see it
     int diverPose = 0;             // the diver's pose this tick (a dash into a barnacle-cluster is fatal; see BeastsUpdate)
     bool diverOnPole = false;      // on a ratline or kelp this tick (a rigging-mimic watches for the leap off it)
     float glowSuitT = 0;           // the Cave: glow-shrimp fluid on the diver's suit - it shows up the arachnid's webs it brushes

@@ -857,6 +857,7 @@ void Kill(BeastWorld& W, PlatformState& p, int v, int killer) {
     b.latched = -1;
     W.kills++;
     if (killer >= 0) W.deaths[0]++;
+    { Diver dv = SeeDiver(p); if (dv.alive && fabsf(dv.pos.x - b.pos.x) < 18 * TILE && fabsf(dv.pos.y - b.pos.y) < 10 * TILE) W.lastNearKill = W.time; } // (on screen)
     W.scent.Emit(W.scent.blood, b.pos, 30.0f);
     W.sounds.push_back({b.pos, 0.7f, 0.6f, killer});
     if (!p.verifying) { PlatBurst(p, b.pos, 12, Color{150, 30, 40, 255}, 110, 0.6f, 3); if (W.biome == PL_HULL) PlatBubbles(p, b.pos, 4); }
@@ -1933,6 +1934,43 @@ void BeastsUpdate(PlatformState& p, float dt) {    BeastWorld& W = p.fauna;
         if (S.move == MoveMode::Walk && !b.hidden && b.life == BeastLife::Alive) UpdateGait(W, b, S, dt);
     }
     Repopulate(W, p, dt);
+    // the food-web director: if nothing has been eaten where the diver could see it for a while, a hungry predator
+    // close by is pointed at prey that is on screen - the hunt itself plays out on its own (the user: webs should be
+    // seen playing out often; every 20-40 s)
+    W.webT += dt;
+    if (dv.alive && !deaf && W.webT > 12 && W.time - W.lastNearKill > 20) {
+        W.webT = 0;
+        int bp = -1, bq = -1; float bs = 1e9f;
+        for (int i = 0; i < (int)W.beasts.size(); i++) {
+            const Beast& pr = W.beasts[i];
+            const SpeciesDef& PS = Sp(W.biome, pr.species);
+            if (!Alive(pr) || pr.hidden || Has(PS, T_GIANT | T_FLORA) || PS.move == MoveMode::Sessile || Dist(pr.pos, dv.pos) > 32 * TILE) continue;
+            for (int j = 0; j < (int)W.beasts.size(); j++) {
+                const Beast& q = W.beasts[j];
+                if (j == i || !Alive(q) || q.hidden || Pref(W.biome, pr.species, q.species) <= 0 || Dist(q.pos, dv.pos) > 16 * TILE || Dist(q.pos, pr.pos) > 22 * TILE) continue;
+                float sc = Dist(q.pos, dv.pos) * 0.5f + Dist(q.pos, pr.pos) * 1.5f; // the closest predator-prey pair on screen
+                if (sc < bs) { bs = sc; bp = i; bq = j; }
+            }
+        }
+        if (bp >= 0) {
+            Beast& pr = W.beasts[bp];
+            if (pr.hidden) LeaveDen(W, pr);
+            pr.hunger = std::max(pr.hunger, 0.95f);
+            { Beast& q = W.beasts[bq]; Forget(q, bp, pr.id); q.fear = 0; q.thinkT = std::max(q.thinkT, 1.2f); if (q.act == BeastAct::Flee) { q.act = BeastAct::Wander; q.actT = 0; } } // a stalk: the prey hasn't noticed yet
+            Remember(pr, MEM_PREY, bq, W.beasts[bq].id, W.beasts[bq].pos, W.beasts[bq].vel, 1.0f, W.time);
+            if (pr.act != BeastAct::Coil && pr.act != BeastAct::Strike && pr.act != BeastAct::Eat) { pr.act = BeastAct::Hunt; pr.target = bq; pr.targetId = W.beasts[bq].id; pr.goal = W.beasts[bq].pos; pr.actT = 0; pr.thinkT = 1.5f; }
+        } else { // nothing to eat near the diver: some prey wanders this way (life moves through the area)
+            int moved = 0;
+            for (int j = 0; j < (int)W.beasts.size() && moved < 3; j++) {
+                Beast& q = W.beasts[j];
+                const SpeciesDef& QS = Sp(W.biome, q.species);
+                if (!Alive(q) || Has(QS, T_GIANT | T_FLORA) || QS.move == MoveMode::Sessile || q.mass > 5 || Dist(q.pos, dv.pos) < 16 * TILE || Dist(q.pos, dv.pos) > 45 * TILE) continue;
+                if (q.hidden) LeaveDen(W, q);
+                q.act = BeastAct::Explore; q.goal = {dv.pos.x + R(W, -8, 8) * TILE, q.pos.y}; q.actT = 0; q.thinkT = 4; moved++;
+            }
+            W.webT = 6; // look again soon
+        }
+    }
 }
 
 bool BeastLethalNow(const PlatformState& p, const Beast& b) {
@@ -2153,6 +2191,23 @@ bool VerifyBeasts() {
         TraceLog(LOG_WARNING, "verify-beasts: a minute of Hull life - %d kills, %d bodies cleared, %d births, %d den visits", W.kills, W.scavenged, W.births, W.hides);
     }
     if (!VerifyHull13()) ok = false;
+    // the food web in view: a diver standing mid-level sees something eaten nearby every 20-40 s
+    int webTotal = 0;
+    for (int lv : {PL_HULL, PL_PIRATE, PL_ISLAND, PL_CAVE, PL_WEEDS, PL_ATLANTIS}) {
+        PlatformState p; p.level = lv; p.layout = {4242, 100};
+        PlatBuildLevel(p);
+        if (p.spawns.size() < 3) continue;
+        Vector2 at = p.spawns[p.spawns.size() / 2];
+        int seen = 0; float last = p.fauna.lastNearKill;
+        for (int f = 0; f < 60 * 120; f++) {
+            p.pos = at; p.vel = {0, 0}; p.deathTimer = 0; p.onGround = true;
+            BeastsUpdate(p, 1 / 60.0f);
+            if (p.fauna.lastNearKill != last) { last = p.fauna.lastNearKill; seen++; }
+        }
+        TraceLog(LOG_WARNING, "verify-beasts: food web in view - level %d: %d kills on screen around a diver standing still for 2 minutes", lv, seen);
+        webTotal += seen;
+    }
+    if (webTotal < 14) fail("the food web hardly ever plays out where the diver can see it (fewer than ~1 kill a minute on screen on average)");
     if (ok) TraceLog(LOG_WARNING, "verify-beasts: OK - routing, sight lines, hunting, eating, scavenging, hiding, schooling, roaming and the abnormal profiles all check out");
     return ok;
 }
