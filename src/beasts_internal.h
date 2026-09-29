@@ -68,6 +68,11 @@ bool Hull13Touch(const BeastWorld& W, const Beast& b, Rectangle diver);
 void HullTick(BeastWorld& W, PlatformState& p, float dt);
 void Hull13Spawn(BeastWorld& W, PlatformState& p);
 bool VerifyHull13();
+// the Pirate Ship's ParkourReference1.3 roster (beasts_pirate.cpp)
+void Pirate13Hook(BeastWorld& W, PlatformState& p, int i, float dt);
+bool Pirate13Touch(const BeastWorld& W, const Beast& b, Rectangle diver);
+void PirateDirector(BeastWorld& W, PlatformState& p, float dt);
+bool VerifyPirate13();
 
 const SpeciesDef& Sp(int biome, int s);
 float Pref(int biome, int pred, int prey);

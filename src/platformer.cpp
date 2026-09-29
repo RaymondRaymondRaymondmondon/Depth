@@ -836,6 +836,52 @@ void BuildFromGrid(PlatformState& p, const GenLevel& gl, const Part* arena, char
     ScanTiles(p);
 }
 
+// ---- the Grand Kraken's snaps (ParkourReference1.3): a ship torn in half at a proven point (see GenSnap)
+int SnapSinkA(const GenSnap& s) { return s.sink < 0 ? s.x0 : s.col + 2; }
+int SnapSinkB(const GenSnap& s) { return s.sink < 0 ? s.col - 2 : s.x1; }
+void ApplySnapTiles(PlatformState& p, const GenSnap& s) {
+    int top = std::max(0, s.top - p.genTop), bot = std::min(p.h - 2, s.bottom - p.genTop);
+    for (int x = std::max(0, s.col - 1); x <= std::min(p.w - 1, s.col + 1); x++)
+        for (int y = top; y <= bot; y++) p.tiles[y][x] = '.';
+    if (s.sink != 0)
+        for (int x = std::max(0, SnapSinkA(s)); x <= std::min(p.w - 1, SnapSinkB(s)); x++) {
+            for (int y = bot; y >= top; y--) p.tiles[y + 1][x] = p.tiles[y][x];
+            p.tiles[top][x] = '.';
+        }
+}
+void SnapShip(PlatformState& p, int k) {
+    if (k < 0 || k >= (int)p.snaps.size() || p.snapped[k]) return;
+    const GenSnap s = p.snaps[k];
+    p.snapped[k] = 1;
+    ApplySnapTiles(p, s);
+    float t0 = (s.col - 1) * (float)T, t1 = (s.col + 2) * (float)T;
+    float a = SnapSinkA(s) * (float)T, b = (SnapSinkB(s) + 1) * (float)T;
+    for (size_t e = 0; e < p.enemies.size();) { // whoever stood in the tear goes into the sea; whoever is on the sinking half goes down with it
+        PlatEnemy& en = p.enemies[e];
+        float cx = en.home.x + 16;
+        if (cx >= t0 && cx < t1) { Burst(p, {cx, en.pos.y + 16}, 10, Color{200, 225, 250, 255}, 160, 0.6f, 3); p.enemies.erase(p.enemies.begin() + e); continue; }
+        if (s.sink && cx >= a && cx < b) { en.pos.y += T; en.home.y += T; }
+        e++;
+    }
+    for (size_t l = 0; l < p.launchers.size();) {
+        PlatLauncher& L = p.launchers[l];
+        if (L.tx >= s.col - 1 && L.tx <= s.col + 1) { p.launchers.erase(p.launchers.begin() + l); continue; }
+        if (s.sink && L.tx >= SnapSinkA(s) && L.tx <= SnapSinkB(s)) L.ty++;
+        l++;
+    }
+    if (s.sink) {
+        for (auto& c : p.crumbles) if (c.tx >= SnapSinkA(s) && c.tx <= SnapSinkB(s)) c.ty++;
+        for (auto& c : p.crumbled) if (c.first >= SnapSinkA(s) && c.first <= SnapSinkB(s)) c.second++;
+        float cx = p.pos.x + PW / 2;
+        if (cx >= a && cx < b && (p.onGround || p.pose == 6)) p.pos.y += T; // riding the half down
+    }
+    for (int y = std::max(0, s.top - p.genTop); y <= std::min(p.h - 1, s.bottom - p.genTop + 1); y++) // the timbers splinter
+        Burst(p, {s.col * (float)T + 16, y * (float)T + 16}, 3, Color{150, 108, 66, 255}, 260, 0.9f, 3);
+    Bubbles(p, {s.col * (float)T + 16, p.waterY}, 14, 40);
+    BeastsNoise(p, {s.col * (float)T + 16, (s.bottom - p.genTop) * (float)T}, 1.6f);
+    BeastsTerrainChanged(p);
+}
+
 // Builds (or rebuilds, after a death) the whole level from its seed: coins, enemies and the boss all come back.
 static void PopulateCritters(PlatformState& p, unsigned seed); // defined below Hs(), which it needs
 
@@ -846,6 +892,10 @@ void BuildLevel(PlatformState& p) {
     GenLevel gl = GenerateLevel(p.level, seed, scale);
     const Part* arena = !PlatHasArena(p.level) ? nullptr : &(p.bossEnabled ? L.last : L.lastNoBoss);
     BuildFromGrid(p, gl, arena, L.fill, L.fillAbove);
+    p.snaps.clear(); p.snapped.clear(); // only the snap points the validator proved (layout[3]) - an older layout has none
+    unsigned proven = p.layout.size() >= 4 ? (unsigned)p.layout[3] : 0u;
+    for (size_t k = 0; k < gl.snaps.size() && k < 31; k++) if (proven >> k & 1) p.snaps.push_back(gl.snaps[k]);
+    p.snapped.assign(p.snaps.size(), 0);
     if (!p.hard) // Normal: mines and spiked balls become a plain spiked bed underfoot instead of vanishing outright, and the jets fire on a shorter, gentler window (see JetOn) rather than going cold
         for (auto& row : p.tiles)
             for (char& c : row) if (c == 'g') c = 'x';
@@ -3379,6 +3429,7 @@ void DrawEnemy(const PlatEnemy& e, float t, int level = -1) {
 // drawn along their own trailing spine, and each state reads at a glance - an eel coiling to strike opens its
 // jaws, a fleeing fish beats its tail twice as fast, a hunting octopus loses its camouflage and flushes red,
 // an eater chews, the dead lie pale and shrink as they're picked over.
+void DrawTentacle(Vector2 base, Vector2 tip, float w0, float t, float seed, Color c);
 namespace {
 const Color FAUNA_INK{10, 10, 16, 255};
 
@@ -4665,6 +4716,43 @@ void DrawPirateBeast(const PlatformState& p, const Beast& b, float t) {
     case PS_ALBATROSS:
         DrawBird(b, t, 40 * s, 7 * s, body(Color{240, 238, 232, 255}), body(Color{70, 68, 72, 255}), Color{226, 190, 150, 255}, 3.5f, false);
         break;
+    case PS_KRAKEN: { // the Grand Kraken: a vast shape under the fleet, and its arms out of the sea
+        float sea = p.waterY;
+        float rise = b.act == BeastAct::Explore ? std::clamp(b.actT / 3, 0.0f, 1.0f) : b.act == BeastAct::Flee ? 1 - std::clamp(b.actT / 3, 0.0f, 1.0f) : 1.0f;
+        float by = sea + 170 - rise * 70 + sinf(t * 0.5f) * 6;
+        DrawEllipse((int)x, (int)by, 300, 130, Fade(Color{26, 14, 30, 255}, 0.55f * rise));
+        DrawEllipse((int)x, (int)(by - 40), 200, 70, Fade(Color{44, 20, 40, 255}, 0.45f * rise));
+        for (int e = -1; e <= 1; e += 2) { // two pale eyes, slitted, turning to the diver
+            Rectangle d = PlatDiverBox(p);
+            float look = std::clamp((d.x - x) / 400.0f, -1.0f, 1.0f) * 6;
+            DrawEllipse((int)(x + e * 70), (int)(by - 50), 18, 11, Fade(Color{226, 196, 90, 255}, 0.8f * rise));
+            DrawRectangle((int)(x + e * 70 + look) - 2, (int)(by - 60), 4, 20, Fade(Color{20, 10, 16, 255}, 0.9f * rise));
+        }
+        Color skin{124, 46, 60, 255};
+        bool slam = b.target == 1 && (b.act == BeastAct::Coil || b.act == BeastAct::Strike || b.act == BeastAct::Eat || b.act == BeastAct::Wander);
+        if (slam) {
+            if (b.act == BeastAct::Coil) { // the tell: its shadow grows over where it will land, and the water boils where it rises
+                float u = std::clamp(b.actT / 1.1f, 0.0f, 1.0f);
+                DrawEllipse((int)b.goal.x, (int)b.goal.y + 4, 16 + 34 * u, 5, Fade(BLACK, 0.2f + 0.35f * u));
+                for (int k = 0; k < 5; k++) DrawCircle((int)(b.anchor.x + sinf(t * 9 + k) * 14), (int)(b.anchor.y - fmodf(t * 40 + k * 9, 20)), 2, Color{220, 236, 250, 200});
+            }
+            DrawTentacle(b.anchor, b.territory, 19, t, (float)b.id, skin);
+        }
+        if (b.target == 2 && b.carry >= 0 && b.carry < (int)p.snaps.size() && (b.act == BeastAct::Coil || b.act == BeastAct::Eat)) { // two arms wrapped round the hull at the snap point
+            const GenSnap& sn = p.snaps[b.carry];
+            float cx = sn.col * (float)T + 16, deckY = (sn.bottom - 4 - p.genTop) * (float)T;
+            float u = b.act == BeastAct::Coil ? std::clamp(b.actT / 2.2f, 0.0f, 1.0f) : 1.0f;
+            for (int side = -1; side <= 1; side += 2) {
+                Vector2 base{cx + side * 4.5f * T, sea + 10};
+                Vector2 tip{cx + side * (1.4f - 1.2f * u) * T, deckY - 60 * (1 - u) - 12 + (b.act == BeastAct::Eat ? 40 * std::min(1.0f, b.actT / 0.4f) : 0)};
+                DrawTentacle(base, tip, 17, t, side * 3.0f, skin);
+            }
+            if (b.act == BeastAct::Coil && u > 0.4f) // the timbers groan: splinters and a shudder along the tear line
+                for (int k = 0; k < 4; k++) DrawRectangle((int)(cx - 20 + fmodf(t * 97 + k * 13, 40)), (int)(deckY - 4 - fmodf(t * 53 + k * 7, 12)), 2, 2, Color{190, 150, 100, 255});
+            if (b.act == BeastAct::Coil) DrawLineEx({cx, deckY - 8}, {cx, deckY + 5 * (float)T}, 2, Fade(Color{255, 220, 150, 255}, 0.25f + 0.25f * sinf(t * 18) * u)); // the crack opening
+        }
+        break;
+    }
     default: DrawCircle((int)x, (int)y, 6, Color{200, 200, 200, 255}); break;
     }
     if (b.pers.abnormal == Abnormal::RabidEnraged) DrawCircle((int)(x + f * 6), (int)(y - 6), 1.4f, Color{255, 40, 30, 255});
@@ -4708,6 +4796,22 @@ void DrawFauna(const PlatformState& p, float t, int c0, int c1) {
         }
         Color cc = k.kind == 1 ? Color{150, 190, 90, 255} : k.kind == 2 ? Color{120, 116, 110, 255} : k.kind == 3 ? Color{160, 84, 40, 255} : Color{24, 16, 32, 255}; // ink, spores, powder smoke, rust
         for (int i = 0; i < 4; i++) DrawCircle((int)(k.pos.x + sinf(t + i * 1.7f) * r * 0.3f), (int)(k.pos.y + cosf(t * 0.8f + i) * r * 0.2f - (k.kind == 2 ? (1 - u) * 20 : 0)), r * (0.5f + 0.15f * i), Fade(cc, (k.kind == 0 ? 0.16f : 0.22f) * u));
+    }
+    for (size_t k = 0; k < p.snaps.size() && k < p.snapped.size(); k++) { // a snapped ship: splintered timber ends either side of the tear
+        if (!p.snapped[k]) continue;
+        const GenSnap& sn = p.snaps[k];
+        for (int side = -1; side <= 1; side += 2) {
+            int col = sn.col + side * 2;
+            float ex = side < 0 ? (col + 1) * (float)T : col * (float)T;
+            for (int y = std::max(0, sn.top - p.genTop); y <= std::min(p.h - 1, sn.bottom - p.genTop + 1); y++) {
+                if (!Solid(p, col, y)) continue;
+                for (int j = 0; j < 3; j++) {
+                    float jy = y * (float)T + 4 + j * 10, len = 5 + fmodf((float)(col * 7 + y * 13 + j * 5), 9.0f);
+                    DrawTri({ex, jy}, {ex, jy + 8}, {ex - side * len, jy + 3}, Color{120, 84, 50, 255});
+                    DrawTri({ex, jy + 1}, {ex, jy + 6}, {ex - side * (len - 2), jy + 3}, Color{196, 150, 96, 255});
+                }
+            }
+        }
     }
     for (const auto& sc : W.scars) { // the megalodon's bites: a torn, jagged dent in the plating, raw metal at the edges
         if (sc.x < x0 || sc.x > x1) continue;
@@ -5097,14 +5201,15 @@ Rectangle PlatDiverBox(const PlatformState& p) { return PlayerBox(p); }
 void PlatBurst(PlatformState& p, Vector2 at, int n, Color c, float speed, float life, float size) { Burst(p, at, n, c, speed, life, size); }
 void PlatBubbles(PlatformState& p, Vector2 at, int n) { Bubbles(p, at, n); }
 void PlatBuildLevel(PlatformState& p) { BuildLevel(p); }
+void PlatSnapShip(PlatformState& p, int k) { SnapShip(p, k); }
 
-namespace { bool ValidateGenerated(int level, const GenLevel& gl, int* failedHop, float* solveTime = nullptr, int* hopsOut = nullptr); }
+namespace { bool ValidateGenerated(int level, const GenLevel& gl, int* failedHop, float* solveTime = nullptr, int* hopsOut = nullptr, unsigned* snapMask = nullptr); }
 
 // A layout is a generator seed and a difficulty scale (percent). Layouts are validated when they are made: every hop
 // on the critical path is searched with the real movement code, and a level that fails is thrown away.
 bool PlatLayoutValid(const Game& g, int level) {
     const std::vector<int>& l = g.platLayouts[level];
-    return (l.size() == 2 || l.size() == 3) && l[0] > 0 && l[1] >= 40 && l[1] <= 100;
+    return l.size() >= 2 && l.size() <= 4 && l[0] > 0 && l[1] >= 40 && l[1] <= 100; // {seed, scale%[, ghost[, proven snaps]]}
 }
 
 void GeneratePlatLayout(Game& g, int level) {
@@ -5115,9 +5220,11 @@ void GeneratePlatLayout(Game& g, int level) {
         if (GetTime() - start > 5.0) scale = 60; // never leave the window frozen for long: ease off hard once the budget is spent
         if (GetTime() - start > 8.0) break;
         GenLevel gl = GenerateLevel(level, seed, scale / 100.0f);
-        if (ValidateGenerated(level, gl, nullptr)) {
+        unsigned snaps = 0;
+        if (ValidateGenerated(level, gl, nullptr, nullptr, nullptr, level == PL_PIRATE ? &snaps : nullptr)) {
             g.platLayouts[level] = {(int)seed, scale};
-            if (level == PL_PIRATE && GetRandomValue(1, 100) <= 12) g.platLayouts[level].push_back(1); // rarely, the ship is a ghost ship
+            if (level == PL_PIRATE) g.platLayouts[level].push_back(GetRandomValue(1, 100) <= 12 ? 1 : 0); // rarely, the ship is a ghost ship
+            if (level == PL_PIRATE) g.platLayouts[level].push_back((int)snaps);                            // where the Grand Kraken may snap a ship
             return;
         }
     }
@@ -5127,7 +5234,7 @@ void GeneratePlatLayout(Game& g, int level) {
 std::string PlatLayoutCode(const Game& g, int level) {
     const std::vector<int>& l = g.platLayouts[level];
     if (l.size() < 2) return "(new)";
-    return l.size() == 3 && l[2] ? TextFormat("#%06d GHOST", l[0]) : TextFormat("#%06d", l[0]);
+    return l.size() >= 3 && l[2] ? TextFormat("#%06d GHOST", l[0]) : TextFormat("#%06d", l[0]);
 }
 void StartPlatform(Game& g, int level) {
     if (!PlatLayoutValid(g, level)) GeneratePlatLayout(g, level); // e.g. a save from before the generator
@@ -5135,7 +5242,7 @@ void StartPlatform(Game& g, int level) {
     g.plat.level = level;
     g.plat.layoutCode = PlatLayoutCode(g, level);
     g.plat.layout = g.platLayouts[level];
-    g.plat.ghost = level == PL_PIRATE && g.plat.layout.size() == 3 && g.plat.layout[2] != 0;
+    g.plat.ghost = level == PL_PIRATE && g.plat.layout.size() >= 3 && g.plat.layout[2] != 0;
     g.plat.hard = g.platHard;
     g.plat.checkpoints = g.platCheckpoints;
     g.plat.bossEnabled = level == PL_HULL ? g.platHullBoss : level == PL_PIRATE ? g.platPirateBoss : true;
@@ -5768,7 +5875,7 @@ namespace {
 double gMs[PL_COUNT] = {}; int gDraws[PL_COUNT] = {};
 bool gValidateShafts = false; // DEPTH_FULL=1: also search the shaft climbs of every generated level, not just the proven templates
 long gHopExpanded[PL_COUNT][3] = {}; // per level: total expansions, hops searched, largest hop
-bool ValidateGenerated(int level, const GenLevel& gl, int* failedHop, float* solveTime, int* hopsOut) {
+bool ValidateGenerated(int level, const GenLevel& gl, int* failedHop, float* solveTime, int* hopsOut, unsigned* snapMask) {
     const LevelDef& L = Lv(level);
     PlatformState p;
     p.level = level;
@@ -5794,6 +5901,35 @@ bool ValidateGenerated(int level, const GenLevel& gl, int* failedHop, float* sol
         if (!hopOk) {
             if (failedHop) *failedHop = (int)i;
             return false;
+        }
+    }
+    // the Grand Kraken's snap points: each is proven on a snapped copy - every hop from the ship before to the ship
+    // after, with the torn-out waypoints dropped and the sunk half's moved down a row. Unproven ones are never used.
+    if (snapMask) {
+        *snapMask = 0;
+        for (size_t k = 0; k < gl.snaps.size() && k < 31; k++) {
+            const GenSnap& s = gl.snaps[k];
+            PlatformState q = p;
+            ApplySnapTiles(q, s);
+            std::vector<GenWaypoint> wps;
+            for (const GenWaypoint& w0 : gl.path) {
+                GenWaypoint w = w0;
+                if (w.tx < s.x0 - 14 || w.tx > s.x1 + 18 || (w.tx >= s.col - 1 && w.tx <= s.col + 1)) continue;
+                if (s.sink && w.tx >= SnapSinkA(s) && w.tx <= SnapSinkB(s)) w.ty += 1;
+                wps.push_back(w);
+            }
+            bool ok = wps.size() >= 2;
+            for (size_t i = 0; ok && i + 1 < wps.size(); i++) {
+                const GenWaypoint &a = wps[i], &b = wps[i + 1];
+                if (!gValidateShafts && (b.tag == SetPiece::ShaftUp || b.tag == SetPiece::ShaftDown || b.tag == SetPiece::BarnacleShaft)) continue;
+                q.pos = {a.tx * (float)T + 6, (a.ty - q.genTop + 1) * (float)T - PH};
+                q.vel = {0, 0};
+                q.coyote = q.wallCoyote = q.jumpBuffer = q.wallLock = q.time = 0;
+                q.onGround = false;
+                long n = 0;
+                ok = Crossable(q, b.tx * (float)T + 16, jets, n, (b.ty - q.genTop + 1) * (float)T - PH, 22, 60000);
+            }
+            if (ok) *snapMask |= 1u << k;
         }
     }
     return true;
@@ -5865,7 +6001,7 @@ int VerifyPlatformLevels() {
     for (int lv = 0; lv < PL_COUNT; lv++) {
         const LevelDef& L = Lv(lv);
         const int SEEDS = gValidateShafts ? 2 : 4;
-        int firstTry = 0, totalAttempts = 0, worstAttempts = 0, hopsFailed = 0;
+        int firstTry = 0, totalAttempts = 0, worstAttempts = 0, hopsFailed = 0, snapsTried = 0, snapsProven = 0;
         for (int seed = 1; seed <= SEEDS; seed++) {
             int attempts = 0;
             bool ok = false;
@@ -5874,7 +6010,9 @@ int VerifyPlatformLevels() {
                 GenLevel gl = GenerateLevel(lv, seed * 1000 + k, 1.0f - (k / 20) * 0.06f);
                 int hop = -1;
                 auto t0 = std::chrono::steady_clock::now();
-                ok = ValidateGenerated(lv, gl, &hop);
+                unsigned mask = 0;
+                ok = ValidateGenerated(lv, gl, &hop, nullptr, nullptr, lv == PL_PIRATE ? &mask : nullptr);
+                if (ok && lv == PL_PIRATE) { snapsTried += (int)std::min<size_t>(31, gl.snaps.size()); for (unsigned m = mask; m; m &= m - 1) snapsProven++; }
                 if (!ok && hop >= 0 && k < 6) printf("    draw %d failed at hop %d -> waypoint (%d,%d) tag %d\n", k, hop, gl.path[hop + 1].tx, gl.path[hop + 1].ty, (int)gl.path[hop + 1].tag);
                 gMs[lv] += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count(); gDraws[lv]++;
                 if (!ok && k == 0) hopsFailed++;
@@ -5890,6 +6028,7 @@ int VerifyPlatformLevels() {
         printf("%-16s %d seeds: %d valid at the first draw, %.1f draws on average (worst %d)  |  sample: %d wide, %d hops, %d set-pieces\n",
                L.name, SEEDS, firstTry, totalAttempts / (float)SEEDS, worstAttempts, sample.w, (int)sample.path.size() - 1, sp);
         printf("    validation: %.0f ms per draw on average\n", gMs[lv] / std::max(1, gDraws[lv]));
+        if (lv == PL_PIRATE) printf("    Grand Kraken snap points: %d proven crossable of %d proposed\n", snapsProven, snapsTried);
         printf("    hops searched: %ld, %.0f states each on average, largest %ld\n", gHopExpanded[lv][1], gHopExpanded[lv][0] / (double)std::max(1L, gHopExpanded[lv][1]), gHopExpanded[lv][2]);
         fflush(stdout);
         if (PlatHasArena(lv)) { // the arenas: from the landing to the exit, with the boss switched on and off

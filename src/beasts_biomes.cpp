@@ -45,11 +45,25 @@ const SpeciesDef PIRATE[PS_COUNT] = {
     {"Barn Owl",         MoveMode::Fly,    2.0f,  9,   60, 300,  900,  380, 1.4f, 1.0f, 0.3f, 0.020f, 0.35f, 0.0f, false, false, 4,  2, 0.7f, 0.2f, T_STRIKER | T_ECHO | T_CARRY, 150},
     {"Gull",             MoveMode::Fly,    0.8f,  7,   80, 240,  700,  240, 2.6f, 0.5f, 0.5f, 0.020f, 0.6f,  0.0f, false, true,  5,  6, 0.2f, 1.0f, T_MOBBER | T_KLEPTO},
     {"Albatross",        MoveMode::Fly,    9.0f, 12,   70, 160,  250,  300, 2.6f, 0.4f, 0.6f, 0.006f, 0.3f,  0.0f, false, false, 9,  1, 0.0f, 0.4f, 0},
+    // ParkourReference1.3 (beasts_pirate.cpp), adapted to the above-water fleet
+    {"Grand Kraken",     MoveMode::Swim, 5000.0f, 40,  60, 120,  100,  600, PI,   1.0f, 1.0f, 0.000f, 0.0f,  0.5f, false, false, 0,  0, 0.0f, 0.0f, T_GIANT},
+    {"Timber-Shell Tortoise", MoveMode::Walk, 300.0f, 16, 22, 30, 200, 160, 2.0f, 0.4f, 0.3f, 0.004f, 0.0f,  0.0f, false, false, 0,  0, 0.0f, 0.0f, T_GIANT},
+    {"Rigging-Mimic Cuttlefish", MoveMode::Climb, 6.0f, 10, 40, 300, 900, 260, PI, 0.8f, 0.5f, 0.020f, 0.0f,  0.8f, false, false, 0,  0, 0.0f, 0.2f, T_GIANT | T_CAMO},
+    {"Cannoneer Mantis Shrimp", MoveMode::Walk, 2.0f, 8,  0,   0,    0,  320, 1.2f, 0.5f, 0.3f, 0.010f, 0.0f,  0.6f, false, false, 0,  0, 0.0f, 0.0f, T_GIANT},
+    {"Wood-Borer Worms",  MoveMode::Sessile, 0.1f, 10,   0,   0,    0,    0, PI,   0.0f, 0.0f, 0.000f, 0.0f,  0.0f, false, false, 0,  0, 0.0f, 0.0f, T_FLORA},
+    {"Copper-Scale Moths", MoveMode::Fly,   0.05f, 4,   40, 200,  900,  120, PI,   0.6f, 0.3f, 0.004f, 0.9f,  0.0f, false, true,  2,  0, 0.3f, 0.0f, T_FLASH},
+    {"Cannon-Moss",      MoveMode::Sessile, 0.5f, 14,    0,   0,    0,    0, PI,   0.0f, 0.0f, 0.000f, 0.0f,  0.0f, false, false, 0,  0, 0.0f, 0.0f, T_FLORA},
+    {"Ship-Rot Fungus",  MoveMode::Sessile, 0.5f, 10,    0,   0,    0,    0, PI,   0.0f, 0.0f, 0.000f, 0.0f,  0.0f, false, false, 0,  0, 0.0f, 0.0f, T_FLORA},
+    {"Mast-Kelp",        MoveMode::Sessile, 1.0f, 10,    0,   0,    0,    0, PI,   0.0f, 0.0f, 0.000f, 0.0f,  0.0f, false, false, 0,  0, 0.0f, 0.0f, T_FLORA},
+    {"Barnacle-Cluster", MoveMode::Sessile, 2.0f, 10,    0,   0,    0,    0, PI,   0.0f, 0.0f, 0.000f, 0.0f,  0.0f, false, false, 0,  0, 0.0f, 0.0f, T_FLORA},
+    {"Siren's Lantern Weed", MoveMode::Sessile, 0.5f, 9,  0,   0,    0,    0, PI,   0.0f, 0.0f, 0.000f, 0.0f,  0.0f, false, false, 0,  0, 0.0f, 0.0f, T_FLORA},
 };
 const FoodEdge PIRATE_WEB[] = {
     {PS_CAT, PS_RAT, 1.0f},  {PS_CAT, PS_GULL, 0.3f},
     {PS_OWL, PS_RAT, 1.0f},  {PS_OWL, PS_MONKEY, 0.25f},
     {PS_DOG, PS_RAT, 0.6f},  {PS_DOG, PS_CAT, 0.2f},
+    {PS_KRAKEN, PS_DOG, 0.3f}, {PS_KRAKEN, PS_CAT, 0.2f}, {PS_KRAKEN, PS_MONKEY, 0.2f}, // everything on deck knows what the dark under the hulls means
+    {PS_KRAKEN, PS_RAT, 0.05f}, {PS_KRAKEN, PS_GULL, 0.05f},
 };
 constexpr int KEG = 0; // BeastProp kind: a lit powder keg
 
@@ -101,6 +115,7 @@ static void PirateTick(BeastWorld& W, PlatformState& p, float dt) {
         if (k.t <= 0) Blast(W, p, k.pos);
     }
     W.props.erase(std::remove_if(W.props.begin(), W.props.end(), [](const BeastProp& k) { return k.kind == KEG && k.t <= 0; }), W.props.end());
+    PirateDirector(W, p, dt);
 }
 
 static void PirateHooks(BeastWorld& W, PlatformState& p, int i, float dt) {
@@ -140,7 +155,7 @@ static void PirateHooks(BeastWorld& W, PlatformState& p, int i, float dt) {
             }
         }
         break;
-    default: break;
+    default: Pirate13Hook(W, p, i, dt); break; // the 1.3 roster (beasts_pirate.cpp)
     }
 }
 static bool PirateLethal(const BeastWorld& W, const Beast& b) {
@@ -152,9 +167,9 @@ const BiomeDef& PirateBiome() {
         BiomeDef d;
         d.level = PL_PIRATE; d.species = PIRATE; d.count = PS_COUNT; d.web = PIRATE_WEB; d.webN = (int)(sizeof(PIRATE_WEB) / sizeof(PIRATE_WEB[0]));
         d.water = false; d.clarity = 0.7f; d.daylight = 0.5f; d.arenaLimit = true;
-        static const float SIZES[PS_COUNT] = {1.0f, 1.3f, 1.3f, 1.7f, 1.0f, 1.5f, 1.2f, 1.8f};
+        static const float SIZES[PS_COUNT] = {1.0f, 1.3f, 1.3f, 1.7f, 1.0f, 1.5f, 1.2f, 1.8f, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
         d.sizes = SIZES;
-        d.spawn = SpawnPirate; d.hooks = PirateHooks; d.tick = PirateTick; d.lethal = PirateLethal;
+        d.spawn = SpawnPirate; d.hooks = PirateHooks; d.tick = PirateTick; d.lethal = PirateLethal; d.touch = Pirate13Touch;
         return d;
     }();
     return B;
@@ -865,6 +880,7 @@ static bool VerifyPirate() {
         if (!carried) fail("a barn owl never carried a rat off in its talons");
         if (!ate) fail("the owl never ate what it carried off");
     }
+    if (!VerifyPirate13()) ok = false;
     if (ok) TraceLog(LOG_WARNING, "verify-pirate-ecosystem: OK - stalk/pounce, gunfire/keg/blast/fleas/berserk, gull theft and owl carry-off all confirmed");
     return ok;
 }

@@ -5,6 +5,7 @@
 #pragma once
 #include "raylib.h"
 #include "beasts.h"
+#include "levelgen.h"
 #include <array>
 #include <functional>
 #include <string>
@@ -426,6 +427,8 @@ struct PlatformState {
     std::vector<Mover> movers;       // moving solid tops the diver can land on and ride (a grazing whale's back)
     int onMover = -1;                // the mover being ridden
     bool anchored = false;           // holding hull-kelp or a pole, hanging on a ledge, or under a low ceiling: turbulence can't tear you loose
+    std::vector<GenSnap> snaps;      // Pirate Ship: the proven places the Grand Kraken may snap a ship (layout[3] is the proof mask)
+    std::vector<uint8_t> snapped;    // and which of them it already has
     bool ghost = false;              // the rare Ghost Ship: undead crew, fog, and everything 1.6x faster
     struct Crumble { int tx, ty; float t; };
     std::vector<Crumble> crumbles;   // fragile scaffolding that has been stepped on and is shaking
@@ -728,6 +731,7 @@ Rectangle PlatDiverBox(const PlatformState& p);
 void PlatBurst(PlatformState& p, Vector2 at, int n, Color c, float speed, float life, float size);
 void PlatBubbles(PlatformState& p, Vector2 at, int n);
 void PlatBuildLevel(PlatformState& p);
+void PlatSnapShip(PlatformState& p, int k); // the Grand Kraken breaks proven snap point k (tiles, enemies, launchers, the diver, the beasts' map)
 void StartPlatform(Game& g, int level);
 void ScenePlatformer(Game& g);
 int VerifyPlatformLevels(); // debug: proves every section can be crossed; returns the number that can't

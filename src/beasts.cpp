@@ -1757,6 +1757,20 @@ void BeastsBuild(PlatformState& p, unsigned seed) {
     W.hides = 0;
 }
 
+void BeastsTerrainChanged(PlatformState& p) {
+    BeastWorld& W = p.fauna;
+    if (!W.active) return;
+    NavGrid& N = W.nav;
+    for (int y = 0; y < N.h; y++)
+        for (int x = 0; x < N.w; x++) {
+            N.solid[y * N.w + x] = PlatSolid(p, x, y) ? 1 : 0;
+            char c = PlatTileAt(p, x, y);
+            N.hazard[y * N.w + x] = (c == 'x' || c == 'g' || (p.waterY > 0 && (y + 1) * TILE > p.waterY + TILE)) ? 1 : 0;
+        }
+    for (auto& d : W.dens) if (PlatTileAt(p, d.tx, d.ty) != 'D' && PlatTileAt(p, d.tx, d.ty + 1) == 'D') { d.ty++; d.pos.y += TILE; } // it settled with its half of the ship
+    for (auto& b : W.beasts) { b.path.clear(); b.replanT = 0; if (b.hidden && b.den >= 0) b.pos = {W.dens[b.den].pos.x, W.dens[b.den].pos.y + 6}; }
+}
+
 void BeastsNoise(PlatformState& p, Vector2 at, float intensity) {
     if (!p.fauna.active) return;
     p.fauna.sounds.push_back({at, intensity, 0.35f, -1});

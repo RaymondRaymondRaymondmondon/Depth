@@ -123,6 +123,25 @@ static void ShotHull13(Game& g, int which) {
         if (m >= 0) { B[m].pos = {p.pos.x - 6 * 32.0f, p.pos.y - 3 * 32.0f}; B[m].facing = 1; B[m].act = BeastAct::Coil; B[m].actT = 0.5f; B[m].target = BEAST_DIVER; }
     }
 }
+// The Grand Kraken on the fleet: 0 a slam winding up over the diver, 1 two arms wrapped round a ship about to snap, 2 just after the snap.
+static void ShotKraken(Game& g, int which) {
+    g.platLayouts[PL_PIRATE] = {606, 100, 0, 0x7fffffff};
+    StartPlatform(g, PL_PIRATE);
+    PlatformState& p = g.plat;
+    if (p.snaps.empty()) return;
+    const GenSnap s = p.snaps[0];
+    int cx = s.col + 6, cy = s.bottom - 4 - p.genTop - 1; // standing on the deck (row Ds), not on a yard up the mast
+    p.pos = {cx * 32.0f + 6, (cy + 1) * 32.0f - 26}; p.onGround = true;
+    p.fauna.apexT = 999; p.fauna.calmT = 999; p.fauna.tension = 0;
+    BeastsUpdate(p, 1 / 60.0f);
+    for (auto& b : p.fauna.beasts) {
+        if (b.life != BeastLife::Alive || b.species != PS_KRAKEN) continue;
+        Rectangle d = PlatDiverBox(p);
+        if (which == 0) { b.target = 1; b.act = BeastAct::Coil; b.actT = -0.5f; b.anchor = {d.x + 5 * 32.0f, p.waterY}; b.goal = {d.x + 10, d.y + d.height}; b.special = 5; }
+        else { b.target = 2; b.carry = 0; b.act = BeastAct::Coil; b.actT = which == 1 ? 0.2f : 2.1f; b.special = 5; }
+    }
+    if (which == 2) for (int f = 0; f < 20; f++) BeastsUpdate(p, 1 / 60.0f);
+}
 static const char* gShotFilter = nullptr; // depth.exe --shots <folder> <text>: only screens whose name contains <text>
 static void TakeShots(const Game& base, const std::string& dir) {
     struct Shot { const char* name; std::function<void(Game&)> setup; };
@@ -204,6 +223,9 @@ static void TakeShots(const Game& base, const std::string& dir) {
         {"fauna_hull", [](Game& g) { ShotAtFauna(g, PL_HULL, 404, 6); }},
         {"fauna_hull2", [](Game& g) { ShotAtFauna(g, PL_HULL, 404, 6, 1); }},
         {"fauna_hull13_whale", [](Game& g) { ShotHull13(g, 0); }},
+        {"pirate_kraken_slam", [](Game& g) { ShotKraken(g, 0); }},
+        {"pirate_kraken_wrap", [](Game& g) { ShotKraken(g, 1); }},
+        {"pirate_kraken_snapped", [](Game& g) { ShotKraken(g, 2); }},
         {"fauna_hull13_siphon", [](Game& g) { ShotHull13(g, 1); }},
         {"fauna_hull13_megalodon", [](Game& g) { ShotHull13(g, 2); }},
         {"fauna_hull13_flora", [](Game& g) { ShotHull13(g, 3); }},

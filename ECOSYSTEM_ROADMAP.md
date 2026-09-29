@@ -662,3 +662,15 @@ To do, in order:
    taught each move (the user chose "optional first", then this).
 6. Older queue (still wanted): art polish at play scale, FABRIK for more limbs, slimy walls (1.2), PDF shader/auto-tiling phase.
 Known small leftovers: an empty stray file `beasts.h` in the repo root (untracked; deleting it was blocked - the user can remove it).
+### Progress 2026-09-29, later: the Pirate Ship's Grand Kraken
+User decision (AskUserQuestion): the Grand Kraken makes **real snaps anywhere** - so the generator proposes snap points and the
+validator proves each (see CLAUDE.md "the Pirate Ship's Grand Kraken"). Done: GenSnap, the proof, the layout mask, PlatSnapShip,
+the director, slams and snaps, drawing, VerifyPirate13, shots. NEXT for the Pirate Ship (in beasts_pirate.cpp; slots exist):
+Timber-Shell Tortoise (passive giant walker: crushes the below-deck 'i' interiors it lumbers through, opening corridors - adding
+routes, never removing the deck), Rigging-Mimic Cuttlefish (hangs as a fraying rope from spars/yards; grabs a diver who leaps from
+it mid-air unless they paused on it first - it twitches when touched; the lantern weed reveals it), Cannoneer Mantis Shrimp (in 'N'
+gun ports: fires a bullet-fast cavitation strike along a line at anything moving fast across it, shattering crates), wood-borer
+worms (on 'f' planking: dashing across makes it collapse behind you, dropping pursuers), copper-scale moths (the minnows, adapted to
+air: nest in open chests, herded they flash a curtain that distracts the cuttlefish), flora: cannon-moss (silent landings),
+ship-rot fungus (spore cloud + rot scent for scavengers), mast-kelp (dash through: a beam swings into pursuers), barnacle-cluster
+(fatal if dashed into, shreds big pursuers), Siren's lantern weed (light that reveals mimics). Then the planner for the fleet.

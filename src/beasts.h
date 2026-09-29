@@ -215,6 +215,7 @@ void BeastsBuild(PlatformState& p, unsigned seed);         // nav, scent, dens, 
 void BeastsUpdate(PlatformState& p, float dt);
 void BeastsNoise(PlatformState& p, Vector2 at, float intensity); // the diver's footfalls, landings, gunfire, blasts
 void BeastsDiverRespawned(PlatformState& p, Vector2 at);          // lethal beasts near a checkpoint scatter instead of camping it
+void BeastsTerrainChanged(PlatformState& p);                       // the tiles changed (a ship snapped): re-read the map, move dens, drop routes
 bool BeastLethalNow(const PlatformState& p, const Beast& b);     // is touching this beast fatal right now?
 bool BeastsTouchDiver(const PlatformState& p, Rectangle diver);  // any lethal contact this frame
 const SpeciesDef& BeastSpecies(int biome, int species);
@@ -226,7 +227,9 @@ bool VerifyBeasts();                                       // depth.exe --verify
 // ParkourReference1.3 merged the sprats into pilot-fish and the moray into the Hull-Crusher eel; the rest are new.
 enum HullSpecies { HS_PILOT, HS_SHRIMP, HS_OCTOPUS, HS_PUFFER, HS_LEECH, HS_ANEMONE, HS_HERMIT, HS_BRITTLE, HS_CRAB, HS_EEL,
                   HS_WHALE, HS_SIPHON, HS_MEGALODON, HS_MITES, HS_RUST, HS_HYDROID, HS_PANEMONE, HS_MOSS, HS_KELP, HS_COUNT };
-enum PirateSpecies { PS_RAT, PS_CAT, PS_MONKEY, PS_DOG, PS_FLEA, PS_OWL, PS_GULL, PS_ALBATROSS, PS_COUNT };
+// ParkourReference1.3 on the (above-water) fleet: the Grand Kraken, then the rest of the roster (beasts_pirate.cpp)
+enum PirateSpecies { PS_RAT, PS_CAT, PS_MONKEY, PS_DOG, PS_FLEA, PS_OWL, PS_GULL, PS_ALBATROSS,
+                     PS_KRAKEN, PS_TORTOISE, PS_CUTTLE, PS_MANTIS, PS_BORER, PS_MOTH, PS_CMOSS, PS_ROT, PS_MKELP, PS_BARNACLE, PS_LANTERN, PS_COUNT };
 enum IslandSpecies { IS_BOAR, IS_SNAKE, IS_LIZARD, IS_BAT, IS_SPIDER, IS_CRAB, IS_FROG, IS_GULL, IS_DOG, IS_COCONUT, IS_COUNT };
 enum CaveSpecies { CS_BAT, CS_JELLY, CS_SALAMANDER, CS_BEETLE, CS_LEECH, CS_WORM, CS_MOTH, CS_COUNT };
 enum PipeSpecies { PP_MOTH, PP_SPIDER, PP_CENTIPEDE, PP_RAT, PP_MITE, PP_PILLBUG, PP_MOUSE, PP_ROACH, PP_GLOW, PP_CRICKET, PP_COUNT };

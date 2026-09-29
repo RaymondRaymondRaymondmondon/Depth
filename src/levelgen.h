@@ -34,6 +34,12 @@ enum class SetPiece { None, SteamBoost, CrumbleRun, GearGauntlet, BarnacleShaft,
 
 struct GenWaypoint { int tx, ty; SetPiece tag; };   // a standing tile on the critical path (ty = the row you stand in)
 
+// A place where the Pirate Ship's Grand Kraken may snap a ship in half (ParkourReference1.3): columns col-1..col+1 are
+// torn out from `top` down through the keel (`bottom`), and one half may settle a row lower (sink -1 the stern half,
+// +1 the bow half, 0 neither). Ship x0..x1 includes the bowsprit. The generator proposes them; platformer.cpp proves
+// each one with the real movement code on a snapped copy of the level and keeps only the ones that stay crossable.
+struct GenSnap { int col = 0, x0 = 0, x1 = 0, top = 0, bottom = 0, sink = 0; };
+
 struct GenLevel {
     int w = 0, h = 0;
     std::vector<std::string> rows;      // the finished terrain, hazards and enemies, in the game's tile characters
@@ -42,6 +48,7 @@ struct GenLevel {
     float safety = 0;
     bool enclosed = false;              // solid all around (the Pipes) rather than open water or sky
     std::vector<int> setPieces;         // count per SetPiece, for the developer report
+    std::vector<GenSnap> snaps;         // Pirate Ship: candidate snap points (see GenSnap)
 };
 
 // The tallest up-shaft (rows) that --verify has proven climbable, by interior width and barnacle lining.

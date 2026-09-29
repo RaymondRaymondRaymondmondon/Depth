@@ -423,6 +423,29 @@ static void BuildFleet(Grid& g, std::vector<Plat>& pl, Rng& rng, GenLevel& out, 
         auto room = [&](int a, int b, int r0, int r1) { for (int xx = a; xx <= b; xx++) for (int rr = r0; rr <= r1; rr++) if (g.get(xx, rr) == '#') g.set(xx, rr, 'i'); };
         if (quarter) room(sx + 2, sx + 8, Ds + 1, Ds + 3);
         if (len >= 40) room(sx + 14, ex - 8, Ds + 2, Ds + 3);
+        // ---- a snap point for the Grand Kraken: plain deck clear overhead, away from the ends; it may sink a half
+        //      unless a rope bridge is tied to that half (a sunk mast would leave the rope hanging a row off)
+        if (ship > 0 && !isLast && len >= 38) {
+            std::vector<int> cols;
+            for (int c = sx + 14; c <= ex - 14; c++) {
+                bool ok = true;
+                for (int d = -1; d <= 1 && ok; d++) {
+                    ok = g.get(c + d, Ds) == '#';
+                    for (int r = std::max(0, Ds - 26); r < Ds && ok; r++) ok = g.get(c + d, r) == '.' || g.get(c + d, r) == 'o'; // nothing overhead: no mast, yard, shaft wall or rope
+                }
+                if (ok) cols.push_back(c);
+            }
+            if (!cols.empty()) {
+                GenSnap sn;
+                sn.col = cols[rng.I(0, (int)cols.size() - 1)];
+                sn.x0 = sx; sn.x1 = bridgeAt ? ex : ex + 3; sn.top = std::max(0, Ds - 26); sn.bottom = Ds + 4;
+                int roll = rng.I(0, 2);
+                sn.sink = roll == 0 ? 0 : roll == 1 ? -1 : 1;
+                if (sn.sink < 0 && !quarter) sn.sink = 0; // the stern carries the far mast of a rope bridge
+                if (sn.sink > 0 && bridgeAt) sn.sink = 0;  // the bow carries the near mast of one
+                out.snaps.push_back(sn);
+            }
+        }
         // ---- leaving the ship
         prevBowX = ex; prevBowD = Ds; prevD = Ds;
         if (isLast) { x = ex + 1; ship++; break; }
