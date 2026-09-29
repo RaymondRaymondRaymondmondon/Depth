@@ -1083,7 +1083,7 @@ void StepPlayer(PlatformState& p, float dir, bool jumpHeld) {
         int tx = (int)floorf((p.wallSide > 0 ? p.pos.x + PW + 1 : p.pos.x - 1) / T);
         int handY = (int)floorf((p.pos.y + 2) / T);
         if (Solid(p, tx, handY) && !Solid(p, tx, handY - 1) && !Solid(p, tx, handY - 2) && At(p, tx, handY) != 'f' && At(p, tx, handY) != 'x' &&
-            p.pos.y + 2 - handY * (float)T < 14 && !p.verifying) {
+            p.pos.y + 2 - handY * (float)T < 14) { // (the path search can grab ledges too: movement pass 2)
             p.pose = 9; p.ledgeTx = tx; p.ledgeTy = handY; p.vel = {0, 0};
             p.pos.y = handY * (float)T - 2;
             p.scale = {0.9f, 1.1f};
@@ -6284,16 +6284,24 @@ struct SimNode {
     float coyote, wallCoyote, jumpBuffer, wallLock, time;
     int wallSide, lockSide;
     bool onGround, held, facing;
+    // movement pass 2: the search can dash and grab ledges too, so it carries that state
+    int pose = 0, ledgeTx = 0, ledgeTy = 0;
+    float moveT = 0, boostT = 0;
+    bool dashReady = true;
+    Vector2 dashDir{0, 0};
 };
 
 SimNode Snap(const PlatformState& p, bool held) {
-    return {p.pos, p.vel, p.coyote, p.wallCoyote, p.jumpBuffer, p.wallLock, p.time, p.wallSide, p.lockSide, p.onGround, held, p.facingRight};
+    return {p.pos, p.vel, p.coyote, p.wallCoyote, p.jumpBuffer, p.wallLock, p.time, p.wallSide, p.lockSide, p.onGround, held, p.facingRight,
+            p.pose, p.ledgeTx, p.ledgeTy, p.moveT, p.boostT, p.dashReady, p.dashDir};
 }
 
 void Restore(PlatformState& p, const SimNode& n) {
     p.pos = n.pos; p.vel = n.vel; p.coyote = n.coyote; p.wallCoyote = n.wallCoyote; p.jumpBuffer = n.jumpBuffer;
     p.wallLock = n.wallLock; p.time = n.time; p.wallSide = n.wallSide; p.lockSide = n.lockSide;
     p.onGround = n.onGround; p.facingRight = n.facing; p.deathTimer = 0; p.finished = false;
+    p.pose = n.pose; p.ledgeTx = n.ledgeTx; p.ledgeTy = n.ledgeTy; p.moveT = n.moveT; p.boostT = n.boostT; p.dashReady = n.dashReady; p.dashDir = n.dashDir;
+    p.inDown = false; p.upHeld = false; p.shiftHeld = false; p.dashReq = 0;
 }
 
 // States that land in the same bucket count as already visited. Sections with timed jets also
@@ -6310,6 +6318,8 @@ uint64_t Key(const SimNode& n, bool jets) {
     k = k * 2 + (n.wallLock > 0);
     k = k * 2 + (n.coyote > 0);
     k = k * 2 + (n.wallCoyote > 0);
+    k = k * 16 + (uint64_t)(n.pose & 15);
+    k = k * 2 + n.dashReady;
     if (jets) k = k * 16 + (uint64_t)((int)(fmodf(n.time, 2.4f) / 0.15f) % 16);
     return k;
 }
@@ -6330,9 +6340,12 @@ bool Crossable(PlatformState& p, float goalX, bool jets, long& expanded, float g
         SimNode cur = nodes[open.top().idx];
         open.pop();
         expanded++;
-        for (int dir = -1; dir <= 1; dir++)
-            for (int held = 0; held <= 1; held++) {
+        for (int act = 0; act < 8; act++) { // run left/none/right, jump held or not - and (movement pass 2) a dash either way
+                int dir = act < 6 ? act / 2 - 1 : (act == 6 ? -1 : 1), held = act < 6 ? act % 2 : (cur.held ? 1 : 0);
+                bool dashAct = act >= 6;
+                if (dashAct && (!cur.dashReady || cur.pose == 5)) continue;
                 Restore(p, cur);
+                if (dashAct) p.dashReq = dir;
                 if (held && !cur.held) p.jumpBuffer = JUMP_BUFFER;
                 bool dead = false;
                 for (int k = 0; k < SUB && !dead; k++) {
