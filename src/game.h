@@ -429,7 +429,8 @@ struct PlatformState {
     bool anchored = false;           // holding hull-kelp or a pole, hanging on a ledge, or under a low ceiling: turbulence can't tear you loose
     std::vector<GenSnap> snaps;      // Pirate Ship: the proven places the Grand Kraken may snap a ship (layout[3] is the proof mask)
     std::vector<uint8_t> snapped;    // and which of them it already has
-    std::string deathCause, deathTip; float causeT = 0; // what killed the diver last, and one way to beat it (shown a few seconds)
+    std::string deathCause, deathTip; float causeT = 0;
+    float dayOffset = 0;             // where this dive starts in the 4-minute day/night cycle of the backgrounds (random each dive) // what killed the diver last, and one way to beat it (shown a few seconds)
     bool ghost = false;              // the rare Ghost Ship: undead crew, fog, and everything 1.6x faster
     struct Crumble { int tx, ty; float t; };
     std::vector<Crumble> crumbles;   // fragile scaffolding that has been stepped on and is shaking

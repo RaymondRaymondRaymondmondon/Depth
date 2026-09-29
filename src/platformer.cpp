@@ -912,7 +912,12 @@ void BuildLevel(PlatformState& p) {
     // The living-AI creatures (beasts.h): every level's food web, dens and all. In the Hull the engine also takes
     // the generator's crabs and eels out of p.enemies and runs them as hunters with dens of their own.
     BeastsBuild(p, seed);
+    if (!p.verifying) p.dayOffset = GetRandomValue(0, 1000) / 1000.0f; // a random time of day for this dive
 }
+// 0..1 through the backgrounds' 4-minute day (0 dawn, 0.25 noon, 0.5 dusk, 0.75 midnight), and how much daylight that is
+float DayPhase(const PlatformState& p) { return fmodf(p.time / 240.0f + p.dayOffset, 1.0f); }
+float Daylight(const PlatformState& p) { return std::clamp(0.5f + 0.6f * sinf(DayPhase(p) * 2 * PI), 0.0f, 1.0f); }
+Color LerpC(Color a, Color b, float u) { u = std::clamp(u, 0.0f, 1.0f); return Color{(unsigned char)(a.r + (b.r - a.r) * u), (unsigned char)(a.g + (b.g - a.g) * u), (unsigned char)(a.b + (b.b - a.b) * u), (unsigned char)(a.a + (b.a - a.a) * u)}; }
 int PartAt(const PlatformState& p, float x) {
     int k = 0;
     for (int i = 0; i < (int)p.partX.size(); i++) if (x >= p.partX[i] * (float)T) k = i;
@@ -1575,10 +1580,33 @@ void BackgroundSystem::Setup(int lv) {
             for (int k = 0; k < 8; k++) { float bx = fmodf(k * 173.0f - ox * 0.5f + 9000, cw + 100), by = ch - fmodf(t * (16 + k * 4) + k * 60, ch); DrawCircleLines((int)bx, (int)by, 3 + k % 3, Fade(Color{190, 230, 250, 255}, 0.4f)); }
         }};
     } else if (lv == PL_ISLAND) {
-        farLayer = {0.12f, 0.12f, [cw, ch](const PlatformState& p, float t, float ox, float oy) { // a hazy sky, and a ridge of carved idols far off - the skyline reads as a shrine ground, not a forest
-            (void)p; (void)t; (void)oy;
-            DrawRectangleGradientV(0, 0, (int)cw, (int)ch, Color{150, 190, 150, 255}, Color{86, 130, 96, 255});
-            DrawCircle((int)(cw * 0.7f), 70, 34, Color{230, 220, 170, 220}); // a hazy sun
+        farLayer = {0.12f, 0.12f, [cw, ch](const PlatformState& p, float t, float ox, float oy) { // the island's sky through a whole day, the volcano, the sea and the beach
+            (void)oy;
+            float ph = DayPhase(p), day = Daylight(p);
+            float dusk = std::max(0.0f, 1.0f - fabsf(ph - 0.5f) * 8) + std::max(0.0f, 1.0f - fabsf(ph - 0.0f) * 8) + std::max(0.0f, 1.0f - fabsf(ph - 1.0f) * 8);
+            Color skyTop = LerpC(LerpC(Color{14, 16, 44, 255}, Color{90, 170, 230, 255}, day), Color{120, 70, 110, 255}, dusk * 0.6f);
+            Color skyLow = LerpC(LerpC(Color{30, 30, 60, 255}, Color{190, 225, 220, 255}, day), Color{250, 150, 90, 255}, dusk * 0.8f);
+            DrawRectangleGradientV(0, 0, (int)cw, (int)ch, skyTop, skyLow);
+            if (day < 0.5f) for (int k = 0; k < 60; k++) { float sx = fmodf(k * 97.0f - ox * 0.02f + 9000, cw), sy = fmodf(k * 53.0f, ch * 0.6f); if (sinf(t * 2 + k) > -0.5f) DrawPixel((int)sx, (int)sy, Fade(WHITE, (0.5f - day) * 1.6f)); } // stars
+            float arc = ph * 2 * PI; // the sun climbs and sets; the moon follows it round
+            Vector2 sun{cw * 0.5f - cosf(arc) * cw * 0.45f, ch * 0.75f - sinf(arc) * ch * 0.6f};
+            Vector2 moon{cw * 0.5f + cosf(arc) * cw * 0.45f, ch * 0.75f + sinf(arc) * ch * 0.6f};
+            if (sun.y < ch) { DrawCircleV(sun, 34, Fade(Color{255, 230, 160, 255}, 0.25f)); DrawCircleV(sun, 20, Color{255, 240, 190, 255}); }
+            if (moon.y < ch) { DrawCircleV(moon, 16, Color{230, 230, 240, 230}); DrawCircleV({moon.x - 5, moon.y - 3}, 4, Color{200, 200, 215, 230}); }
+            // the sea on the horizon, with the beach
+            float sea = ch * 0.78f;
+            DrawRectangle(0, (int)sea, (int)cw, (int)(ch - sea), LerpC(Color{20, 40, 70, 255}, Color{40, 130, 170, 255}, day));
+            for (int k = 0; k < 20; k++) DrawRectangle((int)fmodf(k * 131.0f + t * 6 - ox * 0.03f + 9000, cw), (int)(sea + 4 + (k % 5) * 6), 10, 1, Fade(WHITE, 0.25f + 0.2f * day));
+            DrawRectangle(0, (int)(sea + 30), (int)cw, 6, LerpC(Color{80, 76, 60, 255}, Color{230, 214, 160, 255}, day)); // the beach
+            // the volcano: it smokes all day, and every so often it erupts (ash only - it can't reach you)
+            float vx = cw * 0.72f - ox * 0.12f * 0.15f, vb = sea + 2;
+            Color rock = LerpC(Color{30, 26, 34, 255}, Color{90, 76, 70, 255}, day);
+            DrawTri({vx - 150, vb}, {vx + 150, vb}, {vx - 16, vb - 150}, rock); DrawTri({vx + 150, vb}, {vx + 16, vb - 150}, {vx - 16, vb - 150}, rock);
+            float cyc = fmodf(t, 75.0f), erupt = cyc > 60 ? std::min(1.0f, (cyc - 60) / 2) * std::max(0.0f, 1 - (cyc - 70) / 5) : 0.0f;
+            DrawCircle((int)vx, (int)(vb - 150), 12 + erupt * 10, Fade(Color{255, 120, 40, 255}, 0.4f + 0.5f * erupt)); // the crater's glow
+            for (int k = 0; k < 10; k++) { float u = fmodf(t * 0.05f + k * 0.1f, 1.0f); DrawCircle((int)(vx + sinf(k * 2.3f + t * 0.2f) * 20 * u + u * 60), (int)(vb - 160 - u * 120), 10 + u * 26 + erupt * 16, Fade(LerpC(Color{80, 76, 80, 255}, Color{150, 140, 140, 255}, day), (1 - u) * (0.35f + erupt * 0.4f))); } // the plume
+            if (erupt > 0) for (int k = 0; k < 8; k++) { float u = fmodf((cyc - 60) * 0.6f + k * 0.13f, 1.0f), dir = (k % 2 ? 1.0f : -1.0f) * (0.4f + k * 0.1f); DrawCircle((int)(vx + dir * u * 90), (int)(vb - 150 - sinf(u * PI) * 70 + u * 40), 3, Color{255, 170, 60, 255}); } // lava bombs arcing down its flanks
+            DrawTri({vx - 14, vb - 148}, {vx + 14, vb - 148}, {vx + 30 * erupt, vb - 60}, Fade(Color{255, 110, 30, 255}, erupt * 0.8f)); // a lava run
             Layer(ox / 0.12f, 0.12f, 260, cw, [&](float x, float wx) { // a low canopy hummock behind every other idol, so the ridge doesn't read as bare rock
                 float h = 30 + Hs(wx) * 30;
                 DrawTri({x - 50, ch}, {x + 50, ch}, {x, ch - h}, Color{70, 108, 78, 255});
@@ -1616,6 +1644,59 @@ void BackgroundSystem::Setup(int lv) {
             for (int k = 0; k < 26; k++) { // drifting pollen/spores, or incense smoke curling off an unseen offering
                 float sx2 = fmodf(k * 83.0f - ox * 0.8f + 9000, cw), sy2 = fmodf(k * 61.0f + t * (6 + k % 4 * 2), ch);
                 DrawRectangle((int)sx2, (int)sy2, 1, 1, Fade(Color{230, 220, 160, 255}, 0.4f));
+            }
+            float day = Daylight(p);
+            // a river winding down out of the hills, and the waterfall that feeds it
+            Layer(ox / 0.4f + 40, 0.4f, 900, cw, [&](float x, float wx) {
+                (void)wx;
+                for (int k = 0; k < 30; k++) { float u = k / 29.0f; float rx = x + sinf(u * 5 + wx) * 40 + u * 180, ry = ch * 0.55f + u * ch * 0.45f; DrawEllipse((int)rx, (int)ry, 22 - u * 4, 5, LerpC(Color{30, 50, 80, 255}, Color{70, 160, 200, 255}, day)); if ((k + (int)(t * 6)) % 5 == 0) DrawRectangle((int)rx - 6, (int)ry - 1, 8, 1, Fade(WHITE, 0.5f)); }
+                DrawRectangle((int)x - 10, (int)(ch * 0.25f), 20, (int)(ch * 0.3f), LerpC(Color{60, 80, 100, 220}, Color{190, 230, 245, 220}, day)); // the falls
+                for (int k = 0; k < 6; k++) DrawRectangle((int)x - 8 + k * 3, (int)(ch * 0.25f + fmodf(t * 60 + k * 17, ch * 0.3f)), 1, 6, Fade(WHITE, 0.6f));
+                DrawEllipse((int)x, (int)(ch * 0.55f), 34, 8, Fade(WHITE, 0.35f)); // spray
+            });
+            // villages: stilt huts under thatch, cookfires glowing at night and smoking by day
+            Layer(ox / 0.4f + 300, 0.4f, 700, cw, [&](float x, float wx) {
+                float gy = ch * 0.72f;
+                for (int h = 0; h < 4; h++) {
+                    float hx = x + h * 46 + Hs(wx + h) * 10, hh = 26 + Hs(wx + h * 3) * 8;
+                    for (int s2 = 0; s2 < 2; s2++) DrawRectangle((int)(hx + s2 * 26), (int)(gy - 14), 3, 16, Color{70, 52, 34, 255}); // stilts
+                    DrawRectangle((int)hx - 2, (int)(gy - 14 - hh * 0.5f), 34, (int)(hh * 0.5f), Color{140, 100, 60, 255}); // the hut
+                    DrawTri({hx - 8, gy - 14 - hh * 0.5f}, {hx + 40, gy - 14 - hh * 0.5f}, {hx + 16, gy - 14 - hh * 1.3f}, Color{190, 160, 90, 255}); // thatch
+                    DrawRectangle((int)hx + 12, (int)(gy - 22), 6, 8, day < 0.4f ? Color{255, 190, 90, 255} : Color{40, 30, 24, 255}); // a doorway, lamp-lit at night
+                }
+                float fx = x + 90, fire = 0.6f + 0.4f * sinf(t * 9 + wx);
+                if (day < 0.5f) DrawCircle((int)fx, (int)(gy - 2), 16 * fire, Fade(Color{255, 150, 60, 255}, 0.35f)); // a cookfire
+                DrawCircle((int)fx, (int)(gy - 2), 3, Color{255, 180, 80, 255});
+                for (int k = 0; k < 5; k++) { float u = fmodf(t * 0.2f + k * 0.2f, 1.0f); DrawCircle((int)(fx + sinf(u * 6 + k) * 6), (int)(gy - 8 - u * 50), 3 + u * 6, Fade(Color{150, 150, 150, 255}, (1 - u) * 0.3f)); } // its smoke
+                for (int k = 0; k < 3; k++) { float vxp = fx - 30 + k * 24 + sinf(t * 0.8f + k) * 6; DrawRectangle((int)vxp, (int)(gy - 10), 3, 8, Color{60, 40, 30, 255}); DrawCircle((int)vxp + 1, (int)(gy - 12), 2, Color{60, 40, 30, 255}); } // villagers about the fire
+            });
+            // an ancient stepped temple, and a sacrificial altar with its torches
+            Layer(ox / 0.4f + 620, 0.4f, 1100, cw, [&](float x, float wx) {
+                float gy = ch * 0.72f;
+                Color st = LerpC(Color{50, 50, 56, 255}, Color{130, 124, 110, 255}, day);
+                for (int k = 0; k < 5; k++) DrawRectangle((int)(x - 70 + k * 12), (int)(gy - 18 - k * 18), (int)(140 - k * 24), 18, Tone(st, -k * 0.04f)); // the tiers
+                DrawRectangle((int)x - 10, (int)(gy - 118), 20, 18, Tone(st, -0.2f)); // the shrine at the top
+                DrawRectangle((int)x - 5, (int)(gy - 110), 10, 10, day < 0.4f ? Color{255, 200, 120, 255} : Color{20, 18, 20, 255});
+                for (int k = 0; k < 4; k++) DrawRectangle((int)x - 3, (int)(gy - 18 - k * 18), 6, 18, Tone(st, 0.15f)); // the stair
+                float ax = x + 150;
+                DrawRectangle((int)ax - 20, (int)(gy - 12), 40, 12, Tone(st, -0.1f)); DrawRectangle((int)ax - 24, (int)(gy - 16), 48, 5, st); // the altar slab
+                DrawRectangle((int)ax - 4, (int)(gy - 19), 8, 3, Color{120, 30, 30, 255}); // an offering, stained
+                for (int s2 = -1; s2 <= 1; s2 += 2) { DrawRectangle((int)(ax + s2 * 34), (int)(gy - 30), 3, 30, Color{70, 50, 34, 255}); float fl = 0.7f + 0.3f * sinf(t * 11 + s2); DrawCircle((int)(ax + s2 * 34 + 1), (int)(gy - 32), 4 * fl, Color{255, 170, 60, 255}); if (day < 0.5f) DrawCircle((int)(ax + s2 * 34 + 1), (int)(gy - 32), 14 * fl, Fade(Color{255, 150, 60, 255}, 0.25f)); } // torches
+            });
+            // the food web, far off: every 20-40 s a sea eagle stoops on the river and carries off a fish (scenery, not the AI)
+            {
+                float period = 30.0f, e = floorf(t / period), u = (t - e * period) / 5.0f; // each event lasts about five seconds
+                if (u < 1.0f) {
+                    float bx = cw * (0.2f + 0.6f * Hs(e * 1.7f)), riverY = ch * 0.8f;
+                    Vector2 eagle{bx - 120 + u * 240, riverY - 120 + sinf(u * PI) * 110 - (u > 0.5f ? (u - 0.5f) * 200 : 0)};
+                    float flap = sinf(t * 12) * 6;
+                    DrawTri({eagle.x - 16, eagle.y + flap}, {eagle.x, eagle.y}, {eagle.x - 4, eagle.y + 3}, Color{50, 36, 26, 255});
+                    DrawTri({eagle.x + 16, eagle.y + flap}, {eagle.x, eagle.y}, {eagle.x + 4, eagle.y + 3}, Color{50, 36, 26, 255});
+                    DrawCircle((int)eagle.x + 3, (int)eagle.y - 1, 2, Color{230, 230, 220, 255}); // its white head
+                    if (u < 0.5f) { if (fmodf(t * 3, 1.0f) < 0.6f) DrawEllipse((int)(bx), (int)(riverY + 2), 4, 1.5f, Color{200, 220, 230, 255}); } // the fish, glinting
+                    else DrawEllipse((int)eagle.x, (int)eagle.y + 6, 4, 1.5f, Color{200, 220, 230, 255}); // carried off in its talons
+                    if (u > 0.45f && u < 0.55f) DrawEllipse((int)bx, (int)riverY + 2, 14, 3, Fade(WHITE, 0.6f)); // the splash
+                }
             }
         }};
         foreLayer = {1.3f, 1.15f, [cw, ch](const PlatformState& p, float t, float ox, float oy) { // hanging vines and near leaves, dark against the lens
