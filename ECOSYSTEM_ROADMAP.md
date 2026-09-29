@@ -600,3 +600,59 @@ Still to do, in order:
 4. Update CLAUDE.md (new levels, periscope chart, T_CARRY, sizes).
 ### Resumed: done
 Weeds and Atlantis creatures built (WeedsBiome/AtlantisBiome, tests via --verify-weeds-ecosystem / --verify-atlantis-ecosystem, art, dens). Shots: fauna_weeds_lineup (size check), fauna_weeds_shark, fauna_atlantis_*. Next: the PDF's player-physics section (slide, impact roll, poles, hydro-glide, water dash, parachute brake).
+
+## ParkourReference1.3 (the user's newest spec) - the plan
+1.3 gives every biome (Hull, Pirate Ship, Island, Cave, Seaweed, Atlantis, Abyss; not the Pipes) four large beasts (passive giant,
+clever hunter, unique predator, apex), two fodder beasts and five flora, plus universal rules: proximity herding, body-impact flora
+triggers, persistent injuries (lower speed, limps, bleeding into the scent grid; the wounded become targets). Many flora are the
+counterplay that lets a smart player survive the dangerous beasts. Its text is extracted to the session scratchpad (the PDF's glyphs
+decode as Arial glyph ids: char = gid + 29).
+User decisions: **add 1.3 to the existing webs, merging overlaps** (e.g. Hull moray -> Hull-Crusher eel, Hull sprat -> pilot-fish,
+Weeds tiger shark -> Leviathan Tiger Shark, Weeds scavenger crab -> Bristle-Crab); **Pirate Ship, Island and Cave stay above water**
+(adapt the 1.3 beasts to deck/shore/dry-tunnel versions); **the Hull first**.
+Apex beasts: **not scripted boss fights** - they can turn up anywhere, and the level designs itself so a smart player can learn to
+survive them. Answer: an AI for the level design, in two halves:
+1. **Ecology planner** (generation time, in BeastsBuild): habitats for each apex (open stretches, plating runs, exhaust tubes), counter-
+   flora placed with purpose (rust-algae before open water, hydroids near octopus tubes, pressure-anemones at the start of long runs,
+   hull-kelp anchors spaced so no stretch an apex can reach is longer than a refuge interval), destructible tiles ('d') only where the
+   proven route never depends on them.
+2. **Runtime director** (a Left-4-Dead-style AI director): tension and pacing; it lets an apex roam in from out of view when the player
+   has been calm and is entering a stretch with options; the beast's own AI does the rest (hunts what it senses, leaves when fed or
+   bored).
+Hull roster: Hull-Grazer Whale (passive giant: a moving solid surface to run on and hide under), Siphon Octopus (clever: anchors in
+exhaust tubes, suction toward its lair, pilot-fish bait), Electric Hull-Crusher Eel (unique: slams the plating, a shockwave that
+disrupts momentum and shatters rust-algae), Steel-Biter Megalodon (apex: shadow eclipses light, bites superstructure, its turbulence
+tears you off the hull unless anchored); fodder Barnacle-Mites (dash through: slick, less drag) and Pilot-Fish (scatter when sprinted
+through: a cue for current shifts); flora Rust-Algae, Bio-Electric Hydroids, Pressure-Anemone, Metal-Eater Moss, Hull-Kelp.
+## >>> RESUME HERE (written before a context compaction, 2026-09-29) <<<
+Standing orders from the user: work autonomously, commit and push often, ask questions as you go (AskUserQuestion) on real design
+decisions; if 5-hour usage reaches 93% pause (checkpoint + say so). Check usage with mcp__ccd_session_mgmt__get_usage.
+The PDFs' text is in docs/ParkourReference1.2.txt and docs/ParkourReference1.3.txt (decoded; '?' marks symbols that didn't decode).
+Done and pushed up to 2e916eb: the beast engine in all 7 platform levels (incl. the Weeds and Atlantis, built this session), carry-off,
+per-species sizes, the Periscope chart, and the diver's extra moves (--verify-moves). All verifiers pass.
+To do, in order:
+1. **Hull 1.3 roster** (plan above): merge HS_EEL -> Electric Hull-Crusher Eel (bigger, a slam shockwave along the deck that knocks
+   the diver's momentum and shatters rust-algae; keep its den ambush), HS_SPRAT -> Pilot-Fish (ride the hull's boundary layer, band 1;
+   scatter when sprinted through); add Hull-Grazer Whale (a moving solid surface: add "movers" the diver collides with and rides - the
+   path search never sees them), Siphon Octopus (in 'T' tubes / 'v' vents: suction toward its lair, pilot-fish corpses as bait,
+   stunned by hydroids), Steel-Biter Megalodon (apex, brought in by the director; shadow over the screen; strike turbulence throws the
+   diver off the hull unless anchored - anchored = holding hull-kelp, on a pole, or under a low ceiling; bites 'd' destructible tiles),
+   Barnacle-Mites (sessile carpets: dashing through crushes them and gives a short slick boost). Flora as sessile species with a
+   T_FLORA trait (not prey, not threats): Rust-Algae (grazed at speed or by the eel's shockwave -> a rust cloud: blinds, and hurts
+   predators passing through), Bio-Electric Hydroids (struck -> a stun shockwave: needs a Beast::stunT status), Pressure-Anemone (vault
+   off it at speed: a bounce forward, and a jet pushing trailing predators back), Metal-Eater Moss (predators crossing it are hurt -
+   lure them along your line), Hull-Kelp (a grab-and-swing that turns horizontal speed around a 90-degree corner; also an anchor).
+2. **Universal 1.3 rules**: persistent injuries (health < 1 lowers top speed and acceleration, bleeds into the scent grid, limps in the
+   gait/IK drawing, marks the wounded as easier prey), proximity herding (the diver sprinting or dashing near small fauna frightens them
+   along his velocity), body-impact flora triggers.
+3. **The level-design AI**: (a) the ecology planner in BeastsBuild (habitats, purposeful counter-flora, anchor spacing checked stretch
+   by stretch, 'd' destructible tiles only off the proven route); (b) the runtime director (tension/pacing; lets an apex roam in from
+   out of view; not scripted). Needs a verifier: every apex habitat stretch has refuges within reach; 'd' removal never breaks --verify.
+4. Then propagate 1.3 biome by biome: Pirate Ship, Island, Cave (all kept above water, beasts adapted), Seaweed (merge into the user's
+   Weeds web: tiger shark -> Leviathan Tiger Shark apex tracking blood across the forest; scavenger crab -> Bristle-Crab; add Goliath
+   Manatee, Mimic Octopus-Stalker, Harpoon Mantis, Silver-Fin Sardines and the five flora - Blood-Kelp, Luminescent Anemone, Air-Weed,
+   Tangle-Vine, Spore-Pod), Atlantis, and the Abyss (a separate mode, abyss.cpp).
+5. Movement pass 2: set-pieces that REQUIRE the new moves (low tunnels to slide through, pole chains, ledges), with the path search
+   taught each move (the user chose "optional first", then this).
+6. Older queue (still wanted): art polish at play scale, FABRIK for more limbs, slimy walls (1.2), PDF shader/auto-tiling phase.
+Known small leftovers: an empty stray file `beasts.h` in the repo root (untracked; deleting it was blocked - the user can remove it).

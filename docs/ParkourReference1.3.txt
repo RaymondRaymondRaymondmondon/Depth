@@ -1,0 +1,565 @@
+
+ Core Mechanics & Universal Rules
+ In this high-velocity survival sandbox, the player has no weapons, no inventory, and no ability to
+ hold or interact with objects beyond physical contact. You function on a
+ one-hit-death
+ system?any direct contact with a predator's attack or lethal hazard results in an immediate
+ game over.
+ The Traversal & Interactivity Rules
+ ?
+ Trajectory as an Instrument:
+ You interact with the
+ world purely through velocity, body
+ collision, proximity herding, and slipstreaming.
+ ?
+ ?
+ Proximity Herding:
+ Sprinting or hydro-dashing close
+ to small fauna frightens them into
+ motion, steering their movement vectors into predator lines of sight.
+ ?
+ ?
+ Body-Impact Flora Triggers:
+ Plants activate their
+ chemical, kinetic, or acoustic effects
+ when your body physically collides with or grazes them at high speed.
+ ?
+ ?
+ Persistent Injury Architecture:
+ Beasts take real-time
+ damage from environmental
+ hazards or other predators. Injuries lower top speeds, widen turn radiuses, alter FABRIK
+ joint rigs (e.g., limp animations, severed limbs), and bleed into the Eulerian Scent Grid.
+ Wounded beasts permanently retain these impairments and become targets for
+ scavengers and apex predators.
+ ?
+ 1. The Hull
+ Traversing the exterior steel plating of a massive submerged submarine amidst crushing ocean
+ currents, thruster jets, and barnacle-encrusted metal.
+ The 4 Large Beasts
+ ?
+ Passive Giant (Hull-Grazer Whale):
+ A gargantuan filter-feeder
+ that slowly scrapes
+ algae off the sub?s keel. Its massive, armored body acts as a moving, solid surface you
+ can wall-run across to cross high-current voids and shield yourself from open-water
+ predators.
+ ?
+ ?
+ Clever Hunter (Siphon Octopus):
+ An insanely intelligent
+ cephalopod that anchors itself
+ inside flooded exhaust tubes. It tracks the sub?s rhythm and uses dynamic water
+ displacement from ballast vents to drag you into its lair, using severed pilot-fish bodies
+ as bait.
+ ?
+ ?
+ Unique Predator (Electric Hull-Crusher Eel):
+ Senses
+ the electrical field of the
+ submarine. It wraps its massive body around the hull and violently slams into the metal
+ plating, sending a massive shockwave across the hull that disrupts your momentum and
+ shatters nearby rust-algae.
+ ?
+ ?
+ Apex Predator (Steel-Biter Megalodon):
+ A terrifyingly large shark that bites entire
+ chunks out of the submarine's outer superstructure. When it approaches, its massive
+ shadow eclipses the local light, and its violent strikes create massive water turbulence
+ that tears you off the hull if you aren't anchored in a crevice.
+ ?
+ The 2 Fodder Beasts
+ ?
+ Barnacle-Mites:
+ Abundant, tiny crustaceans that carpet
+ the metal. Dashing through
+ them crushes them instantly, coating your suit in slick fluid that momentarily reduces
+ drag.
+ ?
+ ?
+ Pilot-Fish Swarms:
+ Small fish that ride the hydrodynamic
+ boundary layer of the hull.
+ Sprinting through them causes the swarm to scatter, providing a visual cue for incoming
+ current shifts.
+ ?
+ The 5 Flora & Organic Types
+ ?
+ Rust-Algae:
+ Brittle metallic growth. Grazing it creates
+ a cloud of rust particles that blinds
+ predators and corrodes their natural armor if they give chase.
+ ?
+ ?
+ Bio-Electric Hydroids:
+ Plant-like organisms attached
+ to rivets. Striking them discharges
+ a static shockwave that stuns pursuing Siphon Octopuses.
+ ?
+ ?
+ Pressure-Anemone:
+ Highly elastic flora. Vaulting off
+ it at high speed propels you
+ forward while releasing a jet of water that pushes away trailing predators.
+ ?
+ ?
+ Metal-Eater Moss:
+ Highly acidic moss growing around
+ damaged pipes. Crossing it
+ strips a predator's armor if you trick them into trailing your exact line.
+ ?
+ ?
+ Hull-Kelp:
+ Long, thick strands attached to the sub's
+ hydroplanes. You can grab their flow
+ lines with your movement arc to swing around 90-degree metal corners.
+ ?
+ 2. The Pirate Ship
+ Navigating the sunken graveyards of 17th-century wooden galleons, rotting rigging, cannon
+ ports, and coral-overgrown treasure holds.
+ The 4 Large Beasts
+ ?
+ Passive Giant (Timber-Shell Tortoise):
+ A behemoth
+ tortoise with a shell encrusted in
+ sunken cannonballs and wood planks. It lumbers through ship hulls, crushing rotting
+ wood decks and opening up new traversal corridors through the wrecks.
+ ?
+ ?
+ Clever Hunter (Rigging-Mimic Cuttlefish):
+ Disguises
+ its tentacles as fraying ropes
+ hanging from shipwreck masts. It waits patiently for you to vault off a rope, grabbing you
+ mid-air unless you inspect the tension of the line before jumping.
+ ?
+ ?
+ Unique Predator (Cannoneer Mantis Shrimp):
+ Hides inside open cannon portholes.
+ When it senses high-velocity movement across its field of view, it fires a cavitation strike
+ at the speed of a bullet, creating a lethal shockwave that shatters surrounding timber.
+ ?
+ ?
+ Apex Predator (The Grand Kraken):
+ A colossal deep-sea
+ squid whose tentacles wind
+ through multiple shipwrecks simultaneously. When it moves, it snaps entire ships in half,
+ completely altering the terrain and forcing high-speed escape parkour.
+ ?
+ The 2 Fodder Beasts
+ ?
+ Wood-Borer Worms:
+ Tiny organisms that riddle the ship
+ timber. Dashing over them
+ causes weakened wood to collapse beneath you, dropping pursuing predators into lower
+ decks.
+ ?
+ ?
+ Copper-Scale Minnows:
+ Brightly reflecting fish that
+ nest in open chests. Herding them
+ creates a flashing light curtain that distracts the Cuttlefish.
+ ?
+ The 5 Flora Types
+ ?
+ Cannon-Moss:
+ Spongy moss that absorbs kinetic energy.
+ Landing on it allows for silent
+ drops from high rigging without alerting acoustic predators.
+ ?
+ ?
+ Ship-Rot Fungus:
+ Detonates in a spore cloud when struck,
+ obscuring vision and
+ emitting a rotting scent that draws scavengers into the area.
+ ?
+ ?
+ Mast-Kelp:
+ Wraps tightly around broken wood. Dashing
+ through it snaps the kelp under
+ tension, sending a wooden beam swinging like a battering ram into pursuing beasts.
+ ?
+ ?
+ Barnacle-Cluster:
+ Razor-sharp growth. Fatal to you
+ if you dash directly into it, but acts
+ as a cheese-grater to large predators pursuing you closely.
+ ?
+ ?
+ Siren's Lantern Weed:
+ Emits an intense, pulsating
+ glow that illuminates dark hold
+ interiors, revealing hidden Rigging-Mimics.
+ ?
+ 3. The Island
+ Traversing the submerged roots, tidal pools, waterfall lagoons, and ancient flooded tribal
+ temples of a tropical island.
+ The 4 Large Beasts
+ ?
+ Passive Giant (Goliath Island Beetle):
+ A massive,
+ amphibious beetle worshipped by
+ the local tribe. Its broad, stone-like shell carries carved tribal idols and serves as a
+ mobile platform across wide, open lagoon waters.
+ ?
+ ?
+ Clever Hunter (Mangrove Stalker):
+ An amphibious reptilian predator that operates both
+ in water and on roots. It utilizes tribal vine traps and natural chokepoints, waiting
+ patiently above water drops to snap you as you land.
+ ?
+ ?
+ Unique Predator (Totem-Centipede):
+ A massive, segmented
+ horror that weaves
+ through temple stone and beach sand. The uncontacted tribe alerts you to its presence
+ by beating drums when it wakes; it senses ground vibrations and breaches violently from
+ underwater walls.
+ ?
+ ?
+ Apex Predator (The Island God / Arch-Serpent):
+ A colossal
+ sea serpent worshipped
+ by the island inhabitants. It circles the island's coastal cliffs, smashing through ancient
+ stone bridges and creating massive tidal surges.
+ ?
+ The 2 Fodder Beasts
+ ?
+ Tidal Mud-Skippers:
+ Small fish that skip across the
+ water surface. Sprinting behind
+ them gives you a visual marker for safe, shallow stepping-stones.
+ ?
+ ?
+ Glow-Fireflies:
+ Swarm around water-lilies. Passing
+ through them coats your body in
+ bright dust, making you visible to the Totem-Centipede if you don't rinse off in deep
+ water.
+ ?
+ The 5 Flora Types
+ ?
+ Tribal Drum-Fungus:
+ A taut, drum-like mushroom. Hitting
+ it with high kinetic energy
+ launches you high into the air while emitting a loud acoustic shockwave that triggers the
+ Centipede.
+ ?
+ ?
+ Poison-Dart Vine:
+ Hanging vines that drip neurotoxin.
+ Grazing them is fatal, but tricking
+ a Mangrove Stalker into snapping through them paralyzes its jaw.
+ ?
+ ?
+ Razor-Palm Roots:
+ Sharp underwater roots. Forces precise
+ parkour weaving; pursuing
+ predators get tangled and sustain permanent lacerations.
+ ?
+ ?
+ Idol's Bloom:
+ A rare flower that, when brushed against,
+ releases a mist that instantly
+ resets your hydro-dash cooldowns.
+ ?
+ ?
+ Mangrove Root-Sponges:
+ Compress under impact and spring
+ back, preserving 100%
+ of your vault velocity.
+ ?
+ 4. The Cave
+ A completely pitch-black, submerged cavern system defined by stalactites, echolocation, and
+ acoustic hazards.
+ The 4 Large Beasts
+ ?
+ Passive Giant (Crystal-Shelled Tortoise):
+ A behemoth that grazes on glowing moss.
+ Its impenetrable shell provides dynamic, moving cover against ceiling drop-attacks from
+ predators.
+ ?
+ ?
+ Clever Hunter (Echo-Stalker):
+ A blind, amphibious
+ hunter that tracks by sonar. It
+ throws loose rocks with its tail to test acoustic reflections, hunting your exact location if
+ you make noise.
+ ?
+ ?
+ Unique Predator (Tremor Worm):
+ A massive burrowing
+ worm that weaves through
+ solid rock walls. It senses fast foot-runs or hydro-dashes, giving warning via wall
+ vibrations before bursting through the stone.
+ ?
+ ?
+ Apex Predator (Abyssal Arachnid):
+ A giant aquatic
+ spider that spins invisible,
+ high-tension webs across major cavern tunnels, suspending drained corpses of mid-tier
+ beasts as warnings.
+ ?
+ The 2 Fodder Beasts
+ ?
+ Glow-Shrimp:
+ Swarm around light plants. Sprinting
+ through them splatters glowing fluid
+ on your suit, allowing you to paint invisible spider webs by brushing past them.
+ ?
+ ?
+ Blind Cave Loaches:
+ Sluggish fish that panic at vibrations,
+ signaling where the Tremor
+ Worm is about to breach.
+ ?
+ The 5 Flora Types
+ ?
+ Lantern-Shroom:
+ Static bioluminescent fungi that light
+ up path junctions.
+ ?
+ ?
+ Acid-Lichen:
+ Corrosive wall growth. Fatal to you on
+ contact, but strips the armor off
+ pursueing predators if you juke them into it.
+ ?
+ ?
+ Vibration-Spore:
+ Fragile drum-like fungi. Hitting
+ them generates a massive acoustic
+ explosion that deafens the Echo-Stalker and summons the Tremor Worm.
+ ?
+ ?
+ Cave-Cabbage:
+ Dense underwater leaves that mask your
+ scent and thermal profile
+ when you slide through them.
+ ?
+ ?
+ Nerve-Root:
+ Paralytic barbs that slow down fodder
+ beasts, turning them into stationary
+ targets for predators.
+ ?
+ 5. The Seaweed
+ A dense, jungle-like underwater forest of giant kelp, marked by zero visibility, extreme verticality,
+ and murky waters.
+ The 4 Large Beasts
+ ?
+ Passive Giant (Goliath Manatee):
+ A colossal herbivore that clears pathways through
+ impenetrable kelp walls. Guided by the player grazing specific kelp to leave scent trails.
+ ?
+ ?
+ Clever Hunter (Mimic Octopus-Stalker):
+ Uses flawless
+ camouflage to blend with kelp
+ stalks, laying deadly ambushes along high-speed traversal routes.
+ ?
+ ?
+ Unique Predator (Harpoon Mantis):
+ A cliff-burrow crustacean
+ that strikes with
+ bullet-like speed. Must be disarmed by popping nearby air-plants to deflect its strike.
+ ?
+ ?
+ Apex Predator (Leviathan Tiger Shark):
+ A massive,
+ relentless apex predator that
+ tracks blood via the Eulerian Scent Grid across the entire forest.
+ ?
+ The 2 Fodder Beasts
+ ?
+ Silver-Fin Sardines:
+ Massive, reactive schools used
+ to distract predators or mask your
+ movement vectors.
+ ?
+ ?
+ Bristle-Crabs:
+ Bottom-feeders that crunch underfoot,
+ generating localized sound cues.
+ ?
+ The 5 Flora Types
+ ?
+ Blood-Kelp:
+ High-nutrient kelp that bleeds scent into
+ the Eulerian grid when grazed,
+ luring herbivores or drawing predators away.
+ ?
+ ?
+ Luminescent Anemone:
+ Emits safe-zone light but slows
+ down predators with a mild
+ neurotoxin if they crash into it.
+ ?
+ ?
+ Air-Weed:
+ Bulbous oxygen plants that explode into
+ massive buoyancy bubbles when hit,
+ launching you vertically.
+ ?
+ ?
+ Tangle-Vine:
+ Structural, impenetrable kelp that can
+ only be cleared by the Goliath
+ Manatee.
+ ?
+ ?
+ Spore-Pod:
+ Ruptures on impact to max out water turbidity,
+ creating a blinding
+ smokescreen to escape line-of-sight hunters.
+ ?
+ 6. Atlantis
+ A sprawling sunken city of ancient marble aqueducts, glowing energy crystals, grand
+ amphitheaters, and collapsing architecture.
+ The 4 Large Beasts
+ ?
+ Passive Giant (Orichalcum Leviathan):
+ An ancient,
+ gentle whale-like creature
+ encrusted with glowing Atlantean crystals. It swims through grand aqueducts, acting as a
+ high-speed moving transit line across open city plazas.
+ ?
+ ?
+ Clever Hunter (Gargoyle-Moray):
+ A large eel that coils inside marble statues. It uses
+ ancient polished mirrors to observe you from around corners before executing an
+ ambush.
+ ?
+ ?
+ Unique Predator (Phalanx Crustacean):
+ A heavily armored
+ guardian beast that patrols
+ sunken temples. When triggered by fast movement, it projects a directional hard-light
+ shockwave from its crystal shell that crushes anything in its path.
+ ?
+ ?
+ Apex Predator (Poseidon?s Scourge):
+ A colossal golden
+ sea serpent that reposed in
+ the royal palace. Its immense scale causes entire marble aqueducts and temples to
+ collapse as it chases you through the ruins.
+ ?
+ The 2 Fodder Beasts
+ ?
+ Crystal-Minnows:
+ Tiny fish that absorb ambient crystal
+ light and emit a blinding flash
+ when startled by a hydro-dash.
+ ?
+ ?
+ Mosaic-Snails:
+ Slugs that leave a frictionless, glass-like
+ slime on marble floors, allowing
+ for ultra-high-speed slides.
+ ?
+ The 5 Flora & Crystal Types
+ ?
+ Sun-Crystal Kelp:
+ Emits intense light that blinds
+ low-light predators like the
+ Gargoyle-Moray.
+ ?
+ ?
+ Prism-Moss:
+ Absorbs movement energy; landing on it
+ converts your downward velocity
+ into lateral dash momentum.
+ ?
+ ?
+ Aqueduct-Vine:
+ High-tension vines growing along ruins.
+ Can be grabbed mid-vault to
+ swing around sharp stone pillars.
+ ?
+ ?
+ Stasis-Lily:
+ When struck, releases a dense gel that
+ momentarily freezes a predator's
+ momentum in mid-charge.
+ ?
+ ?
+ Ruin-Spore:
+ Grows on crumbling marble. Impacting it
+ causes the surrounding stone
+ structure to structurally fail and collapse on pursuers.
+ ?
+ 7. The Abyss
+ A continuous, terrifying vertical descent into a pitch-black trench filled with deep-sea horror,
+ extreme pressure, and bioluminescent lures.
+ The 4 Large Beasts
+ ?
+ Passive Giant (Whale-Fall Scavenger):
+ A gargantuan,
+ heavily armored Isopod feeding
+ on massive skeletons at the trench floor. Completely unbothered by anything, its flat
+ back provides safe cover from downward suction currents.
+ ?
+ ?
+ Clever Hunter (Angler-Cephalopod):
+ A squid that hides
+ inside Void-Moss,
+ manipulating a bioluminescent lure that mimics safe flora or air bubbles to draw you into
+ its crushing beak.
+ ?
+ ?
+ Unique Predator (Pressure-Ghost):
+ A massive, translucent
+ jellyfish that periodically
+ inhales thousands of gallons of water, creating violent, sudden suction currents that drag
+ you off your parkour trajectory.
+ ?
+ ?
+ Apex Predator (The Trench-Maw):
+ A colossal Gulper
+ Eel whose unhinged jaw is wider
+ than the trench corridors. It swallows entire sections of the map, requiring you to use
+ extreme environmental hazards to disrupt its mouth.
+ ?
+ The 2 Fodder Beasts
+ ?
+ Trench-Krill:
+ Bioluminescent swarms that only become
+ visible in your wake, highlighting
+ safe wind-and-water currents down the abyss.
+ ?
+ ?
+ Slime-Hagfish:
+ Extremely slippery scavengers. When
+ drawn by blood, they secrete
+ massive amounts of mucus that eliminate friction on surrounding walls.
+ ?
+ The 5 Flora Types
+ ?
+ Thermal-Vent Tube Worms:
+ Clustered around deep heat
+ vents; they emit superheated
+ updrafts that launch you upward against gravity.
+ ?
+ ?
+ Void-Moss:
+ Absolute black moss that absorbs all light.
+ Dashing through it renders you
+ invisible to visual hunters for 3 seconds.
+ ?
+ ?
+ Pressure-Bulb:
+ Highly pressurized plant nodes that
+ implode violently when struck,
+ creating a concussive shockwave that stuns beasts.
+ ?
+ ?
+ Abyssal Coral:
+ Razor-sharp terrain that shreds any
+ predator that scrapes against it,
+ filling the Eulerian grid with blood.
+ ?
+ ?
+ Ghost-Kelp:
+ Pale, ethereal kelp that instantly resets
+ all movement abilities and dash
+ cooldowns upon physical contact.
+ 
