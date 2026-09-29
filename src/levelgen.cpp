@@ -1282,5 +1282,14 @@ GenLevel GenerateLevel(int level, unsigned seed, float scale) {
     out.h = P.H;
     out.rows = g.r;
     for (const Plat& p : pl) out.path.push_back({p.wx, p.y - 1, p.tag});
+    // pass-2 dressing (cover crates, warriors, dens, gunners) must never sit in a standing cell of the critical path
+    // (it made most Island draws unwinnable: a crate on the spot you had to stand)
+    for (const GenWaypoint& w : out.path)
+        for (int dy = 0; dy <= 1; dy++) {
+            int y = w.ty - dy;
+            if (y < 0 || y >= (int)out.rows.size() || w.tx < 0 || w.tx >= (int)out.rows[y].size()) continue;
+            char& c = out.rows[y][w.tx];
+            if (c == 'k' || c == 'P' || c == 'G' || c == 'c' || c == 'e' || c == 'p' || c == 'g' || c == 'N' || c == 'y') c = '.';
+        }
     return out;
 }
