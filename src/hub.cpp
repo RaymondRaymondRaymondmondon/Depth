@@ -583,7 +583,7 @@ void ScenePeriscope(Game& g) {
          "560 gold", Color{40, 70, 110, 255}},
     };
     const int N = PL_COUNT + 1; // the platform dives, then the Open Abyss
-    auto isOpen = [&](int i) { return i < PL_COUNT ? (i == 0 || g.platCleared[i - 1]) : g.platCleared[PL_PIRATE]; };
+    auto isOpen = [&](int i) { return i < PL_COUNT ? (i == 0 || g.platCleared[i - 1]) : g.platCleared[PL_ATLANTIS]; }; // the unlock chain, easiest to hardest: Pipes, Hull, Pirate Ship, Island, Cave, Weeds, Atlantis, the Abyss
     auto cleared = [&](int i) { return i < PL_COUNT ? g.platCleared[i] : g.abyssCleared; };
     g.periscopeSel = std::clamp(g.periscopeSel, 0, N - 1);
     // ---- the chart: one row per dive

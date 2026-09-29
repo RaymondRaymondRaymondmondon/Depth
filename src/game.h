@@ -439,7 +439,7 @@ struct PlatformState {
 
 // ---------- The Open Abyss: a fully-3D vertical descent biome, separate from the 2D platformer above ----------
 constexpr float ABYSS_DEPTH_SPAN = 900.0f; // how far down this vertical slice's trench is generated, in metres
-constexpr int ABYSS_PAYOUT = 280;          // gold at the bottom - the deepest dive, so it pays the most
+constexpr int ABYSS_PAYOUT = 400;          // gold at the bottom - the deepest dive, so it pays the most
 
 enum class AbyssCreatureState { Cling, Idle, Dislodged, Hunting, Fleeing, Investigating, Shattered, Lunging, Passing };
 enum class AbyssCreatureKind {

@@ -120,10 +120,10 @@ const LevelDef& Lv(int level) {
         d[PL_PIPES] = {"The Pipes", Part{}, Part{}, 0, 60, '#', true, '#'};
         d[PL_HULL] = {"The Hull", P16(HULL_ARENA), P16(HULL_ARENA_NOBOSS), 0, 120, '.', false, '.'};
         d[PL_PIRATE] = {"The Pirate Ship", P(CABIN_ARENA, 0, 2), P(CABIN_ARENA_NOBOSS, 0, 2), 0, 200, '#', false, '.'};
-        d[PL_ISLAND] = {"The Island", Part{}, Part{}, 0, 300, '#', false, '.'}; // no boss arena yet - the crossing itself ends the level, like the Pipes
-        d[PL_CAVE] = {"The Cave", Part{}, Part{}, 0, 380, '#', true, '#'}; // no boss arena yet; dark like the Pipes - lamp-lit only
-        d[PL_WEEDS] = {"The Weeds", Part{}, Part{}, 0, 460, '#', false, '.'}; // a sunlit kelp forest; no boss arena
-        d[PL_ATLANTIS] = {"Atlantis", Part{}, Part{}, 0, 560, '#', true, '.'}; // the drowned city: deep, lamp-lit, glyph-lit; no boss arena yet
+        d[PL_ISLAND] = {"The Island", Part{}, Part{}, 0, 240, '#', false, '.'}; // no boss arena yet - the crossing itself ends the level, like the Pipes
+        d[PL_CAVE] = {"The Cave", Part{}, Part{}, 0, 280, '#', true, '#'}; // no boss arena yet; dark like the Pipes - lamp-lit only
+        d[PL_WEEDS] = {"The Weeds", Part{}, Part{}, 0, 320, '#', false, '.'}; // a sunlit kelp forest; no boss arena
+        d[PL_ATLANTIS] = {"Atlantis", Part{}, Part{}, 0, 360, '#', true, '.'}; // the drowned city: deep, lamp-lit, glyph-lit; no boss arena yet
         return d;
     }();
     return defs[level];
