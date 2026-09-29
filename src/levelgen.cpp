@@ -1329,12 +1329,20 @@ GenLevel GenerateLevel(int level, unsigned seed, float scale) {
                     continue;
                 }
             }
-            if (a.tag != SetPiece::None || b.tag != SetPiece::None || a.ty != b.ty || b.tx - a.tx < 12) continue;
+            if (a.tag != SetPiece::None || b.tag != SetPiece::None || b.tx - a.tx < 12) continue;
+            int endX = b.tx;
+            if (a.ty != b.ty) { // the path steps up or down at the end: use the flat stretch before the step (the Island's rolling ground has few same-row runs)
+                auto floorOk = [&](int x) { char fl = at(x, a.ty + 1); return fl == '#' || fl == 'R' || fl == 'D' || fl == 't' || fl == 'v'; };
+                int ex = a.tx; while (ex + 1 < b.tx && floorOk(ex + 1) && open(ex + 1, a.ty) && open(ex + 1, a.ty - 1)) ex++;
+                endX = ex - 5; // room left over to take a run at the step
+                if (endX - a.tx < 12) continue;
+            }
             if (rng.C(0.5f) && made > 0) continue; // spread them out
-            int y = a.ty, x0 = a.tx + 2, x1 = b.tx - 2;
+            int y = a.ty, x0 = a.tx + 2, x1 = endX - 2;
             bool plain = true;
-            for (int x = x0 - 2; x <= x1 + 2 && plain; x++) { char fl = at(x, y + 1); plain = fl == '#' || fl == 'R' || fl == 'D'; for (int k = 0; k <= 5 && plain; k++) plain = open(x, y - k); }
-            if (!plain) continue;
+            for (int x = x0 - 2; x <= x1 + 2 && plain; x++) { char fl = at(x, y + 1); plain = fl == '#' || fl == 'R' || fl == 'D' || fl == 't' || fl == 'v'; /* rune plates and vents in the paving can be built over */ for (int k = 0; k <= 5 && plain; k++) plain = open(x, y - k); }
+            if (!plain) { if (getenv("DEPTH_GENLOG2")) { std::string fl, up; for (int x = x0 - 2; x <= x1 + 2; x++) { fl += at(x, y + 1); up += at(x, y); } fprintf(stderr, "  not plain %d-%d y%d floor[%s] y-3[%s]\n", a.tx, b.tx, y, fl.c_str(), up.c_str()); } continue; }
+            for (int x = x0 - 2; x <= x1 + 2; x++) if (at(x, y + 1) == 't' || at(x, y + 1) == 'v') set(x, y + 1, '#'); // pave over live plating, rune plates and vents under the set-piece: its run-ups must be clean
             if (made % 3 == 2 && x1 - x0 >= 8) { // a low beam to slide under: a run-up, then two tiles of beam at head height
                 int bx = x0 + 4;
                 for (int x = bx; x < bx + 2; x++) set(x, y, 'h');
