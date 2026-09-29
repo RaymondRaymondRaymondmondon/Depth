@@ -230,6 +230,9 @@ const char* BeastsKiller(const PlatformState& p, Rectangle diver, const char** t
 const SpeciesDef& BeastSpecies(int biome, int species);
 float BeastSize(int biome, int species);                 // its drawn size (1 = the base art)
 int BeastSpeciesCount(int biome);
+int BeastWebCount(int biome);                             // the food web, for the Periscope dossier
+FoodEdge BeastWebEdge(int biome, int k);
+const char* BeastTip(const char* name);                   // the counter to a dangerous creature (nullptr if none)
 bool VerifyBeasts();                                       // depth.exe --verify-beasts
 
 // Hull species indices (biome = PL_HULL).

@@ -6406,6 +6406,8 @@ void ScenePlatformer(Game& g) {
         UpdateEnemies(p, ed);
         UpdateCritters(p, dt); // ambient duct life - never touched by ghost speed, it isn't part of the challenge
         BeastsUpdate(p, dt);   // the living-AI creatures - real time, never ghost-sped
+        if (!p.verifying) for (const auto& bb : p.fauna.beasts) // the Periscope dossier fills in with whatever you've laid eyes on
+            if (!bb.hidden && bb.species < 64 && fabsf(bb.pos.x - p.pos.x) < 620 && fabsf(bb.pos.y - p.pos.y) < 330) g.platSeen[p.level] |= 1ull << bb.species;
         UpdateBoss(p, ed);
         UpdateLaunchers(p, ed);
         UpdateShots(p, ed);

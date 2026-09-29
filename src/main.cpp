@@ -1,3 +1,4 @@
+#include "beasts.h"
 // ============================================================================
 //  DEPTH - entry point. Opens the window and runs whichever scene is active.
 //
@@ -209,7 +210,7 @@ static void TakeShots(const Game& base, const std::string& dir) {
         {"chest", [](Game& g) { DebugEnterCombat(g); g.dungeon.phase = DPhase::Treasure; g.dungeon.roomIsChest = true; g.dungeon.chestOpened = false;
                                  g.dungeon.inventory = {{ItemKind::Key}}; }},
         {"periscope", [](Game& g) { g.scene = Scene::Periscope; g.platCleared[0] = true; }},
-        {"periscope_abyss", [](Game& g) { g.scene = Scene::Periscope; g.platCleared[0] = g.platCleared[1] = g.platCleared[2] = true; g.abyssBest = 410; }},
+        {"periscope_abyss", [](Game& g) { g.scene = Scene::Periscope; g.platCleared[0] = g.platCleared[1] = g.platCleared[2] = true; g.abyssBest = 410; }},        {"periscope_folder", [](Game& g) { g.scene = Scene::Periscope; g.periscopeSel = PL_ISLAND; }},        {"dossier_island", [](Game& g) { g.scene = Scene::Periscope; g.dossier = PL_ISLAND; g.platSeen[PL_ISLAND] = 0x5A5B7ull; g.dossierPick = IS_BOAR; }},        {"dossier_weeds", [](Game& g) { g.scene = Scene::Periscope; g.dossier = PL_WEEDS; g.platSeen[PL_WEEDS] = ~0ull; g.dossierPick = WS_SHARK; }},        {"dossier_abyss", [](Game& g) { g.scene = Scene::Periscope; g.dossier = PL_COUNT; g.platSeen[PL_COUNT] = 0x1F0F7ull; g.dossierPick = 13; }},
         {"pipes", [](Game& g) { StartPlatform(g, PL_PIPES); }},
         {"pipes_riser", [](Game& g) { g.platLayouts[PL_PIPES] = {101, 100}; StartPlatform(g, PL_PIPES); g.plat.pos = g.plat.spawns[1]; }},
         {"pipes_shaft", [](Game& g) { g.platLayouts[PL_PIPES] = {202, 100}; StartPlatform(g, PL_PIPES); g.plat.pos = g.plat.spawns[3]; }},

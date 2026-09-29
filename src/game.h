@@ -553,6 +553,9 @@ struct Game {
     bool platPirateBoss = true;              // Periscope option: fight Blackbeard (guarantees relic(s))
     bool abyssCleared = false;               // reached the bottom of the Open Abyss's trench at least once
     float abyssBest = 0;                     // best depth ever reached there (metres), 0 = never dived
+    unsigned long long platSeen[PL_COUNT + 1] = {}; // the Periscope dossier: which species (bit = species index; [PL_COUNT] = the Abyss's kinds) you've met
+    int dossier = -1;                        // the dossier open on the Periscope (a level index, PL_COUNT = the Abyss), -1 = closed
+    int dossierPick = -1;                    // the entry selected in it
     int tierCleared[LOCATION_COUNT] = {-1, -1, -1, -1}; // highest level beaten, per location (-1 = none)
     int tierSel[LOCATION_COUNT] = {0, 0, 0, 0};         // the level chosen at the Helm, per location
     std::string toast;
@@ -724,6 +727,8 @@ void SceneWard(Game& g);
 void SceneSickLeave(Game& g);
 void SceneBookshelf(Game& g);
 void ScenePeriscope(Game& g);
+bool DossierButton(Rectangle r);   // dossier.cpp: the file-folder button on the Periscope
+bool DrawDossier(Game& g);          // ...and the open dossier
 void SceneWorkshop(Game& g);
 
 // ---------- dungeon.cpp ----------

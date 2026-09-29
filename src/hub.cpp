@@ -562,6 +562,7 @@ void SceneBookshelf(Game& g) {
 // on the right. Eight dives don't fit side by side as cards, and this way there's room to read each one.
 void ScenePeriscope(Game& g) {
     DrawCabinBackground();
+    if (g.dossier >= 0) { DrawDossier(g); return; } // the open file covers the chart; Esc closes it, not the Periscope
     if (BackButton(g)) return;
     DrawSceneTitle("The Periscope", "Platforming runs: your crew stays safe, and there's gold to be had");
     DrawGoldBadge(g);
@@ -569,19 +570,18 @@ void ScenePeriscope(Game& g) {
     const Lvl lv[PL_COUNT] = {
         {"FIRST DIVE", "A long crawl through the Nautilus's steam pipes. No enemies, just hard jumps: steam vents, a shaft to plunge down, and chimneys to wall-jump up. The vermin down here pay you no mind at all.",
          "60 gold at the valve, up to +60 for a fast run", Pal::Copper},
-        {"SECOND DIVE", "Cross the top of the Nautilus's hull: long runs of deck, torpedoes, live plating and mines, and reef walls that force you down through rock tunnels. Moray eels hunt out of the breaches. The Kraken lairs at the end.",
+        {"SECOND DIVE", "Cross the top of the Nautilus's hull: long runs of deck plating, reef boulders and kelp beds, limpet mines and live plating. Crusher eels slam the deck, a Siphon Octopus pulls from its tube, and a megalodon shadows the grazing whale. The Kraken lairs at the end.",
          "120 gold, and a relic roll if you beat the Kraken", Color{50, 110, 130, 255}},
-        {"THIRD DIVE", "Board a pirate ship: across the deck, down the hatch into the hold, up the companionway to the captain's cabin. Pirates burst out of doors and shoot from cover, and a guard dog gone mad with fleas is death.",
+        {"THIRD DIVE", "A storm-bound fleet: across the decks, down the hatches, up the rigging to the captain's cabin. Pirates burst from doors and shoot from cover, a dog mad with fleas is death, and the Grand Kraken can wrap a hull and snap it in two beneath you.",
          "200 gold and a relic (a Ghost Ship pays double and two relics)", Color{70, 50, 90, 255}},
-        {"FOURTH DIVE", "A tropical island thick with carved idols and shrines to gods no one's named: stepped temples, a stilt village, a ridge of statues. Warriors ambush from cover; a cornered boar charges, and a tree snake strikes.",
-         "300 gold", Color{60, 100, 46, 255}},
-        {"FIFTH DIVE", "A winding tunnel system beneath the Shallows: chained wall-jump shafts climb and drop through solid rock, lit only by your lamp. Stalactite spiders wait in cracks overhead, and leeches drop from the ceiling onto anything warm.",
-         "380 gold", Color{50, 46, 52, 255}},
-        {"SIXTH DIVE", "A sunlit kelp forest where the seabed itself is the danger: urchin carpets, and electric rays buried in the sand. Cross up in the canopy on kelp floats, ride the warm currents, and keep away from the sharks and mermen that rule it.",
-         "460 gold", Color{40, 120, 90, 255}},
-        {"SEVENTH DIVE", "Atlantis, drowned: run through its temple halls, up its grand stairs and across broken aqueducts and fallen colonnades, in the dark, by the light of glyphs that still burn. Rune plates flare underfoot. Its guardians have not left.",
-         "560 gold", Color{40, 70, 110, 255}},
-    };
+        {"FOURTH DIVE", "An island of idols under a smoking volcano, through a whole day and night: stilt villages, temples, mangrove pools. A boar charges, snakes and stalkers strike from cover, and the Arch-Serpent rules the ravines. Many dives to learn.",
+         "240 gold", Color{60, 100, 46, 255}},
+        {"FIFTH DIVE", "A flooded cave beneath the Shallows, lit by fungus and your lamp. Everything hunts by feel and sound: the Echo-Stalker hears you, the Tremor Worm feels you run, and the Abyssal Arachnid strings its webs at head height.",
+         "280 gold", Color{50, 46, 52, 255}},
+        {"SIXTH DIVE", "A sunlit kelp forest where the seabed is the danger: urchin carpets and rays buried in the sand. Cross up in the canopy on kelp floats and currents, and keep clear of the mermen and tiger sharks. Bleed, and the Leviathan comes.",
+         "320 gold", Color{40, 120, 90, 255}},
+        {"SEVENTH DIVE", "Atlantis, drowned and dark: temple halls, grand stairs, broken aqueducts, glyphs that still burn. The Phalanx holds its rows, gargoyles watch the mirrors, Lost Ones listen - and Poseidon's Scourge catches anyone who stops.",
+         "360 gold", Color{40, 70, 110, 255}},    };
     const int N = PL_COUNT + 1; // the platform dives, then the Open Abyss
     auto isOpen = [&](int i) { return i < PL_COUNT ? (i == 0 || g.platCleared[i - 1]) : g.platCleared[PL_ATLANTIS]; }; // the unlock chain, easiest to hardest: Pipes, Hull, Pirate Ship, Island, Cave, Weeds, Atlantis, the Abyss
     auto cleared = [&](int i) { return i < PL_COUNT ? g.platCleared[i] : g.abyssCleared; };
@@ -644,11 +644,13 @@ void ScenePeriscope(Game& g) {
             Txt("Stamina is air, warmth and health down here: hazards drain it, and it runs out only once.", c.x + 30, c.y + 352, 15, Fade(Pal::Ink, 0.75f));
             if (Button({c.x + 30, c.y + 414, 360, 52}, "Dive in", true, 24)) { StartAbyss(g); g.scene = Scene::Abyss; return; }
         } else {
-            DrawWrapped("Locked: clear the Pirate Ship first", {c.x + 30, c.y + 380, c.width - 60, 60}, 20, Pal::BrassDk);
+            DrawWrapped("Locked: clear Atlantis first", {c.x + 30, c.y + 380, c.width - 60, 60}, 20, Pal::BrassDk);
         }
-    }    // run options, kept between sessions
+    }
+    if (DossierButton({c.x + c.width - 230, c.y + 318, 200, 76})) { g.dossier = i; g.dossierPick = -1; }
+    // run options, kept between sessions
     if (Button({60, 632, 250, 40}, g.platHard ? "Difficulty: HARD" : "Difficulty: Normal", true, 17)) g.platHard = !g.platHard;
-    Txt(g.platHard ? "Every gear, mine, spiked ball and jet. +50% bonus gold." : "No gears, mines, spiked balls or jets, and a brighter lamp.", 320, 643, 15, Pal::Paper);
+    Txt(g.platHard ? "Every gear, mine, spiked ball and jet. +50% bonus gold." : "Gentler hazards (no gears, shorter jets), brighter lamp.", 320, 643, 15, Pal::Paper);
     if (Button({700, 632, 250, 40}, g.platCheckpoints ? "Checkpoints: ON" : "Checkpoints: OFF", true, 17)) g.platCheckpoints = !g.platCheckpoints;
     Txt(g.platCheckpoints ? "Respawn in the section you reached,\nbut no relics can be won." : "A death sends you back to the start.\nRelics can be won.", 960, 634, 15, Pal::Paper);
     const char* help = "A/D move | Space jump | Down: slide, brake, roll on landing, slide poles | double-tap a direction: dash | Shift+jump on a pole: backflip | Esc";

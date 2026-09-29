@@ -2010,21 +2010,8 @@ bool BeastsTouchDiver(const PlatformState& p, Rectangle diver) {
     }
     return false;
 }
-const char* BeastsKiller(const PlatformState& p, Rectangle diver, const char** tip) {
-    const BeastWorld& W = p.fauna;
-    if (!W.active) return nullptr;
-    const BiomeDef* B = Biome(W.biome);
-    for (const auto& b : W.beasts) {
-        bool hit = B && B->touch && B->touch(W, b, diver);
-        if (!hit && BeastLethalNow(p, b)) {
-            const SpeciesDef& S = Sp(W.biome, b.species);
-            float k = BeastSize(W.biome, b.species);
-            Vector2 c = S.move == MoveMode::Walk || S.move == MoveMode::Climb ? Vector2{b.pos.x, b.pos.y + HalfH(S, b) - HalfH(S, b) * k} : b.pos;
-            hit = CheckCollisionCircleRec(c, S.radius * b.scale * 0.85f * k, diver);
-        }
-        if (!hit) continue;
-        const char* name = Sp(W.biome, b.species).name;
-        // one counter per creature, by name - what the level gives you to beat it
+// One counter per dangerous creature, by name - what the level gives you to beat it (the death screen and the Periscope dossier)
+const char* BeastTip(const char* name) {
         static const struct { const char* key; const char* tip; } TIPS[] = {
             {"Megalodon", "It can't reach into a crevice or under the whale - and hull-kelp holds you against its turbulence."},
             {"Siphon", "Its pull has a tell - the tube's rim flexes. Strike a hydroid to stun it, or hold on to something."},
@@ -2046,8 +2033,29 @@ const char* BeastsKiller(const PlatformState& p, Rectangle diver, const char** t
             {"Leech", "It drops on anything warm passing under it - look up, and pass quickly."},
             {"Eel", "Eels strike from their holes and with their bodies: give breaches a wide berth."},
         };
-        *tip = "It was hunting you: break its line of sight, or use the flora around you.";
-        for (const auto& t : TIPS) if (strstr(name, t.key)) { *tip = t.tip; break; }
+    for (const auto& t : TIPS) if (strstr(name, t.key)) return t.tip;
+    return nullptr;
+}
+int BeastWebCount(int biome) { const BiomeDef* B = Biome(biome); return B ? B->webN : 0; }
+FoodEdge BeastWebEdge(int biome, int k) { return Biome(biome)->web[k]; }
+
+const char* BeastsKiller(const PlatformState& p, Rectangle diver, const char** tip) {
+    const BeastWorld& W = p.fauna;
+    if (!W.active) return nullptr;
+    const BiomeDef* B = Biome(W.biome);
+    for (const auto& b : W.beasts) {
+        bool hit = B && B->touch && B->touch(W, b, diver);
+        if (!hit && BeastLethalNow(p, b)) {
+            const SpeciesDef& S = Sp(W.biome, b.species);
+            float k = BeastSize(W.biome, b.species);
+            Vector2 c = S.move == MoveMode::Walk || S.move == MoveMode::Climb ? Vector2{b.pos.x, b.pos.y + HalfH(S, b) - HalfH(S, b) * k} : b.pos;
+            hit = CheckCollisionCircleRec(c, S.radius * b.scale * 0.85f * k, diver);
+        }
+        if (!hit) continue;
+        const char* name = Sp(W.biome, b.species).name;
+
+        *tip = BeastTip(name);
+        if (!*tip) *tip = "It was hunting you: break its line of sight, or use the flora around you.";
         return name;
     }
     return nullptr;
