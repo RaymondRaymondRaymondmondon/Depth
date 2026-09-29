@@ -1045,6 +1045,7 @@ void StepPlayer(PlatformState& p, float dir, bool jumpHeld) {
         float target = dir * RUN * (1 + p.speedPct / 100.0f), accel; // the lead hero's relics (a syringe) quicken the run
         if (p.pose == 4) target *= 0.6f;                                // spread out against the water, drifting
         if (p.slickT > 0) target *= 1.3f;                               // barnacle-mite slime on the suit: the water lets go of you
+        if (At(p, (int)floorf((p.pos.x + PW / 2) / T), (int)floorf((p.pos.y + PH - 2) / T)) == '~') target *= 0.6f; // wading through a pool (the Island)
         if (p.onGround) accel = dir == 0 ? DECEL_GROUND : p.vel.x * dir < 0 ? DECEL_GROUND + ACCEL_GROUND : ACCEL_GROUND;
         else accel = dir == 0 ? DECEL_AIR : ACCEL_AIR;
         if (p.slickT > 0 && dir == 0) accel *= 0.3f;
@@ -2709,6 +2710,11 @@ void DrawTile(const PlatformState& p, char c, int x, int y, float t) {
                     DrawRectangle((int)(px + 7 + sinf(ph * 6 + k) * 5), (int)(py - ph * 5.4f * T), 8 + (int)(ph * 12), 8, Fade(Color{240, 245, 250, 255}, 0.6f * (1 - ph)));
                 }
             else DrawRectangle((int)px + 12, (int)(py - 6 - fmodf(p.time * 12, 8.0f)), 6, 4, Fade(Color{240, 245, 250, 255}, 0.25f));
+        } break;
+        case '~': { // a shallow pool (the Island): clear water over the floor, ripples, a glint
+            DrawRectangle((int)px, (int)py + 10, T, T - 10, Color{70, 150, 170, 150});
+            DrawRectangle((int)px, (int)py + 10, T, 2, Color{190, 235, 240, 200});
+            for (int k = 0; k < 2; k++) { float rx = px + fmodf(t * 8 + k * 16 + x * 7, (float)T); DrawRectangle((int)rx, (int)py + 14 + k * 6, 6, 1, Fade(WHITE, 0.4f)); }
         } break;
         case 's': { // a slimy wall (ParkourReference1.2): a glistening coat - you slide straight down it and can't jump off it
             DrawSolid(p, x, y);

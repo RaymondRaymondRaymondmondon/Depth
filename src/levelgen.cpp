@@ -1345,6 +1345,19 @@ GenLevel GenerateLevel(int level, unsigned seed, float scale) {
         }
         if (getenv("DEPTH_GENLOG")) fprintf(stderr, "movement set-pieces for level %d: %d of %d\n", level, made, need);
     }
+    // the Island's shallow pools (the user): water over the jungle floor on a few flat stretches - wading slows you
+    if (level == 3) {
+        int pools = 0;
+        for (int y = 2; y < (int)out.rows.size() - 1 && pools < 7; y++)
+            for (int x = 14; x + 5 < (int)out.rows[y].size() - 10 && pools < 7; x++) {
+                bool flat = true;
+                for (int k = 0; k < 5 && flat; k++) flat = out.rows[y + 1][x + k] == '#' && out.rows[y][x + k] == '.' && out.rows[y - 1][x + k] == '.';
+                if (!flat || !rng.C(0.04f)) continue;
+                int w = rng.I(3, 4);
+                for (int k = 1; k <= w; k++) out.rows[y][x + k] = '~';
+                pools++; x += 12;
+            }
+    }
     // pass-2 dressing (cover crates, warriors, dens, gunners) must never sit in a standing cell of the critical path
     // (it made most Island draws unwinnable: a crate on the spot you had to stand)
     for (const GenWaypoint& w : out.path)

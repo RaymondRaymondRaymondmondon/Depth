@@ -221,6 +221,7 @@ bool Island13Touch(const BeastWorld& W, const Beast& b, Rectangle diver) {
 void Island13Tick(BeastWorld& W, PlatformState& p, float dt) {
     Diver dv = SeeDiver(p);
     W.glowSuitT = std::max(0.0f, W.glowSuitT - dt);
+    if (dv.alive && PlatTileAt(p, (int)floorf(dv.pos.x / T), (int)floorf((dv.pos.y + 10) / T)) == '~') W.glowSuitT = 0; // a pool rinses the firefly dust off
     if (dv.alive) for (const auto& o : W.beasts) if (Alive(o) && o.species == IS_FIREFLY && Dist(o.pos, dv.pos) < 26) { W.glowSuitT = 12; break; } // bright dust on the suit
     bool apex = false, threatened = false;
     for (const auto& b : W.beasts) {
