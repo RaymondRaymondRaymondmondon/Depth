@@ -640,6 +640,7 @@ int main(int argc, char** argv) {
             {   // aboard the Nautilus (the salon and its station screens) the waltz and the ship's bed play
                 bool aboard = g.scene != Scene::Platformer && g.scene != Scene::Abyss && g.scene != Scene::Dungeon;
                 AudioHub(aboard, g.scene == Scene::Hub ? -1 : (int)g.scene, g.mourning);
+                if (g.scene != Scene::Dungeon) AudioExpedition(ExpAudio{});   // (the Dungeon scene sets it every frame)
             }
             AudioFrame(GetFrameTime(), g.scene == Scene::Platformer || g.scene == Scene::Abyss);
             DrawToast(g);

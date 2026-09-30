@@ -11,7 +11,7 @@ The plan is `Depth — Master Reference for Claude Code.pdf` (project root). One
 | 5 | Expedition visual overhaul on the rig | In progress: every hero on the rig, HUD, effects, camera; creature rig kit on the Cave; other locations' creatures, backgrounds-as-props and boss phase clips still to do |
 | 6 | EnemyBrain | Done (--brain-test: level 0 -4.1 points, level 6 -19.0; boss targets re-tuned) |
 | 7 | New expedition systems, the Trench and the Hadal | Done (every system saved, in --sim and --stage7-test; targets met within 6 points in the Cave and the Hadal, deviations logged; the other Shallows are much harder, flagged) |
-| 8 | Expedition sound | |
+| 8 | Expedition sound | Done (--audio-test: 6 locations x walk/dark/fight/danger/boss, 35 enemies x voice/pain/death, 67 cues, none silent or clipping) |
 | 9 | Flats visuals and card physics | |
 | 10 | Flats long map and systems | |
 | 11 | Deep Arcade, networking, Scuttle | |

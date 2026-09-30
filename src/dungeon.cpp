@@ -134,6 +134,7 @@ static void AddStress(Game& g, Hero& h, int amount) {
     }
     int before = h.stress;
     h.stress = std::clamp(h.stress + amount, 0, 100);
+    if (h.stress > before && !gSilent) PlayCue("cmb.nerve", 0.6f, -0.3f);
     if (h.stress != before && !gSilent) { int pos = PartyPos(g, h.id); if (pos >= 0) cfx::Nerves(BodyOf(HeroRect(pos)), h.stress - before); }
     int diff = h.stress - before;
     int pos = PartyPos(g, h.id);
@@ -165,6 +166,43 @@ static void VentPressure(Game& g) {
     Log(g, "A battery is burned: the pressure vents in a roar of bubbles.");
     PlayCue("ui.confirm", 0.6f);
 }
+// ---------------------------------------------------------------- the sounds of a fight (stage 8): which attack family, which material
+static bool IsShelled(EnemyType t) {
+    return t == EnemyType::SeaLouse || t == EnemyType::CaveShrimp || t == EnemyType::Lobster || t == EnemyType::DysCrustacean ||
+           t == EnemyType::CrustaceanQueen || t == EnemyType::BarnacleCrab || t == EnemyType::MantisShrimp;
+}
+static const char* EnemyMaterial(const Enemy& e) {
+    if (IsShelled(e.type)) return "imp.shell";
+    if (e.type == EnemyType::ArmorLostOne || e.type == EnemyType::SunGod) return "imp.stone";
+    if (e.type == EnemyType::LostDiver || e.type == EnemyType::LostInfantry) return "imp.metal";
+    return "imp.flesh";
+}
+static const char* HeroMaterial(const Hero& h) { return h.cls == HeroClass::Robot ? "imp.metal" : "imp.flesh"; }
+static const char* HeroAttackCue(const Hero& h, const Ability& a) {
+    if (h.cls == HeroClass::Siren) return "hit.song";
+    if (a.target != Target::Enemy || h.cls == HeroClass::Queen || h.cls == HeroClass::Wisp) return "hit.cast";
+    if (a.ranged) {
+        for (const char* k : {"Bomb", "Throw", "Vial", "Flask", "Dynamite", "Bottle", "Grenade", "Charge", "Tossed", "Hurl"}) if (a.name.find(k) != std::string::npos) return "hit.throw";
+        return "hit.shot";
+    }
+    switch (h.cls) {
+        case HeroClass::Nurse: case HeroClass::Diver: case HeroClass::Merman: return "hit.thrust";
+        case HeroClass::Captain: case HeroClass::Octopus: return "hit.slash";
+        default: return "hit.blunt";
+    }
+}
+static const char* EnemyAttackCue(const Enemy& e, const EnemyAbility& a) {
+    if (e.type == EnemyType::Siren) return "hit.song";
+    if (a.dmgMult <= 0) return "hit.cast";
+    if ((a.hits & ~3) == 0) { // a melee blow
+        if (IsShelled(e.type)) return "hit.blunt";
+        if (e.type == EnemyType::TribalSpearman || e.type == EnemyType::FeralMerman || e.type == EnemyType::Neptune || e.type == EnemyType::LostInfantry) return "hit.thrust";
+        return "hit.slash";
+    }
+    return a.region == 4 || a.stress > 0 ? "hit.cast" : "hit.throw";
+}
+static float EnemyVoiceSize(const Enemy& e) { return e.span >= 3 ? 4.0f : e.boss ? 2.5f : 1.2f; }
+static float EnemyPan(Game& g, int uid) { return std::clamp(0.2f + EnemyPos(g, uid) * 0.2f, -1.0f, 1.0f); }
 static std::string gKillCause = "the deep";   // what dealt the last blow (the memorial wall)
 static void DamageHero(Game& g, Hero& h, int dmg) {
     if (dmg <= 0) return;
@@ -172,6 +210,7 @@ static void DamageHero(Game& g, Hero& h, int dmg) {
     if (h.deathsDoor) {
         if (Chance(35)) {
             h.dead = true; Log(g, h.name + " has been lost to the depths.");
+            PlayCue("hero.death");
             if (!gSilent) { // the memorial wall and the Sea Log
                 MemorialEntry me; me.name = h.name; me.cls = (int)h.cls; me.level = h.level; me.cause = gKillCause + " in " + LocationName(g.dungeon.loc);
                 g.memorial.push_back(me);
@@ -189,6 +228,7 @@ static void DamageHero(Game& g, Hero& h, int dmg) {
         h.hp = 0;
         h.deathsDoor = true;
         Log(g, h.name + " is at DEATH'S DOOR!");
+        PlayCue("cmb.door");
         AddStress(g, h, 10);
     }
 }
@@ -284,7 +324,7 @@ static void HeroAct(Game& g, int heroId, int abilityIdx, int targetPos) {
                 int edodge = e->dodge + (e->st.dodgeTurns > 0 ? e->st.dodgeBuff : 0);
                 int regionAcc = (h->st.burnTurns > 0 ? 15 : 0) + (h->st.siltTurns > 0 ? 25 : 0); // Totemic Burn -15%, Silt Blindness -25%
                 int hit = std::clamp(s.acc + a.accBonus + (h->st.accTurns > 0 ? h->st.accBuff : 0) + HeroAccBonus(g) - edodge - regionAcc, 5, 95);
-                if (!Chance(hit)) { Float(g, er, "Miss", Pal::Paper); StartAnim(g, false, uid, Anim::Dodge, 0.45f); continue; }
+                if (!Chance(hit)) { Float(g, er, "Miss", Pal::Paper); StartAnim(g, false, uid, Anim::Dodge, 0.45f); PlayCue(HeroAttackCue(*h, a), 0.6f, -0.2f); PlayCue("cmb.dodge", 0.8f, EnemyPan(g, uid)); continue; }
                 RelicFx rb = RelicBundle(*h);
                 bool crit = Chance(std::max(0, 5 + rb.critPct - (h->st.siltTurns > 0 ? 10 : 0)));
                 StartAnim(g, false, uid, Anim::Hurt, 0.5f);
@@ -303,7 +343,11 @@ static void HeroAct(Game& g, int heroId, int abilityIdx, int targetPos) {
                     if (!gSilent) cfx::Hit(BodyOf(er), dmg, crit, false);
                     d.dmgDealt[h->id] += dmg;
                     KickFigure(1000000 + uid, crit);
-                    PlayCue(crit ? "mus.drum" : "ui.drop", crit ? 0.9f : 0.6f);
+                    PlayCue(HeroAttackCue(*h, a), 0.8f, -0.2f);
+                    PlayCue(EnemyMaterial(*e), crit ? 1.0f : 0.75f, EnemyPan(g, uid));
+                    if (crit) { PlayCue("cmb.crit"); PlayCue("mus.crit"); }
+                    if (e->hp <= 0) { CombatVoice((int)e->type, EnemyVoiceSize(*e), CUE_DEATH, EnemyPan(g, uid)); PlayCue("mus.kill", 0.8f); }
+                    else if (Chance(55)) CombatVoice((int)e->type, EnemyVoiceSize(*e), CUE_PAIN, EnemyPan(g, uid));
                     if (crit) {
                         d.shake = 0.35f;
                         Log(g, "Critical hit! The crew cheers.");
@@ -342,10 +386,10 @@ static void HeroAct(Game& g, int heroId, int abilityIdx, int targetPos) {
                     if (cs.stressRelief > 0) for (int p = 0; p < PARTY_SIZE; p++) if (Hero* o = PartyAt(g, p)) AddStress(g, *o, -cs.stressRelief);
                     if (e->hp <= 0) { e->hp = 0; e->alive = false; Log(g, e->name + " is defeated."); break; }
                 }
-                if (a.bleed) { e->st.bleedDmg = std::max(e->st.bleedDmg, a.bleed); e->st.bleedTurns = 3; Float(g, er, "Bleed", Pal::Bad); }
-                if (a.poison) { ApplyPoison(e->st, a.poison); Float(g, er, TextFormat("Poison %d", e->st.poisonDmg), Pal::Good); }
+                if (a.bleed) { e->st.bleedDmg = std::max(e->st.bleedDmg, a.bleed); e->st.bleedTurns = 3; Float(g, er, "Bleed", Pal::Bad); PlayCue("cmb.bleed", 0.7f, 0.4f); }
+                if (a.poison) { ApplyPoison(e->st, a.poison); Float(g, er, TextFormat("Poison %d", e->st.poisonDmg), Pal::Good); PlayCue("cmb.poison", 0.7f, 0.4f); }
                 if (a.mark) { e->st.marked = 3; Float(g, er, "Marked", Pal::Brass); }
-                if (a.stunChance && Chance(a.stunChance)) { e->st.stunned = 1; Float(g, er, "Stunned", Pal::Teal); }
+                if (a.stunChance && Chance(a.stunChance)) { e->st.stunned = 1; Float(g, er, "Stunned", Pal::Teal); PlayCue("cmb.stun", 0.8f, 0.4f); }
                 if (a.moveTarget) MoveEnemy(g, uid, a.moveTarget);
                 // a curse or a song can weaken an enemy the same way a buff strengthens an ally -- same
                 // fields, just applied to the other side with a negative value
@@ -378,6 +422,7 @@ static void HeroAct(Game& g, int heroId, int abilityIdx, int targetPos) {
         if (a.heal || a.stressHeal || a.cure) Sparkle(g, tr, 14, a.heal ? Color{130, 240, 150, 255} : Color{200, 170, 255, 255}, 50, 60);
         else Sparkle(g, tr, 14, Color{255, 214, 120, 255}, 60, 50);
         if (a.heal) {
+            PlayCue("cmb.heal", 0.8f, -0.4f);
             RelicFx hb = RelicBundle(*h);
             int amt = HealHero(*t, a.heal + Roll(0, 2) + hb.healBonus);
             Float(g, tr, "+" + std::to_string(amt), Pal::Good);
@@ -455,6 +500,12 @@ static void EnemyAct(Game& g, int uid, int ability, int target) {
     if (!e || n == 0) return;
     if (ability < 0) { BrainPick bp = ChooseEnemyAction(g, uid); ability = bp.ability; target = bp.target; }
     gKillCause = "slain by " + e->name;
+    if (!gSilent && (e->boss || Chance(55))) CombatVoice((int)e->type, EnemyVoiceSize(*e), CUE_ALARM, EnemyPan(g, uid));
+    if (!gSilent && ability >= 0) {   // the music answers: the Island's chant when its Shaman heals, whale calls for the Siren
+        const EnemyAbility& ea = e->abilities[ability];
+        if (e->type == EnemyType::TribalShaman && (ea.healLowest || ea.healAllies || ea.healSelf)) AudioReact(0);
+        if (e->type == EnemyType::Siren) AudioReact(1);
+    }
     if (ability >= 0) g.dungeon.lastAbility[uid] = ability;
     if (ability < 0) { Log(g, e->name + " can't reach anyone and skitters about."); return; }
     const EnemyAbility a = e->abilities[ability]; // a copy: summoning may move the enemy list under us
@@ -500,7 +551,7 @@ static void EnemyAct(Game& g, int uid, int ability, int target) {
         int dodge = s.dodge + (h->st.dodgeTurns > 0 ? h->st.dodgeBuff : 0);
         int eacc = e->acc + (e->st.accTurns > 0 ? e->st.accBuff : 0);
         int hit = std::clamp(eacc + EnemyAccBonus(g) - dodge, 5, 95);
-        if (a.dmgMult > 0 && !Chance(hit)) { Float(g, hr, "Dodge", Pal::Paper); StartAnim(g, true, h->id, Anim::Dodge, 0.45f); continue; }
+        if (a.dmgMult > 0 && !Chance(hit)) { Float(g, hr, "Dodge", Pal::Paper); StartAnim(g, true, h->id, Anim::Dodge, 0.45f); PlayCue(EnemyAttackCue(*e, a), 0.6f, 0.3f); PlayCue("cmb.dodge", 0.8f, -0.2f - p * 0.2f); continue; }
         bool crit = a.dmgMult > 0 && Chance(6);
         if (crit) g.dungeon.shake = 0.35f;
         if (a.dmgMult > 0) {
@@ -511,7 +562,10 @@ static void EnemyAct(Game& g, int uid, int ability, int target) {
             int dmg = std::max(1, (int)std::round(raw * (100 - prot) / 100.0f));
             if (!gSilent) cfx::Hit(BodyOf(hr), dmg, crit, true);
             KickFigure(h->id, crit);
-            PlayCue(crit ? "mus.drum" : "ui.drop", crit ? 0.9f : 0.6f);
+            PlayCue(EnemyAttackCue(*e, a), 0.8f, 0.3f);
+            PlayCue(HeroMaterial(*h), crit ? 1.0f : 0.75f, -0.2f - p * 0.2f);
+            if (crit) PlayCue("cmb.crit");
+            if (!h->deathsDoor && Chance(45)) PlayCue("hero.pain", 0.8f, -0.2f - p * 0.2f);
             DamageHero(g, *h, dmg);
             if (h->dead) continue;
             if (h->st.riposteTurns > 0 && (a.hits & ~3) == 0 && e->alive && e->hp > 0) { // a riposte against a melee blow
@@ -535,9 +589,9 @@ static void EnemyAct(Game& g, int uid, int ability, int target) {
             StartAnim(g, true, h->id, Anim::Stress, 0.7f);
         }
         if (a.stress) AddStress(g, *h, a.stress);
-        if (a.bleed) { h->st.bleedDmg = std::max(h->st.bleedDmg, a.bleed); h->st.bleedTurns = 3; }
-        if (a.poison) ApplyPoison(h->st, a.poison);
-        if (a.stunChance && Chance(a.stunChance)) { h->st.stunned = 1; Float(g, hr, "Stunned", Pal::Teal); }
+        if (a.bleed) { h->st.bleedDmg = std::max(h->st.bleedDmg, a.bleed); h->st.bleedTurns = 3; PlayCue("cmb.bleed", 0.7f, -0.3f); }
+        if (a.poison) { ApplyPoison(h->st, a.poison); PlayCue("cmb.poison", 0.7f, -0.3f); }
+        if (a.stunChance && Chance(a.stunChance)) { h->st.stunned = 1; Float(g, hr, "Stunned", Pal::Teal); PlayCue("cmb.stun", 0.8f, -0.3f); }
         if (a.weakAtk) { h->st.buffDmg = -a.weakAtk; h->st.buffTurns = 3; Float(g, hr, "Weakened", Pal::Bad); }
         if (a.weakAcc) { h->st.accBuff = -a.weakAcc; h->st.accTurns = 3; Float(g, hr, "Blinded", Pal::Bad); }
         if (a.weakDef) { h->st.protBuff = -a.weakDef; h->st.protTurns = 3; Float(g, hr, "Exposed", Pal::Bad); }
@@ -1171,6 +1225,7 @@ static void ArriveRoom(Game& g) {
 // what waits on one stretch of the corridor, if anything
 static void ResolveSegment(Game& g) {
     auto& d = g.dungeon;
+    if (d.walkEdge < 0 || d.walkEdge >= (int)d.chart.edges.size()) { d.phase = DPhase::Corridor; d.corridorT = 0; return; }   // walking with no corridor (a debug screen): back to the chart
     ChartEdge& e = d.chart.edges[d.walkEdge];
     int si = d.walkForward ? d.walkSeg : (int)e.segs.size() - 1 - d.walkSeg;
     CorridorEvent ev = e.segs[si];
@@ -3198,11 +3253,12 @@ static void DrawCaveLighting(Game& g) {
     AddCone({560, 320}, 0.05f, 0.42f, 420 + 480 * L, Color{255, 226, 170, 255});
     Repeat(LayerOffset(g, 0.08f), 300, [&](float sx, float) { AddLight({sx - 60, 120}, 240, Color{70, 120, 130, 255}, 0.4f); });
     std::vector<Vector2> crystals = CrystalSpots(g);
-    for (Vector2 c : crystals) AddLight({c.x, c.y - 14}, 130, Color{90, 220, 210, 255}, 0.65f);
+    float mould = 0.8f + 0.4f * AudioBeat();   // the mould pulses on the music's beat
+    for (Vector2 c : crystals) AddLight({c.x, c.y - 14}, 130, Color{90, 220, 210, 255}, 0.65f * mould);
     for (const PlacedProp& pp : CollectProps(g)) { // props that glow light the props and figures around them
         switch (pp.p) {
             case P_TORCH: AddLight({pp.x, pp.y - 74}, 280, Color{255, 170, 80, 255}, 0.95f * flick); break;
-            case P_FUNGUS: AddLight({pp.x, pp.y - 20}, 140, Color{90, 220, 210, 255}, 0.7f); break;
+            case P_FUNGUS: AddLight({pp.x, pp.y - 20}, 140, Color{90, 220, 210, 255}, 0.7f * mould); break;
             case P_POD: AddLight({pp.x, pp.y - 12}, 130, Color{150, 255, 110, 255}, 0.7f); break;
             case P_BRAZIER: AddLight({pp.x, pp.y - 40}, 220, Color{170, 80, 230, 255}, 0.8f); break;
             case P_VOIDCRYSTAL: AddLight({pp.x, pp.y - 24}, 160, Color{190, 80, 240, 255}, 0.7f); break;
@@ -3821,6 +3877,67 @@ static int DrawSonarScope(Game& g, Vector2 c, float R, bool interactive) {
 }
 
 // ---------------------------------------------------------------- the scene
+// ---------------------------------------------------------------- the expedition's sound, every frame (stage 8)
+static int ChartDistance(const DungeonState& d, int from, int to) {
+    if (from < 0 || to < 0 || d.chart.rooms.empty()) return 0;
+    std::vector<int> dist(d.chart.rooms.size(), -1), q{from};
+    dist[from] = 0;
+    for (size_t i = 0; i < q.size(); i++) for (int n : d.chart.Neighbours(q[i])) if (dist[n] < 0) { dist[n] = dist[q[i]] + 1; q.push_back(n); }
+    return std::max(0, dist[to]);
+}
+static void ExpeditionSoundFrame(Game& g, float dt) {
+    auto& d = g.dungeon;
+    ExpAudio a;
+    a.on = true; a.loc = (int)d.loc;
+    a.mode = d.phase == DPhase::Combat ? 1 : (d.phase == DPhase::Victory || d.phase == DPhase::Defeat || d.phase == DPhase::Retreat) ? 2 : 0;
+    a.light = d.light / 100.0f;
+    // how near the boss room is (by corridors on the chart)
+    static int distFrom = -1, distMax = 1, dist = 0;
+    int boss = -1;
+    for (int i = 0; i < (int)d.chart.rooms.size(); i++) if (d.chart.rooms[i].type == RoomType::Boss) boss = i;
+    if (boss >= 0 && d.curRoom != distFrom) { distFrom = d.curRoom; dist = ChartDistance(d, d.curRoom, boss); distMax = std::max(1, ChartDistance(d, d.chart.entrance, boss)); }
+    a.bossNear = boss >= 0 ? std::clamp(1 - dist / (float)distMax, 0.0f, 1.0f) : 0;
+    // the fight: who's winning, who's in danger, and the boss's entrance and turn
+    static int roaredUid = -1, lastPhase = 0;
+    if (a.mode == 1) {
+        float heroes = 0, foes = 0; int nh = 0, nf = 0;
+        for (int p = 0; p < PARTY_SIZE; p++) if (Hero* h = PartyAt(g, p)) {
+            float f = (float)h->hp / std::max(1, GetStats(*h).maxHp);
+            heroes += f; nh++;
+            if (f < 0.3f || h->stress > 80) a.danger = true;
+            if (h->deathsDoor) a.door = true;
+        }
+        for (auto& e : d.enemies) if (e.alive) { foes += (float)e.hp / std::max(1, e.maxHp); nf++; }
+        a.winning = nf == 0 || (nh > 0 && foes / nf < heroes / nh);
+        for (auto& e : d.enemies) if (e.alive && e.boss) {
+            float f = (float)e.hp / std::max(1, e.maxHp);
+            int ph = e.type == EnemyType::AbyssalEye ? (f > 0.66f ? 0 : f > 0.33f ? 1 : 2) : (f > 0.5f ? 0 : 1);
+            a.bossType = (int)e.type; a.phase2 = ph > 0;
+            if (roaredUid != e.uid) { roaredUid = e.uid; lastPhase = ph; CombatVoice((int)e.type, EnemyVoiceSize(e), CUE_ALARM, EnemyPan(g, e.uid)); PlayCue("mus.boss"); }
+            else if (ph > lastPhase) { lastPhase = ph; PlayCue("mus.phase"); CombatVoice((int)e.type, EnemyVoiceSize(e), CUE_ALARM, EnemyPan(g, e.uid)); }
+            break;
+        }
+    }
+    AudioExpedition(a);
+    // footsteps by surface and the diver's breath in the helmet, while walking
+    static float stepT = 0, breathT = 0, sweepT = 0;
+    if (d.phase == DPhase::Walking) {
+        static const char* STEP[LOCATION_COUNT] = {"exp.step.stone", "exp.step.sand", "exp.step.kelp", "exp.step.marble", "exp.step.stone", "exp.step.marble"};
+        stepT += dt;
+        if (stepT >= 0.42f) { stepT = 0; static int side = 0; PlayCue(STEP[std::clamp((int)d.loc, 0, LOCATION_COUNT - 1)], 0.7f, (side++ % 2) ? -0.35f : -0.15f); }
+        bool diver = false;
+        for (int id : g.party) if (Hero* h = FindHero(g, id)) diver |= h->cls == HeroClass::Diver;
+        breathT += dt;
+        if (diver && d.loc != Location::Island && breathT >= 4.2f) { breathT = 0; PlayCue("exp.breath", 0.8f, -0.3f); }
+    }
+    // the sonar chart: a ping with every sweep, and static crackling in as the light fails
+    if (d.phase == DPhase::Corridor) {
+        sweepT += dt;
+        if (sweepT >= 2) { sweepT -= 2; PlayCue("exp.sonar", 0.4f + 0.6f * a.light, 0.3f); }
+        if (a.light < 0.3f && GetRandomValue(0, 1000) < (0.3f - a.light) * 2000 * dt) PlayCue("exp.static", 0.8f, 0.3f);
+    }
+}
+
 void SceneDungeon(Game& g) {
     auto& d = g.dungeon;
     float dt = GetFrameTime();
@@ -3834,6 +3951,8 @@ void SceneDungeon(Game& g) {
         d.scroll += speed * dt;
         if (d.walkT >= 1.2f) ResolveSegment(g);
     }
+
+    ExpeditionSoundFrame(g, dt);
 
     // ---------------- combat logic
     int actingHero = -1, actingEnemy = -1;
@@ -3959,6 +4078,7 @@ void SceneDungeon(Game& g) {
                 g.batteries--;
                 d.light = std::min(100.0f, d.light + 40);
                 d.batteryT = 1.4f;
+                PlayCue("exp.torch");
             }
             {   // a Diver can scout ahead once per room (Mark the Prey, out of combat): what lies two rooms on shows up
                 bool diver = false;
