@@ -8,6 +8,7 @@
 //  for every lamp, then LightsEnd() multiplies it over what's been drawn.
 // ============================================================================
 #include "game.h"
+#include "input.h"
 #include "sprite_renderer.h"
 #include "rig.h"
 #include <map>
@@ -250,6 +251,22 @@ void main() {
 }
 )";
 
+static Shader gBrightShader;           // the game menu's brightness (on the final blit)
+static int gLocBright = -1;
+static RenderTexture2D gPause;          // the frame held behind the game menu
+const char* BRIGHT_FS = R"(#version 330
+in vec2 fragTexCoord;
+in vec4 fragColor;
+uniform sampler2D texture0;
+uniform float uBright;
+out vec4 finalColor;
+void main() {
+    vec3 c = texture(texture0, fragTexCoord).rgb;
+    c = pow(max(c, vec3(0.0)), vec3(1.0 / uBright));   // a gamma: mids and shadows lift, black stays black
+    finalColor = vec4(c, 1.0) * fragColor;
+}
+)";
+
 const char* POST_FS = R"(#version 330
 in vec2 fragTexCoord;
 in vec4 fragColor;
@@ -456,6 +473,9 @@ void InitArt() {
     A.locTime = GetShaderLocation(A.post, "uTime");
     A.locRes = GetShaderLocation(A.post, "uRes");
     A.locVig = GetShaderLocation(A.post, "uVignette");
+    gBrightShader = LoadShaderFromMemory(nullptr, BRIGHT_FS);
+    gLocBright = GetShaderLocation(gBrightShader, "uBright");
+    gPause = LoadRenderTexture(SCREEN_W, SCREEN_H);
     A.locGrain = GetShaderLocation(A.post, "uGrain");
     A.locBloom = GetShaderLocation(A.post, "uBloom");
     A.figShader = LoadShaderFromMemory(nullptr, FIG_FS);
@@ -581,6 +601,16 @@ void SceneCamera(Vector2 focus, float zoom, Vector2 off) {
     PushScale();
 }
 
+// ---------------------------------------------------------------- the game menu's pause and the brightness
+static bool gPostBypass = false;
+void SetPostBypass(bool on) { gPostBypass = on; }
+void SnapshotFrame() {   // hold the last finished frame (behind the menu while the game is paused)
+    BeginTextureMode(gPause);
+    DrawTextureRec(A.final.texture, {0, 0, (float)SCREEN_W, -(float)SCREEN_H}, {0, 0}, WHITE);
+    EndTextureMode();
+}
+void DrawSnapshot() { DrawTexturePro(gPause.texture, {0, 0, (float)SCREEN_W, -(float)SCREEN_H}, {0, 0, (float)SCREEN_W, (float)SCREEN_H}, {0, 0}, 0, WHITE); }
+
 void BeginFrame() {
     gSlide = {0, 0};
     gLight = SceneLight{};        // each scene sets its own light rig; this is the neutral default
@@ -600,9 +630,10 @@ void EndFrame(float time) {
     SetShaderValue(A.post, A.locVig, &A.vignette, SHADER_UNIFORM_FLOAT);
     SetShaderValue(A.post, A.locGrain, &A.grain, SHADER_UNIFORM_FLOAT);
     SetShaderValue(A.post, A.locBloom, &A.bloom, SHADER_UNIFORM_FLOAT);
-    BeginShaderMode(A.post);
+    if (!gPostBypass) BeginShaderMode(A.post);
     DrawTexturePro(A.scene.texture, {0, 0, (float)SCREEN_W * SS, -(float)SCREEN_H * SS}, {0, 0, (float)SCREEN_W, (float)SCREEN_H}, {0, 0}, 0, WHITE);
-    EndShaderMode();
+    if (!gPostBypass) EndShaderMode();
+    gPostBypass = false;
     EndTarget();
 
     BeginDrawing();
@@ -614,7 +645,11 @@ void EndFrame(float time) {
     float dw = SCREEN_W * sc, dh = SCREEN_H * sc, dx = std::floor((ww - dw) / 2), dy = std::floor((wh - dh) / 2);
     SetMouseOffset((int)-dx, (int)-dy);
     SetMouseScale(1.0f / sc, 1.0f / sc);
+    float br = GameSettings().brightness;
+    bool bright = fabsf(br - 1) > 0.01f && gBrightShader.id > 0;
+    if (bright) { SetShaderValue(gBrightShader, gLocBright, &br, SHADER_UNIFORM_FLOAT); BeginShaderMode(gBrightShader); }
     DrawTexturePro(A.final.texture, {0, 0, (float)SCREEN_W, -(float)SCREEN_H}, {dx, dy, dw, dh}, {0, 0}, 0, WHITE);
+    if (bright) EndShaderMode();
     EndDrawing();
 }
 

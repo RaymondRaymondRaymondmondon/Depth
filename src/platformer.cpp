@@ -20,6 +20,7 @@
 //  mines, spiked balls and jets; Hard keeps them all.
 // ============================================================================
 #include "game.h"
+#include "input.h"
 #include "relics.h"
 #include "levelgen.h"
 #include "beastart.h"
@@ -6473,18 +6474,14 @@ void ScenePlatformer(Game& g) {
 
     // ---------------- update
     if (!p.finished) {
-        if (IsKeyPressed(KEY_ESCAPE)) {
-            g.scene = Scene::Periscope;
-            Toast(g, "Run abandoned.");
-            return;
-        }
+        // (Esc opens the game menu, which has "Abandon the dive"; the keys are the rebindable actions of input.h)
         float dir = 0;
-        if (IsKeyDown(KEY_D) || IsKeyDown(KEY_RIGHT)) dir += 1;
-        if (IsKeyDown(KEY_A) || IsKeyDown(KEY_LEFT)) dir -= 1;
+        if (ActDown(A_RIGHT)) dir += 1;
+        if (ActDown(A_LEFT)) dir -= 1;
         bool weed = p.onWeed; // in seaweed, up and down climb instead of jumping (Space still jumps off it)
-        bool jumpPressed = IsKeyPressed(KEY_SPACE) || (!weed && (IsKeyPressed(KEY_W) || IsKeyPressed(KEY_UP)));
-        p.climbDir = weed ? ((IsKeyDown(KEY_W) || IsKeyDown(KEY_UP)) ? -1 : (IsKeyDown(KEY_S) || IsKeyDown(KEY_DOWN)) ? 1 : 0) : 0;
-        bool jumpHeld = IsKeyDown(KEY_SPACE) || IsKeyDown(KEY_W) || IsKeyDown(KEY_UP);
+        bool jumpPressed = ActPressed(A_JUMP) || (!weed && ActPressed(A_UP));
+        p.climbDir = weed ? (ActDown(A_UP) ? -1 : ActDown(A_DOWN) ? 1 : 0) : 0;
+        bool jumpHeld = ActDown(A_JUMP) || ActDown(A_UP);
         if (IsGamepadAvailable(0)) {
             float ax = GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_X);
             if (ax > 0.4f || IsGamepadButtonDown(0, GAMEPAD_BUTTON_LEFT_FACE_RIGHT)) dir = 1;
@@ -6496,11 +6493,11 @@ void ScenePlatformer(Game& g) {
         // the extra moves: Down (slide, roll, brake, pole slide), a double-tap of a direction (dash), Shift (pole backflip)
         {
             static float lastTap[2] = {-9, -9};
-            p.inDown = IsKeyDown(KEY_S) || IsKeyDown(KEY_DOWN);
-            p.upHeld = IsKeyDown(KEY_W) || IsKeyDown(KEY_UP);
-            p.shiftHeld = IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT);
-            if (IsKeyPressed(KEY_D) || IsKeyPressed(KEY_RIGHT)) { if (p.time - lastTap[1] < 0.25f) p.dashReq = 1; lastTap[1] = p.time; }
-            if (IsKeyPressed(KEY_A) || IsKeyPressed(KEY_LEFT)) { if (p.time - lastTap[0] < 0.25f) p.dashReq = -1; lastTap[0] = p.time; }
+            p.inDown = ActDown(A_DOWN);
+            p.upHeld = ActDown(A_UP);
+            p.shiftHeld = ActDown(A_MOD);
+            if (ActPressed(A_RIGHT)) { if (p.time - lastTap[1] < 0.25f) p.dashReq = 1; lastTap[1] = p.time; }
+            if (ActPressed(A_LEFT)) { if (p.time - lastTap[0] < 0.25f) p.dashReq = -1; lastTap[0] = p.time; }
             if (IsGamepadAvailable(0)) {
                 float ay = GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_Y);
                 p.inDown |= ay > 0.5f || IsGamepadButtonDown(0, GAMEPAD_BUTTON_LEFT_FACE_DOWN);
@@ -6571,7 +6568,7 @@ void ScenePlatformer(Game& g) {
                     if (falling && p.pos.y + PH - p.vel.y * dt <= h.y + 14 * KRAKEN_SCALE && b.invuln <= 0) {
                         b.hp--;
                         b.invuln = 0.6f;
-                        p.vel.y = IsKeyDown(KEY_SPACE) || IsKeyDown(KEY_W) || IsKeyDown(KEY_UP) ? -820.0f : -600.0f;
+                        p.vel.y = ActDown(A_JUMP) || ActDown(A_UP) ? -820.0f : -600.0f;
                         p.scale = {0.75f, 1.3f};
                         Burst(p, {h.x + h.width / 2, h.y}, 16, Color{230, 170, 220, 255}, 200, 0.5f, 3);
                         b.state = b.hp <= 0 ? 4 : 3;
@@ -6595,7 +6592,7 @@ void ScenePlatformer(Game& g) {
                         b.state = 3;
                         b.timer = 0;
                         Burst(p, {b.pos.x + BB_W / 2, b.pos.y}, 14, Color{240, 240, 230, 255}, 200, 0.5f, 3);
-                        p.vel.y = IsKeyDown(KEY_SPACE) || IsKeyDown(KEY_W) || IsKeyDown(KEY_UP) ? -820.0f : -600.0f;
+                        p.vel.y = ActDown(A_JUMP) || ActDown(A_UP) ? -820.0f : -600.0f;
                         p.scale = {0.75f, 1.3f};
                         if (b.hp <= 0) {
                             b.defeated = true;

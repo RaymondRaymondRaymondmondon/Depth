@@ -5,6 +5,7 @@
 #include "rig.h"
 #include "sound.h"
 #include "combatfx.h"
+#include "input.h"
 #include "sprite_renderer.h"
 #include "rlgl.h"
 #include "relics.h"
@@ -3299,7 +3300,7 @@ void SceneDungeon(Game& g) {
     d.floats.erase(std::remove_if(d.floats.begin(), d.floats.end(), [](const FloatText& f) { return f.life <= 0; }), d.floats.end());
     DrawTopBar(g);
     if (d.phase != DPhase::Combat && d.phase != DPhase::Walking) DrawInventoryBar(g);
-    if (IsKeyPressed(KEY_TAB)) d.scopeOpen = !d.scopeOpen;
+    if (ActPressed(A_SCOPE)) d.scopeOpen = !d.scopeOpen;
     if (d.phase == DPhase::Walking || d.phase == DPhase::Combat) {
         if (d.scopeOpen) { DrawRectangle(0, 0, SCREEN_W, SCREEN_H, Fade(BLACK, 0.45f)); DrawSonarScope(g, {640, 340}, 240, false); DrawTextCentered("Tab to close the scope", 640, 640, 16, Pal::Paper); }
         else if (d.phase == DPhase::Walking) DrawSonarScope(g, {1170, 590}, 78, false);

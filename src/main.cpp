@@ -11,6 +11,7 @@
 //    depth.exe --sprites <file.png>  draw every sprite in the game onto one sheet
 // ============================================================================
 #include "game.h"
+#include "input.h"
 #include "levelgen.h"
 #include "relics.h"
 #include <algorithm>
@@ -214,6 +215,9 @@ static void TakeShots(const Game& base, const std::string& dir) {
         {"chart_curio", [](Game& g) { StartDungeon(g, Location::Atlantis); DebugChartEvent(g, 1); }},
         {"chart_camp", [](Game& g) { StartDungeon(g, Location::Weeds); DebugChartEvent(g, 2); }},
         {"helm_objective", [](Game& g) { g.scene = Scene::Helm; g.objectiveSel = Objective::Chart; }},
+        {"menu_main", [](Game& g) { g.scene = Scene::Hub; }},
+        {"menu_settings", [](Game& g) { g.scene = Scene::Hub; }},
+        {"menu_controls", [](Game& g) { g.scene = Scene::Hub; }},
         {"combat_walk", [](Game& g) { DebugEnterCombat(g); g.dungeon.phase = DPhase::Walking; g.dungeon.walkT = 0.4f; }},
         {"combat_deep", [](Game& g) { g.tierCleared[(int)Location::Cave] = 4; g.tierSel[(int)Location::Cave] = 3; DebugEnterCombat(g); }},
         {"foes_crab", [](Game& g) { DebugSetEnemies(g, Location::Cave, {EnemyType::SeaLouse, EnemyType::CaveShrimp, EnemyType::DysCrustacean, EnemyType::SeaLouse}); }},
@@ -372,8 +376,9 @@ static void TakeShots(const Game& base, const std::string& dir) {
         s.setup(g);
         for (int f = 0; f < 90; f++) {
             g.time += 1 / 60.0f;
+            if (f == 60 && strncmp(s.name, "menu_", 5) == 0) { SnapshotFrame(); DebugMenuPage(strstr(s.name, "settings") ? 1 : strstr(s.name, "controls") ? 2 : 0); } // between frames, as in play
             BeginFrame();
-            RunScene(g);
+            if (GameMenuActive()) GameMenuFrame(g); else RunScene(g);
             EndFrame(g.time);
         }
         std::string path = dir + "/" + s.name + ".png";
@@ -595,11 +600,22 @@ int main(int argc, char** argv) {
         InitAudioDevice(); // only for real play: the tools above run silently
         AudioInit();       // the parkour section's synthesizer (sound.cpp)
         if (LoadGame(g)) Toast(g, "Welcome back aboard. Your progress was loaded.");
+        LoadSettings();                                    // settings.txt: volumes, brightness, fullscreen, key bindings (kept across new games)
+        if (GameSettings().fullscreen) ToggleBorderlessWindowed();
         if (argc >= 3 && strcmp(argv[1], "--play") == 0) { int lv = atoi(argv[2]); if (lv >= PL_COUNT) { StartAbyss(g); g.scene = Scene::Abyss; } else StartPlatform(g, std::clamp(lv, 0, PL_COUNT - 1), true); } // developer: straight into a dive (nothing is unlocked or saved by it)
         Scene last = g.scene;
-        while (!WindowShouldClose()) {
+        while (!WindowShouldClose() && !GameMenuWantsQuit()) {
+            if (IsKeyPressed(KEY_F11)) { ToggleBorderlessWindowed(); GameSettings().fullscreen = !GameSettings().fullscreen; SaveSettings(); } // F11: fill the screen (the frame is letterboxed to fit)
+            // the game menu (Esc): the game is paused while it is open (the Periscope's dossier keeps Esc for closing itself)
+            if (!GameMenuActive() && ActPressed(A_MENU) && !(g.scene == Scene::Periscope && g.dossier >= 0)) GameMenuOpen();
+            if (GameMenuActive()) {
+                BeginFrame();
+                GameMenuFrame(g);
+                AudioFrame(GetFrameTime(), g.scene == Scene::Platformer || g.scene == Scene::Abyss);
+                EndFrame(g.time);
+                continue;
+            }
             g.time += GetFrameTime();
-            if (IsKeyPressed(KEY_F11)) ToggleBorderlessWindowed();   // F11: fill the screen (the frame is letterboxed to fit)
             BeginFrame();
             RunScene(g);
             {   // aboard the Nautilus (the salon and its station screens) the waltz and the ship's bed play

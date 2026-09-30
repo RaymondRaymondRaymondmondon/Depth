@@ -8,6 +8,7 @@
 //  from the design doc yet. Everything else in the game is untouched by this.
 // ============================================================================
 #include "game.h"
+#include "input.h"
 #include "raymath.h"
 #include "rlgl.h"
 #include <algorithm>
@@ -672,18 +673,18 @@ void UpdateAbyss(Game& g, float dt) {
     Vector2 drift{0, 0};
     bool dashPressed = false, glideHeld = false, aimUp = false, aimDown = false;
     if (!a.verifying) {
-        bool right = IsKeyDown(KEY_D) || IsKeyDown(KEY_RIGHT), left = IsKeyDown(KEY_A) || IsKeyDown(KEY_LEFT);
-        bool up = IsKeyDown(KEY_W) || IsKeyDown(KEY_UP), down = IsKeyDown(KEY_S) || IsKeyDown(KEY_DOWN);
+        bool right = ActDown(A_RIGHT), left = ActDown(A_LEFT);
+        bool up = ActDown(A_UP), down = ActDown(A_DOWN);
         if (right) drift.x += 1;
         if (left)  drift.x -= 1;
         if (up)   { drift.y += 1; aimUp = true; }
         if (down)  { drift.y -= 1; aimDown = true; }
-        glideHeld = IsKeyDown(KEY_LEFT_SHIFT);
+        glideHeld = ActDown(A_MOD);
         // Dash on Space, or (per feedback that Space alone wasn't discoverable) a double-tap of a movement
         // key within 0.3s, the way most games with a dodge/dash actually teach it.
-        dashPressed = IsKeyPressed(KEY_SPACE);
-        bool tapped[4] = {IsKeyPressed(KEY_D) || IsKeyPressed(KEY_RIGHT), IsKeyPressed(KEY_A) || IsKeyPressed(KEY_LEFT),
-                           IsKeyPressed(KEY_W) || IsKeyPressed(KEY_UP), IsKeyPressed(KEY_S) || IsKeyPressed(KEY_DOWN)};
+        dashPressed = ActPressed(A_JUMP);
+        bool tapped[4] = {ActPressed(A_RIGHT), ActPressed(A_LEFT),
+                           ActPressed(A_UP), ActPressed(A_DOWN)};
         for (int i = 0; i < 4; i++) if (tapped[i]) {
             if (a.time - a.tapTime[i] < 0.3f) dashPressed = true;
             a.tapTime[i] = a.time;
@@ -826,9 +827,8 @@ void SceneAbyss(Game& g) {
     AbyssState& a = g.abyss;
     bool over = a.dead || a.won;
     if (!a.verifying) {
-        if (IsKeyPressed(KEY_ESCAPE)) { g.scene = Scene::Helm; return; }
         if (!over) UpdateAbyss(g, GetFrameTime());
-        else if (IsKeyPressed(KEY_SPACE) || IsKeyPressed(KEY_ENTER)) {
+        else if (ActPressed(A_JUMP) || IsKeyPressed(KEY_ENTER)) {
             if (!a.awarded) {
                 a.awarded = true;
                 if (a.won) {
