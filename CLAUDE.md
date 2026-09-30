@@ -333,4 +333,15 @@ amespace {} reopened before DrawRichEnemy). Shots: `foes_new_cave|island|weeds|a
   - `depth.exe --study-save-test`.
   - Shots: `study`, `study_lounge`, `study_dim80`, `study_lounge_dim80`, `study_lounge_reduce_motion`, `study_drawer_*`, `study_chronometer`, `study_descent`.
 - Retuning a layer's sound means pasting its new loudness norm from the audio test's report into `LAYER_NORM`/`STYLE_NORM` (study_data.cpp).
-- Next is stage 17: the course packs, `study/INGEST.md`, and Calc II.
+- Stage 17 is below.
+
+## The Study, stage 17 (course packs) (Master Reference pages 42-56)
+- **Procedure:** `study/INGEST.md` (every step, gate, quarantine rule and the session procedure). Log per build in `study/CHANGELOG.md`. Packs live in `study/courses/<ID>/` (gitignored with everything under it: the player's materials never leave the machine).
+- **Code (no raylib):** `json.*` (reader + `WriteJson`), `expr.*` (the answer parser: implicit multiplication, `sin^2 x`, `ln|x|`, unicode π/√/²; `Equivalent`/`EquivalentUpToConstant` at random points; `Derivative`, `Integrate` incl. infinite bounds), `course.*` (`LoadCourses` for the Courses drawer; the tools below).
+- **Tools:**
+  - `depth.exe --expr-test`: the parser/numerics fixture.
+  - `depth.exe --course-verify [course] [unit]`: structure, coverage (every source page logged), skill graph, blueprint, and the gates: 1 computation (each key checked a second way by its `check` list, every `math` step, every listed wrong answer and math distractor proven wrong), 2 blind-solve comparison (+ template samples, + blind-solver notes need a third-pass ruling), 3 citations + the grounding pass's verdict, 4 the adversarial verdicts (two reviewers, both must pass), 5 conventions/leaky hints/copied prompts, 6 the tier rules against the anchor profile (per skill when a skill has 2+ anchors). Writes `pack/verify/Uxx.log`.
+  - `depth.exe --course-report [course]`, `--course-expand [course] [unit]` (templates -> 200 verified instances in `pack/instances/`), `--course-seed-test` (fixture `study/courses/_seeded_test`: 20 planted errors in 30 items, labels kept apart in `planted.json`; all must be caught, no good item rejected).
+  - `tools\pdfpages.ps1 -Pdf <f> -From a -To b -Out <dir> -Ocr` renders pages (Windows.Data.Pdf) with OCR text; OCR drops math, so look at the PNGs. `tools\merge_gates.ps1` merges the sub-agent gate files into `pack/verify/Uxx.gates.json`.
+- **MATH_CALC2_F26:** 18 units in course.json; U01 built (70 items, 4 templates). Status per unit in `pack/STATUS.md`. Midterm 1 is 2026-10-07 (U01-U07).
+- The Courses drawer (study.cpp) lists packs by term, units (built ones lit, item counts) and the chosen unit's skills (`--shots shots study_drawer_courses`).

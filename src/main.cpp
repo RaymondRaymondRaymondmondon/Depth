@@ -12,6 +12,8 @@
 // ============================================================================
 #include "game.h"
 #include "study.h"
+#include "course.h"
+#include "expr.h"
 #include "input.h"
 #include "levelgen.h"
 #include "relics.h"
@@ -572,6 +574,12 @@ int main(int argc, char** argv) {
         return RunStudyAudioTest(wav, secs);
     }
     if (argc >= 2 && strcmp(argv[1], "--study-save-test") == 0) return study::RunSaveTest();
+    // course packs (stage 17): --course-verify [course] [unit], --course-report [course], --course-expand [course] [unit], --course-seed-test
+    if (argc >= 2 && strcmp(argv[1], "--expr-test") == 0) return expr::RunExprTest();
+    if (argc >= 2 && strcmp(argv[1], "--course-verify") == 0) return RunCourseVerify(argc, argv, 2);
+    if (argc >= 2 && strcmp(argv[1], "--course-report") == 0) return RunCourseReport(argc, argv, 2);
+    if (argc >= 2 && strcmp(argv[1], "--course-expand") == 0) return RunCourseExpand(argc, argv, 2);
+    if (argc >= 2 && strcmp(argv[1], "--course-seed-test") == 0) return RunCourseSeedTest(argc, argv, 2);
     if (argc >= 2 && strcmp(argv[1], "--scuttle-sim") == 0) return RunScuttleSim(argc >= 3 ? std::max(1, atoi(argv[2])) : 2000);
     if (argc >= 2 && strcmp(argv[1], "--net-loop") == 0) {
         int lag = 0; bool mem = false;

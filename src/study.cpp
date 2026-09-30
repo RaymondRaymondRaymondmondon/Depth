@@ -7,6 +7,7 @@
 #include "sound.h"
 #include "study.h"
 #include "study_data.h"
+#include "course.h"
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -328,29 +329,70 @@ void SceneDrawer(Rectangle p) {
 }
 
 // ---------------------------------------------------------------------------- the Courses drawer
-std::string CoursesRoot() {
-    const char* tries[3] = {"study/courses", nullptr, nullptr};
-    std::string exe = GetApplicationDirectory();
-    std::string a = exe + "study/courses", b = exe + "../../study/courses";
-    tries[1] = a.c_str(); tries[2] = b.c_str();
-    for (const char* t : tries) if (DirectoryExists(t)) return t;
-    return "";
+// the packs on disk, re-read every few seconds while the drawer is open (a pack is rebuilt by Claude Code outside the game)
+const std::vector<Course>& Courses() {
+    static std::vector<Course> cache; static double at = -100;
+    if (GetTime() - at > 4) { cache = LoadCourses(FindCoursesRoot()); at = GetTime(); }
+    return cache;
 }
+int gCourseUnit = -1;   // the unit whose skills are shown
 void CoursesDrawer(Rectangle p) {
     TxtBold("COURSES", p.x + 14, p.y + 10, 15, INK_ON);
-    std::string root = CoursesRoot();
-    std::vector<std::string> packs;
-    if (!root.empty()) { FilePathList fl = LoadDirectoryFiles(root.c_str()); for (unsigned i = 0; i < fl.count; i++) if (DirectoryExists(fl.paths[i])) packs.push_back(GetFileName(fl.paths[i])); UnloadDirectoryFiles(fl); }
+    const auto& cs = Courses();
     float y = p.y + 40;
+    std::string term = cs.empty() ? "" : cs.front().term;   // the newest term is "this term"; older ones are the Past Terms shelf
     Label("This term", p.x + 16, y, 13, TXT_DIM); y += 18;
-    if (packs.empty()) {
+    if (cs.empty()) {
         DrawWrapped("No course packs yet. MATH 1272, Calculus II (Fall 2026) comes first: Claude Code builds its pack from your class materials into study/courses/, and it appears here with its units and skills.", {p.x + 16, y, 560, 60}, 14, TXT);
         y += 64;
     }
-    if (Chip({p.x + 16, y, 180, 24}, "General study", gSave.course == "General")) { gSave.course = "General"; SaveStudy(); }
+    if (Chip({p.x + 16, y, 180, 24}, "General study", gSave.course == "General")) { gSave.course = "General"; gCourseUnit = -1; SaveStudy(); }
     y += 28;
-    for (auto& c : packs) { if (Chip({p.x + 16, y, 260, 24}, c.c_str(), gSave.course == c)) { gSave.course = c; SaveStudy(); } y += 28; }
-    // the session log: focus time today and over the last 7 days, per course
+    const Course* sel = nullptr;
+    bool past = false;
+    for (auto& c : cs) {
+        if (!past && c.term != term) { past = true; y += 4; Label("Past terms", p.x + 16, y, 13, TXT_DIM); y += 18; }
+        std::string name = c.code.empty() ? c.id : c.code + "  " + c.title;
+        if (Chip({p.x + 16, y, 250, 24}, name.c_str(), gSave.course == c.id)) { gSave.course = c.id; gCourseUnit = -1; SaveStudy(); }
+        if (gSave.course == c.id) sel = &c;
+        y += 28;
+    }
+    // the selected course: its units in order, built ones lit; click a unit to see its skills
+    if (sel) {
+        float ux = p.x + 280, uy = p.y + 36, uw = 326;
+        TxtBold(TextFormat("%s, %s", sel->title.c_str(), sel->term.c_str()), ux, p.y + 12, 14, TXT);
+        int built = 0; for (auto& u : sel->units) if (u.status == "built") built++;
+        Label(TextFormat("%d of %d units ready", built, (int)sel->units.size()), ux + uw - 120, p.y + 13, 12, TXT_DIM);
+        float rowH = std::min(19.0f, (p.height - 46) / std::max(1, (int)sel->units.size()));
+        for (int i = 0; i < (int)sel->units.size(); i++) {
+            const CourseUnit& u = sel->units[i];
+            Rectangle r{ux, uy + i * rowH, uw, rowH - 2};
+            bool ready = u.status == "built", on = gCourseUnit == i, hov = Hover(r);
+            DrawRectangleRounded(r, 0.2f, 4, Fade(on ? Color{110, 70, 30, 255} : Color{40, 26, 16, 255}, hov ? 1.0f : 0.8f));
+            DrawCircleV({r.x + 8, r.y + r.height / 2}, 3, ready ? Color{120, 200, 120, 255} : Color{110, 96, 80, 255});
+            std::string label = u.id + "  " + u.title;
+            int fs = 12; while (fs > 9 && MeasureTxt(label, fs, false) > uw - 70) fs--;
+            Label(label, r.x + 16, r.y + (r.height - fs) / 2 - 1, fs, ready ? TXT : TXT_DIM);
+            if (ready) Label(TextFormat("%d items", u.items), r.x + uw - 56, r.y + (r.height - 11) / 2 - 1, 11, TXT_DIM);
+            if (hov && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) gCourseUnit = on ? -1 : i;
+        }
+        // the skills of the chosen unit, over the session log
+        if (gCourseUnit >= 0 && gCourseUnit < (int)sel->units.size()) {
+            const CourseUnit& u = sel->units[gCourseUnit];
+            Rectangle sk{p.x + 620, p.y + 10, p.width - 634, p.height - 20};
+            DrawRectangleRounded(sk, 0.04f, 4, Fade(Color{26, 16, 10, 255}, 0.96f));
+            TxtBold(TextFormat("%s SKILLS", u.id.c_str()), sk.x + 10, sk.y + 8, 14, INK_ON);
+            float sy = sk.y + 32;
+            if (u.skills.empty()) Label(u.status == "built" ? "No skills listed." : "Not built yet: Claude Code ingests one unit per session.", sk.x + 10, sy, 13, TXT_DIM);
+            for (auto& s : u.skills) {
+                if (sy > sk.y + sk.height - 20) { Label("...", sk.x + 10, sy, 13, TXT_DIM); break; }
+                DrawWrapped(("- " + s.name).c_str(), {sk.x + 10, sy, sk.width - 20, 34}, 13, TXT);
+                sy += MeasureTxt(s.name, 13, false) > sk.width - 30 ? 32 : 17;
+            }
+            return;
+        }
+    }
+    y = std::max(y, p.y + 40);    // the session log: focus time today and over the last 7 days, per course
     Rectangle lg{p.x + 620, p.y + 10, p.width - 634, p.height - 20};
     DrawRectangleRounded(lg, 0.04f, 4, Fade(Color{26, 16, 10, 255}, 0.9f));
     TxtBold("SESSION LOG", lg.x + 10, lg.y + 8, 14, INK_ON);
@@ -566,7 +608,7 @@ void DebugStudyShot(int which) {
     gSave.mixer.layers.assign(p.layers, p.layers + p.n); FreshIds(gSave.mixer.layers);
     if (which == 5) { R.drawer = DR_SOUND; R.drawerAnim = 1; }
     if (which == 6) { R.drawer = DR_SCENE; R.drawerAnim = 1; }
-    if (which == 7) { R.drawer = DR_COURSES; R.drawerAnim = 1; gSave.log[Today()]["General"] = 3 * 3600 + 25 * 60; }
+    if (which == 7) { R.drawer = DR_COURSES; R.drawerAnim = 1; gSave.log[Today()]["General"] = 3 * 3600 + 25 * 60; gSave.course = "MATH_CALC2_F26"; gCourseUnit = 0; }
     if (which == 8) { R.chronoSettings = true; R.phase = PH_WORK; R.running = true; R.left = 17 * 60 + 42; R.round = 2; }
     R.lastFrame = 1e9;   // (no descent on the first frame)
     Push();

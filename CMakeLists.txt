@@ -44,6 +44,7 @@ add_executable(depth
     src/rig.cpp src/rig_clips.cpp src/rigfigs.cpp src/chart.cpp src/combatfx.cpp src/input.cpp src/menu.cpp
     src/scuttle.cpp src/net_gns.cpp src/net_lan.cpp src/net_mem.cpp src/arcade_session.cpp src/arcade_games.cpp src/arcade.cpp src/net_test.cpp
     src/study_audio.cpp src/study_data.cpp src/study_test.cpp src/study.cpp src/study_scenes.cpp
+    src/json.cpp src/expr.cpp src/course.cpp
 )
 target_link_libraries(depth PRIVATE raylib)
 
