@@ -185,6 +185,7 @@ enum class EnemyType {
     TribalSpearman, WarDog, TribalShaman, TribalDemigod, CoconutQueen, SunGod,   // the Island
     FeralMerman, Siren, GiantOctopus, ElectricEel, GreatWhite, Neptune,          // the Weeds
     LostInfantry, LostCultist, ArmorLostOne, AlienHorror, Cthulhu,               // Atlantis
+    BarnacleCrab, LanternAngler, FireDancer, IdolBearer, MantisShrimp, KelpWraith, DrownedOracle, StarSpawn, // Stage 7: two more per location (appended: saves index by type)
     COUNT
 };
 

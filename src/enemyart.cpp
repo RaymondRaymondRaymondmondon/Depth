@@ -1294,6 +1294,221 @@ void SunGod(const Ctx& c) { // the Island's level boss: a colossus of black basa
 }  // namespace
 
 // Returns true if the enemy has a rich drawing (the rest still use the older archetype drawers).
+namespace { // (the kit's anonymous namespace, reopened)
+// ============================================================ Stage 7: two new creatures per location
+// THE CAVE: a Barnacle Crab (a guardian that walls the line) and a Lantern Angler (its lure blinds)
+void BarnacleCrab(const Ctx& c) {
+    const float t = c.t;
+    const Color shell{118, 104, 88, 255}, dk{72, 62, 54, 255}, lt{160, 146, 122, 255}, pale{222, 210, 186, 255}, leg{104, 90, 74, 255};
+    for (int pass = 0; pass < 2; pass++) // four legs a side, arching up then down; the far ones in shadow
+        for (int i = 0; i < 4; i++) {
+            float x = -18 + i * 12.0f + pass * 5, dir = i < 2 ? -1.0f : 1.0f, sw = sinf(t * 4 + i * 1.1f + pass * 2 + c.u) * 2;
+            Leg(c, {x, -26}, {x + dir * 14, -40}, {x + dir * 24, 0}, 5, 4, 2, pass ? leg : Tone(leg, -0.35f), std::max(0.0f, sw) * 0.6f);
+        }
+    Ball(c, 4, -34, 28, shell);                         // the carapace, broad and low
+    Ball(c, -2, -42, 18, lt);
+    Crescent(c, 4, -34, 28);
+    Hatch(c, 8, -32, 20, 14, 6, Fade(INK, 0.5f));
+    Barnacles(c, -4, -56, 8, 3, c.u + 1); Barnacles(c, 14, -52, 6, 3, c.u + 5); Barnacles(c, 24, -40, 4, 2, c.u + 9); // a crust of barnacles
+    Limb(c, {-20, -18}, {26, -18}, 4, 4, Tone(shell, -0.35f));                          // the underside's shadowed rim
+    for (int s = 0; s < 2; s++) { // stalked eyes
+        V b{-16.0f + s * 7, -50.0f}, tip{-20.0f + s * 6, -62.0f};
+        Limb(c, b, tip, 2.2f, 1.8f, dk);
+        Ball(c, tip.x, tip.y, 3.0f, INK); Dot(c, tip.x - 0.7f, tip.y - 0.7f, 0.8f, Color{230, 220, 200, 255});
+    }
+    Limb2(c, {-20, -30}, {-32, -20}, {-40, -24}, 5, 4.2f, 3.6f, shell);                  // the small claw, low
+    Claw(c, -46, -24, 8, Snap(c, 0.2f), shell, lt, pale, false);
+    Limb2(c, {-18, -40}, {-34, -46}, {-44, -54}, 8, 7, 6, shell);                        // the great crusher, raised like a shield
+    Claw(c, -56, -56, 16, Snap(c, 0.15f + 0.1f * sinf(t * 2 + c.u)), shell, lt, pale, true);
+}
+void LanternAngler(const Ctx& c) {
+    const float t = c.t;
+    const float hov = sinf(t * 1.4f + c.u) * 3 - 40;    // it hangs in the water
+    const Color skin{84, 74, 92, 255}, dk{48, 40, 56, 255}, lt{128, 116, 136, 255}, tooth{232, 226, 210, 255}, glow{255, 236, 150, 255};
+    for (int i = -1; i <= 1; i++) Tri(c, {34, hov - 2}, {54 + i * 2, hov - 12 + i * 10}, {50, hov + 4 + i * 6}, i ? dk : Tone(dk, 0.1f)); // the tail
+    Tri(c, {0, hov - 26}, {18, hov - 24}, {10, hov - 38}, Tone(skin, -0.1f));                            // the dorsal fin
+    Ball(c, 10, hov, 26, skin);                                                                           // the bulbous body
+    Ball(c, 2, hov - 8, 16, lt);
+    Crescent(c, 10, hov, 26);
+    Hatch(c, 10, hov - 4, 20, 18, 6, Fade(INK, 0.5f));
+    float gape = 0.35f + 0.25f * (0.5f + 0.5f * sinf(t * 1.1f + c.u)) + std::max(0.0f, -c.reach) * 0.6f;
+    Quad(c, {-22, hov - 4}, {-6, hov - 8}, {-6, hov + 20}, {-30, hov + 6 + gape * 18}, Tone(skin, -0.25f)); // the underslung jaw
+    Bar(c, -24, hov - 2, 18, 4 + gape * 12, INK);                                                         // the black mouth
+    for (int i = 0; i < 6; i++) { // needle teeth, top and bottom
+        float x = -24 + i * 3.2f;
+        Tri(c, {x, hov - 3}, {x + 1.4f, hov - 3}, {x + 0.7f, hov + 5}, tooth);
+        Tri(c, {x - 2, hov + 3 + gape * 12}, {x - 0.6f, hov + 3 + gape * 12}, {x - 1.3f, hov - 4 + gape * 12}, tooth);
+    }
+    Eye(c, -6, hov - 12, 6, Color{210, 220, 200, 255});
+    Tri(c, {14, hov + 8}, {30, hov + 12}, {20, hov + 20}, Tone(skin, 0.1f));                              // a pectoral fin, fanning
+    Vector2 tip = Feeler(c, {-4, hov - 22}, {-0.6f, -0.8f}, 6, 6, 1.6f, 0.9f, dk, 0.55f, 0.3f);           // the lure's rod...
+    V lt2 = Unit(c, tip);
+    float pulse = 0.6f + 0.4f * sinf(t * 3 + c.u);
+    Glow(tip, (22 + pulse * 10) * c.k, Fade(glow, 0.22f * pulse));                                       // ...and its bulb
+    Ball(c, lt2.x, lt2.y, 4.2f, Color{255, 230, 140, 255});
+    Dot(c, lt2.x - 1, lt2.y - 1, 1.6f, WHITE);
+}
+
+// THE ISLAND: a Fire Dancer (burning sweeps across the front) and an Idol Bearer (the idol lifts the tribe)
+void FireDancer(const Ctx& c) {
+    const float t = c.t;
+    const Color skin{150, 96, 66, 255}, skinDk{106, 66, 46, 255}, paint{236, 220, 186, 255}, ochre{200, 140, 60, 255}, grass{150, 128, 64, 255}, red{180, 60, 40, 255}, wood{120, 82, 48, 255}, fire{255, 160, 50, 255}, hot{255, 236, 170, 255};
+    float step = sinf(t * 3 + c.u), breathe = sinf(t * 1.8f + c.u) * 1.2f;
+    Limb2(c, {6, -54}, {4 + step * 2, -30}, {-2 + step * 4, -4}, 10, 8, 6, skinDk);                // the rear leg
+    Limb2(c, {-2, -54}, {-10 - step * 2, -30}, {-16 - step * 3, -3}, 11, 9, 6.5f, skin);            // the front leg, on the beat
+    DrawRing(c.P(-15 - step * 3, -8), 5.2f * c.k, 7 * c.k, 0, 360, 10, ochre);                      // an anklet
+    Quad(c, {-12, -60}, {12, -60}, {16, -30}, {-14, -30}, Tone(grass, -0.1f));                       // the grass skirt
+    Jag(c, {-14, -30}, {16, -30}, 7, 10, grass, c.u);
+    Limb(c, {-14, -59}, {14, -59}, 5, 5, red);
+    Limb(c, {0, -58}, {-2 + breathe * 0.2f, -98 + breathe}, 17, 21, skin);                          // a dancer's torso
+    Crescent(c, 0, -78, 17);
+    for (int i = 0; i < 3; i++) Line(c, {-12, -92.0f + i * 8}, {10, -88.0f + i * 8}, 2.2f, i % 2 ? ochre : paint);   // painted bands
+    Ball(c, 12, -99, 8, skinDk); Ball(c, -13, -99, 9, skin);                                       // shoulders
+    for (int s = 0; s < 2; s++) { // arms out, whirling burning poi on cords
+        float a = t * 5 * (s ? 1 : -1) + c.u + s * PI;
+        V sh{s ? 12 : -13, -97}, el{s ? 24 : -26, -84 - c.rear * 6}, hand{(s ? 30 : -34) + cosf(a) * 4, -96 + sinf(a) * 4 - c.rear * 12};
+        Limb2(c, sh, el, hand, 8, 7, 6, s ? skinDk : skin);
+        Vector2 end = Feeler(c, hand, {cosf(a * 1.3f), sinf(a * 1.3f)}, 4, 6, 1.2f, 1.0f, Tone(wood, -0.3f), 0.25f, 0.6f);
+        V e = Unit(c, end);
+        Glow(end, 34 * c.k, Fade(fire, 0.3f));
+        for (int k = 0; k < 3; k++) Tri(c, {e.x - 5, e.y}, {e.x + 5, e.y}, {e.x + (k - 1) * 4.0f, e.y - 12 - k % 2 * 4.0f}, k == 1 ? hot : fire); // flames
+        Ball(c, e.x, e.y, 6, fire); Dot(c, e.x, e.y, 3, hot);
+    }
+    Ball(c, -6, -112, 12, skin); Crescent(c, -6, -112, 12);                                        // the head...
+    Quad(c, {-20, -126}, {4, -126}, {2, -100}, {-18, -100}, wood);                                   // ...behind a carved mask
+    Bar(c, -16, -117, 5, 4, INK); Bar(c, -8, -117, 5, 4, INK);
+    Dot(c, -14, -115, 0.9f, hot); Dot(c, -6, -115, 0.9f, hot);
+    Line(c, {-17, -108}, {-3, -108}, 2, red);
+    for (int f = -2; f <= 2; f++) Tri(c, {-9.0f + f * 4, -126}, {-5.0f + f * 4, -126}, {-7.0f + f * 5, -144 - (f % 2 ? 0 : 6)}, f % 2 ? red : fire); // a crest like flame
+}
+void IdolBearer(const Ctx& c) {
+    const float t = c.t;
+    const Color skin{128, 84, 58, 255}, skinDk{90, 58, 40, 255}, wood{128, 92, 58, 255}, woodDk{80, 56, 36, 255}, paint{210, 70, 50, 255}, bone{226, 214, 190, 255}, teal{60, 110, 100, 255}, glow{150, 230, 120, 255};
+    float heave = sinf(t * 1.3f + c.u) * 2;
+    Limb2(c, {8, -54}, {12, -28}, {10, -3}, 13, 11, 8, skinDk);                                     // stout legs, braced
+    Limb2(c, {-6, -54}, {-14, -28}, {-18, -3}, 14, 12, 8.5f, skin);
+    Bar(c, -30, -5, 22, 5, INK); Bar(c, -2, -5, 20, 5, INK);
+    Quad(c, {-16, -60}, {16, -60}, {18, -32}, {-16, -34}, Color{110, 90, 50, 255});
+    Jag(c, {-16, -34}, {18, -32}, 5, 8, Color{90, 72, 40, 255}, c.u);
+    Limb(c, {0, -58}, {-2, -94}, 22, 26, skin);                                                    // a broad, stooped torso
+    Crescent(c, 0, -76, 22);
+    for (int i = 0; i < 3; i++) Line(c, {-16, -86.0f + i * 7}, {14, -84.0f + i * 7}, 2, i % 2 ? teal : paint);
+    Ball(c, -14, -98, 11, skin); Ball(c, 14, -98, 10, skinDk);                                     // heavy shoulders
+    Ball(c, -12, -104, 11, skin); Crescent(c, -12, -104, 11);                                      // the head bowed under the load
+    Bar(c, -20, -106, 5, 3, INK);
+    // the idol, carried high: a squat carved god with a painted face
+    float ix = 4, iy = -150 + heave - c.rear * 8;
+    Quad(c, {ix - 28, iy - 30}, {ix + 28, iy - 30}, {ix + 30, iy + 22}, {ix - 30, iy + 22}, wood);
+    Hatch(c, ix - 26, iy - 26, 52, 44, 9, Fade(INK, 0.45f));
+    Quad(c, {ix - 32, iy - 40}, {ix + 32, iy - 40}, {ix + 28, iy - 30}, {ix - 28, iy - 30}, woodDk);    // its brow
+    for (int k = -2; k <= 2; k++) Tri(c, {ix + k * 10 - 4.0f, iy - 40}, {ix + k * 10 + 4.0f, iy - 40}, {ix + k * 10.0f, iy - 54 - (k % 2 ? 0 : 5)}, k % 2 ? paint : teal); // a feather crown
+    for (int s = -1; s <= 1; s += 2) { Ball(c, ix + s * 12, iy - 14, 7, bone); Dot(c, ix + s * 12, iy - 14, 3, INK); } // staring eyes
+    Quad(c, {ix - 16, iy + 2}, {ix + 16, iy + 2}, {ix + 12, iy + 14}, {ix - 12, iy + 14}, paint);       // a red-painted mouth
+    for (int k = 0; k < 5; k++) Tri(c, {ix - 13 + k * 6.0f, iy + 2}, {ix - 9 + k * 6.0f, iy + 2}, {ix - 11 + k * 6.0f, iy + 9}, bone);
+    float pulse = 0.5f + 0.5f * sinf(t * 2.4f + c.u);
+    Glow(c.P(ix, iy - 14), 48 * c.k, Fade(glow, 0.14f + 0.1f * pulse));   // the idol's power, lifting the tribe
+    for (int s = 0; s < 2; s++) Limb2(c, {s ? 14 : -14, -98}, {s ? 26 : -28, -112}, {s ? 26 : -28, iy + 12}, 9, 8, 7, s ? skinDk : skin); // arms up, bracing it
+}
+void MantisShrimp(const Ctx& c) {
+    const float t = c.t;
+    const Color seg[4] = {{60, 150, 110, 255}, {200, 90, 60, 255}, {70, 110, 190, 255}, {220, 180, 70, 255}};
+    const Color dk{40, 60, 60, 255}, pale{230, 214, 180, 255};
+    for (int i = 0; i < 3; i++) { float x = -2 + i * 9.0f; Leg(c, {x, -20}, {x - 4, -10}, {x - 7, 0}, 2.6f, 2.2f, 1.4f, Tone(dk, i % 2 ? 0.0f : -0.3f)); }
+    for (int i = 0; i < 7; i++) { // a long banded body in reef colours
+        float x = 4 + i * 9.0f, y = -24 - sinf(i / 6.0f * PI) * 6, r = 11 - i * 0.6f;
+        Ball(c, x, y, r, seg[i % 4]);
+        DrawRing(c.P(x, y), (r - 1.4f) * c.k, r * c.k, 200, 330, 8, Tone(seg[i % 4], -0.4f));
+        Crescent(c, x, y, r);
+    }
+    for (int i = -1; i <= 1; i++) Tri(c, {66, -22}, {80 + i * 2, -30 + i * 9}, {76, -16 + i * 6}, seg[(i + 3) % 4]); // the tail fan
+    Ball(c, -8, -30, 13, seg[0]); Crescent(c, -8, -30, 13);                                              // the head
+    for (int s = 0; s < 2; s++) { // big stalked eyes, each swivelling on its own
+        float a = sinf(t * 1.9f + s * 2 + c.u) * 0.3f;
+        V b{-12.0f + s * 6, -40.0f}, tip{-16.0f + s * 7 + a * 4, -52.0f};
+        Limb(c, b, tip, 2.6f, 2.2f, dk);
+        Ball(c, tip.x, tip.y, 4.4f, Color{120, 60, 110, 255});
+        Bar(c, tip.x - 3.5f, tip.y - 0.6f, 7, 1.4f, INK);                                                // the banded pupil
+    }
+    for (int a = 0; a < 2; a++) Feeler(c, {-16, -34 + a * 4}, {-0.9f, -0.3f}, 5, 5, 1.0f, 0.5f, dk, 0.35f);
+    for (int s = 0; s < 2; s++) { // the raptorial clubs, folded like a mantis, punching out on a strike
+        float out = std::max(0.0f, c.reach) * 22;
+        V sh{-14.0f, -24.0f + s * 4}, el{-22.0f - out * 0.4f, -14.0f + s * 3}, club{-34.0f - out, -24.0f + s * 5};
+        Limb2(c, sh, el, club, 4, 3.6f, 3.2f, s ? seg[1] : Tone(seg[1], -0.3f));
+        Ball(c, club.x, club.y, 5.2f, pale); Crescent(c, club.x, club.y, 5.2f);
+    }
+}
+
+void KelpWraith(const Ctx& c) {
+    const float t = c.t;
+    const Color kelp{64, 104, 56, 255}, kelpDk{36, 64, 36, 255}, kelpLt{110, 150, 80, 255}, void_{10, 16, 14, 255}, eye{200, 255, 200, 255};
+    float drift = sinf(t * 0.9f + c.u) * 4;
+    for (int i = 0; i < 7; i++) { // fronds hang from it and trail in the current
+        float x = -20 + i * 7.0f + drift * 0.3f;
+        Feeler(c, {x, -60 + (i % 2) * 6.0f}, {0.1f * (i - 3), 1}, 6, 9, 5, 1.5f, i % 2 ? kelp : kelpDk, 0.05f, 0.25f);
+    }
+    Ball(c, drift * 0.5f, -80, 22, kelpDk);                                // a tangle of weed for a body
+    for (int k = 0; k < 6; k++) Ball(c, -12 + k * 5.0f + drift * 0.5f, -92 + (k % 3) * 8.0f, 9, k % 2 ? kelp : kelpLt);
+    Crescent(c, drift * 0.5f, -80, 22);
+    Ball(c, -4 + drift * 0.6f, -112, 14, kelp);                            // a hood of fronds...
+    Jag(c, {-18 + drift * 0.6f, -110}, {12 + drift * 0.6f, -110}, 6, 10, kelpDk, c.u);
+    Ball(c, -6 + drift * 0.6f, -106, 8, void_);                            // ...around nothing at all
+    Dot(c, -9 + drift * 0.6f, -107, 1.6f, eye); Dot(c, -3 + drift * 0.6f, -107, 1.6f, eye);
+    Glow(c.P(-6 + drift * 0.6f, -107), 16 * c.k, Fade(eye, 0.1f));
+    for (int s = 0; s < 2; s++) // grasping arms of braided kelp, reaching further on a strike
+        Feeler(c, {s ? 10.0f : -16.0f, -88}, {-0.9f, 0.3f + s * 0.3f}, 5, 8 + std::max(0.0f, c.reach) * 4, 4, 1.2f, kelpLt, 0.4f, 0.35f);
+}
+
+// ATLANTIS: a Drowned Oracle (foresight and healing for its own) and a Star Spawn (madness; it folds space around a hero)
+void DrownedOracle(const Ctx& c) {
+    const float t = c.t;
+    const float hov = sinf(t * 1.2f + c.u) * 3 - 8;
+    const Color robe{56, 76, 88, 255}, robeDk{32, 44, 54, 255}, skin{150, 170, 160, 255}, gold{200, 170, 90, 255}, glow{150, 230, 255, 255};
+    Quad(c, {-18, hov - 90}, {18, hov - 90}, {26, hov}, {-26, hov}, robe);          // the robe, floating clear of the floor
+    Jag(c, {-26, hov}, {26, hov}, 9, 10, robeDk, c.u);
+    Hatch(c, 2, hov - 70, 20, 60, 7, Fade(INK, 0.45f));
+    Limb(c, {-14, hov - 88}, {14, hov - 88}, 6, 6, gold);                             // a gold collar
+    Ball(c, 0, hov - 100, 11, skin);                                                  // a drowned face, veiled
+    Quad(c, {-12, hov - 108}, {12, hov - 108}, {14, hov - 92}, {-14, hov - 92}, Fade(robeDk, 0.85f));
+    for (int s = -1; s <= 1; s += 2) Dot(c, s * 4 - 1, hov - 102, 1.6f, glow);       // eyes that see ahead
+    Tri(c, {-14, hov - 110}, {14, hov - 110}, {0, hov - 132}, robeDk);               // the tall hood
+    Feeler(c, {8, hov - 116}, {0.4f, 1}, 6, 8, 3, 1, robeDk, 0.1f, 0.2f);           // a trailing veil
+    float pulse = 0.5f + 0.5f * sinf(t * 2 + c.u);
+    V orb{-24.0f - std::max(0.0f, c.rear) * 6, hov - 70 - c.rear * 14};
+    Limb2(c, {-10, hov - 84}, {-22, hov - 70}, orb, 4, 3.4f, 3, robe);             // an arm holds out the orb
+    Glow(c.P(orb.x, orb.y - 8), (30 + pulse * 12) * c.k, Fade(glow, 0.2f + 0.1f * pulse));
+    Ball(c, orb.x, orb.y - 8, 8, Color{120, 200, 230, 255});
+    Dot(c, orb.x - 2, orb.y - 10, 2.4f, WHITE);
+    for (int k = 0; k < 3; k++) { float a = t * 1.5f + k * 2.1f; Dot(c, orb.x + cosf(a) * 14, orb.y - 8 + sinf(a) * 10, 1.2f, glow); } // motes of what is to come
+}
+
+void StarSpawn(const Ctx& c) {
+    const float t = c.t;
+    const Color flesh{78, 64, 96, 255}, dk{44, 34, 58, 255}, lt{120, 100, 140, 255}, eyeC{240, 230, 150, 255}, glow{190, 150, 255, 255};
+    for (int i = 0; i < 6; i++) // tentacles for legs, groping the floor
+        Feeler(c, {-24 + i * 10.0f, -30}, {0.2f * (i - 2.5f), 1}, 5, 7, 5, 1.4f, i % 2 ? flesh : dk, 0.25f, 0.3f);
+    Ball(c, 4, -64, 34, flesh);                                                       // a lumpen mass...
+    Ball(c, -10, -80, 20, lt); Ball(c, 22, -74, 18, Tone(flesh, -0.1f));
+    Crescent(c, 4, -64, 34);
+    Hatch(c, 10, -64, 26, 24, 7, Fade(INK, 0.5f));
+    const float ex[5] = {-20, -4, 12, -12, 20}, ey[5] = {-80, -92, -84, -60, -60}, er[5] = {5, 6.5f, 4, 3.5f, 4.5f};
+    for (int i = 0; i < 5; i++) { // ...with too many eyes, each blinking on its own
+        bool shut = fmodf(t * 0.7f + i * 0.37f + c.u * 0.13f, 3.0f) < 0.15f;
+        Ball(c, ex[i], ey[i], er[i], shut ? dk : eyeC);
+        if (!shut) Bar(c, ex[i] - 0.8f, ey[i] - er[i] * 0.7f, 1.6f, er[i] * 1.4f, INK);  // slit pupils
+    }
+    float open = 0.5f + 0.5f * sinf(t * 1.8f + c.u) + std::max(0.0f, c.rear);
+    for (int k = 0; k < 5; k++) { // a star-shaped maw that opens and closes
+        float a = k * 2 * PI / 5 - PI / 2;
+        Tri(c, {-26, -58}, {-26 + cosf(a - 0.3f) * 5, -58 + sinf(a - 0.3f) * 5}, {-26 + cosf(a) * (6 + open * 6), -58 + sinf(a) * (6 + open * 6)}, dk);
+    }
+    Ball(c, -26, -58, 3 + open * 2, INK);
+    for (int s = 0; s < 2; s++) Feeler(c, {-20, -70 + s * 12.0f}, {-1, -0.2f + s * 0.4f}, 6, 7 + std::max(0.0f, c.reach) * 3, 4, 1, s ? flesh : lt, 0.35f, 0.4f); // lashing arms
+    float pulse = 0.5f + 0.5f * sinf(t * 1.3f + c.u);
+    for (int k = 0; k < 4; k++) { float a = t * 0.8f + k * PI / 2; Dot(c, 4 + cosf(a) * 46, -70 + sinf(a) * 30, 1.4f, Fade(glow, 0.6f + 0.4f * pulse)); } // stars caught around it
+}
+
+}  // namespace
+
 bool DrawRichEnemy(const Enemy& e, Rectangle r, float t) {
     float H = 0, W = 0;
     void (*fn)(const Ctx&) = nullptr;
@@ -1323,6 +1538,14 @@ bool DrawRichEnemy(const Enemy& e, Rectangle r, float t) {
         case EnemyType::SunGod: fn = SunGod; H = 300; W = 340; break;
         case EnemyType::Siren: fn = Siren; H = 120; W = 100; break;
         case EnemyType::Neptune: fn = Neptune; H = 284; W = 380; break;
+        case EnemyType::BarnacleCrab: fn = BarnacleCrab; H = 76; W = 118; break;
+        case EnemyType::LanternAngler: fn = LanternAngler; H = 110; W = 120; break;
+        case EnemyType::FireDancer: fn = FireDancer; H = 140; W = 100; break;
+        case EnemyType::IdolBearer: fn = IdolBearer; H = 196; W = 110; break;
+        case EnemyType::MantisShrimp: fn = MantisShrimp; H = 66; W = 112; break;
+        case EnemyType::KelpWraith: fn = KelpWraith; H = 150; W = 100; break;
+        case EnemyType::DrownedOracle: fn = DrownedOracle; H = 150; W = 100; break;
+        case EnemyType::StarSpawn: fn = StarSpawn; H = 130; W = 140; break;
         default: return false;
     }
     float k = std::min(r.height / H, 1.5f * r.width / W);
@@ -1362,6 +1585,7 @@ bool DrawRichEnemy(const Enemy& e, Rectangle r, float t) {
         {0.0f, 0.8f, 1}, {0.35f, 0.55f, 4}, {0.0f, 0.85f, 1}, {0.05f, 0.85f, 1}, {0.0f, 0.8f, 1}, {0.1f, 0.8f, 3}, // the tribe
         {0.05f, 0.85f, 2}, {0.08f, 0.85f, 2}, {0.2f, 0.3f, 2}, {0.3f, 0.5f, 0}, {0.3f, 0.45f, 4}, {0.05f, 0.85f, 2}, // the Weeds
         {0.03f, 0.8f, 3}, {0.0f, 0.8f, 5}, {0.05f, 0.8f, 5}, {0.0f, 0.6f, 3}, {0.1f, 0.75f, 0},                     // Atlantis
+        {0.2f, 0.5f, 0}, {0.3f, 0.6f, 0}, {0.0f, 0.8f, 1}, {0.0f, 0.8f, 1}, {0.3f, 0.35f, 0}, {0.0f, 0.7f, 2}, {0.0f, 0.8f, 3}, {0.1f, 0.6f, 0}, // Stage 7's eight
     };
     const Hang& hg = HANG[std::clamp((int)e.type, 0, (int)EnemyType::COUNT - 1)];
     Vector2 anc = c.P(hg.ax * W, -hg.ay * H);

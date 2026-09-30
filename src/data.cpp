@@ -676,7 +676,57 @@ Enemy MakeEnemy(EnemyType t, int uid) {
             a = Support("Ancestor Chant"); a.healLowest = 6; a.buffAllyAtk = 25; e.abilities.push_back(a);
             a = Support("Grasping Vines"); a.pull = 1; a.hits = RANK_3 | RANK_4; e.abilities.push_back(a);
         } break;
-        case EnemyType::TribalDemigod: {
+        // ------------------------------------------------ Stage 7: two more per location
+        case EnemyType::BarnacleCrab: {   // the Cave's guardian: armour, and a shell it lends the line
+            e.name = "Barnacle Crab";
+            e.maxHp = 22; e.dmgMin = 4; e.dmgMax = 7; e.speed = 3; e.acc = 82; e.dodge = 0; e.prot = 25;
+            EnemyAbility a = Melee("Crusher", 1.25f); a.stunChance = 20; e.abilities.push_back(a);
+            a = Support("Barnacle Wall"); a.buffAllyDef = 20; a.buffSelfDef = 15; e.abilities.push_back(a);
+        } break;
+        case EnemyType::LanternAngler: {  // its lure blinds
+            e.name = "Lantern Angler";
+            e.maxHp = 15; e.dmgMin = 3; e.dmgMax = 5; e.speed = 7; e.acc = 84; e.dodge = 12;
+            EnemyAbility a = Long("Lure Light", 0.5f); a.weakAcc = 20; a.targetsN = 2; a.stress = 4; e.abilities.push_back(a);
+            a = Melee("Needle Teeth", 1.2f); a.bleed = 2; e.abilities.push_back(a);
+        } break;
+        case EnemyType::FireDancer: {     // burning sweeps
+            e.name = "Fire Dancer";
+            e.maxHp = 13; e.dmgMin = 3; e.dmgMax = 5; e.speed = 8; e.acc = 82; e.dodge = 15;
+            EnemyAbility a = Long("Fire Whirl", 0.45f); a.aoe = true; a.hits = RANK_1 | RANK_2 | RANK_3; a.region = 1; e.abilities.push_back(a);
+            a = Melee("Torch Strike", 1.0f); a.region = 1; e.abilities.push_back(a);
+        } break;
+        case EnemyType::IdolBearer: {     // the idol lifts the tribe
+            e.name = "Idol Bearer";
+            e.maxHp = 17; e.dmgMin = 2; e.dmgMax = 4; e.speed = 4; e.acc = 80; e.dodge = 0; e.prot = 10;
+            EnemyAbility a = Support("Raise the Idol"); a.buffAllyAtk = 25; a.buffAllyDef = 15; e.abilities.push_back(a);
+            a = Melee("Idol Bash", 0.9f); a.stunChance = 20; e.abilities.push_back(a);
+        } break;
+        case EnemyType::MantisShrimp: {   // its clubs crack armour
+            e.name = "Mantis Shrimp";
+            e.maxHp = 14; e.dmgMin = 4; e.dmgMax = 6; e.speed = 9; e.acc = 84; e.dodge = 10; e.prot = 10;
+            EnemyAbility a = Melee("Shell Breaker", 1.2f); a.weakDef = 25; e.abilities.push_back(a);
+            a = Long("Cavitation", 0.5f); a.stunChance = 20; e.abilities.push_back(a);
+        } break;
+        case EnemyType::KelpWraith: {     // hidden in the fronds; it entangles
+            e.name = "Kelp Wraith";
+            e.maxHp = 12; e.dmgMin = 2; e.dmgMax = 4; e.speed = 7; e.acc = 82; e.dodge = 25;
+            e.st.dodgeBuff = 30; e.st.dodgeTurns = 2;   // hidden: hard to find until it shows itself
+            EnemyAbility a = Long("Entangle", 0.4f); a.region = 3; a.weakSpd = 30; e.abilities.push_back(a);
+            a = Support("Drag Under"); a.pull = 1; a.hits = RANK_3 | RANK_4; e.abilities.push_back(a);
+        } break;
+        case EnemyType::DrownedOracle: {  // foresight for its own, and healing
+            e.name = "Drowned Oracle";
+            e.maxHp = 13; e.dmgMin = 2; e.dmgMax = 4; e.speed = 6; e.acc = 85; e.dodge = 10;
+            EnemyAbility a = Support("Foretelling"); a.healAllies = 4; a.buffAllyDef = 20; e.abilities.push_back(a);
+            a = Long("Drowned Prophecy", 0.5f); a.stress = 8; e.abilities.push_back(a);
+        } break;
+        case EnemyType::StarSpawn: {      // madness; it folds space around a hero
+            e.name = "Star Spawn";
+            e.maxHp = 18; e.dmgMin = 3; e.dmgMax = 6; e.speed = 5; e.acc = 82; e.dodge = 5; e.prot = 5;
+            EnemyAbility a = Long("Starlit Gaze", 0.6f); a.region = 4; e.abilities.push_back(a);
+            a = Support("Unfold Space"); a.pull = 3; a.stress = 5; e.abilities.push_back(a);
+            a = Melee("Tentacle Lash", 1.1f); e.abilities.push_back(a);
+        } break;        case EnemyType::TribalDemigod: {
             e.name = "Tribal Demigod"; e.boss = true; e.tier = 1;
             e.maxHp = 76; e.dmgMin = 8; e.dmgMax = 12; e.speed = 3; e.acc = 85; e.dodge = 5; e.prot = 15;
             EnemyAbility a = Melee("Idol Slam", 1.6f); a.stunChance = 50; e.abilities.push_back(a);
@@ -758,7 +808,7 @@ Enemy MakeEnemy(EnemyType t, int uid) {
             e.maxHp = 62; e.dmgMin = 5; e.dmgMax = 8; e.speed = 4; e.acc = 85; e.dodge = 0; e.prot = 15;
             EnemyAbility a = Melee("Trident Impale", 1.4f); a.bleed = 3; a.weakDef = 20; e.abilities.push_back(a);
             a = Support("Maelstrom Call"); a.pull = 2; a.aoe = true; a.region = 3; a.stress = 6; e.abilities.push_back(a);
-            a = Support("Ocean''s Blessing"); a.healAllies = 8; a.buffAllyAtk = 25; e.abilities.push_back(a);
+            a = Support("Ocean's Blessing"); a.healAllies = 8; a.buffAllyAtk = 25; e.abilities.push_back(a);
         } break;
         // ------------------------------------------------ Atlantis
         case EnemyType::LostInfantry: {
@@ -818,18 +868,18 @@ Enemy MakeEnemy(EnemyType t, int uid) {
 // ---------------------------------------------------------------- region bestiaries
 std::vector<EnemyType> LocationStandards(Location loc) {
     switch (loc) {
-        case Location::Island: return {EnemyType::TribalSpearman, EnemyType::WarDog, EnemyType::TribalSpearman};
-        case Location::Weeds: return {EnemyType::FeralMerman, EnemyType::FeralMerman, EnemyType::GiantOctopus};
-        case Location::Atlantis: return {EnemyType::LostInfantry, EnemyType::LostInfantry};
-        default: return {EnemyType::DysCrustacean, EnemyType::CaveShrimp, EnemyType::BrineWorm, EnemyType::SeaLouse};
+        case Location::Island: return {EnemyType::TribalSpearman, EnemyType::WarDog, EnemyType::TribalSpearman, EnemyType::FireDancer};
+        case Location::Weeds: return {EnemyType::FeralMerman, EnemyType::FeralMerman, EnemyType::GiantOctopus, EnemyType::MantisShrimp};
+        case Location::Atlantis: return {EnemyType::LostInfantry, EnemyType::LostInfantry, EnemyType::StarSpawn};
+        default: return {EnemyType::DysCrustacean, EnemyType::CaveShrimp, EnemyType::BrineWorm, EnemyType::SeaLouse, EnemyType::BarnacleCrab};
     }
 }
 std::vector<EnemyType> LocationSupports(Location loc) {
     switch (loc) {
-        case Location::Island: return {EnemyType::TribalShaman};
-        case Location::Weeds: return {EnemyType::Siren, EnemyType::GiantOctopus};
-        case Location::Atlantis: return {EnemyType::LostCultist};
-        default: return {EnemyType::CaveShrimp};
+        case Location::Island: return {EnemyType::TribalShaman, EnemyType::IdolBearer};
+        case Location::Weeds: return {EnemyType::Siren, EnemyType::GiantOctopus, EnemyType::KelpWraith};
+        case Location::Atlantis: return {EnemyType::LostCultist, EnemyType::DrownedOracle};
+        default: return {EnemyType::CaveShrimp, EnemyType::LanternAngler};
     }
 }
 std::vector<EnemyType> LocationMinis(Location loc) {
@@ -1011,6 +1061,10 @@ Personality EnemyPersonalityOf(EnemyType t) {
     switch (t) {
         case EnemyType::SeaLouse: case EnemyType::WarDog: return Personality::Swarm;
         case EnemyType::CaveShrimp: case EnemyType::Siren: case EnemyType::TribalShaman: case EnemyType::LostCultist: return Personality::Cunning;
+        case EnemyType::LanternAngler: case EnemyType::KelpWraith: case EnemyType::DrownedOracle: return Personality::Cunning;
+        case EnemyType::BarnacleCrab: case EnemyType::IdolBearer: return Personality::Guardian;
+        case EnemyType::MantisShrimp: case EnemyType::StarSpawn: return Personality::Brute;
+        case EnemyType::FireDancer: return Personality::Swarm;
         case EnemyType::DysCrustacean: case EnemyType::FeralMerman: case EnemyType::LostInfantry: case EnemyType::TribalSpearman: return Personality::Brute;
         case EnemyType::BrineWorm: case EnemyType::GiantOctopus: return Personality::Cowardly;
         case EnemyType::ArmorLostOne: return Personality::Guardian;
@@ -1208,6 +1262,9 @@ const char* EnemyHint(int t) {
         "Shocks whoever it touches; it strikes twice as often as you'd like.", "Slides in from the fog; its bite bleeds deep.", "Pulls the healer forward, then impales them.",
         "Drilled, armoured infantry of the drowned city.", "Chants madness; kill it before the Brutes.", "A guardian: it protects its master.",
         "Something from outside; it reads your turn order.", "Count the madness. When two are mad, it gazes.",
+        "A guardian: it lends its shell to the line; crack it last.", "Its lure blinds; bring your own light.", "Its whirl burns the front three ranks.",
+        "The idol lifts the whole tribe: topple the bearer first.", "Its clubs crack armour: don't trust protection.", "Hidden in the fronds at first; it drags the back rank in.",
+        "Heals and shields its own: silence it early.", "It folds space: heroes change places, and nerves go.",
     };
     int n = (int)(sizeof(H) / sizeof(H[0]));
     return t >= 0 && t < n ? H[t] : "Something new in the deep.";

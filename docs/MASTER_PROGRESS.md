@@ -10,7 +10,7 @@ The plan is `Depth — Master Reference for Claude Code.pdf` (project root). One
 | 4 | Sonar chart expeditions | Done (--gen-chart 10,000/10,000; --sim within 10 points of the linear baseline at every tier) |
 | 5 | Expedition visual overhaul on the rig | In progress: every hero on the rig, HUD, effects, camera; creature rig kit on the Cave; other locations' creatures, backgrounds-as-props and boss phase clips still to do |
 | 6 | EnemyBrain | Done (--brain-test: level 0 -4.1 points, level 6 -19.0; boss targets re-tuned) |
-| 7 | New expedition systems, the Trench and the Hadal | In progress: a (supplies, camp, resolve), b (habits, ailments, bonds, crit reactions; --stage7-test), c (Drill Deck, elites, riposte, enemy retreat), d (memorial, Sea Log, voyage events) done; eight new enemies and the Trench/Hadal to come |
+| 7 | New expedition systems, the Trench and the Hadal | In progress: a (supplies, camp, resolve), b (habits, ailments, bonds, crit reactions; --stage7-test), c (Drill Deck, elites, riposte, enemy retreat), d (memorial, Sea Log, voyage events), e (eight new enemies) done; the Trench and the Hadal to come |
 | 8 | Expedition sound | |
 | 9 | Flats visuals and card physics | |
 | 10 | Flats long map and systems | |
@@ -70,3 +70,6 @@ Elites 0/0/40/35/55% by cave level (+30% HP, an extra ability); riposte at 70% o
 | 3 | 61.9% | 58 |
 | 5 | 54.6% | 55 |
 | 6 | 44.2% | 45 |
+
+### Stage 7 part e: eight new enemies (2026-09-29)
+First pass made the Cave easier (the crab and angler diluted harder standards: 57.9/68.5/66.0/59.4/47.8). Barnacle Crab hp 20 -> 22, damage 3-5 -> 4-7, Crusher 1.1x -> 1.25x, stun 15 -> 20; Lantern Angler hp 13 -> 15, damage 2-4 -> 3-5, Lure Light 0.3x -> 0.5x. --sim 2000: 54.1 / 60.4 / 58.8 / 53.6 / 43.1 (targets 60/65/58/55/45: levels 0 and 1 run 5-6 low, the rest within 2).
