@@ -558,7 +558,18 @@ static void DrawStations() {
                 DrawWorldCube({p.x, p.y + 0.3f, p.z}, {0.5f, 1.0f, 0.3f}, {80, 80, 76, 255});
                 DrawWorldCube({p.x, p.y + (m.power ? 0.9f : 0.5f), p.z - 0.2f}, {0.08f, 0.5f, 0.08f}, m.power ? Color{120, 220, 110, 255} : Color{220, 70, 50, 255});
                 break;
-            case StationType::Quest: DrawWorldCube(p, {0.8f, 0.9f, 0.7f}, m.safeOpen ? Color{60, 60, 60, 255} : Color{70, 76, 70, 255}); break;
+            case StationType::Quest:
+                if (s.name.find("lantern") != std::string::npos) {   // a Drowned lantern, burning until the ink puts it out
+                    bool out = m.lanternsOut.count((int)(&s - &m.level.stations[0])) > 0;
+                    DrawWorldCube({p.x, p.y - 0.9f, p.z}, {0.3f, 0.5f, 0.3f}, {60, 56, 48, 255});
+                    DrawWorldCube({p.x, p.y - 0.5f, p.z}, {0.26f, 0.3f, 0.26f}, out ? Color{30, 30, 36, 255} : Color{255, (unsigned char)(190 + 30 * sinf(S.time * 7)), 110, 255});
+                } else if (s.name.find("log") != std::string::npos) DrawWorldCube({p.x, p.y - 0.55f, p.z}, {0.5f, 0.1f, 0.35f}, m.logRead ? Color{120, 90, 60, 255} : Color{90, 60, 40, 255});
+                else if (m.map->extra["quest_altar"].IsObj()) {
+                    DrawWorldCube({p.x, p.y - 0.8f, p.z}, {1.4f, 0.6f, 1.0f}, {150, 140, 120, 255});
+                    for (int k = 0; k < m.nests; k++) DrawWorldCube({p.x - 2.5f + k * 1.2f, p.y - 1.05f, p.z + 2.0f}, {0.7f, 0.15f, 0.6f}, {200, 190, 150, 255});   // the nests in the sand
+                    if (m.nesting) DrawWorldCube({p.x, p.y - 0.4f, p.z}, {0.45f, 0.3f, 0.45f}, {130, 80, 50, 255});                                            // the drum on the altar
+                } else DrawWorldCube(p, {0.8f, 0.9f, 0.7f}, m.safeOpen ? Color{60, 60, 60, 255} : Color{70, 76, 70, 255});
+                break;
             case StationType::Cleaning: DrawWorldCube({p.x, p.y - 0.6f, p.z}, {1.4f, 0.8f, 1.2f}, {110, 100, 88, 255}); break;
             case StationType::Trap:
                 if (s.name.find("Beacon") != std::string::npos && s.name.find("control") == std::string::npos) {
@@ -940,6 +951,7 @@ static void DrawHud() {
         float left = d.voidT > 0 ? m.map->extra["void"]["pull_s"].F(5) - d.voidT : m.map->extra["worm"]["tremor_s"].F(8) - d.wormT;
         DrawTextCenteredBold(TextFormat("%s  %.1f", what, std::max(0.0f, left)), SCREEN_W / 2.0f, SCREEN_H * 0.3f, 22, Color{255, 90, 70, (unsigned char)(200 + 55 * sinf(S.time * 10))});
     }
+    if (d.inkCaps > 0) Txt(TextFormat("ink caps: %d", d.inkCaps), SCREEN_W - 280, SCREEN_H - 218, 13, Color{170, 170, 200, 255});
     if (d.egg) Txt("the Relict egg (it wants it back)", SCREEN_W - 280, SCREEN_H - 202, 13, Color{240, 200, 150, 255});
     if (d.spark || d.ichorJar) Txt(std::string(d.spark ? "a jar of the crystal's spark  " : "") + (d.ichorJar ? "a jar of ichor" : ""), SCREEN_W - 280, SCREEN_H - 186, 13, Color{150, 220, 240, 255});
     if (d.drumUses > 0) Txt(TextFormat("F: the drum (%d beats; %d to the fifth)", d.drumUses, 5 - m.drumBeats % 5), SCREEN_W - 280, SCREEN_H - 170, 13, Color{226, 190, 120, 255});

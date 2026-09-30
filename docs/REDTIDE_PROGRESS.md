@@ -399,3 +399,44 @@ five maps.
 
 Slow on the rim (tide 10 at ~82 minutes: its prey is sparse by design), then the frilled sharks and the Remnant's
 Sentinels do the downing. Balance stays with Stage 10.
+
+## Stage 9: charms, skins, dossiers, hidden quests, sound
+
+### 9a: the arcade profile and the dossier
+- `redtide_profile.h/.cpp`: tokens by the progression sheet (a match 10, tide 10+ 25, 2 a tide past 10; firsts: tide
+  20 on a map 50, a boss 30, a quest 100, a full dossier 75), the 50 ranks and what they unlock (Salt Charms, skins,
+  charm pouch slots at ranks 7/15/25/40, bonus dossier pages), Lucky Locker at tide 15 and Fair Shares at tide 25,
+  records per map (highest tide, most scrip, longest survival, fastest Forge), cosmetics owned and worn, the pouch.
+  Saved to `redtide_profile.txt` next to the executable (gitignored), apart from the Nautilus's save.
+- The dossier: every beast, flora and the map's faction has a page; a kill or 30 s of watching in all (in sight within
+  25 m; flora within 12 m) earns it (`Match::UpdateDossier`, `dossierSeen`). The match's end pays the profile
+  (`AwardMatch`) and the results panel lists what was earned.
+- `redtide_menu.cpp`: the arcade's Red Tide pages, opened from the cabinet's left side: the Dossier (a tab per map, the
+  beast turning in the dark - a black shape until earned - and its page from the workbook's dossier sheet), Records
+  (and the bonus pages), How to play (the Owners' standing orders and the chalk diagram), the Charm pouch and the
+  Locker room. `--shots shots redtide_page`.
+- `--redtide-profile-test` (tokens, firsts, ranks, unlocks, save and load, dossier pages by kill and by watching,
+  every Salt Charm).
+
+### 9b: Salt Charms and skins
+- T spends the pouch's next charm: Keep Your Brines (the tonics survive the next revive), Salt Circle (20 s: beasts
+  pushed out of 4 m and made to forget you), Lucky Locker (the next pull comes out forged, with an alternate
+  ammunition), Fair Shares (scrip pooled and split), Slick Fins (30 s of sprint), Clean Water (blood within 30 m
+  gone), Fisher's Luck (10 kills at double), Chum Bucket (a chum cloud 30 m along your look), Hard Shell (60 s of half
+  damage), Ghost Fin (15 s: nothing finds you). The HUD shows the next charm and what's running.
+- The Locker room's finish tints the gun; the suit colour is on the glove that holds it (the only part of a diver
+  you see in solo play; teammates' suits come with networking).
+
+### 9c: the hidden quests, as the design doc lists them
+- **The Sunken Ship's safe**: the captain's log on the bridge shows its chalk after tide 3; the three keys (the
+  Goliath's, the Foreman's, the octopus's); holding the safe open takes 20 s and rings the ship's bell (10 noise);
+  3,000 each, the Lightning Keel (the Galvanic Rod, Forged) for the opener, and the Owners' page. The keys are the
+  team's (a downed diver doesn't drop one: our simplification).
+- **The Cave's expedition key**: ink caps (three to a patch) carried from the Gallery and the Cathedral put out the
+  three lanterns the Drowned left in the dry chambers (a page of the expedition's log each); with the key and three
+  pages the Lantern Cache's crate opens during a tide in 15 s while a mini-Hunt of 6 comes; the Resonator, 2,000 each,
+  and the Drowned enter by the Chimney from then on (`Ecosystem::entryOverride`). The ink bomb isn't an item yet.
+- **The Reef's drum**: carried unbeaten to Turtle Beach's altar (a carrier swims at 80%; a beat spoils it); then the
+  turtles nest, one every 12 s while a diver holds the beach during a tide, and Raiders come for the beach; five
+  nests: the Anemone Gun (Forged), the dolphins allied again, hammerheads kept off the beach.
+- A long open resets if everyone leaves it for 1.5 s. `--redtide-map-test ship` checks the safe.

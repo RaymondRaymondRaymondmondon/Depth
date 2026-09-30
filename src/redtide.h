@@ -253,6 +253,7 @@ struct Ecosystem {
     std::vector<int> ZonePath(int from, int to, bool enemy = false, int size = 0) const;
     float flowSign = 1;                // the Reef's tide: -1 while the flood runs the set backward
     std::vector<float> narrowInit; float erosionT = 0, soundAcc = 0;
+    std::string entryOverride;         // a zone the faction enters by instead (the Cave, once the Lantern Cache is opened)
     std::vector<int> zoneMaxSize;      // per zone: the largest size that fits its corridors (99: anything), relaxed as they erode
     // The divers are agents too (species index = diverSpecies); the game layer moves them.
     int diverSpecies = -1;

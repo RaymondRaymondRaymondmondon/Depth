@@ -101,6 +101,7 @@ struct DiverState {
     bool egg = false; float wormT = 0, voidT = 0, decoyCd = 0;
     // Salt Charms (stage 9): the pouch brought in (each spent once) and what's running
     std::vector<std::string> pouch; int pouchNext = 0;
+    int inkCaps = 0; bool drumClean = false;       // the Cave's ink caps carried; the Reef's drum not yet beaten
     float circleT = 0, finsT = 0, shellT = 0, ghostT = 0; Vector3 circlePos{}; int luckKills = 0; bool keepBrines = false, luckyLocker = false;   // the Void: the Relict egg carried; the worm's tremor; the void's pull
     float cutT = 0;                    // being cut free of Reacher coral by a teammate
     int kills = 0, headshots = 0, downs = 0, revives = 0;
@@ -184,6 +185,12 @@ struct Match {
     std::map<std::string, float> watchT;
     float dossierTick = 0, forgeAt = -1;
     bool bossKilled = false, questDone = false;
+    // the hidden quests' long opens (the ship's safe 20 s, the cave's crate 15 s) and the Cave's and Reef's steps
+    bool logRead = false; int openSt = -1; float openT = 0; bool openStarted = false;
+    std::set<int> lanternsOut; bool nesting = false, hammerAvoid = false; int nests = 0, nestPlacer = -1; float nestT = 0;
+    bool LongOpen(DiverState& d, int si, float need, float dt);
+    float openAwayT = 0;
+    void UpdateQuests(float dt);
     std::vector<std::string> bonusEarned;
     std::string DossierName(int agent) const;   // the page an agent belongs to (a faction unit: the faction's page)
     void UpdateDossier(float dt);

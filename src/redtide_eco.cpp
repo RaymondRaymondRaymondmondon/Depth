@@ -1048,6 +1048,7 @@ void Ecosystem::SpawnSquad(int region, bool hunt, int count, bool leader) {
     for (const auto& p : map->pois) if (p.name == f.entryPoi && p.zone >= 0) { at = p.pos; zi = p.zone; }
     if (zi < 0) for (const auto& p : map->pois) if (p.type == "Entry" && p.zone >= 0) { at = p.pos; zi = p.zone; }
     if (zi < 0) { zi = (int)map->zones.size() - 1; at = map->zones[zi].Center(); }
+    if (!entryOverride.empty() && map->ZoneIndex(entryOverride) >= 0) { zi = map->ZoneIndex(entryOverride); at = map->zones[zi].Center(); }
     float minD = eng->C("alarm_min_distance_m", 35);
     for (const auto& a : agents) if (a.alive && a.diver >= 0 && Vector3Distance(a.pos, at) < minD) {
         // too close: the map's other faction entry, or the hunt staging point

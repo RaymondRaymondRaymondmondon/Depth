@@ -111,7 +111,10 @@
  "tide_flow_period": 240,
  "_flow_source": "Blockout notes: 'the tide runs Lagoon -> Forest -> Flats -> Wall on the ebb and reverses on the flood every 4 minutes (the tide mill shows which).'",
  "zone_currents": {
-  "The Surge Channel": {"speed": 5, "to": "The Drop-off Wall"}
+  "The Surge Channel": {
+   "speed": 5,
+   "to": "The Drop-off Wall"
+  }
  },
  "_current_source": "'The Surge Channel: a one-way current between the Bommie and the Wall: ride it (4 s).'",
  "zone_alias": {
@@ -240,8 +243,12 @@
  "quest_altar": {
   "poi": "Drum altar (quest)",
   "needs": "drum",
-  "reward_scrip": 2500,
-  "text": "The drum goes back to the turtles' beach. The reef quiets: every diver's pockets fill with the Raiders' tribute."
+  "nests": 5,
+  "nest_s": 12,
+  "carry_speed": 0.8,
+  "text": "The drum is on the altar: the turtles come up the beach to nest. Hold the beach through the tide.",
+  "done": "Five nests. The reef quiets: the Anemone Gun rises from the sand, the dolphins come back, and the hammerheads keep off the beach.",
+  "_source": "Hidden quests: the Coral Reef: the drum (a Shaman's drum carried to Turtle Beach's altar without beating it - a carrier swims at 80%, and a beat resets the step; then survive on the beach while the turtles nest: 5 nests; Raiders target the beach; the Anemone Gun (Forged), the dolphins allied again, hammerheads avoid the beach). A nest every 12 s with a diver on the beach during a tide (our number)."
  },
  "_quest_source": "'Hidden quest: return the Shaman's drum to the sea turtle nesting beach.' The reward is ours (the doc gives none).",
  "faction_patch": {

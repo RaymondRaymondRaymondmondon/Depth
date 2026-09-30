@@ -193,7 +193,7 @@ void BuildLevel(const MapData& m, Level& L) {
         else if (t == "power") s.type = StationType::Power;
         else if (t == "build") s.type = StationType::Workbench;
         else if (t == "trap") { s.type = StationType::Trap; s.needsPower = !(HasW(p.name, "beacon") && !HasW(p.name, "control")); }   // (a lure beacon is turned by hand)
-        else if (t == "quest") s.type = StationType::Quest;
+        else if (t == "quest" || t == "lantern") s.type = StationType::Quest;
         else if (t == "hazard") s.type = StationType::Hazard;
         else if (t == "entry") s.type = StationType::Entry;
         else if (t == "boss") s.type = StationType::Boss;
@@ -574,6 +574,7 @@ void Match::Step(float dt) {
     UpdateVoid(dt);
     UpdateDossier(dt);
     UpdateCharms(dt);
+    UpdateQuests(dt);
     UpdateDrops(dt);
     for (auto& c : crates) {
         c.t -= dt;
@@ -649,6 +650,7 @@ void Match::SteerDiver(int di, Vector3 wish, float vert, bool sprint, bool ads, 
     if (d.zone >= 0 && d.zone < (int)crawlZone.size()) speed *= crawlZone[d.zone];
     if (d.downed) speed = e.M("downed_crawl_speed", 0.6f);
     if (d.slowT > 0) speed *= d.slowMult;
+    if (d.drumUses > 0 && map->extra["quest_altar"].IsObj()) speed *= map->extra["quest_altar"]["carry_speed"].F(0.8f);   // (the drum's weight)
     Vector3 want = moving ? Vector3Scale(Vector3Normalize(wish), speed) : Vector3{0, 0, 0};
     want.y = std::clamp(vert, -1.0f, 1.0f) * e.M("vertical_speed", 1.4f) * (d.downed ? 0.4f : 1.0f);
     if (air) want.y = -4.0f;                                    // on foot in an air chamber: gravity, no swimming up
@@ -1405,6 +1407,8 @@ bool Match::DecideHook(Agent& a, int idx) {
         return true;
     }
     if (idx == bossAgent && bossActive) return DecideBoss(a, idx);
+    // the Reef's drum quest done: hammerheads keep off Turtle Beach
+    if (hammerAvoid && HasW(s.name, "hammerhead") && map->zones[a.zone].name == "Turtle Beach") { a.st = State::Return; a.goal = a.home; a.target = -1; a.stateT = 0; return true; }
     // the Void's Relict: it comes for its egg wherever it is, and attacks the Station Chief's mech on sight
     if (s.name == "The Relict") {
         if (relictGone) { a.st = State::Rest; a.vel = {0, 0, 0}; return true; }
@@ -2302,6 +2306,7 @@ void Match::BeatDrum(int di) {
     DiverState& d = divers[di];
     if (d.dead || d.downed || d.drumUses <= 0) return;
     d.drumUses--;
+    if (d.drumClean) { d.drumClean = false; Say("", "The drum has been beaten: the altar won't take it now", 3); }
     drumBeats++;
     eco.AddNoise(d.pos, 6);
     fx.push_back({5, d.pos, {0, 0, 0}});
@@ -2714,6 +2719,66 @@ void Match::UpdateAtlantis(float dt) {
         if (holdT >= st["seconds"].F(45)) { holdT = 0; QuestAdvance(c, in); }
     }
     for (auto& d : divers) if (d.downed && d.spark) { d.spark = false; Say("", "The spark's jar breaks", 2); }
+}
+
+// ---------------------------------------------------------------- hidden quests (the design doc's step lists)
+// A long open: the captain's safe (20 s; the ship's bell rings) or the Lantern Cache's crate (15 s; a mini-Hunt of 6
+// comes for it). Held E (or a bot at it) runs the clock; leaving it for 1.5 s resets only that step.
+bool Match::LongOpen(DiverState& d, int si, float need, float dt) {
+    const Station& s = level.stations[si];
+    const Json& hq = map->extra["hidden_quest"];
+    bool safe = s.type == StationType::Quest;
+    openAwayT = 0;
+    if (!openStarted) {
+        openStarted = true;
+        if (safe) { eco.AddNoise(s.pos, hq["bell_noise"].F(10), true); Say("The ship's bell", "rings as the safe's wheel turns", 4); }
+        else { eco.SpawnSquad(s.zone >= 0 ? map->zones[s.zone].alarmRegion : 0, true, hq["hunt"].I(6), false); Say("", "The crate groans open, and the Drowned come for it", 4); }
+    }
+    openT += std::max(dt, 0.01f);
+    if (openT < need) return true;
+    openSt = -1; openT = 0; openStarted = false;
+    questDone = true;
+    int wi = WonderIdx();
+    if (safe) {
+        safeOpen = true; bonusEarned.push_back("owners");
+        for (auto& o : divers) if (!o.dead) Pay(o, hq["reward_scrip"].F(3000));
+        if (wi >= 0) { GiveWeapon(d, wi, true); for (auto& h : d.weapons) if (h.def == wi) h.forged = true; }
+        Say("The captain's safe", "swings open: 3,000 scrip each, the Lightning Keel for the opener, and a letter from the Owners", 6);
+    } else {
+        cacheOpen = true; bonusEarned.push_back("expedition");
+        for (auto& o : divers) if (!o.dead) Pay(o, hq["reward_scrip"].F(2000));
+        if (wi >= 0) GiveWeapon(d, wi);
+        if (hq.Has("moved_entry")) eco.entryOverride = hq["moved_entry"].Str0();
+        Say("", map->extra["boss_key"]["text"].Str0() + " The Drowned will come by the Chimney now.", 6);
+    }
+    return true;
+}
+
+void Match::UpdateQuests(float dt) {
+    if (openSt >= 0) {
+        bool near = false;
+        for (const auto& d : divers) if (!d.dead && !d.downed && Vector3Distance(d.pos, level.stations[openSt].pos) < 2.5f) near = true;
+        if (!near) { openAwayT += dt; if (openAwayT > 1.5f) { openSt = -1; openT = 0; openStarted = false; openAwayT = 0; Say("", "Left half-open: it has to start again", 3); } }
+    }
+    if (nesting) {
+        // the Reef's turtles nest while a diver holds the beach during a tide; five nests finish the quest
+        const Json& qa = map->extra["quest_altar"];
+        int beach = -1; for (const auto& s : level.stations) if (s.name == qa["poi"].Str0()) beach = s.zone;
+        bool held = false;
+        for (const auto& d : divers) if (!d.dead && !d.downed && d.zone == beach) held = true;
+        if (held && phase == TidePhase::Tide) nestT += dt;
+        if (nestT >= qa["nest_s"].F(12)) {
+            nestT = 0; nests++;
+            Say("", TextFormat("A turtle lays her eggs in the sand: %d of %d", nests, qa["nests"].I(5)), 3);
+            if (nests >= qa["nests"].I(5)) {
+                nesting = false; safeOpen = true; questDone = true;
+                alliesHostile = false; hammerAvoid = true;
+                int wi = WonderIdx();
+                if (wi >= 0 && nestPlacer >= 0 && nestPlacer < (int)divers.size()) { DiverState& p = divers[nestPlacer]; GiveWeapon(p, wi, true); for (auto& h : p.weapons) if (h.def == wi) h.forged = true; }
+                Say("", qa["done"].Str0(), 7);
+            }
+        }
+    }
 }
 
 // ---------------------------------------------------------------- Salt Charms
@@ -3324,14 +3389,20 @@ std::string Match::PromptFor(int di, int* cost) const {
             return "E: drop the cargo crane's container (1000)";
         }
         case StationType::Quest:
-            if (map->extra["quest_altar"].IsObj()) return safeOpen ? "The altar is quiet" : d.drumUses > 0 ? "E: lay the Shaman's drum on the altar" : "An altar on the turtles' beach (something belongs here)";
-            return safeOpen ? "The captain's safe (open)" : "The captain's safe: " + std::to_string(keys.size()) + " of 3 keys" + (keys.size() >= 3 ? ". E: open it" : "");
+            if (map->extra["quest_altar"].IsObj()) return safeOpen ? "The altar is quiet" : nesting ? TextFormat("The turtles are nesting: %d of 5 (hold the beach)", nests) : d.drumUses > 0 ? (d.drumClean ? "E: lay the Shaman's drum on the altar" : "The altar won't take a drum that's been beaten") : "An altar on the turtles' beach (something belongs here)";
+            if (s.name.find("lantern") != std::string::npos) return lanternsOut.count(si) ? "The lantern is out" : d.inkCaps > 0 ? "E: put the lantern out with an ink cap" : "A Drowned lantern, still burning (an ink cap would put it out)";
+            if (s.name.find("log") != std::string::npos) return logRead ? "The captain's log (read)" : tide <= map->extra["hidden_quest"]["log_after_tide"].I(3) ? "A logbook, its pages blank for now" : "E: read the captain's log (chalk marks on the cover)";
+            if (openSt == si && openT > 0) return TextFormat("Opening the safe: %.0f s (the bell is ringing)", std::max(0.0f, map->extra["hidden_quest"]["open_s"].F(20) - openT));
+            return safeOpen ? "The captain's safe (open)" : !logRead ? "The captain's safe (whose keys? the log would say)" : "The captain's safe: " + std::to_string(keys.size()) + " of 3 keys" + (keys.size() >= 3 ? ". Hold E: open it (20 s)" : "");
         case StationType::Cleaning: return "E: the cleaner shrimp scrape off parasites";
         case StationType::Workbench: return "Workbench (salvage parts come in a later build)";
         case StationType::Cache: {
             const Json& bk = map->extra["boss_key"];
             if (cacheOpen) return "The cache is empty";
             if (!keys.count(bk["key"].Str0())) return "A locked crate (the boss holds its key)";
+            if (map->extra["hidden_quest"]["lanterns"].I(0) > 0 && (int)lanternsOut.size() < map->extra["hidden_quest"]["lanterns"].I(0)) return TextFormat("A locked crate: the key, and the expedition's log (%d of 3 pages)", (int)lanternsOut.size());
+            if (map->extra["hidden_quest"]["lanterns"].I(0) > 0 && phase != TidePhase::Tide) return "The crate won't open in the calm: wait for the tide";
+            if (openSt == si && openT > 0) return TextFormat("Opening the crate: %.0f s (the Drowned are coming)", std::max(0.0f, map->extra["hidden_quest"]["open_s"].F(15) - openT));
             return "E: open the crate with the " + bk["key"].Str0() + " key";
         }
         case StationType::QuestStep: {
@@ -3375,10 +3446,15 @@ bool Match::Interact(int di, bool hold, float dt) {
         if (o.reviveT >= need) Revive(o, d.slot);
         return true;
     }
+    {
+        // a long open in progress (the captain's safe, the Lantern Cache's crate): held E, or bots standing at it
+        int si0 = NearestStation(d.pos, 2.0f);
+        if (si0 >= 0 && si0 == openSt) { const Station& s0 = level.stations[si0]; return LongOpen(d, si0, s0.type == StationType::Cache ? map->extra["hidden_quest"]["open_s"].F(15) : map->extra["hidden_quest"]["open_s"].F(20), dt); }
+    }
     if (hold) return false;
     const WeaponsData& WD = Weapons();
     for (auto& f : drops) if (f.alive && f.weapon >= 0 && Vector3Distance(f.pos, d.pos) < 1.6f) { GiveWeapon(d, f.weapon); f.alive = false; return true; }
-    for (auto& f : drops) if (f.alive && f.weapon == -2 && Vector3Distance(f.pos, d.pos) < 1.6f) { d.drumUses = 5; f.alive = false; Say("", "The Shaman's drum: F to beat it (5 beats; the fifth calls the Matriarch)", 5); return true; }
+    for (auto& f : drops) if (f.alive && f.weapon == -2 && Vector3Distance(f.pos, d.pos) < 1.6f) { d.drumUses = 5; d.drumClean = true; f.alive = false; Say("", "The Shaman's drum: carry it to the turtles' altar without a beat (F beats it: 5 beats; the fifth calls the Matriarch)", 5); return true; }
     // a Lost One's ichor into a jar (the Tide Staff's offering)
     if (!d.ichorJar) for (auto& ic : ichor) if (Vector3Distance(ic.pos, d.pos) < 2.2f) {
         bool wanted = false;
@@ -3386,6 +3462,14 @@ bool Match::Interact(int di, bool hold, float dt) {
         for (int c = 0; c < (int)qs.a.size() && c < (int)questAt.size(); c++) for (const auto& kv : qs.a[c]["steps"].o) if (kv.second["kind"].Str0() == "ichor" && questAt[c] <= std::stoi(kv.first)) wanted = true;
         if (!wanted) break;
         d.ichorJar = true; Say("", "A jar of black ichor", 2); return true;
+    }
+    // the Cave's ink caps, picked to put out the Drowned's lanterns
+    if (map->extra["hidden_quest"]["lanterns"].I(0) > 0 && d.inkCaps < 3) for (int i = 0; i < (int)eco.flora.size(); i++) {
+        FloraPatch& fp = eco.flora[i];
+        if (map->flora[fp.flora].name != "Ink cap" || fp.units <= 0 || Vector3Distance(fp.pos, d.pos) > 1.8f) continue;
+        d.inkCaps++; fp.units = std::max(0.0f, fp.units - 0.34f); fp.regrowT = 0;   // (three caps to a patch)
+        Say("", TextFormat("An ink cap in your pouch (%d)", d.inkCaps), 2);
+        return true;
     }
     // edible flora (the Reef's sea grape): +10 HP, once per cluster
     for (int i = 0; i < (int)eco.flora.size(); i++) {
@@ -3614,26 +3698,38 @@ bool Match::Interact(int di, bool hold, float dt) {
         }
         case StationType::Quest:
             if (map->extra["quest_altar"].IsObj()) {
+                // the Reef's drum: on the altar (unbeaten), the turtles nest while the divers hold the beach
                 const Json& qa = map->extra["quest_altar"];
-                if (safeOpen || s.name != qa["poi"].Str0() || d.drumUses <= 0) return false;
-                safeOpen = true; d.drumUses = 0; questDone = true;
-                for (auto& o : divers) if (!o.dead) Pay(o, qa["reward_scrip"].F(2500));
-                Say("", qa["text"].Str0(), 6);
+                if (safeOpen || nesting || s.name != qa["poi"].Str0() || d.drumUses <= 0 || !d.drumClean) return false;
+                nesting = true; nests = 0; nestT = 0; nestPlacer = d.slot; d.drumUses = 0; d.drumClean = false;
+                Say("", qa["text"].Str0(), 5);
+                eco.SpawnSquad(s.zone >= 0 ? map->zones[s.zone].alarmRegion : 0, true, players >= 3 ? 4 : 3, false);   // "Raiders target the beach"
                 return true;
             }
-            if (safeOpen || keys.size() < 3) return false;
-            safeOpen = true; questDone = true; bonusEarned.push_back("owners");
-            for (auto& o : divers) if (!o.dead) { Pay(o, 2500); if (!o.downed) GiveLockerWeapon(o); }
-            Say("The captain's safe", "swings open: salvage for everyone", 5);
-            return true;
+            if (s.name.find("lantern") != std::string::npos) {
+                // the Cave: a Drowned lantern put out with an ink cap
+                if (lanternsOut.count(si) || d.inkCaps <= 0) return false;
+                d.inkCaps--; lanternsOut.insert(si);
+                Say("", TextFormat("The lantern gutters out under the ink: a page of the expedition's log (%d of 3). The swiftlets fall silent.", (int)lanternsOut.size()), 5);
+                return true;
+            }
+            if (s.name.find("log") != std::string::npos) {
+                // the Sunken Ship: the captain's log (the chalk shows after tide 3)
+                const Json& hq = map->extra["hidden_quest"];
+                if (logRead || tide <= hq["log_after_tide"].I(3)) return false;
+                logRead = true; Say("The captain's log", hq["log"].Str0(), 8);
+                return true;
+            }
+            if (safeOpen || !logRead || keys.size() < 3) return false;
+            openSt = si; openT = 0; openStarted = false;
+            return LongOpen(d, si, map->extra["hidden_quest"]["open_s"].F(20), dt);
         case StationType::Cache: {
             const Json& bk = map->extra["boss_key"];
             if (cacheOpen || !keys.count(bk["key"].Str0())) return false;
-            cacheOpen = true; questDone = true; bonusEarned.push_back("expedition");
-            int wi = Weapons().Index(WonderId());
-            if (wi >= 0) GiveWeapon(d, wi);
-            Say("", bk["text"].Str0(), 5);
-            return true;
+            int need = map->extra["hidden_quest"]["lanterns"].I(0);
+            if (need > 0 && ((int)lanternsOut.size() < need || phase != TidePhase::Tide)) return false;   // three pages, and during a tide
+            openSt = si; openT = 0; openStarted = false;
+            return LongOpen(d, si, map->extra["hidden_quest"]["open_s"].F(15), dt);
         }
         case StationType::QuestStep: {
             if (map->extra["quests"].IsArr() && !map->extra["quests"].a.empty()) {
@@ -4497,7 +4593,28 @@ static int CaveTest(int& fails, const std::function<void(bool, const std::string
         check(m.keys.count("Expedition"), "its kill leaves the expedition's key");
         int cache = -1; for (int i = 0; i < (int)m.level.stations.size(); i++) if (m.level.stations[i].type == StationType::Cache) cache = i;
         q.pos = m.level.stations[cache].pos; q.weapons = {Match::NewHeldPublic(Weapons().Index("cormorant"))}; q.cur = 0;
-        check(m.Interact(0, false, 0.01f) && m.W(m.Cur(q)).id == "resonator", "the key opens the Lantern Cache's crate: a Resonator");
+        check(!m.Interact(0, false, 0.01f), "the key alone doesn't open the Lantern Cache's crate");
+        // the expedition's log: three lanterns put out with ink caps
+        q.heldT = 0; q.holder = -1; q.downed = false; q.stunT = 0;
+        for (int i = 0; i < (int)m.eco.flora.size() && q.inkCaps < 3; i++) if (map.flora[m.eco.flora[i].flora].name == "Ink cap") {
+            m.eco.flora[i].units = 1;   // (the one burst earlier has grown back)
+            q.pos = m.eco.flora[i].pos; q.zone = m.eco.ZoneAt(q.pos);
+            for (int k = 0; k < 3 && q.inkCaps < 3; k++) m.Interact(0, false, 0.01f);
+        }
+        if (getenv("DEPTH_DBG")) { int n = 0, live = 0; for (const auto& fp : m.eco.flora) if (map.flora[fp.flora].name == "Ink cap") { n++; if (fp.units > 0) live++; } printf("    ink caps %d (%d live), got %d, held %.1f dead %d prompt '%s' hq %d\n", n, live, q.inkCaps, q.heldT, (int)q.dead, m.PromptFor(0).c_str(), map.extra["hidden_quest"]["lanterns"].I(0)); }
+        check(q.inkCaps == 3, "ink caps picked from the Gallery and the Cathedral");
+        int out = 0;
+        for (int i = 0; i < (int)m.level.stations.size(); i++) if (m.level.stations[i].name.find("lantern") != std::string::npos) { q.pos = m.level.stations[i].pos; q.zone = m.level.stations[i].zone; if (m.Interact(0, false, 0.01f)) out++; }
+        check(out == 3 && (int)m.lanternsOut.size() == 3, "each puts out a Drowned lantern: three pages of the expedition's log");
+        q.pos = m.level.stations[cache].pos; q.zone = m.level.stations[cache].zone;
+        m.phase = TidePhase::Calm;
+        check(!m.Interact(0, false, 0.01f), "the crate won't open in the calm");
+        m.phase = TidePhase::Tide;
+        int sq0 = m.eco.squadsSpawned, s0 = q.scrip; float t = 0.05f;
+        m.Interact(0, false, 0.05f);   // (E pressed, then held)
+        while (!m.cacheOpen && t < 20) { m.Interact(0, true, 0.05f); t += 0.05f; }
+        check(m.cacheOpen && t > 14 && t < 16 && m.eco.squadsSpawned > sq0, TextFormat("held open during a tide it takes %.0f s, and the Drowned come for it", t));
+        check(m.W(m.Cur(q)).id == "resonator" && q.scrip >= s0 + 2000 && m.eco.entryOverride == "The Chimney", "the Resonator, 2,000 each, and the Drowned enter by the Chimney from now on");
     }
     return fails;
 }
@@ -4607,12 +4724,17 @@ static int ReefTest(int& fails, const std::function<void(bool, const std::string
         check(!m.bossActive, "four beats: the reef stirs, nothing more");
         m.BeatDrum(0);
         check(m.bossActive, "the fifth beat wakes the Matriarch");
-        q.drumUses = 1;
         int alt = -1; for (int i = 0; i < (int)m.level.stations.size(); i++) if (m.level.stations[i].type == StationType::Quest) alt = i;
         check(alt >= 0, "the drum altar stands on Turtle Beach");
-        q.pos = m.level.stations[alt].pos; int s0 = q.scrip;
-        m.Interact(0, false, 0.01f);
-        check(q.scrip >= s0 + 2500, "laying the drum on the altar: the Raiders' tribute (2500)");
+        q.pos = m.level.stations[alt].pos; q.zone = m.level.stations[alt].zone;
+        q.drumUses = 1; q.drumClean = false;
+        check(!m.Interact(0, false, 0.01f), "the altar won't take a drum that's been beaten");
+        q.drumUses = 5; q.drumClean = true; m.alliesHostile = true;
+        check(m.Interact(0, false, 0.01f) && m.nesting, "an unbeaten drum on the altar: the turtles come up to nest");
+        m.phase = TidePhase::Tide; m.phaseT = 0;
+        for (int k = 0; k < 20 * 62 && m.nesting; k++) { q.pos = m.level.stations[alt].pos; m.Step(0.05f); m.phase = TidePhase::Tide; }
+        bool forged = false; for (const auto& h : q.weapons) if (h.def == m.WonderIdx() && h.forged) forged = true;
+        check(!m.nesting && m.nests == 5 && forged && !m.alliesHostile && m.hammerAvoid, "five nests while the beach is held: the Anemone Gun (Forged), the dolphins back, the hammerheads off the beach");
     }
     // the Matriarch: the pod, the breath, the phases
     {
@@ -5036,13 +5158,39 @@ static int VoidTest(int& fails, const std::function<void(bool, const std::string
     return fails;
 }
 
+static int ShipQuestTest(int& fails, const std::function<void(bool, const std::string&)>& check) {
+    auto M = std::make_unique<Match>();
+    Match& m = *M;
+    m.Init("ship", 1, 31, false);
+    DiverState& q = m.divers[0]; q.invulnerable = true;
+    int logI = -1, safeI = -1;
+    for (int i = 0; i < (int)m.level.stations.size(); i++) { const Station& s = m.level.stations[i]; if (s.type != StationType::Quest) continue; if (s.name.find("log") != std::string::npos) logI = i; else safeI = i; }
+    check(logI >= 0 && safeI >= 0, "the captain's log and the safe are on the bridge");
+    q.pos = m.level.stations[logI].pos;
+    check(!m.Interact(0, false, 0.01f) && !m.logRead, "before tide 4 the log's pages are blank");
+    m.tide = 4;
+    check(m.Interact(0, false, 0.01f) && m.logRead, "after tide 3 the chalk shows: the log tells whose keys");
+    m.keys = {"Goliath", "Octopus", "Foreman"};
+    q.pos = m.level.stations[safeI].pos;
+    float n0 = m.eco.sound.Total();
+    float t = 0; int s0 = q.scrip;
+    m.Interact(0, false, 0.05f);
+    check(m.eco.sound.Total() > n0 + 5, "turning the wheel rings the ship's bell");
+    while (!m.safeOpen && t < 25) { m.Interact(0, true, 0.05f); t += 0.05f; }
+    bool keel = false; for (const auto& h : q.weapons) if (h.def == m.WonderIdx() && h.forged) keel = true;
+    check(m.safeOpen && t > 19 && t < 21, TextFormat("the safe takes %.0f s to open", t));
+    check(q.scrip >= s0 + 3000 && keel && std::find(m.bonusEarned.begin(), m.bonusEarned.end(), std::string("owners")) != m.bonusEarned.end(), "3,000 scrip, the Lightning Keel (Forged) for the opener, and the Owners' page");
+    return fails;
+}
+
 int RunRedTideMapTest(const std::string& key) {
     std::string why;
     if (!DataOk(&why)) { printf("redtide-map-test: %s\n", why.c_str()); return 1; }
     int fails = 0;
     std::function<void(bool, const std::string&)> check = [&](bool ok, const std::string& what) { printf("  %s  %s\n", ok ? "ok  " : "FAIL", what.c_str()); if (!ok) fails++; };
     printf("Red Tide map test: %s\n", Map(key).title.c_str());
-    if (key == "cave") CaveTest(fails, check);
+    if (key == "ship") ShipQuestTest(fails, check);
+    else if (key == "cave") CaveTest(fails, check);
     else if (key == "reef") ReefTest(fails, check);
     else if (key == "atlantis") AtlantisTest(fails, check);
     else if (key == "void") VoidTest(fails, check);

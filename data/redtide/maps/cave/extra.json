@@ -359,5 +359,36 @@
    "stalactites": 30,
    "crystals": 10
   }
+ },
+ "poi_add": [
+  {
+   "name": "A Drowned lantern (Cricket Cavern)",
+   "type": "Lantern",
+   "zone": "Dry Chamber I: the Cricket Cavern",
+   "x": 74,
+   "y": 10
+  },
+  {
+   "name": "A Drowned lantern (Toad Pool)",
+   "type": "Lantern",
+   "zone": "Dry Chamber II: the Toad Pool",
+   "x": 84,
+   "y": 28
+  },
+  {
+   "name": "A Drowned lantern (Roost)",
+   "type": "Lantern",
+   "zone": "Dry Chamber III: the Roost",
+   "x": 98,
+   "y": 22
+  }
+ ],
+ "hidden_quest": {
+  "lanterns": 3,
+  "open_s": 15,
+  "hunt": 6,
+  "reward_scrip": 2000,
+  "moved_entry": "The Chimney",
+  "_source": "Hidden quests: the Underwater Cave: the expedition's key (the Lobster's key; three lanterns the Drowned left burning, one in each dry chamber, put out with an ink cap (carried from the Gallery or the Cathedral); each silences the swiftlets for 5 minutes and drops a page; with the key and three pages the Lantern Cache's crate opens during a tide in 15 s while a mini-Hunt of 6 comes for it; the Resonator, 2,000 each, and the Drowned enter by the Chimney from then on). The ink bomb isn't an item yet, so the ink cap is the way."
  }
 }

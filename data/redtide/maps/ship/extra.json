@@ -283,6 +283,13 @@
    "x": 47,
    "y": 17,
    "step": 3
+  },
+  {
+   "name": "Captain's log (bridge)",
+   "type": "Quest",
+   "zone": "Bridge",
+   "x": 6,
+   "y": 7
   }
  ],
  "_quest_source": "The user (2026-09-30) asked for a short easter egg quest that leads to the Goliath fight. Written for the Sunken Ship: the chief engineer's log, his whistle, three blasts on the boiler's cord while the power is off.",
@@ -333,5 +340,13 @@
    "respawn_s": 90
   }
  ],
- "_spawn_add_source": "Fish for the start pocket and the water outside its windows (the user: 'flush out where the fish are'), so the first 250 scrip toward the Salon door can be earned inside the ship."
+ "_spawn_add_source": "Fish for the start pocket and the water outside its windows (the user: 'flush out where the fish are'), so the first 250 scrip toward the Salon door can be earned inside the ship.",
+ "hidden_quest": {
+  "log_after_tide": 3,
+  "open_s": 20,
+  "bell_noise": 10,
+  "reward_scrip": 3000,
+  "log": "The captain's log, in chalk over the ink: 'Three keys to the safe. The octopus took mine. The Foreman keeps his. The third is in the grouper, God keep us.'",
+  "_source": "Hidden quests: the Sunken Ship: the captain's safe (read the log after tide 3; the Goliath's, the Foreman's and the octopus's keys; opening takes 20 s and rings the ship's bell (10 noise); 3,000 each and the Lightning Keel (the Galvanic Rod, Forged) for the opener; the dossier page 'The Owners'). The keys are the team's here, not carried: a downed diver doesn't drop one (our simplification)."
+ }
 }
