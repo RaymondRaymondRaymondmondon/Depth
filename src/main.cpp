@@ -215,6 +215,8 @@ static void TakeShots(const Game& base, const std::string& dir) {
         {"chart_curio", [](Game& g) { StartDungeon(g, Location::Atlantis); DebugChartEvent(g, 1); }},
         {"chart_camp", [](Game& g) { StartDungeon(g, Location::Weeds); DebugChartEvent(g, 2); }},
         {"helm_objective", [](Game& g) { g.scene = Scene::Helm; g.objectiveSel = Objective::Chart; }},
+        {"chart_campfire", [](Game& g) { StartDungeon(g, Location::Cave); DebugChartEvent(g, 3); }},
+        {"helm_quartermaster", [](Game& g) { g.scene = Scene::Helm; g.gold = 300; SuggestedKit(Location::Island, g.provision); }},
         {"menu_main", [](Game& g) { g.scene = Scene::Hub; }},
         {"menu_settings", [](Game& g) { g.scene = Scene::Hub; }},
         {"menu_controls", [](Game& g) { g.scene = Scene::Hub; }},

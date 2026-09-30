@@ -126,6 +126,7 @@ static void Sparkle(Game& g, Rectangle r, int n, Color c, float speed, float ris
 
 // ---------------------------------------------------------------- hero effects
 static void AddStress(Game& g, Hero& h, int amount) {
+    if (amount > 0 && g.dungeon.lullabyActive && g.dungeon.phase == DPhase::Combat) return;   // a Siren's Lullaby holds for this fight
     if (amount > 0) {
         amount = (int)std::round(amount * StressMult(g) * (100 - GetStats(h).stressResist) / 100.0f * (100 - RelicBundle(h).stressGainPct) / 100.0f);
         if (amount <= 0) return;
@@ -140,9 +141,15 @@ static void AddStress(Game& g, Hero& h, int amount) {
         const UnitAnim* cur = FindAnim(g, true, h.id);
         if (!cur || cur->kind == Anim::Stress) StartAnim(g, true, h.id, Anim::Stress, 1.1f);
     }
-    if (h.stress >= 100 && !h.rattled) {
-        h.rattled = true;
-        Log(g, h.name + " is RATTLED! (less accurate, may freeze up)");
+    if (h.stress >= 100 && !h.rattled && !h.steeled) { // the resolve check: usually it breaks them, sometimes it steels them
+        if (Chance(STEELED_CHANCE)) {
+            h.steeled = true; h.stress = 60;
+            Log(g, h.name + " is STEELED! (sharper, harder to hit, and steadies the others)");
+            if (pos >= 0) Float(g, HeroRect(pos), "STEELED", Pal::Brass);
+        } else {
+            h.rattled = true;
+            Log(g, h.name + " is RATTLED! (less accurate, may freeze up)");
+        }
     }
 }
 
@@ -887,6 +894,11 @@ static void StartTurn(Game& g) {
         Hero* h = FindHero(g, te.id);
         Rectangle r = HeroRect(PartyPos(g, te.id));
         Status& st = h->st;
+        if (h->steeled) { // steadies the most rattled ally
+            Hero* best = nullptr;
+            for (int id : g.party) if (Hero* o = FindHero(g, id); o && o != h && (!best || o->stress > best->stress)) best = o;
+            if (best && best->stress > 0) AddStress(g, *best, -5);
+        }
         if (st.bleedTurns > 0) { st.bleedTurns--; Float(g, r, "Bleed " + std::to_string(st.bleedDmg), Pal::Bad); DamageHero(g, *h, st.bleedDmg); }
         if (!h->dead && st.poisonTurns > 0) { st.poisonTurns--; Float(g, r, "Poison " + std::to_string(st.poisonDmg), Pal::Good); DamageHero(g, *h, st.poisonDmg); }
         if (st.buffTurns > 0 && --st.buffTurns == 0) st.buffDmg = 0;
@@ -947,6 +959,7 @@ static float StretchDrain(Game& g) {
 
 // a fight: in a room (a mini-boss more likely the deeper you go), in a hallway (a weaker group), or the boss
 static void StartFight(Game& g, bool hall) {
+    g.dungeon.lullabyActive = g.dungeon.lullaby; g.dungeon.lullaby = false;
     g.dungeon.dmgDealt.clear();
     g.dungeon.lastAbility.clear();
     auto& d = g.dungeon;
@@ -1159,6 +1172,7 @@ void StartDungeon(Game& g, Location loc) {
     }
     d.curRoom = d.chart.entrance;
     d.objective = g.objectiveSel;
+    for (int i = 0; i < SUP_COUNT; i++) { d.supply[i] = g.provision[i]; g.provision[i] = 0; }   // the Quartermaster's kit comes aboard
     Reveal(g);
     d.rooms.assign(1, RoomType::Fight);
     for (int id : g.party)
@@ -1210,7 +1224,139 @@ static Hero* RandomPartyHero(Game& g) {
     return hs.empty() ? nullptr : hs[Roll(0, (int)hs.size() - 1)];
 }
 static void Hurt(Game& g, Hero& h, int dmg) { h.hp = std::max(1, h.hp - dmg); (void)g; }
-static void Nerve(Hero& h, int n) { h.stress = std::clamp(h.stress + n, 0, 100); if (h.stress >= 100) h.rattled = true; }
+static void Nerve(Hero& h, int n) {
+    h.stress = std::clamp(h.stress + n, 0, 100);
+    if (h.stress >= 100 && !h.rattled && !h.steeled) { if (Chance(STEELED_CHANCE)) { h.steeled = true; h.stress = 60; } else h.rattled = true; }
+}
+
+// ---------------------------------------------------------------- Stage 7: supplies on the way, and camp
+// Which supply each curio wants (the same order as CURIOS; -1: none helps, as with the cult altar).
+static const int CURIO_SUPPLY[] = {
+    SUP_CROWBAR, SUP_SALT, SUP_BANDAGE, SUP_SALT, SUP_CROWBAR,        // the Cave
+    SUP_GROG, SUP_SALT, SUP_ANTIVENOM, -1, SUP_CROWBAR,              // the Island
+    SUP_CROWBAR, SUP_CROWBAR, SUP_GROG, -1, SUP_ANTIVENOM,           // the Weeds
+    -1, SUP_CROWBAR, SUP_SALT, SUP_CROWBAR, SUP_SALT,                // Atlantis
+    -1, SUP_CROWBAR, -1, -1, SUP_CROWBAR, -1,                        // anywhere
+};
+static int CurioSupply(int curio) { return curio >= 0 && curio < (int)(sizeof(CURIO_SUPPLY) / sizeof(CURIO_SUPPLY[0])) ? CURIO_SUPPLY[curio] : -1; }
+
+static Hero* WorstHurt(Game& g) {
+    Hero* best = nullptr; float low = 2;
+    for (int id : g.party) if (Hero* h = FindHero(g, id)) { float f = (float)h->hp / GetStats(*h).maxHp; if (f < low) { low = f; best = h; } }
+    return best;
+}
+static Hero* MostRattled(Game& g) {
+    Hero* best = nullptr;
+    for (int id : g.party) if (Hero* h = FindHero(g, id)) if (!best || h->stress > best->stress) best = h;
+    return best;
+}
+static void HealOutOfCombat(Hero& h, int amt) { h.hp = std::min(GetStats(h).maxHp, h.hp + amt); if (h.hp > 0) h.deathsDoor = false; }
+
+// a bandage or antivenom between fights
+static bool UseFieldSupply(Game& g, int sup) {
+    auto& d = g.dungeon;
+    if (d.supply[sup] <= 0) return false;
+    if (sup == SUP_BANDAGE) {
+        Hero* h = WorstHurt(g);
+        if (!h) return false;
+        HealOutOfCombat(*h, BANDAGE_HEAL);
+        h->st.bleedTurns = 0;
+        Toast(g, h->name + " is bandaged up.");
+    } else if (sup == SUP_ANTIVENOM) {
+        bool any = false;
+        for (int id : g.party) if (Hero* h = FindHero(g, id)) { any |= h->st.poisonTurns > 0; h->st.poisonTurns = 0; }
+        Toast(g, any ? "The antivenom takes: the poison is gone." : "No one is poisoned; the antivenom is wasted.");
+    } else return false;
+    d.supply[sup]--;
+    PlayCue("ui.confirm", 0.6f);
+    return true;
+}
+
+// a locked chest: a key from the pack, else a crowbar
+static bool CanOpenChest(Game& g) {
+    for (auto& it : g.dungeon.inventory) if (it.kind == ItemKind::Key) return true;
+    return g.dungeon.supply[SUP_CROWBAR] > 0;
+}
+static void OpenChest(Game& g) {
+    auto& d = g.dungeon;
+    bool key = false;
+    for (auto it = d.inventory.begin(); it != d.inventory.end(); ++it) if (it->kind == ItemKind::Key) { d.inventory.erase(it); key = true; break; }
+    if (!key) d.supply[SUP_CROWBAR]--;
+    d.chestOpened = true;
+    d.roomGold = (int)(Roll(40, 70) * LootMult(g));
+    d.lootGold += d.roomGold;
+    if (Chance(60)) { d.pendingItem = true; d.pendingItemVal = {ItemKind::Relic, Roll(0, (int)Relics().size() - 1)}; }
+    Toast(g, TextFormat("%s: +%d gold.", key ? "The chest creaks open" : "The crowbar bites and the lid gives", d.roomGold));
+}
+
+// camp: spend points on the party's camp skills, maybe drink the grog, then sleep
+static bool CampSkillReady(Game& g, int si, int heroId) {
+    auto& d = g.dungeon;
+    const CampSkill& c = CampSkills()[si];
+    Hero* h = FindHero(g, heroId);
+    return h && h->cls == c.cls && c.cost <= d.campPoints && std::find(d.campUsed.begin(), d.campUsed.end(), si) == d.campUsed.end();
+}
+static void UseCampSkill(Game& g, int si, int heroId) {
+    if (!CampSkillReady(g, si, heroId)) return;
+    auto& d = g.dungeon;
+    const CampSkill& c = CampSkills()[si];
+    Hero* user = FindHero(g, heroId);
+    for (int id : g.party) if (Hero* h = FindHero(g, id)) {
+        if (c.healAll) HealOutOfCombat(*h, c.healAll);
+        if (c.nerveAll) Nerve(*h, c.nerveAll);
+    }
+    if (c.healOne || c.cure) if (Hero* t = c.self ? user : WorstHurt(g)) { HealOutOfCombat(*t, c.healOne); if (c.cure) { t->st.bleedTurns = 0; t->st.poisonTurns = 0; } }
+    if (c.nerveOne) if (Hero* t = MostRattled(g)) Nerve(*t, c.nerveOne);
+    d.campAmbush = d.campAmbush * c.ambushPct / 100;
+    d.blessFights += c.blessFights;
+    d.light = std::min(100.0f, d.light + c.light);
+    d.lootGold += c.gold;
+    if (c.lullaby) d.lullaby = true;
+    d.campPoints -= c.cost;
+    d.campUsed.push_back(si);
+    PlayCue("ui.confirm", 0.5f);
+}
+static void CampGrog(Game& g) {
+    auto& d = g.dungeon;
+    if (d.supply[SUP_GROG] <= 0) return;
+    d.supply[SUP_GROG]--;
+    for (int id : g.party) if (Hero* h = FindHero(g, id)) Nerve(*h, -15);
+    Toast(g, "The grog goes round. Nerves settle.");
+}
+static void CampSleep(Game& g) {
+    auto& d = g.dungeon;
+    for (int id : g.party) if (Hero* h = FindHero(g, id)) { HealOutOfCombat(*h, GetStats(*h).maxHp * SLEEP_HEAL_PCT / 100); Nerve(*h, -5); }
+    d.eventAmbush = Chance(d.campAmbush);
+    d.eventBody = d.eventAmbush ? "They sleep in turns... and in the night, something finds the camp!"
+                                : "They sleep in turns. Nothing comes. Morning, of a kind.";
+    d.eventStage = 1;
+}
+// the auto-player at camp: the skill worth most right now, until the points run out; grog when nerves are high
+static void SimCamp(Game& g) {
+    auto& d = g.dungeon;
+    for (int guard = 0; guard < 8; guard++) {
+        int bestSkill = -1, bestHero = -1; float best = 0.5f;
+        float missing = 0, stress = 0; int n = 0;
+        for (int id : g.party) if (Hero* h = FindHero(g, id)) { missing += GetStats(*h).maxHp - h->hp; stress += h->stress; n++; }
+        Hero* worst = WorstHurt(g);
+        for (int id : g.party) if (Hero* h = FindHero(g, id))
+            for (int si = 0; si < (int)CampSkills().size(); si++) {
+                if (!CampSkillReady(g, si, id)) continue;
+                const CampSkill& c = CampSkills()[si];
+                float v = std::min(missing, (float)c.healAll * n) + (worst ? std::min((float)(GetStats(*worst).maxHp - worst->hp), (float)c.healOne) : 0)
+                        + std::min(stress, (float)-c.nerveAll * n) * 0.3f + (c.nerveOne ? 6.0f : 0) + (100 - c.ambushPct) * 0.08f
+                        + c.blessFights * 5 + c.light * 0.2f + c.gold * 0.1f + (c.lullaby ? 6 : 0);
+                v /= c.cost;
+                if (v > best) { best = v; bestSkill = si; bestHero = id; }
+            }
+        if (bestSkill < 0) break;
+        UseCampSkill(g, bestSkill, bestHero);
+    }
+    float stress = 0; int n = 0;
+    for (int id : g.party) if (Hero* h = FindHero(g, id)) { stress += h->stress; n++; }
+    if (n && stress / n > 35 && d.supply[SUP_GROG] > 0) CampGrog(g);
+    CampSleep(g);
+}
 
 // opens an event, working out anything that happens the moment it springs
 static void BeginEvent(Game& g, EventKind k) {
@@ -1265,6 +1411,16 @@ static void ChooseEvent(Game& g, int choice) {
     }
     switch (d.event) {
     case EventKind::Curio: {
+        if (choice == 2) { // the right supply: only the good outcome
+            int sp = CurioSupply(d.eventArg);
+            if (sp < 0 || d.supply[sp] <= 0) return;
+            d.supply[sp]--;
+            int r = Roll(0, 99);
+            if (r < 45) { int gold = (int)(Roll(16, 32) * LootMult(g)); d.lootGold += gold; d.eventBody = TextFormat("With the %s, it gives up its secret safely: %d gold.", SupplyName(sp), gold); }
+            else if (r < 75) { d.pendingItem = true; d.pendingItemVal = {ItemKind::Relic, Roll(0, (int)Relics().size() - 1)}; d.eventBody = TextFormat("With the %s, it opens safely. Inside: a relic.", SupplyName(sp)); }
+            else { d.blessFights++; for (int id : g.party) if (Hero* x = FindHero(g, id)) { HealOutOfCombat(*x, 4); Nerve(*x, -8); } d.eventBody = TextFormat("With the %s, it calms. A warmth spreads through the crew.", SupplyName(sp)); }
+            break;
+        }
         if (choice != 0) { d.eventBody = "You leave it be."; break; }
         const CurioDef& c = CURIOS[d.eventArg];
         int roll = Roll(0, 99);
@@ -1281,11 +1437,11 @@ static void ChooseEvent(Game& g, int choice) {
     } break;
     case EventKind::Rest: {
         if (choice != 0) { d.eventBody = "The crew press on without resting."; break; }
-        for (int id : g.party) if (Hero* x = FindHero(g, id)) { x->hp = std::min(GetStats(*x).maxHp, x->hp + GetStats(*x).maxHp * 2 / 5); Nerve(*x, -20); }
-        d.eventAmbush = Chance(ChartNightAmbush());
-        d.eventBody = d.eventAmbush ? "They bind their wounds and sleep in turns... and in the night, something finds the camp!"
-                                    : "They bind their wounds, eat, and sleep in turns. Nothing comes. Morning, of a kind.";
-    } break;
+        d.campPoints = CAMP_POINTS; d.campAmbush = ChartNightAmbush(); d.campUsed.clear();   // make camp: the camp panel takes over
+        d.eventStage = 2;
+        d.eventBody = "A dry ledge, a small fire. Spend the camp's points on what the crew can do, then sleep.";
+        return;
+    }
     case EventKind::Shrine: {
         if (choice != 0) { d.eventBody = "You leave the shrine to its own."; break; }
         if (Chance(60)) { d.blessFights += 2; d.eventBody = "The water stills. The crew feel watched over: their next two fights will go better."; }
@@ -1294,8 +1450,8 @@ static void ChooseEvent(Game& g, int choice) {
     case EventKind::Blocked: {
         ChartEdge& e = d.chart.edges[d.walkEdge];
         int si = d.walkForward ? d.walkSeg : (int)e.segs.size() - 1 - d.walkSeg;
-        if (choice == 0 && g.batteries > 0) {
-            g.batteries--;
+        if ((choice == 0 && g.batteries > 0) || (choice == 2 && d.supply[SUP_CROWBAR] > 0)) {
+            if (choice == 2) d.supply[SUP_CROWBAR]--; else g.batteries--;
             e.segs[si] = CorridorEvent::None;
             d.event = EventKind::None;
             d.eventBody = "";
@@ -1321,6 +1477,10 @@ static void SimChooseRoute(Game& g, bool randomPlayer) {
     if (nb.empty()) { d.phase = DPhase::Retreat; return; }
     int dest = -1;
     if (!randomPlayer && d.light < 35 && g.batteries > 0) { g.batteries--; d.light = std::min(100.0f, d.light + 40); }
+    if (!randomPlayer) { // supplies between fights
+        if (Hero* w = WorstHurt(g); w && w->hp < GetStats(*w).maxHp * 0.45f) UseFieldSupply(g, SUP_BANDAGE);
+        for (int id : g.party) if (Hero* h = FindHero(g, id); h && h->st.poisonTurns > 1) { UseFieldSupply(g, SUP_ANTIVENOM); break; }
+    }
     if (randomPlayer) dest = nb[Roll(0, (int)nb.size() - 1)];
     else {
         float hp = 0; int n = 0;
@@ -1347,7 +1507,9 @@ static void SimChooseRoute(Game& g, bool randomPlayer) {
 }
 static void SimResolveEvent(Game& g) {
     auto& d = g.dungeon;
-    if (d.event == EventKind::Blocked) { ChooseEvent(g, g.batteries > 0 ? 0 : 1); return; }
+    if (d.event == EventKind::Blocked) { ChooseEvent(g, d.supply[SUP_CROWBAR] > 0 ? 2 : g.batteries > 0 ? 0 : 1); return; }
+    if (d.event == EventKind::Curio && d.eventStage == 0) { int sp = CurioSupply(d.eventArg); ChooseEvent(g, sp >= 0 && d.supply[sp] > 0 ? 2 : 0); return; }
+    if (d.event == EventKind::Rest && d.eventStage == 2) { SimCamp(g); return; }
     ChooseEvent(g, 0);
 }
 void DebugSetEnemies(Game& g, Location loc, const std::vector<EnemyType>& types) {
@@ -1373,6 +1535,7 @@ static void ApplyResults(Game& g) {
     auto& d = g.dungeon;
     if (d.resultsApplied) return;
     d.resultsApplied = true;
+    for (auto& h : g.roster) h.steeled = false;   // the steel wears off aboard
     bool win = d.phase == DPhase::Victory;
     if (win && !d.chart.rooms.empty()) d.objectiveDone = d.objectiveDone || ObjectiveMet(g); // a retreat forfeits the objective's bonus
     float xpMult = 1;
@@ -1491,6 +1654,7 @@ void SimulateExpeditions(int runs, int level, bool randomPlayer, int tier) {
             for (int i = (int)pool.size() - 1; i > 0; i--) std::swap(pool[i], pool[Roll(0, i)]);
             for (int k = 0; k < LOADOUT_SIZE; k++) h.loadout[k] = k < (int)pool.size() ? pool[k] : -1;
         }
+        SuggestedKit(Location::Cave, g.provision);   // the auto-player takes the Quartermaster's kit
         StartDungeon(g, Location::Cave);
         auto& d = g.dungeon;
         int steps = 0;
@@ -1498,6 +1662,7 @@ void SimulateExpeditions(int runs, int level, bool randomPlayer, int tier) {
             if (d.phase == DPhase::Corridor) { SimChooseRoute(g, randomPlayer); continue; }
             if (d.phase == DPhase::Walking) { ResolveSegment(g); continue; }
             if (d.phase == DPhase::Event) { SimResolveEvent(g); continue; }
+            if (d.phase == DPhase::Treasure && d.roomIsChest && !d.chestOpened && CanOpenChest(g)) OpenChest(g);
             if (d.phase == DPhase::Treasure || d.phase == DPhase::RoomClear) { d.pendingItem = false; if (d.walkEdge >= 0) ResumeWalk(g); else { d.phase = DPhase::Corridor; } continue; }
             if (d.phase != DPhase::Combat) break;
             SimCombatStep(g, randomPlayer);
@@ -3179,17 +3344,9 @@ static void DrawFoundItemPanel(Game& g, Rectangle main) {
         bool hasKey = false;
         for (auto& it : d.inventory) if (it.kind == ItemKind::Key) hasKey = true;
         DrawTextCenteredBold("A locked chest, bound in iron", p.x + p.width / 2, p.y + 14, 22, Pal::BrassDk);
-        DrawTextCentered(hasKey ? "A key from your pack fits the lock." : "You have no key. It stays shut.",
+        DrawTextCentered(hasKey ? "A key from your pack fits the lock." : d.supply[SUP_CROWBAR] > 0 ? "No key, but a crowbar would do it." : "You have no key or crowbar. It stays shut.",
                          p.x + p.width / 2, p.y + 46, 16, Pal::Ink);
-        if (Button({p.x + p.width / 2 - 140, p.y + 90, 280, 44}, "Open it", hasKey)) {
-            for (auto it = d.inventory.begin(); it != d.inventory.end(); ++it)
-                if (it->kind == ItemKind::Key) { d.inventory.erase(it); break; }
-            d.chestOpened = true;
-            d.roomGold = (int)(Roll(40, 70) * LootMult(g));
-            d.lootGold += d.roomGold;
-            if (Chance(60)) { d.pendingItem = true; d.pendingItemVal = {ItemKind::Relic, Roll(0, (int)Relics().size() - 1)}; }
-            Toast(g, TextFormat("The chest creaks open: +%d gold.", d.roomGold));
-        }
+        if (Button({p.x + p.width / 2 - 140, p.y + 90, 280, 44}, hasKey ? "Open it" : "Pry it open (crowbar)", CanOpenChest(g))) OpenChest(g);
         return;
     }
     if (!d.pendingItem) return;
@@ -3617,7 +3774,7 @@ void SceneDungeon(Game& g) {
             bool ready = u >= 1 && d.batteryT <= 0;
             DrawRectangle(0, 0, SCREEN_W, SCREEN_H, Fade(BLACK, 0.5f * ease));
             int pick = DrawSonarScope(g, {470, 350 + (1 - ease) * 520}, 250, ready);
-            Rectangle p{800, 90 + (1 - ease) * 560, 450, 470};
+            Rectangle p{800, 70 + (1 - ease) * 560, 450, 520};
             Panel(p);
             DrawTextCenteredBold("The sonar chart", p.x + p.width / 2, p.y + 18, 28, Pal::Ink);
             TxtBold(TextFormat("Objective: %s", ObjectiveName(d.objective)), p.x + 26, p.y + 62, 18, Pal::BrassDk);
@@ -3650,10 +3807,44 @@ void SceneDungeon(Game& g) {
                 if (d.roomIndex < 0 && d.lootGold == 0) { g.scene = Scene::Hub; return; }
                 d.phase = DPhase::Retreat;
             }
+            // the supply belt: bandages and antivenom between fights
+            if (Button({p.x + 25, p.y + 452, 195, 40}, TextFormat("Bandage  [%d]", d.supply[SUP_BANDAGE]), ready && d.supply[SUP_BANDAGE] > 0, 15)) UseFieldSupply(g, SUP_BANDAGE);
+            if (Button({p.x + 230, p.y + 452, 195, 40}, TextFormat("Antivenom  [%d]", d.supply[SUP_ANTIVENOM]), ready && d.supply[SUP_ANTIVENOM] > 0, 15)) UseFieldSupply(g, SUP_ANTIVENOM);
             if (pick >= 0) { BeginWalk(g, pick); PlayCue("ui.confirm", 0.7f); }
         } break;
 
         case DPhase::Event: {
+            if (d.event == EventKind::Rest && d.eventStage == 2) { // camp: the party's camp skills, the grog, then sleep
+                Rectangle cp{240, 70, 800, 500};
+                Panel(cp);
+                DrawTextCenteredBold("Camp", cp.x + cp.width / 2, cp.y + 16, 28, Pal::Ink);
+                DrawTextCentered(TextFormat("Camp points: %d of %d     Night ambush: %d%%", d.campPoints, CAMP_POINTS, d.campAmbush), cp.x + cp.width / 2, cp.y + 52, 17, Pal::BrassDk);
+                Vector2 mp = GetMousePosition();
+                std::string hover;
+                int row = 0;
+                for (int id : g.party) {
+                    Hero* h = FindHero(g, id);
+                    if (!h) continue;
+                    float y = cp.y + 86 + row * 78.0f;
+                    TxtBold(h->name, cp.x + 30, y + 4, 18, Pal::Ink);
+                    Txt(TextFormat("%s   HP %d/%d   Nerves %d", ClassName(h->cls), h->hp, GetStats(*h).maxHp, h->stress), cp.x + 30, y + 28, 14, Pal::BrassDk);
+                    int k = 0;
+                    for (int si = 0; si < (int)CampSkills().size(); si++) {
+                        const CampSkill& c = CampSkills()[si];
+                        if (c.cls != h->cls) continue;
+                        Rectangle b{cp.x + 300 + k * 245.0f, y, 235, 44};
+                        bool used = std::find(d.campUsed.begin(), d.campUsed.end(), si) != d.campUsed.end();
+                        if (Button(b, TextFormat("%s%s (%d)", used ? "Done: " : "", c.name, c.cost), CampSkillReady(g, si, id), 14)) UseCampSkill(g, si, id);
+                        if (CheckCollisionPointRec(mp, b)) hover = c.desc;
+                        k++;
+                    }
+                    row++;
+                }
+                DrawWrapped(hover.empty() ? "Hover a skill to read it. Each can be used once per camp." : hover, {cp.x + 30, cp.y + 400, cp.width - 60, 40}, 15, Pal::Ink);
+                if (Button({cp.x + 30, cp.y + 446, 350, 42}, TextFormat("Pass round the grog (-15 nerves)  [%d]", d.supply[SUP_GROG]), d.supply[SUP_GROG] > 0, 15)) CampGrog(g);
+                if (Button({cp.x + 420, cp.y + 446, 350, 42}, "Sleep until morning")) CampSleep(g);
+                break;
+            }
             Rectangle main{340, 90, 600, 300};
             Panel(main);
             DrawTextCenteredBold(d.eventTitle.c_str(), main.x + main.width / 2, main.y + 20, 28, d.event == EventKind::Trap ? Pal::Bad : Pal::Ink);
@@ -3675,8 +3866,16 @@ void SceneDungeon(Game& g) {
                 case EventKind::Blocked: A = g.batteries > 0 ? TextFormat("Clear it  (1 battery, %d left)", g.batteries) : "Clear it  (no batteries)"; B = "Turn back"; aOk = g.batteries > 0; break;
                 default: A = "Continue"; B = nullptr; break;
             }
-            if (Button({main.x + 40, main.y + main.height - 52, 250, 42}, A, aOk)) ChooseEvent(g, 0);
-            if (B && Button({main.x + 310, main.y + main.height - 52, 250, 42}, B)) ChooseEvent(g, 1);
+            // a supply that helps: a third choice (the curio's safe way, or the crowbar through a blocked passage)
+            int sup = d.event == EventKind::Curio ? CurioSupply(d.eventArg) : d.event == EventKind::Blocked ? SUP_CROWBAR : -1;
+            if (sup >= 0) {
+                if (Button({main.x + 20, main.y + main.height - 52, 180, 42}, A, aOk, 14)) ChooseEvent(g, 0);
+                if (Button({main.x + 210, main.y + main.height - 52, 200, 42}, TextFormat("Use %s  [%d]", SupplyName(sup), d.supply[sup]), d.supply[sup] > 0, 14)) ChooseEvent(g, 2);
+                if (B && Button({main.x + 420, main.y + main.height - 52, 160, 42}, B, true, 14)) ChooseEvent(g, 1);
+            } else {
+                if (Button({main.x + 40, main.y + main.height - 52, 250, 42}, A, aOk)) ChooseEvent(g, 0);
+                if (B && Button({main.x + 310, main.y + main.height - 52, 250, 42}, B)) ChooseEvent(g, 1);
+            }
         } break;
 
         case DPhase::Treasure: {
@@ -4006,7 +4205,17 @@ void DrawFigureSheet(bool heroSheet, int index, float t) {
 
 // --shots: the chart's screens
 void DebugChartWalk(Game& g, int dest) { BeginWalk(g, dest); g.dungeon.walkT = 0.3f; }
-void DebugChartEvent(Game& g, int kind) { if (kind == 1) BeginEvent(g, EventKind::Curio); else OpenEvent(g, EventKind::Rest, "A place to rest", "A dry ledge above the water, out of the current. The crew could make camp here: bind wounds, eat, sleep in turns. Something may come in the night."); }
+void DebugChartEvent(Game& g, int kind) {
+    if (kind == 3) { // the camp itself, with a worn party and some grog
+        OpenEvent(g, EventKind::Rest, "A place to rest", "");
+        g.dungeon.supply[SUP_GROG] = 1;
+        for (int id : g.party) if (Hero* h = FindHero(g, id)) { h->hp = std::max(1, h->hp / 2); h->stress = 40; }
+        ChooseEvent(g, 0);
+        if (Hero* h = FindHero(g, g.party[3])) UseCampSkill(g, [&] { for (int i = 0; i < (int)CampSkills().size(); i++) if (CampSkills()[i].cls == h->cls) return i; return 0; }(), h->id);
+        return;
+    }
+    if (kind == 1) { BeginEvent(g, EventKind::Curio); for (int i = 0; i < SUP_COUNT; i++) g.dungeon.supply[i] = 1; return; } OpenEvent(g, EventKind::Rest, "A place to rest", "A dry ledge above the water, out of the current. The crew could make camp here: bind wounds, eat, sleep in turns. Something may come in the night.");
+}
 
 // --brain-test <tier|-1> <runs>: the sensible player against the same expeditions, first with the old random enemy AI,
 // then with EnemyBrain, at each tier with a crew of the matching level. The Master Reference asks for tier 0 within 5

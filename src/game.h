@@ -151,6 +151,7 @@ struct Hero {
     // Individual variance, rolled once at recruitment: -2..+2 on four axes, so two recruits of the same class
     // are never identical. The player is meant to read the numbers and judge which recruit suits which role.
     int vigor = 0, might = 0, quickness = 0, fortitude = 0;
+    bool steeled = false;    // Stage 7 resolve: 100 nerves sometimes steels a hero instead of rattling them (for the rest of the expedition)
 };
 
 struct EnemyAbility {
@@ -196,6 +197,15 @@ struct Enemy {
     Status st;
 };
 
+// Stage 7: supplies bought from the Quartermaster at the Helm (lost on return), and camp skills (two per class)
+enum Supply { SUP_BANDAGE, SUP_ANTIVENOM, SUP_GROG, SUP_CROWBAR, SUP_SALT, SUP_COUNT };
+const char* SupplyName(int s);
+const char* SupplyDesc(int s);
+int SupplyPrice(int s);
+extern const int BATTERY_PRICE, CAMP_POINTS, STEELED_CHANCE, SLEEP_HEAL_PCT, BANDAGE_HEAL;
+struct CampSkill { HeroClass cls; const char* name; const char* desc; int cost; int healAll, healOne, nerveAll, nerveOne; bool cure, self; int ambushPct, blessFights, light, gold; bool lullaby; };
+const std::vector<CampSkill>& CampSkills();
+
 // EnemyBrain (dungeon.cpp): the weights of its features per tier (data.cpp BrainFor), and each enemy family's personality
 struct BrainWeights { float expDmg, kill, focus, threat, healer, rank, nerve, status, setup, selfPres, turnOrder; int lookahead, samples; float temp; };
 const BrainWeights& BrainFor(int tier);   // tier index 0-4 (cave levels 0, 1, 3, 5, 6)
@@ -235,6 +245,7 @@ inline const char* const CAVE_TIER_NAME[CAVE_TIERS] = {"Shallows", "Tidal Caves"
 // The four Shallows expeditions, all open from the start. They share the same room-and-combat engine
 // and the same tier ladder above -- what differs is the scenery, the names, and who's waiting at the end.
 enum class Location { Cave, Island, Weeds, Atlantis, COUNT };
+void SuggestedKit(Location loc, int out[SUP_COUNT]);   // the Quartermaster's suggested kit (data.cpp)
 constexpr int LOCATION_COUNT = (int)Location::COUNT;
 const char* LocationName(Location loc);
 const char* AtmosphereName(Location loc, int variant);
@@ -301,6 +312,10 @@ struct DungeonState {
     int minisMet = 0;              // mini-bosses met this expedition (at most MAX_MINIS_PER_RUN)
     std::map<int, int> dmgDealt;   // this fight: damage each hero has dealt (EnemyBrain's threat)
     std::map<int, int> lastAbility; // this fight: each enemy's last ability (boss scripts)
+    int supply[8] = {};              // supplies carried (SUP_*)
+    int campPoints = 0, campAmbush = 0;   // an open camp: points left to spend on camp skills, and the night-ambush chance
+    std::vector<int> campUsed;       // camp skills used at this camp (indices into CampSkills())
+    bool lullaby = false, lullabyActive = false; // a Siren's Lullaby: no nerves gained in the next fight
     EventKind event = EventKind::None;
     std::string eventTitle, eventBody;
     int eventStage = 0;            // 0 the choice, 1 the outcome shown
@@ -574,6 +589,7 @@ struct Game {
     Scene scene = Scene::Hub;
     int gold = 60; // kept deliberately scarce: parkour runs and Flats are meant to make up the difference
     int batteries = 2;
+    int provision[8] = {};               // supplies bought at the Helm for the next expedition (SUP_*); refunded if put back
     std::vector<Hero> roster;
     std::array<int, PARTY_SIZE> party{{-1, -1, -1, -1}}; // hero ids, rank 1 first
     std::vector<int> relicStorage;

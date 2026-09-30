@@ -84,13 +84,32 @@ void SceneHelm(Game& g) {
     else
         Txt("Change the marching order and abilities in Crew Quarters. Rank 1 is the front line.", 70, 660, 17, Pal::BrassDk);
 
+    // the Quartermaster: batteries and the expedition's supplies (supplies are refunded until you embark)
     Panel({950, 450, 280, 250});
-    TxtBold("Provisions", 970, 464, 23, Pal::Ink);
-    DrawWrapped(TextFormat("Each corridor drains about %d light (half on one walked before). Batteries recharge it by 40.", (int)(LightDrainPerRoom(g) * CHART_STRETCH_DRAIN)), {970, 500, 240, 80}, 15, Pal::Ink);
-    Txt(TextFormat("Batteries: %d", g.batteries), 970, 580, 21, Pal::Ink);
-    if (Button({970, 620, 240, 44}, "Buy battery (15g)", g.gold >= 15)) {
-        g.gold -= 15;
-        g.batteries++;
+    TxtBold("Quartermaster", 966, 458, 21, Pal::Ink);
+    Vector2 mp = GetMousePosition();
+    std::string hint = TextFormat("A corridor drains about %d light.", (int)(LightDrainPerRoom(g) * CHART_STRETCH_DRAIN));
+    auto row = [&](float y, const char* name, int have, int price, bool canSell, const char* desc) -> int {
+        Txt(TextFormat("%s  %d", name, have), 966, y + 3, 15, Pal::Ink);
+        int r = 0;
+        if (canSell && Button({1142, y, 26, 22}, "-", have > 0, 14)) r = -1;
+        if (Button({1172, y, 44, 22}, TextFormat("%dg", price), g.gold >= price, 12)) r = 1;
+        if (CheckCollisionPointRec(mp, {960, y, 260, 22})) hint = desc;
+        return r;
+    };
+    if (row(488, "Batteries", g.batteries, BATTERY_PRICE, false, "+40 light when swapped in. Kept aboard between dives.") > 0) { g.gold -= BATTERY_PRICE; g.batteries++; }
+    for (int i = 0; i < SUP_COUNT; i++) {
+        int r = row(514 + i * 26.0f, SupplyName(i), g.provision[i], SupplyPrice(i), true, SupplyDesc(i));
+        if (r > 0) { g.gold -= SupplyPrice(i); g.provision[i]++; }
+        if (r < 0) { g.gold += SupplyPrice(i); g.provision[i]--; }
+    }
+    DrawWrapped(hint, {966, 646, 250, 20}, 12, Pal::BrassDk);
+    const char* kits[4] = {"Cave", "Isle", "Weeds", "Atl."};
+    for (int k = 0; k < 4; k++) if (Button({966 + k * 63.0f, 666, 59, 26}, kits[k], true, 12)) { // the suggested kit for that location
+        for (int i = 0; i < SUP_COUNT; i++) { g.gold += g.provision[i] * SupplyPrice(i); g.provision[i] = 0; }
+        int want[8] = {};
+        SuggestedKit((Location)k, want);
+        for (int i = 0; i < SUP_COUNT; i++) while (g.provision[i] < want[i] && g.gold >= SupplyPrice(i)) { g.gold -= SupplyPrice(i); g.provision[i]++; }
     }
 }
 

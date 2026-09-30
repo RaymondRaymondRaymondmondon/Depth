@@ -23,6 +23,7 @@ bool SaveGame(const Game& g) {
         f << "depth_save " << SAVE_VERSION << "\n";
         f << "gold " << g.gold << "\n";
         f << "batteries " << g.batteries << "\n";
+        f << "provision"; for (int i = 0; i < SUP_COUNT; i++) f << " " << g.provision[i]; f << "\n";
         f << "nextHeroId " << g.nextHeroId << "\n";
         f << "party";
         for (int id : g.party) f << " " << id;
@@ -67,6 +68,7 @@ bool LoadGame(Game& g) {
         in >> key;
         if (key == "gold") in >> fresh.gold;
         else if (key == "batteries") in >> fresh.batteries;
+        else if (key == "provision") { for (int i = 0; i < SUP_COUNT; i++) in >> fresh.provision[i]; }
         else if (key == "nextHeroId") in >> fresh.nextHeroId;
         else if (key == "party") for (int& id : fresh.party) in >> id;
         else if (key == "upgrades") for (int& u : fresh.upgrades) in >> u;

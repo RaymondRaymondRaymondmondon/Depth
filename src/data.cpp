@@ -453,6 +453,7 @@ Stats GetStats(const Hero& h) {
     }
     { RelicFx b = RelicBundle(h); s.dmgMin += b.dmg; s.dmgMax += b.dmg; } // synergy damage (Tesla Gun + Crank)
     if (h.rattled) { s.acc -= 10; s.dodge -= 5; }
+    if (h.steeled) { s.acc += 10; s.dodge += 8; }   // resolve: steeled by the pressure
     s.dmgMin = std::max(1, s.dmgMin);
     s.dmgMax = std::max(s.dmgMin, s.dmgMax);
     s.prot = std::clamp(s.prot, 0, 60);
@@ -708,7 +709,7 @@ Enemy MakeEnemy(EnemyType t, int uid) {
         case EnemyType::CrustaceanQueen: {
             e.name = "The Crustacean Queen"; e.boss = true; e.tier = 2;
             e.maxHp = 62; e.dmgMin = 5; e.dmgMax = 7; e.speed = 3; e.acc = 80; e.dodge = 0; e.prot = 10;
-            EnemyAbility a = Melee("Tidal Crush", 1.5f); a.bleed = 3; a.stunChance = 35; e.abilities.push_back(a);
+            EnemyAbility a = Melee("Tidal Crush", 1.35f); a.bleed = 3; a.stunChance = 25; e.abilities.push_back(a);
             a = Support("Spawning Surge"); a.healSelf = 4; a.summon = (int)EnemyType::CaveShrimp; e.abilities.push_back(a);
             a = Long("Abyssal Roar", 0.0f); a.aoe = true; a.region = 2; a.weakAtk = 20; a.stress = 4; e.abilities.push_back(a);
         } break;
@@ -861,14 +862,14 @@ const char* RegionDebuffName(Location loc) {
 // Deeper cave levels field tougher versions of the same creatures.
 void ScaleEnemyForTier(Enemy& e, int tier) {
     int L = CAVE_TIER_LEVEL[tier];
-    e.maxHp = (int)(e.maxHp * (1 + 0.11f * L));
-    e.dmgMin = (int)(e.dmgMin * (1 + 0.07f * L) + 0.5f);
-    e.dmgMax = (int)(e.dmgMax * (1 + 0.07f * L) + 0.5f);
+    e.maxHp = (int)(e.maxHp * (1 + 0.08f * L));
+    e.dmgMin = (int)(e.dmgMin * (1 + 0.05f * L) + 0.5f);
+    e.dmgMax = (int)(e.dmgMax * (1 + 0.05f * L) + 0.5f);
     e.acc += (3 * L) / 2;
     e.dodge += L / 2;
     e.prot = std::min(50, e.prot + L);
     e.speed += L / 2;
-    static const float EXTRA_ACT_BY_TIER[CAVE_TIERS] = {1.0f, 0.6f, 0.35f, 0.25f, 0.15f}; // deeper bosses already hit harder and last longer
+    static const float EXTRA_ACT_BY_TIER[CAVE_TIERS] = {1.0f, 0.4f, 0.35f, 0.25f, 0.1f}; // deeper bosses already hit harder and last longer
     e.extraAct = (int)(e.extraAct * EXTRA_ACT_BY_TIER[std::clamp(tier, 0, CAVE_TIERS - 1)] + 0.5f);
     e.hp = e.maxHp;
 }
@@ -980,10 +981,10 @@ int ChartNightAmbush() { return NIGHT_AMBUSH; }
 const BrainWeights& BrainFor(int tier) {
     static const BrainWeights W[CAVE_TIERS] = {
         {1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.2f, 0.0f, 0.0f, 0.2f, 0.0f, 0, 1, 2.0f},
-        {1.0f, 0.5f, 0.6f, 0.0f, 0.0f, 0.0f, 0.4f, 0.3f, 0.0f, 0.5f, 0.0f, 0, 1, 1.2f},
+        {1.0f, 0.5f, 0.6f, 0.0f, 0.0f, 0.0f, 0.4f, 0.3f, 0.0f, 0.5f, 0.0f, 0, 1, 1.6f},
         {1.0f, 1.5f, 1.2f, 0.8f, 1.0f, 0.5f, 0.8f, 1.0f, 0.5f, 1.0f, 0.0f, 0, 1, 0.7f},
         {1.0f, 2.5f, 1.5f, 1.2f, 1.5f, 1.5f, 1.2f, 1.5f, 1.5f, 1.2f, 1.0f, 1, 1, 0.4f},
-        {1.0f, 3.0f, 1.5f, 1.5f, 2.0f, 2.0f, 1.5f, 2.0f, 2.0f, 1.2f, 2.0f, 1, 3, 0.2f},
+        {1.0f, 3.0f, 1.5f, 1.5f, 2.0f, 2.0f, 1.5f, 2.0f, 2.0f, 1.2f, 2.0f, 1, 3, 0.3f},
     };
     return W[std::clamp(tier, 0, CAVE_TIERS - 1)];
 }
@@ -1002,4 +1003,56 @@ Personality EnemyPersonalityOf(EnemyType t) {
         case EnemyType::AlienHorror: case EnemyType::Cthulhu: return Personality::Boss;
         default: return Personality::None;
     }
+}
+
+// ---------------------------------------------------------------- Stage 7: supplies and camping
+extern const int BATTERY_PRICE = 25;
+extern const int CAMP_POINTS = 5;          // camp-skill points at a rest room
+extern const int STEELED_CHANCE = 25;      // at 100 nerves: Steeled instead of Rattled, in percent
+extern const int SLEEP_HEAL_PCT = 25;      // what a night's sleep heals, before camp skills
+extern const int BANDAGE_HEAL = 9;         // a bandage used between fights (it also stops a bleed)
+const char* SupplyName(int s) { static const char* n[SUP_COUNT] = {"Bandage", "Antivenom", "Grog", "Crowbar", "Salt"}; return s >= 0 && s < SUP_COUNT ? n[s] : "?"; }
+const char* SupplyDesc(int s) {
+    static const char* d[SUP_COUNT] = {"Between fights: heals the worst-hurt hero and stops a bleed. Some curios want one.",
+                                       "Between fights: cures poison in the whole party. Some curios want one.",
+                                       "At camp: every hero loses 15 nerves. Some curios want one.",
+                                       "Opens a locked chest without a key, or a blocked passage without a battery. Some curios want one.",
+                                       "Cleanses a cursed or haunted curio, so it gives only good."};
+    return s >= 0 && s < SUP_COUNT ? d[s] : "";
+}
+int SupplyPrice(int s) { static const int p[SUP_COUNT] = {20, 20, 15, 30, 10}; return s >= 0 && s < SUP_COUNT ? p[s] : 0; }
+void SuggestedKit(Location loc, int out[SUP_COUNT]) { // what the Quartermaster recommends for each place
+    static const int K[LOCATION_COUNT][SUP_COUNT] = {{2, 1, 1, 1, 1}, {2, 2, 1, 0, 1}, {2, 1, 1, 1, 0}, {1, 1, 1, 1, 2}};
+    for (int i = 0; i < SUP_COUNT; i++) out[i] = K[(int)loc][i];
+}
+// Camp skills: two per class (name, what it does, cost in camp points, heal all / one, nerves all / one, cure, on
+// the user only, night-ambush chance kept (percent), blessed fights, light, gold, lullaby).
+const std::vector<CampSkill>& CampSkills() {
+    static const std::vector<CampSkill> S = {
+        {HeroClass::Nurse, "Triage Tent", "Heals everyone 6.", 2, 6, 0, 0, 0, false, false, 100, 0, 0, 0, false},
+        {HeroClass::Nurse, "Field Surgery", "Heals the worst-hurt 10 and cures them.", 1, 0, 10, 0, 0, true, false, 100, 0, 0, 0, false},
+        {HeroClass::Diver, "Keep Watch", "Halves the chance of a night ambush.", 1, 0, 0, 0, 0, false, false, 50, 0, 0, 0, false},
+        {HeroClass::Diver, "Catch Supper", "Fresh fish: heals everyone 4.", 2, 4, 0, 0, 0, false, false, 100, 0, 0, 0, false},
+        {HeroClass::Captain, "Sea Shanty", "Everyone loses 15 nerves.", 2, 0, 0, -15, 0, false, false, 100, 0, 0, 0, false},
+        {HeroClass::Captain, "Rousing Words", "The next fight goes better.", 2, 0, 0, -5, 0, false, false, 100, 1, 0, 0, false},
+        {HeroClass::Mechanic, "Barricade", "Halves the chance of a night ambush.", 1, 0, 0, 0, 0, false, false, 50, 0, 0, 0, false},
+        {HeroClass::Mechanic, "Rewire the Lamp", "The flashlight gains 20.", 2, 0, 0, 0, 0, false, false, 100, 0, 20, 0, false},
+        {HeroClass::Whaler, "Tall Tales", "Everyone loses 8 nerves.", 1, 0, 0, -8, 0, false, false, 100, 0, 0, 0, false},
+        {HeroClass::Whaler, "Mend Gear", "The next fight goes better.", 2, 0, 0, 0, 0, false, false, 100, 1, 0, 0, false},
+        {HeroClass::Stowaway, "Share the Bottle", "Everyone loses 12 nerves.", 1, 0, 0, -12, 0, false, false, 100, 0, 0, 0, false},
+        {HeroClass::Stowaway, "Light Fingers", "Turns up 15 gold from somewhere.", 1, 0, 0, 0, 0, false, false, 100, 0, 0, 15, false},
+        {HeroClass::Merman, "Tide-Pool Rest", "Heals the worst-hurt 9.", 1, 0, 9, 0, 0, false, false, 100, 0, 0, 0, false},
+        {HeroClass::Merman, "Hunt in the Dark", "Heals everyone 5.", 2, 5, 0, 0, 0, false, false, 100, 0, 0, 0, false},
+        {HeroClass::Queen, "Royal Decree", "Everyone loses 5 nerves, and the next fight goes better.", 2, 0, 0, -5, 0, false, false, 100, 1, 0, 0, false},
+        {HeroClass::Queen, "Old Remedies", "Heals the worst-hurt 6 and cures them.", 1, 0, 6, 0, 0, true, false, 100, 0, 0, 0, false},
+        {HeroClass::Robot, "Self-Repair", "Repairs itself 12.", 1, 0, 12, 0, 0, true, true, 100, 0, 0, 0, false},
+        {HeroClass::Robot, "Sentinel Mode", "The night-ambush chance falls to a third.", 2, 0, 0, 0, 0, false, false, 33, 0, 0, 0, false},
+        {HeroClass::Octopus, "Ink Screen", "Halves the chance of a night ambush.", 1, 0, 0, 0, 0, false, false, 50, 0, 0, 0, false},
+        {HeroClass::Octopus, "Many Hands", "Heals everyone 5.", 2, 5, 0, 0, 0, false, false, 100, 0, 0, 0, false},
+        {HeroClass::Siren, "Lullaby", "No one gains nerves in the next fight.", 2, 0, 0, 0, 0, false, false, 100, 0, 0, 0, true},
+        {HeroClass::Siren, "Soothing Song", "The most rattled hero loses 20 nerves.", 1, 0, 0, 0, -20, false, false, 100, 0, 0, 0, false},
+        {HeroClass::Wisp, "Lantern Glow", "The flashlight gains 15.", 1, 0, 0, 0, 0, false, false, 100, 0, 15, 0, false},
+        {HeroClass::Wisp, "Calm Light", "Everyone loses 10 nerves.", 2, 0, 0, -10, 0, false, false, 100, 0, 0, 0, false},
+    };
+    return S;
 }
