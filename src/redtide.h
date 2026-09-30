@@ -253,6 +253,11 @@ struct Ecosystem {
     std::vector<int> ZonePath(int from, int to, bool enemy = false, int size = 0) const;
     float flowSign = 1;                // the Reef's tide: -1 while the flood runs the set backward
     std::vector<float> narrowInit; float erosionT = 0, soundAcc = 0;
+    // ink clouds (an ink bomb, an ink cap): nothing sees or smells through them for their seconds
+    struct Ink { Vector3 pos{}; float r = 5, t = 8; };
+    std::vector<Ink> inks;
+    bool InInk(Vector3 p) const { for (const auto& k : inks) { float dx = p.x - k.pos.x, dy = p.y - k.pos.y, dz = p.z - k.pos.z; if (dx * dx + dy * dy + dz * dz < k.r * k.r) return true; } return false; }
+    void AddInk(Vector3 p, float r, float t) { inks.push_back({p, r, t}); }
     std::string entryOverride;         // a zone the faction enters by instead (the Cave, once the Lantern Cache is opened)
     std::vector<int> zoneMaxSize;      // per zone: the largest size that fits its corridors (99: anything), relaxed as they erode
     // The divers are agents too (species index = diverSpecies); the game layer moves them.

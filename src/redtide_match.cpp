@@ -843,6 +843,7 @@ void Match::UpdateDiver(DiverState& d, float dt) {
         if (d.downT <= 0) {
             d.downed = false; d.dead = true;
             if (body) body->alive = false;
+            DropKeys(d, d.pos);
             Say("", "Diver " + std::to_string(d.slot + 1) + " bled out (back next tide)", 4);
         }
         if (!d.reloading) return;
@@ -1118,9 +1119,36 @@ void Match::FireRound(DiverState& d) {
     }
 }
 
+void Match::CycleTactical(int di) {
+    DiverState& d = divers[di];
+    d.tactical = d.tactical == 0 && d.inkBombs > 0 ? 1 : 0;
+}
+// an ink bomb's cloud (and an ink cap's): 5 m for 8 s; nothing sees or smells through it, and a Drowned lantern in it goes out
+void Match::InkBurst(Vector3 at, int owner) {
+    fx.push_back({9, at, {0, 0, 0}});
+    eco.AddInk(at, 5, 8);
+    for (int si = 0; si < (int)level.stations.size(); si++) {
+        const Station& s = level.stations[si];
+        if (s.type != StationType::Quest || s.name.find("lantern") == std::string::npos || lanternsOut.count(si) || Vector3Distance(s.pos, at) > 5) continue;
+        lanternsOut.insert(si);
+        Say("", TextFormat("The lantern gutters out under the ink: a page of the expedition's log (%d of 3). The swiftlets fall silent.", (int)lanternsOut.size()), 5);
+    }
+    (void)owner;
+}
 void Match::ThrowLimpet(int di) {
     DiverState& d = divers[di];
-    if (d.dead || d.downed || d.limpets <= 0) return;
+    if (d.dead || d.downed) return;
+    if (d.tactical == 1 && d.inkBombs > 0) {
+        d.inkBombs--;
+        if (d.inkBombs == 0) d.tactical = 0;
+        Dart t;
+        t.pos = t.start = Vector3Add(Eye(d), Vector3Scale(Forward(d), 0.4f));
+        t.vel = Vector3Scale(Forward(d), 12);
+        t.damage = 0; t.kind = 11; t.fuse = 1.2f; t.life = 6; t.owner = d.slot; t.weapon = -1;
+        darts.push_back(t);
+        return;
+    }
+    if (d.limpets <= 0) return;
     d.limpets--;
     Dart t;
     t.pos = t.start = Vector3Add(Eye(d), Vector3Scale(Forward(d), 0.4f));
@@ -1296,6 +1324,17 @@ void Match::UpdateDarts(float dt) {
         Dart& t = darts[k];
         if (!t.alive) continue;
         // a thrown limpet: sticks to what it touches and blows on its 3 s fuse
+        if (t.kind == 11) {
+            // a thrown ink bomb: bursts on whatever it meets, or on its 1.2 s fuse
+            t.fuse -= dt;
+            Vector3 np = Vector3Add(t.pos, Vector3Scale(t.vel, dt));
+            t.vel = Vector3Scale(t.vel, powf(0.3f, dt)); t.vel.y -= 1.5f * dt;
+            bool hit = !level.Inside(np, 0.05f, linkOpen, true);
+            if (!hit) t.pos = np;
+            for (int i = 0; i < (int)eco.agents.size() && !hit; i++) { const Agent& a = eco.agents[i]; if (a.alive && a.diver < 0 && Vector3Distance(a.pos, t.pos) < bodies[a.sp].radius + 0.15f) hit = true; }
+            if (hit || t.fuse <= 0) { InkBurst(t.pos, t.owner); t.alive = false; }
+            continue;
+        }
         if (t.kind == 4) {
             t.fuse -= dt;
             if (t.stuck >= 0 && t.stuck < (int)eco.agents.size() && eco.agents[t.stuck].alive) t.pos = Vector3Add(eco.agents[t.stuck].pos, t.stuckOff);
@@ -1434,9 +1473,9 @@ void Match::OnDeath(int ai, int killer) {
         }
         if (supperCall) Say("", "Supper Call: the engineer would be proud. Every weapon in hand is pressure-forged.", 6);
         supperCall = false;
-        keys.insert("Goliath");
+        GiveKey("Goliath", di, a.pos);
         const Json& bk = map->extra["boss_key"];
-        if (bk.IsObj()) { keys.insert(bk["key"].Str0()); Say("", bk["text"].Str0(), 6); }
+        if (bk.IsObj()) { GiveKey(bk["key"].Str0(), di, a.pos); Say("", bk["text"].Str0(), 6); }
         bossActive = false; bossAgent = -1; bossInhaleT = -1; bossInhaleDiver = -1;
         for (auto& d : divers) if (d.holder == ai) { d.heldT = 0; d.holder = -1; }
         if (bossKind == 2) {
@@ -1454,8 +1493,8 @@ void Match::OnDeath(int ai, int killer) {
         if (di >= 0) { divers[di].kills++; if (phase == TidePhase::Tide) tideKills++; }
         return;
     }
-    if (di >= 0 && HasW(s.name, "octopus") && !keys.count("Octopus")) { keys.insert("Octopus"); Say("", "The octopus drops a brass key (the captain's safe)", 4); }
-    if (di >= 0 && s.isEnemy && a.unit >= 0 && map->faction.units[a.unit].huntOnly && !keys.count("Foreman")) { keys.insert("Foreman"); Say("", "The Foreman's key (the captain's safe)", 4); }
+    if (di >= 0 && HasW(s.name, "octopus") && !keys.count("Octopus")) { GiveKey("Octopus", di, a.pos); Say("", "The octopus drops a brass key (the captain's safe)", 4); }
+    if (di >= 0 && s.isEnemy && a.unit >= 0 && map->faction.units[a.unit].huntOnly && !keys.count("Foreman")) { GiveKey("Foreman", di, a.pos); Say("", "The Foreman's key (the captain's safe)", 4); }
     if (s.name == "Sperm Whale") for (auto& o : eco.agents) if (o.alive && map->species[o.sp].name == "The Relict" && !relictGone) { o.st = State::Investigate; o.goal = a.pos; o.stateT = 0; o.hunger = 1; Say("", "Something vast rises from the void toward the whale's body", 4); }   // a whale kill brings the Relict
     if (s.isEnemy && map->extra["ichor"].IsObj()) ichor.push_back({a.pos, map->extra["ichor"]["seconds"].F(60)});   // black ichor in the street
     if (s.isEnemy) {
@@ -1711,6 +1750,7 @@ int Match::NearestDiver(Vector3 p, float r, bool needSight, bool upOnly) const {
     int best = -1; float bd = r;
     for (const auto& d : divers) {
         if (d.dead || (upOnly && d.downed) || d.ghostT > 0) continue;   // (Ghost Fin: lost to scent and sound)
+        if (!eco.inks.empty() && (eco.InInk(d.pos) || eco.InInk(p))) continue;   // (in the ink: not seen, not smelled)
         float dist = Vector3Distance(d.pos, p);
         if (dist >= bd) continue;
         if (needSight && !level.Sight(p, Eye(d), linkOpen, true)) continue;
@@ -2263,7 +2303,7 @@ void Match::FloraTool(int pi, Vector3 at, DiverState* d) {
         floraBleed[pi] = 30;
         Say("", "The Bloodvine weeps: every predator nearby smells it", 3);
     } else if (HasW(n, "ink cap")) {
-        fx.push_back({9, at, {0, 0, 0}});
+        InkBurst(at, d ? d->slot : -1);
         for (int i = 0; i < (int)eco.agents.size(); i++) {
             Agent& a = eco.agents[i];
             if (!a.alive || a.diver >= 0 || Vector3Distance(a.pos, at) > 5) continue;
@@ -2997,6 +3037,7 @@ void Match::VoidDeath(DiverState& d, const std::string& by) {
     if (d.dead) return;
     if (!d.downed) DownDiver(d, by);
     d.downed = false; d.dead = true; d.voidT = 0; d.wormT = 0;
+    DropKeys(d, level.start);   // (a key can't lie in the void: the current washes it back to the start pocket)
     if (d.agent >= 0) eco.agents[d.agent].alive = false;
     if (d.egg) {
         // the egg goes with them: the Relict follows it into the void and the final log ends without the weapon
@@ -3295,7 +3336,7 @@ void Match::ApplyDrop(DropType t, Vector3 at) {
     Say("", std::string(DropName(t)) + "!", 3);
     switch (t) {
         case DropType::Resupply:
-            for (auto& d : divers) for (auto& h : d.weapons) { const WeaponDef& w = W(h); h.mag = (int)MagMax(w, h); h.reserve = (int)ResMax(w, h); }
+            for (auto& d : divers) { for (auto& h : d.weapons) { const WeaponDef& w = W(h); h.mag = (int)MagMax(w, h); h.reserve = (int)ResMax(w, h); } d.inkBombs = std::min(2, d.inkBombs + 1); }
             break;
         case DropType::BloodFrenzy: frenzyT = 30; break;
         case DropType::DoubleScrip: doubleScripT = 30; break;
@@ -3331,7 +3372,29 @@ void Match::ApplyDrop(DropType t, Vector3 at) {
     }
 }
 
+void Match::GiveKey(const std::string& name, int di, Vector3 at) {
+    if (di < 0 || di >= (int)divers.size() || divers[di].dead) {
+        float bd = 1e9f; di = -1;
+        for (int i = 0; i < (int)divers.size(); i++) if (!divers[i].dead) { float dd = Vector3Distance(divers[i].pos, at) + (divers[i].downed ? 1000 : 0); if (dd < bd) { bd = dd; di = i; } }
+    }
+    keys.insert(name);
+    keyHolder[name] = di;
+}
+void Match::DropKeys(DiverState& d, Vector3 at) {
+    for (auto it = keyHolder.begin(); it != keyHolder.end(); ++it) {
+        if (it->second != d.slot || !keys.count(it->first)) continue;
+        keys.erase(it->first); it->second = -1;
+        floorKeys.push_back({it->first, at});
+        Say("", "The " + it->first + " key sinks where Diver " + std::to_string(d.slot + 1) + " fell", 4);
+    }
+}
 void Match::UpdateDrops(float dt) {
+    for (auto& k : floorKeys) for (auto& d : divers) if (!d.dead && !d.downed && Vector3Distance(d.pos, k.pos) < 1.4f) {
+        keys.insert(k.name); keyHolder[k.name] = d.slot; fx.push_back({4, k.pos, {0, 0, 0}});
+        Say("", "Diver " + std::to_string(d.slot + 1) + " has the " + k.name + " key", 3);
+        k.name.clear(); break;
+    }
+    floorKeys.erase(std::remove_if(floorKeys.begin(), floorKeys.end(), [](const FloorKey& k) { return k.name.empty(); }), floorKeys.end());
     for (auto& f : drops) {
         f.t -= dt;
         if (f.t <= 0) { f.alive = false; continue; }
@@ -3492,7 +3555,7 @@ std::string Match::PromptFor(int di, int* cost) const {
             if (openSt == si && openT > 0) return TextFormat("Opening the safe: %.0f s (the bell is ringing)", std::max(0.0f, map->extra["hidden_quest"]["open_s"].F(20) - openT));
             return safeOpen ? "The captain's safe (open)" : !logRead ? "The captain's safe (whose keys? the log would say)" : "The captain's safe: " + std::to_string(keys.size()) + " of 3 keys" + (keys.size() >= 3 ? ". Hold E: open it (20 s)" : "");
         case StationType::Cleaning: return "E: the cleaner shrimp scrape off parasites";
-        case StationType::Workbench: return "Workbench (salvage parts come in a later build)";
+        case StationType::Workbench: if (cost && d.inkBombs < 2) *cost = 750; return d.inkBombs >= 2 ? "Workbench: two ink bombs is all a diver can carry" : "E: an ink bomb (750): an 8 s cloud nothing sees or smells through (Q picks it, G throws)";
         case StationType::Cache: {
             const Json& bk = map->extra["boss_key"];
             if (cacheOpen) return "The cache is empty";
@@ -3879,6 +3942,13 @@ bool Match::Interact(int di, bool hold, float dt) {
                 return true;
             }
             return false;
+        }
+        case StationType::Workbench: {
+            // the workbench presses ink bombs (the design doc's tactical item; how you get one it leaves open)
+            if (d.inkBombs >= 2 || !pay(750)) return false;
+            d.inkBombs++; d.tactical = 1;
+            Say("", TextFormat("An ink bomb (%d). Q picks the tactical, G throws it.", d.inkBombs), 3);
+            return true;
         }
         case StationType::Cleaning: {
             bool any = false;
@@ -5379,6 +5449,49 @@ int RunRedTideProfileTest() {
         check(a.keepBrines, "Keep Your Brines is armed until the next revive");
         c.UseCharm(0);
         check(a.luckyLocker && !c.UseCharm(0), "Lucky Locker armed; the pouch is spent");
+    }
+    {   // the ink bomb (bought at the workbench, thrown with G) and keys dropped where a carrier died
+        auto K = std::make_unique<Match>(); Match& k = *K;
+        k.Init("ship", 2, 5, false);
+        DiverState& a = k.divers[0];
+        int wb = -1; for (int i = 0; i < (int)k.level.stations.size(); i++) if (k.level.stations[i].type == StationType::Workbench) wb = i;
+        check(wb >= 0, "the Ship has a workbench");
+        if (wb >= 0) {
+            a.pos = k.level.stations[wb].pos; a.scrip = 1000;
+            int cost = 0; std::string pr = k.PromptFor(0, &cost);
+            check(k.Interact(0, false, 0.01f) && a.inkBombs == 1 && a.scrip == 250 && cost == 750, TextFormat("an ink bomb from the workbench for 750 (prompt '%s')", pr.c_str()));
+            a.scrip = 5000; k.Interact(0, false, 0.01f);
+            check(a.inkBombs == 2 && !k.Interact(0, false, 0.01f), "two is all a diver carries");
+        }
+        k.CycleTactical(0); k.CycleTactical(0);
+        check(a.tactical == 1, "Q picks the ink bomb");
+        int limp = a.limpets;
+        k.ThrowLimpet(0);
+        check(a.inkBombs == 1 && a.limpets == limp && !k.darts.empty() && k.darts.back().kind == 11, "G throws the ink bomb, not a limpet");
+        for (int i = 0; i < 40 && k.eco.inks.empty(); i++) k.Step(0.05f);
+        check(!k.eco.inks.empty(), "it bursts into a cloud");
+        // a hunter loses a diver in the ink; enemies and bosses can't find them in it
+        k.eco.inks.clear(); k.eco.AddInk(a.pos, 5, 8);
+        int hunter = -1;
+        for (int i = 0; i < (int)k.eco.agents.size(); i++) { const Agent& g = k.eco.agents[i]; if (g.alive && g.diver < 0 && k.map->species[g.sp].size >= 3) { hunter = i; break; } }
+        if (hunter >= 0) {
+            Agent& g = k.eco.agents[hunter];
+            g.pos = Vector3Add(a.pos, {3, 0, 0}); g.st = State::Hunt; g.target = a.agent; g.targetCorpse = false;
+            k.Step(0.05f);
+            check(k.eco.agents[hunter].target != a.agent && k.eco.agents[hunter].lostPrey == a.agent, "a hunting beast loses the diver in the ink");
+        }
+        check(k.NearestDiverPublic(a.pos, 10) != 0 && k.eco.Smell(a.pos, k.eco.ZoneAt(a.pos), 8) == 0, "in the cloud a diver can't be seen or smelled");
+        for (int i = 0; i < 180; i++) k.Step(0.05f);
+        check(k.eco.inks.empty(), "the cloud thins out after 8 s");
+        // keys
+        k.GiveKey("Goliath", 0, a.pos);
+        check(k.keys.count("Goliath") && k.keyHolder["Goliath"] == 0, "the killer carries the key");
+        a.invulnerable = false; a.downed = true; a.downT = 0.01f; Vector3 fell = a.pos;
+        k.Step(0.05f);
+        check(a.dead && !k.keys.count("Goliath") && k.floorKeys.size() == 1 && Vector3Distance(k.floorKeys[0].pos, fell) < 0.01f, "a carrier who bleeds out drops it where they fell");
+        k.divers[1].pos = fell; k.divers[1].downed = false;
+        k.Step(0.05f);
+        check(k.keys.count("Goliath") && k.keyHolder["Goliath"] == 1 && k.floorKeys.empty(), "a teammate swims over it and carries it on");
     }
     {   // quips: barks.json's lines, one speaker at a time, no repeat within 3 minutes, answers from teammates
         auto Q = std::make_unique<Match>(); Match& q = *Q;

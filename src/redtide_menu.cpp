@@ -220,7 +220,7 @@ static void HowToPage(Game& g) {
     DrawText("x", (int)dx + 128, (int)dy + 62, 18, ch);
     for (int k = 0; k < 3; k++) { float ay = dy + 150 + k * 40; DrawLineEx({dx + 230, ay}, {dx + 170, ay - 40 + k * 20}, 3, Color{150, 40, 30, 255}); DrawCircle((int)dx + 170, (int)(ay - 40 + k * 20), 4, Color{150, 40, 30, 255}); }
     DrawWrapped("One kill: a little blood, the scavengers come. Ten kills in one place: the shark comes. A diver down: everything comes. Move, spread out, keep it quiet, and let the water forget you.", {dx, dy + 280, pg.width * 0.26f, 140}, 14, ch);
-    DrawWrapped("Controls: WASD swim, Space/Ctrl up and down, Shift sprint, RMB aim, LMB fire, R reload, E use (hold to revive), V knife, G limpet, F drum, T charm, 1-3 weapons.", {dx, dy + 380, pg.width * 0.26f, 100}, 13, ch);
+    DrawWrapped("Controls: WASD swim, Space/Ctrl up and down, Shift sprint, RMB aim, LMB fire, R reload, E use (hold to revive), V knife, G tactical (Q picks limpet or ink bomb), F drum, T charm, 1-3 weapons.", {dx, dy + 380, pg.width * 0.26f, 100}, 13, ch);
     DrawTextCentered("The Owners are not responsible for anything that happens below the surface, including the surface.", SCREEN_W / 2.0f, pg.y + pg.height - 26, 13, Fade(INK, 0.7f));
 }
 

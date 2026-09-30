@@ -495,6 +495,7 @@ static void Input(float dt) {
     if (IsKeyPressed(KEY_R)) m.Reload(0);
     if (IsKeyPressed(KEY_V) || IsMouseButtonPressed(MOUSE_BUTTON_MIDDLE)) m.Melee(0);
     if (IsKeyPressed(KEY_G)) m.ThrowLimpet(0);
+    if (IsKeyPressed(KEY_Q)) m.CycleTactical(0);
     if (IsKeyPressed(KEY_F)) m.BeatDrum(0);
     if (IsKeyPressed(KEY_T)) m.UseCharm(0);
     if (IsKeyPressed(KEY_E)) m.Interact(0, false, dt);
@@ -811,6 +812,11 @@ static void DrawScene() {
             }
             else DrawWorldCube(Vector3Add(f.pos, {0, sinf(S.time * 2) * 0.15f, 0}), {0.25f * pulse, 0.45f * pulse, 0.25f * pulse}, {120, 240, 200, 255});
         }
+        for (const auto& k : m.floorKeys) {   // a key a fallen diver dropped: brass, turning slowly, easy to spot
+            Vector3 c = Vector3Add(k.pos, {0, 0.3f + sinf(S.time * 2) * 0.1f, 0});
+            DrawWorldCube(c, {0.12f, 0.5f, 0.12f}, {220, 180, 70, 255});
+            DrawWorldCube(Vector3Add(c, {0, 0.3f, 0}), {0.3f, 0.2f, 0.12f}, {230, 190, 80, 255});
+        }
         for (const auto& ic : m.ichor) {   // Atlantis: a dead Lost One's black ichor, spreading on the stones
             float f = std::clamp(ic.t / 60.0f, 0.0f, 1.0f), rad = 0.6f + (1 - f) * 1.4f;
             int zi = m.eco.ZoneAt(ic.pos);
@@ -972,6 +978,7 @@ static void DrawScene() {
     };
     for (const auto& s : m.level.stations) if (s.type == StationType::Locker && m.LockerLiveAt(s)) label(Vector3Add(s.pos, {0, 2.8f, 0}), 30, "Davy's Locker", {255, 214, 140, 255});
     for (const auto& d : m.level.doors) if (!d.open) label(Vector3Add(d.pos, {0, 0.9f, 0}), 14, TextFormat("%s  %d", d.name.c_str(), d.cost), {235, 210, 160, 255});
+    for (const auto& k : m.floorKeys) label(Vector3Add(k.pos, {0, 0.9f, 0}), 20, "the " + k.name + " key", {240, 200, 90, 255});
     for (const auto& f : m.drops) label(Vector3Add(f.pos, {0, 0.6f, 0}), 20, f.weapon >= 0 ? Weapons().weapons[f.weapon].name : DropName(f.type), {150, 250, 210, 255});
     // the lighthouse lit: every Lost One and the Wyrm on the sonar, through walls
     if (m.revealAll) for (int i = 0; i < (int)m.eco.agents.size(); i++) {
@@ -1034,7 +1041,10 @@ static void DrawHud() {
     if (w.melee) TxtBold("melee", SCREEN_W - 280, SCREEN_H - 70, 26, paper);
     else TxtBold(d.harpoonHour ? "infinite" : TextFormat("%d / %d", h.mag, h.reserve), SCREEN_W - 280, SCREEN_H - 70, 30, h.mag == 0 ? blood : paper);
     if (d.reloading) Txt("reloading...", SCREEN_W - 280, SCREEN_H - 36, 14, Fade(paper, 0.8f));
-    Txt(TextFormat("limpets %d", d.limpets), SCREEN_W - 120, SCREEN_H - 36, 14, Fade(paper, 0.8f));
+    if (d.inkBombs > 0) {   // the tactical G throws (Q picks): the selected one bright
+        Txt(TextFormat("limpets %d", d.limpets), SCREEN_W - 120, SCREEN_H - 50, 14, Fade(paper, d.tactical == 0 ? 0.95f : 0.45f));
+        Txt(TextFormat("ink bombs %d", d.inkBombs), SCREEN_W - 120, SCREEN_H - 34, 14, Fade(paper, d.tactical == 1 ? 0.95f : 0.45f));
+    } else Txt(TextFormat("limpets %d", d.limpets), SCREEN_W - 120, SCREEN_H - 36, 14, Fade(paper, 0.8f));
     // the charm pouch: the next charm (T) and what's running
     if (d.pouchNext < (int)d.pouch.size()) {
         std::string n; for (const auto& c : Charms()) if (c.id == d.pouch[d.pouchNext]) n = c.name;

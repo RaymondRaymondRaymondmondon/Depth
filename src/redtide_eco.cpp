@@ -204,6 +204,7 @@ std::vector<int> Ecosystem::ZonePath(int from, int to, bool enemy, int size) con
 }
 
 float Ecosystem::Smell(Vector3 p, int zone, float r, Vector3* centroid) const {
+    if (!inks.empty() && InInk(p)) return 0;                     // nothing to smell inside the ink
     if (zone < 0) return scent.BoxSum(p, r, centroid);
     Vector3 lo{p.x - r, p.y - r, p.z - r}, hi{p.x + r, p.y + r, p.z + r};
     Vector3 w{0, 0, 0};
@@ -595,6 +596,7 @@ int Ecosystem::FindPrey(const Agent& a, int idx, float range) const {
         float w = 0;
         for (const auto& pw : map->diet[a.sp].prey) if (pw.first == o.sp || (pw.first == -2 && o.diver >= 0)) { w = pw.second; break; }
         if (w <= 0) continue;
+        if (!inks.empty() && (InInk(o.pos) || InInk(a.pos))) continue;   // the ink cuts sight and scent both ways
         const Species& os = map->species[o.sp];
         // a predator eats prey up to 60% of its size, or larger when it hunts in a school or pack
         bool group = s.social == "pack" || s.social == "school";
@@ -1120,6 +1122,15 @@ void Ecosystem::Step(float dt) {
         if (c.age > c.life) c.active = false;
     }
     UpdateFields(dt);
+    // ink clouds thin out; a hunter whose prey is inside one (or who is inside one) loses it
+    for (auto& k : inks) k.t -= dt;
+    inks.erase(std::remove_if(inks.begin(), inks.end(), [](const Ink& k) { return k.t <= 0; }), inks.end());
+    if (!inks.empty()) for (int i = 0; i < (int)agents.size(); i++) {
+        Agent& a = agents[i];
+        if (!a.alive || a.diver >= 0 || a.st != State::Hunt || a.targetCorpse || a.target < 0 || a.target >= (int)agents.size()) continue;
+        if (!InInk(agents[a.target].pos) && !InInk(a.pos)) continue;
+        a.lostPrey = a.target; a.lostPreyT = 8; a.target = -1; a.st = State::Return; a.goal = a.home; a.stateT = 0;
+    }
     // decisions at 10 Hz, staggered
     for (int i = 0; i < (int)agents.size(); i++) {
         Agent& a = agents[i];

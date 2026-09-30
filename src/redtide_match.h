@@ -101,6 +101,7 @@ struct DiverState {
     bool egg = false; float wormT = 0, voidT = 0, decoyCd = 0;
     // Salt Charms (stage 9): the pouch brought in (each spent once) and what's running
     std::vector<std::string> pouch; int pouchNext = 0;
+    int inkBombs = 0, tactical = 0;                // ink bombs carried (up to 2); the tactical G throws: 0 limpets, 1 ink bombs
     int inkCaps = 0; bool drumClean = false;       // the Cave's ink caps carried; the Reef's drum not yet beaten
     float circleT = 0, finsT = 0, shellT = 0, ghostT = 0; Vector3 circlePos{}; int luckKills = 0; bool keepBrines = false, luckyLocker = false;   // the Void: the Relict egg carried; the worm's tremor; the void's pull
     float cutT = 0;                    // being cut free of Reacher coral by a teammate
@@ -116,7 +117,7 @@ struct Dart {
     Vector3 pos, vel, start; float life = 2.5f; float damage = 30; int weapon = 0; int owner = 0; bool forged = false; bool alive = true;
     int pierce = 0; int alt = -1;
     int enemy = -1;                    // fired by this enemy agent (hits divers); -1 a diver's dart
-    int kind = 0;                      // 0 dart, 1 chum, 2 net, 3 explosive, 4 limpet charge (thrown), 5 enemy net, 6 enemy chum
+    int kind = 0;                      // 0 dart, 1 chum, 2 net, 3 explosive, 4 limpet charge (thrown), 5 enemy net, 6 enemy chum, 11 ink bomb (thrown)
     float fuse = 0; int stuck = -1; Vector3 stuckOff{};
 };
 enum class DropType { Resupply, BloodFrenzy, DoubleScrip, Purge, Shipwright, FireSale, HarpoonHour, COUNT };
@@ -152,7 +153,13 @@ struct Match {
     int bossWind = -1; float bossWindT = 0; int bossTarget = -1;
     float bossGillsT = 0, bossInhaleT = -1; int bossInhaleDiver = -1; float bossGillDmg = 0; bool bossStunUsed = false, bossCalled = false, bossProvoked = false;
     float trapT = 0;
-    std::set<std::string> keys; bool safeOpen = false;
+    std::set<std::string> keys; bool safeOpen = false;   // keys someone carries
+    // "a diver holding a key who dies drops it where they fell": who carries each key, and keys lying on the floor
+    std::map<std::string, int> keyHolder;
+    struct FloorKey { std::string name; Vector3 pos{}; };
+    std::vector<FloorKey> floorKeys;
+    void GiveKey(const std::string& name, int diver, Vector3 at);   // diver < 0: the nearest one standing to `at`
+    void DropKeys(DiverState& d, Vector3 at);
     std::map<int, float> enemyFireT, enemyTellT, contactT, patchT;
     std::map<int, int> enemyPatrol;
     std::set<int> squadSpotted;
@@ -260,7 +267,9 @@ struct Match {
     void SwapWeapon(int d, int slot);
     bool Interact(int d, bool hold, float dt);   // buys, doors, revives, struggling free; true if something happened
     std::string PromptFor(int d, int* cost = nullptr) const;
-    void ThrowLimpet(int d);
+    void ThrowLimpet(int d);                     // G: the selected tactical (a limpet charge or an ink bomb)
+    void CycleTactical(int d);                   // Q
+    void InkBurst(Vector3 at, int owner);
     // helpers
     const WeaponDef& W(const Held& h) const;
     Held& Cur(DiverState& d);
