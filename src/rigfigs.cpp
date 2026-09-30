@@ -852,6 +852,242 @@ void DrawRigStowaway(const Hero& h, Vector2 ft, float s, bool right, float walk,
     parts.Draw();
 }
 
+// ============================================================================ THE MERMAN
+// A hulking fish-man walking the deck: teal scales, a finned crest down his skull and spine, gill slits, huge
+// webbed hands, fin flanges on his calves and forearms, a shell pauldron, a kelp kilt (chains) and a fishing net
+// thrown over his shoulder like a cloak (a panel between two chains), a coral club in his fist.
+void DrawRigMerman(const Hero& h, Vector2 ft, float s, bool right, float walk, float t, const Pose& pose) {
+    const float f = right ? 1.0f : -1.0f;
+    Instance& in = Get(h.id);
+    Tick(in, t);
+    Color scale{34, 150, 160, 255}, scaleDk = Tone(scale, -0.3f), belly{200, 214, 170, 255}, fin{230, 120, 90, 255}, kelp{70, 110, 50, 255};
+    Color shell{224, 196, 170, 255}, coral{214, 96, 84, 255}, net{150, 130, 96, 255}, eye{230, 200, 60, 255};
+
+    Build b;
+    b.thigh = 38; b.shin = 38; b.upper = 30; b.fore = 30; b.spine = 27; b.chest = 29; b.neck = 5; b.head = 13;
+    b.shoulderW = 22; b.hipW = 8; b.stanceF = 20; b.stanceB = -18;
+    RPose P;
+    P[C_HIPY] = 9; P[C_LEAN] = 0.22f; P[C_CHEST] = 0.12f; P[C_HEAD] = -0.14f;   // hunched, head thrust forward
+    P[C_HFX] = 12; P[C_HFY] = 44; P[C_WEAPON] = 70;     // the club hanging from his fist
+    P[C_HBX] = 24; P[C_HBY] = 34;                       // the other hand reaching, claws open
+    P = LayerHero(P, h, in, pose, walk, t, -150, nullptr);
+    Solved S = SolveHumanoid(b, P, ft, s, f);
+
+    bool jump = FollowWorld(in, s);
+    Vector2 anchors[5] = {S.Hips(-12, 2), S.Hips(0, 3), S.Hips(12, 2), S.Chest(-20, -22), S.Chest(-6, -24)};
+    if (jump || in.chains.size() != 5) {
+        in.chains.assign(5, Chain{});
+        for (int i = 0; i < 3; i++) { in.chains[i].Init(anchors[i], 5, 6.5f * s, {0, 1}); in.chains[i].col = Tone(kelp, i * 0.08f); in.chains[i].width0 = 6; in.chains[i].width1 = 2; in.chains[i].stiff = 0.2f; in.chains[i].grav = 260; }
+        for (int i = 3; i < 5; i++) { in.chains[i].Init(anchors[i], 6, 9 * s, {-0.35f * f, 1}); in.chains[i].stiff = 0.3f; in.chains[i].grav = 360; }
+    }
+    Vector2 cur = Current();
+    for (int i = 0; i < 5; i++) in.chains[i].Step(anchors[i], i < 3 ? Vector2{0, 1} : Vector2{-0.35f * f, 1}, in.dt, cur);
+    auto scales = [&](Vector2 a, Vector2 b2, float w) { // a row of scale arcs down a limb
+        for (int k = 1; k < 5; k++) { Vector2 p = L2(a, b2, k / 5.0f); DrawRing(p, w * 0.3f * s, w * 0.3f * s + 1.1f * s, 20, 160, 8, Fade(Color{10, 40, 44, 255}, 0.6f)); }
+    };
+
+    Parts parts;
+    // the net cloak behind him
+    parts.Add(-3.0f, [&] {
+        Panel(in.chains[3], in.chains[4], Fade(net, 0.0f), 0);
+        const Chain& A = in.chains[3], &B = in.chains[4];
+        for (size_t k = 0; k < A.p.size(); k++) DrawLineEx(A.p[k], B.p[k], 1.2f * s, net);
+        for (int j = 0; j <= 3; j++) for (size_t k = 1; k < A.p.size(); k++) DrawLineEx(L2(A.p[k - 1], B.p[k - 1], j / 3.0f), L2(A.p[k], B.p[k], j / 3.0f), 1.2f * s, net);
+        MBall(A.Tip(), 2.6f * s, Color{210, 180, 120, 255}, CLOTH);                                          // a float
+    });
+    // the reaching arm, behind
+    parts.Add(-2.0f, [&] {
+        MLimb(S.p[SH_B], S.p[EL_B], 11 * s, 10 * s, scaleDk, SHELL);
+        MLimb(S.p[EL_B], S.p[WR_B], 10 * s, 8 * s, scaleDk, SHELL);
+        DrawTri(S.Along(EL_B, WR_B, 0.1f, -4), S.Along(EL_B, WR_B, 0.6f, -4), S.Along(EL_B, WR_B, 0.2f, -13), Tone(fin, -0.25f)); // forearm fin
+        Vector2 hd = S.p[WR_B];
+        for (int k = 0; k < 4; k++) MLimb(hd, Off(hd, 10 + k * 1.5f, -6 + k * 4.5f, s, f), 2.6f * s, 1.2f * s, scaleDk, SHELL);  // webbed claws
+        DrawTri(hd, Off(hd, 11, -6, s, f), Off(hd, 13, 7.5f, s, f), Fade(Tone(scale, 0.2f), 0.7f));
+        MBall(hd, 6.4f * s, scaleDk, SHELL);
+    });
+    auto leg = [&](int hip, int kn, int an, Color col) {
+        MLimb(S.p[hip], S.p[kn], 12 * s, 10 * s, col, SHELL);
+        MLimb(S.p[kn], S.p[an], 10 * s, 7.4f * s, col, SHELL);
+        scales(S.p[kn], S.p[an], 10);
+        DrawTri(S.Along(kn, an, 0.15f, -5), S.Along(kn, an, 0.8f, -4), S.Along(kn, an, 0.35f, -15), Tone(fin, -0.2f)); // calf fin
+        Vector2 heel = Off(S.p[an], -3, 1, s, f);
+        for (int k = 0; k < 3; k++) MLimb(heel, Off(S.p[an], 14, 2 + k * 1.5f - 1.5f, s, f), (5 - k) * s, 1.4f * s, Tone(col, -0.1f), SHELL); // webbed feet
+        DrawTri(heel, Off(S.p[an], 15, 1, s, f), Off(S.p[an], 15, 5, s, f), Fade(Tone(scale, 0.15f), 0.7f));
+    };
+    parts.Add(-1.6f, [&] { leg(HIP_B, KN_B, AN_B, scaleDk); });
+    parts.Add(-1.0f, [&] { leg(HIP_F, KN_F, AN_F, scale); });
+    parts.Add(-0.5f, [&] { for (int i = 0; i < 3; i++) in.chains[i].Draw(s); });                          // the kelp kilt
+    // the torso: a barrel chest, a pale scaled belly, a spine of fins, a shell pauldron
+    parts.Add(0, [&] {
+        for (int k = 0; k < 5; k++) { Vector2 bs = L2(S.Hips(-15, -6), S.Chest(-20, -24), k / 4.0f); DrawTri(bs, Off(bs, -8, -2, s, f), Off(bs, -2, -10, s, f), Tone(fin, -0.15f * (k % 2))); } // dorsal fins
+        MQuad(S.Chest(-24, -24), S.Chest(24, -22), S.Hips(15, 4), S.Hips(-15, 4), scale, SHELL);
+        MQuad(S.Chest(0, -18), S.Chest(18, -18), S.Hips(12, 2), S.Hips(-2, 2), belly, SKIN);                   // the belly
+        for (int k = 0; k < 5; k++) DrawLineEx(S.Chest(1, -12 + k * 7.0f), S.Chest(16, -12 + k * 7.0f), 1.0f * s, Fade(Color{80, 90, 60, 255}, 0.6f)); // belly plates
+        for (int k = 0; k < 3; k++) DrawLineEx(S.Chest(-10 + k * 3.0f, -20), S.Chest(-12 + k * 3.0f, -12), 1.4f * s, Color{120, 30, 40, 255}); // gill slits
+        MQuad(S.Hips(-16, -4), S.Hips(16, -4), S.Hips(15, 2), S.Hips(-15, 2), Color{80, 60, 40, 255}, WET);     // a belt of cord
+    });
+    // the head: a broad fish skull thrust forward, a finned crest, a wide lipless mouth, round gold eyes
+    parts.Add(0.5f, [&] {
+        MLimb(S.Chest(0, -22), S.Head(-2, 6), 11 * s, 10 * s, scale, SHELL);                                    // no neck to speak of
+        Vector2 hc = S.p[HEAD];
+        MBall(hc, 14 * s, scale, SHELL);
+        MQuad(S.Head(-6, -4), S.Head(16, -2), S.Head(15, 9), S.Head(-4, 11), scale, SHELL);                    // the long snout
+        DrawLineEx(S.Head(3, 6), S.Head(16, 5.5f), 1.8f * s, Color{30, 10, 14, 255});                         // the mouth
+        for (int k = 0; k < 4; k++) DrawTri(S.Head(6 + k * 2.6f, 5.8f), S.Head(7.3f + k * 2.6f, 5.8f), S.Head(6.6f + k * 2.6f, 8.2f), Color{236, 230, 210, 255}); // needle teeth
+        MQuad(S.Head(-2, 7), S.Head(14, 7), S.Head(12, 13), S.Head(0, 13), belly, SKIN);                        // the pale jaw
+        Vector2 e = S.Head(7, -4);
+        MBall(e, 3.6f * s, eye, GLOW);
+        if (!in.face.Closed()) DrawEllipse((int)(e.x + f * 0.6f * s), (int)e.y, 1.0f * s, 2.8f * s, Color{10, 10, 10, 255});
+        else DrawLineEx(Off(e, -3.6f, 0, s, f), Off(e, 3.6f, 0, s, f), 1.2f * s, scaleDk);
+        for (int k = 0; k < 5; k++) { Vector2 c = S.Head(-12 + k * 4.5f, -12 - (k == 2 ? 3.0f : 0)); DrawTri(c, S.Head(-9 + k * 4.5f, -10), S.Head(-11 + k * 4.5f, -24 + (k % 2) * 5.0f), k % 2 ? fin : Tone(fin, -0.2f)); } // the crest
+        for (int k = 0; k < 3; k++) DrawLineEx(S.Head(-5 + k * 2.8f, 2), S.Head(-7 + k * 2.8f, 9), 1.3f * s, Color{120, 30, 40, 255}); // head gills
+    });
+    // the club arm, in front, with the shell pauldron
+    parts.Add(1.0f, [&] {
+        MLimb(S.p[SH_F], S.p[EL_F], 12 * s, 11 * s, scale, SHELL);
+        MLimb(S.p[EL_F], S.p[WR_F], 11 * s, 9 * s, scale, SHELL);
+        scales(S.p[SH_F], S.p[EL_F], 12);
+        DrawTri(S.Along(EL_F, WR_F, 0.1f, -4), S.Along(EL_F, WR_F, 0.6f, -4), S.Along(EL_F, WR_F, 0.2f, -14), fin); // forearm fin
+        float a = S.a[PROP];
+        Vector2 dir{cosf(a), sinf(a)}, n{-dir.y, dir.x};
+        auto W = [&](float along, float side = 0) { return Vector2{S.p[WR_F].x + dir.x * along * s + n.x * side * s, S.p[WR_F].y + dir.y * along * s + n.y * side * s}; };
+        MLimb(W(-6), W(26), 3.4f * s, 5.4f * s, Tone(coral, -0.1f), SHELL);                                    // the coral club
+        MBall(W(30), 9 * s, coral, SHELL);
+        for (int k = 0; k < 5; k++) MLimb(W(26 + k * 2.0f, (k - 2) * 3.5f), W(40 + k % 2 * 4.0f, (k - 2) * 7.0f), 3.2f * s, 1.4f * s, Tone(coral, 0.1f), SHELL); // its branching head
+        MBall(S.p[WR_F], 7.4f * s, scale, SHELL);                                                              // a webbed fist
+        Vector2 pc = S.p[SH_F];                                                                                 // the shell pauldron
+        MBall(Off(pc, 0, -2, s, f), 11 * s, shell, SHELL);
+        for (int k = 0; k < 4; k++) DrawLineEx(Off(pc, -2, -12, s, f), Off(pc, -9 + k * 6.0f, 7, s, f), 1.2f * s, Tone(shell, -0.4f)); // its ridges
+    });
+    parts.Draw();
+}
+
+// ============================================================================ THE OCTOPUS
+// A cephalopod in a sailor's waistcoat: a great bulbous mantle for a head (it pulses as it breathes), two huge
+// eyes with bar pupils, four long tentacle arms that never stop moving (chains that wave), each holding
+// something - a flintlock, a knife, a lantern, a spyglass - and the body carried on a knot of tentacle legs.
+void DrawRigOctopus(const Hero& h, Vector2 ft, float s, bool right, float walk, float t, const Pose& pose) {
+    const float f = right ? 1.0f : -1.0f;
+    Instance& in = Get(h.id);
+    Tick(in, t);
+    Color skin{150, 66, 118, 255}, skinDk = Tone(skin, -0.3f), sucker{226, 196, 206, 255}, vest{60, 50, 70, 255}, brass = Pal::Brass;
+    Color steel{190, 194, 200, 255}, wood{96, 64, 40, 255}, eyeC{240, 210, 120, 255};
+
+    Build b;
+    b.thigh = 32; b.shin = 34; b.upper = 25; b.fore = 25; b.spine = 24; b.chest = 22; b.neck = 5; b.head = 14;
+    b.shoulderW = 13; b.hipW = 7; b.stanceF = 18; b.stanceB = -18;
+    RPose P;
+    P[C_HIPY] = 10; P[C_LEAN] = 0.06f;
+    P[C_HFX] = 26; P[C_HFY] = 16; P[C_WEAPON] = -4;     // the pistol, levelled
+    P[C_HBX] = 18; P[C_HBY] = 30;                       // the knife, low
+    P = LayerHero(P, h, in, pose, walk, t, -40, nullptr);
+    Solved S = SolveHumanoid(b, P, ft, s, f);
+    float pulse = 1 + 0.05f * sinf(t * 2.2f + h.id);
+
+    // four tentacle arms from the shoulders, each with its own slow wave
+    bool jump = FollowWorld(in, s);
+    Vector2 anchors[4] = {S.Chest(-12, -18), S.Chest(-6, -12), S.Chest(8, -12), S.Chest(12, -18)};
+    Vector2 rests[4] = {{-0.9f * f, -0.3f}, {-0.7f * f, 0.7f}, {0.8f * f, 0.6f}, {0.9f * f, -0.4f}};
+    if (jump || in.chains.size() != 4) {
+        in.chains.assign(4, Chain{});
+        for (int i = 0; i < 4; i++) {
+            float l = sqrtf(rests[i].x * rests[i].x + rests[i].y * rests[i].y); rests[i] = {rests[i].x / l, rests[i].y / l};
+            in.chains[i].Init(anchors[i], 9, 7.4f * s, rests[i]); in.chains[i].col = i % 2 ? skinDk : skin; in.chains[i].width0 = 6.0f; in.chains[i].width1 = 1.6f;
+            in.chains[i].stiff = 0.45f; in.chains[i].grav = 60; in.chains[i].mat = WET;
+        }
+    }
+    Vector2 cur = Current();
+    for (int i = 0; i < 4; i++) {
+        float l = sqrtf(rests[i].x * rests[i].x + rests[i].y * rests[i].y);
+        Vector2 r{rests[i].x / l, rests[i].y / l};
+        Vector2 push{cur.x + sinf(t * (1.3f + i * 0.37f) + i * 1.7f) * 700, cur.y + cosf(t * (1.1f + i * 0.29f) + i) * 500};
+        in.chains[i].Step(anchors[i], r, in.dt, push);
+    }
+    // the tentacles are procedural curves, not ropes: each segment bends a little more than the last, on its own
+    // slow wave, so they coil and uncoil (the verlet chains above only lend them a lag when the body moves)
+    for (int i = 0; i < 4; i++) {
+        Chain& c = in.chains[i];
+        float base = atan2f(rests[i].y, rests[i].x), curl = (0.1f + 0.07f * sinf(t * (0.9f + i * 0.23f) + i * 2.1f)) * (i % 2 ? -1.0f : 1.0f) * f;
+        Vector2 p = anchors[i];
+        c.p[0] = p;
+        for (size_t k = 1; k < c.p.size(); k++) {
+            float ang = base + curl * k * (0.6f + 0.4f * k / c.p.size()) + 0.25f * sinf(t * 2.0f + k * 0.8f + i);
+            float seg = c.seg * (1.0f - 0.05f * k);
+            p = {p.x + cosf(ang) * seg, p.y + sinf(ang) * seg};
+            c.p[k] = L2(c.p[k], p, 0.8f);
+        }
+    }
+    auto tentacle = [&](const Chain& c) {
+        for (size_t k = 1; k < c.p.size(); k++) {
+            float u0 = (k - 1) / (float)(c.p.size() - 1), u1 = k / (float)(c.p.size() - 1);
+            MLimb(c.p[k - 1], c.p[k], (c.width0 + (c.width1 - c.width0) * u0) * s, (c.width0 + (c.width1 - c.width0) * u1) * s, c.col, WET);
+            DrawCircleV(L2(c.p[k - 1], c.p[k], 0.5f), (2.0f - u1 * 1.3f) * s, sucker);                          // suckers
+        }
+    };
+    auto held = [&](int i, int what) { // what each arm carries at its tip
+        const Chain& c = in.chains[i];
+        Vector2 tip = c.Tip(), pre = c.p[c.p.size() - 2];
+        Vector2 d{tip.x - pre.x, tip.y - pre.y}; float l = sqrtf(d.x * d.x + d.y * d.y) + 1e-3f; d = {d.x / l, d.y / l};
+        if (what == 0) { MBall(tip, 3.2f * s, Color{255, 220, 150, 255}, GLOW); DrawRectangleLinesEx({tip.x - 4 * s, tip.y - 5 * s, 8 * s, 10 * s}, 1.2f * s, brass); } // a lantern
+        else { MLimb(tip, {tip.x + d.x * 16 * s, tip.y + d.y * 16 * s}, 2.6f * s, 3.6f * s, brass, METAL); MBall({tip.x + d.x * 16 * s, tip.y + d.y * 16 * s}, 1.8f * s, Color{150, 200, 220, 255}, WET); } // a spyglass
+    };
+
+    Parts parts;
+    parts.Add(-3.0f, [&] { tentacle(in.chains[0]); held(0, 1); tentacle(in.chains[1]); held(1, 0); });   // the far arms
+    // the legs: a knot of tentacles curling on the deck
+    auto leg = [&](int hip, int kn, int an, Color col, float curl) {
+        MLimb(S.p[hip], S.p[kn], 11 * s, 9 * s, col, WET);
+        MLimb(S.p[kn], S.p[an], 9 * s, 5 * s, col, WET);
+        Vector2 p = S.p[an];
+        float ang = 0;
+        for (int k = 0; k < 5; k++) { ang += 0.55f; Vector2 q = Off(p, cosf(ang) * 5.0f * curl, -sinf(ang) * 5.0f, s, f); MLimb(p, q, (4.6f - k * 0.8f) * s, (4.0f - k * 0.8f) * s, col, WET); p = q; } // the tip curls up off the deck
+        for (int k = 1; k < 4; k++) DrawCircleV(S.Along(kn, an, k / 4.0f, 3), 1.5f * s, sucker);
+    };
+    parts.Add(-1.6f, [&] { leg(HIP_B, KN_B, AN_B, skinDk, -1); leg(HIP_B, KN_B, AN_B, Tone(skinDk, 0.1f), 0.6f); });
+    parts.Add(-1.0f, [&] { leg(HIP_F, KN_F, AN_F, skin, 1); });
+    // the body: a sailor's waistcoat over the soft body
+    parts.Add(0, [&] {
+        MQuad(S.Chest(-15, -20), S.Chest(16, -20), S.Hips(14, 6), S.Hips(-13, 6), skin, WET);
+        MQuad(S.Chest(-14, -18), S.Chest(14, -18), S.Hips(13, 2), S.Hips(-12, 2), vest, CLOTH);
+        for (int k = 0; k < 4; k++) MBall(S.Chest(7, -12 + k * 7.0f), 1.6f * s, brass, METAL);
+        DrawLineEx(S.Chest(8, -8), S.Chest(12, 0), 1.0f * s, brass);                                          // a watch chain
+    });
+    // the mantle: a great bulb above two huge eyes, breathing
+    parts.Add(0.5f, [&] {
+        Vector2 hc = S.Head(-4, -8);
+        MLimb(S.Head(2, 6), S.Head(-16, -18 * pulse), 15 * s, 17 * s * pulse, skin, WET);                   // the mantle, swept back
+        MBall(S.Head(-19, -19 * pulse), 15.5f * s * pulse, skin, WET);
+        for (int k = 0; k < 7; k++) DrawCircleV(S.Head(-24 + (k % 4) * 6.0f, -22 + (k / 4) * 9.0f), (1.4f + (k % 3) * 0.6f) * s, Tone(skin, -0.25f)); // chromatophore spots
+        for (int k = 0; k < 2; k++) {
+            Vector2 e = S.Head(k ? 10.0f : 3.0f, k ? 0.0f : -2.0f);
+            MBall(e, (k ? 5.2f : 4.0f) * s, eyeC, WET);
+            if (!in.face.Closed()) DrawRectangleRec({e.x - 2.6f * s, e.y - 0.8f * s, 5.2f * s, 1.6f * s}, Color{10, 10, 10, 255}); // bar pupils
+            else DrawLineEx(Off(e, -4, 0, s, f), Off(e, 4, 0, s, f), 1.4f * s, skinDk);
+        }
+        MLimb(S.Head(8, 8), S.Head(14, 12), 3 * s, 2 * s, skinDk, WET);                                        // the siphon
+        (void)hc;
+    });
+    // the near arms: the pistol and the knife (the rig's hands), then the two near tentacles
+    parts.Add(1.0f, [&] {
+        MLimb(S.p[SH_B], S.p[EL_B], 6.6f * s, 5.4f * s, skinDk, WET);
+        MLimb(S.p[EL_B], S.p[WR_B], 5.4f * s, 3.4f * s, skinDk, WET);
+        MLimb(S.p[WR_B], Off(S.p[WR_B], 14, 3, s, f), 2.0f * s, 0.6f * s, steel, METAL);                      // the knife
+        MBall(S.p[WR_B], 3.6f * s, skinDk, WET);
+        MLimb(S.p[SH_F], S.p[EL_F], 7 * s, 5.6f * s, skin, WET);
+        MLimb(S.p[EL_F], S.p[WR_F], 5.6f * s, 3.6f * s, skin, WET);
+        for (int k = 1; k < 4; k++) DrawCircleV(S.Along(EL_F, WR_F, k / 4.0f, 3), 1.3f * s, sucker);
+        float a = S.a[PROP];
+        Vector2 dir{cosf(a), sinf(a)}, n{-dir.y, dir.x};
+        auto W = [&](float along, float side = 0) { return Vector2{S.p[WR_F].x + dir.x * along * s + n.x * side * s, S.p[WR_F].y + dir.y * along * s + n.y * side * s}; };
+        MLimb(W(-4, 5), W(2, 1), 3.2f * s, 3.0f * s, wood, CLOTH);                                             // the flintlock's butt
+        MLimb(W(0, 0), W(20, 0), 2.4f * s, 2.0f * s, Tone(steel, -0.2f), METAL);                                 // its barrel
+        MBall(W(2, -2), 2.0f * s, brass, METAL);                                                                 // the lock
+        MBall(S.p[WR_F], 3.8f * s, skin, WET);
+        tentacle(in.chains[2]); held(2, 1); tentacle(in.chains[3]); held(3, 0);
+    });
+    parts.Draw();
+}
+
 // ============================================================================ THE LOST ONE CULTIST
 // Hooded, hovering over a turning rune circle; broken manacle chains hang from both wrists and a censer swings
 // from its cord (the signature idle: everything that hangs from it sways); robe rags trail below the hem; one
