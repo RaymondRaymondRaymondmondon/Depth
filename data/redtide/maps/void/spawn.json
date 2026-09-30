@@ -1,0 +1,354 @@
+[
+ {
+  "zone": "The Rim",
+  "species": "Sand Eel",
+  "count_tide1": 1,
+  "respawn_s": 120,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 1
+ },
+ {
+  "zone": "The Rim",
+  "species": "Sand Hopper",
+  "count_tide1": 1,
+  "respawn_s": 60,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 1
+ },
+ {
+  "zone": "The Rim",
+  "species": "Sea Pig",
+  "count_tide1": 12,
+  "respawn_s": 300,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 16
+ },
+ {
+  "zone": "The Rim",
+  "species": "Tripod Fish",
+  "count_tide1": 6,
+  "respawn_s": 200,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 8
+ },
+ {
+  "zone": "The Rim",
+  "species": "Deep Skate",
+  "count_tide1": 2,
+  "respawn_s": 400,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 3
+ },
+ {
+  "zone": "The Rim",
+  "species": "Giant Sea Spider",
+  "count_tide1": 2,
+  "respawn_s": 400,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 3
+ },
+ {
+  "zone": "The Rim",
+  "species": "The Sand Worm",
+  "count_tide1": 1,
+  "respawn_s": 0,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 1
+ },
+ {
+  "zone": "The Descent",
+  "species": "Hatchetfish",
+  "count_tide1": 30,
+  "respawn_s": 30,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 39
+ },
+ {
+  "zone": "The Descent",
+  "species": "Viperfish",
+  "count_tide1": 3,
+  "respawn_s": 240,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 4
+ },
+ {
+  "zone": "The Descent",
+  "species": "Fangtooth",
+  "count_tide1": 3,
+  "respawn_s": 240,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 4
+ },
+ {
+  "zone": "The Descent",
+  "species": "Frilled Shark",
+  "count_tide1": 1,
+  "respawn_s": 500,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 1
+ },
+ {
+  "zone": "The Descent",
+  "species": "Oarfish",
+  "count_tide1": 1,
+  "respawn_s": 0,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 1
+ },
+ {
+  "zone": "The Upper Galleries",
+  "species": "Brittle Star",
+  "count_tide1": 30,
+  "respawn_s": 120,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 39
+ },
+ {
+  "zone": "The Upper Galleries",
+  "species": "Rattail",
+  "count_tide1": 5,
+  "respawn_s": 180,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 7
+ },
+ {
+  "zone": "The Upper Galleries",
+  "species": "Dumbo Octopus",
+  "count_tide1": 2,
+  "respawn_s": 300,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 3
+ },
+ {
+  "zone": "The Upper Galleries",
+  "species": "Deep Jelly",
+  "count_tide1": 5,
+  "respawn_s": 180,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 7
+ },
+ {
+  "zone": "The Upper Galleries",
+  "species": "Anglerfish",
+  "count_tide1": 2,
+  "respawn_s": 400,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 3
+ },
+ {
+  "zone": "The Upper Galleries",
+  "species": "Goblin Shark",
+  "count_tide1": 1,
+  "respawn_s": 700,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 1
+ },
+ {
+  "zone": "The Upper Galleries",
+  "species": "Hatchetfish",
+  "count_tide1": 20,
+  "respawn_s": 30,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 26
+ },
+ {
+  "zone": "Overlooks",
+  "species": "Bone Worm (Osedax)",
+  "count_tide1": 1,
+  "respawn_s": 0,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 1
+ },
+ {
+  "zone": "Overlooks",
+  "species": "Cookiecutter Shark",
+  "count_tide1": 2,
+  "respawn_s": 300,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 3
+ },
+ {
+  "zone": "Overlooks",
+  "species": "Barreleye",
+  "count_tide1": 3,
+  "respawn_s": 240,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 4
+ },
+ {
+  "zone": "Overlooks",
+  "species": "Siphonophore",
+  "count_tide1": 2,
+  "respawn_s": 400,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 3
+ },
+ {
+  "zone": "Overlooks",
+  "species": "Hadal Turtle",
+  "count_tide1": 1,
+  "respawn_s": 600,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 1
+ },
+ {
+  "zone": "The Warrens",
+  "species": "Vent Shrimp",
+  "count_tide1": 1,
+  "respawn_s": 60,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 1
+ },
+ {
+  "zone": "The Warrens",
+  "species": "Giant Isopod",
+  "count_tide1": 4,
+  "respawn_s": 300,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 5
+ },
+ {
+  "zone": "The Warrens",
+  "species": "Yeti Crab",
+  "count_tide1": 10,
+  "respawn_s": 120,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 13
+ },
+ {
+  "zone": "The Warrens",
+  "species": "Squat Lobster",
+  "count_tide1": 12,
+  "respawn_s": 90,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 16
+ },
+ {
+  "zone": "The Warrens",
+  "species": "Chimaera",
+  "count_tide1": 2,
+  "respawn_s": 400,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 3
+ },
+ {
+  "zone": "The Warrens",
+  "species": "Pelican Eel",
+  "count_tide1": 2,
+  "respawn_s": 500,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 3
+ },
+ {
+  "zone": "The Station: Mess & Quarters",
+  "species": "Abyssal Sea Snake",
+  "count_tide1": 2,
+  "respawn_s": 300,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 3
+ },
+ {
+  "zone": "The Station: Mess & Quarters",
+  "species": "Lab Salamander",
+  "count_tide1": 4,
+  "respawn_s": 0,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 5
+ },
+ {
+  "zone": "The Station: Mess & Quarters",
+  "species": "Elephant Seal",
+  "count_tide1": 1,
+  "respawn_s": 800,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 1
+ },
+ {
+  "zone": "The Station: Specimen Labs",
+  "species": "Coelacanth",
+  "count_tide1": 2,
+  "respawn_s": 0,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 3
+ },
+ {
+  "zone": "The Station: Specimen Labs",
+  "species": "Dragonfish",
+  "count_tide1": 3,
+  "respawn_s": 240,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 4
+ },
+ {
+  "zone": "The Station: Specimen Labs",
+  "species": "Pale Caiman",
+  "count_tide1": 1,
+  "respawn_s": 900,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 1
+ },
+ {
+  "zone": "The Station: Specimen Labs",
+  "species": "Lab Salamander",
+  "count_tide1": 2,
+  "respawn_s": 0,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 3
+ },
+ {
+  "zone": "The Lowest Vault",
+  "species": "Hadal Amphipod",
+  "count_tide1": 1,
+  "respawn_s": 60,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 1
+ },
+ {
+  "zone": "The Lowest Vault",
+  "species": "Snailfish",
+  "count_tide1": 4,
+  "respawn_s": 240,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 5
+ },
+ {
+  "zone": "The Lowest Vault",
+  "species": "Sixgill Shark",
+  "count_tide1": 1,
+  "respawn_s": 900,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 1
+ },
+ {
+  "zone": "The Lowest Vault",
+  "species": "The Lantern Leviathan",
+  "count_tide1": 1,
+  "respawn_s": 0,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 1
+ },
+ {
+  "zone": "The Abyss",
+  "species": "Colossal Squid",
+  "count_tide1": 1,
+  "respawn_s": 900,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 1
+ },
+ {
+  "zone": "The Abyss",
+  "species": "Sperm Whale",
+  "count_tide1": 1,
+  "respawn_s": 0,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 1
+ },
+ {
+  "zone": "The Abyss",
+  "species": "The Relict",
+  "count_tide1": 1,
+  "respawn_s": 0,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 1
+ }
+]

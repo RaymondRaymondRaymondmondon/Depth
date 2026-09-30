@@ -1,0 +1,518 @@
+{
+ "zones": [
+  {
+   "zone": "The Rim",
+   "level": "Plain",
+   "x_plan": -400,
+   "y_plan": -400,
+   "w": 800,
+   "h": 800,
+   "door_cost_scrip": 0,
+   "depth_m": 0,
+   "notes": "The black sand plain beside the abyss; the hatch at (0,0); bone stakes at r=350; the worm beyond; only the Gannet rack and Juggernaut at the hatch"
+  },
+  {
+   "zone": "The Abyss",
+   "level": "Void",
+   "x_plan": -1000,
+   "y_plan": -400,
+   "w": 600,
+   "h": 800,
+   "door_cost_scrip": 0,
+   "depth_m": "none",
+   "notes": "The hole: a black column west of the rim; a 5 s pull with a warning; no floor"
+  },
+  {
+   "zone": "The Descent",
+   "level": "Chimney",
+   "x_plan": -20,
+   "y_plan": -20,
+   "w": 40,
+   "h": 40,
+   "door_cost_scrip": 750,
+   "depth_m": "0 to -60",
+   "notes": "A shaft with six ledges: Quick Brine (L2), Needler Mk I (L3), workbench (L4); Overlook 1 at L5 (-50)"
+  },
+  {
+   "zone": "The Upper Galleries",
+   "level": "Galleries",
+   "x_plan": -120,
+   "y_plan": -60,
+   "w": 240,
+   "h": 80,
+   "door_cost_scrip": 1000,
+   "depth_m": -70,
+   "notes": "Glass sponge reefs, bamboo coral; Carbine, Flechette, Speed Brine; Locker spot 1; the Remnant's upper airlock; Overlook 2"
+  },
+  {
+   "zone": "The Warrens",
+   "level": "Tubes",
+   "x_plan": -160,
+   "y_plan": -140,
+   "w": 320,
+   "h": 70,
+   "door_cost_scrip": 1250,
+   "depth_m": -95,
+   "notes": "A maze of lava tubes and vents; yeti crabs; the brine pool; Double Shot, Long Speargun; Overlooks 3 and 4"
+  },
+  {
+   "zone": "The Station: Mess & Quarters",
+   "level": "Module",
+   "x_plan": 40,
+   "y_plan": -210,
+   "w": 90,
+   "h": 60,
+   "door_cost_scrip": 1500,
+   "depth_m": -120,
+   "notes": "Flooded modules; algae tanks; specimen kelp; Bolt Harpoon, Kick Brine; air pockets (the seal, the snake); terminals 1-2"
+  },
+  {
+   "zone": "The Station: Specimen Labs",
+   "level": "Module",
+   "x_plan": -80,
+   "y_plan": -220,
+   "w": 110,
+   "h": 60,
+   "door_cost_scrip": 1750,
+   "depth_m": -125,
+   "notes": "Broken tanks; coelacanths and salamanders loose; Mule Brine, Deadeye; the caiman's corridor; terminals 3-4; lure beacon controls"
+  },
+  {
+   "zone": "The Station: Reactor",
+   "level": "Module",
+   "x_plan": -20,
+   "y_plan": -290,
+   "w": 80,
+   "h": 50,
+   "door_cost_scrip": 2000,
+   "depth_m": -140,
+   "notes": "Power (the reactor); the Pressure Forge; the Chief's mech bay; the reactor vent trap; terminal 5"
+  },
+  {
+   "zone": "The Lowest Vault",
+   "level": "Cathedral",
+   "x_plan": -150,
+   "y_plan": -420,
+   "w": 300,
+   "h": 110,
+   "door_cost_scrip": 2500,
+   "depth_m": -180,
+   "notes": "Open to the abyss on its west side; black coral; Locker spot 2, Widow's Ink, Cold Coffin, Stormlock and Cannon Harpoon racks; the Leviathan's home; Overlook 5 (the collapsing ledge)"
+  }
+ ],
+ "links": [
+  {
+   "from": "The Rim",
+   "to": "The Descent",
+   "cost_scrip": 750,
+   "passage": "The surface hatch (a pressure door; always openable from inside)"
+  },
+  {
+   "from": "The Descent",
+   "to": "The Upper Galleries",
+   "cost_scrip": 1000,
+   "passage": "Ledge 6 tunnel"
+  },
+  {
+   "from": "The Upper Galleries",
+   "to": "The Warrens",
+   "cost_scrip": 1250,
+   "passage": "Three tube mouths (any one)"
+  },
+  {
+   "from": "The Warrens",
+   "to": "The Station: Mess & Quarters",
+   "cost_scrip": 1500,
+   "passage": "Airlock A (east)"
+  },
+  {
+   "from": "The Warrens",
+   "to": "The Station: Specimen Labs",
+   "cost_scrip": 1750,
+   "passage": "Airlock B (west)"
+  },
+  {
+   "from": "The Station: Mess & Quarters",
+   "to": "The Station: Specimen Labs",
+   "cost_scrip": 0,
+   "passage": "Corridor (the caiman's)"
+  },
+  {
+   "from": "The Station: Specimen Labs",
+   "to": "The Station: Reactor",
+   "cost_scrip": 2000,
+   "passage": "Pressure door (the trap)"
+  },
+  {
+   "from": "The Station: Mess & Quarters",
+   "to": "The Station: Reactor",
+   "cost_scrip": 0,
+   "passage": "Service shaft (one-way drop)"
+  },
+  {
+   "from": "The Station: Reactor",
+   "to": "The Lowest Vault",
+   "cost_scrip": 2500,
+   "passage": "The vault stair"
+  },
+  {
+   "from": "The Upper Galleries",
+   "to": "The Abyss",
+   "cost_scrip": 0,
+   "passage": "Overlook 2 (a fall)"
+  },
+  {
+   "from": "The Lowest Vault",
+   "to": "The Abyss",
+   "cost_scrip": 0,
+   "passage": "Overlook 5 (a fall)"
+  }
+ ],
+ "pois": [
+  {
+   "name": "Surface hatch (start)",
+   "type": "Feature",
+   "zone": "The Rim",
+   "x": 0,
+   "y": 0
+  },
+  {
+   "name": "Gannet rack",
+   "type": "Rack",
+   "zone": "The Rim",
+   "x": 6,
+   "y": 4
+  },
+  {
+   "name": "Juggernaut Brine",
+   "type": "Tonic",
+   "zone": "The Rim",
+   "x": -8,
+   "y": 6
+  },
+  {
+   "name": "Bone stakes (the worm's line, r=350)",
+   "type": "Hazard",
+   "zone": "The Rim",
+   "x": 0,
+   "y": -350
+  },
+  {
+   "name": "Worm tunnels (horizon)",
+   "type": "Boss",
+   "zone": "The Rim",
+   "x": 300,
+   "y": 300
+  },
+  {
+   "name": "Void edge",
+   "type": "Hazard",
+   "zone": "The Rim",
+   "x": -400,
+   "y": 0
+  },
+  {
+   "name": "Quick Brine (L2)",
+   "type": "Tonic",
+   "zone": "The Descent",
+   "x": -12,
+   "y": -12
+  },
+  {
+   "name": "Needler Mk I rack (L3)",
+   "type": "Rack",
+   "zone": "The Descent",
+   "x": 12,
+   "y": -12
+  },
+  {
+   "name": "Workbench (L4)",
+   "type": "Build",
+   "zone": "The Descent",
+   "x": 12,
+   "y": 12
+  },
+  {
+   "name": "Overlook 1 (L5)",
+   "type": "Feature",
+   "zone": "The Descent",
+   "x": -18,
+   "y": 10
+  },
+  {
+   "name": "Sea-Pattern Carbine rack",
+   "type": "Rack",
+   "zone": "The Upper Galleries",
+   "x": -100,
+   "y": -50
+  },
+  {
+   "name": "Flechette 12 rack",
+   "type": "Rack",
+   "zone": "The Upper Galleries",
+   "x": 100,
+   "y": -50
+  },
+  {
+   "name": "Speed Brine",
+   "type": "Tonic",
+   "zone": "The Upper Galleries",
+   "x": 0,
+   "y": -30
+  },
+  {
+   "name": "Locker spot 1",
+   "type": "Locker",
+   "zone": "The Upper Galleries",
+   "x": 60,
+   "y": -20
+  },
+  {
+   "name": "Upper airlock (Remnant entry)",
+   "type": "Entry",
+   "zone": "The Upper Galleries",
+   "x": 110,
+   "y": -10
+  },
+  {
+   "name": "Overlook 2 (whale fall)",
+   "type": "Feature",
+   "zone": "The Upper Galleries",
+   "x": -115,
+   "y": -20
+  },
+  {
+   "name": "Beacon 1",
+   "type": "Trap",
+   "zone": "The Upper Galleries",
+   "x": 100,
+   "y": -30
+  },
+  {
+   "name": "Double Shot",
+   "type": "Tonic",
+   "zone": "The Warrens",
+   "x": -140,
+   "y": -120
+  },
+  {
+   "name": "Long Speargun rack",
+   "type": "Rack",
+   "zone": "The Warrens",
+   "x": 140,
+   "y": -120
+  },
+  {
+   "name": "Brine pool",
+   "type": "Hazard",
+   "zone": "The Warrens",
+   "x": -60,
+   "y": -100
+  },
+  {
+   "name": "Overlook 3",
+   "type": "Feature",
+   "zone": "The Warrens",
+   "x": -155,
+   "y": -100
+  },
+  {
+   "name": "Overlook 4 (Relict)",
+   "type": "Feature",
+   "zone": "The Warrens",
+   "x": -150,
+   "y": -130
+  },
+  {
+   "name": "Beacon 2",
+   "type": "Trap",
+   "zone": "The Warrens",
+   "x": -40,
+   "y": -110
+  },
+  {
+   "name": "Airlock A",
+   "type": "Entry",
+   "zone": "The Warrens",
+   "x": 90,
+   "y": -135
+  },
+  {
+   "name": "Airlock B",
+   "type": "Entry",
+   "zone": "The Warrens",
+   "x": -40,
+   "y": -135
+  },
+  {
+   "name": "Bolt Harpoon rack (mess)",
+   "type": "Rack",
+   "zone": "The Station: Mess & Quarters",
+   "x": 50,
+   "y": -200
+  },
+  {
+   "name": "Kick Brine (bunks)",
+   "type": "Tonic",
+   "zone": "The Station: Mess & Quarters",
+   "x": 110,
+   "y": -190
+  },
+  {
+   "name": "Terminals 1-2",
+   "type": "Quest",
+   "zone": "The Station: Mess & Quarters",
+   "x": 80,
+   "y": -170
+  },
+  {
+   "name": "Seal haul-out (air)",
+   "type": "Hazard",
+   "zone": "The Station: Mess & Quarters",
+   "x": 120,
+   "y": -205
+  },
+  {
+   "name": "Mule Brine (wet lab)",
+   "type": "Tonic",
+   "zone": "The Station: Specimen Labs",
+   "x": -60,
+   "y": -200
+  },
+  {
+   "name": "Deadeye Brine (dry lab)",
+   "type": "Tonic",
+   "zone": "The Station: Specimen Labs",
+   "x": -20,
+   "y": -180
+  },
+  {
+   "name": "Beacon control panel",
+   "type": "Trap",
+   "zone": "The Station: Specimen Labs",
+   "x": -70,
+   "y": -215
+  },
+  {
+   "name": "Caiman corridor",
+   "type": "Hazard",
+   "zone": "The Station: Specimen Labs",
+   "x": -30,
+   "y": -210
+  },
+  {
+   "name": "Terminals 3-4",
+   "type": "Quest",
+   "zone": "The Station: Specimen Labs",
+   "x": -50,
+   "y": -175
+  },
+  {
+   "name": "Tank 7 (Relict egg)",
+   "type": "Quest",
+   "zone": "The Station: Specimen Labs",
+   "x": -75,
+   "y": -190
+  },
+  {
+   "name": "Power: the reactor",
+   "type": "Power",
+   "zone": "The Station: Reactor",
+   "x": 0,
+   "y": -270
+  },
+  {
+   "name": "Pressure Forge",
+   "type": "Forge",
+   "zone": "The Station: Reactor",
+   "x": 20,
+   "y": -285
+  },
+  {
+   "name": "Reactor vent trap",
+   "type": "Trap",
+   "zone": "The Station: Reactor",
+   "x": -10,
+   "y": -255
+  },
+  {
+   "name": "Mech bay (Chief's Hunt)",
+   "type": "Entry",
+   "zone": "The Station: Reactor",
+   "x": 40,
+   "y": -300
+  },
+  {
+   "name": "Terminal 5",
+   "type": "Quest",
+   "zone": "The Station: Reactor",
+   "x": -20,
+   "y": -300
+  },
+  {
+   "name": "Locker spot 2",
+   "type": "Locker",
+   "zone": "The Lowest Vault",
+   "x": 120,
+   "y": -380
+  },
+  {
+   "name": "Widow's Ink",
+   "type": "Tonic",
+   "zone": "The Lowest Vault",
+   "x": 100,
+   "y": -400
+  },
+  {
+   "name": "Cold Coffin",
+   "type": "Tonic",
+   "zone": "The Lowest Vault",
+   "x": 130,
+   "y": -410
+  },
+  {
+   "name": "Stormlock rack",
+   "type": "Rack",
+   "zone": "The Lowest Vault",
+   "x": 60,
+   "y": -340
+  },
+  {
+   "name": "Cannon Harpoon rack",
+   "type": "Rack",
+   "zone": "The Lowest Vault",
+   "x": 80,
+   "y": -410
+  },
+  {
+   "name": "Leviathan's hollow",
+   "type": "Boss",
+   "zone": "The Lowest Vault",
+   "x": -40,
+   "y": -390
+  },
+  {
+   "name": "Overlook 5 (collapsing ledge)",
+   "type": "Trap",
+   "zone": "The Lowest Vault",
+   "x": -140,
+   "y": -370
+  },
+  {
+   "name": "Beacon 3",
+   "type": "Trap",
+   "zone": "The Lowest Vault",
+   "x": -130,
+   "y": -360
+  }
+ ],
+ "notes": [
+  "Vertical map: 180 m from the rim floor to the vault; the plan view is stacked, so the cross-section in the image is the real layout. Every zone below the rim has at least one overlook onto the abyss on its west side.",
+  "The Rim: 800 m across; the hatch at the centre; bone stakes at r=350 m mark the worm's line. Beyond the stakes the sand shakes for 8 s, then the worm consumes the diver (no down). The worm is visible tunneling at r=450-600 at all times: a horizon feature, nothing more.",
+  "Training loop (station): Mess -> caiman corridor -> Labs -> pressure door -> Reactor -> service shaft (one-way back up to the Mess). About 2 min, indoors, past the seal, the caiman, and the vent trap.",
+  "Training loop (deep): Galleries -> Warrens -> Airlock A -> Mess -> Reactor -> Vault -> vault stair back -> Reactor -> Labs -> Airlock B -> Warrens -> Galleries. About 6 min; the only loop that touches both Lockers.",
+  "Blood flow: almost none. The water barely moves, so blood pools where it's made (decay 0.5% base here, not 2%); the only currents are the reactor's warm plume (rises from the Reactor up the service shaft into the Mess) and the brine pool's drain over Overlook 3.",
+  "Sightlines: rim unlimited but dark (lamp 25 m); galleries 20 m; warrens 8 m; station 10-15 m; vault 40 m. Alarm regions: Rim, Galleries and Warrens, Station, Vault; the Remnant enters at the two airlocks and the upper airlock.",
+  "Specimens: salamanders breed +1 per 90 s per pair in the bunks and coelacanths +1 per 120 s per pair in the wet lab (cap 12 each); only the caiman eats them. An overrun station is loud and full of blood whenever a Remnant squad passes through."
+ ]
+}

@@ -1,0 +1,362 @@
+[
+ {
+  "beast": "Sergeant Major",
+  "attack": "Nip",
+  "damage": 2,
+  "windup_s": 0.3,
+  "cooldown_s": 1,
+  "range_m": 1,
+  "tell (what the player sees)": "Darts at the visor",
+  "effect": ""
+ },
+ {
+  "beast": "Rabbitfish",
+  "attack": "Spine",
+  "damage": 8,
+  "windup_s": 0,
+  "cooldown_s": 0,
+  "range_m": 0.5,
+  "tell (what the player sees)": "",
+  "effect": "Touch: poison 4 s"
+ },
+ {
+  "beast": "Damselfish",
+  "attack": "Bite",
+  "damage": 1,
+  "windup_s": 0.2,
+  "cooldown_s": 0.5,
+  "range_m": 1,
+  "tell (what the player sees)": "Rushes in",
+  "effect": ""
+ },
+ {
+  "beast": "Mantis Shrimp",
+  "attack": "Punch",
+  "damage": 30,
+  "windup_s": 0.4,
+  "cooldown_s": 2,
+  "range_m": 1.5,
+  "tell (what the player sees)": "Antennae flick up",
+  "effect": "Breaks a Shell Shield in 2 hits"
+ },
+ {
+  "beast": "Lionfish",
+  "attack": "Spines",
+  "damage": 20,
+  "windup_s": 0,
+  "cooldown_s": 0,
+  "range_m": 0.6,
+  "tell (what the player sees)": "",
+  "effect": "Contact: poison 5 s"
+ },
+ {
+  "beast": "Cuttlefish",
+  "attack": "Flash",
+  "damage": 0,
+  "windup_s": 0.5,
+  "cooldown_s": 6,
+  "range_m": 4,
+  "tell (what the player sees)": "Skin ripples",
+  "effect": "Diver aim sway +30% for 3 s"
+ },
+ {
+  "beast": "Banded Sea Snake",
+  "attack": "Bite",
+  "damage": 10,
+  "windup_s": 0.5,
+  "cooldown_s": 2,
+  "range_m": 1,
+  "tell (what the player sees)": "Coils back",
+  "effect": "Poison 20 over 10 s"
+ },
+ {
+  "beast": "Stonefish",
+  "attack": "Spines",
+  "damage": 40,
+  "windup_s": 0,
+  "cooldown_s": 0,
+  "range_m": 0.6,
+  "tell (what the player sees)": "",
+  "effect": "Contact: poison 8 s"
+ },
+ {
+  "beast": "Jelly Bloom",
+  "attack": "Sting",
+  "damage": 5,
+  "windup_s": 0,
+  "cooldown_s": 1,
+  "range_m": 1,
+  "tell (what the player sees)": "",
+  "effect": "Contact: 5/s"
+ },
+ {
+  "beast": "Remora",
+  "attack": "Attach",
+  "damage": 0,
+  "windup_s": 0.3,
+  "cooldown_s": 0,
+  "range_m": 0.5,
+  "tell (what the player sees)": "Swims alongside",
+  "effect": "Diver swim speed -15% until brushed"
+ },
+ {
+  "beast": "Lamprey",
+  "attack": "Latch",
+  "damage": 2,
+  "windup_s": 0.5,
+  "cooldown_s": 0,
+  "range_m": 0.5,
+  "tell (what the player sees)": "Circles the target",
+  "effect": "Host bleeds 2/s; host becomes a blood source"
+ },
+ {
+  "beast": "Green Moray",
+  "attack": "Strike",
+  "damage": 35,
+  "windup_s": 0.4,
+  "cooldown_s": 1.5,
+  "range_m": 2,
+  "tell (what the player sees)": "Mouth opens wide",
+  "effect": "Bleed 3 s"
+ },
+ {
+  "beast": "Green Moray",
+  "attack": "Hold",
+  "damage": 15,
+  "windup_s": 0.6,
+  "cooldown_s": 4,
+  "range_m": 1.5,
+  "tell (what the player sees)": "Body straightens",
+  "effect": "Holds 2 s"
+ },
+ {
+  "beast": "Great Barracuda",
+  "attack": "Slash",
+  "damage": 30,
+  "windup_s": 0.3,
+  "cooldown_s": 1.2,
+  "range_m": 2,
+  "tell (what the player sees)": "Straightens and accelerates",
+  "effect": "Bleed 3 s"
+ },
+ {
+  "beast": "Great Barracuda",
+  "attack": "Hit-and-run",
+  "damage": 45,
+  "windup_s": 0.5,
+  "cooldown_s": 4,
+  "range_m": 10,
+  "tell (what the player sees)": "Circles wide",
+  "effect": "Passes through; no hold"
+ },
+ {
+  "beast": "Grouper",
+  "attack": "Gulp",
+  "damage": 40,
+  "windup_s": 0.6,
+  "cooldown_s": 2.5,
+  "range_m": 2,
+  "tell (what the player sees)": "Gills flare",
+  "effect": "Swallows size 1 whole; on a diver: 40 and 1 s hold"
+ },
+ {
+  "beast": "Bluefin Trevally",
+  "attack": "Ram",
+  "damage": 25,
+  "windup_s": 0.4,
+  "cooldown_s": 1.5,
+  "range_m": 3,
+  "tell (what the player sees)": "Pack fans out",
+  "effect": "Knocks a diver 2 m"
+ },
+ {
+  "beast": "Common Octopus",
+  "attack": "Grab",
+  "damage": 20,
+  "windup_s": 0.5,
+  "cooldown_s": 3,
+  "range_m": 2.5,
+  "tell (what the player sees)": "Arm extends",
+  "effect": "Steals a held part or charm, then flees home"
+ },
+ {
+  "beast": "Nurse Shark",
+  "attack": "Bite",
+  "damage": 30,
+  "windup_s": 0.6,
+  "cooldown_s": 3,
+  "range_m": 1.5,
+  "tell (what the player sees)": "Only if shot",
+  "effect": ""
+ },
+ {
+  "beast": "Hawksbill Turtle",
+  "attack": "Bite",
+  "damage": 25,
+  "windup_s": 0.6,
+  "cooldown_s": 3,
+  "range_m": 1,
+  "tell (what the player sees)": "Only if shot",
+  "effect": ""
+ },
+ {
+  "beast": "Loggerhead Turtle",
+  "attack": "Crush",
+  "damage": 60,
+  "windup_s": 0.8,
+  "cooldown_s": 4,
+  "range_m": 1.2,
+  "tell (what the player sees)": "Head draws back",
+  "effect": "Destroys a Shell Shield"
+ },
+ {
+  "beast": "Sand Tiger Shark",
+  "attack": "Bite",
+  "damage": 70,
+  "windup_s": 0.5,
+  "cooldown_s": 2,
+  "range_m": 2,
+  "tell (what the player sees)": "Mouth gapes, ragged teeth",
+  "effect": "Bleed 4 s"
+ },
+ {
+  "beast": "Sand Tiger Shark",
+  "attack": "Thrash",
+  "damage": 40,
+  "windup_s": 0.4,
+  "cooldown_s": 3,
+  "range_m": 2.5,
+  "tell (what the player sees)": "Tail sweeps",
+  "effect": "Knockback 3 m"
+ },
+ {
+  "beast": "Bull Shark",
+  "attack": "Bite",
+  "damage": 80,
+  "windup_s": 0.4,
+  "cooldown_s": 1.8,
+  "range_m": 2,
+  "tell (what the player sees)": "Pectorals drop",
+  "effect": "Bleed 4 s"
+ },
+ {
+  "beast": "Bull Shark",
+  "attack": "Ram",
+  "damage": 50,
+  "windup_s": 0.5,
+  "cooldown_s": 3,
+  "range_m": 6,
+  "tell (what the player sees)": "Straight line charge",
+  "effect": "Knockback 4 m, stun 1 s"
+ },
+ {
+  "beast": "Bull Shark",
+  "attack": "Hold",
+  "damage": 30,
+  "windup_s": 0.6,
+  "cooldown_s": 5,
+  "range_m": 1.5,
+  "tell (what the player sees)": "Head shakes",
+  "effect": "Holds 2 s; teammates must shoot it off"
+ },
+ {
+  "beast": "Saltwater Crocodile",
+  "attack": "Death Roll",
+  "damage": 120,
+  "windup_s": 0.9,
+  "cooldown_s": 6,
+  "range_m": 2.5,
+  "tell (what the player sees)": "Rises from the air pocket, jaws open",
+  "effect": "Holds and rolls; teammates have 4 s"
+ },
+ {
+  "beast": "Saltwater Crocodile",
+  "attack": "Snap",
+  "damage": 60,
+  "windup_s": 0.4,
+  "cooldown_s": 2,
+  "range_m": 2,
+  "tell (what the player sees)": "Jaw clicks",
+  "effect": "Bleed 3 s"
+ },
+ {
+  "beast": "Saltwater Crocodile",
+  "attack": "Tail",
+  "damage": 45,
+  "windup_s": 0.5,
+  "cooldown_s": 3,
+  "range_m": 3,
+  "tell (what the player sees)": "Turns side-on",
+  "effect": "Knockback 4 m"
+ },
+ {
+  "beast": "Tiger Shark",
+  "attack": "Bite",
+  "damage": 110,
+  "windup_s": 0.5,
+  "cooldown_s": 2,
+  "range_m": 2.5,
+  "tell (what the player sees)": "Rolls to one side",
+  "effect": "Bleed 5 s"
+ },
+ {
+  "beast": "Tiger Shark",
+  "attack": "Ram",
+  "damage": 70,
+  "windup_s": 0.5,
+  "cooldown_s": 4,
+  "range_m": 8,
+  "tell (what the player sees)": "Straight charge",
+  "effect": "Knockback 5 m, stun 1 s"
+ },
+ {
+  "beast": "Tiger Shark",
+  "attack": "Drag",
+  "damage": 50,
+  "windup_s": 0.7,
+  "cooldown_s": 8,
+  "range_m": 2,
+  "tell (what the player sees)": "Grabs and swims",
+  "effect": "Carries a diver 10 m; teammates shoot it off"
+ },
+ {
+  "beast": "The Goliath",
+  "attack": "Inhale",
+  "damage": 0,
+  "windup_s": 1.5,
+  "cooldown_s": 12,
+  "range_m": 4,
+  "tell (what the player sees)": "Gills close, water rushes",
+  "effect": "Pulls a diver into its mouth; 5 s to shoot it out (150 damage to the gills)"
+ },
+ {
+  "beast": "The Goliath",
+  "attack": "Tail Slam",
+  "damage": 90,
+  "windup_s": 0.8,
+  "cooldown_s": 5,
+  "range_m": 4,
+  "tell (what the player sees)": "Turns away",
+  "effect": "Knockback 6 m; drops loose cargo"
+ },
+ {
+  "beast": "The Goliath",
+  "attack": "Boom",
+  "damage": 25,
+  "windup_s": 0.6,
+  "cooldown_s": 3,
+  "range_m": 10,
+  "tell (what the player sees)": "Swim bladder swells",
+  "effect": "Loud 10-noise pulse: stun 1 s in 10 m"
+ },
+ {
+  "beast": "The Goliath",
+  "attack": "Lunge",
+  "damage": 140,
+  "windup_s": 0.7,
+  "cooldown_s": 4,
+  "range_m": 6,
+  "tell (what the player sees)": "Fins flare",
+  "effect": "Bleed 5 s"
+ }
+]

@@ -1,0 +1,410 @@
+[
+ {
+  "zone": "The Lagoon",
+  "species": "Box Jelly",
+  "count_tide1": 4,
+  "respawn_s": 240,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 5
+ },
+ {
+  "zone": "The Lagoon",
+  "species": "Reef Axolotl",
+  "count_tide1": 4,
+  "respawn_s": 240,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 5
+ },
+ {
+  "zone": "The Lagoon",
+  "species": "Monk Seal",
+  "count_tide1": 1,
+  "respawn_s": 600,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 1
+ },
+ {
+  "zone": "The Lagoon",
+  "species": "Anthias",
+  "count_tide1": 20,
+  "respawn_s": 20,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 26
+ },
+ {
+  "zone": "Mangrove Nursery",
+  "species": "Crab-eating Frog",
+  "count_tide1": 6,
+  "respawn_s": 180,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 8
+ },
+ {
+  "zone": "Mangrove Nursery",
+  "species": "Reef Axolotl",
+  "count_tide1": 4,
+  "respawn_s": 240,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 5
+ },
+ {
+  "zone": "Mangrove Nursery",
+  "species": "Giant Reef Toad",
+  "count_tide1": 1,
+  "respawn_s": 500,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 1
+ },
+ {
+  "zone": "Mangrove Nursery",
+  "species": "Olive Sea Snake",
+  "count_tide1": 1,
+  "respawn_s": 300,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 1
+ },
+ {
+  "zone": "Staghorn Forest",
+  "species": "Clownfish",
+  "count_tide1": 8,
+  "respawn_s": 120,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 10
+ },
+ {
+  "zone": "Staghorn Forest",
+  "species": "Butterflyfish",
+  "count_tide1": 8,
+  "respawn_s": 90,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 10
+ },
+ {
+  "zone": "Staghorn Forest",
+  "species": "Angelfish",
+  "count_tide1": 6,
+  "respawn_s": 120,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 8
+ },
+ {
+  "zone": "Staghorn Forest",
+  "species": "Triggerfish",
+  "count_tide1": 3,
+  "respawn_s": 180,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 4
+ },
+ {
+  "zone": "Staghorn Forest",
+  "species": "Crown-of-thorns Starfish",
+  "count_tide1": 4,
+  "respawn_s": 300,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 5
+ },
+ {
+  "zone": "Staghorn Forest",
+  "species": "Ribbon Eel",
+  "count_tide1": 4,
+  "respawn_s": 300,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 5
+ },
+ {
+  "zone": "Staghorn Forest",
+  "species": "Olive Sea Snake",
+  "count_tide1": 2,
+  "respawn_s": 300,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 3
+ },
+ {
+  "zone": "Staghorn Forest",
+  "species": "Moray Eel",
+  "count_tide1": 4,
+  "respawn_s": 360,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 5
+ },
+ {
+  "zone": "Staghorn Forest",
+  "species": "Coral Grouper",
+  "count_tide1": 4,
+  "respawn_s": 360,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 5
+ },
+ {
+  "zone": "Staghorn Forest",
+  "species": "Blacktip Reef Shark",
+  "count_tide1": 4,
+  "respawn_s": 600,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 5
+ },
+ {
+  "zone": "The Bommie",
+  "species": "Anthias",
+  "count_tide1": 60,
+  "respawn_s": 20,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 78
+ },
+ {
+  "zone": "The Bommie",
+  "species": "Cleaner Wrasse",
+  "count_tide1": 3,
+  "respawn_s": 300,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 4
+ },
+ {
+  "zone": "The Bommie",
+  "species": "Surgeonfish",
+  "count_tide1": 8,
+  "respawn_s": 120,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 10
+ },
+ {
+  "zone": "The Bommie",
+  "species": "Razorfish",
+  "count_tide1": 30,
+  "respawn_s": 30,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 39
+ },
+ {
+  "zone": "The Bommie",
+  "species": "Marine Iguana",
+  "count_tide1": 8,
+  "respawn_s": 200,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 10
+ },
+ {
+  "zone": "The Bommie",
+  "species": "Napoleon Wrasse",
+  "count_tide1": 1,
+  "respawn_s": 600,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 1
+ },
+ {
+  "zone": "Brain Coral Maze",
+  "species": "Sea Urchin",
+  "count_tide1": 12,
+  "respawn_s": 120,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 16
+ },
+ {
+  "zone": "Brain Coral Maze",
+  "species": "Spiny Lobster",
+  "count_tide1": 4,
+  "respawn_s": 180,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 5
+ },
+ {
+  "zone": "Brain Coral Maze",
+  "species": "Blue-ringed Octopus",
+  "count_tide1": 3,
+  "respawn_s": 300,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 4
+ },
+ {
+  "zone": "Brain Coral Maze",
+  "species": "Reef Cuttlefish",
+  "count_tide1": 3,
+  "respawn_s": 240,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 4
+ },
+ {
+  "zone": "Brain Coral Maze",
+  "species": "Titan Triggerfish",
+  "count_tide1": 2,
+  "respawn_s": 400,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 3
+ },
+ {
+  "zone": "Brain Coral Maze",
+  "species": "Moray Eel",
+  "count_tide1": 2,
+  "respawn_s": 360,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 3
+ },
+ {
+  "zone": "The Sand Flats",
+  "species": "Garden Eel",
+  "count_tide1": 1,
+  "respawn_s": 120,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 1
+ },
+ {
+  "zone": "The Sand Flats",
+  "species": "Goatfish",
+  "count_tide1": 10,
+  "respawn_s": 120,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 13
+ },
+ {
+  "zone": "The Sand Flats",
+  "species": "Flounder",
+  "count_tide1": 5,
+  "respawn_s": 180,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 7
+ },
+ {
+  "zone": "The Sand Flats",
+  "species": "Sand Dollar",
+  "count_tide1": 1,
+  "respawn_s": 300,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 1
+ },
+ {
+  "zone": "The Sand Flats",
+  "species": "Cone Snail",
+  "count_tide1": 5,
+  "respawn_s": 300,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 7
+ },
+ {
+  "zone": "The Sand Flats",
+  "species": "Green Turtle",
+  "count_tide1": 2,
+  "respawn_s": 500,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 3
+ },
+ {
+  "zone": "The Sand Flats",
+  "species": "Stingray",
+  "count_tide1": 4,
+  "respawn_s": 400,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 5
+ },
+ {
+  "zone": "The Sand Flats",
+  "species": "Bobbit Worm",
+  "count_tide1": 3,
+  "respawn_s": 0,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 4
+ },
+ {
+  "zone": "The Sand Flats",
+  "species": "Dugong",
+  "count_tide1": 2,
+  "respawn_s": 900,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 3
+ },
+ {
+  "zone": "The Sand Flats",
+  "species": "Box Jelly",
+  "count_tide1": 3,
+  "respawn_s": 240,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 4
+ },
+ {
+  "zone": "Turtle Beach",
+  "species": "Green Turtle",
+  "count_tide1": 2,
+  "respawn_s": 500,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 3
+ },
+ {
+  "zone": "Turtle Beach",
+  "species": "Crab-eating Frog",
+  "count_tide1": 4,
+  "respawn_s": 180,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 5
+ },
+ {
+  "zone": "The Blue Hole",
+  "species": "Manta Ray",
+  "count_tide1": 1,
+  "respawn_s": 600,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 1
+ },
+ {
+  "zone": "The Blue Hole",
+  "species": "Great Hammerhead",
+  "count_tide1": 1,
+  "respawn_s": 900,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 1
+ },
+ {
+  "zone": "The Blue Hole",
+  "species": "Anthias",
+  "count_tide1": 30,
+  "respawn_s": 20,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 39
+ },
+ {
+  "zone": "The Drop-off Wall",
+  "species": "Grey Reef Shark",
+  "count_tide1": 2,
+  "respawn_s": 600,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 3
+ },
+ {
+  "zone": "The Drop-off Wall",
+  "species": "Bottlenose Dolphin",
+  "count_tide1": 5,
+  "respawn_s": 0,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 7
+ },
+ {
+  "zone": "The Drop-off Wall",
+  "species": "Manta Ray",
+  "count_tide1": 1,
+  "respawn_s": 600,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 1
+ },
+ {
+  "zone": "The Drop-off Wall",
+  "species": "Humpback Whale",
+  "count_tide1": 1,
+  "respawn_s": 0,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 1
+ },
+ {
+  "zone": "The Drop-off Wall",
+  "species": "The Matriarch",
+  "count_tide1": 1,
+  "respawn_s": 0,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 1
+ },
+ {
+  "zone": "The Drop-off Wall",
+  "species": "Monk Seal",
+  "count_tide1": 1,
+  "respawn_s": 600,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 1
+ }
+]

@@ -1,5 +1,10 @@
 #include "sound.h"
 #include "beasts.h"
+#include "trawl.h"
+#include "trawl_eco.h"
+#include "trawl_session.h"
+#include "redtide.h"
+#include "redtide_match.h"
 // ============================================================================
 //  DEPTH - entry point. Opens the window and runs whichever scene is active.
 //
@@ -18,6 +23,7 @@
 #include "levelgen.h"
 #include "relics.h"
 #include <algorithm>
+#include <cmath>
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
@@ -31,6 +37,8 @@ static void RunScene(Game& g) {
     switch (g.scene) {
         case Scene::Study:      SceneStudy(g); break;
         case Scene::Arcade:     SceneArcade(g); break;
+        case Scene::RedTide:    SceneRedTide(g); break;
+        case Scene::Trawl:      SceneTrawl(g); break;
         case Scene::Hub:        SceneHub(g); break;
         case Scene::Helm:       SceneHelm(g); break;
         case Scene::Crew:       SceneCrew(g); break;
@@ -185,6 +193,70 @@ static void TakeShots(const Game& base, const std::string& dir) {
         {"arcade_table", [](Game& g) { g.scene = Scene::Arcade; DebugArcadeShot(1); }},
         {"arcade_result", [](Game& g) { g.scene = Scene::Arcade; DebugArcadeShot(2); }},
         {"arcade_rules", [](Game& g) { g.scene = Scene::Arcade; DebugArcadeShot(3); }},
+        {"arcade_redtide", [](Game& g) { g.scene = Scene::Arcade; DebugArcadeReel(4); }},
+        {"arcade_trawl", [](Game& g) { g.scene = Scene::Arcade; DebugArcadeReel(1); }},
+        {"trawl_deck", [](Game& g) { DebugTrawlShot(g, 0); }},
+        {"trawl_engine", [](Game& g) { DebugTrawlShot(g, 1); }},
+        {"trawl_wheelhouse", [](Game& g) { DebugTrawlShot(g, 2); }},
+        {"trawl_squall", [](Game& g) { DebugTrawlShot(g, 3); }},
+        {"trawl_fishon", [](Game& g) { DebugTrawlShot(g, 4); }},
+        {"trawl_jump", [](Game& g) { DebugTrawlShot(g, 5); }},
+        {"trawl_lagoon", [](Game& g) { DebugTrawlShot(g, 6); }},
+        {"trawl_searchlight", [](Game& g) { DebugTrawlShot(g, 7); }},
+        {"trawl_shark", [](Game& g) { DebugTrawlShot(g, 8); }},
+        {"trawl_dock", [](Game& g) { DebugTrawlShot(g, 9); }},
+        {"trawl_chandler", [](Game& g) { DebugTrawlShot(g, 10); }},
+        {"trawl_market", [](Game& g) { DebugTrawlShot(g, 11); }},
+        {"trawl_chart", [](Game& g) { DebugTrawlShot(g, 12); }},
+        {"trawl_clock", [](Game& g) { DebugTrawlShot(g, 13); }},
+        {"trawl_quota", [](Game& g) { DebugTrawlShot(g, 14); }},
+        {"trawl_net", [](Game& g) { DebugTrawlShot(g, 15); }},
+        {"trawl_rifle", [](Game& g) { DebugTrawlShot(g, 16); }},
+        {"trawl_overboard", [](Game& g) { DebugTrawlShot(g, 17); }},
+        {"trawl_ghost", [](Game& g) { DebugTrawlShot(g, 18); }},
+        {"trawl_harpoon", [](Game& g) { DebugTrawlShot(g, 19); }},
+        {"trawl_locker", [](Game& g) { DebugTrawlShot(g, 20); }},
+        {"redtide_tank", [](Game& g) { DebugRedTideShot(g, 0); }},
+        {"redtide_silhouette", [](Game& g) { DebugRedTideShot(g, 1); }},
+        {"redtide_species_ship_1", [](Game& g) { DebugRedTideShot(g, 2); }},
+        {"redtide_species_ship_2", [](Game& g) { DebugRedTideShot(g, 3); }},
+        {"redtide_ship_bridge", [](Game& g) { DebugRedTideShot(g, 10); }},
+        {"redtide_ship_salon", [](Game& g) { DebugRedTideShot(g, 11); }},
+        {"redtide_ship_engine", [](Game& g) { DebugRedTideShot(g, 12); }},
+        {"redtide_ship_keel", [](Game& g) { DebugRedTideShot(g, 13); }},
+        {"redtide_ship_hunt", [](Game& g) { DebugRedTideShot(g, 14); }},
+        {"redtide_ship_cabins", [](Game& g) { DebugRedTideShot(g, 15); }},
+        {"redtide_ship_salvage", [](Game& g) { DebugRedTideShot(g, 16); }},
+        {"redtide_cave_mouth", [](Game& g) { DebugRedTideShot(g, 20); }},
+        {"redtide_cave_gallery", [](Game& g) { DebugRedTideShot(g, 21); }},
+        {"redtide_cave_chimney", [](Game& g) { DebugRedTideShot(g, 22); }},
+        {"redtide_cave_dry", [](Game& g) { DebugRedTideShot(g, 23); }},
+        {"redtide_cave_cathedral", [](Game& g) { DebugRedTideShot(g, 24); }},
+        {"redtide_cave_sump", [](Game& g) { DebugRedTideShot(g, 25); }},
+        {"redtide_reef_lagoon", [](Game& g) { DebugRedTideShot(g, 30); }},
+        {"redtide_reef_forest", [](Game& g) { DebugRedTideShot(g, 31); }},
+        {"redtide_reef_bommie", [](Game& g) { DebugRedTideShot(g, 32); }},
+        {"redtide_reef_wall", [](Game& g) { DebugRedTideShot(g, 33); }},
+        {"redtide_reef_bluehole", [](Game& g) { DebugRedTideShot(g, 34); }},
+        {"redtide_reef_matriarch", [](Game& g) { DebugRedTideShot(g, 35); }},
+        {"redtide_atlantis_gate", [](Game& g) { DebugRedTideShot(g, 40); }},
+        {"redtide_atlantis_town", [](Game& g) { DebugRedTideShot(g, 41); }},
+        {"redtide_atlantis_forum", [](Game& g) { DebugRedTideShot(g, 42); }},
+        {"redtide_atlantis_chapel", [](Game& g) { DebugRedTideShot(g, 43); }},
+        {"redtide_atlantis_wall", [](Game& g) { DebugRedTideShot(g, 44); }},
+        {"redtide_atlantis_wyrm", [](Game& g) { DebugRedTideShot(g, 45); }},
+        {"redtide_void_rim", [](Game& g) { DebugRedTideShot(g, 50); }},
+        {"redtide_void_galleries", [](Game& g) { DebugRedTideShot(g, 51); }},
+        {"redtide_void_labs", [](Game& g) { DebugRedTideShot(g, 52); }},
+        {"redtide_void_vault", [](Game& g) { DebugRedTideShot(g, 53); }},
+        {"redtide_void_warrens", [](Game& g) { DebugRedTideShot(g, 54); }},
+        {"redtide_void_overlook", [](Game& g) { DebugRedTideShot(g, 55); }},
+        {"redtide_page_dossier", [](Game& g) { rt::DebugRedTidePage(1, 0, 6); g.scene = Scene::RedTide; }},
+        {"redtide_page_dossier_locked", [](Game& g) { rt::DebugRedTidePage(1, 2, 1); g.scene = Scene::RedTide; }},
+        {"redtide_page_records", [](Game& g) { rt::DebugRedTidePage(2, 0, -1); g.scene = Scene::RedTide; }},
+        {"redtide_page_howto", [](Game& g) { rt::DebugRedTidePage(3, 0, -1); g.scene = Scene::RedTide; }},
+        {"redtide_page_charms", [](Game& g) { rt::DebugRedTidePage(4, 0, -1); g.scene = Scene::RedTide; }},
+        {"redtide_page_locker", [](Game& g) { rt::DebugRedTidePage(5, 0, -1); g.scene = Scene::RedTide; }},
         {"panel_ward", [](Game& g) { g.scene = Scene::Ward; Hero& h = g.roster[1]; g.selectedHero = h.id; h.hp = h.hp / 2; h.ailments = (1u << AIL_SALT_ROT) | (1u << AIL_BENDS); h.habits = (1u << HB_STEADY_HANDS) | (1u << HB_NIGHT_EYES) | (1u << HB_JUMPY); h.habitLocked = 1u << HB_NIGHT_EYES; g.gold = 400; }},
         {"panel_sickbay", [](Game& g) { g.scene = Scene::SickLeave; }},
         {"flats_menu", [](Game& g) { g.scene = Scene::Cards; }},
@@ -533,6 +605,50 @@ int main(int argc, char** argv) {
         SetTraceLogLevel(LOG_WARNING);
         return VerifyMoves() ? 0 : 1;
     }
+    // Red Tide (the Deep Arcade's survival shooter): the headless ecosystem tools
+    if (argc >= 3 && strcmp(argv[1], "--eco-sim") == 0) {
+        SetTraceLogLevel(LOG_WARNING);
+        return rt::RunEcoSim(argv[2], argc >= 4 ? (float)atof(argv[3]) : 5.0f, argc >= 5 ? argv[4] : "sprat");
+    }
+    if (argc >= 3 && strcmp(argv[1], "--web-check") == 0) {
+        SetTraceLogLevel(LOG_WARNING);
+        if (strcmp(argv[2], "all") == 0) { int r = 0; for (const char* k : {"ship", "cave", "reef", "atlantis", "void"}) r |= rt::RunWebCheck(k); return r; }
+        return rt::RunWebCheck(argv[2]);
+    }
+    if (argc >= 2 && strcmp(argv[1], "--trawl-eco") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlEco(argc, argv); }
+    if (argc >= 2 && strcmp(argv[1], "--trawl-gear-test") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlGearTest(); }
+    if (argc >= 2 && strcmp(argv[1], "--trawl-session-test") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlSessionTest(); }
+    if (argc >= 2 && strcmp(argv[1], "--trawl-eco-test") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlEcoTest(); }
+    if (argc >= 2 && strcmp(argv[1], "--trawl-fight") == 0) return tw::RunTrawlFight(argc, argv);
+    if (argc >= 2 && strcmp(argv[1], "--trawl-boat-test") == 0) {
+        SetTraceLogLevel(LOG_WARNING);
+        return tw::RunTrawlBoatTest();
+    }
+    if (argc >= 2 && strcmp(argv[1], "--redtide-test") == 0) {
+        SetTraceLogLevel(LOG_WARNING);
+        return RunRedTideTest();
+    }
+    if (argc >= 3 && strcmp(argv[1], "--redtide-map-test") == 0) {
+        SetTraceLogLevel(LOG_WARNING);
+        return rt::RunRedTideMapTest(argv[2]);
+    }
+    if (argc >= 2 && strcmp(argv[1], "--redtide-profile-test") == 0) {
+        SetTraceLogLevel(LOG_WARNING);
+        return rt::RunRedTideProfileTest();
+    }
+    if (argc >= 2 && strcmp(argv[1], "--redtide-match-test") == 0) {
+        SetTraceLogLevel(LOG_WARNING);
+        return rt::RunRedTideMatchTest();
+    }
+    // --redtide-sim <map> <tides> [careful|careless] [runs] [players]
+    if (argc >= 3 && strcmp(argv[1], "--redtide-sim") == 0) {
+        SetTraceLogLevel(LOG_WARNING);
+        return rt::RunRedTideSim(argv[2], argc >= 4 ? atoi(argv[3]) : 10, argc >= 5 ? argv[4] : "careful", argc >= 6 ? atoi(argv[5]) : 3, argc >= 7 ? atoi(argv[6]) : 4);
+    }
+    if (argc >= 3 && strcmp(argv[1], "--eco-test") == 0) {
+        SetTraceLogLevel(LOG_WARNING);
+        return rt::RunEcoTest(argv[2]);
+    }
     if (argc >= 2 && strcmp(argv[1], "--verify-beasts") == 0) {
         SetTraceLogLevel(LOG_WARNING);
         return VerifyBeasts() ? 0 : 1;
@@ -682,10 +798,12 @@ int main(int argc, char** argv) {
             BeginFrame();
             RunScene(g);
             {   // aboard the Nautilus (the salon and its station screens) the waltz and the ship's bed play
-                bool aboard = g.scene != Scene::Platformer && g.scene != Scene::Abyss && g.scene != Scene::Dungeon && g.scene != Scene::Study;
+                bool aboard = g.scene != Scene::Platformer && g.scene != Scene::Abyss && g.scene != Scene::Dungeon && g.scene != Scene::Study
+                              && !(g.scene == Scene::RedTide && RedTideAudioActive()) && g.scene != Scene::Trawl;
                 AudioHub(aboard, g.scene == Scene::Hub ? -1 : (int)g.scene, g.mourning);
                 AudioStudy(g.scene == Scene::Study);   // below the hatch: the Study's own soundscape instead
                 if (g.scene != Scene::Dungeon) AudioExpedition(ExpAudio{});   // (the Dungeon scene sets it every frame)
+                if (g.scene != Scene::RedTide) AudioRedTide(RtAudio{});      // (and the Red Tide scene)
             }
             AudioFrame(GetFrameTime(), g.scene == Scene::Platformer || g.scene == Scene::Abyss);
             DrawToast(g);

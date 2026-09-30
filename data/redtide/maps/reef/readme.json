@@ -1,0 +1,10 @@
+[
+ "Red Tide — The Coral Reef: map data workbook",
+ "Sheets: Species (blue = tunable inputs), Attacks, Diet (predator rows x food columns, weights sum to 1), Flora, Spawn, TideCurve (formulas from the Tunables block), Blockout (zones, links, points of interest in metres), Boss, Faction.",
+ "Claude Code loads these as redtide_maps/reef/*.json. Change blue cells only; formulas recompute.",
+ "Rules: HP = base x 1.08^(tide-1); bounty = base x 1.10^(tide-1); blood on death = size x 20; blood/s wounded = size x 2 x wound fraction.",
+ "Sizes 1-6 map to HP 20/60/250/900/3000/15000 and bounty 40/80/180/400/900/1500 (design doc, Shared beast rules).",
+ "All values are design targets from the Red Tide design document (2026-09-29); tune with --eco-sim and --redtide-sim.",
+ "Reef-specific: the CORRIDORS table in Blockout lists the staghorn and brain-coral corridors with their eel holes and Reacher gates; the ALLIES block in Faction covers the dolphin pod.",
+ "Depth is metres below the surface. The Lagoon and Turtle Beach are shallows (2-4 m) with surface air; the Blue Hole descends to 60 m."
+]

@@ -6,6 +6,7 @@
 #include "game.h"
 #include "beasts.h"
 #include <algorithm>
+#include <cmath>
 #include <cstring>
 #include <string>
 #include <vector>

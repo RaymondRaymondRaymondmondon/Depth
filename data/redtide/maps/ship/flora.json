@@ -1,0 +1,122 @@
+[
+ {
+  "flora": "Turf algae",
+  "type": "Producer",
+  "zones": "Keel, Stern",
+  "effect": "Grazer food; parrotfish crunch draws barracuda",
+  "contact_damage": 0,
+  "grazed_by": "Parrotfish, Rabbitfish, Sergeant Major, Damselfish, Fiddler Crab",
+  "regrowth_rate_per_s": 1,
+  "regrow_delay_s": 60
+ },
+ {
+  "flora": "Sea lettuce",
+  "type": "Producer",
+  "zones": "Salon",
+  "effect": "Grazer food; dies back if grazers are wiped, regrows in 90 s",
+  "contact_damage": 0,
+  "grazed_by": "Sea Hare, Rabbitfish",
+  "regrowth_rate_per_s": 1,
+  "regrow_delay_s": 90
+ },
+ {
+  "flora": "Fire coral",
+  "type": "Hazard",
+  "zones": "Cabins, Galley",
+  "effect": "Touch: 15 burn + flinch",
+  "contact_damage": 15,
+  "grazed_by": "",
+  "regrowth_rate_per_s": 0,
+  "regrow_delay_s": 0
+ },
+ {
+  "flora": "Stinging hydroids",
+  "type": "Hazard",
+  "zones": "Salon doorways, Cabins",
+  "effect": "Touch: bleed 3 s",
+  "contact_damage": 4,
+  "grazed_by": "",
+  "regrowth_rate_per_s": 0,
+  "regrow_delay_s": 0
+ },
+ {
+  "flora": "Barrel sponge",
+  "type": "Shelter",
+  "zones": "Galley, Stern",
+  "effect": "Hides size-1 beasts; hawksbill food",
+  "contact_damage": 0,
+  "grazed_by": "Hawksbill Turtle",
+  "regrowth_rate_per_s": 0.3,
+  "regrow_delay_s": 120
+ },
+ {
+  "flora": "Sea fan",
+  "type": "Cover",
+  "zones": "Cabins",
+  "effect": "Blocks sight; a moray or stonefish usually behind it",
+  "contact_damage": 0,
+  "grazed_by": "",
+  "regrowth_rate_per_s": 0,
+  "regrow_delay_s": 0
+ },
+ {
+  "flora": "Anemone bed",
+  "type": "Host/Hazard",
+  "zones": "Keel",
+  "effect": "Clownfish home; stings 10; holds size 1",
+  "contact_damage": 10,
+  "grazed_by": "",
+  "regrowth_rate_per_s": 0,
+  "regrow_delay_s": 0
+ },
+ {
+  "flora": "Bladder kelp (mast)",
+  "type": "Shelter/Current",
+  "zones": "Outside",
+  "effect": "Hides divers from sight; sways with current",
+  "contact_damage": 0,
+  "grazed_by": "",
+  "regrowth_rate_per_s": 0,
+  "regrow_delay_s": 0
+ },
+ {
+  "flora": "Coralline crust",
+  "type": "Producer",
+  "zones": "Keel, Stern",
+  "effect": "Whelk and sea hare food",
+  "contact_damage": 0,
+  "grazed_by": "Whelk, Sea Hare",
+  "regrowth_rate_per_s": 0.5,
+  "regrow_delay_s": 120
+ },
+ {
+  "flora": "Dead man's fingers",
+  "type": "Luminous",
+  "zones": "Stern",
+  "effect": "Glows when touched; draws squid and cuttlefish at night tides",
+  "contact_damage": 0,
+  "grazed_by": "",
+  "regrowth_rate_per_s": 0,
+  "regrow_delay_s": 0
+ },
+ {
+  "flora": "Sargassum raft",
+  "type": "Shelter",
+  "zones": "Outside (surface)",
+  "effect": "Shade; jelly bloom gathers under it",
+  "contact_damage": 0,
+  "grazed_by": "",
+  "regrowth_rate_per_s": 0,
+  "regrow_delay_s": 0
+ },
+ {
+  "flora": "Luminous algae mat",
+  "type": "Luminous producer",
+  "zones": "Engine",
+  "effect": "Krill food; lights the engine room; the Goliath's lamp",
+  "contact_damage": 0,
+  "grazed_by": "Rudder Krill",
+  "regrowth_rate_per_s": 1,
+  "regrow_delay_s": 60
+ }
+]

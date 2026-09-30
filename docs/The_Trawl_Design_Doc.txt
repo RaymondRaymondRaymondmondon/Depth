@@ -1,0 +1,2599 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+
+
+
+
+  The Trawl — Arcade Game 2 Design
+  Document (Draft)
+    Sep 29, 2026        · ​@Phillip Argall
+
+
+  Overview and pillars
+  The Trawl is a 1–6 player co-op fishing horror game: a crew works a steam trawler through
+  three nights per deadline to meet the Owners' quota, while a living food web under the
+  hull decides what bites, what hunts, and what comes up the rail. It replaces the Trawl
+  section of the Depth Master Reference (1–4 players, one stub loop) and becomes the full
+  design Claude Code builds from, the way Fathoms has its own document.
+
+  What it takes from each source. From Lethal Company: the quota and deadline, a shared
+  ship, scavenging for value, a store and a buy-back rate that changes by day, monsters with
+  tells and counters, a terminal, proximity voice, and dead players who stay useful. From
+  How to Fish: a real cast-and-reel with line tension, rod and reel stats, lures and bait that
+  matter per species, fishing grounds with their own catch tables, a collection log, and gear
+  progression that opens new water.
+
+  Pillars
+
+   1. The sea is simulated, not scripted. Fish, predators, and threats are agents in one food
+      web. A monster shows up because something drew it: blood in the water, light, noise, a
+      school it hunts.
+   2. Every catch is a physics fight. Line, rod, fish, and boat are one connected system. A
+      marlin can drag the boat; a snagged net can heel it over.
+   3. Greed is the enemy. Brighter lanterns, bigger nets, chum, and deeper water all pay
+      more and all attract what kills you. The crew decides every night how far to push.
+   4. Six people, one boat, too many jobs. There are always more stations than hands, so
+      talking, trading jobs, and trusting each other is the game.
+   5. Dread is readable. Every threat has a sound tell, a visual tell, a sonar tell, and a counter.
+      Death is always explainable afterward.
+
+  Scope rules. Everything stays procedural (no image or audio files). The deck is top-down
+  pixel art from the parkour pipeline; underwater views (sonar, dive, reel camera) use the
+  same pixel palette. Numbers live in trawl_data.cpp . The host runs the simulation; clients
+  send commands. Every system ships with a headless self-test on depth.exe .
+
+
+
+                                                                                              Page 1 of 50
+The Trawl — Arcade Game 2 Design Document (Draft)
+
+
+
+
+  The session loop
+  A run is a string of deadlines. Each deadline is three nights at sea; a session (one deadline)
+  takes about 30–35 minutes with six players. Meet the quota and the next deadline starts
+  with a higher one; miss it and the Owners repossess the boat and the run ends.
+
+  The Owners. An unseen shipping concern that rents the crew the Gannet, a 22 m steam
+  trawler, and licenses it to fish only at night. They speak through a brass telegraph in the
+  wheelhouse (the Lethal Company terminal and Company voice in one). Their messages
+  are terse, occasionally wrong, and never sympathetic.
+
+  The telegraph. The Owners speak only by brass telegraph: a tape clatters out of the
+  wheelhouse printer in capitals, with STOP for every full stop, and a bell tick every
+  crewman hears. Their voice is mercantile, polite in form, indifferent in fact; they care
+  about the hold and the boat, never the hands. Everything the Owners say is printed on
+  tape that can be torn off and read later on the crew board. About 30% of rumors are
+  wrong, and the Owners never admit it.
+
+
+     When                                           Example message
+
+     A deadline begins                              QUOTA 400 SHILLINGS STOP THREE NIGHTS STOP
+                                                    THE OWNERS ARE CONFIDENT STOP
+
+     A night begins                                 WEEDS FOG STOP MOON WANING STOP
+                                                    WHALERS REPORT TUNA ON SEAWARD EDGE
+                                                    STOP
+
+     The Grotto closing time                        ARCH IMPASSABLE AFTER 0315 STOP OWNERS
+                                                    ACCEPT NO RESPONSIBILITY STOP
+
+     Midnight                                       MIDNIGHT STOP HOLD INSPECTED AT HARBOUR
+                                                    LINE 0500 STOP
+
+     04:00                                          ONE HOUR STOP CUSTOMS CUTTER ON STATION
+                                                    STOP
+
+     A fine                                         LANDING OF PROTECTED TURTLE NOTED STOP
+                                                    50 SHILLINGS DEDUCTED STOP
+
+     Hull damage below 40 in any section            KINDLY REFRAIN FROM DAMAGING OWNERS
+                                                    PROPERTY STOP
+
+     A first catch of a species                     SPECIMEN NOTED STOP BONUS AUTHORISED
+                                                    STOP DO NOT BRUISE STOP
+
+
+
+                                                                                             Page 2 of 50
+The Trawl — Arcade Game 2 Design Document (Draft)
+
+
+
+
+     When                                           Example message
+
+     A crewman dies                                 HAND DECEASED STOP REPLACEMENT
+                                                    CHARGED IF REMAINS NOT RECOVERED STOP
+
+     Deadline met                                   QUOTA MET STOP NEW QUOTA 620 STOP THE
+                                                    OWNERS EXPECTED NOTHING LESS STOP
+
+     Deadline missed                                QUOTA NOT MET STOP GANNET REPOSSESSED
+                                                    STOP CREW RELEASED WITHOUT REFERENCE
+                                                    STOP
+
+
+  The telegraph as a tell. On the Kraken's Glass, the tape prints only dots. When the Ghost
+  Ship is near, it prints a message from a boat that sank years ago. Neither is ever explained.
+
+  One deadline
+
+   1. Dock (untimed, 2–4 min). The chalkboard shows the quota, nights left, and money. The
+      crew sells last night's catch, buys gear at the Chandler, refits the boat at the Slipway,
+       and loads bait, ice, and coal.
+   2. Choose a ground. The helm picks one of the four grounds on the chart table. Each
+      costs coal to reach, and the telegraph posts that night's conditions: weather, moon
+      phase, and a rumor ("Whalers report the Weeds quiet"; rumors are right 70% of the
+      time).
+   3. Sail out (about 45 s). A short top-down run through the harbor mouth and fog. The
+      engine crew brings up steam; the helm avoids buoys and rocks. Anything left
+      unsecured on deck slides.
+   4. The night (9 real minutes, 20:00 to 05:00 on the wheelhouse clock). The crew fishes,
+      trawls, shoots, dives, and survives. The sea starts calm and wakes as the night goes on
+       and as the crew makes blood, noise, and light.
+   5. Run for harbor. The crew decides when to leave. The return takes 45–90 s depending
+      on distance and steam. The Gannet must cross the harbor line before 05:00; after that,
+      the Owners' customs cutter seizes the hold and fines 10% of money. There is always a
+      reason to stay ten more minutes.
+   6. Sell. Fish go to the Fish Market (paid now, price set by freshness and glut). Salvage
+      goes to the Owners (paid at a rate that rises toward the deadline, see Economy).
+      Money past the quota buys gear.
+   7. Repeat for nights two and three. After the third night's sale, the Owners count the
+      quota.
+
+
+
+
+                                                                                            Page 3 of 50
+The Trawl — Arcade Game 2 Design Document (Draft)
+
+
+
+
+  Quota. Starts at 400 shillings for six players (scaled 0.5× solo, 0.7× for two, 0.85× for four;
+  bots count as crew). After each met deadline it rises by 40% plus 60 shillings, so by the
+  fourth deadline the crew must work Atlantis Waters or dive for relics to keep up. Surplus
+  money carries over; the quota does not reset.
+
+  The ground remembers. A ground's ecosystem state (populations, hunger, blood, and any
+  Wake the crew raised) persists across the three nights of a deadline. Emptying the Weeds
+  of sardines on night one means hungrier, bolder predators there on night two. Grounds
+  reset when a new deadline starts.
+
+  Night pacing (the Stir clock). Each ground has a baseline threat curve that rises through
+  the night, plus whatever the crew adds. The first two minutes are almost always safe; the
+  last two minutes of an ordinary night have a large threat on the water about half the time.
+
+
+  First night: the shakedown
+  The first time a lobby includes a player with no completed nights, the host is offered a
+  shakedown night: a 6-minute night on Eclipse Lagoon with a fixed seed, no quota, and no
+  deaths that count. It can be skipped, and any crew can replay it from the arcade menu.
+  The only guide is Kess, an old deckhand who is aboard for this night only and talks in short
+  chalked lines on the deck ("Line's slack. Reel.").
+
+   1. The deck. Walk to each station; take the handline; catch three silversides for the bait
+       well.
+   2. The rod. Bait a light rod with a silverside, cast at the marked snapper school, set the
+      hook on the take, and land a snapper with side pressure. Kess gaffs it if the angler asks
+       with a ping.
+   3. The table. Gut and ice the snapper; Kess throws the guts over the side.
+   4. The sonar. Ping, mark the sardine ball, and steer onto it.
+   5. The net. Shoot the trawl through the ball and haul it with two hands; sort the moon
+      jellies back over the side.
+   6. Blood. The guts from step 3 bring a reef shark. It takes a hooked fish, then circles. The
+       crew learns the counters: stop the blood, get off the rail, gaff or cannon, or steam away.
+   7. Overboard. Kess slips on the wet deck and goes in. Stop the screw and throw the ring.
+   8. Home. The clock runs to 05:00 fast; cross the harbour line, carry the catch to the Fish
+      Market, and read the chalkboard.
+
+
+
+
+                                                                                            Page 4 of 50
+The Trawl — Arcade Game 2 Design Document (Draft)
+
+
+
+
+  The Field Manual. A battered book in the wheelhouse holds a page per station, the tackle
+  and bait basics, and the Catch Log with its threat dossiers. It fills in as the crew discovers
+  things, like Lethal Company's terminal bestiary.
+
+
+  The crew of six
+  Each crewman takes a light role with a small perk, but any hand can still work any station,
+  and there are twelve stations for six people, so the crew is always choosing what to leave
+  unmanned. A station works only while someone stands at it; walking away from a reel mid-
+  fight hands the fish the line.
+
+  Roles. Picked in the lobby; two players may take the same role, but its perk does not stack.
+  The perks make a hand better at a job, never the only one who can do it.
+
+
+     Role           Perk                                          Starts with
+
+     Bosun          Winch, pump, and boiler shovel work 25%       Patch kit
+                    faster; patches leaks in 3 s instead of 6;
+                    sees hull section integrity on the HUD
+
+     Angler         Hook-set window +75 ms; sees the              Medium rod
+                    species name on the bite; line tension
+                    gauge shows the break point
+
+     Diver          +15 s of helmet air; no Bends on a normal-    Knife and helmet lamp
+                    speed recall; moves 15% faster and carries
+                    salvage 25% faster in dives
+
+     Medic          Bandages stop bleeding in 2 s instead of 6;   Medical bag (does not take an
+                    can treat one serious injury per night        inventory slot)
+                    (sets a broken arm, removes a hook);
+                    revives a drowned crewman with CPR if
+                    they are hauled aboard within 15 s of
+                    drowning
+
+
+  Role upgrades. A role ranks up three times in a run: after the first, second, and fourth met
+  deadlines. At each rank the player picks one of two upgrades on the dock chalkboard.
+  Upgrades last until the run ends, survive death, and belong to the role: switching roles at
+  the dock starts the new role at rank 1. Bots pick from a fixed preference list per role.
+
+
+
+
+                                                                                                  Page 5 of 50
+The Trawl — Arcade Game 2 Design Document (Draft)
+
+
+
+
+     Role           Rank 2 (after deadline 1)       Rank 3 (after deadline 2)   Rank 4 (after deadline 4)
+
+     Bosun          Shipwright: a patched           Old Salt: never slides on   Iron Hull: +25 max
+                    section regains 30              deck; crew within 4 m       integrity on every section
+                    integrity · or Stoker:          slide 5° later · or Deck    · or Full Steam: +20%
+                    overpressure grace 5 → 10       Boss: bots under their      speed for 20 s, once a
+                    s, screw one noise step         orders work 20% faster      night
+                    quieter
+
+     Angler         Light Touch: slack              Reader: the rod ticks 0.5   Trophy Hunter: first
+                    tolerance 1.5 → 3 s · or        s before each run · or      catches pay a further
+                    Heavy Hand: side                Strong Line: +20% line      +50% · or Bait Master:
+                    pressure tires fish 25%         strength on any rod         their bait and lures keep
+                    faster                          they hold                   scent twice as long and
+                                                                                draw 25% more bites
+
+     Diver          Deep Lungs: +15 s more          Pressure Hardened:          Strongback: carries two-
+                    air · or Glint Eye: sees        hardhat works 30 m          diver lifts alone · or Old
+                    salvage through one wall        deeper; free-dives 20 s     Hand: their hose and
+                                                    without a hose · or         lifeline never tangle
+                                                    Wreck Rat: opens
+                                                    locked cabins without a
+                                                    crowbar
+
+     Medic          Field Surgeon: treats two       Second Wind: CPR            Miracle Worker: once per
+                    serious injuries a night · or   window 15 → 30 s · or       deadline, revives a
+                    Warm Blankets:                  Steady Nerves:              crewman whose body is
+                    overboard timer +8 s for        charmed or stunned          aboard, mid-night · or
+                    the whole crew                  crew within 6 m recover     Ghost Speaker: hears
+                                                    twice as fast               and talks with the dead,
+                                                                                and sees ghosts' outlines
+
+
+  Upgrade numbers live in trawl_data.cpp with the rest; --trawl-sim reports quota
+  rates with and without upgrades so no single pick dominates its pair.
+
+  Bots fill empty berths if the host chooses. In the lobby the host sets the crew size from 1
+  to 6 and whether empty berths get bots. A bot takes a role, works the station it is ordered
+  to through the ping wheel ("Take the pump," "Take port rod," "Follow me"), and falls back to
+  a sensible default watch when no one gives orders. Bots fish at a competent-but-not-
+  expert level, never dive unless ordered, and do not use voice. A dropped player's seat is
+  taken by a bot after the 2-minute reconnect window, per the shared arcade rule.
+
+
+
+                                                                                                      Page 6 of 50
+The Trawl — Arcade Game 2 Design Document (Draft)
+
+
+
+
+  Bot crew
+  A bot is a crewman with a role, an inventory, and a body that can fall overboard, driven by
+  a small utility brain in trawl_bots.cpp . It scores every station it could work each second,
+  weighted by its role, standing orders, and what is happening, and walks to the best one.
+  Bots are good hands, not good captains: they never decide where the boat goes or when
+  to go home.
+
+  Skill. The host picks one of three levels for all bots.
+
+
+     Skill              Reaction time               Hook-set success   Gaff success   Aim error (cannon, rifle)
+
+     Green              700 ms                      50%                60%            ±4°
+
+     Able               400 ms                      70%                80%            ±2°
+
+     Old Hand           250 ms                      85%                90%            ±1°
+
+
+  Default watch by role (used when no one gives orders): Bosun bot on the boiler, moving to
+  the pumps whenever there is water; Angler bot on a rod; Diver bot on the net winch and
+  gutting table; Medic bot on the gutting table, watching the rails.
+
+  What a bot does at each station
+
+
+     Station                        Bot behaviour
+
+     Helm                           Holds heading and speed as ordered; holds station
+                                    over a marked wreck or diver; never chooses a
+                                    course on its own
+
+     Boiler                         Keeps pressure in the green; bleeds at the first red
+
+     Pumps                          Pumps until the section is dry
+
+     Rods                           Casts the rigged lure at the nearest marked
+                                    contact or a school it can see; fights by the model
+                                    with side pressure; asks for a gaff with a ping
+
+     Net winch                      Shoots and hauls only when ordered; cuts a
+                                    snagged net only when ordered
+
+     Lantern                        Leaves it where it is unless ordered
+
+
+
+
+                                                                                                             Page 7 of 50
+The Trawl — Arcade Game 2 Design Document (Draft)
+
+
+
+
+     Station                        Bot behaviour
+
+     Sonar                          Pings every 6 s, marks the largest contact, marks
+                                    any threat
+
+     Harpoon cannon                 Fires only at threats, or at a hooked giant when
+                                    ordered
+
+     Gutting table                  Guts and ices landed fish, heaviest first; throws
+                                    bycatch back alive
+
+     Air pump                       Pumps in rhythm; never leaves while a diver is
+                                    down
+
+
+  Reactions that override the watch
+
+       Overboard: the nearest bot throws the life ring (with its aim error), the Medic bot runs
+       to the rail, and the helm bot stops the screw.
+       The bell: every bot moves to the nearest defensive post (cannon, gaff at the rail, rifle if
+       carried) and looks for the threat.
+       Boarders: bots with gaffs fight; others back away from the rail.
+       Leak or fire: the Bosun bot, or the nearest bot if there is no Bosun, goes to it.
+       Charmed or grabbed crewman: the nearest bot rings the bell, then helps.
+
+  Orders (ping wheel, aimed at a bot or at a station): take this station; follow me; hold here;
+  haul the net; cut the line; fire on my mark; dive (Diver-role bots only); go home (all bots
+  stop fishing and secure the deck).
+
+  What bots never do unless ordered: dive, use depth charges or explosive harpoons,
+  board derelicts or the Ghost Ship, raise the lantern, or ring the bell for no reason. Bots do
+  not use voice; they show short text barks ("Fish on, port!", "Water in the hold!") above their
+  heads and in the ping feed. A dead bot's ghost rings the bell when a threat comes within
+  10 m.
+
+  The Gannet's stations
+
+
+     Station                      Where                What it does                  What happens if nobody's
+                                                                                     there
+
+     Helm                         Wheelhouse           Steers, sets the engine       The boat drifts with wind
+                                                       telegraph (stop, slow,        and current; a hooked
+                                                       half, full)                   marlin tows it
+
+
+
+                                                                                                           Page 8 of 50
+The Trawl — Arcade Game 2 Design Document (Draft)
+
+
+
+
+     Station                      Where             What it does                What happens if nobody's
+                                                                                there
+
+     Boiler                       Engine room,      Shovel coal, bleed          Pressure falls, speed
+                                  below             pressure, keep the          drops; overpressure blows
+                                                    gauge in the green          a valve (a fire and a 20 s
+                                                                                stop)
+
+     Bilge pumps                  Engine room       Pump water out after a      The boat settles, lists, and
+                                                    breach                      sinks if the hull fills
+
+     Port rod,                    Rails             Cast, set, fight, land      Rigged rods can sit in
+     Starboard rod                                  (see Fishing)               holders; a strike without a
+                                                                                hand usually breaks off
+
+     Stern rods (2)               Stern holders     Trolling rods for the       They fish alone but only
+                                                    whole night                 hold small fish
+
+     Net winch                    Stern gantry      Shoot and haul the trawl    A shot net keeps fishing
+                                                                                and keeps getting heavier
+
+     Lantern mast                 Midships          Raise, lower, hood, or      Stays where it was left
+                                                    colour the lamp
+
+     Sonar and radio              Wheelhouse        Pings, reads contacts,      Nobody sees below the
+                                                    radios other stations       surface
+                                                    and the Owners
+
+     Harpoon                      Bow               Aim, fire, reload           —
+     cannon                                         (reloading is faster with
+                                                    two)
+
+     Gutting table                Aft of the        Gut, grade, and ice fish    Fish on deck lose
+     and ice hold                 wheelhouse        so they keep their value    freshness and bleed
+
+     Air pump                     Beside the        Keeps a diver breathing     The diver has 30 s of air in
+                                  diving gantry     (see Diving)                the helmet
+
+
+  Suggested six-hand watch. Helm and sonar (one person, swapping), boiler and pumps,
+  two rods, net and gutting, lantern and cannon. When a dive goes down, one rod hand
+  moves to the air pump. When something big comes, the rod hands drop everything for the
+  cannon and the gaffs.
+
+
+
+
+                                                                                                          Page 9 of 50
+The Trawl — Arcade Game 2 Design Document (Draft)
+
+
+
+
+  Moving on the deck. Top-down, 8-way movement at 3 m/s, slower carrying (a 40 kg tuna
+  halves speed; two hands carrying one halves it less). Ladders to the wheelhouse roof, the
+  mast, and the engine room. The deck is wet: at more than 12° of roll, unbraced players
+  slide; at 25°, they fall. Holding a rail or a station braces.
+
+  Inventory. Four slots per hand (Lethal Company's rule), one of them the hands. Large fish
+  and salvage are carried in both hands and can be thrown short distances. Tools: gaff, knife,
+  lamp, flare pistol, speargun, rope, and so on.
+
+  Talking. Communication is the core skill, so the game carries it, not a third-party app.
+
+       Proximity voice through the shared arcade layer, the game's main channel: voices
+       carry about 12 m on deck and are muffled by walls and wind. Heavy rain and a running
+       engine cut the range in half.
+       Speaking tube from the wheelhouse to the engine room and to the bow, always clear.
+       Walkie (bought): channel-wide voice, one per slot, runs on batteries.
+       Ping wheel for players without a microphone: "Fish on," "Need gaff," "Steer port,"
+       "Something below," "Get out of the water," and a point marker.
+       The ship's bell: anyone can ring it; everybody hears it anywhere on the boat, and the
+       dead can ring it too.
+
+
+  Controls, HUD, and the sonar
+  The HUD is almost empty on purpose: a player learns the sea from what their station
+  shows them and what the crew says. There is no health bar, no minimap, and no enemy
+  markers.
+
+
+  Controls (keyboard and mouse)
+
+     Action                                         Input
+
+     Move                                           WASD
+
+     Brace, hold a rail                             Hold Shift
+
+     Take a station, pick up, use                   E
+
+     Leave a station                                X
+
+     Primary (cast, fire, reel, pump, shovel)       Left mouse
+
+
+
+
+                                                                                            Page 10 of 50
+The Trawl — Arcade Game 2 Design Document (Draft)
+
+
+
+
+     Action                                                    Input
+
+     Secondary (aim a cast, sight a weapon, gaff)              Right mouse
+
+     Rod angle, aim                                            Mouse direction
+
+     Drag, lantern level, telegraph setting                    Scroll
+
+     Set the hook                                              Space
+
+     Inventory slots, drop                                     1–4, Q
+
+     Hand lamp                                                 F
+
+     Reload                                                    R
+
+     Push-to-talk (open mic is an option)                      V
+
+     Walkie                                                    T
+
+     Ping wheel                                                Hold G
+
+     Crew board (roles, injuries, who is dead)                 Hold Tab
+
+
+  A full gamepad map (triggers for reel and cast, right stick for rod angle) ships with the first
+  playable build; every binding is remappable.
+
+
+  What each station shows
+
+     Station                        Overlay
+
+     Rod                            The reel gauge: a tension arc with the drag setting
+                                    marked, a line counter (metres out), and the lure's
+                                    depth
+
+     Helm                           Telegraph, heading, speed, and a chart inset of the
+                                    ground with set gear buoys
+
+     Boiler                         Pressure gauge and coal in the bunker
+
+     Bilge pumps                    Water level in each flooded section
+
+     Net winch                      Warp tension and estimated load
+
+     Lantern mast                   Level and filter colour
+
+
+
+
+                                                                                          Page 11 of 50
+The Trawl — Arcade Game 2 Design Document (Draft)
+
+
+
+
+     Station                        Overlay
+
+     Harpoon cannon                 A reticle with drop and the refraction offset shown
+                                    as a faint second ring
+
+     Air pump                       The pump rhythm bar, the diver's air, and hose
+                                    tension
+
+     Gutting table                  Species name, weight, grade, and freshness of the
+                                    fish in hand
+
+
+  Always on screen: the four inventory slots and carried weight (bottom left), a ping marker
+  when a crewmate points something out, and the ship's bell icon when it rings. Time is read
+  from the wheelhouse clock or a bought pocket watch, as in Lethal Company. Injuries show
+  as small icons on the crew board and as their effects (a broken arm hangs; a bleeding
+  player leaves drops). Overboard shows as a narrowing breathing vignette with the time
+  left.
+
+
+  The sonar
+  The wheelhouse sonar is a round phosphor scope (the same visual language as the
+  expedition sonar chart) and the crew's only view below the surface outside the lantern's
+  light.
+
+       Passive (always on): shows only loud things near the boat. At half speed or more, the
+       Gannet's own screw drowns it out.
+       Active ping: one every 3 s, 150 m radius. Returns show for 6 s and fade. Every ping
+       writes noise into the water at the boat, which Ghost Worms and curious species hear.
+       Depth dial: the operator picks which depth band the scope shows; a side-scan toggle
+       shows the water column under the boat as a profile.
+       What returns look like: schools as dotted clouds, single fish as blips sized by size class,
+       set gear as bright squares, wrecks as hard shapes, kelp as shadow that hides what is
+       behind it, and in the Grotto every return has a faint echo twin. The Kraken whites out
+       the whole scope.
+       Marking: the operator clicks a contact to mark it; every crewman sees a bearing arrow
+       at the edge of their screen for 10 s.
+       Second sonar (Slipway upgrade): a second operator, and depth numbers on every
+       contact.
+
+
+
+
+                                                                                            Page 12 of 50
+The Trawl — Arcade Game 2 Design Document (Draft)
+
+
+
+
+  Dock screens
+  The dock is walked, not menued: the chalkboard (quota, nights, money, role upgrades),
+  the Chandler's counter, the Fish Market scales (fish are carried and weighed one by one,
+  or in crates), the Owners' office window (salvage), the Slipway, and the chart table on
+  board.
+
+
+  Boat and sea physics
+  The boat, the water, every line, and every fish on a line are one physical system stepped at
+  60 Hz on the host ( trawl_boat.cpp ). The rule: anything that pulls on the boat moves the
+  boat, and anything that moves the boat moves the crew.
+
+  The sea surface. Height at any point is a sum of four directional waves (a cheap Gerstner
+  set) whose amplitude comes from the weather. The top-down view shows swell as moving
+  light bands and foam; the side views (dive, reel camera) show the actual profile. A per-
+  ground current vector and the wind vector push everything on the surface: the boat,
+  floats, the net, corpses, and blood.
+
+  The hull. A rigid body in the plane (x, y, heading) plus three scalar degrees of freedom: roll,
+  pitch, and heave. Buoyancy is computed from eight hull sample points against the wave
+  height. Weight on board is not a single number: the hold, the ice, every fish on deck, every
+  player, the net drum, and water in the bilge each sit at a position, so a full net on the stern
+  pitches the bow up and five crew at the port rail during a fight list the boat to port. Roll
+  above 12° makes loose items and unbraced players slide; above 35° the boat is on its beam
+  and takes water over the rail.
+
+  Damage. The hull has six sections, each with integrity 0–100. Rams, bites, rocks, and
+  grinding against a wreck lower it; below 40 a section leaks, below 10 it floods fast. Leaks
+  fill the bilge; the pumps empty it. Hull plates (bought) raise section maximums; a hand
+  with a patch kit can stop a leak in 6 s while standing in water.
+
+  The engine. Coal into the firebox raises boiler pressure; the telegraph setting draws
+  pressure into shaft speed. Pressure in the green gives full thrust; red for more than 5 s
+  blows a relief valve (a steam jet that burns anyone in the engine room and stops the screw
+  for 20 s). The screw is loud: the engine's noise output feeds the ecosystem's sound layer
+  by telegraph setting (stop 0, slow 2, half 5, full 9).
+
+  Lines, nets, and ropes. Every line (rod lines, the harpoon tether, the trawl warps, the
+  diver's air hose, the life-ring rope, the anchor) is a Verlet chain with 8–24 segments,
+  reusing the Chain code from the master reference. Tension is read from the constraint
+
+
+
+                                                                                            Page 13 of 50
+The Trawl — Arcade Game 2 Design Document (Draft)
+
+
+
+
+  error at the anchor end. When tension exceeds the line's rated strength for longer than its
+  shock window (0.2 s for mono, 0.5 s for braid, 1 s for steel), it snaps. Lines can foul each
+  other: two rod lines crossing under the boat tangle and must be cut or walked around.
+
+  Light. The lantern mast, deck lamps, hand lamps, flares, and bioluminescence write into a
+  light grid shared with the ecosystem (a new light layer, see The food web). The top-down
+  view is dark except where light reaches; the sea beyond the lantern radius is drawn black
+  with only foam and glints. Lantern levels: hooded (4 m), low (8 m), full (14 m), searchlight
+  (a 30 m cone the operator aims).
+
+  Weather. Rolled per night and ground, changing once or twice a night.
+
+
+     Weather             Swell                       Effect
+
+     Calm                0.2 m                       Voice carries far; fish bite light
+
+     Fog                 0.3 m                       Light radius −40%; sonar is the only way to see
+                                                     anything coming
+
+     Rain                0.6 m                       Voice range halved; surface feeders bite more
+
+     Squall              1.5 m                       Roll up to 20°; lines tangle; big predators hunt the
+                                                     surface
+
+     Storm               3m                          Roll up to 30°; waves wash the deck; only the brave
+                                                     fish
+
+     The Glass           0 m, mirror-flat, no wind   Rare. Everything stops biting. It precedes
+                                                     something enormous
+
+
+  Moon. Full moon doubles plankton at the surface (more bait fish, more predators up high);
+  new moon brings deep species shallower. The phase advances one step per night, so the
+  three nights of a deadline differ.
+
+
+  Fishing
+  Fishing is a physics fight between a player, a rod, a line, and an animal that is also an agent
+  in the food web. The UI shows only what an angler would feel: rod bend, line angle, reel
+  sound, and a tension gauge on the reel. There is no minigame bar.
+
+
+
+
+                                                                                                       Page 14 of 50
+The Trawl — Arcade Game 2 Design Document (Draft)
+
+
+
+
+  Tackle
+
+    Tackle             Line              Cast range       Reel speed         Holds                     Price
+                       strength
+
+    Handline           8 kg              6 m (thrown)     Hand over hand     Bait fish, small reef fish Free
+
+    Light rod          6 kg              30 m             Fast               Surface and reef fish     40
+                                                                             to 5 kg
+
+    Medium             15 kg             25 m             Medium             Most fish to 25 kg        120
+    rod
+
+    Heavy boat         40 kg             15 m             Slow, 2-speed      Tuna, sharks, groupers    300
+    rod
+
+    Deep-drop          30 kg             Drops straight   Steam-assisted     Deep species in the       450
+    reel                                 down, 200 m                         Trench and Atlantis
+
+    Big-game           120 kg            15 m             Slow, 2-speed,     Marlin, giant tuna,       900 (boat
+    chair                                                 fighting harness   small Ghost Worms         upgrade)
+
+
+  Line types: mono (stretchy, forgiving, visible to wary fish), braid (no stretch, strong, cut by
+  teeth and coral), wire leader (bite-proof, spooks wary fish), glow line (seen by everything).
+  Hooks: small, circle, big-game treble. Stats live in trawl_data.cpp .
+
+
+  Bait and lures
+  Every species has a diet in the food web, so bait is the food web in the player's hands. A
+  fish takes what it eats.
+
+       Dead bait: squid strips, shrimp, chunks cut from caught fish (a tuna chunk catches
+       sharks). Loses scent over 3 minutes.
+       Live bait: bait fish caught on handlines and kept in the bait well. Swims on the hook,
+       draws predators by movement and by scent, and can itself be eaten by something
+       bigger than what you wanted.
+       Lures: spoon (flash, mid-water), jig (vertical, deep), popper (surface, loud), glow lure
+       (light), rattle (sound), plug (dives to a set depth). Each has a flash, noise, and scent
+       profile the species' senses score.
+       Chum: offal from the gutting table or a bought chum bucket. Writes blood into the
+       scent grid. Brings fish fast, and brings whatever eats them.
+
+
+
+
+                                                                                                               Page 15 of 50
+The Trawl — Arcade Game 2 Design Document (Draft)
+
+
+
+
+  The cast
+  Hold to charge, release to cast; aim with the mouse. Wind drifts the lure, and a cross-wind
+  cast lands off target. The lure sinks at its own rate; the angler counts depth by the line
+  counter on the reel. Retrieve style is the player's input: steady reel, jig (tap), twitch-and-
+  pause, or dead drift. Each species scores the presentation against its preference; a
+  matched presentation roughly triples the bite chance.
+
+
+  The bite
+  A fish that decides to take goes through inspect (the rod tip ticks), nibble (small taps, 1–
+  4), and take (the rod loads). Setting the hook during the take (a 250 ms window, 150 ms for
+  wary species) hooks it; striking on a nibble spooks it and teaches that school to avoid that
+  lure for 2 minutes. Circle hooks set themselves if the player simply reels.
+
+
+  The fight
+  The hooked fish is an agent with strength, stamina, and a fight pattern from its species
+  record: runs, deep dives, jumps and head-shakes, circling under the boat, sounding into
+  cover (a wreck or kelp, where the line chafes), or rolling (sharks, which wrap the line).
+
+  The angler controls three things:
+
+   1. Reel (hold): gains line only when tension is below drag.
+   2. Rod angle (mouse direction relative to the fish): pulling against the direction of the run
+      tires the fish fastest (side pressure); pulling straight back wastes stamina; a high rod
+      angle while it jumps throws the hook.
+   3. Drag (scroll): how much tension slips line instead of breaking it. Low drag is safe but
+      lets the fish run into cover; high drag ends fights fast and snaps lines.
+
+  Tension is computed from the chain physics, not a formula for the UI. It breaks lines over
+  their rating; below 5% for 1.5 s (slack) lets barbless or circle hooks fall out. A fish's pull is a
+  real force on the boat: a 200 kg marlin can tow the Gannet at slow speed, and the helm
+  can help by backing the boat down on it.
+
+
+  Fight tuning
+  Every hooked fish runs one model, shaped by its fight pattern. All constants live in
+  trawl_data.cpp ; these are the starting values --trawl-fight is tuned against.
+
+  The model
+
+
+
+
+                                                                                               Page 16 of 50
+The Trawl — Arcade Game 2 Design Document (Draft)
+
+
+
+
+       Pull: a fish's pull in kilograms-force = its weight × the pattern's pull ratio, rising to 1.5×
+       during a burst.
+       Stamina: seconds of full pull = 20 + 6 × √weight (a 4 kg snapper has 32 s; a 200 kg
+       marlin has 105 s).
+       Drain: stamina drops by (line tension ÷ pull) per second. Side pressure (rod angle
+       within 45° of square to the fish's heading, pulling against its turn) multiplies drain by
+       1.5; pulling straight back by 0.6; slack drains nothing.
+       Recovery: when tension falls under 20% of pull, the fish recovers 0.3 s of stamina per
+       second, so a timid angler never ends a fight.
+       Landing: at under 15% stamina the fish comes alongside and can be gaffed, netted, or
+       lifted; it bursts once more if the gaff misses.
+       Passing the rod: a crewman can take over a rod with E; the handover gives 1 s of held
+       tension, no slack.
+
+  Fight patterns
+
+
+     Pattern         Pull ratio                What it does                     What the angler must do
+
+     Run             0.8                       Bursts of 4–8 s at up to 3 m/s   Let drag take the run, then side
+                                               every 10–15 s                    pressure between runs
+
+     Dive            0.9, straight             Sounds for depth; each 10 m      Pump: lift the rod, then reel
+                     down                      gained adds 5% to its pull       down as it drops; the helm can
+                                                                                move over it
+
+     Jump            0.6                       Leaps every 8–12 s               Lower the rod (bow) within 0.3
+                                                                                s of the jump or a 40% chance
+                                                                                to throw the hook
+
+     Circle          0.5, steady               Circles under the boat           Keep the line off the keel and
+                                                                                other lines; a keel pass chafes
+                                                                                the line 10%
+
+     Cover           0.7                       Heads for the nearest cover      High drag to turn it early; in
+                                               within 15 m                      cover the line chafes 5% of its
+                                                                                strength per second
+
+     Roll            0.6                       Rolls to wrap the line           Wire leader, or each wrap cuts
+                                                                                effective line strength by 10%
+
+     None            —                         Lifted straight in               —
+
+
+
+
+                                                                                                            Page 17 of 50
+The Trawl — Arcade Game 2 Design Document (Draft)
+
+
+
+
+  Target fights (sensible bot angler, matched tackle)
+
+
+     Fish                             Tackle           Fight time   Landed
+
+     3 kg snapper                     Light rod        20–40 s      85%
+
+     15 kg lingcod                    Medium rod       60–120 s     75%
+
+     40 kg yellowfin                  Heavy rod        3–5 min      60%
+
+     150 kg sturgeon                  Deep-drop reel   10–20 min    45%
+
+     250 kg blue marlin               Big-game chair   8–12 min     40%
+
+
+  Fights longer than these write more vibration into the water, so the model and the food
+  web push the same way: a long fight is a dangerous fight.
+
+
+  Landing
+       Fish under 5 kg: lifted over the rail.
+       5–40 kg: a second hand with the gaff or the landing net. Gaffing has a timing window as
+       the fish comes alongside; a miss spooks it into one more run.
+       40 kg and over: tail rope, then the net winch or the cannon's winch hauls it aboard, and
+       the whole boat lists while it comes up.
+
+  A landed fish flops on deck (a physics body that slides with the roll and can flop back
+  overboard) until someone takes it to the gutting table.
+
+
+  The trawl
+  The net is the big-money, big-risk tool. Shooting it takes 15 s; while down it is a Verlet mesh
+  of 8×6 nodes towed on two warps. It fills by sweeping through schools (catch rate =
+  school density × mouth width × speed), gets heavier, and drags the stern down and slows
+  the boat. It catches everything in its path, including what the crew didn't want: bycatch
+  jellies sting whoever empties the net, and a sleeping Ghost Worm in the mouth turns the
+  haul into a fight. It snags on wrecks and reefs (warps shriek, the boat slews) and must be
+  backed off or cut loose, losing the net. Hauling needs a hand on the winch and a hand
+  guiding the boom. A full net's cod end is emptied onto the sorting deck in one wet,
+  flopping pile.
+
+
+
+
+                                                                                           Page 18 of 50
+The Trawl — Arcade Game 2 Design Document (Draft)
+
+
+
+
+  Set gear
+       Longline: 20 baited hooks on a line with a radio buoy at each end, set and left to fish.
+       Returning finds fish, empty hooks, or fish heads: other predators strip hooked catch
+       (depredation), which tells you what is feeding there.
+       Pots: crab and lobster pots dropped on a reef or wreck with a float, hauled on a later
+       pass.
+       Set gear drifts with the current and can be stolen by the Ghost Ship's crew.
+
+
+  Shooting
+  Guns are the fast, loud, bloody way to take fish and the only way to stop some threats.
+  Every shot trades value and safety for speed: a shot fish is worth less than a hooked one,
+  it bleeds, and the report carries through the water.
+
+  Ballistics. Projectiles are simulated, not hitscan. Above the surface: gravity and light drag.
+  At the surface: a round's velocity drops to 10% in the first 0.3 m and it stops within 1.5 m,
+  so rifles only work on fish at or breaking the surface. Harpoons and spears keep their
+  energy far longer in water. Refraction: a target seen below the surface is drawn where the
+  light says it is, 15–25% nearer and shallower than it really is, so aiming at a fish in the water
+  means aiming below it. Hits resolve against the fish's body (head, body, tail); a head hit on
+  a fish under its size class kills clean.
+
+  Weapons
+
+
+    Weapon                   Where                  Range              Use                              Noise Price
+
+    Gaff                     Hand                   Melee              Landing fish; beating off        1     Free
+                                                                       boarders
+
+    Fish priest              Hand                   Melee              Kills a landed fish instantly,   1     Free
+    (club)                                                             stops flopping
+
+    Speargun                 Hand, tethered         8 m in water, 12   Taking fish near the hull;       2     150
+                                                    m in air           divers' weapon
+
+    Flare pistol             Hand                   40 m arc           Light burst (scares light-shy    3     60 + 10/flare
+                                                                       species, draws curious
+                                                                       ones); signals
+
+    Rifle                    Hand                   Surface and air    Breaching fish, gulls,           6     250 +
+                                                                       boarders, the Siren's heads            2/round
+
+    Shotgun                  Hand                   15 m, air          Gull flocks, boarders            7     200 + 3/shell
+
+
+
+
+                                                                                                                      Page 19 of 50
+The Trawl — Arcade Game 2 Design Document (Draft)
+
+
+
+
+    Weapon                   Where                  Range           Use                             Noise Price
+
+    Harpoon                  Bow mount              35 m, surface   Big fish and big threats; the   5     700 (boat
+    cannon                                          to 6 m deep     tether goes to its winch              upgrade)
+
+    Explosive                Cannon ammo            —               Kills, but destroys most of     9     80 each
+    harpoon head                                                    the fish's value
+
+    Depth charge             Thrown or rolled       12 m blast      Stuns everything in range,      10    120 each
+                             off the stern          radius          floating fish to the surface
+
+
+  The tethered harpoon. A harpoon hit makes the target a hooked fish (see Fishing) with
+  the cannon's winch as the reel and 120 kg steel as the line. This is how the crew lands a
+  Great White or holds a Ghost Worm's head up while the rifles work. A tethered giant tows
+  the boat; the winch can be released in an emergency.
+
+  Shot fish and value. Clean hook catch 100% of value, speared 85%, rifle-shot 70%,
+  harpooned 75% (big fish), explosive harpoon 30%, depth-charged 50% (and every
+  stunned fish floats: the charge takes everything, including species worth nothing). A
+  wounded fish that escapes bleeds into the scent grid as it goes.
+
+  Noise and blood. Each shot writes its noise value into the sound layer at the muzzle and
+  again at the impact point. Fearful species scatter; curious species come; aggressive ones
+  come fast. Every wound writes blood (size × wound fraction × 2 per second, size × 20 on
+  death). A depth charge is a dinner bell for a whole ground: it is the fastest money in the
+  game and the fastest way to raise Wake (see The food web).
+
+  Friendly fire is on. A rifle round or a harpoon can hit a crewman, and a harpoon tether can
+  drag one over the rail.
+
+
+  The food web
+  Every ground runs one ecosystem simulation on the engine code Red Tide already has
+  (agents, the scent and sound grids, the species file loader). The Trawl reuses that code to
+  save time, not its design: the rules, numbers, species, and tuning here are written for a
+  boat on the surface at night. The Trawl's web has seven layers (diet, blood and scent,
+  sound, territory, symbiosis, flora, and the crew) plus three that exist only in this game:
+  light, vibration, and Wake. The crew is a species in the web, so everything they catch, spill,
+  and shine changes what comes next.
+
+
+
+
+                                                                                                                  Page 20 of 50
+The Trawl — Arcade Game 2 Design Document (Draft)
+
+
+
+
+  The Trawl food web · five trophic bands, the crew, and Wake
+
+
+  What each ground holds
+  About 25 fish and invertebrate species, 6 threats, and 4–6 flora per ground, as records in
+  trawl_species.json using the shared species file format (class, size 1–6, trophic tier,
+  diet, blood yield and threshold, senses, temperament, home, social). The Trawl adds four
+  fields: depth band (surface, upper, mid, deep, abyss, with a night shift: many species rise
+  after dark), light response (drawn, neutral, or shy, by colour), bite profile (preferred bait,
+  lure flash, noise, and retrieve), and fight pattern (runs, dives, jumps, circles, sounds into
+  cover, rolls).
+
+  Red Tide: shared assets and code, separate games. Red Tide and the Trawl are different
+  games. They share only what saves time: the ecosystem engine code, the species file
+  loader, and, where the same animal appears in both (a Great White, a barracuda), its sprite
+  sheet and sound cues as a starting point to re-colour and re-pose. Nothing about design
+  carries over. Every Trawl species has its own record, numbers, and behaviour written for
+  this game: fish are animals you fight on a line and read from above through sonar and light,
+  not beasts a diver shoots.
+
+
+
+
+                                                                                           Page 21 of 50
+The Trawl — Arcade Game 2 Design Document (Draft)
+
+
+
+
+  The three new layers
+   1. Light. The light grid from the boat physics feeds the ecosystem. Plankton and forage
+      fish rise toward light; predators follow the forage; light-shy deep species retreat from
+      it; curious threats (Anglers, Sirens, Drowned sailors) are drawn to it. A full lantern
+      roughly doubles bites after 30 minutes by pulling a whole food chain up under the hull.
+       Red light is invisible to most deep species.
+   2. Vibration. Taut lines, the trawl, the screw, a thrashing hooked fish, and hull impacts
+      write vibration into the water. Ghost Worms, sharks, and anything with a lateral-line
+      sense track it. A fish fought for five minutes is a beacon.
+   3. Wake. A per-ground scalar (0–100) that sums what the crew has put into the water:
+      blood above the ambient level, loud noise, bright light, cursed salvage, the Pale Eye's
+      gaze, and depth charges (+15 each). It decays 1 point a minute when the crew is quiet
+       and dark. Wake is what calls the big three (see Threats) and it is shown to the crew
+       only indirectly: the music, the fish going quiet, the sonar's clutter, and the ghosts'
+       outlines.
+
+
+  How the web plays
+       Bait chains. Handline silversides, live-bait them for mahi, cut the mahi for shark
+       chunks. Each step up the chain is worth more and bleeds more.
+       Depredation. A hooked fish is prey. A tuna on a line for two minutes in the Weeds has a
+       real chance of coming up as a head; a barracuda pack strips a longline. What took the
+       fish tells the crew what is under them.
+       Satiation. A predator that has just eaten ignores bait for a while. A Great White that
+       took a tuna off the line gives the crew a few quiet minutes; a hungry one follows the
+       boat.
+       Schools. Forage fish move as boids; predators herd them into bait balls near the
+       surface, which the sonar shows and which surface feeders and gulls give away. Netting
+       through a bait ball is the best trawl of the night, and every predator around it is already
+       there.
+       Cascades across nights. Because a ground remembers across a deadline, heavy
+       netting of forage fish on night one leaves predators hungry on night two (more bites,
+       more bold approaches, more depredation), and killing the Weeds' sea otters lets
+       urchins strip the kelp, emptying the canopy by night three.
+       Bycatch and discards. Everything the net brings up that isn't sold goes back over the
+       side dead, as blood and food, feeding scavengers and raising Wake. Sorting quickly and
+       returning bycatch alive (a hand at the sorting chute) keeps the water quieter.
+
+
+                                                                                            Page 22 of 50
+The Trawl — Arcade Game 2 Design Document (Draft)
+
+
+
+
+       Blood rules. Blood diffuses to neighbouring cells each second and decays 3% per
+       second in open water (1% in the Grotto's still water) with the current carrying it
+       downstream, so a slick trails away from the boat and predators arrive from down-
+       current.
+
+
+  Simulation budget
+   --trawl-eco <ground> <minutes> [pattern] runs the web headless with a scripted
+  crew and prints populations, blood, Wake, and threat arrivals. A ground with no crew must
+  stay stable (no species extinct and none above 150% of its start) for three simulated
+  nights.
+
+
+  The four grounds
+  The four grounds are Depth's four expedition locations seen from the surface, from safest
+  to deadliest. Each is a map about 600 m across with its own depth chart, catch table, flora,
+  threat roster, and one rule no other ground has.
+
+
+    Ground             Depth               Coal to   Fish value   Salvage     Signature rule   Starting-gear quota
+                                           reach                                               rate (target)
+
+    Eclipse            3–40 m              10        Low          Little      The reef tide    85%
+    Lagoon
+
+    The Weeds          8–70 m              25        Medium       Some        Kelp fouls       65%
+                                                                              everything
+
+    The Grotto         5–120 m,            40        Medium–      High        The cave mouth   45%
+                       under rock                    high         (wrecks)    closes
+
+    Atlantis           30–400 m            80        Very high    Very high   The Pale Eye     25%
+    Waters                                                        (relics)
+
+
+
+  Eclipse Lagoon (the Island)
+  A turquoise atoll lagoon under the Island's eclipse moon, with a coral crest between the
+  lagoon and the open sea. It is where crews learn to fish and learn that blood matters.
+
+       Catch. Bait: silversides, sardines, flying fish. Reef: snapper, parrotfish, triggerfish,
+       spiny lobster (pots), octopus. Open-water edge: mahi, bonito, barracuda, grouper in
+       the crest's caves, reef sharks.
+       Flora. Coral heads (shelter, snag nets), seagrass (grazers), sargassum rafts (drift with
+       the wind; mahi shelter under them).
+
+
+                                                                                                            Page 23 of 50
+The Trawl — Arcade Game 2 Design Document (Draft)
+
+
+
+
+       Signature: the reef tide. The tide falls through the night. After 01:00, parts of the crest
+       are too shallow for the Gannet; grounding holds her fast until a hand rows a kedge
+       anchor out and the winch pulls her off.
+       Threats. Gull flocks (steal fish off the deck), barracuda packs, reef sharks, Island war
+       canoes on some nights (they trade fish for gear, or raid for it, depending on how the
+       crew answers their drum; ties to Fathoms' Islanders).
+
+
+  The Weeds
+  A kelp forest whose canopy reaches the surface in dark golden mats, with clear lanes
+  between. Everything big lives at the edges.
+
+       Catch. Bait: anchovy balls, kelp perch. Mid: kelp bass, sheephead, rockfish, bonito.
+       Edge runs: bluefin tuna (a 20-minute fight on the heavy rod), yellowtail. Bottom:
+       halibut, abalone (by diving).
+       Flora. Kelp (shelters fish, blocks sonar, fouls lines), urchin barrens (where kelp has
+       been grazed away; empty and exposed), sea otter rafts that eat urchins and keep the
+       kelp standing.
+       Signature: kelp fouls everything. Running the engine through the canopy wraps the
+       screw (speed halves until a hand cuts it free from the stern ladder, in the water). Nets
+       fill with kelp that weighs as much as fish and is worth nothing. Hooked fish run into the
+       canopy to chafe the line.
+       Threats. Sirens (sing from the kelp lanes, pull the helm toward the rocks), Kelp Wraiths
+       (drift unseen in the canopy, entangle a crewman at the rail), a Great White that patrols
+       the seaward edge, Feral Mermen who cut nets.
+
+
+  The Grotto (the Cave)
+  The Gannet sails through a sea arch into a flooded cave the size of a cathedral: black
+  water, dripping stalactites, glowing mould on the walls, and the hulls of smugglers' ships
+  that went in and stayed.
+
+       Catch. Blind cave fish, cave shrimp (bait), glass eels, lantern fish, cave cod, giant
+       isopods (pots), the Grotto sturgeon (big, ancient, worth a great deal).
+       Flora. Glowing mould (light source; grazers feed on it), pale weed, bacterial mats
+       around warm vents.
+       Signature: the cave mouth closes. The arch is only passable while the tide is low
+       enough. The telegraph posts the closing time at the start of the night (between 02:30
+       and 04:00). A crew still inside when it closes is shut in until 05:00, which the Owners
+
+
+
+                                                                                               Page 24 of 50
+The Trawl — Arcade Game 2 Design Document (Draft)
+
+
+
+
+       count as late, and the cave's night keeps waking the whole time.
+       Echo. Sound doubles in the Grotto: every ping, shot, and shout feeds the sound layer at
+       twice its value and returns as an echo on the sonar. Loud noises can drop stalactites
+       (hull damage, crew damage).
+       Threats. Lantern Anglers (the second light), Ghost Worms (born in the Grotto),
+       Drowned sailors from the wrecks, swarms of isopods that climb the anchor chain.
+
+
+  Atlantis Waters
+  Open ocean above the drowned city. The water drops from the terraces at 30 m to the
+  Trench's edge at 400 m. The Pale Eye watches from the deep; the richest fishing in the
+  game and the best relics sit under it.
+
+       Catch. Surface: marlin, giant bluefin, flying squid. Mid: swordfish, opah, oarfish. Deep-
+       drop: Atlantean coelacanth, gulper eels, the drowned-gold grouper. Everything here is
+       large, and a single marlin can cover a night's quota share.
+       Flora. Sunken gardens on the terraces, deep coral, the Eye's bioluminescent veils
+       (lights that drift up through the night).
+       Signature: the Pale Eye. A great pale light far below. While any crewman looks at it (the
+       searchlight pointed down, a diver facing it, or anyone on the sonar with a ping open
+       over it), Wake rises twice as fast. It blinks when something big is coming.
+       Threats. Everything from the other grounds plus the Kraken, the Ghost Ship, the Deep
+       Choir (a Siren chorus that sings the whole crew), and Cult longboats that chum the
+       water around the Gannet on purpose.
+
+  Rumors and variants. Each ground rolls one variant per night (a sardine run, a red tide
+  bloom that kills bait fish, a whale carcass that draws every scavenger, a wreck exposed by
+  a storm, a school of tuna at the surface, a missing boat's lights). The telegraph's rumor
+  hints at it, correctly 70% of the time.
+
+
+  Nightly variants
+  Each night rolls at most one variant for the chosen ground; about 40% of nights roll none.
+  The telegraph's rumor points at the variant (right 70% of the time). Every variant changes
+  the web, not just a number, so the crew has to read it.
+
+
+
+
+                                                                                           Page 25 of 50
+The Trawl — Arcade Game 2 Design Document (Draft)
+
+
+
+
+     Ground                    Variant              Chance   What changes
+
+     Any                       Bait run             8%       Forage fish ×3 near the surface; every
+                                                             predator ×1.5 and bolder by midnight
+
+     Any                       Whale carcass        6%       A floating carcass leaks blood all night;
+                                                             scavengers, sharks, and the ground's apex
+                                                             gather on it; oil and ambergris salvage
+                                                             (150–400) for anyone who cuts in
+
+     Any                       Red tide bloom       6%       Forage fish die and float; predators are
+                                                             hungry and take any bait; fish caught near
+                                                             the bloom sell at 50%
+
+     Any                       Drifting derelict    5%       A dark boat drifts through; boarding it is a
+                                                             small salvage run with something still
+                                                             aboard
+
+     Any                       Storm-exposed        5%       An extra shallow wreck to dive, sonar
+                               wreck                         shows it at the start
+
+     Eclipse                   King tide            10%      The crest stays passable all night; open-
+     Lagoon                                                  sea species come into the lagoon
+
+     Eclipse                   Turtle nesting       8%       Turtles everywhere; net bycatch fines add
+     Lagoon                                                  up fast; tiger sharks follow the turtles
+
+     Eclipse                   Canoe night          8%       Island war canoes are out: trade, pay
+     Lagoon                                                  tribute, or fight
+
+     The Weeds                 Tuna run             10%      Bluefin along the seaward edge from
+                                                             22:00; the Great White follows at Wake 30
+                                                             instead of 40
+
+     The Weeds                 Kelp storm           8%       Drift mats everywhere; screw fouling
+                                                             twice as often; yellowtail under every mat
+
+     The Weeds                 Mermen's market      6%       Feral Mermen trade abalone and relics for
+                                                             fish instead of cutting nets
+
+     The Grotto                Glass eel run        10%      Glass eels pour in with the tide; pale cod
+                                                             and anglers follow them to the light
+
+
+
+
+                                                                                                      Page 26 of 50
+The Trawl — Arcade Game 2 Design Document (Draft)
+
+
+
+
+     Ground                    Variant                        Chance       What changes
+
+     The Grotto                Rockfall                       8%           A new chamber opens with an untouched
+                                                                           wreck; stalactites fall at half the usual
+                                                                           noise
+
+     The Grotto                Mould bloom                    8%           The cave glows; everything bites, Anglers
+                                                                           stay away, but Drowned sailors see the
+                                                                           boat from anywhere
+
+     Atlantis                  The Eye wide open              10%          Wake builds 1.5× all night; relics on the
+     Waters                                                                terraces glow and show on the sonar
+
+     Atlantis                  Swordfish night                8%           Swordfish at the surface from dusk; the
+     Waters                                                                sperm whale and a giant squid are both
+                                                                           present
+
+     Atlantis                  Procession                     6%           Cult longboats from the start of the night,
+     Waters                                                                chumming a ring around a sunken altar full
+                                                                           of relics
+
+
+
+
+  Species rosters
+  Each ground's catchable species, as they go into trawl_species.json . Threats have their
+  own stat blocks (see Threats). Tier: 1 forage or grazer, 2 small predator, 3 mid predator, 4
+  apex. Depth bands: surface 0–2 m, upper 2–15, mid 15–60, deep 60–200, abyss 200+. Price
+  is the Fish Market base in shillings per kilogram before grade, freshness, and glut. Fight
+  patterns are tuned in Fishing: Fight tuning.
+
+
+  Eclipse Lagoon
+
+    Species             Tier       Weight           Depth           Eats            Takes             Fight    Price
+                                   (kg)                                                                        (sh/kg)
+
+    Silverside          1          0.05             Surface         Plankton        Handline, glow    None     0.5 (bait)
+                                                                                    speck
+
+    Sardine             1          0.1              Surface–upper   Plankton        Handline, net     None     0.8
+
+    Flying fish         1          0.3              Surface         Plankton        Net; glides       Jump     1.5
+                                                                                    onto a lit deck
+
+    Reef squid          2          0.3–1            Upper           Silversides     Glow jig          Jump     4
+                                                                                                      (inks)
+
+
+
+
+                                                                                                                     Page 27 of 50
+The Trawl — Arcade Game 2 Design Document (Draft)
+
+
+
+
+    Species             Tier       Weight           Depth            Eats             Takes             Fight    Price
+                                   (kg)                                                                          (sh/kg)
+
+    Surgeonfish         1          0.5–1.5          Upper, reef      Algae            Shrimp            Circle   2
+
+    Parrotfish          1          2–5              Upper, reef      Coral algae      Shrimp, small     Cover    2
+                                                                                      jig
+
+    Grunt               2          0.5–2            Upper            Shrimp,          Shrimp            Circle   1.5
+                                                                     worms
+
+    Triggerfish         2          1–4              Upper, reef      Urchins, crabs   Squid strip       Cover    3
+
+    Blue crab           2          0.3–0.8          Seagrass floor   Carrion          Pots              None     5
+
+    Spiny               2          1–4              Reef floor       Urchins,         Pots              None     8
+    lobster                                                          carrion
+
+    Reef                2          1–6              Reef holes       Crabs, lobster   Crab bait, pots   Cover    6
+    octopus                                                                                             (inks)
+
+    Snapper             2          1–6              Upper–mid        Small fish,      Shrimp, squid,    Run      3
+                                                                     shrimp           spoon
+
+    Bonito              3          2–6              Surface          Sardines         Spoon, feather    Run      3
+
+    Jack                3          5–15             Upper            Sardines         Popper, spoon     Circle   1.5
+    crevalle
+
+    Barracuda           3          3–20             Upper            Sardines,        Spoon, live       Run,     1.5
+                                                                     snapper          bait              jump
+
+    Moray eel           3          3–15             Reef holes       Fish, octopus    Dead bait at      Cover    1
+                                                                                      night
+
+    Mahi-mahi           3          5–20             Surface, under   Flying fish,     Live bait,        Jump     4
+                                                    sargassum        squid            popper
+
+    Grouper             3          8–40             Crest caves      Lobster,         Live bait, jig    Cover    5
+                                                                     octopus, fish
+
+    Reef shark          4          20–60            Upper–mid        Fish             Chunks on         Roll     2
+                                                                                      wire
+
+    Green turtle        2          40–120           Upper            Seagrass,        Bycatch only      Dive     Protected
+                                                                     jellies
+
+    Moon jelly          1          —                Surface          Plankton         Net bycatch       None     0 (stings)
+
+
+  Flora: coral heads (shelter, snag nets), seagrass (grazer food, crab habitat), sargassum
+  rafts (drift with the wind; mahi and flying fish shelter under them), plankton bloom (rises
+  under light and a full moon).
+
+
+
+
+                                                                                                                       Page 28 of 50
+The Trawl — Arcade Game 2 Design Document (Draft)
+
+
+
+
+  Web notes. Parrotfish keep algae off the coral; netting them out lets algae smother coral
+  heads over three nights, and the reef fish that shelter there thin out. A landed turtle costs
+  a 50-shilling Owners' fine unless returned alive within 60 s. Barracuda sell cheap but are
+  the Lagoon's main thieves of hooked fish.
+
+
+  The Weeds
+
+    Species              Tier       Weight          Depth         Eats             Takes            Fight       Price
+                                    (kg)                                                                        (sh/kg)
+
+    Anchovy              1          0.03            Upper         Plankton         Net, handline    None        0.6
+
+    Market squid         1          0.1             Surface at    Plankton,        Light and net,   None        2
+                                                    night         anchovy          glow jig
+
+    Kelp perch           1          0.2             Upper,        Plankton,        Tiny hook        None        0.8 (bait)
+                                                    canopy        isopods
+
+    Opaleye              1          1–3             Upper,        Kelp             Green-weed       Cover       2
+                                                    canopy                         bait
+
+    Purple               1          0.2             Rock floor    Kelp             Diving           None        3 (roe)
+    urchin
+
+    Abalone              1          0.5–2           Rock floor    Kelp             Diving only      None        12
+
+    Kelp crab            1          0.3             Canopy        Kelp             Pots             None        4
+
+    Rock crab            2          0.5–1.5         Floor         Carrion          Pots             None        6
+
+    Pacific              2          0.5–1.5         Upper         Anchovy          Spoon,           Run         1.5 (best live
+    mackerel                                                                       feather                      bait)
+
+    Kelp bass            2          1–6             Upper–mid,    Perch, crabs     Swimbait, live   Cover       3
+                                                    canopy                         perch
+
+    Sheephead            2          2–10            Mid, canopy   Urchins, crabs   Crab bait        Cover       3
+
+    Vermilion            2          1–5             Mid–deep      Small fish       Jig              Dive        3.5
+    rockfish
+
+    Bat ray              2          5–30            Sand floor    Clams, crabs     Squid on the     Run (low,   0.5
+                                                                                   floor            heavy)
+
+    Leopard              3          5–20            Floor         Crabs, worms     Squid            Roll        1
+    shark
+
+    Lingcod              3          5–25            Deep rocks    Rockfish,        Big jig, live    Dive,       4
+                                                                  octopus          bait             cover
+
+    Halibut              3          5–40            Sand floor    Fish             Drifted live     Dive        5
+                                                                                   bait
+
+
+
+
+                                                                                                                       Page 29 of 50
+The Trawl — Arcade Game 2 Design Document (Draft)
+
+
+
+
+    Species                Tier     Weight           Depth              Eats             Takes               Fight          Price
+                                    (kg)                                                                                    (sh/kg)
+
+    Yellowtail             3        5–20             Upper,             Mackerel,        Live                Run,           4.5
+                                                     seaward edge       squid            mackerel, iron      cover
+                                                                                         jig
+
+    Giant sea              4        50–250           Deep kelp          Fish, crabs,     Live                Dive,          3
+    bass                                             edge               rays             mackerel,           cover
+                                                                                         heavy rod
+
+    Bluefin tuna           4        40–200           Surface–mid,       Mackerel,        Live                Run,           7
+                                                     seaward edge       anchovy,         mackerel,           circle
+                                                                        squid            popper
+
+    Sea otter              2        15–40            Surface rafts      Urchins,         Never               —              Protected
+                                                                        abalone,
+                                                                        crabs
+
+
+  Flora: giant kelp (canopy shelter; blocks sonar; fouls lines, nets, and the screw), eelgrass
+  beds (nursery for perch and crabs), urchin barrens (bare rock where kelp has been grazed
+  away), drift kelp mats (float with the current; yellowtail shelter under them).
+
+  Web notes. The Weeds are the game's clearest cascade: otters eat urchins, urchins eat
+  kelp, kelp shelters everything else. Killing or scaring off an otter raft (gunfire near them
+  counts) lets urchins spread, turning a kelp patch into barrens over the three nights of a
+  deadline, and the bass, perch, and sheephead that lived there leave. An otter killed costs
+  an 80-shilling fine. Bluefin only run along the seaward edge, where the Great White
+  patrols.
+
+
+  The Grotto
+
+    Species            Tier       Weight            Depth        Eats           Takes                Fight            Price (sh/kg)
+                                  (kg)
+
+    Cave               1          0.02              All bands    Mould film     Net, shrimp trap     None             1 (bait; glows)
+    shrimp
+
+    Glass eel          1          0.05              Upper        Plankton       Net under a light    None             6
+
+    Lantern            1          0.05              Mid–         Plankton       Rises to light;      None             1.5
+    fish                                            deep                        net
+
+    Blind              1          0.1–0.3           Mid          Shrimp         Scented bait (it     None             4
+    cavefish                                                                    cannot see
+                                                                                lures)
+
+
+
+
+                                                                                                                                  Page 30 of 50
+The Trawl — Arcade Game 2 Design Document (Draft)
+
+
+
+
+    Species            Tier       Weight            Depth    Eats         Takes              Fight          Price (sh/kg)
+                                  (kg)
+
+    Mould snail        1          0.2               Walls    Glowing      Diving             None           2
+                                                             mould
+
+    Pale cave          1          0.3               Floor    Mould,       Pots               None           5
+    crab                                                     carrion
+
+    Hagfish            1          0.5–1             Floor    Carrion      Any dead bait on   Roll (slimes   1
+                                                                          the floor          the line)
+
+    Giant              2          1–3               Floor    Carrion      Pots               None           7
+    isopod
+
+    Bone crab          2          1–3               Wrecks   Carrion      Pots set in        None           6
+                                                                          wrecks
+
+    Albino             2          1–5               Wrecks   Crabs        Crab bait          Cover (inks)   7
+    octopus
+
+    Echo bass          2          1–4               Upper    Shrimp       Rattle lure        Circle         4
+                                                                          (hunts by sound)
+
+    Pale cod           2          2–8               Mid      Shrimp,      Glow jig, shrimp   Dive           4
+                                                             cavefish
+
+    Cave               3          5–15              Deep     Cod, eels    Chunks             Roll           2
+    dogfish
+
+    White              3          5–25              Walls,   Cod, crabs   Dead bait on the   Cover, roll    3
+    conger                                          wrecks                bottom
+
+    Ghost ray          3          10–40             Floor    Crabs,       Squid on the       Run (glides)   3
+                                                             isopods      floor
+
+    Grotto             4          60–250            Deep     Crabs, cod   Big dead bait,     Dive (slow,    8, plus 200 for
+    sturgeon                                        floor                 deep-drop reel     very long)     a female's roe
+
+    Glowjelly          1          —                 Upper    Plankton     Net bycatch        None           0 (stings; a
+                                                                                                            light source)
+
+
+  Flora: glowing mould (the Grotto's main light and its base food), pale weed (shallow
+  shelves), bacterial mats around warm vents (deep; draw isopods and hagfish).
+
+  Web notes. The Grotto's web runs on mould, not sunlight, so it is small and fragile: a heavy
+  night of netting shrimp starves the cod and cavefish by night two, and hungry cod bring
+  the Lantern Anglers up. Sound doubles here (see The Grotto), so echo bass come to noise
+  that sends everything else running. Sturgeon take 10–20 minutes on the deep-drop reel,
+  and the vibration of that fight is the most reliable way to wake a Ghost Worm.
+
+
+
+
+                                                                                                                      Page 31 of 50
+The Trawl — Arcade Game 2 Design Document (Draft)
+
+
+
+
+  Atlantis Waters
+
+    Species                Tier       Weight        Depth            Eats        Takes                 Fight    Price (sh/kg)
+                                      (kg)
+
+    Lantern fish           1          0.05          Deep by day,     Plankton    Rises to light;       None     1.5
+                                                    upper at night               net
+
+    Mackerel               1          0.2           Upper            Plankton    Sabiki rig            None     1 (bait)
+    scad
+
+    Barreleye              1          0.1           Deep             Jellies     Net                   None     30 (a
+                                                                                                                curiosity)
+
+    Flying squid           1          0.3–1         Surface at       Lantern     Light and a jig       Jump     3
+                                                    night            fish
+
+    Skipjack               2          2–6           Surface          Squid,      Feather, spoon        Run      2.5
+                                                                     scad
+
+    Deep king              2          2–8           Deep floor       Carrion     Deep pots             None     12
+    crab
+
+    Gulper eel             2          1–3           Abyss            Shrimp      Deep-drop with        None     10
+                                                                                 a glow lure
+
+    Yellowfin tuna         3          15–80         Surface–mid      Squid,      Live skipjack,        Run,     5
+                                                                     skipjack    popper                circle
+
+    Jumbo squid            3          10–40         Mid; rises at    Fish,       Glow jig              Jump,    3
+                                                    night in packs   squid                             roll
+                                                                                                       (inks)
+
+    Opah                   3          20–80         Mid              Jellies,    Squid, fished         Circle   6
+                                                                     squid       deep
+
+    Frill shark            3          10–30         Deep             Squid       Deep-drop             Roll     5
+                                                                                 squid
+
+    Oarfish                3          20–100        Mid–deep         Plankton    Net only, rarely      None     300 flat per
+                                                                                                                specimen
+
+    Swordfish              4          50–250        Deep by day,     Squid       Squid with a          Dive,    7
+                                                    surface at                   glow stick, at        jump
+                                                    night                        night
+
+    Blue marlin            4          80–400        Surface          Tuna,       Trolled skirt lure,   Jump,    6
+                                                                     squid       live skipjack         run
+
+    Giant bluefin          4          200–          Surface–mid      Skipjack,   Live skipjack         Run,     7
+                                      500                            squid       from the big-         circle
+                                                                                 game chair
+
+    Atlantean              4          40–90         Deep terraces    Fish,       Deep-drop dead        Dive     12
+    coelacanth                                                       squid       bait
+
+
+
+
+                                                                                                                           Page 32 of 50
+The Trawl — Arcade Game 2 Design Document (Draft)
+
+
+
+
+    Species                Tier       Weight        Depth          Eats          Takes                Fight        Price (sh/kg)
+                                      (kg)
+
+    Drowned-gold           4          80–300        Terraces       Fish,         Deep-drop live       Cover        9
+    grouper                                                        crabs         bait
+
+    Giant squid            4          100–300       Deep           Fish,         Deep-drop            Dive, roll   8
+                                                                   squid         whole tuna
+
+    Ocean                  2          200–          Surface        Jellies       Never bites; net     None         0
+    sunfish                           1,000                                      bycatch
+
+    Sperm whale            4          —             Surface to     Giant         Never                —            Never
+                                                    abyss          squid                                           caught
+
+
+  Flora: sunken gardens on the terraces (shelter the grouper and coelacanth), deep coral
+  (the crabs' habitat), the Eye's bioluminescent veils (drifting lights that rise through the
+  night and draw lantern fish, and so everything above them).
+
+  Web notes. Atlantis has the longest chain in the game: lantern fish rise to the veils, squid
+  rise to the lantern fish, tuna and swordfish rise to the squid, marlin hunt the tuna, and the
+  Kraken takes whatever is largest. The sperm whale is a tell, not a catch: its clicks on the
+  sonar mean a giant squid is below and the whale is hunting it, which briefly makes the
+  deep safer for divers. Jumbo squid packs strip hooked fish and bite divers.
+
+
+  Threats
+  Threats are species in the food web with a size, a diet, senses, and a hunger meter, like
+  everything else. What makes them threats is that the crew is on their menu. Each has a
+  sonar tell, a sound tell, a visual tell, and at least one counter, all tested (see Definition of
+  Done).
+
+
+    Threat               Grounds              Drawn by           Tells                 What it does           Counters
+
+    Gull flock           Lagoon,              Fish on deck,      Cries overhead,       Lands and flies        Shotgun, cover
+                         Weeds                chum               shadows               off with fish          the catch, gut and
+                                                                                       under 3 kg             ice fast
+
+    Barracuda            Lagoon               Flash lures,       Sonar: a tight fast   Strikes hooked         Wire leader, land
+    pack                                      bleeding fish      group; silver         fish to the head       fish fast, spear
+                                                                 flashes               (you reel in half);    the leader
+                                                                                       bites divers
+
+
+
+
+                                                                                                                            Page 33 of 50
+The Trawl — Arcade Game 2 Design Document (Draft)
+
+
+
+
+    Threat               Grounds              Drawn by             Tells                What it does         Counters
+
+    Reef or              Lagoon               Blood above its      A fin at the         Takes hooked         Harpoon cannon,
+    Great White          (reef),              threshold (30        lantern's edge;      fish; rams the       full speed, stop
+    shark                Weeds,               reef, 120 White)     sonar: one slow      hull; the White      the blood (ice the
+                         Atlantis                                  large contact        knocks crew off      catch, stop
+                                                                                        the rail             chumming)
+
+    Siren                Weeds,               Light, singing       Song rises; the      Charms the           Ear plugs, the bell
+                         Atlantis (the        back                 helm drifts on its   nearest crewman      breaks a charm,
+                         Deep Choir)                               own                  for 5 s (walks       shoot the singer
+                                                                                        them to the rail);   when it surfaces
+                                                                                        turns the helm
+                                                                                        toward rocks
+
+    Kelp Wraith          Weeds                Movement at          Canopy moves         Wraps a              Stay off the rail in
+                                              the rail             against the          crewman at the       the canopy, cut
+                                                                   current; nothing     rail and pulls       them free with a
+                                                                   on sonar             them in              knife, flare
+
+    Feral                Weeds                Nets in the kelp     Clicking on the      Cut nets and         Haul early, rifle,
+    Mermen                                                         hull mic             warps, steal from    trade them fish
+                                                                                        set gear
+
+    Lantern              Grotto,              Light and            A second light in    Lures a crewman      Don't walk toward
+    Angler               Atlantis             curiosity            the dark that you    to the rail and      lights; hood the
+                                                                   didn't hang          pulls them over      lantern; flare
+                                                                                                             burst blinds it
+
+    Ghost Worm           Grotto,              Vibration: taut      Sonar: a long        Bites through        Cut the line, stop
+                         Atlantis             lines, the net,      shape circling;      lines, snags the     the screw, lower
+                                              the screw            lines hum            net, at full size    the lantern;
+                                                                                        coils the hull       harpoon plus
+                                                                                                             rifles on the head
+
+    Isopod               Grotto               Corpses, offal       Clicking on the      Climb aboard, eat    Raise the anchor,
+    swarm                                     on deck              anchor chain         the catch, bite      boiling water from
+                                                                                        ankles               the boiler bleed,
+                                                                                                             clean deck
+
+    Drowned              Grotto,              Light, the bell of   Knocking on the      Climb aboard;        Gaffs and rifles,
+    sailors              Atlantis             the Ghost Ship       hull, slow and       slow, relentless,    keep the deck lit,
+                                                                   regular              grab and drag        cast them back
+                                                                                                             over
+
+    Cult                 Atlantis             The Pale Eye's       Chanting from        Circles and          Outrun it, rifle the
+    longboat                                  Wake                 the dark, torches    chums the water      rowers, stop
+                                                                                        around the           looking at the Eye
+                                                                                        Gannet
+
+
+
+
+                                                                                                                           Page 34 of 50
+The Trawl — Arcade Game 2 Design Document (Draft)
+
+
+
+
+    Threat                 Grounds             Drawn by            Tells                What it does        Counters
+
+    Ghost Ship             Grotto              Your bell rung      A bell answering     Comes alongside     Flee at full steam,
+                           (rare),             too often; a        yours                and boards with     or fight: a beaten
+                           Atlantis            moonless night                           drowned crew;       Ghost Ship leaves
+                                                                                        steals set gear     a relic chest
+
+    The Kraken             Atlantis            Wake at             The Glass (dead      Arms take crew      Cut the net, kill
+                                               maximum             calm), sonar         and gear off the    the lantern, run at
+                                                                   whites out, the      deck, crush hull    full steam,
+                                                                   fish vanish          sections, can       harpoon an arm to
+                                                                                        take the boat       make it let go
+
+
+  Wake and the big three. The Great White, the Ghost Ship, and the Kraken are not rolled
+  on a timer. They come when a ground's Wake (see The food web) crosses their threshold:
+  40 for the White, 65 for the Ghost Ship, 90 for the Kraken (Atlantis only). A careful crew
+  can fish a whole night in Atlantis Waters without seeing the Kraken; a crew that depth-
+  charges twice will see it before midnight.
+
+  Scaling by deadline. From the second deadline on, threats gain 10% hunger rate and 5%
+  size per deadline, and each ground adds one threat from the next ground down the list, so
+  the Lagoon eventually has Anglers.
+
+
+  Threat stats
+  Crew have no hit points (see Death), so a threat's effect on a crewman is an injury, a grab,
+  or a trip over the rail. Hull damage is to one section's integrity (0–100). HP is the threat's; a
+  weak point takes double damage. Values rise with the per-deadline scaling above.
+
+
+    Threat             Size           HP            Speed      On the crew       On the boat      Weak point      Drawn at
+                                                    (m/s)                        and catch
+
+    Gull flock         1 (×12)        1 each        8 in air   Pecks: no         Takes one fish   Any hit         Fish on deck
+                                                               injury            under 3 kg
+                                                                                 every 4 s
+
+    Barracuda          3 (×4–         30 each       2, 7       Bite on a diver   Bites hooked     Head            Flash lures,
+    pack               8)                           burst      (injury)          fish (−50%                       blood 15
+                                                                                 weight)
+
+    Reef shark         3              80            2, 5       Bite at the       Takes hooked     Gills           Blood 30
+                                                    burst      waterline         fish
+                                                               (injury)
+
+
+
+
+                                                                                                                         Page 35 of 50
+The Trawl — Arcade Game 2 Design Document (Draft)
+
+
+
+
+    Threat             Size          HP             Speed      On the crew      On the boat       Weak point        Drawn at
+                                                    (m/s)                       and catch
+
+    Great              5             600            3, 8       Bite (serious    Ram: −25 to       Gills, eyes       Wake 40,
+    White                                           burst      injury);         one section                         blood 120
+                                                               knocks crew
+                                                               off the rail
+
+    Siren              3             60             2          Charm for 5 s    Turns the         Head, when        Light, Wake
+                                                               within 40 m of   helm 2° a         surfaced          20
+                                                               the song         second
+                                                                                toward rocks
+
+    Kelp Wraith 3                    50             1          Entangles;       —                 Body; a knife     Movement
+                                                    (drifts)   drags at 1 m/s                     cut frees the     at the rail
+                                                               toward the                         crewman
+                                                               water
+
+    Feral              3             70             3          Thrown spear     Cuts a warp in    Head              Nets in the
+    Merman                                                     (injury)         4 s; strips set                     canopy
+                                                                                gear
+
+    Lantern            4             200            2, 8       Lures within     —                 The lure: a hit   Light,
+    Angler                                          lunge      12 m (walks                        blinds it for     curiosity
+                                                               them to the                        20 s
+                                                               rail); grabs
+
+    Ghost              3             120            3          Bite (injury)    Bites through     Head              Vibration
+    Worm,                                                                       any line but
+    hatchling                                                                   steel
+
+    Ghost              6             1,500          3, 6       Swallows a       Snags the net;    Three glowing     Vibration,
+    Worm,                                           surge      crewman in       coils the hull    gill slits        Wake 55
+    adult                                                      the water        (−10 a second
+                                                                                to two
+                                                                                sections)
+
+    Isopod             1 (×30)       3 each         1          Ankle bites      Each eats 1 kg    Boiler steam      Corpses,
+    swarm                                                      (slowed)         of catch a        kills             offal on
+                                                                                minute                              deck
+
+    Drowned            3             90             1.2        Grabs and        —                 Head; thrown      Light, the
+    sailor                                                     drags at 0.8                       overboard it      Ghost Ship's
+                                                               m/s                                climbs back in    bell
+                                                                                                  30 s
+
+    Cult               Boat, 6       Boat           4          Thrown           Chums a ring      Rowers            The Pale
+    longboat           rowers        200,                      torches          of 20 blood a                       Eye's Wake
+                                     rowers                    (burn)           second
+                                     40 each
+
+
+
+
+                                                                                                                          Page 36 of 50
+The Trawl — Arcade Game 2 Design Document (Draft)
+
+
+
+
+    Threat             Size          HP             Speed   On the crew    On the boat       Weak point      Drawn at
+                                                    (m/s)                  and catch
+
+    Ghost Ship         Ship          Hull           3.5     Boards with    Grapples          Its bell        Wake 65, a
+                                     1,200                  6–10 Drowned   alongside;                        moonless
+                                                            sailors        steals set gear                   night
+
+    The Kraken         6             8 arms         —       Arm grabs      Crushes           The eye, only   Wake 90,
+                                     at 400,                (carry off)    sections          when it         Atlantis
+                                     body                                  (−30), takes      surfaces
+                                     3,000                                 gear, can sink
+                                                                           the boat
+
+
+  Most threats are worth something dead: a shark sells at 2 sh/kg, a Ghost Worm hatchling's
+  gill lanterns fetch 60 each, an adult's 400. The Siren, Wraith, Drowned, and Kraken leave
+  nothing sellable except relics on the Ghost Ship.
+
+
+  The big three
+  Each of the three Wake-called threats runs a short script on top of its food-web brain.
+  Every one of them can be escaped, survived, or killed, and each takes a different kind of
+  crew work. For reference, the Gannet makes 1.5 m/s at slow, 3 at half, and 4.5 at full (5.9
+  with the compound engine).
+
+  The Great White (Lagoon at deadline 2+, Weeds, Atlantis)
+
+   1. Investigate (30–60 s). A fin circles at the lantern's edge, about 20 m out. It takes any
+       hooked fish it finds and bumps the hull once (−5). If blood near the boat falls below 60
+       and nobody is in the water, it leaves after 90 s.
+   2. Hunt. Starts if it is wounded, if a crewman is in the water, or if blood stays high. Every
+       20–30 s it drops out of sight (the sonar shows it rising, 2 s of warning) and rams: −25 to
+       a section, 15° of roll, and unbraced crew at that rail go over. A crewman in the water is
+       its first target, at 8 m/s.
+   3. Break-off. At 30% HP it flees, or it leaves once sated (60 kg eaten, a stolen tuna
+       counts). Harpooned and tethered, it becomes a Run-pattern fight on the cannon
+       winch; a landed White (300–700 kg) pays well and bleeds the whole ground.
+
+  The Ghost Ship (Grotto, Atlantis)
+
+   1. The answer. At Wake 65 on a moonless night, or after the ship's bell has been rung
+       more than 10 times in one night, a bell answers from the dark. Fog thickens; the sonar
+       shows a hull 300 m out.
+
+
+
+
+                                                                                                                   Page 37 of 50
+The Trawl — Arcade Game 2 Design Document (Draft)
+
+
+
+
+   2. Approach (about 90 s). It closes at 3.5 m/s, so full steam outruns it and half steam does
+       not. Fleeing is a real option.
+   3. Alongside. It throws three grapples (each cut in 3 s with a knife) and boards Drowned
+      sailors three at a time every 20 s, up to 6–10.
+   4. Ending it. Either a crewman crosses to the Ghost Ship and rings its own bell (the
+       boarders fall into the sea), or the crew deals 1,200 hull damage (explosive harpoons
+       and depth charges under it). Either way it sinks and leaves a floating relic chest: two
+       relics and 300–600 in salvage.
+   5. If ignored. After 4 minutes alongside it casts off with any set gear and whatever un-
+      iced catch its boarders carried.
+
+  The Kraken (Atlantis only)
+
+   1. Tells (60 s). The Glass: the wind dies and the sea goes flat. Fish vanish from the sonar.
+      For the last 20 s the scope is white.
+   2. Arms (0–60 s). Two arms rise every 15 s, up to four. Each picks a target in order: the net,
+       a crewman at the rail, the lantern mast, loose gear. A grabbed crewman is carried off in
+       4 s unless the arm takes 80 damage (knife 20 a hit, rifle 25, harpoon 120).
+   3. Hold (60–90 s). An arm on the warps drags the stern down; cutting the net loose buys
+       30 s. If the lantern is dark and the screw runs at full for 45 s straight, it loses the boat
+       and sinks away.
+   4. Crush (90 s on). The remaining arms wrap the hull: −30 to a section every 10 s. Three
+       sections at 0 sinks the Gannet. Every 30 s the body surfaces for 6 s and the eye (weak
+       point) is open.
+   5. Ending it. Escape by darkness, speed, and cutting the net; survive by severing arms
+       until it gives up (all eight arms cut); or kill it through the eye (3,000 HP, realistically only
+       with explosive harpoons and depth charges). A kill leaves the Kraken's beak (a 2,000
+       relic) and ends every threat on the ground for the rest of the night.
+
+
+  Diving and salvage
+  Diving is The Trawl's Lethal Company facility run: one or two crew go down into a wreck
+  for salvage while the deck keeps them alive. It is the highest-value, highest-trust activity
+  in the game.
+
+  Gear. The hardhat suit (bought, 350) and later the diving bell (boat upgrade, 1,200). The
+  hardhat diver is on an air hose from the deck pump and a lifeline to the gantry winch; the
+  bell carries two divers to 120 m and gives them a pocket of air to return to.
+
+
+
+                                                                                                 Page 38 of 50
+The Trawl — Arcade Game 2 Design Document (Draft)
+
+
+
+
+  The view. Diving switches that player to a side-view pixel scene built on the parkour side's
+  movement code (walk, climb, squeeze, no jumping hazards), lit only by the helmet lamp.
+  The deck crew sees the diver as a dot on sonar and hears them on the speaking tube.
+
+  Keeping the diver alive (the deck's job).
+
+       Air. A hand works the pump (a rhythm input; the gauge must stay in the green). Stop
+       pumping and the diver has 30 s of air in the helmet.
+       The hose and lifeline are Verlet chains. They tangle on wreckage, get bitten (Ghost
+       Worms, Barracuda), and snag if the boat drifts. The helm has to hold station over the
+       wreck against wind and current.
+       Recall. Two sharp tugs from the diver (a key) or the deck means "haul me up". The
+       winch brings a diver up at 1 m/s; faster risks the Bends (slowed and dizzy for the rest of
+       the night).
+
+  Wrecks. Each ground has 2–4 procedurally laid-out wrecks (smuggler hulls, whalers,
+  Atlantean terraces) with rooms, flooded corridors, locked cabins (crowbar), and things
+  living in them. Salvage items are physical: heavy, carried in both hands, sometimes two-
+  diver lifts, sent up in the salvage basket on its own line.
+
+  Salvage. Brass fittings, bottles of old rum, ship's bells, chronometers, sealed strongboxes,
+  scrimshaw, Atlantean idols, and relics (rare, worth 150–600 each). Some salvage is cursed:
+  an idol brought aboard raises that night's Wake by 10 and makes the Pale Eye blink.
+
+  Wreck generation. Wrecks are generated per ground at the start of each deadline and
+  persist across its three nights: what is looted stays looted, and what the crew disturbed
+  stays awake.
+
+
+    Wreck type                Grounds               Depth      Rooms         Salvage budget         Locked
+                                                                                                    cabins
+
+    Sloop                     Lagoon,               8–20 m     3–5           80–200                 0–1
+                              Weeds
+
+    Whaler                    Weeds, Grotto         15–40 m    6–9           200–450                1
+
+    Smuggler hull             Grotto                20–60 m    8–12          300–700                2
+
+    Galleon                   Atlantis              60–110 m   12–18         600–1,400              3
+                                                    (bell)
+
+    Atlantean                 Atlantis              40–120 m   10–16, open   1–3 relics plus 300–   1 sealed vault
+    terrace                                         (bell)     ruins         800
+
+
+  Grounds hold Lagoon 1–2 wrecks, Weeds 2, Grotto 3–4, Atlantis 2–3 plus one terrace.
+
+
+
+                                                                                                             Page 39 of 50
+The Trawl — Arcade Game 2 Design Document (Draft)
+
+
+
+
+  Layout rules
+
+   1. Start from a hull profile for the type and cut it into decks, then rooms on a 4 × 3 m cell
+       grid joined by doors, hatches, and breaches. Some hulls lie on their side (30%), turning
+       ladders into floors and floors into walls.
+   2. Every room must be reachable within the hardhat's 40 m of hose from the entry point,
+       or from the bell for bell wrecks.
+   3. About 30% of wrecks have a squeeze passage (one diver, no carried salvage through it)
+      that shortcuts to the richest room.
+   4. Place one air pocket per five rooms.
+   5. Spread the salvage budget with heavier and more valuable items deeper in; 40% of the
+      value sits behind locked doors (crowbar or the Diver's Wreck Rat).
+   6. Silt on every floor: moving fast raises it and blinds the helmet lamp for 5 s.
+   7. Roll residents from the ground's roster: morays, octopus, isopods, congers, a Ghost
+       Worm hatchling (Grotto, Atlantis), and one Drowned sailor per four rooms in the Grotto
+       and Atlantis. Atlantis wrecks have a 10% chance per cabin of a cursed idol.
+
+   --trawl-wreck <ground> <seed> prints a wreck as ASCII and asserts reachability, the
+  hose limit, and the salvage budget.
+
+  What lives in wrecks. Moray eels (bite and hold), octopus (steal the lamp), isopods,
+  sleeping Ghost Worm hatchlings, and Drowned sailors who were only waiting for
+  company.
+
+
+
+  Economy and progression
+  Money is shillings. Fish pay now and spoil; salvage keeps and pays best on deadline day.
+  That split is the economy's main decision.
+
+  Fish value = species base price × weight × grade × freshness × glut.
+
+       Grade is how it was taken (hook 100%, spear 85%, harpoon 75%, rifle 70%, depth
+       charge 50%, explosive 30%), minus 10% for every bite taken out of it on the line.
+       Freshness starts at 100% and falls 1% per real minute on deck, 0.2% per minute gutted
+       and iced. Fish kept overnight in ice lose 25%; un-iced fish rot and sell for nothing.
+       Glut. Each species' price at the Fish Market drops 3% for every 10 kg of it sold that
+       deadline, so six hundred kilos of sardines is not a strategy.
+
+
+
+
+                                                                                               Page 40 of 50
+The Trawl — Arcade Game 2 Design Document (Draft)
+
+
+
+
+  Salvage is sold to the Owners at a rate that rises toward the deadline, the Lethal Company
+  buy-back rule: 40% after night one, 70% after night two, 100% at the deadline count.
+  Holding salvage is a bet that the crew will survive to sell it.
+
+  The Chandler. Consumables and hand gear, bought at the dock. Rods are priced in the
+  Tackle table. The Gannet starts every run with two handlines, one light rod, two gaffs, a
+  fish priest, one life ring, a patch kit, and 20 kg of ice.
+
+
+     Item                                           Price (sh)      Notes
+
+     Ice                                            5 per 20 kg     Keeps gutted fish fresh; the hold
+                                                                    holds 600 kg
+
+     Coal                                           10 per sack     A sack runs the engine about 3
+                                                                    minutes at half
+
+     Squid strips, shrimp                           4 per tin       10 baits
+
+     Chum bucket                                    15              Writes 40 blood over 60 s
+
+     Line spool (mono / braid / wire leader         8 / 15 / 12 /   One re-rig
+     / glow)                                        20
+
+     Hooks (small, circle, big-game                 3 / 5 / 12      Per 5
+     treble)
+
+     Lures (spoon, jig, popper, plug, rattle,       10–25 each      Lost with a broken line
+     glow)
+
+     Sabiki rig                                     12              Catches 3–6 bait fish at once
+
+     Longline                                       60              20 hooks, two radio buoys
+
+     Crab pot                                       25              Reusable
+
+     Hand lamp                                      20              Batteries last one night
+
+     Batteries                                      5               For lamps and walkies
+
+     Pocket watch                                   15              Shows the time anywhere
+
+     Walkie                                         40              Channel-wide voice
+
+     Knife                                          10              Cuts lines, grapples, arms, Wraiths
+
+     Crowbar                                        30              Opens locked cabins
+
+
+
+
+                                                                                                        Page 41 of 50
+The Trawl — Arcade Game 2 Design Document (Draft)
+
+
+
+
+     Item                                                    Price (sh)       Notes
+
+     Patch kit                                               25               Stops one leak
+
+     Extra life ring                                         40               Thrown on a rope
+
+     Ear plugs                                               8                Immune to Siren charm; halves hearing
+
+     Bandages                                                10 per 3         Stop bleeding
+
+     Flare pistol                                            60               Flares 10 each
+
+     Speargun                                                150              Spears 5 each
+
+     Rifle                                                   250              Rounds 2 each
+
+     Shotgun                                                 200              Shells 3 each
+
+     Harpoon (cannon)                                        20               Explosive head 80
+
+     Depth charge                                            120              Owners' fine 30 if used in the Lagoon
+
+     Hardhat diving suit                                     350              Hose and lifeline included
+
+
+  The Slipway (boat upgrades, kept for the whole run).
+
+
+     Upgrade                                    Effect                                                     Price
+
+     Hull plates (per section)                  Section integrity 100 → 150                                150 each
+
+     Bigger ice hold                            Hold 600 → 1,000 kg of iced fish                           400
+
+     Second pump                                Bilge rate doubled                                         300
+
+     Compound engine                            +30% speed, −25% screw noise                               800
+
+     Hooded lantern mast                        Adds the searchlight level and colored filters (red        500
+                                                light is invisible to most deep species)
+
+     Second sonar                               A second operator; shows depth of contacts                 450
+
+     Harpoon cannon                             Bow cannon and winch                                       700
+
+     Big-game chair                             The 120 kg rod station                                     900
+
+     Bigger trawl                               Mouth width +50%, weight +50%                              600
+
+     Diving bell                                Two-diver bell to 120 m                                    1,200
+
+
+
+
+                                                                                                                   Page 42 of 50
+The Trawl — Arcade Game 2 Design Document (Draft)
+
+
+
+
+  The Catch Log. Every species caught is logged with its heaviest weight, and every threat
+  with a one-line dossier learned from surviving it (the Lethal Company bestiary). A
+  species' first catch pays a 50% bonus. The Catch Log, the heaviest-fish board, and
+  trophies mounted in the wheelhouse carry across runs in the arcade profile.
+
+  Arcade tokens. 10 per deadline met, 25 for a run past the fourth deadline. Spent on
+  cosmetics only (boat liveries, lantern colours, suit helmets), per the master reference: the
+  Trawl never pays into the main game's economy.
+
+
+  Death, injury, and ghosts
+  Most deaths start with a crewman in the water, so the rescue is a mechanic, not a
+  cutscene.
+
+  Overboard. A player in the water sees a side view of themselves treading water, has 25 s
+  before cold and exhaustion drown them (12 s in a storm), and is a bleeding, splashing,
+  noisy thing in the food web. The deck can throw the life ring (a thrown Verlet rope; aim for
+  the swimmer, then haul), steer the boat alongside (the screw kills swimmers, so the helm
+  must stop it), or send a second crewman in on a line. Things that took a crewman over the
+  rail usually aren't done with them.
+
+  Injuries (no health bar). Bites, burns, and falls cause injuries that change what a player
+  can do until the dock: a hooked hand (can't reel), a broken arm (one-handed only, can't
+  carry big fish), a burn (slower), and a bite (bleeds into the scent grid until bandaged). A
+  second serious injury in one night is death.
+
+  Death. A dead crewman is dead for the night. If their body stays aboard, they revive at the
+  dock. If the body is lost to the sea, the Owners deduct 8% of the crew's money for the
+  replacement hand (Lethal Company's rule), and the crewman still returns at the dock.
+
+  Ghosts. The dead walk the deck as translucent figures who cannot touch anything except
+  three things: the ship's bell, the sonar screen (read only), and the ghost's own lantern, a
+  faint cold light that only other ghosts can see. Ghosts see threats in the dark within 10 m
+  as pale outlines for a moment after they move, so a dead crewman becomes the best
+  lookout on the boat. They speak only to other ghosts and through the bell.
+
+  Total loss. If every crewman dies, or the boat sinks, the night's catch is lost, the Owners
+  charge 25% of money for salvaging the Gannet, and the next night starts at the dock. The
+  run continues unless the quota can no longer be met.
+
+
+
+
+                                                                                          Page 43 of 50
+The Trawl — Arcade Game 2 Design Document (Draft)
+
+
+
+
+  Technical plan
+  The Trawl is built on three existing pieces: the shared arcade networking layer, Red Tide's
+  Ecosystem engine (extended from 3D to a 2.5D water column), and the parkour side's
+  pixel-art and movement code.
+
+  Files
+
+
+     File                                           Holds
+
+      trawl.cpp                                     Session state machine (dock, sail, night, return,
+                                                    sell), quota, clock
+
+      trawl_boat.cpp                                Hull, buoyancy, roll/pitch/heave, engine, damage,
+                                                    bilge
+
+      trawl_lines.cpp                               Verlet chains for lines, nets, hoses, and ropes;
+                                                    tension, snapping, tangles
+
+      trawl_fish.cpp                                Cast, bite, fight, landing; set gear; the trawl net
+
+      trawl_guns.cpp                                Projectiles, refraction, damage, value grading
+
+      trawl_dive.cpp                                Side-view dive scenes, wreck generation, air and
+                                                    hose
+
+      trawl_eco.cpp                                 Adapter to the shared Ecosystem : water-column
+                                                    depth bands, light layer, vibration, Wake
+
+      trawl_art.cpp                                 Procedural pixel art: deck, crew, fish, threats,
+                                                    water, lantern light
+
+      trawl_data.cpp +                              Every number and every species record
+      trawl_species.json
+
+      trawl_bots.cpp                                Bot crew brains, station behaviours, orders
+
+
+  The water column. Red Tide's scent and sound grids are 3D at 2 m cells. The Trawl uses a 4
+  m horizontal grid with five depth bands (surface 0–2 m, upper 2–15, mid 15–60, deep 60–
+  200, abyss 200+); agents keep a continuous depth for fishing and diving. Species records
+  gain a depth band, a light preference, and a fight pattern.
+
+  Networking. Host-authoritative, 6 players, through arcade_net.cpp . Snapshots at 20 Hz;
+  state is filtered by what each client can know: fish below the surface are sent only inside
+  the light radius, on a client's sonar ping, or while hooked. The rod holder's tension gauge is
+
+
+
+                                                                                                    Page 44 of 50
+The Trawl — Arcade Game 2 Design Document (Draft)
+
+
+
+
+  predicted locally from the chain physics and reconciled with the host so reeling feels
+  immediate at 150 ms of latency. Voice uses the arcade layer's voice channel (Opus-
+  encoded, positional), with the host mixing nothing: clients attenuate by distance and walls
+  themselves. --net-loop trawl runs a host and five bot clients over loopback.
+
+  Performance budget. About 250 active agents within 150 m of the boat at full rate (10 Hz
+  decisions, 60 Hz movement); population counters beyond. Up to 16 Verlet chains at once
+  (6 rod lines, 2 warps, the net mesh counted as one, hose, lifeline, tether, life ring, anchor,
+  longlines).
+
+  Art. Top-down pixel deck at 2× the parkour pixel scale; the sea is drawn black outside the
+  light grid with foam and glint pixels; fish show as shadows until lit or landed, then as full
+  sprites; threats get the parkour beast sprite pipeline. Side views (dive, overboard, the reel
+  camera on a big fight) use the parkour renderer. The porthole bezel frames everything, per
+  the arcade's shared frame.
+
+  Sound. Every cue goes through the master reference's cue registry and buses. Key cues:
+  reel ratchet pitched by tension, the line's hum rising before a snap, the drag's zip, the
+  winch, rod creak, the pump's rhythm and the diver's breathing, the bell, the hull mic's
+  knocks, each threat's tell. The music is a drone and a shanty fragment that stops when
+  anything with Wake-level size is within 60 m: the silence is the first tell.
+
+
+
+  Sound design
+  In the Trawl, sound is information: most threats are heard before they are seen, and the
+  music going quiet is the first warning. Everything is synthesized through the master
+  reference's cue registry and buses; where a Red Tide cue fits the same animal, it is copied
+  as a starting point and re-tuned.
+
+
+  Music
+
+     State                                          Music
+
+     Dock                                           A concertina shanty with harbour bells; a new
+                                                    verse after each met deadline
+
+     Sail out and home                              The shanty's refrain over the engine, slower at
+                                                    night's end
+
+     Quiet night                                    A low drone and a slow shanty fragment on a lone
+                                                    fiddle
+
+
+
+                                                                                                       Page 45 of 50
+The Trawl — Arcade Game 2 Design Document (Draft)
+
+
+
+
+     State                                          Music
+
+     Fish on (anything over 20 kg)                  A taut rising string figure that follows line tension
+
+     Wake-sized threat within 60 m                  Silence. The music simply stops, which is the first
+                                                    tell
+
+     The big three engaged                          A pounding low drum and hull-groan pulse; the
+                                                    Kraken adds a choir
+
+     Deadline met / missed                          A brass fanfare on the chalkboard / a single church
+                                                    bell
+
+
+
+  Ambience by ground
+
+     Ground                       Bed
+
+     Eclipse Lagoon               Surf on the crest, insects on the atoll, distant
+                                  drums on canoe nights, gulls at dusk
+
+     The Weeds                    Kelp creak, otters cracking urchins, sea lions far off,
+                                  fog-horn buoys
+
+     The Grotto                   Drips with long reverb, water sucking at the arch,
+                                  mould hiss, the boat's every sound echoing back
+
+     Atlantis Waters              Open-ocean swell, wind, whale song far below, a
+                                  low hum that rises when the Eye is watched
+
+
+
+  Effects
+       Fishing: the reel's ratchet pitched by tension, the drag's zip, a rising line hum before a
+       snap and the crack of the snap, the rod creaking, the splash of a jump, the thump of a
+       gaff, the fish flopping on deck.
+       The boat: engine chuff by telegraph setting, boiler hiss and the relief valve's shriek, hull
+       creaks with roll, water in the bilge, the pumps, the winch, warps groaning under load, a
+       snagged net's shriek.
+       Guns: each weapon's report, muffled impacts under the surface, the harpoon's tether
+       whine, the depth charge's thud felt through the hull.
+       Diving: the pump's rhythm heard in the helmet, the diver's breathing (faster at low air),
+       bubbles, hose scrape, silt, distant knocks inside the wreck.
+
+
+
+                                                                                                            Page 46 of 50
+The Trawl — Arcade Game 2 Design Document (Draft)
+
+
+
+
+  Threat tells
+
+     Threat                        Sound tell
+
+     Gulls                         Cries overhead, closer each pass
+
+     Barracuda                     Fast ticks on the hull mic
+
+     Sharks                        Nothing, then a hull bump
+
+     Siren                         Singing that rises through the music's silence
+
+     Kelp Wraith                   Kelp creaking against the current
+
+     Mermen                        Clicking on the hull
+
+     Lantern Angler                A low glassy hum at the second light
+
+     Ghost Worm                    Lines humming with no fish on them
+
+     Isopods                       Clicking on the anchor chain
+
+     Drowned sailors               Slow knocking on the hull, a few seconds apart
+
+     Cult longboat                 Chanting and oars
+
+     Ghost Ship                    A bell answering yours
+
+     Kraken                        Everything goes quiet, even the sea
+
+
+
+  Voice
+  Proximity voice is processed in the world: muffled behind walls, thinned by wind and rain,
+  lost under the engine at full, crackling on walkies, and bubbling for a crewman in the water.
+  Ghosts hear each other with a cold reverb and hear the living faintly. Every sound tell has
+  a visual cue for players who play without sound, and a subtitle toggle shows bot barks and
+  telegraph messages as text.
+
+
+  Tests, balance, and build order
+  Self-tests on depth.exe
+
+        --trawl-sim <ground> <nights> [crew] runs a bot crew of 1–6 (with a role per bot)
+       and reports quota-met rate, money per night by source (hook, net, gun, dive), deaths
+       by cause, and which threats arrived when.
+
+
+
+                                                                                         Page 47 of 50
+The Trawl — Arcade Game 2 Design Document (Draft)
+
+
+
+
+        --trawl-eco <ground> <minutes> [pattern] runs the ecosystem alone with a
+       scripted crew pattern (quiet, chumming, trawling, depth-charging) and prints
+       population curves, blood, Wake, and threat arrival times.
+        --trawl-fight <species> <tackle> N runs the fishing fight with a bot angler and
+       reports land rate, mean fight time, and line breaks.
+        --trawl-shots renders every species, threat, deck station, and weather to PNG.
+        --net-loop trawl runs a host and five bots over loopback through a scripted night.
+
+        --trawl-wreck <ground> <seed> prints a generated wreck and asserts its layout
+       rules.
+
+  Balance targets (six-player bot crew, starting gear, first deadline)
+
+
+     Target                                         Value
+
+     Quota met, per ground                          Lagoon 85%, Weeds 65%, Grotto 45%, Atlantis
+                                                    25%
+
+     Deaths per night (mean)                        Lagoon 0.3, Atlantis 2.5
+
+     Kraken seen per Atlantis night                 Careful pattern under 10%, depth-charge pattern
+                                                    over 70%
+
+     Share of money from diving                     20–35% by the third deadline
+
+     Medium rod vs 15 kg lingcod, bot               70–80% landed, 60–120 s fights
+     angler
+
+     Mean session length                            30–35 min
+
+
+  Build order
+
+   1. The boat alone: hull physics, engine, stations, top-down deck, movement, one player.
+       Gate: the boat rolls, lists under weight, and sinks when flooded.
+   2. Lines and fishing: Verlet lines, cast, bite, fight, landing against a dummy fish. Gate: --
+      trawl-fight numbers in range.
+   3. Ecosystem port: the water column, light layer, vibration, Wake, the Lagoon's species.
+       Gate: --trawl-eco lagoon curves stable with no crew.
+   4. The session loop: dock, Chandler, sail, clock, sell, quota. Gate: a solo night on the
+       Lagoon is playable end to end.
+
+
+
+
+                                                                                                Page 48 of 50
+The Trawl — Arcade Game 2 Design Document (Draft)
+
+
+
+
+   5. Networking: six players, voice, prediction for reeling. Gate: --net-loop trawl and a
+       six-player LAN night.
+   6. Shooting, the net, set gear, death and ghosts.
+   7. The Weeds and the Grotto with their threats.
+   8. Diving and wrecks.
+   9. Atlantis Waters, the Kraken, the Ghost Ship.
+ 10. Tuning pass and sound.
+
+  Definition of Done
+
+       Six players over the internet complete a deadline including a dive, a Kraken encounter,
+       an overboard rescue, and a death-and-ghost.
+       Every threat has a distinct sprite, a sound tell, a visual tell, a sonar tell, and a counter
+       proven by a scripted --trawl-sim case.
+       The balance targets are met or deviations are logged in the balance changelog.
+       Two players plus four bots complete a deadline on the Weeds, with bots working
+       ordered stations and one bot taking over a dropped player's seat.
+       Each role's perk is covered by a scripted --trawl-sim case (the Medic's CPR revive,
+       the Angler's hook-set window, the Diver's air, the Bosun's patch time).
+
+
+  Designer decisions
+
+     Question                          Decision                                     Where it lands
+
+     Voice                             Built-in proximity voice is the main         The crew of six: Talking
+                                       channel; walkies, the speaking tube, and
+                                       the ping wheel supplement it
+
+     Grounds                           The four drafted here (Eclipse Lagoon, the   The four grounds
+                                       Weeds, the Grotto, Atlantis Waters)
+                                       replace the master reference's five
+
+     Species and Red                   Engine code and some species may be          The food web
+     Tide                              shared; the Trawl's records, art, and
+                                       systems are its own
+
+     Failed quota                      The run ends on the first missed quota       The session loop
+
+
+
+
+                                                                                                         Page 49 of 50
+The Trawl — Arcade Game 2 Design Document (Draft)
+
+
+
+
+     Question                          Decision                                      Where it lands
+
+     Roles                             Light roles with small perks: Bosun,          The crew of six: Roles
+                                       Angler, Diver, Medic
+
+     Role upgrades                     Three ranks per run, each a choice            The crew of six: Role
+                                       between two upgrades                          upgrades
+
+     Crew size                         1–6 players; the host can fill empty berths   The crew of six: Bots
+                                       with bots
+
+     Master reference                  Its Trawl section now points to this          Depth master reference
+                                       document, as it does for Fathoms
+
+
+
+
+                                                                                                             Page 50 of 50
+

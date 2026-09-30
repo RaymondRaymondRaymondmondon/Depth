@@ -1,0 +1,338 @@
+{
+ "zones": [
+  {
+   "zone": "Bridge",
+   "deck": "Upper",
+   "x": 4,
+   "y": 2,
+   "w": 10,
+   "h": 6,
+   "door_cost_scrip": 0,
+   "notes": "Start pocket. Gannet rack, Juggernaut visible below"
+  },
+  {
+   "zone": "Grand Salon",
+   "deck": "Upper",
+   "x": 16,
+   "y": 0,
+   "w": 20,
+   "h": 12,
+   "door_cost_scrip": 750,
+   "notes": "Air pocket (crocodile lair), Quick Brine, Needler Mk I rack, workbench"
+  },
+  {
+   "zone": "Galley & Pantry",
+   "deck": "Upper",
+   "x": 38,
+   "y": 0,
+   "w": 10,
+   "h": 8,
+   "door_cost_scrip": 1000,
+   "notes": "Flechette 12 rack, Locker spot 1, cleaning station"
+  },
+  {
+   "zone": "Cabin Deck",
+   "deck": "Lower",
+   "x": 16,
+   "y": 16,
+   "w": 24,
+   "h": 10,
+   "door_cost_scrip": 1250,
+   "notes": "Six cabins, moray pipes, Speed Brine, Long Speargun rack, Carbine rack"
+  },
+  {
+   "zone": "Engine Room",
+   "deck": "Lower",
+   "x": 42,
+   "y": 16,
+   "w": 14,
+   "h": 12,
+   "door_cost_scrip": 1500,
+   "notes": "Power switch, Pressure Forge, the Goliath's home, algae mat"
+  },
+  {
+   "zone": "Stern & Swim Platform",
+   "deck": "Lower",
+   "x": 58,
+   "y": 14,
+   "w": 10,
+   "h": 14,
+   "door_cost_scrip": 1500,
+   "notes": "Bolt Harpoon rack, Double Shot, Locker spot 2, hull breach (Wrecker entry)"
+  },
+  {
+   "zone": "The Keel & Sand",
+   "deck": "Outside",
+   "x": 0,
+   "y": 30,
+   "w": 70,
+   "h": 14,
+   "door_cost_scrip": 2000,
+   "notes": "Open shelf under the hull, Kick Brine, mast kelp, shark lane"
+  },
+  {
+   "zone": "Foredeck (outside)",
+   "deck": "Outside",
+   "x": 0,
+   "y": -8,
+   "w": 16,
+   "h": 6,
+   "door_cost_scrip": 0,
+   "notes": "Cargo crane trap control; reached from the Bridge hatch"
+  }
+ ],
+ "links": [
+  {
+   "from": "Bridge",
+   "to": "Grand Salon",
+   "cost_scrip": 750,
+   "passage": "Salon door"
+  },
+  {
+   "from": "Grand Salon",
+   "to": "Galley & Pantry",
+   "cost_scrip": 1000,
+   "passage": "Galley hatch"
+  },
+  {
+   "from": "Grand Salon",
+   "to": "Cabin Deck",
+   "cost_scrip": 1250,
+   "passage": "Companionway stairs"
+  },
+  {
+   "from": "Cabin Deck",
+   "to": "Engine Room",
+   "cost_scrip": 1500,
+   "passage": "Watertight door"
+  },
+  {
+   "from": "Engine Room",
+   "to": "Stern & Swim Platform",
+   "cost_scrip": 1500,
+   "passage": "Aft bulkhead"
+  },
+  {
+   "from": "Stern & Swim Platform",
+   "to": "The Keel & Sand",
+   "cost_scrip": 2000,
+   "passage": "Hull breach"
+  },
+  {
+   "from": "Bridge",
+   "to": "Foredeck (outside)",
+   "cost_scrip": 0,
+   "passage": "Bridge hatch (always open)"
+  },
+  {
+   "from": "Foredeck (outside)",
+   "to": "The Keel & Sand",
+   "cost_scrip": 0,
+   "passage": "Slide down the hull (one-way)"
+  },
+  {
+   "from": "Galley & Pantry",
+   "to": "Cabin Deck",
+   "cost_scrip": 0,
+   "passage": "Dumbwaiter shaft (one-way drop)"
+  }
+ ],
+ "pois": [
+  {
+   "name": "Gannet rack",
+   "type": "Rack",
+   "zone": "Bridge",
+   "x": 6,
+   "y": 4
+  },
+  {
+   "name": "Juggernaut Brine",
+   "type": "Tonic",
+   "zone": "Grand Salon",
+   "x": 18,
+   "y": 10
+  },
+  {
+   "name": "Quick Brine",
+   "type": "Tonic",
+   "zone": "Grand Salon",
+   "x": 34,
+   "y": 10
+  },
+  {
+   "name": "Needler Mk I rack",
+   "type": "Rack",
+   "zone": "Grand Salon",
+   "x": 26,
+   "y": 1
+  },
+  {
+   "name": "Workbench",
+   "type": "Build",
+   "zone": "Grand Salon",
+   "x": 30,
+   "y": 6
+  },
+  {
+   "name": "Air pocket / croc lair",
+   "type": "Feature",
+   "zone": "Grand Salon",
+   "x": 24,
+   "y": 3
+  },
+  {
+   "name": "Flechette 12 rack",
+   "type": "Rack",
+   "zone": "Galley & Pantry",
+   "x": 40,
+   "y": 2
+  },
+  {
+   "name": "Locker spot 1",
+   "type": "Locker",
+   "zone": "Galley & Pantry",
+   "x": 46,
+   "y": 6
+  },
+  {
+   "name": "Cleaning station",
+   "type": "Feature",
+   "zone": "Galley & Pantry",
+   "x": 42,
+   "y": 6
+  },
+  {
+   "name": "Speed Brine",
+   "type": "Tonic",
+   "zone": "Cabin Deck",
+   "x": 20,
+   "y": 24
+  },
+  {
+   "name": "Long Speargun rack",
+   "type": "Rack",
+   "zone": "Cabin Deck",
+   "x": 28,
+   "y": 17
+  },
+  {
+   "name": "Sea-Pattern Carbine rack",
+   "type": "Rack",
+   "zone": "Cabin Deck",
+   "x": 36,
+   "y": 24
+  },
+  {
+   "name": "Moray pipes x6",
+   "type": "Hazard",
+   "zone": "Cabin Deck",
+   "x": 18,
+   "y": 20
+  },
+  {
+   "name": "Power switch",
+   "type": "Power",
+   "zone": "Engine Room",
+   "x": 44,
+   "y": 18
+  },
+  {
+   "name": "Pressure Forge",
+   "type": "Forge",
+   "zone": "Engine Room",
+   "x": 52,
+   "y": 26
+  },
+  {
+   "name": "Goliath home",
+   "type": "Boss",
+   "zone": "Engine Room",
+   "x": 49,
+   "y": 22
+  },
+  {
+   "name": "Bolt Harpoon rack",
+   "type": "Rack",
+   "zone": "Stern & Swim Platform",
+   "x": 60,
+   "y": 16
+  },
+  {
+   "name": "Double Shot",
+   "type": "Tonic",
+   "zone": "Stern & Swim Platform",
+   "x": 66,
+   "y": 26
+  },
+  {
+   "name": "Locker spot 2",
+   "type": "Locker",
+   "zone": "Stern & Swim Platform",
+   "x": 62,
+   "y": 26
+  },
+  {
+   "name": "Hull breach (Wrecker entry)",
+   "type": "Entry",
+   "zone": "Stern & Swim Platform",
+   "x": 67,
+   "y": 20
+  },
+  {
+   "name": "Kick Brine",
+   "type": "Tonic",
+   "zone": "The Keel & Sand",
+   "x": 10,
+   "y": 40
+  },
+  {
+   "name": "Mast & bladder kelp",
+   "type": "Feature",
+   "zone": "The Keel & Sand",
+   "x": 30,
+   "y": 42
+  },
+  {
+   "name": "Shark lane",
+   "type": "Feature",
+   "zone": "The Keel & Sand",
+   "x": 60,
+   "y": 40
+  },
+  {
+   "name": "Cargo crane trap",
+   "type": "Trap",
+   "zone": "Foredeck (outside)",
+   "x": 8,
+   "y": -5
+  },
+  {
+   "name": "Captain's safe (quest)",
+   "type": "Quest",
+   "zone": "Bridge",
+   "x": 12,
+   "y": 7
+  },
+  {
+   "name": "Stonefish nest",
+   "type": "Hazard",
+   "zone": "Galley & Pantry",
+   "x": 44,
+   "y": 1
+  },
+  {
+   "name": "Mantis burrows",
+   "type": "Hazard",
+   "zone": "The Keel & Sand",
+   "x": 20,
+   "y": 36
+  }
+ ],
+ "notes": [
+  "Training loop A: Salon -> Galley -> (dumbwaiter drop) -> Cabin Deck -> stairs -> Salon. 60 m loop, 2 doorways of hydroids, safe from sharks until the breach opens.",
+  "Training loop B (after breach): Stern -> Keel -> slide from Foredeck -> Bridge -> Salon -> Cabins -> Engine -> Stern. 190 m loop, exposes the team to the shark lane on the Keel.",
+  "Blood flow: current runs bow -> stern inside the hull and along the Keel toward the breach, so blood made in the Salon reaches the Stern (and the Bull Shark) in about 40 s.",
+  "Sightlines: inside 8-14 m; Keel up to 60 m (the only long-gun ground). Alarm region: Inside (Bridge..Stern) counts gunfire x2; Outside (Keel, Foredeck) x1.",
+  "Wrecker entry: the hull breach at the Stern; Foreman Hunts also land on the Foredeck. Enemy patrol path: Stern -> Engine -> Cabins -> Salon."
+ ]
+}

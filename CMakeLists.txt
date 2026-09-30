@@ -45,6 +45,9 @@ add_executable(depth
     src/scuttle.cpp src/net_gns.cpp src/net_lan.cpp src/net_mem.cpp src/arcade_session.cpp src/arcade_games.cpp src/arcade.cpp src/net_test.cpp
     src/study_audio.cpp src/study_data.cpp src/study_test.cpp src/study.cpp src/study_scenes.cpp
     src/json.cpp src/expr.cpp src/course.cpp
+    src/redtide_data.cpp src/redtide_eco.cpp src/redtide_tools.cpp src/redtide_render.cpp src/redtide_game.cpp
+    src/redtide_match.cpp src/redtide_profile.cpp src/redtide_menu.cpp
+    src/trawl_data.cpp src/trawl_boat.cpp src/trawl_fish.cpp src/trawl_eco.cpp src/trawl_session.cpp src/trawl_gear.cpp src/trawl_art.cpp src/trawl.cpp
 )
 target_link_libraries(depth PRIVATE raylib)
 
@@ -73,3 +76,6 @@ target_link_libraries(depth PRIVATE ws2_32)
 # the build id every peer compares in the handshake: changes whenever the sources are reconfigured/rebuilt
 string(TIMESTAMP DEPTH_BUILD_STAMP "%Y%m%d%H%M%S" UTC)
 target_compile_definitions(depth PRIVATE DEPTH_BUILD_STAMP="${DEPTH_BUILD_STAMP}")
+# The arcade games' data (data/redtide, data/trawl) is read at run time: copy it next to the executable.
+add_custom_command(TARGET depth POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/data $<TARGET_FILE_DIR:depth>/data)

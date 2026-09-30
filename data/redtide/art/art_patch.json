@@ -1,0 +1,11 @@
+{
+ "_source": "Hand-written corrections to RedTide_Art_BodyPlans.xlsx's per-species rows, each citing the workbook's own rule it restores.",
+ "ship": {
+  "Green Moray": {
+   "_why": "The Species_ship row gives it the depressiform plan (rays) with a whip tail; the same workbook's BodyPlans sheet lists 'Moray' among the anguilliform plan's examples (eels: 'Moray, conger, cave eel...'). girth_ratio set inside the anguilliform plan's range (0.04-0.12), since the row's value was a ray's.",
+   "body_plan": "anguilliform",
+   "tail_or_limb": "continuous fin",
+   "girth_ratio": 0.09
+  }
+ }
+}

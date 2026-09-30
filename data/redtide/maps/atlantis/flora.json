@@ -1,0 +1,122 @@
+[
+ {
+  "flora": "Posidonia meadows",
+  "type": "Producer",
+  "zones": "Farms",
+  "effect": "Grazer base for the whole lower city; one patch is hallucinogenic (salema go erratic)",
+  "contact_damage": 0,
+  "grazed_by": "Salema",
+  "regrowth_rate_per_s": 1,
+  "regrow_delay_s": 90
+ },
+ {
+  "flora": "Sea lettuce terraces",
+  "type": "Producer",
+  "zones": "Farms",
+  "effect": "Farm grazers; regrows fast",
+  "contact_damage": 0,
+  "grazed_by": "Bream",
+  "regrowth_rate_per_s": 1,
+  "regrow_delay_s": 60
+ },
+ {
+  "flora": "Column coral",
+  "type": "Structure",
+  "zones": "Forum, Library, Chapel",
+  "effect": "Grows on every pillar; sharp corners bleed",
+  "contact_damage": 4,
+  "grazed_by": "",
+  "regrowth_rate_per_s": 0,
+  "regrow_delay_s": 0
+ },
+ {
+  "flora": "Doorway kelp curtains",
+  "type": "Cover",
+  "zones": "Every district",
+  "effect": "Hangs in doorways; hides what's inside, both ways",
+  "contact_damage": 0,
+  "grazed_by": "Spider Crab (decoration)",
+  "regrowth_rate_per_s": 0,
+  "regrow_delay_s": 0
+ },
+ {
+  "flora": "Bathhouse sponges",
+  "type": "Shelter",
+  "zones": "Bathhouses",
+  "effect": "Cardinalfish and shrimp inside; groupers and sea bass wait beside them",
+  "contact_damage": 0,
+  "grazed_by": "Nudibranch",
+  "regrowth_rate_per_s": 0.3,
+  "regrow_delay_s": 120
+ },
+ {
+  "flora": "Forum sea fans",
+  "type": "Cover",
+  "zones": "Forum",
+  "effect": "Break sightlines across the plaza",
+  "contact_damage": 0,
+  "grazed_by": "",
+  "regrowth_rate_per_s": 0,
+  "regrow_delay_s": 0
+ },
+ {
+  "flora": "Temple glow-moss",
+  "type": "Luminous producer",
+  "zones": "Chapel, Library",
+  "effect": "Lights the chapel and the library; draws squid",
+  "contact_damage": 0,
+  "grazed_by": "",
+  "regrowth_rate_per_s": 0.5,
+  "regrow_delay_s": 180
+ },
+ {
+  "flora": "Amphora anemones",
+  "type": "Hazard",
+  "zones": "Lower Town",
+  "effect": "Stings (10); an octopus is usually behind one",
+  "contact_damage": 10,
+  "grazed_by": "",
+  "regrowth_rate_per_s": 0,
+  "regrow_delay_s": 0
+ },
+ {
+  "flora": "Barnacle marble",
+  "type": "Hazard",
+  "zones": "Lower Town, Barracks",
+  "effect": "Cuts (bleed 3 s) on every wall brushed at speed",
+  "contact_damage": 5,
+  "grazed_by": "",
+  "regrowth_rate_per_s": 0,
+  "regrow_delay_s": 0
+ },
+ {
+  "flora": "Fire coral on the wall",
+  "type": "Hazard",
+  "zones": "The Wall rampart",
+  "effect": "Burns (15) along the rampart walk",
+  "contact_damage": 15,
+  "grazed_by": "",
+  "regrowth_rate_per_s": 0,
+  "regrow_delay_s": 0
+ },
+ {
+  "flora": "Courtyard sargassum",
+  "type": "Air",
+  "zones": "Courtyards",
+  "effect": "Surface air pockets in the roofless courtyards; man o' war beneath",
+  "contact_damage": 0,
+  "grazed_by": "",
+  "regrowth_rate_per_s": 0,
+  "regrow_delay_s": 0
+ },
+ {
+  "flora": "Stinging hydroid drains",
+  "type": "Hazard",
+  "zones": "Every drain grate",
+  "effect": "Every grate stings (bleed) when touched",
+  "contact_damage": 4,
+  "grazed_by": "",
+  "regrowth_rate_per_s": 0,
+  "regrow_delay_s": 0
+ }
+]

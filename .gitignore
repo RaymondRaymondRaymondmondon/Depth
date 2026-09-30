@@ -1,4 +1,4 @@
-﻿build/
+build/
 build_lin/
 build_rel/
 
@@ -15,3 +15,4 @@ Study_Hatch_Reference/
 study/courses/
 study/reports/
 study_save.txt
+redtide_profile.txt

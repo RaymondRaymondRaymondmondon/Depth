@@ -1,0 +1,411 @@
+{
+ "_source": "Hand-written from what the Coral Reef workbook and the design doc ('Level 3: The Coral Reef', its boss and faction sheets) state only in prose; each entry cites its line.",
+ "zone_y": {
+  "The Lagoon": [
+   -4,
+   0
+  ],
+  "Mangrove Nursery": [
+   -3,
+   0
+  ],
+  "Staghorn Forest": [
+   -12,
+   -1
+  ],
+  "The Bommie": [
+   -15,
+   -1
+  ],
+  "The Surge Channel": [
+   -10,
+   -3
+  ],
+  "Brain Coral Maze": [
+   -14,
+   -3
+  ],
+  "The Sand Flats": [
+   -20,
+   -4
+  ],
+  "Turtle Beach": [
+   -3,
+   0
+  ],
+  "The Blue Hole": [
+   -60,
+   -16
+  ],
+  "The Drop-off Wall": [
+   -80,
+   -10
+  ]
+ },
+ "_zone_y_source": "The blockout's depth_m per zone (the Lagoon 2-4, the Nursery 1-3, the Forest 6-12, the Bommie 3-15, the Surge Channel 4-10, the Maze 8-14, the Flats 12-20, the Beach 0-3, the Blue Hole 20-60, the Wall 15-80).",
+ "open_zones": [
+  "The Lagoon",
+  "Mangrove Nursery",
+  "Turtle Beach",
+  "The Bommie",
+  "Staghorn Forest",
+  "The Sand Flats",
+  "The Drop-off Wall",
+  "The Blue Hole",
+  "Brain Coral Maze",
+  "The Surge Channel"
+ ],
+ "_open_note": "The reef is open to the sky: no rock ceilings; the shallows' tops are the surface.",
+ "alarm_regions": {
+  "Reef": {
+   "mult": 1,
+   "zones": [
+    "The Lagoon",
+    "Mangrove Nursery",
+    "Staghorn Forest",
+    "The Bommie",
+    "Brain Coral Maze",
+    "The Surge Channel"
+   ],
+   "entry": "Raider entry (turtle riders)"
+  },
+  "Open": {
+   "mult": 1,
+   "zones": [
+    "The Sand Flats",
+    "Turtle Beach",
+    "The Blue Hole",
+    "The Drop-off Wall"
+   ],
+   "entry": "Raider entry (turtle riders)"
+  }
+ },
+ "_alarm_source": "Blockout notes: 'Alarm regions: Reef (Lagoon, Nursery, Forest, Bommie, Maze) and Open (Flats, Beach, Hole, Wall).'",
+ "flow": {
+  "The Lagoon": [
+   0.3,
+   0,
+   0.1
+  ],
+  "Staghorn Forest": [
+   0.4,
+   0,
+   0.1
+  ],
+  "The Sand Flats": [
+   0.5,
+   0,
+   0
+  ],
+  "The Drop-off Wall": [
+   0.2,
+   -0.1,
+   0
+  ],
+  "The Bommie": [
+   0.3,
+   0,
+   0.2
+  ]
+ },
+ "tide_flow_period": 240,
+ "_flow_source": "Blockout notes: 'the tide runs Lagoon -> Forest -> Flats -> Wall on the ebb and reverses on the flood every 4 minutes (the tide mill shows which).'",
+ "zone_currents": {
+  "The Surge Channel": {
+   "speed": 5,
+   "to": "The Drop-off Wall"
+  }
+ },
+ "_current_source": "'The Surge Channel: a one-way current between the Bommie and the Wall: ride it (4 s).'",
+ "zone_alias": {
+  "Lagoon": "The Lagoon",
+  "Nursery": "Mangrove Nursery",
+  "Forest": "Staghorn Forest",
+  "Bommie": "The Bommie",
+  "Maze": "Brain Coral Maze",
+  "Flats": "The Sand Flats",
+  "Beach": "Turtle Beach",
+  "Blue Hole": "The Blue Hole",
+  "Wall": "The Drop-off Wall",
+  "Drop-off": "The Drop-off Wall"
+ },
+ "food_alias": {
+  "Staghorn coral polyps": "Staghorn thicket",
+  "Seagrass": "Seagrass meadow",
+  "Halimeda": "Halimeda beds",
+  "Sponges": "Soft coral garden",
+  "Soft coral": "Soft coral garden"
+ },
+ "diet_patch": {
+  "Monk Seal": {
+   "Giant Reef Toad": 0.1
+  },
+  "Blacktip Reef Shark": {
+   "Moray Eel": 0.1
+  },
+  "Grey Reef Shark": {
+   "Titan Triggerfish": 0.1
+  },
+  "The Matriarch": {
+   "Napoleon Wrasse": 0.1,
+   "Manta Ray": 0.1
+  },
+  "Triggerfish": {
+   "Corpse": 0.15
+  },
+  "Goatfish": {
+   "Corpse": 0.15
+  },
+  "Spiny Lobster": {
+   "Corpse": 0.2
+  },
+  "Napoleon Wrasse": {
+   "Corpse": 0.1
+  },
+  "Crab-eating Frog": {
+   "Corpse": 0.1
+  }
+ },
+ "_diet_patch_source": "The doc's beast table: the toad is eaten by the monk seal, the moray by sharks, the titan triggerfish by sharks, the Napoleon wrasse and the manta by the orca. The reef workbook lists no scavenger at all, so carrion goes to its opportunists (triggerfish, goatfish, spiny lobsters, the wrasse, the mangrove frogs): our call, noted in docs/REDTIDE_PROGRESS.md.",
+ "species_patch": {
+  "Clownfish": {
+   "tags_add": "untouchable"
+  },
+  "Bobbit Worm": {
+   "tags_add": "untouchable"
+  },
+  "Humpback Whale": {
+   "tags_add": "untouchable"
+  }
+ },
+ "_species_patch_source": "The doc's table: Clownfish 'Nothing while in its anemone'; Bobbit Worm 'Nothing'; Humpback 'Nothing'.",
+ "species_add": [
+  {
+   "name": "Pod Orca",
+   "base": "The Matriarch",
+   "size": 5,
+   "tier": 4,
+   "hp": 3000,
+   "bounty": 400,
+   "archetype": "Pack hunter",
+   "tags": "pack,air-breather,pod",
+   "home_zone": "The Drop-off Wall",
+   "art": "The Matriarch",
+   "art_scale": 0.7
+  }
+ ],
+ "_species_add_source": "Boss sheet: 'an orca matriarch (size 6) with a pod of three (size 5, 3,000 HP each)'.",
+ "narrow_zones": {
+  "Staghorn Forest": {
+   "max_size": 4,
+   "structure": "Staghorn thicket",
+   "open_at": 0.7
+  },
+  "Brain Coral Maze": {
+   "max_size": 4
+  }
+ },
+ "_narrow_source": "'Coral erosion: each crown-of-thorns eats one staghorn segment per 90 s; a broken segment turns a corridor into a lane sharks can use.' The Matriarch's arena excludes 'the corridors, which are too narrow'. Size 5 and up keep out of the Forest until its staghorn is down to 70%.",
+ "allies": {
+  "tag": "ally",
+  "follow_m": 25,
+  "guard_m": 10,
+  "hostile_bark": "Now the grey ones hate them too!"
+ },
+ "_allies_source": "'The dolphin pod follows the divers' centroid at 20-30 m while allied; rams any shark that enters 10 m of a diver; turns hostile for the match the moment a dolphin takes damage from a diver.'",
+ "flora_rules": {
+  "Reacher coral": {
+   "grab": true,
+   "hp": 400,
+   "dps": 20
+  },
+  "Sea grape": {
+   "edible": 10
+  },
+  "Halimeda beds": {
+   "noise": 4
+  }
+ },
+ "_flora_rules_source": "Flora sheet: Reacher coral 'grabs a diver who brushes it: held until cut free by a teammate or shot to 0 (400); grabs beasts and Raiders too and feeds on them'; Sea grape 'a diver eats a cluster: +10 HP, once per cluster'; Halimeda 'shatters loudly (4 noise) when walked on'.",
+ "traps": [
+  {
+   "match": "Reacher gate",
+   "kind": "reacher_gate",
+   "radius": 5
+  },
+  {
+   "match": "Surge",
+   "kind": "surge"
+  }
+ ],
+ "_traps_source": "'Traps: a Reacher coral gate (1,000) closes a corridor and eats whatever it holds; the surge channel (1,000) flushes the Bommie's top.'",
+ "wonder": "anemonegun",
+ "quest_altar": {
+  "poi": "Drum altar (quest)",
+  "needs": "drum",
+  "nests": 5,
+  "nest_s": 12,
+  "carry_speed": 0.8,
+  "text": "The drum is on the altar: the turtles come up the beach to nest. Hold the beach through the tide.",
+  "done": "Five nests. The reef quiets: the Anemone Gun rises from the sand, the dolphins come back, and the hammerheads keep off the beach.",
+  "_source": "Hidden quests: the Coral Reef: the drum (a Shaman's drum carried to Turtle Beach's altar without beating it - a carrier swims at 80%, and a beat resets the step; then survive on the beach while the turtles nest: 5 nests; Raiders target the beach; the Anemone Gun (Forged), the dolphins allied again, hammerheads avoid the beach). A nest every 12 s with a diver on the beach during a tide (our number)."
+ },
+ "_quest_source": "'Hidden quest: return the Shaman's drum to the sea turtle nesting beach.' The reward is ours (the doc gives none).",
+ "faction_patch": {
+  "species_name": "Raider",
+  "entry_poi": "Raider entry (turtle riders)",
+  "hunt_staging": "The Drop-off Wall",
+  "patrol": [
+   "The Drop-off Wall",
+   "The Sand Flats",
+   "Brain Coral Maze",
+   "Staghorn Forest"
+  ],
+  "hunts_beasts": true,
+  "shoots_allies": true,
+  "units": {
+   "Spear Diver": {
+    "role": "flank",
+    "range": 1.6,
+    "damage": 35,
+    "interval": 0.9,
+    "loot": 220
+   },
+   "Turtle Rider": {
+    "role": "flank",
+    "range": 2.0,
+    "damage": 50,
+    "interval": 2.0,
+    "loot": 260
+   },
+   "Sling Diver": {
+    "role": "sling",
+    "range": 15,
+    "damage": 40,
+    "interval": 3.0,
+    "loot": 240
+   },
+   "Netter": {
+    "role": "net",
+    "range": 8,
+    "damage": 0,
+    "interval": 5.0,
+    "loot": 250,
+    "drops": "Net Gun"
+   },
+   "Shaman (Hunts)": {
+    "role": "drum",
+    "range": 40,
+    "damage": 0,
+    "interval": 4.0,
+    "loot": 600,
+    "hunt_only": true,
+    "drops": "drum"
+   }
+  },
+  "composition": [
+   "Spear Diver",
+   "Spear Diver",
+   "Turtle Rider",
+   "Sling Diver",
+   "Netter"
+  ],
+  "barks": {
+   "spot": [
+    "Brass-heads on our reef.",
+    "Take their meat."
+   ],
+   "chum": [
+    "Good eating.",
+    "Let the blood bring the big ones."
+   ],
+   "ally": [
+    "Now the grey ones hate them too!"
+   ],
+   "net": [
+    "Wrapped. Bring the spears."
+   ],
+   "shark": [
+    "To the coral head. The little fish will calm the sharks."
+   ],
+   "foreman": [
+    "The sea's mother hears the drum.",
+    "Five beats and she comes."
+   ]
+  }
+ },
+ "_faction_source": "The Reef Raiders' faction sheet: squad 'two Spear Divers, a Turtle Rider, a Sling Diver' plus the sheet's Netter; they hunt beasts for meat and shoot dolphins on purpose; the Shaman drums from the Wall (+aggression in 40 m for 20 s, sharks on the third beat, the Matriarch on the fifth).",
+ "palette": {
+  "wall": [
+   186,
+   168,
+   128
+  ],
+  "floor": [
+   210,
+   192,
+   146
+  ],
+  "ceil": [
+   120,
+   170,
+   180
+  ],
+  "fog": [
+   36,
+   118,
+   146
+  ],
+  "fog_density": 0.022,
+  "fill": [
+   120,
+   190,
+   200
+  ],
+  "surface_y": 0
+ },
+ "dressing": {
+  "The Lagoon": {
+   "seagrass": 24,
+   "brain": 3,
+   "mangrove": 3
+  },
+  "Mangrove Nursery": {
+   "mangrove": 14,
+   "seagrass": 8
+  },
+  "Staghorn Forest": {
+   "coral_walls": 12,
+   "tables": 6,
+   "staghorn": 40,
+   "brain": 4
+  },
+  "The Bommie": {
+   "mound": 0.45,
+   "staghorn": 20,
+   "tables": 4
+  },
+  "The Surge Channel": {
+   "coral_walls": 2
+  },
+  "Brain Coral Maze": {
+   "coral_walls": 16,
+   "brain": 10,
+   "tables": 4
+  },
+  "The Sand Flats": {
+   "seagrass": 90,
+   "brain": 2
+  },
+  "Turtle Beach": {
+   "seagrass": 10
+  },
+  "The Blue Hole": {
+   "ledges": 5
+  },
+  "The Drop-off Wall": {
+   "tables": 6,
+   "staghorn": 20
+  }
+ }
+}

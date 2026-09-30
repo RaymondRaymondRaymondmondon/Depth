@@ -1,0 +1,122 @@
+[
+ {
+  "flora": "Glow mould",
+  "type": "Luminous producer",
+  "zones": "Flooded Gallery, Chimney, Cathedral",
+  "effect": "Base of the wet web; lights corridors; brighter where cavefish are fewer",
+  "contact_damage": 0,
+  "grazed_by": "Blind Cavefish",
+  "regrowth_rate_per_s": 1,
+  "regrow_delay_s": 60
+ },
+ {
+  "flora": "Chemosynthetic mat",
+  "type": "Producer",
+  "zones": "The Sump, Dynamo Sump",
+  "effect": "Base of the sump web at the vents",
+  "contact_damage": 0,
+  "grazed_by": "Cave Krill, Bristle Worm, Cave Sturgeon",
+  "regrowth_rate_per_s": 1,
+  "regrow_delay_s": 45
+ },
+ {
+  "flora": "Pale cave moss",
+  "type": "Producer",
+  "zones": "Dry Chambers",
+  "effect": "Insect and newt food",
+  "contact_damage": 0,
+  "grazed_by": "Cave Cricket, Amphipod, Blind Newt, Poison Dart Newt",
+  "regrowth_rate_per_s": 0.8,
+  "regrow_delay_s": 90
+ },
+ {
+  "flora": "Snottite curtain",
+  "type": "Hazard",
+  "zones": "Chimney ledges, Squeeze",
+  "effect": "Acid drip: 5/s underneath",
+  "contact_damage": 5,
+  "grazed_by": "",
+  "regrowth_rate_per_s": 0,
+  "regrow_delay_s": 0
+ },
+ {
+  "flora": "Crystal coral",
+  "type": "Hazard/Tool",
+  "zones": "The Cathedral",
+  "effect": "Sharp (bleed on touch); shooting a cluster rings it: calls the Lobster and makes it Rear",
+  "contact_damage": 6,
+  "grazed_by": "",
+  "regrowth_rate_per_s": 0,
+  "regrow_delay_s": 0
+ },
+ {
+  "flora": "Root tangle",
+  "type": "Shelter",
+  "zones": "Flooded Gallery ceiling, Dry Chambers",
+  "effect": "Hides divers; crayfish and spiders nest here",
+  "contact_damage": 0,
+  "grazed_by": "",
+  "regrowth_rate_per_s": 0,
+  "regrow_delay_s": 0
+ },
+ {
+  "flora": "Drip fungus",
+  "type": "Hazard",
+  "zones": "Dry Chambers",
+  "effect": "Spore cloud when disturbed: slow 30% for 5 s",
+  "contact_damage": 0,
+  "grazed_by": "",
+  "regrowth_rate_per_s": 0,
+  "regrow_delay_s": 0
+ },
+ {
+  "flora": "Ink cap",
+  "type": "Tool",
+  "zones": "Flooded Gallery, Cathedral",
+  "effect": "Bursts into an 8 s ink cloud when shot",
+  "contact_damage": 0,
+  "grazed_by": "",
+  "regrowth_rate_per_s": 0,
+  "regrow_delay_s": 300
+ },
+ {
+  "flora": "Bloodvine",
+  "type": "Tool/Trap",
+  "zones": "Gallery, Dynamo Sump (near the Forge)",
+  "effect": "Cut or shot: smells like 40 blood for 30 s",
+  "contact_damage": 0,
+  "grazed_by": "",
+  "regrowth_rate_per_s": 0,
+  "regrow_delay_s": 240
+ },
+ {
+  "flora": "Cave sponge",
+  "type": "Shelter",
+  "zones": "Flooded Gallery",
+  "effect": "Glass shrimp and sponges' guests inside",
+  "contact_damage": 0,
+  "grazed_by": "Sea Spider",
+  "regrowth_rate_per_s": 0.3,
+  "regrow_delay_s": 120
+ },
+ {
+  "flora": "White anemone cluster",
+  "type": "Hazard",
+  "zones": "Gallery, Cathedral floor",
+  "effect": "Holds size 1; stings divers 8",
+  "contact_damage": 8,
+  "grazed_by": "Sea Spider",
+  "regrowth_rate_per_s": 0.3,
+  "regrow_delay_s": 120
+ },
+ {
+  "flora": "Stone lettuce",
+  "type": "Producer",
+  "zones": "The Sump, Dry Chambers pools",
+  "effect": "Sturgeon and snapping turtle food",
+  "contact_damage": 0,
+  "grazed_by": "Cave Sturgeon, Snapping Turtle",
+  "regrowth_rate_per_s": 0.5,
+  "regrow_delay_s": 120
+ }
+]

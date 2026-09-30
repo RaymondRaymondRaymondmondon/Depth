@@ -11,10 +11,10 @@ namespace arcade {
 const GameInfo& Info(int g) {
     static const GameInfo INFO[G_COUNT] = {
         {"Flats Duel", 2, 2, false, 0, false},
-        {"The Trawl", 1, 4, true, 20, false},
+        {"The Trawl", 1, 6, true, 20, false},
         {"Scuttle", 2, scuttle::MAX_SEATS, false, 0, true},
         {"Fathoms", 2, 6, true, 20, false},
-        {"The fifth game", 1, 4, true, 20, false},
+        {"Red Tide", 1, 4, true, 20, false},
     };
     static const GameInfo DRIFT = {"Drift (test)", 2, 6, true, 20, true};
     static const GameInfo NONE = {"?", 2, 2, false, 0, false};

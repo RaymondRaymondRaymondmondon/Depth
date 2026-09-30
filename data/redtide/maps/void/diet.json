@@ -1,0 +1,237 @@
+{
+ "foods": [
+  "Sand Eel",
+  "Sand Hopper",
+  "Sea Pig",
+  "Brittle Star",
+  "Bone Worm (Osedax)",
+  "Vent Shrimp",
+  "Hatchetfish",
+  "Hadal Amphipod",
+  "Cookiecutter Shark",
+  "Tripod Fish",
+  "Snailfish",
+  "Rattail",
+  "Giant Isopod",
+  "Yeti Crab",
+  "Squat Lobster",
+  "Dumbo Octopus",
+  "Barreleye",
+  "Viperfish",
+  "Fangtooth",
+  "Dragonfish",
+  "Deep Jelly",
+  "Abyssal Sea Snake",
+  "Siphonophore",
+  "Lab Salamander",
+  "Chimaera",
+  "Frilled Shark",
+  "Anglerfish",
+  "Pelican Eel",
+  "Deep Skate",
+  "Coelacanth",
+  "Giant Sea Spider",
+  "Oarfish",
+  "Goblin Shark",
+  "Elephant Seal",
+  "Hadal Turtle",
+  "Pale Caiman",
+  "Sixgill Shark",
+  "Colossal Squid",
+  "Sperm Whale",
+  "The Relict",
+  "The Lantern Leviathan",
+  "The Sand Worm",
+  "Plankton",
+  "Detritus",
+  "Corpse",
+  "Bones",
+  "Parasites",
+  "Bacterial mat",
+  "Tube worm garden",
+  "Sea pen field",
+  "Lab algae fish",
+  "Remnant",
+  "Diver"
+ ],
+ "rows": {
+  "Sand Eel": {
+   "Plankton": 1
+  },
+  "Sand Hopper": {
+   "Detritus": 1
+  },
+  "Sea Pig": {
+   "Detritus": 0.5,
+   "Corpse": 0.5
+  },
+  "Brittle Star": {
+   "Detritus": 0.8,
+   "Corpse": 0.2
+  },
+  "Bone Worm (Osedax)": {
+   "Bones": 1
+  },
+  "Vent Shrimp": {
+   "Bacterial mat": 0.6,
+   "Tube worm garden": 0.4
+  },
+  "Hatchetfish": {
+   "Plankton": 1
+  },
+  "Hadal Amphipod": {
+   "Corpse": 0.7,
+   "Bacterial mat": 0.3
+  },
+  "Cookiecutter Shark": {
+   "Elephant Seal": 0.2,
+   "Sixgill Shark": 0.3,
+   "Sperm Whale": 0.3,
+   "Diver": 0.2
+  },
+  "Tripod Fish": {
+   "Sand Hopper": 0.6,
+   "Plankton": 0.4
+  },
+  "Snailfish": {
+   "Sand Eel": 0.4,
+   "Hadal Amphipod": 0.6
+  },
+  "Rattail": {
+   "Brittle Star": 0.3,
+   "Corpse": 0.7
+  },
+  "Giant Isopod": {
+   "Corpse": 1
+  },
+  "Yeti Crab": {
+   "Bacterial mat": 0.6,
+   "Tube worm garden": 0.4
+  },
+  "Squat Lobster": {
+   "Vent Shrimp": 0.6,
+   "Yeti Crab": 0.4
+  },
+  "Dumbo Octopus": {
+   "Sand Hopper": 0.5,
+   "Hadal Amphipod": 0.5
+  },
+  "Barreleye": {
+   "Deep Jelly": 0.5,
+   "Siphonophore": 0.5
+  },
+  "Viperfish": {
+   "Hatchetfish": 0.7,
+   "Barreleye": 0.3
+  },
+  "Fangtooth": {
+   "Vent Shrimp": 0.4,
+   "Hatchetfish": 0.6
+  },
+  "Dragonfish": {
+   "Hatchetfish": 1
+  },
+  "Deep Jelly": {
+   "Plankton": 1
+  },
+  "Abyssal Sea Snake": {
+   "Sand Eel": 0.5,
+   "Snailfish": 0.5
+  },
+  "Siphonophore": {
+   "Hatchetfish": 0.6,
+   "Plankton": 0.4
+  },
+  "Lab Salamander": {
+   "Vent Shrimp": 0.3,
+   "Lab algae fish": 0.5,
+   "Diver": 0.2
+  },
+  "Chimaera": {
+   "Vent Shrimp": 0.3,
+   "Yeti Crab": 0.3,
+   "Squat Lobster": 0.4
+  },
+  "Frilled Shark": {
+   "Hatchetfish": 0.3,
+   "Dumbo Octopus": 0.4,
+   "Viperfish": 0.3
+  },
+  "Anglerfish": {
+   "Viperfish": 0.4,
+   "Fangtooth": 0.3,
+   "Dragonfish": 0.3
+  },
+  "Pelican Eel": {
+   "Vent Shrimp": 0.4,
+   "Hatchetfish": 0.6
+  },
+  "Deep Skate": {
+   "Sand Eel": 0.6,
+   "Tripod Fish": 0.4
+  },
+  "Coelacanth": {
+   "Dumbo Octopus": 0.4,
+   "Lab algae fish": 0.6
+  },
+  "Giant Sea Spider": {
+   "Deep Jelly": 0.4,
+   "Sea pen field": 0.6
+  },
+  "Oarfish": {
+   "Hadal Amphipod": 0.5,
+   "Plankton": 0.5
+  },
+  "Goblin Shark": {
+   "Rattail": 0.4,
+   "Dumbo Octopus": 0.2,
+   "Anglerfish": 0.4
+  },
+  "Elephant Seal": {
+   "Snailfish": 0.5,
+   "Dumbo Octopus": 0.3,
+   "Frilled Shark": 0.2
+  },
+  "Hadal Turtle": {
+   "Deep Jelly": 0.5,
+   "Siphonophore": 0.5
+  },
+  "Pale Caiman": {
+   "Lab Salamander": 0.4,
+   "Coelacanth": 0.3,
+   "Remnant": 0.1,
+   "Diver": 0.2
+  },
+  "Sixgill Shark": {
+   "Chimaera": 0.2,
+   "Goblin Shark": 0.2,
+   "Elephant Seal": 0.2,
+   "Corpse": 0.2,
+   "Remnant": 0.1,
+   "Diver": 0.1
+  },
+  "Colossal Squid": {
+   "Frilled Shark": 0.2,
+   "Goblin Shark": 0.3,
+   "Sperm Whale": 0.2,
+   "Diver": 0.3
+  },
+  "Sperm Whale": {
+   "Colossal Squid": 1
+  },
+  "The Relict": {
+   "Elephant Seal": 0.2,
+   "Hadal Turtle": 0.1,
+   "Sixgill Shark": 0.2,
+   "Colossal Squid": 0.2,
+   "Remnant": 0.1,
+   "Diver": 0.2
+  },
+  "The Lantern Leviathan": {
+   "Goblin Shark": 0.2,
+   "Sixgill Shark": 0.2,
+   "Remnant": 0.2,
+   "Diver": 0.4
+  }
+ }
+}

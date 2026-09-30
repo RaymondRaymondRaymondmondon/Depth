@@ -1,0 +1,382 @@
+[
+ {
+  "beast": "Hadal Amphipod",
+  "attack": "Nibble",
+  "damage": 2,
+  "windup_s": 0,
+  "cooldown_s": 1,
+  "range_m": 1,
+  "tell (what the player sees)": "",
+  "effect": "Downed divers: 2/s"
+ },
+ {
+  "beast": "Cookiecutter Shark",
+  "attack": "Plug bite",
+  "damage": 15,
+  "windup_s": 0.4,
+  "cooldown_s": 10,
+  "range_m": 1,
+  "tell (what the player sees)": "A small glow, then a dark shape",
+  "effect": "Bleed 4 s; each bite is a blood source"
+ },
+ {
+  "beast": "Squat Lobster",
+  "attack": "Pinch",
+  "damage": 8,
+  "windup_s": 0.4,
+  "cooldown_s": 2,
+  "range_m": 1,
+  "tell (what the player sees)": "Claws raise",
+  "effect": ""
+ },
+ {
+  "beast": "Viperfish",
+  "attack": "Lunge bite",
+  "damage": 22,
+  "windup_s": 0.4,
+  "cooldown_s": 2,
+  "range_m": 2,
+  "tell (what the player sees)": "Its lure blinks",
+  "effect": "Bleed 2 s"
+ },
+ {
+  "beast": "Fangtooth",
+  "attack": "Bite",
+  "damage": 20,
+  "windup_s": 0.3,
+  "cooldown_s": 1.5,
+  "range_m": 1.2,
+  "tell (what the player sees)": "Jaws part",
+  "effect": "Hangs on 2 s: 5/s"
+ },
+ {
+  "beast": "Dragonfish",
+  "attack": "Bite",
+  "damage": 25,
+  "windup_s": 0.3,
+  "cooldown_s": 1.8,
+  "range_m": 1.5,
+  "tell (what the player sees)": "Nothing: its red light is invisible",
+  "effect": "Bleed 3 s"
+ },
+ {
+  "beast": "Deep Jelly",
+  "attack": "Sting",
+  "damage": 10,
+  "windup_s": 0,
+  "cooldown_s": 1,
+  "range_m": 1.5,
+  "tell (what the player sees)": "",
+  "effect": "Contact 10"
+ },
+ {
+  "beast": "Abyssal Sea Snake",
+  "attack": "Bite",
+  "damage": 10,
+  "windup_s": 0.5,
+  "cooldown_s": 2,
+  "range_m": 1,
+  "tell (what the player sees)": "Coils",
+  "effect": "Poison 30 over 10 s"
+ },
+ {
+  "beast": "Siphonophore",
+  "attack": "Bells",
+  "damage": 40,
+  "windup_s": 0,
+  "cooldown_s": 1,
+  "range_m": 10,
+  "tell (what the player sees)": "A 20 m chain of lights",
+  "effect": "Passing through costs 40"
+ },
+ {
+  "beast": "Lab Salamander",
+  "attack": "Bite and hold",
+  "damage": 35,
+  "windup_s": 0.4,
+  "cooldown_s": 2,
+  "range_m": 1.5,
+  "tell (what the player sees)": "Gills flare",
+  "effect": "Hold 2 s"
+ },
+ {
+  "beast": "Chimaera",
+  "attack": "Bite",
+  "damage": 30,
+  "windup_s": 0.4,
+  "cooldown_s": 1.5,
+  "range_m": 1.5,
+  "tell (what the player sees)": "Wing-fins flare",
+  "effect": "Bleed 3 s"
+ },
+ {
+  "beast": "Chimaera",
+  "attack": "Spine",
+  "damage": 25,
+  "windup_s": 0,
+  "cooldown_s": 0,
+  "range_m": 0.6,
+  "tell (what the player sees)": "",
+  "effect": "Contact: poison 6 s"
+ },
+ {
+  "beast": "Frilled Shark",
+  "attack": "Lunge",
+  "damage": 50,
+  "windup_s": 0.4,
+  "cooldown_s": 2,
+  "range_m": 3,
+  "tell (what the player sees)": "Body coils like an eel",
+  "effect": "Bleed 4 s"
+ },
+ {
+  "beast": "Anglerfish",
+  "attack": "Swallow",
+  "damage": 45,
+  "windup_s": 0.5,
+  "cooldown_s": 3,
+  "range_m": 2,
+  "tell (what the player sees)": "The lure blinks like a drop bottle",
+  "effect": "Pins 3 s"
+ },
+ {
+  "beast": "Pelican Eel",
+  "attack": "Engulf",
+  "damage": 60,
+  "windup_s": 0.6,
+  "cooldown_s": 4,
+  "range_m": 3,
+  "tell (what the player sees)": "Jaw unfolds",
+  "effect": "Pins 3 s"
+ },
+ {
+  "beast": "Deep Skate",
+  "attack": "Barb",
+  "damage": 35,
+  "windup_s": 0.3,
+  "cooldown_s": 3,
+  "range_m": 2,
+  "tell (what the player sees)": "Tail arches",
+  "effect": "Bleed 4 s"
+ },
+ {
+  "beast": "Coelacanth",
+  "attack": "Bite",
+  "damage": 30,
+  "windup_s": 0.6,
+  "cooldown_s": 2.5,
+  "range_m": 1.5,
+  "tell (what the player sees)": "Slow turn",
+  "effect": ""
+ },
+ {
+  "beast": "Goblin Shark",
+  "attack": "Slingshot jaw",
+  "damage": 90,
+  "windup_s": 0.3,
+  "cooldown_s": 2.5,
+  "range_m": 1.5,
+  "tell (what the player sees)": "Snout dips",
+  "effect": "Bleed 4 s; hold 1 s"
+ },
+ {
+  "beast": "Elephant Seal",
+  "attack": "Ram",
+  "damage": 80,
+  "windup_s": 0.5,
+  "cooldown_s": 3,
+  "range_m": 4,
+  "tell (what the player sees)": "Rears and bellows",
+  "effect": "Knockback 5 m"
+ },
+ {
+  "beast": "Elephant Seal",
+  "attack": "Bite",
+  "damage": 50,
+  "windup_s": 0.4,
+  "cooldown_s": 2,
+  "range_m": 1.5,
+  "tell (what the player sees)": "Head swings",
+  "effect": ""
+ },
+ {
+  "beast": "Hadal Turtle",
+  "attack": "Bite",
+  "damage": 40,
+  "windup_s": 0.7,
+  "cooldown_s": 4,
+  "range_m": 1.2,
+  "tell (what the player sees)": "Only if shot",
+  "effect": ""
+ },
+ {
+  "beast": "Pale Caiman",
+  "attack": "Bite",
+  "damage": 80,
+  "windup_s": 0.5,
+  "cooldown_s": 2,
+  "range_m": 2,
+  "tell (what the player sees)": "Jaws part; it turns to vibration",
+  "effect": "Bleed 4 s"
+ },
+ {
+  "beast": "Pale Caiman",
+  "attack": "Death roll",
+  "damage": 110,
+  "windup_s": 0.9,
+  "cooldown_s": 6,
+  "range_m": 2,
+  "tell (what the player sees)": "Grabs and spins",
+  "effect": "Hold and roll 4 s"
+ },
+ {
+  "beast": "Pale Caiman",
+  "attack": "Tail",
+  "damage": 45,
+  "windup_s": 0.5,
+  "cooldown_s": 3,
+  "range_m": 3,
+  "tell (what the player sees)": "Turns side-on",
+  "effect": "Knockback 4 m"
+ },
+ {
+  "beast": "Sixgill Shark",
+  "attack": "Bite",
+  "damage": 120,
+  "windup_s": 0.6,
+  "cooldown_s": 2.5,
+  "range_m": 2.5,
+  "tell (what the player sees)": "A slow turn toward you",
+  "effect": "Bleed 5 s"
+ },
+ {
+  "beast": "Sixgill Shark",
+  "attack": "Drag",
+  "damage": 60,
+  "windup_s": 0.8,
+  "cooldown_s": 8,
+  "range_m": 2,
+  "tell (what the player sees)": "Mouth closes on a limb",
+  "effect": "Carries 10 m"
+ },
+ {
+  "beast": "Colossal Squid",
+  "attack": "Hook grab",
+  "damage": 70,
+  "windup_s": 0.7,
+  "cooldown_s": 4,
+  "range_m": 10,
+  "tell (what the player sees)": "An arm rises over the ledge",
+  "effect": "Hold 3 s; pulls toward the edge (the void)"
+ },
+ {
+  "beast": "Colossal Squid",
+  "attack": "Beak",
+  "damage": 130,
+  "windup_s": 0.6,
+  "cooldown_s": 5,
+  "range_m": 2,
+  "tell (what the player sees)": "Eye fills the overlook",
+  "effect": "Bleed 5 s"
+ },
+ {
+  "beast": "Sperm Whale",
+  "attack": "Click burst",
+  "damage": 0,
+  "windup_s": 0.5,
+  "cooldown_s": 10,
+  "range_m": 20,
+  "tell (what the player sees)": "A wall of sound",
+  "effect": "Stuns size-1/2 beasts 3 s; divers 1 s"
+ },
+ {
+  "beast": "Sperm Whale",
+  "attack": "Fluke (if shot)",
+  "damage": 130,
+  "windup_s": 0.8,
+  "cooldown_s": 6,
+  "range_m": 5,
+  "tell (what the player sees)": "Tail rises",
+  "effect": "Knockback 8 m"
+ },
+ {
+  "beast": "The Relict",
+  "attack": "Bite",
+  "damage": 160,
+  "windup_s": 0.5,
+  "cooldown_s": 2,
+  "range_m": 3,
+  "tell (what the player sees)": "Jaws open wide, a crocodile's mouth",
+  "effect": "Bleed 6 s; hold 2 s"
+ },
+ {
+  "beast": "The Relict",
+  "attack": "Ram",
+  "damage": 90,
+  "windup_s": 0.5,
+  "cooldown_s": 4,
+  "range_m": 10,
+  "tell (what the player sees)": "Four flippers fold back",
+  "effect": "Knockback 6 m, stun 1 s"
+ },
+ {
+  "beast": "The Relict",
+  "attack": "Roll",
+  "damage": 100,
+  "windup_s": 0.8,
+  "cooldown_s": 6,
+  "range_m": 3,
+  "tell (what the player sees)": "Rolls to tear",
+  "effect": "Drags 8 m toward the edge; belly exposed 2 s"
+ },
+ {
+  "beast": "The Lantern Leviathan",
+  "attack": "Swallow",
+  "damage": 0,
+  "windup_s": 1.5,
+  "cooldown_s": 12,
+  "range_m": 5,
+  "tell (what the player sees)": "The lure (an emergency light) blinks slowly, then the dark rushes",
+  "effect": "Swallows a diver whole; teammates have 5 s to deal 200 to the gills"
+ },
+ {
+  "beast": "The Lantern Leviathan",
+  "attack": "Lure",
+  "damage": 0,
+  "windup_s": 1,
+  "cooldown_s": 8,
+  "range_m": 40,
+  "tell (what the player sees)": "An emergency light appears where none was",
+  "effect": "Curious beasts and divers within 40 m drift toward it"
+ },
+ {
+  "beast": "The Lantern Leviathan",
+  "attack": "Bite",
+  "damage": 150,
+  "windup_s": 0.6,
+  "cooldown_s": 3,
+  "range_m": 4,
+  "tell (what the player sees)": "Teeth catch the lure's light",
+  "effect": "Bleed 6 s"
+ },
+ {
+  "beast": "The Lantern Leviathan",
+  "attack": "Dark",
+  "damage": 0,
+  "windup_s": 1,
+  "cooldown_s": 20,
+  "range_m": 30,
+  "tell (what the player sees)": "Every light in 30 m goes out for 6 s",
+  "effect": "Lamps, kelp, and beacons off; only its lure remains"
+ },
+ {
+  "beast": "The Sand Worm",
+  "attack": "Consume",
+  "damage": 9999,
+  "windup_s": 8,
+  "cooldown_s": 0,
+  "range_m": 20,
+  "tell (what the player sees)": "The sand shakes for 8 s, then it surfaces",
+  "effect": "No down, no revive"
+ }
+]

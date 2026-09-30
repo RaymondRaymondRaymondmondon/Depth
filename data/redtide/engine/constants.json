@@ -1,0 +1,512 @@
+{
+ "scent_cell_m": {
+  "system": "SCENT",
+  "value": 2,
+  "unit": "m",
+  "note": "Scent grid cell size"
+ },
+ "scent_update_hz": {
+  "system": "SCENT",
+  "value": 1,
+  "unit": "Hz",
+  "note": "Grid update rate (background thread)"
+ },
+ "scent_diffusion": {
+  "system": "SCENT",
+  "value": 0.15,
+  "unit": "fraction/s",
+  "note": "Share of a cell's blood that spreads to its 6 neighbours each second (2.5% each)"
+ },
+ "scent_current_advect": {
+  "system": "SCENT",
+  "value": 0.8,
+  "unit": "fraction",
+  "note": "How much of the local current velocity carries blood (0 = none, 1 = fully)"
+ },
+ "scent_decay_early": {
+  "system": "SCENT",
+  "value": 0.02,
+  "unit": "fraction/s",
+  "note": "Tides 1-9 (from TideCurve)"
+ },
+ "scent_decay_mid": {
+  "system": "SCENT",
+  "value": 0.01,
+  "unit": "fraction/s",
+  "note": "Tides 10-19"
+ },
+ "scent_decay_late": {
+  "system": "SCENT",
+  "value": 0.005,
+  "unit": "fraction/s",
+  "note": "Tides 20+"
+ },
+ "scent_floor": {
+  "system": "SCENT",
+  "value": 0.5,
+  "unit": "blood",
+  "note": "Below this a cell reads 0 (keeps the grid sparse)"
+ },
+ "scent_visible_min": {
+  "system": "SCENT",
+  "value": 3,
+  "unit": "blood",
+  "note": "Blood plume particles start at this cell value"
+ },
+ "blood_wound_fraction_min": {
+  "system": "BLOOD",
+  "value": 0.1,
+  "unit": "fraction",
+  "note": "A beast below full HP bleeds at least 10% of its size x 2 per s"
+ },
+ "blood_corpse_burst": {
+  "system": "BLOOD",
+  "value": 1,
+  "unit": "x size x 20",
+  "note": "Death releases size x 20 at once"
+ },
+ "blood_corpse_trickle": {
+  "system": "BLOOD",
+  "value": 0.05,
+  "unit": "x burst/s",
+  "note": "A corpse then trickles 5% of its burst per second until eaten"
+ },
+ "blood_corpse_life_s": {
+  "system": "BLOOD",
+  "value": [
+   30,
+   45,
+   60,
+   90,
+   120,
+   180
+  ],
+  "unit": "s by size",
+  "note": "How long a corpse lasts with no scavengers"
+ },
+ "blood_scavenger_rate": {
+  "system": "BLOOD",
+  "value": [
+   0.3,
+   0.5,
+   1.0,
+   3.0
+  ],
+  "unit": "blood/s by scavenger size",
+  "note": "How fast scavengers remove corpse blood"
+ },
+ "blood_diver_wounded": {
+  "system": "BLOOD",
+  "value": 2,
+  "unit": "blood/s",
+  "note": "A diver below 50% HP"
+ },
+ "blood_diver_downed": {
+  "system": "BLOOD",
+  "value": 8,
+  "unit": "blood/s",
+  "note": "A downed diver"
+ },
+ "blood_melee_mult": {
+  "system": "BLOOD",
+  "value": 0.5,
+  "unit": "x",
+  "note": "Melee kills make half the blood"
+ },
+ "blood_boiling_mult": {
+  "system": "BLOOD",
+  "value": 0,
+  "unit": "x",
+  "note": "Boiling ammunition makes no blood"
+ },
+ "sample_range_mult": {
+  "system": "SENSE",
+  "value": 1,
+  "unit": "x scent_m",
+  "note": "A beast samples the grid out to its scent_m"
+ },
+ "threshold_hysteresis": {
+  "system": "SENSE",
+  "value": 0.7,
+  "unit": "x threshold",
+  "note": "Stops investigating when local blood falls below 70% of threshold"
+ },
+ "gradient_step_m": {
+  "system": "SENSE",
+  "value": 4,
+  "unit": "m",
+  "note": "Investigate moves toward the highest neighbouring cell at this stride"
+ },
+ "sight_cone_deg": {
+  "system": "SENSE",
+  "value": 120,
+  "unit": "deg",
+  "note": "Field of view for sight (blind species: 0)"
+ },
+ "sight_in_silt_mult": {
+  "system": "SENSE",
+  "value": 0.4,
+  "unit": "x",
+  "note": "Sight range in silt or ink clouds"
+ },
+ "electro_through_walls": {
+  "system": "SENSE",
+  "value": true,
+  "unit": "bool",
+  "note": "Electroreception ignores occlusion"
+ },
+ "lamp_visibility_bonus_m": {
+  "system": "SENSE",
+  "value": 10,
+  "unit": "m",
+  "note": "A lit lamp adds this to the range any sighted beast sees the diver from"
+ },
+ "sound_cell_decay": {
+  "system": "SOUND",
+  "value": 0.2,
+  "unit": "fraction/s",
+  "note": "Sound field decays fast"
+ },
+ "sound_diffusion": {
+  "system": "SOUND",
+  "value": 0.3,
+  "unit": "fraction/s",
+  "note": "Spreads faster than scent"
+ },
+ "noise_gunshot_base": {
+  "system": "SOUND",
+  "value": 1,
+  "unit": "x weapon noise",
+  "note": "Weapon noise 1-10 maps to field value x 10"
+ },
+ "noise_explosion": {
+  "system": "SOUND",
+  "value": 30,
+  "unit": "field",
+  "note": "Limpet, Cannon Harpoon impact, traps"
+ },
+ "noise_melee": {
+  "system": "SOUND",
+  "value": 0,
+  "unit": "field",
+  "note": "Melee is silent"
+ },
+ "fear_flee_threshold": {
+  "system": "SOUND",
+  "value": 15,
+  "unit": "field",
+  "note": "Fearful beasts (fear > 0.6) flee sound above this"
+ },
+ "curious_approach_threshold": {
+  "system": "SOUND",
+  "value": 8,
+  "unit": "field",
+  "note": "Curious beasts (curiosity > 0.5) approach sound between 8 and 25"
+ },
+ "aggressive_attack_threshold": {
+  "system": "SOUND",
+  "value": 20,
+  "unit": "field",
+  "note": "Aggressive beasts (aggression > 0.7) attack the source above this"
+ },
+ "alarm_gunshot_mult": {
+  "system": "ALARM",
+  "value": 1,
+  "unit": "x weapon noise",
+  "note": "Per shot"
+ },
+ "alarm_explosion_mult": {
+  "system": "ALARM",
+  "value": 3,
+  "unit": "x",
+  "note": "Explosions and traps"
+ },
+ "alarm_decay": {
+  "system": "ALARM",
+  "value": 0.05,
+  "unit": "fraction/s",
+  "note": "Region alarm decay"
+ },
+ "alarm_inside_hull_mult": {
+  "system": "ALARM",
+  "value": 2,
+  "unit": "x",
+  "note": "Sunken Ship inside region (hull carries sound)"
+ },
+ "alarm_roll_interval_s": {
+  "system": "ALARM",
+  "value": 5,
+  "unit": "s",
+  "note": "Spawn roll cadence above threshold"
+ },
+ "alarm_reset_on_spawn": {
+  "system": "ALARM",
+  "value": 0.5,
+  "unit": "x",
+  "note": "Alarm halves when a squad spawns"
+ },
+ "alarm_min_distance_m": {
+  "system": "ALARM",
+  "value": 35,
+  "unit": "m",
+  "note": "Squads never spawn closer than this to a diver"
+ },
+ "hunger_rate": {
+  "system": "HUNGER",
+  "value": [
+   0.4,
+   0.35,
+   0.3,
+   0.25,
+   0.2,
+   0.1
+  ],
+  "unit": "/min by size",
+  "note": "Hunger 0-1 rises at this rate"
+ },
+ "hunt_weight_at_hunger": {
+  "system": "HUNGER",
+  "value": [
+   0.0,
+   0.3,
+   0.7,
+   1.0
+  ],
+  "unit": "weight at hunger 0/0.5/0.8/1",
+  "note": "How much hunger raises Hunt over Graze/Rest"
+ },
+ "fed_duration_s": {
+  "system": "HUNGER",
+  "value": [
+   20,
+   30,
+   45,
+   60,
+   90,
+   120
+  ],
+  "unit": "s by size",
+  "note": "After eating, hunger resets and Hunt is suppressed"
+ },
+ "eat_time_s": {
+  "system": "HUNGER",
+  "value": [
+   2,
+   3,
+   5,
+   8,
+   12,
+   20
+  ],
+  "unit": "s by prey size",
+  "note": "Time to consume prey of that size"
+ },
+ "investigate_timeout_s": {
+  "system": "STATE",
+  "value": 30,
+  "unit": "s",
+  "note": "Give up investigating if the source isn't found"
+ },
+ "hunt_give_up_distance_m": {
+  "system": "STATE",
+  "value": 60,
+  "unit": "m",
+  "note": "Abandon a chase beyond this from home (territorial) or start (wanderer: 200)"
+ },
+ "flee_hp_fraction": {
+  "system": "STATE",
+  "value": 0.2,
+  "unit": "fraction",
+  "note": "Flee below 20% HP (fear > 0.3)"
+ },
+ "flee_trail_blood_mult": {
+  "system": "STATE",
+  "value": 0.5,
+  "unit": "x",
+  "note": "A fleeing beast bleeds at half rate and stops 10 s after reaching home"
+ },
+ "defend_escalation_s": {
+  "system": "STATE",
+  "value": 3,
+  "unit": "s",
+  "note": "Territorial: warning display for 3 s, then attack"
+ },
+ "return_home_calm_s": {
+  "system": "STATE",
+  "value": 20,
+  "unit": "s",
+  "note": "Return home after 20 s without stimuli"
+ },
+ "school_cohesion": {
+  "system": "SOCIAL",
+  "value": 0.6,
+  "unit": "boids weight",
+  "note": "Schooling weights: cohesion / alignment / separation"
+ },
+ "school_alignment": {
+  "system": "SOCIAL",
+  "value": 0.8,
+  "unit": "boids weight",
+  "note": ""
+ },
+ "school_separation": {
+  "system": "SOCIAL",
+  "value": 1.2,
+  "unit": "boids weight",
+  "note": ""
+ },
+ "school_scatter_s": {
+  "system": "SOCIAL",
+  "value": 10,
+  "unit": "s",
+  "note": "Regroup delay after a shot into the school"
+ },
+ "pack_roles": {
+  "system": "SOCIAL",
+  "value": "flank,drive,leader",
+  "unit": "list",
+  "note": "Packs assign roles; the leader is marked (ink ring) and packs break for 15 s if it dies"
+ },
+ "swarm_contact_dps_mult": {
+  "system": "SOCIAL",
+  "value": 1,
+  "unit": "x",
+  "note": "Swarm damage scales with bodies overlapping the diver"
+ },
+ "spawn_check_interval_s": {
+  "system": "POP",
+  "value": 10,
+  "unit": "s",
+  "note": "Region spawn pools are checked every 10 s"
+ },
+ "capacity_flora_mult": {
+  "system": "POP",
+  "value": 1,
+  "unit": "x",
+  "note": "Grazer capacity scales with local flora density (0.5-1.5)"
+ },
+ "predator_patrol_by_prey": {
+  "system": "POP",
+  "value": 0.02,
+  "unit": "per grazer",
+  "note": "Extra predator visit chance per second per 10 grazers in a region"
+ },
+ "apex_wander_interval_s": {
+  "system": "POP",
+  "value": [
+   240,
+   180,
+   120
+  ],
+  "unit": "s at tides 10/15/20+",
+  "note": "How often a wandering apex picks a new region"
+ },
+ "boss_wander_interval_s": {
+  "system": "POP",
+  "value": 180,
+  "unit": "s from tide 12",
+  "note": "Boss relocation cadence"
+ },
+ "respawn_tide_mult": {
+  "system": "POP",
+  "value": 0.97,
+  "unit": "x per tide",
+  "note": "Respawn timers shorten 3% per tide"
+ },
+ "cleaner_calm_radius_m": {
+  "system": "SYMBIOSIS",
+  "value": 6,
+  "unit": "m",
+  "note": "Hosts within this of a cleaner station lose 20% aggression"
+ },
+ "cleaner_loss_penalty": {
+  "system": "SYMBIOSIS",
+  "value": 0.2,
+  "unit": "fraction",
+  "note": "Killing all cleaners in a region: +20% aggression map-wide for 300 s"
+ },
+ "parasite_attach_s": {
+  "system": "SYMBIOSIS",
+  "value": 0.5,
+  "unit": "s",
+  "note": "Attach time on contact"
+ },
+ "brush_off_s": {
+  "system": "SYMBIOSIS",
+  "value": 1.5,
+  "unit": "s",
+  "note": "Cleaning brush time per parasite"
+ },
+ "graze_rate": {
+  "system": "FLORA",
+  "value": 0.5,
+  "unit": "units/s per grazer",
+  "note": "Flora units eaten per grazer per second"
+ },
+ "flora_unit_capacity": {
+  "system": "FLORA",
+  "value": 100,
+  "unit": "units",
+  "note": "A patch's max units"
+ },
+ "flora_regrow_delay_s": {
+  "system": "FLORA",
+  "value": 60,
+  "unit": "s",
+  "note": "After grazed to 0 (per flora override)"
+ },
+ "enemy_hp_growth": {
+  "system": "ENEMY",
+  "value": 1.08,
+  "unit": "x/tide",
+  "note": ""
+ },
+ "enemy_weapon_tier_every": {
+  "system": "ENEMY",
+  "value": 5,
+  "unit": "tides",
+  "note": "Weapons upgrade every 5 tides; Forged at 15+"
+ },
+ "enemy_blood_yield": {
+  "system": "ENEMY",
+  "value": 20,
+  "unit": "blood on death (size 2-3 humans)",
+  "note": "Ichor for Lost Ones uses the same value in the ichor channel"
+ },
+ "ichor_repel_s": {
+  "system": "ENEMY",
+  "value": 60,
+  "unit": "s",
+  "note": "Apex avoid ichor cells for this long"
+ },
+ "player_hp": {
+  "system": "PLAYER",
+  "value": 100,
+  "unit": "HP",
+  "note": "250 with Juggernaut"
+ },
+ "regen_delay_s": {
+  "system": "PLAYER",
+  "value": 4,
+  "unit": "s",
+  "note": ""
+ },
+ "regen_rate": {
+  "system": "PLAYER",
+  "value": 20,
+  "unit": "HP/s",
+  "note": ""
+ },
+ "down_bleedout_s": {
+  "system": "PLAYER",
+  "value": 45,
+  "unit": "s",
+  "note": ""
+ },
+ "revive_s": {
+  "system": "PLAYER",
+  "value": 4,
+  "unit": "s",
+  "note": "2 with Quick Brine"
+ }
+}

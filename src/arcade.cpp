@@ -148,17 +148,19 @@ void DrawReels(Game& g) {
     Glow(c, 360, Color{60, 220, 210, 50});
     TxtBold("THE DEEP ARCADE", c.x - MeasureTxt("THE DEEP ARCADE", 30, true) / 2.0f, c.y - 250, 30, SCREEN_INK);
     struct Reel { int game; const char* players; const char* length; const char* line; };
-    const Reel reels[4] = {
+    const int NREELS = 5;
+    const Reel reels[NREELS] = {
         {G_FLATS_DUEL, "2 players", "8-12 min", "Flats against a person: a best of three at the table."},
-        {G_TRAWL, "1-4 co-op", "15-25 min", "Fish the deep by night, fill the quota, don't wake what's below."},
+        {G_TRAWL, "1-6 co-op", "30-35 min", "Work a steam trawler by night: catch it, kill it, cook it, sell it, and meet the Owners' quota."},
         {G_SCUTTLE, "2-4 players", "5-10 min", "A fast crab-racing card game anyone can learn in one hand."},
         {G_FATHOMS, "2-6 players", "20-30 min", "The island strategy game: six factions of the deep."},
+        {G_RED_TIDE, "1-4 co-op", "20-60 min", "Divers in living ecosystems: kill for scrip, and the blood in the water brings what eats everything."},
     };
     gDrum += (gSel - gDrum) * std::min(1.0f, GetFrameTime() * 8);
     float wheel = GetMouseWheelMove();
-    if (wheel < 0 || IsKeyPressed(KEY_DOWN)) gSel = std::min(3, gSel + 1);
+    if (wheel < 0 || IsKeyPressed(KEY_DOWN)) gSel = std::min(NREELS - 1, gSel + 1);
     if (wheel > 0 || IsKeyPressed(KEY_UP)) gSel = std::max(0, gSel - 1);
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < NREELS; i++) {
         float off = (i - gDrum) * 92;
         if (fabsf(off) > 120) continue;
         float sc = 1 - fabsf(off) / 400;
@@ -167,7 +169,7 @@ void DrawReels(Game& g) {
         DrawRectangleRounded(r, 0.25f, 8, on ? Color{30, 120, 118, 255} : Color{16, 60, 64, 255});
         DrawRectangleRoundedLinesEx(r, 0.25f, 8, 2, on ? Pal::Brass : Pal::BrassDk);
         DrawTextCenteredBold(Info(reels[i].game).name, c.x, r.y + 8 * sc, (int)(26 * sc), on ? Color{220, 255, 244, 255} : SCREEN_DIM);
-        if (on) DrawTextCentered(TextFormat("%s   -   %s%s", reels[i].players, reels[i].length, Info(reels[i].game).built ? "" : "   -   coming aboard later"), c.x, r.y + 40, 15, Color{180, 230, 220, 255});
+        if (on) DrawTextCentered(TextFormat("%s   -   %s%s", reels[i].players, reels[i].length, Info(reels[i].game).built || reels[i].game == G_TRAWL || reels[i].game == G_RED_TIDE ? "" : "   -   coming aboard later"), c.x, r.y + 40, 15, Color{180, 230, 220, 255});
         if (CheckCollisionPointRec(GetMousePosition(), r) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) gSel = i;
     }
     DrawWrapped(reels[gSel].line, {c.x - 200, c.y + 100, 400, 50}, 17, Color{200, 240, 232, 255});
@@ -195,6 +197,25 @@ void DrawReels(Game& g) {
             } else if (k == 1) { gMode = MODE_JOIN; gJoinFocus = true; }
             else gMode = MODE_BROWSE;
         }
+    }
+    // The Trawl and Red Tide play solo until their networking stages: a button launches them straight from the reel
+    if (selGame == G_TRAWL && Button({c.x - 110, c.y + 236, 220, 36}, "Sail (solo)", true, 15)) { StartTrawl(g); return; }
+    if (selGame == G_RED_TIDE) {
+        static const char* RT_MAPS[] = {"ship", "cave", "reef", "atlantis", "void"};
+        static const char* RT_TITLES[] = {"The Sunken Ship", "The Underwater Cave", "The Coral Reef", "Atlantis", "Approaching the Void"};
+        static int rtMap = 0;
+        const int RT_N = (int)(sizeof(RT_MAPS) / sizeof(RT_MAPS[0]));
+        Rectangle lt{c.x - 190, c.y + 52, 30, 26}, rtR{c.x + 160, c.y + 52, 30, 26};
+        DrawTextCenteredBold(RT_TITLES[rtMap], c.x, c.y + 54, 20, Color{230, 200, 150, 255});
+        DrawTextCenteredBold("<", lt.x + 15, lt.y, 22, Pal::Brass);
+        DrawTextCenteredBold(">", rtR.x + 15, rtR.y, 22, Pal::Brass);
+        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), lt)) rtMap = (rtMap + RT_N - 1) % RT_N;
+        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), rtR)) rtMap = (rtMap + 1) % RT_N;
+        if (IsKeyPressed(KEY_LEFT)) rtMap = (rtMap + RT_N - 1) % RT_N;
+        if (IsKeyPressed(KEY_RIGHT)) rtMap = (rtMap + 1) % RT_N;
+        static const char* PAGES[] = {"Dossier", "Records", "How to play", "Charm pouch", "Locker room"};
+        for (int k = 0; k < 5; k++) if (Button({40, 250 + k * 58.0f, 200, 44}, PAGES[k], true, 18)) { OpenRedTidePage(g, k + 1); return; }
+        if (Button({c.x - 110, c.y + 236, 220, 36}, "Dive (solo)", true, 15)) { StartRedTide(g, RT_MAPS[rtMap]); return; }
     }
     if (ready && Button({c.x - 110, c.y + 236, 220, 36}, "Practice with AI crabs", true, 15)) {
         std::string err;
@@ -798,6 +819,9 @@ void SceneArcade(Game& g) {
         DrawTextCentered(gError, SCREEN_W / 2.0f, r.y + 9, 16, Pal::Paper);
     }
 }
+
+// --shots: turn the drum to a reel (0 Flats Duel ... 4 Red Tide) on the front page
+void DebugArcadeReel(int reel) { gMode = MODE_MENU; gSel = reel; gDrum = (float)reel; }
 
 // the shots (no network needed): 0 the lobby, 1 the table mid-heat, 2 the match over, 3 the rules
 void DebugArcadeShot(int which) {

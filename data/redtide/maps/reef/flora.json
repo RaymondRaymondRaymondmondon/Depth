@@ -1,0 +1,122 @@
+[
+ {
+  "flora": "Staghorn thicket",
+  "type": "Structure/Producer",
+  "zones": "Staghorn Forest",
+  "effect": "The corridors themselves; grazed by butterflyfish and crown-of-thorns; a shark ram breaks a segment (opens a lane)",
+  "contact_damage": 4,
+  "grazed_by": "Butterflyfish, Crown-of-thorns Starfish, Titan Triggerfish",
+  "regrowth_rate_per_s": 0.2,
+  "regrow_delay_s": 600
+ },
+ {
+  "flora": "Brain coral",
+  "type": "Cover",
+  "zones": "Brain Coral Maze",
+  "effect": "Solid; blocks shots and sight",
+  "contact_damage": 0,
+  "grazed_by": "",
+  "regrowth_rate_per_s": 0,
+  "regrow_delay_s": 0
+ },
+ {
+  "flora": "Table coral",
+  "type": "Shelter",
+  "zones": "Staghorn Forest, Bommie",
+  "effect": "Roofs that hide divers from above (mantas, sharks, dolphins)",
+  "contact_damage": 0,
+  "grazed_by": "",
+  "regrowth_rate_per_s": 0,
+  "regrow_delay_s": 0
+ },
+ {
+  "flora": "Fire coral",
+  "type": "Hazard",
+  "zones": "Corridor mouths, Surge Channel",
+  "effect": "Touch: 15 burn",
+  "contact_damage": 15,
+  "grazed_by": "",
+  "regrowth_rate_per_s": 0,
+  "regrow_delay_s": 0
+ },
+ {
+  "flora": "Reacher coral",
+  "type": "Hazard/Trap",
+  "zones": "Brain Coral Maze, Staghorn Forest gates",
+  "effect": "Grabs a diver who brushes it: held until cut free by a teammate or shot to 0 (400); grabs beasts and Raiders too and feeds on them",
+  "contact_damage": 20,
+  "grazed_by": "",
+  "regrowth_rate_per_s": 0,
+  "regrow_delay_s": 900
+ },
+ {
+  "flora": "Seagrass meadow",
+  "type": "Producer",
+  "zones": "The Sand Flats",
+  "effect": "Dugong and turtle food; cover for stingrays; hides the bobbit worm's hole",
+  "contact_damage": 0,
+  "grazed_by": "Dugong, Green Turtle",
+  "regrowth_rate_per_s": 1,
+  "regrow_delay_s": 90
+ },
+ {
+  "flora": "Mangrove roots",
+  "type": "Shelter",
+  "zones": "Mangrove Nursery, Lagoon edge",
+  "effect": "Air above; the frog and toad nursery; juvenile fish hide here",
+  "contact_damage": 0,
+  "grazed_by": "",
+  "regrowth_rate_per_s": 0,
+  "regrow_delay_s": 0
+ },
+ {
+  "flora": "Sea whip fans",
+  "type": "Cover",
+  "zones": "The Bommie",
+  "effect": "Sway with current; razorfish cling to them",
+  "contact_damage": 0,
+  "grazed_by": "",
+  "regrowth_rate_per_s": 0,
+  "regrow_delay_s": 0
+ },
+ {
+  "flora": "Soft coral garden",
+  "type": "Producer",
+  "zones": "Staghorn Forest",
+  "effect": "Angelfish food; luminous at night tides",
+  "contact_damage": 0,
+  "grazed_by": "Angelfish",
+  "regrowth_rate_per_s": 0.5,
+  "regrow_delay_s": 180
+ },
+ {
+  "flora": "Halimeda beds",
+  "type": "Producer",
+  "zones": "Brain Coral Maze",
+  "effect": "Urchin food; brittle: shatters loudly (4 noise) when walked on",
+  "contact_damage": 0,
+  "grazed_by": "Sea Urchin",
+  "regrowth_rate_per_s": 0.8,
+  "regrow_delay_s": 120
+ },
+ {
+  "flora": "Turf algae",
+  "type": "Producer",
+  "zones": "The Bommie",
+  "effect": "Surgeonfish and iguana food",
+  "contact_damage": 0,
+  "grazed_by": "Surgeonfish, Marine Iguana, Clownfish",
+  "regrowth_rate_per_s": 1,
+  "regrow_delay_s": 60
+ },
+ {
+  "flora": "Sea grape",
+  "type": "Edible",
+  "zones": "Lagoon, Turtle Beach",
+  "effect": "A diver eats a cluster: +10 HP, once per cluster",
+  "contact_damage": 0,
+  "grazed_by": "",
+  "regrowth_rate_per_s": 0,
+  "regrow_delay_s": 600
+ }
+]

@@ -1,0 +1,429 @@
+{
+ "zones": [
+  {
+   "zone": "The Mouth",
+   "level": "Wet",
+   "x": 30,
+   "y": 0,
+   "w": 16,
+   "h": 10,
+   "door_cost_scrip": 0,
+   "depth_m": 0,
+   "notes": "Start pocket under a light shaft. Gannet rack, Juggernaut. Slipstream F arrives here."
+  },
+  {
+   "zone": "The Flooded Gallery",
+   "level": "Wet",
+   "x": 0,
+   "y": 14,
+   "w": 40,
+   "h": 16,
+   "door_cost_scrip": 750,
+   "depth_m": -10,
+   "notes": "Columns and root tangles; Needler Mk I, Quick Brine, workbench; the Ghost Worm's wall on the south side; slipstream A departs east"
+  },
+  {
+   "zone": "The Chimney",
+   "level": "Wet (vertical)",
+   "x": 48,
+   "y": 12,
+   "w": 14,
+   "h": 14,
+   "door_cost_scrip": 1000,
+   "depth_m": "-10 to -40",
+   "notes": "A shaft with four ledges: Long Speargun (ledge 2); stalactites overhead (trap anchor at ledge 4); glowworms; slipstream B departs at the bottom"
+  },
+  {
+   "zone": "The Squeeze",
+   "level": "Wet (crawl)",
+   "x": 8,
+   "y": 32,
+   "w": 8,
+   "h": 10,
+   "door_cost_scrip": 0,
+   "depth_m": -25,
+   "notes": "A one-way crawl tunnel Gallery -> Sump; no weapons drawn; 40 s crawl; the Ghost Worm lives in its walls"
+  },
+  {
+   "zone": "Dry Chamber I: the Cricket Cavern",
+   "level": "Air",
+   "x": 70,
+   "y": 4,
+   "w": 18,
+   "h": 12,
+   "door_cost_scrip": 1250,
+   "depth_m": -15,
+   "notes": "Walking; cave moss, crickets, swiftlet roost; Speed Brine; the Drowned's camp and entry (the Lantern Cache)"
+  },
+  {
+   "zone": "Dry Chamber II: the Toad Pool",
+   "level": "Air",
+   "x": 70,
+   "y": 20,
+   "w": 18,
+   "h": 12,
+   "door_cost_scrip": 0,
+   "depth_m": -15,
+   "notes": "A pool with the toad, newts, kraits; Carbine rack; the salamander under the far ledge"
+  },
+  {
+   "zone": "Dry Chamber III: the Roost",
+   "level": "Air",
+   "x": 90,
+   "y": 12,
+   "w": 14,
+   "h": 14,
+   "door_cost_scrip": 0,
+   "depth_m": -15,
+   "notes": "A tall chamber; ledges; the caiman's haul-out; slipstream C departs from the pool at its floor"
+  },
+  {
+   "zone": "The Sump",
+   "level": "Wet",
+   "x": 20,
+   "y": 46,
+   "w": 44,
+   "h": 18,
+   "door_cost_scrip": 1500,
+   "depth_m": -45,
+   "notes": "Silt bottom; vents and mats; Bolt Harpoon, Double Shot; sleeper shark, electric rays; slipstream B and the Squeeze arrive; slipstream D departs"
+  },
+  {
+   "zone": "The Dynamo Sump",
+   "level": "Wet",
+   "x": 70,
+   "y": 44,
+   "w": 22,
+   "h": 16,
+   "door_cost_scrip": 1750,
+   "depth_m": -40,
+   "notes": "The drowned expedition's generator (power); the Pressure Forge; Bloodvine by the Forge; slipstreams C and D arrive; E departs"
+  },
+  {
+   "zone": "The Cathedral",
+   "level": "Wet",
+   "x": 50,
+   "y": 66,
+   "w": 44,
+   "h": 24,
+   "door_cost_scrip": 2000,
+   "depth_m": -30,
+   "notes": "Crystal coral; the Lobster's home; Kick Brine, Locker spot 2; two Cathedral overlooks onto the Sump; slipstream F departs back to the Mouth"
+  }
+ ],
+ "links": [
+  {
+   "from": "The Mouth",
+   "to": "The Flooded Gallery",
+   "cost_scrip": 750,
+   "passage": "The throat (a swim-down)"
+  },
+  {
+   "from": "The Flooded Gallery",
+   "to": "The Chimney",
+   "cost_scrip": 1000,
+   "passage": "Chimney door"
+  },
+  {
+   "from": "The Flooded Gallery",
+   "to": "The Squeeze",
+   "cost_scrip": 0,
+   "passage": "Crawl entrance (one-way)"
+  },
+  {
+   "from": "The Squeeze",
+   "to": "The Sump",
+   "cost_scrip": 0,
+   "passage": "Crawl exit (one-way)"
+  },
+  {
+   "from": "The Chimney",
+   "to": "Dry Chamber I: the Cricket Cavern",
+   "cost_scrip": 1250,
+   "passage": "Ledge 3 airlock (a natural sump you surface through)"
+  },
+  {
+   "from": "Dry Chamber I: the Cricket Cavern",
+   "to": "Dry Chamber II: the Toad Pool",
+   "cost_scrip": 0,
+   "passage": "Open passage"
+  },
+  {
+   "from": "Dry Chamber II: the Toad Pool",
+   "to": "Dry Chamber III: the Roost",
+   "cost_scrip": 0,
+   "passage": "Open passage"
+  },
+  {
+   "from": "The Chimney",
+   "to": "The Sump",
+   "cost_scrip": 1500,
+   "passage": "Chimney bottom"
+  },
+  {
+   "from": "The Sump",
+   "to": "The Dynamo Sump",
+   "cost_scrip": 1750,
+   "passage": "Generator door"
+  },
+  {
+   "from": "The Dynamo Sump",
+   "to": "The Cathedral",
+   "cost_scrip": 2000,
+   "passage": "Crystal gate"
+  },
+  {
+   "from": "The Cathedral",
+   "to": "The Sump",
+   "cost_scrip": 0,
+   "passage": "Overlook drops (one-way, 2 places)"
+  }
+ ],
+ "pois": [
+  {
+   "name": "Gannet rack",
+   "type": "Rack",
+   "zone": "The Mouth",
+   "x": 32,
+   "y": 2
+  },
+  {
+   "name": "Juggernaut Brine",
+   "type": "Tonic",
+   "zone": "The Mouth",
+   "x": 43,
+   "y": 8
+  },
+  {
+   "name": "Needler Mk I rack",
+   "type": "Rack",
+   "zone": "The Flooded Gallery",
+   "x": 4,
+   "y": 16
+  },
+  {
+   "name": "Quick Brine",
+   "type": "Tonic",
+   "zone": "The Flooded Gallery",
+   "x": 36,
+   "y": 28
+  },
+  {
+   "name": "Workbench",
+   "type": "Build",
+   "zone": "The Flooded Gallery",
+   "x": 20,
+   "y": 22
+  },
+  {
+   "name": "Locker spot 1",
+   "type": "Locker",
+   "zone": "The Flooded Gallery",
+   "x": 30,
+   "y": 16
+  },
+  {
+   "name": "Ghost Worm wall",
+   "type": "Boss",
+   "zone": "The Flooded Gallery",
+   "x": 10,
+   "y": 29
+  },
+  {
+   "name": "Cleaner station (sponges)",
+   "type": "Feature",
+   "zone": "The Flooded Gallery",
+   "x": 14,
+   "y": 18
+  },
+  {
+   "name": "Long Speargun rack (ledge 2)",
+   "type": "Rack",
+   "zone": "The Chimney",
+   "x": 50,
+   "y": 20
+  },
+  {
+   "name": "Stalactite trap anchor (ledge 4)",
+   "type": "Trap",
+   "zone": "The Chimney",
+   "x": 55,
+   "y": 14
+  },
+  {
+   "name": "Glowworm ceiling",
+   "type": "Feature",
+   "zone": "The Chimney",
+   "x": 58,
+   "y": 24
+  },
+  {
+   "name": "Speed Brine",
+   "type": "Tonic",
+   "zone": "Dry Chamber I: the Cricket Cavern",
+   "x": 72,
+   "y": 6
+  },
+  {
+   "name": "The Lantern Cache (Drowned entry)",
+   "type": "Entry",
+   "zone": "Dry Chamber I: the Cricket Cavern",
+   "x": 86,
+   "y": 14
+  },
+  {
+   "name": "Swiftlet roost",
+   "type": "Hazard",
+   "zone": "Dry Chamber I: the Cricket Cavern",
+   "x": 80,
+   "y": 6
+  },
+  {
+   "name": "Sea-Pattern Carbine rack",
+   "type": "Rack",
+   "zone": "Dry Chamber II: the Toad Pool",
+   "x": 72,
+   "y": 22
+  },
+  {
+   "name": "Toad pool",
+   "type": "Hazard",
+   "zone": "Dry Chamber II: the Toad Pool",
+   "x": 80,
+   "y": 26
+  },
+  {
+   "name": "Salamander ledge",
+   "type": "Hazard",
+   "zone": "Dry Chamber II: the Toad Pool",
+   "x": 86,
+   "y": 30
+  },
+  {
+   "name": "Caiman haul-out",
+   "type": "Hazard",
+   "zone": "Dry Chamber III: the Roost",
+   "x": 96,
+   "y": 14
+  },
+  {
+   "name": "Slipstream C mouth",
+   "type": "Feature",
+   "zone": "Dry Chamber III: the Roost",
+   "x": 97,
+   "y": 24
+  },
+  {
+   "name": "Bolt Harpoon rack",
+   "type": "Rack",
+   "zone": "The Sump",
+   "x": 24,
+   "y": 48
+  },
+  {
+   "name": "Double Shot",
+   "type": "Tonic",
+   "zone": "The Sump",
+   "x": 60,
+   "y": 62
+  },
+  {
+   "name": "Vent field & mats",
+   "type": "Feature",
+   "zone": "The Sump",
+   "x": 44,
+   "y": 56
+  },
+  {
+   "name": "Sleeper shark silt",
+   "type": "Hazard",
+   "zone": "The Sump",
+   "x": 30,
+   "y": 60
+  },
+  {
+   "name": "Electric ray silt",
+   "type": "Hazard",
+   "zone": "The Sump",
+   "x": 52,
+   "y": 50
+  },
+  {
+   "name": "Power switch (generator)",
+   "type": "Power",
+   "zone": "The Dynamo Sump",
+   "x": 74,
+   "y": 46
+  },
+  {
+   "name": "Pressure Forge",
+   "type": "Forge",
+   "zone": "The Dynamo Sump",
+   "x": 86,
+   "y": 56
+  },
+  {
+   "name": "Bloodvine by the Forge",
+   "type": "Hazard",
+   "zone": "The Dynamo Sump",
+   "x": 82,
+   "y": 58
+  },
+  {
+   "name": "Expedition wreckage (parts)",
+   "type": "Build",
+   "zone": "The Dynamo Sump",
+   "x": 78,
+   "y": 52
+  },
+  {
+   "name": "Kick Brine",
+   "type": "Tonic",
+   "zone": "The Cathedral",
+   "x": 54,
+   "y": 86
+  },
+  {
+   "name": "Locker spot 2",
+   "type": "Locker",
+   "zone": "The Cathedral",
+   "x": 90,
+   "y": 86
+  },
+  {
+   "name": "Crystal coral (calls the Lobster)",
+   "type": "Feature",
+   "zone": "The Cathedral",
+   "x": 72,
+   "y": 78
+  },
+  {
+   "name": "The Lobster's hollow",
+   "type": "Boss",
+   "zone": "The Cathedral",
+   "x": 84,
+   "y": 72
+  },
+  {
+   "name": "Overlook drops to the Sump",
+   "type": "Feature",
+   "zone": "The Cathedral",
+   "x": 52,
+   "y": 68
+  },
+  {
+   "name": "Slipstream F mouth",
+   "type": "Feature",
+   "zone": "The Cathedral",
+   "x": 92,
+   "y": 68
+  }
+ ],
+ "notes": [
+  "Training loop (wet): Gallery -> slipstream A -> Chimney -> Chimney bottom -> Sump -> slipstream D -> Dynamo -> slipstream E -> Cathedral -> slipstream F -> Mouth -> Gallery. About 3 minutes; every stream has a beast in it.",
+  "Training loop (dry): Cavern -> Toad Pool -> Roost -> Cavern, on foot; safe from everything wet, unsafe from the toad, the salamander, and the caiman; where the Drowned are strongest.",
+  "Blood flow: slipstreams carry blood the way they carry divers, so a kill in the Gallery smells in the Chimney 5 s later and in the Sump 11 s later; the Sump is the map's drain (blood pools there and calls the sleeper shark).",
+  "Sightlines: Gallery 20 m between columns; Chimney vertical 30 m; dry chambers 15 m; Sump 6-10 m in silt; Cathedral 40 m across (the long-gun room). Alarm: one region; the Drowned enter from the Lantern Cache.",
+  "Rockfall: any noise-6+ shot in the Chimney or Cathedral has a 5% chance to drop a stalactite (200 damage) within 8 m of the shooter's target."
+ ]
+}

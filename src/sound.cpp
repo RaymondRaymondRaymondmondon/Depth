@@ -785,6 +785,8 @@ ConvRev gConv;
 int gRoomWant = RR_SALON;
 
 #include "sound_expedition.inl"
+#include "sound_redtide.inl"
+float gTestBusOpen = 0;   // --audio-test: open the music and ambience buses with no scene playing
 
 // ---------------------------------------------------------------- registered cues
 int FindCue(const char* name) {
@@ -984,6 +986,7 @@ void Render(float* out, int frames) {
         }
         gHub.s += ((gHub.on ? 1.0f : 0.0f) - gHub.s) * std::min(1.0f, blockT * 0.7f);
         ExpUpdate(blockT);
+        RtUpdate(blockT);
         if (gHub.on) {
             gHub.tickT += blockT;
             while (gHub.tickT >= HubTickDur()) { gHub.tickT -= HubTickDur(); HubTick(); gHub.tick++; }
@@ -1015,7 +1018,7 @@ void Render(float* out, int frames) {
             v.env0 = EnvAt(v, v.t); v.env1 = EnvAt(v, v.t + blockT);
         }
         float voiceDuck = 1 - 0.37f * gVoiceS;   // a voice ducks everything else 4 dB
-        float roomS = std::max(gHub.s, gExp.s);  // aboard, or on an expedition: the generated rooms
+        float roomS = std::max({gHub.s, gExp.s, gRt.s, gTestBusOpen});  // aboard, or on an expedition: the generated rooms
         float musicLevel = std::max(gScene, roomS) * (1 - 0.29f * gDuck); // combat impacts duck the music 3 dB
         float busG[5] = {gVol.sfx * voiceDuck, gVol.music * musicLevel * voiceDuck, gVol.ambience * std::max(gScene, roomS) * voiceDuck, gVol.sfx, gVol.sfx};
         for (int i = 0; i < n; i++) {
@@ -1074,6 +1077,7 @@ void Render(float* out, int frames) {
                 mL += s; mR += s * (b.type == 1 ? 0.8f : 1.0f);
                 send += s * 0.3f;
             }
+            if (gRt.s > 0.002f) { float e = RtBedSample(gClock + i * dtS, base + i) * gVol.ambience * gRt.s * voiceDuck; mL += e; mR += e * 0.92f; send += e * 0.3f; }
             if (gExp.s > 0.002f) { float e = ExpBedSample(gClock + i * dtS, base + i) * gVol.ambience * gExp.s * voiceDuck; mL += e; mR += e * 0.92f; send += e * 0.3f; }
             // the music (heard through the deck from the Study)
             mL += gDeckL.Run(musL); mR += gDeckR.Run(musR);
@@ -1129,6 +1133,13 @@ void AudioExpedition(const ExpAudio& a) {
     gExp.want = a;
     if (a.on) gRoomWant = EXP_PAL[std::clamp(a.loc, 0, 5)].room;
 }
+void AudioRedTide(const RtAudio& a) {
+    gRt.want = a;
+    if (a.on) gRoomWant = RT_PAL[std::clamp(a.map, 0, 4)].room;
+}
+void RedTideCue(int kind, float vol, float pan, float dist) { if (gReady && !gCueSuppressed) RtCueImpl(kind, vol, pan, dist); }
+void RedTideBeast(const char* species, float size, int cue, float dist, float pan) { if (gReady && !gCueSuppressed && species) RtBeastImpl(species, size, cue, dist, pan); }
+void RedTideQuip(int voice, int syllables, float pan) { if (gReady && !gCueSuppressed) RtQuipImpl(voice, syllables, pan); }
 float AudioBeat() { return gBeat; }
 void AudioReact(int kind) { if (gReady && !gCueSuppressed) ExpReact(kind); }
 void CombatVoice(int enemyType, float size, int cue, float pan) {
@@ -1335,6 +1346,58 @@ bool AudioSelfTest(const char* wavPath) {
         printf("%d enemies x voice/pain/death: %d silent or broken\n", (int)EnemyType::COUNT, mute);
         if (mute) ok = false;
     }
+    // Red Tide (stage 9d): every map in every state (the calm counting down, a tide early and past half quota with
+    // blood and an apex near, a late Hunt, a boss in its second phase, a downed diver, the match over), every effect,
+    // the four quip voices, and every species' voice, pain, death and feeding, near and muffled at 50 m
+    {
+        const char* MAPN[5] = {"ship", "cave", "reef", "atlantis", "void"};
+        auto rtPass = [&](RtAudio st, const char* label, float secs) {
+            for (auto& v : gV) v.on = false;
+            gRt = RtState{}; gRt.want = st; gRt.s = 1; gRtBedMap = -1; gRoomWant = RT_PAL[st.map].room;
+            gRt.calmS = st.mode == 0 ? 1.0f : 0.0f; gRt.tideS = st.mode == 1 || st.mode == 2 ? 1.0f : 0.0f;
+            int N = (int)(SR * secs);
+            std::vector<float> b(N * 2);
+            for (int at = 0; at < N; at += BLOCK) Render(&b[at * 2], std::min(BLOCK, N - at));
+            double sum = 0; float pk = 0; int bad = 0; for (float x : b) { if (!std::isfinite(x)) bad++; else { sum += x * x; pk = std::max(pk, fabsf(x)); } }
+            float db = 20 * log10f(std::max(1e-6f, sqrtf((float)(sum / b.size()))));
+            bool pass = !bad && db > -48 && pk < 0.97f;
+            printf("red tide %-9s %-8s rms %5.1f dB  peak %.2f%s\n", MAPN[st.map], label, db, pk, pass ? "" : "  FAIL");
+            if (!pass) ok = false;
+            if (wavPath && (st.map == 0 || st.map == 2)) all.insert(all.end(), b.begin(), b.end());
+        };
+        for (int mp = 0; mp < 5; mp++) {
+            RtAudio st; st.on = true; st.map = mp; st.countdown = 4.5f; rtPass(st, "calm", 6);
+            st = RtAudio{}; st.on = true; st.map = mp; st.mode = 1; st.tide = 3; st.quota = 0.2f; rtPass(st, "tide", 8);
+            st.quota = 0.7f; st.scent = 0.8f; st.predator = 0.8f; st.predatorPan = -0.6f; rtPass(st, "blood", 8);
+            st = RtAudio{}; st.on = true; st.map = mp; st.mode = 2; st.tide = 22; st.hp = 0.3f; rtPass(st, "hunt", 8);
+            st = RtAudio{}; st.on = true; st.map = mp; st.mode = 1; st.tide = 12; st.boss = true; st.bossPhase = 2; rtPass(st, "boss", 8);
+            st = RtAudio{}; st.on = true; st.map = mp; st.mode = 1; st.tide = 8; st.downed = true; st.hp = 0; rtPass(st, "downed", 6);
+            st = RtAudio{}; st.on = true; st.map = mp; st.mode = 3; st.tide = 14; rtPass(st, "over", 8);
+        }
+        gRt = RtState{}; gRtBeds.clear(); gRtBedMap = -1;
+        int mute = 0;
+        for (int k = 0; k < RTC_COUNT; k++) { float pk = solo([&] { RtCueImpl(k, 1, 0, 0); }); if (pk < 0.01f || pk > 0.97f) { printf("  red tide effect %d is %s (peak %.3f)\n", k, pk < 0.01f ? "silent" : "clipping", pk); mute++; } }
+        for (int v = 0; v < 4; v++) { float pk = solo([&] { RtQuipImpl(v, 9, 0); }); if (pk < 0.01f || pk > 0.97f) { printf("  quip voice %d is silent or clipping (peak %.3f)\n", v, pk); mute++; } }
+        int total = 0;
+        float wet0 = gRevWet; gRevWet = 0;   // (the parkour reverb's tail from the passes above would mask the quiet voices,
+        gFlow = gFlowS = 0; gSlide = gSlideS = 0;   // and so would the Pirate pass's current, left running)
+        for (int k = 0; k < 3; k++) solo([&] {});
+        float floorPk = solo([&] {});
+        for (int mp = 0; mp < 5; mp++) {
+            std::vector<std::pair<std::string, int>> sp;
+            RedTideSpeciesForAudio(mp, sp);
+            for (const auto& s : sp) for (int cue : {CUE_CALL, CUE_PAIN, CUE_DEATH, CUE_CHEW}) {
+                total++;
+                float nearPk = solo([&] { RtBeastImpl(s.first.c_str(), (float)s.second, cue, 5, 0); });
+                float farPk = solo([&] { RtBeastImpl(s.first.c_str(), (float)s.second, cue, 50, 0); });
+                bool noCall = cue == CUE_CALL && RtArchOf(s.first.c_str()) == A_SHARK;   // (a shark has no call: it is the water moving)
+                if (!noCall && (nearPk < std::max(0.01f, floorPk * 2) || nearPk > 0.97f || farPk <= 0.0005f || farPk >= nearPk)) { printf("  %s (%s) cue %d: near %.3f far %.3f\n", s.first.c_str(), MAPN[mp], cue, nearPk, farPk); mute++; }
+            }
+        }
+        gRevWet = wet0;
+        printf("red tide: %d species cues, %d effects, 4 quip voices: %d silent, clipping or unmuffled (floor %.4f)\n", total, (int)RTC_COUNT, mute, floorPk);
+        if (mute) ok = false;
+    }
     // the salon: the waltz and its bed, mourning, and each station's motif; then every registered cue on its own    gLevel = -1; gSceneTarget = 0; gScene = 0;
     auto hubPass = [&](const char* label, int station, bool mourning, float secs) {
         for (auto& v : gV) v.on = false;
@@ -1357,10 +1420,12 @@ bool AudioSelfTest(const char* wavPath) {
     gHub = HubMusic{};
     int nc; const CueDef* cues = CueTable(nc);
     int silentCues = 0;
+    gFlow = gFlowS = 0; gSlide = gSlideS = 0; gTestBusOpen = 1;   // (the music and ambience cues play on buses that only a scene opens)
     for (int i = 0; i < nc; i++) {
         float pk = solo([&] { BuildCue(i, 1, 0); });
         if (pk < 0.01f || pk > 0.97f) { printf("  cue %s is %s (peak %.3f)\n", cues[i].name, pk < 0.01f ? "silent" : "clipping", pk); silentCues++; }
     }
+    gTestBusOpen = 0;
     printf("%d registered cues, %d silent or clipping\n", nc, silentCues);
     if (silentCues) ok = false;
     if (wavPath) {

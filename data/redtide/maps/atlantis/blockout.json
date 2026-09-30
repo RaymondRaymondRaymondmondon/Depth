@@ -1,0 +1,482 @@
+{
+ "zones": [
+  {
+   "district": "Harbor Gate",
+   "shape": "Gate",
+   "r_min_m": 228,
+   "r_max_m": 245,
+   "angle_min_deg": 255,
+   "angle_max_deg": 285,
+   "door_cost_scrip": 0,
+   "depth_m": 90,
+   "notes": "Start pocket in the gatehouse; Gannet rack; Juggernaut; the Lost Ones' entry through the outer gate; barracuda in the arch"
+  },
+  {
+   "district": "The Farms",
+   "shape": "Ring",
+   "r_min_m": 165,
+   "r_max_m": 228,
+   "angle_min_deg": 190,
+   "angle_max_deg": 350,
+   "door_cost_scrip": 750,
+   "depth_m": 85,
+   "notes": "Terraces, canals, granaries, the mill; crocodile canals; Needler Mk I, Quick Brine, workbench; sluice trap"
+  },
+  {
+   "district": "The Lower Town",
+   "shape": "Ring",
+   "r_min_m": 105,
+   "r_max_m": 165,
+   "angle_min_deg": 150,
+   "angle_max_deg": 390,
+   "door_cost_scrip": 1000,
+   "depth_m": 70,
+   "notes": "Houses, food stores, market, toolsmiths; octopi, eels, cardinalfish; Carbine + Flechette racks, Speed Brine, Locker 1, parts"
+  },
+  {
+   "district": "The Bathhouses",
+   "shape": "Sector",
+   "r_min_m": 65,
+   "r_max_m": 120,
+   "angle_min_deg": 330,
+   "angle_max_deg": 420,
+   "door_cost_scrip": 1250,
+   "depth_m": 50,
+   "notes": "Baths, gymnasium, latrines; sponges, sea bass, the monitor; Double Shot, Long Speargun; caldarium dome air pocket"
+  },
+  {
+   "district": "Barracks & Armory",
+   "shape": "Sector",
+   "r_min_m": 65,
+   "r_max_m": 120,
+   "angle_min_deg": 120,
+   "angle_max_deg": 210,
+   "door_cost_scrip": 1500,
+   "depth_m": 50,
+   "notes": "Drill yard, armory, stables, the wall fort; amberjacks; Trawlerman's Rifle, Bolt Harpoon, Mule Brine; Hunt staging"
+  },
+  {
+   "district": "Library & Academy",
+   "shape": "Sector",
+   "r_min_m": 40,
+   "r_max_m": 90,
+   "angle_min_deg": 50,
+   "angle_max_deg": 130,
+   "door_cost_scrip": 1750,
+   "depth_m": 40,
+   "notes": "Reading halls, scroll stores, observatory; the giant squid; Kick Brine, workbench 2, Locker 2"
+  },
+  {
+   "district": "The Forum",
+   "shape": "Summit",
+   "r_min_m": 0,
+   "r_max_m": 45,
+   "angle_min_deg": 300,
+   "angle_max_deg": 480,
+   "door_cost_scrip": 2000,
+   "depth_m": 30,
+   "notes": "Council chamber, treasury, courts, the open plaza; tuna and swordfish lane; power (the treasury's crystal engine); Deadeye"
+  },
+  {
+   "district": "The Grand Chapel",
+   "shape": "Summit",
+   "r_min_m": 0,
+   "r_max_m": 45,
+   "angle_min_deg": 120,
+   "angle_max_deg": 300,
+   "door_cost_scrip": 2500,
+   "depth_m": 30,
+   "notes": "Nave, crypts, the god-pool; the Wyrm's pool; kraits; the Pressure Forge; Widow's Ink"
+  },
+  {
+   "district": "The Wall & Ramparts",
+   "shape": "Ring",
+   "r_min_m": 235,
+   "r_max_m": 245,
+   "angle_min_deg": 0,
+   "angle_max_deg": 360,
+   "door_cost_scrip": 0,
+   "depth_m": 90,
+   "notes": "A walkable rampart around the whole city (fire coral); the lighthouse tower on the east wall (quest); great white comes over the north wall"
+  }
+ ],
+ "links": [
+  {
+   "from": "Harbor Gate",
+   "to": "The Farms",
+   "cost_scrip": 750,
+   "passage": "The inner gate"
+  },
+  {
+   "from": "The Farms",
+   "to": "The Lower Town",
+   "cost_scrip": 1000,
+   "passage": "Three radial stairs (any one)"
+  },
+  {
+   "from": "The Lower Town",
+   "to": "The Bathhouses",
+   "cost_scrip": 1250,
+   "passage": "The bath stairs (east)"
+  },
+  {
+   "from": "The Lower Town",
+   "to": "Barracks & Armory",
+   "cost_scrip": 1500,
+   "passage": "The garrison gate (west)"
+  },
+  {
+   "from": "The Bathhouses",
+   "to": "Library & Academy",
+   "cost_scrip": 1750,
+   "passage": "The academy steps"
+  },
+  {
+   "from": "Barracks & Armory",
+   "to": "Library & Academy",
+   "cost_scrip": 0,
+   "passage": "The parade stair (opens with the garrison gate)"
+  },
+  {
+   "from": "Library & Academy",
+   "to": "The Forum",
+   "cost_scrip": 2000,
+   "passage": "The plaza gate"
+  },
+  {
+   "from": "The Forum",
+   "to": "The Grand Chapel",
+   "cost_scrip": 2500,
+   "passage": "The chapel doors"
+  },
+  {
+   "from": "Harbor Gate",
+   "to": "The Wall & Ramparts",
+   "cost_scrip": 0,
+   "passage": "Rampart stair (always open)"
+  },
+  {
+   "from": "The Wall & Ramparts",
+   "to": "The Farms",
+   "cost_scrip": 0,
+   "passage": "Rampart stairs at 4 points (one-way down)"
+  },
+  {
+   "from": "Barracks & Armory",
+   "to": "The Wall & Ramparts",
+   "cost_scrip": 0,
+   "passage": "The wall fort"
+  }
+ ],
+ "pois": [
+  {
+   "name": "Gannet rack",
+   "type": "Rack",
+   "zone": "Harbor Gate",
+   "x": -10,
+   "y": -238
+  },
+  {
+   "name": "Juggernaut Brine",
+   "type": "Tonic",
+   "zone": "Harbor Gate",
+   "x": 12,
+   "y": -232
+  },
+  {
+   "name": "Barracuda arch",
+   "type": "Hazard",
+   "zone": "Harbor Gate",
+   "x": 0,
+   "y": -244
+  },
+  {
+   "name": "Quest terminal 1",
+   "type": "Quest",
+   "zone": "Harbor Gate",
+   "x": -24,
+   "y": -232
+  },
+  {
+   "name": "Needler Mk I rack",
+   "type": "Rack",
+   "zone": "The Farms",
+   "x": -30,
+   "y": -200
+  },
+  {
+   "name": "Quick Brine",
+   "type": "Tonic",
+   "zone": "The Farms",
+   "x": 60,
+   "y": -205
+  },
+  {
+   "name": "Workbench 1 (mill)",
+   "type": "Build",
+   "zone": "The Farms",
+   "x": -40,
+   "y": -185
+  },
+  {
+   "name": "Sluice trap",
+   "type": "Trap",
+   "zone": "The Farms",
+   "x": -70,
+   "y": -175
+  },
+  {
+   "name": "Crocodile lair",
+   "type": "Hazard",
+   "zone": "The Farms",
+   "x": 90,
+   "y": -185
+  },
+  {
+   "name": "Hallucinogenic meadow",
+   "type": "Feature",
+   "zone": "The Farms",
+   "x": -10,
+   "y": -210
+  },
+  {
+   "name": "Speed Brine (market)",
+   "type": "Tonic",
+   "zone": "The Lower Town",
+   "x": -15,
+   "y": -140
+  },
+  {
+   "name": "Locker spot 1 (market)",
+   "type": "Locker",
+   "zone": "The Lower Town",
+   "x": 15,
+   "y": -140
+  },
+  {
+   "name": "Sea-Pattern Carbine rack",
+   "type": "Rack",
+   "zone": "The Lower Town",
+   "x": -110,
+   "y": -90
+  },
+  {
+   "name": "Flechette 12 rack",
+   "type": "Rack",
+   "zone": "The Lower Town",
+   "x": -120,
+   "y": -60
+  },
+  {
+   "name": "Octopus dens (amphora streets)",
+   "type": "Hazard",
+   "zone": "The Lower Town",
+   "x": 60,
+   "y": -130
+  },
+  {
+   "name": "Sandbar shark patrol",
+   "type": "Hazard",
+   "zone": "The Lower Town",
+   "x": -60,
+   "y": -100
+  },
+  {
+   "name": "Double Shot (caldarium)",
+   "type": "Tonic",
+   "zone": "The Bathhouses",
+   "x": 95,
+   "y": -10
+  },
+  {
+   "name": "Long Speargun rack (gymnasium)",
+   "type": "Rack",
+   "zone": "The Bathhouses",
+   "x": 110,
+   "y": -40
+  },
+  {
+   "name": "Caldarium dome air pocket",
+   "type": "Feature",
+   "zone": "The Bathhouses",
+   "x": 90,
+   "y": 0
+  },
+  {
+   "name": "Monitor hypocaust",
+   "type": "Hazard",
+   "zone": "The Bathhouses",
+   "x": 105,
+   "y": -55
+  },
+  {
+   "name": "Cleaning station (bath drains)",
+   "type": "Feature",
+   "zone": "The Bathhouses",
+   "x": 75,
+   "y": 25
+  },
+  {
+   "name": "Trawlerman's Rifle rack",
+   "type": "Rack",
+   "zone": "Barracks & Armory",
+   "x": -95,
+   "y": -60
+  },
+  {
+   "name": "Bolt Harpoon rack (armory)",
+   "type": "Rack",
+   "zone": "Barracks & Armory",
+   "x": -110,
+   "y": 0
+  },
+  {
+   "name": "Mule Brine",
+   "type": "Tonic",
+   "zone": "Barracks & Armory",
+   "x": -80,
+   "y": 30
+  },
+  {
+   "name": "Lost Ones Hunt staging",
+   "type": "Entry",
+   "zone": "Barracks & Armory",
+   "x": -110,
+   "y": -30
+  },
+  {
+   "name": "Wall fort (quest terminal 2)",
+   "type": "Quest",
+   "zone": "Barracks & Armory",
+   "x": -235,
+   "y": 10
+  },
+  {
+   "name": "Kick Brine",
+   "type": "Tonic",
+   "zone": "Library & Academy",
+   "x": 50,
+   "y": 60
+  },
+  {
+   "name": "Workbench 2",
+   "type": "Build",
+   "zone": "Library & Academy",
+   "x": 30,
+   "y": 50
+  },
+  {
+   "name": "Locker spot 2",
+   "type": "Locker",
+   "zone": "Library & Academy",
+   "x": 10,
+   "y": 80
+  },
+  {
+   "name": "The stacks (giant squid)",
+   "type": "Boss",
+   "zone": "Library & Academy",
+   "x": 60,
+   "y": 80
+  },
+  {
+   "name": "Quest terminal 3",
+   "type": "Quest",
+   "zone": "Library & Academy",
+   "x": -10,
+   "y": 85
+  },
+  {
+   "name": "Power: the crystal engine (treasury)",
+   "type": "Power",
+   "zone": "The Forum",
+   "x": 35,
+   "y": 10
+  },
+  {
+   "name": "Deadeye Brine (council)",
+   "type": "Tonic",
+   "zone": "The Forum",
+   "x": -5,
+   "y": 40
+  },
+  {
+   "name": "The plaza (tuna lane)",
+   "type": "Feature",
+   "zone": "The Forum",
+   "x": -20,
+   "y": 15
+  },
+  {
+   "name": "Quest terminal 4",
+   "type": "Quest",
+   "zone": "The Forum",
+   "x": 40,
+   "y": 20
+  },
+  {
+   "name": "Pressure Forge (apse)",
+   "type": "Forge",
+   "zone": "The Grand Chapel",
+   "x": 0,
+   "y": -20
+  },
+  {
+   "name": "Widow's Ink",
+   "type": "Tonic",
+   "zone": "The Grand Chapel",
+   "x": -30,
+   "y": -15
+  },
+  {
+   "name": "God-pool (Wyrm's home)",
+   "type": "Boss",
+   "zone": "The Grand Chapel",
+   "x": 0,
+   "y": -40
+  },
+  {
+   "name": "God-pool trap",
+   "type": "Trap",
+   "zone": "The Grand Chapel",
+   "x": 15,
+   "y": -40
+  },
+  {
+   "name": "Quest terminal 5 (crypts)",
+   "type": "Quest",
+   "zone": "The Grand Chapel",
+   "x": -15,
+   "y": -30
+  },
+  {
+   "name": "Lighthouse (quest)",
+   "type": "Quest",
+   "zone": "The Wall & Ramparts",
+   "x": 238,
+   "y": 0
+  },
+  {
+   "name": "Great white's crossing (north wall)",
+   "type": "Hazard",
+   "zone": "The Wall & Ramparts",
+   "x": 0,
+   "y": 238
+  },
+  {
+   "name": "Aqueduct outfall",
+   "type": "Feature",
+   "zone": "Harbor Gate",
+   "x": 30,
+   "y": -236
+  }
+ ],
+ "notes": [
+  "The generator: place districts by (r, angle) on the hill; lay three radial avenues (S gate -> plaza, E baths -> plaza, W garrison -> plaza) and two ring roads (r=165, r=105); fill each district with its building types by count, footprints snapped to the street grid; run the aqueduct A1-A5; drop 12 cistern grates at the listed points; decorate by habitat rules.",
+  "Training loop (streets): Market square -> toolsmiths' street -> garrison gate -> drill yard -> parade stair -> plaza -> bath stairs -> caldarium -> bath stairs down -> market. About 4 min, all on cobbles, past two grates.",
+  "Training loop (walls): the whole rampart, 1,500 m, one-way stairs down into the Farms at four points; nothing lives on the wall but barracuda at the gate and cormorants; the great white crosses the north wall.",
+  "Blood flow: the aqueduct carries blood downhill at the segment speeds (summit to gate in about 2 minutes); the plaza's blood reaches the market in 75 s and the barracuda at the outfall in 120 s.",
+  "Sightlines: streets 10-15 m; the plaza 40 m; the drill yard 25 m; ramparts 60 m+. Alarm regions: Summit (Forum, Chapel, Library), Slopes (Baths, Barracks), Lower (Town, Farms, Gate); the Lost Ones enter at the outer gate and stage at the armory.",
+  "Ichor: dead Lost Ones repel sharks and the Wyrm for 60 s within 20 m and draw crabs, cucumbers, and the monitor. A phalanx killed in a street makes that street a safe corridor for a minute and a monitor's dinner for two."
+ ]
+}

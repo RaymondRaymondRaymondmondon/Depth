@@ -1,0 +1,232 @@
+{
+ "foods": [
+  "Bilge Sprat",
+  "Silverside",
+  "Sergeant Major",
+  "Barnacle Goby",
+  "Cleaner Wrasse",
+  "Cleaner Shrimp",
+  "Fiddler Crab",
+  "Hermit Crab",
+  "Whelk",
+  "Sea Hare",
+  "Feather Duster Worm",
+  "Rudder Krill",
+  "Parrotfish",
+  "Rabbitfish",
+  "Damselfish",
+  "Blenny",
+  "Arrow Crab",
+  "Mantis Shrimp",
+  "Lionfish",
+  "Squirrelfish",
+  "Reef Squid",
+  "Cuttlefish",
+  "Banded Sea Snake",
+  "Stonefish",
+  "Jelly Bloom",
+  "Remora",
+  "Lamprey",
+  "Green Moray",
+  "Great Barracuda",
+  "Grouper",
+  "Bluefin Trevally",
+  "Common Octopus",
+  "Nurse Shark",
+  "Hawksbill Turtle",
+  "Loggerhead Turtle",
+  "Sand Tiger Shark",
+  "Bull Shark",
+  "Saltwater Crocodile",
+  "Tiger Shark",
+  "The Goliath",
+  "Plankton",
+  "Corpse",
+  "Parasites",
+  "Turf algae",
+  "Sea lettuce",
+  "Coralline crust",
+  "Barrel sponge",
+  "Luminous algae mat",
+  "Wrecker"
+ ],
+ "rows": {
+  "Bilge Sprat": {
+   "Rudder Krill": 0.6,
+   "Plankton": 0.4
+  },
+  "Silverside": {
+   "Rudder Krill": 0.5,
+   "Plankton": 0.5
+  },
+  "Sergeant Major": {
+   "Jelly Bloom": 0.4,
+   "Turf algae": 0.6
+  },
+  "Barnacle Goby": {
+   "Plankton": 0.5,
+   "Corpse": 0.5
+  },
+  "Cleaner Wrasse": {
+   "Parasites": 1
+  },
+  "Cleaner Shrimp": {
+   "Parasites": 1
+  },
+  "Fiddler Crab": {
+   "Corpse": 0.4,
+   "Turf algae": 0.6
+  },
+  "Hermit Crab": {
+   "Corpse": 1
+  },
+  "Whelk": {
+   "Coralline crust": 1
+  },
+  "Sea Hare": {
+   "Sea lettuce": 1
+  },
+  "Feather Duster Worm": {
+   "Plankton": 1
+  },
+  "Rudder Krill": {
+   "Plankton": 0.3,
+   "Luminous algae mat": 0.7
+  },
+  "Parrotfish": {
+   "Turf algae": 1
+  },
+  "Rabbitfish": {
+   "Turf algae": 0.4,
+   "Sea lettuce": 0.6
+  },
+  "Damselfish": {
+   "Feather Duster Worm": 0.3,
+   "Plankton": 0.4,
+   "Turf algae": 0.3
+  },
+  "Blenny": {
+   "Barnacle Goby": 0.5,
+   "Feather Duster Worm": 0.5
+  },
+  "Arrow Crab": {
+   "Feather Duster Worm": 1
+  },
+  "Mantis Shrimp": {
+   "Fiddler Crab": 0.5,
+   "Hermit Crab": 0.2,
+   "Whelk": 0.3
+  },
+  "Lionfish": {
+   "Bilge Sprat": 0.6,
+   "Barnacle Goby": 0.4
+  },
+  "Squirrelfish": {
+   "Fiddler Crab": 0.5,
+   "Hermit Crab": 0.5
+  },
+  "Reef Squid": {
+   "Bilge Sprat": 0.5,
+   "Silverside": 0.5
+  },
+  "Cuttlefish": {
+   "Cleaner Shrimp": 0.2,
+   "Fiddler Crab": 0.5,
+   "Arrow Crab": 0.3
+  },
+  "Banded Sea Snake": {
+   "Barnacle Goby": 0.5,
+   "Blenny": 0.5
+  },
+  "Stonefish": {
+   "Bilge Sprat": 1
+  },
+  "Jelly Bloom": {
+   "Plankton": 1
+  },
+  "Remora": {
+   "Corpse": 1
+  },
+  "Lamprey": {
+   "Great Barracuda": 0.2,
+   "Grouper": 0.2,
+   "Nurse Shark": 0.2,
+   "Loggerhead Turtle": 0.2,
+   "Bull Shark": 0.2
+  },
+  "Green Moray": {
+   "Blenny": 0.3,
+   "Squirrelfish": 0.3,
+   "Common Octopus": 0.4
+  },
+  "Great Barracuda": {
+   "Bilge Sprat": 0.3,
+   "Silverside": 0.4,
+   "Reef Squid": 0.3
+  },
+  "Grouper": {
+   "Parrotfish": 0.3,
+   "Lionfish": 0.2,
+   "Cuttlefish": 0.3,
+   "Green Moray": 0.2
+  },
+  "Bluefin Trevally": {
+   "Silverside": 0.4,
+   "Damselfish": 0.3,
+   "Reef Squid": 0.3
+  },
+  "Common Octopus": {
+   "Fiddler Crab": 0.3,
+   "Hermit Crab": 0.2,
+   "Whelk": 0.2,
+   "Mantis Shrimp": 0.3
+  },
+  "Nurse Shark": {
+   "Fiddler Crab": 0.3,
+   "Corpse": 0.7
+  },
+  "Hawksbill Turtle": {
+   "Jelly Bloom": 0.4,
+   "Barrel sponge": 0.6
+  },
+  "Loggerhead Turtle": {
+   "Fiddler Crab": 0.4,
+   "Whelk": 0.3,
+   "Mantis Shrimp": 0.3
+  },
+  "Sand Tiger Shark": {
+   "Great Barracuda": 0.3,
+   "Grouper": 0.3,
+   "Bluefin Trevally": 0.4
+  },
+  "Bull Shark": {
+   "Green Moray": 0.1,
+   "Great Barracuda": 0.2,
+   "Grouper": 0.2,
+   "Bluefin Trevally": 0.2,
+   "Hawksbill Turtle": 0.1,
+   "Wrecker": 0.2
+  },
+  "Saltwater Crocodile": {
+   "Hawksbill Turtle": 0.3,
+   "Loggerhead Turtle": 0.2,
+   "Bull Shark": 0.2,
+   "Wrecker": 0.3
+  },
+  "Tiger Shark": {
+   "Banded Sea Snake": 0.1,
+   "Nurse Shark": 0.1,
+   "Loggerhead Turtle": 0.15,
+   "Sand Tiger Shark": 0.15,
+   "Bull Shark": 0.15,
+   "Corpse": 0.15,
+   "Wrecker": 0.2
+  },
+  "The Goliath": {
+   "Green Moray": 0.2,
+   "Grouper": 0.3,
+   "Bull Shark": 0.2,
+   "Wrecker": 0.3
+  }
+ }
+}

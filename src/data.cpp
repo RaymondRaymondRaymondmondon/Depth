@@ -6,6 +6,7 @@
 #include <cstdlib>
 #include "relics.h"
 #include <algorithm>
+#include <cmath>
 
 // ---------------------------------------------------------------- abilities
 static Ability Ab(const char* name, const char* desc, int from, int hits, Target t) {
