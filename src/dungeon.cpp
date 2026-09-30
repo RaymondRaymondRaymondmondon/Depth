@@ -2361,6 +2361,11 @@ static void DrawRegionForeground(Game& g) {
                 DrawTri({x - w, -4}, {x + w, -4}, {x + (Hash1(wx + 5) - 0.5f) * 16, h}, fg);
             });
             DrawCircle(-30, 760, 190, fg); DrawCircle(1320, 770, 200, fg);
+            {   // an old net hanging in front of the view, swaying
+                float nx = 1060 - fmodf(LayerOffset(g, 1.4f), 1800.0f) * 0, sw = sinf(t * 0.7f) * 8;
+                for (int k = 0; k <= 7; k++) { float u = k / 7.0f; DrawLineEx({nx + u * 170, -4}, {nx + u * 150 + sw * (1 + u), 150 + sinf(u * PI) * 40}, 2.2f, fg); }
+                for (int r = 1; r <= 5; r++) { float v = r / 5.0f; Vector2 a{nx, v * 150}, b{nx + 170 * (1 - v * 0.12f) + sw * v, v * 150 + sinf(v * PI) * 30}; DrawLineEx({a.x + sw * v, a.y}, b, 2.0f, fg); }
+            }
             break;
         case Location::Island: // hanging jungle vines with broad leaves, and palm fronds from the top corners
             Repeat(LayerOffset(g, 1.4f), 280, [&](float sx, float wx) {
@@ -2478,9 +2483,12 @@ static void DrawRegionFar(Game& g) {
         BeginBlendMode(BLEND_ADDITIVE);
         DrawCircleGradient((int)moon.x, (int)moon.y, 260, Color{140, 120, 220, 90}, Color{140, 120, 220, 0});
         EndBlendMode();
-        DrawCircleV(moon, 78, Color{176, 168, 226, 255});
-        DrawCircleV({moon.x + 22, moon.y}, 26, Color{22, 18, 52, 255}); // a slitted pupil in a pale, watching eye
-        DrawEllipse((int)moon.x + 22, (int)moon.y, 9, 34, Color{160, 40, 60, 255});
+        float blink = fmodf(g.time + (g.dungeon.visSeed % 97) * 0.1f, 7.0f), open = blink < 0.35f ? fabsf(blink / 0.175f - 1) : 1; // the eye blinks, now and then
+        DrawEllipse((int)moon.x, (int)moon.y, 78, 78 * std::max(0.04f, open), Color{176, 168, 226, 255});
+        if (open > 0.3f) {
+            DrawEllipse((int)moon.x + 22, (int)moon.y, 26, 26 * open, Color{22, 18, 52, 255}); // a slitted pupil in a pale, watching eye
+            DrawEllipse((int)moon.x + 22, (int)moon.y, 9, 34 * open, Color{160, 40, 60, 255});
+        }
         for (int layer = 0; layer < 2; layer++) { // the drowned city: colonnades, domes and spires
             Color st = layer ? Color{18, 16, 52, 255} : Color{32, 28, 80, 255};
             Repeat(LayerOffset(g, layer ? 0.12f : 0.07f), layer ? 620 : 800, [&](float sx, float wx) {
@@ -2548,7 +2556,7 @@ static void DrawCaveLayers(Game& g) {
         DrawTri({x + w, 0}, {x - 150 + w * 2, 520}, {x - 150, 520}, Color{60, 110, 120, 24});
     });
     EndBlendMode();
-    if (g.dungeon.loc != Location::Cave) DrawRegionFar(g); // each region paints its own furthest layer instead of the cave water
+    if (VisLoc(g.dungeon.loc) != Location::Cave) DrawRegionFar(g); // each region paints its own furthest layer instead of the cave water
     // 2. the far cave walls
     if (VisLoc(g.dungeon.loc) == Location::Cave) DrawRidge(LayerOffset(g, 0.12f), 318, 70, 3, false, Color{16, 44, 56, 255}, 70);
     if (VisLoc(g.dungeon.loc) == Location::Cave) DrawRidge(LayerOffset(g, 0.2f), 372, 50, 11, false, Color{19, 48, 60, 255}, 40);
@@ -2678,6 +2686,88 @@ static void DrawCaveLayers(Game& g) {
         float vx = sx + Hash1(wx + 4) * 300, vy = 470 + Hash1(wx + 6) * 30;
         DrawEllipse((int)vx, (int)vy, 10, 3, Color{30, 40, 44, 255});
     });
+}
+
+// ---------------------------------------------------------------- living details (Master Reference: backgrounds per location)
+// Mid-distance life, drawn with the scenery before the lightmap: crabs crossing the Cave's floor, fish schools and a
+// great shadow passing in the Weeds, a totem shaking to far drums on the Island, cult banners drifting in Atlantis.
+static void DrawLivingMid(Game& g) {
+    auto& d = g.dungeon;
+    float t = g.time, off = LayerOffset(g, 0.55f);
+    Location vl = VisLoc(d.loc);
+    unsigned sd = d.visSeed;
+    if (vl == Location::Cave) { // a crab scuttles across the floor every so often
+        float cyc = fmodf(t + (sd % 13), 14.0f);
+        if (cyc < 7) {
+            float x = -60 + cyc / 7 * 1400, y = 478 + (sd % 5) * 3;
+            Color sh{36, 30, 30, 255};
+            DrawEllipse((int)x, (int)y, 13, 7, sh);
+            for (int k = -1; k <= 1; k += 2) for (int l = 0; l < 3; l++) { float lx = x + k * (6 + l * 4), sw = sinf(t * 18 + l + k) * 2; DrawLineEx({lx, y + 2}, {lx + k * 5, y + 8 + sw}, 1.5f, sh); }
+            DrawCircle((int)x + 13, (int)y - 5, 4, sh); DrawCircle((int)x - 13, (int)y - 5, 4, sh);   // claws up
+        }
+    } else if (vl == Location::Weeds) {
+        float cyc = fmodf(t + (sd % 17), 11.0f);   // a school of fish turns through the middle distance
+        for (int k = 0; k < 14; k++) {
+            float x = 1340 - cyc / 11 * 1500 + (k % 5) * 18 + sinf(k * 1.7f) * 20, y = 250 + (k / 5) * 12 + sinf(t * 2 + k) * 6 + sinf(k) * 10;
+            Color fsh{30, 60, 50, 200};
+            DrawEllipse((int)x, (int)y, 6, 2, fsh); DrawTri({x + 5, y}, {x + 10, y - 3}, {x + 10, y + 3}, fsh);
+        }
+        float big = fmodf(t + (sd % 29), 26.0f);   // and now and then, a great shadow far off
+        if (big < 9) { float x = 1500 - big / 9 * 1900; DrawEllipse((int)x, 200, 150, 34, Color{8, 22, 18, 90}); DrawTri({x + 140, 200}, {x + 220, 170}, {x + 220, 230}, Color{8, 22, 18, 90}); }
+    } else if (vl == Location::Island) { // far drums: a totem shivers on the beat
+        float beat = std::max(AudioBeat(), 0.5f + 0.5f * sinf(t * 6.3f) > 0.95f ? 1.0f : 0.0f);
+        float x = 980 - fmodf(off, 1400.0f) * 0 + (sd % 200), y = 400, sh = beat * 1.5f * sinf(t * 60);
+        Color tc{60, 40, 30, 255};
+        DrawRectangle((int)(x - 9 + sh), (int)(y - 70), 18, 70, tc);
+        for (int k = 0; k < 3; k++) DrawRectangle((int)(x - 12 + sh), (int)(y - 66 + k * 22), 24, 6, Color{110, 40, 30, 255});
+    } else if (vl == Location::Atlantis) { // cult banners drift from the columns
+        Repeat(off, 520, [&](float sx, float wx) {
+            float x = sx + Hash1(wx + 3) * 200, top = 150 + Hash1(wx + 5) * 60;
+            Color bc = Hash1(wx + 7) < 0.5f ? Color{70, 30, 60, 255} : Color{40, 40, 80, 255};
+            for (int k = 0; k < 8; k++) {
+                float u0 = k / 8.0f, u1 = (k + 1) / 8.0f, s0 = sinf(t * 1.1f + u0 * 3 + wx) * 10 * u0, s1 = sinf(t * 1.1f + u1 * 3 + wx) * 10 * u1;
+                DrawTri({x - 16 + s0, top + u0 * 110}, {x + 16 + s0, top + u0 * 110}, {x + 16 + s1, top + u1 * 110}, bc);
+                DrawTri({x - 16 + s0, top + u0 * 110}, {x + 16 + s1, top + u1 * 110}, {x - 16 + s1, top + u1 * 110}, bc);
+            }
+            DrawCircle((int)(x + sinf(t * 1.1f + 1.5f + wx) * 5), (int)(top + 50), 7, Color{160, 140, 60, 255});   // a sigil sewn on it
+        });
+    }
+}
+// Small bright life, drawn after the ink pass (so the Sobel ink doesn't ring it): drips in the Cave, fireflies and a
+// dog's eyes in the Island's dark, bubbles in the Weeds, sigils in Atlantis that glow in time with the music (and the boss).
+static void DrawLivingGlow(Game& g) {
+    auto& d = g.dungeon;
+    float t = g.time;
+    Location vl = VisLoc(d.loc);
+    BeginBlendMode(BLEND_ADDITIVE);
+    if (vl == Location::Cave) for (int k = 0; k < 6; k++) { // drips falling from the ceiling
+        float cyc = fmodf(t * 0.7f + k * 0.37f, 1.0f), x = 80 + k * 210 + Hash1(k * 3.1f) * 90, y = 70 + cyc * cyc * 420;
+        DrawCircleV({x, y}, 1.6f, Color{150, 220, 230, (unsigned char)(160 * (1 - cyc))});
+    }
+    else if (vl == Location::Island) {
+        for (int k = 0; k < 18; k++) { // fireflies
+            float x = fmodf(k * 173.0f + t * (8 + k % 5 * 3), 1320.0f) - 20, y = 180 + fmodf(k * 61.0f, 260.0f) + sinf(t * 1.3f + k) * 18;
+            float on = 0.5f + 0.5f * sinf(t * (2 + k % 3) + k * 1.9f);
+            DrawCircleV({x, y}, 1.8f, Color{220, 240, 120, (unsigned char)(200 * on)});
+            DrawCircleV({x, y}, 5, Color{180, 220, 80, (unsigned char)(40 * on)});
+        }
+        float blinkT = fmodf(t + (d.visSeed % 11), 9.0f); // a dog's eyes in the dark at the edge of the frame
+        if (blinkT > 1 && blinkT < 6.5f && fmodf(blinkT, 3.0f) > 0.15f) for (int e = 0; e < 2; e++) DrawCircleV({1238.0f + e * 10, 388}, 2.2f, Color{230, 200, 90, 200});
+    }
+    else if (vl == Location::Weeds) for (int k = 0; k < 16; k++) { // bubbles rising
+        float cyc = fmodf(t * 0.18f + k * 0.113f, 1.0f), x = 40 + k * 80 + sinf(t * 2 + k) * 6, y = 500 - cyc * 460;
+        DrawCircleLines((int)x, (int)y, 2 + (k % 3), Color{190, 230, 220, (unsigned char)(120 * (1 - cyc))});
+    }
+    else if (vl == Location::Atlantis) { // sigils on the far stones glow in time with the music, harder with a boss on the field
+        bool boss = false; for (auto& e : d.enemies) if (e.alive && e.boss) boss = true;
+        float beat = AudioBeat(), pulse = boss ? 0.5f + 0.5f * beat : 0.3f + 0.3f * beat;
+        for (int k = 0; k < 5; k++) {
+            float x = 120 + k * 260 + Hash1(k + d.visSeed % 7) * 80, y = 300 + Hash1(k * 2.7f) * 90;
+            DrawCircleLines((int)x, (int)y, 11, Color{180, 120, 255, (unsigned char)(200 * pulse)});
+            DrawCircleV({x, y}, 16, Color{140, 90, 230, (unsigned char)(50 * pulse)});
+        }
+    }
+    EndBlendMode();
 }
 
 // 7. rocks and kelp right in front of the view: dark, and moving fastest of all
@@ -3105,7 +3195,12 @@ static void DrawUnitFigures(Game& g) {
         DrawEnemyFigure(e, {ff.x - r.width / 2, ff.y - r.height, r.width, r.height}, t);
         RigSetActing(-1, 0);
         float breathe = 1 + 0.012f * sinf(t * 1.7f + e.uid * 1.3f);                               // it breathes, slowly
-        EndFigure(feet, fx.tint, fx.sx / breathe, fx.sy * breathe);
+        Color tint = fx.tint;
+        if (e.boss && e.alive && e.hp * 2 <= e.maxHp) { // a boss past its turn burns hotter: its palette shifts toward blood and ember
+            float k = e.type == EnemyType::AbyssalEye && e.hp * 3 <= e.maxHp ? 0.5f : 0.32f;
+            tint = {(unsigned char)(tint.r + (255 - tint.r) * k), (unsigned char)(tint.g * (1 - k * 0.55f)), (unsigned char)(tint.b * (1 - k * 0.7f)), tint.a};
+        }
+        EndFigure(feet, tint, fx.sx / breathe, fx.sy * breathe);
         SetFigureFacing(0);
         if (e.alive) cfx::DrawStatus(feet, r.height, e.st, e.st.marked > 0, t);
     }
@@ -3993,6 +4088,7 @@ void SceneDungeon(Game& g) {
     DrawSeededSilhouettes(g);
     DrawGroundClutter(g);
     DrawPathProps(g);
+    DrawLivingMid(g);
     DrawCaveLighting(g);
     DrawLightShafts(g);
     DrawLocationTint(g, false); // the colour grade is baked into the backdrop, under the figures
@@ -4002,6 +4098,7 @@ void SceneDungeon(Game& g) {
     DrawCaveForeground(g);
     InkPass(1.0f, 1.0f);
     DrawDriftingSpecks(g);
+    DrawLivingGlow(g);
     DrawLocationTint(g, true);
     DrawSparks(g);
     {   // the camera: it leans in on an attacker's windup, snaps back when the blow lands, shakes with it, drifts otherwise

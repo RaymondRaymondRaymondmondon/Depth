@@ -8,7 +8,7 @@ The plan is `Depth — Master Reference for Claude Code.pdf` (project root). One
 | 2 | Salon rebuilt in depth: stations as props, arcade cabinet, study hatch, roster edge, Embark | Done (hands/dealer move fully onto the rig in stage 5) |
 | 3 | Sound architecture: buses, cue registry, reverb, salon music and ambience | Done (--audio-test passes for the salon) |
 | 4 | Sonar chart expeditions | Done (--gen-chart 10,000/10,000; --sim within 10 points of the linear baseline at every tier) |
-| 5 | Expedition visual overhaul on the rig | In progress: every hero on the rig, HUD, effects, camera; creature rig kit on the Cave; other locations' creatures, backgrounds-as-props and boss phase clips still to do |
+| 5 | Expedition visual overhaul on the rig | In progress (paused 2026-09-29): HUD, effects, camera, every hero on the rig, creature kit on the Cave, IK legs and chains on the other locations, boss phase-change clip, living details; the rest is listed in docs/FUTURE_WORK.md |
 | 6 | EnemyBrain | Done (--brain-test: level 0 -4.1 points, level 6 -19.0; boss targets re-tuned) |
 | 7 | New expedition systems, the Trench and the Hadal | Done (every system saved, in --sim and --stage7-test; targets met within 6 points in the Cave and the Hadal, deviations logged; the other Shallows are much harder, flagged) |
 | 8 | Expedition sound | Done (--audio-test: 6 locations x walk/dark/fight/danger/boss, 35 enemies x voice/pain/death, 67 cues, none silent or clipping) |

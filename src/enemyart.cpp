@@ -13,6 +13,7 @@
 #include "ik.h"
 #include <algorithm>
 #include <cmath>
+#include <unordered_map>
 
 namespace {
 const Color INK{6, 8, 12, 255};
@@ -378,8 +379,8 @@ void TribalSpearman(const Ctx& c) {
     const float t = c.t;
     const Color skin{150, 104, 72, 255}, skinDk{112, 76, 52, 255}, cloth{96, 82, 64, 255}, red{170, 60, 44, 255}, bone{214, 204, 180, 255}, teal{60, 110, 100, 255}, leather{92, 62, 40, 255}, wood{120, 82, 48, 255};
     float breathe = sinf(t * 1.8f + c.u) * 1.2f;
-    Limb2(c, {6, -54}, {2, -30}, {-4, -4}, 10, 8, 6, skinDk);                                                             // the rear leg
-    Limb2(c, {-2, -54}, {-10, -30}, {-16, -3}, 11, 9, 6.5f, skin);                                                        // the front leg
+    Leg(c, {6, -54}, {2, -30}, {-4, -4}, 10, 8, 6, skinDk);                                                             // the rear leg
+    Leg(c, {-2, -54}, {-10, -30}, {-16, -3}, 11, 9, 6.5f, skin);                                                        // the front leg
     for (int i = 0; i < 3; i++) Line(c, {-11.0f + i * 0.6f - 2, -28.0f + i * 7}, {-8.0f + i * 0.6f + 2, -26.0f + i * 7}, 2.2f, cloth);  // shin wraps
     DrawRing(c.P(-15, -8), 5.2f * c.k, 7 * c.k, 0, 360, 10, bone);                                                          // an anklet of bone
     Bar(c, -26, -5, 20, 4, INK); Bar(c, -8, -5, 16, 4, INK);                                                                // sandals
@@ -417,13 +418,13 @@ void WarDog(const Ctx& c) {
     const float t = c.t;
     const Color fur{120, 108, 96, 255}, dk{84, 74, 66, 255}, lt{160, 146, 130, 255}, bone{214, 204, 190, 255}, red{255, 90, 60, 255}, iron{74, 76, 82, 255};
     float run = sinf(t * 5 + c.u) * 2.4f, breathe = sinf(t * 2.4f + c.u) * 0.8f;
-    Limb2(c, {24, -34}, {30, -18}, {26 - run, 0}, 8, 5, 3, dk); Limb2(c, {-18, -34}, {-24, -18}, {-30 + run, 0}, 8, 5, 3, dk);   // far legs, in shadow
+    Leg(c, {24, -34}, {30, -18}, {26 - run, 0}, 8, 5, 3, dk); Leg(c, {-18, -34}, {-24, -18}, {-30 + run, 0}, 8, 5, 3, dk);   // far legs, in shadow
     Limb(c, {-16, -44}, {26, -44}, 18, 16, fur);                                                                                    // an emaciated, muscled body
     Crescent(c, 4, -44, 17);
     for (int i = 0; i < 5; i++) Line(c, {-12.0f + i * 7, -50 + breathe}, {-10.0f + i * 7, -34}, 1.6f, Tone(bone, -0.1f));           // exposed ribs
     for (int i = 0; i < 3; i++) { Quad(c, {-8.0f + i * 14, -56}, {2.0f + i * 14, -56}, {0.0f + i * 14, -50}, {-6.0f + i * 14, -50}, bone); Rivet(c, -3.0f + i * 14, -54, 1.1f, iron); } // bone armour plates
     Hatch(c, -14, -46, 36, 14, 8, Fade(INK, 0.5f));
-    Limb2(c, {20, -34}, {28, -16}, {22 - run, 0}, 9, 6, 3.4f, fur); Limb2(c, {-14, -34}, {-20, -16}, {-24 + run, 0}, 9, 6, 3.4f, lt); // near legs
+    Leg(c, {20, -34}, {28, -16}, {22 - run, 0}, 9, 6, 3.4f, fur); Leg(c, {-14, -34}, {-20, -16}, {-24 + run, 0}, 9, 6, 3.4f, lt); // near legs
     for (int i = 0; i < 3; i++) { Tri(c, {-27.0f + run + i * 2, -1}, {-23.0f + run + i * 2, -1}, {-26.0f + run + i * 2, 3}, bone); Tri(c, {19.0f - run + i * 2, -1}, {23.0f - run + i * 2, -1}, {20.0f - run + i * 2, 3}, bone); }
     Limb2(c, {28, -50}, {42, -58}, {46, -74}, 5, 3.6f, 2, dk);                                                                      // a bristled tail
     for (int i = 0; i < 4; i++) Tri(c, {36.0f + i * 3, -58 - i * 3}, {38.0f + i * 3, -57 - i * 3}, {40.0f + i * 4, -66 - i * 4}, fur);
@@ -450,7 +451,7 @@ void TribalShaman(const Ctx& c) {
     const float t = c.t;
     const Color skin{140, 100, 70, 255}, robe{88, 70, 56, 255}, teal{60, 96, 90, 255}, red{170, 60, 44, 255}, glow{150, 230, 120, 255}, bone{214, 204, 180, 255}, wood{110, 84, 50, 255};
     float sway = sinf(t * 1.2f + c.u) * 1.4f;
-    Limb2(c, {4, -46}, {0, -24}, {-6, -3}, 6.4f, 5, 4, Tone(skin, -0.25f)); Limb2(c, {-2, -46}, {-8, -24}, {-14, -2}, 7, 5.6f, 4.2f, skin); // thin, bare legs
+    Leg(c, {4, -46}, {0, -24}, {-6, -3}, 6.4f, 5, 4, Tone(skin, -0.25f)); Leg(c, {-2, -46}, {-8, -24}, {-14, -2}, 7, 5.6f, 4.2f, skin); // thin, bare legs
     for (int i = 0; i < 2; i++) DrawRing(c.P(-13.0f + i * 7, -7), 3.6f * c.k, 5.2f * c.k, 0, 360, 8, bone);                              // bone anklets
     Quad(c, {-16, -88}, {14, -88}, {20, -14}, {-22, -14}, robe);                                                                        // a long robe
     Quad(c, {-16, -88}, {-4, -88}, {-2, -14}, {-22, -14}, Tone(robe, 0.1f));
@@ -491,8 +492,8 @@ void TribalDemigod(const Ctx& c) { // the Island's mini-boss: a mountain of a ma
     const float t = c.t;
     const Color skin{110, 84, 60, 255}, skinDk{80, 60, 42, 255}, wood{150, 96, 50, 255}, gold{255, 180, 60, 255}, bone{214, 204, 180, 255}, obsidian{28, 26, 32, 255}, red{170, 60, 44, 255}, teal{60, 110, 100, 255}, hide{104, 76, 52, 255};
     float breathe = sinf(t * 1.4f + c.u) * 1.6f, pulse = 0.5f + 0.5f * sinf(t * 2.2f + c.u);
-    Limb2(c, {14, -80}, {20, -44}, {16, -6}, 22, 18, 13, skinDk);                                                                        // the rear leg
-    Limb2(c, {-8, -80}, {-16, -44}, {-22, -4}, 25, 20, 14, skin);                                                                        // the front leg
+    Leg(c, {14, -80}, {20, -44}, {16, -6}, 22, 18, 13, skinDk);                                                                        // the rear leg
+    Leg(c, {-8, -80}, {-16, -44}, {-22, -4}, 25, 20, 14, skin);                                                                        // the front leg
     for (int i = 0; i < 3; i++) { Quad(c, {-32.0f, -36.0f + i * 9}, {-12.0f, -36.0f + i * 9}, {-12.0f, -30.0f + i * 9}, {-32.0f, -30.0f + i * 9}, bone); Tri(c, {-32.0f, -36.0f + i * 9}, {-32.0f, -32.0f + i * 9}, {-38.0f, -34.0f + i * 9}, bone); } // bone greaves with spikes
     Bar(c, -36, -6, 40, 6, INK); Bar(c, 0, -6, 30, 6, INK);
     Quad(c, {-22, -84}, {22, -84}, {26, -34}, {-20, -30}, hide); Jag(c, {-20, -30}, {26, -34}, 7, 10, Tone(hide, -0.25f), c.u);          // a hide loincloth
@@ -622,8 +623,7 @@ void Siren(const Ctx& c) { // a drowned singer: pale, bandaged, her song made vi
     for (int i = 0; i < 4; i++) Line(c, {30, -128 + hover}, {38.0f + i * 1.4f, -138.0f + i * 5 + hover}, 1.4f, Tone(skin, -0.18f));
     for (int i = 0; i < 12; i++) { // long hair of kelp, drifting
         float x0 = -4.0f + (i - 6) * 1.6f;
-        Vector2 prev{x0, -124 + hover};
-        for (int sg = 1; sg <= 6; sg++) { Vector2 q{x0 + 6 + sinf(t * 1.3f + i * 0.5f + sg * 0.7f) * sg * 1.6f + sg * 1.5f, -124 + sg * 11.0f + hover}; Limb(c, prev, q, 2.6f - sg * 0.25f, 2.2f - sg * 0.25f, i % 3 ? hair : Tone(hair, 0.15f)); prev = q; }
+        Feeler(c, {x0, -124 + hover}, {0.35f, 1}, 6, 11, 2.6f, 1.0f, i % 3 ? hair : Tone(hair, 0.15f), 0.08f, 0.25f);   // a verlet strand: it drifts, trails and whips
     }
     Ball(c, -6, -118 + hover, 11, skin); Crescent(c, -6, -118 + hover, 11);                                                                         // the head
     for (int s = -1; s <= 1; s += 2) Tri(c, {-6 + s * 9.0f, -122 + hover}, {-6 + s * 9.0f, -114 + hover}, {-6 + s * 20.0f, -120 + hover}, Fade(fin, 0.8f)); // fin ears
@@ -691,8 +691,7 @@ void Neptune(const Ctx& c) { // the Weeds' level boss: a king of the drowned wit
     for (int s = -1; s <= 1; s += 2) for (int i = 0; i < 3; i++) Tri(c, {-6 + s * 22.0f, -212.0f + i * 5 + hover}, {-6 + s * 22.0f, -206.0f + i * 5 + hover}, {-6 + s * (36.0f - i * 4), -210.0f + i * 7 + hover}, Fade(fin, 0.85f)); // fin ears
     for (int i = 0; i < 9; i++) { // the beard
         float x0 = -22.0f + i * 5.5f;
-        Vector2 prev{x0, -192 + hover};
-        for (int sg = 1; sg <= 5; sg++) { Vector2 q{x0 - 3 + sinf(t * 1.6f + i + sg * 0.8f) * sg * 1.8f, -192 + sg * 9.0f + hover}; Limb(c, prev, q, 5.0f - sg * 0.7f, 4.4f - sg * 0.7f, i % 2 ? kelp : Tone(kelp, 0.15f)); prev = q; }
+        Feeler(c, {x0, -192 + hover}, {-0.2f, 1}, 5, 9, 5.0f, 1.4f, i % 2 ? kelp : Tone(kelp, 0.15f), 0.15f, 0.2f);   // the beard's weed, on chains
     }
     Ball(c, -12, -198 + hover, 7, Tone(skin, -0.25f));                                                                                              // the nose
     Bar(c, -32, -216 + hover, 52, 11, INK); Bar(c, -28, -213.5f + hover, 10, 3, INK); Dot(c, -22, -211.6f + hover, 1.6f, glow); Dot(c, 8, -211.6f + hover, 1.6f, glow); // eyes under a black brow
@@ -840,8 +839,8 @@ void LostInfantry(const Ctx& c) { // an Atlantean legionary, drowned long ago: s
     const float t = c.t;
     const Color stone{128, 130, 122, 255}, stoneDk{88, 92, 88, 255}, bronze{156, 112, 62, 255}, verd{74, 136, 112, 255}, coral{184, 92, 82, 255}, voidc{158, 134, 220, 255}, leather{104, 84, 60, 255}, bone{214, 204, 180, 255};
     float breathe = sinf(t * 1.5f + c.u) * 1.0f, pulse = 0.5f + 0.5f * sinf(t * 2.6f + c.u);
-    Limb2(c, {6, -54}, {2, -30}, {-2, -4}, 10, 8, 6, stoneDk);                                                                   // the rear leg
-    Limb2(c, {-4, -54}, {-10, -30}, {-16, -3}, 11, 9, 6.5f, stone);                                                              // the front leg
+    Leg(c, {6, -54}, {2, -30}, {-2, -4}, 10, 8, 6, stoneDk);                                                                   // the rear leg
+    Leg(c, {-4, -54}, {-10, -30}, {-16, -3}, 11, 9, 6.5f, stone);                                                              // the front leg
     Limb(c, {-10, -40}, {-15, -8}, 11, 9, bronze); Limb(c, {2, -40}, {-1, -8}, 10, 8, Tone(bronze, -0.3f));                       // bronze greaves
     Ball(c, -9, -36, 6, Tone(bronze, 0.1f)); Rivet(c, -9, -36, 1.4f, Tone(bronze, -0.4f));
     Dot(c, -12, -20, 2.2f, Fade(verd, 0.9f)); Dot(c, -14, -14, 1.6f, Fade(verd, 0.9f));                                           // verdigris
@@ -922,8 +921,8 @@ void ArmoredLostOne(const Ctx& c) { // the mini-boss: a titan in corroded bronze
     const Color bronze{136, 98, 58, 255}, bronzeDk{88, 62, 40, 255}, stone{108, 120, 102, 255}, verd{72, 132, 110, 255}, coral{184, 92, 82, 255}, voidc{164, 134, 255, 255}, purple{78, 56, 114, 255}, bone{214, 204, 180, 255};
     float breathe = sinf(t * 1.3f + c.u) * 1.6f, pulse = 0.5f + 0.5f * sinf(t * 2.2f + c.u);
     for (int i = 0; i < 7; i++) { float x = 26.0f + i * 7; Tri(c, {x - 4, -170}, {x + 4, -170}, {x + 14 + sinf(t * 1.3f + i) * 4, -40 - i * 8.0f}, i % 2 ? purple : Tone(purple, -0.3f)); }  // a tattered cloak
-    Limb2(c, {16, -84}, {20, -46}, {16, -6}, 25, 21, 15, stone);                                                                                   // the rear leg
-    Limb2(c, {-10, -84}, {-18, -46}, {-24, -4}, 28, 23, 16, Tone(stone, 0.06f));                                                                   // the front leg
+    Leg(c, {16, -84}, {20, -46}, {16, -6}, 25, 21, 15, stone);                                                                                   // the rear leg
+    Leg(c, {-10, -84}, {-18, -46}, {-24, -4}, 28, 23, 16, Tone(stone, 0.06f));                                                                   // the front leg
     Limb(c, {-18, -70}, {-24, -12}, 24, 19, bronze); Limb(c, {16, -70}, {16, -12}, 22, 17, Tone(bronze, -0.3f));                                    // greaves
     for (int i = 0; i < 3; i++) Rivet(c, -20.0f - i * 1.5f, -60.0f + i * 18, 2.2f, Tone(bronze, -0.4f));
     Ball(c, -18, -50, 12, Tone(bronze, 0.1f)); Tri(c, {-24, -56}, {-30, -60}, {-38, -50}, bone); Rivet(c, -18, -50, 2, Tone(bronze, -0.4f));       // a spiked knee guard
@@ -1038,8 +1037,8 @@ void Cthulhu(const Ctx& c) { // the final boss: a sleeper woken, wings across th
         }
     }
     // ---- legs
-    Limb2(c, {30, -118}, {42, -62}, {34, -6}, 44, 36, 24, Tone(skin, -0.16f));
-    Limb2(c, {-30, -118}, {-46, -62}, {-52, -4}, 48, 39, 26, skin);
+    Leg(c, {30, -118}, {42, -62}, {34, -6}, 44, 36, 24, Tone(skin, -0.16f));
+    Leg(c, {-30, -118}, {-46, -62}, {-52, -4}, 48, 39, 26, skin);
     for (int i = 0; i < 3; i++) { Tri(c, {-64.0f + i * 12, -4}, {-56.0f + i * 12, -4}, {-66.0f + i * 12, 8}, bone); Tri(c, {22.0f + i * 12, -6}, {30.0f + i * 12, -6}, {20.0f + i * 12, 6}, bone); }
     for (int r = 0; r < 4; r++) for (int i = 0; i < 3; i++) DrawRing(c.P(-52.0f + i * 10 + (r % 2) * 5 - 6, -34.0f - r * 14), 3 * c.k, 5 * c.k, 200, 340, 8, Fade(INK, 0.5f));
     Barnacles(c, -48, -40, 14, 6, c.u); Barnacles(c, 40, -46, 10, 5, c.u + 3);
@@ -1075,14 +1074,8 @@ void Cthulhu(const Ctx& c) { // the final boss: a sleeper woken, wings across th
     Ball(c, -10, -246 + breathe, 22, INK); Tri(c, {-22, -246 + breathe}, {2, -246 + breathe}, {-10, -232 + breathe}, Tone(bone, -0.1f));                 // the maw and its beak
     for (int i = 0; i < 11; i++) { // the tentacles of the face
         float x0 = -34.0f + i * 6.2f, len = 46.0f + (i % 4) * 14 + (i > 6 ? 0 : 6);
-        Vector2 prev{x0, -256.0f + breathe};
-        for (int sg = 1; sg <= 8; sg++) {
-            float u = sg / 8.0f;
-            Vector2 q{x0 + sinf(t * 1.5f + i * 0.7f + sg * 0.6f) * 6 * u - u * (i < 5 ? 26.0f : 6.0f), -256.0f + breathe + u * len * 0.9f};
-            Limb(c, prev, q, 9.0f * (1 - u * 0.75f), 9.0f * (1 - (u + 0.12f) * 0.75f), i % 2 ? skin : Tone(lt, -0.1f));
-            if (sg % 3 == 1) Dot(c, q.x + 1, q.y + 2, 1.6f, Fade(belly, 0.8f));
-            prev = q;
-        }
+        Vector2 tip = Feeler(c, {x0, -256.0f + breathe}, {i < 5 ? -0.45f : -0.1f, 1}, 8, len * 0.9f / 8, 9.0f, 2.2f, i % 2 ? skin : Tone(lt, -0.1f), 0.3f, 0.2f); // on chains now
+        V tu = Unit(c, tip); Dot(c, tu.x + 1, tu.y, 1.6f, Fade(belly, 0.8f));
     }
     // ---- the front arm, reaching for the party with a claw full of broken marble
     Limb2(c, {-84, -222 + breathe}, {-124, -204}, {-152, -164}, 30, 25, 20, skin);
@@ -1206,8 +1199,8 @@ void CoconutQueen(const Ctx& c) { // the Island's mini-boss: a warrior queen in 
     const Color skin{140, 104, 82, 255}, skinDk{100, 72, 56, 255}, shell{112, 76, 44, 255}, shellLt{160, 112, 66, 255}, frond{78, 118, 66, 255}, frondDk{46, 80, 48, 255}, red{190, 70, 60, 255}, coral{224, 116, 108, 255}, bone{214, 204, 180, 255}, gold{200, 160, 70, 255};
     float breathe = sinf(t * 1.4f + c.u) * 1.4f, pulse = 0.5f + 0.5f * sinf(t * 2.4f + c.u);
     for (int i = 0; i < 9; i++) { float a = -PI * (0.85f - i * 0.11f); Tri(c, {14, -110 + breathe}, {24, -112 + breathe}, {14 + cosf(a) * 78, -100 + sinf(a) * -1 * 18 - 8 + i * 8 + sinf(t * 1.4f + i) * 3}, i % 2 ? frond : frondDk); } // a cloak of palm fronds spread behind
-    Limb2(c, {12, -68}, {16, -38}, {12, -6}, 19, 15, 11, skinDk);                                                                                   // legs
-    Limb2(c, {-10, -68}, {-16, -38}, {-20, -5}, 20, 16, 11, skin);
+    Leg(c, {12, -68}, {16, -38}, {12, -6}, 19, 15, 11, skinDk);                                                                                   // legs
+    Leg(c, {-10, -68}, {-16, -38}, {-20, -5}, 20, 16, 11, skin);
     for (int i = 0; i < 3; i++) { DrawRing(c.P(-18, -10.0f - i * 1.5f), 6.5f * c.k, 8 * c.k, 0, 360, 10, i % 2 ? bone : Tone(bone, -0.2f)); }         // shell anklets
     Bar(c, -34, -4, 26, 5, INK); Bar(c, -2, -4, 22, 5, INK);
     for (int i = 0; i < 10; i++) { float x = -26.0f + i * 5.4f; Tri(c, {x - 3.4f, -70}, {x + 3.4f, -70}, {x + sinf(t * 1.6f + i) * 2, -30 - (i % 3) * 5}, i % 2 ? frond : frondDk); } // a skirt of layered fronds
@@ -1648,6 +1641,19 @@ bool DrawRichEnemy(const Enemy& e, Rectangle r, float t) {
             case rig::CL_DODGE: c.flinch = 0.7f * sinf(u * PI); break;
             case rig::CL_DEATH: c.flinch = std::min(1.0f, u * 2); c.rear = -0.8f * std::min(1.0f, u * 1.5f); break;
             default: break;
+        }
+    }
+    {   // a boss past half its health: the phase-change clip (it rears and shakes for 1.4 s), then an agitated idle
+        static std::unordered_map<int, float> turnedAt;
+        bool phase2 = e.boss && e.hp * 2 <= e.maxHp && e.alive;
+        auto it = turnedAt.find(e.uid);
+        if (phase2 && it == turnedAt.end()) it = turnedAt.emplace(e.uid, t).first;
+        if (!phase2 && it != turnedAt.end()) turnedAt.erase(it);
+        else if (phase2) {
+            float u = (t - it->second) / 1.4f;
+            if (u < 1) { c.rear = std::max(c.rear, sinf(u * PI) * 1.3f); c.cx += sinf(t * 47) * 3 * c.k * (1 - u); }
+            c.flinch += 0.05f * sinf(t * 23 + e.uid);   // a constant shiver
+            c.t = t * 1.35f;                              // everything quicker: breath, sway, the drawing's own motion
         }
     }
     rig::Instance& in = rig::Get(1000000 + e.uid);

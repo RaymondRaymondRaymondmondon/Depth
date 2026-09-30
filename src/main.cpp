@@ -228,6 +228,7 @@ static void TakeShots(const Game& base, const std::string& dir) {
         {"menu_controls", [](Game& g) { g.scene = Scene::Hub; }},
         {"combat_walk", [](Game& g) { DebugEnterCombat(g); g.dungeon.phase = DPhase::Walking; g.dungeon.walkT = 0.4f; }},
         {"combat_deep", [](Game& g) { g.tierCleared[(int)Location::Cave] = 4; g.tierSel[(int)Location::Cave] = 3; DebugEnterCombat(g); }},
+        {"boss_sun_phase2", [](Game& g) { DebugSetEnemies(g, Location::Island, {EnemyType::SunGod, EnemyType::TribalShaman}); g.dungeon.enemies[0].hp = g.dungeon.enemies[0].maxHp / 3; }},
         {"boss_leviathan", [](Game& g) { g.tierCleared[(int)Location::Trench] = 4; g.tierSel[(int)Location::Trench] = 5; DebugSetEnemies(g, Location::Trench, {EnemyType::Leviathan, EnemyType::LanternAngler}); g.dungeon.pressure = 3; }},
         {"boss_abyssal_eye", [](Game& g) { DebugSetEnemies(g, Location::Hadal, {EnemyType::AbyssalEye, EnemyType::StarSpawn}); }},
         {"boss_abyssal_eye3", [](Game& g) { DebugSetEnemies(g, Location::Hadal, {EnemyType::AbyssalEye, EnemyType::DrownedOracle}); g.dungeon.enemies[0].hp = g.dungeon.enemies[0].maxHp / 4; }},
