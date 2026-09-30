@@ -157,7 +157,7 @@ Locker, Forge and tonic tables: no workbook holds them). Entry: the arcade's Red
 
 ### Checks
 
-`depth.exe --redtide-match-test` (36 checks, all pass): data, stations, doors blocking and opening, racks and ammo,
+`depth.exe --redtide-match-test` (48 checks, all pass: the original 36 plus the portholes, the confinement, the breach, the Supper Call): data, stations, doors blocking and opening, racks and ammo,
 the quota and calm, a Bull Shark strike through the Attacks sheet, the Death Roll's hold (broken by damage, landing
 if not), a solo down ending the match, the Quick Brine self-revive, power, the Forge, the Locker's moray, Resupply,
 Purge, a tide-5 Hunt with its Foreman shooting the diver, the Goliath's Inhale and the gill escape, bots playing.
@@ -182,17 +182,29 @@ than tuned against a weak bot now.
 
 | `--redtide-sim ship`, 3 runs each | Tide reached | Target |
 |---|---|---|
-| four careful bots | 3.0 | 25 +/- 3 |
-| four careless bots | 2.7 | 12 +/- 3 |
-| one careful bot | 2.7 | (none given for solo) |
+| four careful bots | 5.0 (downs 68% beasts / 25% enemies / 6% hazards; 0.73 alarm squads a tide) | 25 +/- 3 (60/25/15; 0.5) |
+| four careless bots | 5.0 | 12 +/- 3 |
+| one careful bot | 4.0 | (none given for solo) |
 
-Nearly every wipe is the Goliath: the only way back into the ship from the Keel runs through its engine room, and
-the bots' way of crossing it (skirting it along the far wall while it dozes; it wakes to a touch before the power is
-on) isn't good enough yet. Sharks, the crocodile and the Wreckers account for the rest; no run has reached a Hunt
-with a living team, so the enemy share and the alarm-squad rate are still unmeasured.
+Teams now reach the first Hunt at tide 5 and die there, mostly to the Goliath: the Wreckers come in at the breach
+beyond its engine room, and the bots have no boss tactics. The downs' split for careful play is already close to
+the doc's shape.
 
-The Sunken Ship's opening is outside: the start pocket and the foredeck have no spawns and the Salon door costs 750
-against a 500 start, so the way to earn is out through the free hatch and down the one-way slide to the Keel, then
-2000 for the breach back into the Stern and on through the Goliath's engine room (the blockout's training loop B,
-read in the direction the one-way slide allows). That is the data as written; whether the doc means the Bridge to
-hold a few beasts for the first 250 scrip is a question for the design.
+### The ship confined (the user's call, 2026-09-30)
+"The player is confined to the ship entirely... claustrophobic/tight... shooting out of the windows and holes of the
+yacht at fish." In `maps/ship/extra.json`: the Keel and the Foredeck are `outside_zones` (in the web, never swum by
+divers); `link_rules` make the Bridge hatch a window (never open to beasts), the slide beast-only, and the hull breach
+a beast-and-Wrecker hole that tears open at tide 4 or when the Wreckers first come through it; `windows` generates
+portholes (12 on the Ship) wherever a room faces open water within 6 m, which darts pass and divers don't; the Kick
+Brine machine moved into the Galley; `spawn_add` puts small fish in the Bridge and schools outside its portholes, so
+the first 250 scrip toward the Salon door is earned inside. The Ecosystem starts with these openings shut to beasts.
+
+### Supper Call (an easter egg for the Goliath)
+The user asked for a short quest leading into the boss fight. Read the chief engineer's log in the Cabin Deck ("three
+blasts on the whistle and she comes up for her supper"), find his brass whistle behind the Galley's tins, and pull the
+boiler's whistle cord three times with the power off: the Goliath wakes hungry into its fight. Killing it then pays
+double and pressure-forges every diver's weapon in hand. Steps are `poi_add` entries and the text is `quest` in
+extra.json.
+
+### Tides 1-3 (the user: "create this how you see necessary, keep the game balanced")
+Kept: nothing hunts a diver unprovoked; a provoked apex strikes once at a third and leaves; territory still bites.

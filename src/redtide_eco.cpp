@@ -266,6 +266,10 @@ void Ecosystem::Init(const MapData& m, uint32_t seed, int tideNum, int playerCou
     tide = tideNum;
     players = playerCount;
     diverSpecies = m.SpeciesIndex("Diver");
+    // the map's own beast rules for its openings (a hatch that is a window, a breach not yet torn open); a match
+    // then keeps linkClosed up to date with doors bought and breaches opened
+    linkClosed.assign(m.links.size(), 0);
+    for (size_t i = 0; i < m.links.size(); i++) if (m.links[i].beastRule != 0) linkClosed[i] = 1;
     agents.clear(); corpses.clear(); flora.clear(); squads.clear(); events.clear();
     time = 0; scentT = 0; popT = 0; alarmRollT = 0; cleanerRage = 0; squadsSpawned = 0;
     killsBySpecies.assign(m.species.size(), 0);

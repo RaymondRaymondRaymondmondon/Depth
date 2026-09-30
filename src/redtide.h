@@ -57,14 +57,22 @@ struct Zone {
     Vector3 flow{0, 0, 0};             // current, m/s
     int doorCost = 0;
     int alarmRegion = 0;
+    bool diverOk = true;               // false: open water the divers only see and shoot into (a confined map's outside)
     bool radial = false;               // Atlantis districts: an annulus sector (plan is its bounding box)
     float rMin = 0, rMax = 0, a0 = 0, a1 = 0; // metres and degrees
     Vector3 Center() const;
     bool Contains(Vector3 p, float pad = 0) const;
     Vector3 Clamp(Vector3 p, float pad = 0.5f) const;
 };
-struct Link { int from = 0, to = 0; int cost = 0; std::string passage; bool oneWay = false; float flow = 0; Vector3 a{}, b{}; };
-struct Poi { std::string name, type, zoneName; int zone = -1; Vector3 pos{}; };
+struct Link {
+    int from = 0, to = 0; int cost = 0; std::string passage; bool oneWay = false; float flow = 0; Vector3 a{}, b{};
+    bool diverOk = true;               // false: beasts (and darts) only
+    int beastRule = 0;                 // 0 a door (closed to beasts until bought), 1 never open to beasts, 2 a breach (opens at openTide or when the faction first comes)
+    int openTide = 99;
+};
+// A porthole: a dart-only opening from a room the divers use into open water they don't (extra.json "windows").
+struct Window { Vector3 lo{}, hi{}; int zone = -1, outside = -1; int axis = 2; };
+struct Poi { std::string name, type, zoneName; int zone = -1; Vector3 pos{}; int step = 0; };
 struct AlarmRegion { std::string name; float mult = 1; std::vector<int> zones; std::string entry; };
 struct FactionUnit {
     std::string unit, weapon, role, tell, drops;
@@ -93,7 +101,9 @@ struct MapData {
     std::vector<Link> links;
     std::vector<Poi> pois;
     std::vector<AlarmRegion> alarmRegions;
+    std::vector<Window> windows;
     std::vector<std::string> notes, boss, readme;
+    Json extra;                        // the map's extra.json (map mechanics read their own sections)
     Faction faction;
     int enemySpecies = -1;             // index of the faction's species record (appended at load)
     Vector3 boundsMin{}, boundsMax{};

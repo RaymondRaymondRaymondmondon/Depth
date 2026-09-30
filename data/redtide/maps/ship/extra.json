@@ -105,7 +105,7 @@
   "name": "The Salvage Wreckers",
   "species_name": "Wrecker",
   "entry_poi": "Hull breach (Wrecker entry)",
-  "hunt_staging": "Foredeck (outside)",
+  "hunt_staging": "Stern & Swim Platform",
   "patrol": [
    "Stern & Swim Platform",
    "Engine Room",
@@ -225,5 +225,113 @@
    "Sergeant Major": 0.1
   }
  },
- "_flow_speed_note": "Current speeds are set so blood made in the Salon reaches the Stern in about 40 s (the notes' own figure): about 1 m/s through the interior passages."
+ "_flow_speed_note": "Current speeds are set so blood made in the Salon reaches the Stern in about 40 s (the notes' own figure): about 1 m/s through the interior passages.",
+ "_confine_source": "The user (2026-09-30): 'The doc intends that the player is confined to the ship entirely. They should not be going outside of the ship; it is meant to be claustrophobic/tight. If the Bridge doesn't have a means of making money then flush out where the fish are. Part of how a player can make scrip in this level is shooting out of the windows and holes of the yacht at fish.' The Keel and the Foredeck stay in the web (the sharks' lane, the schools) as open water seen and shot through portholes.",
+ "outside_zones": [
+  "The Keel & Sand",
+  "Foredeck (outside)"
+ ],
+ "link_rules": {
+  "_note": "divers: false = beasts and darts only. beasts: never | breach (closed to beasts until open_tide or until the Wreckers first come through it).",
+  "Bridge>Foredeck (outside)": {
+   "divers": false,
+   "beasts": "never"
+  },
+  "Foredeck (outside)>The Keel & Sand": {
+   "divers": false
+  },
+  "Stern & Swim Platform>The Keel & Sand": {
+   "divers": false,
+   "beasts": "breach",
+   "open_tide": 4
+  }
+ },
+ "windows": {
+  "_note": "Portholes generated wherever a room the divers use faces open water they don't, across a gap of at most gap_max_m.",
+  "gap_max_m": 6,
+  "spacing_m": 4,
+  "size_m": 1.2
+ },
+ "poi_patch": {
+  "Kick Brine": {
+   "zone": "Galley & Pantry",
+   "x": 47,
+   "y": 2
+  }
+ },
+ "poi_add": [
+  {
+   "name": "Chief engineer's log",
+   "type": "QuestStep",
+   "zone": "Cabin Deck",
+   "x": 22,
+   "y": 18,
+   "step": 1
+  },
+  {
+   "name": "Brass steam whistle",
+   "type": "QuestStep",
+   "zone": "Galley & Pantry",
+   "x": 39,
+   "y": 7,
+   "step": 2
+  },
+  {
+   "name": "The boiler's whistle cord",
+   "type": "QuestStep",
+   "zone": "Engine Room",
+   "x": 47,
+   "y": 17,
+   "step": 3
+  }
+ ],
+ "_quest_source": "The user (2026-09-30) asked for a short easter egg quest that leads to the Goliath fight. Written for the Sunken Ship: the chief engineer's log, his whistle, three blasts on the boiler's cord while the power is off.",
+ "quest": {
+  "name": "Supper Call",
+  "steps": [
+   "An oil-stained log: 'She sleeps in the boiler's warmth. Three blasts on the whistle and she comes up for her supper. God help whoever's standing there.'",
+   "A brass steam whistle, green with age, hidden behind the pantry's tins.",
+   "The boiler's whistle cord. Fit the whistle and pull it three times."
+  ],
+  "reward": "Each diver's weapon is pressure-forged, and the Goliath's kill pays double."
+ },
+ "spawn_add": [
+  {
+   "zone": "Bridge",
+   "species": "Bilge Sprat",
+   "count": 12,
+   "respawn_s": 25
+  },
+  {
+   "zone": "Bridge",
+   "species": "Blenny",
+   "count": 3,
+   "respawn_s": 60
+  },
+  {
+   "zone": "Bridge",
+   "species": "Sergeant Major",
+   "count": 3,
+   "respawn_s": 60
+  },
+  {
+   "zone": "Foredeck (outside)",
+   "species": "Silverside",
+   "count": 30,
+   "respawn_s": 20
+  },
+  {
+   "zone": "Foredeck (outside)",
+   "species": "Damselfish",
+   "count": 4,
+   "respawn_s": 60
+  },
+  {
+   "zone": "Foredeck (outside)",
+   "species": "Parrotfish",
+   "count": 2,
+   "respawn_s": 90
+  }
+ ],
+ "_spawn_add_source": "Fish for the start pocket and the water outside its windows (the user: 'flush out where the fish are'), so the first 250 scrip toward the Salon door can be earned inside the ship."
 }

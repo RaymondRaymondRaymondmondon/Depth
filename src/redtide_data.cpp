@@ -238,7 +238,43 @@ static void LoadFactionSheet(MapData& m, const Json& rows) {
 
 static void LoadExtra(MapData& m, const Json& ex) {
     if (!ex.IsObj()) return;
+
     for (const auto& kv : ex["zone_alias"].o) m.zoneAlias[kv.first] = kv.second.Str0();
+    m.extra = ex;
+    // points of interest moved or added (a confined map moves what stood outside; quests add their steps)
+    for (auto& p : m.pois) {
+        const Json& pp = ex["poi_patch"][p.name];
+        if (!pp.IsObj()) continue;
+        if (pp.Has("zone")) { p.zoneName = pp["zone"].Str0(); }
+        if (pp.Has("x")) p.pos.x = pp["x"].F();
+        if (pp.Has("y")) p.pos.z = pp["y"].F();
+        if (pp.Has("type")) p.type = pp["type"].Str0();
+    }
+    for (const Json& pa : ex["poi_add"].a) {
+        Poi po; po.name = pa["name"].Str0(); po.type = pa["type"].Str0(); po.zoneName = pa["zone"].Str0();
+        po.pos = {pa["x"].F(), 0, pa["y"].F()};
+        po.step = pa["step"].I(0);
+        m.pois.push_back(po);
+    }
+    for (auto& p : m.pois) p.zone = m.ZoneIndex(p.zoneName);
+    for (const Json& sa : ex["spawn_add"].a) {
+        SpawnRow r; r.zone = sa["zone"].Str0(); r.species = sa["species"].Str0(); r.count = sa["count"].I(); r.respawnS = sa["respawn_s"].F(60); r.capMult = 1.03f;
+        if (r.count > 0) m.spawns.push_back(r);
+    }
+    for (const Json& zn : ex["outside_zones"].a) { int zi = m.ZoneIndex(zn.Str0()); if (zi >= 0) m.zones[zi].diverOk = false; }
+    for (auto& l : m.links) {
+        for (int dir = 0; dir < 2; dir++) {
+            std::string k = dir ? m.zones[l.to].name + ">" + m.zones[l.from].name : m.zones[l.from].name + ">" + m.zones[l.to].name;
+            const Json& r = ex["link_rules"][k];
+            if (!r.IsObj()) continue;
+            if (r.Has("divers")) l.diverOk = r["divers"].Bool0(true);
+            std::string b = r["beasts"].Str0();
+            if (b == "never") l.beastRule = 1; else if (b == "breach") l.beastRule = 2;
+            l.openTide = r["open_tide"].I(99);
+        }
+        if (!m.zones[l.from].diverOk || !m.zones[l.to].diverOk) l.diverOk = false;
+        if (!l.diverOk && l.beastRule == 0) l.cost = 0;      // nothing to buy: divers never pass it
+    }
     for (auto& z : m.zones) {
         if (ex["zone_height_m"].Has(z.deck)) z.y1 = z.y0 + ex["zone_height_m"][z.deck].F(8);
         if (ex["zone_floor_m"].Has(z.deck)) { float h = z.y1 - z.y0; z.y0 = ex["zone_floor_m"][z.deck].F(); z.y1 = z.y0 + h; }
@@ -454,6 +490,37 @@ const MapData& Map(const std::string& key) {
         m.boundsMin.y = std::min(m.boundsMin.y, z.y0); m.boundsMax.y = std::max(m.boundsMax.y, z.y1);
     }
     for (auto& l : m.links) LinkMouths(m, l);
+    // portholes: wherever a room the divers use faces open water they don't, across a gap of a few metres
+    const Json& wj = m.extra["windows"];
+    if (wj.IsObj()) {
+        float gapMax = wj["gap_max_m"].F(6), spacing = wj["spacing_m"].F(4), size = wj["size_m"].F(1.2);
+        for (int i = 0; i < (int)m.zones.size(); i++) for (int j = 0; j < (int)m.zones.size(); j++) {
+            const Zone& A = m.zones[i]; const Zone& B = m.zones[j];
+            if (!A.diverOk || B.diverOk || A.radial || B.radial) continue;
+            float y0 = std::max(A.y0, B.y0) + 0.5f, y1 = std::min(A.y1, B.y1) - 0.5f;
+            if (y1 - y0 < size) continue;
+            for (int axis : {0, 2}) {
+                float aLo = axis == 0 ? A.plan.x : A.plan.y, aHi = aLo + (axis == 0 ? A.plan.width : A.plan.height);
+                float bLo = axis == 0 ? B.plan.x : B.plan.y, bHi = bLo + (axis == 0 ? B.plan.width : B.plan.height);
+                float g0, g1;
+                if (aHi <= bLo && bLo - aHi <= gapMax) { g0 = aHi; g1 = bLo; }
+                else if (bHi <= aLo && aLo - bHi <= gapMax) { g0 = bHi; g1 = aLo; }
+                else continue;
+                // the other horizontal axis must overlap
+                float cLo = std::max(axis == 0 ? A.plan.y : A.plan.x, axis == 0 ? B.plan.y : B.plan.x) + 1;
+                float cHi = std::min(axis == 0 ? A.plan.y + A.plan.height : A.plan.x + A.plan.width, axis == 0 ? B.plan.y + B.plan.height : B.plan.x + B.plan.width) - 1;
+                if (cHi - cLo < size) continue;
+                float yc = (y0 + y1) / 2;
+                for (float c = cLo + spacing * 0.5f; c <= cHi - size * 0.5f; c += spacing) {
+                    Window w; w.zone = i; w.outside = j; w.axis = axis;
+                    float h = size / 2;
+                    if (axis == 0) { w.lo = {g0 - 0.6f, yc - h, c - h}; w.hi = {g1 + 0.6f, yc + h, c + h}; }
+                    else { w.lo = {c - h, yc - h, g0 - 0.6f}; w.hi = {c + h, yc + h, g1 + 0.6f}; }
+                    m.windows.push_back(w);
+                }
+            }
+        }
+    }
     if (m.alarmRegions.empty()) {
         AlarmRegion r; r.name = "All"; r.mult = 1;
         for (int i = 0; i < (int)m.zones.size(); i++) r.zones.push_back(i);

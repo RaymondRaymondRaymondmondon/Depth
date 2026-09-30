@@ -150,9 +150,13 @@ static void BuildLevelModel() {
             Vector2 lo{(&v.lo.x)[ua], (&v.lo.x)[va]}, hi{(&v.hi.x)[ua], (&v.hi.x)[va]};
             std::vector<std::pair<Vector2, Vector2>> holes;
             for (const auto& p : m.level.vols) {
-                if (p.link < 0) continue;
-                const Link& l = map.links[p.link];
-                if (l.from != v.zone && l.to != v.zone) continue;
+                if (p.link >= 0) {
+                    const Link& l = map.links[p.link];
+                    if (l.from != v.zone && l.to != v.zone) continue;
+                } else if (p.window >= 0) {
+                    const Window& w = map.windows[p.window];
+                    if (w.zone != v.zone && w.outside != v.zone) continue;
+                } else continue;
                 if ((&p.lo.x)[axis] > at || (&p.hi.x)[axis] < at) continue;
                 holes.push_back({{(&p.lo.x)[ua], (&p.lo.x)[va]}, {(&p.hi.x)[ua], (&p.hi.x)[va]}});
             }
@@ -181,6 +185,36 @@ static void BuildLevelModel() {
             int ua = axis == 0 ? 1 : 0, va = axis == 2 ? 1 : 2;
             for (int side = 0; side < 2; side++) FaceWithHoles(mb, axis, side ? (&hi.x)[axis] : (&lo.x)[axis], {(&lo.x)[ua], (&lo.x)[va]}, {(&hi.x)[ua], (&hi.x)[va]}, {}, c);
         }
+    }
+    // portholes: a short tunnel through the hull and a brass ring on the inside
+    for (const auto& w : map.windows) {
+        const Zone& z = map.zones[w.zone];
+        int k = w.axis;
+        float zlo = k == 0 ? z.plan.x : z.plan.y, zhi = zlo + (k == 0 ? z.plan.width : z.plan.height);
+        const Zone& o = map.zones[w.outside];
+        float olo = k == 0 ? o.plan.x : o.plan.y;
+        bool outsideHigh = olo >= zhi - 0.01f;
+        float a0 = outsideHigh ? zhi : (k == 0 ? o.plan.x + o.plan.width : o.plan.y + o.plan.height);
+        float a1 = outsideHigh ? olo : zlo;
+        Vector3 lo = w.lo, hi = w.hi;
+        (&lo.x)[k] = a0; (&hi.x)[k] = a1;
+        Color hull{54, 58, 60, 255}, brass{196, 150, 70, 255};
+        for (int axis = 0; axis < 3; axis++) {
+            if (axis == k) continue;
+            int ua = axis == 0 ? 1 : 0, va = axis == 2 ? 1 : 2;
+            for (int side = 0; side < 2; side++) FaceWithHoles(mb, axis, side ? (&hi.x)[axis] : (&lo.x)[axis], {(&lo.x)[ua], (&lo.x)[va]}, {(&hi.x)[ua], (&hi.x)[va]}, {}, hull);
+        }
+        float face = outsideHigh ? zhi - 0.03f : zlo + 0.03f;
+        Vector3 c = Vector3Lerp(w.lo, w.hi, 0.5f);
+        float h = (w.hi.y - w.lo.y) / 2;
+        (&c.x)[k] = face;
+        Vector3 bar = k == 0 ? Vector3{0.05f, 0.12f, h + 0.12f} : Vector3{h + 0.12f, 0.12f, 0.05f};
+        Vector3 post = k == 0 ? Vector3{0.05f, h + 0.12f, 0.12f} : Vector3{0.12f, h + 0.12f, 0.05f};
+        Vector3 side = k == 0 ? Vector3{0, 0, h + 0.06f} : Vector3{h + 0.06f, 0, 0};
+        mb.Box(Vector3Add(c, {0, h + 0.06f, 0}), bar, brass);
+        mb.Box(Vector3Add(c, {0, -h - 0.06f, 0}), bar, brass);
+        mb.Box(Vector3Add(c, side), post, brass);
+        mb.Box(Vector3Subtract(c, side), post, brass);
     }
     // fixed dressing from the blockout's features
     for (const Poi& p : map.pois) {
@@ -428,6 +462,12 @@ static void DrawStations() {
                 break;
             case StationType::Quest: DrawWorldCube(p, {0.8f, 0.9f, 0.7f}, m.safeOpen ? Color{60, 60, 60, 255} : Color{70, 76, 70, 255}); break;
             case StationType::Cleaning: DrawWorldCube({p.x, p.y - 0.6f, p.z}, {1.4f, 0.8f, 1.2f}, {110, 100, 88, 255}); break;
+            case StationType::QuestStep:
+                // the Supper Call's props: the log on a bunk shelf, the whistle among the tins, the cord on the boiler
+                if (s.step == 1) DrawWorldCube({p.x, p.y - 0.5f, p.z}, {0.35f, 0.08f, 0.25f}, {92, 60, 40, 255});
+                else if (s.step == 2 && m.questStep < 2) DrawWorldCube({p.x, p.y - 0.4f, p.z}, {0.1f, 0.25f, 0.1f}, {150, 150, 90, 255});
+                else if (s.step == 3) { DrawWorldCube({p.x, p.y + 0.8f, p.z}, {0.03f, 1.6f, 0.03f}, {120, 100, 70, 255}); DrawWorldCube({p.x, p.y + 1.7f, p.z}, {0.14f, 0.3f, 0.14f}, m.questStep >= 2 ? Color{190, 160, 80, 255} : Color{70, 70, 66, 255}); }
+                break;
             default: break;
         }
     }

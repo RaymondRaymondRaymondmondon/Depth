@@ -140,6 +140,7 @@ void BuildLevel(const MapData& m, Level& L) {
         v.lo = {z.plan.x, z.y0, z.plan.y};
         v.hi = {z.plan.x + z.plan.width, z.y1, z.plan.y + z.plan.height};
         v.zone = i;
+        v.diverOk = z.diverOk;
         L.vols.push_back(v);
     }
     for (int li = 0; li < (int)m.links.size(); li++) {
@@ -149,14 +150,19 @@ void BuildLevel(const MapData& m, Level& L) {
         v.lo = Vector3Subtract(lo, {1.2f, 1.3f, 1.2f});
         v.hi = Vector3Add(hi, {1.2f, 1.3f, 1.2f});
         v.link = li;
+        v.diverOk = k.diverOk;
         L.vols.push_back(v);
         Door d;
         d.link = li;
-        d.cost = k.cost;
-        d.open = k.cost <= 0;
+        d.cost = k.diverOk ? k.cost : 0;
+        d.open = d.cost <= 0;
         d.pos = Vector3Lerp(k.a, k.b, 0.5f);
         d.name = k.passage;
         L.doors.push_back(d);
+    }
+    for (int wi = 0; wi < (int)m.windows.size(); wi++) {
+        Volume v; v.lo = m.windows[wi].lo; v.hi = m.windows[wi].hi; v.window = wi; v.diverOk = false;
+        L.vols.push_back(v);
     }
     int lockerSpot = 0;
     for (const Poi& p : m.pois) {
@@ -186,17 +192,20 @@ void BuildLevel(const MapData& m, Level& L) {
         else if (t == "hazard") s.type = StationType::Hazard;
         else if (t == "entry") s.type = StationType::Entry;
         else if (t == "boss") s.type = StationType::Boss;
+        else if (t == "queststep") { s.type = StationType::QuestStep; s.step = p.step; }
         else s.type = HasW(p.name, "cleaning") ? StationType::Cleaning : StationType::Feature;
         L.stations.push_back(s);
     }
     // the start pocket: the first zone (the blockout lists it first), at mid-height by its door-free side
     L.startZone = 0;
-    const Zone& z0 = m.zones[0];
+    while (L.startZone + 1 < (int)m.zones.size() && !m.zones[L.startZone].diverOk) L.startZone++;
+    const Zone& z0 = m.zones[L.startZone];
     L.start = z0.Clamp({z0.Center().x, z0.y0 + 2, z0.Center().z}, 1);
 }
 
-bool Level::Inside(Vector3 p, float r, const std::vector<char>& linkOpen) const {
+bool Level::Inside(Vector3 p, float r, const std::vector<char>& linkOpen, bool darts) const {
     for (const auto& v : vols) {
+        if (!darts && !v.diverOk) continue;
         if (v.link >= 0 && (v.link >= (int)linkOpen.size() || !linkOpen[v.link])) continue;
         if (p.x >= v.lo.x + r && p.x <= v.hi.x - r && p.y >= v.lo.y + r && p.y <= v.hi.y - r && p.z >= v.lo.z + r && p.z <= v.hi.z - r) return true;
     }
@@ -213,7 +222,7 @@ Vector3 Level::Move(Vector3 from, Vector3 to, float r, const std::vector<char>& 
         // pushed out (a knockback into a wall, a door that closed): back to the nearest room
         float best = 1e9f; Vector3 q = p;
         for (const auto& v : vols) {
-            if (v.link >= 0) continue;
+            if (v.link >= 0 || v.window >= 0 || !v.diverOk) continue;
             Vector3 c{std::clamp(p.x, v.lo.x + r + 0.01f, v.hi.x - r - 0.01f), std::clamp(p.y, v.lo.y + r + 0.01f, v.hi.y - r - 0.01f), std::clamp(p.z, v.lo.z + r + 0.01f, v.hi.z - r - 0.01f)};
             float d = Vector3Distance(c, p);
             if (d < best) { best = d; q = c; }
@@ -223,10 +232,10 @@ Vector3 Level::Move(Vector3 from, Vector3 to, float r, const std::vector<char>& 
     return p;
 }
 
-bool Level::Sight(Vector3 a, Vector3 b, const std::vector<char>& linkOpen) const {
+bool Level::Sight(Vector3 a, Vector3 b, const std::vector<char>& linkOpen, bool darts) const {
     float d = Vector3Distance(a, b);
-    int n = std::max(1, (int)(d / 0.5f));
-    for (int i = 1; i < n; i++) if (!Inside(Vector3Lerp(a, b, (float)i / n), 0.02f, linkOpen)) return false;
+    int n = std::max(1, (int)(d / 0.4f));
+    for (int i = 1; i < n; i++) if (!Inside(Vector3Lerp(a, b, (float)i / n), 0.02f, linkOpen, darts)) return false;
     return true;
 }
 
@@ -408,12 +417,22 @@ void Match::Step(float dt) {
     time += dt;
     phaseT += dt;
     for (auto* t : {&fireSaleT, &doubleScripT, &frenzyT, &trapT, &lockerMovedT}) if (*t > 0) *t -= dt;
+    if (whistleT > 0) { whistleT -= dt; if (whistleT <= 0 && questStep == 2) whistlePulls = 0; }   // three blasts, close together
     if (harpoonT > 0) {
         harpoonT -= dt;
         if (harpoonT <= 0) for (auto& d : divers) if (d.harpoonHour) { d.weapons = d.savedWeapons; d.cur = d.savedCur; d.harpoonHour = false; }
     }
     eco.bloodMult = frenzyT > 0 ? 5.0f : 1.0f;           // Blood Frenzy: the water fills with blood at 5x
-    for (size_t i = 0; i < linkOpen.size(); i++) eco.linkClosed[i] = linkOpen[i] ? 0 : 1;
+    // beasts: doors until bought; some openings never (a porthole-hatch); a breach from its tide, or once the
+    // faction has come through it
+    if (!breachOpen) for (const auto& l : map->links) if (l.beastRule == 2 && (tide >= l.openTide || eco.squadsSpawned > 0)) {
+        breachOpen = true;
+        Say("", "Something tears the hull breach wide: the sharks can get in now", 5);
+    }
+    for (size_t i = 0; i < linkOpen.size(); i++) {
+        const Link& l = map->links[i];
+        eco.linkClosed[i] = l.beastRule == 1 ? 1 : l.beastRule == 2 ? (breachOpen ? 0 : 1) : (linkOpen[i] ? 0 : 1);
+    }
     for (auto& d : divers) if (d.bot) Bot(d, dt);
     for (auto& d : divers) UpdateDiver(d, dt);
     UpdateDarts(dt);
@@ -613,6 +632,7 @@ void Match::UpdateDiver(DiverState& d, float dt) {
         else { d.hp -= 2 * dt; d.regenT = 0; }
     }
     if (d.regenT > e.C("regen_delay_s", 4)) d.hp = std::min(d.hpMax, d.hp + e.C("regen_rate", 20) * dt);
+    if (d.invulnerable) d.hp = std::max(d.hp, 1.0f);
     if (d.hp < d.hpMax * 0.5f) eco.AddBlood(d.pos, e.C("blood_diver_wounded", 2) * dt);
     if (d.hp <= 0) DownDiver(d, d.lastHitBy.empty() ? "wounds" : d.lastHitBy);
 }
@@ -748,7 +768,7 @@ void Match::FireRound(DiverState& d) {
             if (along < 0 || along > w.arc) continue;
             float off = Vector3Length(Vector3Subtract(to, Vector3Scale(dir, along)));
             if (off > 1.2f + bodies[a.sp].radius) continue;
-            if (along < bd && level.Sight(eye, a.pos, linkOpen)) { bd = along; best = i; }
+            if (along < bd && level.Sight(eye, a.pos, linkOpen, true)) { bd = along; best = i; }
         }
         if (best >= 0) Arc(d, best, dmg, h.forged ? 6 : 4, w.arc, 1.5f);
         return;
@@ -927,7 +947,7 @@ void Match::UpdateDarts(float dt) {
                 Vector3 np = Vector3Add(t.pos, Vector3Scale(t.vel, dt));
                 t.vel = Vector3Scale(t.vel, powf(0.3f, dt));
                 t.vel.y -= 1.5f * dt;
-                if (!level.Inside(np, 0.05f, linkOpen)) t.vel = {0, 0, 0};
+                if (!level.Inside(np, 0.05f, linkOpen, true)) t.vel = {0, 0, 0};
                 else t.pos = np;
                 for (int i = 0; i < (int)eco.agents.size() && t.stuck < 0; i++) {
                     const Agent& a = eco.agents[i];
@@ -943,7 +963,7 @@ void Match::UpdateDarts(float dt) {
         t.vel = Vector3Scale(t.vel, powf(0.55f, dt));
         t.life -= dt;
         const WeaponDef* w = t.weapon >= 0 ? &WD.weapons[t.weapon] : nullptr;
-        if (t.life <= 0 || !level.Inside(t.pos, 0.02f, linkOpen)) {
+        if (t.life <= 0 || !level.Inside(t.pos, 0.02f, linkOpen, true)) {
             if (t.kind == 1 || t.kind == 6) eco.AddChum(prev, w ? w->chum : 40);
             else if (t.kind == 3 && w && w->splash > 0) Explode(prev, t.damage, w->splash, t.owner);
             else fx.push_back({1, prev, t.vel});
@@ -976,7 +996,7 @@ void Match::UpdateDarts(float dt) {
             Vector3 head = Vector3Add(a.pos, Vector3Scale(fwd, b.length * 0.5f)), tail = Vector3Subtract(a.pos, Vector3Scale(fwd, b.length * 0.5f));
             float tb = 0;
             if (SegSegDist(prev, t.pos, tail, head, &tb) > std::max(0.06f, b.radius) + 0.03f) continue;
-            if (!level.Sight(t.pos, a.pos, linkOpen)) continue;   // not through a wall into a body on the far side
+            if (!level.Sight(t.pos, a.pos, linkOpen, true)) continue;   // not through a wall into a body on the far side
             if (t.kind == 1) { eco.AddChum(a.pos, w ? w->chum : 40); t.alive = false; break; }
             if (t.kind == 2) {
                 // a net: holds a beast up to size 3 for 6 s, size 4 for 3 s (forged: size 4 for 4 s, size 5 for 2 s)
@@ -1008,7 +1028,17 @@ void Match::OnDeath(int ai, int killer) {
     if (di < 0 && killer == -1 && pendingKiller >= 0) di = pendingKiller;
     if (ai == bossAgent) {
         // "Kill reward: 1,500 base scrip x tide, a guaranteed Locker weapon for each diver, the captain's safe key"
-        for (auto& d : divers) if (!d.dead) { Pay(d, 1500.0f * tide); if (!d.downed) GiveLockerWeapon(d); }
+        for (auto& d : divers) if (!d.dead) {
+            Pay(d, 1500.0f * tide * (supperCall ? 2 : 1));
+            if (!d.downed) GiveLockerWeapon(d);
+            if (supperCall && !d.downed) {
+                // the Supper Call's reward: the weapon in hand comes out of the Forge
+                Held& h = Cur(d);
+                if (!h.forged && W(h).source != "drop") { h.forged = true; h.altAmmo = (int)(Rand() * Weapons().forgeAmmoTypes.size()) % std::max(1, (int)Weapons().forgeAmmoTypes.size()); h.mag = (int)MagMax(W(h), h); h.reserve = (int)ResMax(W(h), h); }
+            }
+        }
+        if (supperCall) Say("", "Supper Call: the engineer would be proud. Every weapon in hand is pressure-forged.", 6);
+        supperCall = false;
         keys.insert("Goliath");
         bossActive = false; bossAgent = -1; bossInhaleT = -1; bossInhaleDiver = -1;
         for (auto& d : divers) if (d.holder == ai) { d.heldT = 0; d.holder = -1; }
@@ -1185,7 +1215,7 @@ int Match::NearestDiver(Vector3 p, float r, bool needSight, bool upOnly) const {
         if (d.dead || (upOnly && d.downed)) continue;
         float dist = Vector3Distance(d.pos, p);
         if (dist >= bd) continue;
-        if (needSight && !level.Sight(p, Eye(d), linkOpen)) continue;
+        if (needSight && !level.Sight(p, Eye(d), linkOpen, true)) continue;
         bd = dist; best = d.slot;
     }
     return best;
@@ -1566,6 +1596,7 @@ int Match::NearestStation(Vector3 p, float r) const {
         const Station& s = level.stations[i];
         if (s.type == StationType::Feature || s.type == StationType::Hazard || s.type == StationType::Entry || s.type == StationType::Boss) continue;
         if (s.type == StationType::Locker && !LockerLiveAt(s)) continue;
+        if (s.type == StationType::QuestStep && s.step != questStep + 1) continue;
         float d = Vector3Distance(s.pos, p);
         if (d < bd) { bd = d; best = i; }
     }
@@ -1628,6 +1659,13 @@ std::string Match::PromptFor(int di, int* cost) const {
         case StationType::Quest: return safeOpen ? "The captain's safe (open)" : "The captain's safe: " + std::to_string(keys.size()) + " of 3 keys" + (keys.size() >= 3 ? ". E: open it" : "");
         case StationType::Cleaning: return "E: the cleaner shrimp scrape off parasites";
         case StationType::Workbench: return "Workbench (salvage parts come in a later build)";
+        case StationType::QuestStep: {
+            if (s.step != questStep + 1 && !(s.step == 3 && questStep == 2)) return "";
+            if (s.step == 1) return "E: read the oil-stained log";
+            if (s.step == 2) return "E: take the brass steam whistle";
+            if (power) return "The boiler's too hot to whistle: the power is on";
+            return "E: pull the whistle cord (" + std::to_string(whistlePulls) + "/3)";
+        }
         default: return "";
     }
 }
@@ -1752,6 +1790,28 @@ bool Match::Interact(int di, bool hold, float dt) {
             for (auto& o : divers) if (!o.dead) { Pay(o, 2500); if (!o.downed) GiveLockerWeapon(o); }
             Say("The captain's safe", "swings open: salvage for everyone", 5);
             return true;
+        case StationType::QuestStep: {
+            // Supper Call: the chief engineer's log, his whistle, three blasts on the boiler's cord with the power off
+            const Json& q = map->extra["quest"];
+            if (s.step == 1 && questStep == 0) { questStep = 1; Say("Chief engineer's log", q["steps"][0].Str0(), 7); return true; }
+            if (s.step == 2 && questStep == 1) { questStep = 2; Say("", q["steps"][1].Str0(), 5); return true; }
+            if (s.step == 3 && questStep == 2 && !power) {
+                whistlePulls++; whistleT = 6;
+                eco.AddNoise(s.pos, 8);
+                fx.push_back({5, s.pos, {0, 0, 0}});
+                Say("", whistlePulls < 3 ? "The whistle shrieks through the wreck..." : "A third blast. The boiler's shadow moves.", 3);
+                if (whistlePulls >= 3) {
+                    questStep = 3; supperCall = true;
+                    if (bossAgent >= 0 && eco.agents[bossAgent].alive) {
+                        bossActive = true; bossIdleT = 0; bossProvoked = true;
+                        Agent& b = eco.agents[bossAgent]; b.hunger = 1; b.fedT = 0;
+                        Say(map->species[b.sp].name, "comes up for its supper", 5);
+                    }
+                }
+                return true;
+            }
+            return false;
+        }
         case StationType::Cleaning: {
             bool any = false;
             for (int i = 0; i < (int)eco.agents.size(); i++) if (eco.agents[i].alive && eco.agents[i].host == d.agent && d.agent >= 0) { eco.agents[i].host = -1; eco.agents[i].st = State::Flee; any = true; }
@@ -1766,7 +1826,7 @@ bool Match::Interact(int di, bool hold, float dt) {
 Vector3 Match::NavStep(const DiverState& d, Vector3 goal) const {
     // inside a passage: carry on to the far mouth (or back, if the goal is behind)
     for (const auto& v : level.vols) {
-        if (v.link < 0 || !linkOpen[v.link]) continue;
+        if (v.link < 0 || !v.diverOk || !linkOpen[v.link]) continue;
         if (d.pos.x < v.lo.x || d.pos.x > v.hi.x || d.pos.y < v.lo.y || d.pos.y > v.hi.y || d.pos.z < v.lo.z || d.pos.z > v.hi.z) continue;
         if (eco.ZoneAt(d.pos) >= 0) break;                    // the passage box reaches into the room: we're in the room
         const Link& l = map->links[v.link];
@@ -1796,7 +1856,7 @@ Vector3 Match::NavStep(const DiverState& d, Vector3 goal) const {
             int z = q[h];
             if (z == gz) break;
             for (int li = 0; li < (int)map->links.size(); li++) {
-                if (!linkOpen[li]) continue;
+                if (!DiverLink(li)) continue;
                 const Link& l = map->links[li];
                 if (l.oneWay && pass == 0) continue;
                 int n = -1;
@@ -1861,7 +1921,7 @@ void Match::Bot(DiverState& d, float dt) {
         if (Vector3Distance(t->pos, d.pos) < (dry ? 2.0f : 1.4f) && (map->species[t->sp].size <= 2 || dry)) { Melee(d.slot); return; }
         if (dry) return;                                        // out of darts: the knife's the only thing left
         if (h.mag <= 0) { Reload(d.slot); return; }
-        if (!level.Sight(Eye(d), t->pos, linkOpen)) return;
+        if (!level.Sight(Eye(d), t->pos, linkOpen, true)) return;
         if (careful) {
             // hold fire if something big is in the line of fire (a stray dart into a shark starts a fight)
             Vector3 eye = Eye(d), dir = Vector3Normalize(Vector3Subtract(t->pos, eye));
@@ -1911,7 +1971,7 @@ void Match::Bot(DiverState& d, float dt) {
             float dist = Vector3Distance(a.pos, d.pos);
             bool boss = IsBoss(i) && bossActive;                  // a sleeping Goliath is left sleeping
             if (IsBoss(i) && !bossActive) continue;
-            if ((onMe || (enemy && dist < 25) || boss) && dist < (enemy || boss ? 25 : td) && level.Sight(Eye(d), a.pos, linkOpen)) { td = dist; threat = i; }
+            if ((onMe || (enemy && dist < 25) || boss) && dist < (enemy || boss ? 25 : td) && level.Sight(Eye(d), a.pos, linkOpen, true)) { td = dist; threat = i; }
         }
         // 3. prey
         int prey = -1; float pd = 22;
@@ -1924,7 +1984,7 @@ void Match::Bot(DiverState& d, float dt) {
             if (careful && s.size <= 1 && s.social == "school" && eco.CountInZone(a.sp, a.zone) > 8 && tide >= 3) continue;   // don't bleed the school
             float dist = Vector3Distance(a.pos, d.pos);
             if (!careful) dist *= 0.8f;
-            if (dist < pd && (a.zone == d.zone || dist < 10) && level.Sight(Eye(d), a.pos, linkOpen)) { pd = dist; prey = i; }
+            if (dist < pd && (a.zone == d.zone || dist < 10 || !map->zones[a.zone].diverOk) && level.Sight(Eye(d), a.pos, linkOpen, true)) { pd = dist; prey = i; }
         }
         d.botTarget = threat >= 0 ? threat : prey;
         // a territorial beast's warning (or an apex coming): back out of its radius rather than fight it
@@ -1949,7 +2009,7 @@ void Match::Bot(DiverState& d, float dt) {
             {
                 std::vector<int> q{d.zone}; seen[d.zone] = 1;
                 for (size_t h = 0; h < q.size(); h++) for (int li = 0; li < (int)map->links.size(); li++) {
-                    if (!linkOpen[li]) continue; const Link& l = map->links[li];
+                    if (!DiverLink(li)) continue; const Link& l = map->links[li];
                     if (l.oneWay) continue;
                     int n = l.from == q[h] ? l.to : (l.to == q[h] ? l.from : -1);
                     if (n >= 0 && !seen[n]) { seen[n] = 1; q.push_back(n); }
@@ -1977,7 +2037,7 @@ void Match::Bot(DiverState& d, float dt) {
                     if (have) { const Held* hh = nullptr; for (const auto& h : d.weapons) if (h.def == s.weapon) hh = &h; if (hh && hh->reserve < ResMax(w, *hh) * 0.25f) { cost = hh->forged ? (int)WD.rearm : w.price / 2; score = hh->mag + hh->reserve == 0 ? 98 : 85; } }
                     else if (Cur(d).mag + Cur(d).reserve == 0 && w.price <= 1200) { cost = w.price; score = 97; }   // dry: any gun beats the knife
                     else if (val > curVal * 1.3f) { cost = w.price; score = 75; }
-                } else if (s.type == StationType::Power && !power) { score = 65; cost = 0; }
+                } else if (s.type == StationType::Power && !power) { if (tide < 8 || !strong) continue; score = 65; cost = 0; }   // power wakes the Goliath: not before the team is ready
                 else if (s.type == StationType::Forge && !Cur(d).forged && W(Cur(d)).source != "start") { cost = (int)WD.forgePrice; score = 80; }
                 else if (s.type == StationType::Locker && LockerLiveAt(s) && d.scrip > 4000) { cost = fireSaleT > 0 ? WD.fireSalePull : WD.lockerPull; score = 30; }
                 else if (s.type == StationType::Quest && keys.size() >= 3 && !safeOpen) { score = 99; }
@@ -2008,7 +2068,7 @@ void Match::Bot(DiverState& d, float dt) {
             for (int pass = 0; pass < 2 && bestZ < 0; pass++) {
                 std::vector<char> seen(map->zones.size(), 0); std::vector<int> q{d.zone}; seen[d.zone] = 1;
                 for (size_t h = 0; h < q.size(); h++) for (int li = 0; li < (int)map->links.size(); li++) {
-                    if (!linkOpen[li]) continue; const Link& l = map->links[li];
+                    if (!DiverLink(li)) continue; const Link& l = map->links[li];
                     if (l.oneWay && pass == 0) continue;
                     int nn = l.from == q[h] ? l.to : (l.to == q[h] && !l.oneWay ? l.from : -1);
                     if (nn >= 0 && !seen[nn]) { seen[nn] = 1; q.push_back(nn); }
@@ -2053,7 +2113,7 @@ void Match::Bot(DiverState& d, float dt) {
             // out of its room the way we came: the nearest open passage
             float bd = 1e9f; Vector3 exitTo = d.pos;
             for (int li = 0; li < (int)map->links.size(); li++) {
-                if (!linkOpen[li]) continue; const Link& l = map->links[li];
+                if (!DiverLink(li)) continue; const Link& l = map->links[li];
                 if (l.from != d.zone && l.to != d.zone) continue;
                 Vector3 far = l.from == d.zone ? l.b : l.a;
                 float dd = Vector3Distance(far, d.pos);
@@ -2337,6 +2397,70 @@ int RunRedTideMatchTest() {
                 check(m.bossInhaleT < 0 && !q.downed && m.bossGillsT > 0, "150 to the gills: it spits the diver out and the gills open for 2 s");
             }
         }
+    }
+    // the ship confines its divers; portholes let darts out; the breach opens to beasts at tide 4
+    m.Init("ship", 1, 12, false);
+    {
+        DiverState& q = m.divers[0];
+        q.invulnerable = true;
+        int bridge = m.map->ZoneIndex("Bridge"), fore = m.map->ZoneIndex("Foredeck (outside)"), keel = m.map->ZoneIndex("The Keel & Sand");
+        int bw = 0, all = (int)m.map->windows.size();
+        for (const auto& w : m.map->windows) if (w.zone == bridge) bw++;
+        check(all >= 8 && bw >= 2, TextFormat("portholes: %d in all, %d in the Bridge looking onto the Foredeck", all, bw));
+        // swim at the hatch: stay in the Bridge
+        int hatch = -1;
+        for (int li = 0; li < (int)m.map->links.size(); li++) if (m.map->links[li].to == fore || m.map->links[li].from == fore) if (m.map->links[li].from == bridge || m.map->links[li].to == bridge) hatch = li;
+        const Link& hl = m.map->links[hatch];
+        q.pos = hl.from == bridge ? hl.a : hl.b;
+        Vector3 out = hl.from == bridge ? hl.b : hl.a;
+        for (int i = 0; i < 200; i++) { m.SteerDiver(0, Vector3Subtract(out, q.pos), Vector3Subtract(out, q.pos).y, false, false, 0.05f); m.Step(0.05f); }
+        check(m.eco.ZoneAt(q.pos) == bridge, "the Bridge hatch is a window now: divers can't leave the ship");
+        // a fish outside, shot through a porthole
+        const Window* w0 = nullptr;
+        for (const auto& w : m.map->windows) if (w.zone == bridge) { w0 = &w; break; }
+        Vector3 wc = Vector3Lerp(w0->lo, w0->hi, 0.5f);
+        Vector3 inside = wc, outside = wc;
+        (&inside.x)[w0->axis] = (&m.map->zones[bridge].plan.x)[0] * 0;   // (set below)
+        const Zone& bz = m.map->zones[bridge];
+        const Zone& oz = m.map->zones[fore];
+        float bmid = w0->axis == 0 ? bz.plan.x + bz.plan.width / 2 : bz.plan.y + bz.plan.height / 2;
+        float omid = w0->axis == 0 ? oz.plan.x + oz.plan.width / 2 : oz.plan.y + oz.plan.height / 2;
+        (&inside.x)[w0->axis] = bmid + (omid > bmid ? 1.0f : -1.0f) * ((w0->axis == 0 ? bz.plan.width : bz.plan.height) / 2 - 1.2f);
+        (&outside.x)[w0->axis] = omid;
+        int fish = -1;
+        for (int i = 0; i < (int)m.eco.agents.size(); i++) { const Agent& a = m.eco.agents[i]; if (a.alive && a.zone == fore && m.map->species[a.sp].size <= 2) { fish = i; break; } }
+        check(fish >= 0, "fish swim outside the Bridge's windows");
+        if (fish >= 0) {
+            Agent& f = m.eco.agents[fish];
+            f.pos = outside; f.vel = {0, 0, 0}; f.stun = 5;
+            q.pos = inside; q.vel = {0, 0, 0};
+            Vector3 dir = Vector3Normalize(Vector3Subtract(f.pos, m.Eye(q)));
+            q.yaw = atan2f(dir.x, dir.z); q.pitch = asinf(std::clamp(dir.y, -1.0f, 1.0f)); q.ads = true;
+            float hp0 = f.hp; int scrip0 = q.scrip;
+            for (int k = 0; k < 6 && f.alive && f.hp >= hp0; k++) { q.fireT = 0; m.Fire(0, true, 0.05f); for (int j = 0; j < 20; j++) { f.pos = outside; f.vel = {0, 0, 0}; m.Step(0.05f); } }
+            check(!f.alive || f.hp < hp0, TextFormat("a dart through a porthole hits the %s outside (scrip %d -> %d)", m.map->species[f.sp].name.c_str(), scrip0, q.scrip));
+        }
+        int bl = -1;
+        for (int li = 0; li < (int)m.map->links.size(); li++) if (m.map->links[li].beastRule == 2) bl = li;
+        check(bl >= 0 && m.eco.linkClosed[bl] == 1 && !m.breachOpen, "the hull breach is shut to the sharks at tide 1");
+        m.BeginTidePublic(4); m.Step(0.05f);
+        check(m.breachOpen && m.eco.linkClosed[bl] == 0, "and torn open at tide 4");
+        (void)keel;
+    }
+    // Supper Call: the log, the whistle, three blasts on the boiler cord (power off) wake the Goliath into its fight
+    m.Init("ship", 1, 13, false);
+    {
+        DiverState& q = m.divers[0];
+        q.invulnerable = true;
+        m.linkOpen.assign(m.linkOpen.size(), 1);
+        for (auto& dr : m.level.doors) dr.open = true;
+        auto at = [&](int step) { for (const auto& st : m.level.stations) if (st.type == StationType::QuestStep && st.step == step) q.pos = st.pos; };
+        at(2); check(!m.Interact(0, false, 0.01f), "the whistle can't be found before the log is read");
+        at(1); check(m.Interact(0, false, 0.01f) && m.questStep == 1, "the chief engineer's log");
+        at(2); check(m.Interact(0, false, 0.01f) && m.questStep == 2, "the brass steam whistle");
+        at(3);
+        for (int k = 0; k < 3; k++) { m.Interact(0, false, 0.01f); m.Step(0.5f); }
+        check(m.questStep == 3 && m.bossActive && m.supperCall, "three blasts on the boiler's cord: the Goliath comes up for its supper");
     }
     // --redtide-sim runs without crashing (a short one)
     {

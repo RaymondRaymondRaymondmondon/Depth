@@ -39,9 +39,9 @@ struct WeaponsData {
 const WeaponsData& Weapons();
 
 // ---------------------------------------------------------------- the level (swimmable volumes built from the blockout)
-struct Volume { Vector3 lo, hi; int zone = -1; int link = -1; };   // a room (zone) or a passage (link)
+struct Volume { Vector3 lo, hi; int zone = -1; int link = -1; int window = -1; bool diverOk = true; };   // a room (zone), a passage (link) or a porthole (window)
 struct Door { int link = -1; bool open = false; int cost = 0; Vector3 pos{}; std::string name; };
-enum class StationType { Rack, Tonic, Locker, Forge, Power, Workbench, Trap, Quest, Cleaning, Feature, Hazard, Entry, Boss };
+enum class StationType { Rack, Tonic, Locker, Forge, Power, Workbench, Trap, Quest, Cleaning, Feature, Hazard, Entry, Boss, QuestStep };
 struct Station {
     StationType type = StationType::Feature;
     std::string name;
@@ -51,6 +51,7 @@ struct Station {
     std::string tonic;             // tonic machines: the tonic id
     int lockerSpot = -1;           // Locker spots: 0, 1, ...
     bool needsPower = false;       // tonic machines beyond the first two, the second Locker spot, the Forge, traps
+    int step = 0;                  // quest steps: 1, 2, 3...
 };
 struct Level {
     std::vector<Volume> vols;
@@ -58,11 +59,12 @@ struct Level {
     std::vector<Station> stations;
     int startZone = 0;
     Vector3 start{};
-    // inside some room, or a passage whose door is open, with a margin r (linkOpen: per link, 1 = open)
-    bool Inside(Vector3 p, float r, const std::vector<char>& linkOpen) const;
+    // inside some room, or a passage whose door is open, with a margin r (linkOpen: per link, 1 = open); divers keep
+    // to the volumes they may use, darts (darts = true) also fly through portholes into the open water outside
+    bool Inside(Vector3 p, float r, const std::vector<char>& linkOpen, bool darts = false) const;
     // slides along walls: tries the whole move, then each axis alone
     Vector3 Move(Vector3 from, Vector3 to, float r, const std::vector<char>& linkOpen) const;
-    bool Sight(Vector3 a, Vector3 b, const std::vector<char>& linkOpen) const;   // a clear line through open water
+    bool Sight(Vector3 a, Vector3 b, const std::vector<char>& linkOpen, bool darts = false) const;   // a clear line through open water
 };
 void BuildLevel(const MapData& m, Level& L);
 
@@ -145,6 +147,8 @@ struct Match {
     std::vector<float> bodyScale;               // per species: the drawing scale that matches them   // indices into map->attacks per species
     std::string botStyle = "careful";
     int scripAt10 = -1;
+    int questStep = 0, whistlePulls = 0; float whistleT = 0; bool supperCall = false;   // the Supper Call easter egg
+    bool breachOpen = false;
     uint32_t rng = 99;
     bool over = false;
     std::string overReason;
@@ -182,6 +186,7 @@ struct Match {
     Vector3 Forward(const DiverState& d) const;
     int Living() const;               // divers up (not downed, not dead)
     bool IsBoss(int agent) const { return agent >= 0 && agent == bossAgent; }
+    bool DiverLink(int li) const { return linkOpen[li] && map->links[li].diverOk; }
     // for the tests
     void HitDiverPublic(DiverState& d, float dmg, const std::string& by, const std::string& effect, Vector3 from, int attacker) { HitDiver(d, dmg, by, effect, from, attacker); }
     void ApplyDropPublic(DropType t, Vector3 at) { ApplyDrop(t, at); }
