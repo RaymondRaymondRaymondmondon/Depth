@@ -351,8 +351,8 @@ void Merman(Vector2 feet, const SceneInputs& in, const Beat& bt) {
         float s = 1.1f, f = -1, t = in.t;
         Build b; b.thigh = 30; b.shin = 30; b.upper = 26; b.fore = 25; b.spine = 30; b.chest = 25; b.head = 12; b.shoulderW = 18; b.stanceF = 4; b.stanceB = -4;
         RPose P;
-        bool longNote = in.bandPlaying && fmodf(bt.bar, 4) >= 1 && fmodf(bt.bar, 4) < 3;
-        P[C_LEAN] = longNote ? -0.18f : 0.02f + 0.02f * sinf(t * 0.5f);
+        float longNote = in.bandPlaying ? 0.5f - 0.5f * cosf(bt.bar * PI * 0.5f) : 0.0f;   // he leans back into the long notes and out again over four bars (a swell, never a snap)
+        P[C_LEAN] = 0.02f + 0.02f * sinf(t * 0.5f) - 0.2f * longNote;
         P[C_HEAD] = in.bandPlaying ? -0.25f : 0.12f;
         P[C_HFX] = in.bandPlaying ? 14 : 8; P[C_HFY] = in.bandPlaying ? -6 : 34; P[C_HBX] = in.bandPlaying ? 18 : -4; P[C_HBY] = in.bandPlaying ? 4 : 36;
         P[C_HIPY] = 18;
