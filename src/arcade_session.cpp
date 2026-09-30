@@ -1,7 +1,8 @@
-// The Deep Arcade's session: lobby, handshake, heartbeats, drop/rejoin, and host-authoritative Scuttle (see arcade_session.h).
+// The Deep Arcade's session: lobby, handshake, heartbeats, drop/rejoin, and the host-authoritative game (see arcade_session.h).
 #include "arcade_session.h"
 #include <algorithm>
 #include <cstdio>
+#include <cstring>
 
 #ifndef DEPTH_BUILD_STAMP
 #define DEPTH_BUILD_STAMP "dev"
@@ -11,15 +12,7 @@ namespace arcade {
 
 enum Msg : uint8_t { M_HELLO = 1, M_WELCOME, M_REJECT, M_LOBBY, M_READY, M_CHAT, M_LAUNCH, M_ACTION, M_STATE, M_PING, M_PONG, M_BYE };
 
-const char* GameName(int g) { return g == G_SCUTTLE ? "Scuttle" : "?"; }
-int GameMaxPlayers(int g) { return g == G_SCUTTLE ? scuttle::MAX_SEATS : 2; }
 uint32_t BuildId() { static const char* s = DEPTH_BUILD_STAMP; return Fnv1a(s, strlen(s)); }
-uint32_t DataHash() {
-    Writer w;
-    for (int c = 0; c < scuttle::C_COUNT; c++) { w.Str(scuttle::Card(c).name); w.U8(scuttle::Card(c).copies); }
-    w.U8(scuttle::TRACK); w.U8(scuttle::HAND); w.U8(scuttle::BETS_PER_ROUND); w.F32(scuttle::TURN_SECONDS); w.F32(scuttle::RESPONSE_SECONDS);
-    return Fnv1a(w.b.data(), w.b.size());
-}
 std::string MakeCode(uint32_t seed) {
     static const char A[] = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
     std::string c;
@@ -50,8 +43,8 @@ bool Session::Host(const Profile& p, int g, std::string* err, uint16_t port, std
     for (auto& s : seats) s = SeatInfo{};
     seats[0].used = true; seats[0].host = true; seats[0].ready = true; seats[0].name = p.name; seats[0].id = p.id;
     mySeat = 0;
-    chat.clear();
-    Log("You are hosting " + std::string(GameName(g)) + ". Code " + code + ".");
+    chat.clear(); snapshot.clear();
+    Log("You are hosting " + std::string(Info(g).name) + ". Code " + code + ".");
     beaconOn = withBeacon && beacon.Start();
     status = "Hosting";
     return true;
@@ -71,7 +64,8 @@ bool Session::Join(const Profile& p, const std::string& addr, std::string* err, 
     if (server < 0) { tr.reset(); return false; }
     role = R_CLIENT; stage = S_CONNECTING; hostAddr = addr; rejoinToken = token;
     heardHost = -1;   // (the clock starts at the next Update: `now` may be stale)
-    chat.clear();
+    lastSeq = 0;
+    chat.clear(); snapshot.clear();
     status = "Connecting to " + addr + "...";
     return true;
 }
@@ -85,7 +79,8 @@ void Session::Leave() {
     }
     if (beaconOn) { beacon.Stop(); beaconOn = false; }
     role = R_NONE; stage = S_IDLE; server = -1; mySeat = -1; paused = false; pending.clear();
-    for (int& c : crabSeat) c = -1;
+    truth.reset();
+    for (int& c : playerSeat) c = -1;
 }
 
 void Session::End(const std::string& why) {
@@ -96,7 +91,7 @@ void Session::End(const std::string& why) {
 }
 
 // ---- sending
-void Session::SendTo(int conn, const Writer& w) { if (tr && conn >= 0) tr->Send(conn, net::CH_CONTROL, w.b.data(), (int)w.b.size()); }
+void Session::SendTo(int conn, const Writer& w, net::Channel ch) { if (tr && conn >= 0) tr->Send(conn, ch, w.b.data(), (int)w.b.size()); }
 void Session::Broadcast(const Writer& w) { for (auto& s : seats) if (s.used && s.conn >= 0 && !s.lost) SendTo(s.conn, w); }
 void Session::SendLobby() {
     Writer w; w.U8(M_LOBBY); w.U8(stage); w.U8(game); w.U8(paused); w.F32(pauseLeft);
@@ -106,21 +101,24 @@ void Session::SendLobby() {
         w.U8((s.ai ? 1 : 0) | (s.ready ? 2 : 0) | (s.lost ? 4 : 0) | (s.host ? 8 : 0));
         w.Str(s.name); w.U16((uint32_t)std::clamp(s.ping, 0, 65535));
     }
-    for (int k = 0; k < scuttle::MAX_SEATS; k++) w.U8((uint8_t)(crabSeat[k] + 1));
+    for (int k = 0; k < MAX_PLAYERS; k++) w.U8((uint8_t)(playerSeat[k] + 1));
     Broadcast(w);
 }
+// every player gets the game as they may see it; real-time games go unreliable with a sequence number (newest wins)
 void Session::SendState() {
+    if (!truth) return;
+    bool rt = Info(game).realtime;
+    snapSeq++;
     for (int i = 0; i < MAX_PLAYERS; i++) {
         SeatInfo& s = seats[i];
         if (!s.used || s.conn < 0 || s.lost) continue;
-        Writer w; w.U8(M_STATE);
-        for (int k = 0; k < scuttle::MAX_SEATS; k++) w.U8((uint8_t)(crabSeat[k] + 1));
-        scuttle::Serialize(truth, CrabOfSeat(i), w);
-        SendTo(s.conn, w);
+        Writer w; w.U8(M_STATE); w.U32(snapSeq);
+        truth->Snapshot(PlayerOfSeat(i), w);
+        SendTo(s.conn, w, rt ? net::CH_STATE : net::CH_CONTROL);
     }
-    // the host plays too: its screen gets the same hidden-information view as everyone else
-    Writer w; scuttle::Serialize(truth, CrabOfSeat(mySeat), w);
-    Reader r(w.b); scuttle::Deserialize(view, r);
+    // the host plays too: its screen gets the same filtered view as everyone else
+    Writer w; truth->Snapshot(PlayerOfSeat(mySeat), w);
+    snapshot = std::move(w.b);
     stateVersion++;
 }
 void Session::SendChat(int seat, const std::string& text) {
@@ -132,9 +130,8 @@ void Session::SendChat(int seat, const std::string& text) {
 
 // ---- seats
 int Session::SeatOfConn(int conn) const { for (int i = 0; i < MAX_PLAYERS; i++) if (seats[i].used && seats[i].conn == conn) return i; return -1; }
-int Session::CrabOfSeat(int seat) const { for (int k = 0; k < scuttle::MAX_SEATS; k++) if (crabSeat[k] == seat && seat >= 0) return k; return -1; }
-int Session::SeatOfCrab(int crab) const { return crab >= 0 && crab < scuttle::MAX_SEATS ? crabSeat[crab] : -1; }
-int Session::MyCrab() const { return CrabOfSeat(mySeat); }
+int Session::PlayerOfSeat(int seat) const { for (int k = 0; k < MAX_PLAYERS; k++) if (playerSeat[k] == seat && seat >= 0) return k; return -1; }
+int Session::SeatOfPlayer(int p) const { return p >= 0 && p < MAX_PLAYERS ? playerSeat[p] : -1; }
 
 void Session::SetReady(bool r) {
     if (role == R_HOST) return;
@@ -143,7 +140,7 @@ void Session::SetReady(bool r) {
 void Session::AddAI() {
     if (role != R_HOST || stage != S_LOBBY) return;
     int used = 0; for (auto& s : seats) used += s.used;
-    if (used >= GameMaxPlayers(game)) return;
+    if (used >= Info(game).maxPlayers) return;
     static const char* NAMES[] = {"Bosun Bot", "Old Salt", "Crabby", "Barnacle Bill", "Deckhand"};
     for (int i = 0; i < MAX_PLAYERS; i++) if (!seats[i].used) {
         int nAi = 0; for (auto& s : seats) nAi += s.used && s.ai;
@@ -169,24 +166,28 @@ void Session::Chat(const std::string& text) {
     else if (role == R_CLIENT) { Writer w; w.U8(M_CHAT); w.U8(0); w.Str(text.substr(0, 120)); SendTo(server, w); }
 }
 bool Session::CanLaunch(std::string* why) const {
-    auto no = [&](const char* m) { if (why) *why = m; return false; };
+    auto no = [&](const std::string& m) { if (why) *why = m; return false; };
+    const GameInfo& gi = Info(game);
     if (role != R_HOST) return no("Only the host can start.");
     if (stage != S_LOBBY) return no("Already playing.");
+    if (!gi.built) return no(std::string(gi.name) + " hasn't come aboard yet.");
     int n = 0;
     for (auto& s : seats) if (s.used) { n++; if (!s.ready) return no("Waiting for everyone to be ready."); }
-    if (n < 2) return no("Needs two or more: invite someone or add an AI.");
-    if (n > GameMaxPlayers(game)) return no("Too many seats for this game.");
+    if (n < gi.minPlayers) return no(gi.minPlayers == 2 ? "Needs two or more: invite someone or add an AI." : "Needs more players.");
+    if (n > gi.maxPlayers) return no("Too many seats for this game.");
     return true;
 }
 bool Session::Launch(std::string* why) {
     if (!CanLaunch(why)) return false;
+    truth = MakeGameHost(game);
+    if (!truth) { if (why) *why = "That game isn't aboard."; return false; }
     int n = 0;
-    for (int& c : crabSeat) c = -1;
-    for (int i = 0; i < MAX_PLAYERS; i++) if (seats[i].used) crabSeat[n++] = i;
-    scuttle::NewMatch(truth, n, Rnd(rng) | 1);
-    stage = S_PLAYING; aiWait = roundWait = 0;
+    for (int& c : playerSeat) c = -1;
+    for (int i = 0; i < MAX_PLAYERS; i++) if (seats[i].used) playerSeat[n++] = i;
+    truth->Start(n, Rnd(rng) | 1);
+    stage = S_PLAYING; lastSnap = now;
     Writer w; w.U8(M_LAUNCH); w.U8(game); Broadcast(w);
-    Log("The crabs line up. " + std::string(GameName(game)) + " begins!");
+    Log("The game begins: " + std::string(Info(game).name) + ".");
     SendLobby();
     SendState();
     return true;
@@ -200,22 +201,27 @@ void Session::BackToLobby() {
         if (s.lost) { s = SeatInfo{}; continue; }      // whoever never came back leaves the table
         if (!s.ai && !s.host) s.ready = false;
     }
-    for (int& c : crabSeat) c = -1;
+    for (int& c : playerSeat) c = -1;
+    truth.reset();
     paused = false;
     SendLobby();
 }
 
-void Session::Act(const scuttle::Action& in) {
-    scuttle::Action a = in;
+bool Session::Rematch(std::string* why) {
+    if (role != R_HOST || stage != S_PLAYING || !truth || !truth->Over()) { if (why) *why = "The match isn't over."; return false; }
+    BackToLobby();
+    for (auto& s : seats) if (s.used) s.ready = true;   // (anyone who'd rather not can leave the table)
+    return Launch(why);
+}
+
+void Session::Act(const Writer& action) {
+    if (stage != S_PLAYING) return;
     if (role == R_CLIENT) {
-        if (stage != S_PLAYING) return;
-        Writer w; w.U8(M_ACTION); w.U8(a.kind); w.U8(a.handIdx); w.U8((uint8_t)a.target); w.U8(a.shell); SendTo(server, w);
-    } else if (role == R_HOST) {
-        if (stage != S_PLAYING || paused) return;
-        int crab = MyCrab();
-        if (crab < 0 && a.kind != scuttle::Action::NEXTROUND) return;
-        a.seat = (uint8_t)std::max(crab, 0);
-        if (scuttle::Apply(truth, a)) { aiWait = 0; SendState(); }
+        Writer w; w.U8(M_ACTION); w.Bytes(action.b.data(), action.b.size()); SendTo(server, w);
+    } else if (role == R_HOST && truth && !paused) {
+        int p = MyPlayer();
+        Reader r(action.b);
+        if (p >= 0 && truth->Act(p, r)) SendState();
     }
 }
 
@@ -254,7 +260,7 @@ void Session::HostHello(int conn, Reader& r) {
     } else {
         if (stage != S_LOBBY) return reject("A game is already under way at that table.");
         int used = 0; for (auto& s : seats) used += s.used;
-        if (used >= GameMaxPlayers(game)) return reject("The table is full.");
+        if (used >= Info(game).maxPlayers) return reject("The table is full.");
         for (int i = 0; i < MAX_PLAYERS && seat < 0; i++) if (!seats[i].used) seat = i;
         if (seat < 0) return reject("The table is full.");
         // two divers called the same: number the second
@@ -283,53 +289,34 @@ void Session::HostMessage(int conn, Reader& r) {
         case M_READY: s.ready = r.U8() != 0; if (!r.bad) SendLobby(); break;
         case M_CHAT: { r.U8(); std::string t = r.Str(); if (!r.bad && !t.empty()) SendChat(seat, t); } break;
         case M_ACTION: {
-            if (stage != S_PLAYING || paused) break;
-            scuttle::Action a;
-            a.kind = (scuttle::Action::Kind)r.U8(); a.handIdx = (uint8_t)r.U8(); a.target = (int8_t)r.U8(); a.shell = r.U8() != 0;
-            int crab = CrabOfSeat(seat);
-            if (r.bad || a.kind > scuttle::Action::NEXTROUND || (crab < 0 && a.kind != scuttle::Action::NEXTROUND)) break;
-            a.seat = (uint8_t)std::max(crab, 0);   // a client can only ever act as its own crab
-            if (scuttle::Apply(truth, a)) { aiWait = 0; SendState(); }
+            int p = PlayerOfSeat(seat);   // a client can only ever act as its own player
+            if (stage != S_PLAYING || paused || !truth || p < 0 || s.ai) break;
+            if (truth->Act(p, r) && !Info(game).realtime) SendState();
         } break;
         case M_PONG: { uint32_t sent = r.U32(); s.ping = (int)((uint32_t)(now * 1000) - sent); } break;
         case M_BYE:
             tr->Close(conn, "bye");
-            if (stage == S_PLAYING) { HostLost(seat, "left"); seats[seat].lostAt = now - TAKEOVER_AFTER; }   // they chose to go: the AI steps in at once
-            else HostLost(seat, "left");
+            HostLost(seat, "left");
+            if (stage == S_PLAYING) seats[seat].lostAt = now - TAKEOVER_AFTER;   // they chose to go: the AI steps in at once
             break;
         default: break;
     }
 }
 void Session::HostTick(float dt) {
-    // anyone lost: pause the table; after two minutes the AI plays their crab (they can still come back)
+    // anyone lost: pause the table; after two minutes the AI plays for them (they can still come back)
     paused = false; pauseLeft = 0;
     for (auto& s : seats) if (s.used && s.lost && !s.ai) {
         double left = TAKEOVER_AFTER - (now - s.lostAt);
-        if (left <= 0) { s.ai = true; Log("The AI takes " + s.name + "'s crab."); SendLobby(); }
+        if (left <= 0) { s.ai = true; Log("The AI takes over for " + s.name + "."); SendLobby(); }
         else { paused = true; pauseLeft = std::max(pauseLeft, (float)left); }
     }
-    if (paused) return;
-    if (truth.phase == scuttle::PH_MATCH_OVER) return;
-    if (truth.phase == scuttle::PH_ROUND_OVER) {
-        if ((roundWait += dt) >= ROUND_PAUSE) { roundWait = 0; scuttle::Action a; a.kind = scuttle::Action::NEXTROUND; if (scuttle::Apply(truth, a)) SendState(); }
-        return;
-    }
-    int actor = scuttle::Actor(truth);
-    int seat = SeatOfCrab(actor);
-    if (actor >= 0 && seat >= 0 && seats[seat].ai) {
-        if ((aiWait += dt) >= AI_THINK) {
-            aiWait = 0;
-            scuttle::Action a = scuttle::Bot(truth, actor, rng);
-            if (!scuttle::Apply(truth, a)) { a.kind = truth.phase == scuttle::PH_RESPONSE ? scuttle::Action::RESPOND : scuttle::Action::SKIPBET; a.shell = false; scuttle::Apply(truth, a); }
-            SendState();
-        }
-        return;
-    }
-    std::vector<scuttle::Action> timeouts;
-    scuttle::Tick(truth, dt, timeouts);
-    bool any = false;
-    for (auto& a : timeouts) any |= scuttle::Apply(truth, a);
-    if (any) { Log("Time's up: the tide moves on."); SendState(); }
+    if (paused || !truth) return;
+    uint32_t aiMask = 0;
+    for (int p = 0; p < MAX_PLAYERS; p++) { int s = playerSeat[p]; if (s >= 0 && seats[s].ai) aiMask |= 1u << p; }
+    bool changed = truth->Tick(dt, aiMask);
+    const GameInfo& gi = Info(game);
+    if (gi.realtime) { if (now - lastSnap >= 1.0 / gi.snapshotHz) { lastSnap = now; SendState(); } }
+    else if (changed) SendState();
 }
 
 // ---- the client's side
@@ -341,11 +328,11 @@ void Session::ClientMessage(Reader& r) {
             mySeat = r.U8(); rejoinToken = r.U32(); code = r.Str(); game = r.U8(); hostName = r.Str();
             if (r.bad) { End("The host sent a garbled welcome."); break; }
             stage = S_LOBBY; status = "At " + hostName + "'s table";
-            Log("You join " + hostName + "'s table (" + GameName(game) + ").");
+            Log("You join " + hostName + "'s table (" + Info(game).name + ").");
         } break;
         case M_REJECT: rejects++; End(r.Str()); break;
         case M_LOBBY: {
-            int st = r.U8(); game = r.U8(); paused = r.U8() != 0; pauseLeft = r.F32();
+            int st = r.U8(); int g = r.U8(); bool pz = r.U8() != 0; float pl = r.F32();
             SeatInfo ns[MAX_PLAYERS];
             for (int i = 0; i < MAX_PLAYERS; i++) {
                 ns[i].used = r.U8() != 0;
@@ -353,24 +340,24 @@ void Session::ClientMessage(Reader& r) {
                 int f = r.U8(); ns[i].ai = f & 1; ns[i].ready = f & 2; ns[i].lost = f & 4; ns[i].host = f & 8;
                 ns[i].name = r.Str(); ns[i].ping = r.U16();
             }
-            int cs[scuttle::MAX_SEATS]; for (int& c : cs) c = (int)r.U8() - 1;
+            int ps[MAX_PLAYERS]; for (int& c : ps) c = (int)r.U8() - 1;
             if (r.bad) break;
+            game = g; paused = pz; pauseLeft = pl;
             for (int i = 0; i < MAX_PLAYERS; i++) seats[i] = ns[i];
-            for (int k = 0; k < scuttle::MAX_SEATS; k++) crabSeat[k] = cs[k];
-            if (st == S_LOBBY || st == S_PLAYING) stage = (Stage)st;
+            for (int k = 0; k < MAX_PLAYERS; k++) playerSeat[k] = ps[k];
+            if (st == S_LOBBY || st == S_PLAYING) {
+                if (st == S_LOBBY && stage == S_PLAYING) snapshot.clear();
+                stage = (Stage)st;
+            }
         } break;
         case M_CHAT: { int seat = r.U8(); std::string t = r.Str(); if (!r.bad && seat < MAX_PLAYERS) Log((seats[seat].used ? seats[seat].name : std::string("?")) + ": " + t); } break;
-        case M_LAUNCH: stage = S_PLAYING; Log("The crabs line up. " + std::string(GameName(r.U8())) + " begins!"); break;
+        case M_LAUNCH: { int g = r.U8(); stage = S_PLAYING; lastSeq = 0; Log("The game begins: " + std::string(Info(g).name) + "."); } break;
         case M_STATE: {
-            int cs[scuttle::MAX_SEATS]; for (int& c : cs) c = (int)r.U8() - 1;
-            scuttle::State n;
-            if (!scuttle::Deserialize(n, r)) break;
-            for (int k = 0; k < scuttle::MAX_SEATS; k++) crabSeat[k] = cs[k];
-            int mine = MyCrab();
-            for (int i = 0; i < n.nSeats; i++) if (i != mine && !n.seats[i].hand.empty()) leaks++;
-            if (!n.deck.empty() && n.deck.size() > 0 && std::any_of(n.deck.begin(), n.deck.end(), [](uint8_t c) { return c != 0; })) leaks++;
-            if (n.phase < scuttle::PH_ROUND_OVER) for (auto& b : n.bets) if (b.owner != mine) leaks++;
-            view = n; stateVersion++;
+            uint32_t seq = r.U32();
+            if (r.bad || (seq <= lastSeq && lastSeq - seq < 0x80000000u)) break;   // a late unreliable snapshot: the newer one already arrived
+            lastSeq = seq;
+            snapshot.assign(r.p + r.i, r.p + r.n);
+            stateVersion++; snapshotsReceived++;
         } break;
         case M_PING: { uint32_t t = r.U32(); Writer w; w.U8(M_PONG); w.U32(t); SendTo(server, w); } break;
         case M_BYE: End(r.Str()); break;
@@ -419,14 +406,13 @@ void Session::Update(double t, float dt) {
         }
         if (beaconOn && now - lastBeacon >= BEACON_EVERY) {
             lastBeacon = now;
-            net::LanGame g; g.game = GameName(game); g.name = hostName; g.code = code;
+            net::LanGame g; g.game = Info(game).name; g.name = hostName; g.code = code;
             for (auto& s : seats) g.players += s.used;
-            g.maxPlayers = GameMaxPlayers(game); g.inProgress = stage == S_PLAYING; g.build = BuildId();
+            g.maxPlayers = Info(game).maxPlayers; g.inProgress = stage == S_PLAYING; g.build = BuildId();
             beacon.Announce(g);
         }
         if (stage == S_PLAYING) HostTick(dt);
     } else if (role == R_CLIENT) {
-        if (stage == S_PLAYING && view.timer > 0 && view.timer < 1e8f && !paused) view.timer -= dt;   // (a display countdown; the host's clock rules)
         double limit = stage == S_CONNECTING ? 10.0 : LOST_AFTER;
         if (now - heardHost > limit) End(stage == S_CONNECTING ? "Couldn't reach that table (no answer)." : "The host stopped answering.");
     }

@@ -1,11 +1,12 @@
 #pragma once
-// The Deep Arcade's multiplayer session (docs/design/5_Depth_Arcade_Networking.md, step N1): one host, up to five
-// guests, host-authoritative. The lobby (seats, ready, AI seats, chat), the handshake (protocol, build and data hash),
-// heartbeats (a peer unheard for 6 s is lost), a pause while a player is lost, an AI takeover after 2 minutes, and
-// rejoining with a token. The game played is Scuttle (scuttle.h); the host runs the engine and sends each seat what it
-// may see. No raylib here: the arcade screen (arcade.cpp) draws it and --net-loop (net_test.cpp) drives it headless.
+// The Deep Arcade's multiplayer session (docs/design/5_Depth_Arcade_Networking.md): one host, up to five guests,
+// host-authoritative, for every arcade game. The lobby (seats, ready, AI seats, chat), the handshake (protocol, build
+// and data hash), heartbeats (a peer unheard for 6 s is lost), a pause while a player is lost, an AI takeover after
+// 2 minutes, and rejoining with a token. The game itself is a GameHost (arcade_game.h): turn-based games are sent to
+// each player whenever they change, real-time ones at their snapshot rate on the unreliable channel. Each player only
+// ever receives the snapshot written for them. No raylib here: arcade.cpp draws it, --net-loop drives it headless.
+#include "arcade_game.h"
 #include "net.h"
-#include "scuttle.h"
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -13,18 +14,13 @@
 
 namespace arcade {
 
-enum GameId : uint8_t { G_SCUTTLE = 0, G_COUNT };
-const char* GameName(int g);
-int GameMaxPlayers(int g);
-
 constexpr int MAX_PLAYERS = 6;
-constexpr uint8_t PROTOCOL = 1;
+constexpr uint8_t PROTOCOL = 2;
 constexpr double LOST_AFTER = 6.0, TAKEOVER_AFTER = 120.0, PING_EVERY = 1.0, BEACON_EVERY = 1.0;
-constexpr float AI_THINK = 0.9f, ROUND_PAUSE = 4.0f;
 
 struct Profile { std::string name = "Diver"; uint64_t id = 0; };
 uint32_t BuildId();     // this executable's build (DEPTH_BUILD_STAMP)
-uint32_t DataHash();    // the rules every peer must agree on (Scuttle's deck and timers)
+uint32_t DataHash();    // the rules every peer must agree on (arcade_games.cpp)
 std::string MakeCode(uint32_t seed);   // a 6-character join code (no 0/O/1/I)
 
 struct SeatInfo {
@@ -52,17 +48,19 @@ public:
     // the lobby
     void SetReady(bool r);
     void AddAI();                  // host
-    void RemoveSeat(int seat);     // host: an AI seat, or kicks a player
+    void RemoveSeat(int seat);     // host: an AI seat, or gives a player's seat away
     void Chat(const std::string& text);
     bool CanLaunch(std::string* why) const;
-    bool Launch(std::string* why); // host: everyone ready, two or more seats
+    bool Launch(std::string* why); // host: everyone ready, enough seats, the game is aboard
     void BackToLobby();            // host: after a match (guests must ready up again)
+    bool Rematch(std::string* why);// host: after a match, the same seats straight into a new one
 
-    // Scuttle
-    void Act(const scuttle::Action& a);   // a client sends it; the host applies it at once
-    int MyCrab() const;                   // my seat in the Scuttle engine (-1: watching)
-    int CrabOfSeat(int lobbySeat) const;
-    int SeatOfCrab(int crab) const;
+    // the game
+    void Act(const Writer& action);          // my action, in the game's own format (a client sends it; the host applies it)
+    int MyPlayer() const { return PlayerOfSeat(mySeat); }   // my index in the game (-1: watching)
+    int PlayerOfSeat(int lobbySeat) const;
+    int SeatOfPlayer(int player) const;
+    const std::vector<uint8_t>& Snapshot() const { return snapshot; }   // what I may see of the game (the game decodes it)
 
     // what the screen shows
     Role role = R_NONE;
@@ -72,21 +70,17 @@ public:
     std::string code, hostName, status, endReason;
     SeatInfo seats[MAX_PLAYERS];
     std::vector<std::string> chat;
-    scuttle::State view;                  // the host's own view (all), or what the host last sent us
     bool paused = false;                  // someone is lost (the host waits up to TAKEOVER_AFTER)
     float pauseLeft = 0;
     uint32_t rejoinToken = 0;             // client: keep it to get this seat back
     std::string hostAddr;                 // client: where we joined (for rejoin)
-    int stateVersion = 0;                 // bumps whenever a new view arrives (the screen animates on it)
-    int pingMs = 0;
+    int stateVersion = 0;                 // bumps whenever a new snapshot arrives (the screen decodes and animates on it)
+    int rejects = 0;
+    int snapshotsReceived = 0;            // tests
 
     // tests
-    net::Transport* transport() { return tr.get(); }
-    int HostConnOfSeat(int seat) const { return seat >= 0 && seat < MAX_PLAYERS ? seats[seat].conn : -1; }
+    GameHost* HostGame() { return truth.get(); }
     int ServerConn() const { return server; }
-    scuttle::State& Authoritative() { return truth; }
-    int leaks = 0;                        // tests: states that carried another seat's hand or face-down bets (must stay 0)
-    int rejects = 0;
 
 private:
     std::unique_ptr<net::Transport> tr;
@@ -94,15 +88,15 @@ private:
     bool beaconOn = false;
     Profile me;
     int server = -1;                      // client: the connection to the host
-    double now = 0, lastPing = 0, lastBeacon = 0, heardHost = 0;
+    double now = 0, lastPing = 0, lastBeacon = 0, heardHost = 0, lastSnap = 0;
     struct Pending { int conn; double since; };
     std::vector<Pending> pending;         // host: connected, no HELLO yet
-    scuttle::State truth;                 // host: the real game
-    int crabSeat[scuttle::MAX_SEATS] = {-1, -1, -1, -1};   // host: Scuttle seat -> lobby seat
-    float aiWait = 0, roundWait = 0;
-    uint32_t rng = 1;
+    std::unique_ptr<GameHost> truth;      // host: the real game
+    int playerSeat[MAX_PLAYERS] = {-1, -1, -1, -1, -1, -1};   // game player -> lobby seat
+    uint32_t rng = 1, snapSeq = 0, lastSeq = 0;
+    std::vector<uint8_t> snapshot;
 
-    void SendTo(int conn, const Writer& w);
+    void SendTo(int conn, const Writer& w, net::Channel ch = net::CH_CONTROL);
     void Broadcast(const Writer& w);
     void SendLobby();
     void SendState();

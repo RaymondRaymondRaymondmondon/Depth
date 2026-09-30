@@ -158,6 +158,7 @@ static void Resolve(State& s) {
         default: break;
     }
     for (int i = 0; i < s.nSeats; i++) if (exempt(i)) Log(s, Crab(i) + " ducks into its shell.");
+    s.plays++; s.lastCard = card; s.lastPlayer = seat; s.lastTarget = target; s.lastShelled = s.shellMask;
     s.pendCard = s.pendPlayer = s.pendTarget = -1; s.respondMask = s.shellMask = 0;
     CheckRoundEnd(s, seat);
     if (s.phase == PH_ROUND_OVER || s.phase == PH_MATCH_OVER) return;
@@ -246,6 +247,7 @@ void Serialize(const State& s, int viewer, Writer& w) {
     w.U8(s.nSeats); w.U8(s.winsNeeded); w.I32(s.rock); w.U8(s.turn); w.U8(s.phase); w.U8(s.round); w.U8(s.firstPlayer);
     w.I32(s.pendCard); w.I32(s.pendPlayer); w.I32(s.pendTarget); w.U8(s.respondMask);
     w.I32(s.roundWinner); w.I32(s.roundSecond); w.I32(s.matchWinner); w.U32(s.turnsPlayed); w.F32(s.timer);
+    w.U32(s.plays); w.I32(s.lastCard); w.I32(s.lastPlayer); w.I32(s.lastTarget); w.U8(s.lastShelled);
     w.VarU((uint32_t)s.deck.size()); w.I32(s.discard.empty() ? -1 : s.discard.back());
     for (int i = 0; i < s.nSeats; i++) {
         const Seat& p = s.seats[i];
@@ -266,22 +268,25 @@ bool Deserialize(State& s, Reader& r) {
     n.nSeats = r.U8(); n.winsNeeded = r.U8(); n.rock = r.I32(); n.turn = r.U8(); n.phase = r.U8(); n.round = r.U8(); n.firstPlayer = r.U8();
     n.pendCard = r.I32(); n.pendPlayer = r.I32(); n.pendTarget = r.I32(); n.respondMask = (uint8_t)r.U8();
     n.roundWinner = r.I32(); n.roundSecond = r.I32(); n.matchWinner = r.I32(); n.turnsPlayed = r.U32(); n.timer = r.F32();
+    n.plays = r.U32(); n.lastCard = r.I32(); n.lastPlayer = r.I32(); n.lastTarget = r.I32(); n.lastShelled = (uint8_t)r.U8();
     uint32_t deckN = r.VarU(); int top = r.I32(); (void)top;
     if (n.nSeats < 2 || n.nSeats > MAX_SEATS) return false;
     for (int i = 0; i < n.nSeats; i++) {
         Seat& p = n.seats[i]; p.used = true;
         p.pos = (uint8_t)r.U8(); p.skipMove = r.U8() != 0; p.betsLeft = (uint8_t)r.U8(); p.points = r.I32(); p.roundWins = r.U8(); p.handCount = r.U8();
-        if (r.U8()) for (int k = 0; k < p.handCount; k++) p.hand.push_back((uint8_t)r.U8());
+        if (r.U8()) for (int k = 0; k < p.handCount && !r.bad; k++) p.hand.push_back((uint8_t)r.U8());
     }
     uint32_t nb = r.VarU(); for (uint32_t k = 0; k < nb && !r.bad; k++) { Bet b; b.owner = (uint8_t)r.U8(); b.crab = (uint8_t)r.U8(); n.bets.push_back(b); }
     for (int i = 0; i < n.nSeats; i++) n.betsHidden[i] = r.U8();
     uint32_t nl = r.VarU(); for (uint32_t k = 0; k < nl && !r.bad; k++) n.log.push_back(r.Str());
-    if (!r.Done()) { n.rng = r.U32(); uint32_t d = r.VarU(); for (uint32_t k = 0; k < d; k++) n.deck.push_back((uint8_t)r.U8()); uint32_t dc = r.VarU(); for (uint32_t k = 0; k < dc; k++) n.discard.push_back((uint8_t)r.U8()); }
-    else n.deck.assign(deckN, 0);   // (a client only knows how many are left)
+    if (!r.Done()) { n.rng = r.U32(); uint32_t d = r.VarU(); for (uint32_t k = 0; k < d && !r.bad; k++) n.deck.push_back((uint8_t)r.U8()); uint32_t dc = r.VarU(); for (uint32_t k = 0; k < dc && !r.bad; k++) n.discard.push_back((uint8_t)r.U8()); }
+    else n.deck.assign(std::min<uint32_t>(deckN, 200), 0);   // (a client only knows how many are left)
     if (r.bad) return false;
     s = n;
     return true;
 }
+
+void WriteAction(const Action& a, Writer& w) { w.U8(a.kind); w.U8(a.handIdx); w.U8((uint8_t)a.target); w.U8(a.shell); }
 
 SimResult Simulate(int matches, int nSeats, uint32_t seed) {
     SimResult res; long turns = 0, rounds = 0;

@@ -98,26 +98,45 @@ int RunNetLoop(int lagMs, bool forceMemory) {
         }
         check(heard, "a LAN browser hears the table's beacon");
     }
+    // everyone decodes their own snapshot, exactly as the table screen does; a guest's view must never carry another
+    // seat's hand or face-down bets
+    struct View { scuttle::State s; int ver = -1, leaks = 0; };
+    View va, vb, vh;
+    auto refresh = [](Session& ss, View& v) {
+        if (v.ver == ss.stateVersion || ss.Snapshot().empty()) return;
+        v.ver = ss.stateVersion;
+        Reader r(ss.Snapshot());
+        if (!scuttle::Deserialize(v.s, r)) return;
+        int me = ss.MyPlayer();
+        for (int i = 0; i < v.s.nSeats; i++) if (i != me && !v.s.seats[i].hand.empty()) v.leaks++;
+        if (std::any_of(v.s.deck.begin(), v.s.deck.end(), [](uint8_t c) { return c != 0; })) v.leaks++;
+        if (v.s.phase < scuttle::PH_ROUND_OVER) for (auto& bt : v.s.bets) if (bt.owner != me) v.leaks++;
+    };
+    auto truth = [&]() { scuttle::State s; Writer w; if (host.HostGame()) host.HostGame()->Snapshot(-1, w); Reader r(w.b); scuttle::Deserialize(s, r); return s; };
+    auto act = [](Session& ss, const scuttle::Action& ac) { Writer w; scuttle::WriteAction(ac, w); ss.Act(w); };
+    auto stepV = [&](int n) { for (int i = 0; i < n; i++) { step(1); refresh(host, vh); refresh(a, va); refresh(b, vb); } };
+
     a.Chat("ahoy");
     a.SetReady(true); b.SetReady(true);
     until([&] { return host.seats[1].ready && host.seats[2].ready && !b.chat.empty() && b.chat.back() == "Nurse: ahoy"; }, 5);
     check(host.chat.size() && b.chat.back() == "Nurse: ahoy", "chat reaches everyone");
     std::string why;
     check(host.Launch(&why), ("the host launches" + (why.empty() ? "" : " (" + why + ")")).c_str());
-    until([&] { return a.stage == S_PLAYING && b.stage == S_PLAYING && a.view.nSeats == 3 && b.view.nSeats == 3; }, 5);
-    check(a.stage == S_PLAYING && b.stage == S_PLAYING && a.view.nSeats == 3, "guests get the match");
+    until([&] { refresh(a, va); refresh(b, vb); return a.stage == S_PLAYING && b.stage == S_PLAYING && va.s.nSeats == 3 && vb.s.nSeats == 3; }, 5);
+    check(a.stage == S_PLAYING && b.stage == S_PLAYING && va.s.nSeats == 3, "guests get the match");
 
     // play: everyone's own bot decides for them, sent as ordinary actions
     uint32_t rng = 99;
     bool dropped = false;
-    int guard = 0;
-    for (; guard < 60 * 60 * 30 && host.Authoritative().phase != scuttle::PH_MATCH_OVER; guard++) {
-        const scuttle::State& T = host.Authoritative();
+    scuttle::State T = truth();
+    for (int guard = 0; guard < 60 * 60 * 30 && T.phase != scuttle::PH_MATCH_OVER; guard++) {
         int actor = scuttle::Actor(T);
-        for (Session* s : {&host, &a, &b}) {
-            if (s->stage != S_PLAYING || actor < 0 || s->MyCrab() != actor) continue;
-            if (scuttle::Actor(s->view) != actor || s->view.turnsPlayed != T.turnsPlayed || s->view.phase != T.phase) continue;   // (wait for the latest state)
-            if (guard % 20 == 0) s->Act(scuttle::Bot(s->view, actor, rng));
+        struct P { Session* s; View* v; } ps[3] = {{&host, &vh}, {&a, &va}, {&b, &vb}};
+        for (P& p : ps) {
+            if (p.s->stage != S_PLAYING || actor < 0 || p.s->MyPlayer() != actor) continue;
+            const scuttle::State& V = p.v->s;
+            if (scuttle::Actor(V) != actor || V.turnsPlayed != T.turnsPlayed || V.phase != T.phase) continue;   // (wait for the latest state)
+            if (guard % 20 == 0) act(*p.s, scuttle::Bot(V, actor, rng));
         }
         // a few turns in, guest b goes silent (a pulled cable: no bye, it just stops answering); the host notices after
         // LOST_AFTER, pauses, and b comes back with its token
@@ -126,28 +145,70 @@ int RunNetLoop(int lagMs, bool forceMemory) {
             uint32_t token = b.rejoinToken;
             for (int i = 0; i < 60 * 8; i++) { t += dt; host.Update(t, dt); a.Update(t, dt); pace(); }
             check(host.paused && a.paused, "the table pauses when a guest goes silent");
-            int turnsBefore = host.Authoritative().turnsPlayed;
+            int turnsBefore = truth().turnsPlayed;
             for (int i = 0; i < 60 * 2; i++) { t += dt; host.Update(t, dt); a.Update(t, dt); pace(); }
-            check(host.Authoritative().turnsPlayed == turnsBefore, "nothing moves while paused");
+            check(truth().turnsPlayed == turnsBefore, "nothing moves while paused");
             bool ok = b.Join(pb, addr, &err, token, make());
-            until([&] { return b.stage == S_PLAYING && !host.paused && b.view.nSeats == 3; }, 10);
+            vb.ver = -1;
+            until([&] { refresh(b, vb); return b.stage == S_PLAYING && !host.paused && vb.s.nSeats == 3; }, 10);
             check(ok && b.stage == S_PLAYING && !host.paused, "the guest rejoins its own seat with its token");
-            check(b.view.nSeats == 3 && b.MyCrab() >= 0 && !b.view.seats[b.MyCrab()].hand.empty(), "the rejoined guest has its hand back");
+            check(vb.s.nSeats == 3 && b.MyPlayer() >= 0 && !vb.s.seats[b.MyPlayer()].hand.empty(), "the rejoined guest has its hand back");
         }
-        step(1);
+        stepV(1);
+        T = truth();
     }
-    check(host.Authoritative().phase == scuttle::PH_MATCH_OVER, "the match finishes");
-    step(60);
-    check(a.view.matchWinner == host.Authoritative().matchWinner && b.view.matchWinner == host.Authoritative().matchWinner, "everyone agrees who won");
-    check(a.leaks == 0 && b.leaks == 0, "no guest ever saw another seat's hand or face-down bets");
-    printf("  (%d turns, %d rounds, winner crab %d, %.0f s simulated)\n", host.Authoritative().turnsPlayed, host.Authoritative().round, host.Authoritative().matchWinner, t);
+    check(T.phase == scuttle::PH_MATCH_OVER, "the match finishes");
+    stepV(60);
+    check(va.s.matchWinner == T.matchWinner && vb.s.matchWinner == T.matchWinner && vh.s.matchWinner == T.matchWinner, "everyone agrees who won");
+    check(va.leaks == 0 && vb.leaks == 0 && vh.leaks == 0, "nobody ever saw another seat's hand or face-down bets (the host included)");
+    printf("  (%d turns, %d rounds, winner crab %d, %.0f s simulated)\n", T.turnsPlayed, T.round, T.matchWinner, t);
+
+    // back to the lobby and again: the same table can play another match
+    host.BackToLobby();
+    until([&] { return a.stage == S_LOBBY && b.stage == S_LOBBY; }, 5);
+    check(a.stage == S_LOBBY && !host.seats[1].ready, "the host takes everyone back to the lobby");
 
     // the host leaves: guests are told
     host.Leave();
     until([&] { return a.stage == S_ENDED && b.stage == S_ENDED; }, 10);
     check(a.stage == S_ENDED && b.stage == S_ENDED, "guests are told when the host closes the table");
+
+    // a real-time game through the same session: Drift, snapshotted 20 times a second on the unreliable channel
+    {
+        std::string addr2 = real ? "127.0.0.1:" + std::to_string(port + 1) : "mem:" + std::to_string(port + 1);
+        if (!host.Host(ph, G_TEST_DRIFT, &err, port + 1, make(), false)) { printf("FAIL: drift host: %s\n", err.c_str()); fails++; }
+        a.Join(pa, addr2, &err, 0, make());
+        until([&] { return a.stage == S_LOBBY; }, 10);
+        host.AddAI();
+        a.SetReady(true);
+        until([&] { return host.seats[1].ready; }, 5);
+        check(host.Launch(&why), "a real-time game launches");
+        int before = a.snapshotsReceived;
+        uint32_t lastTick = 0; bool monotonic = true;
+        float startX = -1, endX = -1;
+        for (int f = 0; f < 60 * 3; f++) {
+            if (f == 30) { Writer w; w.U8(1); a.Act(w); }   // steer right
+            step(1);
+            if (a.Snapshot().empty()) continue;
+            Reader r(a.Snapshot());
+            uint32_t tick = r.U32(); r.F32(); int n = r.U8();
+            float x = 0; for (int i = 0; i < n; i++) { float px = r.F32(); r.F32(); if (i == a.MyPlayer()) x = px; }
+            if (tick < lastTick) monotonic = false;
+            lastTick = tick;
+            if (f == 25) startX = x;
+            endX = x;
+        }
+        int got = a.snapshotsReceived - before;
+        printf("  (drift: %d snapshots in 3 s)\n", got);
+        check(got >= 30 && got <= 70, "real-time snapshots arrive at about their rate");
+        check(monotonic, "a guest never goes back to an older snapshot");
+        check(endX > startX + 80, "a guest's input moves its own piece on the host");
+        host.Leave();
+        until([&] { return a.stage == S_ENDED; }, 10);
+    }
+
     printf(fails ? "net-loop: %d FAILED\n" : "net-loop: all checks passed\n", fails);
-    a.Leave(); b.Leave();   // (every connection closed before the library goes)
+    a.Leave(); b.Leave(); host.Leave();   // (every connection closed before the library goes)
     if (real) net::Shutdown();
     return fails ? 1 : 0;
 }

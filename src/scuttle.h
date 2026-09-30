@@ -42,6 +42,9 @@ struct State {
     uint8_t respondMask = 0, shellMask = 0; // who may still answer with a Shell; who did
     int roundWinner = -1, roundSecond = -1, matchWinner = -1;
     int turnsPlayed = 0;
+    int plays = 0;                        // cards resolved so far this match (a screen animates each new one)
+    int lastCard = -1, lastPlayer = -1, lastTarget = -1;   // the last card resolved, who played it, at what
+    uint8_t lastShelled = 0;              // who ducked into a Shell against it
     float timer = 0;                      // seconds left for the current actor (the host counts it down)
     uint32_t rng = 1;
     std::vector<std::string> log;         // the last few things that happened, for the table's ink
@@ -66,6 +69,7 @@ std::vector<int> Targets(const State& s, int seat, int card);
 
 void Serialize(const State& s, int viewer, Writer& w);  // viewer -1: everything (the host's own copy, saves)
 bool Deserialize(State& s, Reader& r);
+void WriteAction(const Action& a, Writer& w);   // what a player sends (the host fills in the seat)
 
 struct SimResult { int matches = 0, seatWins[MAX_SEATS] = {}; double avgTurns = 0, avgRounds = 0; };
 SimResult Simulate(int matches, int nSeats, uint32_t seed);  // bots only: --scuttle-sim

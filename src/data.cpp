@@ -1070,6 +1070,25 @@ const CueDef* CueTable(int& count) {
         {"mus.kill", CB_MUSIC, CR_GONG, 110, 1.4f, 0.14f, 0.04f, 3, 3, 1, false},
         {"mus.boss", CB_MUSIC, CR_SWELL, 55, 2.4f, 0.16f, 0.02f, 2, 5, 1, false},
         {"mus.phase", CB_MUSIC, CR_PHASE, 110, 2.0f, 0.16f, 0.02f, 2, 5, 1, false},
+        // the Deep Arcade: Scuttle's table
+        {"arc.card", CB_SFX, CR_THUD, 520, 0.09f, 0.2f, 0.1f, 4, 1, 2, false},        // a card slapped on the felt
+        {"arc.deal", CB_SFX, CR_CHALK, 2600, 0.12f, 0.08f, 0.1f, 4, 0, 3, false},     // a card drawn
+        {"arc.scuttle", CB_SFX, CR_STEP_SAND, 1100, 0.07f, 0.12f, 0.15f, 5, 0, 4, false}, // little feet on wet sand
+        {"arc.wave", CB_SFX, CR_WHOOSH, 260, 0.9f, 0.2f, 0.06f, 3, 2, 1, false},
+        {"arc.current", CB_SFX, CR_BUBBLING, 420, 0.8f, 0.16f, 0.06f, 3, 2, 1, false},
+        {"arc.gull", CB_VOICE, CR_GRUNT, 1250, 0.35f, 0.12f, 0.1f, 3, 2, 1, false},  // a gull's cry
+        {"arc.rock", CB_SFX, CR_IMP_STONE, 180, 0.3f, 0.26f, 0.06f, 3, 2, 1, false},
+        {"arc.pinch", CB_SFX, CR_IMP_SHELL, 1300, 0.15f, 0.22f, 0.08f, 3, 2, 1, false},
+        {"arc.shell", CB_SFX, CR_IMP_SHELL, 520, 0.3f, 0.24f, 0.05f, 3, 2, 2, false},
+        {"arc.molt", CB_SFX, CR_WHOOSH, 900, 0.4f, 0.12f, 0.08f, 3, 1, 1, false},
+        {"arc.pearl", CB_SFX, CR_CHIME, 1320, 0.5f, 0.1f, 0.04f, 3, 1, 2, false},
+        {"arc.turn", CB_UI, CR_BELL, 660, 0.9f, 0.1f, 0.0f, 2, 2, 1, false},          // your turn
+        {"arc.tick", CB_UI, CR_TICK, 1800, 0.03f, 0.08f, 0.02f, 2, 0, 1, false},      // the last seconds of the timer
+        {"arc.heat", CB_MUSIC, CR_FANFARE, 330, 1.2f, 0.14f, 0.0f, 1, 3, 1, true},    // a heat won
+        {"arc.match", CB_MUSIC, CR_FANFARE, 262, 1.8f, 0.16f, 0.0f, 1, 4, 1, true},   // the match won
+        {"arc.lose", CB_MUSIC, CR_GONG, 110, 1.3f, 0.12f, 0.03f, 2, 3, 1, false},
+        {"arc.chat", CB_UI, CR_PLAQUE, 2400, 0.12f, 0.06f, 0.05f, 3, 0, 1, false},
+        {"arc.join", CB_UI, CR_LATCH, 1200, 0.3f, 0.14f, 0.05f, 3, 1, 1, false},
     };
     count = (int)(sizeof(C) / sizeof(C[0]));
     return C;

@@ -171,6 +171,8 @@ static void TakeShots(const Game& base, const std::string& dir) {
         {"arcade", [](Game& g) { g.scene = Scene::Arcade; }},
         {"arcade_lobby", [](Game& g) { g.scene = Scene::Arcade; DebugArcadeShot(0); }},
         {"arcade_table", [](Game& g) { g.scene = Scene::Arcade; DebugArcadeShot(1); }},
+        {"arcade_result", [](Game& g) { g.scene = Scene::Arcade; DebugArcadeShot(2); }},
+        {"arcade_rules", [](Game& g) { g.scene = Scene::Arcade; DebugArcadeShot(3); }},
         {"panel_ward", [](Game& g) { g.scene = Scene::Ward; Hero& h = g.roster[1]; g.selectedHero = h.id; h.hp = h.hp / 2; h.ailments = (1u << AIL_SALT_ROT) | (1u << AIL_BENDS); h.habits = (1u << HB_STEADY_HANDS) | (1u << HB_NIGHT_EYES) | (1u << HB_JUMPY); h.habitLocked = 1u << HB_NIGHT_EYES; g.gold = 400; }},
         {"panel_sickbay", [](Game& g) { g.scene = Scene::SickLeave; }},
         {"flats_menu", [](Game& g) { g.scene = Scene::Cards; }},

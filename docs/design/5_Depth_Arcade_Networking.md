@@ -242,7 +242,9 @@ Friends can play before the public release through Steam's **Playtest** feature 
 - **Most of N3 came with it:** the pause, rejoin token and AI takeover are in the session. Still to do for N3: the pause budget, the host's autosave and re-host, and tokens in the save.
 - GNS is built once by `tools/build_gns.ps1` into `external/gns` (protobuf via VS's bundled vcpkg, BCrypt crypto, no OpenSSL). CMake links it when it's there; otherwise networking is off and only practice tables work.
 - Checks: `--scuttle-sim` (seat fairness within 30%; 2/3/4 crabs came out 51/49, 33/34/33, 25/26/25/24) and `--net-loop [lag] [mem]` (a host and two guests: lobby, a rejected build, chat, a match, a silent guest, the pause, a rejoin with the token, agreement on the winner, no leaked hands or bets, the host closing).
+- **Game-agnostic session (same day):** every game is a `GameHost` (`arcade_game.h`). Turn-based games send on change (reliable); real-time games at their snapshot rate on the unreliable channel, sequence-numbered. `--net-loop` proves both paths (Scuttle, and a test game, Drift, at 20 Hz: 61 of 60 expected in memory, 56 under 100 ms lag and 1% loss). Flats Duel, the Trawl, Fathoms and the fifth game each need only their GameHost and a screen.
 - Still to check by hand: two PCs on your network finish a match (N1's gate).
+- Still open for the real-time games: client input sent unreliably at a fixed rate, interpolation between snapshots, delta compression and per-player fog of war in `Snapshot` (Fathoms), all within the same interface.
 
 ## 9. Settled
 - One region (the US): one server would be enough, and with Steam, none is needed.

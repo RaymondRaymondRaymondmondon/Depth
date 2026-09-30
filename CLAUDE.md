@@ -292,3 +292,21 @@ amespace {} reopened before DrawRichEnemy). Shots: `foes_new_cave|island|weeds|a
   - GNS connection handles are 32-bit unsigned, so `net_gns.cpp` maps them to small int ids. Always close every session before `net::Shutdown()`.
 - Shots: `arcade`, `arcade_lobby`, `arcade_table`.
 - The arcade profile (name, id) is `arcade_profile.txt` next to the exe.
+- **Every arcade game plugs into one interface** (`arcade_game.h`, as of 2026-09-30):
+  - A `GameHost` does `Start(players, seed)`, `Act(player, Reader&)`, `Tick(dt, aiMask)`, `Snapshot(viewer, Writer&)` and `Over()`.
+  - `Info(game)` gives the name, min/max players, real-time or not, snapshot Hz, and whether it's built.
+  - `MakeGameHost` is in `arcade_games.cpp`, as is `DataHash()`; add each game's rules data there.
+  - The session owns everything shared: seats, AI seats (`aiMask`), the lobby, the pause, rejoin, `Rematch`/`BackToLobby`.
+  - Turn-based games are snapshotted on change (reliable). Real-time games are snapshotted at `snapshotHz` on `CH_STATE` (unreliable, sequence-numbered, newest wins).
+  - Clients get `Session::Snapshot()` bytes and send `Session::Act(Writer)`; each game's screen decodes its own view.
+  - Only Scuttle is built. `G_TEST_DRIFT` is a tiny real-time game that exists so `--net-loop` proves the snapshot path.
+  - To add a game: write its GameHost, set `built` in `Info`, add its data to `DataHash`, and give arcade.cpp a screen for it.
+- **The Scuttle table** (arcade.cpp):
+  - `TakeView` diffs each new snapshot against the last to drive the animation. Crabs hop space by space (`gHop`). The played card flies to the slot by the tide line (`gPlay`; the engine records `plays/lastCard/lastPlayer/lastTarget/lastShelled`).
+  - Per-card effects in `DrawPlayFx`: wave sweep, current streaks, a gull stooping on the leader, a rock drop, a pinching claw, shell domes. Floating "-2" / "Ducked!" / "Pinched!".
+  - Sound cues `arc.*` (data.cpp).
+  - Opponents' card backs and face-down pearls; a local timer countdown with ticks in your last 5 s.
+  - The pearl and Shell prompts take the Table Talk box's place.
+  - Heat splash with pearl payouts; match standings with Rematch / Back to the lobby.
+  - Table Talk: chat plus four emotes. How to play (`DrawRules`). Leaving mid-match asks twice.
+  - Shots: `arcade_result`, `arcade_rules`.
