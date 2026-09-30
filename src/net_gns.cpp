@@ -4,7 +4,7 @@
 #include "net.h"
 #include <algorithm>
 #include <cstdio>
-#include <mutex>
+#include <map>
 #include <set>
 
 #ifdef DEPTH_HAVE_GNS
@@ -46,6 +46,13 @@ public:
     HSteamNetPollGroup group = k_HSteamNetPollGroup_Invalid;
     std::set<HSteamNetConnection> conns;
     std::vector<Event> pending;
+    // the session speaks small positive ids; GNS handles are 32-bit and would turn negative as an int
+    std::map<HSteamNetConnection, int> idOf;
+    std::map<int, HSteamNetConnection> hOf;
+    int nextId = 1;
+    int Id(HSteamNetConnection h) { auto it = idOf.find(h); if (it != idOf.end()) return it->second; int id = nextId++; idOf[h] = id; hOf[id] = h; return id; }
+    HSteamNetConnection H(int id) { auto it = hOf.find(id); return it == hOf.end() ? k_HSteamNetConnection_Invalid : it->second; }
+    void Forget(HSteamNetConnection h) { auto it = idOf.find(h); if (it != idOf.end()) { hOf.erase(it->second); idOf.erase(it); } }
 
     GnsTransport() { group = s->CreatePollGroup(); gAll.push_back(this); }
     ~GnsTransport() override { CloseAll(); s->DestroyPollGroup(group); gAll.erase(std::remove(gAll.begin(), gAll.end(), this), gAll.end()); }
@@ -66,14 +73,16 @@ public:
         HSteamNetConnection c = s->ConnectByIPAddress(a, 1, &o);
         if (c == k_HSteamNetConnection_Invalid) { if (err) *err = "couldn't start connecting"; return -1; }
         conns.insert(c); s->SetConnectionPollGroup(c, group);
-        return (int)c;
+        return Id(c);
     }
     void Send(int conn, Channel ch, const void* data, int n) override {
         // the channel rides in the first byte; reliable messages are ordered per connection
         std::vector<uint8_t> buf((size_t)n + 1);
         buf[0] = ch; if (n) memcpy(buf.data() + 1, data, n);
         int flags = ch == CH_STATE ? k_nSteamNetworkingSend_Unreliable : k_nSteamNetworkingSend_Reliable;
-        s->SendMessageToConnection((HSteamNetConnection)conn, buf.data(), (uint32)buf.size(), flags, nullptr);
+        HSteamNetConnection h = H(conn);
+        if (h == k_HSteamNetConnection_Invalid) return;
+        s->SendMessageToConnection(h, buf.data(), (uint32)buf.size(), flags, nullptr);
     }
     void Poll(std::vector<Event>& out) override {
         s->RunCallbacks();
@@ -86,7 +95,7 @@ public:
             for (int i = 0; i < k; i++) {
                 SteamNetworkingMessage_t* m = msgs[i];
                 if (m->m_cbSize >= 1) {
-                    Event e; e.kind = Event::Message; e.conn = (int)m->m_conn;
+                    Event e; e.kind = Event::Message; e.conn = Id(m->m_conn);
                     const uint8_t* p = (const uint8_t*)m->m_pData;
                     e.ch = (Channel)p[0]; e.data.assign(p + 1, p + m->m_cbSize);
                     out.push_back(std::move(e));
@@ -96,19 +105,20 @@ public:
         }
     }
     void Close(int conn, const char* why) override {
-        if (!conns.count((HSteamNetConnection)conn)) return;
-        s->CloseConnection((HSteamNetConnection)conn, 0, why, true);   // linger: queued reliable messages still go
-        conns.erase((HSteamNetConnection)conn);
+        HSteamNetConnection h = H(conn);
+        if (!conns.count(h)) return;
+        s->CloseConnection(h, 0, why, true);   // linger: queued reliable messages still go
+        conns.erase(h); Forget(h);
     }
     void CloseAll() override {
         for (auto c : conns) s->CloseConnection(c, 0, "closing", true);
-        conns.clear();
+        conns.clear(); idOf.clear(); hOf.clear();
         if (listen != k_HSteamListenSocket_Invalid) { s->CloseListenSocket(listen); listen = k_HSteamListenSocket_Invalid; }
     }
     Stats GetStats(int conn) override {
         Stats st;
         SteamNetConnectionRealTimeStatus_t r;
-        if (s->GetConnectionRealTimeStatus((HSteamNetConnection)conn, &r, 0, nullptr) == k_EResultOK) {
+        if (s->GetConnectionRealTimeStatus(H(conn), &r, 0, nullptr) == k_EResultOK) {
             st.pingMs = r.m_nPing; st.quality = r.m_flConnectionQualityLocal; st.outKBps = r.m_flOutBytesPerSec / 1024; st.inKBps = r.m_flInBytesPerSec / 1024;
         }
         return st;
@@ -125,16 +135,16 @@ public:
                 }
                 break;
             case k_ESteamNetworkingConnectionState_Connected: {
-                Event e; e.kind = Event::Connected; e.conn = (int)c;
+                Event e; e.kind = Event::Connected; e.conn = Id(c);
                 char buf[SteamNetworkingIPAddr::k_cchMaxString]; info->m_info.m_addrRemote.ToString(buf, sizeof buf, true); e.info = buf;
                 pending.push_back(e);
             } break;
             case k_ESteamNetworkingConnectionState_ClosedByPeer:
             case k_ESteamNetworkingConnectionState_ProblemDetectedLocally: {
-                Event e; e.kind = Event::Disconnected; e.conn = (int)c; e.info = info->m_info.m_szEndDebug;
+                Event e; e.kind = Event::Disconnected; e.conn = Id(c); e.info = info->m_info.m_szEndDebug;
                 pending.push_back(e);
                 s->CloseConnection(c, 0, nullptr, false);
-                conns.erase(c);
+                conns.erase(c); Forget(c);
             } break;
             default: break;
         }

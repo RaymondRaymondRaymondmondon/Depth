@@ -70,7 +70,7 @@ bool Session::Join(const Profile& p, const std::string& addr, std::string* err, 
     server = tr->Connect(addr, err);
     if (server < 0) { tr.reset(); return false; }
     role = R_CLIENT; stage = S_CONNECTING; hostAddr = addr; rejoinToken = token;
-    heardHost = now;
+    heardHost = -1;   // (the clock starts at the next Update: `now` may be stale)
     chat.clear();
     status = "Connecting to " + addr + "...";
     return true;
@@ -382,6 +382,7 @@ void Session::ClientMessage(Reader& r) {
 void Session::Update(double t, float dt) {
     now = t;
     if (!tr) return;
+    if (heardHost < 0) heardHost = now;
     std::vector<net::Event> evs;
     tr->Poll(evs);
     for (auto& e : evs) {

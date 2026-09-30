@@ -5,7 +5,10 @@
 #include "scuttle.h"
 #include <algorithm>
 #include <cstdio>
+#include <chrono>
 #include <cstring>
+#include <functional>
+#include <thread>
 #include <string>
 
 int RunScuttleSim(int matches) {
@@ -30,6 +33,7 @@ int RunScuttleSim(int matches) {
 // a third guest with a different build is turned away; nobody ever sees another seat's hand.
 int RunNetLoop(int lagMs, bool forceMemory) {
     using namespace arcade;
+    setvbuf(stdout, nullptr, _IONBF, 0);
     std::string err;
     bool real = !forceMemory && net::Init(&err);
     auto make = [&]() { return real ? net::MakeTransport() : net::MakeMemoryTransport(); };
@@ -42,10 +46,13 @@ int RunNetLoop(int lagMs, bool forceMemory) {
     Profile ph{"Captain", 1}, pa{"Nurse", 2}, pb{"Diver", 3};
     if (!host.Host(ph, G_SCUTTLE, &err, port, make(), false)) { printf("FAIL: host: %s\n", err.c_str()); return 1; }
     double t = 0; const float dt = 1.0f / 60;
-    auto step = [&](int frames) { for (int i = 0; i < frames; i++) { t += dt; host.Update(t, dt); a.Update(t, dt); b.Update(t, dt); } };
+    // over the real transport the frames are paced in real time (GNS runs on the clock); in memory they fly
+    auto pace = [&]() { if (real) std::this_thread::sleep_for(std::chrono::milliseconds(16)); };
+    auto step = [&](int frames) { for (int i = 0; i < frames; i++) { t += dt; host.Update(t, dt); a.Update(t, dt); b.Update(t, dt); pace(); } };
+    auto until = [&](std::function<bool()> ok, float seconds) { for (int i = 0; i < seconds * 60 && !ok(); i++) step(1); step(10); };
     if (!a.Join(pa, addr, &err, 0, make())) { printf("FAIL: join a: %s\n", err.c_str()); return 1; }
     if (!b.Join(pb, addr, &err, 0, make())) { printf("FAIL: join b: %s\n", err.c_str()); return 1; }
-    step(120);
+    until([&] { return a.stage == S_LOBBY && b.stage == S_LOBBY; }, 10);
     int fails = 0;
     auto check = [&](bool ok, const char* what) { if (!ok) { printf("FAIL: %s\n", what); fails++; } else printf("  ok: %s\n", what); };
     check(a.stage == S_LOBBY && b.stage == S_LOBBY, "both guests reach the lobby");
@@ -62,7 +69,7 @@ int RunNetLoop(int lagMs, bool forceMemory) {
         int conn = raw->Connect(addr, &e2);
         bool rejected = false;
         for (int i = 0; i < 180 && conn >= 0; i++) {
-            t += dt; host.Update(t, dt); a.Update(t, dt); b.Update(t, dt);
+            t += dt; host.Update(t, dt); a.Update(t, dt); b.Update(t, dt); pace();
             std::vector<net::Event> ev; raw->Poll(ev);
             for (auto& e : ev) {
                 if (e.kind == net::Event::Connected) {
@@ -77,13 +84,27 @@ int RunNetLoop(int lagMs, bool forceMemory) {
         (void)c; (void)pc;
     }
 
+    // the LAN beacon: a browser on this machine hears an announced table by its code
+    {
+        net::LanBrowser br; net::LanBeacon bc;
+        bool started = br.Start() && bc.Start();
+        net::LanGame lg; lg.game = "Scuttle"; lg.name = "Captain"; lg.code = host.code; lg.players = 3; lg.maxPlayers = 4; lg.build = BuildId();
+        bool heard = false;
+        for (int i = 0; i < 30 && started && !heard; i++) {
+            bc.Announce(lg);
+            std::this_thread::sleep_for(std::chrono::milliseconds(20));
+            br.Poll(i * 0.02);
+            for (auto& g : br.games) heard |= g.code == host.code && g.name == "Captain" && g.build == BuildId();
+        }
+        check(heard, "a LAN browser hears the table's beacon");
+    }
     a.Chat("ahoy");
     a.SetReady(true); b.SetReady(true);
-    step(30);
+    until([&] { return host.seats[1].ready && host.seats[2].ready && !b.chat.empty() && b.chat.back() == "Nurse: ahoy"; }, 5);
     check(host.chat.size() && b.chat.back() == "Nurse: ahoy", "chat reaches everyone");
     std::string why;
     check(host.Launch(&why), ("the host launches" + (why.empty() ? "" : " (" + why + ")")).c_str());
-    step(30);
+    until([&] { return a.stage == S_PLAYING && b.stage == S_PLAYING && a.view.nSeats == 3 && b.view.nSeats == 3; }, 5);
     check(a.stage == S_PLAYING && b.stage == S_PLAYING && a.view.nSeats == 3, "guests get the match");
 
     // play: everyone's own bot decides for them, sent as ordinary actions
@@ -103,13 +124,13 @@ int RunNetLoop(int lagMs, bool forceMemory) {
         if (!dropped && T.turnsPlayed >= 6) {
             dropped = true;
             uint32_t token = b.rejoinToken;
-            for (int i = 0; i < 60 * 8; i++) { t += dt; host.Update(t, dt); a.Update(t, dt); }
+            for (int i = 0; i < 60 * 8; i++) { t += dt; host.Update(t, dt); a.Update(t, dt); pace(); }
             check(host.paused && a.paused, "the table pauses when a guest goes silent");
             int turnsBefore = host.Authoritative().turnsPlayed;
-            for (int i = 0; i < 60 * 2; i++) { t += dt; host.Update(t, dt); a.Update(t, dt); }
+            for (int i = 0; i < 60 * 2; i++) { t += dt; host.Update(t, dt); a.Update(t, dt); pace(); }
             check(host.Authoritative().turnsPlayed == turnsBefore, "nothing moves while paused");
             bool ok = b.Join(pb, addr, &err, token, make());
-            step(180);
+            until([&] { return b.stage == S_PLAYING && !host.paused && b.view.nSeats == 3; }, 10);
             check(ok && b.stage == S_PLAYING && !host.paused, "the guest rejoins its own seat with its token");
             check(b.view.nSeats == 3 && b.MyCrab() >= 0 && !b.view.seats[b.MyCrab()].hand.empty(), "the rejoined guest has its hand back");
         }
@@ -123,9 +144,10 @@ int RunNetLoop(int lagMs, bool forceMemory) {
 
     // the host leaves: guests are told
     host.Leave();
-    step(60);
+    until([&] { return a.stage == S_ENDED && b.stage == S_ENDED; }, 10);
     check(a.stage == S_ENDED && b.stage == S_ENDED, "guests are told when the host closes the table");
     printf(fails ? "net-loop: %d FAILED\n" : "net-loop: all checks passed\n", fails);
+    a.Leave(); b.Leave();   // (every connection closed before the library goes)
     if (real) net::Shutdown();
     return fails ? 1 : 0;
 }

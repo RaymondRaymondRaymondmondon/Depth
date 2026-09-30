@@ -53,6 +53,12 @@ set(DEPTH_VCPKG_DIR "${CMAKE_SOURCE_DIR}/external/vcpkg_installed/x64-windows-st
 if(EXISTS "${DEPTH_GNS_DIR}/lib/cmake/GameNetworkingSockets")
     list(APPEND CMAKE_PREFIX_PATH "${DEPTH_GNS_DIR}" "${DEPTH_VCPKG_DIR}")
     set(CMAKE_FIND_PACKAGE_PREFER_CONFIG ON)
+    # protobuf's package config insists on protoc even though Depth never runs it: point it at vcpkg's host build
+    file(GLOB_RECURSE DEPTH_PROTOC "${CMAKE_SOURCE_DIR}/external/vcpkg_installed/x64-windows/tools/protobuf/protoc*.exe")
+    if(DEPTH_PROTOC)
+        list(GET DEPTH_PROTOC 0 DEPTH_PROTOC)
+        set(Protobuf_PROTOC_EXECUTABLE "${DEPTH_PROTOC}" CACHE FILEPATH "" FORCE)
+    endif()
     find_package(GameNetworkingSockets CONFIG REQUIRED)
     target_link_libraries(depth PRIVATE GameNetworkingSockets::GameNetworkingSockets_s)
     target_compile_definitions(depth PRIVATE DEPTH_HAVE_GNS STEAMNETWORKINGSOCKETS_STATIC_LINK)

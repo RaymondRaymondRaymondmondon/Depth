@@ -288,6 +288,7 @@ amespace {} reopened before DrawRichEnemy). Shots: `foes_new_cave|island|weeds|a
   - Without it, Depth still builds and the arcade offers practice tables only.
 - Checks:
   - `depth.exe --scuttle-sim [N]`: seat fairness within 30%, matches finish.
-  - `depth.exe --net-loop [lagMs] [mem]`: host plus two guests in one process over loopback UDP, or `mem`. It covers the lobby, a rejected build, chat, a full match, a silent guest and the pause, a rejoin by token, the winner agreed, no leaks, and the host closing.
+  - `depth.exe --net-loop [lagMs] [mem]`: host plus two guests in one process over loopback UDP (paced in real time, about a minute), or `mem` (instant). It covers the lobby, the LAN beacon, a rejected build, chat, a full match, a silent guest and the pause, a rejoin by token, the winner agreed, no leaks, and the host closing. It passes over GNS with and without `100` ms lag and 1% loss.
+  - GNS connection handles are 32-bit unsigned, so `net_gns.cpp` maps them to small int ids. Always close every session before `net::Shutdown()`.
 - Shots: `arcade`, `arcade_lobby`, `arcade_table`.
 - The arcade profile (name, id) is `arcade_profile.txt` next to the exe.
