@@ -2,6 +2,7 @@
 // the pixel canvas, in the boat's own frame (bow to the right) so the planks stay crisp while the sea turns under her.
 // The sea is black outside the light: only the lantern's pool shows water, foam and glints.
 #include "trawl_art.h"
+#include "trawl_eco.h"
 #include "raymath.h"
 #include <algorithm>
 #include <cmath>
@@ -26,7 +27,15 @@ float View::LightAt(Vector2 deck) const {
     float best = 0;
     for (const auto& l : lights) {
         float d = Vector2Distance(deck, l.at);
-        if (d < l.r) best = std::max(best, l.k * (1 - d / l.r) * (1 - d / l.r) * 1.4f);
+        if (d >= l.r) continue;
+        float k = l.k * (1 - d / l.r) * (1 - d / l.r) * 1.4f;
+        if (l.half > 0 && d > 1.5f) {
+            Vector2 to = Vector2Scale(Vector2Subtract(deck, l.at), 1 / d);
+            float c = Vector2DotProduct(to, l.dir), edge = cosf(l.half);
+            if (c < edge) continue;
+            k = l.k * std::clamp((c - edge) / (1 - edge) * 3, 0.0f, 1.0f) * (1 - d / l.r * 0.7f);
+        }
+        best = std::max(best, k);
     }
     return std::min(1.0f, best);
 }
@@ -51,6 +60,18 @@ void DrawSea(const Gannet& g, const View& v) {
         Color deep{6, 22, 30, 255}, face{26, 74, 84, 255}, foam{170, 196, 196, 255};
         float band = floorf((0.5f + hgt * 0.5f) * 5) / 5;          // (in steps: swell reads as bands)
         Color c = Mix(deep, face, band);
+        if (g.eco) {
+            // the Lagoon's floor shows through the shallows under the lamp: coral, seagrass, sand
+            float dep = g.eco->DepthAt(w);
+            int hb = g.eco->HabAt(w);
+            if (hb == H_LAND) { DrawRectangle(cx, cy, C, C, Dim(Color{150, 138, 100, 255}, 0.3f + 0.7f * lit)); continue; }
+            if (dep < 10) {
+                Color bed = hb == H_SEAGRASS ? Color{40, 96, 60, 255} : (hb == H_REEF || hb == H_CREST) ? Color{150, 110, 110, 255} : Color{150, 150, 120, 255};
+                if ((hb == H_REEF || hb == H_CREST) && H01((int)(w.x * 1.3f), (int)(w.y * 1.3f), 3) < 0.35f) bed = Color{200, 150, 130, 255};
+                if (hb == H_SEAGRASS && H01((int)(w.x * 2), (int)(w.y * 2), 5) < 0.4f) bed = Color{60, 120, 70, 255};
+                c = Mix(c, bed, expf(-dep / 3.5f) * 0.75f);
+            }
+        }
         if (hgt > 0.8f && H01((int)(w.x * 3), (int)(w.y * 3), (int)(g.time * 2)) < 0.12f + g.sea.swell * 0.1f) c = Mix(c, foam, 0.7f);
         float k = 0.25f + 0.75f * lit;
         DrawRectangle(cx, cy, C, C, Dim(c, k));
@@ -64,6 +85,102 @@ void DrawSea(const Gannet& g, const View& v) {
             float lit = v.LightAt(d);
             if (lit < 0.05f || H01(i, k, (int)(g.time * 8)) > std::min(1.0f, sp / 4)) continue;
             Px(v, d, 0.2f, 0.2f, Dim(Color{200, 220, 220, 255}, 0.3f + 0.7f * lit));
+        }
+    }
+}
+
+// ---------------------------------------------------------------- the web's life in the light
+static void FishMark(const View& v, Vector2 deck, Vector2 dir, float len, float wid, Color c) {
+    Vector2 cc = v.ToCanvas(deck);
+    for (int k = 0; k <= 6; k++) {
+        float t = k / 6.0f;
+        Vector2 q = Vector2Add(cc, Vector2Scale(dir, len * v.ppm * (0.5f - t)));
+        DrawCircleV(q, std::max(0.5f, wid * v.ppm * 0.5f * sinf(PI * (0.15f + t * 0.75f))), c);
+    }
+    Vector2 tb = Vector2Add(cc, Vector2Scale(dir, -len * v.ppm * 0.5f)), sd{-dir.y, dir.x};
+    Vector2 a = Vector2Add(tb, Vector2Add(Vector2Scale(dir, -wid * v.ppm), Vector2Scale(sd, wid * v.ppm * 0.7f)));
+    Vector2 b = Vector2Add(tb, Vector2Add(Vector2Scale(dir, -wid * v.ppm), Vector2Scale(sd, -wid * v.ppm * 0.7f)));
+    DrawTriangle(tb, a, b, c); DrawTriangle(tb, b, a, c);
+}
+void DrawLife(const Gannet& g, const View& v, bool air) {
+    if (!g.eco) return;
+    const Eco& e = *g.eco;
+    const auto& S = Species().sp;
+    const Boat& b = g.boat;
+    Vector2 fwd = b.Forward(), side{-fwd.y, fwd.x};
+    auto toDeckDir = [&](Vector2 w) { Vector2 d{Vector2DotProduct(w, fwd), Vector2DotProduct(w, side)}; float l = Vector2Length(d); return l > 1e-3f ? Vector2Scale(d, 1 / l) : Vector2{1, 0}; };
+    if (!air) {
+        // sargassum rafts: golden weed on the surface
+        for (const auto& rf : e.rafts) {
+            Vector2 dc = b.ToDeck(rf.p);
+            if (fabsf(dc.x) > 30 || fabsf(dc.y) > 18) continue;
+            for (int k = 0; k < 40; k++) {
+                float ang = H01(k, (int)rf.r, 7) * 6.2832f, rr = sqrtf(H01(k, 3, (int)rf.r)) * rf.r;
+                Vector2 q{dc.x + cosf(ang) * rr, dc.y + sinf(ang) * rr * 0.7f};
+                float lit = v.LightAt(q);
+                if (lit < 0.04f) continue;
+                Px(v, q, 0.3f, 0.3f, Dim(Color{170, 130, 50, 255}, 0.3f + 0.7f * lit));
+            }
+        }
+    }
+    for (size_t i = 0; i < e.agents.size(); i++) {
+        const EcoAgent& a = e.agents[i];
+        const SpeciesRec& r = S[a.sp];
+        bool isAir = r.band == BAND_AIR;
+        if (isAir != air) continue;
+        Vector2 dc = b.ToDeck({a.p.x, a.p.y});
+        if (fabsf(dc.x) > 32 || fabsf(dc.y) > 20) continue;
+        if (!air && fabsf(dc.y) < 2.8f && dc.x > -11.5f && dc.x < 10.5f) continue;   // under her hull
+        float lit = v.LightAt(dc) * expf(-std::max(0.0f, a.p.z) / 7.0f);
+        if (!air && lit < 0.04f) {
+            // in the dark only a flash of silver near the surface gives a school away
+            if (a.p.z < 1.5f && a.flash > 0) { Vector2 c = v.ToCanvas(dc); DrawPixel((int)c.x, (int)c.y, Color{150, 170, 180, 255}); }
+            continue;
+        }
+        float vis = air ? 1.0f : std::clamp(lit * 1.6f, 0.0f, 1.0f);
+        Vector2 hd = toDeckDir({a.v.x, a.v.y});
+        Color base = r.cls == "jelly" ? Color{190, 200, 230, 255} : r.cls == "reptile" ? Color{80, 110, 70, 255} : r.cls == "invert" ? Color{170, 110, 90, 255}
+                   : r.tier == 1 ? Color{170, 190, 200, 255} : r.tier >= 4 ? Color{70, 80, 90, 255} : Color{120, 140, 130, 255};
+        if (r.name == "mahi-mahi") base = Color{150, 190, 80, 255};
+        if (r.name == "parrotfish") base = Color{90, 170, 160, 255};
+        if (r.name == "snapper") base = Color{190, 100, 90, 255};
+        if (r.tier == 1 && r.cls == "fish") base = Color{205, 220, 228, 255};
+        float alpha = air ? 0.95f : (r.tier >= 3 ? 0.55f : 0.45f) + 0.45f * vis;
+        Color c = Fade(Dim(base, 0.55f + 0.45f * vis), alpha * std::clamp(1.2f - a.p.z / 12, 0.35f, 1.0f));
+        if (air) {
+            // a flock of gulls: pale Vs wheeling over the boat
+            for (int k = 0; k < std::min(a.count, 16); k++) {
+                float ang = H01((int)i, k, 1) * 6.2832f + g.time * (0.6f + H01(k, 2, (int)i));
+                float rr = 1.5f + H01(k, (int)i, 3) * 3;
+                Vector2 q = Vector2Add(dc, {cosf(ang) * rr, sinf(ang) * rr});
+                Vector2 cq = v.ToCanvas(q); float flap = sinf(g.time * 9 + k) > 0 ? 1.0f : 0.0f;
+                DrawLineV({cq.x - 3, cq.y - flap}, cq, Fade(WHITE, 0.85f)); DrawLineV(cq, {cq.x + 3, cq.y - flap}, Fade(WHITE, 0.85f));
+            }
+            continue;
+        }
+        if (a.count > 3) {
+            // a school: its fish scattered round the centre, turning together
+            int nd = std::min(a.count, 18);
+            float spread = std::min(4.0f, 0.4f + sqrtf((float)a.count) * 0.12f);
+            for (int k = 0; k < nd; k++) {
+                float ang = H01((int)i, k, 11) * 6.2832f, rr = sqrtf(H01(k, (int)i, 12)) * spread;
+                Vector2 q = Vector2Add(dc, {cosf(ang) * rr + sinf(g.time * 2 + k) * 0.15f, sinf(ang) * rr * 0.7f});
+                float len = std::clamp(0.12f + sqrtf(r.MeanKg()) * 0.25f, 0.15f, 0.8f);
+                if (len < 0.3f) { Vector2 cq = v.ToCanvas(q); Vector2 t = v.ToCanvas(Vector2Subtract(q, Vector2Scale(hd, len))); DrawLineV(cq, t, c); }
+                else FishMark(v, q, hd, len, len * 0.3f, c);
+            }
+        } else {
+            for (int k = 0; k < a.count; k++) {
+                Vector2 q = Vector2Add(dc, {H01((int)i, k, 5) * 1.2f - 0.6f, H01(k, (int)i, 6) * 1.2f - 0.6f});
+                float len = std::clamp(0.3f + sqrtf(r.MeanKg()) * 0.3f, 0.3f, 3.5f);
+                if (r.cls == "jelly") { Vector2 cq = v.ToCanvas(q); DrawCircleLines((int)cq.x, (int)cq.y, 1.5f + len, c); continue; }
+                FishMark(v, q, hd, len, len * (r.cls == "reptile" ? 0.7f : 0.28f), c);
+                if (r.tier >= 4 && a.p.z < 2.5f) {   // a fin at the lantern's edge
+                    Vector2 cq = v.ToCanvas(Vector2Add(q, Vector2Scale(hd, len * 0.1f)));
+                    DrawTriangle({cq.x, cq.y - 4}, {cq.x - 3, cq.y + 1}, {cq.x + 3, cq.y + 1}, Fade(Color{40, 44, 50, 255}, 0.95f));
+                    DrawTriangle({cq.x, cq.y - 4}, {cq.x + 3, cq.y + 1}, {cq.x - 3, cq.y + 1}, Fade(Color{40, 44, 50, 255}, 0.95f));
+                }
+            }
         }
     }
 }

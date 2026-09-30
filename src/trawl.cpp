@@ -3,6 +3,7 @@
 // as the stages come, the lines, the fish and the web); this file feeds it input and draws it.
 #include "trawl.h"
 #include "trawl_art.h"
+#include "trawl_eco.h"
 #include "raymath.h"
 #include <algorithm>
 #include <cmath>
@@ -13,6 +14,7 @@ namespace {
 struct TrawlScene {
     bool active = false;
     Gannet G;
+    Eco eco;                       // the ground (stage 3: the Eclipse Lagoon)
     int you = 0;
     float acc = 0;                 // the fixed 60 Hz step's accumulator
     bool shot = false;             // --shots: no input, fixed time
@@ -30,9 +32,12 @@ View MakeView(const Gannet& g, int viewerDeck, bool inWheelhouse) {
     // she heels: from above the deck shifts a little toward the low side (the whole view rides with her)
     v.center.y += std::clamp(g.boat.RollDeg() / 5.0f, -4.0f, 4.0f);
     v.center.x -= std::clamp(g.boat.pitch * 57.3f / 5.0f, -3.0f, 3.0f);
-    float lantern = 14;                                        // "full (14 m)"
+    float lantern = LanternRadius(g.boat.lantern);             // hooded 4 m, low 8, full 14, the searchlight's 30 m cone
     if (g.sea.weather == Weather::Fog) lantern *= 0.6f;        // "Fog: light radius -40%"
-    v.lights.push_back({{0.2f, 0}, lantern, 1.0f});
+    if (g.boat.lantern == 3) {
+        v.lights.push_back({{0.2f, 0}, lantern, 1.3f, {cosf(g.boat.searchAim), sinf(g.boat.searchAim)}, 0.32f});
+        v.lights.push_back({{0.2f, 0}, 5, 0.5f});
+    } else v.lights.push_back({{0.2f, 0}, lantern, 1.0f});
     v.lights.push_back({{3.0f, 0}, 4.0f, 0.6f});               // the wheelhouse lamp through its windows
     v.lights.push_back({{-10.4f, 0}, 5.0f, 0.5f});             // the stern work lamp
     if (viewerDeck == 1) v.lights.push_back({{-4.8f, -0.9f}, 4.5f, 0.3f + 0.5f * std::clamp(g.boat.firebox / 6, 0.0f, 1.0f)});
@@ -49,6 +54,13 @@ void Controls(float dt) {
     if (IsKeyDown(KEY_A)) wish.x -= 1;
     if (IsKeyDown(KEY_D)) wish.x += 1;
     bool atHelm = c.station >= 0 && Stations()[c.station].kind == StationKind::Helm;
+    if (c.station >= 0 && Stations()[c.station].kind == StationKind::Lantern && g.boat.lantern == 3) {
+        // the searchlight follows the mouse
+        const float PX = (float)SCREEN_W / PIXEL_W;
+        Vector2 m = GetMousePosition(), aim = S.view.DeckOfCanvas({m.x / PX + 1, m.y / PX + 1});
+        Vector2 d = Vector2Subtract(aim, Stations()[c.station].at);
+        if (Vector2Length(d) > 0.5f) g.boat.searchAim = atan2f(d.y, d.x);
+    }
     if (atHelm) {
         g.Steer(S.you, (IsKeyDown(KEY_D) ? 1.0f : 0.0f) - (IsKeyDown(KEY_A) ? 1.0f : 0.0f), dt);
         if (IsKeyPressed(KEY_W)) g.Scroll(S.you, 1);
@@ -243,9 +255,11 @@ void Draw(Game& g) {
     BeginLayer(PixelRT());
     ClearBackground(Color{2, 4, 8, 255});
     DrawSea(G, v);
+    DrawLife(G, v, false);
     DrawBoat(G, v);
     DrawLines(G, v);
     for (int i = 0; i < (int)G.crew.size(); i++) DrawCrewMember(G.crew[i], v, G.time, i == S.you);
+    DrawLife(G, v, true);
     EndLayer();
     const float PX = (float)SCREEN_W / PIXEL_W;
     DrawTexturePro(PixelRT().texture, {0, 0, PIXEL_W + 2.0f, -(PIXEL_H + 2.0f)}, {-PX, -PX, (PIXEL_W + 2) * PX, (PIXEL_H + 2) * PX}, {0, 0}, 0, WHITE);
@@ -255,8 +269,11 @@ void Draw(Game& g) {
 
 void StartTrawl(Game& g) {
     S = TrawlScene{};
-    S.G.Init(1, (uint32_t)GetRandomValue(1, 1 << 30), Weather::Calm);
+    uint32_t seed = (uint32_t)GetRandomValue(1, 1 << 30);
+    S.G.Init(1, seed, Weather::Calm);
     S.G.boat.telegraph = 0;
+    // on the Eclipse Lagoon, in the basin off the seagrass flats (the session loop and the chart come in stage 4)
+    if (S.eco.Init("lagoon", seed)) { S.G.eco = &S.eco; S.G.boat.pos = {S.eco.n * S.eco.cell * 0.42f, S.eco.n * S.eco.cell * 0.5f}; S.G.boat.heading = -0.3f; }
     S.active = true;
     EnableCursor();
     g.scene = Scene::Trawl;
@@ -276,7 +293,8 @@ void SceneTrawl(Game& g) {
     Draw(g);
 }
 
-// --shots: 0 the deck at night, 1 the engine room, 2 the wheelhouse, 3 a squall, 4 a fish on, 5 a marlin jumping
+// --shots: 0 the deck at night, 1 the engine room, 2 the wheelhouse, 3 a squall, 4 a fish on, 5 a marlin jumping,
+// 6 the Lagoon under a full lantern, 7 the searchlight over the reef, 8 a reef shark come to the chum (and the gulls)
 void DebugTrawlShot(Game& g, int which) {
     StartTrawl(g);
     S.shot = true;
@@ -289,6 +307,23 @@ void DebugTrawlShot(Game& g, int which) {
     G.crew[3].p = {-2.2f, 1.6f}; G.crew[3].facing = {0, 1};
     if (which == 1) { c.deck = 1; c.p = {-4.8f, 0.2f}; c.station = NearestStation(c.p, 1, 1.1f); G.boat.firebox = 5; G.boat.Hit(SEC_STERN_P, 75); for (int i = 0; i < 60 * 10; i++) G.Step(1 / 60.0f); }
     else if (which == 2) { c.p = {4.2f, 0}; c.station = NearestStation(c.p, 0, 1.1f); G.boat.rudder = 0.4f; }
+    else if (which >= 6) {
+        S.eco.Init("lagoon", 11); G.eco = &S.eco;
+        G.boat.telegraph = 0; G.boat.pos = {S.eco.n * S.eco.cell * (which == 7 ? 0.36f : 0.42f), S.eco.n * S.eco.cell * 0.5f}; G.boat.heading = -0.3f;
+        G.boat.lantern = which == 7 ? 3 : 2; G.boat.searchAim = 0.9f;
+        c.p = {0.8f, 0.9f};
+        if (which == 7) { c.p = {0.2f, 0.6f}; c.station = NearestStation({0.2f, 0}, 0, 1.1f); }
+        int shark = Species().Find("reef shark");
+        for (int i = 0; i < 60 * (which == 8 ? 100 : 70); i++) {
+            if (which == 8 && i % (60 * 20) == 0) { Vector2 w = G.boat.ToWorld({-11, 0}); S.eco.AddBlood({w.x, w.y, 1}, 60); }
+            if (which == 8 && i == 60 * 30) {
+                int ai = S.eco.SpawnAgentPublic(shark, G.boat.ToWorld({-14, 9})); S.eco.agents[ai].hunger = 0.9f; S.eco.agents[ai].p.z = 1.2f; S.eco.agents[ai].count = 1;
+                G.hold.push_back({"snapper", 2.5f, 7.5f});
+            }
+            G.Step(1 / 60.0f);
+        }
+        return;
+    }
     else if (which == 4 || which == 5) {
         // a fish on the starboard rod, the port rod's float out
         for (int i = 0; i < (int)Stations().size(); i++) if (Stations()[i].kind == StationKind::StarRod) { c.p = Stations()[i].at; c.station = i; }

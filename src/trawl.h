@@ -77,6 +77,9 @@ struct Boat {
     // the engine
     float bunker = 5 * 18, firebox = 4, pressure = 0.6f, redT = 0, valveT = 0, fireT = 0;
     int telegraph = 0;                                    // 0 stop, 1 slow, 2 half, 3 full; -1 slow astern
+    int lantern = 2;                                      // 0 hooded (4 m), 1 low (8 m), 2 full (14 m), 3 searchlight (a 30 m cone)
+    float searchAim = 0;                                  // the searchlight's bearing off the bow (radians)
+    bool aground = false;
     float rudder = 0, shaft = 0;                          // -1..1 helm; 0..1 the screw
     bool sunk = false;
     float noise = 0;                                      // what the screw writes into the water this second
@@ -133,7 +136,7 @@ struct FishSpec {
 const std::vector<FishSpec>& DummyFish();
 const FishSpec* FindDummyFish(const std::string& name);
 
-enum class FightEnd { None, Landed, Snapped, ThrownHook, PulledHook, SlackHook, Spooled, Spooked };
+enum class FightEnd { None, Landed, Snapped, ThrownHook, PulledHook, SlackHook, Spooled, Spooked, Taken };
 const char* FightEndName(FightEnd e);
 
 // A line in the water and whatever is on it. One per rod.
@@ -197,6 +200,7 @@ int RunTrawlFight(int argc, char** argv);   // depth.exe --trawl-fight <species|
 enum class StationKind { Helm, Boiler, Pumps, PortRod, StarRod, SternRodP, SternRodS, NetWinch, Lantern, Sonar, Harpoon, Gutting, AirPump, Bell, Printer, COUNT };
 struct StationDef { StationKind kind; const char* name; Vector2 at; int deck; const char* does; };   // deck 0 main deck, 1 engine room
 const std::vector<StationDef>& Stations();
+float LanternRadius(int level);                           // 4, 8, 14, 30 m
 int NearestStation(Vector2 at, int deck, float r);
 
 enum class Role { Bosun, Angler, Diver, Medic, COUNT };
@@ -231,10 +235,14 @@ struct Rod {
     float lean = 0;
     bool botAngler = false; float alongT = 0;             // a bot fights it (tests; bot crew later)
     std::string lastCatch;
+    std::string bait;                                     // what's on the hook (stage 4's Chandler sells the rest)
+    FishSpec biteSpec{}; int fishSp = -1; bool headOnly = false;   // the web's fish on the line
     uint32_t rng = 1;
     Vector2 TipDeck() const;                              // the rod tip, in the boat frame, over the rail
 };
 struct CatchRec { std::string name; float kg; float value; };
+
+struct Eco;                                               // the food web (trawl_eco.h)
 
 // The boat and her crew as one step (the host's 60 Hz tick): the hands' weights into the boat, the boat's roll into
 // the hands.
@@ -246,6 +254,7 @@ struct Gannet {
     std::vector<std::string> log;                         // what just happened (a sunk section, a blown valve, a fall)
     std::vector<Rod> rods;                                // one per rod station
     std::vector<CatchRec> hold;                           // landed fish (stage 4 grades, ices and sells them)
+    Eco* eco = nullptr;                                   // the ground's food web, when she's on one: bites, thieves, light and noise into the water
     int RodAt(int station) const;                         // index into rods, or -1
     void StepRods(float dt);                              // lures, bites (a dummy bite table until the web comes), fights, the pull on her
     // a hand at a rod: the cast, the reel, the strike, the rod's lean, the bow, the gaff
@@ -263,6 +272,8 @@ struct Gannet {
     void Steer(int c, float amount, float dt);            // A/D at the helm
     void Say(const std::string& s);
 };
+
+void EcoTick(Eco& e, Gannet& g, float dt);                // what the Gannet puts into the water, then the web's step (trawl_eco.cpp)
 
 int RunTrawlBoatTest();                                   // depth.exe --trawl-boat-test
 int RunTrawlRodTest();                                    // (part of --trawl-boat-test) a rod on the Gannet, cast to landing

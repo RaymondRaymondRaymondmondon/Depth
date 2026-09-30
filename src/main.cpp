@@ -1,6 +1,7 @@
 #include "sound.h"
 #include "beasts.h"
 #include "trawl.h"
+#include "trawl_eco.h"
 #include "redtide.h"
 #include "redtide_match.h"
 // ============================================================================
@@ -183,6 +184,9 @@ static void TakeShots(const Game& base, const std::string& dir) {
         {"trawl_squall", [](Game& g) { DebugTrawlShot(g, 3); }},
         {"trawl_fishon", [](Game& g) { DebugTrawlShot(g, 4); }},
         {"trawl_jump", [](Game& g) { DebugTrawlShot(g, 5); }},
+        {"trawl_lagoon", [](Game& g) { DebugTrawlShot(g, 6); }},
+        {"trawl_searchlight", [](Game& g) { DebugTrawlShot(g, 7); }},
+        {"trawl_shark", [](Game& g) { DebugTrawlShot(g, 8); }},
         {"redtide_tank", [](Game& g) { DebugRedTideShot(g, 0); }},
         {"redtide_silhouette", [](Game& g) { DebugRedTideShot(g, 1); }},
         {"redtide_species_ship_1", [](Game& g) { DebugRedTideShot(g, 2); }},
@@ -582,6 +586,8 @@ int main(int argc, char** argv) {
         if (strcmp(argv[2], "all") == 0) { int r = 0; for (const char* k : {"ship", "cave", "reef", "atlantis", "void"}) r |= rt::RunWebCheck(k); return r; }
         return rt::RunWebCheck(argv[2]);
     }
+    if (argc >= 2 && strcmp(argv[1], "--trawl-eco") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlEco(argc, argv); }
+    if (argc >= 2 && strcmp(argv[1], "--trawl-eco-test") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlEcoTest(); }
     if (argc >= 2 && strcmp(argv[1], "--trawl-fight") == 0) return tw::RunTrawlFight(argc, argv);
     if (argc >= 2 && strcmp(argv[1], "--trawl-boat-test") == 0) {
         SetTraceLogLevel(LOG_WARNING);

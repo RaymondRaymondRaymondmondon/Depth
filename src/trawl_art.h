@@ -13,7 +13,7 @@ struct View {
     int viewerDeck = 0;                   // 0 the main deck; 1 the engine room (the deck goes dark above)
     bool inWheelhouse = false;            // the roof comes off
     float moon = 0.5f;                    // 0 new .. 1 full: glints on the crests out in the dark
-    struct Light { Vector2 at; float r, k; };
+    struct Light { Vector2 at; float r, k; Vector2 dir{0, 0}; float half = 0; };   // half > 0: a cone (radians) along dir
     std::vector<Light> lights;            // deck-frame lights
     Vector2 ToCanvas(Vector2 deck) const;
     Vector2 DeckOfCanvas(Vector2 c) const;
@@ -21,7 +21,8 @@ struct View {
 };
 void DrawSea(const Gannet& g, const View& v);
 void DrawBoat(const Gannet& g, const View& v);
-void DrawLines(const Gannet& g, const View& v);          // rods, lines, lures and what's on them
+void DrawLines(const Gannet& g, const View& v);
+void DrawLife(const Gannet& g, const View& v, bool air);   // the web's fish in the light (air: the gulls, over everything)          // rods, lines, lures and what's on them
 void DrawCrewMember(const Crew& c, const View& v, float t, bool you);
 Color RoleColor(Role r);
 

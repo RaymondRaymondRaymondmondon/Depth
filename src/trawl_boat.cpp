@@ -261,6 +261,11 @@ void Gannet::Scroll(int ci, float amount) {
     Crew& c = crew[ci];
     if (c.station < 0 || amount == 0) return;
     if (Stations()[c.station].kind == StationKind::Helm) boat.telegraph = std::clamp(boat.telegraph + (amount > 0 ? 1 : -1), -1, 3);
+    if (Stations()[c.station].kind == StationKind::Lantern) {
+        int was = boat.lantern;
+        boat.lantern = std::clamp(boat.lantern + (amount > 0 ? 1 : -1), 0, 3);
+        if (boat.lantern != was) { static const char* N[4] = {"hooded", "low", "full", "the searchlight"}; Say(std::string("Lantern: ") + N[boat.lantern]); }
+    }
 }
 void Gannet::Steer(int ci, float amount, float dt) {
     Crew& c = crew[ci];
@@ -277,6 +282,7 @@ void Gannet::Step(float dt) {
     int leaks = 0; for (int s = 0; s < SEC_COUNT; s++) if (boat.integrity[s] < D().leakBelow && !boat.patched[s]) leaks++;
     bool wasSunk = boat.sunk; float valve0 = boat.valveT;
     StepRods(dt);
+    if (eco) EcoTick(*eco, *this, dt);
     boat.Step(dt, sea);
     if (boat.sunk && !wasSunk) Say("The Gannet founders");
     if (boat.valveT > 0 && valve0 <= 0) Say("The relief valve blows: steam in the engine room, the screw stops");

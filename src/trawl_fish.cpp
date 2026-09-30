@@ -3,6 +3,7 @@
 // stretch times its stiffness, so the gauge shows what the physics does. --trawl-fight runs it headless against the
 // doc's target fights.
 #include "trawl.h"
+#include "trawl_eco.h"
 #include "raymath.h"
 #include <algorithm>
 #include <cstdio>
@@ -493,15 +494,24 @@ void Gannet::StepRods(float dt) {
                 if (r.bite.stage == BiteStage::None || r.bite.stage == BiteStage::Gone) {
                     r.bite.stage = BiteStage::None;
                     bool settled = r.lure.z > r.lureDepth - 0.5f || r.settleT > 6;
-                    if (settled && manned && RRand(r.rng) < dt / 18.0f) {
-                        const FishSpec* f = DummyBite(r.tackle, RRand(r.rng));
-                        if (f) r.bite.Start(f, f->wary, role == Role::Angler, r.rng++);
+                    if (settled && manned && eco) {
+                        // the web decides: a fish near the lure that eats what's on it, hungry enough to take
+                        if (r.bait.empty()) r.bait = DefaultBait(r.tackle);
+                        int sp = eco->TryBite(r.lure, r.tackle, r.bait, dt, nullptr);
+                        if (sp >= 0) {
+                            r.biteSpec = eco->SpecOf(sp, RRand(r.rng)); r.fishSp = sp;
+                            r.bite.Start(&r.biteSpec, r.biteSpec.wary, role == Role::Angler, r.rng++);
+                        }
+                    } else if (settled && manned && RRand(r.rng) < dt / 18.0f) {
+                        const FishSpec* f = DummyBite(r.tackle, RRand(r.rng));   // (no ground: the stage-2 stand-in)
+                        if (f) { r.biteSpec = *f; r.biteSpec.kg *= 0.7f + 0.6f * RRand(r.rng); r.fishSp = -1; r.bite.Start(&r.biteSpec, f->wary, role == Role::Angler, r.rng++); }
                     }
                 } else {
                     int res = r.bite.Step(dt, r.strikeQ, r.hook == Hook::Circle && r.reel);
                     if (res > 0) {
-                        FishSpec f = *r.bite.fish;
-                        f.kg *= 0.7f + 0.6f * RRand(r.rng);
+                        FishSpec f = r.biteSpec;
+                        if (eco && r.fishSp >= 0) { f.floor = std::max(1.0f, eco->DepthAt({r.lure.x, r.lure.y})); eco->TakeNear(r.fishSp, r.lure); }
+                        r.headOnly = false;
                         r.fight = Fight{};
                         r.fight.tackle = r.tackle; r.fight.line = r.line; r.fight.hook = r.hook;
                         r.fight.drag = 0.33f * td.strength;
@@ -524,6 +534,17 @@ void Gannet::StepRods(float dt) {
                 else if (manned) { f.reeling = r.reel; f.rodLean = r.lean; f.bowed = r.bow; f.pumping = r.reel && r.bow; f.keelClear = 0; }
                 else { f.reeling = false; f.bowed = false; }        // an unmanned rod holds in its holder
                 f.Step(dt);
+                // a hooked fish is prey: the thieves come to the thrashing
+                if (eco && f.end == FightEnd::None && !r.headOnly) {
+                    int kind = 0, thief = eco->Depredate(f.p, f.spec.kg, dt, &kind);
+                    if (thief >= 0 && kind == 1) {
+                        r.headOnly = true; f.spec.kg *= 0.45f; f.S = std::min(f.S, 0.05f * f.S0); f.jumpT = -1;
+                        Say(std::string("Something hit it: ") + (role == Role::Angler ? Species().sp[thief].name : std::string("it's gone slack")));
+                    } else if (thief >= 0) {
+                        f.end = FightEnd::Taken;
+                        Say(std::string("Taken off the line by a ") + Species().sp[thief].name);
+                    }
+                }
                 // the fish pulls on her: a force at the rail and a heel toward the fish's side
                 Vector2 pw = f.PullOnBoat();
                 boat.extraForce = Vector2Add(boat.extraForce, Vector2Scale(pw, 9.81f));
@@ -539,10 +560,15 @@ void Gannet::StepRods(float dt) {
                 }
                 if (f.end != FightEnd::None) {
                     if (f.end == FightEnd::Landed) {
-                        hold.push_back({f.spec.name, f.spec.kg, f.spec.kg * f.spec.price});
-                        r.lastCatch = TextFormat("%.1f kg %s", f.spec.kg, f.spec.name);
+                        std::string nm = std::string(f.spec.name) + (r.headOnly ? " (head)" : "");
+                        hold.push_back({nm, f.spec.kg, f.spec.kg * f.spec.price});
+                        r.lastCatch = TextFormat("%.1f kg %s", f.spec.kg, nm.c_str());
                         Say(std::string("Landed: a ") + r.lastCatch);
-                    } else Say(std::string("Lost it: ") + FightEndName(f.end));
+                        if (eco && r.fishSp >= 0) eco->Harvest(r.fishSp, r.headOnly ? f.spec.kg / 0.45f : f.spec.kg, f.p, false);
+                    } else {
+                        if (f.end != FightEnd::Taken) Say(std::string("Lost it: ") + FightEndName(f.end));
+                        if (eco) eco->AddBlood(f.p, f.spec.kg * (f.end == FightEnd::Taken ? 2.0f : 0.5f));   // it goes off torn, or in pieces
+                    }
                     r.state = RodState::Idle; r.bite = Bite{};
                 }
                 break;

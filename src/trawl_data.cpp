@@ -1,6 +1,7 @@
 // The Trawl's numbers (design doc: "Numbers live in trawl_data.cpp"). Species records live in
 // data/trawl/trawl_species.json; everything else a designer tunes is here.
 #include "trawl.h"
+#include <algorithm>
 
 namespace tw {
 
@@ -42,6 +43,7 @@ const std::vector<StationDef>& Stations() {
     };
     return S;
 }
+float LanternRadius(int level) { static const float R[4] = {4, 8, 14, 30}; return R[std::clamp(level, 0, 3)]; }
 int NearestStation(Vector2 at, int deck, float r) {
     int best = -1; float bd = r * r;
     const auto& S = Stations();
@@ -82,7 +84,7 @@ const char* HookName(Hook h) { static const char* N[(int)Hook::COUNT] = {"Small"
 const char* PatternName(Pattern p) { static const char* N[(int)Pattern::COUNT] = {"None", "Run", "Dive", "Jump", "Circle", "Cover", "Roll"}; return N[(int)p]; }
 float PatternPull(Pattern p) { static const float R[(int)Pattern::COUNT] = {0.3f, 0.8f, 0.9f, 0.6f, 0.5f, 0.7f, 0.6f}; return R[(int)p]; }
 const char* FightEndName(FightEnd e) {
-    static const char* N[] = {"on", "landed", "line snapped", "threw the hook", "pulled the hook", "slack: hook fell out", "spooled", "spooked"};
+    static const char* N[] = {"on", "landed", "line snapped", "threw the hook", "pulled the hook", "slack: hook fell out", "spooled", "spooked", "taken"};
     return N[(int)e];
 }
 const SkillDef& SkillOf(Skill s) {   // design doc, "Bot skill": reaction, hook-set, gaff; bow and keel are the fight's

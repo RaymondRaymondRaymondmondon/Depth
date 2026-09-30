@@ -9,7 +9,7 @@ Build order (the design doc's own):
 |---|---|---|---|
 | 1 | The boat alone: hull physics, engine, stations, top-down deck, movement, one player | The boat rolls, lists under weight, and sinks when flooded | **Done** (`--trawl-boat-test`) |
 | 2 | Lines and fishing: Verlet lines, cast, bite, fight, landing against a dummy fish | `--trawl-fight` numbers in range | **Done** (`--trawl-fight all`) |
-| 3 | Ecosystem port: the water column, light layer, vibration, Wake, the Lagoon's species | `--trawl-eco lagoon` curves stable with no crew | |
+| 3 | Ecosystem port: the water column, light layer, vibration, Wake, the Lagoon's species | `--trawl-eco lagoon` curves stable with no crew | **Done** (`--trawl-eco lagoon 27`, `--trawl-eco-test`) |
 | 4 | The session loop: dock, Chandler, sail, clock, sell, quota | A solo night on the Lagoon is playable end to end | |
 | 5 | Networking: six players, voice, prediction for reeling | `--net-loop trawl` and a six-player LAN night | Needs the shared arcade networking layer |
 | 6-10 | Shooting, the net, set gear, death and ghosts; the Weeds and the Grotto; diving and wrecks; Atlantis Waters, the Kraken, the Ghost Ship; tuning and sound | | |
@@ -109,3 +109,74 @@ Code: `src/trawl_fish.cpp` (the fight, the bite, the bot angler, the rods aboard
   the rating, the line out and the depth; an Angler sees the species and its weight. Shots: `trawl_fishon`,
   `trawl_jump`. `--trawl-boat-test` now also runs 14 rod checks (the cast, sinking, the bite's windows, a fish on
   the Gannet heeling her, a snap with the drag screwed down, the drag holding a run).
+
+## Stage 3: the Eclipse Lagoon's food web
+
+Code: `src/trawl_eco.h/.cpp` (the web, the chart, the fields, the agents, bites and thieves, Wake, `--trawl-eco`,
+`--trawl-eco-test`), species in `data/trawl/trawl_species.json`, drawing in `src/trawl_art.cpp` (`DrawLife`, the
+seabed in `DrawSea`), the Gannet's side in `EcoTick` (trawl_eco.cpp) and `Gannet::StepRods` (trawl_fish.cpp).
+
+- **A design call: the Trawl's web is its own code, not an adapter onto Red Tide's `rt::Ecosystem`.** Red Tide's
+  engine is built round zones, doors, factions, tides and divers; wrapping it for an open 600 m lagoon seen from a
+  boat would have been more code than writing the doc's rules directly. What's shared is the species file format
+  and loader style (the same `json.h` reader) and the ideas (agents, a blood field that diffuses and drifts, senses
+  by radius). The doc allows this: "the Trawl reuses that code to save time, not its design".
+- **Species records** (`trawl_species.json`): the Lagoon's 21 species from the doc's roster plus the gull flock, in
+  the shared format (class, size, tier, diet, blood threshold, senses, temperament, home, social) with the Trawl's
+  four fields: depth band and night band, light response (drawn, neutral, shy), bite profile (baits, tackle) and
+  fight pattern. The fight patterns feed stage 2's `Fight` directly (`Eco::SpecOf`).
+- **Time**: one real second is one minute of the night (20:00-05:00 is nine real minutes). Population rates are per
+  game hour; blood (3% a second), vibration and Wake (a point a real minute) run in real seconds.
+- **The population layer**: every species' biomass for the whole ground, and five resources (plankton, benthos,
+  algae, seagrass, carrion). Each consumer eats `q B f` an hour, where `f` is its prey's abundance through a
+  saturating response (half at the start); it keeps 30% of that and loses the rest of its balance half to a constant
+  rate and half to crowding. The model is **calibrated so the start numbers are its balance**: top down through the
+  diet graph, each species' turnover is raised if its predators eat hard, and each resource's stock and regrowth
+  come from its "turnover" (hours to eat through the standing stock). So a ground with no crew holds still, and a
+  ground knocked 30% off balance settles back (15% mean deviation to 6% over three weeks).
+- **Cascades** (doc, "How the web plays"): netting 60% of the forage leaves snapper, bonito and jacks hungrier the
+  next night (hunger 0.50 to about 0.7), which the agents carry into more bites and bolder hunting; netting the
+  parrotfish and surgeonfish lets algae grow and smother the coral (coral health falls below 0.9 by night three) and
+  the reef species that shelter there thin out (their mortality rises as the coral goes).
+- **The chart**: the atoll's island along the west edge, seagrass flats off it, a basin of 12-22 m with 28 coral
+  heads, the crest curving down the east side (3-6 m at high water, caves in its face), the open sea beyond shelving
+  to 40 m; nine sargassum rafts drifting on the wind. **The reef tide** falls 1.4 m through the night; the Gannet
+  (1.8 m draught) goes aground on the crest or the island (she stops; the kedge anchor comes with stage 4).
+- **The fields**: blood, sound and vibration on 4 m cells in five depth bands. Blood decays 3% a second, spreads and
+  drifts down-current (0.2 m/s); a hungry hunter smells it over its scent radius (the reef shark 40 m) and follows
+  the gradient once it passes its threshold; a lateral line (barracuda 24 m, sharks 30 m) feels a thrashing fish or
+  a humming line. Timid fish flee a loud screw or a blast.
+- **Light** (the first new layer): the lamps (hooded 4 m, low 8, full 14, the searchlight's cone) light the water
+  and, farther, show as a glow. Drawn forage swims in to the light and mills round its pool (under the lamp is
+  under the hull); **predators follow the forage** up after it, slower; shy species leave. Measured: after 30 minutes
+  a full lantern has about 2,000 forage fish under the hull against 14 hooded, and a light rod by the rail draws
+  7 bites in the next hour against 3 hooded (the doc: "roughly doubles bites after 30 minutes").
+- **Vibration** (the second new layer): the screw, taut lines (over 30% of their rating) and a fish on a line
+  (more as it thrashes) write into it: a barracuda pack 22 m off comes to a hooked fish.
+- **Wake** (the third new layer): blood the crew put in, the screw's noise and bright light raise it; quiet and dark
+  (screw stopped, lamp low or hooded, the slick gone) it settles a point a minute; a depth charge adds 15. Chumming
+  all night on the Lagoon reaches about 21; three depth charges take it past 45. (The big three come in later
+  stages; the Great White isn't on the Lagoon until the second deadline.)
+- **The agent layer**: up to 260 groups (a school, a pack, one grouper) within 150 m of the boat, spawned out in the
+  dark from the density map (past 14 groups a species' agents stand for bigger schools). They keep to their depth
+  band and rise at dusk (sardines from 6.5 m to the surface by 21:24), lean toward their habitat, shelter under
+  rafts (mahi, flying fish), hunt what they can sense (sight scaled by the light, a lateral line in the dark), eat
+  and are satiated for a while. A threat reaching the lantern's edge is logged as an arrival (the crew's first tell).
+  Gulls come in over the boat 20-40 s after fish are on deck or blood is at the surface (their thieving comes with
+  stage 4's deck).
+- **Fishing on the web**: a settled lure asks the agents near it (16 m, 8 m of depth) whether they take this tackle
+  and bait; a matched bait bites about 3x as often (snapper take shrimp 3.6x as often as a popper); hunger raises it.
+  The fish hooked is that species (its record's weight range and fight pattern) and leaves its school. **Depredation**:
+  a hooked fish is prey; the barracuda strike it to the head (you reel in 45% of it, dead) and a reef shark takes it
+  whole. A landed fish comes off the ground's biomass; one that gets away bleeds. Until stage 4's Chandler each rod
+  carries a default bait (light rod shrimp, medium squid strip, heavy live bait, deep-drop dead bait).
+- **On screen**: the web's fish in the lamplight (silver dashes for schools, shapes for the bigger fish, a dark fin at
+  the lantern's edge for a shark, jellies as rings, gulls as white Vs wheeling over the boat), the seabed showing
+  through the shallows (coral, seagrass, sand), sargassum on the surface; the lantern mast's scroll sets the lamp
+  and the mouse aims the searchlight. Shots: `trawl_lagoon`, `trawl_searchlight`, `trawl_shark`.
+- **Checks**: `depth.exe --trawl-eco lagoon 27` (three nights with a day between each, no crew: every species within
+  bounds, "The ground is stable with no crew"); patterns `quiet`, `chumming`, `trawling`, `depth-charging` print
+  populations by the hour, blood, Wake and threat arrivals. `depth.exe --trawl-eco-test`: 20 checks (the gate, the
+  settling after a shock, both cascades, the lantern, the night rise, a shark following chum from down-current, a
+  barracuda pack coming to vibration and heading a hooked fish, Wake up and down, bites and matched bait, harvest,
+  the lamp doubling bites at the Gannet's rail, a rod fished through the night landing the web's fish).
