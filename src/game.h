@@ -76,6 +76,7 @@ struct Ability {
     bool swapWithTarget = false; // "command team": trade places with an ally
     bool ranged = false;         // thrown or fired (animates with a projectile) rather than a close-in strike
     int unlockLevel = 0;         // hero level needed before it can be slotted
+    int riposte = 0;             // turns the caster counters melee hits (Stage 7)
 };
 
 struct Status {
@@ -91,6 +92,7 @@ struct Status {
     // Drowning Entanglement (Weeds), Eldritch Madness (Atlantis). Turns remaining.
     int burnTurns = 0, siltTurns = 0, drownTurns = 0, madTurns = 0;
     int guardTurns = 0;
+    int riposteTurns = 0;                 // counters melee hits
     int marked = 0;
 };
 
@@ -154,6 +156,7 @@ struct Hero {
     bool steeled = false;    // Stage 7 resolve: 100 nerves sometimes steels a hero instead of rattling them (for the rest of the expedition)
     unsigned habits = 0, habitLocked = 0;   // Stage 7 habits (quirks): bit = HabitId; locked ones can't be replaced
     unsigned ailments = 0;                  // Stage 7 ailments: bit = Ailment; persistent until cured
+    int drill[8] = {};                      // Stage 7 Drill Deck: training level (0-DRILL_MAX) per class ability
 };
 
 struct EnemyAbility {
@@ -194,6 +197,7 @@ struct Enemy {
     int extraAct = 0;                  // percent chance (bosses only) to act a second time after each of its turns, tuned per boss
     int span = 1;                      // how many of the four enemy ranks it fills: a level boss 3, a mini-boss 2. Still one enemy, hittable in any of its ranks
     int tier = 0;                      // 0 standard, 1 mini-boss, 2 level boss
+    bool elite = false;                // Stage 7: an elite variant (from cave level 3): +30% HP, one extra ability, a brass name plate
     bool alive = true;
     std::vector<EnemyAbility> abilities;
     Status st;
@@ -260,6 +264,10 @@ int AilmentCurePrice(int a);
 int LocationAilment(Location l);              // what each location's bleeding and poisoning creatures pass on
 extern const int AILMENT_HIT_PCT, CURIO_AILMENT_PCT, BONESAW_SELF_HP;
 extern const int BOND_MAX, BOND_PERK, BOND_DMG_PCT, BOND_DEATH_NERVES, BOND_BARK_PCT, BOND_BARK_CALM, HERO_CRIT_CALM, ENEMY_CRIT_NERVES;
+extern const int ENEMY_FLEE_PCT, RIPOSTE_DMG_PCT, DRILL_MAX, DRILL_STEP_PCT, DRILL_STUN_STEP;
+extern const int ELITE_PCT_BY_TIER[5], ELITE_HP_PCT, SIM_DRILLS_BY_TIER[5];
+int DrillPrice(int toLevel, int unlockLevel);   // the Drill Deck's price for the next level of an ability
+void ApplyDrill(Ability& a, int level);         // +10% damage or effect per level
 extern int gStatLocation;                     // the location of the expedition in progress (-1 aboard): location habits read it
 int HabitStressPct(const Hero& h, bool lowLight);
 bool GainHabit(Hero& h, bool good);           // adds a random habit of that kind (replacing an unlocked one at the cap); false if none could be added
@@ -332,6 +340,7 @@ struct DungeonState {
     std::map<int, int> dmgDealt;   // this fight: damage each hero has dealt (EnemyBrain's threat)
     std::map<int, int> lastAbility; // this fight: each enemy's last ability (boss scripts)
     int supply[8] = {};              // supplies carried (SUP_*)
+    int fled = 0;                          // Stage 7: cowards who fled this fight (they take their share of the spoils)
     int campPoints = 0, campAmbush = 0;   // an open camp: points left to spend on camp skills, and the night-ambush chance
     std::vector<int> campUsed;       // camp skills used at this camp (indices into CampSkills())
     bool lullaby = false, lullabyActive = false; // a Siren's Lullaby: no nerves gained in the next fight
@@ -889,6 +898,7 @@ void ParkourAudio(const PlatformState& p, float dt); // sound_parkour.cpp: the p
 void AbyssAudio(const AbyssState& a, float dt);
 void DrawVolumeSliders(Rectangle r);  // master / music / effects / ambience, on the Periscope
 void SceneWorkshop(Game& g);
+void DebugWorkshopTab(int t);   // --shots
 
 // ---------- dungeon.cpp ----------
 void StartDungeon(Game& g, Location loc);

@@ -10,7 +10,7 @@ The plan is `Depth — Master Reference for Claude Code.pdf` (project root). One
 | 4 | Sonar chart expeditions | Done (--gen-chart 10,000/10,000; --sim within 10 points of the linear baseline at every tier) |
 | 5 | Expedition visual overhaul on the rig | In progress: every hero on the rig, HUD, effects, camera; creature rig kit on the Cave; other locations' creatures, backgrounds-as-props and boss phase clips still to do |
 | 6 | EnemyBrain | Done (--brain-test: level 0 -4.1 points, level 6 -19.0; boss targets re-tuned) |
-| 7 | New expedition systems, the Trench and the Hadal | In progress: a (supplies, camp, resolve) and b (habits, ailments, bonds, crit reactions; --stage7-test) done; Drill Deck, elites, new enemies, guard/riposte/retreat, Trench/Hadal, memorial/Sea Log, voyage events to come |
+| 7 | New expedition systems, the Trench and the Hadal | In progress: a (supplies, camp, resolve), b (habits, ailments, bonds, crit reactions; --stage7-test), c (Drill Deck, elites, riposte, enemy retreat) done; new enemies, Trench/Hadal, memorial/Sea Log, voyage events to come |
 | 8 | Expedition sound | |
 | 9 | Flats visuals and card physics | |
 | 10 | Flats long map and systems | |
@@ -59,3 +59,14 @@ Tuning: tier scaling hp +11% -> +8% per level and damage +7% -> +5% per level; C
 
 ### Stage 7 part b: habits, ailments, bonds (2026-09-29)
 Crit reactions changed (hero crit -4 -> -3 nerves to the party; an enemy crit now adds 5 to everyone instead of 10 to its target). --sim 1200: 52.4 / 58.0 / 64.9 / 49.2 / 39.8 (targets 60/65/58/55/45; within noise of part a except level 0, -5). Spec deviations: camp points 5 (spec 4), Triage Tent heals 6 (spec 3), both for balance.
+
+### Stage 7 part c: Drill Deck, elites, riposte, retreat (2026-09-29)
+Elites 0/0/40/35/55% by cave level (+30% HP, an extra ability); riposte at 70% of a blow; Cowardly flee 35% below half HP. --sim now drills 0/2/1/3/2 slotted abilities once by cave level (SIM_DRILLS_BY_TIER), standing in for a player's spending. --sim 2000:
+
+| Cave level | Result | Target |
+|---|---|---|
+| 0 | 55.2% | 60 (-4.8) |
+| 1 | 63.4% | 65 |
+| 3 | 61.9% | 58 |
+| 5 | 54.6% | 55 |
+| 6 | 44.2% | 45 |

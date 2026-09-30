@@ -242,7 +242,8 @@ static bool HeroCanUse(Game& g, int heroPos, const Ability& a) {
 static void HeroAct(Game& g, int heroId, int abilityIdx, int targetPos) {
     Hero* h = FindHero(g, heroId);
     if (!h) return;
-    const Ability& a = ClassAbilities(h->cls)[abilityIdx];
+    Ability a = ClassAbilities(h->cls)[abilityIdx];
+    if (abilityIdx >= 0 && abilityIdx < 8) ApplyDrill(a, h->drill[abilityIdx]);   // the Drill Deck's training
     Stats s = GetStats(*h);
     int myPos = PartyPos(g, heroId);
     auto& d = g.dungeon;
@@ -350,6 +351,7 @@ static void HeroAct(Game& g, int heroId, int abilityIdx, int targetPos) {
         Log(g, "The Captain reorders the line.");
         targets = {myPos}; // the ally now stands where the Captain was
     }
+    if (a.riposte && myPos >= 0) { h->st.riposteTurns = a.riposte; Float(g, HeroRect(myPos), "Riposte", Pal::Brass); }
     for (int p : targets) {
         Hero* t = PartyAt(g, p);
         if (!t) continue;
@@ -492,6 +494,12 @@ static void EnemyAct(Game& g, int uid, int ability, int target) {
             PlayCue(crit ? "mus.drum" : "ui.drop", crit ? 0.9f : 0.6f);
             DamageHero(g, *h, dmg);
             if (h->dead) continue;
+            if (h->st.riposteTurns > 0 && (a.hits & ~3) == 0 && e->alive && e->hp > 0) { // a riposte against a melee blow
+                int rdmg = std::max(1, (int)std::round(Roll(s.dmgMin, s.dmgMax) * RIPOSTE_DMG_PCT / 100.0f * (100 - std::max(0, e->prot)) / 100.0f));
+                e->hp -= rdmg;
+                Float(g, er, TextFormat("Riposte %d", rdmg), Pal::Brass);
+                if (e->hp <= 0) { e->hp = 0; e->alive = false; Log(g, e->name + " falls to " + h->name + "'s riposte."); }
+            }
             if (crit) for (int q = 0; q < PARTY_SIZE; q++) if (Hero* o = PartyAt(g, q)) AddStress(g, *o, ENEMY_CRIT_NERVES);   // an enemy crit shakes everyone
             for (int nb : {p - 1, p + 1}) if (Hero* o = PartyAt(g, nb); o && !o->dead && BondOf(g, h->id, o->id) >= BOND_PERK && Chance(BOND_BARK_PCT)) {
                 static const char* BARKS[] = {"Hold fast!", "I've got you!", "Stay with me!", "Not today!"};
@@ -869,6 +877,7 @@ static void RoomCleared(Game& g) {
     d.roomRelic = -1;
     if (boss && Chance(50)) { d.roomRelic = Roll(0, (int)Relics().size() - 1); d.lootRelics.push_back(d.roomRelic); }
     if (d.miniFight) d.roomGold = d.roomGold * 8 / 5; // a mini-boss guards better loot
+    if (d.fled > 0) d.roomGold = d.roomGold * std::max(0, 100 - 25 * d.fled) / 100;   // fled cowards took their share
     d.lootGold += d.roomGold;
     d.pendingItem = !boss && Chance(d.miniFight ? 85 : d.inHall ? 20 : 40); // something dropped among the wreckage, worth a look
     if (d.pendingItem) d.pendingItemVal = RollFoundItem();
@@ -924,6 +933,7 @@ static void StartTurn(Game& g) {
         if (st.accTurns > 0 && --st.accTurns == 0) st.accBuff = 0;
         if (st.spdTurns > 0 && --st.spdTurns == 0) st.spdBuff = 0;
         if (st.guardTurns > 0) st.guardTurns--;
+        if (st.riposteTurns > 0) st.riposteTurns--;
         if (st.burnTurns > 0) { st.burnTurns--; Float(g, r, "Burn 2", Pal::Coral); DamageHero(g, *h, 2); }
         if (st.siltTurns > 0) st.siltTurns--;
         if (st.drownTurns > 0) st.drownTurns--;
@@ -957,6 +967,12 @@ static void StartTurn(Game& g) {
         if (st.accTurns > 0 && --st.accTurns == 0) st.accBuff = 0;
         if (e->hp <= 0) { e->hp = 0; e->alive = false; skip(e->name + " succumbs."); return; }
         if (st.stunned > 0) { st.stunned--; skip(e->name + " is stunned."); return; }
+        if (!e->boss && EnemyPersonalityOf(e->type) == Personality::Cowardly && e->hp * 2 < e->maxHp && Chance(ENEMY_FLEE_PCT)) {
+            e->alive = false; e->hp = 0; d.fled++;   // a coward bolts: no spoils from it
+            Float(g, r, "Flees!", Pal::Paper);
+            skip(e->name + " flees into the dark!");
+            return;
+        }
     }
 }
 
@@ -978,6 +994,7 @@ static float StretchDrain(Game& g) {
 static void StartFight(Game& g, bool hall) {
     g.dungeon.lullabyActive = g.dungeon.lullaby; g.dungeon.lullaby = false;
     g.dungeon.dmgDealt.clear();
+    g.dungeon.fled = 0;
     g.dungeon.lastAbility.clear();
     auto& d = g.dungeon;
     d.inHall = hall;
@@ -1712,6 +1729,7 @@ void SimulateExpeditions(int runs, int level, bool randomPlayer, int tier) {
             for (int i = 0; i < (int)abs.size(); i++) if (abs[i].unlockLevel <= level) pool.push_back(i);
             for (int i = (int)pool.size() - 1; i > 0; i--) std::swap(pool[i], pool[Roll(0, i)]);
             for (int k = 0; k < LOADOUT_SIZE; k++) h.loadout[k] = k < (int)pool.size() ? pool[k] : -1;
+            if (!randomPlayer) for (int k = 0; k < SIM_DRILLS_BY_TIER[std::clamp(tier, 0, CAVE_TIERS - 1)] && k < LOADOUT_SIZE; k++) if (h.loadout[k] >= 0) h.drill[h.loadout[k]] = 1;   // what a player at this depth has trained
         }
         SuggestedKit(Location::Cave, g.provision);   // the auto-player takes the Quartermaster's kit
         StartDungeon(g, Location::Cave);
@@ -3039,6 +3057,12 @@ static void DrawUnitHud(Game& g, int actingHero, int actingEnemy) {
         float bx = r.x + 6, bw = r.width - 12, by = r.y + r.height + 6;
         DrawRectangle((int)bx - 1, (int)by - 1, (int)bw + 2, 7, Color{8, 6, 6, 230});
         DrawRectangle((int)bx, (int)by, (int)(bw * std::clamp((float)e.hp / e.maxHp, 0.0f, 1.0f)), 5, Color{190, 40, 36, 255});
+        if (e.elite) { // the elite's brass plate
+            DrawRectangleLinesEx({bx - 3, by - 3, bw + 6, 11}, 1.5f, Pal::Brass);
+            float tw = (float)MeasureTxt("ELITE", 11, true);
+            DrawRectangle((int)(r.x + r.width / 2 - tw / 2 - 5), (int)by + 9, (int)tw + 10, 14, Color{40, 30, 16, 230});
+            TxtBold("ELITE", r.x + r.width / 2 - tw / 2, by + 10, 11, Pal::Brass);
+        }
         if (CheckCollisionPointRec(m, r)) { float nw = (float)MeasureTxt(e.name, 15, true); TxtShadow(e.name, r.x + r.width / 2 - nw / 2, by + 9, 15, Pal::Paper, true); }
         (void)actingEnemy;
     }

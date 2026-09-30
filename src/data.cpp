@@ -65,8 +65,8 @@ static std::vector<Ability> BuildCaptain() {
     a.buffDmg = 25; a.stressHeal = 3; v.push_back(a);
     a = Ab("All Hands!", "Swap places with an ally and calm them a little.", ANY_RANK, ANY_RANK, Target::Ally);
     a.swapWithTarget = true; a.stressHeal = 4; v.push_back(a);
-    a = Ab("Steady Now", "A calm word to everyone (-8 stress to the party).", ANY_RANK, ANY_RANK, Target::AllAllies);
-    a.stressHeal = 8; v.push_back(a);
+    a = Ab("Steady Now", "A calm word to everyone (-8 stress to the party); the Captain ripostes melee hits for 2 turns.", ANY_RANK, ANY_RANK, Target::AllAllies);
+    a.stressHeal = 8; a.riposte = 2; v.push_back(a);
     a = Ab("Flintlock", "A steady shot at any enemy rank.", RANGED_FROM, ANY_RANK, Target::Enemy);
     a.dmgMult = 0.75f; a.ranged = true; a.unlockLevel = 1; v.push_back(a);
     a = Ab("Hold the Line", "Whole party gains +15 protection for 3 turns.", ANY_RANK, ANY_RANK, Target::AllAllies);
@@ -155,8 +155,8 @@ static std::vector<Ability> BuildMerman() {
     a.dmgMult = 1.3f; a.accBonus = -5; a.unlockLevel = 1; v.push_back(a);
     a = Ab("Riptide Slam", "Slam the front enemy back with the tide.", MELEE_FROM, RANK_1, Target::Enemy);
     a.dmgMult = 0.6f; a.moveTarget = 2; a.unlockLevel = 1; v.push_back(a);
-    a = Ab("Frenzy", "A killing frenzy: +30% damage for 3 turns.", ANY_RANK, ANY_RANK, Target::Self);
-    a.buffDmg = 30; a.unlockLevel = 2; v.push_back(a);
+    a = Ab("Frenzy", "A killing frenzy: +30% damage for 3 turns, and ripostes melee hits for 2.", ANY_RANK, ANY_RANK, Target::Self);
+    a.buffDmg = 30; a.unlockLevel = 2; a.riposte = 2; v.push_back(a);
     a = Ab("Deep Fury", "Everything, all at once.", MELEE_FROM, MELEE_HITS, Target::Enemy);
     a.dmgMult = 1.5f; a.accBonus = -10; a.unlockLevel = 3; v.push_back(a);
     return v;
@@ -879,6 +879,14 @@ void ScaleEnemyForTier(Enemy& e, int tier) {
     e.speed += L / 2;
     static const float EXTRA_ACT_BY_TIER[CAVE_TIERS] = {1.0f, 0.4f, 0.35f, 0.25f, 0.1f}; // deeper bosses already hit harder and last longer
     e.extraAct = (int)(e.extraAct * EXTRA_ACT_BY_TIER[std::clamp(tier, 0, CAVE_TIERS - 1)] + 0.5f);
+    if (!e.boss && GetRandomValue(0, 99) < ELITE_PCT_BY_TIER[std::clamp(tier, 0, CAVE_TIERS - 1)]) { // an elite: tougher, and one trick more
+        e.elite = true;
+        e.maxHp = e.maxHp * (100 + ELITE_HP_PCT) / 100;
+        bool melee = false;
+        for (auto& ab : e.abilities) melee |= ab.dmgMult > 0 && (ab.hits & ~3) == 0;
+        if (melee) { EnemyAbility x = Melee("Savage Strike", 1.3f); x.bleed = 2; e.abilities.push_back(x); }
+        else { EnemyAbility x = Long("Unnerving Wail", 0.4f); x.stress = 7; x.targetsN = 2; e.abilities.push_back(x); }
+    }
     e.hp = e.maxHp;
 }
 
@@ -1157,4 +1165,23 @@ void AddBond(Game& g, int a, int b, int n) {
     if (a == b || a < 0 || b < 0) return;
     int& v = g.bonds[{std::min(a, b), std::max(a, b)}];
     v = std::clamp(v + n, 0, BOND_MAX);
+}
+
+// ---------------------------------------------------------------- Stage 7: combat additions, the Drill Deck, elites
+extern const int ENEMY_FLEE_PCT = 35;        // a Cowardly enemy below half HP flees at the start of its turn
+extern const int RIPOSTE_DMG_PCT = 70;       // a riposte hits for this share of a normal blow
+extern const int DRILL_MAX = 2, DRILL_STEP_PCT = 10, DRILL_STUN_STEP = 5;
+extern const int ELITE_PCT_BY_TIER[5] = {0, 0, 40, 35, 55};   // cave levels 0/1/3/5/6
+extern const int ELITE_HP_PCT = 30;
+extern const int SIM_DRILLS_BY_TIER[5] = {0, 2, 1, 3, 2};   // --sim: slotted abilities drilled once, by cave level (the gold a player at that depth has spent)
+int DrillPrice(int toLevel, int unlockLevel) { return (toLevel <= 1 ? 60 : 120) + 20 * std::clamp(unlockLevel, 0, 3); }   // 60-180 gold
+void ApplyDrill(Ability& a, int level) {
+    if (level <= 0) return;
+    float m = 1.0f + DRILL_STEP_PCT * level / 100.0f;
+    a.dmgMult *= m;
+    a.heal = (int)std::round(a.heal * m); a.stressHeal = (int)std::round(a.stressHeal * m);
+    a.bleed = (int)std::round(a.bleed * m); a.poison = (int)std::round(a.poison * m);
+    a.buffDmg = (int)std::round(a.buffDmg * m); a.buffDodge = (int)std::round(a.buffDodge * m);
+    a.buffProt = (int)std::round(a.buffProt * m); a.buffAcc = (int)std::round(a.buffAcc * m);
+    if (a.stunChance) a.stunChance += DRILL_STUN_STEP * level;
 }

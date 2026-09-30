@@ -186,6 +186,8 @@ static void TakeShots(const Game& base, const std::string& dir) {
         {"helm", [](Game& g) { g.scene = Scene::Helm; g.tierCleared[(int)Location::Cave] = 1; g.tierSel[(int)Location::Cave] = 2; }},
         {"radar", [](Game& g) { g.scene = Scene::Radar; }},
         {"workshop", [](Game& g) { g.scene = Scene::Workshop; g.gold = 500; g.upgrades[UP_BUNKS] = 1; }},
+        {"workshop_drill", [](Game& g) { g.scene = Scene::Workshop; g.gold = 500; DebugWorkshopTab(1); g.selectedHero = g.roster[0].id; g.roster[0].drill[0] = 2; g.roster[0].drill[1] = 1; }},
+        {"combat_elite", [](Game& g) { g.tierCleared[(int)Location::Cave] = 4; g.tierSel[(int)Location::Cave] = 4; DebugEnterCombat(g); for (auto& e : g.dungeon.enemies) if (!e.boss) e.elite = true; }},
         {"library", [](Game& g) { g.scene = Scene::Bookshelf; g.bookTab = 1; }},
         {"combat", [](Game& g) { g.dungeon.light = 60; DebugEnterCombat(g); }},
         {"abyss", [](Game& g) { StartAbyss(g); g.scene = Scene::Abyss; }},

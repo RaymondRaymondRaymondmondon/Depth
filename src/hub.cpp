@@ -390,11 +390,60 @@ void SceneRadar(Game& g) {
 }
 
 // ============================================================ workshop
+static int gWorkshopTab = 0;
+void DebugWorkshopTab(int t) { gWorkshopTab = t; }
 void SceneWorkshop(Game& g) {
     DrawCabinBackground();
     if (BackButton(g)) return;
-    DrawSceneTitle("The Workshop", "Spend gold on lasting upgrades to the Nautilus");
+    int& tab = gWorkshopTab;   // 0 ship upgrades, 1 the Drill Deck
+    DrawSceneTitle("The Workshop", tab == 0 ? "Spend gold on lasting upgrades to the Nautilus" : "The Drill Deck: train a crew member's abilities");
     DrawGoldBadge(g);
+    for (int t = 0; t < 2; t++) {
+        Rectangle b{SCREEN_W / 2.0f - 250 + t * 255.0f, 84, 245, 34};
+        if (t == tab) DrawRectangleRounded({b.x - 3, b.y - 3, b.width + 6, b.height + 6}, 0.3f, 6, Pal::Teal);
+        if (Button(b, t == 0 ? "Ship upgrades" : "The Drill Deck", true, 16)) tab = t;
+    }
+    if (tab == 1) { // --- the Drill Deck: two levels per ability, +10% damage or effect each
+        if (g.roster.empty()) return;
+        if (!FindHero(g, g.selectedHero)) g.selectedHero = g.roster[0].id;
+        Panel({40, 128, 300, 572});
+        for (size_t i = 0; i < g.roster.size() && i < 12; i++) {
+            Hero& x = g.roster[i];
+            Rectangle r{54, 142 + i * 44.0f, 272, 40};
+            if (x.id == g.selectedHero) DrawRectangleRounded({r.x - 3, r.y - 3, r.width + 6, r.height + 6}, 0.2f, 6, Pal::Teal);
+            if (Button(r, "", true, 14)) g.selectedHero = x.id;
+            TxtBold(x.name, r.x + 12, r.y + 4, 16, Pal::Paper);
+            int trained = 0; for (int k = 0; k < 8; k++) trained += x.drill[k];
+            Txt(TextFormat("%s  Lv %d   drills %d", ClassName(x.cls), x.level, trained), r.x + 12, r.y + 22, 12, Pal::Paper);
+        }
+        Hero* h = FindHero(g, g.selectedHero);
+        Rectangle p{360, 128, 880, 572};
+        Panel(p);
+        TxtBold(h->name, p.x + 24, p.y + 16, 24, Pal::Ink);
+        Txt(TextFormat("%s. Each drill adds %d%% to an ability's damage or effect (and +%d%% stun). Two drills per ability.", ClassName(h->cls), DRILL_STEP_PCT, DRILL_STUN_STEP), p.x + 24, p.y + 50, 14, Pal::BrassDk);
+        const auto& abs = ClassAbilities(h->cls);
+        for (int i = 0; i < (int)abs.size() && i < 8; i++) {
+            const Ability& a = abs[i];
+            float y = p.y + 82 + i * 60.0f;
+            bool slotted = false; for (int k = 0; k < LOADOUT_SIZE; k++) slotted |= h->loadout[k] == i;
+            TxtBold(a.name, p.x + 24, y + 4, 17, slotted ? Color{30, 100, 80, 255} : Pal::Ink);
+            DrawWrapped(a.desc, {p.x + 24, y + 26, 520, 32}, 13, Pal::Ink);
+            for (int k = 0; k < DRILL_MAX; k++) {
+                Vector2 c{p.x + 580 + k * 24.0f, y + 22};
+                DrawCircleV(c, 9, Pal::BrassDk);
+                DrawCircleV(c, 6, k < h->drill[i] ? Pal::Brass : Color{90, 80, 64, 255});
+            }
+            if (h->drill[i] >= DRILL_MAX) { TxtBold("Mastered", p.x + 660, y + 14, 16, Color{30, 110, 90, 255}); continue; }
+            int price = DrillPrice(h->drill[i] + 1, a.unlockLevel);
+            if (Button({p.x + 650, y + 4, 200, 38}, TextFormat("Drill %d  (%dg)", h->drill[i] + 1, price), g.gold >= price, 15)) {
+                g.gold -= price;
+                h->drill[i]++;
+                PlayCue("hub.gear", 0.8f);
+                Toast(g, TextFormat("%s drills %s (level %d).", h->name.c_str(), a.name.c_str(), h->drill[i]));
+            }
+        }
+        return;
+    }
     const char* flavor[UP_COUNT] = {
         "Polished mirrors and a stronger bulb. The flashlight lasts longer in the dark.",
         "Hammocks strung between the pipes. Room for more crew aboard.",
@@ -404,7 +453,7 @@ void SceneWorkshop(Game& g) {
     };
     const int cols = 3;
     for (int u = 0; u < UP_COUNT; u++) {
-        Rectangle c{40 + (u % cols) * 406.0f, 90 + (u / cols) * 300.0f, 386, 280};
+        Rectangle c{40 + (u % cols) * 406.0f, 128 + (u / cols) * 290.0f, 386, 276};
         Panel(c);
         int lv = g.upgrades[u];
         TxtBold(UpgradeName(u), c.x + 20, c.y + 18, 22, Pal::Ink);

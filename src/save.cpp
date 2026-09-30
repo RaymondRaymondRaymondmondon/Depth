@@ -49,7 +49,7 @@ bool SaveGame(const Game& g) {
             for (int a : h.loadout) f << " " << a;
             f << " " << h.name << "\n";
         }
-        for (const Hero& h : g.roster) f << "herox " << h.id << " " << h.habits << " " << h.habitLocked << " " << h.ailments << " " << h.vigor << " " << h.might << " " << h.quickness << " " << h.fortitude << "\n";
+        for (const Hero& h : g.roster) { f << "herox " << h.id << " " << h.habits << " " << h.habitLocked << " " << h.ailments << " " << h.vigor << " " << h.might << " " << h.quickness << " " << h.fortitude; for (int d : h.drill) f << " " << d; f << "\n"; }
         for (auto& [k, v] : g.bonds) if (v > 0) f << "bond " << k.first << " " << k.second << " " << v << "\n";
     }
     std::remove(SavePath().c_str());
@@ -113,7 +113,11 @@ bool LoadGame(Game& g) {
             int id; unsigned hb = 0, lk = 0, ai = 0; int v = 0, m = 0, q = 0, fo = 0;
             if (!(in >> id >> hb >> lk >> ai)) continue;
             in >> v >> m >> q >> fo;
-            for (auto& h : fresh.roster) if (h.id == id) { h.habits = hb; h.habitLocked = lk; h.ailments = ai; if (in) { h.vigor = v; h.might = m; h.quickness = q; h.fortitude = fo; } }
+            int dr[8] = {}; bool haveDrill = true; for (int& d : dr) if (!(in >> d)) haveDrill = false;
+            for (auto& h : fresh.roster) if (h.id == id) {
+                h.habits = hb; h.habitLocked = lk; h.ailments = ai; h.vigor = v; h.might = m; h.quickness = q; h.fortitude = fo;
+                if (haveDrill) for (int k = 0; k < 8; k++) h.drill[k] = std::clamp(dr[k], 0, DRILL_MAX);
+            }
         }
         else if (key == "bond") { int a, b, v; if (in >> a >> b >> v) fresh.bonds[{std::min(a, b), std::max(a, b)}] = std::clamp(v, 0, BOND_MAX); }
     }
