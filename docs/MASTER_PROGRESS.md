@@ -87,7 +87,7 @@ Tuning on the way: the Hadal's standards lightened (Star Spawn once, sea lice an
 **Found while testing (not changed, a design question):** the Stage 7 targets were only ever measured in the Cave, and the other Shallows are far harder with the same crew. At level 0: the Island 23%, Atlantis 4% (most wipes at Cthulhu, tuned as the hard final boss). At level 6: the Island 14%, the Weeds 44%, Atlantis 3%.
 
 ### The Shallows rebalanced alike (2026-09-29, the user's call: all four balanced up to the endgame; Cthulhu is the endgame)
---sim now reports **reached the boss** and **beat it** (the share of those). shots\grid.ps1 -Locs 0,1,2,3 -Runs 1200 runs the whole grid. Win % (reached the boss %), crew level = cave level:
+--sim now reports **reached the boss** and **beat it** (the share of those). tools\balance_grid.ps1 -Locs 0,1,2,3 -Runs 1200 runs the whole grid. Win % (reached the boss %), crew level = cave level:
 
 | Cave level | Cave | Island | Weeds | Atlantis (reach only; Cthulhu exempt) |
 |---|---|---|---|---|
