@@ -8,6 +8,8 @@
 #include <cmath>
 
 // ============================================================ helm
+static int gHelmDeep = 0;
+void DebugHelmDeep() { gHelmDeep = 1; }
 void SceneHelm(Game& g) {
     DrawCabinBackground();
     if (BackButton(g)) return;
@@ -15,18 +17,26 @@ void SceneHelm(Game& g) {
     DrawGoldBadge(g);
 
     struct Loc { Location id; Color col; };
-    const Loc locs[4] = {
+    const Loc shallows[4] = {
         {Location::Cave, Color{60, 120, 140, 255}},
         {Location::Island, Color{200, 160, 80, 255}},
         {Location::Weeds, Color{70, 140, 80, 255}},
         {Location::Atlantis, Color{110, 90, 150, 255}},
     };
+    const Loc deep[2] = {{Location::Trench, Color{30, 50, 80, 255}}, {Location::Hadal, Color{70, 30, 60, 255}}};
     int partyCount = 0;
     for (int id : g.party) if (id >= 0) partyCount++;
-
-    // All four Shallows expeditions are open from the start: they share the same rooms-and-combat engine,
-    // just dressed differently, with their own tier ladder and their own threat waiting at the end.
-    for (int i = 0; i < 4; i++) {
+    // the Shallows and (Stage 7) the deep tiers, which open once all four Shallows are cleared at cave level 6
+    int& deepTab = gHelmDeep;
+    bool deepOpen = DeepUnlocked(g);
+    for (int t = 0; t < 2; t++) {
+        Rectangle b{50 + t * 190.0f, 66, 180, 28};
+        if (t == deepTab) DrawRectangleRounded({b.x - 3, b.y - 3, b.width + 6, b.height + 6}, 0.3f, 6, Pal::Teal);
+        if (Button(b, t == 0 ? "The Shallows" : deepOpen ? "The Deep" : "The Deep (locked)", true, 14)) deepTab = t;
+    }
+    const Loc* locs = deepTab ? deep : shallows;
+    int nLocs = deepTab ? 2 : 4;
+    for (int i = 0; i < nLocs; i++) {
         Location loc = locs[i].id;
         int li = (int)loc;
         Rectangle c{50 + i * 300.0f, 100, 280, 330};
@@ -35,25 +45,40 @@ void SceneHelm(Game& g) {
         DrawTextCenteredBold(LocationName(loc), c.x + c.width / 2 + 1, c.y + 40, 30, Fade(BLACK, 0.5f));
         DrawTextCenteredBold(LocationName(loc), c.x + c.width / 2, c.y + 38, 30, Pal::Paper);
         DrawWrapped(LocationDesc(loc), {c.x + 16, c.y + 112, c.width - 32, 80}, 16, Pal::Ink);
-        // levels 0, 1, 3, 5 and 6: beat one to unlock the next; earlier ones stay open
-        int unlocked = std::min(CAVE_TIERS - 1, g.tierCleared[li] + 1);
-        g.tierSel[li] = std::clamp(g.tierSel[li], 0, unlocked);
-        for (int k = 0; k < CAVE_TIERS; k++) {
-            Rectangle chip{c.x + 16 + k * 50.0f, c.y + 196, 44, 30};
-            bool open = k <= unlocked, sel = k == g.tierSel[li];
+        bool open = !DeepLocation(loc) || deepOpen;
+        if (!open) {
+            DrawTextCenteredBold("Sealed", c.x + c.width / 2, c.y + 214, 24, Pal::Bad);
+            DrawWrapped("Clear all four Shallows at cave level 6 to chart a way down.", {c.x + 20, c.y + 248, c.width - 40, 60}, 15, Pal::BrassDk);
+            continue;
+        }
+        // the tier ladder: beat one to unlock the next; earlier ones stay open
+        int first = TierFirst(loc), last = TierLast(loc), unlocked = TierUnlocked(g, loc);
+        g.tierSel[li] = std::clamp(g.tierSel[li], first, unlocked);
+        for (int k = first; k <= last; k++) {
+            Rectangle chip{c.x + 16 + (k - first) * 50.0f, c.y + 196, 44, 30};
+            bool tierOpen = k <= unlocked, sel = k == g.tierSel[li];
             if (sel) DrawRectangleRounded({chip.x - 3, chip.y - 3, chip.width + 6, chip.height + 6}, 0.4f, 6, Pal::Teal);
-            if (Button(chip, open ? TextFormat("Lv %d", CAVE_TIER_LEVEL[k]) : "?", open, 14)) g.tierSel[li] = k;
+            if (Button(chip, tierOpen ? TextFormat("Lv %d", CAVE_TIER_LEVEL[k]) : "?", tierOpen, 14)) g.tierSel[li] = k;
             if (k <= g.tierCleared[li]) DrawCircle((int)(chip.x + chip.width - 4), (int)chip.y + 4, 4, Pal::Good);
         }
         int lvl = CAVE_TIER_LEVEL[g.tierSel[li]], rooms = ChartParamsFor(g.tierSel[li]).rooms;
-        TxtBold(TextFormat("%s  (level %d)", CAVE_TIER_NAME[g.tierSel[li]], lvl), c.x + 16, c.y + 232, 16, Pal::Ink);
+        TxtBold(TextFormat("%s  (level %d)", TierName(loc, g.tierSel[li]), lvl), c.x + 16, c.y + 232, 16, Pal::Ink);
         Txt(TextFormat("A chart of %d rooms, %s at the end.  Loot x%.1f", rooms, LocationBossName(loc), 1.0f + 0.35f * lvl), c.x + 16, c.y + 253, 13, Pal::BrassDk);
         if (Button({c.x + 20, c.y + 276, c.width - 40, 42}, "Embark", partyCount > 0)) {
             StartDungeon(g, loc);
             return;
         }
     }
-
+    if (deepTab) { // a note on what waits below
+        Rectangle n{650, 100, 580, 330};
+        Panel(n);
+        TxtBold("Below the Shallows", n.x + 20, n.y + 18, 22, Pal::Ink);
+        DrawWrapped(TextFormat("Each deep location has three levels: 5, 6 and 7 (the deepest a crew can train to). In the Trench the pressure builds every round, "
+                               "slowing the whole crew by %d speed a point up to %d; burn a battery in the fight to vent it (and win back a little light). "
+                               "Pack batteries at the Quartermaster.\n\nThe Hadal is the final descent. The Abyssal Eye fights in three phases: it pulls your line apart, "
+                               "then breeds Star Spawn, then only stares.", TRENCH_PRESSURE_SPEED, TRENCH_PRESSURE_MAX),
+                    {n.x + 20, n.y + 52, n.width - 40, 260}, 16, Pal::Ink);
+    }
     Panel({50, 450, 880, 250});
     TxtBold("Expedition party", 70, 464, 23, Pal::Ink);
     // the objective for this expedition (Master Reference): one, with a bonus when it's met

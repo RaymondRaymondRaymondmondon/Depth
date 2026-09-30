@@ -295,6 +295,8 @@ const char* LocationName(Location loc) {
         case Location::Island: return "The Island";
         case Location::Weeds: return "The Weeds";
         case Location::Atlantis: return "Atlantis";
+        case Location::Trench: return "The Trench";
+        case Location::Hadal: return "The Hadal";
         default: return "The Cave";
     }
 }
@@ -303,6 +305,8 @@ const char* LocationBossName(Location loc) {
         case Location::Island: return "the Sun God";
         case Location::Weeds: return "Neptune";
         case Location::Atlantis: return "Cthulhu";
+        case Location::Trench: return "the Leviathan";
+        case Location::Hadal: return "the Abyssal Eye";
         default: return "the Crustacean Queen";
     }
 }
@@ -311,6 +315,8 @@ const char* LocationDesc(Location loc) {
         case Location::Island: return "A sunken jungle of basalt and bone totems. Tribes with spears and dogs, a Coconut Queen, a Demigod, and the Sun God. Burns.";
         case Location::Weeds: return "A suffocating kelp forest of mermen, sirens and octopi. An Eel, a Great White, and Neptune. Entangles.";
         case Location::Atlantis: return "A sunken Greco-Roman city of Lost Ones, alien monoliths and something ancient. Cthulhu waits. Drives mad.";
+        case Location::Trench: return "A crack in the world. The pressure slows the crew every round unless a battery is burned to vent it. The Leviathan coils below.";
+        case Location::Hadal: return "The final descent, past where light has ever been. Madness and worse. At the bottom, the Abyssal Eye opens.";
         default: return "A cavern of glowing mould and sharp coral. Crustaceans, worms and shrimp; the Lobster, a Ghost Worm, a Lost Diver, and the Queen. Blinds.";
     }
 }
@@ -328,6 +334,10 @@ const Palette& LocationPalette(Location loc) {
         {{{12, 24, 18, 255}, {30, 58, 40, 255}, {68, 96, 62, 255}, {128, 138, 96, 255}, {200, 196, 150, 255}}, {{236, 120, 140, 255}, {120, 230, 200, 255}}},
         // Atlantis: drowned marble, verdigris, void; accents: void violet and the eye's pale gold
         {{{14, 14, 24, 255}, {38, 42, 58, 255}, {80, 96, 100, 255}, {140, 150, 140, 255}, {210, 206, 190, 255}}, {{190, 120, 255, 255}, {236, 214, 140, 255}}},
+        // the Trench: black-blue water, cold slate, pressure-bleached bone; accents: angler gold and a bruise violet
+        {{{6, 10, 18, 255}, {20, 32, 48, 255}, {52, 68, 84, 255}, {100, 112, 120, 255}, {176, 180, 176, 255}}, {{255, 214, 120, 255}, {150, 90, 200, 255}}},
+        // the Hadal: void, bruised purple, drowned marble; accents: the Eye's red and a sick green
+        {{{6, 4, 10, 255}, {26, 18, 36, 255}, {60, 50, 72, 255}, {112, 104, 116, 255}, {184, 176, 176, 255}}, {{230, 60, 50, 255}, {140, 230, 130, 255}}},
     };
     return P[std::clamp((int)loc, 0, LOCATION_COUNT - 1)];
 }
@@ -516,19 +526,20 @@ Hero MakeRandomHero(Game& g) {
 // Each level costs more than the last (deltas 6, 11, 17, 25, 35, 48), so a crew that keeps farming the shallowest
 // water stalls out: XP per win scales with how deep the cave tier actually is (see ApplyResults), so the fastest way
 // to keep levelling is to take the crew somewhere harder, not to grind the same easy room.
-static const int XP_TABLE[7] = {0, 6, 17, 34, 59, 94, 142};
+static const int XP_TABLE[8] = {0, 6, 17, 34, 59, 94, 142, 206};   // level 7 (the Hadal's) is the cap
+extern const int CREW_MAX_LEVEL = 7;
 
 void GiveXP(Game& g, Hero& h, int amount) {
     int oldMax = GetStats(h).maxHp;
     h.xp += amount;
-    while (h.level < 6 && h.xp >= XP_TABLE[h.level + 1]) {
+    while (h.level < CREW_MAX_LEVEL && h.xp >= XP_TABLE[h.level + 1]) {
         h.level++;
         Toast(g, h.name + " reached level " + std::to_string(h.level) + "!");
     }
     h.hp += GetStats(h).maxHp - oldMax;
 }
 
-int XpForNextLevel(const Hero& h) { return h.level >= 6 ? -1 : XP_TABLE[h.level + 1]; }
+int XpForNextLevel(const Hero& h) { return h.level >= CREW_MAX_LEVEL ? -1 : XP_TABLE[h.level + 1]; }
 
 Hero* FindHero(Game& g, int id) {
     if (id < 0) return nullptr;
@@ -676,7 +687,24 @@ Enemy MakeEnemy(EnemyType t, int uid) {
             a = Support("Ancestor Chant"); a.healLowest = 6; a.buffAllyAtk = 25; e.abilities.push_back(a);
             a = Support("Grasping Vines"); a.pull = 1; a.hits = RANK_3 | RANK_4; e.abilities.push_back(a);
         } break;
-        // ------------------------------------------------ Stage 7: two more per location
+        // ------------------------------------------------ Stage 7: the deep tiers' bosses (three ranks, like Cthulhu)
+        case EnemyType::Leviathan: {
+            e.name = "The Leviathan"; e.boss = true; e.tier = 2; e.span = 3;
+            e.maxHp = 78; e.dmgMin = 6; e.dmgMax = 9; e.speed = 5; e.acc = 88; e.dodge = 0; e.prot = 20;
+            EnemyAbility a = Melee("Swallow Whole", 1.6f); a.stunChance = 30; e.abilities.push_back(a);
+            a = Melee("Tail Crash", 0.9f); a.aoe = true; e.abilities.push_back(a);
+            a = Long("Pressure Wave", 0.5f); a.aoe = true; a.stress = 8; a.weakSpd = 20; e.abilities.push_back(a);
+            a = Support("Coil and Sound"); a.healSelf = 10; a.buffSelfDef = 25; e.abilities.push_back(a);
+        } break;
+        case EnemyType::AbyssalEye: {
+            e.name = "The Abyssal Eye"; e.boss = true; e.tier = 2; e.span = 3;
+            e.maxHp = 72; e.dmgMin = 6; e.dmgMax = 8; e.speed = 6; e.acc = 88; e.dodge = 0; e.prot = 15;
+            EnemyAbility a = Long("Unblinking Gaze", 0.4f); a.aoe = true; a.stress = 10; a.region = 4; e.abilities.push_back(a);
+            a = Melee("Crushing Dark", 1.4f); a.bleed = 3; e.abilities.push_back(a);
+            a = Support("The Deep Pulls"); a.pull = 2; a.stress = 5; e.abilities.push_back(a);
+            a = Support("Spawn of the Deep"); a.summon = (int)EnemyType::StarSpawn; e.abilities.push_back(a);
+            a = Long("Void Stare", 0.75f); a.aoe = true; a.stress = 6; e.abilities.push_back(a);   // its third phase
+        } break;        // ------------------------------------------------ Stage 7: two more per location
         case EnemyType::BarnacleCrab: {   // the Cave's guardian: armour, and a shell it lends the line
             e.name = "Barnacle Crab";
             e.maxHp = 22; e.dmgMin = 4; e.dmgMax = 7; e.speed = 3; e.acc = 82; e.dodge = 0; e.prot = 25;
@@ -722,9 +750,9 @@ Enemy MakeEnemy(EnemyType t, int uid) {
         } break;
         case EnemyType::StarSpawn: {      // madness; it folds space around a hero
             e.name = "Star Spawn";
-            e.maxHp = 18; e.dmgMin = 3; e.dmgMax = 6; e.speed = 5; e.acc = 82; e.dodge = 5; e.prot = 5;
-            EnemyAbility a = Long("Starlit Gaze", 0.6f); a.region = 4; e.abilities.push_back(a);
-            a = Support("Unfold Space"); a.pull = 3; a.stress = 5; e.abilities.push_back(a);
+            e.maxHp = 16; e.dmgMin = 3; e.dmgMax = 5; e.speed = 5; e.acc = 82; e.dodge = 5; e.prot = 5;
+            EnemyAbility a = Long("Starlit Gaze", 0.55f); a.region = 4; e.abilities.push_back(a);
+            a = Support("Unfold Space"); a.pull = 3; a.stress = 3; e.abilities.push_back(a);
             a = Melee("Tentacle Lash", 1.1f); e.abilities.push_back(a);
         } break;        case EnemyType::TribalDemigod: {
             e.name = "Tribal Demigod"; e.boss = true; e.tier = 1;
@@ -858,6 +886,8 @@ Enemy MakeEnemy(EnemyType t, int uid) {
         case EnemyType::ArmorLostOne: e.extraAct = 50; break;
         case EnemyType::AlienHorror: e.extraAct = 45; break;
         case EnemyType::Cthulhu: e.extraAct = 10; break;
+        case EnemyType::Leviathan: e.extraAct = 40; break;   // (x0.1 at level 7)
+        case EnemyType::AbyssalEye: e.extraAct = 30; break;
         default: break;
     }
     if (const char* sc = getenv("DEPTH_EXTRA")) e.extraAct = (int)(e.extraAct * atof(sc)); // developer knob for tuning runs
@@ -871,6 +901,8 @@ std::vector<EnemyType> LocationStandards(Location loc) {
         case Location::Island: return {EnemyType::TribalSpearman, EnemyType::WarDog, EnemyType::TribalSpearman, EnemyType::FireDancer};
         case Location::Weeds: return {EnemyType::FeralMerman, EnemyType::FeralMerman, EnemyType::GiantOctopus, EnemyType::MantisShrimp};
         case Location::Atlantis: return {EnemyType::LostInfantry, EnemyType::LostInfantry, EnemyType::StarSpawn};
+        case Location::Trench: return {EnemyType::LanternAngler, EnemyType::MantisShrimp, EnemyType::BarnacleCrab, EnemyType::DysCrustacean};
+        case Location::Hadal: return {EnemyType::StarSpawn, EnemyType::DysCrustacean, EnemyType::SeaLouse, EnemyType::LostInfantry, EnemyType::SeaLouse};
         default: return {EnemyType::DysCrustacean, EnemyType::CaveShrimp, EnemyType::BrineWorm, EnemyType::SeaLouse, EnemyType::BarnacleCrab};
     }
 }
@@ -879,6 +911,8 @@ std::vector<EnemyType> LocationSupports(Location loc) {
         case Location::Island: return {EnemyType::TribalShaman, EnemyType::IdolBearer};
         case Location::Weeds: return {EnemyType::Siren, EnemyType::GiantOctopus, EnemyType::KelpWraith};
         case Location::Atlantis: return {EnemyType::LostCultist, EnemyType::DrownedOracle};
+        case Location::Trench: return {EnemyType::LanternAngler, EnemyType::KelpWraith};
+        case Location::Hadal: return {EnemyType::DrownedOracle, EnemyType::LanternAngler};
         default: return {EnemyType::CaveShrimp, EnemyType::LanternAngler};
     }
 }
@@ -887,6 +921,8 @@ std::vector<EnemyType> LocationMinis(Location loc) {
         case Location::Island: return {EnemyType::TribalDemigod, EnemyType::CoconutQueen};
         case Location::Weeds: return {EnemyType::ElectricEel, EnemyType::GreatWhite};
         case Location::Atlantis: return {EnemyType::ArmorLostOne, EnemyType::AlienHorror};
+        case Location::Trench: return {EnemyType::GhostWorm, EnemyType::GreatWhite, EnemyType::ElectricEel};
+        case Location::Hadal: return {EnemyType::AlienHorror, EnemyType::LostDiver, EnemyType::GhostWorm};
         default: return {EnemyType::Lobster, EnemyType::GhostWorm, EnemyType::LostDiver};
     }
 }
@@ -895,6 +931,8 @@ EnemyType LocationLevelBoss(Location loc) {
         case Location::Island: return EnemyType::SunGod;
         case Location::Weeds: return EnemyType::Neptune;
         case Location::Atlantis: return EnemyType::Cthulhu;
+        case Location::Trench: return EnemyType::Leviathan;
+        case Location::Hadal: return EnemyType::AbyssalEye;
         default: return EnemyType::CrustaceanQueen;
     }
 }
@@ -912,7 +950,8 @@ const char* RegionDebuffName(Location loc) {
     switch (loc) {
         case Location::Island: return "Totemic Burn";
         case Location::Weeds: return "Drowning Entanglement";
-        case Location::Atlantis: return "Eldritch Madness";
+        case Location::Atlantis: case Location::Hadal: return "Eldritch Madness";
+        case Location::Trench: return "Silt Blindness";
         default: return "Silt Blindness";
     }
 }
@@ -927,7 +966,7 @@ void ScaleEnemyForTier(Enemy& e, int tier) {
     e.dodge += L / 2;
     e.prot = std::min(50, e.prot + L);
     e.speed += L / 2;
-    static const float EXTRA_ACT_BY_TIER[CAVE_TIERS] = {1.0f, 0.4f, 0.35f, 0.25f, 0.1f}; // deeper bosses already hit harder and last longer
+    static const float EXTRA_ACT_BY_TIER[CAVE_TIERS] = {1.0f, 0.4f, 0.35f, 0.25f, 0.1f, 0.1f}; // deeper bosses already hit harder and last longer
     e.extraAct = (int)(e.extraAct * EXTRA_ACT_BY_TIER[std::clamp(tier, 0, CAVE_TIERS - 1)] + 0.5f);
     if (!e.boss && GetRandomValue(0, 99) < ELITE_PCT_BY_TIER[std::clamp(tier, 0, CAVE_TIERS - 1)]) { // an elite: tougher, and one trick more
         e.elite = true;
@@ -1011,6 +1050,7 @@ const ChartParams& ChartParamsFor(int tier) {
         {10, 3, 3, 3, 2, 4, 1},   // level 3
         {12, 3, 4, 4, 2, 5, 2},   // level 5
         {14, 4, 4, 4, 3, 6, 2},   // level 6
+        {15, 4, 4, 5, 3, 6, 2},   // level 7 (the Hadal's bottom)
     };
     return P[std::clamp(tier, 0, CAVE_TIERS - 1)];
 }
@@ -1051,6 +1091,7 @@ const BrainWeights& BrainFor(int tier) {
         {1.0f, 1.5f, 1.2f, 0.8f, 1.0f, 0.5f, 0.8f, 1.0f, 0.5f, 1.0f, 0.0f, 0, 1, 0.7f},
         {1.0f, 2.5f, 1.5f, 1.2f, 1.5f, 1.5f, 1.2f, 1.5f, 1.5f, 1.2f, 1.0f, 1, 1, 0.4f},
         {1.0f, 3.0f, 1.5f, 1.5f, 2.0f, 2.0f, 1.5f, 2.0f, 2.0f, 1.2f, 2.0f, 1, 3, 0.3f},
+        {1.0f, 3.0f, 1.5f, 1.5f, 2.0f, 2.0f, 1.5f, 2.0f, 2.0f, 1.2f, 2.0f, 1, 3, 0.3f},   // level 7
     };
     return W[std::clamp(tier, 0, CAVE_TIERS - 1)];
 }
@@ -1070,7 +1111,7 @@ Personality EnemyPersonalityOf(EnemyType t) {
         case EnemyType::ArmorLostOne: return Personality::Guardian;
         case EnemyType::Lobster: case EnemyType::GhostWorm: case EnemyType::LostDiver: case EnemyType::CrustaceanQueen: case EnemyType::TribalDemigod:
         case EnemyType::CoconutQueen: case EnemyType::SunGod: case EnemyType::ElectricEel: case EnemyType::GreatWhite: case EnemyType::Neptune:
-        case EnemyType::AlienHorror: case EnemyType::Cthulhu: return Personality::Boss;
+        case EnemyType::AlienHorror: case EnemyType::Cthulhu: case EnemyType::Leviathan: case EnemyType::AbyssalEye: return Personality::Boss;
         default: return Personality::None;
     }
 }
@@ -1092,7 +1133,7 @@ const char* SupplyDesc(int s) {
 }
 int SupplyPrice(int s) { static const int p[SUP_COUNT] = {20, 20, 15, 30, 10}; return s >= 0 && s < SUP_COUNT ? p[s] : 0; }
 void SuggestedKit(Location loc, int out[SUP_COUNT]) { // what the Quartermaster recommends for each place
-    static const int K[LOCATION_COUNT][SUP_COUNT] = {{2, 1, 1, 1, 1}, {2, 2, 1, 0, 1}, {2, 1, 1, 1, 0}, {1, 1, 1, 1, 2}};
+    static const int K[LOCATION_COUNT][SUP_COUNT] = {{2, 1, 1, 1, 1}, {2, 2, 1, 0, 1}, {2, 1, 1, 1, 0}, {1, 1, 1, 1, 2}, {3, 1, 2, 1, 0}, {2, 1, 2, 1, 2}};
     for (int i = 0; i < SUP_COUNT; i++) out[i] = K[(int)loc][i];
 }
 // Camp skills: two per class (name, what it does, cost in camp points, heal all / one, nerves all / one, cure, on
@@ -1225,9 +1266,9 @@ void AddBond(Game& g, int a, int b, int n) {
 extern const int ENEMY_FLEE_PCT = 35;        // a Cowardly enemy below half HP flees at the start of its turn
 extern const int RIPOSTE_DMG_PCT = 70;       // a riposte hits for this share of a normal blow
 extern const int DRILL_MAX = 2, DRILL_STEP_PCT = 10, DRILL_STUN_STEP = 5;
-extern const int ELITE_PCT_BY_TIER[5] = {0, 0, 40, 35, 55};   // cave levels 0/1/3/5/6
+extern const int ELITE_PCT_BY_TIER[CAVE_TIERS] = {0, 0, 40, 35, 55, 60};   // cave levels 0/1/3/5/6
 extern const int ELITE_HP_PCT = 30;
-extern const int SIM_DRILLS_BY_TIER[5] = {0, 2, 1, 3, 2};   // --sim: slotted abilities drilled once, by cave level (the gold a player at that depth has spent)
+extern const int SIM_DRILLS_BY_TIER[CAVE_TIERS] = {0, 2, 1, 3, 2, 4};   // --sim: slotted abilities drilled once, by cave level (the gold a player at that depth has spent)
 int DrillPrice(int toLevel, int unlockLevel) { return (toLevel <= 1 ? 60 : 120) + 20 * std::clamp(unlockLevel, 0, 3); }   // 60-180 gold
 void ApplyDrill(Ability& a, int level) {
     if (level <= 0) return;
@@ -1265,7 +1306,28 @@ const char* EnemyHint(int t) {
         "A guardian: it lends its shell to the line; crack it last.", "Its lure blinds; bring your own light.", "Its whirl burns the front three ranks.",
         "The idol lifts the whole tribe: topple the bearer first.", "Its clubs crack armour: don't trust protection.", "Hidden in the fronds at first; it drags the back rank in.",
         "Heals and shields its own: silence it early.", "It folds space: heroes change places, and nerves go.",
+        "It swallows the front rank whole and presses the rest; burn batteries to vent the pressure.", "Three phases: it pulls, then it breeds, then it stares. Keep nerves low.",
     };
     int n = (int)(sizeof(H) / sizeof(H[0]));
     return t >= 0 && t < n ? H[t] : "Something new in the deep.";
 }
+
+// ---------------------------------------------------------------- Stage 7: the deep tiers
+extern const int TRENCH_PRESSURE_MAX = 5;     // the Trench's pressure builds a point a round, to this
+extern const int TRENCH_PRESSURE_SPEED = 1;   // -speed per point, for every hero
+extern const int TRENCH_VENT_LIGHT = 15;      // burning a battery to vent it also gives this much light
+bool DeepLocation(Location l) { return l == Location::Trench || l == Location::Hadal; }
+int TierFirst(Location l) { return DeepLocation(l) ? 3 : 0; }
+int TierLast(Location l) { return DeepLocation(l) ? CAVE_TIERS - 1 : 4; }
+int TierUnlocked(const Game& g, Location l) { return std::clamp(g.tierCleared[(int)l] + 1, TierFirst(l), TierLast(l)); }
+bool DeepUnlocked(const Game& g) {   // all four Shallows cleared at their deepest (cave level 6)
+    for (int l = 0; l < 4; l++) if (g.tierCleared[l] < 4) return false;
+    return true;
+}
+const char* TierName(Location l, int tier) {
+    static const char* TRENCH[3] = {"The Slope", "The Crush", "The Floor"}, *HADAL[3] = {"The Descent", "The Dark", "The Eye"};
+    if (l == Location::Trench) return TRENCH[std::clamp(tier - 3, 0, 2)];
+    if (l == Location::Hadal) return HADAL[std::clamp(tier - 3, 0, 2)];
+    return CAVE_TIER_NAME[std::clamp(tier, 0, CAVE_TIERS - 1)];
+}
+Location VisLoc(Location l) { return l == Location::Trench ? Location::Cave : l == Location::Hadal ? Location::Atlantis : l; }   // scenery borrowed, then darkened

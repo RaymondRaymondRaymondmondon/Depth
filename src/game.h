@@ -186,6 +186,7 @@ enum class EnemyType {
     FeralMerman, Siren, GiantOctopus, ElectricEel, GreatWhite, Neptune,          // the Weeds
     LostInfantry, LostCultist, ArmorLostOne, AlienHorror, Cthulhu,               // Atlantis
     BarnacleCrab, LanternAngler, FireDancer, IdolBearer, MantisShrimp, KelpWraith, DrownedOracle, StarSpawn, // Stage 7: two more per location (appended: saves index by type)
+    Leviathan, AbyssalEye,                                                       // Stage 7: the Trench's and the Hadal's bosses
     COUNT
 };
 
@@ -245,13 +246,13 @@ const char* ObjectiveText(Objective o);
 enum class EventKind { None, Trap, Curio, Rest, Shrine, Blocked, Loot };
 
 // Dungeon difficulty levels. Clearing one unlocks the next; earlier ones stay available.
-constexpr int CAVE_TIERS = 5;
-inline constexpr int CAVE_TIER_LEVEL[CAVE_TIERS] = {0, 1, 3, 5, 6};
-inline const char* const CAVE_TIER_NAME[CAVE_TIERS] = {"Shallows", "Tidal Caves", "The Deep", "The Abyss", "The Trench"};
+constexpr int CAVE_TIERS = 6;   // tier indices 0-4 are the Shallows' ladder, 3-5 the deep locations' (levels 5, 6, 7)
+inline constexpr int CAVE_TIER_LEVEL[CAVE_TIERS] = {0, 1, 3, 5, 6, 7};
+inline const char* const CAVE_TIER_NAME[CAVE_TIERS] = {"Shallows", "Tidal Caves", "The Deep", "The Abyss", "The Drop", "The Bottom"};
 
 // The four Shallows expeditions, all open from the start. They share the same room-and-combat engine
 // and the same tier ladder above -- what differs is the scenery, the names, and who's waiting at the end.
-enum class Location { Cave, Island, Weeds, Atlantis, COUNT };
+enum class Location { Cave, Island, Weeds, Atlantis, Trench, Hadal, COUNT };   // the last two: the deep tiers (Stage 7), unlocked by clearing all four Shallows
 // ---------- Stage 7: habits (quirks), ailments and crew bonds (numbers in data.cpp) ----------
 enum HabitId { HB_STEADY_HANDS, HB_DECK_LEGS, HB_NIGHT_EYES, HB_IRON_GUT, HB_QUICK_STEP, HB_BRAWLER, HB_CALM_HEART, HB_TOUGH_HIDE,
                HB_BOTTLE_FIEND, HB_CLAUSTROPHOBE, HB_SUPERSTITIOUS, HB_SHAKY_HANDS, HB_SLOW_STARTER, HB_FRAIL_FRAME, HB_JUMPY, HB_SEASICK, HB_COUNT };
@@ -266,7 +267,8 @@ int LocationAilment(Location l);              // what each location's bleeding a
 extern const int AILMENT_HIT_PCT, CURIO_AILMENT_PCT, BONESAW_SELF_HP;
 extern const int BOND_MAX, BOND_PERK, BOND_DMG_PCT, BOND_DEATH_NERVES, BOND_BARK_PCT, BOND_BARK_CALM, HERO_CRIT_CALM, ENEMY_CRIT_NERVES;
 extern const int ENEMY_FLEE_PCT, RIPOSTE_DMG_PCT, DRILL_MAX, DRILL_STEP_PCT, DRILL_STUN_STEP;
-extern const int ELITE_PCT_BY_TIER[5], ELITE_HP_PCT, SIM_DRILLS_BY_TIER[5];
+extern const int ELITE_PCT_BY_TIER[CAVE_TIERS], ELITE_HP_PCT, SIM_DRILLS_BY_TIER[CAVE_TIERS];
+extern const int TRENCH_PRESSURE_MAX, TRENCH_PRESSURE_SPEED, TRENCH_VENT_LIGHT, CREW_MAX_LEVEL;
 int DrillPrice(int toLevel, int unlockLevel);   // the Drill Deck's price for the next level of an ability
 void ApplyDrill(Ability& a, int level);         // +10% damage or effect per level
 extern int gStatLocation;                     // the location of the expedition in progress (-1 aboard): location habits read it
@@ -342,6 +344,7 @@ struct DungeonState {
     std::map<int, int> lastAbility; // this fight: each enemy's last ability (boss scripts)
     int supply[8] = {};              // supplies carried (SUP_*)
     int fled = 0;                          // Stage 7: cowards who fled this fight (they take their share of the spoils)
+    int pressure = 0;                      // Stage 7: the Trench's pressure this fight (-speed per point; a battery burn vents it)
     int campPoints = 0, campAmbush = 0;   // an open camp: points left to spend on camp skills, and the night-ambush chance
     std::vector<int> campUsed;       // camp skills used at this camp (indices into CampSkills())
     bool lullaby = false, lullabyActive = false; // a Siren's Lullaby: no nerves gained in the next fight
@@ -656,8 +659,8 @@ struct Game {
     unsigned long long platSeen[PL_COUNT + 1] = {}; // the Periscope dossier: which species (bit = species index; [PL_COUNT] = the Abyss's kinds) you've met
     int dossier = -1;                        // the dossier open on the Periscope (a level index, PL_COUNT = the Abyss), -1 = closed
     int dossierPick = -1;                    // the entry selected in it
-    int tierCleared[LOCATION_COUNT] = {-1, -1, -1, -1}; // highest level beaten, per location (-1 = none)
-    int tierSel[LOCATION_COUNT] = {0, 0, 0, 0};         // the level chosen at the Helm, per location
+    int tierCleared[LOCATION_COUNT] = {-1, -1, -1, -1, -1, -1}; // highest tier index beaten, per location (-1 = none)
+    int tierSel[LOCATION_COUNT] = {0, 0, 0, 0, 3, 3};   // the tier chosen at the Helm, per location (the deep ones start at tier 3)
     Objective objectiveSel = Objective::Slay;             // the objective chosen at the Helm for the next expedition (not saved)
     std::string toast;
     float toastTimer = 0;
@@ -671,6 +674,15 @@ struct Game {
 void InitGame(Game& g);
 int BondOf(const Game& g, int a, int b);
 int Stage7Test();
+// the deep tiers (Stage 7): tier ranges, names, unlocking, and which Shallows location each borrows its scenery from
+bool DeepLocation(Location l);
+int TierFirst(Location l);
+int TierLast(Location l);
+int TierUnlocked(const Game& g, Location l);    // the deepest tier open at the Helm
+bool DeepUnlocked(const Game& g);
+const char* TierName(Location l, int tier);
+Location VisLoc(Location l);
+extern int gSimLocation;                       // --sim's location (dungeon.cpp)
 void SeaLog(Game& g, const std::string& s);
 int Upg(const Game& g, int u);                 // an upgrade's working level (a storm can knock one offline)
 void RollVoyageEvent(Game& g);                 // on return to the salon (not in --sim)
@@ -916,6 +928,7 @@ void AbyssAudio(const AbyssState& a, float dt);
 void DrawVolumeSliders(Rectangle r);  // master / music / effects / ambience, on the Periscope
 void SceneWorkshop(Game& g);
 void DebugWorkshopTab(int t);   // --shots
+void DebugHelmDeep();           // --shots
 
 // ---------- dungeon.cpp ----------
 void StartDungeon(Game& g, Location loc);

@@ -228,6 +228,10 @@ static void TakeShots(const Game& base, const std::string& dir) {
         {"menu_controls", [](Game& g) { g.scene = Scene::Hub; }},
         {"combat_walk", [](Game& g) { DebugEnterCombat(g); g.dungeon.phase = DPhase::Walking; g.dungeon.walkT = 0.4f; }},
         {"combat_deep", [](Game& g) { g.tierCleared[(int)Location::Cave] = 4; g.tierSel[(int)Location::Cave] = 3; DebugEnterCombat(g); }},
+        {"boss_leviathan", [](Game& g) { g.tierCleared[(int)Location::Trench] = 4; g.tierSel[(int)Location::Trench] = 5; DebugSetEnemies(g, Location::Trench, {EnemyType::Leviathan, EnemyType::LanternAngler}); g.dungeon.pressure = 3; }},
+        {"boss_abyssal_eye", [](Game& g) { DebugSetEnemies(g, Location::Hadal, {EnemyType::AbyssalEye, EnemyType::StarSpawn}); }},
+        {"boss_abyssal_eye3", [](Game& g) { DebugSetEnemies(g, Location::Hadal, {EnemyType::AbyssalEye, EnemyType::DrownedOracle}); g.dungeon.enemies[0].hp = g.dungeon.enemies[0].maxHp / 4; }},
+        {"helm_deep", [](Game& g) { g.scene = Scene::Helm; for (int l = 0; l < 4; l++) g.tierCleared[l] = 4; DebugHelmDeep(); }},
         {"foes_new_cave", [](Game& g) { DebugSetEnemies(g, Location::Cave, {EnemyType::BarnacleCrab, EnemyType::SeaLouse, EnemyType::LanternAngler, EnemyType::LanternAngler}); }},
         {"foes_new_island", [](Game& g) { DebugSetEnemies(g, Location::Island, {EnemyType::FireDancer, EnemyType::IdolBearer, EnemyType::FireDancer, EnemyType::IdolBearer}); }},
         {"foes_new_weeds", [](Game& g) { DebugSetEnemies(g, Location::Weeds, {EnemyType::MantisShrimp, EnemyType::KelpWraith, EnemyType::MantisShrimp, EnemyType::KelpWraith}); }},
@@ -467,6 +471,7 @@ int main(int argc, char** argv) {
     }
     if (argc >= 2 && strcmp(argv[1], "--sim") == 0) {
         SetTraceLogLevel(LOG_WARNING);
+        if (argc >= 7) gSimLocation = atoi(argv[6]);   // the location (0 Cave ... 4 Trench, 5 Hadal)
         SimulateExpeditions(argc >= 3 ? atoi(argv[2]) : 400, argc >= 4 ? atoi(argv[3]) : 0,
                             argc >= 5 && strcmp(argv[4], "random") == 0, argc >= 6 ? std::clamp(atoi(argv[5]), 0, CAVE_TIERS - 1) : 0);
         return 0;

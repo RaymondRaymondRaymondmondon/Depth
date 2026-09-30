@@ -154,6 +154,17 @@ static void AddStress(Game& g, Hero& h, int amount) {
     }
 }
 
+// the Trench: burning a battery vents the pressure (and gives a little light)
+static bool gAutoVent = false;   // --sim vents on its own
+static void VentPressure(Game& g) {
+    auto& d = g.dungeon;
+    if (g.batteries <= 0 || d.pressure <= 0) return;
+    g.batteries--;
+    d.pressure = 0;
+    d.light = std::min(100.0f, d.light + TRENCH_VENT_LIGHT);
+    Log(g, "A battery is burned: the pressure vents in a roar of bubbles.");
+    PlayCue("ui.confirm", 0.6f);
+}
 static std::string gKillCause = "the deep";   // what dealt the last blow (the memorial wall)
 static void DamageHero(Game& g, Hero& h, int dmg) {
     if (dmg <= 0) return;
@@ -773,6 +784,21 @@ static float BossScript(Game& g, const Enemy& e, int abIdx, int target) {
             if (nm == "Maelstrom Call") for (int p = 2; p < n; p++) if (Hero* h = PartyAt(g, p); h && IsHealer(*h)) return 6; // shake the healer loose from the back
             return 0;
         }
+        case EnemyType::Leviathan: { // swallows the front rank; waves when the party is packed and slow
+            if (nm == "Swallow Whole" && target == 0) return 5;
+            if (nm == "Pressure Wave") return g.dungeon.pressure >= 2 ? 6.0f : 1.0f;
+            if (nm == "Coil and Sound") return e.hp * 3 < e.maxHp ? 8.0f : -6.0f;
+            return 0;
+        }
+        case EnemyType::AbyssalEye: { // three phases: it pulls, then it breeds, then it stares
+            float f = (float)e.hp / e.maxHp;
+            int ph = f > 0.66f ? 1 : f > 0.33f ? 2 : 3;
+            if (nm == "Void Stare") return ph == 3 ? 12.0f : -100.0f;
+            if (nm == "Spawn of the Deep") return ph == 2 ? 10.0f : -100.0f;
+            if (nm == "The Deep Pulls") return ph == 1 && nm != lastName ? 4.0f : ph == 2 ? 2.0f : -4.0f;
+            if (nm == "Unblinking Gaze") return ph == 1 ? 3.0f : 0.0f;
+            return 0;
+        }
         case EnemyType::Cthulhu: {
             int mad = 0;
             for (int p = 0; p < n; p++) if (Hero* h = PartyAt(g, p); h && h->st.madTurns > 0) mad++;
@@ -864,7 +890,7 @@ static void BeginRound(Game& g) {
     d.order.clear();
     for (int id : g.party)
         if (Hero* h = FindHero(g, id)) {
-            int spd = GetStats(*h).speed + (h->st.spdTurns > 0 ? h->st.spdBuff : 0);
+            int spd = GetStats(*h).speed + (h->st.spdTurns > 0 ? h->st.spdBuff : 0) - d.pressure * TRENCH_PRESSURE_SPEED;
             if (h->st.drownTurns > 0) spd /= 2; // Drowning Entanglement: -50% speed
             d.order.push_back({true, id, spd + Roll(0, 8)});
         }
@@ -872,6 +898,11 @@ static void BeginRound(Game& g) {
     std::stable_sort(d.order.begin(), d.order.end(), [](const TurnEntry& a, const TurnEntry& b) { return a.init > b.init; });
     d.turnIdx = 0;
     d.round++;
+    if (d.loc == Location::Trench && d.round > 1) { // the Trench's pressure builds every round
+        d.pressure = std::min(TRENCH_PRESSURE_MAX, d.pressure + 1);
+        if (gAutoVent && d.pressure >= 3 && g.batteries > 0) VentPressure(g);   // --sim burns a battery once it bites
+        else if (d.pressure > 0) Log(g, TextFormat("The pressure builds (-%d speed). Burn a battery to vent it.", d.pressure * TRENCH_PRESSURE_SPEED));
+    }
     d.turnStarted = false;
 }
 
@@ -1004,6 +1035,7 @@ static void StartFight(Game& g, bool hall) {
     g.dungeon.lullabyActive = g.dungeon.lullaby; g.dungeon.lullaby = false;
     g.dungeon.dmgDealt.clear();
     g.dungeon.fled = 0;
+    g.dungeon.pressure = 0;
     g.dungeon.lastAbility.clear();
     auto& d = g.dungeon;
     d.inHall = hall;
@@ -1202,7 +1234,7 @@ void StartDungeon(Game& g, Location loc) {
     d.visSeed = (unsigned)GetRandomValue(1, 2000000000); // this run's look: which skyline, which atmosphere
     d.atmos = GetRandomValue(0, 2);
     int li = (int)loc;
-    d.tier = std::clamp(g.tierSel[li], 0, std::min(CAVE_TIERS - 1, g.tierCleared[li] + 1));
+    d.tier = std::clamp(g.tierSel[li], TierFirst(loc), TierUnlocked(g, loc));   // the deep locations run tiers 3-5 (levels 5, 6, 7)
     d.chart = GenerateChart(d.tier, (unsigned)GetRandomValue(1, 2000000000));
     cfx::Reset();
     if (getenv("DEPTH_LINEAR")) { // balance baseline: the old linear run (3 or 4 rooms, 70% fights, then the boss) as a straight chart
@@ -1266,7 +1298,7 @@ static const CurioDef CURIOS[] = {
     {"A tangle of fishing net", "Floats, hooks, a lost lure, and the shape of something caught.", false},
 };
 constexpr int CURIO_COUNT = sizeof(CURIOS) / sizeof(CURIOS[0]);
-static int PickCurio(const DungeonState& d) { return Chance(70) ? (int)d.loc * 5 + Roll(0, 4) : 20 + Roll(0, 5); }
+static int PickCurio(const DungeonState& d) { return Chance(70) ? (int)VisLoc(d.loc) * 5 + Roll(0, 4) : 20 + Roll(0, 5); }   // the deep tiers borrow their scenery's curios
 
 static Hero* RandomPartyHero(Game& g) {
     std::vector<Hero*> hs;
@@ -1455,7 +1487,7 @@ static void BeginEvent(Game& g, EventKind k) {
         OpenEvent(g, k, c.name, c.look);
     } break;
     case EventKind::Shrine: {
-        const char* NAMES[LOCATION_COUNT] = {"A drowned altar to the tide", "A basalt shrine to the Sun", "A kelp-grown shrine of the merfolk", "A shrine to the Sleeper"};
+        const char* NAMES[LOCATION_COUNT] = {"A drowned altar to the tide", "A basalt shrine to the Sun", "A kelp-grown shrine of the merfolk", "A shrine to the Sleeper", "A pressure-cracked shrine of the trench", "An altar at the edge of the dark"};
         OpenEvent(g, k, NAMES[(int)d.loc], "Old offerings lie on it. The crew could pray here, and hope something listens kindly.");
     } break;
     default: break;
@@ -1634,7 +1666,7 @@ static void ApplyResults(Game& g) {
         if (win) { d.rewardRelic = Roll(0, (int)Relics().size() - 1); g.relicStorage.push_back(d.rewardRelic); }
         if (win && d.tier > g.tierCleared[(int)d.loc]) {
             g.tierCleared[(int)d.loc] = d.tier;
-            if (d.tier + 1 < CAVE_TIERS) g.tierSel[(int)d.loc] = d.tier + 1;
+            if (d.tier + 1 <= TierLast(d.loc)) g.tierSel[(int)d.loc] = d.tier + 1;
         }
         int lvl = CAVE_TIER_LEVEL[d.tier];
         for (int id : g.party) {
@@ -1729,6 +1761,7 @@ static void SimCombatStep(Game& g, bool randomPlayer) { // one unit's turn, play
 // The default player heals anyone below 40% HP and otherwise uses its hardest-hitting attack on the
 // weakest enemy it can reach; "random" picks any usable ability and target instead.
 static bool gSimQuiet = false;
+int gSimLocation = 0;   // --sim <runs> <level> sensible <tier> [location 0-5]
 static float gLastSimWin = 0;
 void SimulateExpeditions(int runs, int level, bool randomPlayer, int tier) {
     int wins = 0, losses = 0, deaths = 0, anyDeath = 0, rattled = 0, wipeRoom[8] = {0}, retreats = 0;
@@ -1736,8 +1769,9 @@ void SimulateExpeditions(int runs, int level, bool randomPlayer, int tier) {
     for (int r = 0; r < runs; r++) {
         Game g;
         InitGame(g);
-        g.tierSel[(int)Location::Cave] = tier;
-        g.tierCleared[(int)Location::Cave] = CAVE_TIERS;
+        Location simLoc = (Location)std::clamp(gSimLocation, 0, LOCATION_COUNT - 1);
+        g.tierSel[(int)simLoc] = tier;
+        g.tierCleared[(int)simLoc] = CAVE_TIERS;
         for (auto& h : g.roster) {
             h.level = level;
             h.hp = GetStats(h).maxHp;
@@ -1749,8 +1783,10 @@ void SimulateExpeditions(int runs, int level, bool randomPlayer, int tier) {
             for (int k = 0; k < LOADOUT_SIZE; k++) h.loadout[k] = k < (int)pool.size() ? pool[k] : -1;
             if (!randomPlayer) for (int k = 0; k < SIM_DRILLS_BY_TIER[std::clamp(tier, 0, CAVE_TIERS - 1)] && k < LOADOUT_SIZE; k++) if (h.loadout[k] >= 0) h.drill[h.loadout[k]] = 1;   // what a player at this depth has trained
         }
-        SuggestedKit(Location::Cave, g.provision);   // the auto-player takes the Quartermaster's kit
-        StartDungeon(g, Location::Cave);
+        SuggestedKit(simLoc, g.provision);   // the auto-player takes the Quartermaster's kit
+        g.batteries = DeepLocation(simLoc) ? 5 : 2;   // a player heading into the Trench packs batteries
+        gAutoVent = true;
+        StartDungeon(g, simLoc);
         auto& d = g.dungeon;
         int steps = 0;
         while (steps++ < 40000) {
@@ -1877,7 +1913,7 @@ static std::vector<Vector2> CrystalSpots(const Game& g) {
 static void DrawRegionMidground(Game& g) {
     auto& d = g.dungeon;
     float t = g.time, sd = (float)(d.visSeed % 9973) * 1.37f;
-    if (d.loc == Location::Cave) { // rock pillars, hanging root curtains and glowing moss: a cavern to walk through
+    if (VisLoc(d.loc) == Location::Cave) { // rock pillars, hanging root curtains and glowing moss: a cavern to walk through
         Repeat(LayerOffset(g, 0.42f), 420, [&](float sx, float wx) {
             if (Hash1(wx * 0.4f + sd) > 0.8f) return;
             float x = sx + Hash1(wx + sd) * 160, w = 44 + Hash1(wx * 1.6f) * 40;
@@ -1897,7 +1933,7 @@ static void DrawRegionMidground(Game& g) {
         return;
     }
     float dense = 0.35f + Hash1(sd + 3.0f) * 0.65f;
-    if (d.loc == Location::Island) {
+    if (VisLoc(d.loc) == Location::Island) {
         Repeat(LayerOffset(g, 0.3f), 300, [&](float sx, float wx) { // jagged basalt columns
             if (Hash1(wx * 0.3f + sd) > 0.85f) return;
             float x = sx + Hash1(wx + sd) * 120, h = 130 + Hash1(wx * 1.7f + sd) * 220, w = 26 + Hash1(wx + 4) * 20;
@@ -1927,7 +1963,7 @@ static void DrawRegionMidground(Game& g) {
             }
             DrawTri({x - 14, 340}, {x + 28, 340}, {x + 7, 300}, Color{110, 60, 44, 255});
         });
-    } else if (d.loc == Location::Weeds) {
+    } else if (VisLoc(d.loc) == Location::Weeds) {
         for (int layer = 0; layer < 3; layer++) { // kelp: sparse and open, or a choking maze
             float par = 0.3f + layer * 0.16f, gap = 210 - dense * 120 - layer * 20;
             Repeat(LayerOffset(g, par), gap, [&](float sx, float wx) {
@@ -1990,7 +2026,7 @@ static void DrawRegionFloor(Game& g) {
     auto& d = g.dungeon;
     float t = g.time, off = LayerOffset(g, 1.0f), sd = (float)(d.visSeed % 4099) * 0.37f;
     const Color ink{6, 7, 10, 255};
-    Color base = d.loc == Location::Cave ? Color{34, 46, 54, 255} : d.loc == Location::Island ? Color{104, 88, 62, 255} : d.loc == Location::Weeds ? Color{36, 50, 40, 255} : Color{62, 62, 76, 255};
+    Color base = VisLoc(d.loc) == Location::Cave ? Color{34, 46, 54, 255} : VisLoc(d.loc) == Location::Island ? Color{104, 88, 62, 255} : VisLoc(d.loc) == Location::Weeds ? Color{36, 50, 40, 255} : Color{62, 62, 76, 255};
     DrawVGradient({0, 452, (float)SCREEN_W, 268}, Fade(Tone(base, 0.05f), 0.95f), Fade(Tone(base, -0.7f), 0.98f));      // ground falling away to black
     DrawRectangle(0, 448, SCREEN_W, 6, ink);                                                                                // the horizon lip
     DrawRectangle(0, 454, SCREEN_W, 2, Fade(Tone(base, 0.4f), 0.8f));
@@ -2000,7 +2036,7 @@ static void DrawRegionFloor(Game& g) {
         DrawTri({sx, 516}, {sx + 44, 516}, {sx + 22 + (Hash1(wx * 2 + sd) - 0.5f) * 16, 516 + h}, Fade(Tone(base, 0.16f), 0.6f));
     });
     for (int k = 1; k < 6; k++) DrawRectangle(0, 452 + k * k * 9, SCREEN_W, 1 + k / 3, Fade(ink, 0.35f));                    // receding bands
-    if (d.loc == Location::Cave) { // uneven rock slabs with cracks and silt
+    if (VisLoc(d.loc) == Location::Cave) { // uneven rock slabs with cracks and silt
         Repeat(off, 130, [&](float sx, float wx) {
             float w = 90 + Hash1(wx + sd) * 60, y = 462 + Hash1(wx * 1.3f + sd) * 46, x = sx + Hash1(wx * 2 + sd) * 40;
             DrawEllipse((int)(x + w / 2), (int)y, w / 2 + 2, 11, ink); DrawEllipse((int)(x + w / 2), (int)y - 1, w / 2 - 1, 9, Tone(base, 0.14f));
@@ -2008,7 +2044,7 @@ static void DrawRegionFloor(Game& g) {
             DrawLineEx({x + w * 0.2f, y - 3}, {x + w * 0.35f, y + 6}, 1.6f, ink); DrawLineEx({x + w * 0.35f, y + 6}, {x + w * 0.3f, y + 10}, 1.6f, ink);
         });
         Repeat(off, 210, [&](float sx, float wx) { for (int k = 0; k < 4; k++) DrawRectangle((int)(sx + k * 17 + Hash1(wx) * 40), 522 + k * 14 + (int)(Hash1(wx + k) * 6), 20 + k * 6, 2, Fade(Tone(base, 0.25f), 0.45f)); });   // strata of silt
-    } else if (d.loc == Location::Atlantis) {
+    } else if (VisLoc(d.loc) == Location::Atlantis) {
         for (float x = fmodf(off, 130) - 130; x < SCREEN_W + 130; x += 130) DrawLineEx({x, 454}, {x - 90, 720}, 3, ink);       // marble flag seams
         Repeat(off, 260, [&](float sx, float wx) { // cracks, chips, and an inlaid rune line that pulses
             float y = 470 + Hash1(wx + sd) * 40;
@@ -2016,7 +2052,7 @@ static void DrawRegionFloor(Game& g) {
         });
         Color rune = d.atmos == 2 ? Color{230, 70, 60, 255} : d.atmos == 1 ? Color{220, 190, 110, 255} : Color{200, 90, 240, 255};
         Repeat(off, 90, [&](float sx, float wx) { float pulse = 0.5f + 0.5f * sinf(t * 1.6f + wx * 0.05f); DrawRectangle((int)sx, 490, 46, 3, Fade(rune, 0.25f + 0.45f * pulse)); DrawRectangle((int)sx + 54, 490, 8, 3, Fade(rune, 0.2f + 0.3f * pulse)); });
-    } else if (d.loc == Location::Island) { // a rotted boardwalk over the sand
+    } else if (VisLoc(d.loc) == Location::Island) { // a rotted boardwalk over the sand
         Repeat(off, 72, [&](float sx, float wx) {
             if (Hash1(wx * 0.7f + sd) < 0.1f) { DrawRectangle((int)sx, 462, 70, 52, Color{14, 12, 10, 255}); return; }              // a missing plank
             Color pc = Tone(Color{116, 82, 50, 255}, (Hash1(wx + sd) - 0.5f) * 0.4f);
@@ -2182,7 +2218,7 @@ static std::vector<PlacedProp> CollectProps(Game& g) {
     static const std::vector<PropWeight> CAVE = {{P_FUNGUS, 4}, {P_HELMET, 2}, {P_SHELLBONES, 2}, {P_CORAL, 3}, {P_SKULL, 1}, {P_STALAGMITE, 4}, {P_RIBS, 1}};
     static const std::vector<PropWeight> WEEDS = {{P_ANCHOR, 2}, {P_POD, 4}, {P_CRATE, 2}, {P_SHELLBONES, 2}, {P_SKULL, 1}, {P_KELPCLUMP, 5}, {P_BARREL, 3}, {P_FUNGUS, 2}};
     static const std::vector<PropWeight> ATLANTIS = {{P_ALTAR, 2}, {P_VOIDCRYSTAL, 3}, {P_BRAZIER, 2}, {P_LOSTONE, 3}, {P_COLUMN, 4}};
-    const auto& pool = d.loc == Location::Island ? ISLAND : d.loc == Location::Weeds ? WEEDS : d.loc == Location::Atlantis ? ATLANTIS : CAVE;
+    const auto& pool = VisLoc(d.loc) == Location::Island ? ISLAND : VisLoc(d.loc) == Location::Weeds ? WEEDS : VisLoc(d.loc) == Location::Atlantis ? ATLANTIS : CAVE;
     int total = 0;
     for (auto& w : pool) total += w.w;
     float sd = (float)(d.visSeed % 7919) * 0.91f;
@@ -2210,8 +2246,8 @@ static void DrawPathProps(Game& g) {
 static void DrawGroundClutter(Game& g) {
     auto& d = g.dungeon;
     const Color ink{6, 7, 10, 255};
-    Color rock = d.loc == Location::Island ? Color{112, 94, 68, 255} : d.loc == Location::Weeds ? Color{58, 72, 60, 255} : d.loc == Location::Atlantis ? Color{108, 108, 122, 255} : Color{82, 96, 104, 255};
-    Color plant = d.loc == Location::Island ? Color{112, 118, 56, 255} : d.loc == Location::Weeds ? Color{56, 130, 78, 255} : d.loc == Location::Atlantis ? Color{120, 90, 150, 255} : Color{62, 140, 128, 255};
+    Color rock = VisLoc(d.loc) == Location::Island ? Color{112, 94, 68, 255} : VisLoc(d.loc) == Location::Weeds ? Color{58, 72, 60, 255} : VisLoc(d.loc) == Location::Atlantis ? Color{108, 108, 122, 255} : Color{82, 96, 104, 255};
+    Color plant = VisLoc(d.loc) == Location::Island ? Color{112, 118, 56, 255} : VisLoc(d.loc) == Location::Weeds ? Color{56, 130, 78, 255} : VisLoc(d.loc) == Location::Atlantis ? Color{120, 90, 150, 255} : Color{62, 140, 128, 255};
     float sd = (float)(d.visSeed % 4099) * 0.37f, t = g.time;
     Repeat(LayerOffset(g, 1.0f), 46, [&](float sx, float wx) {
         float h = Hash1(wx * 0.53f + sd);
@@ -2250,7 +2286,7 @@ static void DrawRegionForeground(Game& g) {
     auto& d = g.dungeon;
     float t = g.time;
     const Color fg{4, 7, 9, 255};
-    switch (d.loc) {
+    switch (VisLoc(d.loc)) {
         case Location::Cave: // stalactite teeth along the ceiling, and rocks at the corners
             Repeat(LayerOffset(g, 1.4f), 210, [&](float sx, float wx) {
                 float x = sx + Hash1(wx) * 120, h = 40 + Hash1(wx + 2) * 120, w = 20 + Hash1(wx + 3) * 30;
@@ -2309,7 +2345,7 @@ static void DrawRegionForeground(Game& g) {
 static void DrawRegionFar(Game& g) {
     float t = g.time;
     Rectangle full{0, 0, (float)SCREEN_W, (float)SCREEN_H};
-    if (g.dungeon.loc == Location::Island) {
+    if (VisLoc(g.dungeon.loc) == Location::Island) {
         DrawVGradient(full, Color{96, 36, 74, 255}, Color{16, 14, 36, 255});
         Vector2 sun{860 - LayerOffset(g, 0.02f) * 0.5f, 250};
         BeginBlendMode(BLEND_ADDITIVE);
@@ -2345,7 +2381,7 @@ static void DrawRegionFar(Game& g) {
                 }
             });
         }
-    } else if (g.dungeon.loc == Location::Weeds) {
+    } else if (VisLoc(g.dungeon.loc) == Location::Weeds) {
         DrawVGradient(full, Color{34, 112, 86, 255}, Color{4, 26, 26, 255});
         BeginBlendMode(BLEND_ADDITIVE); // the sun through the canopy of the surface
         Repeat(LayerOffset(g, 0.05f), 260, [&](float sx, float wx) {
@@ -2446,8 +2482,8 @@ static void DrawCaveLayers(Game& g) {
     EndBlendMode();
     if (g.dungeon.loc != Location::Cave) DrawRegionFar(g); // each region paints its own furthest layer instead of the cave water
     // 2. the far cave walls
-    if (g.dungeon.loc == Location::Cave) DrawRidge(LayerOffset(g, 0.12f), 318, 70, 3, false, Color{16, 44, 56, 255}, 70);
-    if (g.dungeon.loc == Location::Cave) DrawRidge(LayerOffset(g, 0.2f), 372, 50, 11, false, Color{19, 48, 60, 255}, 40);
+    if (VisLoc(g.dungeon.loc) == Location::Cave) DrawRidge(LayerOffset(g, 0.12f), 318, 70, 3, false, Color{16, 44, 56, 255}, 70);
+    if (VisLoc(g.dungeon.loc) == Location::Cave) DrawRidge(LayerOffset(g, 0.2f), 372, 50, 11, false, Color{19, 48, 60, 255}, 40);
     FogVeil(0.16f);   // fog between layers, in the scene's own fog colour
     Repeat(LayerOffset(g, 0.16f), 900, [&](float sx, float wx) { // schools of fish drifting past
         float dir = Hash1(wx) > 0.5f ? 1.0f : -1.0f, cx = sx + fmodf(t * 14 * dir + 9000, 900.0f) - 450, cy = 150 + Hash1(wx + 1) * 170;
@@ -2458,7 +2494,7 @@ static void DrawCaveLayers(Game& g) {
         }
     });
     // 3. distant rock columns rising from floor to ceiling (the Cave's own; the other regions have their own, below)
-    if (g.dungeon.loc == Location::Cave) Repeat(LayerOffset(g, 0.3f), 430, [&](float sx, float wx) {
+    if (VisLoc(g.dungeon.loc) == Location::Cave) Repeat(LayerOffset(g, 0.3f), 430, [&](float sx, float wx) {
         float x = sx + Hash1(wx) * 160, wTop = 60 + Hash1(wx + 2) * 40, wMid = 26 + Hash1(wx + 4) * 16, wBot = 80 + Hash1(wx + 5) * 40;
         Color c{24, 56, 68, 255};
         DrawTri({x - wTop, 40}, {x + wTop, 40}, {x + wMid, 260}, c);
@@ -2498,7 +2534,7 @@ static void DrawCaveLayers(Game& g) {
     EndBackdrop(1.7f);
     // 4. the ceiling's stalactites, stalagmites and swaying kelp
     float off4 = LayerOffset(g, 0.45f);
-    if (g.dungeon.loc == Location::Cave) {
+    if (VisLoc(g.dungeon.loc) == Location::Cave) {
         DrawRidge(off4, 70, 40, 5, true, Color{14, 30, 38, 255}, 130);
         DrawRidge(off4, 432, 22, 21, false, Color{20, 40, 48, 255}, 60);
     }
@@ -2522,7 +2558,7 @@ static void DrawCaveLayers(Game& g) {
         DrawRectangle(x, (int)y, 4, (int)(393 - y), Color{56, 70, 76, 255});
     }
     DrawVGradient({0, 392, (float)SCREEN_W, 64}, Fade(BLACK, 0.05f), Fade(BLACK, 0.45f));
-    if (g.dungeon.loc == Location::Cave) for (Vector2 c : CrystalSpots(g)) {
+    if (VisLoc(g.dungeon.loc) == Location::Cave) for (Vector2 c : CrystalSpots(g)) {
         for (int k = -2; k <= 2; k++) {
             float h = 26 - abs(k) * 6 + Hash1(c.x * 0.01f + k) * 8, lean = k * 7.0f;
             Vector2 base{c.x + k * 6.0f, c.y}, tip{c.x + k * 6.0f + lean, c.y - h};
@@ -3192,6 +3228,8 @@ static const char* ATMOS_NAME[LOCATION_COUNT][3] = {
     {"Torrential Downpour", "Toxic Sea Fog", "Eldritch Sunset"},
     {"Abyssal Current", "Fungal Rot", "Sanguine Tide"},
     {"Cosmic Void", "Drowned Eclipse", "Blood Moon Abyss"},
+    {"Crushing Black", "Angler Lights", "Pressure Silt"},
+    {"The Lightless", "Eye-Glow", "Blood in the Water"},
 };
 const char* AtmosphereName(Location loc, int variant) { return ATMOS_NAME[(int)loc][std::clamp(variant, 0, 2)]; }
 
@@ -3202,8 +3240,8 @@ const char* AtmosphereName(Location loc, int variant) { return ATMOS_NAME[(int)l
 static void DrawLightShafts(Game& g) {
     auto& d = g.dungeon;
     float t = g.time, sd = (float)(d.visSeed % 1013) * 0.7f;
-    Color c = d.loc == Location::Cave ? Color{90, 190, 210, 255} : d.loc == Location::Island ? Color{220, 210, 130, 255} : d.loc == Location::Weeds ? Color{120, 230, 140, 255} : Color{170, 120, 240, 255};
-    if (d.atmos == 0 && d.loc == Location::Cave) return; // the pitch-black trench has no light to spare
+    Color c = VisLoc(d.loc) == Location::Cave ? Color{90, 190, 210, 255} : VisLoc(d.loc) == Location::Island ? Color{220, 210, 130, 255} : VisLoc(d.loc) == Location::Weeds ? Color{120, 230, 140, 255} : Color{170, 120, 240, 255};
+    if (d.atmos == 0 && VisLoc(d.loc) == Location::Cave) return; // the pitch-black trench has no light to spare
     BeginBlendMode(BLEND_ADDITIVE);
     Repeat(LayerOffset(g, 0.2f), 260, [&](float sx, float wx) {
         if (Hash1(wx * 0.9f + sd) < 0.35f) return;
@@ -3227,7 +3265,7 @@ static void DrawSeededSilhouettes(Game& g) {
             float x = sx + Hash1(wx + sd) * 180.0f;
             float sc = 0.8f + Hash1(wx * 1.3f + sd) * 0.7f;
             int kind = (int)(h * 4.0f);
-            switch (d.loc) {
+            switch (VisLoc(d.loc)) {
                 case Location::Island:
                     if (kind == 0) { // a stilt hut
                         DrawRectangle((int)x - 30 * sc, (int)(base - 90 * sc), 60 * sc, 34 * sc, ink);
@@ -3303,13 +3341,21 @@ static void DrawSeededSilhouettes(Game& g) {
 // party keeps its true colours; the FX (fx=true) are weather, spores and localised glows drawn after the ink pass.
 static void DrawLocationTint(Game& g, bool fx) {
     auto& d = g.dungeon;
+    if (!fx && DeepLocation(d.loc)) { // the deep tiers darken the scenery they borrow: crushing blue-black, or the Hadal's bruise
+        DrawRectangle(0, 0, SCREEN_W, SCREEN_H, d.loc == Location::Trench ? Color{2, 8, 22, 110} : Color{14, 2, 16, 125});
+        for (int i = 0; i < 6; i++) DrawRing({640, 380}, 520 + i * 40, 560 + i * 40, 0, 360, 48, Fade(BLACK, 0.12f + i * 0.05f));
+    }
+    if (fx && DeepLocation(d.loc)) for (int k = 0; k < 60; k++) { // marine snow, sinking
+        float px = fmodf(k * 97.0f + sinf(g.time * 0.3f + k) * 20, 1280.0f), py = fmodf(k * 53.0f + g.time * (8 + k % 5 * 3), 560.0f) + 60;
+        DrawCircleV({px, py}, 1.2f + (k % 3) * 0.4f, Color{200, 210, 220, (unsigned char)(70 + k % 4 * 20)});
+    }
     float t = g.time;
     float seed = (float)(d.visSeed % 997);
     int v = d.atmos;
     auto tint = [&](Color c) { if (!fx) DrawRectangle(0, 0, SCREEN_W, SCREEN_H, c); };
     auto lightWash = [&](Color c) { if (!fx) { BeginBlendMode(BLEND_ADDITIVE); DrawRectangle(0, 0, SCREEN_W, SCREEN_H, c); EndBlendMode(); } };
     auto glows = [&](auto fn) { if (fx) { BeginBlendMode(BLEND_ADDITIVE); fn(); EndBlendMode(); } };
-    switch (d.loc) {
+    switch (VisLoc(d.loc)) {
         case Location::Cave:
             if (v == 0) { // pitch black: a tight searchlight round the party, ink beyond it
                 if (fx) {
@@ -3405,7 +3451,7 @@ static void DrawLocationTint(Game& g, bool fx) {
     auto& d = g.dungeon;
     DrawVGradient({0, 0, (float)SCREEN_W, 58}, Color{10, 18, 24, 240}, Color{16, 28, 36, 220});
     DrawRectangle(0, 56, SCREEN_W, 3, Pal::BrassDk);
-    TxtShadow(TextFormat("%s  -  %s (Lv %d)", LocationName(d.loc), CAVE_TIER_NAME[d.tier], CAVE_TIER_LEVEL[d.tier]), 20, 15, 22, Pal::Brass, true);
+    TxtShadow(TextFormat("%s  -  %s (Lv %d)", LocationName(d.loc), TierName(d.loc, d.tier), CAVE_TIER_LEVEL[d.tier]), 20, 15, 20, Pal::Brass, true);
     if (!d.chart.rooms.empty()) {
         int visited = 0; for (auto& r : d.chart.rooms) visited += r.visited;
         Txt(TextFormat("%s  %d/%d  (Tab)", ObjectiveName(d.objective), visited, (int)d.chart.rooms.size()), 350, 22, 13, ObjectiveMet(g) ? Pal::Good : Color{190, 200, 196, 255});
@@ -3807,7 +3853,7 @@ void SceneDungeon(Game& g) {
     {   // the light rig: the flashlight is the key; the location's palette, its current, and ink flecks fixed per run
         SetSceneLight(LocationLight(d.loc, d.lightShown / 100.0f));
         SetInkLook(&LocationPalette(d.loc), 0.32f, d.visSeed);
-        const Vector2 CURRENT[LOCATION_COUNT] = {{-40, 0}, {-90, -10}, {-70, -20}, {-30, 10}};
+        const Vector2 CURRENT[LOCATION_COUNT] = {{-40, 0}, {-90, -10}, {-70, -20}, {-30, 10}, {-20, 0}, {-12, 6}};
         rig::SetCurrent({CURRENT[(int)d.loc].x * (1 + 0.5f * sinf(g.time * 0.4f)), CURRENT[(int)d.loc].y});
     }
     DrawCaveLayers(g);
@@ -4042,8 +4088,8 @@ void SceneDungeon(Game& g) {
                 body += ", and as a reward for finishing: a " + Relics()[d.rewardRelic].name + ".";
                 if (d.objectiveDone) body += TextFormat("\nObjective bonus (%s): %s", ObjectiveName(d.objective), ObjectiveText(d.objective));
                 body += TextFormat("\n\nSurvivors earn XP (%d base).", 3 + lvl * 3);
-                if (d.tier + 1 < CAVE_TIERS && g.tierCleared[(int)d.loc] == d.tier)
-                    body += TextFormat(" %s level %d (%s) is now open at the Helm.", LocationName(d.loc), CAVE_TIER_LEVEL[d.tier + 1], CAVE_TIER_NAME[d.tier + 1]);
+                if (d.tier + 1 <= TierLast(d.loc) && g.tierCleared[(int)d.loc] == d.tier)
+                    body += TextFormat(" %s level %d (%s) is now open at the Helm.", LocationName(d.loc), CAVE_TIER_LEVEL[d.tier + 1], TierName(d.loc, d.tier + 1));
             } else if (d.phase == DPhase::Retreat) {
                 title = "Retreat";
                 tc = Pal::Brass;
@@ -4136,7 +4182,10 @@ void SceneDungeon(Game& g) {
                     d.selectedAbility = i;
                 }
             }
-            if (Button({400, 672, 472, 34}, "Pass the turn", true, 14)) { Log(g, h->name + " holds position."); EndTurn(g); return; }
+            if (d.loc == Location::Trench) { // the Trench: vent the pressure with a battery (a free action)
+                if (Button({400, 672, 232, 34}, "Pass the turn", true, 14)) { Log(g, h->name + " holds position."); EndTurn(g); return; }
+                if (Button({640, 672, 232, 34}, TextFormat("Vent pressure (-%d spd) [%d bat]", d.pressure * TRENCH_PRESSURE_SPEED, g.batteries), d.pressure > 0 && g.batteries > 0, 13)) VentPressure(g);
+            } else if (Button({400, 672, 472, 34}, "Pass the turn", true, 14)) { Log(g, h->name + " holds position."); EndTurn(g); return; }
             int showAb = hoverAb >= 0 ? hoverAb : d.selectedAbility;
             if (showAb >= 0) { // what it does, on a plate just above the HUD
                 const Ability& a = abs[showAb];
@@ -4389,6 +4438,15 @@ int Stage7Test() {
     int a = g.roster[0].id, b = g.roster[1].id;
     for (int i = 0; i < 9; i++) AddBond(g, a, b, 1);
     check(BondOf(g, a, b) == BOND_MAX && BondOf(g, b, a) == BOND_MAX, "bonds cap at five, both ways round");
+    {   // the deep tiers: sealed until all four Shallows are cleared at cave level 6, then tiers 3-5 (levels 5, 6, 7)
+        Game d; InitGame(d);
+        bool sealed = !DeepUnlocked(d);
+        for (int l = 0; l < 4; l++) d.tierCleared[l] = 4;
+        check(sealed && DeepUnlocked(d), "the Trench and the Hadal open after all four Shallows at level 6");
+        check(TierFirst(Location::Hadal) == 3 && TierLast(Location::Hadal) == 5 && CAVE_TIER_LEVEL[5] == 7 && TierUnlocked(d, Location::Trench) == 3, "deep ladders run levels 5, 6, 7");
+        Hero x = d.roster[0]; x.xp = 100000; GiveXP(d, x, 1);
+        check(x.level == CREW_MAX_LEVEL && CREW_MAX_LEVEL == 7, "crew level caps at 7");
+    }
     {   // resolve: about a quarter of heroes pushed to 100 are Steeled
         int steeled = 0, n = 4000;
         for (int i = 0; i < n; i++) { Hero t = g.roster[2]; t.stress = 95; t.rattled = t.steeled = false; Nerve(t, 10); steeled += t.steeled; }

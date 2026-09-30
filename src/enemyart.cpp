@@ -1507,6 +1507,88 @@ void StarSpawn(const Ctx& c) {
     for (int k = 0; k < 4; k++) { float a = t * 0.8f + k * PI / 2; Dot(c, 4 + cosf(a) * 46, -70 + sinf(a) * 30, 1.4f, Fade(glow, 0.6f + 0.4f * pulse)); } // stars caught around it
 }
 
+// ============================================================ Stage 7: the deep tiers' bosses (three ranks)
+float gHpFrac = 1;   // the boss being drawn: its health, for phase looks
+
+// THE TRENCH: the Leviathan, a serpent of the deep floor rearing out of its own coils
+void Leviathan(const Ctx& c) {
+    const float t = c.t;
+    const Color hide{44, 62, 78, 255}, hideDk{24, 34, 46, 255}, belly{150, 150, 130, 255}, scar{120, 140, 150, 255}, tooth{230, 224, 206, 255}, eye{255, 210, 110, 255};
+    // coils on the floor, back to front
+    for (int k = 0; k < 3; k++) {
+        float cx = 60 + k * 50.0f, r = 44 - k * 6.0f, bob = sinf(t * 0.8f + k) * 3;
+        Ball(c, cx, -r + bob, r, k % 2 ? hide : hideDk);
+        DrawRing(c.P(cx, -r + bob), (r - 3) * c.k, r * c.k, 190, 350, 16, Tone(hide, 0.2f));
+        Crescent(c, cx, -r + bob, r);
+        for (int s = 0; s < 4; s++) Tri(c, {cx - 18 + s * 12.0f, -2 * r + bob + 4}, {cx - 12 + s * 12.0f, -2 * r + bob + 4}, {cx - 15 + s * 12.0f, -2 * r + bob - 10}, hideDk); // dorsal ridge
+    }
+    // the neck rising in segments to the head, swaying and striking
+    V prev{40, -60};
+    for (int i = 1; i <= 7; i++) {
+        float u = i / 7.0f, sway = sinf(t * 0.9f + u * 2) * 10 * u;
+        V p{40 - u * 90 + sway, -60 - u * 170 + sinf(u * PI) * 20};
+        Limb(c, prev, p, 44 - u * 10, 44 - (u + 0.14f) * 10, i % 2 ? hide : Tone(hide, -0.08f));
+        Limb(c, {prev.x - 10, prev.y + 6}, {p.x - 10, p.y + 6}, 16 - u * 4, 16 - u * 4, belly);          // the pale throat
+        prev = p;
+    }
+    V head{prev.x - 20, prev.y + 4};
+    float gape = 0.3f + 0.2f * sinf(t * 1.2f + c.u) + std::max(0.0f, -c.reach) * 0.8f + std::max(0.0f, c.reach) * 0.4f;
+    Quad(c, {head.x + 30, head.y - 24}, {head.x - 60, head.y - 16}, {head.x - 64, head.y + 2}, {head.x + 30, head.y + 8}, hide);        // upper jaw
+    Quad(c, {head.x + 26, head.y + 10}, {head.x - 54, head.y + 10 + gape * 40}, {head.x - 56, head.y + 22 + gape * 44}, {head.x + 24, head.y + 30}, hideDk); // lower jaw
+    Quad(c, {head.x + 24, head.y + 6}, {head.x - 58, head.y + 2}, {head.x - 52, head.y + 12 + gape * 40}, {head.x + 22, head.y + 18}, INK); // the black maw
+    for (int i = 0; i < 8; i++) { // rows of teeth
+        float x = head.x - 54 + i * 9.0f;
+        Tri(c, {x, head.y + 1}, {x + 4, head.y + 1}, {x + 2, head.y + 12}, tooth);
+        Tri(c, {x + 2, head.y + 12 + gape * 40}, {x + 6, head.y + 12 + gape * 40}, {x + 4, head.y + 1 + gape * 40}, tooth);
+    }
+    Hatch(c, head.x - 40, head.y - 20, 60, 16, 10, Fade(INK, 0.5f));
+    for (int s = 0; s < 3; s++) Line(c, {head.x - 10 + s * 10.0f, head.y - 22}, {head.x - 20 + s * 10.0f, head.y - 6}, 1.4f, scar); // old harpoon scars
+    Ball(c, head.x - 8, head.y - 14, 7, hideDk); Dot(c, head.x - 9, head.y - 15, 3.6f, eye); Bar(c, head.x - 10, head.y - 18, 2, 7, INK); // a slit eye
+    for (int s = 0; s < 3; s++) Feeler(c, {head.x + 20 + s * 8.0f, head.y - 20}, {1, -0.4f}, 6, 10, 5, 1.2f, hideDk, 0.2f, 0.3f); // frills trailing from the skull
+    Barnacles(c, 90, -80, 14, 5, c.u);
+}
+
+// THE HADAL: the Abyssal Eye, one vast eye in a nest of tentacles; it reddens as it weakens (three phases)
+void AbyssalEye(const Ctx& c) {
+    const float t = c.t;
+    int ph = gHpFrac > 0.66f ? 1 : gHpFrac > 0.33f ? 2 : 3;
+    const Color flesh = ph == 1 ? Color{58, 44, 70, 255} : ph == 2 ? Color{76, 40, 60, 255} : Color{96, 32, 40, 255};
+    const Color dk = Tone(flesh, -0.45f), lt = Tone(flesh, 0.35f), white{226, 216, 200, 255}, iris = ph == 1 ? Color{200, 170, 60, 255} : ph == 2 ? Color{220, 120, 50, 255} : Color{240, 50, 40, 255};
+    for (int i = 0; i < 9; i++) { // a nest of tentacles, writhing on the floor and reaching
+        float a = -PI * 0.9f + i * PI * 0.8f / 8, reach = i < 3 ? std::max(0.0f, c.reach) * 6 : 0;
+        Feeler(c, {cosf(a) * 60 + 40, -60 + sinf(a) * 20}, {cosf(a) * 0.8f, 0.6f + (i % 2) * 0.3f}, 7, 16 + reach, 16, 3, i % 2 ? flesh : dk, 0.15f, 0.35f);
+    }
+    for (int i = 0; i < 4; i++) Feeler(c, {40 + (i - 1.5f) * 50, -200}, {(i - 1.5f) * 0.4f, -1}, 6, 16, 12, 2, i % 2 ? dk : flesh, 0.45f, 0.4f); // arms raised behind
+    Ball(c, 40, -140, 120, flesh);                                  // the mass around the eye
+    Ball(c, 20, -170, 70, lt);
+    Crescent(c, 40, -140, 120);
+    Hatch(c, 60, -120, 90, 90, 12, Fade(INK, 0.45f));
+    // the lids part slowly; the eye tracks the party
+    float open = 0.55f + 0.35f * sinf(t * 0.5f + c.u) + (ph == 3 ? 0.2f : 0) + std::max(0.0f, c.rear) * 0.3f;
+    open = std::clamp(open, 0.15f, 1.0f);
+    float ex = 20, ey = -140, er = 78;
+    Ball(c, ex, ey, er, white);
+    for (int v = 0; v < 7; v++) { float a = v * 0.9f + 0.3f; Line(c, {ex + cosf(a) * er * 0.95f, ey + sinf(a) * er * 0.95f}, {ex + cosf(a + 0.2f) * er * 0.55f, ey + sinf(a + 0.2f) * er * 0.55f}, 1.6f, Color{190, 60, 60, 200}); } // veins
+    float look = -18 + sinf(t * 0.7f) * 6;
+    Ball(c, ex + look, ey, 38, iris);
+    DrawRing(c.P(ex + look, ey), 30 * c.k, 38 * c.k, 0, 360, 36, Tone(iris, -0.4f));
+    Bar(c, ex + look - 5, ey - 30, 10, 60, INK);                    // a slit pupil
+    Dot(c, ex + look - 14, ey - 18, 5, WHITE);
+    // the lids: flesh filling the eyeball's disc outside an almond opening that widens and narrows
+    const int N = 36;
+    for (int i = 0; i < N; i++) {
+        float a0 = i * 2 * PI / N, a1 = (i + 1) * 2 * PI / N;
+        V c0{ex + cosf(a0) * er * 1.04f, ey + sinf(a0) * er * 1.04f}, c1{ex + cosf(a1) * er * 1.04f, ey + sinf(a1) * er * 1.04f};
+        V e0{ex + cosf(a0) * er, ey + sinf(a0) * er * open}, e1{ex + cosf(a1) * er, ey + sinf(a1) * er * open};
+        Color lidC = sinf(a0) < 0 ? flesh : Tone(flesh, -0.12f);
+        Tri(c, c0, c1, e1, lidC); Tri(c, c0, e1, e0, lidC);
+        Line(c, e0, e1, 3.2f, dk);                                   // the lid's wet dark rim
+        if (sinf(a0) < -0.3f && i % 2 == 0) Line(c, e0, {e0.x + cosf(a0) * 12, e0.y + sinf(a0) * 12 - 4}, 2.0f, dk);   // lashes like quills
+    }    float pulse = 0.5f + 0.5f * sinf(t * (ph == 3 ? 3.0f : 1.4f));
+    Glow(c.P(ex + look, ey), (110 + pulse * 30) * c.k, Fade(iris, 0.12f + 0.08f * pulse));
+    if (ph >= 2) for (int k = 0; k < 5; k++) { Ball(c, -60 + k * 40.0f, -30 - (k % 2) * 20.0f, 9, lt); Dot(c, -60 + k * 40.0f, -30 - (k % 2) * 20.0f, 3, iris); } // it has begun to breed: eggs
+}
+
 }  // namespace
 
 bool DrawRichEnemy(const Enemy& e, Rectangle r, float t) {
@@ -1546,6 +1628,8 @@ bool DrawRichEnemy(const Enemy& e, Rectangle r, float t) {
         case EnemyType::KelpWraith: fn = KelpWraith; H = 150; W = 100; break;
         case EnemyType::DrownedOracle: fn = DrownedOracle; H = 150; W = 100; break;
         case EnemyType::StarSpawn: fn = StarSpawn; H = 130; W = 140; break;
+        case EnemyType::Leviathan: fn = Leviathan; H = 300; W = 400; break;
+        case EnemyType::AbyssalEye: fn = AbyssalEye; H = 340; W = 440; break;
         default: return false;
     }
     float k = std::min(r.height / H, 1.5f * r.width / W);
@@ -1575,6 +1659,7 @@ bool DrawRichEnemy(const Enemy& e, Rectangle r, float t) {
     else for (auto& ch : in.chains) if (!ch.p.empty()) ch.Shift(d); // the canvas moved: every chain trails
     c.in = &in;
     gBlink = in.face.Closed();
+    gHpFrac = e.maxHp > 0 ? (float)e.hp / e.maxHp : 1;
     fn(c);
     gBlink = false;
     // secondary motion: something caught on every creature trails in the water - kelp, a feather, hair, a rag, a line
@@ -1586,6 +1671,7 @@ bool DrawRichEnemy(const Enemy& e, Rectangle r, float t) {
         {0.05f, 0.85f, 2}, {0.08f, 0.85f, 2}, {0.2f, 0.3f, 2}, {0.3f, 0.5f, 0}, {0.3f, 0.45f, 4}, {0.05f, 0.85f, 2}, // the Weeds
         {0.03f, 0.8f, 3}, {0.0f, 0.8f, 5}, {0.05f, 0.8f, 5}, {0.0f, 0.6f, 3}, {0.1f, 0.75f, 0},                     // Atlantis
         {0.2f, 0.5f, 0}, {0.3f, 0.6f, 0}, {0.0f, 0.8f, 1}, {0.0f, 0.8f, 1}, {0.3f, 0.35f, 0}, {0.0f, 0.7f, 2}, {0.0f, 0.8f, 3}, {0.1f, 0.6f, 0}, // Stage 7's eight
+        {0.4f, 0.5f, 0}, {0.3f, 0.4f, 0},   // the Leviathan, the Abyssal Eye
     };
     const Hang& hg = HANG[std::clamp((int)e.type, 0, (int)EnemyType::COUNT - 1)];
     Vector2 anc = c.P(hg.ax * W, -hg.ay * H);

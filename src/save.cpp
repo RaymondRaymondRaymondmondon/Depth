@@ -80,7 +80,7 @@ bool LoadGame(Game& g) {
         else if (key == "upgrades") for (int& u : fresh.upgrades) in >> u;
         else if (key == "relics") { int r; while (in >> r) if (r >= 0 && r < (int)Relics().size()) fresh.relicStorage.push_back(r); }
         else if (key == "cave") { in >> fresh.tierCleared[(int)Location::Cave] >> fresh.tierSel[(int)Location::Cave]; } // an older save: Cave only
-        else if (key == "locations") for (int l = 0; l < LOCATION_COUNT; l++) in >> fresh.tierCleared[l] >> fresh.tierSel[l];
+        else if (key == "locations") for (int l = 0; l < LOCATION_COUNT; l++) { int c, sel; if (in >> c >> sel) { fresh.tierCleared[l] = c; fresh.tierSel[l] = sel; } }   // older saves hold only the four Shallows
         else if (key == "platopts") {
             int h = 0, c = 0, hb = 1, pb = 1;
             in >> h >> c >> hb >> pb; // hb/pb default to 1 (on) for saves from before this option existed
@@ -131,7 +131,7 @@ bool LoadGame(Game& g) {
     }
     if (fresh.roster.empty()) return false;
     for (int& u : fresh.upgrades) u = std::clamp(u, 0, UPGRADE_MAX);
-    for (int l = 0; l < LOCATION_COUNT; l++) fresh.tierSel[l] = std::clamp(fresh.tierSel[l], 0, std::min(CAVE_TIERS - 1, fresh.tierCleared[l] + 1));
+    for (int l = 0; l < LOCATION_COUNT; l++) fresh.tierSel[l] = std::clamp(fresh.tierSel[l], TierFirst((Location)l), TierUnlocked(fresh, (Location)l));
     g = fresh;
     CompactParty(g);
     RefreshRadar(g);
