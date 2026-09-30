@@ -203,6 +203,8 @@ Before writing items, write `blueprints/Uxx.json`: a grid of skills x tiers with
 - **Uses realistic values** (physics and chemistry: plausible numbers, sensible answer sizes; no calculators here,
   so exact answers).
 - **Has meaningful distractors.** Every wrong choice comes from a listed misconception card and has its own `why`.
+  Authors write the key as choice `a`; the player UI shuffles choices on every showing, so the key must not stand
+  out by length or detail either (keep choices of similar length; explanations belong in the solution).
 - **Is new, not copied.** Items differ from anchors and textbook problems in setup, not only in numbers.
 - **Carries its metadata:** `tier`, `form` (`expr`, `numeric`, `choice`, `multi`, `parts`, `text`), `steps`,
   `cue`, `novelty` (0-2), `twist` (Hard), `sources` (page ids), `label` (`computed`, `sourced`, `coursework`),
