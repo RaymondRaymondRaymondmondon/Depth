@@ -95,7 +95,7 @@ Still to do:
 - **10. Flats long map and systems**: 15 layers in three regions (the Shallows, the Reef, the Drowned Court), new nodes
   (Harbor, Toll, Fog, Elite lane, Undertow, Wager, Salvager), tribe passives, 12 new sigils, deck archetypes, Sea Marks,
   dealer tells, side bets, Depths 1-10, deck limits and a saved favourite deck. Gates: `--flats-sim` and `--flats-gen`.
-- **11. The Deep Arcade, networking, Scuttle**: cabinet menu (drum of reels, Host/Join/Browse), lobby, shared frame,
+- **11. The Deep Arcade, networking, Scuttle** (the networking design is docs/design/5_Depth_Arcade_Networking.md, steps N1-N7): cabinet menu (drum of reels, Host/Join/Browse), lobby, shared frame,
   GameNetworkingSockets (ENet fallback), host-authoritative model, LAN broadcast, a relay server (`relay/`), version
   check, reconnects, profiles and arcade tokens (cosmetics only), then Scuttle. Gate: two machines on different networks
   play Scuttle by join code; `--scuttle-sim`, `--net-loop`.
