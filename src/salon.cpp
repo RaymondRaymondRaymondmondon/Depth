@@ -1862,6 +1862,21 @@ void SceneArcade(Game& g) {
     // the three valve-wheel buttons. Host starts a playable game solo (the shared networking layer comes with its
     // own stage); Join and Browse wait for it.
     bool playable = sel == 4;
+    // Red Tide's maps (each opens as its stage is built)
+    static const char* RT_MAPS[] = {"ship", "cave"};
+    static const char* RT_TITLES[] = {"The Sunken Ship", "The Underwater Cave"};
+    static int rtMap = 0;
+    const int RT_N = (int)(sizeof(RT_MAPS) / sizeof(RT_MAPS[0]));
+    if (playable) {
+        Rectangle lt{c.x - 190, c.y + 128, 30, 26}, rtR{c.x + 160, c.y + 128, 30, 26};
+        DrawTextCenteredBold(RT_TITLES[rtMap], c.x, c.y + 130, 20, Color{230, 200, 150, 255});
+        DrawTextCenteredBold("<", lt.x + 15, lt.y, 22, Pal::Brass);
+        DrawTextCenteredBold(">", rtR.x + 15, rtR.y, 22, Pal::Brass);
+        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), lt)) rtMap = (rtMap + RT_N - 1) % RT_N;
+        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), rtR)) rtMap = (rtMap + 1) % RT_N;
+        if (IsKeyPressed(KEY_LEFT)) rtMap = (rtMap + RT_N - 1) % RT_N;
+        if (IsKeyPressed(KEY_RIGHT)) rtMap = (rtMap + 1) % RT_N;
+    }
     const char* valves[3] = {"Host", "Join", "Browse"};
     for (int k = 0; k < 3; k++) {
         Vector2 v{c.x - 120 + k * 120.0f, c.y + 180};
@@ -1871,8 +1886,8 @@ void SceneArcade(Game& g) {
         DrawRing(v, 22, 28, 0, 360, 24, vc);
         for (int s = 0; s < 3; s++) DrawLineEx(v, {v.x + cosf(t * (hov ? 2.0f : 0.3f) + s * 2.09f) * 24, v.y + sinf(t * (hov ? 2.0f : 0.3f) + s * 2.09f) * 24}, 3, vc);
         DrawTextCentered(k == 0 && playable ? "Dive (solo)" : valves[k], v.x, v.y + 34, 15, live ? Color{230, 240, 236, 255} : Color{140, 170, 166, 255});
-        if (hov && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) { StartRedTide(g); return; }
+        if (hov && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) { StartRedTide(g, RT_MAPS[rtMap]); return; }
     }
-    DrawTextCentered(playable ? "Red Tide: the test tank is open (the Sunken Ship is being built). Online play arrives with the arcade's networking."
+    DrawTextCentered(playable ? "Red Tide: solo dives are open. Choose a map with < >. Online play arrives with the arcade's networking."
                               : "The arcade's wiring is still being run. This game comes aboard in a later refit.", c.x, 700, 16, Pal::Paper);
 }

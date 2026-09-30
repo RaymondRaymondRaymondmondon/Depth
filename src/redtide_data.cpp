@@ -261,6 +261,14 @@ static void LoadExtra(MapData& m, const Json& ex) {
         SpawnRow r; r.zone = sa["zone"].Str0(); r.species = sa["species"].Str0(); r.count = sa["count"].I(); r.respawnS = sa["respawn_s"].F(60); r.capMult = 1.03f;
         if (r.count > 0) m.spawns.push_back(r);
     }
+    // species rows reconciled with the design doc (tags, homes)
+    for (auto& sp : m.species) {
+        const Json& pp = ex["species_patch"][sp.name];
+        if (!pp.IsObj()) continue;
+        for (const std::string& t : SplitList(pp["tags_add"].Str0())) sp.tags.push_back(Lower(t));
+        if (pp.Has("home_zone")) sp.homeZone = pp["home_zone"].Str0();
+        if (pp.Has("bloodless")) sp.bloodless = pp["bloodless"].Bool0();
+    }
     for (const Json& zn : ex["outside_zones"].a) { int zi = m.ZoneIndex(zn.Str0()); if (zi >= 0) m.zones[zi].diverOk = false; }
     for (auto& l : m.links) {
         for (int dir = 0; dir < 2; dir++) {
@@ -280,6 +288,17 @@ static void LoadExtra(MapData& m, const Json& ex) {
         if (ex["zone_floor_m"].Has(z.deck)) { float h = z.y1 - z.y0; z.y0 = ex["zone_floor_m"][z.deck].F(); z.y1 = z.y0 + h; }
         const Json& fl = ex["flow"][z.name];
         if (fl.IsArr()) z.flow = {fl[0].F(), fl[1].F(), fl[2].F()};
+        const Json& zy = ex["zone_y"][z.name];
+        if (zy.IsArr()) { z.y0 = zy[0].F(); z.y1 = zy[1].F(); }
+    }
+    for (const Json& zn : ex["air_zones"].a) { int zi = m.ZoneIndex(zn.Str0()); if (zi >= 0) m.zones[zi].air = true; }
+    // slipstreams: one-way currents between halls (links with no passage to swim, only a ride)
+    for (const Json& sj : ex["slipstreams"].a) {
+        int a = m.ZoneIndex(sj["from"].Str0()), b = m.ZoneIndex(sj["to"].Str0());
+        if (a < 0 || b < 0) continue;
+        Link l; l.from = a; l.to = b; l.cost = 0; l.passage = "Slipstream " + sj["name"].Str0(); l.oneWay = true; l.slip = true;
+        l.slipSpeed = sj["speed"].F(8); l.flow = sj["flow"].F(1.0f);
+        m.links.push_back(l);
     }
     for (auto& l : m.links) {
         std::string k = m.zones[l.from].name + ">" + m.zones[l.to].name;
@@ -315,6 +334,32 @@ static void LoadExtra(MapData& m, const Json& ex) {
             fa.units.push_back(fu);
         }
         for (const auto& kv : f["barks"].o) for (const Json& l : kv.second.a) fa.barks[kv.first].push_back(l.Str0());
+    }
+    // a faction sheet's prose, pinned down for the game: roles, patrol, staging, barks, what they do and don't do
+    const Json& fp = ex["faction_patch"];
+    if (fp.IsObj()) {
+        Faction& fa = m.faction;
+        if (fp.Has("species_name")) fa.speciesName = fp["species_name"].Str0();
+        if (fp.Has("entry_poi")) fa.entryPoi = fp["entry_poi"].Str0();
+        if (fp.Has("hunt_staging")) fa.huntStaging = fp["hunt_staging"].Str0();
+        if (fp.Has("patrol")) { fa.patrol.clear(); for (const Json& p : fp["patrol"].a) fa.patrol.push_back(p.Str0()); }
+        if (fp.Has("bleeds")) fa.bleeds = fp["bleeds"].Bool0(true);
+        if (fp.Has("slipstreams")) fa.slipstreams = fp["slipstreams"].Bool0(true);
+        if (fp.Has("ignore_beasts")) fa.ignoreBeasts = fp["ignore_beasts"].Bool0(false);
+        for (auto& u : fa.units) {
+            const Json& up = fp["units"][u.unit];
+            if (!up.IsObj()) continue;
+            if (up.Has("role")) u.role = up["role"].Str0();
+            if (up.Has("range")) u.range = up["range"].F(u.range);
+            if (up.Has("damage")) u.damage = up["damage"].F(u.damage);
+            if (up.Has("interval")) u.interval = up["interval"].F(u.interval);
+            if (up.Has("speed")) u.speed = up["speed"].F(u.speed);
+            if (up.Has("loot")) u.loot = up["loot"].I(u.loot);
+            if (up.Has("drops")) u.drops = up["drops"].Str0();
+            if (up.Has("hunt_only")) u.huntOnly = up["hunt_only"].Bool0();
+        }
+        if (fp.Has("composition")) { fa.composition.clear(); for (const Json& p : fp["composition"].a) fa.composition.push_back(p.Str0()); }
+        if (fp.Has("barks")) { fa.barks.clear(); for (const auto& kv : fp["barks"].o) for (const Json& l : kv.second.a) fa.barks[kv.first].push_back(l.Str0()); }
     }
 }
 
@@ -433,6 +478,8 @@ const MapData& Map(const std::string& key) {
         e.hpBase = m.faction.units[0].hp; e.bountyBase = (float)m.faction.units[0].loot;
         e.bloodDeath = Engine().C("enemy_blood_yield", 20); e.bloodPerS = 6; e.speed = m.faction.units[0].speed;
         e.sight = 25; e.scent = 30; e.hearing = 40; e.aggression = 0.8f; e.fear = 0.3f; e.curiosity = 0.5f; e.bloodThreshold = 30;
+        e.bloodless = !m.faction.bleeds;
+        if (e.bloodless) e.bloodDeath = 0;
         m.enemySpecies = (int)m.species.size();
         m.species.push_back(e);
     }
@@ -454,7 +501,9 @@ const MapData& Map(const std::string& key) {
         DietRow& row = m.diet[pi];
         for (const auto& fw : kv.second.o) {
             float w = fw.second.F();
-            std::string fn = fw.first, lf = Lower(fn);
+            std::string fn = fw.first;
+            if (m.extra["food_alias"].Has(fn)) fn = m.extra["food_alias"][fn].Str0();   // the diet's short names for flora
+            std::string lf = Lower(fn);
             int si = m.SpeciesIndex(fn);
             if (si >= 0) { row.prey.push_back({si, w}); continue; }
             if (lf == "corpse" || lf == "corpses") row.corpse += w;
@@ -472,7 +521,11 @@ const MapData& Map(const std::string& key) {
             int pi = m.SpeciesIndex(kv.first);
             if (pi < 0) continue;
             DietRow& row = m.diet[pi];
-            for (const auto& fw : kv.second.o) { int si = m.SpeciesIndex(fw.first); if (si >= 0) row.prey.push_back({si, fw.second.F()}); }
+            for (const auto& fw : kv.second.o) {
+                int si = m.SpeciesIndex(fw.first);
+                if (si >= 0) row.prey.push_back({si, fw.second.F()});
+                else if (Lower(fw.first) == "corpse") row.corpse += fw.second.F();
+            }
             float sum = row.corpse + row.plankton + row.parasites + row.flora;
             for (const auto& pw : row.prey) sum += pw.second;
             if (sum > 0) {
@@ -490,6 +543,12 @@ const MapData& Map(const std::string& key) {
         m.boundsMin.y = std::min(m.boundsMin.y, z.y0); m.boundsMax.y = std::max(m.boundsMax.y, z.y1);
     }
     for (auto& l : m.links) LinkMouths(m, l);
+    // a slipstream's mouth where the blockout marks one ("Slipstream C mouth")
+    for (auto& l : m.links) {
+        if (!l.slip) continue;
+        std::string tag = Lower(l.passage) + " mouth";
+        for (const auto& p : m.pois) if (Lower(p.name) == tag && p.zone == l.from) { const Zone& z = m.zones[l.from]; l.a = z.Clamp({p.pos.x, (z.y0 + z.y1) / 2, p.pos.z}, 1.0f); }
+    }
     // portholes: wherever a room the divers use faces open water they don't, across a gap of a few metres
     const Json& wj = m.extra["windows"];
     if (wj.IsObj()) {

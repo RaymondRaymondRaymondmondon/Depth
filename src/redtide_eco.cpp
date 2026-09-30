@@ -176,7 +176,7 @@ float Ecosystem::DecayRate() const {
     // TideCurve: 2% / 1% / 0.5% by era (the tide table carries it per tide)
     return map->Tide(tide).bloodDecay;
 }
-std::vector<int> Ecosystem::ZonePath(int from, int to) const {
+std::vector<int> Ecosystem::ZonePath(int from, int to, bool enemy) const {
     std::vector<int> prev(map->zones.size(), -2);
     std::vector<int> q{from};
     prev[from] = -1;
@@ -186,6 +186,8 @@ std::vector<int> Ecosystem::ZonePath(int from, int to) const {
         for (int li = 0; li < (int)map->links.size(); li++) {
             const Link& l = map->links[li];
             if (!LinkOpen(li)) continue;   // a door the divers haven't bought keeps beasts out too
+            if (l.slip && enemy && !map->faction.slipstreams) continue;   // (the Drowned never ride a slipstream)
+            if (l.slip && l.to == z) continue;                          // a slipstream only runs one way
             int n = -1;
             if (l.from == z) n = l.to;
             else if (l.to == z) n = l.from; // water passes both ways; one-way drops are a player rule
@@ -353,10 +355,13 @@ void Ecosystem::Damage(int ai, float dmg, int attacker, bool melee, bool weakPoi
     const Species& s = map->species[a.sp];
     if (a.diver >= 0 && onDiverHit) { onDiverHit(ai, attacker, dmg); return; }
     if (weakPoint) dmg *= 2;
+    // a territorial blow (not a hunt) drives an intruder off: it never kills what the defender doesn't eat
+    if (attacker >= 0 && attacker < (int)agents.size() && agents[attacker].st == State::Defend && agents[attacker].diver < 0 && a.diver < 0 && !Eats(agents[attacker].sp, a.sp))
+        dmg = std::min(dmg, std::max(0.0f, a.hp - a.hpMax * 0.1f));
     a.hp -= dmg;
     a.wound = std::clamp(1 - a.hp / a.hpMax, 0.0f, 1.0f);
     // weak-point hits bleed 2x (Damage model)
-    AddBlood(a.pos, s.size * (weakPoint ? 2.0f : 1.0f) * (melee ? eng->C("blood_melee_mult", 0.5f) : 1.0f));
+    if (!s.bloodless) AddBlood(a.pos, s.size * (weakPoint ? 2.0f : 1.0f) * (melee ? eng->C("blood_melee_mult", 0.5f) : 1.0f));
     if (a.hp <= 0) { Kill(ai, attacker, melee); return; }
     // cephalopods ink when attacked (the Reef Squid "inks when threatened"; the octopus hides in its den):
     // the attacker loses it in the cloud and gives up, and it flees home
@@ -392,6 +397,7 @@ void Ecosystem::Kill(int ai, int killer, bool melee) {
     if (byPlayer) killsBySpecies[a.sp]++;
     else if (killer >= 0 && killer < (int)agents.size()) eatenBy[{agents[killer].sp, a.sp}]++;
     float burst = s.bloodDeath * eng->C("blood_corpse_burst", 1) * (melee ? eng->C("blood_melee_mult", 0.5f) : 1.0f);
+    if (s.bloodless) burst = 0;
     if (a.diver < 0) {
         AddBlood(a.pos, burst);
         Corpse c;
@@ -768,7 +774,7 @@ void Ecosystem::SteerTo(Agent& a, Vector3 goal, float speed, float dt) {
     Vector3 target = goal;
     if (gz != a.zone) {
         // cross the zone graph one passage at a time
-        std::vector<int> path = ZonePath(a.zone, gz);
+        std::vector<int> path = ZonePath(a.zone, gz, map->species[a.sp].isEnemy);
         if (path.size() >= 2) {
             int next = path[1];
             const Link* L = nullptr;
@@ -810,7 +816,7 @@ void Ecosystem::Move(Agent& a, int idx, float dt) {
     // hunger rises by size (per minute)
     a.hunger = std::min(1.0f, a.hunger + eng->CBy("hunger_rate", s.size - 1, 0.3f) / 60.0f * dt);
     // wounds bleed; a fleeing beast that reaches home stops after 10 s
-    if (a.wound > 0) {
+    if (a.wound > 0 && !s.bloodless) {
         float rate = s.bloodPerS * std::max(a.wound, eng->C("blood_wound_fraction_min", 0.1f));
         if (a.st == State::Flee) rate *= eng->C("flee_trail_blood_mult", 0.5f);
         if (Vector3Distance(a.pos, a.home) < 3) { a.fleeBleedT += dt; if (a.fleeBleedT > 10) a.wound = 0; }

@@ -14,7 +14,8 @@ Build order (the design doc's own):
 | 2 | 3D core: inked low-poly renderer, CreatureBuilder with the body plans, first-person diver, the Cormorant | A diver swims a box room among generated fish | **Done** (see below) |
 | 3 | The Sunken Ship: layout, 40 beasts, 12 flora, racks, tonics, the Locker, the Forge, drops, tides, the Wreckers, the Goliath | Sunken Ship Definition of Done | **Playable solo; rules complete** (see below). The DoD's four-player LAN match waits on stage 4; the balance targets are open |
 | 4 | Multiplayer through the shared arcade layer (prediction, lag compensation, snapshots, downs and revives) | Four players finish a Sunken Ship match on LAN | Needs the shared arcade networking layer (Master Reference stage 11) |
-| 5-8 | The Underwater Cave, the Coral Reef, Atlantis, Approaching the Void | Each map's Definition of Done | |
+| 5 | The Underwater Cave (slipstreams, dry chambers, rockfall, the Drowned, the Lobster, the Resonator) | Its Definition of Done | **Playable solo; mechanics complete** (see below); the four-player parts wait on stage 4 |
+| 6-8 | The Coral Reef, Atlantis, Approaching the Void | Each map's Definition of Done | |
 | 9 | Charms, skins, dossiers, hidden quests, sound pass | `--audio-test` and the dossier | |
 | 10 | Internet play; balance pass with `--redtide-sim` on every map | All balance targets met or logged | |
 
@@ -208,3 +209,51 @@ extra.json.
 
 ### Tides 1-3 (the user: "create this how you see necessary, keep the game balanced")
 Kept: nothing hunts a diver unprovoked; a provoked apex strikes once at a third and leaves; territory still bites.
+
+## Stage 5: the Underwater Cave
+
+Data: `data/redtide/maps/cave/extra.json` (every entry cites the design doc). Code: the map mechanics below are general
+(each later map switches them on in its own extra.json); `--redtide-map-test cave` (29 checks, all pass).
+
+- **Geometry**: `zone_y` gives each hall its depth from the blockout (the Chimney a 34 m shaft, the Squeeze a 3 m crawl,
+  the Cathedral 24 m high). `dressing` places what the zone notes describe: the Gallery's columns and roots,
+  stalactites everywhere, the Cathedral's crystal clusters, the dry chambers' pools, the Chimney's ledges, the Sump's
+  silt, the Dynamo's generator, the Mouth's light shaft. `palette` colours the rock and sets the fog.
+- **Slipstreams A-F** (`slipstreams`): one-way links that are rides, not passages. A diver who swims into a mouth is
+  carried to the far hall at 8 m/s (no firing inside; 2 s of drift on arrival; the screen streams past); beasts path
+  through them; blood rides them (blood at the Gallery's mouth reads in the Chimney within seconds); the Drowned never
+  use them (`faction_patch.slipstreams: false`). Mouths come from the blockout's "Slipstream X mouth" points.
+- **The dry chambers** (`air_zones`): on foot, at the Movement sheet's 1.6 m/s, pinned to the floor. **The Squeeze**
+  (`crawl_zones`, `no_fire_zones`): a slow crawl with no weapons drawn.
+- **Rockfall** (`rockfall`): a noise-6+ shot in the Chimney or the Cathedral has a 5% chance to bring a stalactite down
+  near its target (200 to whatever is under it, credited to the shooter). The Chimney's **trap** (`trap.kind:
+  rockfall`, 1000) drops seven.
+- **Flora tools** (flora of type Tool): a dart into Bloodvine smells of 40 blood and keeps smelling for 30 s; an ink cap
+  bursts into a cloud that blinds what's in it (the Lobster 5 s); crystal coral rings (6 noise) and calls the Lobster
+  to Rear. Contact flora hurt by their sheet (snottite 5/s, drip fungus slows 30% for 5 s, white anemones sting 8).
+- **The Drowned** (`faction_patch`): bloodless (no scent from wounds or deaths), ignore beasts, never ride slipstreams;
+  Deckhands close in a line, the Lantern Bearer's light draws curious and luminous beasts onto the nearest diver, the
+  Rope Hand's grapple holds and hauls a diver, the Bell Ringer sets every beast in 30 m on the diver it points at, the
+  Bosun leads Hunts from the Roost. Barks from the faction sheet. Only the Ghost Worm and the caiman eat them.
+- **The Lobster** (boss sheet): wakes to a diver in the Cathedral, a shot, or rung coral; Crush (a 2 s hold), Sweep
+  (knockback 6 m), Clack (stun in 10 m; a stalactite on a marked square in phase 2, three in phase 3), Rear (the
+  underside exposed 3 s, forced by rung coral or 800 damage in 5 s); phase 2 on the walls and ceiling with four
+  Troglobite Crabs from the crystal; phase 3 rides slipstream E backward into the Dynamo Sump and cuts the power. Its
+  kill leaves the expedition's key, which opens the Lantern Cache's crate: a free Resonator (`boss_key`).
+- **The Resonator** (the Cave's wonder weapon, `wonder`): a 12 m, 30-degree sonic cone that kills size 1-2 outright,
+  knocks bigger beasts back, and brings stalactites down where it points in the rockfall halls.
+- Attack effects the Cave added to the parser: "N s hold", pins, "slow N% for T s", "slowed N% until brushed".
+- Data reconciled with the doc's own tables (`diet_patch`, `species_patch`): the sleeper shark eats the Current Runner,
+  the caiman the epaulette shark, crayfish the sea spider; the swiftlet ("Nothing here") and the hagfish ("Nothing
+  (slime)") need no predator; the Current Runner lives where slipstreams A and B meet.
+- Ecosystem fix: a territorial blow never takes a non-prey intruder below 10% (the dry chambers' toad was beating the
+  epaulette sharks to death in its small pool).
+- The arcade's Red Tide reel has a map chooser (< >). `--shots shots redtide_cave` renders six views.
+
+| `--redtide-sim cave`, 3 runs each | Tide reached | Downs (beasts / enemies / hazards) |
+|---|---|---|
+| four careful bots | 5.0 | 70 / 30 / 0 |
+| four careless bots | 6.0 | 76 / 23 / 1 |
+
+Open: `--eco-test cave` population stability fails on the caiman eating the lone snapping turtle and giant
+salamander (both in its diet; their 500-600 s respawns fall outside the ten minutes). The same open item as the Ship.

@@ -1,0 +1,363 @@
+{
+ "_source": "Hand-written from what the Underwater Cave workbook and the Red Tide design doc ('Level 2: The Underwater Cave', its boss sheet and faction sheet) state only in prose. Everything else in this folder is exported by tools/export_redtide.py.",
+ "_zone_y_source": "The blockout's depth_m per zone (the Mouth at 0, the Gallery -10, the Chimney -10 to -40, the Squeeze -25, the dry chambers -15, the Sump -45, the Dynamo Sump -40, the Cathedral -30), each given a height that fits its notes (the Chimney a 30 m shaft, the Squeeze a crawl, the Cathedral 'vast').",
+ "zone_y": {
+  "The Mouth": [
+   -4,
+   6
+  ],
+  "The Flooded Gallery": [
+   -15,
+   -5
+  ],
+  "The Chimney": [
+   -42,
+   -8
+  ],
+  "The Squeeze": [
+   -27,
+   -24
+  ],
+  "Dry Chamber I: the Cricket Cavern": [
+   -17,
+   -9
+  ],
+  "Dry Chamber II: the Toad Pool": [
+   -17,
+   -9
+  ],
+  "Dry Chamber III: the Roost": [
+   -17,
+   -5
+  ],
+  "The Sump": [
+   -52,
+   -40
+  ],
+  "The Dynamo Sump": [
+   -46,
+   -36
+  ],
+  "The Cathedral": [
+   -42,
+   -18
+  ]
+ },
+ "air_zones": [
+  "Dry Chamber I: the Cricket Cavern",
+  "Dry Chamber II: the Toad Pool",
+  "Dry Chamber III: the Roost"
+ ],
+ "_air_source": "'Air chambers. The Dry Chambers hold the map's insects and amphibians; divers walk there, slowly.'",
+ "crawl_zones": {
+  "The Squeeze": 0.35
+ },
+ "_crawl_source": "'The Squeeze: a one-way crawl tunnel Gallery -> Sump; no weapons drawn; 40 s crawl.'",
+ "no_fire_zones": [
+  "The Squeeze"
+ ],
+ "slipstreams": [
+  {
+   "name": "A",
+   "from": "The Flooded Gallery",
+   "to": "The Chimney"
+  },
+  {
+   "name": "B",
+   "from": "The Chimney",
+   "to": "The Sump"
+  },
+  {
+   "name": "C",
+   "from": "Dry Chamber III: the Roost",
+   "to": "The Dynamo Sump"
+  },
+  {
+   "name": "D",
+   "from": "The Sump",
+   "to": "The Dynamo Sump"
+  },
+  {
+   "name": "E",
+   "from": "The Dynamo Sump",
+   "to": "The Cathedral"
+  },
+  {
+   "name": "F",
+   "from": "The Cathedral",
+   "to": "The Mouth"
+  }
+ ],
+ "_slipstream_source": "Layout: 'Slipstreams A-F are one-way currents (8 m/s) between zones; a diver can't fire inside one and arrives with 2 s of drift. Beasts use them too. The Drowned do not use them.' Their ends from the zone notes and the blockout's training loop.",
+ "flow": {
+  "The Mouth": [
+   0,
+   -0.2,
+   0.3
+  ],
+  "The Flooded Gallery": [
+   0.4,
+   -0.1,
+   0.2
+  ],
+  "The Chimney": [
+   0,
+   -0.4,
+   0
+  ],
+  "The Sump": [
+   0.1,
+   0,
+   0.1
+  ],
+  "The Dynamo Sump": [
+   0,
+   0,
+   0.2
+  ],
+  "The Cathedral": [
+   0.2,
+   0,
+   0
+  ]
+ },
+ "_flow_source": "Blockout notes: 'slipstreams carry blood the way they carry divers ... the Sump is the map's drain (blood pools there and calls the sleeper shark).'",
+ "zone_alias": {
+  "Flooded Gallery": "The Flooded Gallery",
+  "Dry Chambers": "Dry Chamber II: the Toad Pool",
+  "Slipstreams": "The Chimney",
+  "Gallery": "The Flooded Gallery",
+  "Chimney": "The Chimney",
+  "Squeeze": "The Squeeze",
+  "Sump": "The Sump",
+  "Dynamo Sump": "The Dynamo Sump",
+  "Cathedral": "The Cathedral"
+ },
+ "_alias_note": "The Current Runner 'lives in the slipstreams': it is homed at the Chimney, where slipstreams A and B meet.",
+ "food_alias": {
+  "Cave moss": "Pale cave moss"
+ },
+ "diet_patch": {
+  "Sleeper Shark": {
+   "Current Runner": 0.1
+  },
+  "Cave Caiman": {
+   "Epaulette Shark": 0.1
+  },
+  "Cave Crayfish": {
+   "Sea Spider": 0.1
+  },
+  "Troglobite Crab": {
+   "Corpse": 0.15
+  },
+  "Amphipod": {
+   "Corpse": 0.1
+  }
+ },
+ "_diet_patch_source": "The design doc's beast table: the Current Runner is eaten by the sleeper shark, the Epaulette Shark by the caiman, the Sea Spider by crayfish. Troglobite crabs and amphipods are detritivores ('Detritus') and take carrion in the Gallery and the dry chambers, where the workbook lists no scavenger.",
+ "species_patch": {
+  "Cave Swiftlet": {
+   "tags_add": "untouchable"
+  },
+  "Hagfish": {
+   "tags_add": "untouchable"
+  }
+ },
+ "_species_patch_source": "The doc's table: Cave Swiftlet 'Eaten by: Nothing here'; Hagfish 'Eaten by: Nothing (slime)'.",
+ "faction_patch": {
+  "entry_poi": "The Lantern Cache (Drowned entry)",
+  "hunt_staging": "Dry Chamber III: the Roost",
+  "patrol": [
+   "Dry Chamber I: the Cricket Cavern",
+   "Dry Chamber II: the Toad Pool",
+   "Dry Chamber III: the Roost",
+   "The Chimney",
+   "The Flooded Gallery"
+  ],
+  "bleeds": false,
+  "slipstreams": false,
+  "ignore_beasts": true,
+  "units": {
+   "Deckhand": {
+    "role": "flank",
+    "range": 1.6,
+    "interval": 1.0,
+    "loot": 220
+   },
+   "Lantern Bearer": {
+    "role": "lure",
+    "range": 14,
+    "interval": 3,
+    "loot": 250
+   },
+   "Rope Hand": {
+    "role": "grapple",
+    "range": 10,
+    "damage": 15,
+    "interval": 5,
+    "loot": 260
+   },
+   "Bell Ringer": {
+    "role": "bell",
+    "range": 20,
+    "interval": 8,
+    "loot": 300
+   },
+   "The Bosun (Hunts)": {
+    "role": "leader",
+    "range": 14,
+    "damage": 40,
+    "interval": 3,
+    "loot": 600,
+    "hunt_only": true
+   }
+  },
+  "composition": [
+   "Deckhand",
+   "Deckhand",
+   "Lantern Bearer",
+   "Rope Hand",
+   "Bell Ringer"
+  ],
+  "barks": {
+   "spot": [
+    "Living ones. Fetch the lanterns.",
+    "Down here we're all crew."
+   ],
+   "bell": [
+    "Ring them in.",
+    "The bell calls what's hungry."
+   ],
+   "shark": [
+    "It knows us. Back, back!"
+   ],
+   "death": [
+    "He'll be back at the cache.",
+    "Ninety days out and no relief."
+   ],
+   "net": [
+    "Line fast. Haul."
+   ],
+   "foreman": [
+    "Every hand to the light. Bring them below.",
+    "The captain wants a full muster."
+   ]
+  }
+ },
+ "_faction_source": "The Drowned's faction sheet: they do not bleed, never use slipstreams, ignore beasts; squad composition 'three Deckhands, a Lantern Bearer' (the design doc's faction table, with the sheet's Rope Hand and Bell Ringer); entry at the Lantern Cache; the Bosun waits in the Roost in Hunts; patrol Cavern -> Toad Pool -> Roost -> Chimney -> Gallery; barks as written.",
+ "rockfall": {
+  "zones": [
+   "The Chimney",
+   "The Cathedral"
+  ],
+  "chance": 0.05,
+  "min_noise": 6,
+  "damage": 200,
+  "radius": 8
+ },
+ "_rockfall_source": "'Rockfall. Gunfire in the Chimney and the Cathedral has a 5% chance per loud shot (noise 6+) to drop a stalactite somewhere nearby: 200 damage to whatever is under it.'",
+ "trap": {
+  "kind": "rockfall",
+  "rocks": 7,
+  "damage": 400,
+  "spread": 6
+ },
+ "_trap_source": "'The Chimney: stalactites overhead (the map's trap: shoot the anchor to drop them, 1,000).'",
+ "wonder": "resonator",
+ "boss_key": {
+  "key": "Expedition",
+  "poi": "The Lantern Cache (Drowned entry)",
+  "gives": "wonder",
+  "text": "The expedition's key opens the Lantern Cache's locked crate: a Resonator."
+ },
+ "_boss_key_source": "Boss sheet: 'Kill reward: ... the expedition's key (opens the Lantern Cache's locked crate: a free wonder weapon).'",
+ "palette": {
+  "wall": [
+   62,
+   66,
+   64
+  ],
+  "floor": [
+   56,
+   54,
+   48
+  ],
+  "ceil": [
+   42,
+   46,
+   46
+  ],
+  "Air": {
+   "wall": [
+    74,
+    68,
+    58
+   ],
+   "floor": [
+    88,
+    80,
+    64
+   ],
+   "ceil": [
+    48,
+    46,
+    42
+   ]
+  },
+  "fog": [
+   6,
+   14,
+   18
+  ],
+  "fog_density": 0.042,
+  "surface_y": 6,
+  "fill": [
+   60,
+   110,
+   120
+  ]
+ },
+ "dressing": {
+  "_note": "Scenery the zone notes describe, placed by the level builder from a fixed seed: columns floor to ceiling, stalactites, crystal clusters, a pool in an air chamber, a light shaft from above.",
+  "The Mouth": {
+   "stalactites": 6,
+   "light_shaft": true
+  },
+  "The Flooded Gallery": {
+   "columns": 10,
+   "stalactites": 14,
+   "roots": 8
+  },
+  "The Chimney": {
+   "stalactites": 18,
+   "ledges": 4
+  },
+  "Dry Chamber I: the Cricket Cavern": {
+   "stalactites": 8,
+   "pool": 0.3
+  },
+  "Dry Chamber II: the Toad Pool": {
+   "stalactites": 8,
+   "pool": 0.55
+  },
+  "Dry Chamber III: the Roost": {
+   "stalactites": 10,
+   "pool": 0.3,
+   "ledges": 3
+  },
+  "The Sump": {
+   "columns": 4,
+   "stalactites": 6,
+   "silt": true
+  },
+  "The Dynamo Sump": {
+   "stalactites": 6,
+   "machine": true
+  },
+  "The Cathedral": {
+   "columns": 8,
+   "stalactites": 30,
+   "crystals": 10
+  }
+ }
+}

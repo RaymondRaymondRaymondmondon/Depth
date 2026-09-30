@@ -7,6 +7,7 @@
 #include <cctype>
 #include <cmath>
 #include <cstdio>
+#include <functional>
 #include <memory>
 
 namespace rt {
@@ -95,7 +96,7 @@ const WeaponsData& Weapons() {
         d.id = w["id"].Str0(); d.name = w["name"].Str0(); d.cls = w["class"].Str0(); d.source = w["source"].Str0();
         d.forged = w["forged"].Str0(); d.forgedTwist = w["forged_twist"].Str0();
         d.damage = w["damage"].F(30); d.rpm = w["rpm"].F(300); d.noise = w["noise"].F(2); d.reload = w["reload"].F(1.4);
-        d.chum = w["chum"].F(0); d.arc = w["arc_m"].F(0); d.splash = w["splash"].F(0); d.reach = w["reach"].F(0); d.spinup = w["spinup"].F(0);
+        d.chum = w["chum"].F(0); d.arc = w["arc_m"].F(0); d.splash = w["splash"].F(0); d.reach = w["reach"].F(0); d.spinup = w["spinup"].F(0); d.cone = w["cone_m"].F(0); d.coneDeg = w["cone_deg"].F(30);
         d.pellets = w["pellets"].I(1); d.mag = w["mag"].I(8); d.reserve = w["reserve"].I(32); d.price = w["price"].I(0);
         d.burst = w["burst"].I(0); d.chain = w["chain"].I(0); d.explodesOver = w["explodes_over_size"].I(0);
         d.perRound = w["per_round"].Bool0(); d.pins = w["pins"].Bool0(); d.net = w["net"].Bool0(); d.melee = d.cls == "melee";
@@ -151,6 +152,7 @@ void BuildLevel(const MapData& m, Level& L) {
         v.hi = Vector3Add(hi, {1.2f, 1.3f, 1.2f});
         v.link = li;
         v.diverOk = k.diverOk;
+        if (k.slip) { v.lo = v.hi = k.a; v.diverOk = false; }   // a slipstream is a ride, not a passage to swim
         L.vols.push_back(v);
         Door d;
         d.link = li;
@@ -194,6 +196,14 @@ void BuildLevel(const MapData& m, Level& L) {
         else if (t == "boss") s.type = StationType::Boss;
         else if (t == "queststep") { s.type = StationType::QuestStep; s.step = p.step; }
         else s.type = HasW(p.name, "cleaning") ? StationType::Cleaning : StationType::Feature;
+        L.stations.push_back(s);
+    }
+    // a boss key's cache (the Cave's Lantern Cache: the expedition's key opens its crate)
+    const Json& bk = m.extra["boss_key"];
+    if (bk.IsObj()) for (const Poi& p : m.pois) if (p.name == bk["poi"].Str0() && p.zone >= 0) {
+        Station s; s.type = StationType::Cache; s.name = p.name; s.zone = p.zone;
+        const Zone& z = m.zones[p.zone];
+        s.pos = z.Clamp({p.pos.x, z.y0 + 1.2f, p.pos.z}, 0.6f);
         L.stations.push_back(s);
     }
     // the start pocket: the first zone (the blockout lists it first), at mid-height by its door-free side
@@ -317,6 +327,11 @@ void Match::InitMap(const MapData& m, const std::string& art, int playerCount, u
             if ((pocket && sp.Has("amphibious") && sp.size >= 4) || (boss && sp.tier == 5)) { a.home = a.pos = a.goal = at; }
         }
     }
+    noFireZone.assign(m.zones.size(), 0); rockZone.assign(m.zones.size(), 0); crawlZone.assign(m.zones.size(), 1.0f);
+    for (const Json& zn : m.extra["no_fire_zones"].a) { int zi = m.ZoneIndex(zn.Str0()); if (zi >= 0) noFireZone[zi] = 1; }
+    for (const Json& zn : m.extra["rockfall"]["zones"].a) { int zi = m.ZoneIndex(zn.Str0()); if (zi >= 0) rockZone[zi] = 1; }
+    for (const auto& kv : m.extra["crawl_zones"].o) { int zi = m.ZoneIndex(kv.first); if (zi >= 0) crawlZone[zi] = kv.second.F(0.4); }
+    for (const auto& sp : m.species) if (sp.tier == 5) bossKind = HasW(sp.name, "goliath") ? 0 : HasW(sp.name, "lobster") ? 1 : 9;
     for (const auto& s : level.stations) if (s.type == StationType::Locker) lockerSpots = std::max(lockerSpots, s.lockerSpot + 1);
     const WeaponsData& W = Weapons();
     lockerMoveAt = W.lockerMoveMin + (int)(Rand() * (W.lockerMoveMax - W.lockerMoveMin + 1));
@@ -448,10 +463,26 @@ void Match::Step(float dt) {
         if (!c.fallen && c.t <= 0) {
             c.fallen = true;
             fx.push_back({7, c.pos, {0, -1, 0}});
-            for (auto& d : divers) if (!d.dead && !d.downed && Vector3Distance(d.pos, c.pos) < 1.6f) HitDiver(d, 60, "loose cargo", "knockback 2 m", c.pos);
-            // "Loose cargo can be shot to drop on it (200 damage)"
-            if (bossAgent >= 0 && eco.agents[bossAgent].alive && Vector3Distance(eco.agents[bossAgent].pos, c.pos) < 3.0f) HitAgent(nullptr, bossAgent, 200, false, false, {0, -1, 0}, nullptr);
+            if (c.kind == 0) {
+                for (auto& d : divers) if (!d.dead && !d.downed && Vector3Distance(d.pos, c.pos) < 1.6f) HitDiver(d, 60, "loose cargo", "knockback 2 m", c.pos);
+                // "Loose cargo can be shot to drop on it (200 damage)"
+                if (bossAgent >= 0 && eco.agents[bossAgent].alive && Vector3Distance(eco.agents[bossAgent].pos, c.pos) < 3.0f) HitAgent(nullptr, bossAgent, 200, false, false, {0, -1, 0}, nullptr);
+            } else {
+                // a stalactite: everything under it, beast, enemy or diver
+                auto under = [&](Vector3 p) { return Vector2Distance({p.x, p.z}, {c.pos.x, c.pos.z}) < c.radius; };
+                for (auto& d : divers) if (!d.dead && !d.downed && under(d.pos)) HitDiver(d, c.dmg, "a stalactite", "knockback 1 m", c.pos);
+                DiverState* owner = c.owner >= 0 && c.owner < (int)divers.size() ? &divers[c.owner] : nullptr;
+                for (int i = 0; i < (int)eco.agents.size(); i++) {
+                    const Agent& a = eco.agents[i];
+                    if (a.alive && a.diver < 0 && under(a.pos) && eco.ZoneAt(a.pos) == eco.ZoneAt(c.pos)) HitAgent(owner, i, c.dmg, false, false, {0, -1, 0}, nullptr);
+                }
+            }
         }
+    }
+    for (auto it = floraBleed.begin(); it != floraBleed.end();) {
+        it->second -= dt;
+        if (it->first < (int)eco.flora.size()) eco.AddBlood(eco.flora[it->first].pos, 1.5f * dt);
+        if (it->second <= 0) it = floraBleed.erase(it); else ++it;
     }
     crates.erase(std::remove_if(crates.begin(), crates.end(), [](const Crate& c) { return c.t < -2; }), crates.end());
     for (auto& c : captions) c.t -= dt;
@@ -491,18 +522,24 @@ void Match::SteerDiver(int di, Vector3 wish, float vert, bool sprint, bool ads, 
     bool kick = d.tonics.count("kick") > 0;
     wish.y = 0;
     bool moving = Vector3Length(wish) > 0.05f;
-    if (d.stunT > 0 || d.heldT > 0) { wish = {0, 0, 0}; vert = 0; moving = false; }
+    if (d.stunT > 0 || d.heldT > 0 || d.slipLink >= 0) { wish = {0, 0, 0}; vert = 0; moving = false; }
+    bool air = d.zone >= 0 && map->zones[d.zone].air;
     bool sprinting = sprint && moving && d.stamina > 0 && !d.downed && !d.ads;
     float speed = sprinting ? e.M("sprint_speed", 3.4f) : e.M("swim_speed", 2);
     if (kick) speed *= e.M("kick_brine_swim_mult", 1.25f);
     if (d.ads) speed *= e.M("ads_swim_mult", 0.6f);
+    if (air) speed = std::min(speed, e.M("walk_speed_air", 1.6f)) * (sprinting ? 1.4f : 1.0f);   // "divers walk there, slowly"
+    if (d.zone >= 0 && d.zone < (int)crawlZone.size()) speed *= crawlZone[d.zone];
     if (d.downed) speed = e.M("downed_crawl_speed", 0.6f);
     if (d.slowT > 0) speed *= d.slowMult;
     Vector3 want = moving ? Vector3Scale(Vector3Normalize(wish), speed) : Vector3{0, 0, 0};
     want.y = std::clamp(vert, -1.0f, 1.0f) * e.M("vertical_speed", 1.4f) * (d.downed ? 0.4f : 1.0f);
+    if (air) want.y = -4.0f;                                    // on foot in an air chamber: gravity, no swimming up
     if (sprinting) d.stamina = std::max(0.0f, d.stamina - dt / (e.M("sprint_stamina_s", 6) * (kick ? e.M("kick_brine_stamina_mult", 1.5f) : 1.0f)));
     else d.stamina = std::min(1.0f, d.stamina + dt / e.M("stamina_regen_s", 8));
     float acc = Vector3Length(want) > Vector3Length(d.vel) ? e.M("accel_s", 0.4f) : e.M("decel_s", 0.5f);
+    if (d.driftT > 0) acc *= 4;                                 // "arrives with 2 s of drift"
+    if (d.slipLink >= 0) return;
     d.vel = Vector3Lerp(d.vel, want, std::min(1.0f, dt / std::max(0.05f, acc)));
 }
 
@@ -538,7 +575,29 @@ void Match::UpdateDiver(DiverState& d, float dt) {
     Agent* body = d.agent >= 0 ? &eco.agents[d.agent] : nullptr;
     if (d.dead) { if (body) body->alive = false; return; }
     // move (the velocity was set by SteerDiver; knockbacks add to it)
-    if (d.heldT <= 0) {
+    if (d.driftT > 0) d.driftT -= dt;
+    // slipstreams: a mouth catches a diver who swims into it and carries them to the far hall at the stream's speed
+    if (d.slipLink >= 0) {
+        const Link& l = map->links[d.slipLink];
+        float len = std::max(1.0f, Vector3Distance(l.a, l.b));
+        d.slipT += l.slipSpeed * dt / len;
+        Vector3 dir = Vector3Normalize(Vector3Subtract(l.b, l.a));
+        d.pos = Vector3Lerp(l.a, l.b, std::min(1.0f, d.slipT));
+        d.vel = Vector3Scale(dir, l.slipSpeed);
+        if (d.slipT >= 1) {
+            d.slipLink = -1; d.driftT = 2;
+            d.pos = map->zones[l.to].Clamp(l.b, 1.0f); d.zone = l.to;
+            d.vel = Vector3Scale(dir, 3.0f);
+        }
+    } else if (!d.downed && d.heldT <= 0) {
+        for (int li = 0; li < (int)map->links.size(); li++) {
+            const Link& l = map->links[li];
+            if (!l.slip || l.from != d.zone || Vector3Distance(d.pos, l.a) > 1.4f) continue;
+            d.slipLink = li; d.slipT = 0; d.reloading = false; d.burstLeft = 0;
+            break;
+        }
+    }
+    if (d.heldT <= 0 && d.slipLink < 0) {
         Vector3 v = d.vel;
         // a one-way passage (the slide down the hull, the dumbwaiter drop) runs with a current no diver can swim up
         if (eco.ZoneAt(d.pos) < 0) for (const auto& vol : level.vols) {
@@ -680,7 +739,7 @@ void Match::HitDiver(DiverState& d, float dmg, const std::string& by, const std:
     if (d.dead || d.invulnerable) return;
     if (d.downed) { d.downT -= dmg * 0.05f; return; }   // chewed while down: bleeds out faster
     std::string e = Lower(effect);
-    bool hold = e.find("hold") != std::string::npos || e.find("carr") != std::string::npos || e.find("roll") != std::string::npos;
+    bool hold = e.find("hold") != std::string::npos || e.find("carr") != std::string::npos || e.find("roll") != std::string::npos || e.find("pin") != std::string::npos || e.find("drag") != std::string::npos;
     bool deferred = hold && e.find("teammate") != std::string::npos;   // "teammates have 4 s": the damage lands if nobody shoots it off
     if (!deferred) d.hp -= dmg;
     d.regenT = 0;
@@ -693,7 +752,13 @@ void Match::HitDiver(DiverState& d, float dmg, const std::string& by, const std:
     }
     if (hold && attacker >= 0 && attacker < (int)eco.agents.size()) {
         float t = e.find("carr") != std::string::npos ? 3.0f : NumAfter(e, e.find("teammates have") != std::string::npos ? "have" : "hold", 2);
-        if (e.find("s hold") != std::string::npos) t = NumAfter(e, "and", 1);   // "40 and 1 s hold"
+        if (e.find("pin") != std::string::npos) t = NumAfter(e, "pin", 3);
+        size_t sh = e.find(" s hold");
+        if (sh != std::string::npos) {                              // "40 and 1 s hold", "2 s hold, then Bite"
+            size_t b = sh;
+            while (b > 0 && (isdigit((unsigned char)e[b - 1]) || e[b - 1] == '.')) b--;
+            if (b < sh) t = (float)atof(e.substr(b, sh - b).c_str());
+        }
         d.heldT = std::max(0.5f, t);
         d.holder = attacker;
         d.holdDmg = 0;
@@ -718,6 +783,12 @@ void Match::HitDiver(DiverState& d, float dmg, const std::string& by, const std:
     if (e.find("sway") != std::string::npos) d.aimSway = std::max(d.aimSway, NumAfter(e, "for", 3));
     if (e.find("flinch") != std::string::npos) d.flinchT = 0.4f;
     if (e.find("swim speed") != std::string::npos) { d.slowT = std::max(d.slowT, 6.0f); d.slowMult = 0.85f; }
+    else if (e.find("slow") != std::string::npos) {
+        // "slow 30% for 5 s", "Diver slowed 40% until brushed"
+        float pct = NumAfter(e, "slow", 30);
+        d.slowMult = std::min(d.slowMult, 1 - std::clamp(pct, 5.0f, 90.0f) / 100);
+        d.slowT = std::max(d.slowT, e.find("until") != std::string::npos ? 8.0f : NumAfter(e, "for", 4));
+    }
     if (e.find("net") == 0) { d.slowT = 3; d.slowMult = 0.35f; }
     if (e.find("steal") != std::string::npos) {
         if (d.limpets > 0) d.limpets--; else d.scrip -= std::min(d.scrip, 100);
@@ -730,7 +801,8 @@ void Match::HitDiver(DiverState& d, float dmg, const std::string& by, const std:
 // ---------------------------------------------------------------- weapons
 void Match::Fire(int di, bool held, float dt) {
     DiverState& d = divers[di];
-    if (d.dead || d.stunT > 0) return;
+    if (d.dead || d.stunT > 0 || d.slipLink >= 0) return;          // "a diver can't fire inside" a slipstream
+    if (d.zone >= 0 && d.zone < (int)noFireZone.size() && noFireZone[d.zone]) return;   // (the Squeeze: no weapons drawn)
     Held& h = Cur(d);
     const WeaponDef& w = W(h);
     if (w.melee) { if (held) Melee(di); return; }
@@ -757,6 +829,15 @@ void Match::FireRound(DiverState& d) {
     fx.push_back({2, Vector3Add(eye, Vector3Scale(dir, 0.45f)), dir});
     eco.AddNoise(eye, w.noise);
     float dmg = w.damage * (h.forged ? WD.forgeDmg : 1.0f);
+    // rockfall: a loud shot in the Chimney or the Cathedral can bring a stalactite down near what it was aimed at
+    const Json& rf = map->extra["rockfall"];
+    if (d.zone >= 0 && d.zone < (int)rockZone.size() && rockZone[d.zone] && w.noise >= rf["min_noise"].F(6) && Rand() < rf["chance"].F(0.05)) {
+        Vector3 p = eye;
+        for (float t = 0; t < 25; t += 0.5f) { Vector3 q = Vector3Add(eye, Vector3Scale(dir, t)); if (!level.Inside(q, 0.1f, linkOpen, true)) break; p = q; }
+        DropRocks(p, 1, rf["radius"].F(8) * 0.4f, rf["damage"].F(200), 1.6f, 1.0f, d.slot);
+        Say("", "Rock shifts overhead...", 2);
+    }
+    if (w.cone > 0) { FireCone(d, w, dmg); return; }
     if (w.arc > 0) {
         // the Galvanic Rod: an arc that chains through everything in 10 m, stunning
         int best = -1; float bd = w.arc;
@@ -808,7 +889,7 @@ void Match::ThrowLimpet(int di) {
 
 void Match::Melee(int di) {
     DiverState& d = divers[di];
-    if (d.dead || d.downed || d.meleeT > 0 || d.stunT > 0) return;
+    if (d.dead || d.downed || d.meleeT > 0 || d.stunT > 0 || d.slipLink >= 0) return;
     const WeaponsData& WD = Weapons();
     const Held& h = Cur(d);
     const WeaponDef& w = W(h);
@@ -895,6 +976,7 @@ void Match::HitAgent(DiverState* d, int ai, float dmg, bool weak, bool melee, Ve
     bool frontal = Vector3DotProduct(dir, Facing(a)) < -0.3f;
     if (IsBoss(ai)) {
         if (d) bossProvoked = true;
+        bossRecentDmg += dmg;
         // the Goliath's gills are behind the plates: exposed only in the windows after Inhale and Tail Slam
         bool exposed = bossGillsT > 0 || bossInhaleT >= 0;
         if (!exposed) weak = false;
@@ -976,7 +1058,8 @@ void Match::UpdateDarts(float dt) {
                 if (d.dead || SegPointDist(prev, t.pos, d.pos) > 0.6f) continue;
                 std::string by = "a Wrecker";
                 if (t.enemy < (int)eco.agents.size() && eco.agents[t.enemy].unit >= 0) by = map->faction.units[eco.agents[t.enemy].unit].unit;
-                if (t.kind == 5) { HitDiver(d, 0, by, "net", prev); auto it = map->faction.barks.find("net"); if (it != map->faction.barks.end() && !it->second.empty()) Say(map->faction.speciesName, it->second[(int)(Rand() * it->second.size()) % it->second.size()], 3); }
+                if (t.kind == 7) { HitDiver(d, t.damage, by, "hold 3 s", prev, t.enemy); auto it = map->faction.barks.find("net"); if (it != map->faction.barks.end() && !it->second.empty()) Say(map->faction.speciesName.empty() ? map->faction.name : map->faction.speciesName, it->second[0], 3); }
+                else if (t.kind == 5) { HitDiver(d, 0, by, "net", prev); auto it = map->faction.barks.find("net"); if (it != map->faction.barks.end() && !it->second.empty()) Say(map->faction.speciesName, it->second[(int)(Rand() * it->second.size()) % it->second.size()], 3); }
                 else if (t.kind == 6) { eco.AddChum(d.pos, 40); auto it = map->faction.barks.find("chum"); if (it != map->faction.barks.end() && !it->second.empty()) Say(map->faction.speciesName, it->second[0], 3); }
                 else HitDiver(d, t.damage, by, by == "Speargunner" || by == "Foreman" ? "bleed 3 s" : "", prev);
                 t.alive = false;
@@ -1016,6 +1099,15 @@ void Match::UpdateDarts(float dt) {
             if (t.pierce > 0) { t.pierce--; continue; }
             t.alive = false;
         }
+        // flora tools: a dart into Bloodvine, an ink cap, a crystal coral cluster
+        for (int pi = 0; pi < (int)eco.flora.size() && t.alive; pi++) {
+            const FloraPatch& fp = eco.flora[pi];
+            if (fp.units <= 0 || !HasW(map->flora[fp.flora].type, "tool")) continue;
+            Vector3 c = Vector3Add(fp.pos, {0, 0.4f, 0});
+            if (SegPointDist(prev, t.pos, c) > 0.9f) continue;
+            FloraTool(pi, c, t.owner >= 0 && t.owner < (int)divers.size() ? &divers[t.owner] : nullptr);
+            t.alive = false;
+        }
     }
     darts.erase(std::remove_if(darts.begin(), darts.end(), [](const Dart& x) { return !x.alive; }), darts.end());
 }
@@ -1040,9 +1132,12 @@ void Match::OnDeath(int ai, int killer) {
         if (supperCall) Say("", "Supper Call: the engineer would be proud. Every weapon in hand is pressure-forged.", 6);
         supperCall = false;
         keys.insert("Goliath");
+        const Json& bk = map->extra["boss_key"];
+        if (bk.IsObj()) { keys.insert(bk["key"].Str0()); Say("", bk["text"].Str0(), 6); }
         bossActive = false; bossAgent = -1; bossInhaleT = -1; bossInhaleDiver = -1;
         for (auto& d : divers) if (d.holder == ai) { d.heldT = 0; d.holder = -1; }
-        Say(s.name, "is dead. Its key lies in the engine room's silt.", 6);
+        if (bossKind == 0) Say(s.name, "is dead. Its key lies in the engine room's silt.", 6);
+        else Say(s.name, "is dead.", 5);
         if (di >= 0) { divers[di].kills++; if (phase == TidePhase::Tide) tideKills++; }
         return;
     }
@@ -1227,7 +1322,8 @@ bool Match::DecideEnemy(Agent& a, int idx) {
     const FactionUnit& u = map->faction.units[a.unit];
     const Faction& F = map->faction;
     // "They bleed and panic; sharks hunt them": anything big hunting nearby sends them back to the breach
-    for (const auto& o : eco.agents) {
+    // (the Cave's Drowned "ignore beasts entirely")
+    if (!F.ignoreBeasts) for (const auto& o : eco.agents) {
         if (!o.alive || o.diver >= 0) continue;
         const Species& os = map->species[o.sp];
         if (os.isEnemy || os.size < F.fleeFromSize) continue;
@@ -1249,7 +1345,8 @@ bool Match::DecideEnemy(Agent& a, int idx) {
             if (it != F.barks.end() && !it->second.empty()) Say(F.speciesName, it->second[(int)(Rand() * it->second.size()) % it->second.size()], 4);
         }
         // hold each role's distance: Cutters close in, the Speargunner covers from 12 m, the Netman from 6 m
-        float want = u.role == "flank" ? 1.0f : u.role == "cover" ? 12.0f : u.role == "net" ? 6.0f : u.role == "chum" ? 10.0f : 14.0f;
+        float want = u.role == "flank" ? 1.0f : u.role == "cover" ? 12.0f : u.role == "net" ? 6.0f : u.role == "chum" ? 10.0f
+                   : u.role == "lure" ? 9.0f : u.role == "bell" ? 14.0f : u.role == "grapple" ? 7.0f : 14.0f;
         want = std::min(want, u.range * 0.8f);
         Vector3 to = Vector3Subtract(a.pos, d.pos);
         float dist = Vector3Length(to);
@@ -1283,7 +1380,7 @@ void Match::EnemiesVsDivers(float dt) {
         if (di < 0) { enemyTellT.erase(i); continue; }
         if (ft > 0) continue;
         // the tell first (a red laser dot, the net swung twice, the winch wound): the diver gets a moment to react
-        float tell = u.role == "leader" ? 2.0f : u.role == "cover" ? 1.0f : u.role == "net" ? 0.8f : u.role == "chum" ? 0.6f : 0.3f;
+        float tell = u.role == "leader" ? 2.0f : u.role == "cover" ? 1.0f : u.role == "net" || u.role == "grapple" ? 0.8f : u.role == "chum" || u.role == "bell" ? 0.6f : u.role == "lure" ? 1.0f : 0.3f;
         auto it = enemyTellT.find(i);
         if (it == enemyTellT.end()) { enemyTellT[i] = tell; continue; }
         it->second -= dt;
@@ -1298,6 +1395,25 @@ void Match::EnemiesVsDivers(float dt) {
             if (Vector3Distance(a.pos, d.pos) <= u.range + 0.6f) HitDiver(d, dmg, u.unit, "", a.pos);
             continue;
         }
+        if (u.role == "lure" || u.role == "bell") {
+            // the Lantern Bearer's light draws the curious and the luminous onto whoever stands near it; the Bell
+            // Ringer rings and every beast in 30 m investigates the diver it points at
+            float r = u.role == "bell" ? 30.0f : 25.0f;
+            for (auto& o : eco.agents) {
+                if (!o.alive || o.diver >= 0 || map->species[o.sp].isEnemy || IsBoss((int)(&o - &eco.agents[0]))) continue;
+                const Species& os = map->species[o.sp];
+                if (u.role == "lure" && os.curiosity < 0.4f && !os.Has("luminous")) continue;
+                if (os.size < 2 || Vector3Distance(o.pos, a.pos) > r) continue;
+                o.st = State::Investigate; o.goal = d.pos; o.stateT = 0;
+            }
+            if (u.role == "bell") {
+                eco.AddNoise(a.pos, 8);
+                auto it = map->faction.barks.find("bell");
+                if (it != map->faction.barks.end() && !it->second.empty() && Rand() < 0.5f) Say(map->faction.name, it->second[(int)(Rand() * it->second.size()) % it->second.size()], 3);
+            }
+            fx.push_back({4, a.pos, {0, 0, 0}});
+            continue;
+        }
         Dart t;
         t.enemy = i;
         t.pos = t.start = from;
@@ -1306,7 +1422,7 @@ void Match::EnemiesVsDivers(float dt) {
         aim = Vector3Normalize(Vector3Add(aim, {Rand(-err, err), Rand(-err, err), Rand(-err, err)}));
         t.vel = Vector3Scale(aim, u.role == "leader" ? 40.0f : u.role == "cover" ? 30.0f : 18.0f);
         t.damage = dmg;
-        t.kind = u.role == "net" ? 5 : u.role == "chum" ? 6 : 0;
+        t.kind = u.role == "net" ? 5 : u.role == "chum" ? 6 : u.role == "grapple" ? 7 : 0;
         t.life = 3;
         darts.push_back(t);
         eco.AddNoise(from, u.role == "leader" ? 10.0f : u.role == "cover" ? 3.0f : 2.0f);
@@ -1326,6 +1442,14 @@ bool Match::DecideBoss(Agent& a, int idx) {
         Vector3 off = Vector3Subtract(goal, a.home);
         if (Vector3Length(off) > 12) goal = Vector3Add(a.home, Vector3Scale(Vector3Normalize(off), 12));
     } else if (bossPhase == 2) goal = map->zones[a.homeZone].Clamp(goal, 1.5f);   // "Roams the Engine Room"
+    if (bossKind == 1) {
+        // the Lobster patrols the Cathedral floor; in phase 2 it takes to the walls and ceiling; in phase 3 it roams
+        // wherever the slipstream left it
+        const Zone& z = map->zones[bossPhase >= 3 ? a.zone : a.homeZone];
+        goal = z.Clamp(goal, 1.5f);
+        goal.y = bossPhase == 2 ? z.y1 - 2.0f : z.y0 + 1.5f;
+        if (bossWind >= 0) goal = a.pos;
+    } else if (bossKind != 0) goal = map->zones[bossPhase >= 3 ? a.zone : a.homeZone].Clamp(goal, 1.5f);
     a.st = State::Investigate; a.goal = goal; a.stateT = 0; a.target = -1; a.fedT = 0;
     return true;
 }
@@ -1359,14 +1483,23 @@ void Match::UpdateBoss(float dt) {
     float wakeAt = power ? 5.0f : 1.2f;
     if (!power) patience = 1e9f;
     float snout = nd - bodies[b.sp].length * 0.5f;
-    if (!bossActive && near >= 0 && (snout < wakeAt || provoked || bossLingerT > patience || (tide >= 12 && nd < 30))) {
+    bool wake = snout < wakeAt || provoked || bossLingerT > patience || (tide >= 12 && nd < 30);
+    if (bossKind != 0) {
+        // the other bosses wake to a diver in their arena (the Lobster ignores divers on the overlooks), a shot, or a call
+        // (the crystal coral rung); from tide 12 they wander
+        bool inArena = near >= 0 && divers[near].zone == b.homeZone && nd < 22;
+        wake = inArena || provoked || bossRearReq || (tide >= 12 && nd < 30);
+    }
+    if (!bossActive && near >= 0 && wake) {
         bossActive = true; bossIdleT = 0;
         if (getenv("DEPTH_HITLOG")) printf("   [boss] t=%.1f wakes: snout %.1f provoked %d linger %.1f/%.1f power %d tide %d\n", time, snout, (int)provoked, bossLingerT, patience, (int)power, tide);
-        Say(s.name, "wakes in the engine room's shadows", 4);
+        Say(s.name, bossKind == 0 ? "wakes in the engine room's shadows" : "stirs in " + map->zones[b.homeZone].name, 4);
     }
     if (!bossActive) return;
     if (near < 0 || nd > 34) { bossIdleT += dt; if (bossIdleT > 20) { bossActive = false; bossProvoked = false; bossLingerT = 0; b.st = State::Return; b.goal = b.home; return; } }
     else bossIdleT = 0;
+    if (bossKind == 1) { UpdateBossLobster(dt, near, nd); return; }
+    if (bossKind != 0) { UpdateBossGeneric(dt, near, nd); return; }
     if (ph != bossPhase) {
         bossPhase = ph;
         if (ph == 2) Say(s.name, "thrashes: the cargo comes loose", 4);
@@ -1465,6 +1598,188 @@ void Match::UpdateBoss(float dt) {
     if (!at->tell.empty() && pick == 0) Say(s.name, at->tell, 2);
 }
 
+
+// ---------------------------------------------------------------- map mechanics (extra.json)
+std::string Match::WonderId() const { return map->extra["wonder"].Str0(Weapons().wonder); }
+
+// Stalactites (the Cave's rockfall and trap, the Lobster's Clack): each falls on a marked spot after `delay` and hits
+// whatever stands under it (a column: height doesn't matter).
+void Match::DropRocks(Vector3 at, int n, float spread, float dmg, float radius, float delay, int owner) {
+    int zi = eco.ZoneAt(at);
+    if (zi < 0) zi = 0;
+    const Zone& z = map->zones[zi];
+    for (int k = 0; k < n; k++) {
+        Crate c;
+        c.kind = 1;
+        Vector3 p = k == 0 && n == 1 ? at : Vector3Add(at, {Rand(-spread, spread), 0, Rand(-spread, spread)});
+        c.pos = z.Clamp({p.x, z.y0 + 0.6f, p.z}, 0.8f);
+        c.top = z.y1 - 0.5f;
+        c.t = delay + k * 0.12f; c.dmg = dmg; c.radius = radius; c.owner = owner;
+        crates.push_back(c);
+    }
+}
+
+// The Resonator: a sonic cone that kills small beasts outright, knocks large ones back, and shatters stalactites.
+void Match::FireCone(DiverState& d, const WeaponDef& w, float dmg) {
+    Vector3 eye = Eye(d), dir = Forward(d);
+    float half = w.coneDeg * 0.5f * DEG2RAD;
+    for (int i = 0; i < (int)eco.agents.size(); i++) {
+        Agent& a = eco.agents[i];
+        if (!a.alive || a.diver >= 0) continue;
+        Vector3 to = Vector3Subtract(a.pos, eye);
+        float dist = Vector3Length(to);
+        if (dist > w.cone || dist < 0.01f) continue;
+        if (acosf(std::clamp(Vector3DotProduct(to, dir) / dist, -1.0f, 1.0f)) > half) continue;
+        if (!level.Sight(eye, a.pos, linkOpen, true)) continue;
+        const Species& sp = map->species[a.sp];
+        if (sp.size <= 2) HitAgent(&d, i, a.hp + 1, false, false, dir, nullptr);
+        else {
+            HitAgent(&d, i, dmg, false, false, dir, nullptr);
+            if (i < (int)eco.agents.size() && eco.agents[i].alive && !IsBoss(i)) {
+                Agent& b = eco.agents[i];
+                b.pos = map->zones[b.zone].Clamp(Vector3Add(b.pos, Vector3Scale(Vector3Normalize(to), 3)), 0.5f);
+                b.stun = std::max(b.stun, 1.0f);
+            }
+        }
+    }
+    fx.push_back({10, Vector3Add(eye, Vector3Scale(dir, 1.0f)), Vector3Scale(dir, w.cone)});
+    // in the rockfall halls the ring brings the ceiling down where it points
+    if (d.zone >= 0 && d.zone < (int)rockZone.size() && rockZone[d.zone]) {
+        Vector3 p = eye;
+        for (float t = 0; t < w.cone; t += 0.5f) { Vector3 q = Vector3Add(eye, Vector3Scale(dir, t)); if (!level.Inside(q, 0.1f, linkOpen, true)) break; p = q; }
+        DropRocks(p, 2, 2.0f, map->extra["rockfall"]["damage"].F(200), 1.6f, 0.8f, d.slot);
+    }
+}
+
+// A dart into a flora patch the map lists as a tool: Bloodvine smells of blood, an ink cap bursts, crystal coral rings.
+void Match::FloraTool(int pi, Vector3 at, DiverState* d) {
+    FloraPatch& p = eco.flora[pi];
+    const std::string& n = map->flora[p.flora].name;
+    (void)d;
+    if (HasW(n, "bloodvine")) {
+        eco.AddBlood(at, 40);                                    // "cut or shot: smells like 40 blood for 30 s"
+        floraBleed[pi] = 30;
+        Say("", "The Bloodvine weeps: every predator nearby smells it", 3);
+    } else if (HasW(n, "ink cap")) {
+        fx.push_back({9, at, {0, 0, 0}});
+        for (int i = 0; i < (int)eco.agents.size(); i++) {
+            Agent& a = eco.agents[i];
+            if (!a.alive || a.diver >= 0 || Vector3Distance(a.pos, at) > 5) continue;
+            a.stun = std::max(a.stun, IsBoss(i) ? 5.0f : 3.0f);  // blinded in the ink (the Lobster for 5 s)
+        }
+        p.units = 0; p.regrowT = 0;
+    } else if (HasW(n, "crystal coral")) {
+        eco.AddNoise(at, 6);                                     // "shooting a cluster rings it: calls the Lobster and makes it Rear"
+        fx.push_back({6, at, {0, 1.5f, 0}});
+        bossRearReq = true;
+        Say("", "The crystal coral rings through the Cathedral", 3);
+    }
+}
+
+// The Lobster (the Cave's boss sheet): Crush, Sweep, Clack, Rear; the walls and ceiling in phase 2 with Troglobite
+// Crabs from the crystal; in phase 3 it rides slipstream E backward to the Dynamo Sump and cuts the power.
+void Match::UpdateBossLobster(float dt, int near, float nd) {
+    Agent& b = eco.agents[bossAgent];
+    const Species& s = map->species[b.sp];
+    float frac = b.hp / std::max(1.0f, b.hpMax);
+    int ph = frac > 0.6f ? 1 : frac > 0.3f ? 2 : 3;
+    if (ph != bossPhase) {
+        bossPhase = ph;
+        if (ph == 2) {
+            Say(s.name, "climbs onto the walls: the crystal spits out crabs", 4);
+            int ci = map->SpeciesIndex("Troglobite Crab");
+            if (ci >= 0) for (int k = 0; k < 4; k++) {
+                int hz = b.homeZone;
+                int n = eco.Spawn(ci, map->zones[hz].Clamp(Vector3Add(b.pos, {Rand(-4, 4), 0, Rand(-4, 4)})), hz);
+                if (near >= 0) { eco.agents[n].st = State::Hunt; eco.agents[n].target = divers[near].agent; }
+            }
+        }
+        if (ph == 3 && !bossMoved) {
+            // "rides slipstream E backward into the Dynamo Sump and cuts the power"
+            for (const auto& l : map->links) if (l.slip && l.to == eco.agents[bossAgent].zone) {
+                Agent& B = eco.agents[bossAgent];
+                B.pos = map->zones[l.from].Clamp(l.a, 2.0f); B.zone = l.from;
+                bossMoved = true;
+                break;
+            }
+            if (power) { power = false; Say("", "The generator dies: the Forge and the traps go dark until the switch is reset", 5); }
+            Say(s.name, "rides the slipstream backward into the dark", 4);
+        }
+    }
+    Agent& B = eco.agents[bossAgent];
+    for (float& c : bossCd) if (c > 0) c -= dt;
+    if (bossGillsT > 0) bossGillsT -= dt;
+    bossRecentDmg *= powf(0.5f, dt / 2.5f);                      // (about the last 5 s of damage)
+    if (ph < 3 && bossRecentDmg > 800) { bossRearReq = true; bossRecentDmg = 0; }   // "or after taking 800 damage in 5 s"
+    if (B.stun > 0 || B.held > 0) { bossWind = -1; return; }
+    auto attack = [&](const char* name) -> const Attack* { for (int k : attacksBySp[B.sp]) if (HasW(map->attacks[k].name, name)) return &map->attacks[k]; return nullptr; };
+    const Attack* crush = attack("crush"); const Attack* sweep = attack("sweep"); const Attack* clack = attack("clack"); const Attack* rear = attack("rear");
+    float dm = map->Tide(tide).dmgMult, reach = bodies[B.sp].length * 0.5f;
+    if (bossWind >= 0) {
+        bossWindT -= dt;
+        if (bossWindT > 0) return;
+        int k = bossWind; bossWind = -1;
+        DiverState& t = divers[std::clamp(bossTarget, 0, (int)divers.size() - 1)];
+        float td = Vector3Distance(B.pos, t.pos) - reach;
+        if (k == 0 && rear) { bossGillsT = 3; Say(s.name, "rears: the underside is open!", 3); }
+        else if (k == 1 && crush && td <= crush->range + 0.5f && !t.downed && !t.dead) HitDiver(t, crush->damage * dm, s.name, "hold 2 s", B.pos, bossAgent);
+        else if (k == 2 && sweep) { for (auto& d : divers) if (!d.dead && !d.downed && Vector3Distance(d.pos, B.pos) - reach <= sweep->range) HitDiver(d, sweep->damage * dm, s.name, "knockback 6 m", B.pos); }
+        else if (k == 3 && clack) {
+            eco.AddNoise(B.pos, 10, true);
+            fx.push_back({5, B.pos, {0, 0, 0}});
+            for (auto& d : divers) if (!d.dead && !d.downed && Vector3Distance(d.pos, B.pos) - reach <= clack->range) HitDiver(d, clack->damage * dm, s.name, "stun 1 s", B.pos);
+            if (ph >= 2) DropRocks(t.pos, ph == 3 ? 3 : 1, 2.5f, map->extra["rockfall"]["damage"].F(200), 1.6f, 1.5f, -1);
+        }
+        return;
+    }
+    if (bossRearReq && rear && bossCd[0] <= 0) {
+        bossRearReq = false;
+        bossWind = 0; bossWindT = rear->windup; bossCd[0] = 4;
+        return;
+    }
+    if (near < 0) return;
+    float d0 = nd - reach;
+    int pick = -1;
+    if (crush && d0 <= crush->range && bossCd[1] <= 0) pick = 1;
+    else if (sweep && d0 <= sweep->range && bossCd[2] <= 0) pick = 2;
+    else if (clack && d0 <= clack->range && bossCd[3] <= 0) pick = 3;
+    if (pick < 0) return;
+    const Attack* at = pick == 1 ? crush : pick == 2 ? sweep : clack;
+    bossWind = pick; bossWindT = at->windup; bossTarget = near; bossCd[pick] = std::max(1.0f, at->cooldown);
+}
+
+// Any other boss: its sheet's attacks by range, their effects through HitDiver, a weak window after its slowest one.
+void Match::UpdateBossGeneric(float dt, int near, float nd) {
+    Agent& B = eco.agents[bossAgent];
+    const Species& s = map->species[B.sp];
+    float frac = B.hp / std::max(1.0f, B.hpMax);
+    bossPhase = frac > 0.6f ? 1 : frac > 0.3f ? 2 : 3;
+    for (float& c : bossCd) if (c > 0) c -= dt;
+    if (bossGillsT > 0) bossGillsT -= dt;
+    if (B.stun > 0 || B.held > 0 || near < 0) { bossWind = -1; return; }
+    const auto& atk = attacksBySp[B.sp];
+    float reach = bodies[B.sp].length * 0.5f, dm = map->Tide(tide).dmgMult;
+    if (bossWind >= 0) {
+        bossWindT -= dt;
+        if (bossWindT > 0) return;
+        const Attack& at = map->attacks[atk[bossWind]];
+        bossWind = -1;
+        for (auto& d : divers) {
+            if (d.dead || d.downed || Vector3Distance(d.pos, B.pos) - reach > at.range + 0.5f) continue;
+            if (at.range < 4 && d.slot != bossTarget) continue;   // short reaches hit one diver, the long ones everyone in range
+            HitDiver(d, at.damage * dm, s.name, at.effect, B.pos, bossAgent);
+        }
+        if (at.windup >= 0.8f) bossGillsT = 2;
+        return;
+    }
+    for (int k = 0; k < (int)atk.size() && k < 4; k++) {
+        const Attack& at = map->attacks[atk[k]];
+        if (bossCd[k] > 0 || nd - reach > at.range || at.damage <= 0) continue;
+        bossWind = k; bossWindT = at.windup; bossTarget = near; bossCd[k] = std::max(1.5f, at.cooldown);
+        return;
+    }
+}
+
 // ---------------------------------------------------------------- drops
 void Match::MaybeDrop(Vector3 at) {
     // "a 2.5% chance (1 in 40), rising to 4% when the team has had no drop for 3 minutes; the last two drops excluded"
@@ -1561,14 +1876,14 @@ void Match::GiveWeapon(DiverState& d, int def, bool forged) {
     if ((int)d.weapons.size() < d.slots) { d.weapons.push_back(NewHeld(def, forged)); d.cur = (int)d.weapons.size() - 1; }
     else d.weapons[d.cur] = NewHeld(def, forged);
     d.reloading = false; d.burstLeft = 0;
-    if (Weapons().weapons[def].id == Weapons().wonder) wonderHeld = true;
+    if (Weapons().weapons[def].id == WonderId()) wonderHeld = true;
 }
 
 void Match::GiveLockerWeapon(DiverState& d) {
     // the Locker deals from its pool plus every rack weapon and the map's wonder weapon
     // (2% per pull, guaranteed within 12 pulls if not yet held by the team)
     const WeaponsData& WD = Weapons();
-    int wonder = WD.Index(WD.wonder);
+    int wonder = WD.Index(WonderId());
     if (wonder >= 0 && !wonderHeld && (teamPulls >= 12 || Rand() < 0.02f)) { GiveWeapon(d, wonder); d.lastKill = "Davy's Locker: " + WD.weapons[wonder].name; d.lastKillT = 3; return; }
     std::vector<int> pool;
     for (int i = 0; i < (int)WD.weapons.size(); i++) {
@@ -1659,6 +1974,12 @@ std::string Match::PromptFor(int di, int* cost) const {
         case StationType::Quest: return safeOpen ? "The captain's safe (open)" : "The captain's safe: " + std::to_string(keys.size()) + " of 3 keys" + (keys.size() >= 3 ? ". E: open it" : "");
         case StationType::Cleaning: return "E: the cleaner shrimp scrape off parasites";
         case StationType::Workbench: return "Workbench (salvage parts come in a later build)";
+        case StationType::Cache: {
+            const Json& bk = map->extra["boss_key"];
+            if (cacheOpen) return "The cache is empty";
+            if (!keys.count(bk["key"].Str0())) return "A locked crate (the boss holds its key)";
+            return "E: open the crate with the " + bk["key"].Str0() + " key";
+        }
         case StationType::QuestStep: {
             if (s.step != questStep + 1 && !(s.step == 3 && questStep == 2)) return "";
             if (s.step == 1) return "E: read the oil-stained log";
@@ -1769,6 +2090,17 @@ bool Match::Interact(int di, bool hold, float dt) {
         case StationType::Trap: {
             if (trapT > 0 || !pay(1000)) return false;
             trapT = 30;
+            const Json& tj = map->extra["trap"];
+            if (tj["kind"].Str0() == "rockfall") {
+                // the Chimney's stalactites, shot loose from their anchor onto whatever is below
+                int zi = s.zone;
+                const Zone& z = map->zones[zi];
+                Vector3 c{s.pos.x, z.y0, s.pos.z};
+                c = z.Clamp(Vector3Lerp(c, z.Center(), 0.4f), 1.0f);
+                DropRocks(c, tj["rocks"].I(7), tj["spread"].F(6), tj["damage"].F(400), 2.0f, 0.8f, d.slot);
+                eco.AddNoise(c, 9, true);
+                return true;
+            }
             // the cargo crane drops a container across the salon door, crushing whatever is in the doorway
             int li = -1;
             for (int k = 0; k < (int)map->links.size(); k++) if (HasW(map->links[k].passage, "salon door")) li = k;
@@ -1790,6 +2122,15 @@ bool Match::Interact(int di, bool hold, float dt) {
             for (auto& o : divers) if (!o.dead) { Pay(o, 2500); if (!o.downed) GiveLockerWeapon(o); }
             Say("The captain's safe", "swings open: salvage for everyone", 5);
             return true;
+        case StationType::Cache: {
+            const Json& bk = map->extra["boss_key"];
+            if (cacheOpen || !keys.count(bk["key"].Str0())) return false;
+            cacheOpen = true;
+            int wi = Weapons().Index(WonderId());
+            if (wi >= 0) GiveWeapon(d, wi);
+            Say("", bk["text"].Str0(), 5);
+            return true;
+        }
         case StationType::QuestStep: {
             // Supper Call: the chief engineer's log, his whistle, three blasts on the boiler's cord with the power off
             const Json& q = map->extra["quest"];
@@ -2472,6 +2813,164 @@ int RunRedTideMatchTest() {
         check(k > 0, TextFormat("two bots play 150 s: %d kills, tide %d, %d doors", k, B->tide, B->doorsOpened));
     }
     printf(fails ? "redtide-match-test: %d check(s) failed\n" : "redtide-match-test: all checks passed\n", fails);
+    return fails ? 1 : 0;
+}
+
+// ---------------------------------------------------------------- --redtide-map-test <map>
+// Each later map's own mechanics (stages 5-8), headless.
+static int CaveTest(int& fails, const std::function<void(bool, const std::string&)>& check) {
+    auto M = std::make_unique<Match>();
+    Match& m = *M;
+    m.Init("cave", 1, 21, false);
+    DiverState& q = m.divers[0];
+    q.invulnerable = true;
+    m.linkOpen.assign(m.linkOpen.size(), 1);
+    for (auto& dr : m.level.doors) dr.open = true;
+    const MapData& map = *m.map;
+    auto zi = [&](const char* n) { return map.ZoneIndex(n); };
+    check(map.zones[m.level.startZone].name == "The Mouth", "the diver starts in the Mouth");
+    int slips = 0; for (const auto& l : map.links) slips += l.slip;
+    check(slips == 6, TextFormat("six slipstreams (A-F): %d", slips));
+    // slipstream A: Gallery -> Chimney at 8 m/s, no firing inside, 2 s of drift
+    int la = -1; for (int li = 0; li < (int)map.links.size(); li++) if (map.links[li].passage == "Slipstream A") la = li;
+    const Link& A = map.links[la];
+    q.pos = A.a; q.zone = A.from; q.vel = {0, 0, 0};
+    m.Step(0.05f);
+    check(q.slipLink == la, "swimming into slipstream A's mouth catches the diver");
+    int mag0 = m.Cur(q).mag; m.Fire(0, true, 0.05f);
+    check(m.Cur(q).mag == mag0, "no firing inside a slipstream");
+    float t = 0; while (q.slipLink >= 0 && t < 30) { m.Step(0.05f); t += 0.05f; }
+    float len = Vector3Distance(A.a, A.b);
+    check(q.zone == zi("The Chimney") && fabsf(t - len / 8.0f) < 0.4f && q.driftT > 1.5f, TextFormat("it carries them %.0f m to the Chimney in %.1f s (8 m/s) with 2 s of drift", len, t));
+    // beasts ride them too; blood rides them
+    check(!m.eco.ZonePath(A.from, A.to).empty() && m.eco.ZonePath(A.from, A.to).size() == 2, "beasts path through a slipstream");
+    {
+        int roost = zi("Dry Chamber III: the Roost"), dyn = zi("The Dynamo Sump");   // slipstream C: no other way between them
+        check(m.eco.ZonePath(roost, dyn).size() == 2 && m.eco.ZonePath(dyn, roost).size() != 2, "slipstream C runs one way only (the Roost's pool to the Dynamo Sump)");
+        check(m.eco.ZonePath(roost, dyn, true).size() != 2, "the Drowned never ride one");
+    }
+    {
+        Ecosystem& e = m.eco;
+        Vector3 g = map.zones[A.from].Clamp(A.a, 2);
+        float c0 = e.Smell(map.zones[A.to].Center(), A.to, 20);
+        for (int i = 0; i < 12; i++) e.AddBlood(g, 30);
+        float tt = 0; while (e.Smell(map.zones[A.to].Center(), A.to, 20) < c0 + 20 && tt < 40) { e.Step(0.1f); tt += 0.1f; }
+        check(tt < 40, TextFormat("blood made at the Gallery's slipstream reads in the Chimney after %.0f s", tt));
+    }
+    // the dry chambers: divers walk
+    int dry = zi("Dry Chamber II: the Toad Pool");
+    const Zone& dz = map.zones[dry];
+    q.pos = {dz.Center().x, dz.y1 - 1, dz.Center().z}; q.zone = dry; q.vel = {0, 0, 0}; q.driftT = 0;
+    Vector3 p0 = q.pos;
+    for (int i = 0; i < 60; i++) { m.SteerDiver(0, {1, 0, 0}, 1, false, false, 0.05f); m.Step(0.05f); }
+    float moved = Vector2Distance({p0.x, p0.z}, {q.pos.x, q.pos.z}) / 3.0f;
+    check(q.pos.y < dz.y0 + 0.8f && moved <= Engine().M("walk_speed_air", 1.6f) + 0.05f, TextFormat("in an air chamber the diver walks on the floor (%.2f m/s, can't swim up)", moved));
+    // the Squeeze: no weapons
+    int sq = zi("The Squeeze");
+    q.pos = map.zones[sq].Center(); q.zone = sq; mag0 = m.Cur(q).mag; q.fireT = 0;
+    m.Fire(0, true, 0.05f);
+    check(m.Cur(q).mag == mag0, "no weapons drawn in the Squeeze");
+    // rockfall and the trap
+    int ch = zi("The Chimney");
+    const Zone& cz = map.zones[ch];
+    int prey = -1;
+    for (int i = 0; i < (int)m.eco.agents.size(); i++) if (m.eco.agents[i].alive && m.eco.agents[i].diver < 0 && map.species[m.eco.agents[i].sp].size <= 2) { prey = i; break; }
+    Agent& pr = m.eco.agents[prey];
+    pr.pos = {cz.Center().x, cz.y0 + 1, cz.Center().z}; pr.zone = ch; pr.stun = 10; pr.hp = 150; pr.hpMax = 150;
+    m.DropRocksPublic(pr.pos, 1, 0, 200, 1.6f, 0.3f, 0);
+    for (int i = 0; i < 12; i++) { m.eco.agents[prey].pos = pr.pos; m.Step(0.05f); }
+    check(!m.eco.agents[prey].alive, "a falling stalactite (200) kills what's under it, and it pays the diver who brought it down");
+    int trapIdx = -1; for (int i = 0; i < (int)m.level.stations.size(); i++) if (m.level.stations[i].type == StationType::Trap) trapIdx = i;
+    q.pos = m.level.stations[trapIdx].pos; q.zone = ch; q.scrip = 2000; m.power = true;
+    size_t c0 = m.crates.size();
+    check(m.Interact(0, false, 0.01f) && m.crates.size() >= c0 + 7 && q.scrip == 1000, "the Chimney's trap (1000): the anchor shot loose, seven stalactites fall");
+    // flora tools
+    int bv = -1, ink = -1, coral = -1;
+    for (int i = 0; i < (int)m.eco.flora.size(); i++) {
+        const std::string& n = map.flora[m.eco.flora[i].flora].name;
+        if (n == "Bloodvine" && bv < 0) bv = i; if (n == "Ink cap" && ink < 0) ink = i; if (n == "Crystal coral" && coral < 0) coral = i;
+    }
+    check(bv >= 0 && ink >= 0 && coral >= 0, "Bloodvine, ink caps and crystal coral grow where the flora sheet puts them");
+    float b0 = m.eco.scent.Total();
+    m.FloraToolPublic(bv, m.eco.flora[bv].pos);
+    check(m.eco.scent.Total() > b0 + 30 && m.floraBleed.count(bv), "shooting Bloodvine: it smells like 40 blood, and keeps smelling for 30 s");
+    int blindMe = prey;
+    for (int i = 0; i < (int)m.eco.agents.size(); i++) if (m.eco.agents[i].alive && m.eco.agents[i].diver < 0) { blindMe = i; break; }
+    m.eco.agents[blindMe].pos = m.eco.flora[ink].pos; m.eco.agents[blindMe].stun = 0;
+    m.FloraToolPublic(ink, m.eco.flora[ink].pos);
+    check(m.eco.agents[blindMe].stun > 2, "an ink cap bursts and blinds what's in the cloud");
+    m.FloraToolPublic(coral, m.eco.flora[coral].pos);
+    check(m.bossRearReq, "the crystal coral rings: the Lobster is called and will Rear");
+    // the Drowned: no blood, and the Ghost Worm eats them
+    {
+        int en = map.enemySpecies;
+        check(en >= 0 && map.species[en].bloodless, "the Drowned are bloodless");
+        int gw = map.SpeciesIndex("Ghost Worm");
+        bool eats = false; for (const auto& pw : map.diet[gw].prey) if (pw.first == en) eats = true;
+        check(eats, "the Ghost Worm hunts the Drowned");
+        int ai = m.eco.Spawn(en, map.zones[zi("The Flooded Gallery")].Center(), zi("The Flooded Gallery"));
+        float s0 = m.eco.scent.Total();
+        m.eco.Kill(ai, -1);
+        check(m.eco.scent.Total() <= s0 + 0.01f, "a Drowned dies without a drop of blood");
+    }
+    // the toad's tongue pulls a diver into the pool (a 2 s hold)
+    {
+        const Attack* tongue = nullptr;
+        for (const auto& at : map.attacks) if (at.beast == "Giant Cave Toad" && at.name == "Tongue") tongue = &at;
+        int toad = -1; for (int i = 0; i < (int)m.eco.agents.size(); i++) if (m.eco.agents[i].alive && map.species[m.eco.agents[i].sp].name == "Giant Cave Toad") toad = i;
+        q.invulnerable = false; q.hp = q.hpMax = 1000; q.heldT = 0;
+        m.HitDiverPublic(q, tongue->damage, "Giant Cave Toad", tongue->effect, m.eco.agents[toad].pos, toad);
+        check(q.heldT > 1.5f && q.heldT < 2.5f, TextFormat("the toad's tongue: '%s' holds %.1f s", tongue->effect.c_str(), q.heldT));
+        q.heldT = 0; q.holder = -1; m.eco.agents[toad].held = 0; q.invulnerable = true;
+    }
+    // the Resonator: small beasts die in its cone
+    {
+        int rz = m.WonderIdx();
+        check(rz >= 0 && Weapons().weapons[rz].id == "resonator", "the Cave's wonder weapon is the Resonator");
+        q.weapons = {Match::NewHeldPublic(rz)}; q.cur = 0;
+        int gal = zi("The Flooded Gallery");
+        const Zone& gz = map.zones[gal];
+        q.pos = {gz.plan.x + 4, (gz.y0 + gz.y1) / 2, gz.plan.y + 8}; q.zone = gal; q.yaw = 1.5708f; q.pitch = 0; q.vel = {0, 0, 0};
+        int fish = -1;
+        for (int i = 0; i < (int)m.eco.agents.size(); i++) { const Agent& a = m.eco.agents[i]; if (a.alive && a.diver < 0 && map.species[a.sp].size == 1) { fish = i; break; } }
+        m.eco.agents[fish].pos = Vector3Add(q.pos, {5, 0.1f, 0}); m.eco.agents[fish].zone = gal;
+        q.fireT = 0; m.Fire(0, true, 0.05f);
+        check(!m.eco.agents[fish].alive, "the Resonator's cone kills a small beast outright");
+    }
+    // the Lobster: Rear exposes the underside; phase 3 rides slipstream E backward and cuts the power
+    {
+        check(m.bossKind == 1, "the Cave's boss runs the Lobster's script");
+        int lob = -1; for (int i = 0; i < (int)m.eco.agents.size(); i++) if (m.eco.agents[i].alive && map.species[m.eco.agents[i].sp].tier == 5) lob = i;
+        m.Step(0.05f);
+        int cat = zi("The Cathedral");
+        const Zone& kz = map.zones[cat];
+        Agent& L = m.eco.agents[lob];
+        q.pos = kz.Clamp(Vector3Add(L.pos, {6, 0, 0}), 1); q.zone = cat;
+        m.bossRearReq = true;
+        float tt = 0; while (m.bossGillsT <= 0 && tt < 6) { m.Step(0.05f); tt += 0.05f; }
+        check(m.bossActive && m.bossGillsT > 0, TextFormat("rung coral wakes it and it Rears: the underside is open (%.1f s)", tt));
+        m.power = true;
+        m.eco.agents[lob].hp = m.eco.agents[lob].hpMax * 0.25f;
+        m.Step(0.05f); m.Step(0.05f);
+        check(m.bossPhase == 3 && m.eco.agents[lob].zone == zi("The Dynamo Sump") && !m.power, "at 30% it rides slipstream E backward into the Dynamo Sump and the power dies");
+        m.eco.Kill(lob, q.agent);
+        check(m.keys.count("Expedition"), "its kill leaves the expedition's key");
+        int cache = -1; for (int i = 0; i < (int)m.level.stations.size(); i++) if (m.level.stations[i].type == StationType::Cache) cache = i;
+        q.pos = m.level.stations[cache].pos; q.weapons = {Match::NewHeldPublic(Weapons().Index("cormorant"))}; q.cur = 0;
+        check(m.Interact(0, false, 0.01f) && m.W(m.Cur(q)).id == "resonator", "the key opens the Lantern Cache's crate: a Resonator");
+    }
+    return fails;
+}
+
+int RunRedTideMapTest(const std::string& key) {
+    std::string why;
+    if (!DataOk(&why)) { printf("redtide-map-test: %s\n", why.c_str()); return 1; }
+    int fails = 0;
+    std::function<void(bool, const std::string&)> check = [&](bool ok, const std::string& what) { printf("  %s  %s\n", ok ? "ok  " : "FAIL", what.c_str()); if (!ok) fails++; };
+    printf("Red Tide map test: %s\n", Map(key).title.c_str());
+    if (key == "cave") CaveTest(fails, check);
+    else { printf("  (no map test for '%s' yet)\n", key.c_str()); }
+    printf(fails ? "redtide-map-test: %d check(s) failed\n" : "redtide-map-test: all checks passed\n", fails);
     return fails ? 1 : 0;
 }
 

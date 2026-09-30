@@ -29,6 +29,7 @@ struct Species {
     float hpBase = 20, bountyBase = 40, bloodDeath = 20, bloodPerS = 2, speed = 2, turnDeg = 360, dropPct = 1;
     bool isEnemy = false;              // a faction unit, a member of the same web
     bool isDiver = false;              // the players' record (divers are agents in the web too)
+    bool bloodless = false;            // leaves no blood (the Cave's Drowned: "they do not bleed")
     bool Has(const char* tag) const;
     bool Scavenger() const { return Has("scavenger"); }
     bool Cleaner() const { return Has("cleaner"); }
@@ -58,6 +59,7 @@ struct Zone {
     int doorCost = 0;
     int alarmRegion = 0;
     bool diverOk = true;               // false: open water the divers only see and shoot into (a confined map's outside)
+    bool air = false;                  // an air chamber: divers walk (the Cave's dry chambers)
     bool radial = false;               // Atlantis districts: an annulus sector (plan is its bounding box)
     float rMin = 0, rMax = 0, a0 = 0, a1 = 0; // metres and degrees
     Vector3 Center() const;
@@ -69,6 +71,7 @@ struct Link {
     bool diverOk = true;               // false: beasts (and darts) only
     int beastRule = 0;                 // 0 a door (closed to beasts until bought), 1 never open to beasts, 2 a breach (opens at openTide or when the faction first comes)
     int openTide = 99;
+    bool slip = false; float slipSpeed = 8;  // a slipstream: a one-way current that carries divers and beasts (not a swimmable passage)
 };
 // A porthole: a dart-only opening from a room the divers use into open water they don't (extra.json "windows").
 struct Window { Vector3 lo{}, hi{}; int zone = -1, outside = -1; int axis = 2; };
@@ -83,6 +86,7 @@ struct Faction {
     std::vector<std::string> patrol, composition;
     std::vector<FactionUnit> units;
     int fleeFromSize = 4, ignoreBelowSize = 3;
+    bool bleeds = true, slipstreams = true, ignoreBeasts = false;
     std::map<std::string, std::vector<std::string>> barks;
 };
 struct DietRow { std::vector<std::pair<int, float>> prey; float corpse = 0, plankton = 0, parasites = 0, flora = 0, enemy = 0; std::vector<std::pair<std::string, float>> floraItems; };
@@ -240,7 +244,7 @@ struct Ecosystem {
     float Rand();                                          // 0..1
     float Rand(float a, float b) { return a + (b - a) * Rand(); }
     void Event(const std::string& s);
-    std::vector<int> ZonePath(int from, int to) const;
+    std::vector<int> ZonePath(int from, int to, bool enemy = false) const;
     // The divers are agents too (species index = diverSpecies); the game layer moves them.
     int diverSpecies = -1;
     int AddDiver(int slot, Vector3 pos);

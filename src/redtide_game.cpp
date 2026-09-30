@@ -136,13 +136,20 @@ static void BuildLevelModel() {
     const Match& m = M();
     const MapData& map = *m.map;
     MeshBuilder mb;
+    const Json& pal = map.extra["palette"];
+    auto pc = [&](const Json& j, Color def) { return j.IsArr() ? Color{(unsigned char)j[0].I(), (unsigned char)j[1].I(), (unsigned char)j[2].I(), 255} : def; };
     for (const auto& v : m.level.vols) {
         if (v.zone < 0) continue;
         const Zone& z = map.zones[v.zone];
-        bool outside = z.deck == "Outside", upper = z.deck == "Upper";
+        bool outside = z.deck == "Outside" || !z.diverOk, upper = z.deck == "Upper";
         Color wall = outside ? Color{58, 64, 66, 255} : upper ? Color{112, 80, 54, 255} : Color{82, 90, 96, 255};
         Color floor = outside ? Color{166, 142, 96, 255} : upper ? Color{118, 58, 46, 255} : Color{70, 72, 66, 255};
         Color ceil = upper ? Color{88, 70, 50, 255} : Color{62, 68, 72, 255};
+        if (pal.IsObj()) {
+            // a map's own palette (the Cave's rock, its dry chambers' paler stone)
+            const Json& pz = z.air && pal["Air"].IsObj() ? pal["Air"] : pal[z.deck].IsObj() ? pal[z.deck] : pal;
+            wall = pc(pz["wall"], pc(pal["wall"], wall)); floor = pc(pz["floor"], pc(pal["floor"], floor)); ceil = pc(pz["ceil"], pc(pal["ceil"], ceil));
+        }
         // the holes: every passage volume that crosses one of this room's faces
         for (int axis = 0; axis < 3; axis++) for (int side = 0; side < 2; side++) {
             float at = side ? (&v.hi.x)[axis] : (&v.lo.x)[axis];
@@ -230,6 +237,52 @@ static void BuildLevelModel() {
         else if (n.find("crane") != std::string::npos) { mb.Box({at.x, z.y0 + 3, at.z}, {0.4f, 3, 0.4f}, Color{150, 110, 40, 255}); mb.Box({at.x + 2.5f, z.y0 + 6, at.z}, {2.8f, 0.3f, 0.3f}, Color{150, 110, 40, 255}); }
         else if (n.find("Workbench") != std::string::npos) mb.Box({at.x, z.y0 + 0.5f, at.z}, {1.2f, 0.5f, 0.6f}, Color{120, 84, 52, 255});
     }
+    // a map's dressing (extra.json "dressing"): columns, stalactites, crystal clusters, pools, ledges, roots, machines
+    const Json& dr = map.extra["dressing"];
+    for (int zi = 0; zi < (int)map.zones.size() && dr.IsObj(); zi++) {
+        const Zone& z = map.zones[zi];
+        const Json& d = dr[z.name];
+        if (!d.IsObj() || z.radial) continue;
+        uint32_t r = 1234567u + zi * 7919u;
+        auto rnd = [&]() { r ^= r << 13; r ^= r >> 17; r ^= r << 5; return (r & 0xFFFF) / 65535.0f; };
+        auto spot = [&](float pad) { return Vector3{z.plan.x + pad + (z.plan.width - 2 * pad) * rnd(), 0, z.plan.y + pad + (z.plan.height - 2 * pad) * rnd()}; };
+        Color rock = pc(pal["wall"], Color{70, 72, 70, 255});
+        float h = z.y1 - z.y0;
+        for (int k = 0; k < d["columns"].I(0); k++) {
+            Vector3 c = spot(2.5f); float w = 0.5f + rnd() * 0.7f;
+            mb.Box({c.x, (z.y0 + z.y1) / 2, c.z}, {w, h / 2, w * (0.8f + rnd() * 0.4f)}, Color{(unsigned char)(rock.r + 8), (unsigned char)(rock.g + 8), (unsigned char)(rock.b + 6), 255});
+        }
+        for (int k = 0; k < d["stalactites"].I(0); k++) {
+            Vector3 c = spot(1.0f); float len = 0.8f + rnd() * std::min(3.0f, h * 0.25f);
+            mb.Cone({c.x, z.y1, c.z}, {c.x, z.y1 - len, c.z}, 0.25f + rnd() * 0.35f, 5, Color{(unsigned char)(rock.r + 20), (unsigned char)(rock.g + 18), (unsigned char)(rock.b + 12), 255});
+            if (rnd() < 0.5f && !z.air) mb.Cone({c.x + 0.4f, z.y0, c.z}, {c.x + 0.4f, z.y0 + len * 0.6f, c.z}, 0.3f, 5, rock);   // and its stalagmite
+        }
+        for (int k = 0; k < d["crystals"].I(0); k++) {
+            Vector3 c = spot(2.0f);
+            for (int j = 0; j < 5; j++) mb.Cone({c.x + (rnd() - 0.5f), z.y0, c.z + (rnd() - 0.5f)}, {c.x + (rnd() - 0.5f) * 1.5f, z.y0 + 1 + rnd() * 2.5f, c.z + (rnd() - 0.5f) * 1.5f}, 0.18f + rnd() * 0.2f, 4, Color{150, 220, 230, 255});
+        }
+        for (int k = 0; k < d["roots"].I(0); k++) {
+            Vector3 c = spot(1.5f);
+            for (int j = 0; j < 4; j++) mb.Box({c.x + (rnd() - 0.5f) * 1.2f, z.y1 - 1.2f, c.z + (rnd() - 0.5f) * 1.2f}, {0.05f, 1.2f + rnd(), 0.05f}, Color{92, 76, 52, 255});
+        }
+        for (int k = 0; k < d["ledges"].I(0); k++) {
+            float y = z.y0 + h * (k + 1) / (d["ledges"].I(0) + 1);
+            bool west = k % 2 == 0;
+            mb.Box({west ? z.plan.x + 1.2f : z.plan.x + z.plan.width - 1.2f, y, z.plan.y + z.plan.height * (0.3f + 0.4f * rnd())}, {1.2f, 0.3f, 2.5f}, rock);
+        }
+        if (d["pool"].F(0) > 0) {
+            float f = d["pool"].F(0);
+            float pw = z.plan.width * f, ph = z.plan.height * f;
+            Vector3 c = z.Center();
+            mb.Box({c.x, z.y0 + 0.02f, c.z}, {pw / 2, 0.02f, ph / 2}, Color{40, 86, 96, 255});   // the pool's still surface
+        }
+        if (d["silt"].Bool0()) for (int k = 0; k < 12; k++) { Vector3 c = spot(1.0f); mb.Box({c.x, z.y0 + 0.1f, c.z}, {1.5f + rnd() * 2, 0.1f + rnd() * 0.2f, 1.5f + rnd() * 2}, Color{84, 76, 60, 255}); }
+        if (d["machine"].Bool0()) {
+            Vector3 c = spot(3.0f);
+            mb.Box({c.x, z.y0 + 1.5f, c.z}, {1.8f, 1.5f, 1.2f}, Color{96, 70, 50, 255});
+            mb.Lathe(2.4f, 3, 10, [](float) { return 0.7f; }, [](float) { return 0.7f; }, Color{110, 96, 80, 255}, Color{80, 70, 60, 255}, {c.x + 2.4f, z.y0 + 1.0f, c.z});
+        }
+    }
     // the salon's pillars, the engine room's boiler, the cabins' partitions (so the rooms read as rooms)
     for (int zi = 0; zi < (int)map.zones.size(); zi++) {
         const Zone& z = map.zones[zi];
@@ -242,9 +295,9 @@ static void BuildLevelModel() {
 }
 
 // ---------------------------------------------------------------- starting a match
-static void StartShip(int players, uint32_t seed) {
+static void StartShip(int players, uint32_t seed, const std::string& key = "ship") {
     S.m = std::make_unique<Match>();
-    S.m->Init("ship", players, seed, false);
+    S.m->Init(key, players, seed, false);
     S.mode = 1;
     Vector3 lo = M().map->boundsMin, hi = M().map->boundsMax;
     ResetFx(std::max(hi.x - lo.x, hi.z - lo.z), hi.y - lo.y, lo.y, Vector3Lerp(lo, hi, 0.5f));
@@ -271,6 +324,8 @@ static void DrainFx() {
             case 6: { Vector3 to = Vector3Add(e.pos, e.dir); for (int k = 0; k < 10; k++) S.fx.push_back({Vector3Lerp(e.pos, to, k / 10.0f), {0, 0, 0}, 0.25f, 0.25f, {170, 220, 255, 255}, 0.06f}); break; }
             case 7: Burst(e.pos, 30, {150, 130, 100, 255}, 2.0f, 1.5f, 0.1f); break;   // a crate hits the deck
             case 8: Burst(e.pos, 3, {220, 230, 240, 255}, 0.4f, 0.3f, 0.03f); break;
+            case 9: Burst(e.pos, 50, {20, 18, 26, 255}, 1.6f, 3.0f, 0.18f); break;     // an ink cap's cloud
+            case 10: { for (int k = 0; k < 40; k++) { float f = k / 40.0f; Vector3 p = Vector3Add(e.pos, Vector3Scale(e.dir, f)); S.fx.push_back({p, Vector3Scale(Vector3Normalize(e.dir), 2.0f), 0.4f, 0.4f, {200, 220, 255, 255}, 0.05f + f * 0.2f}); } break; }   // the Resonator's ring
         }
     }
     M().fx.clear();
@@ -462,6 +517,7 @@ static void DrawStations() {
                 break;
             case StationType::Quest: DrawWorldCube(p, {0.8f, 0.9f, 0.7f}, m.safeOpen ? Color{60, 60, 60, 255} : Color{70, 76, 70, 255}); break;
             case StationType::Cleaning: DrawWorldCube({p.x, p.y - 0.6f, p.z}, {1.4f, 0.8f, 1.2f}, {110, 100, 88, 255}); break;
+            case StationType::Cache: DrawWorldCube({p.x, p.y - 0.6f, p.z}, {1.0f, 0.6f, 0.7f}, m.cacheOpen ? Color{60, 50, 40, 255} : Color{110, 84, 50, 255}); break;
             case StationType::QuestStep:
                 // the Supper Call's props: the log on a bunk shelf, the whistle among the tins, the cord on the boiler
                 if (s.step == 1) DrawWorldCube({p.x, p.y - 0.5f, p.z}, {0.35f, 0.08f, 0.25f}, {92, 60, 40, 255});
@@ -508,6 +564,14 @@ static Camera3D MakeCamera(SceneLight& L) {
     float scent = M().eco.Smell(d.pos, z, 6);
     L.bloodTint = std::clamp(scent / 120.0f + (M().frenzyT > 0 ? 0.25f : 0.0f), 0.0f, 1.0f);
     if (z >= 0 && M().map->zones[z].deck == "Outside") { L.fog = {16, 44, 54, 255}; L.fogDensity = 0.035f; }
+    const Json& pal = M().map->extra["palette"];
+    if (pal.IsObj() && S.mode == 1) {
+        if (pal["fog"].IsArr()) L.fog = {(unsigned char)pal["fog"][0].I(), (unsigned char)pal["fog"][1].I(), (unsigned char)pal["fog"][2].I(), 255};
+        L.fogDensity = pal["fog_density"].F(L.fogDensity);
+        if (pal["fill"].IsArr()) L.fill = {(unsigned char)pal["fill"][0].I(), (unsigned char)pal["fill"][1].I(), (unsigned char)pal["fill"][2].I(), 255};
+        L.surfaceY = pal["surface_y"].F(L.surfaceY);
+        if (z >= 0 && M().map->zones[z].air) { L.fogDensity *= 0.5f; L.fog = {20, 22, 22, 255}; }   // dry air: clearer, and black
+    }
     return cam;
 }
 
@@ -557,7 +621,13 @@ static void DrawScene() {
             if (f.weapon >= 0) DrawWorldCube(f.pos, {0.8f, 0.15f, 0.25f}, {160, 150, 130, 255});
             else DrawWorldCube(Vector3Add(f.pos, {0, sinf(S.time * 2) * 0.15f, 0}), {0.25f * pulse, 0.45f * pulse, 0.25f * pulse}, {120, 240, 200, 255});
         }
-        for (const auto& c : m.crates) DrawWorldCube(c.fallen ? Vector3{c.pos.x, c.pos.y - 0.6f, c.pos.z} : Vector3{c.pos.x, c.pos.y + std::max(0.0f, c.t) * 3 + 0.4f, c.pos.z}, {1.2f, 1.2f, 1.2f}, {120, 92, 60, 255});
+        for (const auto& c : m.crates) {
+            if (c.kind == 1) {
+                // a stalactite: hangs trembling at the ceiling, then drops and shatters
+                float y = c.fallen ? c.pos.y - 0.2f : std::min(c.top, c.pos.y + std::max(0.0f, c.t) * 14);
+                if (!c.fallen || c.t > -1.0f) DrawWorldCube({c.pos.x + (c.fallen ? 0 : sinf(S.time * 40) * 0.03f), y + 0.8f, c.pos.z}, c.fallen ? Vector3{1.2f, 0.4f, 1.0f} : Vector3{0.5f, 1.6f, 0.5f}, {150, 146, 132, 255});
+            } else DrawWorldCube(c.fallen ? Vector3{c.pos.x, c.pos.y - 0.6f, c.pos.z} : Vector3{c.pos.x, c.pos.y + std::max(0.0f, c.t) * 3 + 0.4f, c.pos.z}, {1.2f, 1.2f, 1.2f}, {120, 92, 60, 255});
+        }
     }
     for (int i = 0; i < (int)m.eco.agents.size(); i++) {
         const Agent& a = m.eco.agents[i];
@@ -621,7 +691,35 @@ static void DrawScene() {
         }
     }
     // the crates' marked squares
-    for (const auto& c : m.crates) if (!c.fallen) DrawCube({c.pos.x, c.pos.y - 1.1f, c.pos.z}, 1.4f, 0.03f, 1.4f, Fade(RED, 0.5f + 0.3f * sinf(S.time * 12)));
+    for (const auto& c : m.crates) if (!c.fallen) DrawCube({c.pos.x, c.kind == 1 ? c.pos.y - 0.5f : c.pos.y - 1.1f, c.pos.z}, 1.4f, 0.03f, 1.4f, Fade(RED, 0.5f + 0.3f * sinf(S.time * 12)));
+    // light shafts from above (the Cave's Mouth)
+    for (int zi = 0; zi < (int)m.map->zones.size(); zi++) {
+        const Json& d = m.map->extra["dressing"][m.map->zones[zi].name];
+        if (!d.IsObj() || !d["light_shaft"].Bool0()) continue;
+        const Zone& z = m.map->zones[zi];
+        Vector3 c = z.Center();
+        for (int k = 0; k < 60; k++) {
+            float f = k / 60.0f;
+            float y = z.y1 + 6 - f * (z.y1 - z.y0 + 6);
+            float r = 1.0f + f * 3.0f;
+            float a = k * 2.4f + S.time * 0.2f;
+            DrawCube({c.x + cosf(a) * r * 0.7f, y, c.z + sinf(a) * r * 0.7f}, 0.08f, 0.6f, 0.08f, Fade(Color{220, 240, 220, 255}, 0.12f * (1 - f)));
+        }
+    }
+    // slipstream mouths: a spiral of silt and bubbles drawn into the current
+    for (const auto& l : m.map->links) {
+        if (!l.slip || Vector3Distance(l.a, eye) > 40) continue;
+        Vector3 dir = Vector3Normalize(Vector3Subtract(l.b, l.a));
+        Vector3 side = Vector3Normalize(Vector3CrossProduct(dir, {0, 1, 0}));
+        if (Vector3Length(side) < 0.1f) side = {1, 0, 0};
+        Vector3 up = Vector3CrossProduct(side, dir);
+        for (int k = 0; k < 36; k++) {
+            float f = fmodf(S.time * 0.8f + k / 36.0f, 1.0f), ang = k * 0.7f + S.time * 4;
+            float r = 1.3f * (1 - f);
+            Vector3 p = Vector3Add(l.a, Vector3Add(Vector3Scale(dir, f * 1.5f), Vector3Add(Vector3Scale(side, cosf(ang) * r), Vector3Scale(up, sinf(ang) * r))));
+            DrawCube(p, 0.05f, 0.05f, 0.05f, Fade(Color{190, 230, 240, 255}, 0.7f * (1 - f)));
+        }
+    }
     for (const auto& s : S.snow) DrawCube(s, 0.02f, 0.02f, 0.02f, Fade(Color{220, 230, 220, 255}, 0.6f));
     EndMode3D();
     EndLayer();
@@ -771,8 +869,10 @@ static void DrawHud() {
 
 using namespace rt;
 
-void StartRedTide(Game& g) {
-    StartShip(1, (uint32_t)GetRandomValue(1, 1 << 30));
+static std::string gRtMap = "ship";
+void StartRedTide(Game& g, const char* map) {
+    gRtMap = map ? map : "ship";
+    StartShip(1, (uint32_t)GetRandomValue(1, 1 << 30), gRtMap);
     S.shotMode = false;
     S.silhouette = 0;
     S.lineup = -1;
@@ -781,7 +881,7 @@ void StartRedTide(Game& g) {
 }
 
 void SceneRedTide(Game& g) {
-    if (!S.active || !S.m) { StartRedTide(g); return; }
+    if (!S.active || !S.m) { StartRedTide(g, gRtMap.c_str()); return; }
     if (S.mode == 1 && !S.levelReady && IsWindowReady()) BuildLevelModel();
     float dt = std::min(GetFrameTime(), 1 / 30.0f);
     if (S.shotMode) dt = 1 / 60.0f;
@@ -792,7 +892,7 @@ void SceneRedTide(Game& g) {
         if (S.mode == 0) { m.phase = TidePhase::Calm; m.phaseT = -1e9f; }   // the tank never tides
         m.Step(dt);
         DrainFx();
-        if (m.over && !S.shotMode && IsKeyPressed(KEY_ENTER)) { StartRedTide(g); return; }
+        if (m.over && !S.shotMode && IsKeyPressed(KEY_ENTER)) { StartRedTide(g, gRtMap.c_str()); return; }
         DiverState& d = Me();
         S.bob += Vector3Length(d.vel) * dt * 2.2f;
         int z = m.eco.ZoneAt(d.pos);
@@ -804,6 +904,17 @@ void SceneRedTide(Game& g) {
     Vector3 lo = M().map->boundsMin, hi = M().map->boundsMax;
     for (auto& s : S.snow) { s.y -= dt * 0.12f; s.x += sinf(S.time * 0.3f + s.z) * dt * 0.05f; if (s.y < lo.y) s.y += hi.y - lo.y; }
     DrawScene();
+    if (S.lineup < 0 && S.m && Me().slipLink >= 0) {
+        // riding a slipstream: the rock streams past in the dark
+        DrawRectangle(0, 0, SCREEN_W, SCREEN_H, Fade(Color{4, 14, 18, 255}, 0.85f));
+        for (int k = 0; k < 90; k++) {
+            float a = k * 2.399f, rr = fmodf(S.time * 900 + k * 97, 900.0f) + 20;
+            Vector2 c{SCREEN_W / 2.0f, SCREEN_H / 2.0f};
+            Vector2 p0{c.x + cosf(a) * rr, c.y + sinf(a) * rr * 0.6f}, p1{c.x + cosf(a) * (rr + 40), c.y + sinf(a) * (rr + 40) * 0.6f};
+            DrawLineEx(p0, p1, 2, Fade(Color{170, 220, 230, 255}, 0.5f));
+        }
+        DrawTextCenteredBold(M().map->links[Me().slipLink].passage, SCREEN_W / 2.0f, SCREEN_H / 2.0f - 12, 26, Color{220, 240, 240, 255});
+    }
     if (S.lineup < 0 && S.silhouette < 0.5f) DrawHud();
     else if (S.lineup >= 0) TxtBold(TextFormat("Red Tide - the Sunken Ship's species, page %d (CreatureBuilder)", S.lineup + 1), 24, 18, 20, Color{220, 90, 80, 255});
 }
@@ -824,7 +935,7 @@ void DebugRedTideShot(Game& g, int which) {
         g.scene = Scene::RedTide;
         return;
     }
-    StartShip(1, 20260930);
+    StartShip(1, 20260930, which >= 20 ? "cave" : "ship");
     S.shotMode = true;
     Match& m = M();
     if (which != 10) {                                           // every door open, so the views can see through
@@ -863,7 +974,15 @@ void DebugRedTideShot(Game& g, int which) {
             d.hp = 140; d.hpMax = 250; d.heldT = 0; d.stunT = 0; d.vel = {0, 0, 0};
             break;
         }
-        default: place("Cabin Deck", {3, 2, 3}, 0.0f, 0); break;                             // the cabins and the moray pipes
+        case 15: place("Cabin Deck", {3, 2, 3}, 0.0f, 0); break;                             // the cabins and the moray pipes
+        // the Underwater Cave
+        case 20: place("The Mouth", {2, 4, 2}, 0.2f, 0.05f); break;                           // the start pocket under the light shaft
+        case 21: place("The Flooded Gallery", {3, 4, 3}, 0.1f, 0); break;                     // the long hall, slipstream A's mouth
+        case 22: place("The Chimney", {2, 4, 2}, 0.3f, 0.6f); break;                          // looking up the shaft
+        case 23: place("Dry Chamber II: the Toad Pool", {3, 1, 3}, 0.2f, 0); break;           // an air chamber, on foot
+        case 24: place("The Cathedral", {6, 6, 6}, 0.0f, 0.05f); break;                       // the crystal coral and the Lobster
+        case 25: place("The Sump", {4, 3, 4}, 0.2f, 0); break;                                // the silt, the sturgeon, the sleeper shark
+        default: break;
     }
     g.scene = Scene::RedTide;
 }

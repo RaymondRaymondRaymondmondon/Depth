@@ -184,6 +184,12 @@ static void TakeShots(const Game& base, const std::string& dir) {
         {"redtide_ship_keel", [](Game& g) { DebugRedTideShot(g, 13); }},
         {"redtide_ship_hunt", [](Game& g) { DebugRedTideShot(g, 14); }},
         {"redtide_ship_cabins", [](Game& g) { DebugRedTideShot(g, 15); }},
+        {"redtide_cave_mouth", [](Game& g) { DebugRedTideShot(g, 20); }},
+        {"redtide_cave_gallery", [](Game& g) { DebugRedTideShot(g, 21); }},
+        {"redtide_cave_chimney", [](Game& g) { DebugRedTideShot(g, 22); }},
+        {"redtide_cave_dry", [](Game& g) { DebugRedTideShot(g, 23); }},
+        {"redtide_cave_cathedral", [](Game& g) { DebugRedTideShot(g, 24); }},
+        {"redtide_cave_sump", [](Game& g) { DebugRedTideShot(g, 25); }},
         {"panel_ward", [](Game& g) { g.scene = Scene::Ward; Hero& h = g.roster[1]; g.selectedHero = h.id; h.hp = h.hp / 2; h.ailments = (1u << AIL_SALT_ROT) | (1u << AIL_BENDS); h.habits = (1u << HB_STEADY_HANDS) | (1u << HB_NIGHT_EYES) | (1u << HB_JUMPY); h.habitLocked = 1u << HB_NIGHT_EYES; g.gold = 400; }},
         {"panel_sickbay", [](Game& g) { g.scene = Scene::SickLeave; }},
         {"flats_menu", [](Game& g) { g.scene = Scene::Cards; }},
@@ -545,6 +551,10 @@ int main(int argc, char** argv) {
     if (argc >= 2 && strcmp(argv[1], "--redtide-test") == 0) {
         SetTraceLogLevel(LOG_WARNING);
         return RunRedTideTest();
+    }
+    if (argc >= 3 && strcmp(argv[1], "--redtide-map-test") == 0) {
+        SetTraceLogLevel(LOG_WARNING);
+        return rt::RunRedTideMapTest(argv[2]);
     }
     if (argc >= 2 && strcmp(argv[1], "--redtide-match-test") == 0) {
         SetTraceLogLevel(LOG_WARNING);

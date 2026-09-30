@@ -16,7 +16,7 @@ namespace rt {
 struct WeaponClass { float spreadHip = 2, spreadAds = 1, adsS = 0.2f, swimAim = 0.9f, headshot = 2, fullTo = 15, halfAt = 25, speed = 28, recoil = 1; };
 struct WeaponDef {
     std::string id, name, cls, source, forged, forgedTwist;
-    float damage = 30, rpm = 300, noise = 2, reload = 1.4f, chum = 0, arc = 0, splash = 0, reach = 0, spinup = 0;
+    float damage = 30, rpm = 300, noise = 2, reload = 1.4f, chum = 0, arc = 0, splash = 0, reach = 0, spinup = 0, cone = 0, coneDeg = 30;
     int pellets = 1, mag = 8, reserve = 32, price = 0, burst = 0, chain = 0, explodesOver = 0;
     bool perRound = false, pins = false, net = false, melee = false;
     WeaponClass handling;
@@ -41,7 +41,7 @@ const WeaponsData& Weapons();
 // ---------------------------------------------------------------- the level (swimmable volumes built from the blockout)
 struct Volume { Vector3 lo, hi; int zone = -1; int link = -1; int window = -1; bool diverOk = true; };   // a room (zone), a passage (link) or a porthole (window)
 struct Door { int link = -1; bool open = false; int cost = 0; Vector3 pos{}; std::string name; };
-enum class StationType { Rack, Tonic, Locker, Forge, Power, Workbench, Trap, Quest, Cleaning, Feature, Hazard, Entry, Boss, QuestStep };
+enum class StationType { Rack, Tonic, Locker, Forge, Power, Workbench, Trap, Quest, Cleaning, Feature, Hazard, Entry, Boss, QuestStep, Cache };
 struct Station {
     StationType type = StationType::Feature;
     std::string name;
@@ -90,6 +90,7 @@ struct DiverState {
     float heldT = 0; int holder = -1; float holdDmg = 0, holdPending = 0, holdHp0 = 0; bool holdLethal = false; int struggle = 0; float holdDragT = 0;
     float stunT = 0, aimSway = 0, poisonT = 0, poisonDps = 0, bleedT = 0, slowT = 0, slowMult = 1, flinchT = 0;
     int agent = -1;                    // the diver's body in the Ecosystem
+    int slipLink = -1; float slipT = 0, driftT = 0;   // riding a slipstream (link), how far along; the drift after it
     int kills = 0, headshots = 0, downs = 0, revives = 0;
     float hitMarker = 0; bool hitWeak = false;
     float hurtT = 0; Vector3 hurtFrom{};
@@ -110,7 +111,7 @@ const char* DropName(DropType d);
 struct FloorDrop { DropType type = DropType::Resupply; Vector3 pos{}; float t = 30; bool alive = true; int weapon = -1; };  // weapon >= 0: a dropped gun
 struct Caption { std::string who, text; float t = 4; };
 struct FxEvent { int kind = 0; Vector3 pos{}; Vector3 dir{}; };   // 0 blood hit, 1 wall hit, 2 muzzle, 3 explosion, 4 pickup, 5 boom, 6 arc, 7 crate, 8 melee
-struct Crate { Vector3 pos{}; float t = 1.5f; bool fallen = false; };
+struct Crate { Vector3 pos{}; float t = 1.5f; bool fallen = false; int kind = 0; float dmg = 60, radius = 1.6f; int owner = -1; float top = 0; };   // kind 0 loose cargo, 1 a stalactite
 
 enum class TidePhase { Calm, Tide, Hunt, Over };
 
@@ -149,6 +150,12 @@ struct Match {
     int scripAt10 = -1;
     int questStep = 0, whistlePulls = 0; float whistleT = 0; bool supperCall = false;   // the Supper Call easter egg
     bool breachOpen = false;
+    // map mechanics (from extra.json): per-zone flags, the boss's kind and its extra state
+    std::vector<char> noFireZone, rockZone; std::vector<float> crawlZone;
+    std::map<int, float> floraBleed;        // a cut Bloodvine patch: seconds it keeps smelling of blood
+    int bossKind = 0;                       // 0 the Goliath, 1 the Lobster, 9 any other (attacks straight from its sheet)
+    float bossRecentDmg = 0; bool bossRearReq = false, bossMoved = false, cacheOpen = false;
+    std::string WonderId() const;
     uint32_t rng = 99;
     bool over = false;
     std::string overReason;
@@ -191,6 +198,10 @@ struct Match {
     void HitDiverPublic(DiverState& d, float dmg, const std::string& by, const std::string& effect, Vector3 from, int attacker) { HitDiver(d, dmg, by, effect, from, attacker); }
     void ApplyDropPublic(DropType t, Vector3 at) { ApplyDrop(t, at); }
     void BeginTidePublic(int t) { BeginTide(t); }
+    void DropRocksPublic(Vector3 at, int n, float spread, float dmg, float radius, float delay, int owner) { DropRocks(at, n, spread, dmg, radius, delay, owner); }
+    void FloraToolPublic(int patch, Vector3 at) { FloraTool(patch, at, nullptr); }
+    int WonderIdx() const { return Weapons().Index(WonderId()); }
+    static Held NewHeldPublic(int def) { Held h; h.def = def; if (def >= 0) { h.mag = Weapons().weapons[def].mag; h.reserve = Weapons().weapons[def].reserve; } return h; }
 
   private:
     void BeginTide(int t);
@@ -215,6 +226,11 @@ struct Match {
     void Revive(DiverState& d, int by);
     void HitDiver(DiverState& d, float dmg, const std::string& by, const std::string& effect, Vector3 from, int attacker = -1);
     void MaybeDrop(Vector3 at);
+    void DropRocks(Vector3 at, int n, float spread, float dmg, float radius, float delay, int owner);
+    void FireCone(DiverState& d, const WeaponDef& w, float dmg);
+    void UpdateBossLobster(float dt, int near, float dist);
+    void UpdateBossGeneric(float dt, int near, float dist);
+    void FloraTool(int patch, Vector3 at, DiverState* d);
     void ApplyDrop(DropType t, Vector3 at);
     void GiveWeapon(DiverState& d, int def, bool forged = false);
     void GiveLockerWeapon(DiverState& d);
@@ -228,5 +244,6 @@ struct Match {
 
 int RunRedTideSim(const std::string& mapKey, int tides, const std::string& style, int runs, int players);
 int RunRedTideMatchTest();
+int RunRedTideMapTest(const std::string& key);
 
 } // namespace rt

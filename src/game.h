@@ -861,7 +861,7 @@ void SceneStudy(Game& g);     // the Study below the hatch (under refit for now)
 void SceneArcade(Game& g);    // the Deep Arcade cabinet (its games arrive with the arcade stages)
 void DebugArcadeReel(int reel); // --shots: turn the arcade drum to a reel
 void SceneRedTide(Game& g);   // Red Tide, the Deep Arcade's survival shooter (redtide_game.cpp)
-void StartRedTide(Game& g);
+void StartRedTide(Game& g, const char* map = "ship");
 void DebugRedTideShot(Game& g, int which); // --shots: 0 the tank, 1 its silhouettes, 2+ the species lineup pages
 int RunRedTideTest();                       // depth.exe --redtide-test (headless)
 void SetFigureClip(const Rectangle* r); // clip the next EndFigure composites to r (portraits); nullptr turns it off

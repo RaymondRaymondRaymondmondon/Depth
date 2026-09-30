@@ -153,7 +153,7 @@ int RunWebCheck(const std::string& key) {
         const Species& s = m.species[i];
         bool eaten = false;
         for (size_t j = 0; j < m.species.size(); j++) for (const auto& pw : m.diet[j].prey) if (pw.first == (int)i) eaten = true;
-        bool reason = s.tier >= 4 || s.Has("boss") || s.Has("toxic") || s.Has("venom") || s.Cleaner() || s.Parasite() || s.isEnemy || s.Has("armored") || s.Has("electric") || s.Has("sessile") || s.isDiver;
+        bool reason = s.tier >= 4 || s.Has("boss") || s.Has("toxic") || s.Has("venom") || s.Cleaner() || s.Parasite() || s.isEnemy || s.Has("armored") || s.Has("electric") || s.Has("sessile") || s.Has("untouchable") || s.isDiver;
         if (!eaten && !reason) fail(s.name + " has no predator and no reason not to (toxic, apex, boss...)");
     }
     // every tier-1 species has a producer (flora, plankton, detritus) or scavenges
