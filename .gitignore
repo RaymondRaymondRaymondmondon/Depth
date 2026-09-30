@@ -9,3 +9,9 @@ Reference/
 settings.txt
 
 external/
+
+# The Study: personal course material stays on this machine (Master Reference, Study ground rules)
+Study_Hatch_Reference/
+study/courses/
+study/reports/
+study_save.txt

@@ -862,6 +862,7 @@ void SceneArcade(Game& g);    // the Deep Arcade cabinet (arcade.cpp): Host / Jo
 void DebugArcadeShot(int which);   // shots: 0 the lobby, 1 the Scuttle table (AI crabs, no network)
 int RunScuttleSim(int matches);    // --scuttle-sim (net_test.cpp)
 int RunNetLoop(int lagMs, bool forceMemory);   // --net-loop
+int RunStudyAudioTest(const char* wavPath, float seconds);   // --study-audio-test (study_test.cpp)
 void SetFigureClip(const Rectangle* r); // clip the next EndFigure composites to r (portraits); nullptr turns it off
 void SetFigureMood(float desat, float door);
 void SnapshotFrame();                 // render.cpp: hold the last finished frame (the game menu's pause)

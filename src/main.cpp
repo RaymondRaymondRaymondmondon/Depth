@@ -555,6 +555,12 @@ int main(int argc, char** argv) {
     }
     if (argc >= 2 && strcmp(argv[1], "--stage7-test") == 0) { SetTraceLogLevel(LOG_WARNING); return Stage7Test(); }
     // the Deep Arcade: --scuttle-sim [matches] (the rules, bots only); --net-loop [lag ms] [mem] (host + two guests in one process)
+    // the Study: --study-audio-test [out.wav] [seconds] renders every soundscape layer and style offline
+    if (argc >= 2 && strcmp(argv[1], "--study-audio-test") == 0) {
+        const char* wav = nullptr; float secs = 60;
+        for (int i = 2; i < argc; i++) { if (strstr(argv[i], ".wav")) wav = argv[i]; else secs = std::max(5.0f, (float)atof(argv[i])); }
+        return RunStudyAudioTest(wav, secs);
+    }
     if (argc >= 2 && strcmp(argv[1], "--scuttle-sim") == 0) return RunScuttleSim(argc >= 3 ? std::max(1, atoi(argv[2])) : 2000);
     if (argc >= 2 && strcmp(argv[1], "--net-loop") == 0) {
         int lag = 0; bool mem = false;
