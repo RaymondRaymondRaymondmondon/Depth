@@ -54,3 +54,64 @@ int NearestStation(Vector2 at, int deck, float r) {
 }
 
 } // namespace tw
+
+// ---------------------------------------------------------------- fishing (design doc, "Tackle", "Fight tuning")
+namespace tw {
+const TackleDef& TackleOf(Tackle t) {
+    //                                   rating  cast  reel  low   spool  rodSoft price  drop
+    static const TackleDef T[(int)Tackle::COUNT] = {
+        {"Handline",               8,     6,   0.8f, 0.8f,  60,  0.05f,   0, false},
+        {"Light rod",              6,    30,   1.5f, 1.5f, 200,  0.25f,  40, false},
+        {"Medium rod",            15,    25,   1.0f, 1.0f, 250,  0.12f, 120, false},
+        {"Heavy boat rod",        40,    15,   0.8f, 0.45f, 350, 0.05f, 300, false},
+        {"Deep-drop reel",        30,     0,   1.2f, 1.2f, 450,  0.06f, 450, true},
+        {"Big-game chair",       120,    15,   0.7f, 0.4f, 600,  0.02f, 900, false},
+    };
+    return T[(int)t];
+}
+const LineDef& LineOf(LineType l) {
+    static const LineDef L[(int)LineType::COUNT] = {
+        {"Mono", 0.18f, 0.2f, false, 1.0f},    // stretchy, forgiving, visible to wary fish
+        {"Braid", 0.03f, 0.5f, false, 0.8f},   // no stretch, strong, cut by teeth and coral
+        {"Wire leader", 0.02f, 1.0f, true, 1.6f},   // bite-proof, spooks wary fish
+        {"Glow line", 0.15f, 0.2f, false, 1.3f},    // seen by everything
+    };
+    return L[(int)l];
+}
+const char* HookName(Hook h) { static const char* N[(int)Hook::COUNT] = {"Small", "Circle", "Big-game treble"}; return N[(int)h]; }
+const char* PatternName(Pattern p) { static const char* N[(int)Pattern::COUNT] = {"None", "Run", "Dive", "Jump", "Circle", "Cover", "Roll"}; return N[(int)p]; }
+float PatternPull(Pattern p) { static const float R[(int)Pattern::COUNT] = {0.3f, 0.8f, 0.9f, 0.6f, 0.5f, 0.7f, 0.6f}; return R[(int)p]; }
+const char* FightEndName(FightEnd e) {
+    static const char* N[] = {"on", "landed", "line snapped", "threw the hook", "pulled the hook", "slack: hook fell out", "spooled", "spooked"};
+    return N[(int)e];
+}
+const SkillDef& SkillOf(Skill s) {   // design doc, "Bot skill": reaction, hook-set, gaff; bow and keel are the fight's
+    static const SkillDef S[(int)Skill::COUNT] = {
+        {"Green", 0.70f, 0.50f, 0.60f, 0.80f, 0.55f},
+        {"Able", 0.40f, 0.70f, 0.80f, 0.92f, 0.75f},
+        {"Old Hand", 0.25f, 0.85f, 0.90f, 0.97f, 0.90f},
+    };
+    return S[(int)s];
+}
+// Stage 2's stand-in fish (stage 3 reads the real species records): the design doc's five target fights and a few
+// more to show each pattern.
+const std::vector<FishSpec>& DummyFish() {
+    static const std::vector<FishSpec> F = {
+        //  name            kg    a               b               wary   teeth  depth floor  price
+        {"snapper",          3, Pattern::Run,    Pattern::None,   false, false,  10,   30,  3},
+        {"lingcod",         15, Pattern::Dive,   Pattern::Cover,  false, true,   30,   40,  4, 1.0f, 1.0f, 0.7f},
+        {"yellowfin",       40, Pattern::Run,    Pattern::Circle, true,  false,  20,  600,  5, 1.0f, 1.6f, 1.8f},   // tireless, soft-mouthed
+        {"sturgeon",       150, Pattern::Dive,   Pattern::None,   true,  false, 140,  150,  8, 0.3f, 1.5f},   // slow, very long
+        {"marlin",         250, Pattern::Jump,   Pattern::Run,    true,  true,    3, 2000,  6, 1.0f, 1.25f, 0.4f},   // a bony bill holds a hook
+        {"mahi",            10, Pattern::Jump,   Pattern::None,   false, false,   2,  400,  4},
+        {"leopard shark",   12, Pattern::Roll,   Pattern::None,   false, true,   18,   20,  1},
+        {"opah",            40, Pattern::Circle, Pattern::None,   false, false,  60,  800,  6},
+        {"silverside",     0.1f, Pattern::None,  Pattern::None,   false, false,   2,   20, 0.8f},
+    };
+    return F;
+}
+const FishSpec* FindDummyFish(const std::string& name) {
+    for (const auto& f : DummyFish()) if (name == f.name) return &f;
+    return nullptr;
+}
+} // namespace tw

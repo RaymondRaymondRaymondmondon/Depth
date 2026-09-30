@@ -21,6 +21,7 @@ struct View {
 };
 void DrawSea(const Gannet& g, const View& v);
 void DrawBoat(const Gannet& g, const View& v);
+void DrawLines(const Gannet& g, const View& v);          // rods, lines, lures and what's on them
 void DrawCrewMember(const Crew& c, const View& v, float t, bool you);
 Color RoleColor(Role r);
 

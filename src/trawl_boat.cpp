@@ -48,6 +48,10 @@ Vector2 Boat::ToWorld(Vector2 d) const {
     Vector2 f = Forward(), s{-f.y, f.x};   // starboard is to the right of the bow
     return {pos.x + f.x * d.x + s.x * d.y, pos.y + f.y * d.x + s.y * d.y};
 }
+Vector2 Boat::ToDeck(Vector2 w) const {
+    Vector2 f = Forward(), s{-f.y, f.x}, d{w.x - pos.x, w.y - pos.y};
+    return {Vector2DotProduct(d, f), Vector2DotProduct(d, s)};
+}
 float Boat::Speed() const { return Vector2DotProduct(vel, Forward()); }
 void Boat::Hit(int s, float dmg) {
     if (s < 0 || s >= SEC_COUNT) return;
@@ -125,13 +129,13 @@ void Boat::Step(float dt, const Sea& sea) {
     float thrust = K.maxThrust * shaft * (tel < 0 ? -1.0f : 1.0f);
     float Ff = thrust - K.dragFwd * vf * fabsf(vf), Fs = -K.dragSide * vs * fabsf(vs);
     Vector2 windF = Vector2Scale(sea.wind, 60 * Vector2Length(sea.wind));
-    Vector2 acc = Vector2Scale(Vector2Add(Vector2Add(Vector2Scale(f, Ff), Vector2Scale(side, Fs)), windF), 1.0f / M);
+    Vector2 acc = Vector2Scale(Vector2Add(Vector2Add(Vector2Add(Vector2Scale(f, Ff), Vector2Scale(side, Fs)), windF), extraForce), 1.0f / M);
     vel = Vector2Add(vel, Vector2Scale(acc, dt));
     pos = Vector2Add(pos, Vector2Scale(vel, dt));
     float yawAcc = rudder * (vf * K.rudderYaw + shaft * 0.15f) - K.yawDamp * yawRate;
     yawRate += yawAcc * dt;
     heading += yawRate * dt;
-    extraHeelTorque = 0;
+    extraHeelTorque = 0; extraForce = {0, 0};
 }
 
 // ---------------------------------------------------------------- the deck
@@ -167,6 +171,20 @@ void Gannet::Init(int n, uint32_t seed, Weather w) {
         c.p = {-1.0f - i * 0.9f, (i % 2 ? 1.0f : -1.0f) * 0.8f};
         c.patchKits = c.role == Role::Bosun ? 1 : 0;
         crew.push_back(c);
+    }
+    // the four rods (stage 4's Chandler sells the rest of the tackle; stage 2 rigs a spread)
+    const auto& S = Stations();
+    for (int i = 0; i < (int)S.size(); i++) {
+        Rod r; r.station = i; r.rng = seed * 31u + i * 977u + 5;
+        switch (S[i].kind) {
+            case StationKind::PortRod: r.tackle = Tackle::Light; break;
+            case StationKind::StarRod: r.tackle = Tackle::Medium; break;
+            case StationKind::SternRodP: r.tackle = Tackle::Heavy; break;
+            case StationKind::SternRodS: r.tackle = Tackle::DeepDrop; r.line = LineType::Braid; break;
+            default: continue;
+        }
+        r.fight.drag = 0.33f * TackleOf(r.tackle).strength;
+        rods.push_back(r);
     }
 }
 void Gannet::Say(const std::string& s) { log.push_back(s); if (log.size() > 12) log.erase(log.begin()); }
@@ -258,6 +276,7 @@ void Gannet::Step(float dt) {
     for (const auto& c : crew) if (!c.overboard) boat.loads.push_back({c.deck == 1 ? Vector2{c.p.x, c.p.y * 0.5f} : c.p, D().crewMass + c.carryKg});
     int leaks = 0; for (int s = 0; s < SEC_COUNT; s++) if (boat.integrity[s] < D().leakBelow && !boat.patched[s]) leaks++;
     bool wasSunk = boat.sunk; float valve0 = boat.valveT;
+    StepRods(dt);
     boat.Step(dt, sea);
     if (boat.sunk && !wasSunk) Say("The Gannet founders");
     if (boat.valveT > 0 && valve0 <= 0) Say("The relief valve blows: steam in the engine room, the screw stops");
@@ -377,6 +396,7 @@ int RunTrawlBoatTest() {
         g.crew[0].deck = 0; g.crew[0].station = -1; g.crew[0].p = {4.1f, 0};
         check(!g.TakeStation(0), "one hand per station");
     }
+    fails += RunTrawlRodTest();
     printf(fails ? "trawl-boat-test: %d check(s) failed\n" : "trawl-boat-test: all checks passed\n", fails);
     return fails ? 1 : 0;
 }

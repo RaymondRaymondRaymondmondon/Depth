@@ -181,6 +181,8 @@ static void TakeShots(const Game& base, const std::string& dir) {
         {"trawl_engine", [](Game& g) { DebugTrawlShot(g, 1); }},
         {"trawl_wheelhouse", [](Game& g) { DebugTrawlShot(g, 2); }},
         {"trawl_squall", [](Game& g) { DebugTrawlShot(g, 3); }},
+        {"trawl_fishon", [](Game& g) { DebugTrawlShot(g, 4); }},
+        {"trawl_jump", [](Game& g) { DebugTrawlShot(g, 5); }},
         {"redtide_tank", [](Game& g) { DebugRedTideShot(g, 0); }},
         {"redtide_silhouette", [](Game& g) { DebugRedTideShot(g, 1); }},
         {"redtide_species_ship_1", [](Game& g) { DebugRedTideShot(g, 2); }},
@@ -580,6 +582,7 @@ int main(int argc, char** argv) {
         if (strcmp(argv[2], "all") == 0) { int r = 0; for (const char* k : {"ship", "cave", "reef", "atlantis", "void"}) r |= rt::RunWebCheck(k); return r; }
         return rt::RunWebCheck(argv[2]);
     }
+    if (argc >= 2 && strcmp(argv[1], "--trawl-fight") == 0) return tw::RunTrawlFight(argc, argv);
     if (argc >= 2 && strcmp(argv[1], "--trawl-boat-test") == 0) {
         SetTraceLogLevel(LOG_WARNING);
         return tw::RunTrawlBoatTest();

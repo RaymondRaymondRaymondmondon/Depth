@@ -5,6 +5,7 @@
 #include "raymath.h"
 #include <algorithm>
 #include <cmath>
+#include <string>
 
 namespace tw {
 
@@ -63,6 +64,93 @@ void DrawSea(const Gannet& g, const View& v) {
             float lit = v.LightAt(d);
             if (lit < 0.05f || H01(i, k, (int)(g.time * 8)) > std::min(1.0f, sp / 4)) continue;
             Px(v, d, 0.2f, 0.2f, Dim(Color{200, 220, 220, 255}, 0.3f + 0.7f * lit));
+        }
+    }
+}
+
+// ---------------------------------------------------------------- rods, lines, lures, fish
+void DrawLines(const Gannet& g, const View& v) {
+    const Boat& b = g.boat;
+    Color lineC{210, 210, 190, 255}, rodC{120, 86, 50, 255};
+    for (const auto& r : g.rods) {
+        const StationDef& sd = Stations()[r.station];
+        Vector2 tip = r.TipDeck();
+        bool fighting = r.state == RodState::Fighting;
+        float bend = fighting ? std::clamp(r.fight.tension / TackleOf(r.tackle).strength, 0.0f, 1.2f) : 0;
+        // the line's far end in the boat frame
+        Vector2 end = tip;
+        if (r.state == RodState::Out) end = b.ToDeck({r.lure.x, r.lure.y});
+        if (fighting) end = b.ToDeck({r.fight.p.x, r.fight.p.y});
+        Vector2 dir = Vector2Subtract(end, tip);
+        if (Vector2Length(dir) > 0.01f) dir = Vector2Normalize(dir); else dir = Vector2Normalize(Vector2Subtract(tip, sd.at));
+        // the rod: from its holder to the tip, bowed toward the line as the tension loads it
+        Vector2 base = Vector2Lerp(sd.at, tip, 0.15f);
+        Vector2 bentTip = Vector2Add(tip, Vector2Scale(dir, 0.35f * bend));
+        float tick = r.state == RodState::Out ? r.lastTick * 0.25f : 0;
+        bentTip = Vector2Add(bentTip, Vector2Scale(dir, tick * sinf(g.time * 40)));
+        Vector2 mid = Vector2Add(Vector2Lerp(base, bentTip, 0.5f), Vector2Scale(dir, 0.18f * bend));
+        float lr = 0.4f + 0.6f * v.LightAt(tip);
+        DrawLineEx(v.ToCanvas(base), v.ToCanvas(mid), 2, Dim(rodC, lr));
+        DrawLineEx(v.ToCanvas(mid), v.ToCanvas(bentTip), 1, Dim(rodC, lr));
+        if (r.state == RodState::Charging) {
+            Vector2 a = Vector2Add(tip, Vector2Scale(r.aim, 1.0f + r.charge * TackleOf(r.tackle).cast));
+            for (float k = 0.1f; k < 1; k += 0.1f) { Vector2 q = Vector2Lerp(tip, a, k); Vector2 c = v.ToCanvas(q); DrawPixel((int)c.x, (int)c.y, Fade(lineC, 0.5f)); }
+        }
+        if (r.state == RodState::Out) {
+            // the line to the float, the float and its rings; a bite makes it bob
+            float lit = std::max(0.15f, v.LightAt(end));
+            DrawLineV(v.ToCanvas(bentTip), v.ToCanvas(end), Fade(Dim(lineC, lit), 0.7f));
+            Vector2 c = v.ToCanvas(end);
+            float bob = r.lastTick;
+            DrawRectangle((int)c.x - 1, (int)c.y - 1, 2, 2, Dim(Color{230, 90, 60, 255}, 0.4f + 0.6f * lit));
+            if (bob > 0.05f) DrawCircleLines((int)c.x, (int)c.y, 2 + bob * 3 + fmodf(g.time * 6, 2), Fade(Dim(lineC, lit), 0.6f));
+        }
+        if (fighting) {
+            const Fight& f = r.fight;
+            // the line: the Verlet nodes, fading as they go down into the dark
+            Vector2 prev = v.ToCanvas(bentTip);
+            for (size_t i = 1; i < f.node.size(); i++) {
+                Vector2 d = b.ToDeck({f.node[i].x, f.node[i].y});
+                float depth = std::max(0.0f, f.node[i].z);
+                float lit = std::max(0.12f, v.LightAt(d)) * std::clamp(1 - depth / 30, 0.25f, 1.0f);
+                Color lc = f.tension > 0.9f * f.Strength() ? Color{240, 120, 90, 255} : lineC;
+                Vector2 c = v.ToCanvas(d);
+                DrawLineV(prev, c, Fade(Dim(lc, lit), f.tension < 0.05f * TackleOf(f.tackle).strength ? 0.35f : 0.9f));
+                prev = c;
+            }
+            // the fish: a shadow under the water, bright when it jumps, rolling on its side when beaten
+            Vector2 fd = end;
+            bool underHull = fabsf(fd.y) < 3.0f && fd.x > -12 && fd.x < 11 && f.jumpT < 0;
+            if (underHull) continue;
+            float len = std::clamp(0.35f + sqrtf(f.spec.kg) * 0.22f, 0.4f, 4.5f), wid = len * 0.28f;
+            Vector2 hd = Vector2Normalize(b.ToDeck(Vector2Add(b.ToWorld({0, 0}), Vector2{f.h.x, f.h.y})));
+            if (Vector2Length(hd) < 0.1f) hd = dir;
+            float lit = std::max(0.1f, v.LightAt(fd));
+            float under = std::clamp(1 - f.p.z / 12, 0.15f, 1.0f);
+            bool air = f.jumpT >= 0;
+            Color fc = air ? Color{190, 210, 220, 255} : Dim(Color{30, 50, 60, 255}, 0.6f + 0.4f * lit);
+            Vector2 cc = v.ToCanvas(fd);
+            float alpha = air ? 1.0f : 0.35f + 0.55f * under;
+            // a tapered body along its heading, a forked tail, and a bill on the billfish
+            Vector2 hc = hd;
+            for (int k = 0; k <= 10; k++) {
+                float tt = k / 10.0f;
+                Vector2 q = Vector2Add(cc, Vector2Scale(hc, len * v.ppm * (0.5f - tt)));
+                float rad = std::max(0.6f, wid * v.ppm * 0.5f * sinf(PI * (0.12f + tt * 0.8f)));
+                DrawCircleV(q, rad, Fade(fc, alpha));
+            }
+            Vector2 tb = Vector2Add(cc, Vector2Scale(hc, -len * v.ppm * 0.5f)), sd2{-hc.y, hc.x};
+            Vector2 t1 = Vector2Add(tb, Vector2Add(Vector2Scale(hc, -wid * v.ppm * 0.9f), Vector2Scale(sd2, wid * v.ppm * 0.8f)));
+            Vector2 t2 = Vector2Add(tb, Vector2Add(Vector2Scale(hc, -wid * v.ppm * 0.9f), Vector2Scale(sd2, -wid * v.ppm * 0.8f)));
+            DrawTriangle(tb, t1, t2, Fade(fc, alpha)); DrawTriangle(tb, t2, t1, Fade(fc, alpha));
+            if (std::string(f.spec.name) == "marlin") DrawLineEx(Vector2Add(cc, Vector2Scale(hc, len * v.ppm * 0.5f)), Vector2Add(cc, Vector2Scale(hc, len * v.ppm * 0.8f)), 1, Fade(fc, alpha));
+            if (air || (f.p.z < 1 && f.effort > 1)) {
+                for (int k = 0; k < 8; k++) {
+                    float ang = k * 0.785f + g.time * 2;
+                    float rr = (air ? f.jumpT * 3 : 1.0f) * v.ppm * 0.5f + 2;
+                    DrawPixel((int)(cc.x + cosf(ang) * rr), (int)(cc.y + sinf(ang) * rr), Fade(Color{220, 230, 230, 255}, 0.4f + 0.5f * lit));
+                }
+            }
         }
     }
 }

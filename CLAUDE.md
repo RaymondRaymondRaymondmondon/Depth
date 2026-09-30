@@ -276,4 +276,5 @@ amespace {} reopened before DrawRichEnemy). Shots: `foes_new_cave|island|weeds|a
 
 ## The Trawl (the Deep Arcade's co-op fishing horror game; build log in docs/TRAWL_PROGRESS.md)
 - Design: `The_Trawl_Reference/` (50-page draft). Code: `trawl.h` (headless core: `Sea`, `Boat`, `Crew`, `Gannet`), `trawl_boat.cpp` (hull physics: waves, roll/pitch/heave from weights, six sections, leaks, bilge, the steam engine), `trawl_data.cpp` (all numbers, stations), `trawl_art.cpp` (top-down pixel art in the boat's frame, lit by the lantern), `trawl.cpp` (the scene). Stage 1 (the boat alone) is done: `depth.exe --trawl-boat-test`, `--shots shots trawl_`. The arcade reel sails her solo.
+- Stage 2 (lines and fishing) is done: `trawl_fish.cpp` (`Fight`: tension from the line's stretch, drag slip, reel, snaps, chafe; the fish's pull/stamina/patterns; `Bite`; `BotFight`; `Rod`s on the Gannet via `Gannet::RodInput`/`StepRods`). Gate: `depth.exe --trawl-fight all` must report "All target fights in range" (the doc's five fights). Dummy fish in `DummyFish()` until stage 3's species records.
 
