@@ -1088,6 +1088,237 @@ void DrawRigOctopus(const Hero& h, Vector2 ft, float s, bool right, float walk, 
     parts.Draw();
 }
 
+// ============================================================================ THE DETHRONED ISLAND QUEEN
+// Tall and straight-backed even in exile: a broken crown of shell and feathers, tattoos on her bare arms, a shell
+// necklace, a flowing wrap skirt in faded royal purple (panels on chains that sway), a feathered cape, a bone
+// staff topped with a shell rattle raised toward the foe.
+void DrawRigQueen(const Hero& h, Vector2 ft, float s, bool right, float walk, float t, const Pose& pose) {
+    const float f = right ? 1.0f : -1.0f;
+    Instance& in = Get(h.id);
+    Tick(in, t);
+    int seed = h.id * 7919 + 13;
+    const Color skinsQ[3] = {{160, 110, 78, 255}, {130, 88, 60, 255}, {108, 74, 52, 255}};
+    Color skin = skinsQ[seed % 3], wrap{120, 84, 140, 255}, wrapDk = Tone(wrap, -0.3f), gold{202, 172, 92, 255}, shell{236, 222, 200, 255};
+    Color bone{224, 214, 192, 255}, feather{176, 60, 50, 255}, feather2{60, 120, 110, 255}, hair{26, 20, 18, 255}, ink{40, 30, 50, 255};
+
+    Build b;
+    b.thigh = 43; b.shin = 42; b.upper = 27; b.fore = 26; b.spine = 27; b.chest = 24; b.neck = 9; b.head = 12;
+    b.shoulderW = 14.5f; b.hipW = 7; b.stanceF = 12; b.stanceB = -15;
+    RPose P;
+    P[C_HIPY] = 2; P[C_LEAN] = -0.02f; P[C_HEAD] = -0.06f;                     // upright, chin raised
+    P[C_HFX] = 22; P[C_HFY] = 6; P[C_WEAPON] = -80;     // the staff held upright before her
+    P[C_HBX] = 14; P[C_HBY] = 22;                       // the other hand open, casting
+    P = LayerHero(P, h, in, pose, walk, t, -20, nullptr);
+    Solved S = SolveHumanoid(b, P, ft, s, f);
+    float pulse = 0.5f + 0.5f * sinf(t * 2.4f + h.id);
+
+    bool jump = FollowWorld(in, s);
+    Vector2 anchors[6] = {S.Hips(-15, 2), S.Hips(-3, 4), S.Hips(9, 4), S.Hips(16, 2), S.Chest(-15, -24), S.Chest(-4, -26)};
+    if (jump || in.chains.size() != 6) {
+        in.chains.assign(6, Chain{});
+        for (int i = 0; i < 4; i++) { in.chains[i].Init(anchors[i], 7, 9.6f * s, {-0.1f * f, 1}); in.chains[i].stiff = 0.3f; in.chains[i].grav = 400; }
+        for (int i = 4; i < 6; i++) { in.chains[i].Init(anchors[i], 6, 9.0f * s, {-0.4f * f, 1}); in.chains[i].stiff = 0.25f; in.chains[i].grav = 360; }
+    }
+    Vector2 cur = Current();
+    for (int i = 0; i < 6; i++) in.chains[i].Step(anchors[i], i < 4 ? Vector2{-0.1f * f, 1} : Vector2{-0.4f * f, 1}, in.dt, cur);
+
+    Parts parts;
+    // the feathered cape behind her
+    parts.Add(-3.0f, [&] {
+        Panel(in.chains[4], in.chains[5], Tone(feather, -0.35f), 0);
+        const Chain& A = in.chains[4], &B = in.chains[5];
+        for (size_t k = 1; k < A.p.size(); k++) for (int j = 0; j < 3; j++) {
+            Vector2 p = L2(A.p[k], B.p[k], 0.15f + j * 0.35f);
+            DrawTri({p.x - 3 * s, p.y - 4 * s}, {p.x + 3 * s, p.y - 4 * s}, {p.x, p.y + 6 * s}, (k + j) % 2 ? feather : feather2);
+        }
+    });
+    // the casting arm, behind
+    parts.Add(-2.0f, [&] {
+        MLimb(S.p[SH_B], S.p[EL_B], 6.6f * s, 5.8f * s, Tone(skin, -0.12f), SKIN);
+        MLimb(S.p[EL_B], S.p[WR_B], 5.8f * s, 4.8f * s, Tone(skin, -0.12f), SKIN);
+        for (int k = 0; k < 3; k++) DrawLineEx(S.Along(SH_B, EL_B, 0.3f + k * 0.2f, -4), S.Along(SH_B, EL_B, 0.3f + k * 0.2f, 4), 1.2f * s, ink); // tattoo bands
+        MLimb(S.Along(EL_B, WR_B, 0.75f, 0), S.Along(EL_B, WR_B, 0.85f, 0), 5.4f * s, 5.4f * s, gold, METAL);      // a gold cuff
+        Vector2 hd = S.p[WR_B];
+        for (int k = 0; k < 4; k++) MLimb(hd, Off(hd, 8, -6 + k * 3.6f, s, f), 1.6f * s, 1.1f * s, Tone(skin, -0.12f), SKIN); // spread fingers
+        MBall(hd, 3.8f * s, Tone(skin, -0.12f), SKIN);
+        Glow(Off(hd, 10, 0, s, f), 26 * s, Fade(Color{150, 230, 180, 255}, 0.15f + 0.12f * pulse));                    // a spell gathering
+    });
+    auto leg = [&](int hip, int kn, int an, Color col) {
+        MLimb(S.p[hip], S.p[kn], 8 * s, 6.8f * s, col, SKIN);
+        MLimb(S.p[kn], S.p[an], 6.6f * s, 4.8f * s, col, SKIN);
+        MLimb(S.Along(kn, an, 0.8f, 0), S.Along(kn, an, 0.88f, 0), 5.4f * s, 5.4f * s, shell, SHELL);             // a shell anklet
+        Vector2 heel = Off(S.p[an], -3, 1, s, f), toe = Off(S.p[an], 11, 2.5f, s, f);
+        MLimb(heel, toe, 4.6f * s, 3.8f * s, col, SKIN);                                                           // bare feet
+        DrawLineEx(Off(heel, 0, 4, s, f), Off(toe, 1, 3.4f, s, f), 1.2f * s, Color{90, 60, 40, 255});             // a sandal strap sole
+    };
+    parts.Add(-1.6f, [&] { leg(HIP_B, KN_B, AN_B, Tone(skin, -0.15f)); });
+    parts.Add(-1.3f, [&] { Panel(in.chains[0], in.chains[1], wrapDk, 0); });                                        // the wrap behind
+    parts.Add(-1.0f, [&] { leg(HIP_F, KN_F, AN_F, skin); });
+    parts.Add(-0.8f, [&] {                                                                                        // the wrap in front: slit to the thigh
+        Panel(in.chains[2], in.chains[3], wrap, 0.02f);
+        for (size_t k = 1; k < in.chains[2].p.size(); k++) DrawLineEx(in.chains[2].p[k - 1], in.chains[2].p[k], 1.4f * s, gold); // a gold border
+        const Chain& A = in.chains[2], &B = in.chains[3];
+        for (int j = 0; j < 4; j++) { Vector2 p = L2(A.p[3], B.p[3], 0.2f + j * 0.2f); DrawPoly(p, 4, 2.2f * s, 45, Tone(gold, -0.2f)); } // a woven band
+    });
+    // the torso: a wrapped bodice, the shell necklace, bare shoulders
+    parts.Add(0, [&] {
+        MQuad(S.Chest(-14, -22), S.Chest(15, -22), S.Hips(13, 4), S.Hips(-13, 4), skin, SKIN);
+        MQuad(S.Chest(-13, -12), S.Chest(14, -12), S.Hips(13, 4), S.Hips(-13, 4), wrap, CLOTH);                    // the bodice
+        MLimb(S.Chest(-13, -12), S.Chest(14, -12), 2.0f * s, 2.0f * s, gold, METAL);
+        MQuad(S.Hips(-14, -3), S.Hips(14, -3), S.Hips(13, 3), S.Hips(-13, 3), Tone(gold, -0.3f), METAL);          // a gold girdle
+        for (int k = 0; k < 7; k++) { Vector2 p = L2(S.Chest(-10, -21), S.Chest(12, -21), k / 6.0f); p.y += sinf(k / 6.0f * PI) * 7 * s; MBall(p, 2.2f * s, k % 2 ? shell : Color{220, 140, 120, 255}, SHELL); } // the shell necklace
+        for (int k = 0; k < 3; k++) DrawLineEx(S.Chest(-8 + k * 8.0f, -6), S.Hips(-8 + k * 8.0f, -4), 1.1f * s, Fade(Color{30, 10, 40, 255}, 0.5f));
+    });
+    // the head: a long neck, high cheekbones, kohl-lined eyes, black hair bound high, the broken crown
+    parts.Add(0.5f, [&] {
+        MLimb(S.Chest(1, -23), S.Head(0, 8), 5.4f * s, 4.8f * s, Tone(skin, -0.08f), SKIN);
+        MBall(S.Head(-5, -6), 12.5f * s, hair, CLOTH);                                                            // hair bound high
+        MBall(S.Head(-9, -16), 8 * s, hair, CLOTH);
+        MBall(S.p[HEAD], 11.6f * s, skin, SKIN);
+        MQuad(S.Head(-4, 1), S.Head(10, 0), S.Head(8, 11), S.Head(-1, 12), skin, SKIN);                           // a narrow jaw
+        MLimb(S.Head(9.5f, -1), S.Head(12.5f, 4), 1.6f * s, 2.4f * s, Tone(skin, 0.05f), SKIN);
+        DrawEyes(in.face, S.Head(6.5f, -1.5f), 5.0f, 1.9f, s, f, hair, Color{50, 40, 30, 255});
+        DrawLineEx(S.Head(3, -2.4f), S.Head(12, -2.8f), 1.2f * s, hair);                                          // kohl
+        DrawLineEx(S.Head(3, -5), S.Head(8, -4.6f), 1.3f * s, hair);
+        DrawMouth(in.face, S.Head(8, 7.5f), 4.0f, s, f, Color{120, 50, 50, 255});
+        for (int k = 0; k < 3; k++) DrawLineEx(S.Head(1 + k * 1.6f, 3), S.Head(1 + k * 1.6f, 7), 1.0f * s, ink); // chin tattoo
+        // the crown: a band of gold, shell points, one snapped short, feathers behind
+        MLimb(S.Head(-10, -10), S.Head(10, -11), 2.8f * s, 2.8f * s, gold, METAL);
+        for (int k = 0; k < 5; k++) {
+            float hgt = k == 3 ? 5.0f : 11 + (k % 2) * 4.0f;                                                    // one point broken off
+            DrawTri(S.Head(-9 + k * 4.5f, -11), S.Head(-5 + k * 4.5f, -11), S.Head(-7 + k * 4.5f, -11 - hgt), k % 2 ? shell : gold);
+        }
+        for (int k = 0; k < 3; k++) MLimb(S.Head(-10, -12), S.Head(-22 - k * 3.0f, -22 + k * 6.0f), 2.6f * s, 1.0f * s, k % 2 ? feather2 : feather, CLOTH);
+    });
+    // the staff arm, in front: a bone staff crowned with a shell rattle and a green charm
+    parts.Add(1.0f, [&] {
+        MLimb(S.p[SH_F], S.p[EL_F], 6.8f * s, 6.0f * s, skin, SKIN);
+        MLimb(S.p[EL_F], S.p[WR_F], 6.0f * s, 5.0f * s, skin, SKIN);
+        for (int k = 0; k < 3; k++) DrawLineEx(S.Along(SH_F, EL_F, 0.3f + k * 0.2f, -4), S.Along(SH_F, EL_F, 0.3f + k * 0.2f, 4), 1.2f * s, ink);
+        MLimb(S.Along(EL_F, WR_F, 0.75f, 0), S.Along(EL_F, WR_F, 0.85f, 0), 5.6f * s, 5.6f * s, gold, METAL);
+        float a = S.a[PROP];
+        Vector2 dir{cosf(a), sinf(a)};
+        auto W = [&](float along) { return Vector2{S.p[WR_F].x + dir.x * along * s, S.p[WR_F].y + dir.y * along * s}; };
+        MLimb(W(-40), W(46), 2.4f * s, 2.0f * s, bone, SHELL);                                                   // the bone staff
+        for (int k = 0; k < 4; k++) MLimb(W(-30 + k * 22.0f), W(-27 + k * 22.0f), 3.2f * s, 3.2f * s, Tone(bone, -0.2f), SHELL); // knuckles
+        MBall(W(52), 7 * s, shell, SHELL);                                                                        // the shell rattle
+        for (int k = 0; k < 4; k++) DrawLineEx(W(46), W(58), 1.0f * s, Tone(shell, -0.4f));
+        MBall(W(52), 2.8f * s, Color{120, 230, 160, 255}, GLOW);                                                  // the charm
+        Glow(W(52), 24 * s, Fade(Color{150, 230, 180, 255}, 0.12f + 0.1f * pulse));
+        for (int k = 0; k < 3; k++) MLimb(W(44), Off(W(44), -3 + k * 3.0f, 12 + k * 2.0f, s, f), 1.6f * s, 0.8f * s, k % 2 ? feather : feather2, CLOTH); // feathers tied below it
+        MBall(S.p[WR_F], 4.2f * s, skin, SKIN);
+    });
+    parts.Draw();
+}
+
+// ============================================================================ THE ROBOT
+// A steam automaton that commands the line: a riveted boiler for a torso with a furnace glowing through its
+// grille, a dome head with one lens eye and a chimney that puffs, piston-driven arms and legs, a clamp hand and a
+// signal baton, a brass pressure gauge on its chest whose needle wavers.
+void DrawRigRobot(const Hero& h, Vector2 ft, float s, bool right, float walk, float t, const Pose& pose) {
+    const float f = right ? 1.0f : -1.0f;
+    Instance& in = Get(h.id);
+    Tick(in, t);
+    Color plate{190, 186, 176, 255}, plateDk = Tone(plate, -0.3f), iron{100, 100, 104, 255}, brass = Pal::Brass, copper{176, 104, 62, 255};
+    Color fire{255, 160, 70, 255}, lens{120, 230, 220, 255}, red{160, 40, 36, 255};
+    float flick = 0.7f + 0.3f * sinf(t * 13) * sinf(t * 5.1f);
+
+    Build b;
+    b.thigh = 38; b.shin = 38; b.upper = 27; b.fore = 26; b.spine = 25; b.chest = 29; b.neck = 5; b.head = 12;
+    b.shoulderW = 21; b.hipW = 8; b.stanceF = 17; b.stanceB = -16;
+    RPose P;
+    P[C_HIPY] = 5; P[C_LEAN] = 0.06f;
+    P[C_HFX] = 20; P[C_HFY] = 14; P[C_WEAPON] = -50;    // the baton raised, directing the line
+    P[C_HBX] = 12; P[C_HBY] = 36;                       // the clamp hand low
+    P = LayerHero(P, h, in, pose, walk, t, -60, nullptr);
+    // machines don't breathe: a mechanical tick in place of the idle sway
+    P[C_HEAD] += (fmodf(t * 0.5f + h.id, 3.0f) < 0.15f ? 0.12f : 0.0f);
+    Solved S = SolveHumanoid(b, P, ft, s, f);
+
+    bool jump = FollowWorld(in, s);
+    Vector2 anchors[1] = {S.Hips(-6, 2)};
+    if (jump || in.chains.size() != 1) {
+        in.chains.assign(1, Chain{});
+        in.chains[0].Init(anchors[0], 5, 6 * s, {0, 1}); in.chains[0].col = red; in.chains[0].width0 = 5; in.chains[0].width1 = 4; in.chains[0].stiff = 0.2f; // a red signal pennant at the hip
+    }
+    in.chains[0].Step(anchors[0], {-0.2f * f, 1}, in.dt, Current());
+
+    auto piston = [&](Vector2 a, Vector2 b2, float w, Color c) { // a limb: a cylinder with a bright piston rod along it
+        MLimb(a, b2, w * s, w * 0.85f * s, c, METAL);
+        Vector2 d{b2.x - a.x, b2.y - a.y}; float l = sqrtf(d.x * d.x + d.y * d.y) + 1e-3f; Vector2 n{-d.y / l, d.x / l};
+        MLimb({a.x + n.x * w * 0.9f * s, a.y + n.y * w * 0.9f * s}, {L2(a, b2, 0.7f).x + n.x * w * 0.9f * s, L2(a, b2, 0.7f).y + n.y * w * 0.9f * s}, 1.6f * s, 1.6f * s, Tone(plate, 0.3f), METAL);
+        MBall(a, w * 1.05f * s, brass, METAL);                                                                     // the joint
+    };
+
+    Parts parts;
+    parts.Add(-2.0f, [&] { // the clamp arm, behind
+        piston(S.p[SH_B], S.p[EL_B], 7.6f, plateDk);
+        piston(S.p[EL_B], S.p[WR_B], 6.6f, plateDk);
+        Vector2 hd = S.p[WR_B];
+        MBall(hd, 5.4f * s, iron, METAL);
+        MLimb(hd, Off(hd, 11, -4, s, f), 3.0f * s, 1.6f * s, iron, METAL);                                        // the clamp's two jaws
+        MLimb(hd, Off(hd, 11, 5, s, f), 3.0f * s, 1.6f * s, iron, METAL);
+    });
+    auto leg = [&](int hip, int kn, int an, Color col) {
+        piston(S.p[hip], S.p[kn], 9.4f, col);
+        piston(S.p[kn], S.p[an], 8.2f, col);
+        Vector2 heel = Off(S.p[an], -6, 2, s, f), toe = Off(S.p[an], 14, 4, s, f);
+        MQuad(Off(heel, 0, -5, s, f), Off(toe, -2, -3, s, f), Off(toe, 1, 6, s, f), Off(heel, -2, 6, s, f), iron, METAL); // a flat iron foot
+        for (int k = 0; k < 3; k++) MBall(Off(heel, 3 + k * 5.0f, 0, s, f), 1.2f * s, Tone(iron, 0.4f), METAL);
+    };
+    parts.Add(-1.6f, [&] { leg(HIP_B, KN_B, AN_B, plateDk); });
+    parts.Add(-1.0f, [&] { leg(HIP_F, KN_F, AN_F, plate); });
+    parts.Add(-0.5f, [&] { in.chains[0].Draw(s); });
+    // the boiler: a riveted drum, the furnace grille glowing, the gauge
+    parts.Add(0, [&] {
+        MLimb(S.Chest(0, -22), S.Hips(0, 2), 22 * s, 17 * s, plate, METAL);
+        for (int k = 0; k < 3; k++) { // copper bands round the drum
+            float u = 0.08f + k * 0.4f;
+            Vector2 c = L2(S.Chest(0, -20), S.Hips(0, 0), u);
+            float hw = 21 - k * 2.2f;
+            Vector2 d{S.Hips(0, 0).x - S.Chest(0, -20).x, S.Hips(0, 0).y - S.Chest(0, -20).y}; float l = sqrtf(d.x * d.x + d.y * d.y) + 1e-3f; Vector2 n{-d.y / l, d.x / l};
+            MLimb({c.x - n.x * hw * s, c.y - n.y * hw * s}, {c.x + n.x * hw * s, c.y + n.y * hw * s}, 2.6f * s, 2.6f * s, copper, METAL);
+        }
+        for (int k = 0; k < 8; k++) MBall(L2(S.Chest(-18, -8), S.Chest(18, -8), k / 7.0f), 1.2f * s, Tone(plate, 0.3f), METAL);
+        Vector2 gr = S.Hips(4, -10);                                                                              // the furnace grille
+        MQuad(Off(gr, -9, -6, s, f), Off(gr, 9, -6, s, f), Off(gr, 9, 6, s, f), Off(gr, -9, 6, s, f), Color{40, 20, 14, 255}, METAL);
+        for (int k = 0; k < 4; k++) DrawRectangleRec({std::min(Off(gr, -7 + k * 4.5f, -4, s, f).x, Off(gr, -5 + k * 4.5f, -4, s, f).x), Off(gr, 0, -4, s, f).y, 2.2f * s, 8 * s}, Fade(fire, flick));
+        Glow(gr, 30 * s, Fade(fire, 0.25f * flick));
+        Vector2 g = S.Chest(8, -12);                                                                              // the pressure gauge
+        MBall(g, 5.6f * s, brass, METAL);
+        MBall(g, 4.2f * s, Color{236, 230, 214, 255}, CLOTH);
+        float na = -2.2f + 1.4f * (0.5f + 0.5f * sinf(t * 0.9f + h.id)) + 0.08f * sinf(t * 17);
+        DrawLineEx(g, {g.x + cosf(na) * 3.6f * s * f, g.y + sinf(na) * 3.6f * s}, 1.0f * s, red);
+    });
+    // the head: a riveted dome, one lens eye, a chimney that puffs
+    parts.Add(0.5f, [&] {
+        MLimb(S.Chest(0, -24), S.Head(0, 6), 6 * s, 6 * s, iron, METAL);                                          // a jointed neck
+        MBall(S.p[HEAD], 12 * s, plate, METAL);
+        MQuad(S.Head(-11, 0), S.Head(12, 0), S.Head(11, 9), S.Head(-10, 9), plateDk, METAL);                     // the jaw plate
+        for (int k = 0; k < 4; k++) DrawLineEx(S.Head(-2 + k * 3.5f, 3), S.Head(-2 + k * 3.5f, 8), 1.0f * s, Tone(plate, -0.5f)); // its vents
+        Vector2 e = S.Head(6, -2);
+        MBall(e, 5 * s, brass, METAL);
+        MBall(e, 3.4f * s, in.face.Closed() ? Tone(lens, -0.6f) : lens, GLOW);                                    // the lens (it "blinks": a shutter)
+        Glow(e, 16 * s, Fade(lens, 0.2f));
+        MLimb(S.Head(-5, -10), S.Head(-7, -22), 3.2f * s, 3.6f * s, iron, METAL);                                // the chimney
+        for (int k = 0; k < 3; k++) { float ph = fmodf(t * 0.8f + k / 3.0f, 1.0f); DrawCircleV(S.Head(-8 - ph * 10, -25 - ph * 16), (2 + ph * 5) * s, Fade(Color{220, 220, 216, 255}, 0.35f * (1 - ph))); } // steam
+    });
+    // the baton arm, in front
+    parts.Add(1.0f, [&] {
+        piston(S.p[SH_F], S.p[EL_F], 8.0f, plate);
+        piston(S.p[EL_F], S.p[WR_F], 7.0f, plate);
+        float a = S.a[PROP];
+        Vector2 dir{cosf(a), sinf(a)};
+        auto W = [&](float along) { return Vector2{S.p[WR_F].x + dir.x * along * s, S.p[WR_F].y + dir.y * along * s}; };
+        MLimb(W(-4), W(30), 2.2f * s, 2.0f * s, Color{40, 36, 34, 255}, METAL);                                  // the signal baton
+        MBall(W(32), 3.2f * s, brass, METAL);
+        MBall(S.p[WR_F], 5.4f * s, Tone(brass, -0.2f), METAL);                                                     // a brass fist
+        MBall(S.p[SH_F], 9.4f * s, Tone(plate, 0.05f), METAL);                                                     // the shoulder dome
+        for (int k = 0; k < 5; k++) MBall(Off(S.p[SH_F], -7 + k * 3.5f, -5, s, f), 0.9f * s, Tone(plate, 0.35f), METAL);
+    });
+    parts.Draw();
+}
+
 // ============================================================================ THE LOST ONE CULTIST
 // Hooded, hovering over a turning rune circle; broken manacle chains hang from both wrists and a censer swings
 // from its cord (the signature idle: everything that hangs from it sways); robe rags trail below the hem; one

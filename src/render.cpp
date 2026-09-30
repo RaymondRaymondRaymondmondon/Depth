@@ -1186,6 +1186,8 @@ void DrawCrewFigure(const Hero& h, Vector2 ft, float s, bool right, float walk, 
     if (h.cls == HeroClass::Stowaway && h.outfit < 0) { DrawRigStowaway(h, ft, s, right, walk, t, pose); return; }
     if (h.cls == HeroClass::Merman && h.outfit < 0) { DrawRigMerman(h, ft, s, right, walk, t, pose); return; }
     if (h.cls == HeroClass::Octopus && h.outfit < 0) { DrawRigOctopus(h, ft, s, right, walk, t, pose); return; }
+    if (h.cls == HeroClass::Queen && h.outfit < 0) { DrawRigQueen(h, ft, s, right, walk, t, pose); return; }
+    if (h.cls == HeroClass::Robot && h.outfit < 0) { DrawRigRobot(h, ft, s, right, walk, t, pose); return; }
     float f = right ? 1.0f : -1.0f, x = ft.x;
     int seed = h.id * 7919 + 13;
     const Color skins[4] = {{226, 186, 152, 255}, {198, 150, 112, 255}, {160, 110, 78, 255}, {108, 74, 52, 255}};
