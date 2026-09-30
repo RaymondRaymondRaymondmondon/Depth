@@ -173,6 +173,15 @@ struct Match {
     std::vector<Polyp> polyps;               // the Anemone Gun's rooted polyps
     std::vector<int> pod; bool podSpawned = false; float breathT = 0;   // the Matriarch's pod and her breath cycle
     void BeatDrum(int d);
+    // stage 9: the dossier (a page for every beast, flora and the faction, earned by a kill or 30 s of watching) and
+    // what the arcade profile pays for at the match's end
+    std::set<std::string> dossierSeen;
+    std::map<std::string, float> watchT;
+    float dossierTick = 0, forgeAt = -1;
+    bool bossKilled = false, questDone = false;
+    std::vector<std::string> bonusEarned;
+    std::string DossierName(int agent) const;   // the page an agent belongs to (a faction unit: the faction's page)
+    void UpdateDossier(float dt);
     // Atlantis
     struct Ichor { Vector3 pos; float t = 60; };
     std::vector<Ichor> ichor;                // dead Lost Ones' black ichor: repels the apex beasts, draws scavengers
@@ -302,6 +311,7 @@ struct Match {
 
 int RunRedTideSim(const std::string& mapKey, int tides, const std::string& style, int runs, int players);
 int RunRedTideMatchTest();
+int RunRedTideProfileTest();              // depth.exe --redtide-profile-test
 int RunRedTideMapTest(const std::string& key);
 
 } // namespace rt

@@ -932,8 +932,9 @@ void Ecosystem::Move(Agent& a, int idx, float dt) {
                     if (ci >= 0) { a.target = ci; a.targetCorpse = true; a.st = State::Feed; a.eatT = eng->CBy("eat_time_s", ps.size - 1, 5); corpses[ci].feeders++; }
                     if (s.tier >= 3) Event(s.name + " takes a " + ps.name);
                 } else {
-                    Damage(a.target, dmg, idx);
-                    if (!agents[a.target].alive && a.st == State::Hunt) {
+                    int tgt = a.target;
+                    Damage(tgt, dmg, idx);                      // (a diver's hit hook may drop the hunter's target)
+                    if (tgt >= 0 && tgt < (int)agents.size() && !agents[tgt].alive && a.st == State::Hunt) {
                         int ci = (int)corpses.size() - 1;
                         if (ci >= 0) { a.target = ci; a.targetCorpse = true; a.st = State::Feed; a.eatT = eng->CBy("eat_time_s", ps.size - 1, 5); }
                     }

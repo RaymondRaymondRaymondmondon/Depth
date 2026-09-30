@@ -1876,6 +1876,9 @@ void SceneArcade(Game& g) {
         if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), rtR)) rtMap = (rtMap + 1) % RT_N;
         if (IsKeyPressed(KEY_LEFT)) rtMap = (rtMap + RT_N - 1) % RT_N;
         if (IsKeyPressed(KEY_RIGHT)) rtMap = (rtMap + 1) % RT_N;
+        // the arcade profile's pages, down the cabinet's left side
+        static const char* PAGES[] = {"Dossier", "Records", "How to play", "Charm pouch", "Locker room"};
+        for (int k = 0; k < 5; k++) if (Button({40, 250 + k * 58.0f, 200, 44}, PAGES[k], true, 18)) { OpenRedTidePage(g, k + 1); return; }
     }
     const char* valves[3] = {"Host", "Join", "Browse"};
     for (int k = 0; k < 3; k++) {

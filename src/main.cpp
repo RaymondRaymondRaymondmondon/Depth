@@ -208,6 +208,12 @@ static void TakeShots(const Game& base, const std::string& dir) {
         {"redtide_void_vault", [](Game& g) { DebugRedTideShot(g, 53); }},
         {"redtide_void_warrens", [](Game& g) { DebugRedTideShot(g, 54); }},
         {"redtide_void_overlook", [](Game& g) { DebugRedTideShot(g, 55); }},
+        {"redtide_page_dossier", [](Game& g) { rt::DebugRedTidePage(1, 0, 6); g.scene = Scene::RedTide; }},
+        {"redtide_page_dossier_locked", [](Game& g) { rt::DebugRedTidePage(1, 2, 1); g.scene = Scene::RedTide; }},
+        {"redtide_page_records", [](Game& g) { rt::DebugRedTidePage(2, 0, -1); g.scene = Scene::RedTide; }},
+        {"redtide_page_howto", [](Game& g) { rt::DebugRedTidePage(3, 0, -1); g.scene = Scene::RedTide; }},
+        {"redtide_page_charms", [](Game& g) { rt::DebugRedTidePage(4, 0, -1); g.scene = Scene::RedTide; }},
+        {"redtide_page_locker", [](Game& g) { rt::DebugRedTidePage(5, 0, -1); g.scene = Scene::RedTide; }},
         {"panel_ward", [](Game& g) { g.scene = Scene::Ward; Hero& h = g.roster[1]; g.selectedHero = h.id; h.hp = h.hp / 2; h.ailments = (1u << AIL_SALT_ROT) | (1u << AIL_BENDS); h.habits = (1u << HB_STEADY_HANDS) | (1u << HB_NIGHT_EYES) | (1u << HB_JUMPY); h.habitLocked = 1u << HB_NIGHT_EYES; g.gold = 400; }},
         {"panel_sickbay", [](Game& g) { g.scene = Scene::SickLeave; }},
         {"flats_menu", [](Game& g) { g.scene = Scene::Cards; }},
@@ -573,6 +579,10 @@ int main(int argc, char** argv) {
     if (argc >= 3 && strcmp(argv[1], "--redtide-map-test") == 0) {
         SetTraceLogLevel(LOG_WARNING);
         return rt::RunRedTideMapTest(argv[2]);
+    }
+    if (argc >= 2 && strcmp(argv[1], "--redtide-profile-test") == 0) {
+        SetTraceLogLevel(LOG_WARNING);
+        return rt::RunRedTideProfileTest();
     }
     if (argc >= 2 && strcmp(argv[1], "--redtide-match-test") == 0) {
         SetTraceLogLevel(LOG_WARNING);

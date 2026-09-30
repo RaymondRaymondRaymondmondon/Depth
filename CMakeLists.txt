@@ -43,7 +43,7 @@ add_executable(depth
     src/beasts_biomes.cpp src/beasts_hull.cpp src/beasts_pirate.cpp src/beasts_cave.cpp src/beasts_island.cpp src/beasts_weeds.cpp src/beasts_atlantis.cpp src/dossier.cpp src/sound.cpp src/sound_parkour.cpp src/pixelart.cpp src/beastart.cpp
     src/rig.cpp src/rig_clips.cpp src/rigfigs.cpp src/chart.cpp src/combatfx.cpp src/input.cpp src/menu.cpp
     src/json.cpp src/redtide_data.cpp src/redtide_eco.cpp src/redtide_tools.cpp src/redtide_render.cpp src/redtide_game.cpp
-    src/redtide_match.cpp
+    src/redtide_match.cpp src/redtide_profile.cpp src/redtide_menu.cpp
 )
 target_link_libraries(depth PRIVATE raylib)
 

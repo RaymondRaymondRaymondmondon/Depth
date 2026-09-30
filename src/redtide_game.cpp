@@ -4,6 +4,7 @@
 #include "redtide.h"
 #include "redtide_match.h"
 #include "redtide_render.h"
+#include "redtide_profile.h"
 #include "game.h"
 #include "raymath.h"
 #include <algorithm>
@@ -13,6 +14,7 @@
 
 namespace rt {
 
+bool RedTidePageFrame(Game& g, float t);
 struct Particle { Vector3 pos, vel; float life, max; Color col; float size; };
 struct RoomBox { Vector3 c, half; Color col; };
 
@@ -31,6 +33,7 @@ struct RedTideScene {
     int lineup = -1;               // --shots: every species of the Ship posed in rows (page number)
     int lastZone = -1; float zoneT = 0;
     float bob = 0;
+    bool awarded = false; int awardTokens = 0; std::vector<std::string> awardLines;   // the arcade profile's pay for the match
 };
 static RedTideScene S;
 
@@ -975,7 +978,7 @@ static void DrawHud() {
     if (d.dead && !m.over) DrawTextCenteredBold("Bled out: back at the next tide", cx, cy - 80, 26, paper);
     if (m.over) {
         DrawRectangle(0, 0, SCREEN_W, SCREEN_H, Fade(BLACK, 0.55f));
-        Rectangle p{cx - 260, cy - 150, 520, 300};
+        Rectangle p{cx - 300, cy - 230, 600, 460};
         DrawRectangleRounded(p, 0.05f, 6, Color{30, 26, 22, 240});
         DrawRectangleRoundedLines(p, 0.05f, 6, brass);
         DrawTextCenteredBold("THE RED TIDE TAKES YOU", cx, p.y + 24, 26, Color{220, 90, 70, 255});
@@ -988,6 +991,9 @@ static void DrawHud() {
         int eaten = 0; for (const auto& kv : m.eco.eatenBy) eaten += kv.second;
         row("Beasts eaten by beasts", TextFormat("%d", eaten));
         row("Time", TextFormat("%d:%02d", (int)m.time / 60, (int)m.time % 60));
+        y += 8;
+        TxtBold(TextFormat("Arcade tokens: %d", S.awardTokens), p.x + 40, y, 18, brass); y += 26;
+        for (size_t k = 0; k < S.awardLines.size() && k < 7; k++) { Txt(S.awardLines[k], p.x + 56, y, 14, Fade(paper, 0.85f)); y += 19; }
         DrawTextCentered("Enter: dive again     Esc: leave the match", cx, p.y + p.height - 34, 15, Fade(paper, 0.8f));
     }
     if (S.mode == 1 && m.time < 12 && !S.shotMode)
@@ -1002,7 +1008,7 @@ static std::string gRtMap = "ship";
 void StartRedTide(Game& g, const char* map) {
     gRtMap = map ? map : "ship";
     StartShip(1, (uint32_t)GetRandomValue(1, 1 << 30), gRtMap);
-    S.shotMode = false;
+    S.shotMode = false; S.awarded = false; S.awardLines.clear(); S.awardTokens = 0;
     S.silhouette = 0;
     S.lineup = -1;
     DisableCursor();
@@ -1010,6 +1016,7 @@ void StartRedTide(Game& g, const char* map) {
 }
 
 void SceneRedTide(Game& g) {
+    if (RedTidePageFrame(g, (float)GetTime())) return;   // an arcade page (the dossier, records, ...)
     if (!S.active || !S.m) { StartRedTide(g, gRtMap.c_str()); return; }
     if (S.mode == 1 && !S.levelReady && IsWindowReady()) BuildLevelModel();
     float dt = std::min(GetFrameTime(), 1 / 30.0f);
@@ -1021,6 +1028,14 @@ void SceneRedTide(Game& g) {
         if (S.mode == 0) { m.phase = TidePhase::Calm; m.phaseT = -1e9f; }   // the tank never tides
         m.Step(dt);
         DrainFx();
+        if (m.over && !S.awarded && !S.shotMode && S.mode == 1) {
+            // the match's end: the profile's tokens, records, milestone charms and the dossier pages earned
+            S.awarded = true;
+            MatchSummary ms; ms.map = gRtMap; ms.tide = m.tide; ms.scrip = Me().scripEarned; ms.timeS = m.time; ms.forgeAtS = m.forgeAt;
+            ms.bossKilled = m.bossKilled; ms.questDone = m.questDone;
+            ms.pages.assign(m.dossierSeen.begin(), m.dossierSeen.end()); ms.bonusPages = m.bonusEarned;
+            S.awardLines = AwardMatch(ms, &S.awardTokens);
+        }
         if (m.over && !S.shotMode && IsKeyPressed(KEY_ENTER)) { StartRedTide(g, gRtMap.c_str()); return; }
         DiverState& d = Me();
         S.bob += Vector3Length(d.vel) * dt * 2.2f;

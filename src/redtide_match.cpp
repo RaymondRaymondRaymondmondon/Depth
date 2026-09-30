@@ -2,6 +2,8 @@
 // scrip, health, downs and revives, doors and power, drops, Hunts), "Weapons" and "Weapon handling", "Davy's Locker",
 // "The Pressure Forge", "Tonics", "Enemy factions" and the Sunken Ship's boss sheet; numbers from data/redtide.
 #include "redtide_match.h"
+#include "redtide_profile.h"
+#include <cstdio>
 #include "raymath.h"
 #include <algorithm>
 #include <cctype>
@@ -570,6 +572,7 @@ void Match::Step(float dt) {
     UpdateReef(dt);
     UpdateAtlantis(dt);
     UpdateVoid(dt);
+    UpdateDossier(dt);
     UpdateDrops(dt);
     for (auto& c : crates) {
         c.t -= dt;
@@ -1319,6 +1322,8 @@ void Match::OnDeath(int ai, int killer) {
     int di = DiverOfAgent(killer);
     if (di < 0 && killer == -1 && pendingKiller >= 0) di = pendingKiller;
     if (ai == bossAgent) {
+        bossKilled = true;
+        if (di >= 0 && !divers[di].bot) dossierSeen.insert(s.name);
         // "Kill reward: 1,500 base scrip x tide, a guaranteed Locker weapon for each diver, the captain's safe key"
         for (auto& d : divers) if (!d.dead) {
             Pay(d, 1500.0f * tide * (supperCall ? 2 : 1));
@@ -1359,6 +1364,7 @@ void Match::OnDeath(int ai, int killer) {
         auto it = map->faction.barks.find("death");
         if (it != map->faction.barks.end() && !it->second.empty() && Rand() < 0.4f) Say(map->faction.speciesName, it->second[(int)(Rand() * it->second.size()) % it->second.size()], 3);
     }
+    if (di >= 0 && !divers[di].bot && dossierSeen.insert(DossierName(ai)).second) Say("", "Dossier: " + DossierName(ai), 2);
     if (di < 0) return;                                      // eaten or killed by the reef: no scrip, not the quota
     DiverState& d = divers[di];
     float bounty;
@@ -2451,6 +2457,8 @@ void Match::QuestAdvance(int c, DiverState* d) {
     questAt[c]++;
     if (questAt[c] <= q["last"].I()) return;
     std::string rw = q["reward"].Str0();
+    questDone = true;
+    if (rw == "void") bonusEarned.push_back("finallog");
     if (rw == "wonder" && d) { GiveWeapon(*d, WonderIdx()); d->lastKill = "The " + W(Cur(*d)).name; d->lastKillT = 4; }
     if (rw == "void") {
         // the final log: the Abyssal Lure (Forged) for the one who dropped the ledge, 5,000 split, and what the station bred
@@ -2702,6 +2710,43 @@ void Match::UpdateAtlantis(float dt) {
         if (holdT >= st["seconds"].F(45)) { holdT = 0; QuestAdvance(c, in); }
     }
     for (auto& d : divers) if (d.downed && d.spark) { d.spark = false; Say("", "The spark's jar breaks", 2); }
+}
+
+// ---------------------------------------------------------------- the dossier
+std::string Match::DossierName(int ai) const {
+    const Species& s = map->species[eco.agents[ai].sp];
+    if (s.isEnemy) return map->faction.name.empty() ? map->faction.speciesName : map->faction.name;
+    return s.name;
+}
+
+void Match::UpdateDossier(float dt) {
+    // a page for every beast, flora and the faction: killed, or watched for 30 s in all (in sight within 25 m; flora
+    // within 12 m)
+    dossierTick += dt;
+    if (dossierTick < 0.5f) return;
+    float step = dossierTick; dossierTick = 0;
+    std::set<std::string> seenNow;
+    for (const auto& d : divers) {
+        if (d.dead || d.downed || d.bot) continue;             // (the profile is the human diver's)
+        for (int i = 0; i < (int)eco.agents.size(); i++) {
+            const Agent& a = eco.agents[i];
+            if (!a.alive || a.diver >= 0 || Vector3Distance(a.pos, d.pos) > 25) continue;
+            std::string n = DossierName(i);
+            if (dossierSeen.count(n) || seenNow.count(n)) continue;
+            if (!level.Sight(Eye(d), a.pos, linkOpen, true)) continue;
+            seenNow.insert(n);
+        }
+        for (const auto& fp : eco.flora) {
+            if (fp.units <= 0 || Vector3Distance(fp.pos, d.pos) > 12) continue;
+            const std::string& n = map->flora[fp.flora].name;
+            if (!dossierSeen.count(n)) seenNow.insert(n);
+        }
+    }
+    for (const auto& n : seenNow) {
+        float& t = watchT[n];
+        t += step;
+        if (t >= 30) { dossierSeen.insert(n); Say("", "Dossier: " + n, 2); }
+    }
 }
 
 // ---------------------------------------------------------------- Approaching the Void
@@ -3332,6 +3377,7 @@ bool Match::Interact(int di, bool hold, float dt) {
             if (w.source == "drop" || d.harpoonHour) return false;
             if (!pay(ForgePrice(h))) return false;
             h.forged = true;
+            if (forgeAt < 0) forgeAt = time;
             h.altAmmo = (int)(Rand() * WD.forgeAmmoTypes.size()) % std::max(1, (int)WD.forgeAmmoTypes.size());
             h.mag = (int)MagMax(w, h); h.reserve = (int)ResMax(w, h);
             Say("The Pressure Forge", (w.forged.empty() ? w.name + " (forged)" : w.forged) + ", with " + (WD.forgeAmmoTypes.empty() ? "" : WD.forgeAmmoTypes[h.altAmmo]) + " rounds", 4);
@@ -3484,20 +3530,20 @@ bool Match::Interact(int di, bool hold, float dt) {
             if (map->extra["quest_altar"].IsObj()) {
                 const Json& qa = map->extra["quest_altar"];
                 if (safeOpen || s.name != qa["poi"].Str0() || d.drumUses <= 0) return false;
-                safeOpen = true; d.drumUses = 0;
+                safeOpen = true; d.drumUses = 0; questDone = true;
                 for (auto& o : divers) if (!o.dead) Pay(o, qa["reward_scrip"].F(2500));
                 Say("", qa["text"].Str0(), 6);
                 return true;
             }
             if (safeOpen || keys.size() < 3) return false;
-            safeOpen = true;
+            safeOpen = true; questDone = true; bonusEarned.push_back("owners");
             for (auto& o : divers) if (!o.dead) { Pay(o, 2500); if (!o.downed) GiveLockerWeapon(o); }
             Say("The captain's safe", "swings open: salvage for everyone", 5);
             return true;
         case StationType::Cache: {
             const Json& bk = map->extra["boss_key"];
             if (cacheOpen || !keys.count(bk["key"].Str0())) return false;
-            cacheOpen = true;
+            cacheOpen = true; questDone = true; bonusEarned.push_back("expedition");
             int wi = Weapons().Index(WonderId());
             if (wi >= 0) GiveWeapon(d, wi);
             Say("", bk["text"].Str0(), 5);
@@ -4919,4 +4965,53 @@ int RunRedTideMapTest(const std::string& key) {
     return fails ? 1 : 0;
 }
 
+} // namespace rt
+
+namespace rt {
+// depth.exe --redtide-profile-test: the arcade profile (tokens, ranks, unlocks, records, save and load) and the
+// dossier's pages (a kill, 30 s of watching). The real profile file is set aside and put back.
+int RunRedTideProfileTest() {
+    int fails = 0;
+    auto check = [&](bool ok, const std::string& what) { printf("  %s  %s\n", ok ? "ok  " : "FAIL", what.c_str()); if (!ok) fails++; };
+    printf("Red Tide profile test\n");
+    std::string path = ProfilePath(), bak = path + ".testbak";
+    bool had = FileExists(path.c_str());
+    if (had) std::rename(path.c_str(), bak.c_str());
+    LoadProfile();
+    Profile& p = GetProfile();
+    check(p.tokens == 0 && p.Rank() == 1 && p.PouchSlots() == 1 && p.charms.empty(), "a new profile: rank 1, no tokens, one pouch slot, no charms");
+    MatchSummary s; s.map = "ship"; s.tide = 12; s.scrip = 9000; s.timeS = 1500; s.bossKilled = true; s.pages = {"Bilge Sprat", "Goliath Grouper"};
+    int tok = 0; auto lines = AwardMatch(s, &tok);
+    check(tok == 10 + 25 + 4 + 30, TextFormat("a tide-12 match with a first boss kill pays %d tokens (10 + 25 + 2 x 2 + 30)", tok));
+    check(p.bestTide["ship"] == 12 && p.dossier.count("ship|Bilge Sprat"), "its record and its dossier pages are kept");
+    tok = 0; AwardMatch(s, &tok);
+    check(tok == 39, "the first-boss bonus pays once");
+    check(p.Rank() == 1 && p.earned == 108, TextFormat("108 tokens earned: rank %d (rank 2 at 151)", p.Rank()));
+    s.tide = 16; AwardMatch(s, &tok);
+    check(p.Rank() == 2 && p.charms.count("brines") && p.charms.count("locker"), "rank 2 unlocks Keep Your Brines; tide 15 brings Lucky Locker");
+    p.pouch = {"brines"}; p.suit = "verdigris"; SaveProfile();
+    LoadProfile();
+    Profile& q = GetProfile();
+    check(q.tokens == p.tokens && q.pouch.size() == 1 && q.suit == "verdigris" && q.dossier.count("ship|Goliath Grouper") && q.bestTide["ship"] == 16, "saved and loaded intact");
+    std::remove(path.c_str());
+    if (had) std::rename(bak.c_str(), path.c_str());
+    LoadProfile();
+    // the dossier in a match
+    auto M = std::make_unique<Match>();
+    Match& m = *M;
+    m.Init("ship", 1, 9, false);
+    DiverState& d = m.divers[0]; d.invulnerable = true;
+    int prey = -1;
+    for (int i = 0; i < (int)m.eco.agents.size(); i++) { const Agent& a = m.eco.agents[i]; if (a.alive && a.diver < 0 && !m.map->species[a.sp].isEnemy && !m.IsBoss(i)) { prey = i; break; } }
+    std::string n = m.map->species[m.eco.agents[prey].sp].name;
+    m.HitAgentPublic(0, prey, 1e6f);
+    check(m.dossierSeen.count(n), "a kill writes the beast's dossier page: " + n);
+    int watch = -1;
+    for (int i = 0; i < (int)m.eco.agents.size(); i++) { const Agent& a = m.eco.agents[i]; if (a.alive && a.diver < 0 && !m.map->species[a.sp].isEnemy && !m.IsBoss(i) && !m.dossierSeen.count(m.map->species[a.sp].name)) { watch = i; break; } }
+    std::string wn = m.map->species[m.eco.agents[watch].sp].name;
+    for (int k = 0; k < 20 * 31; k++) { m.eco.agents[watch].pos = Vector3Add(d.pos, {0, 0.2f, 3}); m.eco.agents[watch].zone = d.zone; m.Step(0.05f); m.phase = TidePhase::Calm; }
+    check(m.dossierSeen.count(wn), "30 s of watching writes one too: " + wn);
+    printf(fails ? "redtide-profile-test: %d check(s) failed\n" : "redtide-profile-test: all checks passed\n", fails);
+    return fails ? 1 : 0;
+}
 } // namespace rt
