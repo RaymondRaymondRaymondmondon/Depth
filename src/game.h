@@ -632,6 +632,7 @@ void DrawRigRobot(const Hero& h, Vector2 feet, float s, bool faceRight, float wa
 void DrawRigSiren(const Hero& h, Vector2 feet, float s, bool faceRight, float walk, float t, const Pose& pose);
 void DrawRigWisp(const Hero& h, Vector2 feet, float s, bool faceRight, float walk, float t, const Pose& pose);
 void DrawRigCultist(const Enemy& e, Rectangle r, float t);
+void DrawRigLostDiver(const Enemy& e, Rectangle r, float t);
 void RigSetActing(int clip, float t);
 void RigGetActing(int* clip, float* t);
 void RigAfterInk(std::function<void()> fn);   // rigfigs.cpp: light a figure paints over itself after the ink pass

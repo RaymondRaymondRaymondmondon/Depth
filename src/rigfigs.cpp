@@ -1537,6 +1537,111 @@ void DrawRigWisp(const Hero& h, Vector2 ft, float s, bool right, float walk, flo
     (void)walk;
 }
 
+// ============================================================================ THE LOST DIVER (the Cave's mini-boss)
+// A diver who never came up: a bloated, waterlogged canvas suit crusted with barnacles, lead boots, a great brass
+// helmet whose cracked faceplate leaks a sick yellow light, the cut air hose trailing from his back, and an anchor
+// swung on a length of chain from his fist: at rest it hangs and sways; on a strike the arm heaves and the chain
+// whips it round.
+void DrawRigLostDiver(const Enemy& e, Rectangle r, float t) {
+    const float f = -1.0f;
+    float s = r.height / 185.0f;
+    Vector2 ft{r.x + r.width / 2, r.y + r.height};
+    Instance& in = Get(1000000 + e.uid);
+    Tick(in, t);
+    Color suit{96, 110, 92, 255}, suitDk = Tone(suit, -0.28f), brass{140, 106, 60, 255}, iron{72, 74, 76, 255}, rust{146, 84, 46, 255};
+    Color glow{255, 214, 100, 255}, rubber{40, 38, 34, 255}, coral{184, 96, 84, 255}, kelp{50, 100, 64, 255};
+    float pulse = 0.5f + 0.5f * sinf(t * 3 + e.uid);
+
+    Build b;
+    b.thigh = 40; b.shin = 38; b.upper = 29; b.fore = 28; b.spine = 27; b.chest = 30; b.neck = 5; b.head = 13;
+    b.shoulderW = 24; b.hipW = 10; b.stanceF = 18; b.stanceB = -16;
+    RPose P;
+    P[C_HIPY] = 10; P[C_LEAN] = 0.2f; P[C_CHEST] = 0.1f; P[C_HEAD] = 0.15f;   // slumped under the weight of the water
+    P[C_HFX] = 26; P[C_HFY] = 30;                                             // the anchor held out before him, hanging from its chain
+    P[C_HBX] = 6; P[C_HBY] = 40;
+    P += GetClip(CL_BREATHE).Sample(t * 0.6f + e.uid);
+    P[C_HEAD] += sinf(t * 0.5f + e.uid) * 0.06f;
+    if (gActClip >= 0) P += GetClip(gActClip).Sample(gActT);
+    if (in.reaction >= 0) P += GetClip(in.reaction).Sample(in.reactT);
+    Solved S = SolveHumanoid(b, P, ft, s, f);
+
+    // chains: the anchor's chain from the fist, the cut hose from the helmet, a strand of kelp from the shoulder
+    bool jump = FollowWorld(in, s);
+    Vector2 anchors[3] = {S.p[WR_F], S.Head(-10, 4), S.Chest(-18, -20)};
+    if (jump || in.chains.size() != 3) {
+        in.chains.assign(3, Chain{});
+        in.chains[0].Init(anchors[0], 7, 8 * s, {0, 1}); in.chains[0].mat = METAL; in.chains[0].col = iron; in.chains[0].width0 = in.chains[0].width1 = 2.4f; in.chains[0].stiff = 0.02f; in.chains[0].damp = 0.985f; in.chains[0].grav = 700;
+        in.chains[1].Init(anchors[1], 6, 7 * s, {0.4f, 1}); in.chains[1].mat = WET; in.chains[1].col = rubber; in.chains[1].width0 = in.chains[1].width1 = 3.4f; in.chains[1].stiff = 0.05f; in.chains[1].grav = 320;
+        in.chains[2].Init(anchors[2], 5, 6 * s, {0.2f, 1}); in.chains[2].mat = WET; in.chains[2].col = kelp; in.chains[2].width0 = 3.6f; in.chains[2].width1 = 1.2f; in.chains[2].stiff = 0.1f; in.chains[2].grav = 160;
+    }
+    Vector2 cur = Current();
+    in.chains[0].Step(anchors[0], {0, 1}, in.dt, {cur.x + sinf(t * 1.1f + e.uid) * 500, cur.y});   // the anchor sways
+    in.chains[1].Step(anchors[1], {0.4f, 1}, in.dt, cur);
+    in.chains[2].Step(anchors[2], {0.2f, 1}, in.dt, cur);
+
+    Parts parts;
+    parts.Add(-3.0f, [&] { in.chains[1].Draw(s); Vector2 tip = in.chains[1].Tip(); MBall(tip, 3.4f * s, rubber, WET); DrawCircleV(tip, 1.6f * s, Color{20, 16, 14, 255}); }); // the cut hose
+    parts.Add(-2.0f, [&] { // the far arm, limp
+        MLimb(S.p[SH_B], S.p[EL_B], 12 * s, 11 * s, suitDk, CLOTH);
+        MLimb(S.p[EL_B], S.p[WR_B], 11 * s, 9.5f * s, suitDk, CLOTH);
+        MBall(S.p[WR_B], 8 * s, Tone(suitDk, -0.1f), CLOTH);
+    });
+    auto leg = [&](int hip, int kn, int an, Color col) {
+        MLimb(S.p[hip], S.p[kn], 15 * s, 13 * s, col, CLOTH);               // legs like sacks of water
+        MLimb(S.p[kn], S.p[an], 13 * s, 11 * s, col, CLOTH);
+        MLimb(S.Along(kn, an, 0.55f, 0), S.p[an], 12 * s, 12 * s, iron, METAL);
+        Vector2 heel = Off(S.p[an], -6, 2, s, f), toe = Off(S.p[an], 15, 4, s, f);
+        MLimb(heel, toe, 10 * s, 9 * s, iron, METAL);
+        MLimb(Off(heel, -2, 8, s, f), Off(toe, 3, 8, s, f), 3 * s, 3 * s, Tone(iron, -0.4f), METAL);
+    };
+    parts.Add(-1.6f, [&] { leg(HIP_B, KN_B, AN_B, suitDk); });
+    parts.Add(-1.0f, [&] { leg(HIP_F, KN_F, AN_F, suit); });
+    parts.Add(0, [&] { // the bloated torso, the lead-weight belt, barnacles, the corroded chest valve
+        MBall(S.Chest(0, -8), 34 * s, suit, CLOTH);
+        MQuad(S.Chest(-26, -2), S.Chest(26, -2), S.Hips(20, 4), S.Hips(-20, 4), suit, CLOTH);
+        for (int k = 0; k < 3; k++) DrawRing(S.Chest(-10 + k * 4.0f, 4 + k * 8.0f), 14 * s, 15.5f * s, 200, 340, 12, Fade(Color{20, 24, 18, 255}, 0.5f)); // wrinkles
+        MQuad(S.Hips(-22, -8), S.Hips(22, -8), S.Hips(21, 2), S.Hips(-21, 2), Color{80, 60, 40, 255}, WET);
+        for (int k = 0; k < 4; k++) MQuad(S.Hips(-18 + k * 10.0f, -7), S.Hips(-11 + k * 10.0f, -7), S.Hips(-11 + k * 10.0f, 1), S.Hips(-18 + k * 10.0f, 1), iron, METAL);
+        MBall(S.Chest(10, -10), 8 * s, brass, METAL); MBall(S.Chest(10, -10), 4.4f * s, Tone(glow, -0.45f), GLOW);
+        for (int k = 0; k < 7; k++) { Vector2 bp = S.Chest(-20 + (k * 37 % 40), -20 + (k * 23 % 34)); DrawTri({bp.x - 3 * s, bp.y + 3 * s}, {bp.x + 3 * s, bp.y + 3 * s}, {bp.x, bp.y - 4 * s}, Color{218, 206, 182, 255}); } // barnacles
+    });
+    parts.Add(0.3f, [&] { in.chains[2].Draw(s); });
+    parts.Add(0.5f, [&] { // the great brass helmet, its faceplate cracked and leaking light, coral on the crown
+        MLimb(S.Chest(-18, -28), S.Chest(18, -28), 7 * s, 7 * s, Tone(brass, -0.25f), METAL);
+        MBall(S.Head(0, 2), 25 * s, brass, METAL);
+        for (int k = 0; k < 8; k++) MBall({S.Head(0, 2).x + cosf(k * PI / 4) * 21 * s, S.Head(0, 2).y + sinf(k * PI / 4) * 21 * s}, 1.8f * s, Tone(brass, -0.4f), METAL);
+        DrawCircleV(S.Head(-8, 8), 3 * s, Fade(rust, 0.9f)); DrawCircleV(S.Head(10, -12), 2.4f * s, Fade(rust, 0.9f));
+        Vector2 port = S.Head(10, 2);
+        MBall(port, 14 * s, Tone(brass, -0.3f), METAL);
+        MBall(port, 11 * s, Color{20, 18, 12, 255}, WET);
+        DrawLineEx(Off(port, -6, -8, s, f), Off(port, 4, 6, s, f), 1.6f * s, Fade(glow, 0.9f));
+        DrawLineEx(Off(port, 2, -9, s, f), Off(port, -2, 3, s, f), 1.3f * s, Fade(glow, 0.8f));
+        Glow(port, 50 * s, Fade(glow, 0.16f + 0.12f * pulse));
+        for (int k = 0; k < 3; k++) DrawTri(S.Head(-8 + k * 6.0f, -20), S.Head(-3 + k * 6.0f, -20), S.Head(-5.5f + k * 6.0f, -32 - (k % 2) * 6.0f), coral);
+    });
+    parts.Add(1.0f, [&] { // the anchor arm, the chain and the anchor at its end
+        MLimb(S.p[SH_F], S.p[EL_F], 13 * s, 12 * s, suit, CLOTH);
+        MLimb(S.p[EL_F], S.p[WR_F], 12 * s, 10 * s, suit, CLOTH);
+        const Chain& c = in.chains[0];
+        for (size_t k = 0; k < c.p.size(); k++) DrawRing(c.p[k], 2.6f * s, 4 * s, 0, 360, 10, iron);
+        for (size_t k = 1; k < c.p.size(); k++) DrawLineEx(c.p[k - 1], c.p[k], 1.6f * s, Tone(iron, -0.3f));
+        Vector2 tip = c.Tip(), pre = c.p[c.p.size() - 2];
+        Vector2 d{tip.x - pre.x, tip.y - pre.y}; float l = sqrtf(d.x * d.x + d.y * d.y) + 1e-3f; d = {d.x / l, d.y / l};
+        Vector2 n{-d.y, d.x};
+        auto A = [&](float along, float side) { return Vector2{tip.x + d.x * along * s + n.x * side * s, tip.y + d.y * along * s + n.y * side * s}; };
+        DrawRing(A(4, 0), 4 * s, 6.5f * s, 0, 360, 12, iron);                                   // the ring
+        MLimb(A(8, 0), A(52, 0), 4 * s, 4.6f * s, iron, METAL);                                 // the shank
+        MLimb(A(16, -18), A(16, 18), 3.6f * s, 3.6f * s, iron, METAL);                          // the stock
+        MLimb(A(52, 0), A(40, -22), 4.6f * s, 2.4f * s, Tone(iron, 0.1f), METAL);               // the arms, curling up to the flukes
+        MLimb(A(52, 0), A(40, 22), 4.6f * s, 2.4f * s, Tone(iron, 0.1f), METAL);
+        DrawTri(A(40, -22), A(33, -28), A(44, -16), Tone(iron, 0.15f)); DrawTri(A(40, 22), A(33, 28), A(44, 16), Tone(iron, 0.15f));
+        for (int k = 0; k < 3; k++) DrawCircleV(A(30 + k * 8.0f, 3), 2.2f * s, Color{218, 206, 182, 255});   // barnacles on it
+        MBall(S.p[WR_F], 9.5f * s, Tone(suit, 0.05f), CLOTH);                                   // the fist round the chain
+        MBall(S.p[SH_F], 14 * s, Tone(suit, 0.04f), CLOTH);
+    });
+    parts.Draw();
+}
+
 // ============================================================================ THE LOST ONE CULTIST
 // Hooded, hovering over a turning rune circle; broken manacle chains hang from both wrists and a censer swings
 // from its cord (the signature idle: everything that hangs from it sways); robe rags trail below the hem; one

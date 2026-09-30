@@ -10,6 +10,7 @@
 // ============================================================================
 #include "game.h"
 #include "rig.h"
+#include "ik.h"
 #include <algorithm>
 #include <cmath>
 
@@ -30,6 +31,10 @@ struct Ctx {
     // faces the party) and how high it is, so a strike leads with the head and claws, a flinch snaps the head back,
     // a cast rears the front up, and at rest the body breathes and its top sways. W, H: the drawing's size.
     float W = 100, H = 100, reach = 0, flinch = 0, rear = 0;
+    rig::Instance* in = nullptr;   // the creature's rig state: its feelers are verlet chains kept here (index 0 is the hang)
+    mutable int feeler = 1;        // the next feeler's chain
+    // a point on the ground: feet stay planted there while the body moves over them (not deformed by the acting)
+    Vector2 G(float x, float y) const { return {cx + x * k, by + y * k}; }
     Vector2 P(float x, float y) const {
         float front = std::clamp(-x / (W * 0.5f), 0.0f, 1.0f), high = std::clamp(-y / H, 0.0f, 1.0f);
         float f2 = front * front;
@@ -104,6 +109,54 @@ void Claw(const Ctx& c, float x, float y, float size, float open, Color shell, C
     }
     Rivet(c, x + size * 0.1f, y - size * 0.1f, size * 0.09f, Tone(shell, -0.4f));
 }
+// ---------------------------------------------------------------- the rig kit for creatures
+// A two-segment leg whose foot stays planted on the ground while the body lunges, rears or flinches over it: the hip
+// follows the acting (P), the foot doesn't (G), and the knee is solved between them by IK, folding the way the drawing
+// has it at rest. `lift` raises the foot (a step).
+void Leg(const Ctx& c, V hip, V knee, V foot, float w0, float w1, float w2, Color col, float lift = 0) {
+    float l1 = sqrtf((knee.x - hip.x) * (knee.x - hip.x) + (knee.y - hip.y) * (knee.y - hip.y)) * c.k;
+    float l2 = sqrtf((foot.x - knee.x) * (foot.x - knee.x) + (foot.y - knee.y) * (foot.y - knee.y)) * c.k;
+    Vector2 h = c.P(hip.x, hip.y), f = c.G(foot.x, foot.y - lift), rest = c.P(knee.x, knee.y);
+    Vector2 ka = ik::Knee(h, f, l1, l2, 1), kb = ik::Knee(h, f, l1, l2, -1);
+    float da = (ka.x - rest.x) * (ka.x - rest.x) + (ka.y - rest.y) * (ka.y - rest.y), db = (kb.x - rest.x) * (kb.x - rest.x) + (kb.y - rest.y) * (kb.y - rest.y);
+    Vector2 kn = da < db ? ka : kb;
+    ShadeLimb(h, kn, w0 * c.k, w1 * c.k, col);
+    ShadeLimb(kn, f, w1 * c.k, w2 * c.k, col);
+}
+
+// A feeler (antenna, eyestalk, palp, a dangling worm or rope): a verlet chain from `base` that sways at rest toward
+// `dir`, trails when the body moves and whips when the creature is hit. Returns its tip; `stiff` 0 dangles, 1 holds.
+Vector2 Feeler(const Ctx& c, V base, V dir, int n, float seg, float w0, float w1, Color col, float stiff, float sway = 0.15f) {
+    Vector2 b = c.P(base.x, base.y);
+    float a = atan2f(dir.y, dir.x) + sinf(c.t * 1.7f + c.feeler * 1.3f + c.u) * sway;
+    Vector2 rest{cosf(a), sinf(a)};
+    if (!c.in) { // no rig state (a sprite page): a straight feeler
+        Vector2 p = b;
+        for (int i = 0; i < n; i++) { Vector2 q{p.x + rest.x * seg * c.k, p.y + rest.y * seg * c.k}; float u = (float)i / n; ShadeLimb(p, q, (w0 + (w1 - w0) * u) * c.k, (w0 + (w1 - w0) * (u + 1.0f / n)) * c.k, col); p = q; }
+        return p;
+    }
+    int idx = c.feeler++;
+    while ((int)c.in->chains.size() <= idx) c.in->chains.push_back(rig::Chain{});
+    rig::Chain& ch = c.in->chains[idx];
+    if (ch.p.empty()) { ch.Init(b, n + 1, seg * c.k, rest); ch.damp = 0.9f; ch.grav = stiff > 0.5f ? 0 : 60; }
+    ch.stiff = stiff;
+    ch.Step(b, rest, c.in->dt, rig::Current());
+    for (size_t i = 1; i < ch.p.size(); i++) {
+        float u0 = (i - 1) / (float)(ch.p.size() - 1), u1 = i / (float)(ch.p.size() - 1);
+        ShadeLimb(ch.p[i - 1], ch.p[i], (w0 + (w1 - w0) * u0) * c.k, (w0 + (w1 - w0) * u1) * c.k, col);
+    }
+    return ch.Tip();
+}
+// the tip of a feeler back in the creature's own units (to hang an eye or a bulb on it)
+V Unit(const Ctx& c, Vector2 screen) { return {(screen.x - c.cx) / c.k, (screen.y - c.by) / c.k}; }
+
+// How far a claw stands open: its idle gape, flung wide in the windup of a strike, snapped shut on the blow.
+float Snap(const Ctx& c, float idle) {
+    if (c.reach < 0) return idle + (-c.reach) * 1.0f;
+    if (c.reach > 0.4f) return idle * std::max(0.0f, 1 - (c.reach - 0.4f) * 3);
+    return idle + c.flinch * 0.25f;
+}
+
 // ============================================================ THE CAVE: crustaceans
 void SeaLouse(const Ctx& c) {
     const float t = c.t;
@@ -111,7 +164,7 @@ void SeaLouse(const Ctx& c) {
     for (int pass = 0; pass < 2; pass++) // seven pairs of two-segment legs, the far pair in shadow
         for (int i = 0; i < 7; i++) {
             float x = -34 + i * 10.5f + pass * 3, sw = sinf(t * 7 + i * 0.9f + pass * 2 + c.u) * 3;
-            Limb2(c, {x, -18}, {x - 7, -8 - std::max(0.0f, sw) * 0.5f}, {x - 12 + sw, 0}, 2.8f, 2.3f, 1.5f, pass ? leg : Tone(leg, -0.35f));
+            Leg(c, {x, -18}, {x - 7, -8}, {x - 12, 0}, 2.8f, 2.3f, 1.5f, pass ? leg : Tone(leg, -0.35f), std::max(0.0f, sw) * 0.6f);   // a ripple of steps down the flank
         }
     for (int i = -1; i <= 1; i++) Tri(c, {44, -22}, {62 + i * 3, -30 + i * 10}, {60, -16 + i * 8}, i ? Tone(seam, 0.1f) : seam); // the tail fan
     for (int i = 0; i < 8; i++) { // plates from tail to head, each overlapping the next, edged with a lit rim
@@ -128,14 +181,8 @@ void SeaLouse(const Ctx& c) {
     Crescent(c, -47, -25, 12);
     Eye(c, -53, -29, 8, Color{220, 214, 240, 255});
     for (int s = -1; s <= 1; s += 2) Tri(c, {-56, -19}, {-64 + s * 2, -10}, {-51, -14 + s * 2}, bone);            // mandibles
-    for (int a = 0; a < 2; a++) { // whip antennae, swaying
-        Vector2 prev{-52.0f, -34.0f + a * 4};
-        for (int i = 1; i <= 6; i++) {
-            Vector2 q{-52.0f - i * 4.5f - a * i, -34.0f - i * (a ? 3.0f : 5.0f) + sinf(t * 2.4f + i * 0.7f + a) * i * 0.8f + a * 4};
-            Limb(c, prev, q, 1.7f - i * 0.15f, 1.4f - i * 0.15f, seam);
-            prev = q;
-        }
-    }
+    for (int a = 0; a < 2; a++) // whip antennae: they trail and whip
+        Feeler(c, {-52, -34 + a * 4}, {-0.75f, a ? -0.45f : -0.75f}, 6, 5.5f, 1.2f, 0.5f, seam, 0.35f);
     Line(c, {10, -40}, {22, -30}, 0.9f, Fade(INK, 0.8f)); Line(c, {22, -30}, {20, -22}, 0.9f, Fade(INK, 0.8f)); // an old crack
 }
 
@@ -144,7 +191,7 @@ void PistolShrimp(const Ctx& c) {
     const Color shell{150, 84, 74, 255}, dk{92, 48, 48, 255}, lt{192, 124, 100, 255}, pale{232, 200, 168, 255}, glow{170, 230, 255, 255};
     for (int i = 0; i < 4; i++) { // walking legs
         float x = -14 + i * 9.0f, sw = sinf(t * 6 + i + c.u) * 2.5f;
-        Limb2(c, {x, -26}, {x - 5, -12}, {x - 9 + sw, 0}, 3, 2.4f, 1.6f, Tone(dk, i % 2 ? 0.0f : -0.25f));
+        Leg(c, {x, -26}, {x - 5, -12}, {x - 9, 0}, 3, 2.4f, 1.6f, Tone(dk, i % 2 ? 0.0f : -0.25f), std::max(0.0f, sw) * 0.5f);
     }
     for (int i = 0; i < 6; i++) { // the abdomen curls up and over, ringed in bands
         float x = 8 + i * 8.0f, y = -36 - sinf(i / 5.0f * PI) * 12 + i * 3.4f, r = 11 - i * 1.15f;
@@ -163,18 +210,11 @@ void PistolShrimp(const Ctx& c) {
         Limb(c, b, tip, 2.4f, 2.0f, dk);
         Ball(c, tip.x, tip.y, 3.6f, INK); Dot(c, tip.x - 0.8f, tip.y - 0.8f, 0.8f, Color{240, 230, 210, 255});
     }
-    for (int a = 0; a < 2; a++) { // long antennae
-        Vector2 prev{-20.0f, -46.0f + a * 6};
-        for (int i = 1; i <= 7; i++) {
-            Vector2 q{-20.0f - i * 6, -46.0f + a * 6 - i * (a ? 1.5f : 3.6f) + sinf(t * 2.2f + i * 0.6f + a * 2) * i * 0.7f};
-            Limb(c, prev, q, 1.5f - i * 0.1f, 1.3f - i * 0.1f, dk);
-            prev = q;
-        }
-    }
+    for (int a = 0; a < 2; a++) Feeler(c, {-20, -46 + a * 6}, {-0.85f, a ? -0.25f : -0.55f}, 7, 6.5f, 1.2f, 0.5f, dk, 0.3f); // long antennae
     Limb2(c, {-14, -30}, {-28, -22}, {-36, -25}, 3, 2.6f, 2.2f, shell); Ball(c, -40, -25, 4.6f, lt);                 // the small claw
     Limb2(c, {-18, -36}, {-40, -30}, {-54, -40}, 7, 6, 5, shell);                                                  // the great snapping arm...
     Rivet(c, -40, -33, 1.3f, dk);
-    float open = 0.25f + 0.22f * (0.5f + 0.5f * sinf(t * 3.1f + c.u));
+    float open = Snap(c, 0.25f + 0.22f * (0.5f + 0.5f * sinf(t * 3.1f + c.u)));
     Claw(c, -62, -42, 15, open, shell, lt, pale, false);                                                             // ...and its oversized claw
     float pulse = 0.5f + 0.5f * sinf(t * 6 + c.u); // the cavitation bubble at the snapping tip
     DrawRing(c.P(-84, -38), (3 + pulse * 5) * c.k, (4.5f + pulse * 5) * c.k, 0, 360, 16, Fade(glow, 0.5f));
@@ -188,7 +228,7 @@ void DysCrustacean(const Ctx& c) {
     const float lx[5] = {-30, -16, -2, 14, 26}, len[5] = {24, 22, 26, 19, 14};
     for (int i = 0; i < 5; i++) {
         float sw = sinf(t * 5 + i * 1.3f + c.u) * 3;
-        Limb2(c, {lx[i], -30}, {lx[i] - 9 - (i == 3 ? 6 : 0), -30 + len[i] * 0.35f - 6}, {lx[i] - 15 + sw, 0}, 3.4f, 2.8f, 1.6f, Tone(dk, i % 2 ? 0.05f : -0.2f));
+        Leg(c, {lx[i], -30}, {lx[i] - 9 - (i == 3 ? 6 : 0), -30 + len[i] * 0.35f - 6}, {lx[i] - 15, 0}, 3.4f, 2.8f, 1.6f, Tone(dk, i % 2 ? 0.05f : -0.2f), std::max(0.0f, sw) * 0.7f);
     }
     Ball(c, -6, -38, 28, shell); Ball(c, 12, -44, 21, Tone(lt, -0.05f)); Crescent(c, -6, -38, 30);                    // a bloated, lopsided carapace
     for (int i = 0; i < 6; i++) Tri(c, {-22.0f + i * 8, -60 + std::abs(i - 2.5f) * 1.5f}, {-16.0f + i * 8, -60 + std::abs(i - 2.5f) * 1.5f}, {-19.0f + i * 8, -72 - (i % 2) * 5}, pale); // spines along the ridge
@@ -201,12 +241,11 @@ void DysCrustacean(const Ctx& c) {
     // the great claw, raised, and a withered one
     Limb2(c, {-24, -42}, {-46, -60}, {-60, -68}, 8, 7, 6, shell);
     Rivet(c, -46, -60, 1.6f, dk);
-    float open = 0.3f + 0.2f * sinf(t * 2 + c.u);
+    float open = Snap(c, 0.3f + 0.2f * sinf(t * 2 + c.u));
     Claw(c, -70, -70, 16, open, shell, lt, pale, true);
     Limb2(c, {26, -40}, {40, -30}, {46, -20}, 3.4f, 2.8f, 2, Tone(shell, -0.15f)); Ball(c, 48, -17, 4.6f, Tone(shell, -0.1f));
-    for (int i = 0; i < 3; i++) { // three eyestalks, one of them bent
-        Vector2 b{-10.0f + i * 10, -62.0f}, tip{-14.0f + i * 11 + (i == 2 ? 8 : 0), -76.0f - (i == 1 ? 6 : 0) + (i == 2 ? 6 : 0)};
-        Limb(c, b, tip, 2.4f, 1.8f, dk);
+    for (int i = 0; i < 3; i++) { // three eyestalks, one of them bent: they wobble
+        V tip = Unit(c, Feeler(c, {-10.0f + i * 10, -62.0f}, {-0.3f + i * 0.3f + (i == 2 ? 0.5f : 0), -1}, 2, 7, 2.4f, 1.8f, dk, 0.55f, 0.1f));
         Ball(c, tip.x, tip.y, 3.8f, INK); Dot(c, tip.x - 0.9f, tip.y - 0.9f, 0.8f, Color{230, 226, 190, 255});
     }
     for (int i = 0; i < 4; i++) Line(c, {-32.0f + i * 2, -22}, {-36.0f + i * 2 + sinf(t * 3 + i) * 1.5f, -14}, 0.9f, Tone(dk, -0.2f)); // mouthparts
@@ -218,8 +257,9 @@ void Lobster(const Ctx& c) { // the mini-boss: armoured, spiked, scarred, with a
     for (int i = 0; i < 4; i++) { // eight walking legs
         for (int pass = 0; pass < 2; pass++) {
             float x = -18 + i * 13.0f + pass * 4, sw = sinf(t * 4 + i * 1.1f + pass + c.u) * 2.5f;
-            Limb2(c, {x, -36}, {x - 9, -20 - (sw > 0 ? sw : 0)}, {x - 16 + sw, 0}, 4.4f, 3.4f, 2.0f, pass ? Tone(shell, -0.12f) : Tone(dk, -0.1f));
-            Tri(c, {x - 17 + sw, -1}, {x - 12 + sw, -1}, {x - 16 + sw, 4}, bone);
+            Leg(c, {x, -36}, {x - 9, -20}, {x - 16, 0}, 4.4f, 3.4f, 2.0f, pass ? Tone(shell, -0.12f) : Tone(dk, -0.1f), std::max(0.0f, sw) * 0.6f);
+            Vector2 ft = c.G(x - 16, 0);
+            DrawTri({ft.x - 1 * c.k, ft.y - 1 * c.k}, {ft.x + 4 * c.k, ft.y - 1 * c.k}, {ft.x, ft.y + 4 * c.k}, bone);
         }
     }
     for (int i = 0; i < 5; i++) { // the abdomen: banded plates curling down to a tail fan
@@ -240,26 +280,19 @@ void Lobster(const Ctx& c) { // the mini-boss: armoured, spiked, scarred, with a
     Line(c, {12, -88}, {34, -130}, 2.4f, Color{92, 64, 40, 255});
     Tri(c, {8, -84}, {16, -90}, {12, -76}, rust);
     for (int i = 0; i < 6; i++) Line(c, {12.0f + i * 1.0f, -84.0f + i * 7}, {13.0f + i * 1.0f, -78.0f + i * 7}, 1.0f, Fade(bone, 0.7f));
-    Line(c, {34, -130}, {40, -136}, 1.6f, Color{200, 180, 140, 255});
+    Feeler(c, {34, -130}, {0.4f, 1}, 7, 8, 1.4f, 1.2f, Color{200, 180, 140, 255}, 0.05f, 0.05f);                      // the harpoon's rope, trailing
     Tri(c, {-40, -64}, {-40, -52}, {-74, -72}, bone);                                                                    // the rostrum
     for (int s = 0; s < 2; s++) { // eyestalks
         Vector2 b{-34.0f - s * 6, -70.0f}, tip{-38.0f - s * 8, -84.0f + s * 3};
         Limb(c, b, tip, 3, 2.2f, dk); Ball(c, tip.x, tip.y, 4.2f, INK); Dot(c, tip.x - 1, tip.y - 1, 0.9f, amber);
     }
-    for (int a = 0; a < 2; a++) { // two long whip antennae
-        Vector2 prev{-40.0f, -64.0f + a * 4};
-        for (int i = 1; i <= 9; i++) {
-            Vector2 q{-40.0f - i * 10.0f, -64.0f + a * 4 - i * (a ? 1.5f : 3.6f) + sinf(t * 2 + i * 0.5f + a * 2) * i * 0.9f};
-            Limb(c, prev, q, 2.0f - i * 0.15f, 1.6f - i * 0.12f, dk);
-            prev = q;
-        }
-    }
+    for (int a = 0; a < 2; a++) Feeler(c, {-40, -64 + a * 4}, {-0.93f, a ? -0.15f : -0.36f}, 9, 10.5f, 2.2f, 0.7f, dk, 0.3f); // two long whip antennae
     Limb2(c, {-24, -44}, {-56, -42}, {-84, -34}, 8, 7, 6, Tone(shell, -0.05f));                                          // the pincer arm
-    Claw(c, -96, -34, 14, 0.2f + 0.2f * sinf(t * 2.6f + c.u), shell, lt, bone, false);
+    Claw(c, -96, -34, 14, Snap(c, 0.2f + 0.2f * sinf(t * 2.6f + c.u)), shell, lt, bone, false);
     Limb2(c, {-26, -62}, {-60, -90}, {-92, -92}, 12, 10, 8, shell);                                                      // the crusher arm
     for (int i = 0; i < 3; i++) Rivet(c, -50.0f - i * 14, -84.0f - i * 2 + i * 0.5f, 1.8f, dk);
     Barnacles(c, -70, -92, 8, 3, c.u + 7);
-    Claw(c, -108, -86, 24, 0.12f + 0.12f * (0.5f + 0.5f * sinf(t * 1.6f + c.u)), shell, lt, bone, true);
+    Claw(c, -108, -86, 24, Snap(c, 0.12f + 0.12f * (0.5f + 0.5f * sinf(t * 1.6f + c.u))), shell, lt, bone, true);
     Line(c, {-96, -108}, {-118, -96}, 1.2f, Color{214, 196, 170, 255});                                                  // a scar across the palm
     Glow(c.P(-38, -84), 16 * c.k, Fade(amber, 0.12f));
 }
@@ -280,9 +313,10 @@ void CrustaceanQueen(const Ctx& c) { // the Cave's level boss: a court on legs, 
     for (int side = -1; side <= 1; side += 2) // four long legs on each side, two segments each, ending in points
         for (int i = 0; i < 4; i++) {
             float sw = sinf(t * 3 + i * 1.2f + side + c.u) * 4, hx = side * (38 + i * 15.0f), reach = 62 + i * 12.0f;
-            Limb2(c, {hx * 0.6f, -76}, {side * (hx * 0.6f + reach * 0.55f), -104 + i * 6}, {side * (hx * 0.6f + reach) + sw, 0},
-                  9, 7, 3.4f, Tone(dk, side < 0 ? 0.08f : -0.15f));
-            Tri(c, {side * (hx * 0.6f + reach) + sw - 3, -6}, {side * (hx * 0.6f + reach) + sw + 3, -6}, {side * (hx * 0.6f + reach) + sw, 4}, cream);
+            Leg(c, {hx * 0.6f, -76}, {side * (hx * 0.6f + reach * 0.55f), -104 + i * 6}, {side * (hx * 0.6f + reach), 0},
+                9, 7, 3.4f, Tone(dk, side < 0 ? 0.08f : -0.15f), std::max(0.0f, sw) * 1.2f);
+            Vector2 ft = c.G(side * (hx * 0.6f + reach), 0);
+            DrawTri({ft.x - 3 * c.k, ft.y - 6 * c.k}, {ft.x + 3 * c.k, ft.y - 6 * c.k}, {ft.x, ft.y + 4 * c.k}, cream);
         }
     for (int i = 0; i < 16; i++) { // the egg sac at her back, glowing
         float a = i * 2.39996f, r2 = 5 + (i % 4) * 2.2f, x = 78 + cosf(a) * (6 + i * 1.6f), y = -66 + sinf(a) * (6 + i * 1.2f) - i * 0.6f;
@@ -311,19 +345,15 @@ void CrustaceanQueen(const Ctx& c) { // the Cave's level boss: a court on legs, 
         Ball(c, x, y, 5.0f, pearl);
     }
     Ball(c, 0, -74, 8, Tone(gem, -0.2f)); Dot(c, -2, -76, 3, Tone(gem, 0.5f)); Glow(c.P(0, -74), 28 * c.k, Fade(gem, 0.18f + 0.1f * pulse)); // the pendant
-    for (int i = 0; i < 6; i++) { // parasitic worms writhing from beneath, glowing
-        float x = -34 + i * 14.0f;
-        Vector2 prev{x, -60};
-        for (int sg = 1; sg <= 5; sg++) { Vector2 q{x + sinf(t * 3 + i + sg) * 4.0f * sg * 0.5f, -60 + sg * 9.0f}; Limb(c, prev, q, 3.2f - sg * 0.4f, 3.0f - sg * 0.4f, Tone(glow, -0.35f)); prev = q; }
-    }
+    for (int i = 0; i < 6; i++) Feeler(c, {-34 + i * 14.0f, -60}, {0.1f * (i - 2.5f), 1}, 5, 9, 3.2f, 1.2f, Tone(glow, -0.35f), 0.15f, 0.35f); // parasitic worms dangling from beneath, glowing
     Ball(c, 0, -76, 26, dk); Ball(c, 0, -70, 20, Tone(dk, -0.4f));                                                        // the maw beneath, in shadow
     for (int i = -3; i <= 3; i++) Tri(c, {i * 6.0f - 2.5f, -84}, {i * 6.0f + 2.5f, -84}, {i * 6.0f, -72 + std::abs(i) * -0.8f}, cream);
     // the court riding on her shoulders
     CrabPup(c, -54, -168, 0.85f, Tone(shell, 0.1f)); CrabPup(c, 40, -178, 0.7f, Tone(shell, 0.2f));
     // eyestalks and the crown
-    for (int s = -1; s <= 1; s += 2) {
-        Vector2 b{s * 22.0f, -172.0f}, tip{s * 30.0f, -206.0f + sinf(t * 1.3f + s) * 2};
-        Limb(c, b, tip, 8, 6, dk); Ball(c, tip.x, tip.y, 8.5f, INK); Dot(c, tip.x - 2, tip.y - 2, 1.6f, Color{255, 240, 200, 255});
+    for (int s = -1; s <= 1; s += 2) { // eyestalks that sway and wobble
+        V tip = Unit(c, Feeler(c, {s * 22.0f, -172.0f}, {s * 0.24f, -1}, 2, 17, 8, 6, dk, 0.6f, 0.06f));
+        Ball(c, tip.x, tip.y, 8.5f, INK); Dot(c, tip.x - 2, tip.y - 2, 1.6f, Color{255, 240, 200, 255});
         Glow(c.P(tip.x, tip.y), 24 * c.k, Fade(glow, 0.14f));
     }
     for (int i = -3; i <= 3; i++) { // the crown of bone
@@ -337,7 +367,7 @@ void CrustaceanQueen(const Ctx& c) { // the Cave's level boss: a court on legs, 
     Limb2(c, {-74, -120}, {-122, -168}, {-152, -176}, 17, 15, 11, shell);
     for (int i = 0; i < 4; i++) Rivet(c, -100.0f - i * 14, -146.0f - i * 6, 2.6f, dk);
     Barnacles(c, -128, -170, 12, 4, c.u + 1);
-    Claw(c, -170, -172, 36, 0.16f + 0.26f * (0.5f + 0.5f * sinf(t * 1.5f + c.u)), shell, lt, cream, true);
+    Claw(c, -170, -172, 36, Snap(c, 0.16f + 0.26f * (0.5f + 0.5f * sinf(t * 1.5f + c.u))), shell, lt, cream, true);
     Limb2(c, {74, -120}, {112, -150}, {136, -142}, 14, 12, 9, Tone(shell, -0.08f));
     Ball(c, 150, -138, 26, Tone(shell, -0.05f)); Ball(c, 146, -144, 15, Tone(lt, -0.1f)); Crescent(c, 150, -138, 26);
     for (int i = 0; i < 3; i++) Tri(c, {140.0f + i * 8, -158}, {146.0f + i * 8, -158}, {143.0f + i * 8, -170}, cream);
@@ -1098,7 +1128,7 @@ void BrineWorm(const Ctx& c) { // a bristle worm rearing from a crust of salt, j
         Tri(c, {h.x - 6 + cosf(a) * 8, h.y - 6 + sinf(a) * 8}, {h.x - 6 + cosf(a) * 8 + 4, h.y - 6 + sinf(a) * 8 + 4}, {h.x - 6 + cosf(a) * (14 + open), h.y - 6 + sinf(a) * (14 + open)}, bone);
     }
     Ball(c, h.x - 6, h.y - 6, 7, INK); for (int i = 0; i < 6; i++) { float a = i * PI / 3; Tri(c, {h.x - 6 + cosf(a) * 6, h.y - 6 + sinf(a) * 6}, {h.x - 6 + cosf(a + 0.3f) * 6, h.y - 6 + sinf(a + 0.3f) * 6}, {h.x - 6 + cosf(a + 0.15f) * 2.5f, h.y - 6 + sinf(a + 0.15f) * 2.5f}, bone); } // rings of teeth
-    for (int s = 0; s < 2; s++) { Limb(c, {h.x + 4 + s * 4, h.y - 12}, {h.x + 10 + s * 8 + sinf(t * 3 + s) * 3, h.y - 28 - s * 4}, 2.4f, 1.2f, dk); Dot(c, h.x + 10 + s * 8 + sinf(t * 3 + s) * 3, h.y - 29 - s * 4, 1.6f, INK); } // palps
+    for (int s = 0; s < 2; s++) { V tp = Unit(c, Feeler(c, {h.x + 4 + s * 4, h.y - 12}, {0.35f + s * 0.3f, -1}, 3, 6, 2.4f, 1.2f, dk, 0.45f, 0.3f)); Dot(c, tp.x, tp.y, 1.6f, INK); } // palps
     Dot(c, h.x - 2, h.y - 10, 1.2f, Fade(tox, 0.9f)); Dot(c, h.x + 4, h.y - 8, 1.2f, Fade(tox, 0.9f));
     for (int i = 0; i < 3; i++) { float ph = fmodf(t * 1.0f + i / 3.0f, 1.0f); Dot(c, h.x - 14 - ph * 26, h.y - 4 + ph * ph * 26, 2.2f - ph, Fade(tox, 0.8f * (1 - ph))); }   // spat toxin
     Glow(c.P(h.x - 8, h.y - 6), 26 * c.k, Fade(tox, 0.10f + 0.08f * pulse));
@@ -1132,7 +1162,7 @@ void GhostWorm(const Ctx& c) { // the Cave's mini-boss: a pale, half-there colum
     Ball(c, h.x - 2, h.y + 12, 8 + open * 0.4f, INK);                                                                                                       // a screaming mouth
     for (int i = 0; i < 5; i++) Tri(c, {h.x - 10.0f + i * 5, h.y + 6}, {h.x - 6.5f + i * 5, h.y + 6}, {h.x - 8.0f + i * 5, h.y + 13}, bone);
     for (int i = 0; i < 3; i++) { float p2 = fmodf(t * 0.9f + i / 3.0f, 1.0f); DrawRing(c.P(h.x - 2, h.y + 12), (12 + p2 * 60) * c.k, (13.4f + p2 * 60) * c.k, 130, 230, 20, Fade(glow, 0.55f * (1 - p2))); } // the scream, in rings
-    for (int i = 0; i < 4; i++) Line(c, {h.x - 20.0f + i * 12, h.y - 20}, {h.x - 24.0f + i * 14 + sinf(t * 2 + i) * 4, h.y - 42 - i % 2 * 8}, 1.4f, Fade(glow, 0.6f));   // wisps rising from the crown
+    for (int i = 0; i < 4; i++) Feeler(c, {h.x - 20.0f + i * 12, h.y - 20}, {-0.2f + i * 0.1f, -1}, 4, 6 + i % 2 * 2.0f, 1.8f, 0.4f, Fade(glow, 0.6f), 0.2f, 0.4f);   // wisps rising from the crown
 }
 
 void LostDiver(const Ctx& c) { // the Cave's other mini-boss: a diver who never came up, waterlogged and swinging his anchor
@@ -1288,7 +1318,7 @@ bool DrawRichEnemy(const Enemy& e, Rectangle r, float t) {
         case EnemyType::Cthulhu: fn = Cthulhu; H = 340; W = 470; break;
         case EnemyType::BrineWorm: fn = BrineWorm; H = 88; W = 96; break;
         case EnemyType::GhostWorm: fn = GhostWorm; H = 146; W = 130; break;
-        case EnemyType::LostDiver: fn = LostDiver; H = 200; W = 190; break;
+        case EnemyType::LostDiver: DrawRigLostDiver(e, r, t); return true; // on the humanoid rig (rigfigs.cpp)
         case EnemyType::CoconutQueen: fn = CoconutQueen; H = 176; W = 150; break;
         case EnemyType::SunGod: fn = SunGod; H = 300; W = 340; break;
         case EnemyType::Siren: fn = Siren; H = 120; W = 100; break;
@@ -1315,6 +1345,12 @@ bool DrawRichEnemy(const Enemy& e, Rectangle r, float t) {
     }
     rig::Instance& in = rig::Get(1000000 + e.uid);
     rig::Tick(in, t);
+    Vector2 off = rig::WorldOffset(), d{off.x - in.lastOff.x, off.y - in.lastOff.y};
+    in.lastOff = off;
+    bool jump = fabsf(d.x) > 160 || fabsf(d.y) > 160 || in.chains.empty() || in.dt == 0;
+    if (jump) in.chains.assign(1, rig::Chain{});             // re-hung: a new screen, or the first sight of it
+    else for (auto& ch : in.chains) if (!ch.p.empty()) ch.Shift(d); // the canvas moved: every chain trails
+    c.in = &in;
     gBlink = in.face.Closed();
     fn(c);
     gBlink = false;
@@ -1329,13 +1365,9 @@ bool DrawRichEnemy(const Enemy& e, Rectangle r, float t) {
     };
     const Hang& hg = HANG[std::clamp((int)e.type, 0, (int)EnemyType::COUNT - 1)];
     Vector2 anc = c.P(hg.ax * W, -hg.ay * H);
-    Vector2 off = rig::WorldOffset(), d{off.x - in.lastOff.x, off.y - in.lastOff.y};
-    in.lastOff = off;
-    bool jump = fabsf(d.x) > 160 || fabsf(d.y) > 160 || in.chains.empty() || in.dt == 0;
     static const Color KC[6] = {{40, 110, 70, 255}, {176, 60, 40, 255}, {40, 120, 124, 255}, {214, 204, 180, 255}, {150, 130, 96, 255}, {70, 70, 78, 255}};
     static const rig::Mat KM[6] = {rig::WET, rig::CLOTH, rig::WET, rig::CLOTH, rig::CLOTH, rig::METAL};
-    if (jump) { in.chains.assign(1, rig::Chain{}); in.chains[0].Init(anc, 6, 6 * k, {0, 1}); in.chains[0].stiff = 0.2f; }
-    else in.chains[0].Shift(d);
+    if (in.chains[0].p.empty()) { in.chains[0].Init(anc, 6, 6 * k, {0, 1}); in.chains[0].stiff = 0.2f; }
     rig::Chain& ch = in.chains[0];
     ch.col = KC[hg.kind]; ch.mat = KM[hg.kind];
     ch.width0 = hg.kind == 5 ? 1.6f : hg.kind == 4 ? 1.2f : 2.6f; ch.width1 = hg.kind >= 4 ? ch.width0 : 0.8f;
