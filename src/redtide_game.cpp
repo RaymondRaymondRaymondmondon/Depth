@@ -277,6 +277,30 @@ static void BuildLevelModel() {
             case PropKind::Seagrass: for (int j = 0; j < 6; j++) mb.Box({c.x + (rnd() - 0.5f) * h.x * 2, c.y + h.y / 2, c.z + (rnd() - 0.5f) * h.z * 2}, {0.03f, h.y / 2, 0.12f}, Color{96, 150, 80, 255}); break;
             case PropKind::Mangrove: for (int j = 0; j < 5; j++) { Vector3 top{c.x + (rnd() - 0.5f), c.y, c.z + (rnd() - 0.5f)}; mb.Cone(top, {top.x + (rnd() - 0.5f) * 2.5f, z.y0, top.z + (rnd() - 0.5f) * 2.5f}, 0.12f, 4, Color{100, 80, 58, 255}); } break;
             case PropKind::Mound: mb.Lathe(h.x * 2, 5, 10, [&](float u) { return h.x * sinf(u * 3.14159f) + 0.1f; }, [&](float u) { return h.y * 1.4f * sinf(u * 3.14159f) + 0.1f; }, Color{200, 150, 120, 255}, Color{150, 120, 100, 255}, c); break;
+            case PropKind::Building: {
+                // a drowned house of marble: walls, a roof slab, a dark doorway, a pair of columns at its front, weed
+                Color marble{(unsigned char)(rock.r - 10 + rnd() * 20), (unsigned char)(rock.g - 10 + rnd() * 18), (unsigned char)(rock.b - 10 + rnd() * 16), 255};
+                mb.Box(c, h, marble);
+                mb.Box({c.x, c.y + h.y + 0.2f, c.z}, {h.x + 0.4f, 0.2f, h.z + 0.4f}, Color{(unsigned char)(marble.r - 30), (unsigned char)(marble.g - 30), (unsigned char)(marble.b - 26), 255});
+                bool alongX = rnd() < 0.5f; float sgn = rnd() < 0.5f ? -1.0f : 1.0f;
+                Vector3 door = alongX ? Vector3{c.x, z.y0 + 1.1f, c.z + sgn * (h.z + 0.02f)} : Vector3{c.x + sgn * (h.x + 0.02f), z.y0 + 1.1f, c.z};
+                mb.Box(door, alongX ? Vector3{0.6f, 1.1f, 0.03f} : Vector3{0.03f, 1.1f, 0.6f}, Color{20, 26, 30, 255});
+                for (int j = -1; j <= 1; j += 2) {
+                    Vector3 col = alongX ? Vector3{c.x + j * 1.3f, c.y, c.z + sgn * (h.z + 0.35f)} : Vector3{c.x + sgn * (h.x + 0.35f), c.y, c.z + j * 1.3f};
+                    mb.Box(col, {0.22f, h.y, 0.22f}, Color{(unsigned char)std::min(255, marble.r + 20), (unsigned char)std::min(255, marble.g + 20), (unsigned char)std::min(255, marble.b + 18), 255});
+                }
+                for (int j = 0; j < 3; j++) mb.Box({c.x + (rnd() - 0.5f) * h.x * 2, c.y + h.y - 0.5f, c.z + (rnd() - 0.5f) * h.z * 2}, {0.05f, 0.6f + rnd(), 0.05f}, Color{70, 110, 70, 255});
+                break;
+            }
+            case PropKind::Terrace: mb.Box(c, h, Color{120, 110, 84, 255}); mb.Box({c.x, c.y + h.y + 0.02f, c.z}, {h.x - 0.2f, 0.02f, h.z - 0.2f}, Color{90, 130, 70, 255}); break;
+            case PropKind::Fan: for (int j = 0; j < 5; j++) mb.Box({c.x + (rnd() - 0.5f) * 0.6f, c.y + (rnd() - 0.3f) * h.y, c.z}, {h.x * (0.5f + rnd() * 0.5f), h.y * 0.35f, 0.03f}, Color{(unsigned char)(150 + rnd() * 60), 70, (unsigned char)(110 + rnd() * 50), 255}); mb.Box({c.x, z.y0 + (c.y - z.y0) / 2, c.z}, {0.05f, (c.y - z.y0) / 2, 0.05f}, Color{120, 60, 80, 255}); break;
+            case PropKind::Amphora: mb.Lathe(h.y * 2, 4, 8, [&](float u) { return h.x * (0.4f + 0.6f * sinf(u * 3.14159f)); }, [&](float u) { return h.y * 2 * u - h.y; }, Color{170, 100, 60, 255}, Color{140, 80, 50, 255}, c); break;
+            case PropKind::Grate: {
+                mb.Box({c.x, c.y - 0.01f, c.z}, {h.x, 0.01f, h.z}, Color{12, 16, 18, 255});
+                for (int j = -2; j <= 2; j++) { mb.Box({c.x + j * h.x * 0.4f, c.y + 0.02f, c.z}, {0.05f, 0.03f, h.z}, Color{70, 74, 70, 255}); mb.Box({c.x, c.y + 0.02f, c.z + j * h.z * 0.4f}, {h.x, 0.03f, 0.05f}, Color{70, 74, 70, 255}); }
+                break;
+            }
+            case PropKind::Crenel: mb.Box(c, h, Color{(unsigned char)(rock.r - 20), (unsigned char)(rock.g - 20), (unsigned char)(rock.b - 16), 255}); break;
             default: break;
         }
     }
@@ -517,6 +541,22 @@ static void DrawStations() {
             case StationType::Cleaning: DrawWorldCube({p.x, p.y - 0.6f, p.z}, {1.4f, 0.8f, 1.2f}, {110, 100, 88, 255}); break;
             case StationType::Cache: DrawWorldCube({p.x, p.y - 0.6f, p.z}, {1.0f, 0.6f, 0.7f}, m.cacheOpen ? Color{60, 50, 40, 255} : Color{110, 84, 50, 255}); break;
             case StationType::QuestStep:
+                if (m.map->extra["quests"].IsArr() && !m.map->extra["quests"].a.empty()) {
+                    // Atlantis: the treasury crystal, the chapel's braziers, the plaza's marker, the god-pool's rim,
+                    // the wall-fires and the lighthouse (lit once their step is behind the chain)
+                    int c = m.QuestChainOf(s.step);
+                    bool lit = c >= 0 && c < (int)m.questAt.size() && m.questAt[c] > s.step;
+                    std::string k = c >= 0 ? m.map->extra["quests"].a[c]["steps"][std::to_string(s.step)]["kind"].Str0() : "";
+                    if (k == "carry") { DrawWorldCube({p.x, p.y - 0.2f, p.z}, {0.5f, 0.6f, 0.5f}, {90, 86, 80, 255}); DrawWorldCube({p.x, p.y + 0.5f + sinf(S.time * 2) * 0.05f, p.z}, {0.3f, 0.7f, 0.3f}, {150, 230, 255, 255}); }
+                    else if (k == "spark" || k == "key") {
+                        float tall = k == "key" ? 6.0f : 1.0f;
+                        DrawWorldCube({p.x, p.y - 1.2f + tall / 2, p.z}, {k == "key" ? 1.4f : 0.5f, tall, k == "key" ? 1.4f : 0.5f}, {120, 110, 96, 255});
+                        DrawWorldCube({p.x, p.y - 1.2f + tall + 0.1f, p.z}, {0.8f, 0.2f, 0.8f}, {70, 60, 50, 255});
+                        if (lit) DrawWorldCube({p.x, p.y - 1.0f + tall + 0.25f + sinf(S.time * 9) * 0.05f, p.z}, {0.45f, 0.6f + sinf(S.time * 13) * 0.1f, 0.45f}, {255, 170, 60, 255});
+                    } else if (k == "hold") DrawWorldCube({p.x, p.y - 1.15f, p.z}, {2.4f, 0.03f, 2.4f}, lit ? Color{90, 90, 80, 255} : Color{150, 120, 60, 255});
+                    else if (k == "ichor") DrawWorldCube({p.x, p.y - 1.1f, p.z}, {1.6f, 0.1f, 0.4f}, lit ? Color{40, 120, 140, 255} : Color{120, 110, 96, 255});
+                    break;
+                }
                 // the Supper Call's props: the log on a bunk shelf, the whistle among the tins, the cord on the boiler
                 if (s.step == 1) DrawWorldCube({p.x, p.y - 0.5f, p.z}, {0.35f, 0.08f, 0.25f}, {92, 60, 40, 255});
                 else if (s.step == 2 && m.questStep < 2) DrawWorldCube({p.x, p.y - 0.4f, p.z}, {0.1f, 0.25f, 0.1f}, {150, 150, 90, 255});
@@ -622,6 +662,16 @@ static void DrawScene() {
                 DrawWorldCube(Vector3Add(f.pos, {0, 0.42f, 0}), {0.6f * pulse, 0.05f, 0.6f * pulse}, {226, 204, 160, 255});
             }
             else DrawWorldCube(Vector3Add(f.pos, {0, sinf(S.time * 2) * 0.15f, 0}), {0.25f * pulse, 0.45f * pulse, 0.25f * pulse}, {120, 240, 200, 255});
+        }
+        for (const auto& ic : m.ichor) {   // Atlantis: a dead Lost One's black ichor, spreading on the stones
+            float f = std::clamp(ic.t / 60.0f, 0.0f, 1.0f), rad = 0.6f + (1 - f) * 1.4f;
+            int zi = m.eco.ZoneAt(ic.pos);
+            float y = zi >= 0 ? m.map->zones[zi].y0 + 0.03f : ic.pos.y;
+            DrawWorldCube({ic.pos.x, y, ic.pos.z}, {rad, 0.02f, rad}, {(unsigned char)(10 + 20 * f), (unsigned char)(8 + 10 * f), (unsigned char)(24 + 30 * f), 255});
+        }
+        if (m.wyrmState == 1 && m.wyrmGrate >= 0) {   // the grate rattles: silt and bubbles burst up through it
+            Vector3 g = m.map->links[m.wyrmGrate].b;
+            for (int k = 0; k < 10; k++) { float t = fmodf(S.time * 2.3f + k * 0.13f, 1.0f); DrawWorldCube({g.x + sinf(k * 2.1f) * 0.7f, g.y + t * 3.0f, g.z + cosf(k * 1.7f) * 0.7f}, {0.12f, 0.12f, 0.12f}, {200, 210, 200, 255}); }
         }
         for (const auto& p : m.polyps) {   // the Anemone Gun's rooted polyps: a crown of stinging tentacles
             for (int k = 0; k < 6; k++) {
@@ -744,6 +794,15 @@ static void DrawScene() {
     for (const auto& s : m.level.stations) if (s.type == StationType::Locker && m.LockerLiveAt(s)) label(Vector3Add(s.pos, {0, 2.8f, 0}), 30, "Davy's Locker", {255, 214, 140, 255});
     for (const auto& d : m.level.doors) if (!d.open) label(Vector3Add(d.pos, {0, 0.9f, 0}), 14, TextFormat("%s  %d", d.name.c_str(), d.cost), {235, 210, 160, 255});
     for (const auto& f : m.drops) label(Vector3Add(f.pos, {0, 0.6f, 0}), 20, f.weapon >= 0 ? Weapons().weapons[f.weapon].name : DropName(f.type), {150, 250, 210, 255});
+    // the lighthouse lit: every Lost One and the Wyrm on the sonar, through walls
+    if (m.revealAll) for (int i = 0; i < (int)m.eco.agents.size(); i++) {
+        const Agent& a = m.eco.agents[i];
+        if (!a.alive || a.diver >= 0 || !(m.map->species[a.sp].isEnemy || m.IsBoss(i) || m.map->species[a.sp].tier >= 4)) continue;
+        if (Vector3DotProduct(Vector3Subtract(a.pos, eye), fwd) <= 0 || Vector3Distance(a.pos, eye) > 120) continue;
+        Vector2 sp = GetWorldToScreenEx(a.pos, cam, SCREEN_W, SCREEN_H);
+        Color c = m.IsBoss(i) ? Color{255, 90, 70, 255} : m.map->species[a.sp].isEnemy ? Color{190, 150, 255, 255} : Color{255, 200, 120, 255};
+        DrawRing(sp, 5, 7, 0, 360, 12, c);
+    }
 }
 
 // ---------------------------------------------------------------- the HUD
@@ -797,6 +856,7 @@ static void DrawHud() {
     else TxtBold(d.harpoonHour ? "infinite" : TextFormat("%d / %d", h.mag, h.reserve), SCREEN_W - 280, SCREEN_H - 70, 30, h.mag == 0 ? blood : paper);
     if (d.reloading) Txt("reloading...", SCREEN_W - 280, SCREEN_H - 36, 14, Fade(paper, 0.8f));
     Txt(TextFormat("limpets %d", d.limpets), SCREEN_W - 120, SCREEN_H - 36, 14, Fade(paper, 0.8f));
+    if (d.spark || d.ichorJar) Txt(std::string(d.spark ? "a jar of the crystal's spark  " : "") + (d.ichorJar ? "a jar of ichor" : ""), SCREEN_W - 280, SCREEN_H - 186, 13, Color{150, 220, 240, 255});
     if (d.drumUses > 0) Txt(TextFormat("F: the drum (%d beats; %d to the fifth)", d.drumUses, 5 - m.drumBeats % 5), SCREEN_W - 280, SCREEN_H - 170, 13, Color{226, 190, 120, 255});
     if (!d.downed) for (int i = 0; i < (int)d.weapons.size(); i++) Txt(TextFormat("%d %s", i + 1, m.W(d.weapons[i]).name.c_str()), SCREEN_W - 280, SCREEN_H - 150 + i * 16.0f, 13, i == d.cur ? paper : Fade(paper, 0.5f));
     // health: a brass pressure gauge, bottom left; the tonics' bottles beside it
@@ -945,7 +1005,7 @@ void DebugRedTideShot(Game& g, int which) {
         g.scene = Scene::RedTide;
         return;
     }
-    StartShip(1, 20260930, which >= 30 ? "reef" : which >= 20 ? "cave" : "ship");
+    StartShip(1, 20260930, which >= 40 ? "atlantis" : which >= 30 ? "reef" : which >= 20 ? "cave" : "ship");
     S.shotMode = true;
     Match& m = M();
     if (which != 10) {                                           // every door open, so the views can see through
@@ -962,6 +1022,25 @@ void DebugRedTideShot(Game& g, int which) {
         d.pos = z.Clamp(Vector3Add({z.plan.x, z.y0, z.plan.y}, off), 0.6f);
         Vector3 c = z.Center();
         d.zone = zi; d.yaw = atan2f(c.x - d.pos.x, c.z - d.pos.z) + yawOff; d.pitch = pitch;
+    };
+    auto view = [&](const char* zone, float yUp, float pitch) {
+        int zi = m.map->ZoneIndex(zone);
+        const Zone& z = m.map->zones[zi];
+        Vector3 c = z.Center(); c.y = z.y0 + yUp;
+        float best = -1;
+        for (int k = 0; k < 120; k++) {
+            Vector3 p{z.plan.x + 1.5f + (z.plan.width - 3) * ((k * 37) % 120) / 120.0f, z.y0 + yUp, z.plan.y + 1.5f + (z.plan.height - 3) * ((k * 53) % 120) / 120.0f};
+            if (!m.level.Inside(p, 0.5f, m.linkOpen)) continue;
+            bool nearStation = false; for (const auto& st : m.level.stations) if (Vector3Distance({st.pos.x, p.y, st.pos.z}, p) < 3.5f) nearStation = true;
+            for (const auto& pr : m.level.props) if (pr.kind == PropKind::Fan && Vector3Distance({pr.pos.x, p.y, pr.pos.z}, p) < 6) nearStation = true;
+            if (nearStation) continue;
+            Vector3 dir = Vector3Subtract(c, p); dir.y = 0;
+            if (Vector3Length(dir) < 3) continue;
+            dir = Vector3Normalize(dir);
+            float free = 0;
+            while (free < 40 && m.level.Inside(Vector3Add(p, Vector3Scale(dir, free + 0.5f)), 0.3f, m.linkOpen)) free += 0.5f;
+            if (free > best) { best = free; d.pos = p; d.zone = zi; d.yaw = atan2f(dir.x, dir.z); d.pitch = pitch; }
+        }
     };
     switch (which) {
         case 10: place("Bridge", {1.5f, 2.2f, 1.5f}, 0.3f, -0.05f); break;                  // the start pocket, the Gannet rack, the Salon door
@@ -992,6 +1071,28 @@ void DebugRedTideShot(Game& g, int which) {
         case 23: place("Dry Chamber II: the Toad Pool", {3, 1, 3}, 0.2f, 0); break;           // an air chamber, on foot
         case 24: place("The Cathedral", {6, 6, 6}, 0.0f, 0.05f); break;                       // the crystal coral and the Lobster
         case 25: place("The Sump", {4, 3, 4}, 0.2f, 0); break;                                // the silt, the sturgeon, the sleeper shark
+        // Atlantis (a clear view: the spot in the district with the longest open line toward its middle)
+        case 40: view("Harbor Gate", 2.0f, 0.05f); break;                                     // the gatehouse, the avenue up the hill
+        case 41: view("The Lower Town", 3.0f, 0.02f); break;                                  // the streets and houses
+        case 42: view("The Forum", 4.0f, 0.05f); break;                                       // the plaza, sea fans, the crystal
+        case 43: view("The Grand Chapel", 3.0f, -0.08f); break;                               // the nave, braziers, the god-pool
+        case 44: {                                                                            // the rampart and the sea beyond
+            int w = m.map->ZoneIndex("The Wall & Ramparts");
+            const Zone& z = m.map->zones[w];
+            d.pos = {z.plan.x + z.plan.width * 0.6f, z.y0 + 2.5f, z.plan.y + z.plan.height * 0.75f}; d.zone = w;
+            d.yaw = 3.14159f + 0.45f; d.pitch = 0.02f;
+            break;
+        }
+        case 45: {                                                                            // the Wyrm up through a chapel grate
+            int ch = m.map->ZoneIndex("The Grand Chapel");
+            const Zone& z = m.map->zones[ch];
+            d.pos = z.Clamp({-9, z.y0 + 3.0f, -10}, 0.6f); d.zone = ch;
+            m.Step(1 / 20.0f);
+            for (int i = 0; i < 60 && m.wyrmState < 2; i++) m.Step(1 / 20.0f);
+            for (int i = 0; i < 10; i++) m.Step(1 / 20.0f);
+            if (m.bossAgent >= 0) { Vector3 to = Vector3Subtract(m.eco.agents[m.bossAgent].pos, m.Eye(d)); d.yaw = atan2f(to.x, to.z); d.pitch = std::clamp(asinf(Vector3Normalize(to).y), -0.6f, 0.6f); }
+            break;
+        }
         // the Coral Reef
         case 30: place("The Lagoon", {3, 2.5f, 3}, 0.2f, 0.1f); break;                        // the shallows under the surface
         case 31: place("Staghorn Forest", {3, 6, 3}, 0.1f, 0); break;                         // the thicket's corridors

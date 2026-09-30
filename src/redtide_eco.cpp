@@ -278,7 +278,8 @@ void Ecosystem::Init(const MapData& m, uint32_t seed, int tideNum, int playerCou
     flowSign = 1;
     for (const auto& kv : m.extra["narrow_zones"].o) { int zi = m.ZoneIndex(kv.first); if (zi >= 0) zoneMaxSize[zi] = kv.second["max_size"].I(99); }
     for (size_t i = 0; i < m.links.size(); i++) if (m.links[i].beastRule != 0) linkClosed[i] = 1;
-    agents.clear(); corpses.clear(); flora.clear(); squads.clear(); events.clear();
+    agents.clear(); agents.reserve(8192); corpses.clear(); corpses.reserve(8192);   // (spawns mid-step must not move the agents under a held reference)
+    flora.clear(); squads.clear(); events.clear();
     time = 0; scentT = 0; popT = 0; alarmRollT = 0; cleanerRage = 0; squadsSpawned = 0;
     killsBySpecies.assign(m.species.size(), 0);
     deathsBySpecies.assign(m.species.size(), 0);

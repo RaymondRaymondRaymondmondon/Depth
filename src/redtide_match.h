@@ -18,7 +18,7 @@ struct WeaponDef {
     std::string id, name, cls, source, forged, forgedTwist;
     float damage = 30, rpm = 300, noise = 2, reload = 1.4f, chum = 0, arc = 0, splash = 0, reach = 0, spinup = 0, cone = 0, coneDeg = 30;
     int pellets = 1, mag = 8, reserve = 32, price = 0, burst = 0, chain = 0, explodesOver = 0;
-    bool perRound = false, pins = false, net = false, melee = false, polyp = false;
+    bool perRound = false, pins = false, net = false, melee = false, polyp = false, wave = false;
     WeaponClass handling;
 };
 struct TonicDef { std::string id, name, effect; int price = 2000, priceSolo = 0; };
@@ -55,7 +55,7 @@ struct Station {
 };
 // Scenery from a map's "dressing" (extra.json): placed once from a fixed seed; solid pieces (columns, coral walls, brain
 // coral, a coral head, ledges) block divers, darts and sight.
-enum class PropKind { Column, Stalactite, Stalagmite, Crystal, Root, Ledge, Pool, Silt, Machine, CoralWall, Table, Brain, Staghorn, Seagrass, Mangrove, Mound, COUNT };
+enum class PropKind { Column, Stalactite, Stalagmite, Crystal, Root, Ledge, Pool, Silt, Machine, CoralWall, Table, Brain, Staghorn, Seagrass, Mangrove, Mound, Building, Terrace, Fan, Amphora, Grate, Crenel, COUNT };
 struct Prop { PropKind kind = PropKind::Column; Vector3 pos{}, half{}; int zone = -1; bool solid = false; uint32_t seed = 0; };
 struct Level {
     std::vector<Volume> vols;
@@ -97,6 +97,7 @@ struct DiverState {
     int agent = -1;                    // the diver's body in the Ecosystem
     int slipLink = -1; float slipT = 0, driftT = 0;   // riding a slipstream (link), how far along; the drift after it
     int drumUses = 0;                  // the Reef Shaman's drum, taken
+    bool spark = false, ichorJar = false;   // Atlantis: the treasury crystal's spark in a jar; a Lost One's ichor
     float cutT = 0;                    // being cut free of Reacher coral by a teammate
     int kills = 0, headshots = 0, downs = 0, revives = 0;
     float hitMarker = 0; bool hitWeak = false;
@@ -171,6 +172,20 @@ struct Match {
     std::vector<Polyp> polyps;               // the Anemone Gun's rooted polyps
     std::vector<int> pod; bool podSpawned = false; float breathT = 0;   // the Matriarch's pod and her breath cycle
     void BeatDrum(int d);
+    // Atlantis
+    struct Ichor { Vector3 pos; float t = 60; };
+    std::vector<Ichor> ichor;                // dead Lost Ones' black ichor: repels the apex beasts, draws scavengers
+    std::map<int, float> shieldHP;           // Legionnaires' tower shields
+    int wyrmState = 0, wyrmGrate = -1;       // the Cistern Wyrm: 0 below, 1 rising (the grate rattles), 2 surfaced, 3 hunting the streets
+    float wyrmT = 3, wyrmUp = 0, wyrmStrandT = 0;
+    int wyrmDragDiver = -1; float wyrmDragT = 0, wyrmDragDmg = 0; bool wyrmStruck = false, wyrmCongers = false, wyrmFlooded = false;
+    float wyrmReformT = -1, floodT = 0;
+    float priestT = 0; int horror = -1; float horrorT = 0, horrorTeleT = 0; bool horrorCalled = false;
+    std::vector<int> questAt;                // per quest chain (extra.json "quests"): the step it waits on (last + 1: done)
+    float holdT = 0;
+    bool revealAll = false;                  // the lighthouse: the whole city on the sonar
+    int QuestChainOf(int step) const;
+    std::vector<int> WyrmGrates(int ph, int zone) const;
     std::string ArtName(int sp) const;
     uint32_t rng = 99;
     bool over = false;
@@ -216,7 +231,7 @@ struct Match {
     void BeginTidePublic(int t) { BeginTide(t); }
     void DropRocksPublic(Vector3 at, int n, float spread, float dmg, float radius, float delay, int owner) { DropRocks(at, n, spread, dmg, radius, delay, owner); }
     void FloraToolPublic(int patch, Vector3 at) { FloraTool(patch, at, nullptr); }
-    void HitAgentPublic(int d, int agent, float dmg) { HitAgent(d >= 0 ? &divers[d] : nullptr, agent, dmg, false, false, {1, 0, 0}, nullptr); }
+    void HitAgentPublic(int d, int agent, float dmg, bool blast = false) { Dart t; t.weapon = -1; HitAgent(d >= 0 ? &divers[d] : nullptr, agent, dmg, false, false, {1, 0, 0}, blast ? nullptr : &t); }
     void FloraHazardsPublic(float dt) { FloraHazards(dt); }
     int WonderIdx() const { return Weapons().Index(WonderId()); }
     static Held NewHeldPublic(int def) { Held h; h.def = def; if (def >= 0) { h.mag = Weapons().weapons[def].mag; h.reserve = Weapons().weapons[def].reserve; } return h; }
@@ -250,6 +265,9 @@ struct Match {
     void UpdateBossGeneric(float dt, int near, float dist);
     void UpdateBossMatriarch(float dt, int near, float dist);
     void UpdateReef(float dt);
+    void UpdateAtlantis(float dt);
+    void UpdateBossWyrm(float dt);
+    void QuestAdvance(int chain, DiverState* d);
     void EnemyBlast(Vector3 at, float dmg, float radius, int enemy);
     void FloraTool(int patch, Vector3 at, DiverState* d);
     void ApplyDrop(DropType t, Vector3 at);

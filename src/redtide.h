@@ -74,6 +74,7 @@ struct Link {
     bool diverOk = true;               // false: beasts (and darts) only
     int beastRule = 0;                 // 0 a door (closed to beasts until bought), 1 never open to beasts, 2 a breach (opens at openTide or when the faction first comes)
     int openTide = 99;
+    int opensWith = -1;                // another link whose door opens this one too (Atlantis's parade stair)
     bool slip = false; float slipSpeed = 8;  // a slipstream: a one-way current that carries divers and beasts (not a swimmable passage)
 };
 // A porthole: a dart-only opening from a room the divers use into open water they don't (extra.json "windows").

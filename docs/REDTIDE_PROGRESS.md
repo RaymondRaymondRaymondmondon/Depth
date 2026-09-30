@@ -293,3 +293,57 @@ redtide_match.cpp; `--redtide-map-test reef` (29 checks, all pass).
 | four careful bots, 3 runs | 6.7 | 81 / 18 / 0 |
 
 The Blacktip Reef Shark does most of the downing; balance stays with Stage 10.
+
+## Stage 7: Atlantis, the Forgotten City
+
+Data: `data/redtide/maps/atlantis/extra.json`. Code: `UpdateAtlantis`, `UpdateBossWyrm`, `QuestAdvance`,
+`WyrmGrates` in redtide_match.cpp, the city generator in `BuildLevel`; `--redtide-map-test atlantis` (40 checks, all
+pass). `--web-check atlantis` is clean.
+
+- **The city on its hill** (`plan_override`, `poi_scale`, `zone_y`): the engine's rooms are boxes, so the radial
+  blockout (districts by radius and angle, 500 m across) is laid out as a box city at 0.4 scale in the same order: the
+  Harbor Gate at the foot, the Farms and the Lower Town above it, the Bathhouses east and the Barracks west on the
+  slopes, the Library above them, the Forum and the Grand Chapel on the summit; floors climb from 90 m deep to 30 m.
+  The rampart walk is the west wall; the open sea beyond it (`zone_add` "Beyond the Wall") is shot into over the
+  crenellations (`windows`).
+- **The city generator** (`dressing.buildings`): 60+ marble houses on each district's street grid (4 m streets, the
+  avenue up the hill kept clear, none overlapping, none on a doorway or station), farm terraces, forum sea fans,
+  amphorae in the streets, columns in the nave, the god-pool.
+- **Cisterns and grates** (`zone_add` "The Cisterns", `link_add` with `at`): a network under every district, opening
+  through twelve grates and the god-pool (beasts only; divers can't go down). Congers, lampreys and the Wyrm live
+  there.
+- **The aqueduct** (`link_add` flows A1-A4, zone `flow`): blood made on the plaza reaches the market in ~73 s and the
+  outfall at the gate in ~81 s (the doc: 75 and 120 s).
+- **Doors** (`link_patch`): the parade stair opens with the garrison gate (`Link::opensWith`); the wall fort's postern
+  costs 1,500 (our call, so the rampart isn't a free way round three doors).
+- **The Lost Ones** (`faction_patch`, roles `phalanx`, `slinger`, `chant`, `wall`, `priest`): Legionnaires lock
+  shields three abreast (400 shield HP soaks frontal darts; a blast or the Tide Staff tears it away; from behind the
+  dart lands); Slingers pick out reloading divers; Cultists' chant slows divers 30% within 10 m; in a Hunt the Armored
+  Lost One can't be shot through from the front, and the Priest stands in the plaza: 60 s of chanting calls the Alien
+  Horror (`species_add`, 2,500 HP, throws a diver 20 m every 8 s, gone after 90 s; kill the Priest first and it never
+  comes). They're bloodless; their **ichor** (60 s) keeps sharks and the Wyrm out of 20 m and draws the scavengers.
+- **The Cistern Wyrm** (bossKind 3): below, nothing reaches it; it follows under the streets and comes up through a
+  grate near the diver it wants (phase 1: only the god-pool and the chapel's two grates, only for divers on the
+  chapel floor; phase 2 at 60%: the diver's district and the one below, and congers pour from other grates; never
+  beside fresh ichor). The grate rattles for 1 s, the Surface strike lands at 0.6 s, the gills are bare from 2 s; a
+  Drag below gives the team 6 s to put 200 into the gills. The god-pool trap (1,000) strands it for 6 s if it's home.
+  Phase 3 at 30%: the Flood (the district slows, blood doubles, the great white comes over the wall) and it hunts the
+  streets. Its kill leaves the lighthouse key; it reforms in the god-pool after 6 minutes at half health.
+- **Traps**: the canal sluice (drowns a phalanx in 14 m, stuns beasts), the god-pool, the bathhouse hypocaust (scalds
+  everything in the baths).
+- **Quests** (`quests`, generic chains of `carry`/`spark`/`hold`/`ichor`/`key` steps): the Tide Staff (the treasury
+  crystal's spark in a jar, three chapel braziers, hold the plaza 45 s, a Lost One's ichor offered at the god-pool
+  while the Wyrm is below); the Lighthouse (four wall-fires with the spark, then the lighthouse with the Wyrm's key:
+  the whole city on the sonar, the vault's 5,000 split, the Sovereign's Staff for the lighter).
+- **The Tide Staff** (`wonder`, `wave`): a 16 m, 40-degree wave that throws what it hits 8 m along it (into a trap,
+  off a diver) and strips shields; forged, it drowns Lost Ones (+150) and carries blood.
+- Fixed along the way: the Ecosystem's agent array could move under a held reference when something spawned mid-step
+  (a crash first seen here); it now reserves room. `HasW` in tests needs lower-case words.
+- `--shots shots redtide_atlantis` renders six views (the gate, the town, the forum, the chapel, the wall, the Wyrm).
+
+| `--redtide-sim atlantis`, four careful bots, 3 runs | Tide reached | Downs (beasts / enemies / hazards) |
+|---|---|---|
+| before the white was held back to tide 4 | 4.7 | 66 / 33 / 0 |
+
+The Farms' amberjack pack and the great white did most of the downing (a careful bot now leaves packs alone while its
+gun is weak); the great white comes over the wall from tide 4, after the calm. Balance stays with Stage 10.

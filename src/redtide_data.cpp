@@ -241,6 +241,46 @@ static void LoadExtra(MapData& m, const Json& ex) {
 
     for (const auto& kv : ex["zone_alias"].o) m.zoneAlias[kv.first] = kv.second.Str0();
     m.extra = ex;
+    if (ex.Has("title")) m.title = ex["title"].Str0();
+    // a radial blockout laid out as a box plan (Atlantis: the engine's rooms are boxes); the points scale with it
+    const Json& po = ex["plan_override"];
+    for (auto& z : m.zones) {
+        const Json& b = po[z.name];
+        if (!b.IsArr()) continue;
+        z.radial = false;
+        z.plan = {b[0].F(), b[1].F(), b[2].F(), b[3].F()};
+    }
+    // zones the blockout leaves in prose (Atlantis's cisterns under every district, the open sea beyond the wall)
+    for (const Json& za : ex["zone_add"].a) {
+        Zone zn; zn.name = za["name"].Str0(); zn.deck = za["deck"].Str0(); zn.notes = za["notes"].Str0();
+        const Json& b = za["box"];
+        zn.plan = {b[0].F(), b[1].F(), b[2].F(), b[3].F()};
+        zn.y0 = za["y"][0].F(0); zn.y1 = za["y"][1].F(8);
+        zn.diverOk = za["divers"].Bool0(true);
+        m.zones.push_back(zn);
+    }
+    for (const Json& la : ex["link_add"].a) {
+        Link ln; ln.from = m.ZoneIndex(la["from"].Str0()); ln.to = m.ZoneIndex(la["to"].Str0());
+        if (ln.from < 0 || ln.to < 0) continue;
+        ln.cost = la["cost"].I(0); ln.passage = la["passage"].Str0(); ln.oneWay = la["one_way"].Bool0(false);
+        ln.diverOk = la["divers"].Bool0(true);
+        std::string b = la["beasts"].Str0();
+        if (b == "never") ln.beastRule = 1; else if (b == "breach") ln.beastRule = 2;
+        ln.openTide = la["open_tide"].I(99);
+        ln.flow = la["flow"].F(0);
+        m.links.push_back(ln);
+    }
+    for (auto& l : m.links) {
+        const Json& lp = ex["link_patch"][l.passage];
+        if (!lp.IsObj()) continue;
+        if (lp.Has("cost")) l.cost = lp["cost"].I(l.cost);
+        if (lp.Has("one_way")) l.oneWay = lp["one_way"].Bool0(l.oneWay);
+    }
+    for (auto& l : m.links) {
+        const Json& lp = ex["link_patch"][l.passage];
+        if (!lp.IsObj() || !lp.Has("opens_with")) continue;
+        for (int k = 0; k < (int)m.links.size(); k++) if (m.links[k].passage == lp["opens_with"].Str0()) l.opensWith = k;
+    }
     // points of interest moved or added (a confined map moves what stood outside; quests add their steps)
     for (auto& p : m.pois) {
         const Json& pp = ex["poi_patch"][p.name];
@@ -249,6 +289,7 @@ static void LoadExtra(MapData& m, const Json& ex) {
         if (pp.Has("x")) p.pos.x = pp["x"].F();
         if (pp.Has("y")) p.pos.z = pp["y"].F();
         if (pp.Has("type")) p.type = pp["type"].Str0();
+        if (pp.Has("step")) p.step = pp["step"].I(0);
     }
     for (const Json& pa : ex["poi_add"].a) {
         Poi po; po.name = pa["name"].Str0(); po.type = pa["type"].Str0(); po.zoneName = pa["zone"].Str0();
@@ -256,6 +297,7 @@ static void LoadExtra(MapData& m, const Json& ex) {
         po.step = pa["step"].I(0);
         m.pois.push_back(po);
     }
+    if (ex.Has("poi_scale")) { float s = ex["poi_scale"].F(1); for (auto& p : m.pois) { p.pos.x *= s; p.pos.z *= s; } }   // (the blockout's, patched and added alike)
     for (auto& p : m.pois) p.zone = m.ZoneIndex(p.zoneName);
     for (const Json& sa : ex["spawn_add"].a) {
         SpawnRow r; r.zone = sa["zone"].Str0(); r.species = sa["species"].Str0(); r.count = sa["count"].I(); r.respawnS = sa["respawn_s"].F(60); r.capMult = 1.03f;
@@ -558,6 +600,18 @@ const MapData& Map(const std::string& key) {
         m.boundsMin.y = std::min(m.boundsMin.y, z.y0); m.boundsMax.y = std::max(m.boundsMax.y, z.y1);
     }
     for (auto& l : m.links) LinkMouths(m, l);
+    // an added link that opens at a marked point (Atlantis's drain grates): its mouth there, the other end straight below
+    for (const Json& la : m.extra["link_add"].a) {
+        if (!la.Has("at")) continue;
+        for (auto& l : m.links) {
+            if (l.passage != la["passage"].Str0()) continue;
+            for (const auto& p : m.pois) if (p.name == la["at"].Str0() && p.zone == l.to) {
+                const Zone& B = m.zones[l.to]; const Zone& A = m.zones[l.from];
+                l.b = B.Clamp({p.pos.x, B.y0 + 0.6f, p.pos.z}, 0.5f);
+                l.a = A.Clamp({p.pos.x, A.y1 - 0.6f, p.pos.z}, 0.5f);
+            }
+        }
+    }
     // a slipstream's mouth where the blockout marks one ("Slipstream C mouth")
     for (auto& l : m.links) {
         if (!l.slip) continue;

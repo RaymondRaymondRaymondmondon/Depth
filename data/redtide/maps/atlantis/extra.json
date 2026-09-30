@@ -1,0 +1,938 @@
+{
+ "title": "Atlantis, the Forgotten City",
+ "_source": "Hand-written from the design doc's 'Level 4: Atlantis, the Forgotten City', its faction and boss sheets, the wonder-weapon quest and the lighthouse quest; each entry cites its line.",
+ "plan_override": {
+  "Harbor Gate": [
+   -26,
+   -100,
+   52,
+   12
+  ],
+  "The Farms": [
+   -64,
+   -88,
+   128,
+   26
+  ],
+  "The Lower Town": [
+   -56,
+   -62,
+   112,
+   32
+  ],
+  "The Bathhouses": [
+   16,
+   -30,
+   40,
+   50
+  ],
+  "Barracks & Armory": [
+   -56,
+   -30,
+   40,
+   50
+  ],
+  "Library & Academy": [
+   -30,
+   20,
+   60,
+   24
+  ],
+  "The Forum": [
+   -16,
+   -6,
+   32,
+   26
+  ],
+  "The Grand Chapel": [
+   -16,
+   -30,
+   32,
+   24
+  ],
+  "The Wall & Ramparts": [
+   -72,
+   -100,
+   8,
+   144
+  ]
+ },
+ "poi_scale": 0.4,
+ "_plan_note": "The engine's rooms are boxes, so the radial blockout (districts by radius and angle on a hill 500 m across) is laid out as a box city at 0.4 scale with the same order: the gate to the south, the Farms and the Lower Town rings above it, the Bathhouses east and the Barracks west on the slopes, the Library above them, and the Forum and the Grand Chapel on the summit in the middle. The rampart walk is the west wall.",
+ "zone_y": {
+  "Harbor Gate": [
+   -90,
+   -72
+  ],
+  "The Farms": [
+   -85,
+   -68
+  ],
+  "The Lower Town": [
+   -70,
+   -52
+  ],
+  "The Bathhouses": [
+   -50,
+   -34
+  ],
+  "Barracks & Armory": [
+   -50,
+   -34
+  ],
+  "Library & Academy": [
+   -40,
+   -22
+  ],
+  "The Forum": [
+   -30,
+   -8
+  ],
+  "The Grand Chapel": [
+   -30,
+   -6
+  ],
+  "The Wall & Ramparts": [
+   -80,
+   -62
+  ]
+ },
+ "_zone_y_source": "The blockout's depth_m per district (the gate 90 m, the Farms 85, the Lower Town 70, the slopes 50, the Library 40, the summit 30): the city climbs a hill.",
+ "zone_add": [
+  {
+   "name": "The Cisterns",
+   "box": [
+    -60,
+    -96,
+    120,
+    140
+   ],
+   "y": [
+    -104,
+    -96
+   ],
+   "divers": false,
+   "deck": "Cisterns",
+   "notes": "'Cisterns and drains. A network under every district: conger eels and the Wyrm come out of any drain grate.'"
+  },
+  {
+   "name": "Beyond the Wall",
+   "box": [
+    -110,
+    -100,
+    38,
+    144
+   ],
+   "y": [
+    -95,
+    -40
+   ],
+   "divers": false,
+   "deck": "Outside",
+   "notes": "The open sea past the rampart: 'the great white comes over the north wall'."
+  }
+ ],
+ "outside_zones": [
+  "The Cisterns",
+  "Beyond the Wall"
+ ],
+ "windows": {
+  "gap_max_m": 1,
+  "spacing_m": 6,
+  "size_m": 1.6,
+  "_note": "the rampart's crenellations: shoot over the wall at what swims beyond it"
+ },
+ "link_add": [
+  {
+   "from": "The Cisterns",
+   "to": "Harbor Gate",
+   "passage": "Grate G1",
+   "divers": false,
+   "at": "Grate G1"
+  },
+  {
+   "from": "The Cisterns",
+   "to": "The Farms",
+   "passage": "Grate G2",
+   "divers": false,
+   "at": "Grate G2"
+  },
+  {
+   "from": "The Cisterns",
+   "to": "The Farms",
+   "passage": "Grate G3",
+   "divers": false,
+   "at": "Grate G3"
+  },
+  {
+   "from": "The Cisterns",
+   "to": "The Lower Town",
+   "passage": "Grate G4",
+   "divers": false,
+   "at": "Grate G4"
+  },
+  {
+   "from": "The Cisterns",
+   "to": "The Lower Town",
+   "passage": "Grate G5",
+   "divers": false,
+   "at": "Grate G5"
+  },
+  {
+   "from": "The Cisterns",
+   "to": "The Lower Town",
+   "passage": "Grate G6",
+   "divers": false,
+   "at": "Grate G6"
+  },
+  {
+   "from": "The Cisterns",
+   "to": "The Bathhouses",
+   "passage": "Grate G7",
+   "divers": false,
+   "at": "Grate G7"
+  },
+  {
+   "from": "The Cisterns",
+   "to": "Barracks & Armory",
+   "passage": "Grate G8",
+   "divers": false,
+   "at": "Grate G8"
+  },
+  {
+   "from": "The Cisterns",
+   "to": "Library & Academy",
+   "passage": "Grate G9",
+   "divers": false,
+   "at": "Grate G9"
+  },
+  {
+   "from": "The Cisterns",
+   "to": "The Forum",
+   "passage": "Grate G10",
+   "divers": false,
+   "at": "Grate G10"
+  },
+  {
+   "from": "The Cisterns",
+   "to": "The Grand Chapel",
+   "passage": "Grate G11",
+   "divers": false,
+   "at": "Grate G11"
+  },
+  {
+   "from": "The Cisterns",
+   "to": "The Grand Chapel",
+   "passage": "Grate G12",
+   "divers": false,
+   "at": "Grate G12"
+  },
+  {
+   "from": "The Cisterns",
+   "to": "The Grand Chapel",
+   "passage": "The god-pool",
+   "divers": false,
+   "at": "God-pool (Wyrm's home)"
+  },
+  {
+   "from": "The Forum",
+   "to": "The Bathhouses",
+   "passage": "Aqueduct A1",
+   "divers": false,
+   "beasts": "never",
+   "flow": 1.0
+  },
+  {
+   "from": "The Bathhouses",
+   "to": "The Lower Town",
+   "passage": "Aqueduct A2",
+   "divers": false,
+   "beasts": "never",
+   "flow": 1.0
+  },
+  {
+   "from": "The Lower Town",
+   "to": "The Farms",
+   "passage": "Aqueduct A3",
+   "divers": false,
+   "beasts": "never",
+   "flow": 0.8
+  },
+  {
+   "from": "The Farms",
+   "to": "Harbor Gate",
+   "passage": "Aqueduct A4 (the outfall)",
+   "divers": false,
+   "beasts": "never",
+   "flow": 0.8
+  },
+  {
+   "from": "The Wall & Ramparts",
+   "to": "Beyond the Wall",
+   "passage": "Over the wall",
+   "divers": false,
+   "beasts": "breach",
+   "open_tide": 4
+  }
+ ],
+ "_link_source": "'Drop 12 cistern grates at the listed points'; 'run the aqueduct A1-A5' ('Blood made on the summit flows down the aqueduct into the baths and the lower town within a minute').",
+ "link_patch": {
+  "The wall fort": {
+   "cost": 1500
+  },
+  "The parade stair (opens with the garrison gate)": {
+   "opens_with": "The garrison gate (west)"
+  }
+ },
+ "_link_patch_note": "The parade stair opens with the garrison gate, as the blockout says. The wall fort's postern costs what the garrison gate does (1,500), our call: free, it would let the rampart walk skip three doors.",
+ "flow": {
+  "The Forum": [
+   0.9,
+   0,
+   0
+  ],
+  "The Bathhouses": [
+   0,
+   0,
+   -0.9
+  ],
+  "The Lower Town": [
+   0,
+   0,
+   -0.8
+  ],
+  "The Farms": [
+   0,
+   0,
+   -0.6
+  ],
+  "Harbor Gate": [
+   0,
+   0,
+   -0.3
+  ]
+ },
+ "_flow_source": "'The aqueduct carries blood downhill ... the plaza's blood reaches the market in 75 s and the barracuda at the outfall in 120 s.'",
+ "alarm_regions": {
+  "Summit": {
+   "mult": 1,
+   "zones": [
+    "The Forum",
+    "The Grand Chapel",
+    "Library & Academy"
+   ],
+   "entry": "Barracuda arch"
+  },
+  "Slopes": {
+   "mult": 1,
+   "zones": [
+    "The Bathhouses",
+    "Barracks & Armory"
+   ],
+   "entry": "Barracuda arch"
+  },
+  "Lower": {
+   "mult": 1,
+   "zones": [
+    "The Lower Town",
+    "The Farms",
+    "Harbor Gate",
+    "The Wall & Ramparts"
+   ],
+   "entry": "Barracuda arch"
+  }
+ },
+ "_alarm_source": "Blockout notes: 'Alarm regions: Summit (Forum, Chapel, Library), Slopes (Baths, Barracks), Lower (Town, Farms, Gate); the Lost Ones enter at the outer gate and stage at the armory.'",
+ "zone_alias": {
+  "Lower Town": "The Lower Town",
+  "Bathhouses": "The Bathhouses",
+  "Farms": "The Farms",
+  "Barracks": "Barracks & Armory",
+  "Library": "Library & Academy",
+  "Forum": "The Forum",
+  "Chapel": "The Grand Chapel",
+  "Cisterns": "The Cisterns",
+  "Aqueduct": "The Farms",
+  "Courtyards": "The Lower Town",
+  "Beyond the wall": "Beyond the Wall",
+  "The Wall rampart": "The Wall & Ramparts",
+  "Every drain grate": "The Cisterns"
+ },
+ "_alias_note": "The aqueduct newts live in the farms' irrigation canals (the aqueduct's end); the courtyards' cormorants, man o' war, loggerheads and seals in the Lower Town's roofless houses.",
+ "food_alias": {
+  "Turf on marble": "Sea lettuce terraces",
+  "Ichor-fed crabs": "Spider Crab"
+ },
+ "diet_patch": {
+  "Great White": {
+   "Swordfish": 0.1,
+   "Leatherback": 0.1,
+   "Barracuda": 0.1,
+   "Lost One": 0.05,
+   "Corpse": 0.1
+  },
+  "Bluefin Tuna": {
+   "Sardine": 0.3
+  },
+  "Spider Crab": {
+   "Corpse": 0.3
+  },
+  "Water Monitor": {
+   "Corpse": 0.15
+  },
+  "Conger Eel": {
+   "Corpse": 0.2
+  }
+ },
+ "_diet_note": "The doc's 'Eaten by' column: the great white takes swordfish, leatherbacks and barracuda at the wall; crabs and the monitor scavenge ('ichor draws crabs, cucumbers and the monitor'). Congers scavenge the cisterns (a corpse dropped down a grate is theirs) and great whites take carrion like any white.",
+ "spawn_add": [
+  {
+   "zone": "Harbor Gate",
+   "species": "Sea Cucumber",
+   "count": 2,
+   "respawn_s": 90
+  },
+  {
+   "zone": "Library & Academy",
+   "species": "Sea Cucumber",
+   "count": 2,
+   "respawn_s": 90
+  },
+  {
+   "zone": "The Forum",
+   "species": "Sea Cucumber",
+   "count": 2,
+   "respawn_s": 90
+  },
+  {
+   "zone": "The Grand Chapel",
+   "species": "Sea Cucumber",
+   "count": 2,
+   "respawn_s": 90
+  },
+  {
+   "zone": "Barracks & Armory",
+   "species": "Spider Crab",
+   "count": 1,
+   "respawn_s": 120
+  }
+ ],
+ "_spawn_note": "'Sea Cucumber: cleans corpses slowly' in every district, so every corpse has a scavenger within one region.",
+ "species_add": [
+  {
+   "name": "Alien Horror",
+   "base": "Giant Squid",
+   "size": 4,
+   "tier": 4,
+   "hp": 2500,
+   "bounty": 800,
+   "archetype": "Summoned",
+   "tags": "summoned,bloodless",
+   "home_zone": "The Forum",
+   "art": "Giant Squid",
+   "art_scale": 0.55
+  }
+ ],
+ "_horror_source": "Faction sheet, the Priest: 'after 60 s of chanting the Alien Horror (Depth's mini-boss: 2,500 HP, teleports one diver 20 m every 8 s) arrives for 90 s'.",
+ "species_patch": {
+  "Alien Horror": {
+   "bloodless": true
+  },
+  "Leatherback": {
+   "tags_add": "armored"
+  },
+  "Feather Star": {
+   "tags_add": "untouchable"
+  }
+ },
+ "faction_patch": {
+  "species_name": "Lost One",
+  "entry_poi": "Barracuda arch",
+  "hunt_staging": "Barracks & Armory",
+  "patrol": [
+   "The Lower Town",
+   "Barracks & Armory",
+   "The Forum",
+   "The Bathhouses",
+   "Harbor Gate"
+  ],
+  "bleeds": false,
+  "slipstreams": false,
+  "ignore_beasts": true,
+  "units": {
+   "Legionnaire": {
+    "role": "phalanx",
+    "range": 1.8,
+    "damage": 35,
+    "interval": 1.0,
+    "speed": 1.2,
+    "loot": 260
+   },
+   "Slinger": {
+    "role": "slinger",
+    "range": 20,
+    "damage": 30,
+    "interval": 2.0,
+    "loot": 220
+   },
+   "Cultist": {
+    "role": "chant",
+    "range": 10,
+    "damage": 0,
+    "interval": 1.0,
+    "loot": 240
+   },
+   "Armored Lost One (Hunts)": {
+    "role": "wall",
+    "range": 2.2,
+    "damage": 90,
+    "interval": 2.0,
+    "speed": 1.0,
+    "loot": 500,
+    "hunt_only": true
+   },
+   "The Priest (Hunts)": {
+    "role": "priest",
+    "range": 40,
+    "damage": 0,
+    "interval": 1.0,
+    "speed": 1.0,
+    "loot": 600,
+    "hunt_only": true
+   }
+  },
+  "composition": [
+   "Legionnaire",
+   "Legionnaire",
+   "Slinger",
+   "Legionnaire",
+   "Cultist"
+  ],
+  "barks": {
+   "spot": [
+    "Strangers in the forum.",
+    "They breathe air. Pity them."
+   ],
+   "phalanx": [
+    "Shields. Step.",
+    "The line holds; the city holds."
+   ],
+   "losing": [
+    "Priest! The old one!",
+    "Sing them under."
+   ],
+   "death": [
+    "Back to the pool with you."
+   ],
+   "wyrm": [
+    "Off the grates! It's the god's own."
+   ],
+   "priest": [
+    "The sigil is drawn. Kneel or be unmade."
+   ]
+  }
+ },
+ "_faction_source": "Faction sheet: Legionnaires lock shields (400 shield HP, frontal shots blocked) and advance one step every 3 s; Slingers fire over them at reloading divers; Cultists chant (slow 30% in 10 m); in a Hunt the Armored Lost One holds the avenue (frontal immune) and the Priest chants in the plaza for 60 s to call the Alien Horror. 'They bleed black ichor, a scent the city's scavengers love and its apex beasts avoid.'",
+ "ichor": {
+  "seconds": 60,
+  "repel_m": 20,
+  "_source": "'dead Lost Ones repel sharks and the Wyrm for 60 s within 20 m and draw crabs, cucumbers, and the monitor.'"
+ },
+ "shields": {
+  "Legionnaire": 400
+ },
+ "wonder": "tidestaff",
+ "boss_key": {
+  "key": "Lighthouse",
+  "text": "The Wyrm's body sinks into the god-pool. Wound in its gills: the lighthouse key."
+ },
+ "wyrm": {
+  "home": "The god-pool",
+  "phase1_grates": [
+   "The god-pool",
+   "Grate G11",
+   "Grate G12"
+  ],
+  "reform_s": 360,
+  "_source": "Boss sheet: 'Phase 1: Surface strike from the god-pool and the two chapel grates (G11, G12); Drag below (teammates have 6 s to deal 200 to the gills at the grate)'; 'It reforms in the god-pool after 6 minutes at 50% HP.'"
+ },
+ "traps": [
+  {
+   "match": "Sluice",
+   "kind": "sluice",
+   "radius": 14,
+   "_source": "'a canal sluice (floods a farm terrace)'; 'a flooded terrace (the sluice trap) drowns a phalanx because they can't swim up in armor'",
+   "prompt": "E: open the canal sluice (1000: floods the terrace; a phalanx drowns)"
+  },
+  {
+   "match": "God-pool trap",
+   "kind": "godpool",
+   "_source": "'the god-pool trap (1,000) drains the pool and strands it for 6 s if it's home'",
+   "prompt": "E: drain the god-pool (1000: strands the Wyrm if it's home)"
+  },
+  {
+   "match": "Hypocaust",
+   "kind": "boil",
+   "_source": "'the bathhouse hypocaust (boils a room)'",
+   "prompt": "E: fire the hypocaust (1000: boils the baths)"
+  }
+ ],
+ "poi_add": [
+  {
+   "name": "Grate G1",
+   "type": "Grate",
+   "zone": "Harbor Gate",
+   "x": 20,
+   "y": -226
+  },
+  {
+   "name": "Grate G2",
+   "type": "Grate",
+   "zone": "The Farms",
+   "x": -100,
+   "y": -195
+  },
+  {
+   "name": "Grate G3",
+   "type": "Grate",
+   "zone": "The Farms",
+   "x": 100,
+   "y": -165
+  },
+  {
+   "name": "Grate G4",
+   "type": "Grate",
+   "zone": "The Lower Town",
+   "x": -75,
+   "y": -125
+  },
+  {
+   "name": "Grate G5",
+   "type": "Grate",
+   "zone": "The Lower Town",
+   "x": 25,
+   "y": -100
+  },
+  {
+   "name": "Grate G6",
+   "type": "Grate",
+   "zone": "The Lower Town",
+   "x": 100,
+   "y": -145
+  },
+  {
+   "name": "Grate G7",
+   "type": "Grate",
+   "zone": "The Bathhouses",
+   "x": 75,
+   "y": -50
+  },
+  {
+   "name": "Grate G8",
+   "type": "Grate",
+   "zone": "Barracks & Armory",
+   "x": -75,
+   "y": -25
+  },
+  {
+   "name": "Grate G9",
+   "type": "Grate",
+   "zone": "Library & Academy",
+   "x": -25,
+   "y": 75
+  },
+  {
+   "name": "Grate G10",
+   "type": "Grate",
+   "zone": "The Forum",
+   "x": 20,
+   "y": 0
+  },
+  {
+   "name": "Grate G11",
+   "type": "Grate",
+   "zone": "The Grand Chapel",
+   "x": -25,
+   "y": -50
+  },
+  {
+   "name": "Grate G12",
+   "type": "Grate",
+   "zone": "The Grand Chapel",
+   "x": 25,
+   "y": -60
+  },
+  {
+   "name": "Hypocaust valve",
+   "type": "Trap",
+   "zone": "The Bathhouses",
+   "x": 110,
+   "y": -60
+  },
+  {
+   "name": "The treasury's crystal (spark)",
+   "type": "QuestStep",
+   "zone": "The Forum",
+   "x": 25,
+   "y": 30,
+   "step": 1
+  },
+  {
+   "name": "Chapel brazier I",
+   "type": "QuestStep",
+   "zone": "The Grand Chapel",
+   "x": -30,
+   "y": -25,
+   "step": 2
+  },
+  {
+   "name": "Chapel brazier II",
+   "type": "QuestStep",
+   "zone": "The Grand Chapel",
+   "x": 30,
+   "y": -25,
+   "step": 3
+  },
+  {
+   "name": "Chapel brazier III",
+   "type": "QuestStep",
+   "zone": "The Grand Chapel",
+   "x": 0,
+   "y": -70,
+   "step": 4
+  },
+  {
+   "name": "The plaza (hold it)",
+   "type": "QuestStep",
+   "zone": "The Forum",
+   "x": -20,
+   "y": 20,
+   "step": 5
+  },
+  {
+   "name": "The god-pool's rim (offer ichor)",
+   "type": "QuestStep",
+   "zone": "The Grand Chapel",
+   "x": 10,
+   "y": -45,
+   "step": 6
+  },
+  {
+   "name": "Wall-fire I",
+   "type": "QuestStep",
+   "zone": "The Wall & Ramparts",
+   "x": -170,
+   "y": -200,
+   "step": 11
+  },
+  {
+   "name": "Wall-fire II",
+   "type": "QuestStep",
+   "zone": "The Wall & Ramparts",
+   "x": -170,
+   "y": -80,
+   "step": 12
+  },
+  {
+   "name": "Wall-fire III",
+   "type": "QuestStep",
+   "zone": "The Wall & Ramparts",
+   "x": -170,
+   "y": 30,
+   "step": 13
+  },
+  {
+   "name": "Wall-fire IV",
+   "type": "QuestStep",
+   "zone": "The Wall & Ramparts",
+   "x": -170,
+   "y": 80,
+   "step": 14
+  }
+ ],
+ "poi_patch": {
+  "Lighthouse (quest)": {
+   "x": -170,
+   "y": 105,
+   "type": "QuestStep",
+   "step": 15
+  },
+  "Great white's crossing (north wall)": {
+   "x": -170,
+   "y": 60
+  }
+ },
+ "quests": [
+  {
+   "name": "The Tide Staff",
+   "first": 1,
+   "last": 6,
+   "reward": "wonder",
+   "steps": {
+    "1": {
+     "kind": "carry",
+     "prompt": "E: draw a spark from the treasury's crystal (carried in a jar; lost if you go down)",
+     "done": "The jar glows: carry the spark to the chapel's braziers"
+    },
+    "2": {
+     "kind": "spark",
+     "prompt": "E: light the brazier with the spark",
+     "done": "The first brazier burns"
+    },
+    "3": {
+     "kind": "spark",
+     "prompt": "E: light the brazier with the spark",
+     "done": "The second brazier burns"
+    },
+    "4": {
+     "kind": "spark",
+     "prompt": "E: light the brazier with the spark",
+     "done": "The third brazier burns: the chapel remembers its god"
+    },
+    "5": {
+     "kind": "hold",
+     "seconds": 45,
+     "zone": "The Forum",
+     "prompt": "Hold the plaza (45 s, through a tuna crossing)",
+     "done": "The plaza held"
+    },
+    "6": {
+     "kind": "ichor",
+     "prompt": "E: offer the Lost One's ichor at the god-pool (only while the Wyrm is below)",
+     "done": "The god-pool takes the ichor: the Tide Staff rises from the water"
+    }
+   },
+   "_source": "Wonder weapon quests: 'Light three chapel braziers with the reactor-crystal's spark carried from the treasury, hold the plaza through one tuna crossing, and offer a Lost One's ichor (a Chummer jar filled from a corpse) at the god-pool while the Wyrm is submerged.' The plaza hold is 45 s (our number)."
+  },
+  {
+   "name": "The Lighthouse",
+   "first": 11,
+   "last": 15,
+   "reward": "lighthouse",
+   "steps": {
+    "11": {
+     "kind": "spark",
+     "prompt": "E: light the wall-fire with the spark",
+     "done": "A wall-fire burns"
+    },
+    "12": {
+     "kind": "spark",
+     "prompt": "E: light the wall-fire with the spark",
+     "done": "A wall-fire burns"
+    },
+    "13": {
+     "kind": "spark",
+     "prompt": "E: light the wall-fire with the spark",
+     "done": "A wall-fire burns"
+    },
+    "14": {
+     "kind": "spark",
+     "prompt": "E: light the wall-fire with the spark",
+     "done": "The fourth wall-fire burns: the lighthouse can be lit"
+    },
+    "15": {
+     "kind": "key",
+     "key": "Lighthouse",
+     "poi": "Lighthouse (quest)",
+     "prompt": "E: climb the lighthouse and light it (needs the lighthouse key)",
+     "done": "The lighthouse burns: the whole city shows on the sonar"
+    }
+   },
+   "_source": "Hidden quests, Atlantis: the lighthouse. The four wall-fires are lit with the crystal's spark; the lighthouse key is the Wyrm's kill reward (boss sheet). Reward: 'the whole city appears on the sonar for the rest of the match', 'the treasury vault: 5,000 scrip split' and 'the Tide Staff (Forged) for the lighter'. The terminal readings that reveal the fires' places are left out: the fires are marked."
+  }
+ ],
+ "palette": {
+  "wall": [
+   196,
+   188,
+   170
+  ],
+  "floor": [
+   150,
+   150,
+   136
+  ],
+  "ceil": [
+   70,
+   110,
+   130
+  ],
+  "fog": [
+   26,
+   62,
+   84
+  ],
+  "fog_density": 0.03,
+  "fill": [
+   120,
+   160,
+   180
+  ],
+  "surface_y": 0
+ },
+ "open_zones": [
+  "The Farms",
+  "The Forum",
+  "The Wall & Ramparts",
+  "Harbor Gate",
+  "The Lower Town",
+  "The Bathhouses",
+  "Barracks & Armory",
+  "Library & Academy",
+  "The Grand Chapel"
+ ],
+ "dressing": {
+  "Harbor Gate": {
+   "buildings": 3,
+   "grid": 8,
+   "columns": 4
+  },
+  "The Farms": {
+   "buildings": 8,
+   "grid": 11,
+   "terraces": 10,
+   "seagrass": 30
+  },
+  "The Lower Town": {
+   "buildings": 40,
+   "grid": 8,
+   "amphorae": 14
+  },
+  "The Bathhouses": {
+   "buildings": 10,
+   "grid": 9,
+   "pool": 0.3,
+   "columns": 6
+  },
+  "Barracks & Armory": {
+   "buildings": 10,
+   "grid": 9
+  },
+  "Library & Academy": {
+   "buildings": 8,
+   "grid": 8,
+   "columns": 8
+  },
+  "The Forum": {
+   "buildings": 4,
+   "grid": 8,
+   "columns": 10,
+   "fans": 10
+  },
+  "The Grand Chapel": {
+   "columns": 12,
+   "pool": 0.25
+  },
+  "The Wall & Ramparts": {
+   "crenels": true
+  }
+ },
+ "_dressing_source": "'60+ buildings on a hill ... connected by streets, stairs, and the aqueduct'; three radial avenues are kept clear (buildings leave x = 0 open); Forum sea fans break sightlines; the chapel's nave is columns and the god-pool.",
+ "flora_rules": {
+  "Stinging hydroid drains": {
+   "noise": 0
+  }
+ },
+ "hunt_note": "Squads avoid the Library ('forbidden') and the Farms' canals (the crocodile): they're left out of the patrol.",
+ "breach_text": "The great white comes over the wall"
+}

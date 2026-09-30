@@ -491,6 +491,26 @@
    "forged": "The Garden",
    "forged_twist": "Polyps also poison and spread once",
    "_source": "Wonder weapons: 'Fires living polyps that root where they land and grab anything that passes.' Numbers ours."
+  },
+  {
+   "id": "tidestaff",
+   "name": "The Tide Staff",
+   "class": "launcher",
+   "damage": 40,
+   "pellets": 1,
+   "rpm": 50,
+   "mag": 5,
+   "reserve": 25,
+   "noise": 4,
+   "reload": 3.0,
+   "price": 0,
+   "source": "wonder_atlantis",
+   "cone_m": 16,
+   "cone_deg": 40,
+   "wave": true,
+   "forged": "The Sovereign's Staff",
+   "forged_twist": "The wave drowns Lost Ones it throws (150 more) and carries blood with it",
+   "_source": "Wonder weapons: 'Bends the current: a wave that carries beasts and enemies away, or pulls them into a trap; Forged: the Sovereign's Staff, the wave drowns enemies in air pockets and carries blood with it.' Numbers ours: a 16 m, 40-degree wave that throws what it hits 8 m."
   }
  ],
  "melee": [

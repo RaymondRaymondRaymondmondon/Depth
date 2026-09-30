@@ -96,7 +96,7 @@ const WeaponsData& Weapons() {
         d.id = w["id"].Str0(); d.name = w["name"].Str0(); d.cls = w["class"].Str0(); d.source = w["source"].Str0();
         d.forged = w["forged"].Str0(); d.forgedTwist = w["forged_twist"].Str0();
         d.damage = w["damage"].F(30); d.rpm = w["rpm"].F(300); d.noise = w["noise"].F(2); d.reload = w["reload"].F(1.4);
-        d.chum = w["chum"].F(0); d.arc = w["arc_m"].F(0); d.splash = w["splash"].F(0); d.reach = w["reach"].F(0); d.spinup = w["spinup"].F(0); d.cone = w["cone_m"].F(0); d.coneDeg = w["cone_deg"].F(30); d.polyp = w["polyp"].Bool0();
+        d.chum = w["chum"].F(0); d.arc = w["arc_m"].F(0); d.splash = w["splash"].F(0); d.reach = w["reach"].F(0); d.spinup = w["spinup"].F(0); d.cone = w["cone_m"].F(0); d.coneDeg = w["cone_deg"].F(30); d.polyp = w["polyp"].Bool0(); d.wave = w["wave"].Bool0();
         d.pellets = w["pellets"].I(1); d.mag = w["mag"].I(8); d.reserve = w["reserve"].I(32); d.price = w["price"].I(0);
         d.burst = w["burst"].I(0); d.chain = w["chain"].I(0); d.explodesOver = w["explodes_over_size"].I(0);
         d.perRound = w["per_round"].Bool0(); d.pins = w["pins"].Bool0(); d.net = w["net"].Bool0(); d.melee = d.cls == "melee";
@@ -157,7 +157,7 @@ void BuildLevel(const MapData& m, Level& L) {
         Door d;
         d.link = li;
         d.cost = k.diverOk ? k.cost : 0;
-        d.open = d.cost <= 0;
+        d.open = d.cost <= 0 && k.opensWith < 0;
         d.pos = Vector3Lerp(k.a, k.b, 0.5f);
         d.name = k.passage;
         L.doors.push_back(d);
@@ -254,7 +254,36 @@ void BuildLevel(const MapData& m, Level& L) {
         for (int k = 0; k < d["staghorn"].I(0); k++) { Vector3 c = spot(1.0f); add(PropKind::Staghorn, {c.x, z.y0, c.z}, {0.8f, 1.2f + rnd(), 0.8f}, false); }
         for (int k = 0; k < d["seagrass"].I(0); k++) { Vector3 c = spot(0.5f); add(PropKind::Seagrass, {c.x, z.y0, c.z}, {0.6f, 0.5f + rnd() * 0.4f, 0.6f}, false); }
         for (int k = 0; k < d["mangrove"].I(0); k++) { Vector3 c = spot(1.0f); add(PropKind::Mangrove, {c.x, z.y1, c.z}, {1.0f, h, 1.0f}, false); }
+        // Atlantis: buildings on a street grid (4 m streets, the radial avenue at x = 0 kept clear), farm terraces,
+        // forum sea fans, amphorae in the lower town's streets, the rampart's crenels
+        if (d["buildings"].I(0) > 0) {
+            float g = d["grid"].F(10);
+            std::vector<Vector3> cells;
+            for (float x = z.plan.x + g * 0.5f; x <= z.plan.x + z.plan.width - g * 0.5f + 0.01f; x += g)
+                for (float zz = z.plan.y + g * 0.5f; zz <= z.plan.y + z.plan.height - g * 0.5f + 0.01f; zz += g) cells.push_back({x, 0, zz});
+            for (int k = (int)cells.size() - 1; k > 0; k--) std::swap(cells[k], cells[(int)(rnd() * (k + 1)) % (k + 1)]);
+            int placed = 0;
+            for (const Vector3& c : cells) {
+                if (placed >= d["buildings"].I(0)) break;
+                float hx = (g - 4) * 0.5f * (0.75f + 0.25f * rnd()), hz = (g - 4) * 0.5f * (0.75f + 0.25f * rnd());
+                if (fabsf(c.x) < hx + 3.0f) continue;                       // the avenue up the hill
+                float bh = std::min(h * 0.6f, 4.0f + rnd() * 6.0f);
+                size_t n0 = L.props.size();
+                add(PropKind::Building, {c.x, z.y0 + bh / 2, c.z}, {hx, bh / 2, hz}, true);
+                if (L.props.size() > n0) placed++;
+            }
+        }
+        for (int k = 0; k < d["terraces"].I(0); k++) { Vector3 c = spot(3.0f); add(PropKind::Terrace, {c.x, z.y0 + 0.4f, c.z}, {3.0f + rnd() * 2, 0.4f, 1.5f + rnd()}, false); }
+        for (int k = 0; k < d["fans"].I(0); k++) { Vector3 c = spot(2.0f); add(PropKind::Fan, {c.x, z.y0 + 1.2f, c.z}, {1.2f, 1.2f, 0.1f}, false); }
+        for (int k = 0; k < d["amphorae"].I(0); k++) { Vector3 c = spot(1.5f); add(PropKind::Amphora, {c.x, z.y0 + 0.5f, c.z}, {0.35f, 0.5f, 0.35f}, false); }
+        if (d["crenels"].Bool0()) for (float zz = z.plan.y + 2; zz < z.plan.y + z.plan.height - 1; zz += 3) add(PropKind::Crenel, {z.plan.x + 0.5f, z.y0 + 1.0f, zz}, {0.5f, 1.0f, 0.7f}, false);
         if (d["mound"].F(0) > 0) { Vector3 c = z.Center(); float f = d["mound"].F(0); add(PropKind::Mound, {c.x, z.y0 + h * 0.3f, c.z}, {z.plan.width * f / 2, h * 0.3f, z.plan.height * f / 2}, true); }
+    }
+    // drain grates (Atlantis): drawn over their cistern mouths
+    for (const Poi& p : m.pois) if (p.zone >= 0 && Lower(p.type) == "grate") {
+        const Zone& z = m.zones[p.zone];
+        Prop g; g.kind = PropKind::Grate; g.pos = z.Clamp({p.pos.x, z.y0 + 0.03f, p.pos.z}, 0.5f); g.pos.y = z.y0 + 0.03f; g.half = {0.9f, 0.03f, 0.9f}; g.zone = p.zone;
+        L.props.push_back(g);
     }
     // a boss key's cache (the Cave's Lantern Cache: the expedition's key opens its crate)
     const Json& bk = m.extra["boss_key"];
@@ -393,7 +422,7 @@ void Match::InitMap(const MapData& m, const std::string& art, int playerCount, u
     for (const Json& zn : m.extra["no_fire_zones"].a) { int zi = m.ZoneIndex(zn.Str0()); if (zi >= 0) noFireZone[zi] = 1; }
     for (const Json& zn : m.extra["rockfall"]["zones"].a) { int zi = m.ZoneIndex(zn.Str0()); if (zi >= 0) rockZone[zi] = 1; }
     for (const auto& kv : m.extra["crawl_zones"].o) { int zi = m.ZoneIndex(kv.first); if (zi >= 0) crawlZone[zi] = kv.second.F(0.4); }
-    for (const auto& sp : m.species) if (sp.tier == 5) bossKind = HasW(sp.name, "goliath") ? 0 : HasW(sp.name, "lobster") ? 1 : HasW(sp.name, "matriarch") ? 2 : 9;
+    for (const auto& sp : m.species) if (sp.tier == 5) bossKind = HasW(sp.name, "goliath") ? 0 : HasW(sp.name, "lobster") ? 1 : HasW(sp.name, "matriarch") ? 2 : HasW(sp.name, "wyrm") ? 3 : 9;
     for (int i = 0; i < (int)m.species.size(); i++) if (!m.species[i].attacksAs.empty()) { int bi = m.SpeciesIndex(m.species[i].attacksAs); if (bi >= 0) attacksBySp[i] = attacksBySp[bi]; }
     for (const auto& s : level.stations) if (s.type == StationType::Locker) lockerSpots = std::max(lockerSpots, s.lockerSpot + 1);
     const WeaponsData& W = Weapons();
@@ -500,12 +529,12 @@ void Match::Step(float dt) {
         harpoonT -= dt;
         if (harpoonT <= 0) for (auto& d : divers) if (d.harpoonHour) { d.weapons = d.savedWeapons; d.cur = d.savedCur; d.harpoonHour = false; }
     }
-    eco.bloodMult = frenzyT > 0 ? 5.0f : 1.0f;           // Blood Frenzy: the water fills with blood at 5x
+    eco.bloodMult = frenzyT > 0 ? 5.0f : floodT > 0 ? 2.0f : 1.0f;   // Blood Frenzy: the water fills with blood at 5x (the Wyrm's Flood: 2x)
     // beasts: doors until bought; some openings never (a porthole-hatch); a breach from its tide, or once the
     // faction has come through it
     if (!breachOpen) for (const auto& l : map->links) if (l.beastRule == 2 && (tide >= l.openTide || eco.squadsSpawned > 0)) {
         breachOpen = true;
-        Say("", "Something tears the hull breach wide: the sharks can get in now", 5);
+        if (l.openTide > 1 || eco.squadsSpawned > 0) Say("", map->extra["breach_text"].Str0("Something tears the hull breach wide: the sharks can get in now"), 5);
     }
     for (size_t i = 0; i < linkOpen.size(); i++) {
         const Link& l = map->links[i];
@@ -521,6 +550,7 @@ void Match::Step(float dt) {
     FloraHazards(dt);
     UpdateBoss(dt);
     UpdateReef(dt);
+    UpdateAtlantis(dt);
     UpdateDrops(dt);
     for (auto& c : crates) {
         c.t -= dt;
@@ -1076,6 +1106,23 @@ void Match::HitAgent(DiverState* d, int ai, float dmg, bool weak, bool melee, Ve
     const WeaponDef* w = dart && dart->weapon >= 0 ? &Weapons().weapons[dart->weapon] : nullptr;
     if (s.weakPoint == "none" || s.weakPoint.empty()) weak = false;
     bool frontal = Vector3DotProduct(dir, Facing(a)) < -0.3f;
+    if (IsBoss(ai) && bossKind == 3) {
+        // the Wyrm: nothing gets through the cistern stone; up at a grate, its gills count toward a dragged diver
+        if (wyrmState < 2 && wyrmStrandT <= 0) return;
+        if (wyrmDragDiver >= 0) wyrmDragDmg += dmg * (weak ? 2 : 1);
+    }
+    if (s.isEnemy && a.unit >= 0) {
+        // the Lost Ones' shields: a Legionnaire's tower shield soaks frontal hits (400); a blast or the wave tears it
+        // away; the Armored Lost One's titan shield can't be shot through from the front at all ("must be flanked")
+        const FactionUnit& u = map->faction.units[a.unit];
+        bool blast = !dart && !melee;
+        if (u.role == "phalanx") {
+            if (!shieldHP.count(ai)) shieldHP[ai] = map->extra["shields"][u.unit].F(400);
+            if (blast) shieldHP[ai] = 0;
+            else if (frontal && shieldHP[ai] > 0) { shieldHP[ai] -= dmg; if (shieldHP[ai] > 0) { fx.push_back({1, a.pos, dir}); return; } dmg = -shieldHP[ai]; }
+        }
+        if (u.role == "wall" && frontal && !blast) { fx.push_back({1, a.pos, dir}); return; }
+    }
     if (IsBoss(ai)) {
         if (d) bossProvoked = true;
         bossRecentDmg += dmg;
@@ -1263,6 +1310,9 @@ void Match::OnDeath(int ai, int killer) {
             if (!held && di >= 0) { divers[di].drumUses = 5; Say("", "The Shaman's drum is yours (F to beat it)", 4); }
             pod.clear(); podSpawned = false;
         }
+        if (bossKind == 3) {
+            wyrmReformT = map->extra["wyrm"]["reform_s"].F(360); wyrmState = 0; wyrmDragDiver = -1; wyrmStrandT = 0; eco.bloodMult = 1; floodT = 0;
+        }
         if (bossKind == 0) Say(s.name, "is dead. Its key lies in the engine room's silt.", 6);
         else Say(s.name, "is dead.", 5);
         if (di >= 0) { divers[di].kills++; if (phase == TidePhase::Tide) tideKills++; }
@@ -1270,6 +1320,7 @@ void Match::OnDeath(int ai, int killer) {
     }
     if (di >= 0 && HasW(s.name, "octopus") && !keys.count("Octopus")) { keys.insert("Octopus"); Say("", "The octopus drops a brass key (the captain's safe)", 4); }
     if (di >= 0 && s.isEnemy && a.unit >= 0 && map->faction.units[a.unit].huntOnly && !keys.count("Foreman")) { keys.insert("Foreman"); Say("", "The Foreman's key (the captain's safe)", 4); }
+    if (s.isEnemy && map->extra["ichor"].IsObj()) ichor.push_back({a.pos, map->extra["ichor"]["seconds"].F(60)});   // black ichor in the street
     if (s.isEnemy) {
         auto it = map->faction.barks.find("death");
         if (it != map->faction.barks.end() && !it->second.empty() && Rand() < 0.4f) Say(map->faction.speciesName, it->second[(int)(Rand() * it->second.size()) % it->second.size()], 3);
@@ -1302,7 +1353,31 @@ bool Match::DecideHook(Agent& a, int idx) {
     const Species& s = map->species[a.sp];
     if (s.isDiver) return true;
     if (s.isEnemy) return DecideEnemy(a, idx);
+    if (idx == bossAgent && bossKind == 3) {
+        // the Wyrm's script places it; only in phase 3 does it hunt the streets itself
+        int di = wyrmState == 3 ? NearestDiver(a.pos, 40, false) : -1;
+        if (di >= 0) { a.st = State::Investigate; a.goal = map->zones[a.zone].Clamp(divers[di].pos, 1.0f); a.stateT = 0; a.target = -1; }
+        else { a.st = State::Rest; a.goal = a.pos; a.vel = {0, 0, 0}; }
+        return true;
+    }
     if (idx == bossAgent && bossActive) return DecideBoss(a, idx);
+    // Atlantis: dead Lost Ones' ichor keeps the apex beasts out of a street and draws the scavengers in
+    if (!ichor.empty()) {
+        float repel = map->extra["ichor"]["repel_m"].F(20);
+        if (s.tier >= 4 || HasW(s.name, "shark")) {
+            for (const auto& ic : ichor) if (Vector3Distance(ic.pos, a.pos) < repel) {
+                Vector3 away = Vector3Subtract(a.pos, ic.pos); away.y = 0;
+                if (Vector3Length(away) < 0.1f) away = {1, 0, 0};
+                a.st = State::Investigate; a.goal = map->zones[a.zone].Clamp(Vector3Add(a.pos, Vector3Scale(Vector3Normalize(away), repel)), 1.0f); a.stateT = 0; a.target = -1;
+                return true;
+            }
+        } else if ((s.Scavenger() || map->diet[a.sp].corpse > 0.1f) && a.st != State::Flee && a.st != State::Feed) {
+            for (const auto& ic : ichor) if (Vector3Distance(ic.pos, a.pos) < 40 && Vector3Distance(ic.pos, a.pos) > 1.5f && eco.ZoneAt(ic.pos) == a.zone) {
+                a.st = State::Investigate; a.goal = ic.pos; a.stateT = 0;
+                return true;
+            }
+        }
+    }
     // the Matriarch's pod hunts as one while she's up
     if (s.Has("pod")) {
         if (!bossActive) return false;
@@ -1521,6 +1596,10 @@ bool Match::DecideEnemy(Agent& a, int idx) {
             break;
         }
     }
+    if (u.role == "priest") {
+        // the Priest stands in the plaza and chants; he never comes to the divers
+        for (const auto& p : map->pois) if (HasW(p.name, "plaza") && p.zone >= 0) { a.st = State::Investigate; a.goal = map->zones[p.zone].Clamp(p.pos, 1.0f); a.stateT = 0; a.target = -1; return true; }
+    }
     int di = NearestDiver(a.pos, hunt ? 1e9f : 30.0f, !hunt);
     if (di >= 0) {
         const DiverState& d = divers[di];
@@ -1531,13 +1610,21 @@ bool Match::DecideEnemy(Agent& a, int idx) {
         }
         // hold each role's distance: Cutters close in, the Speargunner covers from 12 m, the Netman from 6 m
         float want = u.role == "flank" ? 1.0f : u.role == "cover" ? 12.0f : u.role == "net" ? 6.0f : u.role == "chum" ? 10.0f
-                   : u.role == "lure" ? 9.0f : u.role == "bell" ? 14.0f : u.role == "grapple" ? 7.0f : 14.0f;
+                   : u.role == "lure" ? 9.0f : u.role == "bell" ? 14.0f : u.role == "grapple" ? 7.0f
+                   : u.role == "phalanx" || u.role == "wall" ? 1.2f : u.role == "slinger" ? 14.0f : u.role == "chant" ? 7.0f : 14.0f;
         want = std::min(want, u.range * 0.8f);
         Vector3 to = Vector3Subtract(a.pos, d.pos);
         float dist = Vector3Length(to);
         Vector3 goal = a.pos;
         if (dist > want + 1.5f || !level.Sight(a.pos, Eye(d), linkOpen)) goal = d.pos;
         else if (dist < want - 2.5f && dist > 0.1f) goal = Vector3Add(a.pos, Vector3Scale(Vector3Normalize(to), 3));
+        if (u.role == "phalanx" && dist > 0.1f) {
+            // three in a line across the street, shields locked: each keeps its own place in the line
+            Vector3 side = Vector3Normalize({-to.z, 0, to.x});
+            goal = Vector3Add(goal, Vector3Scale(side, ((int)(a.rng % 3) - 1) * 1.6f));
+            auto it = F.barks.find("phalanx");
+            if (it != F.barks.end() && !it->second.empty() && Rand() < 0.002f) Say(F.speciesName, it->second[(int)(Rand() * it->second.size()) % it->second.size()], 3);
+        }
         a.st = State::Investigate; a.goal = goal; a.stateT = 0; a.target = -1;
         return true;
     }
@@ -1578,21 +1665,37 @@ void Match::EnemiesVsDivers(float dt) {
         if (di < 0) { enemyTellT.erase(i); continue; }
         if (ft > 0) continue;
         // the tell first (a red laser dot, the net swung twice, the winch wound): the diver gets a moment to react
-        float tell = u.role == "drum" ? 1.0f : u.role == "sling" ? 0.9f : u.role == "leader" ? 2.0f : u.role == "cover" ? 1.0f : u.role == "net" || u.role == "grapple" ? 0.8f : u.role == "chum" || u.role == "bell" ? 0.6f : u.role == "lure" ? 1.0f : 0.3f;
+        float tell = u.role == "phalanx" ? 0.5f : u.role == "wall" ? 1.0f : u.role == "slinger" ? 0.7f : u.role == "chant" ? 0.2f : u.role == "priest" ? 99.0f : u.role == "drum" ? 1.0f : u.role == "sling" ? 0.9f : u.role == "leader" ? 2.0f : u.role == "cover" ? 1.0f : u.role == "net" || u.role == "grapple" ? 0.8f : u.role == "chum" || u.role == "bell" ? 0.6f : u.role == "lure" ? 1.0f : 0.3f;
         auto it = enemyTellT.find(i);
         if (it == enemyTellT.end()) { enemyTellT[i] = tell; continue; }
         it->second -= dt;
         if (it->second > 0) continue;
         enemyTellT.erase(it);
         ft = u.interval;
+        if (u.role == "slinger") {
+            // "targets reloading divers"
+            for (auto& o : divers) if (!o.dead && !o.downed && o.reloading && Vector3Distance(o.pos, a.pos) <= u.range && level.Sight(a.pos, Eye(o), linkOpen)) { di = o.slot; break; }
+        }
         DiverState& d = divers[di];
         // "better weapons every 5 tides"
         float dmg = u.damage * (1 + 0.15f * (tide / (int)Engine().C("enemy_weapon_tier_every", 5)));
         Vector3 from = Vector3Add(a.pos, {0, 0.3f, 0});
-        if (u.role == "flank") {
+        if (u.role == "flank" || u.role == "phalanx") {
             if (Vector3Distance(a.pos, d.pos) <= u.range + 0.6f) HitDiver(d, dmg, u.unit, "", a.pos);
             continue;
         }
+        if (u.role == "wall") {
+            // the titan shield's crush: 90, a 40% stun
+            if (Vector3Distance(a.pos, d.pos) <= u.range + 0.6f) { HitDiver(d, dmg, u.unit, "", a.pos); if (Rand() < 0.4f) d.stunT = std::max(d.stunT, 1.5f); }
+            continue;
+        }
+        if (u.role == "chant") {
+            // the void chant: every diver within 10 m swims 30% slower
+            for (auto& o : divers) if (!o.dead && !o.downed && Vector3Distance(o.pos, a.pos) <= u.range) o.slowT = std::max(o.slowT, 1.2f);
+            fx.push_back({6, Vector3Add(a.pos, {0, 1, 0}), {0, 1, 0}});
+            continue;
+        }
+        if (u.role == "priest") continue;
         if (u.role == "drum") {
             // the Shaman's drum: every beast gets angrier (20 s); the third beat calls the sharks, the fifth the Matriarch
             drumBeats++;
@@ -1685,6 +1788,7 @@ void Match::UpdateBoss(float dt) {
         for (int i = 0; i < (int)eco.agents.size(); i++) if (eco.agents[i].alive && map->species[eco.agents[i].sp].tier == 5) { bossAgent = i; break; }
         if (bossAgent < 0) return;
     }
+    if (bossKind == 3) { UpdateBossWyrm(dt); return; }
     Agent& b = eco.agents[bossAgent];
     const Species& s = map->species[b.sp];
     float frac = b.hp / std::max(1.0f, b.hpMax);
@@ -1849,6 +1953,30 @@ void Match::DropRocks(Vector3 at, int n, float spread, float dmg, float radius, 
 void Match::FireCone(DiverState& d, const WeaponDef& w, float dmg) {
     Vector3 eye = Eye(d), dir = Forward(d);
     float half = w.coneDeg * 0.5f * DEG2RAD;
+    if (w.wave) {
+        // the Tide Staff: a wave that carries what it hits 8 m along it (into a trap, off a diver); Forged, it drowns
+        // the Lost Ones it throws
+        bool forged = Cur(d).forged;
+        for (int i = 0; i < (int)eco.agents.size(); i++) {
+            Agent& a = eco.agents[i];
+            if (!a.alive || a.diver >= 0) continue;
+            Vector3 to = Vector3Subtract(a.pos, eye);
+            float dist = Vector3Length(to);
+            if (dist > w.cone || dist < 0.01f) continue;
+            if (acosf(std::clamp(Vector3DotProduct(to, dir) / dist, -1.0f, 1.0f)) > half) continue;
+            if (!level.Sight(eye, a.pos, linkOpen, true)) continue;
+            bool enemy = map->species[a.sp].isEnemy;
+            if (!IsBoss(i)) {
+                a.pos = map->zones[a.zone].Clamp(Vector3Add(a.pos, Vector3Scale(dir, 8)), 0.6f);
+                a.stun = std::max(a.stun, 1.5f); a.target = -1;
+                if (a.unit >= 0) shieldHP[i] = 0;
+            }
+            HitAgent(&d, i, dmg + (forged && enemy ? 150.0f : 0.0f), false, false, dir, nullptr);
+        }
+        if (forged) eco.AddBlood(Vector3Add(eye, Vector3Scale(dir, w.cone * 0.8f)), 10);
+        fx.push_back({10, Vector3Add(eye, Vector3Scale(dir, 1.0f)), Vector3Scale(dir, w.cone)});
+        return;
+    }
     for (int i = 0; i < (int)eco.agents.size(); i++) {
         Agent& a = eco.agents[i];
         if (!a.alive || a.diver >= 0) continue;
@@ -2169,6 +2297,268 @@ void Match::UpdateBossMatriarch(float dt, int near, float nd) {
     bossCd[pick == 4 ? 0 : pick] = at ? std::max(1.5f, at->cooldown) : 8;
 }
 
+// ---------------------------------------------------------------- Atlantis
+int Match::QuestChainOf(int step) const {
+    const Json& qs = map->extra["quests"];
+    for (int c = 0; c < (int)qs.a.size(); c++) if (step >= qs.a[c]["first"].I() && step <= qs.a[c]["last"].I()) return c;
+    return -1;
+}
+
+// A quest chain's current step is done: say so, move on, and pay out at the end.
+void Match::QuestAdvance(int c, DiverState* d) {
+    const Json& q = map->extra["quests"].a[c];
+    int step = questAt[c];
+    const Json& st = q["steps"][std::to_string(step)];
+    Say(q["name"].Str0(), st["done"].Str0(), 4);
+    questAt[c]++;
+    if (questAt[c] <= q["last"].I()) return;
+    std::string rw = q["reward"].Str0();
+    if (rw == "wonder" && d) { GiveWeapon(*d, WonderIdx()); d->lastKill = "The " + W(Cur(*d)).name; d->lastKillT = 4; }
+    if (rw == "lighthouse") {
+        // "the whole city appears on the sonar"; "the treasury vault: 5,000 scrip split"; "the Tide Staff (Forged) for the lighter"
+        revealAll = true;
+        int n = 0; for (const auto& o : divers) if (!o.dead) n++;
+        for (auto& o : divers) if (!o.dead) Pay(o, 5000.0f / std::max(1, n));
+        if (d) {
+            GiveWeapon(*d, WonderIdx(), true);
+            for (auto& h : d->weapons) if (h.def == WonderIdx() && !h.forged) { h.forged = true; h.mag = (int)MagMax(W(h), h); h.reserve = (int)ResMax(W(h), h); }
+        }
+        Say("", "The treasury vault opens: 5,000 scrip split between the divers", 5);
+    }
+}
+
+// The grates the Wyrm may use: phase 1 the god-pool and the chapel's two; phase 2 the district of the diver it wants
+// and the district below it ("blood flows downhill, and so does it"); never one beside fresh ichor.
+std::vector<int> Match::WyrmGrates(int ph, int zone) const {
+    std::vector<int> out;
+    const Json& wy = map->extra["wyrm"];
+    float repel = map->extra["ichor"]["repel_m"].F(20);
+    for (int li = 0; li < (int)map->links.size(); li++) {
+        const Link& l = map->links[li];
+        if (map->zones[l.from].name != "The Cisterns") continue;
+        if (!HasW(l.passage, "grate") && !HasW(l.passage, "god-pool")) continue;
+        bool ok = false;
+        if (ph == 1) { for (const Json& g : wy["phase1_grates"].a) if (g.Str0() == l.passage) ok = true; }
+        else if (zone >= 0) {
+            if (l.to == zone) ok = true;
+            for (const auto& k : map->links) {   // the district just below the diver's (linked, lower floor)
+                int o = k.from == zone ? k.to : k.to == zone ? k.from : -1;
+                if (o == l.to && o >= 0 && map->zones[o].y0 < map->zones[zone].y0 && map->zones[o].diverOk) ok = true;
+            }
+        }
+        for (const auto& ic : ichor) if (Vector3Distance(ic.pos, l.b) < repel) ok = false;
+        if (ok) out.push_back(li);
+    }
+    return out;
+}
+
+// The Cistern Wyrm (boss sheet): it lives in the cisterns under every district and comes up through the grates.
+void Match::UpdateBossWyrm(float dt) {
+    Agent& b = eco.agents[bossAgent];
+    const Species& s = map->species[b.sp];
+    int cis = map->ZoneIndex("The Cisterns");
+    auto attack = [&](const char* name) -> const Attack* { for (int k : attacksBySp[b.sp]) if (HasW(map->attacks[k].name, name)) return &map->attacks[k]; return nullptr; };
+    float frac = b.hp / std::max(1.0f, b.hpMax);
+    int ph = frac > 0.6f ? 1 : frac > 0.3f ? 2 : 3;
+    auto bark = [&](const char* k) { auto it = map->faction.barks.find(k); if (it != map->faction.barks.end() && !it->second.empty()) Say(map->faction.speciesName, it->second[0], 3); };
+    if (ph != bossPhase) {
+        bossPhase = ph;
+        if (ph == 2) {
+            Say(s.name, "leaves the summit: every grate in the district can hide it now", 4);
+            if (!wyrmCongers) {
+                // "congers pour from the other grates"
+                wyrmCongers = true;
+                int ce = map->SpeciesIndex("Conger Eel");
+                if (ce >= 0) for (int li = 0, n = 0; li < (int)map->links.size() && n < 3; li++) if (HasW(map->links[li].passage, "grate") && map->zones[map->links[li].from].name == "The Cisterns" && Rand() < 0.4f) {
+                    int a = eco.Spawn(ce, map->links[li].b, map->links[li].to); n++;
+                    int di = NearestDiver(map->links[li].b, 40, false);
+                    if (di >= 0) { eco.agents[a].st = State::Hunt; eco.agents[a].target = divers[di].agent; eco.agents[a].hunger = 1; }
+                }
+            }
+        }
+        if (ph == 3) {
+            // Flood: every grate in the district surges (slow 30%, blood doubled); the great white comes over the wall
+            floodT = 12; wyrmFlooded = true;
+            Say(s.name, "FLOODS the district: every grate surges, and something big comes over the wall", 5);
+            int gw = map->SpeciesIndex("Great White");
+            int bleeder = -1; float bd = 1e9f;
+            for (const auto& d : divers) if (!d.dead && !d.downed && d.agent >= 0) { float v = d.bleedT > 0 ? 0 : Vector3Distance(d.pos, b.pos); if (v < bd) { bd = v; bleeder = d.slot; } }
+            for (auto& o : eco.agents) if (o.alive && o.sp == gw && bleeder >= 0) { o.st = State::Hunt; o.target = divers[bleeder].agent; o.targetCorpse = false; o.hunger = 1; o.stateT = 0; }
+        }
+    }
+    if (bossGillsT > 0) bossGillsT -= dt;
+    // who it wants: phase 1 only divers on the summit's chapel floor; later the nearest diver anywhere
+    int want = -1; float wd = 1e9f;
+    int chapel = map->ZoneIndex("The Grand Chapel");
+    for (const auto& d : divers) {
+        if (d.dead || d.downed) continue;
+        if (ph == 1 && d.zone != chapel) continue;
+        float dist = Vector3Distance(d.pos, b.pos);
+        if (dist < wd) { wd = dist; want = d.slot; }
+    }
+    // a diver dragged below: 6 s for the team to put 200 into the gills
+    if (wyrmDragDiver >= 0) {
+        DiverState& d = divers[wyrmDragDiver];
+        wyrmDragT -= dt;
+        if (wyrmGrate >= 0) d.pos = Vector3Lerp(d.pos, map->links[wyrmGrate].b, std::min(1.0f, dt * 4));
+        d.vel = {0, 0, 0};
+        if (wyrmDragDmg >= 200 || d.dead || d.downed) {
+            d.heldT = 0; d.holder = -1; wyrmDragDiver = -1;
+            if (wyrmDragDmg >= 200) { b.stun = 2; Say(s.name, "lets go: the gills took it", 3); }
+        } else if (wyrmDragT <= 0) {
+            d.heldT = 0; d.holder = -1; wyrmDragDiver = -1;
+            d.lastHitBy = s.name;
+            DownDiver(d, s.name + " (dragged into the drains)");
+        }
+    }
+    auto sink = [&]() {
+        wyrmState = 0; wyrmT = ph == 1 ? 6.0f : 4.0f; wyrmStruck = false;
+        if (wyrmGrate >= 0) { b.pos = map->links[wyrmGrate].a; b.zone = cis; }
+        b.vel = {0, 0, 0};
+    };
+    if (wyrmStrandT > 0) {
+        // stranded by the god-pool trap: exposed and helpless
+        wyrmStrandT -= dt; bossGillsT = std::max(bossGillsT, 0.2f); b.vel = {0, 0, 0};
+        if (wyrmStrandT <= 0) sink();
+        return;
+    }
+    switch (wyrmState) {
+        case 0: {   // below: it follows under the streets and picks a grate near the diver it wants
+            b.zone = cis; b.vel = {0, 0, 0}; b.st = State::Rest;
+            if (want >= 0) b.pos = map->zones[cis].Clamp({divers[want].pos.x, b.pos.y, divers[want].pos.z}, 1);
+            wyrmT -= dt;
+            if (want < 0 || wyrmT > 0) break;
+            std::vector<int> gs = WyrmGrates(ph, divers[want].zone);
+            int best = -1; float bg = ph == 1 ? 40.0f : 14.0f;
+            for (int li : gs) { float dd = Vector3Distance(map->links[li].b, divers[want].pos); if (dd < bg) { bg = dd; best = li; } }
+            if (best < 0) { wyrmT = 1; break; }
+            wyrmGrate = best; wyrmState = 1; wyrmT = 1.0f;   // "The grate rattles, then bursts"
+            b.pos = map->links[best].a;
+            if (!bossActive) { bossActive = true; Say(s.name, "stirs under " + map->zones[map->links[best].to].name, 4); }
+            if (Rand() < 0.5f) bark("wyrm");
+            fx.push_back({5, map->links[best].b, {0, 0, 0}});
+            break;
+        }
+        case 1:     // rising
+            wyrmT -= dt;
+            if (wyrmT > 0) break;
+            wyrmState = ph >= 3 ? 3 : 2; wyrmUp = 0; wyrmT = 3.0f; wyrmStruck = false;
+            b.pos = Vector3Add(map->links[wyrmGrate].b, {0, 1.2f, 0}); b.zone = map->links[wyrmGrate].to;
+            break;
+        case 2: {   // surfaced: the strike at 0.6 s, the gills bare from 2 s
+            wyrmUp += dt; wyrmT -= dt; b.vel = {0, 0, 0};
+            if (wyrmGrate >= 0) b.pos = Vector3Add(map->links[wyrmGrate].b, {0, 1.2f, 0});
+            if (wyrmUp >= 0.6f && !wyrmStruck) {
+                wyrmStruck = true;
+                const Attack* ss = attack("surface"); const Attack* dg = attack("drag");
+                float dm = map->Tide(tide).dmgMult;
+                int hit = NearestDiver(map->links[wyrmGrate].b, (ss ? ss->range : 4) + 0.5f, false);
+                if (hit >= 0) {
+                    DiverState& d = divers[hit];
+                    if (dg && wyrmDragDiver < 0 && Rand() < 0.35f) {
+                        wyrmDragDiver = hit; wyrmDragT = 6; wyrmDragDmg = 0;
+                        d.heldT = 6.5f; d.holder = bossAgent; d.holdLethal = true;
+                        Say(s.name, "drags a diver into the drains: 200 into its gills in 6 s!", 4);
+                    } else if (ss) HitDiver(d, ss->damage * dm, s.name, ss->effect, b.pos, bossAgent);
+                }
+            }
+            if (wyrmUp >= 2.0f && wyrmUp - dt < 2.0f) bossGillsT = 1.5f;
+            if (wyrmT <= 0 && wyrmDragDiver < 0) sink();
+            break;
+        }
+        case 3: {   // phase 3: it surfaces fully and hunts the streets like a beast
+            const Attack* cl = attack("coil");
+            int near = NearestDiver(b.pos, 40, false);
+            float nd = near >= 0 ? Vector3Distance(divers[near].pos, b.pos) : 1e9f;
+            for (float& c : bossCd) if (c > 0) c -= dt;
+            if (near >= 0 && cl && nd - bodies[b.sp].length * 0.3f < cl->range && bossCd[1] <= 0) {
+                bossCd[1] = cl->cooldown;
+                HitDiver(divers[near], cl->damage * map->Tide(tide).dmgMult, s.name, cl->effect, b.pos, bossAgent);
+            }
+            if (floodT > 0) {
+                floodT -= dt;
+                for (auto& d : divers) if (!d.dead && d.zone == b.zone) d.slowT = std::max(d.slowT, 0.5f);
+            }
+            break;
+        }
+    }
+}
+
+void Match::UpdateAtlantis(float dt) {
+    // ichor fades
+    for (auto& ic : ichor) ic.t -= dt;
+    ichor.erase(std::remove_if(ichor.begin(), ichor.end(), [](const Ichor& i) { return i.t <= 0; }), ichor.end());
+    // the Wyrm reforms in the god-pool six minutes after its death, at half health
+    if (wyrmReformT > 0) {
+        wyrmReformT -= dt;
+        if (wyrmReformT <= 0) {
+            int wi = -1; for (int i = 0; i < (int)map->species.size(); i++) if (map->species[i].tier == 5) wi = i;
+            int cis = map->ZoneIndex("The Cisterns");
+            if (wi >= 0 && cis >= 0) {
+                int a = eco.Spawn(wi, map->zones[cis].Center(), cis);
+                eco.agents[a].hp = eco.agents[a].hpMax * 0.5f;
+                bossAgent = a; bossActive = false; bossPhase = 1; wyrmState = 0; wyrmT = 10; wyrmCongers = false;
+                Say(map->species[wi].name, "has reformed in the god-pool", 5);
+            }
+        }
+    }
+    // the Priest: 60 s of chanting in the plaza calls the Alien Horror for 90 s (killing him first prevents it)
+    int priest = -1;
+    for (int i = 0; i < (int)eco.agents.size(); i++) {
+        const Agent& a = eco.agents[i];
+        if (a.alive && a.unit >= 0 && map->species[a.sp].isEnemy && map->faction.units[a.unit].role == "priest") priest = i;
+    }
+    if (priest >= 0 && !horrorCalled) {
+        if (NearestDiver(eco.agents[priest].pos, 60, false) >= 0) priestT += dt;
+        if (priestT >= 60) {
+            horrorCalled = true;
+            int hs = map->SpeciesIndex("Alien Horror");
+            if (hs >= 0) {
+                const Agent& P = eco.agents[priest];
+                horror = eco.Spawn(hs, map->zones[P.zone].Clamp(Vector3Add(P.pos, {0, 2, 0}), 1.5f), P.zone);
+                horrorT = 90; horrorTeleT = 8;
+                auto it = map->faction.barks.find("priest");
+                Say(map->faction.speciesName, it != map->faction.barks.end() && !it->second.empty() ? it->second[0] : "The sigil is drawn.", 4);
+                Say("", "The Alien Horror tears through the plaza", 4);
+            }
+        }
+    } else if (priest < 0) priestT = 0;
+    if (horror >= 0) {
+        if (horror >= (int)eco.agents.size() || !eco.agents[horror].alive) horror = -1;
+        else {
+            Agent& h = eco.agents[horror];
+            horrorT -= dt; horrorTeleT -= dt;
+            int di = NearestDiver(h.pos, 30, false);
+            if (di >= 0) { h.st = State::Hunt; h.target = divers[di].agent; h.targetCorpse = false; }
+            if (horrorTeleT <= 0 && di >= 0) {
+                // "teleports one diver 20 m every 8 s"
+                horrorTeleT = 8;
+                DiverState& d = divers[di];
+                for (int k = 0; k < 16; k++) {
+                    float an = Rand(0, 6.2832f);
+                    Vector3 q = Vector3Add(d.pos, {cosf(an) * 20, Rand(-1, 1), sinf(an) * 20});
+                    if (level.Inside(q, 0.5f, linkOpen)) { d.pos = q; d.vel = {0, 0, 0}; d.lastHitBy = "the Alien Horror"; fx.push_back({4, q, {0, 0, 0}}); break; }
+                }
+            }
+            if (horrorT <= 0) { eco.suppressBlood = true; eco.Kill(horror, -1); eco.suppressBlood = false; horror = -1; Say("", "The Alien Horror folds back into the sigil", 3); }
+        }
+    }
+    // the quests' timed step: hold the plaza
+    const Json& qs = map->extra["quests"];
+    if ((int)questAt.size() != (int)qs.a.size()) { questAt.clear(); for (const Json& q : qs.a) questAt.push_back(q["first"].I()); }
+    for (int c = 0; c < (int)qs.a.size(); c++) {
+        if (questAt[c] > qs.a[c]["last"].I()) continue;
+        const Json& st = qs.a[c]["steps"][std::to_string(questAt[c])];
+        if (st["kind"].Str0() != "hold") continue;
+        int zi = map->ZoneIndex(st["zone"].Str0());
+        DiverState* in = nullptr;
+        for (auto& d : divers) if (!d.dead && !d.downed && d.zone == zi) in = &d;
+        holdT = in ? holdT + dt : std::max(0.0f, holdT - dt);
+        if (holdT >= st["seconds"].F(45)) { holdT = 0; QuestAdvance(c, in); }
+    }
+    for (auto& d : divers) if (d.downed && d.spark) { d.spark = false; Say("", "The spark's jar breaks", 2); }
+}
+
 // ---------------------------------------------------------------- drops
 void Match::MaybeDrop(Vector3 at) {
     // "a 2.5% chance (1 in 40), rising to 4% when the team has had no drop for 3 minutes; the last two drops excluded"
@@ -2300,7 +2690,15 @@ int Match::NearestStation(Vector3 p, float r) const {
         const Station& s = level.stations[i];
         if (s.type == StationType::Feature || s.type == StationType::Hazard || s.type == StationType::Entry || s.type == StationType::Boss) continue;
         if (s.type == StationType::Locker && !LockerLiveAt(s)) continue;
-        if (s.type == StationType::QuestStep && s.step != questStep + 1) continue;
+        if (s.type == StationType::QuestStep) {
+            const Json& qs = map->extra["quests"];
+            if (qs.IsArr() && !qs.a.empty()) {
+                int c = QuestChainOf(s.step);
+                if (c < 0) continue;
+                bool source = qs.a[c]["steps"][std::to_string(s.step)]["kind"].Str0() == "carry";   // the spark's crystal: always there
+                if (!source && (c >= (int)questAt.size() || questAt[c] != s.step)) continue;
+            } else if (s.step != questStep + 1) continue;
+        }
         float d = Vector3Distance(s.pos, p);
         if (d < bd) { bd = d; best = i; }
     }
@@ -2311,7 +2709,7 @@ int Match::NearestDoor(Vector3 p, float r) const {
     int best = -1; float bd = r;
     for (int i = 0; i < (int)level.doors.size(); i++) {
         const Door& d = level.doors[i];
-        if (d.open) continue;
+        if (d.open || map->links[d.link].opensWith >= 0) continue;
         const Link& l = map->links[d.link];
         float dist = SegPointDist(l.a, l.b, p);
         if (dist < bd) { bd = dist; best = i; }
@@ -2332,6 +2730,10 @@ std::string Match::PromptFor(int di, int* cost) const {
     for (const auto& f : drops) if (f.weapon >= 0 && Vector3Distance(f.pos, d.pos) < 1.6f) return "E: take the " + Weapons().weapons[f.weapon].name;
     for (const auto& f : drops) if (f.weapon == -2 && Vector3Distance(f.pos, d.pos) < 1.6f) return "E: take the Shaman's drum";
     for (const auto& o : divers) if (&o != &d && o.heldT > 0 && o.holder <= -2 && Vector3Distance(o.pos, d.pos) < 1.8f) return "Hold E to cut diver " + std::to_string(o.slot + 1) + " free";
+    if (!d.ichorJar && map->extra["quests"].IsArr()) for (const auto& ic : ichor) if (Vector3Distance(ic.pos, d.pos) < 2.2f) {
+        const Json& qs = map->extra["quests"];
+        for (int c = 0; c < (int)qs.a.size() && c < (int)questAt.size(); c++) for (const auto& kv : qs.a[c]["steps"].o) if (kv.second["kind"].Str0() == "ichor" && questAt[c] <= std::stoi(kv.first)) return "E: fill a jar with the Lost One's ichor";
+    }
     for (int i = 0; i < (int)eco.flora.size(); i++) {
         const FloraPatch& fp = eco.flora[i];
         float heal = map->extra["flora_rules"][map->flora[fp.flora].name]["edible"].F(0);
@@ -2367,7 +2769,15 @@ std::string Match::PromptFor(int di, int* cost) const {
         case StationType::Locker: { int c = fireSaleT > 0 ? WD.fireSalePull : WD.lockerPull; if (cost) *cost = c; return "E: Davy's Locker (" + std::to_string(c) + ")"; }
         case StationType::Forge: { int c = ForgePrice(Cur(d)); if (cost) *cost = c; return std::string("E: ") + (Cur(d).forged ? "re-roll the Forge's ammunition" : "pressure-forge the " + W(Cur(d)).name) + " (" + std::to_string(c) + ")"; }
         case StationType::Power: return power ? (bossActive && !bossStunUsed ? "E: cycle the power (stuns the Goliath)" : "Power is on") : "E: throw the power switch";
-        case StationType::Trap: { if (trapT > 0) return "The crane is winding back"; if (cost) *cost = 1000; return "E: drop the cargo crane's container (1000)"; }
+        case StationType::Trap: {
+            const Json* tjp = &map->extra["trap"];
+            for (const Json& tr : map->extra["traps"].a) if (s.name.find(tr["match"].Str0()) != std::string::npos) tjp = &tr;
+            if (trapT > 0) return tjp->IsObj() ? s.name + ": resetting" : "The crane is winding back";
+            if (cost) *cost = 1000;
+            if (tjp->IsObj() && tjp->Has("prompt")) return (*tjp)["prompt"].Str0();
+            if (tjp->IsObj()) return "E: spring the " + s.name + " (1000)";
+            return "E: drop the cargo crane's container (1000)";
+        }
         case StationType::Quest:
             if (map->extra["quest_altar"].IsObj()) return safeOpen ? "The altar is quiet" : d.drumUses > 0 ? "E: lay the Shaman's drum on the altar" : "An altar on the turtles' beach (something belongs here)";
             return safeOpen ? "The captain's safe (open)" : "The captain's safe: " + std::to_string(keys.size()) + " of 3 keys" + (keys.size() >= 3 ? ". E: open it" : "");
@@ -2380,6 +2790,19 @@ std::string Match::PromptFor(int di, int* cost) const {
             return "E: open the crate with the " + bk["key"].Str0() + " key";
         }
         case StationType::QuestStep: {
+            if (map->extra["quests"].IsArr() && !map->extra["quests"].a.empty()) {
+                int c = QuestChainOf(s.step);
+                if (c < 0) return "";
+                const Json& st = map->extra["quests"].a[c]["steps"][std::to_string(s.step)];
+                std::string k = st["kind"].Str0();
+                if (k == "carry") return d.spark ? "The crystal hums (you carry its spark)" : st["prompt"].Str0();
+                if (k == "spark" && !d.spark) return s.name + ": needs the treasury crystal's spark";
+                if (k == "ichor" && !d.ichorJar) return s.name + ": needs a Lost One's ichor";
+                if (k == "ichor" && wyrmState != 0) return "The Wyrm is up: wait until it's below";
+                if (k == "key" && !keys.count(st["key"].Str0())) return s.name + ": locked (the " + st["key"].Str0() + " key)";
+                if (k == "hold") return st["prompt"].Str0() + TextFormat(" (%.0f s)", holdT);
+                return st["prompt"].Str0();
+            }
             if (s.step != questStep + 1 && !(s.step == 3 && questStep == 2)) return "";
             if (s.step == 1) return "E: read the oil-stained log";
             if (s.step == 2) return "E: take the brass steam whistle";
@@ -2408,6 +2831,14 @@ bool Match::Interact(int di, bool hold, float dt) {
     const WeaponsData& WD = Weapons();
     for (auto& f : drops) if (f.alive && f.weapon >= 0 && Vector3Distance(f.pos, d.pos) < 1.6f) { GiveWeapon(d, f.weapon); f.alive = false; return true; }
     for (auto& f : drops) if (f.alive && f.weapon == -2 && Vector3Distance(f.pos, d.pos) < 1.6f) { d.drumUses = 5; f.alive = false; Say("", "The Shaman's drum: F to beat it (5 beats; the fifth calls the Matriarch)", 5); return true; }
+    // a Lost One's ichor into a jar (the Tide Staff's offering)
+    if (!d.ichorJar) for (auto& ic : ichor) if (Vector3Distance(ic.pos, d.pos) < 2.2f) {
+        bool wanted = false;
+        const Json& qs = map->extra["quests"];
+        for (int c = 0; c < (int)qs.a.size() && c < (int)questAt.size(); c++) for (const auto& kv : qs.a[c]["steps"].o) if (kv.second["kind"].Str0() == "ichor" && questAt[c] <= std::stoi(kv.first)) wanted = true;
+        if (!wanted) break;
+        d.ichorJar = true; Say("", "A jar of black ichor", 2); return true;
+    }
     // edible flora (the Reef's sea grape): +10 HP, once per cluster
     for (int i = 0; i < (int)eco.flora.size(); i++) {
         FloraPatch& fp = eco.flora[i];
@@ -2425,6 +2856,7 @@ bool Match::Interact(int di, bool hold, float dt) {
         d.scrip -= dr.cost;
         dr.open = true;
         linkOpen[dr.link] = 1;
+        for (auto& o : level.doors) if (map->links[o.link].opensWith == dr.link) { o.open = true; linkOpen[o.link] = 1; }
         doorsOpened++;
         Say("", "The " + dr.name + " is clear", 3);
         return true;
@@ -2529,6 +2961,45 @@ bool Match::Interact(int di, bool hold, float dt) {
                 fx.push_back({5, s.pos, {0, 0, 0}});
                 return true;
             }
+            if (tj["kind"].Str0() == "sluice") {
+                // the canal sluice floods a terrace: a phalanx drowns in its armour; beasts caught in it are thrown about
+                float rad = tj["radius"].F(14);
+                fx.push_back({5, s.pos, {0, 0, 0}});
+                for (int i = 0; i < (int)eco.agents.size(); i++) {
+                    Agent& a = eco.agents[i];
+                    if (!a.alive || a.diver >= 0 || IsBoss(i) || Vector3Distance(a.pos, s.pos) > rad) continue;
+                    if (map->species[a.sp].isEnemy) { pendingKiller = d.slot; eco.Kill(i, d.agent); pendingKiller = -1; }
+                    else { HitAgent(&d, i, 100, false, false, {0, 1, 0}, nullptr); if (i < (int)eco.agents.size() && eco.agents[i].alive) eco.agents[i].stun = std::max(eco.agents[i].stun, 3.0f); }
+                }
+                for (auto& o : divers) if (!o.dead && Vector3Distance(o.pos, s.pos) < rad) o.slowT = std::max(o.slowT, 4.0f);
+                return true;
+            }
+            if (tj["kind"].Str0() == "godpool") {
+                // the god-pool drains: if the Wyrm is home it's stranded, gills bare, for 6 s
+                fx.push_back({5, s.pos, {0, 0, 0}});
+                bool home = bossAgent >= 0 && bossKind == 3 && bossPhase == 1;
+                if (home) {
+                    int gp = -1; for (int li = 0; li < (int)map->links.size(); li++) if (map->links[li].passage == map->extra["wyrm"]["home"].Str0()) gp = li;
+                    if (gp >= 0) {
+                        Agent& b = eco.agents[bossAgent];
+                        wyrmGrate = gp; wyrmState = 2; wyrmUp = 3; wyrmStruck = true; wyrmT = 6; wyrmStrandT = 6; bossGillsT = 6; bossActive = true;
+                        b.pos = Vector3Add(map->links[gp].b, {0, 0.8f, 0}); b.zone = map->links[gp].to; b.vel = {0, 0, 0};
+                        Say(map->species[b.sp].name, "is stranded in the drained god-pool: its gills are bare!", 5);
+                    }
+                } else Say("", "The god-pool drains and refills: nothing was home", 3);
+                return true;
+            }
+            if (tj["kind"].Str0() == "boil") {
+                // the hypocaust boils a room: everything in the baths is scalded (divers too, less)
+                fx.push_back({5, s.pos, {0, 0, 0}});
+                for (int i = 0; i < (int)eco.agents.size(); i++) {
+                    const Agent& a = eco.agents[i];
+                    if (!a.alive || a.diver >= 0 || IsBoss(i) || a.zone != s.zone) continue;
+                    HitAgent(&d, i, tj["damage"].F(150), false, false, {0, 1, 0}, nullptr);
+                }
+                for (auto& o : divers) if (!o.dead && !o.downed && o.zone == s.zone) HitDiver(o, 25, "the hypocaust", "", s.pos);
+                return true;
+            }
             if (tj["kind"].Str0() == "rockfall") {
                 // the Chimney's stalactites, shot loose from their anchor onto whatever is below
                 int zi = s.zone;
@@ -2578,6 +3049,27 @@ bool Match::Interact(int di, bool hold, float dt) {
             return true;
         }
         case StationType::QuestStep: {
+            if (map->extra["quests"].IsArr() && !map->extra["quests"].a.empty()) {
+                int c = QuestChainOf(s.step);
+                if (c < 0) return false;
+                const Json& st = map->extra["quests"].a[c]["steps"][std::to_string(s.step)];
+                std::string k = st["kind"].Str0();
+                if (k == "carry") {
+                    if (d.spark) return false;
+                    d.spark = true;
+                    if (c < (int)questAt.size() && questAt[c] == s.step) QuestAdvance(c, &d);
+                    else Say("", "The jar glows with the crystal's spark", 2);
+                    return true;
+                }
+                if (c >= (int)questAt.size() || questAt[c] != s.step) return false;
+                if (k == "spark" && !d.spark) return false;
+                if (k == "ichor") { if (!d.ichorJar || wyrmState != 0) return false; d.ichorJar = false; }
+                if (k == "key" && !keys.count(st["key"].Str0())) return false;
+                if (k == "hold") return false;
+                fx.push_back({4, s.pos, {0, 0, 0}});
+                QuestAdvance(c, &d);
+                return true;
+            }
             // Supper Call: the chief engineer's log, his whistle, three blasts on the boiler's cord with the power off
             const Json& q = map->extra["quest"];
             if (s.step == 1 && questStep == 0) { questStep = 1; Say("Chief engineer's log", q["steps"][0].Str0(), 7); return true; }
@@ -2768,6 +3260,7 @@ void Match::Bot(DiverState& d, float dt) {
             const Species& s = map->species[a.sp];
             if (s.isDiver) continue;
             if (careful && (s.size > 3 || s.tier >= 4 || s.Cleaner() || a.host >= 0)) continue;
+            if (careful && (s.Has("pack") || s.social == "pack") && W(Cur(d)).damage * W(Cur(d)).pellets < 60) continue;   // a pack answers for its own
             if (careful && s.size <= 1 && s.social == "school" && eco.CountInZone(a.sp, a.zone) > 8 && tide >= 3) continue;   // don't bleed the school
             float dist = Vector3Distance(a.pos, d.pos);
             if (!careful) dist *= 0.8f;
@@ -2968,11 +3461,11 @@ int RunRedTideSim(const std::string& mapKey, int tides, const std::string& style
         while (!M->over && M->tide <= tides && M->time < limit) {
             M->Step(dt);
             M->fx.clear();
-            if (getenv("DEPTH_SIMLOG") && M->time - lastLog > 60) {
+            if (getenv("DEPTH_SIMLOG") && M->time - lastLog > (getenv("DEPTH_SIMLOG")[0] == '3' ? 2 : 60)) {
                 lastLog = M->time;
                 const DiverState& d = M->divers[0];
                 if (d.botTarget >= 0) { const Agent& ta = M->eco.agents[d.botTarget]; printf("      target %s (%s) at %.1f m, sight %d, alive %d, pos %.1f %.1f %.1f me %.1f %.1f %.1f\n", M->map->species[ta.sp].name.c_str(), StateName(ta.st), Vector3Distance(ta.pos, d.pos), (int)M->level.Sight(M->Eye(d), ta.pos, M->linkOpen), (int)ta.alive, ta.pos.x, ta.pos.y, ta.pos.z, d.pos.x, d.pos.y, d.pos.z); }
-                if (getenv("DEPTH_SIMLOG")[0] == '2') { std::map<std::string, int> c; for (const auto& a : M->eco.agents) if (a.alive && a.zone == d.zone && a.diver < 0) c[M->map->species[a.sp].name]++; for (auto& kv : c) printf("      %s %d\n", kv.first.c_str(), kv.second); }
+                if (getenv("DEPTH_SIMLOG")[0] >= '2') { std::map<std::string, int> c; for (const auto& a : M->eco.agents) if (a.alive && a.zone == d.zone && a.diver < 0) c[M->map->species[a.sp].name]++; for (auto& kv : c) printf("      %s %d\n", kv.first.c_str(), kv.second); }
                 printf("   t=%4.0f tide %d %s kills %d/%d  hp %3.0f scrip %5d  zone %s plan %s  weapons %d\n", M->time, M->tide, M->phase == TidePhase::Calm ? "calm" : M->phase == TidePhase::Hunt ? "HUNT" : "tide", M->tideKills, M->quota, d.hp, d.scrip, M->map->zones[d.zone].name.c_str(), d.botPlan.c_str(), (int)d.weapons.size());
             }
             if (M->tide != lastTide) lastTide = M->tide;
@@ -3543,6 +4036,224 @@ static int ReefTest(int& fails, const std::function<void(bool, const std::string
     return fails;
 }
 
+static int AtlantisTest(int& fails, const std::function<void(bool, const std::string&)>& check) {
+    auto M = std::make_unique<Match>();
+    Match& m = *M;
+    m.Init("atlantis", 2, 44, false);
+    DiverState& q = m.divers[0]; DiverState& r = m.divers[1];
+    q.invulnerable = r.invulnerable = true;
+    const MapData& map = *m.map;
+    auto zi = [&](const char* n) { return map.ZoneIndex(n); };
+    auto park = [&](DiverState& d) { d.pos = map.zones[m.level.startZone].Center(); d.zone = m.level.startZone; d.vel = {0, 0, 0}; };
+    auto unitIdx = [&](const char* n) { for (int u = 0; u < (int)map.faction.units.size(); u++) if (map.faction.units[u].unit == n) return u; return -1; };
+    auto lostOne = [&](const char* unit, Vector3 at, int zone) {
+        int ai = m.eco.Spawn(map.enemySpecies, at, zone);
+        Agent& a = m.eco.agents[ai]; a.unit = unitIdx(unit); a.hp = a.hpMax = map.faction.units[a.unit].hp; a.stun = 0;
+        return ai;
+    };
+    check(map.title == "Atlantis, the Forgotten City" && map.zones[m.level.startZone].name == "Harbor Gate", "the divers start in the Harbor Gate");
+    // the city: 60+ buildings, none overlapping, the avenue up the hill clear
+    {
+        int n = 0; bool overlap = false, avenue = false;
+        std::vector<const Prop*> bs;
+        for (const auto& p : m.level.props) if (p.kind == PropKind::Building) { n++; bs.push_back(&p); if (fabsf(p.pos.x) < p.half.x + 2.9f) avenue = true; }
+        for (size_t i = 0; i < bs.size(); i++) for (size_t j = i + 1; j < bs.size(); j++)
+            if (fabsf(bs[i]->pos.x - bs[j]->pos.x) < bs[i]->half.x + bs[j]->half.x && fabsf(bs[i]->pos.z - bs[j]->pos.z) < bs[i]->half.z + bs[j]->half.z && fabsf(bs[i]->pos.y - bs[j]->pos.y) < bs[i]->half.y + bs[j]->half.y) overlap = true;
+        check(n >= 60 && !overlap && !avenue, TextFormat("the city generator lays %d buildings by district, none overlapping, the avenue clear", n));
+        int grates = 0; for (const auto& l : map.links) if (map.zones[l.from].name == "The Cisterns") grates++;
+        check(grates == 13, TextFormat("twelve drain grates and the god-pool open into the cisterns (%d)", grates));
+    }
+    // doors: the summit is walled from the lower town; the parade stair opens with the garrison gate
+    {
+        int lt = zi("The Lower Town"), ch = zi("The Grand Chapel");
+        Vector3 a = map.zones[lt].Clamp({0, -60, -31}, 0.6f), b = map.zones[ch].Clamp({0, -29, -29}, 0.6f);
+        check(!m.level.Sight(a, b, m.linkOpen), "the Lower Town and the Chapel share a wall, not a street");
+        int gg = -1, ps = -1, fort = -1;
+        for (int li = 0; li < (int)map.links.size(); li++) { const std::string& p = map.links[li].passage; if (p == "The garrison gate (west)") gg = li; if (HasW(p, "parade stair")) ps = li; if (p == "The wall fort") fort = li; }
+        check(gg >= 0 && ps >= 0 && map.links[ps].opensWith == gg && !m.linkOpen[ps], "the parade stair is shut until the garrison gate opens");
+        m.linkOpen[gg] = 1; m.level.doors[gg].open = true;
+        for (auto& o : m.level.doors) if (map.links[o.link].opensWith == gg) { o.open = true; m.linkOpen[o.link] = 1; }
+        check(m.linkOpen[ps] == 1, "and opens with it");
+        check(fort >= 0 && m.level.doors[fort].cost == 1500, "the wall fort's postern costs 1,500 (no free way round the doors)");
+    }
+    m.linkOpen.assign(m.linkOpen.size(), 1);
+    for (auto& dr : m.level.doors) dr.open = true;
+    // the aqueduct carries the plaza's blood downhill
+    {
+        Ecosystem& e = m.eco;
+        Vector3 plaza{}, market{}, outfall{};
+        for (const auto& p : map.pois) { if (HasW(p.name, "plaza (tuna")) plaza = p.pos; if (HasW(p.name, "speed brine")) market = p.pos; if (HasW(p.name, "aqueduct outfall")) outfall = p.pos; }
+        int mz = zi("The Lower Town"), gz = zi("Harbor Gate");
+        float m0 = e.Smell(market, mz, 20), g0 = e.Smell(outfall, gz, 20);
+        float tm = -1, tg = -1, t = 0;
+        while (t < 240 && (tm < 0 || tg < 0)) {
+            if (t < 30) e.AddBlood(plaza, 20);
+            e.Step(0.1f); t += 0.1f;
+            if (tm < 0 && e.Smell(market, mz, 20) > m0 + 5) tm = t;
+            if (tg < 0 && e.Smell(outfall, gz, 20) > g0 + 5) tg = t;
+        }
+        check(tm > 0 && tm < 110, TextFormat("the plaza's blood reaches the market in %.0f s (the doc: 75 s)", tm));
+        check(tg > 0 && tg < 200 && tg > tm, TextFormat("and the outfall at the gate in %.0f s (the doc: 120 s)", tg));
+    }
+    // the Lost Ones
+    {
+        int lt = zi("The Lower Town");
+        const Zone& z = map.zones[lt];
+        q.pos = z.Clamp({-20, z.y0 + 2, -45}, 1); q.zone = lt;
+        int leg = lostOne("Legionnaire", Vector3Add(q.pos, {0, 0, 6}), lt);
+        m.eco.agents[leg].vel = {-1, 0, 0};              // facing into the dart
+        float h0 = m.eco.agents[leg].hp;
+        m.HitAgentPublic(0, leg, 100);
+        if (getenv("DEPTH_DBG")) { std::map<int,int> bz; for (const auto& p : m.level.props) if (p.kind == PropKind::Building) bz[p.zone]++; for (auto& kv : bz) printf("    %s: %d buildings\n", map.zones[kv.first].name.c_str(), kv.second); printf("    legionnaire hp %.0f/%.0f shield %.0f unit %d role %s\n", m.eco.agents[leg].hp, h0, m.shieldHP.count(leg) ? m.shieldHP[leg] : -1.0f, m.eco.agents[leg].unit, map.faction.units[m.eco.agents[leg].unit].role.c_str()); }
+        check(m.eco.agents[leg].hp == h0 && m.shieldHP[leg] > 250 && m.shieldHP[leg] < 350, "a Legionnaire's tower shield takes a frontal hit (400 shield HP)");
+        m.eco.agents[leg].vel = {1, 0, 0};               // turned away: the dart lands
+        m.HitAgentPublic(0, leg, 100);
+        check(m.eco.agents[leg].hp < h0, "from behind, the dart gets through");
+        int arm = lostOne("Armored Lost One (Hunts)", Vector3Add(q.pos, {3, 0, 6}), lt);
+        m.eco.agents[arm].vel = {-1, 0, 0};
+        float a0 = m.eco.agents[arm].hp;
+        for (int k = 0; k < 5; k++) m.HitAgentPublic(0, arm, 300);
+        check(m.eco.agents[arm].hp == a0, "the Armored Lost One's titan shield can't be shot through from the front");
+        m.eco.agents[leg].st = State::Rest;
+        int cul = lostOne("Cultist", Vector3Add(q.pos, {-2, 0, 4}), lt);
+        q.slowT = 0;
+        for (int k = 0; k < 20 && q.slowT <= 0; k++) m.Step(0.05f);
+        check(q.slowT > 0, "a Cultist's chant slows a diver within 10 m");
+        // ichor: a dead Lost One keeps the sharks off and brings the crabs
+        Vector3 at = m.eco.agents[cul].pos;
+        m.eco.Kill(cul, q.agent);
+        check(!m.ichor.empty() && Vector3Distance(m.ichor.back().pos, at) < 0.5f, "a dead Lost One leaves black ichor in the street");
+        int ss = map.SpeciesIndex("Sandbar Shark");
+        int sh = m.eco.Spawn(ss, map.zones[lt].Clamp(Vector3Add(at, {4, 0, 0}), 1), lt);
+        float d0 = Vector3Distance(m.eco.agents[sh].pos, at);
+        for (int k = 0; k < 60; k++) m.eco.Step(0.05f);
+        check(Vector3Distance(m.eco.agents[sh].pos, at) > d0 + 1.5f, "a shark turns away from the ichor");
+        int cu = -1; for (int i = 0; i < (int)m.eco.agents.size(); i++) if (m.eco.agents[i].alive && map.species[m.eco.agents[i].sp].name == "Sea Cucumber" && m.eco.agents[i].zone == lt) { cu = i; break; }
+        if (cu < 0) cu = m.eco.Spawn(map.SpeciesIndex("Sea Cucumber"), at, lt);
+        if (cu >= 0) { m.eco.agents[cu].pos = map.zones[lt].Clamp(Vector3Add(at, {-10, 0, 0}), 1); m.eco.agents[cu].st = State::Graze; m.eco.agents[cu].fedT = 0; }
+        bool comes = false;
+        for (int k = 0; k < 60 && cu >= 0 && !comes; k++) { m.eco.Step(0.05f); comes = m.eco.agents[cu].st == State::Investigate && Vector3Distance(m.eco.agents[cu].goal, at) < 1; }
+        if (getenv("DEPTH_DBG") && cu >= 0) printf("    cucumber %d state %s goal %.1f %.1f %.1f at %.1f %.1f %.1f zone %d/%d ichor %d\n", cu, StateName(m.eco.agents[cu].st), m.eco.agents[cu].goal.x, m.eco.agents[cu].goal.y, m.eco.agents[cu].goal.z, at.x, at.y, at.z, m.eco.agents[cu].zone, m.eco.ZoneAt(at), (int)m.ichor.size());
+        check(comes, "a sea cucumber comes for it");
+        // the sluice drowns a phalanx
+        int fz = zi("The Farms"); int sl = -1;
+        for (int i = 0; i < (int)m.level.stations.size(); i++) if (HasW(m.level.stations[i].name, "sluice")) sl = i;
+        int l2 = lostOne("Legionnaire", map.zones[fz].Clamp(Vector3Add(m.level.stations[sl].pos, {3, 0, 3}), 1), fz);
+        q.pos = m.level.stations[sl].pos; q.zone = fz; q.scrip = 5000; m.power = true;
+        if (getenv("DEPTH_DBG")) printf("    prompt at the sluice: '%s' near %d (sl %d) dead %d downed %d type %d pos %.1f %.1f %.1f\n", m.PromptFor(0).c_str(), m.NearestStation(q.pos, 2), sl, q.dead, q.downed, (int)m.level.stations[sl].type, q.pos.x, q.pos.y, q.pos.z);
+        check(m.Interact(0, false, 0.01f) && !m.eco.agents[l2].alive, "the canal sluice floods the terrace: a Legionnaire drowns in his armour");
+        m.trapT = 0;
+    }
+    // the Priest: 60 s of chanting calls the Alien Horror; it throws a diver 20 m
+    {
+        int fo = zi("The Forum");
+        Vector3 plaza{}; for (const auto& p : map.pois) if (HasW(p.name, "plaza (tuna")) plaza = p.pos;
+        q.pos = map.zones[fo].Clamp(Vector3Add(plaza, {6, 0, 0}), 1); q.zone = fo;
+        int pr = lostOne("The Priest (Hunts)", map.zones[fo].Clamp(plaza, 1), fo);
+        m.priestT = 59.9f;
+        m.Step(0.05f); m.Step(0.05f); m.Step(0.05f);
+        check(m.horror >= 0 && map.species[m.eco.agents[m.horror].sp].name == "Alien Horror", "after 60 s of the Priest's chant the Alien Horror arrives");
+        Vector3 p0 = q.pos; m.horrorTeleT = 0.01f; m.Step(0.05f);
+        check(Vector3Distance(q.pos, p0) > 15, TextFormat("it throws a diver %.0f m", Vector3Distance(q.pos, p0)));
+        m.horrorT = 0.01f; m.Step(0.05f);
+        check(m.horror < 0, "after 90 s it folds back into the sigil");
+        m.eco.Kill(pr, -1);
+    }
+    // the Cistern Wyrm
+    {
+        check(m.bossKind == 3, "Atlantis's boss runs the Cistern Wyrm's script");
+        int boss = m.bossAgent; if (boss < 0) { m.Step(0.05f); boss = m.bossAgent; }
+        int ch = zi("The Grand Chapel");
+        const Zone& cz = map.zones[ch];
+        park(q); park(r);
+        for (int k = 0; k < 40; k++) m.Step(0.05f);
+        check(m.wyrmState == 0 && map.zones[m.eco.agents[boss].zone].name == "The Cisterns", "it waits in the cisterns while nobody is on the chapel floor");
+        float h0 = m.eco.agents[boss].hp;
+        m.HitAgentPublic(0, boss, 500);
+        check(m.eco.agents[boss].hp == h0, "below, nothing reaches it");
+        q.invulnerable = false; q.hp = q.hpMax = 5000;
+        q.pos = cz.Clamp({0, cz.y0 + 1.5f, -14}, 1); q.zone = ch;
+        float t = 0; while (m.wyrmState < 2 && t < 12) { m.Step(0.05f); t += 0.05f; }
+        std::string grate = m.wyrmGrate >= 0 ? map.links[m.wyrmGrate].passage : "";
+        check(m.wyrmState == 2 && (grate == "The god-pool" || grate == "Grate G11" || grate == "Grate G12"), TextFormat("a diver in the chapel: it comes up through %s after %.1f s", grate.c_str(), t));
+        float hp0 = q.hp; bool dragged = false;
+        for (int k = 0; k < 16; k++) { m.Step(0.05f); if (m.wyrmDragDiver >= 0) dragged = true; }
+        check(q.hp < hp0 || dragged, "the surface strike lands (or it drags the diver below)");
+        if (m.wyrmDragDiver >= 0) { m.HitAgentPublic(1, boss, 250); m.Step(0.05f); check(m.wyrmDragDiver < 0 && q.heldT <= 0, "200 into its gills and it lets go"); }
+        float hb = m.eco.agents[boss].hp; m.HitAgentPublic(0, boss, 100);
+        check(m.eco.agents[boss].hp < hb, "surfaced, it can be hurt");
+        // a forced drag, freed by the team
+        if (m.wyrmState == 2) {
+            m.wyrmDragDiver = 0; m.wyrmDragT = 6; m.wyrmDragDmg = 0; q.heldT = 6.5f; q.holder = boss;
+            m.HitAgentPublic(1, boss, 210); m.Step(0.05f);
+            check(m.wyrmDragDiver < 0, "Drag below: 200 into the gills within 6 s frees the diver");
+        }
+        q.holder = -1; q.heldT = 0;
+        // the god-pool trap strands it while it's home
+        while (m.wyrmState != 0) m.Step(0.05f);
+        int tp = -1; for (int i = 0; i < (int)m.level.stations.size(); i++) if (HasW(m.level.stations[i].name, "god-pool trap")) tp = i;
+        r.pos = m.level.stations[tp].pos; r.zone = ch; r.scrip = 5000; m.trapT = 0;
+        if (getenv("DEPTH_DBG")) printf("    prompt at the god-pool trap: '%s' phase %d state %d\n", m.PromptFor(1).c_str(), m.bossPhase, m.wyrmState);
+        check(m.Interact(1, false, 0.01f) && m.wyrmStrandT > 5 && m.bossGillsT > 5, "the god-pool trap (1,000) strands it for 6 s, gills bare");
+        // phases
+        m.eco.agents[boss].hp = m.eco.agents[boss].hpMax * 0.5f;
+        int cong0 = 0; for (const auto& a : m.eco.agents) if (a.alive && map.species[a.sp].name == "Conger Eel") cong0++;
+        m.Step(0.05f);
+        int cong1 = 0; for (const auto& a : m.eco.agents) if (a.alive && map.species[a.sp].name == "Conger Eel") cong1++;
+        check(m.bossPhase == 2 && cong1 > cong0, TextFormat("phase 2: congers pour from the other grates (%d more)", cong1 - cong0));
+        m.eco.agents[boss].hp = m.eco.agents[boss].hpMax * 0.25f;
+        m.Step(0.05f);
+        int gw = map.SpeciesIndex("Great White"); bool whiteHunts = false;
+        for (const auto& a : m.eco.agents) if (a.alive && a.sp == gw && a.st == State::Hunt) whiteHunts = true;
+        check(m.bossPhase == 3 && m.floodT > 0 && whiteHunts, "phase 3: the Flood, and the great white comes over the wall");
+        q.invulnerable = true; q.hp = q.hpMax;
+        m.eco.Kill(boss, q.agent);
+        check(m.keys.count("Lighthouse") && m.wyrmReformT > 300, "its kill leaves the lighthouse key; it will reform in 6 minutes");
+        m.wyrmReformT = 0.01f; m.Step(0.05f);
+        check(m.bossAgent >= 0 && m.eco.agents[m.bossAgent].alive && fabsf(m.eco.agents[m.bossAgent].hp - m.eco.agents[m.bossAgent].hpMax * 0.5f) < 1, "it reforms in the god-pool at half health");
+    }
+    // the Tide Staff quest
+    {
+        auto st = [&](int step) { for (const auto& s : m.level.stations) if (s.type == StationType::QuestStep && s.step == step) return s.pos; return Vector3{0, 0, 0}; };
+        auto go = [&](int step) { q.pos = st(step); q.zone = m.eco.ZoneAt(q.pos); };
+        m.wyrmState = 0; m.wyrmT = 999;
+        go(1); check(m.Interact(0, false, 0.01f) && q.spark && m.questAt[0] == 2, "the treasury's crystal: a spark in a jar");
+        go(2); m.Interact(0, false, 0.01f); go(3); m.Interact(0, false, 0.01f); go(4); m.Interact(0, false, 0.01f);
+        check(m.questAt[0] == 5, "the spark lights the chapel's three braziers");
+        go(5); r.pos = q.pos; r.zone = q.zone;
+        for (int k = 0; k < 20 * 46; k++) { q.pos = st(5); m.Step(0.05f); }
+        check(m.questAt[0] == 6, "holding the plaza for 45 s");
+        int ek = lostOne("Legionnaire", map.zones[q.zone].Clamp(Vector3Add(q.pos, {2, 0, 0}), 1), q.zone);
+        m.eco.Kill(ek, q.agent);
+        q.pos = m.ichor.back().pos;
+        check(m.Interact(0, false, 0.01f) && q.ichorJar, "a jar filled with a dead Lost One's ichor");
+        go(6); int w0 = (int)q.weapons.size(); (void)w0;
+        check(m.Interact(0, false, 0.01f) && m.W(m.Cur(q)).id == "tidestaff", "offered at the god-pool while the Wyrm is below: the Tide Staff");
+    }
+    // the Tide Staff's wave
+    {
+        int fz = zi("The Farms");
+        const Zone& z = map.zones[fz];
+        q.pos = z.Clamp({-40, z.y0 + 2, -84}, 1); q.zone = fz; q.yaw = 0; q.pitch = 0; q.fireT = 0; q.vel = {0, 0, 0};
+        int b = -1; for (int i = 0; i < (int)m.eco.agents.size(); i++) if (m.eco.agents[i].alive && map.species[m.eco.agents[i].sp].name == "Salema") { b = i; break; }
+        m.eco.agents[b].pos = Vector3Add(q.pos, {0, 0.1f, 5}); m.eco.agents[b].zone = fz; m.eco.agents[b].hp = m.eco.agents[b].hpMax = 5000;
+        Vector3 b0 = m.eco.agents[b].pos;
+        m.Fire(0, true, 0.05f);
+        check(m.eco.agents[b].pos.z > b0.z + 6, TextFormat("the Tide Staff's wave carries a beast %.0f m", m.eco.agents[b].pos.z - b0.z));
+    }
+    // the lighthouse
+    {
+        auto st = [&](int step) { for (const auto& s : m.level.stations) if (s.type == StationType::QuestStep && s.step == step) return s.pos; return Vector3{0, 0, 0}; };
+        q.spark = true;
+        for (int s = 11; s <= 14; s++) { q.pos = st(s); q.zone = m.eco.ZoneAt(q.pos); m.Interact(0, false, 0.01f); }
+        check(m.questAt[1] == 15, "the spark lights the four wall-fires");
+        int s0 = r.scrip;
+        q.pos = st(15); q.zone = m.eco.ZoneAt(q.pos);
+        check(m.Interact(0, false, 0.01f) && m.revealAll && r.scrip >= s0 + 2400 && m.Cur(q).forged, "the lighthouse burns: the city on the sonar, the vault's 5,000 split, the Sovereign's Staff for the lighter");
+    }
+    return fails;
+}
+
 int RunRedTideMapTest(const std::string& key) {
     std::string why;
     if (!DataOk(&why)) { printf("redtide-map-test: %s\n", why.c_str()); return 1; }
@@ -3551,6 +4262,7 @@ int RunRedTideMapTest(const std::string& key) {
     printf("Red Tide map test: %s\n", Map(key).title.c_str());
     if (key == "cave") CaveTest(fails, check);
     else if (key == "reef") ReefTest(fails, check);
+    else if (key == "atlantis") AtlantisTest(fails, check);
     else { printf("  (no map test for '%s' yet)\n", key.c_str()); }
     printf(fails ? "redtide-map-test: %d check(s) failed\n" : "redtide-map-test: all checks passed\n", fails);
     return fails ? 1 : 0;
