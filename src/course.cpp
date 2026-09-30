@@ -237,6 +237,29 @@ void Gate1(Pack& P, const std::string& unit, const std::string& id, const Json& 
             if (good < 5) { if (why) *why = "too few points in the domain"; return false; }
             return true;
         }
+        if (ty == "arclength") {   // the answer is the arc length integrand of `of`: sqrt(1 + f'^2), f' found numerically
+            Expr F = expr::P(c["of"].Str());
+            int good = 0;
+            for (double x : pointsIn(9)) {
+                double d = expr::Derivative(F, var, x), y = expr::Eval(ea, {{var, x}}), want = sqrt(1 + d * d);
+                if (!std::isfinite(d) || !std::isfinite(y)) continue;
+                if (!Near(y, want, 1e-5, 1e-6)) { if (why) { char b[160]; snprintf(b, sizeof b, "sqrt(1 + f'^2) is %.7g at %.3g, the answer gives %.7g", want, x, y); *why = b; } return false; }
+                good++;
+            }
+            if (good < 5) { if (why) *why = "too few points in the domain"; return false; }
+            return true;
+        }
+        if (ty == "solves") {   // the answer is a number that makes `expr` (in `var`) zero
+            double v = expr::Eval(ea, {}), r = expr::Eval(expr::P(c["expr"].Str()), {{c["var"].Str("b"), v}});
+            if (!std::isfinite(r) || fabs(r) > 1e-7) { if (why) { char b[120]; snprintf(b, sizeof b, "substituting the answer leaves %.7g, not 0", r); *why = b; } return false; }
+            return true;
+        }
+        if (ty == "integral") {   // the answer is an integrand: its integral over [a, b] must equal `value` (found another way)
+            double errEst = 0, I = expr::Integrate(ea, c["var"].Str(var), Num(c["a"].Str()), Num(c["b"].Str()), {}, &errEst);
+            double v = Num(c["value"].Str());
+            if (!Near(I, v, 1e-5, 1e-7)) { if (why) { char b[160]; snprintf(b, sizeof b, "the integrand integrates to %.9g over [%s, %s], expected %.9g", I, c["a"].Str().c_str(), c["b"].Str().c_str(), v); *why = b; } return false; }
+            return true;
+        }
         if (ty == "definite") {
             Expr f = expr::P(c["integrand"].Str());
             double errEst = 0, I = expr::Integrate(f, c["var"].Str(var), Num(c["a"].Str()), Num(c["b"].Str()), {}, &errEst);

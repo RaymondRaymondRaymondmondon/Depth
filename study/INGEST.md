@@ -210,7 +210,7 @@ Before writing items, write `blueprints/Uxx.json`: a grid of skills x tiers with
 - **Carries its checks** (computable items; gate 1 runs them): `check` entries of type `antiderivative` (`of`),
   `definite` (`integrand`, `a`, `b`, bounds may be `inf`), `diverges` (`integrand`, `a`, `b`, `at`), `equal`
   (`expr`), `value` (`expr`), `ode` (`rhs` in x and y, optional `at`/`y0`), `euler` (`rhs`, `x0`, `y0`, `h`, `n`),
-  `series` (`term`, `n0`). Solution steps may carry `math: {lhs, rhs, upToC}`, checked as identities.
+  `series` (`term`, `n0`), `derivative` (`of`: the answer is its derivative), `integral` (the answer is an integrand; `a`, `b`, `value`: its integral must equal a value found another way, for set-up-only items), `arclength` (`of`: the answer is the arc-length integrand √(1 + f′²) of that curve, possibly simplified), `solves` (`expr`, `var`: the numeric answer, put in for `var`, makes `expr` zero). Solution steps may carry `math: {lhs, rhs, upToC}`, checked as identities.
 - **Carries known wrong answers** (`wrong`: answer + the named `mistake`) so feedback names the mistake.
 
 Tiers, measured against the anchor profile:
