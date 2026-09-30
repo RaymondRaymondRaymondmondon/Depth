@@ -3,6 +3,7 @@
 // and worn, and the charm pouch. Nothing here changes in-match power except which charms are brought.
 // Saved to redtide_profile.txt next to the executable, apart from the Nautilus's save.
 #pragma once
+#include "raylib.h"
 #include <map>
 #include <set>
 #include <string>
@@ -14,6 +15,7 @@ struct CharmDef { std::string id, name, effect; };
 const std::vector<CharmDef>& Charms();                  // the ten Salt Charms
 struct Cosmetic { std::string id, kind, name; int cost = 150; };   // kind: finish, suit, helmet
 const std::vector<Cosmetic>& Cosmetics();
+
 
 struct Profile {
     int tokens = 0;                 // spendable
@@ -46,6 +48,8 @@ struct MatchSummary {
     std::vector<std::string> bonusPages;
 };
 std::vector<std::string> AwardMatch(const MatchSummary& s, int* tokensOut = nullptr);
-int DossierTotal(const std::string& map);     // pages on a map (the workbook's dossier sheet + the faction)
+int DossierTotal(const std::string& map);
+Color SuitColor(const std::string& id);     // the Locker room's colours ("" = the issue kit)
+Color FinishColor(const std::string& id);   // alpha 0: the brass as issued     // pages on a map (the workbook's dossier sheet + the faction)
 
 } // namespace rt

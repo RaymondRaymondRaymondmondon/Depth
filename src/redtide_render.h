@@ -76,7 +76,8 @@ struct SceneLight {                // the master reference's three-light rig
 void RenderBegin(const Camera3D& cam, const SceneLight& light);   // opens the colour pass
 // Draws a creature: world transform (position, facing yaw/pitch), scale, animation phase and intensity (0..1).
 void DrawCreature(const CreatureModel& cm, Vector3 pos, float yaw, float pitch, float scale, float phase, float intensity, Color tint = WHITE);
-void DrawStatic(const Model& m, Matrix world);                      // level geometry with the same lighting
+void DrawStatic(const Model& m, Matrix world, Color tint = WHITE);  // level geometry with the same lighting
+void DrawCubeM(Matrix world, Color col);                            // a unit cube under any transform (the diver's glove)
 void DrawWorldCube(Vector3 c, Vector3 size, Color col);             // blockout boxes (walls, floors, props)
 void RenderEnd();                                                   // runs the normal/depth pass and the ink composite into the scene
 void RenderShutdown();

@@ -707,8 +707,11 @@ void DrawCreature(const CreatureModel& cm, Vector3 pos, float yaw, float pitch, 
     Matrix world = MatrixMultiply(MatrixMultiply(MatrixScale(scale, scale, scale), MatrixMultiply(MatrixRotateX(-pitch), MatrixRotateY(yaw))), MatrixTranslate(pos.x, pos.y, pos.z));
     gQueue.push_back({&cm.model, world, (int)cm.anim, phase, cm.amp, cm.waves, cm.length, intensity, cm.luminous ? 0.6f : 0.0f, tint});
 }
-void DrawStatic(const Model& m, Matrix world) {
-    gQueue.push_back({&m, world, (int)AnimMode::Static, 0, 0, 0, 1, 0, 0, WHITE});
+void DrawStatic(const Model& m, Matrix world, Color tint) {
+    gQueue.push_back({&m, world, (int)AnimMode::Static, 0, 0, 0, 1, 0, 0, tint});
+}
+void DrawCubeM(Matrix world, Color col) {
+    gQueue.push_back({&gCube, world, (int)AnimMode::Static, 0, 0, 0, 1, 0, 0, col});
 }
 void DrawWorldCube(Vector3 c, Vector3 size, Color col) {
     Matrix world = MatrixMultiply(MatrixScale(size.x, size.y, size.z), MatrixTranslate(c.x, c.y, c.z));

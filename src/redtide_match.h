@@ -98,7 +98,10 @@ struct DiverState {
     int slipLink = -1; float slipT = 0, driftT = 0;   // riding a slipstream (link), how far along; the drift after it
     int drumUses = 0;                  // the Reef Shaman's drum, taken
     bool spark = false, ichorJar = false;   // Atlantis: the treasury crystal's spark in a jar; a Lost One's ichor
-    bool egg = false; float wormT = 0, voidT = 0, decoyCd = 0;   // the Void: the Relict egg carried; the worm's tremor; the void's pull
+    bool egg = false; float wormT = 0, voidT = 0, decoyCd = 0;
+    // Salt Charms (stage 9): the pouch brought in (each spent once) and what's running
+    std::vector<std::string> pouch; int pouchNext = 0;
+    float circleT = 0, finsT = 0, shellT = 0, ghostT = 0; Vector3 circlePos{}; int luckKills = 0; bool keepBrines = false, luckyLocker = false;   // the Void: the Relict egg carried; the worm's tremor; the void's pull
     float cutT = 0;                    // being cut free of Reacher coral by a teammate
     int kills = 0, headshots = 0, downs = 0, revives = 0;
     float hitMarker = 0; bool hitWeak = false;
@@ -173,6 +176,8 @@ struct Match {
     std::vector<Polyp> polyps;               // the Anemone Gun's rooted polyps
     std::vector<int> pod; bool podSpawned = false; float breathT = 0;   // the Matriarch's pod and her breath cycle
     void BeatDrum(int d);
+    bool UseCharm(int d);                    // T: spends the pouch's next Salt Charm
+    void UpdateCharms(float dt);
     // stage 9: the dossier (a page for every beast, flora and the faction, earned by a kill or 30 s of watching) and
     // what the arcade profile pays for at the match's end
     std::set<std::string> dossierSeen;
@@ -259,6 +264,7 @@ struct Match {
     void FloraToolPublic(int patch, Vector3 at) { FloraTool(patch, at, nullptr); }
     void HitAgentPublic(int d, int agent, float dmg, bool blast = false) { Dart t; t.weapon = -1; HitAgent(d >= 0 ? &divers[d] : nullptr, agent, dmg, false, false, {1, 0, 0}, blast ? nullptr : &t); }
     void FloraHazardsPublic(float dt) { FloraHazards(dt); }
+    int NearestDiverPublic(Vector3 p, float r) const { return NearestDiver(p, r, false); }
     int WonderIdx() const { return Weapons().Index(WonderId()); }
     static Held NewHeldPublic(int def) { Held h; h.def = def; if (def >= 0) { h.mag = Weapons().weapons[def].mag; h.reserve = Weapons().weapons[def].reserve; } return h; }
 

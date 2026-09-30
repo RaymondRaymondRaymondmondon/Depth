@@ -390,6 +390,7 @@ static void Input(float dt) {
     if (IsKeyPressed(KEY_V) || IsMouseButtonPressed(MOUSE_BUTTON_MIDDLE)) m.Melee(0);
     if (IsKeyPressed(KEY_G)) m.ThrowLimpet(0);
     if (IsKeyPressed(KEY_F)) m.BeatDrum(0);
+    if (IsKeyPressed(KEY_T)) m.UseCharm(0);
     if (IsKeyPressed(KEY_E)) m.Interact(0, false, dt);
     else if (IsKeyDown(KEY_E)) m.Interact(0, true, dt);
     for (int k = 0; k < 3; k++) if (IsKeyPressed(KEY_ONE + k)) m.SwapWeapon(0, k);
@@ -476,7 +477,13 @@ static void DrawGun(const Camera3D& cam) {
     m.m8 = f.x; m.m9 = f.y; m.m10 = f.z;
     m.m12 = p.x; m.m13 = p.y; m.m14 = p.z;
     Matrix tilt = MatrixRotateX(-d.recoil * 0.25f * w.handling.recoil);
-    DrawStatic(gGuns[GunModelFor(w.cls)], MatrixMultiply(tilt, m));
+    // the Locker room's finish on the gun, and the suit's colour on the glove that holds it
+    const Profile& prof = GetProfile();
+    Color fin = FinishColor(prof.finish), tint = WHITE;
+    if (fin.a > 0) tint = {(unsigned char)(fin.r * 0.6f + 102), (unsigned char)(fin.g * 0.6f + 102), (unsigned char)(fin.b * 0.6f + 102), 255};
+    DrawStatic(gGuns[GunModelFor(w.cls)], MatrixMultiply(tilt, m), tint);
+    Color suit = SuitColor(prof.suit);
+    DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(0.045f, 0.05f, 0.08f), MatrixTranslate(0, -0.035f, -0.06f)), MatrixMultiply(tilt, m)), suit);
 }
 
 static Color FloraColor(const std::string& n) {
@@ -911,6 +918,22 @@ static void DrawHud() {
     else TxtBold(d.harpoonHour ? "infinite" : TextFormat("%d / %d", h.mag, h.reserve), SCREEN_W - 280, SCREEN_H - 70, 30, h.mag == 0 ? blood : paper);
     if (d.reloading) Txt("reloading...", SCREEN_W - 280, SCREEN_H - 36, 14, Fade(paper, 0.8f));
     Txt(TextFormat("limpets %d", d.limpets), SCREEN_W - 120, SCREEN_H - 36, 14, Fade(paper, 0.8f));
+    // the charm pouch: the next charm (T) and what's running
+    if (d.pouchNext < (int)d.pouch.size()) {
+        std::string n; for (const auto& c : Charms()) if (c.id == d.pouch[d.pouchNext]) n = c.name;
+        Txt(TextFormat("T: %s  (%d left)", n.c_str(), (int)d.pouch.size() - d.pouchNext), 140, SCREEN_H - 100.0f, 14, Color{230, 220, 190, 255});
+    }
+    {
+        std::string run;
+        if (d.circleT > 0) run += TextFormat("Salt Circle %.0f  ", d.circleT);
+        if (d.finsT > 0) run += TextFormat("Slick Fins %.0f  ", d.finsT);
+        if (d.shellT > 0) run += TextFormat("Hard Shell %.0f  ", d.shellT);
+        if (d.ghostT > 0) run += TextFormat("Ghost Fin %.0f  ", d.ghostT);
+        if (d.luckKills > 0) run += TextFormat("Fisher's Luck x%d  ", d.luckKills);
+        if (d.keepBrines) run += "Brines kept  ";
+        if (d.luckyLocker) run += "Lucky Locker  ";
+        if (!run.empty()) Txt(run, 140, SCREEN_H - 120.0f, 14, Color{160, 230, 210, 255});
+    }
     if (d.voidT > 0 || d.wormT > 0) {
         // the Void's two ends of the world: a countdown in red at the middle of the screen
         const char* what = d.voidT > 0 ? "THE VOID PULLS YOU DOWN: SWIM BACK" : "THE SAND SHAKES: BACK INSIDE THE STAKES";
@@ -1009,6 +1032,7 @@ void StartRedTide(Game& g, const char* map) {
     gRtMap = map ? map : "ship";
     StartShip(1, (uint32_t)GetRandomValue(1, 1 << 30), gRtMap);
     S.shotMode = false; S.awarded = false; S.awardLines.clear(); S.awardTokens = 0;
+    Me().pouch = GetProfile().pouch;                    // the Salt Charms the diver brought
     S.silhouette = 0;
     S.lineup = -1;
     DisableCursor();

@@ -573,6 +573,7 @@ void Match::Step(float dt) {
     UpdateAtlantis(dt);
     UpdateVoid(dt);
     UpdateDossier(dt);
+    UpdateCharms(dt);
     UpdateDrops(dt);
     for (auto& c : crates) {
         c.t -= dt;
@@ -869,8 +870,9 @@ void Match::Revive(DiverState& d, int by) {
     d.downed = false;
     d.reviveT = 0;
     d.selfReviveT = 0;
-    // "A revived diver loses all tonics"
-    d.tonics.clear();
+    // "A revived diver loses all tonics" (unless a Keep Your Brines was spent)
+    if (d.keepBrines) { d.keepBrines = false; Say("", "Keep Your Brines: the tonics stay", 3); }
+    else d.tonics.clear();
     d.hpMax = Engine().C("player_hp", 100);
     d.hp = d.hpMax;
     if (d.slots > 2) { d.slots = 2; if (d.weapons.size() > 2) d.weapons.resize(2); d.cur = std::min(d.cur, 1); }
@@ -883,6 +885,7 @@ void Match::Revive(DiverState& d, int by) {
 void Match::HitDiver(DiverState& d, float dmg, const std::string& by, const std::string& effect, Vector3 from, int attacker) {
     if (d.dead || d.invulnerable) return;
     if (d.downed) { d.downT -= dmg * 0.05f; return; }   // chewed while down: bleeds out faster
+    if (d.shellT > 0) dmg *= 0.5f;                       // Hard Shell
     std::string e = Lower(effect);
     bool hold = e.find("hold") != std::string::npos || e.find("carr") != std::string::npos || e.find("roll") != std::string::npos || e.find("pin") != std::string::npos || e.find("drag") != std::string::npos;
     bool deferred = hold && e.find("teammate") != std::string::npos;   // "teammates have 4 s": the damage lands if nobody shoots it off
@@ -1377,6 +1380,7 @@ void Match::OnDeath(int ai, int killer) {
     } else bounty = s.bountyBase * map->Tide(tide).bountyMult;
     if (a.weakHit) { bounty *= 1.5f; d.headshots++; }
     if (pendingMelee) bounty += 30;
+    if (d.luckKills > 0) { bounty *= 2; d.luckKills--; }   // Fisher's Luck
     Pay(d, bounty);
     d.kills++;
     killsBy[s.name]++;
@@ -1606,7 +1610,7 @@ void Match::FloraHazards(float dt) {
 int Match::NearestDiver(Vector3 p, float r, bool needSight, bool upOnly) const {
     int best = -1; float bd = r;
     for (const auto& d : divers) {
-        if (d.dead || (upOnly && d.downed)) continue;
+        if (d.dead || (upOnly && d.downed) || d.ghostT > 0) continue;   // (Ghost Fin: lost to scent and sound)
         float dist = Vector3Distance(d.pos, p);
         if (dist >= bd) continue;
         if (needSight && !level.Sight(p, Eye(d), linkOpen, true)) continue;
@@ -2712,6 +2716,83 @@ void Match::UpdateAtlantis(float dt) {
     for (auto& d : divers) if (d.downed && d.spark) { d.spark = false; Say("", "The spark's jar breaks", 2); }
 }
 
+// ---------------------------------------------------------------- Salt Charms
+bool Match::UseCharm(int di) {
+    DiverState& d = divers[di];
+    if (d.dead || d.downed || d.pouchNext >= (int)d.pouch.size()) return false;
+    std::string id = d.pouch[d.pouchNext++];
+    std::string name = id;
+    for (const auto& c : Charms()) if (c.id == id) name = c.name;
+    Say("", "Salt Charm: " + name, 3);
+    fx.push_back({4, d.pos, {0, 0, 0}});
+    if (id == "brines") d.keepBrines = true;
+    else if (id == "circle") { d.circleT = 20; d.circlePos = d.pos; }
+    else if (id == "locker") d.luckyLocker = true;
+    else if (id == "shares") {
+        // every living diver's scrip pooled and split evenly
+        int total = 0, n = 0;
+        for (const auto& o : divers) if (!o.dead) { total += o.scrip; n++; }
+        for (auto& o : divers) if (!o.dead) o.scrip = total / std::max(1, n);
+        Say("", TextFormat("Fair Shares: %d scrip each", total / std::max(1, n)), 4);
+    }
+    else if (id == "fins") d.finsT = 30;
+    else if (id == "clean") {
+        // the blood within 30 m, gone
+        Field& f = eco.scent;
+        int cx, cy, cz;
+        if (f.Cell(d.pos, cx, cy, cz)) {
+            int r = (int)ceilf(30 / f.cell);
+            for (int z = std::max(0, cz - r); z < std::min(f.nz, cz + r + 1); z++) for (int y = std::max(0, cy - r); y < std::min(f.ny, cy + r + 1); y++) for (int x = std::max(0, cx - r); x < std::min(f.nx, cx + r + 1); x++) {
+                Vector3 c{f.origin.x + (x + 0.5f) * f.cell, f.origin.y + (y + 0.5f) * f.cell, f.origin.z + (z + 0.5f) * f.cell};
+                if (Vector3Distance(c, d.pos) <= 30) f.v[f.Idx(x, y, z)] = 0;
+            }
+            f.BuildSat();
+        }
+    }
+    else if (id == "luck") d.luckKills = 10;
+    else if (id == "chum") {
+        // a big chum cloud 30 m off along the diver's look (as far as open water goes)
+        Vector3 fw = Forward(d), at = d.pos;
+        for (float t = 0; t < 30; t += 0.5f) { Vector3 q = Vector3Add(d.pos, Vector3Scale(fw, t)); if (!level.Inside(q, 0.3f, linkOpen, true)) break; at = q; }
+        eco.AddChum(at, 200);
+        fx.push_back({5, at, {0, 0, 0}});
+    }
+    else if (id == "shell") d.shellT = 60;
+    else if (id == "ghost") d.ghostT = 15;
+    return true;
+}
+
+void Match::UpdateCharms(float dt) {
+    for (auto& d : divers) {
+        if (d.circleT > 0) {
+            // Salt Circle: beasts won't cross it: anything inside 4 m is pushed out and forgets the diver
+            d.circleT -= dt;
+            for (auto& a : eco.agents) {
+                if (!a.alive || a.diver >= 0 || map->species[a.sp].isEnemy) continue;
+                Vector3 off = Vector3Subtract(a.pos, d.circlePos);
+                float dist = Vector3Length(off);
+                if (dist > 4) continue;
+                if (dist < 0.1f) off = {1, 0, 0};
+                Vector3 dir = Vector3Normalize(off);
+                for (int k = 0; k < 8; k++) {   // (turn the push until it clears the circle inside the room)
+                    float an = k * 0.785f;
+                    Vector3 dk{dir.x * cosf(an) - dir.z * sinf(an), dir.y, dir.x * sinf(an) + dir.z * cosf(an)};
+                    Vector3 q = map->zones[a.zone].Clamp(Vector3Add(d.circlePos, Vector3Scale(Vector3Normalize(dk), 4.1f)), 0.3f);
+                    if (Vector3Distance(q, d.circlePos) >= 4.0f || k == 7) { a.pos = q; break; }
+                }
+                a.vel = {0, 0, 0};
+                if (a.target == d.agent) { a.st = State::Return; a.target = -1; a.goal = a.home; }
+            }
+        }
+        if (d.finsT > 0) { d.finsT -= dt; d.stamina = 1; }
+        if (d.shellT > 0) d.shellT -= dt;
+        if (d.ghostT > 0) {
+            d.ghostT -= dt;
+            for (auto& a : eco.agents) if (a.alive && a.target == d.agent && !a.targetCorpse) { a.st = State::Return; a.target = -1; a.goal = a.home; }
+        }
+    }
+}
+
 // ---------------------------------------------------------------- the dossier
 std::string Match::DossierName(int ai) const {
     const Species& s = map->species[eco.agents[ai].sp];
@@ -3121,7 +3202,7 @@ void Match::GiveLockerWeapon(DiverState& d) {
     // (2% per pull, guaranteed within 12 pulls if not yet held by the team)
     const WeaponsData& WD = Weapons();
     int wonder = WD.Index(WonderId());
-    if (wonder >= 0 && !wonderHeld && (teamPulls >= 12 || Rand() < 0.02f)) { GiveWeapon(d, wonder); d.lastKill = "Davy's Locker: " + WD.weapons[wonder].name; d.lastKillT = 3; return; }
+    if (wonder >= 0 && !wonderHeld && (teamPulls >= 12 || Rand() < 0.02f)) { GiveWeapon(d, wonder, d.luckyLocker); d.luckyLocker = false; d.lastKill = "Davy's Locker: " + WD.weapons[wonder].name; d.lastKillT = 3; return; }
     std::vector<int> pool;
     for (int i = 0; i < (int)WD.weapons.size(); i++) {
         const WeaponDef& w = WD.weapons[i];
@@ -3132,7 +3213,12 @@ void Match::GiveLockerWeapon(DiverState& d) {
     }
     if (pool.empty()) return;
     int pick = pool[(int)(Rand() * pool.size()) % pool.size()];
-    GiveWeapon(d, pick);
+    GiveWeapon(d, pick, d.luckyLocker);                   // (Lucky Locker: out of the Forge)
+    if (d.luckyLocker) {
+        d.luckyLocker = false; Say("", "Lucky Locker: it comes out pressure-forged", 3);
+        int na = (int)Weapons().forgeAmmoTypes.size();
+        for (auto& h : d.weapons) if (h.def == pick && h.forged && na > 0) h.altAmmo = (int)(Rand() * na) % na;   // (with an alternate ammunition)
+    }
     d.lastKill = "Davy's Locker: " + WD.weapons[pick].name; d.lastKillT = 3;
 }
 
@@ -5011,6 +5097,42 @@ int RunRedTideProfileTest() {
     std::string wn = m.map->species[m.eco.agents[watch].sp].name;
     for (int k = 0; k < 20 * 31; k++) { m.eco.agents[watch].pos = Vector3Add(d.pos, {0, 0.2f, 3}); m.eco.agents[watch].zone = d.zone; m.Step(0.05f); m.phase = TidePhase::Calm; }
     check(m.dossierSeen.count(wn), "30 s of watching writes one too: " + wn);
+    // Salt Charms
+    {
+        auto M2 = std::make_unique<Match>();
+        Match& c = *M2;
+        c.Init("ship", 2, 11, false);
+        DiverState& a = c.divers[0]; DiverState& b = c.divers[1];
+        a.invulnerable = false; b.invulnerable = true;
+        a.pouch = {"shares", "shell", "luck", "clean", "circle", "ghost", "fins", "brines", "locker"};
+        a.scrip = 1000; b.scrip = 0;
+        check(c.UseCharm(0) && a.scrip == 500 && b.scrip == 500, "Fair Shares pools and splits the scrip");
+        c.UseCharm(0); a.hp = a.hpMax = 1000; c.HitDiverPublic(a, 100, "test", "", a.pos, -1);
+        check(fabsf(a.hp - 950) < 0.5f, "Hard Shell halves the damage");
+        c.UseCharm(0);
+        int fish = -1; for (int i = 0; i < (int)c.eco.agents.size(); i++) { const Agent& g = c.eco.agents[i]; if (g.alive && g.diver < 0 && !c.map->species[g.sp].isEnemy && !c.IsBoss(i)) { fish = i; break; } }
+        int s0 = a.scrip; float bounty = c.map->species[c.eco.agents[fish].sp].bountyBase * c.map->Tide(c.tide).bountyMult;
+        c.HitAgentPublic(0, fish, 1e6f);
+        check(a.scrip - s0 >= (int)(bounty * 2) - 1 && a.luckKills == 9, "Fisher's Luck pays the next kills double");
+        c.eco.AddBlood(a.pos, 200); c.eco.scent.BuildSat();
+        c.UseCharm(0);
+        check(c.eco.Smell(a.pos, a.zone, 6) < 1, "Clean Water clears the blood");
+        c.UseCharm(0);
+        int g = -1; for (int i = 0; i < (int)c.eco.agents.size(); i++) { const Agent& x = c.eco.agents[i]; if (x.alive && x.diver < 0 && !c.map->species[x.sp].isEnemy && !c.IsBoss(i) && c.map->species[x.sp].size >= 3 && c.map->species[x.sp].tier < 5) { g = i; break; } }
+        c.eco.agents[g].pos = Vector3Add(a.circlePos, {1, 0, 0}); c.eco.agents[g].zone = a.zone; c.eco.agents[g].hp = c.eco.agents[g].hpMax = 1e5f;
+        c.Step(0.05f);
+        if (getenv("DEPTH_DBG")) printf("    circle: over %d (%s) %s dist %.2f circleT %.1f zone %d/%d st %s\n", (int)c.over, c.overReason.c_str(), c.map->species[c.eco.agents[g].sp].name.c_str(), Vector3Distance(c.eco.agents[g].pos, a.circlePos), a.circleT, c.eco.agents[g].zone, a.zone, StateName(c.eco.agents[g].st));
+        check(Vector3Distance(c.eco.agents[g].pos, a.circlePos) >= 3.9f, "Salt Circle: no beast inside it");
+        c.UseCharm(0);
+        check(c.NearestDiverPublic(a.pos, 5) != 0, "Ghost Fin: nothing can find the diver");
+        c.UseCharm(0); a.stamina = 0.2f; c.Step(0.05f);
+        check(a.stamina > 0.99f, "Slick Fins: full sprint");
+        c.UseCharm(0); a.tonics = {"juggernaut"}; a.downed = true; c.ApplyDropPublic(DropType::Resupply, a.pos);
+        a.downed = false;
+        check(a.keepBrines, "Keep Your Brines is armed until the next revive");
+        c.UseCharm(0);
+        check(a.luckyLocker && !c.UseCharm(0), "Lucky Locker armed; the pouch is spent");
+    }
     printf(fails ? "redtide-profile-test: %d check(s) failed\n" : "redtide-profile-test: all checks passed\n", fails);
     return fails ? 1 : 0;
 }
