@@ -30,6 +30,7 @@ static void RunScene(Game& g) {
     switch (g.scene) {
         case Scene::Study:      SceneStudy(g); break;
         case Scene::Arcade:     SceneArcade(g); break;
+        case Scene::RedTide:    SceneRedTide(g); break;
         case Scene::Hub:        SceneHub(g); break;
         case Scene::Helm:       SceneHelm(g); break;
         case Scene::Crew:       SceneCrew(g); break;
@@ -171,6 +172,11 @@ static void TakeShots(const Game& base, const std::string& dir) {
         {"hub_hover_study", [](Game& g) { g.scene = Scene::Hub; DebugSalonHover(10); }},
         {"study", [](Game& g) { g.scene = Scene::Study; }},
         {"arcade", [](Game& g) { g.scene = Scene::Arcade; }},
+        {"arcade_redtide", [](Game& g) { g.scene = Scene::Arcade; DebugArcadeReel(4); }},
+        {"redtide_tank", [](Game& g) { DebugRedTideShot(g, 0); }},
+        {"redtide_silhouette", [](Game& g) { DebugRedTideShot(g, 1); }},
+        {"redtide_species_ship_1", [](Game& g) { DebugRedTideShot(g, 2); }},
+        {"redtide_species_ship_2", [](Game& g) { DebugRedTideShot(g, 3); }},
         {"panel_ward", [](Game& g) { g.scene = Scene::Ward; Hero& h = g.roster[1]; g.selectedHero = h.id; h.hp = h.hp / 2; h.ailments = (1u << AIL_SALT_ROT) | (1u << AIL_BENDS); h.habits = (1u << HB_STEADY_HANDS) | (1u << HB_NIGHT_EYES) | (1u << HB_JUMPY); h.habitLocked = 1u << HB_NIGHT_EYES; g.gold = 400; }},
         {"panel_sickbay", [](Game& g) { g.scene = Scene::SickLeave; }},
         {"flats_menu", [](Game& g) { g.scene = Scene::Cards; }},
@@ -528,6 +534,10 @@ int main(int argc, char** argv) {
         SetTraceLogLevel(LOG_WARNING);
         if (strcmp(argv[2], "all") == 0) { int r = 0; for (const char* k : {"ship", "cave", "reef", "atlantis", "void"}) r |= rt::RunWebCheck(k); return r; }
         return rt::RunWebCheck(argv[2]);
+    }
+    if (argc >= 2 && strcmp(argv[1], "--redtide-test") == 0) {
+        SetTraceLogLevel(LOG_WARNING);
+        return RunRedTideTest();
     }
     if (argc >= 3 && strcmp(argv[1], "--eco-test") == 0) {
         SetTraceLogLevel(LOG_WARNING);

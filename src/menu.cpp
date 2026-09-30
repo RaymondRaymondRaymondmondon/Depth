@@ -65,9 +65,12 @@ bool Toggle(Rectangle r, const char* label, bool on) {
 void MainPage(Game& g, Rectangle p) {
     float y = p.y + 50, x = p.x + p.width / 2 - 150;
     auto item = [&](const char* label, bool enabled = true) { bool r = Button({x, y, 300, 44}, label, enabled, 19); y += 54; return r; };
-    if (item("Resume")) { gOpen = false; PlayCue("ui.confirm"); }
+    if (item("Resume")) { gOpen = false; PlayCue("ui.confirm"); if (g.scene == Scene::RedTide) DisableCursor(); }
     if (item("Settings")) { gPage = P_SETTINGS; }
     if (item("Controls")) { gPage = P_CONTROLS; }
+    if (g.scene == Scene::RedTide) {
+        if (item("Leave the match")) { gOpen = false; g.scene = Scene::Arcade; }
+    }
     if (g.scene == Scene::Platformer || g.scene == Scene::Abyss) {
         if (item("Abandon the dive")) {
             gOpen = false;
@@ -147,6 +150,7 @@ bool GameMenuActive() { return gOpen; }
 bool GameMenuWantsQuit() { return gQuit; }
 void GameMenuOpen() {
     if (gOpen) return;
+    EnableCursor();                               // first-person games capture the mouse; the menu needs it back
     SnapshotFrame();
     gOpen = true; gPage = P_MAIN; gRebind = -1; gOpenT = 0;
     PlayCue("hub.panel", 0.7f);

@@ -1815,6 +1815,8 @@ void SceneStudy(Game& g) {
 }
 
 // ============================================================ the Deep Arcade (the cabinet; its games come aboard later)
+static int gArcadeReelDebug = -1;
+void DebugArcadeReel(int reel) { gArcadeReelDebug = reel; }
 void SceneArcade(Game& g) {
     float t = g.time;
     DrawCabinBackground();
@@ -1829,19 +1831,22 @@ void SceneArcade(Game& g) {
     Glow(c, 360, Color{60, 220, 210, 50});
     TxtBold("THE DEEP ARCADE", c.x - MeasureTxt("THE DEEP ARCADE", 30, true) / 2.0f, c.y - 250, 30, Color{180, 255, 240, 255});
     struct Reel { const char* name; const char* players; const char* length; const char* line; };
-    const Reel reels[4] = {
+    const int NREELS = 5;
+    const Reel reels[NREELS] = {
         {"Flats Duel", "2 players", "8-12 min", "Flats against a person: a best of three at the table."},
-        {"The Trawl", "1-4 co-op", "15-25 min", "Fish the deep by night, fill the quota, don't wake what's below."},
+        {"The Trawl", "1-6 co-op", "30-35 min", "Work a steam trawler by night: catch it, kill it, cook it, sell it, and meet the Owners' quota."},
         {"Scuttle", "2-4 players", "5-10 min", "A fast crab-racing card game anyone can learn in one hand."},
         {"Fathoms", "2-6 players", "20-30 min", "The island strategy game: six factions of the deep."},
+        {"Red Tide", "1-4 co-op", "20-60 min", "Divers in living ecosystems: kill for scrip, and the blood in the water brings what eats everything."},
     };
     static int sel = 0;
     static float drum = 0;
+    if (gArcadeReelDebug >= 0) { sel = gArcadeReelDebug; drum = (float)sel; gArcadeReelDebug = -1; }
     drum += (sel - drum) * std::min(1.0f, GetFrameTime() * 8);
     float wheel = GetMouseWheelMove();
-    if (wheel < 0 || IsKeyPressed(KEY_DOWN)) sel = std::min(3, sel + 1);
+    if (wheel < 0 || IsKeyPressed(KEY_DOWN)) sel = std::min(NREELS - 1, sel + 1);
     if (wheel > 0 || IsKeyPressed(KEY_UP)) sel = std::max(0, sel - 1);
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < NREELS; i++) {
         float off = (i - drum) * 92;
         if (fabsf(off) > 120) continue;
         float sc = 1 - fabsf(off) / 400;
@@ -1854,13 +1859,20 @@ void SceneArcade(Game& g) {
         if (CheckCollisionPointRec(GetMousePosition(), r) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) sel = i;
     }
     DrawWrapped(reels[sel].line, {c.x - 200, c.y + 100, 400, 50}, 17, Color{200, 240, 232, 255});
-    // the three valve-wheel buttons: not wired up yet
+    // the three valve-wheel buttons. Host starts a playable game solo (the shared networking layer comes with its
+    // own stage); Join and Browse wait for it.
+    bool playable = sel == 4;
     const char* valves[3] = {"Host", "Join", "Browse"};
     for (int k = 0; k < 3; k++) {
         Vector2 v{c.x - 120 + k * 120.0f, c.y + 180};
-        DrawRing(v, 22, 28, 0, 360, 24, Color{120, 40, 36, 255});
-        for (int s = 0; s < 3; s++) DrawLineEx(v, {v.x + cosf(t * 0.3f + s * 2.09f) * 24, v.y + sinf(t * 0.3f + s * 2.09f) * 24}, 3, Color{120, 40, 36, 255});
-        DrawTextCentered(valves[k], v.x, v.y + 34, 15, Color{140, 170, 166, 255});
+        bool live = playable && k == 0;
+        bool hov = live && CheckCollisionPointCircle(GetMousePosition(), v, 30);
+        Color vc = live ? (hov ? Color{220, 90, 70, 255} : Color{180, 60, 48, 255}) : Color{120, 40, 36, 255};
+        DrawRing(v, 22, 28, 0, 360, 24, vc);
+        for (int s = 0; s < 3; s++) DrawLineEx(v, {v.x + cosf(t * (hov ? 2.0f : 0.3f) + s * 2.09f) * 24, v.y + sinf(t * (hov ? 2.0f : 0.3f) + s * 2.09f) * 24}, 3, vc);
+        DrawTextCentered(k == 0 && playable ? "Dive (solo)" : valves[k], v.x, v.y + 34, 15, live ? Color{230, 240, 236, 255} : Color{140, 170, 166, 255});
+        if (hov && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) { StartRedTide(g); return; }
     }
-    DrawTextCentered("The arcade's wiring is still being run. Its games come aboard in a later refit.", c.x, 700, 16, Pal::Paper);
+    DrawTextCentered(playable ? "Red Tide: the test tank is open (the Sunken Ship is being built). Online play arrives with the arcade's networking."
+                              : "The arcade's wiring is still being run. This game comes aboard in a later refit.", c.x, 700, 16, Pal::Paper);
 }

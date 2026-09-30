@@ -35,7 +35,7 @@ const Color Bad     = {225, 70, 70, 255};
 const Color Stress  = {170, 120, 230, 255};
 }  // namespace Pal
 
-enum class Scene { Hub, Helm, Crew, Radar, Ward, SickLeave, Bookshelf, Periscope, Workshop, Dungeon, Platformer, Cards, Abyss, Study, Arcade };
+enum class Scene { Hub, Helm, Crew, Radar, Ward, SickLeave, Bookshelf, Periscope, Workshop, Dungeon, Platformer, Cards, Abyss, Study, Arcade, RedTide };
 
 // Workshop upgrades. Each has levels 0..UPGRADE_MAX.
 enum Upgrade { UP_REFLECTOR, UP_BUNKS, UP_SONAR, UP_INFIRMARY, UP_CARGO, UP_COUNT };
@@ -859,6 +859,11 @@ void SetSceneSlide(Vector2 d); // render.cpp: offset everything drawn into the s
 void DrawSalonBackdrop(Game& g, Scene station); // salon.cpp: the room as a backdrop behind a station's panel (no hover, no HUD)
 void SceneStudy(Game& g);     // the Study below the hatch (under refit for now)
 void SceneArcade(Game& g);    // the Deep Arcade cabinet (its games arrive with the arcade stages)
+void DebugArcadeReel(int reel); // --shots: turn the arcade drum to a reel
+void SceneRedTide(Game& g);   // Red Tide, the Deep Arcade's survival shooter (redtide_game.cpp)
+void StartRedTide(Game& g);
+void DebugRedTideShot(Game& g, int which); // --shots: 0 the tank, 1 its silhouettes, 2+ the species lineup pages
+int RunRedTideTest();                       // depth.exe --redtide-test (headless)
 void SetFigureClip(const Rectangle* r); // clip the next EndFigure composites to r (portraits); nullptr turns it off
 void SetFigureMood(float desat, float door);
 void SnapshotFrame();                 // render.cpp: hold the last finished frame (the game menu's pause)
