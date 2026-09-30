@@ -347,3 +347,55 @@ pass). `--web-check atlantis` is clean.
 
 The Farms' amberjack pack and the great white did most of the downing (a careful bot now leaves packs alone while its
 gun is weak); the great white comes over the wall from tide 4, after the calm. Balance stays with Stage 10.
+
+## Stage 8: Approaching the Void
+
+Data: `data/redtide/maps/void/extra.json`. Code: `UpdateVoid`, `UpdateBossLeviathan`, `VoidDeath`, `DropLedge`,
+`Forbidden` in redtide_match.cpp; `--redtide-map-test void` (33 checks, all pass); `--web-check all` is clean on all
+five maps.
+
+- **The rim, the stakes and the worm**: the rim is 800 m across (moved east of the abyss; the hatch still at 0,0, and the
+  divers start there: `start_poi`); its life keeps near the hatch's lights (`life_near`, our call, so the first tides
+  have prey). Beyond the bone stakes (r = 350) the sand shakes for 8 s and the Sand Worm takes the diver: no down, no
+  revive, back next tide (`worm`). The worm is scripted, not a beast in the web (`spawn_remove`); it is drawn tunnelling
+  on the horizon at r = 520.
+- **The void** (`void_zones`, `void`): the abyss is a black column west of everything, drawn with no walls; every level
+  below the rim opens onto it (Overlooks 2, 3 and 5, and the rim's edge). A diver out over it is pulled down for 5 s
+  (a red countdown) and is lost. No route is planned through it (`DiverLink`), and bots keep out of it and away from
+  the stakes (`Match::Forbidden`).
+- **The descent**: the chimney, the galleries, the warrens' tubes, the station's three modules and the vault, 200 m of
+  depth (`zone_y`); the reactor's warm plume carries blood up the service shaft into the mess (`link_add` flow).
+- **The Remnant** (roles `sentinel`, `researcher`, `voidcult`, `chief`): Sentinels take the nearest doorway and hold it,
+  turn slowly (a 90-degree arc), spin up for 1 s and fire 3 s bursts; they leak oil (`Agent::oil`, from the unit's
+  `bloodless`), and a Researcher's torch mends them. Researchers lob gas (15/s in 4 m for 6 s) and switch on any lure
+  beacon they pass. Void Cultists walk for the nearest overlook, chant divers toward the edge, and at the edge raise a
+  colossal squid's arm (20 s) and three hatchetfish swarms. In a Hunt the Station Chief holds the mech bay, switches on
+  Beacon 4, fires 200-damage harpoons and claws close in; the Relict attacks him on sight.
+- **Lure beacons** (`beacons`): an on beacon pulls every beast within 40 m onto the nearest diver; a diver turns it back
+  toward the abyss by hand (loud); the lab's control panel (1,000) turns them all off.
+- **Specimens** (`breeders`): salamanders (+1 per 90 s per pair) and coelacanths (+1 per 120 s) breed to 12; only the
+  caiman eats them. **A whale kill brings the Relict** up to the body.
+- **The Lantern Leviathan** (bossKind 4): its lure (an emergency light on a stalk) draws divers and curious beasts
+  within 40 m; the body takes half; shooting out the lure (500) blinds it 5 s and bares the gills; Swallow gives the
+  team 5 s to put 200 into it; the Bite bleeds; phase 2's Dark puts the lamps out within 30 m for 6 s; phase 3 splits the
+  lure in three (the decoys hold a diver 2 s), drops the collapsing ledge under anyone on Overlook 5, and brings the
+  Relict (it wins one time in three). Its kill leaves the station's master key; it reforms after 6 minutes at half.
+- **Traps**: the pressure door (crushes the corridor, Sentinels included), the reactor vent (200 in 8 m; the Leviathan
+  10%; it bares the Relict's belly), the collapsing ledge (everything on it falls into the void).
+- **Quests**: the final log (five terminals in order, each waking a Remnant squad; tank 7 with the master key; the
+  Relict hunts whoever carries its egg; set the egg on the ledge and drop it under the Relict: the Abyssal Lure
+  (Forged) and 5,000 split; lose the egg to the void and the quest ends); the Abyssal Lure (re-aim three beacons, then
+  scald the Relict at the reactor vent).
+- **The Abyssal Lure** (`wonder`, `lure`): a lantern every beast in 60 m comes to for 8 s, then a 150 burst (Forged:
+  300).
+- Engine: the blood and sound grids take a per-map cell cap (`field_max_cells`: the Void's box is vast and mostly
+  empty); tonic stations match "Quick Brine (L2)" style names; `open_zones` now leave the ceiling open in the renderer.
+- `--shots shots redtide_void` renders six views (the rim, the galleries, the labs, the vault's lure, the warrens, an
+  overlook).
+
+| `--redtide-sim void`, four careful bots, 2 runs | Tide reached | Downs (beasts / enemies / hazards) |
+|---|---|---|
+| | 8.5 | 65 / 34 / 0 |
+
+Slow on the rim (tide 10 at ~82 minutes: its prey is sparse by design), then the frilled sharks and the Remnant's
+Sentinels do the downing. Balance stays with Stage 10.

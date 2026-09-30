@@ -141,7 +141,11 @@ static void BuildLevelModel() {
     for (const auto& v : m.level.vols) {
         if (v.zone < 0) continue;
         const Zone& z = map.zones[v.zone];
-        bool outside = z.deck == "Outside" || !z.diverOk, upper = z.deck == "Upper";
+        bool isVoid = false, open = false;
+        for (const Json& vz : map.extra["void_zones"].a) if (vz.Str0() == z.name) isVoid = true;
+        for (const Json& oz : map.extra["open_zones"].a) if (oz.Str0() == z.name) open = true;
+        if (isVoid) continue;                                  // the abyss: no walls, no floor, only the dark
+        bool outside = z.deck == "Outside" || !z.diverOk || open, upper = z.deck == "Upper";
         Color wall = outside ? Color{58, 64, 66, 255} : upper ? Color{112, 80, 54, 255} : Color{82, 90, 96, 255};
         Color floor = outside ? Color{166, 142, 96, 255} : upper ? Color{118, 58, 46, 255} : Color{70, 72, 66, 255};
         Color ceil = upper ? Color{88, 70, 50, 255} : Color{62, 68, 72, 255};
@@ -298,6 +302,13 @@ static void BuildLevelModel() {
             case PropKind::Grate: {
                 mb.Box({c.x, c.y - 0.01f, c.z}, {h.x, 0.01f, h.z}, Color{12, 16, 18, 255});
                 for (int j = -2; j <= 2; j++) { mb.Box({c.x + j * h.x * 0.4f, c.y + 0.02f, c.z}, {0.05f, 0.03f, h.z}, Color{70, 74, 70, 255}); mb.Box({c.x, c.y + 0.02f, c.z + j * h.z * 0.4f}, {h.x, 0.03f, 0.05f}, Color{70, 74, 70, 255}); }
+                break;
+            }
+            case PropKind::Stake: mb.Box(c, h, Color{214, 206, 184, 255}); mb.Box({c.x, c.y + h.y, c.z}, {0.35f, 0.12f, 0.12f}, Color{200, 190, 170, 255}); break;
+            case PropKind::Tank: {
+                mb.Box({c.x, z.y0 + 0.15f, c.z}, {h.x + 0.1f, 0.15f, h.z + 0.1f}, Color{70, 74, 72, 255});
+                mb.Box(c, {h.x, h.y, 0.04f}, Color{120, 170, 160, 255}); mb.Box(c, {0.04f, h.y, h.z}, Color{120, 170, 160, 255});
+                mb.Box({c.x, c.y + h.y + 0.1f, c.z}, {h.x + 0.1f, 0.1f, h.z + 0.1f}, Color{70, 74, 72, 255});
                 break;
             }
             case PropKind::Crenel: mb.Box(c, h, Color{(unsigned char)(rock.r - 20), (unsigned char)(rock.g - 20), (unsigned char)(rock.b - 16), 255}); break;
@@ -539,6 +550,15 @@ static void DrawStations() {
                 break;
             case StationType::Quest: DrawWorldCube(p, {0.8f, 0.9f, 0.7f}, m.safeOpen ? Color{60, 60, 60, 255} : Color{70, 76, 70, 255}); break;
             case StationType::Cleaning: DrawWorldCube({p.x, p.y - 0.6f, p.z}, {1.4f, 0.8f, 1.2f}, {110, 100, 88, 255}); break;
+            case StationType::Trap:
+                if (s.name.find("Beacon") != std::string::npos && s.name.find("control") == std::string::npos) {
+                    // a lure beacon: a mast and a lamp (amber and pulsing when the Remnant has it on)
+                    auto it = m.beaconOn.find((int)(&s - &m.level.stations[0]));
+                    bool on = it != m.beaconOn.end() && it->second && m.darkT <= 0;
+                    DrawWorldCube({p.x, p.y + 0.3f, p.z}, {0.2f, 2.6f, 0.2f}, {70, 70, 66, 255});
+                    DrawWorldCube({p.x, p.y + 1.7f, p.z}, {0.5f, 0.4f, 0.5f}, on ? Color{255, (unsigned char)(150 + 80 * sinf(S.time * 6)), 60, 255} : Color{50, 54, 56, 255});
+                }
+                break;
             case StationType::Cache: DrawWorldCube({p.x, p.y - 0.6f, p.z}, {1.0f, 0.6f, 0.7f}, m.cacheOpen ? Color{60, 50, 40, 255} : Color{110, 84, 50, 255}); break;
             case StationType::QuestStep:
                 if (m.map->extra["quests"].IsArr() && !m.map->extra["quests"].a.empty()) {
@@ -592,6 +612,7 @@ static Camera3D MakeCamera(SceneLight& L) {
     L.lampPos = cam.position;
     L.lampDir = f;
     L.lampRange = 24;
+    if (M().darkT > 0 && M().bossAgent >= 0 && Vector3Distance(M().eco.agents[M().bossAgent].pos, d.pos) < 30) L.lampRange = 2.5f;   // the Leviathan's Dark
     L.lampCone = 0.72f;
     L.fog = {10, 30, 36, 255};
     L.fogDensity = 0.05f;
@@ -669,6 +690,24 @@ static void DrawScene() {
             float y = zi >= 0 ? m.map->zones[zi].y0 + 0.03f : ic.pos.y;
             DrawWorldCube({ic.pos.x, y, ic.pos.z}, {rad, 0.02f, rad}, {(unsigned char)(10 + 20 * f), (unsigned char)(8 + 10 * f), (unsigned char)(24 + 30 * f), 255});
         }
+        for (const auto& g : m.gas) for (int k = 0; k < 8; k++) {   // the Researchers' gas: a green haze
+            float a = k * 0.785f + S.time * 0.4f;
+            DrawWorldCube(Vector3Add(g.pos, {cosf(a) * g.r * 0.5f, sinf(a * 1.3f) * 0.6f, sinf(a) * g.r * 0.5f}), {g.r * 0.35f, g.r * 0.25f, g.r * 0.35f}, {110, 150, 70, 255});
+        }
+        if (m.tentacleT > 0) for (int k = 0; k < 14; k++) {   // a colossal squid's arm over the overlook
+            float f = k / 13.0f, sw = sinf(S.time * 1.6f + f * 3) * 1.5f * f;
+            DrawWorldCube(Vector3Add(m.tentaclePos, {-3 + f * 2 + sw, -4 + f * 9, sinf(f * 4 + S.time) * 1.2f}), {0.6f - f * 0.35f, 0.6f, 0.6f - f * 0.35f}, {150, 60, 70, 255});
+        }
+        if (m.map->extra["worm"].IsObj()) {
+            // the Sand Worm on the horizon: a vast back rising and sinking through the sand, far past the stakes
+            float ang = S.time * 0.02f + 0.6f, rad = 520;
+            int rim = m.map->ZoneIndex("The Rim");
+            if (rim >= 0) for (int k = 0; k < 22; k++) {
+                float a = ang - k * 0.012f, y = sinf(S.time * 0.3f - k * 0.35f) * 7 - 2;
+                if (y < -4 || !m.map->zones[rim].Contains({cosf(a) * rad, m.map->zones[rim].y0 + 1, sinf(a) * rad})) continue;
+                DrawWorldCube({cosf(a) * rad, m.map->zones[rim].y0 + y, sinf(a) * rad}, {4.5f, 4.5f, 4.5f}, {70, 58, 48, 255});
+            }
+        }
         if (m.wyrmState == 1 && m.wyrmGrate >= 0) {   // the grate rattles: silt and bubbles burst up through it
             Vector3 g = m.map->links[m.wyrmGrate].b;
             for (int k = 0; k < 10; k++) { float t = fmodf(S.time * 2.3f + k * 0.13f, 1.0f); DrawWorldCube({g.x + sinf(k * 2.1f) * 0.7f, g.y + t * 3.0f, g.z + cosf(k * 1.7f) * 0.7f}, {0.12f, 0.12f, 0.12f}, {200, 210, 200, 255}); }
@@ -725,6 +764,19 @@ static void DrawScene() {
         DrawSphere(c, sf.cell * 0.55f, Fade(Color{120, 10, 12, 255}, a * 0.5f));
     }
     for (const auto& p : S.fx) DrawCube(p.pos, p.size, p.size, p.size, Fade(p.col, p.life / p.max));
+    // the Void's lights: the Leviathan's lure (and its two decoys in phase 3), the Abyssal Lure's lanterns
+    if (m.bossKind == 4 && m.bossActive && m.bossAgent >= 0 && m.lureHP > 0) {
+        Vector3 lp = m.LurePos();
+        float blink = 0.7f + 0.3f * sinf(S.time * (m.bossWind == 2 ? 3.0f : 1.2f));
+        DrawSphere(lp, 0.35f, Fade(Color{255, 80, 60, 255}, blink));
+        DrawSphere(lp, 1.4f, Fade(Color{255, 90, 60, 255}, 0.12f * blink));
+        if (m.bossPhase >= 3) {
+            const Agent& b = m.eco.agents[m.bossAgent];
+            Vector3 side = Vector3Normalize({-(lp.z - b.pos.z), 0, lp.x - b.pos.x});
+            for (int k = -1; k <= 1; k += 2) DrawSphere(Vector3Add(lp, Vector3Scale(side, 8.0f * k)), 0.35f, Fade(Color{255, 80, 60, 255}, blink));
+        }
+    }
+    for (const auto& l : m.lures) { DrawSphere(l.pos, 0.3f, Color{150, 255, 230, 255}); DrawSphere(l.pos, 2.0f + sinf(S.time * 5) * 0.3f, Fade(Color{120, 255, 220, 255}, 0.1f)); }
     for (const auto& t : m.darts) {
         if (t.kind == 4) { DrawCube(t.pos, 0.12f, 0.12f, 0.12f, fmodf(S.time * 6, 1) < 0.5f ? Color{255, 80, 60, 255} : Color{80, 30, 20, 255}); continue; }
         Color c = t.enemy >= 0 ? Color{255, 120, 90, 255} : Color{230, 220, 180, 255};
@@ -856,6 +908,13 @@ static void DrawHud() {
     else TxtBold(d.harpoonHour ? "infinite" : TextFormat("%d / %d", h.mag, h.reserve), SCREEN_W - 280, SCREEN_H - 70, 30, h.mag == 0 ? blood : paper);
     if (d.reloading) Txt("reloading...", SCREEN_W - 280, SCREEN_H - 36, 14, Fade(paper, 0.8f));
     Txt(TextFormat("limpets %d", d.limpets), SCREEN_W - 120, SCREEN_H - 36, 14, Fade(paper, 0.8f));
+    if (d.voidT > 0 || d.wormT > 0) {
+        // the Void's two ends of the world: a countdown in red at the middle of the screen
+        const char* what = d.voidT > 0 ? "THE VOID PULLS YOU DOWN: SWIM BACK" : "THE SAND SHAKES: BACK INSIDE THE STAKES";
+        float left = d.voidT > 0 ? m.map->extra["void"]["pull_s"].F(5) - d.voidT : m.map->extra["worm"]["tremor_s"].F(8) - d.wormT;
+        DrawTextCenteredBold(TextFormat("%s  %.1f", what, std::max(0.0f, left)), SCREEN_W / 2.0f, SCREEN_H * 0.3f, 22, Color{255, 90, 70, (unsigned char)(200 + 55 * sinf(S.time * 10))});
+    }
+    if (d.egg) Txt("the Relict egg (it wants it back)", SCREEN_W - 280, SCREEN_H - 202, 13, Color{240, 200, 150, 255});
     if (d.spark || d.ichorJar) Txt(std::string(d.spark ? "a jar of the crystal's spark  " : "") + (d.ichorJar ? "a jar of ichor" : ""), SCREEN_W - 280, SCREEN_H - 186, 13, Color{150, 220, 240, 255});
     if (d.drumUses > 0) Txt(TextFormat("F: the drum (%d beats; %d to the fifth)", d.drumUses, 5 - m.drumBeats % 5), SCREEN_W - 280, SCREEN_H - 170, 13, Color{226, 190, 120, 255});
     if (!d.downed) for (int i = 0; i < (int)d.weapons.size(); i++) Txt(TextFormat("%d %s", i + 1, m.W(d.weapons[i]).name.c_str()), SCREEN_W - 280, SCREEN_H - 150 + i * 16.0f, 13, i == d.cur ? paper : Fade(paper, 0.5f));
@@ -1005,7 +1064,7 @@ void DebugRedTideShot(Game& g, int which) {
         g.scene = Scene::RedTide;
         return;
     }
-    StartShip(1, 20260930, which >= 40 ? "atlantis" : which >= 30 ? "reef" : which >= 20 ? "cave" : "ship");
+    StartShip(1, 20260930, which >= 50 ? "void" : which >= 40 ? "atlantis" : which >= 30 ? "reef" : which >= 20 ? "cave" : "ship");
     S.shotMode = true;
     Match& m = M();
     if (which != 10) {                                           // every door open, so the views can see through
@@ -1071,6 +1130,27 @@ void DebugRedTideShot(Game& g, int which) {
         case 23: place("Dry Chamber II: the Toad Pool", {3, 1, 3}, 0.2f, 0); break;           // an air chamber, on foot
         case 24: place("The Cathedral", {6, 6, 6}, 0.0f, 0.05f); break;                       // the crystal coral and the Lobster
         case 25: place("The Sump", {4, 3, 4}, 0.2f, 0); break;                                // the silt, the sturgeon, the sleeper shark
+        // Approaching the Void
+        case 50: d.pos = {2, 3, -3}; d.zone = m.level.startZone; d.yaw = 0.9f; d.pitch = 0.02f; break;   // the rim from the hatch: sea pens, the dark plain
+        case 51: view("The Upper Galleries", 3.0f, 0.0f); break;                               // glass sponges, bamboo coral, the overlook
+        case 52: view("The Station: Specimen Labs", 2.0f, 0.0f); break;                        // the broken tanks
+        case 53: {                                                                              // the vault: the Leviathan's lure in the dark
+            m.Step(1 / 20.0f);
+            int v = m.map->ZoneIndex("The Lowest Vault");
+            const Zone& z = m.map->zones[v];
+            if (m.bossAgent >= 0) { Agent& b = m.eco.agents[m.bossAgent]; b.pos = z.Clamp({0, z.y0 + 12, -370}, 3); b.zone = v; b.vel = {-1, 0, 0}; m.bossActive = true; }
+            Vector3 lp = m.LurePos();
+            d.pos = z.Clamp(Vector3Add(lp, {-18, -2, 4}), 1); d.zone = v;
+            Vector3 to = Vector3Subtract(lp, m.Eye(d)); d.yaw = atan2f(to.x, to.z); d.pitch = std::clamp(asinf(Vector3Normalize(to).y), -0.5f, 0.5f);
+            break;
+        }
+        case 54: view("The Warrens", 2.0f, 0.0f); break;                                       // the tubes
+        case 55: {                                                                              // an overlook: the void
+            int g = m.map->ZoneIndex("The Upper Galleries");
+            const Zone& z = m.map->zones[g];
+            d.pos = {z.plan.x + 4, z.y0 + 4, -20}; d.zone = g; d.yaw = -1.5708f; d.pitch = -0.15f;
+            break;
+        }
         // Atlantis (a clear view: the spot in the district with the longest open line toward its middle)
         case 40: view("Harbor Gate", 2.0f, 0.05f); break;                                     // the gatehouse, the avenue up the hill
         case 41: view("The Lower Town", 3.0f, 0.02f); break;                                  // the streets and houses

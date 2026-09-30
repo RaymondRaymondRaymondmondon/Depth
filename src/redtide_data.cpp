@@ -299,6 +299,12 @@ static void LoadExtra(MapData& m, const Json& ex) {
     }
     if (ex.Has("poi_scale")) { float s = ex["poi_scale"].F(1); for (auto& p : m.pois) { p.pos.x *= s; p.pos.z *= s; } }   // (the blockout's, patched and added alike)
     for (auto& p : m.pois) p.zone = m.ZoneIndex(p.zoneName);
+    for (const auto& kv : ex["life_near"].o) {
+        int zi = m.ZoneIndex(kv.first);
+        if (zi < 0) continue;
+        for (const auto& p : m.pois) if (p.name == kv.second["poi"].Str0()) { m.zones[zi].life = p.pos; m.zones[zi].lifeR = kv.second["radius_m"].F(80); }
+    }
+    for (const Json& sr : ex["spawn_remove"].a) m.spawns.erase(std::remove_if(m.spawns.begin(), m.spawns.end(), [&](const SpawnRow& r) { return r.species == sr.Str0(); }), m.spawns.end());   // (the Void's Sand Worm: scripted, not a beast in the web)
     for (const Json& sa : ex["spawn_add"].a) {
         SpawnRow r; r.zone = sa["zone"].Str0(); r.species = sa["species"].Str0(); r.count = sa["count"].I(); r.respawnS = sa["respawn_s"].F(60); r.capMult = 1.03f;
         if (r.count > 0) m.spawns.push_back(r);
@@ -414,6 +420,7 @@ static void LoadExtra(MapData& m, const Json& ex) {
             if (up.Has("loot")) u.loot = up["loot"].I(u.loot);
             if (up.Has("drops")) u.drops = up["drops"].Str0();
             if (up.Has("hunt_only")) u.huntOnly = up["hunt_only"].Bool0();
+            if (up.Has("bloodless")) u.bloodless = up["bloodless"].Bool0();
         }
         if (fp.Has("composition")) { fa.composition.clear(); for (const Json& p : fp["composition"].a) fa.composition.push_back(p.Str0()); }
         if (fp.Has("barks")) { fa.barks.clear(); for (const auto& kv : fp["barks"].o) for (const Json& l : kv.second.a) fa.barks[kv.first].push_back(l.Str0()); }

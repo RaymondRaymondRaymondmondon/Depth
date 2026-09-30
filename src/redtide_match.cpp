@@ -96,7 +96,7 @@ const WeaponsData& Weapons() {
         d.id = w["id"].Str0(); d.name = w["name"].Str0(); d.cls = w["class"].Str0(); d.source = w["source"].Str0();
         d.forged = w["forged"].Str0(); d.forgedTwist = w["forged_twist"].Str0();
         d.damage = w["damage"].F(30); d.rpm = w["rpm"].F(300); d.noise = w["noise"].F(2); d.reload = w["reload"].F(1.4);
-        d.chum = w["chum"].F(0); d.arc = w["arc_m"].F(0); d.splash = w["splash"].F(0); d.reach = w["reach"].F(0); d.spinup = w["spinup"].F(0); d.cone = w["cone_m"].F(0); d.coneDeg = w["cone_deg"].F(30); d.polyp = w["polyp"].Bool0(); d.wave = w["wave"].Bool0();
+        d.chum = w["chum"].F(0); d.arc = w["arc_m"].F(0); d.splash = w["splash"].F(0); d.reach = w["reach"].F(0); d.spinup = w["spinup"].F(0); d.cone = w["cone_m"].F(0); d.coneDeg = w["cone_deg"].F(30); d.polyp = w["polyp"].Bool0(); d.wave = w["wave"].Bool0(); d.lure = w["lure"].Bool0();
         d.pellets = w["pellets"].I(1); d.mag = w["mag"].I(8); d.reserve = w["reserve"].I(32); d.price = w["price"].I(0);
         d.burst = w["burst"].I(0); d.chain = w["chain"].I(0); d.explodesOver = w["explodes_over_size"].I(0);
         d.perRound = w["per_round"].Bool0(); d.pins = w["pins"].Bool0(); d.net = w["net"].Bool0(); d.melee = d.cls == "melee";
@@ -183,13 +183,14 @@ void BuildLevel(const MapData& m, Level& L) {
             s.type = StationType::Tonic;
             auto it = W.tonicPoi.find(p.name);
             s.tonic = it != W.tonicPoi.end() ? it->second : "";
+            if (s.tonic.empty()) for (const auto& tn : W.tonics) if (p.name.compare(0, tn.name.size(), tn.name) == 0) s.tonic = tn.id;   // "Quick Brine (L2)", "Widow's Ink"
             // "the first two are always Juggernaut and Quick Brine"; the rest need power
             s.needsPower = s.tonic != "juggernaut" && s.tonic != "quick";
         } else if (t == "locker") { s.type = StationType::Locker; s.lockerSpot = lockerSpot++; s.needsPower = s.lockerSpot > 0; }
         else if (t == "forge") { s.type = StationType::Forge; s.needsPower = true; }
         else if (t == "power") s.type = StationType::Power;
         else if (t == "build") s.type = StationType::Workbench;
-        else if (t == "trap") { s.type = StationType::Trap; s.needsPower = true; }
+        else if (t == "trap") { s.type = StationType::Trap; s.needsPower = !(HasW(p.name, "beacon") && !HasW(p.name, "control")); }   // (a lure beacon is turned by hand)
         else if (t == "quest") s.type = StationType::Quest;
         else if (t == "hazard") s.type = StationType::Hazard;
         else if (t == "entry") s.type = StationType::Entry;
@@ -276,6 +277,20 @@ void BuildLevel(const MapData& m, Level& L) {
         for (int k = 0; k < d["terraces"].I(0); k++) { Vector3 c = spot(3.0f); add(PropKind::Terrace, {c.x, z.y0 + 0.4f, c.z}, {3.0f + rnd() * 2, 0.4f, 1.5f + rnd()}, false); }
         for (int k = 0; k < d["fans"].I(0); k++) { Vector3 c = spot(2.0f); add(PropKind::Fan, {c.x, z.y0 + 1.2f, c.z}, {1.2f, 1.2f, 0.1f}, false); }
         for (int k = 0; k < d["amphorae"].I(0); k++) { Vector3 c = spot(1.5f); add(PropKind::Amphora, {c.x, z.y0 + 0.5f, c.z}, {0.35f, 0.5f, 0.35f}, false); }
+        for (int k = 0; k < d["tanks"].I(0); k++) { Vector3 c = spot(2.0f); add(PropKind::Tank, {c.x, z.y0 + 1.4f, c.z}, {0.9f, 1.4f, 0.9f}, false); }
+        if (d["stakes"].Bool0()) {
+            // the bone stakes: the Sand Worm's line, a ring round the hatch
+            const Json& wm = m.extra["worm"];
+            Vector3 c{};
+            for (const auto& p : m.pois) if (p.name == wm["center_poi"].Str0()) c = p.pos;
+            float rad = wm["radius_m"].F(350);
+            for (int k = 0; k < 220; k++) {
+                float a = k * 6.2832f / 220;
+                Vector3 p{c.x + cosf(a) * rad, z.y0 + 1.5f, c.z + sinf(a) * rad};
+                if (!z.Contains(p, -0.5f)) continue;
+                Prop pr; pr.kind = PropKind::Stake; pr.pos = p; pr.half = {0.15f, 1.5f, 0.15f}; pr.zone = zi; pr.seed = r + k; L.props.push_back(pr);
+            }
+        }
         if (d["crenels"].Bool0()) for (float zz = z.plan.y + 2; zz < z.plan.y + z.plan.height - 1; zz += 3) add(PropKind::Crenel, {z.plan.x + 0.5f, z.y0 + 1.0f, zz}, {0.5f, 1.0f, 0.7f}, false);
         if (d["mound"].F(0) > 0) { Vector3 c = z.Center(); float f = d["mound"].F(0); add(PropKind::Mound, {c.x, z.y0 + h * 0.3f, c.z}, {z.plan.width * f / 2, h * 0.3f, z.plan.height * f / 2}, true); }
     }
@@ -298,6 +313,7 @@ void BuildLevel(const MapData& m, Level& L) {
     while (L.startZone + 1 < (int)m.zones.size() && !m.zones[L.startZone].diverOk) L.startZone++;
     const Zone& z0 = m.zones[L.startZone];
     L.start = z0.Clamp({z0.Center().x, z0.y0 + 2, z0.Center().z}, 1);
+    for (const Poi& p : m.pois) if (p.name == m.extra["start_poi"].Str0() && p.zone == L.startZone) L.start = z0.Clamp({p.pos.x, z0.y0 + 2, p.pos.z}, 1);   // (the Void: the hatch, not the middle of the plain)
 }
 
 bool Level::Inside(Vector3 p, float r, const std::vector<char>& linkOpen, bool darts) const {
@@ -420,9 +436,11 @@ void Match::InitMap(const MapData& m, const std::string& art, int playerCount, u
     }
     noFireZone.assign(m.zones.size(), 0); rockZone.assign(m.zones.size(), 0); crawlZone.assign(m.zones.size(), 1.0f);
     for (const Json& zn : m.extra["no_fire_zones"].a) { int zi = m.ZoneIndex(zn.Str0()); if (zi >= 0) noFireZone[zi] = 1; }
+    voidZone.assign(m.zones.size(), 0);
+    for (const Json& zn : m.extra["void_zones"].a) { int zi = m.ZoneIndex(zn.Str0()); if (zi >= 0) voidZone[zi] = 1; }
     for (const Json& zn : m.extra["rockfall"]["zones"].a) { int zi = m.ZoneIndex(zn.Str0()); if (zi >= 0) rockZone[zi] = 1; }
     for (const auto& kv : m.extra["crawl_zones"].o) { int zi = m.ZoneIndex(kv.first); if (zi >= 0) crawlZone[zi] = kv.second.F(0.4); }
-    for (const auto& sp : m.species) if (sp.tier == 5) bossKind = HasW(sp.name, "goliath") ? 0 : HasW(sp.name, "lobster") ? 1 : HasW(sp.name, "matriarch") ? 2 : HasW(sp.name, "wyrm") ? 3 : 9;
+    for (const auto& sp : m.species) if (sp.tier == 5) bossKind = HasW(sp.name, "goliath") ? 0 : HasW(sp.name, "lobster") ? 1 : HasW(sp.name, "matriarch") ? 2 : HasW(sp.name, "wyrm") ? 3 : HasW(sp.name, "leviathan") ? 4 : 9;
     for (int i = 0; i < (int)m.species.size(); i++) if (!m.species[i].attacksAs.empty()) { int bi = m.SpeciesIndex(m.species[i].attacksAs); if (bi >= 0) attacksBySp[i] = attacksBySp[bi]; }
     for (const auto& s : level.stations) if (s.type == StationType::Locker) lockerSpots = std::max(lockerSpots, s.lockerSpot + 1);
     const WeaponsData& W = Weapons();
@@ -551,6 +569,7 @@ void Match::Step(float dt) {
     UpdateBoss(dt);
     UpdateReef(dt);
     UpdateAtlantis(dt);
+    UpdateVoid(dt);
     UpdateDrops(dt);
     for (auto& c : crates) {
         c.t -= dt;
@@ -993,7 +1012,7 @@ void Match::FireRound(DiverState& d) {
         t.owner = d.slot;
         t.forged = h.forged;
         t.alt = h.altAmmo;
-        t.kind = w.chum > 0 ? 1 : w.net ? 2 : (w.splash > 0 || w.explodesOver > 0) ? 3 : w.polyp ? 9 : 0;
+        t.kind = w.chum > 0 ? 1 : w.net ? 2 : (w.splash > 0 || w.explodesOver > 0) ? 3 : w.polyp ? 9 : w.lure ? 10 : 0;
         if (h.forged && w.id == "trawlerman") t.pierce = 1;   // the Skipper: penetrates two beasts in a line
         darts.push_back(t);
     }
@@ -1106,6 +1125,11 @@ void Match::HitAgent(DiverState* d, int ai, float dmg, bool weak, bool melee, Ve
     const WeaponDef* w = dart && dart->weapon >= 0 ? &Weapons().weapons[dart->weapon] : nullptr;
     if (s.weakPoint == "none" || s.weakPoint.empty()) weak = false;
     bool frontal = Vector3DotProduct(dir, Facing(a)) < -0.3f;
+    if (IsBoss(ai) && bossKind == 4) {
+        // the Leviathan: its dark body takes half; a swallowed diver's teammates count toward the 200 on its gills
+        if (swallowDiver >= 0) swallowDmg += dmg * (weak || bossGillsT > 0 ? 2 : 1);   // (the swallowed diver's teammates aim at the gills behind the lure)
+        if (bossGillsT <= 0) dmg *= 0.5f;
+    }
     if (IsBoss(ai) && bossKind == 3) {
         // the Wyrm: nothing gets through the cistern stone; up at a grate, its gills count toward a dragged diver
         if (wyrmState < 2 && wyrmStrandT <= 0) return;
@@ -1198,6 +1222,7 @@ void Match::UpdateDarts(float dt) {
         if (t.life <= 0 || !level.Inside(t.pos, 0.02f, linkOpen, true)) {
             if (t.kind == 8) EnemyBlast(prev, t.damage, 2.0f, t.enemy);
             else if (t.kind == 9) { Polyp pp; pp.pos = prev; pp.owner = t.owner; pp.forged = t.forged; polyps.push_back(pp); fx.push_back({4, prev, {0, 0, 0}}); }
+            else if (t.kind == 10) { LurePt lp; lp.pos = prev; lp.owner = t.owner; lp.forged = t.forged; lures.push_back(lp); fx.push_back({4, prev, {0, 0, 0}}); }
             else if (t.kind == 1 || t.kind == 6) eco.AddChum(prev, w ? w->chum : 40);
             else if (t.kind == 3 && w && w->splash > 0) Explode(prev, t.damage, w->splash, t.owner);
             else fx.push_back({1, prev, t.vel});
@@ -1222,6 +1247,12 @@ void Match::UpdateDarts(float dt) {
         }
         // a diver's dart: swept against every body's capsule (a dart moves ~0.5 m a frame; a sprat is 3 cm thick)
         Vector3 dir = Vector3Normalize(t.vel);
+        if (bossKind == 4 && bossActive && lureHP > 0 && bossAgent >= 0 && SegPointDist(prev, t.pos, LurePos()) < 0.8f) {
+            // the Leviathan's lure: 500 shoots it out, blinding it 5 s and baring the gills
+            lureHP -= t.damage; t.alive = false; fx.push_back({1, t.pos, dir});
+            if (lureHP <= 0) { lureRegrowT = 20; bossGillsT = map->extra["leviathan"]["gills_s"].F(5); eco.agents[bossAgent].stun = 5; Say(map->species[eco.agents[bossAgent].sp].name, "'s lure is shot out: blind, its gills bare", 4); }
+            continue;
+        }
         for (int i = 0; i < (int)eco.agents.size() && t.alive; i++) {
             Agent& a = eco.agents[i];
             if (!a.alive || a.diver >= 0) continue;
@@ -1234,6 +1265,7 @@ void Match::UpdateDarts(float dt) {
             if (SegSegDist(prev, t.pos, tail, head, &tb) > std::max(0.06f, b.radius) + 0.03f) continue;
             if (!level.Sight(t.pos, a.pos, linkOpen, true)) continue;   // not through a wall into a body on the far side
             if (t.kind == 1) { eco.AddChum(a.pos, w ? w->chum : 40); t.alive = false; break; }
+            if (t.kind == 10) { LurePt lp; lp.pos = t.pos; lp.owner = t.owner; lp.forged = t.forged; lures.push_back(lp); t.alive = false; break; }
             if (t.kind == 9) {
                 // a polyp roots in whatever it hits and grabs it
                 a.held = std::max(a.held, sp.size <= 3 ? 6.0f : sp.size == 4 ? 3.0f : 1.0f);
@@ -1310,6 +1342,7 @@ void Match::OnDeath(int ai, int killer) {
             if (!held && di >= 0) { divers[di].drumUses = 5; Say("", "The Shaman's drum is yours (F to beat it)", 4); }
             pod.clear(); podSpawned = false;
         }
+        if (bossKind == 4) { bossReformT = map->extra["leviathan"]["reform_s"].F(360); swallowDiver = -1; lureDriftT = 0; darkT = 0; }
         if (bossKind == 3) {
             wyrmReformT = map->extra["wyrm"]["reform_s"].F(360); wyrmState = 0; wyrmDragDiver = -1; wyrmStrandT = 0; eco.bloodMult = 1; floodT = 0;
         }
@@ -1320,6 +1353,7 @@ void Match::OnDeath(int ai, int killer) {
     }
     if (di >= 0 && HasW(s.name, "octopus") && !keys.count("Octopus")) { keys.insert("Octopus"); Say("", "The octopus drops a brass key (the captain's safe)", 4); }
     if (di >= 0 && s.isEnemy && a.unit >= 0 && map->faction.units[a.unit].huntOnly && !keys.count("Foreman")) { keys.insert("Foreman"); Say("", "The Foreman's key (the captain's safe)", 4); }
+    if (s.name == "Sperm Whale") for (auto& o : eco.agents) if (o.alive && map->species[o.sp].name == "The Relict" && !relictGone) { o.st = State::Investigate; o.goal = a.pos; o.stateT = 0; o.hunger = 1; Say("", "Something vast rises from the void toward the whale's body", 4); }   // a whale kill brings the Relict
     if (s.isEnemy && map->extra["ichor"].IsObj()) ichor.push_back({a.pos, map->extra["ichor"]["seconds"].F(60)});   // black ichor in the street
     if (s.isEnemy) {
         auto it = map->faction.barks.find("death");
@@ -1361,6 +1395,19 @@ bool Match::DecideHook(Agent& a, int idx) {
         return true;
     }
     if (idx == bossAgent && bossActive) return DecideBoss(a, idx);
+    // the Void's Relict: it comes for its egg wherever it is, and attacks the Station Chief's mech on sight
+    if (s.name == "The Relict") {
+        if (relictGone) { a.st = State::Rest; a.vel = {0, 0, 0}; return true; }
+        for (const auto& d : divers) if (d.egg && !d.dead && d.agent >= 0) { a.st = State::Hunt; a.target = d.agent; a.targetCorpse = false; a.stateT = 0; a.hunger = 1; return true; }
+        if (eggPlaced) { a.st = State::Investigate; a.goal = eggPos; a.stateT = 0; return true; }
+        for (int i = 0; i < (int)eco.agents.size(); i++) {
+            const Agent& o = eco.agents[i];
+            if (o.alive && o.unit >= 0 && map->species[o.sp].isEnemy && map->faction.units[o.unit].role == "chief" && Vector3Distance(o.pos, a.pos) < 30) {
+                if (a.target != i) { auto it = map->faction.barks.find("relict"); if (it != map->faction.barks.end() && !it->second.empty()) Say(map->faction.speciesName, it->second[0], 4); }
+                a.st = State::Hunt; a.target = i; a.targetCorpse = false; a.stateT = 0; return true;
+            }
+        }
+    }
     // Atlantis: dead Lost Ones' ichor keeps the apex beasts out of a street and draws the scavengers in
     if (!ichor.empty()) {
         float repel = map->extra["ichor"]["repel_m"].F(20);
@@ -1596,6 +1643,48 @@ bool Match::DecideEnemy(Agent& a, int idx) {
             break;
         }
     }
+    if (u.role == "sentinel") {
+        // a Sentinel takes the nearest doorway of its room and holds it: it never advances
+        Vector3 best = a.pos; float bd = 1e9f;
+        for (const auto& l : map->links) { if (!l.diverOk) continue; Vector3 m = l.from == a.zone ? l.a : l.to == a.zone ? l.b : Vector3{1e9f, 0, 0}; float dd = Vector3Distance(m, a.pos); if (dd < bd) { bd = dd; best = m; } }
+        a.st = State::Investigate; a.goal = best; a.stateT = 0; a.target = -1;
+        return true;
+    }
+    if (u.role == "chief") {
+        // the Station Chief holds the mech bay and switches Beacon 4 on (drawing the beasts to the Forge)
+        for (int si = 0; si < (int)level.stations.size(); si++) if (HasW(level.stations[si].name, "beacon 4") && !beaconOn[si]) { beaconOn[si] = true; auto it = F.barks.find("chief"); if (it != F.barks.end() && !it->second.empty()) Say(F.speciesName, it->second[0], 4); }
+        for (const auto& p : map->pois) if (HasW(p.name, "mech bay") && p.zone >= 0) { a.st = State::Investigate; a.goal = map->zones[p.zone].Clamp(p.pos, 1.5f); a.stateT = 0; a.target = -1; return true; }
+    }
+    if (u.role == "researcher") {
+        // Researchers switch on any lure beacon they pass
+        for (int si = 0; si < (int)level.stations.size(); si++) {
+            const Station& st = level.stations[si];
+            if (!HasW(st.name, "beacon") || HasW(st.name, "control") || HasW(st.name, "re-aim") || beaconOn[si] || Vector3Distance(st.pos, a.pos) > 25) continue;
+            beaconOn[si] = true;
+            auto it = F.barks.find("beacon"); if (it != F.barks.end() && !it->second.empty()) Say(F.speciesName, it->second[0], 3);
+        }
+    }
+    if (u.role == "voidcult") {
+        // a Void Cultist walks for the nearest overlook; at the edge it calls the deep
+        Vector3 best{}; float bd = 1e9f;
+        for (const auto& l : map->links) {
+            bool toVoid = l.to < (int)voidZone.size() && voidZone[l.to];
+            if (!toVoid) continue;
+            float dd = Vector3Distance(l.a, a.pos) + (l.from == a.zone ? 0 : 200);
+            if (dd < bd) { bd = dd; best = l.a; }
+        }
+        if (bd < 1e8f) {
+            if (Vector3Distance(best, a.pos) < 3 && tentacleT <= 0) {
+                tentacleT = 20; tentacleCd = 1; tentaclePos = best;
+                int hf = map->SpeciesIndex("Hatchetfish");
+                if (hf >= 0) for (int k = 0; k < 3; k++) eco.Spawn(hf, map->zones[a.zone].Clamp(Vector3Add(best, {Rand(-3, 3), Rand(-1, 1), Rand(-3, 3)}), 1), a.zone);
+                auto it = F.barks.find("cult"); if (it != F.barks.end() && !it->second.empty()) Say(F.speciesName, it->second[0], 4);
+                Say("", "A colossal squid's arm rises over the overlook", 4);
+            }
+            int dz = NearestDiver(a.pos, 10, false);
+            if (dz < 0 || Vector3Distance(divers[dz].pos, a.pos) > 2.5f) { a.st = State::Investigate; a.goal = best; a.stateT = 0; a.target = -1; return true; }
+        }
+    }
     if (u.role == "priest") {
         // the Priest stands in the plaza and chants; he never comes to the divers
         for (const auto& p : map->pois) if (HasW(p.name, "plaza") && p.zone >= 0) { a.st = State::Investigate; a.goal = map->zones[p.zone].Clamp(p.pos, 1.0f); a.stateT = 0; a.target = -1; return true; }
@@ -1611,7 +1700,8 @@ bool Match::DecideEnemy(Agent& a, int idx) {
         // hold each role's distance: Cutters close in, the Speargunner covers from 12 m, the Netman from 6 m
         float want = u.role == "flank" ? 1.0f : u.role == "cover" ? 12.0f : u.role == "net" ? 6.0f : u.role == "chum" ? 10.0f
                    : u.role == "lure" ? 9.0f : u.role == "bell" ? 14.0f : u.role == "grapple" ? 7.0f
-                   : u.role == "phalanx" || u.role == "wall" ? 1.2f : u.role == "slinger" ? 14.0f : u.role == "chant" ? 7.0f : 14.0f;
+                   : u.role == "phalanx" || u.role == "wall" ? 1.2f : u.role == "slinger" ? 14.0f : u.role == "chant" ? 7.0f
+                   : u.role == "researcher" ? 10.0f : u.role == "voidcult" ? 1.2f : 14.0f;
         want = std::min(want, u.range * 0.8f);
         Vector3 to = Vector3Subtract(a.pos, d.pos);
         float dist = Vector3Length(to);
@@ -1661,11 +1751,47 @@ void Match::EnemiesVsDivers(float dt) {
         float& ft = enemyFireT[i];
         if (ft > 0) ft -= dt;
         if (a.st == State::Flee || a.stun > 0 || a.held > 0) { enemyTellT.erase(i); continue; }
+        if (u.role == "sentinel") {
+            // the Sentinel's rotary needler: it turns slowly (a 90-degree arc), spins up for 1 s (a rising whine, a red
+            // lamp), then fires 3 s bursts; flank it or blow it up
+            int tgt = NearestDiver(a.pos, u.range + 0.5f, true);
+            float& yaw = sentinelYaw[i]; float& bt = sentinelBurst[i];
+            if (tgt >= 0) {
+                Vector3 to = Vector3Subtract(divers[tgt].pos, a.pos);
+                float want = atan2f(to.x, to.z), diff = remainderf(want - yaw, 6.2832f);
+                yaw += std::clamp(diff, -1.0f * dt, 1.0f * dt);      // ~57 degrees a second
+                bool inArc = fabsf(diff) < 0.785f;
+                if (bt <= 0 && inArc) bt = 4.0f;                        // 1 s spin-up, then 3 s of fire
+                if (bt > 0) {
+                    bt -= dt;
+                    if (bt > 3.0f) { enemyTellT[i] = bt; continue; }
+                    if (bt <= 0) { bt = -2.0f; continue; }             // a 2 s cool-down between bursts
+                    if (ft <= 0 && inArc) {
+                        ft = u.interval;
+                        Dart t; t.enemy = i; t.pos = t.start = Vector3Add(a.pos, {0, 0.3f, 0});
+                        Vector3 aim = Vector3Normalize(Vector3Subtract(divers[tgt].pos, t.pos));
+                        float err = 4.0f * DEG2RAD;
+                        aim = Vector3Normalize(Vector3Add(aim, {Rand(-err, err), Rand(-err, err), Rand(-err, err)}));
+                        t.vel = Vector3Scale(aim, 30); t.damage = u.damage * (1 + 0.15f * (tide / 5)); t.life = 2; darts.push_back(t);
+                        eco.AddNoise(t.pos, 4); fx.push_back({2, t.pos, aim});
+                    }
+                } else bt = std::min(0.0f, bt + dt);
+            } else { enemyTellT.erase(i); if (bt > 0) bt = 0; }
+            // a Researcher's torch mends it
+            for (const auto& o : eco.agents) if (o.alive && o.unit >= 0 && map->faction.units[o.unit].role == "researcher" && Vector3Distance(o.pos, a.pos) < 3) { Agent& me = eco.agents[i]; me.hp = std::min(me.hpMax, me.hp + 20 * dt); }
+            continue;
+        }
         int di = NearestDiver(a.pos, u.range + 0.5f, true);
+        if (u.role == "voidcult") {
+            // the chant: divers within 10 m drift 0.3 m/s toward the nearest overlook
+            Vector3 edge{}; float bd = 1e9f;
+            for (const auto& l : map->links) if (l.to < (int)voidZone.size() && voidZone[l.to]) { float dd = Vector3Distance(l.a, a.pos); if (dd < bd) { bd = dd; edge = l.a; } }
+            if (bd < 1e8f) for (auto& o : divers) if (!o.dead && !o.downed && Vector3Distance(o.pos, a.pos) < 10) o.vel = Vector3Add(o.vel, Vector3Scale(Vector3Normalize(Vector3Subtract(edge, o.pos)), 0.3f * dt * 3));
+        }
         if (di < 0) { enemyTellT.erase(i); continue; }
         if (ft > 0) continue;
         // the tell first (a red laser dot, the net swung twice, the winch wound): the diver gets a moment to react
-        float tell = u.role == "phalanx" ? 0.5f : u.role == "wall" ? 1.0f : u.role == "slinger" ? 0.7f : u.role == "chant" ? 0.2f : u.role == "priest" ? 99.0f : u.role == "drum" ? 1.0f : u.role == "sling" ? 0.9f : u.role == "leader" ? 2.0f : u.role == "cover" ? 1.0f : u.role == "net" || u.role == "grapple" ? 0.8f : u.role == "chum" || u.role == "bell" ? 0.6f : u.role == "lure" ? 1.0f : 0.3f;
+        float tell = u.role == "researcher" ? 0.6f : u.role == "voidcult" ? 0.4f : u.role == "chief" ? 1.2f : u.role == "phalanx" ? 0.5f : u.role == "wall" ? 1.0f : u.role == "slinger" ? 0.7f : u.role == "chant" ? 0.2f : u.role == "priest" ? 99.0f : u.role == "drum" ? 1.0f : u.role == "sling" ? 0.9f : u.role == "leader" ? 2.0f : u.role == "cover" ? 1.0f : u.role == "net" || u.role == "grapple" ? 0.8f : u.role == "chum" || u.role == "bell" ? 0.6f : u.role == "lure" ? 1.0f : 0.3f;
         auto it = enemyTellT.find(i);
         if (it == enemyTellT.end()) { enemyTellT[i] = tell; continue; }
         it->second -= dt;
@@ -1680,6 +1806,17 @@ void Match::EnemiesVsDivers(float dt) {
         // "better weapons every 5 tides"
         float dmg = u.damage * (1 + 0.15f * (tide / (int)Engine().C("enemy_weapon_tier_every", 5)));
         Vector3 from = Vector3Add(a.pos, {0, 0.3f, 0});
+        if (u.role == "researcher") {
+            // a gas grenade into the diver's corridor: 15/s in 4 m for 6 s
+            Gas g; g.pos = d.pos; g.dps = u.damage; gas.push_back(g);
+            fx.push_back({5, d.pos, {0, 0, 0}});
+            continue;
+        }
+        if (u.role == "voidcult") { if (Vector3Distance(a.pos, d.pos) <= u.range + 0.6f) HitDiver(d, dmg, u.unit, "", a.pos); continue; }
+        if (u.role == "chief") {
+            // the mech: the claw close in (a 3 s hold, then 120), the twin harpoon cannons beyond (200 a bolt)
+            if (Vector3Distance(a.pos, d.pos) < 3.5f) { HitDiver(d, 120 * (1 + 0.15f * (tide / 5)), u.unit, "hold 3 s", a.pos); continue; }
+        }
         if (u.role == "flank" || u.role == "phalanx") {
             if (Vector3Distance(a.pos, d.pos) <= u.range + 0.6f) HitDiver(d, dmg, u.unit, "", a.pos);
             continue;
@@ -1829,6 +1966,7 @@ void Match::UpdateBoss(float dt) {
     else bossIdleT = 0;
     if (bossKind == 1) { UpdateBossLobster(dt, near, nd); return; }
     if (bossKind == 2) { UpdateBossMatriarch(dt, near, nd); return; }
+    if (bossKind == 4) { UpdateBossLeviathan(dt, near, nd); return; }
     if (bossKind != 0) { UpdateBossGeneric(dt, near, nd); return; }
     if (ph != bossPhase) {
         bossPhase = ph;
@@ -2314,6 +2452,13 @@ void Match::QuestAdvance(int c, DiverState* d) {
     if (questAt[c] <= q["last"].I()) return;
     std::string rw = q["reward"].Str0();
     if (rw == "wonder" && d) { GiveWeapon(*d, WonderIdx()); d->lastKill = "The " + W(Cur(*d)).name; d->lastKillT = 4; }
+    if (rw == "void") {
+        // the final log: the Abyssal Lure (Forged) for the one who dropped the ledge, 5,000 split, and what the station bred
+        int n = 0; for (const auto& o : divers) if (!o.dead) n++;
+        for (auto& o : divers) if (!o.dead) Pay(o, 5000.0f / std::max(1, n));
+        if (d) { GiveWeapon(*d, WonderIdx(), true); for (auto& h : d->weapons) if (h.def == WonderIdx() && !h.forged) { h.forged = true; h.mag = (int)MagMax(W(h), h); h.reserve = (int)ResMax(W(h), h); } }
+        Say("The final log", "'We were breeding it back. The Relict was ours, once: the station's, the Chief's. We gave it the abyss to grow in.'", 7);
+    }
     if (rw == "lighthouse") {
         // "the whole city appears on the sonar"; "the treasury vault: 5,000 scrip split"; "the Tide Staff (Forged) for the lighter"
         revealAll = true;
@@ -2559,6 +2704,274 @@ void Match::UpdateAtlantis(float dt) {
     for (auto& d : divers) if (d.downed && d.spark) { d.spark = false; Say("", "The spark's jar breaks", 2); }
 }
 
+// ---------------------------------------------------------------- Approaching the Void
+// A diver lost for good this tide: the void's pull, the Sand Worm (no down, no revive; back next tide).
+void Match::VoidDeath(DiverState& d, const std::string& by) {
+    if (d.dead) return;
+    if (!d.downed) DownDiver(d, by);
+    d.downed = false; d.dead = true; d.voidT = 0; d.wormT = 0;
+    if (d.agent >= 0) eco.agents[d.agent].alive = false;
+    if (d.egg) {
+        // the egg goes with them: the Relict follows it into the void and the final log ends without the weapon
+        d.egg = false; relictGone = true;
+        for (auto& a : eco.agents) if (a.alive && map->species[a.sp].name == "The Relict") { eco.suppressBlood = true; eco.Kill((int)(&a - &eco.agents[0]), -1); eco.suppressBlood = false; }
+        if (!questAt.empty()) questAt[0] = map->extra["quests"].a[0]["last"].I() + 1;
+        Say("", "The egg falls into the void; the Relict follows it down. The final log ends here.", 5);
+    }
+    Say("", "Diver " + std::to_string(d.slot + 1) + " is gone: " + by + " (back next tide)", 5);
+}
+
+bool Match::Forbidden(Vector3 p, float margin) const {
+    int z = eco.ZoneAt(p);
+    if (z >= 0 && z < (int)voidZone.size() && voidZone[z]) return true;
+    const Json& wm = map->extra["worm"];
+    if (wm.IsObj() && z >= 0 && map->zones[z].name == "The Rim") {
+        for (const auto& po : map->pois) if (po.name == wm["center_poi"].Str0() && Vector2Distance({p.x, p.z}, {po.pos.x, po.pos.z}) > wm["radius_m"].F(350) - margin) return true;
+    }
+    return false;
+}
+
+// The Leviathan's lure: ahead of and above its mouth, an emergency light in the dark.
+Vector3 Match::LurePos() const {
+    if (bossAgent < 0 || bossAgent >= (int)eco.agents.size()) return {0, 0, 0};
+    const Agent& b = eco.agents[bossAgent];
+    Vector3 f = Vector3Length(b.vel) > 0.05f ? Vector3Normalize(b.vel) : Vector3{0, 0, 1};
+    Vector3 p = Vector3Add(b.pos, Vector3Add(Vector3Scale(f, bodies[b.sp].length * 0.5f + bodies[b.sp].radius + 1.2f), {0, bodies[b.sp].radius * 0.6f, 0}));   // on its stalk, clear of the jaws
+    return b.zone >= 0 ? map->zones[b.zone].Clamp(p, 1.0f) : p;   // (always inside its hall, where a dart can reach it)
+}
+
+// The vault's collapsing ledge (Overlook 5): everything on it falls into the void.
+void Match::DropLedge(DiverState* by) {
+    const std::string ln = map->extra["leviathan"]["ledge"].Str0("Overlook 5");
+    Vector3 at{}; bool found = false;
+    for (const auto& s : level.stations) if (s.name.find(ln.substr(0, 10)) != std::string::npos) { at = s.pos; found = true; }
+    if (!found) return;
+    ledgeDropped = true;
+    fx.push_back({5, at, {0, 0, 0}});
+    eco.AddNoise(at, 9, true);
+    bool relictFell = false;
+    for (int i = 0; i < (int)eco.agents.size(); i++) {
+        Agent& a = eco.agents[i];
+        if (!a.alive || a.diver >= 0 || Vector3Distance(a.pos, at) > 8) continue;
+        if (map->species[a.sp].name == "The Relict") relictFell = true;
+        eco.suppressBlood = true; eco.Kill(i, -1); eco.suppressBlood = false;
+    }
+    for (auto& d : divers) if (!d.dead && Vector3Distance(d.pos, at) < 7) VoidDeath(d, "the collapsing ledge");
+    if (relictFell) {
+        relictGone = true;
+        const Json& qs = map->extra["quests"];
+        int c = qs.IsArr() && !qs.a.empty() ? QuestChainOf(8) : -1;
+        if (c >= 0 && c < (int)questAt.size() && questAt[c] == 8 && eggPlaced) QuestAdvance(c, by);
+        else Say("", "The Relict falls with the ledge into the void. It won't be back this match.", 5);
+    } else if (eggPlaced) {
+        eggPlaced = false; relictGone = true;
+        if (!questAt.empty()) questAt[0] = map->extra["quests"].a[0]["last"].I() + 1;
+        Say("", "The ledge falls with the egg and nothing else; the Relict follows its egg into the dark. The final log ends here.", 5);
+    }
+}
+
+// The Lantern Leviathan (boss sheet): the lure, the Swallow, the Bite, the Dark; three lures in phase 3.
+void Match::UpdateBossLeviathan(float dt, int near, float nd) {
+    Agent& B = eco.agents[bossAgent];
+    const Species& s = map->species[B.sp];
+    const Json& lv = map->extra["leviathan"];
+    auto attack = [&](const char* name) -> const Attack* { for (int k : attacksBySp[B.sp]) if (HasW(map->attacks[k].name, name)) return &map->attacks[k]; return nullptr; };
+    float frac = B.hp / std::max(1.0f, B.hpMax);
+    int ph = frac > 0.6f ? 1 : frac > 0.3f ? 2 : 3;
+    if (ph != bossPhase) {
+        bossPhase = ph;
+        if (ph == 2) Say(s.name, "moves through the black coral: the Dark comes now", 4);
+        if (ph == 3) {
+            Say(s.name, "splits its lure into three", 5);
+            relictDuel = Rand() < 1.0f / 3.0f ? 1 : 0; duelT = 0;
+            for (auto& a : eco.agents) if (a.alive && map->species[a.sp].name == "The Relict" && !relictGone) { a.st = State::Investigate; a.goal = B.pos; a.stateT = 0; a.hunger = 1; }
+        }
+    }
+    for (float& c : bossCd) if (c > 0) c -= dt;
+    if (bossGillsT > 0) bossGillsT -= dt;
+    if (lureHP <= 0) { lureRegrowT -= dt; if (lureRegrowT <= 0) { lureHP = lv["lure_hp"].F(500); Say(s.name, "'s lure glows again", 2); } }
+    Vector3 lure = LurePos();
+    Vector3 mouth = Vector3Add(B.pos, Vector3Scale(Vector3Length(B.vel) > 0.05f ? Vector3Normalize(B.vel) : Vector3{0, 0, 1}, bodies[B.sp].length * 0.5f));
+    // the lure draws: divers and curious beasts drift to it
+    if (lureDriftT > 0 && lureHP > 0) {
+        lureDriftT -= dt;
+        for (auto& d : divers) if (!d.dead && !d.downed && Vector3Distance(d.pos, lure) < 40 && Vector3Distance(d.pos, lure) > 3) d.vel = Vector3Add(d.vel, Vector3Scale(Vector3Normalize(Vector3Subtract(lure, d.pos)), 0.5f * dt * 4));
+    }
+    // phase 3's decoys hold a diver who swims into them for 2 s
+    if (ph == 3 && lureHP > 0) {
+        Vector3 side{-(lure.z - B.pos.z), 0, lure.x - B.pos.x};
+        side = Vector3Length(side) > 0.1f ? Vector3Normalize(side) : Vector3{1, 0, 0};
+        for (int k = -1; k <= 1; k += 2) {
+            Vector3 dp = Vector3Add(lure, Vector3Scale(side, 8.0f * k));
+            for (auto& d : divers) if (!d.dead && !d.downed && d.decoyCd <= 0 && Vector3Distance(d.pos, dp) < 2.5f) { d.stunT = std::max(d.stunT, 2.0f); d.decoyCd = 6; Say("", "A decoy lure: it holds you", 2); }
+        }
+        // the ledge: it drops Overlook 5 if a diver stands on it
+        if (!ledgeDropped) for (const auto& st : level.stations) if (st.name.find(lv["ledge"].Str0("Overlook 5").substr(0, 10)) != std::string::npos)
+            for (const auto& d : divers) if (!d.dead && !d.downed && Vector3Distance(d.pos, st.pos) < 6) { Say(s.name, "brings the ledge down", 4); DropLedge(nullptr); break; }
+        // the Relict comes for the corpses: it wins one time in three
+        for (int i = 0; i < (int)eco.agents.size(); i++) {
+            Agent& r = eco.agents[i];
+            if (!r.alive || map->species[r.sp].name != "The Relict" || Vector3Distance(r.pos, B.pos) > 14) continue;
+            duelT += dt;
+            if (duelT > 10) {
+                duelT = -1e9f;
+                if (relictDuel == 1) { B.hp = std::max(1.0f, B.hp - B.hpMax * 0.3f); Say("The Relict", "tears into the Leviathan", 4); }
+                else { eco.Kill(i, bossAgent); Say(s.name, "swallows the Relict", 4); }
+            }
+        }
+    }
+    // a diver swallowed whole: 5 s for 200 into the gills
+    if (swallowDiver >= 0) {
+        DiverState& d = divers[swallowDiver];
+        swallowT -= dt;
+        d.pos = Vector3Lerp(d.pos, mouth, std::min(1.0f, dt * 6)); d.vel = {0, 0, 0};
+        if (swallowDmg >= lv["swallow_dmg"].F(200) || d.dead || d.downed) {
+            d.heldT = 0; d.holder = -1; swallowDiver = -1; bossGillsT = 2;
+            if (!d.downed && !d.dead) Say(s.name, "spits the diver out: the gills took it", 3);
+        } else if (swallowT <= 0) {
+            d.heldT = 0; d.holder = -1; swallowDiver = -1; bossGillsT = 2;
+            DownDiver(d, s.name + " (swallowed whole)");
+        }
+        return;
+    }
+    if (B.stun > 0 || B.held > 0) { bossWind = -1; return; }
+    const Attack* lu = attack("lure"); const Attack* sw = attack("swallow"); const Attack* bi = attack("bite"); const Attack* dk = attack("dark");
+    float dm = map->Tide(tide).dmgMult;
+    if (bossWind >= 0) {
+        bossWindT -= dt;
+        if (bossWindT > 0) return;
+        int k = bossWind; bossWind = -1;
+        DiverState& t = divers[std::clamp(bossTarget, 0, (int)divers.size() - 1)];
+        float td = Vector3Distance(t.pos, mouth);
+        if (k == 1 && lu) { lureDriftT = 4; for (auto& a : eco.agents) if (a.alive && a.diver < 0 && !map->species[a.sp].isEnemy && map->species[a.sp].curiosity > 0.4f && Vector3Distance(a.pos, lure) < 40) { a.st = State::Investigate; a.goal = lure; a.stateT = 0; } }
+        else if (k == 2 && sw && td <= sw->range && !t.dead && !t.downed) {
+            swallowDiver = t.slot; swallowT = lv["swallow_s"].F(5); swallowDmg = 0;
+            t.heldT = swallowT + 0.5f; t.holder = bossAgent; t.holdLethal = true;
+            Say(s.name, "swallows a diver whole: 200 into its gills in 5 s!", 4);
+        } else if (k == 3 && bi && td <= bi->range + 0.5f) HitDiver(t, bi->damage * dm, s.name, bi->effect, B.pos, bossAgent);
+        else if (k == 4 && dk) { darkT = 6; Say(s.name, "puts out every light", 3); }
+        return;
+    }
+    if (near < 0) return;
+    float md = Vector3Distance(divers[near].pos, mouth);
+    int pick = -1;
+    if (sw && md <= sw->range && bossCd[2] <= 0) pick = 2;
+    else if (bi && md <= bi->range && bossCd[3] <= 0) pick = 3;
+    else if (dk && ph >= 2 && nd < dk->range && bossCd[4 % 4] <= 0 && darkT <= 0) pick = 4;
+    else if (lu && nd < lu->range && bossCd[1] <= 0 && lureHP > 0) pick = 1;
+    if (pick < 0) return;
+    const Attack* at = pick == 1 ? lu : pick == 2 ? sw : pick == 3 ? bi : dk;
+    bossWind = pick; bossWindT = at ? at->windup : 1.0f; bossTarget = near;
+    bossCd[pick % 4] = at ? at->cooldown : 8;
+}
+
+void Match::UpdateVoid(float dt) {
+    if (darkT > 0) darkT -= dt;
+    if (bossReformT > 0) {
+        // the Leviathan reforms in its vault six minutes after its death, at half health
+        bossReformT -= dt;
+        if (bossReformT <= 0) {
+            int wi = -1; for (int i = 0; i < (int)map->species.size(); i++) if (map->species[i].tier == 5) wi = i;
+            int hz = wi >= 0 ? map->ZoneIndex(map->species[wi].homeZone) : -1;
+            if (wi >= 0 && hz >= 0) {
+                int a = eco.Spawn(wi, map->zones[hz].Center(), hz);
+                eco.agents[a].hp = eco.agents[a].hpMax * 0.5f;
+                bossAgent = a; bossActive = false; bossPhase = 1; lureHP = map->extra["leviathan"]["lure_hp"].F(500);
+                Say(map->species[wi].name, "has reformed in the dark of " + map->zones[hz].name, 5);
+            }
+        }
+    }
+    for (auto& d : divers) if (d.decoyCd > 0) d.decoyCd -= dt;
+    // the void: a diver out over the abyss sinks for 5 s, then is lost
+    const Json& vz = map->extra["void_zones"];
+    for (auto& d : divers) {
+        if (d.dead || d.zone < 0) continue;
+        bool over = false;
+        for (const Json& z : vz.a) if (map->zones[d.zone].name == z.Str0()) over = true;
+        if (over && eco.ZoneAt(d.pos) == d.zone) {
+            if (d.voidT <= 0) Say("", "The void pulls you down: swim back to the edge!", 3);
+            d.voidT += dt;
+            d.vel.y -= 4.0f * dt;
+            if (d.voidT >= map->extra["void"]["pull_s"].F(5)) VoidDeath(d, "the void");
+        } else d.voidT = std::max(0.0f, d.voidT - dt * 2);
+    }
+    // the Sand Worm: beyond the bone stakes the sand shakes for 8 s, then it surfaces
+    const Json& wm = map->extra["worm"];
+    if (wm.IsObj()) {
+        Vector3 c{};
+        for (const auto& p : map->pois) if (p.name == wm["center_poi"].Str0()) c = p.pos;
+        float rad = wm["radius_m"].F(350), tremor = wm["tremor_s"].F(8);
+        int rim = map->ZoneIndex("The Rim");
+        for (auto& d : divers) {
+            if (d.dead) continue;
+            bool out = d.zone == rim && Vector2Distance({d.pos.x, d.pos.z}, {c.x, c.z}) > rad;
+            if (out) {
+                if (d.wormT <= 0) Say("", "The sand shakes beyond the bone stakes...", 3);
+                d.wormT += dt;
+                if (d.wormT >= tremor) VoidDeath(d, "the Sand Worm");
+            } else d.wormT = 0;
+        }
+    }
+    // beacons: an on beacon pulls every beast within 40 m onto the diver nearest it
+    float br = map->extra["beacons"]["radius_m"].F(40);
+    beaconTick += dt;
+    if (beaconTick > 2) {
+        beaconTick = 0;
+        for (auto& kv : beaconOn) {
+            if (!kv.second || darkT > 0) continue;
+            const Station& st = level.stations[kv.first];
+            int di = NearestDiver(st.pos, 60, false);
+            if (di < 0) continue;
+            for (int i = 0; i < (int)eco.agents.size(); i++) {
+                Agent& a = eco.agents[i];
+                if (!a.alive || a.diver >= 0 || IsBoss(i) || map->species[a.sp].isEnemy || map->species[a.sp].size < 2 || Vector3Distance(a.pos, st.pos) > br) continue;
+                a.st = State::Investigate; a.goal = divers[di].pos; a.stateT = 0;
+            }
+        }
+    }
+    // the Researchers' gas
+    for (auto& g : gas) {
+        g.t -= dt;
+        for (auto& d : divers) if (!d.dead && !d.downed && Vector3Distance(d.pos, g.pos) < g.r) { d.hp -= g.dps * dt; d.regenT = 0; d.lastHitBy = "gas"; if (d.hp <= 0) DownDiver(d, "Researcher"); }
+    }
+    gas.erase(std::remove_if(gas.begin(), gas.end(), [](const Gas& g) { return g.t <= 0; }), gas.end());
+    // the Abyssal Lure's lanterns: every beast in 60 m comes to the light, then it bursts
+    for (auto& l : lures) {
+        l.t -= dt;
+        for (int i = 0; i < (int)eco.agents.size(); i++) {
+            Agent& a = eco.agents[i];
+            if (!a.alive || a.diver >= 0 || IsBoss(i) || Vector3Distance(a.pos, l.pos) > 60) continue;
+            if (map->species[a.sp].isEnemy && a.oil) continue;   // clockwork doesn't care for lights
+            a.st = State::Investigate; a.goal = l.pos; a.stateT = 0; a.target = -1;
+        }
+        if (l.t <= 0) Explode(l.pos, (l.forged ? 300.0f : 150.0f), 6, l.owner);
+    }
+    lures.erase(std::remove_if(lures.begin(), lures.end(), [](const LurePt& l) { return l.t <= 0; }), lures.end());
+    // a colossal squid's arm at an overlook, summoned by a Void Cultist: it grabs whoever's close and hauls them to the edge
+    if (tentacleT > 0) {
+        tentacleT -= dt; tentacleCd -= dt;
+        if (tentacleCd <= 0) {
+            int di = NearestDiver(tentaclePos, 8, false);
+            if (di >= 0) {
+                DiverState& d = divers[di];
+                HitDiver(d, 70 * map->Tide(tide).dmgMult, "a colossal squid's arm", "", tentaclePos);
+                d.vel = Vector3Add(d.vel, Vector3Scale(Vector3Normalize(Vector3Subtract(tentaclePos, d.pos)), 6));
+                tentacleCd = 3;
+            }
+        }
+    }
+    // specimens breed if nobody culls them (only the caiman eats them)
+    for (const auto& kv : map->extra["breeders"].o) {
+        if (kv.first[0] == '_') continue;
+        int sp = map->SpeciesIndex(kv.first), zi = map->ZoneIndex(kv.second["zone"].Str0());
+        if (sp < 0 || zi < 0) continue;
+        int n = eco.CountInZone(sp, zi);
+        if (n < 2 || n >= kv.second["cap"].I(12)) { breedT[sp] = 0; continue; }
+        breedT[sp] += dt * (n / 2);
+        if (breedT[sp] >= kv.second["every_s"].F(90)) { breedT[sp] = 0; eco.Spawn(sp, map->zones[zi].Clamp(Vector3Add(map->zones[zi].Center(), {Rand(-5, 5), 0, Rand(-5, 5)}), 1), zi); }
+    }
+}
+
 // ---------------------------------------------------------------- drops
 void Match::MaybeDrop(Vector3 at) {
     // "a 2.5% chance (1 in 40), rising to 4% when the team has had no drop for 3 minutes; the last two drops excluded"
@@ -2772,6 +3185,7 @@ std::string Match::PromptFor(int di, int* cost) const {
         case StationType::Trap: {
             const Json* tjp = &map->extra["trap"];
             for (const Json& tr : map->extra["traps"].a) if (s.name.find(tr["match"].Str0()) != std::string::npos) tjp = &tr;
+            if (tjp->IsObj() && (*tjp)["kind"].Str0() == "beacon") return (beaconOn.count(si) && beaconOn.at(si)) ? (*tjp)["prompt"].Str0() : s.name + ": dark (pointing at the abyss)";
             if (trapT > 0) return tjp->IsObj() ? s.name + ": resetting" : "The crane is winding back";
             if (cost) *cost = 1000;
             if (tjp->IsObj() && tjp->Has("prompt")) return (*tjp)["prompt"].Str0();
@@ -2800,6 +3214,9 @@ std::string Match::PromptFor(int di, int* cost) const {
                 if (k == "ichor" && !d.ichorJar) return s.name + ": needs a Lost One's ichor";
                 if (k == "ichor" && wyrmState != 0) return "The Wyrm is up: wait until it's below";
                 if (k == "key" && !keys.count(st["key"].Str0())) return s.name + ": locked (the " + st["key"].Str0() + " key)";
+                if (k == "egg" && !keys.count(st["key"].Str0())) return s.name + ": locked (the station's master key)";
+                if (k == "place_egg" && !d.egg) return s.name + ": empty (something belongs here)";
+                if (k == "ledge" || k == "vent") return st["prompt"].Str0();
                 if (k == "hold") return st["prompt"].Str0() + TextFormat(" (%.0f s)", holdT);
                 return st["prompt"].Str0();
             }
@@ -2931,11 +3348,49 @@ bool Match::Interact(int di, bool hold, float dt) {
             if (bossActive && !bossStunUsed && bossAgent >= 0) { bossStunUsed = true; eco.agents[bossAgent].stun = 2; Say("", "The lights cycle: the Goliath is stunned", 3); return true; }
             return false;
         case StationType::Trap: {
-            if (trapT > 0 || !pay(1000)) return false;
-            trapT = 30;
             const Json* tjp = &map->extra["trap"];
             for (const Json& tr : map->extra["traps"].a) if (s.name.find(tr["match"].Str0()) != std::string::npos) tjp = &tr;
+            if ((*tjp)["kind"].Str0() == "beacon") {
+                // a lure beacon: turned toward the abyss (off) it pulls nothing onto anyone; turning it is loud
+                if (!beaconOn[si]) return false;
+                beaconOn[si] = false; eco.AddNoise(s.pos, 6);
+                Say("", "The beacon turns toward the abyss", 2);
+                return true;
+            }
+            if (trapT > 0 || !pay(1000)) return false;
+            trapT = 30;
             const Json& tj = *tjp;
+            if (tj["kind"].Str0() == "beacons") { for (auto& kv : beaconOn) kv.second = false; Say("", "Every lure beacon goes dark", 3); return true; }
+            if (tj["kind"].Str0() == "pressure") {
+                // the pressure door slams: everything in the corridor is crushed (Sentinels too)
+                Vector3 at = s.pos;
+                for (const auto& l : map->links) if (HasW(l.passage, "pressure door")) at = Vector3Lerp(l.a, l.b, 0.5f);
+                fx.push_back({5, at, {0, 0, 0}});
+                for (int i = 0; i < (int)eco.agents.size(); i++) { const Agent& a = eco.agents[i]; if (a.alive && a.diver < 0 && !IsBoss(i) && Vector3Distance(a.pos, at) < 7) { pendingKiller = d.slot; eco.Kill(i, d.agent); pendingKiller = -1; } }
+                for (auto& o : divers) if (!o.dead && !o.downed && Vector3Distance(o.pos, at) < 4) HitDiver(o, 150, "the pressure door", "", at);
+                return true;
+            }
+            if (tj["kind"].Str0() == "vent") {
+                // the reactor vent: a scalding jet (200 to everything in 8 m); it scalds the Leviathan for 10%, and bares
+                // the Relict's belly (the Abyssal Lure's last step)
+                fx.push_back({5, s.pos, {0, 1, 0}});
+                bool relict = false;
+                for (int i = 0; i < (int)eco.agents.size(); i++) {
+                    Agent& a = eco.agents[i];
+                    if (!a.alive || a.diver >= 0 || Vector3Distance(a.pos, s.pos) > (IsBoss(i) ? 12.0f : 8.0f)) continue;
+                    if (IsBoss(i)) { a.hp = std::max(1.0f, a.hp - a.hpMax * 0.1f); bossGillsT = std::max(bossGillsT, 2.0f); Say(map->species[a.sp].name, "is scalded by the reactor vent", 3); continue; }
+                    if (map->species[a.sp].name == "The Relict") { relict = true; a.stun = 3; continue; }
+                    HitAgent(&d, i, 200, false, false, {0, 1, 0}, nullptr);
+                }
+                for (auto& o : divers) if (!o.dead && !o.downed && Vector3Distance(o.pos, s.pos) < 5) HitDiver(o, 40, "the reactor vent", "", s.pos);
+                const Json& qs = map->extra["quests"];
+                for (int c = 0; c < (int)qs.a.size() && c < (int)questAt.size(); c++) {
+                    const Json& st = qs.a[c]["steps"][std::to_string(questAt[c])];
+                    if (st["kind"].Str0() == "vent" && relict) QuestAdvance(c, &d);
+                }
+                return true;
+            }
+            if (tj["kind"].Str0() == "ledge") { DropLedge(&d); return true; }
             if (tj["kind"].Str0() == "reacher_gate") {
                 // a Reacher coral gate closes on the corridor and eats whatever it holds
                 float rad = tj["radius"].F(5);
@@ -3065,7 +3520,14 @@ bool Match::Interact(int di, bool hold, float dt) {
                 if (k == "spark" && !d.spark) return false;
                 if (k == "ichor") { if (!d.ichorJar || wyrmState != 0) return false; d.ichorJar = false; }
                 if (k == "key" && !keys.count(st["key"].Str0())) return false;
-                if (k == "hold") return false;
+                if (k == "hold" || k == "ledge" || k == "vent") return false;
+                if (k == "egg") { if (!keys.count(st["key"].Str0()) || d.egg) return false; d.egg = true; }
+                if (k == "place_egg") { if (!d.egg) return false; d.egg = false; eggPlaced = true; eggPos = s.pos; }
+                if (k == "read") {
+                    // each terminal read wakes the station: a Remnant squad comes through the nearest airlock
+                    int reg = s.zone >= 0 ? map->zones[s.zone].alarmRegion : 0;
+                    eco.SpawnSquad(reg, false, players >= 3 ? 3 : 2, false);
+                }
                 fx.push_back({4, s.pos, {0, 0, 0}});
                 QuestAdvance(c, &d);
                 return true;
@@ -3261,6 +3723,7 @@ void Match::Bot(DiverState& d, float dt) {
             if (s.isDiver) continue;
             if (careful && (s.size > 3 || s.tier >= 4 || s.Cleaner() || a.host >= 0)) continue;
             if (careful && (s.Has("pack") || s.social == "pack") && W(Cur(d)).damage * W(Cur(d)).pellets < 60) continue;   // a pack answers for its own
+            if (Forbidden(a.pos, 30)) continue;                                          // not out over the void or past the stakes
             if (careful && s.size <= 1 && s.social == "school" && eco.CountInZone(a.sp, a.zone) > 8 && tide >= 3) continue;   // don't bleed the school
             float dist = Vector3Distance(a.pos, d.pos);
             if (!careful) dist *= 0.8f;
@@ -3439,6 +3902,8 @@ void Match::Bot(DiverState& d, float dt) {
         if (Vector3Distance(d.pos, d.botLastPos) < 0.4f && Vector3Length(wish) > 0.1f) { d.botThinkT = 0; d.pos = level.Move(d.pos, Vector3Add(d.pos, {Rand(-1, 1), Rand(-0.5f, 0.5f), Rand(-1, 1)}), 0.4f, linkOpen); }
         d.botStuckT = 0; d.botLastPos = d.pos;
     }
+    // never out over the void or past the bone stakes: turn back toward the start
+    if (Forbidden(Vector3Add(d.pos, Vector3Scale(wish, 4)), 25) || Forbidden(d.pos, 20)) { Vector3 home = Vector3Subtract(level.start, d.pos); wish = Vector3Normalize({home.x, 0, home.z}); vert = std::clamp(home.y * 0.2f, -1.0f, 1.0f); }
     SteerDiver(d.slot, wish, vert, sprint, t != nullptr && !careful ? false : t != nullptr, dt);
 }
 
@@ -4254,6 +4719,191 @@ static int AtlantisTest(int& fails, const std::function<void(bool, const std::st
     return fails;
 }
 
+static int VoidTest(int& fails, const std::function<void(bool, const std::string&)>& check) {
+    auto M = std::make_unique<Match>();
+    Match& m = *M;
+    m.Init("void", 2, 55, false);
+    DiverState& q = m.divers[0]; DiverState& r = m.divers[1];
+    q.invulnerable = r.invulnerable = true;
+    const MapData& map = *m.map;
+    auto zi = [&](const char* n) { return map.ZoneIndex(n); };
+    auto unitIdx = [&](const char* n) { for (int u = 0; u < (int)map.faction.units.size(); u++) if (map.faction.units[u].unit == n) return u; return -1; };
+    auto remnant = [&](const char* unit, Vector3 at, int zone) {
+        int ai = m.eco.Spawn(map.enemySpecies, at, zone);
+        Agent& a = m.eco.agents[ai]; a.unit = unitIdx(unit); a.hp = a.hpMax = map.faction.units[a.unit].hp; a.oil = map.faction.units[a.unit].bloodless; a.stun = 0;
+        return ai;
+    };
+    auto stationPos = [&](const char* name) { for (const auto& s : m.level.stations) if (HasW(s.name, name)) return s.pos; return Vector3{1e9f, 0, 0}; };
+    auto stationIdx = [&](const char* name) { for (int i = 0; i < (int)m.level.stations.size(); i++) if (HasW(m.level.stations[i].name, name)) return i; return -1; };
+    int rim = zi("The Rim"), abyss = zi("The Abyss");
+    check(map.title == "Approaching the Void" && m.level.startZone == rim && Vector2Length({q.pos.x, q.pos.z}) < 5, "the divers start at the station's surface hatch on the rim");
+    check(map.zones[rim].plan.width >= 800 && map.zones[rim].plan.height >= 800, "the rim is 800 m across");
+    // the Sand Worm
+    {
+        q.invulnerable = false;
+        q.pos = {360, 2, 0}; q.zone = rim; q.vel = {0, 0, 0};
+        float t = 0; while (!q.dead && t < 12) { q.pos = {360, 2, 0}; m.Step(0.05f); t += 0.05f; }
+        check(q.dead && t > 7.5f && t < 8.5f && m.downsBy.count("the Sand Worm"), TextFormat("past the bone stakes the sand shakes for 8 s and the worm takes the diver (%.1f s; no down, no revive)", t));
+        q.dead = false; q.downed = false; q.hp = q.hpMax; if (q.agent >= 0) { m.eco.agents[q.agent].alive = true; m.eco.agents[q.agent].downed = false; }
+        q.pos = {360, 2, 0}; for (int k = 0; k < 60; k++) { q.pos = {360, 2, 0}; m.Step(0.05f); }
+        q.pos = {100, 2, 0}; m.Step(0.05f);
+        check(q.wormT == 0 && !q.dead, "stepping back inside the stakes stills the sand");
+    }
+    // the void
+    {
+        const Zone& az = map.zones[abyss];
+        q.pos = {az.plan.x + az.plan.width * 0.5f, -50, 0}; q.zone = abyss; q.vel = {0, 0, 0};
+        float t = 0; while (!q.dead && t < 8) { m.Step(0.05f); t += 0.05f; }
+        check(q.dead && t > 4.5f && t < 5.5f, TextFormat("out over the abyss the void pulls a diver down for 5 s, then they're gone (%.1f s)", t));
+        q.dead = false; q.downed = false; q.hp = q.hpMax; q.voidT = 0; if (q.agent >= 0) { m.eco.agents[q.agent].alive = true; m.eco.agents[q.agent].downed = false; }
+        q.invulnerable = true; q.pos = m.level.start; q.zone = rim;
+        bool plan = false; for (int li = 0; li < (int)map.links.size(); li++) if ((map.links[li].to == abyss || map.links[li].from == abyss) && m.DiverLink(li)) plan = true;
+        check(!plan && m.Forbidden({az.Center().x, -50, 0}) && m.Forbidden({500, 2, 0}) && !m.Forbidden({0, 2, 0}), "no route is planned through the void, and the bots keep out of it and past the stakes");
+    }
+    m.linkOpen.assign(m.linkOpen.size(), 1);
+    for (auto& dr : m.level.doors) dr.open = true;
+    // the Remnant
+    {
+        int gal = zi("The Upper Galleries");
+        const Zone& gz = map.zones[gal];
+        int sen = remnant("Sentinel", gz.Clamp({0, gz.y0 + 2, -30}, 1), gal);
+        check(m.eco.agents[sen].oil, "a Sentinel leaks oil, not blood");
+        float s0 = m.eco.scent.Total();
+        m.HitAgentPublic(0, sen, 100);
+        check(m.eco.scent.Total() <= s0 + 0.01f, "a hit Sentinel puts no blood in the water");
+        // its arc: behind it, a diver is safe; in front, after the spin-up, it fires
+        m.eco.agents[sen].pos = gz.Clamp({0, gz.y0 + 2, -30}, 1);
+        m.sentinelYaw[sen] = 0;                                   // facing +z
+        q.pos = Vector3Add(m.eco.agents[sen].pos, {0, 0, -10}); q.zone = gal; q.invulnerable = false; q.hp = q.hpMax = 5000;
+        size_t d0 = m.darts.size(); int fired = 0;
+        for (int k = 0; k < 10; k++) { m.eco.agents[sen].pos = gz.Clamp({0, gz.y0 + 2, -30}, 1); m.eco.agents[sen].vel = {0, 0, 0}; m.Step(0.05f); for (size_t j = d0; j < m.darts.size(); j++) if (m.darts[j].enemy == sen) fired++; d0 = m.darts.size(); }
+        check(fired == 0, "behind a Sentinel (outside its 90-degree arc) it doesn't fire at once");
+        q.pos = Vector3Add(m.eco.agents[sen].pos, {0, 0, 10}); m.sentinelYaw[sen] = 0;
+        float t = 0, first = -1;
+        for (int k = 0; k < 60; k++) { m.eco.agents[sen].pos = gz.Clamp({0, gz.y0 + 2, -30}, 1); m.Step(0.05f); t += 0.05f; for (auto& dt : m.darts) if (dt.enemy == sen && first < 0) first = t; }
+        check(first > 0.8f && first < 1.4f, TextFormat("in front, it spins up (1 s) and fires (%.2f s)", first));
+        m.eco.Kill(sen, -1); m.darts.clear(); q.invulnerable = true;
+        // a Researcher's gas, and the beacons it lights
+        int res = remnant("Researcher", gz.Clamp({80, gz.y0 + 2, -30}, 1), gal);
+        int b1 = stationIdx("beacon 1");
+        m.eco.agents[res].pos = Vector3Add(m.level.stations[b1].pos, {2, 0, 0});
+        m.Step(0.05f); m.Step(0.05f);
+        check(m.beaconOn[b1], "a Researcher switches on the lure beacon it passes");
+        int fang = -1; for (int i = 0; i < (int)m.eco.agents.size(); i++) if (m.eco.agents[i].alive && map.species[m.eco.agents[i].sp].size >= 2 && !map.species[m.eco.agents[i].sp].isEnemy && !m.IsBoss(i) && m.eco.agents[i].diver < 0) { fang = i; break; }
+        m.eco.agents[fang].pos = gz.Clamp(Vector3Add(m.level.stations[b1].pos, {-10, 0, 0}), 1); m.eco.agents[fang].zone = gal; m.eco.agents[fang].st = State::Graze;
+        q.pos = gz.Clamp(Vector3Add(m.level.stations[b1].pos, {-20, 0, 0}), 1); q.zone = gal;
+        m.beaconTick = 2.1f; m.Step(0.05f);
+        check(m.eco.agents[fang].st == State::Investigate && Vector3Distance(m.eco.agents[fang].goal, q.pos) < 2, "an on beacon pulls the beasts around it onto the nearest diver");
+        q.pos = m.level.stations[b1].pos;
+        check(m.Interact(0, false, 0.01f) && !m.beaconOn[b1], "a diver turns the beacon toward the abyss (E)");
+        m.eco.Kill(res, -1);
+        m.gas.push_back({q.pos, 6, 15, 4});
+        q.invulnerable = false; float hp0 = q.hp; for (int k = 0; k < 20; k++) m.Step(0.05f);
+        check(hp0 - q.hp > 10, TextFormat("a gas grenade's cloud: 15/s (%.0f in 1 s)", hp0 - q.hp));
+        m.gas.clear(); q.invulnerable = true; q.hp = q.hpMax;
+        // a Void Cultist at the overlook calls the deep
+        int cu = remnant("Void Cultist", gz.Clamp({-150, gz.y0 + 2, -20}, 1), gal);
+        q.pos = gz.Clamp({-100, gz.y0 + 2, -20}, 1);
+        for (int k = 0; k < 200 && m.tentacleT <= 0; k++) m.Step(0.05f);
+        check(m.tentacleT > 0, "a Void Cultist reaches the overlook and a colossal squid's arm rises over it");
+        m.eco.Kill(cu, -1); m.tentacleT = 0;
+    }
+    // specimens breed if nobody culls them
+    {
+        int mess = zi("The Station: Mess & Quarters"), sal = map.SpeciesIndex("Lab Salamander");
+        for (auto& a : m.eco.agents) if (a.alive && a.sp == map.SpeciesIndex("Pale Caiman")) a.alive = false;
+        int n0 = m.eco.CountInZone(sal, mess);
+        if (n0 < 2) { m.eco.Spawn(sal, map.zones[mess].Center(), mess); m.eco.Spawn(sal, map.zones[mess].Center(), mess); n0 = m.eco.CountInZone(sal, mess); }
+        for (int k = 0; k < 20 * 100; k++) m.Step(0.05f);
+        check(m.eco.CountInZone(sal, mess) > n0, TextFormat("salamanders breed in the bunks (%d -> %d in 100 s)", n0, m.eco.CountInZone(sal, mess)));
+    }
+    // a whale kill brings the Relict
+    {
+        int wh = -1, rel = -1;
+        for (int i = 0; i < (int)m.eco.agents.size(); i++) { if (!m.eco.agents[i].alive) continue; const std::string& n = map.species[m.eco.agents[i].sp].name; if (n == "Sperm Whale") wh = i; if (n == "The Relict") rel = i; }
+        check(wh >= 0 && rel >= 0, "the sperm whale and the Relict swim the abyss");
+        Vector3 at = m.eco.agents[wh].pos;
+        m.eco.Kill(wh, q.agent);
+        check(m.eco.agents[rel].st == State::Investigate && Vector3Distance(m.eco.agents[rel].goal, at) < 1, "a whale kill brings the Relict up to its body");
+    }
+    // the Lantern Leviathan
+    {
+        check(m.bossKind == 4, "the Void's boss runs the Lantern Leviathan's script");
+        if (m.bossAgent < 0) m.Step(0.05f);
+        int boss = m.bossAgent;
+        int vault = zi("The Lowest Vault");
+        const Zone& vz = map.zones[vault];
+        m.bossActive = true;
+        m.eco.agents[boss].vel = {1, 0, 0}; m.eco.agents[boss].pos = vz.Center(); m.eco.agents[boss].zone = vault;
+        float h0 = m.eco.agents[boss].hp;
+        m.HitAgentPublic(0, boss, 100);
+        check(fabsf((h0 - m.eco.agents[boss].hp) - 50) < 1, "its dark body takes half");
+        // the lure shot out
+        Vector3 lp = m.LurePos();
+        q.pos = vz.Clamp(Vector3Add(lp, {6, 0, 0}), 1); q.zone = vault;   // in front of it, facing the light q.yaw = atan2f(lp.x - q.pos.x, lp.z - q.pos.z); q.pitch = asinf(std::clamp((lp.y - m.Eye(q).y) / std::max(0.1f, Vector3Distance(lp, m.Eye(q))), -1.0f, 1.0f));
+        m.lureHP = 10;
+        Dart t; t.pos = t.start = m.Eye(q); t.vel = Vector3Scale(Vector3Normalize(Vector3Subtract(lp, m.Eye(q))), 30); t.damage = 60; t.owner = 0; t.weapon = 0;
+        m.darts.push_back(t);
+        for (int k = 0; k < 10 && m.lureHP > 0; k++) { m.eco.agents[boss].vel = {1, 0, 0}; m.eco.agents[boss].pos = vz.Center(); m.Step(0.02f); }
+        if (getenv("DEPTH_DBG")) printf("    lureHP %.0f darts %d active %d lure %.1f %.1f %.1f eye %.1f %.1f %.1f inside %d sight %d\n", m.lureHP, (int)m.darts.size(), (int)m.bossActive, lp.x, lp.y, lp.z, m.Eye(q).x, m.Eye(q).y, m.Eye(q).z, (int)m.level.Inside(lp, 0.1f, m.linkOpen, true), (int)m.level.Sight(m.Eye(q), lp, m.linkOpen, true));
+        check(m.lureHP <= 0 && m.bossGillsT > 4 && m.eco.agents[boss].stun > 3, "shooting out the lure (500) blinds it 5 s and bares the gills");
+        // the swallow
+        m.eco.agents[boss].stun = 0; m.bossGillsT = 0;
+        m.swallowDiver = 0; m.swallowT = 5; m.swallowDmg = 0; q.heldT = 5.5f; q.holder = boss;
+        m.HitAgentPublic(1, boss, 220);
+        m.Step(0.05f);
+        check(m.swallowDiver < 0 && m.bossGillsT > 1, "swallowed whole: 200 into it in 5 s and it spits the diver out, gills bare for 2 s");
+        q.heldT = 0; q.holder = -1;
+        m.eco.Kill(boss, q.agent);
+        check(m.keys.count("Master") && m.bossReformT > 300, "its kill leaves the station's master key; it reforms in 6 minutes");
+    }
+    // traps
+    {
+        int lab = zi("The Station: Specimen Labs");
+        Vector3 door{}; for (const auto& l : map.links) if (HasW(l.passage, "pressure door")) door = Vector3Lerp(l.a, l.b, 0.5f);
+        int sen = remnant("Sentinel", door, lab);
+        m.eco.agents[sen].pos = door;
+        q.pos = stationPos("pressure door control"); q.zone = lab; q.scrip = 9000; m.power = true; m.trapT = 0;
+        check(m.Interact(0, false, 0.01f) && !m.eco.agents[sen].alive, "the pressure door crushes the corridor: a Sentinel dies in it");
+    }
+    // the final log
+    {
+        auto st = [&](int step) { for (const auto& s : m.level.stations) if (s.type == StationType::QuestStep && s.step == step) return s.pos; return Vector3{0, 0, 0}; };
+        auto go = [&](int step) { q.pos = st(step); q.zone = m.eco.ZoneAt(q.pos); };
+        int sq0 = m.eco.squadsSpawned;
+        for (int s = 1; s <= 5; s++) { go(s); m.Interact(0, false, 0.01f); }
+        check(m.questAt[0] == 6 && m.eco.squadsSpawned >= sq0 + 5, "five terminals read in order, a Remnant squad on each");
+        go(6); check(m.Interact(0, false, 0.01f) && q.egg, "tank 7 opens with the master key: the Relict egg");
+        int rel = -1; for (int i = 0; i < (int)m.eco.agents.size(); i++) if (m.eco.agents[i].alive && map.species[m.eco.agents[i].sp].name == "The Relict") rel = i;
+        m.eco.agents[rel].decideT = 0; m.Step(0.2f);
+        check(m.eco.agents[rel].st == State::Hunt && m.eco.agents[rel].target == q.agent, "the Relict comes for the egg wherever it is");
+        go(7); check(m.Interact(0, false, 0.01f) && m.eggPlaced && !q.egg, "the egg set in the ledge's cradle");
+        m.eco.agents[rel].pos = m.eggPos; m.eco.agents[rel].zone = m.eco.ZoneAt(m.eggPos);
+        int s0 = r.scrip;
+        q.pos = stationPos("overlook 5"); q.pos.x += 9; q.zone = zi("The Lowest Vault"); m.trapT = 0; q.scrip = 9000;
+        q.pos = stationPos("overlook 5");
+        Vector3 safe = Vector3Add(q.pos, {12, 0, 0});
+        bool ok = m.Interact(0, false, 0.01f);
+        (void)safe;
+        check(ok && m.relictGone && m.questAt[0] == 9, "the ledge drops with the Relict on it: it falls into the void");
+        check(r.scrip >= s0 + 2400, "the final log's reward: 5,000 scrip split");
+    }
+    // the Abyssal Lure: a lantern every beast in 60 m comes to, then a burst
+    {
+        int wi = m.WonderIdx();
+        check(wi >= 0 && Weapons().weapons[wi].id == "abyssallure", "the Void's wonder weapon is the Abyssal Lure");
+        int gal = zi("The Upper Galleries");
+        const Zone& gz = map.zones[gal];
+        Match::LurePt lp; lp.pos = gz.Clamp({0, gz.y0 + 3, -20}, 1); lp.owner = 0; m.lures.push_back(lp);
+        int b = -1; for (int i = 0; i < (int)m.eco.agents.size(); i++) if (m.eco.agents[i].alive && !m.IsBoss(i) && m.eco.agents[i].diver < 0 && !map.species[m.eco.agents[i].sp].isEnemy && Vector3Distance(m.eco.agents[i].pos, lp.pos) < 50) { b = i; break; }
+        m.Step(0.05f);
+        check(b >= 0 && m.eco.agents[b].st == State::Investigate && Vector3Distance(m.eco.agents[b].goal, lp.pos) < 1, "every beast in 60 m comes to the Abyssal Lure's light");
+        m.lures.back().t = 0.01f; m.Step(0.05f);
+        check(m.lures.empty(), "after 8 s it bursts");
+    }
+    return fails;
+}
+
 int RunRedTideMapTest(const std::string& key) {
     std::string why;
     if (!DataOk(&why)) { printf("redtide-map-test: %s\n", why.c_str()); return 1; }
@@ -4263,6 +4913,7 @@ int RunRedTideMapTest(const std::string& key) {
     if (key == "cave") CaveTest(fails, check);
     else if (key == "reef") ReefTest(fails, check);
     else if (key == "atlantis") AtlantisTest(fails, check);
+    else if (key == "void") VoidTest(fails, check);
     else { printf("  (no map test for '%s' yet)\n", key.c_str()); }
     printf(fails ? "redtide-map-test: %d check(s) failed\n" : "redtide-map-test: all checks passed\n", fails);
     return fails ? 1 : 0;

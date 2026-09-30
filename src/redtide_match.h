@@ -18,7 +18,7 @@ struct WeaponDef {
     std::string id, name, cls, source, forged, forgedTwist;
     float damage = 30, rpm = 300, noise = 2, reload = 1.4f, chum = 0, arc = 0, splash = 0, reach = 0, spinup = 0, cone = 0, coneDeg = 30;
     int pellets = 1, mag = 8, reserve = 32, price = 0, burst = 0, chain = 0, explodesOver = 0;
-    bool perRound = false, pins = false, net = false, melee = false, polyp = false, wave = false;
+    bool perRound = false, pins = false, net = false, melee = false, polyp = false, wave = false, lure = false;
     WeaponClass handling;
 };
 struct TonicDef { std::string id, name, effect; int price = 2000, priceSolo = 0; };
@@ -55,7 +55,7 @@ struct Station {
 };
 // Scenery from a map's "dressing" (extra.json): placed once from a fixed seed; solid pieces (columns, coral walls, brain
 // coral, a coral head, ledges) block divers, darts and sight.
-enum class PropKind { Column, Stalactite, Stalagmite, Crystal, Root, Ledge, Pool, Silt, Machine, CoralWall, Table, Brain, Staghorn, Seagrass, Mangrove, Mound, Building, Terrace, Fan, Amphora, Grate, Crenel, COUNT };
+enum class PropKind { Column, Stalactite, Stalagmite, Crystal, Root, Ledge, Pool, Silt, Machine, CoralWall, Table, Brain, Staghorn, Seagrass, Mangrove, Mound, Building, Terrace, Fan, Amphora, Grate, Crenel, Stake, Tank, COUNT };
 struct Prop { PropKind kind = PropKind::Column; Vector3 pos{}, half{}; int zone = -1; bool solid = false; uint32_t seed = 0; };
 struct Level {
     std::vector<Volume> vols;
@@ -98,6 +98,7 @@ struct DiverState {
     int slipLink = -1; float slipT = 0, driftT = 0;   // riding a slipstream (link), how far along; the drift after it
     int drumUses = 0;                  // the Reef Shaman's drum, taken
     bool spark = false, ichorJar = false;   // Atlantis: the treasury crystal's spark in a jar; a Lost One's ichor
+    bool egg = false; float wormT = 0, voidT = 0, decoyCd = 0;   // the Void: the Relict egg carried; the worm's tremor; the void's pull
     float cutT = 0;                    // being cut free of Reacher coral by a teammate
     int kills = 0, headshots = 0, downs = 0, revives = 0;
     float hitMarker = 0; bool hitWeak = false;
@@ -159,7 +160,7 @@ struct Match {
     int questStep = 0, whistlePulls = 0; float whistleT = 0; bool supperCall = false;   // the Supper Call easter egg
     bool breachOpen = false;
     // map mechanics (from extra.json): per-zone flags, the boss's kind and its extra state
-    std::vector<char> noFireZone, rockZone; std::vector<float> crawlZone;
+    std::vector<char> noFireZone, rockZone, voidZone; std::vector<float> crawlZone;
     std::map<int, float> floraBleed;        // a cut Bloodvine patch: seconds it keeps smelling of blood
     int bossKind = 0;                       // 0 the Goliath, 1 the Lobster, 9 any other (attacks straight from its sheet)
     float bossRecentDmg = 0; bool bossRearReq = false, bossMoved = false, cacheOpen = false;
@@ -185,6 +186,22 @@ struct Match {
     float holdT = 0;
     bool revealAll = false;                  // the lighthouse: the whole city on the sonar
     int QuestChainOf(int step) const;
+    // the Void
+    std::map<int, bool> beaconOn;            // lure beacons (station index): on, the Remnant's; off, re-aimed at the abyss
+    struct Gas { Vector3 pos; float t = 6, dps = 15, r = 4; };
+    std::vector<Gas> gas;                    // Researchers' gas grenades
+    struct LurePt { Vector3 pos; float t = 8; int owner = -1; bool forged = false; };
+    std::vector<LurePt> lures;               // the Abyssal Lure's lanterns
+    std::map<int, float> sentinelYaw, sentinelBurst;   // a Sentinel's facing (its 90-degree arc) and burst clock
+    float tentacleT = 0, tentacleCd = 0; Vector3 tentaclePos{};   // a colossal squid's arm, summoned at an overlook
+    float lureHP = 500, lureRegrowT = 0, lureDriftT = 0, darkT = 0; int swallowDiver = -1; float swallowT = 0, swallowDmg = 0;
+    int relictDuel = -1; float duelT = 0; bool ledgeDropped = false, relictGone = false, eggPlaced = false; Vector3 eggPos{};
+    std::map<int, float> breedT;
+    float bossReformT = -1, beaconTick = 0;
+    Vector3 LurePos() const;
+    bool Forbidden(Vector3 p, float margin = 0) const;   // over the void, or past the Sand Worm's stakes (the bots keep out)
+    void VoidDeath(DiverState& d, const std::string& by);
+    void DropLedge(DiverState* by);
     std::vector<int> WyrmGrates(int ph, int zone) const;
     std::string ArtName(int sp) const;
     uint32_t rng = 99;
@@ -224,7 +241,7 @@ struct Match {
     Vector3 Forward(const DiverState& d) const;
     int Living() const;               // divers up (not downed, not dead)
     bool IsBoss(int agent) const { return agent >= 0 && agent == bossAgent; }
-    bool DiverLink(int li) const { return linkOpen[li] && map->links[li].diverOk; }
+    bool DiverLink(int li) const { const Link& l = map->links[li]; return linkOpen[li] && l.diverOk && !(li < (int)linkOpen.size() && ((l.from < (int)voidZone.size() && voidZone[l.from]) || (l.to < (int)voidZone.size() && voidZone[l.to]))); }   // (nobody plans a route through the void)
     // for the tests
     void HitDiverPublic(DiverState& d, float dmg, const std::string& by, const std::string& effect, Vector3 from, int attacker) { HitDiver(d, dmg, by, effect, from, attacker); }
     void ApplyDropPublic(DropType t, Vector3 at) { ApplyDrop(t, at); }
@@ -267,6 +284,8 @@ struct Match {
     void UpdateReef(float dt);
     void UpdateAtlantis(float dt);
     void UpdateBossWyrm(float dt);
+    void UpdateVoid(float dt);
+    void UpdateBossLeviathan(float dt, int near, float nd);
     void QuestAdvance(int chain, DiverState* d);
     void EnemyBlast(Vector3 at, float dmg, float radius, int enemy);
     void FloraTool(int patch, Vector3 at, DiverState* d);

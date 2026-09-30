@@ -1,0 +1,631 @@
+{
+ "title": "Approaching the Void",
+ "field_max_cells": 350000,
+ "_field_note": "The rim (800 m across) and the abyss make the map's box vast and mostly empty: the blood and sound grids are coarser here (about 7 m cells) so the match runs in real time.",
+ "_source": "Hand-written from the design doc's 'Level 5: Approaching the Void', its faction and boss sheets, the blockout's notes and the final-log quest; each entry cites its line.",
+ "plan_override": {
+  "The Rim": [
+   -160,
+   -200,
+   800,
+   800
+  ],
+  "The Abyss": [
+   -460,
+   -440,
+   300,
+   1040
+  ],
+  "The Upper Galleries": [
+   -160,
+   -60,
+   280,
+   80
+  ],
+  "The Lowest Vault": [
+   -160,
+   -420,
+   310,
+   110
+  ]
+ },
+ "_plan_note": "The blockout stacks its zones in plan; the abyss sits west of everything, so the rim is moved east (still 800 m across, the hatch still at 0,0) and the galleries, warrens and vault reach the abyss's edge: every level below the rim has an overlook onto it.",
+ "zone_y": {
+  "The Rim": [
+   0,
+   30
+  ],
+  "The Abyss": [
+   -220,
+   30
+  ],
+  "The Descent": [
+   -60,
+   0
+  ],
+  "The Upper Galleries": [
+   -78,
+   -62
+  ],
+  "The Warrens": [
+   -100,
+   -92
+  ],
+  "The Station: Mess & Quarters": [
+   -126,
+   -116
+  ],
+  "The Station: Specimen Labs": [
+   -131,
+   -121
+  ],
+  "The Station: Reactor": [
+   -146,
+   -134
+  ],
+  "The Lowest Vault": [
+   -200,
+   -170
+  ]
+ },
+ "_zone_y_source": "The blockout's depth_m: the rim at 0, the Descent a chimney to -60, the galleries -70, the warrens -95, the station -120 to -140, the vault -180 (a cathedral, 30 m high).",
+ "start_poi": "Surface hatch (start)",
+ "open_zones": [
+  "The Rim"
+ ],
+ "void_zones": [
+  "The Abyss"
+ ],
+ "void": {
+  "pull_s": 5,
+  "_source": "'a diver who swims out over it sinks and dies (a 5 s pull with a warning)'"
+ },
+ "worm": {
+  "center_poi": "Surface hatch (start)",
+  "radius_m": 350,
+  "tremor_s": 8,
+  "_source": "'Beyond a marked line of bone stakes, the sand shakes; 8 s later, the worm surfaces and consumes the diver (no down, no revive).'"
+ },
+ "spawn_remove": [
+  "The Sand Worm"
+ ],
+ "link_add": [
+  {
+   "from": "The Rim",
+   "to": "The Abyss",
+   "passage": "The void's edge (a fall)"
+  },
+  {
+   "from": "The Warrens",
+   "to": "The Abyss",
+   "passage": "Overlook 3 (a fall)"
+  },
+  {
+   "from": "The Station: Reactor",
+   "to": "The Station: Mess & Quarters",
+   "passage": "The reactor's warm plume",
+   "divers": false,
+   "beasts": "never",
+   "flow": 0.8
+  }
+ ],
+ "_link_source": "'Every zone below the rim has at least one overlook onto the abyss'; 'the only currents are the reactor's warm plume (rises from the Reactor up the service shaft into the Mess)'.",
+ "flow": {
+  "The Station: Reactor": [
+   0,
+   0.2,
+   0
+  ],
+  "The Warrens": [
+   -0.1,
+   0,
+   0
+  ]
+ },
+ "zone_alias": {
+  "Upper Galleries": "The Upper Galleries",
+  "Overlooks": "The Upper Galleries",
+  "Lowest Vault": "The Lowest Vault",
+  "The Station: Labs": "The Station: Specimen Labs",
+  "The Station: Quarters": "The Station: Mess & Quarters",
+  "Station: Labs and Quarters": "The Station: Specimen Labs",
+  "Station: Labs": "The Station: Specimen Labs",
+  "Station: Mess": "The Station: Mess & Quarters",
+  "Station walls": "The Station: Reactor",
+  "Overlook edges": "The Upper Galleries",
+  "Vault floor": "The Lowest Vault",
+  "The Warrens (brine pool)": "The Warrens",
+  "The Abyss (arrives at overlooks)": "The Abyss",
+  "The Abyss (passes overlooks)": "The Abyss",
+  "The Abyss (arrives at overlooks and the Vault)": "The Abyss",
+  "Beyond the bone stakes": "The Rim"
+ },
+ "food_alias": {
+  "Bones": "Corpse",
+  "Tube worm garden": "Tube worm garden (vents)",
+  "Lab algae fish": "Lab algae tanks"
+ },
+ "diet_patch": {
+  "Deep Skate": {
+   "Sea Pig": 0.1
+  },
+  "Sixgill Shark": {
+   "Deep Skate": 0.1,
+   "Pelican Eel": 0.1,
+   "Giant Sea Spider": 0.05
+  }
+ },
+ "_diet_note": "The rim's sea pigs are the skates' as well as the scavengers' web. The doc's 'Eaten by' column: the sixgill takes skates, pelican eels and sea spiders. The Sand Worm 'takes part in no web'.",
+ "alarm_regions": {
+  "Rim": {
+   "mult": 1,
+   "zones": [
+    "The Rim",
+    "The Descent"
+   ],
+   "entry": "Upper airlock (Remnant entry)"
+  },
+  "Galleries and Warrens": {
+   "mult": 1,
+   "zones": [
+    "The Upper Galleries",
+    "The Warrens"
+   ],
+   "entry": "Upper airlock (Remnant entry)"
+  },
+  "Station": {
+   "mult": 1,
+   "zones": [
+    "The Station: Mess & Quarters",
+    "The Station: Specimen Labs",
+    "The Station: Reactor"
+   ],
+   "entry": "Airlock A"
+  },
+  "Vault": {
+   "mult": 1,
+   "zones": [
+    "The Lowest Vault"
+   ],
+   "entry": "Airlock B"
+  }
+ },
+ "_alarm_source": "Blockout notes: 'Alarm regions: Rim, Galleries and Warrens, Station, Vault; the Remnant enters at the two airlocks and the upper airlock.'",
+ "faction_patch": {
+  "species_name": "Remnant",
+  "entry_poi": "Upper airlock (Remnant entry)",
+  "hunt_staging": "The Station: Reactor",
+  "patrol": [
+   "The Upper Galleries",
+   "The Warrens",
+   "The Station: Mess & Quarters",
+   "The Station: Specimen Labs",
+   "The Station: Reactor"
+  ],
+  "units": {
+   "Sentinel": {
+    "role": "sentinel",
+    "range": 20,
+    "damage": 20,
+    "interval": 0.25,
+    "speed": 1.0,
+    "loot": 300,
+    "drops": "gatling",
+    "bloodless": true
+   },
+   "Researcher": {
+    "role": "researcher",
+    "range": 12,
+    "damage": 15,
+    "interval": 8,
+    "loot": 240
+   },
+   "Void Cultist": {
+    "role": "voidcult",
+    "range": 1.8,
+    "damage": 30,
+    "interval": 1.2,
+    "loot": 220
+   },
+   "Station Chief (Hunts)": {
+    "role": "chief",
+    "range": 25,
+    "damage": 200,
+    "interval": 4,
+    "speed": 1.2,
+    "loot": 800,
+    "hunt_only": true
+   }
+  },
+  "composition": [
+   "Sentinel",
+   "Researcher",
+   "Void Cultist",
+   "Sentinel",
+   "Researcher"
+  ],
+  "barks": {
+   "spot": [
+    "Perimeter. Perimeter.",
+    "Specimens in the hall. Tag them."
+   ],
+   "beacon": [
+    "Beacon set. Let the deep collect them."
+   ],
+   "cult": [
+    "The edge is a door.",
+    "Walk with me to the light below."
+   ],
+   "losing": [
+    "Fall back to the reactor. The Chief has it."
+   ],
+   "chief": [
+    "Nobody leaves the station. Nobody ever has.",
+    "Floodlights. Harpoons. Bring me the samples."
+   ],
+   "relict": [
+    "No... the egg. It came back for the egg."
+   ]
+  }
+ },
+ "_faction_source": "Faction sheet: Sentinels hold doorways and never advance (a 1 s spin-up, 3 s bursts of 20 in a 90-degree arc; oil, not blood); Researchers gas the divers' corridor (15/s in 4 m for 6 s), torch the Sentinels back (20/s) and set lure beacons; Void Cultists walk for the nearest overlook, chant divers toward the edge, and at the edge summon hatchetfish and a colossal squid's arm for 20 s; in a Hunt the Station Chief's mech (size 5, cannons 200 per 4 s, a claw) holds the mech bay and switches Beacon 4 on, and the Relict attacks it on sight.",
+ "species_patch": {
+  "Oarfish": {
+   "tags_add": "untouchable"
+  },
+  "The Sand Worm": {
+   "tags_add": "untouchable"
+  }
+ },
+ "breeders": {
+  "Lab Salamander": {
+   "zone": "The Station: Mess & Quarters",
+   "every_s": 90,
+   "cap": 12
+  },
+  "Coelacanth": {
+   "zone": "The Station: Specimen Labs",
+   "every_s": 120,
+   "cap": 12
+  },
+  "_source": "'salamanders breed +1 per 90 s per pair in the bunks and coelacanths +1 per 120 s per pair in the wet lab (cap 12 each); only the caiman eats them.'"
+ },
+ "beacons": {
+  "radius_m": 40,
+  "_source": "'Researchers left lure beacons; the Remnant switches them on to pull beasts onto the players. Beacons can be destroyed (loud) or re-aimed.'"
+ },
+ "leviathan": {
+  "lure_hp": 500,
+  "gills_s": 5,
+  "swallow_s": 5,
+  "swallow_dmg": 200,
+  "reform_s": 360,
+  "ledge": "Overlook 5 (collapsing ledge)",
+  "_source": "Boss sheet: 'weak point: the gills behind the lure, exposed for 2 s after every Swallow and for 5 s when the lure is shot out (500 damage to the lure)'; 'hits on the body do 50%'; 'It reforms in the vault after 6 minutes at 50% HP.'"
+ },
+ "boss_key": {
+  "key": "Master",
+  "text": "In the Leviathan's gut: the station's master key (tank 7)."
+ },
+ "wonder": "abyssallure",
+ "traps": [
+  {
+   "match": "Beacon",
+   "kind": "beacon",
+   "prompt": "E: turn the lure beacon toward the abyss"
+  },
+  {
+   "match": "Beacon control",
+   "kind": "beacons",
+   "prompt": "E: the beacon controls: every beacon off (1000)"
+  },
+  {
+   "match": "Pressure door control",
+   "kind": "pressure",
+   "prompt": "E: slam the pressure door (1000: crushes the corridor)"
+  },
+  {
+   "match": "Reactor vent",
+   "kind": "vent",
+   "prompt": "E: open the reactor vent (1000: a scalding jet)"
+  },
+  {
+   "match": "Overlook 5",
+   "kind": "ledge",
+   "prompt": "E: drop the collapsing ledge (1000: everything on it falls into the void)"
+  }
+ ],
+ "_trap_source": "'Traps: a pressure door (crushes a corridor), the reactor vent (a scalding jet), the vault's collapsing ledge over the abyss'; 'the reactor vent and the pressure door kill them [the Sentinels]'; 'the reactor vent scalds it [the Leviathan] for 10%'.",
+ "poi_add": [
+  {
+   "name": "Beacon 4 (the reactor hall)",
+   "type": "Trap",
+   "zone": "The Station: Reactor",
+   "x": 30,
+   "y": -262
+  },
+  {
+   "name": "Pressure door control",
+   "type": "Trap",
+   "zone": "The Station: Specimen Labs",
+   "x": 0,
+   "y": -214
+  },
+  {
+   "name": "Terminal 1 (mess)",
+   "type": "QuestStep",
+   "zone": "The Station: Mess & Quarters",
+   "x": 70,
+   "y": -170,
+   "step": 1
+  },
+  {
+   "name": "Terminal 2 (bunks)",
+   "type": "QuestStep",
+   "zone": "The Station: Mess & Quarters",
+   "x": 115,
+   "y": -185,
+   "step": 2
+  },
+  {
+   "name": "Terminal 3 (dry lab)",
+   "type": "QuestStep",
+   "zone": "The Station: Specimen Labs",
+   "x": -20,
+   "y": -170,
+   "step": 3
+  },
+  {
+   "name": "Terminal 4 (holding pens)",
+   "type": "QuestStep",
+   "zone": "The Station: Specimen Labs",
+   "x": -60,
+   "y": -175,
+   "step": 4
+  },
+  {
+   "name": "Terminal 5 (mech bay)",
+   "type": "QuestStep",
+   "zone": "The Station: Reactor",
+   "x": 30,
+   "y": -295,
+   "step": 5
+  },
+  {
+   "name": "The ledge's cradle (Overlook 5)",
+   "type": "QuestStep",
+   "zone": "The Lowest Vault",
+   "x": -150,
+   "y": -375,
+   "step": 7
+  },
+  {
+   "name": "Beacon 1 (re-aim)",
+   "type": "QuestStep",
+   "zone": "The Upper Galleries",
+   "x": 96,
+   "y": -34,
+   "step": 11
+  },
+  {
+   "name": "Beacon 2 (re-aim)",
+   "type": "QuestStep",
+   "zone": "The Warrens",
+   "x": -44,
+   "y": -106,
+   "step": 12
+  },
+  {
+   "name": "Beacon 3 (re-aim)",
+   "type": "QuestStep",
+   "zone": "The Lowest Vault",
+   "x": -126,
+   "y": -356,
+   "step": 13
+  }
+ ],
+ "poi_patch": {
+  "Tank 7 (Relict egg)": {
+   "type": "QuestStep",
+   "step": 6
+  },
+  "Terminals 1-2": {
+   "type": "Feature"
+  },
+  "Terminals 3-4": {
+   "type": "Feature"
+  },
+  "Terminal 5": {
+   "type": "Feature"
+  }
+ },
+ "quests": [
+  {
+   "name": "The final log",
+   "first": 1,
+   "last": 8,
+   "reward": "void",
+   "steps": {
+    "1": {
+     "kind": "read",
+     "prompt": "E: read the mess terminal",
+     "done": "Log 1: 'The pens hold. The pale ones breed faster than we cull.' Something answers the terminal's light."
+    },
+    "2": {
+     "kind": "read",
+     "prompt": "E: read the bunk terminal",
+     "done": "Log 2: 'We sleep in shifts now. The Chief says the Relict can't climb.'"
+    },
+    "3": {
+     "kind": "read",
+     "prompt": "E: read the dry-lab terminal",
+     "done": "Log 3: 'Tank 7 is warm. We've never seen an egg this large.'"
+    },
+    "4": {
+     "kind": "read",
+     "prompt": "E: read the holding-pen terminal",
+     "done": "Log 4: 'It came up the vault wall last night. It knows where the egg is.'"
+    },
+    "5": {
+     "kind": "read",
+     "prompt": "E: read the mech-bay terminal",
+     "done": "Log 5: 'The master key is where the Chief threw it: into the light in the vault.'"
+    },
+    "6": {
+     "kind": "egg",
+     "key": "Master",
+     "prompt": "E: open tank 7 with the master key",
+     "done": "The Relict egg: it's warm, and something below wants it back"
+    },
+    "7": {
+     "kind": "place_egg",
+     "prompt": "E: set the egg in the ledge's cradle",
+     "done": "The egg sits on the ledge. The Relict is coming for it: drop the ledge when it climbs on"
+    },
+    "8": {
+     "kind": "ledge",
+     "prompt": "Drop the collapsing ledge with the Relict on it",
+     "done": "The Relict falls into the void with its egg. It won't be back this match."
+    }
+   },
+   "_source": "Hidden quests, Approaching the Void: the final log (terminals in order, each spawning a Remnant squad on read; tank 7 with the master key; carry the egg to Overlook 5; drop the ledge under the Relict; reward the Abyssal Lure (Forged) and 5,000 split)."
+  },
+  {
+   "name": "The Abyssal Lure",
+   "first": 11,
+   "last": 14,
+   "reward": "wonder",
+   "steps": {
+    "11": {
+     "kind": "touch",
+     "prompt": "E: re-aim the beacon toward the abyss",
+     "done": "Beacon 1 points into the void"
+    },
+    "12": {
+     "kind": "touch",
+     "prompt": "E: re-aim the beacon toward the abyss",
+     "done": "Beacon 2 points into the void"
+    },
+    "13": {
+     "kind": "touch",
+     "prompt": "E: re-aim the beacon toward the abyss",
+     "done": "Beacon 3 points into the void: the deep is listening"
+    },
+    "14": {
+     "kind": "vent",
+     "prompt": "Lure the Relict to the reactor vent and scald it",
+     "done": "The scald bares the Relict's belly: the Abyssal Lure is yours"
+    }
+   },
+   "_source": "Wonder weapon quests: 'Assemble the station's final log from five terminals, re-aim three lure beacons toward the abyss, and lure the Relict to the reactor vent, where the scald exposes its belly for one bolt from the Cannon Harpoon.' The terminals are shared with the final log; the vent's scald finishes it."
+  }
+ ],
+ "palette": {
+  "wall": [
+   58,
+   60,
+   66
+  ],
+  "floor": [
+   30,
+   30,
+   34
+  ],
+  "ceil": [
+   20,
+   24,
+   30
+  ],
+  "fog": [
+   4,
+   8,
+   14
+  ],
+  "fog_density": 0.045,
+  "fill": [
+   60,
+   80,
+   100
+  ],
+  "surface_y": 400,
+  "Module": {
+   "wall": [
+    110,
+    112,
+    104
+   ],
+   "floor": [
+    70,
+    74,
+    72
+   ],
+   "ceil": [
+    90,
+    92,
+    88
+   ]
+  }
+ },
+ "dressing": {
+  "The Rim": {
+   "stakes": true,
+   "seagrass": 40
+  },
+  "The Descent": {
+   "ledges": 6
+  },
+  "The Upper Galleries": {
+   "columns": 10,
+   "staghorn": 24,
+   "crystals": 6
+  },
+  "The Warrens": {
+   "coral_walls": 14,
+   "silt": true
+  },
+  "The Station: Mess & Quarters": {
+   "machine": true,
+   "tables": 4
+  },
+  "The Station: Specimen Labs": {
+   "machine": true,
+   "tanks": 10
+  },
+  "The Station: Reactor": {
+   "machine": true
+  },
+  "The Lowest Vault": {
+   "staghorn": 40,
+   "columns": 8
+  }
+ },
+ "_dressing_source": "Glass sponge reefs and bamboo coral in the galleries (columns, staghorn, crystals), a maze of lava tubes in the warrens (coral walls as tube walls), the station's modules (machines, tanks), black coral in the vault, the bone stakes on the rim.",
+ "life_near": {
+  "The Rim": {
+   "poi": "Surface hatch (start)",
+   "radius_m": 90,
+   "_note": "The rim is empty and enormous; what lives on it keeps near the hatch's lights (our call, so the first tides have prey within reach)."
+  }
+ },
+ "spawn_add": [
+  {
+   "zone": "The Rim",
+   "species": "Sea Pig",
+   "count": 6,
+   "respawn_s": 60
+  },
+  {
+   "zone": "The Rim",
+   "species": "Tripod Fish",
+   "count": 4,
+   "respawn_s": 90
+  },
+  {
+   "zone": "The Rim",
+   "species": "Deep Skate",
+   "count": 1,
+   "respawn_s": 180
+  }
+ ],
+ "_spawn_note": "A little more life by the hatch than the workbook's rim rows, so the first tides can be met before the hatch (750) is bought (our call)."
+}

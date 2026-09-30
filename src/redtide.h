@@ -63,6 +63,7 @@ struct Zone {
     int alarmRegion = 0;
     bool diverOk = true;               // false: open water the divers only see and shoot into (a confined map's outside)
     bool air = false;                  // an air chamber: divers walk (the Cave's dry chambers)
+    Vector3 life{}; float lifeR = 0;   // where a vast zone's life keeps (the Void's rim: near the hatch); 0 = anywhere
     bool radial = false;               // Atlantis districts: an annulus sector (plan is its bounding box)
     float rMin = 0, rMax = 0, a0 = 0, a1 = 0; // metres and degrees
     Vector3 Center() const;
@@ -83,7 +84,7 @@ struct Poi { std::string name, type, zoneName; int zone = -1; Vector3 pos{}; int
 struct AlarmRegion { std::string name; float mult = 1; std::vector<int> zones; std::string entry; };
 struct FactionUnit {
     std::string unit, weapon, role, tell, drops;
-    float hp = 100, damage = 20, interval = 2, range = 2, speed = 2; int loot = 200; bool huntOnly = false;
+    float hp = 100, damage = 20, interval = 2, range = 2, speed = 2; int loot = 200; bool huntOnly = false, bloodless = false;
 };
 struct Faction {
     std::string name, speciesName, entryPoi, huntStaging;
@@ -162,6 +163,7 @@ struct Agent {
     int lostPrey = -1; float lostPreyT = 0; // an escaped prey it won't chase again for a while (lost it in the ink)
     bool downed = false;               // divers: downed (a blood source; beasts stop hunting it)
     bool weakHit = false;              // the last hit that landed was on the weak point (for the bounty)
+    bool oil = false;                  // a clockwork (the Void's Sentinels): it leaks oil, not blood
     uint32_t rng = 1;
     std::vector<int> path;             // zone path when crossing links
     int pathStep = 0;
@@ -250,7 +252,7 @@ struct Ecosystem {
     void Event(const std::string& s);
     std::vector<int> ZonePath(int from, int to, bool enemy = false, int size = 0) const;
     float flowSign = 1;                // the Reef's tide: -1 while the flood runs the set backward
-    std::vector<float> narrowInit; float erosionT = 0;
+    std::vector<float> narrowInit; float erosionT = 0, soundAcc = 0;
     std::vector<int> zoneMaxSize;      // per zone: the largest size that fits its corridors (99: anything), relaxed as they erode
     // The divers are agents too (species index = diverSpecies); the game layer moves them.
     int diverSpecies = -1;

@@ -511,6 +511,24 @@
    "forged": "The Sovereign's Staff",
    "forged_twist": "The wave drowns Lost Ones it throws (150 more) and carries blood with it",
    "_source": "Wonder weapons: 'Bends the current: a wave that carries beasts and enemies away, or pulls them into a trap; Forged: the Sovereign's Staff, the wave drowns enemies in air pockets and carries blood with it.' Numbers ours: a 16 m, 40-degree wave that throws what it hits 8 m."
+  },
+  {
+   "id": "abyssallure",
+   "name": "The Abyssal Lure",
+   "class": "launcher",
+   "damage": 150,
+   "pellets": 1,
+   "rpm": 30,
+   "mag": 3,
+   "reserve": 12,
+   "noise": 3,
+   "reload": 3.0,
+   "price": 0,
+   "source": "wonder_void",
+   "lure": true,
+   "forged": "The Deep Call",
+   "forged_twist": "The burst is twice as strong and calls every apex in 60 m to it",
+   "_source": "Wonder weapons: 'A lantern that draws every beast in 60 m to a point for 8 s, then bursts; Forged: the Deep Call, the burst also calls one apex beast to the point on your side for 30 s.' Numbers ours: a 150 burst in 6 m."
   }
  ],
  "melee": [
