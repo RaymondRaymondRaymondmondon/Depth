@@ -336,6 +336,7 @@ amespace {} reopened before DrawRichEnemy). Shots: `foes_new_cave|island|weeds|a
 - Stage 17 is below.
 
 ## The Study, stage 17 (course packs) (Master Reference pages 42-56)
+- **Carrying the Study on elsewhere (e.g. from GitHub): read `docs/STUDY_HANDOFF.md`** (state, where the course materials are and aren't, the unit-building procedure and its lessons, stages 18-19).
 - **Procedure:** `study/INGEST.md` (every step, gate, quarantine rule and the session procedure). Log per build in `study/CHANGELOG.md`. Packs live in `study/courses/<ID>/` (gitignored with everything under it: the player's materials never leave the machine).
 - **Code (no raylib):** `json.*` (the shared reader, also used by Red Tide and the Trawl: accessors `Str0`/`I`/`F`/`Bool0`/`Num0`, enum `Json::Null..Obj`; the course packs add `ParseJson(text, out, err)`, `LoadJsonFile(path, out, err)` and `WriteJson`), `expr.*` (the answer parser: implicit multiplication, `sin^2 x`, `ln|x|`, unicode π/√/²; `Equivalent`/`EquivalentUpToConstant` at random points; `Derivative`, `Integrate` incl. infinite bounds), `course.*` (`LoadCourses` for the Courses drawer; the tools below).
 - **Tools:**
