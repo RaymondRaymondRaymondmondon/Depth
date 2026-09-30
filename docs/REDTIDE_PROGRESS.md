@@ -471,3 +471,31 @@ Sentinels do the downing. Balance stays with Stage 10.
   call, pain, death and feeding near and at 50 m (844 cues; sharks have no call). It also stopped the Pirate pass's
   current noise leaking into the later checks: that floor had been hiding that the music- and ambience-bus cues are
   silent without a scene (the cue check now opens those buses). `--redtide-profile-test` checks the quips.
+
+## After stage 9: the ink bomb, dropped keys, and zones built from many boxes
+
+- **The ink bomb** (the design doc's tactical item; the doc doesn't say where it comes from, so: every map's
+  workbench presses them, 750 each, two carried, a Resupply adds one). Q picks the tactical, G throws it; it bursts on
+  contact or a 1.2 s fuse into a 5 m cloud for 8 s (`Ecosystem::inks`, `InInk`): beasts can't find prey through it
+  either way (`FindPrey`), a hunter whose prey is in it loses it (`lostPrey`), `Smell` reads nothing inside it,
+  `NearestDiver` (enemies, bosses) skips divers in it, and it puts out the Cave's Drowned lanterns (the doc's "an ink
+  cap or an ink bomb"). Ink caps now make the same cloud.
+- **Keys** have a carrier (`keyHolder`: the killer, or the nearest diver standing); "a diver holding a key who dies
+  drops it where they fell" (`DropKeys` on bleed-out; the void washes it back to the start pocket); swim over it to
+  carry it on. Drawn as a brass key with a label.
+- Tokens: every map already pays out at match end (`S.mode` is 1 for all five).
+- **Zones of parts** (`Zone::parts`, extra.json `zone_parts`): a zone may be many boxes. A `ring` (centre, radii,
+  optional angles, cell) is rasterised on a grid, each row's cells merged into runs, never over another zone's box
+  on the same level; every seam where two runs touch gets a hidden connector box straddling it (inside both, so it
+  never leaks out of the zone). `Contains`, `Clamp`, `Center`, `RandomIn`, `Smell`, link mouths, portholes, the level's
+  volumes (`vols[zone]` stays the first box; the rest go after the windows, `Volume::hidden` for connectors) and the
+  dressing (crenels on outward faces) all read the parts; beasts and bots steer seam by seam along the part graph
+  (`Zone::Waypoint`), so nothing cuts across the city inside the ring. The renderer draws no faces for connectors or
+  where the zone's next box carries on. `Level::BuildGrid` indexes volumes and solid props on a flat grid.
+- **Atlantis's ring wall**: "The Wall & Ramparts" is now the design's ring (r 235-245 m round the hill, at the box
+  city's 0.4 scale r 92-100 m, 90 boxes + 87 seams), with the Harbor Gate district standing in its gap; "Beyond the
+  Wall" rings its north and west (r 100-116 m, 117 boxes) with 84 crenellations to shoot over. The wall fort's passage
+  from the Barracks is now a long postern, as in the radial plan. `--redtide-map-test atlantis` checks the ring (a
+  diver walks 309 m of rampart from the west round the north to the east; a beast follows the ring without leaving it).
+  The aqueduct's blood-timing check now sets the beasts aside so a kill near the gate can't beat the water there.
+  Atlantis sims run about 5% slower (the scent grid covers the larger ring).

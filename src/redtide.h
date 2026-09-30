@@ -66,9 +66,20 @@ struct Zone {
     Vector3 life{}; float lifeR = 0;   // where a vast zone's life keeps (the Void's rim: near the hatch); 0 = anywhere
     bool radial = false;               // Atlantis districts: an annulus sector (plan is its bounding box)
     float rMin = 0, rMax = 0, a0 = 0, a1 = 0; // metres and degrees
+    // A zone built from several boxes (extra.json "zone_parts": the Atlantis ring wall). Boxes that only touch would
+    // be walls, so each seam between two touching boxes gets a hidden connector box straddling it (inside both, so it
+    // never reaches outside the zone); the renderer draws no faces for connectors or between the zone's own boxes.
+    // plan is their bounding box.
+    struct Part { Rectangle r{}; bool hidden = false; };
+    std::vector<Part> parts;
+    std::vector<std::vector<int>> partAdj;   // parts that overlap (the steering graph)
     Vector3 Center() const;
     bool Contains(Vector3 p, float pad = 0) const;
     Vector3 Clamp(Vector3 p, float pad = 0.5f) const;
+    // the next point to steer for inside this zone on the way from `from` to `to` (`to` itself unless the zone is
+    // made of parts and the straight line would leave it: then the seam into the next part along the part graph)
+    Vector3 Waypoint(Vector3 from, Vector3 to) const;
+    void BuildPartGraph();
 };
 struct Link {
     int from = 0, to = 0; int cost = 0; std::string passage; bool oneWay = false; float flow = 0; Vector3 a{}, b{};
@@ -79,7 +90,7 @@ struct Link {
     bool slip = false; float slipSpeed = 8;  // a slipstream: a one-way current that carries divers and beasts (not a swimmable passage)
 };
 // A porthole: a dart-only opening from a room the divers use into open water they don't (extra.json "windows").
-struct Window { Vector3 lo{}, hi{}; int zone = -1, outside = -1; int axis = 2; };
+struct Window { Vector3 lo{}, hi{}; int zone = -1, outside = -1; int axis = 2; float g0 = 0, g1 = 0; bool outHigh = false; };   // g0..g1: the wall it pierces; outHigh: the water is on the high side
 struct Poi { std::string name, type, zoneName; int zone = -1; Vector3 pos{}; int step = 0; };
 struct AlarmRegion { std::string name; float mult = 1; std::vector<int> zones; std::string entry; };
 struct FactionUnit {
@@ -277,6 +288,8 @@ struct Ecosystem {
     float Aggression(const Agent& a) const;
     void SteerTo(Agent& a, Vector3 goal, float speed, float dt);
     void Schooling(Agent& a, int idx, float dt);
+  public:
+    void SteerToPublic(Agent& a, Vector3 goal, float speed, float dt) { SteerTo(a, goal, speed, dt); }   // (the tests)
 };
 
 // Body sizes for hits (length along the spine, capsule radius), from the art workbook's rows: the numbers the

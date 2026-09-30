@@ -38,6 +38,18 @@ bool Species::Has(const char* tag) const {
 }
 
 Vector3 Zone::Center() const {
+    if (!parts.empty()) {
+        // the visible part nearest the bounding box's middle (a ring's middle is outside it)
+        Vector3 m{plan.x + plan.width / 2, (y0 + y1) / 2, plan.y + plan.height / 2};
+        float bd = 1e18f; Vector3 best = m;
+        for (const auto& p : parts) {
+            if (p.hidden) continue;
+            Vector3 c{p.r.x + p.r.width / 2, m.y, p.r.y + p.r.height / 2};
+            float d = (c.x - m.x) * (c.x - m.x) + (c.z - m.z) * (c.z - m.z);
+            if (d < bd) { bd = d; best = c; }
+        }
+        return best;
+    }
     if (radial) {
         float a = (a0 + a1) * 0.5f * DEG2RAD, r = (rMin + rMax) * 0.5f;
         return {cosf(a) * r, (y0 + y1) / 2, sinf(a) * r};
@@ -46,6 +58,10 @@ Vector3 Zone::Center() const {
 }
 bool Zone::Contains(Vector3 p, float pad) const {
     if (p.y < y0 - pad || p.y > y1 + pad) return false;
+    if (!parts.empty()) {
+        for (const auto& q : parts) if (p.x >= q.r.x - pad && p.x <= q.r.x + q.r.width + pad && p.z >= q.r.y - pad && p.z <= q.r.y + q.r.height + pad) return true;
+        return false;
+    }
     if (radial) {
         float r = sqrtf(p.x * p.x + p.z * p.z);
         if (r < rMin - pad || r > rMax + pad) return false;
@@ -61,6 +77,17 @@ bool Zone::Contains(Vector3 p, float pad) const {
 Vector3 Zone::Clamp(Vector3 p, float pad) const {
     Vector3 q = p;
     q.y = std::clamp(q.y, y0 + pad, y1 - pad);
+    if (!parts.empty()) {
+        // the nearest point in any of the parts
+        float bd = 1e18f; Vector3 best = q;
+        for (const auto& pt : parts) {
+            float px = std::min(pad, pt.r.width / 2), pz = std::min(pad, pt.r.height / 2);
+            Vector3 c{std::clamp(p.x, pt.r.x + px, pt.r.x + pt.r.width - px), q.y, std::clamp(p.z, pt.r.y + pz, pt.r.y + pt.r.height - pz)};
+            float d = (c.x - p.x) * (c.x - p.x) + (c.z - p.z) * (c.z - p.z);
+            if (d < bd) { bd = d; best = c; }
+        }
+        return best;
+    }
     if (radial) {
         float r = std::clamp(sqrtf(p.x * p.x + p.z * p.z), rMin + pad, rMax - pad);
         float a = atan2f(p.z, p.x) * RAD2DEG;
@@ -78,6 +105,35 @@ Vector3 Zone::Clamp(Vector3 p, float pad) const {
     q.x = std::clamp(q.x, plan.x + pad, plan.x + plan.width - pad);
     q.z = std::clamp(q.z, plan.y + pad, plan.y + plan.height - pad);
     return q;
+}
+static bool PartsOverlap(const Rectangle& a, const Rectangle& b) {
+    return a.x < b.x + b.width - 0.01f && b.x < a.x + a.width - 0.01f && a.y < b.y + b.height - 0.01f && b.y < a.y + a.height - 0.01f;
+}
+void Zone::BuildPartGraph() {
+    partAdj.assign(parts.size(), {});
+    for (int i = 0; i < (int)parts.size(); i++) for (int j = i + 1; j < (int)parts.size(); j++)
+        if (PartsOverlap(parts[i].r, parts[j].r)) { partAdj[i].push_back(j); partAdj[j].push_back(i); }
+}
+Vector3 Zone::Waypoint(Vector3 from, Vector3 to) const {
+    if (parts.empty() || partAdj.size() != parts.size()) return to;
+    auto in = [&](const Part& p, Vector3 v) { return v.x >= p.r.x && v.x <= p.r.x + p.r.width && v.z >= p.r.y && v.z <= p.r.y + p.r.height; };
+    // breadth first from every part holding `from` to any part holding `to`
+    std::vector<int> prev(parts.size(), -2), q;
+    for (int i = 0; i < (int)parts.size(); i++) if (in(parts[i], from)) { prev[i] = -1; q.push_back(i); }
+    if (q.empty()) return to;
+    int goal = -1;
+    for (size_t h = 0; h < q.size() && goal < 0; h++) {
+        int c = q[h];
+        if (in(parts[c], to)) { goal = c; break; }
+        for (int n : partAdj[c]) if (prev[n] == -2) { prev[n] = c; q.push_back(n); }
+    }
+    if (goal < 0 || prev[goal] == -1) return to;             // unreachable, or already in the goal's part
+    int next = goal;
+    while (prev[prev[next]] != -1) next = prev[next];        // the second part on the path
+    const Rectangle& a = parts[prev[next]].r; const Rectangle& b = parts[next].r;
+    // the middle of the overlap: the seam into the next part
+    float x0 = std::max(a.x, b.x), x1 = std::min(a.x + a.width, b.x + b.width), z0 = std::max(a.y, b.y), z1 = std::min(a.y + a.height, b.y + b.height);
+    return {(x0 + x1) / 2, std::clamp(to.y, y0 + 0.5f, y1 - 0.5f), (z0 + z1) / 2};
 }
 
 int MapData::SpeciesIndex(const std::string& name) const {
@@ -258,6 +314,67 @@ static void LoadExtra(MapData& m, const Json& ex) {
         zn.y0 = za["y"][0].F(0); zn.y1 = za["y"][1].F(8);
         zn.diverOk = za["divers"].Bool0(true);
         m.zones.push_back(zn);
+    }
+    // zones built from many boxes (the Atlantis ring wall and the sea beyond it): a ring rasterised on a grid, each
+    // row's cells merged into runs, never over another zone's box, and a hidden connector over every seam between two
+    // runs that touch (so the diver and the beasts pass where the runs meet)
+    for (const auto& kv : ex["zone_parts"].o) for (auto& z : m.zones) if (z.name == kv.first) z.plan = {0, 0, 0, 0};   // (their old boxes don't block)
+    for (const auto& kv : ex["zone_parts"].o) {
+        int zi = -1;
+        for (int i = 0; i < (int)m.zones.size(); i++) if (m.zones[i].name == kv.first) zi = i;
+        if (zi < 0) continue;
+        Zone& z = m.zones[zi];
+        const Json& r = kv.second["ring"];
+        std::vector<Rectangle> runs;
+        if (r.IsArr()) {
+            float cx = r[0].F(), cz = r[1].F(), r0 = r[2].F(), r1 = r[3].F(), c = kv.second["cell"].F(4);
+            float aLo = kv.second["angles"][0].F(0), aHi = kv.second["angles"][1].F(360);
+            auto blocked = [&](float x0, float z0, float x1, float z1) {
+                for (int o = 0; o < (int)m.zones.size(); o++) {
+                    if (o == zi) continue;
+                    const Zone& oz = m.zones[o];
+                    if (oz.y1 <= z.y0 || oz.y0 >= z.y1) continue;   // (another level: the cisterns under the city)
+                    auto hits = [&](const Rectangle& b) { return x0 < b.x + b.width - 0.01f && b.x < x1 - 0.01f && z0 < b.y + b.height - 0.01f && b.y < z1 - 0.01f; };
+                    if (oz.parts.empty() ? hits(oz.plan) : std::any_of(oz.parts.begin(), oz.parts.end(), [&](const Zone::Part& p) { return hits(p.r); })) return true;
+                }
+                return false;
+            };
+            int n = (int)ceilf(r1 / c) + 1;
+            for (int j = -n; j < n; j++) {
+                float z0 = cz + j * c, zc = z0 + c / 2;
+                float runX = 0; bool open = false;
+                for (int i = -n; i <= n; i++) {
+                    float x0 = cx + i * c, xc = x0 + c / 2;
+                    float rr = sqrtf((xc - cx) * (xc - cx) + (zc - cz) * (zc - cz));
+                    float ang = atan2f(zc - cz, xc - cx) * RAD2DEG; if (ang < 0) ang += 360;
+                    bool on = i < n && rr >= r0 && rr < r1 && ((ang >= aLo && ang <= aHi) || (ang + 360 >= aLo && ang + 360 <= aHi)) && !blocked(x0, z0, x0 + c, z0 + c);
+                    if (on && !open) { runX = x0; open = true; }
+                    if (!on && open) { runs.push_back({runX, z0, x0 - runX, c}); open = false; }
+                }
+            }
+        }
+        for (const Json& b : kv.second["boxes"].a) runs.push_back({b[0].F(), b[1].F(), b[2].F(), b[3].F()});
+        if (runs.empty()) continue;
+        z.radial = false;
+        z.parts.clear();
+        for (const auto& rr : runs) z.parts.push_back(Zone::Part{rr, false});
+        // connectors over seams: two runs touching along x or z with enough shared length
+        float pad = kv.second["seam_m"].F(1.5f);
+        for (size_t a = 0; a < runs.size(); a++) for (size_t b = 0; b < runs.size(); b++) {
+            const Rectangle& A = runs[a]; const Rectangle& B = runs[b];
+            if (fabsf(A.y + A.height - B.y) < 0.01f) {   // B just north of A
+                float x0 = std::max(A.x, B.x), x1 = std::min(A.x + A.width, B.x + B.width);
+                if (x1 - x0 >= 2) z.parts.push_back(Zone::Part{{x0, B.y - pad, x1 - x0, pad * 2}, true});
+            }
+            if (fabsf(A.x + A.width - B.x) < 0.01f) {    // B just east of A (two zones' runs never share a row, but boxes may)
+                float z0 = std::max(A.y, B.y), z1 = std::min(A.y + A.height, B.y + B.height);
+                if (z1 - z0 >= 2) z.parts.push_back(Zone::Part{{B.x - pad, z0, pad * 2, z1 - z0}, true});
+            }
+        }
+        float x0 = 1e9f, z0 = 1e9f, x1 = -1e9f, z1 = -1e9f;
+        for (const auto& p : z.parts) { x0 = std::min(x0, p.r.x); z0 = std::min(z0, p.r.y); x1 = std::max(x1, p.r.x + p.r.width); z1 = std::max(z1, p.r.y + p.r.height); }
+        z.plan = {x0, z0, x1 - x0, z1 - z0};
+        z.BuildPartGraph();
     }
     for (const Json& la : ex["link_add"].a) {
         Link ln; ln.from = m.ZoneIndex(la["from"].Str0()); ln.to = m.ZoneIndex(la["to"].Str0());
@@ -481,6 +598,11 @@ static void LinkMouths(const MapData& m, Link& l) {
     const Zone& B = m.zones[l.to];
     Vector3 ca = A.Center(), cb = B.Center();
     Vector3 a = A.Clamp(cb, 0.8f), b = B.Clamp(ca, 0.8f);
+    if (!A.parts.empty() || !B.parts.empty()) {
+        // (a zone of parts isn't convex: start each side from the other's real nearest point)
+        if (!A.parts.empty()) { a = A.Clamp(cb, 0.8f); b = B.Clamp(a, 0.8f); }
+        else { b = B.Clamp(ca, 0.8f); a = A.Clamp(b, 0.8f); }
+    }
     // refine twice: each mouth is the closest point in its zone to the other mouth
     for (int k = 0; k < 3; k++) { a = A.Clamp(b, 0.8f); b = B.Clamp(a, 0.8f); }
     float y = std::max(A.y0, B.y0) + 1.0f;
@@ -634,20 +756,25 @@ const MapData& Map(const std::string& key) {
             if (!A.diverOk || B.diverOk || A.radial || B.radial) continue;
             float y0 = std::max(A.y0, B.y0) + 0.5f, y1 = std::min(A.y1, B.y1) - 0.5f;
             if (y1 - y0 < size) continue;
+            // every visible box of each (a zone of parts has many; a plain zone its plan)
+            std::vector<Rectangle> ra, rb;
+            if (A.parts.empty()) ra.push_back(A.plan); else for (const auto& p : A.parts) if (!p.hidden) ra.push_back(p.r);
+            if (B.parts.empty()) rb.push_back(B.plan); else for (const auto& p : B.parts) if (!p.hidden) rb.push_back(p.r);
+            for (const Rectangle& PA : ra) for (const Rectangle& PB : rb)
             for (int axis : {0, 2}) {
-                float aLo = axis == 0 ? A.plan.x : A.plan.y, aHi = aLo + (axis == 0 ? A.plan.width : A.plan.height);
-                float bLo = axis == 0 ? B.plan.x : B.plan.y, bHi = bLo + (axis == 0 ? B.plan.width : B.plan.height);
+                float aLo = axis == 0 ? PA.x : PA.y, aHi = aLo + (axis == 0 ? PA.width : PA.height);
+                float bLo = axis == 0 ? PB.x : PB.y, bHi = bLo + (axis == 0 ? PB.width : PB.height);
                 float g0, g1;
                 if (aHi <= bLo && bLo - aHi <= gapMax) { g0 = aHi; g1 = bLo; }
                 else if (bHi <= aLo && aLo - bHi <= gapMax) { g0 = bHi; g1 = aLo; }
                 else continue;
                 // the other horizontal axis must overlap
-                float cLo = std::max(axis == 0 ? A.plan.y : A.plan.x, axis == 0 ? B.plan.y : B.plan.x) + 1;
-                float cHi = std::min(axis == 0 ? A.plan.y + A.plan.height : A.plan.x + A.plan.width, axis == 0 ? B.plan.y + B.plan.height : B.plan.x + B.plan.width) - 1;
+                float cLo = std::max(axis == 0 ? PA.y : PA.x, axis == 0 ? PB.y : PB.x) + 1;
+                float cHi = std::min(axis == 0 ? PA.y + PA.height : PA.x + PA.width, axis == 0 ? PB.y + PB.height : PB.x + PB.width) - 1;
                 if (cHi - cLo < size) continue;
                 float yc = (y0 + y1) / 2;
-                for (float c = cLo + spacing * 0.5f; c <= cHi - size * 0.5f; c += spacing) {
-                    Window w; w.zone = i; w.outside = j; w.axis = axis;
+                for (float c = std::min(cLo + spacing * 0.5f, (cLo + cHi) / 2); c <= cHi - size * 0.5f + 0.01f; c += spacing) {   // (a short face still gets one, in its middle)
+                    Window w; w.zone = i; w.outside = j; w.axis = axis; w.g0 = g0; w.g1 = g1; w.outHigh = bLo >= aHi - 0.01f;
                     float h = size / 2;
                     if (axis == 0) { w.lo = {g0 - 0.6f, yc - h, c - h}; w.hi = {g1 + 0.6f, yc + h, c + h}; }
                     else { w.lo = {c - h, yc - h, g0 - 0.6f}; w.hi = {c + h, yc + h, g1 + 0.6f}; }

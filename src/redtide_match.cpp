@@ -140,8 +140,10 @@ void BuildLevel(const MapData& m, Level& L) {
     for (int i = 0; i < (int)m.zones.size(); i++) {
         const Zone& z = m.zones[i];
         Volume v;
-        v.lo = {z.plan.x, z.y0, z.plan.y};
-        v.hi = {z.plan.x + z.plan.width, z.y1, z.plan.y + z.plan.height};
+        Rectangle pr = z.plan;
+        for (const auto& p : z.parts) if (!p.hidden) { pr = p.r; break; }   // (a zone of parts: its first box here, the rest after the windows)
+        v.lo = {pr.x, z.y0, pr.y};
+        v.hi = {pr.x + pr.width, z.y1, pr.y + pr.height};
         v.zone = i;
         v.diverOk = z.diverOk;
         L.vols.push_back(v);
@@ -167,6 +169,17 @@ void BuildLevel(const MapData& m, Level& L) {
     for (int wi = 0; wi < (int)m.windows.size(); wi++) {
         Volume v; v.lo = m.windows[wi].lo; v.hi = m.windows[wi].hi; v.window = wi; v.diverOk = false;
         L.vols.push_back(v);
+    }
+    // the other boxes of the zones built from parts (vols[zone] stays each zone's first box; vols[zones + link] its link)
+    for (int i = 0; i < (int)m.zones.size(); i++) {
+        const Zone& z = m.zones[i];
+        bool first = true;
+        for (const auto& p : z.parts) {
+            if (!p.hidden && first) { first = false; continue; }
+            Volume v; v.lo = {p.r.x, z.y0, p.r.y}; v.hi = {p.r.x + p.r.width, z.y1, p.r.y + p.r.height};
+            v.zone = i; v.diverOk = z.diverOk; v.hidden = p.hidden;
+            L.vols.push_back(v);
+        }
     }
     int lockerSpot = 0;
     for (const Poi& p : m.pois) {
@@ -220,7 +233,16 @@ void BuildLevel(const MapData& m, Level& L) {
             }
             return true;
         };
-        auto spot = [&](float pad) { return Vector3{z.plan.x + pad + (z.plan.width - 2 * pad) * rnd(), 0, z.plan.y + pad + (z.plan.height - 2 * pad) * rnd()}; };
+        auto spot = [&](float pad) {
+            Rectangle b = z.plan;
+            if (!z.parts.empty()) {   // a zone of parts: one of its boxes, by area
+                float tot = 0; for (const auto& p : z.parts) if (!p.hidden) tot += p.r.width * p.r.height;
+                float u = rnd() * tot;
+                for (const auto& p : z.parts) if (!p.hidden) { b = p.r; u -= p.r.width * p.r.height; if (u <= 0) break; }
+                pad = std::min(pad, std::min(b.width, b.height) * 0.4f);
+            }
+            return Vector3{b.x + pad + (b.width - 2 * pad) * rnd(), 0, b.y + pad + (b.height - 2 * pad) * rnd()};
+        };
         float h = z.y1 - z.y0;
         auto add = [&](PropKind k, Vector3 pos, Vector3 half, bool solid) {
             Prop p; p.kind = k; p.pos = pos; p.half = half; p.zone = zi; p.solid = solid; p.seed = r;
@@ -293,7 +315,26 @@ void BuildLevel(const MapData& m, Level& L) {
                 Prop pr; pr.kind = PropKind::Stake; pr.pos = p; pr.half = {0.15f, 1.5f, 0.15f}; pr.zone = zi; pr.seed = r + k; L.props.push_back(pr);
             }
         }
-        if (d["crenels"].Bool0()) for (float zz = z.plan.y + 2; zz < z.plan.y + z.plan.height - 1; zz += 3) add(PropKind::Crenel, {z.plan.x + 0.5f, z.y0 + 1.0f, zz}, {0.5f, 1.0f, 0.7f}, false);
+        if (d["crenels"].Bool0() && z.parts.empty()) for (float zz = z.plan.y + 2; zz < z.plan.y + z.plan.height - 1; zz += 3) add(PropKind::Crenel, {z.plan.x + 0.5f, z.y0 + 1.0f, zz}, {0.5f, 1.0f, 0.7f}, false);
+        if (d["crenels"].Bool0() && !z.parts.empty()) {
+            // a ring of parts: crenels along every open face that looks outward (away from the ring's middle)
+            Vector3 mid{z.plan.x + z.plan.width / 2, 0, z.plan.y + z.plan.height / 2};
+            for (const auto& p : z.parts) {
+                if (p.hidden) continue;
+                for (int side = 0; side < 4; side++) {
+                    bool alongX = side < 2;   // faces at z = lo/hi run along x
+                    float at = side == 0 ? p.r.y : side == 1 ? p.r.y + p.r.height : side == 2 ? p.r.x : p.r.x + p.r.width;
+                    float nx = side == 2 ? -1.0f : side == 3 ? 1.0f : 0, nz = side == 0 ? -1.0f : side == 1 ? 1.0f : 0;
+                    float len = alongX ? p.r.width : p.r.height, s0 = alongX ? p.r.x : p.r.y;
+                    for (float u = s0 + 1.0f; u < s0 + len - 0.5f; u += 3) {
+                        Vector3 c = alongX ? Vector3{u, 0, at} : Vector3{at, 0, u};
+                        if ((c.x - mid.x) * nx + (c.z - mid.z) * nz <= 0) continue;   // an inner face
+                        if (z.Contains({c.x + nx * 0.3f, (z.y0 + z.y1) / 2, c.z + nz * 0.3f})) continue;   // the zone carries on past it
+                        add(PropKind::Crenel, {c.x - nx * 0.5f, z.y0 + 1.0f, c.z - nz * 0.5f}, alongX ? Vector3{0.7f, 1.0f, 0.5f} : Vector3{0.5f, 1.0f, 0.7f}, false);
+                    }
+                }
+            }
+        }
         if (d["mound"].F(0) > 0) { Vector3 c = z.Center(); float f = d["mound"].F(0); add(PropKind::Mound, {c.x, z.y0 + h * 0.3f, c.z}, {z.plan.width * f / 2, h * 0.3f, z.plan.height * f / 2}, true); }
     }
     // drain grates (Atlantis): drawn over their cistern mouths
@@ -316,9 +357,43 @@ void BuildLevel(const MapData& m, Level& L) {
     const Zone& z0 = m.zones[L.startZone];
     L.start = z0.Clamp({z0.Center().x, z0.y0 + 2, z0.Center().z}, 1);
     for (const Poi& p : m.pois) if (p.name == m.extra["start_poi"].Str0() && p.zone == L.startZone) L.start = z0.Clamp({p.pos.x, z0.y0 + 2, p.pos.z}, 1);   // (the Void: the hatch, not the middle of the plain)
+    L.BuildGrid();
+}
+void Level::BuildGrid() {
+    gVols.clear(); gProps.clear(); gnx = gnz = 0;
+    if (vols.empty()) return;
+    float x0 = 1e9f, z0 = 1e9f, x1 = -1e9f, z1 = -1e9f;
+    for (const auto& v : vols) { x0 = std::min(x0, v.lo.x); z0 = std::min(z0, v.lo.z); x1 = std::max(x1, v.hi.x); z1 = std::max(z1, v.hi.z); }
+    gCell = std::max(8.0f, std::max(x1 - x0, z1 - z0) / 256);   // (the Void's rim is 800 m across)
+    gx0 = x0 - 1; gz0 = z0 - 1;
+    gnx = (int)ceilf((x1 - gx0 + 1) / gCell) + 1; gnz = (int)ceilf((z1 - gz0 + 1) / gCell) + 1;
+    gVols.assign((size_t)gnx * gnz, {}); gProps.assign((size_t)gnx * gnz, {});
+    auto put = [&](std::vector<std::vector<int>>& g, int idx, float lx, float lz, float hx, float hz) {
+        int a0 = std::clamp((int)floorf((lx - gx0) / gCell), 0, gnx - 1), a1 = std::clamp((int)floorf((hx - gx0) / gCell), 0, gnx - 1);
+        int b0 = std::clamp((int)floorf((lz - gz0) / gCell), 0, gnz - 1), b1 = std::clamp((int)floorf((hz - gz0) / gCell), 0, gnz - 1);
+        for (int b = b0; b <= b1; b++) for (int a = a0; a <= a1; a++) g[(size_t)b * gnx + a].push_back(idx);
+    };
+    for (int i = 0; i < (int)vols.size(); i++) put(gVols, i, vols[i].lo.x, vols[i].lo.z, vols[i].hi.x, vols[i].hi.z);
+    for (int i = 0; i < (int)props.size(); i++) if (props[i].solid) put(gProps, i, props[i].pos.x - props[i].half.x - 1, props[i].pos.z - props[i].half.z - 1, props[i].pos.x + props[i].half.x + 1, props[i].pos.z + props[i].half.z + 1);
 }
 
 bool Level::Inside(Vector3 p, float r, const std::vector<char>& linkOpen, bool darts) const {
+    if (gnx > 0) {
+        int a = (int)floorf((p.x - gx0) / gCell), b = (int)floorf((p.z - gz0) / gCell);
+        if (a < 0 || b < 0 || a >= gnx || b >= gnz) return false;
+        size_t c = (size_t)b * gnx + a;
+        for (int i : gProps[c]) {
+            const Prop& pr = props[i];
+            if (fabsf(p.x - pr.pos.x) < pr.half.x + r && fabsf(p.y - pr.pos.y) < pr.half.y + r && fabsf(p.z - pr.pos.z) < pr.half.z + r) return false;
+        }
+        for (int i : gVols[c]) {
+            const Volume& v = vols[i];
+            if (!darts && !v.diverOk) continue;
+            if (v.link >= 0 && (v.link >= (int)linkOpen.size() || !linkOpen[v.link])) continue;
+            if (p.x >= v.lo.x + r && p.x <= v.hi.x - r && p.y >= v.lo.y + r && p.y <= v.hi.y - r && p.z >= v.lo.z + r && p.z <= v.hi.z - r) return true;
+        }
+        return false;
+    }
     for (const auto& pr : props) {
         if (!pr.solid) continue;
         if (fabsf(p.x - pr.pos.x) < pr.half.x + r && fabsf(p.y - pr.pos.y) < pr.half.y + r && fabsf(p.z - pr.pos.z) < pr.half.z + r) return false;
@@ -4015,6 +4090,7 @@ Vector3 Match::NavStep(const DiverState& d, Vector3 goal) const {
 
 // Crossing the boss's room while it sleeps: keep 6.5 m off it along the far wall (it wakes at 5 m).
 Vector3 Match::Skirt(const DiverState& d, Vector3 to) const {
+    if (d.zone >= 0 && d.zone < (int)map->zones.size() && !map->zones[d.zone].parts.empty() && map->zones[d.zone].Contains(d.pos, 0.3f)) to = map->zones[d.zone].Waypoint(d.pos, to);   // (round a ring of parts)
     if (bossActive || bossAgent < 0 || !eco.agents[bossAgent].alive || eco.agents[bossAgent].zone != d.zone) return to;
     Vector3 b = eco.agents[bossAgent].pos;
     if (SegPointDist(d.pos, to, b) > 6.5f) return to;
@@ -4964,6 +5040,42 @@ static int AtlantisTest(int& fails, const std::function<void(bool, const std::st
         check(m.linkOpen[ps] == 1, "and opens with it");
         check(fort >= 0 && m.level.doors[fort].cost == 1500, "the wall fort's postern costs 1,500 (no free way round the doors)");
     }
+    // the ring wall: many boxes round the hill, broken by the gate, the open sea ringing it
+    {
+        int wz = zi("The Wall & Ramparts"), bz = zi("Beyond the Wall"), hz = zi("Harbor Gate");
+        const Zone& W = map.zones[wz]; const Zone& B = map.zones[bz]; const Zone& H = map.zones[hz];
+        int vis = 0, con = 0; for (const auto& p : W.parts) (p.hidden ? con : vis)++;
+        check(vis >= 40 && con >= 20, TextFormat("the wall is a ring of %d boxes with %d hidden seams", vis, con));
+        auto ov = [](const Rectangle& a, const Rectangle& b) { return a.x < b.x + b.width - 0.01f && b.x < a.x + a.width - 0.01f && a.y < b.y + b.height - 0.01f && b.y < a.y + a.height - 0.01f; };
+        bool gateClear = true, seaClear = true;
+        for (const auto& p : W.parts) { if (ov(p.r, H.plan)) gateClear = false; for (const auto& q : B.parts) if (ov(p.r, q.r)) seaClear = false; }
+        check(gateClear, "the Harbor Gate stands in the wall's gap (no wall box overlaps it)");
+        check(seaClear && B.parts.size() > 40, TextFormat("the sea beyond is a ring of its own (%d boxes) that never overlaps the wall", (int)B.parts.size()));
+        int crenels = 0; for (const auto& w : map.windows) if (w.zone == wz && w.outside == bz) crenels++;
+        check(crenels >= 30, TextFormat("%d crenellations to shoot over the wall", crenels));
+        // a diver swims the rampart from the west round the north to the east, seam by seam
+        Vector3 west = W.Clamp({-96, W.y0 + 1.5f, 0}, 0.8f), east = W.Clamp({96, W.y0 + 1.5f, 0}, 0.8f);
+        DiverState& q = m.divers[0];
+        q.pos = west; q.zone = wz; q.vel = {0, 0, 0};
+        float travelled = 0; int steps = 0;
+        while (steps++ < 4000 && Vector3Distance(q.pos, east) > 2) {
+            Vector3 wp = W.Waypoint(q.pos, east);
+            Vector3 dir = Vector3Subtract(wp, q.pos); float l = Vector3Length(dir);
+            if (l < 0.01f) break;
+            Vector3 np = m.level.Move(q.pos, Vector3Add(q.pos, Vector3Scale(dir, std::min(l, 0.3f) / l)), 0.4f, m.linkOpen);
+            travelled += Vector3Distance(np, q.pos); q.pos = np;
+        }
+        check(Vector3Distance(q.pos, east) <= 2 && travelled > 250 && travelled < 400, TextFormat("a diver swims the rampart from the west wall round to the east (%.0f m of wall walk)", travelled));
+        // and a beast steers round it the same way (it can't cut across the city inside the wall)
+        int ag = -1; for (int i = 0; i < (int)m.eco.agents.size(); i++) if (m.eco.agents[i].alive && m.eco.agents[i].diver < 0) { ag = i; break; }
+        if (ag >= 0) {
+            Agent& a = m.eco.agents[ag];
+            a.pos = west; a.zone = wz; a.vel = {0, 0, 0}; a.stun = 0; a.held = 0;
+            bool left = false;
+            for (int k = 0; k < 3000 && Vector3Distance(a.pos, east) > 2; k++) { m.eco.SteerToPublic(a, east, 4, 0.05f); if (!W.Contains(a.pos, 0.35f)) left = true; }
+            check(Vector3Distance(a.pos, east) <= 2 && !left, "a beast on the rampart follows the ring to the far side without leaving it");
+        }
+    }
     m.linkOpen.assign(m.linkOpen.size(), 1);
     for (auto& dr : m.level.doors) dr.open = true;
     // the aqueduct carries the plaza's blood downhill
@@ -4972,6 +5084,10 @@ static int AtlantisTest(int& fails, const std::function<void(bool, const std::st
         Vector3 plaza{}, market{}, outfall{};
         for (const auto& p : map.pois) { if (HasW(p.name, "plaza (tuna")) plaza = p.pos; if (HasW(p.name, "speed brine")) market = p.pos; if (HasW(p.name, "aqueduct outfall")) outfall = p.pos; }
         int mz = zi("The Lower Town"), gz = zi("Harbor Gate");
+        // (only the water moves the blood here: the beasts are set aside so a kill near the gate can't beat it there)
+        auto savedAgents = e.agents; auto savedCorpses = e.corpses;
+        for (auto& ag : e.agents) if (ag.diver < 0) ag.alive = false;
+        for (auto& c : e.corpses) c.active = false;
         float m0 = e.Smell(market, mz, 20), g0 = e.Smell(outfall, gz, 20);
         float tm = -1, tg = -1, t = 0;
         while (t < 240 && (tm < 0 || tg < 0)) {
@@ -4980,6 +5096,7 @@ static int AtlantisTest(int& fails, const std::function<void(bool, const std::st
             if (tm < 0 && e.Smell(market, mz, 20) > m0 + 5) tm = t;
             if (tg < 0 && e.Smell(outfall, gz, 20) > g0 + 5) tg = t;
         }
+        e.agents = savedAgents; e.corpses = savedCorpses;
         check(tm > 0 && tm < 110, TextFormat("the plaza's blood reaches the market in %.0f s (the doc: 75 s)", tm));
         check(tg > 0 && tg < 200 && tg > tm, TextFormat("and the outfall at the gate in %.0f s (the doc: 120 s)", tg));
     }

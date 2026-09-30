@@ -150,7 +150,7 @@ static void BuildLevelModel() {
     const Json& pal = map.extra["palette"];
     auto pc = [&](const Json& j, Color def) { return j.IsArr() ? Color{(unsigned char)j[0].I(), (unsigned char)j[1].I(), (unsigned char)j[2].I(), 255} : def; };
     for (const auto& v : m.level.vols) {
-        if (v.zone < 0) continue;
+        if (v.zone < 0 || v.hidden) continue;                  // (a connector between a zone's boxes has no faces)
         const Zone& z = map.zones[v.zone];
         bool isVoid = false, open = false;
         for (const Json& vz : map.extra["void_zones"].a) if (vz.Str0() == z.name) isVoid = true;
@@ -178,6 +178,13 @@ static void BuildLevelModel() {
                 } else if (p.window >= 0) {
                     const Window& w = map.windows[p.window];
                     if (w.zone != v.zone && w.outside != v.zone) continue;
+                } else if (p.zone == v.zone && &p != &v && !p.hidden && axis != 1) {
+                    // another box of the same zone carrying on past this face: no wall where it does
+                    float o = (&p.lo.x)[axis], e = (&p.hi.x)[axis];
+                    bool beyond = side ? (o <= at + 0.01f && e > at + 0.01f) : (e >= at - 0.01f && o < at - 0.01f);
+                    if (!beyond) continue;
+                    holes.push_back({{(&p.lo.x)[ua], (&p.lo.x)[va]}, {(&p.hi.x)[ua], (&p.hi.x)[va]}});
+                    continue;
                 } else continue;
                 if ((&p.lo.x)[axis] > at || (&p.hi.x)[axis] < at) continue;
                 holes.push_back({{(&p.lo.x)[ua], (&p.lo.x)[va]}, {(&p.hi.x)[ua], (&p.hi.x)[va]}});
@@ -190,8 +197,19 @@ static void BuildLevelModel() {
     for (const auto& p : m.level.vols) {
         if (p.link < 0) continue;
         const Link& l = map.links[p.link];
-        const Volume& A = m.level.vols[l.from];
-        const Volume& B = m.level.vols[l.to];
+        // each end's box: the zone's box holding (or nearest) that mouth (a zone of parts has many)
+        auto boxAt = [&](int zi, Vector3 mouth) -> const Volume& {
+            const Volume* best = &m.level.vols[zi]; float bd = 1e18f;
+            for (const auto& q : m.level.vols) {
+                if (q.zone != zi || q.hidden) continue;
+                Vector3 c{std::clamp(mouth.x, q.lo.x, q.hi.x), mouth.y, std::clamp(mouth.z, q.lo.z, q.hi.z)};
+                float dd = Vector3Distance(c, mouth);
+                if (dd < bd) { bd = dd; best = &q; }
+            }
+            return *best;
+        };
+        const Volume& A = boxAt(l.from, l.a);
+        const Volume& B = boxAt(l.to, l.b);
         Vector3 d = Vector3Subtract(l.b, l.a);
         int k = fabsf(d.x) > fabsf(d.z) ? 0 : 2;
         if (fabsf(d.y) > fabsf((&d.x)[k])) k = 1;
@@ -210,14 +228,11 @@ static void BuildLevelModel() {
     }
     // portholes: a short tunnel through the hull and a brass ring on the inside
     for (const auto& w : map.windows) {
-        const Zone& z = map.zones[w.zone];
         int k = w.axis;
-        float zlo = k == 0 ? z.plan.x : z.plan.y, zhi = zlo + (k == 0 ? z.plan.width : z.plan.height);
-        const Zone& o = map.zones[w.outside];
-        float olo = k == 0 ? o.plan.x : o.plan.y;
-        bool outsideHigh = olo >= zhi - 0.01f;
-        float a0 = outsideHigh ? zhi : (k == 0 ? o.plan.x + o.plan.width : o.plan.y + o.plan.height);
-        float a1 = outsideHigh ? olo : zlo;
+        bool outsideHigh = w.outHigh;
+        float a0 = w.g0, a1 = w.g1;
+        float zlo = w.g0, zhi = w.g0;   // (the room's face: the low side of the wall if the water is high, else the high side)
+        if (!outsideHigh) zlo = w.g1;
         Vector3 lo = w.lo, hi = w.hi;
         (&lo.x)[k] = a0; (&hi.x)[k] = a1;
         Color hull{54, 58, 60, 255}, brass{196, 150, 70, 255};
@@ -1331,8 +1346,9 @@ void DebugRedTideShot(Game& g, int which) {
         case 44: {                                                                            // the rampart and the sea beyond
             int w = m.map->ZoneIndex("The Wall & Ramparts");
             const Zone& z = m.map->zones[w];
-            d.pos = {z.plan.x + z.plan.width * 0.6f, z.y0 + 2.5f, z.plan.y + z.plan.height * 0.75f}; d.zone = w;
-            d.yaw = 3.14159f + 0.45f; d.pitch = 0.02f;
+            // on the north-west of the ring, looking along it as it curves away to the west
+            d.pos = z.Clamp({-66, z.y0 + 4.0f, 70}, 0.8f); d.zone = w;
+            d.yaw = -2.2f; d.pitch = -0.12f;
             break;
         }
         case 45: {                                                                            // the Wyrm up through a chapel grate

@@ -209,12 +209,16 @@ float Ecosystem::Smell(Vector3 p, int zone, float r, Vector3* centroid) const {
     Vector3 lo{p.x - r, p.y - r, p.z - r}, hi{p.x + r, p.y + r, p.z + r};
     Vector3 w{0, 0, 0};
     double total = 0;
-    auto zoneBox = [&](int zi) {
-        const Zone& z = map->zones[zi];
-        Vector3 zl{std::max(lo.x, z.plan.x), std::max(lo.y, z.y0), std::max(lo.z, z.plan.y)};
-        Vector3 zh{std::min(hi.x, z.plan.x + z.plan.width), std::min(hi.y, z.y1), std::min(hi.z, z.plan.y + z.plan.height)};
+    auto rectBox = [&](const Zone& z, const Rectangle& b) {
+        Vector3 zl{std::max(lo.x, b.x), std::max(lo.y, z.y0), std::max(lo.z, b.y)};
+        Vector3 zh{std::min(hi.x, b.x + b.width), std::min(hi.y, z.y1), std::min(hi.z, b.y + b.height)};
         if (zl.x > zh.x || zl.y > zh.y || zl.z > zh.z) return;
         total += scent.BoxSumAABB(zl, zh, &w);
+    };
+    auto zoneBox = [&](int zi) {
+        const Zone& z = map->zones[zi];
+        if (z.parts.empty()) rectBox(z, z.plan);
+        else for (const auto& pt : z.parts) if (!pt.hidden) rectBox(z, pt.r);   // (the visible boxes don't overlap)
     };
     zoneBox(zone);
     for (const auto& l : map->links) {
@@ -265,7 +269,14 @@ static Vector3 RandomIn(Ecosystem& e, const Zone& z, float pad = 1.0f) {
         float a = (z.a0 + (z.a1 - z.a0) * e.Rand()) * DEG2RAD, r = z.rMin + pad + (z.rMax - z.rMin - 2 * pad) * e.Rand();
         return {cosf(a) * r, z.y0 + pad + (z.y1 - z.y0 - 2 * pad) * e.Rand(), sinf(a) * r};
     }
-    return {z.plan.x + pad + (z.plan.width - 2 * pad) * e.Rand(), z.y0 + pad + (z.y1 - z.y0 - 2 * pad) * e.Rand(), z.plan.y + pad + (z.plan.height - 2 * pad) * e.Rand()};
+    Rectangle b = z.plan;
+    if (!z.parts.empty()) {   // a zone of parts: one of its boxes, by area
+        float tot = 0; for (const auto& p : z.parts) if (!p.hidden) tot += p.r.width * p.r.height;
+        float u = e.Rand() * tot;
+        for (const auto& p : z.parts) if (!p.hidden) { b = p.r; u -= p.r.width * p.r.height; if (u <= 0) break; }
+        pad = std::min(pad, std::min(b.width, b.height) * 0.4f);
+    }
+    return {b.x + pad + (b.width - 2 * pad) * e.Rand(), z.y0 + pad + (z.y1 - z.y0 - 2 * pad) * e.Rand(), b.y + pad + (b.height - 2 * pad) * e.Rand()};
 }
 
 void Ecosystem::Init(const MapData& m, uint32_t seed, int tideNum, int playerCount) {
@@ -810,6 +821,7 @@ void Ecosystem::SteerTo(Agent& a, Vector3 goal, float speed, float dt) {
             }
         } else target = map->zones[a.zone].Clamp(goal);
     }
+    if (!map->zones[a.zone].parts.empty()) target = map->zones[a.zone].Waypoint(a.pos, target);   // round a ring, seam by seam
     Vector3 to = Vector3Subtract(target, a.pos);
     float d = Vector3Length(to);
     Vector3 want = d > 0.05f ? Vector3Scale(to, speed / d) : Vector3Zero();

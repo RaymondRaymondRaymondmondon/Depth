@@ -39,7 +39,7 @@ struct WeaponsData {
 const WeaponsData& Weapons();
 
 // ---------------------------------------------------------------- the level (swimmable volumes built from the blockout)
-struct Volume { Vector3 lo, hi; int zone = -1; int link = -1; int window = -1; bool diverOk = true; };   // a room (zone), a passage (link) or a porthole (window)
+struct Volume { Vector3 lo, hi; int zone = -1; int link = -1; int window = -1; bool diverOk = true; bool hidden = false; };   // hidden: a connector inside a zone of parts (no faces drawn)   // a room (zone), a passage (link) or a porthole (window)
 struct Door { int link = -1; bool open = false; int cost = 0; Vector3 pos{}; std::string name; };
 enum class StationType { Rack, Tonic, Locker, Forge, Power, Workbench, Trap, Quest, Cleaning, Feature, Hazard, Entry, Boss, QuestStep, Cache };
 struct Station {
@@ -70,6 +70,11 @@ struct Level {
     // slides along walls: tries the whole move, then each axis alone
     Vector3 Move(Vector3 from, Vector3 to, float r, const std::vector<char>& linkOpen) const;
     bool Sight(Vector3 a, Vector3 b, const std::vector<char>& linkOpen, bool darts = false) const;   // a clear line through open water
+    // a flat grid over the map listing the volumes and solid props in each cell, so Inside only tests what's near
+    // (Atlantis's ring wall and sea are hundreds of boxes); built at the end of BuildLevel
+    float gCell = 8; float gx0 = 0, gz0 = 0; int gnx = 0, gnz = 0;
+    std::vector<std::vector<int>> gVols, gProps;
+    void BuildGrid();
 };
 void BuildLevel(const MapData& m, Level& L);
 

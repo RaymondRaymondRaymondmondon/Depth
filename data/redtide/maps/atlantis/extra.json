@@ -934,5 +934,10 @@
   }
  },
  "hunt_note": "Squads avoid the Library ('forbidden') and the Farms' canals (the crocodile): they're left out of the patrol.",
- "breach_text": "The great white comes over the wall"
+ "breach_text": "The great white comes over the wall",
+ "zone_parts": {
+  "_source": "Blockout: 'The Wall & Ramparts: Ring, r 235-245 m, 0-360 deg' round the hill (at the box city's 0.4 scale: r 94-98 m about the summit, widened to 8 m for the rampart walk); the Harbor Gate district sits in it as the gate. The open sea beyond it rings the wall's north and west (where the old sea box stood; 'the great white comes over the north wall'), 16 m deep. Each ring is laid out as many boxes on a 4 m grid (zone_parts in redtide_data.cpp).",
+  "The Wall & Ramparts": {"ring": [0, 0, 92, 100], "cell": 4},
+  "Beyond the Wall": {"ring": [0, 0, 100, 116], "cell": 4, "angles": [60, 250]}
+ }
 }
