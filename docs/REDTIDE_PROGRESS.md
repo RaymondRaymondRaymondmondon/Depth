@@ -257,3 +257,39 @@ Data: `data/redtide/maps/cave/extra.json` (every entry cites the design doc). Co
 
 Open: `--eco-test cave` population stability fails on the caiman eating the lone snapping turtle and giant
 salamander (both in its diet; their 500-600 s respawns fall outside the ten minutes). The same open item as the Ship.
+
+## Stage 6: the Coral Reef
+
+Data: `data/redtide/maps/reef/extra.json`. Code: `UpdateReef`, `UpdateBossMatriarch`, `BeatDrum`, `EnemyBlast` in
+redtide_match.cpp; `--redtide-map-test reef` (29 checks, all pass).
+
+- **Open water**: every zone is open to the sky (`open_zones`, the shallows' tops are the surface); zone depths from
+  the blockout (the Lagoon 2-4 m down to the Wall at 80 m); a sand-and-turquoise `palette`; staghorn, table and brain
+  coral, seagrass, mangrove roots and the Bommie's mound as `dressing`.
+- **The tide mill** (`tide_flow_period`: 240 s): the set runs Lagoon -> Forest -> Flats -> Wall on the ebb and reverses on
+  the flood (`Ecosystem::flowSign` flips advection, drains and link exchange), so blood drifts the other way after
+  each turn. **The Surge Channel** (`zone_currents`): a 5 m/s current toward the Wall's mouth (the 4 s ride); its trap
+  flips it.
+- **Reacher coral** (`flora_rules`): grabs a diver who brushes it (20 HP/s; the diver can still shoot); freed by
+  shooting the coral to 0 (400), a teammate holding E for ~1.5 s, or 16 taps alone. It feeds on small beasts that brush
+  it (held, dead in 3 s). **Sea grape** heals 10; **Halimeda** shatters loudly (4 noise).
+- **Narrow zones** (`narrow_zones`): the Staghorn Forest and the Brain Coral Maze keep out anything above size 4 (the
+  big sharks path round). Crown-of-thorns and parrotfish graze the staghorn; below 70% the Forest's corridors open.
+- **The dolphins** (`allies`): follow a diver within 25 m and guard within 10; one diver shot turns the pod hostile for
+  the match. The Raiders shoot them too (`shoots_allies`), and that turns them on everyone.
+- **The Raiders** (`faction_patch`): turtle riders who hunt beasts as well as divers; the Coconut Slinger lobs bombs
+  (friendly fire hurts Raiders); the Shaman's drum rages the reef, a third beat calls sharks, a fifth wakes the
+  Matriarch. The Shaman drops the drum: a diver can beat it (F, 5 beats: beasts within 40 m turn on the nearest Raider)
+  or lay it on the Turtle Beach altar (`quest_altar`: 2500 to every diver).
+- **The Matriarch** (bossKind 2): comes up the Wall with a pod of three (`species_add` "Pod Orca"); Ram (straight-line
+  charge), Bite (3 s hold, carries), Tail Slap (knockback), Herd (the pod pushes divers off cover); surfaces every 90 s
+  (the blowhole open 4 s); phase 2 at 60% or two pod dead; at 30% she rams the Bommie (the cleaners die, every host
+  angry for 300 s) and breaches into the Lagoon.
+- **The Anemone Gun** (`wonder`): darts root stinging polyps (30 s) that sting and hold what swims into them.
+- `--shots shots redtide_reef` renders six views (Lagoon, Forest, Bommie, Wall, Blue Hole, the Matriarch).
+
+| `--redtide-sim reef` | Tide reached | Downs (beasts / enemies / hazards) |
+|---|---|---|
+| four careful bots, 3 runs | 6.7 | 81 / 18 / 0 |
+
+The Blacktip Reef Shark does most of the downing; balance stays with Stage 10.

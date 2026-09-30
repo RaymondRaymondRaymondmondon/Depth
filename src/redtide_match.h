@@ -164,7 +164,7 @@ struct Match {
     float bossRecentDmg = 0; bool bossRearReq = false, bossMoved = false, cacheOpen = false;
     std::string WonderId() const;
     // the Reef
-    bool alliesHostile = false; int drumBeats = 0; float tideTurnT = 0;
+    bool alliesHostile = false; int drumBeats = 0; float tideTurnT = 0, reefScanT = 0;
     std::map<int, float> reacherHP;          // Reacher coral patches: their HP (a held diver is freed at 0)
     std::map<int, float> reacherPrey;        // beasts the coral holds: seconds until it has fed on them
     struct Polyp { Vector3 pos; float t = 30, cd = 0; int owner = -1; bool forged = false; };
@@ -216,6 +216,8 @@ struct Match {
     void BeginTidePublic(int t) { BeginTide(t); }
     void DropRocksPublic(Vector3 at, int n, float spread, float dmg, float radius, float delay, int owner) { DropRocks(at, n, spread, dmg, radius, delay, owner); }
     void FloraToolPublic(int patch, Vector3 at) { FloraTool(patch, at, nullptr); }
+    void HitAgentPublic(int d, int agent, float dmg) { HitAgent(d >= 0 ? &divers[d] : nullptr, agent, dmg, false, false, {1, 0, 0}, nullptr); }
+    void FloraHazardsPublic(float dt) { FloraHazards(dt); }
     int WonderIdx() const { return Weapons().Index(WonderId()); }
     static Held NewHeldPublic(int def) { Held h; h.def = def; if (def >= 0) { h.mag = Weapons().weapons[def].mag; h.reserve = Weapons().weapons[def].reserve; } return h; }
 

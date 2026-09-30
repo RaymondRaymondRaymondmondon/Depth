@@ -672,7 +672,17 @@ void Match::UpdateDiver(DiverState& d, float dt) {
             break;
         }
         const Json& zc = d.zone >= 0 ? map->extra["zone_currents"][map->zones[d.zone].name] : Json::NullValue();
-        if (zc.IsArr() && eco.ZoneAt(d.pos) == d.zone) v = Vector3Add(v, {zc[0].F(), zc[1].F(), zc[2].F()});   // the Reef's surge channel
+        if (zc.IsObj() && eco.ZoneAt(d.pos) == d.zone) {
+            // the Reef's surge channel: a current toward its exit mouth
+            int to = map->ZoneIndex(zc["to"].Str0());
+            for (const auto& l : map->links) if ((l.from == d.zone && l.to == to) || (l.to == d.zone && l.from == to)) {
+                Vector3 c = map->zones[d.zone].Center();
+                Vector3 exitP = Vector3Distance(l.a, c) > Vector3Distance(l.b, c) ? l.a : l.b;   // the end out in the next zone
+                Vector3 dir = Vector3Subtract(exitP, d.pos); dir.y *= 0.3f;
+                if (Vector3Length(dir) > 0.5f) v = Vector3Add(v, Vector3Scale(Vector3Normalize(dir), zc["speed"].F(5)));
+                break;
+            }
+        }
         d.pos = level.Move(d.pos, Vector3Add(d.pos, Vector3Scale(v, dt)), 0.4f, linkOpen);
     }
     int z = eco.ZoneAt(d.pos);
@@ -2048,16 +2058,16 @@ void Match::UpdateReef(float dt) {
             if (it->second <= 0) { if (it->first < (int)eco.agents.size() && eco.agents[it->first].alive) eco.Kill(it->first, -1); it = reacherPrey.erase(it); }
             else ++it;
         }
-        static float scan = 0; scan += dt;
-        if (scan > 0.5f) {
-            scan = 0;
+        reefScanT += dt;
+        if (reefScanT > 0.5f) {
+            reefScanT = 0;
             for (int pi = 0; pi < (int)eco.flora.size(); pi++) {
                 const FloraPatch& fp = eco.flora[pi];
                 if (fp.units <= 0 || !fr[map->flora[fp.flora].name]["grab"].Bool0()) continue;
                 for (int i = 0; i < (int)eco.agents.size(); i++) {
                     const Agent& a = eco.agents[i];
                     if (!a.alive || a.diver >= 0 || IsBoss(i) || map->species[a.sp].size > 3 || reacherPrey.count(i)) continue;
-                    if (Vector3Distance(a.pos, fp.pos) < 1.2f) reacherPrey[i] = 3.0f;
+                    if (Vector2Distance({a.pos.x, a.pos.z}, {fp.pos.x, fp.pos.z}) < 1.5f && fabsf(a.pos.y - fp.pos.y) < 2.5f) reacherPrey[i] = 3.0f;
                 }
             }
         }
@@ -2385,7 +2395,7 @@ bool Match::Interact(int di, bool hold, float dt) {
     if (d.dead || d.downed) return false;
     if (d.heldT > 0) { if (!hold) { d.struggle++; return true; } return false; }
     // a teammate in Reacher coral: hold to cut them free
-    for (auto& o : divers) if (&o != &d && o.heldT > 0 && o.holder <= -2 && Vector3Distance(o.pos, d.pos) < 1.8f) { if (hold || true) { o.cutT += dt + (hold ? 0 : 0.2f); return true; } }
+    for (auto& o : divers) if (&o != &d && o.heldT > 0 && o.holder <= -2 && Vector3Distance(o.pos, d.pos) < 1.8f) { o.cutT += dt * 1.5f + (hold ? 0 : 0.2f); return true; }
     // revives are held (4 s; 2 s with Quick Brine)
     for (auto& o : divers) if (&o != &d && o.downed && Vector3Distance(o.pos, d.pos) < 1.8f) {
         o.reviveT += dt;
@@ -3402,6 +3412,137 @@ static int CaveTest(int& fails, const std::function<void(bool, const std::string
     return fails;
 }
 
+static int ReefTest(int& fails, const std::function<void(bool, const std::string&)>& check) {
+    auto M = std::make_unique<Match>();
+    Match& m = *M;
+    m.Init("reef", 2, 33, false);
+    DiverState& q = m.divers[0]; DiverState& r = m.divers[1];
+    q.invulnerable = r.invulnerable = true;
+    m.linkOpen.assign(m.linkOpen.size(), 1);
+    for (auto& dr : m.level.doors) dr.open = true;
+    const MapData& map = *m.map;
+    auto zi = [&](const char* n) { return map.ZoneIndex(n); };
+    auto patchOf = [&](const char* n) { for (int i = 0; i < (int)m.eco.flora.size(); i++) if (map.flora[m.eco.flora[i].flora].name == n && m.eco.flora[i].units > 0) return i; return -1; };
+    check(m.bossKind == 2, "the Reef's boss runs the Matriarch's script");
+    check(m.WonderIdx() >= 0 && Weapons().weapons[m.WonderIdx()].id == "anemonegun", "the Reef's wonder weapon is the Anemone Gun");
+    // the tide mill reverses the flow every 4 minutes
+    {
+        float s0 = m.eco.flowSign;
+        m.tideTurnT = 239.99f; m.Step(0.05f);
+        check(m.eco.flowSign == -s0, "the tide turns every 240 s: the set reverses");
+    }
+    // the Surge Channel carries a diver
+    {
+        int sc = zi("The Surge Channel");
+        const Zone& z = map.zones[sc];
+        q.pos = z.Center(); q.zone = sc; q.vel = {0, 0, 0};
+        for (const auto& l : map.links) if (l.to == sc && l.from == zi("The Bommie")) q.pos = z.Clamp(l.b, 1);   // at the Bommie's mouth
+        Vector3 p0 = q.pos;
+        for (int i = 0; i < 10; i++) m.Step(0.05f);
+        float moved = Vector3Distance(q.pos, p0);
+        check(moved > 1.5f, TextFormat("the Surge Channel's current carries a diver (%.1f m in 0.5 s)", moved));
+    }
+    // Reacher coral: grabs a diver; a teammate cuts them loose, or they hack themselves free
+    {
+        int rc = patchOf("Reacher coral");
+        check(rc >= 0, "Reacher coral grows on the reef");
+        const FloraPatch& fp = m.eco.flora[rc];
+        q.invulnerable = false; q.hp = q.hpMax = 1000;
+        q.pos = fp.pos; q.zone = fp.zone; m.patchT.clear();
+        m.FloraHazardsPublic(0.05f);
+        check(q.heldT > 0 && q.holder == -2 - rc, "brushing Reacher coral: it holds the diver");
+        float hp0 = q.hp; for (int i = 0; i < 20; i++) m.Step(0.05f);
+        check(q.hp < hp0 && q.heldT > 0, TextFormat("it squeezes (%.0f HP a second) and doesn't let go", (hp0 - q.hp)));
+        r.pos = q.pos; r.zone = q.zone;
+        float t = 0; while (q.heldT > 0 && t < 5) { m.Interact(1, true, 0.05f); r.pos = q.pos; m.Step(0.05f); t += 0.05f; }
+        check(q.heldT <= 0 && t < 3, TextFormat("a teammate holding E cuts them free in %.1f s", t));
+        m.patchT.clear(); q.pos = fp.pos; m.FloraHazardsPublic(0.05f);
+        r.pos = {0, -500, 0};
+        for (int i = 0; i < 16; i++) m.Interact(0, false, 0.01f);
+        m.Step(0.05f);
+        check(q.heldT <= 0, "sixteen taps of E hack a diver loose alone");
+        q.invulnerable = true; q.pos = map.zones[m.level.startZone].Center(); q.zone = m.level.startZone;
+        // it feeds on a small beast that brushes it
+        int prey = -1;
+        for (int i = 0; i < (int)m.eco.agents.size(); i++) { const Agent& a = m.eco.agents[i]; if (a.alive && a.diver < 0 && map.species[a.sp].size <= 2 && !map.species[a.sp].isEnemy) { prey = i; break; } }
+        float tt = 0;
+        while (m.eco.agents[prey].alive && tt < 6) { if (!m.reacherPrey.count(prey)) { m.eco.agents[prey].pos = fp.pos; m.eco.agents[prey].zone = fp.zone; } m.Step(0.05f); tt += 0.05f; }
+        check(!m.eco.agents[prey].alive && tt > 2.5f, TextFormat("a small beast that brushes it is held and eaten (%.1f s)", tt));
+    }
+    // the dolphins: allies until a diver shoots one
+    {
+        const std::string tag = map.extra["allies"]["tag"].Str0("ally");
+        int dol = -1;
+        for (int i = 0; i < (int)m.eco.agents.size(); i++) if (m.eco.agents[i].alive && map.species[m.eco.agents[i].sp].Has(tag.c_str())) { dol = i; break; }
+        check(dol >= 0, "a dolphin pod swims the reef");
+        check(!m.alliesHostile, "they start as the divers' allies");
+        m.HitAgentPublic(0, dol, 1);
+        check(m.alliesHostile, "one shot turns the pod hostile for the match");
+        m.alliesHostile = false;
+    }
+    // the crown-of-thorns: once the staghorn is grazed below 70% the Forest is open to the big sharks
+    {
+        int fz = zi("Staghorn Forest");
+        check(m.eco.zoneMaxSize[fz] == 4, "the Staghorn Forest is too tight for anything bigger than size 4");
+        m.eco.erosionT = 4.99f; m.eco.Step(0.05f);
+        for (auto& p : m.eco.flora) if (p.zone == fz && map.flora[p.flora].name == "Staghorn thicket") p.units *= 0.5f;
+        m.eco.erosionT = 4.99f; m.eco.Step(0.05f);
+        check(m.eco.zoneMaxSize[fz] == 99, "eaten below 70%, its corridors open");
+    }
+    // the Anemone Gun's polyps root and grab
+    {
+        int prey = -1;
+        for (int i = 0; i < (int)m.eco.agents.size(); i++) { const Agent& a = m.eco.agents[i]; if (a.alive && a.diver < 0 && !map.species[a.sp].isEnemy && map.species[a.sp].size >= 2 && a.hp > 100 && !map.species[a.sp].Has("untouchable")) { prey = i; break; } }
+        Match::Polyp pp; pp.pos = m.eco.agents[prey].pos; pp.owner = 0; m.polyps.push_back(pp);
+        for (auto& a : m.eco.agents) a.held = 0;
+        std::vector<char> was; for (const auto& a : m.eco.agents) was.push_back(a.alive && Vector3Distance(a.pos, pp.pos) < 4);
+        m.Step(0.05f);
+        int held = 0;
+        for (int i = 0; i < (int)was.size(); i++) if (was[i] && ((m.eco.agents[i].alive && m.eco.agents[i].held > 1) || !m.eco.agents[i].alive)) held++;
+        check(held > 0, "an Anemone Gun polyp stings and holds what swims into it");
+        m.polyps.clear();
+    }
+    // sea grape: +10 HP
+    {
+        int sg = patchOf("Sea grape");
+        check(sg >= 0, "sea grape grows on the reef");
+        q.pos = m.eco.flora[sg].pos; q.hp = q.hpMax - 30; float h0 = q.hp;
+        m.Interact(0, false, 0.01f);
+        check(fabsf(q.hp - h0 - 10) < 0.5f, "eating sea grape: +10 HP");
+    }
+    // the drum: five beats call the Matriarch; the altar takes it
+    {
+        q.drumUses = 5;
+        for (int i = 0; i < 4; i++) m.BeatDrum(0);
+        check(!m.bossActive, "four beats: the reef stirs, nothing more");
+        m.BeatDrum(0);
+        check(m.bossActive, "the fifth beat wakes the Matriarch");
+        q.drumUses = 1;
+        int alt = -1; for (int i = 0; i < (int)m.level.stations.size(); i++) if (m.level.stations[i].type == StationType::Quest) alt = i;
+        check(alt >= 0, "the drum altar stands on Turtle Beach");
+        q.pos = m.level.stations[alt].pos; int s0 = q.scrip;
+        m.Interact(0, false, 0.01f);
+        check(q.scrip >= s0 + 2500, "laying the drum on the altar: the Raiders' tribute (2500)");
+    }
+    // the Matriarch: the pod, the breath, the phases
+    {
+        int boss = m.bossAgent;
+        Agent& B = m.eco.agents[boss];
+        q.pos = map.zones[B.zone].Clamp(Vector3Add(B.pos, {10, 0, 0}), 1); q.zone = B.zone;
+        m.bossActive = true;
+        for (int i = 0; i < 3; i++) m.Step(0.05f);
+        int live = 0; for (int p : m.pod) live += m.eco.agents[p].alive;
+        check(m.podSpawned && live == 3, "she comes up with a pod of three");
+        m.breathT = 89.99f; m.Step(0.05f);
+        check(m.bossGillsT > 3, "every 90 s she surfaces: the blowhole is open 4 s");
+        m.eco.Kill(m.pod[0], -1); m.eco.Kill(m.pod[1], -1); m.Step(0.05f);
+        check(m.bossPhase == 2, "two of the pod dead: phase 2 (straight-line charges)");
+        m.eco.agents[boss].hp = m.eco.agents[boss].hpMax * 0.25f; m.Step(0.05f);
+        check(m.bossPhase == 3 && m.eco.cleanerRage > 200, "at 30% she rams the Bommie: the cleaning station collapses and every host is angry");
+    }
+    return fails;
+}
+
 int RunRedTideMapTest(const std::string& key) {
     std::string why;
     if (!DataOk(&why)) { printf("redtide-map-test: %s\n", why.c_str()); return 1; }
@@ -3409,6 +3550,7 @@ int RunRedTideMapTest(const std::string& key) {
     std::function<void(bool, const std::string&)> check = [&](bool ok, const std::string& what) { printf("  %s  %s\n", ok ? "ok  " : "FAIL", what.c_str()); if (!ok) fails++; };
     printf("Red Tide map test: %s\n", Map(key).title.c_str());
     if (key == "cave") CaveTest(fails, check);
+    else if (key == "reef") ReefTest(fails, check);
     else { printf("  (no map test for '%s' yet)\n", key.c_str()); }
     printf(fails ? "redtide-map-test: %d check(s) failed\n" : "redtide-map-test: all checks passed\n", fails);
     return fails ? 1 : 0;

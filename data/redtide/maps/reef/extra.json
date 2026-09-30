@@ -111,11 +111,7 @@
  "tide_flow_period": 240,
  "_flow_source": "Blockout notes: 'the tide runs Lagoon -> Forest -> Flats -> Wall on the ebb and reverses on the flood every 4 minutes (the tide mill shows which).'",
  "zone_currents": {
-  "The Surge Channel": [
-   5,
-   0,
-   0
-  ]
+  "The Surge Channel": {"speed": 5, "to": "The Drop-off Wall"}
  },
  "_current_source": "'The Surge Channel: a one-way current between the Bommie and the Wall: ride it (4 s).'",
  "zone_alias": {

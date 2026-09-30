@@ -1863,8 +1863,8 @@ void SceneArcade(Game& g) {
     // own stage); Join and Browse wait for it.
     bool playable = sel == 4;
     // Red Tide's maps (each opens as its stage is built)
-    static const char* RT_MAPS[] = {"ship", "cave"};
-    static const char* RT_TITLES[] = {"The Sunken Ship", "The Underwater Cave"};
+    static const char* RT_MAPS[] = {"ship", "cave", "reef"};
+    static const char* RT_TITLES[] = {"The Sunken Ship", "The Underwater Cave", "The Coral Reef"};
     static int rtMap = 0;
     const int RT_N = (int)(sizeof(RT_MAPS) / sizeof(RT_MAPS[0]));
     if (playable) {

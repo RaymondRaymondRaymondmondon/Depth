@@ -351,6 +351,7 @@ static void Input(float dt) {
     if (IsKeyPressed(KEY_R)) m.Reload(0);
     if (IsKeyPressed(KEY_V) || IsMouseButtonPressed(MOUSE_BUTTON_MIDDLE)) m.Melee(0);
     if (IsKeyPressed(KEY_G)) m.ThrowLimpet(0);
+    if (IsKeyPressed(KEY_F)) m.BeatDrum(0);
     if (IsKeyPressed(KEY_E)) m.Interact(0, false, dt);
     else if (IsKeyDown(KEY_E)) m.Interact(0, true, dt);
     for (int k = 0; k < 3; k++) if (IsKeyPressed(KEY_ONE + k)) m.SwapWeapon(0, k);
@@ -616,7 +617,18 @@ static void DrawScene() {
         for (const auto& f : m.drops) {
             float pulse = 0.8f + 0.2f * sinf(S.time * 5);
             if (f.weapon >= 0) DrawWorldCube(f.pos, {0.8f, 0.15f, 0.25f}, {160, 150, 130, 255});
+            else if (f.weapon == -2) {   // the Shaman's drum: a hide drum on the sand
+                DrawWorldCube(Vector3Add(f.pos, {0, 0.2f, 0}), {0.55f, 0.4f, 0.55f}, {120, 78, 44, 255});
+                DrawWorldCube(Vector3Add(f.pos, {0, 0.42f, 0}), {0.6f * pulse, 0.05f, 0.6f * pulse}, {226, 204, 160, 255});
+            }
             else DrawWorldCube(Vector3Add(f.pos, {0, sinf(S.time * 2) * 0.15f, 0}), {0.25f * pulse, 0.45f * pulse, 0.25f * pulse}, {120, 240, 200, 255});
+        }
+        for (const auto& p : m.polyps) {   // the Anemone Gun's rooted polyps: a crown of stinging tentacles
+            for (int k = 0; k < 6; k++) {
+                float an = k * 1.047f + S.time * 0.6f, sw = sinf(S.time * 3 + k) * 0.08f;
+                DrawWorldCube(Vector3Add(p.pos, {cosf(an) * 0.18f + sw, 0.22f, sinf(an) * 0.18f}), {0.06f, 0.4f, 0.06f}, p.forged ? Color{250, 150, 90, 255} : Color{236, 120, 170, 255});
+            }
+            DrawWorldCube(p.pos, {0.3f, 0.16f, 0.3f}, {180, 90, 120, 255});
         }
         for (const auto& c : m.crates) {
             if (c.kind == 1) {
@@ -631,7 +643,7 @@ static void DrawScene() {
         if (!a.alive || a.diver == 0) continue;               // (diver 0 is you)
         if (Vector3Distance(a.pos, eye) > 55) continue;
         const Species& sp = m.map->species[a.sp];
-        const CreatureModel& cm = Creature(m.artKey, sp.name);
+        const CreatureModel& cm = Creature(m.artKey, m.ArtName(a.sp));
         float spd = Vector3Length(a.vel);
         Vector3 v = spd > 0.02f ? a.vel : Vector3{sinf(a.rng * 0.001f), 0, cosf(a.rng * 0.001f)};
         float yaw = atan2f(v.x, v.z);
@@ -785,6 +797,7 @@ static void DrawHud() {
     else TxtBold(d.harpoonHour ? "infinite" : TextFormat("%d / %d", h.mag, h.reserve), SCREEN_W - 280, SCREEN_H - 70, 30, h.mag == 0 ? blood : paper);
     if (d.reloading) Txt("reloading...", SCREEN_W - 280, SCREEN_H - 36, 14, Fade(paper, 0.8f));
     Txt(TextFormat("limpets %d", d.limpets), SCREEN_W - 120, SCREEN_H - 36, 14, Fade(paper, 0.8f));
+    if (d.drumUses > 0) Txt(TextFormat("F: the drum (%d beats; %d to the fifth)", d.drumUses, 5 - m.drumBeats % 5), SCREEN_W - 280, SCREEN_H - 170, 13, Color{226, 190, 120, 255});
     if (!d.downed) for (int i = 0; i < (int)d.weapons.size(); i++) Txt(TextFormat("%d %s", i + 1, m.W(d.weapons[i]).name.c_str()), SCREEN_W - 280, SCREEN_H - 150 + i * 16.0f, 13, i == d.cur ? paper : Fade(paper, 0.5f));
     // health: a brass pressure gauge, bottom left; the tonics' bottles beside it
     Vector2 g{80, SCREEN_H - 80.0f};
@@ -932,7 +945,7 @@ void DebugRedTideShot(Game& g, int which) {
         g.scene = Scene::RedTide;
         return;
     }
-    StartShip(1, 20260930, which >= 20 ? "cave" : "ship");
+    StartShip(1, 20260930, which >= 30 ? "reef" : which >= 20 ? "cave" : "ship");
     S.shotMode = true;
     Match& m = M();
     if (which != 10) {                                           // every door open, so the views can see through
@@ -979,6 +992,25 @@ void DebugRedTideShot(Game& g, int which) {
         case 23: place("Dry Chamber II: the Toad Pool", {3, 1, 3}, 0.2f, 0); break;           // an air chamber, on foot
         case 24: place("The Cathedral", {6, 6, 6}, 0.0f, 0.05f); break;                       // the crystal coral and the Lobster
         case 25: place("The Sump", {4, 3, 4}, 0.2f, 0); break;                                // the silt, the sturgeon, the sleeper shark
+        // the Coral Reef
+        case 30: place("The Lagoon", {3, 2.5f, 3}, 0.2f, 0.1f); break;                        // the shallows under the surface
+        case 31: place("Staghorn Forest", {3, 6, 3}, 0.1f, 0); break;                         // the thicket's corridors
+        case 32: place("The Bommie", {4, 8, 4}, 0.0f, 0.1f); break;                           // the coral head and the cleaners
+        case 33: place("The Drop-off Wall", {4, 40, 4}, 0.3f, -0.2f); break;                  // the wall falling into the blue
+        case 34: place("The Blue Hole", {6, 20, 6}, 0.0f, -0.3f); break;                      // looking down the hole
+        case 35: {                                                                            // the Matriarch and her pod
+            m.Step(1 / 20.0f);
+            int b = m.bossAgent;
+            if (b < 0) break;
+            m.bossActive = true; m.bossProvoked = true;
+            for (int i = 0; i < 6; i++) m.Step(1 / 20.0f);
+            const Agent& B = m.eco.agents[b];
+            const Zone& z = m.map->zones[B.zone];
+            d.pos = z.Clamp(Vector3Add(B.pos, {26, 4, 12}), 0.6f); d.zone = B.zone;
+            Vector3 to = Vector3Subtract(B.pos, m.Eye(d));
+            d.yaw = atan2f(to.x, to.z); d.pitch = std::clamp(asinf(Vector3Normalize(to).y), -0.5f, 0.5f);
+            break;
+        }
         default: break;
     }
     g.scene = Scene::RedTide;
