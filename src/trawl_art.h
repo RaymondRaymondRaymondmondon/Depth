@@ -23,6 +23,7 @@ void DrawSea(const Gannet& g, const View& v);
 void DrawBoat(const Gannet& g, const View& v);
 void DrawLines(const Gannet& g, const View& v);
 void DrawLife(const Gannet& g, const View& v, bool air);   // the web's fish in the light (air: the gulls, over everything)          // rods, lines, lures and what's on them
+void DrawQuay(const Gannet& g, const View& v);            // the harbour quay beside her port side while she's moored
 void DrawCrewMember(const Crew& c, const View& v, float t, bool you);
 Color RoleColor(Role r);
 

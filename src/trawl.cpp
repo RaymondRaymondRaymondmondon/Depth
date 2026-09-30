@@ -4,6 +4,7 @@
 #include "trawl.h"
 #include "trawl_art.h"
 #include "trawl_eco.h"
+#include "trawl_session.h"
 #include "raymath.h"
 #include <algorithm>
 #include <cmath>
@@ -21,7 +22,12 @@ struct TrawlScene {
     int shotView = 0;
     float wheel = 0;               // the mouse wheel, gathered per frame for the next fixed step
     View view;                     // the last frame's view (the mouse's deck position)
+    Session sess;                  // the run: deadlines, nights, the quota, the dock
+    int panel = -1;                // an open dock panel (DockKind), PANEL_CHART at the helm, PANEL_END for the count
+    std::string toast; float toastT = 0;
+    size_t tapeSeen = 0; float tapeT = 0;
 };
+const int PANEL_CHART = 20, PANEL_END = 21;
 TrawlScene S;
 
 // the lights on deck: the lantern mast (its level), the wheelhouse's glow, the engine room's fire from below
@@ -41,6 +47,7 @@ View MakeView(const Gannet& g, int viewerDeck, bool inWheelhouse) {
     v.lights.push_back({{3.0f, 0}, 4.0f, 0.6f});               // the wheelhouse lamp through its windows
     v.lights.push_back({{-10.4f, 0}, 5.0f, 0.5f});             // the stern work lamp
     if (viewerDeck == 1) v.lights.push_back({{-4.8f, -0.9f}, 4.5f, 0.3f + 0.5f * std::clamp(g.boat.firebox / 6, 0.0f, 1.0f)});
+    if (g.moored) for (float x : {-9.0f, -1.0f, 7.0f, 13.0f}) v.lights.push_back({{x, -6.8f}, 7.0f, 0.85f});   // the quay's lamps
     return v;
 }
 
@@ -48,6 +55,7 @@ void Controls(float dt) {
     Gannet& g = S.G;
     Crew& c = g.crew[S.you];
     Vector2 wish{0, 0};
+    if (S.panel >= 0) { g.Move(S.you, wish, false, dt); return; }
     // WASD is screen-relative on the deck (the bow is to the right of the screen)
     if (IsKeyDown(KEY_W)) wish.y -= 1;
     if (IsKeyDown(KEY_S)) wish.y += 1;
@@ -97,7 +105,16 @@ void Controls(float dt) {
 }
 void Pressed(Game& g) {
     Gannet& G = S.G;
-    if (IsKeyPressed(KEY_E)) G.TakeStation(S.you);
+    Crew& c = G.crew[S.you];
+    if (S.panel >= 0) {
+        if (IsKeyPressed(KEY_X) && S.panel != PANEL_END) { S.panel = -1; G.LeaveStation(S.you); }
+        return;
+    }
+    if (IsKeyPressed(KEY_E)) {
+        int d = G.moored && c.deck == 0 && c.station < 0 ? NearestDock(c.p, 1.4f) : -1;
+        if (d >= 0) S.panel = (int)DockStations()[d].kind;
+        else if (G.TakeStation(S.you) && Stations()[c.station].kind == StationKind::Helm && S.sess.phase == Phase::Dock) S.panel = PANEL_CHART;
+    }
     if (IsKeyPressed(KEY_X)) G.LeaveStation(S.you);
     float wheel = GetMouseWheelMove();
     bool atRod = G.crew[S.you].station >= 0 && G.RodAt(G.crew[S.you].station) >= 0;
@@ -200,6 +217,7 @@ void StationOverlay() {
             float hd = fmodf(-b.heading * RAD2DEG + 90 + 720, 360);
             TxtBold(TextFormat("Heading %03.0f   %.1f kn", hd, b.Speed() * 1.944f), SCREEN_W - 300, SCREEN_H - 60, 18, paper);
             TxtBold(TextFormat("Rudder %s%.0f", b.rudder > 0 ? "stbd " : b.rudder < 0 ? "port " : "", fabsf(b.rudder) * 35), SCREEN_W - 300, SCREEN_H - 36, 16, Fade(paper, 0.8f));
+            if (S.sess.phase == Phase::SailOut) DrawTextCenteredBold("Steam out past the harbour line: the night starts there", SCREEN_W / 2.0f, 150, 18, paper);
             break;
         }
         case StationKind::Boiler:
@@ -217,10 +235,167 @@ void StationOverlay() {
         }
         case StationKind::PortRod: case StationKind::StarRod: case StationKind::SternRodP: case StationKind::SternRodS:
             ReelGauge(g, c);
+            TxtBold(TextFormat("Bait: shrimp %d, squid %d", g.baitShrimp, g.baitSquid), SCREEN_W - 560, SCREEN_H - 104, 14, Fade(paper, 0.7f));
             break;
+        case StationKind::Gutting: {
+            // the fish in hand: species, weight, grade and freshness (design doc, "Controls, HUD")
+            int f = -1; for (int i = 0; i < (int)g.hold.size(); i++) if (!g.hold[i].gutted) { f = i; break; }
+            float x0 = SCREEN_W - 420, y0 = SCREEN_H - 180;
+            DrawRectangle((int)x0 - 12, (int)y0 - 12, 400, 130, Fade(Color{20, 16, 12, 255}, 0.8f));
+            if (f < 0) TxtBold(g.hold.empty() ? "Nothing on deck" : "All gutted and iced", x0, y0, 18, paper);
+            else {
+                const CatchRec& r = g.hold[f];
+                TxtBold(TextFormat("%s, %.1f kg", r.name.c_str(), r.kg), x0, y0, 18, paper);
+                Txt(TextFormat("Grade %.0f%%   Fresh %.0f%%   worth about %.0f sh", r.grade * 100, r.fresh * 100, S.sess.Value(r)), x0, y0 + 26, 15, Fade(paper, 0.85f));
+                float need = 1.2f + std::min(3.0f, r.kg * 0.08f);
+                DrawRectangle((int)x0, (int)y0 + 54, 360, 10, Fade(paper, 0.2f));
+                DrawRectangle((int)x0, (int)y0 + 54, (int)(360 * std::clamp(g.gutT / need, 0.0f, 1.0f)), 10, Color{200, 80, 60, 255});
+                Txt("Hold left mouse to gut and ice it (the guts go over the rail)", x0, y0 + 72, 13, Fade(paper, 0.7f));
+            }
+            Txt(TextFormat("Ice: %.0f kg   On deck: %d   Iced: %d", g.ice, g.DeckFish(), (int)g.hold.size() - g.DeckFish()), x0, y0 + 96, 14, Fade(paper, 0.8f));
+            break;
+        }
+        case StationKind::Printer: {
+            // the Owners' tape, newest at the bottom
+            float x0 = SCREEN_W / 2.0f - 330, y0 = 120;
+            DrawRectangle((int)x0 - 14, (int)y0 - 14, 688, 300, Color{226, 216, 190, 245});
+            const auto& T = S.sess.tape;
+            int n = (int)T.size(), from = std::max(0, n - 10);
+            for (int i = from; i < n; i++) Txt(T[i].c_str(), x0, y0 + (i - from) * 27.0f, 15, Color{40, 32, 24, 255});
+            break;
+        }
         default:
             DrawTextCentered("(this station comes aboard in a later refit)", SCREEN_W / 2.0f, SCREEN_H - 64.0f, 14, Fade(paper, 0.6f));
             break;
+    }
+}
+// ---------------------------------------------------------------- the dock's panels
+void PanelFrame(const char* title, float w, float h, Rectangle* out) {
+    Rectangle r{SCREEN_W / 2.0f - w / 2, SCREEN_H / 2.0f - h / 2 - 20, w, h};
+    DrawRectangle(0, 0, SCREEN_W, SCREEN_H, Fade(BLACK, 0.35f));
+    DrawRectangleRec({r.x - 6, r.y - 6, r.width + 12, r.height + 12}, Color{60, 44, 28, 255});
+    DrawRectangleRec(r, Color{226, 214, 186, 255});
+    DrawTextCenteredBold(title, r.x + r.width / 2, r.y + 14, 26, Color{50, 36, 24, 255});
+    Txt("X to close", r.x + r.width - 96, r.y + r.height - 26, 14, Color{90, 70, 50, 255});
+    *out = r;
+}
+void Panels(Game& g) {
+    if (S.panel < 0) return;
+    Session& ss = S.sess;
+    Gannet& G = S.G;
+    Color ink{50, 36, 24, 255}, dim{100, 80, 60, 255};
+    Rectangle r;
+    std::string why;
+    auto toast = [&](const std::string& t) { S.toast = t; S.toastT = 3; };
+    switch (S.panel) {
+        case (int)DockKind::Chalkboard: {
+            PanelFrame("The chalkboard", 560, 360, &r);
+            float x = r.x + 40, y = r.y + 64;
+            TxtBold(TextFormat("Deadline %d", ss.deadline), x, y, 22, ink);
+            TxtBold(TextFormat("Quota: %.0f shillings", ss.quota), x, y + 40, 22, ink);
+            TxtBold(TextFormat("Sold this deadline: %.0f", ss.sold), x, y + 74, 22, ss.sold >= ss.quota ? Color{40, 110, 50, 255} : ink);
+            TxtBold(TextFormat("Nights left: %d", ss.NightsLeft()), x, y + 108, 22, ink);
+            TxtBold(TextFormat("Money: %.0f shillings", ss.money), x, y + 142, 22, ink);
+            Txt(TextFormat("Arcade tokens this run: %d", ss.tokens), x, y + 180, 16, dim);
+            if (ss.night >= 3 && Button({r.x + r.width / 2 - 150, r.y + r.height - 76, 300, 44}, "Hand in to the Owners")) { ss.Count(); S.panel = PANEL_END; }
+            break;
+        }
+        case (int)DockKind::Chandler: {
+            PanelFrame("The Chandler", 760, 520, &r);
+            float x = r.x + 30, y = r.y + 60;
+            TxtBold(TextFormat("Money %.0f     Ice %.0f kg     Shrimp %d     Squid %d     Coal %.0f kg     Chum %d", ss.money, G.ice, G.baitShrimp, G.baitSquid, G.boat.bunker, G.chum), x, y, 16, ink);
+            const auto& I = ChandlerItems();
+            for (int i = 0; i < (int)I.size(); i++) {
+                float yy = y + 34 + i * 38;
+                TxtBold(I[i].name, x, yy + 6, 17, ink);
+                Txt(I[i].note, x + 200, yy + 8, 14, dim);
+                if (Button({r.x + r.width - 150, yy, 120, 32}, TextFormat("%d sh", I[i].price), ss.money >= I[i].price, 16)) {
+                    if (!ss.Buy(I[i].id, &why)) toast(why); else toast(std::string("Bought: ") + I[i].name);
+                }
+            }
+            break;
+        }
+        case (int)DockKind::Market: {
+            PanelFrame("The Fish Market", 700, 520, &r);
+            float x = r.x + 30, y = r.y + 60;
+            if (!G.hold.empty()) {
+                float tot = 0;
+                int shown = 0;
+                for (const auto& c : G.hold) {
+                    float v = ss.Value(c); tot += v;
+                    if (shown++ < 9) {
+                        float yy = y + shown * 26.0f;
+                        Txt(c.name.c_str(), x, yy, 15, ink);
+                        Txt(TextFormat("%.1f kg", c.kg), x + 190, yy, 15, ink);
+                        Txt(TextFormat("grade %.0f%%", c.grade * 100), x + 270, yy, 15, ink);
+                        Txt(TextFormat("fresh %.0f%%", c.fresh * 100), x + 380, yy, 15, ink);
+                        Txt(c.iced ? "iced" : c.gutted ? "gutted" : "on deck", x + 480, yy, 15, c.iced ? ink : Color{150, 60, 40, 255});
+                        Txt(TextFormat("%.1f sh", v), x + 560, yy, 15, ink);
+                    }
+                }
+                if ((int)G.hold.size() > 9) Txt(TextFormat("... and %d more", (int)G.hold.size() - 9), x, y + 10 * 26.0f, 15, dim);
+                TxtBold(TextFormat("About %.0f shillings (the glut counts as they're weighed)", tot), x, r.y + r.height - 110, 17, ink);
+                if (Button({r.x + r.width / 2 - 110, r.y + r.height - 76, 220, 44}, "Sell the catch")) { ss.Sell(); toast(TextFormat("Paid %.0f shillings", ss.lastSaleTotal)); }
+            } else if (!ss.lastSale.empty()) {
+                int k = 0;
+                for (const auto& l : ss.lastSale) if (k++ < 10) {
+                    float yy = y + k * 26.0f;
+                    Txt(l.name.c_str(), x, yy, 14, ink);
+                    Txt(TextFormat("%.1f kg x %.1f sh x grade %.0f%% x fresh %.0f%% x glut %.0f%%%s", l.kg, l.price, l.grade * 100, l.fresh * 100, l.glut * 100, l.bonus > 1 ? " x first 150%" : ""), x + 170, yy, 14, dim);
+                    Txt(TextFormat("%.1f", l.value), x + 590, yy, 14, ink);
+                }
+                TxtBold(TextFormat("Paid %.0f shillings", ss.lastSaleTotal), x, r.y + r.height - 100, 20, ink);
+            } else TxtBold("Nothing to sell.", x, y + 20, 18, dim);
+            break;
+        }
+        case (int)DockKind::Office:
+            PanelFrame("The Owners' office", 560, 260, &r);
+            TxtBold("The window is shuttered. No salvage to sell.", r.x + 40, r.y + 80, 18, ink);
+            Txt("(Wrecks and diving come aboard in a later stage. Salvage pays 40% after night one,", r.x + 40, r.y + 120, 14, dim);
+            Txt("70% after night two, 100% at the deadline count.)", r.x + 40, r.y + 140, 14, dim);
+            break;
+        case (int)DockKind::Slipway: {
+            PanelFrame("The Slipway", 760, 400, &r);
+            float x = r.x + 30, y = r.y + 60;
+            TxtBold(TextFormat("Money %.0f", ss.money), x, y, 17, ink);
+            const auto& I = SlipwayItems();
+            for (int i = 0; i < (int)I.size(); i++) {
+                float yy = y + 34 + i * 42;
+                bool fitted = ss.slip[i] && std::string(I[i].id) != "plates";
+                TxtBold(I[i].name, x, yy + 6, 17, ink);
+                Txt(I[i].note, x + 240, yy + 8, 14, dim);
+                if (Button({r.x + r.width - 150, yy, 120, 34}, fitted ? "Fitted" : TextFormat("%d sh", I[i].price), !fitted && ss.money >= I[i].price, 16)) {
+                    if (!ss.BuySlip(i, &why)) toast(why); else toast(std::string("Fitted: ") + I[i].name);
+                }
+            }
+            break;
+        }
+        case PANEL_CHART: {
+            PanelFrame("The chart table", 640, 420, &r);
+            float x = r.x + 40, y = r.y + 64;
+            TxtBold("Eclipse Lagoon", x, y, 22, ink);
+            Txt("3-40 m. Coal to reach: 10 kg. Fish value low. The reef tide falls all night.", x, y + 30, 15, dim);
+            for (int k = 0; k < 3; k++) {
+                static const char* N[3] = {"The Weeds", "The Grotto", "Atlantis Waters"};
+                Txt(TextFormat("%s  (charted in a later refit)", N[k]), x, y + 70 + k * 26.0f, 16, Fade(dim, 0.6f));
+            }
+            TxtBold(TextFormat("Night %d of 3.   Bunker %.0f kg.   Back across the harbour line before 05:00.", ss.night + 1, G.boat.bunker), x, y + 170, 15, ink);
+            bool ok = ss.CanCastOff(&why);
+            if (!ok) Txt(why.c_str(), x, y + 200, 15, Color{150, 50, 40, 255});
+            if (Button({r.x + r.width / 2 - 110, r.y + r.height - 80, 220, 46}, "Cast off", ok)) {
+                if (ss.CastOff(&why)) { S.panel = -1; toast("Cast off: raise steam and steer out past the harbour line"); } else toast(why);
+            }
+            break;
+        }
+        case PANEL_END: {
+            bool met = ss.phase == Phase::Result;
+            PanelFrame(met ? "QUOTA MET" : "GANNET REPOSSESSED", 600, 300, &r);
+            TxtBold(TextFormat("Sold %.0f against a quota of %.0f", ss.sold, ss.quota), r.x + 40, r.y + 80, 20, ink);
+            Txt(ss.tape.empty() ? "" : ss.tape.back().c_str(), r.x + 40, r.y + 120, 14, dim);
+            if (met) { if (Button({r.x + r.width / 2 - 130, r.y + r.height - 80, 260, 46}, "Next deadline")) { ss.Continue(); S.panel = -1; } }
+            else if (Button({r.x + r.width / 2 - 130, r.y + r.height - 80, 260, 46}, "Back to the arcade")) { S.active = false; g.scene = Scene::Arcade; }
+            break;
+        }
     }
 }
 void Hud(Game& g) {
@@ -242,8 +417,21 @@ void Hud(Game& g) {
     if (!G.hold.empty()) { float kg = 0; for (const auto& h : G.hold) kg += h.kg; Txt(TextFormat("In the hold: %d fish, %.0f kg", (int)G.hold.size(), kg), SCREEN_W - 260, 16, 15, Fade(paper, 0.8f)); }
     if (c.overboard) DrawTextCenteredBold("OVERBOARD", SCREEN_W / 2.0f, SCREEN_H / 2.0f - 40, 34, Color{230, 80, 70, 255});
     if (G.boat.sunk) DrawTextCenteredBold("The Gannet has foundered", SCREEN_W / 2.0f, SCREEN_H / 2.0f, 30, Color{230, 80, 70, 255});
-    StationOverlay();
-    (void)g;
+    // the wheelhouse clock (or a pocket watch): the only way to read the time
+    bool inWheelhouse = c.deck == 0 && c.p.x > 0.9f && c.p.x < 5.1f && fabsf(c.p.y) < 2.1f;
+    if ((S.sess.phase == Phase::Night || S.sess.phase == Phase::SailOut) && (inWheelhouse || G.watch))
+        TxtBold(S.sess.ClockText(), SCREEN_W / 2.0f - 30, 16, 26, S.sess.clock > 480 ? Color{240, 140, 100, 255} : paper);
+    // the telegraph's newest tape, for a moment
+    if (S.sess.tape.size() != S.tapeSeen) { S.tapeSeen = S.sess.tape.size(); S.tapeT = 6; }
+    if (S.tapeT > 0 && !S.sess.tape.empty()) DrawTextCentered(S.sess.tape.back(), SCREEN_W / 2.0f, 52, 15, Fade(Color{230, 215, 170, 255}, std::min(1.0f, S.tapeT)));
+    if (S.toastT > 0) DrawTextCenteredBold(S.toast, SCREEN_W / 2.0f, SCREEN_H / 2.0f + 170, 18, Fade(paper, std::min(1.0f, S.toastT)));
+    if (G.moored && c.station < 0 && S.panel < 0) {
+        int d = NearestDock(c.p, 1.4f);
+        if (d >= 0) DrawTextCenteredBold(TextFormat("E: %s", DockStations()[d].name), SCREEN_W / 2.0f, SCREEN_H - 90.0f, 20, paper);
+        else if (c.p.y > -3.0f && S.sess.phase == Phase::Dock) DrawTextCentered("Moored at the quay: the gangplank is amidships to port; the helm casts off", SCREEN_W / 2.0f, SCREEN_H - 60.0f, 14, Fade(paper, 0.7f));
+    }
+    if (S.panel < 0) StationOverlay();
+    Panels(g);
 }
 
 void Draw(Game& g) {
@@ -255,6 +443,19 @@ void Draw(Game& g) {
     BeginLayer(PixelRT());
     ClearBackground(Color{2, 4, 8, 255});
     DrawSea(G, v);
+    DrawQuay(G, v);
+    // the harbour line: a ring of buoys round the harbour mouth, green lamps seaward, red toward the island
+    for (int k = 0; k < 16; k++) {
+        float a = k * PI / 8;
+        Vector2 w = Vector2Add(S.sess.harbour, {cosf(a) * S.sess.harbourR, sinf(a) * S.sess.harbourR});
+        if (S.eco.g && S.eco.DepthAt(w) < 1) continue;
+        Vector2 d = G.boat.ToDeck(w), cp = v.ToCanvas(d);
+        if (cp.x < -4 || cp.y < -4 || cp.x > PIXEL_W + 6 || cp.y > PIXEL_H + 6) continue;
+        bool blink = fmodf(G.time + k * 0.37f, 2.0f) < 1.2f;
+        Color lc = cosf(a) > 0 ? Color{90, 230, 120, 255} : Color{240, 80, 70, 255};
+        DrawRectangle((int)cp.x - 1, (int)cp.y - 1, 3, 3, Color{40, 40, 44, 255});
+        if (blink) { DrawRectangle((int)cp.x, (int)cp.y - 1, 1, 1, lc); DrawCircleV(cp, 3, Fade(lc, 0.15f)); }
+    }
     DrawLife(G, v, false);
     DrawBoat(G, v);
     DrawLines(G, v);
@@ -270,10 +471,8 @@ void Draw(Game& g) {
 void StartTrawl(Game& g) {
     S = TrawlScene{};
     uint32_t seed = (uint32_t)GetRandomValue(1, 1 << 30);
-    S.G.Init(1, seed, Weather::Calm);
-    S.G.boat.telegraph = 0;
-    // on the Eclipse Lagoon, in the basin off the seagrass flats (the session loop and the chart come in stage 4)
-    if (S.eco.Init("lagoon", seed)) { S.G.eco = &S.eco; S.G.boat.pos = {S.eco.n * S.eco.cell * 0.42f, S.eco.n * S.eco.cell * 0.5f}; S.G.boat.heading = -0.3f; }
+    // a solo run: the Gannet at the quay on the atoll, the first deadline's quota on the tape
+    S.sess.Begin(S.G, S.eco, 1, seed);
     S.active = true;
     EnableCursor();
     g.scene = Scene::Trawl;
@@ -289,7 +488,11 @@ void SceneTrawl(Game& g) {
         S.acc -= 1 / 60.0f;
         if (!S.shot) Controls(1 / 60.0f);
         S.G.Step(1 / 60.0f);
+        S.sess.Step(1 / 60.0f);
     }
+    if (S.toastT > 0) S.toastT -= dt;
+    if (S.tapeT > 0) S.tapeT -= dt;
+    if (S.sess.phase == Phase::Over || S.sess.phase == Phase::Result) S.panel = PANEL_END;
     Draw(g);
 }
 
@@ -298,6 +501,31 @@ void SceneTrawl(Game& g) {
 void DebugTrawlShot(Game& g, int which) {
     StartTrawl(g);
     S.shot = true;
+    if (which >= 9) {
+        // 9 the quay, 10 the Chandler, 11 the Fish Market after a night, 12 the chart table, 13 the wheelhouse clock
+        // at sea with the tape, 14 the quota met
+        Gannet& G = S.G; Session& ss = S.sess;
+        Crew& c = G.crew[0];
+        if (which == 9 || which == 10 || which == 11) c.p = which == 11 ? Vector2{3.0f, -7.2f} : which == 10 ? Vector2{-3.5f, -7.2f} : Vector2{-6, -5.5f};
+        if (which == 10) S.panel = (int)DockKind::Chandler;
+        if (which == 11) {
+            const char* names[] = {"snapper", "grunt", "reef squid", "bonito", "snapper (head)"};
+            float kg[] = {3.2f, 1.1f, 0.7f, 4.1f, 1.2f}, pr[] = {3, 1.5f, 4, 3, 3};
+            for (int i = 0; i < 5; i++) { CatchRec cr; cr.name = names[i]; cr.kg = kg[i]; cr.price = pr[i]; cr.gutted = i != 2; cr.iced = i != 2; cr.fresh = i == 2 ? 0.93f : 0.98f; cr.grade = i == 4 ? 0.9f : 1; cr.first = i == 0; G.hold.push_back(cr); }
+            S.panel = (int)DockKind::Market;
+        }
+        if (which == 12) { c.p = {4.2f, 0}; c.station = NearestStation(c.p, 0, 1.1f); S.panel = PANEL_CHART; ss.Buy("shrimp"); }
+        if (which == 13) {
+            c.p = {3.0f, 0.8f};
+            ss.Buy("shrimp"); ss.CastOff();
+            G.boat.pos = Vector2Add(ss.harbour, {ss.harbourR + 40, 10}); G.boat.heading = 0.2f;
+            for (int i = 0; i < 60 * 3; i++) { G.Step(1 / 60.0f); ss.Step(1 / 60.0f); }
+            ss.clock = 283; ss.Step(0.1f);
+        }
+        if (which == 14) { ss.night = 3; ss.sold = 240; ss.Count(); S.panel = PANEL_END; }
+        for (int i = 0; i < 30; i++) { G.Step(1 / 60.0f); ss.Step(1 / 60.0f); }
+        return;
+    }
     Gannet& G = S.G;
     G.Init(4, 11, which == 3 ? Weather::Squall : Weather::Calm);
     G.boat.telegraph = 1; G.boat.pressure = 0.7f;
@@ -318,7 +546,7 @@ void DebugTrawlShot(Game& g, int which) {
             if (which == 8 && i % (60 * 20) == 0) { Vector2 w = G.boat.ToWorld({-11, 0}); S.eco.AddBlood({w.x, w.y, 1}, 60); }
             if (which == 8 && i == 60 * 30) {
                 int ai = S.eco.SpawnAgentPublic(shark, G.boat.ToWorld({-14, 9})); S.eco.agents[ai].hunger = 0.9f; S.eco.agents[ai].p.z = 1.2f; S.eco.agents[ai].count = 1;
-                G.hold.push_back({"snapper", 2.5f, 7.5f});
+                { CatchRec cr; cr.name = "snapper"; cr.kg = 2.5f; cr.price = 3; G.hold.push_back(cr); }
             }
             G.Step(1 / 60.0f);
         }

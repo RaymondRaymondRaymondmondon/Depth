@@ -121,12 +121,12 @@ void Boat::Step(float dt, const Sea& sea) {
     float steam = std::clamp((pressure - 0.2f) / (K.greenLo - 0.2f), 0.0f, 1.0f);
     float want = valveT > 0 ? 0 : draw * steam;
     shaft += std::clamp(want - shaft, -0.5f * dt, 0.5f * dt);
-    noise = shaft > 0.05f ? (float)K.noiseByTelegraph[step] : 0;
+    noise = shaft > 0.05f ? K.noiseByTelegraph[step] * noiseMult : 0;
     // ---- through the water: thrust, drag, the rudder, wind and current
     Vector2 f = Forward(), side{-f.y, f.x};
     Vector2 rel = Vector2Subtract(vel, sea.current);
     float vf = Vector2DotProduct(rel, f), vs = Vector2DotProduct(rel, side);
-    float thrust = K.maxThrust * shaft * (tel < 0 ? -1.0f : 1.0f);
+    float thrust = K.maxThrust * thrustMult * thrustMult * shaft * (tel < 0 ? -1.0f : 1.0f);   // (drag goes as speed squared: 1.3x speed wants 1.69x thrust)
     float Ff = thrust - K.dragFwd * vf * fabsf(vf), Fs = -K.dragSide * vs * fabsf(vs);
     Vector2 windF = Vector2Scale(sea.wind, 60 * Vector2Length(sea.wind));
     Vector2 acc = Vector2Scale(Vector2Add(Vector2Add(Vector2Add(Vector2Scale(f, Ff), Vector2Scale(side, Fs)), windF), extraForce), 1.0f / M);
@@ -144,7 +144,14 @@ static float HalfBeam(float x) {   // the hull's half-width along her length: st
     if (x < -10) return 3.0f - (-10 - x) * 0.8f;
     return 3.0f;
 }
+// Moored, her port side lies along the quay: a gangplank amidships and the planks ashore.
+bool QuayWalkable(Vector2 p) {
+    if (p.x > -1.1f && p.x < 1.1f && p.y > -4.0f && p.y < -2.4f) return true;   // the gangplank
+    return p.x > -13.5f && p.x < 13.5f && p.y > -9.6f && p.y < -3.9f;
+}
+static bool gMoored = false;
 static bool Walkable(Vector2 p, int deck) {
+    if (deck == 0 && gMoored && (p.y < -2.4f) && QuayWalkable(p)) return true;
     if (deck == 1) return p.x > -8.4f && p.x < -2.9f && fabsf(p.y) < 2.3f && !(p.x > -5.8f && p.x < -3.8f && p.y < -0.6f);   // the engine room; the boiler against its port side
     if (p.x < -10.9f || p.x > 10.6f || fabsf(p.y) > HalfBeam(p.x) - 0.3f) return false;
     // the wheelhouse walls (its door is on the aft side, amidships)
@@ -187,10 +194,12 @@ void Gannet::Init(int n, uint32_t seed, Weather w) {
         rods.push_back(r);
     }
 }
+int Gannet::DeckFish() const { int n = 0; for (const auto& h : hold) if (!h.gutted) n++; return n; }
 void Gannet::Say(const std::string& s) { log.push_back(s); if (log.size() > 12) log.erase(log.begin()); }
 
 void Gannet::Move(int ci, Vector2 wish, bool brace, float dt) {
     Crew& c = crew[ci];
+    gMoored = moored;
     if (c.overboard) return;
     c.braced = brace || c.station >= 0;
     if (c.station >= 0 || c.fallen) wish = {0, 0};
@@ -247,9 +256,27 @@ void Gannet::Primary(int ci, bool held, float dt) {
         case StationKind::Pumps:
             if (!held) break;
             c.strokeT += dt * rate;
-            while (c.strokeT >= D().strokeTime) { c.strokeT -= D().strokeTime; boat.Pump(D().pumpKgPerStroke); }
+            while (c.strokeT >= D().strokeTime) { c.strokeT -= D().strokeTime; boat.Pump(D().pumpKgPerStroke * (secondPump ? 2 : 1)); }
             break;
         case StationKind::Bell: if (held) Say("The bell"); break;
+        case StationKind::Gutting: {
+            // gut, grade and ice the catch one fish at a time; the guts go over the rail
+            if (!held) { gutT = 0; break; }
+            int f = -1; for (int i = 0; i < (int)hold.size(); i++) if (!hold[i].gutted) { f = i; break; }
+            if (f < 0) break;
+            gutT += dt * rate;
+            float need = 1.2f + std::min(3.0f, hold[f].kg * 0.08f);
+            if (gutT >= need) {
+                gutT = 0;
+                CatchRec& r = hold[f];
+                r.gutted = true;
+                float iceNeed = r.kg * 0.5f;
+                if (ice >= iceNeed) { ice -= iceNeed; r.iced = true; Say(TextFormat("Gutted and iced: %s, %.1f kg", r.name.c_str(), r.kg)); }
+                else Say(TextFormat("Gutted, but no ice: the %s will spoil", r.name.c_str()));
+                GutsOverboard(r.kg);
+            }
+            break;
+        }
         default: break;
     }
 }
@@ -263,7 +290,7 @@ void Gannet::Scroll(int ci, float amount) {
     if (Stations()[c.station].kind == StationKind::Helm) boat.telegraph = std::clamp(boat.telegraph + (amount > 0 ? 1 : -1), -1, 3);
     if (Stations()[c.station].kind == StationKind::Lantern) {
         int was = boat.lantern;
-        boat.lantern = std::clamp(boat.lantern + (amount > 0 ? 1 : -1), 0, 3);
+        boat.lantern = std::clamp(boat.lantern + (amount > 0 ? 1 : -1), 0, searchlight ? 3 : 2);
         if (boat.lantern != was) { static const char* N[4] = {"hooded", "low", "full", "the searchlight"}; Say(std::string("Lantern: ") + N[boat.lantern]); }
     }
 }
@@ -284,6 +311,9 @@ void Gannet::Step(float dt) {
     StepRods(dt);
     if (eco) EcoTick(*eco, *this, dt);
     boat.Step(dt, sea);
+    if (moored) { boat.pos = moorPos; boat.heading = moorHeading; boat.vel = {0, 0}; boat.yawRate = 0; boat.roll *= 0.9f; boat.pitch *= 0.9f; }
+    // the catch spoils: 1% a real minute on deck, 0.2% gutted and iced
+    for (auto& h : hold) h.fresh = std::max(0.0f, h.fresh - dt / 60.0f * (h.iced ? 0.002f : 0.01f));
     if (boat.sunk && !wasSunk) Say("The Gannet founders");
     if (boat.valveT > 0 && valve0 <= 0) Say("The relief valve blows: steam in the engine room, the screw stops");
     // a hand patching a leak (a Bosun in 3 s): stand in the flooded section with a patch kit, hold the pump key's

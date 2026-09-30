@@ -44,7 +44,7 @@ add_executable(depth
     src/rig.cpp src/rig_clips.cpp src/rigfigs.cpp src/chart.cpp src/combatfx.cpp src/input.cpp src/menu.cpp
     src/json.cpp src/redtide_data.cpp src/redtide_eco.cpp src/redtide_tools.cpp src/redtide_render.cpp src/redtide_game.cpp
     src/redtide_match.cpp src/redtide_profile.cpp src/redtide_menu.cpp
-    src/trawl_data.cpp src/trawl_boat.cpp src/trawl_fish.cpp src/trawl_eco.cpp src/trawl_art.cpp src/trawl.cpp
+    src/trawl_data.cpp src/trawl_boat.cpp src/trawl_fish.cpp src/trawl_eco.cpp src/trawl_session.cpp src/trawl_art.cpp src/trawl.cpp
 )
 target_link_libraries(depth PRIVATE raylib)
 

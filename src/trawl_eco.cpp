@@ -747,8 +747,7 @@ void EcoTick(Eco& e, Gannet& gn, float dt) {
         float rating = TackleOf(f.tackle).strength;
         if (f.tension > 0.3f * rating) e.AddVibration(Vector3Lerp(f.tip, f.p, 0.5f), dt);   // a taut line hums
     }
-    int deck = 0; for (const auto& c : gn.hold) (void)c, deck++;
-    e.deckFish = deck;
+    e.deckFish = gn.DeckFish();
     // aground: the chart under her keel (she draws about 1.8 m)
     float d = e.DepthAt(b.pos);
     bool was = gn.boat.aground;

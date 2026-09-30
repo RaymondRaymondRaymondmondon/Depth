@@ -402,6 +402,11 @@ const FishSpec* DummyBite(Tackle t, float r) {
 float RRand(uint32_t& s) { s = s * 1664525u + 1013904223u; return (s >> 8) * (1.0f / 16777216.0f); }
 }
 
+void Gannet::GutsOverboard(float kg) {
+    if (!eco) return;
+    Vector2 w = boat.ToWorld({-2.2f, 3.2f});
+    eco->AddBlood({w.x, w.y, 1}, kg * 1.5f);
+}
 Vector2 Rod::TipDeck() const {
     const StationDef& sd = Stations()[station];
     Vector2 a = sd.at;
@@ -417,7 +422,10 @@ void Gannet::CycleTackle(int ci) {
     int ri = crew[ci].station >= 0 ? RodAt(crew[ci].station) : -1;
     if (ri < 0 || rods[ri].state != RodState::Idle) return;
     Rod& r = rods[ri];
-    r.tackle = (Tackle)(((int)r.tackle + 1) % (int)Tackle::COUNT);
+    for (int k = 0; k < (int)Tackle::COUNT; k++) {   // the next tackle she owns
+        r.tackle = (Tackle)(((int)r.tackle + 1) % (int)Tackle::COUNT);
+        if (owned[(int)r.tackle]) break;
+    }
     r.line = r.tackle == Tackle::DeepDrop ? LineType::Braid : LineType::Mono;
     r.hook = r.tackle == Tackle::Chair ? Hook::Treble : Hook::Small;
     r.fight.drag = 0.33f * TackleOf(r.tackle).strength;
@@ -468,6 +476,15 @@ void Gannet::StepRods(float dt) {
                     Vector2 at = boat.ToWorld(Vector2Add(tipDeck, Vector2Scale(aim, dist)));
                     if (!td.dropDown) at = Vector2Add(at, Vector2Scale(sea.wind, 0.25f * dist / std::max(1.0f, td.cast) * 3));
                     r.lure = {at.x, at.y, 0};
+                    // bait from the stores: shrimp on the light gear, squid strips on the heavier (a bare hook if out)
+                    {
+                        bool light = r.tackle == Tackle::Light;
+                        if (r.tackle == Tackle::Handline) r.bait = "tiny hook";
+                        else if (light && baitShrimp > 0) { baitShrimp--; r.bait = "shrimp"; }
+                        else if (baitSquid > 0) { baitSquid--; r.bait = "squid strip"; }
+                        else if (baitShrimp > 0) { baitShrimp--; r.bait = "shrimp"; }
+                        else r.bait = "bare hook";
+                    }
                     if (r.lureDepth <= 0 || r.lureDepth == 8) r.lureDepth = DefaultDepth(r.tackle);
                     r.lineOut = Vector2Distance(at, tipW);
                     r.state = RodState::Out; r.settleT = 0; r.bite = Bite{};
@@ -561,7 +578,9 @@ void Gannet::StepRods(float dt) {
                 if (f.end != FightEnd::None) {
                     if (f.end == FightEnd::Landed) {
                         std::string nm = std::string(f.spec.name) + (r.headOnly ? " (head)" : "");
-                        hold.push_back({nm, f.spec.kg, f.spec.kg * f.spec.price});
+                        CatchRec rec; rec.name = nm; rec.kg = f.spec.kg; rec.price = f.spec.price; rec.sp = r.fishSp;
+                        rec.grade = r.headOnly ? 0.9f : 1.0f;             // hook 100%, less 10% for the bite taken out of it
+                        hold.push_back(rec);
                         r.lastCatch = TextFormat("%.1f kg %s", f.spec.kg, nm.c_str());
                         Say(std::string("Landed: a ") + r.lastCatch);
                         if (eco && r.fishSp >= 0) eco->Harvest(r.fishSp, r.headOnly ? f.spec.kg / 0.45f : f.spec.kg, f.p, false);

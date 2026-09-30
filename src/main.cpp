@@ -2,6 +2,7 @@
 #include "beasts.h"
 #include "trawl.h"
 #include "trawl_eco.h"
+#include "trawl_session.h"
 #include "redtide.h"
 #include "redtide_match.h"
 // ============================================================================
@@ -187,6 +188,12 @@ static void TakeShots(const Game& base, const std::string& dir) {
         {"trawl_lagoon", [](Game& g) { DebugTrawlShot(g, 6); }},
         {"trawl_searchlight", [](Game& g) { DebugTrawlShot(g, 7); }},
         {"trawl_shark", [](Game& g) { DebugTrawlShot(g, 8); }},
+        {"trawl_dock", [](Game& g) { DebugTrawlShot(g, 9); }},
+        {"trawl_chandler", [](Game& g) { DebugTrawlShot(g, 10); }},
+        {"trawl_market", [](Game& g) { DebugTrawlShot(g, 11); }},
+        {"trawl_chart", [](Game& g) { DebugTrawlShot(g, 12); }},
+        {"trawl_clock", [](Game& g) { DebugTrawlShot(g, 13); }},
+        {"trawl_quota", [](Game& g) { DebugTrawlShot(g, 14); }},
         {"redtide_tank", [](Game& g) { DebugRedTideShot(g, 0); }},
         {"redtide_silhouette", [](Game& g) { DebugRedTideShot(g, 1); }},
         {"redtide_species_ship_1", [](Game& g) { DebugRedTideShot(g, 2); }},
@@ -587,6 +594,7 @@ int main(int argc, char** argv) {
         return rt::RunWebCheck(argv[2]);
     }
     if (argc >= 2 && strcmp(argv[1], "--trawl-eco") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlEco(argc, argv); }
+    if (argc >= 2 && strcmp(argv[1], "--trawl-session-test") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlSessionTest(); }
     if (argc >= 2 && strcmp(argv[1], "--trawl-eco-test") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlEcoTest(); }
     if (argc >= 2 && strcmp(argv[1], "--trawl-fight") == 0) return tw::RunTrawlFight(argc, argv);
     if (argc >= 2 && strcmp(argv[1], "--trawl-boat-test") == 0) {

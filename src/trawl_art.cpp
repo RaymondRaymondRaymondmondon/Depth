@@ -3,6 +3,7 @@
 // The sea is black outside the light: only the lantern's pool shows water, foam and glints.
 #include "trawl_art.h"
 #include "trawl_eco.h"
+#include "trawl_session.h"
 #include "raymath.h"
 #include <algorithm>
 #include <cmath>
@@ -268,6 +269,61 @@ void DrawLines(const Gannet& g, const View& v) {
                     DrawPixel((int)(cc.x + cosf(ang) * rr), (int)(cc.y + sinf(ang) * rr), Fade(Color{220, 230, 230, 255}, 0.4f + 0.5f * lit));
                 }
             }
+        }
+    }
+}
+
+// ---------------------------------------------------------------- the harbour quay (moored)
+void DrawQuay(const Gannet& g, const View& v) {
+    if (!g.moored) return;
+    auto lit = [&](Vector2 d) { return 0.18f + 0.82f * v.LightAt(d); };
+    // the island's sand behind, the quay's planks, the pilings along the water
+    for (float y = -16; y < -9.6f; y += 0.5f) for (float x = -18; x < 18; x += 0.5f) {
+        Vector2 d{x, y};
+        float h = H01((int)(x * 2), (int)(y * 2), 41);
+        Px(v, d, 0.5f, 0.5f, Dim(Mix(Color{120, 108, 78, 255}, Color{96, 86, 60, 255}, h), lit(d)));
+        if (h < 0.03f) Px(v, d, 0.25f, 0.25f, Dim(Color{60, 90, 50, 255}, lit(d)));   // tufts of dune grass
+    }
+    for (float y = -9.6f; y < -3.9f; y += 0.35f) {
+        Color pl = ((int)((y + 20) / 0.35f)) % 2 ? Color{104, 80, 54, 255} : Color{92, 70, 46, 255};
+        for (float x = -13.5f; x < 13.5f; x += 0.5f) Px(v, {x, y}, 0.5f, 0.33f, Dim(pl, lit({x, y})));
+    }
+    for (float x = -13.2f; x < 13.5f; x += 2.2f) PxC(v, {x, -3.95f}, 0.35f, 0.35f, Dim(Color{60, 44, 30, 255}, lit({x, -3.95f})));   // pilings
+    // the gangplank to her rail, the mooring lines to the bollards
+    for (float y = -3.9f; y < -2.6f; y += 0.25f) Px(v, {-0.9f, y}, 1.8f, 0.2f, Dim(Color{130, 100, 64, 255}, lit({0, y})));
+    for (float bx : {-9.5f, 8.5f}) {
+        PxC(v, {bx, -4.5f}, 0.5f, 0.5f, Dim(Color{50, 50, 54, 255}, lit({bx, -4.5f})));
+        Vector2 a = v.ToCanvas({bx, -4.5f}), b = v.ToCanvas({bx > 0 ? 9.0f : -9.5f, -2.8f});
+        DrawLineV(a, b, Dim(Color{170, 150, 110, 255}, lit({bx, -4})));
+    }
+    // the stations: a chalkboard, the Chandler's counter, the market scales, the Owners' office, the Slipway's ramp
+    for (const auto& st : DockStations()) {
+        Vector2 p = st.at; float L = lit(p);
+        switch (st.kind) {
+            case DockKind::Chalkboard:
+                PxC(v, {p.x, p.y - 0.6f}, 2.2f, 1.3f, Dim(Color{70, 50, 32, 255}, L));
+                PxC(v, {p.x, p.y - 0.6f}, 1.9f, 1.0f, Dim(Color{30, 40, 34, 255}, L));
+                for (int k = 0; k < 3; k++) PxC(v, {p.x - 0.4f + k * 0.3f, p.y - 0.75f + k * 0.2f}, 0.8f - k * 0.2f, 0.06f, Dim(Color{220, 220, 210, 255}, L));
+                break;
+            case DockKind::Chandler:
+                PxC(v, {p.x, p.y - 0.9f}, 3.4f, 1.6f, Dim(Color{120, 74, 50, 255}, L));      // the shed
+                PxC(v, {p.x, p.y + 0.1f}, 3.0f, 0.5f, Dim(Color{150, 116, 70, 255}, L));     // the counter
+                for (int k = 0; k < 4; k++) PxC(v, {p.x - 1 + k * 0.65f, p.y - 1.2f}, 0.4f, 0.4f, Dim(k % 2 ? Color{90, 110, 130, 255} : Color{160, 150, 90, 255}, L));   // tins and ropes
+                break;
+            case DockKind::Market:
+                PxC(v, {p.x, p.y - 0.9f}, 3.6f, 1.6f, Dim(Color{110, 110, 116, 255}, L));    // the market's slab roof
+                PxC(v, {p.x, p.y + 0.1f}, 1.2f, 0.6f, Dim(Color{180, 150, 70, 255}, L));     // the brass scales
+                PxC(v, {p.x - 1.2f, p.y + 0.1f}, 0.9f, 0.6f, Dim(Color{170, 190, 200, 255}, L));   // a crate of ice
+                break;
+            case DockKind::Office:
+                PxC(v, {p.x, p.y - 0.9f}, 3.0f, 1.8f, Dim(Color{80, 70, 84, 255}, L));
+                PxC(v, {p.x, p.y + 0.05f}, 0.8f, 0.3f, Dim(Color{230, 200, 120, 255}, 0.4f + 0.6f * L));   // the lit window
+                break;
+            case DockKind::Slipway:
+                for (int k = 0; k < 6; k++) PxC(v, {p.x - 0.6f + k * 0.25f, p.y}, 0.15f, 2.4f, Dim(Color{70, 60, 50, 255}, L));   // the ramp's rails
+                PxC(v, {p.x + 0.9f, p.y - 1.0f}, 0.6f, 0.6f, Dim(Color{90, 80, 70, 255}, L));   // the winch
+                break;
+            default: break;
         }
     }
 }

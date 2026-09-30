@@ -80,6 +80,7 @@ struct Boat {
     int lantern = 2;                                      // 0 hooded (4 m), 1 low (8 m), 2 full (14 m), 3 searchlight (a 30 m cone)
     float searchAim = 0;                                  // the searchlight's bearing off the bow (radians)
     bool aground = false;
+    float thrustMult = 1, noiseMult = 1;                  // the Slipway's compound engine: +30% speed, -25% screw noise
     float rudder = 0, shaft = 0;                          // -1..1 helm; 0..1 the screw
     bool sunk = false;
     float noise = 0;                                      // what the screw writes into the water this second
@@ -240,7 +241,15 @@ struct Rod {
     uint32_t rng = 1;
     Vector2 TipDeck() const;                              // the rod tip, in the boat frame, over the rail
 };
-struct CatchRec { std::string name; float kg; float value; };
+// A fish landed aboard (design doc, "Economy": value = base price x weight x grade x freshness x glut)
+struct CatchRec {
+    std::string name; float kg = 0; float price = 0;       // shillings per kg at the market, before the rest
+    int sp = -1;                                          // the ground's species index (-1: a stand-in fish)
+    float grade = 1;                                      // how it was taken: hook 100%, less 10% a bite
+    float fresh = 1;                                      // 1% a real minute on deck, 0.2% gutted and iced
+    bool gutted = false, iced = false;
+    bool first = false;                                   // the run's first of its kind: the Owners pay 50% more
+};
 
 struct Eco;                                               // the food web (trawl_eco.h)
 
@@ -255,11 +264,20 @@ struct Gannet {
     std::vector<Rod> rods;                                // one per rod station
     std::vector<CatchRec> hold;                           // landed fish (stage 4 grades, ices and sells them)
     Eco* eco = nullptr;                                   // the ground's food web, when she's on one: bites, thieves, light and noise into the water
+    // stores and gear (stage 4: bought at the Chandler, kept for the run)
+    bool moored = false; Vector2 moorPos{0, 0}; float moorHeading = 0;   // alongside the quay: the crew can walk ashore
+    float ice = 20, iceCap = 600;                         // kg of ice aboard; the hold's capacity for iced fish
+    int baitShrimp = 10, baitSquid = 0, chum = 0;         // baits (a tin is ten), chum buckets
+    bool owned[(int)Tackle::COUNT] = {true, true, false, false, false, false};   // two handlines and a light rod to start
+    bool watch = false, searchlight = false, secondPump = false;
+    float gutT = 0;
+    int DeckFish() const;                                 // landed and not yet gutted (they draw gulls, they spoil)
     int RodAt(int station) const;                         // index into rods, or -1
     void StepRods(float dt);                              // lures, bites (a dummy bite table until the web comes), fights, the pull on her
     // a hand at a rod: the cast, the reel, the strike, the rod's lean, the bow, the gaff
     void RodInput(int c, bool castHeld, Vector2 aimDeck, bool reel, bool strike, float lean, bool bow, bool gaff, float dragScroll);
     void CycleTackle(int c);
+    void GutsOverboard(float kg);                         // blood into the water by the gutting table's rail
     void Init(int crewCount, uint32_t seed, Weather w = Weather::Calm);
     void Step(float dt);
     // a hand's controls (the scene feeds its human; bots will call these too)
@@ -274,6 +292,8 @@ struct Gannet {
 };
 
 void EcoTick(Eco& e, Gannet& g, float dt);                // what the Gannet puts into the water, then the web's step (trawl_eco.cpp)
+
+bool QuayWalkable(Vector2 p);                             // the quay beside her port side (boat frame) when she's moored
 
 int RunTrawlBoatTest();                                   // depth.exe --trawl-boat-test
 int RunTrawlRodTest();                                    // (part of --trawl-boat-test) a rod on the Gannet, cast to landing

@@ -10,7 +10,7 @@ Build order (the design doc's own):
 | 1 | The boat alone: hull physics, engine, stations, top-down deck, movement, one player | The boat rolls, lists under weight, and sinks when flooded | **Done** (`--trawl-boat-test`) |
 | 2 | Lines and fishing: Verlet lines, cast, bite, fight, landing against a dummy fish | `--trawl-fight` numbers in range | **Done** (`--trawl-fight all`) |
 | 3 | Ecosystem port: the water column, light layer, vibration, Wake, the Lagoon's species | `--trawl-eco lagoon` curves stable with no crew | **Done** (`--trawl-eco lagoon 27`, `--trawl-eco-test`) |
-| 4 | The session loop: dock, Chandler, sail, clock, sell, quota | A solo night on the Lagoon is playable end to end | |
+| 4 | The session loop: dock, Chandler, sail, clock, sell, quota | A solo night on the Lagoon is playable end to end | **Done** (`--trawl-session-test`) |
 | 5 | Networking: six players, voice, prediction for reeling | `--net-loop trawl` and a six-player LAN night | Needs the shared arcade networking layer |
 | 6-10 | Shooting, the net, set gear, death and ghosts; the Weeds and the Grotto; diving and wrecks; Atlantis Waters, the Kraken, the Ghost Ship; tuning and sound | | |
 
@@ -180,3 +180,52 @@ seabed in `DrawSea`), the Gannet's side in `EcoTick` (trawl_eco.cpp) and `Gannet
   settling after a shock, both cascades, the lantern, the night rise, a shark following chum from down-current, a
   barracuda pack coming to vibration and heading a hooked fish, Wake up and down, bites and matched bait, harvest,
   the lamp doubling bites at the Gannet's rail, a rod fished through the night landing the web's fish).
+
+## Stage 4: the session loop
+
+Code: `src/trawl_session.h/.cpp` (the run, the dock's shops, the clock, the telegraph, customs, the count;
+`--trawl-session-test`), the quay in `src/trawl_art.cpp` (`DrawQuay`), gutting and the stores in `src/trawl_boat.cpp`,
+bait in `src/trawl_fish.cpp`, the dock panels and the HUD in `src/trawl.cpp`.
+
+- **A run** (design doc, "The session loop"): a string of deadlines, three nights each. The quota starts at 400
+  shillings for six hands (0.5x solo, 0.7x two, 0.85x four; three and five between), and after each met deadline
+  rises 40% plus 60 (times the crew scale). The Owners count it after the third night's sale; short of it, the Gannet
+  is repossessed and the run ends; met, 10 arcade tokens and the next deadline. The Lagoon's web carries over the
+  three nights (a day of populations between each) and starts afresh with a new deadline.
+- **The dock** is walked: moored, the Gannet's port side lies along a quay on the atoll island, a gangplank amidships.
+  On the quay: the **chalkboard** (quota, sold this deadline, nights left, money; "Hand in to the Owners" after the
+  third night), **the Chandler** (ice 5 per 20 kg, coal 10 a sack, shrimp and squid strips 4 a tin of ten, a chum
+  bucket, a patch kit, a pocket watch, the medium, heavy and deep-drop rods at the Tackle table's prices), **the Fish
+  Market scales** (every fish in the hold with its grade, freshness and value; sold, each line shows its sum),
+  **the Owners' office** (shuttered: salvage comes with the wrecks) and **the Slipway** (hull plates, the bigger ice
+  hold, a second pump, the compound engine, the hooded lantern mast that adds the searchlight, the big-game chair).
+  The chart table is the helm: only the Eclipse Lagoon is charted yet (10 kg of coal to reach it and back).
+- **Starting gear** (the doc's list): two handlines and a light rod (the rods take only tackle she owns: T cycles it),
+  a patch kit, 20 kg of ice; 60 shillings (the doc leaves the starting money open; enough for bait and ice).
+  Bait comes from the stores at each cast: shrimp on the light rod, squid strips on the heavier ones, a bare hook if
+  she's out (fish take a bare hook a third as often).
+- **Casting off**: all hands aboard; the night's conditions are rolled (calm, fog, rain or a squall) and printed with
+  the moon and a rumour; fish kept from an earlier night lose a quarter if iced and rot if not. The wheelhouse clock
+  waits at 20:00 until she clears **the harbour line** (a ring of buoys round the harbour mouth, green seaward, red
+  toward the island); past it the night begins and the web wakes (the Gannet fishes only at night). Back inside the
+  line she moors herself. **Still outside at 05:00, the customs cutter** seizes the hold, fines a tenth of the money
+  and tows her in.
+- **The night's clock**: read only in the wheelhouse or with a pocket watch. **The Owners' telegraph** prints on tape
+  (the printer station shows the last ten lines; the newest shows for a moment): the quota, the night's conditions,
+  MIDNIGHT, ONE HOUR at 04:00, hull damage, a first catch (SPECIMEN NOTED), harbour, the market's pay, customs, the
+  count.
+- **Fish value** = base price x weight x grade x freshness x glut (x 1.5 for the run's first of a species). Grade:
+  hook 100%, less 10% for a bite taken out of it on the line (the barracuda's heads). Freshness falls 1% a real minute
+  on deck and 0.2% gutted and iced. Glut: each species' price drops 3% for every 10 kg of it sold this deadline.
+- **The gutting table**: hold left mouse to gut, grade and ice the fish in hand (1.2-4 s by weight; ice takes half
+  its weight from the stores); the guts go over the rail as blood into the web, and fish left ungutted on deck draw
+  the gulls.
+- **Checks**: `depth.exe --trawl-session-test` (25 checks: the quota by crew size, the first tape, fish value, the
+  first-catch bonus, glut, bite grades, buying, the Slipway, no casting off with a hand ashore, overnight losses, the
+  clock waiting for the harbour line, the night and the web starting past it, the customs cutter, the count met and
+  missed, the next quota, and a bot playing a whole solo deadline: bait, cast off, fish the port rod, gut and ice,
+  home before 05:00, sell, three times; and a bot that stays out past 05:00 losing its hold). Shots: `trawl_dock`,
+  `trawl_chandler`, `trawl_market`, `trawl_chart`, `trawl_clock`, `trawl_quota`.
+- **Balance, not tuned yet**: one bot at one light rod lands about 20 small fish over a deadline and sells about 70
+  shillings against the solo quota of 200. The doc's quota counts bots as crew (a solo player with five bot hands
+  faces 400), so a lone hand is meant to be short; the bot crew and the tuning pass (stages 5 and 10) settle it.
