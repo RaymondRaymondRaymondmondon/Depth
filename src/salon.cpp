@@ -1862,6 +1862,7 @@ void SceneArcade(Game& g) {
     // the three valve-wheel buttons. Host starts a playable game solo (the shared networking layer comes with its
     // own stage); Join and Browse wait for it.
     bool playable = sel == 4;
+    bool trawl = sel == 1;   // the Trawl: its first stages aboard (solo)
     // Red Tide's maps (each opens as its stage is built)
     static const char* RT_MAPS[] = {"ship", "cave", "reef", "atlantis", "void"};
     static const char* RT_TITLES[] = {"The Sunken Ship", "The Underwater Cave", "The Coral Reef", "Atlantis", "Approaching the Void"};
@@ -1883,14 +1884,14 @@ void SceneArcade(Game& g) {
     const char* valves[3] = {"Host", "Join", "Browse"};
     for (int k = 0; k < 3; k++) {
         Vector2 v{c.x - 120 + k * 120.0f, c.y + 180};
-        bool live = playable && k == 0;
+        bool live = (playable || trawl) && k == 0;
         bool hov = live && CheckCollisionPointCircle(GetMousePosition(), v, 30);
         Color vc = live ? (hov ? Color{220, 90, 70, 255} : Color{180, 60, 48, 255}) : Color{120, 40, 36, 255};
         DrawRing(v, 22, 28, 0, 360, 24, vc);
         for (int s = 0; s < 3; s++) DrawLineEx(v, {v.x + cosf(t * (hov ? 2.0f : 0.3f) + s * 2.09f) * 24, v.y + sinf(t * (hov ? 2.0f : 0.3f) + s * 2.09f) * 24}, 3, vc);
-        DrawTextCentered(k == 0 && playable ? "Dive (solo)" : valves[k], v.x, v.y + 34, 15, live ? Color{230, 240, 236, 255} : Color{140, 170, 166, 255});
-        if (hov && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) { StartRedTide(g, RT_MAPS[rtMap]); return; }
+        DrawTextCentered(k == 0 && playable ? "Dive (solo)" : k == 0 && trawl ? "Sail (solo)" : valves[k], v.x, v.y + 34, 15, live ? Color{230, 240, 236, 255} : Color{140, 170, 166, 255});
+        if (hov && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) { if (trawl) StartTrawl(g); else StartRedTide(g, RT_MAPS[rtMap]); return; }
     }
-    DrawTextCentered(playable ? "Red Tide: solo dives are open. Choose a map with < >. Online play arrives with the arcade's networking."
+    DrawTextCentered(trawl ? "The Trawl: the Gannet is aboard for sea trials. Crews, fishing and the Owners' quota follow her." : playable ? "Red Tide: solo dives are open. Choose a map with < >. Online play arrives with the arcade's networking."
                               : "The arcade's wiring is still being run. This game comes aboard in a later refit.", c.x, 700, 16, Pal::Paper);
 }

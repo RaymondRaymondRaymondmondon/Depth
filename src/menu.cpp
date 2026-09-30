@@ -68,7 +68,7 @@ void MainPage(Game& g, Rectangle p) {
     if (item("Resume")) { gOpen = false; PlayCue("ui.confirm"); if (g.scene == Scene::RedTide) DisableCursor(); }
     if (item("Settings")) { gPage = P_SETTINGS; }
     if (item("Controls")) { gPage = P_CONTROLS; }
-    if (g.scene == Scene::RedTide) {
+    if (g.scene == Scene::RedTide || g.scene == Scene::Trawl) {
         if (item("Leave the match")) { gOpen = false; g.scene = Scene::Arcade; }
     }
     if (g.scene == Scene::Platformer || g.scene == Scene::Abyss) {

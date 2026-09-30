@@ -35,7 +35,7 @@ const Color Bad     = {225, 70, 70, 255};
 const Color Stress  = {170, 120, 230, 255};
 }  // namespace Pal
 
-enum class Scene { Hub, Helm, Crew, Radar, Ward, SickLeave, Bookshelf, Periscope, Workshop, Dungeon, Platformer, Cards, Abyss, Study, Arcade, RedTide };
+enum class Scene { Hub, Helm, Crew, Radar, Ward, SickLeave, Bookshelf, Periscope, Workshop, Dungeon, Platformer, Cards, Abyss, Study, Arcade, RedTide, Trawl };
 
 // Workshop upgrades. Each has levels 0..UPGRADE_MAX.
 enum Upgrade { UP_REFLECTOR, UP_BUNKS, UP_SONAR, UP_INFIRMARY, UP_CARGO, UP_COUNT };
@@ -860,6 +860,9 @@ void DrawSalonBackdrop(Game& g, Scene station); // salon.cpp: the room as a back
 void SceneStudy(Game& g);     // the Study below the hatch (under refit for now)
 void SceneArcade(Game& g);    // the Deep Arcade cabinet (its games arrive with the arcade stages)
 void DebugArcadeReel(int reel); // --shots: turn the arcade drum to a reel
+void SceneTrawl(Game& g);     // The Trawl, the Deep Arcade's co-op fishing horror game (trawl.cpp)
+void StartTrawl(Game& g);
+void DebugTrawlShot(Game& g, int which);   // --shots: 0 the deck, 1 the engine room, 2 the wheelhouse, 3 a squall
 void SceneRedTide(Game& g);   // Red Tide, the Deep Arcade's survival shooter (redtide_game.cpp)
 void StartRedTide(Game& g, const char* map = "ship");
 bool RedTideAudioActive();     // a Red Tide match is playing (its own music, not the salon's)

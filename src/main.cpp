@@ -1,5 +1,6 @@
 #include "sound.h"
 #include "beasts.h"
+#include "trawl.h"
 #include "redtide.h"
 #include "redtide_match.h"
 // ============================================================================
@@ -32,6 +33,7 @@ static void RunScene(Game& g) {
         case Scene::Study:      SceneStudy(g); break;
         case Scene::Arcade:     SceneArcade(g); break;
         case Scene::RedTide:    SceneRedTide(g); break;
+        case Scene::Trawl:      SceneTrawl(g); break;
         case Scene::Hub:        SceneHub(g); break;
         case Scene::Helm:       SceneHelm(g); break;
         case Scene::Crew:       SceneCrew(g); break;
@@ -174,6 +176,11 @@ static void TakeShots(const Game& base, const std::string& dir) {
         {"study", [](Game& g) { g.scene = Scene::Study; }},
         {"arcade", [](Game& g) { g.scene = Scene::Arcade; }},
         {"arcade_redtide", [](Game& g) { g.scene = Scene::Arcade; DebugArcadeReel(4); }},
+        {"arcade_trawl", [](Game& g) { g.scene = Scene::Arcade; DebugArcadeReel(1); }},
+        {"trawl_deck", [](Game& g) { DebugTrawlShot(g, 0); }},
+        {"trawl_engine", [](Game& g) { DebugTrawlShot(g, 1); }},
+        {"trawl_wheelhouse", [](Game& g) { DebugTrawlShot(g, 2); }},
+        {"trawl_squall", [](Game& g) { DebugTrawlShot(g, 3); }},
         {"redtide_tank", [](Game& g) { DebugRedTideShot(g, 0); }},
         {"redtide_silhouette", [](Game& g) { DebugRedTideShot(g, 1); }},
         {"redtide_species_ship_1", [](Game& g) { DebugRedTideShot(g, 2); }},
@@ -573,6 +580,10 @@ int main(int argc, char** argv) {
         if (strcmp(argv[2], "all") == 0) { int r = 0; for (const char* k : {"ship", "cave", "reef", "atlantis", "void"}) r |= rt::RunWebCheck(k); return r; }
         return rt::RunWebCheck(argv[2]);
     }
+    if (argc >= 2 && strcmp(argv[1], "--trawl-boat-test") == 0) {
+        SetTraceLogLevel(LOG_WARNING);
+        return tw::RunTrawlBoatTest();
+    }
     if (argc >= 2 && strcmp(argv[1], "--redtide-test") == 0) {
         SetTraceLogLevel(LOG_WARNING);
         return RunRedTideTest();
@@ -720,7 +731,7 @@ int main(int argc, char** argv) {
             BeginFrame();
             RunScene(g);
             {   // aboard the Nautilus (the salon and its station screens) the waltz and the ship's bed play
-                bool aboard = g.scene != Scene::Platformer && g.scene != Scene::Abyss && g.scene != Scene::Dungeon && !(g.scene == Scene::RedTide && RedTideAudioActive());
+                bool aboard = g.scene != Scene::Platformer && g.scene != Scene::Abyss && g.scene != Scene::Dungeon && !(g.scene == Scene::RedTide && RedTideAudioActive()) && g.scene != Scene::Trawl;
                 AudioHub(aboard, g.scene == Scene::Hub ? -1 : (int)g.scene, g.mourning);
                 if (g.scene != Scene::Dungeon) AudioExpedition(ExpAudio{});   // (the Dungeon scene sets it every frame)
                 if (g.scene != Scene::RedTide) AudioRedTide(RtAudio{});      // (and the Red Tide scene)
