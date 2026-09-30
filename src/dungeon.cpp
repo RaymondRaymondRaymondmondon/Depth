@@ -6,6 +6,14 @@
 #include "sound.h"
 #include "combatfx.h"
 #include "input.h"
+
+static void EnemyAct(Game& g, int uid, int ability, int target = -1);
+static void EndTurn(Game& g);
+static void SimCombatStep(Game& g, bool randomPlayer);
+BrainPick ChooseEnemyAction(Game& g, int uid);
+static int gBrainDepth = 0;   // >0 inside EnemyBrain's lookahead: no nested lookahead
+static bool gSilent = false;  // a lookahead rollout: no floats, sparks, camera or figure motion
+int gBrainMode = 0;
 #include "sprite_renderer.h"
 #include "rlgl.h"
 #include "relics.h"
@@ -79,6 +87,7 @@ static Rectangle EnemyRect(Game& g, int pos) {
 static Vector2 BodyOf(Rectangle r) { return {r.x + r.width / 2, r.y + r.height * 0.42f}; }
 static void Float(Game& g, Rectangle r, const std::string& t, Color c) {
     (void)g;
+    if (gSilent) return;
     Vector2 at = BodyOf(r);
     if (!t.empty() && t[0] == '+') cfx::Heal(at, atoi(t.c_str() + 1));
     else if (t == "Miss" || t == "Dodge") cfx::Miss(at, t.c_str());
@@ -86,6 +95,7 @@ static void Float(Game& g, Rectangle r, const std::string& t, Color c) {
 }
 // a blow lands: everything that hangs off the figure whips (its chains, rags, hems)
 static void KickFigure(int key, bool crit) {
+    if (gSilent) return;
     for (int k : {key, key + 2000000}) {
         rig::Instance& in = rig::Get(k);
         for (auto& ch : in.chains) ch.Kick({crit ? -420.0f : -240.0f, -140});
@@ -105,6 +115,7 @@ static const UnitAnim* FindAnim(const Game& g, bool hero, int id) {
 }
 
 static void Sparkle(Game& g, Rectangle r, int n, Color c, float speed, float rise) {
+    if (gSilent) return;
     for (int i = 0; i < n; i++) {
         float a = GetRandomValue(0, 628) / 100.0f, v = speed * GetRandomValue(30, 100) / 100.0f;
         Vector2 p{r.x + r.width * GetRandomValue(15, 85) / 100.0f, r.y + r.height * GetRandomValue(20, 80) / 100.0f};
@@ -121,7 +132,7 @@ static void AddStress(Game& g, Hero& h, int amount) {
     }
     int before = h.stress;
     h.stress = std::clamp(h.stress + amount, 0, 100);
-    if (h.stress != before) { int pos = PartyPos(g, h.id); if (pos >= 0) cfx::Nerves(BodyOf(HeroRect(pos)), h.stress - before); }
+    if (h.stress != before && !gSilent) { int pos = PartyPos(g, h.id); if (pos >= 0) cfx::Nerves(BodyOf(HeroRect(pos)), h.stress - before); }
     int diff = h.stress - before;
     int pos = PartyPos(g, h.id);
     if (diff != 0 && pos >= 0) Float(g, HeroRect(pos), TextFormat("%+d nerves", diff), Pal::Stress);
@@ -255,7 +266,8 @@ static void HeroAct(Game& g, int heroId, int abilityIdx, int targetPos) {
                     eprot = eprot * (100 - rb.armorPen) / 100;                                                        // armour-piercing tools
                     int dmg = std::max(1, (int)std::round(raw * (100 - eprot) / 100.0f));
                     e->hp -= dmg;
-                    cfx::Hit(BodyOf(er), dmg, crit, false);
+                    if (!gSilent) cfx::Hit(BodyOf(er), dmg, crit, false);
+                    d.dmgDealt[h->id] += dmg;
                     KickFigure(1000000 + uid, crit);
                     PlayCue(crit ? "mus.drum" : "ui.drop", crit ? 0.9f : 0.6f);
                     if (crit) {
@@ -360,7 +372,11 @@ static bool EnemyCanUse(Game& g, int uid, const EnemyAbility& a) {
         for (auto& o : g.dungeon.enemies) if (o.alive && o.hp < o.maxHp * 0.8f) hurt = true;
         if (!hurt && a.dmgMult <= 0 && !a.buffAllyAtk && !a.buffAllyDef) return false;
     }
-    if (a.summon >= 0 && (int)g.dungeon.enemies.size() >= 2) return false; // she only calls for help once her court is dead
+    if (a.summon >= 0) { // she only calls for help once her court is dead (in her second phase she keeps two at her side)
+        Enemy* me = FindEnemy(g, uid);
+        int cap = me && me->type == EnemyType::CrustaceanQueen && me->hp * 2 <= me->maxHp ? 3 : 2;
+        if ((int)g.dungeon.enemies.size() >= cap || SlotsUsed(g) >= 4) return false;
+    }
     if (a.drain) return g.dungeon.enemies.size() >= 2;
     if (a.pull == 1) return n >= 3;
     if (a.pull >= 2) return n >= 2;
@@ -398,11 +414,12 @@ static void AfterPartyMoved(Game& g, const std::array<int, PARTY_SIZE>& before) 
     }
 }
 
-static void EnemyAct(Game& g, int uid, int ability) {
+static void EnemyAct(Game& g, int uid, int ability, int target) {
     Enemy* e = FindEnemy(g, uid);
     int n = PartySize(g);
     if (!e || n == 0) return;
-    if (ability < 0) ability = EnemyPick(g, uid);
+    if (ability < 0) { BrainPick bp = ChooseEnemyAction(g, uid); ability = bp.ability; target = bp.target; }
+    if (ability >= 0) g.dungeon.lastAbility[uid] = ability;
     if (ability < 0) { Log(g, e->name + " can't reach anyone and skitters about."); return; }
     const EnemyAbility a = e->abilities[ability]; // a copy: summoning may move the enemy list under us
     Rectangle er = EnemyRect(g, std::max(0, EnemyPos(g, uid)));
@@ -413,8 +430,8 @@ static void EnemyAct(Game& g, int uid, int ability) {
     if (a.aoe) {
         for (int p = 0; p < n; p++) if (a.hits & (1 << p)) targets.push_back(p);
     } else if (a.pull == 1) {
-        int pick = -1; // an alluring song or a vine reaches for someone at the back
-        for (int p = n - 1; p >= 2; p--) if (a.hits & (1 << p)) { pick = p; break; }
+        int pick = target >= 0 && target < n ? target : -1; // an alluring song or a vine reaches for someone at the back
+        if (pick < 0) for (int p = n - 1; p >= 2; p--) if (a.hits & (1 << p)) { pick = p; break; }
         if (pick >= 0) targets.push_back(pick);
     } else if (hasHeroEffect) {
         int guard = -1;
@@ -422,7 +439,11 @@ static void EnemyAct(Game& g, int uid, int ability) {
         std::vector<int> opts;
         for (int p = 0; p < n; p++) if (a.hits & (1 << p)) opts.push_back(p);
         if (guard >= 0 && a.dmgMult > 0 && a.targetsN == 0) targets.push_back(guard);
-        else if (!opts.empty()) {
+        else if (target >= 0 && std::find(opts.begin(), opts.end(), target) != opts.end()) { // the brain's choice, then random others if it reaches more
+            targets.push_back(target);
+            opts.erase(std::find(opts.begin(), opts.end(), target));
+            for (int k = 1; k < std::max(1, a.targetsN) && !opts.empty(); k++) { int i = Roll(0, (int)opts.size() - 1); targets.push_back(opts[i]); opts.erase(opts.begin() + i); }
+        } else if (!opts.empty()) {
             int count = std::min(std::max(1, a.targetsN), (int)opts.size());
             for (int k = 0; k < count; k++) {
                 int i = Roll(0, (int)opts.size() - 1);
@@ -452,7 +473,7 @@ static void EnemyAct(Game& g, int uid, int ability) {
             int prot = std::min(80, s.prot + (h->st.guardTurns > 0 ? 25 : 0) + (h->st.protTurns > 0 ? h->st.protBuff : 0));
             float raw = Roll(e->dmgMin, e->dmgMax) * a.dmgMult * (1.0f + (e->st.buffTurns > 0 ? e->st.buffDmg / 100.0f : 0.0f)) * (crit ? 1.5f : 1.0f);
             int dmg = std::max(1, (int)std::round(raw * (100 - prot) / 100.0f));
-            cfx::Hit(BodyOf(hr), dmg, crit, true);
+            if (!gSilent) cfx::Hit(BodyOf(hr), dmg, crit, true);
             KickFigure(h->id, crit);
             PlayCue(crit ? "mus.drum" : "ui.drop", crit ? 0.9f : 0.6f);
             DamageHero(g, *h, dmg);
@@ -535,6 +556,267 @@ static void EnemyAct(Game& g, int uid, int ability) {
         }
     }
 }
+// ---------------------------------------------------------------- EnemyBrain (Master Reference, "enemy AI that scales")
+// Every enemy chooses its (ability, target) with one scoring brain. Each legal pair is scored as a weighted sum of
+// features (in "hit points" of value), the weights grow with the tier (BrainFor in data.cpp) and are bent by the
+// enemy's personality, the deepest tiers look one round ahead with the sensible player on the heroes' side, and the
+// pick is a softmax over the normalised scores whose temperature falls with the tier: nearly random in the Shallows,
+// nearly greedy at the bottom. Bosses add a short script that changes at half their HP.
+struct BrainCand { int ability, target; float score; };
+
+static bool IsHealer(const Hero& h) {
+    const auto& abs = ClassAbilities(h.cls);
+    for (int ab : h.loadout) if (ab >= 0 && ab < (int)abs.size() && abs[ab].heal > 0) return true;
+    return false;
+}
+static bool IsConstruct(const Hero& h) { return h.cls == HeroClass::Robot || h.cls == HeroClass::Wisp; } // no blood to bleed, nothing to poison
+static bool SingleTarget(const EnemyAbility& a) {
+    bool heroEffect = a.dmgMult > 0 || a.weakAtk || a.weakAcc || a.weakDef || a.weakSpd || a.stress || a.bleed || a.poison || a.stunChance || a.region;
+    return heroEffect && !a.aoe && a.pull == 0 && a.targetsN <= 1;
+}
+static int NextHeroToAct(Game& g) {
+    auto& d = g.dungeon;
+    for (int i = d.turnIdx + 1; i < (int)d.order.size(); i++) if (d.order[i].hero && FindHero(g, d.order[i].id)) return d.order[i].id;
+    return -1;
+}
+static int TopDamageDealer(Game& g) {
+    int best = -1, most = 0;
+    for (auto& kv : g.dungeon.dmgDealt) if (kv.second > most && FindHero(g, kv.first)) { most = kv.second; best = kv.first; }
+    return best;
+}
+
+// what a hero-facing effect is worth against the hero at party position p
+static float ScoreOnHero(Game& g, const Enemy& e, const EnemyAbility& a, int p, const BrainWeights& W) {
+    Hero* h = PartyAt(g, p);
+    if (!h || h->dead) return 0;
+    Stats s = GetStats(*h);
+    float frac = (float)h->hp / std::max(1, s.maxHp), sc = 0;
+    int dodge = s.dodge + (h->st.dodgeTurns > 0 ? h->st.dodgeBuff : 0), eacc = e.acc + (e.st.accTurns > 0 ? e.st.accBuff : 0);
+    float hit = a.dmgMult > 0 ? std::clamp(eacc + EnemyAccBonus(g) - dodge, 5, 95) / 100.0f : 1.0f;
+    float dmg = 0;
+    if (a.dmgMult > 0) {
+        int prot = std::min(80, s.prot + (h->st.guardTurns > 0 ? 25 : 0) + (h->st.protTurns > 0 ? h->st.protBuff : 0));
+        dmg = (e.dmgMin + e.dmgMax) * 0.5f * a.dmgMult * (1 + (e.st.buffTurns > 0 ? e.st.buffDmg / 100.0f : 0)) * (100 - prot) / 100.0f;
+        sc += W.expDmg * dmg * hit;
+        if (h->deathsDoor) sc += W.kill * 0.35f * hit * BRAIN_KILL_VALUE;
+        else if (dmg >= h->hp) sc += W.kill * hit * BRAIN_KILL_VALUE;
+        if (frac < 0.5f) sc += W.focus * 6 * (0.5f - frac) / 0.5f;
+        if (h->st.marked > 0) sc += W.focus * 3;
+        if (h->id == TopDamageDealer(g)) sc += W.threat * 4;
+    }
+    if (IsHealer(*h)) sc += W.healer * ((dmg > 0 ? 3 : 0) + a.stunChance / 100.0f * 5);
+    if (a.stress) sc += W.nerve * a.stress * (0.5f + 1.5f * h->stress / 100.0f) / 3;
+    if (a.stunChance) {
+        sc += a.stunChance / 100.0f * 2;                                                     // a stun is worth something to anyone
+        if (h->st.stunned > 0) sc -= W.status * 3;
+        if (h->id == NextHeroToAct(g)) sc += W.turnOrder * a.stunChance / 100.0f * 6;        // stun whoever acts next
+    }
+    if (a.bleed) sc += IsConstruct(*h) ? -W.status * 3 : (h->st.bleedTurns > 0 && h->st.bleedDmg >= a.bleed ? -W.status * 2 : a.bleed * 0.6f);
+    if (a.poison) sc += IsConstruct(*h) ? -W.status * 3 : a.poison * 0.6f;
+    int allies = 0;
+    for (auto& o : g.dungeon.enemies) if (o.alive && o.uid != e.uid) allies++;
+    auto debuff = [&](int amt, int turns) { if (!amt) return; sc += turns > 0 ? -W.status * 1.5f : 0.6f + W.setup * std::min(2, allies) * amt / 25.0f; };
+    debuff(a.weakAtk, h->st.buffTurns > 0 && h->st.buffDmg < 0 ? 1 : 0);
+    debuff(a.weakAcc, h->st.accTurns > 0 && h->st.accBuff < 0 ? 1 : 0);
+    debuff(a.weakDef, h->st.protTurns > 0 && h->st.protBuff < 0 ? 1 : 0);
+    debuff(a.weakSpd, h->st.spdTurns > 0 ? 1 : 0);
+    if (a.region) sc += 1.5f;
+    return sc;
+}
+
+// the value of one (ability, target) pair, before any lookahead
+static float ScoreAction(Game& g, const Enemy& e, int abIdx, int target, const BrainWeights& W) {
+    const EnemyAbility& a = e.abilities[abIdx];
+    auto& d = g.dungeon;
+    int n = PartySize(g);
+    float sc = 0;
+    if (SingleTarget(a)) sc += ScoreOnHero(g, e, a, target, W);
+    else if (a.aoe || a.targetsN > 1) {
+        float sum = 0; int cnt = 0;
+        for (int p = 0; p < n; p++) if (a.hits & (1 << p)) { sum += ScoreOnHero(g, e, a, p, W); cnt++; }
+        sc += a.aoe ? sum : (cnt ? sum / cnt * std::min(cnt, a.targetsN) : 0);
+    }
+    if (a.pull == 1) { // drag someone from the back: worth most against a healer or a back-rank damage dealer
+        for (int p = n - 1; p >= 2; p--) if (a.hits & (1 << p)) { Hero* h = PartyAt(g, p); if (h) sc += W.rank * 4 + (IsHealer(*h) ? W.healer * 4 : 0) + W.setup * 1.5f; break; }
+        if (target >= 0) sc += ScoreOnHero(g, e, a, target, W) * 0.5f;
+    }
+    if (a.pull >= 2) sc += W.rank * 2.5f;
+    // for its own side
+    const Enemy* low = nullptr;
+    for (auto& o : d.enemies) if (o.alive && (!low || o.hp * low->maxHp < low->hp * o.maxHp)) low = &o;
+    float lowFrac = low ? (float)low->hp / low->maxHp : 1, selfFrac = (float)e.hp / e.maxHp;
+    float urgent = lowFrac < 0.4f ? 1.5f : 0.5f;
+    if (a.healSelf) sc += W.selfPres * urgent * std::min(a.healSelf, e.maxHp - e.hp) * (selfFrac < 0.4f ? 1.5f : 0.6f);
+    if (a.healLowest && low) sc += W.selfPres * urgent * std::min(a.healLowest, low->maxHp - low->hp);
+    if (a.healAllies) { float s2 = 0; for (auto& o : d.enemies) if (o.alive) s2 += std::min(a.healAllies, o.maxHp - o.hp); sc += W.selfPres * urgent * s2; }
+    int allies = 0;
+    for (auto& o : d.enemies) if (o.alive && o.uid != e.uid) allies++;
+    if (a.buffAllyAtk) sc += W.setup * (allies + 1) * a.buffAllyAtk / 12.0f + 0.5f;
+    if (a.buffSelfAtk) sc += W.setup * a.buffSelfAtk / 10.0f + 0.5f;
+    if (a.buffAllyDef) sc += W.selfPres * (allies + 1) * a.buffAllyDef / 15.0f;
+    if (a.buffSelfDef) sc += W.selfPres * a.buffSelfDef / 10.0f * (selfFrac < 0.6f ? 2 : 1);
+    if (a.cleanse) { int bad = (e.st.bleedTurns > 0) + (e.st.poisonTurns > 0) + (e.st.stunned > 0) + (e.st.marked > 0); sc += W.selfPres * bad * 2; }
+    if (a.summon >= 0) sc += W.setup * 3 + 1;
+    if (a.drain) sc += W.selfPres * 2;
+    if (a.selfMove > 0) sc += e.hp < e.maxHp * 0.5f ? W.selfPres * 3 : -1;
+    return sc;
+}
+
+// the state of the fight from the enemies' side, in hit points: what the heroes have lost minus what they have
+static float BrainEval(Game& g, const std::vector<int>& heroIds, const std::vector<int>& enemyUids) {
+    float v = 0;
+    for (int id : heroIds) {
+        Hero* h = FindHero(g, id);
+        if (!h || h->dead) { v += 25; continue; }
+        v += GetStats(*h).maxHp - h->hp + (h->deathsDoor ? 8 : 0) + h->stress * 0.1f;
+    }
+    for (int uid : enemyUids) {
+        Enemy* e = FindEnemy(g, uid);
+        if (!e || !e->alive) { v -= 15; continue; }
+        v -= e->maxHp - e->hp;
+    }
+    return v;
+}
+
+// One round played out on a copy of the fight: this action, then the rest of the round with the sensible player on
+// the heroes' side and greedy enemies (no nested lookahead). Returns how much the state moved in the enemies' favour.
+static float BrainRollout(Game& g, int uid, int ab, int target) {
+    static Game scratch;
+    scratch.roster = g.roster; scratch.party = g.party; scratch.dungeon = g.dungeon;
+    for (int i = 0; i < UP_COUNT; i++) scratch.upgrades[i] = g.upgrades[i];
+    scratch.batteries = g.batteries;
+    std::vector<int> heroIds, enemyUids;
+    for (int id : g.party) if (id >= 0) heroIds.push_back(id);
+    for (auto& e : g.dungeon.enemies) enemyUids.push_back(e.uid);
+    float before = BrainEval(scratch, heroIds, enemyUids);
+    gBrainDepth++; gSilent = true; SetAudioSuppressed(true);
+    EnemyAct(scratch, uid, ab, target);
+    EndTurn(scratch);
+    int round = scratch.dungeon.round;
+    for (int step = 0; step < 16 && scratch.dungeon.phase == DPhase::Combat && scratch.dungeon.round == round; step++) SimCombatStep(scratch, false);
+    float after = BrainEval(scratch, heroIds, enemyUids);
+    gBrainDepth--; gSilent = gBrainDepth > 0; SetAudioSuppressed(gBrainDepth > 0);
+    return after - before;
+}
+
+// A boss's script, on top of the scoring: what it favours in each phase (half its HP is the turn).
+static float BossScript(Game& g, const Enemy& e, int abIdx, int target) {
+    const std::string& nm = e.abilities[abIdx].name;
+    bool phase2 = e.hp * 2 <= e.maxHp;
+    int n = PartySize(g);
+    auto last = g.dungeon.lastAbility.find(e.uid);
+    std::string lastName = last != g.dungeon.lastAbility.end() && last->second >= 0 && last->second < (int)e.abilities.size() ? e.abilities[last->second].name : "";
+    switch (e.type) {
+        case EnemyType::CrustaceanQueen: {
+            if (!phase2) return (nm == "Tidal Crush" || nm == "Spawning Surge") && nm != lastName ? 8.0f : 0.0f;   // she alternates
+            int shrimp = 0, halfHp = 0;
+            for (auto& o : g.dungeon.enemies) if (o.alive && o.type == EnemyType::CaveShrimp) shrimp++;
+            for (int p = 0; p < n; p++) if (Hero* h = PartyAt(g, p); h && h->hp * 2 < GetStats(*h).maxHp) halfHp++;
+            if (nm == "Spawning Surge" && shrimp < 2) return 10;                  // keeps two shrimp alive
+            if (nm == "Abyssal Roar" && halfHp >= 3) return 12;                   // roars when three are below half
+            return 0;
+        }
+        case EnemyType::SunGod: {
+            if (!phase2) return nm == "Solar Cleave" ? 4.0f : 0.0f;                // burns the front
+            bool debuffed = e.st.bleedTurns > 0 || e.st.poisonTurns > 0 || e.st.stunned > 0 || e.st.marked > 0 || (e.st.protTurns > 0 && e.st.protBuff < 0) || (e.st.buffTurns > 0 && e.st.buffDmg < 0);
+            if (nm == "Aegis of Gold") return debuffed ? 12.0f : -4.0f;
+            if (nm == "Wrath of the Sun" && target >= 0) { // on the fastest hero
+                int fastest = -1, spd = -99;
+                for (int p = 0; p < n; p++) if (Hero* h = PartyAt(g, p); h && GetStats(*h).speed > spd) { spd = GetStats(*h).speed; fastest = p; }
+                return target == fastest ? 6.0f : 0.0f;
+            }
+            return 0;
+        }
+        case EnemyType::Neptune: {
+            if (target >= 0) if (Hero* h = PartyAt(g, target); h && IsHealer(*h) && nm == "Trident Impale") return 7; // the healer, once in reach
+            if (nm == "Maelstrom Call") for (int p = 2; p < n; p++) if (Hero* h = PartyAt(g, p); h && IsHealer(*h)) return 6; // shake the healer loose from the back
+            return 0;
+        }
+        case EnemyType::Cthulhu: {
+            int mad = 0;
+            for (int p = 0; p < n; p++) if (Hero* h = PartyAt(g, p); h && h->st.madTurns > 0) mad++;
+            if (nm == "Siphon Reality") return e.hp * 10 < e.maxHp * 3 ? 10.0f : -100.0f;   // only below 30%
+            if (nm == "Gaze of the Abyss") return mad >= 2 ? 12.0f : 0.0f;
+            if (nm == "Cosmic Crush" && target >= 0) {                              // the marked or the weakest
+                int pick = -1; float low = 2;
+                for (int p = 0; p < n; p++) if (Hero* h = PartyAt(g, p)) { float f = h->st.marked > 0 ? -1 : (float)h->hp / GetStats(*h).maxHp; if (f < low) { low = f; pick = p; } }
+                return target == pick ? 6.0f : 0.0f;
+            }
+            return 0;
+        }
+        default: return 0;
+    }
+}
+
+BrainPick ChooseEnemyAction(Game& g, int uid) {
+    BrainPick out;
+    Enemy* e = FindEnemy(g, uid);
+    if (!e) return out;
+    if (gBrainMode < 0) { out.ability = EnemyPick(g, uid); return out; } // --brain-test's baseline: the old random choice
+    int tier = gBrainMode > 0 ? gBrainMode - 1 : g.dungeon.tier;
+    BrainWeights W = BrainFor(std::clamp(tier, 0, CAVE_TIERS - 1));
+    switch (EnemyPersonalityOf(e->type)) { // personality bends the weights
+        case Personality::Swarm: W.selfPres = 0; W.focus *= 1.5f; W.kill *= 1.3f; break;
+        case Personality::Cunning: W.healer *= 2; W.nerve *= 2; break;
+        case Personality::Brute: W.expDmg *= 2; W.kill *= 2; break;
+        case Personality::Cowardly: W.selfPres *= 2; break;
+        case Personality::Guardian: W.selfPres *= 1.5f; W.setup *= 1.5f; break;
+        default: break;
+    }
+    // every legal (ability, target) pair
+    std::vector<BrainCand> cands;
+    int n = PartySize(g), guard = -1;
+    for (int p = 0; p < n; p++) if (Hero* h = PartyAt(g, p); h && h->st.guardTurns > 0) guard = p;
+    bool anyStunned = false;
+    for (int p = 0; p < n; p++) if (Hero* h = PartyAt(g, p); h && h->st.stunned > 0) anyStunned = true;
+    for (int i = 0; i < (int)e->abilities.size(); i++) {
+        const EnemyAbility& a = e->abilities[i];
+        if (!EnemyCanUse(g, uid, a)) continue;
+        if (SingleTarget(a)) {
+            for (int p = 0; p < n; p++) {
+                if (!(a.hits & (1 << p))) continue;
+                if (guard >= 0 && a.dmgMult > 0 && p != guard) continue;     // a guard takes every blow aimed at the line
+                cands.push_back({i, p, 0});
+            }
+        } else if (a.pull == 1) {
+            int pick = -1;
+            for (int p = n - 1; p >= 2; p--) if (a.hits & (1 << p)) { pick = p; break; }
+            cands.push_back({i, pick, 0});
+        } else cands.push_back({i, -1, 0});
+    }
+    if (cands.empty()) return out;
+    for (auto& c : cands) {
+        c.score = ScoreAction(g, *e, c.ability, c.target, W);
+        if (EnemyPersonalityOf(e->type) == Personality::Cowardly && anyStunned && e->abilities[c.ability].dmgMult > 0) c.score += 3; // strikes when a hero is down
+        if (e->tier >= 1) c.score += BossScript(g, *e, c.ability, c.target);
+    }
+    // the deepest tiers look a round ahead on their best few options
+    if (W.lookahead > 0 && gBrainDepth == 0 && cands.size() > 1) {
+        std::vector<int> idx(cands.size());
+        for (size_t i = 0; i < idx.size(); i++) idx[i] = (int)i;
+        std::sort(idx.begin(), idx.end(), [&](int a, int b) { return cands[a].score > cands[b].score; });
+        for (int k = 0; k < std::min<int>(BRAIN_LOOKAHEAD_OPTIONS, (int)idx.size()); k++) {
+            BrainCand& c = cands[idx[k]];
+            float sum = 0;
+            for (int s = 0; s < W.samples; s++) sum += BrainRollout(g, uid, c.ability, c.target);
+            c.score += BRAIN_LOOKAHEAD_WEIGHT * sum / W.samples;
+        }
+    }
+    // a softmax over the normalised scores: a high temperature is nearly random, a low one nearly greedy
+    float top = 1e-3f;
+    for (auto& c : cands) top = std::max(top, fabsf(c.score));
+    std::vector<float> w(cands.size());
+    float total = 0, best = -1e9f;
+    for (auto& c : cands) best = std::max(best, c.score / top);
+    for (size_t i = 0; i < cands.size(); i++) { w[i] = expf((cands[i].score / top - best) / std::max(0.05f, W.temp)); total += w[i]; }
+    float r = GetRandomValue(0, 1000000) / 1000000.0f * total;
+    size_t pick = 0;
+    for (; pick + 1 < cands.size(); pick++) { r -= w[pick]; if (r <= 0) break; }
+    out.ability = cands[pick].ability;
+    out.target = cands[pick].target;
+    return out;
+}
+
 // ---------------------------------------------------------------- turn flow
 static void BeginRound(Game& g) {
     auto& d = g.dungeon;
@@ -665,6 +947,8 @@ static float StretchDrain(Game& g) {
 
 // a fight: in a room (a mini-boss more likely the deeper you go), in a hallway (a weaker group), or the boss
 static void StartFight(Game& g, bool hall) {
+    g.dungeon.dmgDealt.clear();
+    g.dungeon.lastAbility.clear();
     auto& d = g.dungeon;
     d.inHall = hall;
     d.enemies.clear();
@@ -1187,6 +1471,8 @@ static void SimCombatStep(Game& g, bool randomPlayer) { // one unit's turn, play
 // Run with:  depth.exe --sim 400 [level] [random]
 // The default player heals anyone below 40% HP and otherwise uses its hardest-hitting attack on the
 // weakest enemy it can reach; "random" picks any usable ability and target instead.
+static bool gSimQuiet = false;
+static float gLastSimWin = 0;
 void SimulateExpeditions(int runs, int level, bool randomPlayer, int tier) {
     int wins = 0, losses = 0, deaths = 0, anyDeath = 0, rattled = 0, wipeRoom[8] = {0}, retreats = 0;
     std::unordered_map<std::string, int> killers; // what was standing when the crew went down
@@ -1223,6 +1509,8 @@ void SimulateExpeditions(int runs, int level, bool randomPlayer, int tier) {
         if (d.phase == DPhase::Victory) wins++; else { losses++; wipeRoom[std::clamp(d.roomIndex, 0, 7)]++;
             if (d.phase == DPhase::Retreat) retreats++; for (auto& e : d.enemies) if (e.alive) killers[e.name]++; }
     }
+    gLastSimWin = 100.0f * wins / runs;
+    if (gSimQuiet) return;
     printf("Simulated %d expeditions, crew level %d, cave level %d (%s player):\n", runs, level, CAVE_TIER_LEVEL[tier],
            randomPlayer ? "random" : "sensible");
     printf("  wins %.1f%%   wipes %.1f%%   (of which retreats %.1f%%)\n", 100.0 * wins / runs, 100.0 * (losses - retreats) / runs, 100.0 * retreats / runs);
@@ -3033,13 +3321,15 @@ static void BeginHeroAction(Game& g, int heroId, int ability, int target) {
 }
 
 static void BeginEnemyAction(Game& g, int uid) {
-    int ab = EnemyPick(g, uid);
+    BrainPick bp = ChooseEnemyAction(g, uid);
+    int ab = bp.ability;
     Enemy* e = FindEnemy(g, uid);
     auto& p = g.dungeon.pending;
     p = PendingAction{};
     p.active = true;
     p.id = uid;
     p.ability = ab;
+    p.target = bp.target;
     if (ab < 0) { p.kind = Anim::None; p.impact = 0; p.end = 0.3f; return; }
     const EnemyAbility& a = e->abilities[ab];
     p.kind = a.dmgMult <= 0 ? Anim::Buff : (a.hits & (RANK_3 | RANK_4)) ? Anim::Ranged : Anim::Melee;
@@ -3072,7 +3362,7 @@ static void UpdatePending(Game& g, float dt) {
         } else {
             Enemy* e = FindEnemy(g, p.id);
             Rectangle er = EnemyRect(g, std::max(0, EnemyPos(g, p.id)));
-            Rectangle hr = HeroRect(std::min(1, PartySize(g) - 1));
+            Rectangle hr = HeroRect(p.target >= 0 && p.target < PartySize(g) ? p.target : std::min(1, PartySize(g) - 1));   // at whoever it chose
             s.from = {er.x + er.width / 2 - 30, er.y + er.height * 0.4f};
             s.to = {hr.x + hr.width / 2, hr.y + 70};
             s.kind = e && e->type == EnemyType::CaveShrimp ? 11 : 10;
@@ -3082,7 +3372,7 @@ static void UpdatePending(Game& g, float dt) {
     if (!p.applied && p.t >= p.impact) {
         p.applied = true;
         if (p.hero) HeroAct(g, p.id, p.ability, p.target);
-        else EnemyAct(g, p.id, p.ability);
+        else EnemyAct(g, p.id, p.ability, p.target);
     }
     if (p.t >= p.end) {
         p.active = false;
@@ -3717,3 +4007,20 @@ void DrawFigureSheet(bool heroSheet, int index, float t) {
 // --shots: the chart's screens
 void DebugChartWalk(Game& g, int dest) { BeginWalk(g, dest); g.dungeon.walkT = 0.3f; }
 void DebugChartEvent(Game& g, int kind) { if (kind == 1) BeginEvent(g, EventKind::Curio); else OpenEvent(g, EventKind::Rest, "A place to rest", "A dry ledge above the water, out of the current. The crew could make camp here: bind wounds, eat, sleep in turns. Something may come in the night."); }
+
+// --brain-test <tier|-1> <runs>: the sensible player against the same expeditions, first with the old random enemy AI,
+// then with EnemyBrain, at each tier with a crew of the matching level. The Master Reference asks for tier 0 within 5
+// points of the old AI, and tier 6 (cave level 6) 15-25 points harder before rebalancing.
+void BrainTest(int tier, int runs) {
+    printf("EnemyBrain test, %d expeditions per row, sensible player, crew level = cave level:\n", runs);
+    for (int t = 0; t < CAVE_TIERS; t++) {
+        if (tier >= 0 && t != tier) continue;
+        int level = CAVE_TIER_LEVEL[t];
+        gSimQuiet = true;
+        gBrainMode = -1; SimulateExpeditions(runs, level, false, t); float oldAi = gLastSimWin;
+        gBrainMode = 0;  SimulateExpeditions(runs, level, false, t); float brain = gLastSimWin;
+        gSimQuiet = false;
+        printf("  cave level %d: old random AI %5.1f%%   EnemyBrain %5.1f%%   (%+.1f points)\n", level, oldAi, brain, brain - oldAi);
+        fflush(stdout);
+    }
+}

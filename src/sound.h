@@ -14,6 +14,7 @@ enum class Sfx {
 };
 enum BeastCue { CUE_CALL, CUE_ALARM, CUE_STRIKE, CUE_PAIN, CUE_DEATH, CUE_CHEW, CUE_GRAB };
 
+void SetAudioSuppressed(bool on);        // no cues while on (a silent simulation)
 struct AudioVolumes { float master = 0.8f, music = 0.6f, sfx = 0.8f, ambience = 0.65f; };
 AudioVolumes& Volumes();
 

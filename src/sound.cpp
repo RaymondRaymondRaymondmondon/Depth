@@ -1067,8 +1067,10 @@ void Render(float* out, int frames) {
 AudioVolumes& Volumes() { return gVol; }
 
 int CueIndex(const char* name) { return FindCue(name); }
+static bool gCueSuppressed = false;
+void SetAudioSuppressed(bool on) { gCueSuppressed = on; }   // EnemyBrain's lookahead plays fights out silently
 void PlayCue(const char* name, float vol, float pan) {
-    if (!gReady) return;
+    if (!gReady || gCueSuppressed) return;
     int i = FindCue(name);
     if (i >= 0) BuildCue(i, vol, pan);
 }

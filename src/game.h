@@ -10,6 +10,7 @@
 #include <functional>
 #include <string>
 #include <vector>
+#include <map>
 #include "chart.h"
 
 constexpr int SCREEN_W   = 1280;
@@ -195,6 +196,17 @@ struct Enemy {
     Status st;
 };
 
+// EnemyBrain (dungeon.cpp): the weights of its features per tier (data.cpp BrainFor), and each enemy family's personality
+struct BrainWeights { float expDmg, kill, focus, threat, healer, rank, nerve, status, setup, selfPres, turnOrder; int lookahead, samples; float temp; };
+const BrainWeights& BrainFor(int tier);   // tier index 0-4 (cave levels 0, 1, 3, 5, 6)
+enum class Personality { None, Swarm, Cunning, Brute, Cowardly, Guardian, Boss };
+Personality EnemyPersonalityOf(EnemyType t);
+extern const float BRAIN_KILL_VALUE, BRAIN_LOOKAHEAD_WEIGHT;
+extern const int BRAIN_LOOKAHEAD_OPTIONS;
+struct BrainPick { int ability = -1, target = -1; };
+extern int gBrainMode;                    // 0 the brain at the dungeon's tier; -1 the old random choice (--brain-test's baseline); t+1 forces tier t
+void BrainTest(int tier, int runs);       // --brain-test <tier|-1> <runs>
+
 struct FloatText { Vector2 pos; std::string text; Color color; float life; };
 struct TurnEntry { bool hero; int id; int init; };
 
@@ -287,6 +299,8 @@ struct DungeonState {
     bool objectiveDone = false;
     int fightsWon = 0;
     int minisMet = 0;              // mini-bosses met this expedition (at most MAX_MINIS_PER_RUN)
+    std::map<int, int> dmgDealt;   // this fight: damage each hero has dealt (EnemyBrain's threat)
+    std::map<int, int> lastAbility; // this fight: each enemy's last ability (boss scripts)
     EventKind event = EventKind::None;
     std::string eventTitle, eventBody;
     int eventStage = 0;            // 0 the choice, 1 the outcome shown

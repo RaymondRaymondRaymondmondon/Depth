@@ -531,6 +531,7 @@ int main(int argc, char** argv) {
         SetTraceLogLevel(LOG_WARNING);
         return VerifyAbyss() ? 0 : 1;
     }
+    if (argc >= 4 && strcmp(argv[1], "--brain-test") == 0) { SetTraceLogLevel(LOG_WARNING); BrainTest(atoi(argv[2]), std::max(1, atoi(argv[3]))); return 0; }
     // --gen-chart <tier 0-4> <seed> [count]: print an expedition chart and check the generation rules (on `count` seeds from `seed`)
     if (argc >= 4 && strcmp(argv[1], "--gen-chart") == 0) {
         int tier = std::clamp(atoi(argv[2]), 0, CAVE_TIERS - 1), count = argc >= 5 ? std::max(1, atoi(argv[4])) : 1, bad = 0;

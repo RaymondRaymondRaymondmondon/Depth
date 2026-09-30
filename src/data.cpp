@@ -680,8 +680,8 @@ Enemy MakeEnemy(EnemyType t, int uid) {
             a = Support("Royal Decree"); a.healAllies = 8; a.buffAllyDef = 25; e.abilities.push_back(a);
         } break;
         case EnemyType::SunGod: {
-            e.name = "The Sun God"; e.boss = true; e.tier = 2;
-            e.maxHp = 66; e.dmgMin = 5; e.dmgMax = 8; e.speed = 4; e.acc = 85; e.dodge = 0; e.prot = 15;
+            e.name = "The Sun God"; e.boss = true; e.tier = 2; // (hp 60, damage 5-7 since EnemyBrain: it burns the front and turns Wrath on the fastest)
+            e.maxHp = 60; e.dmgMin = 5; e.dmgMax = 7; e.speed = 4; e.acc = 85; e.dodge = 0; e.prot = 15;
             EnemyAbility a = Long("Solar Cleave", 0.8f); a.aoe = true; a.region = 1; e.abilities.push_back(a);
             a = Melee("Wrath of the Sun", 1.4f); a.stunChance = 40; e.abilities.push_back(a);
             a = Support("Aegis of Gold"); a.buffSelfDef = 30; a.cleanse = true; e.abilities.push_back(a);
@@ -746,7 +746,7 @@ Enemy MakeEnemy(EnemyType t, int uid) {
         } break;
         case EnemyType::Neptune: {
             e.name = "Neptune"; e.boss = true; e.tier = 2;
-            e.maxHp = 70; e.dmgMin = 5; e.dmgMax = 8; e.speed = 4; e.acc = 85; e.dodge = 0; e.prot = 15;
+            e.maxHp = 62; e.dmgMin = 5; e.dmgMax = 8; e.speed = 4; e.acc = 85; e.dodge = 0; e.prot = 15;
             EnemyAbility a = Melee("Trident Impale", 1.4f); a.bleed = 3; a.weakDef = 20; e.abilities.push_back(a);
             a = Support("Maelstrom Call"); a.pull = 2; a.aoe = true; a.region = 3; a.stress = 6; e.abilities.push_back(a);
             a = Support("Ocean''s Blessing"); a.healAllies = 8; a.buffAllyAtk = 25; e.abilities.push_back(a);
@@ -793,7 +793,7 @@ Enemy MakeEnemy(EnemyType t, int uid) {
         case EnemyType::TribalDemigod: e.extraAct = 45; break;
         case EnemyType::CoconutQueen: e.extraAct = 5; break;
         case EnemyType::SunGod: e.extraAct = 5; break;
-        case EnemyType::ElectricEel: e.extraAct = 50; break;
+        case EnemyType::ElectricEel: e.extraAct = 80; break;
         case EnemyType::GreatWhite: e.extraAct = 20; break;
         case EnemyType::Neptune: e.extraAct = 13; break;
         case EnemyType::ArmorLostOne: e.extraAct = 50; break;
@@ -973,3 +973,33 @@ const int NIGHT_AMBUSH = 20;           // camping at a rest room: the chance of 
 int ChartTrapSpotChance() { return TRAP_SPOT_CHANCE; }
 int ChartRevisitAmbush() { return REVISIT_AMBUSH; }
 int ChartNightAmbush() { return NIGHT_AMBUSH; }
+// ---------------------------------------------------------------- EnemyBrain (Master Reference: enemy AI that scales)
+// Feature weights per tier (cave levels 0, 1, 3, 5, 6): expected damage, kill potential, focus fire, threat, healer
+// denial, rank disruption, nerve pressure, status fit, setup, self-preservation, turn-order reading; then the lookahead
+// (rounds), its samples, and the softmax temperature.
+const BrainWeights& BrainFor(int tier) {
+    static const BrainWeights W[CAVE_TIERS] = {
+        {1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.2f, 0.0f, 0.0f, 0.2f, 0.0f, 0, 1, 2.0f},
+        {1.0f, 0.5f, 0.6f, 0.0f, 0.0f, 0.0f, 0.4f, 0.3f, 0.0f, 0.5f, 0.0f, 0, 1, 1.2f},
+        {1.0f, 1.5f, 1.2f, 0.8f, 1.0f, 0.5f, 0.8f, 1.0f, 0.5f, 1.0f, 0.0f, 0, 1, 0.7f},
+        {1.0f, 2.5f, 1.5f, 1.2f, 1.5f, 1.5f, 1.2f, 1.5f, 1.5f, 1.2f, 1.0f, 1, 1, 0.4f},
+        {1.0f, 3.0f, 1.5f, 1.5f, 2.0f, 2.0f, 1.5f, 2.0f, 2.0f, 1.2f, 2.0f, 1, 3, 0.2f},
+    };
+    return W[std::clamp(tier, 0, CAVE_TIERS - 1)];
+}
+extern const float BRAIN_KILL_VALUE = 12.0f;        // what dropping a hero is worth, in hit points of value
+extern const float BRAIN_LOOKAHEAD_WEIGHT = 1.0f;   // how much a round's outcome counts against the features
+extern const int BRAIN_LOOKAHEAD_OPTIONS = 4;       // the best few options are played out
+Personality EnemyPersonalityOf(EnemyType t) {
+    switch (t) {
+        case EnemyType::SeaLouse: case EnemyType::WarDog: return Personality::Swarm;
+        case EnemyType::CaveShrimp: case EnemyType::Siren: case EnemyType::TribalShaman: case EnemyType::LostCultist: return Personality::Cunning;
+        case EnemyType::DysCrustacean: case EnemyType::FeralMerman: case EnemyType::LostInfantry: case EnemyType::TribalSpearman: return Personality::Brute;
+        case EnemyType::BrineWorm: case EnemyType::GiantOctopus: return Personality::Cowardly;
+        case EnemyType::ArmorLostOne: return Personality::Guardian;
+        case EnemyType::Lobster: case EnemyType::GhostWorm: case EnemyType::LostDiver: case EnemyType::CrustaceanQueen: case EnemyType::TribalDemigod:
+        case EnemyType::CoconutQueen: case EnemyType::SunGod: case EnemyType::ElectricEel: case EnemyType::GreatWhite: case EnemyType::Neptune:
+        case EnemyType::AlienHorror: case EnemyType::Cthulhu: return Personality::Boss;
+        default: return Personality::None;
+    }
+}
