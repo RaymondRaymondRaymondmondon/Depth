@@ -26,7 +26,19 @@ struct V {
 struct Ctx {
     float cx, by, k, t;
     int u;
-    Vector2 P(float x, float y) const { return {cx + x * k, by + y * k}; }
+    // The creature's acting, as a deformation of its own drawing: every point moves by how far forward it sits (x < 0
+    // faces the party) and how high it is, so a strike leads with the head and claws, a flinch snaps the head back,
+    // a cast rears the front up, and at rest the body breathes and its top sways. W, H: the drawing's size.
+    float W = 100, H = 100, reach = 0, flinch = 0, rear = 0;
+    Vector2 P(float x, float y) const {
+        float front = std::clamp(-x / (W * 0.5f), 0.0f, 1.0f), high = std::clamp(-y / H, 0.0f, 1.0f);
+        float f2 = front * front;
+        x += -reach * 0.16f * W * f2 + flinch * 0.1f * W * (0.3f + f2);
+        y += reach * 0.05f * H * f2 - flinch * 0.03f * H * front - rear * 0.12f * H * front * high;
+        x += sinf(t * 0.9f + u * 1.7f) * 0.012f * W * high;                                    // a slow sway at the top
+        y += sinf(t * 1.6f + u) * 0.012f * H * high;                                             // breathing
+        return {cx + x * k, by + y * k};
+    }
 };
 
 void Ball(const Ctx& c, float x, float y, float r, Color col) { ShadeBall(c.P(x, y), r * c.k, col); }
@@ -1285,6 +1297,22 @@ bool DrawRichEnemy(const Enemy& e, Rectangle r, float t) {
     }
     float k = std::min(r.height / H, 1.5f * r.width / W);
     Ctx c{r.x + r.width / 2, r.y + r.height, k, t, e.uid};
+    c.W = W; c.H = H;
+    {   // what the creature is doing (the combat scene sets the clip): a windup, a snap, a follow-through; a flinch; a rear
+        int clip; float at;
+        RigGetActing(&clip, &at);
+        float dur = clip >= 0 ? rig::GetClip(clip).dur : 1, u = std::clamp(at / std::max(0.01f, dur), 0.0f, 1.0f);
+        switch (clip) {
+            case rig::CL_SLASH: case rig::CL_THRUST: case rig::CL_SWING:
+                c.reach = u < 0.26f ? -0.45f * sinf(u / 0.26f * PI / 2) : u < 0.4f ? -0.45f + 1.65f * sinf((u - 0.26f) / 0.14f * PI / 2) : 1.2f * (1 - (u - 0.4f) / 0.6f) * (1 + 0.15f * sinf((u - 0.4f) * 20)); // the snap peaks at the impact (0.36 s of 0.9)
+                break;
+            case rig::CL_CAST: case rig::CL_SHOOT: case rig::CL_THROW: case rig::CL_SONG: c.rear = sinf(u * PI); c.reach = 0.3f * sinf(u * PI); break;
+            case rig::CL_HIT: c.flinch = sinf(std::min(1.0f, u * 1.6f) * PI) * (1 - u * 0.3f); break;
+            case rig::CL_DODGE: c.flinch = 0.7f * sinf(u * PI); break;
+            case rig::CL_DEATH: c.flinch = std::min(1.0f, u * 2); c.rear = -0.8f * std::min(1.0f, u * 1.5f); break;
+            default: break;
+        }
+    }
     rig::Instance& in = rig::Get(1000000 + e.uid);
     rig::Tick(in, t);
     gBlink = in.face.Closed();

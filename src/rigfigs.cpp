@@ -45,6 +45,7 @@ void Panel(const Chain& a, const Chain& b, Color c, float darken) {
 }  // namespace
 
 void RigSetActing(int clip, float t) { gActClip = clip; gActT = t; }
+void RigGetActing(int* clip, float* t) { *clip = gActClip; *t = gActT; }
 
 // Light that must not be inked (a jellyfish's glowing tentacles, its core, a spell): a figure hands it here while
 // it is drawn, and it is painted over the finished, inked figure, additively, in the same place.
