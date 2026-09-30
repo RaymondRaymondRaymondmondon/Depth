@@ -22,18 +22,25 @@ namespace {
 constexpr float FOCAL = 440, CX = 560, CY = 320, EYE = 230;
 constexpr float RW = 720, RH = 600, Z_NEAR = 290, Z_BACK = 1150;
 constexpr float HUD_Y = 654, CREW_H = 190; // a crew member's height in room units
-constexpr float PERI_X = 110, PERI_Z = 560;
-constexpr float ARC_X = -400, ARC_Z = 380;   // the Deep Arcade cabinet, riveted into the near bulkhead on the left
+constexpr float PERI_X = 262, PERI_Z = 1060;  // the periscope rises at the seam between the great window's bay and the Ward's
+constexpr float ARC_X = 340, ARC_Z = 560;     // the Deep Arcade cabinet, in the near right corner of the square (the card table faces it on the left)
 constexpr float HATCH_Z = 470;               // the Study hatch, set into the deck, front and centre
 constexpr float ROSTER_X = 1128;             // the roster column along the right edge
 // The camera drifts a little opposite the mouse (up to ~1.5% of the screen), so the room has depth without moving.
 float gCamX = 0, gCamY = 0;
-constexpr float WARD_X = 590; // the Ward's cabinet, in the back right corner // the periscope stands between the great window and the Ward
+constexpr float WARD_X = 420, ORGAN_X = -405, ALCOVE_Z = 1070; // the Ward's cabinet and the Sick Bay's organ, each in its bay of the apse
 
 Vector2 Proj(float X, float Y, float Z) { return {CX + (X - gCamX) * FOCAL / Z, CY - (Y - EYE - gCamY) * FOCAL / Z}; }
 Vector2 Proj(Vector3 p) { return Proj(p.x, p.y, p.z); }
 float Px(float Z) { return FOCAL / Z; }
 Vector3 Mix(Vector3 a, Vector3 b, float t) { return {a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, a.z + (b.z - a.z) * t}; }
+
+// The back of the room: an apse of five bays (room X, Z), left to right as seen: the Library, the Sick Bay, the great
+// window (the Helm before it), the Ward, the Workshop. A short stretch of straight wall at each edge holds Crew Quarters
+// (left) and the Radar Room (right). The floor between is the open square, as in Darkest Dungeon's hamlet.
+const Vector2 APSE[6] = {{-RW, 700}, {-560, 1000}, {-250, Z_BACK}, {250, Z_BACK}, {560, 1000}, {RW, 700}};
+float ApseHalfW(float z) { return z <= 700 ? RW : z <= 1000 ? RW - (z - 700) * 160 / 300.0f : 560 - (z - 1000) * 310 / 150.0f; }
+bool InApse(Vector2 p, float margin) { return fabsf(p.x) <= ApseHalfW(p.y) - margin && p.y <= Z_BACK - margin; }
 
 // A textured quad given in room coordinates, split into a grid so the texture follows the perspective.
 void ProjQuad(Texture2D tex, Vector3 tl, Vector3 tr, Vector3 br, Vector3 bl, Rectangle uv, Color tint, int nu, int nv) {
@@ -88,6 +95,23 @@ Rectangle PaintWall(float X, float Z0, float Z1, float Y0, int w, int h, F draw)
     return Bounds({Proj(nt), Proj(ft), Proj(fb), Proj(nb)});
 }
 
+// Paints flat art onto a bay of the apse: the canvas is centred along the wall from a to b (room X, Z; a is the end
+// on the left of the screen), from height Y0 up. Returns where it landed on screen.
+template <typename F>
+Rectangle PaintPanel(Vector2 a, Vector2 b, float Y0, int w, int h, F draw) {
+    RenderTexture2D& rt = ArtRT();
+    BeginCanvas(rt);
+    draw((float)w, (float)h);
+    EndCanvas();
+    float L = sqrtf((b.x - a.x) * (b.x - a.x) + (b.y - a.y) * (b.y - a.y)), half = std::min(0.5f, w / ART_PX / L * 0.5f);
+    Vector2 A{a.x + (b.x - a.x) * (0.5f - half), a.y + (b.y - a.y) * (0.5f - half)}, B{a.x + (b.x - a.x) * (0.5f + half), a.y + (b.y - a.y) * (0.5f + half)};
+    float Y1 = Y0 + h / ART_PX;
+    Vector3 tl{A.x, Y1, A.y}, tr{B.x, Y1, B.y}, br{B.x, Y0, B.y}, bl{A.x, Y0, A.y};
+    ProjQuad(rt.texture, tl, tr, br, bl, {0, 1, w / (float)rt.texture.width, -h / (float)rt.texture.height}, WHITE, 18, 1);
+    return Bounds({Proj(tl), Proj(tr), Proj(br), Proj(bl)});
+}
+
+
 // Draws something standing at (X, Y, Z) facing the camera, in room units: +x right, +y DOWN, origin at its base.
 template <typename F>
 void Billboard(float X, float Y, float Z, F draw) {
@@ -113,16 +137,16 @@ float Spin(int slot, float rate) { static float acc[16] = {}; acc[slot] += GetFr
 enum StationId { ST_CREW, ST_LIBRARY, ST_RADAR, ST_HELM, ST_PERISCOPE, ST_WORKSHOP, ST_SICKBAY, ST_WARD, ST_CARDS, ST_ARCADE, ST_STUDY, ST_COUNT };
 struct Station { Scene target; const char* name; const char* hint; Vector2 stand; }; // stand = (X, Z) where crew gather
 const Station STATIONS[ST_COUNT] = {
-    {Scene::Crew, "Crew Quarters", "Choose your party, fit relics, and pick each crew member's abilities.", {-540, 620}},
-    {Scene::Bookshelf, "Library", "Learn about the crew, conditions, and creatures of the deep.", {-540, 900}},
-    {Scene::Radar, "Radar Room", "Pick up new recruits and buy relics from passing salvagers.", {540, 620}},
-    {Scene::Helm, "The Helm", "Chart a course and send your party on an expedition.", {-110, 800}},
-    {Scene::Periscope, "Periscope", "Take on a platforming run for gold.", {300, 600}},
-    {Scene::Workshop, "Workshop", "Upgrade the Nautilus: reflectors, bunks, sonar and infirmary gear.", {540, 900}},
-    {Scene::SickLeave, "Sick Bay", "Rattled crew can rest by the organ and steady their nerves.", {-400, 930}},
-    {Scene::Ward, "The Ward", "Patch up injured crew.", {400, 930}},
-    {Scene::Cards, "The Card Table", "Play Flats against the ship's dealer: a card-sharp's way to earn gold when you're short.", {250, 600}},
-    {Scene::Arcade, "The Deep Arcade", "A cabinet riveted into the bulkhead: games for more than one player.", {-330, 570}},
+    {Scene::Crew, "Crew Quarters", "Choose your party, fit relics, and pick each crew member's abilities.", {-560, 620}},
+    {Scene::Bookshelf, "Library", "Learn about the crew, conditions, and creatures of the deep.", {-470, 860}},
+    {Scene::Radar, "Radar Room", "Pick up new recruits and buy relics from passing salvagers.", {560, 620}},
+    {Scene::Helm, "The Helm", "Chart a course and send your party on an expedition.", {-150, 800}},
+    {Scene::Periscope, "Periscope", "Take on a platforming run for gold.", {200, 1000}},
+    {Scene::Workshop, "Workshop", "Upgrade the Nautilus: reflectors, bunks, sonar and infirmary gear.", {470, 860}},
+    {Scene::SickLeave, "Sick Bay", "Rattled crew can rest by the organ and steady their nerves.", {-260, 930}},
+    {Scene::Ward, "The Ward", "Patch up injured crew.", {260, 930}},
+    {Scene::Cards, "The Card Table", "Play Flats against the ship's dealer: a card-sharp's way to earn gold when you're short.", {-180, 600}},
+    {Scene::Arcade, "The Deep Arcade", "A brass cabinet in the corner of the salon: games for more than one player.", {200, 560}},
     {Scene::Study, "The Study Hatch", "A brass hatch in the deck, and a ladder down to the Study.", {0, 560}},
 };
 float gHov[ST_COUNT] = {};   // how hovered each station is, eased: drives its hover motion (the wheel spins, the door swings ...)
@@ -133,12 +157,12 @@ Rectangle stationRect[ST_COUNT];
 // post, where they stand working, and every so often they stretch their legs and come back.
 struct Npc { const char* role; HeroClass build; int outfit; Vector2 post; bool faceRight; };
 const Npc NPCS[] = {
-    {"Helmsman", HeroClass::Captain, OUT_HELMSMAN, {-70, 860}, true},    // at the wheel
-    {"Radio operator", HeroClass::Mechanic, OUT_RADIO, {555, 625}, true}, // listening at the sonar
-    {"Engineer", HeroClass::Mechanic, OUT_ENGINEER, {555, 910}, true},    // hammering at the workbench
-    {"Professor", HeroClass::Captain, OUT_PROFESSOR, {-555, 930}, false}, // browsing the shelves
+    {"Helmsman", HeroClass::Captain, OUT_HELMSMAN, {-165, 870}, true},    // at the wheel
+    {"Radio operator", HeroClass::Mechanic, OUT_RADIO, {600, 640}, true}, // listening at the sonar
+    {"Engineer", HeroClass::Mechanic, OUT_ENGINEER, {500, 820}, true},    // hammering at the workbench
+    {"Professor", HeroClass::Captain, OUT_PROFESSOR, {-500, 820}, false}, // browsing the shelves
     {"Steward", HeroClass::Captain, OUT_STEWARD, {0, 0}, true},           // no post: does the rounds with a tray
-    {"Orderly", HeroClass::Nurse, OUT_ORDERLY, {250, 985}, true},         // tending the operating table
+    {"Orderly", HeroClass::Nurse, OUT_ORDERLY, {260, 960}, true},         // tending the operating table
 };
 constexpr int NPC_COUNT = sizeof(NPCS) / sizeof(NPCS[0]);
 struct Walker { int id; Vector2 pos, target; float wait, phase; bool right, atPost; };
@@ -155,8 +179,8 @@ Cat cat;
 
 // Furniture on the floor, as circles (X, Z, radius) that people and the cat walk around.
 struct Obstacle { float x, z, r; };
-const Obstacle OBSTACLES[] = {{0, 900, 95}, {-255, 900, 105}, {110, 560, 45}, {-430, 1010, 175}, {430, 1010, 170}};
-constexpr float CARD_X = 330, CARD_Z = 450, DEALER_Z = 525; // the card table (foreground right), and the dealer seated behind it
+const Obstacle OBSTACLES[] = {{0, 900, 120}, {-340, 575, 115}, {340, 560, 50}, {-400, 1060, 170}, {420, 1060, 160}, {262, 1060, 40}};
+constexpr float CARD_X = -340, CARD_Z = 540, DEALER_Z = 615; // the card table (near left corner of the square), and the dealer seated behind it
 
 const Hero& NpcHero(int i) {
     static Hero heroes[NPC_COUNT];
@@ -174,7 +198,7 @@ bool Blocked(Vector2 p, float margin) {
 Vector2 FloorSpot() {
     for (int tries = 0; tries < 30; tries++) {
         Vector2 p{RandF(-560, 560), RandF(560, 1060)};
-        if (!Blocked(p, 30)) return p;
+        if (!Blocked(p, 30) && InApse(p, 50)) return p;
     }
     return {0, 640};
 }
@@ -202,8 +226,9 @@ Vector2 Steer(Vector2 pos, Vector2 target, float step) {
         float dist = sqrtf(a.x * a.x + a.y * a.y);
         if (dist < o.r && dist > 0.001f) np = {o.x + a.x / dist * o.r, o.z + a.y / dist * o.r};
     }
-    np.x = std::clamp(np.x, -600.0f, 600.0f);
-    np.y = std::clamp(np.y, 540.0f, 1080.0f);
+    np.y = std::clamp(np.y, 540.0f, Z_BACK - 60);
+    float hw = ApseHalfW(np.y) - 40;   // the walls of the apse close in toward the back
+    np.x = std::clamp(np.x, -hw, hw);
     return np;
 }
 
@@ -254,8 +279,8 @@ void UpdateLife(Game& g, float dt) {
         w.phase += dt * 7.5f;
     }
     // the cat's perches: up on the arcade cabinet, or on the chart table by the helm
-    const Vector2 PERCH_AT[3] = {{0, 0}, {ARC_X, ARC_Z - 2}, {-255, 890}}, PERCH_FOOT[3] = {{0, 0}, {ARC_X + 80, 545}, {-150, 790}};
-    const float PERCH_Y[3] = {0, 262, 150};
+    const Vector2 PERCH_AT[3] = {{0, 0}, {ARC_X, ARC_Z - 2}, {-205, 890}}, PERCH_FOOT[3] = {{0, 0}, {ARC_X - 90, 560}, {-205, 790}};
+    const float PERCH_Y[3] = {0, 212, 150};
     if (cat.hop >= 0) { // mid-leap
         cat.hop += dt / 0.5f;
         float u = std::min(1.0f, cat.hop);
@@ -375,58 +400,56 @@ void DrawOcean(float t) {
 }
 
 // ---------------------------------------------------------------- the room's shell
+// A stretch of wall from a to b (room X, Z), as seen left to right on screen: panelling above a mahogany wainscot,
+// brass rails, a dark cornice and a baseboard.
+void WallStrip(Vector2 a, Vector2 b, Texture2D metal, Texture2D wood, Color panel, Color woodTint) {
+    float L = sqrtf((b.x - a.x) * (b.x - a.x) + (b.y - a.y) * (b.y - a.y));
+    ProjQuad(metal, {a.x, RH, a.y}, {b.x, RH, b.y}, {b.x, 170, b.y}, {a.x, 170, a.y}, {0, 0, L / 170, 3}, panel, 16, 1);
+    ProjQuad(wood, {a.x, 170, a.y}, {b.x, 170, b.y}, {b.x, 0, b.y}, {a.x, 0, a.y}, {0, 0, L / 170, 1}, woodTint, 16, 1);
+    for (float y : {170.0f, 176.0f}) DrawLineEx(Proj(a.x, y, a.y), Proj(b.x, y, b.y), 2, Pal::Brass);
+    DrawLineEx(Proj(a.x, RH - 6, a.y), Proj(b.x, RH - 6, b.y), 4, Pal::BrassDk);
+    DrawLineEx(Proj(a.x, 0, a.y), Proj(b.x, 0, b.y), 3, Color{40, 26, 18, 255});
+}
+
+// A gilded pilaster standing at a corner of the room, with a brass capital and base.
+void Pilaster(float X, float Z) {
+    float k = Px(Z);
+    Vector2 top = Proj(X, RH, Z), bot = Proj(X, 0, Z);
+    DrawLineEx(top, bot, 30 * k, Color{84, 58, 32, 255});
+    DrawLineEx({top.x - 4 * k, top.y}, {bot.x - 4 * k, bot.y}, 20 * k, Color{128, 92, 50, 255});
+    DrawLineEx({top.x - 8 * k, top.y}, {bot.x - 8 * k, bot.y}, 3 * k, Pal::Brass);
+    for (float y : {RH - 40, 170.0f, 14.0f}) { Vector2 c = Proj(X, y, Z); DrawRectangleRec({c.x - 20 * k, c.y - 8 * k, 40 * k, 16 * k}, Pal::BrassDk); DrawRectangleRec({c.x - 18 * k, c.y - 7 * k, 36 * k, 5 * k}, Pal::Brass); }
+}
+
+// The salon's shell. The back of the room is an apse of five bays (APSE), like the buildings round the square of
+// Darkest Dungeon's hamlet: two angled bays each side and the great window in the middle, with a short stretch of
+// straight side wall at either edge; the floor between them is the open square.
 void DrawShell(float t) {
     Texture2D wood = GetTex(Tex::Wood), metal = GetTex(Tex::Metal);
-    Color panel{58, 88, 84, 255}, woodTint{140, 92, 64, 255}, dark{90, 60, 44, 255};
-    // ceiling: coffered dark wood with brass-trimmed beams
+    Color panel{58, 88, 84, 255}, woodTint{140, 92, 64, 255};
+    // ceiling: coffered dark wood with brass-trimmed beams (its corners behind the apse are covered by the walls)
     ProjQuad(wood, {-RW, RH, Z_BACK}, {RW, RH, Z_BACK}, {RW, RH, Z_NEAR}, {-RW, RH, Z_NEAR}, {0, 0, 6, 5}, Color{80, 56, 42, 255}, 1, 20);
     for (float z = 420; z < Z_BACK; z += 180)
         ProjFill({-RW, RH, z}, {RW, RH, z}, {RW, RH, z - 26}, {-RW, RH, z - 26}, Color{50, 34, 24, 255});
     for (float x = -RW + 240; x < RW; x += 240)
         ProjFill({x - 12, RH, Z_BACK}, {x + 12, RH, Z_BACK}, {x + 12, RH, Z_NEAR}, {x - 12, RH, Z_NEAR}, Color{58, 40, 28, 255});
-    // side walls: dark green panelling above a mahogany wainscot
-    for (int s = -1; s <= 1; s += 2) {
-        float X = s * RW;
-        Vector3 ft{X, RH, Z_BACK}, nt{X, RH, Z_NEAR}, nb{X, 0, Z_NEAR}, fb{X, 0, Z_BACK};
-        Vector3 fm{X, 170, Z_BACK}, nm{X, 170, Z_NEAR};
-        if (s < 0) {
-            ProjQuad(metal, ft, nt, nm, fm, {0, 0, 5, 3}, panel, 20, 1);
-            ProjQuad(wood, fm, nm, nb, fb, {0, 0, 5, 1}, woodTint, 20, 1);
-        } else {
-            ProjQuad(metal, nt, ft, fm, nm, {0, 0, 5, 3}, panel, 20, 1);
-            ProjQuad(wood, nm, fm, fb, nb, {0, 0, 5, 1}, woodTint, 20, 1);
-        }
-        for (float z = 500; z < Z_BACK; z += 220) // gilded pilasters
-            ProjFill({X, RH, z - 14}, {X, RH, z + 14}, {X, 0, z + 14}, {X, 0, z - 14}, Color{112, 80, 44, 255});
-        for (float y : {170.0f, 176.0f}) // brass rail on the wainscot
-            DrawLineEx(Proj(X, y, Z_BACK), Proj(X, y, Z_NEAR), 2, Pal::Brass);
-        DrawLineEx(Proj(X, RH - 6, Z_BACK), Proj(X, RH - 6, Z_NEAR), 4, Pal::BrassDk);
-    }
-    // the back wall
-    Vector2 bl = Proj(-RW, 0, Z_BACK), tr = Proj(RW, RH, Z_BACK);
-    Rectangle back{bl.x, tr.y, tr.x - bl.x, bl.y - tr.y};
-    float kb = Px(Z_BACK);
-    DrawTiled(Tex::Metal, {back.x, back.y, back.width, back.height - 170 * kb}, kb, panel);
-    DrawTiled(Tex::Wood, {back.x, back.y + back.height - 170 * kb, back.width, 170 * kb}, kb, woodTint);
-    DrawRectangleRec({back.x, back.y + back.height - 172 * kb, back.width, 3}, Pal::Brass);
-    for (float x : {-300.0f, 300.0f}) {
-        Vector2 a = Proj(x - 14, RH, Z_BACK), b = Proj(x + 14, 0, Z_BACK);
-        DrawRectangleRec({a.x, a.y, b.x - a.x, b.y - a.y}, Color{112, 80, 44, 255});
-    }
-    // the floor: parquet, and a great patterned rug
+    // the floor: parquet, and a great patterned rug in the middle of the square
     ProjQuad(wood, {-RW, 0, Z_BACK}, {RW, 0, Z_BACK}, {RW, 0, Z_NEAR}, {-RW, 0, Z_NEAR}, {0, 0, 7, 9}, Color{150, 104, 70, 255}, 1, 28);
-    ProjFill({-420, 0, 1060}, {420, 0, 1060}, {420, 0, 470}, {-420, 0, 470}, Color{110, 30, 32, 255});
-    ProjFill({-390, 0, 1040}, {390, 0, 1040}, {390, 0, 490}, {-390, 0, 490}, Color{150, 48, 40, 255});
-    ProjFill({-350, 0, 1010}, {350, 0, 1010}, {350, 0, 520}, {-350, 0, 520}, Color{120, 34, 34, 255});
+    ProjFill({-380, 0, 1000}, {380, 0, 1000}, {380, 0, 460}, {-380, 0, 460}, Color{110, 30, 32, 255});
+    ProjFill({-350, 0, 980}, {350, 0, 980}, {350, 0, 480}, {-350, 0, 480}, Color{150, 48, 40, 255});
+    ProjFill({-310, 0, 950}, {310, 0, 950}, {310, 0, 510}, {-310, 0, 510}, Color{120, 34, 34, 255});
     for (int k = 0; k < 5; k++) { // medallions woven into the rug
-        float z = 580 + k * 100, w = 60;
-        Vector2 c = Proj(0, 0, z), l = Proj(-w, 0, z), f = Proj(0, 0, z + 40), n = Proj(0, 0, z - 40);
+        float z = 580 + k * 80, w = 56;
+        Vector2 c = Proj(0, 0, z), l = Proj(-w, 0, z), f = Proj(0, 0, z + 34), n = Proj(0, 0, z - 34);
         DrawTri(l, f, {2 * c.x - l.x, c.y}, Color{196, 150, 80, 255});
         DrawTri(l, {2 * c.x - l.x, c.y}, n, Color{196, 150, 80, 255});
     }
-    // baseboards and the dark corners where walls meet
-    for (int s = -1; s <= 1; s += 2) DrawLineEx(Proj(s * RW, 0, Z_BACK), Proj(s * RW, 0, Z_NEAR), 3, Color{40, 26, 18, 255});
-    DrawLineEx(Proj(-RW, 0, Z_BACK), Proj(RW, 0, Z_BACK), 3, Color{40, 26, 18, 255});
+    // the walls: the near stretch of each side wall, then the five bays of the apse
+    WallStrip({-RW, Z_NEAR}, APSE[0], metal, wood, panel, woodTint);
+    for (int i = 0; i < 5; i++) WallStrip(APSE[i], APSE[i + 1], metal, wood, i == 2 ? Tone(panel, -0.1f) : panel, woodTint);
+    WallStrip(APSE[5], {RW, Z_NEAR}, metal, wood, panel, woodTint);
+    Pilaster(-RW, 520); Pilaster(RW, 520);
+    for (int i = 0; i < 6; i++) Pilaster(APSE[i].x, APSE[i].y);
     (void)t;
 }
 
@@ -604,7 +627,8 @@ void DrawGreatWindow(float t) {
 }
 
 void DrawOrgan(float t, bool playing) {
-    Billboard(-520, 0, Z_BACK, [&] {
+    Billboard(ORGAN_X, 0, ALCOVE_Z, [&] {
+        rlPushMatrix(); rlScalef(0.85f, 0.85f, 1);   // sized to its bay of the apse
         // pipes rising behind the console
         for (int k = 0; k < 15; k++) {
             float x = -170 + k * 24, hh = 300 + sinf(k * 0.55f) * 90 + (7 - fabsf(k - 7.0f)) * 22;
@@ -633,12 +657,13 @@ void DrawOrgan(float t, bool playing) {
                 DrawLineEx({p.x + 7, p.y}, {p.x + 7, p.y - 28}, 2.5f, nc);
                 DrawLineEx({p.x + 7, p.y - 28}, {p.x + 17, p.y - 21}, 2.5f, nc);
             }
+        rlPopMatrix();
     });
 }
 
 void DrawWardWall(float t) {
     (void)t;
-    Billboard(WARD_X, 0, Z_BACK, [&] {
+    Billboard(WARD_X, 0, ALCOVE_Z, [&] {
         Rectangle cab{-120, -470, 240, 300};
         DrawRectangleRec(cab, Color{220, 224, 218, 255});
         DrawRectangleLinesEx(cab, 6, Color{150, 156, 150, 255});
@@ -678,6 +703,11 @@ void DrawPainting(float X, float Y, float w, float h, int kind) {
 
 void DrawHelmFurniture(float t) {
     Billboard(0, 0, 900, [&] {
+        // the dais: a round platform of dark wood, brass-rimmed, the centre of the square
+        DrawEllipse(0, 4, 178, 30, Color{30, 20, 14, 255});
+        DrawEllipse(0, -2, 170, 27, Pal::BrassDk);
+        DrawEllipse(0, -5, 162, 24, Color{96, 62, 40, 255});
+        for (int k = 0; k < 16; k++) { float a = k * PI / 8; DrawCircleV({cosf(a) * 166, -2 + sinf(a) * 25.5f}, 2.2f, Pal::Brass); }
         // the binnacle and pedestal
         DrawRectangleGradientH(-22, -190, 22, 190, Color{60, 38, 24, 255}, Color{130, 86, 54, 255});
         DrawRectangleGradientH(0, -190, 22, 190, Color{130, 86, 54, 255}, Color{50, 32, 20, 255});
@@ -709,12 +739,12 @@ void DrawHelmFurniture(float t) {
             DrawLineEx({gp.x, gp.y - 12}, {gp.x, gp.y + 12}, 2, Fade(WHITE, 0.6f * gHov[3]));
         }
         // the chart table beside it
-        DrawRectangle(-342, -120, 12, 120, Color{90, 58, 36, 255});
-        DrawRectangle(-182, -120, 12, 120, Color{90, 58, 36, 255});
-        DrawTiled(Tex::Wood, {-360, -136, 210, 20}, 0.5f, Color{140, 94, 60, 255});
-        DrawRectangle(-344, -150, 176, 16, Color{230, 214, 176, 255});
-        DrawGauge({-255, -200}, 30, 0.55f + 0.04f * sinf(t * 1.3f), Color{236, 228, 206, 255});
-        DrawLineEx({-255, -170}, {-255, -136}, 5, Pal::BrassDk);
+        DrawRectangle(-248, -120, 10, 120, Color{90, 58, 36, 255});
+        DrawRectangle(-172, -120, 10, 120, Color{90, 58, 36, 255});
+        DrawTiled(Tex::Wood, {-262, -136, 114, 18}, 0.5f, Color{140, 94, 60, 255});
+        DrawRectangle(-252, -148, 94, 14, Color{230, 214, 176, 255});
+        DrawGauge({-205, -196}, 26, 0.55f + 0.04f * sinf(t * 1.3f), Color{236, 228, 206, 255});
+        DrawLineEx({-205, -170}, {-205, -136}, 5, Pal::BrassDk);
     });
 }
 
@@ -744,7 +774,7 @@ void DrawPeriscope(float t) {
 }
 
 void DrawChaise(float t, const std::vector<const Hero*>& resting) {
-    Billboard(-430, 0, 1010, [&] {
+    Billboard(-400, 0, 1060, [&] {
         DrawRectangleRounded({-150, -90, 300, 60}, 0.4f, 8, Color{120, 40, 60, 255});   // seat
         DrawRectangleRounded({-160, -160, 70, 130}, 0.5f, 8, Color{130, 44, 66, 255});  // raised end
         for (int k = 0; k < 4; k++) DrawCircleV({-100 + k * 60.0f, -60}, 3, Color{210, 170, 90, 255});
@@ -764,7 +794,7 @@ void DrawChaise(float t, const std::vector<const Hero*>& resting) {
 }
 
 void DrawOperatingTable(float t) {
-    Billboard(430, 0, 1010, [&] {
+    Billboard(420, 0, 1060, [&] {
         DrawRectangle(-20, -110, 40, 110, Color{170, 176, 174, 255});
         DrawEllipse(0, -4, 70, 12, Color{110, 116, 114, 255});
         DrawRectangleRounded({-150, -134, 300, 26}, 0.4f, 6, Color{238, 238, 232, 255});
@@ -1020,20 +1050,23 @@ void Hanger(float X, float Y, float Z) { DrawLineEx(Proj(X, Y, Z), Proj(X, RH, Z
 
 constexpr float CROSS_Z = 520, CROSS_Y = 500;
 
-// The long runs down both sides of the ceiling, drawn with the room (behind the furniture).
+// The long runs round the top of the room, following the walls and the bays of the apse (drawn with the room,
+// behind the furniture): a big copper main with bolted elbows at every corner, and a small steam line above it.
 void DrawWallPipes(float t) {
     (void)t;
-    for (int s = -1; s <= 1; s += 2) {
-        float XA = s * (RW - 48), XB = s * (RW - 100);
-        Color big = s < 0 ? Pal::Copper : Pal::Brass, small{128, 134, 130, 255};
-        for (float z = 1100; z > 340; z -= 150) { Hanger(XA, RH - 45, z); Hanger(XB, RH - 30, z + 60); }
-        Pipe3D({XB, RH - 30, Z_BACK}, {XB, RH - 30, 330}, 8, small);
-        Pipe3D({XA, RH - 45, Z_BACK}, {XA, RH - 45, 330}, 17, big);
-        for (float z = 1000; z > 380; z -= 200) Flange3D({XA, RH - 45, z}, {0, 0, 1}, 17, big);
-        // a drop into the back wall, where the pipe turns down behind the panelling
-        Pipe3D({XA, RH - 45, Z_BACK - 10}, {XA, RH - 150, Z_BACK - 10}, 17, big, 2);
-        Flange3D({XA, RH - 150, Z_BACK - 10}, {0, 1, 0}, 17, big);
-    }
+    auto run = [&](float inset, float Y, float R, Color c, bool flanges) {
+        Vector3 pts[8] = {{-RW + inset, Y, Z_NEAR + 40}, {-RW + inset, Y, 700}};
+        for (int i = 1; i <= 4; i++) { Vector2 p = APSE[i]; float s = (ApseHalfW(p.y) - inset) / std::max(1.0f, ApseHalfW(p.y)); pts[i + 1] = {p.x * s, Y, p.y - inset * 0.9f}; }
+        pts[6] = {RW - inset, Y, 700}; pts[7] = {RW - inset, Y, Z_NEAR + 40};
+        for (int i = 0; i < 7; i++) {
+            Pipe3D(pts[i], pts[i + 1], R, c, 10);
+            Vector3 mid = Mix(pts[i], pts[i + 1], 0.5f);
+            Hanger(mid.x, Y, mid.z);
+            if (flanges && i > 0) { Vector3 d{pts[i + 1].x - pts[i].x, 0, pts[i + 1].z - pts[i].z}; float l = sqrtf(d.x * d.x + d.z * d.z); Flange3D(pts[i], {d.x / l, 0, d.z / l}, R, c); }
+        }
+    };
+    run(100, RH - 30, 8, Color{128, 134, 130, 255}, false);
+    run(48, RH - 45, 17, Pal::Copper, true);
 }
 
 // The pipe that crosses the room near the ceiling, in front of everything, with a valve and a gauge.
@@ -1065,7 +1098,7 @@ void DrawCrossPipe(float t) {
 // Wisps from a leaky flange on the cross pipe, and from the wall run now and then.
 void DrawCeilingSteam(float t) {
     struct Leak { Vector3 at; float rate, drift; };
-    const Leak leaks[] = {{{90, CROSS_Y, CROSS_Z}, 1.0f, 1}, {{-(RW - 48), RH - 45, 800}, 0.7f, 1}, {{RW - 48, RH - 45, 600}, 0.8f, -1}};
+    const Leak leaks[] = {{{90, CROSS_Y, CROSS_Z}, 1.0f, 1}, {{-600, RH - 45, 830}, 0.7f, 1}, {{RW - 48, RH - 45, 600}, 0.8f, -1}};
     for (int L = 0; L < 3; L++) {
         const Leak& lk = leaks[L];
         Vector2 o = Proj(lk.at);
@@ -1163,11 +1196,8 @@ void DrawCardTable(float t) {
 void DrawArcadeCabinet(float t) {
     float h = gHov[ST_ARCADE];
     Billboard(ARC_X, 0, ARC_Z, [&] {
-        rlPushMatrix(); rlScalef(0.74f, 0.74f, 1);   // a cabinet a man stands at, not a wardrobe
+        rlPushMatrix(); rlScalef(0.6f, 0.6f, 1);     // a cabinet a man stands at, not a wardrobe
         Color mahog{96, 46, 30, 255}, mahogLt{140, 70, 42, 255}, brass{150, 112, 56, 255};
-        DrawPipeH(-190, -58, -236, 6, Pal::Copper);                      // pipes into the bulkhead
-        DrawPipeH(-190, -58, -40, 5, Pal::Copper);
-        DrawFlange({-80, -236}, 7, false, Pal::BrassDk);
         DrawEllipse(0, -2, 76, 12, Color{20, 12, 8, 255});
         DrawRectangleGradientH(-62, -262, 62, 262, Tone(mahog, -0.3f), mahogLt);   // the body
         DrawRectangleGradientH(0, -262, 62, 262, mahogLt, Tone(mahog, -0.35f));
@@ -1258,14 +1288,14 @@ Rectangle DrawStudyHatch(float t) {
 // Two oil lamps hang in the foreground, swaying with the ship's roll.
 float ShipRoll(float t) { return 0.055f * sinf(t * 0.45f) + 0.015f * sinf(t * 1.3f); }
 Vector2 NearLampPos(int i, float t) {
-    float X = i ? 250.0f : -330.0f, Z = 330, L = 262;
+    float X = i ? 170.0f : -170.0f, Z = 330, L = 170;
     Vector2 top = Proj(X, RH, Z);
     float a = ShipRoll(t + i * 0.3f), k = Px(Z);
     return {top.x + sinf(a) * L * k, top.y + cosf(a) * L * k};
 }
 void DrawNearLamps(float t) {
     for (int i = 0; i < 2; i++) {
-        float X = i ? 250.0f : -330.0f, Z = 330, k = Px(Z);
+        float X = i ? 170.0f : -170.0f, Z = 330, k = Px(Z);
         Vector2 top = Proj(X, RH, Z), lp = NearLampPos(i, t);
         for (int c = 0; c < 10; c++) { Vector2 p{top.x + (lp.x - top.x) * c / 10, top.y + (lp.y - top.y) * c / 10}; DrawRing(p, 1.5f * k, 3 * k, 0, 360, 8, Pal::BrassDk); }
         DrawEllipse((int)lp.x, (int)(lp.y + 6 * k), 18 * k, 5 * k, Pal::BrassDk);                  // the cap
@@ -1281,12 +1311,14 @@ void DrawCeilingCaustics(float t) {
     BeginBlendMode(BLEND_ADDITIVE);
     for (int i = 0; i < 14; i++) {
         float z0 = 760 + i * 28.0f;
-        Vector2 prev = Proj(-RW + 40, RH, z0);
+        Vector2 prev{};
+        bool have = false;
         for (float x = -RW + 40; x <= RW - 40; x += 40) {
             float z = z0 + sinf(x * 0.012f + t * 0.9f + i) * 14 + sinf(x * 0.031f - t * 1.3f) * 6;
+            if (fabsf(x) > ApseHalfW(z) - 30 || z > Z_BACK - 20) { have = false; continue; }   // past the walls of the apse
             Vector2 p = Proj(x, RH, z);
-            DrawLineEx(prev, p, 1.6f, Color{120, 200, 220, (unsigned char)(14 + (i % 3) * 5)});
-            prev = p;
+            if (have) DrawLineEx(prev, p, 1.6f, Color{120, 200, 220, (unsigned char)(14 + (i % 3) * 5)});
+            prev = p; have = true;
         }
     }
     EndBlendMode();
@@ -1317,17 +1349,17 @@ void DrawSalonLighting(float t, int hovered, const std::vector<Vector2>& personL
     AddLight(Proj(0, 330, Z_BACK), 330, sea, 0.95f);
     AddLight(Proj(0, 60, 1000), 260, sea, 0.45f);
     AddLight({CX, 640}, 520, warm, 0.4f); // lamplight spilling across the near floor
-    for (int s = -1; s <= 1; s += 2) // wall sconces
-        for (float z : {720.0f, 1100.0f}) AddLight(Proj(s * (RW - 10), 400, z), 200 * Px(z) * 2.2f, warm, 0.7f * flick);
-    AddLight(Proj(-520, 190, Z_BACK), 150, warm, 0.8f);          // organ candles
+    const Vector3 SCONCE[4] = {{APSE[1].x, 400, APSE[1].y}, {APSE[4].x, 400, APSE[4].y}, {-RW + 10, 400, 640}, {RW - 10, 400, 640}};  // wall sconces on the pilasters
+    for (const Vector3& sc : SCONCE) AddLight(Proj(sc), 440 * Px(sc.z), warm, 0.7f * flick);
+    AddLight(Proj(ORGAN_X, 170, ALCOVE_Z), 150, warm, 0.8f);     // organ candles
     AddLight(Proj(RW, 440, 620), 180, Color{80, 255, 140, 255}, 0.5f); // the radar's glow
     AddLight(Proj(CARD_X, 110, CARD_Z), 190, Color{80, 170, 220, 255}, 0.7f);          // the card table's cold glow
     AddLight(Proj(CARD_X - 60, 130, CARD_Z), 90, Color{255, 190, 110, 255}, 0.6f);      // and its candle
-    AddCone(Proj(430, 470, 1010), PI / 2, 0.45f, 180, Color{255, 250, 232, 255}); // surgical lamp
-    if (fmodf(t, 6) < 2.2f) AddLight(Proj(RW, 90, 1010), 120, Color{255, 170, 80, 255}, 0.7f);
+    AddCone(Proj(420, 470, 1060), PI / 2, 0.45f, 180, Color{255, 250, 232, 255}); // surgical lamp
+    if (fmodf(t, 6) < 2.2f) AddLight(Proj(630, 90, 860), 120, Color{255, 170, 80, 255}, 0.7f); // the grinder's sparks
     for (int i = 0; i < 2; i++) AddLight(NearLampPos(i, t), 260, Color{255, 206, 140, 255}, 0.55f * flick);   // the near lamps
     AddLight(Proj(ARC_X, 200, ARC_Z), 150 + 60 * gHov[ST_ARCADE], Color{90, 220, 230, 255}, 0.6f + 0.4f * gHov[ST_ARCADE]); // the arcade's glow
-    AddLight(Proj(WARD_X, 470, Z_BACK), 120, Color{255, 250, 232, 255}, 0.3f + 0.7f * gHov[ST_WARD]);                    // the ward's lamp brightens
+    AddLight(Proj(WARD_X, 470, ALCOVE_Z), 120, Color{255, 250, 232, 255}, 0.3f + 0.7f * gHov[ST_WARD]);                    // the ward's lamp brightens
     if (hovered >= 0) {
         Rectangle r = stationRect[hovered];
         AddLight({r.x + r.width / 2, r.y + r.height / 2}, std::max(r.width, r.height) * 0.8f + 60, Color{255, 230, 190, 255}, 0.4f);
@@ -1335,8 +1367,7 @@ void DrawSalonLighting(float t, int hovered, const std::vector<Vector2>& personL
     LightsEnd();
     for (int i = 0; i < 2; i++) Glow(NearLampPos(i, t), 70, Color{255, 200, 120, 110});
     Glow(ch, 80, Color{255, 200, 120, 90});
-    for (int s = -1; s <= 1; s += 2)
-        for (float z : {720.0f, 1100.0f}) Glow(Proj(s * (RW - 10), 400, z), 24 * Px(z) * 2, Color{255, 200, 120, 150});
+    for (const Vector3& sc : SCONCE) Glow(Proj(sc), 48 * Px(sc.z), Color{255, 200, 120, 150});
 }
 
 // Dust in the chandelier light: drawn after the ink pass, or every mote gets a dark ring (the "black dust").
@@ -1564,24 +1595,22 @@ static void SalonFrame(Game& g, bool live, int heldStation) {
     DrawShell(t);
     DrawCeilingCaustics(t);
     DrawGreatWindow(t);
-    DrawPainting(-520, 590, 130, 60, 0);
-    DrawPainting(WARD_X, 590, 120, 80, 1);
     DrawOrgan(t, !resting.empty());
     DrawWardWall(t);
-    Vector2 organBase = Proj(-520, 0, Z_BACK), wardBase = Proj(WARD_X, 0, Z_BACK);
-    float kb = Px(Z_BACK);
+    Vector2 organBase = Proj(ORGAN_X, 0, ALCOVE_Z), wardBase = Proj(WARD_X, 0, ALCOVE_Z);
+    float kb = Px(ALCOVE_Z);
     stationRect[ST_CREW] = PaintWall(-RW, 540, 700, 0, 240, 645, [&](float w, float h) { ArtCrewDoor(w, h, t); });
-    stationRect[ST_LIBRARY] = PaintWall(-RW, 740, 1080, 0, 510, 750, [&](float w, float h) { ArtLibrary(w, h, t); });
+    stationRect[ST_LIBRARY] = PaintPanel(APSE[0], APSE[1], 0, 510, 750, [&](float w, float h) { ArtLibrary(w, h, t); });
     stationRect[ST_RADAR] = PaintWall(RW, 540, 700, 0, 240, 645, [&](float w, float h) { ArtRadar(w, h, t); });
-    stationRect[ST_WORKSHOP] = PaintWall(RW, 740, 1080, 0, 510, 645, [&](float w, float h) { ArtWorkshop(w, h, t); });
+    stationRect[ST_WORKSHOP] = PaintPanel(APSE[4], APSE[5], 0, 510, 645, [&](float w, float h) { ArtWorkshop(w, h, t); });
     DrawWallPipes(t);
 
     // --- the midground and the foreground: furniture and people on the floor, far to near, with veils of fog between
     struct Item { float z; std::function<void()> draw; };
     std::vector<Item> items;
     items.push_back({1040, [&] { FogVeil(0.05f); }});                     // fog between the far band and the midground
-    items.push_back({1010, [&] { DrawChaise(t, resting); }});
-    items.push_back({1010, [&] { DrawOperatingTable(t); }});
+    items.push_back({1060, [&] { DrawChaise(t, resting); }});
+    items.push_back({1060, [&] { DrawOperatingTable(t); }});
     items.push_back({900, [&] { DrawHelmFurniture(t); }});
     items.push_back({PERI_Z, [&] { DrawPeriscope(t); }});
     items.push_back({cat.perch == 1 ? ARC_Z - 1 : cat.pos.y, [&] { DrawCat(t); }});
@@ -1600,7 +1629,7 @@ static void SalonFrame(Game& g, bool live, int heldStation) {
         people.push_back({&w, h, feet, s, {feet.x - 22 * s, feet.y - 165 * s, 44 * s, 165 * s}, WorkPose(w, t)});
     }
     // now and then one of the off-duty hands is at the arcade cabinet, glancing back when you come near
-    static Walker arcadeW{0, {ARC_X + 100, ARC_Z + 40}, {ARC_X + 100, ARC_Z + 40}, 5, 0, false, true};
+    static Walker arcadeW{0, {ARC_X - 85, ARC_Z + 25}, {ARC_X - 85, ARC_Z + 25}, 5, 0, true, true};
     if (fmodf(t, 75) > 25 && fmodf(t, 75) < 55) {
         int who = -1;
         for (int i = 0; i < NPC_COUNT && who < 0; i++) { bool busy = false; for (auto& w : walkers) busy |= w.id == i; if (!busy) who = i; }
@@ -1609,7 +1638,7 @@ static void SalonFrame(Game& g, bool live, int heldStation) {
             Vector2 feet = Proj(arcadeW.pos.x, 0, arcadeW.pos.y);
             float s = CREW_H / 165.0f * Px(arcadeW.pos.y);
             bool near = live && fabsf(m.x - feet.x) < 150 && m.y > feet.y - 260 && m.y < feet.y + 40;
-            arcadeW.right = near;                                    // he turns to look at you
+            arcadeW.right = !near;                                   // playing, he faces the cabinet; he turns to look at you
             Pose p; p.reach = near ? 0.1f : 0.45f + 0.08f * sinf(t * 7); p.lean = near ? 0 : 0.14f; p.headDown = near ? -0.2f : 0.1f;
             people.push_back({&arcadeW, &NpcHero(who), feet, s, {feet.x - 22 * s, feet.y - 165 * s, 44 * s, 165 * s}, p});
         }
@@ -1630,15 +1659,15 @@ static void SalonFrame(Game& g, bool live, int heldStation) {
         Vector2 a = Proj(X - w / 2, hgt, Z), b = Proj(X + w / 2, 0, Z);
         return Rectangle{a.x, a.y, b.x - a.x, b.y - a.y};
     };
-    stationRect[ST_HELM] = around(-90, 900, 480, 360);
+    stationRect[ST_HELM] = around(-20, 900, 380, 380);
     stationRect[ST_CARDS] = around(CARD_X, DEALER_Z - 40, 240, 200);
     stationRect[ST_PERISCOPE] = around(PERI_X, PERI_Z, 140, 420);
-    stationRect[ST_ARCADE] = around(ARC_X, ARC_Z, 100, 240);
+    stationRect[ST_ARCADE] = around(ARC_X, ARC_Z, 90, 200);
     stationRect[ST_STUDY] = hatchR;
-    Rectangle organR{organBase.x - 200 * kb, organBase.y - 560 * kb, 400 * kb, 560 * kb}, chaise = around(-430, 1010, 330, 170);
+    Rectangle organR{organBase.x - 170 * kb, organBase.y - 540 * kb, 340 * kb, 540 * kb}, chaise = around(-400, 1060, 330, 170);
     stationRect[ST_SICKBAY] = {std::min(organR.x, chaise.x), organR.y, std::max(organR.x + organR.width, chaise.x + chaise.width) - std::min(organR.x, chaise.x),
                                chaise.y + chaise.height - organR.y};
-    Rectangle wardR{wardBase.x - 130 * kb, wardBase.y - 560 * kb, 260 * kb, 560 * kb}, table = around(430, 1010, 320, 170);
+    Rectangle wardR{wardBase.x - 130 * kb, wardBase.y - 560 * kb, 260 * kb, 560 * kb}, table = around(420, 1060, 320, 170);
     stationRect[ST_WARD] = {std::min(wardR.x, table.x), wardR.y, std::max(wardR.x + wardR.width, table.x + table.width) - std::min(wardR.x, table.x),
                             table.y + table.height - wardR.y};
 
@@ -1715,21 +1744,8 @@ static void SalonFrame(Game& g, bool live, int heldStation) {
     }
     DrawSalonHud(g, hovered, hint, hovered >= 0 || hovPerson || hovCat);
 
-    // New game, with a second click to confirm (a small plate at the top right)
-    static float armed = 0;
-    armed = std::max(0.0f, armed - dt);
-    if (Button({SCREEN_W - 200.0f, 8, 188, 30}, armed > 0 ? "Click again to confirm" : "Start a new game", true, 14)) {
-        if (armed > 0) {
-            DeleteSave();
-            g = Game{};
-            InitGame(g);
-            walkers.clear();
-            Toast(g, "A fresh crew steps aboard the Nautilus.");
-            armed = 0;
-            return;
-        }
-        armed = 3;
-    }
+    // the game menu, for the mouse (Esc opens it too; a new game is started from there)
+    if (Button({SCREEN_W - 170.0f, 8, 158, 30}, "Menu   (Esc)", true, 14)) GameMenuOpen();
 
     // --- clicks
     if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && hovCat) {
