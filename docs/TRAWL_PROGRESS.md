@@ -176,7 +176,7 @@ seabed in `DrawSea`), the Gannet's side in `EcoTick` (trawl_eco.cpp) and `Gannet
   and the mouse aims the searchlight. Shots: `trawl_lagoon`, `trawl_searchlight`, `trawl_shark`.
 - **Checks**: `depth.exe --trawl-eco lagoon 27` (three nights with a day between each, no crew: every species within
   bounds, "The ground is stable with no crew"); patterns `quiet`, `chumming`, `trawling`, `depth-charging` print
-  populations by the hour, blood, Wake and threat arrivals. `depth.exe --trawl-eco-test`: 20 checks (the gate, the
+  populations by the hour, blood, Wake and threat arrivals. `depth.exe --trawl-eco-test`: 22 checks (the gate, the
   settling after a shock, both cascades, the lantern, the night rise, a shark following chum from down-current, a
   barracuda pack coming to vibration and heading a hooked fish, Wake up and down, bites and matched bait, harvest,
   the lamp doubling bites at the Gannet's rail, a rod fished through the night landing the web's fish).
