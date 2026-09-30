@@ -490,6 +490,153 @@ void DrawRigDiver(const Hero& h, Vector2 ft, float s, bool right, float walk, fl
     parts.Draw();
 }
 
+// ============================================================================ THE MECHANIC
+// The crew's wall: the biggest silhouette, orange overalls under a leather apron with riveted patches, bare
+// forearms, a riveted hull-plate strapped to his back forearm as a shield, a huge pneumatic wrench fed by a hose
+// from the tank on his back, welding goggles pushed up on his brow, an oily rag swinging from his back pocket.
+void DrawRigMechanic(const Hero& h, Vector2 ft, float s, bool right, float walk, float t, const Pose& pose) {
+    const float f = right ? 1.0f : -1.0f;
+    Instance& in = Get(h.id);
+    Tick(in, t);
+    int seed = h.id * 7919 + 13;
+    const Color skins[4] = {{226, 186, 152, 255}, {198, 150, 112, 255}, {160, 110, 78, 255}, {108, 74, 52, 255}};
+    Color skin = skins[seed % 4], orange{206, 104, 34, 255}, orangeDk = Tone(orange, -0.28f), leather{104, 70, 44, 255}, iron{98, 100, 104, 255};
+    Color steel{176, 180, 188, 255}, brass = Pal::Brass, boots{44, 36, 30, 255}, rag{174, 90, 60, 255}, rubber{40, 36, 34, 255}, hair{50, 36, 28, 255};
+
+    Build b;
+    b.thigh = 40; b.shin = 38; b.upper = 29; b.fore = 28; b.spine = 27; b.chest = 29; b.neck = 9; b.head = 12;
+    b.shoulderW = 23; b.hipW = 9; b.stanceF = 20; b.stanceB = -19;
+
+    // the rest pose: a wall. Low, square, the plate raised before him, the wrench hefted on his shoulder
+    RPose P;
+    P[C_HIPY] = 8; P[C_LEAN] = 0.12f; P[C_CHEST] = 0.04f; P[C_HEAD] = -0.05f;
+    P[C_HBX] = 40; P[C_HBY] = 8;                        // the shield arm, raised out in front
+    P[C_HFX] = 16; P[C_HFY] = 42; P[C_WEAPON] = 58;     // the wrench hanging low and forward, its head near the deck
+    P += GetClip(CL_IDLE).Sample(t + h.id * 1.7f);
+    P += GetClip(CL_BREATHE).Sample(t + h.id);
+    float stressW = std::clamp(pose.tremble * 1.4f, 0.0f, 1.0f);
+    if (stressW > 0) P += Scaled(GetClip(CL_STRESSED).Sample(t), stressW);
+    float act = std::clamp(std::max(pose.reach, pose.raise), 0.0f, 1.0f);
+    P[C_WEAPON] *= 1 - act; P[C_HFX] *= 1 - act; P[C_HFY] *= 1 - act;
+    P += FromPose(pose, walk, t, 0);
+    P[C_WEAPON] += -90 * std::clamp(pose.raise, 0.0f, 1.0f) + pose.weaponTilt;
+    if (in.reaction >= 0) P += GetClip(in.reaction).Sample(in.reactT);
+    Solved S = SolveHumanoid(b, P, ft, s, f);
+
+    in.face.look = {1.0f, stressW > 0.4f ? sinf(t * 1.3f) * 0.6f : 0.0f};
+    in.face.mouth = pose.headDown < -0.3f ? 2 : (pose.reach > 0.5f || pose.raise > 0.7f) ? 1 : 0;
+
+    float a = S.a[PROP];
+    Vector2 dir{cosf(a), sinf(a)};
+    auto W = [&](float along) { return Vector2{S.p[WR_F].x + dir.x * along * s, S.p[WR_F].y + dir.y * along * s}; };
+
+    // chains: the pneumatic hose from the tank to the wrench's grip, the rag
+    bool jump = FollowWorld(in, s);
+    Vector2 anchors[2] = {S.Chest(-20, -18), S.Hips(-16, 4)};
+    if (jump || in.chains.size() != 2) {
+        in.chains.assign(2, Chain{});
+        in.chains[0].Init(anchors[0], 8, 8 * s, {0.3f * f, 1}); in.chains[0].col = rubber; in.chains[0].width0 = in.chains[0].width1 = 3.0f; in.chains[0].mat = WET; in.chains[0].stiff = 0.05f; in.chains[0].grav = 380;
+        in.chains[1].Init(anchors[1], 4, 6 * s, {-0.2f * f, 1}); in.chains[1].col = rag; in.chains[1].width0 = 4.0f; in.chains[1].width1 = 2.8f; in.chains[1].stiff = 0.2f;
+    }
+    Vector2 cur = Current();
+    in.chains[0].Step(anchors[0], {0.3f * f, 1}, in.dt, cur);
+    in.chains[1].Step(anchors[1], {-0.2f * f, 1}, in.dt, cur);
+    // the hose's far end is held at the wrench's grip: pull its tip there, and let the verlet sag carry the rest
+    {
+        Chain& c = in.chains[0];
+        Vector2 grip = W(-8);
+        for (size_t k = 1; k < c.p.size(); k++) {
+            float u = k / (float)(c.p.size() - 1);
+            Vector2 straight = L2(anchors[0], grip, u);
+            straight.y += sinf(u * PI) * 22 * s;                                                          // it sags between them
+            c.p[k] = L2(c.p[k], straight, 0.35f + 0.65f * u * u);
+        }
+    }
+
+    Parts parts;
+    // the tank cluster on his back
+    parts.Add(-3.0f, [&] {
+        for (int k = 0; k < 2; k++) {
+            Vector2 a0 = S.Chest(-24 + k * 5.0f, -24 + k * 3.0f), a1 = S.Hips(-22 + k * 5.0f, -12);
+            MLimb(a0, a1, 7.0f * s, 7.0f * s, k ? Tone(iron, 0.1f) : Color{150, 60, 40, 255}, METAL);
+            MBall(a0, 7.0f * s, k ? Tone(iron, 0.15f) : Color{160, 66, 44, 255}, METAL);
+        }
+        MBall(S.Chest(-20, -30), 2.8f * s, brass, METAL);
+    });
+    parts.Add(-2.8f, [&] { in.chains[1].Draw(s); });
+    auto leg = [&](int hip, int kn, int an, Color col) {
+        MLimb(S.p[hip], S.p[kn], 12.4f * s, 10.8f * s, col, CLOTH);
+        MLimb(S.p[kn], S.p[an], 10.8f * s, 9.0f * s, col, CLOTH);
+        MQuad(S.Along(hip, kn, 0.75f, -9), S.Along(hip, kn, 0.75f, 9), S.Along(kn, an, 0.25f, 8), S.Along(kn, an, 0.25f, -8), leather, CLOTH); // a leather knee pad
+        MLimb(S.Along(kn, an, 0.6f, 0), S.p[an], 10.0f * s, 9.6f * s, boots, WET);
+        Vector2 heel = Off(S.p[an], -4, 2, s, f), toe = Off(S.p[an], 15, 4, s, f);
+        MLimb(heel, toe, 9.0f * s, 8.2f * s, boots, WET);
+        MBall(Off(toe, -2, -1, s, f), 4.2f * s, steel, METAL);                                           // a steel toecap
+        DrawLineEx(Off(heel, -2, 7, s, f), Off(toe, 3, 6, s, f), 2.0f * s, Tone(boots, -0.6f));
+    };
+    parts.Add(-1.6f, [&] { leg(HIP_B, KN_B, AN_B, orangeDk); });
+    parts.Add(-1.0f, [&] { leg(HIP_F, KN_F, AN_F, orange); });
+    // the torso: overalls, the bib and straps, the leather apron with riveted patches, the tool belt
+    parts.Add(0, [&] {
+        MQuad(S.Chest(-25, -22), S.Chest(25, -22), S.Hips(19, 4), S.Hips(-19, 4), orange, CLOTH);
+        MQuad(S.Chest(-12, -18), S.Chest(14, -18), S.Hips(15, 16), S.Hips(-12, 16), leather, CLOTH);      // the apron
+        for (int k = 0; k < 2; k++) { // riveted patches of plate on the apron
+            Vector2 c = S.Chest(-3 + k * 6.0f, -8 + k * 14.0f);
+            MQuad(Off(c, -7, -5, s, f), Off(c, 7, -6, s, f), Off(c, 7, 5, s, f), Off(c, -7, 6, s, f), iron, METAL);
+            for (int r = 0; r < 4; r++) MBall(Off(c, r % 2 ? 5.5f : -5.5f, r / 2 ? 4.2f : -4.2f, s, f), 1.0f * s, Tone(iron, 0.35f), METAL);
+        }
+        DrawLineEx(S.Chest(-16, -22), S.Chest(-12, -18), 2.4f * s, orangeDk);                            // the overall straps
+        DrawLineEx(S.Chest(17, -22), S.Chest(14, -18), 2.4f * s, orangeDk);
+        MQuad(S.Hips(-20, -6), S.Hips(20, -6), S.Hips(19, 2), S.Hips(-19, 2), Tone(leather, -0.3f), WET);  // the tool belt
+        MLimb(S.Hips(4, -2), S.Hips(6, 12), 1.8f * s, 1.6f * s, steel, METAL);                            // a screwdriver
+        MLimb(S.Hips(-6, -2), S.Hips(-4, 10), 2.8f * s, 2.0f * s, Tone(steel, -0.2f), METAL);             // pliers
+        MBall(S.Hips(14, -2), 2.8f * s, brass, METAL);
+        for (int k = 0; k < 3; k++) DrawLineEx(S.Chest(-20 + k * 14.0f, -14), S.Hips(-16 + k * 14.0f, -8), 1.3f * s, Fade(Color{60, 24, 6, 255}, 0.5f)); // folds
+    });
+    // the head: a thick neck, a heavy jaw, stubble, goggles pushed up on a shaved head
+    parts.Add(0.5f, [&] {
+        MLimb(S.Chest(2, -24), S.Head(0, 8), 10.0f * s, 9.0f * s, Tone(skin, -0.1f), SKIN);               // a bull neck
+        MBall(S.p[HEAD], 12.8f * s, skin, SKIN);
+        MQuad(S.Head(-6, 0), S.Head(12, -1), S.Head(12, 13), S.Head(-3, 14.5f), skin, SKIN);              // a heavy, square jaw
+        for (int k = 0; k < 14; k++) DrawCircleV(S.Head(1 + (k % 7) * 1.7f, 8 + (k / 7) * 2.6f), 0.5f * s, Fade(hair, 0.7f)); // stubble
+        MLimb(S.Head(10.5f, -1), S.Head(14, 4.5f), 2.4f * s, 3.4f * s, Tone(skin, 0.05f), SKIN);           // a flat nose
+        MBall(S.Head(-9, 1), 3.2f * s, Tone(skin, -0.1f), SKIN);                                         // the ear
+        DrawEyes(in.face, S.Head(7.5f, -1.5f), 5.0f, 1.7f, s, f, Tone(skin, -0.4f), Color{70, 60, 50, 255});
+        DrawLineEx(S.Head(3, -4.2f), S.Head(13, -4.8f), 2.2f * s, hair);                                  // one scowling brow
+        DrawMouth(in.face, S.Head(9, 9), 5.0f, s, f, Color{120, 70, 60, 255});
+        MLimb(S.Head(-11, -8), S.Head(11, -9), 2.6f * s, 2.6f * s, Color{60, 50, 44, 255}, CLOTH);         // the goggle strap
+        for (int k = 0; k < 2; k++) { Vector2 g = S.Head(k ? 8.0f : 1.0f, -10); MBall(g, 3.8f * s, brass, METAL); MBall(g, 2.6f * s, Color{60, 110, 90, 255}, WET); }
+    });
+    // the shield arm (the back arm), in front of everything: a riveted hull-plate
+    parts.Add(1.2f, [&] {
+        MLimb(S.p[SH_B], S.p[EL_B], 11.6f * s, 10.6f * s, orangeDk, CLOTH);
+        MLimb(S.p[EL_B], S.p[WR_B], 10.0f * s, 8.6f * s, Tone(skin, -0.1f), SKIN);
+        Vector2 c = Off(S.p[WR_B], 4, 0, s, f);   // held out on the fist
+        Vector2 q[4] = {Off(c, -4, -22, s, f), Off(c, 14, -19, s, f), Off(c, 14, 19, s, f), Off(c, -4, 22, s, f)};
+        Color plate{150, 146, 138, 255};
+        MQuad(q[0], q[1], q[2], q[3], plate, METAL);
+        for (int k = 0; k < 5; k++) { MBall(L2(q[0], q[3], 0.1f + k * 0.2f), 1.5f * s, Tone(plate, 0.3f), METAL); MBall(L2(q[1], q[2], 0.1f + k * 0.2f), 1.5f * s, Tone(plate, 0.3f), METAL); }
+        DrawLineEx(L2(q[0], q[1], 0.5f), L2(q[3], q[2], 0.5f), 1.2f * s, Fade(Color{20, 20, 24, 255}, 0.6f)); // a seam
+        DrawLineEx(L2(q[0], q[3], 0.3f), L2(q[1], q[2], 0.45f), 2.0f * s, Fade(Color{150, 70, 40, 255}, 0.7f)); // a rust streak
+    });
+    parts.Add(0.9f, [&] { in.chains[0].Draw(s); });
+    // the wrench arm, frontmost
+    parts.Add(1.0f, [&] {
+        MLimb(S.p[SH_F], S.p[EL_F], 12.0f * s, 11.0f * s, orange, CLOTH);
+        MLimb(S.p[EL_F], S.p[WR_F], 10.6f * s, 9.0f * s, skin, SKIN);                                   // a bare, heavy forearm
+        MLimb(S.Along(EL_F, WR_F, 0.2f, 0), S.Along(EL_F, WR_F, 0.28f, 0), 11.4f * s, 11.4f * s, orange, CLOTH); // the rolled sleeve
+        MLimb(W(-12), W(44), 4.6f * s, 4.2f * s, steel, METAL);                                          // the wrench's long handle
+        MLimb(W(-12), W(-4), 5.4f * s, 5.4f * s, rubber, WET);                                           // its grip
+        Vector2 hd = W(50), n{-dir.y, dir.x};                                                             // the head: open jaws
+        MBall(hd, 11 * s, Tone(steel, -0.1f), METAL);
+        MLimb(hd, {hd.x + dir.x * 10 * s + n.x * 7 * s, hd.y + dir.y * 10 * s + n.y * 7 * s}, 6.0f * s, 5.0f * s, steel, METAL);
+        MLimb(hd, {hd.x + dir.x * 10 * s - n.x * 7 * s, hd.y + dir.y * 10 * s - n.y * 7 * s}, 6.0f * s, 5.0f * s, steel, METAL);
+        MBall(W(34), 4.0f * s, brass, METAL);                                                            // the adjusting screw
+        MBall(S.p[WR_F], 8.0f * s, Color{66, 60, 56, 255}, CLOTH);                                        // a work glove
+    });
+    parts.Draw();
+}
+
 // ============================================================================ THE LOST ONE CULTIST
 // Hooded, hovering over a turning rune circle; broken manacle chains hang from both wrists and a censer swings
 // from its cord (the signature idle: everything that hangs from it sways); robe rags trail below the hem; one
