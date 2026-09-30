@@ -473,6 +473,24 @@
    "forged": "The Deep Bell",
    "forged_twist": "Its ring also cancels blood scent in the cone for 5 s",
    "_source": "Wonder weapons: 'A sonic cone that kills small beasts outright and knocks large ones back, and shatters stalactites onto enemies.' Numbers ours (the doc gives none): launcher class, a 12 m, 30-degree cone."
+  },
+  {
+   "id": "anemonegun",
+   "name": "The Anemone Gun",
+   "class": "launcher",
+   "damage": 60,
+   "pellets": 1,
+   "rpm": 90,
+   "mag": 8,
+   "reserve": 40,
+   "noise": 3,
+   "reload": 2.5,
+   "price": 0,
+   "source": "wonder_reef",
+   "polyp": true,
+   "forged": "The Garden",
+   "forged_twist": "Polyps also poison and spread once",
+   "_source": "Wonder weapons: 'Fires living polyps that root where they land and grab anything that passes.' Numbers ours."
   }
  ],
  "melee": [

@@ -18,7 +18,7 @@ struct WeaponDef {
     std::string id, name, cls, source, forged, forgedTwist;
     float damage = 30, rpm = 300, noise = 2, reload = 1.4f, chum = 0, arc = 0, splash = 0, reach = 0, spinup = 0, cone = 0, coneDeg = 30;
     int pellets = 1, mag = 8, reserve = 32, price = 0, burst = 0, chain = 0, explodesOver = 0;
-    bool perRound = false, pins = false, net = false, melee = false;
+    bool perRound = false, pins = false, net = false, melee = false, polyp = false;
     WeaponClass handling;
 };
 struct TonicDef { std::string id, name, effect; int price = 2000, priceSolo = 0; };
@@ -53,8 +53,13 @@ struct Station {
     bool needsPower = false;       // tonic machines beyond the first two, the second Locker spot, the Forge, traps
     int step = 0;                  // quest steps: 1, 2, 3...
 };
+// Scenery from a map's "dressing" (extra.json): placed once from a fixed seed; solid pieces (columns, coral walls, brain
+// coral, a coral head, ledges) block divers, darts and sight.
+enum class PropKind { Column, Stalactite, Stalagmite, Crystal, Root, Ledge, Pool, Silt, Machine, CoralWall, Table, Brain, Staghorn, Seagrass, Mangrove, Mound, COUNT };
+struct Prop { PropKind kind = PropKind::Column; Vector3 pos{}, half{}; int zone = -1; bool solid = false; uint32_t seed = 0; };
 struct Level {
     std::vector<Volume> vols;
+    std::vector<Prop> props;
     std::vector<Door> doors;       // one per link (cost 0: always open)
     std::vector<Station> stations;
     int startZone = 0;
@@ -91,6 +96,8 @@ struct DiverState {
     float stunT = 0, aimSway = 0, poisonT = 0, poisonDps = 0, bleedT = 0, slowT = 0, slowMult = 1, flinchT = 0;
     int agent = -1;                    // the diver's body in the Ecosystem
     int slipLink = -1; float slipT = 0, driftT = 0;   // riding a slipstream (link), how far along; the drift after it
+    int drumUses = 0;                  // the Reef Shaman's drum, taken
+    float cutT = 0;                    // being cut free of Reacher coral by a teammate
     int kills = 0, headshots = 0, downs = 0, revives = 0;
     float hitMarker = 0; bool hitWeak = false;
     float hurtT = 0; Vector3 hurtFrom{};
@@ -156,6 +163,15 @@ struct Match {
     int bossKind = 0;                       // 0 the Goliath, 1 the Lobster, 9 any other (attacks straight from its sheet)
     float bossRecentDmg = 0; bool bossRearReq = false, bossMoved = false, cacheOpen = false;
     std::string WonderId() const;
+    // the Reef
+    bool alliesHostile = false; int drumBeats = 0; float tideTurnT = 0;
+    std::map<int, float> reacherHP;          // Reacher coral patches: their HP (a held diver is freed at 0)
+    std::map<int, float> reacherPrey;        // beasts the coral holds: seconds until it has fed on them
+    struct Polyp { Vector3 pos; float t = 30, cd = 0; int owner = -1; bool forged = false; };
+    std::vector<Polyp> polyps;               // the Anemone Gun's rooted polyps
+    std::vector<int> pod; bool podSpawned = false; float breathT = 0;   // the Matriarch's pod and her breath cycle
+    void BeatDrum(int d);
+    std::string ArtName(int sp) const;
     uint32_t rng = 99;
     bool over = false;
     std::string overReason;
@@ -230,6 +246,9 @@ struct Match {
     void FireCone(DiverState& d, const WeaponDef& w, float dmg);
     void UpdateBossLobster(float dt, int near, float dist);
     void UpdateBossGeneric(float dt, int near, float dist);
+    void UpdateBossMatriarch(float dt, int near, float dist);
+    void UpdateReef(float dt);
+    void EnemyBlast(Vector3 at, float dmg, float radius, int enemy);
     void FloraTool(int patch, Vector3 at, DiverState* d);
     void ApplyDrop(DropType t, Vector3 at);
     void GiveWeapon(DiverState& d, int def, bool forged = false);

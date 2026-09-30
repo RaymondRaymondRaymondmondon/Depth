@@ -237,50 +237,47 @@ static void BuildLevelModel() {
         else if (n.find("crane") != std::string::npos) { mb.Box({at.x, z.y0 + 3, at.z}, {0.4f, 3, 0.4f}, Color{150, 110, 40, 255}); mb.Box({at.x + 2.5f, z.y0 + 6, at.z}, {2.8f, 0.3f, 0.3f}, Color{150, 110, 40, 255}); }
         else if (n.find("Workbench") != std::string::npos) mb.Box({at.x, z.y0 + 0.5f, at.z}, {1.2f, 0.5f, 0.6f}, Color{120, 84, 52, 255});
     }
-    // a map's dressing (extra.json "dressing"): columns, stalactites, crystal clusters, pools, ledges, roots, machines
-    const Json& dr = map.extra["dressing"];
-    for (int zi = 0; zi < (int)map.zones.size() && dr.IsObj(); zi++) {
-        const Zone& z = map.zones[zi];
-        const Json& d = dr[z.name];
-        if (!d.IsObj() || z.radial) continue;
-        uint32_t r = 1234567u + zi * 7919u;
+    // the map's dressing (Level::props, placed by BuildLevel from extra.json "dressing")
+    for (const Prop& pr : m.level.props) {
+        const Zone& z = map.zones[pr.zone];
+        uint32_t r = pr.seed;
         auto rnd = [&]() { r ^= r << 13; r ^= r >> 17; r ^= r << 5; return (r & 0xFFFF) / 65535.0f; };
-        auto spot = [&](float pad) { return Vector3{z.plan.x + pad + (z.plan.width - 2 * pad) * rnd(), 0, z.plan.y + pad + (z.plan.height - 2 * pad) * rnd()}; };
         Color rock = pc(pal["wall"], Color{70, 72, 70, 255});
-        float h = z.y1 - z.y0;
-        for (int k = 0; k < d["columns"].I(0); k++) {
-            Vector3 c = spot(2.5f); float w = 0.5f + rnd() * 0.7f;
-            mb.Box({c.x, (z.y0 + z.y1) / 2, c.z}, {w, h / 2, w * (0.8f + rnd() * 0.4f)}, Color{(unsigned char)(rock.r + 8), (unsigned char)(rock.g + 8), (unsigned char)(rock.b + 6), 255});
-        }
-        for (int k = 0; k < d["stalactites"].I(0); k++) {
-            Vector3 c = spot(1.0f); float len = 0.8f + rnd() * std::min(3.0f, h * 0.25f);
-            mb.Cone({c.x, z.y1, c.z}, {c.x, z.y1 - len, c.z}, 0.25f + rnd() * 0.35f, 5, Color{(unsigned char)(rock.r + 20), (unsigned char)(rock.g + 18), (unsigned char)(rock.b + 12), 255});
-            if (rnd() < 0.5f && !z.air) mb.Cone({c.x + 0.4f, z.y0, c.z}, {c.x + 0.4f, z.y0 + len * 0.6f, c.z}, 0.3f, 5, rock);   // and its stalagmite
-        }
-        for (int k = 0; k < d["crystals"].I(0); k++) {
-            Vector3 c = spot(2.0f);
-            for (int j = 0; j < 5; j++) mb.Cone({c.x + (rnd() - 0.5f), z.y0, c.z + (rnd() - 0.5f)}, {c.x + (rnd() - 0.5f) * 1.5f, z.y0 + 1 + rnd() * 2.5f, c.z + (rnd() - 0.5f) * 1.5f}, 0.18f + rnd() * 0.2f, 4, Color{150, 220, 230, 255});
-        }
-        for (int k = 0; k < d["roots"].I(0); k++) {
-            Vector3 c = spot(1.5f);
-            for (int j = 0; j < 4; j++) mb.Box({c.x + (rnd() - 0.5f) * 1.2f, z.y1 - 1.2f, c.z + (rnd() - 0.5f) * 1.2f}, {0.05f, 1.2f + rnd(), 0.05f}, Color{92, 76, 52, 255});
-        }
-        for (int k = 0; k < d["ledges"].I(0); k++) {
-            float y = z.y0 + h * (k + 1) / (d["ledges"].I(0) + 1);
-            bool west = k % 2 == 0;
-            mb.Box({west ? z.plan.x + 1.2f : z.plan.x + z.plan.width - 1.2f, y, z.plan.y + z.plan.height * (0.3f + 0.4f * rnd())}, {1.2f, 0.3f, 2.5f}, rock);
-        }
-        if (d["pool"].F(0) > 0) {
-            float f = d["pool"].F(0);
-            float pw = z.plan.width * f, ph = z.plan.height * f;
-            Vector3 c = z.Center();
-            mb.Box({c.x, z.y0 + 0.02f, c.z}, {pw / 2, 0.02f, ph / 2}, Color{40, 86, 96, 255});   // the pool's still surface
-        }
-        if (d["silt"].Bool0()) for (int k = 0; k < 12; k++) { Vector3 c = spot(1.0f); mb.Box({c.x, z.y0 + 0.1f, c.z}, {1.5f + rnd() * 2, 0.1f + rnd() * 0.2f, 1.5f + rnd() * 2}, Color{84, 76, 60, 255}); }
-        if (d["machine"].Bool0()) {
-            Vector3 c = spot(3.0f);
-            mb.Box({c.x, z.y0 + 1.5f, c.z}, {1.8f, 1.5f, 1.2f}, Color{96, 70, 50, 255});
-            mb.Lathe(2.4f, 3, 10, [](float) { return 0.7f; }, [](float) { return 0.7f; }, Color{110, 96, 80, 255}, Color{80, 70, 60, 255}, {c.x + 2.4f, z.y0 + 1.0f, c.z});
+        Color lighter{(unsigned char)std::min(255, rock.r + 20), (unsigned char)std::min(255, rock.g + 18), (unsigned char)std::min(255, rock.b + 12), 255};
+        Vector3 c = pr.pos, h = pr.half;
+        switch (pr.kind) {
+            case PropKind::Column: mb.Box(c, h, Color{(unsigned char)(rock.r + 8), (unsigned char)(rock.g + 8), (unsigned char)(rock.b + 6), 255}); break;
+            case PropKind::Stalactite: mb.Cone(c, {c.x, c.y - h.y, c.z}, h.x, 5, lighter); break;
+            case PropKind::Stalagmite: mb.Cone(c, {c.x, c.y + h.y, c.z}, h.x, 5, rock); break;
+            case PropKind::Crystal: for (int j = 0; j < 5; j++) mb.Cone({c.x + (rnd() - 0.5f), c.y, c.z + (rnd() - 0.5f)}, {c.x + (rnd() - 0.5f) * 1.5f, c.y + 1 + rnd() * 2.5f, c.z + (rnd() - 0.5f) * 1.5f}, 0.18f + rnd() * 0.2f, 4, Color{150, 220, 230, 255}); break;
+            case PropKind::Root: for (int j = 0; j < 4; j++) mb.Box({c.x + (rnd() - 0.5f) * 1.2f, c.y - 1.2f, c.z + (rnd() - 0.5f) * 1.2f}, {0.05f, 1.2f + rnd(), 0.05f}, Color{92, 76, 52, 255}); break;
+            case PropKind::Ledge: mb.Box(c, h, rock); break;
+            case PropKind::Pool: mb.Box(c, h, Color{40, 86, 96, 255}); break;
+            case PropKind::Silt: mb.Box(c, h, Color{84, 76, 60, 255}); break;
+            case PropKind::Machine:
+                mb.Box(c, h, Color{96, 70, 50, 255});
+                mb.Lathe(2.4f, 3, 10, [](float) { return 0.7f; }, [](float) { return 0.7f; }, Color{110, 96, 80, 255}, Color{80, 70, 60, 255}, {c.x + 2.4f, c.y - 0.5f, c.z});
+                break;
+            case PropKind::CoralWall: {
+                // a wall of coral: a solid core with lumpy heads along its top and sides in the reef's colours
+                static const Color cols[] = {{214, 120, 104, 255}, {226, 176, 92, 255}, {160, 104, 170, 255}, {110, 170, 140, 255}, {232, 150, 150, 255}};
+                mb.Box(c, h, Color{156, 120, 96, 255});
+                int n = (int)((h.x + h.z) * 2);
+                for (int j = 0; j < n; j++) {
+                    float t = rnd() * 2 - 1;
+                    Vector3 q = h.x > h.z ? Vector3{c.x + t * h.x, c.y + h.y, c.z} : Vector3{c.x, c.y + h.y, c.z + t * h.z};
+                    float rr = 0.4f + rnd() * 0.5f;
+                    mb.Box({q.x, q.y - rnd() * h.y * 1.6f, q.z + (h.x > h.z ? (rnd() - 0.5f) * 1.4f : 0)}, {rr, rr * 0.8f, rr}, cols[j % 5]);
+                }
+                break;
+            }
+            case PropKind::Brain: mb.Lathe(h.x * 2, 4, 8, [&](float u) { return h.x * sinf(u * 3.14159f) + 0.05f; }, [&](float u) { return h.y * sinf(u * 3.14159f) + 0.05f; }, Color{206, 180, 120, 255}, Color{176, 150, 100, 255}, c); break;
+            case PropKind::Table: mb.Box(c, h, Color{176, 196, 150, 255}); mb.Box({c.x, (z.y0 + c.y) / 2, c.z}, {0.25f, (c.y - z.y0) / 2, 0.25f}, Color{150, 150, 120, 255}); break;
+            case PropKind::Staghorn: for (int j = 0; j < 7; j++) { float a = rnd() * 6.28f, lean = 0.3f + rnd() * 0.5f; mb.Cone({c.x, c.y, c.z}, {c.x + cosf(a) * lean * h.y, c.y + h.y * (0.6f + rnd() * 0.5f), c.z + sinf(a) * lean * h.y}, 0.09f, 4, Color{(unsigned char)(190 + rnd() * 40), (unsigned char)(140 + rnd() * 40), 110, 255}); } break;
+            case PropKind::Seagrass: for (int j = 0; j < 6; j++) mb.Box({c.x + (rnd() - 0.5f) * h.x * 2, c.y + h.y / 2, c.z + (rnd() - 0.5f) * h.z * 2}, {0.03f, h.y / 2, 0.12f}, Color{96, 150, 80, 255}); break;
+            case PropKind::Mangrove: for (int j = 0; j < 5; j++) { Vector3 top{c.x + (rnd() - 0.5f), c.y, c.z + (rnd() - 0.5f)}; mb.Cone(top, {top.x + (rnd() - 0.5f) * 2.5f, z.y0, top.z + (rnd() - 0.5f) * 2.5f}, 0.12f, 4, Color{100, 80, 58, 255}); } break;
+            case PropKind::Mound: mb.Lathe(h.x * 2, 5, 10, [&](float u) { return h.x * sinf(u * 3.14159f) + 0.1f; }, [&](float u) { return h.y * 1.4f * sinf(u * 3.14159f) + 0.1f; }, Color{200, 150, 120, 255}, Color{150, 120, 100, 255}, c); break;
+            default: break;
         }
     }
     // the salon's pillars, the engine room's boiler, the cabins' partitions (so the rooms read as rooms)

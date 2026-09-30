@@ -261,6 +261,19 @@ static void LoadExtra(MapData& m, const Json& ex) {
         SpawnRow r; r.zone = sa["zone"].Str0(); r.species = sa["species"].Str0(); r.count = sa["count"].I(); r.respawnS = sa["respawn_s"].F(60); r.capMult = 1.03f;
         if (r.count > 0) m.spawns.push_back(r);
     }
+    // species added (the Reef's pod orcas), cloned from a base row
+    for (const Json& sa : ex["species_add"].a) {
+        int bi = m.SpeciesIndex(sa["base"].Str0());
+        if (bi < 0) continue;
+        Species n = m.species[bi];
+        n.name = sa["name"].Str0(); n.size = sa["size"].I(n.size); n.tier = sa["tier"].I(n.tier);
+        n.hpBase = sa["hp"].F(n.hpBase); n.bountyBase = sa["bounty"].F(n.bountyBase);
+        n.archetype = sa["archetype"].Str0(n.archetype); n.homeZone = sa["home_zone"].Str0(n.homeZone);
+        n.tags.clear(); for (const std::string& t : SplitList(sa["tags"].Str0())) n.tags.push_back(Lower(t));
+        n.art = sa["art"].Str0(); n.artScale = sa["art_scale"].F(1); n.attacksAs = sa["base"].Str0(); n.attackScale = sa["attack_scale"].F(0.6);
+        n.id = (int)m.species.size();
+        m.species.push_back(n);
+    }
     // species rows reconciled with the design doc (tags, homes)
     for (auto& sp : m.species) {
         const Json& pp = ex["species_patch"][sp.name];
@@ -346,6 +359,8 @@ static void LoadExtra(MapData& m, const Json& ex) {
         if (fp.Has("bleeds")) fa.bleeds = fp["bleeds"].Bool0(true);
         if (fp.Has("slipstreams")) fa.slipstreams = fp["slipstreams"].Bool0(true);
         if (fp.Has("ignore_beasts")) fa.ignoreBeasts = fp["ignore_beasts"].Bool0(false);
+        if (fp.Has("hunts_beasts")) fa.huntsBeasts = fp["hunts_beasts"].Bool0(false);
+        if (fp.Has("shoots_allies")) fa.shootsAllies = fp["shoots_allies"].Bool0(false);
         for (auto& u : fa.units) {
             const Json& up = fp["units"][u.unit];
             if (!up.IsObj()) continue;

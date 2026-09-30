@@ -30,6 +30,9 @@ struct Species {
     bool isEnemy = false;              // a faction unit, a member of the same web
     bool isDiver = false;              // the players' record (divers are agents in the web too)
     bool bloodless = false;            // leaves no blood (the Cave's Drowned: "they do not bleed")
+    std::string art;                   // draw (and size) as this art row (a species added in extra.json)
+    float artScale = 1, attackScale = 1;
+    std::string attacksAs;             // use this species' attacks
     bool Has(const char* tag) const;
     bool Scavenger() const { return Has("scavenger"); }
     bool Cleaner() const { return Has("cleaner"); }
@@ -86,7 +89,7 @@ struct Faction {
     std::vector<std::string> patrol, composition;
     std::vector<FactionUnit> units;
     int fleeFromSize = 4, ignoreBelowSize = 3;
-    bool bleeds = true, slipstreams = true, ignoreBeasts = false;
+    bool bleeds = true, slipstreams = true, ignoreBeasts = false, huntsBeasts = false, shootsAllies = false;
     std::map<std::string, std::vector<std::string>> barks;
 };
 struct DietRow { std::vector<std::pair<int, float>> prey; float corpse = 0, plankton = 0, parasites = 0, flora = 0, enemy = 0; std::vector<std::pair<std::string, float>> floraItems; };
@@ -244,7 +247,10 @@ struct Ecosystem {
     float Rand();                                          // 0..1
     float Rand(float a, float b) { return a + (b - a) * Rand(); }
     void Event(const std::string& s);
-    std::vector<int> ZonePath(int from, int to, bool enemy = false) const;
+    std::vector<int> ZonePath(int from, int to, bool enemy = false, int size = 0) const;
+    float flowSign = 1;                // the Reef's tide: -1 while the flood runs the set backward
+    std::vector<float> narrowInit; float erosionT = 0;
+    std::vector<int> zoneMaxSize;      // per zone: the largest size that fits its corridors (99: anything), relaxed as they erode
     // The divers are agents too (species index = diverSpecies); the game layer moves them.
     int diverSpecies = -1;
     int AddDiver(int slot, Vector3 pos);

@@ -176,7 +176,7 @@ float Ecosystem::DecayRate() const {
     // TideCurve: 2% / 1% / 0.5% by era (the tide table carries it per tide)
     return map->Tide(tide).bloodDecay;
 }
-std::vector<int> Ecosystem::ZonePath(int from, int to, bool enemy) const {
+std::vector<int> Ecosystem::ZonePath(int from, int to, bool enemy, int size) const {
     std::vector<int> prev(map->zones.size(), -2);
     std::vector<int> q{from};
     prev[from] = -1;
@@ -188,6 +188,8 @@ std::vector<int> Ecosystem::ZonePath(int from, int to, bool enemy) const {
             if (!LinkOpen(li)) continue;   // a door the divers haven't bought keeps beasts out too
             if (l.slip && enemy && !map->faction.slipstreams) continue;   // (the Drowned never ride a slipstream)
             if (l.slip && l.to == z) continue;                          // a slipstream only runs one way
+            int nz = l.from == z ? l.to : l.from;
+            if (size > 0 && nz < (int)zoneMaxSize.size() && size > zoneMaxSize[nz] && nz != to) continue;   // too big for the corridors
             int n = -1;
             if (l.from == z) n = l.to;
             else if (l.to == z) n = l.from; // water passes both ways; one-way drops are a player rule
@@ -271,6 +273,10 @@ void Ecosystem::Init(const MapData& m, uint32_t seed, int tideNum, int playerCou
     // the map's own beast rules for its openings (a hatch that is a window, a breach not yet torn open); a match
     // then keeps linkClosed up to date with doors bought and breaches opened
     linkClosed.assign(m.links.size(), 0);
+    zoneMaxSize.assign(m.zones.size(), 99);
+    narrowInit.assign(m.zones.size(), -1);
+    flowSign = 1;
+    for (const auto& kv : m.extra["narrow_zones"].o) { int zi = m.ZoneIndex(kv.first); if (zi >= 0) zoneMaxSize[zi] = kv.second["max_size"].I(99); }
     for (size_t i = 0; i < m.links.size(); i++) if (m.links[i].beastRule != 0) linkClosed[i] = 1;
     agents.clear(); corpses.clear(); flora.clear(); squads.clear(); events.clear();
     time = 0; scentT = 0; popT = 0; alarmRollT = 0; cleanerRage = 0; squadsSpawned = 0;
@@ -441,11 +447,12 @@ void Ecosystem::UpdateFields(float dt) {
         std::vector<const Link*> drain(map->zones.size(), nullptr);
         std::vector<float> drainFlow(map->zones.size(), 0);
         for (const auto& l : map->links) {
-            if (l.flow > drainFlow[l.from]) { drainFlow[l.from] = l.flow; drain[l.from] = &l; }
-            if (-l.flow > drainFlow[l.to]) { drainFlow[l.to] = -l.flow; drain[l.to] = &l; }
+            float lf = l.flow * (l.slip ? 1.0f : flowSign);           // (the Reef's tide reverses the set; slipstreams don't turn)
+            if (lf > drainFlow[l.from]) { drainFlow[l.from] = lf; drain[l.from] = &l; }
+            if (-lf > drainFlow[l.to]) { drainFlow[l.to] = -lf; drain[l.to] = &l; }
         }
         auto zoneFlowDir = [&](int zi, int x, int y, int z) -> Vector3 {
-            Vector3 fl = map->zones[zi].flow;
+            Vector3 fl = Vector3Scale(map->zones[zi].flow, flowSign);
             float speed = Vector3Length(fl);
             if (speed < 0.01f) return Vector3Zero();
             const Link* L = drain[zi];
@@ -508,7 +515,7 @@ void Ecosystem::UpdateFields(float dt) {
             float ra = f.cell * 1.6f;
             for (int dir = 0; dir < 2; dir++) {
                 Vector3 src = dir == 0 ? l.a : l.b, dst = dir == 0 ? l.b : l.a;
-                float along = dir == 0 ? l.flow : -l.flow;
+                float along = (dir == 0 ? l.flow : -l.flow) * (l.slip ? 1.0f : flowSign);
                 float rate = (0.06f + std::max(0.0f, along) * 0.6f) * step;
                 // gather from the source mouth's cells
                 int sx, sy, sz;
@@ -774,7 +781,9 @@ void Ecosystem::SteerTo(Agent& a, Vector3 goal, float speed, float dt) {
     Vector3 target = goal;
     if (gz != a.zone) {
         // cross the zone graph one passage at a time
-        std::vector<int> path = ZonePath(a.zone, gz, map->species[a.sp].isEnemy);
+        int sz = map->species[a.sp].size;
+        if (gz < (int)zoneMaxSize.size() && sz > zoneMaxSize[gz] && gz != a.homeZone) { gz = a.zone; target = map->zones[a.zone].Clamp(goal); }
+        std::vector<int> path = ZonePath(a.zone, gz, map->species[a.sp].isEnemy, sz);
         if (path.size() >= 2) {
             int next = path[1];
             const Link* L = nullptr;
@@ -1135,6 +1144,23 @@ void Ecosystem::Step(float dt) {
     }
     Population(dt);
     AlarmUpdate(dt);
+    // erosion: a narrow zone whose structure (the Reef's staghorn) is grazed below open_at lets the big beasts in
+    erosionT += dt;
+    if (erosionT >= 5) {
+        erosionT = 0;
+        for (const auto& kv : map->extra["narrow_zones"].o) {
+            int zi = map->ZoneIndex(kv.first);
+            std::string st = kv.second["structure"].Str0();
+            if (zi < 0 || st.empty() || zoneMaxSize[zi] >= 99) continue;
+            float sum = 0;
+            for (const auto& p : flora) if (p.zone == zi && map->flora[p.flora].name == st) sum += p.units;
+            if (narrowInit[zi] < 0) narrowInit[zi] = sum;
+            if (narrowInit[zi] > 0 && sum < kv.second["open_at"].F(0.7) * narrowInit[zi]) {
+                zoneMaxSize[zi] = 99;
+                Event("the " + st + " in " + map->zones[zi].name + " is eaten through: its corridors are open to the big sharks");
+            }
+        }
+    }
 }
 
 } // namespace rt
