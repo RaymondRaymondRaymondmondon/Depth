@@ -199,7 +199,10 @@ void DrawReels(Game& g) {
         }
     }
     // The Trawl and Red Tide play solo until their networking stages: a button launches them straight from the reel
-    if (selGame == G_TRAWL && Button({c.x - 110, c.y + 236, 220, 36}, "Sail (solo)", true, 15)) { StartTrawl(g); return; }
+    if (selGame == G_TRAWL) {   // two versions of the same game: from above, and through the hand's eyes
+        if (Button({c.x - 226, c.y + 236, 220, 36}, "Sail: top-down", true, 15)) { StartTrawl(g, false); return; }
+        if (Button({c.x + 6, c.y + 236, 220, 36}, "Sail: first person", true, 15)) { StartTrawl(g, true); return; }
+    }
     if (selGame == G_RED_TIDE) {
         static const char* RT_MAPS[] = {"ship", "cave", "reef", "atlantis", "void"};
         static const char* RT_TITLES[] = {"The Sunken Ship", "The Underwater Cave", "The Coral Reef", "Atlantis", "Approaching the Void"};

@@ -229,3 +229,6 @@ bait in `src/trawl_fish.cpp`, the dock panels and the HUD in `src/trawl.cpp`.
 - **Balance, not tuned yet**: one bot at one light rod lands about 20 small fish over a deadline and sells about 70
   shillings against the solo quota of 200. The doc's quota counts bots as crew (a solo player with five bot hands
   faces 400), so a lone hand is meant to be short; the bot crew and the tuning pass (stages 5 and 10) settle it.
+
+## The first-person version (2026-09-30, local session)
+The user asked for two versions of the Trawl, one top-down as it was and one first person like Red Tide, otherwise identical. `trawl_view3d.cpp` draws the same simulation in 3D through Red Tide's inked renderer; trawl.cpp chooses the view (`S.fp`), maps WASD to the look and aims with the crosshair. Nothing in the simulation changed (every Trawl test passes). Red Tide's renderer gained point lights and glowing draws, unused by Red Tide itself. Shots `trawl3d_*`. Left to do: proper crew figures, sky, spray and rain, a held-item viewmodel, and tuning the night's brightness in play.

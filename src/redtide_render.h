@@ -71,6 +71,12 @@ struct SceneLight {                // the master reference's three-light rig
     float time = 0;
     float bloodTint = 0;                     // 0..1: the red at the mask's edge (the scent meter you can see)
     float silhouette = 0;                    // 1: render everything solid black (the --silhouette check)
+    // point lights besides the key (the Trawl's deck lamps, fires and flares); Red Tide leaves these empty
+    static constexpr int MAX_POINTS = 8;
+    struct Point { Vector3 p; float r; Color c; float k; };
+    Point points[MAX_POINTS];
+    int nPoints = 0;
+    bool AddPoint(Vector3 p, float r, Color c, float k) { if (nPoints >= MAX_POINTS) return false; points[nPoints++] = {p, r, c, k}; return true; }
 };
 
 void RenderBegin(const Camera3D& cam, const SceneLight& light);   // opens the colour pass
@@ -78,6 +84,8 @@ void RenderBegin(const Camera3D& cam, const SceneLight& light);   // opens the c
 void DrawCreature(const CreatureModel& cm, Vector3 pos, float yaw, float pitch, float scale, float phase, float intensity, Color tint = WHITE);
 void DrawStatic(const Model& m, Matrix world, Color tint = WHITE);  // level geometry with the same lighting
 void DrawCubeM(Matrix world, Color col);                            // a unit cube under any transform (the diver's glove)
+void DrawCubeGlow(Matrix world, Color col, float glow);             // the same, lit from within (lamps, fires, flares)
+void DrawStaticGlow(const Model& m, Matrix world, Color tint, float glow);
 void DrawWorldCube(Vector3 c, Vector3 size, Color col);             // blockout boxes (walls, floors, props)
 void RenderEnd();                                                   // runs the normal/depth pass and the ink composite into the scene
 void RenderShutdown();

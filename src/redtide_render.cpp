@@ -540,6 +540,7 @@ in vec3 fragWorld; in vec4 fragColor; in float fragViewZ; in vec2 fragUV;
 uniform vec4 colDiffuse;
 uniform vec3 uCam, uLampPos, uLampDir, uKey, uFill, uRim, uFog;
 uniform float uLampRange, uLampCone, uFogDensity, uSurfaceY, uTime, uGlow, uSil;
+uniform vec4 uPL[8]; uniform vec4 uPLC[8]; uniform int uPLN;   // point lights: xyz + radius; rgb (0..1) + strength
 out vec4 finalColor;
 void main() {
     vec3 n = normalize(cross(dFdx(fragWorld), dFdy(fragWorld)));
@@ -559,6 +560,12 @@ void main() {
     float cz = clamp(1.0 - (uSurfaceY - fragWorld.y) / 18.0, 0.0, 1.0);
     float ca = sin(fragWorld.x * 1.3 + uTime * 1.1) * sin(fragWorld.z * 1.1 - uTime * 0.9) + sin((fragWorld.x + fragWorld.z) * 0.7 + uTime * 1.7);
     col += base * max(ca, 0.0) * 0.18 * cz * max(n.y, 0.0);
+    for (int i = 0; i < 8; i++) {                          // point lights (the Trawl's lamps, fires, flares)
+        if (i >= uPLN) break;
+        vec3 Lp = uPL[i].xyz - fragWorld; float dp = length(Lp);
+        float ap = clamp(1.0 - dp / uPL[i].w, 0.0, 1.0); ap *= ap;
+        col += base * uPLC[i].rgb * uPLC[i].a * ap * (0.25 + 0.75 * max(dot(n, Lp / max(dp, 0.0001)), 0.0)) * 1.6;
+    }
     col += base * uGlow;                                   // luminous species glow in the dark
     // fog by distance (thicker the deeper the scene sets it)
     float fog = 1.0 - exp(-uFogDensity * fragViewZ);
@@ -636,7 +643,7 @@ static RenderTexture2D gColorRT{}, gNDRT{};
 static Model gCube{};
 static int L_lit[16], L_nd[8], L_ink[8];
 enum { LU_ANIM, LU_PHASE, LU_AMP, LU_WAVES, LU_LEN, LU_INTEN, LU_CAM, LU_LAMPPOS, LU_LAMPDIR, LU_KEY, LU_FILL, LU_RIM, LU_FOG, LU_RANGE, LU_CONE, LU_FOGD };
-static int L_litSurf, L_litTime, L_litGlow, L_litSil;
+static int L_litSurf, L_litTime, L_litGlow, L_litSil, L_litPL, L_litPLC, L_litPLN;
 
 static void EnsureShaders() {
     if (gShadersReady || !IsWindowReady()) return;
@@ -652,6 +659,9 @@ static void EnsureShaders() {
     L_litTime = GetShaderLocation(gLit, "uTime");
     L_litGlow = GetShaderLocation(gLit, "uGlow");
     L_litSil = GetShaderLocation(gLit, "uSil");
+    L_litPL = GetShaderLocation(gLit, "uPL");
+    L_litPLC = GetShaderLocation(gLit, "uPLC");
+    L_litPLN = GetShaderLocation(gLit, "uPLN");
     L_ink[0] = GetShaderLocation(gInk, "uND");
     L_ink[1] = GetShaderLocation(gInk, "uRes");
     L_ink[2] = GetShaderLocation(gInk, "uTime");
@@ -713,6 +723,12 @@ void DrawStatic(const Model& m, Matrix world, Color tint) {
 void DrawCubeM(Matrix world, Color col) {
     gQueue.push_back({&gCube, world, (int)AnimMode::Static, 0, 0, 0, 1, 0, 0, col});
 }
+void DrawCubeGlow(Matrix world, Color col, float glow) {
+    gQueue.push_back({&gCube, world, (int)AnimMode::Static, 0, 0, 0, 1, 0, glow, col});
+}
+void DrawStaticGlow(const Model& m, Matrix world, Color tint, float glow) {
+    gQueue.push_back({&m, world, (int)AnimMode::Static, 0, 0, 0, 1, 0, glow, tint});
+}
 void DrawWorldCube(Vector3 c, Vector3 size, Color col) {
     Matrix world = MatrixMultiply(MatrixScale(size.x, size.y, size.z), MatrixTranslate(c.x, c.y, c.z));
     gQueue.push_back({&gCube, world, (int)AnimMode::Static, 0, 0, 0, 1, 0, 0, col});
@@ -752,6 +768,18 @@ void RenderEnd() {
     SetF(gLit, L_litSurf, gLight.surfaceY);
     SetF(gLit, L_litTime, gLight.time);
     SetF(gLit, L_litSil, gLight.silhouette);
+    {
+        float pl[4 * SceneLight::MAX_POINTS] = {}, plc[4 * SceneLight::MAX_POINTS] = {};
+        int np = std::min(gLight.nPoints, SceneLight::MAX_POINTS);
+        for (int i = 0; i < np; i++) {
+            const auto& q = gLight.points[i];
+            pl[i * 4] = q.p.x; pl[i * 4 + 1] = q.p.y; pl[i * 4 + 2] = q.p.z; pl[i * 4 + 3] = std::max(0.1f, q.r);
+            plc[i * 4] = q.c.r / 255.0f; plc[i * 4 + 1] = q.c.g / 255.0f; plc[i * 4 + 2] = q.c.b / 255.0f; plc[i * 4 + 3] = q.k;
+        }
+        if (L_litPL >= 0) SetShaderValueV(gLit, L_litPL, pl, SHADER_UNIFORM_VEC4, SceneLight::MAX_POINTS);
+        if (L_litPLC >= 0) SetShaderValueV(gLit, L_litPLC, plc, SHADER_UNIFORM_VEC4, SceneLight::MAX_POINTS);
+        SetI(gLit, L_litPLN, np);
+    }
     BeginLayer(gColorRT);
     ClearBackground(gLight.silhouette > 0.5f ? Color{216, 209, 189, 255} : gLight.fog);
     BeginMode3D(gCam);

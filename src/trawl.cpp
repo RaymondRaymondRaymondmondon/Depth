@@ -5,6 +5,7 @@
 #include "trawl_art.h"
 #include "trawl_eco.h"
 #include "trawl_session.h"
+#include "trawl_view3d.h"
 #include "raymath.h"
 #include <algorithm>
 #include <cmath>
@@ -28,6 +29,10 @@ struct TrawlScene {
     size_t tapeSeen = 0; float tapeT = 0;
     bool lmbPressed = false, rmbPressed = false;   // latched per frame for the fixed steps
     float ghostSee = 0;
+    // the first-person version (trawl_view3d.cpp): the same game through the hand's eyes
+    bool fp = false;
+    Eye3D eye;
+    Camera3D cam{};
 };
 const int PANEL_CHART = 20, PANEL_END = 21;
 TrawlScene S;
@@ -55,6 +60,23 @@ View MakeView(const Gannet& g, int viewerDeck, bool inWheelhouse) {
     return v;
 }
 
+// WASD as a deck-frame wish: top-down it is screen-relative (the bow to the right of the screen); in first person
+// it is relative to where you look
+Vector2 KeysWish() {
+    float f = (IsKeyDown(KEY_W) ? 1.0f : 0.0f) - (IsKeyDown(KEY_S) ? 1.0f : 0.0f);
+    float r = (IsKeyDown(KEY_D) ? 1.0f : 0.0f) - (IsKeyDown(KEY_A) ? 1.0f : 0.0f);
+    if (!S.fp) return {r, -f};
+    Vector2 fw = LookDeckDir(S.eye), rt{-fw.y, fw.x};
+    Vector2 w = Vector2Add(Vector2Scale(fw, f), Vector2Scale(rt, r));
+    return Vector2Length(w) > 1 ? Vector2Normalize(w) : w;
+}
+// where the hand aims on the water, in the deck frame: the mouse top-down, the crosshair in first person
+Vector2 AimDeck() {
+    if (S.fp) { Vector2 d; AimAtWater(S.G, S.cam, {SCREEN_W / 2.0f, SCREEN_H / 2.0f}, &d); return d; }
+    const float PX = (float)SCREEN_W / PIXEL_W;
+    Vector2 m = GetMousePosition();
+    return S.view.DeckOfCanvas({m.x / PX + 1, m.y / PX + 1});
+}
 void Controls(float dt) {
     Gannet& g = S.G;
     Crew& c = g.crew[S.you];
@@ -62,14 +84,10 @@ void Controls(float dt) {
     if (S.panel >= 0) { g.Move(S.you, wish, false, dt); return; }
     bool lmbP = S.lmbPressed, rmbP = S.rmbPressed;
     S.lmbPressed = S.rmbPressed = false;
-    const float PXc = (float)SCREEN_W / PIXEL_W;
-    Vector2 mouse = GetMousePosition(), aimDeck = S.view.DeckOfCanvas({mouse.x / PXc + 1, mouse.y / PXc + 1});
+    Vector2 aimDeck = AimDeck();
     if (c.overboard || c.dead) {
         // in the water you swim; dead, you walk the deck as a ghost (and can only ring the bell)
-        if (IsKeyDown(KEY_W)) wish.y -= 1;
-        if (IsKeyDown(KEY_S)) wish.y += 1;
-        if (IsKeyDown(KEY_A)) wish.x -= 1;
-        if (IsKeyDown(KEY_D)) wish.x += 1;
+        wish = KeysWish();
         if (c.dead && Vector2Length(wish) > 0) S.ghostSee = 1.0f;
         g.Move(S.you, wish, false, dt);
         if (c.dead) g.Primary(S.you, IsMouseButtonDown(MOUSE_BUTTON_LEFT), dt);
@@ -77,17 +95,11 @@ void Controls(float dt) {
     }
     if (c.station >= 0 && Stations()[c.station].kind == StationKind::NetWinch) { g.NetInput(S.you, IsMouseButtonDown(MOUSE_BUTTON_LEFT), rmbP, dt); g.Move(S.you, wish, false, dt); return; }
     if (c.station >= 0 && Stations()[c.station].kind == StationKind::Harpoon) { g.HarpoonInput(S.you, aimDeck, lmbP, IsMouseButtonDown(MOUSE_BUTTON_LEFT), rmbP, dt); g.Move(S.you, wish, false, dt); return; }
-    // WASD is screen-relative on the deck (the bow is to the right of the screen)
-    if (IsKeyDown(KEY_W)) wish.y -= 1;
-    if (IsKeyDown(KEY_S)) wish.y += 1;
-    if (IsKeyDown(KEY_A)) wish.x -= 1;
-    if (IsKeyDown(KEY_D)) wish.x += 1;
+    wish = KeysWish();
     bool atHelm = c.station >= 0 && Stations()[c.station].kind == StationKind::Helm;
     if (c.station >= 0 && Stations()[c.station].kind == StationKind::Lantern && g.boat.lantern == 3) {
-        // the searchlight follows the mouse
-        const float PX = (float)SCREEN_W / PIXEL_W;
-        Vector2 m = GetMousePosition(), aim = S.view.DeckOfCanvas({m.x / PX + 1, m.y / PX + 1});
-        Vector2 d = Vector2Subtract(aim, Stations()[c.station].at);
+        // the searchlight follows the mouse (in first person, the crosshair)
+        Vector2 d = Vector2Subtract(aimDeck, Stations()[c.station].at);
         if (Vector2Length(d) > 0.5f) g.boat.searchAim = atan2f(d.y, d.x);
     }
     if (atHelm) {
@@ -102,9 +114,7 @@ void Controls(float dt) {
         // strikes a bite and gaffs a fish alongside; right mouse bows the rod; the mouse's side of the line leans it
         // (side pressure); the wheel is the drag (or the lure's depth before a bite).
         Rod& r = g.rods[ri];
-        const float PX = (float)SCREEN_W / PIXEL_W;
-        Vector2 m = GetMousePosition();
-        Vector2 aim = S.view.DeckOfCanvas({m.x / PX + 1, m.y / PX + 1});
+        Vector2 aim = aimDeck;
         bool lmb = IsMouseButtonDown(MOUSE_BUTTON_LEFT);
         bool casting = r.state == RodState::Idle || r.state == RodState::Charging;
         float lean = 0;
@@ -136,6 +146,7 @@ void Pressed(Game& g) {
     if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) S.rmbPressed = true;
     for (int k = 0; k < 4; k++) if (IsKeyPressed(KEY_ONE + k) && c.station < 0) c.sel = k;
     if (IsKeyPressed(KEY_R)) G.Reload(S.you);
+    if (IsKeyPressed(KEY_V)) { S.fp = !S.fp; if (S.fp) S.eye = Eye3D{}; }   // the two versions of the game: top-down and first person
     if (IsKeyPressed(KEY_T) && c.station >= 0 && Stations()[c.station].kind == StationKind::Harpoon) { G.explosiveLoaded = !G.explosiveLoaded && G.explosives > 0; }
     if (IsKeyPressed(KEY_E)) {
         int d = G.moored && c.deck == 0 && c.station < 0 ? NearestDock(c.p, 1.4f) : -1;
@@ -305,6 +316,7 @@ void StationOverlay() {
             if (!g.harpoonCannon) { DrawTextCentered("The bow mount is empty: the Slipway fits a harpoon cannon (700)", SCREEN_W / 2.0f, SCREEN_H - 64.0f, 15, Fade(paper, 0.7f)); break; }
             // the reticle, and the refraction ring: a fish below is really further off and deeper than it looks
             Vector2 bow = S.view.ToCanvas({10.2f, 0}); bow = {(bow.x - 1) * PX, (bow.y - 1) * PX};
+            if (S.fp) { m = {SCREEN_W / 2.0f, SCREEN_H / 2.0f}; bow = {SCREEN_W / 2.0f, SCREEN_H + 200.0f}; }   // (first person: the crosshair; the bow is below it)
             DrawCircleLines((int)m.x, (int)m.y, 14, Fade(Color{250, 220, 160, 255}, 0.9f));
             DrawLine((int)m.x - 20, (int)m.y, (int)m.x + 20, (int)m.y, Fade(Color{250, 220, 160, 255}, 0.6f));
             DrawLine((int)m.x, (int)m.y - 20, (int)m.x, (int)m.y + 20, Fade(Color{250, 220, 160, 255}, 0.6f));
@@ -473,7 +485,7 @@ void Panels(Game& g) {
             TxtBold(TextFormat("Sold %.0f against a quota of %.0f", ss.sold, ss.quota), r.x + 40, r.y + 80, 20, ink);
             Txt(ss.tape.empty() ? "" : ss.tape.back().c_str(), r.x + 40, r.y + 120, 14, dim);
             if (met) { if (Button({r.x + r.width / 2 - 130, r.y + r.height - 80, 260, 46}, "Next deadline")) { ss.Continue(); S.panel = -1; } }
-            else if (Button({r.x + r.width / 2 - 130, r.y + r.height - 80, 260, 46}, "Back to the arcade")) { S.active = false; g.scene = Scene::Arcade; }
+            else if (Button({r.x + r.width / 2 - 130, r.y + r.height - 80, 260, 46}, "Back to the arcade")) { S.active = false; EnableCursor(); g.scene = Scene::Arcade; }
             break;
         }
     }
@@ -539,6 +551,20 @@ void Hud(Game& g) {
 void Draw(Game& g) {
     const Gannet& G = S.G;
     const Crew& c = G.crew[S.you];
+    if (S.fp) {
+        // first person: the same Gannet through the hand's eyes, the shared HUD over it, a crosshair to aim with
+        S.cam = EyeCamera(G, S.you, S.eye);
+        DrawTrawl3D(G, G.eco, S.sess, S.you, S.cam, S.ghostSee);
+        if (c.dead) DrawRectangle(0, 0, SCREEN_W, SCREEN_H, Fade(Color{120, 170, 200, 255}, 0.08f));
+        Hud(g);
+        if (S.panel < 0) {
+            Vector2 m{SCREEN_W / 2.0f, SCREEN_H / 2.0f};
+            DrawCircleV(m, 2.5f, Fade(Color{240, 230, 200, 255}, 0.8f));
+            DrawRing(m, 7, 8.5f, 0, 360, 24, Fade(Color{240, 230, 200, 255}, 0.35f));
+        }
+        TxtShadow("V: top-down view", SCREEN_W - 170, SCREEN_H - 24, 13, Fade(Color{230, 220, 196, 255}, 0.5f));
+        return;
+    }
     bool inWheelhouse = c.deck == 0 && c.p.x > 0.9f && c.p.x < 5.1f && fabsf(c.p.y) < 2.1f;
     View v = MakeView(G, c.deck, inWheelhouse);
     if (c.dead) { v.ghost = true; v.ghostAt = c.p; v.ghostSee = S.ghostSee; v.lights.push_back({c.p, 3.0f, 0.4f}); }   // the ghost's own cold lantern
@@ -572,21 +598,37 @@ void Draw(Game& g) {
 }
 } // namespace
 
-void StartTrawl(Game& g) {
+void StartTrawl(Game& g, bool firstPerson) {
     S = TrawlScene{};
     uint32_t seed = (uint32_t)GetRandomValue(1, 1 << 30);
     // a solo run: the Gannet at the quay on the atoll, the first deadline's quota on the tape
     S.sess.Begin(S.G, S.eco, 1, seed);
     S.active = true;
+    S.fp = firstPerson;
     EnableCursor();
     g.scene = Scene::Trawl;
 }
 
 void SceneTrawl(Game& g) {
-    if (!S.active) StartTrawl(g);
+    if (!S.active) StartTrawl(g, false);
     SetPost(0.25f, 0.02f, 0.1f);
     float dt = S.shot ? 1 / 60.0f : std::min(GetFrameTime(), 0.1f);
-    if (!S.shot) Pressed(g);
+    if (!S.shot) {
+        // first person takes the mouse to look with, except where a panel or the locker needs a pointer
+        const Crew& me = S.G.crew[S.you];
+        bool pointer = S.panel >= 0 || (me.station >= 0 && Stations()[me.station].kind == StationKind::Locker);
+        bool lock = S.fp && !pointer;
+        if (lock && !IsCursorHidden()) DisableCursor();
+        if (!lock && IsCursorHidden()) EnableCursor();
+        if (lock) {
+            Vector2 md = GetMouseDelta();
+            S.eye.yaw += md.x * 0.0025f;                      // right turns toward starboard when you face the bow
+            S.eye.pitch = std::clamp(S.eye.pitch - md.y * 0.0025f, -1.35f, 1.25f);
+            if (S.eye.yaw > PI) S.eye.yaw -= 2 * PI;
+            if (S.eye.yaw < -PI) S.eye.yaw += 2 * PI;
+        }
+        Pressed(g);
+    }
     S.acc += dt;
     while (S.acc >= 1 / 60.0f) {
         S.acc -= 1 / 60.0f;
@@ -604,8 +646,14 @@ void SceneTrawl(Game& g) {
 // --shots: 0 the deck at night, 1 the engine room, 2 the wheelhouse, 3 a squall, 4 a fish on, 5 a marlin jumping,
 // 6 the Lagoon under a full lantern, 7 the searchlight over the reef, 8 a reef shark come to the chum (and the gulls)
 void DebugTrawlShot(Game& g, int which) {
-    StartTrawl(g);
+    bool fp = which >= 100;                    // 100+: the same set-ups in first person
+    if (fp) which -= 100;
+    StartTrawl(g, fp);
     S.shot = true;
+    if (fp) {   // where the hand looks in each first-person shot
+        S.eye.pitch = which == 15 ? -0.3f : which == 9 || which == 0 ? -0.08f : -0.22f;
+        S.eye.yaw = which == 4 || which == 5 ? 1.25f : which == 15 ? 3.1f : which == 9 ? -1.9f : which == 16 ? 1.3f : which == 17 ? 1.9f : which == 1 ? -2.4f : which == 6 || which == 8 ? 2.6f : 0.0f;
+    }
     if (which >= 15) {
         // 15 the net down and filling, 16 a rifle and a shot fish afloat with gulls over, 17 overboard and the ring,
         // 18 a ghost on deck, 19 the harpoon fast in a shark, 20 the deck locker
