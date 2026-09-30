@@ -107,6 +107,17 @@ void main() {
         vec3 outc = mix(vec3(lv) * vec3(1.02, 0.98, 0.94), col, 0.95 - 0.35 * smoothstep(0.3, 0.7, satc)); // muted: the loudest colours are pulled back hardest
         float dark = clamp((0.10 - lv) / 0.08, 0.0, 1.0);                               // only the very deepest shade gets a second pass
         if (dark > 0.5 && h2 < 0.10) outc = mix(outc, INK, 0.5);
+        // Darkest Dungeon's chiaroscuro: a big hard-edged shadow shape on the side away from the light, near black but
+        // keeping a trace of the local colour, with a hatched fringe where it meets the lit side; the darks crushed down.
+        float far1 = texture(texture0, uv - uKey * 11.0 * uTexel).a, far2 = texture(texture0, uv - uKey * 20.0 * uTexel).a;
+        // only where the form is thick: a blade or a finger (thin across the light) keeps its colour
+        float thick1 = texture(texture0, uv + uKey * 11.0 * uTexel).a, thick2 = texture(texture0, uv + uKey * 20.0 * uTexel).a;
+        float solid = (1.0 - far1) * thick1, fringe = (1.0 - far2) * far1 * thick2;
+        vec3 shadowCol = mix(INK, outc * 0.30, 0.35);
+        outc = mix(outc, shadowCol, solid * 0.88);
+        float hk = abs(fract(dot(hpx, vec2(0.7071, -0.7071)) / 4.0) - 0.5) * 2.0;        // diagonal pen strokes
+        if (fringe > 0.5 && hk < 0.34) outc = mix(outc, INK, 0.75);
+        outc = mix(outc, INK, smoothstep(0.16, 0.05, lv) * 0.6);                        // crushed darks
         outc = mix(outc, INK, smoothstep(0.30, 0.8, edge) * 0.9);                        // heavy linework between parts
         if (uVibrance > 0.0) { float l2 = dot(outc, vec3(0.299, 0.587, 0.114)); outc = mix(vec3(l2), outc, 1.0 + 0.3 * uVibrance) * vec3(1.05, 1.0, 0.92); }
         if (uDesat > 0.0) { float l3 = dot(outc, vec3(0.299, 0.587, 0.114)); outc = mix(outc, vec3(l3) * vec3(0.92, 0.94, 0.98), uDesat); }

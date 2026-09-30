@@ -58,16 +58,19 @@ void DrawRigCaptain(const Hero& h, Vector2 ft, float s, bool right, float walk, 
 
     Build b;
     b.thigh = 44; b.shin = 42; b.upper = 29; b.fore = 27; b.spine = 28; b.chest = 26; b.neck = 7; b.head = 11;
-    b.shoulderW = 18.5f; b.hipW = 6; b.stanceF = 12; b.stanceB = -11;
+    b.shoulderW = 18.5f; b.hipW = 7; b.stanceF = 17; b.stanceB = -15;   // a wide, planted stance
 
-    // the rest pose: cutlass raised before him, the prosthetic hooked at his belt
+    // the rest pose (Darkest Dungeon's ready stance): knees bent, weight forward, chin down, the cutlass held low and
+    // forward across the body, point toward the foe; the prosthetic clenched at his side
     RPose P;
-    P[C_HFX] = 14; P[C_HFY] = 32; P[C_WEAPON] = -64;
-    P[C_HBX] = 8; P[C_HBY] = 46;
+    P[C_HIPY] = 5; P[C_HIPX] = 2; P[C_LEAN] = 0.12f; P[C_CHEST] = 0.05f; P[C_HEAD] = 0.06f;
+    P[C_HFX] = 20; P[C_HFY] = 40; P[C_WEAPON] = 18;
+    P[C_HBX] = -4; P[C_HBY] = 44;
     P += GetClip(CL_IDLE).Sample(t + h.id * 1.7f);
     P += GetClip(CL_BREATHE).Sample(t + h.id);
     float stressW = std::clamp(pose.tremble * 1.4f, 0.0f, 1.0f);
     if (stressW > 0) P += Scaled(GetClip(CL_STRESSED).Sample(t), stressW);
+    P[C_WEAPON] *= 1 - std::clamp(std::max(pose.reach, pose.raise), 0.0f, 1.0f);   // the low guard gives way to the strike
     P += FromPose(pose, walk, t, 0);
     P[C_WEAPON] += -110 * std::clamp(pose.raise, 0.0f, 1.0f) + pose.weaponTilt;
     if (in.reaction >= 0) P += GetClip(in.reaction).Sample(in.reactT);
@@ -135,7 +138,8 @@ void DrawRigCaptain(const Hero& h, Vector2 ft, float s, bool right, float walk, 
         MQuad(S.Chest(4, -24), S.Chest(10, -24), S.Chest(7, 8), S.Chest(2, 8), Tone(coat, 0.25f), CLOTH);   // the lapel
         DrawTri(S.Chest(14, -24), S.Chest(5, -24), S.Chest(10, -6), Color{226, 222, 212, 255});           // the shirt front
         for (int k = 0; k < 3; k++) MBall(S.Chest(12, -13 + k * 10.0f), 1.9f * s, brass, METAL);
-        MLimb(S.Hips(-16, -12), S.Hips(16, -5), 5.0f * s, 5.0f * s, red, CLOTH);                           // the sash
+        MQuad(S.Chest(-17, -20), S.Chest(-10, -23), S.Hips(15, -3), S.Hips(9, 2), red, CLOTH);             // the baldric, shoulder to hip
+        DrawLineEx(S.Chest(-13, -21), S.Hips(12, -1), 0.9f * s, Fade(Color{60, 10, 10, 255}, 0.7f));
         MQuad(S.Hips(-16, -5), S.Hips(16, -5), S.Hips(15, 1), S.Hips(-15, 1), Color{70, 46, 28, 255}, WET);  // the belt
         MBall(S.Hips(11, -2), 2.8f * s, brass, METAL);
         for (int k = 0; k < 3; k++) { // medals on ribbons
@@ -153,16 +157,17 @@ void DrawRigCaptain(const Hero& h, Vector2 ft, float s, bool right, float walk, 
     parts.Add(0.2f, [&] { in.chains[3].Draw(s); });
     // --- the head: a square jaw, a heavy nose, eyes sunk in the shadow of the cap's peak, a grey beard on some
     parts.Add(0.5f, [&] {
-        MLimb(S.p[NECK], S.Head(0, 7), 6.4f * s, 6.2f * s, skin, SKIN);                                       // a thick neck
-        MBall(S.Head(-8.5f, 1), 3.0f * s, Tone(skin, -0.1f), SKIN);                                        // the ear
-        MBall(S.p[HEAD], 12.4f * s, skin, SKIN);                                                            // the skull
-        MQuad(S.Head(-5, 1), S.Head(10, 0), S.Head(9, 11), S.Head(-2, 12.5f), skin, SKIN);                  // a square jaw
+        MLimb(S.Chest(1, -26), S.Head(0, 9), 8.2f * s, 7.4f * s, Tone(skin, -0.08f), SKIN);                 // a thick neck, set forward
+        MQuad(S.Chest(-7, -24), S.Chest(9, -24), S.Head(8, 13), S.Head(-5, 12), Color{226, 222, 212, 255}, CLOTH); // the high collar
+        MBall(S.Head(-9, 1), 3.4f * s, Tone(skin, -0.1f), SKIN);                                           // the ear
+        MBall(S.p[HEAD], 14.2f * s, skin, SKIN);                                                            // the skull
+        MQuad(S.Head(-6, 1), S.Head(12, 0), S.Head(10.5f, 13), S.Head(-2, 14.5f), skin, SKIN);              // a square jaw
         MLimb(S.Head(9.5f, -2), S.Head(13.5f, 4.5f), 2.0f * s, 3.0f * s, Tone(skin, 0.05f), SKIN);          // the nose
         DrawLineEx(S.Head(4, 5), S.Head(6, 9.5f), 1.1f * s, Fade(Color{40, 20, 16, 255}, 0.6f));           // the cheek's crease
         // the shadow of the cap's peak across the eyes, and two eyes in it that catch the light (and blink)
-        DrawTri(S.Head(-3, -6), S.Head(15, -6), S.Head(13, -0.5f), Color{30, 16, 14, 190});
-        DrawTri(S.Head(-3, -6), S.Head(13, -0.5f), S.Head(-1, 0), Color{30, 16, 14, 190});
-        DrawLineEx(S.Head(1, -5), S.Head(12, -4.2f), 1.6f * s, Color{40, 26, 20, 255});                     // a heavy brow
+        DrawTri(S.Head(-3, -6.5f), S.Head(15, -6.5f), S.Head(13, -4.5f), Color{30, 16, 14, 90});           // the peak's thin shadow
+        DrawLineEx(S.Head(2, -4.6f), S.Head(7, -4.2f), 1.8f * s, Color{40, 26, 20, 255});                  // heavy brows, set apart
+        DrawLineEx(S.Head(8.5f, -4.2f), S.Head(12.5f, -4.8f), 1.8f * s, Color{40, 26, 20, 255});
         for (int k = 0; k < 2; k++) {
             Vector2 e = S.Head(k ? 9.5f : 3.5f, -2.5f);
             DrawEllipse((int)e.x, (int)e.y, (k ? 1.9f : 2.4f) * s, 1.2f * s, Color{120, 110, 96, 255});
@@ -170,10 +175,11 @@ void DrawRigCaptain(const Hero& h, Vector2 ft, float s, bool right, float walk, 
             else DrawLineEx({e.x - 2.2f * s, e.y}, {e.x + 2.2f * s, e.y + 0.3f * s}, 0.9f * s, Color{30, 20, 18, 255});
         }
         if (seed % 2) { // a grey beard and moustache, cut square
-            Color gb{196, 192, 184, 255};
-            MQuad(S.Head(-3, 4), S.Head(11, 4), S.Head(9, 16), S.Head(0, 16.5f), gb, CLOTH);
-            MLimb(S.Head(5, 5.5f), S.Head(14, 6.5f), 2.2f * s, 1.6f * s, gb, CLOTH);
-            for (int k = 0; k < 4; k++) DrawLineEx(S.Head(1 + k * 2.5f, 8), S.Head(1.5f + k * 2.5f, 15), 0.8f * s, Tone(gb, -0.4f));
+            Color gb{150, 146, 140, 255};   // a short full beard along the jaw, and a heavy moustache
+            MLimb(S.Head(-4, 6), S.Head(7, 13), 4.2f * s, 5.4f * s, gb, CLOTH);
+            MLimb(S.Head(7, 13), S.Head(11.5f, 8), 5.0f * s, 3.2f * s, gb, CLOTH);
+            MLimb(S.Head(6, 6.2f), S.Head(13.5f, 7.2f), 2.0f * s, 1.5f * s, Tone(gb, 0.1f), CLOTH);
+            for (int k = 0; k < 4; k++) DrawLineEx(S.Head(0 + k * 2.8f, 9 + k * 0.8f), S.Head(1 + k * 2.8f, 14 + k * 0.3f), 0.8f * s, Tone(gb, -0.45f));
             if (in.face.mouth) DrawEllipse((int)S.Head(9, 9).x, (int)S.Head(9, 9).y, 2.4f * s, 1.6f * s, Color{30, 12, 12, 255});
         } else {
             DrawMouth(in.face, S.Head(8, 8.5f), 6.0f, s, f, Color{120, 64, 56, 255});
