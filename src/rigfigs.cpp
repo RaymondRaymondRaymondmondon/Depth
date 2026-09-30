@@ -9,6 +9,8 @@
 #include "rig.h"
 #include <algorithm>
 #include <cmath>
+#include <functional>
+#include "rlgl.h"
 
 using namespace rig;
 
@@ -43,6 +45,21 @@ void Panel(const Chain& a, const Chain& b, Color c, float darken) {
 }  // namespace
 
 void RigSetActing(int clip, float t) { gActClip = clip; gActT = t; }
+
+// Light that must not be inked (a jellyfish's glowing tentacles, its core, a spell): a figure hands it here while
+// it is drawn, and it is painted over the finished, inked figure, additively, in the same place.
+static std::vector<std::function<void()>> gAfterInk;
+void RigAfterInk(std::function<void()> fn) { gAfterInk.push_back(std::move(fn)); }
+void RigRunAfterInk(Vector2 canvasToScreen) {
+    if (gAfterInk.empty()) return;
+    rlPushMatrix();
+    rlTranslatef(canvasToScreen.x, canvasToScreen.y, 0);
+    BeginBlendMode(BLEND_ADDITIVE);
+    for (auto& fn : gAfterInk) fn();
+    EndBlendMode();
+    rlPopMatrix();
+    gAfterInk.clear();
+}
 
 // ============================================================================ THE CAPTAIN
 // Wide shoulders under brass epaulettes, a long greatcoat whose skirts are three chains (so they swing and trail),
@@ -1317,6 +1334,206 @@ void DrawRigRobot(const Hero& h, Vector2 ft, float s, bool right, float walk, fl
         for (int k = 0; k < 5; k++) MBall(Off(S.p[SH_F], -7 + k * 3.5f, -5, s, f), 0.9f * s, Tone(plate, 0.35f), METAL);
     });
     parts.Draw();
+}
+
+// ============================================================================ THE SIREN
+// After her painted art: long black hair falling to her waist (chains), a sheer pale robe open at the front with
+// gold-trimmed bell sleeves (panels hanging from her forearms), a gold collar, and below the waist a dark teal
+// scaled tail curving down in an S to a great fin on the deck. She rests on the tail's coil, swaying; one palm
+// lifted toward the foe as she sings.
+void DrawRigSiren(const Hero& h, Vector2 ft, float s, bool right, float walk, float t, const Pose& pose) {
+    const float f = right ? 1.0f : -1.0f;
+    Instance& in = Get(h.id);
+    Tick(in, t);
+    Color skin{222, 196, 170, 255}, hair{24, 26, 28, 255}, robe{214, 222, 214, 255}, gold{200, 168, 96, 255};
+    Color tail{40, 84, 90, 255}, tailLt{120, 160, 150, 255}, finC{110, 140, 130, 255};
+    float sway = sinf(t * 0.9f + h.id);
+
+    Build b;
+    b.thigh = 30; b.shin = 30; b.upper = 25; b.fore = 25; b.spine = 27; b.chest = 23; b.neck = 9; b.head = 12;
+    b.shoulderW = 13; b.hipW = 6; b.stanceF = 4; b.stanceB = -4;
+    RPose P;
+    P[C_HIPY] = -4; P[C_HIPX] = sway * 3; P[C_LEAN] = -0.06f + sway * 0.04f; P[C_HEAD] = -0.1f;  // raised on the tail's coil
+    P[C_FFY] = -30; P[C_FBY] = -30;                     // (no legs: the feet targets are tucked away, unused)
+    P[C_HFX] = 30; P[C_HFY] = 4;                        // the palm lifted toward the foe
+    P[C_HBX] = 6; P[C_HBY] = 40;                        // the other arm trailing
+    P = LayerHero(P, h, in, pose, walk, t, 0, nullptr);
+    Solved S = SolveHumanoid(b, P, ft, s, f);
+    float song = 0.5f + 0.5f * sinf(t * 3 + h.id);
+
+    // chains: four locks of hair, two bell sleeves
+    bool jump = FollowWorld(in, s);
+    Vector2 anchors[6] = {S.Head(-10, -6), S.Head(-6, -10), S.Head(-12, 2), S.Head(-3, -12), S.Along(EL_F, WR_F, 0.7f, 0), S.Along(EL_B, WR_B, 0.7f, 0)};
+    if (jump || in.chains.size() != 6) {
+        in.chains.assign(6, Chain{});
+        for (int i = 0; i < 4; i++) { in.chains[i].Init(anchors[i], 8, 7.4f * s, {-0.3f * f, 1}); in.chains[i].col = Tone(hair, i * 0.05f); in.chains[i].width0 = 6.5f; in.chains[i].width1 = 2.6f; in.chains[i].stiff = 0.25f; in.chains[i].grav = 260; }
+        for (int i = 4; i < 6; i++) { in.chains[i].Init(anchors[i], 4, 6.4f * s, {0, 1}); in.chains[i].col = robe; in.chains[i].width0 = 4; in.chains[i].width1 = 6.5f; in.chains[i].stiff = 0.2f; in.chains[i].grav = 300; }
+    }
+    Vector2 cur = Current();
+    for (int i = 0; i < 6; i++) in.chains[i].Step(anchors[i], i < 4 ? Vector2{-0.3f * f, 1} : Vector2{0, 1}, in.dt, cur);
+
+    // the tail: an S-curve from her hips down to the deck, the fin fanned forward along the floor
+    const int N = 12;
+    Vector2 tp[N + 1];
+    Vector2 hip = S.Hips(0, 4);
+    for (int k = 0; k <= N; k++) {
+        float u = k / (float)N;
+        float x = sinf(u * PI * 1.2f + 0.4f + sway * 0.15f) * 16 - u * 10, y = u * (ft.y - hip.y - 6 * s) / s;
+        tp[k] = {hip.x + x * s * f, hip.y + y * s};
+    }
+    Parts parts;
+    parts.Add(-3.0f, [&] { for (int i = 0; i < 2; i++) in.chains[i].Draw(s); });                                // hair behind her
+    parts.Add(-2.0f, [&] { // the trailing arm and its sleeve
+        MLimb(S.p[SH_B], S.p[EL_B], 5.4f * s, 4.6f * s, Tone(skin, -0.12f), SKIN);
+        MLimb(S.p[EL_B], S.p[WR_B], 4.6f * s, 3.8f * s, Tone(skin, -0.12f), SKIN);
+        in.chains[5].Draw(s);
+        MLimb(S.Along(EL_B, WR_B, 0.65f, 0), S.Along(EL_B, WR_B, 0.72f, 0), 5.0f * s, 5.0f * s, gold, METAL);
+        MBall(S.p[WR_B], 3.4f * s, Tone(skin, -0.12f), SKIN);
+    });
+    parts.Add(-1.0f, [&] { // the tail and its fin
+        Vector2 end = tp[N], pre = tp[N - 1];
+        Vector2 d{end.x - pre.x, end.y - pre.y}; float l = sqrtf(d.x * d.x + d.y * d.y) + 1e-3f; d = {d.x / l, d.y / l};
+        for (int k = 0; k < 5; k++) { // the fin: long spined lobes fanning forward along the deck
+            float ang = atan2f(d.y, d.x) - (0.9f + k * 0.28f) * f;
+            Vector2 tip{end.x + cosf(ang) * (34 - k * 3.0f) * s, end.y + sinf(ang) * (34 - k * 3.0f) * s};
+            MLimb(end, tip, 7.0f * s, 1.2f * s, k % 2 ? finC : Tone(finC, -0.2f), WET);
+            DrawLineEx(end, tip, 0.9f * s, Tone(finC, 0.3f));
+        }
+        for (int k = 0; k < N; k++) {
+            float u = k / (float)N, w = 14 - u * 9;
+            MLimb(tp[k], tp[k + 1], w * s, (w - 0.75f) * s, tail, WET);
+            if (k % 2 == 0) for (int j = -1; j <= 1; j++) DrawRing(L2(tp[k], tp[k + 1], 0.5f), 2.2f * s, 3.0f * s, 20, 160, 6, Fade(tailLt, 0.5f)); // scales
+        }
+    });
+    // the torso: bare waist, the sheer robe open over it, the gold collar
+    parts.Add(0, [&] {
+        MQuad(S.Chest(-12, -21), S.Chest(13, -21), S.Hips(11, 6), S.Hips(-10, 6), skin, SKIN);
+        MQuad(S.Hips(-11, 0), S.Hips(12, 0), S.Hips(12, 8), S.Hips(-11, 8), tail, WET);                           // scales rise over her hips
+        for (int k = 0; k < 4; k++) DrawRing(S.Hips(-8 + k * 6.0f, 2), 2.2f * s, 3.0f * s, 200, 340, 6, Fade(tailLt, 0.6f));
+        MQuad(S.Chest(-14, -22), S.Chest(-2, -22), S.Hips(0, 8), S.Hips(-13, 8), Fade(robe, 0.9f), CLOTH);         // the robe, open at the front
+        MQuad(S.Chest(8, -22), S.Chest(14, -22), S.Hips(13, 6), S.Hips(9, 6), Fade(robe, 0.85f), CLOTH);
+        DrawLineEx(S.Chest(-2, -22), S.Hips(0, 8), 1.4f * s, gold);                                               // gold trim down its edges
+        DrawLineEx(S.Chest(8, -22), S.Hips(9, 6), 1.4f * s, gold);
+        for (int k = 0; k < 3; k++) DrawLineEx(S.Chest(-12 + k * 3.5f, -18), S.Hips(-11 + k * 3.5f, 4), 0.9f * s, Fade(Color{120, 130, 124, 255}, 0.6f)); // folds
+    });
+    parts.Add(0.4f, [&] { for (int i = 2; i < 4; i++) in.chains[i].Draw(s); });                                // hair over her shoulder
+    parts.Add(0.5f, [&] { // the head: an oval face in profile, dark brows, parted lips while she sings
+        MLimb(S.Chest(1, -22), S.Head(0, 8), 4.6f * s, 4.0f * s, Tone(skin, -0.06f), SKIN);
+        MLimb(S.Chest(-5, -22), S.Chest(7, -21), 2.4f * s, 2.4f * s, gold, METAL);                                // the collar
+        MBall(S.Head(-4, -4), 12.6f * s, hair, CLOTH);
+        MBall(S.p[HEAD], 11 * s, skin, SKIN);
+        MQuad(S.Head(-3, 1), S.Head(10, 0), S.Head(7.5f, 11), S.Head(-1, 11.5f), skin, SKIN);
+        MLimb(S.Head(9, -1), S.Head(12, 3.5f), 1.4f * s, 2.2f * s, Tone(skin, 0.05f), SKIN);
+        DrawEyes(in.face, S.Head(6.5f, -1.5f), 4.8f, 1.8f, s, f, hair, Color{60, 110, 110, 255});
+        DrawLineEx(S.Head(3, -4.5f), S.Head(8, -4.2f), 1.2f * s, hair);
+        Vector2 m = S.Head(8, 7);
+        DrawEllipse((int)m.x, (int)m.y, 1.8f * s, (0.6f + 1.0f * song) * s, Color{120, 50, 56, 255});             // singing
+        MQuad(S.Head(-10, -12), S.Head(6, -13), S.Head(2, -4), S.Head(-11, 0), hair, CLOTH);                      // hair framing her face
+    });
+    parts.Add(1.0f, [&] { // the lifted arm, its sleeve, the song on her palm
+        MLimb(S.p[SH_F], S.p[EL_F], 5.6f * s, 4.8f * s, skin, SKIN);
+        MLimb(S.p[EL_F], S.p[WR_F], 4.8f * s, 4.0f * s, skin, SKIN);
+        in.chains[4].Draw(s);
+        MLimb(S.Along(EL_F, WR_F, 0.65f, 0), S.Along(EL_F, WR_F, 0.72f, 0), 5.2f * s, 5.2f * s, gold, METAL);
+        Vector2 hd = S.p[WR_F];
+        for (int k = 0; k < 4; k++) MLimb(hd, Off(hd, 7, -2 + k * 1.2f, s, f), 1.3f * s, 0.9f * s, skin, SKIN);   // an open palm
+        MBall(hd, 3.2f * s, skin, SKIN);
+        for (int k = 0; k < 3; k++) { // the song: rings rising off her palm
+            float ph = fmodf(t * 0.7f + k / 3.0f, 1.0f);
+            DrawRing(Off(hd, 10 + ph * 18, -4 - ph * 10, s, f), (3 + ph * 9) * s, (3.8f + ph * 9) * s, 0, 360, 20, Fade(Color{180, 240, 230, 255}, 0.5f * (1 - ph)));
+        }
+    });
+    parts.Draw();
+}
+
+// ============================================================================ THE WISP OF THE SEA
+// After its painted art: a floating jellyfish. A translucent bell with a bright core behind two white eyes, an
+// ornate frill of spirals round its rim, long ribbon tentacles trailing (chains) and shorter frilled oral arms.
+// It bobs, and the bell squeezes in a slow pulse; on a strike it surges forward, on a hit it flinches small.
+void DrawRigWisp(const Hero& h, Vector2 ft, float s, bool right, float walk, float t, const Pose& pose) {
+    const float f = right ? 1.0f : -1.0f;
+    Instance& in = Get(h.id);
+    Tick(in, t);
+    Color bell{60, 150, 170, 255}, bellDk{30, 70, 110, 255}, core{190, 255, 240, 255}, frill{40, 120, 130, 255}, rib{90, 200, 200, 255};
+    float pulse = 0.5f + 0.5f * sinf(t * 1.8f + h.id), squeeze = 1 - 0.07f * pulse;
+    float bob = sinf(t * 1.1f + h.id) * 6;
+    float surge = std::clamp(pose.reach, 0.0f, 1.0f) * 30 + std::clamp(pose.raise, 0.0f, 1.0f) * 10, flinch = std::clamp(-pose.headDown, 0.0f, 1.0f);
+    Vector2 c{ft.x + surge * s * f - flinch * 12 * s * f, ft.y - (118 + bob) * s};
+    float bw = 44 * s / squeeze * (1 - flinch * 0.15f), bh = 50 * s * squeeze * (1 - flinch * 0.15f);
+
+    bool jump = FollowWorld(in, s);
+    const int T = 8;
+    Vector2 anchors[T];
+    for (int i = 0; i < T; i++) anchors[i] = {c.x + (-0.8f + i * 1.6f / (T - 1)) * bw * 0.85f, c.y + bh * 0.25f};
+    if (jump || (int)in.chains.size() != T) {
+        in.chains.assign(T, Chain{});
+        for (int i = 0; i < T; i++) {
+            bool oral = i >= 3 && i <= 4;
+            in.chains[i].Init(anchors[i], oral ? 6 : 10, (oral ? 6.5f : 8.5f) * s, {0, 1});
+            in.chains[i].col = oral ? frill : rib; in.chains[i].width0 = oral ? 7 : 3; in.chains[i].width1 = oral ? 2 : 0.8f; in.chains[i].mat = GLOW;
+            in.chains[i].stiff = 0.25f; in.chains[i].grav = 60; in.chains[i].damp = 0.93f;
+        }
+    }
+    Vector2 cur = Current();
+    for (int i = 0; i < T; i++) in.chains[i].Step(anchors[i], {0, 1}, in.dt, {cur.x + sinf(t * 1.2f + i) * 260, cur.y});
+
+    Parts parts;
+    // the tentacles and the glow are light, not ink: they are painted over the finished figure (RigAfterInk)
+    std::vector<std::vector<Vector2>> tent;
+    for (int i = 0; i < T; i++) { // the chains give the lag; a travelling wave down each ribbon gives the ripple
+        std::vector<Vector2> p = in.chains[i].p;
+        for (size_t k = 1; k < p.size(); k++) p[k].x += sinf(t * 1.6f - k * 0.55f + i * 1.3f) * k * 1.1f * s;
+        tent.push_back(p);
+    }
+    RigAfterInk([tent, c, bw, bh, s, pulse, rib, frill, core, f, closed = in.face.Closed()] {
+        for (size_t i = 0; i < tent.size(); i++) {
+            bool oral = i >= 3 && i <= 4;
+            const auto& p = tent[i];
+            for (size_t k = 1; k < p.size(); k++) {
+                float u = k / (float)p.size(), w = (oral ? 6.0f - u * 4 : 2.4f - u * 1.6f) * s;
+                Color col = oral ? Color{80, 180, 190, 255} : rib;
+                DrawLineEx(p[k - 1], p[k], w + 3 * s, Fade(col, 0.15f * (1 - u)));                               // a soft halo
+                DrawLineEx(p[k - 1], p[k], w, Fade(col, 0.75f * (1 - u * 0.7f)));
+                if (oral && k % 2) DrawCircleV(p[k], w * 0.8f, Fade(core, 0.4f));
+            }
+        }
+        Glow({c.x, c.y - bh * 0.05f}, bw * 1.1f, Fade(core, 0.3f + 0.2f * pulse));                               // the core, blooming
+        if (!closed) for (int k = 0; k < 2; k++) Glow({c.x + (k ? 0.52f : -0.52f) * bw * f, c.y - bh * 0.05f}, 14 * s, Fade(WHITE, 0.5f));
+        (void)frill;
+    });
+    parts.Add(0, [&] {
+        Glow(c, bw * 2.2f, Fade(core, 0.14f + 0.1f * pulse));
+        // the bell: a dome over a slightly flared rim
+        for (int k = 0; k < 20; k++) {
+            float a0 = PI + k * PI / 20, a1 = PI + (k + 1) * PI / 20;
+            Vector2 p0{c.x + cosf(a0) * bw, c.y + sinf(a0) * bh}, p1{c.x + cosf(a1) * bw, c.y + sinf(a1) * bh};
+            DrawTri(c, p0, p1, bell);
+        }
+        MQuad({c.x - bw, c.y}, {c.x + bw, c.y}, {c.x + bw * 0.92f, c.y + bh * 0.3f}, {c.x - bw * 0.92f, c.y + bh * 0.3f}, bell, GLOW);
+        MBall({c.x - bw * 0.3f, c.y - bh * 0.1f}, bw * 0.45f, bellDk, GLOW);                                     // the dark lobes inside
+        MBall({c.x + bw * 0.35f, c.y - bh * 0.1f}, bw * 0.4f, bellDk, GLOW);
+        MBall({c.x, c.y - bh * 0.05f}, bw * 0.2f, Fade(core, 0.8f), GLOW);                                       // the bright core
+        Glow({c.x, c.y - bh * 0.05f}, bw * 0.9f, Fade(core, 0.35f + 0.2f * pulse));
+        for (int k = 0; k < 6; k++) { float a = PI + (k + 0.5f) * PI / 6; DrawLineEx({c.x + cosf(a) * bw * 0.25f, c.y + sinf(a) * bh * 0.25f}, {c.x + cosf(a) * bw * 0.95f, c.y + sinf(a) * bh * 0.95f}, 0.8f * s, Fade(Color{20, 40, 60, 255}, 0.18f)); } // faint veins
+        for (int k = 0; k < 2; k++) { // the two white eyes (they close in a blink)
+            Vector2 e{c.x + (k ? 0.52f : -0.52f) * bw * f, c.y - bh * 0.05f};
+            if (in.face.Closed()) DrawLineEx({e.x - 6 * s, e.y}, {e.x + 6 * s, e.y}, 2.0f * s, core);
+            else { DrawEllipse((int)e.x, (int)e.y, 7 * s, 5 * s, Color{250, 255, 250, 255}); Glow(e, 16 * s, Fade(core, 0.4f)); }
+        }
+        DrawCircleV({c.x - bw * 0.4f, c.y - bh * 0.75f}, 5 * s, Fade(WHITE, 0.55f));                            // highlights on the glass
+        DrawCircleV({c.x - bw * 0.15f, c.y - bh * 0.88f}, 2.5f * s, Fade(WHITE, 0.45f));
+    });
+    parts.Add(0.5f, [&] { // the ornate frill of spirals round the rim
+        for (int k = 0; k < 9; k++) {
+            float u = (k + 0.5f) / 9;
+            Vector2 p{c.x - bw * 0.95f + u * bw * 1.9f, c.y + bh * 0.22f + sinf(u * PI) * 3 * s};
+            DrawRing(p, 3.2f * s, 4.6f * s, 0, 300, 12, frill);
+            DrawRing(p, 1.0f * s, 2.0f * s, 60, 360, 8, Tone(frill, 0.3f));
+        }
+        DrawLineEx({c.x - bw * 0.95f, c.y + bh * 0.3f}, {c.x + bw * 0.95f, c.y + bh * 0.3f}, 1.6f * s, Tone(frill, -0.3f));
+    });
+    parts.Draw();
+    (void)walk;
 }
 
 // ============================================================================ THE LOST ONE CULTIST

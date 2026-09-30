@@ -580,7 +580,7 @@ int main(int argc, char** argv) {
                 for (char& ch : name) ch = isalnum((unsigned char)ch) ? (char)tolower((unsigned char)ch) : '_';
                 if (filter && name.find(filter) == std::string::npos) continue;
                 for (int f = 0; f < 70; f++) { g.time += 1 / 60.0f; BeginFrame(); SetPost(0.3f, 0.02f, 0.2f); DrawFigureSheet(kind == 0, i, g.time); EndFrame(g.time); }
-                std::string path = dir + (silSheets ? "/sil_" : "/fig_") + name + ".png";
+                std::string path = dir + (silSheets ? "/sil_" : "/fig_") + (kind == 0 ? "hero_" : "") + name + ".png";   // heroes get their own prefix: the Weeds' Siren would overwrite the crew's
                 TraceLog(LOG_INFO, "sheet %s: %s", path.c_str(), SaveFrameShot(path.c_str()) ? "ok" : "FAILED");
             }
         gSilhouette = false;

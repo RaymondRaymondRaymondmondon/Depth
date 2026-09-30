@@ -7,6 +7,7 @@
 #include "ik.h"
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 #include <unordered_map>
 
 namespace rig {
@@ -302,7 +303,8 @@ void React(int key, int clip) {
 // ============================================================ parts
 void Parts::Draw() {
     std::stable_sort(list.begin(), list.end(), [](const P& a, const P& b) { return a.z < b.z; });
-    for (auto& p : list) p.fn();
+    static int skip = getenv("DEPTH_SKIPPART") ? atoi(getenv("DEPTH_SKIPPART")) : -1;   // debug: leave out one part (by its order of Add) to find a stray shape
+    for (auto& p : list) if (p.order != skip) p.fn();
     list.clear();
 }
 

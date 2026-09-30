@@ -442,6 +442,7 @@ void InitArt() {
     A.pixel = LoadRenderTexture(PIXEL_W + 2, PIXEL_H + 2); // a pixel of margin allows smooth sub-pixel scrolling
     SetTextureFilter(A.pixel.texture, TEXTURE_FILTER_POINT); // chunky pixels when scaled up
     A.fig = LoadRenderTexture(FIG_W * SS, FIG_H * SS);
+    SetTextureWrap(A.fig.texture, TEXTURE_WRAP_CLAMP); // the outline samples past the edges: repeat would wrap a foot's ink onto the canvas top
     SetTextureFilter(A.fig.texture, TEXTURE_FILTER_BILINEAR);
     A.temp = LoadRenderTexture(SCREEN_W * SS, SCREEN_H * SS);
     A.backdrop = LoadRenderTexture(SCREEN_W / 2, SCREEN_H / 2);
@@ -1188,6 +1189,8 @@ void DrawCrewFigure(const Hero& h, Vector2 ft, float s, bool right, float walk, 
     if (h.cls == HeroClass::Octopus && h.outfit < 0) { DrawRigOctopus(h, ft, s, right, walk, t, pose); return; }
     if (h.cls == HeroClass::Queen && h.outfit < 0) { DrawRigQueen(h, ft, s, right, walk, t, pose); return; }
     if (h.cls == HeroClass::Robot && h.outfit < 0) { DrawRigRobot(h, ft, s, right, walk, t, pose); return; }
+    if (h.cls == HeroClass::Siren && h.outfit < 0) { DrawRigSiren(h, ft, s, right, walk, t, pose); return; }
+    if (h.cls == HeroClass::Wisp && h.outfit < 0) { DrawRigWisp(h, ft, s, right, walk, t, pose); return; }
     float f = right ? 1.0f : -1.0f, x = ft.x;
     int seed = h.id * 7919 + 13;
     const Color skins[4] = {{226, 186, 152, 255}, {198, 150, 112, 255}, {160, 110, 78, 255}, {108, 74, 52, 255}};
@@ -1972,7 +1975,7 @@ void DrawCrewFigureInked(const Hero& h, Vector2 feet, float s, bool right, float
     // from its high-resolution attachments exactly as painted: no figure shader, no ink pass, no tint, no rust. Otherwise the procedural figure below is used.
     // Only the Siren and the Wisp have real painted art; the other classes' generated placeholder sets (assets/characters/*)
     // drew broken, oversized blocks, so they stay procedural, and classes rebuilt on the shared rig always are.
-    bool onRig = h.cls != HeroClass::Siren && h.cls != HeroClass::Wisp;
+    bool onRig = true;   // every class is on the rig now; the painted Siren and Wisp in assets/ are kept as references
     if (h.outfit < 0 && !onRig) {
         static std::map<int, art::CharacterRenderer> painted;
         std::string folder = ClassName(h.cls);
@@ -1995,6 +1998,7 @@ void DrawCrewFigureInked(const Hero& h, Vector2 feet, float s, bool right, float
     DrawCrewFigure(h, FIG_FEET, s, right, walk, t, pose);
     EndFigure(feet, tint);
     SetFigureFacing(0);
+    RigRunAfterInk({feet.x - FIG_FEET.x, feet.y - FIG_FEET.y});   // light that mustn't be inked (the Wisp's tentacles and glow)
 }
 
 // Head and shoulders, for the roster and the party slots: the figure drawn large and clipped to the frame.
