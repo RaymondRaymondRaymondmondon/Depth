@@ -1,0 +1,241 @@
+{
+ "foods": [
+  "Blind Cavefish",
+  "Glass Shrimp",
+  "Cave Krill",
+  "Cave Isopod",
+  "Amphipod",
+  "Troglobite Crab",
+  "Olm",
+  "Blind Newt",
+  "Poison Dart Newt",
+  "Giant Cave Toad",
+  "Cave Crayfish",
+  "Fishing Spider",
+  "Cave Cricket",
+  "Diving Beetle",
+  "Giant Water Bug",
+  "Dragonfly Nymph",
+  "Glowworm Colony",
+  "Firefly Squid",
+  "Lanternfish",
+  "Cave Anglerfish",
+  "Cave Eel",
+  "Electric Ray",
+  "Blind Catfish",
+  "Whip Ray",
+  "Hagfish",
+  "Vampire Squid",
+  "Bristle Worm",
+  "Sea Spider",
+  "Cave Swiftlet",
+  "Snapping Turtle",
+  "Cave Krait",
+  "Epaulette Shark",
+  "Current Runner",
+  "Cave Sturgeon",
+  "Gulper Eel",
+  "Giant Salamander",
+  "Cave Caiman",
+  "Sleeper Shark",
+  "Ghost Worm",
+  "Silt Lamprey",
+  "The Lobster",
+  "Plankton",
+  "Detritus",
+  "Corpse",
+  "Parasites",
+  "Glow mould",
+  "Chemosynthetic mat",
+  "Cave moss",
+  "Stone lettuce",
+  "Cave sponge",
+  "White anemone cluster",
+  "The Drowned",
+  "Diver"
+ ],
+ "rows": {
+  "Blind Cavefish": {
+   "Plankton": 0.2,
+   "Glow mould": 0.8
+  },
+  "Glass Shrimp": {
+   "Detritus": 0.3,
+   "Parasites": 0.7
+  },
+  "Cave Krill": {
+   "Chemosynthetic mat": 1
+  },
+  "Cave Isopod": {
+   "Detritus": 0.2,
+   "Corpse": 0.8
+  },
+  "Amphipod": {
+   "Detritus": 0.6,
+   "Cave moss": 0.4
+  },
+  "Troglobite Crab": {
+   "Glass Shrimp": 0.5,
+   "Amphipod": 0.5
+  },
+  "Olm": {
+   "Cave Isopod": 0.4,
+   "Amphipod": 0.6
+  },
+  "Blind Newt": {
+   "Amphipod": 0.5,
+   "Cave Cricket": 0.3,
+   "Diving Beetle": 0.2
+  },
+  "Poison Dart Newt": {
+   "Cave Cricket": 1
+  },
+  "Giant Cave Toad": {
+   "Blind Newt": 0.3,
+   "Cave Cricket": 0.2,
+   "Diving Beetle": 0.2,
+   "Giant Water Bug": 0.1,
+   "Dragonfly Nymph": 0.1,
+   "Diver": 0.1
+  },
+  "Cave Crayfish": {
+   "Cave Isopod": 0.5,
+   "Bristle Worm": 0.5
+  },
+  "Fishing Spider": {
+   "Blind Cavefish": 0.5,
+   "Blind Newt": 0.5
+  },
+  "Cave Cricket": {
+   "Cave moss": 1
+  },
+  "Diving Beetle": {
+   "Amphipod": 1
+  },
+  "Giant Water Bug": {
+   "Blind Cavefish": 0.4,
+   "Blind Newt": 0.6
+  },
+  "Dragonfly Nymph": {
+   "Blind Cavefish": 0.5,
+   "Amphipod": 0.5
+  },
+  "Glowworm Colony": {
+   "Cave Cricket": 0.6,
+   "Plankton": 0.4
+  },
+  "Firefly Squid": {
+   "Blind Cavefish": 0.6,
+   "Cave Krill": 0.4
+  },
+  "Lanternfish": {
+   "Cave Krill": 1
+  },
+  "Cave Anglerfish": {
+   "Blind Cavefish": 0.5,
+   "Firefly Squid": 0.5
+  },
+  "Cave Eel": {
+   "Blind Cavefish": 0.4,
+   "Cave Crayfish": 0.3,
+   "Firefly Squid": 0.3
+  },
+  "Electric Ray": {
+   "Blind Cavefish": 0.5,
+   "Cave Crayfish": 0.5
+  },
+  "Blind Catfish": {
+   "Blind Cavefish": 0.3,
+   "Cave Isopod": 0.2,
+   "Cave Crayfish": 0.3,
+   "Corpse": 0.2
+  },
+  "Whip Ray": {
+   "Glass Shrimp": 0.5,
+   "Troglobite Crab": 0.5
+  },
+  "Hagfish": {
+   "Corpse": 1
+  },
+  "Vampire Squid": {
+   "Detritus": 0.7,
+   "Corpse": 0.3
+  },
+  "Bristle Worm": {
+   "Corpse": 0.5,
+   "Chemosynthetic mat": 0.5
+  },
+  "Sea Spider": {
+   "Cave sponge": 0.4,
+   "White anemone cluster": 0.6
+  },
+  "Cave Swiftlet": {
+   "Fishing Spider": 0.3,
+   "Cave Cricket": 0.7
+  },
+  "Snapping Turtle": {
+   "Blind Cavefish": 0.3,
+   "Blind Newt": 0.4,
+   "Stone lettuce": 0.3
+  },
+  "Cave Krait": {
+   "Blind Cavefish": 0.5,
+   "Blind Newt": 0.5
+  },
+  "Epaulette Shark": {
+   "Troglobite Crab": 0.4,
+   "Cave Crayfish": 0.3,
+   "Bristle Worm": 0.3
+  },
+  "Current Runner": {
+   "Blind Cavefish": 0.6,
+   "Firefly Squid": 0.4
+  },
+  "Cave Sturgeon": {
+   "Cave Krill": 0.4,
+   "Chemosynthetic mat": 0.3,
+   "Stone lettuce": 0.3
+  },
+  "Gulper Eel": {
+   "Firefly Squid": 0.3,
+   "Lanternfish": 0.5,
+   "Vampire Squid": 0.2
+  },
+  "Giant Salamander": {
+   "Olm": 0.3,
+   "Cave Crayfish": 0.3,
+   "Blind Catfish": 0.2,
+   "Diver": 0.2
+  },
+  "Cave Caiman": {
+   "Giant Cave Toad": 0.3,
+   "Snapping Turtle": 0.2,
+   "Giant Salamander": 0.2,
+   "The Drowned": 0.1,
+   "Diver": 0.2
+  },
+  "Sleeper Shark": {
+   "Cave Anglerfish": 0.1,
+   "Whip Ray": 0.1,
+   "Cave Sturgeon": 0.2,
+   "Gulper Eel": 0.2,
+   "Cave Caiman": 0.2,
+   "Corpse": 0.2
+  },
+  "Ghost Worm": {
+   "Cave Eel": 0.3,
+   "The Drowned": 0.7
+  },
+  "Silt Lamprey": {
+   "Blind Catfish": 0.4,
+   "Cave Sturgeon": 0.4,
+   "Gulper Eel": 0.2
+  },
+  "The Lobster": {
+   "Cave Caiman": 0.3,
+   "Sleeper Shark": 0.2,
+   "The Drowned": 0.2,
+   "Diver": 0.3
+  }
+ }
+}

@@ -1,0 +1,110 @@
+[
+ [
+  "The Lost Ones"
+ ],
+ [
+  "Drowned citizens of Atlantis who breathe water and kept their discipline: legionnaires who fight in phalanx, cultists who chant, slingers, and a priest who can call the Alien Horror. They bleed black ichor, a scent the city's scavengers love and its apex beasts avoid, so a street of their dead is briefly safe from sharks and full of crabs."
+ ],
+ [
+  "unit",
+  "hp_tide1",
+  "weapon",
+  "damage",
+  "speed",
+  "role",
+  "tell",
+  "loot"
+ ],
+ [
+  "Legionnaire",
+  200,
+  "Gladius and tower shield",
+  "35 melee, 1.0 s; shield blocks frontal shots (400 shield HP)",
+  "Slow (1.2)",
+  "Phalanx: three in a line block a street; the middle one advances",
+  "Shields knock together twice before an advance",
+  "Gladius (melee), 260"
+ ],
+ [
+  "Slinger",
+  120,
+  "Sling",
+  "30, one stone per 2 s, 20 m",
+  "Diver speed",
+  "Fires over the phalanx; targets reloading divers",
+  "Whirls the sling",
+  "Sling stones (tactical), 220"
+ ],
+ [
+  "Cultist",
+  130,
+  "Void chant",
+  "0; chant slows divers 30% in 10 m and adds 5 nerves per s",
+  "Diver speed",
+  "Chants behind the line; on losing, chants to call the Alien Horror (Hunts only)",
+  "Arms raised, a violet glow",
+  "A void charm (one Salt Charm), 240"
+ ],
+ [
+  "Armored Lost One (Hunts)",
+  700,
+  "Titan shield",
+  "Shield crush 90, 40% stun",
+  "Slow (1.0)",
+  "An immovable wall: blocks a street entirely; must be flanked",
+  "Plants the shield; stone dust",
+  "Armor plate (build part), 500"
+ ],
+ [
+  "The Priest (Hunts)",
+  600,
+  "The sigil",
+  "0",
+  "Slow",
+  "Stands in the plaza; after 60 s of chanting the Alien Horror (Depth's mini-boss: 2,500 HP, teleports one diver 20 m every 8 s) arrives for 90 s",
+  "A sigil drawn in ichor on the plaza floor",
+  "The sigil (calls the Horror once as a diver's item), 600"
+ ],
+ [
+  "Squad tactics"
+ ],
+ [
+  "1. A squad enters at the outer gate and marches up a radial avenue in phalanx; it holds plazas and yards rather than chasing through houses; it knows every grate and never stands on one."
+ ],
+ [
+  "2. On contact: Legionnaires lock shields across the street; Slingers fire over them; the Cultist chants from behind; the line advances one step every 3 s. Flank through a house or a courtyard, or drop a Legionnaire's shield with a limpet."
+ ],
+ [
+  "3. They fight beasts that nest in their old homes (octopi, congers) and avoid the Wyrm; they never enter the farms' canals (the crocodile) and treat the library as forbidden."
+ ],
+ [
+  "4. Ink and chum do nothing to them (they smell ichor, not blood); nets hold them 4 s; a flooded terrace (the sluice trap) drowns a phalanx because they can't swim up in armor."
+ ],
+ [
+  "5. In a Hunt the Armored Lost One holds the avenue while the Priest chants in the plaza; killing the Priest before 60 s prevents the Horror; leading a phalanx onto the plaza lane during a tuna crossing breaks it."
+ ],
+ [
+  "Barks (formant synth, subtitled)"
+ ],
+ [
+  "Spotting: 'Strangers in the forum.' / 'They breathe air. Pity them.'"
+ ],
+ [
+  "Phalanx: 'Shields. Step.' / 'The line holds; the city holds.'"
+ ],
+ [
+  "Losing: 'Priest! The old one!' / 'Sing them under.'"
+ ],
+ [
+  "A Legionnaire dies: 'Back to the pool with you.'"
+ ],
+ [
+  "The Wyrm surfaces: 'Off the grates! It's the god's own.'"
+ ],
+ [
+  "Priest: 'The sigil is drawn. Kneel or be unmade.'"
+ ],
+ [
+  "Enemy HP x1.08 per tide; weapons upgrade every 5 tides (Forged at 15+)."
+ ]
+]

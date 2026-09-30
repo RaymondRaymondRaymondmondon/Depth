@@ -1,0 +1,124 @@
+{
+ "drops": [
+  {
+   "drop": "Resupply",
+   "weight_tides_1_9": 30,
+   "weight_tides_10_19": 30,
+   "weight_tides_20+": 35,
+   "min_tide": 1,
+   "notes": "Always available; weight rises late when ammo is the limit"
+  },
+  {
+   "drop": "Double Scrip",
+   "weight_tides_1_9": 25,
+   "weight_tides_10_19": 20,
+   "weight_tides_20+": 15,
+   "min_tide": 1,
+   "notes": ""
+  },
+  {
+   "drop": "Shipwright",
+   "weight_tides_1_9": 15,
+   "weight_tides_10_19": 10,
+   "weight_tides_20+": 5,
+   "min_tide": 1,
+   "notes": "Only if a barricade net is damaged; otherwise re-rolled"
+  },
+  {
+   "drop": "Purge",
+   "weight_tides_1_9": 10,
+   "weight_tides_10_19": 15,
+   "weight_tides_20+": 15,
+   "min_tide": 3,
+   "notes": "Kills within 40 m, no blood"
+  },
+  {
+   "drop": "Blood Frenzy",
+   "weight_tides_1_9": 5,
+   "weight_tides_10_19": 15,
+   "weight_tides_20+": 20,
+   "min_tide": 4,
+   "notes": "Never two in a row"
+  },
+  {
+   "drop": "Fire Sale",
+   "weight_tides_1_9": 10,
+   "weight_tides_10_19": 5,
+   "weight_tides_20+": 5,
+   "min_tide": 5,
+   "notes": "Never within 3 tides of the last"
+  },
+  {
+   "drop": "Harpoon Hour",
+   "weight_tides_1_9": 5,
+   "weight_tides_10_19": 5,
+   "weight_tides_20+": 5,
+   "min_tide": 8,
+   "notes": ""
+  }
+ ],
+ "drop_rule": "A kill drops a bottle with chance 2.5% (1 in 40), rising to 4% when the team has had no drop for 3 minutes; the last two drops are excluded from the roll; drops last 30 s on the floor and never spawn inside Reacher coral, lava paths, or over the abyss.",
+ "locker": [
+  {
+   "locker pool": "Rack weapons (any)",
+   "weight": 45,
+   "notes": "Each rack weapon equally likely"
+  },
+  {
+   "locker pool": "Gatling Needler",
+   "weight": 6,
+   "notes": ""
+  },
+  {
+   "locker pool": "Twin Gannets",
+   "weight": 7,
+   "notes": ""
+  },
+  {
+   "locker pool": "Stormlock",
+   "weight": 7,
+   "notes": "Void: also on a rack in the Vault"
+  },
+  {
+   "locker pool": "Drum Flechette",
+   "weight": 6,
+   "notes": ""
+  },
+  {
+   "locker pool": "Reef Rattler",
+   "weight": 7,
+   "notes": ""
+  },
+  {
+   "locker pool": "Cannon Harpoon",
+   "weight": 4,
+   "notes": ""
+  },
+  {
+   "locker pool": "Limpet Launcher",
+   "weight": 4,
+   "notes": ""
+  },
+  {
+   "locker pool": "Net Gun",
+   "weight": 6,
+   "notes": ""
+  },
+  {
+   "locker pool": "Tesla Gaff",
+   "weight": 3,
+   "notes": ""
+  },
+  {
+   "locker pool": "Trident",
+   "weight": 3,
+   "notes": ""
+  },
+  {
+   "locker pool": "Wonder weapon (map's)",
+   "weight": 2,
+   "notes": "Guaranteed by the 12th team pull if no diver holds it; 0 while a diver holds it"
+  }
+ ],
+ "locker_rule": "Pull costs 950 (10 during Fire Sale). The eel moves after a random 8-12 pulls (the chest snaps shut and sinks; a lantern buoy marks the new spot). Locations rotate among the map's Locker spots, never the same one twice in a row. A pull from a weapon the diver already holds refills that weapon instead."
+}

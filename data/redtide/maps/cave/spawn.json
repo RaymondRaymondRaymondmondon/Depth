@@ -1,0 +1,434 @@
+[
+ {
+  "zone": "The Mouth",
+  "species": "Blind Cavefish",
+  "count_tide1": 20,
+  "respawn_s": 20,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 26
+ },
+ {
+  "zone": "The Mouth",
+  "species": "Glass Shrimp",
+  "count_tide1": 4,
+  "respawn_s": 300,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 5
+ },
+ {
+  "zone": "The Flooded Gallery",
+  "species": "Blind Cavefish",
+  "count_tide1": 60,
+  "respawn_s": 20,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 78
+ },
+ {
+  "zone": "The Flooded Gallery",
+  "species": "Glass Shrimp",
+  "count_tide1": 8,
+  "respawn_s": 300,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 10
+ },
+ {
+  "zone": "The Flooded Gallery",
+  "species": "Troglobite Crab",
+  "count_tide1": 6,
+  "respawn_s": 120,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 8
+ },
+ {
+  "zone": "The Flooded Gallery",
+  "species": "Cave Crayfish",
+  "count_tide1": 6,
+  "respawn_s": 180,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 8
+ },
+ {
+  "zone": "The Flooded Gallery",
+  "species": "Cave Eel",
+  "count_tide1": 3,
+  "respawn_s": 300,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 4
+ },
+ {
+  "zone": "The Flooded Gallery",
+  "species": "Whip Ray",
+  "count_tide1": 1,
+  "respawn_s": 400,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 1
+ },
+ {
+  "zone": "The Flooded Gallery",
+  "species": "Sea Spider",
+  "count_tide1": 3,
+  "respawn_s": 240,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 4
+ },
+ {
+  "zone": "The Squeeze",
+  "species": "Ghost Worm",
+  "count_tide1": 1,
+  "respawn_s": 0,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 1
+ },
+ {
+  "zone": "The Chimney",
+  "species": "Glowworm Colony",
+  "count_tide1": 1,
+  "respawn_s": 0,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 1
+ },
+ {
+  "zone": "The Chimney",
+  "species": "Firefly Squid",
+  "count_tide1": 12,
+  "respawn_s": 120,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 16
+ },
+ {
+  "zone": "The Chimney",
+  "species": "Blind Cavefish",
+  "count_tide1": 30,
+  "respawn_s": 20,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 39
+ },
+ {
+  "zone": "The Chimney",
+  "species": "Cave Eel",
+  "count_tide1": 2,
+  "respawn_s": 300,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 3
+ },
+ {
+  "zone": "Dry Chamber I: the Cricket Cavern",
+  "species": "Cave Cricket",
+  "count_tide1": 1,
+  "respawn_s": 60,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 1
+ },
+ {
+  "zone": "Dry Chamber I: the Cricket Cavern",
+  "species": "Amphipod",
+  "count_tide1": 20,
+  "respawn_s": 60,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 26
+ },
+ {
+  "zone": "Dry Chamber I: the Cricket Cavern",
+  "species": "Blind Newt",
+  "count_tide1": 6,
+  "respawn_s": 120,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 8
+ },
+ {
+  "zone": "Dry Chamber I: the Cricket Cavern",
+  "species": "Poison Dart Newt",
+  "count_tide1": 4,
+  "respawn_s": 180,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 5
+ },
+ {
+  "zone": "Dry Chamber I: the Cricket Cavern",
+  "species": "Fishing Spider",
+  "count_tide1": 2,
+  "respawn_s": 240,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 3
+ },
+ {
+  "zone": "Dry Chamber I: the Cricket Cavern",
+  "species": "Cave Swiftlet",
+  "count_tide1": 20,
+  "respawn_s": 120,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 26
+ },
+ {
+  "zone": "Dry Chamber I: the Cricket Cavern",
+  "species": "Diving Beetle",
+  "count_tide1": 8,
+  "respawn_s": 90,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 10
+ },
+ {
+  "zone": "Dry Chamber II: the Toad Pool",
+  "species": "Giant Cave Toad",
+  "count_tide1": 1,
+  "respawn_s": 400,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 1
+ },
+ {
+  "zone": "Dry Chamber II: the Toad Pool",
+  "species": "Blind Newt",
+  "count_tide1": 6,
+  "respawn_s": 120,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 8
+ },
+ {
+  "zone": "Dry Chamber II: the Toad Pool",
+  "species": "Cave Krait",
+  "count_tide1": 2,
+  "respawn_s": 300,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 3
+ },
+ {
+  "zone": "Dry Chamber II: the Toad Pool",
+  "species": "Giant Water Bug",
+  "count_tide1": 3,
+  "respawn_s": 180,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 4
+ },
+ {
+  "zone": "Dry Chamber II: the Toad Pool",
+  "species": "Dragonfly Nymph",
+  "count_tide1": 3,
+  "respawn_s": 180,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 4
+ },
+ {
+  "zone": "Dry Chamber II: the Toad Pool",
+  "species": "Giant Salamander",
+  "count_tide1": 1,
+  "respawn_s": 600,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 1
+ },
+ {
+  "zone": "Dry Chamber II: the Toad Pool",
+  "species": "Snapping Turtle",
+  "count_tide1": 1,
+  "respawn_s": 500,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 1
+ },
+ {
+  "zone": "Dry Chamber II: the Toad Pool",
+  "species": "Olm",
+  "count_tide1": 3,
+  "respawn_s": 240,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 4
+ },
+ {
+  "zone": "Dry Chamber III: the Roost",
+  "species": "Cave Caiman",
+  "count_tide1": 1,
+  "respawn_s": 700,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 1
+ },
+ {
+  "zone": "Dry Chamber III: the Roost",
+  "species": "Epaulette Shark",
+  "count_tide1": 2,
+  "respawn_s": 300,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 3
+ },
+ {
+  "zone": "Dry Chamber III: the Roost",
+  "species": "Cave Swiftlet",
+  "count_tide1": 20,
+  "respawn_s": 120,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 26
+ },
+ {
+  "zone": "Dry Chamber III: the Roost",
+  "species": "Olm",
+  "count_tide1": 2,
+  "respawn_s": 240,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 3
+ },
+ {
+  "zone": "The Sump",
+  "species": "Cave Krill",
+  "count_tide1": 1,
+  "respawn_s": 60,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 1
+ },
+ {
+  "zone": "The Sump",
+  "species": "Cave Isopod",
+  "count_tide1": 10,
+  "respawn_s": 90,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 13
+ },
+ {
+  "zone": "The Sump",
+  "species": "Lanternfish",
+  "count_tide1": 25,
+  "respawn_s": 30,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 33
+ },
+ {
+  "zone": "The Sump",
+  "species": "Cave Anglerfish",
+  "count_tide1": 2,
+  "respawn_s": 400,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 3
+ },
+ {
+  "zone": "The Sump",
+  "species": "Electric Ray",
+  "count_tide1": 3,
+  "respawn_s": 400,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 4
+ },
+ {
+  "zone": "The Sump",
+  "species": "Blind Catfish",
+  "count_tide1": 3,
+  "respawn_s": 300,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 4
+ },
+ {
+  "zone": "The Sump",
+  "species": "Hagfish",
+  "count_tide1": 3,
+  "respawn_s": 240,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 4
+ },
+ {
+  "zone": "The Sump",
+  "species": "Vampire Squid",
+  "count_tide1": 3,
+  "respawn_s": 240,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 4
+ },
+ {
+  "zone": "The Sump",
+  "species": "Bristle Worm",
+  "count_tide1": 5,
+  "respawn_s": 180,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 7
+ },
+ {
+  "zone": "The Sump",
+  "species": "Cave Sturgeon",
+  "count_tide1": 1,
+  "respawn_s": 600,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 1
+ },
+ {
+  "zone": "The Sump",
+  "species": "Gulper Eel",
+  "count_tide1": 2,
+  "respawn_s": 500,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 3
+ },
+ {
+  "zone": "The Sump",
+  "species": "Sleeper Shark",
+  "count_tide1": 1,
+  "respawn_s": 900,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 1
+ },
+ {
+  "zone": "The Sump",
+  "species": "Silt Lamprey",
+  "count_tide1": 4,
+  "respawn_s": 120,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 5
+ },
+ {
+  "zone": "The Dynamo Sump",
+  "species": "Blind Cavefish",
+  "count_tide1": 30,
+  "respawn_s": 20,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 39
+ },
+ {
+  "zone": "The Dynamo Sump",
+  "species": "Cave Eel",
+  "count_tide1": 2,
+  "respawn_s": 300,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 3
+ },
+ {
+  "zone": "The Dynamo Sump",
+  "species": "Blind Catfish",
+  "count_tide1": 1,
+  "respawn_s": 300,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 1
+ },
+ {
+  "zone": "The Cathedral",
+  "species": "The Lobster",
+  "count_tide1": 1,
+  "respawn_s": 0,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 1
+ },
+ {
+  "zone": "The Cathedral",
+  "species": "Firefly Squid",
+  "count_tide1": 10,
+  "respawn_s": 120,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 13
+ },
+ {
+  "zone": "The Cathedral",
+  "species": "Sea Spider",
+  "count_tide1": 4,
+  "respawn_s": 240,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 5
+ },
+ {
+  "zone": "The Cathedral",
+  "species": "Cave Eel",
+  "count_tide1": 2,
+  "respawn_s": 300,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 3
+ },
+ {
+  "zone": "Slipstreams",
+  "species": "Current Runner",
+  "count_tide1": 3,
+  "respawn_s": 400,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 4
+ }
+]

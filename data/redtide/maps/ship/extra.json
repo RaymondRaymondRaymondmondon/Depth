@@ -1,0 +1,229 @@
+{
+ "_source": "Hand-written from what the Sunken Ship workbook and the Red Tide design doc state only in prose. Everything else in this folder is exported from RedTide_SunkenShip_data.xlsx by tools/export_redtide.py.",
+ "_flow_source": "Blockout design notes: 'current runs bow -> stern inside the hull and along the Keel toward the breach, so blood made in the Salon reaches the Stern (and the Bull Shark) in about 40 s.' Bow is low x, the breach is at the Stern (x 58-68).",
+ "zone_height_m": {
+  "Upper": 8,
+  "Lower": 8,
+  "Outside": 18
+ },
+ "zone_floor_m": {
+  "Upper": 10,
+  "Lower": 0,
+  "Outside": 0
+ },
+ "flow": {
+  "Bridge": [
+   0.6,
+   0,
+   0
+  ],
+  "Grand Salon": [
+   1.0,
+   0,
+   0.4
+  ],
+  "Galley & Pantry": [
+   0,
+   0,
+   0.6
+  ],
+  "Cabin Deck": [
+   1.1,
+   0,
+   0
+  ],
+  "Engine Room": [
+   1.1,
+   0,
+   0
+  ],
+  "Stern & Swim Platform": [
+   0.3,
+   0,
+   0.3
+  ],
+  "The Keel & Sand": [
+   0.6,
+   0,
+   0
+  ],
+  "Foredeck (outside)": [
+   0.2,
+   0,
+   0.3
+  ]
+ },
+ "link_flow": {
+  "_note": "Water moves through these passages bow to stern; blood crosses a link along the current faster than against it.",
+  "Grand Salon>Cabin Deck": 1.0,
+  "Cabin Deck>Engine Room": 1.0,
+  "Engine Room>Stern & Swim Platform": 1.0,
+  "Grand Salon>Galley & Pantry": 0.6,
+  "Galley & Pantry>Cabin Deck": 0.6,
+  "Bridge>Grand Salon": 0.6,
+  "Stern & Swim Platform>The Keel & Sand": 0.8,
+  "Foredeck (outside)>The Keel & Sand": 0.5
+ },
+ "_alarm_source": "Blockout design notes: 'Alarm region: Inside (Bridge..Stern) counts gunfire x2; Outside (Keel, Foredeck) x1.' Level mechanics: 'The ship is one region with two sub-regions (inside, outside).'",
+ "alarm_regions": {
+  "Inside": {
+   "mult": 2,
+   "zones": [
+    "Bridge",
+    "Grand Salon",
+    "Galley & Pantry",
+    "Cabin Deck",
+    "Engine Room",
+    "Stern & Swim Platform"
+   ],
+   "entry": "Hull breach (Wrecker entry)"
+  },
+  "Outside": {
+   "mult": 1,
+   "zones": [
+    "The Keel & Sand",
+    "Foredeck (outside)"
+   ],
+   "entry": "Hull breach (Wrecker entry)"
+  }
+ },
+ "outside_zone": "The Keel & Sand",
+ "_outside_note": "Species whose home zone is 'Outside' (the Tiger Shark) live in the open water around the wreck; the engine places them in the Keel & Sand zone's open water, at its far end.",
+ "zone_alias": {
+  "Salon": "Grand Salon",
+  "Galley": "Galley & Pantry",
+  "Cabins": "Cabin Deck",
+  "Engine": "Engine Room",
+  "Stern": "Stern & Swim Platform",
+  "Keel": "The Keel & Sand",
+  "Outside": "The Keel & Sand",
+  "Foredeck": "Foredeck (outside)",
+  "Bridge": "Bridge"
+ },
+ "_faction_source": "Red Tide design doc, 'Enemy factions in detail: the Wreckers (template)' units table, squad tactics and barks.",
+ "faction": {
+  "name": "The Salvage Wreckers",
+  "species_name": "Wrecker",
+  "entry_poi": "Hull breach (Wrecker entry)",
+  "hunt_staging": "Foredeck (outside)",
+  "patrol": [
+   "Stern & Swim Platform",
+   "Engine Room",
+   "Cabin Deck",
+   "Grand Salon"
+  ],
+  "units": [
+   {
+    "unit": "Cutter",
+    "hp": 120,
+    "weapon": "Boarding knife",
+    "damage": 25,
+    "interval_s": 0.8,
+    "range_m": 1.5,
+    "speed_mps": 2.4,
+    "role": "flank",
+    "tell": "Bubbles from a fast exhale before a lunge",
+    "loot_scrip": 200,
+    "drops": ""
+   },
+   {
+    "unit": "Speargunner",
+    "hp": 150,
+    "weapon": "Long Speargun",
+    "damage": 60,
+    "interval_s": 3.0,
+    "range_m": 20,
+    "speed_mps": 2.0,
+    "role": "cover",
+    "tell": "A red laser dot from the speargun's sight, 1 s before firing",
+    "loot_scrip": 250,
+    "drops": "Long Speargun"
+   },
+   {
+    "unit": "Netman",
+    "hp": 180,
+    "weapon": "Net Gun and knife",
+    "damage": 20,
+    "interval_s": 4.0,
+    "range_m": 8,
+    "speed_mps": 2.0,
+    "role": "net",
+    "tell": "Swings the net overhead twice",
+    "loot_scrip": 250,
+    "drops": "Net Gun"
+   },
+   {
+    "unit": "Chummer",
+    "hp": 140,
+    "weapon": "Chumthrower",
+    "damage": 0,
+    "interval_s": 5.0,
+    "range_m": 15,
+    "speed_mps": 2.0,
+    "role": "chum",
+    "tell": "Shakes the chum bucket",
+    "loot_scrip": 300,
+    "drops": "Chumthrower"
+   },
+   {
+    "unit": "Foreman",
+    "hp": 900,
+    "weapon": "Harpoon Cannon",
+    "damage": 200,
+    "interval_s": 4.0,
+    "range_m": 30,
+    "speed_mps": 1.4,
+    "role": "leader",
+    "tell": "Winds the cannon's winch for 2 s",
+    "loot_scrip": 600,
+    "drops": "Harpoon Cannon",
+    "hunt_only": true
+   }
+  ],
+  "squad_composition": [
+   "Cutter",
+   "Cutter",
+   "Speargunner",
+   "Netman",
+   "Chummer"
+  ],
+  "flee_from_size": 4,
+  "ignore_below_size": 3,
+  "barks": {
+   "spot": [
+    "Divers on the wreck. Nobody's collecting our salvage.",
+    "Four of 'em. Chum 'em."
+   ],
+   "chum": [
+    "Dinner's served, fish.",
+    "Let the reef do the work."
+   ],
+   "shark": [
+    "That's not ours! Back to the breach!",
+    "Cut the chum, cut the chum!"
+   ],
+   "death": [
+    "Marlow's gone. Keep working.",
+    "The safe's worth it. Push."
+   ],
+   "net": [
+    "Got one wrapped!",
+    "Pull it in, pull it in."
+   ],
+   "foreman": [
+    "The safe's mine, and so's the ship.",
+    "Winch up. Put a bolt through the helmet."
+   ]
+  }
+ },
+ "_diet_patch_source": "Red Tide design doc, Level 1 beast table: 'Sergeant Major ... Eaten by: Grouper, moray'. The workbook's Diet matrix leaves both rows without it (--web-check flagged the Sergeant Major as uneaten). Patched weights are added, then each row is renormalised to sum to 1.",
+ "diet_patch": {
+  "Grouper": {
+   "Sergeant Major": 0.1
+  },
+  "Green Moray": {
+   "Sergeant Major": 0.1
+  }
+ },
+ "_flow_speed_note": "Current speeds are set so blood made in the Salon reaches the Stern in about 40 s (the notes' own figure): about 1 m/s through the interior passages."
+}

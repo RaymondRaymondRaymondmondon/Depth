@@ -1,0 +1,170 @@
+[
+ {
+  "plan": "fusiform",
+  "for": "Torpedo fish",
+  "primitives": "Lathed spindle body; dorsal, anal, paired pectoral and pelvic fins as tapered quads; caudal fin by tail_type",
+  "parameters": "length, girth_ratio (0.15-0.35), head_ratio (0.2-0.35), tail_type (forked/rounded/lunate/pointed), dorsal_count (1-2), fin_scale, eye_size, mouth (small/under/gape)",
+  "animation": "Traveling sine along the spine, amplitude rising to the tail; pectorals sweep on turns; gill flare on attack",
+  "examples": "Sardine, barracuda, tuna, grouper, wrasse"
+ },
+ {
+  "plan": "compressiform",
+  "for": "Deep-bodied fish",
+  "primitives": "Lathed body squashed sideways (girth_z 0.3 x girth_y); tall dorsal and anal fins; small caudal",
+  "parameters": "length, height_ratio (0.5-0.9), fin_height, eye_size, stripe_count",
+  "animation": "Body rocks side to side rather than sweeping; fins flutter",
+  "examples": "Angelfish, butterflyfish, triggerfish, surgeonfish, cardinalfish"
+ },
+ {
+  "plan": "anguilliform",
+  "for": "Eels, worms, ribbons",
+  "primitives": "A tube swept along a spline of 12-24 segments; continuous fin ribbon; no pectorals (eels) or none at all (worms)",
+  "parameters": "length, segments, girth_ratio (0.04-0.12), fin_ribbon (bool), head (eel/worm/lure), jaw_hinge",
+  "animation": "Full-body undulation with 1.5-2.5 wavelengths; a strike straightens the front half in 0.2 s",
+  "examples": "Moray, conger, cave eel, oarfish, bobbit worm, ghost worm, the Wyrm"
+ },
+ {
+  "plan": "depressiform",
+  "for": "Rays, skates, flounders",
+  "primitives": "A flattened disc (lathed ellipse, girth_y 0.1) with wing edges; a whip or paddle tail",
+  "parameters": "span, disc_shape (round/diamond/kite), tail_type (whip/paddle/none), eye_top (bool), barb (bool)",
+  "animation": "Wing-edge wave front to back; rests by settling into silt with a particle puff",
+  "examples": "Stingray, manta, whip ray, electric ray, deep skate, flounder"
+ },
+ {
+  "plan": "shark",
+  "for": "Sharks",
+  "primitives": "Fusiform with a heterocercal tail, 5-7 gill slits as ink lines, pointed snout, triangular dorsal",
+  "parameters": "length, girth_ratio, snout (pointed/blunt/hammer/goblin/frilled), dorsal_size, gill_slits, tail_upper_ratio",
+  "animation": "Stiff-body sine (low amplitude), tail does the work; rolls the eye on bite; pectorals drop as a threat display",
+  "examples": "Bull, tiger, hammerhead, sixgill, goblin, blacktip, nurse"
+ },
+ {
+  "plan": "turtle",
+  "for": "Turtles",
+  "primitives": "A domed shell (lathed hemisphere with plate ink lines) over a flattened body; four flippers or legs; retractable head",
+  "parameters": "length, dome_height, plate_pattern (scute/leather), limb (flipper/leg), neck_length, beak (bool)",
+  "animation": "Alternating flipper strokes; head retracts on hit; shell is the armored front",
+  "examples": "Green, hawksbill, loggerhead, leatherback, hadal, snapping"
+ },
+ {
+  "plan": "crocodilian",
+  "for": "Crocodiles, caimans, monitors",
+  "primitives": "Long jaw (two hinged wedges), armored back (rows of scute quads), four splayed legs, a tapering tail",
+  "parameters": "length, jaw_ratio (0.2-0.3), scute_rows, leg_length, tail_ratio, eye_ridge",
+  "animation": "Lateral tail sculling in water; sprawling gait on land; death roll is a full-body spin about the spine",
+  "examples": "Saltwater crocodile, Nile crocodile, cave caiman, pale caiman, water monitor"
+ },
+ {
+  "plan": "snake",
+  "for": "Sea snakes, kraits",
+  "primitives": "Anguilliform with a paddle tail, distinct head, and banding ink",
+  "parameters": "length, band_count, head_ratio, paddle_tail (bool)",
+  "animation": "Undulation; coils before a strike (S-curve), then straightens",
+  "examples": "Banded, olive, cave, temple, abyssal snakes"
+ },
+ {
+  "plan": "crab",
+  "for": "Crabs, lobsters, isopods",
+  "primitives": "A carapace (lathed dome or box), 8 legs of 2-3 segments on IK, 2 claws (lobster/crab) or none (isopod); antennae chains",
+  "parameters": "width, carapace_shape (round/box/segmented), claw_size, leg_length, antenna_length, spines (bool), decoration (bool)",
+  "animation": "Sideways walk on IK legs; claws raise as a tell; isopods roll into a ball",
+  "examples": "Fiddler, hermit, spider crab, lobsters, isopods, the Lobster"
+ },
+ {
+  "plan": "shrimp",
+  "for": "Shrimps, mantis shrimps, amphipods",
+  "primitives": "Segmented arched body of 6-8 lathed rings; fan tail; long antennae chains; raptorial arms (mantis)",
+  "parameters": "length, segments, arch, antenna_length, raptorial (bool), transparency",
+  "animation": "Tail flicks propel backward; mantis punch is a 2-frame snap",
+  "examples": "Cleaner shrimp, glass shrimp, mantis shrimp, krill, amphipods"
+ },
+ {
+  "plan": "cephalopod",
+  "for": "Octopus, squid, cuttlefish",
+  "primitives": "A mantle (lathed egg or cone), a head with two large eyes, 8 arm chains (plus 2 tentacle chains for squid), fins (squid/cuttlefish)",
+  "parameters": "mantle_length, mantle_shape (egg/cone/round), arm_length, arm_count, fin (bool), eye_size, chromatophore (bool)",
+  "animation": "Arms are Chains driven by the body; jet pulse compresses the mantle; chromatophore flash is a palette pulse",
+  "examples": "Octopus, squid, cuttlefish, blue-ring, dumbo, colossal squid"
+ },
+ {
+  "plan": "jelly",
+  "for": "Jellies, siphonophores, anemones",
+  "primitives": "A bell (lathed hemisphere, translucent material) and tentacle chains; siphonophores are a chain of bells",
+  "parameters": "bell_diameter, tentacle_count, tentacle_length, translucency, bell_count (siphonophore)",
+  "animation": "Bell pulse (squash then stretch); tentacles trail as Chains",
+  "examples": "Box jelly, moon jelly, man o' war, deep jelly, siphonophore, anemones"
+ },
+ {
+  "plan": "amphibian",
+  "for": "Frogs, toads, newts, salamanders, olms",
+  "primitives": "A broad head with a hinged jaw, four legs (frogs: long hind), smooth skin material; tail (newts, salamanders) or none (frogs)",
+  "parameters": "length, head_width, leg_type (frog/salamander), tail (bool), gills_external (bool), skin (smooth/warty)",
+  "animation": "Frog: sit, then leap; salamander: lateral gait; tongue is a fast Chain extension",
+  "examples": "Toad, frogs, newts, olm, giant salamander, lab salamander, axolotl"
+ },
+ {
+  "plan": "pinniped",
+  "for": "Seals",
+  "primitives": "Fusiform mammal with a blunt head, whisker ink, two front flippers and joined hind flippers",
+  "parameters": "length, girth_ratio (0.3-0.4), whiskers (bool), bull_nose (bool)",
+  "animation": "Rolling swim with front-flipper strokes; hauls out with a belly hop",
+  "examples": "Monk seal, elephant seal"
+ },
+ {
+  "plan": "cetacean",
+  "for": "Whales, dolphins, orcas",
+  "primitives": "Fusiform mammal with a horizontal fluke, a blowhole, dorsal fin, pectoral paddles",
+  "parameters": "length, girth_ratio, dorsal (tall/curved/none), fluke_span, melon (bool), head (beak/blunt/block), patch_pattern (orca)",
+  "animation": "Vertical (up-down) sine unlike fish; breaches; clicks are a head-shake particle burst",
+  "examples": "Dolphin, humpback, sperm whale, the Matriarch"
+ },
+ {
+  "plan": "insect",
+  "for": "Insects, spiders",
+  "primitives": "A segmented body of 2-3 lathed segments, 6 (insect) or 8 (spider) IK legs, optional wings (quads), antennae",
+  "parameters": "length, segments, legs (6/8), wings (bool), leg_span, abdomen_ratio",
+  "animation": "Leg-cycle walk on rock; water-surface skating with a ripple; nymph jet pulse",
+  "examples": "Crickets, water bugs, beetles, nymphs, fishing spiders, sea spiders"
+ },
+ {
+  "plan": "echinoderm",
+  "for": "Urchins, stars, cucumbers, sea pigs",
+  "primitives": "Radial: a lathed disc or ball with spines (urchin), five arms (star), a soft tube (cucumber), stubby legs (sea pig)",
+  "parameters": "radius, arms (0/5), spine_length, tube (bool), legs (bool)",
+  "animation": "Near-static; urchin spines twitch; sea pig plods; brittle stars writhe",
+  "examples": "Urchins, crown-of-thorns, brittle stars, sand dollars, sea pigs, feather stars"
+ },
+ {
+  "plan": "burrower",
+  "for": "Garden eels, sand eels, lampreys, tube-dwellers",
+  "primitives": "A short anguilliform that lives half-hidden: only the front third is built when emerged",
+  "parameters": "length, emerged_ratio, mouth (sucker/point)",
+  "animation": "Rises from the sand, retracts in 0.15 s; lamprey attaches with a sucker ring",
+  "examples": "Garden eel, sand eel, lamprey, silt lamprey, hagfish"
+ },
+ {
+  "plan": "bird",
+  "for": "Cormorants, swiftlets",
+  "primitives": "A fusiform body with two wing quads (folded or spread), a beak, thin legs",
+  "parameters": "length, wingspan, beak_length, tail_length",
+  "animation": "Flapping in air; folded-wing torpedo dive underwater with a bubble trail",
+  "examples": "Cormorant, cave swiftlet"
+ },
+ {
+  "plan": "colony",
+  "for": "Colonies, swarms, sessile masses",
+  "primitives": "Many small instanced bodies (krill, crickets, glowworms) or a mass (snapping shrimp colony, bone worms, glowworm threads)",
+  "parameters": "body_count, body_plan_of_parts, spread_radius, light (bool)",
+  "animation": "Instanced boids or a static mass with a shimmer",
+  "examples": "Krill, crickets, glowworms, snapping shrimp, bone worms, sand hoppers"
+ },
+ {
+  "plan": "leviathan",
+  "for": "Bosses",
+  "primitives": "The species' base plan scaled up with extra detail: plate rows, barnacles, scars, multiple eyes or lures; separate rig parts for jaw, tail, fins, and lure",
+  "parameters": "base_plan, scale, plate_rows, barnacle_density, scar_count, extra_parts (lure/claws/fluke)",
+  "animation": "Slow, heavy: every motion has anticipation and overshoot; the jaw and tail are separate Chains",
+  "examples": "The Goliath, the Lobster, the Matriarch, the Wyrm, the Leviathan, the Sand Worm"
+ }
+]

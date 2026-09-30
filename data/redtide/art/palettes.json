@@ -1,0 +1,32 @@
+[
+ {
+  "map": "ship",
+  "five base tones": "rust brown, wet iron grey, kelp green, sand ochre, deep teal",
+  "two accents": "brass gold, blood red",
+  "rule": "Base and belly from the base tones; accent only on eyes, lures, venom, and wounds; luminous species may use the accent as an emissive band"
+ },
+ {
+  "map": "cave",
+  "five base tones": "bone white, wet slate, glow-mould green, silt brown, ink black",
+  "two accents": "phosphor teal, snottite yellow",
+  "rule": "Base and belly from the base tones; accent only on eyes, lures, venom, and wounds; luminous species may use the accent as an emissive band"
+ },
+ {
+  "map": "reef",
+  "five base tones": "coral pink, lagoon turquoise, sand cream, staghorn tan, deep cobalt",
+  "two accents": "sun gold, blood red",
+  "rule": "Base and belly from the base tones; accent only on eyes, lures, venom, and wounds; luminous species may use the accent as an emissive band"
+ },
+ {
+  "map": "atlantis",
+  "five base tones": "marble white, verdigris green, ichor black, sea-glass blue, terracotta",
+  "two accents": "gold leaf, glow-moss violet",
+  "rule": "Base and belly from the base tones; accent only on eyes, lures, venom, and wounds; luminous species may use the accent as an emissive band"
+ },
+ {
+  "map": "void",
+  "five base tones": "abyss black, pressure grey, vent rust, bone pale, brine blue",
+  "two accents": "emergency red, lure white",
+  "rule": "Base and belly from the base tones; accent only on eyes, lures, venom, and wounds; luminous species may use the accent as an emissive band"
+ }
+]

@@ -1,0 +1,233 @@
+{
+ "foods": [
+  "Sardine",
+  "Cardinalfish",
+  "Cleaner Goby",
+  "Snapping Shrimp",
+  "Porcelain Crab",
+  "Nudibranch",
+  "Sea Cucumber",
+  "Feather Star",
+  "Long-spined Urchin",
+  "Bream",
+  "Salema",
+  "Scorpionfish",
+  "Cuttlefish",
+  "Slipper Lobster",
+  "Mantis Shrimp",
+  "Aqueduct Newt",
+  "Cistern Frog",
+  "Temple Krait",
+  "Water Monitor",
+  "Cormorant",
+  "Moon Jelly Bloom",
+  "Man o' War",
+  "Octopus",
+  "Conger Eel",
+  "Spider Crab",
+  "Sea Bass",
+  "Dentex",
+  "Amberjack",
+  "Barracuda",
+  "Lamprey",
+  "Bluefin Tuna",
+  "Swordfish",
+  "Loggerhead",
+  "Monk Seal",
+  "Sandbar Shark",
+  "Leatherback",
+  "Nile Crocodile of the Canals",
+  "Great White",
+  "Giant Squid",
+  "The Cistern Wyrm",
+  "Plankton",
+  "Detritus",
+  "Corpse",
+  "Parasites",
+  "Turf on marble",
+  "Sea lettuce terraces",
+  "Posidonia meadows",
+  "Bathhouse sponges",
+  "Ichor-fed crabs",
+  "Lost One",
+  "Diver"
+ ],
+ "rows": {
+  "Sardine": {
+   "Plankton": 1
+  },
+  "Cardinalfish": {
+   "Snapping Shrimp": 0.2,
+   "Plankton": 0.8
+  },
+  "Cleaner Goby": {
+   "Parasites": 1
+  },
+  "Snapping Shrimp": {
+   "Plankton": 0.3,
+   "Detritus": 0.7
+  },
+  "Porcelain Crab": {
+   "Plankton": 1
+  },
+  "Nudibranch": {
+   "Detritus": 0.4,
+   "Bathhouse sponges": 0.6
+  },
+  "Sea Cucumber": {
+   "Detritus": 0.5,
+   "Corpse": 0.5
+  },
+  "Feather Star": {
+   "Plankton": 1
+  },
+  "Long-spined Urchin": {
+   "Turf on marble": 1
+  },
+  "Bream": {
+   "Snapping Shrimp": 0.4,
+   "Sea lettuce terraces": 0.6
+  },
+  "Salema": {
+   "Posidonia meadows": 1
+  },
+  "Scorpionfish": {
+   "Cardinalfish": 0.6,
+   "Porcelain Crab": 0.4
+  },
+  "Cuttlefish": {
+   "Porcelain Crab": 0.5,
+   "Slipper Lobster": 0.5
+  },
+  "Slipper Lobster": {
+   "Long-spined Urchin": 0.4,
+   "Detritus": 0.6
+  },
+  "Mantis Shrimp": {
+   "Porcelain Crab": 0.6,
+   "Slipper Lobster": 0.4
+  },
+  "Aqueduct Newt": {
+   "Snapping Shrimp": 0.5,
+   "Detritus": 0.5
+  },
+  "Cistern Frog": {
+   "Snapping Shrimp": 0.5,
+   "Aqueduct Newt": 0.5
+  },
+  "Temple Krait": {
+   "Cardinalfish": 0.5,
+   "Aqueduct Newt": 0.5
+  },
+  "Water Monitor": {
+   "Porcelain Crab": 0.2,
+   "Long-spined Urchin": 0.2,
+   "Cistern Frog": 0.3,
+   "Ichor-fed crabs": 0.3
+  },
+  "Cormorant": {
+   "Sardine": 0.7,
+   "Bream": 0.3
+  },
+  "Moon Jelly Bloom": {
+   "Plankton": 1
+  },
+  "Man o' War": {
+   "Sardine": 0.6,
+   "Plankton": 0.4
+  },
+  "Octopus": {
+   "Porcelain Crab": 0.3,
+   "Slipper Lobster": 0.4,
+   "Mantis Shrimp": 0.3
+  },
+  "Conger Eel": {
+   "Cardinalfish": 0.3,
+   "Cistern Frog": 0.3,
+   "Octopus": 0.4
+  },
+  "Spider Crab": {
+   "Sea Cucumber": 0.5,
+   "Turf on marble": 0.5
+  },
+  "Sea Bass": {
+   "Bream": 0.4,
+   "Cuttlefish": 0.3,
+   "Temple Krait": 0.3
+  },
+  "Dentex": {
+   "Sardine": 0.5,
+   "Bream": 0.3,
+   "Octopus": 0.2
+  },
+  "Amberjack": {
+   "Sardine": 0.6,
+   "Salema": 0.4
+  },
+  "Barracuda": {
+   "Sardine": 0.7,
+   "Cormorant": 0.3
+  },
+  "Lamprey": {
+   "Sea Bass": 0.4,
+   "Loggerhead": 0.3,
+   "Sandbar Shark": 0.3
+  },
+  "Bluefin Tuna": {
+   "Sardine": 0.6,
+   "Amberjack": 0.4
+  },
+  "Swordfish": {
+   "Sardine": 0.5,
+   "Cuttlefish": 0.5
+  },
+  "Loggerhead": {
+   "Porcelain Crab": 0.2,
+   "Moon Jelly Bloom": 0.3,
+   "Man o' War": 0.5
+  },
+  "Monk Seal": {
+   "Bream": 0.3,
+   "Slipper Lobster": 0.3,
+   "Octopus": 0.4
+  },
+  "Sandbar Shark": {
+   "Octopus": 0.2,
+   "Sea Bass": 0.3,
+   "Dentex": 0.3,
+   "Lost One": 0.1,
+   "Diver": 0.1
+  },
+  "Leatherback": {
+   "Moon Jelly Bloom": 0.6,
+   "Man o' War": 0.4
+  },
+  "Nile Crocodile of the Canals": {
+   "Cistern Frog": 0.1,
+   "Water Monitor": 0.2,
+   "Loggerhead": 0.2,
+   "Lost One": 0.3,
+   "Diver": 0.2
+  },
+  "Great White": {
+   "Bluefin Tuna": 0.3,
+   "Monk Seal": 0.2,
+   "Sandbar Shark": 0.2,
+   "Lost One": 0.1,
+   "Diver": 0.2
+  },
+  "Giant Squid": {
+   "Bluefin Tuna": 0.3,
+   "Monk Seal": 0.2,
+   "Lost One": 0.2,
+   "Diver": 0.3
+  },
+  "The Cistern Wyrm": {
+   "Conger Eel": 0.2,
+   "Sandbar Shark": 0.2,
+   "Nile Crocodile of the Canals": 0.1,
+   "Lost One": 0.2,
+   "Diver": 0.3
+  }
+ }
+}

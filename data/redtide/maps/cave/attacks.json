@@ -1,0 +1,342 @@
+[
+ {
+  "beast": "Troglobite Crab",
+  "attack": "Pinch",
+  "damage": 8,
+  "windup_s": 0.4,
+  "cooldown_s": 2,
+  "range_m": 1,
+  "tell (what the player sees)": "Claws raise",
+  "effect": ""
+ },
+ {
+  "beast": "Poison Dart Newt",
+  "attack": "Skin",
+  "damage": 10,
+  "windup_s": 0,
+  "cooldown_s": 0,
+  "range_m": 0.5,
+  "tell (what the player sees)": "",
+  "effect": "Touch: poison 10 over 5 s"
+ },
+ {
+  "beast": "Giant Cave Toad",
+  "attack": "Tongue",
+  "damage": 20,
+  "windup_s": 0.6,
+  "cooldown_s": 4,
+  "range_m": 5,
+  "tell (what the player sees)": "Throat swells",
+  "effect": "Pulls a diver into the pool: 2 s hold, then Bite"
+ },
+ {
+  "beast": "Giant Cave Toad",
+  "attack": "Bite",
+  "damage": 35,
+  "windup_s": 0.4,
+  "cooldown_s": 2,
+  "range_m": 1.5,
+  "tell (what the player sees)": "Jaw drops",
+  "effect": "Hold 1 s"
+ },
+ {
+  "beast": "Cave Crayfish",
+  "attack": "Pinch",
+  "damage": 12,
+  "windup_s": 0.4,
+  "cooldown_s": 2,
+  "range_m": 1,
+  "tell (what the player sees)": "Claws open",
+  "effect": "Bleed 2 s"
+ },
+ {
+  "beast": "Fishing Spider",
+  "attack": "Drop bite",
+  "damage": 18,
+  "windup_s": 0.5,
+  "cooldown_s": 3,
+  "range_m": 3,
+  "tell (what the player sees)": "Silk twitches overhead",
+  "effect": "Poison 4 s"
+ },
+ {
+  "beast": "Giant Water Bug",
+  "attack": "Pierce",
+  "damage": 15,
+  "windup_s": 0.4,
+  "cooldown_s": 3,
+  "range_m": 1,
+  "tell (what the player sees)": "Forelegs open",
+  "effect": "Bleed 4 s"
+ },
+ {
+  "beast": "Dragonfly Nymph",
+  "attack": "Jaw lunge",
+  "damage": 14,
+  "windup_s": 0.3,
+  "cooldown_s": 2.5,
+  "range_m": 2,
+  "tell (what the player sees)": "Jet pulse",
+  "effect": ""
+ },
+ {
+  "beast": "Cave Anglerfish",
+  "attack": "Swallow",
+  "damage": 45,
+  "windup_s": 0.5,
+  "cooldown_s": 3,
+  "range_m": 2,
+  "tell (what the player sees)": "The lure blinks twice",
+  "effect": "Pins 3 s"
+ },
+ {
+  "beast": "Cave Eel",
+  "attack": "Strike",
+  "damage": 35,
+  "windup_s": 0.4,
+  "cooldown_s": 1.5,
+  "range_m": 2,
+  "tell (what the player sees)": "Mouth opens",
+  "effect": "Bleed 3 s"
+ },
+ {
+  "beast": "Electric Ray",
+  "attack": "Shock",
+  "damage": 30,
+  "windup_s": 0.3,
+  "cooldown_s": 4,
+  "range_m": 2,
+  "tell (what the player sees)": "Silt lifts",
+  "effect": "Stun 2 s; stops a Turbine"
+ },
+ {
+  "beast": "Blind Catfish",
+  "attack": "Bite",
+  "damage": 30,
+  "windup_s": 0.4,
+  "cooldown_s": 1.5,
+  "range_m": 1.5,
+  "tell (what the player sees)": "Whiskers sweep",
+  "effect": "Hold 1 s"
+ },
+ {
+  "beast": "Whip Ray",
+  "attack": "Barb",
+  "damage": 40,
+  "windup_s": 0.3,
+  "cooldown_s": 3,
+  "range_m": 2,
+  "tell (what the player sees)": "Tail arches",
+  "effect": "Bleed 5 s"
+ },
+ {
+  "beast": "Hagfish",
+  "attack": "Slime",
+  "damage": 0,
+  "windup_s": 0.2,
+  "cooldown_s": 5,
+  "range_m": 1,
+  "tell (what the player sees)": "Knots itself",
+  "effect": "Diver slowed 40% until brushed"
+ },
+ {
+  "beast": "Bristle Worm",
+  "attack": "Bristles",
+  "damage": 10,
+  "windup_s": 0,
+  "cooldown_s": 0,
+  "range_m": 0.5,
+  "tell (what the player sees)": "",
+  "effect": "Contact burn 10"
+ },
+ {
+  "beast": "Snapping Turtle",
+  "attack": "Snap",
+  "damage": 60,
+  "windup_s": 0.5,
+  "cooldown_s": 3,
+  "range_m": 1.2,
+  "tell (what the player sees)": "Neck extends",
+  "effect": "Hold 2 s"
+ },
+ {
+  "beast": "Cave Krait",
+  "attack": "Bite",
+  "damage": 10,
+  "windup_s": 0.5,
+  "cooldown_s": 2,
+  "range_m": 1,
+  "tell (what the player sees)": "Coils",
+  "effect": "Poison 25 over 10 s"
+ },
+ {
+  "beast": "Epaulette Shark",
+  "attack": "Bite",
+  "damage": 35,
+  "windup_s": 0.4,
+  "cooldown_s": 2,
+  "range_m": 1.5,
+  "tell (what the player sees)": "Fins plant on rock",
+  "effect": "Bleed 3 s"
+ },
+ {
+  "beast": "Current Runner",
+  "attack": "Slash",
+  "damage": 40,
+  "windup_s": 0.3,
+  "cooldown_s": 2,
+  "range_m": 2,
+  "tell (what the player sees)": "A shadow in the stream",
+  "effect": "Bleed 3 s; knocks a diver out of the stream"
+ },
+ {
+  "beast": "Gulper Eel",
+  "attack": "Engulf",
+  "damage": 80,
+  "windup_s": 0.6,
+  "cooldown_s": 4,
+  "range_m": 3,
+  "tell (what the player sees)": "Jaw unfolds",
+  "effect": "Pins 3 s"
+ },
+ {
+  "beast": "Giant Salamander",
+  "attack": "Bite and drag",
+  "damage": 70,
+  "windup_s": 0.6,
+  "cooldown_s": 3,
+  "range_m": 2,
+  "tell (what the player sees)": "Water surges at the ledge",
+  "effect": "Hold 3 s; drags toward the pool"
+ },
+ {
+  "beast": "Giant Salamander",
+  "attack": "Tail",
+  "damage": 40,
+  "windup_s": 0.4,
+  "cooldown_s": 3,
+  "range_m": 2.5,
+  "tell (what the player sees)": "Body curls",
+  "effect": "Knockback 3 m"
+ },
+ {
+  "beast": "Cave Caiman",
+  "attack": "Bite",
+  "damage": 80,
+  "windup_s": 0.5,
+  "cooldown_s": 2,
+  "range_m": 2,
+  "tell (what the player sees)": "Jaws part",
+  "effect": "Bleed 4 s"
+ },
+ {
+  "beast": "Cave Caiman",
+  "attack": "Death roll",
+  "damage": 100,
+  "windup_s": 0.9,
+  "cooldown_s": 6,
+  "range_m": 2,
+  "tell (what the player sees)": "Grabs and spins",
+  "effect": "Hold and roll 4 s; teammates shoot it off"
+ },
+ {
+  "beast": "Cave Caiman",
+  "attack": "Tail",
+  "damage": 45,
+  "windup_s": 0.5,
+  "cooldown_s": 3,
+  "range_m": 3,
+  "tell (what the player sees)": "Turns side-on",
+  "effect": "Knockback 4 m"
+ },
+ {
+  "beast": "Sleeper Shark",
+  "attack": "Bite",
+  "damage": 150,
+  "windup_s": 0.6,
+  "cooldown_s": 3,
+  "range_m": 2.5,
+  "tell (what the player sees)": "Silt clouds behind it",
+  "effect": "Bleed 5 s"
+ },
+ {
+  "beast": "Sleeper Shark",
+  "attack": "Drag",
+  "damage": 60,
+  "windup_s": 0.8,
+  "cooldown_s": 8,
+  "range_m": 2,
+  "tell (what the player sees)": "Slow turn toward a diver",
+  "effect": "Carries 10 m into the silt"
+ },
+ {
+  "beast": "Ghost Worm",
+  "attack": "Lunge",
+  "damage": 70,
+  "windup_s": 0.5,
+  "cooldown_s": 2.5,
+  "range_m": 4,
+  "tell (what the player sees)": "Wall cracks glow",
+  "effect": "Bleed 4 s"
+ },
+ {
+  "beast": "Ghost Worm",
+  "attack": "Screech",
+  "damage": 20,
+  "windup_s": 0.6,
+  "cooldown_s": 6,
+  "range_m": 8,
+  "tell (what the player sees)": "Head rears",
+  "effect": "Stun 1 s in 8 m; 8 noise"
+ },
+ {
+  "beast": "Silt Lamprey",
+  "attack": "Latch",
+  "damage": 1,
+  "windup_s": 0.5,
+  "cooldown_s": 0,
+  "range_m": 0.5,
+  "tell (what the player sees)": "Circles",
+  "effect": "Host bleeds 1/s"
+ },
+ {
+  "beast": "The Lobster",
+  "attack": "Crush",
+  "damage": 130,
+  "windup_s": 0.8,
+  "cooldown_s": 4,
+  "range_m": 3,
+  "tell (what the player sees)": "Claw raises",
+  "effect": "Destroys a Shell Shield; hold 2 s"
+ },
+ {
+  "beast": "The Lobster",
+  "attack": "Sweep",
+  "damage": 80,
+  "windup_s": 0.6,
+  "cooldown_s": 5,
+  "range_m": 5,
+  "tell (what the player sees)": "Turns broadside",
+  "effect": "Knockback 6 m"
+ },
+ {
+  "beast": "The Lobster",
+  "attack": "Clack",
+  "damage": 25,
+  "windup_s": 0.5,
+  "cooldown_s": 3,
+  "range_m": 10,
+  "tell (what the player sees)": "Antennae flick",
+  "effect": "10 noise; stun 1 s; drops stalactites in phase 3"
+ },
+ {
+  "beast": "The Lobster",
+  "attack": "Rear",
+  "damage": 0,
+  "windup_s": 1.2,
+  "cooldown_s": 12,
+  "range_m": 0,
+  "tell (what the player sees)": "Rises on its tail when the coral rings",
+  "effect": "Underside exposed 3 s"
+ }
+]

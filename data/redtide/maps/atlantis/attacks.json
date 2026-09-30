@@ -1,0 +1,412 @@
+[
+ {
+  "beast": "Nudibranch",
+  "attack": "Skin",
+  "damage": 8,
+  "windup_s": 0,
+  "cooldown_s": 0,
+  "range_m": 0.5,
+  "tell (what the player sees)": "",
+  "effect": "Touch: poison 4 s"
+ },
+ {
+  "beast": "Sea Cucumber",
+  "attack": "Threads",
+  "damage": 0,
+  "windup_s": 0.3,
+  "cooldown_s": 10,
+  "range_m": 1,
+  "tell (what the player sees)": "Contracts",
+  "effect": "Sticky threads: slow 30% for 4 s"
+ },
+ {
+  "beast": "Long-spined Urchin",
+  "attack": "Spines",
+  "damage": 10,
+  "windup_s": 0,
+  "cooldown_s": 0,
+  "range_m": 0.6,
+  "tell (what the player sees)": "",
+  "effect": "Contact 10; bleed 2 s"
+ },
+ {
+  "beast": "Scorpionfish",
+  "attack": "Spines",
+  "damage": 30,
+  "windup_s": 0,
+  "cooldown_s": 0,
+  "range_m": 0.6,
+  "tell (what the player sees)": "",
+  "effect": "Contact: poison 8 s"
+ },
+ {
+  "beast": "Cuttlefish",
+  "attack": "Dazzle",
+  "damage": 0,
+  "windup_s": 0.5,
+  "cooldown_s": 6,
+  "range_m": 4,
+  "tell (what the player sees)": "Skin ripples",
+  "effect": "Aim sway +30% for 3 s"
+ },
+ {
+  "beast": "Mantis Shrimp",
+  "attack": "Punch",
+  "damage": 30,
+  "windup_s": 0.4,
+  "cooldown_s": 2,
+  "range_m": 1.5,
+  "tell (what the player sees)": "Antennae flick",
+  "effect": "Breaks a Shell Shield in 2 hits"
+ },
+ {
+  "beast": "Temple Krait",
+  "attack": "Bite",
+  "damage": 10,
+  "windup_s": 0.5,
+  "cooldown_s": 2,
+  "range_m": 1,
+  "tell (what the player sees)": "Coils",
+  "effect": "Poison 30 over 10 s"
+ },
+ {
+  "beast": "Water Monitor",
+  "attack": "Bite",
+  "damage": 40,
+  "windup_s": 0.5,
+  "cooldown_s": 2,
+  "range_m": 1.5,
+  "tell (what the player sees)": "Tongue flicks",
+  "effect": "Hold 2 s"
+ },
+ {
+  "beast": "Water Monitor",
+  "attack": "Tail",
+  "damage": 30,
+  "windup_s": 0.4,
+  "cooldown_s": 3,
+  "range_m": 2.5,
+  "tell (what the player sees)": "Turns side-on",
+  "effect": "Knockback 3 m"
+ },
+ {
+  "beast": "Moon Jelly Bloom",
+  "attack": "Sting",
+  "damage": 4,
+  "windup_s": 0,
+  "cooldown_s": 1,
+  "range_m": 1,
+  "tell (what the player sees)": "",
+  "effect": "Contact 4/s"
+ },
+ {
+  "beast": "Man o' War",
+  "attack": "Tentacles",
+  "damage": 30,
+  "windup_s": 0,
+  "cooldown_s": 1,
+  "range_m": 10,
+  "tell (what the player sees)": "Blue float at the surface",
+  "effect": "Paralysis 1 s"
+ },
+ {
+  "beast": "Octopus",
+  "attack": "Grab",
+  "damage": 20,
+  "windup_s": 0.5,
+  "cooldown_s": 3,
+  "range_m": 2.5,
+  "tell (what the player sees)": "Arm extends",
+  "effect": "Steals a held part; flees to its amphora"
+ },
+ {
+  "beast": "Conger Eel",
+  "attack": "Strike",
+  "damage": 40,
+  "windup_s": 0.4,
+  "cooldown_s": 1.5,
+  "range_m": 2,
+  "tell (what the player sees)": "A shadow under the grate",
+  "effect": "Bleed 3 s"
+ },
+ {
+  "beast": "Conger Eel",
+  "attack": "Drag",
+  "damage": 25,
+  "windup_s": 0.6,
+  "cooldown_s": 5,
+  "range_m": 1.5,
+  "tell (what the player sees)": "Grate rattles",
+  "effect": "Pulls a diver against the grate 2 s"
+ },
+ {
+  "beast": "Spider Crab",
+  "attack": "Pinch",
+  "damage": 25,
+  "windup_s": 0.5,
+  "cooldown_s": 3,
+  "range_m": 1.5,
+  "tell (what the player sees)": "Only if shot",
+  "effect": ""
+ },
+ {
+  "beast": "Sea Bass",
+  "attack": "Bite",
+  "damage": 35,
+  "windup_s": 0.4,
+  "cooldown_s": 1.5,
+  "range_m": 1.5,
+  "tell (what the player sees)": "Gill flare",
+  "effect": ""
+ },
+ {
+  "beast": "Dentex",
+  "attack": "Slash",
+  "damage": 35,
+  "windup_s": 0.3,
+  "cooldown_s": 1.2,
+  "range_m": 2,
+  "tell (what the player sees)": "Straightens",
+  "effect": "Bleed 3 s"
+ },
+ {
+  "beast": "Amberjack",
+  "attack": "Ram",
+  "damage": 25,
+  "windup_s": 0.4,
+  "cooldown_s": 1.5,
+  "range_m": 3,
+  "tell (what the player sees)": "Pack fans out",
+  "effect": "Knockback 2 m"
+ },
+ {
+  "beast": "Barracuda",
+  "attack": "Slash",
+  "damage": 30,
+  "windup_s": 0.3,
+  "cooldown_s": 1.2,
+  "range_m": 2,
+  "tell (what the player sees)": "Straightens",
+  "effect": "Bleed 3 s"
+ },
+ {
+  "beast": "Barracuda",
+  "attack": "Hit-and-run",
+  "damage": 45,
+  "windup_s": 0.5,
+  "cooldown_s": 4,
+  "range_m": 10,
+  "tell (what the player sees)": "Circles wide",
+  "effect": ""
+ },
+ {
+  "beast": "Lamprey",
+  "attack": "Latch",
+  "damage": 2,
+  "windup_s": 0.5,
+  "cooldown_s": 0,
+  "range_m": 0.5,
+  "tell (what the player sees)": "Circles",
+  "effect": "Host bleeds 2/s"
+ },
+ {
+  "beast": "Bluefin Tuna",
+  "attack": "Ram",
+  "damage": 60,
+  "windup_s": 0.3,
+  "cooldown_s": 3,
+  "range_m": 12,
+  "tell (what the player sees)": "A silver flash across the plaza",
+  "effect": "Knockback 4 m"
+ },
+ {
+  "beast": "Swordfish",
+  "attack": "Charge",
+  "damage": 100,
+  "windup_s": 0.5,
+  "cooldown_s": 4,
+  "range_m": 12,
+  "tell (what the player sees)": "Bill lowers",
+  "effect": "Impales and pins 2 s"
+ },
+ {
+  "beast": "Loggerhead",
+  "attack": "Crush",
+  "damage": 60,
+  "windup_s": 0.8,
+  "cooldown_s": 4,
+  "range_m": 1.2,
+  "tell (what the player sees)": "Head draws back",
+  "effect": "Destroys a Shell Shield"
+ },
+ {
+  "beast": "Monk Seal",
+  "attack": "Snatch",
+  "damage": 10,
+  "windup_s": 0.5,
+  "cooldown_s": 4,
+  "range_m": 2,
+  "tell (what the player sees)": "Rolls",
+  "effect": "Steals a held item"
+ },
+ {
+  "beast": "Monk Seal",
+  "attack": "Bite",
+  "damage": 50,
+  "windup_s": 0.5,
+  "cooldown_s": 2.5,
+  "range_m": 1.5,
+  "tell (what the player sees)": "Only if shot",
+  "effect": ""
+ },
+ {
+  "beast": "Sandbar Shark",
+  "attack": "Bite",
+  "damage": 70,
+  "windup_s": 0.4,
+  "cooldown_s": 1.8,
+  "range_m": 2,
+  "tell (what the player sees)": "Pectorals drop",
+  "effect": "Bleed 4 s"
+ },
+ {
+  "beast": "Sandbar Shark",
+  "attack": "Ram",
+  "damage": 50,
+  "windup_s": 0.5,
+  "cooldown_s": 3,
+  "range_m": 6,
+  "tell (what the player sees)": "Straight charge",
+  "effect": "Knockback 4 m, stun 1 s"
+ },
+ {
+  "beast": "Leatherback",
+  "attack": "Flipper (if shot)",
+  "damage": 80,
+  "windup_s": 0.8,
+  "cooldown_s": 5,
+  "range_m": 3,
+  "tell (what the player sees)": "Turns",
+  "effect": "Knockback 6 m"
+ },
+ {
+  "beast": "Nile Crocodile of the Canals",
+  "attack": "Death Roll",
+  "damage": 120,
+  "windup_s": 0.9,
+  "cooldown_s": 6,
+  "range_m": 2.5,
+  "tell (what the player sees)": "Rises at a sluice gate",
+  "effect": "Holds and rolls; teammates have 4 s"
+ },
+ {
+  "beast": "Nile Crocodile of the Canals",
+  "attack": "Snap",
+  "damage": 60,
+  "windup_s": 0.4,
+  "cooldown_s": 2,
+  "range_m": 2,
+  "tell (what the player sees)": "Jaw clicks",
+  "effect": "Bleed 3 s"
+ },
+ {
+  "beast": "Nile Crocodile of the Canals",
+  "attack": "Tail",
+  "damage": 45,
+  "windup_s": 0.5,
+  "cooldown_s": 3,
+  "range_m": 3,
+  "tell (what the player sees)": "Turns side-on",
+  "effect": "Knockback 4 m"
+ },
+ {
+  "beast": "Great White",
+  "attack": "Bite",
+  "damage": 110,
+  "windup_s": 0.5,
+  "cooldown_s": 2,
+  "range_m": 2.5,
+  "tell (what the player sees)": "Rolls to one side",
+  "effect": "Bleed 5 s"
+ },
+ {
+  "beast": "Great White",
+  "attack": "Ram",
+  "damage": 70,
+  "windup_s": 0.5,
+  "cooldown_s": 4,
+  "range_m": 8,
+  "tell (what the player sees)": "Straight charge",
+  "effect": "Knockback 5 m, stun 1 s"
+ },
+ {
+  "beast": "Great White",
+  "attack": "Drag",
+  "damage": 50,
+  "windup_s": 0.7,
+  "cooldown_s": 8,
+  "range_m": 2,
+  "tell (what the player sees)": "Grabs and swims",
+  "effect": "Carries 10 m; teammates shoot it off"
+ },
+ {
+  "beast": "Giant Squid",
+  "attack": "Tentacle grab",
+  "damage": 60,
+  "windup_s": 0.7,
+  "cooldown_s": 4,
+  "range_m": 8,
+  "tell (what the player sees)": "An arm slides through the doorway",
+  "effect": "Hold 3 s; drags toward the stacks"
+ },
+ {
+  "beast": "Giant Squid",
+  "attack": "Beak",
+  "damage": 120,
+  "windup_s": 0.6,
+  "cooldown_s": 5,
+  "range_m": 2,
+  "tell (what the player sees)": "Eye glows in the moss-light",
+  "effect": "Bleed 5 s"
+ },
+ {
+  "beast": "The Cistern Wyrm",
+  "attack": "Surface strike",
+  "damage": 130,
+  "windup_s": 1,
+  "cooldown_s": 6,
+  "range_m": 4,
+  "tell (what the player sees)": "The grate rattles, then bursts",
+  "effect": "Bleed 5 s; destroys the grate"
+ },
+ {
+  "beast": "The Cistern Wyrm",
+  "attack": "Drag below",
+  "damage": 0,
+  "windup_s": 0.8,
+  "cooldown_s": 12,
+  "range_m": 3,
+  "tell (what the player sees)": "Jaws open under a diver",
+  "effect": "Pulls a diver into the drains; teammates have 6 s to deal 200 to the gills"
+ },
+ {
+  "beast": "The Cistern Wyrm",
+  "attack": "Coil",
+  "damage": 90,
+  "windup_s": 0.6,
+  "cooldown_s": 5,
+  "range_m": 5,
+  "tell (what the player sees)": "Body loops a street",
+  "effect": "Knockback 6 m; blocks the street 4 s"
+ },
+ {
+  "beast": "The Cistern Wyrm",
+  "attack": "Flood",
+  "damage": 40,
+  "windup_s": 1.2,
+  "cooldown_s": 15,
+  "range_m": 15,
+  "tell (what the player sees)": "Water surges from every grate in the district",
+  "effect": "Slow 30% for 6 s in the district; blood in the district doubles"
+ }
+]

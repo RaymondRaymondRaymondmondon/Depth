@@ -1,0 +1,122 @@
+[
+ {
+  "flora": "Glass sponge reef",
+  "type": "Structure",
+  "zones": "Upper Galleries",
+  "effect": "Sharp glass: bleeds on contact; hides small beasts; shatters loudly (5 noise)",
+  "contact_damage": 6,
+  "grazed_by": "",
+  "regrowth_rate_per_s": 0,
+  "regrow_delay_s": 0
+ },
+ {
+  "flora": "Tube worm garden (vents)",
+  "type": "Producer",
+  "zones": "The Warrens",
+  "effect": "The vent web's base",
+  "contact_damage": 0,
+  "grazed_by": "Vent Shrimp, Yeti Crab",
+  "regrowth_rate_per_s": 1,
+  "regrow_delay_s": 60
+ },
+ {
+  "flora": "Bacterial mat",
+  "type": "Producer",
+  "zones": "The Warrens, Vault floor",
+  "effect": "Amphipods swarm it",
+  "contact_damage": 0,
+  "grazed_by": "Vent Shrimp, Hadal Amphipod, Yeti Crab",
+  "regrowth_rate_per_s": 1,
+  "regrow_delay_s": 45
+ },
+ {
+  "flora": "Bamboo coral",
+  "type": "Cover",
+  "zones": "Upper Galleries",
+  "effect": "Tall stalks",
+  "contact_damage": 0,
+  "grazed_by": "",
+  "regrowth_rate_per_s": 0,
+  "regrow_delay_s": 0
+ },
+ {
+  "flora": "Sea pen field",
+  "type": "Cover",
+  "zones": "The Rim",
+  "effect": "Waist-high; sand eels beneath; glows when brushed and shows a diver's path across the plain for 20 s",
+  "contact_damage": 0,
+  "grazed_by": "Giant Sea Spider",
+  "regrowth_rate_per_s": 0.5,
+  "regrow_delay_s": 180
+ },
+ {
+  "flora": "Xenophyophore carpet",
+  "type": "Producer",
+  "zones": "Upper Galleries, Warrens",
+  "effect": "Brittle; walking on it kicks up silt that hides scent for 5 s",
+  "contact_damage": 0,
+  "grazed_by": "Brittle Star",
+  "regrowth_rate_per_s": 0.3,
+  "regrow_delay_s": 120
+ },
+ {
+  "flora": "Black coral thicket",
+  "type": "Cover",
+  "zones": "Lowest Vault",
+  "effect": "Dense and dark; the leviathan's hunting ground",
+  "contact_damage": 0,
+  "grazed_by": "",
+  "regrowth_rate_per_s": 0,
+  "regrow_delay_s": 0
+ },
+ {
+  "flora": "Specimen kelp",
+  "type": "Luminous producer",
+  "zones": "Station: Labs and Quarters",
+  "effect": "Lab-grown, glowing; draws every luminous-curious species in the station; the dragonfish hunts silhouettes against it",
+  "contact_damage": 0,
+  "grazed_by": "",
+  "regrowth_rate_per_s": 0.5,
+  "regrow_delay_s": 180
+ },
+ {
+  "flora": "Pressure moss",
+  "type": "Producer",
+  "zones": "Station walls",
+  "effect": "Thin growth; harmless",
+  "contact_damage": 0,
+  "grazed_by": "",
+  "regrowth_rate_per_s": 0.2,
+  "regrow_delay_s": 300
+ },
+ {
+  "flora": "Void bloom",
+  "type": "Hazard",
+  "zones": "Overlook edges",
+  "effect": "A luminous flower that opens toward the abyss and lures curious beasts and divers over the lip",
+  "contact_damage": 0,
+  "grazed_by": "",
+  "regrowth_rate_per_s": 0,
+  "regrow_delay_s": 0
+ },
+ {
+  "flora": "Brine lily",
+  "type": "Hazard",
+  "zones": "The Warrens (brine pool)",
+  "effect": "Touching it or the pool: 20 damage and 5 s slow",
+  "contact_damage": 20,
+  "grazed_by": "",
+  "regrowth_rate_per_s": 0,
+  "regrow_delay_s": 0
+ },
+ {
+  "flora": "Lab algae tanks",
+  "type": "Producer",
+  "zones": "Station: Mess",
+  "effect": "Spirulina tanks the station's small fish (the lab algae fish) live on",
+  "contact_damage": 0,
+  "grazed_by": "",
+  "regrowth_rate_per_s": 1,
+  "regrow_delay_s": 60
+ }
+]

@@ -1,0 +1,338 @@
+[
+ {
+  "zone": "Grand Salon",
+  "species": "Bilge Sprat",
+  "count_tide1": 50,
+  "respawn_s": 20,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 65
+ },
+ {
+  "zone": "Grand Salon",
+  "species": "Sea Hare",
+  "count_tide1": 3,
+  "respawn_s": 120,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 4
+ },
+ {
+  "zone": "Grand Salon",
+  "species": "Rabbitfish",
+  "count_tide1": 5,
+  "respawn_s": 90,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 7
+ },
+ {
+  "zone": "Grand Salon",
+  "species": "Great Barracuda",
+  "count_tide1": 1,
+  "respawn_s": 240,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 1
+ },
+ {
+  "zone": "Grand Salon",
+  "species": "Saltwater Crocodile",
+  "count_tide1": 1,
+  "respawn_s": 0,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 1
+ },
+ {
+  "zone": "Grand Salon",
+  "species": "Banded Sea Snake",
+  "count_tide1": 1,
+  "respawn_s": 300,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 1
+ },
+ {
+  "zone": "Galley & Pantry",
+  "species": "Cleaner Wrasse",
+  "count_tide1": 2,
+  "respawn_s": 300,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 3
+ },
+ {
+  "zone": "Galley & Pantry",
+  "species": "Cleaner Shrimp",
+  "count_tide1": 6,
+  "respawn_s": 300,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 8
+ },
+ {
+  "zone": "Galley & Pantry",
+  "species": "Stonefish",
+  "count_tide1": 2,
+  "respawn_s": 0,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 3
+ },
+ {
+  "zone": "Galley & Pantry",
+  "species": "Bilge Sprat",
+  "count_tide1": 30,
+  "respawn_s": 20,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 39
+ },
+ {
+  "zone": "Cabin Deck",
+  "species": "Barnacle Goby",
+  "count_tide1": 12,
+  "respawn_s": 60,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 16
+ },
+ {
+  "zone": "Cabin Deck",
+  "species": "Blenny",
+  "count_tide1": 6,
+  "respawn_s": 90,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 8
+ },
+ {
+  "zone": "Cabin Deck",
+  "species": "Arrow Crab",
+  "count_tide1": 6,
+  "respawn_s": 120,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 8
+ },
+ {
+  "zone": "Cabin Deck",
+  "species": "Feather Duster Worm",
+  "count_tide1": 10,
+  "respawn_s": 0,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 13
+ },
+ {
+  "zone": "Cabin Deck",
+  "species": "Lionfish",
+  "count_tide1": 3,
+  "respawn_s": 180,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 4
+ },
+ {
+  "zone": "Cabin Deck",
+  "species": "Squirrelfish",
+  "count_tide1": 3,
+  "respawn_s": 180,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 4
+ },
+ {
+  "zone": "Cabin Deck",
+  "species": "Cuttlefish",
+  "count_tide1": 2,
+  "respawn_s": 240,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 3
+ },
+ {
+  "zone": "Cabin Deck",
+  "species": "Green Moray",
+  "count_tide1": 4,
+  "respawn_s": 360,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 5
+ },
+ {
+  "zone": "Cabin Deck",
+  "species": "Common Octopus",
+  "count_tide1": 1,
+  "respawn_s": 600,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 1
+ },
+ {
+  "zone": "Cabin Deck",
+  "species": "Parrotfish",
+  "count_tide1": 3,
+  "respawn_s": 150,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 4
+ },
+ {
+  "zone": "Engine Room",
+  "species": "Rudder Krill",
+  "count_tide1": 1,
+  "respawn_s": 60,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 1
+ },
+ {
+  "zone": "Engine Room",
+  "species": "Grouper",
+  "count_tide1": 2,
+  "respawn_s": 300,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 3
+ },
+ {
+  "zone": "Engine Room",
+  "species": "Lamprey",
+  "count_tide1": 3,
+  "respawn_s": 240,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 4
+ },
+ {
+  "zone": "Engine Room",
+  "species": "The Goliath",
+  "count_tide1": 1,
+  "respawn_s": 0,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 1
+ },
+ {
+  "zone": "Stern & Swim Platform",
+  "species": "Jelly Bloom",
+  "count_tide1": 1,
+  "respawn_s": 180,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 1
+ },
+ {
+  "zone": "Stern & Swim Platform",
+  "species": "Hawksbill Turtle",
+  "count_tide1": 1,
+  "respawn_s": 400,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 1
+ },
+ {
+  "zone": "Stern & Swim Platform",
+  "species": "Bull Shark",
+  "count_tide1": 1,
+  "respawn_s": 600,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 1
+ },
+ {
+  "zone": "Stern & Swim Platform",
+  "species": "Reef Squid",
+  "count_tide1": 8,
+  "respawn_s": 120,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 10
+ },
+ {
+  "zone": "The Keel & Sand",
+  "species": "Silverside",
+  "count_tide1": 60,
+  "respawn_s": 20,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 78
+ },
+ {
+  "zone": "The Keel & Sand",
+  "species": "Sergeant Major",
+  "count_tide1": 6,
+  "respawn_s": 90,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 8
+ },
+ {
+  "zone": "The Keel & Sand",
+  "species": "Fiddler Crab",
+  "count_tide1": 10,
+  "respawn_s": 60,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 13
+ },
+ {
+  "zone": "The Keel & Sand",
+  "species": "Hermit Crab",
+  "count_tide1": 8,
+  "respawn_s": 90,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 10
+ },
+ {
+  "zone": "The Keel & Sand",
+  "species": "Whelk",
+  "count_tide1": 8,
+  "respawn_s": 120,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 10
+ },
+ {
+  "zone": "The Keel & Sand",
+  "species": "Damselfish",
+  "count_tide1": 8,
+  "respawn_s": 90,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 10
+ },
+ {
+  "zone": "The Keel & Sand",
+  "species": "Mantis Shrimp",
+  "count_tide1": 3,
+  "respawn_s": 300,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 4
+ },
+ {
+  "zone": "The Keel & Sand",
+  "species": "Parrotfish",
+  "count_tide1": 4,
+  "respawn_s": 150,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 5
+ },
+ {
+  "zone": "The Keel & Sand",
+  "species": "Remora",
+  "count_tide1": 4,
+  "respawn_s": 120,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 5
+ },
+ {
+  "zone": "The Keel & Sand",
+  "species": "Bluefin Trevally",
+  "count_tide1": 5,
+  "respawn_s": 300,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 7
+ },
+ {
+  "zone": "The Keel & Sand",
+  "species": "Nurse Shark",
+  "count_tide1": 1,
+  "respawn_s": 500,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 1
+ },
+ {
+  "zone": "The Keel & Sand",
+  "species": "Loggerhead Turtle",
+  "count_tide1": 1,
+  "respawn_s": 500,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 1
+ },
+ {
+  "zone": "The Keel & Sand",
+  "species": "Sand Tiger Shark",
+  "count_tide1": 1,
+  "respawn_s": 700,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 1
+ },
+ {
+  "zone": "Outside",
+  "species": "Tiger Shark",
+  "count_tide1": 1,
+  "respawn_s": 900,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 1
+ }
+]

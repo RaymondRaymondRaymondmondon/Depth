@@ -1,5 +1,6 @@
 #include "sound.h"
 #include "beasts.h"
+#include "redtide.h"
 // ============================================================================
 //  DEPTH - entry point. Opens the window and runs whichever scene is active.
 //
@@ -15,6 +16,7 @@
 #include "levelgen.h"
 #include "relics.h"
 #include <algorithm>
+#include <cmath>
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
@@ -516,6 +518,20 @@ int main(int argc, char** argv) {
     if (argc >= 2 && strcmp(argv[1], "--verify-moves") == 0) {
         SetTraceLogLevel(LOG_WARNING);
         return VerifyMoves() ? 0 : 1;
+    }
+    // Red Tide (the Deep Arcade's survival shooter): the headless ecosystem tools
+    if (argc >= 3 && strcmp(argv[1], "--eco-sim") == 0) {
+        SetTraceLogLevel(LOG_WARNING);
+        return rt::RunEcoSim(argv[2], argc >= 4 ? (float)atof(argv[3]) : 5.0f, argc >= 5 ? argv[4] : "sprat");
+    }
+    if (argc >= 3 && strcmp(argv[1], "--web-check") == 0) {
+        SetTraceLogLevel(LOG_WARNING);
+        if (strcmp(argv[2], "all") == 0) { int r = 0; for (const char* k : {"ship", "cave", "reef", "atlantis", "void"}) r |= rt::RunWebCheck(k); return r; }
+        return rt::RunWebCheck(argv[2]);
+    }
+    if (argc >= 3 && strcmp(argv[1], "--eco-test") == 0) {
+        SetTraceLogLevel(LOG_WARNING);
+        return rt::RunEcoTest(argv[2]);
     }
     if (argc >= 2 && strcmp(argv[1], "--verify-beasts") == 0) {
         SetTraceLogLevel(LOG_WARNING);

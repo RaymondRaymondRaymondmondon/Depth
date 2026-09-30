@@ -1,0 +1,372 @@
+[
+ {
+  "beast": "Clownfish",
+  "attack": "Nip",
+  "damage": 1,
+  "windup_s": 0.2,
+  "cooldown_s": 0.4,
+  "range_m": 1,
+  "tell (what the player sees)": "Darts out",
+  "effect": ""
+ },
+ {
+  "beast": "Sea Urchin",
+  "attack": "Spines",
+  "damage": 8,
+  "windup_s": 0,
+  "cooldown_s": 0,
+  "range_m": 0.5,
+  "tell (what the player sees)": "",
+  "effect": "Contact 8"
+ },
+ {
+  "beast": "Triggerfish",
+  "attack": "Bite",
+  "damage": 10,
+  "windup_s": 0.3,
+  "cooldown_s": 1.2,
+  "range_m": 1,
+  "tell (what the player sees)": "Fins flare",
+  "effect": ""
+ },
+ {
+  "beast": "Surgeonfish",
+  "attack": "Scalpel",
+  "damage": 12,
+  "windup_s": 0,
+  "cooldown_s": 0,
+  "range_m": 0.5,
+  "tell (what the player sees)": "",
+  "effect": "Bleed 3 s if grabbed"
+ },
+ {
+  "beast": "Cone Snail",
+  "attack": "Harpoon sting",
+  "damage": 30,
+  "windup_s": 0.2,
+  "cooldown_s": 4,
+  "range_m": 0.5,
+  "tell (what the player sees)": "Siphon extends",
+  "effect": "Poison 30 over 15 s"
+ },
+ {
+  "beast": "Blue-ringed Octopus",
+  "attack": "Bite",
+  "damage": 5,
+  "windup_s": 0.4,
+  "cooldown_s": 6,
+  "range_m": 0.7,
+  "tell (what the player sees)": "Blue rings flash",
+  "effect": "Poison 60 over 20 s; paralysis 3 s"
+ },
+ {
+  "beast": "Box Jelly",
+  "attack": "Tentacles",
+  "damage": 25,
+  "windup_s": 0,
+  "cooldown_s": 1,
+  "range_m": 2,
+  "tell (what the player sees)": "Nearly invisible",
+  "effect": "Paralysis 1 s"
+ },
+ {
+  "beast": "Crown-of-thorns Starfish",
+  "attack": "Spines",
+  "damage": 10,
+  "windup_s": 0,
+  "cooldown_s": 0,
+  "range_m": 0.5,
+  "tell (what the player sees)": "",
+  "effect": "Poison 5 s"
+ },
+ {
+  "beast": "Ribbon Eel",
+  "attack": "Bite",
+  "damage": 20,
+  "windup_s": 0.3,
+  "cooldown_s": 1.5,
+  "range_m": 1.2,
+  "tell (what the player sees)": "Ribbon flutters",
+  "effect": ""
+ },
+ {
+  "beast": "Reef Cuttlefish",
+  "attack": "Dazzle",
+  "damage": 0,
+  "windup_s": 0.5,
+  "cooldown_s": 6,
+  "range_m": 4,
+  "tell (what the player sees)": "Skin ripples",
+  "effect": "Aim sway +30% for 3 s"
+ },
+ {
+  "beast": "Giant Reef Toad",
+  "attack": "Tongue",
+  "damage": 20,
+  "windup_s": 0.6,
+  "cooldown_s": 4,
+  "range_m": 5,
+  "tell (what the player sees)": "Throat swells",
+  "effect": "Pulls 2 s, then Bite"
+ },
+ {
+  "beast": "Giant Reef Toad",
+  "attack": "Bite",
+  "damage": 35,
+  "windup_s": 0.4,
+  "cooldown_s": 2,
+  "range_m": 1.5,
+  "tell (what the player sees)": "Jaw drops",
+  "effect": "Hold 1 s"
+ },
+ {
+  "beast": "Olive Sea Snake",
+  "attack": "Bite",
+  "damage": 10,
+  "windup_s": 0.5,
+  "cooldown_s": 2,
+  "range_m": 1,
+  "tell (what the player sees)": "Investigates the visor first",
+  "effect": "Poison 25 over 10 s"
+ },
+ {
+  "beast": "Green Turtle",
+  "attack": "Bite",
+  "damage": 25,
+  "windup_s": 0.6,
+  "cooldown_s": 3,
+  "range_m": 1,
+  "tell (what the player sees)": "Only if shot",
+  "effect": ""
+ },
+ {
+  "beast": "Moray Eel",
+  "attack": "Strike",
+  "damage": 35,
+  "windup_s": 0.4,
+  "cooldown_s": 1.5,
+  "range_m": 2,
+  "tell (what the player sees)": "Mouth opens wide",
+  "effect": "Bleed 3 s"
+ },
+ {
+  "beast": "Moray Eel",
+  "attack": "Hold",
+  "damage": 15,
+  "windup_s": 0.6,
+  "cooldown_s": 4,
+  "range_m": 1.5,
+  "tell (what the player sees)": "Straightens",
+  "effect": "Hold 2 s"
+ },
+ {
+  "beast": "Coral Grouper",
+  "attack": "Gulp",
+  "damage": 40,
+  "windup_s": 0.6,
+  "cooldown_s": 2.5,
+  "range_m": 2,
+  "tell (what the player sees)": "Gills flare",
+  "effect": "Hold 1 s"
+ },
+ {
+  "beast": "Stingray",
+  "attack": "Barb",
+  "damage": 40,
+  "windup_s": 0.3,
+  "cooldown_s": 3,
+  "range_m": 2,
+  "tell (what the player sees)": "Tail arches",
+  "effect": "Bleed 5 s"
+ },
+ {
+  "beast": "Bobbit Worm",
+  "attack": "Lunge",
+  "damage": 80,
+  "windup_s": 0.3,
+  "cooldown_s": 5,
+  "range_m": 3,
+  "tell (what the player sees)": "Antennae tips above sand",
+  "effect": "Hold and drag 2 s"
+ },
+ {
+  "beast": "Titan Triggerfish",
+  "attack": "Charge bite",
+  "damage": 45,
+  "windup_s": 0.4,
+  "cooldown_s": 1.5,
+  "range_m": 2,
+  "tell (what the player sees)": "Turns head-on, fins up",
+  "effect": "Knockback 2 m; bleed 3 s"
+ },
+ {
+  "beast": "Napoleon Wrasse",
+  "attack": "Bite",
+  "damage": 50,
+  "windup_s": 0.6,
+  "cooldown_s": 3,
+  "range_m": 1.5,
+  "tell (what the player sees)": "Only if shot",
+  "effect": ""
+ },
+ {
+  "beast": "Blacktip Reef Shark",
+  "attack": "Bite",
+  "damage": 60,
+  "windup_s": 0.4,
+  "cooldown_s": 1.8,
+  "range_m": 2,
+  "tell (what the player sees)": "Pectorals drop",
+  "effect": "Bleed 4 s"
+ },
+ {
+  "beast": "Blacktip Reef Shark",
+  "attack": "Drive",
+  "damage": 30,
+  "windup_s": 0.5,
+  "cooldown_s": 3,
+  "range_m": 4,
+  "tell (what the player sees)": "Pack fans out",
+  "effect": "Knockback 3 m"
+ },
+ {
+  "beast": "Grey Reef Shark",
+  "attack": "Bite",
+  "damage": 75,
+  "windup_s": 0.4,
+  "cooldown_s": 1.8,
+  "range_m": 2,
+  "tell (what the player sees)": "Hunched threat display first",
+  "effect": "Bleed 4 s"
+ },
+ {
+  "beast": "Grey Reef Shark",
+  "attack": "Ram",
+  "damage": 50,
+  "windup_s": 0.5,
+  "cooldown_s": 3,
+  "range_m": 6,
+  "tell (what the player sees)": "Straight charge",
+  "effect": "Knockback 4 m, stun 1 s"
+ },
+ {
+  "beast": "Bottlenose Dolphin",
+  "attack": "Ram (sharks)",
+  "damage": 80,
+  "windup_s": 0.4,
+  "cooldown_s": 2,
+  "range_m": 3,
+  "tell (what the player sees)": "Whistles",
+  "effect": "Knocks a shark back 5 m"
+ },
+ {
+  "beast": "Bottlenose Dolphin",
+  "attack": "Ram (divers, if hostile)",
+  "damage": 40,
+  "windup_s": 0.4,
+  "cooldown_s": 2,
+  "range_m": 3,
+  "tell (what the player sees)": "Clicks",
+  "effect": "Knockback 3 m"
+ },
+ {
+  "beast": "Monk Seal",
+  "attack": "Snatch",
+  "damage": 10,
+  "windup_s": 0.5,
+  "cooldown_s": 4,
+  "range_m": 2,
+  "tell (what the player sees)": "Rolls playfully",
+  "effect": "Steals a held item; keep-away"
+ },
+ {
+  "beast": "Monk Seal",
+  "attack": "Bite",
+  "damage": 50,
+  "windup_s": 0.5,
+  "cooldown_s": 2.5,
+  "range_m": 1.5,
+  "tell (what the player sees)": "Only if shot",
+  "effect": ""
+ },
+ {
+  "beast": "Great Hammerhead",
+  "attack": "Bite",
+  "damage": 110,
+  "windup_s": 0.5,
+  "cooldown_s": 2,
+  "range_m": 2.5,
+  "tell (what the player sees)": "Head swings side to side",
+  "effect": "Bleed 5 s"
+ },
+ {
+  "beast": "Great Hammerhead",
+  "attack": "Ram",
+  "damage": 70,
+  "windup_s": 0.5,
+  "cooldown_s": 4,
+  "range_m": 8,
+  "tell (what the player sees)": "Straight charge",
+  "effect": "Knockback 5 m, stun 1 s"
+ },
+ {
+  "beast": "Great Hammerhead",
+  "attack": "Pin",
+  "damage": 60,
+  "windup_s": 0.7,
+  "cooldown_s": 6,
+  "range_m": 2,
+  "tell (what the player sees)": "Pins with its head",
+  "effect": "Holds a diver 2 s against the sand"
+ },
+ {
+  "beast": "Humpback Whale",
+  "attack": "Fluke (if shot)",
+  "damage": 120,
+  "windup_s": 0.8,
+  "cooldown_s": 6,
+  "range_m": 5,
+  "tell (what the player sees)": "Tail rises",
+  "effect": "Knockback 8 m"
+ },
+ {
+  "beast": "The Matriarch",
+  "attack": "Ram",
+  "damage": 120,
+  "windup_s": 0.6,
+  "cooldown_s": 3,
+  "range_m": 10,
+  "tell (what the player sees)": "Straight charge with a click burst",
+  "effect": "Knockback 8 m, stun 1 s"
+ },
+ {
+  "beast": "The Matriarch",
+  "attack": "Bite",
+  "damage": 150,
+  "windup_s": 0.5,
+  "cooldown_s": 2.5,
+  "range_m": 3,
+  "tell (what the player sees)": "Mouth opens",
+  "effect": "Hold 3 s; carries a diver 15 m"
+ },
+ {
+  "beast": "The Matriarch",
+  "attack": "Tail Slap",
+  "damage": 90,
+  "windup_s": 0.5,
+  "cooldown_s": 4,
+  "range_m": 5,
+  "tell (what the player sees)": "Turns broadside",
+  "effect": "Knockback 6 m; collapses coral"
+ },
+ {
+  "beast": "The Matriarch",
+  "attack": "Herd",
+  "damage": 0,
+  "windup_s": 1,
+  "cooldown_s": 8,
+  "range_m": 30,
+  "tell (what the player sees)": "Pod fans wide",
+  "effect": "Pod members push divers off cover toward her"
+ }
+]

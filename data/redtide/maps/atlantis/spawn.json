@@ -1,0 +1,410 @@
+[
+ {
+  "zone": "Harbor Gate",
+  "species": "Sardine",
+  "count_tide1": 40,
+  "respawn_s": 20,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 52
+ },
+ {
+  "zone": "Harbor Gate",
+  "species": "Barracuda",
+  "count_tide1": 1,
+  "respawn_s": 300,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 1
+ },
+ {
+  "zone": "Harbor Gate",
+  "species": "Cardinalfish",
+  "count_tide1": 6,
+  "respawn_s": 90,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 8
+ },
+ {
+  "zone": "The Farms",
+  "species": "Bream",
+  "count_tide1": 30,
+  "respawn_s": 30,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 39
+ },
+ {
+  "zone": "The Farms",
+  "species": "Salema",
+  "count_tide1": 40,
+  "respawn_s": 30,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 52
+ },
+ {
+  "zone": "The Farms",
+  "species": "Cistern Frog",
+  "count_tide1": 8,
+  "respawn_s": 180,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 10
+ },
+ {
+  "zone": "The Farms",
+  "species": "Aqueduct Newt",
+  "count_tide1": 10,
+  "respawn_s": 120,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 13
+ },
+ {
+  "zone": "The Farms",
+  "species": "Spider Crab",
+  "count_tide1": 3,
+  "respawn_s": 300,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 4
+ },
+ {
+  "zone": "The Farms",
+  "species": "Nile Crocodile of the Canals",
+  "count_tide1": 1,
+  "respawn_s": 0,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 1
+ },
+ {
+  "zone": "The Farms",
+  "species": "Amberjack",
+  "count_tide1": 6,
+  "respawn_s": 300,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 8
+ },
+ {
+  "zone": "The Lower Town",
+  "species": "Sardine",
+  "count_tide1": 80,
+  "respawn_s": 20,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 104
+ },
+ {
+  "zone": "The Lower Town",
+  "species": "Cardinalfish",
+  "count_tide1": 20,
+  "respawn_s": 90,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 26
+ },
+ {
+  "zone": "The Lower Town",
+  "species": "Snapping Shrimp",
+  "count_tide1": 1,
+  "respawn_s": 0,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 1
+ },
+ {
+  "zone": "The Lower Town",
+  "species": "Porcelain Crab",
+  "count_tide1": 12,
+  "respawn_s": 90,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 16
+ },
+ {
+  "zone": "The Lower Town",
+  "species": "Sea Cucumber",
+  "count_tide1": 8,
+  "respawn_s": 120,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 10
+ },
+ {
+  "zone": "The Lower Town",
+  "species": "Long-spined Urchin",
+  "count_tide1": 15,
+  "respawn_s": 120,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 20
+ },
+ {
+  "zone": "The Lower Town",
+  "species": "Scorpionfish",
+  "count_tide1": 4,
+  "respawn_s": 0,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 5
+ },
+ {
+  "zone": "The Lower Town",
+  "species": "Cuttlefish",
+  "count_tide1": 3,
+  "respawn_s": 240,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 4
+ },
+ {
+  "zone": "The Lower Town",
+  "species": "Slipper Lobster",
+  "count_tide1": 4,
+  "respawn_s": 180,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 5
+ },
+ {
+  "zone": "The Lower Town",
+  "species": "Mantis Shrimp",
+  "count_tide1": 3,
+  "respawn_s": 300,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 4
+ },
+ {
+  "zone": "The Lower Town",
+  "species": "Octopus",
+  "count_tide1": 6,
+  "respawn_s": 600,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 8
+ },
+ {
+  "zone": "The Lower Town",
+  "species": "Dentex",
+  "count_tide1": 4,
+  "respawn_s": 300,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 5
+ },
+ {
+  "zone": "The Lower Town",
+  "species": "Sandbar Shark",
+  "count_tide1": 1,
+  "respawn_s": 600,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 1
+ },
+ {
+  "zone": "Courtyards",
+  "species": "Cormorant",
+  "count_tide1": 10,
+  "respawn_s": 120,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 13
+ },
+ {
+  "zone": "Courtyards",
+  "species": "Man o' War",
+  "count_tide1": 3,
+  "respawn_s": 240,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 4
+ },
+ {
+  "zone": "Courtyards",
+  "species": "Loggerhead",
+  "count_tide1": 1,
+  "respawn_s": 500,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 1
+ },
+ {
+  "zone": "Courtyards",
+  "species": "Monk Seal",
+  "count_tide1": 1,
+  "respawn_s": 600,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 1
+ },
+ {
+  "zone": "The Bathhouses",
+  "species": "Cleaner Goby",
+  "count_tide1": 4,
+  "respawn_s": 300,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 5
+ },
+ {
+  "zone": "The Bathhouses",
+  "species": "Nudibranch",
+  "count_tide1": 4,
+  "respawn_s": 180,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 5
+ },
+ {
+  "zone": "The Bathhouses",
+  "species": "Sea Bass",
+  "count_tide1": 3,
+  "respawn_s": 300,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 4
+ },
+ {
+  "zone": "The Bathhouses",
+  "species": "Water Monitor",
+  "count_tide1": 1,
+  "respawn_s": 600,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 1
+ },
+ {
+  "zone": "The Bathhouses",
+  "species": "Cardinalfish",
+  "count_tide1": 15,
+  "respawn_s": 90,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 20
+ },
+ {
+  "zone": "Barracks & Armory",
+  "species": "Amberjack",
+  "count_tide1": 6,
+  "respawn_s": 300,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 8
+ },
+ {
+  "zone": "Barracks & Armory",
+  "species": "Spider Crab",
+  "count_tide1": 2,
+  "respawn_s": 300,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 3
+ },
+ {
+  "zone": "Barracks & Armory",
+  "species": "Slipper Lobster",
+  "count_tide1": 3,
+  "respawn_s": 180,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 4
+ },
+ {
+  "zone": "Library & Academy",
+  "species": "Giant Squid",
+  "count_tide1": 1,
+  "respawn_s": 0,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 1
+ },
+ {
+  "zone": "Library & Academy",
+  "species": "Cardinalfish",
+  "count_tide1": 12,
+  "respawn_s": 90,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 16
+ },
+ {
+  "zone": "Library & Academy",
+  "species": "Temple Krait",
+  "count_tide1": 2,
+  "respawn_s": 300,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 3
+ },
+ {
+  "zone": "The Forum",
+  "species": "Feather Star",
+  "count_tide1": 6,
+  "respawn_s": 0,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 8
+ },
+ {
+  "zone": "The Forum",
+  "species": "Moon Jelly Bloom",
+  "count_tide1": 1,
+  "respawn_s": 180,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 1
+ },
+ {
+  "zone": "The Forum",
+  "species": "Bluefin Tuna",
+  "count_tide1": 3,
+  "respawn_s": 400,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 4
+ },
+ {
+  "zone": "The Forum",
+  "species": "Swordfish",
+  "count_tide1": 1,
+  "respawn_s": 500,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 1
+ },
+ {
+  "zone": "The Forum",
+  "species": "Leatherback",
+  "count_tide1": 1,
+  "respawn_s": 0,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 1
+ },
+ {
+  "zone": "The Forum",
+  "species": "Sea Bass",
+  "count_tide1": 1,
+  "respawn_s": 300,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 1
+ },
+ {
+  "zone": "The Grand Chapel",
+  "species": "Temple Krait",
+  "count_tide1": 3,
+  "respawn_s": 300,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 4
+ },
+ {
+  "zone": "The Grand Chapel",
+  "species": "Cardinalfish",
+  "count_tide1": 10,
+  "respawn_s": 90,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 13
+ },
+ {
+  "zone": "The Grand Chapel",
+  "species": "The Cistern Wyrm",
+  "count_tide1": 1,
+  "respawn_s": 0,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 1
+ },
+ {
+  "zone": "Cisterns",
+  "species": "Conger Eel",
+  "count_tide1": 6,
+  "respawn_s": 360,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 8
+ },
+ {
+  "zone": "Cisterns",
+  "species": "Lamprey",
+  "count_tide1": 4,
+  "respawn_s": 120,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 5
+ },
+ {
+  "zone": "Cisterns",
+  "species": "Cistern Frog",
+  "count_tide1": 10,
+  "respawn_s": 180,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 13
+ },
+ {
+  "zone": "Beyond the wall",
+  "species": "Great White",
+  "count_tide1": 1,
+  "respawn_s": 900,
+  "capacity_mult_per_tide": 1.03,
+  "count_tide10": 1
+ }
+]

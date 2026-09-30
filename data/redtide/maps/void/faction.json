@@ -1,0 +1,100 @@
+[
+ [
+  "The Remnant"
+ ],
+ [
+  "What's left of the research station: mad researchers in pressure suits, clockwork sentinels that leak oil instead of blood, and void cultists who want to reach the edge. Sentinels have no scent; researchers and cultists bleed normally and are eaten; the Station Chief's mech is size 5 and the Relict attacks it on sight."
+ ],
+ [
+  "unit",
+  "hp_tide1",
+  "weapon",
+  "damage",
+  "speed",
+  "role",
+  "tell",
+  "loot"
+ ],
+ [
+  "Sentinel",
+  250,
+  "Rotary needler",
+  "20 x 900 rpm in 3 s bursts",
+  "Slow (1.0); walks on the floor",
+  "Holds chokepoints and doorways; never advances; spins up for 1 s",
+  "A rising whine and a red lamp",
+  "Rotary needler (a Locker-class weapon, 60 rounds), 300"
+ ],
+ [
+  "Researcher",
+  120,
+  "Gas grenades and a repair torch",
+  "Gas: 15/s in a 4 m cloud for 6 s; the torch heals Sentinels 20/s",
+  "Diver speed",
+  "Stays behind the Sentinels; deploys and re-aims lure beacons",
+  "A hiss before a throw; the torch's blue flame",
+  "Gas grenades (tactical x2), a beacon key, 240"
+ ],
+ [
+  "Void Cultist",
+  130,
+  "Ritual knife",
+  "30 melee; chants: divers within 10 m lose 5 nerves/s and drift 0.3 m/s toward the nearest overlook",
+  "Diver speed",
+  "Tries to reach an overlook edge; on reaching it, summons 3 hatchetfish swarms and a Colossal Squid tentacle for 20 s",
+  "Arms wide, walking backward toward the edge",
+  "A void charm, 220"
+ ],
+ [
+  "Station Chief (Hunts)",
+  1200,
+  "Diving mech: twin harpoon cannons and a grab-claw",
+  "Cannon 200 per bolt (1 per 4 s); claw hold 3 s then 120",
+  "Slow (1.2); size 5",
+  "Anchors the Hunt from the mech bay; switches Beacon 4 on; the Relict attacks it on sight",
+  "Floodlights sweep before the cannons fire; hydraulic hiss before the claw",
+  "The Stormlock rack unlocks; mech parts (build), 800"
+ ],
+ [
+  "Squad tactics"
+ ],
+ [
+  "1. Squads enter at Airlock A, Airlock B, or the upper airlock; Sentinels take the nearest doorway and hold it; Researchers set a lure beacon toward the divers; Cultists walk for the nearest overlook."
+ ],
+ [
+  "2. On contact: Sentinels spin up and hold; Researchers gas the corridor the divers are in and heal the Sentinels; the Cultist's chant drifts divers toward the edge. Break a Sentinel with a limpet or flank it (its needler has a 90-degree arc)."
+ ],
+ [
+  "3. Sentinels are immune to scent and blood rules and ignore beasts; Researchers and Cultists are eaten like anyone and run from goblin sharks and the caiman."
+ ],
+ [
+  "4. Chum and ink do nothing to Sentinels; the reactor vent and the pressure door kill them; the pen doors trap the caiman away from them (they know) or onto them (a build)."
+ ],
+ [
+  "5. In a Hunt the Chief holds the mech bay and turns Beacon 4 on (drawing beasts to the Forge); leading the mech to Overlook 5 brings the Relict, which ends the Hunt one way or the other."
+ ],
+ [
+  "Barks (formant synth, subtitled)"
+ ],
+ [
+  "Sentinel: (klaxon) 'Perimeter. Perimeter.'"
+ ],
+ [
+  "Researcher: 'Specimens in the hall. Tag them.' / 'Beacon set. Let the deep collect them.'"
+ ],
+ [
+  "Cultist: 'The edge is a door.' / 'Walk with me to the light below.'"
+ ],
+ [
+  "Researcher losing: 'Fall back to the reactor. The Chief has it.'"
+ ],
+ [
+  "Chief: 'Nobody leaves the station. Nobody ever has.' / 'Floodlights. Harpoons. Bring me the samples.'"
+ ],
+ [
+  "Chief sees the Relict: 'No... the egg. It came back for the egg.'"
+ ],
+ [
+  "Enemy HP x1.08 per tide; weapons upgrade every 5 tides (Forged at 15+)."
+ ]
+]

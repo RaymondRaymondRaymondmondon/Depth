@@ -1,0 +1,238 @@
+{
+ "foods": [
+  "Anthias",
+  "Clownfish",
+  "Butterflyfish",
+  "Cleaner Wrasse",
+  "Sea Urchin",
+  "Spiny Lobster",
+  "Angelfish",
+  "Triggerfish",
+  "Surgeonfish",
+  "Garden Eel",
+  "Goatfish",
+  "Flounder",
+  "Razorfish",
+  "Sand Dollar",
+  "Cone Snail",
+  "Blue-ringed Octopus",
+  "Box Jelly",
+  "Crown-of-thorns Starfish",
+  "Ribbon Eel",
+  "Reef Cuttlefish",
+  "Crab-eating Frog",
+  "Reef Axolotl",
+  "Giant Reef Toad",
+  "Marine Iguana",
+  "Olive Sea Snake",
+  "Green Turtle",
+  "Moray Eel",
+  "Coral Grouper",
+  "Stingray",
+  "Bobbit Worm",
+  "Titan Triggerfish",
+  "Napoleon Wrasse",
+  "Dugong",
+  "Blacktip Reef Shark",
+  "Grey Reef Shark",
+  "Bottlenose Dolphin",
+  "Monk Seal",
+  "Manta Ray",
+  "Great Hammerhead",
+  "Humpback Whale",
+  "The Matriarch",
+  "Plankton",
+  "Detritus",
+  "Corpse",
+  "Parasites",
+  "Staghorn coral polyps",
+  "Turf algae",
+  "Seagrass",
+  "Halimeda",
+  "Sponges",
+  "Soft coral",
+  "Raider",
+  "Diver"
+ ],
+ "rows": {
+  "Anthias": {
+   "Plankton": 1
+  },
+  "Clownfish": {
+   "Plankton": 0.6,
+   "Turf algae": 0.4
+  },
+  "Butterflyfish": {
+   "Staghorn coral polyps": 1
+  },
+  "Cleaner Wrasse": {
+   "Parasites": 1
+  },
+  "Sea Urchin": {
+   "Turf algae": 0.4,
+   "Halimeda": 0.6
+  },
+  "Spiny Lobster": {
+   "Sea Urchin": 0.5,
+   "Cone Snail": 0.2,
+   "Detritus": 0.3
+  },
+  "Angelfish": {
+   "Sponges": 0.5,
+   "Soft coral": 0.5
+  },
+  "Triggerfish": {
+   "Sea Urchin": 0.6,
+   "Spiny Lobster": 0.4
+  },
+  "Surgeonfish": {
+   "Turf algae": 1
+  },
+  "Garden Eel": {
+   "Plankton": 1
+  },
+  "Goatfish": {
+   "Sand Dollar": 0.2,
+   "Cone Snail": 0.3,
+   "Detritus": 0.5
+  },
+  "Flounder": {
+   "Garden Eel": 0.5,
+   "Razorfish": 0.5
+  },
+  "Razorfish": {
+   "Plankton": 1
+  },
+  "Sand Dollar": {
+   "Detritus": 1
+  },
+  "Cone Snail": {
+   "Garden Eel": 0.6,
+   "Goatfish": 0.4
+  },
+  "Blue-ringed Octopus": {
+   "Sea Urchin": 0.2,
+   "Spiny Lobster": 0.4,
+   "Goatfish": 0.4
+  },
+  "Box Jelly": {
+   "Razorfish": 0.5,
+   "Plankton": 0.5
+  },
+  "Crown-of-thorns Starfish": {
+   "Staghorn coral polyps": 1
+  },
+  "Ribbon Eel": {
+   "Anthias": 0.5,
+   "Butterflyfish": 0.5
+  },
+  "Reef Cuttlefish": {
+   "Spiny Lobster": 0.4,
+   "Goatfish": 0.6
+  },
+  "Crab-eating Frog": {
+   "Spiny Lobster": 0.3,
+   "Detritus": 0.7
+  },
+  "Reef Axolotl": {
+   "Razorfish": 0.5,
+   "Detritus": 0.5
+  },
+  "Giant Reef Toad": {
+   "Crab-eating Frog": 0.4,
+   "Reef Axolotl": 0.4,
+   "Diver": 0.2
+  },
+  "Marine Iguana": {
+   "Turf algae": 1
+  },
+  "Olive Sea Snake": {
+   "Garden Eel": 0.6,
+   "Ribbon Eel": 0.4
+  },
+  "Green Turtle": {
+   "Box Jelly": 0.3,
+   "Seagrass": 0.7
+  },
+  "Moray Eel": {
+   "Spiny Lobster": 0.3,
+   "Blue-ringed Octopus": 0.3,
+   "Reef Cuttlefish": 0.4
+  },
+  "Coral Grouper": {
+   "Anthias": 0.4,
+   "Butterflyfish": 0.3,
+   "Ribbon Eel": 0.3
+  },
+  "Stingray": {
+   "Garden Eel": 0.4,
+   "Goatfish": 0.3,
+   "Flounder": 0.3
+  },
+  "Bobbit Worm": {
+   "Goatfish": 0.3,
+   "Flounder": 0.2,
+   "Stingray": 0.2,
+   "Diver": 0.3
+  },
+  "Titan Triggerfish": {
+   "Sea Urchin": 0.5,
+   "Spiny Lobster": 0.3,
+   "Staghorn coral polyps": 0.2
+  },
+  "Napoleon Wrasse": {
+   "Sea Urchin": 0.4,
+   "Cone Snail": 0.3,
+   "Blue-ringed Octopus": 0.3
+  },
+  "Dugong": {
+   "Seagrass": 1
+  },
+  "Blacktip Reef Shark": {
+   "Triggerfish": 0.2,
+   "Surgeonfish": 0.3,
+   "Reef Cuttlefish": 0.2,
+   "Marine Iguana": 0.2,
+   "Raider": 0.1
+  },
+  "Grey Reef Shark": {
+   "Blue-ringed Octopus": 0.1,
+   "Green Turtle": 0.2,
+   "Coral Grouper": 0.3,
+   "Raider": 0.2,
+   "Diver": 0.2
+  },
+  "Bottlenose Dolphin": {
+   "Anthias": 0.4,
+   "Goatfish": 0.3,
+   "Reef Cuttlefish": 0.3
+  },
+  "Monk Seal": {
+   "Spiny Lobster": 0.4,
+   "Angelfish": 0.4,
+   "Blue-ringed Octopus": 0.2
+  },
+  "Manta Ray": {
+   "Plankton": 1
+  },
+  "Great Hammerhead": {
+   "Green Turtle": 0.2,
+   "Stingray": 0.3,
+   "Blacktip Reef Shark": 0.2,
+   "Monk Seal": 0.1,
+   "Raider": 0.1,
+   "Diver": 0.1
+  },
+  "Humpback Whale": {
+   "Plankton": 1
+  },
+  "The Matriarch": {
+   "Dugong": 0.2,
+   "Grey Reef Shark": 0.2,
+   "Bottlenose Dolphin": 0.1,
+   "Monk Seal": 0.2,
+   "Raider": 0.1,
+   "Diver": 0.2
+  }
+ }
+}

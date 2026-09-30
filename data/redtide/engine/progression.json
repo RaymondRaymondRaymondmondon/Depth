@@ -1,0 +1,287 @@
+[
+ [
+  "source",
+  "arcade tokens"
+ ],
+ [
+  "Match played",
+  10
+ ],
+ [
+  "Match won (tide 10+)",
+  25
+ ],
+ [
+  "Per tide past 10",
+  2
+ ],
+ [
+  "First time reaching tide 20 on a map",
+  50
+ ],
+ [
+  "Boss kill (first per map)",
+  30
+ ],
+ [
+  "Hidden quest completed (first per map)",
+  100
+ ],
+ [
+  "Dossier completed for a map",
+  75
+ ],
+ [
+  "cosmetic",
+  "cost"
+ ],
+ [
+  "Weapon finish (barnacle, verdigris, bone inlay, pearl, red tide)",
+  150
+ ],
+ [
+  "Suit colour set",
+  100
+ ],
+ [
+  "Helmet (verdigris, red tide, bone, pearl, Atlantean)",
+  200
+ ],
+ [
+  "Dealer skin for Flats Duel (shared profile)",
+  200
+ ],
+ [
+  "Cabinet marquee",
+  300
+ ],
+ [
+  "rank",
+  "tokens_to_reach",
+  "unlock"
+ ],
+ [
+  1,
+  50
+ ],
+ [
+  2,
+  151,
+  "Salt Charm: Keep Your Brines"
+ ],
+ [
+  3,
+  289,
+  "Skin: Verdigris suit"
+ ],
+ [
+  4,
+  459
+ ],
+ [
+  5,
+  656,
+  "Salt Charm: Salt Circle"
+ ],
+ [
+  6,
+  879
+ ],
+ [
+  7,
+  1124,
+  "Charm pouch slot +1 (max 5)"
+ ],
+ [
+  8,
+  1392
+ ],
+ [
+  9,
+  1681,
+  "Salt Charm: Slick Fins"
+ ],
+ [
+  10,
+  1990,
+  "Skin: Bone helmet"
+ ],
+ [
+  11,
+  2318
+ ],
+ [
+  12,
+  2664,
+  "Dossier bonus page: the Owners"
+ ],
+ [
+  13,
+  3028
+ ],
+ [
+  14,
+  3410,
+  "Salt Charm: Fisher's Luck"
+ ],
+ [
+  15,
+  3808,
+  "Charm pouch slot +1 (max 5)"
+ ],
+ [
+  16,
+  4222
+ ],
+ [
+  17,
+  4652
+ ],
+ [
+  18,
+  5098,
+  "Skin: Red Tide suit"
+ ],
+ [
+  19,
+  5558
+ ],
+ [
+  20,
+  6034,
+  "Salt Charm: Chum Bucket"
+ ],
+ [
+  21,
+  6524
+ ],
+ [
+  22,
+  7028,
+  "Dossier bonus page: the expedition"
+ ],
+ [
+  23,
+  7546
+ ],
+ [
+  24,
+  8078
+ ],
+ [
+  25,
+  8623,
+  "Charm pouch slot +1 (max 5)"
+ ],
+ [
+  26,
+  9181
+ ],
+ [
+  27,
+  9753,
+  "Salt Charm: Hard Shell"
+ ],
+ [
+  28,
+  10337
+ ],
+ [
+  29,
+  10934
+ ],
+ [
+  30,
+  11544,
+  "Skin: Pearl helmet"
+ ],
+ [
+  31,
+  12166
+ ],
+ [
+  32,
+  12800
+ ],
+ [
+  33,
+  13445,
+  "Dossier bonus page: the station"
+ ],
+ [
+  34,
+  14103
+ ],
+ [
+  35,
+  14773,
+  "Salt Charm: Clean Water"
+ ],
+ [
+  36,
+  15454
+ ],
+ [
+  37,
+  16147
+ ],
+ [
+  38,
+  16850
+ ],
+ [
+  39,
+  17566
+ ],
+ [
+  40,
+  18292,
+  "Charm pouch slot +1 (max 5)"
+ ],
+ [
+  41,
+  19029
+ ],
+ [
+  42,
+  19777,
+  "Skin: Atlantean helmet"
+ ],
+ [
+  43,
+  20536
+ ],
+ [
+  44,
+  21305,
+  "Salt Charm: Ghost Fin"
+ ],
+ [
+  45,
+  22085
+ ],
+ [
+  46,
+  22876
+ ],
+ [
+  47,
+  23676
+ ],
+ [
+  48,
+  24488
+ ],
+ [
+  49,
+  25309
+ ],
+ [
+  50,
+  26140,
+  "Title: Red Tide Master; all cosmetics 50% off"
+ ],
+ [
+  "Rank cost = 50 x rank^1.6 tokens cumulative-style (each rank's own cost); a good match earns 40-70 tokens, so rank 50 is about 150 matches. Lucky Locker and Fair Shares are earned by tide milestones (tide 15 and 25 on any map). Ranks never change in-match power."
+ ]
+]

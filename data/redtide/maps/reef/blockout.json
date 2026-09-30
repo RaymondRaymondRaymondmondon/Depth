@@ -1,0 +1,490 @@
+{
+ "zones": [
+  {
+   "zone": "The Lagoon",
+   "level": "Shallows",
+   "x": 0,
+   "y": 30,
+   "w": 30,
+   "h": 30,
+   "door_cost_scrip": 0,
+   "depth_m": "2-4",
+   "notes": "Start pocket: bright shallows with surface air; Gannet rack, Juggernaut; box jellies drift in; the monk seal's playground"
+  },
+  {
+   "zone": "Mangrove Nursery",
+   "level": "Shallows (air above)",
+   "x": 0,
+   "y": 4,
+   "w": 34,
+   "h": 22,
+   "door_cost_scrip": 750,
+   "depth_m": "1-3",
+   "notes": "Mangrove roots along the lagoon's north edge; frogs, axolotls, the toad; Quick Brine; juvenile fish (draws barracuda-sized hunters); sea grape"
+  },
+  {
+   "zone": "Staghorn Forest",
+   "level": "Reef",
+   "x": 34,
+   "y": 24,
+   "w": 50,
+   "h": 40,
+   "door_cost_scrip": 750,
+   "depth_m": "6-12",
+   "notes": "Dense coral corridors (8-12 m sightlines); eel holes; Needler Mk I, workbench, Locker spot 1; the moray-grouper pair; blacktip packs"
+  },
+  {
+   "zone": "The Bommie",
+   "level": "Reef (pinnacle)",
+   "x": 88,
+   "y": 4,
+   "w": 34,
+   "h": 30,
+   "door_cost_scrip": 1000,
+   "depth_m": "3-15",
+   "notes": "A giant coral head: cleaning station on top (calm zone), tide mill = power in the surge channel; Speed Brine; anthias cloud; iguanas graze the shallows"
+  },
+  {
+   "zone": "The Surge Channel",
+   "level": "Channel",
+   "x": 122,
+   "y": 10,
+   "w": 14,
+   "h": 24,
+   "door_cost_scrip": 0,
+   "depth_m": "4-10",
+   "notes": "A one-way current between the Bommie and the Wall: ride it (4 s) or trap it (1,000: flushes the Bommie's top and anything on it)"
+  },
+  {
+   "zone": "Brain Coral Maze",
+   "level": "Reef",
+   "x": 34,
+   "y": 68,
+   "w": 56,
+   "h": 34,
+   "door_cost_scrip": 1500,
+   "depth_m": "8-14",
+   "notes": "Winding corridors of brain and table coral with three Reacher gates; Flechette and Carbine racks; Deadeye Brine; titan triggerfish nests; the Raiders' inland route"
+  },
+  {
+   "zone": "The Sand Flats",
+   "level": "Open sand",
+   "x": 96,
+   "y": 40,
+   "w": 70,
+   "h": 66,
+   "door_cost_scrip": 1250,
+   "depth_m": "12-20",
+   "notes": "The open expanse: seagrass meadows, garden eels, rays, bobbit worms, dugongs; Long Speargun, Bolt Harpoon, Double Shot; no cover, full sightlines"
+  },
+  {
+   "zone": "Turtle Beach",
+   "level": "Shallows",
+   "x": 0,
+   "y": 66,
+   "w": 30,
+   "h": 36,
+   "door_cost_scrip": 0,
+   "depth_m": "0-3",
+   "notes": "A nesting shallows reached from the Lagoon; the drum's quest altar; sea grape; Kick Brine; hammerheads come here for turtles at night tides"
+  },
+  {
+   "zone": "The Blue Hole",
+   "level": "Sinkhole",
+   "x": 130,
+   "y": 70,
+   "w": 30,
+   "h": 30,
+   "door_cost_scrip": 2000,
+   "depth_m": "20-60",
+   "notes": "A sinkhole in the flats: ledges spiral down; the Pressure Forge on the 40 m ledge; mantas and the hammerhead spiral through; Mule Brine"
+  },
+  {
+   "zone": "The Drop-off Wall",
+   "level": "Open blue",
+   "x": 170,
+   "y": 0,
+   "w": 20,
+   "h": 110,
+   "door_cost_scrip": 2000,
+   "depth_m": "15-80",
+   "notes": "The wall: dolphins, seals, whales, grey reef sharks, the Matriarch's pod; Locker spot 2; Widow's Ink; the Raiders' turtle-riders' entry from the blue"
+  }
+ ],
+ "links": [
+  {
+   "from": "The Lagoon",
+   "to": "Mangrove Nursery",
+   "cost_scrip": 750,
+   "passage": "Root channel"
+  },
+  {
+   "from": "The Lagoon",
+   "to": "Staghorn Forest",
+   "cost_scrip": 750,
+   "passage": "Reef edge"
+  },
+  {
+   "from": "The Lagoon",
+   "to": "Turtle Beach",
+   "cost_scrip": 0,
+   "passage": "Sandbar (always open)"
+  },
+  {
+   "from": "Mangrove Nursery",
+   "to": "The Bommie",
+   "cost_scrip": 1000,
+   "passage": "A drift over the reef flat"
+  },
+  {
+   "from": "Staghorn Forest",
+   "to": "The Bommie",
+   "cost_scrip": 1000,
+   "passage": "Forest crest"
+  },
+  {
+   "from": "Staghorn Forest",
+   "to": "Brain Coral Maze",
+   "cost_scrip": 1500,
+   "passage": "Reacher gate 1 (buy to prop open)"
+  },
+  {
+   "from": "Staghorn Forest",
+   "to": "The Sand Flats",
+   "cost_scrip": 1250,
+   "passage": "Forest fall-off"
+  },
+  {
+   "from": "The Bommie",
+   "to": "The Surge Channel",
+   "cost_scrip": 0,
+   "passage": "Channel mouth (one-way ride)"
+  },
+  {
+   "from": "The Surge Channel",
+   "to": "The Drop-off Wall",
+   "cost_scrip": 0,
+   "passage": "Channel exit"
+  },
+  {
+   "from": "Brain Coral Maze",
+   "to": "The Sand Flats",
+   "cost_scrip": 0,
+   "passage": "Maze mouth"
+  },
+  {
+   "from": "The Sand Flats",
+   "to": "The Blue Hole",
+   "cost_scrip": 2000,
+   "passage": "Sinkhole lip"
+  },
+  {
+   "from": "The Sand Flats",
+   "to": "The Drop-off Wall",
+   "cost_scrip": 2000,
+   "passage": "Sand edge"
+  },
+  {
+   "from": "Turtle Beach",
+   "to": "The Sand Flats",
+   "cost_scrip": 0,
+   "passage": "Shallow slope (one-way down)"
+  },
+  {
+   "from": "The Blue Hole",
+   "to": "The Drop-off Wall",
+   "cost_scrip": 0,
+   "passage": "Cave passage at 50 m (no door; dark)"
+  }
+ ],
+ "pois": [
+  {
+   "name": "Gannet rack",
+   "type": "Rack",
+   "zone": "The Lagoon",
+   "x": 4,
+   "y": 34
+  },
+  {
+   "name": "Juggernaut Brine",
+   "type": "Tonic",
+   "zone": "The Lagoon",
+   "x": 24,
+   "y": 56
+  },
+  {
+   "name": "Monk seal haul-out",
+   "type": "Hazard",
+   "zone": "The Lagoon",
+   "x": 14,
+   "y": 44
+  },
+  {
+   "name": "Quick Brine",
+   "type": "Tonic",
+   "zone": "Mangrove Nursery",
+   "x": 6,
+   "y": 8
+  },
+  {
+   "name": "Toad pool",
+   "type": "Hazard",
+   "zone": "Mangrove Nursery",
+   "x": 20,
+   "y": 14
+  },
+  {
+   "name": "Sea grape (nursery)",
+   "type": "Feature",
+   "zone": "Mangrove Nursery",
+   "x": 28,
+   "y": 22
+  },
+  {
+   "name": "Needler Mk I rack",
+   "type": "Rack",
+   "zone": "Staghorn Forest",
+   "x": 38,
+   "y": 28
+  },
+  {
+   "name": "Workbench",
+   "type": "Build",
+   "zone": "Staghorn Forest",
+   "x": 60,
+   "y": 30
+  },
+  {
+   "name": "Locker spot 1",
+   "type": "Locker",
+   "zone": "Staghorn Forest",
+   "x": 76,
+   "y": 58
+  },
+  {
+   "name": "Moray-grouper corner",
+   "type": "Hazard",
+   "zone": "Staghorn Forest",
+   "x": 56,
+   "y": 48
+  },
+  {
+   "name": "Reacher gate 1 (S3)",
+   "type": "Trap",
+   "zone": "Staghorn Forest",
+   "x": 80,
+   "y": 40
+  },
+  {
+   "name": "Speed Brine",
+   "type": "Tonic",
+   "zone": "The Bommie",
+   "x": 92,
+   "y": 8
+  },
+  {
+   "name": "Cleaning station (calm zone)",
+   "type": "Feature",
+   "zone": "The Bommie",
+   "x": 104,
+   "y": 10
+  },
+  {
+   "name": "Tide mill (power)",
+   "type": "Power",
+   "zone": "The Bommie",
+   "x": 118,
+   "y": 24
+  },
+  {
+   "name": "Iguana shallows",
+   "type": "Feature",
+   "zone": "The Bommie",
+   "x": 94,
+   "y": 26
+  },
+  {
+   "name": "Surge trap control",
+   "type": "Trap",
+   "zone": "The Surge Channel",
+   "x": 128,
+   "y": 12
+  },
+  {
+   "name": "Flechette 12 rack",
+   "type": "Rack",
+   "zone": "Brain Coral Maze",
+   "x": 38,
+   "y": 72
+  },
+  {
+   "name": "Sea-Pattern Carbine rack",
+   "type": "Rack",
+   "zone": "Brain Coral Maze",
+   "x": 84,
+   "y": 98
+  },
+  {
+   "name": "Deadeye Brine",
+   "type": "Tonic",
+   "zone": "Brain Coral Maze",
+   "x": 62,
+   "y": 84
+  },
+  {
+   "name": "Reacher gate 2 (B3)",
+   "type": "Trap",
+   "zone": "Brain Coral Maze",
+   "x": 50,
+   "y": 92
+  },
+  {
+   "name": "Reacher gate 3 (B4, Raider ambush)",
+   "type": "Trap",
+   "zone": "Brain Coral Maze",
+   "x": 80,
+   "y": 74
+  },
+  {
+   "name": "Titan's nest",
+   "type": "Hazard",
+   "zone": "Brain Coral Maze",
+   "x": 64,
+   "y": 70
+  },
+  {
+   "name": "Long Speargun rack",
+   "type": "Rack",
+   "zone": "The Sand Flats",
+   "x": 100,
+   "y": 44
+  },
+  {
+   "name": "Bolt Harpoon rack",
+   "type": "Rack",
+   "zone": "The Sand Flats",
+   "x": 150,
+   "y": 50
+  },
+  {
+   "name": "Double Shot",
+   "type": "Tonic",
+   "zone": "The Sand Flats",
+   "x": 120,
+   "y": 100
+  },
+  {
+   "name": "Bobbit holes (3)",
+   "type": "Hazard",
+   "zone": "The Sand Flats",
+   "x": 125,
+   "y": 62
+  },
+  {
+   "name": "Dugong meadow",
+   "type": "Feature",
+   "zone": "The Sand Flats",
+   "x": 110,
+   "y": 80
+  },
+  {
+   "name": "Stingray silt",
+   "type": "Hazard",
+   "zone": "The Sand Flats",
+   "x": 140,
+   "y": 90
+  },
+  {
+   "name": "Garden eel field",
+   "type": "Feature",
+   "zone": "The Sand Flats",
+   "x": 100,
+   "y": 66
+  },
+  {
+   "name": "Kick Brine",
+   "type": "Tonic",
+   "zone": "Turtle Beach",
+   "x": 4,
+   "y": 70
+  },
+  {
+   "name": "Drum altar (quest)",
+   "type": "Quest",
+   "zone": "Turtle Beach",
+   "x": 14,
+   "y": 90
+  },
+  {
+   "name": "Nesting beach",
+   "type": "Feature",
+   "zone": "Turtle Beach",
+   "x": 22,
+   "y": 98
+  },
+  {
+   "name": "Pressure Forge (40 m ledge)",
+   "type": "Forge",
+   "zone": "The Blue Hole",
+   "x": 145,
+   "y": 85
+  },
+  {
+   "name": "Mule Brine (20 m ledge)",
+   "type": "Tonic",
+   "zone": "The Blue Hole",
+   "x": 134,
+   "y": 74
+  },
+  {
+   "name": "Hammerhead spiral",
+   "type": "Hazard",
+   "zone": "The Blue Hole",
+   "x": 150,
+   "y": 94
+  },
+  {
+   "name": "Locker spot 2",
+   "type": "Locker",
+   "zone": "The Drop-off Wall",
+   "x": 174,
+   "y": 20
+  },
+  {
+   "name": "Widow's Ink",
+   "type": "Tonic",
+   "zone": "The Drop-off Wall",
+   "x": 178,
+   "y": 98
+  },
+  {
+   "name": "Raider entry (turtle riders)",
+   "type": "Entry",
+   "zone": "The Drop-off Wall",
+   "x": 186,
+   "y": 58
+  },
+  {
+   "name": "Matriarch's lane",
+   "type": "Boss",
+   "zone": "The Drop-off Wall",
+   "x": 180,
+   "y": 40
+  },
+  {
+   "name": "Whale passage",
+   "type": "Feature",
+   "zone": "The Drop-off Wall",
+   "x": 182,
+   "y": 80
+  }
+ ],
+ "notes": [
+  "Training loop (inner): Lagoon -> Staghorn Forest (S1) -> Bommie crest -> Mangrove drift -> Lagoon. About 2 min; sharks can't follow through S1's anemone row without breaking coral (loud).",
+  "Training loop (outer): Bommie -> Surge Channel (4 s ride) -> Wall -> Sand edge -> Flats -> Maze mouth -> Maze (B4) -> Forest gate -> Bommie. 5 min; crosses every apex lane once.",
+  "Blood flow: the tide runs Lagoon -> Forest -> Flats -> Wall on the ebb and reverses on the flood every 4 minutes (the tide mill shows which). Blood on the Flats reaches the Wall and its sharks in 40 s on the ebb.",
+  "Sightlines: corridors 8-12 m; Bommie top 25 m; Flats 60 m+; Wall 40 m vertical. Alarm regions: Reef (Lagoon, Nursery, Forest, Bommie, Maze) and Open (Flats, Beach, Hole, Wall); the Raiders enter at the Wall by turtle and inland by B4.",
+  "Coral erosion: each crown-of-thorns eats one staghorn segment per 90 s; a broken segment turns a corridor into a lane sharks can use. Shark rams also break segments (2 noise).",
+  "The dolphin pod follows the divers' centroid at 20-30 m while allied; rams any shark that enters 10 m of a diver; turns hostile for the match the moment a dolphin takes damage from a diver."
+ ]
+}

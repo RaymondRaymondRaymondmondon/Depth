@@ -1,0 +1,9 @@
+[
+ "Red Tide — The Sunken Ship: map data workbook",
+ "Sheets: Species (one row per beast, blue = tunable inputs), Attacks (one row per attack move), Diet (predator rows x food columns, weights 0-1 summing to 1 per row),",
+ "Flora, Spawn (per zone counts and respawn), TideCurve (formulas from the Tunables block), Blockout (zones, links, points of interest in metres), Boss (the Goliath fight).",
+ "How to use: Claude Code loads these sheets as redtide_maps/ship/*.json (export with pandas). Change blue cells only; grey formulas recompute.",
+ "Rules that derive values: HP = base x 1.08^(tide-1); bounty = base x 1.10^(tide-1); blood on death = size x 20; blood/s wounded = size x 2 x wound fraction.",
+ "Sizes 1-6 map to HP 20/60/250/900/3000/15000 and bounty 40/80/180/400/900/1500 (Red Tide design doc, Shared beast rules).",
+ "Sources: all values are design targets from the Red Tide design document (2026-09-29); none are measured. Tune with --eco-sim ship and --redtide-sim ship."
+]

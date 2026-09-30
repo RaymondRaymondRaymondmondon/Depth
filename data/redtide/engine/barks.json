@@ -1,0 +1,1262 @@
+[
+ {
+  "situation": "Match start",
+  "diver": "Diver",
+  "line": "Lamps on. Mouths shut."
+ },
+ {
+  "situation": "Match start",
+  "diver": "Diver",
+  "line": "Same drill: don't feed it, don't wake it."
+ },
+ {
+  "situation": "Match start",
+  "diver": "Diver",
+  "line": "Let's see what's down here this time."
+ },
+ {
+  "situation": "Match start",
+  "diver": "Whaler",
+  "line": "Quota's the quota. Move."
+ },
+ {
+  "situation": "Match start",
+  "diver": "Whaler",
+  "line": "Salvage doesn't collect itself."
+ },
+ {
+  "situation": "Match start",
+  "diver": "Whaler",
+  "line": "Keep your harpoons pointed away from me."
+ },
+ {
+  "situation": "Match start",
+  "diver": "Stowaway",
+  "line": "Who brought the snacks?"
+ },
+ {
+  "situation": "Match start",
+  "diver": "Stowaway",
+  "line": "I've a good feeling. I always do."
+ },
+ {
+  "situation": "Match start",
+  "diver": "Stowaway",
+  "line": "If I die, my bottle goes to the seal."
+ },
+ {
+  "situation": "Match start",
+  "diver": "Mechanic",
+  "line": "We're the snacks."
+ },
+ {
+  "situation": "Match start",
+  "diver": "Mechanic",
+  "line": "Checklist: lamps, darts, nerves. Nerves are low."
+ },
+ {
+  "situation": "Match start",
+  "diver": "Mechanic",
+  "line": "Everyone read the log? No? Great."
+ },
+ {
+  "situation": "First blood",
+  "diver": "Diver",
+  "line": "That's blood. Watch the doors."
+ },
+ {
+  "situation": "First blood",
+  "diver": "Diver",
+  "line": "First cut. Count starts now."
+ },
+ {
+  "situation": "First blood",
+  "diver": "Diver",
+  "line": "Keep it small. Keep it quiet."
+ },
+ {
+  "situation": "First blood",
+  "diver": "Whaler",
+  "line": "Let it drift. Don't feed it."
+ },
+ {
+  "situation": "First blood",
+  "diver": "Whaler",
+  "line": "One's fine. Ten's a dinner bell."
+ },
+ {
+  "situation": "First blood",
+  "diver": "Whaler",
+  "line": "Blood's in. Clock's on."
+ },
+ {
+  "situation": "First blood",
+  "diver": "Stowaway",
+  "line": "Ooh. That's a lot of red."
+ },
+ {
+  "situation": "First blood",
+  "diver": "Stowaway",
+  "line": "Bit of a mess, that."
+ },
+ {
+  "situation": "First blood",
+  "diver": "Stowaway",
+  "line": "It's fine. It's fine. Probably fine."
+ },
+ {
+  "situation": "First blood",
+  "diver": "Mechanic",
+  "line": "Plume's spreading east. Noting it."
+ },
+ {
+  "situation": "First blood",
+  "diver": "Mechanic",
+  "line": "That'll reach the stern in forty seconds."
+ },
+ {
+  "situation": "First blood",
+  "diver": "Mechanic",
+  "line": "Please don't shoot the big ones."
+ },
+ {
+  "situation": "Scent high",
+  "diver": "Diver",
+  "line": "Meter's red. Move."
+ },
+ {
+  "situation": "Scent high",
+  "diver": "Diver",
+  "line": "We're standing in it. Out."
+ },
+ {
+  "situation": "Scent high",
+  "diver": "Diver",
+  "line": "Whatever smells this will be here soon."
+ },
+ {
+  "situation": "Scent high",
+  "diver": "Whaler",
+  "line": "Water's thick. Somebody's coming."
+ },
+ {
+  "situation": "Scent high",
+  "diver": "Whaler",
+  "line": "Get off the blood."
+ },
+ {
+  "situation": "Scent high",
+  "diver": "Whaler",
+  "line": "This is the part where we leave."
+ },
+ {
+  "situation": "Scent high",
+  "diver": "Stowaway",
+  "line": "Red's my favourite colour. Not today."
+ },
+ {
+  "situation": "Scent high",
+  "diver": "Stowaway",
+  "line": "Smells like dinner. For them."
+ },
+ {
+  "situation": "Scent high",
+  "diver": "Stowaway",
+  "line": "Moving! I'm moving!"
+ },
+ {
+  "situation": "Scent high",
+  "diver": "Mechanic",
+  "line": "Meter's red. Very red."
+ },
+ {
+  "situation": "Scent high",
+  "diver": "Mechanic",
+  "line": "Scent at threshold for a size four. Estimate: soon."
+ },
+ {
+  "situation": "Scent high",
+  "diver": "Mechanic",
+  "line": "I said this would happen."
+ },
+ {
+  "situation": "Predator pulse",
+  "diver": "Diver",
+  "line": "Something big. From the stern."
+ },
+ {
+  "situation": "Predator pulse",
+  "diver": "Diver",
+  "line": "Big one. Guns quiet."
+ },
+ {
+  "situation": "Predator pulse",
+  "diver": "Diver",
+  "line": "Cover. Now."
+ },
+ {
+  "situation": "Predator pulse",
+  "diver": "Whaler",
+  "line": "Big fish. Harpoons up."
+ },
+ {
+  "situation": "Predator pulse",
+  "diver": "Whaler",
+  "line": "Here it comes. Hold."
+ },
+ {
+  "situation": "Predator pulse",
+  "diver": "Whaler",
+  "line": "Knew it. Sharks always know."
+ },
+ {
+  "situation": "Predator pulse",
+  "diver": "Stowaway",
+  "line": "Oh no. Oh good. Oh no."
+ },
+ {
+  "situation": "Predator pulse",
+  "diver": "Stowaway",
+  "line": "Big friend incoming!"
+ },
+ {
+  "situation": "Predator pulse",
+  "diver": "Stowaway",
+  "line": "Whose blood was that? Not mine."
+ },
+ {
+  "situation": "Predator pulse",
+  "diver": "Mechanic",
+  "line": "That's... that's a big pulse."
+ },
+ {
+  "situation": "Predator pulse",
+  "diver": "Mechanic",
+  "line": "Size four or five. Bearing stern."
+ },
+ {
+  "situation": "Predator pulse",
+  "diver": "Mechanic",
+  "line": "Hide. Hide is a strategy."
+ },
+ {
+  "situation": "Harmless big thing shot",
+  "diver": "Diver",
+  "line": "Why would you shoot that."
+ },
+ {
+  "situation": "Harmless big thing shot",
+  "diver": "Diver",
+  "line": "That did nothing but bleed."
+ },
+ {
+  "situation": "Harmless big thing shot",
+  "diver": "Diver",
+  "line": "Well. Now everything's coming."
+ },
+ {
+  "situation": "Harmless big thing shot",
+  "diver": "Whaler",
+  "line": "That was a hundred blood, genius."
+ },
+ {
+  "situation": "Harmless big thing shot",
+  "diver": "Whaler",
+  "line": "You've rung the bell."
+ },
+ {
+  "situation": "Harmless big thing shot",
+  "diver": "Whaler",
+  "line": "Fine. Sharks it is."
+ },
+ {
+  "situation": "Harmless big thing shot",
+  "diver": "Stowaway",
+  "line": "It looked at me funny."
+ },
+ {
+  "situation": "Harmless big thing shot",
+  "diver": "Stowaway",
+  "line": "In my defence, it was very shootable."
+ },
+ {
+  "situation": "Harmless big thing shot",
+  "diver": "Stowaway",
+  "line": "Whoops."
+ },
+ {
+  "situation": "Harmless big thing shot",
+  "diver": "Mechanic",
+  "line": "That was the dugong. THE dugong."
+ },
+ {
+  "situation": "Harmless big thing shot",
+  "diver": "Mechanic",
+  "line": "Noting: someone shot the whale."
+ },
+ {
+  "situation": "Harmless big thing shot",
+  "diver": "Mechanic",
+  "line": "Logging that as a mistake."
+ },
+ {
+  "situation": "Cleaner killed",
+  "diver": "Diver",
+  "line": "That was a cleaner. Great."
+ },
+ {
+  "situation": "Cleaner killed",
+  "diver": "Diver",
+  "line": "Now everything's in a mood."
+ },
+ {
+  "situation": "Cleaner killed",
+  "diver": "Diver",
+  "line": "Stop shooting the small ones."
+ },
+ {
+  "situation": "Cleaner killed",
+  "diver": "Whaler",
+  "line": "Cleaners keep the sharks calm. Kept."
+ },
+ {
+  "situation": "Cleaner killed",
+  "diver": "Whaler",
+  "line": "Nice. Every grouper's angry now."
+ },
+ {
+  "situation": "Cleaner killed",
+  "diver": "Whaler",
+  "line": "Don't."
+ },
+ {
+  "situation": "Cleaner killed",
+  "diver": "Stowaway",
+  "line": "Was that the little one? The nice one?"
+ },
+ {
+  "situation": "Cleaner killed",
+  "diver": "Stowaway",
+  "line": "I killed a barber. I feel bad."
+ },
+ {
+  "situation": "Cleaner killed",
+  "diver": "Stowaway",
+  "line": "Sorry, shrimp."
+ },
+ {
+  "situation": "Cleaner killed",
+  "diver": "Mechanic",
+  "line": "Aggression up twenty percent. Five minutes."
+ },
+ {
+  "situation": "Cleaner killed",
+  "diver": "Mechanic",
+  "line": "The groupers are going to be in a mood."
+ },
+ {
+  "situation": "Cleaner killed",
+  "diver": "Mechanic",
+  "line": "Cleaners! Not targets!"
+ },
+ {
+  "situation": "Chummed",
+  "diver": "Diver",
+  "line": "They're chumming us. Move!"
+ },
+ {
+  "situation": "Chummed",
+  "diver": "Diver",
+  "line": "Off the chum. Off it."
+ },
+ {
+  "situation": "Chummed",
+  "diver": "Diver",
+  "line": "Don't stand in it."
+ },
+ {
+  "situation": "Chummed",
+  "diver": "Whaler",
+  "line": "Chum! Get clear!"
+ },
+ {
+  "situation": "Chummed",
+  "diver": "Whaler",
+  "line": "They want the reef to do their job."
+ },
+ {
+  "situation": "Chummed",
+  "diver": "Whaler",
+  "line": "Swim!"
+ },
+ {
+  "situation": "Chummed",
+  "diver": "Stowaway",
+  "line": "Ew. Ew. Ew."
+ },
+ {
+  "situation": "Chummed",
+  "diver": "Stowaway",
+  "line": "They threw dinner at us!"
+ },
+ {
+  "situation": "Chummed",
+  "diver": "Stowaway",
+  "line": "Not it!"
+ },
+ {
+  "situation": "Chummed",
+  "diver": "Mechanic",
+  "line": "Chum cloud. Radius four. Move!"
+ },
+ {
+  "situation": "Chummed",
+  "diver": "Mechanic",
+  "line": "This is bad chemistry."
+ },
+ {
+  "situation": "Chummed",
+  "diver": "Mechanic",
+  "line": "Blood's coming from a bucket now."
+ },
+ {
+  "situation": "Downed",
+  "diver": "Diver",
+  "line": "Down. Pick me up when it's clear."
+ },
+ {
+  "situation": "Downed",
+  "diver": "Diver",
+  "line": "I'm out. Bleeding. Sorry."
+ },
+ {
+  "situation": "Downed",
+  "diver": "Diver",
+  "line": "Somebody, when you can."
+ },
+ {
+  "situation": "Downed",
+  "diver": "Whaler",
+  "line": "Down. Not dead."
+ },
+ {
+  "situation": "Downed",
+  "diver": "Whaler",
+  "line": "Get to me or don't, just decide."
+ },
+ {
+  "situation": "Downed",
+  "diver": "Whaler",
+  "line": "My own fault."
+ },
+ {
+  "situation": "Downed",
+  "diver": "Stowaway",
+  "line": "Bit of a lie-down, don't mind me."
+ },
+ {
+  "situation": "Downed",
+  "diver": "Stowaway",
+  "line": "I'm fine! I'm on the floor but fine!"
+ },
+ {
+  "situation": "Downed",
+  "diver": "Stowaway",
+  "line": "Tell the seal I loved it."
+ },
+ {
+  "situation": "Downed",
+  "diver": "Mechanic",
+  "line": "Down. Bleeding at eight per second."
+ },
+ {
+  "situation": "Downed",
+  "diver": "Mechanic",
+  "line": "This is exactly the outcome I predicted."
+ },
+ {
+  "situation": "Downed",
+  "diver": "Mechanic",
+  "line": "Please hurry. Please."
+ },
+ {
+  "situation": "Revive",
+  "diver": "Diver",
+  "line": "You're welcome. Again."
+ },
+ {
+  "situation": "Revive",
+  "diver": "Diver",
+  "line": "Up. Stay up."
+ },
+ {
+  "situation": "Revive",
+  "diver": "Diver",
+  "line": "Don't make me do that twice."
+ },
+ {
+  "situation": "Revive",
+  "diver": "Whaler",
+  "line": "Up. We're not carrying you."
+ },
+ {
+  "situation": "Revive",
+  "diver": "Whaler",
+  "line": "On your fins."
+ },
+ {
+  "situation": "Revive",
+  "diver": "Whaler",
+  "line": "Cost me a magazine. Move."
+ },
+ {
+  "situation": "Revive",
+  "diver": "Stowaway",
+  "line": "I'm back! Did anyone miss me?"
+ },
+ {
+  "situation": "Revive",
+  "diver": "Stowaway",
+  "line": "Thanks, love."
+ },
+ {
+  "situation": "Revive",
+  "diver": "Stowaway",
+  "line": "Was I gone long?"
+ },
+ {
+  "situation": "Revive",
+  "diver": "Mechanic",
+  "line": "Please stop doing that."
+ },
+ {
+  "situation": "Revive",
+  "diver": "Mechanic",
+  "line": "Up. Vitals... acceptable."
+ },
+ {
+  "situation": "Revive",
+  "diver": "Mechanic",
+  "line": "Next time, don't stand there."
+ },
+ {
+  "situation": "Tonic bought",
+  "diver": "Diver",
+  "line": "That's your fourth."
+ },
+ {
+  "situation": "Tonic bought",
+  "diver": "Diver",
+  "line": "Drink up."
+ },
+ {
+  "situation": "Tonic bought",
+  "diver": "Diver",
+  "line": "Good. Now go."
+ },
+ {
+  "situation": "Tonic bought",
+  "diver": "Whaler",
+  "line": "Brine. Finally."
+ },
+ {
+  "situation": "Tonic bought",
+  "diver": "Whaler",
+  "line": "Hope it's worth the scrip."
+ },
+ {
+  "situation": "Tonic bought",
+  "diver": "Whaler",
+  "line": "Down the hatch."
+ },
+ {
+  "situation": "Tonic bought",
+  "diver": "Stowaway",
+  "line": "Bottoms up!"
+ },
+ {
+  "situation": "Tonic bought",
+  "diver": "Stowaway",
+  "line": "Ooh, it fizzes."
+ },
+ {
+  "situation": "Tonic bought",
+  "diver": "Stowaway",
+  "line": "Another? Don't mind if I do."
+ },
+ {
+  "situation": "Tonic bought",
+  "diver": "Mechanic",
+  "line": "Bottle four. Effects stack."
+ },
+ {
+  "situation": "Tonic bought",
+  "diver": "Mechanic",
+  "line": "Tastes like batteries."
+ },
+ {
+  "situation": "Tonic bought",
+  "diver": "Mechanic",
+  "line": "Documenting: it's not bad."
+ },
+ {
+  "situation": "Locker bad",
+  "diver": "Diver",
+  "line": "A Gannet. Lovely."
+ },
+ {
+  "situation": "Locker bad",
+  "diver": "Diver",
+  "line": "The eel's laughing."
+ },
+ {
+  "situation": "Locker bad",
+  "diver": "Diver",
+  "line": "Waste."
+ },
+ {
+  "situation": "Locker bad",
+  "diver": "Whaler",
+  "line": "Junk."
+ },
+ {
+  "situation": "Locker bad",
+  "diver": "Whaler",
+  "line": "Nine hundred fifty for that."
+ },
+ {
+  "situation": "Locker bad",
+  "diver": "Whaler",
+  "line": "The eel hates me."
+ },
+ {
+  "situation": "Locker bad",
+  "diver": "Stowaway",
+  "line": "It's a pistol. It's my pistol. I have this pistol."
+ },
+ {
+  "situation": "Locker bad",
+  "diver": "Stowaway",
+  "line": "The chest gave me a spoon."
+ },
+ {
+  "situation": "Locker bad",
+  "diver": "Stowaway",
+  "line": "Better luck next fish."
+ },
+ {
+  "situation": "Locker bad",
+  "diver": "Mechanic",
+  "line": "A Gannet. From a chest. Wonderful."
+ },
+ {
+  "situation": "Locker bad",
+  "diver": "Mechanic",
+  "line": "Probability was two percent. I knew that."
+ },
+ {
+  "situation": "Locker bad",
+  "diver": "Mechanic",
+  "line": "Statistically, this had to happen."
+ },
+ {
+  "situation": "Locker wonder",
+  "diver": "Diver",
+  "line": "Now we're talking."
+ },
+ {
+  "situation": "Locker wonder",
+  "diver": "Diver",
+  "line": "This changes the water."
+ },
+ {
+  "situation": "Locker wonder",
+  "diver": "Diver",
+  "line": "Don't lose it."
+ },
+ {
+  "situation": "Locker wonder",
+  "diver": "Whaler",
+  "line": "Now THAT'S a fish-killer."
+ },
+ {
+  "situation": "Locker wonder",
+  "diver": "Whaler",
+  "line": "Ha! Yes!"
+ },
+ {
+  "situation": "Locker wonder",
+  "diver": "Whaler",
+  "line": "Give it here."
+ },
+ {
+  "situation": "Locker wonder",
+  "diver": "Stowaway",
+  "line": "Ooooh. Shiny death."
+ },
+ {
+  "situation": "Locker wonder",
+  "diver": "Stowaway",
+  "line": "The eel likes me!"
+ },
+ {
+  "situation": "Locker wonder",
+  "diver": "Stowaway",
+  "line": "Can I keep it? I'm keeping it."
+ },
+ {
+  "situation": "Locker wonder",
+  "diver": "Mechanic",
+  "line": "That's... oh. Oh, that's the one."
+ },
+ {
+  "situation": "Locker wonder",
+  "diver": "Mechanic",
+  "line": "Careful with that. Very careful."
+ },
+ {
+  "situation": "Locker wonder",
+  "diver": "Mechanic",
+  "line": "Two percent! Two percent!"
+ },
+ {
+  "situation": "Forge",
+  "diver": "Diver",
+  "line": "Pressed and ready."
+ },
+ {
+  "situation": "Forge",
+  "diver": "Diver",
+  "line": "Heavier. Better."
+ },
+ {
+  "situation": "Forge",
+  "diver": "Diver",
+  "line": "That'll bite."
+ },
+ {
+  "situation": "Forge",
+  "diver": "Whaler",
+  "line": "Now it's a real gun."
+ },
+ {
+  "situation": "Forge",
+  "diver": "Whaler",
+  "line": "Forged. Let's use it."
+ },
+ {
+  "situation": "Forge",
+  "diver": "Whaler",
+  "line": "Heat, pressure, teeth."
+ },
+ {
+  "situation": "Forge",
+  "diver": "Stowaway",
+  "line": "Shiny!"
+ },
+ {
+  "situation": "Forge",
+  "diver": "Stowaway",
+  "line": "It's got a name now!"
+ },
+ {
+  "situation": "Forge",
+  "diver": "Stowaway",
+  "line": "Look at it. LOOK at it."
+ },
+ {
+  "situation": "Forge",
+  "diver": "Mechanic",
+  "line": "Pressure treatment complete."
+ },
+ {
+  "situation": "Forge",
+  "diver": "Mechanic",
+  "line": "Sea-glass finish. Structurally sound."
+ },
+ {
+  "situation": "Forge",
+  "diver": "Mechanic",
+  "line": "Don't drop it. It cost five thousand."
+ },
+ {
+  "situation": "Hunt begins",
+  "diver": "Diver",
+  "line": "Company. Cover the breach."
+ },
+ {
+  "situation": "Hunt begins",
+  "diver": "Diver",
+  "line": "They've found us. Fine."
+ },
+ {
+  "situation": "Hunt begins",
+  "diver": "Diver",
+  "line": "Enemies. Make them bleed near the fish."
+ },
+ {
+  "situation": "Hunt begins",
+  "diver": "Whaler",
+  "line": "Wreckers! Cover the breach!"
+ },
+ {
+  "situation": "Hunt begins",
+  "diver": "Whaler",
+  "line": "Here they come. Let 'em swim into it."
+ },
+ {
+  "situation": "Hunt begins",
+  "diver": "Whaler",
+  "line": "Kill the chummer first!"
+ },
+ {
+  "situation": "Hunt begins",
+  "diver": "Stowaway",
+  "line": "Visitors! Rude ones!"
+ },
+ {
+  "situation": "Hunt begins",
+  "diver": "Stowaway",
+  "line": "Oh, people. Worse than fish."
+ },
+ {
+  "situation": "Hunt begins",
+  "diver": "Stowaway",
+  "line": "Can we let the crocodile handle this?"
+ },
+ {
+  "situation": "Hunt begins",
+  "diver": "Mechanic",
+  "line": "Or let the crocodile handle it?"
+ },
+ {
+  "situation": "Hunt begins",
+  "diver": "Mechanic",
+  "line": "Squad inbound. Alarm was high. Told you."
+ },
+ {
+  "situation": "Hunt begins",
+  "diver": "Mechanic",
+  "line": "Positions. Real positions this time."
+ },
+ {
+  "situation": "Enemy eaten",
+  "diver": "Diver",
+  "line": "For now."
+ },
+ {
+  "situation": "Enemy eaten",
+  "diver": "Diver",
+  "line": "The reef's hungry too."
+ },
+ {
+  "situation": "Enemy eaten",
+  "diver": "Diver",
+  "line": "Good. Less work."
+ },
+ {
+  "situation": "Enemy eaten",
+  "diver": "Whaler",
+  "line": "Ha. Reef's on our side."
+ },
+ {
+  "situation": "Enemy eaten",
+  "diver": "Whaler",
+  "line": "That's what happens down here."
+ },
+ {
+  "situation": "Enemy eaten",
+  "diver": "Whaler",
+  "line": "One less."
+ },
+ {
+  "situation": "Enemy eaten",
+  "diver": "Stowaway",
+  "line": "Ha! Reef's on our side!"
+ },
+ {
+  "situation": "Enemy eaten",
+  "diver": "Stowaway",
+  "line": "Bye!"
+ },
+ {
+  "situation": "Enemy eaten",
+  "diver": "Stowaway",
+  "line": "That's the spirit, fish."
+ },
+ {
+  "situation": "Enemy eaten",
+  "diver": "Mechanic",
+  "line": "Predator ate the enemy. Noting."
+ },
+ {
+  "situation": "Enemy eaten",
+  "diver": "Mechanic",
+  "line": "Efficient."
+ },
+ {
+  "situation": "Enemy eaten",
+  "diver": "Mechanic",
+  "line": "The system works."
+ },
+ {
+  "situation": "Boss appears",
+  "diver": "Diver",
+  "line": "That's the big one. Stay loose."
+ },
+ {
+  "situation": "Boss appears",
+  "diver": "Diver",
+  "line": "Here it is."
+ },
+ {
+  "situation": "Boss appears",
+  "diver": "Diver",
+  "line": "Don't get swallowed."
+ },
+ {
+  "situation": "Boss appears",
+  "diver": "Whaler",
+  "line": "Big fish. The biggest."
+ },
+ {
+  "situation": "Boss appears",
+  "diver": "Whaler",
+  "line": "Harpoons. All of them."
+ },
+ {
+  "situation": "Boss appears",
+  "diver": "Whaler",
+  "line": "Now we earn it."
+ },
+ {
+  "situation": "Boss appears",
+  "diver": "Stowaway",
+  "line": "That's a fish. That's a very large fish."
+ },
+ {
+  "situation": "Boss appears",
+  "diver": "Stowaway",
+  "line": "Oh, hello, enormous."
+ },
+ {
+  "situation": "Boss appears",
+  "diver": "Stowaway",
+  "line": "I'm going to be inside that, aren't I."
+ },
+ {
+  "situation": "Boss appears",
+  "diver": "Mechanic",
+  "line": "That's... that's a fish. That's a very large fish."
+ },
+ {
+  "situation": "Boss appears",
+  "diver": "Mechanic",
+  "line": "HP fifteen thousand. Weak point: the gills."
+ },
+ {
+  "situation": "Boss appears",
+  "diver": "Mechanic",
+  "line": "Deep breaths. Not literally."
+ },
+ {
+  "situation": "Swallowed",
+  "diver": "Diver",
+  "line": "It's warm in here. Shoot the gills!"
+ },
+ {
+  "situation": "Swallowed",
+  "diver": "Diver",
+  "line": "Inside. Five seconds. Go!"
+ },
+ {
+  "situation": "Swallowed",
+  "diver": "Diver",
+  "line": "Gills! Now!"
+ },
+ {
+  "situation": "Swallowed",
+  "diver": "Whaler",
+  "line": "It's got me! The gills!"
+ },
+ {
+  "situation": "Swallowed",
+  "diver": "Whaler",
+  "line": "Shoot it! Shoot the thing!"
+ },
+ {
+  "situation": "Swallowed",
+  "diver": "Whaler",
+  "line": "Not like this!"
+ },
+ {
+  "situation": "Swallowed",
+  "diver": "Stowaway",
+  "line": "It's dark! It's wet! It's rude!"
+ },
+ {
+  "situation": "Swallowed",
+  "diver": "Stowaway",
+  "line": "Hello? Gills, please!"
+ },
+ {
+  "situation": "Swallowed",
+  "diver": "Stowaway",
+  "line": "I've been in worse pubs!"
+ },
+ {
+  "situation": "Swallowed",
+  "diver": "Mechanic",
+  "line": "Swallowed. Countdown. Gills!"
+ },
+ {
+  "situation": "Swallowed",
+  "diver": "Mechanic",
+  "line": "This is not in the checklist!"
+ },
+ {
+  "situation": "Swallowed",
+  "diver": "Mechanic",
+  "line": "Five seconds! Four!"
+ },
+ {
+  "situation": "Tide cleared",
+  "diver": "Diver",
+  "line": "Twenty seconds. Spend them."
+ },
+ {
+  "situation": "Tide cleared",
+  "diver": "Diver",
+  "line": "Breathe. Buy. Go."
+ },
+ {
+  "situation": "Tide cleared",
+  "diver": "Diver",
+  "line": "Reset. Quietly."
+ },
+ {
+  "situation": "Tide cleared",
+  "diver": "Whaler",
+  "line": "Breathe. Buy. Go again."
+ },
+ {
+  "situation": "Tide cleared",
+  "diver": "Whaler",
+  "line": "Ammo. Now."
+ },
+ {
+  "situation": "Tide cleared",
+  "diver": "Whaler",
+  "line": "Quota's met. Next."
+ },
+ {
+  "situation": "Tide cleared",
+  "diver": "Stowaway",
+  "line": "Snack break!"
+ },
+ {
+  "situation": "Tide cleared",
+  "diver": "Stowaway",
+  "line": "We did it! Whatever it was!"
+ },
+ {
+  "situation": "Tide cleared",
+  "diver": "Stowaway",
+  "line": "Shopping!"
+ },
+ {
+  "situation": "Tide cleared",
+  "diver": "Mechanic",
+  "line": "Tide cleared. Bounties up ten percent."
+ },
+ {
+  "situation": "Tide cleared",
+  "diver": "Mechanic",
+  "line": "Twenty seconds of calm. Use them."
+ },
+ {
+  "situation": "Tide cleared",
+  "diver": "Mechanic",
+  "line": "Log: alive."
+ },
+ {
+  "situation": "Quiet",
+  "diver": "Diver",
+  "line": "Too quiet."
+ },
+ {
+  "situation": "Quiet",
+  "diver": "Diver",
+  "line": "Nothing's coming. Yet."
+ },
+ {
+  "situation": "Quiet",
+  "diver": "Diver",
+  "line": "Keep it this way."
+ },
+ {
+  "situation": "Quiet",
+  "diver": "Whaler",
+  "line": "Quiet's good. Quiet pays."
+ },
+ {
+  "situation": "Quiet",
+  "diver": "Whaler",
+  "line": "Don't ruin it."
+ },
+ {
+  "situation": "Quiet",
+  "diver": "Whaler",
+  "line": "Fish are asleep. Let 'em."
+ },
+ {
+  "situation": "Quiet",
+  "diver": "Stowaway",
+  "line": "Too quiet. I don't like it. I do like it."
+ },
+ {
+  "situation": "Quiet",
+  "diver": "Stowaway",
+  "line": "Anyone else hear that? No? Good."
+ },
+ {
+  "situation": "Quiet",
+  "diver": "Stowaway",
+  "line": "Spooky."
+ },
+ {
+  "situation": "Quiet",
+  "diver": "Mechanic",
+  "line": "Alarm's at zero. Enjoy it."
+ },
+ {
+  "situation": "Quiet",
+  "diver": "Mechanic",
+  "line": "Scent's dropping. Good."
+ },
+ {
+  "situation": "Quiet",
+  "diver": "Mechanic",
+  "line": "This is optimal. Nobody move."
+ },
+ {
+  "situation": "Last standing",
+  "diver": "Diver",
+  "line": "Fine. Just me, then."
+ },
+ {
+  "situation": "Last standing",
+  "diver": "Diver",
+  "line": "Alone. Okay."
+ },
+ {
+  "situation": "Last standing",
+  "diver": "Diver",
+  "line": "Hold on. I'll get to you."
+ },
+ {
+  "situation": "Last standing",
+  "diver": "Whaler",
+  "line": "Just me. Good."
+ },
+ {
+  "situation": "Last standing",
+  "diver": "Whaler",
+  "line": "Nobody to blame now."
+ },
+ {
+  "situation": "Last standing",
+  "diver": "Whaler",
+  "line": "Come on, then."
+ },
+ {
+  "situation": "Last standing",
+  "diver": "Stowaway",
+  "line": "Oh dear. Solo act."
+ },
+ {
+  "situation": "Last standing",
+  "diver": "Stowaway",
+  "line": "I'm the responsible one now? Us?"
+ },
+ {
+  "situation": "Last standing",
+  "diver": "Stowaway",
+  "line": "Hold on, everyone. Ish."
+ },
+ {
+  "situation": "Last standing",
+  "diver": "Mechanic",
+  "line": "Just me. Probability of revival: low."
+ },
+ {
+  "situation": "Last standing",
+  "diver": "Mechanic",
+  "line": "Okay. Okay. Plan."
+ },
+ {
+  "situation": "Last standing",
+  "diver": "Mechanic",
+  "line": "I'll try. No promises."
+ },
+ {
+  "situation": "Match over",
+  "diver": "Diver",
+  "line": "Tide twelve. Next time, thirteen."
+ },
+ {
+  "situation": "Match over",
+  "diver": "Diver",
+  "line": "We'll come back."
+ },
+ {
+  "situation": "Match over",
+  "diver": "Diver",
+  "line": "Log it."
+ },
+ {
+  "situation": "Match over",
+  "diver": "Whaler",
+  "line": "Got what we got."
+ },
+ {
+  "situation": "Match over",
+  "diver": "Whaler",
+  "line": "Next time, quieter."
+ },
+ {
+  "situation": "Match over",
+  "diver": "Whaler",
+  "line": "The reef wins. It always does."
+ },
+ {
+  "situation": "Match over",
+  "diver": "Stowaway",
+  "line": "Next time, more snacks."
+ },
+ {
+  "situation": "Match over",
+  "diver": "Stowaway",
+  "line": "Good swim, everyone."
+ },
+ {
+  "situation": "Match over",
+  "diver": "Stowaway",
+  "line": "Same time tomorrow?"
+ },
+ {
+  "situation": "Match over",
+  "diver": "Mechanic",
+  "line": "Tide twelve. We'll get thirteen."
+ },
+ {
+  "situation": "Match over",
+  "diver": "Mechanic",
+  "line": "Cause of death: everything."
+ },
+ {
+  "situation": "Match over",
+  "diver": "Mechanic",
+  "line": "Filing the report."
+ }
+]
