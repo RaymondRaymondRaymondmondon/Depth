@@ -673,7 +673,7 @@ Enemy MakeEnemy(EnemyType t, int uid) {
             e.name = "Tribal Spearman";
             e.maxHp = 15; e.dmgMin = 4; e.dmgMax = 6; e.speed = 6; e.acc = 80; e.dodge = 10;
             EnemyAbility a = Melee("Jagged Thrust", 1.0f); a.bleed = 3; e.abilities.push_back(a);
-            a = Melee("Shield Bash", 0.7f); a.stunChance = 40; e.abilities.push_back(a);
+            a = Melee("Shield Bash", 0.7f); a.stunChance = 25; e.abilities.push_back(a);
         } break;
         case EnemyType::WarDog: {
             e.name = "War Dog";
@@ -720,8 +720,8 @@ Enemy MakeEnemy(EnemyType t, int uid) {
         case EnemyType::FireDancer: {     // burning sweeps
             e.name = "Fire Dancer";
             e.maxHp = 13; e.dmgMin = 3; e.dmgMax = 5; e.speed = 8; e.acc = 82; e.dodge = 15;
-            EnemyAbility a = Long("Fire Whirl", 0.45f); a.aoe = true; a.hits = RANK_1 | RANK_2 | RANK_3; a.region = 1; e.abilities.push_back(a);
-            a = Melee("Torch Strike", 1.0f); a.region = 1; e.abilities.push_back(a);
+            EnemyAbility a = Long("Fire Whirl", 0.4f); a.aoe = true; a.hits = RANK_1 | RANK_2; a.region = 1; e.abilities.push_back(a);
+            a = Melee("Torch Strike", 1.0f); e.abilities.push_back(a);
         } break;
         case EnemyType::IdolBearer: {     // the idol lifts the tribe
             e.name = "Idol Bearer";
@@ -753,7 +753,7 @@ Enemy MakeEnemy(EnemyType t, int uid) {
             e.maxHp = 16; e.dmgMin = 3; e.dmgMax = 5; e.speed = 5; e.acc = 82; e.dodge = 5; e.prot = 5;
             EnemyAbility a = Long("Starlit Gaze", 0.55f); a.region = 4; e.abilities.push_back(a);
             a = Support("Unfold Space"); a.pull = 3; a.stress = 3; e.abilities.push_back(a);
-            a = Melee("Tentacle Lash", 1.1f); e.abilities.push_back(a);
+            a = Melee("Tentacle Lash", 1.0f); e.abilities.push_back(a);
         } break;        case EnemyType::TribalDemigod: {
             e.name = "Tribal Demigod"; e.boss = true; e.tier = 1;
             e.maxHp = 76; e.dmgMin = 8; e.dmgMax = 12; e.speed = 3; e.acc = 85; e.dodge = 5; e.prot = 15;
@@ -768,9 +768,9 @@ Enemy MakeEnemy(EnemyType t, int uid) {
         } break;
         case EnemyType::SunGod: {
             e.name = "The Sun God"; e.boss = true; e.tier = 2; // (hp 60, damage 5-7 since EnemyBrain: it burns the front and turns Wrath on the fastest)
-            e.maxHp = 60; e.dmgMin = 5; e.dmgMax = 7; e.speed = 4; e.acc = 85; e.dodge = 0; e.prot = 15;
-            EnemyAbility a = Long("Solar Cleave", 0.8f); a.aoe = true; a.region = 1; e.abilities.push_back(a);
-            a = Melee("Wrath of the Sun", 1.4f); a.stunChance = 40; e.abilities.push_back(a);
+            e.maxHp = 50; e.dmgMin = 5; e.dmgMax = 7; e.speed = 4; e.acc = 85; e.dodge = 0; e.prot = 15;
+            EnemyAbility a = Long("Solar Cleave", 0.65f); a.aoe = true; a.region = 1; e.abilities.push_back(a);
+            a = Melee("Wrath of the Sun", 1.4f); a.stunChance = 25; e.abilities.push_back(a);
             a = Support("Aegis of Gold"); a.buffSelfDef = 30; a.cleanse = true; e.abilities.push_back(a);
         } break;
         // ------------------------------------------------ the Cave
@@ -803,7 +803,7 @@ Enemy MakeEnemy(EnemyType t, int uid) {
         case EnemyType::FeralMerman: {
             e.name = "Feral Merman";
             e.maxHp = 15; e.dmgMin = 4; e.dmgMax = 6; e.speed = 8; e.acc = 85; e.dodge = 15;
-            EnemyAbility a = Melee("Gutting Claw", 1.0f); a.bleed = 3; e.abilities.push_back(a);
+            EnemyAbility a = Melee("Gutting Claw", 1.0f); a.bleed = 2; e.abilities.push_back(a);
             a = Melee("Thrasher Strike", 0.8f); a.weakSpd = 30; a.region = 3; e.abilities.push_back(a);
         } break;
         case EnemyType::Siren: {
@@ -833,17 +833,17 @@ Enemy MakeEnemy(EnemyType t, int uid) {
         } break;
         case EnemyType::Neptune: {
             e.name = "Neptune"; e.boss = true; e.tier = 2;
-            e.maxHp = 62; e.dmgMin = 5; e.dmgMax = 8; e.speed = 4; e.acc = 85; e.dodge = 0; e.prot = 15;
-            EnemyAbility a = Melee("Trident Impale", 1.4f); a.bleed = 3; a.weakDef = 20; e.abilities.push_back(a);
+            e.maxHp = 50; e.dmgMin = 5; e.dmgMax = 7; e.speed = 4; e.acc = 85; e.dodge = 0; e.prot = 15;
+            EnemyAbility a = Melee("Trident Impale", 1.4f); a.bleed = 2; a.weakDef = 20; e.abilities.push_back(a);
             a = Support("Maelstrom Call"); a.pull = 2; a.aoe = true; a.region = 3; a.stress = 6; e.abilities.push_back(a);
-            a = Support("Ocean's Blessing"); a.healAllies = 8; a.buffAllyAtk = 25; e.abilities.push_back(a);
+            a = Support("Ocean's Blessing"); a.healAllies = 6; a.buffAllyAtk = 20; e.abilities.push_back(a);
         } break;
         // ------------------------------------------------ Atlantis
         case EnemyType::LostInfantry: {
             e.name = "Lost One Infantry";
-            e.maxHp = 18; e.dmgMin = 4; e.dmgMax = 6; e.speed = 5; e.acc = 80; e.dodge = 5; e.prot = 15;
+            e.maxHp = 16; e.dmgMin = 4; e.dmgMax = 6; e.speed = 5; e.acc = 80; e.dodge = 5; e.prot = 12;
             EnemyAbility a = Melee("Rusted Gladius", 1.0f); a.bleed = 3; e.abilities.push_back(a);
-            a = Melee("Phalanx Slam", 0.8f); a.stunChance = 35; a.buffSelfDef = 20; e.abilities.push_back(a);
+            a = Melee("Phalanx Slam", 0.8f); a.stunChance = 20; a.buffSelfDef = 20; e.abilities.push_back(a);
         } break;
         case EnemyType::LostCultist: {
             e.name = "Lost One Cultist";
@@ -879,10 +879,10 @@ Enemy MakeEnemy(EnemyType t, int uid) {
         case EnemyType::CrustaceanQueen: e.extraAct = 40; break;
         case EnemyType::TribalDemigod: e.extraAct = 45; break;
         case EnemyType::CoconutQueen: e.extraAct = 5; break;
-        case EnemyType::SunGod: e.extraAct = 5; break;
+        case EnemyType::SunGod: e.extraAct = 0; break;   // (5 before the Shallows rebalance)
         case EnemyType::ElectricEel: e.extraAct = 80; break;
         case EnemyType::GreatWhite: e.extraAct = 20; break;
-        case EnemyType::Neptune: e.extraAct = 13; break;
+        case EnemyType::Neptune: e.extraAct = 0; break;  // (13 before the Shallows rebalance)
         case EnemyType::ArmorLostOne: e.extraAct = 50; break;
         case EnemyType::AlienHorror: e.extraAct = 45; break;
         case EnemyType::Cthulhu: e.extraAct = 10; break;
@@ -1313,6 +1313,8 @@ const char* EnemyHint(int t) {
 }
 
 // ---------------------------------------------------------------- Stage 7: the deep tiers
+extern const int REGION_BURN_DMG = 1;         // Totemic Burn per turn (was 2: the Island ran far harder than the Cave)
+extern const int MADNESS_SLIP_PCT = 12;       // Eldritch Madness: chance a turn is lost (was 20)
 extern const int TRENCH_PRESSURE_MAX = 5;     // the Trench's pressure builds a point a round, to this
 extern const int TRENCH_PRESSURE_SPEED = 1;   // -speed per point, for every hero
 extern const int TRENCH_VENT_LIGHT = 15;      // burning a battery to vent it also gives this much light

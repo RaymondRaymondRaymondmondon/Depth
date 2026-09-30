@@ -268,6 +268,7 @@ extern const int AILMENT_HIT_PCT, CURIO_AILMENT_PCT, BONESAW_SELF_HP;
 extern const int BOND_MAX, BOND_PERK, BOND_DMG_PCT, BOND_DEATH_NERVES, BOND_BARK_PCT, BOND_BARK_CALM, HERO_CRIT_CALM, ENEMY_CRIT_NERVES;
 extern const int ENEMY_FLEE_PCT, RIPOSTE_DMG_PCT, DRILL_MAX, DRILL_STEP_PCT, DRILL_STUN_STEP;
 extern const int ELITE_PCT_BY_TIER[CAVE_TIERS], ELITE_HP_PCT, SIM_DRILLS_BY_TIER[CAVE_TIERS];
+extern const int REGION_BURN_DMG, MADNESS_SLIP_PCT;   // the Island's burn per turn; the chance Eldritch Madness costs a turn
 extern const int TRENCH_PRESSURE_MAX, TRENCH_PRESSURE_SPEED, TRENCH_VENT_LIGHT, CREW_MAX_LEVEL;
 int DrillPrice(int toLevel, int unlockLevel);   // the Drill Deck's price for the next level of an ability
 void ApplyDrill(Ability& a, int level);         // +10% damage or effect per level

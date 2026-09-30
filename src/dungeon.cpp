@@ -974,12 +974,12 @@ static void StartTurn(Game& g) {
         if (st.spdTurns > 0 && --st.spdTurns == 0) st.spdBuff = 0;
         if (st.guardTurns > 0) st.guardTurns--;
         if (st.riposteTurns > 0) st.riposteTurns--;
-        if (st.burnTurns > 0) { st.burnTurns--; Float(g, r, "Burn 2", Pal::Coral); DamageHero(g, *h, 2); }
+        if (st.burnTurns > 0) { st.burnTurns--; gKillCause = "burned"; Float(g, r, TextFormat("Burn %d", REGION_BURN_DMG), Pal::Coral); DamageHero(g, *h, REGION_BURN_DMG); }
         if (st.siltTurns > 0) st.siltTurns--;
         if (st.drownTurns > 0) st.drownTurns--;
         if (!h->dead && st.madTurns > 0) {
             st.madTurns--;
-            if (Chance(20)) { // Eldritch Madness: the mind slips
+            if (Chance(MADNESS_SLIP_PCT)) { // Eldritch Madness: the mind slips
                 std::vector<int> others;
                 for (int p = 0; p < PartySize(g); p++) if (PartyAt(g, p) && PartyAt(g, p)->id != h->id) others.push_back(p);
                 if (!others.empty() && Chance(50)) {
@@ -1762,9 +1762,9 @@ static void SimCombatStep(Game& g, bool randomPlayer) { // one unit's turn, play
 // weakest enemy it can reach; "random" picks any usable ability and target instead.
 static bool gSimQuiet = false;
 int gSimLocation = 0;   // --sim <runs> <level> sensible <tier> [location 0-5]
-static float gLastSimWin = 0;
+static float gLastSimWin = 0, gLastSimReach = 0;
 void SimulateExpeditions(int runs, int level, bool randomPlayer, int tier) {
-    int wins = 0, losses = 0, deaths = 0, anyDeath = 0, rattled = 0, wipeRoom[8] = {0}, retreats = 0;
+    int wins = 0, losses = 0, deaths = 0, anyDeath = 0, rattled = 0, wipeRoom[8] = {0}, retreats = 0, reachedBoss = 0;
     std::unordered_map<std::string, int> killers; // what was standing when the crew went down
     for (int r = 0; r < runs; r++) {
         Game g;
@@ -1789,7 +1789,9 @@ void SimulateExpeditions(int runs, int level, bool randomPlayer, int tier) {
         StartDungeon(g, simLoc);
         auto& d = g.dungeon;
         int steps = 0;
+        bool sawBoss = false;
         while (steps++ < 40000) {
+            if (d.phase == DPhase::Combat && BossFightNow(d)) sawBoss = true;
             if (d.phase == DPhase::Corridor) { SimChooseRoute(g, randomPlayer); continue; }
             if (d.phase == DPhase::Walking) { ResolveSegment(g); continue; }
             if (d.phase == DPhase::Event) { SimResolveEvent(g); continue; }
@@ -1802,14 +1804,17 @@ void SimulateExpeditions(int runs, int level, bool randomPlayer, int tier) {
         deaths += lost;
         anyDeath += lost > 0;
         for (auto& h : g.roster) if (h.rattled) { rattled++; break; }
+        reachedBoss += sawBoss;
         if (d.phase == DPhase::Victory) wins++; else { losses++; wipeRoom[std::clamp(d.roomIndex, 0, 7)]++;
             if (d.phase == DPhase::Retreat) retreats++; for (auto& e : d.enemies) if (e.alive) killers[e.name]++; }
     }
     gLastSimWin = 100.0f * wins / runs;
+    gLastSimReach = 100.0f * reachedBoss / runs;
     if (gSimQuiet) return;
     printf("Simulated %d expeditions, crew level %d, cave level %d (%s player):\n", runs, level, CAVE_TIER_LEVEL[tier],
            randomPlayer ? "random" : "sensible");
     printf("  wins %.1f%%   wipes %.1f%%   (of which retreats %.1f%%)\n", 100.0 * wins / runs, 100.0 * (losses - retreats) / runs, 100.0 * retreats / runs);
+    printf("  reached the boss %.1f%%   beat it %.1f%% of those\n", 100.0 * reachedBoss / runs, reachedBoss ? 100.0 * wins / reachedBoss : 0.0);
     printf("  runs with a death %.1f%%   avg deaths %.2f   runs with someone rattled %.1f%%\n",
            100.0 * anyDeath / runs, (double)deaths / runs, 100.0 * rattled / runs);
     printf("  wipes by room:");
@@ -1827,7 +1832,15 @@ void SimulateBossFight(int runs, int level, int tier, int enemyType, bool random
     Location loc = Location::Cave;
     if (enemyType >= (int)EnemyType::TribalSpearman && enemyType <= (int)EnemyType::SunGod) loc = Location::Island;
     else if (enemyType >= (int)EnemyType::FeralMerman && enemyType <= (int)EnemyType::Neptune) loc = Location::Weeds;
-    else if (enemyType >= (int)EnemyType::LostInfantry) loc = Location::Atlantis;
+    else if (enemyType >= (int)EnemyType::LostInfantry && enemyType <= (int)EnemyType::Cthulhu) loc = Location::Atlantis;
+    else switch ((EnemyType)enemyType) { // Stage 7's additions, appended out of location order
+        case EnemyType::FireDancer: case EnemyType::IdolBearer: loc = Location::Island; break;
+        case EnemyType::MantisShrimp: case EnemyType::KelpWraith: loc = Location::Weeds; break;
+        case EnemyType::DrownedOracle: case EnemyType::StarSpawn: loc = Location::Atlantis; break;
+        case EnemyType::Leviathan: loc = Location::Trench; break;
+        case EnemyType::AbyssalEye: loc = Location::Hadal; break;
+        default: break;
+    }
     for (int r = 0; r < runs; r++) {
         Game g;
         InitGame(g);

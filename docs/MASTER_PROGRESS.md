@@ -85,3 +85,16 @@ First pass made the Cave easier (the crab and angler diluted harder standards: 5
 Tuning on the way: the Hadal's standards lightened (Star Spawn once, sea lice and Dysformed Crustaceans, supports Drowned Oracle and Lantern Angler, minis Alien Horror, Lost Diver, Ghost Worm; it started at 18%); Star Spawn hp 18 -> 16, damage 3-6 -> 3-5, Starlit Gaze 0.6x -> 0.55x, Unfold Space nerves 5 -> 3; the Abyssal Eye hp 90 -> 72, damage 6-9 -> 6-8, Void Stare 0.9x -> 0.75x; the Leviathan 70 -> 78 hp (86 overshot the Trench by 15 points), extra action 40%. Boss sims at crew level 7: the Eye 83.5% before its softening; the Leviathan 99.7% before its buff.
 
 **Found while testing (not changed, a design question):** the Stage 7 targets were only ever measured in the Cave, and the other Shallows are far harder with the same crew. At level 0: the Island 23%, Atlantis 4% (most wipes at Cthulhu, tuned as the hard final boss). At level 6: the Island 14%, the Weeds 44%, Atlantis 3%.
+
+### The Shallows rebalanced alike (2026-09-29, the user's call: all four balanced up to the endgame; Cthulhu is the endgame)
+--sim now reports **reached the boss** and **beat it** (the share of those). shots\grid.ps1 -Locs 0,1,2,3 -Runs 1200 runs the whole grid. Win % (reached the boss %), crew level = cave level:
+
+| Cave level | Cave | Island | Weeds | Atlantis (reach only; Cthulhu exempt) |
+|---|---|---|---|---|
+| 0 | 55.8 (88) | 52.3 (86) | 54.5 (87) | (85) |
+| 1 | 64.0 (89) | 62.8 (81) | 60.2 (80) | (83) |
+| 3 | 58.5 (81) | 63.1 (81) | 67.9 (82) | (81) |
+| 5 | 54.3 (71) | 56.1 (75) | 56.9 (71) | (68) |
+| 6 | 42.5 (61) | 44.0 (68) | 48.4 (63) | (58) |
+
+Before: Island 20/36/32/25/15, Weeds 33/48/57/51/43, Atlantis reach 76/73/73/62/46. Changes: Totemic Burn 2 -> 1 a turn (REGION_BURN_DMG), Eldritch Madness slips a turn 20% -> 12% (MADNESS_SLIP_PCT; also eases Cthulhu and the Hadal); Spearman's Shield Bash stun 40 -> 25%; Fire Dancer's Fire Whirl 0.45x on ranks 1-3 -> 0.4x on ranks 1-2, Torch Strike no longer burns; the Sun God hp 60 -> 50, Solar Cleave 0.8x -> 0.65x, Wrath stun 40 -> 25%, extra action 5 -> 0%; Neptune hp 62 -> 50, damage 5-8 -> 5-7, Trident bleed 3 -> 2, Ocean's Blessing heal 8 -> 6 and +25 -> +20% attack, extra action 13 -> 0%; Feral Merman bleed 3 -> 2; Lost One Infantry hp 18 -> 16, protection 15 -> 12, Phalanx Slam stun 35 -> 20%; Star Spawn's Tentacle Lash 1.1x -> 1.0x. Against fresh crews (--boss, level 0) the Sun God and Neptune now lose 93-94% (older standalone target 66-85%): crews reach them more worn than they reach the Queen (78.6%), and the whole-expedition numbers are the ones held level. Cthulhu against a fresh crew: 28%.
