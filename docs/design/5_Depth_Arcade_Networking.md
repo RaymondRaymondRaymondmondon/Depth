@@ -237,6 +237,13 @@ Friends can play before the public release through Steam's **Playtest** feature 
 | N6 | The Trawl, then Fathoms (20-tick snapshots, delta, fog filter, `--host-headless`) | their own gates in the Master Reference and the Fathoms document |
 | N7 (only if wanted) | `relay/`: `depth-lobby` + coturn for a non-Steam build, one US-central server | two PCs on different networks join by code |
 
+### Progress (2026-09-30)
+- **N1 built:** `net.h` (the Transport interface), `net_gns.cpp` (GameNetworkingSockets; a stub when the library isn't built), `net_mem.cpp` (an in-process transport for tests and practice tables), `net_lan.cpp` (the beacon and Browse), `arcade_session.*` (lobby, handshake with protocol/build/data hash, heartbeats, lost after 6 s, a pause, AI takeover after 2 minutes, rejoin tokens, AI seats, chat), `scuttle.*` (the rules, hidden-information serialization, bots) and `arcade.cpp` (the reels, Host/Join/Browse, the lobby, the table, a practice table against AI crabs).
+- **Most of N3 came with it:** the pause, rejoin token and AI takeover are in the session. Still to do for N3: the pause budget, the host's autosave and re-host, and tokens in the save.
+- GNS is built once by `tools/build_gns.ps1` into `external/gns` (protobuf via VS's bundled vcpkg, BCrypt crypto, no OpenSSL). CMake links it when it's there; otherwise networking is off and only practice tables work.
+- Checks: `--scuttle-sim` (seat fairness within 30%; 2/3/4 crabs came out 51/49, 33/34/33, 25/26/25/24) and `--net-loop [lag] [mem]` (a host and two guests: lobby, a rejected build, chat, a match, a silent guest, the pause, a rejoin with the token, agreement on the winner, no leaked hands or bets, the host closing).
+- Still to check by hand: two PCs on your network finish a match (N1's gate).
+
 ## 9. Settled
 - One region (the US): one server would be enough, and with Steam, none is needed.
 - Steam is the release and online platform; its backend moves up to step N4.

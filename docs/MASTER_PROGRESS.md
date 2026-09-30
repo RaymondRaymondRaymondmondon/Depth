@@ -14,7 +14,7 @@ The plan is `Depth — Master Reference for Claude Code.pdf` (project root). One
 | 8 | Expedition sound | Done (--audio-test: 6 locations x walk/dark/fight/danger/boss, 35 enemies x voice/pain/death, 67 cues, none silent or clipping) |
 | 9 | Flats visuals and card physics | |
 | 10 | Flats long map and systems | |
-| 11 | Deep Arcade, networking, Scuttle | |
+| 11 | Deep Arcade, networking, Scuttle | In progress: LAN (networking step N1) built; --scuttle-sim and --net-loop pass. Next: a two-PC test, then Steam (N4) |
 | 12 | Flats Duel | |
 | 13 | The Trawl | |
 | 14 | Fathoms | |

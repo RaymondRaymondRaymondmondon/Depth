@@ -42,5 +42,26 @@ add_executable(depth
     src/beasts.cpp
     src/beasts_biomes.cpp src/beasts_hull.cpp src/beasts_pirate.cpp src/beasts_cave.cpp src/beasts_island.cpp src/beasts_weeds.cpp src/beasts_atlantis.cpp src/dossier.cpp src/sound.cpp src/sound_parkour.cpp src/pixelart.cpp src/beastart.cpp
     src/rig.cpp src/rig_clips.cpp src/rigfigs.cpp src/chart.cpp src/combatfx.cpp src/input.cpp src/menu.cpp
+    src/scuttle.cpp src/net_gns.cpp src/net_lan.cpp src/net_mem.cpp src/arcade_session.cpp src/arcade.cpp src/net_test.cpp
 )
 target_link_libraries(depth PRIVATE raylib)
+
+# The Deep Arcade's networking (docs/design/5_Depth_Arcade_Networking.md): Valve's GameNetworkingSockets, built once
+# into external/gns by tools/build_gns.ps1. Without it Depth still builds; the arcade says networking is off.
+set(DEPTH_GNS_DIR "${CMAKE_SOURCE_DIR}/external/gns")
+set(DEPTH_VCPKG_DIR "${CMAKE_SOURCE_DIR}/external/vcpkg_installed/x64-windows-static-md")
+if(EXISTS "${DEPTH_GNS_DIR}/lib/cmake/GameNetworkingSockets")
+    list(APPEND CMAKE_PREFIX_PATH "${DEPTH_GNS_DIR}" "${DEPTH_VCPKG_DIR}")
+    set(CMAKE_FIND_PACKAGE_PREFER_CONFIG ON)
+    find_package(GameNetworkingSockets CONFIG REQUIRED)
+    target_link_libraries(depth PRIVATE GameNetworkingSockets::GameNetworkingSockets_s)
+    target_compile_definitions(depth PRIVATE DEPTH_HAVE_GNS STEAMNETWORKINGSOCKETS_STATIC_LINK)
+    message(STATUS "Depth: networking ON (GameNetworkingSockets)")
+else()
+    message(STATUS "Depth: networking OFF (run tools/build_gns.ps1 to build GameNetworkingSockets)")
+endif()
+target_link_libraries(depth PRIVATE ws2_32)
+
+# the build id every peer compares in the handshake: changes whenever the sources are reconfigured/rebuilt
+string(TIMESTAMP DEPTH_BUILD_STAMP "%Y%m%d%H%M%S" UTC)
+target_compile_definitions(depth PRIVATE DEPTH_BUILD_STAMP="${DEPTH_BUILD_STAMP}")

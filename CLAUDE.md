@@ -266,3 +266,28 @@ amespace {} reopened before DrawRichEnemy). Shots: `foes_new_cave|island|weeds|a
 - **The four Shallows are balanced alike up to the endgame (the user's call); Atlantis's Cthulhu is the endgame and stays hard.** --sim prints reached-the-boss and beat-it rates; tools\balance_grid.ps1 -Locs 0,1,2,3 -Runs 1200 runs every location x tier. Hold the Island and the Weeds to the Cave's win rates and Atlantis's reach-the-boss rate to the Cave's. Region debuff strengths are data (REGION_BURN_DMG, MADNESS_SLIP_PCT). Results in docs/MASTER_PROGRESS.md.
 - **Stage 8, expedition sound (done):** sound_expedition.inl (included inside sound.cpp's namespace, so it uses the voice pool). The Dungeon scene sets AudioExpedition(ExpAudio) every frame (ExpeditionSoundFrame in dungeon.cpp: location, mode walk/combat/results, light, how near the boss room is by chart distance, the boss and its phase, winning/danger/Death's Door); main.cpp turns it off elsewhere. Per location (EXP_PAL: root, scale, tempi, reverb room): walking is a drone and pad, the location's voice (Cave glass harmonica and drips, Island conch and chant, Weeds bowed strings, Atlantis choir and a ticking that isn't a clock, Trench/Hadal groans), a pulse that quickens as the light fails and a low tone that climbs as the boss room nears; combat is the location's rhythm and bass, a melodic layer while winning (winS), a dissonant cluster when a hero is below 30% HP or above 80 nerves (dangerS), a heartbeat at Death's Door, and a boss ostinato hashed from its type (sharper and doubled in its second phase). Stingers mus.crit/kill/boss/phase. Ambience beds and events per location (ExpSetupBeds, ExpEvents). The Island's chant rises when its Shaman heals and whale calls answer the Siren (AudioReact); the Cave's mould light pulses on the beat (AudioBeat). Cues (data.cpp, new recipes CR_STEP_* ... CR_PHASE): footsteps by surface, the Diver's helmet breath, the torch, the sonar ping and static, attack families hit.slash/thrust/blunt/shot/throw/cast/song (HeroAttackCue/EnemyAttackCue), impacts by material imp.flesh/shell/metal/stone, cmb.crit/dodge/stun/bleed/poison/heal/nerve/door, hero.pain/death. Every enemy has a voice, pain and death (CombatVoice, mapped by type in EnemyArch). --audio-test renders every location in five states and every enemy's three cues.
 - **Everything still to do is in docs/FUTURE_WORK.md** (stage 5's remainder, open balance and design questions, stages 9-15). Stage 5, latest pass (paused before a careful visual review): IK legs on the Island/Weeds/Atlantis walkers, chains for the Siren's hair, Neptune's beard and Cthulhu's face, a boss phase-change clip at half health (rage for 1.4 s, then an agitated idle and a hotter tint), living details per location (DrawLivingMid before the lightmap, DrawLivingGlow after the ink pass), the Atlantis eye's blink and the Cave's hanging net.
+
+## The Deep Arcade: LAN multiplayer and Scuttle (Stage 11, networking step N1; docs/design/5_Depth_Arcade_Networking.md)
+- Layers, none of them raylib except arcade.cpp:
+  - `net.h`: the `Transport` interface, `LanBeacon` and `LanBrowser`.
+  - `net_gns.cpp`: Valve's GameNetworkingSockets. It's a stub unless CMake finds `external/gns`.
+  - `net_mem.cpp`: an in-process transport, used for tests and the practice table.
+  - `net_lan.cpp`: Winsock, the UDP 47777 beacon.
+  - `arcade_session.*`: the host-authoritative session.
+  - `scuttle.*`: the rules engine.
+  - `arcade.cpp`: `SceneArcade` (the reels, Host/Join/Browse, lobby, table).
+- Ports: game UDP 47778, beacon UDP 47777.
+- Handshake: protocol, `BuildId()` (DEPTH_BUILD_STAMP, set at configure time) and `DataHash()`, so friends need the same exe.
+- Heartbeats every 1 s. A guest unheard for 6 s is lost: the table pauses, and the AI takes their crab after 2 minutes. They rejoin with the token from WELCOME. A guest who leaves on purpose is replaced by the AI at once.
+- A client only ever receives its own hand and its own face-down bets (`scuttle::Serialize(state, viewer)`), and the host's screen uses the same filtered view.
+- GNS is built once with `tools\build_gns.ps1`:
+  - external/ is gitignored.
+  - It needs `GameNetworkingSockets-master.zip` in the root, or external/GameNetworkingSockets.
+  - protobuf comes from VS's bundled vcpkg (manifest external/deps/vcpkg.json, triplet x64-windows-static-md).
+  - Crypto is BCrypt.
+  - Without it, Depth still builds and the arcade offers practice tables only.
+- Checks:
+  - `depth.exe --scuttle-sim [N]`: seat fairness within 30%, matches finish.
+  - `depth.exe --net-loop [lagMs] [mem]`: host plus two guests in one process over loopback UDP, or `mem`. It covers the lobby, a rejected build, chat, a full match, a silent guest and the pause, a rejoin by token, the winner agreed, no leaks, and the host closing.
+- Shots: `arcade`, `arcade_lobby`, `arcade_table`.
+- The arcade profile (name, id) is `arcade_profile.txt` next to the exe.

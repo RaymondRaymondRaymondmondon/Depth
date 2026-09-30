@@ -169,6 +169,8 @@ static void TakeShots(const Game& base, const std::string& dir) {
         {"hub_hover_study", [](Game& g) { g.scene = Scene::Hub; DebugSalonHover(10); }},
         {"study", [](Game& g) { g.scene = Scene::Study; }},
         {"arcade", [](Game& g) { g.scene = Scene::Arcade; }},
+        {"arcade_lobby", [](Game& g) { g.scene = Scene::Arcade; DebugArcadeShot(0); }},
+        {"arcade_table", [](Game& g) { g.scene = Scene::Arcade; DebugArcadeShot(1); }},
         {"panel_ward", [](Game& g) { g.scene = Scene::Ward; Hero& h = g.roster[1]; g.selectedHero = h.id; h.hp = h.hp / 2; h.ailments = (1u << AIL_SALT_ROT) | (1u << AIL_BENDS); h.habits = (1u << HB_STEADY_HANDS) | (1u << HB_NIGHT_EYES) | (1u << HB_JUMPY); h.habitLocked = 1u << HB_NIGHT_EYES; g.gold = 400; }},
         {"panel_sickbay", [](Game& g) { g.scene = Scene::SickLeave; }},
         {"flats_menu", [](Game& g) { g.scene = Scene::Cards; }},
@@ -550,6 +552,13 @@ int main(int argc, char** argv) {
         return VerifyAbyss() ? 0 : 1;
     }
     if (argc >= 2 && strcmp(argv[1], "--stage7-test") == 0) { SetTraceLogLevel(LOG_WARNING); return Stage7Test(); }
+    // the Deep Arcade: --scuttle-sim [matches] (the rules, bots only); --net-loop [lag ms] [mem] (host + two guests in one process)
+    if (argc >= 2 && strcmp(argv[1], "--scuttle-sim") == 0) return RunScuttleSim(argc >= 3 ? std::max(1, atoi(argv[2])) : 2000);
+    if (argc >= 2 && strcmp(argv[1], "--net-loop") == 0) {
+        int lag = 0; bool mem = false;
+        for (int i = 2; i < argc; i++) { if (strcmp(argv[i], "mem") == 0) mem = true; else if (strcmp(argv[i], "scuttle") != 0) lag = atoi(argv[i]); }
+        return RunNetLoop(lag, mem);
+    }
     if (argc >= 4 && strcmp(argv[1], "--brain-test") == 0) { SetTraceLogLevel(LOG_WARNING); BrainTest(atoi(argv[2]), std::max(1, atoi(argv[3]))); return 0; }
     // --gen-chart <tier 0-4> <seed> [count]: print an expedition chart and check the generation rules (on `count` seeds from `seed`)
     if (argc >= 4 && strcmp(argv[1], "--gen-chart") == 0) {

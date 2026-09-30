@@ -858,7 +858,10 @@ void EndStationPanel();       // RunScene: end the slide-in offset DrawCabinBack
 void SetSceneSlide(Vector2 d); // render.cpp: offset everything drawn into the scene from now on (a panel sliding in)
 void DrawSalonBackdrop(Game& g, Scene station); // salon.cpp: the room as a backdrop behind a station's panel (no hover, no HUD)
 void SceneStudy(Game& g);     // the Study below the hatch (under refit for now)
-void SceneArcade(Game& g);    // the Deep Arcade cabinet (its games arrive with the arcade stages)
+void SceneArcade(Game& g);    // the Deep Arcade cabinet (arcade.cpp): Host / Join / Browse, the lobby, Scuttle
+void DebugArcadeShot(int which);   // shots: 0 the lobby, 1 the Scuttle table (AI crabs, no network)
+int RunScuttleSim(int matches);    // --scuttle-sim (net_test.cpp)
+int RunNetLoop(int lagMs, bool forceMemory);   // --net-loop
 void SetFigureClip(const Rectangle* r); // clip the next EndFigure composites to r (portraits); nullptr turns it off
 void SetFigureMood(float desat, float door);
 void SnapshotFrame();                 // render.cpp: hold the last finished frame (the game menu's pause)
