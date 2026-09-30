@@ -6,6 +6,13 @@ The shared multiplayer layer for the four Deep Arcade games (Scuttle, Flats Duel
 
 It is written for the actual audience: **you and a few friends, 2 to 6 players per match, at most two servers.**
 
+**The user's answers (2026-09-30):**
+- The friends are all in the United States, in different states.
+- There is no preferred cloud provider.
+- **Depth will go on Steam so the friends can play it with the user.** Until then, the user tests it alone.
+
+This makes **Steam the online path**: Valve's relay network and Steam lobbies replace the join-code server, which is demoted to an optional fallback (section 4). The GNS source is in the repo root as `GameNetworkingSockets-master.zip`.
+
 ## 1. Decisions in one place
 
 | Question | Decision | Why |
@@ -14,9 +21,9 @@ It is written for the actual audience: **you and a few friends, 2 to 6 players p
 | Networking library | **GameNetworkingSockets (GNS)**, Valve's open-source library. | It provides reliable and unreliable messages, encryption, and router traversal (ICE). It is the same API as Steam's networking, so a later Steam build swaps the backend, not the game code (section 6). |
 | Fallback library | ENet, only if GNS won't build cleanly on this PC. | ENet is small and easy, but it has no encryption, no router traversal and no Steam parity. |
 | LAN | Broadcast discovery plus direct connect. No server. | Section 3. |
-| Online, day one | A virtual LAN (ZeroTier) or Direct IP. | These work as soon as LAN works, with no server to write or pay for. |
-| Online, proper | **One small cloud server** (a second is optional) running a tiny lobby program plus coturn (STUN/TURN). | This covers join codes, hole punching and a relay fallback, as the reference asks, at about $5 a month per server. Section 4. |
-| Steam | **Build the seam now, the Steam backend later.** | Section 6. |
+| Online, before Steam | A virtual LAN (ZeroTier) or Direct IP. | These work as soon as LAN works, with no server to write or pay for. They're enough for testing. |
+| Online, proper | **Steam**: Valve's relay network (SDR), Steam lobbies and friend invites. | The user is putting Depth on Steam. Steam hides IPs, gets through routers and runs the relays, and no server of ours is needed. Section 6. |
+| Our own server | Optional fallback only: one small US-central VM (lobby + coturn) if a non-Steam build is ever wanted. | Friends in several US states are all well served by one central server, so the second server isn't needed. Section 4. |
 
 ## 2. The shape of the code
 
@@ -121,7 +128,9 @@ The host can fill empty slots with AI or close them. Fathoms rule: faction picks
 
 **Test without a second PC:** `depth.exe --net-loop <game>` runs a host and two clients inside one process over loopback, plays a scripted match, and checks that everyone ends in the same state. For Flats Duel it also checks from the packet log that no client ever received the opponent's hand. `--net-loop <game> lag` adds GNS's built-in fake lag and packet loss (100 ms, 2%) to prove the interpolation and reconnect paths.
 
-## 4. The online game (you and a few friends)
+## 4. The online game without Steam (optional fallback)
+
+With Steam planned, **this section isn't on the build path.** Rungs 1 and 2 are how to test with a friend before the Steam build exists. Rung 3 is kept for the record, in case a non-Steam build is ever wanted. If it is, one server in the central US (Chicago or Dallas) covers friends in any state at under 60 ms.
 
 The online options come in rungs; each works before the next exists:
 
@@ -170,9 +179,9 @@ The online options come in rungs; each works before the next exists:
 - Deterministic lockstep: both references rule it out. Replays, when they come, record the host's snapshots.
 - Anything that makes the main game depend on the network. The arcade never pays gold into the single-player economy (from the Master Reference).
 
-## 6. Steam: lay the framework now, add the backend later
+## 6. Steam: the online path (the user plans to release there)
 
-**Yes, lay the framework, but don't build on Steam yet.** Steam would give you, for free:
+Steam gives, for free:
 - **Steam Datagram Relay:** Valve's relay network, which hides players' IP addresses. No server of our own is needed.
 - **Steam lobbies:** these replace join codes.
 - **Friends-list invites** and "Join Game" from the overlay.
@@ -182,7 +191,12 @@ It also costs something:
 - the Steamworks SDK and its agreement
 - **every player needs Steam and a copy of the game** (or a playtest key)
 
-Until you publish, your friends would be testing through Steam's playtest system. For a private game among a few friends, the lobby server is simpler and cheaper.
+Friends can play before the public release through Steam's **Playtest** feature or with **keys** from the Steamworks site.
+
+**Testing alone before an App ID exists:**
+- Two copies of depth.exe on one PC can play each other over the LAN mode (127.0.0.1), and --net-loop runs a whole match inside one program. That covers everything except Steam's own services.
+- Steam's own services (lobbies, invites, the relay network) need **two Steam accounts on two PCs**, because Steam doesn't let one account join itself. Until the  App ID exists, development can use Valve's public test App ID **480 (Spacewar)**.
+- A spare laptop with a second (free) Steam account is enough.
 
 **What makes a later switch cheap:**
 - **GNS is the open-source version of Steam's own networking library**, with the same classes and calls (`ISteamNetworkingSockets`, connections, messages, lanes). The game already speaks that API, so `net_steam.cpp` is a thin second backend behind `NetTransport`.
@@ -193,10 +207,12 @@ Until you publish, your friends would be testing through Steam's playtest system
 - Nothing in the games or the session layer changes.
 - Profiles stay in `depth_save.txt`; on Steam the profile id becomes the Steam id.
 
-**Estimated work for the Steam backend later:** a few days to a week of code (the SDK, lobbies, invites, the rich-presence "Join" button), plus Valve's store setup, which is paperwork rather than code.
+**Estimated work for the Steam backend:** a few days to a week of code (the SDK, lobbies, invites, the rich-presence "Join" button), plus Valve's store setup, which is paperwork rather than code.
+
+**What the user needs to get:** the **Steamworks SDK** (from partner.steamgames.com; the download needs a free Steamworks partner account, and the SDK isn't on GitHub). The  Steam Direct fee buys the App ID, which is needed for keys, playtests and release, but not for development against App ID 480.
 
 ## 7. Build and dependencies
-- **GNS on Windows:** easiest through **vcpkg** (`vcpkg install gamenetworkingsockets`, which brings protobuf and OpenSSL), wired into CMake with the vcpkg toolchain file. P2P and ICE need GNS built with its WebRTC/ICE option (libjuice); vcpkg's port has a feature for it.
+- **GNS on Windows:** built from `GameNetworkingSockets-master.zip` (the user's download) with `-DUSE_CRYPTO=BCrypt`, which uses Windows' own cryptography, so there's no OpenSSL. Its native ICE client (`ENABLE_ICE`, on by default) handles router traversal, so there's no WebRTC. **Its one dependency, protobuf, comes through the vcpkg that ships with Visual Studio 2026** (`VC\vcpkg`, confirmed present), using GNS's own `vcpkg.json` manifest. Nothing else needs downloading. For a reproducible build, a tagged release (v1.4.x) is safer than a `master` snapshot; it works either way.
 - This is the one heavy dependency in an otherwise self-contained build. If it fights the VS 2026 toolchain, the fallback is ENet for LAN and Direct IP, plus our own simple UDP relay in `depth-lobby` instead of coturn. That fallback gives up encryption and Steam parity.
 - The lobby server builds on Linux with the same CMake and needs only the C++ standard library and sockets.
 - Ports:
@@ -216,12 +232,12 @@ Until you publish, your friends would be testing through Steam's playtest system
 | N1 | `NetTransport` on GNS; `arcade_session` handshake, heartbeats, version check; the LAN beacon and Browse; the lobby screen; Scuttle as the first game | `--net-loop scuttle` passes; two PCs on your network finish a Scuttle match |
 | N2 | Direct IP, and a short "play over ZeroTier or Tailscale" guide in the arcade's help | a friend elsewhere finishes a match over ZeroTier |
 | N3 | Reconnect (2-minute pause, rejoin token), AI takeover, pause budget, the host's autosave and re-host; profiles and tokens in the save | `--net-loop scuttle lag` survives a dropped client and a rejoin |
-| N4 | `relay/`: `depth-lobby` + coturn + docker-compose + README; join codes, signaling, TURN credentials, two-server `servers.txt` | two PCs on different networks join by code (the Master Reference's stage 11 gate) |
+| N4 | `net_steam.cpp` + `SteamLobbyDirectory` behind `-DDEPTH_STEAM=ON`: Steam lobbies, invites, the relay network (App ID 480 until Depth's own) | two PCs with two Steam accounts join from an invite (this replaces the Master Reference's join-code gate) |
 | N5 | Flats Duel over the layer | `--flats-duel-sim` 48–52%; the packet-log test shows no hand leaked; a best-of-three with a friend |
 | N6 | The Trawl, then Fathoms (20-tick snapshots, delta, fog filter, `--host-headless`) | their own gates in the Master Reference and the Fathoms document |
-| N7 (later) | `net_steam.cpp` + `SteamLobbyDirectory` behind `-DDEPTH_STEAM=ON` | a match joined from a Steam invite |
+| N7 (only if wanted) | `relay/`: `depth-lobby` + coturn for a non-Steam build, one US-central server | two PCs on different networks join by code |
 
-## 9. Open questions for the user
-1. **Where are your friends?** If they're all in one region, one server is enough. If some are across an ocean, a second server near them helps.
-2. **Which cloud provider**, if any preference? The design works on any small Linux VM.
-3. **Do you plan to put Depth on Steam?** This only changes how early step N7 is worth doing.
+## 9. Settled
+- One region (the US): one server would be enough, and with Steam, none is needed.
+- Steam is the release and online platform; its backend moves up to step N4.
+- No cloud provider is needed unless step N7 is ever built.
