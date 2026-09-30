@@ -1182,6 +1182,8 @@ void DrawCrewFigure(const Hero& h, Vector2 ft, float s, bool right, float walk, 
     if (h.cls == HeroClass::Nurse && h.outfit < 0) { DrawRigNurse(h, ft, s, right, walk, t, pose); return; }
     if (h.cls == HeroClass::Diver && h.outfit < 0) { DrawRigDiver(h, ft, s, right, walk, t, pose); return; }
     if (h.cls == HeroClass::Mechanic && h.outfit < 0) { DrawRigMechanic(h, ft, s, right, walk, t, pose); return; }
+    if (h.cls == HeroClass::Whaler && h.outfit < 0) { DrawRigWhaler(h, ft, s, right, walk, t, pose); return; }
+    if (h.cls == HeroClass::Stowaway && h.outfit < 0) { DrawRigStowaway(h, ft, s, right, walk, t, pose); return; }
     float f = right ? 1.0f : -1.0f, x = ft.x;
     int seed = h.id * 7919 + 13;
     const Color skins[4] = {{226, 186, 152, 255}, {198, 150, 112, 255}, {160, 110, 78, 255}, {108, 74, 52, 255}};
