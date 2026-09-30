@@ -350,6 +350,146 @@ void DrawRigNurse(const Hero& h, Vector2 ft, float s, bool right, float walk, fl
     parts.Draw();
 }
 
+// ============================================================================ THE DIVER
+// Broad and heavy in a canvas diving suit: a brass corselet with shoulder bolts, a lead-weighted belt, lead boots,
+// a copper tank on his back with a hose that swings, a coiled line at the belt, a harpoon spear held low and
+// forward, a knife in the other hand. On an expedition (gDiveGear) the porthole helmet; aboard, a knit cap.
+void DrawRigDiver(const Hero& h, Vector2 ft, float s, bool right, float walk, float t, const Pose& pose) {
+    const float f = right ? 1.0f : -1.0f;
+    Instance& in = Get(h.id);
+    Tick(in, t);
+    int seed = h.id * 7919 + 13;
+    const Color skins[4] = {{226, 186, 152, 255}, {198, 150, 112, 255}, {160, 110, 78, 255}, {108, 74, 52, 255}};
+    Color skin = skins[seed % 4], canvas{112, 106, 82, 255}, canvasDk = Tone(canvas, -0.25f), brass = Pal::Brass, copper{176, 104, 62, 255};
+    Color lead{92, 90, 88, 255}, rubber{40, 36, 34, 255}, steel{196, 200, 208, 255}, wood{110, 76, 48, 255}, rope{168, 144, 104, 255};
+    extern bool gDiveGear;
+
+    Build b;
+    b.thigh = 40; b.shin = 38; b.upper = 27; b.fore = 26; b.spine = 25; b.chest = 26; b.neck = 6; b.head = 12;
+    b.shoulderW = 20; b.hipW = 8; b.stanceF = 19; b.stanceB = -17;
+
+    // the rest pose: low and square, the harpoon levelled at the foe's knees, the knife held back at the hip
+    RPose P;
+    P[C_HIPY] = 7; P[C_LEAN] = 0.1f; P[C_CHEST] = 0.04f;
+    P[C_HFX] = 22; P[C_HFY] = 36; P[C_WEAPON] = -14;
+    P[C_HBX] = -6; P[C_HBY] = 40;
+    P += GetClip(CL_IDLE).Sample(t + h.id * 1.7f);
+    P += GetClip(CL_BREATHE).Sample(t + h.id);
+    float stressW = std::clamp(pose.tremble * 1.4f, 0.0f, 1.0f);
+    if (stressW > 0) P += Scaled(GetClip(CL_STRESSED).Sample(t), stressW);
+    P[C_WEAPON] *= 1 - std::clamp(std::max(pose.reach, pose.raise), 0.0f, 1.0f);
+    P += FromPose(pose, walk, t, 0);
+    P[C_WEAPON] += -70 * std::clamp(pose.raise, 0.0f, 1.0f) + pose.weaponTilt;
+    if (in.reaction >= 0) P += GetClip(in.reaction).Sample(in.reactT);
+    Solved S = SolveHumanoid(b, P, ft, s, f);
+
+    in.face.look = {1.0f, stressW > 0.4f ? sinf(t * 1.3f) * 0.6f : 0.05f};
+    in.face.mouth = pose.headDown < -0.3f ? 2 : (pose.reach > 0.5f || pose.raise > 0.7f) ? 1 : 0;
+
+    // chains: the air hose off the tank's valve, the coiled line's loose end
+    bool jump = FollowWorld(in, s);
+    Vector2 anchors[2] = {S.Chest(-24, -10), S.Hips(-6, 8)};
+    if (jump || in.chains.size() != 2) {
+        in.chains.assign(2, Chain{});
+        in.chains[0].Init(anchors[0], 7, 7 * s, {-0.6f * f, 0.8f}); in.chains[0].col = rubber; in.chains[0].width0 = 3.4f; in.chains[0].width1 = 3.0f; in.chains[0].mat = WET; in.chains[0].stiff = 0.25f; in.chains[0].grav = 300;
+        in.chains[1].Init(anchors[1], 5, 5.5f * s, {0.1f * f, 1}); in.chains[1].col = rope; in.chains[1].width0 = 1.6f; in.chains[1].width1 = 1.3f; in.chains[1].stiff = 0.1f;
+    }
+    Vector2 cur = Current();
+    in.chains[0].Step(anchors[0], {-0.6f * f, 0.8f}, in.dt, cur);
+    in.chains[1].Step(anchors[1], {0.1f * f, 1}, in.dt, cur);
+
+    Parts parts;
+    // the tank on his back, and its hose
+    parts.Add(-3.0f, [&] {
+        Vector2 a = S.Chest(-20, -16), c = S.Hips(-19, -8);
+        MLimb(a, c, 8.6f * s, 8.6f * s, copper, METAL);
+        MBall(a, 8.6f * s, Tone(copper, 0.05f), METAL);
+        MBall(Off(a, 0, -8, s, f), 2.6f * s, brass, METAL);                                              // the valve
+        for (int k = 0; k < 2; k++) MLimb(L2(a, c, 0.25f + k * 0.45f), L2(a, c, 0.3f + k * 0.45f), 9.2f * s, 9.2f * s, Tone(brass, -0.2f), METAL); // straps
+    });
+    parts.Add(-2.8f, [&] { in.chains[0].Draw(s); });
+    // the knife arm, behind
+    parts.Add(-2.0f, [&] {
+        MLimb(S.p[SH_B], S.p[EL_B], 9.6f * s, 8.6f * s, canvasDk, CLOTH);
+        MLimb(S.p[EL_B], S.p[WR_B], 8.6f * s, 7.4f * s, canvasDk, CLOTH);
+        MLimb(S.Along(EL_B, WR_B, 0.7f, 0), S.p[WR_B], 8.4f * s, 7.8f * s, rubber, WET);                  // a rubber cuff
+        MLimb(S.p[WR_B], Off(S.p[WR_B], 16, 4, s, f), 2.0f * s, 0.6f * s, steel, METAL);                 // the knife
+        MBall(S.p[WR_B], 6.4f * s, Tone(canvas, -0.35f), CLOTH);                                          // a heavy mitt
+    });
+    auto leg = [&](int hip, int kn, int an, Color col) {
+        MLimb(S.p[hip], S.p[kn], 11.6f * s, 10.0f * s, col, CLOTH);
+        MLimb(S.p[kn], S.p[an], 10.0f * s, 8.6f * s, col, CLOTH);
+        MLimb(S.Along(kn, an, 0.55f, 0), S.p[an], 10.6f * s, 10.0f * s, lead, METAL);                    // lead boots
+        Vector2 heel = Off(S.p[an], -5, 2, s, f), toe = Off(S.p[an], 15, 4, s, f);
+        MLimb(heel, toe, 9.0f * s, 8.0f * s, lead, METAL);
+        MLimb(Off(heel, -2, 7, s, f), Off(toe, 3, 7, s, f), 2.4f * s, 2.4f * s, Tone(lead, -0.4f), METAL); // the thick sole
+        for (int k = 0; k < 2; k++) MBall(Off(S.p[an], -2 + k * 9.0f, -2, s, f), 1.4f * s, brass, METAL);
+    };
+    parts.Add(-1.6f, [&] { leg(HIP_B, KN_B, AN_B, canvasDk); });
+    parts.Add(-1.0f, [&] { leg(HIP_F, KN_F, AN_F, canvas); });
+    // the torso: canvas, the corselet over it, the weight belt with its line
+    parts.Add(0, [&] {
+        MQuad(S.Chest(-22, -20), S.Chest(22, -20), S.Hips(16, 4), S.Hips(-16, 4), canvas, CLOTH);
+        for (int k = 0; k < 3; k++) DrawLineEx(S.Chest(-12 + k * 11.0f, -6), S.Hips(-10 + k * 10.0f, -10), 1.2f * s, Fade(Color{40, 26, 12, 255}, 0.55f)); // canvas folds
+        MQuad(S.Chest(-24, -26), S.Chest(24, -26), S.Chest(19, -8), S.Chest(-19, -8), brass, METAL);     // the corselet
+        for (int k = 0; k < 7; k++) MBall(L2(S.Chest(-21, -10), S.Chest(21, -10), k / 6.0f), 1.3f * s, Tone(brass, -0.35f), METAL); // its bolts
+        MBall(S.Chest(-22, -22), 3.4f * s, Tone(brass, -0.1f), METAL);                                   // shoulder bolts
+        MBall(S.Chest(22, -22), 3.4f * s, Tone(brass, -0.1f), METAL);
+        MQuad(S.Hips(-17, -7), S.Hips(17, -7), S.Hips(16, 2), S.Hips(-16, 2), Tone(wood, -0.3f), WET);   // the weight belt
+        for (int k = 0; k < 4; k++) MQuad(S.Hips(-14 + k * 8.0f, -6), S.Hips(-9 + k * 8.0f, -6), S.Hips(-9 + k * 8.0f, 1), S.Hips(-14 + k * 8.0f, 1), lead, METAL);
+        Vector2 coil = S.Hips(-8, 6);                                                                     // the coiled line
+        for (int k = 0; k < 3; k++) DrawRing(coil, (4.5f + k * 1.6f) * s, (5.5f + k * 1.6f) * s, 0, 360, 16, Tone(rope, -0.1f * k));
+    });
+    parts.Add(0.2f, [&] { in.chains[1].Draw(s); });
+    // the head: the porthole helmet on an expedition, a knit cap and a beard aboard
+    parts.Add(0.5f, [&] {
+        if (gDiveGear) {
+            Vector2 hc = S.Head(1, 0);
+            MBall(hc, 17 * s, brass, METAL);
+            MLimb(S.Chest(-12, -25), S.Chest(12, -25), 5 * s, 5 * s, Tone(brass, -0.25f), METAL);        // the neck ring
+            Vector2 port = S.Head(8, 0);
+            MBall(port, 8.4f * s, Tone(brass, -0.3f), METAL);
+            MBall(port, 6.6f * s, Color{40, 58, 60, 255}, WET);                                          // the faceplate glass
+            DrawCircleV(Off(port, -2, -2.5f, s, f), 1.6f * s, Fade(WHITE, 0.7f));
+            for (int k = 0; k < 4; k++) { float a = k * PI / 2 + PI / 4; DrawLineEx({port.x + cosf(a) * 3.5f * s, port.y + sinf(a) * 3.5f * s}, {port.x + cosf(a) * 6.4f * s, port.y + sinf(a) * 6.4f * s}, 1.2f * s, Tone(brass, -0.4f)); } // the grille
+            MBall(S.Head(-2, -12), 4.2f * s, Tone(brass, -0.15f), METAL);                                  // the top port
+            MBall(S.Head(-8, 5), 3.4f * s, Tone(brass, -0.2f), METAL);                                     // the side port
+            Glow(S.Head(4, -10), 18 * s, Fade(Color{255, 230, 170, 255}, 0.18f));                          // the helmet lamp
+            MBall(S.Head(4, -12), 2.6f * s, Color{255, 236, 190, 255}, GLOW);
+        } else {
+            MLimb(S.Chest(1, -24), S.Head(0, 8), 7.6f * s, 7.0f * s, Tone(skin, -0.08f), SKIN);
+            MBall(S.p[HEAD], 13.2f * s, skin, SKIN);
+            MQuad(S.Head(-5, 1), S.Head(11, 0), S.Head(10, 12), S.Head(-2, 13.5f), skin, SKIN);
+            MLimb(S.Head(10, -1), S.Head(14, 4.5f), 2.2f * s, 3.2f * s, Tone(skin, 0.05f), SKIN);          // a broken nose
+            Color beard{70, 50, 36, 255};
+            MLimb(S.Head(-4, 5), S.Head(7, 13), 4.6f * s, 6.0f * s, beard, CLOTH);
+            MLimb(S.Head(7, 13), S.Head(12, 8), 5.2f * s, 3.6f * s, beard, CLOTH);
+            DrawEyes(in.face, S.Head(7, -1.5f), 5.2f, 1.8f, s, f, Tone(skin, -0.35f), Color{50, 60, 70, 255});
+            DrawLineEx(S.Head(3, -4.5f), S.Head(12.5f, -4.5f), 2.0f * s, beard);                           // one heavy brow
+            MQuad(S.Head(-13, -15), S.Head(12, -16), S.Head(13, -5), S.Head(-13, -4), Color{60, 70, 84, 255}, CLOTH); // the knit cap
+            for (int k = 0; k < 6; k++) DrawLineEx(S.Head(-11 + k * 4.5f, -15), S.Head(-11 + k * 4.5f, -6), 0.8f * s, Fade(Color{20, 24, 30, 255}, 0.6f));
+            MLimb(S.Head(-13, -6), S.Head(13, -6), 2.6f * s, 2.6f * s, Color{74, 86, 102, 255}, CLOTH);   // its rolled brim
+        }
+    });
+    // the harpoon arm, in front
+    parts.Add(1.0f, [&] {
+        MLimb(S.p[SH_F], S.p[EL_F], 10.2f * s, 9.0f * s, canvas, CLOTH);
+        MLimb(S.p[EL_F], S.p[WR_F], 9.0f * s, 7.8f * s, canvas, CLOTH);
+        MLimb(S.Along(EL_F, WR_F, 0.7f, 0), S.p[WR_F], 8.8f * s, 8.2f * s, rubber, WET);
+        float a = S.a[PROP];
+        Vector2 dir{cosf(a), sinf(a)};
+        auto W = [&](float along) { return Vector2{S.p[WR_F].x + dir.x * along * s, S.p[WR_F].y + dir.y * along * s}; };
+        MLimb(W(-26), W(40), 2.4f * s, 2.2f * s, wood, CLOTH);                                           // the long shaft
+        MLimb(W(38), W(46), 3.4f * s, 3.4f * s, brass, METAL);                                           // the collar
+        MLimb(W(46), W(62), 4.6f * s, 0.6f * s, steel, METAL);                                           // the barbed head
+        Vector2 n{-dir.y, dir.x};
+        for (int sd = -1; sd <= 1; sd += 2) DrawTri(W(50), {W(50).x + n.x * 6 * s * sd, W(50).y + n.y * 6 * s * sd}, W(55), Tone(steel, -0.2f));
+        MBall(S.p[WR_F], 6.8f * s, Tone(canvas, -0.35f), CLOTH);                                          // the mitt
+        MBall(S.Chest(22, -22), 3.6f * s, Tone(brass, 0.05f), METAL);                                    // the near shoulder bolt, over the arm
+    });
+    parts.Draw();
+}
+
 // ============================================================================ THE LOST ONE CULTIST
 // Hooded, hovering over a turning rune circle; broken manacle chains hang from both wrists and a censer swings
 // from its cord (the signature idle: everything that hangs from it sways); robe rags trail below the hem; one

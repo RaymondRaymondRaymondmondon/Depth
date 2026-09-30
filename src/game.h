@@ -621,6 +621,7 @@ bool DrawRichEnemy(const Enemy& e, Rectangle r, float t);
 // ---------- rigfigs.cpp: figures rebuilt on the shared rig (rig.h) ----------
 void DrawRigCaptain(const Hero& h, Vector2 feet, float s, bool faceRight, float walk, float t, const Pose& pose);
 void DrawRigNurse(const Hero& h, Vector2 feet, float s, bool faceRight, float walk, float t, const Pose& pose);
+void DrawRigDiver(const Hero& h, Vector2 feet, float s, bool faceRight, float walk, float t, const Pose& pose);
 void DrawRigCultist(const Enemy& e, Rectangle r, float t);
 void RigSetActing(int clip, float t);
 void DrawFigureSheet(bool heroSheet, int index, float t); // dungeon.cpp: one figure in idle, walk, windup, strike, hit, death   // the combat clip (rig::ClipId, -1 none) and its time for the next enemy drawn      // the richly drawn creatures (enemyart.cpp); false = not one of them yet
