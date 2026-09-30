@@ -4727,6 +4727,7 @@ int RunRedTideMatchTest() {
     check(m.eco.ZoneAt(d.pos) == m.map->ZoneIndex("Grand Salon"), "and the diver swims through into the Grand Salon");
     // a rack
     for (const auto& s : m.level.stations) if (s.name == "Needler Mk I rack") d.pos = s.pos;
+    d.heldT = 0; d.holder = -1; d.vel = {0, 0, 0};   // (a Salon beast may have grabbed the diver on the way in: the shop checks start free)
     d.scrip = 1000;
     check(m.Interact(0, false, 0.01f) && m.W(m.Cur(d)).id == "needler1" && d.weapons.size() == 2 && d.scrip == 0, "the Needler Mk I rack sells its gun (1000) into the second slot");
     d.scrip = 400;

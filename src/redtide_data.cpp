@@ -202,6 +202,14 @@ const EngineData& Engine() {
         std::string d = DataDir();
         gEngine->constants = LoadJsonFile(d + "/engine/constants.json");
         gEngine->movement = LoadJsonFile(d + "/engine/movement.json");
+        {   // hand tuning over the workbook's export (the player's playtest calls; tools/export_redtide.py never writes this file)
+            Json tune = LoadJsonFile(d + "/engine/movement_tuning.json");
+            for (auto& kv : tune.o) if (kv.first.rfind("_", 0) != 0) {
+                bool found = false;
+                for (auto& mv : gEngine->movement.o) if (mv.first == kv.first) { mv.second = kv.second; found = true; }
+                if (!found) gEngine->movement.o.push_back(kv);
+            }
+        }
         gEngine->drops = LoadJsonFile(d + "/engine/drops.json");
         gEngine->progression = LoadJsonFile(d + "/engine/progression.json");
         gEngine->barks = LoadJsonFile(d + "/engine/barks.json");

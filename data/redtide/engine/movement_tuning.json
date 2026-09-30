@@ -1,0 +1,10 @@
+{
+ "_note": "Hand tuning applied over movement.json (the design workbook's export). 2026-09-30 playtest: the diver moved too slowly, so every travel speed is about 1.6x the workbook's and the diver gets up to speed faster.",
+ "swim_speed": 3.2,
+ "sprint_speed": 5.4,
+ "vertical_speed": 2.2,
+ "walk_speed_air": 2.5,
+ "downed_crawl_speed": 0.9,
+ "accel_s": 0.25,
+ "decel_s": 0.35
+}

@@ -501,8 +501,8 @@ static void Input(float dt) {
     Vector3 want{0, 0, 0};
     if (IsKeyDown(KEY_W)) want = Vector3Add(want, f);
     if (IsKeyDown(KEY_S)) want = Vector3Subtract(want, f);
-    if (IsKeyDown(KEY_D)) want = Vector3Subtract(want, r);
-    if (IsKeyDown(KEY_A)) want = Vector3Add(want, r);
+    if (IsKeyDown(KEY_D)) want = Vector3Add(want, r);        // r is the camera's right: D strafes right, A left
+    if (IsKeyDown(KEY_A)) want = Vector3Subtract(want, r);
     float vert = (IsKeyDown(KEY_SPACE) ? 1.0f : 0.0f) - (IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_C) ? 1.0f : 0.0f);
     m.SteerDiver(0, want, vert, IsKeyDown(KEY_LEFT_SHIFT), IsMouseButtonDown(MOUSE_BUTTON_RIGHT), dt);
     if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && !d.downed && !d.reloading && m.Cur(d).mag <= 0) RedTideCue(RTC_EMPTY, 1, 0, 0);
@@ -1493,7 +1493,8 @@ int RunRedTideTest() {
     Vector3 start = d.pos;
     for (int i = 0; i < 120; i++) { m.SteerDiver(0, {0, 0, 1}, 0, false, false, 1 / 60.0f); m.Step(1 / 60.0f); m.phase = TidePhase::Calm; }
     float speed = Vector3Length(d.vel), moved = Vector3Distance(start, d.pos);
-    check(fabsf(speed - 2.0f) < 0.05f && moved > 3.0f && moved < 4.0f, TextFormat("swims at %.2f m/s (Movement sheet: 2.0), %.2f m in 2 s", speed, moved));
+    float swim = Engine().M("swim_speed", 2);   // the workbook's 2.0, or movement_tuning.json's
+    check(fabsf(speed - swim) < 0.05f && moved > 1.6f * swim && moved < 2.0f * swim, TextFormat("swims at %.2f m/s (swim_speed %.1f), %.2f m in 2 s", speed, swim, moved));
     // aim and fire until something dies
     int scrip0 = d.scrip;
     float blood0 = m.eco.scent.Total();

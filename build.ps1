@@ -1,6 +1,7 @@
 # Builds Depth with Visual Studio's compiler, and runs it with -Run.
 # Usage (from this folder, in any PowerShell):  .\build.ps1 -Run
-param([switch]$Run)
+# -Dir build_dev builds into another folder (e.g. while the game is open and depth.exe is locked).
+param([switch]$Run, [string]$Dir = 'build')
 
 $env:PATH = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer;$env:PATH"
 $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
@@ -16,14 +17,14 @@ if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
 Set-Location $PSScriptRoot
 # If a different CMake configured the build folder (say a new CMake was installed), start it afresh.
 $cmake = (Get-Command cmake).Source -replace '\\', '/'
-if (Test-Path build\CMakeCache.txt) {
-    $cached = (Select-String -Path build\CMakeCache.txt -Pattern '^CMAKE_COMMAND:INTERNAL=(.*)$').Matches.Groups[1].Value
+if (Test-Path "$Dir\CMakeCache.txt") {
+    $cached = (Select-String -Path "$Dir\CMakeCache.txt" -Pattern '^CMAKE_COMMAND:INTERNAL=(.*)$').Matches.Groups[1].Value
     if ($cached -and $cached -ne $cmake) {
         Write-Host "CMake changed ($cached -> $cmake); reconfiguring the build folder."
-        Remove-Item -Recurse -Force build\CMakeCache.txt, build\CMakeFiles
+        Remove-Item -Recurse -Force "$Dir\CMakeCache.txt", "$Dir\CMakeFiles"
     }
 }
-if (-not (Test-Path build\CMakeCache.txt)) { cmake -B build; if ($LASTEXITCODE) { exit $LASTEXITCODE } }
-cmake --build build --config Release
+if (-not (Test-Path "$Dir\CMakeCache.txt")) { cmake -B $Dir; if ($LASTEXITCODE) { exit $LASTEXITCODE } }
+cmake --build $Dir --config Release
 if ($LASTEXITCODE) { exit $LASTEXITCODE }
-if ($Run) { & .\build\Release\depth.exe }
+if ($Run) { & ".\$Dir\Release\depth.exe" }
