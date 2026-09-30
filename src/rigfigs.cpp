@@ -211,6 +211,145 @@ void DrawRigCaptain(const Hero& h, Vector2 ft, float s, bool right, float walk, 
     parts.Draw();
 }
 
+// ============================================================================ THE NURSE
+// A naval field nurse in a crouched, ready stance: a long blue-grey coat whose skirts swing (two chains), a white
+// apron over it that swings on its own (two more), a red cross on the bib, a bandolier of glass vials, a folded
+// white cap on a bun with a red ribbon trailing, a big syringe held like a dagger and a satchel at the hip.
+void DrawRigNurse(const Hero& h, Vector2 ft, float s, bool right, float walk, float t, const Pose& pose) {
+    const float f = right ? 1.0f : -1.0f;
+    Instance& in = Get(h.id);
+    Tick(in, t);
+    int seed = h.id * 7919 + 13;
+    const Color skins[4] = {{226, 186, 152, 255}, {198, 150, 112, 255}, {160, 110, 78, 255}, {108, 74, 52, 255}};
+    const Color hairs[4] = {{40, 28, 22, 255}, {90, 58, 34, 255}, {150, 96, 50, 255}, {26, 22, 22, 255}};
+    Color skin = skins[seed % 4], hair = hairs[(seed / 4) % 4], coat{72, 94, 124, 255}, coatDk = Tone(coat, -0.3f), apron{232, 226, 212, 255};
+    Color legs{46, 42, 48, 255}, boots{44, 32, 26, 255}, red{176, 40, 36, 255}, leather{110, 76, 48, 255}, steel{196, 200, 208, 255}, glass{150, 208, 228, 255};
+
+    Build b;
+    b.thigh = 40; b.shin = 40; b.upper = 26; b.fore = 25; b.spine = 26; b.chest = 23; b.neck = 7; b.head = 12;
+    b.shoulderW = 14.5f; b.hipW = 6; b.stanceF = 16; b.stanceB = -14;
+
+    // the rest pose: low and ready, the syringe held point-forward at the hip, the other hand on the satchel
+    RPose P;
+    P[C_HIPY] = 6; P[C_LEAN] = 0.16f; P[C_CHEST] = 0.06f; P[C_HEAD] = -0.04f;
+    P[C_HFX] = 18; P[C_HFY] = 34; P[C_WEAPON] = -8;
+    P[C_HBX] = -8; P[C_HBY] = 42;
+    P += GetClip(CL_IDLE).Sample(t + h.id * 1.7f);
+    P += GetClip(CL_BREATHE).Sample(t + h.id);
+    float stressW = std::clamp(pose.tremble * 1.4f, 0.0f, 1.0f);
+    if (stressW > 0) P += Scaled(GetClip(CL_STRESSED).Sample(t), stressW);
+    P += FromPose(pose, walk, t, 0);
+    P[C_WEAPON] += -80 * std::clamp(pose.raise, 0.0f, 1.0f) + pose.weaponTilt;
+    if (in.reaction >= 0) P += GetClip(in.reaction).Sample(in.reactT);
+    Solved S = SolveHumanoid(b, P, ft, s, f);
+
+    in.face.look = {1.0f, stressW > 0.4f ? sinf(t * 1.3f) * 0.6f : 0.05f};
+    in.face.mouth = pose.headDown < -0.3f ? 2 : (pose.reach > 0.5f || pose.raise > 0.7f) ? 1 : 0;
+
+    // chains: coat skirts (back, front), apron (two), the ribbon from her bun
+    bool jump = FollowWorld(in, s);
+    Vector2 rest{-0.14f * f, 1};
+    float rl = sqrtf(rest.x * rest.x + 1); rest = {rest.x / rl, 1 / rl};
+    Vector2 anchors[5] = {S.Hips(-14, 2), S.Hips(13, 2), S.Hips(-5, 0), S.Hips(10, 0), S.Head(-12, -8)};
+    if (jump || in.chains.size() != 5) {
+        in.chains.assign(5, Chain{});
+        for (int i = 0; i < 2; i++) { in.chains[i].Init(anchors[i], 6, 9.5f * s, rest); in.chains[i].stiff = 0.35f; in.chains[i].grav = 420; }
+        for (int i = 2; i < 4; i++) { in.chains[i].Init(anchors[i], 5, 8.5f * s, rest); in.chains[i].stiff = 0.3f; in.chains[i].grav = 380; }
+        in.chains[4].Init(anchors[4], 5, 5.5f * s, {-0.5f * f, 1}); in.chains[4].col = red; in.chains[4].width0 = 3.0f; in.chains[4].width1 = 2.0f; in.chains[4].stiff = 0.15f;
+    }
+    Vector2 cur = Current();
+    for (int i = 0; i < 5; i++) in.chains[i].Step(anchors[i], i < 4 ? rest : Vector2{-0.5f * f, 1}, in.dt, cur);
+
+    Parts parts;
+    // the back arm: its hand on the satchel at her hip
+    parts.Add(-2.0f, [&] {
+        MLimb(S.p[SH_B], S.p[EL_B], 7.6f * s, 6.8f * s, Tone(coat, -0.22f), CLOTH);
+        MLimb(S.p[EL_B], S.p[WR_B], 6.6f * s, 5.4f * s, Tone(coat, -0.18f), CLOTH);
+        MBall(S.Along(EL_B, WR_B, 0.85f, 0), 5.6f * s, Tone(apron, -0.2f), CLOTH);   // a turned-back white cuff
+        MBall(S.p[WR_B], 5.4f * s, Tone(skin, -0.12f), SKIN);
+    });
+    // the satchel, slung at the back hip
+    parts.Add(-1.8f, [&] {
+        Vector2 c = S.Hips(-12, 10);
+        MQuad(Off(c, -9, -8, s, f), Off(c, 9, -8, s, f), Off(c, 8, 9, s, f), Off(c, -8, 9, s, f), leather, CLOTH);
+        MQuad(Off(c, -9, -8, s, f), Off(c, 9, -8, s, f), Off(c, 8, -1, s, f), Off(c, -8, -1, s, f), Tone(leather, 0.15f), CLOTH); // its flap
+        MBall(Off(c, 0, -1, s, f), 1.6f * s, Pal::Brass, METAL);
+    });
+    auto leg = [&](int hip, int kn, int an, Color col) {
+        MLimb(S.p[hip], S.p[kn], 9.0f * s, 7.4f * s, col, CLOTH);
+        MLimb(S.p[kn], S.p[an], 7.4f * s, 5.8f * s, col, CLOTH);
+        MLimb(S.Along(kn, an, 0.35f, 0), S.p[an], 7.8f * s, 6.6f * s, boots, WET);                    // tall laced boots
+        for (int k = 0; k < 3; k++) DrawLineEx(S.Along(kn, an, 0.45f + k * 0.17f, -4), S.Along(kn, an, 0.5f + k * 0.17f, 4), 0.9f * s, Color{226, 220, 204, 255});
+        Vector2 heel = Off(S.p[an], -3, 1, s, f), toe = Off(S.p[an], 12, 3, s, f);
+        MLimb(heel, toe, 6.6f * s, 5.6f * s, boots, WET);
+        DrawLineEx(Off(heel, -2, 6, s, f), Off(toe, 3, 5, s, f), 1.6f * s, Tone(boots, -0.6f));
+    };
+    parts.Add(-1.6f, [&] { leg(HIP_B, KN_B, AN_B, Tone(legs, -0.25f)); });
+    parts.Add(-1.3f, [&] { Panel(in.chains[0], in.chains[1], coatDk, -0.05f); });                     // the coat skirt behind
+    parts.Add(-1.0f, [&] { leg(HIP_F, KN_F, AN_F, legs); });
+    parts.Add(-0.7f, [&] {                                                                              // the apron over the legs
+        Panel(in.chains[2], in.chains[3], apron, 0.0f);
+        for (size_t k = 1; k < in.chains[2].p.size(); k++)
+            DrawLineEx(L2(in.chains[2].p[k - 1], in.chains[3].p[k - 1], 0.5f), L2(in.chains[2].p[k], in.chains[3].p[k], 0.45f), 1.1f * s, Fade(Color{120, 110, 96, 255}, 0.7f));
+        DrawLineEx(in.chains[2].Tip(), in.chains[3].Tip(), 1.4f * s, Tone(apron, -0.35f));             // a stained hem
+    });
+    // the torso: the coat, the apron's bib with its red cross, the bandolier of vials
+    parts.Add(0, [&] {
+        MQuad(S.Chest(-17, -21), S.Chest(18, -21), S.Hips(13, 3), S.Hips(-13, 3), coat, CLOTH);
+        MQuad(S.Chest(-9, -19), S.Chest(12, -19), S.Hips(11, 1), S.Hips(-6, 1), apron, CLOTH);          // the bib
+        Vector2 cx = S.Chest(2, -8);
+        MQuad(Off(cx, -1.8f, -6, s, f), Off(cx, 1.8f, -6, s, f), Off(cx, 1.8f, 6, s, f), Off(cx, -1.8f, 6, s, f), red, CLOTH);
+        MQuad(Off(cx, -6, -1.8f, s, f), Off(cx, 6, -1.8f, s, f), Off(cx, 6, 1.8f, s, f), Off(cx, -6, 1.8f, s, f), red, CLOTH);
+        MQuad(S.Hips(-14, -5), S.Hips(14, -5), S.Hips(13, 1), S.Hips(-13, 1), Tone(leather, -0.2f), WET);   // the belt
+        MLimb(S.Chest(-15, -20), S.Hips(12, -4), 2.4f * s, 2.4f * s, leather, CLOTH);                       // the bandolier
+        for (int k = 0; k < 4; k++) {
+            Vector2 v = L2(S.Chest(-12, -17), S.Hips(9, -7), 0.12f + k * 0.22f);
+            MLimb(v, {v.x, v.y + 7 * s}, 2.4f * s, 2.4f * s, k == 2 ? Color{150, 220, 120, 255} : glass, GLOW);
+            DrawCircleV({v.x, v.y - 1.2f * s}, 1.1f * s, Color{150, 110, 70, 255});
+        }
+        DrawLineEx(S.Chest(-14, -18), S.Hips(-11, -6), 1.1f * s, Fade(Color{10, 10, 20, 255}, 0.55f));  // folds
+        DrawLineEx(S.Chest(15, -18), S.Hips(11, -6), 1.1f * s, Fade(Color{10, 10, 20, 255}, 0.55f));
+    });
+    // the head: a bun with a ribbon, the folded white cap with its cross, a narrow face, steady eyes
+    parts.Add(0.3f, [&] { in.chains[4].Draw(s); });
+    parts.Add(0.5f, [&] {
+        MLimb(S.Chest(1, -24), S.Head(0, 8), 6.0f * s, 5.4f * s, Tone(skin, -0.08f), SKIN);
+        MLimb(S.Chest(-7, -22), S.Chest(9, -22), 3.2f * s, 3.2f * s, Tone(coat, 0.1f), CLOTH);           // a turned-down collar
+        MBall(S.Head(-10, -2), 6.2f * s, hair, CLOTH);                                                     // the bun
+        MBall(S.Head(-5, -4), 12.0f * s, hair, CLOTH);                                                     // hair swept back under the cap
+        MBall(S.p[HEAD], 12.4f * s, skin, SKIN);
+        MQuad(S.Head(-4, 1), S.Head(10, 0), S.Head(8, 11.5f), S.Head(-1, 12.5f), skin, SKIN);             // a narrow jaw
+        MLimb(S.Head(9.5f, -1), S.Head(12.5f, 4), 1.6f * s, 2.4f * s, Tone(skin, 0.05f), SKIN);           // the nose
+        DrawEyes(in.face, S.Head(6.5f, -1.5f), 5.2f, 1.9f, s, f, Tone(skin, -0.35f), Color{60, 80, 70, 255});
+        DrawLineEx(S.Head(3, -4.8f), S.Head(8, -4.4f), 1.3f * s, hair);                                   // brows
+        DrawLineEx(S.Head(9.5f, -4.4f), S.Head(12, -4.9f), 1.3f * s, hair);
+        DrawMouth(in.face, S.Head(8, 7.5f), 4.2f, s, f, Color{140, 70, 64, 255});
+        // the cap: a folded white band standing up off the head, a red cross on its front
+        MQuad(S.Head(-9, -17), S.Head(9, -18), S.Head(10, -8), S.Head(-10, -8), Color{236, 232, 222, 255}, CLOTH);
+        DrawLineEx(S.Head(-9, -12.5f), S.Head(10, -13), 0.9f * s, Fade(Color{140, 130, 118, 255}, 0.8f));
+        Vector2 cc = S.Head(3, -13);
+        DrawLineEx(Off(cc, -2.6f, 0, s, f), Off(cc, 2.6f, 0, s, f), 1.5f * s, red);
+        DrawLineEx(Off(cc, 0, -2.6f, s, f), Off(cc, 0, 2.6f, s, f), 1.5f * s, red);
+    });
+    // the syringe arm, in front
+    parts.Add(1.0f, [&] {
+        MLimb(S.p[SH_F], S.p[EL_F], 7.8f * s, 6.8f * s, coat, CLOTH);
+        MLimb(S.p[EL_F], S.p[WR_F], 6.8f * s, 5.6f * s, coat, CLOTH);
+        MBall(S.Along(EL_F, WR_F, 0.85f, 0), 5.8f * s, apron, CLOTH);                                     // the white cuff
+        float a = S.a[PROP];
+        Vector2 dir{cosf(a), sinf(a)};
+        auto W = [&](float along) { return Vector2{S.p[WR_F].x + dir.x * along * s, S.p[WR_F].y + dir.y * along * s}; };
+        MLimb(W(-10), W(-3), 1.4f * s, 1.4f * s, steel, METAL);                                          // the plunger
+        MLimb(W(-11), W(-9.5f), 4.2f * s, 4.2f * s, steel, METAL);
+        MLimb(W(2), W(20), 3.6f * s, 3.6f * s, Color{186, 214, 214, 255}, WET);                          // the glass barrel
+        MLimb(W(4), W(14), 2.2f * s, 2.2f * s, Color{120, 220, 130, 255}, GLOW);                          // the dose
+        MLimb(W(20), W(32), 0.8f * s, 0.4f * s, steel, METAL);                                           // the needle
+        MBall(S.p[WR_F], 5.8f * s, skin, SKIN);                                                            // the fist
+        MBall(Off(S.p[WR_F], 3, -3, s, f), 2.4f * s, skin, SKIN);
+    });
+    parts.Draw();
+}
+
 // ============================================================================ THE LOST ONE CULTIST
 // Hooded, hovering over a turning rune circle; broken manacle chains hang from both wrists and a censer swings
 // from its cord (the signature idle: everything that hangs from it sways); robe rags trail below the hem; one

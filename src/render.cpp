@@ -491,8 +491,18 @@ void SetFigureClip(const Rectangle* r) { gFigClipOn = r != nullptr; if (r) gFigC
 static float gFigDesat = 0, gFigDoor = 0;
 void SetFigureMood(float desat, float door) { gFigDesat = desat; gFigDoor = door; }
 static bool gFlatShade = false; // on while a figure is drawn: forms get flat lit and shadow planes (see ShadeBall)
+// Figures are lit from the side they face (Darkest Dungeon lights its heroes from the front): while a figure is
+// drawn, the key light's horizontal side follows its facing. 0 = no figure, the scene's key as it is.
+static float gFigFacing = 0;
+static SceneLight gLightFig;
+void SetFigureFacing(float facing) { gFigFacing = facing; }
 void SetSceneLight(const SceneLight& l) { gLight = l; }
-const SceneLight& CurSceneLight() { return gLight; }
+const SceneLight& CurSceneLight() {
+    if (gFigFacing == 0) return gLight;
+    gLightFig = gLight;
+    gLightFig.keyDir.x = fabsf(gLight.keyDir.x) * (gFigFacing > 0 ? 1.0f : -1.0f);
+    return gLightFig;
+}
 void SetInkLook(const Palette* pal, float palAmt, unsigned seed) { gInkPal = pal; gInkPalAmt = palAmt; gInkSeed = seed; }
 void FogVeil(float amount) {
     Color f = gLight.fog;
@@ -984,8 +994,9 @@ void EndFigure(Vector2 feet, Color tint, float sx, float sy) {
     float inkStyle = 1.0f;   // the Darkest Dungeon finish: flat planes, heavy linework, hatching in the shadow planes
     SetShaderValue(A.figShader, A.locFigInk, &inkStyle, SHADER_UNIFORM_FLOAT);
     {
-        float kl = sqrtf(gLight.keyDir.x * gLight.keyDir.x + gLight.keyDir.y * gLight.keyDir.y);
-        float key[2] = {kl > 0 ? gLight.keyDir.x / kl : -0.55f, kl > 0 ? -gLight.keyDir.y / kl : 0.83f}; // texture space: y up
+        Vector2 kd = CurSceneLight().keyDir;
+        float kl = sqrtf(kd.x * kd.x + kd.y * kd.y);
+        float key[2] = {kl > 0 ? kd.x / kl : -0.55f, kl > 0 ? -kd.y / kl : 0.83f}; // texture space: y up
         auto v3 = [](Color c, float* o) { o[0] = c.r / 255.0f; o[1] = c.g / 255.0f; o[2] = c.b / 255.0f; };
         float kc[3], fc[3], rc[3], amts[3] = {gLight.keyAmt, gLight.fillAmt, gLight.rimAmt};
         v3(gLight.key, kc); v3(gLight.fill, fc); v3(gLight.rim, rc);
@@ -1014,8 +1025,9 @@ void EndFigure(Vector2 feet, Color tint, float sx, float sy) {
 // Light comes from the upper left. Limbs are shaded like cylinders, heads and joints like spheres,
 // torsos with a lit side and a shadow side, so every part reads as a solid form.
 static Vector2 ToLight() {
-    float l = sqrtf(gLight.keyDir.x * gLight.keyDir.x + gLight.keyDir.y * gLight.keyDir.y);
-    return l > 1e-3f ? Vector2{gLight.keyDir.x / l, gLight.keyDir.y / l} : Vector2{-0.55f, -0.83f};
+    Vector2 kd = CurSceneLight().keyDir;
+    float l = sqrtf(kd.x * kd.x + kd.y * kd.y);
+    return l > 1e-3f ? Vector2{kd.x / l, kd.y / l} : Vector2{-0.55f, -0.83f};
 }
 
 Color Tone(Color c, float k) {
@@ -1167,6 +1179,7 @@ void ShadeQuad(Vector2 tl, Vector2 tr, Vector2 br, Vector2 bl, Color c) {
 bool gDiveGear = false;
 void DrawCrewFigure(const Hero& h, Vector2 ft, float s, bool right, float walk, float t, const Pose& pose) {
     if (h.cls == HeroClass::Captain && h.outfit < 0) { DrawRigCaptain(h, ft, s, right, walk, t, pose); return; } // rebuilt on the shared rig
+    if (h.cls == HeroClass::Nurse && h.outfit < 0) { DrawRigNurse(h, ft, s, right, walk, t, pose); return; }
     float f = right ? 1.0f : -1.0f, x = ft.x;
     int seed = h.id * 7919 + 13;
     const Color skins[4] = {{226, 186, 152, 255}, {198, 150, 112, 255}, {160, 110, 78, 255}, {108, 74, 52, 255}};
@@ -1969,9 +1982,11 @@ void DrawCrewFigureInked(const Hero& h, Vector2 feet, float s, bool right, float
         }
     }
     rig::SetWorldOffset({feet.x - FIG_FEET.x, feet.y - FIG_FEET.y});
+    SetFigureFacing(right ? 1.0f : -1.0f);
     BeginFigure();
     DrawCrewFigure(h, FIG_FEET, s, right, walk, t, pose);
     EndFigure(feet, tint);
+    SetFigureFacing(0);
 }
 
 // Head and shoulders, for the roster and the party slots: the figure drawn large and clipped to the frame.

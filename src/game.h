@@ -620,6 +620,7 @@ void DrawBestiaryFigure(const Enemy& e, Rectangle r, float t); // the new creatu
 bool DrawRichEnemy(const Enemy& e, Rectangle r, float t);
 // ---------- rigfigs.cpp: figures rebuilt on the shared rig (rig.h) ----------
 void DrawRigCaptain(const Hero& h, Vector2 feet, float s, bool faceRight, float walk, float t, const Pose& pose);
+void DrawRigNurse(const Hero& h, Vector2 feet, float s, bool faceRight, float walk, float t, const Pose& pose);
 void DrawRigCultist(const Enemy& e, Rectangle r, float t);
 void RigSetActing(int clip, float t);
 void DrawFigureSheet(bool heroSheet, int index, float t); // dungeon.cpp: one figure in idle, walk, windup, strike, hit, death   // the combat clip (rig::ClipId, -1 none) and its time for the next enemy drawn      // the richly drawn creatures (enemyart.cpp); false = not one of them yet
@@ -717,6 +718,7 @@ struct SceneLight {
 };
 void SetSceneLight(const SceneLight& l);
 const SceneLight& CurSceneLight();
+void SetFigureFacing(float facing); // while a figure is drawn: its key light comes from the side it faces (0 = off)
 // A location's muted paper palette: five base tones (umbers, slates, sea-greens) and two hot accents. InkPass pulls
 // low-saturation colour toward the palette's hues (keeping each pixel's value), so every scene sits in its family.
 struct Palette { Color base[5]; Color accent[2]; };

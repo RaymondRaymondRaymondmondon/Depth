@@ -2447,11 +2447,13 @@ static void DrawUnitFigures(Game& g) {
             }
             RigSetActing(clip, a && a->dur > 0 ? a->t / a->dur * rig::GetClip(clip < 0 ? 0 : clip).dur : 0);
         }
+        SetFigureFacing(-1);
         BeginFigure(); // draw on the figure canvas, lined up so its feet land on FigureFeet()
         DrawEnemyFigure(e, {ff.x - r.width / 2, ff.y - r.height, r.width, r.height}, t);
         RigSetActing(-1, 0);
         float breathe = 1 + 0.012f * sinf(t * 1.7f + e.uid * 1.3f);                               // it breathes, slowly
         EndFigure(feet, fx.tint, fx.sx / breathe, fx.sy * breathe);
+        SetFigureFacing(0);
         if (e.alive) cfx::DrawStatus(feet, r.height, e.st, e.st.marked > 0, t);
     }
 }
