@@ -28,6 +28,7 @@ struct Species {
     float sight = 10, scent = 10, hearing = 10, electro = 0, armorFront = 0;
     float hpBase = 20, bountyBase = 40, bloodDeath = 20, bloodPerS = 2, speed = 2, turnDeg = 360, dropPct = 1;
     bool isEnemy = false;              // a faction unit, a member of the same web
+    bool isDiver = false;              // the players' record (divers are agents in the web too)
     bool Has(const char* tag) const;
     bool Scavenger() const { return Has("scavenger"); }
     bool Cleaner() const { return Has("cleaner"); }
@@ -141,6 +142,8 @@ struct Agent {
     float aggrMod = 0;                 // symbiosis: cleaners calm (negative), losses enrage (positive)
     float stun = 0, held = 0;          // stunned seconds; a hold on this agent (net, grab)
     int lostPrey = -1; float lostPreyT = 0; // an escaped prey it won't chase again for a while (lost it in the ink)
+    bool downed = false;               // divers: downed (a blood source; beasts stop hunting it)
+    bool weakHit = false;              // the last hit that landed was on the weak point (for the bounty)
     uint32_t rng = 1;
     std::vector<int> path;             // zone path when crossing links
     int pathStep = 0;
@@ -195,6 +198,16 @@ struct Ecosystem {
     std::map<std::pair<int, int>, int> eatenBy;        // (killer species, victim species) -> count: 'beasts eaten by beasts'
     int squadsSpawned = 0;
     std::function<void(int agent, int killer)> onDeath;  // the game layer hooks scrip and drops here
+    // The match layer: a beast's strike on a diver goes to the game (which picks the attack and its effect) instead of
+    // the agent's hp; a decision hook may take over an agent's choice for this tick (return true); closed doors
+    // (per link) keep beasts out of rooms the divers haven't opened; suppressBlood makes kills clean (Purge).
+    std::function<void(int diverAgent, int attacker, float dmg)> onDiverHit;
+    std::function<bool(Agent& a, int idx)> decideHook;
+    std::vector<char> linkClosed;
+    bool suppressBlood = false;
+    float bloodMult = 1;               // Blood Frenzy: the water fills with blood at 5x
+    bool LinkOpen(int li) const { return li < 0 || li >= (int)linkClosed.size() || !linkClosed[li]; }
+    void SpawnSquad(int region, bool hunt, int count = -1, bool leader = false);
 
     void Init(const MapData& m, uint32_t seed, int tideNum = 1, int playerCount = 4);
     void Step(float dt);                                   // advance the whole web
@@ -228,7 +241,6 @@ struct Ecosystem {
     void Move(Agent& a, int idx, float dt);
     void Population(float dt);
     void AlarmUpdate(float dt);
-    void SpawnSquad(int region, bool hunt);
     int FindPrey(const Agent& a, int idx, float range) const;
     int FindThreat(const Agent& a, int idx) const;
     int FindCorpse(const Agent& a, float range) const;
@@ -237,6 +249,11 @@ struct Ecosystem {
     void SteerTo(Agent& a, Vector3 goal, float speed, float dt);
     void Schooling(Agent& a, int idx, float dt);
 };
+
+// Body sizes for hits (length along the spine, capsule radius), from the art workbook's rows: the numbers the
+// CreatureBuilder builds with (redtide_render.cpp; needs no window).
+struct Body { float length = 0.5f, radius = 0.1f; };
+Body BodyOf(const std::string& artKey, const std::string& speciesName);
 
 // Headless tools (depth.exe --eco-sim, --web-check).
 int RunEcoSim(const std::string& mapKey, float minutes, const std::string& pattern);

@@ -400,6 +400,14 @@ const MapData& Map(const std::string& key) {
         m.enemySpecies = (int)m.species.size();
         m.species.push_back(e);
     }
+    // The divers' own record: a size-3 body in the web (beasts that eat 'Divers' hunt it; territorial beasts see an intruder).
+    {
+        Species dv;
+        dv.name = "Diver"; dv.cls = "diver"; dv.isDiver = true; dv.size = 3; dv.tier = 3; dv.archetype = "Player"; dv.social = "solitary";
+        dv.hpBase = Engine().C("player_hp", 100); dv.bloodDeath = 0; dv.bloodPerS = Engine().C("blood_diver_wounded", 2);
+        dv.speed = Engine().M("swim_speed", 2); dv.weakPoint = "none";
+        m.species.push_back(dv);
+    }
     // Diet rows by species index.
     Json diet = LoadJsonFile(d + "/diet.json");
     for (const Json& f : diet["foods"].a) m.foodNames.push_back(f.Str0());

@@ -28,7 +28,7 @@ static int ScriptKill(Ecosystem& e, Vector3 at, int sp, float noise, bool melee)
         if (!a.alive || a.diver >= 0) continue;
         const Species& s = e.map->species[a.sp];
         if (sp >= 0 && a.sp != sp) continue;
-        if (sp < 0 && (s.tier >= 4 || s.isEnemy)) continue;
+        if (sp < 0 && (s.tier >= 4 || s.isEnemy || s.isDiver)) continue;
         float d = Vector3Distance(a.pos, at);
         if (d < bd) { bd = d; best = i; }
     }
@@ -153,7 +153,7 @@ int RunWebCheck(const std::string& key) {
         const Species& s = m.species[i];
         bool eaten = false;
         for (size_t j = 0; j < m.species.size(); j++) for (const auto& pw : m.diet[j].prey) if (pw.first == (int)i) eaten = true;
-        bool reason = s.tier >= 4 || s.Has("boss") || s.Has("toxic") || s.Has("venom") || s.Cleaner() || s.Parasite() || s.isEnemy || s.Has("armored") || s.Has("electric") || s.Has("sessile");
+        bool reason = s.tier >= 4 || s.Has("boss") || s.Has("toxic") || s.Has("venom") || s.Cleaner() || s.Parasite() || s.isEnemy || s.Has("armored") || s.Has("electric") || s.Has("sessile") || s.isDiver;
         if (!eaten && !reason) fail(s.name + " has no predator and no reason not to (toxic, apex, boss...)");
     }
     // every tier-1 species has a producer (flora, plankton, detritus) or scavenges
@@ -191,7 +191,7 @@ int RunWebCheck(const std::string& key) {
     for (size_t i = 0; i < m.species.size(); i++)
         if (!fedFrom[i] && !m.diet[i].prey.empty()) fail(m.species[i].name + " only eats species that nothing feeds (unreachable diet cycle)");
     // every species' home zone resolves, and the zone graph is connected
-    for (const auto& s : m.species) if (!s.isEnemy && m.ZoneIndex(s.homeZone) < 0) fail(s.name + "'s home zone '" + s.homeZone + "' is not on the blockout");
+    for (const auto& s : m.species) if (!s.isEnemy && !s.isDiver && m.ZoneIndex(s.homeZone) < 0) fail(s.name + "'s home zone '" + s.homeZone + "' is not on the blockout");
     for (const auto& r : m.spawns) if (m.ZoneIndex(r.zone) < 0 || m.SpeciesIndex(r.species) < 0) fail("spawn row '" + r.zone + " / " + r.species + "' doesn't resolve");
     Ecosystem probe;
     probe.map = &m;

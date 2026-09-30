@@ -789,3 +789,13 @@ void RenderEnd() {
 }
 
 } // namespace rt
+
+namespace rt {
+Body BodyOf(const std::string& artKey, const std::string& name) {
+    const CreatureModel& cm = Creature(artKey, name);
+    Body b;
+    b.length = cm.length;
+    b.radius = cm.radius;
+    return b;
+}
+} // namespace rt

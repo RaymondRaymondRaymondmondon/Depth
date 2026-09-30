@@ -1,0 +1,64 @@
+{
+ "_source": "Transcribed from the Red Tide design doc (no workbook holds these): 'Racks (wall weapons)', 'Davy's Locker (the box)', 'Wonder weapons', 'Melee', 'Weapon handling and the Forged list', 'The Pressure Forge', and 'Tonics (perks)'. Damage per dart/bolt; rpm rounds per minute; noise 1-10; reload seconds; falloff from the Handling table by class.",
+ "handling": {
+  "gas":      {"spread_hip": 2.5, "spread_ads": 0.8, "ads_s": 0.20, "swim_aim": 0.9, "headshot": 2.0, "full_to": 15, "half_at": 25, "speed": 28, "recoil": 0.6},
+  "needle":   {"spread_hip": 4.0, "spread_ads": 1.5, "ads_s": 0.25, "swim_aim": 0.7, "headshot": 1.8, "full_to": 20, "half_at": 30, "speed": 32, "recoil": 0.8},
+  "powder":   {"spread_hip": 2.0, "spread_ads": 0.5, "ads_s": 0.30, "swim_aim": 0.6, "headshot": 2.2, "full_to": 30, "half_at": 45, "speed": 45, "recoil": 1.4},
+  "scatter":  {"spread_hip": 8.0, "spread_ads": 6.0, "ads_s": 0.30, "swim_aim": 0.6, "headshot": 1.5, "full_to": 6, "half_at": 12, "speed": 30, "recoil": 1.6},
+  "spear":    {"spread_hip": 1.0, "spread_ads": 0.2, "ads_s": 0.45, "swim_aim": 0.4, "headshot": 2.5, "full_to": 60, "half_at": 90, "speed": 40, "recoil": 1.8},
+  "lmg":      {"spread_hip": 5.0, "spread_ads": 2.5, "ads_s": 0.60, "swim_aim": 0.4, "headshot": 1.6, "full_to": 20, "half_at": 35, "speed": 32, "recoil": 0.9},
+  "launcher": {"spread_hip": 3.0, "spread_ads": 1.0, "ads_s": 0.50, "swim_aim": 0.5, "headshot": 1.0, "full_to": 25, "half_at": 40, "speed": 18, "recoil": 1.8},
+  "melee":    {"spread_hip": 0, "spread_ads": 0, "ads_s": 0, "swim_aim": 1.0, "headshot": 1.5, "full_to": 1.5, "half_at": 1.5, "speed": 0, "recoil": 0.5}
+ },
+ "weapons": [
+  {"id": "cormorant", "name": "The Cormorant", "class": "gas", "damage": 30, "pellets": 1, "rpm": 300, "mag": 8, "reserve": 32, "noise": 2, "reload": 1.4, "price": 0, "source": "start", "per_round": true, "forged": "The Albatross", "forged_twist": "3-dart burst", "burst": 0},
+  {"id": "gannet", "name": "Gannet", "class": "gas", "damage": 40, "pellets": 1, "rpm": 280, "mag": 10, "reserve": 50, "noise": 2, "reload": 1.5, "price": 500, "source": "rack", "per_round": true, "forged": "Frigatebird", "forged_twist": "Darts ricochet once off hard surfaces"},
+  {"id": "needler1", "name": "Needler Mk I", "class": "needle", "damage": 22, "pellets": 1, "rpm": 900, "mag": 30, "reserve": 150, "noise": 4, "reload": 2.0, "price": 1000, "source": "rack", "forged": "The Hornet", "forged_twist": "Darts leave a 2 s bleed"},
+  {"id": "carbine", "name": "Sea-Pattern Carbine", "class": "powder", "damage": 45, "pellets": 1, "rpm": 600, "mag": 24, "reserve": 168, "noise": 6, "reload": 2.2, "price": 1200, "source": "rack", "forged": "The Lieutenant", "forged_twist": "Headshots refund 2 rounds"},
+  {"id": "flechette12", "name": "Flechette 12", "class": "scatter", "damage": 12, "pellets": 8, "rpm": 80, "mag": 6, "reserve": 36, "noise": 7, "reload": 3.0, "price": 1200, "source": "rack", "per_round": true, "forged": "Twelve Apostles", "forged_twist": "Flechettes stick and detonate 1 s later"},
+  {"id": "longspeargun", "name": "Long Speargun", "class": "spear", "damage": 120, "pellets": 1, "rpm": 60, "mag": 1, "reserve": 20, "noise": 3, "reload": 1.8, "price": 1500, "source": "rack", "forged": "The Quiet Word", "forged_twist": "Kills of size 1-2 make no blood"},
+  {"id": "needler2", "name": "Needler Mk II", "class": "needle", "damage": 26, "pellets": 1, "rpm": 950, "mag": 40, "reserve": 200, "noise": 4, "reload": 1.9, "price": 1500, "source": "rack", "forged": "The Wasp's Nest", "forged_twist": "Every 10th dart marks the target for the team"},
+  {"id": "trawlerman", "name": "Trawlerman's Rifle", "class": "powder", "damage": 70, "pellets": 1, "rpm": 420, "mag": 20, "reserve": 140, "noise": 6, "reload": 2.4, "price": 1750, "source": "rack", "forged": "The Skipper", "forged_twist": "Penetrates two beasts in a line"},
+  {"id": "boltharpoon", "name": "Bolt Harpoon", "class": "spear", "damage": 260, "pellets": 1, "rpm": 40, "mag": 1, "reserve": 16, "noise": 5, "reload": 2.5, "price": 2000, "source": "rack", "forged": "The Judgement", "forged_twist": "Bolts pin size 3 for 3 s and size 4 for 1 s", "pins": true},
+  {"id": "chumthrower", "name": "Chumthrower", "class": "launcher", "damage": 0, "pellets": 1, "rpm": 60, "mag": 10, "reserve": 30, "noise": 1, "reload": 2.0, "price": 1500, "source": "rack", "chum": 40, "forged": "The Dinner Bell", "forged_twist": "Chum spots also weaken beasts feeding there"},
+  {"id": "gatling", "name": "Gatling Needler", "class": "lmg", "damage": 24, "pellets": 1, "rpm": 1100, "mag": 120, "reserve": 360, "noise": 5, "reload": 3.5, "price": 0, "source": "locker", "spinup": 0.5, "forged": "The Swarm", "forged_twist": "No spin-up; magazine 200"},
+  {"id": "twingannets", "name": "Twin Gannets", "class": "gas", "damage": 40, "pellets": 1, "rpm": 560, "mag": 20, "reserve": 100, "noise": 3, "reload": 2.0, "price": 0, "source": "locker", "forged": "Storm Petrels", "forged_twist": "One reloads while the other fires"},
+  {"id": "stormlock", "name": "Stormlock", "class": "powder", "damage": 55, "pellets": 1, "rpm": 720, "mag": 30, "reserve": 210, "noise": 7, "reload": 2.4, "price": 0, "source": "locker", "forged": "The Typhoon", "forged_twist": "No recoil climb for the first 10 rounds"},
+  {"id": "drumflechette", "name": "Drum Flechette", "class": "scatter", "damage": 11, "pellets": 8, "rpm": 180, "mag": 12, "reserve": 48, "noise": 8, "reload": 3.2, "price": 0, "source": "locker", "forged": "The Hurdy-Gurdy", "forged_twist": "Fires 2 shells per trigger pull"},
+  {"id": "reefrattler", "name": "Reef Rattler", "class": "needle", "damage": 35, "pellets": 1, "rpm": 600, "mag": 27, "reserve": 189, "noise": 4, "reload": 2.2, "price": 0, "source": "locker", "burst": 3, "forged": "The Triple Reef", "forged_twist": "4-round burst"},
+  {"id": "cannonharpoon", "name": "Cannon Harpoon", "class": "spear", "damage": 400, "pellets": 1, "rpm": 30, "mag": 1, "reserve": 12, "noise": 8, "reload": 3.0, "price": 0, "source": "locker", "explodes_over_size": 3, "forged": "The Cathedral Gun", "forged_twist": "Bolts explode on any size"},
+  {"id": "limpetlauncher", "name": "Limpet Launcher", "class": "launcher", "damage": 350, "pellets": 1, "rpm": 40, "mag": 4, "reserve": 12, "noise": 9, "reload": 3.0, "price": 0, "source": "locker", "splash": 3, "forged": "The Barnacle King", "forged_twist": "Charges stick and detonate on the next hit"},
+  {"id": "netgun", "name": "Net Gun", "class": "launcher", "damage": 0, "pellets": 1, "rpm": 60, "mag": 4, "reserve": 12, "noise": 2, "reload": 2.5, "price": 0, "source": "locker", "net": true, "forged": "The Fisherman's Friend", "forged_twist": "Nets hold size 4 for 4 s and size 5 for 2 s"},
+  {"id": "teslagaff", "name": "Tesla Gaff", "class": "melee", "damage": 250, "pellets": 1, "rpm": 70, "mag": 0, "reserve": 0, "noise": 3, "reload": 0, "price": 0, "source": "locker", "chain": 2, "forged": "The Lightning Rod", "forged_twist": "Chains to 4 and stuns 2 s"},
+  {"id": "trident", "name": "Trident", "class": "melee", "damage": 300, "pellets": 1, "rpm": 60, "mag": 0, "reserve": 0, "noise": 0, "reload": 0, "price": 0, "source": "locker", "reach": 2.5, "forged": "Neptune's Fork", "forged_twist": "Throwable, returns in 3 s"},
+  {"id": "galvanicrod", "name": "The Galvanic Rod", "class": "launcher", "damage": 160, "pellets": 1, "rpm": 90, "mag": 12, "reserve": 48, "noise": 5, "reload": 2.5, "price": 0, "source": "wonder_ship", "arc_m": 10, "forged": "The Lightning Keel", "forged_twist": "Arcs leave a 5 s electric field"},
+  {"id": "harpooncannon", "name": "Harpoon Cannon", "class": "spear", "damage": 500, "pellets": 1, "rpm": 60, "mag": 99, "reserve": 0, "noise": 10, "reload": 0, "price": 0, "source": "drop"}
+ ],
+ "melee": [
+  {"id": "knife", "name": "Diver's knife", "damage": 100, "noise": 0, "reach": 1.5, "rate": 1.2, "price": 0},
+  {"id": "boardingaxe", "name": "Boarding Axe", "damage": 180, "noise": 0, "reach": 1.7, "rate": 1.0, "price": 2500}
+ ],
+ "rack_for": {
+  "Gannet rack": "gannet", "Needler Mk I rack": "needler1", "Flechette 12 rack": "flechette12", "Long Speargun rack": "longspeargun",
+  "Sea-Pattern Carbine rack": "carbine", "Bolt Harpoon rack": "boltharpoon"
+ },
+ "forge": {"price": 5000, "damage_mult": 2.5, "ammo_mult": 1.5, "reroll": 2500, "rearm": 4500,
+  "ammo": ["Galvanic", "Chum Rounds", "Flare Burst", "Riptide", "Boiling"]},
+ "locker": {"pull": 950, "fire_sale": 10, "moves_after": [8, 12], "wonder": "galvanicrod"},
+ "tonics": [
+  {"id": "juggernaut", "name": "Juggernaut Brine", "price": 2500, "effect": "250 HP"},
+  {"id": "quick", "name": "Quick Brine", "price": 1500, "price_solo": 500, "effect": "Revives in 2 s; solo: a self-revive (3 per match)"},
+  {"id": "speed", "name": "Speed Brine", "price": 3000, "effect": "Reloads and builds 30% faster"},
+  {"id": "double", "name": "Double Shot", "price": 2000, "effect": "+33% rate of fire; darts count double"},
+  {"id": "kick", "name": "Kick Brine", "price": 2000, "effect": "Faster swim, longer sprint, breaks free of grabs 50% faster"},
+  {"id": "deadeye", "name": "Deadeye Brine", "price": 1500, "effect": "Weak-point damage 3x"},
+  {"id": "mule", "name": "Mule Brine", "price": 4000, "effect": "A third weapon slot"},
+  {"id": "bubbleskin", "name": "Bubbleskin", "price": 2000, "effect": "No self-damage"},
+  {"id": "shocking", "name": "Shocking Salt", "price": 2000, "effect": "Reloading shocks beasts within 4 m"},
+  {"id": "widow", "name": "Widow's Ink", "price": 4000, "effect": "Melee and hits ink attackers"},
+  {"id": "vulture", "name": "Vulture's Eye", "price": 3000, "effect": "See scrip and ammo through walls; predator direction earlier"},
+  {"id": "coffin", "name": "Cold Coffin", "price": 2000, "effect": "On death, a shadow swims 30 s to revive you"}
+ ],
+ "tonic_poi": {"Juggernaut Brine": "juggernaut", "Quick Brine": "quick", "Speed Brine": "speed", "Double Shot": "double", "Kick Brine": "kick"},
+ "spawn_in": {"sidearm": "cormorant", "scrip": 500, "limpets": 2}
+}

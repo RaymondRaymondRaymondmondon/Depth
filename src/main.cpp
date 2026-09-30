@@ -1,6 +1,7 @@
 #include "sound.h"
 #include "beasts.h"
 #include "redtide.h"
+#include "redtide_match.h"
 // ============================================================================
 //  DEPTH - entry point. Opens the window and runs whichever scene is active.
 //
@@ -177,6 +178,12 @@ static void TakeShots(const Game& base, const std::string& dir) {
         {"redtide_silhouette", [](Game& g) { DebugRedTideShot(g, 1); }},
         {"redtide_species_ship_1", [](Game& g) { DebugRedTideShot(g, 2); }},
         {"redtide_species_ship_2", [](Game& g) { DebugRedTideShot(g, 3); }},
+        {"redtide_ship_bridge", [](Game& g) { DebugRedTideShot(g, 10); }},
+        {"redtide_ship_salon", [](Game& g) { DebugRedTideShot(g, 11); }},
+        {"redtide_ship_engine", [](Game& g) { DebugRedTideShot(g, 12); }},
+        {"redtide_ship_keel", [](Game& g) { DebugRedTideShot(g, 13); }},
+        {"redtide_ship_hunt", [](Game& g) { DebugRedTideShot(g, 14); }},
+        {"redtide_ship_cabins", [](Game& g) { DebugRedTideShot(g, 15); }},
         {"panel_ward", [](Game& g) { g.scene = Scene::Ward; Hero& h = g.roster[1]; g.selectedHero = h.id; h.hp = h.hp / 2; h.ailments = (1u << AIL_SALT_ROT) | (1u << AIL_BENDS); h.habits = (1u << HB_STEADY_HANDS) | (1u << HB_NIGHT_EYES) | (1u << HB_JUMPY); h.habitLocked = 1u << HB_NIGHT_EYES; g.gold = 400; }},
         {"panel_sickbay", [](Game& g) { g.scene = Scene::SickLeave; }},
         {"flats_menu", [](Game& g) { g.scene = Scene::Cards; }},
@@ -538,6 +545,15 @@ int main(int argc, char** argv) {
     if (argc >= 2 && strcmp(argv[1], "--redtide-test") == 0) {
         SetTraceLogLevel(LOG_WARNING);
         return RunRedTideTest();
+    }
+    if (argc >= 2 && strcmp(argv[1], "--redtide-match-test") == 0) {
+        SetTraceLogLevel(LOG_WARNING);
+        return rt::RunRedTideMatchTest();
+    }
+    // --redtide-sim <map> <tides> [careful|careless] [runs] [players]
+    if (argc >= 3 && strcmp(argv[1], "--redtide-sim") == 0) {
+        SetTraceLogLevel(LOG_WARNING);
+        return rt::RunRedTideSim(argv[2], argc >= 4 ? atoi(argv[3]) : 10, argc >= 5 ? argv[4] : "careful", argc >= 6 ? atoi(argv[5]) : 3, argc >= 7 ? atoi(argv[6]) : 4);
     }
     if (argc >= 3 && strcmp(argv[1], "--eco-test") == 0) {
         SetTraceLogLevel(LOG_WARNING);

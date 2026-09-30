@@ -183,7 +183,9 @@ std::vector<int> Ecosystem::ZonePath(int from, int to) const {
     for (size_t h = 0; h < q.size(); h++) {
         int z = q[h];
         if (z == to) break;
-        for (const auto& l : map->links) {
+        for (int li = 0; li < (int)map->links.size(); li++) {
+            const Link& l = map->links[li];
+            if (!LinkOpen(li)) continue;   // a door the divers haven't bought keeps beasts out too
             int n = -1;
             if (l.from == z) n = l.to;
             else if (l.to == z) n = l.from; // water passes both ways; one-way drops are a player rule
@@ -263,6 +265,7 @@ void Ecosystem::Init(const MapData& m, uint32_t seed, int tideNum, int playerCou
     rng = seed ? seed : 1;
     tide = tideNum;
     players = playerCount;
+    diverSpecies = m.SpeciesIndex("Diver");
     agents.clear(); corpses.clear(); flora.clear(); squads.clear(); events.clear();
     time = 0; scentT = 0; popT = 0; alarmRollT = 0; cleanerRage = 0; squadsSpawned = 0;
     killsBySpecies.assign(m.species.size(), 0);
@@ -327,7 +330,7 @@ int Ecosystem::AddDiver(int slot, Vector3 pos) {
 }
 
 // ---------------------------------------------------------------- blood, noise, death
-void Ecosystem::AddBlood(Vector3 pos, float amount) { if (amount > 0) scent.Add(pos, amount); }
+void Ecosystem::AddBlood(Vector3 pos, float amount) { if (amount > 0 && !suppressBlood) scent.Add(pos, amount * bloodMult); }
 
 void Ecosystem::AddNoise(Vector3 pos, float noise, bool explosion) {
     float field = explosion ? eng->C("noise_explosion", 30) : noise * 10.0f * eng->C("noise_gunshot_base", 1);
@@ -344,6 +347,7 @@ void Ecosystem::Damage(int ai, float dmg, int attacker, bool melee, bool weakPoi
     Agent& a = agents[ai];
     if (!a.alive) return;
     const Species& s = map->species[a.sp];
+    if (a.diver >= 0 && onDiverHit) { onDiverHit(ai, attacker, dmg); return; }
     if (weakPoint) dmg *= 2;
     a.hp -= dmg;
     a.wound = std::clamp(1 - a.hp / a.hpMax, 0.0f, 1.0f);
@@ -625,6 +629,7 @@ void Ecosystem::Decide(Agent& a, int idx) {
     const Zone& home = map->zones[a.homeZone];
     if (a.diver >= 0) return;          // the game layer drives divers
     if (a.stun > 0 || a.held > 0) return;
+    if (decideHook && decideHook(a, idx)) return;
     // symbiosis: hosts near a cleaner are calmer
     a.aggrMod = 0;
     if (!s.Cleaner() && s.size >= 2) {
@@ -1008,7 +1013,7 @@ void Ecosystem::Population(float dt) {
 }
 
 // ---------------------------------------------------------------- the enemy alarm and squads
-void Ecosystem::SpawnSquad(int region, bool hunt) {
+void Ecosystem::SpawnSquad(int region, bool hunt, int count, bool leader) {
     if (map->enemySpecies < 0 || map->faction.units.empty()) return;
     const Faction& f = map->faction;
     // the faction's entry point (at least 35 m from every diver)
@@ -1025,12 +1030,14 @@ void Ecosystem::SpawnSquad(int region, bool hunt) {
     at = map->zones[zi].Clamp(at);
     int size = tide >= 20 ? 5 : tide >= 10 ? 4 : 3;
     if (players <= 1) size = 2; else if (players <= 3) size = 3;
+    if (count > 0) size = count;
     Squad sq;
     sq.region = region;
     sq.hunt = hunt;
     sq.goal = map->zones[map->alarmRegions[region].zones.empty() ? zi : map->alarmRegions[region].zones[0]].Center();
     int squadIdx = (int)squads.size();
     std::vector<std::string> comp = f.composition;
+    if (leader) for (const auto& u : f.units) if (u.huntOnly) comp.insert(comp.begin(), u.unit);   // the Foreman leads a Hunt
     for (int k = 0; k < size && !comp.empty(); k++) {
         const std::string& un = comp[k % comp.size()];
         int ui = 0;
