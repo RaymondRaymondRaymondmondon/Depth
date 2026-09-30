@@ -360,6 +360,94 @@ bool Level::Sight(Vector3 a, Vector3 b, const std::vector<char>& linkOpen, bool 
 
 // ---------------------------------------------------------------- the match
 float Match::Rand() { rng ^= rng << 13; rng ^= rng >> 17; rng ^= rng << 5; return (rng & 0xFFFFFF) / (float)0x1000000; }
+// ---------------------------------------------------------------- quips (stage 9)
+const char* Match::VoiceName(int voice) { static const char* N[4] = {"Diver", "Whaler", "Stowaway", "Mechanic"}; return N[std::clamp(voice, 0, 3)]; }
+// diver >= 0: that diver says it; -1: anyone standing; <= -2: anyone but diver (-2 - diver), or them if alone
+bool Match::Quip(const std::string& sit, int diver, float delay, bool answer) {
+    if (!map || divers.empty()) return false;
+    if (!answer) {
+        static const std::map<std::string, float> CD = {{"Quiet", 120}, {"Scent high", 45}, {"Predator pulse", 60}, {"Enemy eaten", 40}, {"Harmless big thing shot", 40}, {"Cleaner killed", 40}, {"Chummed", 20}, {"Tonic bought", 30}};
+        auto it = quipSitAt.find(sit);
+        float cd = CD.count(sit) ? CD.at(sit) : 15.0f;
+        if (it != quipSitAt.end() && time - it->second < cd) return false;
+    }
+    if (delay > 0 || quipBusyT > 0) {
+        bool urgent = sit == "Downed" || sit == "Boss appears" || sit == "Swallowed" || sit == "Match over" || sit == "Last standing";
+        if (quipQueue.size() >= 3 && !urgent) return false;
+        quipQueue.push_back({sit, diver, std::max(delay, 0.0f), answer});
+        quipSitAt[sit] = time;
+        return true;
+    }
+    // who speaks
+    std::vector<int> can;
+    int not_ = diver <= -2 ? -2 - diver : -1;
+    for (int i = 0; i < (int)divers.size(); i++) if (!divers[i].dead && (sit == "Downed" || sit == "Match over" || !divers[i].downed) && i != not_) can.push_back(i);
+    int who = diver >= 0 ? diver : !can.empty() ? can[(int)(Rand() * can.size()) % can.size()] : not_;
+    if (who < 0 || who >= (int)divers.size()) return false;
+    const char* vn = VoiceName(VoiceOf(who));
+    std::vector<std::string> lines;
+    for (const Json& b : Engine().barks.a) if (b["situation"].Str0() == sit && b["diver"].Str0() == vn) {
+        std::string l = b["line"].Str0();
+        auto at = quipLineAt.find(l);
+        if (at == quipLineAt.end() || time - at->second >= 180) lines.push_back(l);   // no line again within 3 minutes
+    }
+    if (lines.empty()) return false;
+    const std::string line = lines[(int)(Rand() * lines.size()) % lines.size()];
+    quipLineAt[line] = time; quipSitAt[sit] = time;
+    int syl = std::max(1, (int)line.size() / 3);
+    quipBusyT = 0.5f + syl * 0.13f;
+    Say(vn, line, std::max(2.5f, quipBusyT + 1.2f));
+    quipOut.push_back({VoiceOf(who), who, syl, divers[who].pos});
+    if (quipOut.size() > 16) quipOut.erase(quipOut.begin());
+    quipDone++;
+    // a teammate answers now and then (the call and its callback)
+    if (!answer && players > 1 && sit != "Match over" && Rand() < 0.3f) {
+        std::vector<int> other;
+        for (int i = 0; i < (int)divers.size(); i++) if (i != who && !divers[i].dead && !divers[i].downed) other.push_back(i);
+        if (!other.empty()) quipQueue.push_back({sit, other[(int)(Rand() * other.size()) % other.size()], quipBusyT + 0.4f, true});
+    }
+    return true;
+}
+void Match::UpdateQuips(float dt) {
+    if (quipBusyT > 0) quipBusyT -= dt;
+    for (auto& q : quipQueue) q.delay -= dt;
+    for (size_t i = 0; i < quipQueue.size(); i++) if (quipQueue[i].delay <= 0 && quipBusyT <= 0) {
+        QuipPend q = quipQueue[i];
+        quipQueue.erase(quipQueue.begin() + i);
+        Quip(q.sit, q.diver, 0, true);
+        break;
+    }
+    quipQueue.erase(std::remove_if(quipQueue.begin(), quipQueue.end(), [](const QuipPend& q) { return q.delay < -5; }), quipQueue.end());
+    // what changed since the last tick
+    if (!quipStarted && time > 1.5f) { quipStarted = true; Quip("Match start"); }
+    if (phase != quipPhase) {
+        if (phase == TidePhase::Hunt) Quip(predatorHunt ? "Predator pulse" : "Hunt begins");
+        else if (phase == TidePhase::Calm && quipPhase != TidePhase::Calm) Quip("Tide cleared");
+        quipPhase = phase;
+    }
+    if (bossActive && !quipBoss) Quip("Boss appears");
+    quipBoss = bossActive;
+    quipDown.resize(divers.size(), 0); quipHeldBoss.resize(divers.size(), 0); quipScentT.resize(divers.size(), 0);
+    for (int i = 0; i < (int)divers.size(); i++) {
+        const DiverState& d = divers[i];
+        bool down = d.downed && !d.dead;
+        if (down && !quipDown[i]) Quip("Downed", i);
+        quipDown[i] = down;
+        bool held = d.holder >= 0 && IsBoss(d.holder);
+        if (held && !quipHeldBoss[i]) Quip("Swallowed", i);
+        quipHeldBoss[i] = held;
+        if (!d.dead && !d.downed && (quipScentT[i] += dt) >= 1.0f) {
+            quipScentT[i] = 0;
+            if (eco.Smell(d.pos, eco.ZoneAt(d.pos), 8) >= 60) Quip("Scent high", i);
+        }
+    }
+    bool last = players > 1 && Living() == 1;
+    if (last && !quipLast) { for (int i = 0; i < (int)divers.size(); i++) if (!divers[i].dead && !divers[i].downed) Quip("Last standing", i); }
+    quipLast = last;
+    quipQuietT = phase == TidePhase::Calm && phaseT > 10 ? quipQuietT + dt : 0;
+    if (quipQuietT > 8 && quipBusyT <= 0 && quipQueue.empty()) { auto it = quipSitAt.begin(); float lastAny = -1e9f; for (; it != quipSitAt.end(); ++it) lastAny = std::max(lastAny, it->second); if (time - lastAny > 40) Quip("Quiet"); }
+}
+
 void Match::Say(const std::string& who, const std::string& text, float t) {
     captions.push_back({who, text, t});
     if (captions.size() > 6) captions.erase(captions.begin());
@@ -576,6 +664,7 @@ void Match::Step(float dt) {
     UpdateCharms(dt);
     UpdateQuests(dt);
     UpdateDrops(dt);
+    UpdateQuips(dt);
     for (auto& c : crates) {
         c.t -= dt;
         if (!c.fallen && c.t <= 0) {
@@ -622,7 +711,10 @@ void Match::Step(float dt) {
     // "If every diver is down, the match ends" (a solo diver with a Quick Brine self-revive in hand isn't down yet)
     bool anyUp = false;
     for (const auto& d : divers) if (!d.dead && (!d.downed || d.selfReviveT > 0)) anyUp = true;
-    if (!anyUp) { over = true; phase = TidePhase::Over; overReason = "Every diver is down"; }
+    if (!anyUp) {
+        over = true; phase = TidePhase::Over; overReason = "Every diver is down";
+        quipQueue.clear(); quipBusyT = 0; Quip("Match over", (int)(Rand() * divers.size()) % std::max(1, (int)divers.size()));
+    }
 }
 
 // ---------------------------------------------------------------- divers
@@ -880,7 +972,7 @@ void Match::Revive(DiverState& d, int by) {
     if (d.slots > 2) { d.slots = 2; if (d.weapons.size() > 2) d.weapons.resize(2); d.cur = std::min(d.cur, 1); }
     d.regenT = 0;
     if (d.agent >= 0) eco.agents[d.agent].downed = false;
-    if (by >= 0) { divers[by].revives++; Pay(divers[by], 100); }
+    if (by >= 0) { divers[by].revives++; Pay(divers[by], 100); Quip("Revive", by); }
     Say("", "Diver " + std::to_string(d.slot + 1) + (by >= 0 ? " is back up" : " gets back up"), 3);
 }
 
@@ -1130,6 +1222,7 @@ void Match::HitAgent(DiverState* d, int ai, float dmg, bool weak, bool melee, Ve
         alliesHostile = true;
         Say(s.name, "pod turns on the divers: they're hostile for the rest of the match", 5);
     }
+    if (d && !s.isEnemy && s.size >= 4 && s.aggression < 0.35f && s.tier < 4 && !IsBoss(ai)) Quip("Harmless big thing shot", Living() > 1 ? -2 - d->slot : d->slot);
     const WeaponDef* w = dart && dart->weapon >= 0 ? &Weapons().weapons[dart->weapon] : nullptr;
     if (s.weakPoint == "none" || s.weakPoint.empty()) weak = false;
     bool frontal = Vector3DotProduct(dir, Facing(a)) < -0.3f;
@@ -1246,7 +1339,7 @@ void Match::UpdateDarts(float dt) {
                 if (t.kind == 8) { EnemyBlast(t.pos, t.damage, 2.0f, t.enemy); t.alive = false; break; }
                 if (t.kind == 7) { HitDiver(d, t.damage, by, "hold 3 s", prev, t.enemy); auto it = map->faction.barks.find("net"); if (it != map->faction.barks.end() && !it->second.empty()) Say(map->faction.speciesName.empty() ? map->faction.name : map->faction.speciesName, it->second[0], 3); }
                 else if (t.kind == 5) { HitDiver(d, 0, by, "net", prev); auto it = map->faction.barks.find("net"); if (it != map->faction.barks.end() && !it->second.empty()) Say(map->faction.speciesName, it->second[(int)(Rand() * it->second.size()) % it->second.size()], 3); }
-                else if (t.kind == 6) { eco.AddChum(d.pos, 40); auto it = map->faction.barks.find("chum"); if (it != map->faction.barks.end() && !it->second.empty()) Say(map->faction.speciesName, it->second[0], 3); }
+                else if (t.kind == 6) { eco.AddChum(d.pos, 40); Quip("Chummed", d.slot); auto it = map->faction.barks.find("chum"); if (it != map->faction.barks.end() && !it->second.empty()) Say(map->faction.speciesName, it->second[0], 3); }
                 else HitDiver(d, t.damage, by, by == "Speargunner" || by == "Foreman" ? "bleed 3 s" : "", prev);
                 t.alive = false;
                 break;
@@ -1370,6 +1463,9 @@ void Match::OnDeath(int ai, int killer) {
         if (it != map->faction.barks.end() && !it->second.empty() && Rand() < 0.4f) Say(map->faction.speciesName, it->second[(int)(Rand() * it->second.size()) % it->second.size()], 3);
     }
     if (di >= 0 && !divers[di].bot && dossierSeen.insert(DossierName(ai)).second) Say("", "Dossier: " + DossierName(ai), 2);
+    if (di < 0 && s.isEnemy && killer >= 0 && killer < (int)eco.agents.size() && eco.agents[killer].diver < 0) Quip("Enemy eaten");
+    if (di >= 0 && !quipFirst) { quipFirst = true; Quip("First blood", di); }
+    else if (di >= 0 && s.Cleaner()) Quip("Cleaner killed", Living() > 1 ? -2 - di : di);
     if (di < 0) return;                                      // eaten or killed by the reef: no scrip, not the quota
     DiverState& d = divers[di];
     float bounty;
@@ -3267,7 +3363,7 @@ void Match::GiveLockerWeapon(DiverState& d) {
     // (2% per pull, guaranteed within 12 pulls if not yet held by the team)
     const WeaponsData& WD = Weapons();
     int wonder = WD.Index(WonderId());
-    if (wonder >= 0 && !wonderHeld && (teamPulls >= 12 || Rand() < 0.02f)) { GiveWeapon(d, wonder, d.luckyLocker); d.luckyLocker = false; d.lastKill = "Davy's Locker: " + WD.weapons[wonder].name; d.lastKillT = 3; return; }
+    if (wonder >= 0 && !wonderHeld && (teamPulls >= 12 || Rand() < 0.02f)) { GiveWeapon(d, wonder, d.luckyLocker); d.luckyLocker = false; d.lastKill = "Davy's Locker: " + WD.weapons[wonder].name; d.lastKillT = 3; Quip("Locker wonder", d.slot, 0.8f); return; }
     std::vector<int> pool;
     for (int i = 0; i < (int)WD.weapons.size(); i++) {
         const WeaponDef& w = WD.weapons[i];
@@ -3285,6 +3381,7 @@ void Match::GiveLockerWeapon(DiverState& d) {
         for (auto& h : d.weapons) if (h.def == pick && h.forged && na > 0) h.altAmmo = (int)(Rand() * na) % na;   // (with an alternate ammunition)
     }
     d.lastKill = "Davy's Locker: " + WD.weapons[pick].name; d.lastKillT = 3;
+    if (WD.weapons[pick].source == "rack" && !d.bot) Quip("Locker bad", d.slot, 0.8f);   // a rack gun out of the Locker: money down the drain
 }
 
 bool Match::LockerLiveAt(const Station& s) const {
@@ -3521,6 +3618,7 @@ bool Match::Interact(int di, bool hold, float dt) {
             if (t->id == "mule") d.slots = 3;
             if (soloQuick) { d.quickBought++; d.selfRevives++; }
             Say("", t->name + ": " + t->effect, 3);
+            Quip("Tonic bought", Living() > 1 ? -2 - d.slot : d.slot, 1.5f);
             return true;
         }
         case StationType::Locker: {
@@ -3532,7 +3630,7 @@ bool Match::Interact(int di, bool hold, float dt) {
             if (fireSaleT <= 0 && lockerPulls >= lockerMoveAt && spots > 1) {
                 d.scrip += WD.lockerPull;
                 lockerSpot = (lockerSpot + 1 + (int)(Rand() * (spots - 1))) % spots;
-                lockerPulls = 0; lockerMovedT = 6;
+                lockerPulls = 0; lockerMovedT = 6; Quip("Locker bad", d.slot, 0.8f);
                 lockerMoveAt = WD.lockerMoveMin + (int)(Rand() * (WD.lockerMoveMax - WD.lockerMoveMin + 1));
                 for (const auto& o : level.stations) if (o.type == StationType::Locker && o.lockerSpot == lockerSpot) Say("Davy's Locker", "The moray snaps the chest shut. It sinks away to the " + map->zones[o.zone].name + " (a lantern buoy marks it).", 5);
                 return true;
@@ -3550,6 +3648,7 @@ bool Match::Interact(int di, bool hold, float dt) {
             if (forgeAt < 0) forgeAt = time;
             h.altAmmo = (int)(Rand() * WD.forgeAmmoTypes.size()) % std::max(1, (int)WD.forgeAmmoTypes.size());
             h.mag = (int)MagMax(w, h); h.reserve = (int)ResMax(w, h);
+            Quip("Forge", d.slot, 1.2f);
             Say("The Pressure Forge", (w.forged.empty() ? w.name + " (forged)" : w.forged) + ", with " + (WD.forgeAmmoTypes.empty() ? "" : WD.forgeAmmoTypes[h.altAmmo]) + " rounds", 4);
             return true;
         }
@@ -5280,6 +5379,29 @@ int RunRedTideProfileTest() {
         check(a.keepBrines, "Keep Your Brines is armed until the next revive");
         c.UseCharm(0);
         check(a.luckyLocker && !c.UseCharm(0), "Lucky Locker armed; the pouch is spent");
+    }
+    {   // quips: barks.json's lines, one speaker at a time, no repeat within 3 minutes, answers from teammates
+        auto Q = std::make_unique<Match>(); Match& q = *Q;
+        q.Init("ship", 2, 11, false);
+        for (int i = 0; i < 60; i++) q.Step(0.05f);
+        bool start = false; for (const auto& c : q.captions) if (c.who == "Diver" || c.who == "Whaler") start = true;
+        check(start && !q.quipOut.empty(), TextFormat("a match start quip is said (%d out)", (int)q.quipOut.size()));
+        check(q.VoiceOf(0) == 0 && q.VoiceOf(1) == 1, "divers 1 and 2 speak as the Diver and the Whaler");
+        q.quipOut.clear(); q.quipBusyT = 0; q.quipQueue.clear();
+        bool a1 = q.Quip("Forge", 0); bool a2 = q.Quip("Tonic bought", 1);
+        check(a1 && q.quipOut.size() == 1 && q.quipQueue.size() >= 1, "a second quip waits while someone is talking");
+        for (int i = 0; i < 200; i++) q.Step(0.05f);
+        check(a2 && q.quipOut.size() >= 2, "and is said once they've finished");
+        std::set<std::string> said; int repeats = 0, n = 0;
+        for (int k = 0; k < 12; k++) { q.quipBusyT = 0; q.quipQueue.clear(); q.quipSitAt.clear(); size_t before = q.captions.size(); if (q.Quip("Downed", 0)) { n++; std::string l = q.captions.back().text; if (!said.insert(l).second) repeats++; } (void)before; }
+        check(n == 3 && repeats == 0, TextFormat("no line repeats within 3 minutes (%d Downed lines for the Diver, then silence)", n));
+        q.divers[1].downed = true;
+        q.quipBusyT = 0; q.quipQueue.clear(); q.quipOut.clear(); q.quipSitAt.clear();
+        for (int i = 0; i < 4; i++) q.Step(0.05f);
+        bool down = false, last = false; for (const auto& c : q.captions) { for (const Json& b : Engine().barks.a) if (b["line"].Str0() == c.text) { if (b["situation"].Str0() == "Downed") down = true; if (b["situation"].Str0() == "Last standing") last = true; } }
+        for (int i = 0; i < 100; i++) q.Step(0.05f);
+        for (const auto& c : q.captions) for (const Json& b : Engine().barks.a) if (b["line"].Str0() == c.text && b["situation"].Str0() == "Last standing") last = true;
+        check(down && last, "a downed teammate calls it, and the last diver standing answers");
     }
     printf(fails ? "redtide-profile-test: %d check(s) failed\n" : "redtide-profile-test: all checks passed\n", fails);
     return fails ? 1 : 0;

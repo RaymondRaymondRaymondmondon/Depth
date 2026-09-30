@@ -719,9 +719,10 @@ int main(int argc, char** argv) {
             BeginFrame();
             RunScene(g);
             {   // aboard the Nautilus (the salon and its station screens) the waltz and the ship's bed play
-                bool aboard = g.scene != Scene::Platformer && g.scene != Scene::Abyss && g.scene != Scene::Dungeon;
+                bool aboard = g.scene != Scene::Platformer && g.scene != Scene::Abyss && g.scene != Scene::Dungeon && !(g.scene == Scene::RedTide && RedTideAudioActive());
                 AudioHub(aboard, g.scene == Scene::Hub ? -1 : (int)g.scene, g.mourning);
                 if (g.scene != Scene::Dungeon) AudioExpedition(ExpAudio{});   // (the Dungeon scene sets it every frame)
+                if (g.scene != Scene::RedTide) AudioRedTide(RtAudio{});      // (and the Red Tide scene)
             }
             AudioFrame(GetFrameTime(), g.scene == Scene::Platformer || g.scene == Scene::Abyss);
             DrawToast(g);

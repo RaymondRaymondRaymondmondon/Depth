@@ -1,4 +1,7 @@
 #pragma once
+#include <string>
+#include <utility>
+#include <vector>
 // The parkour section's sound, all synthesized in code (sound.cpp): one stereo stream mixing a pool of voices
 // (oscillators, noise, formant filters, pitch and filter sweeps), a generative ambient score and an ambience bed
 // per level, a reverb send, and an underwater low-pass. Nothing is loaded from disk.
@@ -77,3 +80,23 @@ void AudioExpedition(const ExpAudio& a);
 void CombatVoice(int enemyType, float size, int cue, float pan);   // an enemy's voice (CUE_ALARM), pain (CUE_PAIN) or death (CUE_DEATH)
 float AudioBeat();          // the expedition music's beat, 1 on it and fading (the Cave's mould glows in time)
 void AudioReact(int kind);  // 0: the Island's chant rises (its Shaman heals); 1: whale calls answer the Siren
+
+// ---------------------------------------------------------------- Red Tide (the Deep Arcade's shooter, stage 9)
+// Set every frame by the Red Tide scene (redtide_game.cpp); main.cpp turns it off elsewhere.
+// map: 0 ship, 1 cave, 2 reef, 3 atlantis, 4 void. mode: 0 the calm, 1 a tide, 2 a Hunt, 3 the match is over.
+struct RtAudio {
+    bool on = false; int map = 0, mode = 0, tide = 1;
+    float quota = 0;            // 0..1 of the tide's quota taken
+    float scent = 0;            // 0..1 blood in the water around the diver
+    float predator = 0, predatorPan = 0;   // 0..1 how near an apex predator is, and which side
+    bool boss = false; int bossPhase = 1;
+    bool downed = false; float hp = 1;     // the listening diver
+    float countdown = 0;        // the calm: seconds before the next tide
+};
+enum RtCue { RTC_SHOT, RTC_HARPOON, RTC_HIT, RTC_WALL, RTC_BLAST, RTC_ARC, RTC_MELEE, RTC_CRATE, RTC_PICKUP, RTC_TONIC, RTC_DROP, RTC_ARRIVAL,
+             RTC_HAZARD, RTC_BELL, RTC_CLEAR, RTC_KILL, RTC_DOWN, RTC_REVIVE, RTC_EMPTY, RTC_RELOAD, RTC_COUNT };
+void AudioRedTide(const RtAudio& a);
+void RedTideCue(int kind, float vol, float pan, float dist);              // an effect from `dist` metres, panned
+void RedTideBeast(const char* species, float size, int cue, float dist, float pan);   // a species' voice (BeastCue); muffled past 40 m
+void RedTideQuip(int voice, int syllables, float pan);                    // a diver's babble (0 Diver, 1 Whaler, 2 Stowaway, 3 Mechanic)
+void RedTideSpeciesForAudio(int map, std::vector<std::pair<std::string, int>>& out);   // redtide_game.cpp: --audio-test's species

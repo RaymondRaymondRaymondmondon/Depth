@@ -440,3 +440,34 @@ Sentinels do the downing. Balance stays with Stage 10.
   turtles nest, one every 12 s while a diver holds the beach during a tide, and Raiders come for the beach; five
   nests: the Anemone Gun (Forged), the dolphins allied again, hammerheads kept off the beach.
 - A long open resets if everyone leaves it for 1.5 s. `--redtide-map-test ship` checks the safe.
+
+### 9d: sound and quips
+- `sound_redtide.inl` (inside sound.cpp's namespace, like the expeditions' file). The scene sets `AudioRedTide(RtAudio)`
+  every frame (map, calm/tide/Hunt/over, tide, quota taken, blood around the diver, the nearest apex and its side,
+  boss and phase, downed and health, the calm's countdown); main.cpp turns it off elsewhere, and the salon's waltz
+  stops while a match plays (`RedTideAudioActive`).
+- Music: the calm is a drone and pad with the tide bell counting the last 5 s; a tide adds a pulse, bass and kick, a
+  melodic layer once half the quota is in, and snare, hats and a far siren from tide 20; blood brings strings that
+  climb with the scent; an apex within 40 m plays its own low motif panned toward it; a Hunt plays the map's faction
+  theme (the Scrappers' anvil and horn, the Drowned's drums, the tribe's chant, the Lost Ones' choir march, the void
+  cult's FM pulse); a boss's ostinato ducks everything else (sharper in phase 2); downed, the score is muffled under a
+  heartbeat; the match ends on a composed 6/8 shanty. Palettes: the Ship brass/squeezebox, the Cave glass, the Reef
+  marimba and hand drums, Atlantis choir and organ, the Void bells and sub-bass. Each map has an ambience bed and events
+  (timber and brass rings, drips and rockfall, shrimp snaps and dolphin whistles, stone and a far choir, groans and
+  something vast below). The regulator breathes, quicker at low health or in blood.
+- Voices: every species gets `PlayBeast` from `RtArchOf` (the sea's names the parkour table doesn't know: turtles,
+  seals, crocodiles, newts, squid, urchins ...) plus size and a name hash; the scene diffs the Ecosystem for deaths,
+  pain, the start of a hunt, feeding and idle calls (3 a frame at most); past 40 m the new voices get a low-pass.
+  Effects: the Match's fx (darts, impacts, blasts, arcs, crates, melee, pickups) and diffs for the tide bell, a tide
+  cleared, the faction's arrival (a horn), tonics, drops, kills, falling cargo, downed/revived, reloads, an empty click.
+- Quips (`Match::Quip` / `UpdateQuips`): barks.json's 252 lines in all 21 situations for the four voices (slot % 4:
+  Diver, Whaler, Stowaway, Mechanic). One speaker at a time (a queue of three; urgent ones jump it), no line again
+  within 3 minutes, per-situation cool-downs, and a teammate answers 30% of the time. The line is a caption; the scene
+  drains `quipOut` for formant babble on the voice bus (which ducks the rest). Hooks: match start, first blood, a big
+  harmless animal shot, a cleaner killed, chummed, downed, revive (the reviver), tonic, Locker (a rack gun out of it or
+  the chest moving; the wonder), Forge, Hunt or Predator pulse, an enemy eaten, boss, swallowed, tide cleared, quiet,
+  last standing, match over, blood at the diver (`Smell` >= 60).
+- `--audio-test` now renders all five maps in seven states and plays every effect, the four voices and every species'
+  call, pain, death and feeding near and at 50 m (844 cues; sharks have no call). It also stopped the Pirate pass's
+  current noise leaking into the later checks: that floor had been hiding that the music- and ambience-bus cues are
+  silent without a scene (the cue check now opens those buses). `--redtide-profile-test` checks the quips.

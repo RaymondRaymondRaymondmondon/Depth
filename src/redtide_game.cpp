@@ -6,6 +6,7 @@
 #include "redtide_render.h"
 #include "redtide_profile.h"
 #include "game.h"
+#include "sound.h"
 #include "raymath.h"
 #include <algorithm>
 #include <cmath>
@@ -34,10 +35,17 @@ struct RedTideScene {
     int lastZone = -1; float zoneT = 0;
     float bob = 0;
     bool awarded = false; int awardTokens = 0; std::vector<std::string> awardLines;   // the arcade profile's pay for the match
+    // sound (stage 9d): what was heard last frame, to diff against
+    struct BeastEar { bool alive = false; float hp = 0; int st = 0; float painCd = 0, chewT = 0, alarmCd = 0; };
+    std::vector<BeastEar> ears;
+    float callCd = 0;
+    int sndPhase = -1, sndSquads = 0, sndTonics = 0, sndDrops = 0, sndKills = 0, sndCrates = 0; bool sndDown = false, sndReload = false; float sndHurt = 0;
+    bool audioOn = false;
 };
 static RedTideScene S;
 
 static Match& M() { return *S.m; }
+static std::string gSndMap = "ship";   // the map being played (for its sound palette)
 static DiverState& Me() { return S.m->divers[0]; }
 
 // ---------------------------------------------------------------- the test tank
@@ -347,8 +355,105 @@ static void Burst(Vector3 p, int n, Color c, float speed, float life, float size
         S.fx.push_back({p, Vector3Scale(v, speed), life, life, c, size});
     }
 }
+// ---------------------------------------------------------------- sound (stage 9d)
+// The Match is headless and knows nothing of audio; the scene hears it by diffing its state each frame.
+static float EarPan(Vector3 p) {
+    const DiverState& d = Me();
+    Vector3 to = Vector3Subtract(p, d.pos); to.y = 0;
+    float l = Vector3Length(to);
+    if (l < 0.01f) return 0;
+    Vector3 right{cosf(d.yaw), 0, -sinf(d.yaw)};
+    return std::clamp(Vector3DotProduct(Vector3Scale(to, 1 / l), right), -1.0f, 1.0f);
+}
+static float EarDist(Vector3 p) { return Vector3Distance(p, Me().pos); }
+static int RtMapIndex(const std::string& key) { return key == "cave" ? 1 : key == "reef" ? 2 : key == "atlantis" ? 3 : key == "void" ? 4 : 0; }
+static void FxSound(const FxEvent& e) {
+    static const int K[11] = {RTC_HIT, RTC_WALL, RTC_SHOT, RTC_BLAST, RTC_PICKUP, RTC_BLAST, RTC_ARC, RTC_CRATE, RTC_MELEE, RTC_BLAST, RTC_ARC};
+    if (e.kind < 0 || e.kind > 10) return;
+    float vol = e.kind == 5 ? 1.3f : e.kind == 9 ? 0.4f : e.kind == 1 ? 0.6f : 1.0f;
+    RedTideCue(K[e.kind], vol, EarPan(e.pos), EarDist(e.pos));
+}
+static void SoundFrame(float dt) {
+    Match& m = M();
+    DiverState& d = Me();
+    // the match's state for the music
+    RtAudio a;
+    a.on = S.audioOn;
+    a.map = RtMapIndex(S.mode == 0 ? "ship" : gSndMap);
+    a.mode = m.over ? 3 : m.phase == TidePhase::Hunt ? 2 : m.phase == TidePhase::Tide ? 1 : 0;
+    a.tide = m.tide;
+    a.quota = m.quota > 0 ? std::clamp((float)m.tideKills / m.quota, 0.0f, 1.0f) : 0;
+    a.scent = std::clamp(m.eco.Smell(d.pos, m.eco.ZoneAt(d.pos), 8) / 80.0f, 0.0f, 1.0f);
+    float calm = m.map->tunables.count("calm_seconds") ? (float)m.map->tunables.at("calm_seconds") : 20.0f;
+    a.countdown = m.phase == TidePhase::Calm ? calm - m.phaseT : 0;
+    float best = 40;
+    for (int i = 0; i < (int)m.eco.agents.size(); i++) {
+        const Agent& g = m.eco.agents[i];
+        if (!g.alive || g.diver >= 0 || m.IsBoss(i) || m.map->species[g.sp].tier < 4) continue;
+        float dd = EarDist(g.pos);
+        if (dd < best) { best = dd; a.predatorPan = EarPan(g.pos); }
+    }
+    a.predator = best < 40 ? 1 - best / 40 : 0;
+    a.boss = m.bossActive; a.bossPhase = m.bossPhase;
+    a.downed = d.downed; a.hp = d.hpMax > 0 ? d.hp / d.hpMax : 1;
+    AudioRedTide(a);
+    if (!S.audioOn) return;
+    // the quips
+    for (const auto& q : m.quipOut) RedTideQuip(q.voice, q.syllables, q.diver == 0 ? 0 : EarPan(q.pos));
+    m.quipOut.clear();
+    // the match's moments
+    int ph = (int)m.phase;
+    if (S.sndPhase >= 0 && ph != S.sndPhase) {
+        if (m.phase == TidePhase::Tide || m.phase == TidePhase::Hunt) RedTideCue(RTC_BELL, 1, 0, 0);
+        else if (m.phase == TidePhase::Calm) RedTideCue(RTC_CLEAR, 0.8f, 0, 0);
+    }
+    S.sndPhase = ph;
+    if (m.eco.squadsSpawned > S.sndSquads) RedTideCue(RTC_ARRIVAL, 1, 0, 0);
+    S.sndSquads = m.eco.squadsSpawned;
+    if ((int)d.tonics.size() > S.sndTonics) RedTideCue(RTC_TONIC, 1, 0, 0);
+    S.sndTonics = (int)d.tonics.size();
+    if ((int)m.drops.size() > S.sndDrops) { const FloorDrop& fd = m.drops.back(); if (fd.weapon < 0 || true) RedTideCue(RTC_DROP, 0.9f, EarPan(fd.pos), EarDist(fd.pos) * 0.5f); }
+    S.sndDrops = (int)m.drops.size();
+    if (d.kills > S.sndKills) RedTideCue(RTC_KILL, 1, 0, 0);
+    S.sndKills = d.kills;
+    if ((int)m.crates.size() > S.sndCrates) { const Crate& c = m.crates.back(); RedTideCue(RTC_HAZARD, 0.8f, EarPan(c.pos), EarDist(c.pos) * 0.5f); }
+    S.sndCrates = (int)m.crates.size();
+    if (d.downed && !S.sndDown) RedTideCue(RTC_DOWN, 1, 0, 0);
+    if (!d.downed && S.sndDown && !d.dead) RedTideCue(RTC_REVIVE, 1, 0, 0);
+    S.sndDown = d.downed;
+    if (d.reloading && !S.sndReload) RedTideCue(RTC_RELOAD, 0.8f, 0.3f, 0);
+    S.sndReload = d.reloading;
+    if (d.hurtT > S.sndHurt + 0.05f) RedTideCue(RTC_HIT, 0.5f, EarPan(d.hurtFrom), 0);
+    S.sndHurt = d.hurtT;
+    // the beasts: deaths, pain, alarm, feeding and their idle calls; far ones muffled, only a few a frame
+    auto& E = S.ears;
+    if (E.size() != m.eco.agents.size()) E.resize(m.eco.agents.size());
+    S.callCd -= dt;
+    int budget = 3;
+    for (int i = 0; i < (int)m.eco.agents.size(); i++) {
+        const Agent& g = m.eco.agents[i];
+        auto& e = E[i];
+        bool wasAlive = e.alive; float wasHp = e.hp; int wasSt = e.st;
+        e.alive = g.alive; e.hp = g.hp; e.st = (int)g.st;
+        e.painCd -= dt; e.alarmCd -= dt;
+        if (g.diver >= 0) continue;
+        const Species& sp = m.map->species[g.sp];
+        float dd = EarDist(g.pos);
+        if (dd > 70 || budget <= 0) continue;
+        float size = (float)sp.size * (m.IsBoss(i) ? 1.5f : 1.0f), pan = EarPan(g.pos);
+        const char* nm = sp.name.c_str();
+        if (wasAlive && !g.alive) { RedTideBeast(nm, size, CUE_DEATH, dd, pan); budget--; continue; }
+        if (!g.alive) continue;
+        if (wasAlive && g.hp < wasHp - 0.5f && e.painCd <= 0) { RedTideBeast(nm, size, CUE_PAIN, dd, pan); e.painCd = 0.7f; budget--; continue; }
+        if (wasAlive && g.st == State::Hunt && wasSt != (int)State::Hunt && e.alarmCd <= 0 && sp.size >= 2) { RedTideBeast(nm, size, CUE_ALARM, dd, pan); e.alarmCd = 6; budget--; continue; }
+        if (g.st == State::Feed && dd < 40 && (e.chewT -= dt) <= 0) { e.chewT = 1.6f; RedTideBeast(nm, size, CUE_CHEW, dd, pan); budget--; continue; }
+        if (S.callCd <= 0 && dd < 30 && GetRandomValue(0, 9999) < (int)(dt * 150)) { RedTideBeast(nm, size, CUE_CALL, dd, pan); S.callCd = 0.5f; budget--; }
+    }
+}
+
 static void DrainFx() {
     for (const FxEvent& e : M().fx) {
+        if (S.audioOn) FxSound(e);
         switch (e.kind) {
             case 0: Burst(e.pos, 6, {150, 20, 20, 255}, 0.6f, 1.2f, 0.07f); break;     // blood
             case 1: Burst(e.pos, 3, {170, 160, 140, 255}, 0.5f, 0.5f, 0.05f); break;   // a wall
@@ -385,6 +490,7 @@ static void Input(float dt) {
     if (IsKeyDown(KEY_A)) want = Vector3Add(want, r);
     float vert = (IsKeyDown(KEY_SPACE) ? 1.0f : 0.0f) - (IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_C) ? 1.0f : 0.0f);
     m.SteerDiver(0, want, vert, IsKeyDown(KEY_LEFT_SHIFT), IsMouseButtonDown(MOUSE_BUTTON_RIGHT), dt);
+    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && !d.downed && !d.reloading && m.Cur(d).mag <= 0) RedTideCue(RTC_EMPTY, 1, 0, 0);
     m.Fire(0, IsMouseButtonDown(MOUSE_BUTTON_LEFT), dt);
     if (IsKeyPressed(KEY_R)) m.Reload(0);
     if (IsKeyPressed(KEY_V) || IsMouseButtonPressed(MOUSE_BUTTON_MIDDLE)) m.Melee(0);
@@ -1040,8 +1146,10 @@ static void DrawHud() {
 using namespace rt;
 
 static std::string gRtMap = "ship";
+bool RedTideAudioActive() { return S.audioOn; }
 void StartRedTide(Game& g, const char* map) {
     gRtMap = map ? map : "ship";
+    gSndMap = gRtMap;
     StartShip(1, (uint32_t)GetRandomValue(1, 1 << 30), gRtMap);
     S.shotMode = false; S.awarded = false; S.awardLines.clear(); S.awardTokens = 0;
     Me().pouch = GetProfile().pouch;                    // the Salt Charms the diver brought
@@ -1052,7 +1160,8 @@ void StartRedTide(Game& g, const char* map) {
 }
 
 void SceneRedTide(Game& g) {
-    if (RedTidePageFrame(g, (float)GetTime())) return;   // an arcade page (the dossier, records, ...)
+    S.audioOn = false;
+    if (RedTidePageFrame(g, (float)GetTime())) { AudioRedTide(RtAudio{}); return; }   // an arcade page (the dossier, records, ...)
     if (!S.active || !S.m) { StartRedTide(g, gRtMap.c_str()); return; }
     if (S.mode == 1 && !S.levelReady && IsWindowReady()) BuildLevelModel();
     float dt = std::min(GetFrameTime(), 1 / 30.0f);
@@ -1063,6 +1172,8 @@ void SceneRedTide(Game& g) {
         Match& m = M();
         if (S.mode == 0) { m.phase = TidePhase::Calm; m.phaseT = -1e9f; }   // the tank never tides
         m.Step(dt);
+        S.audioOn = !S.shotMode;
+        SoundFrame(dt);
         DrainFx();
         if (m.over && !S.awarded && !S.shotMode && S.mode == 1) {
             // the match's end: the profile's tokens, records, milestone charms and the dossier pages earned
@@ -1310,4 +1421,12 @@ int RunRedTideTest() {
     printf(fails ? "redtide-test: %d check(s) failed\n" : "redtide-test: all checks passed\n", fails);
     S.active = false;
     return fails ? 1 : 0;
+}
+
+// --audio-test: every species of a Red Tide map (0 ship .. 4 void), with its size, for the voice checks
+void RedTideSpeciesForAudio(int map, std::vector<std::pair<std::string, int>>& out) {
+    static const char* K[5] = {"ship", "cave", "reef", "atlantis", "void"};
+    out.clear();
+    const MapData& m = Map(K[std::clamp(map, 0, 4)]);
+    for (const Species& s : m.species) if (!s.isDiver) out.push_back({s.name, s.size});
 }

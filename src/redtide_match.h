@@ -237,6 +237,20 @@ struct Match {
 
     void Init(const std::string& mapKey, int playerCount, uint32_t seed, bool bots = false);
     void InitMap(const MapData& m, const std::string& art, int playerCount, uint32_t seed, bool bots);
+    // quips (stage 9): the divers' barks from engine/barks.json. One speaker at a time, no line again within 3 min;
+    // a teammate may answer. The scene drains quipOut for the babble; the line itself goes out as a caption.
+    struct QuipOut { int voice = 0, diver = 0, syllables = 1; Vector3 pos{}; };
+    std::vector<QuipOut> quipOut;
+    std::map<std::string, float> quipLineAt, quipSitAt;
+    float quipBusyT = 0, quipQuietT = 0; int quipDone = 0;
+    struct QuipPend { std::string sit; int diver = -1; float delay = 0; bool answer = false; };
+    std::vector<QuipPend> quipQueue;
+    TidePhase quipPhase = TidePhase::Calm; bool quipBoss = false, quipPred = false, quipFirst = false, quipLast = false, quipStarted = false, quipOver = false;
+    std::vector<char> quipDown, quipHeldBoss; std::vector<float> quipScentT;
+    static const char* VoiceName(int voice);
+    int VoiceOf(int diver) const { return diver >= 0 && diver < (int)divers.size() ? divers[diver].slot % 4 : 0; }
+    bool Quip(const std::string& situation, int diver = -1, float delay = 0, bool answer = false);
+    void UpdateQuips(float dt);
     void Step(float dt);
     // a diver's actions (the scene feeds its human; bots call these too)
     void SteerDiver(int d, Vector3 wish, float vert, bool sprint, bool ads, float dt);
