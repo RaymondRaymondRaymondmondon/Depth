@@ -169,7 +169,7 @@ static void TakeShots(const Game& base, const std::string& dir) {
         {"hub_hover_study", [](Game& g) { g.scene = Scene::Hub; DebugSalonHover(10); }},
         {"study", [](Game& g) { g.scene = Scene::Study; }},
         {"arcade", [](Game& g) { g.scene = Scene::Arcade; }},
-        {"panel_ward", [](Game& g) { g.scene = Scene::Ward; }},
+        {"panel_ward", [](Game& g) { g.scene = Scene::Ward; Hero& h = g.roster[1]; g.selectedHero = h.id; h.hp = h.hp / 2; h.ailments = (1u << AIL_SALT_ROT) | (1u << AIL_BENDS); h.habits = (1u << HB_STEADY_HANDS) | (1u << HB_NIGHT_EYES) | (1u << HB_JUMPY); h.habitLocked = 1u << HB_NIGHT_EYES; g.gold = 400; }},
         {"panel_sickbay", [](Game& g) { g.scene = Scene::SickLeave; }},
         {"flats_menu", [](Game& g) { g.scene = Scene::Cards; }},
         {"flats_play", [](Game& g) { g.scene = Scene::Cards; DebugFlatsDeal(); }},
@@ -533,6 +533,7 @@ int main(int argc, char** argv) {
         SetTraceLogLevel(LOG_WARNING);
         return VerifyAbyss() ? 0 : 1;
     }
+    if (argc >= 2 && strcmp(argv[1], "--stage7-test") == 0) { SetTraceLogLevel(LOG_WARNING); return Stage7Test(); }
     if (argc >= 4 && strcmp(argv[1], "--brain-test") == 0) { SetTraceLogLevel(LOG_WARNING); BrainTest(atoi(argv[2]), std::max(1, atoi(argv[3]))); return 0; }
     // --gen-chart <tier 0-4> <seed> [count]: print an expedition chart and check the generation rules (on `count` seeds from `seed`)
     if (argc >= 4 && strcmp(argv[1], "--gen-chart") == 0) {

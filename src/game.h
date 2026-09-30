@@ -152,6 +152,8 @@ struct Hero {
     // are never identical. The player is meant to read the numbers and judge which recruit suits which role.
     int vigor = 0, might = 0, quickness = 0, fortitude = 0;
     bool steeled = false;    // Stage 7 resolve: 100 nerves sometimes steels a hero instead of rattling them (for the rest of the expedition)
+    unsigned habits = 0, habitLocked = 0;   // Stage 7 habits (quirks): bit = HabitId; locked ones can't be replaced
+    unsigned ailments = 0;                  // Stage 7 ailments: bit = Ailment; persistent until cured
 };
 
 struct EnemyAbility {
@@ -245,6 +247,23 @@ inline const char* const CAVE_TIER_NAME[CAVE_TIERS] = {"Shallows", "Tidal Caves"
 // The four Shallows expeditions, all open from the start. They share the same room-and-combat engine
 // and the same tier ladder above -- what differs is the scenery, the names, and who's waiting at the end.
 enum class Location { Cave, Island, Weeds, Atlantis, COUNT };
+// ---------- Stage 7: habits (quirks), ailments and crew bonds (numbers in data.cpp) ----------
+enum HabitId { HB_STEADY_HANDS, HB_DECK_LEGS, HB_NIGHT_EYES, HB_IRON_GUT, HB_QUICK_STEP, HB_BRAWLER, HB_CALM_HEART, HB_TOUGH_HIDE,
+               HB_BOTTLE_FIEND, HB_CLAUSTROPHOBE, HB_SUPERSTITIOUS, HB_SHAKY_HANDS, HB_SLOW_STARTER, HB_FRAIL_FRAME, HB_JUMPY, HB_SEASICK, HB_COUNT };
+struct HabitDef { const char* name; const char* desc; bool good; int acc, dodge, speed, prot, dmg, maxHp, stressPct; int loc; bool lowLight; };
+const HabitDef& Habit(int id);
+extern const int HABIT_MAX_GOOD, HABIT_MAX_BAD, HABIT_GAIN_PCT, HABIT_GOOD_WIN_PCT, HABIT_GOOD_LOSS_PCT, HABIT_LOCK_PRICE, HABIT_REMOVE_PRICE, CURIO_HABIT_PCT;
+enum Ailment { AIL_SALT_ROT, AIL_REEF_FEVER, AIL_BARNACLE_LUNG, AIL_BENDS, AIL_COUNT };
+const char* AilmentName(int a);
+const char* AilmentDesc(int a);
+int AilmentCurePrice(int a);
+int LocationAilment(Location l);              // what each location's bleeding and poisoning creatures pass on
+extern const int AILMENT_HIT_PCT, CURIO_AILMENT_PCT, BONESAW_SELF_HP;
+extern const int BOND_MAX, BOND_PERK, BOND_DMG_PCT, BOND_DEATH_NERVES, BOND_BARK_PCT, BOND_BARK_CALM, HERO_CRIT_CALM, ENEMY_CRIT_NERVES;
+extern int gStatLocation;                     // the location of the expedition in progress (-1 aboard): location habits read it
+int HabitStressPct(const Hero& h, bool lowLight);
+bool GainHabit(Hero& h, bool good);           // adds a random habit of that kind (replacing an unlocked one at the cap); false if none could be added
+std::string HabitList(const Hero& h);         // "Steady Hands, Jumpy; Salt Rot" for panels
 void SuggestedKit(Location loc, int out[SUP_COUNT]);   // the Quartermaster's suggested kit (data.cpp)
 constexpr int LOCATION_COUNT = (int)Location::COUNT;
 const char* LocationName(Location loc);
@@ -590,6 +609,7 @@ struct Game {
     int gold = 60; // kept deliberately scarce: parkour runs and Flats are meant to make up the difference
     int batteries = 2;
     int provision[8] = {};               // supplies bought at the Helm for the next expedition (SUP_*); refunded if put back
+    std::map<std::pair<int, int>, int> bonds;   // Stage 7 crew bonds, 0-BOND_MAX, keyed by (lower hero id, higher hero id)
     std::vector<Hero> roster;
     std::array<int, PARTY_SIZE> party{{-1, -1, -1, -1}}; // hero ids, rank 1 first
     std::vector<int> relicStorage;
@@ -630,6 +650,9 @@ struct Game {
 
 // ---------- data.cpp ----------
 void InitGame(Game& g);
+int BondOf(const Game& g, int a, int b);
+int Stage7Test();                              // --stage7-test (dungeon.cpp)
+void AddBond(Game& g, int a, int b, int n);
 const std::vector<Ability>& ClassAbilities(HeroClass c);
 const char* ClassName(HeroClass c);
 const char* ClassBlurb(HeroClass c);
@@ -692,6 +715,7 @@ int ChartNightAmbush();
 
 // ---------- save.cpp ----------
 bool SaveGame(const Game& g);
+std::string SavePath();
 bool LoadGame(Game& g);
 void DeleteSave();
 

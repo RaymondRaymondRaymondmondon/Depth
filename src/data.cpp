@@ -454,6 +454,14 @@ Stats GetStats(const Hero& h) {
     { RelicFx b = RelicBundle(h); s.dmgMin += b.dmg; s.dmgMax += b.dmg; } // synergy damage (Tesla Gun + Crank)
     if (h.rattled) { s.acc -= 10; s.dodge -= 5; }
     if (h.steeled) { s.acc += 10; s.dodge += 8; }   // resolve: steeled by the pressure
+    for (int i = 0; i < HB_COUNT; i++) if (h.habits & (1u << i)) { // habits (location ones only there)
+        const HabitDef& d = Habit(i);
+        if (d.loc >= 0 && d.loc != gStatLocation) continue;
+        s.acc += d.acc; s.dodge += d.dodge; s.speed += d.speed; s.prot += d.prot; s.dmgMin += d.dmg; s.dmgMax += d.dmg; s.maxHp += d.maxHp;
+    }
+    if (h.ailments & (1u << AIL_SALT_ROT)) s.maxHp -= 3;
+    if (h.ailments & (1u << AIL_REEF_FEVER)) s.speed -= 2;
+    if (h.ailments & (1u << AIL_BENDS)) s.acc -= 5;
     s.dmgMin = std::max(1, s.dmgMin);
     s.dmgMax = std::max(s.dmgMin, s.dmgMax);
     s.prot = std::clamp(s.prot, 0, 60);
@@ -1055,4 +1063,98 @@ const std::vector<CampSkill>& CampSkills() {
         {HeroClass::Wisp, "Calm Light", "Everyone loses 10 nerves.", 2, 0, 0, -10, 0, false, false, 100, 0, 0, 0, false},
     };
     return S;
+}
+
+// ---------------------------------------------------------------- Stage 7: habits, ailments, bonds
+// Up to three good and three bad habits per hero, gained on expeditions and from curios; the Ward locks good ones
+// (they can no longer be replaced) and removes bad ones.
+static const HabitDef HABITS[HB_COUNT] = {
+    //  name              desc                                                  good  acc dod spd prot dmg hp stress% loc  lowLight
+    {"Steady Hands",   "+5 accuracy.",                                           true,  5, 0, 0, 0, 0, 0,   0, -1, false},
+    {"Deck Legs",      "+4 dodge in the Weeds' currents.",                        true,  0, 4, 0, 0, 0, 0,   0,  2, false},
+    {"Night Eyes",     "25% less nerves gained when the light is low.",          true,  0, 0, 0, 0, 0, 0, -25, -1, true},
+    {"Iron Gut",       "+3 max HP.",                                             true,  0, 0, 0, 0, 0, 3,   0, -1, false},
+    {"Quick Step",     "+1 speed.",                                              true,  0, 0, 1, 0, 0, 0,   0, -1, false},
+    {"Brawler",        "+1 damage.",                                             true,  0, 0, 0, 0, 1, 0,   0, -1, false},
+    {"Calm Heart",     "10% less nerves gained.",                                true,  0, 0, 0, 0, 0, 0, -10, -1, false},
+    {"Tough Hide",     "+4 protection.",                                         true,  0, 0, 0, 4, 0, 0,   0, -1, false},
+    {"Bottle Fiend",   "Drinks the grog at camp before anyone else can.",        false, 0, 0, 0, 0, 0, 0,   0, -1, false},
+    {"Claustrophobe",  "25% more nerves gained in the Cave.",                    false, 0, 0, 0, 0, 0, 0,  25,  0, false},
+    {"Superstitious",  "Must inspect every idol, statue and totem.",             false, 0, 0, 0, 0, 0, 0,   0, -1, false},
+    {"Shaky Hands",    "-5 accuracy.",                                           false,-5, 0, 0, 0, 0, 0,   0, -1, false},
+    {"Slow Starter",   "-1 speed.",                                              false, 0, 0,-1, 0, 0, 0,   0, -1, false},
+    {"Frail Frame",    "-3 max HP.",                                             false, 0, 0, 0, 0, 0,-3,   0, -1, false},
+    {"Jumpy",          "15% more nerves gained.",                                false, 0, 0, 0, 0, 0, 0,  15, -1, false},
+    {"Seasick",        "-4 accuracy on the Island's boats and shores.",          false,-4, 0, 0, 0, 0, 0,   0,  1, false},
+};
+const HabitDef& Habit(int id) { return HABITS[std::clamp(id, 0, HB_COUNT - 1)]; }
+extern const int HABIT_MAX_GOOD = 3, HABIT_MAX_BAD = 3;
+extern const int HABIT_GAIN_PCT = 35;        // chance per surviving hero, per expedition, of a new habit
+extern const int HABIT_GOOD_WIN_PCT = 60;    // ... that it's a good one after a win
+extern const int HABIT_GOOD_LOSS_PCT = 30;   // ... after a retreat
+extern const int HABIT_LOCK_PRICE = 90, HABIT_REMOVE_PRICE = 70;
+extern const int CURIO_HABIT_PCT = 25;       // a curio that goes badly: chance the hero picks up a bad habit
+int gStatLocation = -1;
+
+static const char* AIL_NAME[AIL_COUNT] = {"Salt Rot", "Reef Fever", "Barnacle Lung", "The Bends"};
+static const char* AIL_DESC[AIL_COUNT] = {"-3 max HP.", "-2 speed.", "20% more nerves gained.", "-5 accuracy."};
+static const int AIL_CURE[AIL_COUNT] = {60, 80, 120, 100};
+const char* AilmentName(int a) { return AIL_NAME[std::clamp(a, 0, AIL_COUNT - 1)]; }
+const char* AilmentDesc(int a) { return AIL_DESC[std::clamp(a, 0, AIL_COUNT - 1)]; }
+int AilmentCurePrice(int a) { return AIL_CURE[std::clamp(a, 0, AIL_COUNT - 1)]; }
+int LocationAilment(Location l) {
+    switch (l) { case Location::Island: return AIL_REEF_FEVER; case Location::Weeds: return AIL_SALT_ROT; case Location::Atlantis: return AIL_BENDS; default: return AIL_BARNACLE_LUNG; }
+}
+extern const int AILMENT_HIT_PCT = 4;        // a bleeding or poisoning hit passes on the location's ailment
+extern const int CURIO_AILMENT_PCT = 30;     // a curio that cuts someone: chance of an ailment too
+extern const int BONESAW_SELF_HP = 3;        // the Nurse's Bone Saw cures an ailment at the cost of some HP
+
+int HabitStressPct(const Hero& h, bool lowLight) {
+    int pct = 0;
+    for (int i = 0; i < HB_COUNT; i++) {
+        if (!(h.habits & (1u << i))) continue;
+        const HabitDef& d = HABITS[i];
+        if (d.loc >= 0 && d.loc != gStatLocation) continue;
+        if (d.lowLight && !lowLight) continue;
+        pct += d.stressPct;
+    }
+    if (h.ailments & (1u << AIL_BARNACLE_LUNG)) pct += 20;
+    return pct;
+}
+bool GainHabit(Hero& h, bool good) {
+    std::vector<int> have, fresh;
+    for (int i = 0; i < HB_COUNT; i++) {
+        if (HABITS[i].good != good) continue;
+        if (h.habits & (1u << i)) have.push_back(i); else fresh.push_back(i);
+    }
+    if (fresh.empty()) return false;
+    if ((int)have.size() >= (good ? HABIT_MAX_GOOD : HABIT_MAX_BAD)) { // at the cap: an unlocked one gives way
+        std::vector<int> loose;
+        for (int i : have) if (!(h.habitLocked & (1u << i))) loose.push_back(i);
+        if (loose.empty()) return false;
+        h.habits &= ~(1u << loose[GetRandomValue(0, (int)loose.size() - 1)]);
+    }
+    h.habits |= 1u << fresh[GetRandomValue(0, (int)fresh.size() - 1)];
+    return true;
+}
+std::string HabitList(const Hero& h) {
+    std::string s;
+    for (int i = 0; i < HB_COUNT; i++) if (h.habits & (1u << i)) s += (s.empty() ? "" : ", ") + std::string(HABITS[i].name);
+    for (int a = 0; a < AIL_COUNT; a++) if (h.ailments & (1u << a)) s += (s.empty() ? "" : "; ") + std::string(AIL_NAME[a]);
+    return s;
+}
+extern const int BOND_MAX = 5, BOND_PERK = 3;   // bond levels; the perk from BOND_PERK
+extern const int BOND_DMG_PCT = 5;              // +damage when standing next to a bonded friend
+extern const int BOND_DEATH_NERVES = 20;        // watching a bonded friend die
+extern const int BOND_BARK_PCT = 15, BOND_BARK_CALM = 4;   // a bonded neighbour's word of support when a hero is hit
+extern const int HERO_CRIT_CALM = 3, ENEMY_CRIT_NERVES = 5; // crit reactions: the whole party
+int BondOf(const Game& g, int a, int b) {
+    if (a == b || a < 0 || b < 0) return 0;
+    auto it = g.bonds.find({std::min(a, b), std::max(a, b)});
+    return it == g.bonds.end() ? 0 : it->second;
+}
+void AddBond(Game& g, int a, int b, int n) {
+    if (a == b || a < 0 || b < 0) return;
+    int& v = g.bonds[{std::min(a, b), std::max(a, b)}];
+    v = std::clamp(v + n, 0, BOND_MAX);
 }

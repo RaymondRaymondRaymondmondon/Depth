@@ -49,6 +49,8 @@ bool SaveGame(const Game& g) {
             for (int a : h.loadout) f << " " << a;
             f << " " << h.name << "\n";
         }
+        for (const Hero& h : g.roster) f << "herox " << h.id << " " << h.habits << " " << h.habitLocked << " " << h.ailments << " " << h.vigor << " " << h.might << " " << h.quickness << " " << h.fortitude << "\n";
+        for (auto& [k, v] : g.bonds) if (v > 0) f << "bond " << k.first << " " << k.second << " " << v << "\n";
     }
     std::remove(SavePath().c_str());
     return std::rename(tmp.c_str(), SavePath().c_str()) == 0; // replace the old save only once the new one is complete
@@ -107,6 +109,13 @@ bool LoadGame(Game& g) {
             for (int& r : h.relics) if (r >= (int)Relics().size()) r = -1;
             fresh.roster.push_back(h);
         }
+        else if (key == "herox") { // Stage 7: habits, ailments, and the recruit's own build
+            int id; unsigned hb = 0, lk = 0, ai = 0; int v = 0, m = 0, q = 0, fo = 0;
+            if (!(in >> id >> hb >> lk >> ai)) continue;
+            in >> v >> m >> q >> fo;
+            for (auto& h : fresh.roster) if (h.id == id) { h.habits = hb; h.habitLocked = lk; h.ailments = ai; if (in) { h.vigor = v; h.might = m; h.quickness = q; h.fortitude = fo; } }
+        }
+        else if (key == "bond") { int a, b, v; if (in >> a >> b >> v) fresh.bonds[{std::min(a, b), std::max(a, b)}] = std::clamp(v, 0, BOND_MAX); }
     }
     if (fresh.roster.empty()) return false;
     for (int& u : fresh.upgrades) u = std::clamp(u, 0, UPGRADE_MAX);

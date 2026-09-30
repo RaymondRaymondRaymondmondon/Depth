@@ -10,7 +10,7 @@ The plan is `Depth — Master Reference for Claude Code.pdf` (project root). One
 | 4 | Sonar chart expeditions | Done (--gen-chart 10,000/10,000; --sim within 10 points of the linear baseline at every tier) |
 | 5 | Expedition visual overhaul on the rig | In progress: every hero on the rig, HUD, effects, camera; creature rig kit on the Cave; other locations' creatures, backgrounds-as-props and boss phase clips still to do |
 | 6 | EnemyBrain | Done (--brain-test: level 0 -4.1 points, level 6 -19.0; boss targets re-tuned) |
-| 7 | New expedition systems, the Trench and the Hadal | In progress: part a (Quartermaster supplies, camp skills, resolve/Steeled) done and rebalanced; habits, ailments, bonds, Drill Deck, elites, new enemies, Trench/Hadal to come |
+| 7 | New expedition systems, the Trench and the Hadal | In progress: a (supplies, camp, resolve) and b (habits, ailments, bonds, crit reactions; --stage7-test) done; Drill Deck, elites, new enemies, guard/riposte/retreat, Trench/Hadal, memorial/Sea Log, voyage events to come |
 | 8 | Expedition sound | |
 | 9 | Flats visuals and card physics | |
 | 10 | Flats long map and systems | |
@@ -56,3 +56,6 @@ Rebalance toward the targets 60/65/58/55/45 (`--sim 1200 <lvl> sensible <tier>`,
 | 6 | 17.0% | 24.1% | 41.5% | 45 |
 
 Tuning: tier scaling hp +11% -> +8% per level and damage +7% -> +5% per level; Crustacean Queen's Tidal Crush 1.5x -> 1.35x, stun 35 -> 25%; boss extra-action factor at cave level 1 0.6 -> 0.4 and level 6 0.15 -> 0.1; brain temperature level 1 1.2 -> 1.6, level 6 0.2 -> 0.3; camp points 4 -> 5; sleep heal 15 -> 25%; bandage 7 -> 9. All within 7 points of target; the Drill Deck (later in Stage 7) closes the rest.
+
+### Stage 7 part b: habits, ailments, bonds (2026-09-29)
+Crit reactions changed (hero crit -4 -> -3 nerves to the party; an enemy crit now adds 5 to everyone instead of 10 to its target). --sim 1200: 52.4 / 58.0 / 64.9 / 49.2 / 39.8 (targets 60/65/58/55/45; within noise of part a except level 0, -5). Spec deviations: camp points 5 (spec 4), Triage Tent heals 6 (spec 3), both for balance.

@@ -128,7 +128,8 @@ static void Sparkle(Game& g, Rectangle r, int n, Color c, float speed, float ris
 static void AddStress(Game& g, Hero& h, int amount) {
     if (amount > 0 && g.dungeon.lullabyActive && g.dungeon.phase == DPhase::Combat) return;   // a Siren's Lullaby holds for this fight
     if (amount > 0) {
-        amount = (int)std::round(amount * StressMult(g) * (100 - GetStats(h).stressResist) / 100.0f * (100 - RelicBundle(h).stressGainPct) / 100.0f);
+        amount = (int)std::round(amount * StressMult(g) * (100 - GetStats(h).stressResist) / 100.0f * (100 - RelicBundle(h).stressGainPct) / 100.0f
+                                 * std::max(0, 100 + HabitStressPct(h, g.dungeon.light < 35)) / 100.0f);   // habits and Barnacle Lung
         if (amount <= 0) return;
     }
     int before = h.stress;
@@ -157,7 +158,12 @@ static void DamageHero(Game& g, Hero& h, int dmg) {
     if (dmg <= 0) return;
     if (h.st.madTurns > 0) dmg = (int)std::ceil(dmg * 1.15f); // Eldritch Madness: 15% more damage from all sources
     if (h.deathsDoor) {
-        if (Chance(35)) { h.dead = true; Log(g, h.name + " has been lost to the depths."); }
+        if (Chance(35)) {
+            h.dead = true; Log(g, h.name + " has been lost to the depths.");
+            for (int id : g.party) if (Hero* o = FindHero(g, id); o && o != &h && !o->dead && BondOf(g, h.id, o->id) >= BOND_PERK) {
+                Log(g, o->name + " watches a friend die."); AddStress(g, *o, BOND_DEATH_NERVES);   // a bonded friend's death
+            }
+        }
         else Log(g, h.name + " clings on at Death's Door!");
         return;
     }
@@ -267,6 +273,7 @@ static void HeroAct(Game& g, int heroId, int abilityIdx, int targetPos) {
                     float raw = Roll(s.dmgMin, s.dmgMax) * a.dmgMult * (1.0f + h->st.buffDmg / 100.0f);
                     if (crit) raw *= 1.5f;
                     if (e->st.marked > 0) raw *= 1.25f;
+                    for (int nb : {myPos - 1, myPos + 1}) if (Hero* o = PartyAt(g, nb); o && BondOf(g, h->id, o->id) >= BOND_PERK) { raw *= 1.0f + BOND_DMG_PCT / 100.0f; break; } // side by side with a friend
                     if (e->prot >= 10 && rb.vsArmored) raw *= 1.0f + rb.vsArmored / 100.0f;                          // pickaxes and picks vs shells and plate
                     if ((e->type == EnemyType::LostDiver || e->type == EnemyType::SunGod || e->type == EnemyType::ArmorLostOne) && rb.vsConstruct) raw *= 1.0f + rb.vsConstruct / 100.0f;
                     int eprot = std::max(0, e->prot + (e->st.protTurns > 0 ? e->st.protBuff : 0));
@@ -280,7 +287,7 @@ static void HeroAct(Game& g, int heroId, int abilityIdx, int targetPos) {
                     if (crit) {
                         d.shake = 0.35f;
                         Log(g, "Critical hit! The crew cheers.");
-                        for (int p = 0; p < PARTY_SIZE; p++) if (Hero* o = PartyAt(g, p)) AddStress(g, *o, -4);
+                        for (int p = 0; p < PARTY_SIZE; p++) if (Hero* o = PartyAt(g, p)) AddStress(g, *o, -HERO_CRIT_CALM);
                     }
                     // relic effects that fire when a blow lands: stuns, bleeds, arcs, dynamite, occult costs
                     CombatState cs;
@@ -485,11 +492,21 @@ static void EnemyAct(Game& g, int uid, int ability, int target) {
             PlayCue(crit ? "mus.drum" : "ui.drop", crit ? 0.9f : 0.6f);
             DamageHero(g, *h, dmg);
             if (h->dead) continue;
+            if (crit) for (int q = 0; q < PARTY_SIZE; q++) if (Hero* o = PartyAt(g, q)) AddStress(g, *o, ENEMY_CRIT_NERVES);   // an enemy crit shakes everyone
+            for (int nb : {p - 1, p + 1}) if (Hero* o = PartyAt(g, nb); o && !o->dead && BondOf(g, h->id, o->id) >= BOND_PERK && Chance(BOND_BARK_PCT)) {
+                static const char* BARKS[] = {"Hold fast!", "I've got you!", "Stay with me!", "Not today!"};
+                Float(g, HeroRect(nb), BARKS[Roll(0, 3)], Pal::Brass);
+                AddStress(g, *h, -BOND_BARK_CALM);
+                break;
+            }
+            if ((a.bleed || a.poison) && Chance(AILMENT_HIT_PCT)) { // the location's creatures carry disease
+                int ail = LocationAilment(g.dungeon.loc);
+                if (!(h->ailments & (1u << ail))) { h->ailments |= 1u << ail; Float(g, hr, AilmentName(ail), Pal::Bad); Log(g, h->name + " has caught " + AilmentName(ail) + "."); }
+            }
         } else if (hasHeroEffect) {
             StartAnim(g, true, h->id, Anim::Stress, 0.7f);
         }
-        int st = a.stress + (crit ? 10 : 0);
-        if (st) AddStress(g, *h, st);
+        if (a.stress) AddStress(g, *h, a.stress);
         if (a.bleed) { h->st.bleedDmg = std::max(h->st.bleedDmg, a.bleed); h->st.bleedTurns = 3; }
         if (a.poison) ApplyPoison(h->st, a.poison);
         if (a.stunChance && Chance(a.stunChance)) { h->st.stunned = 1; Float(g, hr, "Stunned", Pal::Teal); }
@@ -1172,7 +1189,8 @@ void StartDungeon(Game& g, Location loc) {
     }
     d.curRoom = d.chart.entrance;
     d.objective = g.objectiveSel;
-    for (int i = 0; i < SUP_COUNT; i++) { d.supply[i] = g.provision[i]; g.provision[i] = 0; }   // the Quartermaster's kit comes aboard
+    for (int i = 0; i < SUP_COUNT; i++) { d.supply[i] = g.provision[i]; g.provision[i] = 0; }
+    gStatLocation = (int)d.loc;   // location habits (Deck Legs, Claustrophobe, Seasick) apply from here   // the Quartermaster's kit comes aboard
     Reveal(g);
     d.rooms.assign(1, RoomType::Fight);
     for (int id : g.party)
@@ -1253,6 +1271,20 @@ static Hero* MostRattled(Game& g) {
 static void HealOutOfCombat(Hero& h, int amt) { h.hp = std::min(GetStats(h).maxHp, h.hp + amt); if (h.hp > 0) h.deathsDoor = false; }
 
 // a bandage or antivenom between fights
+// the Nurse's Bone Saw: the most afflicted hero loses an ailment and a little blood
+static bool BoneSaw(Game& g) {
+    Hero* best = nullptr; int most = 0;
+    for (int id : g.party) if (Hero* h = FindHero(g, id)) { int n = 0; for (int a = 0; a < AIL_COUNT; a++) n += (h->ailments >> a) & 1; if (n > most) { most = n; best = h; } }
+    if (!best) return false;
+    for (int a = 0; a < AIL_COUNT; a++) if (best->ailments & (1u << a)) {
+        best->ailments &= ~(1u << a);
+        best->hp = std::max(1, best->hp - BONESAW_SELF_HP);
+        Toast(g, "The Nurse's bone saw: " + best->name + " is rid of " + AilmentName(a) + ".");
+        PlayCue("ui.confirm", 0.6f);
+        return true;
+    }
+    return false;
+}
 static bool UseFieldSupply(Game& g, int sup) {
     auto& d = g.dungeon;
     if (d.supply[sup] <= 0) return false;
@@ -1431,8 +1463,17 @@ static void ChooseEvent(Game& g, int choice) {
         else if (roll < 48) { d.blessFights++; d.eventBody = "A warmth spreads through the crew. They'll fight the better for it."; }
         else if (roll < 54) { for (auto& r : d.chart.rooms) r.known = true; Reveal(g, 1); d.eventBody = "Rolled up inside: a scrap of sea-chart, and the passages ahead are drawn on it."; }
         else if (roll < 60) { for (int id : g.party) if (Hero* x = FindHero(g, id)) { x->hp = std::min(GetStats(*x).maxHp, x->hp + 4); Nerve(*x, -8); } d.eventBody = "It soothes: wounds close a little, nerves settle."; }
-        else if (roll < 78) { if (h) Nerve(*h, 14); for (int id : g.party) if (Hero* x = FindHero(g, id)) Nerve(*x, 4); d.eventBody = h ? h->name + " recoils from what's inside. Everyone is a little shaken." : "Nothing, and somehow that is worse."; }
-        else if (roll < 90) { if (h) Hurt(g, *h, Roll(3, 5)); d.eventBody = h ? h->name + " is cut by something sharp inside." : "It bites."; }
+        else if (roll < 78) {
+            if (h) Nerve(*h, 14);
+            for (int id : g.party) if (Hero* x = FindHero(g, id)) Nerve(*x, 4);
+            d.eventBody = h ? h->name + " recoils from what's inside. Everyone is a little shaken." : "Nothing, and somehow that is worse.";
+            if (h && Chance(CURIO_HABIT_PCT)) { unsigned was = h->habits; if (GainHabit(*h, false)) for (int i = 0; i < HB_COUNT; i++) if ((h->habits & ~was) & (1u << i)) d.eventBody += " It stays with them: " + std::string(Habit(i).name) + "."; }
+        }
+        else if (roll < 90) {
+            if (h) Hurt(g, *h, Roll(3, 5));
+            d.eventBody = h ? h->name + " is cut by something sharp inside." : "It bites.";
+            if (h && Chance(CURIO_AILMENT_PCT)) { int ail = LocationAilment(d.loc); if (!(h->ailments & (1u << ail))) { h->ailments |= 1u << ail; d.eventBody += " The wound festers: " + std::string(AilmentName(ail)) + "."; } }
+        }
         else { d.eventAmbush = true; d.eventBody = "It was bait. Something comes out of the dark!"; }
     } break;
     case EventKind::Rest: {
@@ -1440,6 +1481,11 @@ static void ChooseEvent(Game& g, int choice) {
         d.campPoints = CAMP_POINTS; d.campAmbush = ChartNightAmbush(); d.campUsed.clear();   // make camp: the camp panel takes over
         d.eventStage = 2;
         d.eventBody = "A dry ledge, a small fire. Spend the camp's points on what the crew can do, then sleep.";
+        for (int id : g.party) if (Hero* x = FindHero(g, id); x && (x->habits & (1u << HB_BOTTLE_FIEND)) && d.supply[SUP_GROG] > 0) {
+            d.supply[SUP_GROG]--; Nerve(*x, -10);
+            Toast(g, x->name + " (Bottle Fiend) has drunk the grog before anyone else could.");
+            break;
+        }
         return;
     }
     case EventKind::Shrine: {
@@ -1477,7 +1523,8 @@ static void SimChooseRoute(Game& g, bool randomPlayer) {
     if (nb.empty()) { d.phase = DPhase::Retreat; return; }
     int dest = -1;
     if (!randomPlayer && d.light < 35 && g.batteries > 0) { g.batteries--; d.light = std::min(100.0f, d.light + 40); }
-    if (!randomPlayer) { // supplies between fights
+    if (!randomPlayer) { // supplies between fights (and the Bone Saw)
+        { bool nurse = false; for (int id : g.party) if (Hero* h = FindHero(g, id)) nurse |= h->cls == HeroClass::Nurse; if (nurse) BoneSaw(g); }
         if (Hero* w = WorstHurt(g); w && w->hp < GetStats(*w).maxHp * 0.45f) UseFieldSupply(g, SUP_BANDAGE);
         for (int id : g.party) if (Hero* h = FindHero(g, id); h && h->st.poisonTurns > 1) { UseFieldSupply(g, SUP_ANTIVENOM); break; }
     }
@@ -1568,8 +1615,20 @@ static void ApplyResults(Game& g) {
             }
         }
     }
+    if (d.phase != DPhase::Defeat) { // habits picked up on the way, and bonds between those who came home together
+        std::vector<int> home;
+        for (int id : g.party) if (Hero* h = FindHero(g, id)) {
+            home.push_back(id);
+            if (!Chance(HABIT_GAIN_PCT)) continue;
+            unsigned was = h->habits;
+            if (GainHabit(*h, Chance(win ? HABIT_GOOD_WIN_PCT : HABIT_GOOD_LOSS_PCT)))
+                for (int i = 0; i < HB_COUNT; i++) if ((h->habits & ~was) & (1u << i)) d.levelUps += (d.levelUps.empty() ? "" : ", ") + h->name + " picked up " + Habit(i).name;
+        }
+        for (size_t i = 0; i < home.size(); i++) for (size_t j = i + 1; j < home.size(); j++) AddBond(g, home[i], home[j], 1);
+    }
+    gStatLocation = -1;
     for (int id : g.party)
-        if (Hero* h = FindHero(g, id)) { h->st = Status{}; if (h->deathsDoor) { h->deathsDoor = false; h->hp = std::max(1, h->hp); } }
+        if (Hero* h = FindHero(g, id)) { h->st = Status{}; if (h->deathsDoor) { h->deathsDoor = false; h->hp = std::min(std::max(1, h->hp), GetStats(*h).maxHp); } }
     for (auto& h : g.roster)
         if (!InParty(g, h.id) && h.onLeave > 0) h.onLeave--;
     RefreshRadar(g);
@@ -3788,8 +3847,14 @@ void SceneDungeon(Game& g) {
             int drain = LightDrainPerRoom(g);
             Txt(TextFormat("Light: %d%%   (about -%d a corridor)", (int)d.light, (int)(StretchDrain(g) * (ChartParamsFor(d.tier).segMin + ChartParamsFor(d.tier).segMax) / 2 + 0.5f)), p.x + 26, p.y + 262, 16, Pal::BrassDk);
             (void)drain;
-            const char* swap = d.batteryT > 0 ? "Swapping the battery..." : TextFormat("Swap in a battery  (+40 light)   [%d left]", g.batteries);
-            if (Button({p.x + 25, p.y + 292, 400, 42}, swap, ready && g.batteries > 0 && d.light < 100)) {
+            const char* swap = d.batteryT > 0 ? "Swapping..." : TextFormat("Battery +40 light [%d]", g.batteries);
+            {   // a Nurse's Bone Saw: cure one ailment out of combat, once per room
+                static int sawedAt = -1;
+                bool nurse = false, sick = false;
+                for (int id : g.party) if (Hero* h = FindHero(g, id)) { nurse |= h->cls == HeroClass::Nurse; sick |= h->ailments != 0; }
+                if (nurse && sick && sawedAt != d.curRoom * 1000 + d.roomIndex && Button({p.x + 230, p.y + 292, 195, 42}, "Bone Saw (Nurse)", ready, 15)) { BoneSaw(g); sawedAt = d.curRoom * 1000 + d.roomIndex; }
+            }
+            if (Button({p.x + 25, p.y + 292, 195, 42}, swap, ready && g.batteries > 0 && d.light < 100, 15)) {
                 g.batteries--;
                 d.light = std::min(100.0f, d.light + 40);
                 d.batteryT = 1.4f;
@@ -3865,6 +3930,15 @@ void SceneDungeon(Game& g) {
                 case EventKind::Shrine: A = "Pray"; B = "Leave it"; break;
                 case EventKind::Blocked: A = g.batteries > 0 ? TextFormat("Clear it  (1 battery, %d left)", g.batteries) : "Clear it  (no batteries)"; B = "Turn back"; aOk = g.batteries > 0; break;
                 default: A = "Continue"; B = nullptr; break;
+            }
+            if (d.event == EventKind::Curio && B) { // a Superstitious hero won't walk past an idol
+                std::string nm = d.eventTitle; for (auto& ch : nm) ch = (char)tolower(ch);
+                if (nm.find("idol") != std::string::npos || nm.find("statue") != std::string::npos || nm.find("totem") != std::string::npos)
+                    for (int id : g.party) if (Hero* x = FindHero(g, id); x && (x->habits & (1u << HB_SUPERSTITIOUS))) {
+                        B = nullptr;
+                        DrawTextCentered(TextFormat("%s (Superstitious) won't leave it alone.", x->name.c_str()), main.x + main.width / 2, main.y + main.height - 76, 15, Pal::Bad);
+                        break;
+                    }
             }
             // a supply that helps: a third choice (the curio's safe way, or the crowbar through a blocked passage)
             int sup = d.event == EventKind::Curio ? CurioSupply(d.eventArg) : d.event == EventKind::Blocked ? SUP_CROWBAR : -1;
@@ -4232,4 +4306,70 @@ void BrainTest(int tier, int runs) {
         printf("  cave level %d: old random AI %5.1f%%   EnemyBrain %5.1f%%   (%+.1f points)\n", level, oldAi, brain, brain - oldAi);
         fflush(stdout);
     }
+}
+
+// --stage7-test: habits, ailments, bonds, resolve and their save round-trip, headless. Exits non-zero on a failure.
+int Stage7Test() {
+    int fails = 0;
+    auto check = [&](bool ok, const char* what) { printf("  %-58s %s\n", what, ok ? "ok" : "FAILED"); if (!ok) fails++; };
+    printf("Stage 7 self-test\n");
+    Game g;
+    InitGame(g);
+    Hero& h = g.roster[0];
+    h.habits = h.habitLocked = h.ailments = 0;
+    h.quickness = 2; h.level = 3;   // keep dodge clear of its floor of 0
+    Stats base = GetStats(h);
+    h.habits = 1u << HB_STEADY_HANDS;
+    check(GetStats(h).acc == base.acc + 5, "Steady Hands: +5 accuracy");
+    h.habits |= 1u << HB_SHAKY_HANDS;
+    check(GetStats(h).acc == base.acc, "Shaky Hands cancels it");
+    h.habits = 1u << HB_DECK_LEGS;
+    gStatLocation = -1; int dodgeAboard = GetStats(h).dodge;
+    gStatLocation = (int)Location::Weeds; int dodgeWeeds = GetStats(h).dodge;
+    gStatLocation = -1;
+    check(dodgeAboard == base.dodge && dodgeWeeds == base.dodge + 4, "Deck Legs only in the Weeds");
+    h.habits = 0; h.ailments = 1u << AIL_SALT_ROT;
+    check(GetStats(h).maxHp == base.maxHp - 3, "Salt Rot: -3 max HP");
+    h.ailments = (1u << AIL_BARNACLE_LUNG); h.habits = 1u << HB_JUMPY;
+    check(HabitStressPct(h, false) == 35, "Jumpy + Barnacle Lung: +35% nerves");
+    h.habits = 1u << HB_NIGHT_EYES; h.ailments = 0;
+    check(HabitStressPct(h, true) == -25 && HabitStressPct(h, false) == 0, "Night Eyes only in low light");
+    h.habits = 0;
+    for (int i = 0; i < 20; i++) GainHabit(h, true);
+    int good = 0; for (int i = 0; i < HB_COUNT; i++) if ((h.habits >> i) & 1) good += Habit(i).good;
+    check(good == HABIT_MAX_GOOD, "good habits capped at three");
+    h.habitLocked = h.habits;
+    unsigned before = h.habits;
+    check(!GainHabit(h, true) && h.habits == before, "locked habits are never replaced");
+    for (int i = 0; i < 20; i++) GainHabit(h, false);
+    int bad = 0; for (int i = 0; i < HB_COUNT; i++) if ((h.habits >> i) & 1) bad += !Habit(i).good;
+    check(bad == HABIT_MAX_BAD, "bad habits capped at three");
+    int a = g.roster[0].id, b = g.roster[1].id;
+    for (int i = 0; i < 9; i++) AddBond(g, a, b, 1);
+    check(BondOf(g, a, b) == BOND_MAX && BondOf(g, b, a) == BOND_MAX, "bonds cap at five, both ways round");
+    {   // resolve: about a quarter of heroes pushed to 100 are Steeled
+        int steeled = 0, n = 4000;
+        for (int i = 0; i < n; i++) { Hero t = g.roster[2]; t.stress = 95; t.rattled = t.steeled = false; Nerve(t, 10); steeled += t.steeled; }
+        float pct = 100.0f * steeled / n;
+        printf("    (steeled %.1f%%)\n", pct);
+        check(pct > 21 && pct < 29, "resolve: about 25% Steeled");
+    }
+    {   // the save keeps habits, locks, ailments and bonds (the real save is set aside and put back)
+        std::string path = SavePath(), bak = path + ".s7bak";
+        bool had = FileExists(path.c_str());
+        if (had) { std::remove(bak.c_str()); std::rename(path.c_str(), bak.c_str()); }
+        g.roster[1].ailments = 1u << AIL_BENDS; g.provision[SUP_CROWBAR] = 2;
+        Hero keep0 = g.roster[0], keep1 = g.roster[1];
+        bool saved = SaveGame(g);
+        Game l;
+        bool loaded = saved && LoadGame(l);
+        std::remove(path.c_str());
+        if (had) std::rename(bak.c_str(), path.c_str());
+        Hero* l0 = loaded ? FindHero(l, keep0.id) : nullptr; Hero* l1 = loaded ? FindHero(l, keep1.id) : nullptr;
+        check(l0 && l1 && l0->habits == keep0.habits && l0->habitLocked == keep0.habitLocked && l1->ailments == keep1.ailments &&
+              l0->vigor == keep0.vigor && l0->fortitude == keep0.fortitude, "save round-trip: habits, locks, ailments, build");
+        check(loaded && BondOf(l, a, b) == BOND_MAX && l.provision[SUP_CROWBAR] == 2, "save round-trip: bonds and provisions");
+    }
+    printf(fails ? "Stage 7 self-test: %d FAILED\n" : "Stage 7 self-test: all passed\n", fails);
+    return fails ? 1 : 0;
 }

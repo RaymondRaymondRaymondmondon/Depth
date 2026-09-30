@@ -3,6 +3,7 @@
 // ============================================================================
 #include "game.h"
 #include "relics.h"
+#include "sound.h"
 #include <algorithm>
 #include <cmath>
 
@@ -192,7 +193,8 @@ void SceneCrew(Game& g) {
             TextFormat("Protection  %d%%", s.prot),
             TextFormat("Speed  %d", s.speed),
         };
-        for (int i = 0; i < 8; i++) Txt(lines[i], 356 + (i / 4) * 290.0f, 330 + (i % 4) * 21.0f, 16, Pal::Ink);
+        for (int i = 0; i < 8; i++) Txt(lines[i], 356 + (i / 4) * 290.0f, 326 + (i % 4) * 18.0f, 15, Pal::Ink);
+        { std::string hb = HabitList(h); Txt(hb.empty() ? "Habits: none yet" : ("Habits: " + hb).c_str(), 356, 399, 13, hb.empty() ? Pal::BrassDk : Pal::Copper); }
 
         // abilities: 8 per class, 4 slotted
         const auto& abs = ClassAbilities(h.cls);
@@ -434,36 +436,78 @@ void SceneWard(Game& g) {
     DrawCabinBackground();
     if (BackButton(g)) return;
     int perHp = WardCostPerHp(g);
-    DrawSceneTitle("The Ward", TextFormat("Injured crew can be patched up here (%d gold per HP)", perHp));
+    DrawSceneTitle("The Ward", TextFormat("Wounds (%d gold per HP), ailments cured, habits locked or removed", perHp));
     DrawGoldBadge(g);
-    int shown = 0, totalCost = 0;
-    for (auto& h : g.roster) {
+    if (g.roster.empty()) return;
+    if (!FindHero(g, g.selectedHero)) g.selectedHero = g.roster[0].id;
+    // --- the patients: everyone aboard, the ones who need something marked
+    Panel({40, 100, 300, 600});
+    int totalCost = 0;
+    for (size_t i = 0; i < g.roster.size() && i < 13; i++) {
+        Hero& h = g.roster[i];
         Stats s = GetStats(h);
-        int missing = s.maxHp - h.hp;
-        if (missing <= 0) continue;
-        int cost = missing * perHp;
-        totalCost += cost;
-        Rectangle c{140 + (shown % 2) * 510.0f, 110 + (shown / 2) * 120.0f, 490, 104};
-        Panel(c);
-        TxtBold(h.name, c.x + 18, c.y + 14, 22, Pal::Ink);
-        Txt(ClassName(h.cls), c.x + 28 + MeasureTxt(h.name, 22, true), c.y + 19, 17, Pal::BrassDk);
-        Txt(TextFormat("HP %d / %d", h.hp, s.maxHp), c.x + 18, c.y + 50, 19, Pal::Ink);
-        DrawBar({c.x + 18, c.y + 76, 240, 10}, (float)h.hp / s.maxHp, Pal::Good);
-        if (Button({c.x + c.width - 170, c.y + 30, 150, 44}, TextFormat("Treat %dg", cost), g.gold >= cost)) {
-            g.gold -= cost;
-            h.hp = s.maxHp;
-        }
-        shown++;
+        int missing = std::max(0, s.maxHp - h.hp);
+        totalCost += missing * perHp;
+        Rectangle r{54, 114 + i * 44.0f, 272, 40};
+        bool sel = h.id == g.selectedHero;
+        if (sel) DrawRectangleRounded({r.x - 3, r.y - 3, r.width + 6, r.height + 6}, 0.2f, 6, Pal::Teal);
+        if (Button(r, "", true, 14)) g.selectedHero = h.id;
+        TxtBold(h.name, r.x + 12, r.y + 4, 16, Pal::Paper);
+        Txt(TextFormat("%s  HP %d/%d", ClassName(h.cls), h.hp, s.maxHp), r.x + 12, r.y + 22, 12, missing ? Pal::Coral : Pal::Paper);
+        int ails = 0; for (int k = 0; k < AIL_COUNT; k++) ails += (h.ailments >> k) & 1;
+        if (ails) Txt(TextFormat("%d ailment%s", ails, ails > 1 ? "s" : ""), r.x + 180, r.y + 22, 12, Pal::Coral);
     }
-    if (shown == 0) {
-        const char* msg = "Everyone is shipshape. No patients today.";
-        TxtShadow(msg, SCREEN_W / 2.0f - MeasureTxt(msg, 28, true) / 2.0f, 320, 28, Pal::Paper, true);
-    } else if (shown > 1 && Button({SCREEN_W / 2.0f - 150, 640, 300, 48}, TextFormat("Treat everyone (%dg)", totalCost), g.gold >= totalCost)) {
+    if (totalCost > 0 && Button({54, 650, 272, 40}, TextFormat("Treat all wounds (%dg)", totalCost), g.gold >= totalCost, 15)) {
         g.gold -= totalCost;
         for (auto& h : g.roster) h.hp = GetStats(h).maxHp;
     }
+    // --- the chosen patient
+    Hero* h = FindHero(g, g.selectedHero);
+    Stats s = GetStats(*h);
+    Rectangle p{360, 100, 880, 600};
+    Panel(p);
+    TxtBold(h->name, p.x + 24, p.y + 18, 26, Pal::Ink);
+    Txt(TextFormat("%s  -  Level %d", ClassName(h->cls), h->level), p.x + 34 + MeasureTxt(h->name, 26, true), p.y + 24, 17, Pal::BrassDk);
+    Txt(TextFormat("HP %d / %d", h->hp, s.maxHp), p.x + 24, p.y + 60, 18, Pal::Ink);
+    DrawBar({p.x + 24, p.y + 86, 300, 10}, (float)h->hp / s.maxHp, Pal::Good);
+    int cost = std::max(0, s.maxHp - h->hp) * perHp;
+    if (cost > 0 && Button({p.x + 350, p.y + 56, 180, 40}, TextFormat("Treat %dg", cost), g.gold >= cost, 16)) { g.gold -= cost; h->hp = s.maxHp; }
+    // ailments
+    TxtBold("Ailments", p.x + 24, p.y + 116, 20, Pal::Ink);
+    float y = p.y + 146;
+    bool anyAil = false;
+    for (int k = 0; k < AIL_COUNT; k++) {
+        if (!(h->ailments & (1u << k))) continue;
+        anyAil = true;
+        TxtBold(AilmentName(k), p.x + 34, y + 6, 17, Pal::Bad);
+        Txt(AilmentDesc(k), p.x + 200, y + 8, 15, Pal::Ink);
+        int price = AilmentCurePrice(k);
+        if (Button({p.x + 650, y, 200, 34}, TextFormat("Cure %dg", price), g.gold >= price, 15)) { g.gold -= price; h->ailments &= ~(1u << k); PlayCue("ui.confirm"); }
+        y += 40;
+    }
+    if (!anyAil) { Txt("None. Clean bill of health.", p.x + 34, y + 4, 15, Pal::BrassDk); y += 30; }
+    // habits
+    y += 14;
+    TxtBold("Habits", p.x + 24, y, 20, Pal::Ink);
+    Txt(TextFormat("Up to %d good and %d bad. A locked good habit is never replaced; bad ones can be removed.", HABIT_MAX_GOOD, HABIT_MAX_BAD), p.x + 110, y + 4, 14, Pal::BrassDk);
+    y += 32;
+    bool anyHabit = false;
+    for (int pass = 0; pass < 2; pass++)
+        for (int k = 0; k < HB_COUNT; k++) {
+            const HabitDef& d = Habit(k);
+            if (!(h->habits & (1u << k)) || d.good != (pass == 0)) continue;
+            anyHabit = true;
+            bool locked = h->habitLocked & (1u << k);
+            TxtBold(d.name, p.x + 34, y + 6, 17, d.good ? Color{36, 104, 58, 255} : Pal::Bad);
+            Txt(d.desc, p.x + 200, y + 8, 15, Pal::Ink);
+            if (d.good) {
+                if (locked) Txt("Locked", p.x + 700, y + 8, 15, Pal::BrassDk);
+                else if (Button({p.x + 650, y, 200, 34}, TextFormat("Lock %dg", HABIT_LOCK_PRICE), g.gold >= HABIT_LOCK_PRICE, 15)) { g.gold -= HABIT_LOCK_PRICE; h->habitLocked |= 1u << k; PlayCue("ui.confirm"); }
+            } else if (Button({p.x + 650, y, 200, 34}, TextFormat("Remove %dg", HABIT_REMOVE_PRICE), g.gold >= HABIT_REMOVE_PRICE, 15)) { g.gold -= HABIT_REMOVE_PRICE; h->habits &= ~(1u << k); PlayCue("ui.confirm"); }
+            y += 40;
+        }
+    if (!anyHabit) Txt("No habits yet. Expeditions and curios leave their mark.", p.x + 34, y + 4, 15, Pal::BrassDk);
 }
-
 // ============================================================ sick leave
 void SceneSickLeave(Game& g) {
     DrawCabinBackground();
