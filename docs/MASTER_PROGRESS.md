@@ -19,6 +19,10 @@ The plan is `Depth — Master Reference for Claude Code.pdf` (project root). One
 | 13 | The Trawl | |
 | 14 | Fathoms | |
 | 15 | Arcade sound, final mix | |
+| 16 | The Study shell: hatch descent, desk rail, focus mode, chronometer, soundscape mixer, both scenes | Done 2026-09-30: --study-audio-test, --study-motion-audit (both scenes, worst 2.3% / 1.8% in 0.5 s against a 10% limit) and --study-save-test pass |
+| 17 | Course packs, study/INGEST.md, Calc II | Next |
+| 18 | Problem engine | |
+| 19 | Live Tutor (optional) | |
 
 ## Stage 1 notes (2026-09-29)
 - Definition of Done: `--figures` renders every hero and enemy in idle, walk, windup, strike, hit and death; `--silhouette` renders them in black. Every figure has at least one chain and a blink. The light rig and palettes are applied in every location and the salon.

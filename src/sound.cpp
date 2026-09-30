@@ -13,6 +13,8 @@
 // LFOs (wind, surf, the hum of machinery, the pressure of deep water) plus little random events (drips,
 // bubbles, birdsong, insects, creaks, clanks).
 #include "sound.h"
+#include "study_audio.h"
+#include "study_data.h"
 #include "game.h"
 #include <algorithm>
 #include <cmath>
@@ -957,6 +959,8 @@ void HubEvents(float dt) {
     if (chance(0.05f)) { float p = RR(-0.9f, 0.9f); for (int k = 0; k < GetRandomValue(3, 6); k++) { int ci = FindCue("amb.step"); if (ci >= 0) { gTagCue = ci; Ctx c{0.3f, 1, 1, 1, B_AMB, 0.4f}; PanGains(p, c.gl, c.gr); Voice& v = Tone(c, W_SINE, 120, 72, 0.12f, 0.08f, k * 0.45f); v.decPow = 2.5f; gTagCue = -1; } } }
     if ((gHub.mourning || (Scene)gHub.station == Scene::SickLeave) && chance(0.1f)) BuildCue(FindCue("amb.organbreath"), 0.6f, -0.5f);
 }
+// the Study bus: the soundscape mixer, faded in over the Master Reference's 1.5 s as the salon fades out
+bool gStudyOn = false; float gStudyS = 0; float gStudyBuf[CTRL * 2];
 void Render(float* out, int frames) {
     EnsureRev();
     if (gConv.room != gRoomWant) gConv.Build(gRoomWant);
@@ -965,6 +969,8 @@ void Render(float* out, int frames) {
     for (int base = 0; base < frames; base += CTRL) {
         int n = std::min(CTRL, frames - base);
         float blockT = n * dtS;
+        gStudyS = std::clamp(gStudyS + (gStudyOn ? 1.0f : -1.0f) * blockT / study::Numbers().crossfadeSeconds, 0.0f, 1.0f);
+        if (gStudyS > 0.0005f) study::Render(gStudyBuf, n, SR);
         // ---- control rate: scene fade, the score's clock, ambient events, loops
         gClock += blockT;
         gScene += (gSceneTarget - gScene) * std::min(1.0f, blockT * 0.8f);
@@ -1094,6 +1100,7 @@ void Render(float* out, int frames) {
             if (roomS > 0.002f) gConv.Run(send * cw, cL, cR);   // only while a room is sounding
             rL = rL * (1 - cw) + cL * 2.2f; rR = rR * (1 - cw) + cR * 2.2f;
             float L = (sL + mL + uL + rL * gRevWet) * gVol.master, R = (sR + mR + uR + rR * gRevWet) * gVol.master;
+            if (gStudyS > 0.0005f) { float sg = gStudyS * gVol.master; L += gStudyBuf[i * 2] * sg; R += gStudyBuf[i * 2 + 1] * sg; }
             out[(base + i) * 2] = tanhf(L);
             out[(base + i) * 2 + 1] = tanhf(R);
         }
@@ -1116,6 +1123,7 @@ void AudioHub(bool on, int station, bool mourning) {
     gHub.on = on; gHub.station = station; gHub.mourning = mourning;
     if (on) gRoomWant = RR_SALON;
 }
+void AudioStudy(bool on) { gStudyOn = on; }
 void AudioRoom(int room) { gRoomWant = std::clamp(room, 0, RR_COUNT - 1); }
 void AudioExpedition(const ExpAudio& a) {
     gExp.want = a;

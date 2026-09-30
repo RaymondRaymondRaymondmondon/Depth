@@ -1089,6 +1089,9 @@ const CueDef* CueTable(int& count) {
         {"arc.lose", CB_MUSIC, CR_GONG, 110, 1.3f, 0.12f, 0.03f, 2, 3, 1, false},
         {"arc.chat", CB_UI, CR_PLAQUE, 2400, 0.12f, 0.06f, 0.05f, 3, 0, 1, false},
         {"arc.join", CB_UI, CR_LATCH, 1200, 0.3f, 0.14f, 0.05f, 3, 1, 1, false},
+        // the Study
+        {"study.bell", CB_UI, CR_BELL, 440, 2.6f, 0.07f, 0.0f, 1, 2, 1, false},      // the chronometer: a soft ship's bell at each change
+        {"study.drawer", CB_UI, CR_CREAK, 260, 0.35f, 0.06f, 0.08f, 3, 1, 1, false}, // a drawer sliding in the desk rail
     };
     count = (int)(sizeof(C) / sizeof(C[0]));
     return C;

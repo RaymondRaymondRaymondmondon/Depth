@@ -653,6 +653,29 @@ void EndFrame(float time) {
     EndDrawing();
 }
 
+// A UI drawn into its own supersampled layer, then laid over the scene at any opacity (the Study's focus mode fades
+// its whole desk). Colour is kept premultiplied so the fade has no dark fringes.
+static RenderTexture2D gUiLayer{};
+void BeginUiLayer() {
+    if (gUiLayer.id == 0) { gUiLayer = LoadRenderTexture(SCREEN_W * SS, SCREEN_H * SS); SetTextureFilter(gUiLayer.texture, TEXTURE_FILTER_BILINEAR); }
+    if (A.lightsOpen) LightsEnd();
+    EndTarget();
+    BeginTextureMode(gUiLayer);
+    ClearBackground(BLANK);
+    rlSetBlendFactorsSeparate(RL_SRC_ALPHA, RL_ONE_MINUS_SRC_ALPHA, RL_ONE, RL_ONE_MINUS_SRC_ALPHA, RL_FUNC_ADD, RL_FUNC_ADD);
+    BeginBlendMode(BLEND_CUSTOM_SEPARATE);
+    PushScale();
+}
+void EndUiLayer(float alpha) {
+    EndBlendMode();
+    EndTarget();
+    EnterScene();
+    unsigned char a = (unsigned char)(std::clamp(alpha, 0.0f, 1.0f) * 255);
+    BeginBlendMode(BLEND_ALPHA_PREMULTIPLY);
+    DrawTexturePro(gUiLayer.texture, {0, 0, (float)SCREEN_W * SS, -(float)SCREEN_H * SS}, {0, 0, (float)SCREEN_W, (float)SCREEN_H}, {0, 0}, 0, Color{a, a, a, a});
+    EndBlendMode();
+}
+
 // Draw into another render texture for a while (the ocean, the pixel-art platformer), then come back.
 void BeginLayer(RenderTexture2D& rt) {
     if (A.lightsOpen) LightsEnd();

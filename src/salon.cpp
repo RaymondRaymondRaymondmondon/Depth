@@ -1567,6 +1567,9 @@ void DrawSalonSpritePage(float t) {
     }
 }
 
+// The Study borrows the salon's cat: asleep in the armchair by the fire.
+Vector2 StudyDrawCat(Vector2 feet, float k, bool right, float t, bool asleep) { return DrawCatAt(feet, k, right, true, false, 0, t, 40, asleep); }
+
 // For screenshots: put the cat front and centre, purring.
 void DebugPetCat() { cat.pos = cat.target = {-150, 640}; cat.purr = 3; cat.wait = 4; cat.right = true; }
 
@@ -1774,44 +1777,5 @@ void DrawSalonBackdrop(Game& g, Scene station) {
     SalonFrame(g, false, held);
 }
 
-// ============================================================ the Study (below the hatch): under refit for now
-void SceneStudy(Game& g) {
-    float t = g.time;
-    SetPost(0.45f, 0.03f, 0.3f);
-    SetSceneLight(SalonLight());
-    SetInkLook(&SalonPalette(), 0.25f, 91);
-    // a narrow iron room below the salon, lit by one lantern: a locked round door with a brass sign, the ladder back up
-    DrawVGradient({0, 0, (float)SCREEN_W, (float)SCREEN_H}, Color{34, 30, 28, 255}, Color{12, 10, 10, 255});
-    DrawTiled(Tex::Metal, {140, 60, 1000, 560}, 0.9f, Color{70, 74, 72, 255});
-    for (int i = 0; i < 5; i++) { float x = 170 + i * 240.0f; DrawRectangleGradientH((int)x - 12, 60, 12, 560, Color{30, 32, 32, 255}, Color{80, 84, 82, 255}); DrawRectangleGradientH((int)x, 60, 12, 560, Color{80, 84, 82, 255}, Color{26, 28, 28, 255}); }
-    DrawRectangle(0, 600, SCREEN_W, 120, Color{24, 18, 14, 255});
-    DrawTiled(Tex::Wood, {0, 600, (float)SCREEN_W, 30}, 0.8f, Color{90, 60, 40, 255});
-    Vector2 dc{700, 350};
-    DrawCircleV({dc.x + 6, dc.y + 8}, 190, Fade(BLACK, 0.5f));
-    DrawCircleV(dc, 190, Pal::BrassDk);
-    DrawRing(dc, 168, 186, 0, 360, 64, Pal::Brass);
-    DrawCircleV(dc, 166, Color{70, 64, 58, 255});
-    for (int k = 0; k < 16; k++) { float a = k * PI / 8; DrawCircleV({dc.x + cosf(a) * 177, dc.y + sinf(a) * 177}, 4, Color{60, 44, 26, 255}); }
-    for (int k = 0; k < 6; k++) { float a = k * PI / 3 + 0.3f; DrawLineEx(dc, {dc.x + cosf(a) * 70, dc.y + sinf(a) * 70}, 9, Color{120, 40, 36, 255}); }
-    DrawRing(dc, 62, 74, 0, 360, 40, Color{120, 40, 36, 255});
-    DrawCircleV(dc, 16, Pal::Brass);
-    DrawLineEx({dc.x - 150, dc.y - 40}, {dc.x + 150, dc.y + 40}, 10, Color{60, 58, 56, 255});   // a bar chained across it
-    DrawLineEx({dc.x - 150, dc.y + 40}, {dc.x + 150, dc.y - 40}, 10, Color{60, 58, 56, 255});
-    DrawCircleV(dc, 20, Color{50, 50, 52, 255});
-    DrawBrassPlate({dc.x - 110, dc.y + 120, 220, 40}, "UNDER REFIT", 22);
-    // the ladder back up, on the left, in the light from the hatch
-    for (int s = 0; s < 2; s++) DrawRectangle(190 + s * 70, 0, 10, 610, Color{120, 86, 50, 255});
-    for (float y = 20; y < 600; y += 44) DrawRectangle(190, (int)y, 80, 8, Color{140, 100, 60, 255});
-    LightsBegin(Color{112, 104, 96, 255});
-    AddLight({235, 0}, 520, Color{255, 210, 150, 255}, 1.0f);
-    AddLight({980, 170}, 520, Color{255, 190, 110, 255}, 0.9f + 0.1f * sinf(t * 9));
-    AddLight({700, 350}, 420, Color{200, 170, 130, 255}, 0.6f);
-    LightsEnd();
-    Glow({980, 170}, 40, Color{255, 190, 110, 120});
-    InkPass(1.0f, 1.0f);
-    DrawSceneTitle("The Study", "Beneath the salon. The shipwrights are still at work down here.");
-    DrawWrapped("A study with its own purpose is being fitted out below the salon. The door stays locked until the refit is done.", {740, 580, 500, 60}, 17, Pal::Paper);
-    if (Button({160, 630, 220, 48}, "Climb the ladder", true, 18) || BackButton(g)) g.scene = Scene::Hub;
-}
-
+// the Study (SceneStudy) lives in study.cpp
 // the Deep Arcade's screen (SceneArcade) lives in arcade.cpp

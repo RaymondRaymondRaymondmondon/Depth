@@ -310,3 +310,27 @@ amespace {} reopened before DrawRichEnemy). Shots: `foes_new_cave|island|weeds|a
   - Heat splash with pearl payouts; match standings with Rematch / Back to the lobby.
   - Table Talk: chat plus four emotes. How to play (`DrawRules`). Leaving mid-match asks twice.
   - Shots: `arcade_result`, `arcade_rules`.
+
+## The Study, stage 16 (the shell) (Master Reference pages 35-42; plan and the user's decisions in memory `depth-study-hatch`)
+- **Files:**
+  - `study_audio.*`: the soundscape mixer, headless.
+  - `study_data.*`: every tuning number, the presets, the instruments, the loudness norms and the room's timings.
+  - `study.cpp`: the room. It handles the descent, the desk rail and its three drawers, focus mode, the chronometer, `study_save.txt` next to the exe, and the shots and tests.
+  - `study_scenes.cpp`: the Captain's Study and the Lamplight Lounge.
+  - `study_test.cpp`: `--study-audio-test`.
+- **Audio:** the Study bus in sound.cpp (`AudioStudy`) crossfades with the salon over 1.5 s. main.cpp stops `AudioHub` in the Study.
+- **Focus mode:** the whole desk is drawn into `BeginUiLayer`/`EndUiLayer(alpha)` (render.cpp, premultiplied), so it can fade.
+- **Scenes:** figures are rig figures drawn through the `Figure()` helper, each with a chain from `Hang()` and a blink.
+  - The cat is the salon's pixel cat, via `StudyDrawCat` in salon.cpp.
+  - The fire follows `FireSize()`, the window's rain follows `RainLevel()`, and the band plays to `Beat()` when `LoungeBandPlaying()`.
+- **Comfort settings:**
+  - Focus Dim slows the scene clock to as little as 30% speed.
+  - Reduce Motion freezes the scene clock. The fire, the cat and the chain flutter keep real time.
+  - Low power sets 30 fps while in the Study.
+- **Checks:**
+  - `depth.exe --study-audio-test [out.wav] [seconds]`: no silence, clipping, DC or loop; every layer within 3 dB of the loudness target; 8 layers under 5% CPU.
+  - `depth.exe --study-motion-audit <study|lounge> <seconds>`: 16x9 regions; no region may change more than 10% within 0.5 s, or more than 2% in a single frame.
+  - `depth.exe --study-save-test`.
+  - Shots: `study`, `study_lounge`, `study_dim80`, `study_lounge_dim80`, `study_lounge_reduce_motion`, `study_drawer_*`, `study_chronometer`, `study_descent`.
+- Retuning a layer's sound means pasting its new loudness norm from the audio test's report into `LAYER_NORM`/`STYLE_NORM` (study_data.cpp).
+- Next is stage 17: the course packs, `study/INGEST.md`, and Calc II.

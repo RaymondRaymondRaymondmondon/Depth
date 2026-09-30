@@ -11,6 +11,7 @@
 //    depth.exe --sprites <file.png>  draw every sprite in the game onto one sheet
 // ============================================================================
 #include "game.h"
+#include "study.h"
 #include "input.h"
 #include "levelgen.h"
 #include "relics.h"
@@ -167,7 +168,16 @@ static void TakeShots(const Game& base, const std::string& dir) {
         {"hub_hover_cards", [](Game& g) { g.scene = Scene::Hub; DebugSalonHover(8); }},
         {"hub_hover_arcade", [](Game& g) { g.scene = Scene::Hub; DebugSalonHover(9); }},
         {"hub_hover_study", [](Game& g) { g.scene = Scene::Hub; DebugSalonHover(10); }},
-        {"study", [](Game& g) { g.scene = Scene::Study; }},
+        {"study", [](Game& g) { g.scene = Scene::Study; study::DebugStudyShot(0); }},
+        {"study_lounge", [](Game& g) { g.scene = Scene::Study; study::DebugStudyShot(1); }},
+        {"study_dim80", [](Game& g) { g.scene = Scene::Study; study::DebugStudyShot(2); }},
+        {"study_lounge_dim80", [](Game& g) { g.scene = Scene::Study; study::DebugStudyShot(3); }},
+        {"study_lounge_reduce_motion", [](Game& g) { g.scene = Scene::Study; study::DebugStudyShot(4); }},
+        {"study_drawer_soundscape", [](Game& g) { g.scene = Scene::Study; study::DebugStudyShot(5); }},
+        {"study_drawer_scene", [](Game& g) { g.scene = Scene::Study; study::DebugStudyShot(6); }},
+        {"study_drawer_courses", [](Game& g) { g.scene = Scene::Study; study::DebugStudyShot(7); }},
+        {"study_chronometer", [](Game& g) { g.scene = Scene::Study; study::DebugStudyShot(8); }},
+        {"study_descent", [](Game& g) { g.scene = Scene::Study; study::DebugStudyShot(9); }},
         {"arcade", [](Game& g) { g.scene = Scene::Arcade; }},
         {"arcade_lobby", [](Game& g) { g.scene = Scene::Arcade; DebugArcadeShot(0); }},
         {"arcade_table", [](Game& g) { g.scene = Scene::Arcade; DebugArcadeShot(1); }},
@@ -561,6 +571,7 @@ int main(int argc, char** argv) {
         for (int i = 2; i < argc; i++) { if (strstr(argv[i], ".wav")) wav = argv[i]; else secs = std::max(5.0f, (float)atof(argv[i])); }
         return RunStudyAudioTest(wav, secs);
     }
+    if (argc >= 2 && strcmp(argv[1], "--study-save-test") == 0) return study::RunSaveTest();
     if (argc >= 2 && strcmp(argv[1], "--scuttle-sim") == 0) return RunScuttleSim(argc >= 3 ? std::max(1, atoi(argv[2])) : 2000);
     if (argc >= 2 && strcmp(argv[1], "--net-loop") == 0) {
         int lag = 0; bool mem = false;
@@ -608,6 +619,13 @@ int main(int argc, char** argv) {
     Game g;
     InitGame(g);
 
+    // --study-motion-audit <lounge|study> <seconds>: frame-to-frame brightness by screen region; fails on a flash or fast motion
+    if (argc >= 3 && strcmp(argv[1], "--study-motion-audit") == 0) {
+        int sc = strstr(argv[2], "lounge") ? study::SC_LOUNGE : study::SC_STUDY;
+        int rc = study::RunMotionAudit(sc, argc >= 4 ? std::max(2.0f, (float)atof(argv[3])) : 30.0f);
+        RelicSpriteGenerator::Unload(); UnloadArt(); CloseWindow();
+        return rc;
+    }
     if (flatsUiTest) { // the Flats battle screen driven by the auto-player, through the real drawing and animation code
         g.scene = Scene::Cards;
         DebugFlatsAutoplay(argc >= 3 ? atoi(argv[2]) : 10);
@@ -656,8 +674,9 @@ int main(int argc, char** argv) {
             BeginFrame();
             RunScene(g);
             {   // aboard the Nautilus (the salon and its station screens) the waltz and the ship's bed play
-                bool aboard = g.scene != Scene::Platformer && g.scene != Scene::Abyss && g.scene != Scene::Dungeon;
+                bool aboard = g.scene != Scene::Platformer && g.scene != Scene::Abyss && g.scene != Scene::Dungeon && g.scene != Scene::Study;
                 AudioHub(aboard, g.scene == Scene::Hub ? -1 : (int)g.scene, g.mourning);
+                AudioStudy(g.scene == Scene::Study);   // below the hatch: the Study's own soundscape instead
                 if (g.scene != Scene::Dungeon) AudioExpedition(ExpAudio{});   // (the Dungeon scene sets it every frame)
             }
             AudioFrame(GetFrameTime(), g.scene == Scene::Platformer || g.scene == Scene::Abyss);

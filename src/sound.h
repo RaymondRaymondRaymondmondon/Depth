@@ -61,6 +61,7 @@ void PlayCue(const char* name, float vol = 1, float pan = 0);
 // Outside the parkour section: the salon's waltz and ambience bed. station: the station screen that is open
 // (a Scene as int, -1 for none) - it adds its motif; mourning: a crew member died, the organ plays alone.
 void AudioHub(bool on, int station, bool mourning);
+void AudioStudy(bool on);                // the Study's soundscape bus (crossfades with the salon over 1.5 s)
 enum ReverbRoom { RR_SALON, RR_CAVE, RR_KELP, RR_HALL, RR_OPENSEA, RR_COUNT };
 void AudioRoom(int room);               // the generated convolution reverb's room
 
