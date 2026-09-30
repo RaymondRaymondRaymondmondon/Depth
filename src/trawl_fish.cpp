@@ -437,6 +437,7 @@ void Gannet::RodInput(int ci, bool castHeld, Vector2 aimDeck, bool reel, bool st
     int ri = c.station >= 0 ? RodAt(c.station) : -1;
     if (ri < 0) return;
     Rod& r = rods[ri];
+    if (c.Has(INJ_HOOKED_HAND)) reel = false;   // a hooked hand can't work a reel
     r.castHeld = castHeld; r.reel = reel; r.lean = lean; r.bow = bow;
     if (strike) r.strikeQ = true;
     if (gaff) r.gaffQ = true;

@@ -381,27 +381,105 @@ void Eco::Harvest(int sp, float kg, Vector3 at, bool bleed) {
     B[sp] = std::max(0.0f, B[sp] - kg);
     if (bleed) AddBlood(at, kg * 2);
 }
-void Eco::DepthCharge(Vector3 p) {
+void Eco::DepthCharge(Vector3 p, std::vector<std::pair<int, float>>* floated) {
+    // design doc: "12 m blast radius. Stuns everything in range, floating fish to the surface"
     const auto& S = Species().sp;
+    const float RAD = 12;
     wake = std::min(100.0f, wake + 15);
     AddNoise(p, 400); AddVibration(p, 400); AddBlood(p, 80);
-    for (auto& a : agents) if (a.alive && Vector2Distance({a.p.x, a.p.y}, {p.x, p.y}) < 20 && S[a.sp].band != BAND_AIR) {
-        int dead = (int)ceilf(a.count * 0.8f);
-        Harvest(a.sp, dead * S[a.sp].MeanKg(), a.p, true);
-        R[R_CARRION] += dead * S[a.sp].MeanKg();
-        a.count -= dead; if (a.count <= 0) a.alive = false;
+    auto addF = [&](int s, float kg) {
+        if (!floated || kg <= 0) return;
+        for (auto& f : *floated) if (f.first == s) { f.second += kg; return; }
+        floated->push_back({s, kg});
+    };
+    for (auto& a : agents) if (a.alive && Vector2Distance({a.p.x, a.p.y}, {p.x, p.y}) < RAD && S[a.sp].band != BAND_AIR) {
+        float kg = a.count * S[a.sp].MeanKg();
+        Harvest(a.sp, kg, a.p, true);
+        addF(a.sp, kg);
+        a.count = 0; a.alive = false;
     }
-    // and the fish in the blast that no one saw (the population's share of the 20 m around it)
-    int ci = CellIdx({p.x, p.y}); int cx = ci % n, cy = ci / n, r = (int)(20 / cell);
+    // and the fish in the blast that no one saw (the population's share of the 12 m around it) float up too
+    int ci = CellIdx({p.x, p.y}); int cx = ci % n, cy = ci / n, r = (int)(RAD / cell);
     for (int s : g->species) {
         if (S[s].band == BAND_AIR) continue;
         double share = 0;
         for (int y = cy - r; y <= cy + r; y++) for (int x = cx - r; x <= cx + r; x++)
             if (x >= 0 && y >= 0 && x < n && y < n && (x - cx) * (x - cx) + (y - cy) * (y - cy) <= r * r) share += suit[s][y * n + x];
         float kg = B[s] * (float)share * 0.8f;
-        Harvest(s, kg, p, false); R[R_CARRION] += kg;
+        Harvest(s, kg, p, false);
+        addF(s, kg * 0.5f);                     // (half of it floats where the boat can reach it; the rest sinks for the scavengers)
+        R[R_CARRION] += kg * 0.5f;
     }
     log.push_back(TextFormat("minute %.0f: a depth charge", clock));
+}
+
+float Eco::SpeciesHP(int sp) const {
+    const SpeciesRec& r = Species().sp[sp];
+    if (r.name == "reef shark") return 80;       // design doc, "Threat stats"
+    if (r.name == "barracuda") return 30;
+    if (r.name == "gull flock") return 1;
+    return 4 + r.MeanKg() * 5;
+}
+int Eco::HitAgent(Vector3 p, float r, bool air) const {
+    const auto& S = Species().sp;
+    int best = -1; float bd = 1e9f;
+    for (int i = 0; i < (int)agents.size(); i++) {
+        const EcoAgent& a = agents[i];
+        if (!a.alive) continue;
+        bool isAir = S[a.sp].band == BAND_AIR;
+        if (isAir != air) continue;
+        float body = air ? 3.0f : 0.25f + S[a.sp].size * 0.3f + (a.count > 3 ? std::min(3.0f, sqrtf((float)a.count) * 0.12f) : 0);
+        float d = air ? Vector2Distance({a.p.x, a.p.y}, {p.x, p.y}) : Vector3Distance(a.p, p);
+        if (d < body + r && d < bd) { bd = d; best = i; }
+    }
+    return best;
+}
+bool Eco::DamageAgent(int idx, float dmg, bool head, Vector3 at) {
+    if (idx < 0 || idx >= (int)agents.size()) return false;
+    EcoAgent& a = agents[idx];
+    const SpeciesRec& r = Species().sp[a.sp];
+    float hp = SpeciesHP(a.sp);
+    a.hurt += dmg * (head ? 2 : 1);
+    a.flash = 0.6f; a.fedT = std::max(a.fedT, 8.0f);   // it bolts
+    if (a.hurt < hp) { AddBlood(at, r.size * std::min(1.0f, a.hurt / hp) * 2); return false; }
+    // one of them is dead: off the population, and it bleeds (size x 20, the doc's death blood)
+    a.hurt = 0; a.count--;
+    if (a.count <= 0) a.alive = false;
+    Harvest(a.sp, r.MeanKg(), at, false);
+    if (r.band != BAND_AIR) AddBlood(at, r.size * 20.0f);
+    return true;
+}
+float Eco::Sweep(Vector3 m, Vector2 dir, float width, float speed, float dt, std::vector<std::pair<int, float>>& out) {
+    // catch rate = school density x mouth width x speed (design doc, "The trawl"): a group whose centre lies in the
+    // mouth's path this step loses the share of it the mouth swept through
+    const auto& S = Species().sp;
+    float total = 0;
+    Vector2 side{-dir.y, dir.x};
+    for (auto& a : agents) {
+        if (!a.alive || S[a.sp].band == BAND_AIR) continue;
+        Vector2 rel{a.p.x - m.x, a.p.y - m.y};
+        float along = Vector2DotProduct(rel, dir), across = Vector2DotProduct(rel, side);
+        float spread = a.count > 3 ? 1.5f + sqrtf((float)a.count) * 0.12f : 1.0f;
+        if (fabsf(across) > width / 2 + spread || along < -spread - speed * dt || along > spread || fabsf(a.p.z - m.z) > 4 + spread) continue;
+        // the share of the school the mouth passes through this step: its length traversed, times how much of its
+        // breadth the mouth spans
+        float frac = std::clamp(speed * dt / (2 * spread), 0.0f, 1.0f) * std::min(1.0f, width / (2 * spread));
+        float want = a.count * frac;
+        int take = (int)want + (Rand() < want - (int)want ? 1 : 0);
+        if (take <= 0) continue;
+        take = std::min(take, a.count);
+        float kg = take * S[a.sp].MeanKg();
+        a.count -= take; if (a.count <= 0) a.alive = false;
+        Harvest(a.sp, kg, a.p, false);
+        bool found = false; for (auto& o : out) if (o.first == a.sp) { o.second += kg; found = true; }
+        if (!found) out.push_back({a.sp, kg});
+        total += kg;
+    }
+    return total;
+}
+float Eco::DensityAt(int sp, Vector2 p) const {
+    if (sp < 0 || sp >= (int)suit.size() || suit[sp].empty() || !InMap(p)) return 0;
+    return Pop(sp) * suit[sp][CellIdx(p)];
 }
 
 // ---------------------------------------------------------------- the agents near the boat
@@ -738,6 +816,33 @@ void EcoTick(Eco& e, Gannet& gn, float dt) {
     } else e.lamps.push_back({{mast.x, mast.y, -4}, r, 1.0f});
     Vector2 stern = b.ToWorld({-10.4f, 0});
     e.lamps.push_back({{stern.x, stern.y, -2}, 5, 0.4f});
+    for (const auto& fl : gn.flares) e.lamps.push_back({{fl.p.x, fl.p.y, -1}, 18, 1.4f});   // a flare burning on the water
+    // gulls over a deck with fish on it: one under 3 kg every 4 s (design doc, "Threat stats")
+    {
+        int gs = Species().Find("gull flock");
+        bool over = false;
+        for (const auto& a : e.agents) if (a.alive && a.sp == gs && Vector2Distance({a.p.x, a.p.y}, b.pos) < 22) over = true;
+        if (over) {
+            gn.gullT += dt;
+            if (gn.gullT >= 4) {
+                gn.gullT = 0;
+                for (size_t i = 0; i < gn.hold.size(); i++) if (!gn.hold[i].gutted && gn.hold[i].kg < 3) { gn.Say("A gull takes the " + gn.hold[i].name); gn.hold.erase(gn.hold.begin() + i); break; }
+            }
+        } else gn.gullT = 0;
+    }
+    // a hand in the water: the reef shark comes for a thrashing, bleeding swimmer (a bite at the waterline)
+    for (int k = 0; k < (int)gn.crew.size(); k++) {
+        const Crew& c = gn.crew[k];
+        if (!c.overboard || c.dead) continue;
+        Vector3 sw{c.swim.x, c.swim.y, 0.5f};
+        for (auto& a : e.agents) {
+            const SpeciesRec& r = Species().sp[a.sp];
+            if (!a.alive || r.aggression < 0.6f || r.band == BAND_AIR || a.fedT > 0) continue;
+            float d = Vector3Distance(a.p, sw);
+            if (d < 25 && a.hunger > 0.3f) { a.goal = sw; a.goalT = 0.5f; }
+            if (d < 2.0f && e.Rand() < dt * 0.6f) { a.fedT = 20; a.flash = 0.6f; gn.Injure(k, INJ_BITE, std::string("a ") + r.name); break; }
+        }
+    }
     e.screwNoise = b.noise;
     if (b.noise > 0) e.AddVibration({stern.x, stern.y, 2}, b.noise * 0.3f * dt);
     for (const auto& rd : gn.rods) {

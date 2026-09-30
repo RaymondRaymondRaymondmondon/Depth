@@ -37,6 +37,21 @@ const std::vector<ShopItem>& ChandlerItems() {   // design doc, "The Chandler" (
         {"medium", "Medium rod", 120, "15 kg line, 25 m cast: most fish to 25 kg"},
         {"heavy", "Heavy boat rod", 300, "40 kg line, 2-speed: tuna, sharks, groupers"},
         {"deepdrop", "Deep-drop reel", 450, "30 kg braid, 200 m straight down"},
+        {"knife", "Knife", 10, "Cuts a snagged net loose"},
+        {"bandage", "Bandages (3)", 10, "Stop a bite bleeding"},
+        {"ring", "Extra life ring", 40, "Thrown on a rope"},
+        {"longline", "Longline", 60, "20 hooks, two buoys: set it, fish elsewhere, haul it"},
+        {"pot", "Crab pot", 25, "Reusable: crabs, lobster, octopus"},
+        {"flare", "Flare pistol (3 flares)", 60, "A 40 m arc of light"},
+        {"flares", "Flares (3)", 30, "10 each"},
+        {"speargun", "Speargun (3 spears)", 150, "8 m in water, 12 m in air, tethered"},
+        {"spears", "Spears (3)", 15, "5 each"},
+        {"rifle", "Rifle (10 rounds)", 250, "Fish breaking the surface, gulls, boarders"},
+        {"rounds", "Rounds (10)", 20, "2 each"},
+        {"shotgun", "Shotgun (8 shells)", 200, "15 m in air: gull flocks"},
+        {"shells", "Shells (8)", 24, "3 each"},
+        {"charge", "Depth charge", 120, "12 m blast; the Owners fine 30 in the Lagoon"},
+        {"explosive", "Explosive harpoon head", 80, "For the bow cannon: kills, but ruins the fish"},
     };
     return I;
 }
@@ -48,6 +63,9 @@ const std::vector<ShopItem>& SlipwayItems() {    // design doc, "The Slipway"
         {"engine", "Compound engine", 800, "+30% speed, -25% screw noise"},
         {"mast", "Hooded lantern mast", 500, "Adds the searchlight"},
         {"chair", "Big-game chair", 900, "The 120 kg rod station"},
+        {"harpoon", "Harpoon cannon", 700, "Bow cannon and winch: 35 m, to 6 m deep, tethered"},
+        {"bignet", "Bigger trawl", 600, "Mouth width +50%, weight +50%"},
+        {"net", "A new trawl net", 150, "Replaces one cut away (the Owners' price)"},
     };
     return I;
 }
@@ -102,6 +120,7 @@ void Session::Begin(Gannet& g, Eco& e, int pl, uint32_t sd) {
         r.line = LineType::Mono; r.hook = Hook::Small; r.fight.drag = 0.33f * TackleOf(r.tackle).strength;
     }
     if (!g.crew.empty()) g.crew[0].patchKits = 1;
+    g.GiveStartingKit();
     money = START_MONEY;
     quota = QUOTA_BASE * QuotaScale();
     harbour = LagoonHarbour(e, &g.moorHeading, &g.moorPos);
@@ -118,6 +137,17 @@ void Session::Moor() {
     G->boat.pos = G->moorPos; G->boat.heading = G->moorHeading; G->boat.vel = {0, 0}; G->boat.yawRate = 0;
     G->boat.telegraph = 0; G->boat.rudder = 0; G->boat.aground = false;
     for (auto& r : G->rods) if (r.state != RodState::Idle) { r.state = RodState::Idle; r.bite = Bite{}; }   // lines in
+    G->harpoon.state = RodState::Idle; G->shots.clear(); G->floaters.clear(); G->flares.clear();
+    if (G->net.state != NetState::Stowed && G->net.state != NetState::Lost) { G->net = Trawl{}; }   // (the net comes in with her)
+    for (auto& r : G->rings) { r.state = 0; r.holder = -1; r.thrower = -1; }
+    for (auto& c : G->crew) for (auto& sl : c.slots) if (sl.it == Item::Ring) sl.ammo = 1;
+    // at the dock the dead revive and the injured are seen to; a body lost to the sea costs 8% for a replacement hand
+    for (auto& c : G->crew) {
+        if (c.dead && c.bodyLost && money > 0) { float f = money * 0.08f; money -= f; Tape(TextFormat("HAND DECEASED STOP REPLACEMENT CHARGED %.0f SHILLINGS STOP", f)); }
+        if (c.dead || c.overboard) { c.p = {-1.0f, 0.8f}; c.deck = 0; }
+        c.dead = false; c.bodyLost = false; c.overboard = false; c.injuries = 0; c.serious = 0; c.drownT = 0; c.station = -1;
+    }
+    if (G->fines > 0) { money -= G->fines; Tape(TextFormat("FINES DEDUCTED %.0f SHILLINGS STOP", G->fines)); G->fines = 0; }
 }
 bool Session::InHarbour() const { return Vector2Distance(G->boat.pos, harbour) < harbourR; }
 std::string Session::ClockText() const {
@@ -167,13 +197,39 @@ bool Session::Buy(const std::string& id, std::string* why) {
     else if (id == "medium") G->owned[(int)Tackle::Medium] = true;
     else if (id == "heavy") G->owned[(int)Tackle::Heavy] = true;
     else if (id == "deepdrop") G->owned[(int)Tackle::DeepDrop] = true;
+    else {
+        // hand gear into the first free slot (or the locker); ammunition onto the gun that takes it
+        auto ammo = [&](Item gun, int n) {
+            for (auto& c : G->crew) for (auto& sl : c.slots) if (sl.it == gun) { sl.ammo += n; return true; }
+            for (auto& sl : G->locker) if (sl.it == gun) { sl.ammo += n; return true; }
+            return false;
+        };
+        bool ok = true;
+        if (id == "knife") G->AddItem(Item::Knife, 0);
+        else if (id == "bandage") G->AddItem(Item::Bandage, 3);
+        else if (id == "ring") G->AddItem(Item::Ring, 1);
+        else if (id == "longline") G->AddItem(Item::Longline, 1);
+        else if (id == "pot") G->AddItem(Item::Pot, 1);
+        else if (id == "flare") G->AddItem(Item::Flare, 3);
+        else if (id == "speargun") G->AddItem(Item::Speargun, 3);
+        else if (id == "rifle") G->AddItem(Item::Rifle, 10);
+        else if (id == "shotgun") G->AddItem(Item::Shotgun, 8);
+        else if (id == "charge") G->AddItem(Item::Charge, 1);
+        else if (id == "flares") ok = ammo(Item::Flare, 3);
+        else if (id == "spears") ok = ammo(Item::Speargun, 3);
+        else if (id == "rounds") ok = ammo(Item::Rifle, 10);
+        else if (id == "shells") ok = ammo(Item::Shotgun, 8);
+        else if (id == "explosive") { if (G->harpoonCannon) G->explosives++; else ok = false; }
+        if (!ok) { money += it->price; if (why) *why = "nothing aboard takes it"; return false; }
+    }
     return true;
 }
 bool Session::BuySlip(int idx, std::string* why) {
     const auto& I = SlipwayItems();
     if (idx < 0 || idx >= (int)I.size()) return false;
     std::string id = I[idx].id;
-    if (id != "plates" && slip[idx]) { if (why) *why = "already fitted"; return false; }
+    if (id != "plates" && id != "net" && slip[idx]) { if (why) *why = "already fitted"; return false; }
+    if (id == "net" && G->net.state != NetState::Lost) { if (why) *why = "she has a net"; return false; }
     Boat& b = G->boat;
     int weakest = 0; for (int s = 1; s < SEC_COUNT; s++) if (b.integrityMax[s] < b.integrityMax[weakest]) weakest = s;
     if (id == "plates" && b.integrityMax[weakest] >= 150) { if (why) *why = "every section is plated"; return false; }
@@ -185,6 +241,9 @@ bool Session::BuySlip(int idx, std::string* why) {
     else if (id == "engine") { b.thrustMult = 1.3f; b.noiseMult = 0.75f; }
     else if (id == "mast") G->searchlight = true;
     else if (id == "chair") G->owned[(int)Tackle::Chair] = true;
+    else if (id == "harpoon") { G->harpoonCannon = true; G->harpoons = 2; }
+    else if (id == "bignet") G->biggerNet = true;
+    else if (id == "net") G->net = Trawl{};
     return true;
 }
 bool Session::CanCastOff(std::string* why) const {
@@ -260,6 +319,17 @@ void Session::Step(float dt) {
             break;
         case Phase::Night: {
             clock += dt;
+            // total loss: every hand dead, or the Gannet gone down (design doc, "Death, injury, and ghosts")
+            if (G->AllDead() || G->boat.sunk) {
+                float charge = money * 0.25f;
+                money -= charge;
+                G->hold.clear(); G->longlines.clear(); G->pots.clear();
+                Tape(TextFormat("GANNET SALVAGED STOP CATCH LOST STOP SALVAGE CHARGED %.0f SHILLINGS STOP", charge));
+                G->boat.sunk = false; G->boat.bilge = 0; for (int s2 = 0; s2 < SEC_COUNT; s2++) { G->boat.integrity[s2] = G->boat.integrityMax[s2]; G->boat.patched[s2] = false; }
+                G->boat.roll = G->boat.pitch = 0;
+                night++; clockOn = false; G->eco = nullptr; Moor(); phase = Phase::Dock;
+                break;
+            }
             if (clock >= 240 && !cues[0]) { cues[0] = true; Tape("MIDNIGHT STOP HOLD INSPECTED AT HARBOUR LINE 0500 STOP"); }
             if (clock >= 480 && !cues[1]) { cues[1] = true; Tape("ONE HOUR STOP CUSTOMS CUTTER ON STATION STOP"); }
             bool damaged = false; for (int s = 0; s < SEC_COUNT; s++) if (G->boat.integrity[s] < D().leakBelow) damaged = true;

@@ -198,11 +198,20 @@ void BotFight(Fight& f, Skill s, float dt, uint32_t& rng);    // sets drag, reel
 int RunTrawlFight(int argc, char** argv);   // depth.exe --trawl-fight <species|all> [tackle] [N]
 
 // ---------------------------------------------------------------- stations and the crew
-enum class StationKind { Helm, Boiler, Pumps, PortRod, StarRod, SternRodP, SternRodS, NetWinch, Lantern, Sonar, Harpoon, Gutting, AirPump, Bell, Printer, COUNT };
+enum class StationKind { Helm, Boiler, Pumps, PortRod, StarRod, SternRodP, SternRodS, NetWinch, Lantern, Sonar, Harpoon, Gutting, AirPump, Bell, Printer, Locker, COUNT };
 struct StationDef { StationKind kind; const char* name; Vector2 at; int deck; const char* does; };   // deck 0 main deck, 1 engine room
 const std::vector<StationDef>& Stations();
 float LanternRadius(int level);                           // 4, 8, 14, 30 m
 int NearestStation(Vector2 at, int deck, float r);
+
+// ---------------------------------------------------------------- hands' gear (trawl_gear.cpp)
+// Four slots a hand (design doc, "Inventory"); the rest lives in the deck locker.
+enum class Item { None, Gaff, Priest, Knife, Speargun, Flare, Rifle, Shotgun, Charge, Ring, Bandage, Longline, Pot, COUNT };
+struct ItemDef { const char* name; int price; int ammoPer; int ammoPrice; float noise; const char* use; };
+const ItemDef& ItemOf(Item i);
+struct Slot { Item it = Item::None; int ammo = 0; };
+enum Injury { INJ_HOOKED_HAND = 1, INJ_BROKEN_ARM = 2, INJ_BURN = 4, INJ_BITE = 8 };
+const char* InjuryName(int bit);
 
 enum class Role { Bosun, Angler, Diver, Medic, COUNT };
 const char* RoleName(Role r);
@@ -216,6 +225,15 @@ struct Crew {
     int patchKits = 0;
     float carryKg = 0;
     Vector2 facing{1, 0};
+    // the hand's slots, injuries, and life (design doc, "Death, injury, and ghosts")
+    Slot slots[4]; int sel = 0;
+    float cool = 0, reloadT = 0;
+    int injuries = 0, serious = 0;                        // bits of Injury; serious injuries this night (a second is death)
+    bool dead = false, bodyLost = false;                  // dead for the night: a ghost on deck, or lost to the sea
+    Vector2 swim{0, 0};                                   // overboard: where in the sea (world x/y)
+    float drownT = 0, bleedT = 0;
+    std::string cause;                                    // what killed them
+    bool Has(int inj) const { return (injuries & inj) != 0; }
 };
 
 // A rod at one of the four rod stations: the cast, the lure in the water, the bite and the fight (trawl_fish.cpp).
@@ -249,7 +267,31 @@ struct CatchRec {
     float fresh = 1;                                      // 1% a real minute on deck, 0.2% gutted and iced
     bool gutted = false, iced = false;
     bool first = false;                                   // the run's first of its kind: the Owners pay 50% more
+    bool bycatch = false, protectedSp = false; float aboardT = 0;   // worthless or protected: back over the side (a turtle within 60 s)
 };
+
+// Things in the water that belong to the crew: projectiles, shot fish afloat, the trawl, set gear, the life ring.
+enum class Shot { Bullet, Pellet, Spear, Harpoon, Explosive, Flare, Charge };
+struct Projectile {
+    Shot kind; Vector3 p, v;                              // world x/y; z below the surface (negative is in the air)
+    int owner = -1; float life = 3, dmg = 0; bool tether = false, inWater = false; float travel = 0;
+};
+struct Floater { std::string name; int sp = -1; float kg = 0, price = 0, grade = 1; Vector2 p; float life = 90; bool tethered = false; };
+struct FlareLight { Vector2 p; float t; };
+enum class NetState { Stowed, Shooting, Down, Snagged, Hauling, Lost };
+struct Trawl {
+    NetState state = NetState::Stowed;
+    float t = 0;                                          // shooting / hauling progress (s)
+    float load = 0, depth = 0, backT = 0;                 // kg in the cod end; how deep the mouth is running; backing off a snag
+    std::vector<std::pair<int, float>> catchKg;           // species -> kg in the net
+    Vector3 node[8 * 6], prev[8 * 6];                     // the mesh (world x/y, depth)
+    bool meshInit = false;
+    float Width(bool bigger) const { return bigger ? 18.0f : 12.0f; }
+};
+struct SetHook { int sp = -1; bool head = false; float kg = 0; };
+struct Longline { Vector2 a, b; std::vector<SetHook> hooks; float age = 0; };
+struct Pot { Vector2 p; float age = 0; std::vector<std::pair<int, float>> catchKg; int n = 0; };
+struct LifeRing { int state = 0; Vector2 p{}, v{}; int thrower = -1, holder = -1; float haulT = 0; };   // 0 aboard, 1 flying, 2 in the water
 
 struct Eco;                                               // the food web (trawl_eco.h)
 
@@ -271,13 +313,43 @@ struct Gannet {
     bool owned[(int)Tackle::COUNT] = {true, true, false, false, false, false};   // two handlines and a light rod to start
     bool watch = false, searchlight = false, secondPump = false;
     float gutT = 0;
+    // shooting, the net, set gear, the locker (trawl_gear.cpp)
+    std::vector<Projectile> shots;
+    std::vector<Floater> floaters;
+    std::vector<FlareLight> flares;
+    Trawl net; bool biggerNet = false;
+    std::vector<Longline> longlines;
+    std::vector<Pot> pots;
+    std::vector<LifeRing> rings;
+    std::vector<Slot> locker;
+    bool harpoonCannon = false; int harpoons = 0, explosives = 0; bool explosiveLoaded = false; float harpoonReload = 0;
+    Rod harpoon;                                          // the cannon's tethered fight (a Fight on 120 kg steel), when one is on
+    int harpoonSp = -1;
+    float gullT = 0, fines = 0;                           // fines: the Owners take these at the dock
+    int chargesUsed = 0;
     int DeckFish() const;                                 // landed and not yet gutted (they draw gulls, they spoil)
     int RodAt(int station) const;                         // index into rods, or -1
     void StepRods(float dt);                              // lures, bites (a dummy bite table until the web comes), fights, the pull on her
     // a hand at a rod: the cast, the reel, the strike, the rod's lean, the bow, the gaff
     void RodInput(int c, bool castHeld, Vector2 aimDeck, bool reel, bool strike, float lean, bool bow, bool gaff, float dragScroll);
     void CycleTackle(int c);
-    void GutsOverboard(float kg);                         // blood into the water by the gutting table's rail
+    void GutsOverboard(float kg);
+    // gear (trawl_gear.cpp)
+    void GiveStartingKit();
+    bool AddItem(Item it, int ammo);                      // into the first free slot of hand 0, else the locker
+    void UseItem(int c, Vector2 aimDeck, bool pressed, bool held, bool sight, float dt);   // left mouse off-station
+    void Reload(int c);
+    void StepGear(float dt);
+    void HitShot(Projectile& p, int agent);               // a projectile in a fish or a gull
+    void NetInput(int c, bool held, bool cut, float dt);
+    void HarpoonInput(int c, Vector2 aimDeck, bool fire, bool held, bool release, float dt);
+    bool GaffFloater(int c);                              // E at the rail beside a shot fish afloat
+    bool HaulSetGear(int c);                              // E at the rail beside a longline buoy or a pot float
+    void Injure(int c, int injury, const std::string& cause);
+    void Kill(int c, const std::string& cause, bool bodyLost);
+    void GoOverboard(int c, const std::string& why);
+    bool AllDead() const;
+    Vector2 RailWorld(int c) const;                         // blood into the water by the gutting table's rail
     void Init(int crewCount, uint32_t seed, Weather w = Weather::Calm);
     void Step(float dt);
     // a hand's controls (the scene feeds its human; bots will call these too)
@@ -295,6 +367,7 @@ void EcoTick(Eco& e, Gannet& g, float dt);                // what the Gannet put
 
 bool QuayWalkable(Vector2 p);                             // the quay beside her port side (boat frame) when she's moored
 
+int RunTrawlGearTest();                                   // depth.exe --trawl-gear-test
 int RunTrawlBoatTest();                                   // depth.exe --trawl-boat-test
 int RunTrawlRodTest();                                    // (part of --trawl-boat-test) a rod on the Gannet, cast to landing
 

@@ -15,6 +15,7 @@ struct View {
     float moon = 0.5f;                    // 0 new .. 1 full: glints on the crests out in the dark
     struct Light { Vector2 at; float r, k; Vector2 dir{0, 0}; float half = 0; };   // half > 0: a cone (radians) along dir
     std::vector<Light> lights;            // deck-frame lights
+    bool ghost = false; Vector2 ghostAt{}; float ghostSee = 0;   // a ghost sees threats within 10 m as pale outlines for a moment after it moves
     Vector2 ToCanvas(Vector2 deck) const;
     Vector2 DeckOfCanvas(Vector2 c) const;
     float LightAt(Vector2 deck) const;
@@ -23,6 +24,7 @@ void DrawSea(const Gannet& g, const View& v);
 void DrawBoat(const Gannet& g, const View& v);
 void DrawLines(const Gannet& g, const View& v);
 void DrawLife(const Gannet& g, const View& v, bool air);   // the web's fish in the light (air: the gulls, over everything)          // rods, lines, lures and what's on them
+void DrawGear(const Gannet& g, const View& v);            // shots, shot fish afloat, the net, set gear, life rings, hands overboard
 void DrawQuay(const Gannet& g, const View& v);            // the harbour quay beside her port side while she's moored
 void DrawCrewMember(const Crew& c, const View& v, float t, bool you);
 Color RoleColor(Role r);

@@ -200,13 +200,23 @@ void Gannet::Say(const std::string& s) { log.push_back(s); if (log.size() > 12) 
 void Gannet::Move(int ci, Vector2 wish, bool brace, float dt) {
     Crew& c = crew[ci];
     gMoored = moored;
-    if (c.overboard) return;
+    if (c.overboard) {
+        // treading water: a slow swim, screen-relative like the deck (the deck frame turned into the sea's)
+        if (c.dead) return;
+        float l = Vector2Length(wish);
+        if (l > 1) wish = Vector2Scale(wish, 1 / l);
+        Vector2 f = boat.Forward(), sd{-f.y, f.x};
+        Vector2 w{f.x * wish.x + sd.x * wish.y, f.y * wish.x + sd.y * wish.y};
+        c.swim = Vector2Add(c.swim, Vector2Scale(w, 0.9f * dt));
+        return;
+    }
+    float burnSlow = c.Has(INJ_BURN) ? 0.7f : 1.0f;
     c.braced = brace || c.station >= 0;
     if (c.station >= 0 || c.fallen) wish = {0, 0};
     float l = Vector2Length(wish);
     if (l > 1) wish = Vector2Scale(wish, 1 / l);
     if (l > 0.1f) c.facing = Vector2Normalize(wish);
-    float speed = D().walk * (c.carryKg > 30 ? 0.5f : 1.0f) * (c.braced && c.station < 0 ? 0.4f : 1.0f);
+    float speed = D().walk * burnSlow * (c.carryKg > 30 ? 0.5f : 1.0f) * (c.braced && c.station < 0 ? 0.4f : 1.0f);
     Vector2 want = Vector2Scale(wish, speed);
     // the wet deck: past 12 deg of roll an unbraced hand slides to the low side; past 25 deg they fall
     float rollDeg = boat.RollDeg(), pitchDeg = boat.pitch * 57.2958f;
@@ -214,7 +224,7 @@ void Gannet::Move(int ci, Vector2 wish, bool brace, float dt) {
     if (c.deck == 0 && !c.braced) {
         if (fabsf(rollDeg) > D().braceRoll) slide.y = (rollDeg > 0 ? 1 : -1) * D().slideAccel * (fabsf(rollDeg) - D().braceRoll) / 13.0f;
         if (fabsf(pitchDeg) > D().braceRoll) slide.x = (pitchDeg > 0 ? -1 : 1) * D().slideAccel * (fabsf(pitchDeg) - D().braceRoll) / 13.0f;
-        if (fabsf(rollDeg) > D().fallRoll && !c.fallen) { c.fallen = true; c.fallT = D().fallTime; Say("A hand goes down on the wet deck"); }
+        if (fabsf(rollDeg) > D().fallRoll && !c.fallen) { c.fallen = true; c.fallT = D().fallTime; Say("A hand goes down on the wet deck"); { static uint32_t fr = 2463534242u; fr ^= fr << 13; fr ^= fr >> 17; fr ^= fr << 5; if (fr % 4 == 0) Injure(ci, INJ_BROKEN_ARM, "a fall on the wet deck"); } }
     }
     if (c.fallen) { c.fallT -= dt; if (c.fallT <= 0 && fabsf(rollDeg) < D().fallRoll) c.fallen = false; }
     // (sliding, the feet barely grip: the hand's own steps fight the slide only weakly)
@@ -227,7 +237,7 @@ void Gannet::Move(int ci, Vector2 wish, bool brace, float dt) {
         if (Walkable(nx, c.deck)) c.p = nx; else c.v.x = 0;
         if (Walkable(ny, c.deck)) c.p.y = ny.y; else {
             // slid into the rail: on her beam ends, over it goes
-            if (c.deck == 0 && !c.braced && fabsf(rollDeg) > D().beamEnds && fabsf(c.p.y) > HalfBeam(c.p.x) - 0.6f) { c.overboard = true; c.station = -1; Say("Man overboard!"); }
+            if (c.deck == 0 && !c.braced && fabsf(rollDeg) > D().beamEnds && fabsf(c.p.y) > HalfBeam(c.p.x) - 0.6f) { GoOverboard(ci, "over the rail on her beam ends"); }
             c.v.y = 0;
         }
     }
@@ -235,9 +245,10 @@ void Gannet::Move(int ci, Vector2 wish, bool brace, float dt) {
 bool Gannet::TakeStation(int ci) {
     Crew& c = crew[ci];
     if (c.overboard || c.fallen) return false;
-    if (Vector2Distance(c.p, LADDER) < 0.8f) { c.deck = 1 - c.deck; c.station = -1; return true; }   // the ladder
+    if (Vector2Distance(c.p, LADDER) < 0.8f && !c.dead) { c.deck = 1 - c.deck; c.station = -1; return true; }   // the ladder
     int s = NearestStation(c.p, c.deck, 1.1f);
     if (s < 0) return false;
+    if (c.dead && Stations()[s].kind != StationKind::Bell) return false;   // a ghost touches only the bell
     for (const auto& o : crew) if (&o != &c && o.station == s) return false;   // (one hand per station)
     c.station = s;
     return true;
@@ -246,7 +257,7 @@ void Gannet::LeaveStation(int ci) { crew[ci].station = -1; }
 void Gannet::Primary(int ci, bool held, float dt) {
     Crew& c = crew[ci];
     if (c.station < 0) return;
-    float rate = c.role == Role::Bosun ? 1.25f : 1.0f;   // the Bosun's perk: winch, pump and shovel 25% faster
+    float rate = (c.role == Role::Bosun ? 1.25f : 1.0f) * (c.Has(INJ_BROKEN_ARM) ? 0.5f : 1.0f);   // the Bosun's perk: winch, pump and shovel 25% faster; a broken arm halves it
     switch (Stations()[c.station].kind) {
         case StationKind::Boiler:
             if (!held) break;
@@ -262,6 +273,12 @@ void Gannet::Primary(int ci, bool held, float dt) {
         case StationKind::Gutting: {
             // gut, grade and ice the catch one fish at a time; the guts go over the rail
             if (!held) { gutT = 0; break; }
+            // bycatch first: back over the side through the sorting chute (a protected turtle alive, within its minute)
+            for (int i = 0; i < (int)hold.size(); i++) if (hold[i].bycatch || hold[i].protectedSp) {
+                gutT += dt * rate;
+                if (gutT >= 0.8f) { gutT = 0; Say(TextFormat("Returned over the side: %s", hold[i].name.c_str())); hold.erase(hold.begin() + i); }
+                return;
+            }
             int f = -1; for (int i = 0; i < (int)hold.size(); i++) if (!hold[i].gutted) { f = i; break; }
             if (f < 0) break;
             gutT += dt * rate;
@@ -309,6 +326,7 @@ void Gannet::Step(float dt) {
     int leaks = 0; for (int s = 0; s < SEC_COUNT; s++) if (boat.integrity[s] < D().leakBelow && !boat.patched[s]) leaks++;
     bool wasSunk = boat.sunk; float valve0 = boat.valveT;
     StepRods(dt);
+    StepGear(dt);
     if (eco) EcoTick(*eco, *this, dt);
     boat.Step(dt, sea);
     if (moored) { boat.pos = moorPos; boat.heading = moorHeading; boat.vel = {0, 0}; boat.yawRate = 0; boat.roll *= 0.9f; boat.pitch *= 0.9f; }

@@ -194,6 +194,12 @@ static void TakeShots(const Game& base, const std::string& dir) {
         {"trawl_chart", [](Game& g) { DebugTrawlShot(g, 12); }},
         {"trawl_clock", [](Game& g) { DebugTrawlShot(g, 13); }},
         {"trawl_quota", [](Game& g) { DebugTrawlShot(g, 14); }},
+        {"trawl_net", [](Game& g) { DebugTrawlShot(g, 15); }},
+        {"trawl_rifle", [](Game& g) { DebugTrawlShot(g, 16); }},
+        {"trawl_overboard", [](Game& g) { DebugTrawlShot(g, 17); }},
+        {"trawl_ghost", [](Game& g) { DebugTrawlShot(g, 18); }},
+        {"trawl_harpoon", [](Game& g) { DebugTrawlShot(g, 19); }},
+        {"trawl_locker", [](Game& g) { DebugTrawlShot(g, 20); }},
         {"redtide_tank", [](Game& g) { DebugRedTideShot(g, 0); }},
         {"redtide_silhouette", [](Game& g) { DebugRedTideShot(g, 1); }},
         {"redtide_species_ship_1", [](Game& g) { DebugRedTideShot(g, 2); }},
@@ -594,6 +600,7 @@ int main(int argc, char** argv) {
         return rt::RunWebCheck(argv[2]);
     }
     if (argc >= 2 && strcmp(argv[1], "--trawl-eco") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlEco(argc, argv); }
+    if (argc >= 2 && strcmp(argv[1], "--trawl-gear-test") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlGearTest(); }
     if (argc >= 2 && strcmp(argv[1], "--trawl-session-test") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlSessionTest(); }
     if (argc >= 2 && strcmp(argv[1], "--trawl-eco-test") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlEcoTest(); }
     if (argc >= 2 && strcmp(argv[1], "--trawl-fight") == 0) return tw::RunTrawlFight(argc, argv);

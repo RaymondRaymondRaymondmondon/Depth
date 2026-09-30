@@ -133,6 +133,12 @@ void DrawLife(const Gannet& g, const View& v, bool air) {
         if (fabsf(dc.x) > 32 || fabsf(dc.y) > 20) continue;
         if (!air && fabsf(dc.y) < 2.8f && dc.x > -11.5f && dc.x < 10.5f) continue;   // under her hull
         float lit = v.LightAt(dc) * expf(-std::max(0.0f, a.p.z) / 7.0f);
+        if (!air && v.ghost && v.ghostSee > 0 && r.threat && Vector2Distance(dc, v.ghostAt) < 10) {
+            // what the dead see: a pale outline in the dark
+            Vector2 cc = v.ToCanvas(dc); float len = std::clamp(0.4f + sqrtf(r.MeanKg()) * 0.3f, 0.5f, 3.5f);
+            DrawCircleLines((int)cc.x, (int)cc.y, len * v.ppm * 0.5f, Fade(Color{200, 230, 255, 255}, 0.6f * std::min(1.0f, v.ghostSee)));
+            if (lit < 0.04f) continue;
+        }
         if (!air && lit < 0.04f) {
             // in the dark only a flash of silver near the surface gives a school away
             if (a.p.z < 1.5f && a.flash > 0) { Vector2 c = v.ToCanvas(dc); DrawPixel((int)c.x, (int)c.y, Color{150, 170, 180, 255}); }
@@ -270,6 +276,84 @@ void DrawLines(const Gannet& g, const View& v) {
                 }
             }
         }
+    }
+}
+
+// ---------------------------------------------------------------- the crew's things in the water: shots, shot fish,
+// the net, set gear, the life ring, hands overboard (world positions drawn in her frame)
+void DrawGear(const Gannet& g, const View& v) {
+    const Boat& b = g.boat;
+    auto C = [&](Vector2 w) { return v.ToCanvas(b.ToDeck(w)); };
+    auto lit = [&](Vector2 w) { return std::max(0.15f, v.LightAt(b.ToDeck(w))); };
+    // the net: two warps from the stern gallows to the mouth, the mesh behind, fading with depth
+    const Trawl& n = g.net;
+    if ((n.state == NetState::Down || n.state == NetState::Snagged || n.state == NetState::Hauling) && n.meshInit) {
+        Vector2 s1 = b.ToWorld({-11.2f, -1.2f}), s2 = b.ToWorld({-11.2f, 1.2f});
+        Color warp = n.state == NetState::Snagged ? Color{240, 120, 90, 255} : Color{160, 150, 130, 255};
+        DrawLineV(C(s1), C({n.node[0].x, n.node[0].y}), Fade(warp, 0.8f));
+        DrawLineV(C(s2), C({n.node[7].x, n.node[7].y}), Fade(warp, 0.8f));
+        for (int j = 0; j < 6; j++) for (int i = 0; i < 8; i++) {
+            Vector3 q = n.node[j * 8 + i];
+            float a = std::clamp(0.7f - q.z / 16, 0.12f, 0.7f) * (0.4f + 0.6f * lit({q.x, q.y}));
+            Color mc = Fade(Color{150, 160, 150, 255}, a);
+            if (i < 7) { Vector3 r = n.node[j * 8 + i + 1]; DrawLineV(C({q.x, q.y}), C({r.x, r.y}), mc); }
+            if (j < 5) { Vector3 r = n.node[(j + 1) * 8 + i]; DrawLineV(C({q.x, q.y}), C({r.x, r.y}), mc); }
+        }
+        // the cod end's bulk as it fills
+        Vector3 cod = Vector3Lerp(n.node[5 * 8 + 3], n.node[5 * 8 + 4], 0.5f);
+        float r = 1 + std::min(8.0f, n.load / 60);
+        DrawCircleV(C({cod.x, cod.y}), r, Fade(Color{120, 130, 120, 255}, 0.35f));
+    }
+    // set gear: longline buoys (red flags with a lamp) and the line between; pot floats
+    for (const auto& L : g.longlines) {
+        Vector2 a = C(L.a), c2 = C(L.b);
+        for (int k = 0; k <= 20; k++) { Vector2 q = Vector2Lerp(a, c2, k / 20.0f); DrawPixel((int)q.x, (int)q.y, Fade(Color{200, 190, 160, 255}, 0.4f)); }
+        for (Vector2 q : {a, c2}) {
+            DrawRectangle((int)q.x - 1, (int)q.y - 1, 3, 3, Color{200, 50, 40, 255});
+            if (fmodf(g.time, 1.6f) < 0.8f) DrawCircleV(q, 3, Fade(Color{255, 120, 90, 255}, 0.25f));
+        }
+    }
+    for (const auto& p : g.pots) { Vector2 q = C(p.p); DrawRectangle((int)q.x - 1, (int)q.y - 1, 3, 3, Color{230, 200, 60, 255}); }
+    // shot fish afloat: belly-up, a slick of blood round them
+    for (const auto& f : g.floaters) {
+        Vector2 q = C(f.p); float L = lit(f.p);
+        DrawCircleV(q, 2.5f + std::min(4.0f, f.kg * 0.1f), Fade(Color{120, 20, 20, 255}, 0.25f));
+        float len = std::clamp(2.0f + sqrtf(f.kg) * 2, 2.0f, 12.0f);
+        DrawRectangle((int)(q.x - len / 2), (int)q.y - 1, (int)len, 2, Dim(Color{220, 220, 205, 255}, L));
+    }
+    // projectiles: a round's streak, pellets, a spear or harpoon (and its tether), a flare arcing
+    for (const auto& p : g.shots) {
+        Vector2 q = C({p.p.x, p.p.y});
+        switch (p.kind) {
+            case Shot::Bullet: case Shot::Pellet: { Vector2 t = C({p.p.x - p.v.x * 0.012f, p.p.y - p.v.y * 0.012f}); DrawLineV(t, q, Fade(Color{255, 230, 170, 255}, p.inWater ? 0.3f : 0.9f)); break; }
+            case Shot::Spear: case Shot::Harpoon: {
+                Vector2 t = C({p.p.x - p.v.x * 0.04f, p.p.y - p.v.y * 0.04f});
+                DrawLineEx(t, q, 1, Color{190, 190, 200, 255});
+                break;
+            }
+            case Shot::Flare: DrawCircleV(q, 2, Color{255, 90, 60, 255}); DrawCircleV(q, 6, Fade(Color{255, 120, 80, 255}, 0.2f)); break;
+            case Shot::Charge: DrawRectangle((int)q.x - 1, (int)q.y - 1, 3, 3, Fade(Color{60, 60, 64, 255}, p.p.z > 0 ? 0.5f : 1.0f)); break;
+            default: break;
+        }
+    }
+    for (const auto& fl : g.flares) { Vector2 q = C(fl.p); DrawCircleV(q, 2, Color{255, 110, 70, 255}); DrawCircleV(q, 5 + sinf(g.time * 20) * 1.5f, Fade(Color{255, 140, 90, 255}, 0.25f)); }
+    // the harpoon's tether while something big is fast on it
+    if (g.harpoon.state == RodState::Fighting) DrawLineV(v.ToCanvas({10.2f, 0}), C({g.harpoon.fight.p.x, g.harpoon.fight.p.y}), Color{170, 170, 180, 255});
+    // life rings and their ropes
+    for (const auto& r : g.rings) if (r.state != 0) {
+        Vector2 q = C(r.p);
+        if (r.thrower >= 0 && r.thrower < (int)g.crew.size()) DrawLineV(v.ToCanvas(g.crew[r.thrower].p), q, Fade(Color{220, 200, 150, 255}, 0.7f));
+        DrawCircleLines((int)q.x, (int)q.y, 2.5f, Color{240, 110, 50, 255});
+        DrawPixel((int)q.x + 2, (int)q.y, WHITE); DrawPixel((int)q.x - 2, (int)q.y, WHITE);
+    }
+    // hands in the water: a head and two splashing arms
+    for (const auto& c : g.crew) if (c.overboard && !c.dead) {
+        Vector2 q = C(c.swim); float L = lit(c.swim);
+        DrawCircleV(q, 5 + sinf(g.time * 5) * 1.5f, Fade(Color{220, 230, 230, 255}, 0.15f));
+        DrawRectangle((int)q.x - 1, (int)q.y - 1, 3, 3, Dim(RoleColor(c.role), L));
+        float s1 = sinf(g.time * 9 + c.slot);
+        DrawPixel((int)(q.x - 3), (int)(q.y + s1), Dim(Color{214, 170, 130, 255}, L));
+        DrawPixel((int)(q.x + 3), (int)(q.y - s1), Dim(Color{214, 170, 130, 255}, L));
     }
 }
 
@@ -449,6 +533,14 @@ void DrawCrewMember(const Crew& c, const View& v, float t, bool you) {
     if (c.overboard) return;
     if (c.deck != v.viewerDeck && v.viewerDeck == 0) return;     // (below decks, out of sight)
     Vector2 p = v.ToCanvas(c.p);
+    if (c.dead) {
+        // a ghost: a translucent figure, cold and pale, that drifts a little
+        float w = sinf(t * 2 + c.slot) * 1.0f;
+        DrawRectangle((int)p.x - 3, (int)(p.y - 3 + w), 7, 7, Fade(Color{170, 210, 230, 255}, 0.25f));
+        DrawRectangle((int)p.x - 2, (int)(p.y - 2 + w), 5, 5, Fade(Color{210, 235, 245, 255}, 0.3f));
+        if (you) DrawRectangleLines((int)p.x - 5, (int)(p.y - 5 + w), 11, 11, Fade(Color{190, 230, 250, 255}, 0.3f));
+        return;
+    }
     float k = 0.35f + 0.65f * v.LightAt(c.p);
     Color coat = Dim(RoleColor(c.role), k), dark = Dim(Color{30, 26, 22, 255}, k), skin = Dim(Color{214, 170, 130, 255}, k);
     if (c.fallen) {   // flat on the deck
@@ -467,6 +559,8 @@ void DrawCrewMember(const Crew& c, const View& v, float t, bool you) {
     DrawRectangle((int)p.x - 2, (int)p.y - 2, 5, 5, dark);
     DrawRectangle((int)p.x - 1, (int)p.y - 1, 3, 3, Dim(RoleColor(c.role), k * 0.8f));
     if (you) DrawRectangleLines((int)p.x - 5, (int)p.y - 5, 11, 11, Fade(Color{255, 240, 200, 255}, 0.25f + 0.2f * sinf(t * 4)));
+    if (c.Has(INJ_BITE) && fmodf(t, 0.7f) < 0.35f) DrawPixel((int)p.x + 2, (int)p.y + 5, Color{150, 20, 20, 255});   // a bleeding hand leaves drops
+    if (c.Has(INJ_BROKEN_ARM)) DrawRectangle((int)(p.x - f.y * 3), (int)(p.y + f.x * 3) + 2, 2, 2, Dim(coat, 0.6f));    // the arm hangs
 }
 
 } // namespace tw
