@@ -184,6 +184,7 @@ static void TakeShots(const Game& base, const std::string& dir) {
         {"redtide_ship_keel", [](Game& g) { DebugRedTideShot(g, 13); }},
         {"redtide_ship_hunt", [](Game& g) { DebugRedTideShot(g, 14); }},
         {"redtide_ship_cabins", [](Game& g) { DebugRedTideShot(g, 15); }},
+        {"redtide_ship_salvage", [](Game& g) { DebugRedTideShot(g, 16); }},
         {"redtide_cave_mouth", [](Game& g) { DebugRedTideShot(g, 20); }},
         {"redtide_cave_gallery", [](Game& g) { DebugRedTideShot(g, 21); }},
         {"redtide_cave_chimney", [](Game& g) { DebugRedTideShot(g, 22); }},

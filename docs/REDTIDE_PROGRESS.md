@@ -499,3 +499,33 @@ Sentinels do the downing. Balance stays with Stage 10.
   diver walks 309 m of rampart from the west round the north to the east; a beast follows the ring without leaving it).
   The aqueduct's blood-timing check now sets the beasts aside so a kill near the gate can't beat the water there.
   Atlantis sims run about 5% slower (the scent grid covers the larger ring).
+
+## Salvage builds and the rest of the doc's items
+
+- **Salvage builds** (design doc, "Salvage builds"): 15 parts per match (`Match::salvage`, `PlaceSalvage`), three per
+  build, each set in a different diver room where the map allows (never the start room, the void, or on a station).
+  Swim over a part to carry it (`DiverState::partsMask`; a carrier who dies leaves theirs where they fell). A full set
+  at any workbench builds it (one build held at a time); the spent parts turn up again elsewhere in 90 s. B uses it:
+  - **Shell Shield** (Turtle shell, Strap, Brass rim): worn; soaks beast bites (300; not stings or spines); the mantis
+    shrimp breaks it in two punches (x5), the Lobster in its last phase crushes it outright; B bashes (a beast in front
+    within 2.5 m: stunned 1.5 s, knocked back 3 m; 4 s cool-down).
+  - **Turbine** (Fan, Dynamo, Mount): set down, it powers every machine within 12 m for 90 s before the map's power
+    (`Match::Powered` replaces the bare power checks); an electric ray within 4 m shocks it dead.
+  - **Net Tripwire** (Net, Two stakes, Bell): holds the first beast up to size 3 that crosses it (10 s; the bell makes
+    noise); bigger ones swim through.
+  - **Decoy Buoy** (Buoy, Lantern, Chum tin): 45 s; beasts within 35 m come to it, and so does the faction
+    (`DecideEnemy` checks it first).
+  - **Bubble Wall** (Compressor, Hose, Valve): an 8 m curtain 3 m ahead for 60 s (`Ecosystem::curtains`,
+    `CrossesCurtain`, checked after every move); beasts up to size 2 turn back at it.
+- **Tacticals**: Q cycles limpets, ink bombs, chum bags and flares (the empty ones skipped), G throws. The **chum bag**
+  bursts into 60 blood where it lands ("a corpse chunk to lure predators to a spot"); the **flare** burns 20 s: the
+  curious (curiosity 0.5+) come to it, nocturnal species flee it, a camouflaged beast resting in it shows itself.
+- **Cleaning brush** (equipment): X scrapes the parasites off the nearest teammate within 2.5 m, or yourself.
+- The doc doesn't say where tacticals and the brush come from, so the workbench sells them (Z turns its stock):
+  ink bomb 750, chum bag 500, flare 500 (two of each carried), brush 1,000 (once).
+- Not done: the **repair kit** ("fixes barricade nets faster") - no map has barricade nets, so there's nothing for it
+  to repair (the Shipwright drop already skips itself for the same reason).
+- Tests in `--redtide-profile-test` (parts on all five maps, every build's effect, the chum bag, the flare, the brush,
+  the Cave's ray stopping a Turbine). The Bull Shark check in `--redtide-match-test` now strikes until a bite lands
+  (its attack is picked at random, and the new parts shifted the random draws onto its hold). Shot:
+  `--shots shots redtide_ship_salvage`.

@@ -269,6 +269,10 @@ struct Ecosystem {
     std::vector<Ink> inks;
     bool InInk(Vector3 p) const { for (const auto& k : inks) { float dx = p.x - k.pos.x, dy = p.y - k.pos.y, dz = p.z - k.pos.z; if (dx * dx + dy * dy + dz * dz < k.r * k.r) return true; } return false; }
     void AddInk(Vector3 p, float r, float t) { inks.push_back({p, r, t}); }
+    // bubble walls (a salvage build): a vertical curtain from a to b (x/z) that beasts up to maxSize won't cross
+    struct Curtain { Vector3 a{}, b{}; float y0 = -1e9f, y1 = 1e9f, t = 60; int maxSize = 2; };
+    std::vector<Curtain> curtains;
+    bool CrossesCurtain(Vector3 from, Vector3 to, int size) const;
     std::string entryOverride;         // a zone the faction enters by instead (the Cave, once the Lantern Cache is opened)
     std::vector<int> zoneMaxSize;      // per zone: the largest size that fits its corridors (99: anything), relaxed as they erode
     // The divers are agents too (species index = diverSpecies); the game layer moves them.

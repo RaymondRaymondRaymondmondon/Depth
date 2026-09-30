@@ -79,6 +79,15 @@ struct Level {
 void BuildLevel(const MapData& m, Level& L);
 
 // ---------------------------------------------------------------- divers
+// Salvage builds (design doc, "Salvage builds"): three parts each, scattered over the map, carried to a workbench;
+// one build is held at a time.
+enum class BuildType { None, ShellShield, Turbine, NetTripwire, DecoyBuoy, BubbleWall, COUNT };
+struct BuildDef { const char* name; const char* parts[3]; const char* effect; };
+const BuildDef& Build(BuildType b);
+// the tacticals G throws (Q picks): limpet charges, ink bombs, chum bags, flares
+enum Tactical { TAC_LIMPET, TAC_INK, TAC_CHUM, TAC_FLARE, TAC_COUNT };
+const char* TacticalName(int t);
+
 struct Held { int def = -1; int mag = 0, reserve = 0; bool forged = false; int altAmmo = -1; };
 struct DiverState {
     int slot = 0; bool bot = false; bool invulnerable = false;   // (--shots only)
@@ -106,7 +115,13 @@ struct DiverState {
     bool egg = false; float wormT = 0, voidT = 0, decoyCd = 0;
     // Salt Charms (stage 9): the pouch brought in (each spent once) and what's running
     std::vector<std::string> pouch; int pouchNext = 0;
-    int inkBombs = 0, tactical = 0;                // ink bombs carried (up to 2); the tactical G throws: 0 limpets, 1 ink bombs
+    int inkBombs = 0, tactical = 0;                // ink bombs carried (up to 2); the tactical G throws (Tactical)
+    int chumBags = 0, flares = 0;                  // the other tacticals (up to 2 each, from the workbench)
+    bool brush = false;                            // the cleaning brush (equipment): X scrapes a parasite off you or a teammate
+    int partsMask = 0;                             // salvage parts carried: bit build * 3 + part
+    BuildType build = BuildType::None;             // the one build held
+    float shieldHP = 0, bashCd = 0;                // the Shell Shield worn on the back; its bash
+    int benchSel = 0;                              // the workbench's stock shown (Z turns it)
     int inkCaps = 0; bool drumClean = false;       // the Cave's ink caps carried; the Reef's drum not yet beaten
     float circleT = 0, finsT = 0, shellT = 0, ghostT = 0; Vector3 circlePos{}; int luckKills = 0; bool keepBrines = false, luckyLocker = false;   // the Void: the Relict egg carried; the worm's tremor; the void's pull
     float cutT = 0;                    // being cut free of Reacher coral by a teammate
@@ -225,6 +240,20 @@ struct Match {
     std::vector<Gas> gas;                    // Researchers' gas grenades
     struct LurePt { Vector3 pos; float t = 8; int owner = -1; bool forged = false; };
     std::vector<LurePt> lures;               // the Abyssal Lure's lanterns
+    // salvage: the parts lying about, the builds set down, the flares burning
+    struct SalvagePart { int build = 1, part = 0; Vector3 pos{}; int zone = -1; bool taken = false; float respawnT = 0; int carrier = -1; };
+    std::vector<SalvagePart> salvage;
+    struct Deployed { BuildType type = BuildType::None; Vector3 pos{}, dir{}; float t = 0; int owner = -1; bool alive = true, stopped = false; int held = -1; };
+    std::vector<Deployed> deployed;
+    struct FlareLight { Vector3 pos{}; float t = 20; int owner = -1; };
+    std::vector<FlareLight> flareLights;
+    static const int BENCH_ITEMS = 4;        // the workbench's stock: ink bomb, chum bag, flare, cleaning brush
+    static int BenchPrice(int item);
+    static const char* BenchName(int item);
+    bool Powered(const Station& s) const;    // the map's power, or a Turbine running within 12 m
+    bool UseBuild(int d);                    // B: set the held build down (the Shell Shield: bash)
+    bool UseBrush(int d);                    // X: the cleaning brush
+    void CycleBench(int d);                  // Z at a workbench
     std::map<int, float> sentinelYaw, sentinelBurst;   // a Sentinel's facing (its 90-degree arc) and burst clock
     float tentacleT = 0, tentacleCd = 0; Vector3 tentaclePos{};   // a colossal squid's arm, summoned at an overlook
     float lureHP = 500, lureRegrowT = 0, lureDriftT = 0, darkT = 0; int swallowDiver = -1; float swallowT = 0, swallowDmg = 0;
@@ -274,6 +303,9 @@ struct Match {
     std::string PromptFor(int d, int* cost = nullptr) const;
     void ThrowLimpet(int d);                     // G: the selected tactical (a limpet charge or an ink bomb)
     void CycleTactical(int d);                   // Q
+    void PlaceSalvage();                         // the parts, scattered at the start (and again as builds are spent)
+    void UpdateSalvage(float dt);                // pickups, deployed builds, flares
+    bool PlaceOnePart(SalvagePart& sp);
     void InkBurst(Vector3 at, int owner);
     // helpers
     const WeaponDef& W(const Held& h) const;

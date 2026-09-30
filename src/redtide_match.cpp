@@ -14,6 +14,22 @@
 
 namespace rt {
 
+// ---------------------------------------------------------------- salvage builds and tacticals (design doc, "Items" and "Salvage builds")
+const BuildDef& Build(BuildType b) {
+    static const BuildDef D[(int)BuildType::COUNT] = {
+        {"nothing", {"", "", ""}, ""},
+        {"Shell Shield", {"Turtle shell", "Strap", "Brass rim"}, "A back-mounted shield that blocks bites (300); B bashes with it"},
+        {"Turbine", {"Fan", "Dynamo", "Mount"}, "Powers the machines within 12 m for 90 s before the map's power is on"},
+        {"Net Tripwire", {"Net", "Two stakes", "Bell"}, "Holds the first beast up to size 3 that crosses it"},
+        {"Decoy Buoy", {"Buoy", "Lantern", "Chum tin"}, "Draws beasts and enemies to it for 45 s"},
+        {"Bubble Wall", {"Compressor", "Hose", "Valve"}, "A curtain small beasts won't cross; 60 s"},
+    };
+    return D[std::clamp((int)b, 0, (int)BuildType::COUNT - 1)];
+}
+const char* TacticalName(int t) { static const char* N[TAC_COUNT] = {"limpets", "ink bombs", "chum bags", "flares"}; return N[std::clamp(t, 0, TAC_COUNT - 1)]; }
+int Match::BenchPrice(int item) { static const int P[BENCH_ITEMS] = {750, 500, 500, 1000}; return P[std::clamp(item, 0, BENCH_ITEMS - 1)]; }
+const char* Match::BenchName(int item) { static const char* N[BENCH_ITEMS] = {"an ink bomb", "a chum bag", "a flare", "a cleaning brush"}; return N[std::clamp(item, 0, BENCH_ITEMS - 1)]; }
+
 // ---------------------------------------------------------------- small helpers
 static std::string Lower(std::string s) { for (auto& c : s) c = (char)tolower((unsigned char)c); return s; }
 static bool HasW(const std::string& s, const char* w) { return Lower(s).find(w) != std::string::npos; }
@@ -626,6 +642,7 @@ void Match::InitMap(const MapData& m, const std::string& art, int playerCount, u
         d.agent = eco.AddDiver(i, d.pos);
         divers.push_back(d);
     }
+    PlaceSalvage();
     BeginTide(1);
 }
 
@@ -739,6 +756,7 @@ void Match::Step(float dt) {
     UpdateCharms(dt);
     UpdateQuests(dt);
     UpdateDrops(dt);
+    UpdateSalvage(dt);
     UpdateQuips(dt);
     for (auto& c : crates) {
         c.t -= dt;
@@ -1056,6 +1074,23 @@ void Match::HitDiver(DiverState& d, float dmg, const std::string& by, const std:
     if (d.dead || d.invulnerable) return;
     if (d.downed) { d.downT -= dmg * 0.05f; return; }   // chewed while down: bleeds out faster
     if (d.shellT > 0) dmg *= 0.5f;                       // Hard Shell
+    // the Shell Shield takes a beast's bite (not a sting or a spine); the mantis shrimp breaks it in two punches,
+    // the Lobster in its last phase crushes it outright
+    if (d.shieldHP > 0 && dmg > 0 && attacker >= 0 && attacker < (int)eco.agents.size()) {
+        const Species& as = map->species[eco.agents[attacker].sp];
+        std::string ef = Lower(effect);
+        bool bite = !as.isEnemy && ef.find("touch") == std::string::npos && ef.find("contact") == std::string::npos && ef.find("sting") == std::string::npos;
+        if (IsBoss(attacker) && bossKind == 1 && bossPhase >= 3) {
+            d.shieldHP = 0; d.build = BuildType::None;
+            Say(as.name, "crushes the Shell Shield", 3);
+        } else if (bite) {
+            d.shieldHP -= dmg * (HasW(as.name, "mantis") ? 5.0f : 1.0f);
+            d.hurtT = 0.5f; d.hurtFrom = from;
+            fx.push_back({8, d.pos, {0, 0, 0}});
+            if (d.shieldHP <= 0) { d.shieldHP = 0; d.build = BuildType::None; Say("", "The Shell Shield splits", 3); }
+            return;
+        }
+    }
     std::string e = Lower(effect);
     bool hold = e.find("hold") != std::string::npos || e.find("carr") != std::string::npos || e.find("roll") != std::string::npos || e.find("pin") != std::string::npos || e.find("drag") != std::string::npos;
     bool deferred = hold && e.find("teammate") != std::string::npos;   // "teammates have 4 s": the damage lands if nobody shoots it off
@@ -1196,7 +1231,8 @@ void Match::FireRound(DiverState& d) {
 
 void Match::CycleTactical(int di) {
     DiverState& d = divers[di];
-    d.tactical = d.tactical == 0 && d.inkBombs > 0 ? 1 : 0;
+    int have[TAC_COUNT] = {1, d.inkBombs, d.chumBags, d.flares};   // (limpets always keep their place, even at 0)
+    for (int k = 1; k <= TAC_COUNT; k++) { int t = (d.tactical + k) % TAC_COUNT; if (have[t] > 0) { d.tactical = t; return; } }
 }
 // an ink bomb's cloud (and an ink cap's): 5 m for 8 s; nothing sees or smells through it, and a Drowned lantern in it goes out
 void Match::InkBurst(Vector3 at, int owner) {
@@ -1213,16 +1249,19 @@ void Match::InkBurst(Vector3 at, int owner) {
 void Match::ThrowLimpet(int di) {
     DiverState& d = divers[di];
     if (d.dead || d.downed) return;
-    if (d.tactical == 1 && d.inkBombs > 0) {
-        d.inkBombs--;
-        if (d.inkBombs == 0) d.tactical = 0;
+    int* stock = d.tactical == TAC_INK ? &d.inkBombs : d.tactical == TAC_CHUM ? &d.chumBags : d.tactical == TAC_FLARE ? &d.flares : nullptr;
+    if (stock && *stock > 0) {
+        // an ink bomb (kind 11), a chum bag (12) or a flare (13): thrown, it bursts on what it meets or on its fuse
+        int kind = d.tactical == TAC_INK ? 11 : d.tactical == TAC_CHUM ? 12 : 13;
+        if (--*stock == 0) d.tactical = TAC_LIMPET;
         Dart t;
         t.pos = t.start = Vector3Add(Eye(d), Vector3Scale(Forward(d), 0.4f));
         t.vel = Vector3Scale(Forward(d), 12);
-        t.damage = 0; t.kind = 11; t.fuse = 1.2f; t.life = 6; t.owner = d.slot; t.weapon = -1;
+        t.damage = 0; t.kind = kind; t.fuse = kind == 11 ? 1.2f : 1.5f; t.life = 6; t.owner = d.slot; t.weapon = -1;
         darts.push_back(t);
         return;
     }
+    if (d.tactical != TAC_LIMPET) d.tactical = TAC_LIMPET;
     if (d.limpets <= 0) return;
     d.limpets--;
     Dart t;
@@ -1399,15 +1438,20 @@ void Match::UpdateDarts(float dt) {
         Dart& t = darts[k];
         if (!t.alive) continue;
         // a thrown limpet: sticks to what it touches and blows on its 3 s fuse
-        if (t.kind == 11) {
-            // a thrown ink bomb: bursts on whatever it meets, or on its 1.2 s fuse
+        if (t.kind == 11 || t.kind == 12 || t.kind == 13) {
+            // a thrown ink bomb, chum bag or flare: bursts on whatever it meets, or on its fuse
             t.fuse -= dt;
             Vector3 np = Vector3Add(t.pos, Vector3Scale(t.vel, dt));
             t.vel = Vector3Scale(t.vel, powf(0.3f, dt)); t.vel.y -= 1.5f * dt;
             bool hit = !level.Inside(np, 0.05f, linkOpen, true);
             if (!hit) t.pos = np;
             for (int i = 0; i < (int)eco.agents.size() && !hit; i++) { const Agent& a = eco.agents[i]; if (a.alive && a.diver < 0 && Vector3Distance(a.pos, t.pos) < bodies[a.sp].radius + 0.15f) hit = true; }
-            if (hit || t.fuse <= 0) { InkBurst(t.pos, t.owner); t.alive = false; }
+            if (hit || t.fuse <= 0) {
+                if (t.kind == 11) InkBurst(t.pos, t.owner);
+                else if (t.kind == 12) { eco.AddChum(t.pos, 60); fx.push_back({0, t.pos, {0, 0, 0}}); }   // "a corpse chunk to lure predators to a spot"
+                else { FlareLight fl; fl.pos = t.pos; fl.owner = t.owner; flareLights.push_back(fl); fx.push_back({4, t.pos, {0, 0, 0}}); }
+                t.alive = false;
+            }
             continue;
         }
         if (t.kind == 4) {
@@ -1837,6 +1881,8 @@ int Match::NearestDiver(Vector3 p, float r, bool needSight, bool upOnly) const {
 // ---------------------------------------------------------------- the Wreckers
 bool Match::DecideEnemy(Agent& a, int idx) {
     if (a.unit < 0) return false;
+    // a Decoy Buoy draws the faction to it too
+    for (const auto& dp : deployed) if (dp.alive && dp.type == BuildType::DecoyBuoy && Vector3Distance(dp.pos, a.pos) < 35 && !IsBoss(idx)) { a.st = State::Investigate; a.goal = dp.pos; a.target = -1; return true; }
     const FactionUnit& u = map->faction.units[a.unit];
     const Faction& F = map->faction;
     // "They bleed and panic; sharks hunt them": anything big hunting nearby sends them back to the breach
@@ -3447,6 +3493,187 @@ void Match::ApplyDrop(DropType t, Vector3 at) {
     }
 }
 
+// ---------------------------------------------------------------- salvage
+bool Match::PlaceOnePart(SalvagePart& sp) {
+    std::vector<char> open(map->links.size(), 1);
+    std::vector<int> zones;
+    for (int zi = 0; zi < (int)map->zones.size(); zi++) {
+        const Zone& z = map->zones[zi];
+        if (!z.diverOk || zi == level.startZone || (zi < (int)voidZone.size() && voidZone[zi])) continue;
+        bool twin = false;   // (a build's parts lie in different rooms where the map allows)
+        for (const auto& o : salvage) if (&o != &sp && o.build == sp.build && o.zone == zi && !o.taken) twin = true;
+        if (!twin) zones.push_back(zi);
+    }
+    if (zones.empty()) for (int zi = 0; zi < (int)map->zones.size(); zi++) if (map->zones[zi].diverOk) zones.push_back(zi);
+    for (int tries = 0; tries < 60 && !zones.empty(); tries++) {
+        int zi = zones[(int)(Rand() * zones.size()) % zones.size()];
+        const Zone& z = map->zones[zi];
+        Rectangle b = z.plan;
+        if (!z.parts.empty()) { std::vector<Rectangle> vis; for (const auto& p : z.parts) if (!p.hidden) vis.push_back(p.r); if (!vis.empty()) b = vis[(int)(Rand() * vis.size()) % vis.size()]; }
+        Vector3 p{b.x + 1 + (b.width - 2) * Rand(), z.y0 + 0.6f, b.y + 1 + (b.height - 2) * Rand()};
+        if (!level.Inside(p, 0.4f, open)) continue;
+        bool nearStation = false;
+        for (const auto& st : level.stations) if (Vector3Distance(st.pos, p) < 2) nearStation = true;
+        if (nearStation) continue;
+        sp.pos = p; sp.zone = zi; sp.taken = false; sp.carrier = -1; sp.respawnT = 0;
+        return true;
+    }
+    return false;
+}
+void Match::PlaceSalvage() {
+    salvage.clear();
+    for (int b = 1; b < (int)BuildType::COUNT; b++) for (int k = 0; k < 3; k++) {
+        SalvagePart sp; sp.build = b; sp.part = k;
+        salvage.push_back(sp);
+        if (!PlaceOnePart(salvage.back())) salvage.pop_back();
+    }
+}
+bool Match::Powered(const Station& s) const {
+    if (power) return true;
+    for (const auto& dp : deployed) if (dp.alive && !dp.stopped && dp.type == BuildType::Turbine && Vector3Distance(dp.pos, s.pos) <= 12) return true;
+    return false;
+}
+void Match::CycleBench(int di) { DiverState& d = divers[di]; d.benchSel = (d.benchSel + 1) % BENCH_ITEMS; }
+bool Match::UseBuild(int di) {
+    DiverState& d = divers[di];
+    if (d.dead || d.downed || d.build == BuildType::None) return false;
+    Vector3 f = Forward(d); f.y = 0;
+    if (Vector3Length(f) < 0.01f) f = {0, 0, 1};
+    f = Vector3Normalize(f);
+    if (d.build == BuildType::ShellShield) {
+        // the bash: whatever is in front within 2.5 m is knocked back and stunned
+        if (d.bashCd > 0) return false;
+        d.bashCd = 4;
+        bool any = false;
+        for (int i = 0; i < (int)eco.agents.size(); i++) {
+            Agent& a = eco.agents[i];
+            if (!a.alive || a.diver >= 0) continue;
+            Vector3 to = Vector3Subtract(a.pos, d.pos);
+            float dist = Vector3Length(to);
+            if (dist > 2.5f + bodies[a.sp].radius || Vector3DotProduct(Vector3Scale(to, 1 / std::max(dist, 0.01f)), f) < 0.3f) continue;
+            a.stun = std::max(a.stun, IsBoss(i) ? 0.5f : 1.5f);
+            if (!IsBoss(i)) a.pos = map->zones[a.zone].Clamp(Vector3Add(a.pos, Vector3Scale(f, 3)), 0.4f);
+            any = true;
+        }
+        fx.push_back({8, Vector3Add(d.pos, f), f});
+        return any;
+    }
+    Deployed dp; dp.type = d.build; dp.owner = d.slot; dp.dir = f;
+    const Zone& z = map->zones[std::clamp(eco.ZoneAt(d.pos) >= 0 ? eco.ZoneAt(d.pos) : d.zone, 0, (int)map->zones.size() - 1)];
+    dp.pos = level.Move(d.pos, Vector3Add(d.pos, f), 0.4f, linkOpen);
+    switch (d.build) {
+        case BuildType::Turbine: dp.t = 90; break;
+        case BuildType::NetTripwire: dp.t = 240; dp.pos.y = z.y0 + 0.5f; break;
+        case BuildType::DecoyBuoy: dp.t = 45; break;
+        case BuildType::BubbleWall: {
+            dp.t = 60;
+            dp.pos = level.Move(d.pos, Vector3Add(d.pos, Vector3Scale(f, 3)), 0.4f, linkOpen);
+            Vector3 side{-f.z, 0, f.x};
+            Ecosystem::Curtain c; c.a = Vector3Add(dp.pos, Vector3Scale(side, -4)); c.b = Vector3Add(dp.pos, Vector3Scale(side, 4)); c.y0 = z.y0 - 1; c.y1 = z.y1 + 1; c.t = 60; c.maxSize = 2;
+            eco.curtains.push_back(c);
+            break;
+        }
+        default: break;
+    }
+    deployed.push_back(dp);
+    fx.push_back({4, dp.pos, {0, 0, 0}});
+    d.build = BuildType::None;
+    return true;
+}
+bool Match::UseBrush(int di) {
+    DiverState& d = divers[di];
+    if (d.dead || d.downed || !d.brush) return false;
+    auto parasites = [&](const DiverState& o) { int n = 0; if (o.agent >= 0) for (const auto& a : eco.agents) if (a.alive && a.host == o.agent) n++; return n; };
+    int best = -1; float bd = 2.5f;
+    for (int i = 0; i < (int)divers.size(); i++) {   // a teammate first, then yourself
+        const DiverState& o = divers[i];
+        if (i == di || o.dead || parasites(o) == 0) continue;
+        float dd = Vector3Distance(o.pos, d.pos);
+        if (dd < bd) { bd = dd; best = i; }
+    }
+    if (best < 0 && parasites(d) > 0) best = di;
+    if (best < 0) return false;
+    DiverState& o = divers[best];
+    for (auto& a : eco.agents) if (a.alive && a.host == o.agent) { a.host = -1; a.st = State::Flee; a.goal = a.home; a.stateT = 0; }
+    o.slowT = 0; o.slowMult = 1;
+    Say("", best == di ? "You scrape the parasites off" : "You scrape the parasites off Diver " + std::to_string(o.slot + 1), 2);
+    return true;
+}
+void Match::UpdateSalvage(float dt) {
+    // the parts: turning up again after a build, picked up by swimming over them, dropped where a carrier died
+    for (auto& sp : salvage) {
+        if (sp.taken && sp.carrier < 0 && sp.respawnT > 0) { sp.respawnT -= dt; if (sp.respawnT <= 0 && !PlaceOnePart(sp)) sp.respawnT = 5; }
+        if (sp.carrier >= 0 && sp.carrier < (int)divers.size() && divers[sp.carrier].dead) {
+            DiverState& c = divers[sp.carrier];
+            c.partsMask &= ~(1 << (sp.build * 3 + sp.part));
+            sp.carrier = -1; sp.taken = false;
+            bool overVoid = eco.ZoneAt(c.pos) >= 0 && eco.ZoneAt(c.pos) < (int)voidZone.size() && voidZone[eco.ZoneAt(c.pos)];
+            if (overVoid || c.pos.y < -1e8f) PlaceOnePart(sp); else { sp.pos = c.pos; sp.zone = eco.ZoneAt(c.pos); }
+        }
+        if (sp.taken) continue;
+        for (auto& d : divers) {
+            int bit = 1 << (sp.build * 3 + sp.part);
+            if (d.dead || d.downed || (d.partsMask & bit) || Vector3Distance(d.pos, sp.pos) > 1.4f) continue;
+            d.partsMask |= bit; sp.taken = true; sp.carrier = d.slot;
+            int n = 0; for (int k = 0; k < 3; k++) if (d.partsMask & (1 << (sp.build * 3 + k))) n++;
+            fx.push_back({4, sp.pos, {0, 0, 0}});
+            Say("", TextFormat("Salvage: %s (%s, %d of 3)%s", Build((BuildType)sp.build).parts[sp.part], Build((BuildType)sp.build).name, n, n == 3 ? ": take them to a workbench" : ""), 3);
+            break;
+        }
+    }
+    for (auto& d : divers) if (d.bashCd > 0) d.bashCd -= dt;
+    // what's been set down
+    for (auto& dp : deployed) {
+        if (!dp.alive) continue;
+        dp.t -= dt;
+        if (dp.type == BuildType::Turbine && !dp.stopped) {
+            // "a shock stops a Turbine" (the electric ray)
+            for (const auto& a : eco.agents) if (a.alive && a.diver < 0 && (HasW(map->species[a.sp].name, "electric") || map->species[a.sp].Has("electric")) && Vector3Distance(a.pos, dp.pos) < 4) {
+                dp.stopped = true; fx.push_back({6, a.pos, Vector3Subtract(dp.pos, a.pos)}); Say(map->species[a.sp].name, "shocks the Turbine dead", 3); break;
+            }
+        }
+        if (dp.type == BuildType::NetTripwire && dp.held < 0) {
+            for (int i = 0; i < (int)eco.agents.size(); i++) {
+                Agent& a = eco.agents[i];
+                const Species& sp = map->species[a.sp];
+                if (!a.alive || a.diver >= 0 || sp.isEnemy || IsBoss(i) || sp.size > 3 || sp.Sessile() || Vector3Distance(a.pos, dp.pos) > 1.5f + bodies[a.sp].radius) continue;
+                dp.held = i; dp.t = 10; a.held = 10; a.stun = std::max(a.stun, 1.0f);
+                eco.AddNoise(dp.pos, 3);   // (the bell)
+                Say("", "The tripwire's bell: the net holds a " + sp.name, 3);
+                break;
+            }
+        }
+        if (dp.type == BuildType::NetTripwire && dp.held >= 0 && dp.held < (int)eco.agents.size() && eco.agents[dp.held].alive) { Agent& a = eco.agents[dp.held]; a.pos = Vector3Lerp(a.pos, dp.pos, std::min(1.0f, dt * 4)); a.held = std::max(a.held, 0.2f); }
+        if (dp.type == BuildType::DecoyBuoy) {
+            for (int i = 0; i < (int)eco.agents.size(); i++) {
+                Agent& a = eco.agents[i];
+                if (!a.alive || a.diver >= 0 || IsBoss(i) || map->species[a.sp].Sessile() || Vector3Distance(a.pos, dp.pos) > 35) continue;
+                if (a.st == State::Flee || a.st == State::Feed) continue;
+                a.st = State::Investigate; a.goal = dp.pos; a.stateT = 0; a.target = -1;
+            }
+        }
+        if (dp.t <= 0) { dp.alive = false; if (dp.held >= 0 && dp.held < (int)eco.agents.size()) eco.agents[dp.held].held = 0; }
+    }
+    deployed.erase(std::remove_if(deployed.begin(), deployed.end(), [](const Deployed& x) { return !x.alive; }), deployed.end());
+    // flares: the curious come to the light, the light-shy (nocturnal) flee it, and a camouflaged ambusher in it shows itself
+    for (auto& fl : flareLights) {
+        fl.t -= dt;
+        for (int i = 0; i < (int)eco.agents.size(); i++) {
+            Agent& a = eco.agents[i];
+            const Species& sp = map->species[a.sp];
+            if (!a.alive || a.diver >= 0 || IsBoss(i) || sp.Sessile() || sp.isEnemy) continue;
+            float dd = Vector3Distance(a.pos, fl.pos);
+            if (dd > 20) continue;
+            if (sp.Has("nocturnal")) {
+                Vector3 away = Vector3Subtract(a.pos, fl.pos); if (Vector3Length(away) < 0.1f) away = {1, 0, 0};
+                a.st = State::Flee; a.goal = map->zones[a.zone].Clamp(Vector3Add(a.pos, Vector3Scale(Vector3Normalize(away), 12)), 0.4f); a.stateT = 0; a.target = -1;
+            } else if (sp.Has("camouflage") && a.st == State::Rest && dd < 15) { a.st = State::Graze; a.stateT = 0; }
+            else if (sp.curiosity >= 0.5f && (a.st == State::Graze || a.st == State::Rest || a.st == State::Return)) { a.st = State::Investigate; a.goal = fl.pos; a.stateT = 0; }
+        }
+    }
+    flareLights.erase(std::remove_if(flareLights.begin(), flareLights.end(), [](const FlareLight& f) { return f.t <= 0; }), flareLights.end());
+}
+
 void Match::GiveKey(const std::string& name, int di, Vector3 at) {
     if (di < 0 || di >= (int)divers.size() || divers[di].dead) {
         float bd = 1e9f; di = -1;
@@ -3524,7 +3751,7 @@ void Match::GiveLockerWeapon(DiverState& d) {
 
 bool Match::LockerLiveAt(const Station& s) const {
     if (s.type != StationType::Locker) return false;
-    if (fireSaleT > 0) return !s.needsPower || power;          // Fire Sale: it appears at every location
+    if (fireSaleT > 0) return !s.needsPower || Powered(s);     // Fire Sale: it appears at every location
     return s.lockerSpot == lockerSpot;
 }
 
@@ -3593,7 +3820,7 @@ std::string Match::PromptFor(int di, int* cost) const {
     if (si < 0) return "";
     const Station& s = level.stations[si];
     const WeaponsData& WD = Weapons();
-    if (s.needsPower && !power) return s.name + ": needs power";
+    if (s.needsPower && !Powered(s)) return s.name + ": needs power";
     switch (s.type) {
         case StationType::Rack: {
             if (s.weapon < 0) return "";
@@ -3630,7 +3857,19 @@ std::string Match::PromptFor(int di, int* cost) const {
             if (openSt == si && openT > 0) return TextFormat("Opening the safe: %.0f s (the bell is ringing)", std::max(0.0f, map->extra["hidden_quest"]["open_s"].F(20) - openT));
             return safeOpen ? "The captain's safe (open)" : !logRead ? "The captain's safe (whose keys? the log would say)" : "The captain's safe: " + std::to_string(keys.size()) + " of 3 keys" + (keys.size() >= 3 ? ". Hold E: open it (20 s)" : "");
         case StationType::Cleaning: return "E: the cleaner shrimp scrape off parasites";
-        case StationType::Workbench: if (cost && d.inkBombs < 2) *cost = 750; return d.inkBombs >= 2 ? "Workbench: two ink bombs is all a diver can carry" : "E: an ink bomb (750): an 8 s cloud nothing sees or smells through (Q picks it, G throws)";
+        case StationType::Workbench: {
+            for (int b = 1; b < (int)BuildType::COUNT; b++) {
+                int set = 7 << (b * 3);
+                if ((d.partsMask & set) == set) return d.build != BuildType::None ? std::string("Workbench: you already carry the ") + Build(d.build).name : std::string("E: build the ") + Build((BuildType)b).name;
+            }
+            int item = std::clamp(d.benchSel, 0, BENCH_ITEMS - 1);
+            int have = item == 0 ? d.inkBombs : item == 1 ? d.chumBags : item == 2 ? d.flares : (d.brush ? 2 : 0);
+            std::string parts;
+            for (int b = 1; b < (int)BuildType::COUNT; b++) { int n = 0; for (int k = 0; k < 3; k++) if (d.partsMask & (1 << (b * 3 + k))) n++; if (n) parts += TextFormat("  [%s %d/3]", Build((BuildType)b).name, n); }
+            if (have >= 2) return std::string("Workbench: you have all the ") + (item == 3 ? "brushes" : TacticalName(item + 1)) + " you can carry (Z: next)" + parts;
+            if (cost) *cost = BenchPrice(item);
+            return TextFormat("E: %s (%d)   Z: next item", BenchName(item), BenchPrice(item)) + parts;
+        }
         case StationType::Cache: {
             const Json& bk = map->extra["boss_key"];
             if (cacheOpen) return "The cache is empty";
@@ -3730,7 +3969,7 @@ bool Match::Interact(int di, bool hold, float dt) {
     }
     if (si < 0) return false;
     const Station& s = level.stations[si];
-    if (s.needsPower && !power) return false;
+    if (s.needsPower && !Powered(s)) return false;
     auto pay = [&](int c) { if (d.scrip < c) return false; d.scrip -= c; return true; };
     switch (s.type) {
         case StationType::Rack: {
@@ -4019,10 +4258,26 @@ bool Match::Interact(int di, bool hold, float dt) {
             return false;
         }
         case StationType::Workbench: {
-            // the workbench presses ink bombs (the design doc's tactical item; how you get one it leaves open)
-            if (d.inkBombs >= 2 || !pay(750)) return false;
-            d.inkBombs++; d.tactical = 1;
-            Say("", TextFormat("An ink bomb (%d). Q picks the tactical, G throws it.", d.inkBombs), 3);
+            // a full set of a build's parts: build it (one build is held at a time)
+            for (int b = 1; b < (int)BuildType::COUNT; b++) {
+                int set = 7 << (b * 3);
+                if ((d.partsMask & set) != set) continue;
+                if (d.build != BuildType::None) { Say("", std::string("One build at a time: you already carry the ") + Build(d.build).name, 3); return false; }
+                d.partsMask &= ~set;
+                for (auto& sp : salvage) if (sp.build == b && sp.carrier == d.slot) { sp.carrier = -1; sp.respawnT = 90; }   // (a new set turns up elsewhere)
+                d.build = (BuildType)b;
+                if (d.build == BuildType::ShellShield) d.shieldHP = 300;
+                fx.push_back({4, s.pos, {0, 0, 0}});
+                Say("The workbench", std::string(Build(d.build).name) + ": " + Build(d.build).effect + (d.build == BuildType::ShellShield ? "" : ". B sets it down."), 5);
+                return true;
+            }
+            // otherwise the bench's stock (the design doc leaves open where the tacticals and the brush come from)
+            int item = std::clamp(d.benchSel, 0, BENCH_ITEMS - 1);
+            int* n = item == 0 ? &d.inkBombs : item == 1 ? &d.chumBags : item == 2 ? &d.flares : nullptr;
+            if (n ? *n >= 2 : d.brush) return false;
+            if (!pay(BenchPrice(item))) return false;
+            if (n) { ++*n; d.tactical = item == 0 ? TAC_INK : item == 1 ? TAC_CHUM : TAC_FLARE; } else d.brush = true;
+            Say("", n ? TextFormat("%s (%d). Q picks the tactical, G throws it.", BenchName(item), *n) : "A cleaning brush: X scrapes the parasites off you or a teammate", 3);
             return true;
         }
         case StationType::Cleaning: {
@@ -4236,7 +4491,7 @@ void Match::Bot(DiverState& d, float dt) {
             const Station* want = nullptr;
             int bestScore = -1;
             for (const auto& s : level.stations) {
-                if (!zoneOpen(s.zone) || (s.needsPower && !power) || avoidZone(s.zone)) continue;
+                if (!zoneOpen(s.zone) || (s.needsPower && !Powered(s)) || avoidZone(s.zone)) continue;
                 int score = -1, cost = 0;
                 if (s.type == StationType::Tonic) {
                     const TonicDef* t = WD.Tonic(s.tonic);
@@ -4500,7 +4755,8 @@ int RunRedTideMatchTest() {
             d.hp = d.hpMax = 250; d.tonics.insert("juggernaut");
             m.eco.agents[bull].pos = Vector3Add(d.pos, {1.0f, 0, 0});
             float hp0 = d.hp;
-            m.eco.Damage(d.agent, 80, bull);
+            // (its attack is picked at random: a hold defers its damage, so strike again until a bite lands)
+            for (int k = 0; k < 8 && d.hp >= hp0; k++) { d.heldT = 0; d.holder = -1; d.holdPending = 0; m.eco.agents[bull].held = 0; m.eco.agents[bull].cooldown = 0; m.eco.Damage(d.agent, 80, bull); }
             check(d.hp < hp0 && d.lastHitBy == "Bull Shark", TextFormat("a Bull Shark strike lands on the diver (%.0f -> %.0f HP) as one of its three attacks", hp0, d.hp));
             d.heldT = 0; d.holder = -1; m.eco.agents[bull].held = 0;
         }
@@ -5609,6 +5865,113 @@ int RunRedTideProfileTest() {
         k.divers[1].pos = fell; k.divers[1].downed = false;
         k.Step(0.05f);
         check(k.keys.count("Goliath") && k.keyHolder["Goliath"] == 1 && k.floorKeys.empty(), "a teammate swims over it and carries it on");
+    }
+    {   // salvage builds, the chum bag, the flare and the cleaning brush
+        for (const char* key : {"ship", "cave", "reef", "atlantis", "void"}) {
+            auto Q = std::make_unique<Match>(); Match& q = *Q;
+            q.Init(key, 1, 3, false);
+            int ok = 0, bench = 0;
+            std::vector<char> open(q.map->links.size(), 1);
+            for (const auto& sp : q.salvage) if (sp.zone >= 0 && q.map->zones[sp.zone].diverOk && q.level.Inside(sp.pos, 0.4f, open)) ok++;
+            for (const auto& st : q.level.stations) if (st.type == StationType::Workbench) bench++;
+            check(q.salvage.size() == 15 && ok == 15 && bench >= 1, TextFormat("%s: 15 salvage parts lie where a diver can reach them (%d ok), %d workbench(es)", key, ok, bench));
+        }
+        auto K = std::make_unique<Match>(); Match& k = *K;
+        k.Init("ship", 2, 9, false);
+        DiverState& a = k.divers[0];
+        a.invulnerable = false;
+        for (auto& sp : k.salvage) if (sp.build == (int)BuildType::ShellShield) { a.pos = sp.pos; k.Step(0.05f); }
+        int set = 7 << ((int)BuildType::ShellShield * 3);
+        check((a.partsMask & set) == set, "swimming over the Turtle shell, the Strap and the Brass rim picks them up");
+        int wb = -1; for (int i = 0; i < (int)k.level.stations.size(); i++) if (k.level.stations[i].type == StationType::Workbench) wb = i;
+        a.pos = k.level.stations[wb].pos;
+        std::string pr = k.PromptFor(0);
+        check(k.Interact(0, false, 0.01f) && a.build == BuildType::ShellShield && a.shieldHP == 300 && (a.partsMask & set) == 0, TextFormat("the workbench builds the Shell Shield (prompt '%s')", pr.c_str()));
+        bool respawning = true; for (const auto& sp : k.salvage) if (sp.build == (int)BuildType::ShellShield && !(sp.taken && sp.respawnT > 0)) respawning = false;
+        check(respawning, "its parts turn up again elsewhere in 90 s");
+        int beast = -1, mantis = -1;
+        for (int i = 0; i < (int)k.eco.agents.size(); i++) { const Agent& g = k.eco.agents[i]; if (!g.alive || g.diver >= 0) continue; const Species& sp = k.map->species[g.sp]; if (sp.isEnemy) continue; if (HasW(sp.name, "mantis")) mantis = i; else if (beast < 0 && sp.size >= 3) beast = i; }
+        float hp0 = a.hp;
+        k.HitDiverPublic(a, 50, "a bite", "", a.pos, beast);
+        check(a.hp == hp0 && a.shieldHP == 250, "the shield takes a bite (300 -> 250)");
+        if (mantis >= 0) { k.HitDiverPublic(a, 30, "a punch", "", a.pos, mantis); k.HitDiverPublic(a, 30, "a punch", "", a.pos, mantis); }
+        check(mantis >= 0 && a.build == BuildType::None && a.shieldHP == 0, "the mantis shrimp breaks it in two punches");
+        a.build = BuildType::ShellShield; a.shieldHP = 300; a.bashCd = 0;
+        { Agent& g = k.eco.agents[beast]; Vector3 f = k.Forward(a); f.y = 0; f = Vector3Normalize(f); g.pos = Vector3Add(a.pos, Vector3Scale(f, 1.5f)); g.zone = k.eco.ZoneAt(a.pos); g.stun = 0; }
+        check(k.UseBuild(0) && k.eco.agents[beast].stun >= 1.4f && a.bashCd > 3, "B bashes with it: the beast in front is stunned and knocked back");
+        // the Turbine
+        int tonic = -1; for (int i = 0; i < (int)k.level.stations.size(); i++) if (k.level.stations[i].needsPower) tonic = i;
+        k.power = false;
+        a.pos = k.level.stations[tonic].pos; a.build = BuildType::Turbine;
+        check(!k.Powered(k.level.stations[tonic]) && k.UseBuild(0) && k.Powered(k.level.stations[tonic]), "a Turbine set down powers the machine beside it before the power is on");
+        for (auto& dp : k.deployed) dp.t = 0.01f;
+        k.Step(0.05f);
+        check(!k.Powered(k.level.stations[tonic]), "after 90 s it runs down");
+        // the Net Tripwire: not a big beast, the first small one
+        a.pos = k.level.stations[wb].pos; a.build = BuildType::NetTripwire; k.UseBuild(0);
+        Vector3 net = k.deployed.back().pos;
+        int big = -1, small = -1;
+        for (int i = 0; i < (int)k.eco.agents.size(); i++) { const Agent& g = k.eco.agents[i]; if (!g.alive || g.diver >= 0 || k.IsBoss(i)) continue; const Species& sp = k.map->species[g.sp]; if (sp.isEnemy || sp.Sessile()) continue; if (sp.size >= 4 && big < 0) big = i; if (sp.size <= 3 && sp.size >= 2 && small < 0 && i != beast) small = i; }
+        if (big >= 0) { k.eco.agents[big].pos = net; k.eco.agents[big].zone = k.eco.ZoneAt(net); }
+        k.Step(0.05f);
+        check(big >= 0 && k.deployed.back().held < 0, "a big beast swims through the net");
+        if (big >= 0) k.eco.agents[big].pos = Vector3Add(net, {0, 0, 30});
+        k.eco.agents[small].pos = net; k.eco.agents[small].zone = k.eco.ZoneAt(net);
+        k.Step(0.05f);
+        check(k.deployed.back().held == small && k.eco.agents[small].held > 5, "the first small one is held (the bell rings)");
+        k.deployed.clear();
+        // the Decoy Buoy
+        a.build = BuildType::DecoyBuoy; k.UseBuild(0);
+        Vector3 buoy = k.deployed.back().pos;
+        Agent& g2 = k.eco.agents[beast]; g2.pos = k.map->zones[k.eco.ZoneAt(buoy)].Clamp(Vector3Add(buoy, {8, 0, 0}), 0.5f); g2.st = State::Graze; g2.stun = 0; g2.held = 0;
+        k.Step(0.05f);
+        check(g2.st == State::Investigate && Vector3Distance(g2.goal, buoy) < 0.5f, "the Decoy Buoy draws a beast to it");
+        k.deployed.clear();
+        // the Bubble Wall
+        a.build = BuildType::BubbleWall; k.UseBuild(0);
+        check(k.eco.curtains.size() == 1, "the Bubble Wall hangs a curtain across the water");
+        const auto& c = k.eco.curtains.back();
+        Vector3 mid = Vector3Lerp(c.a, c.b, 0.5f), n{-(c.b.z - c.a.z), 0, c.b.x - c.a.x}; n = Vector3Normalize(n);
+        Vector3 p0 = Vector3Add(mid, Vector3Scale(n, -1)), p1 = Vector3Add(mid, Vector3Scale(n, 1)); p0.y = p1.y = a.pos.y;
+        check(k.eco.CrossesCurtain(p0, p1, 2) && !k.eco.CrossesCurtain(p0, p1, 4), "small beasts can't cross it; big ones can");
+        k.eco.curtains.clear(); k.deployed.clear();
+        // the chum bag and the flare
+        a.pos = k.level.stations[wb].pos; a.scrip = 5000; a.benchSel = 0;
+        k.CycleBench(0);
+        check(a.benchSel == 1 && k.Interact(0, false, 0.01f) && a.chumBags == 1 && a.scrip == 4500 && a.tactical == TAC_CHUM, "Z turns the workbench's stock: a chum bag for 500");
+        float b0 = k.eco.BloodNear(a.pos, 8);
+        k.ThrowLimpet(0);
+        for (int i = 0; i < 40 && !k.darts.empty(); i++) k.Step(0.05f);
+        for (int i = 0; i < 25; i++) k.Step(0.05f);   // (the scent grid's sums rebuild once a second)
+        check(k.eco.BloodNear(a.pos, 12) > b0 + 20 && a.chumBags == 0, "a thrown chum bag fills the water with blood");
+        a.flares = 1; a.tactical = TAC_FLARE; k.ThrowLimpet(0);
+        for (int i = 0; i < 40 && k.flareLights.empty(); i++) k.Step(0.05f);
+        check(k.flareLights.size() == 1, "a thrown flare burns where it lands");
+        Vector3 fl = k.flareLights[0].pos; int zf = k.eco.ZoneAt(fl);
+        int curious = -1, shy = -1;
+        for (int i = 0; i < (int)k.eco.agents.size(); i++) { const Agent& g = k.eco.agents[i]; if (!g.alive || g.diver >= 0 || k.IsBoss(i)) continue; const Species& sp = k.map->species[g.sp]; if (sp.isEnemy || sp.Sessile()) continue; if (sp.Has("nocturnal") && shy < 0) shy = i; else if (sp.curiosity >= 0.5f && !sp.Has("camouflage") && curious < 0 && sp.size <= 3) curious = i; }
+        for (int i : {curious, shy}) if (i >= 0) { Agent& g = k.eco.agents[i]; g.pos = k.map->zones[zf].Clamp(Vector3Add(fl, {5, 0, 0}), 0.5f); g.zone = zf; g.st = State::Graze; g.stun = 0; g.held = 0; g.target = -1; }
+        k.Step(0.05f);
+        check(curious >= 0 && k.eco.agents[curious].st == State::Investigate && Vector3Distance(k.eco.agents[curious].goal, fl) < 0.5f, "a curious fish comes to the flare's light");
+        check(shy >= 0 && k.eco.agents[shy].st == State::Flee && Vector3Distance(k.eco.agents[shy].goal, fl) > Vector3Distance(k.eco.agents[shy].pos, fl), "a nocturnal one flees it");
+        // the cleaning brush
+        a.benchSel = 3; a.scrip = 5000;
+        check(k.Interact(0, false, 0.01f) && a.brush && !k.Interact(0, false, 0.01f), "a cleaning brush for 1,000 (one is all you need)");
+        int para = -1; for (int i = 0; i < (int)k.eco.agents.size(); i++) if (k.eco.agents[i].alive && k.eco.agents[i].diver < 0 && k.map->species[k.eco.agents[i].sp].Parasite()) { para = i; break; }
+        DiverState& mate = k.divers[1];
+        mate.pos = Vector3Add(a.pos, {1, 0, 0}); mate.dead = false; mate.downed = false;
+        if (para >= 0) { k.eco.agents[para].host = mate.agent; mate.slowT = 5; mate.slowMult = 0.6f; }
+        check(para >= 0 && k.UseBrush(0) && k.eco.agents[para].host < 0 && mate.slowT == 0, "X scrapes the parasite off a teammate");
+        {   // the Cave's electric ray stops a Turbine
+            auto C = std::make_unique<Match>(); Match& c = *C;
+            c.Init("cave", 1, 4, false);
+            DiverState& q = c.divers[0];
+            q.build = BuildType::Turbine; c.UseBuild(0);
+            int ray = -1; for (int i = 0; i < (int)c.eco.agents.size(); i++) if (c.eco.agents[i].alive && c.map->species[c.eco.agents[i].sp].Has("electric")) ray = i;
+            if (ray >= 0) { c.eco.agents[ray].pos = Vector3Add(c.deployed.back().pos, {2, 0, 0}); c.eco.agents[ray].stun = 5; }
+            c.Step(0.05f);
+            check(ray >= 0 && !c.deployed.empty() && c.deployed.back().stopped, "the Cave's electric ray shocks a Turbine dead");
+        }
     }
     {   // quips: barks.json's lines, one speaker at a time, no repeat within 3 minutes, answers from teammates
         auto Q = std::make_unique<Match>(); Match& q = *Q;

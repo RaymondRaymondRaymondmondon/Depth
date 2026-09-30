@@ -511,6 +511,9 @@ static void Input(float dt) {
     if (IsKeyPressed(KEY_V) || IsMouseButtonPressed(MOUSE_BUTTON_MIDDLE)) m.Melee(0);
     if (IsKeyPressed(KEY_G)) m.ThrowLimpet(0);
     if (IsKeyPressed(KEY_Q)) m.CycleTactical(0);
+    if (IsKeyPressed(KEY_B)) m.UseBuild(0);
+    if (IsKeyPressed(KEY_X)) m.UseBrush(0);
+    if (IsKeyPressed(KEY_Z)) { int si = m.NearestStation(d.pos, 3.0f); if (si >= 0 && m.level.stations[si].type == StationType::Workbench) m.CycleBench(0); }
     if (IsKeyPressed(KEY_F)) m.BeatDrum(0);
     if (IsKeyPressed(KEY_T)) m.UseCharm(0);
     if (IsKeyPressed(KEY_E)) m.Interact(0, false, dt);
@@ -827,6 +830,58 @@ static void DrawScene() {
             }
             else DrawWorldCube(Vector3Add(f.pos, {0, sinf(S.time * 2) * 0.15f, 0}), {0.25f * pulse, 0.45f * pulse, 0.25f * pulse}, {120, 240, 200, 255});
         }
+        // salvage parts: small crates with a brass band, bobbing, the build's colour on the lid
+        static const Color buildCol[6] = {{0, 0, 0, 255}, {150, 120, 70, 255}, {90, 150, 170, 255}, {170, 160, 120, 255}, {220, 120, 60, 255}, {140, 200, 220, 255}};
+        for (const auto& sp : m.salvage) if (!sp.taken) {
+            Vector3 c = Vector3Add(sp.pos, {0, sinf(S.time * 2 + sp.part) * 0.08f, 0});
+            DrawWorldCube(c, {0.5f, 0.35f, 0.4f}, {110, 86, 60, 255});
+            DrawWorldCube(Vector3Add(c, {0, 0.19f, 0}), {0.52f, 0.05f, 0.42f}, buildCol[std::clamp(sp.build, 0, 5)]);
+            DrawWorldCube(c, {0.53f, 0.08f, 0.43f}, {200, 160, 80, 255});
+        }
+        // what's been set down
+        for (const auto& dp : m.deployed) {
+            Vector3 c = dp.pos;
+            switch (dp.type) {
+                case BuildType::Turbine: {
+                    DrawWorldCube(Vector3Add(c, {0, -0.2f, 0}), {0.6f, 0.5f, 0.6f}, {90, 96, 100, 255});
+                    float a = dp.stopped ? 0.3f : S.time * 9;
+                    for (int k = 0; k < 3; k++) { float b = a + k * 2.094f; DrawWorldCube(Vector3Add(c, {cosf(b) * 0.35f, 0.25f, sinf(b) * 0.35f}), {0.6f, 0.04f, 0.14f}, dp.stopped ? Color{80, 80, 80, 255} : Color{200, 200, 190, 255}); }
+                    if (!dp.stopped) DrawWorldCube(Vector3Add(c, {0, 0.45f, 0}), {0.12f, 0.12f, 0.12f}, {150, 230, 255, 255});
+                    break;
+                }
+                case BuildType::NetTripwire: {
+                    // two stakes across the diver's way and the net strung between them (a line of knots)
+                    Vector3 side{dp.dir.z, 0, -dp.dir.x};
+                    for (int k = -1; k <= 1; k += 2) DrawWorldCube(Vector3Add(c, Vector3Add(Vector3Scale(side, k * 1.4f), {0, 0.4f, 0})), {0.08f, 0.9f, 0.08f}, {140, 110, 70, 255});
+                    for (int k = 0; k <= 14; k++) for (int row = 0; row < 3; row++) {
+                        Vector3 q = Vector3Add(c, Vector3Add(Vector3Scale(side, -1.4f + k * 0.2f), {0, 0.15f + row * 0.3f, 0}));
+                        DrawWorldCube(q, {0.05f, 0.05f, 0.05f}, dp.held >= 0 ? Color{200, 80, 60, 255} : Color{200, 190, 150, 255});
+                    }
+                    break;
+                }
+                case BuildType::DecoyBuoy: {
+                    float bob = sinf(S.time * 1.5f) * 0.15f;
+                    DrawWorldCube(Vector3Add(c, {0, bob, 0}), {0.6f, 0.7f, 0.6f}, {220, 110, 50, 255});
+                    float pulse = 0.5f + 0.5f * sinf(S.time * 6);
+                    DrawWorldCube(Vector3Add(c, {0, 0.55f + bob, 0}), {0.22f, 0.22f, 0.22f}, {255, (unsigned char)(200 + 55 * pulse), 120, 255});
+                    break;
+                }
+                case BuildType::BubbleWall: {
+                    Vector3 side{-dp.dir.z, 0, dp.dir.x};
+                    for (int k = 0; k < 40; k++) {
+                        float u = (k % 10) / 9.0f * 8 - 4, h = fmodf(S.time * 1.6f + k * 0.37f, 1.0f) * 6;
+                        DrawWorldCube(Vector3Add(Vector3Add(c, Vector3Scale(side, u)), {0, h - 2.5f, 0}), {0.1f, 0.1f, 0.1f}, {210, 235, 245, 255});
+                    }
+                    break;
+                }
+                default: break;
+            }
+        }
+        for (const auto& fl : m.flareLights) {   // a flare burning where it landed
+            float fl2 = 0.8f + 0.2f * sinf(S.time * 23 + fl.pos.x);
+            DrawWorldCube(fl.pos, {0.15f, 0.15f, 0.15f}, {255, 240, 200, 255});
+            DrawWorldCube(fl.pos, {0.5f * fl2, 0.5f * fl2, 0.5f * fl2}, Fade(Color{255, 120, 60, 255}, 0.5f));
+        }
         for (const auto& k : m.floorKeys) {   // a key a fallen diver dropped: brass, turning slowly, easy to spot
             Vector3 c = Vector3Add(k.pos, {0, 0.3f + sinf(S.time * 2) * 0.1f, 0});
             DrawWorldCube(c, {0.12f, 0.5f, 0.12f}, {220, 180, 70, 255});
@@ -993,6 +1048,7 @@ static void DrawScene() {
     };
     for (const auto& s : m.level.stations) if (s.type == StationType::Locker && m.LockerLiveAt(s)) label(Vector3Add(s.pos, {0, 2.8f, 0}), 30, "Davy's Locker", {255, 214, 140, 255});
     for (const auto& d : m.level.doors) if (!d.open) label(Vector3Add(d.pos, {0, 0.9f, 0}), 14, TextFormat("%s  %d", d.name.c_str(), d.cost), {235, 210, 160, 255});
+    for (const auto& sp : m.salvage) if (!sp.taken) label(Vector3Add(sp.pos, {0, 0.6f, 0}), 14, std::string(Build((BuildType)sp.build).parts[sp.part]) + " (" + Build((BuildType)sp.build).name + ")", {226, 200, 140, 255});
     for (const auto& k : m.floorKeys) label(Vector3Add(k.pos, {0, 0.9f, 0}), 20, "the " + k.name + " key", {240, 200, 90, 255});
     for (const auto& f : m.drops) label(Vector3Add(f.pos, {0, 0.6f, 0}), 20, f.weapon >= 0 ? Weapons().weapons[f.weapon].name : DropName(f.type), {150, 250, 210, 255});
     // the lighthouse lit: every Lost One and the Wyrm on the sonar, through walls
@@ -1056,10 +1112,24 @@ static void DrawHud() {
     if (w.melee) TxtBold("melee", SCREEN_W - 280, SCREEN_H - 70, 26, paper);
     else TxtBold(d.harpoonHour ? "infinite" : TextFormat("%d / %d", h.mag, h.reserve), SCREEN_W - 280, SCREEN_H - 70, 30, h.mag == 0 ? blood : paper);
     if (d.reloading) Txt("reloading...", SCREEN_W - 280, SCREEN_H - 36, 14, Fade(paper, 0.8f));
-    if (d.inkBombs > 0) {   // the tactical G throws (Q picks): the selected one bright
-        Txt(TextFormat("limpets %d", d.limpets), SCREEN_W - 120, SCREEN_H - 50, 14, Fade(paper, d.tactical == 0 ? 0.95f : 0.45f));
-        Txt(TextFormat("ink bombs %d", d.inkBombs), SCREEN_W - 120, SCREEN_H - 34, 14, Fade(paper, d.tactical == 1 ? 0.95f : 0.45f));
-    } else Txt(TextFormat("limpets %d", d.limpets), SCREEN_W - 120, SCREEN_H - 36, 14, Fade(paper, 0.8f));
+    {   // the tacticals G throws (Q picks): the selected one bright, the empty ones left out (limpets always shown)
+        int have[TAC_COUNT] = {d.limpets, d.inkBombs, d.chumBags, d.flares};
+        int rows = 0; for (int t = 0; t < TAC_COUNT; t++) if (t == 0 || have[t] > 0) rows++;
+        float y = SCREEN_H - 20.0f - rows * 16;
+        for (int t = 0; t < TAC_COUNT; t++) if (t == 0 || have[t] > 0) { Txt(TextFormat("%s %d", TacticalName(t), have[t]), SCREEN_W - 120, y, 14, Fade(paper, d.tactical == t ? 0.95f : rows > 1 ? 0.45f : 0.8f)); y += 16; }
+    }
+    {   // salvage: the build held, the Shell Shield's strength, the parts carried, the brush
+        float y = SCREEN_H - 250.0f;
+        if (d.build != BuildType::None) {
+            Txt(d.build == BuildType::ShellShield ? TextFormat("Shell Shield %d  (B: bash%s)", (int)d.shieldHP, d.bashCd > 0 ? TextFormat(" %.0f", d.bashCd) : "") : TextFormat("%s  (B: set it down)", Build(d.build).name), SCREEN_W - 330, y, 15, Color{226, 196, 120, 255});
+            y += 18;
+        }
+        for (int b = 1; b < (int)BuildType::COUNT; b++) {
+            int n = 0; for (int k = 0; k < 3; k++) if (d.partsMask & (1 << (b * 3 + k))) n++;
+            if (n) { Txt(TextFormat("parts: %s %d/3%s", Build((BuildType)b).name, n, n == 3 ? " (a workbench)" : ""), SCREEN_W - 330, y, 13, Fade(paper, 0.85f)); y += 15; }
+        }
+        if (d.brush) Txt("cleaning brush (X)", SCREEN_W - 330, y, 13, Fade(paper, 0.7f));
+    }
     // the charm pouch: the next charm (T) and what's running
     if (d.pouchNext < (int)d.pouch.size()) {
         std::string n; for (const auto& c : Charms()) if (c.id == d.pouch[d.pouchNext]) n = c.name;
@@ -1310,6 +1380,26 @@ void DebugRedTideShot(Game& g, int which) {
             break;
         }
         case 15: place("Cabin Deck", {3, 2, 3}, 0.0f, 0); break;                             // the cabins and the moray pipes
+        case 16: {                                                                            // salvage: the builds set down before a workbench
+            int wb = -1; for (int i = 0; i < (int)m.level.stations.size(); i++) if (m.level.stations[i].type == StationType::Workbench) wb = i;
+            const Station& st = m.level.stations[wb];
+            const Zone& z = m.map->zones[st.zone];
+            Vector3 c = z.Center(); c.y = st.pos.y;
+            d.pos = z.Clamp(Vector3Lerp(st.pos, c, 0.15f), 1.0f); d.zone = st.zone;
+            Vector3 to = Vector3Subtract(c, d.pos); d.yaw = atan2f(to.x, to.z) + 0.45f; d.pitch = -0.2f;
+            // each build set down a little way off, a part left lying, a flare burning, and a full pocket
+            Vector3 f{sinf(d.yaw), 0, cosf(d.yaw)}, r{cosf(d.yaw), 0, -sinf(d.yaw)};
+            BuildType kinds[4] = {BuildType::Turbine, BuildType::DecoyBuoy, BuildType::NetTripwire, BuildType::BubbleWall};
+            Vector3 at[4] = {Vector3Add(Vector3Scale(f, 3.5f), Vector3Scale(r, -2.0f)), Vector3Add(Vector3Scale(f, 5.0f), Vector3Scale(r, 1.8f)), Vector3Scale(f, 2.5f), Vector3Scale(f, 4.0f)};
+            Vector3 home = d.pos;
+            for (int k = 0; k < 4; k++) { d.pos = z.Clamp(Vector3Add(home, at[k]), 1.0f); d.build = kinds[k]; if (kinds[k] == BuildType::BubbleWall) d.pos = z.Clamp(Vector3Add(home, Vector3Scale(f, 4.5f)), 1.0f); m.UseBuild(0); }
+            d.pos = home;
+            if (!m.salvage.empty()) { m.salvage[0].pos = z.Clamp(Vector3Add(home, Vector3Add(Vector3Scale(f, 2.0f), Vector3Scale(r, 1.2f))), 0.6f); m.salvage[0].pos.y = z.y0 + 0.6f; m.salvage[0].taken = false; }
+            Match::FlareLight fl; fl.pos = z.Clamp(Vector3Add(home, Vector3Add(Vector3Scale(f, 6.0f), Vector3Scale(r, -1.0f))), 0.5f); fl.pos.y = z.y0 + 0.3f; m.flareLights.push_back(fl);
+            d.build = BuildType::ShellShield; d.shieldHP = 220; d.partsMask = (1 << ((int)BuildType::Turbine * 3)) | (1 << ((int)BuildType::Turbine * 3 + 2));
+            d.inkBombs = 1; d.chumBags = 2; d.flares = 1; d.tactical = TAC_CHUM; d.brush = true;
+            break;
+        }
         // the Underwater Cave
         case 20: place("The Mouth", {2, 4, 2}, 0.2f, 0.05f); break;                           // the start pocket under the light shaft
         case 21: place("The Flooded Gallery", {3, 4, 3}, 0.1f, 0); break;                     // the long hall, slipstream A's mouth

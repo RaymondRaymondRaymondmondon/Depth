@@ -203,6 +203,21 @@ std::vector<int> Ecosystem::ZonePath(int from, int to, bool enemy, int size) con
     return path;
 }
 
+bool Ecosystem::CrossesCurtain(Vector3 from, Vector3 to, int size) const {
+    for (const auto& c : curtains) {
+        if (size > c.maxSize || std::max(from.y, to.y) < c.y0 || std::min(from.y, to.y) > c.y1) continue;
+        // which side of the line a-b each point lies on (x/z), and whether the crossing falls within the segment
+        auto side = [&](Vector3 p) { return (c.b.x - c.a.x) * (p.z - c.a.z) - (c.b.z - c.a.z) * (p.x - c.a.x); };
+        float s0 = side(from), s1 = side(to);
+        if ((s0 > 0) == (s1 > 0) || s0 == s1) continue;
+        float u = s0 / (s0 - s1);
+        Vector3 x{from.x + (to.x - from.x) * u, 0, from.z + (to.z - from.z) * u};
+        float len2 = (c.b.x - c.a.x) * (c.b.x - c.a.x) + (c.b.z - c.a.z) * (c.b.z - c.a.z);
+        float t = len2 > 0 ? ((x.x - c.a.x) * (c.b.x - c.a.x) + (x.z - c.a.z) * (c.b.z - c.a.z)) / len2 : -1;
+        if (t >= 0 && t <= 1) return true;
+    }
+    return false;
+}
 float Ecosystem::Smell(Vector3 p, int zone, float r, Vector3* centroid) const {
     if (!inks.empty() && InInk(p)) return 0;                     // nothing to smell inside the ink
     if (zone < 0) return scent.BoxSum(p, r, centroid);
@@ -1160,10 +1175,15 @@ void Ecosystem::Step(float dt) {
         groups[a.group].n++;
     }
     float coh = eng->C("school_cohesion", 0.6f), ali = eng->C("school_alignment", 0.8f);
+    for (auto& c : curtains) c.t -= dt;
+    curtains.erase(std::remove_if(curtains.begin(), curtains.end(), [](const Curtain& c) { return c.t <= 0; }), curtains.end());
     for (int i = 0; i < (int)agents.size(); i++) {
         Agent& a = agents[i];
         if (!a.alive) continue;
+        Vector3 before = a.pos;
         Move(a, i, dt);
+        // a bubble wall: small beasts turn back at the curtain
+        if (!curtains.empty() && a.diver < 0 && CrossesCurtain(before, a.pos, map->species[a.sp].size)) { a.pos = before; a.vel = Vector3Scale(a.vel, -0.5f); }
         if (a.group >= 0 && a.group < (int)groups.size() && groups[a.group].n > 1 && (a.st == State::Graze || a.st == State::Return)) {
             const G& g = groups[a.group];
             Vector3 c = Vector3Scale(g.c, 1.0f / g.n), v = Vector3Scale(g.v, 1.0f / g.n);
