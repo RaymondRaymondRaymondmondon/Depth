@@ -154,12 +154,18 @@ static void AddStress(Game& g, Hero& h, int amount) {
     }
 }
 
+static std::string gKillCause = "the deep";   // what dealt the last blow (the memorial wall)
 static void DamageHero(Game& g, Hero& h, int dmg) {
     if (dmg <= 0) return;
     if (h.st.madTurns > 0) dmg = (int)std::ceil(dmg * 1.15f); // Eldritch Madness: 15% more damage from all sources
     if (h.deathsDoor) {
         if (Chance(35)) {
             h.dead = true; Log(g, h.name + " has been lost to the depths.");
+            if (!gSilent) { // the memorial wall and the Sea Log
+                MemorialEntry me; me.name = h.name; me.cls = (int)h.cls; me.level = h.level; me.cause = gKillCause + " in " + LocationName(g.dungeon.loc);
+                g.memorial.push_back(me);
+                SeaLog(g, h.name + " (" + ClassName(h.cls) + ", level " + std::to_string(h.level) + ") was lost: " + me.cause + ".");
+            }
             for (int id : g.party) if (Hero* o = FindHero(g, id); o && o != &h && !o->dead && BondOf(g, h.id, o->id) >= BOND_PERK) {
                 Log(g, o->name + " watches a friend die."); AddStress(g, *o, BOND_DEATH_NERVES);   // a bonded friend's death
             }
@@ -193,6 +199,8 @@ static void ApplyPoison(Status& st, int dmg) {
 // Remove defeated enemies and fallen crew. The fallen take their relics with them.
 static void Cleanup(Game& g) {
     auto& en = g.dungeon.enemies;
+    if (!gSilent) for (auto& e : en) if (!e.alive && e.boss && e.hp <= 0) // a boss or mini-boss down: into the Sea Log
+        SeaLog(g, "Slew " + e.name + " in " + LocationName(g.dungeon.loc) + " (cave level " + std::to_string(CAVE_TIER_LEVEL[g.dungeon.tier]) + ").");
     en.erase(std::remove_if(en.begin(), en.end(), [](const Enemy& e) { return !e.alive; }), en.end());
     bool anyDead = false;
     for (auto& h : g.roster) if (h.dead) anyDead = true;
@@ -435,6 +443,7 @@ static void EnemyAct(Game& g, int uid, int ability, int target) {
     int n = PartySize(g);
     if (!e || n == 0) return;
     if (ability < 0) { BrainPick bp = ChooseEnemyAction(g, uid); ability = bp.ability; target = bp.target; }
+    gKillCause = "slain by " + e->name;
     if (ability >= 0) g.dungeon.lastAbility[uid] = ability;
     if (ability < 0) { Log(g, e->name + " can't reach anyone and skitters about."); return; }
     const EnemyAbility a = e->abilities[ability]; // a copy: summoning may move the enemy list under us
@@ -925,8 +934,8 @@ static void StartTurn(Game& g) {
             for (int id : g.party) if (Hero* o = FindHero(g, id); o && o != h && (!best || o->stress > best->stress)) best = o;
             if (best && best->stress > 0) AddStress(g, *best, -5);
         }
-        if (st.bleedTurns > 0) { st.bleedTurns--; Float(g, r, "Bleed " + std::to_string(st.bleedDmg), Pal::Bad); DamageHero(g, *h, st.bleedDmg); }
-        if (!h->dead && st.poisonTurns > 0) { st.poisonTurns--; Float(g, r, "Poison " + std::to_string(st.poisonDmg), Pal::Good); DamageHero(g, *h, st.poisonDmg); }
+        if (st.bleedTurns > 0) { st.bleedTurns--; gKillCause = "bled out"; Float(g, r, "Bleed " + std::to_string(st.bleedDmg), Pal::Bad); DamageHero(g, *h, st.bleedDmg); }
+        if (!h->dead && st.poisonTurns > 0) { st.poisonTurns--; gKillCause = "poisoned"; Float(g, r, "Poison " + std::to_string(st.poisonDmg), Pal::Good); DamageHero(g, *h, st.poisonDmg); }
         if (st.buffTurns > 0 && --st.buffTurns == 0) st.buffDmg = 0;
         if (st.dodgeTurns > 0 && --st.dodgeTurns == 0) st.dodgeBuff = 0;
         if (st.protTurns > 0 && --st.protTurns == 0) st.protBuff = 0;
@@ -1032,6 +1041,12 @@ static void StartFight(Game& g, bool hall) {
         if (Chance(50)) d.enemies.back() = MakeEnemy(pickFrom(supports), d.nextUid - 1); // a support hangs back at the rear
         Log(g, "Something stirs in the dark...");
     }
+    for (auto& e : d.enemies) { // the Sea Log notes every first meeting
+        unsigned long long bit = 1ull << (int)e.type;
+        if (g.enemiesMet & bit) continue;
+        g.enemiesMet |= bit;
+        SeaLog(g, "First met: " + e.name + " (" + LocationName(d.loc) + "). " + EnemyHint((int)e.type));
+    }
     for (auto& e : d.enemies) ScaleEnemyForTier(e, d.tier);
     if (d.blessFights > 0) { // a shrine's blessing
         d.blessFights--;
@@ -1050,7 +1065,7 @@ static void StartFight(Game& g, bool hall) {
 static void Reveal(Game& g, int extra = 0) {
     auto& d = g.dungeon;
     auto& c = d.chart;
-    int sonar = g.upgrades[UP_SONAR], steps = (sonar >= 2 ? 2 : 1) + extra;
+    int sonar = Upg(g, UP_SONAR), steps = (sonar >= 2 ? 2 : 1) + extra;
     for (int id : g.party) if (Hero* h = FindHero(g, id))   // the Awakened Lantern lights the way further
         for (int rid : h->relics) if (rid >= 0 && rid < (int)Relics().size() && Relics()[rid].name == "Awakened Lantern") { steps++; break; }
     if (sonar >= 3) for (auto& r : c.rooms) r.known = true;   // the whole layout, without what's in it
@@ -1468,6 +1483,7 @@ static void ChooseEvent(Game& g, int choice) {
             if (r < 45) { int gold = (int)(Roll(16, 32) * LootMult(g)); d.lootGold += gold; d.eventBody = TextFormat("With the %s, it gives up its secret safely: %d gold.", SupplyName(sp), gold); }
             else if (r < 75) { d.pendingItem = true; d.pendingItemVal = {ItemKind::Relic, Roll(0, (int)Relics().size() - 1)}; d.eventBody = TextFormat("With the %s, it opens safely. Inside: a relic.", SupplyName(sp)); }
             else { d.blessFights++; for (int id : g.party) if (Hero* x = FindHero(g, id)) { HealOutOfCombat(*x, 4); Nerve(*x, -8); } d.eventBody = TextFormat("With the %s, it calms. A warmth spreads through the crew.", SupplyName(sp)); }
+            if (!gSilent) SeaLog(g, d.eventTitle + ": " + d.eventBody);
             break;
         }
         if (choice != 0) { d.eventBody = "You leave it be."; break; }
@@ -1492,6 +1508,7 @@ static void ChooseEvent(Game& g, int choice) {
             if (h && Chance(CURIO_AILMENT_PCT)) { int ail = LocationAilment(d.loc); if (!(h->ailments & (1u << ail))) { h->ailments |= 1u << ail; d.eventBody += " The wound festers: " + std::string(AilmentName(ail)) + "."; } }
         }
         else { d.eventAmbush = true; d.eventBody = "It was bait. Something comes out of the dark!"; }
+        if (!gSilent) SeaLog(g, d.eventTitle + ": " + d.eventBody);
     } break;
     case EventKind::Rest: {
         if (choice != 0) { d.eventBody = "The crew press on without resting."; break; }
@@ -1644,6 +1661,7 @@ static void ApplyResults(Game& g) {
         for (size_t i = 0; i < home.size(); i++) for (size_t j = i + 1; j < home.size(); j++) AddBond(g, home[i], home[j], 1);
     }
     gStatLocation = -1;
+    g.stormUpgrade = -1;   // the storm damage is mended by the time they're home
     for (int id : g.party)
         if (Hero* h = FindHero(g, id)) { h->st = Status{}; if (h->deathsDoor) { h->deathsDoor = false; h->hp = std::min(std::max(1, h->hp), GetStats(*h).maxHp); } }
     for (auto& h : g.roster)
@@ -4039,7 +4057,7 @@ void SceneDungeon(Game& g) {
                 if (g.roster.size() == 1 && PartySize(g) == 1) body += "\n\nA stowaway creeps out of the cargo hold and volunteers.";
             }
             if (!d.levelUps.empty()) body += "\n\nLevel up! " + d.levelUps + ".";
-            if (ResultPanel(title, body, "Return to the Nautilus", tc)) g.scene = Scene::Hub;
+            if (ResultPanel(title, body, "Return to the Nautilus", tc)) { g.scene = Scene::Hub; RollVoyageEvent(g); }
         } break;
 
         case DPhase::Combat: {
@@ -4383,6 +4401,8 @@ int Stage7Test() {
         bool had = FileExists(path.c_str());
         if (had) { std::remove(bak.c_str()); std::rename(path.c_str(), bak.c_str()); }
         g.roster[1].ailments = 1u << AIL_BENDS; g.provision[SUP_CROWBAR] = 2;
+        MemorialEntry me; me.name = "Ishmael"; me.cls = 2; me.level = 4; me.cause = "slain by the Lobster in the Cave"; g.memorial.push_back(me);
+        SeaLog(g, "First met: Sea Louse (the Cave). Fast and fragile; its bites bleed."); g.enemiesMet = 5; g.stormUpgrade = UP_SONAR;
         Hero keep0 = g.roster[0], keep1 = g.roster[1];
         bool saved = SaveGame(g);
         Game l;
@@ -4393,6 +4413,9 @@ int Stage7Test() {
         check(l0 && l1 && l0->habits == keep0.habits && l0->habitLocked == keep0.habitLocked && l1->ailments == keep1.ailments &&
               l0->vigor == keep0.vigor && l0->fortitude == keep0.fortitude, "save round-trip: habits, locks, ailments, build");
         check(loaded && BondOf(l, a, b) == BOND_MAX && l.provision[SUP_CROWBAR] == 2, "save round-trip: bonds and provisions");
+        check(loaded && l.memorial.size() == 1 && l.memorial[0].cause == me.cause && l.memorial[0].level == 4 && !l.seaLog.empty() && l.seaLog.back() == g.seaLog.back()
+              && l.enemiesMet == 5 && l.stormUpgrade == UP_SONAR, "save round-trip: memorial, Sea Log, first meetings, storm");
+        check(Upg(l, UP_SONAR) == 0 || l.upgrades[UP_SONAR] == 0, "a storm takes its upgrade offline");
     }
     printf(fails ? "Stage 7 self-test: %d FAILED\n" : "Stage 7 self-test: all passed\n", fails);
     return fails ? 1 : 0;

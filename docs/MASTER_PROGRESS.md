@@ -10,7 +10,7 @@ The plan is `Depth — Master Reference for Claude Code.pdf` (project root). One
 | 4 | Sonar chart expeditions | Done (--gen-chart 10,000/10,000; --sim within 10 points of the linear baseline at every tier) |
 | 5 | Expedition visual overhaul on the rig | In progress: every hero on the rig, HUD, effects, camera; creature rig kit on the Cave; other locations' creatures, backgrounds-as-props and boss phase clips still to do |
 | 6 | EnemyBrain | Done (--brain-test: level 0 -4.1 points, level 6 -19.0; boss targets re-tuned) |
-| 7 | New expedition systems, the Trench and the Hadal | In progress: a (supplies, camp, resolve), b (habits, ailments, bonds, crit reactions; --stage7-test), c (Drill Deck, elites, riposte, enemy retreat) done; new enemies, Trench/Hadal, memorial/Sea Log, voyage events to come |
+| 7 | New expedition systems, the Trench and the Hadal | In progress: a (supplies, camp, resolve), b (habits, ailments, bonds, crit reactions; --stage7-test), c (Drill Deck, elites, riposte, enemy retreat), d (memorial, Sea Log, voyage events) done; eight new enemies and the Trench/Hadal to come |
 | 8 | Expedition sound | |
 | 9 | Flats visuals and card physics | |
 | 10 | Flats long map and systems | |

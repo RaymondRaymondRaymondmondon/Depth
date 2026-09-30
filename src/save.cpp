@@ -51,6 +51,10 @@ bool SaveGame(const Game& g) {
         }
         for (const Hero& h : g.roster) { f << "herox " << h.id << " " << h.habits << " " << h.habitLocked << " " << h.ailments << " " << h.vigor << " " << h.might << " " << h.quickness << " " << h.fortitude; for (int d : h.drill) f << " " << d; f << "\n"; }
         for (auto& [k, v] : g.bonds) if (v > 0) f << "bond " << k.first << " " << k.second << " " << v << "\n";
+        f << "met " << g.enemiesMet << "\n";
+        f << "storm " << g.stormUpgrade << "\n";
+        for (auto& me : g.memorial) f << "memorial " << me.cls << " " << me.level << " " << me.name << " " << me.cause << "\n";
+        for (auto& l : g.seaLog) f << "log " << l << "\n";
     }
     std::remove(SavePath().c_str());
     return std::rename(tmp.c_str(), SavePath().c_str()) == 0; // replace the old save only once the new one is complete
@@ -119,6 +123,10 @@ bool LoadGame(Game& g) {
                 if (haveDrill) for (int k = 0; k < 8; k++) h.drill[k] = std::clamp(dr[k], 0, DRILL_MAX);
             }
         }
+        else if (key == "met") in >> fresh.enemiesMet;
+        else if (key == "storm") in >> fresh.stormUpgrade;
+        else if (key == "memorial") { MemorialEntry me; in >> me.cls >> me.level >> me.name; std::getline(in, me.cause); if (!me.cause.empty() && me.cause[0] == ' ') me.cause.erase(0, 1); if (!me.name.empty()) fresh.memorial.push_back(me); }
+        else if (key == "log") { std::string rest; std::getline(in, rest); if (!rest.empty() && rest[0] == ' ') rest.erase(0, 1); fresh.seaLog.push_back(rest); }
         else if (key == "bond") { int a, b, v; if (in >> a >> b >> v) fresh.bonds[{std::min(a, b), std::max(a, b)}] = std::clamp(v, 0, BOND_MAX); }
     }
     if (fresh.roster.empty()) return false;

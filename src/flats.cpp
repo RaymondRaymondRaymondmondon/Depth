@@ -84,6 +84,7 @@ struct Ui {
     std::string toast; float toastT = 0;
     int gainedGold = 0; bool gainedMomentum = false, isElite = false, isBoss = false;
     bool cashed = false, lost = false; int payout = 0; bool insurePaid = false;
+    bool sharp = false;   // Stage 7 voyage event: a single free battle against the card sharp
     bool showRules = false, showDeck = false;
     int lastTurns = 0;
     bool autoPlay = false;                         // developer self-test: the auto-player fights every dealer through the real UI code
@@ -974,6 +975,7 @@ void DrawRulesFolder(Vector2 m) {
 }
 
 Game* G = nullptr;
+bool gSharpWaiting = false;   // the card sharp waits at the table (a voyage event)
 int PotPct(int pct, int lo) { return std::max(lo, U.rm.gs.pot * pct / 100); }
 
 void ResetUi() {
@@ -2098,6 +2100,14 @@ void SceneCards(Game& g) {
                         "their own. Win fast and you bank Momentum. Cash out after any battle, or press on and risk the pot.\n\nThe HOW TO PLAY tab on the right has the full rules.",
                         {centre.x + 34, centre.y + 104, centre.width - 68, 230}, 15, Pal::Ink);
             if (Button({centre.x + centre.width / 2 - 140, centre.y + centre.height - 62, 280, 48}, "Take a seat")) { U.rm.NewRun((unsigned)GetRandomValue(1, 1 << 30)); U.ph = Ph::Map; }
+            if (gSharpWaiting && Button({centre.x + centre.width / 2 - 170, centre.y + centre.height - 118, 340, 46}, TextFormat("Play the card sharp (free, %d gold)", SHARP_PRIZE), true, 16)) {
+                U.rm.NewRun((unsigned)GetRandomValue(1, 1 << 30));
+                bool found = false;   // one battle against a first-table dealer: the first battle node on the chart
+                for (int l = 0; l < (int)U.rm.map.size() && !found; l++)
+                    for (int k = 0; k < (int)U.rm.map[l].size() && !found; k++)
+                        if (U.rm.map[l][k].type == NodeType::BATTLE) { U.rm.layer = l; U.rm.slot = k; found = true; }
+                if (found) { U.sharp = true; gSharpWaiting = false; StartBattle(Boon::NONE); }
+            }
             if (BackButton(g)) U.inited = false;
         } break;
 
@@ -2125,6 +2135,15 @@ void SceneCards(Game& g) {
         case Ph::Won: {
             DrawBattle(g, 0, t, m, true);
             Panel(centre);
+            if (U.sharp) { // the card sharp pays up and leaves
+                DrawTextCenteredBold("The card sharp throws down his cards", centre.x + centre.width / 2, centre.y + 30, 32, Pal::Good);
+                DrawTextCentered(TextFormat("\"Well played, submariner.\" His purse: %d gold.", SHARP_PRIZE), centre.x + centre.width / 2, centre.y + 100, 20, Pal::Ink);
+                if (Button({centre.x + centre.width / 2 - 150, centre.y + 250, 300, 52}, TextFormat("Take %d gold", SHARP_PRIZE))) {
+                    g.gold += SHARP_PRIZE; SeaLog(g, TextFormat("Beat a card sharp at the salon table for %d gold.", SHARP_PRIZE));
+                    U.sharp = false; U.payout = SHARP_PRIZE; U.cashed = true; U.ph = Ph::RunOver;
+                }
+                break;
+            }
             DrawTextCenteredBold(TextFormat("You beat %s!", Dealer(U.bat.dealer).name), centre.x + centre.width / 2, centre.y + 20, 36, Pal::Good);
             DrawTextCentered(TextFormat("In %d turn%s. +%d gold: the pot stands at %d.", U.lastTurns, U.lastTurns == 1 ? "" : "s", U.gainedGold, U.rm.gs.pot), centre.x + centre.width / 2, centre.y + 80, 20, Pal::Ink);
             if (U.gainedMomentum) DrawTextCenteredBold("Fast work: +1 momentum.", centre.x + centre.width / 2, centre.y + 112, 20, Color{60, 120, 170, 255});
@@ -2391,3 +2410,5 @@ void DrawItemSpritePage(float t) {
         Txt(tag, c.x - MeasureTxt(tag, 11) / 2.0f, c.y + 66, 11, Color{190, 190, 176, 255});
     }
 }
+
+void FlatsCardSharp(bool on) { gSharpWaiting = on; }

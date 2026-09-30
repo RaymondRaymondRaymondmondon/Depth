@@ -569,12 +569,12 @@ static const int WARD_COST[4]        = {9,  7,  5,  4};
 static const int LIGHT_DRAIN[4]      = {20, 16, 12, 9};
 static const int CARGO_SLOTS[4]      = {0,  1,  2,  3};
 
-int MaxRoster(const Game& g) { return ROSTER_SIZE[g.upgrades[UP_BUNKS]]; }
-int SonarRefreshCount(const Game& g) { return RADAR_REFRESHES[g.upgrades[UP_SONAR]]; }
-int ScanCost(const Game& g) { return SCAN_COST[g.upgrades[UP_SONAR]]; }
-int WardCostPerHp(const Game& g) { return WARD_COST[g.upgrades[UP_INFIRMARY]]; }
-int LightDrainPerRoom(const Game& g) { return LIGHT_DRAIN[g.upgrades[UP_REFLECTOR]]; }
-int CargoBonusSlots(const Game& g) { return CARGO_SLOTS[g.upgrades[UP_CARGO]]; }
+int MaxRoster(const Game& g) { return ROSTER_SIZE[Upg(g, UP_BUNKS)]; }
+int SonarRefreshCount(const Game& g) { return RADAR_REFRESHES[Upg(g, UP_SONAR)]; }
+int ScanCost(const Game& g) { return SCAN_COST[Upg(g, UP_SONAR)]; }
+int WardCostPerHp(const Game& g) { return WARD_COST[Upg(g, UP_INFIRMARY)]; }
+int LightDrainPerRoom(const Game& g) { return LIGHT_DRAIN[Upg(g, UP_REFLECTOR)]; }
+int CargoBonusSlots(const Game& g) { return CARGO_SLOTS[Upg(g, UP_CARGO)]; }
 int UpgradePrice(int level) { return level == 1 ? 400 : level == 2 ? 800 : 1400; } // gold should stay scarce: parkour and Flats are meant to fill the gap
 
 const char* UpgradeName(int u) {
@@ -1184,4 +1184,31 @@ void ApplyDrill(Ability& a, int level) {
     a.buffDmg = (int)std::round(a.buffDmg * m); a.buffDodge = (int)std::round(a.buffDodge * m);
     a.buffProt = (int)std::round(a.buffProt * m); a.buffAcc = (int)std::round(a.buffAcc * m);
     if (a.stunChance) a.stunChance += DRILL_STUN_STEP * level;
+}
+
+// ---------------------------------------------------------------- Stage 7: memorial, Sea Log, voyage events
+extern const int VOYAGE_EVENT_PCT = 45;      // chance an event waits in the salon on return
+extern const int SALVAGER_PRICE_PCT = 55;    // the salvager's relics, against their usual price
+extern const int SHARP_PRIZE = 60;           // the card sharp's purse for beating him
+extern const int HABIT_FLARE_NERVES = 15;
+extern const int SEA_LOG_MAX = 300;
+int Upg(const Game& g, int u) { return g.stormUpgrade == u ? 0 : g.upgrades[u]; }
+void SeaLog(Game& g, const std::string& s) {
+    g.seaLog.push_back(s);
+    if ((int)g.seaLog.size() > SEA_LOG_MAX) g.seaLog.erase(g.seaLog.begin());
+}
+const char* EnemyHint(int t) {
+    static const char* H[] = {
+        "Fast and fragile; its bites bleed.", "Its claw stuns and its pop frays nerves from any rank.", "Slow, but its poison stacks: cure it early.",
+        "Armoured; bleed and poison go round the shell.", "A brute: kill what sets it up first.", "It hides in the silt and blinds; bring light.",
+        "A drowned diver in brass: bring something that cracks constructs.", "She spawns shrimp; in her second phase she keeps two alive.",
+        "A spear in the front rank: guard the healer.", "Hunts in packs and goes for the wounded.", "Heals the tribe and burns the mind: silence it first.",
+        "A demigod who hits hard and often.", "Her curses weaken; keep the Nurse busy.", "Burns the front; his mask cracks as he weakens.",
+        "A brute from the kelp.", "Her song drags your back rank forward.", "Eight arms, many strikes; guard the soft ranks.",
+        "Shocks whoever it touches; it strikes twice as often as you'd like.", "Slides in from the fog; its bite bleeds deep.", "Pulls the healer forward, then impales them.",
+        "Drilled, armoured infantry of the drowned city.", "Chants madness; kill it before the Brutes.", "A guardian: it protects its master.",
+        "Something from outside; it reads your turn order.", "Count the madness. When two are mad, it gazes.",
+    };
+    int n = (int)(sizeof(H) / sizeof(H[0]));
+    return t >= 0 && t < n ? H[t] : "Something new in the deep.";
 }

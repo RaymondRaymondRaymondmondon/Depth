@@ -1762,7 +1762,10 @@ static void SalonFrame(Game& g, bool live, int heldStation) {
     }
 }
 
-void SceneHub(Game& g) { SalonFrame(g, true, -1); }
+void SceneHub(Game& g) {
+    if (g.voyageEvent >= 0) { SalonFrame(g, false, -1); DrawVoyageEvent(g); return; }   // a voyage event holds the room until it's read
+    SalonFrame(g, true, -1);
+}
 void ResetSalonLife() { walkers.clear(); }
 void DebugSalonHover(int station) { gDebugHover = station; }
 void DrawSalonBackdrop(Game& g, Scene station) {

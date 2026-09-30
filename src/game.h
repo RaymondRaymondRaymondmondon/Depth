@@ -613,12 +613,21 @@ struct AbyssState {
     bool verifying = false;           // headless self-test: no window/audio/frame timing assumptions
 };
 
+struct MemorialEntry { std::string name; int cls = 0, level = 0; std::string cause; };
+enum VoyageEvent { VE_SALVAGER, VE_STORM, VE_HABIT_FLARE, VE_CARD_SHARP, VE_COUNT };
 struct Game {
     Scene scene = Scene::Hub;
     int gold = 60; // kept deliberately scarce: parkour runs and Flats are meant to make up the difference
     int batteries = 2;
     int provision[8] = {};               // supplies bought at the Helm for the next expedition (SUP_*); refunded if put back
     std::map<std::pair<int, int>, int> bonds;   // Stage 7 crew bonds, 0-BOND_MAX, keyed by (lower hero id, higher hero id)
+    std::vector<MemorialEntry> memorial;       // Stage 7: the dead, on the Library's memorial wall
+    std::vector<std::string> seaLog;           // Stage 7: boss kills, curio outcomes, first meetings (newest last)
+    unsigned long long enemiesMet = 0;         // bit = EnemyType, for the Sea Log's first meetings
+    int voyageEvent = -1;                      // Stage 7: the event waiting in the salon on return (VoyageEvent), -1 none (not saved)
+    int stormUpgrade = -1;                     // an upgrade knocked offline by a storm for the next expedition
+    std::vector<int> salvagerStock;            // the passing salvager's relics (not saved)
+    int flareHero = -1;                        // the hero whose habit flared (not saved)
     std::vector<Hero> roster;
     std::array<int, PARTY_SIZE> party{{-1, -1, -1, -1}}; // hero ids, rank 1 first
     std::vector<int> relicStorage;
@@ -660,7 +669,14 @@ struct Game {
 // ---------- data.cpp ----------
 void InitGame(Game& g);
 int BondOf(const Game& g, int a, int b);
-int Stage7Test();                              // --stage7-test (dungeon.cpp)
+int Stage7Test();
+void SeaLog(Game& g, const std::string& s);
+int Upg(const Game& g, int u);                 // an upgrade's working level (a storm can knock one offline)
+void RollVoyageEvent(Game& g);                 // on return to the salon (not in --sim)
+const char* EnemyHint(int enemyType);          // the Sea Log's first-meeting note
+extern const int VOYAGE_EVENT_PCT, SALVAGER_PRICE_PCT, SHARP_PRIZE, HABIT_FLARE_NERVES, SEA_LOG_MAX;
+void FlatsCardSharp(bool on);                  // flats.cpp: the card sharp's free battle is offered at the table
+void DrawVoyageEvent(Game& g);                 // hub.cpp                              // --stage7-test (dungeon.cpp)
 void AddBond(Game& g, int a, int b, int n);
 const std::vector<Ability>& ClassAbilities(HeroClass c);
 const char* ClassName(HeroClass c);

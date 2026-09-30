@@ -600,9 +600,9 @@ void SceneBookshelf(Game& g) {
     if (BackButton(g)) return;
     Vector2 m = GetMousePosition();
     DrawSceneTitle("The Library", "Everything the crew has learned about the deep");
-    const char* tabs[] = {"Crew", "Conditions", "Light & Nerves", "Bestiary", "Platforming"};
-    for (int i = 0; i < 5; i++) {
-        Rectangle r{140 + i * 205.0f, 92, 195, 42};
+    const char* tabs[] = {"Crew", "Conditions", "Light & Nerves", "Bestiary", "Platforming", "Memorial", "Sea Log"};
+    for (int i = 0; i < 7; i++) {
+        Rectangle r{80 + i * 161.0f, 92, 154, 42};
         if (i == g.bookTab) DrawRectangleRounded({r.x - 3, r.y - 3, r.width + 6, r.height + 6}, 0.3f, 6, Pal::Teal);
         if (Button(r, tabs[i])) g.bookTab = i;
     }
@@ -610,7 +610,32 @@ void SceneBookshelf(Game& g) {
     Panel(page);
     Rectangle body{page.x + 30, page.y + 24, page.width - 60, page.height - 40};
 
-    if (g.bookTab == 0) {
+    if (g.bookTab == 5 || g.bookTab == 6) { // Stage 7: the memorial wall, and the Sea Log (newest first)
+        std::vector<std::string> rows;
+        if (g.bookTab == 5) {
+            for (int i = (int)g.memorial.size() - 1; i >= 0; i--) {
+                const MemorialEntry& me = g.memorial[i];
+                rows.push_back(me.name + "  -  " + ClassName((HeroClass)me.cls) + ", level " + std::to_string(me.level) + "  -  " + me.cause);
+            }
+            if (rows.empty()) rows.push_back("No names on the wall yet. Keep it that way.");
+        } else {
+            for (int i = (int)g.seaLog.size() - 1; i >= 0; i--) rows.push_back(g.seaLog[i]);
+            if (rows.empty()) rows.push_back("The log is empty. Boss kills, curios and first meetings are written here.");
+        }
+        const float rowH = g.bookTab == 5 ? 34.0f : 44.0f;
+        int maxScroll = std::max(0, (int)(rows.size() * rowH - body.height));
+        if (CheckCollisionPointRec(m, body)) g.bookScroll -= (int)(GetMouseWheelMove() * 40);
+        g.bookScroll = std::clamp(g.bookScroll, 0, maxScroll);
+        if (g.bookTab == 5) TxtBold("In memory of the crew lost to the deep", body.x, body.y - 4, 20, Pal::Ink);
+        BeginScissorMode((int)body.x, (int)body.y + 24, (int)body.width, (int)body.height - 24);
+        for (size_t i = 0; i < rows.size(); i++) {
+            float y = body.y + 28 - g.bookScroll + i * rowH;
+            if (y + rowH < body.y || y > body.y + body.height) continue;
+            if (g.bookTab == 5) { DrawCircle((int)body.x + 6, (int)y + 10, 4, Pal::BrassDk); Txt(rows[i], body.x + 20, y, 17, Pal::Ink); }
+            else DrawWrapped(rows[i], {body.x, y, body.width, rowH}, 15, Pal::Ink);
+        }
+        EndScissorMode();
+    } else    if (g.bookTab == 0) {
         const float rowH = 108.0f;
         int n = (int)HeroClass::COUNT;
         int maxScroll = std::max(0, (int)(n * rowH - body.height));
@@ -775,4 +800,73 @@ void ScenePeriscope(Game& g) {
     Txt(g.platCheckpoints ? "Respawn in the section you reached,\nbut no relics can be won." : "A death sends you back to the start.\nRelics can be won.", 960, 634, 15, Pal::Paper);
     const char* help = "A/D move | Space jump | hold Up while falling: glide | Down: slide, roll on landing, slide poles | double-tap: dash | Shift+jump on a pole: backflip";
     TxtShadow(help, SCREEN_W / 2.0f - MeasureTxt(help, 16) / 2.0f, 690, 16, Color{220, 200, 160, 255});
+}
+
+// ============================================================ voyage events (Stage 7): one may be waiting in the salon on return
+void RollVoyageEvent(Game& g) {
+    g.voyageEvent = -1;
+    if (GetRandomValue(0, 99) >= VOYAGE_EVENT_PCT) return;
+    std::vector<int> can = {VE_SALVAGER, VE_CARD_SHARP};
+    bool anyUpg = false; for (int u = 0; u < UP_COUNT; u++) anyUpg |= u != UP_BUNKS && g.upgrades[u] > 0;
+    if (anyUpg) can.push_back(VE_STORM);
+    for (auto& h : g.roster) if (h.habits) { can.push_back(VE_HABIT_FLARE); break; }
+    g.voyageEvent = can[GetRandomValue(0, (int)can.size() - 1)];
+    if (g.voyageEvent == VE_SALVAGER) { g.salvagerStock.clear(); for (int i = 0; i < 2; i++) g.salvagerStock.push_back(GetRandomValue(0, (int)Relics().size() - 1)); }
+    if (g.voyageEvent == VE_STORM) {
+        std::vector<int> ups; for (int u = 0; u < UP_COUNT; u++) if (u != UP_BUNKS && g.upgrades[u] > 0) ups.push_back(u);
+        g.stormUpgrade = ups[GetRandomValue(0, (int)ups.size() - 1)];
+        SeaLog(g, std::string("A storm: the ") + UpgradeName(g.stormUpgrade) + " is offline for the next voyage.");
+    }
+    if (g.voyageEvent == VE_HABIT_FLARE) {
+        std::vector<int> ids; for (auto& h : g.roster) if (h.habits) ids.push_back(h.id);
+        g.flareHero = ids[GetRandomValue(0, (int)ids.size() - 1)];
+        if (Hero* h = FindHero(g, g.flareHero)) {
+            bool bad = false; for (int i = 0; i < HB_COUNT; i++) if ((h->habits >> i & 1) && !Habit(i).good) bad = true;
+            if (bad) h->stress = std::min(100, h->stress + HABIT_FLARE_NERVES);
+            else h->stress = std::max(0, h->stress - HABIT_FLARE_NERVES);
+        }
+    }
+    if (g.voyageEvent == VE_CARD_SHARP) FlatsCardSharp(true);
+}
+
+void DrawVoyageEvent(Game& g) {
+    DrawRectangle(0, 0, SCREEN_W, SCREEN_H, Fade(BLACK, 0.45f));
+    Rectangle p{290, 150, 700, 400};
+    Panel(p);
+    const char* title = "", *body = "";
+    std::string bodyS;
+    switch (g.voyageEvent) {
+        case VE_SALVAGER: title = "A salvager comes alongside"; body = "A rusted little tug bumps the hull. Its skipper has relics to sell, cheap, no questions asked."; break;
+        case VE_STORM: title = "A storm on the way home";
+            bodyS = std::string("The Nautilus rode it out, but the ") + UpgradeName(std::max(0, g.stormUpgrade)) + " took a beating. It will be offline for the next expedition while the hands repair it.";
+            body = bodyS.c_str(); break;
+        case VE_HABIT_FLARE: {
+            title = "An old habit flares";
+            Hero* h = FindHero(g, g.flareHero);
+            std::string hb = h ? HabitList(*h) : "";
+            bool bad = false; if (h) for (int i = 0; i < HB_COUNT; i++) if ((h->habits >> i & 1) && !Habit(i).good) bad = true;
+            bodyS = h ? (bad ? h->name + " had a bad night aboard (" + hb + "): +" + std::to_string(HABIT_FLARE_NERVES) + " nerves."
+                             : h->name + "'s good habits (" + hb + ") steady the crew's evening: -" + std::to_string(HABIT_FLARE_NERVES) + " nerves for them.") : "";
+            body = bodyS.c_str();
+        } break;
+        case VE_CARD_SHARP: title = "A card sharp at the table";
+            bodyS = std::string("A stranger with too many rings has sat down across from the dealer and is looking for a game. Play him at the card table: one battle, free, and his purse (") + std::to_string(SHARP_PRIZE) + " gold) if you win.";
+            body = bodyS.c_str(); break;
+    }
+    DrawTextCenteredBold(title, p.x + p.width / 2, p.y + 22, 28, Pal::Ink);
+    DrawWrapped(body, {p.x + 40, p.y + 76, p.width - 80, 120}, 18, Pal::Ink);
+    if (g.voyageEvent == VE_SALVAGER) {
+        for (size_t i = 0; i < g.salvagerStock.size(); i++) {
+            int r = g.salvagerStock[i];
+            if (r < 0) continue;
+            const RelicDef& d = Relics()[r];
+            int price = d.price * SALVAGER_PRICE_PCT / 100;
+            Rectangle c{p.x + 40 + i * 315.0f, p.y + 190, 305, 110};
+            DrawRectangleRounded(c, 0.1f, 6, Color{226, 212, 178, 255});
+            TxtBold(d.name, c.x + 14, c.y + 10, 18, Pal::Ink);
+            DrawWrapped(d.desc, {c.x + 14, c.y + 34, c.width - 28, 40}, 13, Pal::Ink);
+            if (Button({c.x + 14, c.y + 72, 180, 30}, TextFormat("Buy %dg", price), g.gold >= price, 14)) { g.gold -= price; g.relicStorage.push_back(r); g.salvagerStock[i] = -1; Toast(g, d.name + " is stowed aboard."); }
+        }
+    }
+    if (Button({p.x + p.width / 2 - 140, p.y + p.height - 66, 280, 46}, g.voyageEvent == VE_CARD_SHARP ? "Noted (he'll wait at the table)" : "Carry on")) g.voyageEvent = -1;
 }
