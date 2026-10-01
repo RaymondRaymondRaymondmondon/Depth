@@ -533,13 +533,26 @@ bool Session::CanCastOff(std::string* why) const {
     auto no = [&](const char* w) { if (why) *why = w; return false; };
     if (phase != Phase::Dock) return no("she's not at the quay");
     if (night >= 3) return no("three nights done: hand in to the Owners at the chalkboard");
-    if (G->boat.bunker < COAL_TO_REACH_LAGOON) return no("not enough coal in the bunker to reach the ground");
+    if (G->boat.bunker < CoalToReach()) return no("not enough coal in the bunker to reach the ground");
     for (const auto& c : G->crew) if (!c.overboard && c.deck == 0 && c.p.y < -3.0f) return no("all hands aboard first");
+    return true;
+}
+// the grounds (design doc v2, "The grounds"): one chart each, sailed from the same quay; coal to reach and back 10/25/40/80
+float Session::CoalToReach() const { return ground == "weeds" ? 25.0f : ground == "grotto" ? 40.0f : ground == "atlantis" ? 80.0f : COAL_TO_REACH_LAGOON; }
+bool Session::SetGround(const std::string& key, std::string* why) {
+    auto no = [&](const char* m) { if (why) *why = m; return false; };
+    if (phase != Phase::Dock || !G->moored) return no("choose the ground at the dock");
+    if (key == ground) return true;
+    Eco probe; if (!probe.Init(key, 1)) return no("that ground isn't charted yet");
+    ground = key;
+    E->Init(ground, seed + deadline * 97);
+    G->landings.clear(); G->eco = E;
+    Tape(TextFormat("BOUND FOR %s STOP", E->g->name.c_str()));
     return true;
 }
 bool Session::CastOff(std::string* why) {
     if (!CanCastOff(why)) return false;
-    G->boat.bunker -= COAL_TO_REACH_LAGOON;
+    G->boat.bunker -= CoalToReach();
     // fish kept from an earlier night: iced lose a quarter, un-iced have rotted
     for (auto& c : G->hold) if (!c.cooked && !c.junk && c.boss < 0) c.fresh = c.iced ? c.fresh * OVERNIGHT_ICED : 0;   // (cooked fish keep)
     G->highKills = 0;

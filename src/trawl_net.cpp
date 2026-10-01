@@ -161,6 +161,7 @@ bool DoCommand(TrawlWorld& w, int ci, int cmd, const std::string& id, int arg, s
         case CMD_BUY: if (!dock) return no("the Chandler is ashore"); return s.Buy(id, why, ci);
         case CMD_REQUEST: if (!dock) return no("the chalkboard is ashore"); return s.FillRequest(ci, arg, why);
         case CMD_WEAR_DROP: return s.WearDrop(ci, arg, why);
+        case CMD_GROUND: return s.SetGround(id, why);
         case CMD_SELL: if (!dock) return no("the Fish Market is ashore"); if (g.hold.empty() || arg >= (int)g.hold.size()) return no("nothing to sell"); s.Sell(arg); return true;
         case CMD_GUN_BUY: if (!dock) return no("the Gunsmith is ashore"); return s.GunBuy(ci, id, why);
         case CMD_GUN_UPGRADE: if (!dock) return no("the Gunsmith is ashore"); return s.GunUpgrade(ci, arg, why);

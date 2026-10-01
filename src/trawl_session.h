@@ -125,6 +125,8 @@ struct Session {
     std::vector<SaleLine> lastDelivery; float lastDeliveryTotal = 0; int lastRejected = 0;
     float Value(const CatchRec& c, float* glut = nullptr, float* bonus = nullptr) const;
     bool CanCastOff(std::string* why = nullptr) const;
+    float CoalToReach() const;                 // kg of coal to the ground and back (Lagoon 10, Weeds 25, Grotto 40, Atlantis 80)
+    bool SetGround(const std::string& key, std::string* why = nullptr);   // at the chart table: tonight's ground (its chart is built)
     bool CastOff(std::string* why = nullptr);   // coal paid, overnight losses, the night's conditions on the tape
     void Count();                               // the Owners count the quota (after the third night's sale)
     void Continue();                            // (Result) on to the next deadline

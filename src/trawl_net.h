@@ -49,7 +49,7 @@ void ClearPresses(HandInput& in);                          // after one step has
 void ApplyInput(TrawlWorld& w, int c, const HandInput& in, float dt);   // one 60 Hz step of hand c (the presses act once)
 
 // ---------------------------------------------------------------- the dock's buttons (and the deck locker)
-enum Cmd : uint8_t { CMD_BUY, CMD_SELL, CMD_SLIP, CMD_CASTOFF, CMD_COUNT, CMD_CONTINUE, CMD_LOCKER_TAKE, CMD_LOCKER_STOW, CMD_CANOE, CMD_DELIVER, CMD_GUN_BUY, CMD_GUN_UPGRADE, CMD_GUN_ATTACH, CMD_AMMO, CMD_ELDER_GIVE, CMD_ELDER_BUY, CMD_REQUEST, CMD_WEAR_DROP, CMD_N };   // (SELL and DELIVER: arg is a hold index, -1 every fish)
+enum Cmd : uint8_t { CMD_BUY, CMD_SELL, CMD_SLIP, CMD_CASTOFF, CMD_COUNT, CMD_CONTINUE, CMD_LOCKER_TAKE, CMD_LOCKER_STOW, CMD_CANOE, CMD_DELIVER, CMD_GUN_BUY, CMD_GUN_UPGRADE, CMD_GUN_ATTACH, CMD_AMMO, CMD_ELDER_GIVE, CMD_ELDER_BUY, CMD_REQUEST, CMD_WEAR_DROP, CMD_GROUND, CMD_N };   // (SELL and DELIVER: arg is a hold index, -1 every fish)
 bool DoCommand(TrawlWorld& w, int c, int cmd, const std::string& id, int arg, std::string* why);
 
 // the messages a client sends (Session::Act): an input frame, or a command

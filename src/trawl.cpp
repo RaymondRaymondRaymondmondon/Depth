@@ -826,15 +826,22 @@ void Panels(Game& g) {
         case PANEL_CHART: {
             PanelFrame("The chart table", 640, 420, &r);
             float x = r.x + 40, y = r.y + 64;
-            TxtBold("Eclipse Lagoon", x, y, 22, ink);
-            Txt("3-40 m. Coal to reach: 10 kg. Fish value low. The reef tide falls all night.", x, y + 30, 15, dim);
-            for (int k = 0; k < 3; k++) {
-                static const char* N[3] = {"The Weeds", "The Grotto", "Atlantis Waters"};
-                Txt(TextFormat("%s  (charted in a later refit)", N[k]), x, y + 70 + k * 26.0f, 16, Fade(dim, 0.6f));
+            // the grounds: tonight's is chosen here (one chart each, from the same quay)
+            struct GroundRow { const char* key; const char* name; const char* note; };
+            static const GroundRow GR[4] = {
+                {"lagoon", "Eclipse Lagoon", "3-40 m. Coal 10 kg. Fish value low. The reef tide falls all night."},
+                {"weeds", "The Weeds", "5-60 m. Coal 25 kg. Kelp fouls the screw, nets and lines; the big fish run the seaward edge."},
+                {"grotto", "The Grotto", "Charted in a later refit."},
+                {"atlantis", "Atlantis Waters", "Charted in a later refit."}};
+            for (int k = 0; k < 4; k++) {
+                bool here = ss.ground == GR[k].key, open = k < 2;
+                float yy = y + k * 34.0f;
+                if (Button({x, yy, 190, 28}, GR[k].name, open && !here, 14)) Command(CMD_GROUND, GR[k].key, 0, std::string("Bound for ") + GR[k].name);
+                Txt(GR[k].note, x + 204, yy + 6, 13, here ? ink : Fade(dim, open ? 0.9f : 0.5f));
             }
-            TxtBold(TextFormat("Night %d of 3.   Bunker %.0f kg.   Back across the harbour line before 05:00.", ss.night + 1, G.boat.bunker), x, y + 170, 15, ink);
+            TxtBold(TextFormat("Night %d of 3.   Bunker %.0f kg (%.0f to reach the ground).   Back across the harbour line before 05:00.", ss.night + 1, G.boat.bunker, ss.CoalToReach()), x, y + 150, 15, ink);
             bool ok = ss.CanCastOff(&why);
-            if (!ok) Txt(why.c_str(), x, y + 200, 15, Color{150, 50, 40, 255});
+            if (!ok) Txt(why.c_str(), x, y + 176, 15, Color{150, 50, 40, 255});
             if (Button({r.x + r.width / 2 - 110, r.y + r.height - 80, 220, 46}, "Cast off", ok)) {
                 Command(CMD_CASTOFF, "", 0, "Cast off: raise steam and steer out past the harbour line");
                 S.panel = -1;

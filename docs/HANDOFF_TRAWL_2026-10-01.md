@@ -273,3 +273,17 @@ wreck's listing, the Reef's wonder-weapon quest, the repair kit, the stage-10 ba
     - Pick the ground on the chalkboard or chart table (coal to reach: 10/25/40/80).
     - Per ground: an `Eco::BuildChart` branch, its species and ground block in trawl_species.json, its signature mechanics, its skiff marks, its landings and mini-bosses, then sound and art tints.
     - Check `--trawl-eco <ground> 27` stability and the sim per ground (the doc's targets: Lagoon 85%, Weeds 65%, Grotto 45%, Atlantis 25%).
+- **Step 8 so far:**
+  - `3a5b19b`: the Weeds' ground: twenty species (`data/trawl/trawl_species.json`), the chart (`Eco::BuildWeedsChart`: the same west shore and quay, a kelp forest with lanes, barrens, reefs, the seaward edge) and three skiff marks; stable with no crew.
+  - Then: the chart table picks tonight's ground (`Session::SetGround`, CMD_GROUND; coal `CoalToReach` 10/25/40/80).
+  - The sim on the Weeds already meets 100% (the doc wants 65%): nothing hard is in yet.
+- **Next for the Weeds:**
+  - Kelp fouls the screw: under way in H_KELP, a `screwFouled` flag halves her way until a hand in the water at the stern cuts it free (4 s).
+  - Nets fill with kelp worth nothing.
+  - Threats: a Great White on the seaward edge (a `ramsHull` species, ~25 damage); Sirens pulling the helm; Kelp Wraiths entangling a hand at the rail; Feral Mermen cutting nets.
+  - The otter cascade: gunfire near otters scares them, and an otter killed costs an 80 fine.
+  - Mini-bosses: `MiniBosses()` needs a ground column (the Kelp King, 250 kg, lure 120; Gold Tail, 30 kg). `BossCast` should pick by the mark's ground.
+  - Landings: Seal Rock and the Cannery Pier.
+  - Art and sound tints per ground: kelp drawn in both views (H_KELP cells).
+  - Re-tune until the sim lands near 65%.
+- Then the Grotto (the roster is in docs/trawl_rosters_weeds_grotto.md; the rest of its table is on p0045.png), Atlantis, and diving.
