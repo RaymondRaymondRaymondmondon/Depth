@@ -1,0 +1,149 @@
+# Handoff: the Trawl and Red Tide, 1 October 2026
+
+Written for the next Claude session. It says what was done in this worktree, what is half-finished on disk right now,
+what the user has decided, and what comes next. Read it with CLAUDE.md (sections "The Trawl", "The Trawl: finishing
+the Lagoon", "Playtest round 3") and `docs/TRAWL_PROGRESS.md`.
+
+## Where you are
+
+- Worktree: `C:\Users\phill\Downloads\Depth\.claude\worktrees\depth-folder-game-review-8b23d7`, branch
+  `claude/depth-folder-game-review-8b23d7`, base `master`. The playable exe is `build\Release\depth.exe` in this
+  worktree (the main folder's exe is old until the branch is merged).
+- Build with the PowerShell tool only: `.\build.ps1` (the Bash tool can't run it: execution policy). Git is
+  `C:\Program Files\Microsoft Visual Studio\18\Community\Common7\IDE\CommonExtensions\Microsoft\TeamFoundation\Team Explorer\Git\cmd\git.exe`.
+  No python on this machine. Several Trawl files are CRLF (`main.cpp`, `game.h`, `trawl_art.cpp`, `trawl_view3d.cpp`,
+  `trawl_eco.cpp`, `trawl_fish.cpp`, `trawl_session.cpp`): perl/sed multi-line edits silently fail there, use the Edit tool.
+- Standing orders from the user (memory `depth-working-prefs`, `depth-trawl-lagoon-plan`): work autonomously, commit
+  often, ask design questions whenever they come up, the game may be closed at any time to rebuild.
+
+## The reference material (read it, the repo's old text was wrong)
+
+- The Trawl's real design doc is the 79-page PDF `C:\Users\phill\Downloads\Depth\The_Trawl_Reference\The Trawl — Arcade
+  Game 2 Design Document (Draft).pdf`. `docs/The_Trawl_Design_Doc.txt` was decoded from an older 50-page draft and
+  lacks half the game. The full OCR is `docs/The_Trawl_Design_Doc_v2_ocr.txt` (page PNGs in `docs/trawl_pdf_pages/`;
+  OCR drops some table cells, so look at the PNGs for tables). Key sections and their OCR lines: the Killscore and the
+  deck kill (~1040-1131), cooking (~1147), junk (~1302), birds and catch crates (~1312), the skiff (4198-4260),
+  skiff destinations and landings (4247-4400), islands/fires/traders/treasure (4389-4570), economy (4570+), weapons
+  catalogue and Gunsmith, Slipway and skiff upgrades (~5020-5135), stations (13, incl. the skiff davit, ~486).
+- Red Tide's doc is the 90-page PDF in `Red_Tide_Reference`, OCR `docs/Red_Tide_Design_Doc_ocr.txt`; its seven
+  workbooks are dumped to TSV in `docs/redtide_ref/` by `tools/xlsxdump.ps1` (no Excel needed); the tool zips are
+  unpacked there too. Memory file `depth-reference-docs-v2` summarises both.
+
+## What was done in this worktree (all committed, newest first)
+
+1. `e43f27a` Playtest round 3: hook-set window 0.7 s (`Bite::Start`), cheaper weapons and a starting speargun, weapon
+   animations in both Trawl views and in Red Tide, Red Tide's gun models rebuilt (`BuildGuns`), the net-yield grid
+   (`DEPTH_NETYIELD`, `DEPTH_GLUT`).
+2. `340772a`, `c026186` The shakedown night with Kess (`Session::shake`, `SHAKE_LINES`, `--trawl-shakedown-test`,
+   the arcade's "Shakedown night (with Kess)" button); the solo sim skipper tows.
+3. `87516cc` Finishing the Lagoon: `--trawl-sim` (`src/trawl_sim.cpp`, a scripted skipper with careful/greedy/reckless
+   patterns), the lethal paths (reef shark hull rams in `EcoTick`, rail drag in `StepRods`, real chum), the Stir clock
+   (`Eco::Stir()`, json `"stir"`), mid-night weather turns, nightly variants (Bait run, Red tide, King tide, Turtle
+   nesting, Canoe night with the trade/tribute/refuse choice), Trawl sound (`sound_trawl.inl`, `TwAudio`, `TrawlCue`).
+4. `302101e` Mouse look by warping, squall roll fix, the sonar station and helm chart.
+
+Balance numbers at the time of writing (`--trawl-sim lagoon 3 <crew> careful 6`): six careful hands meet quota 83%
+(about 226 a night, net yield 0.2), three hands 75%, two 100%, solo with the net 100%. Deaths with bots are 0.0 a
+night (the doc wants about 0.3; logged as a deviation).
+
+## What is UNCOMMITTED on disk right now (builds as of the last check, but the last edits are untested)
+
+The playtest asked for two things: a landed fish that flops for the rail until you club or shoot it, and jumping (a
+careless jump clears the rail, which is what the life ring is for). The work is wired but not yet built, tested or
+committed. Files touched: `src/trawl.h`, `trawl_boat.cpp`, `trawl_gear.cpp`, `trawl_fish.cpp`, `trawl_bots.cpp`,
+`trawl_net.cpp`, `trawl_art.cpp`, `trawl_view3d.cpp`, `trawl_eco.h/.cpp`, `trawl_session.cpp`.
+
+- `CatchRec` gained `dead`, `flopT`, `deckAt` (and they're in the `Visit` snapshot in trawl_net.cpp). Every landing
+  site now sets `deckAt` (rod: 1.5 m inboard of the rod; cod end: spilled over the sorting deck at x≈-8.6; gaff,
+  longline, pot: inboard of the hand; tether: inboard of the rail; harpoon: the bow). Fish that were dead in the water
+  (gaffed floaters, tethered kills, harpooned, heads) come aboard `dead`.
+- `Gannet::StepDeckFish(dt)` (called from `StepGear`): a live, ungutted fish hops every 7 s + 0.5 s/kg (netted fish
+  every 16 s), 0.3-0.8 m, 65% toward the nearer rail; past |y| > 2.8 it goes back over the side with a little blood.
+  Nothing flops while moored.
+- `Gannet::KillDeckFish(ci, reach)`: priest and knife call it on a press (`UseItem`), the gaff calls it when there is
+  no floater to gaff; a bot at the gutting table clubs anything on deck within 12 m every 2.5 s (`trawl_bots.cpp`,
+  uses `c.cool` as its timer). A bullet, pellet or spear passing a live deck fish within 0.45 m at deck height kills it
+  and takes 10% off its grade (`StepGear` projectile loop).
+- `HitShot`: a fish killed deeper than 1.5 m with nothing on it now sinks in blood (`MeanKg()*6`) instead of floating;
+  wounds bleed `MeanKg()*2`. Spraying rounds at passing fish feeds the water, not the hold (the user's rule).
+- Jump: `Crew::z/vz`, `Gannet::Jump` (Space off a station in `ApplyInput`; 4 m/s up on deck, 2.2 below), airborne
+  physics in `Gannet::Move` with `Walkable(p, deck, air)` allowing the rail +1.6 m; landing off the deck calls
+  `GoOverboard(ci, "jumped over the rail")`. Drawing: top-down lifts the figure by `c.z * ppm * 0.7` and leaves the
+  shadow (`DrawCrewMember`); first person adds `c.z` to the eye (`Eye3D`) and the body frame (`DrawHand`).
+- Deck fish are drawn in first person (after the floaters in `DrawTrawl3D`: on their sides, the live ones arch and
+  slap). **Not yet drawn top-down**: add a loop over `g.hold` in `DrawGear` (trawl_art.cpp) using `FishMark`.
+- Also in the WIP: `H_KELP`, `H_BARREN` habitats in trawl_eco.h (names "kelp", "barren") for the Weeds/Grotto later;
+  Chandler ammo packs (flares 6/20, spears 10/12, rounds 30/15, shells 24/18) in trawl_session.cpp.
+
+**To finish it:** add the top-down fish drawing; build; add gear-test checks (a fish on deck flops over the side in
+time if nobody acts; the priest within 1.6 m kills it; a bot at the table clubs it; a jump off the rail puts the hand
+in the water and the ring rescues them); run `--trawl-gear-test`, `--trawl-bot-test`, `--trawl-session-test`,
+`--trawl-net-test`, `--trawl-eco-test`, `--trawl-shakedown-test`, `--trawl-sim lagoon 3 6 careful 3` (watch that the
+flopping doesn't wreck the bots' quota numbers: the gutting-table bot should club everything); commit; log it in
+`docs/TRAWL_PROGRESS.md` and CLAUDE.md.
+
+## The user's decisions (1 October 2026)
+
+- Cooking is ashore only (the doc's rule): every cooking fire is on a landing reached by skiff. The galley stove is for
+  warmth and coffee, not cooking.
+- The doc's quota rule stands: only fish delivered at the market count toward the quota, and the Owners reject
+  anything under 70% freshness.
+- Build the skiff plus the Atoll landing first ("and anything you feel necessary around it"), then carry on; the
+  other two Lagoon landings (the Old Lighthouse rock, the Sandbar) and the Weeds come after.
+- Weapons must pay for themselves and be fun with friends: shoot/club a landed fish to kill it, shoot gulls stealing
+  the catch, fight off enemies; the market sells plenty of ammo so running out is hard.
+- The "life raft" the user mentions is the existing life ring.
+- Nightly variants, the canoe choice and the Lagoon's lethal paths are as built (memory `depth-trawl-lagoon-plan`).
+
+## The plan from here (the Trawl)
+
+The order agreed after reading the full doc. Step 1 was about to start when this handoff was written.
+
+1. **Economy spine**: the three ways to use a fish (quota scales vs market vs barter), only delivered fish count,
+   70% freshness rejection, Owners' consignments, the full price/freshness/grade pipeline per the doc's Economy
+   section; coal per ground 10/25/40/80.
+2. **Deck kill and the Killscore**: finish the WIP above, then the doc's deck behaviours per species (every fish of
+   1 kg+ comes aboard alive with HP), the Killscore bonus (clean kill vs mess), blood on deck.
+3. **Weapons and the Gunsmith**: the ~45-weapon catalogue (melee, sidearms, long guns, specials, thrown), damage
+   upgrades and 18 attachments, the magazine locker below decks, more ammo at the Chandler.
+4. **Birds and junk**: gulls and frigatebirds stealing unattended fish (10 s on deck, in the skiff, on a beach), the six
+   catch crates, junk from the sea (chart pieces that reveal a hidden skiff mark, brass keys, bottles).
+5. **The skiff and the Atoll** (the user's pick): the davit station (lower 8 s, recover 10 s alongside the stern with
+   the Gannet stopped), rowing on the two mouse buttons (1.5 m/s one rower, 2.2 two; "catching a crab" stops it 1 s;
+   each stroke writes noise), 150 kg, one section of 40 integrity, capsizes past 25 degrees, bow lantern 6 m, the
+   sonar operator sees it as a bright blip and marks show as bearing arrows, walkies/flares/bell, left behind at the
+   harbour line = lost for the night; predators prefer the smallest vessel with the most blood; the skiff-only marks
+   (the Crest Pass, the Sargassum Line, twice the bite rate); the Atoll as a small top-down map (the deck's art and
+   movement): fire pit (rain puts it out), the tribe's elder (trades only for fish at 150%, refuses crews who fought
+   the canoes), 1-2 caches, crabs and a moray in its lagoon, smoke that draws birds and predators. Cooking happens
+   here (the doc's cooking section).
+6. **Mini-bosses, boss lures, harbour requests, charms.**
+7. **Below decks** (fo'c'sle, chain locker, hold, bilge; intruders) and the 13 stations.
+8. **The Weeds and the Grotto** (new grounds: one chart each, same quay), then Atlantis Waters; diving.
+
+## Red Tide: the user's answers to the deviation list (1 October 2026)
+
+Kept as built: the Ship confines divers to the hull (portholes); tides 1-3 "ecosystem calm"; tacticals and the brush
+sold at the workbench; the Sand Worm scripted; Supper Call; quest keys team-held on the Ship (unanswered, so unchanged).
+Two things to do:
+
+- **Atlantis at 0.7 scale instead of 0.4** (`plan_override`/`poi_scale` in `data/redtide/maps/atlantis/extra.json`,
+  the ring wall and "Beyond the Wall" radii follow the scale; re-run `--redtide-map-test atlantis` and
+  `--web-check atlantis`, re-time the aqueduct check, and look at `--shots shots redtide_atlantis`).
+- **Population stability must be fixed** ("somehow this has to be fixed"): `--eco-test ship` fails 3 seeds in 10 and
+  `--eco-test cave` fails, because a singleton mid-predator (barracuda, grouper, octopus; the cave's snapping turtle and
+  giant salamander eaten by the caiman) is eaten and its 240-600 s respawn falls outside the ten-minute window.
+  Candidate fixes: a floor of one for singleton species (respawn fast when the last one dies), apex beasts not
+  eating the last of a species, or the test counting a species as stable if it is scheduled to respawn.
+
+Still not built in Red Tide (the user hasn't asked for these yet): four-player networking (stage 4), the modes,
+pause/ping/scoreboard/lamp toggle, enemy weapon upgrades by tide, the Sawtooth, inspect animations, tonic jingles, the
+wreck's listing, the Reef's wonder-weapon quest, the repair kit, the stage-10 balance pass.
+
+## Tools and checks you'll use
+
+- Trawl: `--trawl-gear-test`, `--trawl-bot-test`, `--trawl-session-test`, `--trawl-net-test`, `--trawl-eco-test`,
+  `--trawl-shakedown-test`, `--trawl-fight all`, `--trawl-sim <ground> <nights> [crew] [careful|greedy|reckless] [runs] [green|able|oldhand]`
+  (`DEPTH_TRACE=1` for a line a minute), `--shots shots trawl_` / `trawl3d_`, `--audio-test`.
+- Red Tide: `--eco-test <map>`, `--redtide-map-test <map>`, `--web-check all`, `--redtide-sim`, `--shots shots redtide_<map>`.
+- Known pre-existing failure: `--audio-test` reports "amb.organbreath is silent" on the main build too.
