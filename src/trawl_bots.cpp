@@ -310,6 +310,8 @@ void Gannet::StepBots(float dt) {
             case StationKind::Gutting: {
                 bool any = DeckFish() > 0;
                 for (const auto& h : hold) if (h.bycatch || h.protectedSp) any = true;
+                // the table's hand steps over and clubs whatever is flopping for the rail before it gets there
+                if (c.cool <= 0) { if (KillDeckFish(i, 12.0f)) c.cool = 2.5f; } else c.cool -= dt;
                 Primary(i, any, dt);
                 break;
             }

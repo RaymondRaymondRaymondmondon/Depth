@@ -599,6 +599,8 @@ void Gannet::StepRods(float dt) {
                         std::string nm = std::string(f.spec.name) + (r.headOnly ? " (head)" : "");
                         CatchRec rec; rec.name = nm; rec.kg = f.spec.kg; rec.price = f.spec.price; rec.sp = r.fishSp;
                         rec.grade = r.headOnly ? 0.9f : 1.0f;             // hook 100%, less 10% for the bite taken out of it
+                        rec.deckAt = Vector2Add(sd.at, Vector2Scale(outDeck, -1.5f));   // it lands on the deck inboard of the rod
+                        rec.dead = r.headOnly;                            // (a head doesn't flop)
                         hold.push_back(rec);
                         r.lastCatch = KgText(f.spec.kg) + " " + nm;
                         Say(std::string("Landed: a ") + r.lastCatch);
@@ -668,14 +670,14 @@ int RunTrawlRodTest() {
             circle += rr > 0;
             Bite m; m.Start(sn, true, false, 400 + i);
             rr = 0; t = 0; float late = -1;
-            while (rr == 0 && t < 20) { if (m.stage == BiteStage::Take && late < 0) late = 0; if (late >= 0) late += dt; rr = m.Step(dt, late > 0.2f, false); t += dt; }
+            while (rr == 0 && t < 20) { if (m.stage == BiteStage::Take && late < 0) late = 0; if (late >= 0) late += dt; rr = m.Step(dt, late > 0.6f, false); t += dt; }
             missed += rr < 0;
         }
         check(hooked == 200, TextFormat("striking in the take's window hooks it (%d/200)", hooked));
         check(circle == 200, TextFormat("a circle hook sets itself if the angler just reels (%d/200)", circle));
-        check(missed == 200, TextFormat("a wary fish's 150 ms window is missed at 200 ms (%d/200)", missed));
+        check(missed == 200, TextFormat("a wary fish's 0.5 s window is missed at 0.6 s (%d/200)", missed));   // (the playtest's windows: 0.7 s, wary 0.5 s)
         Bite a; a.Start(sn, true, true, 7);
-        check(fabsf(a.window - 0.225f) < 0.001f, "an Angler gets +75 ms on the hook-set window");
+        check(fabsf(a.window - 0.75f) < 0.001f, "an Angler gets +0.25 s on the hook-set window");
     }
     // a fish on the Gannet's rod: bites come, the fight pulls her toward the fish and heels her, and it lands
     {

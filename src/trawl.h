@@ -236,6 +236,7 @@ struct Crew {
     int patchKits = 0;
     float carryKg = 0;
     Vector2 facing{1, 0};
+    float z = 0, vz = 0;                                  // a jump (the playtest, 2026-10-01): height over the deck and the climb; a careless leap clears the rail
     // the hand's slots, injuries, and life (design doc, "Death, injury, and ghosts")
     Slot slots[4]; int sel = 0;
     float cool = 0, reloadT = 0;
@@ -280,6 +281,9 @@ struct CatchRec {
     bool first = false;                                   // the run's first of its kind: the Owners pay 50% more
     bool bycatch = false, protectedSp = false; float aboardT = 0;   // worthless or protected: back over the side (a turtle within 60 s)
     int src = 0;                                          // how it came aboard: CatchSource (the sim's money by source)
+    // on the deck (the playtest, 2026-10-01): a landed fish lies where it came aboard and flops for the rail until
+    // it is clubbed (the priest, a gaff, a knife), shot, or gutted; one that reaches the rail goes back over the side
+    bool dead = false; float flopT = 0; Vector2 deckAt{-8, 0};
 };
 enum CatchSource { CS_HOOK, CS_NET, CS_GUN, CS_SET, CS_DIVE, CS_COUNT };
 const char* CatchSourceName(int s);
@@ -400,6 +404,8 @@ struct Gannet {
     void NetInput(int c, bool held, bool cut, float dt);
     void HarpoonInput(int c, Vector2 aimDeck, bool fire, bool held, bool release, float dt);
     bool GaffFloater(int c);                              // E at the rail beside a shot fish afloat
+    bool KillDeckFish(int c, float reach = 1.6f);         // the priest, a gaff or a knife on the nearest live fish on the deck
+    void StepDeckFish(float dt);                          // the flopping (StepGear)
     bool HaulSetGear(int c);                              // E at the rail beside a longline buoy or a pot float
     void Injure(int c, int injury, const std::string& cause);
     void Kill(int c, const std::string& cause, bool bodyLost);
@@ -410,6 +416,7 @@ struct Gannet {
     void Step(float dt);
     // a hand's controls (the scene feeds its human; bots will call these too)
     void Move(int c, Vector2 wish, bool brace, float dt);
+    bool Jump(int c);                                     // Space off a station: a hop; over the rail it's the sea
     bool TakeStation(int c);                              // E near a station
     void LeaveStation(int c);                             // X
     bool StartPatch(int c);                               // E in a leaking section, with a patch kit (or the ship's)

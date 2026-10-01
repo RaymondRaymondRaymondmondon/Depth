@@ -435,3 +435,30 @@ Playtest round 3 (the user): the 250 ms hook-set window was unplayable with the 
 Weapon animations in the Trawl (top-down and first person: swings, kicks, flashes, reloads, the spear sliding home)
 and in Red Tide (reload with the magazine coming out and going home, a wind-up and chop for melee, muzzle flash and
 bubble puff); Red Tide's gun models rebuilt with a dozen parts each.
+
+## The deck kill and jumping (playtest round 3 follow-up, 2026-10-01)
+- **Landed fish:**
+  - Every landing site sets `CatchRec::deckAt`:
+    - a rod: 1.5 m inboard of the rod;
+    - the cod end: spilled over the sorting deck;
+    - a gaff, a longline or a pot: inboard of the hand;
+    - a tether: inboard of the rail;
+    - the harpoon: the bow.
+  - Fish dead in the water come aboard `dead`.
+- **The flopping:** a live, ungutted fish flops for the nearer rail (`StepDeckFish`: a hop every 7 s plus 0.5 s/kg, netted fish every 16 s). Past the rail it goes back over the side with a little blood.
+- **Killing it:**
+  - The priest, a knife, or a gaff with no floater kills it where it lies (`KillDeckFish`, reach 1.6 m).
+  - A round, a pellet or a spear passing within 0.45 m kills it, at 10% off the grade.
+  - A bot at the gutting table clubs anything on deck.
+  - Gulls still take any un-gutted fish under 3 kg.
+- **Drawing:** deck fish are drawn in both views (top-down in `DrawGear`: a live one arches and slaps, a dead one lies in a smear of blood).
+- **Shot fish:** a fish shot deeper than 1.5 m with nothing on it sinks in blood rather than floating. Spraying rounds at passing fish feeds the water, not the hold.
+- **Jumping:** Space off a station (`Gannet::Jump`, `Crew::z/vz`). The rail can be cleared, and landing off the deck is overboard (the life ring's job). Drawn top-down as a lift with the shadow left behind, and in first person as the eye rising.
+- **Tests:** `--trawl-gear-test` checks:
+  - an untended fish goes over within two minutes;
+  - the priest's reach;
+  - a dead fish stays put;
+  - the gutting-table bot clubs;
+  - a jump at the rail is a swim and one amidships lands.
+- `--trawl-boat-test`'s hook-set checks were updated to the playtest windows (0.7 s, wary 0.5 s, an Angler +0.25 s).
+- **Sim:** `--trawl-sim lagoon 3 6 careful 3`: quota met 3 of 3, 197 a night, 0 deaths.

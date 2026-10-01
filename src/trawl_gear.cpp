@@ -200,12 +200,49 @@ void Gannet::UseItem(int ci, Vector2 aimDeck, bool pressed, bool held, bool sigh
             break;
         }
         case Item::Gaff:
-            if (pressed) { if (c.cool <= 0) c.cool = 0.5f; GaffFloater(ci); }   // (cool: the swing the screens draw; a gun's cool-down never stops the gaff)
+            if (pressed) { if (c.cool <= 0) c.cool = 0.5f; if (!GaffFloater(ci)) KillDeckFish(ci); }   // (cool: the swing the screens draw; a gun's cool-down never stops the gaff)
             break;
         case Item::Priest: case Item::Knife:
-            if (pressed && c.cool <= 0) c.cool = 0.4f;
+            if (pressed && c.cool <= 0) { c.cool = 0.4f; KillDeckFish(ci); }
             break;
         default: break;
+    }
+}
+// ---------------------------------------------------------------- fish on the deck (the playtest, 2026-10-01)
+// A landed fish lies where it came aboard, alive, and every so often flops toward the nearest rail; one that
+// reaches it goes back over the side. The priest, a gaff or a knife kills it where it lies (so does a shot, at a
+// little cost to the grade); the gutting table kills what it guts. Netted fish come up stunned, and flop less.
+bool Gannet::KillDeckFish(int ci, float reach) {
+    const Crew& c = crew[ci];
+    int best = -1; float bd = reach;
+    for (int i = 0; i < (int)hold.size(); i++) if (!hold[i].dead && !hold[i].gutted) { float d = Vector2Distance(hold[i].deckAt, c.p); if (d < bd) { bd = d; best = i; } }
+    if (best < 0) return false;
+    hold[best].dead = true;
+    Say(TextFormat("Dispatched: %s", hold[best].name.c_str()));
+    return true;
+}
+void Gannet::StepDeckFish(float dt) {
+    for (size_t i = 0; i < hold.size();) {
+        CatchRec& h = hold[i];
+        if (h.dead || h.gutted || moored) { i++; continue; }
+        h.flopT += dt;
+        float every = h.src == CS_NET ? 16.0f : 7.0f + std::min(8.0f, h.kg * 0.5f);   // the small ones are the liveliest
+        if (h.flopT >= every) {
+            h.flopT = RandF(gRng) * 2;
+            // most hops go for the nearer rail, some anywhere: a 5 kg fish inboard of a rod is over in about a minute
+            Vector2 toRail{0, h.deckAt.y >= 0 ? 1.0f : -1.0f};
+            if (RandF(gRng) < 0.35f) { float a = RandF(gRng) * 6.2832f; toRail = {cosf(a), sinf(a)}; }
+            float hop = 0.3f + RandF(gRng) * 0.5f;
+            h.deckAt = Vector2Add(h.deckAt, Vector2Add(Vector2Scale(toRail, hop), {(RandF(gRng) - 0.5f) * 0.4f, 0}));
+            h.deckAt.x = std::clamp(h.deckAt.x, -10.5f, 9.5f);
+            if (fabsf(h.deckAt.y) > 2.8f) {
+                Say(TextFormat("The %s flops back over the side", h.name.c_str()));
+                if (eco) eco->AddBlood({boat.ToWorld(h.deckAt).x, boat.ToWorld(h.deckAt).y, 0.5f}, h.kg * 0.5f);
+                hold.erase(hold.begin() + i);
+                continue;
+            }
+        }
+        i++;
     }
 }
 bool Gannet::ThrowChum(int ci) {
@@ -224,6 +261,8 @@ bool Gannet::GaffFloater(int ci) {
         if (Vector2Distance(f.p, rail) > 3.5f) continue;
         CatchRec r; r.name = f.name; r.kg = f.kg; r.price = f.price; r.sp = f.sp; r.grade = f.grade; r.src = CS_GUN;
         r.bycatch = f.price <= 0;
+        r.dead = true;                                     // (it was dead in the water)
+        r.deckAt = {c.p.x, c.p.y * 0.6f};                  // swung inboard of the hand
         hold.push_back(r);
         Say(TextFormat("Gaffed aboard: %s, %.1f kg", f.name.c_str(), f.kg));
         floaters.erase(floaters.begin() + i);
@@ -296,6 +335,7 @@ void Gannet::NetInput(int ci, bool held, bool cut, float dt) {
                     const SpeciesRec& r = S[kv.first];
                     CatchRec rec; rec.name = r.name; rec.kg = kv.second; rec.price = r.price; rec.sp = kv.first; rec.grade = 0.9f; rec.src = CS_NET;
                     rec.bycatch = r.price <= 0 && !r.protectedSp; rec.protectedSp = r.protectedSp;
+                    rec.deckAt = {-8.6f + (RandF(gRng) - 0.5f) * 2.0f, (RandF(gRng) - 0.5f) * 2.4f};   // spilled across the sorting deck
                     if (r.stings) jellies = true;
                     hold.push_back(rec);
                 }
@@ -322,6 +362,7 @@ bool Gannet::HaulSetGear(int ci) {
         for (const auto& h : L.hooks) {
             if (h.sp < 0) { empty++; continue; }
             CatchRec r; r.name = S[h.sp].name + (h.head ? " (head)" : ""); r.kg = h.kg; r.price = S[h.sp].price; r.sp = h.sp; r.grade = h.head ? 0.9f : 1.0f; r.src = CS_SET;
+            r.dead = h.head; r.deckAt = {crew[ci].p.x + (RandF(gRng) - 0.5f) * 1.5f, crew[ci].p.y * 0.6f};
             hold.push_back(r); fish++; heads += h.head;
         }
         Say(TextFormat("Longline hauled: %d fish, %d heads, %d empty hooks", fish - heads, heads, empty));
@@ -332,7 +373,7 @@ bool Gannet::HaulSetGear(int ci) {
     for (size_t i = 0; i < pots.size(); i++) {
         Pot& p = pots[i];
         if (Vector2Distance(rail, p.p) > 5) continue;
-        for (const auto& kv : p.catchKg) { CatchRec r; r.name = S[kv.first].name; r.kg = kv.second; r.price = S[kv.first].price; r.sp = kv.first; r.src = CS_SET; hold.push_back(r); }
+        for (const auto& kv : p.catchKg) { CatchRec r; r.name = S[kv.first].name; r.kg = kv.second; r.price = S[kv.first].price; r.sp = kv.first; r.src = CS_SET; r.deckAt = {crew[ci].p.x, crew[ci].p.y * 0.6f}; hold.push_back(r); }
         Say(TextFormat("Pot hauled: %d aboard", p.n));
         pots.erase(pots.begin() + i);
         AddItem(Item::Pot, 1);
@@ -396,14 +437,25 @@ void Gannet::HitShot(Projectile& p, int hit) {
             p.life = -1;
             return;
         }
+        bool tethered = p.tether || p.kind == Shot::Harpoon;
         if (eco->DamageAgent(hit, p.dmg, head, at)) {
             if (air) { Say("A gull drops"); }
-            else {
+            else if (tethered || at.z < 1.5f) {
+                // on a tether, or killed right at the surface: it floats and can be gaffed (at a shot fish's grade)
                 Floater f; f.name = r.name; f.sp = a.sp; f.kg = r.kgLo + (r.kgHi - r.kgLo) * RandF(gRng); f.price = r.price; f.grade = ShotGrade(p.kind);
-                f.p = {at.x, at.y}; f.tethered = p.tether || p.kind == Shot::Harpoon;
+                f.p = {at.x, at.y}; f.tethered = tethered;
                 floaters.push_back(f);
                 Say(TextFormat("%s: %s dead%s", p.kind == Shot::Spear ? "Speared" : "Shot", r.name.c_str(), f.tethered ? " (on the tether)" : ", afloat"));
+            } else {
+                // shot dead under the surface with nothing on it: it sinks away in a cloud of blood. Bullets sprayed at
+                // passing fish feed the water, not the hold (design doc: a shot trades value for speed and noise)
+                eco->AddBlood(at, r.MeanKg() * 6);
+                Say(TextFormat("Shot: the %s sinks, bleeding", r.name.c_str()));
             }
+        } else if (!air) {
+            // wounded: it runs, and bleeds into the scent grid as it goes
+            a.flash = 0.5f; a.hunger = std::min(a.hunger, 0.2f);
+            eco->AddBlood(at, r.MeanKg() * 2);
         }
         if (eco) eco->AddNoise(at, ItemOf(p.kind == Shot::Bullet ? Item::Rifle : p.kind == Shot::Pellet ? Item::Shotgun : Item::Speargun).noise * 6);
         p.life = -1;
@@ -413,6 +465,7 @@ void Gannet::HitShot(Projectile& p, int hit) {
 void Gannet::StepGear(float dt) {
     const auto& SP = Species().sp;
     Vector2 fwd = boat.Forward();
+    StepDeckFish(dt);
     // projectiles
     for (auto& p : shots) {
         p.life -= dt;
@@ -466,6 +519,14 @@ void Gannet::StepGear(float dt) {
                 if (k == p.owner || crew[k].dead || crew[k].overboard) continue;
                 if (Vector2Distance(boat.ToWorld(crew[k].p), {p.p.x, p.p.y}) < 0.45f) { Injure(k, INJ_BITE, "a stray shot"); p.life = -1; done = true; break; }
             }
+            // a round into a live fish on the deck kills it where it lies (a little off the grade: a hole in the flank)
+            if ((p.kind == Shot::Bullet || p.kind == Shot::Pellet || p.kind == Shot::Spear) && p.p.z < -RAIL_H + 1.0f && p.p.z > -RAIL_H - 0.6f) {
+                Vector2 lp = boat.ToDeck({p.p.x, p.p.y});
+                for (auto& h : hold) if (!h.dead && !h.gutted && Vector2Distance(h.deckAt, lp) < 0.45f) {
+                    h.dead = true; h.grade *= 0.9f; Say(TextFormat("Shot on the deck: %s", h.name.c_str()));
+                    p.life = -1; done = true; break;
+                }
+            }
             if (done || !eco) continue;
             bool air = p.p.z < -1;
             int hit = eco->HitAgent(p.p, 0.2f, air);
@@ -486,7 +547,7 @@ void Gannet::StepGear(float dt) {
             for (int k = 0; k < (int)crew.size(); k++) if (!crew[k].dead && !crew[k].overboard) { Vector2 r2 = RailWorld(k); float d = Vector2Distance(r2, f.p); if (d < best) { best = d; rail = r2; } }
             Vector2 d = Vector2Subtract(rail, f.p); float L = Vector2Length(d);
             if (L > 0.01f) f.p = Vector2Add(f.p, Vector2Scale(d, std::min(1.0f, 2.5f * dt / L)));
-            if (L < 2.5f) { CatchRec r; r.name = f.name; r.kg = f.kg; r.price = f.price; r.sp = f.sp; r.grade = f.grade; r.src = CS_GUN; hold.push_back(r); Say(TextFormat("Reeled in on the tether: %s", f.name.c_str())); f.life = -1; }
+            if (L < 2.5f) { CatchRec r; r.name = f.name; r.kg = f.kg; r.price = f.price; r.sp = f.sp; r.grade = f.grade; r.src = CS_GUN; r.dead = true; Vector2 rl = boat.ToDeck(rail); r.deckAt = {rl.x, rl.y * 0.6f}; hold.push_back(r); Say(TextFormat("Reeled in on the tether: %s", f.name.c_str())); f.life = -1; }
         }
     }
     floaters.erase(std::remove_if(floaters.begin(), floaters.end(), [](const Floater& f) { return f.life <= 0; }), floaters.end());
@@ -507,6 +568,7 @@ void Gannet::StepGear(float dt) {
         if (F.end != FightEnd::None) {
             if (F.end == FightEnd::Landed) {
                 CatchRec r; r.name = F.spec.name; r.kg = F.spec.kg; r.price = F.spec.price; r.sp = harpoonSp; r.grade = 0.75f; r.src = CS_GUN;
+                r.dead = true; r.deckAt = {8.4f, 0};      // winched up over the bow, dead on the iron
                 hold.push_back(r); if (eco) eco->Harvest(harpoonSp, F.spec.kg, F.p, false);
                 Say(TextFormat("Winched aboard: a %.0f kg %s", F.spec.kg, F.spec.name));
             } else if (eco) eco->AddBlood(F.p, F.spec.kg);
@@ -930,6 +992,34 @@ int RunTrawlGearTest() {
         for (int i = 0; i < 60 * 2; i++) { g3.Primary(0, true, dt); g3.Step(dt); }
         run(g3, 60);
         check(g3.hold.empty() && g3.fines == 0, "returned over the side at the sorting table in time: no fine");
+        // the deck kill (playtest, 2026-10-01): a landed fish flops for the rail until it's clubbed, shot or gutted
+        CatchRec live; live.name = "snapper"; live.kg = 4; live.price = 3; live.deckAt = {-2, 1.6f};   // (4 kg: the gulls take anything under 3 left on deck)
+        Gannet g4; Eco e4; setup(g4, e4, 1, 18);
+        g4.crew[0].p = {6, 0};
+        g4.hold = {live}; run(g4, 120);
+        check(g4.hold.empty(), "a live fish nobody tends flops back over the rail within two minutes");
+        Gannet g5; Eco e5; setup(g5, e5, 1, 19);
+        g5.hold = {live}; g5.crew[0].p = {-2, 0.6f};
+        bool far = !g5.KillDeckFish(0, 0.5f);
+        bool killed = g5.KillDeckFish(0);
+        run(g5, 120);
+        check(far && killed && g5.hold.size() == 1 && g5.hold[0].dead, TextFormat("the priest reaches it from a step away (not from across the deck), and a dead fish stays put (%d %d %d)", far, killed, (int)g5.hold.size()));
+        Gannet g6; Eco e6; setup(g6, e6, 4, 20);   // (four hands: the Medic bot stands by the gutting table)
+        g6.botsOn = true; g6.crew[0].p = {6, 0};
+        g6.hold = {live};
+        run(g6, 40);
+        check(!g6.hold.empty() && (g6.hold[0].dead || g6.hold[0].gutted), "a bot at the gutting table clubs (or guts) the fish on deck before it gets away");
+        // a careless jump at the rail is a swim
+        Gannet g7; Eco e7; setup(g7, e7, 1, 21);
+        g7.crew[0].p = {-2, 2.55f};
+        bool hop = g7.Jump(0);
+        for (int i = 0; i < 60 * 2 && !g7.crew[0].overboard; i++) { g7.Move(0, {0, 1}, false, dt); g7.Step(dt); }
+        check(hop && g7.crew[0].overboard, "a jump at the rail, pushing outboard, puts the hand in the sea");
+        Gannet g8; Eco e8; setup(g8, e8, 1, 22);
+        g8.crew[0].p = {-2, 0};
+        g8.Jump(0);
+        for (int i = 0; i < 60 * 2; i++) { g8.Move(0, {0, 0}, false, dt); g8.Step(dt); }
+        check(!g8.crew[0].overboard && g8.crew[0].z <= 0.001f, "a jump amidships comes down on the deck");
     }
     printf(fails ? "trawl-gear-test: %d check(s) failed\n" : "trawl-gear-test: all checks passed\n", fails);
     return fails ? 1 : 0;

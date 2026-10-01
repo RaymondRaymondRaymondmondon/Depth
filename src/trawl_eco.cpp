@@ -13,7 +13,7 @@
 namespace tw {
 
 const char* ResName(int r) { static const char* N[R_COUNT] = {"plankton", "benthos", "algae", "seagrass", "carrion"}; return N[r]; }
-const char* HabitatName(int h) { static const char* N[H_COUNT] = {"land", "open", "seagrass", "reef", "crest", "sea", "holes", "sargassum"}; return N[h]; }
+const char* HabitatName(int h) { static const char* N[H_COUNT] = {"land", "open", "seagrass", "reef", "crest", "sea", "holes", "sargassum", "kelp", "barren"}; return N[h]; }
 
 // ---------------------------------------------------------------- the species file
 namespace {

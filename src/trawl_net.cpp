@@ -111,6 +111,7 @@ void ApplyInput(TrawlWorld& w, int ci, const HandInput& in, float dt) {
         g.Move(ci, {0, 0}, on(HI_SHIFT), dt);
         return;
     }
+    if (c.station < 0 && on(HI_SPACE_P)) g.Jump(ci);   // Space off a station: a hop (the rail is only a hop away)
     g.Move(ci, wish, on(HI_SHIFT), dt);
     if (c.station < 0) g.UseItem(ci, in.aim, on(HI_LMB_P), lmb, rmb, dt);
     g.Primary(ci, lmb, dt);
@@ -262,7 +263,7 @@ template <class A> void Visit(A& a, TrawlWorld& w) {
     VisitTail(a, g.log, 8);
     // ---- the crew
     a.vec(g.crew, [&](Crew& c) {
-        a.i(c.slot); a.b(c.bot); a.e(c.role); a.v2(c.p); a.v2(c.v); a.i(c.deck); a.i(c.station);
+        a.i(c.slot); a.b(c.bot); a.e(c.role); a.v2(c.p); a.v2(c.v); a.i(c.deck); a.i(c.station); a.f(c.z); a.f(c.vz);
         a.b(c.braced); a.b(c.fallen); a.b(c.overboard); a.f(c.fallT); a.f(c.strokeT); a.f(c.patchT); a.i(c.patchSec); a.i(c.patchKits);
         a.f(c.carryKg); a.v2(c.facing);
         for (Slot& sl : c.slots) VisitSlot(a, sl);
@@ -276,6 +277,7 @@ template <class A> void Visit(A& a, TrawlWorld& w) {
     a.vec(g.hold, [&](CatchRec& h) {
         a.s(h.name); a.f(h.kg); a.f(h.price); a.i(h.sp); a.f(h.grade); a.f(h.fresh);
         a.b(h.gutted); a.b(h.iced); a.b(h.first); a.b(h.bycatch); a.b(h.protectedSp); a.f(h.aboardT); a.i(h.src);
+        a.b(h.dead); a.f(h.flopT); a.v2(h.deckAt);
     });
     // ---- what's in the water
     a.vec(g.shots, [&](Projectile& p) { a.e(p.kind); a.v3(p.p); a.v3(p.v); a.i(p.owner); a.f(p.life); a.b(p.tether); a.b(p.inWater); });

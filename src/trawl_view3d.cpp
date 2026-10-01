@@ -83,7 +83,7 @@ Camera3D EyeCamera(const Gannet& g, int you, const Eye3D& e) {
     }
     float floorY = c.deck == 1 ? ENGINE_Y : DECK_Y;
     Vector2 sp = StandSpot(c);
-    cam.position = BoatPoint(g.boat, {sp.x, floorY + (c.fallen ? 0.42f : EYE_H), sp.y});
+    cam.position = BoatPoint(g.boat, {sp.x, floorY + c.z + (c.fallen ? 0.42f : EYE_H), sp.y});
     cam.target = Vector3Add(cam.position, BoatDir(g.boat, dl));
     // your eyes keep half of her roll: enough to feel the deck go, not enough to make the horizon a seesaw
     cam.up = Vector3Normalize(Vector3Lerp({0, 1, 0}, BoatDir(g.boat, {0, 1, 0}), 0.5f));
@@ -511,7 +511,7 @@ static void DrawHand(const Gannet& g, const Crew& c, float t) {
     }
     float yawLocal = -atan2f(c.facing.y, c.facing.x);
     if (OnQuay(g, c)) frame = Frame(W3(g.boat.ToWorld(c.p), QUAY_Y), yawLocal - g.boat.heading);   // (her deck's turn, then her heading)
-    else { Vector2 sp = StandSpot(c); frame = MatrixMultiply(Frame({sp.x, c.deck == 1 ? ENGINE_Y : DECK_Y, sp.y}, yawLocal), BoatMatrix(g.boat)); }
+    else { Vector2 sp = StandSpot(c); frame = MatrixMultiply(Frame({sp.x, (c.deck == 1 ? ENGINE_Y : DECK_Y) + c.z, sp.y}, yawLocal), BoatMatrix(g.boat)); }
     if (c.dead) frame = MatrixMultiply(MatrixTranslate(0, 0.08f + 0.05f * sinf(t * 2 + c.slot), 0), frame);
     if (c.fallen) frame = MatrixMultiply(MatrixMultiply(MatrixRotateZ(1.5f), MatrixTranslate(0, 0.2f, 0)), frame);   // flat on the deck
     bool walking = c.station < 0 && Vector2Length(c.v) > 0.3f && !c.fallen;
@@ -701,6 +701,17 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
     for (const auto& f : g.floaters) {
         float len = std::clamp(0.35f + sqrtf(f.kg) * 0.25f, 0.4f, 3.0f);
         DrawFishAt(gFish, W3(f.p, g.sea.Height(f.p.x, f.p.y) + 0.05f), {1, 0, 0.3f}, len, Color{200, 205, 210, 255}, 1.5f);
+    }
+    // ---- fish on the deck: on their sides where they came aboard; the live ones arch and slap every so often
+    for (size_t i = 0; i < g.hold.size(); i++) {
+        const CatchRec& h = g.hold[i];
+        if (h.gutted) continue;
+        float len = std::clamp(0.3f + sqrtf(h.kg) * 0.22f, 0.3f, 2.6f);
+        float arch = 0, hop = 0;
+        if (!h.dead) { float ph = fmodf(g.time * 1.3f + i * 0.7f, 1.0f); if (ph < 0.18f) { float s = sinf(ph / 0.18f * 3.1416f); arch = s * 0.9f; hop = s * 0.12f; } }
+        Vector3 hd = Vector3Normalize({cosf(i * 1.9f), arch * 0.5f, sinf(i * 1.9f)});
+        Color col = h.dead ? Color{150, 158, 164, 255} : Color{196, 206, 214, 255};
+        DrawFishAt(gFish, BoatPoint(b, {h.deckAt.x, DECK_Y + 0.06f + hop, h.deckAt.y}), hd, len, col, 1.5f + arch * 0.4f);
     }
     // ---- the web's life: schools and hunters in the water, gulls over it
     if (eco) {

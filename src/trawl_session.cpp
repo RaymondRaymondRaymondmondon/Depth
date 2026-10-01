@@ -55,13 +55,13 @@ const std::vector<ShopItem>& ChandlerItems() {   // design doc, "The Chandler" (
         {"longline", "Longline", 60, "20 hooks, two buoys: set it, fish elsewhere, haul it"},
         {"pot", "Crab pot", 25, "Reusable: crabs, lobster, octopus"},
         {"flare", "Flare pistol (3 flares)", 40, "A 40 m arc of light"},
-        {"flares", "Flares (3)", 30, "10 each"},
+        {"flares", "Flares (6)", 20, "A box of six"},
         {"speargun", "Speargun (3 spears)", 80, "8 m in water, 12 m in air, tethered"},
-        {"spears", "Spears (3)", 15, "5 each"},
+        {"spears", "Spears (10)", 12, "A quiver of ten"},
         {"rifle", "Rifle (10 rounds)", 140, "Fish breaking the surface, gulls, boarders"},
-        {"rounds", "Rounds (10)", 20, "2 each"},
+        {"rounds", "Rounds (30)", 15, "A box of thirty"},
         {"shotgun", "Shotgun (8 shells)", 120, "15 m in air: gull flocks"},
-        {"shells", "Shells (8)", 24, "3 each"},
+        {"shells", "Shells (24)", 18, "A box of two dozen"},
         {"charge", "Depth charge", 120, "12 m blast; the Owners fine 30 in the Lagoon"},
         {"explosive", "Explosive harpoon head", 80, "For the bow cannon: kills, but ruins the fish"},
     };
@@ -259,10 +259,10 @@ bool Session::Buy(const std::string& id, std::string* why) {
         else if (id == "rifle") G->AddItem(Item::Rifle, 10);
         else if (id == "shotgun") G->AddItem(Item::Shotgun, 8);
         else if (id == "charge") G->AddItem(Item::Charge, 1);
-        else if (id == "flares") ok = ammo(Item::Flare, 3);
-        else if (id == "spears") ok = ammo(Item::Speargun, 3);
-        else if (id == "rounds") ok = ammo(Item::Rifle, 10);
-        else if (id == "shells") ok = ammo(Item::Shotgun, 8);
+        else if (id == "flares") ok = ammo(Item::Flare, 6);
+        else if (id == "spears") ok = ammo(Item::Speargun, 10);
+        else if (id == "rounds") ok = ammo(Item::Rifle, 30);
+        else if (id == "shells") ok = ammo(Item::Shotgun, 24);
         else if (id == "explosive") { if (G->harpoonCannon) G->explosives++; else ok = false; }
         if (!ok) { money += it->price; if (why) *why = "nothing aboard takes it"; return false; }
     }

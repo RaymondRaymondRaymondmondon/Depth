@@ -19,7 +19,7 @@
 namespace tw {
 
 enum Band { BAND_AIR = -1, BAND_SURFACE = 0, BAND_UPPER, BAND_MID, BAND_DEEP, BAND_ABYSS, BAND_FLOOR, BAND_COUNT };
-enum Habitat { H_LAND, H_OPEN, H_SEAGRASS, H_REEF, H_CREST, H_SEA, H_HOLES, H_SARGASSUM, H_COUNT };
+enum Habitat { H_LAND, H_OPEN, H_SEAGRASS, H_REEF, H_CREST, H_SEA, H_HOLES, H_SARGASSUM, H_KELP, H_BARREN, H_COUNT };   // kelp canopy and urchin barrens: the Weeds
 enum LightResp { LR_DRAWN, LR_NEUTRAL, LR_SHY };
 enum Res { R_PLANKTON, R_BENTHOS, R_ALGAE, R_SEAGRASS, R_CARRION, R_COUNT };
 const char* ResName(int r);

@@ -176,10 +176,12 @@ bool QuayWalkable(Vector2 p) {
     return p.x > -13.5f && p.x < 13.5f && p.y > -9.6f && p.y < -3.9f;
 }
 static bool gMoored = false;
-static bool Walkable(Vector2 p, int deck) {
+static bool Walkable(Vector2 p, int deck, bool air = false) {
     if (deck == 0 && gMoored && (p.y < -2.4f) && QuayWalkable(p)) return true;
     if (deck == 1) return p.x > -8.4f && p.x < -2.9f && fabsf(p.y) < 2.3f && !(p.x > -5.8f && p.x < -3.8f && p.y < -0.6f);   // the engine room; the boiler against its port side
-    if (p.x < -10.9f || p.x > 10.6f || fabsf(p.y) > HalfBeam(p.x) - 0.3f) return false;
+    // in the air a hand clears the rail (and comes down in the sea); the wheelhouse walls still stop them
+    if (air) { if (p.x < -12.4f || p.x > 12.1f || fabsf(p.y) > HalfBeam(p.x) + 1.6f) return false; }
+    else if (p.x < -10.9f || p.x > 10.6f || fabsf(p.y) > HalfBeam(p.x) - 0.3f) return false;
     // the wheelhouse walls (its door is on the aft side, amidships)
     bool inX = p.x > 0.9f && p.x < 5.1f, inY = fabsf(p.y) < 2.1f;
     if (inX && inY) {
@@ -257,16 +259,31 @@ void Gannet::Move(int ci, Vector2 wish, bool brace, float dt) {
     bool sliding = Vector2Length(slide) > 0.01f;
     c.v = Vector2Add(Vector2Lerp(c.v, want, std::min(1.0f, dt * (sliding ? 2.0f : 12.0f))), Vector2Scale(slide, dt));
     Vector2 np = Vector2Add(c.p, Vector2Scale(c.v, dt));
-    if (Walkable(np, c.deck)) c.p = np;
+    bool air = c.z > 0 || c.vz > 0;
+    if (air) {
+        // in the air: the hop carries; past the rail there is nothing under them but the sea
+        c.z += c.vz * dt; c.vz -= 9.81f * dt;
+        if (c.z <= 0) {
+            c.z = 0; c.vz = 0;
+            if (c.deck == 0 && !Walkable(np, 0, false)) { c.p = np; GoOverboard(ci, "jumped over the rail"); return; }
+        }
+    }
+    if (Walkable(np, c.deck, air)) c.p = np;
     else {
         Vector2 nx{np.x, c.p.y}, ny{c.p.x, np.y};
-        if (Walkable(nx, c.deck)) c.p = nx; else c.v.x = 0;
-        if (Walkable(ny, c.deck)) c.p.y = ny.y; else {
+        if (Walkable(nx, c.deck, air)) c.p = nx; else c.v.x = 0;
+        if (Walkable(ny, c.deck, air)) c.p.y = ny.y; else {
             // slid into the rail: on her beam ends, over it goes
             if (c.deck == 0 && !c.braced && fabsf(rollDeg) > D().beamEnds && fabsf(c.p.y) > HalfBeam(c.p.x) - 0.6f) { GoOverboard(ci, "over the rail on her beam ends"); }
             c.v.y = 0;
         }
     }
+}
+bool Gannet::Jump(int ci) {
+    Crew& c = crew[ci];
+    if (c.dead || c.overboard || c.fallen || c.station >= 0 || c.z > 0 || c.vz > 0) return false;
+    c.vz = c.deck == 1 ? 2.2f : 4.0f;   // about 80 cm on deck (enough to clear the rail); a hop below the deckhead
+    return true;
 }
 bool Gannet::TakeStation(int ci) {
     Crew& c = crew[ci];

@@ -321,6 +321,20 @@ void DrawGear(const Gannet& g, const View& v) {
         float len = std::clamp(2.0f + sqrtf(f.kg) * 2, 2.0f, 12.0f);
         DrawRectangle((int)(q.x - len / 2), (int)q.y - 1, (int)len, 2, Dim(Color{220, 220, 205, 255}, L));
     }
+    // fish on the deck (not yet gutted): where they came aboard; a live one arches and slaps toward the rail, a
+    // dead one lies still with a smear of blood under it
+    for (size_t i = 0; i < g.hold.size(); i++) {
+        const CatchRec& h = g.hold[i];
+        if (h.gutted || g.moored) continue;
+        float L = std::max(0.25f, v.LightAt(h.deckAt));
+        float len = std::clamp(0.25f + sqrtf(std::max(0.01f, h.kg)) * 0.32f, 0.25f, 1.8f);
+        float base = (float)((i * 2654435761u) % 628) / 100.0f;
+        float wig = h.dead ? 0.0f : sinf(g.time * 11 + i * 1.7f) * 0.45f * (0.4f + 0.6f * fabsf(sinf(g.time * 1.3f + i)));
+        Vector2 dir{cosf(base + wig), sinf(base + wig)};
+        if (h.dead) DrawCircleV(v.ToCanvas(h.deckAt), std::max(1.0f, len * v.ppm * 0.45f), Fade(Color{110, 20, 18, 255}, 0.45f));
+        Color fc = h.bycatch || h.protectedSp ? Color{150, 170, 120, 255} : Color{200, 205, 210, 255};
+        FishMark(v, h.deckAt, dir, len, len * 0.3f, Dim(h.dead ? ColorLerp(fc, Color{120, 110, 100, 255}, 0.4f) : fc, L));
+    }
     // projectiles: a round's streak, pellets, a spear or harpoon (and its tether), a flare arcing
     for (const auto& p : g.shots) {
         Vector2 q = C({p.p.x, p.p.y});
@@ -550,8 +564,10 @@ void DrawCrewMember(const Crew& c, const View& v, float t, bool you) {
     }
     float bob = c.station < 0 && Vector2Length(c.v) > 0.3f ? (sinf(t * 12) > 0 ? 1.0f : 0.0f) : 0;
     Vector2 f = c.facing;
+    // a jump lifts the figure up the canvas and leaves its shadow on the deck (shrinking as they rise)
+    Vector2 p0 = p; float lift = c.z * v.ppm * 0.7f; p.y -= lift;
     // shadow, shoulders, arms toward the facing, the sou'wester hat
-    DrawRectangle((int)p.x - 3, (int)p.y - 3 + 1, 7, 7, Fade(BLACK, 0.35f));
+    DrawRectangle((int)p0.x - 3, (int)p0.y - 3 + 1, 7, 7, Fade(BLACK, c.z > 0 ? 0.2f : 0.35f));
     DrawRectangle((int)p.x - 3, (int)p.y - 3, 7, 7, coat);
     DrawRectangle((int)(p.x + f.x * 3 - 1), (int)(p.y + f.y * 3 - 1 + bob), 2, 2, skin);
     DrawRectangle((int)(p.x - f.y * 3), (int)(p.y + f.x * 3), 2, 2, Dim(coat, 0.8f));
