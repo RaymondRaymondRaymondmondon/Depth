@@ -595,6 +595,7 @@ bool Session::CastOff(std::string* why) {
     {
         float v = plainNights ? 1.0f : R();
         if (v < 0.08f) variant = Variant::BaitRun;
+        else if (ground != "lagoon") {}   // (the Lagoon's own variants - red tide, king tide, turtles, canoes - roll only there)
         else if (v < 0.14f) variant = Variant::RedTide;
         else if (v < 0.24f) variant = Variant::KingTide;
         else if (v < 0.32f) variant = Variant::TurtleNesting;
