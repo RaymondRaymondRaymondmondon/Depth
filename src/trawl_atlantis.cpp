@@ -5,7 +5,7 @@
 //    Wake rises twice as fast. It blinks when something big is coming (the Ghost Ship, the Kraken).
 //  - The Deep Choir (a Siren chorus that sings the whole crew; counters: the bell breaks a charm, shoot the singer when
 //    it surfaces): with the Wake past 25, 30 s of song; every hand on deck and off station walks to the nearest rail
-//    (0.5 m/s) and over. A ring of the bell breaks the charm for 12 s; the singer surfaces 20-30 m off for 4 s in every
+//    (0.5 m/s) and over. A ring of the bell breaks the charm for 6 s; the singer surfaces 20-30 m off for 4 s in every
 //    10, and a shot within 5 m of it ends the song.
 //  - A Cult longboat (drawn by the Eye's Wake; chanting from the dark, torches; circles and chums the water round the
 //    Gannet; counters: outrun it, rifle the rowers, stop looking at the Eye): it circles at 30 m, chumming blood into
@@ -62,13 +62,13 @@ void Gannet::StepAtlantis(float dt) {
 
     // ---- the Deep Choir
     float stir = e.Stir();
-    if (!choir.on && choirCool <= 0 && (wake >= 25 || stir >= 0.55f) && ARand() < dt / 40) {
+    if (!choir.on && choirCool <= 0 && (wake >= 25 || stir >= 0.45f) && ARand() < dt / 40) {
         choir = {}; choir.on = true;
         Say("Voices rise out of the water all round her, many of them, singing: the crew's heads turn to the rails. Ring the bell!");
     }
     if (choir.on) {
         choir.t += dt; choir.calmT = std::max(0.0f, choir.calmT - dt);
-        if (bellT < dt + 0.001f) { choir.calmT = 12; Say("The bell cuts through the song: the crew shake their heads"); }
+        if (bellT < dt + 0.001f) { choir.calmT = 6; Say("The bell cuts through the song: the crew shake their heads"); }
         // the singer: up 20-30 m off for 4 s in every 10
         bool up = fmodf(choir.t, 10) < 4;
         if (up && !choir.surfaced) { float a = ARand() * 2 * PI; choir.singer = Vector2Add(boat.pos, {cosf(a) * (20 + ARand() * 10), sinf(a) * (20 + ARand() * 10)}); Say("A pale head breaks the surface: the singer"); }
@@ -90,7 +90,7 @@ void Gannet::StepAtlantis(float dt) {
     }
 
     // ---- a Cult longboat
-    if (!longboat.on && (cultRaid || (longboatCool <= 0 && (wake >= 15 || stir >= 0.45f) && ARand() < dt / 60))) {
+    if (!longboat.on && (cultRaid || (longboatCool <= 0 && (wake >= 15 || stir >= 0.35f) && ARand() < dt / 60))) {
         longboat = {}; longboat.on = true; longboat.ang = ARand() * 2 * PI; cultRaid = false;
         Say("Chanting from the dark, and torches on the water: a cult longboat");
     }
@@ -108,7 +108,7 @@ void Gannet::StepAtlantis(float dt) {
     }
 
     // ---- the Ghost Ship
-    if (ghost.state == 0 && !ghostDone && (wake >= 65 || bellRings > 6 || (stir >= 0.8f && ARand() < dt / 120))) {
+    if (ghost.state == 0 && !ghostDone && (wake >= 65 || bellRings > 6 || (stir >= 0.7f && ARand() < dt / 90))) {
         ghost = {}; ghost.state = 1; ghost.p = boat.ToWorld({-60, 0});
         Say("A bell answers yours, out in the dark: slow, and closer each time");
     }
@@ -133,7 +133,7 @@ void Gannet::StepAtlantis(float dt) {
     StepDrowned(dt);
 
     // ---- the Kraken
-    if (kraken.state == 0 && !krakenDone && (wake >= 90 || (stir >= 0.95f && ARand() < dt / 200))) {
+    if (kraken.state == 0 && !krakenDone && (wake >= 90 || (stir >= 0.85f && ARand() < dt / 150))) {
         kraken = {}; kraken.state = 1;
         Say("The Glass: the sea goes dead flat, the sonar whites out, and the fish are gone");
     }

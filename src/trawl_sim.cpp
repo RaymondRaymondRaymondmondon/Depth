@@ -205,7 +205,7 @@ struct Skipper {
         }
         // Atlantis: the bell against the Deep Choir (the skipper rings it from the wheelhouse); against the Kraken, the
         // net cut away, the lantern out and full steam for home
-        if (G.choir.on && G.choir.t > 3 && G.bellT > 8) { G.bellT = 0; G.bellRings++; G.Say("The skipper rings the bell"); }
+        if (G.choir.on && G.choir.t > 3 && G.bellT > 15) { G.bellT = 0; G.bellRings++; G.Say("The skipper rings the bell"); }
         if (G.kraken.state == 2) {
             if (G.net.state == NetState::Down || G.net.state == NetState::Snagged || G.net.state == NetState::Hauling) { G.net.state = NetState::Lost; G.net.catchKg.clear(); G.net.load = 0; G.Say("The skipper cuts the net away"); }
             G.boat.lantern = 0; AtHelm(); G.boat.telegraph = 3; SteerTo(G.moorPos, 0); G.boat.telegraph = 3;

@@ -18,6 +18,7 @@
 #include <vector>
 
 namespace tw {
+struct Wreck;   // (trawl_wreck.h)
 
 // ---------------------------------------------------------------- the numbers (trawl_data.cpp)
 struct TrawlData {
@@ -432,7 +433,7 @@ struct Eco;                                               // the food web (trawl
 // starboard): a good rhythm makes 1.5 m/s with one rower and 2.2 with two; a stroke too soon after the last "catches a
 // crab" and stops her a second; every stroke writes a little noise into the water. One section of 40; past 25 degrees
 // of roll it capsizes and everyone aboard goes in.
-const int DECK_SKIFF = 2, DECK_SHORE = 3;
+const int DECK_SKIFF = 2, DECK_SHORE = 3, DECK_DIVE = 4;   // (DECK_DIVE: down on a wreck in the hardhat; Gannet::dive has where)
 enum class SkiffState { Stowed, Lowering, Afloat, Recovering, Capsized, Beached, Lost };
 struct Skiff {
     SkiffState state = SkiffState::Stowed; float t = 0;   // the davit's progress (lowering / recovering), or the righting
@@ -638,6 +639,30 @@ struct Gannet {
     KrakenState kraken; bool krakenDone = false;
     bool Atlantis() const;
     void StepAtlantis(float dt);
+    // diving (design doc v2, "Diving and salvage"; trawl_dive.cpp): a hand with the hardhat suit goes down off the stern
+    // over a wreck (she lying still within 15 m of it); a hand at the air pump keeps the gauge in the green (without it
+    // the helmet holds 30 s); drifting more than 15 m off fouls the hose; in the wreck the diver moves room to room
+    // (Dive* below), takes salvage (a crowbar for a locked cabin), and sends it up in the basket from a breach; two tugs
+    // (the recall) and the winch brings them up at 1 m/s (faster: the bends)
+    struct DiveState {
+        int diver = -1, wreck = -1, room = -1;            // who is down, in which of the ground's wrecks, in which room (-1: on the line)
+        float depth = 0, air = 30, gauge = 1;             // m below the surface; helmet air (s); the pump's gauge 0..1 (green 0.4-0.9)
+        bool recall = false; float ascentRate = 1;        // being winched up; m/s
+        bool carrying = false; int item = -1;             // salvage in both hands (the wreck's item index)
+        float pumpT = 0;                                  // since the last pump stroke
+        std::vector<CatchRec> basket;                     // salvage gone up in the basket (into the hold when she's aboard)
+    };
+    DiveState dive;
+    bool hardhat = false;                                 // the hardhat suit (the Chandler, 350)
+    std::vector<Wreck>* wrecks = nullptr;                 // the ground's wrecks this deadline (the session's)
+    int WreckNear(float r) const;                         // a wreck within r m of her, or -1
+    bool StartDive(int c);                                // a hand with the suit at the stern, she still over a wreck
+    void DivePump(int c, bool stroke);                    // a hand at the air pump: a stroke
+    bool DiveMove(int linkTo);                            // the diver: through a door, hatch or squeeze into another room
+    bool DiveTake();                                      // the diver: lift an item in this room (a crowbar opens a locked cabin first)
+    bool DiveBasket();                                    // the diver: at a breach, the carried item into the basket
+    void DiveRecall();                                    // two sharp tugs: haul me up
+    void StepDive(float dt);
     void StepDrowned(float dt);                           // the Drowned on the deck (the Grotto's, and the Ghost Ship's boarders)
     bool bloomNight = false, eelRun = false;              // the Grotto's mould bloom (anglers stay away, the Drowned see her from anywhere) and glass eel run (anglers follow the eels to the light)
     // the Grotto's threats (design doc v2, page 49-50; trawl_grotto.cpp): a Lantern Angler's second light lures the
@@ -700,6 +725,7 @@ int RunTrawlBelowTest();                                  // depth.exe --trawl-b
 int RunTrawlWeedsTest();                                  // depth.exe --trawl-weeds-test
 int RunTrawlGrottoTest();                                 // depth.exe --trawl-grotto-test
 int RunTrawlAtlantisTest();                               // depth.exe --trawl-atlantis-test
+int RunTrawlDiveTest();                                   // depth.exe --trawl-dive-test
 bool GrottoShake(Gannet& g, int c);                       // E beside a hand an Angler's light has lured: shake them out of it
 int RunTrawlQuestTest();                                  // depth.exe --trawl-quest-test
 int RunTrawlSkiffTest();                                  // depth.exe --trawl-skiff-test                                   // depth.exe --trawl-gear-test

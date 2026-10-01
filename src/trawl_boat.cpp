@@ -240,6 +240,7 @@ void Gannet::Move(int ci, Vector2 wish, bool brace, float dt) {
     Crew& c = crew[ci];
     gMoored = moored; gDoorOpen = doorOpen;
     if (c.deck == DECK_SKIFF && !c.overboard) { c.v = {0, 0}; c.braced = true; return; }   // seated in the skiff (the oars move her)
+    if (c.deck == DECK_DIVE) { c.v = {0, 0}; return; }   // (down on a wreck: the dive's own moves, DiveMove)
     if (c.deck == DECK_SHORE && !c.overboard) { ShoreMove(ci, wish, dt); return; }       // on foot on a landing
     if (c.overboard) {
         // treading water: a slow swim, screen-relative like the deck (the deck frame turned into the sea's)
@@ -401,6 +402,7 @@ void Gannet::Step(float dt) {
     StepWeeds(dt);
     StepGrotto(dt);
     StepAtlantis(dt);
+    StepDive(dt);
     boat.Step(dt, sea);
     if (moored) { boat.pos = moorPos; boat.heading = moorHeading; boat.vel = {0, 0}; boat.yawRate = 0; boat.roll *= 0.9f; boat.pitch *= 0.9f; }
     StepSkiff(dt);
