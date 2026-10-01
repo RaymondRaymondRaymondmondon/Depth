@@ -346,9 +346,69 @@ bool Gannet::HitDeckFish(int idx, float dmg, int by, int how, bool head, float r
     (void)by;
     return true;
 }
-bool Gannet::CrateFish(int ci) {
+const BirdDef& BirdOf(int k) {
+    static const BirdDef B[BIRD_COUNT] = {{"herring gull", 3, 4}, {"brown pelican", 5, 12}, {"frigatebird", 2, 15}};
+    return B[std::clamp(k, 0, BIRD_COUNT - 1)];
+}
+// junk in the net (design doc v2, "Junk"): worth nothing at the market; the bottle's map and the brass key open a
+// landing's cache, three chart pieces reveal a hidden mark (the skiff and the Atoll)
+void Gannet::FindJunk() {
+    float r = RandF(gRng);
+    if (r < 0.3f) { junkBottles++; Say("Junk in the net: a message in a bottle (a treasure map to one of the landings)"); }
+    else if (r < 0.6f) { junkKeys++; Say("Junk in the net: a brass key (it opens a named chest ashore)"); }
+    else { junkCharts++; Say(junkCharts % 3 == 0 ? "Junk in the net: a torn chart piece - three of them make a chart!" : TextFormat("Junk in the net: a torn chart piece (%d of 3)", junkCharts % 3)); }
+}
+int BirdKindOf(const std::string& s) {
+    if (s == "gull flock") return BIRD_GULL;
+    if (s == "brown pelican") return BIRD_PELICAN;
+    if (s == "frigatebird") return BIRD_FRIGATE;
+    return -1;
+}
+void Gannet::Steal(int idx, int kind) {
+    if (idx < 0 || idx >= (int)hold.size()) return;
+    Thief t; t.kind = kind; t.fish = hold[idx];
+    t.p = boat.ToWorld(hold[idx].deckAt); t.z = -RAIL_H - 0.5f;
+    // it climbs away over the nearer rail, slowly at first with the weight (a long shot's chance)
+    Vector2 out = boat.ToWorld({hold[idx].deckAt.x, hold[idx].deckAt.y < 0 ? -6.0f : 6.0f});
+    Vector2 d = Vector2Normalize(Vector2Subtract(out, t.p)); t.v = Vector2Scale(d, 5 - t.fish.kg * 0.4f);
+    hold.erase(hold.begin() + idx);
+    Say(TextFormat("A %s takes the %s: shoot it down!", BirdOf(kind).name, t.fish.name.c_str()));
+    thieves.push_back(t);
+}
+void Gannet::StepThieves(float dt) {
+    for (auto& t : thieves) { t.t += dt; t.p = Vector2Add(t.p, Vector2Scale(t.v, dt)); t.z = std::max(-14.0f, t.z - 1.6f * dt); }
+    thieves.erase(std::remove_if(thieves.begin(), thieves.end(), [](const Thief& t) { return t.t > 8; }), thieves.end());   // (gone with it)
+}
+void Gannet::DropFish(int ti) {   // the thief lets go: the fish falls on her deck or into the sea; the bird flies on
+    if (ti < 0 || ti >= (int)thieves.size()) return;
+    Thief t = thieves[ti]; thieves.erase(thieves.begin() + ti);
+    Vector2 lp = boat.ToDeck(t.p);
+    if (fabsf(lp.x) < 9 && fabsf(lp.y) < 2.8f) { t.fish.deckAt = lp; hold.push_back(t.fish); }
+    else { Floater f; f.name = t.fish.name; f.sp = t.fish.sp; f.kg = t.fish.kg; f.price = t.fish.price; f.grade = t.fish.grade; f.p = t.p; floaters.push_back(f); }
+}
+void Gannet::DropThief(int ti, int by) {
+    if (ti < 0 || ti >= (int)thieves.size()) return;
+    Thief t = thieves[ti]; thieves.erase(thieves.begin() + ti);
+    const BirdDef& bd = BirdOf(t.kind);
+    CatchRec bird; bird.name = bd.name; bird.kg = t.kind == BIRD_PELICAN ? 3.5f : t.kind == BIRD_FRIGATE ? 1.3f : 1.0f;
+    bird.price = bd.value / bird.kg; bird.grade = 1; bird.src = CS_GUN; bird.dead = true; bird.sp = Species().Find(t.kind == BIRD_GULL ? "gull flock" : bd.name);
+    bird.killScore = 1.3f; bird.killHow = KH_BULLET; bird.killT = 0;   // every bird kill is Airborne (x1.3)
+    t.fish.killScore = std::max(t.fish.killScore, 1.0f);
+    Vector2 lp = boat.ToDeck(t.p);
+    if (fabsf(lp.x) < 9 && fabsf(lp.y) < 2.8f) {   // over her deck: both drop where they fall
+        bird.deckAt = lp; t.fish.deckAt = Vector2Add(lp, {0.4f, 0});
+        hold.push_back(t.fish); hold.push_back(bird);
+        Say(TextFormat("Shot down! The %s and the %s drop on the deck", bd.name, t.fish.name.c_str()));
+    } else {                                        // over the water: both float, to be gaffed or tethered
+        Floater f; f.name = t.fish.name; f.sp = t.fish.sp; f.kg = t.fish.kg; f.price = t.fish.price; f.grade = t.fish.grade; f.p = t.p; floaters.push_back(f);
+        Floater fb; fb.name = bird.name; fb.sp = bird.sp; fb.kg = bird.kg; fb.price = bird.price; fb.grade = 1; fb.p = Vector2Add(t.p, {0.6f, 0}); floaters.push_back(fb);
+        Say(TextFormat("Shot down! The %s and the %s fall in the water", bd.name, t.fish.name.c_str()));
+    }
+    (void)by;
+}
+bool Gannet::CrateFish(int ci, float reach) {
     const Crew& c = crew[ci];
-    int best = -1; float bd = 1.6f;
+    int best = -1; float bd = reach;
     for (int i = 0; i < (int)hold.size(); i++) { const CatchRec& h = hold[i]; if (!h.dead || h.gutted || h.crated) continue; float d = Vector2Distance(h.deckAt, c.p); if (d < bd) { bd = d; best = i; } }
     if (best < 0) return false;
     hold[best].crated = true;
@@ -578,6 +638,7 @@ void Gannet::NetInput(int ci, bool held, bool cut, float dt) {
                 }
                 Say(TextFormat("The cod end opens: %.0f kg on the sorting deck", n.load));
                 if (jellies) Injure(ci, INJ_BURN, "moon jellies in the net");
+                if (RandF(gRng) < D().junkPerHaul) FindJunk();
                 n = Trawl{};
             }
             break;
@@ -757,6 +818,13 @@ void Gannet::StepGear(float dt) {
                 if (k == p.owner || crew[k].dead || crew[k].overboard) continue;
                 if (Vector2Distance(boat.ToWorld(crew[k].p), {p.p.x, p.p.y}) < 0.45f) { Injure(k, INJ_BITE, "a stray shot"); p.life = -1; done = true; break; }
             }
+            // a round into a bird making off with a fish: both come down (on her deck if it's over her, else afloat)
+            if (!done && p.kind != Shot::Harpoon) for (int ti = 0; ti < (int)thieves.size(); ti++) {
+                Thief& t = thieves[ti];
+                if (Vector3Distance(p.p, {t.p.x, t.p.y, t.z}) > (p.kind == Shot::Pellet ? 1.1f : 0.7f)) continue;
+                DropThief(ti, p.owner);
+                p.life = -1; done = true; break;
+            }
             // a round into a live fish on the deck kills it where it lies (a little off the grade: a hole in the flank)
             if ((p.kind == Shot::Bullet || p.kind == Shot::Pellet || p.kind == Shot::Spear) && p.p.z < -RAIL_H + 1.0f && p.p.z > -RAIL_H - 0.6f) {
                 Vector2 lp = boat.ToDeck({p.p.x, p.p.y});
@@ -782,7 +850,8 @@ void Gannet::StepGear(float dt) {
     }
     shots.erase(std::remove_if(shots.begin(), shots.end(), [](const Projectile& p) { return p.life <= 0; }), shots.end());
     // gulls hit hard enough give up
-    if (eco) for (auto& a : eco->agents) if (a.alive && SP[a.sp].band == BAND_AIR && a.count < 4) { a.alive = false; Say("The gulls give up and wheel away"); }
+    if (eco) for (auto& a : eco->agents) if (a.alive && SP[a.sp].band == BAND_AIR && SP[a.sp].schoolHi > 1 && a.count < 4) { a.alive = false; Say("The gulls give up and wheel away"); }
+    StepThieves(dt);
     // shot fish afloat: they drift, bleed, and sink or are taken in a minute and a half; a tether reels them in
     for (auto& f : floaters) {
         f.life -= dt;
@@ -1348,6 +1417,36 @@ int RunTrawlGearTest() {
             for (const auto& h : b.hold) { if (h.name == "grunt") deadGone = false; if (h.name == "snapper") aliveKept = true; if (h.name == "jack crevalle") boxKept = true; }
             check(crated, "E beside a dead fish swings it into a catch crate");
             check(deadGone && boxKept && aliveKept, "the gulls take the dead fish left on the deck, but not one in a crate or one still alive");
+        }
+        {   // a pelican lifts what a gull can't (5 kg); shot on its way off, it and the fish drop on the deck, a bird worth 12
+            Gannet b; Eco eb; setup(b, eb, 1, 34);
+            int pel = Species().Find("brown pelican");
+            CatchRec heavy; heavy.name = "jack crevalle"; heavy.kg = 4.5f; heavy.price = 2; heavy.dead = true; heavy.deckAt = {-2, 0.3f};
+            b.hold = {heavy};
+            int ai = pel >= 0 ? eb.SpawnAgentPublic(pel, b.boat.pos) : -1;
+            for (int i = 0; i < 60 * 5 && ai >= 0 && b.thieves.empty(); i++) { eb.agents[ai].p = {b.boat.pos.x, b.boat.pos.y, -3}; eb.agents[ai].alive = true; b.Step(dt); }
+            bool took = b.hold.empty() && b.thieves.size() == 1 && b.thieves[0].kind == BIRD_PELICAN;
+            check(took, "a brown pelican takes a 4.5 kg fish left out (a gull couldn't lift it)");
+            if (took) {
+                eb.agents[ai].alive = false;
+                Gannet::Thief& t = b.thieves[0];
+                Projectile p; p.kind = Shot::Bullet; p.owner = 0; p.life = 2; p.dmg = 10;
+                p.p = {t.p.x - 3, t.p.y, t.z}; p.v = {300, 0, 0};
+                b.shots.push_back(p); run(b, 0.1f);
+                bool fish = false, bird = false; float birdVal = 0;
+                for (const auto& h : b.hold) { if (h.name == "jack crevalle") fish = true; if (h.name == "brown pelican") { bird = true; birdVal = h.price * h.kg * h.killScore; } }
+                check(b.thieves.empty() && fish && bird && birdVal > 12 * 1.25f, TextFormat("a round brings the pelican down: it and the fish drop on her deck (the bird an Airborne catch, %.1f sh)", birdVal));
+            }
+            Gannet f; Eco ef; setup(f, ef, 1, 35);   // a frigatebird harries a gull for its fish
+            int gull = Species().Find("gull flock"), fr = Species().Find("frigatebird");
+            CatchRec small; small.name = "grunt"; small.kg = 1.2f; small.price = 1.5f; small.dead = true; small.deckAt = {-2, 0.3f};
+            f.hold = {small};
+            int ga = ef.SpawnAgentPublic(gull, f.boat.pos); ef.agents[ga].count = 8;
+            for (int i = 0; i < 60 * 5 && f.thieves.empty(); i++) { ef.agents[ga].p = {f.boat.pos.x, f.boat.pos.y, -3}; ef.agents[ga].alive = true; f.Step(dt); }
+            int fa = ef.SpawnAgentPublic(fr, f.boat.pos);
+            for (int i = 0; i < 60 * 2; i++) { ef.agents[fa].p = {f.boat.pos.x, f.boat.pos.y, -3}; ef.agents[fa].alive = true; f.Step(dt); }
+            bool dropped = f.thieves.empty() && (!f.floaters.empty() || (!f.hold.empty() && f.hold[0].name == "grunt"));
+            check(dropped, "a frigatebird harries the gull until it drops the fish in mid-air");
         }
         {   // the deck behaviours: a landed barracuda bites, a reef octopus grabs and drags toward the rail
             Gannet k; Eco ek; setup(k, ek, 1, 31);

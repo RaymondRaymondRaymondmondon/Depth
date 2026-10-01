@@ -320,6 +320,8 @@ void Gannet::StepBots(float dt) {
                 for (const auto& h : hold) if (h.bycatch || h.protectedSp) any = true;
                 // the table's hand steps over and clubs whatever is flopping for the rail before it gets there
                 if (c.cool <= 0) { if (KillDeckFish(i, 12.0f)) c.cool = 2.5f; } else c.cool -= dt;
+                // birds over her: crate the dead ones still waiting for the knife before they're taken
+                if (c.cool <= 0 && gullT > 0 && CrateFish(i, 12.0f)) { c.cool = 1.5f; if (b.barkT <= 0) { b.bark = "Birds! Crating the catch"; b.barkT = 3; } }
                 Primary(i, any, dt);
                 break;
             }

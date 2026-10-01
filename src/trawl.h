@@ -51,7 +51,8 @@ struct TrawlData {
     float ramHeel = 0.35f;                                // rad/s of roll the blow puts into her (enough to slide an unbraced hand)
     float netYield = 0.2f;                                // the share of a swept school the mouth really takes (balance: the Lagoon's quota should be met about 85% of the time by six hands)
     float railDrag = 0.5f;                                // per second at the worst: a running fish past 45% of the line's rating while she rolls past braceRoll toward it
-    float chumBlood = 40, chumSeconds = 60;               // a chum bucket: 40 blood over 60 s at the rail (design doc, "The Chandler")
+    float junkPerHaul = 0.25f;                            // a net haul brings up a piece of junk (bottle, key, chart piece)
+    float chumBlood = 40, chumSeconds = 60;              // a chum bucket: 40 blood over 60 s at the rail (design doc, "The Chandler")
 };
 const TrawlData& D();
 
@@ -306,6 +307,10 @@ const char* DeckBehaviourName(int b);
 int DeckBehaviourOf(const std::string& name, float kg);
 float DeckFishHP(float kg);                               // 8 + 6 x kg^0.75: a 4 kg snapper 25, a 40 kg yellowfin 103
 const float KILLSCORE_MAX = 4;
+enum BirdKind { BIRD_GULL, BIRD_PELICAN, BIRD_FRIGATE, BIRD_COUNT };
+struct BirdDef { const char* name; float lifts, value; };
+const BirdDef& BirdOf(int kind);
+int BirdKindOf(const std::string& species);   // "gull flock" / "brown pelican" / "frigatebird", or -1
 enum KillHow { KH_MELEE, KH_BULLET, KH_PELLET, KH_SPEAR, KH_EXPLOSIVE };
 enum CatchSource { CS_HOOK, CS_NET, CS_GUN, CS_SET, CS_DIVE, CS_COUNT };
 const char* CatchSourceName(int s);
@@ -428,7 +433,18 @@ struct Gannet {
     void HarpoonInput(int c, Vector2 aimDeck, bool fire, bool held, bool release, float dt);
     bool GaffFloater(int c);                              // E at the rail beside a shot fish afloat
     bool KillDeckFish(int c, float reach = 1.6f, float dmg = -1, bool head = false);
-    bool CrateFish(int c);                                // E beside a dead fish on the deck: into a catch crate (birds can't have it)         // the priest, a gaff or a knife (or fists) strike the nearest live fish on the deck; true if one was hit
+    bool CrateFish(int c, float reach = 1.6f);                              // E beside a dead fish on the deck: into a catch crate (birds can't have it)
+    // a bird flying off with a stolen fish (design doc v2, "Birds and the catch crates"): shoot it down and the bird and
+    // the fish drop where they fall (on the deck, or afloat to be gaffed); a bird is a catch too (gull 4, pelican 12,
+    // frigatebird 15), and every bird kill is Airborne
+    struct Thief { int kind = 0; CatchRec fish; Vector2 p{}; Vector2 v{}; float z = 4, t = 0; };
+    std::vector<Thief> thieves;
+    void Steal(int holdIdx, int kind);                    // a bird takes this fish off the deck
+    void StepThieves(float dt);
+    void DropThief(int idx, int by);                      // shot: the bird and its fish come down
+    int junkBottles = 0, junkKeys = 0, junkCharts = 0;    // junk kept for the landings (the skiff)
+    void FindJunk();
+    void DropFish(int idx);                             // harried (a frigatebird): only the fish comes down         // the priest, a gaff or a knife (or fists) strike the nearest live fish on the deck; true if one was hit
     bool HitDeckFish(int idx, float dmg, int by, int how, bool head, float range);   // a blow on a deck fish (KillHow); true if it died of it
     float deckBlood = 0;                                  // blood on the planking: drains through the scuppers into the sea at 20% a second
     // the magazine stock (design doc v2, "Carrying and ammunition"): rounds, shells, spears, flares, pellets, rivets kept

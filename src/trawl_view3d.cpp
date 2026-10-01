@@ -709,6 +709,17 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
         float len = std::clamp(0.35f + sqrtf(f.kg) * 0.25f, 0.4f, 3.0f);
         DrawFishAt(gFish, W3(f.p, g.sea.Height(f.p.x, f.p.y) + 0.05f), {1, 0, 0.3f}, len, Color{200, 205, 210, 255}, 1.5f);
     }
+    // ---- birds making off with a fish: the fish hangs under them (shoot them down)
+    for (const auto& th : g.thieves) {
+        int bk = th.kind;
+        float sz = bk == BIRD_PELICAN ? 1.9f : bk == BIRD_FRIGATE ? 1.6f : 1.0f;
+        Color bc = bk == BIRD_PELICAN ? Color{150, 120, 90, 255} : bk == BIRD_FRIGATE ? Color{40, 40, 46, 255} : WHITE;
+        float h = g.sea.Height(th.p.x, th.p.y) - th.z;
+        Vector3 dir = Vector3Normalize({th.v.x, 0, th.v.y});
+        DrawFishAt(gGull, W3(th.p, h), dir, sz, bc, sinf(t * 7) * 0.4f);
+        float len = std::clamp(0.3f + sqrtf(th.fish.kg) * 0.22f, 0.3f, 1.2f);
+        DrawFishAt(gFish, W3(th.p, h - 0.35f), {0, -1, 0.2f}, len, Color{170, 178, 184, 255}, 1.5f);
+    }
     // ---- fish on the deck: on their sides where they came aboard; the live ones arch and slap every so often
     for (size_t i = 0; i < g.hold.size(); i++) {
         const CatchRec& h = g.hold[i];
@@ -734,10 +745,13 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
             Vector3 hd{a.v.x, 0, a.v.y};
             if (Vector3Length(hd) < 0.01f) hd = {a.wander.x, 0, a.wander.y};
             if (r.band == BAND_AIR) {
+                int bk = BirdKindOf(r.name);   // a pelican is big and brown, a frigatebird black and long-winged
+                float sz = bk == BIRD_PELICAN ? 1.9f : bk == BIRD_FRIGATE ? 1.6f : 1.0f;
+                Color bc = bk == BIRD_PELICAN ? Color{150, 120, 90, 255} : bk == BIRD_FRIGATE ? Color{40, 40, 46, 255} : WHITE;
                 for (int k = 0; k < std::min(a.count, 14); k++) {
                     float ang = H01((int)i, k, 1) * 6.2832f + t * (0.6f + H01(k, 2, (int)i)), rr = 1.5f + H01(k, (int)i, 3) * 4;
                     Vector3 q{p2.x + cosf(ang) * rr, 5.0f + H01(k, 7, (int)i) * 5 + sinf(t * 2 + k) * 0.4f, p2.y + sinf(ang) * rr};
-                    DrawFishAt(gGull, q, {-sinf(ang), 0, cosf(ang)}, 1.0f, WHITE, sinf(t * 9 + k) * 0.3f);
+                    DrawFishAt(gGull, q, {-sinf(ang), 0, cosf(ang)}, sz, bc, sinf(t * (bk == BIRD_GULL ? 9 : 4) + k) * 0.3f);
                 }
                 continue;
             }

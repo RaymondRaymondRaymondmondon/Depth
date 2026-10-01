@@ -779,6 +779,8 @@ void Hud(Game& g) {
         Txt(G.log[i].c_str(), 20, SCREEN_H - 40 - age * 18, 15, Fade(paper, 0.9f - age * 0.12f));
     }
     if (!G.hold.empty()) { float kg = 0; for (const auto& h : G.hold) kg += h.kg; Txt(TextFormat("In the hold: %d fish, %.0f kg", (int)G.hold.size(), kg), SCREEN_W - 260, 16, 15, Fade(paper, 0.8f)); }
+    if (G.junkBottles + G.junkKeys + G.junkCharts > 0)
+        Txt(TextFormat("Junk: %d bottle%s, %d key%s, chart pieces %d", G.junkBottles, G.junkBottles == 1 ? "" : "s", G.junkKeys, G.junkKeys == 1 ? "" : "s", G.junkCharts), SCREEN_W - 260, 34, 14, Fade(paper, 0.7f));
     // the crew list: who is where (bots and what they're about); G orders the hand nearest the station you point at
     if (G.botsOn || S.net) {
         float y = 40;

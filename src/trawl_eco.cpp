@@ -72,7 +72,7 @@ SpeciesDB* LoadSpecies() {
         r.bait = s["bait"].Bool0(); r.netOnly = s["netOnly"].Bool0(); r.pots = s["pots"].Bool0(); r.reef = s["reef"].Bool0();
         r.grazesCoral = s["grazesCoral"].Bool0(); r.teeth = s["teeth"].Bool0(); r.inks = s["inks"].Bool0();
         r.threat = s["threat"].Bool0(); r.protectedSp = s["protected"].Bool0(); r.bycatchOnly = s["bycatchOnly"].Bool0();
-        r.stings = s["stings"].Bool0(); r.isStatic = s["static"].Bool0(); r.stealsDeck = s["stealsDeck"].Bool0(); r.ramsHull = s["ramsHull"].Bool0();
+        r.stings = s["stings"].Bool0(); r.isStatic = s["static"].Bool0(); r.stealsDeck = s["stealsDeck"].Bool0(); r.lifts = s["lifts"].F(3); r.ramsHull = s["ramsHull"].Bool0();
         std::string th = s["thief"].Str0(""); r.thief = th == "head" ? 1 : th == "whole" ? 2 : 0;
         r.bloodThreshold = s["bloodThreshold"].F(60);
         r.pullK = s["pullK"].F(1); r.staminaK = s["staminaK"].F(1); r.softMouth = s["softMouth"].F(1);
@@ -587,6 +587,16 @@ void Eco::Materialize() {
                 float ang = Rand() * 6.2832f;
                 int ai = SpawnAgent(gs, {boatPos.x + cosf(ang) * 140, boatPos.y + sinf(ang) * 140});
                 agents[ai].hunger = 0.9f; gullT = -1;
+                // the bigger thieves follow the gulls in now and then: a pelican (lifts 5 kg), a frigatebird (harries the rest)
+                const char* big[2] = {"brown pelican", "frigatebird"}; float chance[2] = {0.35f, 0.25f};
+                for (int k = 0; k < 2; k++) {
+                    int bs = Species().Find(big[k]);
+                    bool have = false; for (const auto& a : agents) if (a.sp == bs && a.alive) have = true;
+                    if (bs < 0 || have || std::find(g->species.begin(), g->species.end(), bs) == g->species.end() || Rand() > chance[k]) continue;
+                    float an = ang + 0.8f + k;
+                    int bi = SpawnAgent(bs, {boatPos.x + cosf(an) * 150, boatPos.y + sinf(an) * 150});
+                    agents[bi].hunger = 0.9f;
+                }
             }
         } else if (!draw) gullT = -1;
     }
@@ -847,20 +857,39 @@ void EcoTick(Eco& e, Gannet& gn, float dt) {
     for (const auto& fl : gn.flares) e.lamps.push_back({{fl.p.x, fl.p.y, -1}, 18, 1.4f});   // a flare burning on the water
     // gulls over a deck with fish on it: one under 3 kg every 4 s (design doc, "Threat stats")
     {
-        int gs = Species().Find("gull flock");
-        bool over = false;
-        for (const auto& a : e.agents) if (a.alive && a.sp == gs && Vector2Distance({a.p.x, a.p.y}, b.pos) < 22) over = true;
-        if (over) {
+        // every deck thief over her (gulls, a pelican, a frigatebird) takes the heaviest dead fish it can lift
+        float lift = 0; int liftKind = BIRD_GULL; bool frigate = false;
+        for (const auto& a : e.agents) {
+            if (!a.alive || !Species().sp[a.sp].stealsDeck || Vector2Distance({a.p.x, a.p.y}, b.pos) >= 22) continue;
+            int kind = BirdKindOf(Species().sp[a.sp].name);
+            if (kind == BIRD_FRIGATE) frigate = true;
+            if (Species().sp[a.sp].lifts > lift) { lift = Species().sp[a.sp].lifts; liftKind = kind; }
+        }
+        if (lift > 0) {
             gn.gullT += dt;
             if (gn.gullT >= 4) {
                 gn.gullT = 0;
                 // (design doc v2, "Birds and the catch crates": a dead fish is safe only crated, gutted into the hold, or
-                // still alive and fighting; a gull takes the heaviest dead one it can lift, 3 kg)
+                // still alive and fighting)
                 int best = -1;
-                for (size_t i = 0; i < gn.hold.size(); i++) { const CatchRec& h = gn.hold[i]; if (h.gutted || h.crated || !h.dead || h.kg > 3) continue; if (best < 0 || h.kg > gn.hold[best].kg) best = (int)i; }
-                if (best >= 0) { gn.Say("A gull takes the " + gn.hold[best].name + " (crate them!)"); gn.hold.erase(gn.hold.begin() + best); }
+                for (size_t i = 0; i < gn.hold.size(); i++) { const CatchRec& h = gn.hold[i]; if (h.gutted || h.crated || !h.dead || h.kg > lift) continue; if (best < 0 || h.kg > gn.hold[best].kg) best = (int)i; }
+                if (best >= 0) {
+                    // the lightest bird that can lift it takes it (gulls for the small fry, the pelican for the heavy ones)
+                    int kind = liftKind;
+                    for (int k = 0; k < BIRD_COUNT; k++) {
+                        bool here = false;
+                        for (const auto& a : e.agents) if (a.alive && BirdKindOf(Species().sp[a.sp].name) == k && Vector2Distance({a.p.x, a.p.y}, b.pos) < 22) here = true;
+                        if (here && BirdOf(k).lifts >= gn.hold[best].kg && BirdOf(k).lifts < BirdOf(kind).lifts) kind = k;
+                    }
+                    gn.Steal(best, kind);
+                }
             }
         } else gn.gullT = 0;
+        // a frigatebird harries the other thieves until they drop their fish in mid-air (design doc v2, the birds' table)
+        if (frigate) for (int ti = (int)gn.thieves.size() - 1; ti >= 0; ti--) if (gn.thieves[ti].kind != BIRD_FRIGATE && gn.thieves[ti].t > 1.0f) {
+            gn.Say(TextFormat("A frigatebird harries the %s: it drops the %s", BirdOf(gn.thieves[ti].kind).name, gn.thieves[ti].fish.name.c_str()));
+            gn.DropFish(ti);
+        }
     }
     // a hand in the water: the reef shark comes for a thrashing, bleeding swimmer (a bite at the waterline)
     for (int k = 0; k < (int)gn.crew.size(); k++) {

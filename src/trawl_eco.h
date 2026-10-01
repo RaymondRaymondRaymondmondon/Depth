@@ -41,6 +41,7 @@ struct SpeciesRec {
     float price = 0;
     bool bait = false, netOnly = false, pots = false, reef = false, grazesCoral = false, teeth = false, inks = false;
     bool threat = false, protectedSp = false, bycatchOnly = false, stings = false, isStatic = false, stealsDeck = false, ramsHull = false;
+    float lifts = 3;   // a deck thief's heaviest fish (design doc v2: gull 3, brown pelican 5, frigatebird 2 kg)
     int thief = 0;                              // 1 strikes a hooked fish to the head, 2 takes it whole
     float bloodThreshold = 60;
     float pullK = 1, staminaK = 1, softMouth = 1;

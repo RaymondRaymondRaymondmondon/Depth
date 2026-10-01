@@ -288,12 +288,13 @@ template <class A> void Visit(A& a, TrawlWorld& w) {
         a.b(h.dead); a.f(h.flopT); a.v2(h.deckAt);
         a.f(h.hp); a.f(h.hpMax); a.f(h.heading); a.i(h.deckKind); a.f(h.airT); a.f(h.killScore); a.s(h.killHow); a.f(h.killT); a.i(h.grabbed); a.b(h.crated);
     });
-    a.f(g.deckBlood);
+    a.f(g.deckBlood); a.i(g.junkBottles); a.i(g.junkKeys); a.i(g.junkCharts);
     a.i(g.ammoRounds); a.i(g.ammoShells); a.i(g.ammoSpears); a.i(g.ammoFlares); a.i(g.ammoPellets); a.i(g.ammoRivets);
     // ---- what's in the water
     a.vec(g.shots, [&](Projectile& p) { a.e(p.kind); a.v3(p.p); a.v3(p.v); a.i(p.owner); a.f(p.life); a.b(p.tether); a.b(p.inWater); });
     a.vec(g.floaters, [&](Floater& f) { a.s(f.name); a.i(f.sp); a.f(f.kg); a.f(f.price); a.f(f.grade); a.v2(f.p); a.f(f.life); a.b(f.tethered); });
     a.vec(g.flares, [&](FlareLight& f) { a.v2(f.p); a.f(f.t); });
+    a.vec(g.thieves, [&](Gannet::Thief& t) { a.i(t.kind); a.s(t.fish.name); a.f(t.fish.kg); a.i(t.fish.sp); a.v2(t.p); a.v2(t.v); a.f(t.z); a.f(t.t); });
     Trawl& n = g.net;
     a.e(n.state); a.f(n.t); a.f(n.load); a.f(n.depth); a.f(n.backT); a.b(n.meshInit);
     if (n.meshInit && n.state != NetState::Stowed) for (int k = 0; k < 8 * 6; k++) { a.v3(n.node[k]); if constexpr (A::reading) n.prev[k] = n.node[k]; }

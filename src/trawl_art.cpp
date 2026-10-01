@@ -155,13 +155,17 @@ void DrawLife(const Gannet& g, const View& v, bool air) {
         float alpha = air ? 0.95f : (r.tier >= 3 ? 0.55f : 0.45f) + 0.45f * vis;
         Color c = Fade(Dim(base, 0.55f + 0.45f * vis), alpha * std::clamp(1.2f - a.p.z / 12, 0.35f, 1.0f));
         if (air) {
-            // a flock of gulls: pale Vs wheeling over the boat
+            // a flock of gulls: pale Vs wheeling over the boat (a pelican: a big brown V; a frigatebird: a long black one)
+            int bk = BirdKindOf(r.name);
+            float w = bk == BIRD_PELICAN ? 5 : bk == BIRD_FRIGATE ? 6 : 3;
+            Color bc = bk == BIRD_PELICAN ? Color{170, 135, 100, 255} : bk == BIRD_FRIGATE ? Color{30, 30, 36, 255} : WHITE;
             for (int k = 0; k < std::min(a.count, 16); k++) {
                 float ang = H01((int)i, k, 1) * 6.2832f + g.time * (0.6f + H01(k, 2, (int)i));
                 float rr = 1.5f + H01(k, (int)i, 3) * 3;
                 Vector2 q = Vector2Add(dc, {cosf(ang) * rr, sinf(ang) * rr});
-                Vector2 cq = v.ToCanvas(q); float flap = sinf(g.time * 9 + k) > 0 ? 1.0f : 0.0f;
-                DrawLineV({cq.x - 3, cq.y - flap}, cq, Fade(WHITE, 0.85f)); DrawLineV(cq, {cq.x + 3, cq.y - flap}, Fade(WHITE, 0.85f));
+                Vector2 cq = v.ToCanvas(q); float flap = sinf(g.time * (bk == BIRD_GULL ? 9 : 4) + k) > 0 ? 1.0f : 0.0f;
+                DrawLineV({cq.x - w, cq.y - flap}, cq, Fade(bc, 0.9f)); DrawLineV(cq, {cq.x + w, cq.y - flap}, Fade(bc, 0.9f));
+                if (bk != BIRD_GULL) DrawLineV({cq.x - w * 0.5f, cq.y - flap * 0.5f + 1}, {cq.x + w * 0.5f, cq.y - flap * 0.5f + 1}, Fade(bc, 0.6f));
             }
             continue;
         }
@@ -320,6 +324,17 @@ void DrawGear(const Gannet& g, const View& v) {
         DrawCircleV(q, 2.5f + std::min(4.0f, f.kg * 0.1f), Fade(Color{120, 20, 20, 255}, 0.25f));
         float len = std::clamp(2.0f + sqrtf(f.kg) * 2, 2.0f, 12.0f);
         DrawRectangle((int)(q.x - len / 2), (int)q.y - 1, (int)len, 2, Dim(Color{220, 220, 205, 255}, L));
+    }
+    // a bird making off with a fish (its shadow below, the fish hanging from it): shoot it down
+    for (const auto& th : g.thieves) {
+        Vector2 q = C(th.p); float up = -th.z * 0.8f;
+        DrawEllipse((int)q.x, (int)q.y, 4, 2, Fade(BLACK, 0.25f));
+        Vector2 b2{q.x, q.y - up};
+        float w = th.kind == BIRD_PELICAN ? 5 : th.kind == BIRD_FRIGATE ? 6 : 3;
+        Color bc = th.kind == BIRD_PELICAN ? Color{170, 135, 100, 255} : th.kind == BIRD_FRIGATE ? Color{30, 30, 36, 255} : WHITE;
+        float flap = sinf(g.time * 8) > 0 ? 1.5f : 0.0f;
+        DrawLineV({b2.x - w, b2.y - flap}, b2, bc); DrawLineV(b2, {b2.x + w, b2.y - flap}, bc);
+        DrawRectangle((int)b2.x - 1, (int)b2.y + 1, 2, (int)std::clamp(2 + sqrtf(th.fish.kg) * 2, 2.0f, 6.0f), Color{205, 210, 200, 255});
     }
     // blood on the planking, running to the scuppers on the low side (design doc v2, "Blood through the scuppers")
     if (g.deckBlood > 0.3f && !g.moored) {

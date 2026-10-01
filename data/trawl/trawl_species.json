@@ -20,7 +20,7 @@
       "flora": ["coral heads", "seagrass", "sargassum rafts", "plankton bloom"],
       "species": ["silverside", "sardine", "flying fish", "reef squid", "surgeonfish", "parrotfish", "grunt", "triggerfish",
                   "blue crab", "spiny lobster", "reef octopus", "snapper", "bonito", "jack crevalle", "barracuda", "moray eel",
-                  "mahi-mahi", "grouper", "reef shark", "green turtle", "moon jelly", "gull flock"]
+                  "mahi-mahi", "grouper", "reef shark", "green turtle", "moon jelly", "gull flock", "brown pelican", "frigatebird"]
     }
   },
   "species": [
@@ -114,6 +114,14 @@
     {"name": "gull flock", "class": "bird", "size": 2, "tier": 3, "kg": [0.8, 1.2], "band": "air", "night": "air",
      "habitat": {"open": 1, "seagrass": 1, "reef": 1, "crest": 1, "sea": 1}, "eats": {"carrion": 0.5, "silverside": 0.5}, "start": 60, "school": [15, 25],
      "senses": {"sight": 40, "scent": 0, "hearing": 20, "lateral": 0}, "light": "neutral", "fear": 0.3, "speed": 6,
-     "bite": {"baits": [], "tackle": []}, "fight": ["None"], "price": 0, "threat": true, "static": true, "stealsDeck": true}
+     "bite": {"baits": [], "tackle": []}, "fight": ["None"], "price": 0, "threat": true, "static": true, "stealsDeck": true},
+    {"name": "brown pelican", "class": "bird", "size": 2, "tier": 3, "kg": [3, 4], "band": "air", "night": "air",
+     "habitat": {"open": 1, "seagrass": 1, "reef": 1, "crest": 1, "sea": 1}, "eats": {"carrion": 0.3, "silverside": 0.7}, "start": 6, "school": [1, 1],
+     "senses": {"sight": 40, "scent": 0, "hearing": 20, "lateral": 0}, "light": "neutral", "fear": 0.3, "speed": 5,
+     "bite": {"baits": [], "tackle": []}, "fight": ["None"], "price": 0, "threat": true, "static": true, "stealsDeck": true, "lifts": 5},
+    {"name": "frigatebird", "class": "bird", "size": 2, "tier": 3, "kg": [1, 1.6], "band": "air", "night": "air",
+     "habitat": {"open": 1, "seagrass": 1, "reef": 1, "crest": 1, "sea": 1}, "eats": {"carrion": 0.6, "silverside": 0.4}, "start": 4, "school": [1, 1],
+     "senses": {"sight": 50, "scent": 0, "hearing": 20, "lateral": 0}, "light": "neutral", "fear": 0.3, "speed": 8,
+     "bite": {"baits": [], "tackle": []}, "fight": ["None"], "price": 0, "threat": true, "static": true, "stealsDeck": true, "lifts": 2}
   ]
 }

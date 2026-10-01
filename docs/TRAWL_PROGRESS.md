@@ -543,3 +543,14 @@ bubble puff); Red Tide's gun models rebuilt with a dozen parts each.
   - The gutting table unattended for 10 s counts as "left out".
   - Bots crating loose dead fish when idle.
   - Junk (a message in a bottle, a brass key, torn chart pieces) from net hauls and the sea, kept for the landings.
+
+## Step 4, second part: the thieves, the bigger birds, junk (2026-10-01)
+- **Brown pelican** (lifts 5 kg, 12 sh) and **frigatebird** (lifts 2 kg, 15 sh) are Lagoon species (`trawl_species.json`, `lifts`). They follow a gull flock in (35% / 25% per arrival).
+- A bird over her takes the heaviest dead, uncrated, ungutted fish the birds there can lift (the lightest bird able to lift it does the taking), every 4 s. It becomes a **`Gannet::Thief`** climbing away over the near rail with the fish hanging under it (drawn in both views, in the snapshot).
+- **Shoot it down** (`DropThief`): bird and fish fall on her deck if over it, otherwise afloat (gaff or tether). The bird is a catch (`BirdOf`: gull 4, pelican 12, frigatebird 15) and always Airborne (x1.3 Killscore).
+- **A frigatebird harries** any other thief until it drops its fish mid-air (`DropFish`).
+- The "gulls give up" rule only applies to flocks, so a lone pelican isn't driven off by one pellet.
+- **Bots crate the catch** when birds are over her: the gutting-table hand swings dead fish into the crates (`CrateFish(i, 12)`).
+- The doc's "gutting table left unattended 10 s" is already covered: every dead fish on the deck is fair game unless it's crated or gutted.
+- **Junk** (`FindJunk`, `D().junkPerHaul` 25% a net haul): a message in a bottle, a brass key or a torn chart piece. They're kept on the Gannet (`junkBottles/Keys/Charts`, in the snapshot, on the HUD) for the landings in step 5.
+- Tests in `--trawl-gear-test`: a pelican takes a 4.5 kg fish, a round brings it down onto the deck worth 15.6 sh, and a frigatebird makes a gull drop its fish. Sim (6 careful hands): 282 sh a night, every deadline met.
