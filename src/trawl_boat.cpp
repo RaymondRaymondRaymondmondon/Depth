@@ -175,10 +175,18 @@ bool QuayWalkable(Vector2 p) {
     if (p.x > -1.1f && p.x < 1.1f && p.y > -4.0f && p.y < -2.4f) return true;   // the gangplank
     return p.x > -13.5f && p.x < 13.5f && p.y > -9.6f && p.y < -3.9f;
 }
-static bool gMoored = false;
+static bool gMoored = false, gDoorOpen = true;
 static bool Walkable(Vector2 p, int deck, bool air = false) {
     if (deck == 0 && gMoored && (p.y < -2.4f) && QuayWalkable(p)) return true;
-    if (deck == 1) return p.x > -8.4f && p.x < -2.9f && fabsf(p.y) < 2.3f && !(p.x > -5.8f && p.x < -3.8f && p.y < -0.6f);   // the engine room; the boiler against its port side
+    if (deck == 1) {
+        // below: the engine room (the boiler against its port side), the fish hold through the watertight door, and the
+        // fo'c'sle forward (its own hatch: no way through from the hold)
+        bool engine = p.x > -8.4f && p.x < -2.9f && fabsf(p.y) < 2.3f && !(p.x > -5.8f && p.x < -3.8f && p.y < -0.6f);
+        bool hold = p.x >= -2.9f && p.x < 0.8f && fabsf(p.y) < 2.3f;
+        bool fore = p.x > 5.2f && p.x < 9.0f && fabsf(p.y) < std::min(1.9f, HalfBeam(p.x) - 0.5f);
+        if (p.x > -3.1f && p.x < -2.7f && !(gDoorOpen && fabsf(p.y) < 0.6f)) return false;   // the bulkhead, and its door
+        return engine || hold || fore;
+    }
     // in the air a hand clears the rail (and comes down in the sea); the wheelhouse walls still stop them
     if (air) { if (p.x < -12.4f || p.x > 12.1f || fabsf(p.y) > HalfBeam(p.x) + 1.6f) return false; }
     else if (p.x < -10.9f || p.x > 10.6f || fabsf(p.y) > HalfBeam(p.x) - 0.3f) return false;
@@ -223,13 +231,14 @@ void Gannet::Init(int n, uint32_t seed, Weather w) {
     }
     // the skiff's light rod (fished from her stern sheets)
     skiffRod = Rod{}; skiffRod.station = -1; skiffRod.tackle = Tackle::Light; skiffRod.rng = seed * 53u + 7; skiffRod.fight.drag = 0.33f * TackleOf(Tackle::Light).strength;
+    InitBelow();
 }
 int Gannet::DeckFish() const { int n = 0; for (const auto& h : hold) if (!h.gutted) n++; return n; }
 void Gannet::Say(const std::string& s) { log.push_back(s); if (log.size() > 12) log.erase(log.begin()); }
 
 void Gannet::Move(int ci, Vector2 wish, bool brace, float dt) {
     Crew& c = crew[ci];
-    gMoored = moored;
+    gMoored = moored; gDoorOpen = doorOpen;
     if (c.deck == DECK_SKIFF && !c.overboard) { c.v = {0, 0}; c.braced = true; return; }   // seated in the skiff (the oars move her)
     if (c.deck == DECK_SHORE && !c.overboard) { ShoreMove(ci, wish, dt); return; }       // on foot on a landing
     if (c.overboard) {
@@ -292,7 +301,8 @@ bool Gannet::Jump(int ci) {
 bool Gannet::TakeStation(int ci) {
     Crew& c = crew[ci];
     if (c.overboard || c.fallen) return false;
-    if (Vector2Distance(c.p, LADDER) < 0.8f && !c.dead) { c.deck = 1 - c.deck; c.station = -1; return true; }   // the ladder
+    if (!c.dead && BelowUse(ci)) return true;   // (a hatch, the door, a lamp, the fire)
+    if (Vector2Distance(c.p, LADDER) < 0.8f && !c.dead) { c.deck = 1 - c.deck; c.station = -1; c.p = LADDER; return true; }   // the ladder (off it at its foot: clear of the hold's bulkhead)
     int s = NearestStation(c.p, c.deck, 1.1f);
     if (s < 0) return false;
     if (c.dead && Stations()[s].kind != StationKind::Bell) return false;   // a ghost touches only the bell
@@ -390,6 +400,7 @@ void Gannet::Step(float dt) {
     if (moored) { boat.pos = moorPos; boat.heading = moorHeading; boat.vel = {0, 0}; boat.yawRate = 0; boat.roll *= 0.9f; boat.pitch *= 0.9f; }
     StepSkiff(dt);
     StepLandings(dt);
+    StepBelow(dt);
     // the catch spoils: 1% a real minute on deck, 0.2% gutted and iced
     for (auto& h : hold) if (!h.cooked) h.fresh = std::max(0.0f, h.fresh - dt / 60.0f * (h.iced ? 0.002f : 0.01f));   // (cooked fish keep)
     if (boat.sunk && !wasSunk) Say("The Gannet founders");

@@ -48,6 +48,8 @@ const std::vector<StationDef>& Stations() {
         {StationKind::Printer, "Telegraph printer", {2.4f, 1.2f}, 0, "Tear off and read the Owners' tape"},
         {StationKind::Locker, "Deck locker", {-6.4f, -2.3f}, 0, "Stow and take gear: 1-4 picks a slot"},
         {StationKind::Davit, "Skiff davit", {-10.5f, 0}, 0, "Hold left mouse: lower the skiff (8 s), or haul her up (10 s, alongside, stopped)"},
+        {StationKind::Magazine, "Magazine locker", {8.3f, 1.1f}, 1, "Restocks every gun's spare reload from the ship's ammunition"},
+        {StationKind::Cot, "The Medic's cot", {6.0f, -1.2f}, 1, "Lie here 10 s with the Medic beside you: one serious injury set"},
     };
     return S;
 }

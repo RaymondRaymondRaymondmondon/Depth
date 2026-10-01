@@ -494,7 +494,7 @@ int RunTrawlBotTest() {
         for (int k = 0; k < 60 * 15; k++) g.Step(dt);
         int who = g.OrderFollow(0);
         g.crew[0].deck = 1; g.crew[0].p = {-4.6f, 0.4f};
-        for (int k = 0; k < 60 * 25; k++) g.Step(dt);
+        for (int k = 0; k < 60 * 25; k++) { g.Step(dt); if (getenv("DEPTH_TRACE") && k % 120 == 0) printf("    t%d bot deck %d (%.1f,%.1f) %s\n", k / 60, g.crew[who].deck, g.crew[who].p.x, g.crew[who].p.y, g.BotDoing(who).c_str()); }
         check(who > 0 && g.crew[who].deck == 1 && Vector2Distance(g.crew[who].p, g.crew[0].p) < 2.5f, TextFormat("F: hand %d follows the skipper down the ladder (%.1f m off)", who, who > 0 ? Vector2Distance(g.crew[who].p, g.crew[0].p) : -1.0f));
         g.OrderFollow(0);
         for (int k = 0; k < 60 * 25; k++) g.Step(dt);

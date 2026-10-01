@@ -809,7 +809,7 @@ void Gannet::StepGear(float dt) {
     const auto& SP = Species().sp;
     Vector2 fwd = boat.Forward();
     StepDeckFish(dt);
-    for (int ci = 0; ci < (int)crew.size(); ci++) if (crew[ci].station >= 0 && Stations()[crew[ci].station].kind == StationKind::Locker) RestockAtLocker(ci);
+    for (int ci = 0; ci < (int)crew.size(); ci++) if (crew[ci].station >= 0 && Stations()[crew[ci].station].kind == StationKind::Magazine) RestockAtLocker(ci);   // (the magazine locker in the fo'c'sle: restocking is a trip below)
     // projectiles
     for (auto& p : shots) {
         p.life -= dt;
@@ -1423,11 +1423,11 @@ int RunTrawlGearTest() {
             sl.ammo = 0; sl.spare = 0; gs.ammoRounds = 20;
             gs.Reload(0);
             bool noSpare = sl.ammo == 0;
-            int lk = -1; for (int i = 0; i < (int)Stations().size(); i++) if (Stations()[i].kind == StationKind::Locker) lk = i;
+            int lk = -1; for (int i = 0; i < (int)Stations().size(); i++) if (Stations()[i].kind == StationKind::Magazine) lk = i;
             gs.crew[0].station = lk; run(gs, dt); gs.crew[0].station = -1;
             bool restocked = sl.spare == 6 && gs.ammoRounds == 14;
             gs.Reload(0);
-            check(noSpare && restocked && sl.ammo == 6 && sl.spare == 0, "with no spare there's no reload; at the locker the spare fills from the ship's stock, and R loads it");
+            check(noSpare && restocked && sl.ammo == 6 && sl.spare == 0, "with no spare there's no reload; at the magazine locker in the fo'c'sle the spare fills from the ship's stock, and R loads it");
             bool ammo = ss.AmmoBuy("shells") && gs.ammoShells == 8;
             check(ammo, "the Gunsmith sells ammunition into the locker by the pack (8 shells)");
             // wet powder in a squall

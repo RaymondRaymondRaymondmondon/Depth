@@ -217,7 +217,7 @@ void BotFight(Fight& f, Skill s, float dt, uint32_t& rng);    // sets drag, reel
 int RunTrawlFight(int argc, char** argv);   // depth.exe --trawl-fight <species|all> [tackle] [N]
 
 // ---------------------------------------------------------------- stations and the crew
-enum class StationKind { Helm, Boiler, Pumps, PortRod, StarRod, SternRodP, SternRodS, NetWinch, Lantern, Sonar, Harpoon, Gutting, AirPump, Bell, Printer, Locker, Davit, COUNT };
+enum class StationKind { Helm, Boiler, Pumps, PortRod, StarRod, SternRodP, SternRodS, NetWinch, Lantern, Sonar, Harpoon, Gutting, AirPump, Bell, Printer, Locker, Davit, Magazine, Cot, COUNT };
 struct StationDef { StationKind kind; const char* name; Vector2 at; int deck; const char* does; };   // deck 0 main deck, 1 engine room
 const std::vector<StationDef>& Stations();
 float LanternRadius(int level);                           // 4, 8, 14, 30 m
@@ -568,6 +568,21 @@ struct Gannet {
     void StepSkiffRod(float dt);
     Vector2 SkiffRodTip() const;                          // (world) the rod's tip over her starboard quarter
     Vector2 HandWorld(int c) const;                       // where a hand is on the sea, whichever deck it is on
+    // below decks (design doc v2, "Below decks"; trawl_below.cpp): deck 1 is the engine room, the fish hold (through the
+    // watertight door) and the fo'c'sle (its own hatch: the magazine locker, the Medic's cot); hatches open, shut or
+    // battened; an oil lamp in each space (out past 20 deg of roll); bilge eels when she's half full; the fire spreads
+    struct Hatch { Vector2 at; int state = 0; };          // 0 open, 1 shut (4 s to open), 2 battened (10 s; not from below)
+    Hatch hatches[2];                                     // 0 the main hatch (the hold), 1 the fore hatch (the fo'c'sle)
+    bool doorOpen = true;                                 // the watertight door between the hold and the engine room
+    struct OilLamp { Vector2 at; bool lit = true; };
+    OilLamp lamps[3];                                     // the engine room's, the hold's, the fo'c'sle's (deck 1)
+    float fireSpread = 0, cotT = 0, hookT = 0;            // the fire's 30 s to the bunker; the Medic's 10 s at the cot; hooking the skiff on from the water
+    void InitBelow();
+    int SpaceAt(Vector2 p, int deck) const;               // 0 the deck, 1 the engine room, 2 the hold, 3 the fo'c'sle
+    bool BelowUse(int c);                                 // E: a hatch (down/up, or open it), the door, a lamp, smothering the fire
+    bool HatchCycle(int c);                               // R at a hatch on deck: open -> shut -> battened -> shut
+    void StepBelow(float dt);
+    void FinishRecovery();                                // the skiff comes up (the davit's falls, or hooked on from the water)
     // the landings (trawl_landing.cpp)
     std::vector<Landing> landings;
     bool foughtCanoes = false;                            // refused the canoes: the Atoll's elder won't trade
@@ -617,6 +632,7 @@ bool QuayWalkable(Vector2 p);                             // the quay beside her
 
 int RunTrawlSim(int argc, char** argv);                   // depth.exe --trawl-sim <ground> <nights> [crew] [pattern] [runs] [skill] (trawl_sim.cpp)
 int RunTrawlGearTest();
+int RunTrawlBelowTest();                                  // depth.exe --trawl-below-test
 int RunTrawlQuestTest();                                  // depth.exe --trawl-quest-test
 int RunTrawlSkiffTest();                                  // depth.exe --trawl-skiff-test                                   // depth.exe --trawl-gear-test
 int RunTrawlBotTest();                                    // depth.exe --trawl-bot-test

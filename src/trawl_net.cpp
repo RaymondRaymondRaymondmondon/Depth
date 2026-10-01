@@ -50,7 +50,7 @@ void ApplyInput(TrawlWorld& w, int ci, const HandInput& in, float dt) {
     auto on = [&](uint16_t b) { return (in.btn & b) != 0; };
     // ---- the presses (once)
     if (in.sel >= 0 && c.station < 0) c.sel = in.sel;
-    if (on(HI_R_P)) { if (c.deck == DECK_SKIFF && c.skiffLine) g.ArmBossLure(ci); else if (!(c.deck == DECK_SHORE && g.EatCooked(ci))) g.Reload(ci); }
+    if (on(HI_R_P)) { if (c.deck == DECK_SKIFF && c.skiffLine) g.ArmBossLure(ci); else if (g.HatchCycle(ci)) {} else if (!(c.deck == DECK_SHORE && g.EatCooked(ci))) g.Reload(ci); }
     if (on(HI_T_P) && c.station >= 0 && Stations()[c.station].kind == StationKind::Harpoon) g.explosiveLoaded = !g.explosiveLoaded && g.explosives > 0;
     if (on(HI_E_P)) {
         int d = g.moored && c.deck == 0 && c.station < 0 ? NearestDock(c.p, 1.4f) : -1;
@@ -100,6 +100,8 @@ void ApplyInput(TrawlWorld& w, int ci, const HandInput& in, float dt) {
         } else {
             // the oars are the mouse buttons (left port, right starboard; both together pull straight)
             g.Oar(ci, on(HI_LMB_P), on(HI_RMB_P));
+            // Space alongside with nobody at the davit: hook her on to the falls from the water (slow)
+            if (on(HI_SPACE_P) && g.SkiffAlongside(3)) { c.workOn = c.workOn == 600 ? -1 : 600; g.Say(c.workOn == 600 ? "Hooking her on to the falls from the water (25 s, the Gannet stopped)" : "Let go of the falls"); }
         }
         g.Move(ci, {0, 0}, false, dt);
         return;
@@ -345,6 +347,9 @@ template <class A> void Visit(A& a, TrawlWorld& w) {
         a.v2(L.moray); a.f(L.morayT); a.f(L.elderCredit);
     });
     a.b(g.foughtCanoes);
+    for (auto& h : g.hatches) { a.v2(h.at); a.i(h.state); }
+    a.b(g.doorOpen); for (auto& l : g.lamps) { a.v2(l.at); a.b(l.lit); }
+    a.f(g.fireSpread); a.f(g.cotT); a.f(g.hookT);
     a.f(g.deckBlood); a.i(g.junkBottles); a.i(g.junkKeys); a.i(g.junkCharts); a.i(g.landedSmall); a.i(g.landedBig);
     a.i(g.bossLures); a.b(g.bossArmed); a.f(g.bossBiteT); a.i(g.bossBiteIdx); a.i(g.bossCaught); a.b(g.tagGun); a.i(g.tagged); a.i(g.highKills); a.b(g.spiceRub); a.i(g.rareLures); a.b(g.rareLureNight); a.i(g.legendLures);
     a.vec(g.drops, [&](std::string& d) { a.s(d); });

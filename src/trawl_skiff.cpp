@@ -70,21 +70,23 @@ void Gannet::DavitWork(int ci, bool held, float dt) {
         if (boat.Speed() > 0.4f) { if (s.state != SkiffState::Recovering || s.t == 0) Say("Stop her first: the skiff can't come up under way"); s.state = SkiffState::Afloat; s.t = 0; return; }
         s.state = SkiffState::Recovering;
         s.t += dt;
-        if (s.t >= D().skiffRecover) {
-            // hoisted: the catch onto the aft deck (dead, for the crates), and anyone still in her steps off at the davit
-            for (auto& r : s.load) { CatchRec h = r; h.deckAt = {-9.6f + (float)(hold.size() % 3) * 0.3f, -1.0f + (float)(hold.size() % 5) * 0.4f}; hold.push_back(h); }
-            for (auto& r : towed) { CatchRec h = r; h.deckAt = {-9.0f, 0.0f}; hold.push_back(h); }
-            if (!towed.empty()) Say(TextFormat("The tow line comes aboard: %d fish onto the aft deck", (int)towed.size()));
-            towed.clear();
-            if (!s.load.empty()) Say(TextFormat("The skiff comes up: %d things out of her onto the aft deck", (int)s.load.size()));
-            else Say("The skiff comes up on the davit");
-            s.load.clear();
-            for (auto& c : crew) if (c.deck == DECK_SKIFF) { c.deck = 0; c.p = {-10.2f, c.p.y < -0.5f ? -0.8f : 0.8f}; c.v = {0, 0}; }
-            s.state = SkiffState::Stowed; s.t = -1;
-        }
+        if (s.t >= D().skiffRecover) FinishRecovery();
     }
 }
 
+void Gannet::FinishRecovery() {
+    // hoisted: the catch onto the aft deck (dead, for the crates), and anyone still in her steps off at the davit
+    Skiff& s = skiff;
+    for (auto& r : s.load) { CatchRec h = r; h.deckAt = {-9.6f + (float)(hold.size() % 3) * 0.3f, -1.0f + (float)(hold.size() % 5) * 0.4f}; hold.push_back(h); }
+    for (auto& r : towed) { CatchRec h = r; h.deckAt = {-9.0f, 0.0f}; hold.push_back(h); }
+    if (!towed.empty()) Say(TextFormat("The tow line comes aboard: %d fish onto the aft deck", (int)towed.size()));
+    towed.clear();
+    if (!s.load.empty()) Say(TextFormat("The skiff comes up: %d things out of her onto the aft deck", (int)s.load.size()));
+    else Say("The skiff comes up on the davit");
+    s.load.clear();
+    for (auto& c : crew) if (c.deck == DECK_SKIFF) { c.deck = 0; c.p = {-10.2f, c.p.y < -0.5f ? -0.8f : 0.8f}; c.v = {0, 0}; c.workOn = -1; }
+    s.state = SkiffState::Stowed; s.t = -1; hookT = 0;
+}
 bool Gannet::BoardSkiff(int ci) {
     Crew& c = crew[ci];
     Skiff& s = skiff;
