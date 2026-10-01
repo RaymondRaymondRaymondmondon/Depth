@@ -8,6 +8,7 @@
 // named constants at the top of trawl_session.cpp.
 #include "trawl.h"
 #include "trawl_eco.h"
+#include "trawl_wreck.h"
 #include <map>
 #include <set>
 #include <string>
@@ -74,6 +75,8 @@ struct Session {
     void ShakeStep(float dt);                   // the steps' conditions and Kess's lines (called from Step)
     void SkipShakedown();
     CanoeState canoe = CanoeState::None; float canoeAt = -1, canoeT = 0;   // Canoe night: when it comes, how long it has waited alongside
+    std::vector<Wreck> wrecks;                  // the ground's wrecks this deadline (made at its first cast off; looted stays looted)
+    void PlaceWrecks();                         // GroundWrecks, each set down where the chart's depth suits it
     float archCloseAt = -1;                     // (the Grotto) when the sea arch closes, in minutes since 20:00 (02:30-04:00); -1 not tonight
     std::string canoeWord;                      // what came of it (for the tape and the panel)
     bool Canoe(int choice);                     // the crew's answer while it's alongside (CanoeChoice); false if there's no canoe to answer

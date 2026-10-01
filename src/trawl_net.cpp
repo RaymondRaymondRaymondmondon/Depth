@@ -78,6 +78,26 @@ void ApplyInput(TrawlWorld& w, int ci, const HandInput& in, float dt) {
         else { g.SkiffSwim(ci, lmb, dt); g.CutScrew(ci, lmb, dt); }   // (beside a capsized skiff: right her)
         return;
     }
+    if (c.deck == DECK_DIVE) {
+        // down on a wreck: Space moves through the door, hatch or squeeze nearest the way you push; E lifts salvage (or
+        // puts it in the basket at a breach); R gives the two tugs (haul me up)
+        if (on(HI_R_P)) g.DiveRecall();
+        if (on(HI_E_P)) { if (g.dive.carrying) g.DiveBasket(); else g.DiveTake(); }
+        if (on(HI_SPACE_P) && g.wrecks && g.dive.room >= 0 && Vector2Length(in.wish) > 0.2f) {
+            const Wreck& wk = (*g.wrecks)[g.dive.wreck];
+            const WreckRoom& here = wk.rooms[g.dive.room];
+            int best = -1; float bd = -0.3f;
+            for (const auto& L : wk.links) {
+                int o = L.a == g.dive.room ? L.b : L.b == g.dive.room ? L.a : -1; if (o < 0) continue;
+                Vector2 d{(wk.rooms[o].x + wk.rooms[o].w * 0.5f) - (here.x + here.w * 0.5f), (float)(wk.rooms[o].y - here.y)};
+                float s = Vector2DotProduct(Vector2Normalize(d), Vector2Normalize(in.wish));
+                if (s > bd) { bd = s; best = o; }
+            }
+            if (best >= 0) g.DiveMove(best);
+        }
+        return;
+    }
+    if (on(HI_T_P) && c.deck == 0 && c.station < 0 && c.p.x < -10 && g.hardhat && g.dive.diver < 0) { g.StartDive(ci); return; }   // T at the stern: down to the wreck
     if (c.deck == DECK_SHORE) {
         // on foot on a landing: walk; Space at the beached skiff climbs in
         if (on(HI_SPACE_P)) g.BoardSkiff(ci);

@@ -47,9 +47,9 @@ void Gannet::DivePump(int ci, bool stroke) {
     if (dive.diver < 0 || !stroke) return;
     const Crew& c = crew[ci];
     if (c.station < 0 || Stations()[c.station].kind != StationKind::AirPump) return;
-    if (dive.pumpT < 0.3f) return;   // (a rhythm: too quick and the stroke is lost)
+    if (dive.pumpT < 0.5f) return;   // (a rhythm: a stroke every half second at most)
     dive.pumpT = 0;
-    dive.gauge = std::min(1.0f, dive.gauge + 0.12f);
+    dive.gauge = std::min(1.0f, dive.gauge + 0.1f);
 }
 
 bool Gannet::DiveMove(int to) {

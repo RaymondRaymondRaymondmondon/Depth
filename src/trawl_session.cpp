@@ -75,6 +75,7 @@ const std::vector<ShopItem>& ChandlerItems() {   // design doc, "The Chandler" (
         {"charge", "Depth charge", 120, "12 m blast; the Owners fine 30 in the Lagoon"},
         {"explosive", "Explosive harpoon head", 80, "For the bow cannon: kills, but ruins the fish"},
         {"bosslure", "Boss lure (the Lagoon)", 60, "Calls a mini-boss over boss water (the Crest Pass); +10 Wake"},
+        {"hardhat", "Hardhat diving suit", 350, "Down to a wreck off the stern (30 m); a hand at the air pump keeps the diver breathing"},
         {"tag", "Tag gun", 30, "Tag a protected catch before it goes back: the naturalist wants them"},
         {"coin", "Lucky coin (a charm)", 50, "Worn on a cord: Glimmer variants twice as likely"},
     };
@@ -367,6 +368,27 @@ float Session::ElderGive(int ci, std::string* why) {
     return v;
 }
 static const char* TraderTag(int kind) { return kind == LK_SHELF ? "smugglers" : kind == LK_BONEBEACH ? "bonebeach" : kind == LK_CULT ? "cult" : kind == LK_ATOLL ? "atoll" : "-"; }
+void Session::PlaceWrecks() {
+    wrecks = GroundWrecks(ground, seed * 7u + (uint32_t)deadline * 131u);
+    if (!E || !E->g) return;
+    float size = E->n * E->cell;
+    uint32_t h = seed * 2654435761u + (uint32_t)deadline * 97u + 5;
+    auto R = [&]() { h = h * 1664525u + 1013904223u; return (h >> 8) * (1.0f / 16777216.0f); };
+    for (auto& w : wrecks) {
+        // (a sea floor near the wreck's depth, clear of the land and the landings, 60 m from any other wreck)
+        Vector2 best{size * 0.6f, size * 0.5f}; float bd = 1e9f;
+        for (int k = 0; k < 400; k++) {
+            Vector2 p{60 + R() * (size - 120), 40 + R() * (size - 80)};
+            float d = E->DepthAt(p); if (d < 3) continue;
+            bool clear = true; for (const auto& o : wrecks) if (&o != &w && o.x != 0 && Vector2Distance(p, {o.x, o.y}) < 60) clear = false;
+            for (Vector2 la : E->landingAt) if (Vector2Distance(p, la) < 30) clear = false;
+            if (!clear) continue;
+            float err = fabsf(d - w.depth);
+            if (err < bd) { bd = err; best = p; }
+        }
+        w.x = best.x; w.y = best.y; w.depth = std::max(3.0f, E->DepthAt(best) - 2);   // (her top deck a little off the floor)
+    }
+}
 std::vector<std::string> ElderStock(int kind) {
     std::vector<std::string> s;
     for (const auto& w : Weapons()) if (w.where == TraderTag(kind)) s.push_back(w.id);
@@ -551,10 +573,11 @@ bool Session::Buy(const std::string& id, std::string* why, int ci) {
     if (id == "bosslure" && ground == "grotto") price = 200;  // (the Grotto's: 200)
     if (id == "bosslure" && ground == "atlantis") price = 400;   // (Atlantis Waters': 400)
     if (id == "bosslure" && G->AnyWears(CH_BRASS_LURE)) price /= 2;   // (the brass lure charm: boss lures cost the crew half)
-    if (id == "tag" && G->tagGun) { if (why) *why = "already aboard"; return false; }
+    if ((id == "tag" && G->tagGun) || (id == "hardhat" && G->hardhat)) { if (why) *why = "already aboard"; return false; }
     if (money < price) { if (why) *why = "not enough money"; return false; }
     money -= price;
     if (id == "bosslure") { G->bossLures++; return true; }
+    if (id == "hardhat") { G->hardhat = true; return true; }
     if (id == "tag") { G->tagGun = true; return true; }
     if (id == "coin") { if (ci < 0 || ci >= (int)G->crew.size()) ci = 0; G->crew[ci].charm = CH_LUCKY_COIN; G->Say("A lucky coin on a cord: Glimmer variants twice as likely"); return true; }
     if (id == "ice") G->ice += 20;
@@ -672,8 +695,9 @@ bool Session::CastOff(std::string* why) {
         Tape(TextFormat("GLASS %s STOP %s BY %02d00 STOP", (int)wxTo > w0 ? "FALLING" : "RISING", WX[said], hh));
     }
     // the ground remembers across a deadline's nights; a new deadline starts it afresh
-    if (night == 0) E->Init(ground, seed + deadline * 97);
+    if (night == 0) { E->Init(ground, seed + deadline * 97); PlaceWrecks(); }
     else E->Day(15);
+    G->wrecks = &wrecks;
     E->StartNight();
     // tonight's variant (design doc, "Nightly variants": at most one, about 40% of nights none): the web feels it
     // through the Eco's multipliers; the rumour on the tape points at it 70% of the time

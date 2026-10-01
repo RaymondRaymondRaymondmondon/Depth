@@ -330,6 +330,7 @@ void Gannet::Primary(int ci, bool held, float dt) {
             while (c.strokeT >= D().strokeTime) { c.strokeT -= D().strokeTime; boat.Pump(D().pumpKgPerStroke * (secondPump ? 2 : 1)); }
             break;
         case StationKind::Bell: if (held && bellT > 1.2f) { bellT = 0; bellRings++; Say("The bell rings out over the water"); } break;
+        case StationKind::AirPump: DivePump(ci, held); break;   // (a stroke every half second at most: the pump's rhythm)
         case StationKind::Davit: DavitWork(ci, held, dt); break;
         case StationKind::Gutting: {
             // gut, grade and ice the catch one fish at a time; the guts go over the rail
