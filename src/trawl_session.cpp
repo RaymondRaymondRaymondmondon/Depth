@@ -126,7 +126,9 @@ void Session::Tape(const std::string& s) {
 }
 
 void Session::Begin(Gannet& g, Eco& e, int pl, uint32_t sd) {
+    std::string keepGround = ground;   // (a ground chosen before the run starts: the sim, tests)
     *this = Session{};
+    ground = keepGround;
     G = &g; E = &e; players = std::max(1, pl); seed = sd;
     g.Init(players, seed, Weather::Calm);
     e.Init(ground, seed);
@@ -463,6 +465,7 @@ bool Session::Buy(const std::string& id, std::string* why, int ci) {
     if ((id == "medium" && owns(Tackle::Medium)) || (id == "heavy" && owns(Tackle::Heavy)) || (id == "deepdrop" && owns(Tackle::DeepDrop)) || (id == "watch" && G->watch)) { if (why) *why = "already aboard"; return false; }
     if (id == "ice" && G->ice + 20 > G->iceCap) { if (why) *why = "the ice hold is full"; return false; }
     int price = it->price;
+    if (id == "bosslure" && ground == "weeds") price = 120;   // (the Weeds' boss lures: 120)
     if (id == "bosslure" && G->AnyWears(CH_BRASS_LURE)) price /= 2;   // (the brass lure charm: boss lures cost the crew half)
     if (id == "tag" && G->tagGun) { if (why) *why = "already aboard"; return false; }
     if (money < price) { if (why) *why = "not enough money"; return false; }

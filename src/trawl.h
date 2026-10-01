@@ -323,10 +323,10 @@ struct Rod {
 float CookMultiplier(float kg, float t);                  // the curve above, t seconds on the fire
 
 // Mini-bosses, charms (design doc v2, "Mini-bosses, boss lures, and harbour requests", "Charms"; trawl_quest.cpp)
-struct MiniBossDef { const char* name; float kg, value; int deck; Pattern a, b; const char* drop; float lure; };
+struct MiniBossDef { const char* name; float kg, value; int deck; Pattern a, b; const char* drop; float lure; const char* mark; };   // mark: its boss water (a skiff mark's name)
 const std::vector<MiniBossDef>& MiniBosses();            // the Lagoon's two: Old Snapjaw, the Crest Grouper (boss water: the Crest Pass)
 int MiniBossOf(const std::string& name);                  // index, or -1
-enum Charm { CH_NONE, CH_LUCKY_COIN, CH_SHARK_TOOTH, CH_ANKLET, CH_OLD_HOOKS, CH_BRASS_LURE, CH_COUNT };
+enum Charm { CH_NONE, CH_LUCKY_COIN, CH_SHARK_TOOTH, CH_ANKLET, CH_OLD_HOOKS, CH_BRASS_LURE, CH_KELP_CROWN, CH_GOLDEN_SCALE, CH_COUNT };
 const char* CharmName(int c);
 const char* CharmEffect(int c);
 int CharmOfDrop(const std::string& drop);

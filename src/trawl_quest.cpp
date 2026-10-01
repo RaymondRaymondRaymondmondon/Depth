@@ -17,25 +17,31 @@ namespace tw {
 const std::vector<MiniBossDef>& MiniBosses() {
     // the Lagoon's (doc v2, page 47): both live in the Crest Pass's coral, so both come to a boss lure there
     static const std::vector<MiniBossDef> B = {
-        {"Old Snapjaw", 30, 180, DB_BITER, Pattern::Cover, Pattern::Run, "a jaw full of old hooks", 60},       // a giant moray: retreats into the crest's holes on the line
-        {"The Crest Grouper", 70, 240, DB_THRASHER, Pattern::Dive, Pattern::Cover, "a barnacled brass lure", 60},   // sounds into the caves
+        {"Old Snapjaw", 30, 180, DB_BITER, Pattern::Cover, Pattern::Run, "a jaw full of old hooks", 60, "The Crest Pass"},       // a giant moray: retreats into the crest's holes on the line
+        {"The Crest Grouper", 70, 240, DB_THRASHER, Pattern::Dive, Pattern::Cover, "a barnacled brass lure", 60, "The Crest Pass"},   // sounds into the caves
+        // the Weeds' (doc v2, page 47-48; boss lures 120)
+        {"The Kelp King", 250, 600, DB_THRASHER, Pattern::Dive, Pattern::Cover, "a kelp crown", 120, "The Inner Lanes"},     // a giant sea bass: dives into the canopy
+        {"Gold Tail", 30, 400, DB_FLOPPER, Pattern::Run, Pattern::Jump, "a golden scale", 120, "The Seaward Rocks"},          // the yellowtail school's leader: jumps every 4 s
     };
     return B;
 }
 int MiniBossOf(const std::string& name) { const auto& B = MiniBosses(); for (int i = 0; i < (int)B.size(); i++) if (name.rfind(B[i].name, 0) == 0) return i; return -1; }
 
 const char* CharmName(int c) {
-    static const char* N[CH_COUNT] = {"(none)", "Lucky coin", "Shark tooth", "Tribal anklet", "Old hooks", "Brass lure"};
+    static const char* N[CH_COUNT] = {"(none)", "Lucky coin", "Shark tooth", "Tribal anklet", "Old hooks", "Brass lure", "Kelp crown", "Golden scale"};
     return N[std::clamp(c, 0, CH_COUNT - 1)];
 }
 const char* CharmEffect(int c) {
     static const char* E[CH_COUNT] = {"", "Glimmer variants twice as likely", "+0.1 Killscore on melee finishes", "+8 s before drowning",
-                                      "The wearer's line never breaks on a fish's first run", "Boss lures cost the crew half"};
+                                      "The wearer's line never breaks on a fish's first run", "Boss lures cost the crew half",
+                                      "The wearer is never entangled by kelp or Wraiths", "The wearer's Airborne bonus rises to 1.45"};
     return E[std::clamp(c, 0, CH_COUNT - 1)];
 }
 int CharmOfDrop(const std::string& d) {
     if (d == "a jaw full of old hooks") return CH_OLD_HOOKS;
     if (d == "a barnacled brass lure") return CH_BRASS_LURE;
+    if (d == "a kelp crown") return CH_KELP_CROWN;
+    if (d == "a golden scale") return CH_GOLDEN_SCALE;
     return CH_NONE;
 }
 
@@ -56,13 +62,14 @@ bool Gannet::ArmBossLure(int ci) {
 void BossCast(Gannet& g) {
     Rod& r = g.skiffRod;
     int mk = g.eco ? g.eco->MarkAt({r.lure.x, r.lure.y}) : -1;
-    if (mk < 0 || g.eco->marks[mk].kind != 0) { g.Say("Nothing answers: a boss lure only works over boss water (the Crest Pass's slow rings)"); return; }
+    bool boss = false; if (mk >= 0) for (const auto& b : MiniBosses()) if (g.eco->marks[mk].name == b.mark) boss = true;
+    if (!boss) { g.Say("Nothing answers: a boss lure only works over boss water (a mark's slow rings on the sonar)"); return; }
     // the mark's mini-boss: whichever hasn't been taken this deadline (Old Snapjaw first)
     int idx = -1;
-    for (int i = 0; i < (int)MiniBosses().size(); i++) if (!(g.bossCaught & (1 << i))) { idx = i; break; }
+    for (int i = 0; i < (int)MiniBosses().size(); i++) if (!(g.bossCaught & (1 << i)) && g.eco->marks[mk].name == MiniBosses()[i].mark) { idx = i; break; }
     g.bossLures--; g.bossArmed = false;
     if (g.eco) g.eco->wake += 10;   // (a boss fight is also an invitation to the ground's apex)
-    if (idx < 0) { g.Say("The boss lure works the water, but the Crest Pass's mini-bosses are taken this deadline"); return; }
+    if (idx < 0) { g.Say("The boss lure works the water, but this mark's mini-boss is taken this deadline"); return; }
     g.bossBiteIdx = idx; g.bossBiteT = 6 + (float)((r.rng >> 8) % 600) / 100.0f;
     g.Say("The boss lure sinks into the coral. The water goes very still...");
 }

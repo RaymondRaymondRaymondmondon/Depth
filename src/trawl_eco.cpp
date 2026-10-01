@@ -210,11 +210,11 @@ void Eco::BuildWeedsChart(uint32_t seed) {
         else if (wx > edge) { d = std::min(g->depthMax, 22 + (wx - edge) * 0.35f + nz * 4); h = H_SEA; }
         else {
             d = std::clamp(6.0f + (wx - shore) * 0.07f + nz * 5, 5.0f, 30.0f);
-            bool inForest = wx > shore + 30;
+            bool inForest = wx > shore + 70;   // (a clear apron off the island: the quay's way out)
             float lane = Noise2(wx * 0.018f, wy * 0.05f, seed + 13);   // the lanes run roughly north-south
-            h = inForest && lane > 0.42f ? H_KELP : (d < 10 ? H_SEAGRASS : H_OPEN);
+            h = inForest && lane > 0.56f ? H_KELP : (d < 10 ? H_SEAGRASS : H_OPEN);   // (the lanes between run clear)
             if (h == H_KELP && Noise2(wx * 0.03f, wy * 0.03f, seed + 29) > 0.74f) h = H_BARREN;   // grazed bare
-            if (Noise2(wx * 0.06f, wy * 0.06f, seed + 41) > 0.8f) { h = H_REEF; d = std::max(5.0f, d - 6); }
+            if (Noise2(wx * 0.06f, wy * 0.06f, seed + 41) > 0.8f) { h = H_REEF; d = std::max(4.0f, d - 12); }   // (rock pinnacles: a net that crosses one snags)
         }
         depth[i] = d; hab[i] = (uint8_t)h;
         if (h == H_REEF && H2(x, y, seed + 21) < 0.3f) holes[i] = 1;
@@ -1070,7 +1070,7 @@ void EcoTick(Eco& e, Gannet& gn, float dt) {
     e.deckFish = gn.DeckFish();
     // the Weeds: running the engine through the kelp canopy wraps the screw; she makes half her way until a hand in the
     // water at the stern cuts it free (Gannet::CutScrew)
-    if (e.HabAt(b.pos) == H_KELP && b.shaft > 0.1f && !gn.screwFouled) { gn.screwFouled = true; gn.Say("Kelp round the screw! She's making half her way: someone has to go over the stern and cut it free"); }
+    if (e.HabAt(b.pos) == H_KELP && b.shaft > 0.3f && !gn.screwFouled && e.Rand() < dt / 15) {   /* (about once in 15 s under way in the canopy) */ gn.screwFouled = true; gn.Say("Kelp round the screw! She's making half her way: someone has to go over the stern and cut it free"); }
     if (gn.screwFouled && b.shaft > 0.05f) gn.boat.vel = Vector2Scale(gn.boat.vel, expf(-0.5f * dt));
     // the Sargassum Line: a turning screw in the weed bank fouls (she wallows to a crawl; the skiff slips through)
     {

@@ -335,7 +335,7 @@ bool Gannet::HitDeckFish(int idx, float dmg, int by, int how, bool head, float r
     bonus(how == KH_MELEE, 1.2f, "melee");
     bonus(fullHP, 1.5f, "one-hit");
     bonus(head, 1.25f, "headshot");
-    bonus(h.airT > 0, 1.3f, "airborne");
+    bonus(h.airT > 0, WearsCharm(by, CH_GOLDEN_SCALE) ? 1.45f : 1.3f, "airborne");   // (the golden scale: 1.45)
     bonus(range > 25, 1.3f, "long shot");
     bonus(fabsf(boat.RollDeg()) > 15, 1.15f, "heavy seas");
     if (eco) { Vector2 w = boat.ToWorld(h.deckAt); bonus(eco->LightAt({w.x, w.y, 0}) < 0.04f, 1.2f, "in the dark"); }

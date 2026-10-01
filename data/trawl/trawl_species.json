@@ -39,7 +39,7 @@
       "flora": ["giant kelp", "eelgrass beds", "urchin barrens", "drift kelp mats"],
       "species": ["anchovy", "market squid", "kelp perch", "opaleye", "purple urchin", "abalone", "kelp crab", "rock crab",
                   "pacific mackerel", "kelp bass", "sheephead", "vermilion rockfish", "bat ray", "leopard shark", "lingcod",
-                  "halibut", "yellowtail", "giant sea bass", "bluefin tuna", "sea otter", "gull flock"]
+                  "halibut", "yellowtail", "giant sea bass", "bluefin tuna", "sea otter", "great white", "gull flock"]
     }
   },
   "species": [
@@ -221,6 +221,12 @@
     {"name": "sea otter", "class": "mammal", "size": 3, "tier": 2, "kg": [15, 40], "band": "surface", "night": "surface",
      "habitat": {"kelp": 2}, "eats": {"purple urchin": 0.6, "abalone": 0.2, "kelp crab": 0.2}, "start": 30, "school": [4, 12],
      "senses": {"sight": 10, "scent": 6, "hearing": 10, "lateral": 4}, "light": "shy", "fear": 0.8, "speed": 1.0,
-     "bite": {"baits": [], "tackle": []}, "fight": ["None"], "price": 0, "protected": true, "bycatchOnly": true}
+     "bite": {"baits": [], "tackle": []}, "fight": ["None"], "price": 0, "protected": true, "bycatchOnly": true},
+    {"name": "great white", "class": "fish", "size": 6, "tier": 4, "kg": [600, 1200], "band": "upper", "night": "surface",
+     "habitat": {"sea": 2, "open": 0.3},
+     "eats": {"bluefin tuna": 0.3, "yellowtail": 0.2, "giant sea bass": 0.1, "bat ray": 0.2, "carrion": 0.2}, "start": 2, "school": [1, 1],
+     "senses": {"sight": 20, "scent": 60, "hearing": 40, "lateral": 40}, "light": "neutral", "fear": 0.05, "speed": 3.2, "aggression": 0.9,
+     "bite": {"baits": [], "tackle": []}, "fight": ["None"], "price": 0,
+     "teeth": true, "thief": "whole", "threat": true, "bloodThreshold": 45, "ramsHull": true}
   ]
 }

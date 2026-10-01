@@ -53,7 +53,7 @@ struct Skipper {
     bool onSpot = false, homeward = false;
     float slowT = 0, chumT = 0, t = 0; size_t h0 = 0;
     bool chargeNow = false;
-    float groundT = 0; int groundSide = 1;
+    float groundT = 0, fouledT = 0, snagT = 0; int groundSide = 1;
     float leftAt = -1, lastLoad = 0;             // the minute the skipper turned for home; the net load last seen
     Skipper(Gannet& g, Session& s, Eco& e, const SkipperPattern& p, uint32_t seed) : G(g), S(s), E(e), P(p), rng(seed * 7919u + 13) {
         helm = StationIdx(StationKind::Helm); gut = StationIdx(StationKind::Gutting); portRod = StationIdx(StationKind::PortRod); winch = StationIdx(StationKind::NetWinch);
@@ -62,7 +62,7 @@ struct Skipper {
     // a straight course that never crosses water she would ground on (the reef, the shoals, the island)
     bool RouteClear(Vector2 a, Vector2 b) const {
         float L = Vector2Distance(a, b);
-        for (float s = 10; s < L; s += 6) { Vector2 p = Vector2Lerp(a, b, s / L); if (E.DepthAt(p) < 2.6f || E.MarkAt(p) >= 0) return false; }   // (and never through skiff water: the weed fouls her screw)
+        for (float s = 10; s < L; s += 6) { Vector2 p = Vector2Lerp(a, b, s / L); if (E.DepthAt(p) < 2.6f || E.MarkAt(p) >= 0 || E.HabAt(p) == H_KELP) return false; }   // (and never through skiff water: the weed fouls her screw)
         return true;
     }
 
@@ -76,12 +76,12 @@ struct Skipper {
             for (float x = 20; x < size - 20; x += 24) {
                 Vector2 p{x + (R() - 0.5f) * 10, y + (R() - 0.5f) * 10};
                 float dh = Vector2Distance(p, S.harbour);
-                if (dh < 80 || dh > 260) continue;
+                if (dh < 80 || dh > 260 + (S.CoalToReach() - 10) * 4) continue;   // (a ground further out is fished further out)
                 float d = E.DepthAt(p);
                 if (d < 6 || d > 35) continue;
                 bool clear = true;
                 for (int k = 0; k < 8 && clear; k++) { float a = k * PI / 4; if (E.DepthAt({p.x + cosf(a) * 14, p.y + sinf(a) * 14}) < 3.5f) clear = false; }
-                if (!clear || !RouteClear(S.harbour, p) || E.MarkAt(p) >= 0) continue;
+                if (!clear || !RouteClear(S.harbour, p) || E.MarkAt(p) >= 0 || E.HabAt(p) == H_KELP) continue;
                 float score = 0;
                 for (int sp : E.g->species) {
                     const SpeciesRec& r = SP[sp];
@@ -102,7 +102,7 @@ struct Skipper {
                 float a = k * PI / 8; Vector2 d{cosf(a) * 40, sinf(a) * 40};
                 Vector2 A = Vector2Add(s.p, d), B = Vector2Subtract(s.p, d);
                 bool ok = true;
-                for (float u = 0; u <= 1.001f && ok; u += 0.1f) { Vector2 q = Vector2Lerp(A, B, u); int h = E.HabAt(q); if (E.DepthAt(q) < 10 || h == H_CREST || h == H_LAND || E.MarkAt(q) >= 0) ok = false; }
+                for (float u = 0; u <= 1.001f && ok; u += 0.1f) { Vector2 q = Vector2Lerp(A, B, u); int h = E.HabAt(q); if (E.DepthAt(q) < 10 || h == H_CREST || h == H_LAND || h == H_KELP || E.MarkAt(q) >= 0) ok = false; }
                 if (ok) { s.a = A; s.b = B; s.tow = true; }
             }
             spots.push_back(s);
@@ -124,7 +124,7 @@ struct Skipper {
         while (G.baitShrimp < 20 && S.Buy("shrimp")) {}
         if (S.money > 60) while (G.baitSquid < 10 && S.Buy("squid")) {}
         while (G.ice < 60 && S.money > 20 && S.Buy("ice")) {}
-        while (G.boat.bunker < 45 && S.Buy("coal")) {}
+        while (G.boat.bunker < 35 + S.CoalToReach() && S.Buy("coal")) {}   // (enough for the night once the run out to the ground is paid)
         if (G.PatchKits() == 0 && S.money > 40) S.Buy("patch");
         if (P.chum) while (G.chum < 2 && S.money > 50 && S.Buy("chum")) {}
         if (P.charges) { int have = 0; for (const auto& sl : G.crew[0].slots) if (sl.it == Item::Charge) have += sl.ammo; for (const auto& sl : G.locker) if (sl.it == Item::Charge) have += sl.ammo; if (have == 0 && S.money > 150) S.Buy("charge"); }
@@ -148,10 +148,13 @@ struct Skipper {
             if (G.boat.bilge > 300) G.boat.Pump(D().pumpKgPerStroke * dt / D().strokeTime);
         }
         if (me.dead || me.overboard) { G.boat.telegraph = 0; return; }
-        if (S.phase == Phase::Night && S.clock > P.leaveAt - (G.net.state == NetState::Down ? HAUL_AHEAD : 0) && !homeward) { homeward = true; leftAt = S.clock; G.Say("The skipper turns for home"); }
+        float leaveAt = std::min(P.leaveAt, 540 - 30 - Vector2Distance(G.boat.pos, S.harbour) / 3.5f);   // (further out, leave earlier: a game minute a second at ~3.5 m/s, half an hour in hand)
+        if (S.phase == Phase::Night && S.clock > leaveAt - (G.net.state == NetState::Down ? HAUL_AHEAD : 0) && !homeward) { homeward = true; leftAt = S.clock; G.Say("The skipper turns for home"); }
         // Canoe night: the careful skipper pays, the greedy one trades fish it can spare, the reckless one refuses
         if (S.canoe == CanoeState::Alongside) S.Canoe(P.charges ? CANOE_REFUSE : P.chum ? CANOE_TRADE : CANOE_TRIBUTE);
         if (G.boat.sunk) return;
+        // kelp round the screw (the Weeds): stop her and send a hand over the stern to cut it free (half a minute)
+        if (G.screwFouled) { fouledT += dt; G.boat.telegraph = 0; if (fouledT > 30 && G.boat.shaft < 0.05f) { G.screwFouled = false; fouledT = 0; } return; }
         // aground: back off for a few seconds with the helm over, then try again
         if (G.boat.aground && groundT <= 0) { groundT = 8; groundSide = R() < 0.5f ? -1 : 1; }
         if (groundT > 0) { groundT -= dt; AtHelm(); G.boat.telegraph = -1; G.boat.rudder = (float)groundSide; return; }
@@ -171,7 +174,7 @@ struct Skipper {
                 else if (netHand >= 0) G.NetInput(netHand, true, false, dt);
             }
             if (G.net.state == NetState::Hauling || G.net.state == NetState::Shooting) { G.boat.telegraph = 1; G.boat.rudder *= powf(0.3f, dt); return; }
-            if (G.net.state == NetState::Snagged) { G.boat.telegraph = -1; return; }
+            if (G.net.state == NetState::Snagged) { snagT += dt; G.boat.telegraph = -1; if (snagT > 60) { G.net.state = NetState::Lost; snagT = 0; G.Say("The skipper cuts the snagged net away"); } return; }
             if (netHand >= 0) { G.OrderBot(-1); netHand = -1; }
             SteerTo(G.moorPos, 25);
             return;
@@ -195,7 +198,7 @@ struct Skipper {
                 bool held = (G.net.state == NetState::Stowed) || G.net.state == NetState::Shooting || G.net.state == NetState::Hauling || (G.net.state == NetState::Down && G.net.load > 180);
                 if (held) { me.station = winch; me.p = Stations()[winch].at; G.NetInput(0, true, false, dt); }
             }
-            if (G.net.state == NetState::Snagged) { G.boat.telegraph = -1; G.boat.rudder = 0; return; }
+            if (G.net.state == NetState::Snagged) { snagT += dt; G.boat.telegraph = -1; G.boat.rudder = 0; if (snagT > 60) { G.net.state = NetState::Lost; snagT = 0; G.Say("The skipper cuts the snagged net away"); } return; }
             Vector2 leg = towLeg ? spots[spotI].b : spots[spotI].a;
             if (Vector2Distance(G.boat.pos, leg) < 10) towLeg = !towLeg;
             SteerTo(leg, 0); G.boat.telegraph = G.net.state == NetState::Hauling ? 1 : 1;
