@@ -462,3 +462,19 @@ bubble puff); Red Tide's gun models rebuilt with a dozen parts each.
   - a jump at the rail is a swim and one amidships lands.
 - `--trawl-boat-test`'s hook-set checks were updated to the playtest windows (0.7 s, wary 0.5 s, an Angler +0.25 s).
 - **Sim:** `--trawl-sim lagoon 3 6 careful 3`: quota met 3 of 3, 197 a night, 0 deaths.
+
+## Step 1: the economy spine (2026-10-01)
+- **The three ways to use a fish** (the design doc v2, "Economy and progression"):
+  - **The Owners' quota scales** (`DockKind::Scales`, a new weighhouse on the quay): credit at the fish's full value, no glut, no shillings. Fish under 70% fresh are turned away and stay in the hold (`Session::Deliver`, `QuotaValue`).
+  - **The Fish Market**: shillings into the purse, with glut. It counts nothing toward the quota (`Session::Sell(idx)`).
+  - **Keeping it**: what is neither delivered nor sold stays aboard for barter and the larder. Traders come with the Atoll.
+- **Only delivered fish count.** `Session::sold` is now the quota credit delivered. Credit past the quota carries into the next deadline at half value (`carried`, `CREDIT_CARRY`).
+- **Panels:** the market and scales panels list the hold with a Deliver/Sell button per fish and an all button. The chalkboard says what counts. The shakedown's last lesson teaches the scales.
+- **Commands and networking:** `CMD_DELIVER` and `CMD_SELL` take a hold index (-1 for all). The snapshot carries the last delivery, the rejected count and the credit carried.
+- **The sim's skipper** delivers to stay on pace (a third of the quota a night, plus 10%), best fish first, and sells the rest. Short-handed, he now hauls the net himself on the way home. Before this, a solo crew could be seized at 05:00 dragging a full net.
+- **Results** (`--trawl-sim lagoon 3 <crew> careful 3`): six hands met 2 of 3 deadlines (about 203 a night); solo met 3 of 3.
+- **Not done yet:**
+  - Consignments: they need wrecks and landings.
+  - The Pier Wheel and Glimmer variants.
+  - The Killscore and cooking factors in the value (steps 2 and 5).
+- Shots: `trawl_scales`.

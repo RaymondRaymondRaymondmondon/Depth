@@ -23,12 +23,17 @@ const std::vector<ShopItem>& ChandlerItems();
 const std::vector<ShopItem>& SlipwayItems();
 
 // The quay's stations, in the boat's frame while she's moored (her port side along the quay)
-enum class DockKind { Chalkboard, Chandler, Market, Office, Slipway, COUNT };
+enum class DockKind { Chalkboard, Chandler, Market, Office, Slipway, Scales, COUNT };   // (Scales: the Owners' quota scales)
 struct DockStation { DockKind kind; const char* name; Vector2 at; const char* does; };
 const std::vector<DockStation>& DockStations();
 int NearestDock(Vector2 at, float r);
 
 struct SaleLine { std::string name; float kg, price, grade, fresh, glut, bonus, value; int src = 0; };
+// Three ways to use a fish (design doc, "Economy and progression"): delivered at the Owners' quota scales it counts
+// toward the quota at its full value (no glut; under 70% freshness it is rejected) and pays nothing; sold at the Fish
+// Market it pays shillings into the ship's purse (with glut); kept aboard it can be bartered with a trader (120% of
+// its market value in goods, 150% for a species the trader wants). Only delivered fish count toward the quota.
+const float QUOTA_MIN_FRESH = 0.70f, CREDIT_CARRY = 0.5f;
 
 // Nightly variants (design doc, "Nightly variants"): at most one a night, about 40% of nights none. The Lagoon's own
 // three and the two food-web ones that need no salvage; the carcass, the derelict and the storm wreck wait for diving.
@@ -43,7 +48,8 @@ struct Session {
     Phase phase = Phase::Dock;
     int deadline = 1, night = 0;                // night: nights finished this deadline (0..3)
     int players = 1;
-    float quota = 0, money = 0, sold = 0;       // sold: fish and salvage money earned this deadline (counts toward the quota)
+    float quota = 0, money = 0, sold = 0;       // sold: the quota credit delivered at the Owners' scales this deadline (fish only)
+    float carried = 0;                          // credit past the last quota, carried into this deadline at half value
     float clock = 0;                            // minutes since 20:00
     bool clockOn = false;
     std::string ground = "lagoon";
@@ -92,7 +98,10 @@ struct Session {
     // the dock
     bool Buy(const std::string& id, std::string* why = nullptr);
     bool BuySlip(int idx, std::string* why = nullptr);
-    float Sell();                               // everything in the hold at the Fish Market; fills lastSale
+    float Sell(int idx = -1);                   // at the Fish Market: one fish (an index into the hold) or all (-1); fills lastSale; pays the purse
+    float Deliver(int idx = -1, int* rejected = nullptr);   // at the Owners' scales: one fish or every fresh enough one (-1); quota credit; fills lastDelivery
+    float QuotaValue(const CatchRec& c) const;  // what the scales credit for it (no glut), 0 if it's too far gone (under 70% fresh)
+    std::vector<SaleLine> lastDelivery; float lastDeliveryTotal = 0; int lastRejected = 0;
     float Value(const CatchRec& c, float* glut = nullptr, float* bonus = nullptr) const;
     bool CanCastOff(std::string* why = nullptr) const;
     bool CastOff(std::string* why = nullptr);   // coal paid, overnight losses, the night's conditions on the tape

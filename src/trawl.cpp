@@ -581,7 +581,8 @@ void Panels(Game& g) {
             float x = r.x + 40, y = r.y + 64;
             TxtBold(TextFormat("Deadline %d", ss.deadline), x, y, 22, ink);
             TxtBold(TextFormat("Quota: %.0f shillings", ss.quota), x, y + 40, 22, ink);
-            TxtBold(TextFormat("Sold this deadline: %.0f", ss.sold), x, y + 74, 22, ss.sold >= ss.quota ? Color{40, 110, 50, 255} : ink);
+            TxtBold(TextFormat("Delivered to the Owners: %.0f", ss.sold), x, y + 74, 22, ss.sold >= ss.quota ? Color{40, 110, 50, 255} : ink);
+            Txt("(only fish delivered at the Owners' scales count; market money doesn't)", x + 300, y + 80, 12, dim);
             TxtBold(TextFormat("Nights left: %d", ss.NightsLeft()), x, y + 108, 22, ink);
             TxtBold(TextFormat("Money: %.0f shillings", ss.money), x, y + 142, 22, ink);
             Txt(TextFormat("Arcade tokens this run: %d", ss.tokens), x, y + 180, 16, dim);
@@ -605,37 +606,52 @@ void Panels(Game& g) {
             }
             break;
         }
-        case (int)DockKind::Market: {
-            PanelFrame("The Fish Market", 700, 520, &r);
-            float x = r.x + 30, y = r.y + 60;
+        case (int)DockKind::Market: case (int)DockKind::Scales: {
+            // the two places a fish goes at the dock (design doc, "Three ways to use a fish"): the Fish Market pays the
+            // ship's purse (glut applies; nothing toward the quota); the Owners' scales credit the quota at full value
+            // (no glut, no shillings; under 70% fresh turned away). What is left in the hold is kept, for barter or the larder.
+            bool scales = S.panel == (int)DockKind::Scales;
+            PanelFrame(scales ? "The Owners' quota scales" : "The Fish Market", 780, 560, &r);
+            float x = r.x + 30, y = r.y + 54;
+            Txt(scales ? TextFormat("Delivered this deadline: %.0f of %.0f.  Only fish delivered here count toward the quota.", ss.sold, ss.quota)
+                       : TextFormat("Ship's purse: %.0f shillings.  Market money never pays the quota.", ss.money), x, y, 14, dim);
             if (!G.hold.empty()) {
                 float tot = 0;
                 int shown = 0;
-                for (const auto& c : G.hold) {
-                    float v = ss.Value(c); tot += v;
-                    if (shown++ < 9) {
-                        float yy = y + shown * 26.0f;
-                        Txt(c.name.c_str(), x, yy, 15, ink);
-                        Txt(TextFormat("%.1f kg", c.kg), x + 190, yy, 15, ink);
-                        Txt(TextFormat("grade %.0f%%", c.grade * 100), x + 270, yy, 15, ink);
-                        Txt(TextFormat("fresh %.0f%%", c.fresh * 100), x + 380, yy, 15, ink);
-                        Txt(c.iced ? "iced" : c.gutted ? "gutted" : "on deck", x + 480, yy, 15, c.iced ? ink : Color{150, 60, 40, 255});
-                        Txt(TextFormat("%.1f sh", v), x + 560, yy, 15, ink);
+                for (int i = 0; i < (int)G.hold.size(); i++) {
+                    const CatchRec& c = G.hold[i];
+                    float v = scales ? ss.QuotaValue(c) : ss.Value(c); tot += v;
+                    if (shown++ >= 11) continue;
+                    float yy = y + 8 + shown * 30.0f;
+                    Txt(c.name.c_str(), x, yy + 4, 15, ink);
+                    Txt(KgText(c.kg).c_str(), x + 190, yy + 4, 15, ink);
+                    Txt(TextFormat("grade %.0f%%", c.grade * 100), x + 270, yy + 4, 15, ink);
+                    Txt(TextFormat("fresh %.0f%%", c.fresh * 100), x + 375, yy + 4, 15, c.fresh < QUOTA_MIN_FRESH ? Color{150, 60, 40, 255} : ink);
+                    Txt(c.iced ? "iced" : c.gutted ? "gutted" : "on deck", x + 480, yy + 4, 15, c.iced ? ink : Color{150, 60, 40, 255});
+                    if (scales && v <= 0) Txt("turned away", x + 560, yy + 4, 15, Color{150, 60, 40, 255});
+                    else {
+                        Txt(TextFormat("%.1f", v), x + 560, yy + 4, 15, ink);
+                        if (Button({x + 620, yy, 96, 26}, scales ? "Deliver" : "Sell", true, 14)) { Command(scales ? CMD_DELIVER : CMD_SELL, "", i); break; }
                     }
                 }
-                if ((int)G.hold.size() > 9) Txt(TextFormat("... and %d more", (int)G.hold.size() - 9), x, y + 10 * 26.0f, 15, dim);
-                TxtBold(TextFormat("About %.0f shillings (the glut counts as they're weighed)", tot), x, r.y + r.height - 110, 17, ink);
-                if (Button({r.x + r.width / 2 - 110, r.y + r.height - 76, 220, 44}, "Sell the catch")) Command(CMD_SELL, "", 0, "Sold: the market weighs it out");
-            } else if (!ss.lastSale.empty()) {
+                if ((int)G.hold.size() > 11) Txt(TextFormat("... and %d more", (int)G.hold.size() - 11), x, y + 8 + 12 * 30.0f, 15, dim);
+                TxtBold(scales ? TextFormat("About %.0f against the quota", tot) : TextFormat("About %.0f shillings (the glut counts as they're weighed)", tot), x, r.y + r.height - 110, 17, ink);
+                if (Button({r.x + r.width / 2 - 130, r.y + r.height - 76, 260, 44}, scales ? "Deliver every fresh fish" : "Sell the whole catch"))
+                    Command(scales ? CMD_DELIVER : CMD_SELL, "", -1, scales ? "Delivered: the Owners weigh it in" : "Sold: the market weighs it out");
+                Txt("Anything you neither deliver nor sell stays in the hold (iced fish lose a quarter overnight).", x, r.y + r.height - 26, 12, dim);
+            } else {
+                const auto& L = scales ? ss.lastDelivery : ss.lastSale;
                 int k = 0;
-                for (const auto& l : ss.lastSale) if (k++ < 10) {
-                    float yy = y + k * 26.0f;
+                for (const auto& l : L) if (k++ < 11) {
+                    float yy = y + 8 + k * 26.0f;
                     Txt(l.name.c_str(), x, yy, 14, ink);
-                    Txt(TextFormat("%.1f kg x %.1f sh x grade %.0f%% x fresh %.0f%% x glut %.0f%%%s", l.kg, l.price, l.grade * 100, l.fresh * 100, l.glut * 100, l.bonus > 1 ? " x first 150%" : ""), x + 170, yy, 14, dim);
-                    Txt(TextFormat("%.1f", l.value), x + 590, yy, 14, ink);
+                    if (scales) Txt(TextFormat("%.1f kg x %.1f sh x grade %.0f%% x fresh %.0f%%%s", l.kg, l.price, l.grade * 100, l.fresh * 100, l.bonus > 1 ? " x first 150%" : ""), x + 170, yy, 14, dim);
+                    else Txt(TextFormat("%.1f kg x %.1f sh x grade %.0f%% x fresh %.0f%% x glut %.0f%%%s", l.kg, l.price, l.grade * 100, l.fresh * 100, l.glut * 100, l.bonus > 1 ? " x first 150%" : ""), x + 170, yy, 14, dim);
+                    Txt(TextFormat("%.1f", l.value), x + 640, yy, 14, ink);
                 }
-                TxtBold(TextFormat("Paid %.0f shillings", ss.lastSaleTotal), x, r.y + r.height - 100, 20, ink);
-            } else TxtBold("Nothing to sell.", x, y + 20, 18, dim);
+                if (!L.empty()) TxtBold(scales ? TextFormat("Credited %.0f against the quota", ss.lastDeliveryTotal) : TextFormat("Paid %.0f shillings", ss.lastSaleTotal), x, r.y + r.height - 100, 20, ink);
+                else TxtBold(scales ? "Nothing to deliver." : "Nothing to sell.", x, y + 30, 18, dim);
+            }
             break;
         }
         case (int)DockKind::Office:
@@ -967,14 +983,14 @@ void TrawlAudioFrame(const TrawlWorld& W, int you, float dt) {
         bool init = false;
         RodState rod[4]; float reelT[4], humT[4], tick[4], jumpT[4];
         int telegraph; float valveT; size_t holdN; size_t shots; NetState net; float winchT, warpT;
-        bool over[8], dead[8]; int ring; size_t tapeN; float sold; float integ[SEC_COUNT]; bool aground;
+        bool over[8], dead[8]; int ring; size_t tapeN; float sold, delivered; float integ[SEC_COUNT]; bool aground;
         CanoeState canoe; std::string lastLog; size_t arrivals; float stroke[8]; int deadline;
     } A;
     if (!A.init || A.deadline != ss.deadline) {
         A = {}; A.init = true; A.deadline = ss.deadline;
         for (int k = 0; k < 4; k++) A.rod[k] = RodState::Idle;
         A.telegraph = G.boat.telegraph; A.valveT = G.boat.valveT; A.holdN = G.hold.size(); A.shots = G.shots.size(); A.net = G.net.state;
-        A.tapeN = ss.tape.size(); A.sold = ss.lastSaleTotal; for (int s = 0; s < SEC_COUNT; s++) A.integ[s] = G.boat.integrity[s];
+        A.tapeN = ss.tape.size(); A.sold = ss.lastSaleTotal; A.delivered = ss.lastDeliveryTotal; for (int s = 0; s < SEC_COUNT; s++) A.integ[s] = G.boat.integrity[s];
         A.canoe = ss.canoe; A.lastLog = G.log.empty() ? "" : G.log.back(); A.arrivals = E.arrivals.size();
         for (int k = 0; k < 8 && k < (int)G.crew.size(); k++) { A.over[k] = G.crew[k].overboard; A.dead[k] = G.crew[k].dead; }
     }
@@ -1088,6 +1104,8 @@ void TrawlAudioFrame(const TrawlWorld& W, int you, float dt) {
     A.tapeN = ss.tape.size();
     if (ss.lastSaleTotal != A.sold && ss.lastSaleTotal > 0) TrawlCue(TWC_SELL, 0.8f, 0);
     A.sold = ss.lastSaleTotal;
+    if (ss.lastDeliveryTotal != A.delivered && ss.lastDeliveryTotal > 0) TrawlCue(TWC_SELL, 0.8f, 0);   // (the Owners' scales: the same weigh-in)
+    A.delivered = ss.lastDeliveryTotal;
     A.canoe = ss.canoe;
 }
 
@@ -1244,7 +1262,7 @@ void DebugTrawlShot(Game& g, int which) {
         for (int i = 1; i < (int)G.crew.size(); i++) if (G.crew[i].station >= 0 && G.RodAt(G.crew[i].station) >= 0) { G.brains[i].bark = "Fish on, port!"; G.brains[i].barkT = 2; break; }
         return;
     }
-    if (which >= 15) {
+    if (which >= 15 && which <= 20) {
         // 15 the net down and filling, 16 a rifle and a shot fish afloat with gulls over, 17 overboard and the ring,
         // 18 a ghost on deck, 19 the harpoon fast in a shark, 20 the deck locker
         Gannet& G = S.W->G; Session& ss = S.W->sess;
@@ -1314,11 +1332,12 @@ void DebugTrawlShot(Game& g, int which) {
         Crew& c = G.crew[0];
         if (which == 9 || which == 10 || which == 11) c.p = which == 11 ? Vector2{3.0f, -7.2f} : which == 10 ? Vector2{-3.5f, -7.2f} : Vector2{-6, -5.5f};
         if (which == 10) S.panel = (int)DockKind::Chandler;
-        if (which == 11) {
+        if (which == 11 || which == 25) {   // (25: the Owners' quota scales, one fish too far gone to be taken)
+            if (which == 25) c.p = {4.6f, -7.2f};
             const char* names[] = {"snapper", "grunt", "reef squid", "bonito", "snapper (head)"};
             float kg[] = {3.2f, 1.1f, 0.7f, 4.1f, 1.2f}, pr[] = {3, 1.5f, 4, 3, 3};
-            for (int i = 0; i < 5; i++) { CatchRec cr; cr.name = names[i]; cr.kg = kg[i]; cr.price = pr[i]; cr.gutted = i != 2; cr.iced = i != 2; cr.fresh = i == 2 ? 0.93f : 0.98f; cr.grade = i == 4 ? 0.9f : 1; cr.first = i == 0; G.hold.push_back(cr); }
-            S.panel = (int)DockKind::Market;
+            for (int i = 0; i < 5; i++) { CatchRec cr; cr.name = names[i]; cr.kg = kg[i]; cr.price = pr[i]; cr.gutted = i != 2; cr.iced = i != 2; cr.fresh = i == 2 ? (which == 25 ? 0.62f : 0.93f) : 0.98f; cr.grade = i == 4 ? 0.9f : 1; cr.first = i == 0; G.hold.push_back(cr); }
+            S.panel = which == 25 ? (int)DockKind::Scales : (int)DockKind::Market;
         }
         if (which == 12) { c.p = {4.2f, 0}; c.station = NearestStation(c.p, 0, 1.1f); S.panel = PANEL_CHART; ss.Buy("shrimp"); }
         if (which == 13) {

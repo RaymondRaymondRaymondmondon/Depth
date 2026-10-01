@@ -413,6 +413,11 @@ void DrawQuay(const Gannet& g, const View& v) {
                 PxC(v, {p.x, p.y + 0.1f}, 1.2f, 0.6f, Dim(Color{180, 150, 70, 255}, L));     // the brass scales
                 PxC(v, {p.x - 1.2f, p.y + 0.1f}, 0.9f, 0.6f, Dim(Color{170, 190, 200, 255}, L));   // a crate of ice
                 break;
+            case DockKind::Scales:
+                PxC(v, {p.x, p.y - 0.9f}, 2.4f, 1.4f, Dim(Color{70, 62, 74, 255}, L));       // the Owners' weighhouse
+                PxC(v, {p.x, p.y + 0.1f}, 1.6f, 0.7f, Dim(Color{200, 170, 80, 255}, L));     // the great brass beam scales
+                PxC(v, {p.x, p.y - 0.4f}, 0.2f, 0.9f, Dim(Color{150, 120, 60, 255}, L));     // the post
+                break;
             case DockKind::Office:
                 PxC(v, {p.x, p.y - 0.9f}, 3.0f, 1.8f, Dim(Color{80, 70, 84, 255}, L));
                 PxC(v, {p.x, p.y + 0.05f}, 0.8f, 0.3f, Dim(Color{230, 200, 120, 255}, 0.4f + 0.6f * L));   // the lit window

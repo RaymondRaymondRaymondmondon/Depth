@@ -125,7 +125,8 @@ bool DoCommand(TrawlWorld& w, int ci, int cmd, const std::string& id, int arg, s
     bool dock = s.phase == Phase::Dock && g.moored;
     switch (cmd) {
         case CMD_BUY: if (!dock) return no("the Chandler is ashore"); return s.Buy(id, why);
-        case CMD_SELL: if (!dock) return no("the Fish Market is ashore"); if (g.hold.empty()) return no("nothing to sell"); s.Sell(); return true;
+        case CMD_SELL: if (!dock) return no("the Fish Market is ashore"); if (g.hold.empty() || arg >= (int)g.hold.size()) return no("nothing to sell"); s.Sell(arg); return true;
+        case CMD_DELIVER: { if (!dock) return no("the Owners' scales are ashore"); if (g.hold.empty() || arg >= (int)g.hold.size()) return no("nothing to deliver"); int rej = 0; float v = s.Deliver(arg, &rej); if (v <= 0) return no(rej ? "not fresh enough: the Owners turn it away" : "nothing to deliver"); return true; }
         case CMD_SLIP: if (!dock) return no("the Slipway is ashore"); return s.BuySlip(arg, why);
         case CMD_CASTOFF: return s.CastOff(why);
         case CMD_COUNT: if (s.phase != Phase::Dock || s.night < 3) return no("the Owners count after the third night"); s.Count(); return true;
@@ -225,6 +226,8 @@ template <class A> void Visit(A& a, TrawlWorld& w) {
     a.i(s.tokens); a.b(s.met); for (bool& x : s.slip) a.b(x); a.v2(s.harbour); a.f(s.harbourR); a.u(s.seed); a.f(s.lastSaleTotal);
     VisitTail(a, s.tape, 14);
     a.vec(s.lastSale, [&](SaleLine& l) { a.s(l.name); a.f(l.kg); a.f(l.price); a.f(l.grade); a.f(l.fresh); a.f(l.glut); a.f(l.bonus); a.f(l.value); a.i(l.src); });
+    a.vec(s.lastDelivery, [&](SaleLine& l) { a.s(l.name); a.f(l.kg); a.f(l.price); a.f(l.grade); a.f(l.fresh); a.f(l.glut); a.f(l.bonus); a.f(l.value); a.i(l.src); });
+    a.f(s.lastDeliveryTotal); a.i(s.lastRejected); a.f(s.carried);
     {   // the glut and the run's firsts (the market's prices)
         std::vector<std::pair<std::string, float>> glut(s.glutKg.begin(), s.glutKg.end());
         a.vec(glut, [&](std::pair<std::string, float>& p) { a.s(p.first); a.f(p.second); });

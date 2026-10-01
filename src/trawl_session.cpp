@@ -85,7 +85,8 @@ const std::vector<DockStation>& DockStations() {
     static const std::vector<DockStation> S = {
         {DockKind::Chalkboard, "Chalkboard", {-8.5f, -5.2f}, "The quota, the nights left, the money"},
         {DockKind::Chandler, "The Chandler", {-3.5f, -8.2f}, "Bait, ice, coal, rods"},
-        {DockKind::Market, "Fish Market scales", {3.0f, -8.2f}, "Sell the catch"},
+        {DockKind::Market, "The Fish Market", {1.0f, -8.2f}, "Sell fish for the ship's purse"},
+        {DockKind::Scales, "The Owners' quota scales", {4.6f, -8.2f}, "Deliver fish against the quota"},
         {DockKind::Office, "The Owners' office", {8.0f, -8.2f}, "Salvage (none yet)"},
         {DockKind::Slipway, "The Slipway", {12.0f, -5.2f}, "Refit the Gannet"},
     };
@@ -141,7 +142,7 @@ void Session::Begin(Gannet& g, Eco& e, int pl, uint32_t sd) {
     BeginDeadline();
 }
 void Session::BeginDeadline() {
-    night = 0; sold = 0; glutKg.clear(); phase = Phase::Dock;
+    night = 0; sold = carried; carried = 0; glutKg.clear(); phase = Phase::Dock;
     Tape(TextFormat("QUOTA %.0f SHILLINGS STOP THREE NIGHTS STOP THE OWNERS ARE CONFIDENT STOP", quota));
 }
 void Session::Moor() {
@@ -209,18 +210,44 @@ bool Session::Canoe(int choice) {
     G->Say(canoeWord);
     return true;
 }
-float Session::Sell() {
+float Session::Sell(int idx) {
+    // the Fish Market: shillings into the purse, glut applies; it counts nothing toward the quota
     lastSale.clear(); lastSaleTotal = 0;
-    for (const auto& c : G->hold) {
+    for (int i = (int)G->hold.size() - 1; i >= 0; i--) {
+        if (idx >= 0 && i != idx) continue;
+        const CatchRec& c = G->hold[i];
         float g, b, v = Value(c, &g, &b);
         lastSale.push_back({c.name, c.kg, c.price, c.grade, c.fresh, g, b, v, c.src});
         glutKg[c.name.substr(0, c.name.find(" ("))] += c.kg;   // (the glut counts after each fish: a big haul drives its own price down)
         lastSaleTotal += v;
+        G->hold.erase(G->hold.begin() + i);
     }
-    G->hold.clear();
-    money += lastSaleTotal; sold += lastSaleTotal;
+    money += lastSaleTotal;
     if (!lastSale.empty()) Tape(TextFormat("FISH MARKET PAID %.0f SHILLINGS STOP", lastSaleTotal));
     return lastSaleTotal;
+}
+float Session::QuotaValue(const CatchRec& c) const {
+    if (c.fresh < QUOTA_MIN_FRESH || c.bycatch) return 0;
+    float b = c.first ? FIRST_CATCH_BONUS : 1;
+    return c.price * c.kg * c.grade * c.fresh * b * (variant == Variant::RedTide ? 0.5f : 1.0f);   // (the scales ignore glut)
+}
+float Session::Deliver(int idx, int* rejected) {
+    // the Owners' quota scales: credit toward the quota at full value, no shillings; under 70% fresh is turned away
+    lastDelivery.clear(); lastDeliveryTotal = 0; lastRejected = 0;
+    for (int i = (int)G->hold.size() - 1; i >= 0; i--) {
+        if (idx >= 0 && i != idx) continue;
+        const CatchRec& c = G->hold[i];
+        float v = QuotaValue(c);
+        if (v <= 0) { lastRejected++; continue; }   // (it stays in the hold: the market may still take it)
+        lastDelivery.push_back({c.name, c.kg, c.price, c.grade, c.fresh, 1, c.first ? FIRST_CATCH_BONUS : 1, v, c.src});
+        lastDeliveryTotal += v;
+        G->hold.erase(G->hold.begin() + i);
+    }
+    sold += lastDeliveryTotal;
+    if (rejected) *rejected = lastRejected;
+    if (!lastDelivery.empty()) Tape(TextFormat("DELIVERED %.0f AGAINST THE QUOTA STOP %.0f OF %.0f STOP", lastDeliveryTotal, sold, quota));
+    if (lastRejected) Tape(TextFormat("%d FISH REJECTED STOP NOT FRESH STOP", lastRejected));
+    return lastDeliveryTotal;
 }
 bool Session::Buy(const std::string& id, std::string* why) {
     const ShopItem* it = nullptr;
@@ -368,6 +395,7 @@ void Session::Count() {
     met = sold >= quota;
     if (met) {
         tokens += TOKENS_PER_DEADLINE;
+        carried = (sold - quota) * CREDIT_CARRY;   // fish delivered past the quota count toward the next at half their value
         float next = quota * QUOTA_GROWTH + QUOTA_ADD * QuotaScale();
         Tape(TextFormat("QUOTA MET STOP NEW QUOTA %.0f STOP THE OWNERS EXPECTED NOTHING LESS STOP", next));
         phase = Phase::Result;
@@ -517,7 +545,8 @@ NightReport PlayNight(Session& S, Bot& b, bool stayLate) {
     // home: gut the rest, then the Fish Market
     for (int k = 0; k < 60 * 60 && G.DeckFish() > 0; k++) { G.crew[0].station = gutSt; G.Primary(0, true, dt); G.Step(dt); }
     G.crew[0].station = -1;
-    rep.soldAt = S.Sell();
+    rep.soldAt = S.Deliver();   // (the quota first: everything fresh enough to the Owners' scales, the rest to the market)
+    rep.soldAt += S.Sell();
     return rep;
 }
 } // namespace
@@ -541,6 +570,20 @@ int RunTrawlSessionTest() {
         s.glutKg.clear();
         CatchRec hd = c; hd.name = "snapper (head)"; hd.grade = 0.9f;
         check(fabsf(s.Value(hd) - 5.4f * 0.9f) < 0.01f, "a fish bitten on the line is graded 10% down");
+        // three ways to use a fish: the Owners' scales (quota credit, no glut, no shillings, under 70% fresh rejected)
+        // and the Fish Market (shillings, glut, nothing toward the quota)
+        {
+            CatchRec fresh = c, stale = c; stale.fresh = 0.65f;
+            s.glutKg["snapper"] = 50;
+            g.hold = {fresh, stale};
+            float m1 = s.money, q1 = s.sold;
+            int rej = 0; float credit = s.Deliver(-1, &rej);
+            check(fabsf(credit - 5.4f) < 0.01f && fabsf(s.sold - (q1 + 5.4f)) < 0.01f && s.money == m1, TextFormat("the Owners' scales credit %.1f against the quota at full value (no glut) and pay no shillings", credit));
+            check(rej == 1 && g.hold.size() == 1 && g.hold[0].fresh < 0.7f, "a fish under 70% fresh is turned away at the scales and stays in the hold");
+            float paid = s.Sell();
+            check(paid > 0 && fabsf(s.money - (m1 + paid)) < 0.01f && fabsf(s.sold - (q1 + 5.4f)) < 0.01f && g.hold.empty(), TextFormat("the Fish Market takes it for %.2f shillings, which never count toward the quota", paid));
+            s.sold = q1; s.glutKg.clear();
+        }
         // buying
         float m0 = s.money;
         check(s.Buy("shrimp") && g.baitShrimp == 10 && fabsf(s.money - (m0 - 4)) < 0.01f, "a tin of shrimp: 10 baits for 4 shillings");
@@ -577,6 +620,7 @@ int RunTrawlSessionTest() {
         check(s.phase == Phase::Result && s.met && s.tokens == 10, "250 sold against 200: QUOTA MET, 10 arcade tokens");
         s.Continue();
         check(fabsf(s.quota - (200 * 1.4f + 30)) < 0.01f && s.deadline == 2 && s.night == 0, TextFormat("the next quota is %.0f (+40%% and 60 x 0.5)", s.quota));
+        check(fabsf(s.sold - 25) < 0.01f, TextFormat("the 50 delivered past the quota carry into the next deadline at half value (%.0f)", s.sold));
         s.night = 3; s.sold = 10; s.Count();
         check(s.phase == Phase::Over, "short of it: GANNET REPOSSESSED, the run is over");
     }
@@ -621,7 +665,7 @@ const char* SHAKE_LINES[Session::SHAKE_STEPS] = {
     "Kess: That blood has brought a shark. Watch it take a hooked fish. Stop the blood, stay off the rail, gaff it, or steam away.",
     "Kess: ...the deck is wet. Stop the screw (telegraph to stop) and throw me the ring, quick!",
     "Kess: Home. Cross the harbour line before 05:00 or the cutter takes the hold.",
-    "Kess: Sell at the Fish Market (walk ashore to port) and read the chalkboard. That is the Trawl. Mind how you go.",
+    "Kess: Ashore to port. The Owners' scales take fish for the quota, the Fish Market pays the purse. Only the scales count. Do one, then read the chalkboard.",
 };
 int StationIdxOf(StationKind k) { for (int i = 0; i < (int)Stations().size(); i++) if (Stations()[i].kind == k) return i; return -1; }
 }
@@ -722,7 +766,7 @@ void Session::ShakeStep(float dt) {
             break;
         }
         case 8: if (phase == Phase::Dock) advance(); break;
-        case 9: if (lastSaleTotal > 0 || g.hold.empty()) { s.on = false; s.done = true; } break;
+        case 9: if (lastSaleTotal > 0 || lastDeliveryTotal > 0 || g.hold.empty()) { s.on = false; s.done = true; } break;
         default: s.on = false; s.done = true; break;
     }
 }

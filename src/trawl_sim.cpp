@@ -164,8 +164,12 @@ struct Skipper {
         if (homeward) {
             AtHelm();
             // the net comes in first (the winch hand hauls once told to), then home
-            if (G.net.state != NetState::Stowed && G.net.state != NetState::Lost && (netHand < 0 || G.crew[netHand].dead || G.crew[netHand].overboard)) netHand = G.OrderBot(winch);
-            if (G.net.state == NetState::Down && netHand >= 0) { G.NetInput(netHand, true, false, dt); }
+            bool shortHanded = G.crew.size() < 3;   // (one or two hands: the skipper hauls it himself, as when towing)
+            if (!shortHanded && G.net.state != NetState::Stowed && G.net.state != NetState::Lost && (netHand < 0 || G.crew[netHand].dead || G.crew[netHand].overboard)) netHand = G.OrderBot(winch);
+            if (G.net.state == NetState::Down || G.net.state == NetState::Hauling) {
+                if (shortHanded) { me.station = winch; me.p = Stations()[winch].at; G.NetInput(0, true, false, dt); }
+                else if (netHand >= 0) G.NetInput(netHand, true, false, dt);
+            }
             if (G.net.state == NetState::Hauling || G.net.state == NetState::Shooting) { G.boat.telegraph = 1; G.boat.rudder *= powf(0.3f, dt); return; }
             if (G.net.state == NetState::Snagged) { G.boat.telegraph = -1; return; }
             if (netHand >= 0) { G.OrderBot(-1); netHand = -1; }
@@ -296,9 +300,21 @@ int RunTrawlSim(int argc, char** argv) {
             for (int k = 0; k < 60 * 45 && G.DeckFish() > 0; k++) { if (crew == 1) { G.crew[0].station = K.gut; G.crew[0].p = Stations()[K.gut].at; G.Primary(0, true, dt); } G.Step(dt); }
             G.crew[0].station = -1;
             int landed = (int)G.hold.size();
-            S.Sell();
-            for (const auto& l : S.lastSale) N.money[l.src < 0 || l.src >= CS_COUNT ? 0 : l.src] += l.value;
-            N.sold = S.lastSaleTotal; N.landed = landed;
+            // the doc's "decision every night": deliver enough to the Owners' scales to stay on pace for the quota
+            // (a third of it a night, and a tenth over), the best fish first; sell the rest at the market for the purse
+            {
+                float pace = S.quota * std::max(1, S.night) / 3.0f * 1.1f;   // (S.night already counts tonight once she's moored)
+                std::sort(G.hold.begin(), G.hold.end(), [&](const CatchRec& a, const CatchRec& b) { return S.QuotaValue(a) > S.QuotaValue(b); });
+                float deliveredNow = 0; std::vector<SaleLine> del;
+                while (!G.hold.empty() && S.sold < pace && S.QuotaValue(G.hold.front()) > 0) {
+                    deliveredNow += S.Deliver(0);
+                    del.insert(del.end(), S.lastDelivery.begin(), S.lastDelivery.end());
+                }
+                S.Sell();
+                for (const auto& l : del) N.money[l.src < 0 || l.src >= CS_COUNT ? 0 : l.src] += l.value;
+                for (const auto& l : S.lastSale) N.money[l.src < 0 || l.src >= CS_COUNT ? 0 : l.src] += l.value;
+                N.sold = S.lastSaleTotal + deliveredNow; N.landed = landed;
+            }
             if (trace) {
                 std::map<std::string, std::pair<float, float>> by;
                 for (const auto& l : S.lastSale) { auto& e = by[l.name]; e.first += l.kg; e.second += l.value; }
