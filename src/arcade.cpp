@@ -217,6 +217,7 @@ void DrawReels(Game& g) {
         if (twCrew > 1) picker(c.x + 120, SKILLS[twSkill], twSkill, 0, 2);
         if (Button({c.x - 226, c.y + 236, 220, 36}, "Sail: top-down", true, 15)) { gTrawlFp = false; StartTrawl(g, false, twCrew, twSkill); return; }
         if (Button({c.x + 6, c.y + 236, 220, 36}, "Sail: first person", true, 15)) { gTrawlFp = true; StartTrawl(g, true, twCrew, twSkill); return; }
+        if (Button({c.x - 110, c.y + 278, 220, 30}, "Shakedown night (with Kess)", true, 14)) { StartTrawlShakedown(g, gTrawlFp); return; }
         DrawTextCentered(TextFormat("Host or Join to sail with friends (view: %s, V switches aboard)", gTrawlFp ? "first person" : "top-down"), c.x, c.y + 280, 13, SCREEN_DIM);
         if (CheckCollisionPointRec(GetMousePosition(), {c.x - 200, c.y + 274, 400, 20}) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) gTrawlFp = !gTrawlFp;
     }

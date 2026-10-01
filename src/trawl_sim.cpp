@@ -181,11 +181,16 @@ struct Skipper {
         }
         // the trawl: with three hands or more and open water to tow in, a hand is sent to the winch (it shoots, fishes
         // the net to a load and hauls, on its own) and the skipper tows slow ahead between the leg's ends
-        bool canTow = spots[spotI].tow && G.crew.size() >= 3 && G.net.state != NetState::Lost;
-        if (canTow && netHand < 0) { netHand = G.OrderBot(winch); if (netHand < 0) canTow = false; }
-        towing = canTow && netHand >= 0 && !G.crew[netHand].dead && !G.crew[netHand].overboard;
+        bool short_ = G.crew.size() < 3;   // one or two hands: the skipper works the winch itself (the helm set, as a real hand would run between them)
+        bool canTow = spots[spotI].tow && G.net.state != NetState::Lost;
+        if (canTow && netHand < 0 && !short_) { netHand = G.OrderBot(winch); if (netHand < 0) canTow = false; }
+        towing = canTow && (short_ || (netHand >= 0 && !G.crew[netHand].dead && !G.crew[netHand].overboard));
         if (towing) {
             AtHelm();
+            if (short_) {   // the skipper shoots, fishes the net to a load and hauls it, by the bots' own rule
+                bool held = (G.net.state == NetState::Stowed) || G.net.state == NetState::Shooting || G.net.state == NetState::Hauling || (G.net.state == NetState::Down && G.net.load > 180);
+                if (held) { me.station = winch; me.p = Stations()[winch].at; G.NetInput(0, true, false, dt); }
+            }
             if (G.net.state == NetState::Snagged) { G.boat.telegraph = -1; G.boat.rudder = 0; return; }
             Vector2 leg = towLeg ? spots[spotI].b : spots[spotI].a;
             if (Vector2Distance(G.boat.pos, leg) < 10) towLeg = !towLeg;

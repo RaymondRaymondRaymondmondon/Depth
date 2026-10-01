@@ -133,6 +133,7 @@ struct Eco {
     float turtleMul = 1, sharkMul = 1;          // Turtle nesting: turtles x4, the sharks that follow them x2
     bool tideHeld = false;                      // King tide: the crest stays passable all night
     bool redTide = false;                       // dead forage floating: blood everywhere, fish sell at half
+    float stirOverride = -1;                    // the shakedown's shark lesson: Stir() returns this when it is 0 or more
     uint32_t rng = 1;
     float popAcc = 0, fieldAcc = 0, spawnAcc = 0, agentAcc = 0, gullT = -1;
     std::vector<float> fed;                     // per species: its intake as a fraction of the start's (the population's hunger)

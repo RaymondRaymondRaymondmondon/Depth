@@ -403,3 +403,11 @@ bell), the Lagoon's bed (surf, wind and rain, insects, gulls at dusk, a whale, b
 36 effects diffed from the world each frame in `TrawlAudioFrame` (trawl.cpp). `--audio-test` renders 12 states and
 every effect, and checks the music drops by 6 dB with a threat near. Not yet: the Weeds/Grotto/Atlantis beds and tells
 (their grounds don't exist), diving sounds, voice.
+
+## Finishing the Lagoon, part 3: the shakedown night (2026-09-30)
+The doc's "First night": solo on the Lagoon with a fixed seed, no quota, deaths that don't count, Kess aboard as an
+Old Hand bot. Ten chalked lessons from casting off to the market, with the shark called in on the guts and Kess
+slipping over the side (`Session::shake`, `ShakeStep`; the arcade's "Shakedown night" button; a Skip button and
+Back to the arcade on the HUD). `--trawl-shakedown-test` plays it through with a scripted hand in about 7.5 minutes
+of sim time. Not yet: the Field Manual, the shakedown offered automatically to a lobby with a new player (networked
+shakedowns), the sardine ball marked for the net lesson.

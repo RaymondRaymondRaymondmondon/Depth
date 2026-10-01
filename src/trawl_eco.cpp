@@ -308,6 +308,7 @@ float Eco::Hunger(int sp) const { return std::clamp(1 - 0.5f * (sp < (int)fed.si
 // nothing in the first minutes to full by 05:00, and the crew's Wake adds to it. Threats materialise near the boat, and
 // grow hungry, in proportion.
 float Eco::Stir() const {
+    if (stirOverride >= 0) return stirOverride;
     if (!g) return 1;
     float base = std::clamp((clock - g->stirSafe) / std::max(1.0f, 540 - g->stirSafe), 0.0f, 1.0f);
     base = g->stirFloor + (1 - g->stirFloor) * powf(base, g->stirCurve);

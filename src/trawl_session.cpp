@@ -155,7 +155,7 @@ void Session::Moor() {
     for (auto& c : G->crew) for (auto& sl : c.slots) if (sl.it == Item::Ring) sl.ammo = 1;
     // at the dock the dead revive and the injured are seen to; a body lost to the sea costs 8% for a replacement hand
     for (auto& c : G->crew) {
-        if (c.dead && c.bodyLost && money > 0) { float f = money * 0.08f; money -= f; Tape(TextFormat("HAND DECEASED STOP REPLACEMENT CHARGED %.0f SHILLINGS STOP", f)); }
+        if (c.dead && c.bodyLost && money > 0 && !shake.on) { float f = money * 0.08f; money -= f; Tape(TextFormat("HAND DECEASED STOP REPLACEMENT CHARGED %.0f SHILLINGS STOP", f)); }
         if (c.dead || c.overboard) { c.p = {-1.0f, 0.8f}; c.deck = 0; }
         c.dead = false; c.bodyLost = false; c.overboard = false; c.injuries = 0; c.serious = 0; c.drownT = 0; c.station = -1;
     }
@@ -400,6 +400,7 @@ void Session::Step(float dt) {
             break;
         case Phase::Night: {
             clock += dt * (shake.on ? (shake.step >= 8 ? 4.0f : 1.5f) : 1.0f);   // the shakedown is a short night, and runs to 05:00 fast once the lesson is done
+            if (shake.on && shake.step < 8) clock = std::min(clock, 470.0f);         // (and it waits at 03:50 for a slow learner)
             if (shake.on) ShakeStep(dt);
             // total loss: every hand dead, or the Gannet gone down (design doc, "Death, injury, and ghosts")
             if (G->AllDead() || G->boat.sunk) {
@@ -603,4 +604,215 @@ int RunTrawlSessionTest() {
     return fails ? 1 : 0;
 }
 
+
+// ---------------------------------------------------------------- the shakedown (design doc, "First night")
+// A short night on the Lagoon with a fixed seed, no quota, deaths that don't count, and Kess, an old deckhand aboard
+// for this night only, talking in short chalked lines. Eight lessons: the deck and the handline, the rod, the table,
+// the sonar, the net, blood (a reef shark comes to the guts), a hand overboard (Kess slips), and home.
+namespace {
+const char* SHAKE_LINES[Session::SHAKE_STEPS] = {
+    "Kess: Steam's up. Take the helm (E at the wheel) and cast off. Keep the quay to port going out, and mind the crest.",
+    "Kess: Take a handline at the rail (E). Hold to cast, let go, and strike when the tip dips. Three small fish for the bait well.",
+    "Kess: Now the light rod, port side. Cast at the dark water, set the hook on the take, and lean the rod against its run. Land one over a kilo.",
+    "Kess: To the table (E). Gut it and ice it, or it is worth half by dawn. I will throw the guts over.",
+    "Kess: The sonar, in the wheelhouse. Ping (click), mark the biggest ball (click it), and steer onto it.",
+    "Kess: The net. Hold at the winch to shoot it, tow slow ahead through the ball, and haul it in. Two hands haul twice as fast.",
+    "Kess: That blood has brought a shark. Watch it take a hooked fish. Stop the blood, stay off the rail, gaff it, or steam away.",
+    "Kess: ...the deck is wet. Stop the screw (telegraph to stop) and throw me the ring, quick!",
+    "Kess: Home. Cross the harbour line before 05:00 or the cutter takes the hold.",
+    "Kess: Sell at the Fish Market (walk ashore to port) and read the chalkboard. That is the Trawl. Mind how you go.",
+};
+int StationIdxOf(StationKind k) { for (int i = 0; i < (int)Stations().size(); i++) if (Stations()[i].kind == k) return i; return -1; }
+}
+void Session::BeginShakedown(Gannet& g, Eco& e) {
+    Begin(g, e, 2, 777);
+    plainNights = true;
+    shake = Shakedown{}; shake.on = true; shake.step = 0; shake.line = SHAKE_LINES[0];
+    g.botsOn = true; g.botSkill = Skill::OldHand;
+    if (g.crew.size() > 1) { g.crew[1].role = Role::Angler; shake.kess = 1; }
+    quota = 0;
+    tape.clear(); Tape("SHAKEDOWN STOP NO QUOTA STOP KESS ABOARD FOR THE NIGHT STOP");
+    g.baitShrimp = 20; g.ice = 60; g.boat.bunker = 60;
+    if (!g.crew.empty()) g.crew[0].patchKits = 1;
+}
+void Session::SkipShakedown() { shake.on = false; shake.done = true; shake.line = "Kess: Suit yourself. You will learn it the hard way."; }
+void Session::ShakeStep(float dt) {
+    Shakedown& s = shake;
+    if (!s.on || !G) return;
+    Gannet& g = *G;
+    s.stepT += dt;
+    if (s.asideT > 0) s.asideT -= dt;
+    auto aside = [&](const char* t) { if (s.asideT <= 0 || s.aside != t) { s.aside = t; s.asideT = 4; } };
+    auto advance = [&]() { s.step++; s.stepT = 0; if (s.step < SHAKE_STEPS) s.line = SHAKE_LINES[s.step]; };
+    int kess = s.kess < (int)g.crew.size() ? s.kess : -1;
+    // what the hand is doing, for the asides
+    const Crew& me = g.crew[0];
+    const Rod* myRod = nullptr; for (const auto& r : g.rods) if (me.station == r.station) myRod = &r;
+    if (myRod) {
+        if (myRod->bite.stage == BiteStage::Take) aside("Kess: Now! Strike!");
+        else if (myRod->bite.stage == BiteStage::Nibble) aside("Kess: Let it nibble. Not yet.");
+        else if (myRod->state == RodState::Fighting) {
+            float rating = TackleOf(myRod->tackle).strength;
+            if (myRod->fight.tension > 0.8f * rating) aside("Kess: She will part! Ease the drag, bow the rod.");
+            else if (myRod->fight.tension < 0.08f * rating) aside("Kess: Line is slack. Reel.");
+            else if (myRod->fight.alongside) aside("Kess: Alongside. Gaff it (E)!");
+        }
+    }
+    switch (s.step) {
+        case 0: if (phase == Phase::Night) advance(); break;
+        case 1: {
+            int small = 0; for (const auto& h : g.hold) if (h.src == CS_HOOK && h.kg < 0.4f) small++;
+            if (small >= 3) advance();
+            break;
+        }
+        case 2: {
+            bool big = false; for (const auto& h : g.hold) if (h.src == CS_HOOK && h.kg >= 1.0f) big = true;
+            if (big) advance();
+            break;
+        }
+        case 3: {
+            bool done = false; for (const auto& h : g.hold) if (h.gutted && h.iced) done = true;
+            if (done) advance();
+            break;
+        }
+        case 4: if (!g.sonar.marks.empty()) advance(); break;
+        case 5: {
+            if (kess >= 0 && s.stepT < 0.1f) g.OrderBot(StationIdxOf(StationKind::NetWinch));   // Kess takes the winch with you
+            bool netted = false; for (const auto& h : g.hold) if (h.src == CS_NET) netted = true;
+            if (netted) { if (kess >= 0) g.OrderBot(-1); advance(); }
+            break;
+        }
+        case 6: {
+            // the guts bring a reef shark: one is called in hungry 55 m off and the water chummed; the lesson ends when
+            // it has taken a fish, or it has been seen and left behind, or after two minutes
+            if (!s.sharkCalled && E) {
+                s.sharkCalled = true;
+                int sp = Species().Find("reef shark");
+                if (sp >= 0) { float ang = 0.7f; Vector2 at{g.boat.pos.x + cosf(ang) * 55, g.boat.pos.y + sinf(ang) * 55}; int ai = E->SpawnAgentPublic(sp, at); E->agents[ai].hunger = 0.95f; E->agents[ai].count = 1; }
+                g.chumLeft += D().chumBlood * 2;
+                E->stirOverride = 1;   // (the Stir clock would cull a shark this early; the lesson wants it)
+            }
+            if (E && (s.stepT > 120 || s.sharkSeen) && E->stirOverride >= 0 && (s.stepT > 120 || s.speedT > 8)) E->stirOverride = -1;
+            if (E) for (const auto& a : E->arrivals) if (a.species == "reef shark") s.sharkSeen = true;
+            if (s.sharkSeen) {
+                bool fed = false; int near = 0;
+                if (E) for (const auto& a : E->agents) if (a.alive && Species().sp[a.sp].name == "reef shark") { if (a.fedT > 0) fed = true; if (Vector2Distance({a.p.x, a.p.y}, g.boat.pos) < 30) near++; }
+                if (fabsf(g.boat.Speed()) > 1.5f) s.speedT += dt; else s.speedT = 0;
+                if (fed) aside("Kess: There. It took it. Now you know what blood costs.");
+                if (fed || s.speedT > 8 || (near == 0 && s.stepT > 40) || s.stepT > 120) advance();
+            } else if (s.stepT > 150) advance();
+            break;
+        }
+        case 7: {
+            if (E) E->stirOverride = -1;
+            if (kess >= 0 && s.stepT < 0.1f && !g.crew[kess].overboard) { g.LeaveStation(kess); g.GoOverboard(kess, "Kess slips on the wet deck"); g.crew[kess].swim = g.boat.ToWorld({-2, 7}); }
+            if (kess < 0 || (!g.crew[kess].overboard && s.stepT > 1)) advance();
+            else if (kess >= 0 && g.crew[kess].dead) advance();   // (a lost Kess is a lesson too)
+            break;
+        }
+        case 8: if (phase == Phase::Dock) advance(); break;
+        case 9: if (lastSaleTotal > 0 || g.hold.empty()) { s.on = false; s.done = true; } break;
+        default: s.on = false; s.done = true; break;
+    }
+}
+
+// ---------------------------------------------------------------- --trawl-shakedown-test
+// A scripted hand plays the shakedown through: cast off, a handline, the light rod, the table, the sonar, the net,
+// the shark, the ring for Kess, home and the market. Every step must complete.
+int RunTrawlShakedownTest() {
+    int fails = 0;
+    auto check = [&](bool ok, const std::string& what) { printf("  %s  %s\n", ok ? "ok  " : "FAIL", what.c_str()); if (!ok) fails++; };
+    printf("The Trawl: the shakedown night\n");
+    Gannet g; Eco e; Session s;
+    s.BeginShakedown(g, e);
+    check(s.shake.on && s.shake.step == 0 && s.quota == 0 && g.crew.size() == 2 && g.crew[1].bot, "the shakedown begins: no quota, Kess aboard as a bot");
+    const float dt = 1 / 60.0f;
+    int hand = StationIdxOf(StationKind::StarRod), port = StationIdxOf(StationKind::PortRod), gut = StationIdxOf(StationKind::Gutting), helm = StationIdxOf(StationKind::Helm), winch = StationIdxOf(StationKind::NetWinch), sonar = StationIdxOf(StationKind::Sonar);
+    int handRod = g.RodAt(hand), portRod = g.RodAt(port);
+    g.rods[handRod].tackle = Tackle::Handline;
+    std::string why;
+    g.crew[0].p = {-1, 0.8f}; g.crew[0].station = -1;
+    check(s.CastOff(&why), "cast off" + (why.empty() ? std::string() : ": " + why));
+    Vector2 spot = Vector2Add(s.harbour, {140, 20});
+    float t = 0; int lastStep = -1; float stepAt[Session::SHAKE_STEPS + 1] = {};
+    bool thrown = false, kessInSea = false, kessHauled = false;
+    auto steerTo = [&](Vector2 tgt, float slowWithin) {
+        Vector2 d = Vector2Subtract(tgt, g.boat.pos);
+        float want = atan2f(d.y, d.x), err = want - g.boat.heading;
+        while (err > PI) err -= 2 * PI;
+        while (err < -PI) err += 2 * PI;
+        g.boat.rudder = std::clamp(err * 2.5f, -1.0f, 1.0f);
+        float dist = Vector2Length(d);
+        g.boat.telegraph = dist > slowWithin ? 2 : dist > 6 ? 1 : 0;
+    };
+    while ((s.shake.on || s.phase != Phase::Dock) && t < 1500) {
+        if (g.boat.pressure < D().greenLo + 0.15f && g.boat.firebox < 5) g.boat.Shovel(D().shovelKg * 0.05f);
+        int st = s.shake.step;
+        if (st != lastStep) { lastStep = st; stepAt[std::min(st, Session::SHAKE_STEPS)] = t; if (getenv("DEPTH_TRACE")) printf("    t%4.0f step %d: %s\n", t, st, s.shake.line.c_str()); }
+        Crew& me = g.crew[0];
+        auto fish = [&](int station, int ri) {
+            me.p = Stations()[station].at; me.station = station; me.deck = 0;
+            Rod& r = g.rods[ri];
+            bool cast = r.state == RodState::Idle && fmodf(t, 2.0f) < 0.9f;
+            Vector2 aim = Vector2Add(r.TipDeck(), Vector2Scale(Vector2Normalize(Vector2Subtract(r.TipDeck(), Stations()[station].at)), 10));
+            if (r.state == RodState::Fighting) {
+                // (a human hand: the bot angler's decisions go in through the hand's own controls)
+                static uint32_t rng = 5; BotFight(r.fight, Skill::OldHand, dt, rng);
+                g.RodInput(0, false, aim, r.fight.reeling, false, r.fight.rodLean, r.fight.bowed, r.fight.alongside, 0);
+            } else g.RodInput(0, cast, aim, false, r.bite.stage == BiteStage::Take, 0, false, false, 0);
+        };
+        switch (st) {
+            case 0: me.station = helm; me.p = Stations()[helm].at; steerTo(spot, 30); break;
+            case 1: case 2: {
+                if (Vector2Distance(g.boat.pos, spot) > 20 && s.shake.stepT < 60 && st == 1) { me.station = helm; me.p = Stations()[helm].at; steerTo(spot, 20); }
+                else { g.boat.telegraph = 0; fish(st == 1 ? hand : port, st == 1 ? handRod : portRod); }
+                break;
+            }
+            case 3: g.boat.telegraph = 0; for (auto& r : g.rods) r.botAngler = false; me.p = Stations()[gut].at; me.station = gut; g.Primary(0, true, dt); break;
+            case 4: me.p = Stations()[sonar].at; me.station = sonar; if (g.sonar.cool <= 0) g.SonarPing(0); if (!g.sonar.ret.empty()) g.SonarMarkAt(0, g.boat.ToDeck({g.sonar.ret[0].p.x, g.sonar.ret[0].p.y})); break;
+            case 5: {
+                me.p = Stations()[winch].at; me.station = winch;
+                bool held = g.net.state == NetState::Stowed || g.net.state == NetState::Shooting || g.net.state == NetState::Hauling || (g.net.state == NetState::Down && (g.net.load > 60 || s.shake.stepT > 150));
+                g.NetInput(0, held, false, dt);
+                if (g.net.state == NetState::Down) { if (Vector2Distance(g.boat.pos, spot) > 25) { steerTo(spot, 0); g.boat.telegraph = 1; } else { g.boat.telegraph = 1; g.boat.rudder = 0.25f; } }   // tow slow ahead, round the mark over deep water
+                else g.boat.telegraph = 0;
+                if (g.net.state == NetState::Snagged) g.boat.telegraph = -1;
+                if (getenv("DEPTH_TRACE") && fmodf(t, 20) < dt) printf("      net %d load %.0f t %.1f d %.0f depth %.0f tel %d\n", (int)g.net.state, g.net.load, g.net.t, Vector2Distance(g.boat.pos, spot), e.DepthAt(g.boat.pos), g.boat.telegraph);
+                break;
+            }
+            case 6: me.station = helm; me.p = Stations()[helm].at; if (s.shake.sharkSeen) { g.boat.telegraph = 3; g.boat.rudder = 0; } else g.boat.telegraph = 0; break;
+            case 7: {
+                g.boat.telegraph = 0; g.boat.shaft = 0;
+                Crew& k = g.crew[1];
+                if (k.overboard) {
+                    int slot = -1; for (int i = 0; i < 4; i++) if (me.slots[i].it == Item::Ring) slot = i;
+                    if (slot >= 0) {
+                        me.station = -1; Vector2 sd = g.boat.ToDeck(k.swim); me.p = {std::clamp(sd.x, -9.0f, 8.0f), sd.y < 0 ? -2.3f : 2.3f}; me.sel = slot;
+                        LifeRing* out = nullptr; for (auto& r : g.rings) if (r.thrower == 0 && r.state != 0) out = &r;
+                        if (!out) { g.UseItem(0, sd, true, false, false, dt); thrown = true; } else if (out->state == 2) g.UseItem(0, sd, false, true, false, dt);
+                    }
+                }
+                break;
+            }
+            case 8: me.station = helm; me.p = Stations()[helm].at; steerTo(g.moorPos, 25); break;
+            default: break;
+        }
+        if (s.phase == Phase::Night && g.crew[1].overboard) kessInSea = true;
+        if (s.phase == Phase::Night && kessInSea && !g.crew[1].overboard && !g.crew[1].dead) kessHauled = true;
+        g.Step(dt); s.Step(dt); t += dt;
+        if (s.shake.step == 9 && s.phase == Phase::Dock) s.Sell();
+    }
+    check(s.shake.step >= 1, TextFormat("1 cast off and out past the harbour line (at %.0f s)", stepAt[1]));
+    check(s.shake.step >= 2, TextFormat("2 three small fish on the handline (at %.0f s)", stepAt[2]));
+    check(s.shake.step >= 3, TextFormat("3 a fish over a kilo on the light rod (at %.0f s)", stepAt[3]));
+    check(s.shake.step >= 4, TextFormat("4 gutted and iced (at %.0f s)", stepAt[4]));
+    check(s.shake.step >= 5, TextFormat("5 a sonar mark (at %.0f s)", stepAt[5]));
+    check(s.shake.step >= 6, TextFormat("6 the net shot and hauled (at %.0f s)", stepAt[6]));
+    check(s.shake.step >= 7 && s.shake.sharkSeen, TextFormat("7 the shark came to the blood and the lesson ended (at %.0f s; seen %d)", stepAt[7], (int)s.shake.sharkSeen));
+    check(s.shake.step >= 8 && thrown && kessInSea && kessHauled, TextFormat("8 Kess over the side at sea, the ring thrown, hauled back aboard (at %.0f s)", stepAt[8]));
+    check(s.shake.step >= 9, TextFormat("9 home through the harbour line (at %.0f s)", stepAt[9]));
+    check(s.shake.done && !s.shake.on, TextFormat("10 sold at the market: the shakedown is done (%.0f s in all, %.1f min)", t, t / 60));
+    printf(fails ? "%d FAILED\n" : "trawl-shakedown-test: all checks passed\n", fails);
+    return fails ? 1 : 0;
+}
 } // namespace tw

@@ -645,6 +645,7 @@ int main(int argc, char** argv) {
     if (argc >= 2 && strcmp(argv[1], "--trawl-net-test") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlNetTest(); }
     if (argc >= 2 && strcmp(argv[1], "--trawl-sail-diag") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlSailDiag(); }
     if (argc >= 2 && strcmp(argv[1], "--trawl-session-test") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlSessionTest(); }
+    if (argc >= 2 && strcmp(argv[1], "--trawl-shakedown-test") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlShakedownTest(); }
     if (argc >= 2 && strcmp(argv[1], "--trawl-eco-test") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlEcoTest(); }
     if (argc >= 2 && strcmp(argv[1], "--trawl-fight") == 0) return tw::RunTrawlFight(argc, argv);
     if (argc >= 2 && strcmp(argv[1], "--trawl-boat-test") == 0) {

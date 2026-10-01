@@ -771,6 +771,17 @@ void Hud(Game& g) {
         DrawTextCenteredBold(VariantName(S.W->sess.variant), SCREEN_W / 2.0f, 74, 18, Fade(Color{240, 200, 120, 255}, a));
         DrawTextCentered(VariantNote(S.W->sess.variant), SCREEN_W / 2.0f, 96, 14, Fade(paper, a));
     }
+    // the shakedown: Kess's chalk lines on the deck, an aside about what you're doing, and a way out
+    if (S.W->sess.shake.on || (S.W->sess.shake.done && S.W->sess.phase == Phase::Dock)) {
+        const auto& sh = S.W->sess.shake;
+        Rectangle r{20, SCREEN_H - 150.0f, 640, 70};
+        DrawRectangleRec(r, Fade(Color{20, 24, 30, 255}, 0.75f)); DrawRectangleLinesEx(r, 1, Color{180, 150, 90, 255});
+        Txt(TextFormat("Lesson %d of %d", std::min(sh.step + 1, Session::SHAKE_STEPS), Session::SHAKE_STEPS), r.x + 12, r.y + 6, 13, Fade(paper, 0.7f));
+        DrawWrapped(sh.line, {r.x + 12, r.y + 24, r.width - 24, 44}, 14, Color{240, 220, 170, 255});
+        if (sh.asideT > 0) DrawTextCenteredBold(sh.aside, SCREEN_W / 2.0f, SCREEN_H / 2.0f + 140, 18, Fade(Color{240, 220, 170, 255}, std::min(1.0f, sh.asideT)));
+        if (sh.on) { if (Button({r.x + r.width + 10, r.y + 18, 150, 32}, "Skip the shakedown", true, 14)) S.W->sess.SkipShakedown(); }
+        else if (Button({r.x + r.width + 10, r.y + 18, 150, 32}, "Back to the arcade", true, 14)) { LeaveTrawlMatch(g); return; }
+    }
     // Canoe night: the war canoe alongside waits a minute for an answer
     if (S.W->sess.canoe == CanoeState::Alongside) {
         Rectangle r{SCREEN_W / 2.0f - 330, SCREEN_H / 2.0f - 120, 660, 200};
@@ -876,6 +887,17 @@ void StartTrawl(Game& g, bool firstPerson, int crew, int botSkill) {
     S.W->sess.Begin(S.W->G, S.W->eco, crew, seed);
     S.W->G.botsOn = crew > 1;
     S.W->G.botSkill = (Skill)std::clamp(botSkill, 0, (int)Skill::COUNT - 1);
+    S.active = true;
+    S.fp = firstPerson;
+    EnableCursor();
+    g.scene = Scene::Trawl;
+}
+
+// The shakedown night (design doc, "First night"): solo, Kess aboard, no quota; back to the arcade when it's done
+void StartTrawlShakedown(Game& g, bool firstPerson) {
+    S = TrawlScene{};
+    S.W = &S.own;
+    S.W->sess.BeginShakedown(S.W->G, S.W->eco);
     S.active = true;
     S.fp = firstPerson;
     EnableCursor();

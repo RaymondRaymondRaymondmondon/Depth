@@ -868,6 +868,7 @@ int RunNetLoop(int lagMs, bool forceMemory);   // --net-loop
 int RunStudyAudioTest(const char* wavPath, float seconds);   // --study-audio-test (study_test.cpp)
 void SceneTrawl(Game& g);     // The Trawl, the Deep Arcade's co-op fishing horror game (trawl.cpp)
 void StartTrawl(Game& g, bool firstPerson = false, int crew = 1, int botSkill = 1);
+void StartTrawlShakedown(Game& g, bool firstPerson = false);   // the tutorial night with Kess (design doc, "First night")
 namespace arcade { class Session; }
 void StartTrawlNet(Game& g, arcade::Session* net, bool firstPerson = false);   // a Deep Arcade match of the Trawl (host or guest)
 void LeaveTrawlMatch(Game& g);                                                 // back to the arcade (the host takes the table back to the lobby)
