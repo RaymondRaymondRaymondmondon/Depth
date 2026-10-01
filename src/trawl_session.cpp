@@ -177,6 +177,7 @@ float Session::Value(const CatchRec& c, float* glut, float* bonus) const {
     static float glutK = getenv("DEPTH_GLUT") ? (float)atof(getenv("DEPTH_GLUT")) : GLUT_PER_10KG;   // (the tuning grid)
     float g = std::max(0.2f, 1 - glutK * (it == glutKg.end() ? 0 : it->second) / 10);
     float b = c.first ? FIRST_CATCH_BONUS : 1;
+    if (c.junk) { if (glut) *glut = 1; if (bonus) *bonus = 1; return c.price; }   // junk: a flat price, no freshness or glut
     if (glut) *glut = g;
     if (bonus) *bonus = b;
     return c.price * c.kg * c.grade * c.killScore * c.fresh * g * b * (variant == Variant::RedTide ? 0.5f : 1.0f);   // fish from a red tide sell at half
@@ -229,7 +230,7 @@ float Session::Sell(int idx) {
     return lastSaleTotal;
 }
 float Session::QuotaValue(const CatchRec& c) const {
-    if (c.fresh < QUOTA_MIN_FRESH || c.bycatch) return 0;
+    if (c.fresh < QUOTA_MIN_FRESH || c.bycatch || c.junk) return 0;
     float b = c.first ? FIRST_CATCH_BONUS : 1;
     return c.price * c.kg * c.grade * c.killScore * c.fresh * b * (variant == Variant::RedTide ? 0.5f : 1.0f);   // (the scales ignore glut)
 }
@@ -295,6 +296,7 @@ float Session::Deliver(int idx, int* rejected) {
     for (int i = (int)G->hold.size() - 1; i >= 0; i--) {
         if (idx >= 0 && i != idx) continue;
         const CatchRec& c = G->hold[i];
+        if (c.junk) continue;   // (junk never counts toward the quota: the market buys it)
         float v = QuotaValue(c);
         if (v <= 0) { lastRejected++; continue; }   // (it stays in the hold: the market may still take it)
         lastDelivery.push_back({c.name, c.kg, c.price, c.grade, c.fresh, 1, c.first ? FIRST_CATCH_BONUS : 1, v, c.src});
@@ -681,6 +683,24 @@ int RunTrawlSessionTest() {
         check(fabsf(s.sold - 25) < 0.01f, TextFormat("the 50 delivered past the quota carry into the next deadline at half value (%.0f)", s.sold));
         s.night = 3; s.sold = 10; s.Count();
         check(s.phase == Phase::Over, "short of it: GANNET REPOSSESSED, the run is over");
+    }
+    // junk from the sea (design doc v2): the Lagoon's table; sellable pieces pay their flat value at the market and never
+    // count toward the quota; maps, keys and chart pieces are kept for the landings; a lobster trap brings its crabs
+    {
+        Gannet g; Eco e; Session s; s.Begin(g, e, 1, 77);
+        g.hold.clear();
+        for (int k = 0; k < 400; k++) g.FindJunk({-8, 0}, "test");
+        int junk = 0, crabs = 0; bool notLagoon = false;
+        for (const auto& h : g.hold) { if (h.junk) { junk++; if (h.name == "rusted anchor" || h.name == "signet ring" || h.name == "human skull") notLagoon = true; } else if (h.name == "blue crab" || h.name == "spiny lobster") crabs++; }
+        check(junk > 250 && !notLagoon, TextFormat("400 pieces of Lagoon junk: %d sellable on deck, none from the deeper grounds", junk));
+        check(g.junkBottles > 0 && g.junkKeys > 0 && g.junkCharts > 0, TextFormat("bottles %d, keys %d, chart pieces %d kept for the landings", g.junkBottles, g.junkKeys, g.junkCharts));
+        check(crabs > 0, TextFormat("someone's lobster traps (and old boots) bring up %d crabs and lobsters", crabs));
+        CatchRec purse; purse.name = "coin purse"; purse.junk = true; purse.price = 30; purse.kg = 0.3f; purse.gutted = purse.iced = true; purse.fresh = 0.2f;
+        g.hold = {purse};
+        int rej = 0; float q = s.Deliver(-1, &rej);
+        check(q == 0 && rej == 0 && g.hold.size() == 1, "junk is never taken at the quota scales (and isn't 'rejected': it stays for the market)");
+        float v = s.Sell(-1);
+        check(fabsf(v - 30) < 0.01f, TextFormat("the market pays a coin purse its flat 30 (paid %.1f), freshness or not", v));
     }
     // a whole solo deadline played by a bot: bait, cast off, fish the port rod, gut and ice, home before 05:00, sell
     {

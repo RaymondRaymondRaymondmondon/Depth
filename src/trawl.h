@@ -51,7 +51,7 @@ struct TrawlData {
     float ramHeel = 0.35f;                                // rad/s of roll the blow puts into her (enough to slide an unbraced hand)
     float netYield = 0.2f;                                // the share of a swept school the mouth really takes (balance: the Lagoon's quota should be met about 85% of the time by six hands)
     float railDrag = 0.5f;                                // per second at the worst: a running fish past 45% of the line's rating while she rolls past braceRoll toward it
-    float junkPerHaul = 0.25f;                            // a net haul brings up a piece of junk (bottle, key, chart piece)
+    float junkPerCast = 0.10f;                            // a cast reeled in on the Lagoon brings up junk (design doc v2: Weeds 12%, Grotto 18%, Atlantis 15%)
     float chumBlood = 40, chumSeconds = 60;              // a chum bucket: 40 blood over 60 s at the rail (design doc, "The Chandler")
 };
 const TrawlData& D();
@@ -300,7 +300,12 @@ struct CatchRec {
     float killScore = 1; std::string killHow; float killT = -1;   // the finishing blow's multiplier and why; seconds since (the popup)
     int grabbed = -1;                                     // (a Grabber) the hand it has hold of
     bool crated = false;                                  // in one of the six lidded catch crates on the aft deck: safe from birds (still to be gutted)
+    bool junk = false;                                    // junk from the sea (design doc v2, "Junk from the sea"): price is its flat value; stowed, never quota
 };
+// The junk table (design doc v2, pages 25-27): what a cast or a net haul brings up besides fish
+enum JunkUse { JU_SELL, JU_MAP, JU_KEY, JU_CHART, JU_TRAP, JU_BOOT };
+struct JunkDef { const char* name; float lo, hi, kg; int use; float weight; unsigned grounds; };   // grounds: bit 0 Lagoon, 1 Weeds, 2 Grotto, 3 Atlantis
+const std::vector<JunkDef>& JunkTable();
 // What a landed fish does on the deck (design doc v2, "Deck behaviours")
 enum DeckBehaviour { DB_FLOPPER, DB_THRASHER, DB_BITER, DB_SPEARER, DB_GRABBER, DB_PINCHER, DB_STINGER, DB_COUNT };
 const char* DeckBehaviourName(int b);
@@ -443,7 +448,8 @@ struct Gannet {
     void StepThieves(float dt);
     void DropThief(int idx, int by);                      // shot: the bird and its fish come down
     int junkBottles = 0, junkKeys = 0, junkCharts = 0;    // junk kept for the landings (the skiff)
-    void FindJunk();
+    void FindJunk(Vector2 deckAt, const char* how);
+    void CastJunk(Vector2 deckAt);                        // an empty cast reeled home: junk on the hook now and then
     void DropFish(int idx);                             // harried (a frigatebird): only the fish comes down         // the priest, a gaff or a knife (or fists) strike the nearest live fish on the deck; true if one was hit
     bool HitDeckFish(int idx, float dmg, int by, int how, bool head, float range);   // a blow on a deck fish (KillHow); true if it died of it
     float deckBlood = 0;                                  // blood on the planking: drains through the scuppers into the sea at 20% a second

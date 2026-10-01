@@ -506,7 +506,12 @@ void Gannet::StepRods(float dt) {
                     float step = td.reel * dt;
                     if (hd > step) { r.lure.x += toTip.x / hd * step; r.lure.y += toTip.y / hd * step; r.lineOut = std::max(0.0f, r.lineOut - step); }
                     r.lure.z = std::max(0.0f, r.lure.z - step * 0.5f);
-                    if (hd < 2.0f && r.lure.z < 1.5f) { r.state = RodState::Idle; break; }
+                    if (hd < 2.0f && r.lure.z < 1.5f) {
+                        r.state = RodState::Idle;
+                        // not everything on the hook is a fish: a cast that fished a while brings up junk now and then
+                        if (r.settleT > 4) { Vector2 rl = r.TipDeck(); CastJunk({rl.x, rl.y * 0.7f}); }
+                        break;
+                    }
                 }
                 r.settleT += dt;
                 if (r.bite.stage == BiteStage::None || r.bite.stage == BiteStage::Gone) {

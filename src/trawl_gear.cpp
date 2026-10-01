@@ -352,11 +352,53 @@ const BirdDef& BirdOf(int k) {
 }
 // junk in the net (design doc v2, "Junk"): worth nothing at the market; the bottle's map and the brass key open a
 // landing's cache, three chart pieces reveal a hidden mark (the skiff and the Atoll)
-void Gannet::FindJunk() {
-    float r = RandF(gRng);
-    if (r < 0.3f) { junkBottles++; Say("Junk in the net: a message in a bottle (a treasure map to one of the landings)"); }
-    else if (r < 0.6f) { junkKeys++; Say("Junk in the net: a brass key (it opens a named chest ashore)"); }
-    else { junkCharts++; Say(junkCharts % 3 == 0 ? "Junk in the net: a torn chart piece - three of them make a chart!" : TextFormat("Junk in the net: a torn chart piece (%d of 3)", junkCharts % 3)); }
+const std::vector<JunkDef>& JunkTable() {
+    // (design doc v2, pages 25-27; the weights - how often each comes up - are my call: pure junk is commonest)
+    const unsigned ALL = 15, LW = 1 | 2, WG = 2 | 4, GA = 4 | 8, AT = 8;
+    static const std::vector<JunkDef> T = {
+        {"tin can", 0.5f, 1, 0.3f, JU_SELL, 10, ALL}, {"cork float", 0.5f, 1, 0.2f, JU_SELL, 10, ALL}, {"empty bottle", 0.5f, 1, 0.4f, JU_SELL, 10, ALL},
+        {"old boot", 1, 1, 1.0f, JU_BOOT, 10, ALL},
+        {"teacup", 3, 7, 0.2f, JU_SELL, 3, ALL}, {"spectacles", 3, 7, 0.1f, JU_SELL, 3, ALL}, {"brass doorknob", 3, 7, 0.4f, JU_SELL, 3, ALL},
+        {"sea glass", 2, 2, 0.1f, JU_SELL, 14, LW},
+        {"someone's lobster trap", 5, 5, 6.0f, JU_TRAP, 5, LW},
+        {"tangled net", 2, 2, 3.0f, JU_SELL, 6, ALL},
+        {"rusted anchor", 8, 8, 40.0f, JU_SELL, 3, WG}, {"whaler's harpoon head", 6, 6, 2.0f, JU_SELL, 3, WG},
+        {"oil lantern", 10, 10, 1.5f, JU_SELL, 3, ALL}, {"rusty knife", 2, 2, 0.3f, JU_SELL, 5, ALL},
+        {"waterlogged pistol", 3, 3, 1.0f, JU_SELL, 3, GA}, {"coin purse", 15, 60, 0.3f, JU_SELL, 3, ALL},
+        {"drowned pocket watch", 25, 25, 0.2f, JU_SELL, 2, GA}, {"scrimshaw tooth", 30, 30, 0.3f, JU_SELL, 2, WG},
+        {"old diving helmet", 50, 50, 15.0f, JU_SELL, 1, GA}, {"signet ring", 80, 80, 0.05f, JU_SELL, 0.5f, AT},
+        {"idol fragment", 40, 40, 3.0f, JU_SELL, 1, AT}, {"human skull", 0, 0, 1.0f, JU_SELL, 1, GA},
+        {"letters in oilcloth", 0, 0, 0.2f, JU_SELL, 2, ALL},
+        {"message in a bottle", 0, 0, 0.5f, JU_MAP, 4, ALL}, {"brass key", 0, 0, 0.1f, JU_KEY, 4, ALL}, {"torn chart piece", 0, 0, 0.1f, JU_CHART, 5, ALL},
+    };
+    return T;
+}
+// junk from the sea: a cast brings it up 10% of the time on the Lagoon, a net haul one to three pieces. Sellable pieces go
+// on the deck as stowed junk (the market buys them; never the quota); a bottle's map, a brass key and chart pieces are kept
+// for the landings (the skiff); someone's lobster trap holds one to three crabs or lobsters; an old boot sometimes a crab.
+void Gannet::CastJunk(Vector2 deckAt) { if (RandF(gRng) < D().junkPerCast) FindJunk(deckAt, "On the hook"); }
+void Gannet::FindJunk(Vector2 deckAt, const char* how) {
+    unsigned bit = 1;   // (the Lagoon; the other grounds come with their charts)
+    const auto& T = JunkTable();
+    float total = 0; for (const auto& j : T) if (j.grounds & bit) total += j.weight;
+    float r = RandF(gRng) * total; const JunkDef* d = &T[0];
+    for (const auto& j : T) if (j.grounds & bit) { if (r < j.weight) { d = &j; break; } r -= j.weight; }
+    if (d->use == JU_MAP) { junkBottles++; Say(TextFormat("%s: a message in a bottle (a treasure map to a spot on the landings)", how)); return; }
+    if (d->use == JU_KEY) { junkKeys++; Say(TextFormat("%s: a brass key (it opens a named chest ashore)", how)); return; }
+    if (d->use == JU_CHART) { junkCharts++; Say(junkCharts % 3 == 0 ? TextFormat("%s: a torn chart piece - three of them make a chart!", how) : TextFormat("%s: a torn chart piece (%d of 3)", how, junkCharts % 3)); return; }
+    CatchRec j; j.name = d->name; j.kg = d->kg; j.price = d->lo + (d->hi - d->lo) * RandF(gRng); j.junk = true; j.dead = true; j.gutted = j.iced = true;
+    j.src = CS_HOOK; j.deckAt = deckAt;
+    hold.push_back(j);
+    Say(TextFormat("%s: %s", how, d->name));
+    int crabs = d->use == JU_TRAP ? 1 + (int)(RandF(gRng) * 3) : d->use == JU_BOOT && RandF(gRng) < 0.3f ? 1 : 0;
+    for (int k = 0; k < crabs; k++) {
+        bool lob = d->use == JU_TRAP && RandF(gRng) < 0.4f;
+        int sp = Species().Find(lob ? "spiny lobster" : "blue crab");
+        CatchRec c; c.name = lob ? "spiny lobster" : "blue crab"; c.sp = sp; c.kg = lob ? 1.2f + RandF(gRng) : 0.4f + RandF(gRng) * 0.4f;
+        c.price = sp >= 0 ? Species().sp[sp].price : (lob ? 6 : 2); c.src = CS_HOOK; c.deckAt = Vector2Add(deckAt, {0.3f * (k + 1), 0});
+        hold.push_back(c);
+    }
+    if (crabs) Say(TextFormat("...with %d %s in it", crabs, d->use == JU_TRAP ? "crabs and lobsters" : "crab"));
 }
 int BirdKindOf(const std::string& s) {
     if (s == "gull flock") return BIRD_GULL;
@@ -638,7 +680,7 @@ void Gannet::NetInput(int ci, bool held, bool cut, float dt) {
                 }
                 Say(TextFormat("The cod end opens: %.0f kg on the sorting deck", n.load));
                 if (jellies) Injure(ci, INJ_BURN, "moon jellies in the net");
-                if (RandF(gRng) < D().junkPerHaul) FindJunk();
+                for (int k = 1 + (int)(RandF(gRng) * 3); k > 0; k--) FindJunk({-8.6f + (RandF(gRng) - 0.5f) * 2.0f, (RandF(gRng) - 0.5f) * 2.4f}, "Junk in the net");
                 n = Trawl{};
             }
             break;

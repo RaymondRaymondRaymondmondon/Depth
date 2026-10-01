@@ -554,3 +554,11 @@ bubble puff); Red Tide's gun models rebuilt with a dozen parts each.
 - The doc's "gutting table left unattended 10 s" is already covered: every dead fish on the deck is fair game unless it's crated or gutted.
 - **Junk** (`FindJunk`, `D().junkPerHaul` 25% a net haul): a message in a bottle, a brass key or a torn chart piece. They're kept on the Gannet (`junkBottles/Keys/Charts`, in the snapshot, on the HUD) for the landings in step 5.
 - Tests in `--trawl-gear-test`: a pelican takes a 4.5 kg fish, a round brings it down onto the deck worth 15.6 sh, and a frigatebird makes a gull drop its fish. Sim (6 careful hands): 282 sh a night, every deadline met.
+- **Junk, to the doc's full table** (pages 25-27; `JunkTable()` in trawl_gear.cpp, with ground bits for later grounds):
+  - a cast reeled home empty after fishing a while brings up junk 10% of the time (`D().junkPerCast`, `CastJunk`), and a net haul brings one to three pieces;
+  - sellable junk is a stowed `CatchRec` with `junk` set: the market pays its flat value (no freshness, no glut), and the quota scales never take it;
+  - someone's lobster trap holds 1-3 crabs or lobsters, and an old boot sometimes holds a crab;
+  - bottles, keys and chart pieces are counters for the landings.
+  - The oil lantern, the rusty knife and the Gunsmith's cleaning (the pistol, the watch) only sell for now.
+  - The weights (how often each piece comes up) are my call.
+  - Checked in `--trawl-session-test`. Sim: 341 sh a night.
