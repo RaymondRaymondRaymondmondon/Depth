@@ -92,6 +92,7 @@ const std::vector<ShopItem>& SlipwayItems() {    // design doc, "The Slipway"
         {"harpoon", "Harpoon cannon", 700, "Bow cannon and winch: 35 m, to 6 m deep, tethered"},
         {"bignet", "Bigger trawl", 600, "Mouth width +50%, weight +50%"},
         {"net", "A new trawl net", 150, "Replaces one cut away (the Owners' price)"},
+        {"bell", "Diving bell", 1200, "Two divers to 120 m, with a pocket of air at the breach to come back to (no pump)"},
     };
     return I;
 }
@@ -637,6 +638,7 @@ bool Session::BuySlip(int idx, std::string* why) {
     else if (id == "harpoon") { G->harpoonCannon = true; G->harpoons = 2; }
     else if (id == "bignet") G->biggerNet = true;
     else if (id == "net") G->net = Trawl{};
+    else if (id == "bell") G->divingBell = true;
     return true;
 }
 bool Session::CanCastOff(std::string* why) const {

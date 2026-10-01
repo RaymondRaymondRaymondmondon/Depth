@@ -33,13 +33,20 @@ int Gannet::WreckNear(float r) const {
 
 bool Gannet::StartDive(int ci) {
     Crew& c = crew[ci];
-    if (dive.diver >= 0 || !hardhat || c.dead || c.overboard || c.deck != 0 || c.p.x > -10 || boat.Speed() > 0.4f) return false;
+    if (dive.diver >= 0 || (!hardhat && !divingBell) || c.dead || c.overboard || c.deck != 0 || c.p.x > -10 || boat.Speed() > 0.4f) return false;
     int w = WreckNear(15);
     if (w < 0) { Say("No wreck under her here: lie still within 15 m of one (the sonar shows them)"); return false; }
-    if ((*wrecks)[w].bell) { Say("Too deep for a hardhat: that wreck wants the diving bell"); return false; }
-    dive = DiveState{}; dive.diver = ci; dive.wreck = w; dive.room = -1; dive.depth = 0; dive.air = 30; dive.gauge = 0.7f;
+    const Wreck& wk = (*wrecks)[w];
+    // the bell when she has it (any wreck to 120 m; two divers; its own air), else the hardhat (no bell wrecks)
+    bool useBell = divingBell && (wk.bell || !hardhat);
+    if (wk.bell && !divingBell) { Say("Too deep for a hardhat: that wreck wants the diving bell (the Slipway)"); return false; }
+    if (wk.depth > 120) { Say("Deeper than even the bell goes"); return false; }
+    dive = DiveState{}; dive.diver = ci; dive.wreck = w; dive.room = -1; dive.depth = 0; dive.air = 30; dive.gauge = 0.7f; dive.bell = useBell;
     c.station = -1; c.deck = DECK_DIVE;
-    Say(TextFormat("Over the side in the hardhat: down to the %s, %.0f m", WreckTypeName((*wrecks)[w].type), (*wrecks)[w].depth));
+    if (useBell) {   // a second hand at the stern beside the first goes down in the bell too
+        for (int k = 0; k < (int)crew.size(); k++) { Crew& o = crew[k]; if (k == ci || o.dead || o.overboard || o.deck != 0 || o.station >= 0) continue; if (Vector2Distance(o.p, c.p) < 2.0f) { dive.diver2 = k; o.deck = DECK_DIVE; break; } }
+        Say(TextFormat("The bell goes over the side%s: down to the %s, %.0f m", dive.diver2 >= 0 ? " with two divers" : "", WreckTypeName(wk.type), wk.depth));
+    } else Say(TextFormat("Over the side in the hardhat: down to the %s, %.0f m", WreckTypeName(wk.type), wk.depth));
     return true;
 }
 
@@ -75,12 +82,14 @@ bool Gannet::DiveTake() {
         if (!bar && c.role != Role::Diver) { Say("A locked cabin: a crowbar, or a Diver's knack with old locks"); return false; }
         R.locked = false; Say("The cabin door gives");
     }
+    bool heavyLeft = false;
     for (int i = 0; i < (int)w.salvage.size(); i++) if (w.salvage[i].room == dive.room && !w.salvage[i].taken) {
+        if (w.salvage[i].twoDiver && dive.diver2 < 0) { heavyLeft = true; continue; }   // (a two-diver lift: the bell's pair)
         w.salvage[i].taken = true; dive.carrying = true; dive.item = i;
-        Say(TextFormat("In your arms: %s (%.0f kg)", w.salvage[i].name.c_str(), w.salvage[i].kg));
+        Say(TextFormat(w.salvage[i].twoDiver ? "Between the two of you: %s (%.0f kg)" : "In your arms: %s (%.0f kg)", w.salvage[i].name.c_str(), w.salvage[i].kg));
         return true;
     }
-    Say("Nothing more worth lifting in here");
+    Say(heavyLeft ? "What's left here is too heavy for one diver: it wants two (the bell)" : "Nothing more worth lifting in here");
     return false;
 }
 
@@ -102,30 +111,43 @@ void Gannet::DiveRecall() { if (dive.diver >= 0 && !dive.recall) { dive.recall =
 void Gannet::StepDive(float dt) {
     if (dive.diver < 0) return;
     Crew& c = crew[dive.diver];
-    if (c.dead) { dive = DiveState{}; return; }
+    if (c.dead) { if (dive.diver2 >= 0) crew[dive.diver2].deck = 0; dive = DiveState{}; return; }
+    if (dive.diver2 >= 0 && crew[dive.diver2].dead) dive.diver2 = -1;
     if (!wrecks || dive.wreck < 0 || dive.wreck >= (int)wrecks->size()) { c.deck = 0; dive = DiveState{}; return; }
     const Wreck& w = (*wrecks)[dive.wreck];
     dive.pumpT += dt;
     // the pump's gauge, and the hose fouled if she drifts off the wreck
     bool fouled = Vector2Distance(boat.pos, {w.x, w.y}) > 15;
-    dive.gauge = fouled ? 0 : std::max(0.0f, dive.gauge - 0.08f * dt);
-    bool green = dive.gauge >= 0.4f;
+    bool green;
+    if (dive.bell) {
+        // the bell's own air: it refills the helmets in the room where the bell sits (the first breach); elsewhere the
+        // divers breathe down their 30 s. Dragged off the wreck, the bell's cable fouls and its air is lost too.
+        bool atBell = !w.entries.empty() && (dive.room < 0 || dive.room == w.entries[0]);
+        green = atBell && !fouled;
+        dive.gauge = green ? 1.0f : 0.0f;
+    } else {
+        dive.gauge = fouled ? 0 : std::max(0.0f, dive.gauge - 0.08f * dt);
+        green = dive.gauge >= 0.4f;
+    }
     dive.air = green ? std::min(30.0f, dive.air + 3 * dt) : dive.air - dt;
     if (dive.air <= 0) {
-        int k = dive.diver; dive = DiveState{};
-        crew[k].deck = 0;
-        Kill(k, fouled ? "the air hose fouled" : "the air ran out in the helmet", true);
+        int k = dive.diver, k2 = dive.diver2; bool bell = dive.bell; dive = DiveState{};
+        crew[k].deck = 0; Kill(k, fouled ? (bell ? "the bell dragged off the wreck" : "the air hose fouled") : bell ? "too long from the bell's air" : "the air ran out in the helmet", true);
+        if (k2 >= 0) { crew[k2].deck = 0; Kill(k2, fouled ? "the bell dragged off the wreck" : "too long from the bell's air", true); }
         return;
     }
     if (dive.recall) {
         dive.room = -1;
         dive.depth -= dive.ascentRate * dt;
         if (dive.depth <= 0) {
-            int k = dive.diver; bool bends = dive.ascentRate > 1.2f;
+            int k = dive.diver, k2 = dive.diver2; bool bends = dive.ascentRate > 1.2f;
             dive = DiveState{};
-            crew[k].deck = 0; crew[k].p = {-10.4f, 0.6f}; crew[k].v = {0, 0};
-            if (bends) Injure(k, INJ_BURN, "the bends (brought up too fast)");
-            Say(bends ? "The diver comes up too fast: the bends" : "The diver is hauled aboard, streaming");
+            for (int who : {k, k2}) {
+                if (who < 0) continue;
+                crew[who].deck = 0; crew[who].p = {-10.4f, who == k ? 0.6f : -0.6f}; crew[who].v = {0, 0};
+                if (bends) Injure(who, INJ_BURN, "the bends (brought up too fast)");
+            }
+            Say(bends ? "Up too fast: the bends" : k2 >= 0 ? "The bell comes up and the divers climb out, streaming" : "The diver is hauled aboard, streaming");
         }
         return;
     }
@@ -158,7 +180,7 @@ int RunTrawlDiveTest() {
         check(g.dive.room >= 0 && fabsf(g.dive.depth - sl->depth) < 0.1f, TextFormat("down the line at 1 m/s to %.0f m, in through the breach", sl->depth));
         check(g.dive.air >= 29 && g.dive.gauge >= 0.4f, "a hand stroking the pump in rhythm keeps the gauge in the green");
         // walk to a room with salvage, lift it, carry it back to the breach, into the basket
-        int target = -1; for (const auto& s : sl->salvage) if (!sl->rooms[s.room].locked) { target = s.room; break; }
+        int target = -1; for (const auto& s : sl->salvage) if (!sl->rooms[s.room].locked && !s.twoDiver) { target = s.room; break; }   // (a one-diver piece: the hardhat dives alone)
         std::vector<int> path;   // BFS over links
         { std::vector<int> prev(sl->Rooms(), -2); std::vector<int> q{g.dive.room}; prev[g.dive.room] = -1;
           for (size_t h = 0; h < q.size(); h++) for (const auto& L : sl->links) { int o = L.a == q[h] ? L.b : L.b == q[h] ? L.a : -1; if (o >= 0 && prev[o] == -2 && L.kind != 2) { prev[o] = q[h]; q.push_back(o); } }
@@ -191,6 +213,42 @@ int RunTrawlDiveTest() {
         check(b.crew[0].Has(INJ_BURN), "winched up three times too fast: the bends");
         Gannet n; setup(n, 1); n.hardhat = false;
         check(!n.StartDive(0), "no suit, no dive");
+    }
+    // the diving bell: a galleon too deep for the hardhat; two divers; the bell's own air; a two-diver lift
+    {
+        std::vector<Wreck> aw = GroundWrecks("atlantis", 4);
+        Wreck* gal = nullptr; for (auto& w : aw) if (w.bell && w.depth <= 120 && (!gal || w.depth < gal->depth)) gal = &w;
+        check(gal != nullptr, "Atlantis has a bell wreck");
+        if (gal) {
+            gal->x = 300; gal->y = 300;
+            Gannet g; g.Init(3, 6); g.wrecks = &aw; g.hardhat = true; g.boat.pos = {305, 300}; g.boat.vel = {0, 0}; g.boat.telegraph = 0;
+            g.crew[0].p = {-10.5f, 0.4f}; g.crew[1].p = {-10.5f, -0.4f}; g.crew[2].p = {2, 0};
+            bool refused = !g.StartDive(0);
+            g.divingBell = true;
+            bool down = g.StartDive(0);
+            check(refused && down && g.dive.bell && g.dive.diver2 == 1 && g.crew[1].deck == DECK_DIVE, "the hardhat can't reach it; with the bell, two divers go down together");
+            for (int i = 0; i < 60 * ((int)gal->depth + 2); i++) g.StepDive(dt);
+            check(g.dive.room >= 0 && g.dive.air >= 29.9f, TextFormat("down to %.0f m with no hand at the pump: the bell's air", gal->depth));
+            // a two-diver lift somewhere in the wreck, if there is one; else any item
+            int target = -1; for (const auto& s : gal->salvage) if (!gal->rooms[s.room].locked && s.room != g.dive.room) { target = s.room; if (s.twoDiver) break; }
+            std::vector<int> path;
+            { std::vector<int> prev(gal->Rooms(), -2); std::vector<int> q{g.dive.room}; prev[g.dive.room] = -1;
+              for (size_t h = 0; h < q.size(); h++) for (const auto& L : gal->links) { int o = L.a == q[h] ? L.b : L.b == q[h] ? L.a : -1; if (o >= 0 && prev[o] == -2 && L.kind != 2) { prev[o] = q[h]; q.push_back(o); } }
+              for (int r = target; r >= 0 && r != g.dive.room; r = prev[r]) path.insert(path.begin(), r); }
+            int start = g.dive.room;
+            for (int r : path) g.DiveMove(r);
+            for (int i = 0; i < 60 * 5; i++) g.StepDive(dt);
+            float awayAir = g.dive.air;
+            bool took = g.DiveTake();
+            std::vector<int> back(path.rbegin(), path.rend()); if (!back.empty()) { back.erase(back.begin()); back.push_back(start); }
+            for (int r : back) g.DiveMove(r);
+            for (int i = 0; i < 60 * 5; i++) g.StepDive(dt);
+            check(awayAir < 26 && g.dive.air > awayAir, TextFormat("away from the bell the air runs down (%.0f s); back at the bell it fills again", awayAir));
+            size_t h0 = g.hold.size(); bool up = took && g.DiveBasket();
+            check(up && g.hold.size() == h0 + 1, "the pair lift a piece of salvage and send it up from the bell's breach");
+            g.DiveRecall(); for (int i = 0; i < 60 * ((int)gal->depth + 2); i++) g.StepDive(dt);
+            check(g.dive.diver < 0 && g.crew[0].deck == 0 && g.crew[1].deck == 0, "the bell comes up with both of them");
+        }
     }
     printf(fails ? "trawl-dive-test: %d FAILED\n" : "trawl-dive-test: all checks passed\n", fails);
     return fails ? 1 : 0;

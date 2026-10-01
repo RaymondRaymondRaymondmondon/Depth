@@ -646,6 +646,7 @@ struct Gannet {
     // (the recall) and the winch brings them up at 1 m/s (faster: the bends)
     struct DiveState {
         int diver = -1, wreck = -1, room = -1;            // who is down, in which of the ground's wrecks, in which room (-1: on the line)
+        int diver2 = -1; bool bell = false;               // (the diving bell) a second diver alongside the first; the air is the bell's, not the pump's
         float depth = 0, air = 30, gauge = 1;             // m below the surface; helmet air (s); the pump's gauge 0..1 (green 0.4-0.9)
         bool recall = false; float ascentRate = 1;        // being winched up; m/s
         bool carrying = false; int item = -1;             // salvage in both hands (the wreck's item index)
@@ -654,6 +655,7 @@ struct Gannet {
     };
     DiveState dive;
     bool hardhat = false;                                 // the hardhat suit (the Chandler, 350)
+    bool divingBell = false;                              // the diving bell (the Slipway, 1,200): two divers to 120 m, its own air
     std::vector<Wreck>* wrecks = nullptr;                 // the ground's wrecks this deadline (the session's)
     int WreckNear(float r) const;                         // a wreck within r m of her, or -1
     bool StartDive(int c);                                // a hand with the suit at the stern, she still over a wreck

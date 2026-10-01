@@ -1078,7 +1078,7 @@ void DrawDeckFx() {
     if (G.dive.diver >= 0 && G.wrecks && G.dive.wreck >= 0 && G.dive.wreck < (int)G.wrecks->size()) {
         const Wreck& wk = (*G.wrecks)[G.dive.wreck];
         const Color paper{230, 220, 196, 255};
-        if (S.you == G.dive.diver) {
+        if (S.you == G.dive.diver || S.you == G.dive.diver2) {
             DrawRectangle(0, 0, SCREEN_W, SCREEN_H, Color{4, 10, 14, 255});
             float cw = std::min(90.0f, (SCREEN_W - 160.0f) / std::max(1, wk.gw)), ch = cw * 0.75f;
             float ox = SCREEN_W / 2.0f - wk.gw * cw / 2, oy = SCREEN_H / 2.0f - wk.gh * ch / 2;
@@ -1104,13 +1104,20 @@ void DrawDeckFx() {
             }
             DrawCircleV(me2, cw * 0.9f, Fade(Color{255, 230, 170, 255}, 0.06f));   // the helmet lamp
             DrawCircleV(me2, 7, Color{150, 150, 140, 255}); DrawCircleV({me2.x + 2, me2.y - 1}, 3, Color{230, 220, 160, 255});
+            if (G.dive.diver2 >= 0) { DrawCircleV({me2.x - 16, me2.y}, 7, Color{140, 140, 132, 255}); DrawCircleV({me2.x - 14, me2.y - 1}, 3, Color{230, 220, 160, 255}); }   // (the bell's second diver)
+            if (G.dive.bell && !wk.entries.empty()) {   // the bell itself, hanging at the first breach
+                const WreckRoom& br = wk.rooms[wk.entries[0]];
+                Vector2 bp{ox + (br.x + br.w * 0.5f) * cw, oy + br.y * ch - 14};
+                DrawLineEx({bp.x, 0}, bp, 2, Color{90, 90, 86, 255}); DrawCircleSector(bp, 14, 180, 360, 12, Color{150, 120, 70, 255});
+            }
             if (G.dive.carrying) DrawRectangle((int)me2.x + 8, (int)me2.y - 2, 8, 6, Color{210, 180, 90, 255});
             // the air and the gauge, the depth, what the keys do
             DrawRectangle(30, 30, 220, 12, Fade(BLACK, 0.6f)); DrawRectangle(30, 30, (int)(220 * G.dive.gauge), 12, G.dive.gauge >= 0.4f ? Color{90, 170, 110, 255} : Color{200, 80, 60, 255});
-            Txt("The pump's gauge (the deck keeps it green)", 30, 46, 13, paper);
+            Txt(G.dive.bell ? "The bell's air (full while you're in its room)" : "The pump's gauge (the deck keeps it green)", 30, 46, 13, paper);
             DrawRectangle(30, 70, 220, 12, Fade(BLACK, 0.6f)); DrawRectangle(30, 70, (int)(220 * G.dive.air / 30), 12, Color{150, 200, 230, 255});
             Txt(TextFormat("Air in the helmet: %.0f s   Depth %.0f m", G.dive.air, G.dive.depth), 30, 86, 13, paper);
             TxtBold(TextFormat("%s, %.0f m%s", WreckTypeName(wk.type), wk.depth, here ? TextFormat(": the %s%s", here->kind.c_str(), here->locked ? " (locked)" : "") : ": going down the line"), 30, SCREEN_H - 120.0f, 16, paper);
+            for (int i = std::max(0, (int)G.log.size() - 4); i < (int)G.log.size(); i++) { float age = (float)((int)G.log.size() - i); Txt(G.log[i].c_str(), 30, SCREEN_H - 150 - age * 18, 14, Fade(paper, 0.9f - age * 0.15f)); }
             DrawTextCentered(G.dive.recall ? "Hauling you up..." : G.dive.carrying ? "Space + direction: to the next room   E at a breach: into the basket   R: two tugs (haul me up)"
                                                                                   : "Space + direction: to the next room   E: lift salvage   R: two tugs (haul me up)", SCREEN_W / 2.0f, SCREEN_H - 60.0f, 15, paper);
             return;
@@ -1172,6 +1179,7 @@ void DrawBarks() {
 void Draw(Game& g) {
     const Gannet& G = S.W->G;
     const Crew& c = G.crew[S.you];
+    if (c.deck == DECK_DIVE && !c.dead) { DrawDeckFx(); return; }   // (down on a wreck: the diver's view alone, in either version)
     if (S.fp) {
         // first person: the same Gannet through the hand's eyes, the shared HUD over it, a crosshair to aim with
         S.cam = EyeCamera(G, S.you, S.eye);
