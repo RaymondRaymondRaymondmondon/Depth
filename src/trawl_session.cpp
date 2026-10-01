@@ -25,7 +25,7 @@ const float NIGHT_END = 540;             // 05:00
 }
 
 const char* PhaseName(Phase p) { static const char* N[] = {"dock", "sailing out", "night", "the count", "repossessed"}; return N[(int)p]; }
-const char* VariantName(Variant v) { static const char* N[(int)Variant::COUNT] = {"an ordinary night", "Bait run", "Red tide", "King tide", "Turtle nesting", "Canoe night", "Tuna run", "Kelp storm", "Mermen's market", "Glass eel run", "Rockfall", "Mould bloom"}; return N[(int)v]; }
+const char* VariantName(Variant v) { static const char* N[(int)Variant::COUNT] = {"an ordinary night", "Bait run", "Red tide", "King tide", "Turtle nesting", "Canoe night", "Tuna run", "Kelp storm", "Mermen's market", "Glass eel run", "Rockfall", "Mould bloom", "The Eye wide open", "Swordfish night", "Procession"}; return N[(int)v]; }
 const char* VariantNote(Variant v) {
     static const char* N[(int)Variant::COUNT] = {
         "",
@@ -40,6 +40,9 @@ const char* VariantNote(Variant v) {
         "Glass eels pour in with the tide; pale cod and the Anglers follow them to the light",
         "Rock has come down in the night: stalactites fall at half the usual noise",
         "The whole cave glows: everything bites and the Anglers stay away, but the Drowned can see her from anywhere",
+        "The Pale Eye is wide open: the Wake builds all night, and relics on the terraces glow on the sonar",
+        "Swordfish at the surface from dusk; the sperm whale and a giant squid are both about",
+        "Cult longboats from the start of the night, chumming a ring round a sunken altar",
     };
     return N[(int)v];
 }
@@ -675,15 +678,20 @@ bool Session::CastOff(std::string* why) {
     // tonight's variant (design doc, "Nightly variants": at most one, about 40% of nights none): the web feels it
     // through the Eco's multipliers; the rumour on the tape points at it 70% of the time
     E->forageMul = 1; E->threatHungerMul = 1; E->seaMul = 1; E->turtleMul = 1; E->sharkMul = 1; E->tideHeld = false; E->redTide = false;
-    E->speciesMul.clear(); E->foulMul = 1; E->biteMul = 1; E->rockfallMul = 1;
+    E->speciesMul.clear(); E->foulMul = 1; E->biteMul = 1; E->rockfallMul = 1; E->wakeDrift = 0; G->cultRaid = false;
     if (E->extraRafts > 0) { E->rafts.resize(E->rafts.size() > (size_t)E->extraRafts ? E->rafts.size() - E->extraRafts : 0); E->extraRafts = 0; }
     variant = Variant::None; canoe = CanoeState::None; canoeAt = -1; canoeT = 0; canoeWord.clear();
     {
         // (doc v2 page 40: Bait run 8% anywhere; the Lagoon's red tide, king tide, turtles and canoes; the Weeds' red
         // tide 6%, tuna run 8%, kelp storm 8%, mermen's market 6%)
         float v = plainNights ? 1.0f : R();
-        bool weeds = ground == "weeds", grotto = ground == "grotto";
+        bool weeds = ground == "weeds", grotto = ground == "grotto", atl = ground == "atlantis";
         if (v < 0.08f) variant = Variant::BaitRun;
+        else if (atl) {   // (doc v2 page 41: the Eye wide open 8%, swordfish night 8%, procession 6%)
+            if (v < 0.16f) variant = Variant::EyeOpen;
+            else if (v < 0.24f) variant = Variant::SwordfishNight;
+            else if (v < 0.30f) variant = Variant::Procession;
+        }
         else if (grotto) {   // (doc v2 pages 40-41: glass eel run 6%, rockfall 8%, mould bloom 8%)
             if (v < 0.14f) variant = Variant::GlassEelRun;
             else if (v < 0.22f) variant = Variant::Rockfall;
@@ -714,6 +722,9 @@ bool Session::CastOff(std::string* why) {
             case Variant::GlassEelRun: E->speciesMul["glass eel"] = 4; E->speciesMul["pale cod"] = 2; E->speciesMul["lantern angler"] = 1.5f; break;
             case Variant::Rockfall: E->rockfallMul = 2; break;   // (the new chamber and its untouched wreck wait for the diving step)
             case Variant::MouldBloom: E->biteMul = 1.6f; E->speciesMul["lantern angler"] = 0; break;
+            case Variant::EyeOpen: E->wakeDrift = 1.5f; break;   // (the terraces' glowing relics wait for diving)
+            case Variant::SwordfishNight: E->speciesMul["swordfish"] = 4; E->speciesMul["sperm whale"] = 3; E->speciesMul["giant squid"] = 3; break;
+            case Variant::Procession: G->cultRaid = true; break;
             default: break;
         }
         G->marketNight = variant == Variant::MermenMarket;
@@ -727,9 +738,10 @@ bool Session::CastOff(std::string* why) {
         if (variant != Variant::None) {
             static const char* HINT[(int)Variant::COUNT] = {"", "BAIT THICK AT THE SURFACE", "DEAD FISH FLOATING OFF THE CREST", "KING TIDE TONIGHT", "TURTLES COMING UP THE BEACHES", "DRUMS HEARD ON THE ISLAND",
                                                             "TUNA BOATS RACING FOR THE EDGE", "WEED THICK ON THE GLASS FALLING", "SINGING HEARD FROM THE CANNERY",
-                                                            "EELS RUNNING ON THE TIDE", "ROCK DOWN IN THE GROTTO", "THE CAVE ALIGHT LAST NIGHT"};
-            static const int WEEDS_SAY[5] = {1, 2, 6, 7, 8}, LAGOON_SAY[5] = {1, 2, 3, 4, 5}, GROTTO_SAY[5] = {1, 9, 10, 11, 9};   // (a wrong rumour names another of the ground's own)
-            int said = R() < 0.7f ? (int)variant : (grotto ? GROTTO_SAY : weeds ? WEEDS_SAY : LAGOON_SAY)[(int)(R() * 5) % 5];
+                                                            "EELS RUNNING ON THE TIDE", "ROCK DOWN IN THE GROTTO", "THE CAVE ALIGHT LAST NIGHT",
+                                                            "THE EYE BRIGHT OVER THE TRENCH", "SWORDBOATS OUT AT DUSK", "TORCHES ON THE WATER BY THE RUINS"};
+            static const int WEEDS_SAY[5] = {1, 2, 6, 7, 8}, LAGOON_SAY[5] = {1, 2, 3, 4, 5}, GROTTO_SAY[5] = {1, 9, 10, 11, 9}, ATL_SAY[5] = {1, 12, 13, 14, 12};   // (a wrong rumour names another of the ground's own)
+            int said = R() < 0.7f ? (int)variant : (atl ? ATL_SAY : grotto ? GROTTO_SAY : weeds ? WEEDS_SAY : LAGOON_SAY)[(int)(R() * 5) % 5];
             Tape(TextFormat("RUMOUR STOP %s STOP", HINT[said]));
         }
     }

@@ -677,8 +677,9 @@ static void DrawSkiff3D(const Gannet& g, float t) {
 static const float ATOLL_Y = 0.6f;   // the sand's top over still water
 static Model gAtoll[4]{}; static Vector2 gAtollFor[4]{{-1e9f, -1e9f}, {-1e9f, -1e9f}, {-1e9f, -1e9f}, {-1e9f, -1e9f}};
 static void BuildAtoll(MeshBuilder& mb, const Landing& L) {
-    bool seal = L.kind == LK_SEALROCK, pier = L.kind == LK_CANNERY;
-    Color sand = seal ? Color{118, 114, 106, 255} : pier ? Color{122, 94, 62, 255} : Color{196, 178, 132, 255};
+    bool seal = L.kind == LK_SEALROCK || L.kind == LK_SHELF || L.kind == LK_BONEBEACH, pier = L.kind == LK_CANNERY;
+    bool stair = L.kind == LK_STAIR, tower = L.kind == LK_TOWER, cultL = L.kind == LK_CULT;
+    Color sand = stair ? Color{196, 192, 182, 255} : tower ? Color{140, 136, 126, 255} : cultL ? Color{80, 70, 60, 255} : L.kind == LK_BONEBEACH ? Color{54, 50, 48, 255} : seal ? Color{118, 114, 106, 255} : pier ? Color{122, 94, 62, 255} : Color{196, 178, 132, 255};
     Color sandWet = seal ? Color{70, 72, 66, 255} : Color{150, 132, 96, 255}, pond = seal ? Color{66, 80, 70, 255} : Color{30, 96, 104, 255}, trunk{110, 82, 52, 255}, frond{58, 112, 56, 255};
     Color thatch{160, 128, 72, 255}, hutWall{120, 90, 56, 255}, hull{88, 62, 42, 255}, hullDk{56, 40, 28, 255}, stone{110, 108, 100, 255};
     auto W = [&](Vector2 l, float y) { return Vector3{L.at.x + l.x, y, L.at.y + l.y}; };
@@ -702,6 +703,27 @@ static void BuildAtoll(MeshBuilder& mb, const Landing& L) {
         Vector2 q0 = Vector2Add(L.pond, Vector2Scale(p0, L.pondR)), q1 = Vector2Add(L.pond, Vector2Scale(p1, L.pondR));
         mb.Tri(W(L.pond, ATOLL_Y + 0.02f), W(q1, ATOLL_Y + 0.02f), W(q0, ATOLL_Y + 0.02f), pond);
         mb.Tri(W(L.pond, ATOLL_Y + 0.02f), W(q0, ATOLL_Y + 0.02f), W(q1, ATOLL_Y + 0.02f), pond);
+    }
+    if (stair) {
+        // the Drowned Stair: broad white treads climbing out of the sea to a landing, a shrine of two columns and a lintel
+        for (int s = 0; s < 6; s++) mb.Box(W({-6.0f + s * 0.9f, 0}, ATOLL_Y - 0.8f + s * 0.3f), {0.45f, 0.15f + s * 0.15f, 6.5f}, Color{206, 202, 190, 255});
+        for (int s = -1; s <= 1; s += 2) mb.Tube({W(Vector2Add(L.sloop, {s * 1.8f, 0}), ATOLL_Y), W(Vector2Add(L.sloop, {s * 1.8f, 0}), ATOLL_Y + 3.6f)}, 0.32f, 0.28f, 8, Color{214, 210, 198, 255}, Color{214, 210, 198, 255}, 0);
+        mb.Box(W(L.sloop, ATOLL_Y + 3.8f), {2.4f, 0.25f, 0.6f}, Color{200, 196, 186, 255});
+        mb.Tube({W(L.fire, ATOLL_Y), W(L.fire, ATOLL_Y + 0.9f)}, 0.5f, 0.7f, 8, Color{140, 110, 60, 255}, Color{150, 120, 66, 255}, 0);   // the brazier
+        return;
+    }
+    if (tower) {
+        // the Watchtower stump: a ring of broken masonry, the signal fire's stones
+        mb.Tube({W(L.sloop, ATOLL_Y - 1), W(L.sloop, ATOLL_Y + 5.5f)}, 2.6f, 2.4f, 12, Color{150, 146, 136, 255}, Color{130, 126, 118, 255}, 0);
+        for (int k = 0; k < 8; k++) { float a = k * 0.785f; mb.Box(W(Vector2Add(L.fire, {cosf(a) * 0.5f, sinf(a) * 0.5f}), ATOLL_Y + 0.08f), {0.12f, 0.08f, 0.12f}, stone); }
+        return;
+    }
+    if (cultL) {
+        // the Cult Landing: a red tent, carved posts with skulls, the bonfire's stones
+        mb.Cone(W(L.sloop, ATOLL_Y), W(L.sloop, ATOLL_Y + 3.4f), 2.6f, 8, Color{120, 28, 28, 255});
+        for (int k = 0; k < 4; k++) { float a = k * 1.57f + 0.4f; Vector2 pp = Vector2Add(L.fire, {cosf(a) * 3.2f, sinf(a) * 3.2f}); mb.Tube({W(pp, ATOLL_Y), W(pp, ATOLL_Y + 2.4f)}, 0.12f, 0.1f, 5, Color{70, 50, 36, 255}, Color{70, 50, 36, 255}, 0); mb.Box(W(pp, ATOLL_Y + 2.55f), {0.18f, 0.18f, 0.18f}, Color{220, 214, 196, 255}); }
+        for (int k = 0; k < 8; k++) { float a = k * 0.785f; mb.Box(W(Vector2Add(L.fire, {cosf(a) * 0.5f, sinf(a) * 0.5f}), ATOLL_Y + 0.08f), {0.12f, 0.08f, 0.12f}, stone); }
+        return;
     }
     if (seal) {
         // boulders on the rock, the sealers' stone hut with a turf roof, the iron stove by its door
@@ -771,15 +793,19 @@ static void DrawLanding3D(const Gannet& g, float t) {
             DrawFishAt(gFish, W(Vector2Add(L.fire, {(float)i * 0.2f - 0.3f, 0}), ATOLL_Y + 0.5f), {1, 0, 0.1f}, len, r.cookT > T + 5 ? Color{50, 36, 26, 255} : r.cookT > T ? Color{200, 140, 70, 255} : Color{200, 200, 196, 255}, 1.5f);
         }
         // the elder before his hut
-        {
-            // the elder; Old Hoskins in yellow oilskins; the foreman in a leather apron
-            Color cl = L.kind == LK_SEALROCK ? Color{176, 154, 62, 255} : L.kind == LK_CANNERY ? Color{96, 70, 50, 255} : Color{170, 110, 80, 255};
+        if (L.kind != LK_TOWER) {   // (nobody keeps the Watchtower)
+            // the elder; Old Hoskins in yellow oilskins; the foreman in a leather apron; the quartermaster; the hermit; the
+            // Keeper of the Stair, pale and drowned; the cult quartermaster in red
+            Color cl = L.kind == LK_SEALROCK ? Color{176, 154, 62, 255} : L.kind == LK_CANNERY ? Color{96, 70, 50, 255} : L.kind == LK_SHELF ? Color{44, 44, 54, 255}
+                     : L.kind == LK_BONEBEACH ? Color{110, 100, 84, 255} : L.kind == LK_STAIR ? Color{150, 176, 170, 255} : L.kind == LK_CULT ? Color{120, 26, 26, 255} : Color{170, 110, 80, 255};
             Matrix fr = Frame(W(L.elder, ATOLL_Y), 0.5f + 0.2f * sinf(t * 0.3f));
             rt::DrawStatic(gBody[(int)Role::Medic], fr, cl);
             for (int s = -1; s <= 1; s += 2) rt::DrawStatic(gArm[(int)Role::Medic], MatrixMultiply(MatrixMultiply(MatrixRotateZ(0.3f * s + 0.1f * sinf(t)), MatrixTranslate(0, 1.38f, s * 0.27f)), fr), cl);
             if (L.kind == LK_ATOLL) Glow(W(L.elder, ATOLL_Y + 2.05f), 0.05f, Color{240, 70, 50, 255}, 0.4f);   // his feathers
         }
-        if (L.kind != LK_ATOLL && L.fireLit) Glow(W(Vector2Add(L.fire, {0, L.kind == LK_CANNERY ? 0.78f : 0.32f}), ATOLL_Y + 0.35f), 0.18f, Color{255, 150, 60, 255}, 1.2f);   // the firebox door
+        if (L.kind == LK_STAIR) Glow(W(L.fire, ATOLL_Y + 1.2f + 0.1f * sinf(t * 5)), 0.35f, Color{170, 240, 210, 255}, 2.0f);   // the eternal brazier's pale flame
+        else if ((L.kind == LK_TOWER || L.kind == LK_CULT) && L.fireLit) Glow(W(L.fire, ATOLL_Y + 0.4f + 0.1f * sinf(t * 9)), L.kind == LK_TOWER ? 0.8f : 0.5f, Color{255, 150, 60, 255}, 2.5f);   // the signal fire, the bonfire
+        else if (L.kind != LK_ATOLL && L.fireLit) Glow(W(Vector2Add(L.fire, {0, L.kind == LK_CANNERY ? 0.78f : 0.32f}), ATOLL_Y + 0.35f), 0.18f, Color{255, 150, 60, 255}, 1.2f);   // the firebox door
         if (L.kind == LK_SEALROCK) {   // the seals on their haul-out, the bull among them
             for (int k = 0; k < 4; k++) { Vector2 sp = Vector2Add(L.pond, {cosf(k * 1.7f) * 1.6f, sinf(k * 1.7f) * 1.3f}); rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(1.3f, 0.35f, 0.5f), MatrixRotateY(k * 1.1f)), MatrixTranslate(L.at.x + sp.x, ATOLL_Y + 0.2f, L.at.y + sp.y)), Color{96, 90, 84, 255}); }
             rt::DrawCubeM(MatrixMultiply(MatrixScale(2.0f, 0.6f, 0.8f), MatrixTranslate(L.at.x + L.moray.x, ATOLL_Y + 0.32f + 0.05f * sinf(t * 2), L.at.y + L.moray.y)), Color{70, 62, 56, 255});
@@ -1075,6 +1101,39 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
             Vector2 wp = g.worm.state == 3 ? g.boat.ToWorld({cosf(a) * 11.5f, sinf(a) * 3.6f}) : Vector2Add(g.boat.pos, {cosf(a) * 20, sinf(a) * 20});
             float h = g.sea.Height(wp.x, wp.y) + (g.worm.state == 1 ? -0.3f : 0.1f) + 0.25f * sinf(t * 2 + k * 0.6f);
             Glow(W3(wp, h), std::max(0.25f, 0.7f - k * 0.02f), Color{196, 200, 190, 255}, 0.15f);
+        }
+    }
+    // Atlantis: the Pale Eye deep under the water, the singer, the longboat's torches, the Ghost Ship, the Kraken's arms
+    if (g.eco && g.eco->ground == "atlantis") {
+        float open = g.eyeBlinkT > 0 ? 0.1f : 1.0f;
+        Glow(W3(g.eco->eyeP, -40), 22 * open, Color{200, 214, 220, 255}, (g.eyeLooked ? 1.2f : 0.7f) * (0.85f + 0.15f * sinf(t * 0.7f)));
+        Glow(W3(g.eco->eyeP, -38), 6 * open, Color{20, 24, 30, 255}, 0.0f);
+    }
+    if (g.choir.on && g.choir.surfaced) {
+        float h = g.sea.Height(g.choir.singer.x, g.choir.singer.y);
+        Seg(W3(g.choir.singer, h - 0.4f), W3(g.choir.singer, h + 0.9f), 0.3f, Color{214, 222, 226, 255});
+        Glow(W3(g.choir.singer, h + 1.1f), 0.2f, Color{230, 236, 240, 255}, 0.7f);
+    }
+    if (g.longboat.on) {
+        float h = g.sea.Height(g.longboat.p.x, g.longboat.p.y), a = g.longboat.ang + PI / 2;
+        Vector2 dir{cosf(a), sinf(a)};
+        Seg(W3(Vector2Add(g.longboat.p, Vector2Scale(dir, 5)), h + 0.2f), W3(Vector2Subtract(g.longboat.p, Vector2Scale(dir, 5)), h + 0.2f), 1.2f, Color{40, 30, 24, 255});
+        for (int k = -1; k <= 1; k += 2) Glow(W3(Vector2Add(g.longboat.p, Vector2Scale(dir, k * 3.5f)), h + 1.8f + 0.1f * sinf(t * 9 + k)), 0.25f, Color{255, 170, 60, 255}, 3.0f);
+    }
+    if (g.ghost.state > 0) {
+        float h = g.sea.Height(g.ghost.p.x, g.ghost.p.y);
+        Vector2 f = g.boat.Forward();
+        Seg(W3(Vector2Add(g.ghost.p, Vector2Scale(f, 16)), h + 1.5f), W3(Vector2Subtract(g.ghost.p, Vector2Scale(f, 16)), h + 1.5f), 5.0f, Color{56, 64, 60, g.ghost.state == 1 ? (unsigned char)120 : (unsigned char)255});
+        for (int m = -1; m <= 1; m++) Seg(W3(Vector2Add(g.ghost.p, Vector2Scale(f, m * 8.0f)), h + 3), W3(Vector2Add(g.ghost.p, Vector2Scale(f, m * 8.0f)), h + 14), 0.3f, Color{50, 56, 52, 255});   // her masts
+        Glow(W3(g.ghost.p, h + 6), 0.4f, Color{150, 230, 190, 255}, 3.0f);   // a cold green lantern
+    }
+    if (g.kraken.state == 2) for (int arm = 0; arm < 3; arm++) {
+        float x = -6 + arm * 6.0f + sinf(t * 0.4f + arm) * 1.5f, side = arm % 2 ? 1.0f : -1.0f;
+        Vector3 prev = BoatPoint(b, {x, -1.5f, side * 6.0f});
+        for (int k = 1; k <= 10; k++) {
+            float u = k / 10.0f;
+            Vector3 q = BoatPoint(b, {x + sinf(t * 1.3f + arm + u * 4) * 0.8f, -1.5f + u * 5.5f - u * u * 2.5f, side * (6.0f - u * 4.0f)});
+            Seg(prev, q, (1 - u) * 0.7f + 0.15f, Color{130, 40, 40, 255}); prev = q;
         }
     }
     if (g.isopods.state == 2) for (int k = 0; k < std::min(g.isopods.n, 30); k++) {

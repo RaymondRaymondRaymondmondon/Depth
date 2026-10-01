@@ -427,6 +427,35 @@ void DrawGear(const Gannet& g, const View& v) {
         float ax = 8.5f - fmodf(k * 1.37f + g.time * 0.2f * (k % 3 + 1), 12.0f), ay = sinf(k * 2.1f + g.time * 0.5f) * 1.8f;
         Vector2 q = v.ToCanvas({ax, ay}); DrawRectangle((int)q.x, (int)q.y, 2, 1, Color{200, 196, 176, 255});
     } else if (g.isopods.state == 1) { Vector2 q = v.ToCanvas({10.4f, 0}); for (int k = 0; k < 5; k++) DrawPixel((int)q.x + 2 + k, (int)q.y + (k % 2), Color{200, 196, 176, 255}); }
+    // Atlantis: the Pale Eye far below (a vast pale glow, blinking), the Choir's singer, a cult longboat's torches, the
+    // Ghost Ship alongside, the Kraken's arms over the rail
+    if (g.eco && g.eco->ground == "atlantis") {
+        Vector2 q = C(g.eco->eyeP);
+        float open = g.eyeBlinkT > 0 ? 0.15f : 1.0f, pulse = 0.85f + 0.15f * sinf(g.time * 0.7f);
+        for (int r = 6; r >= 1; r--) DrawCircleV(q, r * 22.0f * open, Fade(Color{200, 214, 220, 255}, 0.035f * pulse * (g.eyeLooked ? 1.6f : 1.0f)));
+        DrawCircleV(q, 10 * open, Fade(Color{20, 24, 30, 255}, 0.5f));   // its pupil
+    }
+    if (g.choir.on && g.choir.surfaced) { Vector2 q = C(g.choir.singer); DrawCircleV(q, 2.5f, Color{220, 228, 232, 255}); for (int k = 0; k < 3; k++) { float u = fmodf(g.time * 0.5f + k / 3.0f, 1.0f); DrawCircleLinesV(q, 4 + u * 30, Fade(Color{190, 220, 230, 255}, 0.3f * (1 - u))); } }
+    if (g.longboat.on) {
+        Vector2 q = C(g.longboat.p); float a = g.longboat.ang + PI / 2;
+        Vector2 dir{cosf(a), sinf(a)}, side{-dir.y, dir.x};
+        Vector2 bow = Vector2Add(q, Vector2Scale(dir, 12)), stern = Vector2Subtract(q, Vector2Scale(dir, 12));
+        DrawLineEx(bow, stern, 6, Color{40, 30, 24, 255});
+        for (int k = -1; k <= 1; k += 2) { Vector2 t = Vector2Add(Vector2Add(q, Vector2Scale(dir, k * 9.0f)), Vector2Scale(side, 3)); DrawCircleV(t, 2, Color{255, 170, 60, 255}); DrawCircleV(t, 7 + sinf(g.time * 9 + k) * 1.5f, Fade(Color{255, 150, 60, 255}, 0.15f)); }
+    }
+    if (g.ghost.state > 0) {
+        Vector2 q = C(g.ghost.p); Vector2 f = g.boat.Forward(); Vector2 dir = Vector2Normalize({f.x, f.y});
+        Vector2 a = Vector2Add(q, Vector2Scale(dir, 40)), b = Vector2Subtract(q, Vector2Scale(dir, 40));
+        DrawLineEx(a, b, 18, Fade(Color{60, 70, 66, 255}, g.ghost.state == 1 ? 0.4f : 0.85f));
+        DrawCircleV(q, 3, Color{150, 230, 190, 255}); DrawCircleV(q, 14, Fade(Color{150, 230, 190, 255}, 0.12f));   // its lantern, cold green
+    }
+    if (g.kraken.state == 2) for (int arm = 0; arm < 3; arm++) {
+        float x = -6 + arm * 6.0f + sinf(g.time * 0.4f + arm) * 1.5f, side = arm % 2 ? 1.0f : -1.0f;
+        for (int k = 0; k < 12; k++) {
+            float u = k / 11.0f; Vector2 d{x + sinf(g.time * 1.3f + arm + u * 4) * 0.8f, side * (6.0f - u * 4.5f)};
+            DrawCircleV(v.ToCanvas(d), (1 - u) * 5 + 1.5f, Color{130, 40, 40, 255});
+        }
+    }
     for (const auto& d : g.drowned) {
         Vector2 q = v.ToCanvas(d.p); float sway = sinf(g.time * 1.4f + d.p.x) * 1.0f;
         Color body = d.hitT > 0 ? Color{220, 220, 200, 255} : Color{82, 96, 86, 255};
@@ -685,7 +714,9 @@ void DrawLanding(const Gannet& g, const View& v) {
         if (c0.x < -L.r * pr * 2 || c0.y < -L.r * pr * 2 || c0.x > PIXEL_W + L.r * pr * 2 || c0.y > PIXEL_H + L.r * pr * 2) continue;
         float l0 = lit({0, 0});
         bool seal = L.kind == LK_SEALROCK, pier = L.kind == LK_CANNERY, shelf = L.kind == LK_SHELF, boneB = L.kind == LK_BONEBEACH;
-        Color ground = seal ? Color{128, 124, 116, 255} : pier ? Color{126, 98, 66, 255} : shelf ? Color{84, 80, 76, 255} : boneB ? Color{58, 54, 52, 255} : Color{214, 196, 150, 255};
+        bool stair = L.kind == LK_STAIR, tower = L.kind == LK_TOWER, cultL = L.kind == LK_CULT;
+        Color ground = seal ? Color{128, 124, 116, 255} : pier ? Color{126, 98, 66, 255} : shelf ? Color{84, 80, 76, 255} : boneB ? Color{58, 54, 52, 255}
+                     : stair ? Color{200, 196, 186, 255} : tower ? Color{150, 146, 136, 255} : cultL ? Color{90, 78, 66, 255} : Color{214, 196, 150, 255};
         if (pier) for (int k = 0; k < 20; k++) { float a = k * 0.314f; DrawCircleV(C({cosf(a) * (L.r + 0.3f), sinf(a) * (L.r + 0.3f)}), 2.0f, Dim(Color{58, 46, 34, 255}, l0)); }   // the pilings
         else {
             DrawCircleV(c0, (L.r + 6) * pr, Fade(Dim(seal ? Color{40, 70, 80, 255} : Color{40, 120, 120, 255}, l0), 0.35f));   // the shelf
@@ -720,13 +751,15 @@ void DrawLanding(const Gannet& g, const View& v) {
             DrawCircleLinesV(C(L.pond), L.pondR * pr, Dim(Color{120, 170, 150, 255}, lit(L.pond)));
             for (int k = 0; k < 6; k++) { Vector2 a = Vector2Add(L.moray, {k * 0.18f - 0.45f, sinf(g.time * 3 + k) * 0.12f}); Vector2 q = C(a); DrawRectangle((int)q.x, (int)q.y, 2, 1, Fade(Color{20, 30, 24, 255}, 0.7f)); }
         }
-        if (seal || pier || shelf || boneB) {
-            // the sealers' hut (stone, a turf roof), the cannery shed (corrugated iron), the smugglers' lean-to of crates or
-            // a lost crew's upturned boat: walls with a door to the middle
+        if (stair) for (int s = 0; s < 6; s++) { Vector2 a = C({-6.0f + s * 1.0f, -7}), b = C({-6.0f + s * 1.0f, 7}); DrawLineV(a, b, Dim(Color{160, 156, 146, 255}, l0)); }   // (the stair's treads)
+        if (seal || pier || shelf || boneB || stair || tower || cultL) {
+            // the sealers' hut (stone, a turf roof), the cannery shed (corrugated iron), the smugglers' lean-to of crates, a
+            // lost crew's upturned boat, the Keeper's shrine, the tower's stump, the cult's tent: walls with a door
             float c = cosf(L.sloopHead), s = sinf(L.sloopHead);
             auto P = [&](float x, float y) { return C(Vector2Add(L.sloop, {x * c - y * s, x * s + y * c})); };
             float k = lit(L.sloop);
-            Color roof = Dim(seal ? Color{86, 96, 62, 255} : shelf ? Color{112, 84, 54, 255} : boneB ? Color{70, 56, 44, 255} : Color{120, 110, 100, 255}, k), wall = Dim(seal ? Color{96, 92, 86, 255} : Color{90, 70, 58, 255}, k);
+            Color roof = Dim(seal ? Color{86, 96, 62, 255} : shelf ? Color{112, 84, 54, 255} : boneB ? Color{70, 56, 44, 255} : stair ? Color{220, 216, 204, 255} : tower ? Color{120, 116, 108, 255} : cultL ? Color{110, 30, 30, 255} : Color{120, 110, 100, 255}, k);
+            Color wall = Dim(seal ? Color{96, 92, 86, 255} : stair || tower ? Color{170, 166, 156, 255} : Color{90, 70, 58, 255}, k);
             Vector2 a = P(-2.6f, -1.6f), b = P(2.6f, -1.6f), cc = P(2.6f, 1.6f), d = P(-2.6f, 1.6f);
             DrawTriangle(a, b, cc, roof); DrawTriangle(a, cc, b, roof); DrawTriangle(a, cc, d, roof); DrawTriangle(a, d, cc, roof);
             DrawLineV(a, b, wall); DrawLineV(b, cc, wall); DrawLineV(cc, d, wall); DrawLineV(d, a, wall);
@@ -744,12 +777,14 @@ void DrawLanding(const Gannet& g, const View& v) {
             DrawLineV(P(0.3f, -0.9f), P(0.6f, 2.2f), Dim(Color{120, 100, 70, 255}, lit(L.sloop)));   // her mast, fallen across the sand
         }
         // the elder's hut (thatch) and the elder before it, feathers in his hair
-        if (seal || pier || shelf || boneB) {
+        if (tower) {}   // (nobody keeps the Watchtower)
+        else if (seal || pier || shelf || boneB || stair || cultL) {
             // Old Hoskins in his oilskins and sou'wester; the foreman in a leather apron and a cap; the quartermaster in a
-            // long coat and a red scarf; the hermit in rags and a bone necklace
+            // long coat and a red scarf; the hermit in rags and a bone necklace; the Keeper, drowned and pale in his
+            // vestments; the cult quartermaster, hooded in red
             Vector2 e = C(L.elder); float k = lit(L.elder);
-            Color coat = seal ? Color{170, 150, 60, 255} : shelf ? Color{40, 40, 50, 255} : boneB ? Color{110, 100, 84, 255} : Color{90, 64, 44, 255};
-            Color hat = seal ? Color{190, 170, 70, 255} : shelf ? Color{170, 40, 36, 255} : boneB ? Color{220, 214, 196, 255} : Color{50, 50, 56, 255};
+            Color coat = seal ? Color{170, 150, 60, 255} : shelf ? Color{40, 40, 50, 255} : boneB ? Color{110, 100, 84, 255} : stair ? Color{150, 176, 170, 255} : cultL ? Color{120, 26, 26, 255} : Color{90, 64, 44, 255};
+            Color hat = seal ? Color{190, 170, 70, 255} : shelf ? Color{170, 40, 36, 255} : boneB ? Color{220, 214, 196, 255} : stair ? Color{200, 220, 210, 255} : cultL ? Color{90, 20, 20, 255} : Color{50, 50, 56, 255};
             DrawRectangle((int)e.x - 3, (int)e.y - 3, 7, 7, Dim(coat, k));
             DrawRectangle((int)e.x - 2, (int)e.y - 2, 5, 5, Dim(Color{200, 160, 130, 255}, k));
             DrawRectangle((int)e.x - 3, (int)e.y - 4, 7, 2, Dim(hat, k));
@@ -790,15 +825,19 @@ void DrawLanding(const Gannet& g, const View& v) {
         } else if (boneB) {   // the volcanic vents: cracks in the black sand, steam always rising
             DrawCircleV(fc, 5, Dim(Color{90, 50, 30, 255}, lit(L.fire))); DrawCircleV(fc, 2, Color{230, 120, 50, 255});
             for (int k = 0; k < 5; k++) { float t = fmodf(g.time * 0.4f + k * 0.2f, 1.0f); DrawCircleV({fc.x + sinf(t * 7 + k) * 3, fc.y - t * 20}, 2 + t * 4, Fade(Color{220, 220, 220, 255}, 0.3f * (1 - t))); }
+        } else if (stair) {   // the eternal brazier: a bronze bowl, a pale flame that never goes out
+            DrawCircleV(fc, 5, Dim(Color{140, 110, 60, 255}, lit(L.fire)));
+            for (int k = 0; k < 5; k++) { float fl = sinf(g.time * 7 + k * 1.3f); DrawRectangle((int)(fc.x - 2 + k), (int)(fc.y - 2 - fabsf(fl) * 4), 1, 3, Color{190, 240, 220, 255}); }
+            DrawCircleV(fc, 12, Fade(Color{170, 240, 210, 255}, 0.12f));
         } else if (seal || shelf) {   // the hut's (the smugglers') iron stove by its door
             DrawRectangle((int)fc.x - 4, (int)fc.y - 3, 8, 6, Dim(Color{50, 48, 46, 255}, lit(L.fire)));
             if (L.fireLit) DrawRectangle((int)fc.x - 2, (int)fc.y + 1, 4, 2, Color{255, 150, 60, 255});
         } else
         for (int k = 0; k < 8; k++) { float a = k * 0.785f; DrawRectangle((int)(fc.x + cosf(a) * 6) - 1, (int)(fc.y + sinf(a) * 6) - 1, 2, 2, Dim(Color{110, 110, 104, 255}, lit(L.fire))); }
-        if (L.fireLit && L.kind == LK_ATOLL) {
+        if (L.fireLit && (L.kind == LK_ATOLL || L.kind == LK_TOWER || L.kind == LK_CULT)) {   // (an open fire: the Atoll's pit, the tower's signal fire, the cult's bonfire)
             for (int k = 0; k < 7; k++) { float fl = sinf(g.time * 11 + k * 1.7f); DrawRectangle((int)(fc.x - 3 + k), (int)(fc.y - 1 - fabsf(fl) * 3), 1, 2 + (int)(fabsf(fl) * 2), k % 2 ? Color{255, 200, 80, 255} : Color{240, 110, 40, 255}); }
             DrawCircleV(fc, 9, Fade(Color{255, 160, 70, 255}, 0.12f));
-        } else if (L.kind == LK_ATOLL) DrawRectangle((int)fc.x - 2, (int)fc.y - 1, 4, 2, Color{40, 38, 36, 255});
+        } else if (L.kind == LK_ATOLL || L.kind == LK_TOWER || L.kind == LK_CULT) DrawRectangle((int)fc.x - 2, (int)fc.y - 1, 4, 2, Color{40, 38, 36, 255});
         else if (L.fireLit) DrawCircleV(fc, 10, Fade(Color{255, 160, 70, 255}, 0.10f));
         float worst = 0;
         for (size_t i = 0; i < L.onFire.size(); i++) {

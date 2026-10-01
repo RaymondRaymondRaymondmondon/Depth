@@ -1577,6 +1577,28 @@ void DebugTrawlShot(Game& g, int which) {
         if (fp) { G.crew[0].station = -1; G.crew[0].p = {-1.5f, 1.2f}; S.eye.yaw = PI - 0.4f; S.eye.pitch = -0.1f; }
         return;
     }
+    if (which == 34) {
+        // Atlantis Waters: over the terraces at night; a cult longboat's torches circling, the Ghost Ship alongside with
+        // a Drowned boarder on deck, the Choir's singer up off the bow, the Kraken's arms over the rail
+        StartTrawl(g, fp, 3, 1);
+        S.shot = true;
+        Gannet& G = S.W->G; Session& ss = S.W->sess; Eco& e = S.W->eco;
+        G.crew[0].p = {3.0f, 0.8f}; G.crew[1].p = {-4.0f, -1.0f}; G.crew[2].p = {-1.0f, 1.0f};
+        ss.SetGround("atlantis");
+        ss.Buy("shrimp"); while (G.boat.bunker < 130 && ss.Buy("coal")) {}
+        ss.CastOff();
+        G.boat.pos = {e.n * e.cell * 0.6f, e.n * e.cell * 0.5f}; G.boat.heading = 0.3f; G.boat.telegraph = 0; G.boat.lantern = 2;
+        for (int i = 0; i < 60 * 4; i++) { G.Step(1 / 60.0f); ss.Step(1 / 60.0f); }
+        G.botsOn = false; for (auto& c : G.crew) c.bot = false;
+        G.choirCool = G.longboatCool = 1e9f; G.ghostDone = G.krakenDone = true;
+        G.longboat.on = true; G.longboat.ang = 2.2f; G.longboat.p = Vector2Add(G.boat.pos, {cosf(2.2f) * 30, sinf(2.2f) * 30});
+        G.ghost.state = 2; G.ghost.p = G.boat.ToWorld({0, -9});
+        G.choir.on = true; G.choir.surfaced = true; G.choir.t = 1; G.choir.calmT = 99; G.choir.singer = G.boat.ToWorld({14, 6});
+        G.kraken.state = 2; G.kraken.armT = 99;
+        Gannet::DrownedSailor d; d.p = {-6.5f, -1.8f}; G.drowned.push_back(d);
+        if (fp) { G.crew[0].station = -1; G.crew[0].p = {-1.5f, 1.2f}; S.eye.yaw = -1.2f; S.eye.pitch = -0.05f; }
+        return;
+    }
     if (which == 27 || which == 28 || which == 29) {
         // 27 out in the skiff, rowing away from the Gannet (lying stopped, her lantern full) with a fish aboard; 28 the
         // skiff going down on the davit, a hand at it
