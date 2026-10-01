@@ -310,7 +310,7 @@ bool Eco::Init(const std::string& key, uint32_t seed) {
     auto it = db.grounds.find(key);
     if (it == db.grounds.end()) { printf("trawl eco: no ground '%s'\n", key.c_str()); return false; }
     *this = Eco{};
-    g = &it->second; ground = key;
+    g = &it->second; ground = key; initSeed = seed;
     rng = seed * 2654435761u + 7; Rand();
     cell = g->cell; n = (int)(g->size / cell);
     BuildChart(seed);

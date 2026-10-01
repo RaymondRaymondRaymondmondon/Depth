@@ -270,3 +270,49 @@ The user asked for two versions of the Trawl, one top-down as it was and one fir
 - **F (follow me):** the nearest free bot follows you, down the ladder too; press F again and it goes back to its watch
   (`OrderFollow`).
 - **Not yet:** bots using items (the rifle, flares).
+
+## Stage 5: networking (2026-09-30, local session)
+- **`src/trawl_net.h/.cpp`**, host-authoritative, on the Deep Arcade's session layer:
+  - `TrawlWorld` (Gannet + Eco + Session) is one run.
+  - The **host** runs the real world inside `TrawlHost` (the arcade `GameHost` for `G_TRAWL`; `Info` says built, 1-6
+    players, real time at 20 Hz). The host's own screen draws that world directly.
+  - A **guest** mirrors each snapshot into its own `TrawlWorld` (`ReadWorld`), and the same top-down and first-person
+    renderers draw it. The guest draws between the last two snapshots: the boat's pose and the hands' places,
+    `Interpolate`.
+- **Input:** a hand is played by `HandInput`.
+  - It carries held keys, the presses since the last step, the deck-frame aim, steer, wheel, a slot pick and a bot
+    order.
+  - The scene builds it in `Gather()`.
+  - `ApplyInput` is the one headless function that turns it into Gannet calls. Solo goes through it too, so solo and
+    network play can't drift apart.
+- **Commands:** dock buttons and the locker are `DoCommand` commands (`CMD_BUY/SELL/SLIP/CASTOFF/COUNT/CONTINUE/
+  LOCKER_TAKE/LOCKER_STOW`). The host checks each one (dock-only commands need her moored at the dock).
+- **The snapshot:** one templated `Visit` walks every field the screens draw, both for writing and for reading.
+  - It covers the session and tape, the ground's moving parts, the sea and the boat, the stores, the crew and bot
+    brains, the rods and fights, the hold, and what's in the water (shots, floaters, flares, the net mesh, set gear,
+    rings), plus the locker.
+  - The chart isn't sent: `Eco::initSeed` lets a mirror rebuild the same chart.
+  - About 1.6 kB at the dock and about 10 kB on a busy night (20 Hz, unreliable channel, GNS fragments).
+- **AI seats** are the bot crew: a lobby AI seat, or a player who leaves or is lost past the session's grace period,
+  becomes a bot hand.
+- **In the arcade:**
+  - The Trawl reel's Host/Join/Browse work.
+  - A launched match opens the Trawl scene (`StartTrawlNet`).
+  - The reel line toggles the view the match starts in; V still switches aboard.
+  - In the game menu, "Leave the match" works like this: the host takes the table back to the lobby, and a guest
+    hands its hand to a bot.
+  - While the menu is open the session keeps pumping (`TrawlMenuTick`): a crew at sea doesn't pause.
+  - The HUD shows the other players' names, and a banner while a hand has lost the connection.
+- **Checks:**
+  - `depth.exe --trawl-net-test`: input frames, merge rules, by-input station taking, commands, the snapshot round
+    trip (byte-identical rewrite), chart reuse, cut-off snapshots refused, and the host game with an AI seat.
+  - `depth.exe --net-loop trawl [mem]`: a host and five guests launch. Every guest mirrors six hands. A guest walks to
+    the port rod by input and takes it. A guest buys bait. Cast-off is refused while the skipper is on the quay, then
+    succeeds. A guest casts a line. A guest leaves and its hand becomes a bot. The mirrors agree with the host. It
+    passes in memory and over GNS loopback UDP.
+  - Shots: `trawl_guest`, `trawl3d_guest` (a guest's own screen in a live in-memory match).
+- **Not yet:**
+  - Prediction for reeling (the design doc's "prediction for reeling": the guest sees its own rod 50-100 ms late).
+  - Voice.
+  - Trimming the snapshot (the hold's names, agents far from the boat).
+  - A six-player LAN night with real people (the stage's human gate).

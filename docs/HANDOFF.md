@@ -48,7 +48,7 @@ design calls made). The build order is the doc's own (page 48):
 | 2 | Lines and fishing: Verlet lines, cast, bite, fight, landing | **Done** (`--trawl-fight all`: the doc's five target fights in range) |
 | 3 | Ecosystem: water column, light, vibration, Wake, the Lagoon's species | **Done** (`--trawl-eco lagoon 27`, `--trawl-eco-test`) |
 | 4 | Session loop: dock, Chandler, sail, clock, sell, quota | **Done** (`--trawl-session-test`) |
-| 5 | Networking: six players, voice, prediction for reeling. Gate: `--net-loop trawl` and a six-player LAN night | **Not started**: needs the shared arcade networking layer, which is in the local folder. **Do this next, there.** |
+| 5 | Networking: six players, voice, prediction for reeling. Gate: `--net-loop trawl` and a six-player LAN night | **Done in the local folder** (`--net-loop trawl`, `--trawl-net-test`; see docs/TRAWL_PROGRESS.md "Stage 5"). Left: reeling prediction, voice, a six-player LAN night |
 | 6 | Shooting, the net, set gear, death and ghosts | **Mostly built, not finished** (see 2.2) |
 | 7 | The Weeds and the Grotto with their threats | Not started |
 | 8 | Diving and wrecks | Not started |

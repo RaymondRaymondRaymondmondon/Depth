@@ -99,6 +99,7 @@ struct EcoArrival { std::string species; float t; };
 struct Eco {
     const GroundDef* g = nullptr;
     std::string ground;
+    uint32_t initSeed = 0;                      // the seed the chart was built from (a network mirror rebuilds the same chart)
     int n = 0; float cell = 4;
     std::vector<float> depth;                   // the chart: metres of water at high tide (0 = land)
     std::vector<uint8_t> hab, holes;

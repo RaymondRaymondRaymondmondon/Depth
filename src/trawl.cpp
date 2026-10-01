@@ -6,6 +6,9 @@
 #include "trawl_eco.h"
 #include "trawl_session.h"
 #include "trawl_view3d.h"
+#include "trawl_net.h"
+#include "arcade_session.h"
+#include "net.h"
 #include "raymath.h"
 #include <algorithm>
 #include <cmath>
@@ -15,19 +18,23 @@ using namespace tw;
 namespace {
 struct TrawlScene {
     bool active = false;
-    Gannet G;
-    Eco eco;                       // the ground (stage 3: the Eclipse Lagoon)
+    // the world drawn: our own (solo, or a network guest's mirror of the host's snapshots), or the host's real one
+    TrawlWorld own;
+    TrawlWorld* W = nullptr;
+    arcade::Session* net = nullptr;  // network play (the Deep Arcade's session), or null solo
+    int seenVersion = -1;          // (a guest) the last snapshot mirrored
+    // (a guest) the last two snapshots' poses, for drawing between them
+    struct Pose { Vector2 pos{}; float heading = 0, roll = 0, pitch = 0, heave = 0; std::vector<Vector2> crew; };
+    Pose prevPose, curPose; float sinceSnap = 0, snapGap = 0.05f;
     int you = 0;
     float acc = 0;                 // the fixed 60 Hz step's accumulator
     bool shot = false;             // --shots: no input, fixed time
     int shotView = 0;
-    float wheel = 0;               // the mouse wheel, gathered per frame for the next fixed step
+    HandInput pend;                // (solo) this hand's input, gathered per frame for the next fixed step
     View view;                     // the last frame's view (the mouse's deck position)
-    Session sess;                  // the run: deadlines, nights, the quota, the dock
     int panel = -1;                // an open dock panel (DockKind), PANEL_CHART at the helm, PANEL_END for the count
     std::string toast; float toastT = 0;
     size_t tapeSeen = 0; float tapeT = 0;
-    bool lmbPressed = false, rmbPressed = false;   // latched per frame for the fixed steps
     float ghostSee = 0;
     // the first-person version (trawl_view3d.cpp): the same game through the hand's eyes
     bool fp = false;
@@ -72,90 +79,50 @@ Vector2 KeysWish() {
 }
 // where the hand aims on the water, in the deck frame: the mouse top-down, the crosshair in first person
 Vector2 AimDeck() {
-    if (S.fp) { Vector2 d; AimAtWater(S.G, S.cam, {SCREEN_W / 2.0f, SCREEN_H / 2.0f}, &d); return d; }
+    if (S.fp) { Vector2 d; AimAtWater(S.W->G, S.cam, {SCREEN_W / 2.0f, SCREEN_H / 2.0f}, &d); return d; }
     const float PX = (float)SCREEN_W / PIXEL_W;
     Vector2 m = GetMousePosition();
     return S.view.DeckOfCanvas({m.x / PX + 1, m.y / PX + 1});
 }
-void Controls(float dt) {
-    Gannet& g = S.G;
-    Crew& c = g.crew[S.you];
-    Vector2 wish{0, 0};
-    if (S.panel >= 0) { g.Move(S.you, wish, false, dt); return; }
-    bool lmbP = S.lmbPressed, rmbP = S.rmbPressed;
-    S.lmbPressed = S.rmbPressed = false;
-    Vector2 aimDeck = AimDeck();
-    if (c.overboard || c.dead) {
-        // in the water you swim; dead, you walk the deck as a ghost (and can only ring the bell)
-        wish = KeysWish();
-        if (c.dead && Vector2Length(wish) > 0) S.ghostSee = 1.0f;
-        g.Move(S.you, wish, false, dt);
-        if (c.dead) g.Primary(S.you, IsMouseButtonDown(MOUSE_BUTTON_LEFT), dt);
-        return;
-    }
-    if (c.station >= 0 && Stations()[c.station].kind == StationKind::NetWinch) { g.NetInput(S.you, IsMouseButtonDown(MOUSE_BUTTON_LEFT), rmbP, dt); g.Move(S.you, wish, false, dt); return; }
-    if (c.station >= 0 && Stations()[c.station].kind == StationKind::Harpoon) { g.HarpoonInput(S.you, aimDeck, lmbP, IsMouseButtonDown(MOUSE_BUTTON_LEFT), rmbP, dt); g.Move(S.you, wish, false, dt); return; }
-    wish = KeysWish();
-    bool atHelm = c.station >= 0 && Stations()[c.station].kind == StationKind::Helm;
-    if (c.station >= 0 && Stations()[c.station].kind == StationKind::Lantern && g.boat.lantern == 3) {
-        // the searchlight follows the mouse (in first person, the crosshair)
-        Vector2 d = Vector2Subtract(aimDeck, Stations()[c.station].at);
-        if (Vector2Length(d) > 0.5f) g.boat.searchAim = atan2f(d.y, d.x);
-    }
-    if (atHelm) {
-        g.Steer(S.you, (IsKeyDown(KEY_D) ? 1.0f : 0.0f) - (IsKeyDown(KEY_A) ? 1.0f : 0.0f), dt);
-        if (IsKeyPressed(KEY_W)) g.Scroll(S.you, 1);
-        if (IsKeyPressed(KEY_S)) g.Scroll(S.you, -1);
-        wish = {0, 0};
-    }
-    int ri = c.station >= 0 ? g.RodAt(c.station) : -1;
-    if (ri >= 0) {
-        // a rod: hold left to charge the cast (released, it flies at the mouse); once out, hold left to reel. Space
-        // strikes a bite and gaffs a fish alongside; right mouse bows the rod; the mouse's side of the line leans it
-        // (side pressure); the wheel is the drag (or the lure's depth before a bite).
-        Rod& r = g.rods[ri];
-        Vector2 aim = aimDeck;
-        bool lmb = IsMouseButtonDown(MOUSE_BUTTON_LEFT);
-        bool casting = r.state == RodState::Idle || r.state == RodState::Charging;
-        float lean = 0;
-        if (r.state == RodState::Fighting) {
-            Vector2 tip = r.TipDeck(), fish = g.boat.ToDeck({r.fight.p.x, r.fight.p.y});
-            Vector2 line = Vector2Subtract(fish, tip), to = Vector2Subtract(aim, tip);
-            float cr = line.x * to.y - line.y * to.x, dt2 = Vector2DotProduct(line, to);
-            lean = std::clamp(atan2f(cr, std::max(0.01f, fabsf(dt2))) / (45 * DEG2RAD), -1.0f, 1.0f);
-        }
-        g.RodInput(S.you, casting && lmb, aim, !casting && lmb, IsKeyPressed(KEY_SPACE), lean, IsMouseButtonDown(MOUSE_BUTTON_RIGHT), IsKeyPressed(KEY_SPACE), S.wheel);
-        S.wheel = 0;
-        wish = {0, 0};
-        g.Move(S.you, wish, IsKeyDown(KEY_LEFT_SHIFT), dt);
-        return;
-    }
-    g.Move(S.you, wish, IsKeyDown(KEY_LEFT_SHIFT), dt);
-    if (c.station < 0) g.UseItem(S.you, aimDeck, lmbP, IsMouseButtonDown(MOUSE_BUTTON_LEFT), IsMouseButtonDown(MOUSE_BUTTON_RIGHT), dt);
-    g.Primary(S.you, IsMouseButtonDown(MOUSE_BUTTON_LEFT), dt);
-    g.Secondary(S.you, IsMouseButtonDown(MOUSE_BUTTON_RIGHT), dt);
-}
-void Pressed(Game& g) {
-    Gannet& G = S.G;
-    Crew& c = G.crew[S.you];
+// The keyboard and mouse as this hand's input (trawl_net.h: the same frame drives a solo Gannet, the host's, or goes
+// over the wire), and what is only this screen's business: the dock's panels, the view, toasts.
+HandInput Gather() {
+    HandInput in;
+    const Gannet& G = S.W->G;
+    const Crew& c = G.crew[S.you];
     if (S.panel >= 0) {
-        if (IsKeyPressed(KEY_X) && S.panel != PANEL_END) { S.panel = -1; G.LeaveStation(S.you); }
-        return;
+        if (IsKeyPressed(KEY_X) && S.panel != PANEL_END) { S.panel = -1; in.btn |= HI_X_P; }
+        return in;
     }
-    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) S.lmbPressed = true;
-    if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) S.rmbPressed = true;
-    for (int k = 0; k < 4; k++) if (IsKeyPressed(KEY_ONE + k) && c.station < 0) c.sel = k;
-    if (IsKeyPressed(KEY_R)) G.Reload(S.you);
+    in.aim = AimDeck();
+    in.wish = KeysWish();
+    in.wheel = GetMouseWheelMove();
+    if (c.dead && Vector2Length(in.wish) > 0) S.ghostSee = 1.0f;
+    if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) in.btn |= HI_LMB;
+    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) in.btn |= HI_LMB_P;
+    if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT)) in.btn |= HI_RMB;
+    if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) in.btn |= HI_RMB_P;
+    if (IsKeyPressed(KEY_SPACE)) in.btn |= HI_SPACE_P;
+    if (IsKeyDown(KEY_LEFT_SHIFT)) in.btn |= HI_SHIFT;
+    if (IsKeyPressed(KEY_R)) in.btn |= HI_R_P;
+    if (IsKeyPressed(KEY_T)) in.btn |= HI_T_P;
+    if (IsKeyPressed(KEY_X)) in.btn |= HI_X_P;
+    for (int k = 0; k < 4; k++) if (IsKeyPressed(KEY_ONE + k) && c.station < 0) in.sel = (int8_t)k;
+    if (c.station >= 0 && Stations()[c.station].kind == StationKind::Helm) {
+        in.steer = (IsKeyDown(KEY_D) ? 1.0f : 0.0f) - (IsKeyDown(KEY_A) ? 1.0f : 0.0f);
+        if (IsKeyPressed(KEY_W)) in.btn |= HI_W_P;
+        if (IsKeyPressed(KEY_S)) in.btn |= HI_S_P;
+    }
     if (IsKeyPressed(KEY_V)) { S.fp = !S.fp; if (S.fp) S.eye = Eye3D{}; }   // the two versions of the game: top-down and first person
-    if (IsKeyPressed(KEY_T) && c.station >= 0 && Stations()[c.station].kind == StationKind::Harpoon) { G.explosiveLoaded = !G.explosiveLoaded && G.explosives > 0; }
     if (IsKeyPressed(KEY_E)) {
         int d = G.moored && c.deck == 0 && c.station < 0 ? NearestDock(c.p, 1.4f) : -1;
-        if (d >= 0) S.panel = (int)DockStations()[d].kind;
-        else if (c.station < 0 && !c.dead && (G.GaffFloater(S.you) || G.HaulSetGear(S.you))) {}
-        else if (c.station < 0 && !c.dead && !G.moored && G.StartPatch(S.you)) {}
-        else if (G.TakeStation(S.you) && Stations()[c.station].kind == StationKind::Helm && S.sess.phase == Phase::Dock) S.panel = PANEL_CHART;
+        if (d >= 0) S.panel = (int)DockStations()[d].kind;   // (the quay's panels are this screen's own)
+        else {
+            in.btn |= HI_E_P;
+            int s = c.station < 0 ? NearestStation(c.p, c.deck, 1.1f) : -1;
+            if (s >= 0 && Stations()[s].kind == StationKind::Helm && S.W->sess.phase == Phase::Dock) S.panel = PANEL_CHART;
+        }
     }
-    if (IsKeyPressed(KEY_X)) G.LeaveStation(S.you);
     if (IsKeyPressed(KEY_G) && G.botsOn) {
         // orders (design doc "Bot crew"): point at a station and the nearest free bot takes it; point at nothing and
         // every bot goes back to its own watch
@@ -163,21 +130,31 @@ void Pressed(Game& g) {
         if (S.fp) ok = AimAtDeck(G, S.cam, {SCREEN_W / 2.0f, SCREEN_H / 2.0f}, c.deck, &at);
         else at = AimDeck();
         int st = ok ? NearestStation(at, c.deck, 1.6f) : -1;
-        if (st >= 0 && st != c.station) {
-            int who = G.OrderBot(st);
-            S.toast = who >= 0 ? TextFormat("%s: to the %s", RoleName(G.crew[who].role), Stations()[st].name) : "No hand free";
-        } else { G.OrderBot(-1); S.toast = "All hands to their watch"; }
+        in.btn |= HI_ORDER;
+        if (st >= 0 && st != c.station) { in.order = (int8_t)st; S.toast = TextFormat("A hand to the %s", Stations()[st].name); }
+        else { in.order = -1; S.toast = "All hands to their watch"; }
         S.toastT = 2.5f;
     }
     if (IsKeyPressed(KEY_F) && G.botsOn) {
-        int who = G.OrderFollow(S.you);
-        S.toast = who >= 0 ? TextFormat("%s follows you", RoleName(G.crew[who].role)) : "Back to your watch"; S.toastT = 2.5f;
+        bool following = false;
+        for (int i = 0; i < (int)G.brains.size(); i++) if (G.brains[i].follow == S.you) following = true;
+        in.btn |= HI_FOLLOW_P;
+        S.toast = following ? "Back to your watch" : "A hand follows you"; S.toastT = 2.5f;
     }
-    float wheel = GetMouseWheelMove();
-    bool atRod = G.crew[S.you].station >= 0 && G.RodAt(G.crew[S.you].station) >= 0;
-    if (atRod) { S.wheel += wheel; if (IsKeyPressed(KEY_T)) G.CycleTackle(S.you); }
-    else if (wheel != 0) G.Scroll(S.you, wheel);
-    (void)g;
+    return in;
+}
+// a dock button, the locker: run here (solo, or the host's own screen) or sent to the host (a guest)
+void Command(int cmd, const std::string& id = "", int arg = 0, const std::string& ok = "") {
+    std::string why;
+    if (S.net) {
+        // (the host's own Act runs it at once; a guest's goes over the wire, and the mirror shows the result)
+        Writer w; WriteCmdAction(cmd, id, arg, w); S.net->Act(w);
+        if (!ok.empty()) { S.toast = ok; S.toastT = 3; }
+        return;
+    }
+    bool done = DoCommand(*S.W, S.you, cmd, id, arg, &why);
+    if (!done && !why.empty()) { S.toast = why; S.toastT = 3; }
+    else if (done && !ok.empty()) { S.toast = ok; S.toastT = 3; }
 }
 
 // ---------------------------------------------------------------- the HUD: almost nothing, on purpose
@@ -243,7 +220,7 @@ void ReelGauge(const Gannet& g, const Crew& c) {
     if (!r.lastCatch.empty() && r.state != RodState::Fighting) Txt(TextFormat("Last: %s", r.lastCatch.c_str()), x0, SCREEN_H - 82, 14, Fade(paper, 0.6f));
 }
 void StationOverlay() {
-    const Gannet& g = S.G;
+    const Gannet& g = S.W->G;
     const Crew& c = g.crew[S.you];
     Color paper{230, 220, 196, 255};
     if (c.station < 0) {
@@ -274,7 +251,7 @@ void StationOverlay() {
             float hd = fmodf(-b.heading * RAD2DEG + 90 + 720, 360);
             TxtBold(TextFormat("Heading %03.0f   %.1f kn", hd, b.Speed() * 1.944f), SCREEN_W - 300, SCREEN_H - 60, 18, paper);
             TxtBold(TextFormat("Rudder %s%.0f", b.rudder > 0 ? "stbd " : b.rudder < 0 ? "port " : "", fabsf(b.rudder) * 35), SCREEN_W - 300, SCREEN_H - 36, 16, Fade(paper, 0.8f));
-            if (S.sess.phase == Phase::SailOut) DrawTextCenteredBold("Steam out past the harbour line: the night starts there", SCREEN_W / 2.0f, 150, 18, paper);
+            if (S.W->sess.phase == Phase::SailOut) DrawTextCenteredBold("Steam out past the harbour line: the night starts there", SCREEN_W / 2.0f, 150, 18, paper);
             break;
         }
         case StationKind::Boiler:
@@ -303,7 +280,7 @@ void StationOverlay() {
             else {
                 const CatchRec& r = g.hold[f];
                 TxtBold(TextFormat("%s, %.1f kg", r.name.c_str(), r.kg), x0, y0, 18, paper);
-                Txt(TextFormat("Grade %.0f%%   Fresh %.0f%%   worth about %.0f sh", r.grade * 100, r.fresh * 100, S.sess.Value(r)), x0, y0 + 26, 15, Fade(paper, 0.85f));
+                Txt(TextFormat("Grade %.0f%%   Fresh %.0f%%   worth about %.0f sh", r.grade * 100, r.fresh * 100, S.W->sess.Value(r)), x0, y0 + 26, 15, Fade(paper, 0.85f));
                 float need = 1.2f + std::min(3.0f, r.kg * 0.08f);
                 DrawRectangle((int)x0, (int)y0 + 54, 360, 10, Fade(paper, 0.2f));
                 DrawRectangle((int)x0, (int)y0 + 54, (int)(360 * std::clamp(g.gutT / need, 0.0f, 1.0f)), 10, Color{200, 80, 60, 255});
@@ -350,24 +327,23 @@ void StationOverlay() {
             float x0 = SCREEN_W / 2.0f - 300, y0 = 130;
             DrawRectangle((int)x0 - 14, (int)y0 - 14, 628, 340, Color{40, 32, 24, 235});
             TxtBold(TextFormat("The deck locker: click an item to swap it with your slot %d (%s)", c.sel + 1, ItemOf(c.slots[c.sel].it).name), x0, y0, 16, paper);
-            auto& G2 = S.G;
+            auto& G2 = S.W->G;
             for (int i = 0; i < (int)G2.locker.size() && i < 12; i++) {
                 const Slot& sl = G2.locker[i];
                 if (Button({x0 + (i % 2) * 300, y0 + 34 + (i / 2) * 42.0f, 290, 36}, sl.ammo > 0 && sl.it != Item::Ring ? TextFormat("%s (%d)", ItemOf(sl.it).name, sl.ammo) : ItemOf(sl.it).name, true, 15)) {
-                    Slot tmp = G2.crew[S.you].slots[G2.crew[S.you].sel]; G2.crew[S.you].slots[G2.crew[S.you].sel] = sl;
-                    if (tmp.it == Item::None) G2.locker.erase(G2.locker.begin() + i); else G2.locker[i] = tmp;
+                    Command(CMD_LOCKER_TAKE, "", i);
                     break;
                 }
             }
             if (G2.locker.empty()) Txt("Empty.", x0, y0 + 40, 15, Fade(paper, 0.7f));
-            if (c.slots[c.sel].it != Item::None && Button({x0, y0 + 290, 290, 34}, "Stow what's in hand", true, 15)) { G2.locker.push_back(c.slots[c.sel]); G2.crew[S.you].slots[c.sel] = Slot{}; }
+            if (c.slots[c.sel].it != Item::None && Button({x0, y0 + 290, 290, 34}, "Stow what's in hand", true, 15)) Command(CMD_LOCKER_STOW);
             break;
         }
         case StationKind::Printer: {
             // the Owners' tape, newest at the bottom
             float x0 = SCREEN_W / 2.0f - 330, y0 = 120;
             DrawRectangle((int)x0 - 14, (int)y0 - 14, 688, 300, Color{226, 216, 190, 245});
-            const auto& T = S.sess.tape;
+            const auto& T = S.W->sess.tape;
             int n = (int)T.size(), from = std::max(0, n - 10);
             for (int i = from; i < n; i++) Txt(T[i].c_str(), x0, y0 + (i - from) * 27.0f, 15, Color{40, 32, 24, 255});
             break;
@@ -389,8 +365,8 @@ void PanelFrame(const char* title, float w, float h, Rectangle* out) {
 }
 void Panels(Game& g) {
     if (S.panel < 0) return;
-    Session& ss = S.sess;
-    Gannet& G = S.G;
+    Session& ss = S.W->sess;
+    Gannet& G = S.W->G;
     Color ink{50, 36, 24, 255}, dim{100, 80, 60, 255};
     Rectangle r;
     std::string why;
@@ -405,7 +381,7 @@ void Panels(Game& g) {
             TxtBold(TextFormat("Nights left: %d", ss.NightsLeft()), x, y + 108, 22, ink);
             TxtBold(TextFormat("Money: %.0f shillings", ss.money), x, y + 142, 22, ink);
             Txt(TextFormat("Arcade tokens this run: %d", ss.tokens), x, y + 180, 16, dim);
-            if (ss.night >= 3 && Button({r.x + r.width / 2 - 150, r.y + r.height - 76, 300, 44}, "Hand in to the Owners")) { ss.Count(); S.panel = PANEL_END; }
+            if (ss.night >= 3 && Button({r.x + r.width / 2 - 150, r.y + r.height - 76, 300, 44}, "Hand in to the Owners")) { Command(CMD_COUNT); S.panel = PANEL_END; }
             break;
         }
         case (int)DockKind::Chandler: {
@@ -418,7 +394,7 @@ void Panels(Game& g) {
                 float cx = x + (i / half) * 480, yy = y + 30 + (i % half) * 36;
                 TxtBold(I[i].name, cx, yy + 6, 15, ink);
                 if (Button({cx + 360, yy, 96, 30}, TextFormat("%d sh", I[i].price), ss.money >= I[i].price, 15)) {
-                    if (!ss.Buy(I[i].id, &why)) toast(why); else toast(std::string("Bought: ") + I[i].name + " (" + I[i].note + ")");
+                    Command(CMD_BUY, I[i].id, 0, std::string("Bought: ") + I[i].name + " (" + I[i].note + ")");
                 }
                 Rectangle hot{cx, yy, 350, 30};
                 if (CheckCollisionPointRec(GetMousePosition(), hot)) Txt(I[i].note, r.x + 26, r.y + r.height - 30, 14, dim);
@@ -445,7 +421,7 @@ void Panels(Game& g) {
                 }
                 if ((int)G.hold.size() > 9) Txt(TextFormat("... and %d more", (int)G.hold.size() - 9), x, y + 10 * 26.0f, 15, dim);
                 TxtBold(TextFormat("About %.0f shillings (the glut counts as they're weighed)", tot), x, r.y + r.height - 110, 17, ink);
-                if (Button({r.x + r.width / 2 - 110, r.y + r.height - 76, 220, 44}, "Sell the catch")) { ss.Sell(); toast(TextFormat("Paid %.0f shillings", ss.lastSaleTotal)); }
+                if (Button({r.x + r.width / 2 - 110, r.y + r.height - 76, 220, 44}, "Sell the catch")) Command(CMD_SELL, "", 0, "Sold: the market weighs it out");
             } else if (!ss.lastSale.empty()) {
                 int k = 0;
                 for (const auto& l : ss.lastSale) if (k++ < 10) {
@@ -475,7 +451,7 @@ void Panels(Game& g) {
                 TxtBold(I[i].name, x, yy + 6, 17, ink);
                 Txt(I[i].note, x + 240, yy + 8, 14, dim);
                 if (Button({r.x + r.width - 150, yy, 120, 34}, fitted ? "Fitted" : TextFormat("%d sh", I[i].price), !fitted && ss.money >= I[i].price, 16)) {
-                    if (!ss.BuySlip(i, &why)) toast(why); else toast(std::string("Fitted: ") + I[i].name);
+                    Command(CMD_SLIP, "", i, std::string("Fitted: ") + I[i].name);
                 }
             }
             break;
@@ -493,7 +469,8 @@ void Panels(Game& g) {
             bool ok = ss.CanCastOff(&why);
             if (!ok) Txt(why.c_str(), x, y + 200, 15, Color{150, 50, 40, 255});
             if (Button({r.x + r.width / 2 - 110, r.y + r.height - 80, 220, 46}, "Cast off", ok)) {
-                if (ss.CastOff(&why)) { S.panel = -1; toast("Cast off: raise steam and steer out past the harbour line"); } else toast(why);
+                Command(CMD_CASTOFF, "", 0, "Cast off: raise steam and steer out past the harbour line");
+                S.panel = -1;
             }
             break;
         }
@@ -502,14 +479,14 @@ void Panels(Game& g) {
             PanelFrame(met ? "QUOTA MET" : "GANNET REPOSSESSED", 600, 300, &r);
             TxtBold(TextFormat("Sold %.0f against a quota of %.0f", ss.sold, ss.quota), r.x + 40, r.y + 80, 20, ink);
             Txt(ss.tape.empty() ? "" : ss.tape.back().c_str(), r.x + 40, r.y + 120, 14, dim);
-            if (met) { if (Button({r.x + r.width / 2 - 130, r.y + r.height - 80, 260, 46}, "Next deadline")) { ss.Continue(); S.panel = -1; } }
-            else if (Button({r.x + r.width / 2 - 130, r.y + r.height - 80, 260, 46}, "Back to the arcade")) { S.active = false; EnableCursor(); g.scene = Scene::Arcade; }
+            if (met) { if (Button({r.x + r.width / 2 - 130, r.y + r.height - 80, 260, 46}, "Next deadline")) { Command(CMD_CONTINUE); S.panel = -1; } }
+            else if (Button({r.x + r.width / 2 - 130, r.y + r.height - 80, 260, 46}, "Back to the arcade")) LeaveTrawlMatch(g);
             break;
         }
     }
 }
 void Hud(Game& g) {
-    const Gannet& G = S.G;
+    const Gannet& G = S.W->G;
     Color paper{230, 220, 196, 255};
     // the Bosun sees the hull's sections; everyone sees the log of what just happened
     const Crew& c = G.crew[S.you];
@@ -526,7 +503,7 @@ void Hud(Game& g) {
     }
     if (!G.hold.empty()) { float kg = 0; for (const auto& h : G.hold) kg += h.kg; Txt(TextFormat("In the hold: %d fish, %.0f kg", (int)G.hold.size(), kg), SCREEN_W - 260, 16, 15, Fade(paper, 0.8f)); }
     // the crew list: who is where (bots and what they're about); G orders the hand nearest the station you point at
-    if (G.botsOn) {
+    if (G.botsOn || S.net) {
         float y = 40;
         for (int i = 0; i < (int)G.crew.size(); i++) {
             if (i == S.you) continue;
@@ -534,10 +511,16 @@ void Hud(Game& g) {
             Color rc = ColorLerp(RoleColor(o.role), paper, 0.45f);   // (the Bosun's navy is lost on a night sea)
             bool ordered = i < (int)G.brains.size() && G.brains[i].order >= 0;
             Txt(TextFormat("%s%s", RoleName(o.role), ordered ? " *" : ""), SCREEN_W - 260, y, 13, Fade(rc, o.dead ? 0.4f : 0.9f));
-            Txt(G.BotDoing(i).c_str(), SCREEN_W - 190, y, 13, Fade(paper, o.dead ? 0.35f : o.overboard ? 1.0f : 0.65f));
+            // a player's hand shows the player; a bot's what it's about
+            std::string doing = G.BotDoing(i);
+            if (S.net && !o.bot) {
+                int seat = S.net->SeatOfPlayer(i);
+                if (seat >= 0 && seat < arcade::MAX_PLAYERS) doing = S.net->seats[seat].name + (o.station >= 0 ? std::string(": ") + Stations()[o.station].name : o.overboard ? ": in the water" : "");
+            }
+            Txt(doing.c_str(), SCREEN_W - 190, y, 13, Fade(paper, o.dead ? 0.35f : o.overboard ? 1.0f : 0.65f));
             y += 16;
         }
-        Txt("G: order a hand to the station you point at   F: follow me", SCREEN_W - 260, y + 2, 11, Fade(paper, 0.4f));
+        if (G.botsOn) Txt("G: order a hand to the station you point at   F: follow me", SCREEN_W - 260, y + 2, 11, Fade(paper, 0.4f));
     }
     // a leak where you stand: E patches it (6 s, 3 for a Bosun) with the ship's kits
     if (!c.overboard && !c.dead && c.station < 0 && !G.moored) {
@@ -572,16 +555,16 @@ void Hud(Game& g) {
     if (G.boat.sunk) DrawTextCenteredBold("The Gannet has foundered", SCREEN_W / 2.0f, SCREEN_H / 2.0f, 30, Color{230, 80, 70, 255});
     // the wheelhouse clock (or a pocket watch): the only way to read the time
     bool inWheelhouse = c.deck == 0 && c.p.x > 0.9f && c.p.x < 5.1f && fabsf(c.p.y) < 2.1f;
-    if ((S.sess.phase == Phase::Night || S.sess.phase == Phase::SailOut) && (inWheelhouse || G.watch))
-        TxtBold(S.sess.ClockText(), SCREEN_W / 2.0f - 30, 16, 26, S.sess.clock > 480 ? Color{240, 140, 100, 255} : paper);
+    if ((S.W->sess.phase == Phase::Night || S.W->sess.phase == Phase::SailOut) && (inWheelhouse || G.watch))
+        TxtBold(S.W->sess.ClockText(), SCREEN_W / 2.0f - 30, 16, 26, S.W->sess.clock > 480 ? Color{240, 140, 100, 255} : paper);
     // the telegraph's newest tape, for a moment
-    if (S.sess.tape.size() != S.tapeSeen) { S.tapeSeen = S.sess.tape.size(); S.tapeT = 6; }
-    if (S.tapeT > 0 && !S.sess.tape.empty()) DrawTextCentered(S.sess.tape.back(), SCREEN_W / 2.0f, 52, 15, Fade(Color{230, 215, 170, 255}, std::min(1.0f, S.tapeT)));
+    if (S.W->sess.tape.size() != S.tapeSeen) { S.tapeSeen = S.W->sess.tape.size(); S.tapeT = 6; }
+    if (S.tapeT > 0 && !S.W->sess.tape.empty()) DrawTextCentered(S.W->sess.tape.back(), SCREEN_W / 2.0f, 52, 15, Fade(Color{230, 215, 170, 255}, std::min(1.0f, S.tapeT)));
     if (S.toastT > 0) DrawTextCenteredBold(S.toast, SCREEN_W / 2.0f, SCREEN_H / 2.0f + 170, 18, Fade(paper, std::min(1.0f, S.toastT)));
     if (G.moored && c.station < 0 && S.panel < 0) {
         int d = NearestDock(c.p, 1.4f);
         if (d >= 0) DrawTextCenteredBold(TextFormat("E: %s", DockStations()[d].name), SCREEN_W / 2.0f, SCREEN_H - 90.0f, 20, paper);
-        else if (c.p.y > -3.0f && S.sess.phase == Phase::Dock) DrawTextCentered("Moored at the quay: the gangplank is amidships to port; the helm casts off", SCREEN_W / 2.0f, SCREEN_H - 60.0f, 14, Fade(paper, 0.7f));
+        else if (c.p.y > -3.0f && S.W->sess.phase == Phase::Dock) DrawTextCentered("Moored at the quay: the gangplank is amidships to port; the helm casts off", SCREEN_W / 2.0f, SCREEN_H - 60.0f, 14, Fade(paper, 0.7f));
     }
     if (S.panel < 0) StationOverlay();
     Panels(g);
@@ -589,7 +572,7 @@ void Hud(Game& g) {
 
 // a bot's short line over its head ("Fish on, port!"), on whichever view is up
 void DrawBarks() {
-    const Gannet& G = S.G;
+    const Gannet& G = S.W->G;
     if (!G.botsOn) return;
     const Crew& me = G.crew[S.you];
     const float PX = (float)SCREEN_W / PIXEL_W;
@@ -613,12 +596,12 @@ void DrawBarks() {
 }
 
 void Draw(Game& g) {
-    const Gannet& G = S.G;
+    const Gannet& G = S.W->G;
     const Crew& c = G.crew[S.you];
     if (S.fp) {
         // first person: the same Gannet through the hand's eyes, the shared HUD over it, a crosshair to aim with
         S.cam = EyeCamera(G, S.you, S.eye);
-        DrawTrawl3D(G, G.eco, S.sess, S.you, S.cam, S.ghostSee);
+        DrawTrawl3D(G, G.eco, S.W->sess, S.you, S.cam, S.ghostSee);
         if (c.dead) DrawRectangle(0, 0, SCREEN_W, SCREEN_H, Fade(Color{120, 170, 200, 255}, 0.08f));
         DrawBarks();
         Hud(g);
@@ -641,8 +624,8 @@ void Draw(Game& g) {
     // the harbour line: a ring of buoys round the harbour mouth, green lamps seaward, red toward the island
     for (int k = 0; k < 16; k++) {
         float a = k * PI / 8;
-        Vector2 w = Vector2Add(S.sess.harbour, {cosf(a) * S.sess.harbourR, sinf(a) * S.sess.harbourR});
-        if (S.eco.g && S.eco.DepthAt(w) < 1) continue;
+        Vector2 w = Vector2Add(S.W->sess.harbour, {cosf(a) * S.W->sess.harbourR, sinf(a) * S.W->sess.harbourR});
+        if (S.W->eco.g && S.W->eco.DepthAt(w) < 1) continue;
         Vector2 d = G.boat.ToDeck(w), cp = v.ToCanvas(d);
         if (cp.x < -4 || cp.y < -4 || cp.x > PIXEL_W + 6 || cp.y > PIXEL_H + 6) continue;
         bool blink = fmodf(G.time + k * 0.37f, 2.0f) < 1.2f;
@@ -666,25 +649,110 @@ void Draw(Game& g) {
 
 void StartTrawl(Game& g, bool firstPerson, int crew, int botSkill) {
     S = TrawlScene{};
+    S.W = &S.own;
     uint32_t seed = (uint32_t)GetRandomValue(1, 1 << 30);
     // the Gannet at the quay on the atoll, the first deadline's quota on the tape; every hand after you is a bot
     crew = std::clamp(crew, 1, 6);
-    S.sess.Begin(S.G, S.eco, crew, seed);
-    S.G.botsOn = crew > 1;
-    S.G.botSkill = (Skill)std::clamp(botSkill, 0, (int)Skill::COUNT - 1);
+    S.W->sess.Begin(S.W->G, S.W->eco, crew, seed);
+    S.W->G.botsOn = crew > 1;
+    S.W->G.botSkill = (Skill)std::clamp(botSkill, 0, (int)Skill::COUNT - 1);
     S.active = true;
     S.fp = firstPerson;
     EnableCursor();
     g.scene = Scene::Trawl;
 }
 
+// Network play (stage 5): the arcade's session launched the Trawl. The host draws its real world; a guest draws its
+// mirror of the host's snapshots. Either way the hand is played by sending input.
+void StartTrawlNet(Game& g, arcade::Session* net, bool firstPerson) {
+    S = TrawlScene{};
+    S.W = &S.own;
+    S.net = net;
+    S.you = std::max(0, net->MyPlayer());
+    if (net->role == arcade::R_HOST) { TrawlWorld* w = TrawlHostWorld(net->HostGame()); if (w) S.W = w; }
+    S.active = true;
+    S.fp = firstPerson;
+    EnableCursor();
+    g.scene = Scene::Trawl;
+}
+
+// Leaving: solo, back to the reels; the host takes everyone back to the lobby; a guest gives its hand to a bot
+void LeaveTrawlMatch(Game& g) {
+    if (S.net) {
+        if (S.net->role == arcade::R_HOST) S.net->BackToLobby();
+        else S.net->Leave();
+    }
+    S.active = false; S.net = nullptr;
+    EnableCursor();
+    g.scene = Scene::Arcade;
+}
+
+// While the game menu is open the world doesn't stop for a crew (only solo pauses): keep the session talking
+void TrawlMenuTick(float dt) {
+    if (!S.active || !S.net) return;
+    Writer w; WriteInputAction(HandInput{}, w); S.net->Act(w);
+    S.net->Update(GetTime(), dt);
+}
+
+namespace {
+TrawlScene::Pose CapturePose(const Gannet& G) {
+    TrawlScene::Pose p;
+    p.pos = G.boat.pos; p.heading = G.boat.heading; p.roll = G.boat.roll; p.pitch = G.boat.pitch; p.heave = G.boat.heave;
+    for (const auto& c : G.crew) p.crew.push_back(c.p);
+    return p;
+}
+// (a guest) draw between the last two snapshots: the boat's pose and the hands' places, one snapshot behind
+void Interpolate(Gannet& G) {
+    const auto& a = S.prevPose; const auto& b = S.curPose;
+    if (a.crew.size() != b.crew.size() || b.crew.size() != G.crew.size()) return;
+    float t = std::clamp(S.sinceSnap / std::max(0.02f, S.snapGap), 0.0f, 1.0f);
+    float dh = b.heading - a.heading;
+    while (dh > PI) dh -= 2 * PI;
+    while (dh < -PI) dh += 2 * PI;
+    if (Vector2Distance(a.pos, b.pos) > 20) t = 1;   // (a jump, not a drift: no sliding across the chart)
+    G.boat.pos = Vector2Lerp(a.pos, b.pos, t); G.boat.heading = a.heading + dh * t;
+    G.boat.roll = Lerp(a.roll, b.roll, t); G.boat.pitch = Lerp(a.pitch, b.pitch, t); G.boat.heave = Lerp(a.heave, b.heave, t);
+    for (size_t i = 0; i < G.crew.size(); i++) if (Vector2Distance(a.crew[i], b.crew[i]) < 3) G.crew[i].p = Vector2Lerp(a.crew[i], b.crew[i], t);
+}
+} // namespace
+
 void SceneTrawl(Game& g) {
     if (!S.active) StartTrawl(g, false);
     SetPost(0.25f, 0.02f, 0.1f);
     float dt = S.shot ? 1 / 60.0f : std::min(GetFrameTime(), 0.1f);
+    if (S.net) {
+        // ---- network play: the session first (the host's world steps inside it), then this hand's input
+        arcade::Session& N = *S.net;
+        N.Update(GetTime(), dt);
+        if (N.stage != arcade::S_PLAYING) {   // the host went back to the lobby, or the table closed
+            S.active = false; S.net = nullptr; EnableCursor(); g.scene = Scene::Arcade;
+            return;
+        }
+        if (N.role == arcade::R_HOST) { TrawlWorld* w = TrawlHostWorld(N.HostGame()); if (w) S.W = w; }
+        else {
+            S.sinceSnap += dt;
+            if (N.stateVersion != S.seenVersion && !N.Snapshot().empty()) {
+                S.seenVersion = N.stateVersion;
+                Reader r(N.Snapshot());
+                if (ReadWorld(r, S.own)) {
+                    S.prevPose = S.curPose.crew.empty() ? CapturePose(S.own.G) : S.curPose;
+                    S.curPose = CapturePose(S.own.G);
+                    S.snapGap = std::clamp(S.sinceSnap, 0.03f, 0.2f);
+                    S.sinceSnap = 0;
+                }
+            }
+            Interpolate(S.own.G);
+        }
+        S.you = std::max(0, N.MyPlayer());
+        if (S.W->G.crew.empty() || S.you >= (int)S.W->G.crew.size()) {
+            ClearBackground(Color{2, 4, 8, 255});
+            DrawTextCenteredBold("Coming aboard...", SCREEN_W / 2.0f, SCREEN_H / 2.0f - 12, 24, Color{230, 220, 196, 255});
+            return;
+        }
+    }
     if (!S.shot) {
         // first person takes the mouse to look with, except where a panel or the locker needs a pointer
-        const Crew& me = S.G.crew[S.you];
+        const Crew& me = S.W->G.crew[S.you];
         bool pointer = S.panel >= 0 || (me.station >= 0 && Stations()[me.station].kind == StationKind::Locker);
         bool lock = S.fp && !pointer;
         if (lock && !IsCursorHidden()) DisableCursor();
@@ -696,20 +764,31 @@ void SceneTrawl(Game& g) {
             if (S.eye.yaw > PI) S.eye.yaw -= 2 * PI;
             if (S.eye.yaw < -PI) S.eye.yaw += 2 * PI;
         }
-        Pressed(g);
+        HandInput in = Gather();
+        if (S.net) { Writer w; WriteInputAction(in, w); S.net->Act(w); }
+        else MergeInput(S.pend, in);
     }
-    S.acc += dt;
-    while (S.acc >= 1 / 60.0f) {
-        S.acc -= 1 / 60.0f;
-        if (!S.shot) Controls(1 / 60.0f);
-        S.G.Step(1 / 60.0f);
-        S.sess.Step(1 / 60.0f);
+    if (!S.net) {
+        // solo: our own Gannet, stepped here at 60 Hz through the same input path as network play
+        S.acc += dt;
+        while (S.acc >= 1 / 60.0f) {
+            S.acc -= 1 / 60.0f;
+            if (!S.shot) { ApplyInput(*S.W, S.you, S.pend, 1 / 60.0f); ClearPresses(S.pend); }
+            S.W->G.Step(1 / 60.0f);
+            S.W->sess.Step(1 / 60.0f);
+        }
     }
     if (S.toastT > 0) S.toastT -= dt;
     if (S.ghostSee > 0) S.ghostSee -= dt;
     if (S.tapeT > 0) S.tapeT -= dt;
-    if (S.sess.phase == Phase::Over || S.sess.phase == Phase::Result) S.panel = PANEL_END;
+    if (S.W->sess.phase == Phase::Over || S.W->sess.phase == Phase::Result) S.panel = PANEL_END;
     Draw(g);
+    if (S.net) {
+        // who's aboard over the wire: a lost hand pauses nothing at sea, but everyone should know
+        const arcade::Session& N = *S.net;
+        if (N.paused) DrawTextCenteredBold(TextFormat("A hand has lost the line to the boat: a bot takes over in %.0f s", N.pauseLeft), SCREEN_W / 2.0f, 96, 18, Color{240, 180, 120, 255});
+        TxtShadow(TextFormat("%s  -  %s", N.role == arcade::R_HOST ? "Hosting" : "Aboard", N.code.c_str()), 20, SCREEN_H - 24, 13, Fade(Color{230, 220, 196, 255}, 0.5f));
+    }
 }
 
 // --shots: 0 the deck at night, 1 the engine room, 2 the wheelhouse, 3 a squall, 4 a fish on, 5 a marlin jumping,
@@ -721,19 +800,49 @@ void DebugTrawlShot(Game& g, int which) {
     S.shot = true;
     if (fp) {   // where the hand looks in each first-person shot
         S.eye.pitch = which == 15 ? -0.3f : which == 9 || which == 0 ? -0.08f : -0.22f;
-        S.eye.yaw = which == 4 || which == 5 ? 1.25f : which == 15 || which == 21 ? 3.1f : which == 9 ? -1.9f : which == 16 ? 1.3f : which == 17 ? 1.9f : which == 1 ? -2.4f : which == 6 || which == 8 ? 2.6f : 0.0f;
+        S.eye.yaw = which == 4 || which == 5 ? 1.25f : which == 15 || which == 21 || which == 22 ? 3.1f : which == 9 ? -1.9f : which == 16 ? 1.3f : which == 17 ? 1.9f : which == 1 ? -2.4f : which == 6 || which == 8 ? 2.6f : 0.0f;
+    }
+    if (which == 22) {
+        // a guest's screen in a networked match: a host and a guest over the in-memory transport, two AI hands; the
+        // guest's scene draws its mirror of the host's snapshot (the host has cast off and is out on the ground)
+        static arcade::Session host, guest;
+        host.Leave(); guest.Leave();
+        std::string err;
+        arcade::Profile ph{"Skipper", 1}, pg{"Deckhand", 2};
+        host.Host(ph, arcade::G_TRAWL, &err, 47796, net::MakeMemoryTransport(), false);
+        guest.Join(pg, "mem:47796", &err, 0, net::MakeMemoryTransport());
+        double t = 0;
+        auto pump = [&](int frames) { for (int i = 0; i < frames; i++) { t += 1 / 60.0; host.Update(t, 1 / 60.0f); guest.Update(t, 1 / 60.0f); } };
+        for (int i = 0; i < 120 && guest.stage != arcade::S_LOBBY; i++) pump(1);
+        host.AddAI(); host.AddAI(); guest.SetReady(true);
+        pump(30);
+        std::string why; host.Launch(&why);
+        pump(10);
+        TrawlWorld* w = TrawlHostWorld(host.HostGame());
+        if (w) {
+            w->sess.Buy("shrimp"); w->sess.Buy("shrimp");
+            while (w->G.boat.bunker < 40 && w->sess.Buy("coal")) {}
+            w->G.crew[0].p = {3.0f, 0.8f};
+            w->sess.CastOff(); w->G.boat.pos = Vector2Add(w->sess.harbour, {w->sess.harbourR + 50, 8}); w->G.boat.heading = 0.1f;
+            w->eco.agentBudget = 260;
+        }
+        pump(60 * 30);
+        Eye3D eye = S.eye;
+        StartTrawlNet(g, &guest, fp);
+        S.eye = eye;
+        return;
     }
     if (which == 21) {
         // the bot crew at work: five hands, four of them bots, hove to on the ground with the lines out
         Eye3D eye = S.eye;
         StartTrawl(g, fp, 5, 1);
         S.shot = true; S.eye = eye;
-        Gannet& G = S.G; Session& ss = S.sess;
+        Gannet& G = S.W->G; Session& ss = S.W->sess;
         G.crew[0].p = {-1, 0.8f};
         ss.Buy("shrimp"); ss.Buy("shrimp");
         while (G.boat.bunker < 40 && ss.Buy("coal")) {}
         ss.CastOff(); G.boat.pos = Vector2Add(ss.harbour, {ss.harbourR + 50, 8}); G.boat.heading = 0.1f;
-        S.eco.agentBudget = 260;
+        S.W->eco.agentBudget = 260;
         for (int i = 0; i < 60 * 40; i++) { G.Step(1 / 60.0f); ss.Step(1 / 60.0f); }
         for (int i = 1; i < (int)G.crew.size(); i++) if (G.crew[i].station >= 0 && G.RodAt(G.crew[i].station) >= 0) { G.brains[i].bark = "Fish on, port!"; G.brains[i].barkT = 2; break; }
         return;
@@ -741,20 +850,20 @@ void DebugTrawlShot(Game& g, int which) {
     if (which >= 15) {
         // 15 the net down and filling, 16 a rifle and a shot fish afloat with gulls over, 17 overboard and the ring,
         // 18 a ghost on deck, 19 the harpoon fast in a shark, 20 the deck locker
-        Gannet& G = S.G; Session& ss = S.sess;
+        Gannet& G = S.W->G; Session& ss = S.W->sess;
         G.crew.push_back(G.crew[0]); G.crew[1].slot = 1; G.crew[1].role = Role::Angler; G.crew[1].p = {-3, 1.2f};
         for (auto& sl : G.crew[1].slots) sl = Slot{};
         G.crew[0].p = {-1, 0.8f};
         ss.CastOff(); G.boat.pos = Vector2Add(ss.harbour, {ss.harbourR + 60, 5}); G.boat.heading = 0.1f;
         for (int i = 0; i < 20; i++) { G.Step(1 / 60.0f); ss.Step(1 / 60.0f); }
-        S.eco.agentBudget = 260;
+        S.W->eco.agentBudget = 260;
         for (int i = 0; i < 60 * 25; i++) { G.Step(1 / 60.0f); ss.Step(1 / 60.0f); }
         Crew& c = G.crew[0];
         if (which == 15) {
             int ws = (int)StationKind::NetWinch; c.p = Stations()[ws].at; c.station = ws;
             G.net.state = NetState::Down; G.net.depth = 5; G.boat.telegraph = 1; G.boat.pressure = 0.7f; G.boat.firebox = 6;
             for (int i = 0; i < 60 * 12; i++) {
-                if (i % 90 == 0) { Vector2 w = G.boat.ToWorld({-30, 0}); int ai = S.eco.SpawnAgentPublic(Species().Find("sardine"), w); S.eco.agents[ai].count = 150; S.eco.agents[ai].p.z = G.net.depth; }
+                if (i % 90 == 0) { Vector2 w = G.boat.ToWorld({-30, 0}); int ai = S.W->eco.SpawnAgentPublic(Species().Find("sardine"), w); S.W->eco.agents[ai].count = 150; S.W->eco.agents[ai].p.z = G.net.depth; }
                 if (G.boat.pressure < 0.6f) G.boat.Shovel(1);
                 G.Step(1 / 60.0f);
             }
@@ -762,7 +871,7 @@ void DebugTrawlShot(Game& g, int which) {
         if (which == 16) {
             c.slots[3] = {Item::Rifle, 10}; c.sel = 3; c.p = {1, 2.5f};
             Floater f; f.name = "bonito"; f.sp = Species().Find("bonito"); f.kg = 4; f.price = 3; f.grade = 0.7f; f.p = G.boat.ToWorld({2, 7}); G.floaters.push_back(f);
-            int gs = Species().Find("gull flock"); int ai = S.eco.SpawnAgentPublic(gs, G.boat.ToWorld({0, 0})); S.eco.agents[ai].count = 14; S.eco.agents[ai].p.z = -3;
+            int gs = Species().Find("gull flock"); int ai = S.W->eco.SpawnAgentPublic(gs, G.boat.ToWorld({0, 0})); S.W->eco.agents[ai].count = 14; S.W->eco.agents[ai].p.z = -3;
             G.UseItem(0, {3, 12}, true, true, true, 1 / 60.0f);
             for (int i = 0; i < 2; i++) G.Step(1 / 60.0f);
             G.crew[1].slots[0] = {Item::Shotgun, 8}; G.crew[1].p = {-2, 2.5f};
@@ -780,16 +889,16 @@ void DebugTrawlShot(Game& g, int which) {
         if (which == 18) {
             G.Injure(0, INJ_BITE, "a reef shark"); G.Injure(0, INJ_BROKEN_ARM, "a fall");
             c.p = {-6, -1.2f};
-            int sh = Species().Find("reef shark"); int ai = S.eco.SpawnAgentPublic(sh, G.boat.ToWorld({-8, -8})); S.eco.agents[ai].count = 1; S.eco.agents[ai].p.z = 2;
+            int sh = Species().Find("reef shark"); int ai = S.W->eco.SpawnAgentPublic(sh, G.boat.ToWorld({-8, -8})); S.W->eco.agents[ai].count = 1; S.W->eco.agents[ai].p.z = 2;
             S.ghostSee = 1;
         }
         if (which == 19) {
             G.harpoonCannon = true; G.harpoons = 2; G.explosives = 1;
             int hs = (int)StationKind::Harpoon; c.p = Stations()[hs].at; c.station = hs;
             int sh = Species().Find("reef shark"); Vector2 at = G.boat.ToWorld({20, 3});
-            int ai = S.eco.SpawnAgentPublic(sh, at); S.eco.agents[ai].count = 1; S.eco.agents[ai].p = {at.x, at.y, 1}; S.eco.agents[ai].fedT = 100;
+            int ai = S.W->eco.SpawnAgentPublic(sh, at); S.W->eco.agents[ai].count = 1; S.W->eco.agents[ai].p = {at.x, at.y, 1}; S.W->eco.agents[ai].fedT = 100;
             for (int k = 0; k < 3 && G.harpoon.state != RodState::Fighting; k++) {
-                for (auto& a : S.eco.agents) if (a.sp == sh) a.p = {at.x, at.y, 1};
+                for (auto& a : S.W->eco.agents) if (a.sp == sh) a.p = {at.x, at.y, 1};
                 G.harpoonReload = 0; G.HarpoonInput(0, {19.6f, 3}, true, false, false, 1 / 60.0f);
                 for (int i = 0; i < 60; i++) G.Step(1 / 60.0f);
             }
@@ -804,7 +913,7 @@ void DebugTrawlShot(Game& g, int which) {
     if (which >= 9) {
         // 9 the quay, 10 the Chandler, 11 the Fish Market after a night, 12 the chart table, 13 the wheelhouse clock
         // at sea with the tape, 14 the quota met
-        Gannet& G = S.G; Session& ss = S.sess;
+        Gannet& G = S.W->G; Session& ss = S.W->sess;
         Crew& c = G.crew[0];
         if (which == 9 || which == 10 || which == 11) c.p = which == 11 ? Vector2{3.0f, -7.2f} : which == 10 ? Vector2{-3.5f, -7.2f} : Vector2{-6, -5.5f};
         if (which == 10) S.panel = (int)DockKind::Chandler;
@@ -826,7 +935,7 @@ void DebugTrawlShot(Game& g, int which) {
         for (int i = 0; i < 30; i++) { G.Step(1 / 60.0f); ss.Step(1 / 60.0f); }
         return;
     }
-    Gannet& G = S.G;
+    Gannet& G = S.W->G;
     G.Init(4, 11, which == 3 ? Weather::Squall : Weather::Calm);
     G.boat.telegraph = 1; G.boat.pressure = 0.7f;
     Crew& c = G.crew[0];
@@ -836,16 +945,16 @@ void DebugTrawlShot(Game& g, int which) {
     if (which == 1) { c.deck = 1; c.p = {-4.8f, 0.2f}; c.station = NearestStation(c.p, 1, 1.1f); G.boat.firebox = 5; G.boat.Hit(SEC_STERN_P, 75); for (int i = 0; i < 60 * 10; i++) G.Step(1 / 60.0f); }
     else if (which == 2) { c.p = {4.2f, 0}; c.station = NearestStation(c.p, 0, 1.1f); G.boat.rudder = 0.4f; }
     else if (which >= 6) {
-        S.eco.Init("lagoon", 11); G.eco = &S.eco;
-        G.boat.telegraph = 0; G.boat.pos = {S.eco.n * S.eco.cell * (which == 7 ? 0.36f : 0.42f), S.eco.n * S.eco.cell * 0.5f}; G.boat.heading = -0.3f;
+        S.W->eco.Init("lagoon", 11); G.eco = &S.W->eco;
+        G.boat.telegraph = 0; G.boat.pos = {S.W->eco.n * S.W->eco.cell * (which == 7 ? 0.36f : 0.42f), S.W->eco.n * S.W->eco.cell * 0.5f}; G.boat.heading = -0.3f;
         G.boat.lantern = which == 7 ? 3 : 2; G.boat.searchAim = 0.9f;
         c.p = {0.8f, 0.9f};
         if (which == 7) { c.p = {0.2f, 0.6f}; c.station = NearestStation({0.2f, 0}, 0, 1.1f); }
         int shark = Species().Find("reef shark");
         for (int i = 0; i < 60 * (which == 8 ? 100 : 70); i++) {
-            if (which == 8 && i % (60 * 20) == 0) { Vector2 w = G.boat.ToWorld({-11, 0}); S.eco.AddBlood({w.x, w.y, 1}, 60); }
+            if (which == 8 && i % (60 * 20) == 0) { Vector2 w = G.boat.ToWorld({-11, 0}); S.W->eco.AddBlood({w.x, w.y, 1}, 60); }
             if (which == 8 && i == 60 * 30) {
-                int ai = S.eco.SpawnAgentPublic(shark, G.boat.ToWorld({-14, 9})); S.eco.agents[ai].hunger = 0.9f; S.eco.agents[ai].p.z = 1.2f; S.eco.agents[ai].count = 1;
+                int ai = S.W->eco.SpawnAgentPublic(shark, G.boat.ToWorld({-14, 9})); S.W->eco.agents[ai].hunger = 0.9f; S.W->eco.agents[ai].p.z = 1.2f; S.W->eco.agents[ai].count = 1;
                 { CatchRec cr; cr.name = "snapper"; cr.kg = 2.5f; cr.price = 3; G.hold.push_back(cr); }
             }
             G.Step(1 / 60.0f);

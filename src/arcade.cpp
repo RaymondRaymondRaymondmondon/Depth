@@ -15,6 +15,8 @@ namespace {
 using namespace arcade;
 
 Session gSess;
+bool gTrawlFp = false;    // the Trawl's view for a networked match (the reel remembers the last one chosen)
+int twCrew = 4;           // the Trawl's hands sailing solo (the rest are bots)
 net::LanBrowser gBrowse;
 bool gBrowsing = false;
 enum Mode { MODE_MENU, MODE_JOIN, MODE_BROWSE, MODE_ROOM };
@@ -201,7 +203,7 @@ void DrawReels(Game& g) {
     // The Trawl and Red Tide play solo until their networking stages: a button launches them straight from the reel
     if (selGame == G_TRAWL) {   // two versions of the same game: from above, and through the hand's eyes
         // the crew: you and up to five bot hands, and how good they are (design doc "Bot crew")
-        static int twCrew = 4, twSkill = 1;
+        static int twSkill = 1;
         static const char* SKILLS[] = {"Green hands", "Able hands", "Old Hands"};
         auto picker = [&](float x, const char* text, int& v, int lo, int hi) {
             Rectangle l{x - 110, c.y + 52, 26, 26}, r{x + 84, c.y + 52, 26, 26};
@@ -213,8 +215,10 @@ void DrawReels(Game& g) {
         };
         picker(c.x - 120, twCrew == 1 ? "Alone" : TextFormat("%d hands", twCrew), twCrew, 1, 6);
         if (twCrew > 1) picker(c.x + 120, SKILLS[twSkill], twSkill, 0, 2);
-        if (Button({c.x - 226, c.y + 236, 220, 36}, "Sail: top-down", true, 15)) { StartTrawl(g, false, twCrew, twSkill); return; }
-        if (Button({c.x + 6, c.y + 236, 220, 36}, "Sail: first person", true, 15)) { StartTrawl(g, true, twCrew, twSkill); return; }
+        if (Button({c.x - 226, c.y + 236, 220, 36}, "Sail: top-down", true, 15)) { gTrawlFp = false; StartTrawl(g, false, twCrew, twSkill); return; }
+        if (Button({c.x + 6, c.y + 236, 220, 36}, "Sail: first person", true, 15)) { gTrawlFp = true; StartTrawl(g, true, twCrew, twSkill); return; }
+        DrawTextCentered(TextFormat("Host or Join to sail with friends (view: %s, V switches aboard)", gTrawlFp ? "first person" : "top-down"), c.x, c.y + 280, 13, SCREEN_DIM);
+        if (CheckCollisionPointRec(GetMousePosition(), {c.x - 200, c.y + 274, 400, 20}) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) gTrawlFp = !gTrawlFp;
     }
     if (selGame == G_RED_TIDE) {
         static const char* RT_MAPS[] = {"ship", "cave", "reef", "atlantis", "void"};
@@ -772,7 +776,10 @@ void DrawRoom(Game& g) {
             if (Button({p.x + p.width / 2 - 80, p.y + 116, 160, 42}, "Cancel", true, 17)) { gSess.Leave(); gMode = MODE_MENU; }
         } break;
         case S_LOBBY: DrawLobby(); break;
-        case S_PLAYING: DrawTable(g); break;
+        case S_PLAYING:
+            if (gSess.game == G_TRAWL) { StartTrawlNet(g, &gSess, gTrawlFp); return; }   // aboard the Gannet (host or guest)
+            DrawTable(g);
+            break;
         case S_ENDED: {
             Rectangle p{340, 230, 600, 220};
             DrawScreenPanel(p);
