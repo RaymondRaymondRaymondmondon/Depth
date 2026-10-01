@@ -312,3 +312,10 @@ wreck's listing, the Reef's wonder-weapon quest, the repair kit, the stage-10 ba
   - The otter fine.
   - Seal Rock and the Cannery Pier.
   - Ground-specific nightly variants: the Lagoon's are rolled everywhere today (turtles and canoes on the Weeds).
+- `32772ec`: kelp in nets (worthless weight); the otter fine.
+- Then the sim skipper puts tow marks first when he has three or more hands. The Weeds sim is still 33% at 99 sh a night, with 3 nights seized.
+  - **Diagnosis:** the towable marks lie ~250 m out over low-value forage (anchovy 0.6/kg). Income can't cover the 25 kg of coal by night three, so she runs out of steam and comes home late. (`DEPTH_TRACE=1` shows `p 0.00` in the last lines.)
+  - **Levers:**
+    - put the Weeds' valuable mid-tier fish (kelp bass, sheephead, rockfish, yellowtail) where a net can reach them: larger `start` counts, habitat weight on `open`/`sea`;
+    - give the Weeds its own net yield, or let a lane tow through thin kelp;
+    - check the coal burn at the Weeds' longer runs.

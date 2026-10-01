@@ -107,6 +107,7 @@ struct Skipper {
             }
             spots.push_back(s);
         }
+        if (G.crew.size() >= 3) std::stable_partition(spots.begin(), spots.end(), [](const Spot& s) { return s.tow; });   // (with hands for the net, the marks it can tow come first)
         if (spots.empty()) { Spot s; s.p = Vector2Add(S.harbour, {140, 20}); spots.push_back(s); }
         spotI = 0;
     }
