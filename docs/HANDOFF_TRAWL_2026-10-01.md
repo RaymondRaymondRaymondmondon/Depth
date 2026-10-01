@@ -251,3 +251,4 @@ wreck's listing, the Reef's wonder-weapon quest, the repair kit, the stage-10 ba
   - **Bilge eels:** with the bilge past 2000 kg, eels bite a hand below now and then. Fire already exists (`boat.fireT`); check how it spreads.
   - **The crew board:** the HUD shows who's below.
   - **Drawing:** the hold and the fo'c'sle in trawl_art (`viewerDeck == 1`) and in first person (BuildBoat's interior).
+- **Step 7's logic is DONE** (`2f2273b`). **Next:** draw the hold, the fo'c'sle, the hatches, the door and the lamps in the top-down view (trawl_art, `viewerDeck == 1`) and in first person (BuildBoat's interior); add the crew board to the HUD crew list (trawl.cpp ~873: who is below, in the skiff, ashore). Then step 8 (the Weeds, the Grotto, Atlantis, diving).

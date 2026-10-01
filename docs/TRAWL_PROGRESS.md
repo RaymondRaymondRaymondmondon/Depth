@@ -635,3 +635,16 @@ bubble puff); Red Tide's gun models rebuilt with a dozen parts each.
   - Mother Carey: a mini-boss drop, for a legend lure (`legendLures`; the legendary fish are still to be designed).
   - Drops can be worn instead (CMD_WEAR_DROP).
 - **Tests and shot:** `depth.exe --trawl-quest-test` (25 checks); shot `trawl_chalkboard`. Sim (6 careful hands): every deadline met, about 220 sh a night.
+
+## Step 7: below decks (2026-10-01; design doc v2, pages 16-18; `trawl_below.cpp`)
+- **Deck 1 now has three spaces:**
+  - the engine room (down the aft ladder; a hand taking the ladder lands at its foot);
+  - the fish hold (x -2.9..0.8), through the main hatch at (-1, -1) or the watertight door (E at it; shut, the hold ends at the bulkhead);
+  - the fo'c'sle (x 5.2..9), through the fore hatch at (7.6, 0). It has the magazine locker (`StationKind::Magazine`: ammunition restocks here now, not at the deck locker) and the Medic's cot (`StationKind::Cot`: 10 s on it with the Medic within 2.5 m sets a broken arm or works out a hook).
+- **Hatches** (`Gannet::hatches`): open, shut or battened. E goes through an open hatch, or opens a shut one in 4 s. R on deck shuts one, then battens it in 10 s; a battened hatch can't be opened from below. Rolling past 25 deg, every open hatch ships 30 kg of water a second.
+- **Oil lamps** (one a space): out past 20 deg of roll, 3 s to relight (E).
+- **The fire** from a blown relief valve burns until smothered (E within 1.8 m of the firebox, 3 s). Left 30 s, it reaches the coal bunker: half the coal and 15 off the stern plating. It burns whoever stands in it.
+- **Bilge eels:** with the bilge past 2,000 kg they bite whoever is below.
+- **The skiff:** with nobody at the davit, Space in the skiff alongside hooks her on from the water (25 s, the Gannet stopped) (`FinishRecovery`).
+- **Tests:** `depth.exe --trawl-below-test` (15 checks).
+- **Still to do for step 7:** drawing the hold, the fo'c'sle, the hatches, the door and the lamps in both views; the HUD's crew board (who is below, in the skiff, ashore); and the bots' use of the magazine.
