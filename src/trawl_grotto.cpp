@@ -61,7 +61,8 @@ bool Gannet::HitDrowned(Vector2 at, float dmg, float reach) {
 
 void Gannet::StepGrotto(float dt) {
     for (auto& c : crew) c.heldT = 0;
-    if (!Grotto() || moored) { angler = {}; worm.state = 0; isopods = {}; drowned.clear(); knockT = -1; return; }
+    if (moored) drowned.clear();
+    if (!Grotto() || moored) { angler = {}; worm.state = 0; isopods = {}; knockT = -1; return; }
     Eco& e = *eco;
     float stir = e.Stir();
     bool inCave = boat.pos.x > e.archX1;
@@ -181,38 +182,45 @@ void Gannet::StepGrotto(float dt) {
                 Say("A Drowned sailor hauls itself over the rail, streaming water");
             }
         }
-        for (size_t i = 0; i < drowned.size(); i++) {
-            DrownedSailor& d = drowned[i];
-            d.hitT = std::max(0.0f, d.hitT - dt);
-            if (d.grab >= 0) {
-                Crew& c = crew[d.grab];
-                if (c.dead || c.overboard || c.deck != 0) { d.grab = -1; continue; }
-                c.heldT = 1; c.station = -1;
-                float ry = (d.p.y >= 0 ? 1 : -1) * (HalfBeamG(c.p.x) - 0.3f);
-                float step = std::clamp(ry - c.p.y, -0.4f * dt, 0.4f * dt);
-                c.p.y += step; d.p.y += step;
-                if (fabsf(c.p.y - ry) < 0.05f && AtRail(c.p)) {
-                    int k = d.grab; drowned.erase(drowned.begin() + i);
-                    GoOverboard(k, "dragged over the rail by a Drowned sailor");
-                    break;
-                }
-                continue;
+        StepDrowned(dt);
+    }
+}
+
+// the Drowned on the deck: they walk at the nearest hand, grab, and drag them to the rail and over; blows and shots put
+// them down (the Grotto's, and Atlantis's Ghost Ship's boarders)
+void Gannet::StepDrowned(float dt) {
+    for (size_t i = 0; i < drowned.size(); i++) {
+        DrownedSailor& d = drowned[i];
+        d.hitT = std::max(0.0f, d.hitT - dt);
+        if (d.grab >= 0) {
+            Crew& c = crew[d.grab];
+            if (c.dead || c.overboard || c.deck != 0) { d.grab = -1; continue; }
+            c.heldT = 1; c.station = -1;
+            if (c.charm == CH_BEAK) { d.grab = -1; continue; }   // (grabbers can't hold the wearer)
+            float ry = (d.p.y >= 0 ? 1 : -1) * (HalfBeamG(c.p.x) - 0.3f);
+            float step = std::clamp(ry - c.p.y, -0.4f * dt, 0.4f * dt);
+            c.p.y += step; d.p.y += step;
+            if (fabsf(c.p.y - ry) < 0.05f && AtRail(c.p)) {
+                int k = d.grab; drowned.erase(drowned.begin() + i);
+                GoOverboard(k, "dragged over the rail by a Drowned sailor");
+                break;
             }
-            if (d.hitT > 0) continue;   // (staggered by a blow)
-            int best = -1; float bd = 1e9f;
-            for (int k = 0; k < (int)crew.size(); k++) { const Crew& c = crew[k]; if (c.dead || c.overboard || c.deck != 0) continue; float dd = Vector2Distance(c.p, d.p); if (dd < bd) { bd = dd; best = k; } }
-            if (best < 0) continue;
-            Vector2 to = Vector2Subtract(crew[best].p, d.p);
-            if (bd < 0.7f) {
-                bool taken = false; for (const auto& o : drowned) if (o.grab == best) taken = true;
-                if (!taken) { d.grab = best; Say("The Drowned sailor's hands close on a hand: hit it hard to break the grip"); }
-            } else d.p = Vector2Add(d.p, Vector2Scale(Vector2Normalize(to), 0.6f * dt));
+            continue;
         }
-        // shots fired along the deck
-        for (auto& s : shots) if (s.life > 0) {
-            Vector2 l = boat.ToDeck({s.p.x, s.p.y});
-            for (size_t i = 0; i < drowned.size(); i++) if (Vector2Distance(l, drowned[i].p) < 0.8f) { s.life = -1; HitDrowned(drowned[i].p, s.kind == Shot::Pellet ? 8.0f : 25.0f, 0.1f); break; }
-        }
+        if (d.hitT > 0) continue;   // (staggered by a blow)
+        int best = -1; float bd = 1e9f;
+        for (int k = 0; k < (int)crew.size(); k++) { const Crew& c = crew[k]; if (c.dead || c.overboard || c.deck != 0) continue; float dd = Vector2Distance(c.p, d.p); if (dd < bd) { bd = dd; best = k; } }
+        if (best < 0) continue;
+        Vector2 to = Vector2Subtract(crew[best].p, d.p);
+        if (bd < 0.7f) {
+            bool taken = false; for (const auto& o : drowned) if (o.grab == best) taken = true;
+            if (!taken) { d.grab = best; Say("The Drowned sailor's hands close on a hand: hit it hard to break the grip"); }
+        } else d.p = Vector2Add(d.p, Vector2Scale(Vector2Normalize(to), 0.6f * dt));
+    }
+    // shots fired along the deck
+    for (auto& s : shots) if (s.life > 0) {
+        Vector2 l = boat.ToDeck({s.p.x, s.p.y});
+        for (size_t i = 0; i < drowned.size(); i++) if (Vector2Distance(l, drowned[i].p) < 0.8f) { s.life = -1; HitDrowned(drowned[i].p, s.kind == Shot::Pellet ? 8.0f : 25.0f, 0.1f); break; }
     }
 }
 

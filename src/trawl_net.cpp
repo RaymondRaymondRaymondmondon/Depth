@@ -357,6 +357,10 @@ template <class A> void Visit(A& a, TrawlWorld& w) {
     a.i(g.worm.state); a.v2(g.worm.p); a.f(g.worm.t); a.f(g.worm.ang); a.i(g.worm.hits);
     a.i(g.isopods.state); a.i(g.isopods.n); a.f(g.isopods.t); a.f(g.knockT);
     a.vec(g.drowned, [&](Gannet::DrownedSailor& d) { a.v2(d.p); a.f(d.hp); a.i(d.grab); a.f(d.hitT); });
+    a.b(g.eyeLooked); a.f(g.eyeBlinkT); a.f(g.bellT); a.i(g.bellRings); a.b(g.netLast);
+    a.b(g.choir.on); a.f(g.choir.t); a.v2(g.choir.singer); a.b(g.choir.surfaced); a.f(g.choir.calmT);
+    a.b(g.longboat.on); a.v2(g.longboat.p); a.f(g.longboat.ang); a.f(g.longboat.t);
+    a.i(g.ghost.state); a.v2(g.ghost.p); a.f(g.ghost.t); a.i(g.kraken.state); a.f(g.kraken.t);
     a.f(g.deckBlood); a.i(g.junkBottles); a.i(g.junkKeys); a.i(g.junkCharts); a.i(g.landedSmall); a.i(g.landedBig);
     a.i(g.bossLures); a.b(g.bossArmed); a.f(g.bossBiteT); a.i(g.bossBiteIdx); a.i(g.bossCaught); a.b(g.tagGun); a.i(g.tagged); a.i(g.highKills); a.b(g.spiceRub); a.i(g.rareLures); a.b(g.rareLureNight); a.i(g.legendLures);
     a.vec(g.drops, [&](std::string& d) { a.s(d); });

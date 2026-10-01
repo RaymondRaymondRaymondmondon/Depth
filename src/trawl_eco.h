@@ -132,6 +132,7 @@ struct Eco {
     bool InArch(Vector2 p) const;
     void BuildAtlantisChart(uint32_t seed);     // Atlantis Waters: the terraces, the slope, the Trench's edge, the Pale Eye
     Vector2 eyeP{};                             // (Atlantis) where the Pale Eye lies, far below
+    float wakeMul = 1, wakeDrift = 0;           // (Atlantis) the Wake's gain while someone looks at the Eye; a steady rise a minute (the Eye wide open)
     std::vector<Vector2> rockfalls;             // (the Grotto) stalactites brought down by loud noise, landing this tick (EcoTick)
     float rockfallMul = 1;                      // (the Rockfall variant: half the usual noise brings them down)                // the skiff mark a point lies in, or -1
     bool skiffOn = false; Vector2 skiffPos{};    // the skiff out on its own (60 m+ from her): the web keeps a second bubble of life round it

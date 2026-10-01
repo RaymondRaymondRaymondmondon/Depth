@@ -97,8 +97,10 @@ struct Skipper {
                 float dh = Vector2Distance(p, S.harbour);
                 if (dh < (E.ground == "weeds" ? 140 : 80) || dh > 260 + (S.CoalToReach() - 10) * 4) continue;
                 if (E.ground == "weeds" && p.x < 130) continue;   // (the thin apron along the island, north and south of the quay)   // (a ground further out is fished further out; the Weeds' apron off the island is thin water)
+                bool atl = E.ground == "atlantis";
+                if (atl && p.x < 150) continue;   // (Atlantis: out over the terraces, not the island's shelf)
                 float d = E.DepthAt(p);
-                if (d < 6 || d > 35) continue;
+                if (d < (atl ? 20 : 6) || d > (atl ? 90 : 35)) continue;
                 bool clear = true;
                 for (int k = 0; k < 8 && clear; k++) { float a = k * PI / 4; if (E.DepthAt({p.x + cosf(a) * 14, p.y + sinf(a) * 14}) < 3.5f) clear = false; }
                 if (!clear || !RouteClear(S.harbour, p) || E.MarkAt(p) >= 0 || E.HabAt(p) == H_KELP || NearLanding(p, 30)) continue;
@@ -189,7 +191,7 @@ struct Skipper {
         float leaveAt = std::min(P.leaveAt, 540 - (kelpy ? 45 : 30) - Vector2Distance(G.boat.pos, S.harbour) / (kelpy ? 2.6f : 3.5f));
         // (the Grotto: out through the arch before it closes, with twenty minutes in hand)
         if (S.archCloseAt >= 0 && G.boat.pos.x > E.archX0) leaveAt = std::min(leaveAt, S.archCloseAt - 20 - Vector2Distance(G.boat.pos, {E.archX0, E.archY}) / 3.0f);
-        if (S.phase == Phase::Night && S.clock > leaveAt - (G.net.state == NetState::Down ? HAUL_AHEAD : 0) && !homeward) { homeward = true; leftAt = S.clock; G.Say("The skipper turns for home"); }
+        if (S.phase == Phase::Night && S.clock > leaveAt - (G.net.state == NetState::Down ? HAUL_AHEAD : 0) && !homeward) { homeward = true; leftAt = S.clock; G.netLast = true; G.Say("The skipper turns for home"); }
         // Canoe night: the careful skipper pays, the greedy one trades fish it can spare, the reckless one refuses
         if (S.canoe == CanoeState::Alongside) S.Canoe(S.variant == Variant::MermenMarket ? CANOE_TRADE : P.charges ? CANOE_REFUSE : P.chum ? CANOE_TRADE : CANOE_TRIBUTE);   // (the mermen's abalone are worth more than the fish)
         if (G.boat.sunk) return;

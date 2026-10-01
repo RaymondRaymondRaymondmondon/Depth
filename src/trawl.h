@@ -473,6 +473,7 @@ struct Gannet {
     std::vector<Floater> floaters;
     std::vector<FlareLight> flares;
     Trawl net; bool biggerNet = false;
+    bool netLast = false;                                 // the net is in for the night: a bot at the winch hauls it but won't shoot it again
     std::vector<Longline> longlines;
     std::vector<Pot> pots;
     std::vector<LifeRing> rings;
@@ -619,6 +620,25 @@ struct Gannet {
     MermenState mermen; float mermenCool = 150;
     bool marketNight = false;                             // the Mermen's market (a Weeds variant): they come to trade, and leave the nets alone
     bool cultRaid = false;                                // (Atlantis) the cult's hoard taken, or its bonfire used: the longboats come
+    float bellT = 99; int bellRings = 0;                  // since the ship's bell last rang; rings tonight (a Ghost Ship answers a bell rung too often)
+    // Atlantis Waters' threats (design doc v2, pages 38, 49-50; trawl_atlantis.cpp): the Pale Eye (Wake twice as fast
+    // while a hand looks at it), the Deep Choir (a Siren chorus that sings the whole crew to the rails; the bell breaks
+    // it, a shot at the singer ends it), a Cult longboat (circles and chums; outrun it or rifle the rowers), the Ghost
+    // Ship (Wake 65 or the bell rung too often: alongside, boards with drowned crew, steals set gear; flee or fight for a
+    // relic chest) and the Kraken (Wake 90: the Glass, then arms that take crew and gear and crush the hull; cut the net,
+    // kill the lantern, run at full steam, harpoon an arm)
+    bool eyeLooked = false; float eyeBlinkT = 0;
+    struct ChoirState { bool on = false; float t = 0, calmT = 0; Vector2 singer{}; bool surfaced = false; };
+    ChoirState choir; float choirCool = 200;
+    struct LongboatState { bool on = false; Vector2 p{}; float ang = 0, t = 0, fleeT = 0; int hits = 0; };
+    LongboatState longboat; float longboatCool = 150;
+    struct GhostShipState { int state = 0; Vector2 p{}; float t = 0, fleeT = 0; };   // 0 none, 1 a bell answering (approach), 2 alongside, boarders aboard
+    GhostShipState ghost; bool ghostDone = false;
+    struct KrakenState { int state = 0; float t = 0, armT = 0, fleeT = 0; int letGo = 0; };   // 0 none, 1 the Glass (the tell), 2 the arms
+    KrakenState kraken; bool krakenDone = false;
+    bool Atlantis() const;
+    void StepAtlantis(float dt);
+    void StepDrowned(float dt);                           // the Drowned on the deck (the Grotto's, and the Ghost Ship's boarders)
     bool bloomNight = false, eelRun = false;              // the Grotto's mould bloom (anglers stay away, the Drowned see her from anywhere) and glass eel run (anglers follow the eels to the light)
     // the Grotto's threats (design doc v2, page 49-50; trawl_grotto.cpp): a Lantern Angler's second light lures the
     // nearest hand to the rail; a Ghost Worm woken by vibration (taut lines, the net, the screw) bites lines, snags the
@@ -679,6 +699,7 @@ int RunTrawlGearTest();
 int RunTrawlBelowTest();                                  // depth.exe --trawl-below-test
 int RunTrawlWeedsTest();                                  // depth.exe --trawl-weeds-test
 int RunTrawlGrottoTest();                                 // depth.exe --trawl-grotto-test
+int RunTrawlAtlantisTest();                               // depth.exe --trawl-atlantis-test
 bool GrottoShake(Gannet& g, int c);                       // E beside a hand an Angler's light has lured: shake them out of it
 int RunTrawlQuestTest();                                  // depth.exe --trawl-quest-test
 int RunTrawlSkiffTest();                                  // depth.exe --trawl-skiff-test                                   // depth.exe --trawl-gear-test

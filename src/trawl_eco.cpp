@@ -966,6 +966,7 @@ void Eco::Step(float dt) {
         float crewBlood = blood.Near({boatPos.x, boatPos.y, 1}, 6) + blood.Near({boatPos.x, boatPos.y, 8}, 6);
         float lampTerm = 0; for (const auto& l : lamps) lampTerm += l.r >= 30 ? 1.0f : l.r >= 14 ? 0.2f : 0;
         float add = (boat ? std::max(0.0f, crewBlood - 5) * 0.07f + screwNoise * 0.11f + lampTerm : 0) / 60.0f;
+        add = add * wakeMul + wakeDrift / 60.0f;   // (Atlantis: twice as fast while a hand looks at the Pale Eye; the Eye wide open builds it all night)
         bool quiet = add < 0.3f / 60.0f;
         wake = std::clamp(wake + add - (quiet ? 1 / 60.0f : 0), 0.0f, 100.0f);
     }

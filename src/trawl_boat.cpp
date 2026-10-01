@@ -328,7 +328,7 @@ void Gannet::Primary(int ci, bool held, float dt) {
             c.strokeT += dt * rate;
             while (c.strokeT >= D().strokeTime) { c.strokeT -= D().strokeTime; boat.Pump(D().pumpKgPerStroke * (secondPump ? 2 : 1)); }
             break;
-        case StationKind::Bell: if (held) Say("The bell"); break;
+        case StationKind::Bell: if (held && bellT > 1.2f) { bellT = 0; bellRings++; Say("The bell rings out over the water"); } break;
         case StationKind::Davit: DavitWork(ci, held, dt); break;
         case StationKind::Gutting: {
             // gut, grade and ice the catch one fish at a time; the guts go over the rail
@@ -400,6 +400,7 @@ void Gannet::Step(float dt) {
     if (eco) EcoTick(*eco, *this, dt);
     StepWeeds(dt);
     StepGrotto(dt);
+    StepAtlantis(dt);
     boat.Step(dt, sea);
     if (moored) { boat.pos = moorPos; boat.heading = moorHeading; boat.vel = {0, 0}; boat.yawRate = 0; boat.roll *= 0.9f; boat.pitch *= 0.9f; }
     StepSkiff(dt);

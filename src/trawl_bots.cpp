@@ -377,7 +377,7 @@ void Gannet::StepBots(float dt) {
             }
             case StationKind::NetWinch:
                 if (b.order == c.station) {   // shoots and hauls only when ordered
-                    bool held = (net.state == NetState::Stowed && !moored) || net.state == NetState::Shooting || net.state == NetState::Hauling || (net.state == NetState::Down && net.load > 180);
+                    bool held = (net.state == NetState::Stowed && !moored && !netLast) || net.state == NetState::Shooting || net.state == NetState::Hauling || (net.state == NetState::Down && net.load > 180);
                     NetInput(i, held, false, dt);
                 }
                 break;
