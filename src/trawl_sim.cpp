@@ -47,7 +47,7 @@ struct Skipper {
     Gannet& G; Session& S; Eco& E; const SkipperPattern& P;
     uint32_t rng;
     int helm, gut, portRod, winch;
-    struct Spot { Vector2 p, a, b; bool tow = false; };   // the mark, and a tow leg across open water either side of it
+    struct Spot { Vector2 p, a, b; bool tow = false, edge = false; };   // the mark, and a tow leg across open water either side of it
     std::vector<Spot> spots; int spotI = 0;
     int towLeg = 0, netHand = -1; bool towing = false;
     bool onSpot = false, homeward = false;
@@ -140,7 +140,45 @@ struct Skipper {
             }
             spots.push_back(s);
         }
+        // the Weeds: the kelp's edge, fished on the rods with the engine stopped (kelp bass, opaleye and sheephead live in
+        // the canopy and feed out of it; a cast reaches the edge from open water 8-14 m off it)
+        if (E.ground == "weeds") {
+            std::vector<std::pair<float, Vector2>> edge;
+            for (float y = 20; y < size - 20; y += 12)
+                for (float x = 130; x < size - 20; x += 12) {
+                    Vector2 p{x, y};
+                    float dh = Vector2Distance(p, S.harbour);
+                    if (dh < 100 || dh > 240 + (S.CoalToReach() - 10) * 4) continue;
+                    float d = E.DepthAt(p);
+                    if (d < 6 || d > 35 || E.HabAt(p) == H_KELP || E.MarkAt(p) >= 0 || NearLanding(p, 30)) continue;
+                    bool clear = true; Vector2 kelpAt{}; bool kelp = false;
+                    for (int k = 0; k < 8; k++) {
+                        float a = k * PI / 4; Vector2 q{p.x + cosf(a) * 8, p.y + sinf(a) * 8};
+                        int h = E.HabAt(q);
+                        if (h == H_KELP) { if (!kelp) kelpAt = Vector2Add(p, {cosf(a) * 12, sinf(a) * 12}); kelp = true; continue; }
+                        if (E.DepthAt(q) < 3.5f || h == H_LAND) clear = false;
+                    }
+                    if (!kelp || !clear || !RouteClear(S.harbour, p)) continue;
+                    float score = 0;
+                    for (int sp : E.g->species) {
+                        const SpeciesRec& r = SP[sp];
+                        if (r.price <= 0 || r.threat || r.protectedSp || r.netOnly) continue;
+                        bool takes = false; for (Tackle tk : {Tackle::Light, Tackle::Medium}) if (G.owned[(int)tk] && r.Takes(tk)) takes = true;
+                        if (!takes) continue;
+                        score += (E.DensityAt(sp, p) + E.DensityAt(sp, kelpAt)) * 0.5f * r.price * r.MeanKg();
+                    }
+                    edge.push_back({score, p});
+                }
+            std::sort(edge.begin(), edge.end(), [](const auto& a, const auto& b) { return a.first > b.first; });
+            int added = 0;
+            for (size_t i = 0; i < edge.size() && added < 3; i++) {
+                bool far = true; for (const auto& s : spots) if (Vector2Distance(s.p, edge[i].second) < 40) far = false;
+                if (!far) continue;
+                Spot s; s.p = edge[i].second; s.edge = true; spots.push_back(s); added++;
+            }
+        }
         if (G.crew.size() >= 3) std::stable_partition(spots.begin(), spots.end(), [](const Spot& s) { return s.tow; });   // (with hands for the net, the marks it can tow come first)
+        else std::stable_partition(spots.begin(), spots.end(), [](const Spot& s) { return s.edge; });   // (no net hands: the kelp's edge first)
         if (spots.empty()) { Spot s; s.p = Vector2Add(S.harbour, {140, 20}); spots.push_back(s); }
         spotI = 0;
     }
@@ -170,7 +208,7 @@ struct Skipper {
         ChooseSpots();
         onSpot = false; homeward = false; slowT = 0; chumT = 0; t = 0; groundN = 0; snagN = 0; wasSnag = false; viaMark = false; viaDone = false; h0 = G.hold.size(); chargeNow = false; towing = false; netHand = -1; towLeg = 0; leftAt = -1;
         G.boat.lantern = std::min(P.lantern, G.searchlight ? 3 : 2);
-        if (getenv("DEPTH_TRACE")) { printf("    marks:"); for (const auto& s : spots) printf("  (%.0f,%.0f d%.0f%s)", s.p.x, s.p.y, E.DepthAt(s.p), s.tow ? " tow" : ""); printf("  harbour (%.0f,%.0f)\n", S.harbour.x, S.harbour.y); }
+        if (getenv("DEPTH_TRACE")) { printf("    marks:"); for (const auto& s : spots) printf("  (%.0f,%.0f d%.0f%s)", s.p.x, s.p.y, E.DepthAt(s.p), s.tow ? " tow" : s.edge ? " edge" : ""); printf("  harbour (%.0f,%.0f)\n", S.harbour.x, S.harbour.y); }
     }
     void AtHelm() { Crew& c = G.crew[0]; if (c.dead || c.overboard) return; c.deck = 0; c.p = Stations()[helm].at; c.station = helm; }
     void Step(float dt) {
@@ -275,7 +313,15 @@ struct Skipper {
                     else if (netHand >= 0) G.NetInput(netHand, true, false, dt);
                     G.boat.telegraph = 1; G.boat.rudder *= powf(0.3f, dt); return;
                 }
-                if (G.net.state == NetState::Stowed) { spots[spotI].tow = false; snagN = 0; if (netHand >= 0) { G.OrderBot(-1); netHand = -1; } G.Say("Foul ground: the skipper fishes the mark on the rods"); return; }
+                if (G.net.state == NetState::Stowed) {
+                    spots[spotI].tow = false; snagN = 0; if (netHand >= 0) { G.OrderBot(-1); netHand = -1; }
+                    // (the Weeds: off to the kelp's edge to fish it on the rods)
+                    int best = -1; float bd = 1e9f;
+                    for (int k = 0; k < (int)spots.size(); k++) if (spots[k].edge && RouteClear(G.boat.pos, spots[k].p) && Vector2Distance(G.boat.pos, spots[k].p) < bd) { bd = Vector2Distance(G.boat.pos, spots[k].p); best = k; }
+                    if (best >= 0) { spotI = best; onSpot = false; G.Say("Foul ground: the skipper takes her to the kelp's edge for the rods"); }
+                    else G.Say("Foul ground: the skipper fishes the mark on the rods");
+                    return;
+                }
             }
             Vector2 leg = towLeg ? spots[spotI].b : spots[spotI].a;
             if (Vector2Distance(G.boat.pos, leg) < 10) towLeg = !towLeg;

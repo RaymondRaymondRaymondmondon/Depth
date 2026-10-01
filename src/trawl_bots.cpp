@@ -330,7 +330,16 @@ void Gannet::StepBots(float dt) {
                     case Role::Bosun: want.push_back(boiler); break;
                     case Role::Medic: want.push_back(gut); rodsInOrder(); break;
                     case Role::Diver: if (DeckFish() > 0) want.push_back(gut); rodsInOrder(); break;
-                    default: rodsInOrder(); want.push_back(gut); break;
+                    default: {
+                        // (an angler with its line in steps over to an empty table when a fish is flopping for the rail,
+                        // and goes back to a rod once the deck is clear)
+                        int ri = c.station >= 0 ? RodAt(c.station) : -1;
+                        bool idleRod = c.station < 0 || c.station == gut || (ri >= 0 && rods[ri].state == RodState::Idle);
+                        if (DeckFish() > 0 && idleRod && takenBy(gut, i) < 0) want.push_back(gut);
+                        rodsInOrder();
+                        if (!(c.station == gut && DeckFish() == 0)) want.push_back(gut);
+                        break;
+                    }
                 }
                 // keep the station it already holds if it's still on the list (no musical chairs)
                 for (int w : want) if (w == c.station) { goal = w; break; }
