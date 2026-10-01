@@ -284,6 +284,7 @@ struct Crew {
     int charm = 0;                                        // the charm on a cord round this hand's neck (Charm); lost with a body lost at sea
     bool carrying = false; CatchRec carry;                // ashore: one thing in the arms (a fish, a chest, a crab)
     int workOn = -1; float workT = 0;                     // ashore: digging a cache (its index) or relighting the fire (100)
+    float tangleT = 0;                                    // (the Weeds) seconds a Kelp Wraith has had this hand by the ankle at the rail (0: free)
     // the hand's slots, injuries, and life (design doc, "Death, injury, and ghosts")
     Slot slots[4]; int sel = 0;
     float cool = 0, reloadT = 0;
@@ -598,6 +599,20 @@ struct Gannet {
     bool SwimInSkiffFrame(int c) const;                   // a swimmer nearer the skiff than the Gannet (the screens follow her then)
     void SkiffSwim(int c, bool held, float dt);
     bool screwFouled = false; float cutT = 0;          // the Weeds' kelp round the screw (half her way)
+    // the Weeds' threats (design doc v2, the Weeds; trawl_weeds.cpp). A Siren sings from the lanes and pulls the helm
+    // toward her rocks (40 s; a flare near her or a shot at her drives her off; reaching her is a holed bow). A Kelp
+    // Wraith takes a hand at the rail by the ankle while she lies in the canopy (8 s to drag them over; E beside them, or
+    // their own knife, cuts them free; the kelp crown keeps them off). Feral Mermen gather at a net towed near the kelp
+    // (splashing at the cod end for 12 s: a shot, a flare or the searchlight on them sends them off, else they cut it open).
+    struct SirenState { bool on = false; Vector2 p{}; float t = 0; };
+    SirenState siren; float sirenCool = 240;
+    float wraithCool = 120;
+    struct MermenState { bool on = false; Vector2 p{}; float t = 0; };
+    MermenState mermen; float mermenCool = 150;
+    bool Weeds() const;
+    void StepWeeds(float dt);
+    bool FreeTangled(int c);                              // E beside a tangled hand (or the hand itself, with a knife)
+    void CutNet(const std::string& why);                  // the cod end slit: the catch goes, the net comes up empty
     void CutScrew(int c, bool held, float dt);           // a swimmer at the stern holding left mouse cuts it free (4 s)           // a swimmer beside a capsized skiff holding left mouse rights her
     bool HitDeckFish(int idx, float dmg, int by, int how, bool head, float range);   // a blow on a deck fish (KillHow); true if it died of it
     float deckBlood = 0;                                  // blood on the planking: drains through the scuppers into the sea at 20% a second
@@ -636,6 +651,7 @@ bool QuayWalkable(Vector2 p);                             // the quay beside her
 int RunTrawlSim(int argc, char** argv);                   // depth.exe --trawl-sim <ground> <nights> [crew] [pattern] [runs] [skill] (trawl_sim.cpp)
 int RunTrawlGearTest();
 int RunTrawlBelowTest();                                  // depth.exe --trawl-below-test
+int RunTrawlWeedsTest();                                  // depth.exe --trawl-weeds-test
 int RunTrawlQuestTest();                                  // depth.exe --trawl-quest-test
 int RunTrawlSkiffTest();                                  // depth.exe --trawl-skiff-test                                   // depth.exe --trawl-gear-test
 int RunTrawlBotTest();                                    // depth.exe --trawl-bot-test

@@ -322,7 +322,7 @@ template <class A> void Visit(A& a, TrawlWorld& w) {
         a.f(c.carryKg); a.v2(c.facing);
         for (Slot& sl : c.slots) VisitSlot(a, sl);
         a.i(c.sel); a.f(c.cool); a.f(c.reloadT); a.i(c.injuries); a.i(c.serious);
-        a.b(c.dead); a.b(c.bodyLost); a.v2(c.swim); a.f(c.drownT); a.f(c.bleedT); a.s(c.cause); a.f(c.inkT);
+        a.b(c.dead); a.b(c.bodyLost); a.v2(c.swim); a.f(c.drownT); a.f(c.bleedT); a.s(c.cause); a.f(c.inkT); a.f(c.tangleT);
         a.f(c.oarT); a.f(c.rightT); a.b(c.skiffLine); a.i(c.charm); a.b(c.carrying); VisitCatch(a, c.carry); a.i(c.workOn); a.f(c.workT);
     });
     {   // the skiff
@@ -351,6 +351,7 @@ template <class A> void Visit(A& a, TrawlWorld& w) {
     for (auto& h : g.hatches) { a.v2(h.at); a.i(h.state); }
     a.b(g.doorOpen); for (auto& l : g.lamps) { a.v2(l.at); a.b(l.lit); }
     a.f(g.fireSpread); a.f(g.cotT); a.f(g.hookT); a.b(g.screwFouled); a.f(g.cutT);
+    a.b(g.siren.on); a.v2(g.siren.p); a.f(g.siren.t); a.b(g.mermen.on); a.v2(g.mermen.p); a.f(g.mermen.t);
     a.f(g.deckBlood); a.i(g.junkBottles); a.i(g.junkKeys); a.i(g.junkCharts); a.i(g.landedSmall); a.i(g.landedBig);
     a.i(g.bossLures); a.b(g.bossArmed); a.f(g.bossBiteT); a.i(g.bossBiteIdx); a.i(g.bossCaught); a.b(g.tagGun); a.i(g.tagged); a.i(g.highKills); a.b(g.spiceRub); a.i(g.rareLures); a.b(g.rareLureNight); a.i(g.legendLures);
     a.vec(g.drops, [&](std::string& d) { a.s(d); });

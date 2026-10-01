@@ -381,6 +381,23 @@ void DrawGear(const Gannet& g, const View& v) {
         }
     }
     for (const auto& fl : g.flares) { Vector2 q = C(fl.p); DrawCircleV(q, 2, Color{255, 110, 70, 255}); DrawCircleV(q, 5 + sinf(g.time * 20) * 1.5f, Fade(Color{255, 140, 90, 255}, 0.25f)); }
+    // the Weeds: a Siren on her rock (a pale figure, her song spreading in rings), mermen splashing at the cod end
+    if (g.siren.on) {
+        Vector2 q = C(g.siren.p);
+        DrawCircleV(q, 5, Color{48, 46, 44, 255});
+        DrawCircleV({q.x, q.y - 3}, 1.6f, Color{225, 230, 235, 255});
+        DrawLineEx({q.x, q.y - 2}, {q.x + 1, q.y + 2}, 2, Color{205, 215, 222, 255});
+        for (int k = 0; k < 3; k++) { float u = fmodf(g.time * 0.6f + k / 3.0f, 1.0f); DrawCircleLinesV(q, 6 + u * 40, Fade(Color{190, 220, 230, 255}, 0.35f * (1 - u))); }
+    }
+    if (g.mermen.on) {
+        Vector2 q = C(g.mermen.p);
+        for (int k = 0; k < 5; k++) {
+            float a = k * 1.3f + g.time * 2.1f, r = 3 + 3 * fabsf(sinf(g.time * 5 + k));
+            Vector2 s{q.x + cosf(a) * r * 1.6f, q.y + sinf(a) * r};
+            DrawCircleV(s, 1.2f + fabsf(sinf(g.time * 9 + k)) * 1.3f, Fade(Color{220, 235, 240, 255}, 0.7f));
+        }
+        if (fmodf(g.time, 1.6f) < 0.35f) DrawLineEx({q.x - 3, q.y}, {q.x + 2, q.y - 3}, 2, Color{150, 170, 160, 255});   // a pale arm over the floats
+    }
     // the harpoon's tether while something big is fast on it
     if (g.harpoon.state == RodState::Fighting) DrawLineV(v.ToCanvas({10.2f, 0}), C({g.harpoon.fight.p.x, g.harpoon.fight.p.y}), Color{170, 170, 180, 255});
     // life rings and their ropes

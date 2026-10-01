@@ -559,6 +559,8 @@ bool Session::CastOff(std::string* why) {
     // fish kept from an earlier night: iced lose a quarter, un-iced have rotted
     for (auto& c : G->hold) if (!c.cooked && !c.junk && c.boss < 0) c.fresh = c.iced ? c.fresh * OVERNIGHT_ICED : 0;   // (cooked fish keep)
     G->highKills = 0;
+    G->siren = {}; G->mermen = {}; G->sirenCool = 150; G->wraithCool = 100; G->mermenCool = 120;   // (the Weeds' threats, fresh each night)
+    for (auto& c : G->crew) c.tangleT = 0;
     G->rareLureNight = G->rareLures > 0; if (G->rareLureNight) { G->rareLures--; G->Say("The naturalist's lure goes on: rare fish bite more tonight"); }
     // the night's conditions (rolled per night and ground) and a rumour on the tape (right 70% of the time)
     uint32_t h = seed * 2654435761u + (uint32_t)(deadline * 31 + night * 7);

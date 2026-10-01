@@ -253,7 +253,7 @@ void Gannet::Move(int ci, Vector2 wish, bool brace, float dt) {
     }
     float burnSlow = c.Has(INJ_BURN) ? 0.7f : 1.0f;
     c.braced = brace || c.station >= 0;
-    if (c.station >= 0 || c.fallen) wish = {0, 0};
+    if (c.station >= 0 || c.fallen || c.tangleT > 0) wish = {0, 0};   // (a Kelp Wraith's grip holds them at the rail)
     float l = Vector2Length(wish);
     if (l > 1) wish = Vector2Scale(wish, 1 / l);
     if (l > 0.1f) c.facing = Vector2Normalize(wish);
@@ -301,6 +301,7 @@ bool Gannet::Jump(int ci) {
 bool Gannet::TakeStation(int ci) {
     Crew& c = crew[ci];
     if (c.overboard || c.fallen) return false;
+    if (!c.dead && FreeTangled(ci)) return true;   // (a hand in a Kelp Wraith's grip)
     if (!c.dead && BelowUse(ci)) return true;   // (a hatch, the door, a lamp, the fire)
     if (Vector2Distance(c.p, LADDER) < 0.8f && !c.dead) { c.deck = 1 - c.deck; c.station = -1; c.p = LADDER; return true; }   // the ladder (off it at its foot: clear of the hold's bulkhead)
     int s = NearestStation(c.p, c.deck, 1.1f);
@@ -396,6 +397,7 @@ void Gannet::Step(float dt) {
     StepGear(dt);
     StepSonar(dt);
     if (eco) EcoTick(*eco, *this, dt);
+    StepWeeds(dt);
     boat.Step(dt, sea);
     if (moored) { boat.pos = moorPos; boat.heading = moorHeading; boat.vel = {0, 0}; boat.yawRate = 0; boat.roll *= 0.9f; boat.pitch *= 0.9f; }
     StepSkiff(dt);

@@ -122,10 +122,11 @@ struct Skipper {
     }
     // the dock: consumables for the night (the doc's targets are measured with the starting gear)
     void Shop() {
+        while (G.boat.bunker < 35 + S.CoalToReach() && S.Buy("coal")) {}   // coal first: a poor purse must still reach the ground
+        G.RestockAtLocker(0);   // (spears for the speargun from the magazine's stock)
         while (G.baitShrimp < 20 && S.Buy("shrimp")) {}
         if (S.money > 60) while (G.baitSquid < 10 && S.Buy("squid")) {}
         while (G.ice < 60 && S.money > 20 && S.Buy("ice")) {}
-        while (G.boat.bunker < 35 + S.CoalToReach() && S.Buy("coal")) {}   // (enough for the night once the run out to the ground is paid)
         if (G.PatchKits() == 0 && S.money > 40) S.Buy("patch");
         if (P.chum) while (G.chum < 2 && S.money > 50 && S.Buy("chum")) {}
         if (P.charges) { int have = 0; for (const auto& sl : G.crew[0].slots) if (sl.it == Item::Charge) have += sl.ammo; for (const auto& sl : G.locker) if (sl.it == Item::Charge) have += sl.ammo; if (have == 0 && S.money > 150) S.Buy("charge"); }
@@ -149,11 +150,22 @@ struct Skipper {
             if (G.boat.bilge > 300) G.boat.Pump(D().pumpKgPerStroke * dt / D().strokeTime);
         }
         if (me.dead || me.overboard) { G.boat.telegraph = 0; return; }
-        float leaveAt = std::min(P.leaveAt, 540 - 30 - Vector2Distance(G.boat.pos, S.harbour) / 3.5f);   // (further out, leave earlier: a game minute a second at ~3.5 m/s, half an hour in hand)
+        // (further out, leave earlier: a game minute a second at ~3.5 m/s, half an hour in hand; on a ground with kelp
+        // the way home bends round the canopy and a fouled screw costs half a minute, so budget 2.6 m/s and 45 minutes)
+        bool kelpy = E.ground == "weeds";
+        float leaveAt = std::min(P.leaveAt, 540 - (kelpy ? 45 : 30) - Vector2Distance(G.boat.pos, S.harbour) / (kelpy ? 2.6f : 3.5f));
         if (S.phase == Phase::Night && S.clock > leaveAt - (G.net.state == NetState::Down ? HAUL_AHEAD : 0) && !homeward) { homeward = true; leftAt = S.clock; G.Say("The skipper turns for home"); }
         // Canoe night: the careful skipper pays, the greedy one trades fish it can spare, the reckless one refuses
         if (S.canoe == CanoeState::Alongside) S.Canoe(P.charges ? CANOE_REFUSE : P.chum ? CANOE_TRADE : CANOE_TRIBUTE);
         if (G.boat.sunk) return;
+        // mermen at the net (the Weeds): after 5 s of splashing a hand at the stern looses a spear at the cod end (a
+        // flare if the spears are gone; the sim's shorthand for walking aft with the speargun)
+        if (G.mermen.on && G.mermen.t > 5 && G.mermen.t < 5 + dt * 1.5f) {
+            bool spear = false;
+            for (auto& sl : me.slots) if (sl.it == Item::Speargun && sl.ammo > 0) { sl.ammo--; spear = true; break; }
+            if (spear) { Projectile s; s.kind = Shot::Spear; s.p = {G.mermen.p.x + 1, G.mermen.p.y, 0}; s.life = 0.2f; G.shots.push_back(s); }
+            else if (G.ammoFlares > 0) { G.ammoFlares--; G.flares.push_back({G.mermen.p, 30}); }
+        }
         // kelp round the screw (the Weeds): stop her and send a hand over the stern to cut it free (half a minute)
         if (G.screwFouled) { fouledT += dt; G.boat.telegraph = 0; if (fouledT > 30 && G.boat.shaft < 0.05f) { G.screwFouled = false; fouledT = 0; } return; }
         // aground: back off for a few seconds with the helm over, then try again
@@ -314,7 +326,12 @@ int RunTrawlSim(int argc, char** argv) {
                 float pace = S.quota * std::max(1, S.night) / 3.0f * 1.1f;   // (S.night already counts tonight once she's moored)
                 std::sort(G.hold.begin(), G.hold.end(), [&](const CatchRec& a, const CatchRec& b) { return S.QuotaValue(a) > S.QuotaValue(b); });
                 float deliveredNow = 0; std::vector<SaleLine> del;
+                // ...but keep enough back for the market that tomorrow's bait, ice and coal are paid (not on the last night)
+                float marketLeft = 0; for (const auto& c : G.hold) marketLeft += S.Value(c);
+                bool lastNight = S.night >= 3;
                 while (!G.hold.empty() && S.sold < pace && S.QuotaValue(G.hold.front()) > 0) {
+                    if (!lastNight && S.money + marketLeft - S.Value(G.hold.front()) < 120) break;
+                    marketLeft -= S.Value(G.hold.front());
                     deliveredNow += S.Deliver(0);
                     del.insert(del.end(), S.lastDelivery.begin(), S.lastDelivery.end());
                 }
