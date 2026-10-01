@@ -1596,6 +1596,23 @@ void DebugTrawlShot(Game& g, int which) {
         S.eye.pitch = which == 15 ? -0.3f : which == 9 || which == 0 ? -0.08f : -0.22f;
         S.eye.yaw = which == 4 || which == 5 ? 1.25f : which == 15 || which == 21 || which == 22 ? 3.1f : which == 9 ? -1.9f : which == 16 ? 1.3f : which == 17 ? 1.9f : which == 1 ? -2.4f : which == 6 || which == 8 ? 2.6f : 0.0f;
     }
+    if (which == 36) {
+        // spray: full ahead into a squall, the hand on the foredeck looking over the bow as she buries it
+        Gannet& G = S.W->G;
+        G.Init(4, 11, Weather::Squall);
+        G.moored = false; G.boat.pos = Vector2Add(G.moorPos, {200, 60}); G.boat.heading = 0.4f;
+        G.boat.telegraph = 3; G.boat.pressure = 0.8f; G.boat.firebox = 6;
+        for (int i = 0; i < 60 * 25; i++) G.Step(1 / 60.0f);
+        for (int i = 0; i < 60 * 30; i++) {   // (on until she buries her bow in a sea)
+            Vector3 bow = BoatPoint(G.boat, {10.0f, 0.55f, 0});
+            if (G.sea.Height(bow.x, bow.z) + 0.12f - bow.y > 0.25f) break;
+            G.Step(1 / 60.0f);
+        }
+        Crew& c = G.crew[0]; c.p = {8.3f, 1.3f}; c.station = -1;
+        if (fp) { S.eye.yaw = 0.6f; S.eye.pitch = -0.7f; }
+        tw::gSprayWarm = 120;
+        return;
+    }
     if (which == 31) {
         // the Weeds: the Gannet lying at the edge of the kelp canopy at night, her lantern full
         StartTrawl(g, fp, 2, 1);
@@ -1912,6 +1929,7 @@ void DebugTrawlShot(Game& g, int which) {
         for (int i = 0; i < 30; i++) { G.Step(1 / 60.0f); ss.Step(1 / 60.0f); }
         return;
     }
+
     Gannet& G = S.W->G;
     G.Init(4, 11, which == 3 ? Weather::Squall : Weather::Calm);
     G.boat.telegraph = 1; G.boat.pressure = 0.7f;

@@ -536,6 +536,7 @@ static void LatheUp(MeshBuilder& dst, float len, int rings, int segs, float (*rx
     dst.uv.insert(dst.uv.end(), tmp.uv.begin(), tmp.uv.end());
     dst.col.insert(dst.col.end(), tmp.col.begin(), tmp.col.end());
 }
+int gSprayWarm = 0;   // frames of spray to run before the next draw (shots)
 static Model gBody[(int)Role::COUNT]{}, gArm[(int)Role::COUNT]{}, gLeg{}, gStars{}, gMoon{}, gRain{}, gItem[(int)Item::COUNT]{};
 static bool gCrewReady = false;
 static void BuildBody(MeshBuilder& mb, Color coat) {
@@ -954,6 +955,56 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
             float fall = fmodf(t * (wx == Weather::Rain ? 9.0f : 13.0f), 12.0f);
             for (int k = 0; k < 2; k++) rt::DrawSky(gRain, MatrixTranslate(cam.position.x, cam.position.y - 6 - fall + 12 * k, cam.position.z), WHITE);
         }
+    }
+    // ---- spray: wherever the bow or a rail dips under the sea's surface with way on her, white water flies up and
+    // falls back (read from the boat's pose and the sea, so a guest's mirror throws the same spray)
+    {
+        struct Drop { Vector3 p, v; float life; };
+        static std::vector<Drop> spray; static uint32_t srng = 99;
+        auto R = [&]() { srng = srng * 1664525u + 1013904223u; return (srng >> 8) / 16777216.0f; };
+        float fdt = std::min(GetFrameTime(), 0.05f);
+        float spd = b.Speed();
+        int iters = gSprayWarm > 0 ? gSprayWarm : 1; if (gSprayWarm > 0) fdt = 1 / 60.0f;   // (a shot warms it up)
+        gSprayWarm = 0;
+        for (int it = 0; it < iters; it++) {
+        const Vector3 cut[] = {{10.0f, 0.55f, 0}, {8.2f, 0.5f, -1.5f}, {8.2f, 0.5f, 1.5f}, {0, 0.35f, -2.25f}, {0, 0.35f, 2.25f}, {-7, 0.35f, -2.1f}, {-7, 0.35f, 2.1f}};
+        Vector3 fwd = BoatDir(b, {1, 0, 0});
+        for (int k = 0; k < 7 && !g.moored; k++) {
+            Vector3 w = BoatPoint(b, cut[k]);
+            float under = g.sea.Height(w.x, w.z) + 0.12f - w.y;
+            if (under <= 0) continue;
+            float n = under * (k == 0 ? 60.0f : 25.0f) * (0.4f + std::max(0.0f, spd)) * fdt;
+            Vector3 side = BoatDir(b, {0, 0, cut[k].z < 0 ? -1.0f : cut[k].z > 0 ? 1.0f : (R() < 0.5f ? -1.0f : 1.0f)});
+            for (; n > 0 && spray.size() < 500; n -= 1) {
+                if (n < 1 && R() > n) break;
+                Drop d; d.p = Vector3Add(w, {(R() - 0.5f) * 0.6f, 0.05f, (R() - 0.5f) * 0.6f});
+                d.v = Vector3Add(Vector3Add(Vector3Scale(fwd, spd * (0.3f + 0.4f * R())), Vector3Scale(side, 0.8f + 1.8f * R())), {0, 2.0f + 3.5f * R() * std::min(1.5f, under * 3), 0});
+                d.life = 0.8f + 0.8f * R();
+                spray.push_back(d);
+            }
+        }
+        // the bow wave: the stem cuts the sea with way on her, a steady curl of white either side of the cutwater
+        if (!g.moored && spd > 1.5f) {
+            float n = (spd - 1.5f) * 28 * fdt;
+            for (; n > 0 && spray.size() < 500; n -= 1) {
+                if (n < 1 && R() > n) break;
+                float sgn = R() < 0.5f ? -1.0f : 1.0f;
+                Vector3 w = BoatPoint(b, {9.6f + 0.4f * R(), 0, sgn * 0.25f});
+                w.y = g.sea.Height(w.x, w.z) + 0.05f;
+                Drop d; d.p = w;
+                d.v = Vector3Add(Vector3Add(Vector3Scale(fwd, spd * 0.5f), Vector3Scale(BoatDir(b, {0, 0, sgn}), 1.0f + 1.2f * R())), {0, 1.4f + 0.45f * spd * R(), 0});
+                d.life = 0.6f + 0.4f * R();
+                spray.push_back(d);
+            }
+        }
+        for (auto& d : spray) {
+            d.v.y -= 9.8f * fdt; d.v = Vector3Scale(d.v, expf(-0.6f * fdt));
+            d.p = Vector3Add(d.p, Vector3Scale(d.v, fdt)); d.life -= fdt;
+            if (d.v.y < 0 && d.p.y < g.sea.Height(d.p.x, d.p.z)) d.life = 0;
+        }
+        spray.erase(std::remove_if(spray.begin(), spray.end(), [](const Drop& d) { return d.life <= 0; }), spray.end());
+        }
+        for (const auto& d : spray) { float s = 0.11f + 0.09f * std::min(1.0f, d.life); rt::DrawCubeGlow(MatrixMultiply(MatrixScale(s, s, s), MatrixTranslate(d.p.x, d.p.y, d.p.z)), Color{210, 224, 230, 255}, 0.9f); }   // (faintly self-lit: white water catches what light there is)
     }
     // ---- the land, the quay, the harbour's buoys
     if (gLandFor) rt::DrawStatic(gLand, MatrixIdentity(), WHITE);

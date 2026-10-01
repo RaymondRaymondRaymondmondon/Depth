@@ -35,4 +35,5 @@ void DiveSceneDraw(const Gannet& g, int you);
 bool DiveSceneActive();
 Color RoleColor(Role r);
 
+extern int gSprayWarm;   // frames of first-person spray to run before the next draw (shots)
 } // namespace tw
