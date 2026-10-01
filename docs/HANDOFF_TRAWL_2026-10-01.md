@@ -319,3 +319,4 @@ wreck's listing, the Reef's wonder-weapon quest, the repair kit, the stage-10 ba
     - put the Weeds' valuable mid-tier fish (kelp bass, sheephead, rockfish, yellowtail) where a net can reach them: larger `start` counts, habitat weight on `open`/`sea`;
     - give the Weeds its own net yield, or let a lane tow through thin kelp;
     - check the coal burn at the Weeds' longer runs.
+- Weeds tuning 1 (more kelp bass, sheephead, rockfish, yellowtail and mackerel; kelp fish range into the open lanes): 184 sh a night, 1 seized night, but still only 25% of deadlines met. Next, look at deliveries and freshness rejections and at what the seized night costs (DEPTH_TRACE).
