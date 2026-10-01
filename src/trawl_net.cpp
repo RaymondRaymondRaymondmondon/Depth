@@ -129,6 +129,7 @@ bool DoCommand(TrawlWorld& w, int ci, int cmd, const std::string& id, int arg, s
         case CMD_CASTOFF: return s.CastOff(why);
         case CMD_COUNT: if (s.phase != Phase::Dock || s.night < 3) return no("the Owners count after the third night"); s.Count(); return true;
         case CMD_CONTINUE: if (s.phase != Phase::Result) return no("no count to go on from"); s.Continue(); return true;
+        case CMD_CANOE: if (!s.Canoe(arg)) return no("no canoe alongside"); return true;
         case CMD_LOCKER_TAKE: case CMD_LOCKER_STOW: {
             if (ci < 0 || ci >= (int)g.crew.size()) return no("no such hand");
             Crew& c = g.crew[ci];
@@ -218,10 +219,11 @@ template <class A> void Visit(A& a, TrawlWorld& w) {
     // ---- the run
     Session& s = w.sess;
     a.e(s.phase); a.i(s.deadline); a.i(s.night); a.i(s.players);
-    a.f(s.quota); a.f(s.money); a.f(s.sold); a.f(s.clock); a.b(s.clockOn); a.s(s.ground); a.e(s.weather); a.f(s.moon);
+    a.f(s.quota); a.f(s.money); a.f(s.sold); a.f(s.clock); a.b(s.clockOn); a.s(s.ground); a.e(s.weather); a.f(s.moon); a.f(s.wxAt); a.e(s.wxTo);
+    a.e(s.variant); a.e(s.canoe); a.f(s.canoeAt); a.f(s.canoeT); a.s(s.canoeWord);
     a.i(s.tokens); a.b(s.met); for (bool& x : s.slip) a.b(x); a.v2(s.harbour); a.f(s.harbourR); a.u(s.seed); a.f(s.lastSaleTotal);
     VisitTail(a, s.tape, 14);
-    a.vec(s.lastSale, [&](SaleLine& l) { a.s(l.name); a.f(l.kg); a.f(l.price); a.f(l.grade); a.f(l.fresh); a.f(l.glut); a.f(l.bonus); a.f(l.value); });
+    a.vec(s.lastSale, [&](SaleLine& l) { a.s(l.name); a.f(l.kg); a.f(l.price); a.f(l.grade); a.f(l.fresh); a.f(l.glut); a.f(l.bonus); a.f(l.value); a.i(l.src); });
     {   // the glut and the run's firsts (the market's prices)
         std::vector<std::pair<std::string, float>> glut(s.glutKg.begin(), s.glutKg.end());
         a.vec(glut, [&](std::pair<std::string, float>& p) { a.s(p.first); a.f(p.second); });
@@ -254,7 +256,7 @@ template <class A> void Visit(A& a, TrawlWorld& w) {
     for (bool& x : g.owned) a.b(x);
     a.b(g.watch); a.b(g.searchlight); a.b(g.secondPump); a.f(g.gutT); a.b(g.biggerNet);
     a.b(g.harpoonCannon); a.i(g.harpoons); a.i(g.explosives); a.b(g.explosiveLoaded); a.f(g.harpoonReload);
-    a.f(g.gullT); a.f(g.fines); a.i(g.chargesUsed); a.b(g.botsOn); a.e(g.botSkill);
+    a.f(g.gullT); a.f(g.fines); a.f(g.ramT); a.f(g.chumLeft); a.i(g.chargesUsed); a.b(g.botsOn); a.e(g.botSkill);
     bool hasEco = g.eco != nullptr; a.b(hasEco);
     if constexpr (A::reading) g.eco = hasEco ? &w.eco : nullptr;
     VisitTail(a, g.log, 8);
@@ -273,7 +275,7 @@ template <class A> void Visit(A& a, TrawlWorld& w) {
     VisitRod(a, g.harpoon); a.i(g.harpoonSp);
     a.vec(g.hold, [&](CatchRec& h) {
         a.s(h.name); a.f(h.kg); a.f(h.price); a.i(h.sp); a.f(h.grade); a.f(h.fresh);
-        a.b(h.gutted); a.b(h.iced); a.b(h.first); a.b(h.bycatch); a.b(h.protectedSp); a.f(h.aboardT);
+        a.b(h.gutted); a.b(h.iced); a.b(h.first); a.b(h.bycatch); a.b(h.protectedSp); a.f(h.aboardT); a.i(h.src);
     });
     // ---- what's in the water
     a.vec(g.shots, [&](Projectile& p) { a.e(p.kind); a.v3(p.p); a.v3(p.v); a.i(p.owner); a.f(p.life); a.b(p.tether); a.b(p.inWater); });

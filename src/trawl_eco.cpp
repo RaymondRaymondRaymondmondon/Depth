@@ -93,6 +93,7 @@ SpeciesDB* LoadSpecies() {
         g.name = G["name"].Str0(kv.first); g.size = G["size"].F(600); g.cell = G["cell"].F(4);
         g.depthMin = G["depthMin"].F(3); g.depthMax = G["depthMax"].F(40); g.bloodDecay = G["bloodDecay"].F(0.03);
         g.current = {G["current"][0].F(0.08), G["current"][1].F(0.03)};
+        g.stirSafe = G["stir"]["safe"].F(120); g.stirCurve = G["stir"]["curve"].F(1.5); g.stirFloor = G["stir"]["floor"].F(0.1);
         for (int r = 0; r < R_COUNT; r++) { const Json& R = G["resources"][ResName(r)]; g.res[r].turnover = R["turnover"].F(12); }
         for (size_t k = 0; k < G["flora"].Size(); k++) g.flora.push_back(G["flora"][k].Str0());
         for (size_t k = 0; k < G["species"].Size(); k++) {
@@ -303,6 +304,15 @@ void Eco::StepPop(float hours) {
 }
 
 float Eco::Hunger(int sp) const { return std::clamp(1 - 0.5f * (sp < (int)fed.size() ? fed[sp] : 1), 0.0f, 1.0f); }
+// The Stir clock (design doc, "Night pacing"): the ground's baseline threat curve rises through the night from near
+// nothing in the first minutes to full by 05:00, and the crew's Wake adds to it. Threats materialise near the boat, and
+// grow hungry, in proportion.
+float Eco::Stir() const {
+    if (!g) return 1;
+    float base = std::clamp((clock - g->stirSafe) / std::max(1.0f, 540 - g->stirSafe), 0.0f, 1.0f);
+    base = g->stirFloor + (1 - g->stirFloor) * powf(base, g->stirCurve);
+    return std::clamp(base + wake / 100.0f, 0.0f, 1.0f);
+}
 
 bool Eco::Init(const std::string& key, uint32_t seed) {
     const SpeciesDB& db = Species();
@@ -449,7 +459,7 @@ bool Eco::DamageAgent(int idx, float dmg, bool head, Vector3 at) {
     if (r.band != BAND_AIR) AddBlood(at, r.size * 20.0f);
     return true;
 }
-float Eco::Sweep(Vector3 m, Vector2 dir, float width, float speed, float dt, std::vector<std::pair<int, float>>& out) {
+float Eco::Sweep(Vector3 m, Vector2 dir, float width, float speed, float dt, std::vector<std::pair<int, float>>& out, float yield) {
     // catch rate = school density x mouth width x speed (design doc, "The trawl"): a group whose centre lies in the
     // mouth's path this step loses the share of it the mouth swept through
     const auto& S = Species().sp;
@@ -464,7 +474,7 @@ float Eco::Sweep(Vector3 m, Vector2 dir, float width, float speed, float dt, std
         // the share of the school the mouth passes through this step: its length traversed, times how much of its
         // breadth the mouth spans
         float frac = std::clamp(speed * dt / (2 * spread), 0.0f, 1.0f) * std::min(1.0f, width / (2 * spread));
-        float want = a.count * frac;
+        float want = a.count * frac * yield;   // (the rest of the school slips round the wings)
         int take = (int)want + (Rand() < want - (int)want ? 1 : 0);
         if (take <= 0) continue;
         take = std::min(take, a.count);
@@ -528,13 +538,24 @@ void Eco::Materialize() {
         double f = 0; for (int c : cells) f += suit[s][c];
         float groups = Pop(s) * (float)f / S[s].MeanSchool();
         float want = std::min(groups, 14.0f);    // (past 14 groups a species' agents stand for bigger schools)
+        // threats keep to the Stir clock: few about the boat early, the ground's full share by the small hours
+        bool threat = S[s].threat && !S[s].isStatic;
+        if (threat) want *= S[s].size >= 5 ? std::max(0.0f, Stir() - g->stirFloor) / (1 - g->stirFloor) : Stir();   // the big ones get no floor: nothing large early
+        // tonight's variant: more forage (or dead forage), open-sea fish inside, turtles and the sharks after them
+        if (S[s].bait) want *= forageMul;
+        if (S[s].habitat[H_SEA] > 0.5f && S[s].habitat[H_OPEN] < 0.5f) want *= seaMul;
+        if (S[s].protectedSp) want *= turtleMul;
+        if (S[s].ramsHull) want *= sharkMul;
+        want = std::min(want, 14.0f);
         if (have[s] < want - 0.5f && (int)agents.size() < agentBudget) {
-            // appear out in the dark, where the density says, never in the lamp's pool
+            // appear out in the dark, where the density says, never in the lamp's pool; a threat never nearer than 60 m,
+            // so its arrival at the lantern's edge is a real approach the crew can read
+            float nearest = threat ? 60.0f : 22.0f;
             for (int tries = 0; tries < 30; tries++) {
                 int c = cells[(size_t)(Rand() * cells.size()) % cells.size()];
                 float maxw = 0; for (int k = 0; k < 6; k++) maxw = std::max(maxw, suit[s][cells[(size_t)(Rand() * cells.size()) % cells.size()]]);
                 Vector2 at{(c % n + Rand()) * cell, (c / n + Rand()) * cell};
-                if (Vector2Distance(at, o) < 22 || LightAt({at.x, at.y, 1}) > 0.005f) continue;
+                if (Vector2Distance(at, o) < nearest || LightAt({at.x, at.y, 1}) > 0.005f) continue;
                 if (suit[s][c] < Rand() * std::max(1e-9f, maxw)) continue;
                 int ai = SpawnAgent(s, at);
                 if (groups > 14) agents[ai].count = std::max(1, (int)(agents[ai].count * groups / 14));
@@ -578,7 +599,7 @@ void Eco::StepAgents(float dt) {
         if (!a.alive) continue;
         const SpeciesRec& r = S[a.sp];
         a.t += dt;
-        a.hunger = std::min(1.0f, a.hunger + dt / 240.0f);
+        a.hunger = std::min(1.0f, a.hunger + dt / 240.0f * (r.threat && boat ? (0.5f + Stir()) * threatHungerMul : 1.0f));   // threats grow bold with the Stir clock
         if (a.fedT > 0) a.fedT -= dt;
         if (a.flash > 0) a.flash -= dt;
         Vector2 p2{a.p.x, a.p.y};
@@ -707,6 +728,7 @@ void Eco::StepAgents(float dt) {
         if (boat && r.threat && Vector2Distance(np, boatPos) < 25 && !arrivedThisNight.count(a.sp)) {
             arrivedThisNight.insert(a.sp);
             arrivals.push_back({r.name, time});
+            if (getenv("DEPTH_TRACE")) printf("      [eco] %s at the lantern's edge, clock %.0f, stir %.2f, wake %.1f, age %.0f s, hunger %.2f\n", r.name.c_str(), clock, Stir(), wake, a.t, a.hunger);
         }
     }
     agents.erase(std::remove_if(agents.begin(), agents.end(), [](const EcoAgent& a) { return !a.alive || a.count <= 0; }), agents.end());
@@ -714,7 +736,9 @@ void Eco::StepAgents(float dt) {
 
 void Eco::Step(float dt) {
     time += dt; clock = time;   // one real second, one minute of the night
-    if (ground == "lagoon") tide = 1.4f * std::clamp(clock / 540.0f, 0.0f, 1.0f);   // the reef tide falls all night
+    if (ground == "lagoon") tide = tideHeld ? 0 : 1.4f * std::clamp(clock / 540.0f, 0.0f, 1.0f);   // the reef tide falls all night (a king tide holds)
+    // a red tide: the dead forage floats and leaks blood all over the ground, not just where the crew is
+    if (redTide && boat && fieldAcc >= 1 - dt) for (int k = 0; k < 3; k++) { float a = Rand() * 6.2832f, d = 15 + Rand() * 60; AddBlood({boatPos.x + cosf(a) * d, boatPos.y + sinf(a) * d, 0.5f}, 4); }
     popAcc += dt; fieldAcc += dt; spawnAcc += dt; agentAcc += dt;
     while (popAcc >= 1) { popAcc -= 1; StepPop(1 / 60.0f); }
     while (fieldAcc >= 1) {
@@ -841,6 +865,35 @@ void EcoTick(Eco& e, Gannet& gn, float dt) {
             float d = Vector3Distance(a.p, sw);
             if (d < 25 && a.hunger > 0.3f) { a.goal = sw; a.goalT = 0.5f; }
             if (d < 2.0f && e.Rand() < dt * 0.6f) { a.fedT = 20; a.flash = 0.6f; gn.Injure(k, INJ_BITE, std::string("a ") + r.name); break; }
+        }
+    }
+    // chum: a thrown bucket bleeds out at the gutting rail (design doc, "The Chandler": 40 blood over 60 s)
+    if (gn.chumLeft > 0) {
+        float a = std::min(gn.chumLeft, dt * D().chumBlood / D().chumSeconds);
+        Vector2 rail = b.ToWorld(Vector2Add(Stations()[(int)StationKind::Gutting].at, {0, 2.5f}));
+        e.AddBlood({rail.x, rail.y, 1}, a); gn.chumLeft -= a;
+    }
+    // a shark on the blood rams the hull (design doc, "Threats": "rams the hull"; the Great White takes 25 off a section). A
+    // hungry rammer alongside her, in blood past its threshold, strikes a section every D().ramEvery s while it stays.
+    gn.ramT = std::max(0.0f, gn.ramT - dt);
+    if (gn.ramT <= 0) {
+        for (auto& a : e.agents) {
+            const SpeciesRec& r = Species().sp[a.sp];
+            if (!a.alive || !r.ramsHull || a.hunger < 0.4f || a.fedT > 0) continue;
+            Vector2 dk = b.ToDeck({a.p.x, a.p.y});
+            if (fabsf(dk.x) > 12 || fabsf(dk.y) > 6.5f) continue;
+            // the blood it smells about her, over its own scent radius (as the agents hunt it)
+            int R = std::clamp((int)(r.scent / e.cell), 1, 10);
+            float hullBlood = std::max(e.blood.Near({b.pos.x, b.pos.y, 1}, R), e.blood.Near({b.pos.x, b.pos.y, 6}, R));
+            if (hullBlood < r.bloodThreshold) continue;
+            int sec = SectionAt({std::clamp(dk.x, -10.0f, 10.0f), dk.y < 0 ? -2.0f : 2.0f});
+            float dmg = D().ramDamage * std::clamp(r.MeanKg() / 40.0f, 0.6f, 1.7f);
+            gn.boat.Hit(sec, dmg);
+            gn.boat.rollVel += (dk.y > 0 ? -1 : 1) * D().ramHeel * std::clamp(r.MeanKg() / 40.0f, 0.6f, 1.7f);   // the blow heels her: unbraced hands slide
+            gn.Say(TextFormat("Something struck the hull: %s", SectionName(sec)));
+            e.AddVibration({a.p.x, a.p.y, 2}, 3); a.flash = 0.6f;
+            gn.ramT = D().ramEvery;
+            break;
         }
     }
     e.screwNoise = b.noise;
@@ -1096,9 +1149,9 @@ int RunTrawlEcoTest() {
     }
     // 12. the Gannet on the Lagoon: her lamp doubles the bites after half an hour, and her rods catch the web's fish
     {
-        auto bites = [&](int lantern) {
-            Eco e; e.Init("lagoon", 12);
-            Gannet gn; gn.Init(1, 12, Weather::Calm); gn.eco = &e;
+        auto bites1 = [&](int lantern, uint32_t seed) {
+            Eco e; e.Init("lagoon", seed);
+            Gannet gn; gn.Init(1, seed, Weather::Calm); gn.eco = &e;
             gn.boat.pos = {e.n * e.cell * 0.42f, e.n * e.cell * 0.5f}; gn.boat.lantern = lantern;
             Vector2 lw = gn.boat.ToWorld({-0.8f, 9});
             int n = 0;
@@ -1109,6 +1162,7 @@ int RunTrawlEcoTest() {
             }
             return n;
         };
+        auto bites = [&](int lantern) { int n = 0; for (uint32_t sd = 12; sd < 16; sd++) n += bites1(lantern, sd); return n; };   // four seeds: one dark hour can draw nothing by chance
         int full = bites(2), hood = bites(0);
         check(full >= hood * 1.6f && full <= hood * 4 && hood > 0, TextFormat("from 20:30 to 21:30 a light rod by the rail draws %d bites under a full lantern, %d hooded", full, hood));
         Eco e; e.Init("lagoon", 13);

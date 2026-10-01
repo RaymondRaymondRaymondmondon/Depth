@@ -466,7 +466,7 @@ int RunTrawlBotTest() {
     }
     // a night's fishing on a real ground: the bots land fish without the skipper touching a rod
     {
-        Gannet g; Eco e; Session s; s.Begin(g, e, 4, 20262);
+        Gannet g; Eco e; Session s; s.Begin(g, e, 4, 20262); s.plainNights = true;
         g.botsOn = true;
         s.Buy("shrimp"); s.Buy("shrimp");
         while (g.boat.bunker < 40 && s.Buy("coal")) {}
@@ -477,7 +477,7 @@ int RunTrawlBotTest() {
         g.boat.pos = Vector2Add(s.harbour, {s.harbourR + 40, 10});
         g.crew[0].p = {3.0f, 0.8f};
         size_t h0 = 0; int landed = 0, gutted = 0;
-        for (int k = 0; k < 60 * 300; k++) {
+        for (int k = 0; k < 60 * 480; k++) {
             g.boat.telegraph = 0;
             g.Step(dt); s.Step(dt);
             if (g.hold.size() > h0) landed += (int)(g.hold.size() - h0);
@@ -489,7 +489,7 @@ int RunTrawlBotTest() {
             }
         }
         for (const auto& h : g.hold) if (h.gutted) gutted++;
-        check(landed >= 2, TextFormat("five minutes hove to: the bots land %d fish", landed));
+        check(landed >= 2, TextFormat("eight minutes hove to: the bots land %d fish", landed));
         check(landed == 0 || gutted * 2 >= (int)g.hold.size(), TextFormat("and gut them (%d of %d gutted)", gutted, (int)g.hold.size()));
     }
     printf(fails ? "%d FAILED\n" : "All bot crew checks passed\n", fails);

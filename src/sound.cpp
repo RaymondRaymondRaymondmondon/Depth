@@ -786,6 +786,7 @@ int gRoomWant = RR_SALON;
 
 #include "sound_expedition.inl"
 #include "sound_redtide.inl"
+#include "sound_trawl.inl"
 float gTestBusOpen = 0;   // --audio-test: open the music and ambience buses with no scene playing
 
 // ---------------------------------------------------------------- registered cues
@@ -987,6 +988,7 @@ void Render(float* out, int frames) {
         gHub.s += ((gHub.on ? 1.0f : 0.0f) - gHub.s) * std::min(1.0f, blockT * 0.7f);
         ExpUpdate(blockT);
         RtUpdate(blockT);
+        TwUpdate(blockT);
         if (gHub.on) {
             gHub.tickT += blockT;
             while (gHub.tickT >= HubTickDur()) { gHub.tickT -= HubTickDur(); HubTick(); gHub.tick++; }
@@ -1018,7 +1020,7 @@ void Render(float* out, int frames) {
             v.env0 = EnvAt(v, v.t); v.env1 = EnvAt(v, v.t + blockT);
         }
         float voiceDuck = 1 - 0.37f * gVoiceS;   // a voice ducks everything else 4 dB
-        float roomS = std::max({gHub.s, gExp.s, gRt.s, gTestBusOpen});  // aboard, or on an expedition: the generated rooms
+        float roomS = std::max({gHub.s, gExp.s, gRt.s, gTw.s, gTestBusOpen});  // aboard, on an expedition, in the arcade games: the generated rooms
         float musicLevel = std::max(gScene, roomS) * (1 - 0.29f * gDuck); // combat impacts duck the music 3 dB
         float busG[5] = {gVol.sfx * voiceDuck, gVol.music * musicLevel * voiceDuck, gVol.ambience * std::max(gScene, roomS) * voiceDuck, gVol.sfx, gVol.sfx};
         for (int i = 0; i < n; i++) {
@@ -1078,6 +1080,7 @@ void Render(float* out, int frames) {
                 send += s * 0.3f;
             }
             if (gRt.s > 0.002f) { float e = RtBedSample(gClock + i * dtS, base + i) * gVol.ambience * gRt.s * voiceDuck; mL += e; mR += e * 0.92f; send += e * 0.3f; }
+            if (gTw.s > 0.002f) { float e = TwBedSample(gClock + i * dtS, base + i) * gVol.ambience * gTw.s * voiceDuck; mL += e; mR += e * 0.92f; send += e * 0.3f; }
             if (gExp.s > 0.002f) { float e = ExpBedSample(gClock + i * dtS, base + i) * gVol.ambience * gExp.s * voiceDuck; mL += e; mR += e * 0.92f; send += e * 0.3f; }
             // the music (heard through the deck from the Study)
             mL += gDeckL.Run(musL); mR += gDeckR.Run(musR);
@@ -1140,6 +1143,8 @@ void AudioRedTide(const RtAudio& a) {
 void RedTideCue(int kind, float vol, float pan, float dist) { if (gReady && !gCueSuppressed) RtCueImpl(kind, vol, pan, dist); }
 void RedTideBeast(const char* species, float size, int cue, float dist, float pan) { if (gReady && !gCueSuppressed && species) RtBeastImpl(species, size, cue, dist, pan); }
 void RedTideQuip(int voice, int syllables, float pan) { if (gReady && !gCueSuppressed) RtQuipImpl(voice, syllables, pan); }
+void AudioTrawl(const TwAudio& a) { gTw.want = a; }
+void TrawlCue(int kind, float vol, float pan, float pitch) { if (gReady && !gCueSuppressed) TwCueImpl(kind, vol, pan, pitch); }
 float AudioBeat() { return gBeat; }
 void AudioReact(int kind) { if (gReady && !gCueSuppressed) ExpReact(kind); }
 void CombatVoice(int enemyType, float size, int cue, float pan) {
@@ -1396,6 +1401,44 @@ bool AudioSelfTest(const char* wavPath) {
         }
         gRevWet = wet0;
         printf("red tide: %d species cues, %d effects, 4 quip voices: %d silent, clipping or unmuffled (floor %.4f)\n", total, (int)RTC_COUNT, mute, floorPk);
+    }
+    // the Trawl: the session's states (the dock with each verse, sailing out and home, a quiet night, a fish on, a
+    // threat silencing the music, the big three, the count met and missed, a canoe night in a squall) and every effect
+    {
+        auto twPass = [&](TwAudio st, const char* label, float secs, bool mayBeQuiet) {
+            for (auto& v : gV) v.on = false;
+            gTw = TwState{}; gTw.want = st; gTw.s = 1; gTwBedGround = -1; gRoomWant = RR_OPENSEA;
+            gTw.dockS = st.mode == 0 ? 1.0f : 0.0f; gTw.sailS = st.mode == 1 ? 1.0f : 0.0f; gTw.nightS = st.mode == 2 && !st.fishOn ? 1.0f : 0.0f; gTw.fishS = st.fishOn ? 1.0f : 0.0f; gTw.threatS = st.threat;
+            int N = (int)(SR * secs);
+            std::vector<float> b(N * 2);
+            for (int at = 0; at < N; at += BLOCK) Render(&b[at * 2], std::min(BLOCK, N - at));
+            double sum = 0; float pk = 0; int bad = 0; for (float x : b) { if (!std::isfinite(x)) bad++; else { sum += x * x; pk = std::max(pk, fabsf(x)); } }
+            float db = 20 * log10f(std::max(1e-6f, sqrtf((float)(sum / b.size()))));
+            bool pass = !bad && (mayBeQuiet || db > -48) && pk < 0.97f;
+            printf("trawl %-10s rms %5.1f dB  peak %.2f%s\n", label, db, pk, pass ? "" : "  FAIL");
+            if (!pass) ok = false;
+            if (wavPath) all.insert(all.end(), b.begin(), b.end());
+            return db;
+        };
+        TwAudio st; st.on = true; st.moored = true; twPass(st, "dock v0", 8, false);
+        st.verse = 2; twPass(st, "dock v2", 8, false);
+        st = TwAudio{}; st.on = true; st.mode = 1; st.telegraph = 2; twPass(st, "sail out", 8, false);
+        st.homeward = 1; st.clock = 0.9f; st.telegraph = 3; st.roll = 14; twPass(st, "home", 8, false);
+        st = TwAudio{}; st.on = true; st.mode = 2; st.clock = 0.05f; st.gulls = 0.6f; twPass(st, "quiet", 10, false);
+        st = TwAudio{}; st.on = true; st.mode = 2; st.fishOn = true; st.tension = 0.8f; twPass(st, "fish on", 8, false);
+        float loud = twPass(st, "fish on", 6, false);
+        st.threat = 1; float hush = twPass(st, "threat", 6, true);
+        if (hush > loud - 6) { printf("  the music should go quiet with a threat near (fish on %.1f dB, threat %.1f dB)\n", loud, hush); ok = false; }
+        st = TwAudio{}; st.on = true; st.mode = 2; st.bigThree = true; twPass(st, "big three", 8, false);
+        st = TwAudio{}; st.on = true; st.mode = 3; st.moored = true; twPass(st, "met", 5, false);
+        st = TwAudio{}; st.on = true; st.mode = 4; st.moored = true; twPass(st, "missed", 5, false);
+        st = TwAudio{}; st.on = true; st.mode = 2; st.canoe = 2; st.weather = 3; st.bilge = 0.6f; st.barracuda = 0.8f; st.telegraph = 1; twPass(st, "canoe", 8, false);
+        gTw = TwState{}; gTwBeds.clear(); gTwBedGround = -1; gTestBusOpen = 1;   // (the bus stays open: the fanfare and the bell are instruments)
+        int mute = 0;
+        for (int k = 0; k < TWC_COUNT; k++) { float pk = solo([&] { TwCueImpl(k, 1, 0, 1); }); if (pk < 0.01f || pk > 0.97f) { printf("  trawl effect %d is %s (peak %.3f)\n", k, pk < 0.01f ? "silent" : "clipping", pk); mute++; } }
+        gTestBusOpen = 0;
+        printf("trawl: 12 states, %d effects: %d silent or clipping\n", (int)TWC_COUNT, mute);
+        if (mute) ok = false;
         if (mute) ok = false;
     }
     // the salon: the waltz and its bed, mourning, and each station's motif; then every registered cue on its own    gLevel = -1; gSceneTarget = 0; gScene = 0;

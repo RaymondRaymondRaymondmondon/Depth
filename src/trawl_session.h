@@ -28,7 +28,16 @@ struct DockStation { DockKind kind; const char* name; Vector2 at; const char* do
 const std::vector<DockStation>& DockStations();
 int NearestDock(Vector2 at, float r);
 
-struct SaleLine { std::string name; float kg, price, grade, fresh, glut, bonus, value; };
+struct SaleLine { std::string name; float kg, price, grade, fresh, glut, bonus, value; int src = 0; };
+
+// Nightly variants (design doc, "Nightly variants"): at most one a night, about 40% of nights none. The Lagoon's own
+// three and the two food-web ones that need no salvage; the carcass, the derelict and the storm wreck wait for diving.
+enum class Variant { None, BaitRun, RedTide, KingTide, TurtleNesting, CanoeNight, COUNT };
+const char* VariantName(Variant v);
+const char* VariantNote(Variant v);           // what the crew sees changed
+// Canoe night: a war canoe comes alongside once in the night and waits a minute for an answer
+enum class CanoeState { None, Coming, Alongside, Gone };
+enum CanoeChoice { CANOE_TRADE, CANOE_TRIBUTE, CANOE_REFUSE };
 
 struct Session {
     Phase phase = Phase::Dock;
@@ -40,6 +49,27 @@ struct Session {
     std::string ground = "lagoon";
     Weather weather = Weather::Calm;
     float moon = 0.5f;
+    float wxAt = -1; Weather wxTo = Weather::Calm;   // a change of weather in the night (design doc: "the sea starts calm and wakes"): the minute it comes, and what comes
+    Variant variant = Variant::None;            // tonight's variant (rolled at cast off; the rumour points at it 70% of the time)
+    bool plainNights = false;                   // tests: no variants and no weather changes (the shakedown night sets it too)
+    // The shakedown (design doc, "First night"): a short night on the Lagoon with a fixed seed, no quota, deaths that
+    // don't count, and Kess, an old deckhand aboard for this night only, chalking short lines on the deck
+    struct Shakedown {
+        bool on = false, done = false;
+        int step = 0;                           // 0 cast off, 1 the handline, 2 the rod, 3 the table, 4 the sonar, 5 the net, 6 blood, 7 overboard, 8 home, 9 sell
+        float stepT = 0, speedT = 0;
+        std::string line;                       // Kess's chalk line
+        std::string aside; float asideT = 0;    // a shorter line about what is happening right now
+        int kess = 1;                           // Kess's hand
+        bool sharkCalled = false, sharkSeen = false;
+    } shake;
+    static const int SHAKE_STEPS = 10;
+    void BeginShakedown(Gannet& g, Eco& e);     // a new shakedown: the Gannet at the quay, Kess aboard, the stores for one night
+    void ShakeStep(float dt);                   // the steps' conditions and Kess's lines (called from Step)
+    void SkipShakedown();
+    CanoeState canoe = CanoeState::None; float canoeAt = -1, canoeT = 0;   // Canoe night: when it comes, how long it has waited alongside
+    std::string canoeWord;                      // what came of it (for the tape and the panel)
+    bool Canoe(int choice);                     // the crew's answer while it's alongside (CanoeChoice); false if there's no canoe to answer
     std::map<std::string, float> glutKg;        // kg of each species sold this deadline
     std::set<std::string> catchLog;             // species ever landed this run (first catch pays a 50% bonus)
     std::vector<std::string> tape;              // the Owners' telegraph, newest last
@@ -77,5 +107,6 @@ struct Session {
 
 Vector2 LagoonHarbour(const Eco& e, float* moorHeading, Vector2* moorPos);
 int RunTrawlSessionTest();                     // depth.exe --trawl-session-test
+int RunTrawlShakedownTest();                   // depth.exe --trawl-shakedown-test (a scripted hand plays the shakedown through)
 
 } // namespace tw

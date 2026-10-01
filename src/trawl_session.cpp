@@ -24,6 +24,18 @@ const float NIGHT_END = 540;             // 05:00
 }
 
 const char* PhaseName(Phase p) { static const char* N[] = {"dock", "sailing out", "night", "the count", "repossessed"}; return N[(int)p]; }
+const char* VariantName(Variant v) { static const char* N[(int)Variant::COUNT] = {"an ordinary night", "Bait run", "Red tide", "King tide", "Turtle nesting", "Canoe night"}; return N[(int)v]; }
+const char* VariantNote(Variant v) {
+    static const char* N[(int)Variant::COUNT] = {
+        "",
+        "Forage fish three deep at the surface; every predator after them, and bolder by midnight",
+        "The forage is dying and floating: blood all over the ground, hungry predators that take any bait, and fish from here sell at half",
+        "The crest stays under all night: open-sea fish come into the lagoon",
+        "Turtles everywhere (a turtle in the net is a fine), and the sharks that follow them",
+        "Island war canoes are out: when one comes alongside, trade, pay tribute, or refuse them",
+    };
+    return N[(int)v];
+}
 
 const std::vector<ShopItem>& ChandlerItems() {   // design doc, "The Chandler" (and the Tackle table's rod prices)
     static const std::vector<ShopItem> I = {
@@ -163,13 +175,44 @@ float Session::Value(const CatchRec& c, float* glut, float* bonus) const {
     float b = c.first ? FIRST_CATCH_BONUS : 1;
     if (glut) *glut = g;
     if (bonus) *bonus = b;
-    return c.price * c.kg * c.grade * c.fresh * g * b;
+    return c.price * c.kg * c.grade * c.fresh * g * b * (variant == Variant::RedTide ? 0.5f : 1.0f);   // fish from a red tide sell at half
+}
+// Canoe night's answer (design doc, "Eclipse Lagoon": canoes "trade fish for gear, or raid for it"). Trade: a quarter of
+// the hold's weight, heaviest first, for two tins of bait, 20 kg of ice and a patch kit. Tribute: a tenth of the money,
+// 15 at least. Refuse (or let the minute run out): they snatch every fish still on the deck and shove a hand over the rail.
+bool Session::Canoe(int choice) {
+    if (canoe != CanoeState::Alongside) return false;
+    canoe = CanoeState::Gone;
+    if (choice == CANOE_TRADE) {
+        float total = 0; for (const auto& h : G->hold) total += h.kg;
+        float give = total * 0.25f, given = 0;
+        std::sort(G->hold.begin(), G->hold.end(), [](const CatchRec& a, const CatchRec& b) { return a.kg > b.kg; });
+        while (!G->hold.empty() && given < give) { given += G->hold.front().kg; G->hold.erase(G->hold.begin()); }
+        G->baitShrimp += 10; G->baitSquid += 10; G->ice = std::min(G->iceCap, G->ice + 20); if (!G->crew.empty()) G->crew[0].patchKits++;
+        canoeWord = TextFormat("Traded %.0f kg of fish for bait, ice and a patch kit", given);
+        Tape("CANOES TRADED STOP OWNERS DISAPPROVE STOP");
+    } else if (choice == CANOE_TRIBUTE) {
+        float pay = std::max(15.0f, money * 0.10f);
+        money -= pay;
+        canoeWord = TextFormat("Paid %.0f shillings of tribute", pay);
+        Tape(TextFormat("TRIBUTE PAID %.0f STOP NOTED STOP", pay));
+    } else {
+        int took = 0;
+        for (size_t i = 0; i < G->hold.size();) { if (!G->hold[i].gutted) { G->hold.erase(G->hold.begin() + i); took++; } else i++; }
+        int shove = -1; float best = -1;
+        for (int k = 0; k < (int)G->crew.size(); k++) { const Crew& c = G->crew[k]; if (c.dead || c.overboard || c.deck != 0) continue; float e = fabsf(c.p.y); if (e > best) { best = e; shove = k; } }
+        if (shove >= 0 && best > 1.4f) G->GoOverboard(shove, "shoved over the rail by the canoe's crew");
+        canoeWord = TextFormat("Refused: they snatched %d fish off the deck%s", took, shove >= 0 && best > 1.4f ? " and a hand went over the rail" : "");
+        Tape("CANOES RAIDED STOP");
+    }
+    G->Say(canoeWord);
+    return true;
 }
 float Session::Sell() {
     lastSale.clear(); lastSaleTotal = 0;
     for (const auto& c : G->hold) {
         float g, b, v = Value(c, &g, &b);
-        lastSale.push_back({c.name, c.kg, c.price, c.grade, c.fresh, g, b, v});
+        lastSale.push_back({c.name, c.kg, c.price, c.grade, c.fresh, g, b, v, c.src});
         glutKg[c.name.substr(0, c.name.find(" ("))] += c.kg;   // (the glut counts after each fish: a big haul drives its own price down)
         lastSaleTotal += v;
     }
@@ -271,10 +314,47 @@ bool Session::CastOff(std::string* why) {
                              "MAHI UNDER THE WEED RAFTS", "SNAPPER BITING ON SHRIMP"};
     Tape(TextFormat("LAGOON %s STOP MOON %s STOP %s STOP", WX[(int)weather], moon < 0.25f ? "NEW" : moon < 0.5f ? "WAXING" : moon < 0.75f ? "FULL" : "WANING",
                     rumours[(int)(R() * 5) % 5]));
+    // the weather turns in the night about one night in three, between 23:00 and 03:00, mostly for the worse; the
+    // telegraph's forecast is right 70% of the time (the other 30% it names the wrong weather)
+    wxAt = -1;
+    if (R() < 0.35f && !plainNights) {
+        wxAt = 180 + R() * 240;
+        int w0 = (int)weather, w1 = R() < 0.75f ? std::min(w0 + 1, (int)Weather::Squall) : std::max(w0 - 1, 0);
+        if (w1 == w0) w1 = w0 == 0 ? 1 : w0 - 1;
+        wxTo = (Weather)w1;
+        int said = R() < 0.7f ? w1 : (w1 + 1 + (int)(R() * 3)) % 4;
+        int hh = (20 + (int)wxAt / 60) % 24;
+        Tape(TextFormat("GLASS %s STOP %s BY %02d00 STOP", (int)wxTo > w0 ? "FALLING" : "RISING", WX[said], hh));
+    }
     // the ground remembers across a deadline's nights; a new deadline starts it afresh
     if (night == 0) E->Init(ground, seed + deadline * 97);
     else E->Day(15);
     E->StartNight();
+    // tonight's variant (design doc, "Nightly variants": at most one, about 40% of nights none): the web feels it
+    // through the Eco's multipliers; the rumour on the tape points at it 70% of the time
+    E->forageMul = 1; E->threatHungerMul = 1; E->seaMul = 1; E->turtleMul = 1; E->sharkMul = 1; E->tideHeld = false; E->redTide = false;
+    variant = Variant::None; canoe = CanoeState::None; canoeAt = -1; canoeT = 0; canoeWord.clear();
+    {
+        float v = plainNights ? 1.0f : R();
+        if (v < 0.08f) variant = Variant::BaitRun;
+        else if (v < 0.14f) variant = Variant::RedTide;
+        else if (v < 0.24f) variant = Variant::KingTide;
+        else if (v < 0.32f) variant = Variant::TurtleNesting;
+        else if (v < 0.40f) variant = Variant::CanoeNight;
+        switch (variant) {
+            case Variant::BaitRun: E->forageMul = 3; E->threatHungerMul = 1.5f; break;
+            case Variant::RedTide: E->forageMul = 0.3f; E->threatHungerMul = 1.5f; E->redTide = true; break;
+            case Variant::KingTide: E->tideHeld = true; E->seaMul = 2; break;
+            case Variant::TurtleNesting: E->turtleMul = 4; E->sharkMul = 2; break;
+            case Variant::CanoeNight: canoeAt = 120 + R() * 240; canoe = CanoeState::Coming; break;
+            default: break;
+        }
+        if (variant != Variant::None) {
+            static const char* HINT[(int)Variant::COUNT] = {"", "BAIT THICK AT THE SURFACE", "DEAD FISH FLOATING OFF THE CREST", "KING TIDE TONIGHT", "TURTLES COMING UP THE BEACHES", "DRUMS HEARD ON THE ISLAND"};
+            int said = R() < 0.7f ? (int)variant : 1 + (int)(R() * 5) % 5;
+            Tape(TextFormat("RUMOUR STOP %s STOP", HINT[said]));
+        }
+    }
     G->eco = nullptr;                    // (the night and the web start at the harbour line)
     G->moored = false;
     G->boat.lantern = std::min(G->boat.lantern, G->searchlight ? 3 : 2);
@@ -309,6 +389,7 @@ void Session::Step(float dt) {
         std::string base = c.name.substr(0, c.name.find(" ("));
         if (!c.first && !catchLog.count(base) && c.sp >= 0) { c.first = true; catchLog.insert(base); Tape("SPECIMEN NOTED STOP BONUS AUTHORISED STOP DO NOT BRUISE STOP"); }
     }
+    if (shake.on && phase != Phase::Night) ShakeStep(dt);
     switch (phase) {
         case Phase::SailOut:
             if (!InHarbour()) {
@@ -318,10 +399,11 @@ void Session::Step(float dt) {
             }
             break;
         case Phase::Night: {
-            clock += dt;
+            clock += dt * (shake.on ? (shake.step >= 8 ? 4.0f : 1.5f) : 1.0f);   // the shakedown is a short night, and runs to 05:00 fast once the lesson is done
+            if (shake.on) ShakeStep(dt);
             // total loss: every hand dead, or the Gannet gone down (design doc, "Death, injury, and ghosts")
             if (G->AllDead() || G->boat.sunk) {
-                float charge = money * 0.25f;
+                float charge = shake.on ? 0 : money * 0.25f;
                 money -= charge;
                 G->hold.clear(); G->longlines.clear(); G->pots.clear();
                 Tape(TextFormat("GANNET SALVAGED STOP CATCH LOST STOP SALVAGE CHARGED %.0f SHILLINGS STOP", charge));
@@ -330,6 +412,17 @@ void Session::Step(float dt) {
                 night++; clockOn = false; G->eco = nullptr; Moor(); phase = Phase::Dock;
                 break;
             }
+            if (wxAt >= 0 && clock >= wxAt) {
+                static const char* WXN[] = {"CALM", "FOG", "RAIN", "SQUALL", "STORM", "GLASS"};
+                weather = wxTo; G->sea.Set(wxTo, seed * 31u + (uint32_t)clock);
+                Tape(TextFormat("%s STOP WEATHER NOW %s STOP", ClockText().c_str(), WXN[(int)wxTo]));
+                G->Say((int)wxTo >= (int)Weather::Rain ? "The weather turns: the sea gets up" : "The weather eases");
+                wxAt = -1;
+            }
+            // Canoe night: drums, then a war canoe alongside for a minute, waiting for an answer (no answer is a refusal)
+            if (canoe == CanoeState::Coming && clock >= canoeAt - 20 && !cues[3]) { cues[3] = true; Tape("DRUMS ON THE WATER STOP"); G->Say("Drums on the water, closing"); }
+            if (canoe == CanoeState::Coming && clock >= canoeAt) { canoe = CanoeState::Alongside; canoeT = 0; G->Say("A war canoe comes alongside: they want fish, or silver, or they'll take what they can"); }
+            if (canoe == CanoeState::Alongside) { canoeT += dt; if (canoeT >= 60) Canoe(CANOE_REFUSE); }
             if (clock >= 240 && !cues[0]) { cues[0] = true; Tape("MIDNIGHT STOP HOLD INSPECTED AT HARBOUR LINE 0500 STOP"); }
             if (clock >= 480 && !cues[1]) { cues[1] = true; Tape("ONE HOUR STOP CUSTOMS CUTTER ON STATION STOP"); }
             bool damaged = false; for (int s = 0; s < SEC_COUNT; s++) if (G->boat.integrity[s] < D().leakBelow) damaged = true;
@@ -487,7 +580,7 @@ int RunTrawlSessionTest() {
     }
     // a whole solo deadline played by a bot: bait, cast off, fish the port rod, gut and ice, home before 05:00, sell
     {
-        Gannet g; Eco e; Session s; s.Begin(g, e, 1, 20261);
+        Gannet g; Eco e; Session s; s.Begin(g, e, 1, 20261); s.plainNights = true;
         Bot b(s);
         float total = 0; int fish = 0; bool customs = false, allHome = true;
         for (int n = 0; n < 3; n++) {
@@ -501,7 +594,7 @@ int RunTrawlSessionTest() {
         printf("    the count: %.0f sold against a quota of %.0f: %s\n", s.sold, s.quota, s.met ? "met" : "missed");
         check(s.phase == Phase::Result || s.phase == Phase::Over, "the Owners count the quota after the third night");
         // staying out past 05:00
-        Gannet g2; Eco e2; Session s2; s2.Begin(g2, e2, 1, 7);
+        Gannet g2; Eco e2; Session s2; s2.Begin(g2, e2, 1, 7); s2.plainNights = true;
         Bot b2(s2);
         NightReport late = PlayNight(s2, b2, true);
         check(s2.tape.size() > 0 && (late.landed == 0 || late.customs), "a skipper who stays past 05:00 loses the hold to the cutter");

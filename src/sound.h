@@ -101,3 +101,29 @@ void RedTideCue(int kind, float vol, float pan, float dist);              // an 
 void RedTideBeast(const char* species, float size, int cue, float dist, float pan);   // a species' voice (BeastCue); muffled past 40 m
 void RedTideQuip(int voice, int syllables, float pan);                    // a diver's babble (0 Diver, 1 Whaler, 2 Stowaway, 3 Mechanic)
 void RedTideSpeciesForAudio(int map, std::vector<std::pair<std::string, int>>& out);   // redtide_game.cpp: --audio-test's species
+
+// ---------------------------------------------------------------- the Trawl (the Deep Arcade's fishing game; design doc "Sound design")
+// Set every frame by the Trawl scene (trawl.cpp TrawlAudioFrame); main.cpp turns it off elsewhere.
+// mode: 0 the dock, 1 sailing out or home, 2 the night, 3 the deadline met, 4 the deadline missed.
+struct TwAudio {
+    bool on = false; int mode = 0, ground = 0, verse = 0;   // verse: deadlines met (the shanty gains a verse each)
+    float homeward = 0;         // 1 when running for harbour at the night's end (the refrain slows)
+    float tension = 0;          // 0..1 the biggest fight's line tension against its rating (a fish over 20 kg)
+    bool fishOn = false;        // a fish over 20 kg on a line
+    float threat = 0;           // 0..1 a Wake-sized threat within 60 m: the music goes silent
+    bool bigThree = false;      // the Great White, the Ghost Ship or the Kraken engaged
+    int telegraph = 0;          // 0 stop .. 3 full, -1 astern
+    float roll = 0, bilge = 0;  // degrees of roll (hull creaks), 0..1 water in her (slosh)
+    int weather = 0;            // Weather as int (wind and rain in the bed)
+    float gulls = 0, barracuda = 0;   // 0..1 a flock overhead; a pack ticking on the hull mic
+    int canoe = 0;              // 1 drums on the water, 2 the canoe alongside
+    float clock = 0;            // 0..1 through the night (gulls at dusk, the refrain slower at the end)
+    bool moored = false;
+};
+enum TwCue { TWC_REEL, TWC_DRAG, TWC_HUM, TWC_SNAP, TWC_CREAK, TWC_SPLASH, TWC_GAFF, TWC_FLOP, TWC_BITE, TWC_STRIKE,
+             TWC_TELEGRAPH, TWC_VALVE, TWC_HULL, TWC_PUMP, TWC_WINCH, TWC_WARP, TWC_SNAG, TWC_CODEND,
+             TWC_RIFLE, TWC_SHOTGUN, TWC_SPEAR, TWC_HARPOON, TWC_CHARGE, TWC_FLARE,
+             TWC_BUMP, TWC_TICKS, TWC_GULL, TWC_OVERBOARD, TWC_RING, TWC_BELL, TWC_TAPE, TWC_SELL, TWC_FANFARE, TWC_CHURCH, TWC_CANOE, TWC_DEATH,
+             TWC_COUNT };
+void AudioTrawl(const TwAudio& a);
+void TrawlCue(int kind, float vol, float pan, float pitch = 1);   // an effect; pitch scales its frequencies (the reel's ratchet by tension)

@@ -55,6 +55,8 @@ struct GroundDef {
     std::string key, name;
     float size = 600, cell = 4, depthMin = 3, depthMax = 40, bloodDecay = 0.03f;
     Vector2 current{0.08f, 0.03f};
+    float stirSafe = 120, stirCurve = 1.5f;     // the Stir clock (design doc, "Night pacing"): minutes of near-safety, and how steeply the threat curve rises after
+    float stirFloor = 0.1f;                     // what the baseline leaves of the threats' presence at the start (a lone shark can still be about)
     ResourceRec res[R_COUNT];
     std::vector<int> species;                   // indices into SpeciesDB::sp
     std::vector<std::string> flora;
@@ -124,6 +126,13 @@ struct Eco {
     Vector2 observer{300, 300};
     bool agentsOn = true;
     int agentBudget = 260;
+    // tonight's variant, as the web feels it (set by the session at cast off; design doc, "Nightly variants")
+    float forageMul = 1;                        // bait species about the boat (Bait run x3, Red tide x0.3)
+    float threatHungerMul = 1;                  // how fast the threats grow bold (Bait run and Red tide 1.5)
+    float seaMul = 1;                           // open-sea species inside the lagoon (King tide x2)
+    float turtleMul = 1, sharkMul = 1;          // Turtle nesting: turtles x4, the sharks that follow them x2
+    bool tideHeld = false;                      // King tide: the crest stays passable all night
+    bool redTide = false;                       // dead forage floating: blood everywhere, fish sell at half
     uint32_t rng = 1;
     float popAcc = 0, fieldAcc = 0, spawnAcc = 0, agentAcc = 0, gullT = -1;
     std::vector<float> fed;                     // per species: its intake as a fraction of the start's (the population's hunger)
@@ -147,13 +156,14 @@ struct Eco {
     float SpeciesHP(int sp) const;              // a threat's HP from the doc's stat table; a fish's from its weight
     int HitAgent(Vector3 p, float r, bool air) const;   // the agent whose body a projectile at p touches, or -1
     bool DamageAgent(int idx, float dmg, bool head, Vector3 at);   // true: one of them is dead (off the population, bleeding)
-    float Sweep(Vector3 mouth, Vector2 dir, float width, float speed, float dt, std::vector<std::pair<int, float>>& kgOut);   // a trawl's mouth through the water
+    float Sweep(Vector3 mouth, Vector2 dir, float width, float speed, float dt, std::vector<std::pair<int, float>>& kgOut, float yield = 1);   // a trawl's mouth through the water (yield: the share of a swept school it keeps)
     float DensityAt(int sp, Vector2 p) const;   // individuals per 4 m cell (set gear fishes the population, not the agents)
     void Harvest(int sp, float kg, Vector3 at, bool bleed);   // the crew took it (landed, netted, shot)
     // populations
     float Pop(int sp) const { return B[sp] / Species().sp[sp].MeanKg(); }
     float PopFrac(int sp) const { return B0[sp] > 0 ? B[sp] / B0[sp] : 1; }
     float Hunger(int sp) const;                 // 0 fed .. 1 starving (0.5 at the start's balance)
+    float Stir() const;                         // the night's threat pressure 0..1: the ground's baseline curve by the clock, plus the Wake the crew raised
     // fishing
     int TryBite(Vector3 lure, Tackle t, const std::string& bait, float dt, int* agentIdx);
     FishSpec SpecOf(int sp, float kgRoll) const;

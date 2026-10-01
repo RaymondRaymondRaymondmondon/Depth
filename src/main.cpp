@@ -639,6 +639,7 @@ int main(int argc, char** argv) {
         return rt::RunWebCheck(argv[2]);
     }
     if (argc >= 2 && strcmp(argv[1], "--trawl-eco") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlEco(argc, argv); }
+    if (argc >= 2 && strcmp(argv[1], "--trawl-sim") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlSim(argc, argv); }
     if (argc >= 2 && strcmp(argv[1], "--trawl-gear-test") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlGearTest(); }
     if (argc >= 2 && strcmp(argv[1], "--trawl-bot-test") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlBotTest(); }
     if (argc >= 2 && strcmp(argv[1], "--trawl-net-test") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlNetTest(); }
@@ -834,6 +835,7 @@ int main(int argc, char** argv) {
                 AudioStudy(g.scene == Scene::Study);   // below the hatch: the Study's own soundscape instead
                 if (g.scene != Scene::Dungeon) AudioExpedition(ExpAudio{});   // (the Dungeon scene sets it every frame)
                 if (g.scene != Scene::RedTide) AudioRedTide(RtAudio{});      // (and the Red Tide scene)
+                if (g.scene != Scene::Trawl) AudioTrawl(TwAudio{});          // (and the Trawl)
             }
             AudioFrame(GetFrameTime(), g.scene == Scene::Platformer || g.scene == Scene::Abyss);
             DrawToast(g);

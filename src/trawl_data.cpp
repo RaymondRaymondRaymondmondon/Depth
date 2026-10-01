@@ -7,6 +7,8 @@ namespace tw {
 
 const TrawlData& D() { static TrawlData d; return d; }
 
+const char* CatchSourceName(int s) { static const char* N[CS_COUNT] = {"hook", "net", "gun", "set gear", "dive"}; return N[s < 0 || s >= CS_COUNT ? 0 : s]; }
+
 const char* WeatherName(Weather w) {
     static const char* N[(int)Weather::COUNT] = {"Calm", "Fog", "Rain", "Squall", "Storm", "The Glass"};
     return N[(int)w];

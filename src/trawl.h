@@ -46,6 +46,12 @@ struct TrawlData {
     // the crew on deck
     float walk = 3, crewMass = 80, braceRoll = 12, fallRoll = 25, beamEnds = 35;   // m/s, kg, degrees
     float slideAccel = 6, fallTime = 1.5f;
+    // threats on the boat (design doc, "Threat stats"; the Lagoon's lethal paths, 2026-09-30)
+    float ramDamage = 15, ramEvery = 20;                  // a reef shark's ram takes this off a section (the Great White about 25), at most every ramEvery s
+    float ramHeel = 0.35f;                                // rad/s of roll the blow puts into her (enough to slide an unbraced hand)
+    float netYield = 0.25f;                               // the share of a swept school the mouth really takes (balance: the Lagoon's quota should be met about 85% of the time by six hands)
+    float railDrag = 0.5f;                                // per second at the worst: a running fish past 45% of the line's rating while she rolls past braceRoll toward it
+    float chumBlood = 40, chumSeconds = 60;               // a chum bucket: 40 blood over 60 s at the rail (design doc, "The Chandler")
 };
 const TrawlData& D();
 
@@ -273,7 +279,10 @@ struct CatchRec {
     bool gutted = false, iced = false;
     bool first = false;                                   // the run's first of its kind: the Owners pay 50% more
     bool bycatch = false, protectedSp = false; float aboardT = 0;   // worthless or protected: back over the side (a turtle within 60 s)
+    int src = 0;                                          // how it came aboard: CatchSource (the sim's money by source)
 };
+enum CatchSource { CS_HOOK, CS_NET, CS_GUN, CS_SET, CS_DIVE, CS_COUNT };
+const char* CatchSourceName(int s);
 
 // Things in the water that belong to the crew: projectiles, shot fish afloat, the trawl, set gear, the life ring.
 enum class Shot { Bullet, Pellet, Spear, Harpoon, Explosive, Flare, Charge };
@@ -348,6 +357,9 @@ struct Gannet {
     Rod harpoon;                                          // the cannon's tethered fight (a Fight on 120 kg steel), when one is on
     int harpoonSp = -1;
     float gullT = 0, fines = 0;                           // fines: the Owners take these at the dock
+    float ramT = 0;                                       // a shark's ram cooldown (design doc, "Threats": sharks ram the hull)
+    float chumLeft = 0;                                   // blood still to run out of a thrown chum bucket (at the gutting rail)
+    bool ThrowChum(int c);                                // a bucket over the side (needs one in the stores)
     int chargesUsed = 0;
     SonarState sonar;                                     // (trawl_sonar.cpp)
     bool SonarPing(int c);                                // an active ping (every 3 s; noise into the water)
@@ -413,6 +425,7 @@ void EcoTick(Eco& e, Gannet& g, float dt);                // what the Gannet put
 
 bool QuayWalkable(Vector2 p);                             // the quay beside her port side (boat frame) when she's moored
 
+int RunTrawlSim(int argc, char** argv);                   // depth.exe --trawl-sim <ground> <nights> [crew] [pattern] [runs] [skill] (trawl_sim.cpp)
 int RunTrawlGearTest();                                   // depth.exe --trawl-gear-test
 int RunTrawlBotTest();                                    // depth.exe --trawl-bot-test
 int RunTrawlSailDiag();                                   // depth.exe --trawl-sail-diag (water shipped under way, by weather)

@@ -7,6 +7,7 @@
 #include "trawl_session.h"
 #include "trawl_view3d.h"
 #include "trawl_net.h"
+#include "sound.h"
 #include "arcade_session.h"
 #include "net.h"
 #include "input.h"
@@ -764,6 +765,21 @@ void Hud(Game& g) {
     if (S.W->sess.tape.size() != S.tapeSeen) { S.tapeSeen = S.W->sess.tape.size(); S.tapeT = 6; }
     if (S.tapeT > 0 && !S.W->sess.tape.empty()) DrawTextCentered(S.W->sess.tape.back(), SCREEN_W / 2.0f, 52, 15, Fade(Color{230, 215, 170, 255}, std::min(1.0f, S.tapeT)));
     if (S.toastT > 0) DrawTextCenteredBold(S.toast, SCREEN_W / 2.0f, SCREEN_H / 2.0f + 170, 18, Fade(paper, std::min(1.0f, S.toastT)));
+    // tonight's variant, chalked under the tape for the first minutes of the night
+    if (S.W->sess.phase == Phase::Night && S.W->sess.variant != Variant::None && S.W->sess.clock < 30) {
+        float a = std::min(1.0f, (30 - S.W->sess.clock) / 6);
+        DrawTextCenteredBold(VariantName(S.W->sess.variant), SCREEN_W / 2.0f, 74, 18, Fade(Color{240, 200, 120, 255}, a));
+        DrawTextCentered(VariantNote(S.W->sess.variant), SCREEN_W / 2.0f, 96, 14, Fade(paper, a));
+    }
+    // Canoe night: the war canoe alongside waits a minute for an answer
+    if (S.W->sess.canoe == CanoeState::Alongside) {
+        Rectangle r{SCREEN_W / 2.0f - 330, SCREEN_H / 2.0f - 120, 660, 200};
+        DrawRectangleRec(r, Fade(Color{20, 24, 30, 255}, 0.88f)); DrawRectangleLinesEx(r, 2, Color{180, 150, 90, 255});
+        DrawTextCenteredBold("A war canoe is alongside", SCREEN_W / 2.0f, r.y + 20, 20, Color{240, 200, 120, 255});
+        DrawTextCentered(TextFormat("They want fish or silver. %.0f s before they help themselves.", std::max(0.0f, 60 - S.W->sess.canoeT)), SCREEN_W / 2.0f, r.y + 50, 15, paper);
+        const char* L[3] = {"1: Trade a quarter of the hold (bait, ice, a patch kit)", "2: Pay tribute (a tenth of the money, 15 at least)", "3: Refuse them"};
+        for (int k = 0; k < 3; k++) if (Button({r.x + 30, r.y + 80 + k * 38.0f, 600, 32}, L[k], true, 15) || IsKeyPressed(KEY_ONE + k)) Command(CMD_CANOE, "", k);
+    }
     if (G.moored && c.station < 0 && S.panel < 0) {
         int d = NearestDock(c.p, 1.4f);
         if (d >= 0) DrawTextCenteredBold(TextFormat("E: %s", DockStations()[d].name), SCREEN_W / 2.0f, SCREEN_H - 90.0f, 20, paper);
@@ -920,6 +936,139 @@ void Interpolate(Gannet& G) {
 }
 } // namespace
 
+// ---------------------------------------------------------------- sound (sound_trawl.inl; design doc "Sound design")
+// The music and the bed follow the session's state every frame; the effects come from what changed since the last
+// frame (the world is the same for solo play, the host and a guest's mirror, so every screen hears the same things).
+void TrawlAudioFrame(const TrawlWorld& W, int you, float dt) {
+    const Gannet& G = W.G; const Session& ss = W.sess; const Eco& E = W.eco;
+    static struct {
+        bool init = false;
+        RodState rod[4]; float reelT[4], humT[4], tick[4], jumpT[4];
+        int telegraph; float valveT; size_t holdN; size_t shots; NetState net; float winchT, warpT;
+        bool over[8], dead[8]; int ring; size_t tapeN; float sold; float integ[SEC_COUNT]; bool aground;
+        CanoeState canoe; std::string lastLog; size_t arrivals; float stroke[8]; int deadline;
+    } A;
+    if (!A.init || A.deadline != ss.deadline) {
+        A = {}; A.init = true; A.deadline = ss.deadline;
+        for (int k = 0; k < 4; k++) A.rod[k] = RodState::Idle;
+        A.telegraph = G.boat.telegraph; A.valveT = G.boat.valveT; A.holdN = G.hold.size(); A.shots = G.shots.size(); A.net = G.net.state;
+        A.tapeN = ss.tape.size(); A.sold = ss.lastSaleTotal; for (int s = 0; s < SEC_COUNT; s++) A.integ[s] = G.boat.integrity[s];
+        A.canoe = ss.canoe; A.lastLog = G.log.empty() ? "" : G.log.back(); A.arrivals = E.arrivals.size();
+        for (int k = 0; k < 8 && k < (int)G.crew.size(); k++) { A.over[k] = G.crew[k].overboard; A.dead[k] = G.crew[k].dead; }
+    }
+    // ---- the state
+    TwAudio a; a.on = true; a.ground = 0; a.verse = std::max(0, ss.deadline - 1); a.moored = G.moored;
+    a.mode = ss.phase == Phase::Dock ? 0 : ss.phase == Phase::SailOut ? 1 : ss.phase == Phase::Night ? 2 : ss.phase == Phase::Result ? 3 : 4;
+    a.clock = std::clamp(ss.clock / 540.0f, 0.0f, 1.0f);
+    if (ss.phase == Phase::Night && ss.clock > 450 && Vector2Distance(G.boat.pos, ss.harbour) < 220) { a.mode = 1; a.homeward = 1; }
+    a.telegraph = G.boat.telegraph; a.roll = fabsf(G.boat.RollDeg()); a.bilge = std::clamp(G.boat.bilge / 900.0f, 0.0f, 1.0f); a.weather = (int)ss.weather;
+    a.canoe = ss.canoe == CanoeState::Coming && ss.clock >= ss.canoeAt - 20 ? 1 : ss.canoe == CanoeState::Alongside ? 2 : 0;
+    for (const auto& r : G.rods) if (r.state == RodState::Fighting && r.fight.spec.kg >= 20) { a.fishOn = true; a.tension = std::max(a.tension, std::clamp(r.fight.tension / std::max(1.0f, TackleOf(r.tackle).strength), 0.0f, 1.0f)); }
+    if (G.harpoon.state == RodState::Fighting) { a.fishOn = true; a.tension = std::max(a.tension, 0.7f); }
+    if (G.eco) {
+        const auto& SP = Species().sp;
+        for (const auto& ag : E.agents) {
+            if (!ag.alive) continue;
+            const SpeciesRec& r = SP[ag.sp];
+            if (!r.threat) continue;
+            float d = Vector2Distance({ag.p.x, ag.p.y}, G.boat.pos);
+            if (r.size >= 5 && r.band != BAND_AIR && d < 60 && ag.hunger > 0.3f) a.threat = std::max(a.threat, 1 - d / 60);
+            if (r.band == BAND_AIR && d < 30) a.gulls = 1;
+            if (r.name == "barracuda" && d < 14 && ag.hunger > 0.3f) a.barracuda = 1;
+        }
+    }
+    AudioTrawl(a);
+    // ---- what changed: the gear
+    for (int k = 0; k < 4 && k < (int)G.rods.size(); k++) {
+        const Rod& r = G.rods[k];
+        float pan = r.TipDeck().y < 0 ? -0.5f : 0.5f;
+        if (r.state == RodState::Fighting && A.rod[k] != RodState::Fighting) TrawlCue(TWC_STRIKE, 0.9f, pan);
+        if (r.state != RodState::Fighting && A.rod[k] == RodState::Fighting) {
+            if (G.hold.size() > A.holdN) { TrawlCue(TWC_GAFF, 1, pan); TrawlCue(TWC_FLOP, 0.9f, pan); }
+            else if (!G.log.empty() && G.log.back().find("Snapped") != std::string::npos) TrawlCue(TWC_SNAP, 1, pan);
+            else TrawlCue(TWC_SPLASH, 0.6f, pan);
+        }
+        if (r.state == RodState::Fighting) {
+            float ten = std::clamp(r.fight.tension / std::max(1.0f, TackleOf(r.tackle).strength), 0.0f, 1.2f);
+            if (r.fight.reeling) { A.reelT[k] += dt; float per = 0.14f - 0.08f * std::min(1.0f, ten); if (A.reelT[k] >= per) { A.reelT[k] = 0; TrawlCue(TWC_REEL, 0.5f + 0.5f * ten, pan, 0.8f + 0.7f * ten); } }
+            if (ten > 0.78f) { A.humT[k] += dt; if (A.humT[k] >= 0.5f) { A.humT[k] = 0; TrawlCue(TWC_HUM, std::min(1.0f, (ten - 0.7f) * 3), pan, 0.9f + ten * 0.4f); } }
+            if (ten > 0.5f && GetRandomValue(0, 100) < 2) TrawlCue(TWC_CREAK, 0.4f + 0.5f * ten, pan, 0.8f + 0.5f * ten);
+            if (r.fight.jumpT > 0 && A.jumpT[k] <= 0) TrawlCue(TWC_SPLASH, 0.8f, pan);
+            A.jumpT[k] = r.fight.jumpT;
+        }
+        float tk = r.bite.Tick();
+        if (tk > 0.5f && A.tick[k] <= 0.5f) TrawlCue(TWC_BITE, std::min(1.0f, tk), pan, r.bite.stage == BiteStage::Take ? 0.7f : 1.2f);
+        A.tick[k] = tk;
+        A.rod[k] = r.state;
+    }
+    A.holdN = G.hold.size();
+    // ---- the boat
+    if (G.boat.telegraph != A.telegraph) { TrawlCue(TWC_TELEGRAPH, 0.8f, 0.2f); A.telegraph = G.boat.telegraph; }
+    if (G.boat.valveT > 0 && A.valveT <= 0) TrawlCue(TWC_VALVE, 0.9f, -0.3f);
+    A.valveT = G.boat.valveT;
+    for (int s = 0; s < SEC_COUNT; s++) {
+        if (G.boat.integrity[s] < A.integ[s] - 0.5f) {
+            bool ram = !G.log.empty() && G.log.back().find("struck the hull") != std::string::npos;
+            TrawlCue(ram ? TWC_BUMP : TWC_HULL, 1, (s % 2 ? 0.5f : -0.5f));
+        }
+        A.integ[s] = G.boat.integrity[s];
+    }
+    if (G.boat.aground && !A.aground) TrawlCue(TWC_HULL, 0.8f, 0);
+    A.aground = G.boat.aground;
+    for (int k = 0; k < 8 && k < (int)G.crew.size(); k++) {
+        const Crew& c = G.crew[k];
+        if (c.station >= 0 && Stations()[c.station].kind == StationKind::Pumps && c.strokeT < A.stroke[k] - 0.2f) TrawlCue(TWC_PUMP, 0.6f, -0.2f);
+        A.stroke[k] = c.strokeT;
+        if (c.overboard && !A.over[k]) TrawlCue(TWC_OVERBOARD, 1, c.p.y < 0 ? -0.6f : 0.6f);
+        A.over[k] = c.overboard;
+        if (c.dead && !A.dead[k]) TrawlCue(TWC_DEATH, 1, 0);
+        A.dead[k] = c.dead;
+    }
+    int ringOut = 0; for (const auto& r : G.rings) if (r.state == 1) ringOut++;
+    if (ringOut > A.ring) TrawlCue(TWC_RING, 0.8f, 0.3f);
+    A.ring = ringOut;
+    // the net
+    if (G.net.state == NetState::Shooting || G.net.state == NetState::Hauling) { A.winchT += dt; if (A.winchT >= 0.3f) { A.winchT = 0; TrawlCue(TWC_WINCH, 0.7f, -0.4f, G.net.state == NetState::Hauling ? 0.8f + std::min(1.0f, G.net.load / 300) * 0.4f : 1.1f); } }
+    if (G.net.state == NetState::Down && G.net.load > 80) { A.warpT += dt; if (A.warpT > 3 && GetRandomValue(0, 100) < 3) { A.warpT = 0; TrawlCue(TWC_WARP, std::min(1.0f, G.net.load / 250), -0.4f); } }
+    if (G.net.state == NetState::Snagged && A.net != NetState::Snagged) TrawlCue(TWC_SNAG, 1, -0.4f);
+    if (A.net == NetState::Hauling && G.net.state == NetState::Stowed) TrawlCue(TWC_CODEND, 1, -0.3f);
+    A.net = G.net.state;
+    // guns and tacticals
+    if (G.shots.size() > A.shots) {
+        const tw::Projectile& p = G.shots.back();
+        float pan = std::clamp(G.boat.ToDeck({p.p.x, p.p.y}).y / 4, -1.0f, 1.0f);
+        switch (p.kind) {
+            case Shot::Bullet: TrawlCue(TWC_RIFLE, 1, pan); break;
+            case Shot::Pellet: TrawlCue(TWC_SHOTGUN, 1, pan); break;
+            case Shot::Spear: TrawlCue(TWC_SPEAR, 0.9f, pan); break;
+            case Shot::Harpoon: case Shot::Explosive: TrawlCue(TWC_HARPOON, 1, pan); break;
+            case Shot::Flare: TrawlCue(TWC_FLARE, 0.8f, pan); break;
+            case Shot::Charge: TrawlCue(TWC_SPLASH, 0.6f, pan); break;
+        }
+    }
+    A.shots = G.shots.size();
+    // the log's own events: a blast, a canoe, the threats' tells
+    std::string last = G.log.empty() ? "" : G.log.back();
+    if (last != A.lastLog) {
+        if (last.find("DEPTH CHARGE") != std::string::npos || last.find("blast") != std::string::npos) TrawlCue(TWC_CHARGE, 1, 0);
+        if (last.find("war canoe comes alongside") != std::string::npos) TrawlCue(TWC_CANOE, 1, 0.5f);
+        if (last.find("Man overboard") == std::string::npos && last.find("takes the") != std::string::npos) TrawlCue(TWC_GULL, 0.7f, 0.2f);
+        A.lastLog = last;
+    }
+    while (A.arrivals < E.arrivals.size()) {
+        const std::string& sp = E.arrivals[A.arrivals].species;
+        if (sp.find("gull") != std::string::npos) TrawlCue(TWC_GULL, 0.8f, 0.3f);
+        else if (sp.find("barracuda") != std::string::npos) TrawlCue(TWC_TICKS, 0.8f, -0.2f);
+        A.arrivals++;
+    }
+    // the dock and the Owners
+    if (ss.tape.size() > A.tapeN) TrawlCue(TWC_TAPE, 0.6f, 0.4f);
+    A.tapeN = ss.tape.size();
+    if (ss.lastSaleTotal != A.sold && ss.lastSaleTotal > 0) TrawlCue(TWC_SELL, 0.8f, 0);
+    A.sold = ss.lastSaleTotal;
+    A.canoe = ss.canoe;
+}
+
 void SceneTrawl(Game& g) {
     if (!S.active) StartTrawl(g, false);
     SetPost(0.25f, 0.02f, 0.1f);
@@ -980,6 +1129,7 @@ void SceneTrawl(Game& g) {
             S.W->sess.Step(1 / 60.0f);
         }
     }
+    if (!S.shot) TrawlAudioFrame(*S.W, S.you, dt);
     if (S.toastT > 0) S.toastT -= dt;
     if (S.ghostSee > 0) S.ghostSee -= dt;
     if (S.tapeT > 0) S.tapeT -= dt;

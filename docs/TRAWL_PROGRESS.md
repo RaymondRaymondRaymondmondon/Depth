@@ -347,3 +347,59 @@ The user asked for two versions of the Trawl, one top-down as it was and one fir
   Gannet's heading, the marks, and the bearing and distance to the harbour line.
 - Shots: `trawl_sonar`, `trawl_helmchart`, `trawl3d_helmchart`. Remaining from the doc's sonar: a second operator
   (Slipway), the side-scan toggle (the profile is always on), kelp shadow, Grotto echo twins, and the Kraken whiteout.
+
+## Finishing the Lagoon, part 1: `--trawl-sim`, the lethal paths, the Stir clock, weather and variants (2026-09-30)
+The plan (the user's order): the sim first, then the Stir clock and the Lagoon's special nights, then sound, the
+shakedown night, and a tuning pass against the doc's targets. Then the Weeds and the Grotto, diving, Atlantis.
+
+- **`depth.exe --trawl-sim <ground> <nights> [crew 1-6] [careful|greedy|reckless] [runs] [green|able|oldhand]`**
+  (`trawl_sim.cpp`): the doc's balance tool (page 47). A scripted skipper plays hand 0 (buys the night's consumables,
+  picks marks from the chart, tows the trawl with a bot on the winch, backs off groundings, hauls 40 minutes before
+  turning for home, answers canoes by pattern); the other hands are the real bots. It reports quota met, money per
+  night by source (`CatchRec::src`), deaths by cause, overboard and rams, each threat's first sighting, a large threat
+  late in the night, when the skipper turned for home, the variants rolled, and CPU per night. `DEPTH_TRACE=1` traces.
+- **Lethal paths on the Lagoon** (the user chose to add them): the reef shark rams a section when it is alongside in
+  blood past its threshold (`D().ramDamage` 15 every `ramEvery` 20 s, and a heel of `ramHeel` that slides unbraced
+  hands); a running fish past 45% of the line's rating while she rolls past 12 degrees toward it drags the angler over
+  the rail (`D().railDrag`; bots let go by skill). Chum buckets are real (`Gannet::ThrowChum`).
+- **The Stir clock** (`Eco::Stir`, json `"stir"`): threats materialise about the boat in proportion to the ground's
+  curve (safe 120 min, then rising to 05:00 with exponent 1.5, floor 0.1 for small threats, none for size 5+) plus the
+  Wake, never nearer than 60 m, and grow hungry with it.
+- **Weather turns mid-night** one night in three (forecast on the tape, right 70%). **Variants**: Bait run, Red tide,
+  King tide, Turtle nesting, Canoe night (a canoe alongside for a minute: trade / tribute / refuse; `CMD_CANOE`, the
+  HUD prompt). The carcass, derelict and storm wreck wait for the diving stage.
+
+### Numbers (`--trawl-sim lagoon 3 <crew> <pattern> <runs>`, Able bots, starting gear)
+Before any tuning, six hands met the quota 100% on the net alone (375 shillings a night, 97% net), three hands 50-67%,
+solo never (17-26 a night: the handlines catch bait fish). Threats were "arriving" at 20:00 because they materialised
+22 m from the boat; the Stir clock fixed that.
+
+| Crew, pattern | net yield | Quota met | Money / night | Deaths / night | Rams / night |
+|---|---|---|---|---|---|
+| 6, careful | 1.0 | 4/4 | 371 | 0 | 0 |
+| 6, greedy | 1.0 | 4/4 | 426 | 0 | 0 |
+| 6, careful | 0.5 | 4/4 | 315 | 0 | 0.08 |
+| 6, careful | 0.25 | 5/6 (83%) | 248 | 0 | 0.06 |
+| 6, greedy | 0.25 | 4/4 | 276 | 0 | 0 |
+| 3, careful | 0.25 | 2/4 | 103 | 0 | 0 |
+| 1, careful | 0.5 | 0/2 | 26 | 0 | 0 |
+
+`D().netYield` is 0.25 now (six careful hands at 83% against the doc's 85%). Deviations to log: **deaths are 0.0 against
+the doc's 0.3**, because bots brace at stations and rescue well, so the lethal paths only bite human crews; the
+greedy pattern still clears the quota every time; three hands sit at 50% and lose a hold to the cutter now and then;
+solo play cannot meet even the halved quota with the starting tackle. The tuning pass will take these up (a net-yield
+grid, the glut, haul times, the solo quota).
+
+### Skipper fixes and the three-hand result
+The skipper keeps the fire itself when nobody mans the boiler (a short crew's only fireman may be on the winch), keeps
+the winch hand until the net is in, counts the net's load as progress, and re-orders a hand to the winch when turning
+for home with the net down. Three careful hands now meet the quota 3 of 4 (188 a night); six 5 of 6.
+
+## Finishing the Lagoon, part 2: sound (2026-09-30)
+`sound_trawl.inl` on the shared voice pool and buses: the music by the session's state (the dock shanty with a verse
+per met deadline, the refrain over the engine, the quiet night's drone and fiddle, the fish-on string figure following
+tension, silence with a Wake-sized threat within 60 m, the big three's drum and groans, the fanfare and the church
+bell), the Lagoon's bed (surf, wind and rain, insects, gulls at dusk, a whale, barracuda ticks, canoe drums) and
+36 effects diffed from the world each frame in `TrawlAudioFrame` (trawl.cpp). `--audio-test` renders 12 states and
+every effect, and checks the music drops by 6 dB with a threat near. Not yet: the Weeds/Grotto/Atlantis beds and tells
+(their grounds don't exist), diving sounds, voice.

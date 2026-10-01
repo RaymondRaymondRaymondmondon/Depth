@@ -567,6 +567,23 @@ void Gannet::StepRods(float dt) {
                 Vector2 pw = f.PullOnBoat();
                 boat.extraForce = Vector2Add(boat.extraForce, Vector2Scale(pw, 9.81f));
                 boat.extraHeelTorque += Vector2DotProduct(pw, star) * 3.0f;
+                // the rail: a running fish past the hand's strength while she rolls toward it drags the angler over unless
+                // they let the rod go (design doc, "Death": most deaths start with a crewman in the water). Bots let go by skill.
+                {
+                    float P = Vector2Length(pw), rollDeg = boat.RollDeg();
+                    bool toward = (tipDeck.y > 0) == (rollDeg > 0);
+                    if (f.burstT > 0 && P > 0.45f * td.strength && toward && fabsf(rollDeg) > D().braceRoll) {
+                        int holder = -1; for (int k = 0; k < (int)crew.size(); k++) if (crew[k].station == r.station && !crew[k].overboard && !crew[k].dead) holder = k;
+                        if (holder >= 0) {
+                            float risk = D().railDrag * std::min(1.0f, (P / td.strength - 0.45f) / 0.55f) * std::min(1.0f, (fabsf(rollDeg) - D().braceRoll) / 13.0f);
+                            if (r.botAngler && botsOn) risk *= 1 - SkillOf(botSkill).keel;   // an old hand drops the rod
+                            if (RRand(r.rng) < risk * dt) {
+                                GoOverboard(holder, std::string("dragged over the rail by a ") + f.spec.name);
+                                f.end = FightEnd::SlackHook;
+                            }
+                        }
+                    }
+                }
                 if (f.alongside) {
                     r.alongT += dt;
                     bool tryLand = r.gaffQ || (r.botAngler && r.alongT > 1.5f);

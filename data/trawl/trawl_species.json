@@ -7,6 +7,8 @@
       "depthMin": 3, "depthMax": 40,
       "bloodDecay": 0.03,
       "current": [0.2, 0.07],
+      "_stir": "the Stir clock (design doc 'Night pacing'): safe = minutes after 20:00 before the threat curve starts rising, curve = how steeply it rises to 05:00, floor = the share of the ground's threats about the boat at the start",
+      "stir": {"safe": 120, "curve": 1.5, "floor": 0.1},
       "_resources": "turnover: hours for what eats a resource to eat its standing stock at the balance; the stock and its regrowth are set from it",
       "resources": {
         "plankton": {"turnover": 8},
