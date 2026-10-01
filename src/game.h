@@ -867,7 +867,7 @@ int RunScuttleSim(int matches);    // --scuttle-sim (net_test.cpp)
 int RunNetLoop(int lagMs, bool forceMemory);   // --net-loop
 int RunStudyAudioTest(const char* wavPath, float seconds);   // --study-audio-test (study_test.cpp)
 void SceneTrawl(Game& g);     // The Trawl, the Deep Arcade's co-op fishing horror game (trawl.cpp)
-void StartTrawl(Game& g, bool firstPerson = false);   // firstPerson: the 3D version (trawl_view3d.cpp); V switches in game
+void StartTrawl(Game& g, bool firstPerson = false, int crew = 1, int botSkill = 1);   // crew 1-6 (the rest are bots), botSkill 0 Green, 1 Able, 2 Old Hand   // firstPerson: the 3D version (trawl_view3d.cpp); V switches in game
 void DebugTrawlShot(Game& g, int which);   // --shots: 0 the deck, 1 the engine room, 2 the wheelhouse, 3 a squall
 void SceneRedTide(Game& g);   // Red Tide, the Deep Arcade's survival shooter (redtide_game.cpp)
 void StartRedTide(Game& g, const char* map = "ship");

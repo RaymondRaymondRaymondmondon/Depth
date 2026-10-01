@@ -200,8 +200,21 @@ void DrawReels(Game& g) {
     }
     // The Trawl and Red Tide play solo until their networking stages: a button launches them straight from the reel
     if (selGame == G_TRAWL) {   // two versions of the same game: from above, and through the hand's eyes
-        if (Button({c.x - 226, c.y + 236, 220, 36}, "Sail: top-down", true, 15)) { StartTrawl(g, false); return; }
-        if (Button({c.x + 6, c.y + 236, 220, 36}, "Sail: first person", true, 15)) { StartTrawl(g, true); return; }
+        // the crew: you and up to five bot hands, and how good they are (design doc "Bot crew")
+        static int twCrew = 4, twSkill = 1;
+        static const char* SKILLS[] = {"Green hands", "Able hands", "Old Hands"};
+        auto picker = [&](float x, const char* text, int& v, int lo, int hi) {
+            Rectangle l{x - 110, c.y + 52, 26, 26}, r{x + 84, c.y + 52, 26, 26};
+            DrawTextCenteredBold(text, x, c.y + 54, 19, Color{230, 200, 150, 255});
+            DrawTextCenteredBold("<", l.x + 13, l.y, 22, v > lo ? Pal::Brass : Pal::BrassDk);
+            DrawTextCenteredBold(">", r.x + 13, r.y, 22, v < hi ? Pal::Brass : Pal::BrassDk);
+            if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), l) && v > lo) { v--; PlayCue("ui.click"); }
+            if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), r) && v < hi) { v++; PlayCue("ui.click"); }
+        };
+        picker(c.x - 120, twCrew == 1 ? "Alone" : TextFormat("%d hands", twCrew), twCrew, 1, 6);
+        if (twCrew > 1) picker(c.x + 120, SKILLS[twSkill], twSkill, 0, 2);
+        if (Button({c.x - 226, c.y + 236, 220, 36}, "Sail: top-down", true, 15)) { StartTrawl(g, false, twCrew, twSkill); return; }
+        if (Button({c.x + 6, c.y + 236, 220, 36}, "Sail: first person", true, 15)) { StartTrawl(g, true, twCrew, twSkill); return; }
     }
     if (selGame == G_RED_TIDE) {
         static const char* RT_MAPS[] = {"ship", "cave", "reef", "atlantis", "void"};

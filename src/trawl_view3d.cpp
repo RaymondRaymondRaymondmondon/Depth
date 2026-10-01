@@ -111,6 +111,29 @@ bool AimAtWater(const Gannet& g, const Camera3D& cam, Vector2 screen, Vector2* d
     if (deckOut) *deckOut = g.boat.ToDeck({hit.x, hit.z});
     return water;
 }
+bool AimAtDeck(const Gannet& g, const Camera3D& cam, Vector2 screen, int deck, Vector2* deckOut) {
+    // the ray into the boat's own frame, then onto the plank (or the engine room's floor)
+    Ray ray = GetScreenToWorldRayEx(screen, cam, SCREEN_W, SCREEN_H);
+    Matrix inv = MatrixInvert(BoatMatrix(g.boat));
+    Vector3 o = Vector3Transform(ray.position, inv), e = Vector3Transform(Vector3Add(ray.position, ray.direction), inv);
+    Vector3 d = Vector3Subtract(e, o);
+    float y = deck == 1 ? ENGINE_Y : DECK_Y;
+    if (d.y > -0.01f) return false;
+    float t = (y - o.y) / d.y;
+    if (t > 30) return false;
+    if (deckOut) *deckOut = {o.x + d.x * t, o.z + d.z * t};
+    return true;
+}
+bool CrewHeadOnScreen(const Gannet& g, int ci, const Camera3D& cam, Vector2* out) {
+    const Crew& c = g.crew[ci];
+    Vector3 p;
+    if (c.overboard) p = W3(c.swim, 0.8f);
+    else { Vector2 sp = StandSpot(c); p = BoatPoint(g.boat, {sp.x, (c.deck == 1 ? ENGINE_Y : DECK_Y) + 2.05f, sp.y}); }
+    Vector3 fw = Vector3Subtract(cam.target, cam.position);
+    if (Vector3DotProduct(Vector3Subtract(p, cam.position), fw) <= 0.1f || Vector3Distance(p, cam.position) > 40) return false;
+    *out = GetWorldToScreenEx(p, cam, SCREEN_W, SCREEN_H);
+    return out->x > 0 && out->y > 0 && out->x < SCREEN_W && out->y < SCREEN_H;
+}
 
 // ---------------------------------------------------------------- the models
 static float HalfBeam3(float x) { return x > 5 ? std::max(0.5f, 3.0f - (x - 5) * 0.42f) : x < -10 ? 3.0f - (-10 - x) * 0.8f : 3.0f; }

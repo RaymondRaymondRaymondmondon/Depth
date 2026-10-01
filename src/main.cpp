@@ -216,6 +216,8 @@ static void TakeShots(const Game& base, const std::string& dir) {
         {"trawl_ghost", [](Game& g) { DebugTrawlShot(g, 18); }},
         {"trawl_harpoon", [](Game& g) { DebugTrawlShot(g, 19); }},
         {"trawl_locker", [](Game& g) { DebugTrawlShot(g, 20); }},
+        {"trawl_bots", [](Game& g) { DebugTrawlShot(g, 21); }},
+        {"trawl3d_bots", [](Game& g) { DebugTrawlShot(g, 121); }},
         {"trawl3d_deck", [](Game& g) { DebugTrawlShot(g, 100); }},
         {"trawl3d_engine", [](Game& g) { DebugTrawlShot(g, 101); }},
         {"trawl3d_wheelhouse", [](Game& g) { DebugTrawlShot(g, 102); }},
@@ -632,6 +634,7 @@ int main(int argc, char** argv) {
     }
     if (argc >= 2 && strcmp(argv[1], "--trawl-eco") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlEco(argc, argv); }
     if (argc >= 2 && strcmp(argv[1], "--trawl-gear-test") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlGearTest(); }
+    if (argc >= 2 && strcmp(argv[1], "--trawl-bot-test") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlBotTest(); }
     if (argc >= 2 && strcmp(argv[1], "--trawl-session-test") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlSessionTest(); }
     if (argc >= 2 && strcmp(argv[1], "--trawl-eco-test") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlEcoTest(); }
     if (argc >= 2 && strcmp(argv[1], "--trawl-fight") == 0) return tw::RunTrawlFight(argc, argv);

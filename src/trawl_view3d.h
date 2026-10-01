@@ -22,6 +22,8 @@ Camera3D EyeCamera(const Gannet& g, int you, const Eye3D& e);
 // Where the crosshair (or any screen point, in game pixels) meets the water: the deck-frame point, and false when
 // the look is at the sky (the point is then 40 m out along the look).
 bool AimAtWater(const Gannet& g, const Camera3D& cam, Vector2 screen, Vector2* deckOut);
+bool AimAtDeck(const Gannet& g, const Camera3D& cam, Vector2 screen, int deck, Vector2* deckOut);   // the same onto the deck's planks
+bool CrewHeadOnScreen(const Gannet& g, int c, const Camera3D& cam, Vector2* out);                // over a hand's head (barks)
 Vector2 LookDeckDir(const Eye3D& e);                    // the look's direction along the deck (deck frame, unit)
 
 void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, const Camera3D& cam, float ghostSee);

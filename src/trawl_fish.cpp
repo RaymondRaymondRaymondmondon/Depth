@@ -548,7 +548,7 @@ void Gannet::StepRods(float dt) {
             case RodState::Fighting: {
                 Fight& f = r.fight;
                 f.tip = tip3; f.outboard = outW;
-                if (r.botAngler) BotFight(f, Skill::Able, dt, r.rng);
+                if (r.botAngler) BotFight(f, botSkill, dt, r.rng);
                 else if (manned) { f.reeling = r.reel; f.rodLean = r.lean; f.bowed = r.bow; f.pumping = r.reel && r.bow; f.keelClear = 0; }
                 else { f.reeling = false; f.bowed = false; }        // an unmanned rod holds in its holder
                 f.Step(dt);
@@ -572,6 +572,7 @@ void Gannet::StepRods(float dt) {
                     bool tryLand = r.gaffQ || (r.botAngler && r.alongT > 1.5f);
                     if (tryLand) {
                         float skill = f.spec.kg < 5 ? 0.97f : (role == Role::Bosun ? 0.85f : 0.8f);
+                        if (r.botAngler && botsOn) skill = f.spec.kg < 5 ? 0.97f : SkillOf(botSkill).gaff;   // a bot crew's gaff (design doc, "Bot crew")
                         if (!f.Land(skill)) Say("Missed with the gaff: it runs again");
                         r.alongT = 0;
                     }

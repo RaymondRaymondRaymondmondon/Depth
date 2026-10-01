@@ -325,6 +325,7 @@ void Gannet::Step(float dt) {
     for (const auto& c : crew) if (!c.overboard) boat.loads.push_back({c.deck == 1 ? Vector2{c.p.x, c.p.y * 0.5f} : c.p, D().crewMass + c.carryKg});
     int leaks = 0; for (int s = 0; s < SEC_COUNT; s++) if (boat.integrity[s] < D().leakBelow && !boat.patched[s]) leaks++;
     bool wasSunk = boat.sunk; float valve0 = boat.valveT;
+    if (botsOn) StepBots(dt);
     StepRods(dt);
     StepGear(dt);
     if (eco) EcoTick(*eco, *this, dt);

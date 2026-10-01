@@ -232,3 +232,35 @@ bait in `src/trawl_fish.cpp`, the dock panels and the HUD in `src/trawl.cpp`.
 
 ## The first-person version (2026-09-30, local session)
 The user asked for two versions of the Trawl, one top-down as it was and one first person like Red Tide, otherwise identical. `trawl_view3d.cpp` draws the same simulation in 3D through Red Tide's inked renderer; trawl.cpp chooses the view (`S.fp`), maps WASD to the look and aims with the crosshair. Nothing in the simulation changed (every Trawl test passes). Red Tide's renderer gained point lights and glowing draws, unused by Red Tide itself. Shots `trawl3d_*`. Left to do: proper crew figures, sky, spray and rain, a held-item viewmodel, and tuning the night's brightness in play.
+
+## Bot crew (2026-09-30, local session)
+- `src/trawl_bots.cpp`: `Gannet::StepBots` (inside the 60 Hz step, only when `botsOn`), `OrderBot`, `BotDoing`, and
+  `--trawl-bot-test`. Every hand after the first is a bot. A small utility brain per bot (`Gannet::Brain`) rethinks
+  twice a second, in this order:
+  1. The skipper's order.
+  2. Water in her: the fireman pumps her dry.
+  3. Its role's watch. The skipper holds the Bosun's slot but stands at the helm, so if no bot is a Bosun, the first bot
+     keeps the fire. Angler: a rod (port, starboard, stern). Diver: the gutting table when there's fish on deck, else a
+     rod. Medic: the gutting table.
+- Bots never steer and never decide to go home.
+- **Walking:** down the ladder, in and out of the wheelhouse door, and a sidestep when stuck on the drum, the table or
+  the mast.
+- **Working:**
+  - Boiler: shovels below green+0.12 and bleeds at the first red.
+  - Pumps: pumps while there's water.
+  - Gutting table: guts.
+  - Rods: casts outboard. On the take, it strikes once at the skill's `hookSet`, then fights with `BotFight` and gaffs at
+    the skill's `gaff` (Green, Able, Old Hand).
+  - Net winch: only when ordered.
+  - Overboard: swims for the stern ladder.
+- **Barks:** "Fish on, port!", "Water in her!", "Man overboard!". They're drawn over the bot's head in both views
+  (`CrewHeadOnScreen` in 3D).
+- **Arcade:** choose 1-6 hands and the bots' skill. `StartTrawl(g, fp, crew, skill)`; the quota scales with the crew.
+- **In game:** G orders the nearest free bot to the station you point at. In first person, `AimAtDeck` finds that
+  station on the planks. Pointing at nothing sends every bot back to its watch. A crew list sits top right.
+- **Shots:** `trawl_bots`, `trawl3d_bots`.
+- **Not yet:**
+  - Follow orders.
+  - Throwing the life ring for a hand overboard.
+  - Patching leaks.
+  - Bots using items (rifle, flare).

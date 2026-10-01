@@ -327,6 +327,20 @@ struct Gannet {
     int harpoonSp = -1;
     float gullT = 0, fines = 0;                           // fines: the Owners take these at the dock
     int chargesUsed = 0;
+    // bot crew (trawl_bots.cpp; design doc "Bot crew"): every hand after the first is a bot when botsOn
+    bool botsOn = false; Skill botSkill = Skill::Able;
+    struct Brain {
+        int order = -1;                                   // a station the skipper ordered it to (-1: its watch)
+        int goal = -1, goalDeck = 0; float think = 0;     // where it is going, and when it next reconsiders
+        float castT = 0; bool struck = false; RodState lastRod = RodState::Idle;
+        Vector2 lastP{}; float stuckT = 0, sideT = 0; int side = 1;
+        std::string bark; float barkT = 0;                // a short line over its head ("Fish on, port!")
+        uint32_t rng = 1;
+    };
+    std::vector<Brain> brains;
+    void StepBots(float dt);
+    int OrderBot(int station);                            // the nearest bot takes it (-1: every bot back to its watch); returns the bot
+    std::string BotDoing(int c) const;                    // what it's about, for the crew list
     int DeckFish() const;                                 // landed and not yet gutted (they draw gulls, they spoil)
     int RodAt(int station) const;                         // index into rods, or -1
     void StepRods(float dt);                              // lures, bites (a dummy bite table until the web comes), fights, the pull on her
@@ -368,6 +382,7 @@ void EcoTick(Eco& e, Gannet& g, float dt);                // what the Gannet put
 bool QuayWalkable(Vector2 p);                             // the quay beside her port side (boat frame) when she's moored
 
 int RunTrawlGearTest();                                   // depth.exe --trawl-gear-test
+int RunTrawlBotTest();                                    // depth.exe --trawl-bot-test
 int RunTrawlBoatTest();                                   // depth.exe --trawl-boat-test
 int RunTrawlRodTest();                                    // (part of --trawl-boat-test) a rod on the Gannet, cast to landing
 

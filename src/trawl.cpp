@@ -155,6 +155,19 @@ void Pressed(Game& g) {
         else if (G.TakeStation(S.you) && Stations()[c.station].kind == StationKind::Helm && S.sess.phase == Phase::Dock) S.panel = PANEL_CHART;
     }
     if (IsKeyPressed(KEY_X)) G.LeaveStation(S.you);
+    if (IsKeyPressed(KEY_G) && G.botsOn) {
+        // orders (design doc "Bot crew"): point at a station and the nearest free bot takes it; point at nothing and
+        // every bot goes back to its own watch
+        Vector2 at{}; bool ok = true;
+        if (S.fp) ok = AimAtDeck(G, S.cam, {SCREEN_W / 2.0f, SCREEN_H / 2.0f}, c.deck, &at);
+        else at = AimDeck();
+        int st = ok ? NearestStation(at, c.deck, 1.6f) : -1;
+        if (st >= 0 && st != c.station) {
+            int who = G.OrderBot(st);
+            S.toast = who >= 0 ? TextFormat("%s: to the %s", RoleName(G.crew[who].role), Stations()[st].name) : "No hand free";
+        } else { G.OrderBot(-1); S.toast = "All hands to their watch"; }
+        S.toastT = 2.5f;
+    }
     float wheel = GetMouseWheelMove();
     bool atRod = G.crew[S.you].station >= 0 && G.RodAt(G.crew[S.you].station) >= 0;
     if (atRod) { S.wheel += wheel; if (IsKeyPressed(KEY_T)) G.CycleTackle(S.you); }
@@ -507,6 +520,20 @@ void Hud(Game& g) {
         Txt(G.log[i].c_str(), 20, SCREEN_H - 40 - age * 18, 15, Fade(paper, 0.9f - age * 0.12f));
     }
     if (!G.hold.empty()) { float kg = 0; for (const auto& h : G.hold) kg += h.kg; Txt(TextFormat("In the hold: %d fish, %.0f kg", (int)G.hold.size(), kg), SCREEN_W - 260, 16, 15, Fade(paper, 0.8f)); }
+    // the crew list: who is where (bots and what they're about); G orders the hand nearest the station you point at
+    if (G.botsOn) {
+        float y = 40;
+        for (int i = 0; i < (int)G.crew.size(); i++) {
+            if (i == S.you) continue;
+            const Crew& o = G.crew[i];
+            Color rc = ColorLerp(RoleColor(o.role), paper, 0.45f);   // (the Bosun's navy is lost on a night sea)
+            bool ordered = i < (int)G.brains.size() && G.brains[i].order >= 0;
+            Txt(TextFormat("%s%s", RoleName(o.role), ordered ? " *" : ""), SCREEN_W - 260, y, 13, Fade(rc, o.dead ? 0.4f : 0.9f));
+            Txt(G.BotDoing(i).c_str(), SCREEN_W - 190, y, 13, Fade(paper, o.dead ? 0.35f : o.overboard ? 1.0f : 0.65f));
+            y += 16;
+        }
+        Txt("G: order a hand to the station you point at", SCREEN_W - 260, y + 2, 11, Fade(paper, 0.4f));
+    }
     // the four slots and what's wrong with you (design doc: "Always on screen: the four inventory slots")
     for (int k = 0; k < 4; k++) {
         const Slot& sl = c.slots[k];
@@ -548,6 +575,31 @@ void Hud(Game& g) {
     Panels(g);
 }
 
+// a bot's short line over its head ("Fish on, port!"), on whichever view is up
+void DrawBarks() {
+    const Gannet& G = S.G;
+    if (!G.botsOn) return;
+    const Crew& me = G.crew[S.you];
+    const float PX = (float)SCREEN_W / PIXEL_W;
+    for (int i = 0; i < (int)G.crew.size() && i < (int)G.brains.size(); i++) {
+        const auto& b = G.brains[i];
+        const Crew& o = G.crew[i];
+        if (i == S.you || b.barkT <= 0 || b.bark.empty() || o.dead) continue;
+        if (!o.overboard && o.deck != me.deck) continue;
+        Vector2 at;
+        if (S.fp) { if (!CrewHeadOnScreen(G, i, S.cam, &at)) continue; }
+        else {
+            Vector2 d = o.overboard ? G.boat.ToDeck(o.swim) : o.p;
+            Vector2 cp = S.view.ToCanvas(d);
+            at = {(cp.x - 1) * PX, (cp.y - 1) * PX - 34};
+        }
+        float a = std::min(1.0f, b.barkT * 2);
+        int w = MeasureText(b.bark.c_str(), 14);
+        DrawRectangleRounded({at.x - w / 2.0f - 6, at.y - 9, w + 12.0f, 20}, 0.4f, 6, Fade(Color{20, 16, 12, 255}, 0.7f * a));
+        DrawTextCentered(b.bark, at.x, at.y - 7, 14, Fade(Color{240, 228, 196, 255}, a));
+    }
+}
+
 void Draw(Game& g) {
     const Gannet& G = S.G;
     const Crew& c = G.crew[S.you];
@@ -556,6 +608,7 @@ void Draw(Game& g) {
         S.cam = EyeCamera(G, S.you, S.eye);
         DrawTrawl3D(G, G.eco, S.sess, S.you, S.cam, S.ghostSee);
         if (c.dead) DrawRectangle(0, 0, SCREEN_W, SCREEN_H, Fade(Color{120, 170, 200, 255}, 0.08f));
+        DrawBarks();
         Hud(g);
         if (S.panel < 0) {
             Vector2 m{SCREEN_W / 2.0f, SCREEN_H / 2.0f};
@@ -594,15 +647,19 @@ void Draw(Game& g) {
     EndLayer();
     const float PX = (float)SCREEN_W / PIXEL_W;
     DrawTexturePro(PixelRT().texture, {0, 0, PIXEL_W + 2.0f, -(PIXEL_H + 2.0f)}, {-PX, -PX, (PIXEL_W + 2) * PX, (PIXEL_H + 2) * PX}, {0, 0}, 0, WHITE);
+    DrawBarks();
     Hud(g);
 }
 } // namespace
 
-void StartTrawl(Game& g, bool firstPerson) {
+void StartTrawl(Game& g, bool firstPerson, int crew, int botSkill) {
     S = TrawlScene{};
     uint32_t seed = (uint32_t)GetRandomValue(1, 1 << 30);
-    // a solo run: the Gannet at the quay on the atoll, the first deadline's quota on the tape
-    S.sess.Begin(S.G, S.eco, 1, seed);
+    // the Gannet at the quay on the atoll, the first deadline's quota on the tape; every hand after you is a bot
+    crew = std::clamp(crew, 1, 6);
+    S.sess.Begin(S.G, S.eco, crew, seed);
+    S.G.botsOn = crew > 1;
+    S.G.botSkill = (Skill)std::clamp(botSkill, 0, (int)Skill::COUNT - 1);
     S.active = true;
     S.fp = firstPerson;
     EnableCursor();
@@ -652,7 +709,22 @@ void DebugTrawlShot(Game& g, int which) {
     S.shot = true;
     if (fp) {   // where the hand looks in each first-person shot
         S.eye.pitch = which == 15 ? -0.3f : which == 9 || which == 0 ? -0.08f : -0.22f;
-        S.eye.yaw = which == 4 || which == 5 ? 1.25f : which == 15 ? 3.1f : which == 9 ? -1.9f : which == 16 ? 1.3f : which == 17 ? 1.9f : which == 1 ? -2.4f : which == 6 || which == 8 ? 2.6f : 0.0f;
+        S.eye.yaw = which == 4 || which == 5 ? 1.25f : which == 15 || which == 21 ? 3.1f : which == 9 ? -1.9f : which == 16 ? 1.3f : which == 17 ? 1.9f : which == 1 ? -2.4f : which == 6 || which == 8 ? 2.6f : 0.0f;
+    }
+    if (which == 21) {
+        // the bot crew at work: five hands, four of them bots, hove to on the ground with the lines out
+        Eye3D eye = S.eye;
+        StartTrawl(g, fp, 5, 1);
+        S.shot = true; S.eye = eye;
+        Gannet& G = S.G; Session& ss = S.sess;
+        G.crew[0].p = {-1, 0.8f};
+        ss.Buy("shrimp"); ss.Buy("shrimp");
+        while (G.boat.bunker < 40 && ss.Buy("coal")) {}
+        ss.CastOff(); G.boat.pos = Vector2Add(ss.harbour, {ss.harbourR + 50, 8}); G.boat.heading = 0.1f;
+        S.eco.agentBudget = 260;
+        for (int i = 0; i < 60 * 40; i++) { G.Step(1 / 60.0f); ss.Step(1 / 60.0f); }
+        for (int i = 1; i < (int)G.crew.size(); i++) if (G.crew[i].station >= 0 && G.RodAt(G.crew[i].station) >= 0) { G.brains[i].bark = "Fish on, port!"; G.brains[i].barkT = 2; break; }
+        return;
     }
     if (which >= 15) {
         // 15 the net down and filling, 16 a rifle and a shot fish afloat with gulls over, 17 overboard and the ring,
