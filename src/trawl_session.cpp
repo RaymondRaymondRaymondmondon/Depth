@@ -712,6 +712,14 @@ bool Session::CastOff(std::string* why) {
     // tonight's variant (design doc, "Nightly variants": at most one, about 40% of nights none): the web feels it
     // through the Eco's multipliers; the rumour on the tape points at it 70% of the time
     E->forageMul = 1; E->threatHungerMul = 1; E->seaMul = 1; E->turtleMul = 1; E->sharkMul = 1; E->tideHeld = false; E->redTide = false;
+    // the ground hardens with each deadline, and from the second a threat strays in from the next ground
+    // (the Lagoon: a great white from the Weeds; the Weeds: a lantern angler from the Grotto; the Grotto: a great white
+    // from Atlantis' open water; Atlantis is the last ground)
+    E->toughness = std::max(0, deadline - 1);
+    {
+        const char* next = ground == "lagoon" ? "great white" : ground == "weeds" ? "lantern angler" : ground == "grotto" ? "great white" : nullptr;
+        E->visitor = (deadline >= 2 && next && !shake.on) ? Species().Find(next) : -1;
+    }
     E->speciesMul.clear(); E->foulMul = 1; E->biteMul = 1; E->rockfallMul = 1; E->wakeDrift = 0; G->cultRaid = false;
     if (E->extraRafts > 0) { E->rafts.resize(E->rafts.size() > (size_t)E->extraRafts ? E->rafts.size() - E->extraRafts : 0); E->extraRafts = 0; }
     variant = Variant::None; canoe = CanoeState::None; canoeAt = -1; canoeT = 0; canoeWord.clear();
@@ -1045,6 +1053,12 @@ int RunTrawlSessionTest() {
         s.Continue();
         check(fabsf(s.quota - (200 * 1.4f + 30)) < 0.01f && s.deadline == 2 && s.night == 0, TextFormat("the next quota is %.0f (+40%% and 60 x 0.5)", s.quota));
         check(fabsf(s.sold - 25) < 0.01f, TextFormat("the 50 delivered past the quota carry into the next deadline at half value (%.0f)", s.sold));
+        {   // the ground hardens: the second deadline's threats are hungrier and bigger, and a stray comes in from the next ground
+            g.boat.bunker = 60; std::string why; bool off = s.CastOff(&why);
+            bool hard = off && e.toughness == 1 && fabsf(e.ThreatScale() - 1.05f) < 0.001f && e.visitor == Species().Find("great white");
+            check(hard, TextFormat("the second deadline: threats +5%% size, a great white may stray in from the Weeds (%s)", off ? "cast off" : why.c_str()));
+            if (off) { s.phase = Phase::Dock; g.moored = true; }
+        }
         s.night = 3; s.sold = 10; s.Count();
         check(s.phase == Phase::Over, "short of it: GANNET REPOSSESSED, the run is over");
     }

@@ -9,6 +9,7 @@
 #include "raymath.h"
 #include <algorithm>
 #include <chrono>
+#include <queue>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -182,7 +183,51 @@ struct Skipper {
         if (spots.empty()) { Spot s; s.p = Vector2Add(S.harbour, {140, 20}); spots.push_back(s); }
         spotI = 0;
     }
+    // the Weeds: a course round the canopy (A* on an 8 m grid that keeps out of kelp, shoals and skiff water), pulled
+    // straight wherever a leg is clear; a skipper reads the chart rather than running the screw through the kelp
+    std::vector<Vector2> path; Vector2 pathTo{-1e9f, -1e9f}; float pathAge = 0;
+    bool Open(Vector2 p) const { int h = E.HabAt(p); return E.DepthAt(p) >= 3 && h != H_KELP && h != H_LAND && E.MarkAt(p) < 0; }
+    void Plan(Vector2 from, Vector2 to) {
+        path.clear(); pathTo = to; pathAge = 0;
+        const float C = 8; float size = E.n * E.cell; int N = (int)(size / C);
+        auto idx = [&](Vector2 p) { int x = std::clamp((int)(p.x / C), 0, N - 1), y = std::clamp((int)(p.y / C), 0, N - 1); return y * N + x; };
+        auto ctr = [&](int i) { return Vector2{(i % N + 0.5f) * C, (i / N + 0.5f) * C}; };
+        std::vector<char> open(N * N);
+        for (int i = 0; i < N * N; i++) { Vector2 c = ctr(i); open[i] = Open(c) && Open({c.x + 3, c.y + 3}) && Open({c.x - 3, c.y - 3}) && Open({c.x + 3, c.y - 3}) && Open({c.x - 3, c.y + 3}); }
+        int s = idx(from), g = idx(to); open[s] = open[g] = 1;
+        std::vector<float> cost(N * N, 1e9f); std::vector<int> prev(N * N, -1);
+        using QE = std::pair<float, int>; std::priority_queue<QE, std::vector<QE>, std::greater<QE>> q;
+        cost[s] = 0; q.push({0, s});
+        while (!q.empty()) {
+            auto [f, i] = q.top(); q.pop();
+            if (i == g) break;
+            int x = i % N, y = i / N;
+            for (int dy = -1; dy <= 1; dy++) for (int dx = -1; dx <= 1; dx++) {
+                if (!dx && !dy) continue; int nx = x + dx, ny = y + dy; if (nx < 0 || ny < 0 || nx >= N || ny >= N) continue;
+                int j = ny * N + nx; if (!open[j]) continue;
+                if (dx && dy && (!open[y * N + nx] || !open[ny * N + x])) continue;   // (no cutting a corner of the canopy)
+                float c = cost[i] + ((dx && dy) ? 1.414f : 1.0f);
+                if (c < cost[j]) { cost[j] = c; prev[j] = i; q.push({c + Vector2Distance(ctr(j), ctr(g)) / C, j}); }
+            }
+        }
+        if (prev[g] < 0 && g != s) return;   // (no course round: the straight line it is)
+        for (int i = g; i >= 0 && i != s; i = prev[i]) path.push_back(ctr(i));
+        std::reverse(path.begin(), path.end());
+        if (!path.empty()) path.back() = to;
+    }
+    Vector2 Around(Vector2 target) {
+        if (E.ground != "weeds" || RouteClear0(G.boat.pos, target)) { path.clear(); return target; }
+        pathAge += 1.0f / 60;
+        if (path.empty() || Vector2Distance(pathTo, target) > 5 || pathAge > 20) Plan(G.boat.pos, target);
+        if (path.empty()) return target;
+        // the furthest waypoint in clear sight
+        int far = 0; for (int k = (int)path.size() - 1; k > 0; k--) if (RouteClear0(G.boat.pos, path[k])) { far = k; break; }
+        path.erase(path.begin(), path.begin() + far);
+        if (path.size() > 1 && Vector2Distance(G.boat.pos, path[0]) < 6) path.erase(path.begin());
+        return path[0];
+    }
     void SteerTo(Vector2 target, float slowWithin) {
+        { Vector2 w = Around(target); if (w.x != target.x || w.y != target.y) { target = w; slowWithin = 0; } }
         Vector2 via = Via(G.boat.pos, target);
         if (via.x != target.x || via.y != target.y) { target = via; slowWithin = 0; }   // (a waypoint in the arch: through it at speed)
         Vector2 d = Vector2Subtract(target, G.boat.pos);
@@ -201,6 +246,7 @@ struct Skipper {
         if (S.money > 60) while (G.baitSquid < 10 && S.Buy("squid")) {}
         while (G.ice < 60 && S.money > 20 && S.Buy("ice")) {}
         if (G.PatchKits() == 0 && S.money > 40) S.Buy("patch");
+        if (!G.owned[(int)Tackle::Medium] && E.ground != "lagoon" && S.money > 280) S.Buy("medium");   // (past the Lagoon: a rod for the bigger fish)
         if (P.chum) while (G.chum < 2 && S.money > 50 && S.Buy("chum")) {}
         if (P.charges) { int have = 0; for (const auto& sl : G.crew[0].slots) if (sl.it == Item::Charge) have += sl.ammo; for (const auto& sl : G.locker) if (sl.it == Item::Charge) have += sl.ammo; if (have == 0 && S.money > 150) S.Buy("charge"); }
     }
@@ -278,7 +324,7 @@ struct Skipper {
             if (netHand >= 0) { G.OrderBot(-1); netHand = -1; }
             // home: straight for the quay when that course is clear, else back to the mark first (its course home was checked)
             // (once a night: a course home that still isn't clear from the mark is taken as it is)
-            if (!spots.empty() && !viaMark && !viaDone && !RouteClear(G.boat.pos, S.harbour) && Vector2Distance(G.boat.pos, spots[spotI].p) > 15) { viaMark = true; viaDone = true; }
+            if (E.ground != "weeds" && !spots.empty() && !viaMark && !viaDone && !RouteClear(G.boat.pos, S.harbour) && Vector2Distance(G.boat.pos, spots[spotI].p) > 15) { viaMark = true; viaDone = true; }
             if (viaMark && (spots.empty() || Vector2Distance(G.boat.pos, spots[spotI].p) < 15)) viaMark = false;
             if (viaMark) SteerTo(spots[spotI].p, 0); else SteerTo(G.moorPos, 25);
             return;
@@ -417,6 +463,12 @@ int RunTrawlSim(int argc, char** argv) {
                 if (S.phase == Phase::Night && S.clock > 420) for (const auto& a : E.agents) { const auto& r = Species().sp[a.sp]; if (a.alive && r.threat && r.size >= 3 && Vector2Distance({a.p.x, a.p.y}, G.boat.pos) < 40) N.lateThreat = true; }
                 if (G.boat.sunk) N.sunk = true;
                 if (trace && fmodf(t, 60) < dt) printf("    run %d night %d  t%4.0f %s %s pos (%.0f,%.0f) spot %d d %.0f tel %d p %.2f bilge %.0f hold %d wake %.0f net %d/%.0fkg tow %d hand %d foul %d shaft %.2f aground %d spd %.1f\n", run, done + 1, t, PhaseName(S.phase), S.ClockText().c_str(), G.boat.pos.x, G.boat.pos.y, K.spotI, Vector2Distance(G.boat.pos, K.spots[K.spotI].p), G.boat.telegraph, G.boat.pressure, G.boat.bilge, (int)G.hold.size(), E.wake, (int)G.net.state, G.net.load, (int)K.towing, K.netHand, (int)G.screwFouled, G.boat.shaft, (int)G.boat.aground, G.boat.Speed());
+                if (getenv("DEPTH_TRACE_AGENTS") && fmodf(t, 60) < dt) {   // (what swims within a rod's reach: species, count, depth, hunger)
+                    printf("      near:");
+                    for (const auto& a : E.agents) if (a.alive && Vector2Distance({a.p.x, a.p.y}, G.boat.pos) < 30) printf(" %s x%d z%.0f h%.1f;", Species().sp[a.sp].name.c_str(), a.count, a.p.z, a.hunger);
+                    for (const auto& r : G.rods) if (r.state != RodState::Idle) printf(" [lure z%.0f %s]", r.lure.z, r.bait.c_str());
+                    printf("\n");
+                }
                 if (trace && fmodf(t, 20) < dt && K.netHand >= 0 && K.netHand < (int)G.crew.size()) {
                     const Crew& nh = G.crew[K.netHand]; const auto& nb = G.brains[K.netHand];
                     printf("      winch hand: station %d (%.1f,%.1f) fallen %d ink %.1f inj %d task %d order %d goal %d doing '%s'  net %d t %.1f\n", nh.station, nh.p.x, nh.p.y, nh.fallen, nh.inkT, nh.injuries, nb.task, nb.order, nb.goal, G.BotDoing(K.netHand).c_str(), (int)G.net.state, G.net.t);

@@ -531,6 +531,7 @@ bool Eco::Init(const std::string& key, uint32_t seed) {
 }
 
 void Eco::StartNight() {
+    visitorCame = false;
     time = 0; clock = 0; tide = 0; agents.clear(); arrivals.clear(); gullT = -1;
     for (auto& f : blood.v) f = 0;
     for (auto& f : sound.v) f = 0;
@@ -614,10 +615,10 @@ void Eco::DepthCharge(Vector3 p, std::vector<std::pair<int, float>>* floated) {
 
 float Eco::SpeciesHP(int sp) const {
     const SpeciesRec& r = Species().sp[sp];
-    if (r.name == "reef shark") return 80;       // design doc, "Threat stats"
-    if (r.name == "barracuda") return 30;
+    if (r.name == "reef shark") return 80 * ThreatScale();       // design doc, "Threat stats"
+    if (r.name == "barracuda") return 30 * ThreatScale();
     if (r.name == "gull flock") return 1;
-    return 4 + r.MeanKg() * 5;
+    return (4 + r.MeanKg() * 5) * (r.threat ? ThreatScale() : 1.0f);
 }
 int Eco::HitAgent(Vector3 p, float r, bool air) const {
     const auto& S = Species().sp;
@@ -768,6 +769,19 @@ void Eco::Materialize() {
             if (far >= 0) agents[far].alive = false;
         }
     }
+    // a visitor from the next ground (the second deadline on): once a night, late, out of the dark 80 m off
+    if (boat && visitor >= 0 && !visitorCame && Stir() > 0.6f && clock > 300) {
+        visitorCame = true;
+        if (Rand() < 0.35f + 0.15f * toughness) {
+            for (int tries = 0; tries < 40; tries++) {
+                float ang = Rand() * 6.2832f; Vector2 at{boatPos.x + cosf(ang) * 85, boatPos.y + sinf(ang) * 85};
+                if (DepthAt(at) < 8 || LightAt({at.x, at.y, 1}) > 0.005f) continue;
+                int ai = SpawnAgent(visitor, at); agents[ai].hunger = 0.7f; agents[ai].count = 1;
+                log.push_back(TextFormat("minute %.0f: a %s, strayed from deeper water", clock, S[visitor].name.c_str()));
+                break;
+            }
+        }
+    }
     // gulls: fish on the deck or blood at the surface by the boat bring a flock in a little later
     if (boat) {
         float surf = blood.Near({boatPos.x, boatPos.y, 0.5f}, 3);
@@ -808,7 +822,7 @@ void Eco::StepAgents(float dt) {
         if (!a.alive) continue;
         const SpeciesRec& r = S[a.sp];
         a.t += dt;
-        a.hunger = std::min(1.0f, a.hunger + dt / 240.0f * (r.threat && boat ? (0.5f + Stir()) * threatHungerMul : 1.0f));   // threats grow bold with the Stir clock
+        a.hunger = std::min(1.0f, a.hunger + dt / 240.0f * (r.threat && boat ? (0.5f + Stir()) * threatHungerMul * (1 + 0.1f * toughness) : 1.0f));   // threats grow bold with the Stir clock
         if (a.fedT > 0) a.fedT -= dt;
         if (a.flash > 0) a.flash -= dt;
         Vector2 p2{a.p.x, a.p.y};
@@ -1152,7 +1166,7 @@ void EcoTick(Eco& e, Gannet& gn, float dt) {
             Vector2 side{-gn.skiff.Forward().y, gn.skiff.Forward().x};
             float s = Vector2DotProduct(Vector2Subtract({a.p.x, a.p.y}, gn.skiff.p), side) > 0 ? -1.0f : 1.0f;
             gn.SkiffRock(s * 1.6f * k);
-            gn.SkiffHit(D().ramDamage * 0.9f * k, std::string("a ") + r.name + " rams her");
+            gn.SkiffHit(D().ramDamage * 0.9f * k * e.ThreatScale(), std::string("a ") + r.name + " rams her");
             e.AddVibration({a.p.x, a.p.y, 1}, 3); a.flash = 0.6f;
             gn.ramT = D().ramEvery;
             break;
@@ -1169,7 +1183,7 @@ void EcoTick(Eco& e, Gannet& gn, float dt) {
             float hullBlood = std::max(e.blood.Near({b.pos.x, b.pos.y, 1}, R), e.blood.Near({b.pos.x, b.pos.y, 6}, R));
             if (hullBlood < r.bloodThreshold) continue;
             int sec = SectionAt({std::clamp(dk.x, -10.0f, 10.0f), dk.y < 0 ? -2.0f : 2.0f});
-            float dmg = D().ramDamage * std::clamp(r.MeanKg() / 40.0f, 0.6f, 1.7f);
+            float dmg = D().ramDamage * std::clamp(r.MeanKg() / 40.0f, 0.6f, 1.7f) * e.ThreatScale();
             gn.boat.Hit(sec, dmg);
             gn.boat.rollVel += (dk.y > 0 ? -1 : 1) * D().ramHeel * std::clamp(r.MeanKg() / 40.0f, 0.6f, 1.7f);   // the blow heels her: unbraced hands slide
             gn.Say(TextFormat("Something struck the hull: %s", SectionName(sec)));

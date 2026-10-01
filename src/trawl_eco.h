@@ -149,6 +149,10 @@ struct Eco {
     // tonight's variant, as the web feels it (set by the session at cast off; design doc, "Nightly variants")
     float forageMul = 1;                        // bait species about the boat (Bait run x3, Red tide x0.3)
     float threatHungerMul = 1;                  // how fast the threats grow bold (Bait run and Red tide 1.5)
+    // the ground hardens deadline by deadline (design doc): threats +10% hunger and +5% size a deadline past the first,
+    // and from the second a threat from the next ground may come in once a night late on (the Session sets these)
+    int toughness = 0; int visitor = -1; bool visitorCame = false;
+    float ThreatScale() const { return 1 + 0.05f * toughness; }
     float seaMul = 1;                           // open-sea species inside the lagoon (King tide x2)
     float turtleMul = 1, sharkMul = 1;          // Turtle nesting: turtles x4, the sharks that follow them x2
     bool tideHeld = false;                      // King tide: the crest stays passable all night

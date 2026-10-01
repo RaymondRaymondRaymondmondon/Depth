@@ -504,6 +504,7 @@ struct Gannet {
         int target = -1; float taskT = 0;                 // who or what the task is for; how long it has been at it
         int follow = -1;                                  // ordered to follow this hand (F), -1 not
         float defT = 0;                                   // clubbing a dangerous landed fish within reach (self-defence)
+        float depthT = 0;                                 // an Able hand reads the sounder and sets its lure's depth every few seconds
         uint32_t rng = 1;
     };
     std::vector<Brain> brains;

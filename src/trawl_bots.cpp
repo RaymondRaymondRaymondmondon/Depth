@@ -403,6 +403,12 @@ void Gannet::StepBots(float dt) {
                     }
                     b.lastRod = r.state;
                     if (moored || r.state == RodState::Fighting) { RodInput(i, false, aim, false, false, 0, false, false, 0); break; }
+                    // a bot handed a handline when the rack holds a rod rigs the rod (the medium one if she has it)
+                    if (r.state == RodState::Idle && r.tackle == Tackle::Handline && (owned[(int)Tackle::Medium] || owned[(int)Tackle::Light])) {
+                        r.tackle = owned[(int)Tackle::Medium] ? Tackle::Medium : Tackle::Light;
+                        r.line = LineType::Mono; r.hook = Hook::Small;
+                        r.fight.drag = 0.33f * TackleOf(r.tackle).strength; r.lureDepth = r.tackle == Tackle::Medium ? 20.0f : 6.0f;
+                    }
                     if (r.state == RodState::Idle || r.state == RodState::Charging) {
                         // a cast: hold, then let go at about three quarters
                         b.castT += dt;
@@ -415,6 +421,23 @@ void Gannet::StepBots(float dt) {
                         bool strike = false;
                         if (r.bite.stage == BiteStage::Take && !b.struck) { b.struck = true; strike = BR(b.rng) < sk.hookSet; }
                         if (r.bite.stage == BiteStage::None) b.struck = false;
+                        // an Able hand or better reads the sounder: the lure goes down to the best fish its tackle takes
+                        // within reach of it (a Green hand leaves the counter where it was set)
+                        if (botSkill != Skill::Green && eco && r.tackle != Tackle::Handline && r.bite.stage == BiteStage::None && (b.depthT -= dt) <= 0) {
+                            b.depthT = 6;
+                            const auto& SP = Species().sp;
+                            float best = 0, bz = r.lureDepth;
+                            for (const auto& a : eco->agents) {
+                                if (!a.alive) continue;
+                                const SpeciesRec& s = SP[a.sp];
+                                if (s.price <= 0 || s.threat || s.protectedSp || !s.Takes(r.tackle)) continue;
+                                if (Vector2Distance({a.p.x, a.p.y}, {r.lure.x, r.lure.y}) > 16) continue;
+                                float v = s.price * s.MeanKg() * powf((float)a.count, 0.3f) * (0.4f + a.hunger);
+                                if (v > best) { best = v; bz = a.p.z; }
+                            }
+                            float floor = eco->DepthAt({r.lure.x, r.lure.y});
+                            r.lureDepth = std::clamp(bz, 0.5f, std::max(0.5f, floor - 0.5f));
+                        }
                         RodInput(i, false, aim, false, strike, 0, false, false, 0);
                     }
                 }
