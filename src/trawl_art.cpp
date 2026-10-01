@@ -577,6 +577,57 @@ Color RoleColor(Role r) {
         default: return {220, 220, 210, 255};
     }
 }
+// The skiff from above: a painted clinker hull, red sheer strake, thwarts and her bow lantern; the oars sweep with
+// each rower's stroke; keel up when capsized; hung over the Gannet's stern when stowed (drawn in her frame like
+// everything else: the skiff's own points to the sea, then onto the deck's canvas)
+void DrawSkiff(const Gannet& g, const View& v) {
+    const Skiff& s = g.skiff;
+    if (s.state == SkiffState::Lost) return;
+    auto C = [&](Vector2 local) { return v.ToCanvas(g.boat.ToDeck(s.ToWorld(local))); };
+    auto hb = [](float x) { float u = (x + 2.25f) / 4.5f; return 0.8f * (u < 0.65f ? 0.88f + 0.12f * sinf(u / 0.65f * PI * 0.5f) : cosf((u - 0.65f) / 0.35f * PI * 0.5f) * 0.97f + 0.03f); };
+    float L = 0.3f + 0.7f * std::max(v.LightAt(g.boat.ToDeck(s.p)), s.Up() ? 0.6f : 0.0f);
+    bool keel = s.state == SkiffState::Capsized;
+    Color hull = Dim(keel ? Color{70, 66, 60, 255} : Color{226, 222, 206, 255}, L), band = Dim(Color{150, 46, 38, 255}, L);
+    Color wood = Dim(Color{140, 100, 62, 255}, L), dark = Dim(Color{60, 44, 30, 255}, L);
+    auto tri = [](Vector2 a, Vector2 b, Vector2 c, Color col) { DrawTriangle(a, b, c, col); DrawTriangle(a, c, b, col); };
+    // the hull outline as a strip of quads from transom to stem
+    const int N = 10;
+    for (int k = 0; k < N; k++) {
+        float x0 = -2.25f + k * 0.45f, x1 = x0 + 0.45f;
+        Vector2 a = C({x0, -hb(x0)}), b = C({x1, -hb(x1)}), c = C({x1, hb(x1)}), d = C({x0, hb(x0)});
+        tri(a, b, c, hull); tri(a, c, d, hull);
+        if (!keel) {
+            Vector2 ai = C({x0, -hb(x0) + 0.12f}), bi = C({x1, -hb(x1) + 0.12f}), ci = C({x1, hb(x1) - 0.12f}), di = C({x0, hb(x0) - 0.12f});
+            tri(ai, bi, ci, wood); tri(ai, ci, di, wood);
+            DrawLineV(a, b, band); DrawLineV(d, c, band);
+        } else DrawLineV(C({x0, 0}), C({x1, 0}), Dim(Color{40, 36, 32, 255}, L));   // the keel
+    }
+    if (!keel) {
+        for (float x : {0.2f, -1.3f, 1.3f}) DrawLineEx(C({x, -hb(x) + 0.1f}), C({x, hb(x) - 0.1f}), 2, dark);   // thwarts
+        // the oars
+        for (const auto& c : g.crew) {
+            if (c.deck != DECK_SKIFF || c.overboard || c.dead) continue;
+            float ph = std::clamp(c.oarT / D().skiffStroke, 0.0f, 1.0f);
+            float sweep = ph < 0.45f ? 0.55f - ph / 0.45f * 1.1f : -0.55f + (ph - 0.45f) / 0.55f * 1.1f;
+            for (int sd = -1; sd <= 1; sd += 2) {
+                Vector2 lock{0.2f, sd * hb(0.2f)};
+                Vector2 dir{sinf(sweep), (float)sd * cosf(sweep)};
+                Vector2 in = Vector2Subtract(lock, Vector2Scale(dir, 0.6f)), out = Vector2Add(lock, Vector2Scale(dir, 1.9f));
+                DrawLineEx(C(in), C(out), 1, Dim(Color{180, 140, 90, 255}, L));
+                Vector2 blade = C(out); DrawRectangle((int)blade.x - 1, (int)blade.y - 1, 2, 2, Dim(Color{200, 160, 100, 255}, L));
+            }
+        }
+        // what she carries
+        for (size_t i = 0; i < s.load.size() && i < 10; i++) {
+            Vector2 q = C({-0.5f - (float)(i % 3) * 0.35f, -0.25f + (float)(i / 3) * 0.22f});
+            DrawRectangle((int)q.x - 1, (int)q.y, 3, 1, s.load[i].junk ? Dim(Color{120, 110, 90, 255}, L) : Dim(Color{200, 205, 210, 255}, L));
+        }
+        if (s.Up()) { Vector2 lp = C({1.95f, 0}); DrawRectangle((int)lp.x - 1, (int)lp.y - 1, 2, 2, Color{255, 220, 150, 255}); DrawCircleV(lp, 3, Fade(Color{255, 210, 130, 255}, 0.2f)); }
+    }
+    // the davit's falls while she's lowered or hauled up
+    if (s.state == SkiffState::Lowering || s.state == SkiffState::Recovering || s.state == SkiffState::Stowed)
+        for (int sd = -1; sd <= 1; sd += 2) DrawLineV(v.ToCanvas({-10.6f, sd * 0.5f}), C({sd * 1.6f, 0}), Fade(Color{200, 190, 160, 255}, 0.6f));
+}
 void DrawCrewMember(const Crew& c, const View& v, float t, bool you) {
     if (c.overboard) return;
     if (c.deck != v.viewerDeck && v.viewerDeck == 0) return;     // (below decks, out of sight)

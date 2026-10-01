@@ -235,7 +235,6 @@ void Gannet::Move(int ci, Vector2 wish, bool brace, float dt) {
         float l = Vector2Length(wish);
         if (l > 1) wish = Vector2Scale(wish, 1 / l);
         Vector2 f = boat.Forward(), sd{-f.y, f.x};
-        if (SwimInSkiffFrame(ci)) { f = skiff.Forward(); sd = {-f.y, f.x}; }   // (near the skiff: swim in her frame, the one on screen)
         Vector2 w{f.x * wish.x + sd.x * wish.y, f.y * wish.x + sd.y * wish.y};
         c.swim = Vector2Add(c.swim, Vector2Scale(w, 0.9f * dt));
         return;

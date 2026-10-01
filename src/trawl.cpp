@@ -39,6 +39,7 @@ struct TrawlScene {
     std::string toast; float toastT = 0;
     size_t tapeSeen = 0; float tapeT = 0;
     float ghostSee = 0;
+    Vector2 camOff{0, 0};                 // the top-down view's slide off the Gannet (following you out in the skiff)
     // the first-person version (trawl_view3d.cpp): the same game through the hand's eyes
     bool fp = false;
     Eye3D eye;
@@ -553,6 +554,16 @@ void StationOverlay() {
             for (int i = from; i < n; i++) Txt(T[i].c_str(), x0, y0 + (i - from) * 27.0f, 15, Color{40, 32, 24, 255});
             break;
         }
+        case StationKind::Davit: {
+            const Skiff& sk = S.W->G.skiff;
+            const char* st = sk.state == SkiffState::Lowering ? TextFormat("Lowering the skiff... %.0f%%", 100 * sk.t / D().skiffLower)
+                           : sk.state == SkiffState::Recovering ? TextFormat("Hauling her up... %.0f%%", 100 * sk.t / D().skiffRecover)
+                           : sk.state == SkiffState::Stowed ? "The skiff is on the davit"
+                           : S.W->G.SkiffAlongside(4) ? (S.W->G.boat.Speed() > 0.4f ? "Alongside, but stop her before hauling up" : "Alongside and stopped: she can come up")
+                           : sk.state == SkiffState::Lost ? "The skiff is lost for the night" : "The skiff is away";
+            DrawTextCenteredBold(st, SCREEN_W / 2.0f, SCREEN_H - 64.0f, 16, Color{240, 220, 170, 255});
+            break;
+        }
         default:
             DrawTextCentered("(this station comes aboard in a later refit)", SCREEN_W / 2.0f, SCREEN_H - 64.0f, 14, Fade(paper, 0.6f));
             break;
@@ -866,6 +877,20 @@ void Hud(Game& g) {
         const char* L[3] = {"1: Trade a quarter of the hold (bait, ice, a patch kit)", "2: Pay tribute (a tenth of the money, 15 at least)", "3: Refuse them"};
         for (int k = 0; k < 3; k++) if (Button({r.x + 30, r.y + 80 + k * 38.0f, 600, 32}, L[k], true, 15) || IsKeyPressed(KEY_ONE + k)) Command(CMD_CANOE, "", k);
     }
+    // the skiff: her state while you're in her (or at the davit), and what the keys do
+    if (S.panel < 0 && !c.dead) {
+        const Skiff& sk = G.skiff;
+        int dv = -1; for (int i = 0; i < (int)Stations().size(); i++) if (Stations()[i].kind == StationKind::Davit) dv = i;
+        bool atDavit = c.deck == 0 && dv >= 0 && Vector2Distance(c.p, Stations()[dv].at) < 1.6f;
+        std::string line;
+        if (c.deck == DECK_SKIFF && !c.overboard) {
+            DrawTextCenteredBold(TextFormat("Skiff   hull %.0f/%.0f   load %.0f/%.0f kg   roll %.0f deg", std::max(0.0f, sk.integrity), D().skiffIntegrity, sk.LoadKg(), D().skiffLoad, sk.roll * RAD2DEG), SCREEN_W / 2.0f, SCREEN_H - 118.0f, 15, fabsf(sk.roll * RAD2DEG) > 15 ? Color{240, 120, 90, 255} : paper);
+            line = G.SkiffAlongside(4) ? "Left / right mouse: the oars, on a beat.   E: up the stern ladder" : sk.crabT > 0 ? "Caught a crab! Keep the rhythm" : "Left mouse the port oar, right the starboard: in turn on a steady beat (both at once pull straight)";
+        } else if (c.overboard && sk.state == SkiffState::Capsized && Vector2Distance(c.swim, sk.p) < 3.5f) line = TextFormat("Hold left mouse to right the skiff (%.0f%%)", 100 * c.rightT / D().skiffRight);
+        else if (c.overboard && sk.Up() && Vector2Distance(c.swim, sk.p) < 3.2f) line = "E: climb into the skiff";
+        else if (atDavit && G.SkiffAlongside(4) && c.station < 0) line = "Space: down into the skiff   E: the davit";
+        if (!line.empty()) DrawTextCenteredBold(line, SCREEN_W / 2.0f, SCREEN_H - 90.0f, 17, paper);
+    }
     if (G.moored && c.station < 0 && S.panel < 0) {
         int d = NearestDock(c.p, 1.4f);
         if (d >= 0) DrawTextCenteredBold(TextFormat("E: %s", DockStations()[d].name), SCREEN_W / 2.0f, SCREEN_H - 90.0f, 20, paper);
@@ -950,7 +975,16 @@ void Draw(Game& g) {
         return;
     }
     bool inWheelhouse = c.deck == 0 && c.p.x > 0.9f && c.p.x < 5.1f && fabsf(c.p.y) < 2.1f;
-    View v = MakeView(G, c.deck, inWheelhouse);
+    View v = MakeView(G, c.deck <= 1 ? c.deck : 0, inWheelhouse);
+    {
+        // out in the skiff (or swimming): the view leaves the Gannet and follows you (still in her frame, so WASD and the
+        // aim keep their sense); back aboard, it slides home
+        Vector2 want{0, 0};
+        if (!c.dead && (c.deck == DECK_SKIFF || c.overboard)) { Vector2 hd = G.boat.ToDeck(G.HandWorld(S.you)); if (Vector2Length(Vector2Subtract(hd, {-1.5f, 0.5f})) > 8) want = Vector2Subtract(hd, {-5.0f, 0}); }
+        S.camOff = Vector2Distance(S.camOff, want) > 30 ? want : Vector2Lerp(S.camOff, want, std::min(1.0f, GetFrameTime() * 3));
+        v.center = Vector2Subtract(v.center, Vector2Scale(S.camOff, v.ppm));
+        if (G.skiff.Up()) v.lights.push_back({G.boat.ToDeck(G.skiff.ToWorld({1.95f, 0})), D().skiffLantern, 0.8f});   // the skiff's bow lantern
+    }
     if (c.dead) { v.ghost = true; v.ghostAt = c.p; v.ghostSee = S.ghostSee; v.lights.push_back({c.p, 3.0f, 0.4f}); }   // the ghost's own cold lantern
     S.view = v;
     BeginLayer(PixelRT());
@@ -973,7 +1007,17 @@ void Draw(Game& g) {
     DrawBoat(G, v);
     DrawGear(G, v);
     DrawLines(G, v);
-    for (int i = 0; i < (int)G.crew.size(); i++) DrawCrewMember(G.crew[i], v, G.time, i == S.you);
+    DrawSkiff(G, v);
+    for (int i = 0; i < (int)G.crew.size(); i++) {
+        Crew cc = G.crew[i];
+        if (cc.deck == DECK_SKIFF && !cc.overboard) {   // (a hand in the skiff: drawn where she is, in the Gannet's frame)
+            cc.p = G.boat.ToDeck(G.skiff.ToWorld(cc.p));
+            Vector2 aft{-G.skiff.Forward().x, -G.skiff.Forward().y}; Vector2 bf = G.boat.Forward();
+            cc.facing = {aft.x * bf.x + aft.y * bf.y, -aft.x * bf.y + aft.y * bf.x};   // (a rower faces aft)
+            cc.deck = 0; cc.station = 0;
+        }
+        DrawCrewMember(cc, v, G.time, i == S.you);
+    }
     DrawLife(G, v, true);
     EndLayer();
     const float PX = (float)SCREEN_W / PIXEL_W;
@@ -1283,6 +1327,34 @@ void DebugTrawlShot(Game& g, int which) {
     if (fp) {   // where the hand looks in each first-person shot
         S.eye.pitch = which == 15 ? -0.3f : which == 9 || which == 0 ? -0.08f : -0.22f;
         S.eye.yaw = which == 4 || which == 5 ? 1.25f : which == 15 || which == 21 || which == 22 ? 3.1f : which == 9 ? -1.9f : which == 16 ? 1.3f : which == 17 ? 1.9f : which == 1 ? -2.4f : which == 6 || which == 8 ? 2.6f : 0.0f;
+    }
+    if (which == 27 || which == 28) {
+        // 27 out in the skiff, rowing away from the Gannet (lying stopped, her lantern full) with a fish aboard; 28 the
+        // skiff going down on the davit, a hand at it
+        StartTrawl(g, fp, 2, 1);
+        S.shot = true;
+        Gannet& G = S.W->G; Session& ss = S.W->sess;
+        G.crew[0].p = {3.0f, 0.8f}; G.crew[1].p = {-2.0f, 1.0f};
+        ss.Buy("shrimp"); while (G.boat.bunker < 40 && ss.Buy("coal")) {}
+        ss.CastOff();
+        G.boat.pos = Vector2Add(ss.harbour, {ss.harbourR + 70, 20}); G.boat.heading = 0.4f; G.boat.telegraph = 0; G.boat.lantern = 2;
+        S.W->eco.agentBudget = 200;
+        for (int i = 0; i < 60 * 8; i++) { G.Step(1 / 60.0f); ss.Step(1 / 60.0f); }
+        int dv = -1; for (int i = 0; i < (int)Stations().size(); i++) if (Stations()[i].kind == StationKind::Davit) dv = i;
+        if (which == 28) {
+            G.crew[0].p = Stations()[dv].at; G.crew[0].station = dv;
+            G.skiff.state = SkiffState::Lowering; G.skiff.t = 4.5f;
+            if (fp) { S.eye.yaw = PI; S.eye.pitch = -0.5f; }
+        } else {
+            G.skiff.state = SkiffState::Afloat; G.skiff.p = G.SkiffBerth(); G.skiff.heading = G.boat.heading + PI - 0.5f; G.skiff.integrity = D().skiffIntegrity;
+            G.crew[0].p = Stations()[dv].at; G.BoardSkiff(0);
+            CatchRec f; f.name = "snapper"; f.kg = 3.5f; f.price = 3; f.dead = true; G.SkiffLand(f);
+            float tt = 0; bool pp = true;
+            for (int i = 0; i < 60 * 12; i++) { tt += 1 / 60.0f; if (tt >= D().skiffStroke) { tt = 0; G.Oar(0, pp, !pp); pp = !pp; } G.Step(1 / 60.0f); ss.Step(1 / 60.0f); }
+            G.crew[0].oarT = 0.12f;
+            if (fp) { S.eye.yaw = getenv("DEPTH_YAW") ? (float)atof(getenv("DEPTH_YAW")) : PI; S.eye.pitch = getenv("DEPTH_PITCH") ? (float)atof(getenv("DEPTH_PITCH")) : -0.12f; }
+        }
+        return;
     }
     if (which == 23 || which == 24) {
         // 23 the sonar out on the ground (a ping, the largest school marked); 24 the helm and its chart, steaming out

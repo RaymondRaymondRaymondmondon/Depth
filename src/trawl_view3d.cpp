@@ -25,6 +25,7 @@ static Vector3 WD(Vector3 p) { return {p.x, -p.z, p.y}; }                  // wo
 static const float QUAY_Y = 1.45f;                                         // the quay's top over still water
 static bool OnQuay(const Gannet& g, const Crew& c) { return g.moored && c.deck == 0 && c.p.y < -2.4f; }
 
+static Matrix SkiffMatrix(const Gannet& g);
 Vector2 LookDeckDir(const Eye3D& e) { return {cosf(e.yaw), sinf(e.yaw)}; }
 
 // Where a hand stands to work a station: beside its fitting, not inside it (the deck frame; the simulation keeps the
@@ -72,6 +73,16 @@ Camera3D EyeCamera(const Gannet& g, int you, const Eye3D& e) {
         cam.position = {c.swim.x, h + 0.28f, c.swim.y};
         Vector3 d = Vector3Transform(dl, MatrixRotateY(-g.boat.heading));
         cam.target = Vector3Add(cam.position, d); cam.up = {0, 1, 0};
+        return cam;
+    }
+    if (c.deck == DECK_SKIFF) {
+        // seated in the skiff: low over the water, her roll half felt; the look turns with her (as on the Gannet)
+        Matrix M = SkiffMatrix(g);
+        cam.position = Vector3Transform({c.p.x, 0.98f, c.p.y}, M);
+        Vector3 d = Vector3Transform(dl, MatrixRotateY(-g.skiff.heading));
+        cam.target = Vector3Add(cam.position, d);
+        Matrix R = M; R.m12 = R.m13 = R.m14 = 0;
+        cam.up = Vector3Normalize(Vector3Lerp({0, 1, 0}, Vector3Transform({0, 1, 0}, R), 0.5f));
         return cam;
     }
     if (OnQuay(g, c)) {
@@ -135,6 +146,7 @@ bool CrewHeadOnScreen(const Gannet& g, int ci, const Camera3D& cam, Vector2* out
     const Crew& c = g.crew[ci];
     Vector3 p;
     if (c.overboard) p = W3(c.swim, 0.8f);
+    else if (c.deck == DECK_SKIFF) p = Vector3Transform({c.p.x, 1.4f, c.p.y}, SkiffMatrix(g));
     else { Vector2 sp = StandSpot(c); p = BoatPoint(g.boat, {sp.x, (c.deck == 1 ? ENGINE_Y : DECK_Y) + 2.05f, sp.y}); }
     Vector3 fw = Vector3Subtract(cam.target, cam.position);
     if (Vector3DotProduct(Vector3Subtract(p, cam.position), fw) <= 0.1f || Vector3Distance(p, cam.position) > 40) return false;
@@ -312,9 +324,48 @@ static void BuildGull(MeshBuilder& mb) {
     mb.Tri({0, 0, 0.05f}, {-0.55f, 0.08f, -0.05f}, {0, 0, -0.1f}, g);
 }
 
+// the skiff: a 4.5 m clinker rowing boat in her own frame (x forward, y up from her waterline, z to starboard)
+static float SkiffHB(float x) { float u = (x + 2.25f) / 4.5f; return 0.8f * (u < 0.65f ? 0.88f + 0.12f * sinf(u / 0.65f * PI * 0.5f) : cosf((u - 0.65f) / 0.35f * PI * 0.5f) * 0.97f + 0.03f); }
+static void BuildSkiff(MeshBuilder& mb) {
+    Color paint{226, 222, 206, 255}, band{150, 46, 38, 255}, wood{150, 108, 66, 255}, dark{96, 70, 44, 255};
+    const float BOT = -0.28f, TOP = 0.34f;
+    for (int k = 0; k < 10; k++) {
+        float x0 = -2.25f + k * 0.45f, x1 = x0 + 0.45f;
+        float h0 = SkiffHB(x0), h1 = SkiffHB(x1);
+        for (int s = -1; s <= 1; s += 2) {
+            // two strakes outside (the upper one painted red), the inside planking, the bottom
+            mb.Quad({x0, BOT, s * h0 * 0.55f}, {x1, BOT, s * h1 * 0.55f}, {x1, 0.08f, s * h1 * 0.9f}, {x0, 0.08f, s * h0 * 0.9f}, paint);
+            mb.Quad({x0, 0.08f, s * h0 * 0.9f}, {x1, 0.08f, s * h1 * 0.9f}, {x1, TOP, s * h1}, {x0, TOP, s * h0}, band);
+            mb.Quad({x0, TOP, s * (h0 - 0.05f)}, {x1, TOP, s * (h1 - 0.05f)}, {x1, BOT + 0.05f, s * (h1 * 0.55f - 0.04f)}, {x0, BOT + 0.05f, s * (h0 * 0.55f - 0.04f)}, wood);
+            mb.Quad({x0, TOP, s * h0}, {x1, TOP, s * h1}, {x1, TOP + 0.03f, s * (h1 - 0.05f)}, {x0, TOP + 0.03f, s * (h0 - 0.05f)}, dark);   // the gunwale
+        }
+        mb.Quad({x0, BOT, -h0 * 0.55f}, {x1, BOT, -h1 * 0.55f}, {x1, BOT, h1 * 0.55f}, {x0, BOT, h0 * 0.55f}, paint);
+        mb.Quad({x0, BOT + 0.06f, -h0 * 0.5f}, {x1, BOT + 0.06f, -h1 * 0.5f}, {x1, BOT + 0.06f, h1 * 0.5f}, {x0, BOT + 0.06f, h0 * 0.5f}, dark);   // the bottom boards
+    }
+    float ht = SkiffHB(-2.25f);
+    mb.Quad({-2.25f, BOT, -ht * 0.55f}, {-2.25f, BOT, ht * 0.55f}, {-2.25f, TOP, ht}, {-2.25f, TOP, -ht}, paint);   // the transom
+    for (float x : {0.2f, -1.3f, 1.3f}) mb.Box({x, 0.06f, 0}, {0.13f, 0.03f, SkiffHB(x) - 0.06f}, wood);         // the thwarts
+    for (int s = -1; s <= 1; s += 2) mb.Box({0.2f, TOP + 0.06f, s * (SkiffHB(0.2f) - 0.02f)}, {0.03f, 0.06f, 0.03f}, Color{180, 150, 80, 255});   // rowlocks
+    mb.Box({1.95f, TOP + 0.25f, 0}, {0.02f, 0.25f, 0.02f}, dark);   // the lantern's post
+}
+static Model gSkiff{};
+// the skiff's frame on the sea: hung on the davit, lowered, afloat on the swell, or keel up
+static Matrix SkiffMatrix(const Gannet& g) {
+    const Skiff& s = g.skiff;
+    switch (s.state) {
+        case SkiffState::Stowed: return MatrixMultiply(MatrixTranslate(-11.4f, DECK_Y + 1.1f, 0), BoatMatrix(g.boat));
+        case SkiffState::Lowering: { float k = std::clamp(s.t / D().skiffLower, 0.0f, 1.0f); return MatrixMultiply(MatrixTranslate(-11.4f - k * 1.2f, (DECK_Y + 1.1f) * (1 - k) + 0.1f * k, 0), BoatMatrix(g.boat)); }
+        default: break;
+    }
+    float h = g.sea.Height(s.p.x, s.p.y);
+    if (s.state == SkiffState::Recovering) h += 2.2f * std::clamp(s.t / D().skiffRecover, 0.0f, 1.0f);
+    Matrix m = MatrixMultiply(MatrixRotateX(s.state == SkiffState::Capsized ? PI : s.roll), MatrixRotateY(-s.heading));
+    return MatrixMultiply(m, MatrixTranslate(s.p.x, h + (s.state == SkiffState::Capsized ? 0.05f : 0.24f), s.p.y));   // (she floats light: her bottom boards just at the waterline, so the sea's glass never shows inside her)
+}
 static void EnsureModels() {
     if (gReady || !IsWindowReady()) return;
     { MeshBuilder mb; BuildBoat(mb); gBoat = LoadModelFromMesh(mb.Build()); }
+    { MeshBuilder mb; BuildSkiff(mb); gSkiff = LoadModelFromMesh(mb.Build()); }
     { MeshBuilder mb; BuildQuay(mb); gQuay = LoadModelFromMesh(mb.Build()); }
     { MeshBuilder mb; BuildFish(mb); gFish = LoadModelFromMesh(mb.Build()); }
     { MeshBuilder mb; BuildJelly(mb); gJelly = LoadModelFromMesh(mb.Build()); }
@@ -502,6 +553,35 @@ static void EnsureCrewModels() {
     gCrewReady = true;
 }
 
+static void DrawSkiff3D(const Gannet& g, float t) {
+    const Skiff& s = g.skiff;
+    if (s.state == SkiffState::Lost || gSkiff.meshCount == 0) return;
+    Matrix M = SkiffMatrix(g);
+    rt::DrawStatic(gSkiff, M, WHITE);
+    if (s.state == SkiffState::Capsized) return;
+    if (s.Up()) Glow(Vector3Transform({1.95f, 0.85f, 0}, M), 0.12f, Color{255, 214, 140, 255}, 2.2f);   // the bow lantern
+    // the oars: each rower's pair sweeps from the catch (blades forward) to the finish and feathers back
+    for (const auto& c : g.crew) {
+        if (c.deck != DECK_SKIFF || c.overboard || c.dead) continue;
+        float ph = std::clamp(c.oarT / D().skiffStroke, 0.0f, 1.0f);
+        float sweep = ph < 0.45f ? 0.55f - ph / 0.45f * 1.1f : -0.55f + (ph - 0.45f) / 0.55f * 1.1f;   // the pull, then the recovery
+        float lift = ph < 0.45f ? -0.12f : 0.12f;
+        for (int sd = -1; sd <= 1; sd += 2) {
+            Vector3 lock{0.2f, 0.42f, sd * (SkiffHB(0.2f) - 0.02f)};
+            Matrix o = MatrixMultiply(MatrixMultiply(MatrixScale(0.04f, 0.04f, 2.6f), MatrixTranslate(0, 0, sd * 0.95f)), MatrixRotateY(sd * sweep));
+            o = MatrixMultiply(MatrixMultiply(o, MatrixRotateX(sd * (0.18f + lift))), MatrixTranslate(lock.x, lock.y, lock.z));
+            rt::DrawCubeM(MatrixMultiply(o, M), Color{170, 130, 80, 255});
+        }
+    }
+    // her load: fish and salvage in the bottom
+    for (size_t i = 0; i < s.load.size() && i < 12; i++) {
+        float x = -0.6f - (float)(i % 4) * 0.35f, z = -0.3f + (float)(i / 4) * 0.3f;
+        float len = std::clamp(0.3f + sqrtf(s.load[i].kg) * 0.22f, 0.3f, 1.4f);
+        if (s.load[i].junk) rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(0.25f, 0.18f, 0.2f), MatrixTranslate(x, -0.12f, z)), M), Color{110, 100, 80, 255});
+        else DrawFishAt(gFish, Vector3Transform({x, -0.15f, z}, M), Vector3Normalize({1, 0, 0.2f}), len, Color{170, 178, 184, 255}, 1.5f);
+    }
+}
+
 // a hand: lying down when fallen, treading water overboard, pale and adrift when a ghost
 static void DrawHand(const Gannet& g, const Crew& c, float t) {
     int r = std::clamp((int)c.role, 0, (int)Role::COUNT - 1);
@@ -517,6 +597,15 @@ static void DrawHand(const Gannet& g, const Crew& c, float t) {
         return;
     }
     float yawLocal = -atan2f(c.facing.y, c.facing.x);
+    if (c.deck == DECK_SKIFF) {
+        // seated on the thwart facing aft (as a rower does), pulling: the arms come in with the stroke
+        frame = MatrixMultiply(Frame({c.p.x, -0.62f, c.p.y}, PI), SkiffMatrix(g));
+        put(gBody[r], MatrixIdentity(), frame);
+        float ph = std::clamp(c.oarT / D().skiffStroke, 0.0f, 1.0f);
+        float pull = ph < 0.45f ? 1.4f - ph / 0.45f * 0.9f : 0.5f + (ph - 0.45f) / 0.55f * 0.9f;
+        for (int s = -1; s <= 1; s += 2) put(gArm[r], MatrixMultiply(MatrixMultiply(MatrixRotateZ(pull), MatrixRotateX(s * 0.2f)), MatrixTranslate(0, 1.38f, s * 0.27f)), frame);
+        return;
+    }
     if (OnQuay(g, c)) frame = Frame(W3(g.boat.ToWorld(c.p), QUAY_Y), yawLocal - g.boat.heading);   // (her deck's turn, then her heading)
     else { Vector2 sp = StandSpot(c); frame = MatrixMultiply(Frame({sp.x, (c.deck == 1 ? ENGINE_Y : DECK_Y) + c.z, sp.y}, yawLocal), BoatMatrix(g.boat)); }
     if (c.dead) frame = MatrixMultiply(MatrixTranslate(0, 0.08f + 0.05f * sinf(t * 2 + c.slot), 0), frame);
@@ -578,6 +667,7 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
     if (b.lantern == 3 && !below) pts.push_back({L.lampPos, 5.0f, {255, 226, 170, 255}, 0.5f});
     if (below) pts.push_back({BoatPoint(b, {-5.6f, DECK_Y - 0.2f, 0.4f}), 4.0f, {200, 190, 170, 255}, 0.35f});
     for (const auto& fl : g.flares) pts.push_back({W3(fl.p, 1.0f), 20.0f, {255, 90, 60, 255}, 1.5f});
+    if (g.skiff.Up()) pts.push_back({Vector3Transform({1.95f, 0.9f, 0}, SkiffMatrix(g)), D().skiffLantern, {255, 214, 140, 255}, 0.9f});   // the skiff's bow lantern
     if (g.moored || Vector2Distance(b.pos, g.moorPos) < 80) {
         Matrix Q = MatrixMultiply(MatrixRotateY(-g.moorHeading), MatrixTranslate(g.moorPos.x, 0, g.moorPos.y));
         for (float x : {-9.0f, -1.0f, 7.0f, 13.0f}) pts.push_back({Vector3Transform({x, QUAY_Y + 3.1f, -6.8f}, Q), 9.0f, {255, 205, 140, 255}, 0.9f});
@@ -638,6 +728,7 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
         float k = std::clamp(b.bilge / 20000, 0.05f, 1.0f);
         rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(5.7f, 0.05f + k * 1.2f, 4.6f), MatrixTranslate(-5.65f, ENGINE_Y + 0.02f + k * 0.6f, 0)), M), Color{40, 90, 110, 120});
     }
+    DrawSkiff3D(g, t);
     // ---- the crew (not you: you see through your own eyes)
     for (int i = 0; i < (int)g.crew.size(); i++) {
         const Crew& c = g.crew[i];
@@ -818,7 +909,7 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
 }
 
 void UnloadTrawl3D() {
-    if (gReady) { UnloadModel(gBoat); UnloadModel(gQuay); UnloadModel(gFish); UnloadModel(gJelly); UnloadModel(gGull); gReady = false; }
+    if (gReady) { UnloadModel(gSkiff); UnloadModel(gBoat); UnloadModel(gQuay); UnloadModel(gFish); UnloadModel(gJelly); UnloadModel(gGull); gReady = false; }
     if (gSeaReady) { UnloadModel(gSea); gSeaReady = false; }
     if (gLandFor) { UnloadModel(gLand); gLandFor = nullptr; }
     if (gCrewReady) {
