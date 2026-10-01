@@ -214,6 +214,8 @@ static void TakeShots(const Game& base, const std::string& dir) {
         {"trawl_davit", [](Game& g) { DebugTrawlShot(g, 28); }},
         {"trawl3d_skiff", [](Game& g) { DebugTrawlShot(g, 127); }},
         {"trawl3d_davit", [](Game& g) { DebugTrawlShot(g, 128); }},
+        {"trawl_atoll", [](Game& g) { DebugTrawlShot(g, 29); }},
+        {"trawl3d_atoll", [](Game& g) { DebugTrawlShot(g, 129); }},
         {"trawl_chart", [](Game& g) { DebugTrawlShot(g, 12); }},
         {"trawl_clock", [](Game& g) { DebugTrawlShot(g, 13); }},
         {"trawl_quota", [](Game& g) { DebugTrawlShot(g, 14); }},

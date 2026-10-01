@@ -45,7 +45,7 @@ struct TrawlScene {
     Eye3D eye;
     Camera3D cam{};
 };
-const int PANEL_CHART = 20, PANEL_END = 21;
+const int PANEL_CHART = 20, PANEL_END = 21, PANEL_ELDER = 22;
 TrawlScene S;
 
 // the lights on deck: the lantern mast (its level), the wheelhouse's glow, the engine room's fire from below
@@ -127,6 +127,7 @@ HandInput Gather() {
     if (IsKeyPressed(KEY_E)) {
         int d = G.moored && c.deck == 0 && c.station < 0 ? NearestDock(c.p, 1.4f) : -1;
         if (d >= 0) S.panel = (int)DockStations()[d].kind;   // (the quay's panels are this screen's own)
+        else if (c.deck == DECK_SHORE && G.skiff.landing >= 0 && G.skiff.landing < (int)G.landings.size() && Vector2Distance(c.p, G.landings[G.skiff.landing].elder) < 2.2f) S.panel = PANEL_ELDER;   // (the elder's trade)
         else {
             in.btn |= HI_E_P;
             int s = c.station < 0 ? NearestStation(c.p, c.deck, 1.1f) : -1;
@@ -744,6 +745,34 @@ void Panels(Game& g) {
             }
             break;
         }
+        case PANEL_ELDER: {
+            // the Atoll's elder: fish in (at 150% of their value, as trade), his goods out; never shillings
+            PanelFrame("The tribe's elder", 640, 440, &r);
+            float x = r.x + 34, y = r.y + 60;
+            if (G.skiff.landing < 0 || G.skiff.landing >= (int)G.landings.size()) { S.panel = -1; break; }
+            const Landing& L = G.landings[G.skiff.landing];
+            const Crew& yo = G.crew[S.you];
+            if (G.foughtCanoes) { DrawWrapped("He turns his back. You fought his people's canoes: there will be no trade tonight, or any night.", {x, y, r.width - 68, 80}, 16, ink); break; }
+            Txt("He takes only fish, never shillings, and gives half again their worth in his own goods.", x, y, 14, dim);
+            TxtBold(TextFormat("Your trade with him: %.0f", L.elderCredit), x, y + 26, 17, ink);
+            if (yo.carrying && !yo.carry.junk) {
+                Txt(TextFormat("In your arms: %s, %s%s", yo.carry.name.c_str(), KgText(yo.carry.kg).c_str(), yo.carry.cooked ? TextFormat(" (cooked, x%.2f)", yo.carry.cook) : ""), x, y + 56, 14, ink);
+                if (Button({x + 380, y + 50, 180, 28}, TextFormat("Give it (%.0f)", ss.Value(yo.carry) * 1.5f), true, 13)) Command(CMD_ELDER_GIVE, "", 0, "The elder takes it");
+            } else Txt("Carry a fish to him to trade it.", x, y + 56, 14, dim);
+            float yy = y + 100;
+            TxtBold("His goods (sold nowhere else)", x, yy, 15, ink); yy += 28;
+            for (const auto& id : ElderStock()) {
+                bool att = id.rfind("att:", 0) == 0;
+                std::string name, note; int price = 0;
+                if (att) { int ai = AttachmentIndex(id.substr(4)); if (ai < 0) continue; name = Attachments()[ai].name; note = Attachments()[ai].effect; price = Attachments()[ai].price; }
+                else { int wi = WeaponIndex(id); if (wi < 0) continue; name = Weapons()[wi].name; note = Weapons()[wi].special; price = Weapons()[wi].price; }
+                TxtBold(name.c_str(), x, yy + 3, 14, ink);
+                Txt(note.c_str(), x + 170, yy + 4, 12, dim);
+                if (Button({r.x + r.width - 150, yy, 116, 24}, TextFormat("%d in fish", price), L.elderCredit >= price, 12)) Command(CMD_ELDER_BUY, id, 0, std::string("The elder gives you ") + name);
+                yy += 30;
+            }
+            break;
+        }
         case PANEL_CHART: {
             PanelFrame("The chart table", 640, 420, &r);
             float x = r.x + 40, y = r.y + 64;
@@ -886,6 +915,26 @@ void Hud(Game& g) {
         if (c.deck == DECK_SKIFF && !c.overboard) {
             DrawTextCenteredBold(TextFormat("Skiff   hull %.0f/%.0f   load %.0f/%.0f kg   roll %.0f deg", std::max(0.0f, sk.integrity), D().skiffIntegrity, sk.LoadKg(), D().skiffLoad, sk.roll * RAD2DEG), SCREEN_W / 2.0f, SCREEN_H - 118.0f, 15, fabsf(sk.roll * RAD2DEG) > 15 ? Color{240, 120, 90, 255} : paper);
             line = G.SkiffAlongside(4) ? "Left / right mouse: the oars, on a beat.   E: up the stern ladder" : sk.crabT > 0 ? "Caught a crab! Keep the rhythm" : "Left mouse the port oar, right the starboard: in turn on a steady beat (both at once pull straight)";
+        } else if (c.deck == DECK_SHORE && sk.landing >= 0 && sk.landing < (int)G.landings.size()) {
+            // ashore: what E does where you stand (the same order ShoreUse tries them in)
+            const Landing& L = G.landings[sk.landing];
+            Vector2 skl = Vector2Subtract(sk.p, L.at);
+            if (c.carrying) DrawTextCenteredBold(TextFormat("Carrying: %s, %s%s", c.carry.name.c_str(), KgText(c.carry.kg).c_str(), c.carry.cooked ? TextFormat("  (cooked x%.2f%s)", c.carry.cook, c.carry.kg >= 2 ? ", R: eat it" : "") : ""), SCREEN_W / 2.0f, SCREEN_H - 118.0f, 15, paper);
+            if (c.workOn == 100) line = TextFormat("Relighting the fire... %.0f%%", 10 * c.workT);
+            else if (c.workOn >= 0) line = TextFormat("Digging... %.0f%%", 20 * c.workT);
+            else if (sk.state == SkiffState::Beached && Vector2Distance(c.p, skl) < 2.8f) line = c.carrying ? "E: into the skiff   Space: climb in" : sk.load.empty() ? "Space: climb into the skiff" : "E: lift something out of the skiff   Space: climb in";
+            else if (Vector2Distance(c.p, L.fire) < 1.7f) {
+                if (!L.fireLit) line = "E: relight the fire (10 s)";
+                else if (c.carrying && !c.carry.junk) line = "E: onto the fire (watch it: done in 10 s + 1 a kg, burnt 5 s later)";
+                else if (!L.onFire.empty()) { const CatchRec& r = L.onFire.front(); line = TextFormat("E: take it off the fire (x%.2f%s)", r.cook, r.cookT > 10 + r.kg + 5 ? ", burning!" : r.cookT > 10 + r.kg ? ", done" : ""); }
+            } else if (Vector2Distance(c.p, L.elder) < 2.2f) line = G.foughtCanoes ? "The elder turns his back on you" : "E: trade with the elder (fish only)";
+            else {
+                for (const auto& k : L.caches) if (!k.open && Vector2Distance(c.p, k.p) < 1.7f && (k.kind != 2 || k.found)) line = k.kind == 1 ? (G.junkKeys > 0 ? "E: open the strongbox with a brass key" : "The strongbox is locked (a brass key from the sea opens it)") : k.kind == 2 ? "E: dig here" : "E: heave up the sea chest";
+                if (line.empty()) for (const auto& cr : L.crabs) if (Vector2Distance(c.p, cr) < 1.0f) line = "E: catch the crab";
+                if (line.empty()) for (const auto& b : L.onBeach) if (Vector2Distance(c.p, b.deckAt) < 1.4f && !c.carrying) line = TextFormat("E: pick up the %s", b.name.c_str());
+                if (line.empty() && c.carrying) line = "E: set it down on the sand";
+                if (line.empty() && Vector2Distance(c.p, L.pond) < L.pondR) line = "Wading in the lagoon: something moves in the weed";
+            }
         } else if (c.overboard && sk.state == SkiffState::Capsized && Vector2Distance(c.swim, sk.p) < 3.5f) line = TextFormat("Hold left mouse to right the skiff (%.0f%%)", 100 * c.rightT / D().skiffRight);
         else if (c.overboard && sk.Up() && Vector2Distance(c.swim, sk.p) < 3.2f) line = "E: climb into the skiff";
         else if (atDavit && G.SkiffAlongside(4) && c.station < 0) line = "Space: down into the skiff   E: the davit";
@@ -962,6 +1011,7 @@ void Draw(Game& g) {
         // first person: the same Gannet through the hand's eyes, the shared HUD over it, a crosshair to aim with
         S.cam = EyeCamera(G, S.you, S.eye);
         DrawTrawl3D(G, G.eco, S.W->sess, S.you, S.cam, S.ghostSee);
+        DrawLandingFx2D(G, S.cam);
         if (c.dead) DrawRectangle(0, 0, SCREEN_W, SCREEN_H, Fade(Color{120, 170, 200, 255}, 0.08f));
         DrawBarks();
         DrawDeckFx();
@@ -980,10 +1030,11 @@ void Draw(Game& g) {
         // out in the skiff (or swimming): the view leaves the Gannet and follows you (still in her frame, so WASD and the
         // aim keep their sense); back aboard, it slides home
         Vector2 want{0, 0};
-        if (!c.dead && (c.deck == DECK_SKIFF || c.overboard)) { Vector2 hd = G.boat.ToDeck(G.HandWorld(S.you)); if (Vector2Length(Vector2Subtract(hd, {-1.5f, 0.5f})) > 8) want = Vector2Subtract(hd, {-5.0f, 0}); }
+        if (!c.dead && (c.deck >= DECK_SKIFF || c.overboard)) { Vector2 hd = G.boat.ToDeck(G.HandWorld(S.you)); if (Vector2Length(Vector2Subtract(hd, {-1.5f, 0.5f})) > 8) want = Vector2Subtract(hd, {-5.0f, 0}); }
         S.camOff = Vector2Distance(S.camOff, want) > 30 ? want : Vector2Lerp(S.camOff, want, std::min(1.0f, GetFrameTime() * 3));
         v.center = Vector2Subtract(v.center, Vector2Scale(S.camOff, v.ppm));
         if (G.skiff.Up()) v.lights.push_back({G.boat.ToDeck(G.skiff.ToWorld({1.95f, 0})), D().skiffLantern, 0.8f});   // the skiff's bow lantern
+        for (const auto& L : G.landings) if (L.fireLit) v.lights.push_back({G.boat.ToDeck(L.ToWorld(L.fire)), 9.0f, 0.9f + 0.1f * sinf(G.time * 9)});   // a landing's fire
     }
     if (c.dead) { v.ghost = true; v.ghostAt = c.p; v.ghostSee = S.ghostSee; v.lights.push_back({c.p, 3.0f, 0.4f}); }   // the ghost's own cold lantern
     S.view = v;
@@ -991,6 +1042,7 @@ void Draw(Game& g) {
     ClearBackground(Color{2, 4, 8, 255});
     DrawSea(G, v);
     DrawQuay(G, v);
+    DrawLanding(G, v);
     // the harbour line: a ring of buoys round the harbour mouth, green lamps seaward, red toward the island
     for (int k = 0; k < 16; k++) {
         float a = k * PI / 8;
@@ -1016,7 +1068,15 @@ void Draw(Game& g) {
             cc.facing = {aft.x * bf.x + aft.y * bf.y, -aft.x * bf.y + aft.y * bf.x};   // (a rower faces aft)
             cc.deck = 0; cc.station = 0;
         }
+        if (cc.deck == DECK_SHORE && !cc.overboard) {   // (ashore: the landing's frame onto the Gannet's; facing is already hers)
+            cc.p = G.boat.ToDeck(G.HandWorld(i)); cc.deck = 0;
+            if (cc.carrying) cc.station = 0;   // (arms full: no tool drawn)
+        }
         DrawCrewMember(cc, v, G.time, i == S.you);
+        if (G.crew[i].carrying && !cc.overboard) {   // what's in the arms
+            Vector2 q = v.ToCanvas(Vector2Add(cc.p, Vector2Scale(cc.facing, 0.35f)));
+            DrawRectangle((int)q.x - 2, (int)q.y - 1, G.crew[i].carry.junk ? 5 : 6, G.crew[i].carry.junk ? 4 : 2, G.crew[i].carry.junk ? Color{120, 80, 40, 255} : G.crew[i].carry.cooked ? Color{200, 140, 70, 255} : Color{200, 205, 210, 255});
+        }
     }
     DrawLife(G, v, true);
     EndLayer();
@@ -1328,7 +1388,7 @@ void DebugTrawlShot(Game& g, int which) {
         S.eye.pitch = which == 15 ? -0.3f : which == 9 || which == 0 ? -0.08f : -0.22f;
         S.eye.yaw = which == 4 || which == 5 ? 1.25f : which == 15 || which == 21 || which == 22 ? 3.1f : which == 9 ? -1.9f : which == 16 ? 1.3f : which == 17 ? 1.9f : which == 1 ? -2.4f : which == 6 || which == 8 ? 2.6f : 0.0f;
     }
-    if (which == 27 || which == 28) {
+    if (which == 27 || which == 28 || which == 29) {
         // 27 out in the skiff, rowing away from the Gannet (lying stopped, her lantern full) with a fish aboard; 28 the
         // skiff going down on the davit, a hand at it
         StartTrawl(g, fp, 2, 1);
@@ -1341,6 +1401,20 @@ void DebugTrawlShot(Game& g, int which) {
         S.W->eco.agentBudget = 200;
         for (int i = 0; i < 60 * 8; i++) { G.Step(1 / 60.0f); ss.Step(1 / 60.0f); }
         int dv = -1; for (int i = 0; i < (int)Stations().size(); i++) if (Stations()[i].kind == StationKind::Davit) dv = i;
+        if (which == 29 && !G.landings.empty()) {
+            // ashore on the Atoll by the fire: a snapper cooking, a grunt waiting on the sand, the skiff beached, the elder
+            Landing& L = G.landings[0];
+            G.sea.weather = Weather::Calm; ss.wxTo = Weather::Calm; L.fireLit = true;
+            G.skiff.state = SkiffState::Afloat; G.skiff.integrity = D().skiffIntegrity; G.skiff.p = Vector2Add(L.at, {L.r + 2.0f, -3.0f});
+            G.crew[0].deck = DECK_SKIFF; G.crew[0].p = {0.2f, 0}; G.BeachSkiff(0);
+            G.crew[0].p = Vector2Add(L.fire, {1.2f, 0.6f}); G.crew[0].facing = {-1, 0};
+            CatchRec f; f.name = "snapper"; f.sp = Species().Find("snapper"); f.kg = 3.4f; f.price = 3; f.dead = true; f.cookT = 9; f.deckAt = L.fire; L.onFire.push_back(f);
+            CatchRec gr = f; gr.name = "grunt"; gr.kg = 1.2f; gr.cookT = -1; gr.deckAt = Vector2Add(L.fire, {2.2f, 1.6f}); L.onBeach.push_back(gr);
+            if (!L.caches.empty() && L.caches.back().kind == 2) L.caches.back().found = true;
+            for (int i = 0; i < 20; i++) G.Step(1 / 60.0f);
+            if (fp) { S.eye.yaw = 3.4f; S.eye.pitch = -0.28f; }
+            return;
+        }
         if (which == 28) {
             G.crew[0].p = Stations()[dv].at; G.crew[0].station = dv;
             G.skiff.state = SkiffState::Lowering; G.skiff.t = 4.5f;

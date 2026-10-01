@@ -577,6 +577,96 @@ Color RoleColor(Role r) {
         default: return {220, 220, 210, 255};
     }
 }
+// A landing from above (the Atoll): its reef shelf, the sand, the little lagoon and its moray, palms, the fire pit
+// (flames, the fish on it, smoke going white to grey to black as they cook and burn), the elder's hut and the elder,
+// the beached sloop, the caches (a chest, a padlocked strongbox, an X once a map marks it), crabs and what's been set
+// down on the sand. Lit by the fire and the lanterns like everything else; under a dim moon otherwise.
+void DrawLanding(const Gannet& g, const View& v) {
+    for (const auto& L : g.landings) {
+        auto C = [&](Vector2 local) { return v.ToCanvas(g.boat.ToDeck(L.ToWorld(local))); };
+        auto lit = [&](Vector2 local) { return 0.22f + 0.78f * v.LightAt(g.boat.ToDeck(L.ToWorld(local))); };
+        Vector2 c0 = C({0, 0});
+        float pr = v.ppm;
+        if (c0.x < -L.r * pr * 2 || c0.y < -L.r * pr * 2 || c0.x > PIXEL_W + L.r * pr * 2 || c0.y > PIXEL_H + L.r * pr * 2) continue;
+        float l0 = lit({0, 0});
+        DrawCircleV(c0, (L.r + 6) * pr, Fade(Dim(Color{40, 120, 120, 255}, l0), 0.35f));   // the shelf
+        DrawCircleV(c0, (L.r + 1.2f) * pr, Fade(Dim(Color{170, 210, 190, 255}, l0), 0.45f));   // surf on the sand's edge
+        // the sand: lit a square metre at a time (so the fire's pool reads), with a little grain
+        DrawCircleV(c0, L.r * pr, Dim(Color{214, 196, 150, 255}, 0.22f));
+        for (int gy = -(int)L.r; gy < (int)L.r; gy++) for (int gx = -(int)L.r; gx < (int)L.r; gx++) {
+            Vector2 m{gx + 0.5f, gy + 0.5f};
+            if (Vector2Length(m) > L.r - 0.4f) continue;
+            float k = lit(m);
+            if (k < 0.24f) continue;
+            float grain = ((gx * 7 + gy * 13) & 3) * 0.02f;
+            Color sand = Dim(Color{214, 196, 150, 255}, k * (0.96f + grain));
+            Vector2 a = C({(float)gx, (float)gy}), b = C({gx + 1.0f, (float)gy}), c = C({gx + 1.0f, gy + 1.0f}), d = C({(float)gx, gy + 1.0f});
+            DrawTriangle(a, b, c, sand); DrawTriangle(a, c, b, sand); DrawTriangle(a, c, d, sand); DrawTriangle(a, d, c, sand);
+        }
+        // the little lagoon, and the moray's dark shape in it
+        DrawCircleV(C(L.pond), L.pondR * pr, Dim(Color{30, 110, 120, 255}, lit(L.pond)));
+        DrawCircleLinesV(C(L.pond), L.pondR * pr, Dim(Color{120, 170, 150, 255}, lit(L.pond)));
+        for (int k = 0; k < 6; k++) { Vector2 a = Vector2Add(L.moray, {k * 0.18f - 0.45f, sinf(g.time * 3 + k) * 0.12f}); Vector2 q = C(a); DrawRectangle((int)q.x, (int)q.y, 2, 1, Fade(Color{20, 30, 24, 255}, 0.7f)); }
+        // the sloop on her side: a dark hull with a stove-in stern
+        {
+            float c = cosf(L.sloopHead), s = sinf(L.sloopHead);
+            auto P = [&](float x, float y) { return C(Vector2Add(L.sloop, {x * c - y * s, x * s + y * c})); };
+            Color wood = Dim(Color{92, 66, 44, 255}, lit(L.sloop)), dark = Dim(Color{50, 36, 26, 255}, lit(L.sloop));
+            Vector2 a = P(2.5f, 0), b = P(1.4f, 0.9f), d = P(-1.6f, 0.9f), e = P(-1.6f, -0.9f), f = P(1.4f, -0.9f);
+            DrawTriangle(a, b, f, wood); DrawTriangle(a, f, b, wood);
+            DrawTriangle(b, d, e, wood); DrawTriangle(b, e, d, wood); DrawTriangle(b, e, f, wood); DrawTriangle(b, f, e, wood);
+            DrawLineV(a, b, dark); DrawLineV(b, d, dark); DrawLineV(e, f, dark); DrawLineV(f, a, dark);
+            DrawLineV(P(0.3f, -0.9f), P(0.6f, 2.2f), Dim(Color{120, 100, 70, 255}, lit(L.sloop)));   // her mast, fallen across the sand
+        }
+        // the elder's hut (thatch) and the elder before it, feathers in his hair
+        {
+            Vector2 h = C(Vector2Add(L.elder, {0, -1.6f}));
+            DrawRectangle((int)h.x - 9, (int)h.y - 7, 18, 14, Dim(Color{150, 120, 70, 255}, lit(L.elder)));
+            for (int k = 0; k < 5; k++) DrawLineV({h.x - 9 + k * 4.0f, h.y - 7}, {h.x - 7 + k * 4.0f, h.y + 7}, Dim(Color{120, 92, 50, 255}, lit(L.elder)));
+            Vector2 e = C(L.elder); float k = lit(L.elder);
+            DrawRectangle((int)e.x - 3, (int)e.y - 3, 7, 7, Dim(Color{110, 60, 40, 255}, k));
+            DrawRectangle((int)e.x - 2, (int)e.y - 2, 5, 5, Dim(Color{150, 100, 70, 255}, k));
+            DrawRectangle((int)e.x - 1, (int)e.y - 5, 1, 2, Dim(Color{230, 60, 40, 255}, k)); DrawRectangle((int)e.x + 1, (int)e.y - 5, 1, 2, Dim(Color{240, 220, 120, 255}, k));
+        }
+        // palms: a trunk and a star of fronds, swaying
+        for (size_t i = 0; i < L.palms.size(); i++) {
+            Vector2 p = C(L.palms[i]); float k = lit(L.palms[i]);
+            DrawCircleV(p, 1.5f, Dim(Color{110, 80, 50, 255}, k));
+            for (int f = 0; f < 6; f++) { float a = f * 1.047f + sinf(g.time * 0.8f + i) * 0.08f; DrawLineEx(p, {p.x + cosf(a) * 9, p.y + sinf(a) * 9}, 2, Dim(Color{60, 120, 60, 255}, k)); }
+        }
+        // the caches
+        for (const auto& k : L.caches) {
+            if (k.open) { Vector2 q = C(k.p); DrawRectangleLines((int)q.x - 3, (int)q.y - 2, 7, 5, Fade(Dim(Color{90, 70, 40, 255}, lit(k.p)), 0.6f)); continue; }
+            if (k.kind == 2) { if (k.found) { Vector2 q = C(k.p); Color x = Color{200, 40, 30, 255}; DrawLineV({q.x - 3, q.y - 3}, {q.x + 3, q.y + 3}, x); DrawLineV({q.x - 3, q.y + 3}, {q.x + 3, q.y - 3}, x); } continue; }
+            Vector2 q = C(k.p); float kk = lit(k.p);
+            DrawRectangle((int)q.x - 3, (int)q.y - 2, 7, 5, Dim(Color{120, 80, 40, 255}, kk));
+            DrawRectangle((int)q.x - 3, (int)q.y - 1, 7, 1, Dim(Color{200, 160, 70, 255}, kk));
+            if (k.kind == 1) DrawRectangle((int)q.x, (int)q.y + 1, 1, 2, Dim(Color{230, 200, 90, 255}, kk));   // the padlock
+        }
+        // crabs, sidling
+        for (size_t i = 0; i < L.crabs.size(); i++) { Vector2 q = C(L.crabs[i]); Color cc = Dim(Color{200, 90, 60, 255}, lit(L.crabs[i])); DrawRectangle((int)q.x - 1, (int)q.y, 3, 2, cc); if (fmodf(g.time * 4 + i, 1) < 0.5f) { DrawPixel((int)q.x - 2, (int)q.y + 1, cc); DrawPixel((int)q.x + 2, (int)q.y + 1, cc); } }
+        // what lies on the sand
+        for (const auto& b : L.onBeach) { Vector2 q = C(b.deckAt); DrawRectangle((int)q.x - 2, (int)q.y, b.junk ? 4 : 5, 2, b.junk ? Dim(Color{120, 80, 40, 255}, lit(b.deckAt)) : Dim(Color{200, 205, 210, 255}, lit(b.deckAt))); }
+        // the fire pit: a ring of stones, flames when lit, the fish on it, and its smoke
+        Vector2 fc = C(L.fire);
+        for (int k = 0; k < 8; k++) { float a = k * 0.785f; DrawRectangle((int)(fc.x + cosf(a) * 6) - 1, (int)(fc.y + sinf(a) * 6) - 1, 2, 2, Dim(Color{110, 110, 104, 255}, lit(L.fire))); }
+        if (L.fireLit) {
+            for (int k = 0; k < 7; k++) { float fl = sinf(g.time * 11 + k * 1.7f); DrawRectangle((int)(fc.x - 3 + k), (int)(fc.y - 1 - fabsf(fl) * 3), 1, 2 + (int)(fabsf(fl) * 2), k % 2 ? Color{255, 200, 80, 255} : Color{240, 110, 40, 255}); }
+            DrawCircleV(fc, 9, Fade(Color{255, 160, 70, 255}, 0.12f));
+        } else DrawRectangle((int)fc.x - 2, (int)fc.y - 1, 4, 2, Color{40, 38, 36, 255});
+        float worst = 0;
+        for (size_t i = 0; i < L.onFire.size(); i++) {
+            const CatchRec& r = L.onFire[i];
+            float T = 10 + r.kg; worst = std::max(worst, r.cookT / (T + 10));
+            Color fish = r.cookT > T + 5 ? Color{60, 44, 30, 255} : r.cookT > T ? Color{200, 140, 70, 255} : Color{200, 200, 196, 255};
+            DrawRectangle((int)fc.x - 4 + (int)i * 2, (int)fc.y - 2 + (int)i, 6, 2, fish);
+        }
+        if (!L.onFire.empty() && L.fireLit) {
+            Color smoke = worst > 0.75f ? Color{30, 30, 30, 255} : worst > 0.5f ? Color{120, 120, 120, 255} : Color{220, 220, 220, 255};
+            for (int k = 0; k < 6; k++) { float t = fmodf(g.time * 0.5f + k * 0.17f, 1.0f); Vector2 q{fc.x + t * 18 + sinf(t * 9 + k) * 2, fc.y - t * 24}; DrawCircleV(q, 2 + t * 4, Fade(smoke, 0.35f * (1 - t))); }
+        }
+    }
+}
 // The skiff from above: a painted clinker hull, red sheer strake, thwarts and her bow lantern; the oars sweep with
 // each rower's stroke; keel up when capsized; hung over the Gannet's stern when stowed (drawn in her frame like
 // everything else: the skiff's own points to the sea, then onto the deck's canvas)
