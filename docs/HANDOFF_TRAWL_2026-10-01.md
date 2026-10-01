@@ -252,3 +252,24 @@ wreck's listing, the Reef's wonder-weapon quest, the repair kit, the stage-10 ba
   - **The crew board:** the HUD shows who's below.
   - **Drawing:** the hold and the fo'c'sle in trawl_art (`viewerDeck == 1`) and in first person (BuildBoat's interior).
 - **Step 7's logic is DONE** (`2f2273b`). **Next:** draw the hold, the fo'c'sle, the hatches, the door and the lamps in the top-down view (trawl_art, `viewerDeck == 1`) and in first person (BuildBoat's interior); add the crew board to the HUD crew list (trawl.cpp ~873: who is below, in the skiff, ashore). Then step 8 (the Weeds, the Grotto, Atlantis, diving).
+- **Step 7 is DONE** (`2f2273b` logic, `87f4059` drawn).
+- **Step 8 plan (the user's order: the Weeds and the Grotto first, one chart each from the same quay, then Atlantis Waters, then diving).**
+  - Doc v2 OCR: grounds around lines 2236-2293; the species tables around 1197-1360 (read the PNGs, pages ~20-23); diving at 2743 and 3002; Atlantis at 3062.
+  - **The Weeds:**
+    - A kelp forest with golden canopy mats and clear lanes; everything big lives at the edges.
+    - Catch: anchovy balls and kelp perch (bait); kelp bass, sheephead, rockfish, bonito; bluefin and yellowtail on the edge runs; halibut; abalone by diving.
+    - Flora: kelp (shelters fish, blocks sonar, fouls lines); urchin barrens; sea otter rafts.
+    - Signature: running the engine through the canopy wraps the screw (speed halves until a hand cuts it free from the stern ladder, in the water). Nets fill with worthless kelp, and hooked fish run into the canopy to chafe the line.
+    - Threats: Sirens (pull the helm toward the rocks), Kelp Wraiths (entangle a hand at the rail), a Great White on the seaward edge, Feral Mermen who cut nets.
+    - Mini-boss: the Kelp King (sea bass, 250 kg, 600, a kelp crown; boss lure 120) in the Inner Lanes. Gold Tail (yellowtail, 30 kg, 400) is listed under the Lagoon's row but its boss water is the Seaward Rocks.
+    - Landings: Seal Rock (Old Hoskins pays double for birds) and the Cannery Pier.
+  - **The Grotto:**
+    - A sea-arch cave: black water, glowing mould, smugglers' wrecks.
+    - Catch: cave fish, cave shrimp, glass eels, lantern fish, cave cod, giant isopods (pots), the Grotto sturgeon.
+    - Signature: the arch closes between 02:30 and 04:00 (on the tape); a crew still inside is shut in until 05:00, which counts as late.
+    - Echo: sound doubles, and loud noise drops stalactites.
+    - Threats: Lantern Anglers, Ghost Worms, the Drowned, isopod swarms up the anchor chain.
+  - **The plan:**
+    - Pick the ground on the chalkboard or chart table (coal to reach: 10/25/40/80).
+    - Per ground: an `Eco::BuildChart` branch, its species and ground block in trawl_species.json, its signature mechanics, its skiff marks, its landings and mini-bosses, then sound and art tints.
+    - Check `--trawl-eco <ground> 27` stability and the sim per ground (the doc's targets: Lagoon 85%, Weeds 65%, Grotto 45%, Atlantis 25%).
