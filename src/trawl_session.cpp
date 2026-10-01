@@ -54,13 +54,13 @@ const std::vector<ShopItem>& ChandlerItems() {   // design doc, "The Chandler" (
         {"ring", "Extra life ring", 40, "Thrown on a rope"},
         {"longline", "Longline", 60, "20 hooks, two buoys: set it, fish elsewhere, haul it"},
         {"pot", "Crab pot", 25, "Reusable: crabs, lobster, octopus"},
-        {"flare", "Flare pistol (3 flares)", 60, "A 40 m arc of light"},
+        {"flare", "Flare pistol (3 flares)", 40, "A 40 m arc of light"},
         {"flares", "Flares (3)", 30, "10 each"},
-        {"speargun", "Speargun (3 spears)", 150, "8 m in water, 12 m in air, tethered"},
+        {"speargun", "Speargun (3 spears)", 80, "8 m in water, 12 m in air, tethered"},
         {"spears", "Spears (3)", 15, "5 each"},
-        {"rifle", "Rifle (10 rounds)", 250, "Fish breaking the surface, gulls, boarders"},
+        {"rifle", "Rifle (10 rounds)", 140, "Fish breaking the surface, gulls, boarders"},
         {"rounds", "Rounds (10)", 20, "2 each"},
-        {"shotgun", "Shotgun (8 shells)", 200, "15 m in air: gull flocks"},
+        {"shotgun", "Shotgun (8 shells)", 120, "15 m in air: gull flocks"},
         {"shells", "Shells (8)", 24, "3 each"},
         {"charge", "Depth charge", 120, "12 m blast; the Owners fine 30 in the Lagoon"},
         {"explosive", "Explosive harpoon head", 80, "For the bow cannon: kills, but ruins the fish"},
@@ -171,7 +171,8 @@ std::string Session::ClockText() const {
 float Session::Value(const CatchRec& c, float* glut, float* bonus) const {
     std::string base = c.name.substr(0, c.name.find(" ("));
     auto it = glutKg.find(base);
-    float g = std::max(0.2f, 1 - GLUT_PER_10KG * (it == glutKg.end() ? 0 : it->second) / 10);
+    static float glutK = getenv("DEPTH_GLUT") ? (float)atof(getenv("DEPTH_GLUT")) : GLUT_PER_10KG;   // (the tuning grid)
+    float g = std::max(0.2f, 1 - glutK * (it == glutKg.end() ? 0 : it->second) / 10);
     float b = c.first ? FIRST_CATCH_BONUS : 1;
     if (glut) *glut = g;
     if (bonus) *bonus = b;
@@ -688,9 +689,19 @@ void Session::ShakeStep(float dt) {
             if (!s.sharkCalled && E) {
                 s.sharkCalled = true;
                 int sp = Species().Find("reef shark");
-                if (sp >= 0) { float ang = 0.7f; Vector2 at{g.boat.pos.x + cosf(ang) * 55, g.boat.pos.y + sinf(ang) * 55}; int ai = E->SpawnAgentPublic(sp, at); E->agents[ai].hunger = 0.95f; E->agents[ai].count = 1; }
                 g.chumLeft += D().chumBlood * 2;
                 E->stirOverride = 1;   // (the Stir clock would cull a shark this early; the lesson wants it)
+            }
+            // the shark: called in 45 m off over water it can swim in, again nearer if it hasn't shown in a minute
+            if (E && !s.sharkSeen && (s.stepT < 0.1f || (s.stepT > 60 && s.stepT < 60.1f))) {
+                int sp = Species().Find("reef shark");
+                for (int k = 0; k < 8 && sp >= 0; k++) {
+                    float ang = 0.7f + k * 0.785f, r = s.stepT > 1 ? 32.0f : 45.0f;
+                    Vector2 at{g.boat.pos.x + cosf(ang) * r, g.boat.pos.y + sinf(ang) * r};
+                    if (!E->InMap(at) || E->DepthAt(at) < 4) continue;
+                    int ai = E->SpawnAgentPublic(sp, at); E->agents[ai].hunger = 0.95f; E->agents[ai].count = 1;
+                    break;
+                }
             }
             if (E && (s.stepT > 120 || s.sharkSeen) && E->stirOverride >= 0 && (s.stepT > 120 || s.speedT > 8)) E->stirOverride = -1;
             if (E) for (const auto& a : E->arrivals) if (a.species == "reef shark") s.sharkSeen = true;

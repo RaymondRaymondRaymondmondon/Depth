@@ -49,7 +49,7 @@ struct TrawlData {
     // threats on the boat (design doc, "Threat stats"; the Lagoon's lethal paths, 2026-09-30)
     float ramDamage = 15, ramEvery = 20;                  // a reef shark's ram takes this off a section (the Great White about 25), at most every ramEvery s
     float ramHeel = 0.35f;                                // rad/s of roll the blow puts into her (enough to slide an unbraced hand)
-    float netYield = 0.25f;                               // the share of a swept school the mouth really takes (balance: the Lagoon's quota should be met about 85% of the time by six hands)
+    float netYield = 0.2f;                                // the share of a swept school the mouth really takes (balance: the Lagoon's quota should be met about 85% of the time by six hands)
     float railDrag = 0.5f;                                // per second at the worst: a running fish past 45% of the line's rating while she rolls past braceRoll toward it
     float chumBlood = 40, chumSeconds = 60;               // a chum bucket: 40 blood over 60 s at the rail (design doc, "The Chandler")
 };

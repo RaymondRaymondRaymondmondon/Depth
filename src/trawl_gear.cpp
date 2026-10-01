@@ -56,6 +56,7 @@ void Gannet::GiveStartingKit() {
         crew[0].slots[0] = {Item::Gaff, 0};
         crew[0].slots[1] = {Item::Priest, 0};
         crew[0].slots[2] = {Item::Ring, 1};
+        crew[0].slots[3] = {Item::Speargun, 3};   // (the playtest: a basic weapon from the start; the Chandler sells the rest cheaper)
     }
     if (crew.size() > 1) crew[1].slots[0] = {Item::Gaff, 0};
     else locker.push_back({Item::Gaff, 0});
@@ -199,7 +200,10 @@ void Gannet::UseItem(int ci, Vector2 aimDeck, bool pressed, bool held, bool sigh
             break;
         }
         case Item::Gaff:
-            if (pressed) GaffFloater(ci);
+            if (pressed) { if (c.cool <= 0) c.cool = 0.5f; GaffFloater(ci); }   // (cool: the swing the screens draw; a gun's cool-down never stops the gaff)
+            break;
+        case Item::Priest: case Item::Knife:
+            if (pressed && c.cool <= 0) c.cool = 0.4f;
             break;
         default: break;
     }
@@ -523,7 +527,8 @@ void Gannet::StepGear(float dt) {
         if (n.depth > floorD - 0.6f) n.depth = std::max(0.5f, floorD - 0.6f);
         float width = n.Width(biggerNet);
         if (n.state == NetState::Down) {
-            if (eco && speed > 0.4f) n.load += eco->Sweep({mouth2.x, mouth2.y, n.depth}, fwd, width, speed, dt, n.catchKg, D().netYield);
+            static float netYield = getenv("DEPTH_NETYIELD") ? (float)atof(getenv("DEPTH_NETYIELD")) : D().netYield;   // (the tuning grid)
+            if (eco && speed > 0.4f) n.load += eco->Sweep({mouth2.x, mouth2.y, n.depth}, fwd, width, speed, dt, n.catchKg, netYield);
             // a snag on the reef or the crest: the bottom comes up under a deep-running mouth
             if (eco && floorD - n.depth < 0.9f && speed > 0.6f) {
                 int h = eco->HabAt(mouth2);

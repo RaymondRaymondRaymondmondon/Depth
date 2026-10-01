@@ -416,3 +416,22 @@ shakedowns), the sardine ball marked for the net lesson.
 Solo 3/3 deadlines met (123 a night against the halved quota of 200), two hands 3/3 (262 against 280), three hands
 3/4 (188), six 5/6 (248). Two hands out-earn three in the sim because the short-crew skipper works the winch without
 walking (a sim shortcut; a real hand runs between the helm and the winch). Deaths stay at 0.0 with bots.
+
+## Finishing the Lagoon, part 4: the tuning grid, and playtest round 3 (2026-10-01)
+`DEPTH_NETYIELD` and `DEPTH_GLUT` override the two levers for a grid (six careful Able hands, 4 runs each):
+
+| net yield | glut 3%/10 kg | glut 6%/10 kg |
+|---|---|---|
+| 0.15 | 50% met, 195/night | 50%, 186 |
+| 0.25 | 100%, 239 | 100%, 222 |
+| 0.40 | 100%, 353 | (not run) |
+
+Three hands: 75% at 0.15, 100% at 0.25 (variance: an earlier 4-run set at 0.25 gave 75%). The glut hardly moves the
+result (a crew sells a dozen species); the net's yield is the lever. `D().netYield` is now **0.2**, between the two
+rows, for the doc's 85%. The three-hand case is left as it falls (short crews a step harder, never hopeless).
+
+Playtest round 3 (the user): the 250 ms hook-set window was unplayable with the space bar: now 0.7 s (0.5 wary,
++0.25 Angler). A speargun with three spears is in the starting kit and the Chandler's guns are about 40% cheaper.
+Weapon animations in the Trawl (top-down and first person: swings, kicks, flashes, reloads, the spear sliding home)
+and in Red Tide (reload with the magazine coming out and going home, a wind-up and chop for melee, muzzle flash and
+bubble puff); Red Tide's gun models rebuilt with a dozen parts each.

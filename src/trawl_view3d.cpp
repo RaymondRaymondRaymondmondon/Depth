@@ -752,12 +752,31 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
         Vector3 f = Vector3Normalize(Vector3Subtract(cam.target, cam.position));
         Vector3 rgt = Vector3Normalize(Vector3CrossProduct(f, cam.up)), up = Vector3CrossProduct(rgt, f);
         float bob = Vector2Length(me.v) > 0.3f ? sinf(t * 9) * 0.012f : 0;
-        Vector3 p = Vector3Add(cam.position, Vector3Add(Vector3Scale(f, 0.42f), Vector3Add(Vector3Scale(rgt, 0.2f), Vector3Scale(up, -0.2f + bob))));
-        // the item's +X along the look, tipped a little up and in
-        Vector3 ax = Vector3Normalize(Vector3Add(f, Vector3Add(Vector3Scale(up, 0.12f), Vector3Scale(rgt, -0.12f))));
+        // the item's motion: a gaff, priest or knife swings down and through on a use (Crew::cool runs down from the
+        // swing's length), a gun kicks back and tips up on a shot and drops out of view to reload, a speargun's spear
+        // slides home along the rail as the reload ends
+        bool melee = held == Item::Gaff || held == Item::Priest || held == Item::Knife;
+        bool gun = held == Item::Rifle || held == Item::Shotgun || held == Item::Speargun || held == Item::Flare;
+        float swingLen = held == Item::Gaff ? 0.5f : 0.4f;
+        float sw = melee && me.cool > 0 ? 1 - me.cool / swingLen : -1;                 // 0..1 through the swing
+        float coolMax = held == Item::Rifle ? 1.2f : held == Item::Shotgun ? 0.8f : held == Item::Speargun ? 2.0f : 1.0f;
+        float kick = gun && me.cool > 0 ? std::max(0.0f, 1 - (coolMax - me.cool) * 7) : 0;   // the first seventh of a second
+        float reloadLen = held == Item::Speargun ? 1.2f : 1.8f;
+        float rl = gun && me.reloadT > 0 ? 1 - me.reloadT / reloadLen : -1;             // 0..1 through the reload
+        float dip = rl >= 0 ? sinf(rl * PI) * 0.16f : 0;
+        float back = kick * 0.07f, pitchUp = kick * 0.35f;
+        float swingPitch = sw >= 0 ? (0.6f - sinf(sw * PI) * 1.6f) : 0;                 // raised, then chopped down past level
+        float swingYaw = sw >= 0 ? (sw - 0.5f) * 0.8f : 0;
+        Vector3 p = Vector3Add(cam.position, Vector3Add(Vector3Scale(f, 0.42f - back), Vector3Add(Vector3Scale(rgt, 0.2f + swingYaw * 0.1f), Vector3Scale(up, -0.2f + bob - dip + (sw >= 0 ? 0.08f * sinf(sw * PI) : 0)))));
+        // the item's +X along the look, tipped a little up and in; the swing and the kick tilt it
+        Vector3 ax = Vector3Normalize(Vector3Add(f, Vector3Add(Vector3Scale(up, 0.12f + pitchUp + swingPitch), Vector3Scale(rgt, -0.12f + swingYaw))));
         Vector3 az = Vector3Normalize(Vector3CrossProduct(ax, up)), ay = Vector3CrossProduct(az, ax);
         Matrix hm = {ax.x, ay.x, az.x, p.x, ax.y, ay.y, az.y, p.y, ax.z, ay.z, az.z, p.z, 0, 0, 0, 1};
+        if (rl >= 0) hm = MatrixMultiply(MatrixRotateZ(-0.5f * sinf(rl * PI)), hm);   // (rolled out to the side while the hands work)
         rt::DrawStaticGlow(gItem[(int)held], hm, WHITE, 0.25f);   // (a touch of light from the lamp at your shoulder)
+        // the speargun's spear slides home in the last third of the reload; a muzzle flash on a powder shot
+        if (held == Item::Speargun && rl > 0.66f) { float s = (rl - 0.66f) / 0.34f; rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(0.5f * s, 0.006f, 0.006f), MatrixTranslate(0.1f + 0.25f * s, 0.03f, 0)), hm), Color{150, 156, 160, 255}); }
+        if ((held == Item::Rifle || held == Item::Shotgun) && kick > 0.5f) rt::DrawCubeGlow(MatrixMultiply(MatrixMultiply(MatrixScale(0.06f, 0.06f, 0.06f), MatrixTranslate(held == Item::Rifle ? 0.62f : 0.5f, 0.02f, 0)), hm), Color{255, 220, 140, 255}, 1.0f);
     }
     // ---- the sea, last (its surface is glass the rest is seen through)
     UpdateSea(g.sea, cam.position);

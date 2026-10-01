@@ -310,7 +310,7 @@ void Bite::Start(const FishSpec* f, bool wary, bool angler, uint32_t seed) {
     auto R = [&]() { rng = rng * 1664525u + 1013904223u; return (rng >> 8) * (1.0f / 16777216.0f); };
     t = 0.8f + R() * 1.7f;
     nibbles = 1 + (int)(R() * 4) % 4;
-    window = (wary ? 0.15f : 0.25f) + (angler ? 0.075f : 0);
+    window = (wary ? 0.5f : 0.7f) + (angler ? 0.25f : 0);   // (the doc said 250 ms; the playtest found that unplayable: the take now holds for most of a second)
 }
 int Bite::Step(float dt, bool strike, bool reelingCircle) {
     auto R = [&]() { rng = rng * 1664525u + 1013904223u; return (rng >> 8) * (1.0f / 16777216.0f); };

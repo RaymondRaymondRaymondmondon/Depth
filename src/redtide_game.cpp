@@ -534,47 +534,100 @@ static int GunModelFor(const std::string& cls) {
     return 0;
 }
 static void BuildGuns() {
-    Color brass{214, 168, 72, 255}, dark{96, 74, 44, 255}, wood{104, 66, 40, 255}, glass{120, 176, 190, 255}, iron{80, 86, 90, 255}, copper{186, 110, 60, 255};
+    // Verne-era salvage: brass and copper fittings, dark iron, oiled wood, glass gauges and cartridges, rubber. Each gun
+    // is built from a dozen or so parts so it reads as a thing with a mechanism (the playtest found the old ones bare).
+    Color brass{176, 134, 62, 255}, brassD{128, 94, 38, 255}, dark{70, 56, 36, 255}, wood{104, 66, 40, 255}, woodL{134, 92, 56, 255};
+    Color glass{120, 176, 190, 255}, glassG{140, 220, 170, 255}, iron{80, 86, 90, 255}, ironD{52, 56, 60, 255}, copper{186, 110, 60, 255}, rubber{34, 30, 30, 255}, steel{160, 166, 170, 255};
+    auto cyl = [&](MeshBuilder& mb, Vector3 at, float len, float r, Color c, int segs = 8) { mb.Lathe(len, 2, segs, [r](float) { return r; }, [r](float) { return r; }, c, c, at); };
+    auto ring = [&](MeshBuilder& mb, Vector3 at, float r, float w, Color c) { mb.Lathe(w, 2, 10, [r](float) { return r; }, [r](float) { return r; }, c, c, at); };
+    auto grip = [&](MeshBuilder& mb, Vector3 at, float h, Color c) { mb.Box(at, {0.016f, h, 0.024f}, c); mb.Box({at.x + 0.017f, at.y, at.z}, {0.002f, h * 0.8f, 0.018f}, woodL); mb.Box({at.x - 0.017f, at.y, at.z}, {0.002f, h * 0.8f, 0.018f}, woodL); };
+    auto trigger = [&](MeshBuilder& mb, float z) { mb.Box({0, -0.028f, z}, {0.003f, 0.012f, 0.004f}, steel); mb.Box({0, -0.042f, z + 0.004f}, {0.004f, 0.003f, 0.022f}, ironD); mb.Box({0, -0.03f, z + 0.024f}, {0.004f, 0.012f, 0.003f}, ironD); };
+    auto sight = [&](MeshBuilder& mb, float z, float y) { mb.Box({0, y, z}, {0.003f, 0.01f, 0.004f}, ironD); };
     for (int i = 0; i < 8; i++) {
         MeshBuilder mb;
         switch (i) {
-            case 0:   // gas pistol (the Cormorant)
-                mb.Box({0, 0, 0.13f}, {0.018f, 0.018f, 0.14f}, brass);
-                mb.Box({0, -0.004f, 0.27f}, {0.022f, 0.022f, 0.012f}, dark);
-                mb.Lathe(0.09f, 3, 8, [](float) { return 0.034f; }, [](float) { return 0.034f; }, dark, dark, {0, -0.005f, -0.005f});
-                mb.Box({0, -0.07f, -0.05f}, {0.018f, 0.06f, 0.028f}, wood);
-                mb.Box({0, -0.035f, 0.02f}, {0.004f, 0.012f, 0.02f}, glass);
+            case 0:   // gas pistol (the Cormorant): a brass barrel over a pressure tank with a gauge, a wooden grip
+                cyl(mb, {0, 0, 0.0f}, 0.26f, 0.014f, brass);
+                ring(mb, {0, 0, 0.24f}, 0.02f, 0.02f, brassD);
+                cyl(mb, {0, -0.03f, 0.02f}, 0.14f, 0.026f, iron, 10);           // the tank
+                ring(mb, {0, -0.03f, 0.02f}, 0.03f, 0.01f, brassD); ring(mb, {0, -0.03f, 0.14f}, 0.03f, 0.01f, brassD);
+                mb.Octa({0.0f, 0.005f, 0.11f}, 0.014f, glass);                   // the gauge
+                mb.Box({0, 0.01f, 0.11f}, {0.016f, 0.004f, 0.016f}, brass);
+                mb.Box({0, -0.06f, 0.06f}, {0.006f, 0.02f, 0.006f}, copper);     // the feed pipe
+                grip(mb, {0, -0.085f, -0.03f}, 0.05f, wood);
+                trigger(mb, -0.01f);
+                sight(mb, 0.24f, 0.022f);
                 break;
-            case 1:   // needler: a glass cartridge under a slim barrel
-                mb.Box({0, 0, 0.12f}, {0.02f, 0.02f, 0.2f}, iron);
-                mb.Box({0, -0.05f, 0.08f}, {0.016f, 0.03f, 0.06f}, glass);
-                mb.Box({0, -0.07f, -0.07f}, {0.018f, 0.06f, 0.03f}, wood);
+            case 1:   // needler: a slim barrel on rails, a glass clip of needles under it, a wooden stock
+                cyl(mb, {0, 0, 0.0f}, 0.34f, 0.011f, iron);
+                mb.Box({0, 0.016f, 0.15f}, {0.004f, 0.002f, 0.17f}, steel); mb.Box({0, -0.016f, 0.15f}, {0.004f, 0.002f, 0.17f}, steel);   // rails
+                mb.Box({0, -0.045f, 0.1f}, {0.014f, 0.026f, 0.07f}, glass);     // the clip
+                for (int k = 0; k < 5; k++) mb.Box({0, -0.045f, 0.045f + k * 0.027f}, {0.011f, 0.02f, 0.002f}, glassG);   // needles in it
+                mb.Box({0, -0.045f, 0.1f}, {0.016f, 0.004f, 0.072f}, brassD);
+                mb.Box({0, -0.02f, -0.07f}, {0.016f, 0.028f, 0.07f}, wood);     // the stock
+                grip(mb, {0, -0.075f, -0.04f}, 0.045f, wood);
+                trigger(mb, -0.02f);
+                sight(mb, 0.32f, 0.018f); sight(mb, 0.0f, 0.02f);
                 break;
-            case 2:   // powder carbine
-                mb.Box({0, 0, 0.18f}, {0.016f, 0.016f, 0.28f}, iron);
-                mb.Box({0, -0.02f, -0.02f}, {0.028f, 0.04f, 0.1f}, wood);
-                mb.Box({0, -0.06f, 0.06f}, {0.012f, 0.04f, 0.02f}, brass);
+            case 2:   // powder carbine: an iron barrel in a wooden fore-end, a bolt, a brass butt plate
+                cyl(mb, {0, 0, 0.0f}, 0.46f, 0.012f, iron);
+                mb.Box({0, -0.018f, 0.12f}, {0.022f, 0.02f, 0.2f}, wood);        // the fore-end
+                ring(mb, {0, 0, 0.3f}, 0.018f, 0.012f, brass);                   // a barrel band
+                mb.Box({0, -0.02f, -0.07f}, {0.024f, 0.034f, 0.1f}, wood);      // the stock
+                mb.Box({0, -0.02f, -0.17f}, {0.026f, 0.036f, 0.006f}, brass);   // the butt plate
+                mb.Box({0, 0.012f, -0.02f}, {0.016f, 0.012f, 0.05f}, ironD);    // the receiver
+                mb.Box({0.028f, 0.018f, -0.03f}, {0.012f, 0.004f, 0.004f}, steel); mb.Octa({0.04f, 0.018f, -0.03f}, 0.007f, steel);   // the bolt
+                trigger(mb, -0.03f);
+                sight(mb, 0.44f, 0.018f); mb.Box({0, 0.024f, 0.0f}, {0.008f, 0.004f, 0.006f}, ironD);
                 break;
-            case 3:   // scatter gun: a fat short barrel
-                mb.Lathe(0.3f, 3, 8, [](float) { return 0.035f; }, [](float) { return 0.035f; }, iron, iron, {0, 0, 0.12f});
-                mb.Box({0, -0.05f, -0.07f}, {0.03f, 0.05f, 0.08f}, wood);
+            case 3:   // scatter gun: two fat barrels side by side, a break hinge, a short wooden stock
+                cyl(mb, {-0.017f, 0, 0.02f}, 0.3f, 0.015f, iron); cyl(mb, {0.017f, 0, 0.02f}, 0.3f, 0.015f, iron);
+                ring(mb, {-0.017f, 0, 0.3f}, 0.017f, 0.014f, ironD); ring(mb, {0.017f, 0, 0.3f}, 0.017f, 0.014f, ironD);
+                mb.Box({0, -0.004f, 0.16f}, {0.034f, 0.006f, 0.12f}, ironD);    // the rib between them
+                mb.Box({0, -0.02f, 0.0f}, {0.036f, 0.028f, 0.03f}, brassD);     // the hinge block
+                mb.Box({0, -0.025f, -0.08f}, {0.03f, 0.04f, 0.09f}, wood);      // the stock
+                mb.Box({0, -0.025f, -0.17f}, {0.03f, 0.04f, 0.005f}, rubber);   // the pad
+                trigger(mb, -0.03f);
+                sight(mb, 0.3f, 0.016f);
                 break;
-            case 4:   // speargun: a long rail and a spear
-                mb.Box({0, 0, 0.2f}, {0.012f, 0.02f, 0.4f}, wood);
-                mb.Box({0, 0.03f, 0.25f}, {0.004f, 0.004f, 0.45f}, iron);
-                mb.Box({0, -0.05f, -0.1f}, {0.018f, 0.05f, 0.03f}, dark);
+            case 4:   // speargun: a long wooden rail, rubber bands at the muzzle, a line reel, and the spear on top
+                mb.Box({0, 0, 0.2f}, {0.013f, 0.018f, 0.4f}, wood);
+                mb.Box({0, 0.022f, 0.2f}, {0.004f, 0.004f, 0.4f}, ironD);       // the spear's groove
+                mb.Box({0, 0.03f, 0.25f}, {0.004f, 0.004f, 0.45f}, steel);      // the spear
+                mb.Cone({0, 0.03f, 0.7f}, {0, 0.03f, 0.76f}, 0.008f, 6, steel); // its tip
+                for (int s = -1; s <= 1; s += 2) { mb.Box({s * 0.02f, 0.012f, 0.4f}, {0.005f, 0.005f, 0.2f}, rubber); mb.Box({s * 0.024f, 0.012f, 0.6f}, {0.008f, 0.008f, 0.012f}, ironD); }   // the bands
+                mb.Lathe(0.02f, 2, 12, [](float) { return 0.03f; }, [](float) { return 0.03f; }, brassD, brassD, {-0.03f, -0.02f, 0.02f});   // the line reel
+                mb.Box({0, -0.045f, -0.1f}, {0.018f, 0.045f, 0.03f}, dark);     // the grip
+                trigger(mb, -0.07f);
                 break;
-            case 5:   // gatling needler
-                for (int k = 0; k < 4; k++) mb.Box({cosf(k * 1.57f) * 0.025f, sinf(k * 1.57f) * 0.025f, 0.18f}, {0.009f, 0.009f, 0.22f}, iron);
-                mb.Box({0, -0.02f, -0.04f}, {0.05f, 0.06f, 0.1f}, brass);
+            case 5:   // gatling needler: four barrels in a ring with a crank, a feed drum of glass
+                for (int k = 0; k < 4; k++) cyl(mb, {cosf(k * 1.57f) * 0.025f, sinf(k * 1.57f) * 0.025f, 0.02f}, 0.36f, 0.008f, iron, 6);
+                ring(mb, {0, 0, 0.1f}, 0.036f, 0.012f, brassD); ring(mb, {0, 0, 0.34f}, 0.036f, 0.012f, brassD);
+                mb.Box({0, -0.02f, -0.05f}, {0.045f, 0.05f, 0.08f}, brass);     // the receiver
+                mb.Lathe(0.05f, 2, 12, [](float) { return 0.032f; }, [](float) { return 0.032f; }, glass, glass, {0, 0.06f, -0.05f});   // the drum
+                for (int k = 0; k < 6; k++) mb.Box({cosf(k * 1.05f) * 0.02f, 0.06f + sinf(k * 1.05f) * 0.02f, -0.025f}, {0.004f, 0.004f, 0.016f}, glassG);
+                mb.Box({0.06f, -0.02f, -0.05f}, {0.016f, 0.004f, 0.004f}, steel); mb.Box({0.075f, -0.035f, -0.05f}, {0.004f, 0.016f, 0.004f}, steel); mb.Octa({0.075f, -0.05f, -0.05f}, 0.009f, wood);   // the crank
+                grip(mb, {0, -0.09f, -0.06f}, 0.04f, wood);
+                trigger(mb, -0.08f);
                 break;
-            case 6:   // launcher: a copper tube
-                mb.Lathe(0.4f, 3, 10, [](float) { return 0.045f; }, [](float) { return 0.045f; }, copper, copper, {0, 0, 0.1f});
-                mb.Box({0, -0.07f, -0.02f}, {0.02f, 0.05f, 0.03f}, dark);
+            case 6:   // launcher: a copper tube with a breech, a pressure gauge, a shoulder stock and a leaf sight
+                cyl(mb, {0, 0, 0.0f}, 0.5f, 0.045f, copper, 12);
+                ring(mb, {0, 0, 0.0f}, 0.05f, 0.03f, brassD); ring(mb, {0, 0, 0.48f}, 0.05f, 0.02f, brassD);
+                mb.Box({0, -0.06f, 0.1f}, {0.02f, 0.016f, 0.05f}, ironD);       // the breech latch
+                mb.Octa({0.0f, 0.052f, 0.2f}, 0.014f, glass); mb.Box({0, 0.056f, 0.2f}, {0.016f, 0.004f, 0.016f}, brass);   // the gauge
+                mb.Box({0, -0.07f, -0.08f}, {0.022f, 0.03f, 0.08f}, wood);      // the stock
+                grip(mb, {0, -0.1f, 0.0f}, 0.04f, wood);
+                trigger(mb, 0.02f);
+                mb.Box({0, 0.05f, 0.42f}, {0.003f, 0.02f, 0.003f}, ironD); mb.Box({0, 0.07f, 0.42f}, {0.012f, 0.003f, 0.003f}, ironD);   // the leaf sight
                 break;
-            default:  // melee: a gaff or a trident's shaft
+            default:  // melee: a gaff hook on a wrapped shaft, with a trident's three tines
                 mb.Box({0, 0, 0.2f}, {0.012f, 0.012f, 0.38f}, wood);
-                mb.Box({0, 0, 0.58f}, {0.04f, 0.006f, 0.03f}, iron);
+                for (int k = 0; k < 6; k++) ring(mb, {0, 0, -0.1f + k * 0.03f}, 0.014f, 0.012f, k % 2 ? rubber : dark);   // the wrapped grip
+                ring(mb, {0, 0, 0.56f}, 0.016f, 0.02f, brassD);                 // the ferrule
+                mb.Box({0, 0, 0.62f}, {0.004f, 0.004f, 0.05f}, steel); mb.Cone({0, 0, 0.66f}, {0, 0, 0.72f}, 0.006f, 6, steel);          // the middle tine
+                for (int s = -1; s <= 1; s += 2) { mb.Box({s * 0.025f, 0, 0.61f}, {0.004f, 0.004f, 0.04f}, steel); mb.Cone({s * 0.025f, 0, 0.64f}, {s * 0.025f, 0, 0.7f}, 0.006f, 6, steel); }
+                mb.Box({0, 0, 0.59f}, {0.03f, 0.006f, 0.006f}, steel);          // the crossbar
+                mb.Box({0, 0.02f, 0.5f}, {0.004f, 0.012f, 0.004f}, steel); mb.Cone({0, 0.03f, 0.5f}, {0, 0.045f, 0.46f}, 0.005f, 6, steel);   // the gaff hook
                 break;
         }
         gGuns[i] = LoadModelFromMesh(mb.Build());
@@ -592,24 +645,57 @@ static void DrawGun(const Camera3D& cam) {
     Vector3 right = Vector3Normalize(Vector3CrossProduct(f, {0, 1, 0}));
     Vector3 up = Vector3CrossProduct(right, f);
     float bobx = sinf(S.bob) * 0.008f, boby = fabsf(cosf(S.bob)) * 0.006f;
-    float kick = d.recoil * 0.035f * w.handling.recoil, dip = d.reloading ? 0.06f : 0;
+    float kick = d.recoil * 0.035f * w.handling.recoil;
     float side = d.ads ? 0.0f : 0.13f, low = d.ads ? -0.075f : -0.12f;
-    float melee = d.meleeT > 0 ? sinf(std::min(1.0f, d.meleeT * 3) * 3.14f) * 0.12f : 0;
-    Vector3 p = Vector3Add(cam.position, Vector3Add(Vector3Scale(f, 0.30f - kick + melee), Vector3Add(Vector3Scale(right, side + bobx), Vector3Scale(up, low - boby - dip))));
+    // the reload: the gun drops and rolls out to the side (0-35%), the magazine, clip or drum comes out and a fresh
+    // one goes in (35-75%), the gun snaps back up with a little overshoot (75-100%); a thumb-loaded gun just dips
+    // for each round
+    float rl = d.reloading ? std::clamp(d.reloadT / std::max(0.2f, w.reload), 0.0f, 1.0f) : -1;
+    float dip = 0, roll = 0, magOut = 0;
+    if (rl >= 0) {
+        if (w.perRound) { dip = 0.03f + 0.02f * sinf(d.reloadT * 14); roll = 0.3f; }
+        else {
+            float drop = rl < 0.35f ? rl / 0.35f : rl < 0.75f ? 1.0f : 1 - (rl - 0.75f) / 0.25f;
+            dip = 0.07f * drop - (rl > 0.9f ? 0.015f * sinf((rl - 0.9f) / 0.1f * 3.14f) : 0);
+            roll = 0.55f * drop;
+            magOut = rl < 0.35f ? 0 : rl < 0.55f ? (rl - 0.35f) / 0.2f : rl < 0.75f ? 1 - (rl - 0.55f) / 0.2f : 0;
+        }
+    }
+    // the melee swing: wound back and up, then chopped down and across, then back to the guard
+    float ms = d.meleeT > 0 ? std::clamp(d.meleeT * 2.2f, 0.0f, 1.0f) : -1;
+    float meleeFwd = 0, meleeYaw = 0, meleePitch = 0, meleeUp = 0;
+    if (ms >= 0) {
+        float wind = ms < 0.25f ? ms / 0.25f : ms < 0.55f ? 1 - (ms - 0.25f) / 0.3f * 2 : -1 + (ms - 0.55f) / 0.45f;   // +1 wound, -1 struck through
+        meleeFwd = (1 - fabsf(wind)) * 0.14f; meleeYaw = wind * 0.7f; meleePitch = -wind * 0.9f; meleeUp = wind > 0 ? wind * 0.05f : wind * 0.02f;
+    }
+    Vector3 p = Vector3Add(cam.position, Vector3Add(Vector3Scale(f, 0.30f - kick + meleeFwd), Vector3Add(Vector3Scale(right, side + bobx + meleeYaw * 0.08f), Vector3Scale(up, low - boby - dip + meleeUp))));
     Matrix m = MatrixIdentity();
     Vector3 rx = Vector3Scale(right, -1);
     m.m0 = rx.x; m.m1 = rx.y; m.m2 = rx.z;
     m.m4 = up.x; m.m5 = up.y; m.m6 = up.z;
     m.m8 = f.x; m.m9 = f.y; m.m10 = f.z;
     m.m12 = p.x; m.m13 = p.y; m.m14 = p.z;
-    Matrix tilt = MatrixRotateX(-d.recoil * 0.25f * w.handling.recoil);
+    Matrix tilt = MatrixMultiply(MatrixMultiply(MatrixRotateZ(roll), MatrixRotateY(meleeYaw)), MatrixRotateX(-d.recoil * 0.25f * w.handling.recoil + meleePitch));
     // the Locker room's finish on the gun, and the suit's colour on the glove that holds it
     const Profile& prof = GetProfile();
     Color fin = FinishColor(prof.finish), tint = WHITE;
     if (fin.a > 0) tint = {(unsigned char)(fin.r * 0.6f + 102), (unsigned char)(fin.g * 0.6f + 102), (unsigned char)(fin.b * 0.6f + 102), 255};
-    DrawStatic(gGuns[GunModelFor(w.cls)], MatrixMultiply(tilt, m), tint);
+    Matrix gunM = MatrixMultiply(tilt, m);
+    DrawStatic(gGuns[GunModelFor(w.cls)], gunM, tint);
     Color suit = SuitColor(prof.suit);
-    DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(0.045f, 0.05f, 0.08f), MatrixTranslate(0, -0.035f, -0.06f)), MatrixMultiply(tilt, m)), suit);
+    DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(0.045f, 0.05f, 0.08f), MatrixTranslate(0, -0.035f, -0.06f)), gunM), suit);
+    // the other glove: on the fore-end, or pulling the magazine out and pushing the new one home
+    if (magOut > 0) {
+        Vector3 magAt{0, -0.06f - 0.1f * magOut, 0.08f};
+        DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(0.03f, 0.05f, 0.05f), MatrixTranslate(magAt.x, magAt.y, magAt.z)), gunM), w.cls == "needle" || w.cls == "lmg" ? Color{120, 176, 190, 255} : Color{70, 74, 78, 255});
+        DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(0.045f, 0.04f, 0.06f), MatrixTranslate(magAt.x, magAt.y - 0.04f, magAt.z)), gunM), suit);
+    } else if (ms < 0 && !d.ads) DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(0.045f, 0.04f, 0.06f), MatrixTranslate(-0.01f, -0.045f, 0.16f)), gunM), suit);
+    // the muzzle: a flash on a powder shot, a puff of bubbles from a gas gun, for the first moment of the recoil
+    if (d.recoil > 0.8f && w.cls != "melee") {
+        float z = w.cls == "launcher" ? 0.5f : w.cls == "scatter" ? 0.32f : w.cls == "powder" ? 0.47f : w.cls == "lmg" ? 0.38f : w.cls == "spear" ? 0.6f : 0.28f;
+        bool powder = w.cls == "powder" || w.cls == "scatter" || w.cls == "launcher";
+        DrawCubeGlow(MatrixMultiply(MatrixMultiply(MatrixScale(powder ? 0.07f : 0.04f, powder ? 0.07f : 0.04f, powder ? 0.1f : 0.05f), MatrixTranslate(0, 0, z)), gunM), powder ? Color{255, 220, 150, 255} : Color{200, 230, 240, 255}, powder ? 1.0f : 0.5f);
+    }
 }
 
 static Color FloraColor(const std::string& n) {

@@ -556,6 +556,35 @@ void DrawCrewMember(const Crew& c, const View& v, float t, bool you) {
     DrawRectangle((int)(p.x + f.x * 3 - 1), (int)(p.y + f.y * 3 - 1 + bob), 2, 2, skin);
     DrawRectangle((int)(p.x - f.y * 3), (int)(p.y + f.x * 3), 2, 2, Dim(coat, 0.8f));
     DrawRectangle((int)(p.x + f.y * 3 - 1), (int)(p.y - f.x * 3 - 1), 2, 2, Dim(coat, 0.8f));
+    // what's in hand, held out along the facing: a gaff or priest swings down and across on a use (Crew::cool), a
+    // gun kicks back on a shot and dips while reloading, a flare pistol's barrel is short and fat
+    if (c.station < 0) {
+        Item it = c.slots[c.sel].it;
+        float sw = 0;                                   // the swing: 0..1 through the arc
+        if ((it == Item::Gaff || it == Item::Priest || it == Item::Knife) && c.cool > 0) sw = 1 - c.cool / (it == Item::Gaff ? 0.5f : 0.4f);
+        bool gun = it == Item::Rifle || it == Item::Shotgun || it == Item::Speargun || it == Item::Flare;
+        float kick = gun && c.cool > (it == Item::Rifle ? 1.0f : it == Item::Shotgun ? 0.6f : it == Item::Speargun ? 1.8f : 0.85f) ? 1.0f : 0.0f;
+        float dip = gun && c.reloadT > 0 ? 1.0f : 0.0f;
+        Vector2 d = f;
+        if (sw > 0) { float ang = (0.5f - sw) * 1.9f; d = Vector2Rotate(f, ang); }   // from raised to struck through
+        Vector2 side{-f.y, f.x};
+        Vector2 h = Vector2Add(p, Vector2Scale(side, 2.5f));       // the right hand
+        h = Vector2Add(h, Vector2Scale(f, 1.5f - kick * 1.5f + dip * 0.5f));
+        Color steel = Dim(Color{170, 176, 180, 255}, k), wood = Dim(Color{120, 84, 46, 255}, k), brass = Dim(Color{200, 160, 70, 255}, k);
+        auto seg = [&](Vector2 from, float len, Color col, int w) { Vector2 to = Vector2Add(from, Vector2Scale(d, len)); DrawLineEx(from, to, (float)w, col); };
+        switch (it) {
+            case Item::Gaff: seg(h, 7, wood, 1); { Vector2 tip = Vector2Add(h, Vector2Scale(d, 7)); DrawLineEx(tip, Vector2Add(tip, Vector2Scale(Vector2Rotate(d, 1.9f), 2)), 1, steel); } break;
+            case Item::Priest: seg(h, 4, wood, 2); break;
+            case Item::Knife: seg(h, 3, steel, 1); break;
+            case Item::Rifle: seg(h, 2, wood, 2); seg(Vector2Add(h, Vector2Scale(d, 2)), 6, steel, 1); if (kick > 0) DrawCircleV(Vector2Add(h, Vector2Scale(d, 8.5f)), 1.5f, Fade(Color{255, 230, 150, 255}, 0.9f)); break;
+            case Item::Shotgun: seg(h, 2, wood, 2); seg(Vector2Add(h, Vector2Scale(d, 2)), 5, steel, 2); if (kick > 0) DrawCircleV(Vector2Add(h, Vector2Scale(d, 7.5f)), 2, Fade(Color{255, 220, 140, 255}, 0.9f)); break;
+            case Item::Speargun: seg(h, 7, wood, 1); if (c.slots[c.sel].ammo > 0 && dip == 0) seg(Vector2Add(h, Vector2Scale(side, -1)), 9, steel, 1); break;
+            case Item::Flare: seg(h, 3, brass, 2); break;
+            case Item::Ring: DrawCircleLines((int)(h.x + d.x * 2), (int)(h.y + d.y * 2), 3, Dim(Color{230, 120, 60, 255}, k)); break;
+            case Item::Charge: DrawRectangle((int)(h.x + d.x * 2) - 1, (int)(h.y + d.y * 2) - 1, 3, 3, Dim(Color{60, 62, 66, 255}, k)); break;
+            default: break;
+        }
+    }
     DrawRectangle((int)p.x - 2, (int)p.y - 2, 5, 5, dark);
     DrawRectangle((int)p.x - 1, (int)p.y - 1, 3, 3, Dim(RoleColor(c.role), k * 0.8f));
     if (you) DrawRectangleLines((int)p.x - 5, (int)p.y - 5, 11, 11, Fade(Color{255, 240, 200, 255}, 0.25f + 0.2f * sinf(t * 4)));
