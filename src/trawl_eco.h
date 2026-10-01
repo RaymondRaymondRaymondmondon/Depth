@@ -124,7 +124,8 @@ struct Eco {
     // that fouls her screw)
     struct SkiffMark { std::string name; Vector2 at; float r; int kind; };   // kind 0 shallow pass, 1 weed bank
     std::vector<SkiffMark> marks;
-    int MarkAt(Vector2 p) const;                // the skiff mark a point lies in, or -1
+    int MarkAt(Vector2 p) const;
+    void BuildWeedsChart(uint32_t seed);        // the Weeds' chart (BuildChart dispatches by ground)                // the skiff mark a point lies in, or -1
     bool skiffOn = false; Vector2 skiffPos{};    // the skiff out on its own (60 m+ from her): the web keeps a second bubble of life round it
     bool birdDrawOn = false; Vector2 birdDraw{};  // set by EcoTick: cooking smoke or fish ashore, or a laden skiff away from her, draws the birds             // the landings' centres (the Lagoon: the Atoll), islets the skiff can beach on
     std::vector<EcoArrival> arrivals;

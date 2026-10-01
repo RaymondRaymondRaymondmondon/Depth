@@ -194,8 +194,44 @@ static float Noise2(float x, float y, uint32_t s) {
 // between the lagoon and the open sea"): the atoll's island along the west edge, seagrass flats off it, a basin of
 // 12-22 m studded with coral heads, the crest curving down the east side (3-6 m at high water, caves in its face),
 // and the open sea beyond it shelving to 40 m.
+// The Weeds (design doc v2, "The Weeds"): the same island along the west edge (the quay is where it always is), then a
+// kelp forest whose golden canopy reaches the surface, cut by clear lanes; urchin barrens where it's been grazed away;
+// rock reefs among it; the seaward edge beyond, shelving to 60 m, where the big fish run and the Great White patrols.
+void Eco::BuildWeedsChart(uint32_t seed) {
+    float size = n * cell;
+    for (int y = 0; y < n; y++) for (int x = 0; x < n; x++) {
+        float wx = (x + 0.5f) * cell, wy = (y + 0.5f) * cell;
+        int i = y * n + x;
+        float shore = 34 + 14 * sinf(wy * 0.021f + seed) + 8 * Noise2(wy * 0.03f, 3.1f, seed);
+        float edge = size * 0.70f + 18 * sinf(wy * 0.013f + seed * 0.3f);
+        float nz = Noise2(wx * 0.04f, wy * 0.04f, seed + 5) - 0.5f;
+        float d; int h;
+        if (wx < shore) { d = 0; h = H_LAND; }
+        else if (wx > edge) { d = std::min(g->depthMax, 22 + (wx - edge) * 0.35f + nz * 4); h = H_SEA; }
+        else {
+            d = std::clamp(6.0f + (wx - shore) * 0.07f + nz * 5, 5.0f, 30.0f);
+            bool inForest = wx > shore + 30;
+            float lane = Noise2(wx * 0.018f, wy * 0.05f, seed + 13);   // the lanes run roughly north-south
+            h = inForest && lane > 0.42f ? H_KELP : (d < 10 ? H_SEAGRASS : H_OPEN);
+            if (h == H_KELP && Noise2(wx * 0.03f, wy * 0.03f, seed + 29) > 0.74f) h = H_BARREN;   // grazed bare
+            if (Noise2(wx * 0.06f, wy * 0.06f, seed + 41) > 0.8f) { h = H_REEF; d = std::max(5.0f, d - 6); }
+        }
+        depth[i] = d; hab[i] = (uint8_t)h;
+        if (h == H_REEF && H2(x, y, seed + 21) < 0.3f) holes[i] = 1;
+    }
+    // the skiff water: the Inner Lanes (bass, sheephead; the Kelp King's boss water), the Otter Raft (abalone dives),
+    // the Seaward Rocks (yellowtail; Gold Tail's boss water)
+    marks.clear(); landingAt.clear();
+    marks.push_back({"The Inner Lanes", {size * 0.45f, size * (0.35f + 0.3f * H2(1, 3, seed))}, 26, 0});
+    marks.push_back({"The Otter Raft", {size * 0.55f, size * (0.2f + 0.6f * H2(4, 2, seed))}, 22, 2});
+    marks.push_back({"The Seaward Rocks", {size * 0.74f, size * (0.3f + 0.4f * H2(6, 8, seed))}, 24, 0});
+    rafts.clear();
+    for (int i = 0; i < 7; i++) rafts.push_back({{size * 0.6f + Rand() * size * 0.35f, 40 + Rand() * (size - 80)}, 5 + Rand() * 6});   // drift kelp mats
+}
+
 void Eco::BuildChart(uint32_t seed) {
     depth.assign((size_t)n * n, 0); hab.assign((size_t)n * n, H_OPEN); holes.assign((size_t)n * n, 0);
+    if (ground == "weeds") { BuildWeedsChart(seed); return; }
     float size = n * cell;
     struct Head { Vector2 c; float r; };
     std::vector<Head> heads;
