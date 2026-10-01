@@ -544,6 +544,16 @@ void DrawBoat(const Gannet& g, const View& v) {
     // the lantern mast: the lamp's housing and its glow
     PxC(v, {0.2f, 0}, 0.5f, 0.5f, Dim(iron, L({0.2f, 0})));
     PxC(v, {0.2f, 0}, 0.3f, 0.3f, Color{255, 220, 140, 255});
+    // the hatches in the deck: open (a dark square), shut (a planked cover), battened (bars across it)
+    if (v.viewerDeck == 0) for (const auto& H : g.hatches) {
+        float k = L(H.at);
+        if (H.state == 0) { PxC(v, H.at, 1.0f, 1.0f, Dim(Color{60, 46, 32, 255}, k)); PxC(v, H.at, 0.8f, 0.8f, Color{8, 8, 10, 255}); }
+        else {
+            PxC(v, H.at, 1.0f, 1.0f, Dim(Color{120, 92, 60, 255}, k));
+            for (int s = 0; s < 3; s++) PxC(v, {H.at.x - 0.3f + s * 0.3f, H.at.y}, 0.04f, 0.9f, Dim(Color{86, 64, 42, 255}, k));
+            if (H.state == 2) { PxC(v, {H.at.x, H.at.y - 0.25f}, 1.0f, 0.1f, Dim(iron, k)); PxC(v, {H.at.x, H.at.y + 0.25f}, 1.0f, 0.1f, Dim(iron, k)); }
+        }
+    }
     // the engine room, seen from below: the rest of the deck dark above
     if (v.viewerDeck == 1) {
         DrawRectangle(0, 0, PIXEL_W + 2, PIXEL_H + 2, Fade(BLACK, 0.55f));
@@ -565,6 +575,31 @@ void DrawBoat(const Gannet& g, const View& v) {
         if (b.bilge > 50) { float k = std::clamp(b.bilge / 20000, 0.1f, 1.0f); DrawRectangle(0, 0, 0, 0, BLANK); PxC(v, {-5.65f, 0}, 5.4f, 4.5f, Fade(Color{30, 70, 90, 255}, 0.25f + 0.5f * k)); }
         if (b.valveT > 0) for (int k = 0; k < 20; k++) PxC(v, {-4.2f + H01(k, 1, (int)(t * 10)) * 2, -1.6f + H01(k, 2, (int)(t * 10)) * 2}, 0.2f, 0.2f, Fade(WHITE, 0.6f));
         if (b.fireT > 0) for (int k = 0; k < 10; k++) PxC(v, {-5.2f + H01(k, 3, (int)(t * 12)) * 1.2f, -0.6f + H01(k, 4, (int)(t * 12)) * 0.6f}, 0.15f, 0.15f, Color{255, (unsigned char)(120 + 100 * H01(k, 5, (int)(t * 12))), 40, 255});
+        // the fish hold, through the watertight door: ice in its pounds, the iced catch, the main hatch's square overhead
+        PxC(v, {-1.05f, 0}, 3.9f, 4.8f, Color{36, 32, 30, 255});
+        PxC(v, {-1.05f, 0}, 3.6f, 4.5f, Color{52, 58, 62, 255});
+        for (int k = 0; k < 3; k++) PxC(v, {-2.2f + k * 1.2f, 1.4f}, 1.0f, 1.2f, Color{170, 200, 215, 255});   // the ice pounds
+        int iced = 0; for (const auto& h : g.hold) if (h.gutted && h.iced && !h.junk) iced++;
+        for (int k = 0; k < std::min(iced, 12); k++) PxC(v, {-2.4f + (k % 6) * 0.45f, -0.4f - (k / 6) * 0.3f}, 0.35f, 0.12f, Color{190, 196, 200, 255});
+        PxC(v, g.hatches[0].at, 0.9f, 0.9f, g.hatches[0].state == 0 ? Color{40, 50, 60, 255} : Color{70, 54, 36, 255});
+        // the watertight door in the bulkhead
+        PxC(v, {-2.9f, 0}, 0.25f, 4.6f, Color{70, 70, 72, 255});
+        PxC(v, {-2.9f, 0}, 0.3f, 1.1f, g.doorOpen ? Color{20, 20, 22, 255} : Color{120, 120, 126, 255});
+        if (!g.doorOpen) PxC(v, {-2.9f, 0.3f}, 0.12f, 0.12f, Color{200, 160, 70, 255});   // its dog
+        // the fo'c'sle: bunks, the magazine locker, the Medic's cot, the fore hatch overhead
+        PxC(v, {7.1f, 0}, 3.9f, 3.6f, Color{36, 32, 30, 255});
+        PxC(v, {7.1f, 0}, 3.6f, 3.3f, Color{64, 52, 40, 255});
+        for (int s = -1; s <= 1; s += 2) for (int k = 0; k < 2; k++) PxC(v, {5.9f + k * 1.2f, s * 1.35f}, 1.0f, 0.5f, Color{120, 100, 74, 255});   // bunks
+        PxC(v, Stations()[(int)StationKind::Magazine].at, 0.8f, 0.6f, Color{90, 70, 40, 255});
+        PxC(v, Stations()[(int)StationKind::Magazine].at, 0.5f, 0.15f, Color{200, 160, 70, 255});
+        PxC(v, Stations()[(int)StationKind::Cot].at, 1.4f, 0.6f, Color{200, 196, 180, 255});
+        PxC(v, g.hatches[1].at, 0.9f, 0.9f, g.hatches[1].state == 0 ? Color{40, 50, 60, 255} : Color{70, 54, 36, 255});
+        // the oil lamps; a space whose lamp is out goes black
+        Vector2 spaceC[3] = {{-5.65f, 0}, {-1.05f, 0}, {7.1f, 0}}; Vector2 spaceS[3] = {{5.5f, 4.6f}, {3.6f, 4.5f}, {3.6f, 3.3f}};
+        for (int i = 0; i < 3; i++) {
+            if (g.lamps[i].lit) { float fl = 0.8f + 0.2f * sinf(t * 7 + i); PxC(v, g.lamps[i].at, 0.25f, 0.25f, Color{255, (unsigned char)(200 * fl), 120, 255}); }
+            else { PxC(v, spaceC[i], spaceS[i].x, spaceS[i].y, Fade(BLACK, i == 0 ? 0.35f : 0.75f)); PxC(v, g.lamps[i].at, 0.2f, 0.2f, Color{60, 50, 40, 255}); }
+        }
     }
 }
 

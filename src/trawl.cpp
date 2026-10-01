@@ -65,6 +65,7 @@ View MakeView(const Gannet& g, int viewerDeck, bool inWheelhouse) {
     v.lights.push_back({{3.0f, 0}, 4.0f, 0.6f});               // the wheelhouse lamp through its windows
     v.lights.push_back({{-10.4f, 0}, 5.0f, 0.5f});             // the stern work lamp
     if (viewerDeck == 1) v.lights.push_back({{-4.8f, -0.9f}, 4.5f, 0.3f + 0.5f * std::clamp(g.boat.firebox / 6, 0.0f, 1.0f)});
+    if (viewerDeck == 1) for (const auto& l : g.lamps) if (l.lit) v.lights.push_back({l.at, 3.5f, 0.7f});   // the oil lamps below
     if (g.moored) for (float x : {-9.0f, -1.0f, 7.0f, 13.0f}) v.lights.push_back({{x, -6.8f}, 7.0f, 0.85f});   // the quay's lamps
     for (const auto& fl : g.flares) v.lights.push_back({g.boat.ToDeck(fl.p), 18.0f, 1.2f});                      // a flare burning on the water
     for (const auto& c : g.crew) if (c.overboard && !c.dead) v.lights.push_back({g.boat.ToDeck(c.swim), 2.5f, 0.35f});   // (the swimmer's own splash catches the light)
@@ -885,6 +886,9 @@ void Hud(Game& g) {
                 int seat = S.net->SeatOfPlayer(i);
                 if (seat >= 0 && seat < arcade::MAX_PLAYERS) doing = S.net->seats[seat].name + (o.station >= 0 ? std::string(": ") + Stations()[o.station].name : o.overboard ? ": in the water" : "");
             }
+            // the crew board (design doc v2, "Hatches and light"): who is below, out in the skiff or ashore
+            const char* where = o.deck == 1 ? (G.SpaceAt(o.p, 1) == 3 ? "[fo'c'sle] " : G.SpaceAt(o.p, 1) == 2 ? "[hold] " : "[engine] ") : o.deck == DECK_SKIFF ? "[skiff] " : o.deck == DECK_SHORE ? "[ashore] " : "";
+            doing = where + doing;
             Txt(doing.c_str(), SCREEN_W - 190, y, 13, Fade(paper, o.dead ? 0.35f : o.overboard ? 1.0f : 0.65f));
             y += 16;
         }

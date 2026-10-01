@@ -285,7 +285,33 @@ static void BuildBoat(MeshBuilder& mb) {
     // the engine room below: its floor, bulkheads, the boiler along the port side, the coal bunker, the pump
     Color bulk{62, 56, 50, 255};
     mb.Box({-5.65f, ENGINE_Y - 0.05f, 0}, {2.9f, 0.05f, 2.35f}, Color{58, 52, 46, 255});
-    WallX(mb, -2.75f, -2.35f, 2.35f, ENGINE_Y, DECK_Y, bulk); WallX(mb, -8.55f, -2.35f, 2.35f, ENGINE_Y, DECK_Y, bulk);
+    // the bulkhead to the hold, with the watertight door's opening in it (the door itself is drawn as it stands)
+    WallX(mb, -2.75f, -2.35f, -0.6f, ENGINE_Y, DECK_Y, bulk); WallX(mb, -2.75f, 0.6f, 2.35f, ENGINE_Y, DECK_Y, bulk);
+    WallX(mb, -2.75f, -0.6f, 0.6f, ENGINE_Y + 1.9f, DECK_Y, bulk);
+    WallX(mb, -8.55f, -2.35f, 2.35f, ENGINE_Y, DECK_Y, bulk);
+    // the fish hold: ice pounds along the starboard side, a ladder under the main hatch
+    {
+        Color holdF{52, 58, 62, 255}, ice{170, 200, 215, 255};
+        mb.Box({-1.0f, ENGINE_Y - 0.05f, 0}, {1.8f, 0.05f, 2.35f}, holdF);
+        WallX(mb, 0.95f, -2.35f, 2.35f, ENGINE_Y, DECK_Y, bulk);
+        WallZ(mb, -2.35f, -2.75f, 0.95f, ENGINE_Y, DECK_Y, bulk); WallZ(mb, 2.35f, -2.75f, 0.95f, ENGINE_Y, DECK_Y, bulk);
+        for (int k = 0; k < 3; k++) mb.Box({-2.2f + k * 1.2f, ENGINE_Y + 0.35f, 1.6f}, {0.5f, 0.35f, 0.6f}, ice);
+        for (int s = -1; s <= 1; s += 2) mb.Box({-1.0f + s * 0.25f, (ENGINE_Y + DECK_Y) / 2, -1.0f}, {0.03f, (DECK_Y - ENGINE_Y) / 2, 0.03f}, brass);
+        for (float y = ENGINE_Y + 0.3f; y < DECK_Y; y += 0.3f) mb.Box({-1.0f, y, -1.0f}, {0.25f, 0.02f, 0.03f}, brass);
+    }
+    // the fo'c'sle: bunks either side, the magazine locker, the Medic's cot, a ladder under the fore hatch
+    {
+        Color fore{64, 52, 40, 255}, bunk{120, 100, 74, 255}, cot{200, 196, 180, 255};
+        mb.Box({7.1f, ENGINE_Y - 0.05f, 0}, {1.95f, 0.05f, 1.95f}, fore);
+        WallX(mb, 5.05f, -1.95f, 1.95f, ENGINE_Y, DECK_Y, bulk); WallX(mb, 9.1f, -1.95f, 1.95f, ENGINE_Y, DECK_Y, bulk);
+        WallZ(mb, -1.95f, 5.05f, 9.1f, ENGINE_Y, DECK_Y, bulk); WallZ(mb, 1.95f, 5.05f, 9.1f, ENGINE_Y, DECK_Y, bulk);
+        for (int s = -1; s <= 1; s += 2) for (int k = 0; k < 2; k++) { mb.Box({5.9f + k * 1.2f, ENGINE_Y + 0.5f, s * 1.5f}, {0.55f, 0.08f, 0.3f}, bunk); mb.Box({5.9f + k * 1.2f, ENGINE_Y + 1.5f, s * 1.5f}, {0.55f, 0.08f, 0.3f}, bunk); }
+        mb.Box({8.3f, ENGINE_Y + 0.6f, 1.1f}, {0.4f, 0.6f, 0.3f}, Color{90, 70, 40, 255});
+        mb.Box({8.3f, ENGINE_Y + 0.9f, 0.8f}, {0.25f, 0.04f, 0.02f}, brass);
+        mb.Box({6.0f, ENGINE_Y + 0.4f, -1.2f}, {0.7f, 0.06f, 0.3f}, cot);
+        for (int s = -1; s <= 1; s += 2) mb.Box({7.6f + s * 0.25f, (ENGINE_Y + DECK_Y) / 2, 0.0f}, {0.03f, (DECK_Y - ENGINE_Y) / 2, 0.03f}, brass);
+        for (float y = ENGINE_Y + 0.3f; y < DECK_Y; y += 0.3f) mb.Box({7.6f, y, 0.0f}, {0.25f, 0.02f, 0.03f}, brass);
+    }
     WallZ(mb, -2.35f, -8.55f, -2.75f, ENGINE_Y, DECK_Y, bulk); WallZ(mb, 2.35f, -8.55f, -2.75f, ENGINE_Y, DECK_Y, bulk);
     mb.Tube({{-5.8f, ENGINE_Y + 0.75f, -1.55f}, {-3.8f, ENGINE_Y + 0.75f, -1.55f}}, 0.68f, 0.68f, 12, Color{88, 80, 74, 255}, Color{88, 80, 74, 255}, 0);
     mb.Box({-7.4f, ENGINE_Y + 0.6f, -1.3f}, {0.7f, 0.6f, 0.8f}, Color{34, 30, 28, 255});
@@ -797,7 +823,7 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
     pts.push_back({BoatPoint(b, {3.0f, DECK_Y + 1.9f, 0}), 5.5f, {255, 214, 150, 255}, 0.8f});   // the wheelhouse lamp
     pts.push_back({BoatPoint(b, {-10.4f, DECK_Y + 3.0f, 0}), 7.0f, {255, 220, 170, 255}, 0.6f}); // the stern work lamp
     if (b.lantern == 3 && !below) pts.push_back({L.lampPos, 5.0f, {255, 226, 170, 255}, 0.5f});
-    if (below) pts.push_back({BoatPoint(b, {-5.6f, DECK_Y - 0.2f, 0.4f}), 4.0f, {200, 190, 170, 255}, 0.35f});
+    if (below) for (const auto& lp : g.lamps) if (lp.lit) pts.push_back({BoatPoint(b, {lp.at.x, DECK_Y - 0.3f, lp.at.y}), 4.5f, {255, 200, 130, 255}, 0.7f});   // the oil lamps
     for (const auto& fl : g.flares) pts.push_back({W3(fl.p, 1.0f), 20.0f, {255, 90, 60, 255}, 1.5f});
     if (g.skiff.Up()) pts.push_back({Vector3Transform({1.95f, 0.9f, 0}, SkiffMatrix(g)), D().skiffLantern, {255, 214, 140, 255}, 0.9f});   // the skiff's bow lantern
     for (const auto& La : g.landings) if (La.fireLit) pts.push_back({{La.at.x + La.fire.x, ATOLL_Y_EYE + 0.8f, La.at.y + La.fire.y}, 10.0f, {255, 170, 90, 255}, 1.1f + 0.1f * sinf(t * 9)});   // a landing's fire
@@ -856,6 +882,16 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
         rt::DrawCubeGlow(MatrixMultiply(MatrixMultiply(MatrixScale(0.5f, 0.3f, 0.04f), MatrixTranslate(2.4f, DECK_Y + 0.75f, -1.28f)), M), Color{70, (unsigned char)(170 + 50 * sinf(t * 2)), 110, 255}, 1.2f);   // the sonar's screen
         Color gauge = b.pressure > D().redAt ? Color{230, 60, 40, 255} : b.pressure > D().greenHi ? Color{230, 190, 60, 255} : b.pressure > D().greenLo ? Color{90, 200, 90, 255} : Color{150, 150, 150, 255};
         localGlow({-4.0f, ENGINE_Y + 1.2f, -0.85f}, 0.12f, gauge, 1.0f);
+    }
+    // below: the watertight door as it stands, the oil lamps (lit or dark), the hatches' covers seen from beneath
+    if (below) {
+        if (!g.doorOpen) rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(0.08f, 1.9f, 1.2f), MatrixTranslate(-2.75f, ENGINE_Y + 0.95f, 0)), M), Color{120, 120, 126, 255});
+        for (const auto& lp : g.lamps) localGlow({lp.at.x, DECK_Y - 0.3f, lp.at.y}, 0.1f, lp.lit ? Color{255, 200, 120, 255} : Color{50, 44, 38, 255}, lp.lit ? 2.0f : 0.0f);
+        for (const auto& h : g.hatches) if (h.state != 0) rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(1.0f, 0.06f, 1.0f), MatrixTranslate(h.at.x, DECK_Y - 0.04f, h.at.y)), M), Color{86, 64, 42, 255});
+    } else for (const auto& h : g.hatches) {
+        // on deck: a coaming round each hatch, a cover on it unless it's open
+        rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(1.05f, 0.18f, 1.05f), MatrixTranslate(h.at.x, DECK_Y + 0.09f, h.at.y)), M), h.state == 0 ? Color{20, 18, 16, 255} : Color{120, 92, 60, 255});
+        if (h.state == 2) for (int s = -1; s <= 1; s += 2) rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(1.1f, 0.05f, 0.08f), MatrixTranslate(h.at.x, DECK_Y + 0.2f, h.at.y + s * 0.3f)), M), Color{70, 74, 76, 255});
     }
     if (b.bilge > 50 && below) {
         float k = std::clamp(b.bilge / 20000, 0.05f, 1.0f);

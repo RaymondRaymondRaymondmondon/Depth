@@ -648,3 +648,7 @@ bubble puff); Red Tide's gun models rebuilt with a dozen parts each.
 - **The skiff:** with nobody at the davit, Space in the skiff alongside hooks her on from the water (25 s, the Gannet stopped) (`FinishRecovery`).
 - **Tests:** `depth.exe --trawl-below-test` (15 checks).
 - **Still to do for step 7:** drawing the hold, the fo'c'sle, the hatches, the door and the lamps in both views; the HUD's crew board (who is below, in the skiff, ashore); and the bots' use of the magazine.
+- **Step 7, drawn:**
+  - Top-down: hatch covers on deck (open, shut, battened); below, the hold (ice pounds, the iced catch, the door with its dog), the fo'c'sle (bunks, the magazine locker, the cot) and the lamps. A space whose lamp is out goes black, and lit lamps are real lights.
+  - First person: the hold and fo'c'sle built into the boat model (floors, walls, a doorway in the bulkhead, ladders under both hatches, ice pounds, bunks, the cot, the magazine), the door leaf when shut, lamp glows and point lights, hatch coamings and covers on deck.
+  - The crew list is the crew board: [engine]/[hold]/[fo'c'sle]/[skiff]/[ashore].
