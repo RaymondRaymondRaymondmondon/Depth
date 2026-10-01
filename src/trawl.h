@@ -328,7 +328,7 @@ float CookMultiplier(float kg, float t);                  // the curve above, t 
 struct MiniBossDef { const char* name; float kg, value; int deck; Pattern a, b; const char* drop; float lure; const char* mark; };   // mark: its boss water (a skiff mark's name)
 const std::vector<MiniBossDef>& MiniBosses();            // the Lagoon's two: Old Snapjaw, the Crest Grouper (boss water: the Crest Pass)
 int MiniBossOf(const std::string& name);                  // index, or -1
-enum Charm { CH_NONE, CH_LUCKY_COIN, CH_SHARK_TOOTH, CH_ANKLET, CH_OLD_HOOKS, CH_BRASS_LURE, CH_KELP_CROWN, CH_GOLDEN_SCALE, CH_WHITE_SKULL, CH_GLASS_LANTERN, CH_COUNT };
+enum Charm { CH_NONE, CH_LUCKY_COIN, CH_SHARK_TOOTH, CH_ANKLET, CH_OLD_HOOKS, CH_BRASS_LURE, CH_KELP_CROWN, CH_GOLDEN_SCALE, CH_WHITE_SKULL, CH_GLASS_LANTERN, CH_INSCRIBED_BILL, CH_BEAK, CH_COUNT };
 const char* CharmName(int c);
 const char* CharmEffect(int c);
 int CharmOfDrop(const std::string& drop);
@@ -348,7 +348,7 @@ struct Cache { Vector2 p{}; int kind = 0; float value = 0, kg = 0; bool open = f
 // `elder` is the elder, Old Hoskins or the last foreman; `sloop` is the beached sloop, the sealers' hut or the cannery
 // shed; `pond` is the Atoll's lagoon or Seal Rock's haul-out (the bull seal stands in for the moray); the Cannery Pier
 // is a stage on pilings with no pond, and Kelp Wraiths in the pilings take a hand at its edge.
-enum LandingKind { LK_ATOLL, LK_SEALROCK, LK_CANNERY, LK_SHELF, LK_BONEBEACH };   // (3, 4: the Grotto's Smugglers' Shelf and Bone Beach)
+enum LandingKind { LK_ATOLL, LK_SEALROCK, LK_CANNERY, LK_SHELF, LK_BONEBEACH, LK_STAIR, LK_TOWER, LK_CULT };   // (3, 4: the Grotto's Smugglers' Shelf and Bone Beach; 5-7: Atlantis's Drowned Stair, Watchtower stump, Cult Landing)
 struct Landing {
     int kind = LK_ATOLL;
     std::string name; Vector2 at{}; float r = 13;         // world centre; the shore's radius
@@ -618,6 +618,7 @@ struct Gannet {
     struct MermenState { bool on = false; Vector2 p{}; float t = 0; };
     MermenState mermen; float mermenCool = 150;
     bool marketNight = false;                             // the Mermen's market (a Weeds variant): they come to trade, and leave the nets alone
+    bool cultRaid = false;                                // (Atlantis) the cult's hoard taken, or its bonfire used: the longboats come
     bool bloomNight = false, eelRun = false;              // the Grotto's mould bloom (anglers stay away, the Drowned see her from anywhere) and glass eel run (anglers follow the eels to the light)
     // the Grotto's threats (design doc v2, page 49-50; trawl_grotto.cpp): a Lantern Angler's second light lures the
     // nearest hand to the rail; a Ghost Worm woken by vibration (taut lines, the net, the screw) bites lines, snags the

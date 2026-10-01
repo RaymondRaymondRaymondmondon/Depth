@@ -544,13 +544,15 @@ void Gannet::StepDeckFish(float dt) {
                 case DB_SPEARER: {    // lunges with the bill every 6-10 s
                     h.actT = 6 + RandF(gRng) * 4;
                     int k = nearest(2.0f, true);
-                    if (k >= 0) Injure(k, INJ_BROKEN_ARM, TextFormat("run through by the %s's bill", h.name.c_str()));
+                    if (k >= 0 && crew[k].charm == CH_INSCRIBED_BILL) Say(TextFormat("The %s's bill turns aside from the inscribed bill round a hand's neck", h.name.c_str()));
+                    else if (k >= 0) Injure(k, INJ_BROKEN_ARM, TextFormat("run through by the %s's bill", h.name.c_str()));
                     break;
                 }
                 case DB_GRABBER: {    // grabs a hand and drags them toward the rail; inks
                     h.actT = 3.5f;
                     int k = nearest(1.3f, false);
-                    if (k >= 0 && h.grabbed < 0) { h.grabbed = k; crew[k].inkT = 3; crew[k].station = -1; Say(TextFormat("The %s grabs a hand and inks!", h.name.c_str())); }
+                    if (k >= 0 && crew[k].charm == CH_BEAK) { h.actT = 6; Say(TextFormat("The %s's arms slide off the hand with the beak pendant", h.name.c_str())); }
+                    else if (k >= 0 && h.grabbed < 0) { h.grabbed = k; crew[k].inkT = 3; crew[k].station = -1; Say(TextFormat("The %s grabs a hand and inks!", h.name.c_str())); }
                     else h.actT = 6;
                     break;
                 }

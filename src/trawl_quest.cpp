@@ -25,20 +25,24 @@ const std::vector<MiniBossDef>& MiniBosses() {
         // the Grotto's (doc v2, page 48; boss lures 200)
         {"The Pale Abbot", 60, 700, DB_GRABBER, Pattern::Cover, Pattern::Roll, "a white skull", 200, "The Still Pool"},       // a giant white conger: biter and grabber
         {"Lanternjaw", 45, 800, DB_BITER, Pattern::Dive, Pattern::Circle, "a glass lantern", 200, "The Side Galleries"},       // an old cave anglerfish: its lure blinds the angler on the line
+        // Atlantis Waters' (doc v2, page 48; boss lures 400)
+        {"Broadbill", 400, 2000, DB_SPEARER, Pattern::Dive, Pattern::Jump, "an inscribed bill", 400, "The Veil Drift"},         // a giant swordfish: lunges every 4 s
+        {"Old Red", 250, 2500, DB_GRABBER, Pattern::Dive, Pattern::Roll, "a beak", 400, "The Whale Road"},                       // a giant squid: takes two crewmen at once
     };
     return B;
 }
 int MiniBossOf(const std::string& name) { const auto& B = MiniBosses(); for (int i = 0; i < (int)B.size(); i++) if (name.rfind(B[i].name, 0) == 0) return i; return -1; }
 
 const char* CharmName(int c) {
-    static const char* N[CH_COUNT] = {"(none)", "Lucky coin", "Shark tooth", "Tribal anklet", "Old hooks", "Brass lure", "Kelp crown", "Golden scale", "White skull", "Glass lantern"};
+    static const char* N[CH_COUNT] = {"(none)", "Lucky coin", "Shark tooth", "Tribal anklet", "Old hooks", "Brass lure", "Kelp crown", "Golden scale", "White skull", "Glass lantern", "Inscribed bill", "Beak pendant"};
     return N[std::clamp(c, 0, CH_COUNT - 1)];
 }
 const char* CharmEffect(int c) {
     static const char* E[CH_COUNT] = {"", "Glimmer variants twice as likely", "+0.1 Killscore on melee finishes", "+8 s before drowning",
                                       "The wearer's line never breaks on a fish's first run", "Boss lures cost the crew half",
                                       "The wearer is never entangled by kelp or Wraiths", "The wearer's Airborne bonus rises to 1.45",
-                                      "Anglers' lures don't work on the wearer", "A light the wearer carries doesn't draw anything"};
+                                      "Anglers' lures don't work on the wearer", "A light the wearer carries doesn't draw anything",
+                                      "Spearers can't hurt the wearer", "Grabbers can't hold the wearer"};
     return E[std::clamp(c, 0, CH_COUNT - 1)];
 }
 int CharmOfDrop(const std::string& d) {
@@ -48,6 +52,8 @@ int CharmOfDrop(const std::string& d) {
     if (d == "a golden scale") return CH_GOLDEN_SCALE;
     if (d == "a white skull") return CH_WHITE_SKULL;
     if (d == "a glass lantern") return CH_GLASS_LANTERN;
+    if (d == "an inscribed bill") return CH_INSCRIBED_BILL;
+    if (d == "a beak") return CH_BEAK;
     return CH_NONE;
 }
 

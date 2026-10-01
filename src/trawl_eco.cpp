@@ -297,6 +297,44 @@ void Eco::BuildGrottoChart(uint32_t seed) {
     marks.push_back({"The Still Pool", {cc.x + rx * 0.6f, cc.y + (H2(5, 5, seed) - 0.5f) * ry * 0.5f}, 24, 0});
     rafts.clear();
 }
+// Atlantis Waters (design doc v2, "Atlantis Waters"): the same island and quay; a shelf off it, then the drowned city's
+// terraces stepping down from 30 m (sunken gardens), a slope through deep coral, and the Trench's edge at 400 m where
+// the Pale Eye lies. Three islets stand out of it: the Drowned Stair (a stairway climbing out of the terraces), the
+// Watchtower stump and the Cult Landing.
+void Eco::BuildAtlantisChart(uint32_t seed) {
+    float size = n * cell;
+    eyeP = {size * 0.83f, size * (0.4f + 0.2f * H2(4, 4, seed))};
+    Vector2 stair{size * 0.38f, size * (0.5f + 0.25f * (H2(1, 7, seed) - 0.5f))}, tower{size * 0.58f, size * (H2(2, 8, seed) < 0.5f ? 0.2f : 0.8f)}, cult{size * 0.46f, size * (H2(2, 8, seed) < 0.5f ? 0.85f : 0.15f)};
+    landingAt = {stair, tower, cult}; landingKind = {5, 6, 7};
+    for (int y = 0; y < n; y++) for (int x = 0; x < n; x++) {
+        float wx = (x + 0.5f) * cell, wy = (y + 0.5f) * cell;
+        int i = y * n + x;
+        float shore = 34 + 14 * sinf(wy * 0.021f + seed) + 8 * Noise2(wy * 0.03f, 3.1f, seed);
+        float nz = Noise2(wx * 0.04f, wy * 0.04f, seed + 5) - 0.5f;
+        float d; int h;
+        if (wx < shore) { d = 0; h = H_LAND; }
+        else if (wx < shore + 60) { d = std::clamp(8.0f + (wx - shore) * 0.35f, 8.0f, 30.0f); h = H_SEA; }   // the shelf off the island
+        else if (wx < size * 0.55f) {   // the terraces: three steps, 30, 45 and 60 m, gardens on their faces
+            float u = (wx - shore - 60) / (size * 0.55f - shore - 60);
+            int step = std::min(2, (int)(u * 3));
+            d = 30 + step * 15 + nz * 4;
+            h = Noise2(wx * 0.06f, wy * 0.06f, seed + 31) > 0.45f ? H_REEF : H_SEA;
+            if (Noise2(wx * 0.09f, wy * 0.09f, seed + 41) > 0.82f) { h = H_REEF; d = std::max(12.0f, d - 14); }   // (a tower's broken top)
+        } else if (wx < size * 0.75f) { float u = (wx - size * 0.55f) / (size * 0.2f); d = 60 + u * 140 + nz * 10; h = Noise2(wx * 0.05f, wy * 0.05f, seed + 17) > 0.6f ? H_HOLES : H_SEA; }   // the slope: deep coral
+        else { d = std::min(400.0f, 200 + (wx - size * 0.75f) * 1.4f); h = H_SEA; }   // the Trench's edge
+        for (Vector2 la : landingAt) { float dl = Vector2Distance({wx, wy}, la); if (dl < 10) { d = 0; h = H_LAND; } else if (dl < 16) { d = std::min(d, 3.0f + (dl - 10) * 2); h = H_REEF; } }
+        depth[i] = d; hab[i] = (uint8_t)h;
+        if (h == H_HOLES && H2(x, y, seed + 21) < 0.3f) holes[i] = 1;
+    }
+    // the skiff water: the Terrace Rim (coelacanth, gold grouper, deep-drop), the Veil Drift (squid and swordfish;
+    // Broadbill's boss water), the Whale Road (the sperm whale; Old Red's boss water)
+    marks.clear();
+    marks.push_back({"The Terrace Rim", {size * 0.53f, size * (0.3f + 0.4f * H2(6, 1, seed))}, 24, 0});
+    marks.push_back({"The Veil Drift", {size * 0.68f, size * (0.3f + 0.4f * H2(6, 2, seed))}, 26, 0});
+    marks.push_back({"The Whale Road", {size * 0.8f, size * (0.2f + 0.6f * H2(6, 3, seed))}, 30, 0});
+    rafts.clear();
+}
+
 bool Eco::InArch(Vector2 p) const { return g && ground == "grotto" && p.x >= archX0 && p.x < archX1 && fabsf(p.y - archY) < archHalf; }
 
 void Eco::AddDriftMats(int k) {
@@ -309,6 +347,7 @@ void Eco::BuildChart(uint32_t seed) {
     depth.assign((size_t)n * n, 0); hab.assign((size_t)n * n, H_OPEN); holes.assign((size_t)n * n, 0);
     if (ground == "weeds") { BuildWeedsChart(seed); return; }
     if (ground == "grotto") { landingAt.clear(); BuildGrottoChart(seed); return; }
+    if (ground == "atlantis") { landingAt.clear(); BuildAtlantisChart(seed); return; }
     float size = n * cell;
     struct Head { Vector2 c; float r; };
     std::vector<Head> heads;

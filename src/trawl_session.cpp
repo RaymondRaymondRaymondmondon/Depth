@@ -312,7 +312,8 @@ bool Session::ElderNear(int ci, std::string* why) const {
     const Crew& c = G->crew[ci];
     if (c.deck != DECK_SHORE || G->skiff.landing < 0 || G->skiff.landing >= (int)G->landings.size()) return no("the elder is on the Atoll");
     int kind = G->landings[G->skiff.landing].kind;
-    if (Vector2Distance(c.p, G->landings[G->skiff.landing].elder) > 2.2f) return no(kind == LK_SEALROCK ? "go to Old Hoskins on the hut's step" : kind == LK_CANNERY ? "go to the foreman by the shed" : kind == LK_SHELF ? "go to the quartermaster at his crates" : kind == LK_BONEBEACH ? "go to the hermit by the vents" : "go to the elder's shrine");
+    if (kind == LK_TOWER) return no("nobody keeps the Watchtower");
+    if (Vector2Distance(c.p, G->landings[G->skiff.landing].elder) > 2.2f) return no(kind == LK_SEALROCK ? "go to Old Hoskins on the hut's step" : kind == LK_CANNERY ? "go to the foreman by the shed" : kind == LK_SHELF ? "go to the quartermaster at his crates" : kind == LK_BONEBEACH ? "go to the hermit by the vents" : kind == LK_STAIR ? "go to the Keeper on the stair" : kind == LK_CULT ? "go to the cult quartermaster by the tent" : "go to the elder's shrine");
     if (kind == LK_ATOLL && G->foughtCanoes) return no("the elder turns his back: you fought his people's canoes");
     return true;
 }
@@ -332,6 +333,17 @@ float Session::ElderGive(int ci, std::string* why) {
         c.carrying = false; c.carryKg = 0;
         return v;
     }
+    // Atlantis (doc v2 page 61): the Keeper of the Stair takes fish as offerings (100 of them opens a bowl); the cult
+    // quartermaster sells dark goods for dark money and takes nothing
+    if (kind == LK_STAIR) {
+        if (!c.carrying || c.carry.junk) { if (why) *why = "he takes fish, as offerings"; return 0; }
+        float v = Value(c.carry);
+        G->landings[G->skiff.landing].elderCredit += v;
+        G->Say(TextFormat("The Keeper of the Stair accepts the %s: %.0f in offerings", c.carry.name.c_str(), v));
+        c.carrying = false; c.carryKg = 0;
+        return v;
+    }
+    if (kind == LK_CULT) { if (why) *why = "the cult wants money, not goods"; return 0; }
     // the Grotto (doc v2 page 61): the Smugglers' Shelf quartermaster buys salvage at its full value, in shillings; the
     // Bone Beach hermit takes bones and skulls in trade for his gear
     if (kind == LK_SHELF || kind == LK_BONEBEACH) {
@@ -351,7 +363,7 @@ float Session::ElderGive(int ci, std::string* why) {
     c.carrying = false; c.carryKg = 0;
     return v;
 }
-static const char* TraderTag(int kind) { return kind == LK_SHELF ? "smugglers" : kind == LK_BONEBEACH ? "bonebeach" : "atoll"; }
+static const char* TraderTag(int kind) { return kind == LK_SHELF ? "smugglers" : kind == LK_BONEBEACH ? "bonebeach" : kind == LK_CULT ? "cult" : kind == LK_ATOLL ? "atoll" : "-"; }
 std::vector<std::string> ElderStock(int kind) {
     std::vector<std::string> s;
     for (const auto& w : Weapons()) if (w.where == TraderTag(kind)) s.push_back(w.id);
@@ -363,12 +375,13 @@ bool Session::ElderBuy(int ci, const std::string& id, std::string* why) {
     auto no = [&](const char* m) { if (why) *why = m; return false; };
     if (!ElderNear(ci, why)) return false;
     Landing& L = G->landings[G->skiff.landing];
-    if (L.kind == LK_SEALROCK || L.kind == LK_CANNERY) return no("he has nothing to sell");
-    // (the quartermaster sells for shillings; the elder and the hermit for what you've traded them)
-    float& purse = L.kind == LK_SHELF ? money : L.elderCredit;
+    if (L.kind == LK_SEALROCK || L.kind == LK_CANNERY || L.kind == LK_STAIR || L.kind == LK_TOWER) return no("he has nothing to sell");
+    // (the quartermasters sell for shillings; the elder and the hermit for what you've traded them)
+    bool cash = L.kind == LK_SHELF || L.kind == LK_CULT;
+    float& purse = cash ? money : L.elderCredit;
     const char* tag = TraderTag(L.kind);
-    const char* who = L.kind == LK_SHELF ? "The quartermaster" : L.kind == LK_BONEBEACH ? "The hermit" : "The elder";
-    const char* poor = L.kind == LK_SHELF ? "not enough shillings" : L.kind == LK_BONEBEACH ? "bring him more bones first" : "give him more fish first";
+    const char* who = L.kind == LK_SHELF ? "The quartermaster" : L.kind == LK_CULT ? "The cult quartermaster" : L.kind == LK_BONEBEACH ? "The hermit" : "The elder";
+    const char* poor = cash ? "not enough shillings" : L.kind == LK_BONEBEACH ? "bring him more bones first" : "give him more fish first";
     Crew& c = G->crew[ci];
     if (id.rfind("charm:", 0) == 0) {
         if (L.kind != LK_ATOLL) return no("he has none of that");
@@ -533,6 +546,7 @@ bool Session::Buy(const std::string& id, std::string* why, int ci) {
     int price = it->price;
     if (id == "bosslure" && ground == "weeds") price = 120;   // (the Weeds' boss lures: 120)
     if (id == "bosslure" && ground == "grotto") price = 200;  // (the Grotto's: 200)
+    if (id == "bosslure" && ground == "atlantis") price = 400;   // (Atlantis Waters': 400)
     if (id == "bosslure" && G->AnyWears(CH_BRASS_LURE)) price /= 2;   // (the brass lure charm: boss lures cost the crew half)
     if (id == "tag" && G->tagGun) { if (why) *why = "already aboard"; return false; }
     if (money < price) { if (why) *why = "not enough money"; return false; }

@@ -35,10 +35,29 @@ void Gannet::BuildLandings() {
     if (!eco) return;
     for (size_t k = 0; k < eco->landingAt.size(); k++) {
         int kind = k < eco->landingKind.size() ? eco->landingKind[k] : LK_ATOLL;
-        if (kind == LK_SEALROCK || kind == LK_CANNERY || kind == LK_SHELF || kind == LK_BONEBEACH) {
+        if (kind != LK_ATOLL) {
             Landing L; L.kind = kind; L.at = eco->landingAt[k];
             gLr = eco->initSeed * 2654435761u + 31 + (uint32_t)k * 977;
-            if (kind == LK_SHELF) {
+            if (kind == LK_STAIR) {
+                // (Atlantis) a broad stairway climbing out of the terraces to a landing of white stone: the eternal
+                // brazier (cooks twice as fast, +2 Wake a fish), the Keeper of the Stair (a drowned priest, harmless
+                // while he is paid in offerings), offering bowls (400-1200) that he lets go for an offering
+                L.name = "The Drowned Stair"; L.r = 9;
+                L.sloop = {0.0f, 4.0f}; L.sloopHead = 0; L.fire = {0.0f, -1.5f}; L.elder = {-3.5f, 1.5f}; L.pond = {0, 0}; L.pondR = 0;
+                for (int i = 0; i < 2; i++) { Cache b; b.p = {3.5f + i * 1.6f, -3.5f + i * 3.0f}; b.kind = 0; b.value = 400 + LR() * 800; b.kg = 10 + LR() * 6; b.what = "an offering bowl"; L.caches.push_back(b); }
+            } else if (kind == LK_TOWER) {
+                // the Watchtower stump: a signal fire (unlit; lighting it shows every skiff mark on the sonar and draws
+                // everything on the ground), no trader, the tower cache (300-800, locked)
+                L.name = "The Watchtower stump"; L.r = 8;
+                L.sloop = {0.0f, 0.0f}; L.sloopHead = 0; L.fire = {3.0f, 2.5f}; L.elder = {999, 999}; L.pond = {0, 0}; L.pondR = 0; L.fireLit = false;
+                Cache c; c.p = {-1.6f, 1.2f}; c.kind = 1; c.value = 300 + LR() * 500; c.kg = 24; c.what = "the tower cache"; L.caches.push_back(c);
+            } else if (kind == LK_CULT) {
+                // the Cult Landing: the cult bonfire (fast; the longboats come back), the cult quartermaster (dark goods
+                // for dark money), the cult's hoard (500-1200, guarded: taking it brings the longboats)
+                L.name = "The Cult Landing"; L.r = 10;
+                L.sloop = {2.5f, -4.0f}; L.sloopHead = 0.4f; L.fire = {-1.0f, 0.5f}; L.elder = {3.5f, 2.5f}; L.pond = {0, 0}; L.pondR = 0;
+                Cache h; h.p = {Vector2Add({2.5f, -4.0f}, {0.6f, 0.2f})}; h.kind = 0; h.value = 500 + LR() * 700; h.kg = 30; h.what = "the cult's hoard"; L.caches.push_back(h);
+            } else if (kind == LK_SHELF) {
                 // a rock shelf on the cave's north wall: the smugglers' lean-to of crates (stove at its mouth), the
                 // quartermaster among his crates, 2-3 stashes (200-600), one of them under a lock
                 L.name = "The Smugglers' Shelf"; L.r = 10;
@@ -187,6 +206,7 @@ bool Gannet::ShoreUse(int ci) {
             if (L.onFire.size() >= 4) { Say("The fire takes four at a time"); return true; }
             CatchRec r = c.carry; r.deckAt = Vector2Add(L.fire, {(float)L.onFire.size() * 0.3f - 0.45f, 0.2f}); if (r.cookT < 0) r.cookT = 0;
             L.onFire.push_back(r); drop();
+            if (L.kind == LK_STAIR && eco) eco->wake += 2;   // (the eternal brazier: +2 Wake a fish)
             Say(TextFormat("On the fire: %s", r.name.c_str()));
             return true;
         }
@@ -206,6 +226,11 @@ bool Gannet::ShoreUse(int ci) {
         if (k.open || Vector2Distance(c.p, k.p) > REACH + 0.3f) continue;
         if (c.carrying) { Say("Your arms are full"); return true; }
         if (k.kind == 2 && !k.found) continue;   // (nothing marks it yet)
+        if (L.kind == LK_STAIR) {   // the Keeper of the Stair: harmless while he is paid in offerings (100 of fish a bowl)
+            if (L.elderCredit < 100) { Say("The Keeper of the Stair lifts a hand: an offering first (give him fish)"); return true; }
+            L.elderCredit -= 100;
+        }
+        if (L.kind == LK_CULT && k.what == "the cult's hoard") { cultRaid = true; Say("Torches move on the water: the cult saw you take it"); }
         if (k.kind == 1) {
             if (junkKeys <= 0) { Say("Locked: a brass key would open it"); return true; }
             junkKeys--; Say("The brass key turns in the strongbox's lock");
@@ -266,12 +291,12 @@ void Gannet::StepLandings(float dt) {
     if (landings.empty() && eco && !eco->landingAt.empty()) BuildLandings();
     for (int li = 0; li < (int)landings.size(); li++) {
         Landing& L = landings[li];
-        bool exposed = L.kind == LK_ATOLL;   // (the hut's stove and the cannery boiler are under a roof)
+        bool exposed = L.kind == LK_ATOLL || L.kind == LK_TOWER || L.kind == LK_CULT;   // (the stoves and the boiler are under a roof; vents and the eternal brazier don't care)
         if (exposed && L.fireLit && Raining(sea) && !L.onFire.empty()) Say("Rain puts the fire out");
         if (exposed && Raining(sea)) L.fireLit = false;
         // the fire: the fish cook (and burn); the smell into the water and the air (5 a second a fish, doubled burning)
         for (auto& r : L.onFire) {
-            if (L.fireLit) r.cookT += dt * (spiceRub ? 1.25f : 1.0f) * (L.kind == LK_BONEBEACH ? 0.7f : 1.0f);   // (the cook's spice rub: 25% faster; Bone Beach's steam 30% slower)
+            if (L.fireLit) r.cookT += dt * (spiceRub ? 1.25f : 1.0f) * (L.kind == LK_BONEBEACH ? 0.7f : L.kind == LK_STAIR ? 2.0f : L.kind == LK_CULT ? 1.5f : 1.0f);   // (the cook's spice rub: 25% faster; Bone Beach's steam 30% slower; the eternal brazier twice as fast; the cult bonfire fast)
             if (L.kind == LK_BONEBEACH) r.cookT = std::min(r.cookT, 10 + r.kg + 4.9f);   // (steam never burns: it holds at its best)
             r.cook = CookMultiplier(r.kg, r.cookT); r.cooked = r.cookT > 1;
             bool burning = r.cookT > 10 + r.kg + 5;
@@ -296,6 +321,11 @@ void Gannet::StepLandings(float dt) {
                 bool at = c.workOn == 100 ? Vector2Distance(c.p, L.fire) < 1.8f : c.workOn < (int)L.caches.size() && Vector2Distance(c.p, L.caches[c.workOn].p) < REACH + 0.3f;
                 if (!at) { c.workOn = -1; c.workT = 0; continue; }
                 c.workT += dt;
+                if (c.workOn == 100 && c.workT >= 10 && L.kind == LK_TOWER && !L.fireLit) {
+                    // the Watchtower's signal fire: every skiff mark on the sonar, and everything on the ground drawn to it
+                    if (eco) { for (const auto& m : eco->marks) { SonarMark sm; sm.p = m.at; sm.t = 240; sm.what = m.name; sm.by = k; sonar.marks.push_back(sm); } eco->wake += 15; }
+                    Say("The signal fire roars up: every mark on the ground shows on the sonar, and everything out there sees it");
+                }
                 if (c.workOn == 100 && c.workT >= 10) { L.fireLit = !exposed || !Raining(sea); Say(L.fireLit ? "The fire catches" : "The rain puts it out again"); c.workOn = -1; c.workT = 0; }
                 else if (c.workOn < 100 && c.workT >= 5) {
                     Cache& kk = L.caches[c.workOn];

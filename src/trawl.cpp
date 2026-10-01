@@ -798,7 +798,7 @@ void Panels(Game& g) {
             // the Atoll's elder: fish in (at 150% of their value, as trade), his goods out; never shillings
             {
                 int lk = G.skiff.landing >= 0 && G.skiff.landing < (int)G.landings.size() ? G.landings[G.skiff.landing].kind : LK_ATOLL;
-                PanelFrame(lk == LK_SEALROCK ? "Old Hoskins, the last sealer" : lk == LK_CANNERY ? "The cannery's last foreman" : lk == LK_SHELF ? "The smugglers' quartermaster" : lk == LK_BONEBEACH ? "The hermit of Bone Beach" : "The tribe's elder",
+                PanelFrame(lk == LK_SEALROCK ? "Old Hoskins, the last sealer" : lk == LK_CANNERY ? "The cannery's last foreman" : lk == LK_SHELF ? "The smugglers' quartermaster" : lk == LK_BONEBEACH ? "The hermit of Bone Beach" : lk == LK_STAIR ? "The Keeper of the Stair" : lk == LK_CULT ? "The cult quartermaster" : "The tribe's elder",
                            640, lk == LK_SEALROCK || lk == LK_CANNERY ? 260 : 440, &r);
             }
             float x = r.x + 34, y = r.y + 60;
@@ -821,18 +821,21 @@ void Panels(Game& g) {
                 TxtBold(TextFormat("Purse: %.0f shillings", ss.money), x, y + 130, 16, ink);
                 break;
             }
-            bool shelf = L.kind == LK_SHELF, boneB = L.kind == LK_BONEBEACH;
-            if (!shelf && !boneB && G.foughtCanoes) { DrawWrapped("He turns his back. You fought his people's canoes: there will be no trade tonight, or any night.", {x, y, r.width - 68, 80}, 16, ink); break; }
+            bool shelf = L.kind == LK_SHELF, boneB = L.kind == LK_BONEBEACH, stair = L.kind == LK_STAIR, cult = L.kind == LK_CULT;
+            if (L.kind == LK_ATOLL && G.foughtCanoes) { DrawWrapped("He turns his back. You fought his people's canoes: there will be no trade tonight, or any night.", {x, y, r.width - 68, 80}, 16, ink); break; }
             Txt(shelf ? "He buys salvage at its full worth, in shillings, and sells what came in on the last boat for shillings too."
+                      : cult ? "Dark goods for dark money. He takes nothing from you but shillings."
+                      : stair ? "He takes fish as offerings. An offering of 100 lets one of his bowls be taken; take one unpaid and he lifts his hand."
                       : boneB ? "He wants bones and skulls, and gives their worth in his own gear." : "He takes only fish, never shillings, and gives half again their worth in his own goods.", x, y, 14, dim);
-            float purse = shelf ? ss.money : L.elderCredit;
-            TxtBold(shelf ? TextFormat("Purse: %.0f shillings", purse) : TextFormat("Your trade with him: %.0f", purse), x, y + 26, 17, ink);
-            bool takes = yo.carrying && (shelf ? yo.carry.junk : boneB ? (yo.carry.junk && (yo.carry.name.find("bone") != std::string::npos || yo.carry.name.find("skull") != std::string::npos)) : !yo.carry.junk);
+            float purse = shelf || cult ? ss.money : L.elderCredit;
+            TxtBold(shelf || cult ? TextFormat("Purse: %.0f shillings", purse) : stair ? TextFormat("Your offerings: %.0f", purse) : TextFormat("Your trade with him: %.0f", purse), x, y + 26, 17, ink);
+            bool takes = yo.carrying && !cult && (shelf ? yo.carry.junk : boneB ? (yo.carry.junk && (yo.carry.name.find("bone") != std::string::npos || yo.carry.name.find("skull") != std::string::npos)) : !yo.carry.junk);
             if (takes) {
                 Txt(TextFormat("In your arms: %s, %s%s", yo.carry.name.c_str(), KgText(yo.carry.kg).c_str(), yo.carry.cooked ? TextFormat(" (cooked, x%.2f)", yo.carry.cook) : ""), x, y + 56, 14, ink);
-                float v = ss.Value(yo.carry) * (shelf || boneB ? 1.0f : 1.5f);
-                if (Button({x + 380, y + 50, 180, 28}, TextFormat(shelf ? "Sell it (%.0f sh)" : "Give it (%.0f)", v), true, 13)) Command(CMD_ELDER_GIVE, "", 0, shelf ? "The quartermaster pays" : "He takes it");
-            } else Txt(shelf ? "Carry salvage to him (a chest, a strongbox, junk from the sea)." : boneB ? "Carry bones or a skull to him." : "Carry a fish to him to trade it.", x, y + 56, 14, dim);
+                float v = ss.Value(yo.carry) * (shelf || boneB || stair ? 1.0f : 1.5f);
+                if (Button({x + 380, y + 50, 180, 28}, TextFormat(shelf ? "Sell it (%.0f sh)" : stair ? "Offer it (%.0f)" : "Give it (%.0f)", v), true, 13)) Command(CMD_ELDER_GIVE, "", 0, shelf ? "The quartermaster pays" : "He takes it");
+            } else Txt(shelf ? "Carry salvage to him (a chest, a strongbox, junk from the sea)." : cult ? "" : boneB ? "Carry bones or a skull to him." : "Carry a fish to him.", x, y + 56, 14, dim);
+            if (stair) break;   // (the Keeper sells nothing)
             float yy = y + 100;
             TxtBold("His goods (sold nowhere else)", x, yy, 15, ink); yy += 28;
             for (const auto& id : ElderStock(L.kind)) {
@@ -843,7 +846,7 @@ void Panels(Game& g) {
                 else { int wi = WeaponIndex(id); if (wi < 0) continue; name = Weapons()[wi].name; note = Weapons()[wi].special; price = Weapons()[wi].price; }
                 TxtBold(name.c_str(), x, yy + 3, 14, ink);
                 Txt(note.c_str(), x + 170, yy + 4, 12, dim);
-                if (Button({r.x + r.width - 150, yy, 116, 24}, TextFormat(shelf ? "%d sh" : boneB ? "%d in bones" : "%d in fish", price), purse >= price, 12)) Command(CMD_ELDER_BUY, id, 0, std::string("Bought: ") + name);
+                if (Button({r.x + r.width - 150, yy, 116, 24}, TextFormat(shelf || cult ? "%d sh" : boneB ? "%d in bones" : "%d in fish", price), purse >= price, 12)) Command(CMD_ELDER_BUY, id, 0, std::string("Bought: ") + name);
                 yy += 30;
             }
             break;
@@ -857,9 +860,9 @@ void Panels(Game& g) {
                 {"lagoon", "Eclipse Lagoon", "3-40 m. Coal 10 kg. Fish value low. The reef tide falls all night."},
                 {"weeds", "The Weeds", "5-60 m. Coal 25 kg. Kelp fouls the screw, nets and lines; the big fish run the seaward edge."},
                 {"grotto", "The Grotto", "4-45 m. Coal 40 kg. A cave through a sea arch that closes 02:30-04:00; sound doubles."},
-                {"atlantis", "Atlantis Waters", "Charted in a later refit."}};
+                {"atlantis", "Atlantis Waters", "8-400 m. Coal 80 kg. The richest water, over the drowned city; the Pale Eye watches."}};
             for (int k = 0; k < 4; k++) {
-                bool here = ss.ground == GR[k].key, open = k < 3;
+                bool here = ss.ground == GR[k].key, open = true;
                 float yy = y + k * 34.0f;
                 if (Button({x, yy, 190, 28}, GR[k].name, open && !here, 14)) Command(CMD_GROUND, GR[k].key, 0, std::string("Bound for ") + GR[k].name);
                 Txt(GR[k].note, x + 204, yy + 6, 13, here ? ink : Fade(dim, open ? 0.9f : 0.5f));
@@ -1023,7 +1026,7 @@ void Hud(Game& g) {
                 if (!L.fireLit) line = "E: relight the fire (10 s)";
                 else if (c.carrying && !c.carry.junk) line = "E: onto the fire (watch it: done in 10 s + 1 a kg, burnt 5 s later)";
                 else if (!L.onFire.empty()) { const CatchRec& r = L.onFire.front(); line = TextFormat("E: take it off the fire (x%.2f%s)", r.cook, r.cookT > 10 + r.kg + 5 ? ", burning!" : r.cookT > 10 + r.kg ? ", done" : ""); }
-            } else if (Vector2Distance(c.p, L.elder) < 2.2f) line = L.kind == LK_SEALROCK ? "E: Old Hoskins (he buys birds, at double)" : L.kind == LK_CANNERY ? "E: the foreman (cooked fish, at 150%)" : L.kind == LK_SHELF ? "E: the quartermaster (salvage, his goods)" : L.kind == LK_BONEBEACH ? "E: the hermit (bones and skulls for gear)" : G.foughtCanoes ? "The elder turns his back on you" : "E: trade with the elder (fish only)";
+            } else if (Vector2Distance(c.p, L.elder) < 2.2f) line = L.kind == LK_SEALROCK ? "E: Old Hoskins (he buys birds, at double)" : L.kind == LK_CANNERY ? "E: the foreman (cooked fish, at 150%)" : L.kind == LK_SHELF ? "E: the quartermaster (salvage, his goods)" : L.kind == LK_BONEBEACH ? "E: the hermit (bones and skulls for gear)" : L.kind == LK_STAIR ? "E: the Keeper of the Stair (offerings)" : L.kind == LK_CULT ? "E: the cult quartermaster (dark goods for shillings)" : G.foughtCanoes ? "The elder turns his back on you" : "E: trade with the elder (fish only)";
             else if (L.kind == LK_CANNERY && Vector2Length(c.p) > L.r - 1.3f && c.tangleT <= 0) line = "The pier's edge: something moves down among the pilings";
             else {
                 for (const auto& k : L.caches) if (!k.open && Vector2Distance(c.p, k.p) < 1.7f && (k.kind != 2 || k.found)) line = k.kind == 1 ? (G.junkKeys > 0 ? "E: open the strongbox with a brass key" : "The strongbox is locked (a brass key from the sea opens it)") : k.kind == 2 ? "E: dig here" : "E: heave up the sea chest";

@@ -53,7 +53,7 @@ struct Skipper {
     bool onSpot = false, homeward = false;
     float slowT = 0, chumT = 0, t = 0; size_t h0 = 0;
     bool chargeNow = false;
-    float groundT = 0, fouledT = 0, snagT = 0; int groundSide = 1, groundN = 0, snagN = 0; bool wasSnag = false;
+    float groundT = 0, fouledT = 0, snagT = 0; int groundSide = 1, groundN = 0, snagN = 0; bool wasSnag = false, viaMark = false, viaDone = false;
     float leftAt = -1, lastLoad = 0;             // the minute the skipper turned for home; the net load last seen
     Skipper(Gannet& g, Session& s, Eco& e, const SkipperPattern& p, uint32_t seed) : G(g), S(s), E(e), P(p), rng(seed * 7919u + 13) {
         helm = StationIdx(StationKind::Helm); gut = StationIdx(StationKind::Gutting); portRod = StationIdx(StationKind::PortRod); winch = StationIdx(StationKind::NetWinch);
@@ -166,7 +166,7 @@ struct Skipper {
     }
     void Begin() {
         ChooseSpots();
-        onSpot = false; homeward = false; slowT = 0; chumT = 0; t = 0; groundN = 0; snagN = 0; wasSnag = false; h0 = G.hold.size(); chargeNow = false; towing = false; netHand = -1; towLeg = 0; leftAt = -1;
+        onSpot = false; homeward = false; slowT = 0; chumT = 0; t = 0; groundN = 0; snagN = 0; wasSnag = false; viaMark = false; viaDone = false; h0 = G.hold.size(); chargeNow = false; towing = false; netHand = -1; towLeg = 0; leftAt = -1;
         G.boat.lantern = std::min(P.lantern, G.searchlight ? 3 : 2);
         if (getenv("DEPTH_TRACE")) { printf("    marks:"); for (const auto& s : spots) printf("  (%.0f,%.0f d%.0f%s)", s.p.x, s.p.y, E.DepthAt(s.p), s.tow ? " tow" : ""); printf("  harbour (%.0f,%.0f)\n", S.harbour.x, S.harbour.y); }
     }
@@ -228,7 +228,11 @@ struct Skipper {
             if (G.net.state == NetState::Hauling || G.net.state == NetState::Shooting) { G.boat.telegraph = 1; G.boat.rudder *= powf(0.3f, dt); return; }
             if (G.net.state == NetState::Snagged) { snagT += dt; G.boat.telegraph = -1; if (snagT > 60) { G.net.state = NetState::Lost; snagT = 0; G.Say("The skipper cuts the snagged net away"); } return; }
             if (netHand >= 0) { G.OrderBot(-1); netHand = -1; }
-            SteerTo(G.moorPos, 25);
+            // home: straight for the quay when that course is clear, else back to the mark first (its course home was checked)
+            // (once a night: a course home that still isn't clear from the mark is taken as it is)
+            if (!spots.empty() && !viaMark && !viaDone && !RouteClear(G.boat.pos, S.harbour) && Vector2Distance(G.boat.pos, spots[spotI].p) > 15) { viaMark = true; viaDone = true; }
+            if (viaMark && (spots.empty() || Vector2Distance(G.boat.pos, spots[spotI].p) < 15)) viaMark = false;
+            if (viaMark) SteerTo(spots[spotI].p, 0); else SteerTo(G.moorPos, 25);
             return;
         }
         Vector2 spot = spots[spotI].p;
