@@ -315,6 +315,19 @@ template <class A> void Visit(A& a, TrawlWorld& w) {
     a.vec(e.agents, [&](EcoAgent& ag) { a.i(ag.sp); a.i(ag.count); a.v3(ag.p); a.v3(ag.v); a.b(ag.alive); a.f(ag.flash); a.f(ag.hurt); a.f(ag.t); });
     a.vec(e.rafts, [&](Raft& rf) { a.v2(rf.p); a.f(rf.r); });
     a.b(e.archOpen);
+    // the wrecks: each regenerated from its type and seed on a guest, then where it lies and what's been taken
+    {
+        int nw = (int)w.sess.wrecks.size(); a.i(nw);
+        if constexpr (A::reading) { if (a.bad() || nw < 0 || nw > 16) return; if ((int)w.sess.wrecks.size() != nw) w.sess.wrecks.resize(nw); }
+        for (auto& wk : w.sess.wrecks) {
+            int t = (int)wk.type; uint32_t s = wk.seed; a.i(t); a.u(s);
+            if constexpr (A::reading) { if (a.bad() || t < 0 || t >= (int)WreckType::COUNT) return; if (wk.seed != s || (int)wk.type != t || wk.rooms.empty()) wk = GenerateWreck((WreckType)t, s, e.ground); }
+            a.f(wk.x); a.f(wk.y); a.f(wk.depth);
+            for (auto& it : wk.salvage) a.b(it.taken);
+            for (auto& r : wk.rooms) a.b(r.locked);
+        }
+        if constexpr (A::reading) w.G.wrecks = &w.sess.wrecks;
+    }
     // ---- the sea and the boat
     Gannet& g = w.G;
     Sea& sea = g.sea;

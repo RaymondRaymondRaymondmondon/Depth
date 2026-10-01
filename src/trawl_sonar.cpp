@@ -7,6 +7,7 @@
 // every 6 s, marks the largest school and any threat (design doc, "Bot behaviour").
 #include "trawl.h"
 #include "trawl_eco.h"
+#include "trawl_wreck.h"
 #include "raymath.h"
 #include <algorithm>
 
@@ -52,6 +53,10 @@ bool Gannet::SonarPing(int ci) {
     auto gear = [&](Vector2 w) { if (Vector2Distance(w, boat.pos) <= SONAR_RANGE) { SonarReturn r; r.p = {w.x, w.y, 0.5f}; r.kind = SonarKind::Gear; r.t = SONAR_LIFE; sonar.ret.push_back(r); } };
     for (const auto& l : longlines) { gear(l.a); gear(l.b); }
     for (const auto& p : pots) gear(p.p);
+    // the wrecks: a long hard return on the floor (where to dive)
+    if (wrecks) for (const auto& w : *wrecks) if (Vector2Distance({w.x, w.y}, boat.pos) <= SONAR_RANGE) {
+        SonarReturn r; r.p = {w.x, w.y, w.depth}; r.kind = SonarKind::Gear; r.size = 4; r.t = SONAR_LIFE; sonar.ret.push_back(r);
+    }
     return true;
 }
 
