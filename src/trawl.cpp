@@ -1550,6 +1550,30 @@ void DebugTrawlShot(Game& g, int which) {
         if (fp) { G.crew[0].station = -1; G.crew[0].p = {-6.5f, 0.6f}; G.crew[0].facing = {-1, 0}; S.eye.yaw = PI - 0.25f; S.eye.pitch = -0.12f; }
         return;
     }
+    if (which == 33) {
+        // the Grotto: lying in the cave by a wreck, the mould glowing on the walls; an Angler's light off the rail, the
+        // Ghost Worm circling, isopods over the bow and a Drowned sailor on the deck
+        StartTrawl(g, fp, 3, 1);
+        S.shot = true;
+        Gannet& G = S.W->G; Session& ss = S.W->sess; Eco& e = S.W->eco;
+        G.crew[0].p = {3.0f, 0.8f}; G.crew[1].p = {-4.0f, -1.0f}; G.crew[2].p = {-1.0f, 1.0f};
+        ss.SetGround("grotto");
+        ss.Buy("shrimp"); while (G.boat.bunker < 90 && ss.Buy("coal")) {}
+        ss.CastOff();
+        Vector2 at{430, e.n * e.cell * 0.5f};
+        for (int i = 0; i < e.n * e.n; i++) if (e.hab[i] == H_WRECK) { Vector2 w{(i % e.n + 0.5f) * e.cell, (i / e.n + 0.5f) * e.cell}; for (int k = 0; k < 8; k++) { Vector2 q = Vector2Add(w, {cosf(k * 0.785f) * 18, sinf(k * 0.785f) * 18}); if (e.DepthAt(q) > 10 && e.HabAt(q) == H_OPEN) { at = q; break; } } break; }
+        G.boat.pos = at; G.boat.heading = 0.3f; G.boat.telegraph = 0; G.boat.lantern = 2;
+        for (int i = 0; i < 60 * 4; i++) { G.Step(1 / 60.0f); ss.Step(1 / 60.0f); }
+        G.botsOn = false; for (auto& c : G.crew) c.bot = false;
+        G.anglerCool = G.drownedCool = 1e9f;
+        G.angler.on = true; G.angler.t = 3; G.angler.p = G.boat.ToWorld(fp ? Vector2{-2, 9} : Vector2{-2, 9});
+        G.worm.state = 1; G.worm.ang = 1.2f; G.worm.t = 4;
+        G.isopods.state = 2; G.isopods.n = 18; G.isopods.eatT = 99;
+        Gannet::DrownedSailor d; d.p = {-6.5f, -1.8f}; G.drowned.push_back(d);
+        G.crew[1].station = -1; G.crew[1].deck = 0; G.crew[1].p = {-5.0f, -1.2f};
+        if (fp) { G.crew[0].station = -1; G.crew[0].p = {-1.5f, 1.2f}; S.eye.yaw = PI - 0.4f; S.eye.pitch = -0.1f; }
+        return;
+    }
     if (which == 27 || which == 28 || which == 29) {
         // 27 out in the skiff, rowing away from the Gannet (lying stopped, her lantern full) with a fish aboard; 28 the
         // skiff going down on the davit, a hand at it

@@ -51,6 +51,12 @@ void DrawSea(const Gannet& g, const View& v) {
         if (lit < 0.02f) {
             // outside the light: black, with a rare glint of moon on a crest
             Vector2 w{g.boat.pos.x + f.x * d.x + s.x * d.y, g.boat.pos.y + f.y * d.x + s.y * d.y};
+            // (the Grotto: the mould on the walls glows in the dark, the cave's own light)
+            if (g.eco && g.eco->ground == "grotto" && g.eco->HabAt(w) == H_WALL) {
+                float n = H01((int)(w.x * 1.2f), (int)(w.y * 1.2f), 17);
+                if (n < 0.4f) { float pulse = 0.55f + 0.45f * sinf(g.time * 0.6f + n * 20); DrawRectangle(cx, cy, C, C, Dim(Color{70, 170, 150, 255}, (0.18f + 0.3f * n) * pulse)); }
+                continue;
+            }
             float hgt = g.sea.Height(w.x, w.y);
             if (v.moon > 0 && hgt > g.sea.swell * 0.62f && H01((int)(w.x * 2), (int)(w.y * 2), (int)(g.time * 3)) < 0.05f * v.moon) DrawRectangle(cx, cy, 1, 1, Color{120, 140, 150, 255});
             continue;
@@ -65,7 +71,11 @@ void DrawSea(const Gannet& g, const View& v) {
             // the Lagoon's floor shows through the shallows under the lamp: coral, seagrass, sand
             float dep = g.eco->DepthAt(w);
             int hb = g.eco->HabAt(w);
-            if (hb == H_LAND) { DrawRectangle(cx, cy, C, C, Dim(Color{150, 138, 100, 255}, 0.3f + 0.7f * lit)); continue; }
+            bool cave = g.eco->ground == "grotto" && w.x > g.eco->archX0 - 2;
+            if (hb == H_LAND) { DrawRectangle(cx, cy, C, C, Dim(cave ? Color{66, 62, 60, 255} : Color{150, 138, 100, 255}, 0.3f + 0.7f * lit)); continue; }
+            if (hb == H_WALL) c = Mix(c, H01((int)(w.x * 1.2f), (int)(w.y * 1.2f), 17) < 0.4f ? Color{70, 170, 150, 255} : Color{40, 60, 56, 255}, 0.45f);   // mould on the ledges
+            if (hb == H_WRECK) c = Mix(c, H01((int)(w.x * 1.5f), (int)(w.y * 0.5f), 23) < 0.5f ? Color{86, 64, 44, 255} : Color{50, 40, 32, 255}, 0.55f);   // a smugglers' hull under the water
+            if (cave && hb == H_OPEN) c = Mix(c, Color{4, 10, 14, 255}, 0.4f);   // (black water under the roof)
             if (hb == H_KELP) {
                 // the Weeds' canopy: golden-brown kelp mats lying on the surface, swaying with the swell, dark gaps between
                 float n = H01((int)(w.x * 1.6f), (int)(w.y * 1.6f), 9), sway = sinf(g.time * 0.8f + w.x * 0.3f + w.y * 0.2f);
@@ -398,6 +408,33 @@ void DrawGear(const Gannet& g, const View& v) {
         }
         if (fmodf(g.time, 1.6f) < 0.35f) DrawLineEx({q.x - 3, q.y}, {q.x + 2, q.y - 3}, 2, Color{150, 170, 160, 255});   // a pale arm over the floats
     }
+    // the Grotto: the Angler's second light, the Ghost Worm's pale coils, isopods over the bow, the Drowned on the deck
+    if (g.angler.on) {
+        Vector2 q = C(g.angler.p); float pulse = 0.7f + 0.3f * sinf(g.time * 3.1f);
+        DrawCircleV(q, 9 * pulse, Fade(Color{150, 230, 200, 255}, 0.12f)); DrawCircleV(q, 3, Fade(Color{200, 255, 230, 255}, 0.9f * pulse));
+        DrawCircleV({q.x - 4, q.y + 3}, 4, Fade(Color{20, 26, 24, 255}, 0.6f));   // the dark bulk under the lure
+    }
+    if (g.worm.state > 0) {
+        float rad = g.worm.state == 3 ? 4.5f : 20;
+        for (int k = 0; k < 26; k++) {
+            float a = g.worm.ang - k * (g.worm.state == 3 ? 0.26f : 0.07f);
+            Vector2 wp = g.worm.state == 3 ? Vector2Add(g.boat.pos, {cosf(a) * rad * 2.4f, sinf(a) * rad}) : Vector2Add(g.boat.pos, {cosf(a) * rad, sinf(a) * rad});
+            Vector2 q = C(wp);
+            DrawCircleV(q, std::max(1.0f, 4.0f - k * 0.12f), Fade(Color{196, 200, 190, 255}, (g.worm.state == 1 ? 0.3f : 0.6f) * (1 - k / 30.0f)));
+        }
+    }
+    if (g.isopods.state == 2) for (int k = 0; k < std::min(g.isopods.n, 30); k++) {
+        float ax = 8.5f - fmodf(k * 1.37f + g.time * 0.2f * (k % 3 + 1), 12.0f), ay = sinf(k * 2.1f + g.time * 0.5f) * 1.8f;
+        Vector2 q = v.ToCanvas({ax, ay}); DrawRectangle((int)q.x, (int)q.y, 2, 1, Color{200, 196, 176, 255});
+    } else if (g.isopods.state == 1) { Vector2 q = v.ToCanvas({10.4f, 0}); for (int k = 0; k < 5; k++) DrawPixel((int)q.x + 2 + k, (int)q.y + (k % 2), Color{200, 196, 176, 255}); }
+    for (const auto& d : g.drowned) {
+        Vector2 q = v.ToCanvas(d.p); float sway = sinf(g.time * 1.4f + d.p.x) * 1.0f;
+        Color body = d.hitT > 0 ? Color{220, 220, 200, 255} : Color{82, 96, 86, 255};
+        DrawRectangle((int)(q.x - 3 + sway), (int)q.y - 3, 7, 7, body);
+        DrawRectangle((int)(q.x - 2 + sway), (int)q.y - 5, 5, 3, Color{120, 130, 118, 255});
+        DrawPixel((int)(q.x + sway), (int)q.y - 4, Color{200, 230, 210, 255});   // its eyes catching the lamp
+        if (d.grab >= 0 && d.grab < (int)g.crew.size()) DrawLineV(q, v.ToCanvas(g.crew[d.grab].p), Color{120, 140, 120, 255});
+    }
     // the harpoon's tether while something big is fast on it
     if (g.harpoon.state == RodState::Fighting) DrawLineV(v.ToCanvas({10.2f, 0}), C({g.harpoon.fight.p.x, g.harpoon.fight.p.y}), Color{170, 170, 180, 255});
     // life rings and their ropes
@@ -647,8 +684,8 @@ void DrawLanding(const Gannet& g, const View& v) {
         float pr = v.ppm;
         if (c0.x < -L.r * pr * 2 || c0.y < -L.r * pr * 2 || c0.x > PIXEL_W + L.r * pr * 2 || c0.y > PIXEL_H + L.r * pr * 2) continue;
         float l0 = lit({0, 0});
-        bool seal = L.kind == LK_SEALROCK, pier = L.kind == LK_CANNERY;
-        Color ground = seal ? Color{128, 124, 116, 255} : pier ? Color{126, 98, 66, 255} : Color{214, 196, 150, 255};
+        bool seal = L.kind == LK_SEALROCK, pier = L.kind == LK_CANNERY, shelf = L.kind == LK_SHELF, boneB = L.kind == LK_BONEBEACH;
+        Color ground = seal ? Color{128, 124, 116, 255} : pier ? Color{126, 98, 66, 255} : shelf ? Color{84, 80, 76, 255} : boneB ? Color{58, 54, 52, 255} : Color{214, 196, 150, 255};
         if (pier) for (int k = 0; k < 20; k++) { float a = k * 0.314f; DrawCircleV(C({cosf(a) * (L.r + 0.3f), sinf(a) * (L.r + 0.3f)}), 2.0f, Dim(Color{58, 46, 34, 255}, l0)); }   // the pilings
         else {
             DrawCircleV(c0, (L.r + 6) * pr, Fade(Dim(seal ? Color{40, 70, 80, 255} : Color{40, 120, 120, 255}, l0), 0.35f));   // the shelf
@@ -677,18 +714,19 @@ void DrawLanding(const Gannet& g, const View& v) {
             }
             Vector2 bq = C(L.moray); float bk = lit(L.moray);
             DrawEllipse((int)bq.x, (int)bq.y, 6, 3, Dim(Color{70, 62, 56, 255}, bk)); DrawCircleV({bq.x + 5, bq.y - 2 + sinf(g.time * 2) * 0.5f}, 2.2f, Dim(Color{84, 74, 66, 255}, bk));
-        } else if (!pier) {
+        } else if (L.kind == LK_ATOLL) {
             // the little lagoon, and the moray's dark shape in it
             DrawCircleV(C(L.pond), L.pondR * pr, Dim(Color{30, 110, 120, 255}, lit(L.pond)));
             DrawCircleLinesV(C(L.pond), L.pondR * pr, Dim(Color{120, 170, 150, 255}, lit(L.pond)));
             for (int k = 0; k < 6; k++) { Vector2 a = Vector2Add(L.moray, {k * 0.18f - 0.45f, sinf(g.time * 3 + k) * 0.12f}); Vector2 q = C(a); DrawRectangle((int)q.x, (int)q.y, 2, 1, Fade(Color{20, 30, 24, 255}, 0.7f)); }
         }
-        if (seal || pier) {
-            // the sealers' hut (stone, a turf roof) or the cannery shed (corrugated iron): walls with a door to the middle
+        if (seal || pier || shelf || boneB) {
+            // the sealers' hut (stone, a turf roof), the cannery shed (corrugated iron), the smugglers' lean-to of crates or
+            // a lost crew's upturned boat: walls with a door to the middle
             float c = cosf(L.sloopHead), s = sinf(L.sloopHead);
             auto P = [&](float x, float y) { return C(Vector2Add(L.sloop, {x * c - y * s, x * s + y * c})); };
             float k = lit(L.sloop);
-            Color roof = Dim(seal ? Color{86, 96, 62, 255} : Color{120, 110, 100, 255}, k), wall = Dim(seal ? Color{96, 92, 86, 255} : Color{90, 70, 58, 255}, k);
+            Color roof = Dim(seal ? Color{86, 96, 62, 255} : shelf ? Color{112, 84, 54, 255} : boneB ? Color{70, 56, 44, 255} : Color{120, 110, 100, 255}, k), wall = Dim(seal ? Color{96, 92, 86, 255} : Color{90, 70, 58, 255}, k);
             Vector2 a = P(-2.6f, -1.6f), b = P(2.6f, -1.6f), cc = P(2.6f, 1.6f), d = P(-2.6f, 1.6f);
             DrawTriangle(a, b, cc, roof); DrawTriangle(a, cc, b, roof); DrawTriangle(a, cc, d, roof); DrawTriangle(a, d, cc, roof);
             DrawLineV(a, b, wall); DrawLineV(b, cc, wall); DrawLineV(cc, d, wall); DrawLineV(d, a, wall);
@@ -706,10 +744,12 @@ void DrawLanding(const Gannet& g, const View& v) {
             DrawLineV(P(0.3f, -0.9f), P(0.6f, 2.2f), Dim(Color{120, 100, 70, 255}, lit(L.sloop)));   // her mast, fallen across the sand
         }
         // the elder's hut (thatch) and the elder before it, feathers in his hair
-        if (seal || pier) {
-            // Old Hoskins in his oilskins and sou'wester; the foreman in a leather apron and a cap
+        if (seal || pier || shelf || boneB) {
+            // Old Hoskins in his oilskins and sou'wester; the foreman in a leather apron and a cap; the quartermaster in a
+            // long coat and a red scarf; the hermit in rags and a bone necklace
             Vector2 e = C(L.elder); float k = lit(L.elder);
-            Color coat = seal ? Color{170, 150, 60, 255} : Color{90, 64, 44, 255}, hat = seal ? Color{190, 170, 70, 255} : Color{50, 50, 56, 255};
+            Color coat = seal ? Color{170, 150, 60, 255} : shelf ? Color{40, 40, 50, 255} : boneB ? Color{110, 100, 84, 255} : Color{90, 64, 44, 255};
+            Color hat = seal ? Color{190, 170, 70, 255} : shelf ? Color{170, 40, 36, 255} : boneB ? Color{220, 214, 196, 255} : Color{50, 50, 56, 255};
             DrawRectangle((int)e.x - 3, (int)e.y - 3, 7, 7, Dim(coat, k));
             DrawRectangle((int)e.x - 2, (int)e.y - 2, 5, 5, Dim(Color{200, 160, 130, 255}, k));
             DrawRectangle((int)e.x - 3, (int)e.y - 4, 7, 2, Dim(hat, k));
@@ -747,7 +787,10 @@ void DrawLanding(const Gannet& g, const View& v) {
             DrawCircleV(fc, 8, Dim(Color{70, 62, 58, 255}, lit(L.fire))); DrawCircleLinesV(fc, 8, Dim(Color{40, 36, 34, 255}, lit(L.fire)));
             DrawCircleV({fc.x + 3, fc.y - 3}, 2.5f, Color{30, 28, 28, 255});
             if (L.fireLit) DrawRectangle((int)fc.x - 3, (int)fc.y + 5, 6, 3, Color{255, 150, 60, 255});
-        } else if (seal) {   // the hut's iron stove by its door
+        } else if (boneB) {   // the volcanic vents: cracks in the black sand, steam always rising
+            DrawCircleV(fc, 5, Dim(Color{90, 50, 30, 255}, lit(L.fire))); DrawCircleV(fc, 2, Color{230, 120, 50, 255});
+            for (int k = 0; k < 5; k++) { float t = fmodf(g.time * 0.4f + k * 0.2f, 1.0f); DrawCircleV({fc.x + sinf(t * 7 + k) * 3, fc.y - t * 20}, 2 + t * 4, Fade(Color{220, 220, 220, 255}, 0.3f * (1 - t))); }
+        } else if (seal || shelf) {   // the hut's (the smugglers') iron stove by its door
             DrawRectangle((int)fc.x - 4, (int)fc.y - 3, 8, 6, Dim(Color{50, 48, 46, 255}, lit(L.fire)));
             if (L.fireLit) DrawRectangle((int)fc.x - 2, (int)fc.y + 1, 4, 2, Color{255, 150, 60, 255});
         } else

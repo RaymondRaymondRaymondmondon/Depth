@@ -169,7 +169,7 @@ static float HalfBeam3(float x) { return x > 5 ? std::max(0.5f, 3.0f - (x - 5) *
 static float KeelY(float x) { return x > 5 ? -1.9f + (x - 5) / 6.0f * 2.3f : -1.9f; }
 static Color Mul(Color c, float k) { return {(unsigned char)std::clamp(c.r * k, 0.0f, 255.0f), (unsigned char)std::clamp(c.g * k, 0.0f, 255.0f), (unsigned char)std::clamp(c.b * k, 0.0f, 255.0f), c.a}; }
 
-static Model gBoat{}, gQuay{}, gFish{}, gJelly{}, gGull{}, gSea{}, gLand{};
+static Model gBoat{}, gQuay{}, gFish{}, gJelly{}, gGull{}, gSea{}, gLand{}, gMould{}; static bool gMouldOn = false;   // (gMould: the Grotto's glowing mould)
 static bool gReady = false, gSeaReady = false;
 static const void* gLandFor = nullptr;
 static const int SN = 64;          // the sea's grid: SN x SN cells of SC metres around the eye
@@ -454,19 +454,36 @@ static void UpdateSea(const Sea& sea, Vector3 eye, const Eco* eco = nullptr) {
 static void EnsureLand(const Eco* e) {
     if (!e || !e->g || gLandFor == (const void*)e->g) return;
     if (gLandFor) UnloadModel(gLand);
-    MeshBuilder mb;
+    MeshBuilder mb, mould;
     Color sand{150, 132, 96, 255}, sandDk{110, 96, 70, 255}, palm{50, 80, 44, 255};
+    bool grotto = e->ground == "grotto";
     for (int y = 0; y < e->n; y++) for (int x = 0; x < e->n; x++) {
         float d = e->depth[(size_t)y * e->n + x];
+        Vector2 wc{(x + 0.5f) * e->cell, (y + 0.5f) * e->cell};
+        bool caveSide = grotto && wc.x > e->archX0 - 2;
+        // (the Grotto) the roof over the black water, hung with stalactites, and the mould glowing on the ledges
+        if (caveSide && d > 0.01f && wc.x > e->archX1 && x % 2 == 0 && y % 2 == 0) {
+            float rh = 24 + 4 * sinf(x * 0.31f) * sinf(y * 0.27f);
+            mb.Box({wc.x + e->cell / 2, rh + 1.5f, wc.y + e->cell / 2}, {e->cell, 1.5f, e->cell}, Color{46, 44, 44, 255});
+            if (((x * 11 + y * 17) % 13) == 0) mb.Cone({wc.x, rh, wc.y}, {wc.x, rh - 4 - 6 * fabsf(sinf(x * 1.7f + y)), wc.y}, 0.9f, 6, Color{70, 66, 62, 255});
+        }
+        if (grotto && d > 0.01f && e->hab[(size_t)y * e->n + x] == H_WALL && ((x + y) % 2 == 0)) mould.Box({wc.x, 0.6f + 0.5f * sinf(x * 2.1f + y), wc.y}, {e->cell * 0.45f, 0.25f, e->cell * 0.45f}, Color{70, 170, 150, 255});
         if (d > 0.01f) continue;
         bool landing = false; for (Vector2 la : e->landingAt) if (Vector2Distance({(x + 0.5f) * e->cell, (y + 0.5f) * e->cell}, la) < 16) landing = true;
         if (landing) continue;   // (a landing has its own smooth island: BuildAtoll)
+        if (caveSide) {   // the cave's rock: walls up to the roof
+            float h = 18 + 8 * fabsf(sinf(x * 0.7f + y * 1.1f));
+            mb.Box({wc.x, h / 2 - 0.4f, wc.y}, {e->cell / 2, h / 2 + 0.4f, e->cell / 2}, ((x + y) % 3) ? Color{64, 60, 58, 255} : Color{52, 50, 48, 255});
+            continue;
+        }
         float h = 0.7f + 0.35f * sinf(x * 1.7f + y * 2.3f) * sinf(x * 0.9f);
         mb.Box({(x + 0.5f) * e->cell, h / 2 - 0.4f, (y + 0.5f) * e->cell}, {e->cell / 2, h / 2 + 0.4f, e->cell / 2}, ((x + y) % 3) ? sand : sandDk);
         if (((x * 7 + y * 13) % 23) == 0) mb.Tube({{(x + 0.5f) * e->cell, h, (y + 0.5f) * e->cell}, {(x + 0.7f) * e->cell, h + 4.5f, (y + 0.4f) * e->cell}}, 0.12f, 0.08f, 5, Color{90, 70, 50, 255}, Color{90, 70, 50, 255}, 0);
         if (((x * 7 + y * 13) % 23) == 0) mb.Octa({(x + 0.7f) * e->cell, h + 4.6f, (y + 0.4f) * e->cell}, 1.1f, palm);
     }
     gLand = LoadModelFromMesh(mb.Build());
+    if (gMouldOn) { UnloadModel(gMould); gMouldOn = false; }
+    if (grotto) { gMould = LoadModelFromMesh(mould.Build()); gMouldOn = true; }
     gLandFor = (const void*)e->g;
 }
 
@@ -898,7 +915,8 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
     // ---- the sky: stars and the moon on a clear night; rain falling round you in wet weather
     Weather wx = g.sea.weather;
     bool clouded = wx == Weather::Fog || wx == Weather::Rain || wx == Weather::Squall || wx == Weather::Storm;
-    if (gCrewReady && !below) {
+    bool underRoof = g.eco && g.eco->ground == "grotto" && g.boat.pos.x > g.eco->archX0;   // (the Grotto: no sky under the cave's roof, no rain)
+    if (gCrewReady && !below && !underRoof) {
         if (!clouded) {
             rt::DrawSky(gStars, MatrixTranslate(cam.position.x, 0, cam.position.z), WHITE);
             Vector3 md = Vector3Normalize({cosf(0.45f) * cosf(2.2f), sinf(0.45f), cosf(0.45f) * sinf(2.2f)});
@@ -913,6 +931,7 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
     }
     // ---- the land, the quay, the harbour's buoys
     if (gLandFor) rt::DrawStatic(gLand, MatrixIdentity(), WHITE);
+    if (gMouldOn) rt::DrawStaticGlow(gMould, MatrixIdentity(), WHITE, 0.55f + 0.15f * sinf(t * 0.6f));   // (the mould is the cave's own light)
     Matrix Q = MatrixMultiply(MatrixRotateY(-g.moorHeading), MatrixTranslate(g.moorPos.x, 0, g.moorPos.y));
     if (Vector2Distance(b.pos, g.moorPos) < 120) {
         rt::DrawStatic(gQuay, Q, WHITE);
@@ -1043,6 +1062,32 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
         }
         if (fmodf(t, 1.6f) < 0.4f) Seg(W3({m.x - 0.5f, m.y}, h), W3({m.x + 0.2f, m.y + 0.3f}, h + 0.9f), 0.12f, Color{150, 172, 160, 255});   // a pale arm over the floats
     }
+    // the Grotto: the Angler's lure light low on the water, the Ghost Worm's pale back breaking the surface as it
+    // circles (or wrapped round her), isopods swarming the bow, the Drowned on deck
+    if (g.angler.on) {
+        float h = g.sea.Height(g.angler.p.x, g.angler.p.y);
+        Glow(W3(g.angler.p, h + 0.25f + 0.08f * sinf(t * 3)), 0.12f, Color{200, 255, 230, 255}, 2.5f);
+        Seg(W3(g.angler.p, h + 0.25f), W3({g.angler.p.x - 0.8f, g.angler.p.y}, h - 0.4f), 0.03f, Color{60, 70, 66, 255});
+    }
+    if (g.worm.state > 0) {
+        for (int k = 0; k < 22; k++) {
+            float a = g.worm.ang - k * (g.worm.state == 3 ? 0.3f : 0.08f);
+            Vector2 wp = g.worm.state == 3 ? g.boat.ToWorld({cosf(a) * 11.5f, sinf(a) * 3.6f}) : Vector2Add(g.boat.pos, {cosf(a) * 20, sinf(a) * 20});
+            float h = g.sea.Height(wp.x, wp.y) + (g.worm.state == 1 ? -0.3f : 0.1f) + 0.25f * sinf(t * 2 + k * 0.6f);
+            Glow(W3(wp, h), std::max(0.25f, 0.7f - k * 0.02f), Color{196, 200, 190, 255}, 0.15f);
+        }
+    }
+    if (g.isopods.state == 2) for (int k = 0; k < std::min(g.isopods.n, 30); k++) {
+        float ax = 8.5f - fmodf(k * 1.37f + t * 0.2f * (k % 3 + 1), 12.0f), ay = sinf(k * 2.1f + t * 0.5f) * 1.8f;
+        Part(BoatMatrix(b), {ax, DECK_Y + 0.05f, ay}, {0.14f, 0.05f, 0.08f}, Color{200, 196, 176, 255});
+    }
+    for (const auto& d : g.drowned) {
+        Matrix fr = MatrixMultiply(Frame({d.p.x, DECK_Y, d.p.y}, sinf(t * 0.7f + d.p.x)), BoatMatrix(b));
+        Color body = d.hitT > 0 ? Color{220, 220, 200, 255} : Color{82, 96, 86, 255};
+        rt::DrawStatic(gBody[0], fr, body);
+        for (int s = -1; s <= 1; s += 2) rt::DrawStatic(gArm[0], MatrixMultiply(MatrixMultiply(MatrixRotateZ(d.grab >= 0 ? 1.4f : 0.9f + 0.2f * sinf(t * 1.3f + s)), MatrixTranslate(0, 1.38f, s * 0.27f)), fr), body);
+        Glow(Vector3Transform({0.18f, 1.72f, 0}, fr), 0.04f, Color{200, 240, 220, 255}, 0.8f);   // its eyes
+    }
     for (const auto& f : g.floaters) {
         float len = std::clamp(0.35f + sqrtf(f.kg) * 0.25f, 0.4f, 3.0f);
         DrawFishAt(gFish, W3(f.p, g.sea.Height(f.p.x, f.p.y) + 0.05f), {1, 0, 0.3f}, len, Color{200, 205, 210, 255}, 1.5f);
@@ -1160,6 +1205,7 @@ void UnloadTrawl3D() {
     if (gReady) { UnloadModel(gSkiff); UnloadModel(gBoat); UnloadModel(gQuay); UnloadModel(gFish); UnloadModel(gJelly); UnloadModel(gGull); gReady = false; }
     if (gSeaReady) { UnloadModel(gSea); gSeaReady = false; }
     if (gLandFor) { UnloadModel(gLand); gLandFor = nullptr; }
+    if (gMouldOn) { UnloadModel(gMould); gMouldOn = false; }
     if (gCrewReady) {
         for (int r = 0; r < (int)Role::COUNT; r++) { UnloadModel(gBody[r]); UnloadModel(gArm[r]); }
         UnloadModel(gLeg); UnloadModel(gStars); UnloadModel(gMoon); UnloadModel(gRain);

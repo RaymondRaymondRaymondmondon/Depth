@@ -60,8 +60,26 @@ struct Skipper {
     }
     float R() { rng = rng * 1664525u + 1013904223u; return (rng >> 8) * (1.0f / 16777216.0f); }
     bool NearLanding(Vector2 p, float extra) const { for (Vector2 la : E.landingAt) if (Vector2Distance(p, la) < 13 + extra) return true; return false; }
+    // (the Grotto) the arch's two ends: into and out of the cave every course goes through them
+    bool Cave() const { return E.ground == "grotto"; }
+    Vector2 ArchOut() const { return {E.archX0 - 18, E.archY}; }
+    Vector2 ArchIn() const { return {E.archX1 + 26, E.archY}; }
+    Vector2 Via(Vector2 from, Vector2 to) const {
+        if (!Cave()) return to;
+        bool fromIn = from.x > E.archX0, toIn = to.x > E.archX1;
+        if (!fromIn && toIn) return (fabsf(from.y - E.archY) > 4 || from.x < E.archX0 - 22) ? ArchOut() : ArchIn();
+        if (fromIn && !toIn) return (from.x > E.archX1 + 20 && fabsf(from.y - E.archY) > 4) ? ArchIn() : ArchOut();
+        return to;
+    }
     // a straight course that never crosses water she would ground on (the reef, the shoals, the island)
     bool RouteClear(Vector2 a, Vector2 b) const {
+        if (Cave() && (a.x > E.archX1) != (b.x > E.archX1)) {   // (in or out of the cave: through the arch)
+            bool aIn = a.x > E.archX1;
+            return RouteClear0(a, aIn ? ArchIn() : ArchOut()) && RouteClear0(aIn ? ArchOut() : ArchIn(), b);
+        }
+        return RouteClear0(a, b);
+    }
+    bool RouteClear0(Vector2 a, Vector2 b) const {
         float L = Vector2Distance(a, b);
         for (float s = 10; s < L; s += 6) { Vector2 p = Vector2Lerp(a, b, s / L); if (E.DepthAt(p) < 2.6f || E.MarkAt(p) >= 0 || E.HabAt(p) == H_KELP || NearLanding(p, 20)) return false; }   // (and never through skiff water: the weed fouls her screw)
         return true;
@@ -124,6 +142,8 @@ struct Skipper {
         spotI = 0;
     }
     void SteerTo(Vector2 target, float slowWithin) {
+        Vector2 via = Via(G.boat.pos, target);
+        if (via.x != target.x || via.y != target.y) { target = via; slowWithin = 0; }   // (a waypoint in the arch: through it at speed)
         Vector2 d = Vector2Subtract(target, G.boat.pos);
         float want = atan2f(d.y, d.x), err = want - G.boat.heading;
         while (err > PI) err -= 2 * PI;
@@ -166,6 +186,8 @@ struct Skipper {
         // the way home bends round the canopy and a fouled screw costs half a minute, so budget 2.6 m/s and 45 minutes)
         bool kelpy = E.ground == "weeds";
         float leaveAt = std::min(P.leaveAt, 540 - (kelpy ? 45 : 30) - Vector2Distance(G.boat.pos, S.harbour) / (kelpy ? 2.6f : 3.5f));
+        // (the Grotto: out through the arch before it closes, with twenty minutes in hand)
+        if (S.archCloseAt >= 0 && G.boat.pos.x > E.archX0) leaveAt = std::min(leaveAt, S.archCloseAt - 20 - Vector2Distance(G.boat.pos, {E.archX0, E.archY}) / 3.0f);
         if (S.phase == Phase::Night && S.clock > leaveAt - (G.net.state == NetState::Down ? HAUL_AHEAD : 0) && !homeward) { homeward = true; leftAt = S.clock; G.Say("The skipper turns for home"); }
         // Canoe night: the careful skipper pays, the greedy one trades fish it can spare, the reckless one refuses
         if (S.canoe == CanoeState::Alongside) S.Canoe(S.variant == Variant::MermenMarket ? CANOE_TRADE : P.charges ? CANOE_REFUSE : P.chum ? CANOE_TRADE : CANOE_TRIBUTE);   // (the mermen's abalone are worth more than the fish)
