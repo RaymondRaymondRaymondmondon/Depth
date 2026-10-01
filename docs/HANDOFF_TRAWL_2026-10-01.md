@@ -122,6 +122,7 @@ flopping doesn't wreck the bots' quota numbers: the gutting-table bot should clu
   - **The Gunsmith:** a new quay station (`DockKind::Gunsmith`) with a tabbed panel (weapons / upgrades / attachments / ammo). Only the `where == gunsmith` rows are sold there; `gunsmith3` opens from deadline 3. The trader-only weapons come with the landings (the Atoll's coral club, shark-tooth blade, longbow and fletching).
   - **Wiring:** commands `CMD_GUN_BUY` / `CMD_GUN_UPGRADE` / `CMD_GUN_ATTACH` / `CMD_AMMO`; the slot fields and the ammo stock go into the snapshot's `Visit`; checks in `--trawl-gear-test`; shots `trawl_gunsmith`.
 - **Step 3 is DONE** (see docs/TRAWL_PROGRESS.md "Step 3"). **Next: step 4, birds and junk** (doc v2 ~1302-1312: gulls/frigatebirds stealing unattended fish, the six catch crates, junk from the sea), then step 5, the skiff and the Atoll (both views).
+- **Step 4 first part DONE** (crates and the birds' rule; see TRAWL_PROGRESS "Step 4, first part" for what is left: pelican/frigatebird, a shot bird drops its fish, the 10 s table rule, bots crating, junk). Then step 5 (the skiff and the Atoll, both views).
 - **Step 4 spec** (doc v2, pages 26-28; read from the PNGs):
   - A dead fish is safe only in the **six lidded catch crates** on the aft deck, or in the hold.
   - Anything dead elsewhere is fair game for birds: on the deck; on the gutting table if it's left unattended 10 s; in the skiff; on a beach.

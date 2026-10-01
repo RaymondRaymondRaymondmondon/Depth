@@ -298,6 +298,7 @@ struct CatchRec {
     float actT = 0, airT = 0;                             // its next act; in the air on a flop (Airborne)
     float killScore = 1; std::string killHow; float killT = -1;   // the finishing blow's multiplier and why; seconds since (the popup)
     int grabbed = -1;                                     // (a Grabber) the hand it has hold of
+    bool crated = false;                                  // in one of the six lidded catch crates on the aft deck: safe from birds (still to be gutted)
 };
 // What a landed fish does on the deck (design doc v2, "Deck behaviours")
 enum DeckBehaviour { DB_FLOPPER, DB_THRASHER, DB_BITER, DB_SPEARER, DB_GRABBER, DB_PINCHER, DB_STINGER, DB_COUNT };
@@ -426,7 +427,8 @@ struct Gannet {
     void NetInput(int c, bool held, bool cut, float dt);
     void HarpoonInput(int c, Vector2 aimDeck, bool fire, bool held, bool release, float dt);
     bool GaffFloater(int c);                              // E at the rail beside a shot fish afloat
-    bool KillDeckFish(int c, float reach = 1.6f, float dmg = -1, bool head = false);         // the priest, a gaff or a knife (or fists) strike the nearest live fish on the deck; true if one was hit
+    bool KillDeckFish(int c, float reach = 1.6f, float dmg = -1, bool head = false);
+    bool CrateFish(int c);                                // E beside a dead fish on the deck: into a catch crate (birds can't have it)         // the priest, a gaff or a knife (or fists) strike the nearest live fish on the deck; true if one was hit
     bool HitDeckFish(int idx, float dmg, int by, int how, bool head, float range);   // a blow on a deck fish (KillHow); true if it died of it
     float deckBlood = 0;                                  // blood on the planking: drains through the scuppers into the sea at 20% a second
     // the magazine stock (design doc v2, "Carrying and ammunition"): rounds, shells, spears, flares, pellets, rivets kept

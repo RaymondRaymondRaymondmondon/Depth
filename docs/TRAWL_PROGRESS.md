@@ -531,3 +531,15 @@ bubble puff); Red Tide's gun models rebuilt with a dozen parts each.
   - The lodestone and bone-stock effects.
   - Misfires after a swim.
   - Two-slot weapons blocking a second slot.
+
+## Step 4, first part: the catch crates and the birds' rule (2026-10-01)
+- **The six lidded catch crates** on the aft deck: E beside a dead fish swings it into a crate (`Gannet::CrateFish`, `CatchRec::crated`). It's safe from birds, still waits to be gutted, and is hidden in both views.
+- **The birds' rule** (doc v2, "Birds and the catch crates"): a gull flock over the deck takes only a dead fish left out (not crated, not gutted, not alive), the heaviest it can lift (3 kg), every 4 s (`EcoTick`).
+- **Tests:** `--trawl-gear-test` checks that crating works and that the gulls take the dead fish but not a crated or a live one. The older gull test is updated to the rule.
+- **Sim:** `--trawl-sim lagoon 3 6 careful 2`: 2 of 2 deadlines, 302 a night.
+- **Left of step 4:**
+  - The brown pelican (5 kg, 12 sh) and the frigatebird (2 kg, 15 sh, harries other birds) as Lagoon species.
+  - A shot bird drops its stolen fish where it falls and is itself a catch.
+  - The gutting table unattended for 10 s counts as "left out".
+  - Bots crating loose dead fish when idle.
+  - Junk (a message in a bottle, a brass key, torn chart pieces) from net hauls and the sea, kept for the landings.

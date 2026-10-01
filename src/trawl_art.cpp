@@ -334,7 +334,7 @@ void DrawGear(const Gannet& g, const View& v) {
     // dead one lies still with a smear of blood under it
     for (size_t i = 0; i < g.hold.size(); i++) {
         const CatchRec& h = g.hold[i];
-        if (h.gutted || g.moored) continue;
+        if (h.gutted || g.moored || h.crated) continue;   // (crated fish are under the crates' lids)
         float L = std::max(0.25f, v.LightAt(h.deckAt));
         float len = std::clamp(0.25f + sqrtf(std::max(0.01f, h.kg)) * 0.32f, 0.25f, 1.8f);
         float base = h.heading;

@@ -854,7 +854,11 @@ void EcoTick(Eco& e, Gannet& gn, float dt) {
             gn.gullT += dt;
             if (gn.gullT >= 4) {
                 gn.gullT = 0;
-                for (size_t i = 0; i < gn.hold.size(); i++) if (!gn.hold[i].gutted && gn.hold[i].kg < 3) { gn.Say("A gull takes the " + gn.hold[i].name); gn.hold.erase(gn.hold.begin() + i); break; }
+                // (design doc v2, "Birds and the catch crates": a dead fish is safe only crated, gutted into the hold, or
+                // still alive and fighting; a gull takes the heaviest dead one it can lift, 3 kg)
+                int best = -1;
+                for (size_t i = 0; i < gn.hold.size(); i++) { const CatchRec& h = gn.hold[i]; if (h.gutted || h.crated || !h.dead || h.kg > 3) continue; if (best < 0 || h.kg > gn.hold[best].kg) best = (int)i; }
+                if (best >= 0) { gn.Say("A gull takes the " + gn.hold[best].name + " (crate them!)"); gn.hold.erase(gn.hold.begin() + best); }
             }
         } else gn.gullT = 0;
     }

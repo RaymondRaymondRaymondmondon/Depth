@@ -712,7 +712,7 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
     // ---- fish on the deck: on their sides where they came aboard; the live ones arch and slap every so often
     for (size_t i = 0; i < g.hold.size(); i++) {
         const CatchRec& h = g.hold[i];
-        if (h.gutted) continue;
+        if (h.gutted || h.crated) continue;   // (crated fish are under the crates' lids)
         float len = std::clamp(0.3f + sqrtf(h.kg) * 0.22f, 0.3f, 2.6f);
         float arch = 0, hop = 0;
         if (!h.dead) { float ph = fmodf(g.time * 1.3f + i * 0.7f, 1.0f); if (ph < 0.18f) { float s = sinf(ph / 0.18f * 3.1416f); arch = s * 0.9f; hop = s * 0.12f; } }

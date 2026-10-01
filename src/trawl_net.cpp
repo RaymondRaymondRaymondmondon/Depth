@@ -56,6 +56,7 @@ void ApplyInput(TrawlWorld& w, int ci, const HandInput& in, float dt) {
         int d = g.moored && c.deck == 0 && c.station < 0 ? NearestDock(c.p, 1.4f) : -1;
         if (d >= 0) {}   // (the dock's panels are the player's own screen: their buttons come back as commands)
         else if (c.station < 0 && !c.dead && (g.GaffFloater(ci) || g.HaulSetGear(ci))) {}
+        else if (c.station < 0 && !c.dead && g.CrateFish(ci)) {}   // (a dead fish beside you into a catch crate)
         else if (c.station < 0 && !c.dead && !g.moored && g.StartPatch(ci)) {}
         else g.TakeStation(ci);
     }
@@ -285,7 +286,7 @@ template <class A> void Visit(A& a, TrawlWorld& w) {
         a.s(h.name); a.f(h.kg); a.f(h.price); a.i(h.sp); a.f(h.grade); a.f(h.fresh);
         a.b(h.gutted); a.b(h.iced); a.b(h.first); a.b(h.bycatch); a.b(h.protectedSp); a.f(h.aboardT); a.i(h.src);
         a.b(h.dead); a.f(h.flopT); a.v2(h.deckAt);
-        a.f(h.hp); a.f(h.hpMax); a.f(h.heading); a.i(h.deckKind); a.f(h.airT); a.f(h.killScore); a.s(h.killHow); a.f(h.killT); a.i(h.grabbed);
+        a.f(h.hp); a.f(h.hpMax); a.f(h.heading); a.i(h.deckKind); a.f(h.airT); a.f(h.killScore); a.s(h.killHow); a.f(h.killT); a.i(h.grabbed); a.b(h.crated);
     });
     a.f(g.deckBlood);
     a.i(g.ammoRounds); a.i(g.ammoShells); a.i(g.ammoSpears); a.i(g.ammoFlares); a.i(g.ammoPellets); a.i(g.ammoRivets);

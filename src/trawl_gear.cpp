@@ -346,6 +346,16 @@ bool Gannet::HitDeckFish(int idx, float dmg, int by, int how, bool head, float r
     (void)by;
     return true;
 }
+bool Gannet::CrateFish(int ci) {
+    const Crew& c = crew[ci];
+    int best = -1; float bd = 1.6f;
+    for (int i = 0; i < (int)hold.size(); i++) { const CatchRec& h = hold[i]; if (!h.dead || h.gutted || h.crated) continue; float d = Vector2Distance(h.deckAt, c.p); if (d < bd) { bd = d; best = i; } }
+    if (best < 0) return false;
+    hold[best].crated = true;
+    hold[best].deckAt = {-9.6f, hold[best].deckAt.y >= 0 ? 1.6f : -1.6f};   // (the crates on the aft deck)
+    Say(TextFormat("Into the catch crate: %s", hold[best].name.c_str()));
+    return true;
+}
 bool Gannet::KillDeckFish(int ci, float reach, float dmgIn, bool headIn) {
     const Crew& c = crew[ci];
     int best = -1; float bd = reach;
@@ -1022,10 +1032,10 @@ int RunTrawlGearTest() {
         Gannet g; Eco e; setup(g, e, 1, 4);
         int gs = sp("gull flock");
         int ai = e.SpawnAgentPublic(gs, g.boat.pos); e.agents[ai].count = 12; e.agents[ai].p.z = -3;
-        CatchRec small; small.name = "grunt"; small.kg = 1; small.price = 1.5f; CatchRec iced = small; iced.gutted = iced.iced = true;
+        CatchRec small; small.name = "grunt"; small.kg = 1; small.price = 1.5f; small.dead = true; CatchRec iced = small; iced.gutted = iced.iced = true;
         g.hold = {small, iced};
         run(g, 4.2f);
-        check(g.hold.size() == 1 && g.hold[0].gutted, "a gull flock over the deck takes an ungutted grunt; the gutted one is safe");
+        check(g.hold.size() == 1 && g.hold[0].gutted, "a gull flock over the deck takes a dead grunt left out; the gutted one is safe");
         int before = 12;
         g.crew[0].slots[3] = {Item::Shotgun, 8}; g.crew[0].sel = 3;
         for (int k = 0; k < 4; k++) {
@@ -1321,6 +1331,23 @@ int RunTrawlGearTest() {
             (void)misfires;   // (the log is capped: count what fired instead)
             float rate = (400 - fired) / 400.0f;
             check(rate > 0.18f && rate < 0.32f, TextFormat("in a squall a cartridge gun misfires about a quarter of the time (%.0f%%, %d of 400 fired)", rate * 100, fired));
+        }
+        {   // step 4: the catch crates and the birds (a gull flock over the deck)
+            Gannet b; Eco eb; setup(b, eb, 1, 33);
+            int gull = Species().Find("gull flock");
+            CatchRec dead; dead.name = "grunt"; dead.kg = 1.5f; dead.price = 1.5f; dead.dead = true; dead.deckAt = {-3, 0.5f};
+            CatchRec alive = dead; alive.dead = false; alive.name = "snapper"; alive.kg = 2.5f; alive.deckAt = {2, -0.5f};
+            CatchRec boxed = dead; boxed.name = "jack crevalle"; boxed.kg = 2.0f; boxed.deckAt = {-4, -0.5f};
+            b.hold = {dead, alive, boxed};
+            b.crew[0].p = {-4, -0.1f};
+            run(b, dt);
+            bool crated = b.CrateFish(0) && b.hold[2].crated;
+            int ai = eb.SpawnAgentPublic(gull, b.boat.pos); eb.agents[ai].count = 8; eb.agents[ai].p.z = -3;
+            for (int i = 0; i < 60 * 9; i++) { eb.agents[ai].p = {b.boat.pos.x, b.boat.pos.y, -3}; eb.agents[ai].alive = true; b.Step(dt); }
+            bool deadGone = true, aliveKept = false, boxKept = false;
+            for (const auto& h : b.hold) { if (h.name == "grunt") deadGone = false; if (h.name == "snapper") aliveKept = true; if (h.name == "jack crevalle") boxKept = true; }
+            check(crated, "E beside a dead fish swings it into a catch crate");
+            check(deadGone && boxKept && aliveKept, "the gulls take the dead fish left on the deck, but not one in a crate or one still alive");
         }
         {   // the deck behaviours: a landed barracuda bites, a reef octopus grabs and drags toward the rail
             Gannet k; Eco ek; setup(k, ek, 1, 31);
