@@ -79,6 +79,14 @@ bool Gannet::HatchCycle(int ci) {
     return false;
 }
 
+void Gannet::CutScrew(int ci, bool held, float dt) {
+    Crew& c = crew[ci];
+    if (!screwFouled || !c.overboard || c.dead || Vector2Distance(c.swim, boat.ToWorld({-11.4f, 0})) > 3.0f) return;
+    if (!held) { cutT = std::max(0.0f, cutT - dt); return; }
+    if (boat.shaft > 0.1f) { Kill(ci, "the screw", true); return; }   // (stop her first)
+    cutT += dt;
+    if (cutT >= 4) { screwFouled = false; cutT = 0; Say("The kelp is cut away: the screw is clear"); }
+}
 void Gannet::StepBelow(float dt) {
     float rollDeg = fabsf(boat.RollDeg());
     // work at hand: standing still at the hatch, the fire, the lamp

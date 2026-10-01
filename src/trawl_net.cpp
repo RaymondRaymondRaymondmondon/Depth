@@ -75,7 +75,7 @@ void ApplyInput(TrawlWorld& w, int ci, const HandInput& in, float dt) {
         // in the water you swim; dead, you walk the deck as a ghost (and can only ring the bell)
         g.Move(ci, in.wish, false, dt);
         if (c.dead) g.Primary(ci, lmb, dt);
-        else g.SkiffSwim(ci, lmb, dt);   // (beside a capsized skiff: right her)
+        else { g.SkiffSwim(ci, lmb, dt); g.CutScrew(ci, lmb, dt); }   // (beside a capsized skiff: right her)
         return;
     }
     if (c.deck == DECK_SHORE) {
@@ -350,7 +350,7 @@ template <class A> void Visit(A& a, TrawlWorld& w) {
     a.b(g.foughtCanoes);
     for (auto& h : g.hatches) { a.v2(h.at); a.i(h.state); }
     a.b(g.doorOpen); for (auto& l : g.lamps) { a.v2(l.at); a.b(l.lit); }
-    a.f(g.fireSpread); a.f(g.cotT); a.f(g.hookT);
+    a.f(g.fireSpread); a.f(g.cotT); a.f(g.hookT); a.b(g.screwFouled); a.f(g.cutT);
     a.f(g.deckBlood); a.i(g.junkBottles); a.i(g.junkKeys); a.i(g.junkCharts); a.i(g.landedSmall); a.i(g.landedBig);
     a.i(g.bossLures); a.b(g.bossArmed); a.f(g.bossBiteT); a.i(g.bossBiteIdx); a.i(g.bossCaught); a.b(g.tagGun); a.i(g.tagged); a.i(g.highKills); a.b(g.spiceRub); a.i(g.rareLures); a.b(g.rareLureNight); a.i(g.legendLures);
     a.vec(g.drops, [&](std::string& d) { a.s(d); });

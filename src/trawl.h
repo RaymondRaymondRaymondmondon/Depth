@@ -595,7 +595,9 @@ struct Gannet {
     bool BeachSkiff(int c);                               // E in the skiff close to a shore: run her up and step ashore
     void StealFrom(std::vector<CatchRec>& v, int idx, Vector2 world, int kind);   // a bird takes a fish from the skiff or a beach
     bool SwimInSkiffFrame(int c) const;                   // a swimmer nearer the skiff than the Gannet (the screens follow her then)
-    void SkiffSwim(int c, bool held, float dt);           // a swimmer beside a capsized skiff holding left mouse rights her
+    void SkiffSwim(int c, bool held, float dt);
+    bool screwFouled = false; float cutT = 0;          // the Weeds' kelp round the screw (half her way)
+    void CutScrew(int c, bool held, float dt);           // a swimmer at the stern holding left mouse cuts it free (4 s)           // a swimmer beside a capsized skiff holding left mouse rights her
     bool HitDeckFish(int idx, float dmg, int by, int how, bool head, float range);   // a blow on a deck fish (KillHow); true if it died of it
     float deckBlood = 0;                                  // blood on the planking: drains through the scuppers into the sea at 20% a second
     // the magazine stock (design doc v2, "Carrying and ammunition"): rounds, shells, spears, flares, pellets, rivets kept

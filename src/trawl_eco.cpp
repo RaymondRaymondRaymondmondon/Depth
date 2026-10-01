@@ -1068,6 +1068,10 @@ void EcoTick(Eco& e, Gannet& gn, float dt) {
         if (f.tension > 0.3f * rating) e.AddVibration(Vector3Lerp(f.tip, f.p, 0.5f), dt);   // a taut line hums
     }
     e.deckFish = gn.DeckFish();
+    // the Weeds: running the engine through the kelp canopy wraps the screw; she makes half her way until a hand in the
+    // water at the stern cuts it free (Gannet::CutScrew)
+    if (e.HabAt(b.pos) == H_KELP && b.shaft > 0.1f && !gn.screwFouled) { gn.screwFouled = true; gn.Say("Kelp round the screw! She's making half her way: someone has to go over the stern and cut it free"); }
+    if (gn.screwFouled && b.shaft > 0.05f) gn.boat.vel = Vector2Scale(gn.boat.vel, expf(-0.5f * dt));
     // the Sargassum Line: a turning screw in the weed bank fouls (she wallows to a crawl; the skiff slips through)
     {
         int mk = e.MarkAt(b.pos);
