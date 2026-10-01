@@ -562,3 +562,32 @@ bubble puff); Red Tide's gun models rebuilt with a dozen parts each.
   - The oil lantern, the rusty knife and the Gunsmith's cleaning (the pistol, the watch) only sell for now.
   - The weights (how often each piece comes up) are my call.
   - Checked in `--trawl-session-test`. Sim: 341 sh a night.
+
+## Step 5: the skiff and the Atoll (2026-10-01; design doc v2, "The skiff", "Skiff destinations", "Islands", "Cooking")
+- **The skiff** (`trawl_skiff.cpp`, `Skiff`, `DECK_SKIFF`):
+  - The davit station at the stern: hold left mouse 8 s to lower her, or 10 s to haul her up (alongside, the Gannet stopped). A pause keeps the progress; the button has to be let go between the two jobs.
+  - Space beside the davit drops into her; E climbs back up the stern ladder.
+  - The oars are the two mouse buttons (left port, right starboard, both together pull straight). On the beat she makes 1.5 m/s with one rower and 2.2 with two; a bot aboard pulls on the human's beat. A stroke within 0.32 s of the last catches a crab: she stops for a second. Every stroke writes noise into the water.
+  - She rolls with the sea's slope across her beam and capsizes past 25 deg: everyone goes in and her fish float off. A swimmer beside her rights her by holding left mouse for 4 s (my call), then E climbs in.
+  - One section of 40; at 0 she goes down. She carries 150 kg. Her bow lantern (6 m) shines into the web and both views.
+  - Left behind: anyone not aboard the Gannet at the harbour line is dead, body lost, fined 25. A skiff left out is towed in for 40 (my call).
+- **The Atoll** (`trawl_landing.cpp`, `Landing`, `DECK_SHORE`):
+  - An islet of 13 m sand in the Lagoon basin, out toward the crest (`Eco::landingAt`), hashed from the chart seed.
+  - E near it in the skiff runs her up on the sand and steps ashore; the first stroke shoves her off again. Ashore you walk with WASD (in the Gannet's frame, as on screen) and carry one thing at a time.
+  - **The fire pit** cooks to the doc's curve: 1.0x to 1.5x over 10 s + 1 s a kg, held 5 s, burnt to 0.3x over 5 more. Rain puts the open fire out; relighting takes 10 s standing by it. Cooked fish keep (no freshness loss), and their cook multiplier counts in the market and at the scales. R eats a cooked fish of 2 kg or more to mend a minor injury.
+  - **Caches:** the sloop's strongbox (locked: a brass key from junk), plus either a sea chest under the palms or a buried chest. A bottle's map or three chart pieces mark the buried one with an X; it takes 5 s of digging. Chests are 12-38 kg of salvage worth 50-200, carried to the skiff.
+  - **Residents:** crabs on the beach (E catches one, sometimes with a pinch); a moray in the little lagoon that bites a wading hand (then 15 s quiet).
+  - **The elder** takes fish at 150% of their value as trade credit, for his goods: the coral club, the shark-tooth blade, the tribal longbow and feather fletching. He's closed to a crew that refused the canoes (`foughtCanoes`). His panel opens with E (CMD_ELDER_GIVE / CMD_ELDER_BUY).
+  - **Birds and smoke:** cooking smoke and fish on the beach or in a laden skiff draw the birds (`Eco::birdDraw`), which steal from the beach, the fire and the skiff (`StealFrom`).
+  - **Life round the skiff:** the web keeps a second bubble of life round the skiff once she's 60 m+ from the Gannet (`Eco::skiffOn`), so the Atoll and the skiff's water aren't empty.
+- **Drawing:**
+  - Top-down: the skiff's hull, oars on the stroke and lantern. The Atoll: sand lit a square metre at a time by the fire, palms, the lagoon, the sloop, the hut and the elder, caches, crabs, fire and smoke. The view slides off the Gannet to follow you out.
+  - First person: a built clinker skiff (seated eye, rowing arms and oars). A smooth islet with palms, the hut, the sloop and the elder. Flames and smoke are drawn over the frame, because the ink pass boxes small cubes.
+- **Tests and shots:** `depth.exe --trawl-skiff-test`; shots `trawl_skiff`, `trawl_davit`, `trawl_atoll`, `trawl3d_skiff`, `trawl3d_davit`, `trawl3d_atoll`.
+- **The eco test's lantern ratio** now averages eight seeds and allows up to 5x: the Atoll's reef ring moved it (3.4x-4.6x).
+- **Next (5d):**
+  - the skiff-only marks (the Crest Pass and the Sargassum Line, twice the bite rate);
+  - fishing from the skiff;
+  - predators that prefer the smallest vessel with the most blood;
+  - the sonar showing the skiff as a bright blip;
+  - bots in the skiff.

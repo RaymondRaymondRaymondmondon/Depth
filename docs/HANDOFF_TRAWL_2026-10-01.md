@@ -224,3 +224,17 @@ wreck's listing, the Reef's wonder-weapon quest, the repair kit, the stage-10 ba
   (`DEPTH_TRACE=1` for a line a minute), `--shots shots trawl_` / `trawl3d_`, `--audio-test`.
 - Red Tide: `--eco-test <map>`, `--redtide-map-test <map>`, `--web-check all`, `--redtide-sim`, `--shots shots redtide_<map>`.
 - Known pre-existing failure: `--audio-test` reports "amb.organbreath is silent" on the main build too.
+
+## Progress, third session (1 October 2026)
+- Step 4 is DONE: `2a9dd03` (birds), `4d98fb2` (junk to the doc's table).
+- Step 5:
+  - 5a, the skiff core: `0c07bb9`.
+  - 5b, the skiff drawn in both views: `dc2f3a4`.
+  - 5c, the Atoll: `81a5953` headless, `53017a6` drawn. See docs/TRAWL_PROGRESS.md "Step 5".
+- **Next is 5d:**
+  - Skiff-only marks: the Crest Pass and the Sargassum Line give twice the bite rate.
+  - Fishing from the skiff: a handline in the skiff; under 30 kg lands in her, bigger fish are killed alongside or tow-roped.
+  - Predators prefer the smallest vessel with the most blood: rams on the skiff, which a shark capsizes.
+  - The sonar shows the skiff as a bright blip.
+  - Bots: F makes a bot follow you into the skiff and row on your beat.
+- Then steps 6-8.
