@@ -371,11 +371,15 @@ float Session::ElderGive(int ci, std::string* why) {
 static const char* TraderTag(int kind) { return kind == LK_SHELF ? "smugglers" : kind == LK_BONEBEACH ? "bonebeach" : kind == LK_CULT ? "cult" : kind == LK_ATOLL ? "atoll" : "-"; }
 void Session::PlaceWrecks() {
     wrecks = GroundWrecks(ground, seed * 7u + (uint32_t)deadline * 131u);
-    if (!E || !E->g) return;
+    for (size_t i = 0; i < wrecks.size(); i++) PlaceWreck((int)i, seed * 2654435761u + (uint32_t)deadline * 97u + 5 + (uint32_t)i * 7777u);
+}
+void Session::PlaceWreck(int idx, uint32_t hs) {
+    if (!E || !E->g || idx < 0 || idx >= (int)wrecks.size()) return;
     float size = E->n * E->cell;
-    uint32_t h = seed * 2654435761u + (uint32_t)deadline * 97u + 5;
+    uint32_t h = hs;
     auto R = [&]() { h = h * 1664525u + 1013904223u; return (h >> 8) * (1.0f / 16777216.0f); };
-    for (auto& w : wrecks) {
+    {
+        Wreck& w = wrecks[idx];
         // (a sea floor near the wreck's depth, clear of the land and the landings, 60 m from any other wreck)
         Vector2 best{size * 0.6f, size * 0.5f}; float bd = 1e9f;
         for (int k = 0; k < 400; k++) {
@@ -750,9 +754,23 @@ bool Session::CastOff(std::string* why) {
             case Variant::KelpStorm: E->foulMul = 2; E->speciesMul["yellowtail"] = 2.5f; E->AddDriftMats(14); break;
             case Variant::MermenMarket: canoeAt = 100 + R() * 260; canoe = CanoeState::Coming; break;
             case Variant::GlassEelRun: E->speciesMul["glass eel"] = 4; E->speciesMul["pale cod"] = 2; E->speciesMul["lantern angler"] = 1.5f; break;
-            case Variant::Rockfall: E->rockfallMul = 2; break;   // (the new chamber and its untouched wreck wait for the diving step)
+            case Variant::Rockfall: {   // a new chamber opens with an untouched smuggler hull in it
+                E->rockfallMul = 2;
+                Wreck nw = GenerateWreck(WreckType::Smuggler, seed * 31u + (uint32_t)deadline * 17u + (uint32_t)night, "grotto");
+                for (uint32_t k = 1; !CheckWreck(nw, nullptr) && k < 20; k++) nw = GenerateWreck(WreckType::Smuggler, seed * 31u + (uint32_t)deadline * 17u + (uint32_t)night + k * 104729u, "grotto");
+                wrecks.push_back(nw); PlaceWreck((int)wrecks.size() - 1, seed + (uint32_t)night * 911u);
+                Tape("ROCK DOWN IN THE GROTTO STOP A NEW CHAMBER STOP");
+                break;
+            }
             case Variant::MouldBloom: E->biteMul = 1.6f; E->speciesMul["lantern angler"] = 0; break;
-            case Variant::EyeOpen: E->wakeDrift = 1.5f; break;   // (the terraces' glowing relics wait for diving)
+            case Variant::EyeOpen: {   // the Wake builds all night; relics on the terraces glow and show on the sonar
+                E->wakeDrift = 1.5f;
+                for (auto& w : wrecks) if (w.type == WreckType::Terrace) {
+                    for (int k = 0; k < 2; k++) { SalvageItem it; it.name = "a glowing relic"; it.relic = true; it.value = 150 + R() * 450; it.kg = 5; it.room = (int)(R() * w.Rooms()) % std::max(1, w.Rooms()); w.salvage.push_back(it); }
+                    SonarMark sm; sm.p = {w.x, w.y}; sm.t = 600; sm.what = "glowing relics"; sm.by = 0; G->sonar.marks.push_back(sm);
+                }
+                break;
+            }
             case Variant::SwordfishNight: E->speciesMul["swordfish"] = 4; E->speciesMul["sperm whale"] = 3; E->speciesMul["giant squid"] = 3; break;
             case Variant::Procession: G->cultRaid = true; break;
             default: break;

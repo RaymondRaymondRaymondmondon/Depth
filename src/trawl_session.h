@@ -77,6 +77,7 @@ struct Session {
     CanoeState canoe = CanoeState::None; float canoeAt = -1, canoeT = 0;   // Canoe night: when it comes, how long it has waited alongside
     std::vector<Wreck> wrecks;                  // the ground's wrecks this deadline (made at its first cast off; looted stays looted)
     void PlaceWrecks();                         // GroundWrecks, each set down where the chart's depth suits it
+    void PlaceWreck(int idx, uint32_t hash);    // one of them (the Rockfall's new chamber adds one mid-deadline)
     float archCloseAt = -1;                     // (the Grotto) when the sea arch closes, in minutes since 20:00 (02:30-04:00); -1 not tonight
     std::string canoeWord;                      // what came of it (for the tape and the panel)
     bool Canoe(int choice);                     // the crew's answer while it's alongside (CanoeChoice); false if there's no canoe to answer

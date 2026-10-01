@@ -257,7 +257,7 @@ template <class A> void VisitCatch(A& a, CatchRec& h) {
     a.b(h.gutted); a.b(h.iced); a.b(h.first); a.b(h.bycatch); a.b(h.protectedSp); a.f(h.aboardT); a.i(h.src);
     a.b(h.dead); a.f(h.flopT); a.v2(h.deckAt);
     a.f(h.hp); a.f(h.hpMax); a.f(h.heading); a.i(h.deckKind); a.f(h.airT); a.f(h.killScore); a.s(h.killHow); a.f(h.killT); a.i(h.grabbed); a.b(h.crated); a.b(h.junk);
-    a.f(h.cookT); a.f(h.cook); a.b(h.cooked); a.b(h.glimmer); a.i(h.boss);
+    a.f(h.cookT); a.f(h.cook); a.b(h.cooked); a.b(h.glimmer); a.i(h.boss); a.b(h.cursed);
 }
 template <class A> void VisitSlot(A& a, Slot& s) { a.e(s.it); a.i(s.ammo); a.i(s.wpn); a.i(s.lvl); a.i(s.spare); for (int k = 0; k < 3; k++) { int v = s.att[k]; a.i(v); s.att[k] = (int8_t)v; } }
 template <class A> void VisitFight(A& a, Fight& f) {
@@ -373,6 +373,7 @@ template <class A> void Visit(A& a, TrawlWorld& w) {
     VisitRod(a, g.skiffRod);
     a.vec(g.towed, [&](CatchRec& h) { VisitCatch(a, h); });
     a.vec(g.hold, [&](CatchRec& h) { VisitCatch(a, h); });
+    a.vec(g.basketLine, [&](CatchRec& h) { VisitCatch(a, h); });
     a.vec(g.landings, [&](Landing& L) {
         a.s(L.name); a.v2(L.at); a.f(L.r); a.v2(L.pond); a.f(L.pondR); a.v2(L.fire); a.b(L.fireLit); a.v2(L.elder); a.v2(L.sloop); a.f(L.sloopHead);
         a.vec(L.palms, [&](Vector2& p) { a.v2(p); });

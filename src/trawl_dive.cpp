@@ -103,20 +103,30 @@ bool Gannet::DiveBasket() {
     if (std::find(w.entries.begin(), w.entries.end(), dive.room) == w.entries.end()) { Say("Carry it to a breach: the basket comes down there"); return false; }
     const SalvageItem& s = w.salvage[dive.item];
     CatchRec r; r.name = s.name; r.junk = true; r.kg = s.kg; r.price = s.value; r.dead = r.gutted = r.iced = true; r.src = CS_DIVE; r.deckAt = {-9.5f, 0.5f};
-    hold.push_back(r);
-    if (s.cursed && eco) { eco->wake = std::min(100.0f, eco->wake + 10); eyeBlinkT = 0.6f; Say("The idol comes over the rail and the water goes very still: the Wake rises"); }
+    r.cookT = std::max(1.0f, dive.depth / 1.5f);   // (the basket's own line: 1.5 m a second to the gantry)
+    r.cursed = s.cursed;                           // (it raises the Wake when it comes aboard)
+    basketLine.push_back(r);
     dive.carrying = false; dive.item = -1;
-    Say(TextFormat("Up in the basket: %s", r.name.c_str()));
+    Say(TextFormat("Into the basket, and up its line: %s", r.name.c_str()));
     return true;
 }
 
 void Gannet::DiveRecall() { if (dive.diver >= 0 && !dive.recall) { dive.recall = true; Say("Two sharp tugs on the line: haul away"); } }
 
 void Gannet::StepDive(float dt) {
+    // the basket's line: salvage comes up at 1.5 m a second and over the rail into the hold
+    for (size_t i = 0; i < basketLine.size();) {
+        basketLine[i].cookT -= dt;
+        if (basketLine[i].cookT > 0) { i++; continue; }
+        CatchRec r = basketLine[i]; basketLine.erase(basketLine.begin() + i);
+        r.cookT = -1; hold.push_back(r);
+        Say(TextFormat("The basket comes up: %s", r.name.c_str()));
+        if (r.cursed && eco) { eco->wake = std::min(100.0f, eco->wake + 10); eyeBlinkT = 0.6f; Say("The idol comes over the rail and the water goes very still: the Wake rises"); }
+    }
     if (dive.diver < 0) return;
     Crew& c = crew[dive.diver];
-    if (c.dead) { if (dive.diver2 >= 0) crew[dive.diver2].deck = 0; dive = DiveState{}; return; }
-    if (dive.diver2 >= 0 && crew[dive.diver2].dead) dive.diver2 = -1;
+    if (c.dead) { c.deck = 0; c.bodyLost = true; if (dive.diver2 >= 0) crew[dive.diver2].deck = 0; dive = DiveState{}; return; }   // (killed down there: the body stays with the wreck; a bell partner is brought up)
+    if (dive.diver2 >= 0 && crew[dive.diver2].dead) { crew[dive.diver2].deck = 0; crew[dive.diver2].bodyLost = true; dive.diver2 = -1; }
     if (!wrecks || dive.wreck < 0 || dive.wreck >= (int)wrecks->size()) { c.deck = 0; dive = DiveState{}; return; }
     const Wreck& w = (*wrecks)[dive.wreck];
     dive.pumpT += dt;
@@ -218,7 +228,9 @@ int RunTrawlDiveTest() {
         if (path.empty()) back.clear();
         for (int r : back) walked &= g.DiveMove(r);
         size_t h0 = g.hold.size(); bool up = g.DiveBasket();
-        check(walked && took && up && g.hold.size() == h0 + 1 && g.hold.back().src == CS_DIVE, "room to room to the salvage, lifted, carried back to the breach and up in the basket");
+        bool notYet = g.hold.size() == h0;
+        for (int i = 0; i < 60 * ((int)(sl->depth / 1.5f) + 2); i++) { pT += dt; if (pT > 0.6f) { pT = 0; g.DivePump(1, true); } g.StepDive(dt); }
+        check(walked && took && up && notYet && g.hold.size() == h0 + 1 && g.hold.back().src == CS_DIVE, "room to room to the salvage, lifted, carried back to the breach and up in the basket on its own line");
         g.DiveRecall(); for (int i = 0; i < 60 * ((int)sl->depth + 2); i++) { pT += dt; if (pT > 0.6f) { pT = 0; g.DivePump(1, true); } g.StepDive(dt); }
         check(g.dive.diver < 0 && g.crew[0].deck == 0 && !g.crew[0].Has(INJ_BURN), "two tugs: hauled up at 1 m/s, no bends");
     }
@@ -268,7 +280,7 @@ int RunTrawlDiveTest() {
         Wreck* gal = nullptr; for (auto& w : aw) if (w.bell && w.depth <= 120 && (!gal || w.depth < gal->depth)) gal = &w;
         check(gal != nullptr, "Atlantis has a bell wreck");
         if (gal) {
-            gal->x = 300; gal->y = 300;
+            gal->x = 300; gal->y = 300; gal->residents.clear();   // (the residents have their own checks)
             Gannet g; g.Init(3, 6); g.wrecks = &aw; g.hardhat = true; g.boat.pos = {305, 300}; g.boat.vel = {0, 0}; g.boat.telegraph = 0;
             g.crew[0].p = {-10.5f, 0.4f}; g.crew[1].p = {-10.5f, -0.4f}; g.crew[2].p = {2, 0};
             bool refused = !g.StartDive(0);
@@ -293,9 +305,10 @@ int RunTrawlDiveTest() {
             for (int i = 0; i < 60 * 5; i++) g.StepDive(dt);
             check(awayAir < 26 && g.dive.air > awayAir, TextFormat("away from the bell the air runs down (%.0f s); back at the bell it fills again", awayAir));
             size_t h0 = g.hold.size(); bool up = took && g.DiveBasket();
+            for (int i = 0; i < 60 * ((int)(gal->depth / 1.5f) + 2); i++) g.StepDive(dt);
             check(up && g.hold.size() == h0 + 1, "the pair lift a piece of salvage and send it up from the bell's breach");
             g.DiveRecall(); for (int i = 0; i < 60 * ((int)gal->depth + 2); i++) g.StepDive(dt);
-            check(g.dive.diver < 0 && g.crew[0].deck == 0 && g.crew[1].deck == 0, "the bell comes up with both of them");
+            check(g.dive.diver < 0 && g.crew[0].deck == 0 && g.crew[1].deck == 0, TextFormat("the bell comes up with both of them (diver %d, depth %.0f, decks %d %d, dead %d %d)", g.dive.diver, g.dive.depth, g.crew[0].deck, g.crew[1].deck, g.crew[0].dead, g.crew[1].dead));
         }
     }
     printf(fails ? "trawl-dive-test: %d FAILED\n" : "trawl-dive-test: all checks passed\n", fails);

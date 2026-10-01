@@ -265,6 +265,7 @@ struct CatchRec {
     float cookT = -1, cook = 1; bool cooked = false;
     bool glimmer = false;                                 // a rare shimmering variant: 3x its value
     int boss = -1;                                        // a mini-boss (MiniBosses index): price is its flat value spread over its weight
+    bool cursed = false;                                  // (salvage) an Atlantean idol: aboard, it raises the Wake by 10 and the Eye blinks
 };
 enum class Role { Bosun, Angler, Diver, Medic, COUNT };
 const char* RoleName(Role r);
@@ -653,8 +654,8 @@ struct Gannet {
         float pumpT = 0;                                  // since the last pump stroke
         float roomT = 0, holdT = 0, lampOutT = 0, siltT = 0, moveT = 9;   // in this room; held fast (a bite, a Drowned's grip); the lamp stolen; blinded by silt; since the last move
         bool hoseBitten = false;                          // a Ghost Worm hatchling bit through the hose: no fresh air until she's up
-        std::vector<CatchRec> basket;                     // salvage gone up in the basket (into the hold when she's aboard)
     };
+    std::vector<CatchRec> basketLine;                     // salvage on its way up in the basket (cookT: seconds left on its line)
     DiveState dive;
     bool hardhat = false;                                 // the hardhat suit (the Chandler, 350)
     bool divingBell = false;                              // the diving bell (the Slipway, 1,200): two divers to 120 m, its own air
