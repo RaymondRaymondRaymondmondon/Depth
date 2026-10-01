@@ -616,6 +616,7 @@ struct Gannet {
     float wraithCool = 120;
     struct MermenState { bool on = false; Vector2 p{}; float t = 0; };
     MermenState mermen; float mermenCool = 150;
+    bool marketNight = false;                             // the Mermen's market (a Weeds variant): they come to trade, and leave the nets alone
     bool Weeds() const;
     void StepWeeds(float dt);
     bool FreeTangled(int c);                              // E beside a tangled hand (or the hand itself, with a knife)

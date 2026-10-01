@@ -980,10 +980,14 @@ void Hud(Game& g) {
     if (S.W->sess.canoe == CanoeState::Alongside) {
         Rectangle r{SCREEN_W / 2.0f - 330, SCREEN_H / 2.0f - 120, 660, 200};
         DrawRectangleRec(r, Fade(Color{20, 24, 30, 255}, 0.88f)); DrawRectangleLinesEx(r, 2, Color{180, 150, 90, 255});
-        DrawTextCenteredBold("A war canoe is alongside", SCREEN_W / 2.0f, r.y + 20, 20, Color{240, 200, 120, 255});
-        DrawTextCentered(TextFormat("They want fish or silver. %.0f s before they help themselves.", std::max(0.0f, 60 - S.W->sess.canoeT)), SCREEN_W / 2.0f, r.y + 50, 15, paper);
+        bool market = S.W->sess.variant == Variant::MermenMarket;
+        DrawTextCenteredBold(market ? "Feral Mermen hang on the rail" : "A war canoe is alongside", SCREEN_W / 2.0f, r.y + 20, 20, Color{240, 200, 120, 255});
+        DrawTextCentered(market ? TextFormat("Abalone and green old relics, for fish. %.0f s before they lose interest.", std::max(0.0f, 60 - S.W->sess.canoeT))
+                                : TextFormat("They want fish or silver. %.0f s before they help themselves.", std::max(0.0f, 60 - S.W->sess.canoeT)), SCREEN_W / 2.0f, r.y + 50, 15, paper);
         const char* L[3] = {"1: Trade a quarter of the hold (bait, ice, a patch kit)", "2: Pay tribute (a tenth of the money, 15 at least)", "3: Refuse them"};
-        for (int k = 0; k < 3; k++) if (Button({r.x + 30, r.y + 80 + k * 38.0f, 600, 32}, L[k], true, 15) || IsKeyPressed(KEY_ONE + k)) Command(CMD_CANOE, "", k);
+        const char* M[2] = {"1: Trade a fifth of the hold for abalone and a relic", "2: Wave them off"};
+        int nOpt = market ? 2 : 3;
+        for (int k = 0; k < nOpt; k++) if (Button({r.x + 30, r.y + 80 + k * 38.0f, 600, 32}, market ? M[k] : L[k], true, 15) || IsKeyPressed(KEY_ONE + k)) Command(CMD_CANOE, "", market && k == 1 ? CANOE_REFUSE : k);
     }
     // the skiff: her state while you're in her (or at the davit), and what the keys do
     if (S.panel < 0 && !c.dead) {
@@ -1307,6 +1311,7 @@ void TrawlAudioFrame(const TrawlWorld& W, int you, float dt) {
         a.siren = std::clamp(1.4f - d / 90, 0.35f, 1.0f); a.sirenPan = std::clamp(l.y / d, -0.9f, 0.9f);
     }
     a.mermen = G.mermen.on;
+    if (ss.variant == Variant::MermenMarket && a.canoe > 0) { a.siren = std::max(a.siren, a.canoe == 2 ? 0.7f : 0.4f); a.canoe = 0; }   // (the market comes singing, not drumming)
     for (const auto& c : G.crew) if (c.tangleT > 0) a.tangled = true;
     for (const auto& r : G.rods) if (r.state == RodState::Fighting && r.fight.spec.kg >= 20) { a.fishOn = true; a.tension = std::max(a.tension, std::clamp(r.fight.tension / std::max(1.0f, TackleOf(r.tackle).strength), 0.0f, 1.0f)); }
     if (G.harpoon.state == RodState::Fighting) { a.fishOn = true; a.tension = std::max(a.tension, 0.7f); }

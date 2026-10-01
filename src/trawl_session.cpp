@@ -25,7 +25,7 @@ const float NIGHT_END = 540;             // 05:00
 }
 
 const char* PhaseName(Phase p) { static const char* N[] = {"dock", "sailing out", "night", "the count", "repossessed"}; return N[(int)p]; }
-const char* VariantName(Variant v) { static const char* N[(int)Variant::COUNT] = {"an ordinary night", "Bait run", "Red tide", "King tide", "Turtle nesting", "Canoe night"}; return N[(int)v]; }
+const char* VariantName(Variant v) { static const char* N[(int)Variant::COUNT] = {"an ordinary night", "Bait run", "Red tide", "King tide", "Turtle nesting", "Canoe night", "Tuna run", "Kelp storm", "Mermen's market"}; return N[(int)v]; }
 const char* VariantNote(Variant v) {
     static const char* N[(int)Variant::COUNT] = {
         "",
@@ -34,6 +34,9 @@ const char* VariantNote(Variant v) {
         "The crest stays under all night: open-sea fish come into the lagoon",
         "Turtles everywhere (a turtle in the net is a fine), and the sharks that follow them",
         "Island war canoes are out: when one comes alongside, trade, pay tribute, or refuse them",
+        "Bluefin along the seaward edge from 22:00, and the Great White comes after them sooner",
+        "Drift mats everywhere: the screw fouls twice as often, and there are yellowtail under every mat",
+        "The Feral Mermen come to trade tonight, abalone and relics for fish, and leave the nets alone",
     };
     return N[(int)v];
 }
@@ -206,6 +209,31 @@ float Session::Value(const CatchRec& c, float* glut, float* bonus) const {
 bool Session::Canoe(int choice) {
     if (canoe != CanoeState::Alongside) return false;
     canoe = CanoeState::Gone;
+    if (variant == Variant::MermenMarket) {
+        // the Weeds' Mermen's market (doc v2 page 40: "Feral Mermen trade abalone and relics for fish instead of cutting
+        // nets"). Trade: a fifth of the hold's weight, heaviest first, for abalone (worth a third more than the fish) and a
+        // drowned relic (60-160, kept as salvage). Anything else: they slap the water and go.
+        if (choice == CANOE_TRADE && !G->hold.empty()) {
+            uint32_t hs = seed * 2654435761u + (uint32_t)(clock * 977) + 13;
+            auto R = [&]() { hs = hs * 1664525u + 1013904223u; return (hs >> 8) * (1.0f / 16777216.0f); };
+            float total = 0; for (const auto& h : G->hold) total += h.kg;
+            float give = total * 0.2f, given = 0, worth = 0;
+            std::sort(G->hold.begin(), G->hold.end(), [](const CatchRec& a, const CatchRec& b) { return a.kg > b.kg; });
+            while (!G->hold.empty() && given < give) { given += G->hold.front().kg; worth += Value(G->hold.front()); G->hold.erase(G->hold.begin()); }
+            int ab = Species().Find("abalone");
+            float abPrice = ab >= 0 ? Species().sp[ab].price : 12, kg = std::max(0.5f, worth * 1.33f / abPrice);
+            for (float left = kg; left > 0.05f;) {
+                CatchRec r; r.name = "abalone"; r.sp = ab; r.kg = std::min(left, 0.6f + R() * 1.4f); r.price = abPrice; r.dead = true; r.src = CS_DIVE; r.deckAt = {-2.0f + R() * 2, (R() - 0.5f) * 2};
+                left -= r.kg; G->hold.push_back(r);
+            }
+            CatchRec relic; relic.name = "a drowned relic"; relic.junk = true; relic.kg = 2; relic.price = 60 + R() * 100; relic.dead = relic.gutted = relic.iced = true; relic.deckAt = {-1, 0};
+            G->hold.push_back(relic);
+            canoeWord = TextFormat("Traded %.0f kg of fish for %.1f kg of abalone and a drowned relic", given, kg);
+            Tape("MERMEN TRADED STOP");
+        } else canoeWord = "The Mermen slap the water and are gone into the kelp";
+        G->Say(canoeWord);
+        return true;
+    }
     if (choice == CANOE_TRADE) {
         float total = 0; for (const auto& h : G->hold) total += h.kg;
         float give = total * 0.25f, given = 0;
@@ -608,10 +636,21 @@ bool Session::CastOff(std::string* why) {
     // tonight's variant (design doc, "Nightly variants": at most one, about 40% of nights none): the web feels it
     // through the Eco's multipliers; the rumour on the tape points at it 70% of the time
     E->forageMul = 1; E->threatHungerMul = 1; E->seaMul = 1; E->turtleMul = 1; E->sharkMul = 1; E->tideHeld = false; E->redTide = false;
+    E->speciesMul.clear(); E->foulMul = 1;
+    if (E->extraRafts > 0) { E->rafts.resize(E->rafts.size() > (size_t)E->extraRafts ? E->rafts.size() - E->extraRafts : 0); E->extraRafts = 0; }
     variant = Variant::None; canoe = CanoeState::None; canoeAt = -1; canoeT = 0; canoeWord.clear();
     {
+        // (doc v2 page 40: Bait run 8% anywhere; the Lagoon's red tide, king tide, turtles and canoes; the Weeds' red
+        // tide 6%, tuna run 8%, kelp storm 8%, mermen's market 6%)
         float v = plainNights ? 1.0f : R();
+        bool weeds = ground == "weeds";
         if (v < 0.08f) variant = Variant::BaitRun;
+        else if (weeds) {
+            if (v < 0.14f) variant = Variant::RedTide;
+            else if (v < 0.22f) variant = Variant::TunaRun;
+            else if (v < 0.30f) variant = Variant::KelpStorm;
+            else if (v < 0.36f) variant = Variant::MermenMarket;
+        }
         else if (ground != "lagoon") {}   // (the Lagoon's own variants - red tide, king tide, turtles, canoes - roll only there)
         else if (v < 0.14f) variant = Variant::RedTide;
         else if (v < 0.24f) variant = Variant::KingTide;
@@ -623,11 +662,19 @@ bool Session::CastOff(std::string* why) {
             case Variant::KingTide: E->tideHeld = true; E->seaMul = 2; break;
             case Variant::TurtleNesting: E->turtleMul = 4; E->sharkMul = 2; break;
             case Variant::CanoeNight: canoeAt = 120 + R() * 240; canoe = CanoeState::Coming; break;
+            // (the tuna come in at 22:00: Step sets their multiplier; the Great White's share rises with them, the
+            // stand-in for "follows at Wake 30 instead of 40")
+            case Variant::TunaRun: break;
+            case Variant::KelpStorm: E->foulMul = 2; E->speciesMul["yellowtail"] = 2.5f; E->AddDriftMats(14); break;
+            case Variant::MermenMarket: canoeAt = 100 + R() * 260; canoe = CanoeState::Coming; break;
             default: break;
         }
+        G->marketNight = variant == Variant::MermenMarket;
         if (variant != Variant::None) {
-            static const char* HINT[(int)Variant::COUNT] = {"", "BAIT THICK AT THE SURFACE", "DEAD FISH FLOATING OFF THE CREST", "KING TIDE TONIGHT", "TURTLES COMING UP THE BEACHES", "DRUMS HEARD ON THE ISLAND"};
-            int said = R() < 0.7f ? (int)variant : 1 + (int)(R() * 5) % 5;
+            static const char* HINT[(int)Variant::COUNT] = {"", "BAIT THICK AT THE SURFACE", "DEAD FISH FLOATING OFF THE CREST", "KING TIDE TONIGHT", "TURTLES COMING UP THE BEACHES", "DRUMS HEARD ON THE ISLAND",
+                                                            "TUNA BOATS RACING FOR THE EDGE", "WEED THICK ON THE GLASS FALLING", "SINGING HEARD FROM THE CANNERY"};
+            static const int WEEDS_SAY[5] = {1, 2, 6, 7, 8}, LAGOON_SAY[5] = {1, 2, 3, 4, 5};   // (a wrong rumour names another of the ground's own)
+            int said = R() < 0.7f ? (int)variant : (weeds ? WEEDS_SAY : LAGOON_SAY)[(int)(R() * 5) % 5];
             Tape(TextFormat("RUMOUR STOP %s STOP", HINT[said]));
         }
     }
@@ -698,8 +745,15 @@ void Session::Step(float dt) {
                 wxAt = -1;
             }
             // Canoe night: drums, then a war canoe alongside for a minute, waiting for an answer (no answer is a refusal)
-            if (canoe == CanoeState::Coming && clock >= canoeAt - 20 && !cues[3]) { cues[3] = true; Tape("DRUMS ON THE WATER STOP"); G->Say("Drums on the water, closing"); }
-            if (canoe == CanoeState::Coming && clock >= canoeAt) { canoe = CanoeState::Alongside; canoeT = 0; G->Say("A war canoe comes alongside: they want fish, or silver, or they'll take what they can"); }
+            // (the Mermen's market uses the same visit: singing instead of drums, and no raid if they're turned away)
+            bool market = variant == Variant::MermenMarket;
+            if (canoe == CanoeState::Coming && clock >= canoeAt - 20 && !cues[3]) { cues[3] = true; Tape(market ? "SINGING ON THE WATER STOP" : "DRUMS ON THE WATER STOP"); G->Say(market ? "Singing on the water, closing: pale heads in the kelp" : "Drums on the water, closing"); }
+            if (canoe == CanoeState::Coming && clock >= canoeAt) { canoe = CanoeState::Alongside; canoeT = 0; G->Say(market ? "Feral Mermen hang on the rail with abalone and green old relics: they want fish" : "A war canoe comes alongside: they want fish, or silver, or they'll take what they can"); }
+            // the tuna run: the bluefin come along the seaward edge from 22:00, the Great White after them
+            if (variant == Variant::TunaRun && clock >= 120 && E->speciesMul.find("bluefin tuna") == E->speciesMul.end()) {
+                E->speciesMul["bluefin tuna"] = 4; E->speciesMul["great white"] = 1.6f;
+                Tape("TUNA ON THE EDGE STOP"); G->Say("Bluefin breaking along the seaward edge");
+            }
             if (canoe == CanoeState::Alongside) { canoeT += dt; if (canoeT >= 60) Canoe(CANOE_REFUSE); }
             if (clock >= 240 && !cues[0]) { cues[0] = true; Tape("MIDNIGHT STOP HOLD INSPECTED AT HARBOUR LINE 0500 STOP"); }
             if (clock >= 480 && !cues[1]) { cues[1] = true; Tape("ONE HOUR STOP CUSTOMS CUTTER ON STATION STOP"); }

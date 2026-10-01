@@ -250,6 +250,12 @@ void Eco::BuildWeedsChart(uint32_t seed) {
     for (int i = 0; i < 7; i++) rafts.push_back({{size * 0.6f + Rand() * size * 0.35f, 40 + Rand() * (size - 80)}, 5 + Rand() * 6});   // drift kelp mats
 }
 
+void Eco::AddDriftMats(int k) {
+    float size = n * cell;
+    for (int i = 0; i < k; i++) rafts.push_back({{size * 0.45f + Rand() * size * 0.5f, 40 + Rand() * (size - 80)}, 5 + Rand() * 7});
+    extraRafts += k;
+}
+
 void Eco::BuildChart(uint32_t seed) {
     depth.assign((size_t)n * n, 0); hab.assign((size_t)n * n, H_OPEN); holes.assign((size_t)n * n, 0);
     if (ground == "weeds") { BuildWeedsChart(seed); return; }
@@ -640,6 +646,7 @@ void Eco::Materialize() {
         if (S[s].habitat[H_SEA] > 0.5f && S[s].habitat[H_OPEN] < 0.5f) want *= seaMul;
         if (S[s].protectedSp) want *= turtleMul;
         if (S[s].ramsHull) want *= sharkMul;
+        if (!speciesMul.empty()) { auto it = speciesMul.find(S[s].name); if (it != speciesMul.end()) want *= it->second; }
         want = std::min(want, 14.0f);
         if (have[s] < want - 0.5f && (int)agents.size() < agentBudget) {
             // appear out in the dark, where the density says, never in the lamp's pool; a threat never nearer than 60 m,
@@ -1091,7 +1098,9 @@ void EcoTick(Eco& e, Gannet& gn, float dt) {
     e.deckFish = gn.DeckFish();
     // the Weeds: running the engine through the kelp canopy wraps the screw; she makes half her way until a hand in the
     // water at the stern cuts it free (Gannet::CutScrew)
-    if (e.HabAt(b.pos) == H_KELP && b.shaft > 0.3f && !gn.screwFouled && e.Rand() < dt / 15) {   /* (about once in 15 s under way in the canopy) */ gn.screwFouled = true; gn.Say("Kelp round the screw! She's making half her way: someone has to go over the stern and cut it free"); }
+    bool inMat = false;
+    if (e.ground == "weeds") for (const auto& rf : e.rafts) if (Vector2Distance(rf.p, b.pos) < rf.r) inMat = true;   // (a drift mat fouls her too)
+    if ((e.HabAt(b.pos) == H_KELP || inMat) && b.shaft > 0.3f && !gn.screwFouled && e.Rand() < dt / 15 * e.foulMul) {   /* (about once in 15 s under way in the canopy) */ gn.screwFouled = true; gn.Say("Kelp round the screw! She's making half her way: someone has to go over the stern and cut it free"); }
     if (gn.screwFouled && b.shaft > 0.05f) gn.boat.vel = Vector2Scale(gn.boat.vel, expf(-0.5f * dt));
     // the Sargassum Line: a turning screw in the weed bank fouls (she wallows to a crawl; the skiff slips through)
     {
@@ -1106,9 +1115,15 @@ void EcoTick(Eco& e, Gannet& gn, float dt) {
     bool was = gn.boat.aground;
     gn.boat.aground = e.InMap(b.pos) && d < 1.8f;
     if (gn.boat.aground) {
-        Vector2 back = Vector2Scale(gn.boat.vel, -dt * 1.5f);
-        gn.boat.pos = Vector2Add(gn.boat.pos, back);
-        gn.boat.vel = Vector2Scale(gn.boat.vel, 0.2f);
+        // the ground stops her going further in; backing (or steering) toward deeper water frees her
+        float sp = Vector2Length(gn.boat.vel);
+        Vector2 dir = sp > 0.01f ? Vector2Scale(gn.boat.vel, 1 / sp) : Vector2{0, 0};
+        bool off = sp > 0.01f && e.DepthAt(Vector2Add(b.pos, Vector2Scale(dir, 1.5f))) > d + 0.05f;
+        if (!off) {
+            Vector2 back = Vector2Scale(gn.boat.vel, -dt * 1.5f);
+            gn.boat.pos = Vector2Add(gn.boat.pos, back);
+            gn.boat.vel = Vector2Scale(gn.boat.vel, 0.2f);
+        }
         if (!was) gn.Say(d <= 0 ? "She's run up on the island" : "She's aground on the crest");
     }
     e.Step(dt);

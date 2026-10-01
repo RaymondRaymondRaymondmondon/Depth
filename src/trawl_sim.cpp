@@ -53,16 +53,17 @@ struct Skipper {
     bool onSpot = false, homeward = false;
     float slowT = 0, chumT = 0, t = 0; size_t h0 = 0;
     bool chargeNow = false;
-    float groundT = 0, fouledT = 0, snagT = 0; int groundSide = 1;
+    float groundT = 0, fouledT = 0, snagT = 0; int groundSide = 1, groundN = 0;
     float leftAt = -1, lastLoad = 0;             // the minute the skipper turned for home; the net load last seen
     Skipper(Gannet& g, Session& s, Eco& e, const SkipperPattern& p, uint32_t seed) : G(g), S(s), E(e), P(p), rng(seed * 7919u + 13) {
         helm = StationIdx(StationKind::Helm); gut = StationIdx(StationKind::Gutting); portRod = StationIdx(StationKind::PortRod); winch = StationIdx(StationKind::NetWinch);
     }
     float R() { rng = rng * 1664525u + 1013904223u; return (rng >> 8) * (1.0f / 16777216.0f); }
+    bool NearLanding(Vector2 p, float extra) const { for (Vector2 la : E.landingAt) if (Vector2Distance(p, la) < 13 + extra) return true; return false; }
     // a straight course that never crosses water she would ground on (the reef, the shoals, the island)
     bool RouteClear(Vector2 a, Vector2 b) const {
         float L = Vector2Distance(a, b);
-        for (float s = 10; s < L; s += 6) { Vector2 p = Vector2Lerp(a, b, s / L); if (E.DepthAt(p) < 2.6f || E.MarkAt(p) >= 0 || E.HabAt(p) == H_KELP) return false; }   // (and never through skiff water: the weed fouls her screw)
+        for (float s = 10; s < L; s += 6) { Vector2 p = Vector2Lerp(a, b, s / L); if (E.DepthAt(p) < 2.6f || E.MarkAt(p) >= 0 || E.HabAt(p) == H_KELP || NearLanding(p, 20)) return false; }   // (and never through skiff water: the weed fouls her screw)
         return true;
     }
 
@@ -81,7 +82,7 @@ struct Skipper {
                 if (d < 6 || d > 35) continue;
                 bool clear = true;
                 for (int k = 0; k < 8 && clear; k++) { float a = k * PI / 4; if (E.DepthAt({p.x + cosf(a) * 14, p.y + sinf(a) * 14}) < 3.5f) clear = false; }
-                if (!clear || !RouteClear(S.harbour, p) || E.MarkAt(p) >= 0 || E.HabAt(p) == H_KELP) continue;
+                if (!clear || !RouteClear(S.harbour, p) || E.MarkAt(p) >= 0 || E.HabAt(p) == H_KELP || NearLanding(p, 30)) continue;
                 float score = 0;
                 for (int sp : E.g->species) {
                     const SpeciesRec& r = SP[sp];
@@ -142,7 +143,7 @@ struct Skipper {
     }
     void Begin() {
         ChooseSpots();
-        onSpot = false; homeward = false; slowT = 0; chumT = 0; t = 0; h0 = G.hold.size(); chargeNow = false; towing = false; netHand = -1; towLeg = 0; leftAt = -1;
+        onSpot = false; homeward = false; slowT = 0; chumT = 0; t = 0; groundN = 0; h0 = G.hold.size(); chargeNow = false; towing = false; netHand = -1; towLeg = 0; leftAt = -1;
         G.boat.lantern = std::min(P.lantern, G.searchlight ? 3 : 2);
         if (getenv("DEPTH_TRACE")) { printf("    marks:"); for (const auto& s : spots) printf("  (%.0f,%.0f d%.0f%s)", s.p.x, s.p.y, E.DepthAt(s.p), s.tow ? " tow" : ""); printf("  harbour (%.0f,%.0f)\n", S.harbour.x, S.harbour.y); }
     }
@@ -165,7 +166,7 @@ struct Skipper {
         float leaveAt = std::min(P.leaveAt, 540 - (kelpy ? 45 : 30) - Vector2Distance(G.boat.pos, S.harbour) / (kelpy ? 2.6f : 3.5f));
         if (S.phase == Phase::Night && S.clock > leaveAt - (G.net.state == NetState::Down ? HAUL_AHEAD : 0) && !homeward) { homeward = true; leftAt = S.clock; G.Say("The skipper turns for home"); }
         // Canoe night: the careful skipper pays, the greedy one trades fish it can spare, the reckless one refuses
-        if (S.canoe == CanoeState::Alongside) S.Canoe(P.charges ? CANOE_REFUSE : P.chum ? CANOE_TRADE : CANOE_TRIBUTE);
+        if (S.canoe == CanoeState::Alongside) S.Canoe(S.variant == Variant::MermenMarket ? CANOE_TRADE : P.charges ? CANOE_REFUSE : P.chum ? CANOE_TRADE : CANOE_TRIBUTE);   // (the mermen's abalone are worth more than the fish)
         if (G.boat.sunk) return;
         // mermen at the net (the Weeds): after 5 s of splashing a hand at the stern looses a spear at the cod end (a
         // flare if the spears are gone; the sim's shorthand for walking aft with the speargun)
@@ -178,7 +179,11 @@ struct Skipper {
         // kelp round the screw (the Weeds): stop her and send a hand over the stern to cut it free (half a minute)
         if (G.screwFouled) { fouledT += dt; G.boat.telegraph = 0; if (fouledT > 30 && G.boat.shaft < 0.05f) { G.screwFouled = false; fouledT = 0; } return; }
         // aground: back off for a few seconds with the helm over, then try again
-        if (G.boat.aground && groundT <= 0) { groundT = 8; groundSide = R() < 0.5f ? -1 : 1; }
+        if (G.boat.aground && groundT <= 0) {
+            groundT = 8; groundSide = R() < 0.5f ? -1 : 1;
+            // a third grounding on the way to the same mark: give it up for another
+            if (++groundN >= 3 && spots.size() > 1) { groundN = 0; for (int k = 1; k < (int)spots.size(); k++) { int j = (spotI + k) % (int)spots.size(); if (RouteClear(G.boat.pos, spots[j].p)) { spotI = j; break; } } onSpot = false; }
+        }
         if (groundT > 0) { groundT -= dt; AtHelm(); G.boat.telegraph = -1; G.boat.rudder = (float)groundSide; return; }
         // a depth charge over the side when a shark has come (the reckless pattern)
         if (P.charges && chargeNow) {

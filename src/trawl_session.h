@@ -37,7 +37,7 @@ const float QUOTA_MIN_FRESH = 0.70f, CREDIT_CARRY = 0.5f;
 
 // Nightly variants (design doc, "Nightly variants"): at most one a night, about 40% of nights none. The Lagoon's own
 // three and the two food-web ones that need no salvage; the carcass, the derelict and the storm wreck wait for diving.
-enum class Variant { None, BaitRun, RedTide, KingTide, TurtleNesting, CanoeNight, COUNT };
+enum class Variant { None, BaitRun, RedTide, KingTide, TurtleNesting, CanoeNight, TunaRun, KelpStorm, MermenMarket, COUNT };   // (the last three: the Weeds)
 const char* VariantName(Variant v);
 const char* VariantNote(Variant v);           // what the crew sees changed
 // Canoe night: a war canoe comes alongside once in the night and waits a minute for an answer

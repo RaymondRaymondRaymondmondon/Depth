@@ -157,7 +157,7 @@ void Gannet::StepWeeds(float dt) {
 
     // ---- the Feral Mermen at a net towed near the kelp
     bool netDown = net.state == NetState::Down;
-    if (!mermen.on && netDown && mermenCool <= 0 && NearKelp(e, CodEnd(*this), 18) && WRand() < dt * (0.2f + stir) / 40) {
+    if (!mermen.on && netDown && mermenCool <= 0 && !marketNight && NearKelp(e, CodEnd(*this), 18) && WRand() < dt * (0.2f + stir) / 40) {
         mermen.on = true; mermen.t = 0; mermen.p = CodEnd(*this);
         Say("Splashing at the cod end: something is at the net");
     }
@@ -294,6 +294,26 @@ int RunTrawlWeedsTest() {
             for (int i = 0; i < 60 * 9; i++) g.StepWeeds(dt);
             check(caught && c.overboard && Vector2Distance(c.swim, P.at) > P.r, "at the pier's edge a Kelp Wraith comes up out of the pilings and pulls the hand off into the water");
         }
+    }
+    // the Mermen's market: a fifth of the hold for abalone and a relic; turned away, they go quietly; the nets are safe
+    {
+        Gannet g; fresh(g, 2, kelp);
+        Session vs; vs.G = &g; vs.variant = Variant::MermenMarket;
+        for (int i = 0; i < 5; i++) { CatchRec f; f.name = "kelp bass"; f.sp = Species().Find("kelp bass"); f.kg = 2 + i; f.price = 3; f.dead = true; g.hold.push_back(f); }
+        float v0 = 0; for (const auto& h : g.hold) v0 += vs.Value(h);
+        vs.canoe = CanoeState::Alongside;
+        vs.Canoe(CANOE_TRADE);
+        int ab = 0, relic = 0, bass = 0; float v1 = 0;
+        for (const auto& h : g.hold) { if (h.name == "abalone") ab++; else if (h.junk) relic++; else bass++; if (!h.junk) v1 += vs.Value(h); }
+        check(ab > 0 && relic == 1 && bass < 5 && v1 > v0, TextFormat("the Mermen's market: %d bass go, %d abalone and a relic come aboard (fish worth %.0f -> %.0f)", 5 - bass, ab, v0, v1));
+        size_t n0 = g.hold.size(); vs.canoe = CanoeState::Alongside; vs.Canoe(CANOE_REFUSE);
+        bool anyOver = false; for (const auto& c : g.crew) if (c.overboard) anyOver = true;
+        check(g.hold.size() == n0 && !anyOver && !g.foughtCanoes, "waved off, they slap the water and go: nothing taken, nobody shoved");
+        g.marketNight = true; g.net.state = NetState::Down; g.net.catchKg = {{0, 50}};
+        for (int i = 0; i < 48; i++) g.net.node[i] = {kelp.x - 20, kelp.y, 3};
+        g.mermenCool = 0;
+        for (int i = 0; i < 60 * 300; i++) g.StepWeeds(dt);
+        check(!g.mermen.on && !g.net.catchKg.empty(), "on a market night they leave the nets alone");
     }
     e.stirOverride = -1;
     printf(fails ? "trawl-weeds-test: %d FAILED\n" : "trawl-weeds-test: all checks passed\n", fails);

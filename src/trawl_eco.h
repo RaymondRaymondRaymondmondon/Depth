@@ -145,6 +145,10 @@ struct Eco {
     float turtleMul = 1, sharkMul = 1;          // Turtle nesting: turtles x4, the sharks that follow them x2
     bool tideHeld = false;                      // King tide: the crest stays passable all night
     bool redTide = false;                       // dead forage floating: blood everywhere, fish sell at half
+    std::map<std::string, float> speciesMul;    // tonight's variant on named species (the Weeds' tuna run, the kelp storm's yellowtail)
+    float foulMul = 1;                          // how often the canopy and the drift mats foul her screw (the kelp storm: 2)
+    void AddDriftMats(int n);                   // (the kelp storm) more drift kelp mats over the forest and the edge
+    int extraRafts = 0;                         // how many of the rafts are the storm's (gone again the next night)
     float stirOverride = -1;                    // the shakedown's shark lesson: Stir() returns this when it is 0 or more
     uint32_t rng = 1;
     float popAcc = 0, fieldAcc = 0, spawnAcc = 0, agentAcc = 0, gullT = -1;
