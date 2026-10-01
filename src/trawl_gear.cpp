@@ -212,29 +212,175 @@ void Gannet::UseItem(int ci, Vector2 aimDeck, bool pressed, bool held, bool sigh
 // A landed fish lies where it came aboard, alive, and every so often flops toward the nearest rail; one that
 // reaches it goes back over the side. The priest, a gaff or a knife kills it where it lies (so does a shot, at a
 // little cost to the grade); the gutting table kills what it guts. Netted fish come up stunned, and flop less.
+const char* DeckBehaviourName(int b) { static const char* N[DB_COUNT] = {"flopper", "thrasher", "biter", "spearer", "grabber", "pincher", "stinger"}; return N[std::clamp(b, 0, DB_COUNT - 1)]; }
+int DeckBehaviourOf(const std::string& name, float kg) {
+    auto has = [&](const char* k) { return name.find(k) != std::string::npos; };
+    if (has("marlin") || has("swordfish") || has("sailfish")) return DB_SPEARER;
+    if (has("barracuda") || has("moray") || has("conger") || has("eel") || has("lingcod") || has("shark") || has("dogfish")) return DB_BITER;
+    if ((has("octopus") || has("squid")) && kg >= 1.5f) return DB_GRABBER;
+    if (has("crab") || has("lobster") || has("isopod")) return DB_PINCHER;
+    if (has("ray") || has("jelly") || has("urchin") || has("trigger") || has("lionfish") || has("scorpion")) return DB_STINGER;
+    if (kg >= 20 || has("tuna") || has("grouper") || has("halibut") || has("sturgeon") || has("sea bass")) return DB_THRASHER;
+    return DB_FLOPPER;
+}
+float DeckFishHP(float kg) { return 8 + 6 * powf(std::max(0.0f, kg), 0.75f); }
+static float FishLen(float kg) { return std::clamp(0.25f + sqrtf(std::max(0.01f, kg)) * 0.32f, 0.25f, 1.8f); }
+
+// A blow on a deck fish (design doc v2, "The kill"): hit points off, blood on the planking, and if it dies the finishing
+// blow's Killscore: melee 1.2, one-hit (from full HP) 1.5, a headshot 1.25, in the air 1.3, a long shot 1.3, heavy seas
+// (rolled past 15 deg) 1.15, out of all light 1.2; multiplied together up to 4x. An explosive hit of more than twice its
+// remaining HP blows it to chum: the Killscore is void and only 40% of the weight is recovered.
+bool Gannet::HitDeckFish(int idx, float dmg, int by, int how, bool head, float range) {
+    if (idx < 0 || idx >= (int)hold.size()) return false;
+    CatchRec& h = hold[idx];
+    if (h.dead || h.gutted) return false;
+    if (h.hp < 0) { h.hpMax = h.hp = DeckFishHP(h.kg); }
+    bool fullHP = h.hp >= h.hpMax - 0.01f;
+    float blood = (how == KH_PELLET || how == KH_EXPLOSIVE) ? 3.0f : 1.0f;
+    if (how == KH_EXPLOSIVE && dmg > 2 * h.hp) {
+        // overkill: chum on the deck and in the sea, 40% of the weight left to sell
+        float lost = h.kg * 0.6f;
+        h.kg *= 0.4f; h.dead = true; h.hp = 0; h.killScore = 1; h.killHow = "OVERKILL: blown to chum"; h.killT = 0;
+        deckBlood += 3 + lost;
+        if (eco) eco->AddBlood({boat.ToWorld(h.deckAt).x, boat.ToWorld(h.deckAt).y, 0.5f}, lost * 2);
+        Say(TextFormat("The %s is blown to chum", h.name.c_str()));
+        return true;
+    }
+    h.hp -= dmg;
+    if (h.hp > 0) { deckBlood += blood; h.actT = std::min(h.actT, 0.6f); return false; }   // (hurt, it fights harder for a moment)
+    // the finishing blow
+    float k = 1; std::string why;
+    auto bonus = [&](bool on, float m, const char* name) { if (on) { k *= m; why += (why.empty() ? "" : ", "); why += name; } };
+    bonus(how == KH_MELEE, 1.2f, "melee");
+    bonus(fullHP, 1.5f, "one-hit");
+    bonus(head, 1.25f, "headshot");
+    bonus(h.airT > 0, 1.3f, "airborne");
+    bonus(range > 25, 1.3f, "long shot");
+    bonus(fabsf(boat.RollDeg()) > 15, 1.15f, "heavy seas");
+    if (eco) { Vector2 w = boat.ToWorld(h.deckAt); bonus(eco->LightAt({w.x, w.y, 0}) < 0.04f, 1.2f, "in the dark"); }
+    h.killScore = std::min(KILLSCORE_MAX, k);
+    h.killHow = why.empty() ? "a plain kill" : why;
+    h.killT = 0; h.dead = true; h.hp = 0; h.grabbed = -1;
+    deckBlood += head ? blood * 0.5f : blood;
+    Say(TextFormat("Killscore x%.2f on the %s (%s)", h.killScore, h.name.c_str(), h.killHow.c_str()));
+    (void)by;
+    return true;
+}
 bool Gannet::KillDeckFish(int ci, float reach) {
     const Crew& c = crew[ci];
     int best = -1; float bd = reach;
     for (int i = 0; i < (int)hold.size(); i++) if (!hold[i].dead && !hold[i].gutted) { float d = Vector2Distance(hold[i].deckAt, c.p); if (d < bd) { bd = d; best = i; } }
     if (best < 0) return false;
-    hold[best].dead = true;
-    Say(TextFormat("Dispatched: %s", hold[best].name.c_str()));
+    // what's in hand: the priest is made for the head; a knife or a gaff anywhere; bare hands for a little
+    Item it = c.slots[c.sel].it;
+    if (c.bot && it != Item::Knife && it != Item::Gaff) it = Item::Priest;   // (a bot at the table uses the table's priest)
+    float dmg = it == Item::Priest ? 14.0f : it == Item::Knife ? 11.0f : it == Item::Gaff ? 9.0f : 5.0f;
+    bool head = it == Item::Priest;
+    CatchRec& h = hold[best];
+    // a stinger handled bare-handed stings
+    if (h.deckKind == DB_STINGER && it != Item::Priest && it != Item::Gaff && it != Item::Knife) Injure(ci, INJ_BURN, TextFormat("stung by the %s", h.name.c_str()));
+    HitDeckFish(best, dmg, ci, KH_MELEE, head, bd);
     return true;
 }
 void Gannet::StepDeckFish(float dt) {
+    // blood on the planking runs out through the scuppers into the sea (20% a second)
+    if (deckBlood > 0.01f) {
+        float out = deckBlood * std::min(1.0f, 0.2f * dt);
+        deckBlood -= out;
+        if (eco) { Vector2 w = boat.ToWorld({-6, boat.roll >= 0 ? 3.0f : -3.0f}); eco->AddBlood({w.x, w.y, 0.5f}, out); }
+    } else deckBlood = 0;
+    for (auto& c : crew) if (c.inkT > 0) c.inkT -= dt;
     for (size_t i = 0; i < hold.size();) {
         CatchRec& h = hold[i];
-        if (h.dead || h.gutted || moored) { i++; continue; }
+        if (h.killT >= 0) h.killT += dt;
+        if (h.gutted || moored) { i++; continue; }
+        if (h.hp < 0) {   // just aboard: a forage fish under a kilo dies on landing; anything bigger comes over alive and angry
+            h.hpMax = h.hp = DeckFishHP(h.kg);
+            h.deckKind = DeckBehaviourOf(h.name, h.kg);
+            h.heading = RandF(gRng) * 6.2832f;
+            h.actT = 2 + RandF(gRng) * 3;
+            if (h.kg < 1 && !h.dead) h.dead = true;
+            if (h.dead) h.hp = 0;
+        }
+        if (h.dead) { i++; continue; }
+        if (h.airT > 0) h.airT -= dt;
+        // ---- what it does on the deck
+        auto nearest = [&](float r, bool ahead) {
+            int best = -1; float bd = r;
+            Vector2 fwd{cosf(h.heading), sinf(h.heading)};
+            for (int k = 0; k < (int)crew.size(); k++) {
+                const Crew& c = crew[k];
+                if (c.dead || c.overboard || c.deck != 0 || c.z > 0.3f) continue;
+                Vector2 d = Vector2Subtract(c.p, h.deckAt);
+                float dist = Vector2Length(d);
+                if (ahead && Vector2DotProduct(d, fwd) < dist * 0.5f) continue;   // (a bill only reaches what's in front of it)
+                if (dist < bd) { bd = dist; best = k; }
+            }
+            return best;
+        };
+        static const bool noActs = getenv("DEPTH_NODECKACT") != nullptr;   // (diagnostics: the fish only flop)
+        h.actT -= noActs ? 0 : dt;
+        if (h.deckKind == DB_GRABBER && h.grabbed >= 0) {
+            // it has a hand and hauls it toward the rail; ink over the eyes
+            Crew& c = crew[h.grabbed];
+            if (c.dead || c.overboard) h.grabbed = -1;
+            else {
+                Vector2 rail{c.p.x, c.p.y >= 0 ? 2.9f : -2.9f};
+                c.p = Vector2MoveTowards(c.p, rail, 0.35f * dt);
+                h.deckAt = Vector2Add(c.p, {0, c.p.y >= 0 ? -0.35f : 0.35f});
+                if (fabsf(c.p.y) > 2.85f) { GoOverboard(h.grabbed, TextFormat("dragged over the rail by the %s", h.name.c_str())); h.grabbed = -1; }
+                if (h.actT <= 0) { h.grabbed = -1; h.actT = 5; }   // (it lets go after a while)
+            }
+        }
+        if (h.actT <= 0) {
+            switch (h.deckKind) {
+                case DB_THRASHER: {   // tail slaps knock the crew down (20 kg and over)
+                    h.actT = 4 + RandF(gRng) * 3;
+                    if (h.kg >= 20) for (auto& c : crew) if (!c.dead && !c.overboard && c.deck == 0 && Vector2Distance(c.p, h.deckAt) < 1.3f && !c.fallen) { c.fallen = true; c.fallT = D().fallTime; c.station = -1; Say(TextFormat("The %s's tail knocks a hand flat", h.name.c_str())); }
+                    break;
+                }
+                case DB_BITER: {      // bites anyone within reach
+                    h.actT = 5 + RandF(gRng) * 3;
+                    int k = nearest(0.75f, false);
+                    if (k >= 0) Injure(k, INJ_BITE, TextFormat("bitten by the landed %s", h.name.c_str()));
+                    break;
+                }
+                case DB_SPEARER: {    // lunges with the bill every 6-10 s
+                    h.actT = 6 + RandF(gRng) * 4;
+                    int k = nearest(2.0f, true);
+                    if (k >= 0) Injure(k, INJ_BROKEN_ARM, TextFormat("run through by the %s's bill", h.name.c_str()));
+                    break;
+                }
+                case DB_GRABBER: {    // grabs a hand and drags them toward the rail; inks
+                    h.actT = 3.5f;
+                    int k = nearest(1.3f, false);
+                    if (k >= 0 && h.grabbed < 0) { h.grabbed = k; crew[k].inkT = 3; crew[k].station = -1; Say(TextFormat("The %s grabs a hand and inks!", h.name.c_str())); }
+                    else h.actT = 6;
+                    break;
+                }
+                case DB_PINCHER: {    // pinches (the hand is slowed until treated)
+                    h.actT = 4 + RandF(gRng) * 2;
+                    int k = nearest(0.6f, false);
+                    if (k >= 0 && !crew[k].Has(INJ_HOOKED_HAND)) Injure(k, INJ_HOOKED_HAND, TextFormat("pinched by the %s", h.name.c_str()));
+                    break;
+                }
+                default: h.actT = 3; break;
+            }
+        }
+        // ---- the flop: every so often it throws itself across the deck (in the air for a moment), mostly toward the
+        // nearer rail; one that reaches the rail goes back over the side. Thrashers and grabbers barely move.
         h.flopT += dt;
         float every = h.src == CS_NET ? 16.0f : 7.0f + std::min(8.0f, h.kg * 0.5f);   // the small ones are the liveliest
-        if (h.flopT >= every) {
+        if (h.deckKind == DB_THRASHER || h.deckKind == DB_GRABBER) every *= 2.5f;
+        if (h.grabbed < 0 && h.flopT >= every) {
             h.flopT = RandF(gRng) * 2;
-            // most hops go for the nearer rail, some anywhere: a 5 kg fish inboard of a rod is over in about a minute
             Vector2 toRail{0, h.deckAt.y >= 0 ? 1.0f : -1.0f};
             if (RandF(gRng) < 0.35f) { float a = RandF(gRng) * 6.2832f; toRail = {cosf(a), sinf(a)}; }
             float hop = 0.3f + RandF(gRng) * 0.5f;
             h.deckAt = Vector2Add(h.deckAt, Vector2Add(Vector2Scale(toRail, hop), {(RandF(gRng) - 0.5f) * 0.4f, 0}));
             h.deckAt.x = std::clamp(h.deckAt.x, -10.5f, 9.5f);
+            h.heading += (RandF(gRng) - 0.5f) * 2.0f;
+            h.airT = 0.45f;   // (a fish killed in the air scores Airborne)
             if (fabsf(h.deckAt.y) > 2.8f) {
                 Say(TextFormat("The %s flops back over the side", h.name.c_str()));
                 if (eco) eco->AddBlood({boat.ToWorld(h.deckAt).x, boat.ToWorld(h.deckAt).y, 0.5f}, h.kg * 0.5f);
@@ -522,8 +668,16 @@ void Gannet::StepGear(float dt) {
             // a round into a live fish on the deck kills it where it lies (a little off the grade: a hole in the flank)
             if ((p.kind == Shot::Bullet || p.kind == Shot::Pellet || p.kind == Shot::Spear) && p.p.z < -RAIL_H + 1.0f && p.p.z > -RAIL_H - 0.6f) {
                 Vector2 lp = boat.ToDeck({p.p.x, p.p.y});
-                for (auto& h : hold) if (!h.dead && !h.gutted && Vector2Distance(h.deckAt, lp) < 0.45f) {
-                    h.dead = true; h.grade *= 0.9f; Say(TextFormat("Shot on the deck: %s", h.name.c_str()));
+                for (int hi = 0; hi < (int)hold.size(); hi++) {
+                    CatchRec& h = hold[hi];
+                    if (h.dead || h.gutted || Vector2Distance(h.deckAt, lp) > 0.45f) continue;
+                    // the head is the front fifth of the fish: a round through it is a headshot
+                    Vector2 headAt = Vector2Add(h.deckAt, Vector2Scale({cosf(h.heading), sinf(h.heading)}, FishLen(h.kg) * 0.4f));
+                    bool head = Vector2Distance(headAt, lp) < 0.15f + FishLen(h.kg) * 0.08f;
+                    float range = p.owner >= 0 && p.owner < (int)crew.size() ? Vector2Distance(crew[p.owner].p, h.deckAt) : 0;
+                    int how = p.kind == Shot::Pellet ? KH_PELLET : p.kind == Shot::Spear ? KH_SPEAR : KH_BULLET;
+                    h.grade *= 0.97f;   // (a hole in the flank)
+                    HitDeckFish(hi, p.dmg, p.owner, how, head, range);
                     p.life = -1; done = true; break;
                 }
             }
@@ -1000,10 +1154,47 @@ int RunTrawlGearTest() {
         check(g4.hold.empty(), "a live fish nobody tends flops back over the rail within two minutes");
         Gannet g5; Eco e5; setup(g5, e5, 1, 19);
         g5.hold = {live}; g5.crew[0].p = {-2, 0.6f};
+        run(g5, dt);   // (aboard: its hit points are set)
+        g5.crew[0].sel = 1;   // the fish priest
         bool far = !g5.KillDeckFish(0, 0.5f);
-        bool killed = g5.KillDeckFish(0);
+        int blows = 0; while (blows < 6 && !g5.hold.empty() && !g5.hold[0].dead) { g5.KillDeckFish(0); blows++; }
         run(g5, 120);
-        check(far && killed && g5.hold.size() == 1 && g5.hold[0].dead, TextFormat("the priest reaches it from a step away (not from across the deck), and a dead fish stays put (%d %d %d)", far, killed, (int)g5.hold.size()));
+        check(far && g5.hold.size() == 1 && g5.hold[0].dead, TextFormat("the priest reaches it from a step away (not from across the deck), and a dead fish stays put (%d blows)", blows));
+        check(fabsf(DeckFishHP(4) - 25) < 0.6f && fabsf(DeckFishHP(40) - 103) < 1 && fabsf(DeckFishHP(250) - 385) < 2, "hit points 8 + 6 x kg^0.75: a 4 kg snapper 25, a 40 kg fish 103, a 250 kg marlin 385");
+        check(blows == 2 && !g5.hold.empty() && fabsf(g5.hold[0].killScore - 1.5f) < 0.01f, TextFormat("two blows of the priest on a 4 kg snapper; the finishing one scores melee x headshot (x%.2f: %s)", g5.hold.empty() ? 0 : g5.hold[0].killScore, g5.hold.empty() ? "" : g5.hold[0].killHow.c_str()));
+        {
+            Gannet k; Eco ek; setup(k, ek, 1, 30);
+            CatchRec a = live; k.hold = {a, a, a}; run(k, dt);
+            k.HitDeckFish(0, 999, 0, KH_BULLET, true, 30);
+            float big = k.hold[0].killScore;
+            check(fabsf(big - std::min(KILLSCORE_MAX, 1.5f * 1.25f * 1.3f)) < 0.01f, TextFormat("a one-hit headshot from 30 m: x%.2f (one-hit, headshot, long shot)", big));
+            k.hold[1].airT = 0.3f; k.hold[1].hp = 3;
+            k.HitDeckFish(1, 10, 0, KH_MELEE, false, 1);
+            check(fabsf(k.hold[1].killScore - 1.2f * 1.3f) < 0.01f, "a club on a fish in the air: melee x airborne");
+            float kg0 = k.hold[2].kg;
+            k.HitDeckFish(2, 400, 0, KH_EXPLOSIVE, false, 3);
+            check(k.hold[2].dead && k.hold[2].killScore == 1 && fabsf(k.hold[2].kg - kg0 * 0.4f) < 0.01f, "an explosive overkill blows it to chum: no Killscore and 40% of the weight");
+            CatchRec sold = k.hold[0]; sold.fresh = 1; sold.price = 3;
+            Session sv; sv.G = &k; sv.E = &ek;
+            CatchRec plain = sold; plain.killScore = 1;
+            check(fabsf(sv.Value(sold) / sv.Value(plain) - big) < 0.01f, "the Killscore multiplies what the fish sells for");
+            float b0 = k.deckBlood; run(k, 10);
+            check(b0 > 1 && k.deckBlood < b0 * 0.2f, TextFormat("blood on the deck (%.1f) runs out through the scuppers at 20%% a second", b0));
+        }
+        {   // the deck behaviours: a landed barracuda bites, a reef octopus grabs and drags toward the rail
+            Gannet k; Eco ek; setup(k, ek, 1, 31);
+            CatchRec bar; bar.name = "barracuda"; bar.kg = 6; bar.price = 2; bar.deckAt = {-2, 0.5f};
+            k.hold = {bar}; k.crew[0].p = {-2, 0.9f};
+            for (int i = 0; i < 60 * 12 && k.crew[0].injuries == 0; i++) { k.Move(0, {0, 0}, false, dt); k.Step(dt); if (!k.hold.empty()) k.hold[0].deckAt = {-2, 0.5f}; }
+            check(k.crew[0].Has(INJ_BITE) && DeckBehaviourOf("barracuda", 6) == DB_BITER, "a landed barracuda bites the hand standing over it");
+            Gannet o; Eco eo; setup(o, eo, 1, 32);
+            CatchRec oc; oc.name = "reef octopus"; oc.kg = 4; oc.price = 3; oc.deckAt = {-2, 1.5f};
+            o.hold = {oc}; o.crew[0].p = {-2, 1.9f};
+            bool grabbed = false;
+            for (int i = 0; i < 60 * 20 && !o.crew[0].overboard; i++) { o.Move(0, {0, 0}, false, dt); o.Step(dt); if (!o.hold.empty() && o.hold[0].grabbed == 0) grabbed = true; }
+            check(grabbed && o.crew[0].overboard, "a landed reef octopus grabs a hand, inks, and drags them over the rail if nobody kills it");
+            check(DeckBehaviourOf("spiny lobster", 2) == DB_PINCHER && DeckBehaviourOf("triggerfish", 1) == DB_STINGER && DeckBehaviourOf("grouper", 12) == DB_THRASHER && DeckBehaviourOf("snapper", 3) == DB_FLOPPER, "the Lagoon's species: lobsters pinch, triggerfish sting, groupers thrash, snapper flop");
+        }
         Gannet g6; Eco e6; setup(g6, e6, 4, 20);   // (four hands: the Medic bot stands by the gutting table)
         g6.botsOn = true; g6.crew[0].p = {6, 0};
         g6.hold = {live};

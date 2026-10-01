@@ -271,7 +271,7 @@ template <class A> void Visit(A& a, TrawlWorld& w) {
         a.f(c.carryKg); a.v2(c.facing);
         for (Slot& sl : c.slots) VisitSlot(a, sl);
         a.i(c.sel); a.f(c.cool); a.f(c.reloadT); a.i(c.injuries); a.i(c.serious);
-        a.b(c.dead); a.b(c.bodyLost); a.v2(c.swim); a.f(c.drownT); a.f(c.bleedT); a.s(c.cause);
+        a.b(c.dead); a.b(c.bodyLost); a.v2(c.swim); a.f(c.drownT); a.f(c.bleedT); a.s(c.cause); a.f(c.inkT);
     });
     a.vec(g.brains, [&](Gannet::Brain& br) { a.i(br.order); a.i(br.goal); a.i(br.task); a.i(br.target); a.i(br.follow); a.s(br.bark); a.f(br.barkT); });
     // ---- lines and the catch
@@ -281,7 +281,9 @@ template <class A> void Visit(A& a, TrawlWorld& w) {
         a.s(h.name); a.f(h.kg); a.f(h.price); a.i(h.sp); a.f(h.grade); a.f(h.fresh);
         a.b(h.gutted); a.b(h.iced); a.b(h.first); a.b(h.bycatch); a.b(h.protectedSp); a.f(h.aboardT); a.i(h.src);
         a.b(h.dead); a.f(h.flopT); a.v2(h.deckAt);
+        a.f(h.hp); a.f(h.hpMax); a.f(h.heading); a.i(h.deckKind); a.f(h.airT); a.f(h.killScore); a.s(h.killHow); a.f(h.killT); a.i(h.grabbed);
     });
+    a.f(g.deckBlood);
     // ---- what's in the water
     a.vec(g.shots, [&](Projectile& p) { a.e(p.kind); a.v3(p.p); a.v3(p.v); a.i(p.owner); a.f(p.life); a.b(p.tether); a.b(p.inWater); });
     a.vec(g.floaters, [&](Floater& f) { a.s(f.name); a.i(f.sp); a.f(f.kg); a.f(f.price); a.f(f.grade); a.v2(f.p); a.f(f.life); a.b(f.tethered); });

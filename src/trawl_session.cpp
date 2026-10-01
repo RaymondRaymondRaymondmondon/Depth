@@ -177,7 +177,7 @@ float Session::Value(const CatchRec& c, float* glut, float* bonus) const {
     float b = c.first ? FIRST_CATCH_BONUS : 1;
     if (glut) *glut = g;
     if (bonus) *bonus = b;
-    return c.price * c.kg * c.grade * c.fresh * g * b * (variant == Variant::RedTide ? 0.5f : 1.0f);   // fish from a red tide sell at half
+    return c.price * c.kg * c.grade * c.killScore * c.fresh * g * b * (variant == Variant::RedTide ? 0.5f : 1.0f);   // fish from a red tide sell at half
 }
 // Canoe night's answer (design doc, "Eclipse Lagoon": canoes "trade fish for gear, or raid for it"). Trade: a quarter of
 // the hold's weight, heaviest first, for two tins of bait, 20 kg of ice and a patch kit. Tribute: a tenth of the money,
@@ -229,7 +229,7 @@ float Session::Sell(int idx) {
 float Session::QuotaValue(const CatchRec& c) const {
     if (c.fresh < QUOTA_MIN_FRESH || c.bycatch) return 0;
     float b = c.first ? FIRST_CATCH_BONUS : 1;
-    return c.price * c.kg * c.grade * c.fresh * b * (variant == Variant::RedTide ? 0.5f : 1.0f);   // (the scales ignore glut)
+    return c.price * c.kg * c.grade * c.killScore * c.fresh * b * (variant == Variant::RedTide ? 0.5f : 1.0f);   // (the scales ignore glut)
 }
 float Session::Deliver(int idx, int* rejected) {
     // the Owners' quota scales: credit toward the quota at full value, no shillings; under 70% fresh is turned away

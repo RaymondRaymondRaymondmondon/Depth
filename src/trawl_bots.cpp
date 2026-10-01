@@ -181,7 +181,15 @@ void Gannet::StepBots(float dt) {
             if (b.barkT <= 0) { b.bark = "Help! Stop the screw!"; b.barkT = 3; }
             continue;
         }
-        if (c.fallen) continue;
+        if (c.fallen) { Move(i, {0, 0}, false, dt); continue; }   // (Move is where a fallen hand gets back up)
+        // self-defence: a landed fish that has hold of this hand, or anything but a flopper within reach (a biter, a
+        // grabber, a pincher...), gets clubbed first, whatever the watch is (the deck kill, design doc v2)
+        if (c.deck == 0) {
+            bool threat = false;
+            for (const auto& h : hold) if (!h.dead && !h.gutted && h.hp >= 0 && (h.grabbed == i || (h.deckKind != DB_FLOPPER && Vector2Distance(h.deckAt, c.p) < 1.6f))) threat = true;
+            if (threat) { b.defT -= dt; if (b.defT <= 0) { b.defT = 1.0f; KillDeckFish(i, 1.6f); } }
+            else b.defT = 0.3f;
+        }
         if (b.task == 0 && b.follow >= 0) b.task = 3;
         if (b.task == 3 && b.follow < 0) b.task = 0;
         // ---- the life ring: to the rail nearest the swimmer, throw, haul in a miss and throw again, haul them home

@@ -289,6 +289,10 @@ int RunTrawlSim(int argc, char** argv) {
                 if (S.phase == Phase::Night && S.clock > 420) for (const auto& a : E.agents) { const auto& r = Species().sp[a.sp]; if (a.alive && r.threat && r.size >= 3 && Vector2Distance({a.p.x, a.p.y}, G.boat.pos) < 40) N.lateThreat = true; }
                 if (G.boat.sunk) N.sunk = true;
                 if (trace && fmodf(t, 60) < dt) printf("    run %d night %d  t%4.0f %s %s pos (%.0f,%.0f) spot %d d %.0f tel %d p %.2f bilge %.0f hold %d wake %.0f net %d/%.0fkg tow %d hand %d\n", run, done + 1, t, PhaseName(S.phase), S.ClockText().c_str(), G.boat.pos.x, G.boat.pos.y, K.spotI, Vector2Distance(G.boat.pos, K.spots[K.spotI].p), G.boat.telegraph, G.boat.pressure, G.boat.bilge, (int)G.hold.size(), E.wake, (int)G.net.state, G.net.load, (int)K.towing, K.netHand);
+                if (trace && fmodf(t, 20) < dt && K.netHand >= 0 && K.netHand < (int)G.crew.size()) {
+                    const Crew& nh = G.crew[K.netHand]; const auto& nb = G.brains[K.netHand];
+                    printf("      winch hand: station %d (%.1f,%.1f) fallen %d ink %.1f inj %d task %d order %d goal %d doing '%s'  net %d t %.1f\n", nh.station, nh.p.x, nh.p.y, nh.fallen, nh.inkT, nh.injuries, nb.task, nb.order, nb.goal, G.BotDoing(K.netHand).c_str(), (int)G.net.state, G.net.t);
+                }
                 if (t > 900) { if (trace) printf("    (night cut at 900 s: %s)\n", PhaseName(S.phase)); break; }
             }
             (void)firstOver;

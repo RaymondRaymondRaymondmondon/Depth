@@ -818,6 +818,35 @@ void Hud(Game& g) {
 }
 
 // a bot's short line over its head ("Fish on, port!"), on whichever view is up
+// the deck kill's screen side: the Killscore popping up over a fish just killed (design doc v2, "The kill"), and a
+// landed octopus's ink over the eyes of the hand it grabbed
+void DrawDeckFx() {
+    const Gannet& G = S.W->G;
+    const Crew& me = G.crew[S.you];
+    const float PX = (float)SCREEN_W / PIXEL_W;
+    for (const auto& h : G.hold) {
+        if (h.killT < 0 || h.killT > 2.5f || h.gutted) continue;
+        if (!S.fp && me.deck != 0) continue;
+        Vector2 at;
+        float rise = h.killT * 14;
+        if (S.fp) { if (!DeckPointOnScreen(G, h.deckAt, 0.6f, S.cam, &at)) continue; }
+        else { Vector2 cp = S.view.ToCanvas(h.deckAt); at = {(cp.x - 1) * PX, (cp.y - 1) * PX - 24}; }
+        at.y -= rise;
+        float a = std::clamp(2.5f - h.killT, 0.0f, 1.0f);
+        bool big = h.killScore >= 2;
+        Color kc = h.killScore >= 3 ? Color{255, 210, 90, 255} : big ? Color{250, 230, 170, 255} : Color{230, 220, 196, 255};
+        DrawTextCenteredBold(TextFormat("x%.2f", h.killScore), at.x, at.y - 12, big ? 26 : 20, Fade(kc, a));
+        DrawTextCentered(h.killHow, at.x, at.y + 12, 13, Fade(Color{230, 220, 196, 255}, a * 0.85f));
+    }
+    if (me.inkT > 0) {   // ink: black blots over most of the view, thinning as it clears
+        float k = std::clamp(me.inkT / 3, 0.0f, 1.0f);
+        DrawRectangle(0, 0, SCREEN_W, SCREEN_H, Fade(Color{8, 6, 14, 255}, 0.75f * k));
+        for (int b = 0; b < 9; b++) {
+            float bx = SCREEN_W * (0.1f + 0.8f * fmodf(b * 0.618f, 1.0f)), by = SCREEN_H * (0.15f + 0.7f * fmodf(b * 0.381f + 0.2f, 1.0f));
+            DrawCircleV({bx, by}, (120 + 40 * (b % 3)) * k, Fade(Color{4, 3, 8, 255}, 0.8f * k));
+        }
+    }
+}
 void DrawBarks() {
     const Gannet& G = S.W->G;
     if (!G.botsOn) return;
@@ -851,6 +880,7 @@ void Draw(Game& g) {
         DrawTrawl3D(G, G.eco, S.W->sess, S.you, S.cam, S.ghostSee);
         if (c.dead) DrawRectangle(0, 0, SCREEN_W, SCREEN_H, Fade(Color{120, 170, 200, 255}, 0.08f));
         DrawBarks();
+        DrawDeckFx();
         Hud(g);
         if (S.panel < 0) {
             Vector2 m{SCREEN_W / 2.0f, SCREEN_H / 2.0f};
@@ -890,6 +920,7 @@ void Draw(Game& g) {
     const float PX = (float)SCREEN_W / PIXEL_W;
     DrawTexturePro(PixelRT().texture, {0, 0, PIXEL_W + 2.0f, -(PIXEL_H + 2.0f)}, {-PX, -PX, (PIXEL_W + 2) * PX, (PIXEL_H + 2) * PX}, {0, 0}, 0, WHITE);
     DrawBarks();
+    DrawDeckFx();
     Hud(g);
 }
 } // namespace

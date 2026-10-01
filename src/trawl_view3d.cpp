@@ -124,6 +124,13 @@ bool AimAtDeck(const Gannet& g, const Camera3D& cam, Vector2 screen, int deck, V
     if (deckOut) *deckOut = {o.x + d.x * t, o.z + d.z * t};
     return true;
 }
+bool DeckPointOnScreen(const Gannet& g, Vector2 deck, float up, const Camera3D& cam, Vector2* out) {
+    Vector3 p = BoatPoint(g.boat, {deck.x, DECK_Y + up, deck.y});
+    Vector3 fw = Vector3Subtract(cam.target, cam.position);
+    if (Vector3DotProduct(Vector3Subtract(p, cam.position), fw) <= 0.1f || Vector3Distance(p, cam.position) > 40) return false;
+    *out = GetWorldToScreenEx(p, cam, SCREEN_W, SCREEN_H);
+    return out->x > 0 && out->y > 0 && out->x < SCREEN_W && out->y < SCREEN_H;
+}
 bool CrewHeadOnScreen(const Gannet& g, int ci, const Camera3D& cam, Vector2* out) {
     const Crew& c = g.crew[ci];
     Vector3 p;
@@ -709,7 +716,8 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
         float len = std::clamp(0.3f + sqrtf(h.kg) * 0.22f, 0.3f, 2.6f);
         float arch = 0, hop = 0;
         if (!h.dead) { float ph = fmodf(g.time * 1.3f + i * 0.7f, 1.0f); if (ph < 0.18f) { float s = sinf(ph / 0.18f * 3.1416f); arch = s * 0.9f; hop = s * 0.12f; } }
-        Vector3 hd = Vector3Normalize({cosf(i * 1.9f), arch * 0.5f, sinf(i * 1.9f)});
+        if (!h.dead && h.airT > 0) { float s = sinf(h.airT / 0.45f * 3.1416f); hop = std::max(hop, s * 0.35f); arch = std::max(arch, s); }   // (thrown across the deck by a flop)
+        Vector3 hd = Vector3Normalize(BoatDir(b, {cosf(h.heading), arch * 0.5f, sinf(h.heading)}));   // (lying the way the sim has it: its head is where a headshot lands)
         Color col = h.dead ? Color{150, 158, 164, 255} : Color{196, 206, 214, 255};
         DrawFishAt(gFish, BoatPoint(b, {h.deckAt.x, DECK_Y + 0.06f + hop, h.deckAt.y}), hd, len, col, 1.5f + arch * 0.4f);
     }

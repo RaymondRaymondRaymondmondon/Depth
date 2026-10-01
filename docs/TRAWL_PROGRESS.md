@@ -478,3 +478,30 @@ bubble puff); Red Tide's gun models rebuilt with a dozen parts each.
   - The Pier Wheel and Glimmer variants.
   - The Killscore and cooking factors in the value (steps 2 and 5).
 - Shots: `trawl_scales`.
+
+## Step 2: the deck kill and the Killscore (2026-10-01)
+- **Hit points:** every fish of 1 kg or more comes aboard alive with HP = 8 + 6 x kg^0.75 (`DeckFishHP`). Smaller fish die on landing. Set up the moment a fish is aboard, in `StepDeckFish`, so every landing site gets it.
+- **Blows:**
+  - Melee (`KillDeckFish`): the priest does 14 and counts as a headshot, the knife 11, the gaff 9, bare hands 5.
+  - Rounds, pellets and spears: their own damage. A pass through the front fifth of the fish is a headshot.
+  - Everything goes through `HitDeckFish`.
+- **The Killscore:** only the finishing blow counts. The bonuses multiply up to 4x:
+  - melee 1.2, one-hit 1.5, headshot 1.25, airborne 1.3 (a flop throws it 0.45 s), long shot 1.3 (over 25 m), heavy seas 1.15 (past 15 deg), in the dark 1.2.
+  - An explosive overkill (more than twice the remaining HP) voids the score and recovers only 40% of the weight.
+  - The Killscore multiplies the fish's value at the market and at the scales.
+  - The score pops up over the fish in both views (`DrawDeckFx`).
+- **Deck behaviours** (`DeckBehaviourOf`, by name):
+  - flopper (the flop);
+  - thrasher (20 kg and over: a tail slap knocks hands flat);
+  - biter (barracuda, moray, sharks: bites within reach);
+  - spearer (a bill lunge, a serious injury, every 6-10 s);
+  - grabber (an octopus or squid of 1.5 kg or more grabs a hand, inks them for 3 s, and drags them toward the rail and over);
+  - pincher (crabs, lobster: a pinched hand);
+  - stinger (triggerfish, jellies, rays: stings a bare hand).
+- **Blood on deck:** 1 a hit, 3 for pellets and explosives, half for a headshot kill (`Gannet::deckBlood`). It drains through the scuppers into the sea at 20% a second, and is drawn top-down as streaks to the low side.
+- **Bots:**
+  - A bot clubs any dangerous landed fish within 1.6 m (self-defence).
+  - The table's bot uses the table's priest.
+  - Fixed a latent bug: a fallen bot never got up (it skipped `Move`, where a hand rises). A thrashing fish or a wet-deck fall left a bot down for the rest of the night.
+- **Tests:** `--trawl-gear-test` covers the HP table, two priest blows on a 4 kg snapper (x1.50), a one-hit long headshot, an airborne club, an overkill, the value multiplier, blood draining, a barracuda biting, an octopus dragging a hand overboard, and the Lagoon's behaviours.
+- **Sim:** `--trawl-sim lagoon 3 6 careful 3`: 3 of 3 deadlines, 272 a night, 0 deaths. `DEPTH_NODECKACT=1` turns the behaviours off for diagnosis. The sim's trace prints the winch hand's state every 20 s.

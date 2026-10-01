@@ -321,6 +321,15 @@ void DrawGear(const Gannet& g, const View& v) {
         float len = std::clamp(2.0f + sqrtf(f.kg) * 2, 2.0f, 12.0f);
         DrawRectangle((int)(q.x - len / 2), (int)q.y - 1, (int)len, 2, Dim(Color{220, 220, 205, 255}, L));
     }
+    // blood on the planking, running to the scuppers on the low side (design doc v2, "Blood through the scuppers")
+    if (g.deckBlood > 0.3f && !g.moored) {
+        float k = std::clamp(g.deckBlood / 12, 0.1f, 1.0f);
+        float side = g.boat.roll >= 0 ? 1.0f : -1.0f;
+        for (int s = 0; s < 6; s++) {
+            Vector2 a{-9.0f + s * 1.1f, side * 1.2f}, b{a.x + 0.3f, side * 2.8f};
+            DrawLineEx(v.ToCanvas(a), v.ToCanvas(b), 1.0f + k * 1.5f, Fade(Color{110, 18, 16, 255}, 0.35f * k));
+        }
+    }
     // fish on the deck (not yet gutted): where they came aboard; a live one arches and slaps toward the rail, a
     // dead one lies still with a smear of blood under it
     for (size_t i = 0; i < g.hold.size(); i++) {
@@ -328,7 +337,7 @@ void DrawGear(const Gannet& g, const View& v) {
         if (h.gutted || g.moored) continue;
         float L = std::max(0.25f, v.LightAt(h.deckAt));
         float len = std::clamp(0.25f + sqrtf(std::max(0.01f, h.kg)) * 0.32f, 0.25f, 1.8f);
-        float base = (float)((i * 2654435761u) % 628) / 100.0f;
+        float base = h.heading;
         float wig = h.dead ? 0.0f : sinf(g.time * 11 + i * 1.7f) * 0.45f * (0.4f + 0.6f * fabsf(sinf(g.time * 1.3f + i)));
         Vector2 dir{cosf(base + wig), sinf(base + wig)};
         if (h.dead) DrawCircleV(v.ToCanvas(h.deckAt), std::max(1.0f, len * v.ppm * 0.45f), Fade(Color{110, 20, 18, 255}, 0.45f));

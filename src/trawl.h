@@ -237,6 +237,7 @@ struct Crew {
     float carryKg = 0;
     Vector2 facing{1, 0};
     float z = 0, vz = 0;                                  // a jump (the playtest, 2026-10-01): height over the deck and the climb; a careless leap clears the rail
+    float inkT = 0;                                       // blinded by a landed octopus's ink (seconds left)
     // the hand's slots, injuries, and life (design doc, "Death, injury, and ghosts")
     Slot slots[4]; int sel = 0;
     float cool = 0, reloadT = 0;
@@ -284,7 +285,22 @@ struct CatchRec {
     // on the deck (the playtest, 2026-10-01): a landed fish lies where it came aboard and flops for the rail until
     // it is clubbed (the priest, a gaff, a knife), shot, or gutted; one that reaches the rail goes back over the side
     bool dead = false; float flopT = 0; Vector2 deckAt{-8, 0};
+    // the kill (design doc v2, "The kill"): anything of 1 kg or more comes aboard alive with hit points (8 + 6 x kg^0.75),
+    // fights by its deck behaviour, and the finishing blow sets the Killscore (bonuses multiplied, up to 4x)
+    float hp = -1, hpMax = 0;                             // (-1: not yet set up; StepDeckFish does it the moment it's aboard)
+    float heading = 0;                                    // which way it lies on the deck (its head is forward of deckAt)
+    int deckKind = 0;                                     // DeckBehaviour
+    float actT = 0, airT = 0;                             // its next act; in the air on a flop (Airborne)
+    float killScore = 1; std::string killHow; float killT = -1;   // the finishing blow's multiplier and why; seconds since (the popup)
+    int grabbed = -1;                                     // (a Grabber) the hand it has hold of
 };
+// What a landed fish does on the deck (design doc v2, "Deck behaviours")
+enum DeckBehaviour { DB_FLOPPER, DB_THRASHER, DB_BITER, DB_SPEARER, DB_GRABBER, DB_PINCHER, DB_STINGER, DB_COUNT };
+const char* DeckBehaviourName(int b);
+int DeckBehaviourOf(const std::string& name, float kg);
+float DeckFishHP(float kg);                               // 8 + 6 x kg^0.75: a 4 kg snapper 25, a 40 kg yellowfin 103
+const float KILLSCORE_MAX = 4;
+enum KillHow { KH_MELEE, KH_BULLET, KH_PELLET, KH_SPEAR, KH_EXPLOSIVE };
 enum CatchSource { CS_HOOK, CS_NET, CS_GUN, CS_SET, CS_DIVE, CS_COUNT };
 const char* CatchSourceName(int s);
 
@@ -380,6 +396,7 @@ struct Gannet {
         int task = 0;                                     // 0 a station, 1 the life ring for a hand overboard, 2 a leak, 3 following the skipper
         int target = -1; float taskT = 0;                 // who or what the task is for; how long it has been at it
         int follow = -1;                                  // ordered to follow this hand (F), -1 not
+        float defT = 0;                                   // clubbing a dangerous landed fish within reach (self-defence)
         uint32_t rng = 1;
     };
     std::vector<Brain> brains;
@@ -404,7 +421,9 @@ struct Gannet {
     void NetInput(int c, bool held, bool cut, float dt);
     void HarpoonInput(int c, Vector2 aimDeck, bool fire, bool held, bool release, float dt);
     bool GaffFloater(int c);                              // E at the rail beside a shot fish afloat
-    bool KillDeckFish(int c, float reach = 1.6f);         // the priest, a gaff or a knife on the nearest live fish on the deck
+    bool KillDeckFish(int c, float reach = 1.6f);         // the priest, a gaff or a knife (or fists) strike the nearest live fish on the deck; true if one was hit
+    bool HitDeckFish(int idx, float dmg, int by, int how, bool head, float range);   // a blow on a deck fish (KillHow); true if it died of it
+    float deckBlood = 0;                                  // blood on the planking: drains through the scuppers into the sea at 20% a second
     void StepDeckFish(float dt);                          // the flopping (StepGear)
     bool HaulSetGear(int c);                              // E at the rail beside a longline buoy or a pot float
     void Injure(int c, int injury, const std::string& cause);
