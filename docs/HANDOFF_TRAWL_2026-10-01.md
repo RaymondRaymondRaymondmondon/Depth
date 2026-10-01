@@ -320,3 +320,13 @@ wreck's listing, the Reef's wonder-weapon quest, the repair kit, the stage-10 ba
     - give the Weeds its own net yield, or let a lane tow through thin kelp;
     - check the coal burn at the Weeds' longer runs.
 - Weeds tuning 1 (more kelp bass, sheephead, rockfish, yellowtail and mackerel; kelp fish range into the open lanes): 184 sh a night, 1 seized night, but still only 25% of deadlines met. Next, look at deliveries and freshness rejections and at what the seized night costs (DEPTH_TRACE).
+
+## Progress, fourth session (1 October 2026, afternoon) — read docs/TRAWL_PROGRESS.md "Step 8" for the detail
+- **The Weeds are complete as designed:** Sirens, Kelp Wraiths, Feral Mermen (`trawl_weeds.cpp`, `--trawl-weeds-test` 26 checks), Seal Rock and the Cannery Pier, the tuna run / kelp storm / Mermen's market variants, drawing, HUD and sound.
+- **The Grotto is complete as designed** apart from diving: the cave chart and its closing arch, the echo and stalactites, 18 species, the Smugglers' Shelf and Bone Beach, the four threats, the two mini-bosses and charms, three variants (`trawl_grotto.cpp`, `--trawl-grotto-test` 33 checks). Its sim is on target (50% vs 45%).
+- **Fixed for every ground:** aground, backing toward deeper water now frees her (before, she could stick on the island all night).
+- **Open:**
+  - The Weeds' sim is far under target (about 12% vs 65%, 130-150 sh a night). Its money is in the kelp and on the rods; the sim's skipper fishes almost only with the net. Next lever: let the sim's skipper fish the kelp lanes' edges on the rods when no clean tow leg exists, or give the Weeds' net yield its own number. Don't keep piling on population.
+  - The Rockfall variant's new chamber and untouched wreck, and every wreck, wait for diving.
+  - The Lagoon sim: 75% (8 runs) after the grounding fix and the landing exclusion (was 100%); within noise of 85%, recheck with more runs.
+- **Next:** Atlantis Waters (doc pages 38, 46, the Pale Eye, the Drowned Stair, the Watchtower stump, the Cult Landing, Broadbill and Old Red), then diving (pages 52-57: hardhat, hose, wrecks, `--trawl-wreck`).
