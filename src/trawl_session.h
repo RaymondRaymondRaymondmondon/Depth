@@ -23,7 +23,7 @@ const std::vector<ShopItem>& ChandlerItems();
 const std::vector<ShopItem>& SlipwayItems();
 
 // The quay's stations, in the boat's frame while she's moored (her port side along the quay)
-enum class DockKind { Chalkboard, Chandler, Market, Office, Slipway, Scales, COUNT };   // (Scales: the Owners' quota scales)
+enum class DockKind { Chalkboard, Chandler, Market, Office, Slipway, Scales, Gunsmith, COUNT };   // (Scales: the Owners' quota scales)
 struct DockStation { DockKind kind; const char* name; Vector2 at; const char* does; };
 const std::vector<DockStation>& DockStations();
 int NearestDock(Vector2 at, float r);
@@ -101,6 +101,12 @@ struct Session {
     float Sell(int idx = -1);                   // at the Fish Market: one fish (an index into the hold) or all (-1); fills lastSale; pays the purse
     float Deliver(int idx = -1, int* rejected = nullptr);   // at the Owners' scales: one fish or every fresh enough one (-1); quota credit; fills lastDelivery
     float QuotaValue(const CatchRec& c) const;  // what the scales credit for it (no glut), 0 if it's too far gone (under 70% fresh)
+    // the Gunsmith (design doc v2, "Weapons"; trawl_weapons.h): guns and melee weapons into hand c's slots, damage
+    // upgrades and attachments for the weapon in a slot, ammunition into the ship's magazine stock
+    bool GunBuy(int c, const std::string& id, std::string* why = nullptr);
+    bool GunUpgrade(int c, int slot, std::string* why = nullptr);
+    bool GunAttach(int c, int slot, const std::string& att, std::string* why = nullptr);
+    bool AmmoBuy(const std::string& kind, std::string* why = nullptr);
     std::vector<SaleLine> lastDelivery; float lastDeliveryTotal = 0; int lastRejected = 0;
     float Value(const CatchRec& c, float* glut = nullptr, float* bonus = nullptr) const;
     bool CanCastOff(std::string* why = nullptr) const;

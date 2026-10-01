@@ -25,6 +25,9 @@ std::string TrawlDataDir() {
     for (const auto& c : cand) if (FileThere(c + "/trawl_species.json")) return c;
     return "data/trawl";
 }
+}  // namespace
+std::string TrawlDataPath() { return TrawlDataDir(); }   // (the weapons catalogue reads its tables from here too)
+namespace {
 int BandFromName(const std::string& s) {
     if (s == "air") return BAND_AIR;
     if (s == "surface") return BAND_SURFACE;

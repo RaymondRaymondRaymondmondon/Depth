@@ -126,6 +126,10 @@ bool DoCommand(TrawlWorld& w, int ci, int cmd, const std::string& id, int arg, s
     switch (cmd) {
         case CMD_BUY: if (!dock) return no("the Chandler is ashore"); return s.Buy(id, why);
         case CMD_SELL: if (!dock) return no("the Fish Market is ashore"); if (g.hold.empty() || arg >= (int)g.hold.size()) return no("nothing to sell"); s.Sell(arg); return true;
+        case CMD_GUN_BUY: if (!dock) return no("the Gunsmith is ashore"); return s.GunBuy(ci, id, why);
+        case CMD_GUN_UPGRADE: if (!dock) return no("the Gunsmith is ashore"); return s.GunUpgrade(ci, arg, why);
+        case CMD_GUN_ATTACH: if (!dock) return no("the Gunsmith is ashore"); return s.GunAttach(ci, arg, id, why);
+        case CMD_AMMO: if (!dock) return no("the Gunsmith is ashore"); return s.AmmoBuy(id, why);
         case CMD_DELIVER: { if (!dock) return no("the Owners' scales are ashore"); if (g.hold.empty() || arg >= (int)g.hold.size()) return no("nothing to deliver"); int rej = 0; float v = s.Deliver(arg, &rej); if (v <= 0) return no(rej ? "not fresh enough: the Owners turn it away" : "nothing to deliver"); return true; }
         case CMD_SLIP: if (!dock) return no("the Slipway is ashore"); return s.BuySlip(arg, why);
         case CMD_CASTOFF: return s.CastOff(why);
@@ -189,7 +193,7 @@ struct In {
     bool bad() const { return r.bad; }
 };
 
-template <class A> void VisitSlot(A& a, Slot& s) { a.e(s.it); a.i(s.ammo); }
+template <class A> void VisitSlot(A& a, Slot& s) { a.e(s.it); a.i(s.ammo); a.i(s.wpn); a.i(s.lvl); a.i(s.spare); for (int k = 0; k < 3; k++) { int v = s.att[k]; a.i(v); s.att[k] = (int8_t)v; } }
 template <class A> void VisitFight(A& a, Fight& f) {
     a.e(f.tackle); a.e(f.line); a.e(f.hook);
     a.v3(f.tip); a.f(f.L); a.f(f.drag); a.f(f.tension);
@@ -284,6 +288,7 @@ template <class A> void Visit(A& a, TrawlWorld& w) {
         a.f(h.hp); a.f(h.hpMax); a.f(h.heading); a.i(h.deckKind); a.f(h.airT); a.f(h.killScore); a.s(h.killHow); a.f(h.killT); a.i(h.grabbed);
     });
     a.f(g.deckBlood);
+    a.i(g.ammoRounds); a.i(g.ammoShells); a.i(g.ammoSpears); a.i(g.ammoFlares); a.i(g.ammoPellets); a.i(g.ammoRivets);
     // ---- what's in the water
     a.vec(g.shots, [&](Projectile& p) { a.e(p.kind); a.v3(p.p); a.v3(p.v); a.i(p.owner); a.f(p.life); a.b(p.tether); a.b(p.inWater); });
     a.vec(g.floaters, [&](Floater& f) { a.s(f.name); a.i(f.sp); a.f(f.kg); a.f(f.price); a.f(f.grade); a.v2(f.p); a.f(f.life); a.b(f.tethered); });

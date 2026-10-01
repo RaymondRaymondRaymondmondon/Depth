@@ -121,6 +121,22 @@ flopping doesn't wreck the bots' quota numbers: the gutting-table bot should clu
     - Reload takes a spare from `Gannet::ammo[kind]`, the magazine stock. Until below decks (step 7), the deck locker stands in for the magazine locker.
   - **The Gunsmith:** a new quay station (`DockKind::Gunsmith`) with a tabbed panel (weapons / upgrades / attachments / ammo). Only the `where == gunsmith` rows are sold there; `gunsmith3` opens from deadline 3. The trader-only weapons come with the landings (the Atoll's coral club, shark-tooth blade, longbow and fletching).
   - **Wiring:** commands `CMD_GUN_BUY` / `CMD_GUN_UPGRADE` / `CMD_GUN_ATTACH` / `CMD_AMMO`; the slot fields and the ammo stock go into the snapshot's `Visit`; checks in `--trawl-gear-test`; shots `trawl_gunsmith`.
+- **Step 3 status (committed, builds):**
+  - **Built and wired:**
+    - `trawl_weapons.h/.cpp`: loads the TSVs (via `TrawlDataPath()`) and has `AttachmentFits`, `UpgradePrice`, and `WeaponDamage`/`Magazine`/`Cooldown`/`Reach`/`Spread`/`Noise`.
+    - `Item::Weapon` plus the `Slot` fields (`wpn`, `lvl`, `spare`, `att[3]`) and `SlotName`.
+    - `UseItem`'s weapon branch: melee via `KillDeckFish(ci, reach, dmg, head)`; guns fire with catalogue damage; rapid guns fire while held; wet powder misfires; recoil.
+    - `Reload` from the spare; `RestockAtLocker` (`Gannet::ammo*` stocks, in `StepGear` while a hand is at the Locker station).
+    - `Session::GunBuy/GunUpgrade/GunAttach/AmmoBuy`.
+    - `DockKind::Gunsmith` at the quay (-7.6, -8.2).
+    - `CMD_GUN_BUY/UPGRADE/ATTACH/AMMO` and the `Visit` fields.
+  - **Left to do:**
+    - The Gunsmith **panel** in trawl.cpp `Panels()`, with tabs: guns for sale / the selected slot's upgrades and attachments / ammo packs.
+    - The Gunsmith's **shed** in `DrawQuay` (trawl_art.cpp).
+    - Anywhere the HUD shows `ItemOf(sl.it).name` should use `SlotName(sl)`.
+    - A held catalogue gun or blade drawn in both views (map it by class onto the rifle, revolver or knife drawings).
+    - **Tests** in `--trawl-gear-test`: buy a revolver, fire it at a deck fish, an upgrade raises damage 15%, attachment fit rules, reload from the spare, restock at the locker, wet-powder misfire, the one-long-weapon rule.
+    - The shot `trawl_gunsmith`, a docs entry, and a commit.
 - The user's answers this session:
   - The skiff and the Atoll in **both views**.
   - Order: WIP, then economy, then the skiff.

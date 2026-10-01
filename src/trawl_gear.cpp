@@ -11,6 +11,8 @@
 #include <cmath>
 #include <cstdio>
 
+#include "trawl_weapons.h"
+
 namespace tw {
 
 // ---------------------------------------------------------------- the numbers (design doc, "Weapons", "The Chandler")
@@ -30,6 +32,7 @@ const ItemDef& ItemOf(Item i) {
         {"Bandages",          10,  3, 10, 0,  "Stop a bite bleeding"},
         {"Longline",          60,  1,  0, 1,  "20 hooks between two buoys, set off the stern"},
         {"Crab pot",          25,  1,  0, 1,  "Dropped on a reef, hauled on a later pass"},
+        {"(weapon)",           0,  0,  0, 0,  "A weapon from the Gunsmith's catalogue"},
     };
     return D[(int)i];
 }
@@ -87,6 +90,15 @@ void Gannet::Reload(int ci) {
     Crew& c = crew[ci];
     Slot& s = c.slots[c.sel];
     if (s.it == Item::Rifle || s.it == Item::Shotgun || s.it == Item::Speargun || s.it == Item::Flare) c.reloadT = s.it == Item::Speargun ? 1.2f : 1.8f;
+    if (s.it == Item::Weapon && s.wpn >= 0 && s.wpn < (int)Weapons().size()) {
+        // the spare reload goes into the gun; the spare is refilled at the locker
+        const WeaponDef& w = Weapons()[s.wpn];
+        if (!w.Gun()) return;
+        int take = std::min(WeaponMagazine(w, s.att) - s.ammo, s.spare);
+        if (take <= 0) { if (s.spare <= 0) Say("No spare reload: restock at the locker"); return; }
+        s.ammo += take; s.spare -= take;
+        c.reloadT = (w.cls == WC_LONGGUN ? 1.8f : 1.2f) * (HasAttachment(s.att, "speedloader") ? 0.5f : 1.0f);
+    }
 }
 void Gannet::UseItem(int ci, Vector2 aimDeck, bool pressed, bool held, bool sight, float dt) {
     Crew& c = crew[ci];
@@ -205,7 +217,62 @@ void Gannet::UseItem(int ci, Vector2 aimDeck, bool pressed, bool held, bool sigh
         case Item::Priest: case Item::Knife:
             if (pressed && c.cool <= 0) { c.cool = 0.4f; KillDeckFish(ci); }
             break;
+        case Item::Weapon: {   // a row of the Gunsmith's catalogue (trawl_weapons.h)
+            if (s.wpn < 0 || s.wpn >= (int)Weapons().size()) break;
+            const WeaponDef& w = Weapons()[s.wpn];
+            if (w.cls == WC_MELEE) {
+                if (pressed && c.cool <= 0) { c.cool = WeaponCooldown(w, s.att); KillDeckFish(ci, WeaponReach(w), WeaponDamage(w, s.lvl, s.att) * (w.id == "coralclub" ? 1.5f : 1.0f), w.id == "coralclub"); }
+                break;
+            }
+            if (!w.Gun()) break;
+            bool rapid = w.speed == WS_RAPID;
+            if (!(rapid ? held : pressed) || c.cool > 0 || c.reloadT > 0) break;
+            if (s.ammo <= 0) { if (pressed) Say(s.spare > 0 ? "Click: empty (R to reload)" : "Click: empty, no spare reload (restock at the locker)"); break; }
+            s.ammo--; c.cool = WeaponCooldown(w, s.att);
+            // wet powder: cartridge guns misfire in rain (10%), a squall (25%), a storm or after a swim (40%), unless oilskinned
+            bool cartridge = w.ammo == "rounds" || w.ammo == "shells";
+            float misfire = 0;
+            if (cartridge && !HasAttachment(s.att, "oilskin") && w.id != "captainpistol")
+                misfire = sea.weather == Weather::Rain ? 0.10f : sea.weather == Weather::Squall ? 0.25f : sea.weather == Weather::Storm ? 0.40f : 0;
+            if (RandF(gRng) < misfire) { Say(TextFormat("Misfire: the %s's powder is wet", w.name.c_str())); break; }
+            size_t before = shots.size();
+            Shot k = w.ammo == "spears" ? Shot::Spear : w.pellets > 1 ? Shot::Pellet : Shot::Bullet;
+            fire(k, k == Shot::Spear ? 40.0f : 300.0f, WeaponSpread(w, s.att) * (sight ? 0.3f : 1.0f), w.pellets);
+            float dmg = WeaponDamage(w, s.lvl, s.att);
+            for (size_t q = before; q < shots.size(); q++) shots[q].dmg = dmg;
+            if (eco) eco->AddNoise({muzzle.x, muzzle.y, 1}, WeaponNoise(w, s.att) * 6);
+            if (w.id == "nitro" || w.id == "puntgun") {   // the recoil
+                Vector2 back = Vector2Normalize(Vector2Subtract(c.p, aimDeck));
+                c.v = Vector2Add(c.v, Vector2Scale(back, 3.0f));
+                if (w.id == "puntgun") { c.fallen = true; c.fallT = D().fallTime; }
+            }
+            break;
+        }
         default: break;
+    }
+}
+const char* SlotName(const Slot& s) {
+    if (s.it == Item::Weapon && s.wpn >= 0 && s.wpn < (int)Weapons().size()) return Weapons()[s.wpn].name.c_str();
+    return ItemOf(s.it).name;
+}
+int* Gannet::AmmoStock(const std::string& k) {
+    if (k == "rounds") return &ammoRounds;
+    if (k == "shells") return &ammoShells;
+    if (k == "spears") return &ammoSpears;
+    if (k == "flares") return &ammoFlares;
+    if (k == "pellets") return &ammoPellets;
+    if (k == "rivets") return &ammoRivets;
+    return nullptr;
+}
+void Gannet::RestockAtLocker(int ci) {
+    for (auto& s : crew[ci].slots) {
+        if (s.it != Item::Weapon || s.wpn < 0) continue;
+        const WeaponDef& w = Weapons()[s.wpn];
+        int* stock = AmmoStock(w.ammo);
+        if (!stock || !w.Gun()) continue;
+        int want = WeaponMagazine(w, s.att) - s.spare;
+        int take = std::min(want, *stock);
+        if (take > 0) { s.spare += take; *stock -= take; }
     }
 }
 // ---------------------------------------------------------------- fish on the deck (the playtest, 2026-10-01)
@@ -266,7 +333,7 @@ bool Gannet::HitDeckFish(int idx, float dmg, int by, int how, bool head, float r
     (void)by;
     return true;
 }
-bool Gannet::KillDeckFish(int ci, float reach) {
+bool Gannet::KillDeckFish(int ci, float reach, float dmgIn, bool headIn) {
     const Crew& c = crew[ci];
     int best = -1; float bd = reach;
     for (int i = 0; i < (int)hold.size(); i++) if (!hold[i].dead && !hold[i].gutted) { float d = Vector2Distance(hold[i].deckAt, c.p); if (d < bd) { bd = d; best = i; } }
@@ -276,6 +343,7 @@ bool Gannet::KillDeckFish(int ci, float reach) {
     if (c.bot && it != Item::Knife && it != Item::Gaff) it = Item::Priest;   // (a bot at the table uses the table's priest)
     float dmg = it == Item::Priest ? 14.0f : it == Item::Knife ? 11.0f : it == Item::Gaff ? 9.0f : 5.0f;
     bool head = it == Item::Priest;
+    if (dmgIn >= 0) { dmg = dmgIn; head = headIn; }   // (a catalogue weapon's own blow)
     CatchRec& h = hold[best];
     // a stinger handled bare-handed stings
     if (h.deckKind == DB_STINGER && it != Item::Priest && it != Item::Gaff && it != Item::Knife) Injure(ci, INJ_BURN, TextFormat("stung by the %s", h.name.c_str()));
@@ -612,6 +680,7 @@ void Gannet::StepGear(float dt) {
     const auto& SP = Species().sp;
     Vector2 fwd = boat.Forward();
     StepDeckFish(dt);
+    for (int ci = 0; ci < (int)crew.size(); ci++) if (crew[ci].station >= 0 && Stations()[crew[ci].station].kind == StationKind::Locker) RestockAtLocker(ci);
     // projectiles
     for (auto& p : shots) {
         p.life -= dt;

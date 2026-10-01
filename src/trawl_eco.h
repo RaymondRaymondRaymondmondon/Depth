@@ -182,7 +182,8 @@ private:
     int SpawnAgent(int sp, Vector2 at);
 };
 
-std::string DefaultBait(Tackle t);             // until the Chandler sells bait (stage 4)
+std::string DefaultBait(Tackle t);
+std::string TrawlDataPath();                   // where data/trawl is (beside the exe, or up from it)             // until the Chandler sells bait (stage 4)
 int RunTrawlEco(int argc, char** argv);        // depth.exe --trawl-eco <ground> <minutes> [pattern]
 int RunTrawlEcoTest();                         // depth.exe --trawl-eco-test
 

@@ -1,6 +1,7 @@
 // The Trawl's session loop (see trawl_session.h): deadlines, the quota, the night's clock, the Owners' telegraph,
 // the Fish Market, the Chandler and the Slipway, customs; and --trawl-session-test (a bot plays a solo deadline).
 #include "trawl_session.h"
+#include "trawl_weapons.h"
 #include "raymath.h"
 #include <algorithm>
 #include <cmath>
@@ -87,6 +88,7 @@ const std::vector<DockStation>& DockStations() {
         {DockKind::Chandler, "The Chandler", {-3.5f, -8.2f}, "Bait, ice, coal, rods"},
         {DockKind::Market, "The Fish Market", {1.0f, -8.2f}, "Sell fish for the ship's purse"},
         {DockKind::Scales, "The Owners' quota scales", {4.6f, -8.2f}, "Deliver fish against the quota"},
+        {DockKind::Gunsmith, "The Gunsmith", {-7.6f, -8.2f}, "Guns, upgrades, attachments and ammunition"},
         {DockKind::Office, "The Owners' office", {8.0f, -8.2f}, "Salvage (none yet)"},
         {DockKind::Slipway, "The Slipway", {12.0f, -5.2f}, "Refit the Gannet"},
     };
@@ -230,6 +232,62 @@ float Session::QuotaValue(const CatchRec& c) const {
     if (c.fresh < QUOTA_MIN_FRESH || c.bycatch) return 0;
     float b = c.first ? FIRST_CATCH_BONUS : 1;
     return c.price * c.kg * c.grade * c.killScore * c.fresh * b * (variant == Variant::RedTide ? 0.5f : 1.0f);   // (the scales ignore glut)
+}
+// ---------------------------------------------------------------- the Gunsmith
+bool Session::GunBuy(int ci, const std::string& id, std::string* why) {
+    auto no = [&](const char* m) { if (why) *why = m; return false; };
+    int wi = WeaponIndex(id);
+    if (wi < 0) return no("not in the catalogue");
+    const WeaponDef& w = Weapons()[wi];
+    bool here = w.where == "gunsmith" || (w.where == "gunsmith3" && deadline >= 3);
+    if (!here) return no(w.where == "gunsmith3" ? "the Gunsmith gets those in from the third deadline" : "not sold at the Gunsmith");
+    if (ci < 0 || ci >= (int)G->crew.size()) return no("no such hand");
+    if (money < w.price) return no("not enough money");
+    Crew& c = G->crew[ci];
+    if (w.slots >= 2) for (const auto& s : c.slots) if (s.it == Item::Weapon && s.wpn >= 0 && Weapons()[s.wpn].slots >= 2) return no("a hand carries one long weapon at most");
+    Slot ns; ns.it = Item::Weapon; ns.wpn = wi; ns.ammo = w.mag;   // (it comes loaded)
+    money -= w.price;
+    for (auto& s : c.slots) if (s.it == Item::None) { s = ns; Tape(TextFormat("GUNSMITH SOLD %s STOP", w.name.c_str())); return true; }
+    G->locker.push_back(ns);
+    Tape(TextFormat("GUNSMITH SOLD %s STOP IN THE LOCKER STOP", w.name.c_str()));
+    return true;
+}
+bool Session::GunUpgrade(int ci, int slot, std::string* why) {
+    auto no = [&](const char* m) { if (why) *why = m; return false; };
+    if (ci < 0 || ci >= (int)G->crew.size() || slot < 0 || slot > 3) return no("no such slot");
+    Slot& s = G->crew[ci].slots[slot];
+    if (s.it != Item::Weapon || s.wpn < 0 || !Weapons()[s.wpn].Gun()) return no("only guns take damage upgrades");
+    int price = UpgradePrice(Weapons()[s.wpn], s.lvl);
+    if (price <= 0) return no("three upgrades already");
+    if (money < price) return no("not enough money");
+    money -= price; s.lvl++;
+    return true;
+}
+bool Session::GunAttach(int ci, int slot, const std::string& att, std::string* why) {
+    auto no = [&](const char* m) { if (why) *why = m; return false; };
+    if (ci < 0 || ci >= (int)G->crew.size() || slot < 0 || slot > 3) return no("no such slot");
+    Slot& s = G->crew[ci].slots[slot];
+    int ai = AttachmentIndex(att);
+    if (ai < 0 || s.it != Item::Weapon || s.wpn < 0) return no("no gun to fit it to");
+    const AttachmentDef& a = Attachments()[ai];
+    if (a.where != "gunsmith") return no("the Gunsmith doesn't stock that");
+    if (!AttachmentFits(a, Weapons()[s.wpn])) return no("it doesn't fit that gun");
+    if (HasAttachment(s.att, att.c_str())) return no("already fitted");
+    int free = -1; for (int k = 0; k < 3; k++) if (s.att[k] < 0) { free = k; break; }
+    if (free < 0) return no("three attachments already");
+    if (money < a.price) return no("not enough money");
+    money -= a.price; s.att[free] = (int8_t)ai;
+    return true;
+}
+bool Session::AmmoBuy(const std::string& kind, std::string* why) {
+    auto no = [&](const char* m) { if (why) *why = m; return false; };
+    int* stock = G->AmmoStock(kind);
+    int per = 0; for (const auto& w : Weapons()) if (w.ammo == kind && w.ammoPrice > 0) { per = w.ammoPrice; break; }
+    if (!stock || per <= 0) return no("not sold here");
+    int n = AmmoPack(kind), price = per * n;
+    if (money < price) return no("not enough money");
+    money -= price; *stock += n;
+    return true;
 }
 float Session::Deliver(int idx, int* rejected) {
     // the Owners' quota scales: credit toward the quota at full value, no shillings; under 70% fresh is turned away

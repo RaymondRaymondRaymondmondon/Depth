@@ -217,10 +217,14 @@ int NearestStation(Vector2 at, int deck, float r);
 
 // ---------------------------------------------------------------- hands' gear (trawl_gear.cpp)
 // Four slots a hand (design doc, "Inventory"); the rest lives in the deck locker.
-enum class Item { None, Gaff, Priest, Knife, Speargun, Flare, Rifle, Shotgun, Charge, Ring, Bandage, Longline, Pot, COUNT };
+enum class Item { None, Gaff, Priest, Knife, Speargun, Flare, Rifle, Shotgun, Charge, Ring, Bandage, Longline, Pot, Weapon, COUNT };
 struct ItemDef { const char* name; int price; int ammoPer; int ammoPrice; float noise; const char* use; };
 const ItemDef& ItemOf(Item i);
-struct Slot { Item it = Item::None; int ammo = 0; };
+// a hand's slot. Item::Weapon is a row of the Gunsmith's catalogue (trawl_weapons.h): its damage upgrades, up to three
+// attachments, the loaded magazine (ammo) and the one spare reload a hand carries (spare); the rest of the ammunition
+// is the ship's (Gannet::ammo), restocked at the locker
+struct Slot { Item it = Item::None; int ammo = 0; int wpn = -1, lvl = 0, spare = 0; int8_t att[3] = {-1, -1, -1}; };
+const char* SlotName(const Slot& s);                      // the item's name, or the catalogue weapon's
 enum Injury { INJ_HOOKED_HAND = 1, INJ_BROKEN_ARM = 2, INJ_BURN = 4, INJ_BITE = 8 };
 const char* InjuryName(int bit);
 
@@ -421,9 +425,14 @@ struct Gannet {
     void NetInput(int c, bool held, bool cut, float dt);
     void HarpoonInput(int c, Vector2 aimDeck, bool fire, bool held, bool release, float dt);
     bool GaffFloater(int c);                              // E at the rail beside a shot fish afloat
-    bool KillDeckFish(int c, float reach = 1.6f);         // the priest, a gaff or a knife (or fists) strike the nearest live fish on the deck; true if one was hit
+    bool KillDeckFish(int c, float reach = 1.6f, float dmg = -1, bool head = false);         // the priest, a gaff or a knife (or fists) strike the nearest live fish on the deck; true if one was hit
     bool HitDeckFish(int idx, float dmg, int by, int how, bool head, float range);   // a blow on a deck fish (KillHow); true if it died of it
     float deckBlood = 0;                                  // blood on the planking: drains through the scuppers into the sea at 20% a second
+    // the magazine stock (design doc v2, "Carrying and ammunition"): rounds, shells, spears, flares, pellets, rivets kept
+    // in the locker; a hand restocks its spare reload there (until below decks has the fo'c'sle's magazine locker)
+    int ammoRounds = 0, ammoShells = 0, ammoSpears = 0, ammoFlares = 0, ammoPellets = 0, ammoRivets = 0;
+    int* AmmoStock(const std::string& kind);              // the stock of a kind, or null (melee, thrown)
+    void RestockAtLocker(int c);                          // tops up every catalogue weapon's spare reload in the hand's slots
     void StepDeckFish(float dt);                          // the flopping (StepGear)
     bool HaulSetGear(int c);                              // E at the rail beside a longline buoy or a pot float
     void Injure(int c, int injury, const std::string& cause);
