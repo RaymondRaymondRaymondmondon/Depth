@@ -82,7 +82,7 @@ struct Skipper {
     }
     bool RouteClear0(Vector2 a, Vector2 b) const {
         float L = Vector2Distance(a, b);
-        for (float s = 10; s < L; s += 6) { Vector2 p = Vector2Lerp(a, b, s / L); if (E.DepthAt(p) < 2.6f || E.MarkAt(p) >= 0 || E.HabAt(p) == H_KELP || NearLanding(p, 20)) return false; }   // (and never through skiff water: the weed fouls her screw)
+        for (float s = 10; s < L; s += 6) { Vector2 p = Vector2Lerp(a, b, s / L); if (E.DepthAt(p) < 2.6f || E.MarkAt(p) >= 0 || E.HabAt(p) == H_KELP || NearLanding(p, 20) || InMat(p, 4)) return false; }   // (and never through skiff water: the weed fouls her screw)
         return true;
     }
 
@@ -186,14 +186,25 @@ struct Skipper {
     // the Weeds: a course round the canopy (A* on an 8 m grid that keeps out of kelp, shoals and skiff water), pulled
     // straight wherever a leg is clear; a skipper reads the chart rather than running the screw through the kelp
     std::vector<Vector2> path; Vector2 pathTo{-1e9f, -1e9f}; float pathAge = 0;
-    bool Open(Vector2 p) const { int h = E.HabAt(p); return E.DepthAt(p) >= 3 && h != H_KELP && h != H_LAND && E.MarkAt(p) < 0; }
+    bool InMat(Vector2 p, float pad) const { if (E.ground != "weeds") return false; for (const auto& rf : E.rafts) if (Vector2Distance(rf.p, p) < rf.r + pad) return true; return false; }   // (the drift mats foul her too)
+    bool Open(Vector2 p) const { int h = E.HabAt(p); return E.DepthAt(p) >= 3 && h != H_KELP && h != H_LAND && E.MarkAt(p) < 0 && !InMat(p, 5); }
     void Plan(Vector2 from, Vector2 to) {
         path.clear(); pathTo = to; pathAge = 0;
         const float C = 8; float size = E.n * E.cell; int N = (int)(size / C);
         auto idx = [&](Vector2 p) { int x = std::clamp((int)(p.x / C), 0, N - 1), y = std::clamp((int)(p.y / C), 0, N - 1); return y * N + x; };
         auto ctr = [&](int i) { return Vector2{(i % N + 0.5f) * C, (i / N + 0.5f) * C}; };
-        std::vector<char> open(N * N);
-        for (int i = 0; i < N * N; i++) { Vector2 c = ctr(i); open[i] = Open(c) && Open({c.x + 3, c.y + 3}) && Open({c.x - 3, c.y - 3}) && Open({c.x + 3, c.y - 3}) && Open({c.x - 3, c.y + 3}); }
+        // (open water costs 1; kelp and the drift mats can be crossed at 12x, so a course from inside the canopy takes the
+        // shortest way out; shoals, land and skiff water can't be crossed at all)
+        std::vector<char> open(N * N); std::vector<float> wcost(N * N, 1);
+        for (int i = 0; i < N * N; i++) {
+            Vector2 c = ctr(i); bool ok = true, weed = false;
+            for (Vector2 q : {c, Vector2{c.x + 3, c.y + 3}, Vector2{c.x - 3, c.y - 3}, Vector2{c.x + 3, c.y - 3}, Vector2{c.x - 3, c.y + 3}}) {
+                int h = E.HabAt(q);
+                if (E.DepthAt(q) < 3 || h == H_LAND || E.MarkAt(q) >= 0) ok = false;
+                if (h == H_KELP || InMat(q, 5)) weed = true;
+            }
+            open[i] = ok; wcost[i] = weed ? 12.0f : 1.0f;
+        }
         int s = idx(from), g = idx(to); open[s] = open[g] = 1;
         std::vector<float> cost(N * N, 1e9f); std::vector<int> prev(N * N, -1);
         using QE = std::pair<float, int>; std::priority_queue<QE, std::vector<QE>, std::greater<QE>> q;
@@ -205,8 +216,8 @@ struct Skipper {
             for (int dy = -1; dy <= 1; dy++) for (int dx = -1; dx <= 1; dx++) {
                 if (!dx && !dy) continue; int nx = x + dx, ny = y + dy; if (nx < 0 || ny < 0 || nx >= N || ny >= N) continue;
                 int j = ny * N + nx; if (!open[j]) continue;
-                if (dx && dy && (!open[y * N + nx] || !open[ny * N + x])) continue;   // (no cutting a corner of the canopy)
-                float c = cost[i] + ((dx && dy) ? 1.414f : 1.0f);
+                if (dx && dy && (!open[y * N + nx] || !open[ny * N + x])) continue;   // (no cutting a corner of a shoal)
+                float c = cost[i] + ((dx && dy) ? 1.414f : 1.0f) * wcost[j];
                 if (c < cost[j]) { cost[j] = c; prev[j] = i; q.push({c + Vector2Distance(ctr(j), ctr(g)) / C, j}); }
             }
         }
@@ -272,7 +283,7 @@ struct Skipper {
         // (further out, leave earlier: a game minute a second at ~3.5 m/s, half an hour in hand; on a ground with kelp
         // the way home bends round the canopy and a fouled screw costs half a minute, so budget 2.6 m/s and 45 minutes)
         bool kelpy = E.ground == "weeds";
-        float leaveAt = std::min(P.leaveAt, 540 - (kelpy ? 45 : 30) - Vector2Distance(G.boat.pos, S.harbour) / (kelpy ? 2.6f : 3.5f));
+        float leaveAt = std::min(P.leaveAt, 540 - (kelpy ? 60 : 30) - Vector2Distance(G.boat.pos, S.harbour) / (kelpy ? 2.6f : 3.5f));
         // (the Grotto: out through the arch before it closes, with twenty minutes in hand)
         if (S.archCloseAt >= 0 && G.boat.pos.x > E.archX0) leaveAt = std::min(leaveAt, S.archCloseAt - 20 - Vector2Distance(G.boat.pos, {E.archX0, E.archY}) / 3.0f);
         if (S.phase == Phase::Night && S.clock > leaveAt - (G.net.state == NetState::Down ? HAUL_AHEAD : 0) && !homeward) { homeward = true; leftAt = S.clock; G.netLast = true; G.Say("The skipper turns for home"); }
