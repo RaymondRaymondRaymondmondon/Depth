@@ -95,6 +95,38 @@ flopping doesn't wreck the bots' quota numbers: the gutting-table bot should clu
 - The "life raft" the user mentions is the existing life ring.
 - Nightly variants, the canoe choice and the Lagoon's lethal paths are as built (memory `depth-trawl-lagoon-plan`).
 
+## Progress after the handoff (second session, 1 October 2026)
+
+- `6d6dfe6`: the WIP above is finished. Deck fish are drawn top-down, the gear tests were added, and the hook-set test was updated.
+- `8daeae1`: **step 1, the economy spine.**
+  - The Owners' quota scales (`DockKind::Scales`, `Session::Deliver`/`QuotaValue`) are apart from the Fish Market (`Sell(idx)`).
+  - Only delivered fish count; under 70% fresh is rejected; no glut; credit past the quota carries at half (`carried`).
+  - Per-fish Deliver/Sell, `CMD_DELIVER`.
+  - The sim skipper paces deliveries, and hauls the net himself when short-handed.
+- `7ff6195`: **step 2, the deck kill.** HP, `HitDeckFish`, the Killscore (to 4x, overkill), seven deck behaviours, deck blood, the popups (`DrawDeckFx`), bot self-defence, and the fix for fallen bots that never rose.
+- Next: **step 3, weapons and the Gunsmith** (the doc's ~5020-5135), then steps 4-8 below.
+  - The user said to go on through every step without waiting.
+  - At 95% of the 5-hour limit: pause, update this section, and schedule a resume (memory `depth-working-prefs`).
+- **Step 3 in progress: the plan (my design calls; the user is away):**
+  - **The data is transcribed.** `data/trawl/weapons.tsv` has all 46 weapons from doc pages 29-31: id, name, class, damage, pellets, speed, magazine, noise, slots, where, price, ammo kind, ammo price, special. `data/trawl/attachments.tsv` has the 18 attachments from pages 32-33.
+  - **The Gunsmith rules:** three damage upgrades per gun, +15% each, at 60/150/300 (doubled for the carbine, chatter gun and long rifle), and up to three attachments.
+  - **Carrying:** the loaded magazine plus one spare reload on the body. Everything else lives in the magazine locker in the fo'c'sle.
+  - **Wet powder:** cartridge guns misfire 10% in rain, 25% in a squall, and 40% in a storm or after their carrier was in the water. The Chandler's oilskin case (20) stops it.
+  - **Slots:** two-slot weapons take two slots, and a hand carries at most one of them.
+  - **Code, `trawl_weapons.h/.cpp`:**
+    - `WeaponDef`/`AttachmentDef` loaded from the TSVs (`Weapons()`, `WeaponIndex`).
+    - `Slot` gains `wpn` (a catalogue index), `dmgLvl`, `att[3]` and `spare`. The old `Item`s map onto catalogue rows.
+    - A melee weapon calls `KillDeckFish` with its catalogue damage and reach.
+    - A gun fires `Shot::Bullet` (or pellets when it has more than one), with its damage, fire rate and noise, scaled by upgrades and attachments.
+    - Reload takes a spare from `Gannet::ammo[kind]`, the magazine stock. Until below decks (step 7), the deck locker stands in for the magazine locker.
+  - **The Gunsmith:** a new quay station (`DockKind::Gunsmith`) with a tabbed panel (weapons / upgrades / attachments / ammo). Only the `where == gunsmith` rows are sold there; `gunsmith3` opens from deadline 3. The trader-only weapons come with the landings (the Atoll's coral club, shark-tooth blade, longbow and fletching).
+  - **Wiring:** commands `CMD_GUN_BUY` / `CMD_GUN_UPGRADE` / `CMD_GUN_ATTACH` / `CMD_AMMO`; the slot fields and the ammo stock go into the snapshot's `Visit`; checks in `--trawl-gear-test`; shots `trawl_gunsmith`.
+- The user's answers this session:
+  - The skiff and the Atoll in **both views**.
+  - Order: WIP, then economy, then the skiff.
+  - My stale sound WIP in the main folder was discarded.
+  - The user is away: make the design calls and log them here.
+
 ## The plan from here (the Trawl)
 
 The order agreed after reading the full doc. Step 1 was about to start when this handoff was written.

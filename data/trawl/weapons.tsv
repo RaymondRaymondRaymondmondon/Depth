@@ -1,0 +1,46 @@
+# The Trawl's weapons catalogue, transcribed from the design doc v2 (The_Trawl_Reference PDF, pages 29-31).
+# Columns: id	name	class	damage	pellets	speed	magazine	noise	slots	where	price	ammo	ammoPrice	special
+# class: melee / sidearm / longgun / special / thrown. speed: fast / normal / slow / rapid (fire rate).
+# where: always / start / gunsmith / gunsmith3 (from deadline 3) / atoll / sealrock / cannery / smugglers / cult / found
+# price in shillings (0 = not sold); ammo: rounds / shells / spears / flares / pellets / - ; ammoPrice per round
+fists	Fists	melee	5	1	normal	0	0	0	always	0	-	0	Quietest finish there is
+priest	Fish priest	melee	15	1	normal	0	1	1	start	0	-	0	Clean headshots
+knife	Knife	melee	10	1	fast	0	1	1	start	0	-	0	Cuts lines, arms, grapples, Wraiths
+gaff	Gaff	melee	12	1	normal	0	1	1	start	0	-	0	2 m reach; holds a fish still
+knuckles	Brass knuckles	melee	12	1	fast	0	1	1	gunsmith	40	-	0	Spin finishes
+pin	Belaying pin	melee	18	1	normal	0	1	1	gunsmith	30	-	0	Stuns a fish for 1 s
+boathook	Boat hook	melee	14	1	normal	0	1	1	gunsmith	60	-	0	3 m reach; drags fish and boarders off the rail
+spike	Marlinspike	melee	16	1	normal	0	1	1	gunsmith	70	-	0	Double damage through hide (sharks, the White)
+cleaver	Cleaver	melee	30	1	slow	0	1	1	gunsmith	90	-	0	One-hit kills on mid-size fish
+cutlass	Cutlass	melee	24	1	normal	0	1	1	gunsmith	150	-	0	Swings hit two targets
+coralclub	Coral club	melee	20	1	normal	0	1	1	atoll	120	-	0	Headshots do 1.5x damage
+sharkblade	Shark-tooth blade	melee	28	1	normal	0	1	1	atoll	260	-	0	Extra bleed: fast kills, more blood
+flenser	Flensing spade	melee	40	1	slow	0	1	2	sealrock	220	-	0	2.5 m reach; built for thrashers
+lance	Whaling lance	melee	50	1	normal	0	1	2	sealrock	300	-	0	3 m reach; thrown, it tethers
+maul	Piston maul	melee	60	1	slow	0	3	2	cannery	450	-	0	Launches a fish into the air: sets up Airborne kills
+obsidian	Obsidian dagger	melee	35	1	fast	0	0	1	cult	400	-	0	Silent; every kill adds 1 Wake
+revolver	Service revolver	sidearm	20	1	normal	6	5	1	gunsmith	120	rounds	2
+derringer	Derringer	sidearm	30	1	normal	2	3	1	gunsmith	80	rounds	2
+pepperbox	Pepperbox	sidearm	12	1	rapid	4	5	1	gunsmith	150	rounds	2
+flarepistol	Flare pistol	sidearm	10	1	normal	1	3	1	gunsmith	60	flares	10	Light bursts, signals; plus fire
+speargun	Speargun	sidearm	35	1	normal	1	2	1	gunsmith	150	spears	5	Tethered
+twinspear	Twin speargun	sidearm	30	2	normal	2	2	1	cannery	280	spears	5	Tethered; 2 x 30
+harpistol	Harpoon pistol	sidearm	25	1	normal	1	3	1	cannery	250	spears	5	Tethered: reels a fish in to the shooter
+airpistol	Air pistol	sidearm	15	1	normal	8	1	1	smugglers	300	pellets	1	Nearly silent; never misfires in the wet
+captainpistol	Captain's pistol	sidearm	45	1	normal	1	5	1	found	0	rounds	2	Never misfires (the Ghost Ship's relic chest)
+shotgun	Coach shotgun	longgun	8	8	normal	2	7	2	gunsmith	200	shells	3	8 pellets of 8
+carbine	Lever carbine	longgun	22	1	normal	12	6	2	gunsmith	400	rounds	2
+chatter	Chatter gun	longgun	9	1	rapid	30	8	2	gunsmith	450	rounds	1	12 rounds a second
+rifle	Long rifle (scoped)	longgun	70	1	normal	5	7	2	gunsmith	700	rounds	5	Scoped (No-scope from the hip)
+nitro	Nitro express	longgun	180	1	slow	2	9	2	gunsmith3	1200	rounds	15	Recoil knocks the shooter back
+longbow	Tribal longbow	longgun	30	1	normal	1	1	2	atoll	200	arrows	0	Silent; arrows recovered from kills
+puntgun	Punt gun	longgun	20	10	slow	1	10	2	sealrock	500	shells	8	Clears a gull flock in one shot; knocks the shooter down
+riveter	Steam riveter	longgun	14	1	normal	20	4	2	cannery	380	rivets	1	Pins a fish to the deck so it can't flop overboard
+blunderbuss	Blunderbuss	longgun	12	6	normal	1	8	2	smugglers	300	junk	0	Loads junk as ammunition (nails, sea glass, coins)
+airrifle	Air rifle	longgun	40	1	normal	10	2	2	smugglers	650	pellets	2	Quiet long shots
+prod	Galvanic prod	special	0	1	normal	6	2	2	bonebeach	700	charges	0	Shocks the water in 5 m: stuns every fish around the hull for 4 s (free headshots)
+rocketharpoon	Rocket harpoon	special	200	1	normal	1	9	2	drowned	1500	rockets	0	Tethered, explosive; the only hand weapon that can hurt the Kraken's eye
+crackerjack	Crackerjack	thrown	0	1	normal	1	9	1	gunsmith	25	-	0	Stuns fish and birds in 4 m for 3 s
+lampoil	Lamp-oil bottle	thrown	15	1	normal	1	3	1	gunsmith	15	-	0	Plus fire; burns Drowned and Wraiths
+dynamite	Dynamite	thrown	150	1	normal	1	10	1	gunsmith	30	-	0	150 in 4 m; overkills anything small
+depthcharge	Depth charge	thrown	0	1	normal	1	10	1	gunsmith	120	-	0	12 m blast under water; floats every fish in range; wakes the ground

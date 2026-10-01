@@ -1,0 +1,21 @@
+# The Trawl's gun attachments (design doc v2, pages 32-33). Up to three per gun.
+# Columns: id	name	fits	effect	where	price
+# fits: magazine / chatter / revolver / any / rifles / shotguns / semiauto / long / cartridge / spear / scoped / rapid
+extmag	Extended magazine	magazine	+50% magazine	gunsmith	80
+drum	Drum magazine	chatter	75 rounds	gunsmith	200
+speedloader	Speed loader	revolver	Reloads twice as fast	gunsmith	30
+sight	Sight	any	-40% spread; counts as scoped for the No-scope bonus	gunsmith	100
+compensator	Compensator	any	-40% recoil	gunsmith	90
+rifled	Rifled barrel	rifles	+10% damage, +50% range	gunsmith	150
+choke	Choke	shotguns	Tighter spread	gunsmith	50
+hairtrigger	Hair trigger	semiauto	+20% fire rate	gunsmith	70
+bayonet	Bayonet	long	A 15-damage melee attack that counts as a Melee finish	gunsmith	60
+sling	Sling	long	Swaps to and from the gun in 0.3 s	gunsmith	40
+baffle	Baffle	any	-3 noise, -10% damage: the quiet kill that keeps the sea asleep	gunsmith	150
+oilskin	Oilskin breech	cartridge	Never misfires in the wet	gunsmith	120
+fletching	Feather fletching	spear	+25% range under water	atoll	90
+nightglass	Night glass	scoped	Shows targets outside the light: easy In-the-dark kills	sealrock	300
+steamfeed	Steam feed	rapid	+30% fire rate	cannery	250
+lodestone	Lodestone sight	any	Every fifth shot snaps to the head	smugglers	400
+bonestock	Bone stock	any	Kills with this gun add 0.1 to the Killscore	bonebeach	350
+eyeglass	Eyeglass scope	scoped	No refraction offset under water; each sighted kill adds 1 Wake	drowned	600
