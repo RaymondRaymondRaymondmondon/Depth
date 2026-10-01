@@ -225,6 +225,27 @@ void Eco::BuildWeedsChart(uint32_t seed) {
     marks.push_back({"The Inner Lanes", {size * 0.45f, size * (0.35f + 0.3f * H2(1, 3, seed))}, 26, 0});
     marks.push_back({"The Otter Raft", {size * 0.55f, size * (0.2f + 0.6f * H2(4, 2, seed))}, 22, 2});
     marks.push_back({"The Seaward Rocks", {size * 0.74f, size * (0.3f + 0.4f * H2(6, 8, seed))}, 24, 0});
+    // the landings (design doc v2, page 38): Seal Rock, a bare islet near the seaward edge with a sealers' hut; the
+    // Cannery Pier, an old loading stage on pilings off the island, its cannery shed and boiler still standing
+    {
+        float my = marks[2].at.y;
+        Vector2 seal{size * 0.63f, my + (my > size * 0.5f ? -1 : 1) * size * 0.22f};
+        float py = size * (H2(9, 2, seed) < 0.5f ? 0.2f : 0.8f);
+        float pshore = 34 + 14 * sinf(py * 0.021f + seed) + 8 * Noise2(py * 0.03f, 3.1f, seed);
+        Vector2 pier{pshore + 42, py};
+        landingAt = {seal, pier}; landingKind = {1, 2};
+        for (int y = 0; y < n; y++) for (int x = 0; x < n; x++) {
+            Vector2 w{(x + 0.5f) * cell, (y + 0.5f) * cell};
+            int i = y * n + x;
+            float ds = Vector2Distance(w, seal), dp = Vector2Distance(w, pier);
+            if (ds < 22) {   // its rock (11 m), a skirt of boulders, then the drop
+                depth[i] = ds < 11 ? 0 : ds < 16 ? 1.5f + (ds - 11) * 0.3f : std::max(depth[i], 3.0f + (ds - 16) * 1.2f);
+                hab[i] = (uint8_t)(ds < 11 ? H_LAND : ds < 16 ? H_REEF : H_OPEN);
+            }
+            if (dp < 10) { depth[i] = 0; hab[i] = H_LAND; }   // (the stage itself: planks on pilings over 6 m of water)
+            else if (dp < 16 && hab[i] == H_KELP) hab[i] = H_OPEN;   // (a clear berth round it)
+        }
+    }
     rafts.clear();
     for (int i = 0; i < 7; i++) rafts.push_back({{size * 0.6f + Rand() * size * 0.35f, 40 + Rand() * (size - 80)}, 5 + Rand() * 6});   // drift kelp mats
 }
@@ -238,7 +259,7 @@ void Eco::BuildChart(uint32_t seed) {
     for (int i = 0; i < 28; i++) heads.push_back({{130 + Rand() * (size * 0.72f - 130), 30 + Rand() * (size - 60)}, 6 + Rand() * 9});
     // the Atoll (design doc v2, "Skiff destinations"): a palm islet out in the basin, a skiff's row from the island
     Vector2 atoll{size * 0.60f + (H2(3, 5, seed) - 0.5f) * size * 0.04f, size * (H2(7, 1, seed) < 0.5f ? 0.22f : 0.78f)};   // (hashed, not drawn from Rand: the rest of the chart is unchanged)
-    landingAt.assign(1, atoll);
+    landingAt.assign(1, atoll); landingKind.assign(1, 0);
     for (int y = 0; y < n; y++) for (int x = 0; x < n; x++) {
         float wx = (x + 0.5f) * cell, wy = (y + 0.5f) * cell;
         int i = y * n + x;

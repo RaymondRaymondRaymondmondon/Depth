@@ -280,13 +280,27 @@ bool Session::ElderNear(int ci, std::string* why) const {
     if (ci < 0 || ci >= (int)G->crew.size()) return no("no such hand");
     const Crew& c = G->crew[ci];
     if (c.deck != DECK_SHORE || G->skiff.landing < 0 || G->skiff.landing >= (int)G->landings.size()) return no("the elder is on the Atoll");
-    if (Vector2Distance(c.p, G->landings[G->skiff.landing].elder) > 2.2f) return no("go to the elder's shrine");
-    if (G->foughtCanoes) return no("the elder turns his back: you fought his people's canoes");
+    int kind = G->landings[G->skiff.landing].kind;
+    if (Vector2Distance(c.p, G->landings[G->skiff.landing].elder) > 2.2f) return no(kind == LK_SEALROCK ? "go to Old Hoskins on the hut's step" : kind == LK_CANNERY ? "go to the foreman by the shed" : "go to the elder's shrine");
+    if (kind == LK_ATOLL && G->foughtCanoes) return no("the elder turns his back: you fought his people's canoes");
     return true;
 }
+// Seal Rock's Old Hoskins buys birds, at twice their value, in shillings; the Cannery Pier's last foreman buys cooked
+// ("canned") fish at 150%, in shillings (design doc v2, page 38). Neither sells anything.
+static bool IsBird(const CatchRec& r) { return BirdKindOf(r.name) >= 0 || (r.sp >= 0 && Species().sp[r.sp].stealsDeck); }
 float Session::ElderGive(int ci, std::string* why) {
     if (!ElderNear(ci, why)) return 0;
     Crew& c = G->crew[ci];
+    int kind = G->landings[G->skiff.landing].kind;
+    if (kind == LK_SEALROCK || kind == LK_CANNERY) {
+        bool ok = c.carrying && (kind == LK_SEALROCK ? IsBird(c.carry) : (c.carry.cooked && !c.carry.junk));
+        if (!ok) { if (why) *why = kind == LK_SEALROCK ? "Hoskins buys only birds" : "the foreman takes only cooked fish, from the boiler"; return 0; }
+        float v = Value(c.carry) * (kind == LK_SEALROCK ? 2.0f : 1.5f);
+        money += v;
+        G->Say(TextFormat(kind == LK_SEALROCK ? "Old Hoskins counts out %.0f shillings for the %s" : "The foreman pays %.0f shillings for the %s, for the tins", v, c.carry.name.c_str()));
+        c.carrying = false; c.carryKg = 0;
+        return v;
+    }
     if (!c.carrying || c.carry.junk) { if (why) *why = "he takes only fish"; return 0; }
     float v = Value(c.carry) * 1.5f;
     G->landings[G->skiff.landing].elderCredit += v;
@@ -305,6 +319,7 @@ bool Session::ElderBuy(int ci, const std::string& id, std::string* why) {
     auto no = [&](const char* m) { if (why) *why = m; return false; };
     if (!ElderNear(ci, why)) return false;
     Landing& L = G->landings[G->skiff.landing];
+    if (L.kind != LK_ATOLL) return no("he has nothing to sell");
     Crew& c = G->crew[ci];
     if (id.rfind("charm:", 0) == 0) {
         int ch = id == "charm:shark" ? CH_SHARK_TOOTH : CH_ANKLET; int price = ch == CH_SHARK_TOOTH ? 120 : 90;

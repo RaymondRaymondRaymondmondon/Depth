@@ -658,9 +658,11 @@ static void DrawSkiff3D(const Gannet& g, float t) {
 
 // ---------------------------------------------------------------- a landing (the Atoll), in the world's frame
 static const float ATOLL_Y = 0.6f;   // the sand's top over still water
-static Model gAtoll{}; static Vector2 gAtollFor{-1e9f, -1e9f};
+static Model gAtoll[4]{}; static Vector2 gAtollFor[4]{{-1e9f, -1e9f}, {-1e9f, -1e9f}, {-1e9f, -1e9f}, {-1e9f, -1e9f}};
 static void BuildAtoll(MeshBuilder& mb, const Landing& L) {
-    Color sand{196, 178, 132, 255}, sandWet{150, 132, 96, 255}, pond{30, 96, 104, 255}, trunk{110, 82, 52, 255}, frond{58, 112, 56, 255};
+    bool seal = L.kind == LK_SEALROCK, pier = L.kind == LK_CANNERY;
+    Color sand = seal ? Color{118, 114, 106, 255} : pier ? Color{122, 94, 62, 255} : Color{196, 178, 132, 255};
+    Color sandWet = seal ? Color{70, 72, 66, 255} : Color{150, 132, 96, 255}, pond = seal ? Color{66, 80, 70, 255} : Color{30, 96, 104, 255}, trunk{110, 82, 52, 255}, frond{58, 112, 56, 255};
     Color thatch{160, 128, 72, 255}, hutWall{120, 90, 56, 255}, hull{88, 62, 42, 255}, hullDk{56, 40, 28, 255}, stone{110, 108, 100, 255};
     auto W = [&](Vector2 l, float y) { return Vector3{L.at.x + l.x, y, L.at.y + l.y}; };
     const int N = 36;
@@ -669,12 +671,40 @@ static void BuildAtoll(MeshBuilder& mb, const Landing& L) {
         Vector2 p0{cosf(a0), sinf(a0)}, p1{cosf(a1), sinf(a1)};
         mb.Tri(W({0, 0}, ATOLL_Y), W(Vector2Scale(p1, L.r), ATOLL_Y), W(Vector2Scale(p0, L.r), ATOLL_Y), sand);
         mb.Tri(W({0, 0}, ATOLL_Y), W(Vector2Scale(p0, L.r), ATOLL_Y), W(Vector2Scale(p1, L.r), ATOLL_Y), sand);
+        if (pier) {
+            // the stage's edge beam, and a piling every other step down into the water
+            mb.Quad(W(Vector2Scale(p0, L.r), ATOLL_Y), W(Vector2Scale(p1, L.r), ATOLL_Y), W(Vector2Scale(p1, L.r), ATOLL_Y - 0.35f), W(Vector2Scale(p0, L.r), ATOLL_Y - 0.35f), hullDk);
+            mb.Quad(W(Vector2Scale(p0, L.r), ATOLL_Y - 0.35f), W(Vector2Scale(p1, L.r), ATOLL_Y - 0.35f), W(Vector2Scale(p1, L.r), ATOLL_Y), W(Vector2Scale(p0, L.r), ATOLL_Y), hullDk);
+            if (k % 2 == 0) mb.Tube({W(Vector2Scale(p0, L.r - 0.2f), -3.0f), W(Vector2Scale(p0, L.r - 0.2f), ATOLL_Y)}, 0.18f, 0.18f, 6, Color{58, 46, 34, 255}, Color{40, 46, 36, 255}, 0);
+            if (k % 3 == 0) mb.Box(W(Vector2Scale(p0, L.r * 0.5f), ATOLL_Y + 0.005f), {L.r * 0.5f, 0.005f, 0.04f}, Color{96, 72, 48, 255});   // a seam between planks
+            continue;
+        }
         mb.Quad(W(Vector2Scale(p0, L.r), ATOLL_Y), W(Vector2Scale(p1, L.r), ATOLL_Y), W(Vector2Scale(p1, L.r + 2.2f), -0.9f), W(Vector2Scale(p0, L.r + 2.2f), -0.9f), sandWet);   // the beach running under
         mb.Quad(W(Vector2Scale(p0, L.r + 2.2f), -0.9f), W(Vector2Scale(p1, L.r + 2.2f), -0.9f), W(Vector2Scale(p1, L.r), ATOLL_Y), W(Vector2Scale(p0, L.r), ATOLL_Y), sandWet);
-        // the little lagoon
+        // the little lagoon (Seal Rock: the weed-slick haul-out)
         Vector2 q0 = Vector2Add(L.pond, Vector2Scale(p0, L.pondR)), q1 = Vector2Add(L.pond, Vector2Scale(p1, L.pondR));
         mb.Tri(W(L.pond, ATOLL_Y + 0.02f), W(q1, ATOLL_Y + 0.02f), W(q0, ATOLL_Y + 0.02f), pond);
         mb.Tri(W(L.pond, ATOLL_Y + 0.02f), W(q0, ATOLL_Y + 0.02f), W(q1, ATOLL_Y + 0.02f), pond);
+    }
+    if (seal) {
+        // boulders on the rock, the sealers' stone hut with a turf roof, the iron stove by its door
+        for (int i = 0; i < 9; i++) { float a = i * 2.39f, rr = 3 + fmodf(i * 3.7f, L.r - 4.5f); Vector2 b{cosf(a) * rr, sinf(a) * rr}; if (Vector2Distance(b, L.sloop) < 3.4f || Vector2Distance(b, L.fire) < 1.8f || Vector2Distance(b, L.elder) < 1.6f || Vector2Distance(b, L.pond) < L.pondR + 0.6f) continue; mb.Box(W(b, ATOLL_Y + 0.3f), {0.5f + 0.1f * (i % 3), 0.3f + 0.1f * (i % 2), 0.45f}, Color{96, 94, 88, 255}); }
+        mb.Box(W(L.sloop, ATOLL_Y + 1.0f), {2.6f, 1.0f, 1.6f}, Color{104, 100, 92, 255});
+        mb.Box(W(L.sloop, ATOLL_Y + 2.15f), {2.8f, 0.18f, 1.8f}, Color{86, 98, 60, 255});
+        mb.Box(W(Vector2Add(L.sloop, {0, 1.62f}), ATOLL_Y + 0.8f), {0.6f, 0.8f, 0.02f}, Color{30, 24, 20, 255});   // the door
+        mb.Box(W(L.fire, ATOLL_Y + 0.35f), {0.4f, 0.35f, 0.3f}, Color{46, 44, 42, 255});
+        mb.Tube({W(Vector2Add(L.fire, {0.2f, 0}), ATOLL_Y + 0.7f), W(Vector2Add(L.fire, {0.2f, 0}), ATOLL_Y + 2.6f)}, 0.08f, 0.08f, 5, Color{40, 38, 36, 255}, Color{40, 38, 36, 255}, 0);
+        return;
+    }
+    if (pier) {
+        // the cannery shed (corrugated iron), its door; the boiler (a riveted drum on its side) and its stack
+        mb.Box(W(L.sloop, ATOLL_Y + 1.4f), {2.6f, 1.4f, 1.6f}, Color{98, 84, 74, 255});
+        mb.Box(W(L.sloop, ATOLL_Y + 2.9f), {2.75f, 0.12f, 1.75f}, Color{124, 114, 104, 255});
+        for (int r2 = -2; r2 <= 2; r2++) mb.Box(W(Vector2Add(L.sloop, {(float)r2, 0}), ATOLL_Y + 3.03f), {0.05f, 0.03f, 1.75f}, Color{90, 82, 74, 255});
+        mb.Box(W(Vector2Add(L.sloop, {0, 1.62f}), ATOLL_Y + 1.0f), {0.7f, 1.0f, 0.02f}, Color{30, 24, 20, 255});
+        mb.Tube({W(Vector2Add(L.fire, {-1.0f, 0}), ATOLL_Y + 0.8f), W(Vector2Add(L.fire, {1.0f, 0}), ATOLL_Y + 0.8f)}, 0.75f, 0.75f, 10, Color{72, 64, 60, 255}, Color{56, 50, 48, 255}, 0);
+        mb.Tube({W(Vector2Add(L.fire, {0.4f, 0}), ATOLL_Y + 1.4f), W(Vector2Add(L.fire, {0.4f, 0}), ATOLL_Y + 4.6f)}, 0.2f, 0.18f, 6, Color{40, 36, 34, 255}, Color{40, 36, 34, 255}, 0);
+        return;
     }
     // palms: a leaning trunk and a crown of drooping fronds
     for (size_t i = 0; i < L.palms.size(); i++) {
@@ -708,12 +738,13 @@ static void BuildAtoll(MeshBuilder& mb, const Landing& L) {
     for (int k = 0; k < 8; k++) { float a = k * 0.785f; mb.Box(W(Vector2Add(L.fire, {cosf(a) * 0.45f, sinf(a) * 0.45f}), ATOLL_Y + 0.08f), {0.12f, 0.08f, 0.12f}, stone); }
 }
 static void DrawLanding3D(const Gannet& g, float t) {
-    for (const auto& L : g.landings) {
-        if (gAtollFor.x != L.at.x || gAtollFor.y != L.at.y) {
-            if (gAtoll.meshCount > 0) UnloadModel(gAtoll);
-            MeshBuilder mb; BuildAtoll(mb, L); gAtoll = LoadModelFromMesh(mb.Build()); gAtollFor = L.at;
+    for (size_t li = 0; li < g.landings.size() && li < 4; li++) {
+        const Landing& L = g.landings[li];
+        if (gAtollFor[li].x != L.at.x || gAtollFor[li].y != L.at.y) {
+            if (gAtoll[li].meshCount > 0) UnloadModel(gAtoll[li]);
+            MeshBuilder mb; BuildAtoll(mb, L); gAtoll[li] = LoadModelFromMesh(mb.Build()); gAtollFor[li] = L.at;
         }
-        rt::DrawStatic(gAtoll, MatrixIdentity(), WHITE);
+        rt::DrawStatic(gAtoll[li], MatrixIdentity(), WHITE);
         auto W = [&](Vector2 l, float y) { return Vector3{L.at.x + l.x, y, L.at.y + l.y}; };
         // the fire, the fish on it, and the smoke going grey and black as they burn
         float worst = 0;
@@ -724,10 +755,17 @@ static void DrawLanding3D(const Gannet& g, float t) {
         }
         // the elder before his hut
         {
+            // the elder; Old Hoskins in yellow oilskins; the foreman in a leather apron
+            Color cl = L.kind == LK_SEALROCK ? Color{176, 154, 62, 255} : L.kind == LK_CANNERY ? Color{96, 70, 50, 255} : Color{170, 110, 80, 255};
             Matrix fr = Frame(W(L.elder, ATOLL_Y), 0.5f + 0.2f * sinf(t * 0.3f));
-            rt::DrawStatic(gBody[(int)Role::Medic], fr, Color{170, 110, 80, 255});
-            for (int s = -1; s <= 1; s += 2) rt::DrawStatic(gArm[(int)Role::Medic], MatrixMultiply(MatrixMultiply(MatrixRotateZ(0.3f * s + 0.1f * sinf(t)), MatrixTranslate(0, 1.38f, s * 0.27f)), fr), Color{170, 110, 80, 255});
-            Glow(W(L.elder, ATOLL_Y + 2.05f), 0.05f, Color{240, 70, 50, 255}, 0.4f);   // his feathers
+            rt::DrawStatic(gBody[(int)Role::Medic], fr, cl);
+            for (int s = -1; s <= 1; s += 2) rt::DrawStatic(gArm[(int)Role::Medic], MatrixMultiply(MatrixMultiply(MatrixRotateZ(0.3f * s + 0.1f * sinf(t)), MatrixTranslate(0, 1.38f, s * 0.27f)), fr), cl);
+            if (L.kind == LK_ATOLL) Glow(W(L.elder, ATOLL_Y + 2.05f), 0.05f, Color{240, 70, 50, 255}, 0.4f);   // his feathers
+        }
+        if (L.kind != LK_ATOLL && L.fireLit) Glow(W(Vector2Add(L.fire, {0, L.kind == LK_CANNERY ? 0.78f : 0.32f}), ATOLL_Y + 0.35f), 0.18f, Color{255, 150, 60, 255}, 1.2f);   // the firebox door
+        if (L.kind == LK_SEALROCK) {   // the seals on their haul-out, the bull among them
+            for (int k = 0; k < 4; k++) { Vector2 sp = Vector2Add(L.pond, {cosf(k * 1.7f) * 1.6f, sinf(k * 1.7f) * 1.3f}); rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(1.3f, 0.35f, 0.5f), MatrixRotateY(k * 1.1f)), MatrixTranslate(L.at.x + sp.x, ATOLL_Y + 0.2f, L.at.y + sp.y)), Color{96, 90, 84, 255}); }
+            rt::DrawCubeM(MatrixMultiply(MatrixScale(2.0f, 0.6f, 0.8f), MatrixTranslate(L.at.x + L.moray.x, ATOLL_Y + 0.32f + 0.05f * sinf(t * 2), L.at.y + L.moray.y)), Color{70, 62, 56, 255});
         }
         for (const auto& k : L.caches) {
             if (k.kind == 2 && !k.found) continue;
@@ -741,7 +779,7 @@ static void DrawLanding3D(const Gannet& g, float t) {
             if (b.junk) rt::DrawCubeM(MatrixMultiply(MatrixScale(0.6f, 0.4f, 0.4f), MatrixTranslate(L.at.x + b.deckAt.x, ATOLL_Y + 0.2f, L.at.y + b.deckAt.y)), Color{120, 80, 40, 255});
             else DrawFishAt(gFish, W(b.deckAt, ATOLL_Y + 0.08f), {1, 0, 0.3f}, std::clamp(0.3f + sqrtf(b.kg) * 0.22f, 0.3f, 1.4f), Color{170, 178, 184, 255}, 1.5f);
         }
-        rt::DrawCubeM(MatrixMultiply(MatrixScale(1.2f, 0.08f, 0.2f), MatrixTranslate(L.at.x + L.moray.x, ATOLL_Y - 0.05f, L.at.y + L.moray.y)), Color{24, 34, 26, 255});   // the moray, dark under the surface
+        if (L.kind == LK_ATOLL) rt::DrawCubeM(MatrixMultiply(MatrixScale(1.2f, 0.08f, 0.2f), MatrixTranslate(L.at.x + L.moray.x, ATOLL_Y - 0.05f, L.at.y + L.moray.y)), Color{24, 34, 26, 255});   // the moray, dark under the surface
     }
 }
 
@@ -767,6 +805,8 @@ static void DrawHand(const Gannet& g, const Crew& c, float t) {
         float swing = walking ? sinf(t * 9 + c.slot) * 0.45f : 0;
         put(gBody[r], MatrixIdentity(), frame);
         for (int s = -1; s <= 1; s += 2) put(gLeg, MatrixMultiply(MatrixRotateZ(swing * s), MatrixTranslate(0, 0.88f, s * 0.12f)), frame);
+        if (c.tangleT > 0)   // (the Cannery Pier's pilings: the same grip, up through the planks)
+            for (int k = 0; k < 5; k++) rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixMultiply(MatrixScale(0.05f, 0.7f, 0.05f), MatrixRotateX(0.9f * sinf(k * 1.3f) + 0.25f * sinf(t * 3 + k))), MatrixMultiply(MatrixRotateY(k * 1.26f), MatrixTranslate(0, 0.25f, 0))), frame), Color{50, 92, 52, 255});
         for (int s = -1; s <= 1; s += 2) put(gArm[r], MatrixMultiply(MatrixMultiply(MatrixRotateZ(c.carrying ? 1.2f : -swing * s * 1.1f), MatrixRotateX(s * 0.1f)), MatrixTranslate(0, 1.38f, s * 0.27f)), frame);
         if (c.carrying) rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(c.carry.junk ? 0.6f : 0.7f, c.carry.junk ? 0.4f : 0.15f, c.carry.junk ? 0.4f : 0.2f), MatrixTranslate(0.55f, 1.1f, 0)), frame), c.carry.junk ? Color{120, 80, 40, 255} : Color{190, 194, 196, 255});
         return;
@@ -788,6 +828,8 @@ static void DrawHand(const Gannet& g, const Crew& c, float t) {
     float swing = walking ? sinf(t * 9 + c.slot) * 0.45f : 0;
     put(gBody[r], walking ? MatrixTranslate(0, fabsf(sinf(t * 9 + c.slot)) * 0.03f, 0) : MatrixIdentity(), frame);
     for (int s = -1; s <= 1; s += 2) put(gLeg, MatrixMultiply(MatrixRotateZ(swing * s), MatrixTranslate(0, 0.88f, s * 0.12f)), frame);
+    if (c.tangleT > 0)   // a Kelp Wraith's grip: wet strands wound round the ankles, writhing
+        for (int k = 0; k < 5; k++) rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixMultiply(MatrixScale(0.05f, 0.7f, 0.05f), MatrixRotateX(0.9f * sinf(k * 1.3f) + 0.25f * sinf(t * 3 + k))), MatrixMultiply(MatrixRotateY(k * 1.26f), MatrixTranslate(0, 0.25f, 0))), frame), Color{50, 92, 52, 255});
     // the arms: forward to the work at a station (the shovel's rhythm at the boiler, the pump's stroke), swinging
     // when walking, hanging otherwise
     float work = c.station >= 0 ? 0.9f + 0.25f * sinf(t * 5 + c.slot) : 0;
@@ -841,6 +883,7 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
     if (b.lantern == 3 && !below) pts.push_back({L.lampPos, 5.0f, {255, 226, 170, 255}, 0.5f});
     if (below) for (const auto& lp : g.lamps) if (lp.lit) pts.push_back({BoatPoint(b, {lp.at.x, DECK_Y - 0.3f, lp.at.y}), 4.5f, {255, 200, 130, 255}, 0.7f});   // the oil lamps
     for (const auto& fl : g.flares) pts.push_back({W3(fl.p, 1.0f), 20.0f, {255, 90, 60, 255}, 1.5f});
+    if (g.siren.on) pts.push_back({W3(g.siren.p, 2.0f), 9.0f, {160, 210, 225, 255}, 0.7f});   // the Siren's cold light
     if (g.skiff.Up()) pts.push_back({Vector3Transform({1.95f, 0.9f, 0}, SkiffMatrix(g)), D().skiffLantern, {255, 214, 140, 255}, 0.9f});   // the skiff's bow lantern
     for (const auto& La : g.landings) if (La.fireLit) pts.push_back({{La.at.x + La.fire.x, ATOLL_Y_EYE + 0.8f, La.at.y + La.fire.y}, 10.0f, {255, 170, 90, 255}, 1.1f + 0.1f * sinf(t * 9)});   // a landing's fire
     if (g.moored || Vector2Distance(b.pos, g.moorPos) < 80) {
@@ -982,6 +1025,24 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
     }
     for (const auto& s : g.shots) Glow(WD(s.p), s.kind == Shot::Harpoon || s.kind == Shot::Spear ? 0.12f : 0.06f, s.kind == Shot::Flare ? Color{255, 100, 70, 255} : Color{230, 220, 190, 255}, s.kind == Shot::Flare ? 3.0f : 0.6f);
     for (const auto& fl : g.flares) Glow(W3(fl.p, g.sea.Height(fl.p.x, fl.p.y) + 0.1f), 0.25f, Color{255, 90, 60, 255}, 3.0f);
+    // the Weeds: a Siren on her rock, pale against the dark, with a cold glow about her; mermen splashing at the cod end
+    if (g.siren.on) {
+        float h = g.sea.Height(g.siren.p.x, g.siren.p.y);
+        Seg(W3(g.siren.p, h - 0.8f), W3(g.siren.p, h + 0.7f), 1.6f, Color{44, 42, 40, 255});
+        Seg(W3({g.siren.p.x + 0.9f, g.siren.p.y + 0.4f}, h - 0.6f), W3({g.siren.p.x + 0.7f, g.siren.p.y + 0.3f}, h + 0.3f), 1.0f, Color{52, 50, 46, 255});
+        float sway = sinf(t * 1.3f) * 0.12f;
+        Seg(W3(g.siren.p, h + 0.8f), W3({g.siren.p.x + sway, g.siren.p.y}, h + 1.9f), 0.32f, Color{214, 222, 226, 255});
+        Glow(W3({g.siren.p.x + sway, g.siren.p.y}, h + 2.2f), 0.22f, Color{230, 236, 240, 255}, 0.6f);
+        Glow(W3({g.siren.p.x + sway, g.siren.p.y}, h + 1.5f), 0.3f, Color{160, 210, 225, 255}, 0.5f + 0.3f * sinf(t * 2.2f));
+    }
+    if (g.mermen.on) {
+        Vector2 m = g.mermen.p; float h = g.sea.Height(m.x, m.y);
+        for (int k = 0; k < 6; k++) {
+            float a = k * 1.05f + t * 2.0f, r = 0.8f + 0.9f * fabsf(sinf(t * 4.7f + k));
+            Glow(W3({m.x + cosf(a) * r * 1.5f, m.y + sinf(a) * r}, h + 0.15f + 0.3f * fabsf(sinf(t * 9 + k))), 0.18f, Color{225, 238, 242, 255}, 0.5f);
+        }
+        if (fmodf(t, 1.6f) < 0.4f) Seg(W3({m.x - 0.5f, m.y}, h), W3({m.x + 0.2f, m.y + 0.3f}, h + 0.9f), 0.12f, Color{150, 172, 160, 255});   // a pale arm over the floats
+    }
     for (const auto& f : g.floaters) {
         float len = std::clamp(0.35f + sqrtf(f.kg) * 0.25f, 0.4f, 3.0f);
         DrawFishAt(gFish, W3(f.p, g.sea.Height(f.p.x, f.p.y) + 0.05f), {1, 0, 0.3f}, len, Color{200, 205, 210, 255}, 1.5f);
@@ -1095,7 +1156,7 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
 }
 
 void UnloadTrawl3D() {
-    if (gAtoll.meshCount > 0) { UnloadModel(gAtoll); gAtoll = Model{}; gAtollFor = {-1e9f, -1e9f}; }
+    for (int i = 0; i < 4; i++) if (gAtoll[i].meshCount > 0) { UnloadModel(gAtoll[i]); gAtoll[i] = Model{}; gAtollFor[i] = {-1e9f, -1e9f}; }
     if (gReady) { UnloadModel(gSkiff); UnloadModel(gBoat); UnloadModel(gQuay); UnloadModel(gFish); UnloadModel(gJelly); UnloadModel(gGull); gReady = false; }
     if (gSeaReady) { UnloadModel(gSea); gSeaReady = false; }
     if (gLandFor) { UnloadModel(gLand); gLandFor = nullptr; }

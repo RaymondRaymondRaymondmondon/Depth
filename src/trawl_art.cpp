@@ -647,26 +647,55 @@ void DrawLanding(const Gannet& g, const View& v) {
         float pr = v.ppm;
         if (c0.x < -L.r * pr * 2 || c0.y < -L.r * pr * 2 || c0.x > PIXEL_W + L.r * pr * 2 || c0.y > PIXEL_H + L.r * pr * 2) continue;
         float l0 = lit({0, 0});
-        DrawCircleV(c0, (L.r + 6) * pr, Fade(Dim(Color{40, 120, 120, 255}, l0), 0.35f));   // the shelf
-        DrawCircleV(c0, (L.r + 1.2f) * pr, Fade(Dim(Color{170, 210, 190, 255}, l0), 0.45f));   // surf on the sand's edge
-        // the sand: lit a square metre at a time (so the fire's pool reads), with a little grain
-        DrawCircleV(c0, L.r * pr, Dim(Color{214, 196, 150, 255}, 0.22f));
+        bool seal = L.kind == LK_SEALROCK, pier = L.kind == LK_CANNERY;
+        Color ground = seal ? Color{128, 124, 116, 255} : pier ? Color{126, 98, 66, 255} : Color{214, 196, 150, 255};
+        if (pier) for (int k = 0; k < 20; k++) { float a = k * 0.314f; DrawCircleV(C({cosf(a) * (L.r + 0.3f), sinf(a) * (L.r + 0.3f)}), 2.0f, Dim(Color{58, 46, 34, 255}, l0)); }   // the pilings
+        else {
+            DrawCircleV(c0, (L.r + 6) * pr, Fade(Dim(seal ? Color{40, 70, 80, 255} : Color{40, 120, 120, 255}, l0), 0.35f));   // the shelf
+            DrawCircleV(c0, (L.r + 1.2f) * pr, Fade(Dim(Color{170, 210, 190, 255}, l0), 0.45f));   // surf on the edge
+        }
+        // the sand (the rock, the planking): lit a square metre at a time (so the fire's pool reads), with a little grain
+        DrawCircleV(c0, L.r * pr, Dim(ground, 0.22f));
         for (int gy = -(int)L.r; gy < (int)L.r; gy++) for (int gx = -(int)L.r; gx < (int)L.r; gx++) {
             Vector2 m{gx + 0.5f, gy + 0.5f};
             if (Vector2Length(m) > L.r - 0.4f) continue;
             float k = lit(m);
             if (k < 0.24f) continue;
             float grain = ((gx * 7 + gy * 13) & 3) * 0.02f;
-            Color sand = Dim(Color{214, 196, 150, 255}, k * (0.96f + grain));
+            if (pier) grain = (gy & 1) * 0.05f;   // (planks run across)
+            if (seal) grain = ((gx * 5 + gy * 3) % 5) * 0.03f;
+            Color sand = Dim(ground, k * (0.96f + grain));
             Vector2 a = C({(float)gx, (float)gy}), b = C({gx + 1.0f, (float)gy}), c = C({gx + 1.0f, gy + 1.0f}), d = C({(float)gx, gy + 1.0f});
             DrawTriangle(a, b, c, sand); DrawTriangle(a, c, b, sand); DrawTriangle(a, c, d, sand); DrawTriangle(a, d, c, sand);
         }
-        // the little lagoon, and the moray's dark shape in it
-        DrawCircleV(C(L.pond), L.pondR * pr, Dim(Color{30, 110, 120, 255}, lit(L.pond)));
-        DrawCircleLinesV(C(L.pond), L.pondR * pr, Dim(Color{120, 170, 150, 255}, lit(L.pond)));
-        for (int k = 0; k < 6; k++) { Vector2 a = Vector2Add(L.moray, {k * 0.18f - 0.45f, sinf(g.time * 3 + k) * 0.12f}); Vector2 q = C(a); DrawRectangle((int)q.x, (int)q.y, 2, 1, Fade(Color{20, 30, 24, 255}, 0.7f)); }
+        if (seal) {
+            // the haul-out: wet, weed-slick rock where the seals lie; the bull among them
+            DrawCircleV(C(L.pond), L.pondR * pr, Dim(Color{70, 84, 74, 255}, lit(L.pond)));
+            for (int k = 0; k < 4; k++) {
+                Vector2 sp = Vector2Add(L.pond, {cosf(k * 1.7f) * 1.6f, sinf(k * 1.7f) * 1.3f}); Vector2 q = C(sp); float kk = lit(sp);
+                DrawEllipse((int)q.x, (int)q.y, 4, 2, Dim(Color{96, 90, 84, 255}, kk)); DrawCircleV({q.x + 3, q.y - 1}, 1.5f, Dim(Color{110, 104, 96, 255}, kk));
+            }
+            Vector2 bq = C(L.moray); float bk = lit(L.moray);
+            DrawEllipse((int)bq.x, (int)bq.y, 6, 3, Dim(Color{70, 62, 56, 255}, bk)); DrawCircleV({bq.x + 5, bq.y - 2 + sinf(g.time * 2) * 0.5f}, 2.2f, Dim(Color{84, 74, 66, 255}, bk));
+        } else if (!pier) {
+            // the little lagoon, and the moray's dark shape in it
+            DrawCircleV(C(L.pond), L.pondR * pr, Dim(Color{30, 110, 120, 255}, lit(L.pond)));
+            DrawCircleLinesV(C(L.pond), L.pondR * pr, Dim(Color{120, 170, 150, 255}, lit(L.pond)));
+            for (int k = 0; k < 6; k++) { Vector2 a = Vector2Add(L.moray, {k * 0.18f - 0.45f, sinf(g.time * 3 + k) * 0.12f}); Vector2 q = C(a); DrawRectangle((int)q.x, (int)q.y, 2, 1, Fade(Color{20, 30, 24, 255}, 0.7f)); }
+        }
+        if (seal || pier) {
+            // the sealers' hut (stone, a turf roof) or the cannery shed (corrugated iron): walls with a door to the middle
+            float c = cosf(L.sloopHead), s = sinf(L.sloopHead);
+            auto P = [&](float x, float y) { return C(Vector2Add(L.sloop, {x * c - y * s, x * s + y * c})); };
+            float k = lit(L.sloop);
+            Color roof = Dim(seal ? Color{86, 96, 62, 255} : Color{120, 110, 100, 255}, k), wall = Dim(seal ? Color{96, 92, 86, 255} : Color{90, 70, 58, 255}, k);
+            Vector2 a = P(-2.6f, -1.6f), b = P(2.6f, -1.6f), cc = P(2.6f, 1.6f), d = P(-2.6f, 1.6f);
+            DrawTriangle(a, b, cc, roof); DrawTriangle(a, cc, b, roof); DrawTriangle(a, cc, d, roof); DrawTriangle(a, d, cc, roof);
+            DrawLineV(a, b, wall); DrawLineV(b, cc, wall); DrawLineV(cc, d, wall); DrawLineV(d, a, wall);
+            if (pier) for (int r = -2; r <= 2; r++) DrawLineV(P((float)r, -1.6f), P((float)r, 1.6f), Dim(Color{100, 92, 84, 255}, k));   // the corrugations
+            DrawLineEx(P(-0.7f, 1.6f), P(0.7f, 1.6f), 2, Dim(Color{30, 24, 20, 255}, k));   // the door
+        } else {
         // the sloop on her side: a dark hull with a stove-in stern
-        {
             float c = cosf(L.sloopHead), s = sinf(L.sloopHead);
             auto P = [&](float x, float y) { return C(Vector2Add(L.sloop, {x * c - y * s, x * s + y * c})); };
             Color wood = Dim(Color{92, 66, 44, 255}, lit(L.sloop)), dark = Dim(Color{50, 36, 26, 255}, lit(L.sloop));
@@ -677,7 +706,14 @@ void DrawLanding(const Gannet& g, const View& v) {
             DrawLineV(P(0.3f, -0.9f), P(0.6f, 2.2f), Dim(Color{120, 100, 70, 255}, lit(L.sloop)));   // her mast, fallen across the sand
         }
         // the elder's hut (thatch) and the elder before it, feathers in his hair
-        {
+        if (seal || pier) {
+            // Old Hoskins in his oilskins and sou'wester; the foreman in a leather apron and a cap
+            Vector2 e = C(L.elder); float k = lit(L.elder);
+            Color coat = seal ? Color{170, 150, 60, 255} : Color{90, 64, 44, 255}, hat = seal ? Color{190, 170, 70, 255} : Color{50, 50, 56, 255};
+            DrawRectangle((int)e.x - 3, (int)e.y - 3, 7, 7, Dim(coat, k));
+            DrawRectangle((int)e.x - 2, (int)e.y - 2, 5, 5, Dim(Color{200, 160, 130, 255}, k));
+            DrawRectangle((int)e.x - 3, (int)e.y - 4, 7, 2, Dim(hat, k));
+        } else {
             Vector2 h = C(Vector2Add(L.elder, {0, -1.6f}));
             DrawRectangle((int)h.x - 9, (int)h.y - 7, 18, 14, Dim(Color{150, 120, 70, 255}, lit(L.elder)));
             for (int k = 0; k < 5; k++) DrawLineV({h.x - 9 + k * 4.0f, h.y - 7}, {h.x - 7 + k * 4.0f, h.y + 7}, Dim(Color{120, 92, 50, 255}, lit(L.elder)));
@@ -707,11 +743,20 @@ void DrawLanding(const Gannet& g, const View& v) {
         for (const auto& b : L.onBeach) { Vector2 q = C(b.deckAt); DrawRectangle((int)q.x - 2, (int)q.y, b.junk ? 4 : 5, 2, b.junk ? Dim(Color{120, 80, 40, 255}, lit(b.deckAt)) : Dim(Color{200, 205, 210, 255}, lit(b.deckAt))); }
         // the fire pit: a ring of stones, flames when lit, the fish on it, and its smoke
         Vector2 fc = C(L.fire);
+        if (pier) {   // the cannery boiler: a riveted drum with a stack, its firebox door glowing
+            DrawCircleV(fc, 8, Dim(Color{70, 62, 58, 255}, lit(L.fire))); DrawCircleLinesV(fc, 8, Dim(Color{40, 36, 34, 255}, lit(L.fire)));
+            DrawCircleV({fc.x + 3, fc.y - 3}, 2.5f, Color{30, 28, 28, 255});
+            if (L.fireLit) DrawRectangle((int)fc.x - 3, (int)fc.y + 5, 6, 3, Color{255, 150, 60, 255});
+        } else if (seal) {   // the hut's iron stove by its door
+            DrawRectangle((int)fc.x - 4, (int)fc.y - 3, 8, 6, Dim(Color{50, 48, 46, 255}, lit(L.fire)));
+            if (L.fireLit) DrawRectangle((int)fc.x - 2, (int)fc.y + 1, 4, 2, Color{255, 150, 60, 255});
+        } else
         for (int k = 0; k < 8; k++) { float a = k * 0.785f; DrawRectangle((int)(fc.x + cosf(a) * 6) - 1, (int)(fc.y + sinf(a) * 6) - 1, 2, 2, Dim(Color{110, 110, 104, 255}, lit(L.fire))); }
-        if (L.fireLit) {
+        if (L.fireLit && L.kind == LK_ATOLL) {
             for (int k = 0; k < 7; k++) { float fl = sinf(g.time * 11 + k * 1.7f); DrawRectangle((int)(fc.x - 3 + k), (int)(fc.y - 1 - fabsf(fl) * 3), 1, 2 + (int)(fabsf(fl) * 2), k % 2 ? Color{255, 200, 80, 255} : Color{240, 110, 40, 255}); }
             DrawCircleV(fc, 9, Fade(Color{255, 160, 70, 255}, 0.12f));
-        } else DrawRectangle((int)fc.x - 2, (int)fc.y - 1, 4, 2, Color{40, 38, 36, 255});
+        } else if (L.kind == LK_ATOLL) DrawRectangle((int)fc.x - 2, (int)fc.y - 1, 4, 2, Color{40, 38, 36, 255});
+        else if (L.fireLit) DrawCircleV(fc, 10, Fade(Color{255, 160, 70, 255}, 0.10f));
         float worst = 0;
         for (size_t i = 0; i < L.onFire.size(); i++) {
             const CatchRec& r = L.onFire[i];
@@ -823,6 +868,8 @@ void DrawCrewMember(const Crew& c, const View& v, float t, bool you) {
     Vector2 p0 = p; float lift = c.z * v.ppm * 0.7f; p.y -= lift;
     // shadow, shoulders, arms toward the facing, the sou'wester hat
     DrawRectangle((int)p0.x - 3, (int)p0.y - 3 + 1, 7, 7, Fade(BLACK, c.z > 0 ? 0.2f : 0.35f));
+    if (c.tangleT > 0)   // a Kelp Wraith's grip: wet strands wound round them from the rail, writhing
+        for (int s = 0; s < 4; s++) { float a = s * 1.57f + sinf(t * 3 + s) * 0.3f; DrawLineEx({p0.x + cosf(a) * 2, p0.y + sinf(a) * 2}, {p0.x + cosf(a) * 7, p0.y + sinf(a) * 7 + 1}, 1.5f, Color{60, 110, 60, 255}); }
     DrawRectangle((int)p.x - 3, (int)p.y - 3, 7, 7, coat);
     DrawRectangle((int)(p.x + f.x * 3 - 1), (int)(p.y + f.y * 3 - 1 + bob), 2, 2, skin);
     DrawRectangle((int)(p.x - f.y * 3), (int)(p.y + f.x * 3), 2, 2, Dim(coat, 0.8f));

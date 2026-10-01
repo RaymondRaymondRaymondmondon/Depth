@@ -342,7 +342,14 @@ const float GLIMMER_CHANCE = 0.02f;                       // a landed fish is a 
 // the palms, or one buried where a bottle's map or three chart pieces mark it), crabs on the beach and a moray in
 // its little lagoon.
 struct Cache { Vector2 p{}; int kind = 0; float value = 0, kg = 0; bool open = false, found = true; std::string what; };   // kind 0 plain, 1 locked, 2 buried
+// kind: 0 the Atoll (the Lagoon), 1 Seal Rock and 2 the Cannery Pier (the Weeds). The same few parts serve each:
+// `fire` is the Atoll's fire pit, the sealers' hut stove or the cannery boiler (both sheltered: rain doesn't reach them);
+// `elder` is the elder, Old Hoskins or the last foreman; `sloop` is the beached sloop, the sealers' hut or the cannery
+// shed; `pond` is the Atoll's lagoon or Seal Rock's haul-out (the bull seal stands in for the moray); the Cannery Pier
+// is a stage on pilings with no pond, and Kelp Wraiths in the pilings take a hand at its edge.
+enum LandingKind { LK_ATOLL, LK_SEALROCK, LK_CANNERY };
 struct Landing {
+    int kind = LK_ATOLL;
     std::string name; Vector2 at{}; float r = 13;         // world centre; the shore's radius
     Vector2 pond{2.5f, 3.0f}; float pondR = 3.2f;          // the little lagoon (wading: half speed; the moray)
     Vector2 fire{-3.0f, 1.5f}; bool fireLit = true;
@@ -489,7 +496,7 @@ struct Gannet {
         float castT = 0; bool struck = false; RodState lastRod = RodState::Idle;
         Vector2 lastP{}; float stuckT = 0, sideT = 0; int side = 1;
         std::string bark; float barkT = 0;                // a short line over its head ("Fish on, port!")
-        int task = 0;                                     // 0 a station, 1 the life ring for a hand overboard, 2 a leak, 3 following the skipper
+        int task = 0;                                     // 0 a station, 1 the life ring for a hand overboard, 2 a leak, 3 following the skipper, 4 cutting a hand free of the kelp
         int target = -1; float taskT = 0;                 // who or what the task is for; how long it has been at it
         int follow = -1;                                  // ordered to follow this hand (F), -1 not
         float defT = 0;                                   // clubbing a dangerous landed fish within reach (self-defence)

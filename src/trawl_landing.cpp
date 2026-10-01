@@ -34,6 +34,33 @@ void Gannet::BuildLandings() {
     landings.clear();
     if (!eco) return;
     for (size_t k = 0; k < eco->landingAt.size(); k++) {
+        int kind = k < eco->landingKind.size() ? eco->landingKind[k] : LK_ATOLL;
+        if (kind == LK_SEALROCK || kind == LK_CANNERY) {
+            Landing L; L.kind = kind; L.at = eco->landingAt[k];
+            gLr = eco->initSeed * 2654435761u + 31 + (uint32_t)k * 977;
+            if (kind == LK_SEALROCK) {
+                // a bare rock: the sealers' hut (stove at its door, Old Hoskins on the step), the bull seal's haul-out
+                L.name = "Seal Rock"; L.r = 11;
+                L.sloop = {-3.5f, -4.0f}; L.sloopHead = 0.2f; L.fire = {-0.6f, -2.6f}; L.elder = {-5.4f, -1.6f};
+                L.pond = {3.6f, 3.4f}; L.pondR = 3.0f;
+                Cache box; box.p = Vector2Add(L.sloop, {0.8f, -0.4f}); box.kind = 0; box.value = 100 + LR() * 250; box.kg = 14 + LR() * 12; box.what = "the sealers' sea chest";
+                L.caches.push_back(box);
+                Cache bur; bur.p = {5.5f, -3.5f}; bur.kind = 2; bur.found = false; bur.value = 100 + LR() * 250; bur.kg = 16 + LR() * 18; bur.what = "a buried tin trunk";
+                L.caches.push_back(bur);
+                for (int i = 0; i < 3; i++) { float a = LR() * 6.2832f; L.crabs.push_back({cosf(a) * (L.r - 1.2f), sinf(a) * (L.r - 1.2f)}); }
+            } else {
+                // a round loading stage on pilings: the cannery shed across its middle, the boiler, the last foreman; the
+                // safe in the shed (locked: a brass key)
+                L.name = "The Cannery Pier"; L.r = 10;
+                L.sloop = {0.0f, -3.4f}; L.sloopHead = 0.0f; L.fire = {3.8f, -0.4f}; L.elder = {-3.6f, 0.4f};
+                L.pond = {0, 0}; L.pondR = 0;
+                Cache safe; safe.p = Vector2Add(L.sloop, {-1.6f, 1.2f}); safe.kind = 1; safe.value = 150 + LR() * 200; safe.kg = 30; safe.what = "the cannery safe";
+                L.caches.push_back(safe);
+            }
+            L.moray = L.pond;
+            landings.push_back(L);
+            continue;
+        }
         Landing L; L.name = "The Atoll"; L.at = eco->landingAt[k];
         gLr = eco->initSeed * 2654435761u + 17;
         // palms round the shore and the pond, clear of the fire, the hut and the sloop
@@ -66,7 +93,9 @@ static bool ShoreWalkable(const Landing& L, Vector2 p) {
     for (const auto& q : L.palms) if (Vector2Distance(p, q) < 0.35f) return false;
     Vector2 d = Vector2Subtract(p, L.sloop); float c = cosf(L.sloopHead), s = sinf(L.sloopHead);
     Vector2 ls{d.x * c + d.y * s, -d.x * s + d.y * c};
-    if (fabsf(ls.x) < 2.5f && fabsf(ls.y) < 0.9f && !(ls.x < -1.6f)) return false;   // (her stern is stove in: a gap to climb aboard)
+    if (L.kind == LK_ATOLL && fabsf(ls.x) < 2.5f && fabsf(ls.y) < 0.9f && !(ls.x < -1.6f)) return false;   // (her stern is stove in: a gap to climb aboard)
+    // the hut and the shed: walls, with a door on the side facing the middle (the chest and the safe are inside)
+    if (L.kind != LK_ATOLL && fabsf(ls.x) < 2.6f && fabsf(ls.y) < 1.6f && !(fabsf(ls.x) < 0.7f && ls.y > 0.6f) && !(fabsf(ls.x) < 2.2f && fabsf(ls.y) < 1.2f)) return false;
     if (Vector2Distance(p, L.fire) < 0.45f) return false;
     if (Vector2Distance(p, L.elder) < 0.5f) return false;
     return true;
@@ -80,7 +109,8 @@ void Gannet::ShoreMove(int ci, Vector2 wish, float dt) {
     // the wish is in the Gannet's frame (the screen's): turned onto the sea, which the landing's frame shares
     Vector2 f = boat.Forward(), sd{-f.y, f.x};
     Vector2 w{f.x * wish.x + sd.x * wish.y, f.y * wish.x + sd.y * wish.y};
-    if (l > 0.1f) c.facing = Vector2Normalize(wish);
+    if (c.tangleT > 0) { w = {0, 0}; c.v = {0, 0}; }   // (a Kelp Wraith from the pilings has them)
+    if (l > 0.1f && c.tangleT <= 0) c.facing = Vector2Normalize(wish);
     float speed = D().walk * (c.carryKg > 30 ? 0.5f : c.carryKg > 10 ? 0.75f : 1.0f) * (Vector2Distance(c.p, L.pond) < L.pondR ? 0.5f : 1.0f);
     c.v = Vector2Lerp(c.v, Vector2Scale(w, speed), std::min(1.0f, dt * 12));
     Vector2 np = Vector2Add(c.p, Vector2Scale(c.v, dt));
@@ -117,6 +147,7 @@ bool Gannet::ShoreUse(int ci) {
     Crew& c = crew[ci];
     if (c.dead || c.deck != DECK_SHORE || skiff.landing < 0 || skiff.landing >= (int)landings.size()) return false;
     Landing& L = landings[skiff.landing];
+    if (FreeTangled(ci)) return true;   // (the Cannery Pier's pilings: a hand caught at the edge)
     auto take = [&](const CatchRec& r) { c.carrying = true; c.carry = r; c.carryKg = r.kg; };
     auto drop = [&]() { c.carrying = false; c.carryKg = 0; };
     // the skiff
@@ -133,7 +164,7 @@ bool Gannet::ShoreUse(int ci) {
     // the fire: a fish on, a fish off, or light it again
     if (Vector2Distance(c.p, L.fire) < 1.7f) {
         if (!L.fireLit) {
-            if (Raining(sea)) { Say("The rain beats the fire out as fast as it catches"); return true; }
+            if (Raining(sea) && L.kind == LK_ATOLL) { Say("The rain beats the fire out as fast as it catches"); return true; }
             c.workOn = 100; c.workT = 0; Say("Relighting the fire (10 s with dry kindling: stand by it)"); return true;
         }
         if (c.carrying && !c.carry.junk) {
@@ -219,8 +250,9 @@ void Gannet::StepLandings(float dt) {
     if (landings.empty() && eco && !eco->landingAt.empty()) BuildLandings();
     for (int li = 0; li < (int)landings.size(); li++) {
         Landing& L = landings[li];
-        if (L.fireLit && Raining(sea) && !L.onFire.empty()) Say("Rain puts the fire out");
-        if (Raining(sea)) L.fireLit = false;
+        bool exposed = L.kind == LK_ATOLL;   // (the hut's stove and the cannery boiler are under a roof)
+        if (exposed && L.fireLit && Raining(sea) && !L.onFire.empty()) Say("Rain puts the fire out");
+        if (exposed && Raining(sea)) L.fireLit = false;
         // the fire: the fish cook (and burn); the smell into the water and the air (5 a second a fish, doubled burning)
         for (auto& r : L.onFire) {
             if (L.fireLit) r.cookT += dt * (spiceRub ? 1.25f : 1.0f);   // (the cook's spice rub: 25% faster)
@@ -241,13 +273,13 @@ void Gannet::StepLandings(float dt) {
         for (int k = 0; k < (int)crew.size(); k++) {
             Crew& c = crew[k];
             if (c.deck != DECK_SHORE || c.dead || skiff.landing != li) continue;
-            if (Vector2Distance(c.p, L.moray) < 1.3f && Vector2Distance(c.p, L.pond) < L.pondR && L.morayT <= 0) { Injure(k, INJ_BITE, "the moray in the Atoll's lagoon"); L.morayT = 15; }
+            if (Vector2Distance(c.p, L.moray) < 1.3f && Vector2Distance(c.p, L.pond) < L.pondR && L.morayT <= 0) { Injure(k, INJ_BITE, L.kind == LK_SEALROCK ? "the bull seal on its haul-out" : "the moray in the Atoll's lagoon"); L.morayT = 15; }
             // work: digging a cache or relighting the fire, standing still at it
             if (c.workOn >= 0) {
                 bool at = c.workOn == 100 ? Vector2Distance(c.p, L.fire) < 1.8f : c.workOn < (int)L.caches.size() && Vector2Distance(c.p, L.caches[c.workOn].p) < REACH + 0.3f;
                 if (!at) { c.workOn = -1; c.workT = 0; continue; }
                 c.workT += dt;
-                if (c.workOn == 100 && c.workT >= 10) { L.fireLit = !Raining(sea); Say(L.fireLit ? "The fire catches" : "The rain puts it out again"); c.workOn = -1; c.workT = 0; }
+                if (c.workOn == 100 && c.workT >= 10) { L.fireLit = !exposed || !Raining(sea); Say(L.fireLit ? "The fire catches" : "The rain puts it out again"); c.workOn = -1; c.workT = 0; }
                 else if (c.workOn < 100 && c.workT >= 5) {
                     Cache& kk = L.caches[c.workOn];
                     kk.open = true;

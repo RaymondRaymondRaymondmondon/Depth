@@ -103,6 +103,15 @@ struct Skipper {
                 Vector2 A = Vector2Add(s.p, d), B = Vector2Subtract(s.p, d);
                 bool ok = true;
                 for (float u = 0; u <= 1.001f && ok; u += 0.1f) { Vector2 q = Vector2Lerp(A, B, u); int h = E.HabAt(q); if (E.DepthAt(q) < 10 || h == H_CREST || h == H_LAND || h == H_KELP || E.MarkAt(q) >= 0) ok = false; }
+                // (the Weeds: the pinnacles and the kelp's fingers are small, and the net swings wide of the line: look
+                // every 3 m, 6 m either side, for 12 m of clear water)
+                if (ok && E.ground == "weeds") {
+                    Vector2 side = Vector2Scale(Vector2Normalize({-d.y, d.x}), 6);
+                    for (float u = 0; u <= 1.001f && ok; u += 0.04f) for (int sgn = -1; sgn <= 1 && ok; sgn++) {
+                        Vector2 q = Vector2Add(Vector2Lerp(A, B, u), Vector2Scale(side, (float)sgn));
+                        int h = E.HabAt(q); if (E.DepthAt(q) < 12 || h == H_REEF || h == H_KELP || h == H_LAND) ok = false;
+                    }
+                }
                 if (ok) { s.a = A; s.b = B; s.tow = true; }
             }
             spots.push_back(s);
@@ -301,10 +310,11 @@ int RunTrawlSim(int argc, char** argv) {
                 }
                 while (arrivalsSeen < E.arrivals.size()) { N.arrivals.push_back({E.arrivals[arrivalsSeen].species, E.arrivals[arrivalsSeen].t / 60.0f}); if (P->charges && E.arrivals[arrivalsSeen].species.find("shark") != std::string::npos) K.chargeNow = true; arrivalsSeen++; }
                 for (const auto& l : G.log) if (l.find("struck the hull") != std::string::npos) rams0++;
+                if (trace) for (const auto& l : G.log) if (l.find("Siren") != std::string::npos || l.find("net") != std::string::npos || l.find("kelp") != std::string::npos || l.find("screw") != std::string::npos || l.find("cod end") != std::string::npos || l.find("singing") != std::string::npos || l.find("rocks") != std::string::npos) printf("      [%s] %s\n", S.ClockText().c_str(), l.c_str());
                 G.log.clear();
                 if (S.phase == Phase::Night && S.clock > 420) for (const auto& a : E.agents) { const auto& r = Species().sp[a.sp]; if (a.alive && r.threat && r.size >= 3 && Vector2Distance({a.p.x, a.p.y}, G.boat.pos) < 40) N.lateThreat = true; }
                 if (G.boat.sunk) N.sunk = true;
-                if (trace && fmodf(t, 60) < dt) printf("    run %d night %d  t%4.0f %s %s pos (%.0f,%.0f) spot %d d %.0f tel %d p %.2f bilge %.0f hold %d wake %.0f net %d/%.0fkg tow %d hand %d\n", run, done + 1, t, PhaseName(S.phase), S.ClockText().c_str(), G.boat.pos.x, G.boat.pos.y, K.spotI, Vector2Distance(G.boat.pos, K.spots[K.spotI].p), G.boat.telegraph, G.boat.pressure, G.boat.bilge, (int)G.hold.size(), E.wake, (int)G.net.state, G.net.load, (int)K.towing, K.netHand);
+                if (trace && fmodf(t, 60) < dt) printf("    run %d night %d  t%4.0f %s %s pos (%.0f,%.0f) spot %d d %.0f tel %d p %.2f bilge %.0f hold %d wake %.0f net %d/%.0fkg tow %d hand %d foul %d shaft %.2f aground %d spd %.1f\n", run, done + 1, t, PhaseName(S.phase), S.ClockText().c_str(), G.boat.pos.x, G.boat.pos.y, K.spotI, Vector2Distance(G.boat.pos, K.spots[K.spotI].p), G.boat.telegraph, G.boat.pressure, G.boat.bilge, (int)G.hold.size(), E.wake, (int)G.net.state, G.net.load, (int)K.towing, K.netHand, (int)G.screwFouled, G.boat.shaft, (int)G.boat.aground, G.boat.Speed());
                 if (trace && fmodf(t, 20) < dt && K.netHand >= 0 && K.netHand < (int)G.crew.size()) {
                     const Crew& nh = G.crew[K.netHand]; const auto& nb = G.brains[K.netHand];
                     printf("      winch hand: station %d (%.1f,%.1f) fallen %d ink %.1f inj %d task %d order %d goal %d doing '%s'  net %d t %.1f\n", nh.station, nh.p.x, nh.p.y, nh.fallen, nh.inkT, nh.injuries, nb.task, nb.order, nb.goal, G.BotDoing(K.netHand).c_str(), (int)G.net.state, G.net.t);

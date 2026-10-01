@@ -119,6 +119,7 @@ struct Eco {
     std::vector<EcoAgent> agents;
     std::vector<Raft> rafts;
     std::vector<Vector2> landingAt;             // the landings' centres (the Lagoon: the Atoll), islets the skiff can beach on
+    std::vector<int> landingKind;               // LandingKind per landing (the Weeds: Seal Rock, the Cannery Pier)
     // the skiff-only fishing marks (design doc v2, "Skiff destinations": about twice the bite rate, the ground's rarer
     // fish): the Lagoon's Crest Pass (a gap in the coral too shallow for the Gannet) and the Sargassum Line (a weed bank
     // that fouls her screw)

@@ -119,6 +119,9 @@ struct TwAudio {
     int canoe = 0;              // 1 drums on the water, 2 the canoe alongside
     float clock = 0;            // 0..1 through the night (gulls at dusk, the refrain slower at the end)
     bool moored = false;
+    float siren = 0, sirenPan = 0;   // (the Weeds) a Siren singing: 0..1 by nearness, and from which side
+    bool mermen = false;        // splashing at the cod end
+    bool tangled = false;       // a hand in a Kelp Wraith's grip
 };
 enum TwCue { TWC_REEL, TWC_DRAG, TWC_HUM, TWC_SNAP, TWC_CREAK, TWC_SPLASH, TWC_GAFF, TWC_FLOP, TWC_BITE, TWC_STRIKE,
              TWC_TELEGRAPH, TWC_VALVE, TWC_HULL, TWC_PUMP, TWC_WINCH, TWC_WARP, TWC_SNAG, TWC_CODEND,

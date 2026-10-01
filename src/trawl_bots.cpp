@@ -35,7 +35,9 @@ std::string Gannet::BotDoing(int ci) const {
     if (c.dead) return "dead";
     if (c.overboard) return "in the water";
     if (c.fallen) return "down on the deck";
+    if (c.tangleT > 0) return "caught in the kelp!";
     if (ci < (int)brains.size()) {
+        if (brains[ci].task == 4) return "cutting a hand free";
         const Brain& b = brains[ci];
         if (b.task == 1) return "the life ring!";
         if (b.task == 2) return c.patchSec >= 0 ? TextFormat("patching (%.0f s)", std::max(0.0f, c.patchT)) : "to the leak";
@@ -121,7 +123,7 @@ void Gannet::StepBots(float dt) {
         int best = -1; float bd = 1e9f;
         for (int j = 1; j < (int)crew.size(); j++) {
             const Crew& o = crew[j];
-            if (!o.bot || o.dead || o.overboard || o.fallen || j == notThis || brains[j].task == 1 || brains[j].task == 2 || fighting(j)) continue;
+            if (!o.bot || o.dead || o.overboard || o.fallen || o.tangleT > 0 || j == notThis || brains[j].task == 1 || brains[j].task == 2 || brains[j].task == 4 || fighting(j)) continue;
             float d = Vector2Distance(o.p, at) + (o.deck != deck ? 8.0f : 0) + (j == fireman ? 12.0f : 0);
             if (d < bd) { bd = d; best = j; }
         }
@@ -147,6 +149,17 @@ void Gannet::StepBots(float dt) {
         if (crew[j].station >= 0) LeaveStation(j);
         brains[j].task = 2; brains[j].target = s; brains[j].taskT = 0; brains[j].goal = -1;
         brains[j].bark = TextFormat("She's holed, %s! I'll patch it", SectionName(s)); brains[j].barkT = 3;
+    }
+    // a hand in a Kelp Wraith's grip at the rail (the Weeds): the nearest free bot runs to cut them loose
+    for (int k = 0; k < (int)crew.size(); k++) {
+        if (crew[k].tangleT <= 0 || crew[k].deck != 0) continue;
+        bool has = false; for (int j = 1; j < (int)brains.size(); j++) if (brains[j].task == 4 && brains[j].target == k) has = true;
+        if (has) continue;
+        int j = nearestFree(crew[k].p, 0, k);
+        if (j < 0) continue;
+        if (crew[j].station >= 0) LeaveStation(j);
+        brains[j].task = 4; brains[j].target = k; brains[j].taskT = 0; brains[j].goal = -1;
+        brains[j].bark = "Hold on! I've got a knife!"; brains[j].barkT = 3;
     }
     // walking to a spot on a deck: the ladder, the wheelhouse door, a sidestep when stuck; true once there
     auto walk = [&](int i, int deck, Vector2 at, float arrive, bool* climbed) {
@@ -268,6 +281,17 @@ void Gannet::StepBots(float dt) {
             if (!walk(i, 0, SectionSpot(s), 0.5f, &climbed)) continue;
             Move(i, {0, 0}, false, dt);
             if (c.patchSec < 0 && Vector2Length(c.v) < 0.3f && !StartPatch(i) && PatchKits() == 0) { b.task = 0; b.think = 0; }
+            continue;
+        }
+        // ---- a hand tangled at the rail: stand beside them, inboard, and cut them free (E)
+        if (b.task == 4) {
+            if (b.target < 0 || b.target >= (int)crew.size() || crew[b.target].tangleT <= 0) { b.task = 0; b.think = 0; continue; }
+            if (c.station >= 0) LeaveStation(i);
+            Vector2 tp = crew[b.target].p, spot{tp.x, tp.y - (tp.y > 0 ? 0.9f : -0.9f)};
+            bool climbed;
+            if (!walk(i, 0, spot, 0.45f, &climbed)) continue;
+            Move(i, {0, 0}, false, dt);
+            TakeStation(i);
             continue;
         }
         // ---- following a hand about (F): keep a couple of metres off them, down the ladder after them

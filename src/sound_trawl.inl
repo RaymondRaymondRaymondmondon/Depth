@@ -10,7 +10,7 @@ struct TwState {
     TwAudio want;
     float s = 0, dockS = 0, sailS = 0, nightS = 0, fishS = 0, threatS = 0, bigS = 0, metS = 0, missS = 0;
     int tick = 0; float tickT = 0, bpm = 96;
-    float chuffT = 0, creakT = 0, ambT = 0, humT = 0, drumT = 0, bellT = 0;
+    float chuffT = 0, creakT = 0, ambT = 0, humT = 0, drumT = 0, bellT = 0, sirenT = 0; int sirenAt = 0;
     int shantyAt = 0, lastVerse = -1, resultPlayed = 0;
 };
 TwState gTw;
@@ -58,6 +58,21 @@ void TwEvents(float dt) {
         float per = a.canoe == 2 ? 0.42f : 0.5f, g = a.canoe == 2 ? 0.05f : 0.022f;
         if (gTw.drumT >= per) { gTw.drumT = 0; int k = (int)(R01() * 3); PlayInst(I_LOGDRUM, TwNote(k == 0 ? 0 : k == 1 ? 2 : -3, 0), 0.3f, g, a.canoe == 2 ? 0.5f : 0.7f, 0.4f); if (a.canoe == 2 && R01() < 0.3f) PlayChant(TwNote(0, 2), 1 + (int)(R01() * 3), 0.4f, 0.014f, 0.5f); }
     } else gTw.drumT = 0;
+    // the Weeds: a Siren's wordless song (a slow, falling line on an open vowel), splashing at the cod end, and the wet
+    // drag of kelp on a hand caught at the rail
+    if (a.siren > 0.01f) {
+        gTw.sirenT += dt;
+        if (gTw.sirenT >= 1.15f) {
+            static const int LINE[8] = {7, 6, 4, 5, 3, 2, 4, 0};
+            gTw.sirenT = 0; gTw.sirenAt = (gTw.sirenAt + 1) % 8;
+            Ctx s = c; s.bus = B_SFX; PanGains(a.sirenPan, s.gl, s.gr);
+            float f = TwNote(LINE[gTw.sirenAt] - 2, 2) * (1 + 0.003f * (R01() - 0.5f));
+            Voice& v = Tone(s, W_SAW, f, 0, 1.5f, 0.026f * a.siren);
+            v.f1 = f * 0.985f; v.fa0 = v.fa1 = 760; v.fb0 = v.fb1 = 1180; v.fq = 6; v.vibR = 5.2f; v.vibD = 0.014f; v.atk = 0.35f; v.curve = 0.7f; v.decPow = 0.8f; v.send = 0.95f;
+        }
+    } else { gTw.sirenT = 0.9f; }
+    if (a.mermen && chance(3.0f)) { Ctx s = c; s.bus = B_SFX; PanGains(RR(-0.3f, 0.3f), s.gl, s.gr); Voice& v = Puff(s, RR(900, 2400), 1600, RR(0.08f, 0.2f), 0.02f); v.hp = 500; v.decPow = 2; }
+    if (a.tangled && chance(1.6f)) { Ctx s = c; s.bus = B_SFX; PanGains(RR(-0.5f, 0.5f), s.gl, s.gr); Voice& v = Puff(s, RR(180, 320), 400, RR(0.3f, 0.6f), 0.03f); v.atk = 0.1f; v.decPow = 1.2f; }
 }
 void TwShantyNote(int i, float td, float gain, bool squeeze, bool fiddle, bool bells) {
     int deg = TW_SHANTY[i][0], len = TW_SHANTY[i][1];

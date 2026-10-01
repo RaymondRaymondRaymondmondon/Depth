@@ -796,11 +796,30 @@ void Panels(Game& g) {
         }
         case PANEL_ELDER: {
             // the Atoll's elder: fish in (at 150% of their value, as trade), his goods out; never shillings
-            PanelFrame("The tribe's elder", 640, 440, &r);
+            {
+                int lk = G.skiff.landing >= 0 && G.skiff.landing < (int)G.landings.size() ? G.landings[G.skiff.landing].kind : LK_ATOLL;
+                PanelFrame(lk == LK_SEALROCK ? "Old Hoskins, the last sealer" : lk == LK_CANNERY ? "The cannery's last foreman" : "The tribe's elder", 640, lk == LK_ATOLL ? 440 : 260, &r);
+            }
             float x = r.x + 34, y = r.y + 60;
             if (G.skiff.landing < 0 || G.skiff.landing >= (int)G.landings.size()) { S.panel = -1; break; }
             const Landing& L = G.landings[G.skiff.landing];
             const Crew& yo = G.crew[S.you];
+            if (L.kind == LK_SEALROCK || L.kind == LK_CANNERY) {
+                // Seal Rock's Old Hoskins (birds, at double) and the Cannery Pier's last foreman (cooked fish, at 150%): shillings
+                bool seal = L.kind == LK_SEALROCK;
+                DrawWrapped(seal ? "\"Birds. Gulls, pelicans, the black frigates. I pay double what the market would, and in silver. Fish? Got the whole sea of them.\""
+                                 : "\"The line's been shut twenty years but the boiler still draws. Bring me fish off that boiler, cooked through, and I'll pay half again what the market would. Tins don't care where it came from.\"",
+                            {x, y, r.width - 68, 70}, 15, ink);
+                if (yo.carrying) {
+                    bool ok = seal ? (BirdKindOf(yo.carry.name) >= 0 || (yo.carry.sp >= 0 && Species().sp[yo.carry.sp].stealsDeck)) : (yo.carry.cooked && !yo.carry.junk);
+                    float v = ss.Value(yo.carry) * (seal ? 2.0f : 1.5f);
+                    Txt(TextFormat("In your arms: %s, %s%s", yo.carry.name.c_str(), KgText(yo.carry.kg).c_str(), yo.carry.cooked ? TextFormat(" (cooked, x%.2f)", yo.carry.cook) : ""), x, y + 86, 14, ink);
+                    if (ok) { if (Button({x + 380, y + 80, 180, 28}, TextFormat("Sell it (%.0f sh)", v), true, 13)) Command(CMD_ELDER_GIVE, "", 0, seal ? "Hoskins pays" : "The foreman pays"); }
+                    else Txt(seal ? "He shakes his head: birds only." : "He shakes his head: cooked fish only.", x + 380, y + 86, 14, dim);
+                } else Txt(seal ? "Carry a bird to him (shoot a thief down: its body is a catch)." : "Cook a fish on the boiler, then carry it to him.", x, y + 86, 14, dim);
+                TxtBold(TextFormat("Purse: %.0f shillings", ss.money), x, y + 130, 16, ink);
+                break;
+            }
             if (G.foughtCanoes) { DrawWrapped("He turns his back. You fought his people's canoes: there will be no trade tonight, or any night.", {x, y, r.width - 68, 80}, 16, ink); break; }
             Txt("He takes only fish, never shillings, and gives half again their worth in his own goods.", x, y, 14, dim);
             TxtBold(TextFormat("Your trade with him: %.0f", L.elderCredit), x, y + 26, 17, ink);
@@ -994,7 +1013,8 @@ void Hud(Game& g) {
                 if (!L.fireLit) line = "E: relight the fire (10 s)";
                 else if (c.carrying && !c.carry.junk) line = "E: onto the fire (watch it: done in 10 s + 1 a kg, burnt 5 s later)";
                 else if (!L.onFire.empty()) { const CatchRec& r = L.onFire.front(); line = TextFormat("E: take it off the fire (x%.2f%s)", r.cook, r.cookT > 10 + r.kg + 5 ? ", burning!" : r.cookT > 10 + r.kg ? ", done" : ""); }
-            } else if (Vector2Distance(c.p, L.elder) < 2.2f) line = G.foughtCanoes ? "The elder turns his back on you" : "E: trade with the elder (fish only)";
+            } else if (Vector2Distance(c.p, L.elder) < 2.2f) line = L.kind == LK_SEALROCK ? "E: Old Hoskins (he buys birds, at double)" : L.kind == LK_CANNERY ? "E: the foreman (cooked fish, at 150%)" : G.foughtCanoes ? "The elder turns his back on you" : "E: trade with the elder (fish only)";
+            else if (L.kind == LK_CANNERY && Vector2Length(c.p) > L.r - 1.3f && c.tangleT <= 0) line = "The pier's edge: something moves down among the pilings";
             else {
                 for (const auto& k : L.caches) if (!k.open && Vector2Distance(c.p, k.p) < 1.7f && (k.kind != 2 || k.found)) line = k.kind == 1 ? (G.junkKeys > 0 ? "E: open the strongbox with a brass key" : "The strongbox is locked (a brass key from the sea opens it)") : k.kind == 2 ? "E: dig here" : "E: heave up the sea chest";
                 if (line.empty()) for (const auto& cr : L.crabs) if (Vector2Distance(c.p, cr) < 1.0f) line = "E: catch the crab";
@@ -1012,6 +1032,8 @@ void Hud(Game& g) {
         if (d >= 0) DrawTextCenteredBold(TextFormat("E: %s", DockStations()[d].name), SCREEN_W / 2.0f, SCREEN_H - 90.0f, 20, paper);
         else if (c.p.y > -3.0f && S.W->sess.phase == Phase::Dock) DrawTextCentered("Moored at the quay: the gangplank is amidships to port; the helm casts off", SCREEN_W / 2.0f, SCREEN_H - 60.0f, 14, Fade(paper, 0.7f));
     }
+    if (G.siren.on && S.panel < 0) DrawTextCentered("A Siren is singing: the wheel pulls toward her rocks. Hold it against her, or a flare or a shot drives her off", SCREEN_W / 2.0f, SCREEN_H - 118.0f, 15, Color{190, 225, 235, 255});
+    if (G.mermen.on && S.panel < 0) DrawTextCentered(TextFormat("Something is at the net: a shot, a flare or the searchlight on the cod end (%.0f s)", std::max(0.0f, 12 - G.mermen.t)), SCREEN_W / 2.0f, SCREEN_H - 136.0f, 15, Color{215, 235, 220, 255});
     if (S.panel < 0) StationOverlay();
     if (S.panel < 0 && !(c.station >= 0 && Stations()[c.station].kind == StationKind::Sonar)) DrawMarkArrows();
     Panels(g);
@@ -1037,6 +1059,24 @@ void DrawDeckFx() {
         Color kc = h.killScore >= 3 ? Color{255, 210, 90, 255} : big ? Color{250, 230, 170, 255} : Color{230, 220, 196, 255};
         DrawTextCenteredBold(TextFormat("x%.2f", h.killScore), at.x, at.y - 12, big ? 26 : 20, Fade(kc, a));
         DrawTextCentered(h.killHow, at.x, at.y + 12, 13, Fade(Color{230, 220, 196, 255}, a * 0.85f));
+    }
+    // the Weeds: a hand in a Kelp Wraith's grip (a countdown over them: 8 s to the rail), and you in it
+    for (size_t k = 0; k < G.crew.size(); k++) {
+        const Crew& c = G.crew[k];
+        if (c.tangleT <= 0 || c.deck != 0) continue;
+        Vector2 at;
+        if (S.fp) { if ((int)k == S.you || !DeckPointOnScreen(G, c.p, 1.9f, S.cam, &at)) continue; }
+        else { Vector2 cp = S.view.ToCanvas(c.p); at = {(cp.x - 1) * PX, (cp.y - 1) * PX - 30}; }
+        float u = std::clamp(1 - c.tangleT / 8, 0.0f, 1.0f);
+        DrawRectangle((int)at.x - 30, (int)at.y - 4, 60, 6, Fade(BLACK, 0.6f));
+        DrawRectangle((int)at.x - 30, (int)at.y - 4, (int)(60 * u), 6, Color{90, 170, 110, 255});
+        DrawTextCentered((int)k == S.you ? "E with a knife" : "E beside them: cut free", at.x, at.y - 18, 13, Color{200, 236, 205, 255});
+    }
+    if (me.tangleT > 0 && (me.deck == 0 || me.deck == DECK_SHORE)) {
+        float u = std::clamp(me.tangleT / 8, 0.0f, 1.0f);
+        for (int r = 0; r < 6; r++) DrawRectangleLinesEx({(float)r * 6, (float)r * 6, SCREEN_W - r * 12.0f, SCREEN_H - r * 12.0f}, 6, Fade(Color{40, 90, 50, 255}, (0.5f - r * 0.07f) * (0.5f + u)));
+        DrawTextCenteredBold("Something in the kelp has you by the ankle", SCREEN_W / 2.0f, SCREEN_H * 0.3f, 24, Color{200, 236, 205, 255});
+        DrawTextCentered("E with a knife in your slots, or call a hand to cut you free", SCREEN_W / 2.0f, SCREEN_H * 0.3f + 28, 16, Color{220, 230, 220, 255});
     }
     if (me.inkT > 0) {   // ink: black blots over most of the view, thinning as it clears
         float k = std::clamp(me.inkT / 3, 0.0f, 1.0f);
@@ -1262,6 +1302,12 @@ void TrawlAudioFrame(const TrawlWorld& W, int you, float dt) {
     if (ss.phase == Phase::Night && ss.clock > 450 && Vector2Distance(G.boat.pos, ss.harbour) < 220) { a.mode = 1; a.homeward = 1; }
     a.telegraph = G.boat.telegraph; a.roll = fabsf(G.boat.RollDeg()); a.bilge = std::clamp(G.boat.bilge / 900.0f, 0.0f, 1.0f); a.weather = (int)ss.weather;
     a.canoe = ss.canoe == CanoeState::Coming && ss.clock >= ss.canoeAt - 20 ? 1 : ss.canoe == CanoeState::Alongside ? 2 : 0;
+    if (G.siren.on) {
+        Vector2 l = G.boat.ToDeck(G.siren.p); float d = std::max(1.0f, Vector2Length(l));
+        a.siren = std::clamp(1.4f - d / 90, 0.35f, 1.0f); a.sirenPan = std::clamp(l.y / d, -0.9f, 0.9f);
+    }
+    a.mermen = G.mermen.on;
+    for (const auto& c : G.crew) if (c.tangleT > 0) a.tangled = true;
     for (const auto& r : G.rods) if (r.state == RodState::Fighting && r.fight.spec.kg >= 20) { a.fishOn = true; a.tension = std::max(a.tension, std::clamp(r.fight.tension / std::max(1.0f, TackleOf(r.tackle).strength), 0.0f, 1.0f)); }
     if (G.harpoon.state == RodState::Fighting) { a.fishOn = true; a.tension = std::max(a.tension, 0.7f); }
     if (G.eco) {
@@ -1469,6 +1515,28 @@ void DebugTrawlShot(Game& g, int which) {
         G.boat.pos = at; G.boat.heading = 0.3f; G.boat.telegraph = 0; G.boat.lantern = 2;
         for (int i = 0; i < 60 * 4; i++) { G.Step(1 / 60.0f); ss.Step(1 / 60.0f); }
         if (fp) { S.eye.yaw = 0.2f; S.eye.pitch = -0.2f; }
+        return;
+    }
+    if (which == 32) {
+        // the Weeds' threats at once: a Siren singing on a rock off the starboard bow, a hand caught by a Kelp Wraith at
+        // the port rail, mermen splashing at the cod end of the net
+        StartTrawl(g, fp, 3, 1);
+        S.shot = true;
+        Gannet& G = S.W->G; Session& ss = S.W->sess; Eco& e = S.W->eco;
+        G.crew[0].p = {3.0f, 0.8f}; G.crew[1].p = {-4.0f, -2.5f}; G.crew[2].p = {-1.0f, 1.0f};
+        ss.SetGround("weeds");
+        ss.Buy("shrimp"); while (G.boat.bunker < 60 && ss.Buy("coal")) {}
+        ss.CastOff();
+        Vector2 at = Vector2Add(ss.harbour, {160, 0});
+        for (int y = 0; y < e.n && e.HabAt(at) != H_KELP; y++) for (int x = e.n / 3; x < e.n * 2 / 3; x++) { Vector2 p{(x + 0.5f) * e.cell, (y + 0.5f) * e.cell}; if (e.HabAt(p) == H_KELP && e.HabAt(Vector2Add(p, {-14, 0})) != H_KELP) { at = Vector2Add(p, {-10, 0}); break; } }
+        G.boat.pos = at; G.boat.heading = 0.3f; G.boat.telegraph = 1; G.boat.lantern = 2;
+        G.net.state = NetState::Down;
+        for (int i = 0; i < 60 * 4; i++) { G.Step(1 / 60.0f); ss.Step(1 / 60.0f); }
+        G.siren.on = true; G.siren.p = G.boat.ToWorld(fp ? Vector2{-16, 12} : Vector2{-5, -13.5f}); G.siren.t = 6;
+        G.mermen.on = true; G.mermen.p = { G.net.node[5 * 8 + 4].x, G.net.node[5 * 8 + 4].y }; G.mermen.t = 4;
+        G.botsOn = false; for (auto& c : G.crew) c.bot = false;   // (held still for the picture: nobody cuts the hand free yet)
+        G.crew[1].station = -1; G.crew[1].deck = 0; G.crew[1].p = {-4.0f, -2.5f}; G.crew[1].tangleT = 3;
+        if (fp) { G.crew[0].station = -1; G.crew[0].p = {-6.5f, 0.6f}; G.crew[0].facing = {-1, 0}; S.eye.yaw = PI - 0.25f; S.eye.pitch = -0.12f; }
         return;
     }
     if (which == 27 || which == 28 || which == 29) {

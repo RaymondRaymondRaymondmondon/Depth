@@ -16,6 +16,7 @@
 //    slit the cod end and everything in it is gone.
 #include "trawl.h"
 #include "trawl_eco.h"
+#include "trawl_session.h"
 #include "raymath.h"
 #include <algorithm>
 #include <cmath>
@@ -55,13 +56,13 @@ bool Gannet::Weeds() const { return eco && eco->ground == "weeds"; }
 
 bool Gannet::FreeTangled(int ci) {
     Crew& c = crew[ci];
-    if (c.dead || c.overboard || c.deck != 0) return false;
+    if (c.dead || c.overboard || (c.deck != 0 && c.deck != DECK_SHORE)) return false;
     if (c.tangleT > 0) {   // their own knife
         bool knife = false; for (const auto& s : c.slots) if (s.it == Item::Knife) knife = true;
         if (!knife) return false;
         c.tangleT = 0; Say("Cut free with their own knife: the thing in the kelp lets go"); return true;
     }
-    for (auto& o : crew) if (&o != &c && o.tangleT > 0 && !o.dead && !o.overboard && Vector2Distance(o.p, c.p) < 1.4f) {
+    for (auto& o : crew) if (&o != &c && o.tangleT > 0 && !o.dead && !o.overboard && o.deck == c.deck && Vector2Distance(o.p, c.p) < 1.4f) {
         o.tangleT = 0; Say("Hauled free of the kelp: whatever had them slides back under"); return true;
     }
     return false;
@@ -119,22 +120,38 @@ void Gannet::StepWeeds(float dt) {
     }
 
     // ---- the Kelp Wraiths: a hand at the rail while she lies in or beside the canopy
+    // (and on the Cannery Pier: they live in the pilings, and take a hand standing at the stage's edge)
     bool inKelp = NearKelp(e, boat.pos, 12);
+    const Landing* pierL = skiff.landing >= 0 && skiff.landing < (int)landings.size() && landings[skiff.landing].kind == LK_CANNERY ? &landings[skiff.landing] : nullptr;
     for (int k = 0; k < (int)crew.size(); k++) {
         Crew& c = crew[k];
+        bool onPier = pierL && c.deck == DECK_SHORE;
         if (c.tangleT > 0) {
-            if (c.dead || c.overboard || c.deck != 0) { c.tangleT = 0; continue; }
+            if (c.dead || c.overboard || (c.deck != 0 && !onPier)) { c.tangleT = 0; continue; }
             c.tangleT += dt; c.v = {0, 0};
             if (c.bot && c.tangleT >= BOT_CUT) { c.tangleT = 0; Say("A hand saws through the kelp round their ankle and staggers clear"); continue; }
-            if (c.tangleT >= WRAITH_DRAG) { c.tangleT = 0; GoOverboard(k, "dragged over the rail by a Kelp Wraith"); }
+            if (c.tangleT >= WRAITH_DRAG) {
+                c.tangleT = 0;
+                if (onPier) {
+                    float l = std::max(0.1f, Vector2Length(c.p));
+                    Vector2 out = pierL->ToWorld(Vector2Scale(c.p, (pierL->r + 1.5f) / l));
+                    c.deck = 0; c.carrying = false; c.carryKg = 0;
+                    GoOverboard(k, "pulled off the pier by a Kelp Wraith"); c.swim = out;
+                } else GoOverboard(k, "dragged over the rail by a Kelp Wraith");
+            }
             continue;
         }
-        if (!inKelp || wraithCool > 0 || c.dead || c.overboard || c.deck != 0 || c.station >= 0) continue;
-        if (fabsf(c.p.y) < HalfBeamW(c.p.x) - 0.8f) continue;     // only at the rail
+        if (wraithCool > 0 || c.dead || c.overboard || c.station >= 0) continue;
         if (c.charm == CH_KELP_CROWN) continue;                   // the crown: the wraiths won't touch whoever wears it
+        if (onPier) { if (Vector2Length(c.p) < pierL->r - 1.3f) continue; }   // only at the stage's edge
+        else {
+            if (!inKelp || c.deck != 0) continue;
+            if (fabsf(c.p.y) < HalfBeamW(c.p.x) - 0.8f) continue;     // only at the rail
+        }
         if (WRand() < dt * (0.2f + stir) / 35) {
             c.tangleT = dt; wraithCool = 90;
-            Say("Something cold in the kelp has a hand by the ankle: cut them free (E beside them) before it drags them over");
+            Say(onPier ? "Something reaches up out of the pilings and has a hand by the ankle: cut them free (E beside them)"
+                       : "Something cold in the kelp has a hand by the ankle: cut them free (E beside them) before it drags them over");
         }
     }
 
@@ -206,6 +223,13 @@ int RunTrawlWeedsTest() {
         check(freed, "E beside them hauls them free");
         b.tangleT = 0.1f; b.slots[3] = {Item::Knife, 0};
         check(h.TakeStation(0) && b.tangleT == 0, "their own knife cuts them free");
+        // a bot crew answers it: the nearest free bot runs over and cuts the hand loose
+        {
+            Gannet bt; fresh(bt, 3, kelp); bt.botsOn = true;
+            Crew& v = bt.crew[0]; v.p = {-6, HalfBeamW(-6) - 0.4f}; v.tangleT = 0.1f;
+            for (int i = 0; i < 60 * 8 && v.tangleT > 0; i++) { bt.boat.vel = {0, 0}; bt.Step(dt); }
+            check(v.tangleT == 0 && !v.overboard, "a bot crew runs to the rail and cuts the hand free before it's dragged over");
+        }
         Gannet k; fresh(k, 1, kelp); k.wraithCool = 0;
         k.crew[0].p = {0, HalfBeamW(0) - 0.4f}; k.crew[0].charm = CH_KELP_CROWN;
         for (int i = 0; i < 60 * 600; i++) k.StepWeeds(dt);
@@ -230,6 +254,46 @@ int RunTrawlWeedsTest() {
         g.flares.push_back({{g.mermen.p.x + 5, g.mermen.p.y}, 30});
         g.StepWeeds(dt);
         check(!g.mermen.on && !g.net.catchKg.empty(), "a flare over the net sends them off");
+    }
+    // the landings: Seal Rock (Old Hoskins buys birds at double; the hut's stove keeps alight in the rain; the bull seal)
+    // and the Cannery Pier (the foreman buys cooked fish at 150%; the safe; Kelp Wraiths in the pilings)
+    {
+        Gannet g; fresh(g, 2, open); g.BuildLandings();
+        bool kinds = g.landings.size() == 2 && g.landings[0].kind == LK_SEALROCK && g.landings[1].kind == LK_CANNERY;
+        check(kinds && e.DepthAt(g.landings[0].at) <= 0 && e.DepthAt(g.landings[1].at) <= 0 && e.DepthAt(Vector2Add(g.landings[0].at, {14, 0})) > 0.5f,
+              "the Weeds have Seal Rock and the Cannery Pier, each with water round it for the skiff");
+        if (kinds) {
+            Session vs; vs.G = &g;
+            Crew& c = g.crew[0];
+            Landing& S1 = g.landings[0];
+            g.skiff.state = SkiffState::Beached; g.skiff.landing = 0; c.deck = DECK_SHORE; c.p = Vector2Add(S1.elder, {1.0f, 0.4f});
+            CatchRec bird; bird.name = BirdOf(BIRD_GULL).name; bird.kg = 1; bird.price = BirdOf(BIRD_GULL).value; bird.dead = true; bird.sp = Species().Find("gull flock");
+            CatchRec fish; fish.name = "kelp bass"; fish.sp = Species().Find("kelp bass"); fish.kg = 3; fish.price = 3; fish.dead = true;
+            std::string why;
+            c.carrying = true; c.carry = fish; c.carryKg = fish.kg;
+            bool refused = vs.ElderGive(0, &why) == 0 && c.carrying;
+            check(refused, TextFormat("Old Hoskins won't take a fish (%s)", why.c_str()));
+            c.carry = bird; c.carryKg = 1;
+            float m0 = vs.money, v = vs.ElderGive(0);
+            check(v > 0 && fabsf(v - 2 * vs.Value(bird)) < 0.01f && fabsf(vs.money - m0 - v) < 0.01f && !c.carrying, TextFormat("Old Hoskins pays twice a gull's value in shillings (%.1f)", v));
+            g.sea.weather = Weather::Rain; S1.fireLit = true; g.StepLandings(1.0f);
+            check(S1.fireLit, "rain on Seal Rock: the hut's stove stays alight");
+            g.sea.weather = Weather::Calm;
+            Landing& P = g.landings[1];
+            g.skiff.landing = 1; c.p = Vector2Add(P.elder, {1.0f, 0.4f});
+            c.carrying = true; c.carry = fish; c.carryKg = fish.kg;
+            refused = vs.ElderGive(0, &why) == 0;
+            check(refused, TextFormat("the foreman won't take a raw fish (%s)", why.c_str()));
+            CatchRec cooked = fish; cooked.cooked = true; cooked.cook = 1.5f; c.carry = cooked;
+            m0 = vs.money; v = vs.ElderGive(0);
+            check(v > 0 && fabsf(v - 1.5f * vs.Value(cooked)) < 0.01f && vs.money > m0, TextFormat("the foreman pays 150%% for cooked fish, in shillings (%.1f)", v));
+            check(P.caches.size() == 1 && P.caches[0].kind == 1 && P.caches[0].value >= 150 && P.caches[0].value <= 350, "the cannery safe: locked, 150-350");
+            c.p = {P.r - 0.6f, 0}; g.wraithCool = 0;
+            for (int i = 0; i < 60 * 900 && c.tangleT <= 0; i++) g.StepWeeds(dt);
+            bool caught = c.tangleT > 0;
+            for (int i = 0; i < 60 * 9; i++) g.StepWeeds(dt);
+            check(caught && c.overboard && Vector2Distance(c.swim, P.at) > P.r, "at the pier's edge a Kelp Wraith comes up out of the pilings and pulls the hand off into the water");
+        }
     }
     e.stirOverride = -1;
     printf(fails ? "trawl-weeds-test: %d FAILED\n" : "trawl-weeds-test: all checks passed\n", fails);
