@@ -13,7 +13,7 @@
 namespace tw {
 
 const char* ResName(int r) { static const char* N[R_COUNT] = {"plankton", "benthos", "algae", "seagrass", "carrion"}; return N[r]; }
-const char* HabitatName(int h) { static const char* N[H_COUNT] = {"land", "open", "seagrass", "reef", "crest", "sea", "holes", "sargassum", "kelp", "barren"}; return N[h]; }
+const char* HabitatName(int h) { static const char* N[H_COUNT] = {"land", "open", "seagrass", "reef", "crest", "sea", "holes", "sargassum", "kelp", "barren", "wall", "wreck"}; return N[h]; }
 
 // ---------------------------------------------------------------- the species file
 namespace {
@@ -176,6 +176,7 @@ int Eco::CellIdx(Vector2 p) const {
 }
 float Eco::DepthAt(Vector2 p) const {
     if (!InMap(p)) return g ? g->depthMax : 40;
+    if (!archOpen && InArch(p)) return 0;   // (the Grotto's arch, closed by the tide: rock to her keel)
     float d = depth[CellIdx(p)];
     return d <= 0 ? 0 : std::max(0.0f, d - tide);
 }
@@ -250,6 +251,54 @@ void Eco::BuildWeedsChart(uint32_t seed) {
     for (int i = 0; i < 7; i++) rafts.push_back({{size * 0.6f + Rand() * size * 0.35f, 40 + Rand() * (size - 80)}, 5 + Rand() * 6});   // drift kelp mats
 }
 
+// The Grotto (design doc v2, "The Grotto"): the same island and quay; open sea off it to a sheer headland, and through
+// the headland a sea arch into a flooded cave the size of a cathedral: black water 18-40 m deep, mould glowing on the
+// walls (shallow ledges all round), stalagmite pillars, smugglers' wrecks, the Smugglers' Shelf on the north wall and
+// Bone Beach on the south. The arch is passable only until its closing time (Session: 02:30-04:00).
+void Eco::BuildGrottoChart(uint32_t seed) {
+    float size = n * cell;
+    archY = size * (0.45f + 0.1f * H2(2, 9, seed)); archX0 = 248; archX1 = 284; archHalf = 16; archOpen = true;
+    Vector2 cc{430, size * 0.5f}; float rx = 150, ry = 235;
+    struct Disc { Vector2 c; float r; };
+    std::vector<Disc> pillars, wrecks;
+    for (int i = 0; i < 7; i++) pillars.push_back({{cc.x + (H2(i, 1, seed) - 0.5f) * rx * 1.2f, cc.y + (H2(i, 2, seed) - 0.5f) * ry * 1.3f}, 3 + 3 * H2(i, 3, seed)});
+    for (int i = 0; i < 5; i++) wrecks.push_back({{cc.x + (H2(i, 4, seed) - 0.5f) * rx * 1.1f, cc.y + (H2(i, 5, seed) - 0.5f) * ry * 1.2f}, 6 + 3 * H2(i, 6, seed)});
+    Vector2 shelf{cc.x - 10, cc.y - ry * 0.80f}, bone{cc.x + 40, cc.y + ry * 0.78f};
+    landingAt = {shelf, bone}; landingKind = {3, 4};
+    for (int y = 0; y < n; y++) for (int x = 0; x < n; x++) {
+        float wx = (x + 0.5f) * cell, wy = (y + 0.5f) * cell;
+        int i = y * n + x;
+        float shore = 34 + 14 * sinf(wy * 0.021f + seed) + 8 * Noise2(wy * 0.03f, 3.1f, seed);
+        float nz = Noise2(wx * 0.05f, wy * 0.05f, seed + 5) - 0.5f;
+        float d; int h;
+        float ex = (wx - cc.x) / rx, ey = (wy - cc.y) / ry, e = ex * ex + ey * ey + nz * 0.3f;   // inside the cave below 1
+        if (wx < shore) { d = 0; h = H_LAND; }
+        else if (wx < archX0) { d = std::clamp(8.0f + (wx - shore) * 0.08f + nz * 4, 6.0f, 30.0f); h = d > 18 ? H_SEA : H_OPEN; }   // the open water off the island
+        else if (wx < archX1) {   // the headland, pierced by the arch
+            if (fabsf(wy - archY) < archHalf) { d = 9 + nz * 2; h = H_OPEN; } else { d = 0; h = H_LAND; }
+        } else if (e < 1) {
+            d = std::clamp(18.0f + 24 * (1 - e) + nz * 6, 6.0f, 45.0f);
+            h = e > 0.78f ? H_WALL : H_OPEN;     // (mould ledges round the walls)
+            if (h == H_WALL) d = std::min(d, 6 + (1 - e) * 40);
+        } else if (wx < archX1 + 40 && fabsf(wy - archY) < archHalf) { d = 9; h = H_OPEN; }   // (the passage from the arch into the cave)
+        else { d = 0; h = H_LAND; }
+        if (h != H_LAND && wx >= archX1) {
+            for (const auto& p : pillars) if (Vector2Distance({wx, wy}, p.c) < p.r) { d = 0; h = H_LAND; }
+            for (const auto& w : wrecks) if (h != H_LAND && Vector2Distance({wx, wy}, w.c) < w.r) { h = H_WRECK; d = std::max(5.0f, d - 6); }
+            if (Vector2Distance({wx, wy}, shelf) < 10 || Vector2Distance({wx, wy}, bone) < 11) { d = 0; h = H_LAND; }   // (the two landings)
+            else if (Vector2Distance({wx, wy}, shelf) < 16 || Vector2Distance({wx, wy}, bone) < 17) { d = std::max(d, 3.0f); if (h == H_LAND) h = H_WALL; }   // (water the skiff can reach them by)
+        }
+        depth[i] = d; hab[i] = (uint8_t)h;
+    }
+    // the skiff water: the Side Galleries (cavefish, glass eels; Lanternjaw's boss water) and the Still Pool (sturgeon;
+    // the Pale Abbot's boss water)
+    marks.clear();
+    marks.push_back({"The Side Galleries", {cc.x - rx * 0.72f, cc.y + (H2(3, 3, seed) < 0.5f ? -1 : 1) * ry * 0.45f}, 22, 0});
+    marks.push_back({"The Still Pool", {cc.x + rx * 0.6f, cc.y + (H2(5, 5, seed) - 0.5f) * ry * 0.5f}, 24, 0});
+    rafts.clear();
+}
+bool Eco::InArch(Vector2 p) const { return g && ground == "grotto" && p.x >= archX0 && p.x < archX1 && fabsf(p.y - archY) < archHalf; }
+
 void Eco::AddDriftMats(int k) {
     float size = n * cell;
     for (int i = 0; i < k; i++) rafts.push_back({{size * 0.45f + Rand() * size * 0.5f, 40 + Rand() * (size - 80)}, 5 + Rand() * 7});
@@ -259,6 +308,7 @@ void Eco::AddDriftMats(int k) {
 void Eco::BuildChart(uint32_t seed) {
     depth.assign((size_t)n * n, 0); hab.assign((size_t)n * n, H_OPEN); holes.assign((size_t)n * n, 0);
     if (ground == "weeds") { BuildWeedsChart(seed); return; }
+    if (ground == "grotto") { landingAt.clear(); BuildGrottoChart(seed); return; }
     float size = n * cell;
     struct Head { Vector2 c; float r; };
     std::vector<Head> heads;
@@ -475,7 +525,15 @@ static float Glow(const Eco& e, Vector3 p, Vector2* dir) {
     return G;
 }
 void Eco::AddBlood(Vector3 p, float a) { blood.Add(p, a); }
-void Eco::AddNoise(Vector3 p, float a) { sound.Add(p, a); }
+void Eco::AddNoise(Vector3 p, float a) {
+    // the Grotto (doc v2 page 39): sound doubles under the roof, and a loud one can bring a stalactite down
+    if (ground == "grotto" && g) {
+        a *= 2;
+        bool inCave = p.x > archX1 && DepthAt({p.x, p.y}) > 0;
+        if (inCave && a >= 30 && rockfalls.size() < 8 && Rand() < std::min(0.5f, a / 240.0f) * rockfallMul) rockfalls.push_back({p.x + (Rand() - 0.5f) * 12, p.y + (Rand() - 0.5f) * 12});
+    }
+    sound.Add(p, a);
+}
 void Eco::AddVibration(Vector3 p, float a) { vib.Add(p, a); }
 
 void Eco::Harvest(int sp, float kg, Vector3 at, bool bleed) {
@@ -1110,6 +1168,18 @@ void EcoTick(Eco& e, Gannet& gn, float dt) {
         if (now) { gn.boat.vel = Vector2Scale(gn.boat.vel, expf(-0.45f * dt)); if (!fouled) gn.Say("Weed round the screw: the Sargassum Line is no water for her (take the skiff)"); }
         fouled = now;
     }
+    // the Grotto's stalactites, brought down by loud noise: a holed section, or a hand on deck struck
+    for (Vector2 at : e.rockfalls) {
+        Vector2 l = gn.boat.ToDeck(at);
+        if (fabsf(l.x) < 11 && fabsf(l.y) < 3) {
+            int sec = (l.x > 3.5f ? 0 : l.x > -4 ? 2 : 4) + (l.y > 0 ? 1 : 0);
+            gn.boat.Hit(sec, 12);
+            bool hurt = false;
+            for (int k = 0; k < (int)gn.crew.size(); k++) { Crew& c = gn.crew[k]; if (!c.dead && !c.overboard && c.deck == 0 && Vector2Distance(c.p, l) < 1.6f) { gn.Injure(k, INJ_BROKEN_ARM, "a falling stalactite"); hurt = true; } }
+            gn.Say(hurt ? "The echo brings a stalactite down on the deck: a hand is struck" : "The echo brings a stalactite down: it smashes into the deck plating");
+        } else if (Vector2Distance(at, b.pos) < 40) gn.Say("A stalactite drops out of the dark and crashes into the water");
+    }
+    e.rockfalls.clear();
     // aground: the chart under her keel (she draws about 1.8 m)
     float d = e.DepthAt(b.pos);
     bool was = gn.boat.aground;

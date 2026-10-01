@@ -52,4 +52,45 @@ Gold Tail (yellowtail school leader, 30 kg, Flopper; jumps every 4 s; 400; a gol
 | Glass eel | 1 | 0.05 | Upper | Plankton | Net under a light | None | 6 |
 | Lantern fish | 1 | 0.05 | Mid-deep | Plankton | Rises to light; net | None | 1.5 |
 | Blind cavefish | 1 | 0.1-0.3 | Mid | Shrimp | Scented bait (can't see lures) | None | 4 |
-(the rest of the Grotto's table is on page 45: read p0045.png)
+| Mould snail | 1 | 0.2 | Walls | Glowing mould | Diving | None | 2 |
+| Pale cave crab | 1 | 0.3 | Floor | Mould, carrion | Pots | None | 5 |
+| Hagfish | 1 | 0.5-1 | Floor | Carrion | Any dead bait on the floor | Roll (slimes the line) | 1 |
+| Giant isopod | 2 | 1-3 | Floor | Carrion | Pots | None | 7 |
+| Bone crab | 2 | 1-3 | Wrecks | Carrion | Pots set in wrecks | None | 6 |
+| Albino octopus | 2 | 1-5 | Wrecks | Crabs | Crab bait | Cover (inks) | 7 |
+| Echo bass | 2 | 1-4 | Upper | Shrimp | Rattle lure (hunts by sound) | Circle | 4 |
+| Pale cod | 2 | 2-8 | Mid | Shrimp, cavefish | Glow jig, shrimp | Dive | 4 |
+| Cave dogfish | 3 | 5-15 | Deep | Cod, eels | Chunks | Roll | 2 |
+| White conger | 3 | 5-25 | Walls, wrecks | Cod, crabs | Dead bait on the bottom | Cover, roll | 3 |
+| Ghost ray | 3 | 10-40 | Floor | Crabs, isopods | Squid on the floor | Run (glides) | 3 |
+| Grotto sturgeon | 4 | 60-250 | Deep floor | Crabs, cod | Big dead bait, deep-drop reel | Dive (slow, very long) | 8, plus 200 for a female's roe |
+| Glowjelly | 1 | - | Upper | Plankton | Net bycatch | None | 0 (stings; a light source) |
+
+Flora (page 45): glowing mould (the Grotto's main light and its base food), pale weed (shallow shelves), bacterial
+mats round warm vents (deep; draw isopods and hagfish).
+
+Web notes (page 45): the web runs on mould, not sunlight, so it is small and fragile: a heavy night of netting shrimp
+starves the cod and cavefish by night two, and hungry cod bring the Lantern Anglers up. Sound doubles here, so echo
+bass come to noise that sends everything else running. Sturgeon take 10-20 minutes on the deep-drop reel, and the
+vibration of that fight is the most reliable way to wake a Ghost Worm.
+
+Ground (pages 38-39): through a sea arch into a flooded cave the size of a cathedral: black water, dripping
+stalactites, glowing mould on the walls, smugglers' hulls that went in and stayed. Signature: the cave mouth closes
+(the telegraph posts the closing time at the start of the night, 02:30-04:00; a crew still inside is shut in until
+05:00, counted late, and the cave's night keeps waking the whole time). Echo: sound doubles (every ping, shot and shout
+feeds the sound layer at twice its value and returns as an echo on the sonar); loud noises can drop stalactites (hull
+and crew damage). Threats: Lantern Anglers (the second light), Ghost Worms (born in the Grotto), Drowned sailors from
+the wrecks, swarms of isopods that climb the anchor chain. Birds: the Grotto's mouth has its own (page 26 table).
+Skiff marks (page 58): the Side Galleries (cavefish, glass eels; Lanternjaw boss water), the Still Pool (sturgeon;
+Pale Abbot boss water).
+Landings (page 61): the Smugglers' Shelf (a smugglers' stove, sheltered; the quartermaster, if the Drowned are still
+asleep, buys salvage at the full deadline rate on any night; 2-3 stashes 200-600), Bone Beach (volcanic vents: steam,
+can't burn, cooking climbs 30% slower; the hermit trades gear for bones and skulls; bone piles and a lost crew's kit
+200-500).
+Mini-bosses (page 48): the Pale Abbot (a giant white conger, 60 kg, biter and grabber, 700, drop a white skull, lure
+200) and Lanternjaw (an old cave anglerfish, 45 kg, biter whose lure blinds the angler on the line, 800, drop a glass
+lantern, lure 200).
+
+Variants (page 40-41): Glass eel run 6% (glass eels pour in with the tide; pale cod and anglers follow them to the
+light), Rockfall 8% (a new chamber opens with an untouched wreck; stalactites fall at half the usual noise), Mould
+bloom 8% (the cave glows; everything bites, Anglers stay away, but Drowned sailors see the boat from anywhere).

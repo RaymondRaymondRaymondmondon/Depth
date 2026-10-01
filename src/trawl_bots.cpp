@@ -201,6 +201,8 @@ void Gannet::StepBots(float dt) {
         if (c.deck == 0) {
             bool threat = false;
             for (const auto& h : hold) if (!h.dead && !h.gutted && h.hp >= 0 && (h.grabbed == i || (h.deckKind != DB_FLOPPER && Vector2Distance(h.deckAt, c.p) < 1.6f))) threat = true;
+            for (const auto& dr : drowned) if (Vector2Distance(dr.p, c.p) < 1.6f) threat = true;   // (the Grotto: a Drowned sailor within reach)
+            if (isopods.state == 2) threat = true;   // (and isopods underfoot: stamp on them)
             if (threat) { b.defT -= dt; if (b.defT <= 0) { b.defT = 1.0f; KillDeckFish(i, 1.6f); } }
             else b.defT = 0.3f;
         }

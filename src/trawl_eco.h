@@ -19,7 +19,7 @@
 namespace tw {
 
 enum Band { BAND_AIR = -1, BAND_SURFACE = 0, BAND_UPPER, BAND_MID, BAND_DEEP, BAND_ABYSS, BAND_FLOOR, BAND_COUNT };
-enum Habitat { H_LAND, H_OPEN, H_SEAGRASS, H_REEF, H_CREST, H_SEA, H_HOLES, H_SARGASSUM, H_KELP, H_BARREN, H_COUNT };   // kelp canopy and urchin barrens: the Weeds
+enum Habitat { H_LAND, H_OPEN, H_SEAGRASS, H_REEF, H_CREST, H_SEA, H_HOLES, H_SARGASSUM, H_KELP, H_BARREN, H_WALL, H_WRECK, H_COUNT };   // kelp canopy and urchin barrens: the Weeds; mould-lit walls and smugglers' wrecks: the Grotto
 enum LightResp { LR_DRAWN, LR_NEUTRAL, LR_SHY };
 enum Res { R_PLANKTON, R_BENTHOS, R_ALGAE, R_SEAGRASS, R_CARRION, R_COUNT };
 const char* ResName(int r);
@@ -126,7 +126,12 @@ struct Eco {
     struct SkiffMark { std::string name; Vector2 at; float r; int kind; };   // kind 0 shallow pass, 1 weed bank
     std::vector<SkiffMark> marks;
     int MarkAt(Vector2 p) const;
-    void BuildWeedsChart(uint32_t seed);        // the Weeds' chart (BuildChart dispatches by ground)                // the skiff mark a point lies in, or -1
+    void BuildWeedsChart(uint32_t seed);        // the Weeds' chart (BuildChart dispatches by ground)
+    void BuildGrottoChart(uint32_t seed);       // the Grotto's: open water, a headland pierced by the sea arch, the cave
+    float archY = 0, archX0 = 0, archX1 = 0, archHalf = 0; bool archOpen = true;   // the Grotto's sea arch (closed: no water under her keel)
+    bool InArch(Vector2 p) const;
+    std::vector<Vector2> rockfalls;             // (the Grotto) stalactites brought down by loud noise, landing this tick (EcoTick)
+    float rockfallMul = 1;                      // (the Rockfall variant: half the usual noise brings them down)                // the skiff mark a point lies in, or -1
     bool skiffOn = false; Vector2 skiffPos{};    // the skiff out on its own (60 m+ from her): the web keeps a second bubble of life round it
     bool birdDrawOn = false; Vector2 birdDraw{};  // set by EcoTick: cooking smoke or fish ashore, or a laden skiff away from her, draws the birds             // the landings' centres (the Lagoon: the Atoll), islets the skiff can beach on
     std::vector<EcoArrival> arrivals;

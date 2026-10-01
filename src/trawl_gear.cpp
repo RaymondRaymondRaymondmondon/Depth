@@ -462,6 +462,7 @@ bool Gannet::CrateFish(int ci, float reach) {
 }
 bool Gannet::KillDeckFish(int ci, float reach, float dmgIn, bool headIn) {
     const Crew& c = crew[ci];
+    if (c.deck == 0 && HitDrowned(c.p, dmgIn >= 0 ? dmgIn : 12, reach)) return true;   // (the Grotto: a Drowned sailor in reach, or the isopods underfoot, take the blow first)
     int best = -1; float bd = reach;
     for (int i = 0; i < (int)hold.size(); i++) if (!hold[i].dead && !hold[i].gutted) { float d = Vector2Distance(hold[i].deckAt, c.p); if (d < bd) { bd = d; best = i; } }
     if (best < 0) return false;

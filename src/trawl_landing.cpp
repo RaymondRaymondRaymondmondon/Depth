@@ -35,10 +35,26 @@ void Gannet::BuildLandings() {
     if (!eco) return;
     for (size_t k = 0; k < eco->landingAt.size(); k++) {
         int kind = k < eco->landingKind.size() ? eco->landingKind[k] : LK_ATOLL;
-        if (kind == LK_SEALROCK || kind == LK_CANNERY) {
+        if (kind == LK_SEALROCK || kind == LK_CANNERY || kind == LK_SHELF || kind == LK_BONEBEACH) {
             Landing L; L.kind = kind; L.at = eco->landingAt[k];
             gLr = eco->initSeed * 2654435761u + 31 + (uint32_t)k * 977;
-            if (kind == LK_SEALROCK) {
+            if (kind == LK_SHELF) {
+                // a rock shelf on the cave's north wall: the smugglers' lean-to of crates (stove at its mouth), the
+                // quartermaster among his crates, 2-3 stashes (200-600), one of them under a lock
+                L.name = "The Smugglers' Shelf"; L.r = 10;
+                L.sloop = {0.0f, -4.6f}; L.sloopHead = 0.0f; L.fire = {2.6f, -1.6f}; L.elder = {-3.4f, -1.2f};
+                L.pond = {0, 0}; L.pondR = 0;
+                int n = 2 + (LR() < 0.5f ? 1 : 0);
+                for (int i = 0; i < n; i++) { Cache s; s.p = {-5.0f + i * 4.5f, 3.0f + LR() * 2}; s.kind = i == 0 ? 1 : 0; s.value = 200 + LR() * 400; s.kg = 12 + LR() * 14; s.what = i == 0 ? "a smugglers' locked stash" : "a smugglers' stash"; L.caches.push_back(s); }
+            } else if (kind == LK_BONEBEACH) {
+                // a black-sand beach on the south wall: volcanic vents (steam: fish cook 30% slower and never burn), the
+                // hermit, bone piles and a lost crew's kit (200-500)
+                L.name = "Bone Beach"; L.r = 11;
+                L.sloop = {-4.0f, 4.2f}; L.sloopHead = 0.3f; L.fire = {2.8f, 1.0f}; L.elder = {-1.0f, -3.4f};
+                L.pond = {0, 0}; L.pondR = 0;
+                Cache kit; kit.p = {5.0f, -4.0f}; kit.kind = 0; kit.value = 200 + LR() * 300; kit.kg = 20 + LR() * 10; kit.what = "a lost crew's kit"; L.caches.push_back(kit);
+                for (int i = 0; i < 3; i++) { float a = 1.2f + i * 1.7f; CatchRec b; b.name = i == 2 ? "an old skull" : "a bundle of bones"; b.junk = true; b.kg = 2 + i; b.price = 25 + LR() * 30; b.dead = b.gutted = b.iced = true; b.deckAt = {cosf(a) * 6.5f, sinf(a) * 6.5f}; L.onBeach.push_back(b); }
+            } else if (kind == LK_SEALROCK) {
                 // a bare rock: the sealers' hut (stove at its door, Old Hoskins on the step), the bull seal's haul-out
                 L.name = "Seal Rock"; L.r = 11;
                 L.sloop = {-3.5f, -4.0f}; L.sloopHead = 0.2f; L.fire = {-0.6f, -2.6f}; L.elder = {-5.4f, -1.6f};
@@ -255,7 +271,8 @@ void Gannet::StepLandings(float dt) {
         if (exposed && Raining(sea)) L.fireLit = false;
         // the fire: the fish cook (and burn); the smell into the water and the air (5 a second a fish, doubled burning)
         for (auto& r : L.onFire) {
-            if (L.fireLit) r.cookT += dt * (spiceRub ? 1.25f : 1.0f);   // (the cook's spice rub: 25% faster)
+            if (L.fireLit) r.cookT += dt * (spiceRub ? 1.25f : 1.0f) * (L.kind == LK_BONEBEACH ? 0.7f : 1.0f);   // (the cook's spice rub: 25% faster; Bone Beach's steam 30% slower)
+            if (L.kind == LK_BONEBEACH) r.cookT = std::min(r.cookT, 10 + r.kg + 4.9f);   // (steam never burns: it holds at its best)
             r.cook = CookMultiplier(r.kg, r.cookT); r.cooked = r.cookT > 1;
             bool burning = r.cookT > 10 + r.kg + 5;
             if (eco) eco->AddBlood({L.at.x + L.fire.x, L.at.y + L.fire.y, 0.5f}, 5 * dt * (burning ? 2 : 1) * 0.1f);

@@ -309,7 +309,7 @@ bool Session::ElderNear(int ci, std::string* why) const {
     const Crew& c = G->crew[ci];
     if (c.deck != DECK_SHORE || G->skiff.landing < 0 || G->skiff.landing >= (int)G->landings.size()) return no("the elder is on the Atoll");
     int kind = G->landings[G->skiff.landing].kind;
-    if (Vector2Distance(c.p, G->landings[G->skiff.landing].elder) > 2.2f) return no(kind == LK_SEALROCK ? "go to Old Hoskins on the hut's step" : kind == LK_CANNERY ? "go to the foreman by the shed" : "go to the elder's shrine");
+    if (Vector2Distance(c.p, G->landings[G->skiff.landing].elder) > 2.2f) return no(kind == LK_SEALROCK ? "go to Old Hoskins on the hut's step" : kind == LK_CANNERY ? "go to the foreman by the shed" : kind == LK_SHELF ? "go to the quartermaster at his crates" : kind == LK_BONEBEACH ? "go to the hermit by the vents" : "go to the elder's shrine");
     if (kind == LK_ATOLL && G->foughtCanoes) return no("the elder turns his back: you fought his people's canoes");
     return true;
 }
@@ -329,6 +329,18 @@ float Session::ElderGive(int ci, std::string* why) {
         c.carrying = false; c.carryKg = 0;
         return v;
     }
+    // the Grotto (doc v2 page 61): the Smugglers' Shelf quartermaster buys salvage at its full value, in shillings; the
+    // Bone Beach hermit takes bones and skulls in trade for his gear
+    if (kind == LK_SHELF || kind == LK_BONEBEACH) {
+        bool bone = c.carrying && c.carry.junk && (c.carry.name.find("bone") != std::string::npos || c.carry.name.find("skull") != std::string::npos);
+        bool ok = c.carrying && (kind == LK_SHELF ? c.carry.junk : bone);
+        if (!ok) { if (why) *why = kind == LK_SHELF ? "the quartermaster buys salvage, not fish" : "the hermit wants bones and skulls"; return 0; }
+        float v = Value(c.carry);
+        if (kind == LK_SHELF) { money += v; G->Say(TextFormat("The quartermaster pays %.0f shillings for %s", v, c.carry.name.c_str())); }
+        else { G->landings[G->skiff.landing].elderCredit += v; G->Say(TextFormat("The hermit takes %s: %.0f in trade", c.carry.name.c_str(), v)); }
+        c.carrying = false; c.carryKg = 0;
+        return v;
+    }
     if (!c.carrying || c.carry.junk) { if (why) *why = "he takes only fish"; return 0; }
     float v = Value(c.carry) * 1.5f;
     G->landings[G->skiff.landing].elderCredit += v;
@@ -336,20 +348,27 @@ float Session::ElderGive(int ci, std::string* why) {
     c.carrying = false; c.carryKg = 0;
     return v;
 }
-std::vector<std::string> ElderStock() {
+static const char* TraderTag(int kind) { return kind == LK_SHELF ? "smugglers" : kind == LK_BONEBEACH ? "bonebeach" : "atoll"; }
+std::vector<std::string> ElderStock(int kind) {
     std::vector<std::string> s;
-    for (const auto& w : Weapons()) if (w.where == "atoll") s.push_back(w.id);
-    for (const auto& a : Attachments()) if (a.where == "atoll") s.push_back("att:" + a.id);
-    s.push_back("charm:shark"); s.push_back("charm:anklet");   // (his charms: the shark tooth 120, the tribal anklet 90)
+    for (const auto& w : Weapons()) if (w.where == TraderTag(kind)) s.push_back(w.id);
+    for (const auto& a : Attachments()) if (a.where == TraderTag(kind)) s.push_back("att:" + a.id);
+    if (kind == LK_ATOLL) { s.push_back("charm:shark"); s.push_back("charm:anklet"); }   // (his charms: the shark tooth 120, the tribal anklet 90)
     return s;
 }
 bool Session::ElderBuy(int ci, const std::string& id, std::string* why) {
     auto no = [&](const char* m) { if (why) *why = m; return false; };
     if (!ElderNear(ci, why)) return false;
     Landing& L = G->landings[G->skiff.landing];
-    if (L.kind != LK_ATOLL) return no("he has nothing to sell");
+    if (L.kind == LK_SEALROCK || L.kind == LK_CANNERY) return no("he has nothing to sell");
+    // (the quartermaster sells for shillings; the elder and the hermit for what you've traded them)
+    float& purse = L.kind == LK_SHELF ? money : L.elderCredit;
+    const char* tag = TraderTag(L.kind);
+    const char* who = L.kind == LK_SHELF ? "The quartermaster" : L.kind == LK_BONEBEACH ? "The hermit" : "The elder";
+    const char* poor = L.kind == LK_SHELF ? "not enough shillings" : L.kind == LK_BONEBEACH ? "bring him more bones first" : "give him more fish first";
     Crew& c = G->crew[ci];
     if (id.rfind("charm:", 0) == 0) {
+        if (L.kind != LK_ATOLL) return no("he has none of that");
         int ch = id == "charm:shark" ? CH_SHARK_TOOTH : CH_ANKLET; int price = ch == CH_SHARK_TOOTH ? 120 : 90;
         if (L.elderCredit < price) return no("give him more fish first");
         L.elderCredit -= price; c.charm = ch;
@@ -361,19 +380,20 @@ bool Session::ElderBuy(int ci, const std::string& id, std::string* why) {
         int ai = AttachmentIndex(id.substr(4));
         if (ai < 0) return no("he has none of that");
         const AttachmentDef& a = Attachments()[ai];
-        if (L.elderCredit < a.price) return no("give him more fish first");
+        if (a.where != tag) return no("he has none of that");
+        if (purse < a.price) return no(poor);
         for (auto& s : c.slots) if (s.it == Item::Weapon && s.wpn >= 0 && AttachmentFits(a, Weapons()[s.wpn]) && !HasAttachment(s.att, a.id.c_str())) {
-            for (int k = 0; k < 3; k++) if (s.att[k] < 0) { s.att[k] = (int8_t)ai; L.elderCredit -= a.price; G->Say(TextFormat("The elder fits %s", a.name.c_str())); return true; }
+            for (int k = 0; k < 3; k++) if (s.att[k] < 0) { s.att[k] = (int8_t)ai; purse -= a.price; G->Say(TextFormat("%s fits %s", who, a.name.c_str())); return true; }
         }
         return no("nothing you carry takes it");
     }
     int wi = WeaponIndex(id);
-    if (wi < 0 || Weapons()[wi].where != "atoll") return no("he has none of that");
+    if (wi < 0 || Weapons()[wi].where != tag) return no("he has none of that");
     const WeaponDef& w = Weapons()[wi];
-    if (L.elderCredit < w.price) return no("give him more fish first");
+    if (purse < w.price) return no(poor);
     if (w.slots >= 2) for (const auto& s : c.slots) if (s.it == Item::Weapon && s.wpn >= 0 && Weapons()[s.wpn].slots >= 2) return no("a hand carries one long weapon at most");
     Slot ns; ns.it = Item::Weapon; ns.wpn = wi; ns.ammo = w.mag;
-    for (auto& s : c.slots) if (s.it == Item::None) { s = ns; L.elderCredit -= w.price; G->Say(TextFormat("The elder gives you %s", w.name.c_str())); return true; }
+    for (auto& s : c.slots) if (s.it == Item::None) { s = ns; purse -= w.price; G->Say(TextFormat("%s gives you %s", who, w.name.c_str())); return true; }
     return no("your hands are full (four slots)");
 }
 // ---------------------------------------------------------------- harbour requests (design doc v2, page 48)
@@ -670,6 +690,12 @@ bool Session::CastOff(std::string* why) {
             default: break;
         }
         G->marketNight = variant == Variant::MermenMarket;
+        // the Grotto's arch closes with the tide between 02:30 and 04:00; the telegraph posts the time
+        E->archOpen = true; archCloseAt = -1;
+        if (ground == "grotto") {
+            archCloseAt = 390 + R() * 90;
+            int m = (int)archCloseAt + 20 * 60; Tape(TextFormat("ARCH CLOSES %02d%02d STOP", (m / 60) % 24, m % 60));
+        }
         if (variant != Variant::None) {
             static const char* HINT[(int)Variant::COUNT] = {"", "BAIT THICK AT THE SURFACE", "DEAD FISH FLOATING OFF THE CREST", "KING TIDE TONIGHT", "TURTLES COMING UP THE BEACHES", "DRUMS HEARD ON THE ISLAND",
                                                             "TUNA BOATS RACING FOR THE EDGE", "WEED THICK ON THE GLASS FALLING", "SINGING HEARD FROM THE CANNERY"};
@@ -749,6 +775,13 @@ void Session::Step(float dt) {
             bool market = variant == Variant::MermenMarket;
             if (canoe == CanoeState::Coming && clock >= canoeAt - 20 && !cues[3]) { cues[3] = true; Tape(market ? "SINGING ON THE WATER STOP" : "DRUMS ON THE WATER STOP"); G->Say(market ? "Singing on the water, closing: pale heads in the kelp" : "Drums on the water, closing"); }
             if (canoe == CanoeState::Coming && clock >= canoeAt) { canoe = CanoeState::Alongside; canoeT = 0; G->Say(market ? "Feral Mermen hang on the rail with abalone and green old relics: they want fish" : "A war canoe comes alongside: they want fish, or silver, or they'll take what they can"); }
+            // the Grotto's arch: shut by the tide at its time (never on her: a boat in the arch holds it a moment)
+            if (archCloseAt >= 0 && E->archOpen && clock >= archCloseAt && !E->InArch(G->boat.pos)) {
+                E->archOpen = false;
+                bool inside = G->boat.pos.x > E->archX1;
+                Tape("THE ARCH IS CLOSED STOP");
+                G->Say(inside ? "The tide closes the arch behind her: she's shut in the Grotto until 05:00" : "The tide closes the arch: the Grotto is shut for the night");
+            }
             // the tuna run: the bluefin come along the seaward edge from 22:00, the Great White after them
             if (variant == Variant::TunaRun && clock >= 120 && E->speciesMul.find("bluefin tuna") == E->speciesMul.end()) {
                 E->speciesMul["bluefin tuna"] = 4; E->speciesMul["great white"] = 1.6f;

@@ -272,7 +272,7 @@ template <class A> void Visit(A& a, TrawlWorld& w) {
     Session& s = w.sess;
     a.e(s.phase); a.i(s.deadline); a.i(s.night); a.i(s.players);
     a.f(s.quota); a.f(s.money); a.f(s.sold); a.f(s.clock); a.b(s.clockOn); a.s(s.ground); a.e(s.weather); a.f(s.moon); a.f(s.wxAt); a.e(s.wxTo);
-    a.e(s.variant); a.e(s.canoe); a.f(s.canoeAt); a.f(s.canoeT); a.s(s.canoeWord);
+    a.e(s.variant); a.e(s.canoe); a.f(s.canoeAt); a.f(s.canoeT); a.s(s.canoeWord); a.f(s.archCloseAt);
     a.vec(s.requests, [&](Session::Request& q) { a.i(q.who); a.s(q.species); a.b(q.done); }); a.i(s.freeAttach);
     a.i(s.tokens); a.b(s.met); for (bool& x : s.slip) a.b(x); a.v2(s.harbour); a.f(s.harbourR); a.u(s.seed); a.f(s.lastSaleTotal);
     VisitTail(a, s.tape, 14);
@@ -294,6 +294,7 @@ template <class A> void Visit(A& a, TrawlWorld& w) {
     a.f(e.tide); a.f(e.coral); a.f(e.time); a.f(e.clock); a.i(e.night); a.f(e.wake);
     a.vec(e.agents, [&](EcoAgent& ag) { a.i(ag.sp); a.i(ag.count); a.v3(ag.p); a.v3(ag.v); a.b(ag.alive); a.f(ag.flash); a.f(ag.hurt); a.f(ag.t); });
     a.vec(e.rafts, [&](Raft& rf) { a.v2(rf.p); a.f(rf.r); });
+    a.b(e.archOpen);
     // ---- the sea and the boat
     Gannet& g = w.G;
     Sea& sea = g.sea;
@@ -322,7 +323,7 @@ template <class A> void Visit(A& a, TrawlWorld& w) {
         a.f(c.carryKg); a.v2(c.facing);
         for (Slot& sl : c.slots) VisitSlot(a, sl);
         a.i(c.sel); a.f(c.cool); a.f(c.reloadT); a.i(c.injuries); a.i(c.serious);
-        a.b(c.dead); a.b(c.bodyLost); a.v2(c.swim); a.f(c.drownT); a.f(c.bleedT); a.s(c.cause); a.f(c.inkT); a.f(c.tangleT);
+        a.b(c.dead); a.b(c.bodyLost); a.v2(c.swim); a.f(c.drownT); a.f(c.bleedT); a.s(c.cause); a.f(c.inkT); a.f(c.tangleT); a.f(c.heldT);
         a.f(c.oarT); a.f(c.rightT); a.b(c.skiffLine); a.i(c.charm); a.b(c.carrying); VisitCatch(a, c.carry); a.i(c.workOn); a.f(c.workT);
     });
     {   // the skiff
@@ -352,6 +353,10 @@ template <class A> void Visit(A& a, TrawlWorld& w) {
     a.b(g.doorOpen); for (auto& l : g.lamps) { a.v2(l.at); a.b(l.lit); }
     a.f(g.fireSpread); a.f(g.cotT); a.f(g.hookT); a.b(g.screwFouled); a.f(g.cutT);
     a.b(g.siren.on); a.v2(g.siren.p); a.f(g.siren.t); a.b(g.mermen.on); a.v2(g.mermen.p); a.f(g.mermen.t);
+    a.b(g.angler.on); a.v2(g.angler.p); a.f(g.angler.t); a.i(g.angler.lured);
+    a.i(g.worm.state); a.v2(g.worm.p); a.f(g.worm.t); a.f(g.worm.ang); a.i(g.worm.hits);
+    a.i(g.isopods.state); a.i(g.isopods.n); a.f(g.isopods.t); a.f(g.knockT);
+    a.vec(g.drowned, [&](Gannet::DrownedSailor& d) { a.v2(d.p); a.f(d.hp); a.i(d.grab); a.f(d.hitT); });
     a.f(g.deckBlood); a.i(g.junkBottles); a.i(g.junkKeys); a.i(g.junkCharts); a.i(g.landedSmall); a.i(g.landedBig);
     a.i(g.bossLures); a.b(g.bossArmed); a.f(g.bossBiteT); a.i(g.bossBiteIdx); a.i(g.bossCaught); a.b(g.tagGun); a.i(g.tagged); a.i(g.highKills); a.b(g.spiceRub); a.i(g.rareLures); a.b(g.rareLureNight); a.i(g.legendLures);
     a.vec(g.drops, [&](std::string& d) { a.s(d); });

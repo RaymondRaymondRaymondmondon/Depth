@@ -74,6 +74,7 @@ struct Session {
     void ShakeStep(float dt);                   // the steps' conditions and Kess's lines (called from Step)
     void SkipShakedown();
     CanoeState canoe = CanoeState::None; float canoeAt = -1, canoeT = 0;   // Canoe night: when it comes, how long it has waited alongside
+    float archCloseAt = -1;                     // (the Grotto) when the sea arch closes, in minutes since 20:00 (02:30-04:00); -1 not tonight
     std::string canoeWord;                      // what came of it (for the tape and the panel)
     bool Canoe(int choice);                     // the crew's answer while it's alongside (CanoeChoice); false if there's no canoe to answer
     std::map<std::string, float> glutKg;        // kg of each species sold this deadline
@@ -141,6 +142,6 @@ Vector2 LagoonHarbour(const Eco& e, float* moorHeading, Vector2* moorPos);
 int RunTrawlSessionTest();                     // depth.exe --trawl-session-test
 int RunTrawlShakedownTest();                   // depth.exe --trawl-shakedown-test (a scripted hand plays the shakedown through)
 
-std::vector<std::string> ElderStock();                    // the Atoll elder's goods: weapon ids, and "att:" attachments
+std::vector<std::string> ElderStock(int landingKind = 0); // a landing trader's goods: weapon ids, "att:" attachments, "charm:" (the Atoll elder's)
 
 } // namespace tw

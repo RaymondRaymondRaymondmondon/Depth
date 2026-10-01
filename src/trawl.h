@@ -285,6 +285,7 @@ struct Crew {
     bool carrying = false; CatchRec carry;                // ashore: one thing in the arms (a fish, a chest, a crab)
     int workOn = -1; float workT = 0;                     // ashore: digging a cache (its index) or relighting the fire (100)
     float tangleT = 0;                                    // (the Weeds) seconds a Kelp Wraith has had this hand by the ankle at the rail (0: free)
+    float heldT = 0;                                      // (the Grotto) lured by an Angler's light or in a Drowned sailor's grip: moved by it, not by their own feet
     // the hand's slots, injuries, and life (design doc, "Death, injury, and ghosts")
     Slot slots[4]; int sel = 0;
     float cool = 0, reloadT = 0;
@@ -347,7 +348,7 @@ struct Cache { Vector2 p{}; int kind = 0; float value = 0, kg = 0; bool open = f
 // `elder` is the elder, Old Hoskins or the last foreman; `sloop` is the beached sloop, the sealers' hut or the cannery
 // shed; `pond` is the Atoll's lagoon or Seal Rock's haul-out (the bull seal stands in for the moray); the Cannery Pier
 // is a stage on pilings with no pond, and Kelp Wraiths in the pilings take a hand at its edge.
-enum LandingKind { LK_ATOLL, LK_SEALROCK, LK_CANNERY };
+enum LandingKind { LK_ATOLL, LK_SEALROCK, LK_CANNERY, LK_SHELF, LK_BONEBEACH };   // (3, 4: the Grotto's Smugglers' Shelf and Bone Beach)
 struct Landing {
     int kind = LK_ATOLL;
     std::string name; Vector2 at{}; float r = 13;         // world centre; the shore's radius
@@ -617,6 +618,21 @@ struct Gannet {
     struct MermenState { bool on = false; Vector2 p{}; float t = 0; };
     MermenState mermen; float mermenCool = 150;
     bool marketNight = false;                             // the Mermen's market (a Weeds variant): they come to trade, and leave the nets alone
+    // the Grotto's threats (design doc v2, page 49-50; trawl_grotto.cpp): a Lantern Angler's second light lures the
+    // nearest hand to the rail; a Ghost Worm woken by vibration (taut lines, the net, the screw) bites lines, snags the
+    // net and coils the hull; an isopod swarm drawn by offal climbs the anchor chain, eats the catch, bites ankles; the
+    // Drowned climb aboard by the wrecks, slow and relentless, and drag a hand to the rail
+    struct AnglerState { bool on = false; Vector2 p{}; float t = 0; int lured = -1; };
+    AnglerState angler; float anglerCool = 150;
+    struct WormState { int state = 0; Vector2 p{}; float t = 0, ang = 0, actT = 0, quietT = 0, coilT = 0; int hits = 0; };   // 0 asleep, 1 circling (the tell), 2 hunting, 3 coiled round the hull
+    WormState worm; float wormWake = 0;
+    struct IsopodState { int state = 0; float t = 0, eatT = 0; int n = 0; float drawT = 0; };   // 0 none, 1 clicking on the anchor chain, 2 aboard
+    IsopodState isopods;
+    struct DrownedSailor { Vector2 p{}; float hp = 40; int grab = -1; float hitT = 0; };   // on the deck (deck frame)
+    std::vector<DrownedSailor> drowned; float knockT = -1, drownedCool = 120;
+    bool Grotto() const;
+    void StepGrotto(float dt);
+    bool HitDrowned(Vector2 deckP, float dmg, float reach);   // a melee blow on the deck: a Drowned sailor, or a stamp on the isopods
     bool Weeds() const;
     void StepWeeds(float dt);
     bool FreeTangled(int c);                              // E beside a tangled hand (or the hand itself, with a knife)
@@ -660,6 +676,8 @@ int RunTrawlSim(int argc, char** argv);                   // depth.exe --trawl-s
 int RunTrawlGearTest();
 int RunTrawlBelowTest();                                  // depth.exe --trawl-below-test
 int RunTrawlWeedsTest();                                  // depth.exe --trawl-weeds-test
+int RunTrawlGrottoTest();                                 // depth.exe --trawl-grotto-test
+bool GrottoShake(Gannet& g, int c);                       // E beside a hand an Angler's light has lured: shake them out of it
 int RunTrawlQuestTest();                                  // depth.exe --trawl-quest-test
 int RunTrawlSkiffTest();                                  // depth.exe --trawl-skiff-test                                   // depth.exe --trawl-gear-test
 int RunTrawlBotTest();                                    // depth.exe --trawl-bot-test
