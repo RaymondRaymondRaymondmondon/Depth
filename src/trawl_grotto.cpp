@@ -66,9 +66,10 @@ void Gannet::StepGrotto(float dt) {
     float stir = e.Stir();
     bool inCave = boat.pos.x > e.archX1;
     anglerCool -= dt; drownedCool -= dt;
+    bool lightDraws = boat.lantern >= 1 && !AnyWears(CH_GLASS_LANTERN);   // (the glass lantern: a light its wearer carries draws nothing)
 
     // ---- the Lantern Angler: a second light off one side
-    if (!angler.on && inCave && anglerCool <= 0 && boat.lantern >= 1 && GRand() < dt * (0.15f + stir) / 60) {
+    if (!angler.on && inCave && anglerCool <= 0 && lightDraws && !bloomNight && GRand() < dt * (0.15f + stir) / (eelRun ? 30 : 60)) {
         float side = GRand() < 0.5f ? -1.0f : 1.0f;
         angler.on = true; angler.t = 0; angler.lured = -1;
         angler.p = boat.ToWorld({-4 + GRand() * 10, side * (12 + GRand() * 8)});
@@ -84,7 +85,7 @@ void Gannet::StepGrotto(float dt) {
         } else {
             if (angler.lured < 0 && angler.t > 6) {
                 int best = -1; float bd = 1e9f;
-                for (int k = 0; k < (int)crew.size(); k++) { const Crew& c = crew[k]; if (c.dead || c.overboard || c.deck != 0 || c.station >= 0) continue; if ((c.p.y > 0) != (al.y > 0)) continue; float d = Vector2Distance(c.p, al); if (d < bd) { bd = d; best = k; } }
+                for (int k = 0; k < (int)crew.size(); k++) { const Crew& c = crew[k]; if (c.dead || c.overboard || c.deck != 0 || c.station >= 0 || c.charm == CH_WHITE_SKULL) continue; if ((c.p.y > 0) != (al.y > 0)) continue; float d = Vector2Distance(c.p, al); if (d < bd) { bd = d; best = k; } }
                 if (best >= 0) { angler.lured = best; Say("A hand stares at the light and walks toward the rail: shake them out of it (E beside them), hood the lantern, or burn a flare at it"); }
             }
             if (angler.lured >= 0) {
@@ -169,7 +170,7 @@ void Gannet::StepGrotto(float dt) {
     {
         bool nearWreck = false;
         if (inCave) for (int k = 0; k < 12 && !nearWreck; k++) { float a = k * PI / 6; for (float r = 8; r <= 40; r += 8) if (e.HabAt({boat.pos.x + cosf(a) * r, boat.pos.y + sinf(a) * r}) == H_WRECK) nearWreck = true; }
-        if (knockT < 0 && nearWreck && boat.lantern >= 1 && drownedCool <= 0 && drowned.size() < 2 && GRand() < dt * (0.2f + stir) / 50) { knockT = 0; Say("Knocking on the hull, slow and regular, from below the waterline"); }
+        if (knockT < 0 && (nearWreck || (bloomNight && inCave)) && (lightDraws || bloomNight) && drownedCool <= 0 && drowned.size() < 2 && GRand() < dt * (0.2f + stir) / 50) { knockT = 0; Say("Knocking on the hull, slow and regular, from below the waterline"); }
         if (knockT >= 0) {
             knockT += dt;
             if (knockT > 15) {

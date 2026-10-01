@@ -95,7 +95,8 @@ struct Skipper {
             for (float x = 20; x < size - 20; x += 24) {
                 Vector2 p{x + (R() - 0.5f) * 10, y + (R() - 0.5f) * 10};
                 float dh = Vector2Distance(p, S.harbour);
-                if (dh < (E.ground == "weeds" ? 140 : 80) || dh > 260 + (S.CoalToReach() - 10) * 4) continue;   // (a ground further out is fished further out; the Weeds' apron off the island is thin water)
+                if (dh < (E.ground == "weeds" ? 140 : 80) || dh > 260 + (S.CoalToReach() - 10) * 4) continue;
+                if (E.ground == "weeds" && p.x < 130) continue;   // (the thin apron along the island, north and south of the quay)   // (a ground further out is fished further out; the Weeds' apron off the island is thin water)
                 float d = E.DepthAt(p);
                 if (d < 6 || d > 35) continue;
                 bool clear = true;

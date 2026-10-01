@@ -520,7 +520,7 @@ void Gannet::StepRods(float dt) {
                     if (settled && manned && eco) {
                         // the web decides: a fish near the lure that eats what's on it, hungry enough to take
                         if (r.bait.empty()) r.bait = DefaultBait(r.tackle);
-                        int sp = eco->TryBite(r.lure, r.tackle, r.bait, dt * (rareLureNight ? 1.3f : 1.0f), nullptr);
+                        int sp = eco->TryBite(r.lure, r.tackle, r.bait, dt * (rareLureNight ? 1.3f : 1.0f) * eco->biteMul, nullptr);
                         if (sp >= 0) {
                             r.biteSpec = eco->SpecOf(sp, RRand(r.rng)); r.fishSp = sp;
                             r.bite.Start(&r.biteSpec, r.biteSpec.wary, role == Role::Angler, r.rng++);
@@ -686,7 +686,7 @@ void Gannet::StepSkiffRod(float dt) {
                 if (settled && manned && eco && bossBiteT < 0) {
                     if (r.bait.empty()) r.bait = DefaultBait(r.tackle);
                     // the skiff-only marks: about twice the bite rate (design doc v2, "Skiff destinations"); the naturalist's lure
-                    float mul = (eco->MarkAt({r.lure.x, r.lure.y}) >= 0 ? 2.0f : 1.0f) * (rareLureNight ? 1.3f : 1.0f);
+                    float mul = (eco->MarkAt({r.lure.x, r.lure.y}) >= 0 ? 2.0f : 1.0f) * (rareLureNight ? 1.3f : 1.0f) * eco->biteMul;
                     int sp = eco->TryBite(r.lure, r.tackle, r.bait, dt * mul, nullptr);
                     if (sp >= 0) { r.biteSpec = eco->SpecOf(sp, RRand(r.rng)); r.fishSp = sp; r.bite.Start(&r.biteSpec, r.biteSpec.wary, role == Role::Angler, r.rng++); }
                 }

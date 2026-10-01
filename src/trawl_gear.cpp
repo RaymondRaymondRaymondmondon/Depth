@@ -956,7 +956,7 @@ void Gannet::StepGear(float dt) {
             static float netYield = getenv("DEPTH_NETYIELD") ? (float)atof(getenv("DEPTH_NETYIELD")) : D().netYield;   // (the tuning grid)
             if (eco && speed > 0.4f) n.load += eco->Sweep({mouth2.x, mouth2.y, n.depth}, fwd, width, speed, dt, n.catchKg, netYield);
             // the Weeds: through the canopy the net fills with kelp that weighs as much as fish and is worth nothing
-            if (eco && speed > 0.4f && eco->HabAt(mouth2) == H_KELP) { float k = width * speed * dt * 0.6f; n.load += k; n.kelpKg += k; }
+            if (eco && speed > 0.4f && eco->HabAt(mouth2) == H_KELP) { float k = width * speed * dt * 0.2f; n.load += k; n.kelpKg += k; }   // (about 5 kg a second: half a minute through the canopy and the cod end is half kelp)
             // a snag on the reef or the crest: the bottom comes up under a deep-running mouth
             if (eco && floorD - n.depth < 0.9f && speed > 0.6f) {
                 int h = eco->HabAt(mouth2);

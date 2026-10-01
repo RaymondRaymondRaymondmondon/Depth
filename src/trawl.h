@@ -328,7 +328,7 @@ float CookMultiplier(float kg, float t);                  // the curve above, t 
 struct MiniBossDef { const char* name; float kg, value; int deck; Pattern a, b; const char* drop; float lure; const char* mark; };   // mark: its boss water (a skiff mark's name)
 const std::vector<MiniBossDef>& MiniBosses();            // the Lagoon's two: Old Snapjaw, the Crest Grouper (boss water: the Crest Pass)
 int MiniBossOf(const std::string& name);                  // index, or -1
-enum Charm { CH_NONE, CH_LUCKY_COIN, CH_SHARK_TOOTH, CH_ANKLET, CH_OLD_HOOKS, CH_BRASS_LURE, CH_KELP_CROWN, CH_GOLDEN_SCALE, CH_COUNT };
+enum Charm { CH_NONE, CH_LUCKY_COIN, CH_SHARK_TOOTH, CH_ANKLET, CH_OLD_HOOKS, CH_BRASS_LURE, CH_KELP_CROWN, CH_GOLDEN_SCALE, CH_WHITE_SKULL, CH_GLASS_LANTERN, CH_COUNT };
 const char* CharmName(int c);
 const char* CharmEffect(int c);
 int CharmOfDrop(const std::string& drop);
@@ -618,6 +618,7 @@ struct Gannet {
     struct MermenState { bool on = false; Vector2 p{}; float t = 0; };
     MermenState mermen; float mermenCool = 150;
     bool marketNight = false;                             // the Mermen's market (a Weeds variant): they come to trade, and leave the nets alone
+    bool bloomNight = false, eelRun = false;              // the Grotto's mould bloom (anglers stay away, the Drowned see her from anywhere) and glass eel run (anglers follow the eels to the light)
     // the Grotto's threats (design doc v2, page 49-50; trawl_grotto.cpp): a Lantern Angler's second light lures the
     // nearest hand to the rail; a Ghost Worm woken by vibration (taut lines, the net, the screw) bites lines, snags the
     // net and coils the hull; an isopod swarm drawn by offal climbs the anchor chain, eats the catch, bites ankles; the
