@@ -383,6 +383,7 @@ struct Floater { std::string name; int sp = -1; float kg = 0, price = 0, grade =
 struct FlareLight { Vector2 p; float t; };
 enum class NetState { Stowed, Shooting, Down, Snagged, Hauling, Lost };
 struct Trawl {
+    float kelpKg = 0;                                 // (the Weeds) kelp in the cod end: weight, no value
     NetState state = NetState::Stowed;
     float t = 0;                                          // shooting / hauling progress (s)
     float load = 0, depth = 0, backT = 0;                 // kg in the cod end; how deep the mouth is running; backing off a snag

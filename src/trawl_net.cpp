@@ -361,7 +361,7 @@ template <class A> void Visit(A& a, TrawlWorld& w) {
     a.vec(g.flares, [&](FlareLight& f) { a.v2(f.p); a.f(f.t); });
     a.vec(g.thieves, [&](Gannet::Thief& t) { a.i(t.kind); a.s(t.fish.name); a.f(t.fish.kg); a.i(t.fish.sp); a.v2(t.p); a.v2(t.v); a.f(t.z); a.f(t.t); });
     Trawl& n = g.net;
-    a.e(n.state); a.f(n.t); a.f(n.load); a.f(n.depth); a.f(n.backT); a.b(n.meshInit);
+    a.e(n.state); a.f(n.t); a.f(n.load); a.f(n.kelpKg); a.f(n.depth); a.f(n.backT); a.b(n.meshInit);
     if (n.meshInit && n.state != NetState::Stowed) for (int k = 0; k < 8 * 6; k++) { a.v3(n.node[k]); if constexpr (A::reading) n.prev[k] = n.node[k]; }
     a.vec(g.longlines, [&](Longline& l) { a.v2(l.a); a.v2(l.b); a.f(l.age); a.vec(l.hooks, [&](SetHook& h) { a.i(h.sp); a.b(h.head); a.f(h.kg); }); });
     a.vec(g.pots, [&](Pot& p) { a.v2(p.p); a.f(p.age); a.i(p.n); });

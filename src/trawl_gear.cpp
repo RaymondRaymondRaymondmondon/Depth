@@ -681,6 +681,7 @@ void Gannet::NetInput(int ci, bool held, bool cut, float dt) {
                     hold.push_back(rec);
                 }
                 Say(TextFormat("The cod end opens: %.0f kg on the sorting deck", n.load));
+                if (n.kelpKg > 1) Say(TextFormat("...%.0f kg of it kelp, shovelled back over the side", n.kelpKg));
                 if (jellies) Injure(ci, INJ_BURN, "moon jellies in the net");
                 for (int k = 1 + (int)(RandF(gRng) * 3); k > 0; k--) FindJunk({-8.6f + (RandF(gRng) - 0.5f) * 2.0f, (RandF(gRng) - 0.5f) * 2.4f}, "Junk in the net");
                 n = Trawl{};
@@ -766,6 +767,8 @@ void Gannet::HitShot(Projectile& p, int hit) {
         const SpeciesRec& r = SP[a.sp];
         bool head = RandF(gRng) < (r.size <= 2 ? 0.35f : 0.2f);
         Vector3 at = p.p;
+        // a protected animal shot (the Weeds' sea otters, design doc v2: an 80-shilling fine; the raft scatters)
+        if (r.protectedSp && r.name == "sea otter") { fines += 80; Say("An otter is shot: the Owners will fine 80, and the raft scatters"); eco->agents[hit].alive = false; p.life = -1; return; }
         // a tethered harpoon in something big turns into a fight on the cannon's winch
         if (p.kind == Shot::Harpoon && r.kgLo >= 15 && !eco->DamageAgent(hit, p.dmg * 0.3f, false, at)) {
             FishSpec f = eco->SpecOf(a.sp, RandF(gRng));
@@ -951,6 +954,8 @@ void Gannet::StepGear(float dt) {
         if (n.state == NetState::Down) {
             static float netYield = getenv("DEPTH_NETYIELD") ? (float)atof(getenv("DEPTH_NETYIELD")) : D().netYield;   // (the tuning grid)
             if (eco && speed > 0.4f) n.load += eco->Sweep({mouth2.x, mouth2.y, n.depth}, fwd, width, speed, dt, n.catchKg, netYield);
+            // the Weeds: through the canopy the net fills with kelp that weighs as much as fish and is worth nothing
+            if (eco && speed > 0.4f && eco->HabAt(mouth2) == H_KELP) { float k = width * speed * dt * 0.6f; n.load += k; n.kelpKg += k; }
             // a snag on the reef or the crest: the bottom comes up under a deep-running mouth
             if (eco && floorD - n.depth < 0.9f && speed > 0.6f) {
                 int h = eco->HabAt(mouth2);
