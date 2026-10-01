@@ -731,6 +731,7 @@ int RunTrawlWeedsTest();                                  // depth.exe --trawl-w
 int RunTrawlGrottoTest();                                 // depth.exe --trawl-grotto-test
 int RunTrawlAtlantisTest();                               // depth.exe --trawl-atlantis-test
 int RunTrawlDiveTest();                                   // depth.exe --trawl-dive-test
+int RunTrawlDiveSceneTest();                              // depth.exe --trawl-divescene-test
 bool GrottoShake(Gannet& g, int c);                       // E beside a hand an Angler's light has lured: shake them out of it
 int RunTrawlQuestTest();                                  // depth.exe --trawl-quest-test
 int RunTrawlSkiffTest();                                  // depth.exe --trawl-skiff-test                                   // depth.exe --trawl-gear-test

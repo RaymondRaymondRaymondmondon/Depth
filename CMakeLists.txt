@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16)
+﻿cmake_minimum_required(VERSION 3.16)
 project(Depth C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -47,7 +47,7 @@ add_executable(depth
     src/json.cpp src/expr.cpp src/course.cpp
     src/redtide_data.cpp src/redtide_eco.cpp src/redtide_tools.cpp src/redtide_render.cpp src/redtide_game.cpp
     src/redtide_match.cpp src/redtide_profile.cpp src/redtide_menu.cpp
-    src/trawl_data.cpp src/trawl_boat.cpp src/trawl_fish.cpp src/trawl_eco.cpp src/trawl_session.cpp src/trawl_gear.cpp src/trawl_art.cpp src/trawl.cpp src/trawl_view3d.cpp src/trawl_bots.cpp src/trawl_net.cpp src/trawl_sonar.cpp src/trawl_weapons.cpp src/trawl_sim.cpp src/trawl_skiff.cpp src/trawl_landing.cpp src/trawl_quest.cpp src/trawl_below.cpp src/trawl_weeds.cpp src/trawl_grotto.cpp src/trawl_atlantis.cpp src/trawl_wreck.cpp src/trawl_dive.cpp
+    src/trawl_data.cpp src/trawl_boat.cpp src/trawl_fish.cpp src/trawl_eco.cpp src/trawl_session.cpp src/trawl_gear.cpp src/trawl_art.cpp src/trawl.cpp src/trawl_view3d.cpp src/trawl_bots.cpp src/trawl_net.cpp src/trawl_sonar.cpp src/trawl_weapons.cpp src/trawl_sim.cpp src/trawl_skiff.cpp src/trawl_landing.cpp src/trawl_quest.cpp src/trawl_below.cpp src/trawl_weeds.cpp src/trawl_grotto.cpp src/trawl_atlantis.cpp src/trawl_wreck.cpp src/trawl_dive.cpp src/trawl_divescene.cpp
 )
 target_link_libraries(depth PRIVATE raylib)
 
@@ -79,3 +79,4 @@ target_compile_definitions(depth PRIVATE DEPTH_BUILD_STAMP="${DEPTH_BUILD_STAMP}
 # The arcade games' data (data/redtide, data/trawl) is read at run time: copy it next to the executable.
 add_custom_command(TARGET depth POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/data $<TARGET_FILE_DIR:depth>/data)
+

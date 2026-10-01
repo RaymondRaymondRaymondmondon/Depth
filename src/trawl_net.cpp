@@ -64,7 +64,8 @@ void ApplyInput(TrawlWorld& w, int ci, const HandInput& in, float dt) {
         else g.TakeStation(ci);
     }
     if (on(HI_X_P)) g.LeaveStation(ci);
-    if (on(HI_ORDER) && g.botsOn) g.OrderBot(in.order);
+    if (on(HI_ORDER) && c.deck == DECK_DIVE) { if (in.order >= 0) g.DiveMove(in.order); }   // (a diver: the side view walked them into room `order`)
+    else if (on(HI_ORDER) && g.botsOn) g.OrderBot(in.order);
     if (on(HI_FOLLOW_P) && g.botsOn) g.OrderFollow(ci);
     bool atRod = c.station >= 0 && g.RodAt(c.station) >= 0;
     if (atRod) { if (on(HI_T_P)) g.CycleTackle(ci); }

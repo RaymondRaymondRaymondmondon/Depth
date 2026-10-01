@@ -29,6 +29,10 @@ void DrawQuay(const Gannet& g, const View& v);            // the harbour quay be
 void DrawCrewMember(const Crew& c, const View& v, float t, bool you);
 void DrawSkiff(const Gannet& g, const View& v);
 void DrawLanding(const Gannet& g, const View& v);         // the landings (the Atoll) on foot           // the skiff (on the davit, afloat, keel up)
+// the dive scene (trawl_divescene.cpp): the local diver's body in a side view of the wreck, on the parkour movement code
+int DiveSceneStep(const Gannet& g, int you, float dt, float dir, bool jumpHeld, bool up, bool down);   // the room to ask the host to move the diver into, or -1
+void DiveSceneDraw(const Gannet& g, int you);
+bool DiveSceneActive();
 Color RoleColor(Role r);
 
 } // namespace tw

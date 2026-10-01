@@ -464,6 +464,8 @@ struct PlatBoss {
     bool defeated = false;
 };
 
+struct PlatformState;
+void PlatStepPlayer(PlatformState& p, float dir, bool jumpHeld);   // (platformer.cpp's StepPlayer, for the Trawl's dive scene)
 struct PlatformState {
     int level = PL_PIPES;
     std::string layoutCode;

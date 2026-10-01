@@ -104,6 +104,16 @@ HandInput Gather() {
         if (IsKeyPressed(KEY_X) && S.panel != PANEL_END) { S.panel = -1; in.btn |= HI_X_P; }
         return in;
     }
+    if (c.deck == DECK_DIVE && !c.dead) {
+        // down on a wreck: the body moves in the side view (A/D walk, W/S climb, Space swims up); walking into another
+        // room asks the host to move the diver there; E lifts or baskets salvage, R gives the two tugs
+        float dir = ((IsKeyDown(KEY_D) || IsKeyDown(KEY_RIGHT)) ? 1.0f : 0.0f) - ((IsKeyDown(KEY_A) || IsKeyDown(KEY_LEFT)) ? 1.0f : 0.0f);
+        int want = DiveSceneStep(G, S.you, GetFrameTime(), dir, IsKeyDown(KEY_SPACE), IsKeyDown(KEY_W) || IsKeyDown(KEY_UP), IsKeyDown(KEY_S) || IsKeyDown(KEY_DOWN));
+        if (want >= 0) { in.btn |= HI_ORDER; in.order = (int8_t)want; }
+        if (IsKeyPressed(KEY_E)) in.btn |= HI_E_P;
+        if (IsKeyPressed(KEY_R)) in.btn |= HI_R_P;
+        return in;
+    }
     in.aim = AimDeck();
     if (c.station >= 0 && Stations()[c.station].kind == StationKind::Sonar) in.aim = ScopeToDeck(GetMousePosition());   // (the scope's point under the mouse)
     in.wish = KeysWish();
@@ -1079,6 +1089,8 @@ void DrawDeckFx() {
         const Wreck& wk = (*G.wrecks)[G.dive.wreck];
         const Color paper{230, 220, 196, 255};
         if (S.you == G.dive.diver || S.you == G.dive.diver2) {
+          if (DiveSceneActive()) DiveSceneDraw(G, S.you);   // (the side view, on the parkour movement code)
+          else {   // (before the scene is built: the wreck in section)
             DrawRectangle(0, 0, SCREEN_W, SCREEN_H, Color{4, 10, 14, 255});
             float cw = std::min(90.0f, (SCREEN_W - 160.0f) / std::max(1, wk.gw)), ch = cw * 0.75f;
             float ox = SCREEN_W / 2.0f - wk.gw * cw / 2, oy = SCREEN_H / 2.0f - wk.gh * ch / 2;
@@ -1117,7 +1129,6 @@ void DrawDeckFx() {
             if (G.dive.lampOutT <= 0) DrawCircleV(me2, cw * 0.9f, Fade(Color{255, 230, 170, 255}, 0.06f));   // the helmet lamp (unless an octopus has it)
             if (G.dive.siltT > 0) DrawCircleV(me2, cw * 0.8f, Fade(Color{70, 66, 54, 255}, 0.75f * std::min(1.0f, G.dive.siltT / 2)));   // a cloud of silt
             if (G.dive.holdT > 0) DrawTextCentered("HELD", me2.x, me2.y - 28, 14, Color{240, 140, 110, 255});
-            if (G.dive.hoseBitten) DrawTextCentered("The hose is bitten through: no fresh air - get up", SCREEN_W / 2.0f, 110, 16, Color{240, 140, 110, 255});
             DrawCircleV(me2, 7, Color{150, 150, 140, 255}); DrawCircleV({me2.x + 2, me2.y - 1}, 3, Color{230, 220, 160, 255});
             if (G.dive.diver2 >= 0) { DrawCircleV({me2.x - 16, me2.y}, 7, Color{140, 140, 132, 255}); DrawCircleV({me2.x - 14, me2.y - 1}, 3, Color{230, 220, 160, 255}); }   // (the bell's second diver)
             if (G.dive.bell && !wk.entries.empty()) {   // the bell itself, hanging at the first breach
@@ -1126,15 +1137,17 @@ void DrawDeckFx() {
                 DrawLineEx({bp.x, 0}, bp, 2, Color{90, 90, 86, 255}); DrawCircleSector(bp, 14, 180, 360, 12, Color{150, 120, 70, 255});
             }
             if (G.dive.carrying) DrawRectangle((int)me2.x + 8, (int)me2.y - 2, 8, 6, Color{210, 180, 90, 255});
+          }
+            if (G.dive.hoseBitten) DrawTextCentered("The hose is bitten through: no fresh air - get up", SCREEN_W / 2.0f, 110, 16, Color{240, 140, 110, 255});
             // the air and the gauge, the depth, what the keys do
             DrawRectangle(30, 30, 220, 12, Fade(BLACK, 0.6f)); DrawRectangle(30, 30, (int)(220 * G.dive.gauge), 12, G.dive.gauge >= 0.4f ? Color{90, 170, 110, 255} : Color{200, 80, 60, 255});
             Txt(G.dive.bell ? "The bell's air (full while you're in its room)" : "The pump's gauge (the deck keeps it green)", 30, 46, 13, paper);
             DrawRectangle(30, 70, 220, 12, Fade(BLACK, 0.6f)); DrawRectangle(30, 70, (int)(220 * G.dive.air / 30), 12, Color{150, 200, 230, 255});
             Txt(TextFormat("Air in the helmet: %.0f s   Depth %.0f m", G.dive.air, G.dive.depth), 30, 86, 13, paper);
-            TxtBold(TextFormat("%s, %.0f m%s", WreckTypeName(wk.type), wk.depth, here ? TextFormat(": the %s%s", here->kind.c_str(), here->locked ? " (locked)" : "") : ": going down the line"), 30, SCREEN_H - 120.0f, 16, paper);
+            TxtBold(TextFormat("%s, %.0f m%s", WreckTypeName(wk.type), wk.depth, G.dive.room >= 0 ? TextFormat(": the %s%s", wk.rooms[G.dive.room].kind.c_str(), wk.rooms[G.dive.room].locked ? " (locked)" : "") : ": going down the line"), 30, SCREEN_H - 120.0f, 16, paper);
             for (int i = std::max(0, (int)G.log.size() - 4); i < (int)G.log.size(); i++) { float age = (float)((int)G.log.size() - i); Txt(G.log[i].c_str(), 30, SCREEN_H - 150 - age * 18, 14, Fade(paper, 0.9f - age * 0.15f)); }
-            DrawTextCentered(G.dive.recall ? "Hauling you up..." : G.dive.carrying ? "Space + direction: to the next room   E at a breach: into the basket   R: two tugs (haul me up)"
-                                                                                  : "Space + direction: to the next room   E: lift salvage   R: two tugs (haul me up)", SCREEN_W / 2.0f, SCREEN_H - 60.0f, 15, paper);
+            DrawTextCentered(G.dive.recall ? "Hauling you up..." : G.dive.carrying ? "A/D walk  W/S climb  Space swim up   E at a breach: into the basket   R: two tugs (haul me up)"
+                                                                                  : "A/D walk  W/S climb  Space swim up   E: lift salvage   R: two tugs (haul me up)", SCREEN_W / 2.0f, SCREEN_H - 60.0f, 15, paper);
             return;
         }
         DrawTextCentered(TextFormat("Diver down %.0f m: gauge %s, %.0f s of air in the helmet%s", G.dive.depth, G.dive.gauge >= 0.4f ? "green" : "LOW - PUMP", G.dive.air, G.dive.recall ? " (hauling up)" : ""),
@@ -1663,6 +1676,7 @@ void DebugTrawlShot(Game& g, int which) {
             G.crew[0].p = {-10.5f, 0}; G.crew[0].station = -1;
             G.StartDive(0);
             G.dive.depth = wk.depth; G.dive.room = wk.entries.empty() ? 0 : wk.entries[0]; G.dive.gauge = 0.7f;
+            for (int i = 0; i < 30; i++) DiveSceneStep(G, 0, 1 / 60.0f, 0.0f, false, false, false);   // (the side view built, the diver settled on the floor)
         }
         return;
     }

@@ -7198,3 +7198,6 @@ int VerifyPlatformLevels() {
     printf(failures ? "%d level(s) failed.\n" : "All generated levels can be crossed.\n", failures);
     return failures;
 }
+
+// the parkour movement, for other scenes that walk a body on a tile grid (the Trawl's dive scene)
+void PlatStepPlayer(PlatformState& p, float dir, bool jumpHeld) { StepPlayer(p, dir, jumpHeld); }

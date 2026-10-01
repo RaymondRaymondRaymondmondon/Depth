@@ -666,6 +666,7 @@ int main(int argc, char** argv) {
     if (argc >= 2 && strcmp(argv[1], "--trawl-weeds-test") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlWeedsTest(); }
     if (argc >= 2 && strcmp(argv[1], "--trawl-grotto-test") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlGrottoTest(); }
     if (argc >= 2 && strcmp(argv[1], "--trawl-atlantis-test") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlAtlantisTest(); }
+    if (argc >= 2 && strcmp(argv[1], "--trawl-divescene-test") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlDiveSceneTest(); }
     if (argc >= 2 && strcmp(argv[1], "--trawl-dive-test") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlDiveTest(); }
     if (argc >= 2 && strcmp(argv[1], "--trawl-wreck") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlWreck(argc, argv); }
     if (argc >= 2 && strcmp(argv[1], "--trawl-bot-test") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlBotTest(); }
