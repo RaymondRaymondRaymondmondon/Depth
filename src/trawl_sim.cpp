@@ -62,7 +62,7 @@ struct Skipper {
     // a straight course that never crosses water she would ground on (the reef, the shoals, the island)
     bool RouteClear(Vector2 a, Vector2 b) const {
         float L = Vector2Distance(a, b);
-        for (float s = 10; s < L; s += 6) { Vector2 p = Vector2Lerp(a, b, s / L); if (E.DepthAt(p) < 2.6f) return false; }
+        for (float s = 10; s < L; s += 6) { Vector2 p = Vector2Lerp(a, b, s / L); if (E.DepthAt(p) < 2.6f || E.MarkAt(p) >= 0) return false; }   // (and never through skiff water: the weed fouls her screw)
         return true;
     }
 
@@ -81,7 +81,7 @@ struct Skipper {
                 if (d < 6 || d > 35) continue;
                 bool clear = true;
                 for (int k = 0; k < 8 && clear; k++) { float a = k * PI / 4; if (E.DepthAt({p.x + cosf(a) * 14, p.y + sinf(a) * 14}) < 3.5f) clear = false; }
-                if (!clear || !RouteClear(S.harbour, p)) continue;
+                if (!clear || !RouteClear(S.harbour, p) || E.MarkAt(p) >= 0) continue;
                 float score = 0;
                 for (int sp : E.g->species) {
                     const SpeciesRec& r = SP[sp];
@@ -102,7 +102,7 @@ struct Skipper {
                 float a = k * PI / 8; Vector2 d{cosf(a) * 40, sinf(a) * 40};
                 Vector2 A = Vector2Add(s.p, d), B = Vector2Subtract(s.p, d);
                 bool ok = true;
-                for (float u = 0; u <= 1.001f && ok; u += 0.1f) { Vector2 q = Vector2Lerp(A, B, u); int h = E.HabAt(q); if (E.DepthAt(q) < 10 || h == H_CREST || h == H_LAND) ok = false; }
+                for (float u = 0; u <= 1.001f && ok; u += 0.1f) { Vector2 q = Vector2Lerp(A, B, u); int h = E.HabAt(q); if (E.DepthAt(q) < 10 || h == H_CREST || h == H_LAND || E.MarkAt(q) >= 0) ok = false; }
                 if (ok) { s.a = A; s.b = B; s.tow = true; }
             }
             spots.push_back(s);

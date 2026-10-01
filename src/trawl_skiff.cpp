@@ -73,6 +73,9 @@ void Gannet::DavitWork(int ci, bool held, float dt) {
         if (s.t >= D().skiffRecover) {
             // hoisted: the catch onto the aft deck (dead, for the crates), and anyone still in her steps off at the davit
             for (auto& r : s.load) { CatchRec h = r; h.deckAt = {-9.6f + (float)(hold.size() % 3) * 0.3f, -1.0f + (float)(hold.size() % 5) * 0.4f}; hold.push_back(h); }
+            for (auto& r : towed) { CatchRec h = r; h.deckAt = {-9.0f, 0.0f}; hold.push_back(h); }
+            if (!towed.empty()) Say(TextFormat("The tow line comes aboard: %d fish onto the aft deck", (int)towed.size()));
+            towed.clear();
             if (!s.load.empty()) Say(TextFormat("The skiff comes up: %d things out of her onto the aft deck", (int)s.load.size()));
             else Say("The skiff comes up on the davit");
             s.load.clear();
@@ -173,6 +176,7 @@ void Gannet::SkiffCapsize(const std::string& why) {
     // her catch spills: the fish float off (gaff them, or the sea has them); salvage sinks
     for (const auto& r : s.load) if (!r.junk) { Floater f; f.name = r.name; f.sp = r.sp; f.kg = r.kg; f.price = r.price; f.grade = r.grade; f.p = s.ToWorld({0, 0}); floaters.push_back(f); }
     s.load.clear();
+    if (!towed.empty()) { Say("The tow line parts"); towed.clear(); }
     Say("The skiff capsizes! (" + why + ") - a swimmer beside her can right her: hold left mouse");
 }
 
@@ -208,7 +212,8 @@ void Gannet::StepSkiff(float dt) {
     Vector2 f = s.Forward(), side{-f.y, f.x};
     float vf = Vector2DotProduct(s.vel, f), vs = Vector2DotProduct(s.vel, side);
     float vmax = (SkiffRowers() >= 2 ? D().skiffRowTwo : D().skiffRowOne) * 1.15f;
-    vf -= vf * ROW_DRAG * dt;
+    float towKg = 0; for (const auto& t : towed) towKg += t.kg;
+    vf -= vf * (ROW_DRAG + towKg / 120.0f) * dt;   // (a fish on the tow line drags at her)
     if (vf > vmax) vf -= (vf - vmax) * std::min(1.0f, 4 * dt);
     vs *= expf(-3.0f * dt);
     if (s.crabT > 0) { s.crabT -= dt; vf *= expf(-6 * dt); }
@@ -437,6 +442,79 @@ int RunTrawlSkiffTest() {
         int gs = Species().Find("gull flock"); int ai = he.SpawnAgentPublic(gs, L.at); he.agents[ai].count = 8;
         for (int i = 0; i < 60 * 9 && !L.onBeach.empty(); i++) { he.agents[ai].p = {L.at.x, L.at.y, -3}; he.agents[ai].alive = true; h.Step(dt); }
         check(L.onBeach.empty() && !h.thieves.empty(), "a fish left on the beach goes to the gulls");
+    }
+    // 5d: the skiff marks, her line, the tow, the ram, a bot after you, the weed round the Gannet's screw
+    {
+        Gannet h; Eco he; setup(h, he, 2, 31);
+        check(he.marks.size() == 2 && he.marks[0].name == "The Crest Pass" && he.DepthAt(he.marks[0].at) < 1.8f && he.marks[1].name == "The Sargassum Line",
+              TextFormat("the Lagoon's skiff water: the Crest Pass (%.1f m: her keel wants 1.8) and the Sargassum Line", he.DepthAt(he.marks[0].at)));
+        // the line: a small fish into her bottom boards, a thrasher rocks her, a big one goes on the tow
+        h.skiff.state = SkiffState::Afloat; h.skiff.integrity = D().skiffIntegrity; h.skiff.p = Vector2Add(h.boat.pos, {-60, 0});
+        h.crew[0].deck = DECK_SKIFF; h.crew[0].p = {0.2f, 0}; h.crew[0].skiffLine = true;
+        auto land = [&](float kg) {
+            Rod& r = h.skiffRod;
+            FishSpec f = DummyFish()[0]; f.kg = kg;
+            r.fight = Fight{}; r.fight.tackle = r.tackle; r.fight.HookFish(f, {h.skiff.p.x + 3, h.skiff.p.y, 1}, 9);
+            r.state = RodState::Fighting; r.fishSp = -1; r.fight.end = FightEnd::Landed;
+            h.StepSkiffRod(dt);
+        };
+        size_t l0 = h.skiff.load.size();
+        land(3);
+        check(h.skiff.load.size() == l0 + 1 && h.skiff.load.back().dead, "a 3 kg fish on the skiff's line comes over the gunwale, killed at the waterline");
+        float rv0 = fabsf(h.skiff.rollV);
+        land(16);
+        check(fabsf(h.skiff.rollV) > rv0 + 1.0f, TextFormat("a 16 kg thrasher landed in her rocks her hard (roll rate %.1f rad/s)", h.skiff.rollV));
+        h.skiff.rollV = 0; h.skiff.roll = 0;
+        land(48);
+        check(h.towed.size() == 1 && h.towed[0].kg == 48, "a 48 kg fish is too big for her: killed alongside, onto the tow line");
+        // the tow drags at her
+        auto rowFor = [&](Gannet& gg, float secs) { float tt = 0; bool pp = true; Vector2 p0 = gg.skiff.p; for (int i = 0; i < (int)(secs * 60); i++) { tt += dt; if (tt >= D().skiffStroke) { tt = 0; gg.Oar(0, pp, !pp); pp = !pp; } gg.Step(dt); } return Vector2Distance(gg.skiff.p, p0) / secs; };
+        h.crew[0].skiffLine = false;
+        float towing = rowFor(h, 15);
+        auto keep = h.towed; h.towed.clear(); h.skiff.vel = {0, 0};
+        float free = rowFor(h, 15);
+        check(towing < free * 0.8f, TextFormat("rowing with 48 kg on the tow line: %.2f m/s against %.2f free", towing, free));
+        h.towed = keep;
+        // recovered: the tow line comes aboard
+        h.skiff.p = h.SkiffBerth(); h.skiff.vel = {0, 0}; h.boat.vel = {0, 0}; h.boat.telegraph = 0; h.skiff.load.clear();
+        h.crew[0].deck = 0; h.crew[0].p = Stations()[Davit()].at; h.TakeStation(0);
+        size_t hh = h.hold.size();
+        for (int i = 0; i < 60 * 11; i++) { h.boat.vel = {0, 0}; h.skiff.p = h.SkiffBerth(); h.Primary(0, true, dt); h.Step(dt); }
+        check(h.towed.empty() && h.hold.size() == hh + 1, "hauled up, the tow line comes aboard with her");
+    }
+    {   // a reef shark in the blood round her rams the skiff
+        Gannet h; Eco he; setup(h, he, 1, 32);
+        h.skiff.state = SkiffState::Afloat; h.skiff.integrity = D().skiffIntegrity; h.skiff.p = Vector2Add(h.boat.pos, {-70, 0});
+        h.crew[0].deck = DECK_SKIFF; h.crew[0].p = {0.2f, 0};
+        int rs = Species().Find("reef shark");
+        int ai = he.SpawnAgentPublic(rs, h.skiff.p);
+        he.AddBlood({h.skiff.p.x, h.skiff.p.y, 1}, 400);
+        bool hit = false; float worst = 0;
+        for (int i = 0; i < 60 * 4 && !hit; i++) {
+            if (ai < (int)he.agents.size()) { he.agents[ai].p = {h.skiff.p.x + 1.5f, h.skiff.p.y, 1}; he.agents[ai].hunger = 0.9f; he.agents[ai].fedT = 0; he.agents[ai].alive = true; }
+            h.Step(dt); hit = h.skiff.integrity < D().skiffIntegrity; worst = std::max(worst, fabsf(h.skiff.rollV));
+        }
+        check(hit && worst > 1.0f, TextFormat("a hungry reef shark in the blood round her rams the skiff: %.0f of %.0f left, a hard heel", h.skiff.integrity, D().skiffIntegrity));
+    }
+    {   // a bot told to follow you goes down into the skiff after you
+        Gannet h; Eco he; setup(h, he, 2, 33);
+        h.botsOn = true; h.crew[1].bot = true; h.brains.assign(2, Gannet::Brain{});
+        h.skiff.state = SkiffState::Afloat; h.skiff.p = h.SkiffBerth(); h.skiff.heading = PI; h.skiff.integrity = D().skiffIntegrity;
+        h.crew[0].p = Stations()[Davit()].at; h.BoardSkiff(0);
+        h.crew[1].p = {-2, 1};
+        h.brains[1].follow = 0; h.brains[1].task = 3;
+        for (int i = 0; i < 60 * 12 && h.crew[1].deck != DECK_SKIFF; i++) { h.skiff.p = h.SkiffBerth(); h.skiff.vel = {0, 0}; h.Step(dt); }
+        check(h.crew[1].deck == DECK_SKIFF, "a bot following you walks to the davit and drops into the skiff after you");
+        h.LeaveSkiff(0);
+        for (int i = 0; i < 60 * 2 && h.crew[1].deck == DECK_SKIFF; i++) { h.skiff.p = h.SkiffBerth(); h.Step(dt); }
+        check(h.crew[1].deck == 0, "and climbs back aboard when you do");
+    }
+    {   // the Sargassum Line fouls a turning screw
+        Gannet h; Eco he; setup(h, he, 1, 34);
+        h.boat.pos = he.marks[1].at; h.boat.telegraph = 2; h.boat.pressure = 0.7f; h.boat.firebox = 5;
+        Gannet o; Eco oe; setup(o, oe, 1, 34); o.boat.pos = Vector2Add(oe.marks[1].at, {0, -80}); o.boat.telegraph = 2; o.boat.pressure = 0.7f; o.boat.firebox = 5;
+        for (int i = 0; i < 60 * 20; i++) { h.Step(dt); o.Step(dt); if (Vector2Distance(h.boat.pos, he.marks[1].at) > he.marks[1].r - 2) h.boat.pos = he.marks[1].at; }
+        check(h.boat.Speed() < o.boat.Speed() * 0.6f, TextFormat("in the Sargassum Line weed fouls her screw: %.2f m/s against %.2f in open water", h.boat.Speed(), o.boat.Speed()));
     }
     printf(fails ? "trawl-skiff-test: %d FAILED\n" : "trawl-skiff-test: all checks passed\n", fails);
     return fails ? 1 : 0;

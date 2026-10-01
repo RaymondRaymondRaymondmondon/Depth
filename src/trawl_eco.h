@@ -118,7 +118,13 @@ struct Eco {
     float wake = 0;
     std::vector<EcoAgent> agents;
     std::vector<Raft> rafts;
-    std::vector<Vector2> landingAt;
+    std::vector<Vector2> landingAt;             // the landings' centres (the Lagoon: the Atoll), islets the skiff can beach on
+    // the skiff-only fishing marks (design doc v2, "Skiff destinations": about twice the bite rate, the ground's rarer
+    // fish): the Lagoon's Crest Pass (a gap in the coral too shallow for the Gannet) and the Sargassum Line (a weed bank
+    // that fouls her screw)
+    struct SkiffMark { std::string name; Vector2 at; float r; int kind; };   // kind 0 shallow pass, 1 weed bank
+    std::vector<SkiffMark> marks;
+    int MarkAt(Vector2 p) const;                // the skiff mark a point lies in, or -1
     bool skiffOn = false; Vector2 skiffPos{};    // the skiff out on its own (60 m+ from her): the web keeps a second bubble of life round it
     bool birdDrawOn = false; Vector2 birdDraw{};  // set by EcoTick: cooking smoke or fish ashore, or a laden skiff away from her, draws the birds             // the landings' centres (the Lagoon: the Atoll), islets the skiff can beach on
     std::vector<EcoArrival> arrivals;

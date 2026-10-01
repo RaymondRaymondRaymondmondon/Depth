@@ -713,6 +713,28 @@ void DrawSkiff(const Gannet& g, const View& v) {
             DrawRectangle((int)q.x - 1, (int)q.y, 3, 1, s.load[i].junk ? Dim(Color{120, 110, 90, 255}, L) : Dim(Color{200, 205, 210, 255}, L));
         }
         if (s.Up()) { Vector2 lp = C({1.95f, 0}); DrawRectangle((int)lp.x - 1, (int)lp.y - 1, 2, 2, Color{255, 220, 150, 255}); DrawCircleV(lp, 3, Fade(Color{255, 210, 130, 255}, 0.2f)); }
+        // her line: the rod over the starboard quarter, the line to the lure or the fish on it
+        const Rod& r = g.skiffRod;
+        bool lineUp = false; for (const auto& c : g.crew) if (c.deck == DECK_SKIFF && c.skiffLine && !c.overboard) lineUp = true;
+        if (lineUp || r.state != RodState::Idle) {
+            float bend = r.state == RodState::Fighting ? std::clamp(r.fight.tension / TackleOf(r.tackle).strength, 0.0f, 1.0f) : 0;
+            Vector2 base = C({-1.2f, 0.5f}), tip = v.ToCanvas(g.boat.ToDeck(g.SkiffRodTip()));
+            DrawLineEx(base, tip, 1, Dim(Color{120, 86, 50, 255}, L));
+            if (r.state == RodState::Out || r.state == RodState::Fighting) {
+                Vector2 end = v.ToCanvas(g.boat.ToDeck(r.state == RodState::Fighting ? Vector2{r.fight.p.x, r.fight.p.y} : Vector2{r.lure.x, r.lure.y}));
+                DrawLineV(tip, end, Fade(Color{220, 220, 200, 255}, 0.5f + 0.4f * bend));
+                if (r.state == RodState::Fighting) DrawCircleV(end, 2, Fade(Color{220, 230, 240, 255}, 0.8f));
+                else DrawRectangle((int)end.x, (int)end.y, 1, 1, Color{240, 120, 80, 255});
+            }
+        }
+    }
+    // the tow line: what's made fast alongside her quarter
+    if (s.Up()) for (size_t i = 0; i < g.towed.size(); i++) {
+        Vector2 a = C({-2.25f, 0}), b = C({-3.2f - i * 0.9f, 0.3f * (i % 2 ? 1 : -1)});
+        DrawLineV(a, b, Fade(Color{200, 190, 160, 255}, 0.6f));
+        float len = std::clamp(2.0f + sqrtf(g.towed[i].kg) * 1.6f, 3.0f, 14.0f);
+        DrawRectangle((int)(b.x - len / 2), (int)b.y - 1, (int)len, 3, Fade(Color{170, 176, 180, 255}, 0.8f));
+        DrawCircleV(b, len * 0.4f, Fade(Color{120, 20, 20, 255}, 0.18f));   // (it bleeds)
     }
     // the davit's falls while she's lowered or hauled up
     if (s.state == SkiffState::Lowering || s.state == SkiffState::Recovering || s.state == SkiffState::Stowed)

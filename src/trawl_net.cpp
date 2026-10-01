@@ -85,8 +85,22 @@ void ApplyInput(TrawlWorld& w, int ci, const HandInput& in, float dt) {
         return;
     }
     if (c.deck == DECK_SKIFF) {
-        // in the skiff: the oars are the mouse buttons (left port, right starboard; both together pull straight)
-        g.Oar(ci, on(HI_LMB_P), on(HI_RMB_P));
+        // in the skiff: T takes up her line or goes back to the oars
+        if (on(HI_T_P)) { c.skiffLine = !c.skiffLine; g.Say(c.skiffLine ? "The skiff's line (left mouse casts and reels, Space strikes and gaffs; T back to the oars)" : "Back at the oars"); }
+        if (c.skiffLine) {
+            Rod& r = g.skiffRod;
+            bool casting = r.state == RodState::Idle || r.state == RodState::Charging;
+            Vector2 tipW = g.SkiffRodTip(), aimW = g.boat.ToWorld(in.aim);
+            Vector2 d = Vector2Subtract(aimW, tipW);
+            if (Vector2Length(d) > 0.2f) r.aim = Vector2Normalize(d);
+            r.castHeld = casting && lmb; r.reel = !casting && lmb && !c.Has(INJ_HOOKED_HAND); r.bow = rmb;
+            if (on(HI_SPACE_P)) { r.strikeQ = true; r.gaffQ = true; }
+            if (in.wheel != 0 && r.state == RodState::Fighting) { float rating = TackleOf(r.tackle).strength; r.fight.drag = std::clamp(r.fight.drag + in.wheel * rating * 0.05f, 0.05f * rating, 1.1f * rating); }
+            r.lean = 0;
+        } else {
+            // the oars are the mouse buttons (left port, right starboard; both together pull straight)
+            g.Oar(ci, on(HI_LMB_P), on(HI_RMB_P));
+        }
         g.Move(ci, {0, 0}, false, dt);
         return;
     }
@@ -303,7 +317,7 @@ template <class A> void Visit(A& a, TrawlWorld& w) {
         for (Slot& sl : c.slots) VisitSlot(a, sl);
         a.i(c.sel); a.f(c.cool); a.f(c.reloadT); a.i(c.injuries); a.i(c.serious);
         a.b(c.dead); a.b(c.bodyLost); a.v2(c.swim); a.f(c.drownT); a.f(c.bleedT); a.s(c.cause); a.f(c.inkT);
-        a.f(c.oarT); a.f(c.rightT); a.b(c.carrying); VisitCatch(a, c.carry); a.i(c.workOn); a.f(c.workT);
+        a.f(c.oarT); a.f(c.rightT); a.b(c.skiffLine); a.b(c.carrying); VisitCatch(a, c.carry); a.i(c.workOn); a.f(c.workT);
     });
     {   // the skiff
         Skiff& s = g.skiff;
@@ -315,6 +329,8 @@ template <class A> void Visit(A& a, TrawlWorld& w) {
     // ---- lines and the catch
     a.vec(g.rods, [&](Rod& r) { VisitRod(a, r); });
     VisitRod(a, g.harpoon); a.i(g.harpoonSp);
+    VisitRod(a, g.skiffRod);
+    a.vec(g.towed, [&](CatchRec& h) { VisitCatch(a, h); });
     a.vec(g.hold, [&](CatchRec& h) { VisitCatch(a, h); });
     a.vec(g.landings, [&](Landing& L) {
         a.s(L.name); a.v2(L.at); a.f(L.r); a.v2(L.pond); a.f(L.pondR); a.v2(L.fire); a.b(L.fireLit); a.v2(L.elder); a.v2(L.sloop); a.f(L.sloopHead);
@@ -326,7 +342,7 @@ template <class A> void Visit(A& a, TrawlWorld& w) {
         a.v2(L.moray); a.f(L.morayT); a.f(L.elderCredit);
     });
     a.b(g.foughtCanoes);
-    a.f(g.deckBlood); a.i(g.junkBottles); a.i(g.junkKeys); a.i(g.junkCharts);
+    a.f(g.deckBlood); a.i(g.junkBottles); a.i(g.junkKeys); a.i(g.junkCharts); a.i(g.landedSmall); a.i(g.landedBig);
     a.i(g.ammoRounds); a.i(g.ammoShells); a.i(g.ammoSpears); a.i(g.ammoFlares); a.i(g.ammoPellets); a.i(g.ammoRivets);
     // ---- what's in the water
     a.vec(g.shots, [&](Projectile& p) { a.e(p.kind); a.v3(p.p); a.v3(p.v); a.i(p.owner); a.f(p.life); a.b(p.tether); a.b(p.inWater); });

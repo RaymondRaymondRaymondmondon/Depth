@@ -179,6 +179,7 @@ float Eco::DepthAt(Vector2 p) const {
     float d = depth[CellIdx(p)];
     return d <= 0 ? 0 : std::max(0.0f, d - tide);
 }
+int Eco::MarkAt(Vector2 p) const { for (int i = 0; i < (int)marks.size(); i++) if (Vector2Distance(p, marks[i].at) < marks[i].r) return i; return -1; }
 int Eco::HabAt(Vector2 p) const { return InMap(p) ? hab[CellIdx(p)] : H_SEA; }
 
 static float H2(int x, int y, uint32_t s) { uint32_t h = (uint32_t)x * 374761393u + (uint32_t)y * 668265263u + s * 2246822519u; h = (h ^ (h >> 13)) * 1274126177u; return ((h ^ (h >> 16)) & 0xFFFF) / 65535.0f; }
@@ -230,6 +231,21 @@ void Eco::BuildChart(uint32_t seed) {
         }
         depth[i] = d; hab[i] = (uint8_t)h;
         if ((h == H_REEF || h == H_CREST) && H2(x, y, seed + 21) < 0.22f) holes[i] = 1;
+    }
+    // the skiff-only marks: the Crest Pass, a coral maze through the crest cut to 1.2 m (her keel wants 1.8), and the
+    // Sargassum Line, a weed bank across the basin that fouls a turning screw
+    marks.clear();
+    {
+        float y0 = size * (0.42f + 0.16f * H2(11, 4, seed));
+        float cx = size * 0.75f + 22 * sinf(y0 * 0.011f + seed * 0.7f) + 8 * Noise2(y0 * 0.02f, 7.7f, seed);
+        Vector2 pass{cx, y0};
+        for (int y = 0; y < n; y++) for (int x = 0; x < n; x++) {
+            Vector2 w{(x + 0.5f) * cell, (y + 0.5f) * cell};
+            float d = Vector2Distance(w, pass);
+            if (d < 20 && depth[y * n + x] > 0) { depth[y * n + x] = std::min(depth[y * n + x], 1.2f + 0.3f * (d / 20)); hab[y * n + x] = H_CREST; holes[y * n + x] = 1; }
+        }
+        marks.push_back({"The Crest Pass", pass, 26, 0});
+        marks.push_back({"The Sargassum Line", {size * 0.66f, size * (0.30f + 0.40f * H2(5, 9, seed))}, 24, 1});   // (out toward the crest: skiff water, not the basin she fishes)
     }
     // sargassum rafts drift on the wind across the lagoon and the sea
     rafts.clear();
@@ -959,6 +975,27 @@ void EcoTick(Eco& e, Gannet& gn, float dt) {
     // a shark on the blood rams the hull (design doc, "Threats": "rams the hull"; the Great White takes 25 off a section). A
     // hungry rammer alongside her, in blood past its threshold, strikes a section every D().ramEvery s while it stays.
     gn.ramT = std::max(0.0f, gn.ramT - dt);
+    // the skiff first (design doc v2, "Why the skiff is dangerous": predators weight their target toward the smallest
+    // vessel with the most blood round it): a hungry rammer close to her, in less blood than the Gannet would need,
+    // strikes her - a hard heel that can roll her over, and a third of her planking
+    if (gn.ramT <= 0 && gn.skiff.state == SkiffState::Afloat) {
+        for (auto& a : e.agents) {
+            const SpeciesRec& r = Species().sp[a.sp];
+            if (!a.alive || !r.ramsHull || a.hunger < 0.4f || a.fedT > 0) continue;
+            if (Vector2Distance({a.p.x, a.p.y}, gn.skiff.p) > 4.0f) continue;
+            int R = std::clamp((int)(r.scent / e.cell), 1, 10);
+            float sb = std::max(e.blood.Near({gn.skiff.p.x, gn.skiff.p.y, 1}, R), e.blood.Near({gn.skiff.p.x, gn.skiff.p.y, 5}, R));
+            if (sb < r.bloodThreshold * 0.6f) continue;
+            float k = std::clamp(r.MeanKg() / 40.0f, 0.6f, 1.7f);
+            Vector2 side{-gn.skiff.Forward().y, gn.skiff.Forward().x};
+            float s = Vector2DotProduct(Vector2Subtract({a.p.x, a.p.y}, gn.skiff.p), side) > 0 ? -1.0f : 1.0f;
+            gn.SkiffRock(s * 1.6f * k);
+            gn.SkiffHit(D().ramDamage * 0.9f * k, std::string("a ") + r.name + " rams her");
+            e.AddVibration({a.p.x, a.p.y, 1}, 3); a.flash = 0.6f;
+            gn.ramT = D().ramEvery;
+            break;
+        }
+    }
     if (gn.ramT <= 0) {
         for (auto& a : e.agents) {
             const SpeciesRec& r = Species().sp[a.sp];
@@ -981,7 +1018,13 @@ void EcoTick(Eco& e, Gannet& gn, float dt) {
     }
     e.screwNoise = b.noise;
     if (b.noise > 0) e.AddVibration({stern.x, stern.y, 2}, b.noise * 0.3f * dt);
-    for (const auto& rd : gn.rods) {
+    // the tow line: fish killed alongside the skiff bleed all the way home
+    for (const auto& tw : gn.towed) if (gn.skiff.Up()) e.AddBlood({gn.skiff.p.x, gn.skiff.p.y, 0.8f}, 0.04f * tw.kg * dt);
+    std::vector<const Rod*> fighting;
+    for (const auto& rd : gn.rods) fighting.push_back(&rd);
+    fighting.push_back(&gn.skiffRod);
+    for (const Rod* rp : fighting) {
+        const Rod& rd = *rp;
         if (rd.state != RodState::Fighting) continue;
         const Fight& f = rd.fight;
         e.AddVibration(f.p, (0.5f + f.effort * 2) * dt);   // a thrashing fish is a beacon
@@ -989,6 +1032,14 @@ void EcoTick(Eco& e, Gannet& gn, float dt) {
         if (f.tension > 0.3f * rating) e.AddVibration(Vector3Lerp(f.tip, f.p, 0.5f), dt);   // a taut line hums
     }
     e.deckFish = gn.DeckFish();
+    // the Sargassum Line: a turning screw in the weed bank fouls (she wallows to a crawl; the skiff slips through)
+    {
+        int mk = e.MarkAt(b.pos);
+        static bool fouled = false;
+        bool now = mk >= 0 && e.marks[mk].kind == 1 && b.shaft > 0.05f;
+        if (now) { gn.boat.vel = Vector2Scale(gn.boat.vel, expf(-0.45f * dt)); if (!fouled) gn.Say("Weed round the screw: the Sargassum Line is no water for her (take the skiff)"); }
+        fouled = now;
+    }
     // aground: the chart under her keel (she draws about 1.8 m)
     float d = e.DepthAt(b.pos);
     bool was = gn.boat.aground;

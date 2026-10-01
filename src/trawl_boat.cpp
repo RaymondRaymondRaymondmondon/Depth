@@ -221,6 +221,8 @@ void Gannet::Init(int n, uint32_t seed, Weather w) {
         r.fight.drag = 0.33f * TackleOf(r.tackle).strength;
         rods.push_back(r);
     }
+    // the skiff's light rod (fished from her stern sheets)
+    skiffRod = Rod{}; skiffRod.station = -1; skiffRod.tackle = Tackle::Light; skiffRod.rng = seed * 53u + 7; skiffRod.fight.drag = 0.33f * TackleOf(Tackle::Light).strength;
 }
 int Gannet::DeckFish() const { int n = 0; for (const auto& h : hold) if (!h.gutted) n++; return n; }
 void Gannet::Say(const std::string& s) { log.push_back(s); if (log.size() > 12) log.erase(log.begin()); }
@@ -374,6 +376,7 @@ void Gannet::Step(float dt) {
     bool wasSunk = boat.sunk; float valve0 = boat.valveT;
     if (botsOn) StepBots(dt);
     StepRods(dt);
+    StepSkiffRod(dt);
     StepGear(dt);
     StepSonar(dt);
     if (eco) EcoTick(*eco, *this, dt);

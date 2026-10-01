@@ -607,6 +607,7 @@ void Gannet::StepRods(float dt) {
                         rec.deckAt = Vector2Add(sd.at, Vector2Scale(outDeck, -1.5f));   // it lands on the deck inboard of the rod
                         rec.dead = r.headOnly;                            // (a head doesn't flop)
                         hold.push_back(rec);
+                        if (f.spec.kg < 0.4f) landedSmall++; if (f.spec.kg >= 1.0f) landedBig++;
                         r.lastCatch = KgText(f.spec.kg) + " " + nm;
                         Say(std::string("Landed: a ") + r.lastCatch);
                         if (eco && r.fishSp >= 0) eco->Harvest(r.fishSp, r.headOnly ? f.spec.kg / 0.45f : f.spec.kg, f.p, false);
@@ -622,6 +623,133 @@ void Gannet::StepRods(float dt) {
         r.strikeQ = false; r.gaffQ = false;
     }
     (void)o0;
+}
+
+// ---------------------------------------------------------------- the skiff's line
+Vector2 Gannet::SkiffRodTip() const { return skiff.ToWorld({-1.5f, 1.5f}); }   // (out over her starboard quarter from the stern sheets)
+void Gannet::StepSkiffRod(float dt) {
+    Rod& r = skiffRod;
+    if (!skiff.Up() || skiff.state == SkiffState::Beached) {
+        if (r.state != RodState::Idle) { r.state = RodState::Idle; r.bite = Bite{}; }   // (capsized, hauled up or ashore: the line's in)
+        r.strikeQ = r.gaffQ = false;
+        return;
+    }
+    const TackleDef& td = TackleOf(r.tackle);
+    Vector2 tipW = SkiffRodTip();
+    Vector2 outW = Vector2Normalize(Vector2Subtract(tipW, skiff.p));
+    Vector2 side{-skiff.Forward().y, skiff.Forward().x};
+    Vector3 tip3{tipW.x, tipW.y, -1.3f};
+    int holder = -1; Role role = Role::Bosun;
+    for (int k = 0; k < (int)crew.size(); k++) { const Crew& c = crew[k]; if (c.deck == DECK_SKIFF && c.skiffLine && !c.overboard && !c.dead) { holder = k; role = c.role; } }
+    bool manned = holder >= 0;
+    switch (r.state) {
+        case RodState::Idle:
+            if (r.castHeld && manned) { r.state = RodState::Charging; r.charge = 0; }
+            break;
+        case RodState::Charging:
+            r.charge = std::min(1.0f, r.charge + dt / 1.2f);
+            if (!r.castHeld) {
+                Vector2 aim = r.aim;   // (world)
+                if (Vector2DotProduct(aim, outW) < 0.2f) aim = Vector2Normalize(Vector2Add(aim, Vector2Scale(outW, 1.2f)));
+                float dist = std::max(3.0f, r.charge * td.cast);
+                Vector2 at = Vector2Add(Vector2Add(tipW, Vector2Scale(aim, dist)), Vector2Scale(sea.wind, 0.25f * dist / std::max(1.0f, td.cast) * 3));
+                r.lure = {at.x, at.y, 0};
+                if (r.tackle == Tackle::Handline) r.bait = "tiny hook";
+                else if (baitShrimp > 0) { baitShrimp--; r.bait = "shrimp"; }
+                else if (baitSquid > 0) { baitSquid--; r.bait = "squid strip"; }
+                else r.bait = "bare hook";
+                r.lureDepth = DefaultDepth(r.tackle);
+                r.lineOut = Vector2Distance(at, tipW);
+                r.state = RodState::Out; r.settleT = 0; r.bite = Bite{};
+            }
+            break;
+        case RodState::Out: {
+            r.lure.z = std::min(r.lureDepth, r.lure.z + 0.6f * dt);
+            r.lure.x += sea.current.x * dt * 0.5f; r.lure.y += sea.current.y * dt * 0.5f;
+            Vector3 d = Vector3Subtract(r.lure, tip3);
+            float len = sqrtf(d.x * d.x + d.y * d.y + d.z * d.z);
+            if (len > r.lineOut + r.lure.z + 0.5f) { float k = (r.lineOut + r.lure.z) / len; r.lure.x = tip3.x + d.x * k; r.lure.y = tip3.y + d.y * k; }
+            if (r.reel && r.bite.stage == BiteStage::None) {
+                Vector2 toTip = Vector2Subtract(tipW, {r.lure.x, r.lure.y});
+                float hd = Vector2Length(toTip), step = td.reel * dt;
+                if (hd > step) { r.lure.x += toTip.x / hd * step; r.lure.y += toTip.y / hd * step; r.lineOut = std::max(0.0f, r.lineOut - step); }
+                r.lure.z = std::max(0.0f, r.lure.z - step * 0.5f);
+                if (hd < 2.0f && r.lure.z < 1.5f) { r.state = RodState::Idle; break; }
+            }
+            r.settleT += dt;
+            if (r.bite.stage == BiteStage::None || r.bite.stage == BiteStage::Gone) {
+                r.bite.stage = BiteStage::None;
+                bool settled = r.lure.z > r.lureDepth - 0.5f || r.settleT > 6;
+                if (settled && manned && eco) {
+                    if (r.bait.empty()) r.bait = DefaultBait(r.tackle);
+                    // the skiff-only marks: about twice the bite rate (design doc v2, "Skiff destinations")
+                    float mul = eco->MarkAt({r.lure.x, r.lure.y}) >= 0 ? 2.0f : 1.0f;
+                    int sp = eco->TryBite(r.lure, r.tackle, r.bait, dt * mul, nullptr);
+                    if (sp >= 0) { r.biteSpec = eco->SpecOf(sp, RRand(r.rng)); r.fishSp = sp; r.bite.Start(&r.biteSpec, r.biteSpec.wary, role == Role::Angler, r.rng++); }
+                }
+            } else {
+                int res = r.bite.Step(dt, r.strikeQ, r.hook == Hook::Circle && r.reel);
+                if (res > 0) {
+                    FishSpec f = r.biteSpec;
+                    if (eco && r.fishSp >= 0) { f.floor = std::max(1.0f, eco->DepthAt({r.lure.x, r.lure.y})); eco->TakeNear(r.fishSp, r.lure); }
+                    r.headOnly = false;
+                    r.fight = Fight{};
+                    r.fight.tackle = r.tackle; r.fight.line = r.line; r.fight.hook = r.hook; r.fight.drag = 0.33f * td.strength;
+                    r.fight.tip = tip3; r.fight.outboard = outW;
+                    r.fight.HookFish(f, r.lure, r.rng++);
+                    r.state = RodState::Fighting; r.alongT = 0;
+                    Say(role == Role::Angler ? std::string("Fish on in the skiff: ") + f.name : std::string("Fish on in the skiff!"));
+                } else if (res < 0) { Say(r.strikeQ ? "Struck too soon: it's gone" : "It dropped the bait"); r.bite = Bite{}; }
+            }
+            r.lastTick = r.bite.Tick();
+            break;
+        }
+        case RodState::Fighting: {
+            Fight& f = r.fight;
+            f.tip = tip3; f.outboard = outW;
+            if (manned) { f.reeling = r.reel; f.rodLean = r.lean; f.bowed = r.bow; f.pumping = r.reel && r.bow; f.keelClear = 0; }
+            else { f.reeling = false; f.bowed = false; }
+            f.Step(dt);
+            if (eco && f.end == FightEnd::None && !r.headOnly) {
+                int kind = 0, thief = eco->Depredate(f.p, f.spec.kg, dt, &kind);
+                if (thief >= 0 && kind == 1) { r.headOnly = true; f.spec.kg *= 0.45f; f.S = std::min(f.S, 0.05f * f.S0); f.jumpT = -1; Say("Something hit it under the skiff"); }
+                else if (thief >= 0) { f.end = FightEnd::Taken; Say(std::string("Taken off the line by a ") + Species().sp[thief].name); }
+            }
+            // a big fish tows the skiff (a Nantucket sleigh ride) and heels her toward it
+            Vector2 pw = f.PullOnBoat();
+            skiff.vel = Vector2Add(skiff.vel, Vector2Scale(pw, 9.81f / 280.0f * dt));
+            skiff.rollV += Vector2DotProduct(pw, side) * 0.012f * dt;
+            if (f.alongside) {
+                r.alongT += dt;
+                if (r.gaffQ) {
+                    float skill = f.spec.kg < 5 ? 0.97f : (role == Role::Bosun ? 0.85f : 0.8f);
+                    if (!f.Land(skill)) Say("Missed with the gaff: it runs again");
+                    r.alongT = 0;
+                }
+            }
+            if (f.end != FightEnd::None) {
+                if (f.end == FightEnd::Landed) {
+                    std::string nm = std::string(f.spec.name) + (r.headOnly ? " (head)" : "");
+                    CatchRec rec; rec.name = nm; rec.kg = f.spec.kg; rec.price = f.spec.price; rec.sp = r.fishSp; rec.src = CS_HOOK;
+                    rec.grade = r.headOnly ? 0.9f : 1.0f; rec.dead = true;   // (the kill happens at the waterline)
+                    if (f.spec.kg < 30 && SkiffLand(rec)) {
+                        Say(TextFormat("Into the skiff: a %s %s", KgText(f.spec.kg).c_str(), nm.c_str()));
+                        if (f.spec.kg >= 10) { SkiffRock((Vector2DotProduct(Vector2Subtract({f.p.x, f.p.y}, skiff.p), side) > 0 ? 1.0f : -1.0f) * std::min(2.4f, 0.11f * f.spec.kg)); Say("It thrashes in the bottom boards: she rolls!"); }
+                    } else {
+                        towed.push_back(rec);
+                        Say(TextFormat("Too big for her: the %s %s is killed alongside and made fast on the tow line", KgText(f.spec.kg).c_str(), nm.c_str()));
+                    }
+                    if (eco) { eco->AddBlood(f.p, f.spec.kg * 0.3f); if (r.fishSp >= 0) eco->Harvest(r.fishSp, r.headOnly ? f.spec.kg / 0.45f : f.spec.kg, f.p, false); }
+                } else {
+                    if (f.end != FightEnd::Taken) Say(std::string("Lost it: ") + FightEndName(f.end));
+                    if (eco) eco->AddBlood(f.p, f.spec.kg * (f.end == FightEnd::Taken ? 2.0f : 0.5f));
+                }
+                r.state = RodState::Idle; r.bite = Bite{};
+            }
+            break;
+        }
+    }
+    r.strikeQ = false; r.gaffQ = false;
 }
 
 // ---------------------------------------------------------------- the rod test (run by --trawl-boat-test)

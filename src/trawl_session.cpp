@@ -847,13 +847,11 @@ void Session::ShakeStep(float dt) {
     switch (s.step) {
         case 0: if (phase == Phase::Night) advance(); break;
         case 1: {
-            int small = 0; for (const auto& h : g.hold) if (h.src == CS_HOOK && h.kg < 0.4f) small++;
-            if (small >= 3) advance();
+            if (g.landedSmall >= 3) advance();   // (landed: the gulls may have had them since)
             break;
         }
         case 2: {
-            bool big = false; for (const auto& h : g.hold) if (h.src == CS_HOOK && h.kg >= 1.0f) big = true;
-            if (big) advance();
+            if (g.landedBig >= 1) advance();
             break;
         }
         case 3: {

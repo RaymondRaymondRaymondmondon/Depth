@@ -175,6 +175,7 @@ void Gannet::StepBots(float dt) {
         if (b.barkT > 0) b.barkT -= dt;
         if (c.dead) { Move(i, {0, 0}, false, dt); continue; }
         if (c.overboard) {
+            if (skiff.Up() && Vector2Distance(c.swim, skiff.p) < 3.0f && BoardSkiff(i)) continue;   // (the skiff's nearer: over her gunwale)
             // swim for the stern ladder
             Vector2 at = boat.ToDeck(c.swim), to = Vector2Subtract({-11.3f, 0}, at);
             Move(i, Vector2Length(to) > 0.1f ? Vector2Normalize(to) : Vector2{0, 0}, false, dt);
@@ -192,6 +193,29 @@ void Gannet::StepBots(float dt) {
         }
         if (b.task == 0 && b.follow >= 0) b.task = 3;
         if (b.task == 3 && b.follow < 0) b.task = 0;
+        // the skiff (design doc v2, "The skiff"): a bot following a hand goes down into her after them and rows on their
+        // beat (StepSkiff), keeps her while they're ashore, and climbs back aboard the Gannet when they do; it never works
+        // the Gannet's stations from her
+        if (c.deck == DECK_SKIFF) {
+            const Crew* lead = b.follow >= 0 ? &crew[b.follow] : nullptr;
+            if (!lead || (lead->deck <= 1 && !lead->overboard)) {
+                if (!LeaveSkiff(i) && lead && b.barkT <= 0) { b.bark = "Bring her alongside and I'll come up"; b.barkT = 5; }
+            } else if (lead->deck == DECK_SHORE && b.barkT <= 0 && BR(b.rng) < 0.002f) { b.bark = "I'll keep her off the rocks"; b.barkT = 4; }
+            Move(i, {0, 0}, false, dt);
+            continue;
+        }
+        if (c.deck == DECK_SHORE) { Move(i, {0, 0}, false, dt); continue; }
+        if (b.task == 3 && b.follow >= 0 && crew[b.follow].deck >= DECK_SKIFF && !crew[b.follow].overboard) {
+            int dv = -1; for (int k = 0; k < (int)Stations().size(); k++) if (Stations()[k].kind == StationKind::Davit) dv = k;
+            if (c.station >= 0) LeaveStation(i);
+            bool cl;
+            if (dv >= 0 && walk(i, 0, Stations()[dv].at, 1.0f, &cl)) {
+                Move(i, {0, 0}, false, dt);
+                if (SkiffAlongside(4)) BoardSkiff(i);
+                else if (b.barkT <= 0) { b.bark = "Waiting at the davit"; b.barkT = 5; }
+            }
+            continue;
+        }
         // ---- the life ring: to the rail nearest the swimmer, throw, haul in a miss and throw again, haul them home
         if (b.task == 1) {
             if (b.target < 0 || b.target >= (int)crew.size() || !crew[b.target].overboard || crew[b.target].dead) {

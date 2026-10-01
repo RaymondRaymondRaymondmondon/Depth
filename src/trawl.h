@@ -277,6 +277,7 @@ struct Crew {
     float z = 0, vz = 0;                                  // a jump (the playtest, 2026-10-01): height over the deck and the climb; a careless leap clears the rail
     float inkT = 0;                                       // blinded by a landed octopus's ink (seconds left)
     float oarT = 9, rightT = 0;                           // since this hand's last stroke at the oars; righting a capsized skiff
+    bool skiffLine = false;                               // in the skiff: working her line instead of the oars (T)
     bool carrying = false; CatchRec carry;                // ashore: one thing in the arms (a fish, a chest, a crab)
     int workOn = -1; float workT = 0;                     // ashore: digging a cache (its index) or relighting the fire (100)
     // the hand's slots, injuries, and life (design doc, "Death, injury, and ghosts")
@@ -508,6 +509,7 @@ struct Gannet {
     void Steal(int holdIdx, int kind);                    // a bird takes this fish off the deck
     void StepThieves(float dt);
     void DropThief(int idx, int by);                      // shot: the bird and its fish come down
+    int landedSmall = 0, landedBig = 0;                   // hook fish landed this run under 0.4 kg / of 1 kg or more (the shakedown's lessons count these: birds may have the fish)
     int junkBottles = 0, junkKeys = 0, junkCharts = 0;    // junk kept for the landings (the skiff)
     void FindJunk(Vector2 deckAt, const char* how);
     void CastJunk(Vector2 deckAt);                        // an empty cast reeled home: junk on the hook now and then
@@ -526,6 +528,14 @@ struct Gannet {
     void SkiffRock(float rad);                            // a shove to her roll (a ram, a thrashing fish, a wave's slap)
     bool SkiffLand(const CatchRec& r);                    // a fish or salvage into her (false: over 150 kg)
     int SkiffRowers() const;
+    // fishing from the skiff (design doc v2, "Fishing from the skiff"): T at the oars takes up her line (a light rod in
+    // the stern sheets) and back. The kill happens at the waterline: under 30 kg comes aboard her (a thrasher of 10 kg
+    // or more rocks her hard); anything bigger is killed alongside and goes on the tow line, slowing her and bleeding
+    // all the way home. A hooked fish tows her and heels her toward it. Inside a skiff mark the bites come twice as often.
+    Rod skiffRod;
+    std::vector<CatchRec> towed;                          // on the tow line, alongside (into the hold when she's hauled up)
+    void StepSkiffRod(float dt);
+    Vector2 SkiffRodTip() const;                          // (world) the rod's tip over her starboard quarter
     Vector2 HandWorld(int c) const;                       // where a hand is on the sea, whichever deck it is on
     // the landings (trawl_landing.cpp)
     std::vector<Landing> landings;

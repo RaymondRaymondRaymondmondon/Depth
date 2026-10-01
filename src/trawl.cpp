@@ -185,9 +185,10 @@ void Gauge(Vector2 c, float r, float v, float lo, float hi, float red, const cha
 }
 // The reel gauge (design doc, "Controls, HUD": a tension arc with the drag setting, the line counter, the lure's depth)
 void ReelGauge(const Gannet& g, const Crew& c) {
-    int ri = g.RodAt(c.station);
-    if (ri < 0) return;
-    const Rod& r = g.rods[ri];
+    int ri = c.station >= 0 ? g.RodAt(c.station) : -1;
+    bool skiffLine = c.deck == DECK_SKIFF && c.skiffLine && !c.overboard;   // (the skiff's line has the same gauge)
+    if (ri < 0 && !skiffLine) return;
+    const Rod& r = skiffLine ? g.skiffRod : g.rods[ri];
     const TackleDef& td = TackleOf(r.tackle);
     Color paper{230, 220, 196, 255}, ink{40, 30, 20, 255};
     Vector2 cc{SCREEN_W - 150.0f, SCREEN_H - 170.0f};
@@ -211,7 +212,7 @@ void ReelGauge(const Gannet& g, const Crew& c) {
     float out = r.state == RodState::Fighting ? r.fight.L : r.state == RodState::Out ? r.lineOut + r.lure.z : 0;
     float depth = r.state == RodState::Fighting ? r.fight.p.z : r.state == RodState::Out ? r.lure.z : 0;
     float x0 = SCREEN_W - 560;
-    TxtBold(TextFormat("%s, %s line, %s hook  (T: change tackle)", td.name, LineOf(r.line).name, HookName(r.hook)), x0, SCREEN_H - 60, 15, paper);
+    TxtBold(TextFormat(skiffLine ? "The skiff's %s, %s line, %s hook  (T: back to the oars)" : "%s, %s line, %s hook  (T: change tackle)", td.name, LineOf(r.line).name, HookName(r.hook)), x0, SCREEN_H - 60, 15, paper);
     TxtBold(TextFormat("Line out %3.0f m    Depth %3.0f m%s", out, depth, r.state == RodState::Out ? TextFormat("  (set %.0f)", r.lureDepth) : ""), x0, SCREEN_H - 38, 15, Fade(paper, 0.85f));
     const char* tip = nullptr;
     switch (r.state) {
@@ -293,6 +294,25 @@ void DrawSonarScope() {
         if (Vector2Distance(s, SCOPE_C) > SCOPE_R) continue;
         DrawRing(s, 11, 13, 0, 360, 24, Fade(Color{250, 220, 120, 255}, std::min(1.0f, m.t)));
         DrawText(m.what.c_str(), (int)s.x + 15, (int)s.y - 6, 12, Fade(Color{250, 220, 120, 255}, std::min(1.0f, m.t)));
+    }
+    // the skiff: a bright blip with everything round it (design doc v2, "Guiding the skiff": the sonar operator is the
+    // skiff's eyes), pulsing so it's never lost among the fish; the skiff marks as dashed rings
+    if (g.skiff.state != SkiffState::Stowed && g.skiff.state != SkiffState::Lowering && g.skiff.state != SkiffState::Lost) {
+        Vector2 d = g.boat.ToDeck(g.skiff.p);
+        if (Vector2Length(d) < SONAR_RANGE) {
+            Vector2 s = DeckToScope(d);
+            float pulse = 0.6f + 0.4f * sinf(g.time * 6);
+            DrawCircleV(s, 4, Color{230, 255, 240, 255});
+            DrawRing(s, 6 + pulse * 3, 7.5f + pulse * 3, 0, 360, 24, Fade(Color{230, 255, 240, 255}, pulse));
+            DrawText(g.skiff.state == SkiffState::Capsized ? "SKIFF (capsized)" : "SKIFF", (int)s.x + 12, (int)s.y + 4, 11, Color{230, 255, 240, 255});
+        }
+    }
+    for (const auto& mk : e.marks) {
+        Vector2 d = g.boat.ToDeck(mk.at);
+        if (Vector2Length(d) > SONAR_RANGE + mk.r) continue;
+        Vector2 s = DeckToScope(d); float rs = mk.r * SCOPE_R / SONAR_RANGE;
+        for (int k = 0; k < 16; k += 2) DrawRing(s, rs - 1, rs, k * 22.5f, k * 22.5f + 14, 4, Fade(glow, 0.5f));
+        DrawText(mk.name.c_str(), (int)(s.x - rs * 0.7f), (int)(s.y - 6), 10, Fade(glow, 0.7f));
     }
     // the Gannet at the centre, bow up
     DrawTriangle({SCOPE_C.x, SCOPE_C.y - 9}, {SCOPE_C.x - 4, SCOPE_C.y + 7}, {SCOPE_C.x + 4, SCOPE_C.y + 7}, glow);
@@ -383,6 +403,10 @@ void DrawChart(Rectangle r) {
     (void)ink;
     // the marks
     for (const auto& m : g.sonar.marks) { Vector2 p = toR(m.p); DrawRing(p, 4, 6, 0, 360, 16, Color{250, 220, 120, 255}); }
+    // the skiff water and the landings (skiff-only: too shallow, too weedy, or a beach)
+    for (const auto& mk : e.marks) { Vector2 p = toR(mk.at); float rr = mk.r / size * r.width; for (int k = 0; k < 16; k += 2) DrawRing(p, rr - 1, rr, k * 22.5f, k * 22.5f + 14, 4, Color{140, 230, 210, 255}); TxtBold(mk.name.c_str(), p.x - 30, p.y + rr + 2, 10, Color{140, 230, 210, 255}); }
+    for (const auto& L : g.landings) { Vector2 p = toR(L.at); DrawCircleV(p, 3, Color{240, 220, 160, 255}); TxtBold(L.name.c_str(), p.x + 5, p.y - 5, 10, Color{240, 220, 160, 255}); }
+    if (g.skiff.Up() || g.skiff.state == SkiffState::Capsized) { Vector2 p = toR(g.skiff.p); DrawCircleV(p, 3, Color{255, 255, 255, 255}); DrawCircleLinesV(p, 5, BLACK); }
     // the Gannet: an arrow along her heading
     Vector2 bp = toR(g.boat.pos), f = g.boat.Forward();
     f.y = -f.y;
@@ -405,7 +429,7 @@ void DrawMarkArrows() {
     const Crew& me = g.crew[S.you];
     Color mc{250, 220, 120, 255};
     for (const auto& m : g.sonar.marks) {
-        Vector2 dd = Vector2Subtract(g.boat.ToDeck(m.p), me.overboard ? g.boat.ToDeck(me.swim) : me.p);
+        Vector2 dd = Vector2Subtract(g.boat.ToDeck(m.p), me.deck <= 1 && !me.overboard ? me.p : g.boat.ToDeck(g.HandWorld(S.you)));   // (in the skiff, ashore or swimming: from where you are)
         float a = std::min(1.0f, m.t);
         float dist = Vector2Length(dd);
         Vector2 dir;   // the mark's direction on the screen
@@ -914,7 +938,10 @@ void Hud(Game& g) {
         std::string line;
         if (c.deck == DECK_SKIFF && !c.overboard) {
             DrawTextCenteredBold(TextFormat("Skiff   hull %.0f/%.0f   load %.0f/%.0f kg   roll %.0f deg", std::max(0.0f, sk.integrity), D().skiffIntegrity, sk.LoadKg(), D().skiffLoad, sk.roll * RAD2DEG), SCREEN_W / 2.0f, SCREEN_H - 118.0f, 15, fabsf(sk.roll * RAD2DEG) > 15 ? Color{240, 120, 90, 255} : paper);
-            line = G.SkiffAlongside(4) ? "Left / right mouse: the oars, on a beat.   E: up the stern ladder" : sk.crabT > 0 ? "Caught a crab! Keep the rhythm" : "Left mouse the port oar, right the starboard: in turn on a steady beat (both at once pull straight)";
+            if (c.skiffLine) { ReelGauge(G, c); if (G.SkiffAlongside(4)) line = "E: up the stern ladder"; }
+            else line = G.SkiffAlongside(4) ? "Left / right mouse: the oars, on a beat.   E: up the stern ladder   T: her line" : sk.crabT > 0 ? "Caught a crab! Keep the rhythm" : "Left mouse the port oar, right the starboard, in turn on a steady beat (both pull straight).   T: her line";
+            { int mk = S.W->eco.g ? S.W->eco.MarkAt(sk.p) : -1; if (mk >= 0) DrawTextCenteredBold(TextFormat("%s: skiff water, the bites come twice as often", S.W->eco.marks[mk].name.c_str()), SCREEN_W / 2.0f, SCREEN_H - 140.0f, 15, Color{150, 220, 200, 255}); }
+            if (!G.towed.empty()) { float kg = 0; for (const auto& t : G.towed) kg += t.kg; Txt(TextFormat("On the tow line: %d fish, %.0f kg (bleeding)", (int)G.towed.size(), kg), 20, SCREEN_H - 250, 14, Color{220, 140, 120, 255}); }
         } else if (c.deck == DECK_SHORE && sk.landing >= 0 && sk.landing < (int)G.landings.size()) {
             // ashore: what E does where you stand (the same order ShoreUse tries them in)
             const Landing& L = G.landings[sk.landing];
@@ -1423,6 +1450,7 @@ void DebugTrawlShot(Game& g, int which) {
             G.skiff.state = SkiffState::Afloat; G.skiff.p = G.SkiffBerth(); G.skiff.heading = G.boat.heading + PI - 0.5f; G.skiff.integrity = D().skiffIntegrity;
             G.crew[0].p = Stations()[dv].at; G.BoardSkiff(0);
             CatchRec f; f.name = "snapper"; f.kg = 3.5f; f.price = 3; f.dead = true; G.SkiffLand(f);
+            CatchRec big = f; big.name = "grouper"; big.kg = 42; G.towed.push_back(big);   // (on the tow line)
             float tt = 0; bool pp = true;
             for (int i = 0; i < 60 * 12; i++) { tt += 1 / 60.0f; if (tt >= D().skiffStroke) { tt = 0; G.Oar(0, pp, !pp); pp = !pp; } G.Step(1 / 60.0f); ss.Step(1 / 60.0f); }
             G.crew[0].oarT = 0.12f;

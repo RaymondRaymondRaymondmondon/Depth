@@ -585,6 +585,26 @@ static void DrawSkiff3D(const Gannet& g, float t) {
             rt::DrawCubeM(MatrixMultiply(o, M), Color{170, 130, 80, 255});
         }
     }
+    // her line: the rod over the starboard quarter, bent by the fish, and the line to the lure or the fish
+    {
+        const Rod& r = g.skiffRod;
+        bool lineUp = false; for (const auto& c : g.crew) if (c.deck == DECK_SKIFF && c.skiffLine && !c.overboard) lineUp = true;
+        if (lineUp || r.state != RodState::Idle) {
+            float bend = r.state == RodState::Fighting ? std::clamp(r.fight.tension / TackleOf(r.tackle).strength, 0.0f, 1.2f) : 0;
+            Vector3 base = Vector3Transform({-1.2f, 0.5f, 0.5f}, M), tip = Vector3Transform({-1.5f, 1.9f - bend * 0.5f, 1.5f}, M);
+            Seg(base, tip, 0.025f, Color{120, 86, 50, 255});
+            if (r.state == RodState::Out) Seg(tip, W3({r.lure.x, r.lure.y}, g.sea.Height(r.lure.x, r.lure.y)), 0.008f, Color{210, 210, 190, 255});
+            if (r.state == RodState::Fighting) { Vector3 fp = WD(r.fight.p); fp.y = std::min(fp.y, g.sea.Height(r.fight.p.x, r.fight.p.y)); Seg(tip, fp, 0.01f, Color{220, 220, 200, 255}); }
+        }
+        // the tow line astern of her quarter
+        for (size_t i = 0; i < g.towed.size(); i++) {
+            Vector3 a = Vector3Transform({-2.25f, 0.3f, 0}, M);
+            Vector2 bw = g.skiff.ToWorld({-3.2f - i * 0.9f, 0.3f * (i % 2 ? 1 : -1)});
+            Vector3 b = W3(bw, g.sea.Height(bw.x, bw.y) + 0.05f);
+            Seg(a, b, 0.012f, Color{200, 190, 160, 255});
+            DrawFishAt(gFish, b, Vector3Normalize(Vector3Subtract(b, a)), std::clamp(0.4f + sqrtf(g.towed[i].kg) * 0.25f, 0.6f, 3.0f), Color{150, 158, 164, 255}, 1.5f);
+        }
+    }
     // her load: fish and salvage in the bottom
     for (size_t i = 0; i < s.load.size() && i < 12; i++) {
         float x = -0.6f - (float)(i % 4) * 0.35f, z = -0.3f + (float)(i / 4) * 0.3f;
