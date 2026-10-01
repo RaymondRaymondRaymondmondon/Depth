@@ -287,3 +287,20 @@ wreck's listing, the Reef's wonder-weapon quest, the repair kit, the stage-10 ba
   - Art and sound tints per ground: kelp drawn in both views (H_KELP cells).
   - Re-tune until the sim lands near 65%.
 - Then the Grotto (the roster is in docs/trawl_rosters_weeds_grotto.md; the rest of its table is on p0045.png), Atlantis, and diving.
+- **The Weeds, state at `3a7894a`:**
+  - **Built:**
+    - the species, the chart and three marks;
+    - choosing the ground at the chart table;
+    - kelp fouls the screw (a chance under way; a swimmer cuts it, `CutScrew`);
+    - the Great White;
+    - the mini-bosses on their marks (the Kelp King, Gold Tail; lures 120) and their charms (the kelp crown, the golden scale).
+  - **The sim fixes:** coal for the ground, a wider range, an earlier turn home when far out, kelp avoided, a snagged net and a fouled screw cut free.
+  - **Sim result (6 careful hands):** about 25-33% of deadlines met against the doc's 65%. Income is about 116 sh a night, and a broke crew can't buy the 25 kg of coal by the third night.
+  - **Next:**
+    - Tune the economy: fish density at the seaward edge, the net yield over the lanes, perhaps a lower quota scale per ground, or a cheaper run out.
+    - Draw kelp (H_KELP cells: canopy mats in both views; drift kelp mats as rafts).
+    - Kelp in nets (worthless weight).
+    - Threats: Sirens, Wraiths (the kelp crown makes a hand immune), mermen.
+    - The otter fine (80).
+    - The landings (Seal Rock, the Cannery Pier).
+  - Then the Grotto.
