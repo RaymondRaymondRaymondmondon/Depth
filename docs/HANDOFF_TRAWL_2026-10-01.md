@@ -240,3 +240,14 @@ wreck's listing, the Reef's wonder-weapon quest, the repair kit, the stage-10 ba
 - Then steps 6-8.
 - 5d is DONE (`ae3e2d1`); step 5 is complete. The "Not built" list in TRAWL_PROGRESS covers what's left of it.
 - **Next: step 6.** Mini-bosses, boss lures, harbour requests and charms (doc v2: the mini-boss section around OCR line 3404, harbour requests, and the charms table under Economy). Read the PNG pages for the tables.
+- **Step 6 is DONE** (`91e2209`; TRAWL_PROGRESS "Step 6").
+- **Step 7 plan (below decks; doc v2, pages 16-18; the user is away, so these are my calls):**
+  - All 13 stations of the doc's table already exist; only the unmanned-davit rule is missing (a skiff alongside with nobody at the davit is hooked on from the water, 25 s).
+  - **Deck 1 grows two spaces:**
+    - The fish hold, under the main hatch on deck at about (-1.0, -1.0): x -2.9..0.8, |y| < 2.3. It joins the engine room through a watertight door at x = -2.9 (|y| < 0.6; E at it shuts or opens it).
+    - The fo'c'sle, under the fore hatch at (7.6, 0): x 5.2..9.0, |y| < 1.9. It holds the bunks, the magazine locker (ammunition restocks move here from the deck locker; update the gear test) and the Medic's cot (lie there 10 s with the Medic within 2 m: one serious injury healed).
+  - **Hatches:** open, shut (4 s to open from either side) or battened (10 s; can't be opened from below). E at an open hatch goes down or up; R at a hatch cycles open, shut, battened. While she rolls past 25 deg, every open hatch ships water into the bilge.
+  - **Oil lamps below:** one per space, out past 20 deg of roll, relit in 3 s (E). The top-down below-deck view and first person are lit by them.
+  - **Bilge eels:** with the bilge past 2000 kg, eels bite a hand below now and then. Fire already exists (`boat.fireT`); check how it spreads.
+  - **The crew board:** the HUD shows who's below.
+  - **Drawing:** the hold and the fo'c'sle in trawl_art (`viewerDeck == 1`) and in first person (BuildBoat's interior).
