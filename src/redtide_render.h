@@ -86,6 +86,7 @@ void DrawStatic(const Model& m, Matrix world, Color tint = WHITE);  // level geo
 void DrawCubeM(Matrix world, Color col);                            // a unit cube under any transform (the diver's glove)
 void DrawCubeGlow(Matrix world, Color col, float glow);             // the same, lit from within (lamps, fires, flares)
 void DrawStaticGlow(const Model& m, Matrix world, Color tint, float glow);
+void DrawSky(const Model& m, Matrix world, Color tint);           // unlit, unfogged, no ink edges (stars, the moon, rain)
 void DrawWorldCube(Vector3 c, Vector3 size, Color col);             // blockout boxes (walls, floors, props)
 void RenderEnd();                                                   // runs the normal/depth pass and the ink composite into the scene
 void RenderShutdown();

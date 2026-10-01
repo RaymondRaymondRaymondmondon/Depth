@@ -541,8 +541,10 @@ uniform vec4 colDiffuse;
 uniform vec3 uCam, uLampPos, uLampDir, uKey, uFill, uRim, uFog;
 uniform float uLampRange, uLampCone, uFogDensity, uSurfaceY, uTime, uGlow, uSil;
 uniform vec4 uPL[8]; uniform vec4 uPLC[8]; uniform int uPLN;   // point lights: xyz + radius; rgb (0..1) + strength
+uniform int uSky;                                                // 1: the sky (stars, the moon, rain): unlit and unfogged
 out vec4 finalColor;
 void main() {
+    if (uSky == 1) { finalColor = vec4(fragColor.rgb * colDiffuse.rgb, fragColor.a * colDiffuse.a); return; }
     vec3 n = normalize(cross(dFdx(fragWorld), dFdy(fragWorld)));
     vec3 V = normalize(uCam - fragWorld);
     if (dot(n, V) < 0.0) n = -n;
@@ -643,7 +645,7 @@ static RenderTexture2D gColorRT{}, gNDRT{};
 static Model gCube{};
 static int L_lit[16], L_nd[8], L_ink[8];
 enum { LU_ANIM, LU_PHASE, LU_AMP, LU_WAVES, LU_LEN, LU_INTEN, LU_CAM, LU_LAMPPOS, LU_LAMPDIR, LU_KEY, LU_FILL, LU_RIM, LU_FOG, LU_RANGE, LU_CONE, LU_FOGD };
-static int L_litSurf, L_litTime, L_litGlow, L_litSil, L_litPL, L_litPLC, L_litPLN;
+static int L_litSurf, L_litTime, L_litGlow, L_litSil, L_litPL, L_litPLC, L_litPLN, L_litSky;
 
 static void EnsureShaders() {
     if (gShadersReady || !IsWindowReady()) return;
@@ -662,6 +664,7 @@ static void EnsureShaders() {
     L_litPL = GetShaderLocation(gLit, "uPL");
     L_litPLC = GetShaderLocation(gLit, "uPLC");
     L_litPLN = GetShaderLocation(gLit, "uPLN");
+    L_litSky = GetShaderLocation(gLit, "uSky");
     L_ink[0] = GetShaderLocation(gInk, "uND");
     L_ink[1] = GetShaderLocation(gInk, "uRes");
     L_ink[2] = GetShaderLocation(gInk, "uTime");
@@ -695,6 +698,7 @@ struct DrawCmd {
     Matrix world;
     int anim; float phase, amp, waves, len, inten, glow;
     Color tint;
+    int sky = 0;                   // the colour pass only, unlit and unfogged
 };
 static std::vector<DrawCmd> gQueue;
 static Camera3D gCam;
@@ -723,6 +727,11 @@ void DrawStatic(const Model& m, Matrix world, Color tint) {
 void DrawCubeM(Matrix world, Color col) {
     gQueue.push_back({&gCube, world, (int)AnimMode::Static, 0, 0, 0, 1, 0, 0, col});
 }
+void DrawSky(const Model& m, Matrix world, Color tint) {
+    DrawCmd d{&m, world, (int)AnimMode::Static, 0, 0, 0, 1, 0, 0, tint};
+    d.sky = 1;
+    gQueue.push_back(d);
+}
 void DrawCubeGlow(Matrix world, Color col, float glow) {
     gQueue.push_back({&gCube, world, (int)AnimMode::Static, 0, 0, 0, 1, 0, glow, col});
 }
@@ -746,7 +755,8 @@ static void DrawQueue(Shader sh, bool lit) {
         SetF(sh, L[LU_WAVES], d.waves);
         SetF(sh, L[LU_LEN], d.len);
         SetF(sh, L[LU_INTEN], d.inten);
-        if (lit) SetF(sh, L_litGlow, d.glow);
+        if (!lit && d.sky) continue;
+        if (lit) { SetF(sh, L_litGlow, d.glow); SetI(sh, L_litSky, d.sky); }
         DrawMesh(m.meshes[0], m.materials[0], d.world);
     }
 }

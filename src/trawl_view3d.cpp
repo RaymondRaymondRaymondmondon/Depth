@@ -335,11 +335,7 @@ static void EnsureLand(const Eco* e) {
     gLandFor = (const void*)e->g;
 }
 
-void UnloadTrawl3D() {
-    if (gReady) { UnloadModel(gBoat); UnloadModel(gQuay); UnloadModel(gFish); UnloadModel(gJelly); UnloadModel(gGull); gReady = false; }
-    if (gSeaReady) { UnloadModel(gSea); gSeaReady = false; }
-    if (gLandFor) { UnloadModel(gLand); gLandFor = nullptr; }
-}
+
 
 // ---------------------------------------------------------------- drawing helpers
 static Matrix Frame(Vector3 at, float yaw) { return MatrixMultiply(MatrixRotateY(yaw), MatrixTranslate(at.x, at.y, at.z)); }
@@ -376,39 +372,141 @@ static Color SpeciesTint(const SpeciesRec& r) {
 }
 static float H01(int a, int b, int c) { uint32_t h = (uint32_t)a * 73856093u ^ (uint32_t)b * 19349663u ^ (uint32_t)c * 83492791u; h ^= h >> 13; h *= 0x5bd1e995u; h ^= h >> 15; return (h & 0xffffff) / 16777216.0f; }
 
-// a hand: oilskins in the role's colour, boots, a sou'wester; lying down when fallen, pale when a ghost
+// ---------------------------------------------------------------- the crew's figures
+// A hand in oilskins (the coat in the role's colour), sea boots and a sou'wester, built in the figure's frame (x
+// forward, y up, z to its right) as a body, two arms and two legs that swing from the shoulders and hips.
+static Color CoatOf(Role r) { return r == Role::Bosun ? Color{56, 74, 110, 255} : r == Role::Angler ? Color{214, 180, 50, 255} : r == Role::Diver ? Color{120, 132, 92, 255} : Color{224, 222, 210, 255}; }
+// a lathe (built along +Z) appended standing up: +Z becomes +Y
+static void LatheUp(MeshBuilder& dst, float len, int rings, int segs, float (*rx)(float), float (*ry)(float), Color top, Color under, Vector3 at) {
+    MeshBuilder tmp;
+    tmp.Lathe(len, rings, segs, rx, ry, top, under);
+    for (size_t i = 0; i + 2 < tmp.pos.size(); i += 3) { dst.pos.push_back(tmp.pos[i] + at.x); dst.pos.push_back(tmp.pos[i + 2] + at.y); dst.pos.push_back(-tmp.pos[i + 1] + at.z); }
+    dst.uv.insert(dst.uv.end(), tmp.uv.begin(), tmp.uv.end());
+    dst.col.insert(dst.col.end(), tmp.col.begin(), tmp.col.end());
+}
+static Model gBody[(int)Role::COUNT]{}, gArm[(int)Role::COUNT]{}, gLeg{}, gStars{}, gMoon{}, gRain{}, gItem[(int)Item::COUNT]{};
+static bool gCrewReady = false;
+static void BuildBody(MeshBuilder& mb, Color coat) {
+    Color skin{214, 172, 132, 255}, hat{212, 178, 62, 255}, dark{34, 28, 24, 255}, coatDk = Mul(coat, 0.75f);
+    LatheUp(mb, 0.62f, 6, 10, [](float u) { return 0.16f + 0.04f * u; }, [](float u) { return 0.24f + 0.04f * u; }, coat, coatDk, {0, 1.13f, 0});     // the coat
+    LatheUp(mb, 0.3f, 3, 10, [](float u) { return 0.2f + 0.03f * u; }, [](float u) { return 0.28f + 0.03f * u; }, coatDk, coatDk, {0, 0.74f, 0});  // its skirt
+    for (int k = 0; k < 4; k++) mb.Box({0.19f, 1.36f - k * 0.14f, 0}, {0.012f, 0.018f, 0.018f}, dark);                                              // the toggles
+    LatheUp(mb, 0.1f, 2, 8, [](float) { return 0.07f; }, [](float) { return 0.07f; }, skin, skin, {0, 1.46f, 0});                                // the neck
+    LatheUp(mb, 0.3f, 6, 10, [](float u) { return 0.115f * sinf(PI * (0.12f + 0.76f * u)) + 0.015f; }, [](float u) { return 0.11f * sinf(PI * (0.12f + 0.76f * u)) + 0.015f; }, skin, skin, {0, 1.63f, 0});   // the head
+    mb.Box({0.13f, 1.61f, 0}, {0.03f, 0.035f, 0.022f}, Mul(skin, 0.85f));                                                                         // the nose
+    for (int s = -1; s <= 1; s += 2) mb.Octa({0.118f, 1.665f, s * 0.045f}, 0.018f, dark);                                                         // the eyes
+    LatheUp(mb, 0.16f, 3, 10, [](float u) { return 0.14f - 0.02f * (1 - u); }, [](float u) { return 0.14f - 0.02f * (1 - u); }, hat, Mul(hat, 0.8f), {0, 1.81f, 0});   // the sou'wester's crown
+    mb.Box({-0.05f, 1.745f, 0}, {0.25f, 0.014f, 0.21f}, hat);                                                                                     // its brim, long at the back
+    for (int s = -1; s <= 1; s += 2) mb.Box({0, 1.62f, s * 0.13f}, {0.02f, 0.1f, 0.01f}, Mul(hat, 0.8f));                                          // the ties
+}
+static void BuildArm(MeshBuilder& mb, Color coat) {
+    Color skin{214, 172, 132, 255};
+    mb.Tube({{0, 0, 0}, {0.02f, -0.3f, 0}, {0.07f, -0.56f, 0}}, 0.085f, 0.07f, 6, coat, Mul(coat, 0.85f), 0);
+    mb.Octa({0.08f, -0.63f, 0}, 0.06f, skin);
+}
+static void BuildLeg(MeshBuilder& mb) {
+    Color trousers{50, 48, 46, 255}, boot{30, 28, 26, 255};
+    mb.Tube({{0, 0, 0}, {0.03f, -0.42f, 0}, {0, -0.55f, 0}}, 0.105f, 0.09f, 6, trousers, trousers, 0);
+    mb.Tube({{0, -0.5f, 0}, {0, -0.8f, 0}}, 0.1f, 0.1f, 6, boot, boot, 0);
+    mb.Box({0.05f, -0.83f, 0}, {0.15f, 0.055f, 0.085f}, boot);
+}
+// what a hand holds, built along +X (seen at the bottom right of your view, and in other hands' grip)
+static void BuildItem(MeshBuilder& mb, Item it) {
+    Color wood{120, 86, 54, 255}, iron{70, 74, 78, 255}, brass{200, 160, 70, 255}, red{200, 60, 44, 255}, white{230, 228, 220, 255};
+    switch (it) {
+        case Item::Gaff: mb.Tube({{-0.35f, 0, 0}, {0.6f, 0, 0}}, 0.02f, 0.02f, 5, wood, wood, 0); mb.Tube({{0.6f, 0, 0}, {0.7f, -0.05f, 0}, {0.66f, -0.13f, 0}}, 0.012f, 0.008f, 4, iron, iron, 0); break;
+        case Item::Priest: mb.Tube({{-0.12f, 0, 0}, {0.3f, 0.01f, 0}}, 0.022f, 0.045f, 6, wood, wood, 0); break;
+        case Item::Knife: mb.Box({0, 0, 0}, {0.06f, 0.016f, 0.014f}, wood); mb.Box({0.13f, 0.005f, 0}, {0.08f, 0.012f, 0.003f}, Color{190, 196, 200, 255}); break;
+        case Item::Speargun: mb.Tube({{-0.2f, 0, 0}, {0.55f, 0, 0}}, 0.025f, 0.02f, 6, iron, iron, 0); mb.Tube({{0.0f, 0.03f, 0}, {0.75f, 0.03f, 0}}, 0.008f, 0.008f, 4, white, white, 0); mb.Box({-0.05f, -0.06f, 0}, {0.03f, 0.06f, 0.02f}, wood); break;
+        case Item::Flare: mb.Box({0, 0, 0}, {0.09f, 0.04f, 0.025f}, Color{220, 110, 40, 255}); mb.Tube({{0.06f, 0.01f, 0}, {0.2f, 0.01f, 0}}, 0.025f, 0.025f, 6, Color{220, 110, 40, 255}, Color{220, 110, 40, 255}, 0); mb.Box({-0.04f, -0.06f, 0}, {0.025f, 0.05f, 0.02f}, Color{60, 40, 30, 255}); break;
+        case Item::Rifle: mb.Box({-0.15f, -0.02f, 0}, {0.2f, 0.035f, 0.025f}, wood); mb.Tube({{0.0f, 0.01f, 0}, {0.6f, 0.01f, 0}}, 0.012f, 0.01f, 5, iron, iron, 0); mb.Box({0.05f, 0.025f, 0}, {0.06f, 0.012f, 0.01f}, iron); break;
+        case Item::Shotgun: mb.Box({-0.15f, -0.02f, 0}, {0.2f, 0.04f, 0.028f}, wood); for (int s = -1; s <= 1; s += 2) mb.Tube({{0.0f, 0.01f, s * 0.012f}, {0.5f, 0.01f, s * 0.012f}}, 0.013f, 0.013f, 5, iron, iron, 0); break;
+        case Item::Charge: mb.Tube({{-0.1f, 0, 0}, {0.2f, 0, 0}}, 0.08f, 0.08f, 8, Color{60, 70, 54, 255}, Color{60, 70, 54, 255}, 0); mb.Box({0.21f, 0, 0}, {0.01f, 0.03f, 0.03f}, brass); break;
+        case Item::Ring: for (int k = 0; k < 10; k++) { float a0 = k * 0.628f, a1 = a0 + 0.628f; mb.Tube({{0.15f + cosf(a0) * 0.16f, sinf(a0) * 0.16f, 0}, {0.15f + cosf(a1) * 0.16f, sinf(a1) * 0.16f, 0}}, 0.035f, 0.035f, 5, k % 2 ? white : red, k % 2 ? white : red, 0); } break;
+        case Item::Bandage: mb.Tube({{0, 0, -0.04f}, {0, 0, 0.04f}}, 0.05f, 0.05f, 8, white, white, 0); break;
+        case Item::Longline: for (int k = 0; k < 10; k++) { float a0 = k * 0.628f, a1 = a0 + 0.628f; mb.Tube({{0.1f + cosf(a0) * 0.12f, sinf(a0) * 0.12f, 0}, {0.1f + cosf(a1) * 0.12f, sinf(a1) * 0.12f, 0}}, 0.03f, 0.03f, 4, Color{150, 140, 110, 255}, Color{150, 140, 110, 255}, 0); } break;
+        case Item::Pot: mb.Box({0.15f, 0, 0}, {0.16f, 0.1f, 0.12f}, Color{100, 84, 60, 255}); break;
+        default: mb.Box({0, 0, 0}, {0.01f, 0.01f, 0.01f}, iron); break;
+    }
+}
+static void EnsureCrewModels() {
+    if (gCrewReady || !IsWindowReady()) return;
+    for (int r = 0; r < (int)Role::COUNT; r++) {
+        { MeshBuilder mb; BuildBody(mb, CoatOf((Role)r)); gBody[r] = LoadModelFromMesh(mb.Build()); }
+        { MeshBuilder mb; BuildArm(mb, CoatOf((Role)r)); gArm[r] = LoadModelFromMesh(mb.Build()); }
+    }
+    { MeshBuilder mb; BuildLeg(mb); gLeg = LoadModelFromMesh(mb.Build()); }
+    for (int i = 1; i < (int)Item::COUNT; i++) { MeshBuilder mb; BuildItem(mb, (Item)i); gItem[i] = LoadModelFromMesh(mb.Build()); }
+    // the night sky: stars on a dome round the eye, the moon, and a column of rain to stand in
+    {
+        MeshBuilder mb;
+        uint32_t s = 12345;
+        auto rnd = [&]() { s = s * 1664525u + 1013904223u; return (s >> 8) / 16777216.0f; };
+        for (int k = 0; k < 420; k++) {
+            float az = rnd() * 6.2832f, el = asinf(0.04f + 0.96f * rnd()), R = 80, sz = 0.08f + 0.22f * rnd() * rnd();
+            Vector3 c{cosf(el) * cosf(az) * R, sinf(el) * R, cosf(el) * sinf(az) * R};
+            Vector3 n = Vector3Normalize(c), up = fabsf(n.y) > 0.9f ? Vector3{1, 0, 0} : Vector3{0, 1, 0};
+            Vector3 a = Vector3Scale(Vector3Normalize(Vector3CrossProduct(up, n)), sz), b = Vector3Scale(Vector3Normalize(Vector3CrossProduct(n, a)), sz);
+            unsigned char lv = (unsigned char)(150 + 105 * rnd());
+            Color col{lv, lv, (unsigned char)std::min(255, lv + 20), 255};
+            mb.Quad(Vector3Subtract(Vector3Subtract(c, a), b), Vector3Subtract(Vector3Add(c, a), b), Vector3Add(Vector3Add(c, a), b), Vector3Add(Vector3Subtract(c, a), b), col);
+        }
+        gStars = LoadModelFromMesh(mb.Build());
+    }
+    {
+        MeshBuilder mb;
+        Color m1{236, 232, 214, 255}, m2{200, 196, 180, 255};
+        mb.Lathe(0.2f, 2, 20, [](float) { return 3.4f; }, [](float) { return 3.4f; }, m1, m2);
+        gMoon = LoadModelFromMesh(mb.Build());
+    }
+    {
+        MeshBuilder mb;
+        uint32_t s = 777;
+        auto rnd = [&]() { s = s * 1664525u + 1013904223u; return (s >> 8) / 16777216.0f; };
+        for (int k = 0; k < 700; k++) {
+            Vector3 p{rnd() * 24 - 12, rnd() * 12, rnd() * 24 - 12};
+            mb.Quad(p, {p.x + 0.012f, p.y, p.z}, {p.x + 0.07f, p.y + 0.55f, p.z + 0.02f}, {p.x + 0.058f, p.y + 0.55f, p.z + 0.02f}, Color{170, 182, 200, 110});
+        }
+        gRain = LoadModelFromMesh(mb.Build());
+    }
+    gCrewReady = true;
+}
+
+// a hand: lying down when fallen, treading water overboard, pale and adrift when a ghost
 static void DrawHand(const Gannet& g, const Crew& c, float t) {
-    Color coat = c.role == Role::Bosun ? Color{50, 66, 100, 255} : c.role == Role::Angler ? Color{214, 180, 50, 255} : c.role == Role::Diver ? Color{120, 130, 90, 255} : Color{220, 220, 210, 255};
-    Color boots{36, 32, 28, 255}, skin{214, 170, 130, 255}, hat{200, 170, 60, 255};
-    if (c.dead) { coat = Color{190, 225, 245, 110}; boots = coat; skin = coat; hat = coat; }
+    int r = std::clamp((int)c.role, 0, (int)Role::COUNT - 1);
+    Color tint = c.dead ? Color{190, 225, 245, 120} : WHITE;
+    auto put = [&](const Model& m, const Matrix& local, const Matrix& frame) { rt::DrawStatic(m, MatrixMultiply(local, frame), tint); };
     Matrix frame;
     if (c.overboard && !c.dead) {
+        // treading water: shoulders under, arms working, the head up
         float h = g.sea.Height(c.swim.x, c.swim.y);
-        frame = Frame(W3(c.swim, h - 1.35f), 0);
-        Part(frame, {0, 1.35f, 0}, {0.26f, 0.26f, 0.26f}, skin);
-        Part(frame, {0, 1.52f, 0}, {0.34f, 0.08f, 0.34f}, hat);
-        for (int s = -1; s <= 1; s += 2) Part(frame, {s * 0.35f, 1.3f + 0.12f * sinf(t * 5 + s), 0}, {0.35f, 0.1f, 0.1f}, coat);
+        frame = Frame(W3(c.swim, h - 1.45f), sinf(t * 0.7f) * 0.6f);
+        put(gBody[r], MatrixIdentity(), frame);
+        for (int s = -1; s <= 1; s += 2) put(gArm[r], MatrixMultiply(MatrixMultiply(MatrixRotateZ(1.2f + 0.5f * sinf(t * 4 + s)), MatrixRotateX(s * 0.5f)), MatrixTranslate(0, 1.38f, s * 0.27f)), frame);
         return;
     }
     float yawLocal = -atan2f(c.facing.y, c.facing.x);
     if (OnQuay(g, c)) frame = Frame(W3(g.boat.ToWorld(c.p), QUAY_Y), yawLocal - g.boat.heading);   // (her deck's turn, then her heading)
     else { Vector2 sp = StandSpot(c); frame = MatrixMultiply(Frame({sp.x, c.deck == 1 ? ENGINE_Y : DECK_Y, sp.y}, yawLocal), BoatMatrix(g.boat)); }
     if (c.dead) frame = MatrixMultiply(MatrixTranslate(0, 0.08f + 0.05f * sinf(t * 2 + c.slot), 0), frame);
-    if (c.fallen) {
-        Part(frame, {0.2f, 0.18f, 0}, {1.3f, 0.3f, 0.45f}, coat);
-        Part(frame, {0.95f, 0.2f, 0}, {0.24f, 0.24f, 0.24f}, skin);
-        return;
-    }
-    float stride = c.station < 0 && Vector2Length(c.v) > 0.3f ? sinf(t * 9) * 0.12f : 0;
-    for (int s = -1; s <= 1; s += 2) Part(frame, {s * stride, 0.42f, s * 0.12f}, {0.2f, 0.84f, 0.18f}, boots);
-    Part(frame, {0, 1.12f, 0}, {0.36f, 0.66f, 0.54f}, coat);
-    Part(frame, {0.02f, 1.6f, 0}, {0.24f, 0.26f, 0.22f}, skin);
-    Part(frame, {-0.04f, 1.78f, 0}, {0.44f, 0.08f, 0.38f}, hat);
-    Part(frame, {-0.12f, 1.86f, 0}, {0.2f, 0.1f, 0.22f}, hat);
-    // arms toward the work: out in front at a station, swinging when walking
+    if (c.fallen) frame = MatrixMultiply(MatrixMultiply(MatrixRotateZ(1.5f), MatrixTranslate(0, 0.2f, 0)), frame);   // flat on the deck
+    bool walking = c.station < 0 && Vector2Length(c.v) > 0.3f && !c.fallen;
+    float swing = walking ? sinf(t * 9 + c.slot) * 0.45f : 0;
+    put(gBody[r], walking ? MatrixTranslate(0, fabsf(sinf(t * 9 + c.slot)) * 0.03f, 0) : MatrixIdentity(), frame);
+    for (int s = -1; s <= 1; s += 2) put(gLeg, MatrixMultiply(MatrixRotateZ(swing * s), MatrixTranslate(0, 0.88f, s * 0.12f)), frame);
+    // the arms: forward to the work at a station (the shovel's rhythm at the boiler, the pump's stroke), swinging
+    // when walking, hanging otherwise
+    float work = c.station >= 0 ? 0.9f + 0.25f * sinf(t * 5 + c.slot) : 0;
     for (int s = -1; s <= 1; s += 2) {
-        float fwd = c.station >= 0 ? 0.3f : -stride * s;
-        Part(frame, {0.12f + fwd, 1.1f, s * 0.33f}, {0.5f, 0.14f, 0.14f}, coat);
+        float a = c.station >= 0 ? work : -swing * s * 1.1f;
+        put(gArm[r], MatrixMultiply(MatrixMultiply(MatrixRotateZ(a), MatrixRotateX(s * 0.1f)), MatrixTranslate(0, 1.38f, s * 0.27f)), frame);
+    }
+    // what's in the right hand
+    Item it = c.slots[c.sel].it;
+    if (!c.dead && c.station < 0 && it != Item::None && gItem[(int)it].meshCount > 0) {
+        Matrix hand = MatrixMultiply(MatrixMultiply(MatrixTranslate(0.08f, -0.63f, 0), MatrixRotateZ(-swing * 1.1f)), MatrixTranslate(0, 1.38f, 0.27f));
+        rt::DrawStatic(gItem[(int)it], MatrixMultiply(hand, frame), tint);
     }
 }
 
@@ -458,6 +556,23 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
     for (const auto& p : pts) L.AddPoint(p.p, p.r, p.c, p.k);
 
     rt::RenderBegin(cam, L);
+    EnsureCrewModels();
+    // ---- the sky: stars and the moon on a clear night; rain falling round you in wet weather
+    Weather wx = g.sea.weather;
+    bool clouded = wx == Weather::Fog || wx == Weather::Rain || wx == Weather::Squall || wx == Weather::Storm;
+    if (gCrewReady && !below) {
+        if (!clouded) {
+            rt::DrawSky(gStars, MatrixTranslate(cam.position.x, 0, cam.position.z), WHITE);
+            Vector3 md = Vector3Normalize({cosf(0.45f) * cosf(2.2f), sinf(0.45f), cosf(0.45f) * sinf(2.2f)});
+            Vector3 mp = Vector3Add({cam.position.x, 0, cam.position.z}, Vector3Scale(md, 78));
+            Vector3 z = Vector3Scale(md, -1), x = Vector3Normalize(Vector3CrossProduct({0, 1, 0}, z)), y = Vector3CrossProduct(z, x);
+            Matrix mm = {x.x, y.x, z.x, mp.x, x.y, y.y, z.y, mp.y, x.z, y.z, z.z, mp.z, 0, 0, 0, 1};
+            rt::DrawSky(gMoon, mm, WHITE);
+        } else if (wx != Weather::Fog && !(me.deck == 0 && !me.overboard && me.p.x > 0.9f && me.p.x < 5.1f && fabsf(me.p.y) < 2.1f)) {   // (dry under the wheelhouse roof)
+            float fall = fmodf(t * (wx == Weather::Rain ? 9.0f : 13.0f), 12.0f);
+            for (int k = 0; k < 2; k++) rt::DrawSky(gRain, MatrixTranslate(cam.position.x, cam.position.y - 6 - fall + 12 * k, cam.position.z), WHITE);
+        }
+    }
     // ---- the land, the quay, the harbour's buoys
     if (gLandFor) rt::DrawStatic(gLand, MatrixIdentity(), WHITE);
     Matrix Q = MatrixMultiply(MatrixRotateY(-g.moorHeading), MatrixTranslate(g.moorPos.x, 0, g.moorPos.y));
@@ -608,10 +723,35 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
             }
         }
     }
+    // ---- what you hold, at the bottom right of your view (off station, alive, aboard)
+    Item held = me.slots[me.sel].it;
+    if (gCrewReady && held != Item::None && me.station < 0 && !me.dead && !me.overboard) {
+        Vector3 f = Vector3Normalize(Vector3Subtract(cam.target, cam.position));
+        Vector3 rgt = Vector3Normalize(Vector3CrossProduct(f, cam.up)), up = Vector3CrossProduct(rgt, f);
+        float bob = Vector2Length(me.v) > 0.3f ? sinf(t * 9) * 0.012f : 0;
+        Vector3 p = Vector3Add(cam.position, Vector3Add(Vector3Scale(f, 0.42f), Vector3Add(Vector3Scale(rgt, 0.2f), Vector3Scale(up, -0.2f + bob))));
+        // the item's +X along the look, tipped a little up and in
+        Vector3 ax = Vector3Normalize(Vector3Add(f, Vector3Add(Vector3Scale(up, 0.12f), Vector3Scale(rgt, -0.12f))));
+        Vector3 az = Vector3Normalize(Vector3CrossProduct(ax, up)), ay = Vector3CrossProduct(az, ax);
+        Matrix hm = {ax.x, ay.x, az.x, p.x, ax.y, ay.y, az.y, p.y, ax.z, ay.z, az.z, p.z, 0, 0, 0, 1};
+        rt::DrawStaticGlow(gItem[(int)held], hm, WHITE, 0.25f);   // (a touch of light from the lamp at your shoulder)
+    }
     // ---- the sea, last (its surface is glass the rest is seen through)
     UpdateSea(g.sea, cam.position);
     rt::DrawStatic(gSea, MatrixIdentity(), WHITE);
     rt::RenderEnd();
+}
+
+void UnloadTrawl3D() {
+    if (gReady) { UnloadModel(gBoat); UnloadModel(gQuay); UnloadModel(gFish); UnloadModel(gJelly); UnloadModel(gGull); gReady = false; }
+    if (gSeaReady) { UnloadModel(gSea); gSeaReady = false; }
+    if (gLandFor) { UnloadModel(gLand); gLandFor = nullptr; }
+    if (gCrewReady) {
+        for (int r = 0; r < (int)Role::COUNT; r++) { UnloadModel(gBody[r]); UnloadModel(gArm[r]); }
+        UnloadModel(gLeg); UnloadModel(gStars); UnloadModel(gMoon); UnloadModel(gRain);
+        for (int i = 1; i < (int)Item::COUNT; i++) UnloadModel(gItem[i]);
+        gCrewReady = false;
+    }
 }
 
 } // namespace tw
