@@ -229,6 +229,7 @@ void Gannet::Move(int ci, Vector2 wish, bool brace, float dt) {
     Crew& c = crew[ci];
     gMoored = moored;
     if (c.deck == DECK_SKIFF && !c.overboard) { c.v = {0, 0}; c.braced = true; return; }   // seated in the skiff (the oars move her)
+    if (c.deck == DECK_SHORE && !c.overboard) { ShoreMove(ci, wish, dt); return; }       // on foot on a landing
     if (c.overboard) {
         // treading water: a slow swim, screen-relative like the deck (the deck frame turned into the sea's)
         if (c.dead) return;
@@ -379,8 +380,9 @@ void Gannet::Step(float dt) {
     boat.Step(dt, sea);
     if (moored) { boat.pos = moorPos; boat.heading = moorHeading; boat.vel = {0, 0}; boat.yawRate = 0; boat.roll *= 0.9f; boat.pitch *= 0.9f; }
     StepSkiff(dt);
+    StepLandings(dt);
     // the catch spoils: 1% a real minute on deck, 0.2% gutted and iced
-    for (auto& h : hold) h.fresh = std::max(0.0f, h.fresh - dt / 60.0f * (h.iced ? 0.002f : 0.01f));
+    for (auto& h : hold) if (!h.cooked) h.fresh = std::max(0.0f, h.fresh - dt / 60.0f * (h.iced ? 0.002f : 0.01f));   // (cooked fish keep)
     if (boat.sunk && !wasSunk) Say("The Gannet founders");
     if (boat.valveT > 0 && valve0 <= 0) Say("The relief valve blows: steam in the engine room, the screw stops");
     // a hand patching a leak (a Bosun in 3 s, anyone else in 6): stand in the leaking section with a patch kit and

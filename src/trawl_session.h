@@ -104,6 +104,10 @@ struct Session {
     // the Gunsmith (design doc v2, "Weapons"; trawl_weapons.h): guns and melee weapons into hand c's slots, damage
     // upgrades and attachments for the weapon in a slot, ammunition into the ship's magazine stock
     bool GunBuy(int c, const std::string& id, std::string* why = nullptr);
+    // the Atoll's elder: fish in (150% credit), his goods out
+    bool ElderNear(int c, std::string* why = nullptr) const;
+    float ElderGive(int c, std::string* why = nullptr);
+    bool ElderBuy(int c, const std::string& id, std::string* why = nullptr);
     bool GunUpgrade(int c, int slot, std::string* why = nullptr);
     bool GunAttach(int c, int slot, const std::string& att, std::string* why = nullptr);
     bool AmmoBuy(const std::string& kind, std::string* why = nullptr);
@@ -123,5 +127,7 @@ struct Session {
 Vector2 LagoonHarbour(const Eco& e, float* moorHeading, Vector2* moorPos);
 int RunTrawlSessionTest();                     // depth.exe --trawl-session-test
 int RunTrawlShakedownTest();                   // depth.exe --trawl-shakedown-test (a scripted hand plays the shakedown through)
+
+std::vector<std::string> ElderStock();                    // the Atoll elder's goods: weapon ids, and "att:" attachments
 
 } // namespace tw

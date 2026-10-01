@@ -190,7 +190,7 @@ float Session::Value(const CatchRec& c, float* glut, float* bonus) const {
     if (c.junk) { if (glut) *glut = 1; if (bonus) *bonus = 1; return c.price; }   // junk: a flat price, no freshness or glut
     if (glut) *glut = g;
     if (bonus) *bonus = b;
-    return c.price * c.kg * c.grade * c.killScore * c.fresh * g * b * (variant == Variant::RedTide ? 0.5f : 1.0f);   // fish from a red tide sell at half
+    return c.price * c.kg * c.grade * c.killScore * c.cook * c.fresh * g * b * (variant == Variant::RedTide ? 0.5f : 1.0f);   // fish from a red tide sell at half; cooked ashore up to 1.5x
 }
 // Canoe night's answer (design doc, "Eclipse Lagoon": canoes "trade fish for gear, or raid for it"). Trade: a quarter of
 // the hold's weight, heaviest first, for two tins of bait, 20 kg of ice and a patch kit. Tribute: a tenth of the money,
@@ -217,6 +217,7 @@ bool Session::Canoe(int choice) {
         int shove = -1; float best = -1;
         for (int k = 0; k < (int)G->crew.size(); k++) { const Crew& c = G->crew[k]; if (c.dead || c.overboard || c.deck != 0) continue; float e = fabsf(c.p.y); if (e > best) { best = e; shove = k; } }
         if (shove >= 0 && best > 1.4f) G->GoOverboard(shove, "shoved over the rail by the canoe's crew");
+        G->foughtCanoes = true;
         canoeWord = TextFormat("Refused: they snatched %d fish off the deck%s", took, shove >= 0 && best > 1.4f ? " and a hand went over the rail" : "");
         Tape("CANOES RAIDED STOP");
     }
@@ -242,7 +243,7 @@ float Session::Sell(int idx) {
 float Session::QuotaValue(const CatchRec& c) const {
     if (c.fresh < QUOTA_MIN_FRESH || c.bycatch || c.junk) return 0;
     float b = c.first ? FIRST_CATCH_BONUS : 1;
-    return c.price * c.kg * c.grade * c.killScore * c.fresh * b * (variant == Variant::RedTide ? 0.5f : 1.0f);   // (the scales ignore glut)
+    return c.price * c.kg * c.grade * c.killScore * c.cook * c.fresh * b * (variant == Variant::RedTide ? 0.5f : 1.0f);   // (the scales ignore glut)
 }
 // ---------------------------------------------------------------- the Gunsmith
 bool Session::GunBuy(int ci, const std::string& id, std::string* why) {
@@ -262,6 +263,58 @@ bool Session::GunBuy(int ci, const std::string& id, std::string* why) {
     G->locker.push_back(ns);
     Tape(TextFormat("GUNSMITH SOLD %s STOP IN THE LOCKER STOP", w.name.c_str()));
     return true;
+}
+// The Atoll's elder (design doc v2, "Islands"): he takes only fish, never shillings, at 150% of their value, and
+// trades his own goods for them (sold nowhere else); a crew that fought the canoes finds him closed
+bool Session::ElderNear(int ci, std::string* why) const {
+    auto no = [&](const char* m) { if (why) *why = m; return false; };
+    if (ci < 0 || ci >= (int)G->crew.size()) return no("no such hand");
+    const Crew& c = G->crew[ci];
+    if (c.deck != DECK_SHORE || G->skiff.landing < 0 || G->skiff.landing >= (int)G->landings.size()) return no("the elder is on the Atoll");
+    if (Vector2Distance(c.p, G->landings[G->skiff.landing].elder) > 2.2f) return no("go to the elder's shrine");
+    if (G->foughtCanoes) return no("the elder turns his back: you fought his people's canoes");
+    return true;
+}
+float Session::ElderGive(int ci, std::string* why) {
+    if (!ElderNear(ci, why)) return 0;
+    Crew& c = G->crew[ci];
+    if (!c.carrying || c.carry.junk) { if (why) *why = "he takes only fish"; return 0; }
+    float v = Value(c.carry) * 1.5f;
+    G->landings[G->skiff.landing].elderCredit += v;
+    G->Say(TextFormat("The elder takes the %s: %.0f in trade", c.carry.name.c_str(), v));
+    c.carrying = false; c.carryKg = 0;
+    return v;
+}
+std::vector<std::string> ElderStock() {
+    std::vector<std::string> s;
+    for (const auto& w : Weapons()) if (w.where == "atoll") s.push_back(w.id);
+    for (const auto& a : Attachments()) if (a.where == "atoll") s.push_back("att:" + a.id);
+    return s;
+}
+bool Session::ElderBuy(int ci, const std::string& id, std::string* why) {
+    auto no = [&](const char* m) { if (why) *why = m; return false; };
+    if (!ElderNear(ci, why)) return false;
+    Landing& L = G->landings[G->skiff.landing];
+    Crew& c = G->crew[ci];
+    if (id.rfind("att:", 0) == 0) {
+        // feather fletching onto the speargun in hand (or any spear weapon carried)
+        int ai = AttachmentIndex(id.substr(4));
+        if (ai < 0) return no("he has none of that");
+        const AttachmentDef& a = Attachments()[ai];
+        if (L.elderCredit < a.price) return no("give him more fish first");
+        for (auto& s : c.slots) if (s.it == Item::Weapon && s.wpn >= 0 && AttachmentFits(a, Weapons()[s.wpn]) && !HasAttachment(s.att, a.id.c_str())) {
+            for (int k = 0; k < 3; k++) if (s.att[k] < 0) { s.att[k] = (int8_t)ai; L.elderCredit -= a.price; G->Say(TextFormat("The elder fits %s", a.name.c_str())); return true; }
+        }
+        return no("nothing you carry takes it");
+    }
+    int wi = WeaponIndex(id);
+    if (wi < 0 || Weapons()[wi].where != "atoll") return no("he has none of that");
+    const WeaponDef& w = Weapons()[wi];
+    if (L.elderCredit < w.price) return no("give him more fish first");
+    if (w.slots >= 2) for (const auto& s : c.slots) if (s.it == Item::Weapon && s.wpn >= 0 && Weapons()[s.wpn].slots >= 2) return no("a hand carries one long weapon at most");
+    Slot ns; ns.it = Item::Weapon; ns.wpn = wi; ns.ammo = w.mag;
+    for (auto& s : c.slots) if (s.it == Item::None) { s = ns; L.elderCredit -= w.price; G->Say(TextFormat("The elder gives you %s", w.name.c_str())); return true; }
+    return no("your hands are full (four slots)");
 }
 bool Session::GunUpgrade(int ci, int slot, std::string* why) {
     auto no = [&](const char* m) { if (why) *why = m; return false; };

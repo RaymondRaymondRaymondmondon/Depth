@@ -118,6 +118,9 @@ struct Eco {
     float wake = 0;
     std::vector<EcoAgent> agents;
     std::vector<Raft> rafts;
+    std::vector<Vector2> landingAt;
+    bool skiffOn = false; Vector2 skiffPos{};    // the skiff out on its own (60 m+ from her): the web keeps a second bubble of life round it
+    bool birdDrawOn = false; Vector2 birdDraw{};  // set by EcoTick: cooking smoke or fish ashore, or a laden skiff away from her, draws the birds             // the landings' centres (the Lagoon: the Atoll), islets the skiff can beach on
     std::vector<EcoArrival> arrivals;
     std::vector<std::string> log;
     // what the boat is doing (set each step by the Gannet, or by the test patterns)

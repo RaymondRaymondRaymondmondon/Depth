@@ -236,6 +236,32 @@ Item DrawItemOf(const Slot& s);                           // what the screens dr
 enum Injury { INJ_HOOKED_HAND = 1, INJ_BROKEN_ARM = 2, INJ_BURN = 4, INJ_BITE = 8 };
 const char* InjuryName(int bit);
 
+struct CatchRec {
+    std::string name; float kg = 0; float price = 0;       // shillings per kg at the market, before the rest
+    int sp = -1;                                          // the ground's species index (-1: a stand-in fish)
+    float grade = 1;                                      // how it was taken: hook 100%, less 10% a bite
+    float fresh = 1;                                      // 1% a real minute on deck, 0.2% gutted and iced
+    bool gutted = false, iced = false;
+    bool first = false;                                   // the run's first of its kind: the Owners pay 50% more
+    bool bycatch = false, protectedSp = false; float aboardT = 0;   // worthless or protected: back over the side (a turtle within 60 s)
+    int src = 0;                                          // how it came aboard: CatchSource (the sim's money by source)
+    // on the deck (the playtest, 2026-10-01): a landed fish lies where it came aboard and flops for the rail until
+    // it is clubbed (the priest, a gaff, a knife), shot, or gutted; one that reaches the rail goes back over the side
+    bool dead = false; float flopT = 0; Vector2 deckAt{-8, 0};
+    // the kill (design doc v2, "The kill"): anything of 1 kg or more comes aboard alive with hit points (8 + 6 x kg^0.75),
+    // fights by its deck behaviour, and the finishing blow sets the Killscore (bonuses multiplied, up to 4x)
+    float hp = -1, hpMax = 0;                             // (-1: not yet set up; StepDeckFish does it the moment it's aboard)
+    float heading = 0;                                    // which way it lies on the deck (its head is forward of deckAt)
+    int deckKind = 0;                                     // DeckBehaviour
+    float actT = 0, airT = 0;                             // its next act; in the air on a flop (Airborne)
+    float killScore = 1; std::string killHow; float killT = -1;   // the finishing blow's multiplier and why; seconds since (the popup)
+    int grabbed = -1;                                     // (a Grabber) the hand it has hold of
+    bool crated = false;                                  // in one of the six lidded catch crates on the aft deck: safe from birds (still to be gutted)
+    bool junk = false;                                    // junk from the sea (design doc v2, "Junk from the sea"): price is its flat value; stowed, never quota
+    // cooked ashore (design doc v2, "Cooking"): 1.0x to 1.5x over 10 s + 1 s a kg, held 5 s, then burning to 0.3x over 5 s;
+    // a cooked fish no longer spoils
+    float cookT = -1, cook = 1; bool cooked = false;
+};
 enum class Role { Bosun, Angler, Diver, Medic, COUNT };
 const char* RoleName(Role r);
 struct Crew {
@@ -251,6 +277,8 @@ struct Crew {
     float z = 0, vz = 0;                                  // a jump (the playtest, 2026-10-01): height over the deck and the climb; a careless leap clears the rail
     float inkT = 0;                                       // blinded by a landed octopus's ink (seconds left)
     float oarT = 9, rightT = 0;                           // since this hand's last stroke at the oars; righting a capsized skiff
+    bool carrying = false; CatchRec carry;                // ashore: one thing in the arms (a fish, a chest, a crab)
+    int workOn = -1; float workT = 0;                     // ashore: digging a cache (its index) or relighting the fire (100)
     // the hand's slots, injuries, and life (design doc, "Death, injury, and ghosts")
     Slot slots[4]; int sel = 0;
     float cool = 0, reloadT = 0;
@@ -286,28 +314,29 @@ struct Rod {
     Vector2 TipDeck() const;                              // the rod tip, in the boat frame, over the rail
 };
 // A fish landed aboard (design doc, "Economy": value = base price x weight x grade x freshness x glut)
-struct CatchRec {
-    std::string name; float kg = 0; float price = 0;       // shillings per kg at the market, before the rest
-    int sp = -1;                                          // the ground's species index (-1: a stand-in fish)
-    float grade = 1;                                      // how it was taken: hook 100%, less 10% a bite
-    float fresh = 1;                                      // 1% a real minute on deck, 0.2% gutted and iced
-    bool gutted = false, iced = false;
-    bool first = false;                                   // the run's first of its kind: the Owners pay 50% more
-    bool bycatch = false, protectedSp = false; float aboardT = 0;   // worthless or protected: back over the side (a turtle within 60 s)
-    int src = 0;                                          // how it came aboard: CatchSource (the sim's money by source)
-    // on the deck (the playtest, 2026-10-01): a landed fish lies where it came aboard and flops for the rail until
-    // it is clubbed (the priest, a gaff, a knife), shot, or gutted; one that reaches the rail goes back over the side
-    bool dead = false; float flopT = 0; Vector2 deckAt{-8, 0};
-    // the kill (design doc v2, "The kill"): anything of 1 kg or more comes aboard alive with hit points (8 + 6 x kg^0.75),
-    // fights by its deck behaviour, and the finishing blow sets the Killscore (bonuses multiplied, up to 4x)
-    float hp = -1, hpMax = 0;                             // (-1: not yet set up; StepDeckFish does it the moment it's aboard)
-    float heading = 0;                                    // which way it lies on the deck (its head is forward of deckAt)
-    int deckKind = 0;                                     // DeckBehaviour
-    float actT = 0, airT = 0;                             // its next act; in the air on a flop (Airborne)
-    float killScore = 1; std::string killHow; float killT = -1;   // the finishing blow's multiplier and why; seconds since (the popup)
-    int grabbed = -1;                                     // (a Grabber) the hand it has hold of
-    bool crated = false;                                  // in one of the six lidded catch crates on the aft deck: safe from birds (still to be gutted)
-    bool junk = false;                                    // junk from the sea (design doc v2, "Junk from the sea"): price is its flat value; stowed, never quota
+
+float CookMultiplier(float kg, float t);                  // the curve above, t seconds on the fire
+
+// A landing (design doc v2, "Islands: fires, traders, and treasure"; trawl_landing.cpp): a small island reached by
+// skiff and walked on foot (DECK_SHORE: a hand's p is in the landing's frame, metres from its centre, world-aligned).
+// The Atoll: a palm islet with a fire pit (open: rain puts it out), the tribe's elder (fish only, at 150%; closed
+// to crews who fought the canoes), a beached smuggler sloop with a locked strongbox, one more cache (a chest under
+// the palms, or one buried where a bottle's map or three chart pieces mark it), crabs on the beach and a moray in
+// its little lagoon.
+struct Cache { Vector2 p{}; int kind = 0; float value = 0, kg = 0; bool open = false, found = true; std::string what; };   // kind 0 plain, 1 locked, 2 buried
+struct Landing {
+    std::string name; Vector2 at{}; float r = 13;         // world centre; the shore's radius
+    Vector2 pond{2.5f, 3.0f}; float pondR = 3.2f;          // the little lagoon (wading: half speed; the moray)
+    Vector2 fire{-3.0f, 1.5f}; bool fireLit = true;
+    Vector2 elder{4.8f, -5.0f};
+    Vector2 sloop{-7.2f, -5.0f}; float sloopHead = 0.6f;   // the beached smuggler sloop (a 5 x 2 m wreck)
+    std::vector<Vector2> palms;
+    std::vector<Cache> caches;
+    std::vector<CatchRec> onFire, onBeach;                // deckAt: where it lies (landing frame)
+    std::vector<Vector2> crabs;
+    Vector2 moray{}; float morayT = 0;                    // where it lurks in the pond; its next bite
+    float elderCredit = 0;                                // fish given to the elder, at 150% of their value, to spend on his goods
+    Vector2 ToWorld(Vector2 l) const { return {at.x + l.x, at.y + l.y}; }
 };
 // The junk table (design doc v2, pages 25-27): what a cast or a net haul brings up besides fish
 enum JunkUse { JU_SELL, JU_MAP, JU_KEY, JU_CHART, JU_TRAP, JU_BOOT };
@@ -424,7 +453,7 @@ struct Gannet {
     bool harpoonCannon = false; int harpoons = 0, explosives = 0; bool explosiveLoaded = false; float harpoonReload = 0;
     Rod harpoon;                                          // the cannon's tethered fight (a Fight on 120 kg steel), when one is on
     int harpoonSp = -1;
-    float gullT = 0, fines = 0;                           // fines: the Owners take these at the dock
+    float gullT = 0, awayGullT = 0, fines = 0;                          // fines: the Owners take these at the dock
     float ramT = 0;                                       // a shark's ram cooldown (design doc, "Threats": sharks ram the hull)
     float chumLeft = 0;                                   // blood still to run out of a thrown chum bucket (at the gutting rail)
     bool ThrowChum(int c);                                // a bucket over the side (needs one in the stores)
@@ -498,6 +527,17 @@ struct Gannet {
     bool SkiffLand(const CatchRec& r);                    // a fish or salvage into her (false: over 150 kg)
     int SkiffRowers() const;
     Vector2 HandWorld(int c) const;                       // where a hand is on the sea, whichever deck it is on
+    // the landings (trawl_landing.cpp)
+    std::vector<Landing> landings;
+    bool foughtCanoes = false;                            // refused the canoes: the Atoll's elder won't trade
+    void BuildLandings();                                 // from the ground's chart (Eco::landingAt)
+    int LandingNear(Vector2 world, float extra) const;    // the landing whose shore is within extra m, or -1
+    void StepLandings(float dt);
+    void ShoreMove(int c, Vector2 wish, float dt);        // on foot ashore (wish in the Gannet's frame, as on screen)
+    bool ShoreUse(int c);                                 // E ashore: the skiff's load, the fire, a cache, the beach, a crab
+    bool EatCooked(int c);                                // R ashore with a cooked fish of 2 kg or more: mends one minor injury
+    bool BeachSkiff(int c);                               // E in the skiff close to a shore: run her up and step ashore
+    void StealFrom(std::vector<CatchRec>& v, int idx, Vector2 world, int kind);   // a bird takes a fish from the skiff or a beach
     bool SwimInSkiffFrame(int c) const;                   // a swimmer nearer the skiff than the Gannet (the screens follow her then)
     void SkiffSwim(int c, bool held, float dt);           // a swimmer beside a capsized skiff holding left mouse rights her
     bool HitDeckFish(int idx, float dmg, int by, int how, bool head, float range);   // a blow on a deck fish (KillHow); true if it died of it

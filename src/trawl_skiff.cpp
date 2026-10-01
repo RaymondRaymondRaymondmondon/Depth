@@ -6,6 +6,8 @@
 // roll she capsizes and everyone aboard goes in (a swimmer beside her rights her in 4 s, then climbs in).
 #include "trawl.h"
 #include "trawl_eco.h"
+#include "trawl_session.h"
+#include "trawl_weapons.h"
 #include "raymath.h"
 #include <algorithm>
 #include <cmath>
@@ -27,6 +29,7 @@ Vector2 Gannet::HandWorld(int ci) const {
     const Crew& c = crew[ci];
     if (c.overboard) return c.swim;
     if (c.deck == DECK_SKIFF) return skiff.ToWorld(c.p);
+    if (c.deck == DECK_SHORE && skiff.landing >= 0 && skiff.landing < (int)landings.size()) return landings[skiff.landing].ToWorld(c.p);
     return boat.ToWorld(c.p);
 }
 
@@ -82,12 +85,16 @@ void Gannet::DavitWork(int ci, bool held, float dt) {
 bool Gannet::BoardSkiff(int ci) {
     Crew& c = crew[ci];
     Skiff& s = skiff;
-    if (c.dead || !s.Up() || s.state == SkiffState::Beached) return false;
+    if (c.dead || !s.Up()) return false;
+    if (s.state == SkiffState::Beached && !(c.deck == DECK_SHORE && s.landing >= 0 && s.landing < (int)landings.size() && Vector2Distance(c.p, Vector2Subtract(s.p, landings[s.landing].at)) < 2.8f)) return false;
     int aboard = 0; for (const auto& o : crew) if (o.deck == DECK_SKIFF && !o.overboard && !o.dead) aboard++;
     if (c.overboard) {
         if (Vector2Distance(c.swim, s.p) > SKIFF_HALF_L + 0.8f) return false;
         if (aboard >= 2) { Say("The skiff takes two"); return false; }
         c.overboard = false; c.drownT = 0; Say("Hauled over the gunwale into the skiff");
+    } else if (c.deck == DECK_SHORE) {
+        if (aboard >= 2) { Say("The skiff takes two"); return false; }
+        Say("Into the skiff");
     } else {
         int d = Davit();
         if (c.deck != 0 || d < 0 || Vector2Distance(c.p, Stations()[d].at) > 1.6f || !SkiffAlongside(4)) return false;
@@ -103,6 +110,7 @@ bool Gannet::BoardSkiff(int ci) {
 bool Gannet::LeaveSkiff(int ci) {
     Crew& c = crew[ci];
     if (c.deck != DECK_SKIFF || c.overboard) return false;
+    if (BeachSkiff(ci)) return true;
     if (SkiffAlongside(4)) { c.deck = 0; c.p = {-10.2f, 0}; c.v = {0, 0}; Say("Up the stern ladder onto the Gannet"); return true; }
     return false;
 }
@@ -110,7 +118,15 @@ bool Gannet::LeaveSkiff(int ci) {
 void Gannet::Oar(int ci, bool port, bool star) {
     Crew& c = crew[ci];
     Skiff& s = skiff;
-    if ((!port && !star) || c.deck != DECK_SKIFF || c.overboard || c.dead || s.state != SkiffState::Afloat) return;
+    if ((!port && !star) || c.deck != DECK_SKIFF || c.overboard || c.dead) return;
+    if (s.state == SkiffState::Beached && s.landing >= 0 && s.landing < (int)landings.size()) {
+        // shoved off the sand, bow out
+        Vector2 out = Vector2Normalize(Vector2Subtract(s.p, landings[s.landing].at));
+        s.state = SkiffState::Afloat; s.heading = atan2f(out.y, out.x); s.vel = Vector2Scale(out, 0.8f); s.p = Vector2Add(s.p, Vector2Scale(out, 0.6f)); c.oarT = 0;
+        Say("Pushed off the beach");
+        return;
+    }
+    if (s.state != SkiffState::Afloat) return;
     if (c.oarT < D().skiffCrab || s.crabT > 0) {
         // rushed: the blade digs in and stops her
         s.crabT = 1.0f; s.vel = Vector2Scale(s.vel, 0.35f); s.yawRate *= 0.5f; c.oarT = 0;
@@ -209,6 +225,11 @@ void Gannet::StepSkiff(float dt) {
         if (inG.x < -11.0f) inG.x = -12.2f; else inG.y = out;
         s.p = boat.ToWorld(inG);
     }
+    for (const auto& L : landings) {
+        Vector2 d = Vector2Subtract(s.p, L.at); float l = Vector2Length(d);
+        if (l < L.r + 1.0f && l > 0.01f) { Vector2 n = Vector2Scale(d, 1 / l); s.p = Vector2Add(L.at, Vector2Scale(n, L.r + 1.0f)); float in = Vector2DotProduct(s.vel, n); if (in < 0) s.vel = Vector2Subtract(s.vel, Vector2Scale(n, in)); }
+    }
+    for (auto& r : s.load) if (!r.cooked && !r.junk) r.fresh = std::max(0.0f, r.fresh - dt / 60.0f * 0.01f);
     if (s.state != SkiffState::Afloat) return;
     // the roll: the sea's slope across her beam (a small boat follows it closely) and whatever shoves her
     Vector2 stb = s.ToWorld({0, SKIFF_HALF_B * 2}), prt = s.ToWorld({0, -SKIFF_HALF_B * 2});
@@ -225,6 +246,7 @@ void Gannet::StepSkiff(float dt) {
 int RunTrawlSkiffTest() {
     int fails = 0;
     auto check = [&](bool ok, const std::string& what) { printf("  %s  %s\n", ok ? "ok  " : "FAIL", what.c_str()); if (!ok) fails++; };
+    setvbuf(stdout, nullptr, _IONBF, 0);
     printf("The Trawl: the skiff\n");
     const float dt = 1 / 60.0f;
     auto setup = [&](Gannet& g, Eco& e, int crewN, uint32_t seed) {
@@ -318,6 +340,103 @@ int RunTrawlSkiffTest() {
         h.skiff.state = SkiffState::Afloat; h.skiff.p = Vector2Add(h.boat.pos, {-40, 0}); h.crew[0].deck = DECK_SKIFF; h.crew[0].p = {0.2f, 0};
         float worst = 0; for (int i = 0; i < 60 * 60; i++) { h.Step(dt); worst = std::max(worst, fabsf(h.skiff.roll) * RAD2DEG); }
         check(h.skiff.state == SkiffState::Afloat, TextFormat("a calm minute: she rolls at most %.1f deg", worst));
+    }
+    // the Atoll: beach her, carry a fish to the fire, cook it to a turn (and burn one), the rain, the caches, a crab,
+    // the moray, the elder, and off again
+    {
+        Gannet h; Eco he; setup(h, he, 1, 21);
+        Session ss; (void)ss;
+        h.BuildLandings();
+        check(h.landings.size() == 1 && he.DepthAt(h.landings[0].at) <= 0 && he.DepthAt(Vector2Add(h.landings[0].at, {16, 0})) > 0.5f, "the Lagoon has the Atoll: sand at its centre, a shelf the skiff can reach");
+        Landing& L = h.landings[0];
+        h.skiff.state = SkiffState::Afloat; h.skiff.integrity = D().skiffIntegrity; h.skiff.p = Vector2Add(L.at, {L.r + 2.5f, 0}); h.skiff.heading = PI;
+        h.crew[0].deck = DECK_SKIFF; h.crew[0].p = {0.2f, 0};
+        CatchRec f; f.name = "snapper"; f.sp = Species().Find("snapper"); f.kg = 3; f.price = 3; f.dead = true;
+        CatchRec f2 = f; f2.name = "grunt"; f2.kg = 1.5f;
+        h.SkiffLand(f); h.SkiffLand(f2);
+        check(h.LeaveSkiff(0) && h.skiff.state == SkiffState::Beached && h.crew[0].deck == DECK_SHORE, "E close to the Atoll runs the skiff up on the sand and steps ashore");
+        Crew& c = h.crew[0];
+        check(h.ShoreUse(0) && c.carrying && c.carry.name == "snapper", "E at the beached skiff lifts the heaviest fish out");
+        // walk it to the fire on foot (the ShoreMove wish is in the Gannet's frame: aim straight at the fire)
+        for (int i = 0; i < 60 * 12 && Vector2Distance(c.p, L.fire) > 1.2f; i++) {
+            Vector2 to = Vector2Normalize(Vector2Subtract(L.fire, c.p)); Vector2 bf = h.boat.Forward();
+            h.Move(0, {to.x * bf.x + to.y * bf.y, -to.x * bf.y + to.y * bf.x}, false, dt); h.Step(dt);
+        }
+        check(Vector2Distance(c.p, L.fire) < 1.7f, TextFormat("on foot across the sand to the fire pit (%.1f m off it)", Vector2Distance(c.p, L.fire)));
+        check(h.ShoreUse(0) && L.onFire.size() == 1 && !c.carrying, "E at the fire: the fish goes on");
+        run(h, 10 + 3 + 2);
+        bool off = h.ShoreUse(0);
+        check(off && c.carrying && c.carry.cooked && fabsf(c.carry.cook - 1.5f) < 0.01f, TextFormat("taken off after 15 s (10 + 1 a kg, then the hold): done to a turn, x%.2f", c.carry.cook));
+        Session vs; vs.G = &h;
+        CatchRec raw = c.carry; raw.cook = 1; raw.cooked = false;
+        check(fabsf(vs.Value(c.carry) - 1.5f * vs.Value(raw)) < 0.01f, "a fish cooked to a turn sells at 1.5x");
+        float f0 = c.carry.fresh; CatchRec keep = c.carry; keep.gutted = keep.iced = true; c.carrying = false; c.carryKg = 0;   // (stowed in the hold)
+        h.hold.push_back(keep); run(h, 30);
+        check(!h.hold.empty() && h.hold.back().fresh == f0, "cooked fish keep (no freshness lost in the hold)");
+        if (!h.hold.empty()) h.hold.pop_back();
+        // a burnt one
+        CatchRec b2 = f2; b2.cookT = 0; L.onFire.push_back(b2);
+        for (int i = 0; i < 60 * 25; i++) { for (auto& a : he.agents) if (Species().sp[a.sp].stealsDeck) a.alive = false; h.Step(dt); }   // (no birds for this one: the smoke would bring them)
+        check(!L.onFire.empty() && L.onFire.back().cook > 0.29f && L.onFire.back().cook < 0.31f, TextFormat("left on, it burns down to 0.3x (x%.2f after %.0f s, %d on the fire)", L.onFire.empty() ? -1.0f : L.onFire.back().cook, L.onFire.empty() ? 0.0f : L.onFire.back().cookT, (int)L.onFire.size()));
+        L.onFire.clear();
+        // the rain puts the fire out; relighting takes 10 s standing by it (and only out of the rain)
+        h.sea.weather = Weather::Rain; run(h, 0.1f);
+        check(!L.fireLit, "rain puts the open fire out");
+        h.sea.weather = Weather::Calm; h.ShoreUse(0);
+        bool working = c.workOn == 100; run(h, 10.2f);
+        check(working && L.fireLit, "E at the cold pit: 10 s with dry kindling relights it");
+        // the strongbox: locked until a brass key; a chest is heavy in the arms
+        Cache& box = L.caches[0];
+        c.p = Vector2Add(box.p, {0.6f, -0.9f}); if (!h.landings.empty()) {}
+        h.junkKeys = 0; h.ShoreUse(0);
+        bool locked = !box.open;
+        h.junkKeys = 1; bool opened = h.ShoreUse(0); (void)opened;
+        check(locked && box.open && c.carrying && c.carry.junk && h.junkKeys == 0 && c.carryKg > 10, TextFormat("the sloop's strongbox: locked, then a brass key opens it (%s, %.0f kg, worth %.0f)", c.carry.name.c_str(), c.carry.kg, c.carry.price));
+        c.carrying = false; c.carryKg = 0;
+        if (L.caches.size() > 1 && L.caches[1].kind == 2) {
+            Cache& bur = L.caches[1];
+            h.junkBottles = 1; h.ShoreUse(0);
+            c.p = Vector2Add(bur.p, {0.5f, 0}); h.ShoreUse(0); run(h, 5.2f);
+            check(bur.found && bur.open && c.carrying, "a bottle's map marks the buried cache; 5 s of digging at the X brings it up");
+            c.carrying = false; c.carryKg = 0;
+        } else if (L.caches.size() > 1) {
+            c.p = Vector2Add(L.caches[1].p, {0.5f, 0}); h.ShoreUse(0);
+            check(L.caches[1].open && c.carrying, "a sea chest lies under the palms");
+            c.carrying = false; c.carryKg = 0;
+        }
+        // a crab off the beach
+        if (!L.crabs.empty()) { c.p = Vector2Scale(Vector2Normalize(L.crabs[0]), L.r - 1.2f); L.crabs[0] = c.p; h.ShoreUse(0); }
+        check(c.carrying && c.carry.name == "blue crab", "E by a crab on the beach: caught by the shell");
+        c.carrying = false; c.carryKg = 0;
+        // the moray in the little lagoon
+        int inj0 = c.injuries; c.injuries = 0; L.morayT = 0;
+        for (int i = 0; i < 60 * 4 && !c.Has(INJ_BITE); i++) { c.p = L.moray; h.Step(dt); }
+        check(c.Has(INJ_BITE), "wading in the Atoll's lagoon beside the moray: bitten");
+        c.injuries = inj0;
+        // the elder: fish at 150%, his goods; closed to a crew that fought the canoes
+        c.p = Vector2Add(L.elder, {1.0f, 0.4f});
+        c.carrying = true; c.carry = f; c.carryKg = f.kg;
+        float v = vs.ElderGive(0);
+        check(fabsf(v - 1.5f * vs.Value(f)) < 0.01f && !c.carrying, TextFormat("the elder takes a fish at 150%% of its value (%.1f in trade)", v));
+        L.elderCredit = 300; c.slots[3] = Slot{};
+        std::string why;
+        bool bought = vs.ElderBuy(0, "coralclub", &why); bool club = false; for (const auto& sl : c.slots) if (sl.it == Item::Weapon && sl.wpn >= 0 && Weapons()[sl.wpn].id == "coralclub") club = true;
+        check(bought && club && L.elderCredit < 300, TextFormat("his coral club (sold nowhere else) for fish credit%s", bought ? "" : (" - " + why).c_str()));
+        h.foughtCanoes = true;
+        c.carrying = true; c.carry = f;
+        check(vs.ElderGive(0, &why) == 0 && why.find("canoes") != std::string::npos, "a crew that fought the canoes finds him closed");
+        c.carrying = false;
+        // back into the skiff and off the beach
+        c.p = Vector2Subtract(h.skiff.p, L.at); c.p = Vector2Scale(Vector2Normalize(c.p), L.r - 1.0f);
+        check(h.BoardSkiff(0) && c.deck == DECK_SKIFF, "Space beside the beached skiff: into her");
+        h.Oar(0, true, true); run(h, 1);
+        check(h.skiff.state == SkiffState::Afloat && Vector2Distance(h.skiff.p, L.at) > L.r + 1.0f, "the first stroke shoves her off the sand");
+        // birds come to the beach: a fish set down there is taken
+        h.crew[0].deck = DECK_SHORE; h.crew[0].p = {0, 0}; h.skiff.state = SkiffState::Beached;
+        CatchRec bf = f2; bf.deckAt = {1, 1}; L.onBeach.push_back(bf); h.skiff.load.clear();
+        int gs = Species().Find("gull flock"); int ai = he.SpawnAgentPublic(gs, L.at); he.agents[ai].count = 8;
+        for (int i = 0; i < 60 * 9 && !L.onBeach.empty(); i++) { he.agents[ai].p = {L.at.x, L.at.y, -3}; he.agents[ai].alive = true; h.Step(dt); }
+        check(L.onBeach.empty() && !h.thieves.empty(), "a fish left on the beach goes to the gulls");
     }
     printf(fails ? "trawl-skiff-test: %d FAILED\n" : "trawl-skiff-test: all checks passed\n", fails);
     return fails ? 1 : 0;

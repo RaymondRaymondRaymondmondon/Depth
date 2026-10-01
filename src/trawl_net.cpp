@@ -50,11 +50,12 @@ void ApplyInput(TrawlWorld& w, int ci, const HandInput& in, float dt) {
     auto on = [&](uint16_t b) { return (in.btn & b) != 0; };
     // ---- the presses (once)
     if (in.sel >= 0 && c.station < 0) c.sel = in.sel;
-    if (on(HI_R_P)) g.Reload(ci);
+    if (on(HI_R_P)) { if (!(c.deck == DECK_SHORE && g.EatCooked(ci))) g.Reload(ci); }
     if (on(HI_T_P) && c.station >= 0 && Stations()[c.station].kind == StationKind::Harpoon) g.explosiveLoaded = !g.explosiveLoaded && g.explosives > 0;
     if (on(HI_E_P)) {
         int d = g.moored && c.deck == 0 && c.station < 0 ? NearestDock(c.p, 1.4f) : -1;
         if (c.deck == DECK_SKIFF && !c.overboard) g.LeaveSkiff(ci);   // up the stern ladder (or ashore, beached)
+        else if (c.deck == DECK_SHORE && !c.overboard) g.ShoreUse(ci); // ashore: the skiff's load, the fire, a cache, the beach
         else if (c.overboard && !c.dead) g.BoardSkiff(ci);            // a swimmer beside her climbs in
         else if (d >= 0) {}   // (the dock's panels are the player's own screen: their buttons come back as commands)
         else if (c.station < 0 && !c.dead && (g.GaffFloater(ci) || g.HaulSetGear(ci))) {}
@@ -75,6 +76,12 @@ void ApplyInput(TrawlWorld& w, int ci, const HandInput& in, float dt) {
         g.Move(ci, in.wish, false, dt);
         if (c.dead) g.Primary(ci, lmb, dt);
         else g.SkiffSwim(ci, lmb, dt);   // (beside a capsized skiff: right her)
+        return;
+    }
+    if (c.deck == DECK_SHORE) {
+        // on foot on a landing: walk; Space at the beached skiff climbs in
+        if (on(HI_SPACE_P)) g.BoardSkiff(ci);
+        g.Move(ci, in.wish, false, dt);
         return;
     }
     if (c.deck == DECK_SKIFF) {
@@ -141,6 +148,8 @@ bool DoCommand(TrawlWorld& w, int ci, int cmd, const std::string& id, int arg, s
         case CMD_GUN_UPGRADE: if (!dock) return no("the Gunsmith is ashore"); return s.GunUpgrade(ci, arg, why);
         case CMD_GUN_ATTACH: if (!dock) return no("the Gunsmith is ashore"); return s.GunAttach(ci, arg, id, why);
         case CMD_AMMO: if (!dock) return no("the Gunsmith is ashore"); return s.AmmoBuy(id, why);
+        case CMD_ELDER_GIVE: return s.ElderGive(ci, why) > 0;
+        case CMD_ELDER_BUY: return s.ElderBuy(ci, id, why);
         case CMD_DELIVER: { if (!dock) return no("the Owners' scales are ashore"); if (g.hold.empty() || arg >= (int)g.hold.size()) return no("nothing to deliver"); int rej = 0; float v = s.Deliver(arg, &rej); if (v <= 0) return no(rej ? "not fresh enough: the Owners turn it away" : "nothing to deliver"); return true; }
         case CMD_SLIP: if (!dock) return no("the Slipway is ashore"); return s.BuySlip(arg, why);
         case CMD_CASTOFF: return s.CastOff(why);
@@ -204,6 +213,13 @@ struct In {
     bool bad() const { return r.bad; }
 };
 
+template <class A> void VisitCatch(A& a, CatchRec& h) {
+    a.s(h.name); a.f(h.kg); a.f(h.price); a.i(h.sp); a.f(h.grade); a.f(h.fresh);
+    a.b(h.gutted); a.b(h.iced); a.b(h.first); a.b(h.bycatch); a.b(h.protectedSp); a.f(h.aboardT); a.i(h.src);
+    a.b(h.dead); a.f(h.flopT); a.v2(h.deckAt);
+    a.f(h.hp); a.f(h.hpMax); a.f(h.heading); a.i(h.deckKind); a.f(h.airT); a.f(h.killScore); a.s(h.killHow); a.f(h.killT); a.i(h.grabbed); a.b(h.crated); a.b(h.junk);
+    a.f(h.cookT); a.f(h.cook); a.b(h.cooked);
+}
 template <class A> void VisitSlot(A& a, Slot& s) { a.e(s.it); a.i(s.ammo); a.i(s.wpn); a.i(s.lvl); a.i(s.spare); for (int k = 0; k < 3; k++) { int v = s.att[k]; a.i(v); s.att[k] = (int8_t)v; } }
 template <class A> void VisitFight(A& a, Fight& f) {
     a.e(f.tackle); a.e(f.line); a.e(f.hook);
@@ -287,24 +303,29 @@ template <class A> void Visit(A& a, TrawlWorld& w) {
         for (Slot& sl : c.slots) VisitSlot(a, sl);
         a.i(c.sel); a.f(c.cool); a.f(c.reloadT); a.i(c.injuries); a.i(c.serious);
         a.b(c.dead); a.b(c.bodyLost); a.v2(c.swim); a.f(c.drownT); a.f(c.bleedT); a.s(c.cause); a.f(c.inkT);
-        a.f(c.oarT); a.f(c.rightT);
+        a.f(c.oarT); a.f(c.rightT); a.b(c.carrying); VisitCatch(a, c.carry); a.i(c.workOn); a.f(c.workT);
     });
     {   // the skiff
         Skiff& s = g.skiff;
         a.e(s.state); a.f(s.t); a.v2(s.p); a.v2(s.vel); a.f(s.heading); a.f(s.yawRate); a.f(s.roll); a.f(s.rollV);
         a.f(s.integrity); a.f(s.crabT); a.f(s.noise); a.i(s.landing);
-        a.vec(s.load, [&](CatchRec& h) { a.s(h.name); a.f(h.kg); a.f(h.price); a.i(h.sp); a.f(h.grade); a.f(h.fresh); a.b(h.dead); a.b(h.junk); a.f(h.killScore); a.i(h.src); });
+        a.vec(s.load, [&](CatchRec& h) { VisitCatch(a, h); });
     }
     a.vec(g.brains, [&](Gannet::Brain& br) { a.i(br.order); a.i(br.goal); a.i(br.task); a.i(br.target); a.i(br.follow); a.s(br.bark); a.f(br.barkT); });
     // ---- lines and the catch
     a.vec(g.rods, [&](Rod& r) { VisitRod(a, r); });
     VisitRod(a, g.harpoon); a.i(g.harpoonSp);
-    a.vec(g.hold, [&](CatchRec& h) {
-        a.s(h.name); a.f(h.kg); a.f(h.price); a.i(h.sp); a.f(h.grade); a.f(h.fresh);
-        a.b(h.gutted); a.b(h.iced); a.b(h.first); a.b(h.bycatch); a.b(h.protectedSp); a.f(h.aboardT); a.i(h.src);
-        a.b(h.dead); a.f(h.flopT); a.v2(h.deckAt);
-        a.f(h.hp); a.f(h.hpMax); a.f(h.heading); a.i(h.deckKind); a.f(h.airT); a.f(h.killScore); a.s(h.killHow); a.f(h.killT); a.i(h.grabbed); a.b(h.crated); a.b(h.junk);
+    a.vec(g.hold, [&](CatchRec& h) { VisitCatch(a, h); });
+    a.vec(g.landings, [&](Landing& L) {
+        a.s(L.name); a.v2(L.at); a.f(L.r); a.v2(L.pond); a.f(L.pondR); a.v2(L.fire); a.b(L.fireLit); a.v2(L.elder); a.v2(L.sloop); a.f(L.sloopHead);
+        a.vec(L.palms, [&](Vector2& p) { a.v2(p); });
+        a.vec(L.caches, [&](Cache& k) { a.v2(k.p); a.i(k.kind); a.f(k.value); a.f(k.kg); a.b(k.open); a.b(k.found); a.s(k.what); });
+        a.vec(L.onFire, [&](CatchRec& h) { VisitCatch(a, h); });
+        a.vec(L.onBeach, [&](CatchRec& h) { VisitCatch(a, h); });
+        a.vec(L.crabs, [&](Vector2& p) { a.v2(p); });
+        a.v2(L.moray); a.f(L.morayT); a.f(L.elderCredit);
     });
+    a.b(g.foughtCanoes);
     a.f(g.deckBlood); a.i(g.junkBottles); a.i(g.junkKeys); a.i(g.junkCharts);
     a.i(g.ammoRounds); a.i(g.ammoShells); a.i(g.ammoSpears); a.i(g.ammoFlares); a.i(g.ammoPellets); a.i(g.ammoRivets);
     // ---- what's in the water
