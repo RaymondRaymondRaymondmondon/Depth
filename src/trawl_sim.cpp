@@ -203,6 +203,14 @@ struct Skipper {
             if (spear) { Projectile s; s.kind = Shot::Spear; s.p = {G.mermen.p.x + 1, G.mermen.p.y, 0}; s.life = 0.2f; G.shots.push_back(s); }
             else if (G.ammoFlares > 0) { G.ammoFlares--; G.flares.push_back({G.mermen.p, 30}); }
         }
+        // Atlantis: the bell against the Deep Choir (the skipper rings it from the wheelhouse); against the Kraken, the
+        // net cut away, the lantern out and full steam for home
+        if (G.choir.on && G.choir.t > 3 && G.bellT > 8) { G.bellT = 0; G.bellRings++; G.Say("The skipper rings the bell"); }
+        if (G.kraken.state == 2) {
+            if (G.net.state == NetState::Down || G.net.state == NetState::Snagged || G.net.state == NetState::Hauling) { G.net.state = NetState::Lost; G.net.catchKg.clear(); G.net.load = 0; G.Say("The skipper cuts the net away"); }
+            G.boat.lantern = 0; AtHelm(); G.boat.telegraph = 3; SteerTo(G.moorPos, 0); G.boat.telegraph = 3;
+            return;
+        }
         // kelp round the screw (the Weeds): stop her and send a hand over the stern to cut it free (half a minute)
         if (G.screwFouled) { fouledT += dt; G.boat.telegraph = 0; if (fouledT > 30 && G.boat.shaft < 0.05f) { G.screwFouled = false; fouledT = 0; } return; }
         // aground: back off for a few seconds with the helm over, then try again
