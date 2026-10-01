@@ -1,6 +1,7 @@
 #include "sound.h"
 #include "beasts.h"
 #include "trawl.h"
+#include "trawl_wreck.h"
 #include "trawl_eco.h"
 #include "trawl_session.h"
 #include "trawl_net.h"
@@ -664,6 +665,7 @@ int main(int argc, char** argv) {
     if (argc >= 2 && strcmp(argv[1], "--trawl-weeds-test") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlWeedsTest(); }
     if (argc >= 2 && strcmp(argv[1], "--trawl-grotto-test") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlGrottoTest(); }
     if (argc >= 2 && strcmp(argv[1], "--trawl-atlantis-test") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlAtlantisTest(); }
+    if (argc >= 2 && strcmp(argv[1], "--trawl-wreck") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlWreck(argc, argv); }
     if (argc >= 2 && strcmp(argv[1], "--trawl-bot-test") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlBotTest(); }
     if (argc >= 2 && strcmp(argv[1], "--trawl-net-test") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlNetTest(); }
     if (argc >= 2 && strcmp(argv[1], "--trawl-sail-diag") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlSailDiag(); }
