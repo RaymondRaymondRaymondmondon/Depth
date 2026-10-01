@@ -15,6 +15,13 @@ bool ActPressed(int a);
 const char* KeyLabel(int key);           // "Space", "Left shift", "A" ...
 void ResetBindings();
 
+// First-person mouse look (Red Tide, the Trawl's first person): hides the pointer and puts it back in the middle of
+// the window every frame, so the look never stops at the screen's edge (GLFW's "disabled cursor" didn't capture on
+// every machine). Returns this frame's movement in window pixels; call it every frame the look should be on. The main
+// loop gives the pointer back (MouseLookFrameEnd) on any frame nobody asked for it, and while the game menu is open.
+Vector2 MouseLook(bool on);
+void MouseLookFrameEnd();
+
 struct Settings {
     float brightness = 1.0f;             // 0.6 .. 1.6: a gamma on the final frame
     bool fullscreen = false;

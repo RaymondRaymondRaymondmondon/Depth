@@ -7,6 +7,7 @@
 #include "redtide_profile.h"
 #include "game.h"
 #include "sound.h"
+#include "input.h"
 #include "raymath.h"
 #include <algorithm>
 #include <cmath>
@@ -491,7 +492,7 @@ static void Input(float dt) {
     Match& m = M();
     DiverState& d = Me();
     if (S.shotMode || m.over) { m.SteerDiver(0, {0, 0, 0}, 0, false, false, dt); return; }
-    Vector2 md = GetMouseDelta();
+    Vector2 md = MouseLook(true);
     float sens = d.ads ? 0.0016f : 0.0025f;
     d.yaw -= md.x * sens;
     d.pitch = std::clamp(d.pitch - md.y * sens, -1.45f, 1.45f);
@@ -1250,8 +1251,7 @@ void StartRedTide(Game& g, const char* map) {
     Me().pouch = GetProfile().pouch;                    // the Salt Charms the diver brought
     S.silhouette = 0;
     S.lineup = -1;
-    DisableCursor();
-    g.scene = Scene::RedTide;
+    g.scene = Scene::RedTide;   // (the mouse look takes the pointer itself: MouseLook in Input)
 }
 
 void SceneRedTide(Game& g) {

@@ -316,3 +316,34 @@ The user asked for two versions of the Trawl, one top-down as it was and one fir
   - Voice.
   - Trimming the snapshot (the hold's names, agents far from the boat).
   - A six-player LAN night with real people (the stage's human gate).
+
+## Playtest fixes: the mouse look, the squall, the sonar and the chart (2026-09-30)
+- **Mouse look (Red Tide and the Trawl's first person):** on the user's machine raylib's `DisableCursor` didn't capture
+  the pointer, so the look stopped at the screen's edge.
+  - `MouseLook(on)` (input.h) now hides the pointer and warps it back to the window's middle every frame, returning
+    the movement.
+  - The main loop's `MouseLookFrameEnd` gives the pointer back to any scene that stopped asking for it, and while the
+    game menu is open.
+  - The sonar station takes the pointer in first person, like the locker.
+- **The squall sank her:** she rolled past 80 deg and filled with green water in about 2 minutes, whatever the helm did.
+  The doc says a squall rolls her "up to 20 deg". Now (`--trawl-sail-diag` measures it):
+  - `rollDamp` is 0.35.
+  - The waves' roll is soft-capped per weather (`WeatherRoll`: 5/7/12/20/30 deg).
+  - Green water scales with how far the rail is under.
+  - The bilge's slosh is gentler, and `gmEff` has a floor of 0.15.
+  - Result: calm 3 deg, rain 8, squall 18, all with no water shipped. A storm (not rolled yet) washes the deck, about 3 t
+    in 4 minutes at slow ahead, and only capsizes her driven full ahead with the helm hard over.
+- **The sonar station** (`trawl_sonar.cpp`, the doc's "The sonar"), headless in `Gannet::sonar` and in the snapshot:
+  - Passive returns near her are drowned out at half speed or more.
+  - The active ping fires every 3 s out to 150 m. Returns live 6 s, and the ping is noise in the water.
+  - The depth dial (scroll) has four bands.
+  - Left click a contact to mark it: a 10 s bearing arrow for every hand (`DrawMarkArrows`) and a line on the tape.
+  - A bot on the sonar pings every 6 s and marks the largest school and any threat.
+  - The scope (`DrawSonarScope`, heading-up) shows the shore and the shoals as hard returns, schools as dotted clouds,
+    fish as blips, gear as squares, and something big as a heavy blot. The side profile under it shows the seabed and
+    the returns by depth along her heading.
+- **The chart at the helm** (`DrawChart`): the ground's own depths drawn into a texture, north up to match the helm's
+  compass. It shows land, the shoals she grounds on, the reef, seagrass and open water, plus the harbour line, the
+  Gannet's heading, the marks, and the bearing and distance to the harbour line.
+- Shots: `trawl_sonar`, `trawl_helmchart`, `trawl3d_helmchart`. Remaining from the doc's sonar: a second operator
+  (Slipway), the side-scan toggle (the profile is always on), kelp shadow, Grotto echo twins, and the Kraken whiteout.

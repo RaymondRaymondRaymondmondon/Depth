@@ -26,7 +26,7 @@ struct TrawlData {
     float dryMass = 40000;                                // kg (hull, engine, gear)
     float waterplane = 96;                                // m^2: 1 m of sinkage takes waterplane * 1025 kg
     float gm = 0.5f;                                      // metacentric height (m): how stiff she is in roll
-    float rollPeriod = 6, pitchPeriod = 4.5f, rollDamp = 0.12f, pitchDamp = 0.2f;
+    float rollPeriod = 6, pitchPeriod = 4.5f, rollDamp = 0.35f, pitchDamp = 0.2f;
     float rollGain = 2.0f, pitchGain = 1.2f;              // how hard the wave slope throws her (a squall rolls her to about 20 deg)
     float maxThrust = 26000, dragFwd = 1100, dragSide = 9000, rudderYaw = 0.10f, yawDamp = 1.2f;
     // the engine (design doc, "The engine")
@@ -53,6 +53,7 @@ const TrawlData& D();
 enum class Weather { Calm, Fog, Rain, Squall, Storm, Glass, COUNT };
 const char* WeatherName(Weather w);
 float WeatherSwell(Weather w);                            // metres of swell (design doc, "Weather")
+float WeatherRoll(Weather w);                             // degrees: the most the waves alone roll her (Squall 20, Storm 30)
 struct Sea {
     Weather weather = Weather::Calm;
     float swell = 0.2f, t = 0;
@@ -87,6 +88,7 @@ struct Boat {
     float rudder = 0, shaft = 0;                          // -1..1 helm; 0..1 the screw
     bool sunk = false;
     float noise = 0;                                      // what the screw writes into the water this second
+    float greenWater = 0;                                 // kg shipped over the rail so far (diagnostics)
     std::vector<Load> loads;                              // everything aboard that isn't her own dry mass, set each step
     float extraHeelTorque = 0;                            // kg*m from lines and hands pulling at the rail (set each step)
     Vector2 extraForce{0, 0};                             // N on her from lines (a hooked marlin tows her), set each step
@@ -296,6 +298,23 @@ struct Longline { Vector2 a, b; std::vector<SetHook> hooks; float age = 0; };
 struct Pot { Vector2 p; float age = 0; std::vector<std::pair<int, float>> catchKg; int n = 0; };
 struct LifeRing { int state = 0; Vector2 p{}, v{}; int thrower = -1, holder = -1; float haulT = 0; };   // 0 aboard, 1 flying, 2 in the water
 
+// The wheelhouse sonar (design doc, "The sonar"; trawl_sonar.cpp): the crew's only view below the surface outside the
+// lantern. Returns live 6 s after a ping (passive returns 2 s); a mark shows every hand a bearing arrow for 10 s.
+enum class SonarKind { School, Fish, Threat, Gear };
+struct SonarReturn { Vector3 p{}; int sp = -1; SonarKind kind = SonarKind::Fish; float size = 1, t = 0; int count = 1; bool passive = false; };
+struct SonarMark { Vector2 p{}; float t = 0; std::string what; int by = -1; };
+struct SonarState {
+    float cool = 0;                                       // until the next ping is ready (3 s)
+    float sinceP = 99;                                    // since the last ping (the sweep, the seabed's fade)
+    int band = 0;                                         // the depth dial: 0 all, 1 surface (0-5 m), 2 middle (5-20), 3 deep (20+)
+    std::vector<SonarReturn> ret;
+    std::vector<SonarMark> marks;
+    float passiveT = 0, botT = 0;
+};
+const char* SonarBandName(int band);
+bool SonarBandHas(int band, float depth);
+const float SONAR_RANGE = 150, SONAR_COOL = 3, SONAR_LIFE = 6, SONAR_MARK_LIFE = 10;
+
 struct Eco;                                               // the food web (trawl_eco.h)
 
 // The boat and her crew as one step (the host's 60 Hz tick): the hands' weights into the boat, the boat's roll into
@@ -330,6 +349,10 @@ struct Gannet {
     int harpoonSp = -1;
     float gullT = 0, fines = 0;                           // fines: the Owners take these at the dock
     int chargesUsed = 0;
+    SonarState sonar;                                     // (trawl_sonar.cpp)
+    bool SonarPing(int c);                                // an active ping (every 3 s; noise into the water)
+    bool SonarMarkAt(int c, Vector2 aimDeck);             // mark the contact nearest the aim (deck frame); every hand sees its bearing
+    void StepSonar(float dt);                             // passive returns, fading, a bot operator's pings and marks
     // bot crew (trawl_bots.cpp; design doc "Bot crew"): every hand after the first is a bot when botsOn
     bool botsOn = false; Skill botSkill = Skill::Able;
     struct Brain {
@@ -392,6 +415,7 @@ bool QuayWalkable(Vector2 p);                             // the quay beside her
 
 int RunTrawlGearTest();                                   // depth.exe --trawl-gear-test
 int RunTrawlBotTest();                                    // depth.exe --trawl-bot-test
+int RunTrawlSailDiag();                                   // depth.exe --trawl-sail-diag (water shipped under way, by weather)
 int RunTrawlBoatTest();                                   // depth.exe --trawl-boat-test
 int RunTrawlRodTest();                                    // (part of --trawl-boat-test) a rod on the Gannet, cast to landing
 

@@ -65,7 +65,7 @@ bool Toggle(Rectangle r, const char* label, bool on) {
 void MainPage(Game& g, Rectangle p) {
     float y = p.y + 50, x = p.x + p.width / 2 - 150;
     auto item = [&](const char* label, bool enabled = true) { bool r = Button({x, y, 300, 44}, label, enabled, 19); y += 54; return r; };
-    if (item("Resume")) { gOpen = false; PlayCue("ui.confirm"); if (g.scene == Scene::RedTide) DisableCursor(); }
+    if (item("Resume")) { gOpen = false; PlayCue("ui.confirm"); }   // (a first-person scene takes the pointer back itself)
     if (item("Settings")) { gPage = P_SETTINGS; }
     if (item("Controls")) { gPage = P_CONTROLS; }
     if (g.scene == Scene::RedTide || g.scene == Scene::Trawl) {

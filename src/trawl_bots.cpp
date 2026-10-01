@@ -352,6 +352,30 @@ void Gannet::StepBots(float dt) {
     }
 }
 
+// ---------------------------------------------------------------- --trawl-sail-diag (what puts water in her under way)
+int RunTrawlSailDiag() {
+    const float dt = 1 / 60.0f;
+    for (int w = 0; w < 5; w++) for (int tel = 1; tel <= 3; tel += 2) {
+        Gannet g; g.Init(1, 7 + w, (Weather)w);
+        g.boat.telegraph = tel; g.boat.pressure = 0.7f; g.boat.firebox = 6;
+        g.crew[0].p = {3.0f, 0.8f};
+        float maxRoll = 0, minRail = 9, sunkAt = -1;
+        for (int k = 0; k < 60 * 240; k++) {
+            float t = k * dt;
+            g.boat.rudder = fmodf(t, 40) < 20 ? (fmodf(t, 80) < 40 ? 1.0f : -1.0f) : 0.0f;
+            if (g.boat.pressure < 0.6f && g.boat.firebox < 5) g.boat.Shovel(0.1f);
+            g.Step(dt);
+            maxRoll = std::max(maxRoll, fabsf(g.boat.RollDeg()));
+            float rail = g.boat.Freeboard() - fabsf(sinf(g.boat.roll)) * D().beam * 0.5f;
+            minRail = std::min(minRail, rail);
+            if (g.boat.sunk && sunkAt < 0) sunkAt = t;
+        }
+        printf("%-7s tel %d: speed %.1f kn, max roll %4.1f deg, lowest rail %.2f m, green water %5.0f kg, bilge %5.0f kg%s\n",
+               WeatherName((Weather)w), tel, g.boat.Speed() * 1.944f, maxRoll, minRail, g.boat.greenWater, g.boat.bilge, sunkAt >= 0 ? TextFormat(", SUNK at %.0f s", sunkAt) : "");
+    }
+    return 0;
+}
+
 // ---------------------------------------------------------------- --trawl-bot-test
 int RunTrawlBotTest() {
     int fails = 0;

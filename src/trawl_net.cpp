@@ -75,6 +75,13 @@ void ApplyInput(TrawlWorld& w, int ci, const HandInput& in, float dt) {
     }
     if (c.station >= 0 && Stations()[c.station].kind == StationKind::NetWinch) { g.NetInput(ci, lmb, on(HI_RMB_P), dt); g.Move(ci, {0, 0}, false, dt); return; }
     if (c.station >= 0 && Stations()[c.station].kind == StationKind::Harpoon) { g.HarpoonInput(ci, in.aim, on(HI_LMB_P), lmb, on(HI_RMB_P), dt); g.Move(ci, {0, 0}, false, dt); return; }
+    if (c.station >= 0 && Stations()[c.station].kind == StationKind::Sonar) {
+        // right mouse or Space pings; a left click on the scope marks the contact under it (the aim is the scope's point)
+        if (on(HI_RMB_P) || on(HI_SPACE_P)) g.SonarPing(ci);
+        if (on(HI_LMB_P)) g.SonarMarkAt(ci, in.aim);
+        g.Move(ci, {0, 0}, false, dt);
+        return;
+    }
     Vector2 wish = in.wish;
     bool atHelm = c.station >= 0 && Stations()[c.station].kind == StationKind::Helm;
     if (c.station >= 0 && Stations()[c.station].kind == StationKind::Lantern && g.boat.lantern == 3) {
@@ -279,6 +286,11 @@ template <class A> void Visit(A& a, TrawlWorld& w) {
     a.vec(g.pots, [&](Pot& p) { a.v2(p.p); a.f(p.age); a.i(p.n); });
     a.vec(g.rings, [&](LifeRing& r) { a.i(r.state); a.v2(r.p); a.v2(r.v); a.i(r.thrower); a.i(r.holder); a.f(r.haulT); });
     a.vec(g.locker, [&](Slot& sl) { VisitSlot(a, sl); });
+    // ---- the sonar: the scope's returns, the marks every hand's arrows point at
+    SonarState& so = g.sonar;
+    a.f(so.cool); a.f(so.sinceP); a.i(so.band);
+    a.vec(so.ret, [&](SonarReturn& r) { a.v3(r.p); a.i(r.sp); a.e(r.kind); a.f(r.size); a.f(r.t); a.i(r.count); a.b(r.passive); });
+    a.vec(so.marks, [&](SonarMark& m) { a.v2(m.p); a.f(m.t); a.s(m.what); a.i(m.by); });
 }
 } // namespace
 
@@ -409,6 +421,12 @@ int RunTrawlNetTest() {
         w.sess.CastOff();
         w.G.boat.pos = Vector2Add(w.sess.harbour, {w.sess.harbourR + 40, 10});
         for (int k = 0; k < 60 * 120; k++) { w.G.Step(dt); w.sess.Step(dt); }
+        // the sonar: a ping finds what's under her; the next waits 3 s; a mark goes to everyone
+        bool pinged = w.G.SonarPing(0);
+        int found = (int)w.G.sonar.ret.size();
+        check(pinged && found > 0 && !w.G.SonarPing(0), TextFormat("a sonar ping finds %d contacts within 150 m, and the next waits its 3 s", found));
+        bool marked = found > 0 && w.G.SonarMarkAt(0, w.G.boat.ToDeck({w.G.sonar.ret[0].p.x, w.G.sonar.ret[0].p.y}));
+        check(marked && w.G.sonar.marks.size() == 1, TextFormat("a click on a contact marks it: \"%s\"", w.G.sonar.marks.empty() ? "" : w.G.sonar.marks[0].what.c_str()));
         Writer a; WriteWorld(w, a);
         TrawlWorld m;
         Reader r(a.b);
@@ -420,6 +438,7 @@ int RunTrawlNetTest() {
               "the mirror rebuilt the same chart from the ground's seed");
         int out = 0; for (auto& rd : m.G.rods) out += rd.state != RodState::Idle;
         check(m.sess.phase == Phase::Night && !m.G.hold.empty() == !w.G.hold.empty() && out > 0, TextFormat("the mirror has the night: %d fish aboard, %d lines out", (int)m.G.hold.size(), out));
+        check(m.G.sonar.ret.size() == w.G.sonar.ret.size() && m.G.sonar.marks.size() == 1, "every hand's mirror has the sonar's returns and the mark (their arrows)");
         // a mirror is reused snapshot after snapshot (its chart is kept while the ground stays the same)
         for (int k = 0; k < 60; k++) { w.G.Step(dt); w.sess.Step(dt); }
         Writer a2; WriteWorld(w, a2); Reader r2(a2.b);

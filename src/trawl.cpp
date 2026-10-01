@@ -9,6 +9,7 @@
 #include "trawl_net.h"
 #include "arcade_session.h"
 #include "net.h"
+#include "input.h"
 #include "raymath.h"
 #include <algorithm>
 #include <cmath>
@@ -77,6 +78,11 @@ Vector2 KeysWish() {
     Vector2 w = Vector2Add(Vector2Scale(fw, f), Vector2Scale(rt, r));
     return Vector2Length(w) > 1 ? Vector2Normalize(w) : w;
 }
+// the sonar scope on the screen: heading-up (the bow at the top), the Gannet at its centre, 150 m to the rim
+const Vector2 SCOPE_C{SCREEN_W / 2.0f, 276};
+const float SCOPE_R = 190;
+Vector2 DeckToScope(Vector2 d) { float k = SCOPE_R / SONAR_RANGE; return {SCOPE_C.x + d.y * k, SCOPE_C.y - d.x * k}; }
+Vector2 ScopeToDeck(Vector2 s) { float k = SCOPE_R / SONAR_RANGE; return {(SCOPE_C.y - s.y) / k, (s.x - SCOPE_C.x) / k}; }
 // where the hand aims on the water, in the deck frame: the mouse top-down, the crosshair in first person
 Vector2 AimDeck() {
     if (S.fp) { Vector2 d; AimAtWater(S.W->G, S.cam, {SCREEN_W / 2.0f, SCREEN_H / 2.0f}, &d); return d; }
@@ -95,6 +101,7 @@ HandInput Gather() {
         return in;
     }
     in.aim = AimDeck();
+    if (c.station >= 0 && Stations()[c.station].kind == StationKind::Sonar) in.aim = ScopeToDeck(GetMousePosition());   // (the scope's point under the mouse)
     in.wish = KeysWish();
     in.wheel = GetMouseWheelMove();
     if (c.dead && Vector2Length(in.wish) > 0) S.ghostSee = 1.0f;
@@ -219,6 +226,200 @@ void ReelGauge(const Gannet& g, const Crew& c) {
     if (r.state == RodState::Fighting && c.role == Role::Angler) TxtBold(TextFormat("%s, about %.0f kg", r.fight.spec.name, r.fight.spec.kg), x0, SCREEN_H - 82, 15, Color{150, 200, 170, 255});
     if (!r.lastCatch.empty() && r.state != RodState::Fighting) Txt(TextFormat("Last: %s", r.lastCatch.c_str()), x0, SCREEN_H - 82, 14, Fade(paper, 0.6f));
 }
+// ---------------------------------------------------------------- the sonar scope (design doc, "The sonar")
+// A round phosphor scope, heading-up: the seabed and the shore come back as hard returns after a ping (fading over
+// 6 s), schools as dotted clouds, single fish as blips by size, gear as squares, something big as a heavy blot. Under
+// it the side profile: the water column along her heading, the seabed line and the returns at their depths.
+void DrawSonarScope() {
+    const Gannet& g = S.W->G;
+    const SonarState& so = g.sonar;
+    const Eco& e = S.W->eco;
+    Color glow{110, 255, 160, 255}, dim{40, 120, 70, 255};
+    DrawCircleV(SCOPE_C, SCOPE_R + 12, Color{40, 34, 26, 255});
+    DrawCircleV(SCOPE_C, SCOPE_R + 4, Color{90, 76, 50, 255});
+    DrawCircleV(SCOPE_C, SCOPE_R, Color{4, 18, 10, 255});
+    for (int ring = 1; ring <= 3; ring++) DrawRing(SCOPE_C, SCOPE_R * ring / 3.0f - 1, SCOPE_R * ring / 3.0f, 0, 360, 64, Fade(dim, 0.6f));
+    DrawLineEx({SCOPE_C.x, SCOPE_C.y - SCOPE_R}, {SCOPE_C.x, SCOPE_C.y + SCOPE_R}, 1, Fade(dim, 0.35f));
+    DrawLineEx({SCOPE_C.x - SCOPE_R, SCOPE_C.y}, {SCOPE_C.x + SCOPE_R, SCOPE_C.y}, 1, Fade(dim, 0.35f));
+    for (int ring = 1; ring <= 3; ring++) DrawText(TextFormat("%d", ring * 50), (int)(SCOPE_C.x + 4), (int)(SCOPE_C.y - SCOPE_R * ring / 3.0f + 2), 10, Fade(dim, 0.9f));
+    float fade = std::clamp(1 - so.sinceP / SONAR_LIFE, 0.0f, 1.0f);
+    // the seabed and the shore: what the last ping found, swept outward over its first second
+    if (e.g && fade > 0) {
+        float swept = std::min(1.0f, so.sinceP / 0.8f) * SONAR_RANGE;
+        for (float rr = 6; rr <= swept; rr += 4) {
+            int n = (int)(rr * 0.8f) + 8;
+            for (int k = 0; k < n; k++) {
+                float a = k * 6.2832f / n;
+                Vector2 d{cosf(a) * rr, sinf(a) * rr};
+                float depth = e.DepthAt(g.boat.ToWorld(d));
+                // only what she could hit comes back hard: the shore, the crest and the shoals (a faint rim at 3 m)
+                float hard = depth <= 0 ? 1.0f : depth < 1.8f ? 0.8f : depth < 3 ? 0.18f : 0;
+                if (hard <= 0) continue;
+                Vector2 s = DeckToScope(d);
+                DrawRectangle((int)s.x - 1, (int)s.y - 1, 3, 3, Fade(glow, hard * fade * 0.8f));
+            }
+        }
+    }
+    // the sweep
+    if (so.sinceP < 1) { float a = so.sinceP * 6.2832f - PI / 2; DrawLineEx(SCOPE_C, {SCOPE_C.x + cosf(a) * SCOPE_R, SCOPE_C.y + sinf(a) * SCOPE_R}, 2, Fade(glow, 0.7f * (1 - so.sinceP))); }
+    // the returns
+    for (size_t i = 0; i < so.ret.size(); i++) {
+        const SonarReturn& r = so.ret[i];
+        if (!SonarBandHas(so.band, r.p.z)) continue;
+        Vector2 d = g.boat.ToDeck({r.p.x, r.p.y});
+        if (Vector2Length(d) > SONAR_RANGE) continue;
+        Vector2 s = DeckToScope(d);
+        float a = std::clamp(r.t / (r.passive ? 2.0f : SONAR_LIFE), 0.0f, 1.0f);
+        uint32_t h = (uint32_t)i * 2654435761u + (uint32_t)r.sp * 97u;
+        auto rnd = [&]() { h = h * 1664525u + 1013904223u; return (h >> 8) / 16777216.0f; };
+        switch (r.kind) {
+            case SonarKind::School: {
+                int dots = std::clamp(r.count / 8, 4, 18);
+                float rad = 2 + sqrtf((float)r.count) * 0.45f;
+                for (int k = 0; k < dots; k++) { float an = rnd() * 6.2832f, rr = sqrtf(rnd()) * rad; DrawRectangle((int)(s.x + cosf(an) * rr), (int)(s.y + sinf(an) * rr), 2, 2, Fade(glow, a)); }
+                break;
+            }
+            case SonarKind::Fish: DrawCircleV(s, 1 + r.size * 0.5f, Fade(glow, a * 0.8f)); break;
+            case SonarKind::Threat: DrawCircleV(s, 3 + r.size, Fade(glow, a)); DrawRing(s, 6 + r.size * 1.4f, 7.5f + r.size * 1.4f, 0, 360, 24, Fade(glow, a * 0.5f)); break;
+            case SonarKind::Gear: DrawRectangle((int)s.x - 3, (int)s.y - 3, 7, 7, Fade(Color{220, 255, 220, 255}, a)); break;
+        }
+    }
+    for (const auto& m : so.marks) {
+        Vector2 s = DeckToScope(g.boat.ToDeck(m.p));
+        if (Vector2Distance(s, SCOPE_C) > SCOPE_R) continue;
+        DrawRing(s, 11, 13, 0, 360, 24, Fade(Color{250, 220, 120, 255}, std::min(1.0f, m.t)));
+        DrawText(m.what.c_str(), (int)s.x + 15, (int)s.y - 6, 12, Fade(Color{250, 220, 120, 255}, std::min(1.0f, m.t)));
+    }
+    // the Gannet at the centre, bow up
+    DrawTriangle({SCOPE_C.x, SCOPE_C.y - 9}, {SCOPE_C.x - 4, SCOPE_C.y + 7}, {SCOPE_C.x + 4, SCOPE_C.y + 7}, glow);
+    DrawTriangle({SCOPE_C.x, SCOPE_C.y - 9}, {SCOPE_C.x + 4, SCOPE_C.y + 7}, {SCOPE_C.x - 4, SCOPE_C.y + 7}, glow);
+    // the side profile: the water column along her heading, 150 m either way
+    Rectangle pr{SCOPE_C.x - SCOPE_R - 60, SCOPE_C.y + SCOPE_R + 18, SCOPE_R * 2 + 120, 74};
+    DrawRectangleRec(pr, Color{4, 18, 10, 235});
+    DrawRectangleLinesEx(pr, 2, Color{90, 76, 50, 255});
+    float maxD = 40;
+    auto py = [&](float depth) { return pr.y + 6 + std::clamp(depth / maxD, 0.0f, 1.0f) * (pr.height - 12); };
+    if (e.g) {
+        Vector2 last{};
+        for (int k = 0; k <= 60; k++) {
+            float along = -SONAR_RANGE + k * (2 * SONAR_RANGE / 60);
+            float depth = e.DepthAt(g.boat.ToWorld({along, 0}));
+            Vector2 p{pr.x + pr.width * k / 60.0f, py(depth)};
+            if (k) DrawLineEx(last, p, 2, Fade(glow, 0.35f + 0.5f * fade));
+            last = p;
+        }
+    }
+    for (int b = 1; b <= 2; b++) { float dz = b == 1 ? 5.0f : 20.0f; DrawLineEx({pr.x, py(dz)}, {pr.x + pr.width, py(dz)}, 1, Fade(dim, 0.4f)); }
+    if (so.band > 0) {
+        float z0 = so.band == 1 ? 0 : so.band == 2 ? 5 : 20, z1 = so.band == 1 ? 5 : so.band == 2 ? 20 : maxD;
+        DrawRectangle((int)pr.x, (int)py(z0), (int)pr.width, (int)(py(z1) - py(z0)), Fade(glow, 0.06f));
+    }
+    for (const auto& r : so.ret) {
+        Vector2 d = g.boat.ToDeck({r.p.x, r.p.y});
+        if (fabsf(d.y) > 30 || fabsf(d.x) > SONAR_RANGE || r.kind == SonarKind::Gear) continue;   // (a slice 60 m wide)
+        float a = std::clamp(r.t / SONAR_LIFE, 0.0f, 1.0f);
+        DrawCircleV({pr.x + pr.width * (d.x + SONAR_RANGE) / (2 * SONAR_RANGE), py(r.p.z)}, r.kind == SonarKind::School ? 4.0f : r.kind == SonarKind::Threat ? 6.0f : 2.0f, Fade(glow, a));
+    }
+    DrawText("ASTERN", (int)pr.x + 6, (int)pr.y + 4, 10, dim);
+    DrawText("AHEAD", (int)(pr.x + pr.width - 40), (int)pr.y + 4, 10, dim);
+    // the readouts
+    Color paper{230, 220, 196, 255};
+    bool drowned = g.boat.shaft >= 0.5f;
+    // (beside the scope: the tape runs across the top, the station's name under the profile)
+    float lx = SCOPE_C.x - SCOPE_R - 200, rx = SCOPE_C.x + SCOPE_R + 30;
+    TxtBold("DEPTH DIAL", lx, SCOPE_C.y - 60, 14, dim);
+    TxtBold(SonarBandName(so.band), lx, SCOPE_C.y - 40, 17, glow);
+    Txt("scroll to change", lx, SCOPE_C.y - 16, 12, dim);
+    TxtBold(so.cool > 0 ? TextFormat("PING  %.1f s", so.cool) : "PING READY", rx, SCOPE_C.y - 60, 17, so.cool > 0 ? dim : glow);
+    Txt("right mouse / Space", rx, SCOPE_C.y - 36, 12, dim);
+    Txt("left click a contact:", rx, SCOPE_C.y - 10, 12, dim);
+    Txt("mark it for the crew", rx, SCOPE_C.y + 6, 12, dim);
+    if (drowned) { TxtBold("PASSIVE DEAF", lx, SCOPE_C.y + 30, 15, Color{240, 180, 110, 255}); Txt("the screw drowns it out:", lx, SCOPE_C.y + 52, 12, dim); Txt("below half speed to listen", lx, SCOPE_C.y + 68, 12, dim); }
+    (void)paper;
+}
+
+// ---------------------------------------------------------------- the chart (at the helm): the ground, the harbour, the boat
+// The Lagoon's chart from the ground's own depths, drawn once per ground into a texture: dry land, the crest and
+// shallows she grounds on (under 1.8 m), the reef and the seagrass where fish feed, open water by depth.
+Texture2D gChartTex{}; std::string gChartKey;
+void EnsureChart(const Eco& e) {
+    std::string key = e.ground + "#" + std::to_string(e.initSeed);
+    if (!e.g || key == gChartKey) return;
+    if (gChartTex.id) UnloadTexture(gChartTex);
+    Image img = GenImageColor(e.n, e.n, BLACK);
+    for (int y = 0; y < e.n; y++) for (int x = 0; x < e.n; x++) {
+        Vector2 w{(x + 0.5f) * e.cell, (y + 0.5f) * e.cell};
+        float d = e.DepthAt(w); int hb = e.HabAt(w);
+        Color c;
+        if (d <= 0) c = Color{176, 156, 108, 255};
+        else if (d < 1.8f) c = Color{196, 120, 92, 255};                       // where she runs aground
+        else if (hb == H_REEF || hb == H_CREST) c = Color{150, 108, 124, 255};
+        else if (hb == H_SEAGRASS) c = Color{70, 118, 86, 255};
+        else { float k = std::clamp(d / 40.0f, 0.0f, 1.0f); c = ColorLerp(Color{112, 160, 178, 255}, Color{20, 40, 78, 255}, k); }
+        ImageDrawPixel(&img, x, e.n - 1 - y, c);   // (north up: the helm's compass reads +y as north)
+    }
+    gChartTex = LoadTextureFromImage(img);
+    UnloadImage(img);
+    gChartKey = key;
+}
+void DrawChart(Rectangle r) {
+    const Gannet& g = S.W->G; const Eco& e = S.W->eco; const Session& ss = S.W->sess;
+    Color paper{230, 220, 196, 255}, ink{40, 30, 20, 255};
+    DrawRectangleRec({r.x - 8, r.y - 26, r.width + 16, r.height + 60}, Color{60, 46, 30, 240});
+    TxtBold("THE CHART  (north up)", r.x, r.y - 22, 14, paper);
+    EnsureChart(e);
+    if (!gChartTex.id) return;
+    DrawTexturePro(gChartTex, {0, 0, (float)gChartTex.width, (float)gChartTex.height}, r, {0, 0}, 0, WHITE);
+    float size = e.n * e.cell;
+    auto toR = [&](Vector2 w) { return Vector2{r.x + w.x / size * r.width, r.y + (1 - w.y / size) * r.height}; };
+    // the harbour line, and the mouth
+    Vector2 hc = toR(ss.harbour); float hr = ss.harbourR / size * r.width;
+    for (int k = 0; k < 24; k += 2) DrawRing(hc, hr - 1, hr + 1, k * 15.0f, k * 15.0f + 15, 4, Color{250, 240, 210, 255});
+    TxtBold("HARBOUR", hc.x - 26, hc.y - hr - 16, 11, Color{250, 240, 210, 255});
+    (void)ink;
+    // the marks
+    for (const auto& m : g.sonar.marks) { Vector2 p = toR(m.p); DrawRing(p, 4, 6, 0, 360, 16, Color{250, 220, 120, 255}); }
+    // the Gannet: an arrow along her heading
+    Vector2 bp = toR(g.boat.pos), f = g.boat.Forward();
+    f.y = -f.y;
+    Vector2 tip{bp.x + f.x * 9, bp.y + f.y * 9}, l{bp.x - f.x * 5 - f.y * 5, bp.y - f.y * 5 + f.x * 5}, rr{bp.x - f.x * 5 + f.y * 5, bp.y - f.y * 5 - f.x * 5};
+    DrawTriangle(tip, l, rr, Color{250, 250, 250, 255}); DrawTriangle(tip, rr, l, Color{250, 250, 250, 255});
+    DrawTriangleLines(tip, l, rr, BLACK);
+    // the course home
+    Vector2 home = Vector2Subtract(ss.harbour, g.boat.pos);
+    float dist = std::max(0.0f, Vector2Length(home) - ss.harbourR);
+    float brg = fmodf(90 - atan2f(home.y, home.x) * RAD2DEG + 720, 360);   // (as the helm's heading reads: 0 north, clockwise)
+    bool inside = Vector2Length(home) < ss.harbourR;
+    Txt(inside ? "Inside the harbour line" : TextFormat("Harbour line: %03.0f deg, %.0f m", brg, dist), r.x, r.y + r.height + 6, 13, paper);
+    Txt("red: shoals she runs aground on   mauve: reef   green: seagrass   blue: open water", r.x, r.y + r.height + 22, 11, Fade(paper, 0.7f));
+}
+
+// ---------------------------------------------------------------- the sonar's marks: a bearing arrow for every hand
+void DrawMarkArrows() {
+    const Gannet& g = S.W->G;
+    if (g.sonar.marks.empty()) return;
+    const Crew& me = g.crew[S.you];
+    Color mc{250, 220, 120, 255};
+    for (const auto& m : g.sonar.marks) {
+        Vector2 dd = Vector2Subtract(g.boat.ToDeck(m.p), me.overboard ? g.boat.ToDeck(me.swim) : me.p);
+        float a = std::min(1.0f, m.t);
+        float dist = Vector2Length(dd);
+        Vector2 dir;   // the mark's direction on the screen
+        if (S.fp) { float rel = atan2f(dd.y, dd.x) - S.eye.yaw; dir = {sinf(rel), -cosf(rel)}; }
+        else {
+            const float PX = (float)SCREEN_W / PIXEL_W;
+            Vector2 c0 = S.view.ToCanvas(me.p), c1 = S.view.ToCanvas(Vector2Add(me.p, Vector2Scale(Vector2Normalize(dd), 10)));
+            dir = Vector2Normalize(Vector2Scale(Vector2Subtract(c1, c0), PX));
+        }
+        Vector2 c{SCREEN_W / 2.0f, SCREEN_H / 2.0f};
+        Vector2 p{c.x + dir.x * (SCREEN_W / 2.0f - 60), c.y + dir.y * (SCREEN_H / 2.0f - 60)};
+        Vector2 side{-dir.y, dir.x};
+        Vector2 t0 = Vector2Add(p, Vector2Scale(dir, 16)), t1 = Vector2Add(p, Vector2Scale(side, 9)), t2 = Vector2Subtract(p, Vector2Scale(side, 9));
+        DrawTriangle(t0, t1, t2, Fade(mc, a)); DrawTriangle(t0, t2, t1, Fade(mc, a));
+        DrawTextCentered(TextFormat("%s  %.0f m", m.what.c_str(), dist), p.x - dir.x * 26, p.y - dir.y * 26 - 6, 13, Fade(mc, a));
+    }
+}
+
 void StationOverlay() {
     const Gannet& g = S.W->G;
     const Crew& c = g.crew[S.you];
@@ -252,8 +453,10 @@ void StationOverlay() {
             TxtBold(TextFormat("Heading %03.0f   %.1f kn", hd, b.Speed() * 1.944f), SCREEN_W - 300, SCREEN_H - 60, 18, paper);
             TxtBold(TextFormat("Rudder %s%.0f", b.rudder > 0 ? "stbd " : b.rudder < 0 ? "port " : "", fabsf(b.rudder) * 35), SCREEN_W - 300, SCREEN_H - 36, 16, Fade(paper, 0.8f));
             if (S.W->sess.phase == Phase::SailOut) DrawTextCenteredBold("Steam out past the harbour line: the night starts there", SCREEN_W / 2.0f, 150, 18, paper);
+            DrawChart({30, 110, 260, 260});
             break;
         }
+        case StationKind::Sonar: DrawSonarScope(); break;
         case StationKind::Boiler:
             Gauge({SCREEN_W - 150.0f, SCREEN_H - 170.0f}, 70, b.pressure, D().greenLo, D().greenHi, D().redAt, "PRESSURE");
             TxtBold(TextFormat("Coal in the bunker: %.0f kg (%.1f sacks)   Firebox: %.1f kg", b.bunker, b.bunker / D().sackKg, b.firebox), SCREEN_W - 560, SCREEN_H - 60, 16, paper);
@@ -567,6 +770,7 @@ void Hud(Game& g) {
         else if (c.p.y > -3.0f && S.W->sess.phase == Phase::Dock) DrawTextCentered("Moored at the quay: the gangplank is amidships to port; the helm casts off", SCREEN_W / 2.0f, SCREEN_H - 60.0f, 14, Fade(paper, 0.7f));
     }
     if (S.panel < 0) StationOverlay();
+    if (S.panel < 0 && !(c.station >= 0 && Stations()[c.station].kind == StationKind::Sonar)) DrawMarkArrows();
     Panels(g);
 }
 
@@ -753,12 +957,10 @@ void SceneTrawl(Game& g) {
     if (!S.shot) {
         // first person takes the mouse to look with, except where a panel or the locker needs a pointer
         const Crew& me = S.W->G.crew[S.you];
-        bool pointer = S.panel >= 0 || (me.station >= 0 && Stations()[me.station].kind == StationKind::Locker);
+        bool pointer = S.panel >= 0 || (me.station >= 0 && (Stations()[me.station].kind == StationKind::Locker || Stations()[me.station].kind == StationKind::Sonar));
         bool lock = S.fp && !pointer;
-        if (lock && !IsCursorHidden()) DisableCursor();
-        if (!lock && IsCursorHidden()) EnableCursor();
+        Vector2 md = MouseLook(lock);
         if (lock) {
-            Vector2 md = GetMouseDelta();
             S.eye.yaw += md.x * 0.0025f;                      // right turns toward starboard when you face the bow
             S.eye.pitch = std::clamp(S.eye.pitch - md.y * 0.0025f, -1.35f, 1.25f);
             if (S.eye.yaw > PI) S.eye.yaw -= 2 * PI;
@@ -801,6 +1003,29 @@ void DebugTrawlShot(Game& g, int which) {
     if (fp) {   // where the hand looks in each first-person shot
         S.eye.pitch = which == 15 ? -0.3f : which == 9 || which == 0 ? -0.08f : -0.22f;
         S.eye.yaw = which == 4 || which == 5 ? 1.25f : which == 15 || which == 21 || which == 22 ? 3.1f : which == 9 ? -1.9f : which == 16 ? 1.3f : which == 17 ? 1.9f : which == 1 ? -2.4f : which == 6 || which == 8 ? 2.6f : 0.0f;
+    }
+    if (which == 23 || which == 24) {
+        // 23 the sonar out on the ground (a ping, the largest school marked); 24 the helm and its chart, steaming out
+        Eye3D eye = S.eye;
+        StartTrawl(g, fp, 1, 1);
+        S.shot = true; S.eye = eye;
+        Gannet& G = S.W->G; Session& ss = S.W->sess;
+        G.crew[0].p = {3.0f, 0.8f};
+        ss.Buy("shrimp"); while (G.boat.bunker < 40 && ss.Buy("coal")) {}
+        ss.CastOff();
+        G.boat.pos = Vector2Add(ss.harbour, which == 23 ? Vector2{ss.harbourR + 60, 10} : Vector2{ss.harbourR - 20, 6}); G.boat.heading = 0.1f;
+        S.W->eco.agentBudget = 260;
+        for (int i = 0; i < 60 * 25; i++) { G.Step(1 / 60.0f); ss.Step(1 / 60.0f); }
+        StationKind want = which == 23 ? StationKind::Sonar : StationKind::Helm;
+        for (int i = 0; i < (int)Stations().size(); i++) if (Stations()[i].kind == want) { G.crew[0].p = Stations()[i].at; G.crew[0].station = i; }
+        if (which == 23) {
+            G.SonarPing(0);
+            int best = -1, most = 0;
+            for (int k = 0; k < (int)G.sonar.ret.size(); k++) if (G.sonar.ret[k].kind == SonarKind::School && G.sonar.ret[k].count > most) { most = G.sonar.ret[k].count; best = k; }
+            if (best >= 0) G.SonarMarkAt(0, G.boat.ToDeck({G.sonar.ret[best].p.x, G.sonar.ret[best].p.y}));
+            for (int i = 0; i < 40; i++) { G.Step(1 / 60.0f); ss.Step(1 / 60.0f); }
+        } else { G.boat.telegraph = 2; for (int i = 0; i < 60 * 3; i++) { G.Step(1 / 60.0f); ss.Step(1 / 60.0f); } }
+        return;
     }
     if (which == 22) {
         // a guest's screen in a networked match: a host and a guest over the in-memory transport, two AI hands; the

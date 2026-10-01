@@ -97,12 +97,16 @@ void Boat::Step(float dt, const Sea& sea) {
     float port = (h[0] + h[2] + h[4]) / 3, star = (h[1] + h[3] + h[5]) / 3;
     float fore = (h[0] + h[1] + h[6]) / 3, aft = (h[4] + h[5] + h[7]) / 3;
     float rollWave = -atanf((star - port) / (K.beam * 0.85f)) * K.rollGain;          // starboard water higher lifts starboard: port goes down
+    {   // the sea alone rolls her no further than the weather's figure (design doc: a squall "up to 20 deg"): a soft limit
+        float cap = std::max(1.0f, WeatherRoll(sea.weather)) * DEG2RAD * 0.8f;        // (the swing overshoots the target a little)
+        rollWave = cap * tanhf(rollWave / cap);
+    }
     float pitchWave = atanf((fore - aft) / (K.length * 0.8f)) * K.pitchGain;          // bow water higher lifts the bow
     // ---- weight on board: every load's moment, and the bilge water sloshing to the low side (free surface)
     float heelKgM = extraHeelTorque, trimKgM = 0;
     for (const auto& l : loads) { heelKgM += l.kg * l.at.y; trimKgM += l.kg * l.at.x; }
-    heelKgM += bilge * 2.2f * sinf(roll) * 1.6f;
-    float gmEff = std::max(0.04f, K.gm - bilge / M * 4.0f);
+    heelKgM += bilge * 1.2f * sinf(roll);   // (the water in her sloshes to the low side: less stable, not a capsize by itself)
+    float gmEff = std::max(0.15f, K.gm - bilge / M * 4.0f);
     float rollTarget = rollWave + atanf(heelKgM / (M * gmEff));
     float pitchTarget = pitchWave - atanf(trimKgM / (M * 15.0f));           // weight aft lifts the bow
     float wr = 6.2832f / K.rollPeriod, wp = 6.2832f / K.pitchPeriod;
@@ -121,7 +125,7 @@ void Boat::Step(float dt, const Sea& sea) {
     }
     float fb = Freeboard();
     float rail = fb - fabsf(sinf(roll)) * K.beam * 0.5f;
-    if (rail < 0 || fabsf(roll) * 57.2958f > K.beamEnds) bilge += K.overRailKgPerS * std::max(0.3f, -rail) * dt;
+    if (rail < 0 || fabsf(roll) * 57.2958f > K.beamEnds) { float kg = K.overRailKgPerS * std::max(0.05f, -rail) * dt; bilge += kg; greenWater += kg; }
     if (fb < -0.05f) { sunk = true; return; }
     // ---- the engine: coal burns hotter the fuller the firebox; the telegraph draws steam into the shaft
     int tel = std::clamp(telegraph, -1, 3), step = std::abs(tel);
@@ -332,6 +336,7 @@ void Gannet::Scroll(int ci, float amount) {
         boat.lantern = std::clamp(boat.lantern + (amount > 0 ? 1 : -1), 0, searchlight ? 3 : 2);
         if (boat.lantern != was) { static const char* N[4] = {"hooded", "low", "full", "the searchlight"}; Say(std::string("Lantern: ") + N[boat.lantern]); }
     }
+    if (Stations()[c.station].kind == StationKind::Sonar) sonar.band = (sonar.band + (amount > 0 ? 1 : 3)) % 4;   // the depth dial
 }
 void Gannet::Steer(int ci, float amount, float dt) {
     Crew& c = crew[ci];
@@ -350,6 +355,7 @@ void Gannet::Step(float dt) {
     if (botsOn) StepBots(dt);
     StepRods(dt);
     StepGear(dt);
+    StepSonar(dt);
     if (eco) EcoTick(*eco, *this, dt);
     boat.Step(dt, sea);
     if (moored) { boat.pos = moorPos; boat.heading = moorHeading; boat.vel = {0, 0}; boat.yawRate = 0; boat.roll *= 0.9f; boat.pitch *= 0.9f; }

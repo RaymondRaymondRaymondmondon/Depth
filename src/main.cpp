@@ -219,6 +219,9 @@ static void TakeShots(const Game& base, const std::string& dir) {
         {"trawl_locker", [](Game& g) { DebugTrawlShot(g, 20); }},
         {"trawl_bots", [](Game& g) { DebugTrawlShot(g, 21); }},
         {"trawl_guest", [](Game& g) { DebugTrawlShot(g, 22); }},
+        {"trawl_sonar", [](Game& g) { DebugTrawlShot(g, 23); }},
+        {"trawl_helmchart", [](Game& g) { DebugTrawlShot(g, 24); }},
+        {"trawl3d_helmchart", [](Game& g) { DebugTrawlShot(g, 124); }},
         {"trawl3d_guest", [](Game& g) { DebugTrawlShot(g, 122); }},
         {"trawl3d_bots", [](Game& g) { DebugTrawlShot(g, 121); }},
         {"trawl3d_deck", [](Game& g) { DebugTrawlShot(g, 100); }},
@@ -639,6 +642,7 @@ int main(int argc, char** argv) {
     if (argc >= 2 && strcmp(argv[1], "--trawl-gear-test") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlGearTest(); }
     if (argc >= 2 && strcmp(argv[1], "--trawl-bot-test") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlBotTest(); }
     if (argc >= 2 && strcmp(argv[1], "--trawl-net-test") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlNetTest(); }
+    if (argc >= 2 && strcmp(argv[1], "--trawl-sail-diag") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlSailDiag(); }
     if (argc >= 2 && strcmp(argv[1], "--trawl-session-test") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlSessionTest(); }
     if (argc >= 2 && strcmp(argv[1], "--trawl-eco-test") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlEcoTest(); }
     if (argc >= 2 && strcmp(argv[1], "--trawl-fight") == 0) return tw::RunTrawlFight(argc, argv);
@@ -814,6 +818,7 @@ int main(int argc, char** argv) {
                 BeginFrame();
                 GameMenuFrame(g);
                 if (g.scene == Scene::Trawl) TrawlMenuTick(GetFrameTime());   // (a crew at sea doesn't stop for one hand's menu)
+                MouseLookFrameEnd();                                          // (the menu needs the pointer)
                 AudioFrame(GetFrameTime(), g.scene == Scene::Platformer || g.scene == Scene::Abyss);
                 EndFrame(g.time);
                 continue;
@@ -821,6 +826,7 @@ int main(int argc, char** argv) {
             g.time += GetFrameTime();
             BeginFrame();
             RunScene(g);
+            MouseLookFrameEnd();   // a scene that stopped asking for mouse look gets its pointer back
             {   // aboard the Nautilus (the salon and its station screens) the waltz and the ship's bed play
                 bool aboard = g.scene != Scene::Platformer && g.scene != Scene::Abyss && g.scene != Scene::Dungeon && g.scene != Scene::Study
                               && !(g.scene == Scene::RedTide && RedTideAudioActive()) && g.scene != Scene::Trawl;

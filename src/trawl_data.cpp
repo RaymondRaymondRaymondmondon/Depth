@@ -15,6 +15,10 @@ float WeatherSwell(Weather w) {   // "Weather": Calm 0.2 m, Fog 0.3, Rain 0.6, S
     static const float S[(int)Weather::COUNT] = {0.2f, 0.3f, 0.6f, 1.5f, 3.0f, 0.0f};
     return S[(int)w];
 }
+float WeatherRoll(Weather w) {    // the most the sea alone rolls her (degrees): Squall "up to 20", Storm "up to 30"; the gentler ones scaled by the swell
+    static const float R[(int)Weather::COUNT] = {5, 7, 12, 20, 30, 0};
+    return R[(int)w];
+}
 const char* SectionName(int s) {
     static const char* N[SEC_COUNT] = {"bow, port", "bow, starboard", "midships, port", "midships, starboard", "stern, port", "stern, starboard"};
     return N[s < 0 || s >= SEC_COUNT ? 0 : s];

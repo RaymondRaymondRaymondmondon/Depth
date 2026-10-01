@@ -29,6 +29,27 @@ int& ActKey(int a, int slot) { Init(); return gKeys[a][slot & 1]; }
 bool ActDown(int a) { Init(); return (gKeys[a][0] && IsKeyDown(gKeys[a][0])) || (gKeys[a][1] && IsKeyDown(gKeys[a][1])); }
 bool ActPressed(int a) { Init(); return (gKeys[a][0] && IsKeyPressed(gKeys[a][0])) || (gKeys[a][1] && IsKeyPressed(gKeys[a][1])); }
 
+// ---- first-person mouse look: a hidden pointer warped back to the middle of the window every frame
+static bool gLooking = false, gLookAsked = false;
+Vector2 MouseLook(bool on) {
+    gLookAsked = gLookAsked || on;
+    if (!on || !IsWindowFocused()) {
+        if (gLooking) { EnableCursor(); gLooking = false; }
+        return {0, 0};
+    }
+    Vector2 d{0, 0};
+    // the first frame (or after something showed the pointer: the menu, a panel) only centres it: that jump isn't a look
+    if (gLooking && IsCursorHidden()) d = GetMouseDelta();
+    if (!IsCursorHidden()) HideCursor();
+    gLooking = true;
+    SetMousePosition(GetScreenWidth() / 2, GetScreenHeight() / 2);
+    return d;
+}
+void MouseLookFrameEnd() {
+    if (!gLookAsked && gLooking) { EnableCursor(); gLooking = false; }
+    gLookAsked = false;
+}
+
 const char* KeyLabel(int k) {
     static char buf[16];
     if (k == KEY_NULL) return "-";
