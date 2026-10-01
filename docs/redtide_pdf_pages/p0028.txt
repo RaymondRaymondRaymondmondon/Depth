@@ -1,0 +1,107 @@
+Red Tide
+Arcade Game 5 Design Document
+Beast
+Hawksbill
+Turtle
+Loggerhead
+Turtle
+Sand Tiger
+Shark
+Bull Shark
+Saltwater
+Crocodile
+Tiger Shark
+The Goliath
+Class
+Reptile
+Reptile
+Fish
+Fish
+Reptile
+Fish
+Fish
+Size
+3
+4
+4
+4
+5
+5
+6
+Tier
+2
+3
+4
+4
+4
+4
+5
+Eats
+Sponges, jellies
+Crabs, whelks,
+mantis shrimp
+Trevally,
+barracuda,
+grouper
+Everything size 3
+and below,
+Wreckers
+Turtles, bull
+sharks, Wreckers,
+divers
+Everything,
+including sea
+snakes and
+turtles
+Anything that
+enters the engine
+room
+Eaten by
+Tiger shark
+Tiger shark,
+crocodile
+Tiger shark
+Tiger shark,
+crocodile
+Nothing but
+the Goliath
+Nothing
+Behavior and note
+Armored; eats the
+jelly bloom;
+harmless unless
+shot
+Armored; crushes a
+diver's shield in a
+bite if provoked
+Hangs motionless
+near the keel;
+investigates blood
+over 60
+Enters the hull
+through the
+breach; aggressive;
+threshold 80 blood
+Amphibious: lives
+in the salon's air
+pocket; a death roll
+grabs a diver
+(teammates shoot
+it off); leaves for
+the sand when the
+pocket shrinks
+Wanderer;
+threshold 150
+blood; eats
+enemies as readily
+as divers; leaves
+when fed
+A goliath grouper
+the size of a boiler:
+inhales a diver from
+4 m (teammates
+have 5 s to shoot it
+out); guards the
+Forge; wanders
+from tide 12
+Page 28 of 90

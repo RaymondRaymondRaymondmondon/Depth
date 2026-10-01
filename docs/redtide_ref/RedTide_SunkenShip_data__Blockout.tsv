@@ -1,0 +1,56 @@
+Zones (metres; ship lies on its starboard side, 'decks' are as walked)
+zone	deck	x	y	w	h	door_cost_scrip	notes
+Bridge	Upper	4	2	10	6	0	Start pocket. Gannet rack, Juggernaut visible below
+Grand Salon	Upper	16	0	20	12	750	Air pocket (crocodile lair), Quick Brine, Needler Mk I rack, workbench
+Galley & Pantry	Upper	38	0	10	8	1000	Flechette 12 rack, Locker spot 1, cleaning station
+Cabin Deck	Lower	16	16	24	10	1250	Six cabins, moray pipes, Speed Brine, Long Speargun rack, Carbine rack
+Engine Room	Lower	42	16	14	12	1500	Power switch, Pressure Forge, the Goliath's home, algae mat
+Stern & Swim Platform	Lower	58	14	10	14	1500	Bolt Harpoon rack, Double Shot, Locker spot 2, hull breach (Wrecker entry)
+The Keel & Sand	Outside	0	30	70	14	2000	Open shelf under the hull, Kick Brine, mast kelp, shark lane
+Foredeck (outside)	Outside	0	-8	16	6	0	Cargo crane trap control; reached from the Bridge hatch
+Links
+from	to	cost_scrip	passage
+Bridge	Grand Salon	750	Salon door
+Grand Salon	Galley & Pantry	1000	Galley hatch
+Grand Salon	Cabin Deck	1250	Companionway stairs
+Cabin Deck	Engine Room	1500	Watertight door
+Engine Room	Stern & Swim Platform	1500	Aft bulkhead
+Stern & Swim Platform	The Keel & Sand	2000	Hull breach
+Bridge	Foredeck (outside)	0	Bridge hatch (always open)
+Foredeck (outside)	The Keel & Sand	0	Slide down the hull (one-way)
+Galley & Pantry	Cabin Deck	0	Dumbwaiter shaft (one-way drop)
+Points of interest
+name	type	zone	x	y
+Gannet rack	Rack	Bridge	6	4
+Juggernaut Brine	Tonic	Grand Salon	18	10
+Quick Brine	Tonic	Grand Salon	34	10
+Needler Mk I rack	Rack	Grand Salon	26	1
+Workbench	Build	Grand Salon	30	6
+Air pocket / croc lair	Feature	Grand Salon	24	3
+Flechette 12 rack	Rack	Galley & Pantry	40	2
+Locker spot 1	Locker	Galley & Pantry	46	6
+Cleaning station	Feature	Galley & Pantry	42	6
+Speed Brine	Tonic	Cabin Deck	20	24
+Long Speargun rack	Rack	Cabin Deck	28	17
+Sea-Pattern Carbine rack	Rack	Cabin Deck	36	24
+Moray pipes x6	Hazard	Cabin Deck	18	20
+Power switch	Power	Engine Room	44	18
+Pressure Forge	Forge	Engine Room	52	26
+Goliath home	Boss	Engine Room	49	22
+Bolt Harpoon rack	Rack	Stern & Swim Platform	60	16
+Double Shot	Tonic	Stern & Swim Platform	66	26
+Locker spot 2	Locker	Stern & Swim Platform	62	26
+Hull breach (Wrecker entry)	Entry	Stern & Swim Platform	67	20
+Kick Brine	Tonic	The Keel & Sand	10	40
+Mast & bladder kelp	Feature	The Keel & Sand	30	42
+Shark lane	Feature	The Keel & Sand	60	40
+Cargo crane trap	Trap	Foredeck (outside)	8	-5
+Captain's safe (quest)	Quest	Bridge	12	7
+Stonefish nest	Hazard	Galley & Pantry	44	1
+Mantis burrows	Hazard	The Keel & Sand	20	36
+Design notes
+Training loop A: Salon -> Galley -> (dumbwaiter drop) -> Cabin Deck -> stairs -> Salon. 60 m loop, 2 doorways of hydroids, safe from sharks until the breach opens.
+Training loop B (after breach): Stern -> Keel -> slide from Foredeck -> Bridge -> Salon -> Cabins -> Engine -> Stern. 190 m loop, exposes the team to the shark lane on the Keel.
+Blood flow: current runs bow -> stern inside the hull and along the Keel toward the breach, so blood made in the Salon reaches the Stern (and the Bull Shark) in about 40 s.
+Sightlines: inside 8-14 m; Keel up to 60 m (the only long-gun ground). Alarm region: Inside (Bridge..Stern) counts gunfire x2; Outside (Keel, Foredeck) x1.
+Wrecker entry: the hull breach at the Stern; Foreman Hunts also land on the Foredeck. Enemy patrol path: Stern -> Engine -> Cabins -> Salon.

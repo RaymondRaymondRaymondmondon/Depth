@@ -1,0 +1,89 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+Ground
+The Grotto
+The Grotto
+Atlantis
+Waters
+Atlantis
+Waters
+Atlantis
+Waters
+Variant
+Rockfall
+Mould bloom
+The Eye wide open
+Swordfish night
+Procession
+Chance
+8%
+8%
+8%
+6%
+What changes
+A new chamber opens with an untouched
+wreck; stalactites fall at half the USUal
+noise
+The cave glows; everything bites, Anglers
+stay away, but Drowned sailors see the
+boat from anywhere
+Wake builds all night; relics on the
+terraces glow and show on the sonar
+Swordfish at the surface from dusk; the
+sperm whale and a giant squid are both
+present
+Cult longboats from the start of the night,
+chumming a ring around a sunken altar full
+of relics
+Species rosters
+Each ground's catchable species, as they go into trawl _ species . json . Threats have their
+own stat blocks (see Threats). Tier: 1 forage or grazer, 2 small predator, 3 mid predator, 4
+apex. Depth bands: surface 0-2 m, upper 2-15, mid 15-60, deep 60-200, abyss 200+. Price
+is the Fish Market base in shillings per kilogram before grade, freshness, and glut. Fight
+patterns are tuned in Fishing: Fight tuning.
+Eclipse Lagoon
+Species
+Silverside
+Sardine
+Flying fish
+Reef squid
+Tier
+1
+1
+1
+2
+Weight
+(kg)
+0.05
+0.1
+0.3
+Depth
+Surface
+Surface
+Surface
+Upper
+-upper
+Eats
+Plankton
+Plankton
+Plankton
+Silversides
+Takes
+Handline, glow
+speck
+Handline, net
+Net; glides
+onto a lit deck
+Glow jig
+Fight
+None
+None
+dump
+dump
+(inks)
+price
+(sh/kg)
+0.5 (bait)
+0.8
+1.5
+4
+Page 41 of 79

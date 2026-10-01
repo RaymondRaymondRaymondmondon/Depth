@@ -1,0 +1,254 @@
+situation	diver	line
+Match start	Diver	Lamps on. Mouths shut.
+Match start	Diver	Same drill: don't feed it, don't wake it.
+Match start	Diver	Let's see what's down here this time.
+Match start	Whaler	Quota's the quota. Move.
+Match start	Whaler	Salvage doesn't collect itself.
+Match start	Whaler	Keep your harpoons pointed away from me.
+Match start	Stowaway	Who brought the snacks?
+Match start	Stowaway	I've a good feeling. I always do.
+Match start	Stowaway	If I die, my bottle goes to the seal.
+Match start	Mechanic	We're the snacks.
+Match start	Mechanic	Checklist: lamps, darts, nerves. Nerves are low.
+Match start	Mechanic	Everyone read the log? No? Great.
+First blood	Diver	That's blood. Watch the doors.
+First blood	Diver	First cut. Count starts now.
+First blood	Diver	Keep it small. Keep it quiet.
+First blood	Whaler	Let it drift. Don't feed it.
+First blood	Whaler	One's fine. Ten's a dinner bell.
+First blood	Whaler	Blood's in. Clock's on.
+First blood	Stowaway	Ooh. That's a lot of red.
+First blood	Stowaway	Bit of a mess, that.
+First blood	Stowaway	It's fine. It's fine. Probably fine.
+First blood	Mechanic	Plume's spreading east. Noting it.
+First blood	Mechanic	That'll reach the stern in forty seconds.
+First blood	Mechanic	Please don't shoot the big ones.
+Scent high	Diver	Meter's red. Move.
+Scent high	Diver	We're standing in it. Out.
+Scent high	Diver	Whatever smells this will be here soon.
+Scent high	Whaler	Water's thick. Somebody's coming.
+Scent high	Whaler	Get off the blood.
+Scent high	Whaler	This is the part where we leave.
+Scent high	Stowaway	Red's my favourite colour. Not today.
+Scent high	Stowaway	Smells like dinner. For them.
+Scent high	Stowaway	Moving! I'm moving!
+Scent high	Mechanic	Meter's red. Very red.
+Scent high	Mechanic	Scent at threshold for a size four. Estimate: soon.
+Scent high	Mechanic	I said this would happen.
+Predator pulse	Diver	Something big. From the stern.
+Predator pulse	Diver	Big one. Guns quiet.
+Predator pulse	Diver	Cover. Now.
+Predator pulse	Whaler	Big fish. Harpoons up.
+Predator pulse	Whaler	Here it comes. Hold.
+Predator pulse	Whaler	Knew it. Sharks always know.
+Predator pulse	Stowaway	Oh no. Oh good. Oh no.
+Predator pulse	Stowaway	Big friend incoming!
+Predator pulse	Stowaway	Whose blood was that? Not mine.
+Predator pulse	Mechanic	That's... that's a big pulse.
+Predator pulse	Mechanic	Size four or five. Bearing stern.
+Predator pulse	Mechanic	Hide. Hide is a strategy.
+Harmless big thing shot	Diver	Why would you shoot that.
+Harmless big thing shot	Diver	That did nothing but bleed.
+Harmless big thing shot	Diver	Well. Now everything's coming.
+Harmless big thing shot	Whaler	That was a hundred blood, genius.
+Harmless big thing shot	Whaler	You've rung the bell.
+Harmless big thing shot	Whaler	Fine. Sharks it is.
+Harmless big thing shot	Stowaway	It looked at me funny.
+Harmless big thing shot	Stowaway	In my defence, it was very shootable.
+Harmless big thing shot	Stowaway	Whoops.
+Harmless big thing shot	Mechanic	That was the dugong. THE dugong.
+Harmless big thing shot	Mechanic	Noting: someone shot the whale.
+Harmless big thing shot	Mechanic	Logging that as a mistake.
+Cleaner killed	Diver	That was a cleaner. Great.
+Cleaner killed	Diver	Now everything's in a mood.
+Cleaner killed	Diver	Stop shooting the small ones.
+Cleaner killed	Whaler	Cleaners keep the sharks calm. Kept.
+Cleaner killed	Whaler	Nice. Every grouper's angry now.
+Cleaner killed	Whaler	Don't.
+Cleaner killed	Stowaway	Was that the little one? The nice one?
+Cleaner killed	Stowaway	I killed a barber. I feel bad.
+Cleaner killed	Stowaway	Sorry, shrimp.
+Cleaner killed	Mechanic	Aggression up twenty percent. Five minutes.
+Cleaner killed	Mechanic	The groupers are going to be in a mood.
+Cleaner killed	Mechanic	Cleaners! Not targets!
+Chummed	Diver	They're chumming us. Move!
+Chummed	Diver	Off the chum. Off it.
+Chummed	Diver	Don't stand in it.
+Chummed	Whaler	Chum! Get clear!
+Chummed	Whaler	They want the reef to do their job.
+Chummed	Whaler	Swim!
+Chummed	Stowaway	Ew. Ew. Ew.
+Chummed	Stowaway	They threw dinner at us!
+Chummed	Stowaway	Not it!
+Chummed	Mechanic	Chum cloud. Radius four. Move!
+Chummed	Mechanic	This is bad chemistry.
+Chummed	Mechanic	Blood's coming from a bucket now.
+Downed	Diver	Down. Pick me up when it's clear.
+Downed	Diver	I'm out. Bleeding. Sorry.
+Downed	Diver	Somebody, when you can.
+Downed	Whaler	Down. Not dead.
+Downed	Whaler	Get to me or don't, just decide.
+Downed	Whaler	My own fault.
+Downed	Stowaway	Bit of a lie-down, don't mind me.
+Downed	Stowaway	I'm fine! I'm on the floor but fine!
+Downed	Stowaway	Tell the seal I loved it.
+Downed	Mechanic	Down. Bleeding at eight per second.
+Downed	Mechanic	This is exactly the outcome I predicted.
+Downed	Mechanic	Please hurry. Please.
+Revive	Diver	You're welcome. Again.
+Revive	Diver	Up. Stay up.
+Revive	Diver	Don't make me do that twice.
+Revive	Whaler	Up. We're not carrying you.
+Revive	Whaler	On your fins.
+Revive	Whaler	Cost me a magazine. Move.
+Revive	Stowaway	I'm back! Did anyone miss me?
+Revive	Stowaway	Thanks, love.
+Revive	Stowaway	Was I gone long?
+Revive	Mechanic	Please stop doing that.
+Revive	Mechanic	Up. Vitals... acceptable.
+Revive	Mechanic	Next time, don't stand there.
+Tonic bought	Diver	That's your fourth.
+Tonic bought	Diver	Drink up.
+Tonic bought	Diver	Good. Now go.
+Tonic bought	Whaler	Brine. Finally.
+Tonic bought	Whaler	Hope it's worth the scrip.
+Tonic bought	Whaler	Down the hatch.
+Tonic bought	Stowaway	Bottoms up!
+Tonic bought	Stowaway	Ooh, it fizzes.
+Tonic bought	Stowaway	Another? Don't mind if I do.
+Tonic bought	Mechanic	Bottle four. Effects stack.
+Tonic bought	Mechanic	Tastes like batteries.
+Tonic bought	Mechanic	Documenting: it's not bad.
+Locker bad	Diver	A Gannet. Lovely.
+Locker bad	Diver	The eel's laughing.
+Locker bad	Diver	Waste.
+Locker bad	Whaler	Junk.
+Locker bad	Whaler	Nine hundred fifty for that.
+Locker bad	Whaler	The eel hates me.
+Locker bad	Stowaway	It's a pistol. It's my pistol. I have this pistol.
+Locker bad	Stowaway	The chest gave me a spoon.
+Locker bad	Stowaway	Better luck next fish.
+Locker bad	Mechanic	A Gannet. From a chest. Wonderful.
+Locker bad	Mechanic	Probability was two percent. I knew that.
+Locker bad	Mechanic	Statistically, this had to happen.
+Locker wonder	Diver	Now we're talking.
+Locker wonder	Diver	This changes the water.
+Locker wonder	Diver	Don't lose it.
+Locker wonder	Whaler	Now THAT'S a fish-killer.
+Locker wonder	Whaler	Ha! Yes!
+Locker wonder	Whaler	Give it here.
+Locker wonder	Stowaway	Ooooh. Shiny death.
+Locker wonder	Stowaway	The eel likes me!
+Locker wonder	Stowaway	Can I keep it? I'm keeping it.
+Locker wonder	Mechanic	That's... oh. Oh, that's the one.
+Locker wonder	Mechanic	Careful with that. Very careful.
+Locker wonder	Mechanic	Two percent! Two percent!
+Forge	Diver	Pressed and ready.
+Forge	Diver	Heavier. Better.
+Forge	Diver	That'll bite.
+Forge	Whaler	Now it's a real gun.
+Forge	Whaler	Forged. Let's use it.
+Forge	Whaler	Heat, pressure, teeth.
+Forge	Stowaway	Shiny!
+Forge	Stowaway	It's got a name now!
+Forge	Stowaway	Look at it. LOOK at it.
+Forge	Mechanic	Pressure treatment complete.
+Forge	Mechanic	Sea-glass finish. Structurally sound.
+Forge	Mechanic	Don't drop it. It cost five thousand.
+Hunt begins	Diver	Company. Cover the breach.
+Hunt begins	Diver	They've found us. Fine.
+Hunt begins	Diver	Enemies. Make them bleed near the fish.
+Hunt begins	Whaler	Wreckers! Cover the breach!
+Hunt begins	Whaler	Here they come. Let 'em swim into it.
+Hunt begins	Whaler	Kill the chummer first!
+Hunt begins	Stowaway	Visitors! Rude ones!
+Hunt begins	Stowaway	Oh, people. Worse than fish.
+Hunt begins	Stowaway	Can we let the crocodile handle this?
+Hunt begins	Mechanic	Or let the crocodile handle it?
+Hunt begins	Mechanic	Squad inbound. Alarm was high. Told you.
+Hunt begins	Mechanic	Positions. Real positions this time.
+Enemy eaten	Diver	For now.
+Enemy eaten	Diver	The reef's hungry too.
+Enemy eaten	Diver	Good. Less work.
+Enemy eaten	Whaler	Ha. Reef's on our side.
+Enemy eaten	Whaler	That's what happens down here.
+Enemy eaten	Whaler	One less.
+Enemy eaten	Stowaway	Ha! Reef's on our side!
+Enemy eaten	Stowaway	Bye!
+Enemy eaten	Stowaway	That's the spirit, fish.
+Enemy eaten	Mechanic	Predator ate the enemy. Noting.
+Enemy eaten	Mechanic	Efficient.
+Enemy eaten	Mechanic	The system works.
+Boss appears	Diver	That's the big one. Stay loose.
+Boss appears	Diver	Here it is.
+Boss appears	Diver	Don't get swallowed.
+Boss appears	Whaler	Big fish. The biggest.
+Boss appears	Whaler	Harpoons. All of them.
+Boss appears	Whaler	Now we earn it.
+Boss appears	Stowaway	That's a fish. That's a very large fish.
+Boss appears	Stowaway	Oh, hello, enormous.
+Boss appears	Stowaway	I'm going to be inside that, aren't I.
+Boss appears	Mechanic	That's... that's a fish. That's a very large fish.
+Boss appears	Mechanic	HP fifteen thousand. Weak point: the gills.
+Boss appears	Mechanic	Deep breaths. Not literally.
+Swallowed	Diver	It's warm in here. Shoot the gills!
+Swallowed	Diver	Inside. Five seconds. Go!
+Swallowed	Diver	Gills! Now!
+Swallowed	Whaler	It's got me! The gills!
+Swallowed	Whaler	Shoot it! Shoot the thing!
+Swallowed	Whaler	Not like this!
+Swallowed	Stowaway	It's dark! It's wet! It's rude!
+Swallowed	Stowaway	Hello? Gills, please!
+Swallowed	Stowaway	I've been in worse pubs!
+Swallowed	Mechanic	Swallowed. Countdown. Gills!
+Swallowed	Mechanic	This is not in the checklist!
+Swallowed	Mechanic	Five seconds! Four!
+Tide cleared	Diver	Twenty seconds. Spend them.
+Tide cleared	Diver	Breathe. Buy. Go.
+Tide cleared	Diver	Reset. Quietly.
+Tide cleared	Whaler	Breathe. Buy. Go again.
+Tide cleared	Whaler	Ammo. Now.
+Tide cleared	Whaler	Quota's met. Next.
+Tide cleared	Stowaway	Snack break!
+Tide cleared	Stowaway	We did it! Whatever it was!
+Tide cleared	Stowaway	Shopping!
+Tide cleared	Mechanic	Tide cleared. Bounties up ten percent.
+Tide cleared	Mechanic	Twenty seconds of calm. Use them.
+Tide cleared	Mechanic	Log: alive.
+Quiet	Diver	Too quiet.
+Quiet	Diver	Nothing's coming. Yet.
+Quiet	Diver	Keep it this way.
+Quiet	Whaler	Quiet's good. Quiet pays.
+Quiet	Whaler	Don't ruin it.
+Quiet	Whaler	Fish are asleep. Let 'em.
+Quiet	Stowaway	Too quiet. I don't like it. I do like it.
+Quiet	Stowaway	Anyone else hear that? No? Good.
+Quiet	Stowaway	Spooky.
+Quiet	Mechanic	Alarm's at zero. Enjoy it.
+Quiet	Mechanic	Scent's dropping. Good.
+Quiet	Mechanic	This is optimal. Nobody move.
+Last standing	Diver	Fine. Just me, then.
+Last standing	Diver	Alone. Okay.
+Last standing	Diver	Hold on. I'll get to you.
+Last standing	Whaler	Just me. Good.
+Last standing	Whaler	Nobody to blame now.
+Last standing	Whaler	Come on, then.
+Last standing	Stowaway	Oh dear. Solo act.
+Last standing	Stowaway	I'm the responsible one now? Us?
+Last standing	Stowaway	Hold on, everyone. Ish.
+Last standing	Mechanic	Just me. Probability of revival: low.
+Last standing	Mechanic	Okay. Okay. Plan.
+Last standing	Mechanic	I'll try. No promises.
+Match over	Diver	Tide twelve. Next time, thirteen.
+Match over	Diver	We'll come back.
+Match over	Diver	Log it.
+Match over	Whaler	Got what we got.
+Match over	Whaler	Next time, quieter.
+Match over	Whaler	The reef wins. It always does.
+Match over	Stowaway	Next time, more snacks.
+Match over	Stowaway	Good swim, everyone.
+Match over	Stowaway	Same time tomorrow?
+Match over	Mechanic	Tide twelve. We'll get thirteen.
+Match over	Mechanic	Cause of death: everything.
+Match over	Mechanic	Filing the report.
+Three lines per diver per situation are written here (240). Claude Code expands each set to 6-10 by the voice rules: Diver = dry, short, imperative; Whaler = gruff, salvage-minded, blames the shooter; Stowaway = cheerful, slightly drunk, food and the seal; Mechanic = nervous, precise, quotes numbers and the log. Callback pairs: any line in a situation can be answered by a different diver's line from the same situation 1-2 s later if within 15 m. Never repeat a line within 3 minutes; one speaker at a time; tells and Hunt announcements interrupt quips.

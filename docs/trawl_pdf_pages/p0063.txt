@@ -1,0 +1,53 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+• Cooking is up to at an island fire, if burnt (see Fishing: Cooking).
+• Freshness starts at 100% and falls 1% per real minute on deck, 0.2% per minute gutted
+and iced. Iced fish kept overnight lose 25%; un-iced raw fish rot and sell for nothing.
+Cooked fish do not lose freshness.
+• Glut. Each species' price at the Fish Market drops 3% for every 10 kg of it sold that
+deadline, so a hold full of one species is not a strategy at market. The Owners/ quota
+scales ignore glut.
+• Rare variants. About 1 catch in 60 is a Glimmer variant (a pale, shining colouring). It
+sells at the normal price but fills its own Catch Log slot, and it can be fed to the Pier
+Wheel on the dock, a penny machine that pays out cosmetics (lantern colours, boat
+liveries, weapon finishes).
+Three ways to use a fish
+Every fish the crew keeps ends up in one of three places, and choosing well is a core skill.
+Only fish delivered to the Owners count toward the quota; nothing else does.
+Where
+The Owners' quota
+scales (dock)
+The Fish Market
+(dock)
+Barter with a trader
+(islands, harbour
+folk)
+The crew gets
+Quota credit at the
+fish's full value
+Shillings into the ship's
+purse
+Goods worth 120% of
+the fish's market value,
+150% for species that
+trader wants
+Counts
+toward the
+quota
+Yes
+No
+No
+Rules
+No glut. Fish under 70%
+freshness are rejected.
+No shillings are paid.
+Credit past the quota
+carries to the next
+deadline at half value
+Glut applies
+No change is given. The
+Atoll elder takes only
+fish
+The ship's purse is the crew's shared shillings, spent at the Chandler, the Gunsmith, the
+Slipway, and island traders, and kept for the whole run. Fish sold at market, salvage, junk,
+birds, and treasure all go into it.
+Page 63 of 79

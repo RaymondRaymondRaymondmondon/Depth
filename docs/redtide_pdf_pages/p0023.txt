@@ -1,0 +1,52 @@
+Red Tide — Arcade Game 5 Design Document
+Zone
+Stern and swim platform
+The keel and the sand
+What's there
+Bolt Harpoon rack, Double Shot, the second
+Locker spot, the Wreckers' entry (the hull breach)
+Outside: the open shelf under the hull, Kick Brine,
+the mast with its kelp; sharks' approach lane
+Opens
+with
+1,500
+2,000
+Trap: the cargo crane on the foredeck drops a container across the salon door (1,000).
+Hidden quest: the captain's safe (three keys held by the Goliath, the Foreman, and the
+octopus).
+Level mechanics
+• Localized alarm. The ship is one region with two sub-regions (inside, outside); gunfire
+inside fills the alarm because the hull carries sound. Splitting two-and-two between
+inside and outside is the intended lesson.
+• Listing. Every few tides the wreck settles: a cabin door jams, a container slides, the air
+pocket shrinks by a third.
+• The air pocket is the crocodile's lair and the place Wreckers retreat to.
+• Dangerous flora line the corridors; the price of sprinting is fire coral.
+Flora (12)
+Flora
+Turf algae
+Sea lettuce
+Fire coral
+Stinging hydroids
+Barrel sponge
+Sea fan
+Type
+Producer on the
+hull
+Producer
+Hazard
+Hazard
+Shelter
+Cover
+Effect
+Grazer food; parrotfish crunch it loudly,
+and that crunch draws barracuda
+Grazer food in the salon; dies off if
+grazers are wiped out, then regrows
+Touch: 15 damage burn and a brief flinch
+Touch: bleed 3 s; drift in doorways
+Small beasts hide inside; hawksbills eat
+it
+Blocks sight lines; a moray or stonefish is
+usually behind one
+Page 23 of 90

@@ -1,0 +1,84 @@
+Red Tide — Arcade Game 5 Design Document
+Level 4: Atlantis, the Forgotten City
+A walled city on a hill, drowned and overgrown: farms and irrigation on the flat ground
+inside the wall, workshops and markets in the lower town, bathhouses and barracks on
+the slopes, and the government hall and the grand chapel on the summit. Every building
+type is now a habitat, and the city's own water systems, the aqueducts and cisterns, move
+blood and beasts through it.
+Layout (a real city plan)
+District
+The Harbor Gate
+(start pocket)
+The Farms
+The Lower Town
+The Bathhouses
+The Barracks and
+Armory
+Buildings
+The gatehouse in
+the great wall, a
+customs house
+Terraced fields,
+irrigation canals,
+granaries, a mill
+Houses, food
+stores, a market
+square, the
+toolsmiths' street
+Hot and cold
+baths, a
+gymnasium,
+latrines
+Drill yard, armory,
+stables, a small
+fort on the wall
+Ecology
+Sardines in the
+gate arch; the
+Lost Ones' entry
+Seagrass
+meadows now;
+the crocodile's
+canals; grazers
+Octopi in
+amphorae, eels in
+drains,
+cardinalfish in
+cellars
+Sponges and
+groupers in the
+baths; the water
+monitor in the dry
+hypocaust rooms
+The Lost Ones'
+garrison;
+amberjacks drill
+the yard
+What's there
+Spawn, Gannet
+rack, Juggernaut
+Needler Mk l,
+Quick Brine,
+workbench, canal
+traps
+Carbine and
+Flechette racks,
+Speed Brine,
+Locker spot 1,
+workshop parts
+Double Shot, Long
+Speargun; an air
+pocket in the
+caldarium dome
+Trawlerman's Rifle,
+Bolt Harpoon,
+Mule Brine; the
+Lost Ones' Hunt
+staging
+Opens
+with
+750
+1,000
+1,250
+1,500
+Page 44 of 90

@@ -1,0 +1,40 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+Every catch feeds something bigger, and the crew is on the menu
+Apex and threats
+Great White, Ghost Worm, the Kraken, Sirens
+Large predators
+tuna, marlin, grouper, barracuda, reef sharks
+Forage fish and squid
+sardines, anchovy, flying fish, squid, eels
+Grazers and filter feeders
+zooplankton, urchins, parrotfish, isopods
+eaten by
+Producers
+plankton bloom, kelp, coral, glowing mould
+hunts the crew
+Wake O to 100
+blood, noise, light
+hooks, nets, guns
+catches for bait
+The crew
+and the Gannet,
+one more species
+in the web
+Arrows run from food to eater. What the crew spills raises Wake, and Wake calls the apex to the boat.
+The Trawl food web • five trophic bands, the crew, and Wake
+What each ground holds
+About 25 fish and invertebrate species, 6 threats, and 4-6 flora per ground, as records in
+trawl _ species . json using the shared species file format (class, size 1-6, trophic tier,
+diet, blood yield and threshold, senses, temperament, home, social). The Trawl adds four
+fields: depth band (surface, upper, mid, deep, abyss, with a night shift: many species rise
+after dark), light response (drawn, neutral, or shy, by colour), bite profile (preferred bait,
+lure flash, noise, and retrieve), and fight pattern (runs, dives, jumps, circles, sounds into
+cover, rolls).
+Red Tide: shared assets and code, separate games. Red Tide and the Trawl are different
+games. They share only what saves time: the ecosystem engine code, the species file
+loader, and, where the same animal appears in both (a Great White, a barracuda), its sprite
+sheet and sound cues as a starting point to re-colour and re-pose. Nothing about design
+carries over. Every Trawl species has its own record, numbers, and behaviour written for
+this game: fish are animals you fight on a line and read from above through sonar and light,
+not beasts a diver shoots.
+Page 35 of 79

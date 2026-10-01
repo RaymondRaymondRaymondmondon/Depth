@@ -1,0 +1,64 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+Behaviour
+Biter
+Spearer
+Grabber
+Pincher
+Stinger
+Species (examples)
+Barracuda, moray, conger, lingcod,
+sharks, dogfish, frill shark
+Marlin, swordfish
+Octopus, jumbo and giant squid
+Crabs, lobster, isopods
+Rays, jellies, urchins, triggerfish
+On deck
+Bites anyone within reach (injury)
+Lunges with the bill (serious injury)
+every 6-10 s
+Grabs a crewman and drags them
+toward the rail; inks (blinds 3 s)
+Pinches (hand slowed until treated)
+Stings or spikes anyone who touches
+it bare-handed
+The Killscore. The finishing blow decides the multiplier; only the final hit counts, so the
+crew can weaken a fish normally and then go for the trick shot. Bonuses from the same
+blow multiply together, up to
+Bonus
+Headshot
+One-hit
+Airborne
+Toss-up
+No-scope
+Spin
+Melee finish
+Long shot
+Heavy seas
+In the dark
+HOW
+Final hit to the head
+Killed from full HP
+Target in the air: jumping, flopping, or thrown
+One crewman throws it, another kills it in the air
+A scoped rifle fired from the hip
+A full 3600 turn in the 1.5 s before the hit
+Fists, knuckles, knife, gaff, or priest
+Over 25 m: a fish at the surface on the line, or one
+that jumped off the deck
+Deck rolled past 150 at the moment of the kill
+The target is outside all light
+Multiplier
+1.25
+1.5
+1.3
+1.4 (with Airborne)
+1.2
+1.25
+1.2
+1.3
+1.15
+1.2
+Overkill. An explosive hit (dynamite, depth charge, explosive harpoon) that deals more
+than twice the fish's remaining HP blows it to chum: the Killscore is void and only 40% of
+the weight is recovered, the rest landing on deck and in the sea as chum. The meat is still
+Page 23 of 79

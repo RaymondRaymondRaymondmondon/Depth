@@ -1,0 +1,114 @@
+Red Tide
+Arcade Game 5 Design Document
+Beast
+Current
+Runner
+Cave
+Sturgeon
+Gulper Eel
+Giant
+Salamander
+Cave
+Caiman
+Sleeper
+Shark
+Ghost Worm
+Class
+Fish
+Fish
+Fish
+Amphibian
+Reptile
+Fish
+Worm
+Size
+3
+4
+4
+4
+4
+5
+4
+Tier
+3
+1
+3
+4
+4
+4
+4
+Eats
+Cavefish, squid
+Krill, stone
+lettuce, mats
+Lanternfish,
+squid, vampire
+squid
+Olms, crayfish,
+catfish, divers
+Toads, turtles,
+salamanders, the
+Drowned's flesh
+(none), divers
+Everything in the
+sump, caiman,
+enemies
+The Drowned,
+eels
+Eaten by
+Sleeper
+shark
+Sleeper
+shark
+Sleeper
+shark
+Caiman
+Sleeper
+shark
+Nothing
+Nothing
+Behavior and
+note
+A sailfish-like
+hunter that lives
+in the
+slipstreams; hits
+divers riding
+them
+Armored grazer;
+harmless; a huge
+blood source if
+killed (the sump's
+trap)
+Sump; swallows
+size 2 whole; a
+bite on a diver
+takes 80 and pins
+them 3 s
+Ambusher under
+the pool ledges in
+the dry
+chambers; a bite
+holds and drags
+Amphibious
+patroller
+between the
+chambers and
+the Gallery;
+threshold 60
+blood
+Slow, silent, cold;
+threshold 120
+blood; nearly
+invisible in silt; a
+bite takes 150
+From Depth's
+Cave: lives in the
+walls; attacks the
+Drowned on sight
+and any diver
+who shoots it; the
+cave's answer to
+the faction that
+doesn't bleed
+Page 35 of 90

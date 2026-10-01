@@ -1,0 +1,13 @@
+flora	type	zones	effect	contact_damage	grazed_by	regrowth_rate_per_s	regrow_delay_s
+Posidonia meadows	Producer	Farms	Grazer base for the whole lower city; one patch is hallucinogenic (salema go erratic)	0	Salema	1	90
+Sea lettuce terraces	Producer	Farms	Farm grazers; regrows fast	0	Bream	1	60
+Column coral	Structure	Forum, Library, Chapel	Grows on every pillar; sharp corners bleed	4		0	0
+Doorway kelp curtains	Cover	Every district	Hangs in doorways; hides what's inside, both ways	0	Spider Crab (decoration)	0	0
+Bathhouse sponges	Shelter	Bathhouses	Cardinalfish and shrimp inside; groupers and sea bass wait beside them	0	Nudibranch	0.3	120
+Forum sea fans	Cover	Forum	Break sightlines across the plaza	0		0	0
+Temple glow-moss	Luminous producer	Chapel, Library	Lights the chapel and the library; draws squid	0		0.5	180
+Amphora anemones	Hazard	Lower Town	Stings (10); an octopus is usually behind one	10		0	0
+Barnacle marble	Hazard	Lower Town, Barracks	Cuts (bleed 3 s) on every wall brushed at speed	5		0	0
+Fire coral on the wall	Hazard	The Wall rampart	Burns (15) along the rampart walk	15		0	0
+Courtyard sargassum	Air	Courtyards	Surface air pockets in the roofless courtyards; man o' war beneath	0		0	0
+Stinging hydroid drains	Hazard	Every drain grate	Every grate stings (bleed) when touched	4		0	0

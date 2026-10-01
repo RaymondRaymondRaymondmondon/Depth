@@ -1,0 +1,46 @@
+Red Tide — Arcade Game 5 Design Document
+Zone
+The Station: Mess and Quarters
+The Station: Specimen Labs
+The Station: Reactor
+The Lowest Vault
+What's there
+Flooded modules; specimen kelp
+tanks; Bolt Harpoon, Kick Brine;
+dossier terminals with the
+researchers' logs
+Tanks (some broken: the coelacanths
+and salamanders are loose); Mule
+Brine, Deadeye; the Pale Caiman's
+corridor
+Power (the reactor); the Pressure
+Forge; the Station Chief's mech bay
+A cathedral cave open to the abyss on
+one side; black coral; Locker spot 2,
+Widow's Ink, Cold Coffin; the Lantern
+Leviathan's home; the best loot: two
+extra racks (Stormlock, Cannon
+Harpoon)
+Opens
+with
+1,500
+1,750
+2,000
+2,500
+Overlooks: every level has at least one gallery open to the abyss. The void is a visual: a
+black column with drifting motes and a faint pale light far below; a diver who swims out
+over it sinks and dies (a 5 s pull with a warning). Traps: a pressure door (crushes a
+corridor), the reactor vent (a scalding jet), the vault's collapsing ledge over the abyss.
+Hidden quest: assemble the station's final log from five terminals to learn what the
+researchers were breeding.
+Level mechanics
+• Down is better. Racks and tonics deepen with the galleries; the Forge is at the reactor;
+the Vault's racks and Locker are the best on any map. Blood decays slowest here (the
+water barely moves), so every deep fight lingers.
+• The Sand Worm. A size-7 behemoth seen tunneling on the rim's horizon. Beyond a
+marked line of bone stakes, the sand shakes; 8 s later, the worm surfaces and
+consumes the diver (no down, no revive). It never enters the caves and takes part in no
+web; it is the edge of the world.
+• Overlooks are where the abyss's own beasts arrive: the colossal squid, the sperm
+whale, the Relict. Fighting there is fighting with your back to a fall.
+Page 52 of 90

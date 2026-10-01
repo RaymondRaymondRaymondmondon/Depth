@@ -1,0 +1,36 @@
+beast	attack	damage	windup_s	cooldown_s	range_m	tell (what the player sees)	effect
+Troglobite Crab	Pinch	8	0.4	2	1	Claws raise	
+Poison Dart Newt	Skin	10	0	0	0.5		Touch: poison 10 over 5 s
+Giant Cave Toad	Tongue	20	0.6	4	5	Throat swells	Pulls a diver into the pool: 2 s hold, then Bite
+Giant Cave Toad	Bite	35	0.4	2	1.5	Jaw drops	Hold 1 s
+Cave Crayfish	Pinch	12	0.4	2	1	Claws open	Bleed 2 s
+Fishing Spider	Drop bite	18	0.5	3	3	Silk twitches overhead	Poison 4 s
+Giant Water Bug	Pierce	15	0.4	3	1	Forelegs open	Bleed 4 s
+Dragonfly Nymph	Jaw lunge	14	0.3	2.5	2	Jet pulse	
+Cave Anglerfish	Swallow	45	0.5	3	2	The lure blinks twice	Pins 3 s
+Cave Eel	Strike	35	0.4	1.5	2	Mouth opens	Bleed 3 s
+Electric Ray	Shock	30	0.3	4	2	Silt lifts	Stun 2 s; stops a Turbine
+Blind Catfish	Bite	30	0.4	1.5	1.5	Whiskers sweep	Hold 1 s
+Whip Ray	Barb	40	0.3	3	2	Tail arches	Bleed 5 s
+Hagfish	Slime	0	0.2	5	1	Knots itself	Diver slowed 40% until brushed
+Bristle Worm	Bristles	10	0	0	0.5		Contact burn 10
+Snapping Turtle	Snap	60	0.5	3	1.2	Neck extends	Hold 2 s
+Cave Krait	Bite	10	0.5	2	1	Coils	Poison 25 over 10 s
+Epaulette Shark	Bite	35	0.4	2	1.5	Fins plant on rock	Bleed 3 s
+Current Runner	Slash	40	0.3	2	2	A shadow in the stream	Bleed 3 s; knocks a diver out of the stream
+Gulper Eel	Engulf	80	0.6	4	3	Jaw unfolds	Pins 3 s
+Giant Salamander	Bite and drag	70	0.6	3	2	Water surges at the ledge	Hold 3 s; drags toward the pool
+Giant Salamander	Tail	40	0.4	3	2.5	Body curls	Knockback 3 m
+Cave Caiman	Bite	80	0.5	2	2	Jaws part	Bleed 4 s
+Cave Caiman	Death roll	100	0.9	6	2	Grabs and spins	Hold and roll 4 s; teammates shoot it off
+Cave Caiman	Tail	45	0.5	3	3	Turns side-on	Knockback 4 m
+Sleeper Shark	Bite	150	0.6	3	2.5	Silt clouds behind it	Bleed 5 s
+Sleeper Shark	Drag	60	0.8	8	2	Slow turn toward a diver	Carries 10 m into the silt
+Ghost Worm	Lunge	70	0.5	2.5	4	Wall cracks glow	Bleed 4 s
+Ghost Worm	Screech	20	0.6	6	8	Head rears	Stun 1 s in 8 m; 8 noise
+Silt Lamprey	Latch	1	0.5	0	0.5	Circles	Host bleeds 1/s
+The Lobster	Crush	130	0.8	4	3	Claw raises	Destroys a Shell Shield; hold 2 s
+The Lobster	Sweep	80	0.6	5	5	Turns broadside	Knockback 6 m
+The Lobster	Clack	25	0.5	3	10	Antennae flick	10 noise; stun 1 s; drops stalactites in phase 3
+The Lobster	Rear	0	1.2	12	0	Rises on its tail when the coral rings	Underside exposed 3 s
+Beasts with no rows never attack. Damage is vs 100 HP divers at tide 1, x1.05 per tide (TideCurve), capped x2.5.

@@ -1,0 +1,82 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+Item
+Bird net
+Scarecrow
+Portable ice chest
+Aerated bait bucket
+Spring balance
+Float balloons
+Sea anchor
+Tin fish decoy
+Plate camera
+Rum flask
+Smelling salts
+Lamp oil, matches and
+kindling
+Fermented chum
+Conch horn
+Sealskin gloves
+What it does
+Thrown over a pile of fish or a fire:
+birds can't take from it
+Planted on a landing: birds keep 15
+m away for 5 minutes
+Keeps 30 kg fresh in the skiff;
+birds can't open it
+Keeps live bait alive in the skiff
+Shows a fish's weight and base
+value before the kill
+Keeps a big fish or heavy salvage
+afloat for towing
+Holds the skiff steady against the
+current
+Trailed behind a boat, draws
+predators away from it for 60 s
+Photographs rare species and
+threats; the naturalist and the
+collector buy the plates. The flash
+draws the CUriOUS
++10 s before drowning for the rest
+of the night; shaky aim for 20 s
+Breaks a Siren's charm or wakes a
+stunned crewman at once
+Refuel lamps; relight fires
+Draws only fish over 10 kg
+Calls the tribe's canoe to trade or
+help once a night
+Handle stingers, spikers, and
+pinchers without injury
+Where
+Chandler
+Chandler
+Chandler
+Chandler
+Chandler
+Chandler
+Chandler
+Chandler
+Chandler
+Chandler
+Chandler
+Chandler
+Atoll trader
+Atoll trader
+Seal Rock trader
+price
+(sh)
+50
+35
+60
+30
+15
+40
+35
+20
+80
+15
+20
+5/3
+40
+50
+60
+Page 66 of 79

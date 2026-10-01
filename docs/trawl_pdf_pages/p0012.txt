@@ -1,0 +1,37 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+Inventory. Four slots per hand (Lethal Company's rule), one of them the hands. Large fish
+and salvage are carried in both hands and can be thrown short distances. Tools: gaff, knife,
+lamp, flare pistol, speargun, rope, and so on.
+Talking. Communication is the core skill, so the game carries it, not a third-party app.
+• Proximity voice through the shared arcade layer, the game's main channel: voices
+carry about 12 m on deck and are muffled by walls and wind. Heavy rain and a running
+engine cut the range in half.
+Speaking tube from the wheelhouse to the engine room and to the bow, always clear.
+• Walkie (bought): channel-wide voice, one per slot, runs on batteries.
+• Ping wheel for players without a microphone: "Fish on," "Need gaff," "Steer port,"
+"Something below," "Get out of the water," and a point marker.
+• The ship's bell: anyone can ring it; everybody hears it anywhere on the boat, and the
+dead can ring it too.
+Controls, HUD, and the sonar
+The HUD is almost empty on purpose: a player learns the sea from what their station
+shows them and what the crew says. There is no health bar, no minimap, and no enemy
+markers.
+Controls (keyboard and mouse)
+Action
+Move
+Brace, hold a rail
+Take a station, pick up, use
+Leave a station
+Primary (cast, fire, reel, pump, shovel)
+Secondary (aim a cast, sight a weapon, gaff)
+Rod angle, aim
+Drag, lantern level, telegraph setting
+Input
+WASD
+Hold Shift
+x
+Left mouse
+Right mouse
+Mouse direction
+Scroll
+Page 12 of 79

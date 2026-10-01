@@ -1,0 +1,57 @@
+Tunables
+base_quota_4p	12
+quota_growth	1.15
+hp_growth	1.08
+bounty_growth	1.1
+dmg_growth	1.05
+alarm_base	100
+alarm_tide_factor	0.1
+spawn_chance_base	0.1
+spawn_chance_per_tide	0.03
+spawn_chance_cap	0.7
+blood_decay_early	0.02
+blood_decay_mid	0.01
+blood_decay_late	0.005
+calm_seconds	20
+tide	kill_quota_4p	hp_mult	bounty_mult	beast_dmg_mult	alarm_threshold	enemy_spawn_chance	blood_decay_per_s	hunt	apex_wander	boss_may_appear	tide_bonus_scrip
+1	12	1	1	1	90.9	0	0.02	none	no	no	100
+2	14	1.08	1.1	1.05	83.3	0	0.02	none	no	no	200
+3	16	1.166	1.21	1.103	76.9	0	0.02	none	no	no	300
+4	18	1.26	1.331	1.158	71.4	0.22	0.02	none	no	no	400
+5	21	1.36	1.464	1.216	66.7	0.25	0.02	Faction	no	no	500
+6	24	1.469	1.611	1.276	62.5	0.28	0.02	none	no	no	600
+7	28	1.587	1.772	1.34	58.8	0.31	0.02	none	no	no	700
+8	32	1.714	1.949	1.407	55.6	0.34	0.02	none	no	no	800
+9	37	1.851	2.144	1.477	52.6	0.37	0.02	none	no	no	900
+10	42	1.999	2.358	1.551	50	0.4	0.01	Faction or Predator	yes	Predator Hunt only	1000
+11	49	2.159	2.594	1.629	47.6	0.43	0.01	none	yes	Predator Hunt only	1100
+12	56	2.332	2.853	1.71	45.5	0.46	0.01	none	yes	yes	1200
+13	64	2.518	3.138	1.796	43.5	0.49	0.01	none	yes	yes	1300
+14	74	2.72	3.452	1.886	41.7	0.52	0.01	none	yes	yes	1400
+15	85	2.937	3.797	1.98	40	0.55	0.01	Faction or Predator	yes	yes	1500
+16	98	3.172	4.177	2.079	38.5	0.58	0.01	none	yes	yes	1600
+17	112	3.426	4.595	2.183	37	0.61	0.01	none	yes	yes	1700
+18	129	3.7	5.054	2.292	35.7	0.64	0.01	none	yes	yes	1800
+19	149	3.996	5.56	2.407	34.5	0.67	0.01	none	yes	yes	1900
+20	171	4.316	6.116	2.527	33.3	0.7	0.005	Faction or Predator	yes	yes	2000
+21	196	4.661	6.727	2.653	32.3	0.7	0.005	none	yes	yes	2100
+22	226	5.034	7.4	2.786	31.3	0.7	0.005	none	yes	yes	2200
+23	260	5.437	8.14	2.925	30.3	0.7	0.005	none	yes	yes	2300
+24	299	5.871	8.954	3.072	29.4	0.7	0.005	none	yes	yes	2400
+25	344	6.341	9.85	3.225	28.6	0.7	0.005	Faction or Predator	yes	yes	2500
+26	395	6.848	10.835	3.386	27.8	0.7	0.005	none	yes	yes	2600
+27	454	7.396	11.918	3.556	27	0.7	0.005	none	yes	yes	2700
+28	522	7.988	13.11	3.733	26.3	0.7	0.005	none	yes	yes	2800
+29	601	8.627	14.421	3.92	25.6	0.7	0.005	none	yes	yes	2900
+30	691	9.317	15.863	4.116	25	0.7	0.005	Faction or Predator	yes	yes	3000
+31	795	10.063	17.449	4.322	24.4	0.7	0.005	none	yes	yes	3100
+32	914	10.868	19.194	4.538	23.8	0.7	0.005	none	yes	yes	3200
+33	1051	11.737	21.114	4.765	23.3	0.7	0.005	none	yes	yes	3300
+34	1208	12.676	23.225	5.003	22.7	0.7	0.005	none	yes	yes	3400
+35	1390	13.69	25.548	5.253	22.2	0.7	0.005	Faction or Predator	yes	yes	3500
+36	1598	14.785	28.102	5.516	21.7	0.7	0.005	none	yes	yes	3600
+37	1838	15.968	30.913	5.792	21.3	0.7	0.005	none	yes	yes	3700
+38	2113	17.246	34.004	6.081	20.8	0.7	0.005	none	yes	yes	3800
+39	2431	18.625	37.404	6.385	20.4	0.7	0.005	none	yes	yes	3900
+40	2795	20.115	41.145	6.705	20	0.7	0.005	Faction or Predator	yes	yes	4000
+Quota scales 0.4/0.6/0.8/1.0 for 1-4 players. Beast damage multiplier is capped in code at 2.5 so a bite never one-shots a Juggernaut diver before tide 20.

@@ -1,0 +1,35 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+Dock screens
+The dock is walked, not menued: the chalkboard (quota, nights, money, role upgrades),
+the Chandler's counter, the Owners' quota scales (fish delivered against the quota), the
+Fish Market (fish sold for shillings), the Owners' office window (salvage and the
+consignment), the Slipway, and the chart table on board.
+Boat and sea physics
+The boat, the water, every line, and every fish on a line are one physical system stepped at
+60 Hz on the host ( trawl _ boat . cpp ). The rule: anything that pulls on the boat moves the
+boat, and anything that moves the boat moves the crew.
+The sea surface. Height at any point is a sum of four directional waves (a cheap Gerstner
+set) whose amplitude comes from the weather. The top-down view shows swell as moving
+light bands and foam; the side views (dive, reel camera) show the actual profile. A per-
+ground current vector and the wind vector push everything on the surface: the boat,
+floats, the net, corpses, and blood.
+The hull. A rigid body in the plane (x, y, heading) plus three scalar degrees of freedom: roll,
+pitch, and heave. Buoyancy is computed from eight hull sample points against the wave
+height. Weight on board is not a single number: the hold, the ice, every fish on deck, every
+player, the net drum, and water in the bilge each sit at a position, so a full net on the stern
+pitches the bow up and five crew at the port rail during a fight list the boat to port. Roll
+above 120 makes loose items and unbraced players slide; above 350 the boat is on its beam
+and takes water over the rail.
+Damage. The hull has six sections, each with integrity 0-100. Rams, bites, rocks, and
+grinding against a wreck lower it; below 40 a section leaks, below 10 it floods fast. Leaks
+fill the bilge; the pumps empty it. Hull plates (bought) raise section maximums; a hand
+with a patch kit can stop a leak in 6 s while standing in water.
+The engine. Coal into the firebox raises boiler pressure; the telegraph setting draws
+pressure into shaft speed. Pressure in the green gives full thrust; red for more than 5 s
+blows a relief valve (a steam jet that burns anyone in the engine room and stops the screw
+for 20 s). The screw is loud: the engine's noise OUtPUt feeds the ecosystem's sound layer
+by telegraph setting (stop O, slow 2, half 5, full 9).
+Lines, nets, and ropes. Every line (rod lines, the harpoon tether, the trawl warps, the
+diver's air hose, the life-ring rope, the anchor) is a Verlet chain with 8-24 segments,
+reusing the Chain code from the master reference. Tension is read from the constraint
+Page 15 of 79

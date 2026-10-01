@@ -1,0 +1,33 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+The Catch Log. Every species caught is logged with its heaviest weight, and every threat
+with a one-line dossier learned from surviving it (the Lethal Company bestiary). A
+species' first catch pays a 50% bonus. The Catch Log, the heaviest-fish board, and
+trophies mounted in the wheelhouse carry across runs in the arcade profile.
+Arcade tokens. 10 per deadline met, 25 for a run past the fourth deadline. Spent on
+cosmetics only (boat liveries, lantern colours, suit helmets), per the master reference: the
+Trawl never pays into the main game's economy.
+Death, injury, and ghosts
+Most deaths start with a crewman in the water, so the rescue is a mechanic, not a
+cutscene.
+Overboard. A player in the water sees a side view of themselves treading water, has 25 s
+before cold and exhaustion drown them (12 s in a storm), and is a bleeding, splashing,
+noisy thing in the food web. The deck can throw the life ring (a thrown Verlet rope; aim for
+the swimmer, then haul), steer the boat alongside (the screw kills swimmers, so the helm
+must stop it), or send a second crewman in on a line. Things that took a crewman over the
+rail usually aren't done with them.
+Injuries (no health bar). Bites, burns, and falls cause injuries that change what a player
+can do until the dock: a hooked hand (can't reel), a broken arm (one-handed only, can't
+carry big fish), a burn (slower), and a bite (bleeds into the scent grid until bandaged). A
+second serious injury in one night is death.
+Death. A dead crewman is dead for the night. If their body stays aboard, they revive at the
+dock. If the body is lost to the sea, the Owners deduct 8% of the crew's money for the
+replacement hand (Lethal Company's rule), and the crewman still returns at the dock.
+Ghosts. The dead walk the deck as translucent figures who cannot touch anything except
+three things: the ship's bell, the sonar screen (read only), and the ghost's own lantern, a
+faint cold light that only other ghosts can see. Ghosts see threats in the dark within 10 m
+as pale outlines for a moment after they move, so a dead crewman becomes the best
+lookout on the boat. They speak only to other ghosts and through the bell.
+Total loss. If every crewman dies, or the boat sinks, the night's catch is lost, the Owners
+charge 25% of money for salvaging the Gannet, and the next night starts at the dock. The
+run continues unless the quota can no longer be met.
+Page 72 of 79

@@ -1,0 +1,101 @@
+Red Tide
+Arcade Game 5 Design Document
+Weapon
+Twin Gannets
+Stormlock
+Drum
+Flechette
+Reef Rattler
+Cannon
+Harpoon
+Limpet
+Launcher
+Net Gun
+Tesla Gaff
+(melee)
+Trident
+(melee)
+Type
+Akimbo gas
+pistols
+Powder auto-
+rifle
+Auto scatter
+gun
+Burst needle
+rifle
+Heavy
+harpoon
+Launcher
+Utility
+Damage
+40
+55
+11
+35 x 3
+400
+350
+splash
+250 +
+stun
+300
+Rate
+560
+720
+180
+3-
+burst
+30
+40
+60
+Mag /
+reserve
+20 / 100
+30 / 210
+12 / 48
+27 / 189
+1/12
+4/12
+4/12
+Noise
+3
+7
+8
+4
+8
+9
+2
+3
+o
+Notes
+Explodes on impact with a
+beast over size 3
+Charges stick and blow
+Nets hold a beast up to size 3
+for 6 s (size 4 for 3 s)
+Chains to 2 nearby
+Reach; lunge on sprint
+Wonder weapons (one per map, Locker only)
+Map
+The Sunken Ship
+The Underwater
+Cave
+The Coral Reef
+Weapon
+The Galvanic Rod
+The Resonator
+The Anemone
+Gun
+What it does
+A ship's dynamo on a pole: an arc that chains
+through everything in 10 m, stunning; Forged:
+the Lightning Keel, arcs leave a 5 s electric field
+A sonic cannon: a cone that kills small beasts
+outright and knocks large ones back, and
+shatters stalactites onto enemies; Forged: the
+Deep Bell, its ring also cancels blood scent in
+the cone for 5 s
+Fires living polyps that root where they land
+and grab anything that passes; Forged: the
+Garden, polyps also poison and spread once
+Page 12 of 90

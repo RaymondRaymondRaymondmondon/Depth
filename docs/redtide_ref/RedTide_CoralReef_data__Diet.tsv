@@ -1,0 +1,43 @@
+predator \ food	Anthias	Clownfish	Butterflyfish	Cleaner Wrasse	Sea Urchin	Spiny Lobster	Angelfish	Triggerfish	Surgeonfish	Garden Eel	Goatfish	Flounder	Razorfish	Sand Dollar	Cone Snail	Blue-ringed Octopus	Box Jelly	Crown-of-thorns Starfish	Ribbon Eel	Reef Cuttlefish	Crab-eating Frog	Reef Axolotl	Giant Reef Toad	Marine Iguana	Olive Sea Snake	Green Turtle	Moray Eel	Coral Grouper	Stingray	Bobbit Worm	Titan Triggerfish	Napoleon Wrasse	Dugong	Blacktip Reef Shark	Grey Reef Shark	Bottlenose Dolphin	Monk Seal	Manta Ray	Great Hammerhead	Humpback Whale	The Matriarch	Plankton	Detritus	Corpse	Parasites	Staghorn coral polyps	Turf algae	Seagrass	Halimeda	Sponges	Soft coral	Raider	Diver	row_sum
+Anthias																																										1												1
+Clownfish																																										0.6					0.4							1
+Butterflyfish																																														1								1
+Cleaner Wrasse																																													1									1
+Sea Urchin																																															0.4		0.6					1
+Spiny Lobster					0.5										0.2																												0.3											1
+Angelfish																																																		0.5	0.5			1
+Triggerfish					0.6	0.4																																																1
+Surgeonfish																																															1							1
+Garden Eel																																										1												1
+Goatfish														0.2	0.3																												0.5											1
+Flounder										0.5			0.5																																									1
+Razorfish																																										1												1
+Sand Dollar																																											1											1
+Cone Snail										0.6	0.4																																											1
+Blue-ringed Octopus					0.2	0.4					0.4																																											1
+Box Jelly													0.5																													0.5												1
+Crown-of-thorns Starfish																																														1								1
+Ribbon Eel	0.5		0.5																																																			1
+Reef Cuttlefish						0.4					0.6																																											1
+Crab-eating Frog						0.3																																					0.7											1
+Reef Axolotl													0.5																														0.5											1
+Giant Reef Toad																					0.4	0.4																															0.2	1
+Marine Iguana																																															1							1
+Olive Sea Snake										0.6									0.4																																			1
+Green Turtle																	0.3																															0.7						1
+Moray Eel						0.3										0.3				0.4																																		1
+Coral Grouper	0.4		0.3																0.3																																			1
+Stingray										0.4	0.3	0.3																																										1
+Bobbit Worm											0.3	0.2																	0.2																								0.3	1
+Titan Triggerfish					0.5	0.3																																								0.2								1
+Napoleon Wrasse					0.4										0.3	0.3																																						1
+Dugong																																																1						1
+Blacktip Reef Shark								0.2	0.3											0.2				0.2																												0.1		1
+Grey Reef Shark																0.1										0.2		0.3																								0.2	0.2	1
+Bottlenose Dolphin	0.4										0.3									0.3																																		1
+Monk Seal						0.4	0.4									0.2																																						1
+Manta Ray																																										1												1
+Great Hammerhead																										0.2			0.3					0.2			0.1															0.1	0.1	1
+Humpback Whale																																										1												1
+The Matriarch																																	0.2		0.2	0.1	0.2															0.1	0.2	1
+Preference shares; each row sums to 1 (0 for non-feeders). Blank = never eats. Predators also obey the size rule (prey <= 60% of size unless pack/school).

@@ -1,0 +1,35 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+4. Cru-JSh (90 s on). The remaining arms wrap the hull: -30 to a section every 10 s. Three
+sections at O sinks the Gannet. Every 30 s the body surfaces for 6 s and the eye (weak
+point) is open.
+5. Ending it. Escape by darkness, speed, and cutting the net; survive by severing arms
+until it gives up (all eight arms cut); or kill it through the eye (3,000 HP, realistically only
+with explosive harpoons and depth charges). A kill leaves the Kraken's beak (a 2,000
+relic) and ends every threat on the ground for the rest of the night.
+Diving and salvage
+Diving is The Trawl's Lethal Company facility run: one or two crew go down into a wreck
+for salvage while the deck keeps them alive. It is the highest-value, highest-trust activity
+in the game.
+Gear. The hardhat suit (bought, 350) and later the diving bell (boat upgrade, 1,200). The
+hardhat diver is on an air hose from the deck pump and a lifeline to the gantry winch; the
+bell carries two divers to 120 m and gives them a pocket of air to return to.
+The view. Diving switches that player to a side-view pixel scene built on the parkour side's
+movement code (walk, climb, squeeze, no jumping hazards), lit only by the helmet lamp.
+The deck crew sees the diver as a dot on sonar and hears them on the speaking tube.
+Keeping the diver alive (the deck's job).
+• Air. A hand works the pump (a rhythm input; the gauge must stay in the green). Stop
+pumping and the diver has 30 s of air in the helmet.
+• The hose and lifeline are Verlet chains. They tangle on wreckage, get bitten (Ghost
+Worms, Barracuda), and snag if the boat drifts. The helm has to hold station over the
+wreck against wind and current.
+• Recall. Two sharp tugs from the diver (a key) or the deck means "haul me up". The
+winch brings a diver up at 1 m/s; faster risks the Bends (slowed and dizzy for the rest of
+the night).
+Wrecks. Each ground has 2-4 procedurally laid-out wrecks (smuggler hulls, whalers,
+Atlantean terraces) with rooms, flooded corridors, locked cabins (crowbar), and things
+living in them. Salvage items are physical: heavy, carried in both hands, sometimes two-
+diver lifts, sent up in the salvage basket on its own line.
+Salvage. Brass fittings, bottles of old rum, ship's bells, chronometers, sealed strongboxes,
+scrimshaw, Atlantean idols, and relics (rare, worth 150-600 each). Some salvage is cursed:
+an idol brought aboard raises that night's Wake by 10 and makes the Pale Eye blink.
+Page 55 of 79

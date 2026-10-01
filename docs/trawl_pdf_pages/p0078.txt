@@ -1,0 +1,38 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+Build order
+1. The boat alone: hull physics, engine, stations, top-down deck, movement, one player.
+Gate: the boat rolls, lists under weight, and sinks when flooded.
+2. Lines and fishing: Verlet lines, cast, bite, fight, landing against a dummy fish. Gate: -
+trawl-fight numbers in range.
+3. Ecosystem port: the water column, light layer, vibration, Wake, the Lagoon's species.
+: --trawl-eco lagoon curves stable with no crew.
+Gate
+4. The session loop: dock, Chandler, sail, clock, sell, quota. Gate: a solo night on the
+Lagoon is playable end to end.
+5. Networking: six players, voice, prediction for reeling. Gate: --net-loop trawl and a
+six-player LAN night.
+6. Shooting, the net, set gear, death and ghosts.
+7. The Weeds and the Grotto with their threats.
+8. Diving and wrecks.
+9. Atlantis Waters, the Kraken, the Ghost Ship.
+10. Tuning pass and sound.
+Definition of Done
+• Six players over the internet complete a deadline including a dive, a Kraken encounter,
+an overboard rescue, and a death-and-ghost.
+• Every threat has a distinct sprite, a sound tell, a visual tell, a sonar tell, and a counter
+proven by a scripted --trawl-sim case.
+• The balance targets are met or deviations are logged in the balance changelog.
+• Two players plus four bots complete a deadline on the Weeds, with bots working
+ordered stations and one bot taking over a dropped player's seat.
+• Each role's perk is covered by a scripted --trawl-sim case (the Medic's CPR revive,
+the Angler's hook-set window, the Diver's air, the Bosun's patch time).
+Designer decisions
+Question
+Voice
+Decision
+Built-in proximity voice is the main
+channel; walkies, the speaking tube,
+and the ping wheel supplement it
+Where it lands
+The crew of six: Talking
+Page 78 of 79

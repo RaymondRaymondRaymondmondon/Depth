@@ -1,0 +1,36 @@
+Red Tide — Arcade Game 5 Design Document
+Measure
+Tide reached by a bot team that shoots
+everything
+Time to tide 10
+First apex arrival after 100 blood in one
+region
+Share of deaths caused by beasts, enemies,
+hazards
+Scrip at tide 10 for a careful player
+Enemy squads per tide from the alarm,
+careful team
+Weapon cost-efficiency
+Simulation tools
+Target
+12 ± 3 (the ecosystem mt.JSt end them)
+15-20 minutes
+30-90 s by map
+About 60 / 25 / 15 at tide 15
+15,000-20,000 (enough for Juggernaut, two
+tonics, a rack gun, and one Forge)
+0.5 • careless team: 3
+Damage per second per 1,000 scrip within
+±20% across rack weapons of the same tier;
+Locker weapons Forged
+--eco-sim <map> <minutes> [pattern] runs the ecosystem with a scripted player
+pattern (quiet, loud, camping, spread) and prints population curves, blood levels by
+region, and predator arrival times.
+--redtide-sim <map> <tides> [careful I careless] plays a bot team and reports
+the balance targets above.
+--web-check asserts every species has at least one predator or a reason not to
+(toxic, apex, boss), every tier-I species has a producer, no diet cycle is unreachable,
+and every corpse has a scavenger.
+All numbers live in redtide_species.json , redtide_weapons.json , and
+redtide_maps/ ; nothing is inline.
+Page 66 of 90

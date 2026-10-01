@@ -1,0 +1,77 @@
+Red Tide — Arcade Game 5 Design Document
+• Enemies never respawn indoors near the players; each map has faction entries (a
+breach in the hull, a cave mouth, the reef's drop-off, the city gate, the station's airlocks)
+that the players can watch and net.
+Shared beast rules
+Every beast in every map is built from the same size classes, tiers, and behavior
+archetypes, so the 200 species are data on top of a small set of systems. Each map's
+tables give a beast's class, size, tier, diet, predators, and a behavior note; everything else
+follows from these rules.
+Size classes
+Size Scale
+1
+2
+3
+4
+5
+6
+Finger to hand
+Arm
+Human
+Large (shark,
+seal)
+Huge (great
+white, whale)
+Leviathan (boss)
+(tide
+l)
+20
+60
+250
+900
+3,000
+15,000
+Base
+bounty
+40
+80
+180
+400
+900
+1,500
+Blood on
+death
+20
+40
+60
+80
+100
+120
+Blood per second
+wounded
+2
+4
+6
+8
+10
+12
+Typical speed
+Fast, erratic
+Fast
+Diver speed
+Faster than a diver
+Fast in a straight line,
+slow to turn
+Slow, unstoppable
+HP rises 8% per tide. Bounties rise 10% per tide. Blood does not scale, which is why later
+tides feel calmer per kill and deadlier per minute.
+Tiers
+• Tier 1 grazers, filter feeders, and detritivores: eat flora and corpses; the base of the
+web and the safest scrip.
+• Tier 2 small predators: eat tier 1; territorial or venomous species here are the early
+hazards.
+• Tier 3 mid predators: eat tiers 1-2 and each other; the tide 4-9 pressure.
+• Tier 4 apex: eat everything below, including enemies and divers; arrive by blood from
+tide 4, wander from tide 10.
+• Tier 5 boss: one per map, size 6, a home and a habit; a Predator Hunt can call it.
+Page 20 of 90

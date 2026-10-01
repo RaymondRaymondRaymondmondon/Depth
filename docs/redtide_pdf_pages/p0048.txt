@@ -1,0 +1,122 @@
+Red Tide
+Arcade Game 5 Design Document
+Crabs, snails
+Beast
+Mantis Shrimp
+Aqueduct
+Newt
+Cistern Frog
+Temple Krait
+Water Monitor
+Cormorant
+Moon Jelly
+Bloom
+Man o' War
+Octopus
+Conger Eel
+Class
+Crustacean
+Amphibian
+Amphibian
+Reptile
+Reptile
+Bird
+Cnidarian
+Cnidarian
+Cephalopod
+Fish
+Size
+2
+1
+2
+2
+3
+2
+2
+2
+3
+3
+Tier
+2
+2
+2
+2
+3
+2
+1 (swarm)
+2
+3
+3
+Eats
+Insects, shrimp
+Newts, shrimp
+Eels, gobies
+Crabs, frogs,
+urchins, eggs
+Sardines, bream
+Plankton
+Small fish
+Crabs, lobsters,
+shrimp
+Octopus, frogs,
+cardinalfish
+Eaten by
+Octopus
+Cistern frogs,
+kraits
+Monitor,
+conger
+Sea bass
+Crocodile
+Nothing
+Leatherback
+Leatherback,
+loggerhead
+Conger,
+dentex, monk
+seal
+Crocodile,
+great white
+Behavior and note
+Breaks shields;
+nests in the
+toolsmiths' anvils
+Aqueduct
+channels;
+harmless
+Cisterns; croaks
+echo through
+drains (a sound-
+layer alarm carrier)
+Crypt sea snake;
+venom 30 over IO
+s; surfaces at the
+caldarium air
+pocket
+Amphibious;
+prowls the
+bathhouse dry
+rooms and the drill
+yard; bites hold
+Dives from the
+courtyard air
+pockets; a startled
+flock is an alarm
+Drifts the forum;
+mild stings
+Under courtyard
+sargassum;
+tentacles 10 m
+long: 30 damage
+and paralysis 1 s
+One per amphora
+street; steals
+items; the
+toolsmiths' parts
+are usually in its
+den
+The drains; strikes
+from grates;
+retreats into the
+cistern
+Page 48 of 90

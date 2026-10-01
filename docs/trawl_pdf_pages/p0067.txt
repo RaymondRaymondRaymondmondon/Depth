@@ -1,0 +1,83 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+Item
+Seal-oil lantern
+Can sealer
+Lockpicks
+Dark lantern
+False-bottom crate
+Vent SUIfUr
+Veil lantern
+Cult incense
+Kraken bait
+What it does
+A warm light that shy fish don't
+flee
+Cans fish at the pier: canned fish
+never spoil and sell at a
+cheaper, safer alternative to
+cooking
+Open locked chests and cabins
+quietly, without a crowbar
+A shuttered lamp: light only where
+it points
+Hides salvage from the Drowned
+and from the customs cutter
+Keeps isopods off the boat for a
+night
+A blue light that draws lantern fish
+and squid but not Anglers
+Hides the crew from the Pale Eye
+for 5 minutes: no Wake from its
+gaze
+Calls the Kraken on purpose, for
+crews who want the beak
+The Slipway (boat upgrades, kept for the whole run).
+Upgrade
+Hull plates (per
+section)
+Reinforced keel
+Steel sheathing
+Effect
+Section integrity 100 150
+Grounding and ram damage halved
+Immune to stalactite and isopod
+damage
+Where
+Seal Rock trader
+Cannery Pier
+trader
+Smugglers' Shelf
+trader
+Smugglers' Shelf
+trader
+Smugglers' Shelf
+trader
+Bone Beach
+trader
+Drowned Stair
+trader
+Cult Landing
+trader
+Cult Landing
+trader
+Where
+Slipway
+Slipway
+Slipway
+price
+(sh)
+70
+150
+60
+90
+200
+40
+300
+120
+500
+Price
+(sh)
+150
+each
+600
+Page 67 of 79

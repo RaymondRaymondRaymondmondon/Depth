@@ -1,0 +1,42 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+When
+04:00
+A fine
+Hull damage below 40 in any section
+A first catch of a species
+A crewman dies
+Deadline met
+Deadline missed
+Example message
+ONE HOUR STOP CUSTOMS CUTTER ON STATION
+STOP
+LANDING OF PROTECTED TURTLE NOTED STOP
+50 SHILLINGS DEDUCTED STOP
+KINDLY REFRAIN FROM DAMAGING OWNERS
+PROPERTY STOP
+SPECIMEN NOTED STOP BONUS AUTHORISED
+STOP DO NOT BRUISE STOP
+HAND DECEASED STOP REPLACEMENT
+CHARGED IF REMAINS NOT RECOVERED STOP
+QUOTA MET STOP NEW QUOTA 620 STOP THE
+OWNERS EXPECTED NOTHING LESS STOP
+QUOTA NOT MET STOP GANNET REPOSSESSED
+STOP CREW RELEASED WITHOUT REFERENCE
+STOP
+The telegraph as a tell. On the Kraken's Glass, the tape prints only dots. When the Ghost
+Ship is near, it prints a message from a boat that sank years ago. Neither is ever explained.
+One deadline
+1. Dock (untimed, 2-4 min). The chalkboard shows the quota, nights left, and money. The
+crew sells last night's catch, buys gear at the Chandler, refits the boat at the Slipway,
+and loads bait, ice, and coal.
+2. Choose a ground. The helm picks one of the four grounds on the chart table. Each
+costs coal to reach, and the telegraph posts that night's conditions: weather, moon
+phase, and a rumor ("Whalers report the Weeds quiet"; rumors are right 70% of the
+time).
+3. Sail out (about 45 s). A short top-down run through the harbor mouth and fog. The
+engine crew brings up steam; the helm avoids buoys and rocks. Anything left
+unsecured on deck slides.
+4. The night (9 real minutes, 20:00 to 05:00 on the wheelhouse clock). The crew fishes,
+trawls, shoots, dives, and survives. The sea starts calm and wakes as the night goes on
+and as the crew makes blood, noise, and light.
+Page 3 of 79

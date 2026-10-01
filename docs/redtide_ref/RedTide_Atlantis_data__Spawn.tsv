@@ -1,0 +1,53 @@
+zone	species	count_tide1	respawn_s	capacity_mult_per_tide	count_tide10
+Harbor Gate	Sardine	40	20	1.03	52
+Harbor Gate	Barracuda	1	300	1.03	1
+Harbor Gate	Cardinalfish	6	90	1.03	8
+The Farms	Bream	30	30	1.03	39
+The Farms	Salema	40	30	1.03	52
+The Farms	Cistern Frog	8	180	1.03	10
+The Farms	Aqueduct Newt	10	120	1.03	13
+The Farms	Spider Crab	3	300	1.03	4
+The Farms	Nile Crocodile of the Canals	1	0	1.03	1
+The Farms	Amberjack	6	300	1.03	8
+The Lower Town	Sardine	80	20	1.03	104
+The Lower Town	Cardinalfish	20	90	1.03	26
+The Lower Town	Snapping Shrimp	1	0	1.03	1
+The Lower Town	Porcelain Crab	12	90	1.03	16
+The Lower Town	Sea Cucumber	8	120	1.03	10
+The Lower Town	Long-spined Urchin	15	120	1.03	20
+The Lower Town	Scorpionfish	4	0	1.03	5
+The Lower Town	Cuttlefish	3	240	1.03	4
+The Lower Town	Slipper Lobster	4	180	1.03	5
+The Lower Town	Mantis Shrimp	3	300	1.03	4
+The Lower Town	Octopus	6	600	1.03	8
+The Lower Town	Dentex	4	300	1.03	5
+The Lower Town	Sandbar Shark	1	600	1.03	1
+Courtyards	Cormorant	10	120	1.03	13
+Courtyards	Man o' War	3	240	1.03	4
+Courtyards	Loggerhead	1	500	1.03	1
+Courtyards	Monk Seal	1	600	1.03	1
+The Bathhouses	Cleaner Goby	4	300	1.03	5
+The Bathhouses	Nudibranch	4	180	1.03	5
+The Bathhouses	Sea Bass	3	300	1.03	4
+The Bathhouses	Water Monitor	1	600	1.03	1
+The Bathhouses	Cardinalfish	15	90	1.03	20
+Barracks & Armory	Amberjack	6	300	1.03	8
+Barracks & Armory	Spider Crab	2	300	1.03	3
+Barracks & Armory	Slipper Lobster	3	180	1.03	4
+Library & Academy	Giant Squid	1	0	1.03	1
+Library & Academy	Cardinalfish	12	90	1.03	16
+Library & Academy	Temple Krait	2	300	1.03	3
+The Forum	Feather Star	6	0	1.03	8
+The Forum	Moon Jelly Bloom	1	180	1.03	1
+The Forum	Bluefin Tuna	3	400	1.03	4
+The Forum	Swordfish	1	500	1.03	1
+The Forum	Leatherback	1	0	1.03	1
+The Forum	Sea Bass	1	300	1.03	1
+The Grand Chapel	Temple Krait	3	300	1.03	4
+The Grand Chapel	Cardinalfish	10	90	1.03	13
+The Grand Chapel	The Cistern Wyrm	1	0	1.03	1
+Cisterns	Conger Eel	6	360	1.03	8
+Cisterns	Lamprey	4	120	1.03	5
+Cisterns	Cistern Frog	10	180	1.03	13
+Beyond the wall	Great White	1	900	1.03	1
+respawn_s: seconds to replace one killed individual while below capacity; 0 = placed once (boss, sessile, ambush nests). Swarms and colonies count as 1 agent.

@@ -1,0 +1,56 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+Tackle
+Heavy boat
+rod
+Deep-drop
+reel
+Big-game
+chair
+Line
+strength
+40 kg
+30 kg
+120 kg
+Cast range
+15m
+Drops straight
+down, 200 m
+15m
+Reel speed
+Slow, 2-speed
+Steam-assisted
+Slow, 2-speed,
+fighting harness
+Holds
+Tuna, sharks, groupers
+Deep species in the
+Trench and Atlantis
+Marlin, giant tuna,
+small Ghost Worms
+300
+450
+900 (boat
+upgrade)
+Line types: mono (stretchy, forgiving, visible to wary fish), braid (no stretch, strong, cut by
+teeth and coral), wire leader (bite-proof, spooks wary fish), glow line (seen by everything).
+Hooks: small, circle, big-game treble. Stats live in trawl _ data. cpp .
+Bait and lures
+Every species has a diet in the food web, so bait is the food web in the player's hands. A
+fish takes what it eats.
+• Dead bait: squid strips, shrimp, chunks cut from caught fish (a tuna chunk catches
+sharks). Loses scent over 3 minutes.
+• Live bait: bait fish caught on handlines and kept in the bait well. Swims on the hook,
+draws predators by movement and by scent, and can itself be eaten by something
+bigger than what you wanted.
+• Lures: spoon (flash, mid-water),jig (vertical, deep), popper (surface, loud), glow lure
+(light), rattle (sound), plug (dives to a set depth). Each has a flash, noise, and scent
+profile the species' senses score.
+• Chum: offal from the gutting table or a bought chum bucket. Writes blood into the
+scent grid. Brings fish fast, and brings whatever eats them.
+The cast
+Hold to charge, release to cast; aim with the mouse. Wind drifts the lure, and a cross-wind
+cast lands off target. The lure sinks at its own rate; the angler counts depth by the line
+counter on the reel. Retrieve style is the player's input: steady reel, jig (tap), twitch-and-
+pause, or dead drift. Each species scores the presentation against its preference; a
+matched presentation roughly triples the bite chance.
+Page 19 of 79

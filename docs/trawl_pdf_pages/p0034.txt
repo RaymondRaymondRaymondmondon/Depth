@@ -1,0 +1,31 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+• Wet powder. Cartridge guns misfire 10% of the time in rain, 25% in a squall, and 40% in
+a storm or after their carrier has been in the water, unless the ammunition rides in an
+oilskin case (Chandler, 20). Dynamite fuses fail 30% of the time in heavy rain.
+• Guns overboard. A dropped gun is gone. A crewman who goes overboard carrying a
+long gun has 5 s less before drowning.
+• Cost. Ammunition is priced so that a careless night on the chatter gun can cost more
+than its kills earn; the quiet priest and the knife stay part of every good crew's kit.
+The tethered harpoon. A harpoon hit makes the target a hooked fish (see Fishing) with
+the cannon's winch as the reel and 120 kg steel as the line. This is how the crew lands a
+Great White or holds a Ghost Worm's head up while the rifles work. A tethered giant tows
+the boat; the winch can be released in an emergency.
+Kills and value. How a creature dies no longer lowers its value; it raises it, through the
+Killscore (see Fishing: The kill). The one exception is Overkill, where an explosive hit blows
+a fish to chum. A wounded fish that escapes bleeds into the scent grid as it goes.
+Noise and blood. Each shot writes its noise value into the sound layer at the muzzle and
+again at the impact point. Fearful species scatter; CUriOUS species come; aggressive ones
+come fast. Every wound writes blood (size x wound fraction x 2 per second, size x 20 on
+death). A depth charge is a dinner bell for a whole ground: it is the fastest money in the
+game and the fastest way to raise Wake (see The food web).
+Friendly fire is on. A rifle round or a harpoon can hit a crewman, and a harpoon tether can
+drag one over the rail.
+The food web
+Every ground runs one ecosystem simulation on the engine code Red Tide already has
+(agents, the scent and sound grids, the species file loader). The Trawl reuses that code to
+save time, not its design: the rules, numbers, species, and tuning here are written for a
+boat on the surface at night. The Trawl's web has seven layers (diet, blood and scent,
+sound, territory, symbiosis, flora, and the crew) plus three that exist only in this game:
+light, vibration, and Wake. The crew is a species in the web, so everything they catch, spill,
+and shine changes what comes next.
+Page 34 of 79

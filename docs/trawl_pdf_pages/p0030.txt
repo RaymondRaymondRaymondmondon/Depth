@@ -1,0 +1,184 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+Weapon
+Piston maul
+Obsidian
+dagger
+Service
+revolver
+Derringer
+Pepperbox
+Flare pistol
+Speargun
+Twin
+speargun
+Harpoon
+pistol
+Air pistol
+Captain's
+pistol
+Coach
+shotgun
+Lever
+carbine
+Chatter gun
+Long rifle
+(scoped)
+Nitro
+express
+Class
+Melee
+Sidearm
+Sidearm
+Sidearm
+Sidearm
+Sidearm
+Sidearm
+Sidearm
+Sidearm
+Sidearm
+Long gun
+Long gun
+Long gun
+Long gun
+Long gun
+Damage
+60, slow
+35, fast
+20
+30
+12
+10 plus fire
+35,
+tethered
+2 x 30,
+tethered
+25,
+tethered
+15
+45
+22
+9, 12 a
+second
+70
+180
+Magazine
+6
+2
+4, rapid
+1
+1
+2
+1
+8
+1
+2
+12
+30
+5
+2
+Noise
+3
+o
+5
+3
+5
+3
+2
+2
+3
+1
+5
+7
+6
+8
+7
+9
+Slots
+2
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+2
+2
+2
+2
+2
+Where
+Cannery Pier
+trader
+Cult Landing
+trader
+Gunsmith
+Gunsmith
+Gunsmith
+Gunsmith
+Gunsmith
+Cannery Pier
+trader
+Cannery Pier
+trader
+Smugglers'
+Shelf trader
+Found: the
+Ghost Ship's
+relic chest
+Gunsmith
+Gunsmith
+Gunsmith
+Gunsmith
+Gunsmith,
+from
+deadline 3
+Price
+(sh)
+400
+120
+80
+150
+60
+150
+280
+250
+300
+200
+400
+450
+700
+1,200
+Special
+Launches a fish
+into the air:
+sets up
+Airborne kills
+Silent; every kill
+adds 1 Wake
+Rounds 2
+Rounds 2
+Rounds 2
+Light bursts,
+signals; flares
+10
+Spears 5
+Spears 5
+Reels a fish in
+to the shooter
+Nearly silent;
+never misfires
+in the wet;
+pellets 1
+Never misfires
+Shells 3
+Rounds 2
+Rounds 1
+Rounds 5
+Recoil knocks
+the shooter
+back; rounds 15
+Page 30 of 79

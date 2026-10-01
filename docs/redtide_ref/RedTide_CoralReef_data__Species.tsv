@@ -1,0 +1,43 @@
+id	name	class	size	tier	tags	archetype	social	group_size	home_zone	home_flora	defend_radius_m	blood_threshold	aggression	fear	curiosity	sight_m	scent_m	hearing_m	electro_m	weak_point	armor_front	hp_base	bounty_base	blood_death	blood_per_s_wounded	speed_mps	turn_deg_s	drop_pct	hp_tide10	bounty_tide10	special
+1	Anthias	Fish	1	1	schooler	Schooler	school	40	The Bommie		0	0	0	0.9	0.2	15	8	15	0	none	0	20	40	20	2	2.2	360	1	40	94	A shimmering school over the Bommie; the reef's blood battery
+2	Clownfish	Fish	1	1	territorial	Territorial	pair	2	Staghorn Forest	Anemone	2	0	0.4	0.2	0.3	8	6	8	0	none	0	20	40	20	2	2.2	360	1	40	94	Endless 1-damage bites near its anemone
+3	Butterflyfish	Fish	1	1		Grazer	pair	2	Staghorn Forest	Staghorn thicket	0	0	0	0.8	0.3	10	6	8	0	none	0	20	40	20	2	2.2	360	1	40	94	Grazes polyps; harmless
+4	Cleaner Wrasse	Fish	1	0	cleaner	Grazer	group	3	The Bommie		0	0	0	0.6	0.5	10	8	10	0	none	0	20	40	20	2	2.2	360	0	40	94	The Bommie cleaning station calms every visitor, sharks included; killing them raises host aggression 20% for 5 min
+5	Sea Urchin	Echinoderm	1	1		Grazer	group	10	Brain Coral Maze	Halimeda beds	0	0	0	0.1	0	0	3	0	0	none	1	20	40	20	2	2.2	360	2	40	94	Spines on contact
+6	Spiny Lobster	Crustacean	2	2	nocturnal	Grazer	group	3	Brain Coral Maze		0	5	0.1	0.7	0.3	8	8	8	0	underside	2	60	80	40	4	2	300	3	120	189	In crevices; free scrip at night tides
+7	Angelfish	Fish	2	1		Grazer	pair	2	Staghorn Forest	Soft coral garden	0	0	0	0.8	0.3	12	6	10	0	gills	0	60	80	40	4	2	300	2	120	189	Pairs; harmless
+8	Triggerfish	Fish	2	2	territorial	Territorial	solo	1	Staghorn Forest		4	10	0.6	0.3	0.3	12	6	10	0	gills	1	60	80	40	4	2	300	3	120	189	Defends its nest; chases
+9	Surgeonfish	Fish	2	1		Grazer	group	6	The Bommie	Turf algae	0	0	0	0.8	0.2	12	6	10	0	gills	0	60	80	40	4	2	300	2	120	189	Scalpel tail
+10	Garden Eel	Fish	1	1	burrower,schooler	Grazer	school	100	The Sand Flats		0	0	0	1	0	12	4	10	0	none	0	20	40	20	2	2.2	360	1	40	94	Retracts when a diver is within 6 m, showing the diver's position to everything watching
+11	Goatfish	Fish	2	2		Grazer	group	5	The Sand Flats		0	5	0.1	0.7	0.3	10	10	8	0	gills	0	60	80	40	4	2	300	2	120	189	Stirs a visible sand cloud
+12	Flounder	Fish	2	2	camouflage	Ambusher	solo	1	The Sand Flats		0	5	0.2	0.6	0.2	8	6	6	0	gills	0	60	80	40	4	2	300	3	120	189	Startles when stepped on (a burst of sand)
+13	Razorfish	Fish	1	1	schooler	Schooler	school	30	The Bommie	Sea whip fans	0	0	0	0.9	0.2	10	4	10	0	none	0	20	40	20	2	2.2	360	1	40	94	A vertical school among sea whips
+14	Sand Dollar	Echinoderm	1	1		Grazer	group	30	The Sand Flats		0	0	0	0	0	0	0	0	0	none	0	20	40	20	2	2.2	360	1	40	94	A carpet; free scrip
+15	Cone Snail	Mollusc	1	2	venom	Ambusher	solo	1	The Sand Flats	Seagrass meadow	0	0	0.1	0	0	2	4	0	0	none	2	20	40	20	2	2.2	360	3	40	94	Stings on touch
+16	Blue-ringed Octopus	Cephalopod	1	2	venom	Ambusher	solo	1	Brain Coral Maze		0	5	0.3	0.5	0.4	6	6	4	0	mantle	0	20	40	20	2	2.2	360	4	40	94	The reef's deadliest small thing
+17	Box Jelly	Cnidarian	2	2	venom	Swarmer	group	4	The Lagoon		0	0	0	0	0	0	0	0	0	none	0	60	80	40	4	2	300	2	120	189	Drifts the lagoon and the flats' edge
+18	Crown-of-thorns Starfish	Echinoderm	2	1	venom	Grazer	group	4	Staghorn Forest	Staghorn thicket	0	0	0	0.1	0	0	4	0	0	underside	1	60	80	40	4	2	300	2	120	189	Eats 1 corridor segment per 90 s if left alone
+19	Ribbon Eel	Fish	2	2		Ambusher	solo	1	Staghorn Forest		1	10	0.6	0.2	0.2	6	10	8	0	gills	0	60	80	40	4	2	300	3	120	189	Eel-hole ambusher
+20	Reef Cuttlefish	Cephalopod	2	2	camouflage	Ambusher	solo	1	Brain Coral Maze		0	10	0.3	0.6	0.5	12	8	8	0	mantle	0	60	80	40	4	2	300	4	120	189	Camouflaged; dazzles
+21	Crab-eating Frog	Amphibian	2	2	amphibious	Grazer	group	6	Mangrove Nursery	Mangrove roots	0	5	0.2	0.7	0.4	8	6	8	0	none	0	60	80	40	4	2	300	2	120	189	Leaps between roots and surface
+22	Reef Axolotl	Amphibian	2	2	regen	Grazer	group	4	The Lagoon	Mangrove roots	0	5	0.1	0.7	0.3	8	6	6	0	gills	0	60	80	40	4	2	300	3	120	189	Regenerates 5 HP/s when hidden; tough for its size
+23	Giant Reef Toad	Amphibian	3	3	amphibious	Ambusher	solo	1	Mangrove Nursery		6	30	0.6	0.2	0.3	10	8	12	0	throat	1	250	180	60	6	1.8	180	5	500	424	Croaks are a 3-noise alarm
+24	Marine Iguana	Reptile	2	1	amphibious	Grazer	group	8	The Bommie	Turf algae	0	0	0	0.8	0.2	10	4	8	0	neck	1	60	80	40	4	2	300	3	120	189	Grazes the Bommie shallows; a herd is 200 blood if wiped
+25	Olive Sea Snake	Reptile	2	2	venom,air-breather	Patroller	solo	1	Staghorn Forest		0	15	0.4	0.3	0.8	12	10	8	0	head	0	60	80	40	4	2	300	5	120	189	Curious; approaches divers
+26	Green Turtle	Reptile	3	1	armored	Grazer	solo	1	The Sand Flats	Seagrass meadow	0	0	0.1	0.5	0.3	12	8	10	0	neck	3	250	180	60	6	1.8	180	5	500	424	Eats box jellies; keep it alive
+27	Moray Eel	Fish	3	3	territorial	Ambusher	solo	1	Staghorn Forest		3	30	0.7	0.2	0.2	8	20	10	0	gills	1	250	180	60	6	1.8	180	6	500	424	Hunts with the grouper: flushes prey from holes
+28	Coral Grouper	Fish	3	3		Ambusher	solo	1	Staghorn Forest		0	30	0.6	0.3	0.3	12	25	10	0	gills	1	250	180	60	6	1.8	180	6	500	424	Waits at corridor corners for what the moray flushes
+29	Stingray	Fish	3	3	burrower	Ambusher	solo	1	The Sand Flats	Seagrass meadow	0	20	0.3	0.4	0.2	8	12	8	4	gills	1	250	180	60	6	1.8	180	5	500	424	Buried in seagrass
+30	Bobbit Worm	Worm	3	3	burrower	Ambusher	solo	1	The Sand Flats		0	0	0.9	0	0	3	10	6	0	mouth (when extended)	3	250	180	60	6	1.8	180	7	500	424	A 3 m lunge from a hidden hole; follow goatfish clouds instead of straight lines
+31	Titan Triggerfish	Fish	3	3	territorial	Territorial	solo	1	Brain Coral Maze		8	30	0.9	0.1	0.2	15	8	12	0	gills	2	250	180	60	6	1.8	180	6	500	424	Defends a cone-shaped territory above its nest at 3x speed
+32	Napoleon Wrasse	Fish	4	2		Grazer	solo	1	The Bommie		0	0	0.1	0.4	0.5	15	10	12	0	gills	1	900	400	80	8	2.4	120	6	1799	943	Eats cone snails and blue-rings; gentle; 80 blood
+33	Dugong	Mammal	4	1	air-breather	Grazer	pair	2	The Sand Flats	Seagrass meadow	0	0	0.1	0.6	0.3	10	8	10	0	none	1	900	400	80	8	2.4	120	5	1799	943	Grazes the flats; harmless; the flats' blood trap
+34	Blacktip Reef Shark	Fish	4	4	pack	Pack hunter	pack	4	Staghorn Forest		0	60	0.7	0.4	0.5	20	40	20	6	gills	1	900	400	80	8	2.4	120	8	1799	943	Packs of 4 in the corridors; skittish alone
+35	Grey Reef Shark	Fish	4	4		Patroller	solo	1	The Drop-off Wall		0	80	0.8	0.2	0.5	25	45	25	6	gills	1	900	400	80	8	2.4	120	8	1799	943	Patrols the wall; threat display before attacking
+36	Bottlenose Dolphin	Mammal	4	3	ally,air-breather	Pack hunter	pack	5	The Drop-off Wall		0	0	0.2	0.2	0.8	30	15	40	0	blowhole	1	900	400	80	8	2.4	120	8	1799	943	Shadows the divers and rams sharks off them; hostile for the match after one dolphin is shot
+37	Monk Seal	Mammal	4	3	thief,air-breather	Patroller	solo	1	The Lagoon		0	30	0.3	0.5	0.9	15	10	15	0	none	1	900	400	80	8	2.4	120	6	1799	943	Curious thief
+38	Manta Ray	Fish	5	1		Grazer	solo	1	The Drop-off Wall		0	0	0	0.5	0.4	20	10	15	0	gills	1	3000	900	100	10	2.6	70	6	5997	2122	Glides the wall and the Blue Hole; harmless; 100 blood
+39	Great Hammerhead	Fish	5	4		Wanderer	solo	1	The Drop-off Wall		0	150	0.9	0	0.6	30	80	30	10	gills	1	3000	900	100	10	2.6	70	10	5997	2122	Electroreception finds buried divers and rays; threshold 150
+40	Humpback Whale	Mammal	5	1	air-breather	Grazer	solo	1	The Drop-off Wall		0	0	0	0.3	0.3	20	10	30	0	none	2	3000	900	100	10	2.6	70	6	5997	2122	Passes every few tides; shooting it = 100 blood and an instant Predator Hunt
+41	The Matriarch	Mammal	6	5	boss,pack,air-breather	Boss	pack	4	The Drop-off Wall		20	400	1	0	0.3	40	60	50	0	blowhole and belly	2	15000	1500	120	12	1.2	40	100	29985	3537	An orca matriarch with a pod of 3; hunts as one; the Shaman's drum can call her; see Boss
+Blue = tunable input. Columns Y, Z, AD, AE are formulas.

@@ -1,0 +1,13 @@
+flora	type	zones	effect	contact_damage	grazed_by	regrowth_rate_per_s	regrow_delay_s
+Glow mould	Luminous producer	Flooded Gallery, Chimney, Cathedral	Base of the wet web; lights corridors; brighter where cavefish are fewer	0	Blind Cavefish	1	60
+Chemosynthetic mat	Producer	The Sump, Dynamo Sump	Base of the sump web at the vents	0	Cave Krill, Bristle Worm, Cave Sturgeon	1	45
+Pale cave moss	Producer	Dry Chambers	Insect and newt food	0	Cave Cricket, Amphipod, Blind Newt, Poison Dart Newt	0.8	90
+Snottite curtain	Hazard	Chimney ledges, Squeeze	Acid drip: 5/s underneath	5		0	0
+Crystal coral	Hazard/Tool	The Cathedral	Sharp (bleed on touch); shooting a cluster rings it: calls the Lobster and makes it Rear	6		0	0
+Root tangle	Shelter	Flooded Gallery ceiling, Dry Chambers	Hides divers; crayfish and spiders nest here	0		0	0
+Drip fungus	Hazard	Dry Chambers	Spore cloud when disturbed: slow 30% for 5 s	0		0	0
+Ink cap	Tool	Flooded Gallery, Cathedral	Bursts into an 8 s ink cloud when shot	0		0	300
+Bloodvine	Tool/Trap	Gallery, Dynamo Sump (near the Forge)	Cut or shot: smells like 40 blood for 30 s	0		0	240
+Cave sponge	Shelter	Flooded Gallery	Glass shrimp and sponges' guests inside	0	Sea Spider	0.3	120
+White anemone cluster	Hazard	Gallery, Cathedral floor	Holds size 1; stings divers 8	8	Sea Spider	0.3	120
+Stone lettuce	Producer	The Sump, Dry Chambers pools	Sturgeon and snapping turtle food	0	Cave Sturgeon, Snapping Turtle	0.5	120

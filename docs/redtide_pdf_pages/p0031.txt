@@ -1,0 +1,72 @@
+Red Tide — Arcade Game 5 Design Document
+Flora (12)
+Flora
+Glow mould
+Chemosynthetic mat (sump
+vents)
+Pale cave moss (dry
+chambers)
+Snottite curtain
+Crystal coral (Cathedral)
+Root tangle
+Drip fungi-JS
+Ink cap
+Bloodvine
+Cave sponge
+White anemone cluster
+Stone lettuce
+Beasts (40)
+Type
+Luminous
+producer
+Producer
+Producer
+Hazard
+Hazard and tool
+Shelter
+Hazard
+Tool
+Tool and trap
+Shelter
+Hazard
+Producer
+Effect
+The base of the wet web; lights
+corridors; cavefish graze it
+The base of the sump web; krill and
+isopods swarm it
+Insect and newt food
+Acid drips: 5 damage per second under
+it
+Sharp (touch bleeds); shooting a
+cluster rings it, calling the Lobster
+Hanging roots from above; divers hide
+in it; crayfish nest in it
+A spore CIOUd when disturbed: slows
+for 5 s
+Bursts into an ink cloud when shot
+Smells like 40 blood when cut
+Glass shrimp and blennies inside
+Holds size 1 and stings divers (8)
+Sturgeon and snapping turtle food
+Beast
+Blind
+Cavefish
+Class
+Fish
+Size
+1
+Tier
+1
+Eats
+Glow mould
+Eaten by
+Eels, catfish,
+anglerfish
+Behavior and
+note
+Schooler; no
+eyes, so it ignores
+light and follows
+sound
+Page 31 of 90

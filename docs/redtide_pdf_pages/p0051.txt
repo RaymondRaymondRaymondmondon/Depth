@@ -1,0 +1,43 @@
+Red Tide — Arcade Game 5 Design Document
+Definition of Done
+• The city generator places 60+ buildings by district with correct habitats; the aqueduct
+moves blood downhill in
+--eco-sim atlantis 20 .
+The Wyrm surfaces from grates; ichor repels and attracts as specified; a four-player
+test reaches the chapel and survives a Lost Ones Hunt on the summit.
+Level 5: Approaching the Void
+The largest map: a black sand plain on the rim of an abyss, and beneath it a cave system,
+built as vertical chimneys and galleries rather than the second map's halls, that descends
+past a drowned research station to a vault that looks straight down into the void. The rim
+is empty and enormous; the guns, tonics, and the Forge are all below, and every gallery
+deeper is more dangerous and richer. The Sand Worm patrols the far rim so that no one
+wanders off the map.
+Layout
+Zone
+The Rim (start pocket at the station's
+surface hatch)
+The Descent
+The Upper Galleries
+The Warrens
+What's there
+A vast plain beside the abyss; sea
+pens, sand eels, the worm's tunnels on
+the horizon; only the Gannet rack and
+Juggernaut
+A chimney down from the hatch;
+ledges with Quick Brine, Needler Mk l,
+a workbench; the first overlook onto
+the abyss
+Glass sponge reefs and bamboo coral;
+Carbine, Flechette, Speed Brine;
+Locker spot 1; the Remnant's upper
+airlock
+A maze of tubes and vents; yeti crabs
+and tube worms; Double Shot, Long
+Speargun; two overlooks
+Opens
+with
+750
+1,000
+1,250
+Page 51 of 90

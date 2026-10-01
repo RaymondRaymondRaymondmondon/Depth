@@ -324,7 +324,12 @@ void Gannet::Primary(int ci, bool held, float dt) {
             // bycatch first: back over the side through the sorting chute (a protected turtle alive, within its minute)
             for (int i = 0; i < (int)hold.size(); i++) if (hold[i].bycatch || hold[i].protectedSp) {
                 gutT += dt * rate;
-                if (gutT >= 0.8f) { gutT = 0; Say(TextFormat("Returned over the side: %s", hold[i].name.c_str())); hold.erase(hold.begin() + i); }
+                if (gutT >= 0.8f) {
+                    gutT = 0;
+                    if (hold[i].protectedSp && tagGun) { tagged++; Say(TextFormat("Tagged and returned alive: %s (the naturalist will want to hear)", hold[i].name.c_str())); }
+                    else Say(TextFormat("Returned over the side: %s", hold[i].name.c_str()));
+                    hold.erase(hold.begin() + i);
+                }
                 return;
             }
             int f = -1; for (int i = 0; i < (int)hold.size(); i++) if (!hold[i].gutted) { f = i; break; }
@@ -376,6 +381,7 @@ void Gannet::Step(float dt) {
     bool wasSunk = boat.sunk; float valve0 = boat.valveT;
     if (botsOn) StepBots(dt);
     StepRods(dt);
+    StepBoss(dt);
     StepSkiffRod(dt);
     StepGear(dt);
     StepSonar(dt);

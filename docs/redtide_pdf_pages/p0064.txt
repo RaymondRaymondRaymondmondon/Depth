@@ -1,0 +1,40 @@
+Red Tide — Arcade Game 5 Design Document
+State
+Hunt
+Boss present
+Downed
+Match over
+Music
+A faction theme: the Wreckers' shanty on broken
+accordion, the Drowned's bell and choir, the
+Raiders' drums, the Lost Ones' organ, the
+Remnant's alarm klaxon and clockwork
+The boss theme; everything else ducks
+Music thins to a heartbeat and the breathing
+A slow shanty over the score
+Each map has its own palette: the ship's creaking brass, the cave's echoes and drips, the
+reef's bright marimba-like synths, Atlantis's choir and organ, the Void's sub-bass and near-
+silence.
+Ambience
+Map
+The Sunken Ship
+The Underwater Cave
+The Coral Reef
+Atlantis
+Approaching the Void
+Bed
+Hull groans, the list's creak, sprats fluttering, the
+air pocket's slosh, the crocodile's breath from the
+salon
+Drips, slipstream rush, cricket chirps in the dry
+chambers, the swiftlets, distant rockfall
+Snapping shrimp crackle, parrotfish crunch, surf
+above the lagoon, dolphin whistles, whale song at
+the wall
+Aqueduct flow, the cisterns' echo, snapping shrimp
+in the walls, cormorant wings, the chapel's god-
+pool
+Almost nothing: the reactor hum, vent hiss, sperm
+whale clicks, the worm's distant rumble, the void's
+low tone
+Page 64 of 90

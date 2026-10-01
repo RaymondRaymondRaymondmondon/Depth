@@ -1,0 +1,54 @@
+Red Tide — Arcade Game 5 Design Document
+Level mechanics
+• Coral corridors limit fire lanes to 8-12 m; loud guns are wasted, spearguns and knives
+shine.
+• Eel holes line the corridors: passing within 1 m risks a moray or ribbon eel strike;
+Vulture's Eye shows occupied holes.
+• Reacher coral grabs a diver who brushes it and holds until a teammate cuts them loose
+(or the coral is shot to O); it also grabs beasts and enemies, which feed it.
+• The sand flats have no cover and full sightlines: the loud-gun zone, and the place
+where a downed diver's blood spreads fastest.
+• Dolphins. The pod follows the divers and drives sharks off while nobody has shot a
+dolphin. One shot turns the pod hostile for the match.
+• Crown-of-thorns eat coral: leaving them alive erodes corridors (opening lanes for
+sharks); killing them is 40 blood each.
+Flora (12)
+Flora
+Staghorn thicket
+Brain coral
+Table coral
+Fire coral
+Reacher coral
+Seagrass
+meadow
+Mangrove roots
+Sea whip fans
+Soft coral garden
+Type
+Structure and
+producer
+Cover
+Shelter
+Hazard
+Hazard and trap
+Producer (flats)
+Shelter (lagoon)
+Cover
+Producer
+Effect
+The corridors themselves; grazed by
+butterflyfish and crown-of-thorns; breaks
+under a shark ram
+Solid; blocks shots and sight
+Roofs that hide divers from above (mantas,
+sharks)
+Touch: 15 burn
+Grabs and holds; feeds on what it holds
+Dugong and turtle food; cover for stingrays;
+hides the bobbit worm's hole
+Air pocket above; the frog and toad nursery;
+juvenile fish hide here, which draws barracuda
+Sway with current; seahorses and pipefish
+cling to them
+Angelfish food; luminous at night tides
+Page 38 of 90

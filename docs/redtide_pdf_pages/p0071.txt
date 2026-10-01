@@ -1,0 +1,29 @@
+Red Tide — Arcade Game 5 Design Document
+3. A Wrecker below 30% HP retreats toward the breach and calls for help (+1 Cutter if
+the alarm is still above threshold).
+4. Wreckers ignore beasts below size 3 and fight anything bigger that attacks them; they
+will abandon a fight with divers to flee a shark.
+5. In a Hunt, the Foreman holds the Stern; the squad's job is to drive the divers toward
+him.
+Barks
+Spoken as gurgling radio chatter (formant synth, subtitled). Each unit has 6-8 lines per
+situation; examples:
+Spotting divers: "Divers on the wreck. Nobody's collecting our salvage." / "Four of 'em.
+Chum 'em."
+• Chum thrown: "Dinner's served, fish." / "Let the reef do the work."
+• Shark arrives: "That's not ours! Back to the breach!" / "Cut the chum, cut the chum!"
+• A Wrecker dies: "Marlow's gone. Keep working." / "The safe's worth it. Push."
+• Netting a diver: "Got one wrapped!" / "Pull it in, pull it in."
+• Foreman: "The safe's mine, and sols the ship." / "Winch up. Put a bolt through the
+helmet."
+The same treatment for the other factions
+The Drowned (Deckhand, Lantern Bearer, Bosun), the Reef Raiders (Spear Diver, Turtle
+Rider, Sling Diver, Shaman), the Lost Ones (Legionnaire, Cultist, Slinger, Armored Lost
+One, Priest), and the Remnant (Sentinel, Researcher, Cultist, Station Chief) each get a
+units table, five tactics, and bark sets in their map's workbook on a Faction sheet.
+Boss fights
+Every map boss follows one template: three phases at 100-60, 60-30, and 30-0% HP; an
+arena that is a room until tide 12 and the whole map after; one way to blind, stun, or
+expose it that rewards knowing the map; and a reward of 1,500 base scrip, a Locker
+weapon per diver, and a quest key.
+Page 71 of 90

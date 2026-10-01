@@ -1,0 +1,58 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+Bird
+Cormorant
+Skua
+Cave swifts
+Storm petrel
+Albatross
+Grounds
+Weeds, the
+Grotto's mouth
+Weeds, Atlantis
+The Grotto
+Atlantis
+Atlantis
+Lifts
+2 kg
+1 kg
+10
+kg
+Behaviour
+Dives on baits and hooked fish;
+tangles lines
+Bold: pecks at crew carrying fish
+(minor injury)
+Swarms at any light; guano fouls
+the deck
+Takes nothing; a flock appearing
+means a squall within 20 minutes
+Glides in on cooking smoke; will
+take a whole tuna
+Value
+(sh)
+8
+10
+1 each
+2
+60
+Keeping the catch. Crate fish as soon as they're dead, and gut and ice them quickly. On
+islands, a crewman standing guard by the fire is the only protection unless the crew has a
+bird net or a scarecrow (see Tools and gadgets). Bots put loose fish in the crates when
+idle.
+Weapons
+Weapons are fishing gear. Most kills happen on deck at point-blank range; guns also reach
+fish at the surface on the line, and they are the only answer to some threats. A crew starts
+with fists, a fish priest, a knife, and a gaff, and buys the rest from the Gunsmith on the
+dock. Every weapon is judged three ways: how fast it kills, how well it scores, and how
+much noise and blood it puts in the water.
+Ballistics. Projectiles are simulated, not hitscan. Above the surface: gravity and light drag.
+At the surface: a round's velocity drops to 10% in the first 0.3 m and it stops within 1.5 m,
+so rifles only work on fish at or breaking the surface. Harpoons and spears keep their
+energy far longer in water. Refraction: a target seen below the surface is drawn where the
+light says it is, 15-25% nearer and shallower than it really is, so aiming at a fish in the water
+means aiming below it. Hits resolve against the fish's body (head, body, tail); a head hit on
+a fish under its size class kills clean.
+The catalogue. "Where" is the Gunsmith on the dock, an island trader (only sold there; see
+Islands), or found. Slots are inventory slots out of four. Ammunition prices are per round
+unless noted.
+Page 28 of 79

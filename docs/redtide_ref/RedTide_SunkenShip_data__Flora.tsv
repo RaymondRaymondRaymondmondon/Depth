@@ -1,0 +1,13 @@
+flora	type	zones	effect	contact_damage	grazed_by	regrowth_rate_per_s	regrow_delay_s
+Turf algae	Producer	Keel, Stern	Grazer food; parrotfish crunch draws barracuda	0	Parrotfish, Rabbitfish, Sergeant Major, Damselfish, Fiddler Crab	1	60
+Sea lettuce	Producer	Salon	Grazer food; dies back if grazers are wiped, regrows in 90 s	0	Sea Hare, Rabbitfish	1	90
+Fire coral	Hazard	Cabins, Galley	Touch: 15 burn + flinch	15		0	0
+Stinging hydroids	Hazard	Salon doorways, Cabins	Touch: bleed 3 s	4		0	0
+Barrel sponge	Shelter	Galley, Stern	Hides size-1 beasts; hawksbill food	0	Hawksbill Turtle	0.3	120
+Sea fan	Cover	Cabins	Blocks sight; a moray or stonefish usually behind it	0		0	0
+Anemone bed	Host/Hazard	Keel	Clownfish home; stings 10; holds size 1	10		0	0
+Bladder kelp (mast)	Shelter/Current	Outside	Hides divers from sight; sways with current	0		0	0
+Coralline crust	Producer	Keel, Stern	Whelk and sea hare food	0	Whelk, Sea Hare	0.5	120
+Dead man's fingers	Luminous	Stern	Glows when touched; draws squid and cuttlefish at night tides	0		0	0
+Sargassum raft	Shelter	Outside (surface)	Shade; jelly bloom gathers under it	0		0	0
+Luminous algae mat	Luminous producer	Engine	Krill food; lights the engine room; the Goliath's lamp	0	Rudder Krill	1	60

@@ -1,0 +1,80 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+Upgrade
+Skiff lantern
+Planked-up
+sides
+Bigger skiff
+Skiff crate
+Trolling holders
+Muffled
+oarlocks
+Flare mortar
+Skiff outrigger
+Sealers' sail
+Kelp-cutter
+prow
+Quiet launch
+engine
+Cave rudder
+Atlantean prow
+Effect
+Bow light 6m IO m
+Hull 40 70
+Three seats and 250 kg
+A lidded crate birds can't open
+Four rods fish while the skiff is rowed
+Rowing noise halved
+Lights 40 m around the skiff for 20 s,
+and everyone sees it
+Doesn't capsize below 400 of roll
+2.5 m/s in any wind, silent
+Runs through the canopy at full speed
+3 m/s, noise 1
+Turns twice as tight in the galleries
+The Pale Eye cannot see the skiff
+Where
+Slipway
+Slipway
+Slipway
+Slipway
+Slipway
+Slipway
+Slipway
+Atoll trader
+Seal Rock trader
+Cannery Pier
+trader
+Smugglers' Shelf
+trader
+Bone Beach trader
+Drowned Stair
+trader
+price
+(sh)
+60
+200
+450
+50
+80
+70
+90
+300
+250
+180
+700
+150
+800
+Charms. Each crewman wears one charm on a cord: a small passive effect that lasts the
+whole run, takes no inventory slot, and is lost if its wearer's body is lost at sea. Charms
+come from island traders, treasure, and mini-boss drops; a mini-boss drop can be worn as
+a charm or traded to Mother Carey for a legend lure, but not both.
+Charm
+Lucky coin
+Shark tooth
+Effect
+Glimmer variants as likely
++0.1 Killscore on melee finishes
+Where
+Chandler, 50 sh
+Atoll trader, 120 sh
+Page 70 of 79

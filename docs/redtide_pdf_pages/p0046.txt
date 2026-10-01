@@ -1,0 +1,78 @@
+Red Tide — Arcade Game 5 Design Document
+Flora (12)
+Flora
+Posidonia meadows
+(farms)
+Sea lettuce terraces
+Column coral
+Doorway kelp curtains
+Bathhouse sponges
+Forum sea fans
+Temple glow-moss
+Amphora anemones
+Barnacle marble
+Fire coral on the wall
+Courtyard sargassum
+Stinging hydroid drains
+Type
+Producer
+Producer
+Structure
+Cover
+Shelter
+Cover
+Luminous
+producer
+Hazard
+Hazard
+Hazard
+Air
+Hazard
+Effect
+Grazer base for the whole lower city
+Farm grazers; regrows fast
+Grows on every pillar; sharp corners bleed
+Hangs in every doorway; hides what's
+inside, both ways
+Cardinalfish and shrimp inside; groupers
+wait beside them
+Break sightlines across the plaza
+Lights the chapel and the library; draws
+squid
+Stings (10); an octopus is usually behind one
+Cuts (bleed 3 s) on every wall a diver
+brushes at speed
+Burns (15) along the rampart walk
+Air pockets in the roofless courtyards; man
+o' war beneath
+Every drain grate stings (bleed) when
+Beasts (40)
+Beast
+Sardine
+Cardinalfish
+Class
+Fish
+Fish
+Size
+1
+1
+Tier
+1
+1
+touched
+Eats
+Plankton
+Plankton
+Eaten by
+Tuna,
+amberjacks,
+dentex
+Groupers, sea
+bass
+Behavior and note
+Street schools; the
+city's blood
+battery
+Cellars and
+sponges; nocturnal
+Page 46 of 90

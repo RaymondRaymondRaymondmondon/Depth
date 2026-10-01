@@ -1,0 +1,31 @@
+Red Tide — Arcade Game 5 Design Document
+The Hunt ends when the force and the leader are dead or eaten. Reward: a Resupply
+drop and a guaranteed Locker weapon for each diver (a free pull from the nearest
+spot).
+• Predator Hunt. The quota is a fixed number of apex kills: 2 at tide 10, 3 at 15, 4 at 20+
+(the map's boss counts as 2). The map's apex beasts are given the divers/ position as a
+blood source of 500 and arrive within 60 s from their home regions. Reward as above.
+• During any Hunt the ecosystem keeps running; beasts eat Hunt forces and Hunt forces
+fight beasts. A Hunt has no time limit but the calm between tides is doubled to 40 s
+after one.
+• The oarfish (the Void) and the drum (the Reef) are pre-warnings of 60 s; other maps
+warn with the faction's tell 20 s before the first wave.
+Solo and duo
+• Quotas scale 0.4/0.6 / 0.8; squads are 2/ 3/3 units; Hunt forces are 5/719; Predator
+Hunt kills are 1/2/3.
+• Solo: Quick Brine gives a self-revive (3 per match); a downed solo diver has 60 s.
+• DUO: a downed diver has 55 s; revives take 3 s.
+Hidden quests: step lists
+Each map has one hidden quest. Steps are ordered; a step that fails (the item is lost, the
+timer runs out) resets only that step. Every quest has a fail-safe: nothing in it can make a
+match unwinnable.
+The Sunken Ship: the captain's safe
+1. Trigger: read the captain's log on the bridge (a chalk prompt appears after tide 3).
+2. Collect three keys: one drops from the Goliath (any kill), one from the Wreckers'
+Foreman (a Hunt), one is held by the Common Octopus (kill it in its den; if it has stolen
+an item, the key is with it).
+3. Carry all three to the safe on the bridge; opening takes 20 s and rings the ship's bell (10
+noise). Fail: a diver holding a key who dies drops it where they fell.
+4. Reward: 3,000 scrip each, a Forged wonder weapon (the Lightning Keel) for the
+opener, and the dossier page "The Owners".
+Page 84 of 90

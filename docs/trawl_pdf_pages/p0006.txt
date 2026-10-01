@@ -1,0 +1,37 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+1. The deck. Walk to each station; take the handline; catch three silversides for the bait
+well.
+2. The rod. Bait a light rod with a silverside, cast at the marked snapper school, set the
+hook on the take, and land a snapper with side pressure. Kess gaffs it if the angler asks
+with a Ping.
+3. The table. Kill the snapper on deck with the priest (Kess points out the headshot
+bonus), then row it with Kess in the skiff to the Atoll's fire pit and cook it to
+Everything else goes in the catch crates or on ice. Kess throws the guts and sluices the
+deck blood over the side, which is a mistake.
+4. The sonar. Ping, mark the sardine ball, and steer onto it.
+5. The net. Shoot the trawl through the ball and haul it with two hands; sort the moon
+jellies back over the side.
+6. Blood. The guts from step 3 bring a reef shark. It takes a hooked fish, then circles. The
+crew learns the counters: stop the blood, get off the rail, gaff or cannon, or steam away.
+7. Overboard. Kess slips on the wet deck and goes in. Stop the screw and throw the ring.
+8. Home. The clock runs to 05:00 fast; cross the harbour line, deliver the catch at the
+Owners' quota scales, and read the chalkboard.
+The Field Manual. A battered book in the wheelhouse holds a page per station, the tackle
+and bait basics, and the Catch Log with its threat dossiers. It fills in as the crew discovers
+things, like Lethal CompanVs terminal bestiary.
+The crew of six
+Each crewman takes a light role with a small perk, but any hand can still work any station,
+and there are thirteen stations for six people, so the crew is always choosing what to
+leave unmanned. A station works only while someone stands at it; walking away from a
+reel mid-fight hands the fish the line.
+Roles. Picked in the lobby; two players may take the same role, but its perk does not stack.
+The perks make a hand better at a job, never the only one who can do it.
+Role
+Bosun
+Perk
+Winch, pump, and boiler shovel work 25%
+faster; patches leaks in 3 s instead of 6;
+sees hull section integrity on the HUD
+Starts with
+Patch kit
+Page 6 of 79

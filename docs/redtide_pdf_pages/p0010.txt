@@ -1,0 +1,58 @@
+Red Tide — Arcade Game 5 Design Document
+Simulation budget
+About 300 active agents at full rate (10 Hz decisions, 60 Hz movement) near the players,
+and population counters only for regions beyond 120 m. The host runs the simulation;
+clients receive agent positions and states with fog filtering by distance. --eco-sim <map>
+runs the ecosystem headless and prints population curves, blood levels, and
+predator arrival times for a scripted player pattern.
+Weapons
+Red Tide's arsenal follows Zombies' shape (a fixed starting pistol, wall racks, a random
+box, a Pack-a-Punch, and a wonder weapon per map) with underwater guns: gas-driven
+dart and needle guns, spearguns, harpoon rifles, and sealed-cartridge powder guns. Every
+weapon has a noise value that feeds the alarm and the sound layer, so the loud guns are
+the strong ones and the quiet ones are the safe ones.
+Stats and rules
+• Two weapon slots (three with Mule Brine). Weapons are picked up from racks, the
+Locker, or dead enemies.
+• Damage is per dart or bolt; rate is rounds per minute; noise 1-10 feeds the alarm; reload
+is seconds.
+• Ammo is bought at the rack (half the weapon's price) or refilled by a Resupply drop.
+Locker weapons can only be refilled by Resupply or the Forge's re-arm.
+• Headshots and weak points do (3x with Deadeye Brine).
+• Water drag: dart weapons lose damage past 25 m, harpoons past 60 m, powder guns
+past 40 m.
+Racks (wall weapons)
+Weapon
+The Cormorant
+Gannet
+Type
+Gas pistol
+(start)
+Gas pistol
+Damage
+30
+40
+Rate
+300
+280
+Magl
+reserve
+8/ 32
+10 50
+Noise
+2
+2
+Reload
+1.4
+1.5
+Scrip
+500
+Notes
+The Last Stand
+pistol; Forged it
+becomes the
+Albatross, 3-dart
+burst
+Rack in every
+start pocket
+Page 10 of 90

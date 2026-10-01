@@ -1,0 +1,41 @@
+Red Tide — Arcade Game 5 Design Document
+Red Tide — Arcade Game 5 Design Document
+sep 29, 2026 • @Phillip Argall
+Overview
+Red Tide is a four-player 3D survival shooter in the Deep Arcade, built on the bones of
+Black Ops 2 and 3 Zombies but with no zombies: the players are divers dropped into living
+ecosystems, earning money by killing beasts while the food web, the blood in the water,
+and the enemies drawn by their gunfire close in around them. Every map is an ecosystem
+of about 40 beasts and 12 flora that eat, hide, breed, and hunt each other whether or not
+the players are watching.
+What it keeps from Zombies
+Zombies system
+Rounds
+Points
+Wall buys
+Mystery Box
+Pack-a-Punch
+Perks (Juggernog, Speed Cola, Quick Revive,
+Double Tap, Stamin-Up, PhD, Deadshot, Mule
+Kick, Electric Cherry, Widow's Wine, Vulture
+Aid, Tombstone, Who's Who)
+Gobblegums
+Red Tide version
+Tides. Each tide raises the ecosystem's
+aggression, the enemy pressure, and the
+bounties. A tide ends when its kill quota is
+met
+Scrip, earned per hit and kill, spent on doors,
+racks, the Locker, tonics, and the Forge
+Racks: weapons chalked on the walls of the
+map
+Davy's Locker: a sea chest that deals a
+random weapon and moves when the eel
+inside gets bored
+The Pressure Forge: upgrades weapons and
+adds alternate ammunition
+Tonics: bottled brines from vending
+machines, each a reimagining of one perk
+Salt Charms: single-use charms earned
+between matches
+Page 1 of 90

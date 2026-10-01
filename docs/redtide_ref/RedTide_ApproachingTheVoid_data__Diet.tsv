@@ -1,0 +1,44 @@
+predator \ food	Sand Eel	Sand Hopper	Sea Pig	Brittle Star	Bone Worm (Osedax)	Vent Shrimp	Hatchetfish	Hadal Amphipod	Cookiecutter Shark	Tripod Fish	Snailfish	Rattail	Giant Isopod	Yeti Crab	Squat Lobster	Dumbo Octopus	Barreleye	Viperfish	Fangtooth	Dragonfish	Deep Jelly	Abyssal Sea Snake	Siphonophore	Lab Salamander	Chimaera	Frilled Shark	Anglerfish	Pelican Eel	Deep Skate	Coelacanth	Giant Sea Spider	Oarfish	Goblin Shark	Elephant Seal	Hadal Turtle	Pale Caiman	Sixgill Shark	Colossal Squid	Sperm Whale	The Relict	The Lantern Leviathan	The Sand Worm	Plankton	Detritus	Corpse	Bones	Parasites	Bacterial mat	Tube worm garden	Sea pen field	Lab algae fish	Remnant	Diver	row_sum
+Sand Eel																																											1											1
+Sand Hopper																																												1										1
+Sea Pig																																												0.5	0.5									1
+Brittle Star																																												0.8	0.2									1
+Bone Worm (Osedax)																																														1								1
+Vent Shrimp																																																0.6	0.4					1
+Hatchetfish																																											1											1
+Hadal Amphipod																																													0.7			0.3						1
+Cookiecutter Shark																																		0.2			0.3		0.3														0.2	1
+Tripod Fish		0.6																																									0.4											1
+Snailfish	0.4							0.6																																														1
+Rattail				0.3																																									0.7									1
+Giant Isopod																																													1									1
+Yeti Crab																																																0.6	0.4					1
+Squat Lobster						0.6								0.4																																								1
+Dumbo Octopus		0.5						0.5																																														1
+Barreleye																					0.5		0.5																															1
+Viperfish							0.7										0.3																																					1
+Fangtooth						0.4	0.6																																															1
+Dragonfish							1																																															1
+Deep Jelly																																											1											1
+Abyssal Sea Snake	0.5										0.5																																											1
+Siphonophore							0.6																																				0.4											1
+Lab Salamander						0.3																																													0.5		0.2	1
+Chimaera						0.3								0.3	0.4																																							1
+Frilled Shark							0.3									0.4		0.3																																				1
+Anglerfish																		0.4	0.3	0.3																																		1
+Pelican Eel						0.4	0.6																																															1
+Deep Skate	0.6									0.4																																												1
+Coelacanth																0.4																																			0.6			1
+Giant Sea Spider																					0.4																													0.6				1
+Oarfish								0.5																																			0.5											1
+Goblin Shark												0.4				0.2											0.4																											1
+Elephant Seal											0.5					0.3										0.2																												1
+Hadal Turtle																					0.5		0.5																															1
+Pale Caiman																								0.4						0.3																						0.1	0.2	1
+Sixgill Shark																									0.2								0.2	0.2											0.2							0.1	0.1	1
+Colossal Squid																										0.2							0.3						0.2														0.3	1
+Sperm Whale																																						1																1
+The Relict																																		0.2	0.1		0.2	0.2														0.1	0.2	1
+The Lantern Leviathan																																	0.2				0.2															0.2	0.4	1
+The Sand Worm																																																						0
+Preference shares; each row sums to 1 (0 for non-feeders). Blank = never eats. Predators also obey the size rule (prey <= 60% of size unless pack/school).

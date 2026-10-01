@@ -1,0 +1,105 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+Threat
+Great White
+Siren
+Kelp Wraith
+Feral
+Merman
+Lantern
+Angler
+Ghost
+Worm, adult
+Isopod
+swarm
+Drowned
+sailor
+Cult rowers
+Ghost Ship
+The Kraken
+Bullets
+(hide)
+x1 surfaced, xo
+submerged
+xo (passes
+through)
+xl
+body, lure
+x1 at the gill
+slits
+(knocks them
+back, doesn't stop
+them)
+x1
+Hull xo
+Arms eye x1
+Blades and
+melee
+xO.5
+Knife frees
+the victim
+xl
+xO.5
+Stomping x1
+Gaff and cleaver
+xl
+Blades sever
+arms (the knife's
+20 a hit)
+Fire and flares
+A flare in the
+face turns it
+away for 10 s
+A flare breaks
+the song for 10
+s
+A flare blinds it
+for 20 s
+Steam
+they shy
+from flame
+Explosives
+x1
+x1
+xl
+x1
+x1
+x1
+x1
+x1
+x1
+Eye x1
+What actually works
+The harpoon; it
+breaks off at 30%
+HP and can only be
+landed on a tether
+Ear plugs and the
+bell
+A knife
+Trade, or kill one and
+the rest scatter (and
+come back angrier
+next night)
+Hood the lantern;
+shoot the lure
+Stop the screw and
+slacken lines;
+harpoon, then the
+gills
+Boiler steam, a clean
+deck, anchor up
+Throw them
+overboard (they
+return in 30 s); keep
+the deck lit
+The only human
+threat: guns work
+Ring its own bell
+Darkness, full steam,
+cut the net
+The big three
+Each of the three Wake-called threats runs a short script on top of its food-web brain.
+Every one of them can be escaped, survived, or killed, and each takes a different kind of
+crew work. For reference, the Gannet makes 1.5 m/s at slow, 3 at half, and 4.5 at full (5.9
+with the compound engine).
+Page 53 of 79

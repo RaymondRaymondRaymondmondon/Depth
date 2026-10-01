@@ -1,0 +1,167 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+Web notes. Parrotfish keep algae off the coral; netting them out lets algae smother coral
+heads over three nights, and the reef fish that shelter there thin out. A landed turtle costs
+a 50-shilling Owners' fine unless returned alive within 60 s. Barracuda sell cheap but are
+the Lagoon's main thieves of hooked fish.
+The Weeds
+Species
+Anchovy
+Market squid
+Kelp perch
+Opaleye
+Purple
+urchin
+Abalone
+Kelp crab
+Rock crab
+Pacific
+mackerel
+Kelp bass
+Sheephead
+Vermilion
+rockfish
+Bat ray
+Leopard
+shark
+Lingcod
+Halibut
+Tier
+1
+1
+1
+1
+1
+1
+1
+2
+2
+2
+2
+2
+2
+3
+3
+3
+Weight
+(kg)
+0.03
+0.1
+0.2
+1-3
+0.2
+0.5-2
+0.3
+0.5-1.5
+05
+. -1.5
+1—6
+2-10
+1-5
+5-30
+5-20
+5-25
+5-40
+Depth
+Upper
+Surface at
+night
+Upper,
+canopy
+Upper,
+canopy
+Rock floor
+Rock floor
+Canopy
+Floor
+Upper
+Upper-mid,
+canopy
+Mid, canopy
+Mid-deep
+Sand floor
+Floor
+Deep rocks
+Sand floor
+Eats
+Plankton
+Plankton,
+anchovy
+Plankton,
+isopods
+Kelp
+Kelp
+Kelp
+Kelp
+Carrion
+Anchovy
+Perch, crabs
+Urchins, crabs
+Small fish
+Clams, crabs
+Crabs, worms
+Rockfish,
+octopus
+Fish
+Takes
+Net, handline
+Light and net,
+glow jig
+Tiny hook
+Green-weed
+bait
+Diving
+Diving only
+Pots
+Pots
+Spoon,
+feather
+Swimbait, live
+perch
+Crab bait
+Jig
+Squid on the
+floor
+Squid
+Big jig, live
+bait
+Drifted live
+bait
+Fight
+None
+None
+None
+Cover
+None
+None
+None
+None
+Run
+Cover
+Cover
+Dive
+Run (low,
+heavy)
+Roll
+Dive,
+cover
+Dive
+Price
+(sh/kg)
+0.6
+2
+0.8 (bait)
+2
+3 (roe)
+12
+4
+6
+1.5 (best live
+bait)
+3
+3
+3.5
+0.5
+1
+4
+5
+Page 43 of 79

@@ -1,0 +1,73 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+Item
+Hand lamp
+Batteries
+Pocket watch
+Walkie
+Crowbar
+Patch kit
+Extra life ring
+Ear plugs
+Bandages
+Tag gun
+Hardhat diving suit
+Oilskin case
+Price (sh)
+20
+5
+15
+40
+30
+25
+40
+8
+10 per 3
+30
+350
+20
+Notes
+Batteries last one night
+For lamps and walkies
+Shows the time anywhere
+Channel-wide voice
+Opens locked cabins
+Stops one leak
+Thrown on a rope
+Immune to Siren charm; halves hearing
+Stop bleeding
+Tags protected species for the naturalist
+Hose and lifeline included
+Keeps one crewman's ammunition dry
+Tools and gadgets. Items that take an inventory slot or sit on the boat, sold by the
+Chandler or only by an island trader.
+Item
+Shovel
+Dowsing coil
+Spyglass
+Grapnel and line
+Landing net
+What it does
+Digs up buried treasure on
+landings
+Hums near buried metal on
+landings
+Zooms; spots fins, birds, and skiff
+marks at distance
+Climbs cliffs and hulls; hooks items
+out of the water
+Scoops fish and fallen birds out of
+the water
+Where
+Chandler
+Chandler
+Chandler
+Chandler
+Chandler
+price
+(sh)
+25
+180
+60
+45
+30
+Page 65 of 79

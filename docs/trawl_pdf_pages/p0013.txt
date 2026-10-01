@@ -1,0 +1,41 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+Action
+Set the hook
+Inventory slots, drop
+Hand lamp
+Reload
+Push-to-talk (open mic is an option)
+Walkie
+Ping wheel
+Crew board (roles, injuries, who is dead)
+Input
+Space
+1-4, Q
+Hold G
+Hold Tab
+A full gamepad map (triggers for reel and cast, right stick for rod angle) ships with the first
+playable build; every binding is remappable.
+What each station shows
+Station
+Rod
+Boiler
+Bilge pumps
+Net winch
+Lantern mast
+Harpoon cannon
+Air pump
+Overlay
+The reel gauge: a tension arc with the drag setting
+marked, a line counter (metres out), and the lure's
+depth
+Telegraph, heading, speed, and a chart inset of the
+ground with set gear buoys
+Pressure gauge and coal in the bunker
+Water level in each flooded section
+Warp tension and estimated load
+Level and filter colour
+A reticle with drop and the refraction offset shown
+as a faint second ring
+The pump rhythm bar, the diver's air, and hose
+tension
+Page 13 of 79

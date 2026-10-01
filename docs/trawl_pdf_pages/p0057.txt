@@ -1,0 +1,37 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+What lives in wrecks. Moray eels (bite and hold), octopus (steal the lamp), isopods,
+sleeping Ghost Worm hatchlings, and Drowned sailors who were only waiting for
+company.
+The skiff
+The skiff is how the crew reaches the richest water and every island worth landing on. The
+Gannet is too deep, too wide, and too loud for the reef passes, the kelp lanes, the cave
+galleries, and the temple shallows, so the best fishing marks, most boss water, and all
+shore loot are skiff-only. Sending the skiff out is the Trawl's facility run: one or two
+crewmen leave the lit deck, and the boat becomes the ship they have to get back to.
+The boat
+Stat
+Crew
+Speed
+Hull
+Capsizes
+Load
+Light
+Kit
+Value
+1-2
+Oars: 1.5 m/s with one rower, 2.2 with two. Steam
+launch kit (Slipway, 500): 3 m/s, noise 4
+One section, integrity 40
+Past 250 of roll: a wave, a ram, or a thrashing fish
+landed aboard
+150 kg of catch and salvage
+A bow lantern (6 m) and whatever hand lamps the
+crew carries
+Two rod holders, a bait tub, a small anchor, two
+flares, a tow line
+Rowing is a rhythm on the two mouse buttons; losing the rhythm "catches a crab" and
+stops the boat for a second. Each stroke writes a little noise into the water.
+Launch and recovery. A hand at the skiff davit lowers it in 8 s. Recovering it takes 10 s
+alongside the stern with the Gannet stopped, so a skiff running home from something is a
+problem for both boats.
+Page 57 of 79

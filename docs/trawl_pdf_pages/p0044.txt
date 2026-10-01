@@ -1,0 +1,120 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+Species
+Yellowtail
+Giant sea
+bass
+Bluefin tuna
+Sea otter
+Tier
+3
+4
+4
+2
+Weight
+(kg)
+5-20
+50-250
+40-200
+15-40
+Depth
+Upper,
+seaward edge
+Deep kelp
+edge
+Surface-mid,
+seaward edge
+Surface rafts
+Eats
+Mackerel,
+squid
+Fish, crabs,
+rays
+Mackerel,
+anchovy,
+squid
+Urchins,
+abalone,
+crabs
+Takes
+Live
+mackerel, iron
+jig
+Live
+mackerel,
+heavy rod
+Live
+mackerel,
+popper
+Never
+Fight
+Run,
+cover
+Dive,
+cover
+Run,
+circle
+price
+(sh/kg)
+4.5
+3
+7
+Protected
+Flora: giant kelp (canopy shelter; blocks sonar; fouls lines, nets, and the screw), eelgrass
+beds (nursery for perch and crabs), urchin barrens (bare rock where kelp has been grazed
+away), drift kelp mats (float with the current; yellowtail shelter under them).
+Web notes. The Weeds are the game's clearest cascade: otters eat urchins, urchins eat
+kelp, kelp shelters everything else. Killing or scaring off an otter raft (gunfire near them
+counts) lets urchins spread, turning a kelp patch into barrens over the three nights of a
+deadline, and the bass, perch, and sheephead that lived there leave. An otter killed costs
+an 80-shilling fine. Bluefin only run along the seaward edge, where the Great White
+patrols.
+The Grotto
+Species
+Cave
+shrimp
+Glass eel
+Lantern
+fish
+Blind
+cavefish
+Tier
+1
+1
+1
+1
+Weight
+(kg)
+0.02
+0.05
+0.05
+0.1-0.3
+Depth
+All bands
+Upper
+Mid-
+deep
+Mid
+Eats
+Mould film
+Plankton
+Plankton
+Shrimp
+Takes
+Net, shrimp trap
+Net under a light
+Rises to light;
+net
+Scented bait (it
+cannot see
+lures)
+Fight
+None
+None
+None
+None
+Price (sh/kg)
+1 (bait; glows)
+6
+1.5
+4
+Page 44 of 79

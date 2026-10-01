@@ -1,0 +1,42 @@
+predator \ food	Sardine	Cardinalfish	Cleaner Goby	Snapping Shrimp	Porcelain Crab	Nudibranch	Sea Cucumber	Feather Star	Long-spined Urchin	Bream	Salema	Scorpionfish	Cuttlefish	Slipper Lobster	Mantis Shrimp	Aqueduct Newt	Cistern Frog	Temple Krait	Water Monitor	Cormorant	Moon Jelly Bloom	Man o' War	Octopus	Conger Eel	Spider Crab	Sea Bass	Dentex	Amberjack	Barracuda	Lamprey	Bluefin Tuna	Swordfish	Loggerhead	Monk Seal	Sandbar Shark	Leatherback	Nile Crocodile of the Canals	Great White	Giant Squid	The Cistern Wyrm	Plankton	Detritus	Corpse	Parasites	Turf on marble	Sea lettuce terraces	Posidonia meadows	Bathhouse sponges	Ichor-fed crabs	Lost One	Diver	row_sum
+Sardine																																									1											1
+Cardinalfish				0.2																																					0.8											1
+Cleaner Goby																																												1								1
+Snapping Shrimp																																									0.3	0.7										1
+Porcelain Crab																																									1											1
+Nudibranch																																										0.4						0.6				1
+Sea Cucumber																																										0.5	0.5									1
+Feather Star																																									1											1
+Long-spined Urchin																																													1							1
+Bream				0.4																																										0.6						1
+Salema																																															1					1
+Scorpionfish		0.6			0.4																																															1
+Cuttlefish					0.5									0.5																																						1
+Slipper Lobster									0.4																																	0.6										1
+Mantis Shrimp					0.6									0.4																																						1
+Aqueduct Newt				0.5																																						0.5										1
+Cistern Frog				0.5												0.5																																				1
+Temple Krait		0.5														0.5																																				1
+Water Monitor					0.2				0.2								0.3																																0.3			1
+Cormorant	0.7									0.3																																										1
+Moon Jelly Bloom																																									1											1
+Man o' War	0.6																																								0.4											1
+Octopus					0.3									0.4	0.3																																					1
+Conger Eel		0.3															0.3						0.4																													1
+Spider Crab							0.5																																						0.5							1
+Sea Bass										0.4			0.3					0.3																																		1
+Dentex	0.5									0.3													0.2																													1
+Amberjack	0.6										0.4																																									1
+Barracuda	0.7																			0.3																																1
+Lamprey																										0.4							0.3		0.3																	1
+Bluefin Tuna	0.6																											0.4																								1
+Swordfish	0.5												0.5																																							1
+Loggerhead					0.2																0.3	0.5																														1
+Monk Seal										0.3				0.3									0.4																													1
+Sandbar Shark																							0.2			0.3	0.3																							0.1	0.1	1
+Leatherback																					0.6	0.4																														1
+Nile Crocodile of the Canals																	0.1		0.2														0.2																	0.3	0.2	1
+Great White																															0.3			0.2	0.2															0.1	0.2	1
+Giant Squid																															0.3			0.2																0.2	0.3	1
+The Cistern Wyrm																								0.2											0.2		0.1													0.2	0.3	1
+Preference shares; each row sums to 1 (0 for non-feeders). Blank = never eats. Predators also obey the size rule (prey <= 60% of size unless pack/school).

@@ -1,0 +1,42 @@
+Red Tide — Arcade Game 5 Design Document
+The spawn-in (identical every match)
+Slot
+Sidearm
+Melee
+Tactical
+Scrip
+Lamp
+Build slot
+Item
+The Cormorant, a brass gas-pistol: 8 darts, 32
+reserve
+Diver's knife
+2 limpet charges (stick to surfaces or beasts, 3 s
+fuse)
+500
+Helmet lamp, switched on
+Empty
+All four divers spawn in the map's start pocket, a small safe room with one rack pistol, one
+door out, and the first tonic machine visible through the door.
+Scrip
+Action
+Hit a beast or enemy
+Kill
+Headshot or weak-point kill
+Melee kill
+Repair a barricade net
+Revive a teammate
+Tide cleared
+Enemy faction kill
+Scrip
+10
+The beast's bounty (40-1,500, in each map's table)
+Bounty +50%
+Bounty +30
+10 per plank, max 100 per tide
+100
+100 x tide number, split among the living
+Bounty 200-600 plus their dropped weapon
+Bounties rise 10% per tide. Scrip is per player and can't be traded or dropped; the only
+way to even it out is the Fair Shares charm.
+Page 3 of 90

@@ -1,0 +1,37 @@
+Red Tide — Arcade Game 5 Design Document
+The seven layers of the web
+1. Trophic layer. The diet graph. Each beast has a hunger meter; hunger raises the weight
+of hunting over everything else. Grazers eat flora; predators eat by preference and
+size; scavengers eat corpses. A well-fed predator ignores prey, so an area that has just
+been hunted through is briefly safer.
+2. Blood and scent layer. The map holds a 3D scent grid (2 m cells). Blood diffuses to
+neighboring cells each second and decays 2% per second (1% at tide 10+, 0.5% at tide
+20+, so late tides never clear). Every species samples the grid within its scent range
+each second; when the total exceeds its threshold, it follows the gradient to the
+source. Because thresholds are per species, one dead minnow brings scavengers, a
+dead tuna brings sharks, and four dead tuna at once brings the thing that eats sharks.
+3. Sound layer. Every weapon has a noise value; explosions and traps are louder. Sound is
+a second field with fast decay (20% per second). Species react by temperament:
+fearful ones flee it, CUriOUS ones approach it, aggressive ones attack it. Sound also
+feeds the enemy alarm (below).
+4. Territory layer. Beasts with a home defend a radius around it against anything larger
+than prey, including players and enemies, and return home when calm. Nests, burrows,
+anemone beds, and wrecks are where fights start without any blood at all.
+5. Symbiosis layer. Cleaners reduce the aggression of hosts they service; hosts shelter
+symbionts; parasites attach to beasts and divers (slowing, bleeding, or blinding them
+until scraped off at a cleaning station). Mimics look like harmless species until touched.
+Lures and lights draw curious species.
+6. Flora layer. Flora grows, gets grazed, shelters, feeds, and sometimes hunts. Flora
+density sets grazer carrying capacity; grazer numbers set predator patrol frequency;
+so shooting up a kelp bed or a coral head changes what lives there for the rest of the
+match.
+7. Enemy layer. Enemy factions are species in the same web: they bleed, they are prey to
+apex beasts, they hunt beasts that threaten them, and some of them feed the web on
+purpose (chumming, netting).
+The blood rules the player learns
+• A shot beast bleeds; a dead one bleeds much more. Blood attracts by total amount in
+the area, not by the number of kills, so ten small fish and one big fish can call the same
+predator.
+• Corpses keep bleeding until scavengers finish them (30-120 s by size). Scavengers,
+therefore, are the players' friends, and killing them for scrip is the classic mistake.
+Page 8 of 90

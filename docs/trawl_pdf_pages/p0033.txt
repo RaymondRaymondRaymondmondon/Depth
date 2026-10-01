@@ -1,0 +1,81 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+Attachment
+Sling
+Baffle
+Oilskin breech
+Feather
+fletching
+Night glass
+Steam feed
+Lodestone
+sight
+Bone stock
+Eyeglass scope
+Fits
+Long guns
+Any gun
+Cartridge guns
+Speargun, bow,
+harpoon pistol
+Scoped guns
+Chatter gun,
+riveter
+Any gun
+Any gun
+Scoped guns
+Effect
+Swaps to and from the
+gun in 0.3 s
+-3 noise, -10% damage:
+the quiet kill that keeps
+the sea asleep
+Never misfires in the
+wet
++25% range under
+water
+Shows targets outside
+the light: easy In-the-
+dark kills
++30% fire rate
+Every fifth shot snaps to
+the head
+Kills with this gun add
+0.1 to the Killscore
+No refraction offset
+under water; each
+sighted kill adds 1 Wake
+Where
+Gunsmith
+Gunsmith
+Gunsmith
+Atoll trader
+Seal Rock
+trader
+Cannery Pier
+trader
+Smugglers'
+Shelf trader
+Bone Beach
+trader
+Drowned Stair
+trader
+price
+(sh)
+40
+150
+120
+90
+300
+250
+400
+350
+600
+Carrying and ammunition. The Gunsmith sells tools for the kill, not safety. Guns make
+money on deck; against most threats they only buy time (see Threats: Resistances).
+• Slots. Most weapons take one of a crewman's four slots; long guns, long melee
+weapons, and specials take two (the catalogue lists each), and no one carries more
+than one two-slot weapon.
+• Ammunition on the body is the loaded magazine plus one spare reload. Everything
+else (rounds, shells, spears, flares, dynamite) lives in the magazine locker in the fo'c'sle,
+so restocking is a trip below decks.
+Page 33 of 79

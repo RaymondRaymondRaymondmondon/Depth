@@ -1,0 +1,159 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+Weapon
+Tribal
+longbow
+Punt gun
+Steam
+riveter
+Blunderbuss
+Air rifle
+Galvanic
+prod
+Rocket
+harpoon
+Crackerjack
+Lamp-oil
+bottle
+Dynamite
+Depth
+charge
+Class
+Long gun
+Long gun
+Long gun
+Long gun
+Long gun
+Special
+Special
+Thrown
+Thrown
+Thrown
+Thrown
+Damage
+30
+20 10
+14
+12 x 6
+40
+Shocks
+water in 5
+m
+200,
+tethered,
+explosive
+Stun in 4m
+15 plus fire
+150 in 4m
+12 m blast
+under
+water
+Magazine
+1
+1
+20
+1
+10
+6 charges
+1
+1
+1
+1
+1
+Noise
+1
+10
+4
+8
+2
+2
+9
+9
+3
+10
+10
+Slots
+2
+2
+2
+2
+2
+2
+2
+1
+1
+1
+1
+Where
+Atoll trader
+Seal Rock
+trader
+Cannery Pier
+trader
+Smugglers'
+Shelf trader
+Smugglers'
+Shelf trader
+Bone Beach
+trader
+Drowned
+Stair trader
+Gunsmith
+Gunsmith
+Gunsmith
+Gunsmith
+Price
+(sh)
+200
+500
+380
+300
+650
+700
+1,500
+25
+each
+15
+each
+30
+each
+120
+each
+Special
+Silent; arrows
+recovered from
+kills
+Clears a gull
+flock in one
+shot; knocks
+the shooter
+down; shells 8
+Pins a fish to
+the deck so it
+can't flop
+overboard;
+rivets 1
+Loads junk as
+ammunition
+(nails, sea
+glass, coins)
+Quiet long
+shots; pellets 2
+Stuns every
+fish around the
+hull for 4 s: free
+headshots
+The only hand
+weapon that
+can hurt the
+Kraken's eye
+Stuns fish and
+birds for 3 s
+Burns Drowned
+and Wraiths
+Overkills
+anything small
+Floats every
+fish in range;
+wakes the
+ground
+Page 31 of 79

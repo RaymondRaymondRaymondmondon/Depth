@@ -1,0 +1,52 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+• Overboard: the nearest bot throws the life ring (with its aim error), the Medic bot runs
+to the rail, and the helm bot stops the screw.
+• The bell: every bot moves to the nearest defensive post (cannon, gaff at the rail, rifle if
+carried) and looks for the threat.
+Boarders: bots with gaffs fight; others back away from the rail.
+• Leak or fire: the Bosun bot, or the nearest bot if there is no Bosun, goes to it.
+• Charmed or grabbed crewman: the nearest bot rings the bell, then helps.
+Orders (ping wheel, aimed at a bot or at a station): take this station; follow me; hold here;
+haul the net; cut the line; fire on my mark; dive (Diver-role bots only); go home (all bots
+stop fishing and secure the deck).
+What bots never do unless ordered: dive, use depth charges or explosive harpoons,
+board derelicts or the Ghost Ship, raise the lantern, or ring the bell for no reason. Bots do
+not use voice; they show short text barks ("Fish on, port!" "Water in the hold!") above their
+heads and in the ping feed. A dead bot's ghost rings the bell when a threat comes within
+10 m.
+Kills and cooking. Bots finish catches with the priest or gaff aimed at the head (headshot
+chance: Green 40%, Able 60%, Old Hand 80%) and never attempt trick shots, so a human
+crew will always out-earn a bot crew on Killscore. Idle bots sluice deck blood into the offal
+barrel. A bot left at an island fire tends it and pulls each fish at 1.5x, and idle bots put loose
+fish in the catch crates.
+The Gannet's stations
+Station
+Helm
+Boiler
+Bilge pumps
+Where
+Wheelhouse
+Engine room,
+below
+Engine room
+What it does
+Steers, sets the engine
+telegraph (stop, slow,
+half, full)
+Shovel coal, bleed
+pressure, keep the
+gauge in the green
+Pump water out after a
+breach
+What happens if nobody's
+there
+The boat drifts with wind
+and current; a hooked
+marlin tows it
+Pressure falls, speed
+drops; overpressure blows
+a valve (a fire and a 20 s
+stop)
+The boat settles, lists, and
+sinks if the hull fills
+Page 10 of 79

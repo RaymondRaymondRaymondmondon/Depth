@@ -1,0 +1,32 @@
+Red Tide — Arcade Game 5 Design Document
+Definition of Done
+• The rim is at least 800 m across with the worm patrolling beyond the stakes and
+consuming a diver on cue; the void kills correctly with warning.
+--eco-sim void 30 shows the scavenger economy, the specimen breeding curve, and
+the Relict's arrival at an overlook after a whale kill.
+• A four-player test reaches the Vault, sees the leviathan's lure in the galleries at tide 12,
+and survives a Remnant Hunt with the mech.
+Presentation and technology
+Red Tide is first-person 3D in raylib, extending the code that already draws the parkour
+side's 3D Abyss ( abyss . cpp ), with every mesh, texture, and animation generated in code,
+per Depth's no-assets rule. The look is inked low-poly: flat-shaded meshes with a screen-
+space ink outline and hatching, so a screenshot still reads as Depth.
+Art
+Style. Low-poly meshes with flat shading, a post-process ink outline (depth and normal
+edge detection, line weight by distance), Bayer stipple in shadow, and the same paper-
+tone palette rules as the salon. Underwater fog by depth, volumetric light shafts,
+caustics projected on surfaces near the surface, and particle marine snow everywhere.
+• Creatures are procedural meshes. A CreatureBui1der makes a body from a lathed
+profile curve, adds fins, limbs, shells, tentacles, spines, and eyes from parameter sets,
+and generates a 3-band material (base, belly, accent) from the species record. Forty
+species per map is forty parameter sets plus a dozen body plans (fusiform fish, flat
+fish, eel, ray, shark, turtle, crocodilian, crab, shrimp, cephalopod, jelly, worm, amphibian,
+seal, whale).
+• Animation. Fish swim by a traveling sine along the spine; rays flap; eels undulate; crabs
+walk on inverse-kinematics legs; cephalopods run Chains on every arm; reptiles and
+mammals use a four-limb gait. Attack, flee, feed, and death clips per body plan; blood
+as ribbon particles that follow the scent grid's flow so what the player sees is what the
+web smells.
+• Weapons and hands. First-person hands and guns are procedural meshes with the
+reload clips from the Weapons section; the sea-glass Forge finish is a material swap.
+Page 61 of 90

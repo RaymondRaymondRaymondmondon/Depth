@@ -1,0 +1,62 @@
+Red Tide — Arcade Game 5 Design Document
+Tonic
+Kick Brine
+Deadeye Brine
+Mule Brine
+Bubbleskin
+Shocking Salt
+Widow's Ink
+VUItUre'S Eye
+Cold Coffin
+Zombies parent
+Stamin-Up
+Deadshot
+Mule Kick
+PhD Flopper
+Electric Cherry
+Widow's Wine
+VUItUre Aid
+Tombstone / Who's
+Who
+Effect
+Faster swim, sprint longer, breaks
+free of grabs 50% faster
+Weak-point damage aim snaps to
+weak points
+Third weapon slot
+No self-damage; a dolphin dive from
+height bursts a blast
+Reloading releases a shock that
+stuns beasts within 4 m
+Melee and hits ink-cloud attackers;
+grenades become ink nets
+See scrip and ammo through walls;
+beasts sometimes drop ammo; scent
+meter shows predator direction
+earlier
+On death, a shadow of you swims for
+30 s and can revive your body with
+your gear
+Scrip
+2,000
+1,500
+4,000
+2,000
+2,000
+4,000
+3,000
+2,000
+Salt Charms (gobblegums)
+Earned between matches with arcade tokens and from tide milestones; a player brings 5
+into a match and uses one at a time from a charm pouch.
+Charm
+Keep Your Brines
+Salt Circle
+Locker
+Effect
+Tonics survive a down (once)
+20 s: beasts won't cross the player's position
+Next pull is pressure forged: upgrades weapons
+and adds alternate ammunition to weapon picked
+up
+Page 15 of 90

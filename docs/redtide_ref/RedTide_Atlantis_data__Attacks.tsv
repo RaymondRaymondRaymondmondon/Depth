@@ -1,0 +1,43 @@
+beast	attack	damage	windup_s	cooldown_s	range_m	tell (what the player sees)	effect
+Nudibranch	Skin	8	0	0	0.5		Touch: poison 4 s
+Sea Cucumber	Threads	0	0.3	10	1	Contracts	Sticky threads: slow 30% for 4 s
+Long-spined Urchin	Spines	10	0	0	0.6		Contact 10; bleed 2 s
+Scorpionfish	Spines	30	0	0	0.6		Contact: poison 8 s
+Cuttlefish	Dazzle	0	0.5	6	4	Skin ripples	Aim sway +30% for 3 s
+Mantis Shrimp	Punch	30	0.4	2	1.5	Antennae flick	Breaks a Shell Shield in 2 hits
+Temple Krait	Bite	10	0.5	2	1	Coils	Poison 30 over 10 s
+Water Monitor	Bite	40	0.5	2	1.5	Tongue flicks	Hold 2 s
+Water Monitor	Tail	30	0.4	3	2.5	Turns side-on	Knockback 3 m
+Moon Jelly Bloom	Sting	4	0	1	1		Contact 4/s
+Man o' War	Tentacles	30	0	1	10	Blue float at the surface	Paralysis 1 s
+Octopus	Grab	20	0.5	3	2.5	Arm extends	Steals a held part; flees to its amphora
+Conger Eel	Strike	40	0.4	1.5	2	A shadow under the grate	Bleed 3 s
+Conger Eel	Drag	25	0.6	5	1.5	Grate rattles	Pulls a diver against the grate 2 s
+Spider Crab	Pinch	25	0.5	3	1.5	Only if shot	
+Sea Bass	Bite	35	0.4	1.5	1.5	Gill flare	
+Dentex	Slash	35	0.3	1.2	2	Straightens	Bleed 3 s
+Amberjack	Ram	25	0.4	1.5	3	Pack fans out	Knockback 2 m
+Barracuda	Slash	30	0.3	1.2	2	Straightens	Bleed 3 s
+Barracuda	Hit-and-run	45	0.5	4	10	Circles wide	
+Lamprey	Latch	2	0.5	0	0.5	Circles	Host bleeds 2/s
+Bluefin Tuna	Ram	60	0.3	3	12	A silver flash across the plaza	Knockback 4 m
+Swordfish	Charge	100	0.5	4	12	Bill lowers	Impales and pins 2 s
+Loggerhead	Crush	60	0.8	4	1.2	Head draws back	Destroys a Shell Shield
+Monk Seal	Snatch	10	0.5	4	2	Rolls	Steals a held item
+Monk Seal	Bite	50	0.5	2.5	1.5	Only if shot	
+Sandbar Shark	Bite	70	0.4	1.8	2	Pectorals drop	Bleed 4 s
+Sandbar Shark	Ram	50	0.5	3	6	Straight charge	Knockback 4 m, stun 1 s
+Leatherback	Flipper (if shot)	80	0.8	5	3	Turns	Knockback 6 m
+Nile Crocodile of the Canals	Death Roll	120	0.9	6	2.5	Rises at a sluice gate	Holds and rolls; teammates have 4 s
+Nile Crocodile of the Canals	Snap	60	0.4	2	2	Jaw clicks	Bleed 3 s
+Nile Crocodile of the Canals	Tail	45	0.5	3	3	Turns side-on	Knockback 4 m
+Great White	Bite	110	0.5	2	2.5	Rolls to one side	Bleed 5 s
+Great White	Ram	70	0.5	4	8	Straight charge	Knockback 5 m, stun 1 s
+Great White	Drag	50	0.7	8	2	Grabs and swims	Carries 10 m; teammates shoot it off
+Giant Squid	Tentacle grab	60	0.7	4	8	An arm slides through the doorway	Hold 3 s; drags toward the stacks
+Giant Squid	Beak	120	0.6	5	2	Eye glows in the moss-light	Bleed 5 s
+The Cistern Wyrm	Surface strike	130	1	6	4	The grate rattles, then bursts	Bleed 5 s; destroys the grate
+The Cistern Wyrm	Drag below	0	0.8	12	3	Jaws open under a diver	Pulls a diver into the drains; teammates have 6 s to deal 200 to the gills
+The Cistern Wyrm	Coil	90	0.6	5	5	Body loops a street	Knockback 6 m; blocks the street 4 s
+The Cistern Wyrm	Flood	40	1.2	15	15	Water surges from every grate in the district	Slow 30% for 6 s in the district; blood in the district doubles
+Beasts with no rows never attack. Damage is vs 100 HP divers at tide 1, x1.05 per tide (TideCurve), capped x2.5.

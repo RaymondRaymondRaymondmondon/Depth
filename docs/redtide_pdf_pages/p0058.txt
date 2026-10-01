@@ -1,0 +1,104 @@
+Red Tide
+Arcade Game 5 Design Document
+Sixgill, Relict
+Sixgill, Relict,
+Beast
+Coelacanth
+Giant Sea
+Spider
+Oarfish
+Goblin Shark
+Elephant Seal
+Hadal Turtle
+Pale Caiman
+Class
+Fish
+Crustacean-
+like
+Fish
+Fish
+Mammal
+Reptile
+Reptile
+Size
+3
+3
+4
+4
+4
+4
+4
+Tier
+3
+2
+1
+4
+3
+1
+4
+Eats
+Lab fish, squid
+Sea pens, jellies
+Krill,
+amphipods
+Anglerfish,
+squid, rattails
+Squid, snailfish
+Jellies,
+siphonophores
+Salamanders,
+coelacanths,
+researchers,
+divers
+Eaten by
+Pale caiman
+Nothing
+Sperm whale
+sperm whale
+(competition)
+Relict
+Relict
+Behavior and
+note
+Escaped
+specimen; slow,
+armored,
+ancient; breeds
+in the labs
+Two meters
+across on the
+rim; harmless;
+frightening
+A 10 m ribbon
+that rises
+through the
+chimney;
+harmless; an
+omen: its
+appearance
+precedes a
+Predator Hunt by
+60s
+A slingshot jaw
+from 1 m;
+threshold 60
+blood
+Dives from the
+station's air
+pockets to the
+galleries;
+territorial bull: 80
+damage rams
+Ancient,
+armored, gentle;
+eats the
+overlooks'
+siphonophores
+Bred in the labs
+and loose in the
+station's
+corridors;
+amphibious;
+blind, hunts by
+vibration
+Page 58 of 90

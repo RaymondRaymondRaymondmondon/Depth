@@ -1,0 +1,42 @@
+predator \ food	Bilge Sprat	Silverside	Sergeant Major	Barnacle Goby	Cleaner Wrasse	Cleaner Shrimp	Fiddler Crab	Hermit Crab	Whelk	Sea Hare	Feather Duster Worm	Rudder Krill	Parrotfish	Rabbitfish	Damselfish	Blenny	Arrow Crab	Mantis Shrimp	Lionfish	Squirrelfish	Reef Squid	Cuttlefish	Banded Sea Snake	Stonefish	Jelly Bloom	Remora	Lamprey	Green Moray	Great Barracuda	Grouper	Bluefin Trevally	Common Octopus	Nurse Shark	Hawksbill Turtle	Loggerhead Turtle	Sand Tiger Shark	Bull Shark	Saltwater Crocodile	Tiger Shark	The Goliath	Plankton	Corpse	Parasites	Turf algae	Sea lettuce	Coralline crust	Barrel sponge	Luminous algae mat	Wrecker	row_sum
+Bilge Sprat												0.6																													0.4									1
+Silverside												0.5																													0.5									1
+Sergeant Major																									0.4																			0.6						1
+Barnacle Goby																																									0.5	0.5								1
+Cleaner Wrasse																																											1							1
+Cleaner Shrimp																																											1							1
+Fiddler Crab																																										0.4		0.6						1
+Hermit Crab																																										1								1
+Whelk																																														1				1
+Sea Hare																																													1					1
+Feather Duster Worm																																									1									1
+Rudder Krill																																									0.3							0.7		1
+Parrotfish																																												1						1
+Rabbitfish																																												0.4	0.6					1
+Damselfish											0.3																														0.4			0.3						1
+Blenny				0.5							0.5																																							1
+Arrow Crab											1																																							1
+Mantis Shrimp							0.5	0.2	0.3																																									1
+Lionfish	0.6			0.4																																														1
+Squirrelfish							0.5	0.5																																										1
+Reef Squid	0.5	0.5																																																1
+Cuttlefish						0.2	0.5										0.3																																	1
+Banded Sea Snake				0.5												0.5																																		1
+Stonefish	1																																																	1
+Jelly Bloom																																									1									1
+Remora																																										1								1
+Lamprey																													0.2	0.2			0.2		0.2		0.2													1
+Green Moray																0.3				0.3												0.4																		1
+Great Barracuda	0.3	0.4																			0.3																													1
+Grouper													0.3						0.2			0.3						0.2																						1
+Bluefin Trevally		0.4													0.3						0.3																													1
+Common Octopus							0.3	0.2	0.2									0.3																																1
+Nurse Shark							0.3																																			0.7								1
+Hawksbill Turtle																									0.4																						0.6			1
+Loggerhead Turtle							0.4		0.3									0.3																																1
+Sand Tiger Shark																													0.3	0.3	0.4																			1
+Bull Shark																												0.1	0.2	0.2	0.2			0.1															0.2	1
+Saltwater Crocodile																																		0.3	0.2		0.2												0.3	1
+Tiger Shark																							0.1										0.1		0.15	0.15	0.15					0.15							0.2	1
+The Goliath																												0.2		0.3							0.2												0.3	1
+Weights are preference shares (each row sums to 1 or 0 for non-feeders). Blank = never eats. 'Wrecker' = the enemy faction as prey. Predators also obey the size rule (prey <= 60% of size unless pack/school).

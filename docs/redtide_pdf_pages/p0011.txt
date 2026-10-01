@@ -1,0 +1,122 @@
+Red Tide
+Arcade Game 5 Design Document
+Weapon
+Needler Mk I
+Sea-Pattern
+Carbine
+Flechette 12
+Long Speargun
+Needler Mk II
+Trawlerman's
+Rifle
+Bolt Harpoon
+Chumthrower
+Boarding Axe
+(melee rack)
+Type
+Needle
+repeater
+(SMG)
+Powder
+carbine
+Scatter gun
+Speargun
+(marksman)
+Needle
+repeater
+Powder rifle
+Harpoon rifle
+(sniper)
+Support
+Damage
+22
+45
+120
+26
+70
+260
+180
+Rate
+900
+600
+80
+60
+950
+420
+40
+Magl
+reserve
+30 / 150
+24 / 168
+6 / 36
+1/20
+40 / 200
+201140
+1/16
+10/ 30
+Noise
+4
+6
+7
+3
+4
+6
+5
+1
+Reload
+2.0
+2.2
+3.0
+(shell by
+shell)
+1.8
+1.9
+2.4
+2.5
+2.0
+Scrip
+1,000
+1,200
+1,200
+1,500
+1,500
+1,750
+2,000
+1,500
+2,500
+Notes
+Early workhorse
+Loud, accurate
+Close corridors
+Quiet one-shot
+on small fish
+Pins small beasts
+to walls;
+retrievable bolts
+Fires chum:
+creates blood on
+a spot to steer
+predators, a
+deliberate lure
+Replaces the
+knife
+Davy's Locker (the box)
+950 scrip a pull; a moray eel inside shuffles the guns and, after 8-12 pulls, snaps the chest
+shut and it sinks to another location (a lantern buoy marks the new one). Fire Sale puts it
+everywhere for 10. The Locker deals from this pool plus every rack weapon and the map's
+wonder weapon (2% per pull, guaranteed within 12 pulls if not yet held by the team).
+Weapon
+Gatling
+Needler
+Type
+Needle LMG
+Damage Rate
+Mag I
+reserve
+120 / 360
+Noise Notes
+24
+1,100
+5
+Spins up 0.5 s
+Page 11 of 90

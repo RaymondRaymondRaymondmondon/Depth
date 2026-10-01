@@ -1,0 +1,44 @@
+zone	species	count_tide1	respawn_s	capacity_mult_per_tide	count_tide10
+Grand Salon	Bilge Sprat	50	20	1.03	65
+Grand Salon	Sea Hare	3	120	1.03	4
+Grand Salon	Rabbitfish	5	90	1.03	7
+Grand Salon	Great Barracuda	1	240	1.03	1
+Grand Salon	Saltwater Crocodile	1	0	1.03	1
+Grand Salon	Banded Sea Snake	1	300	1.03	1
+Galley & Pantry	Cleaner Wrasse	2	300	1.03	3
+Galley & Pantry	Cleaner Shrimp	6	300	1.03	8
+Galley & Pantry	Stonefish	2	0	1.03	3
+Galley & Pantry	Bilge Sprat	30	20	1.03	39
+Cabin Deck	Barnacle Goby	12	60	1.03	16
+Cabin Deck	Blenny	6	90	1.03	8
+Cabin Deck	Arrow Crab	6	120	1.03	8
+Cabin Deck	Feather Duster Worm	10	0	1.03	13
+Cabin Deck	Lionfish	3	180	1.03	4
+Cabin Deck	Squirrelfish	3	180	1.03	4
+Cabin Deck	Cuttlefish	2	240	1.03	3
+Cabin Deck	Green Moray	4	360	1.03	5
+Cabin Deck	Common Octopus	1	600	1.03	1
+Cabin Deck	Parrotfish	3	150	1.03	4
+Engine Room	Rudder Krill	1	60	1.03	1
+Engine Room	Grouper	2	300	1.03	3
+Engine Room	Lamprey	3	240	1.03	4
+Engine Room	The Goliath	1	0	1.03	1
+Stern & Swim Platform	Jelly Bloom	1	180	1.03	1
+Stern & Swim Platform	Hawksbill Turtle	1	400	1.03	1
+Stern & Swim Platform	Bull Shark	1	600	1.03	1
+Stern & Swim Platform	Reef Squid	8	120	1.03	10
+The Keel & Sand	Silverside	60	20	1.03	78
+The Keel & Sand	Sergeant Major	6	90	1.03	8
+The Keel & Sand	Fiddler Crab	10	60	1.03	13
+The Keel & Sand	Hermit Crab	8	90	1.03	10
+The Keel & Sand	Whelk	8	120	1.03	10
+The Keel & Sand	Damselfish	8	90	1.03	10
+The Keel & Sand	Mantis Shrimp	3	300	1.03	4
+The Keel & Sand	Parrotfish	4	150	1.03	5
+The Keel & Sand	Remora	4	120	1.03	5
+The Keel & Sand	Bluefin Trevally	5	300	1.03	7
+The Keel & Sand	Nurse Shark	1	500	1.03	1
+The Keel & Sand	Loggerhead Turtle	1	500	1.03	1
+The Keel & Sand	Sand Tiger Shark	1	700	1.03	1
+Outside	Tiger Shark	1	900	1.03	1
+respawn_s = seconds to replace one killed individual while the zone is below capacity; 0 = never respawns (boss, ambushers placed once). Capacity grows 3% per tide.

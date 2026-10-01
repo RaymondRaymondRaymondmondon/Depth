@@ -1,0 +1,36 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+The Great White (Lagoon at deadline 2+, Weeds, Atlantis)
+1. Investigate (30-60 s). A fin circles at the lantern's edge, about 20 m out. It takes any
+hooked fish it finds and bumps the hull once (-5). If blood near the boat falls below 60
+and nobody is in the water, it leaves after 90 s.
+2. Hunt. Starts if it is wounded, if a crewman is in the water, or if blood stays high. Every
+20-30 s it drops out of sight (the sonar shows it rising, 2 s of warning) and rams: -25 to
+a section, 150 of roll, and unbraced crew at that rail go over. A crewman in the water is
+its first target, at 8 m/s.
+3. Break-off. At 30% HP it flees, or it leaves once sated (60 kg eaten, a stolen tuna
+counts). Harpooned and tethered, it becomes a Run-pattern fight on the cannon
+winch; a landed White (300-700 kg) pays well and bleeds the whole ground.
+The Ghost Ship (Grotto, Atlantis)
+1. The answer. At Wake 65 on a moonless night, or after the ship's bell has been rung
+more than 10 times in one night, a bell answers from the dark. Fog thickens; the sonar
+shows a hull 300 m out.
+2. Approach (about 90 s). It closes at 3.5 m/s, so full steam outruns it and half steam does
+not. Fleeing is a real option.
+3. Alongside. It throws three grapples (each cut in 3 s with a knife) and boards Drowned
+sailors three at a time every 20 s, up to 6-10.
+4. Ending it. Either a crewman crosses to the Ghost Ship and rings its own bell (the
+boarders fall into the sea), or the crew deals 1,200 hull damage (explosive harpoons
+and depth charges under it). Either way it sinks and leaves a floating relic chest: two
+relics and 300-600 in salvage.
+5. If ignored. After 4 minutes alongside it casts off with any set gear and whatever un-
+iced catch its boarders carried.
+The Kraken (Atlantis only)
+1. Tells (60 s). The Glass: the wind dies and the sea goes flat. Fish vanish from the sonar.
+For the last 20 s the scope is white.
+2. Arms (0-60 s). Two arms rise every 15 s, up to four. Each picks a target in order: the net,
+a crewman at the rail, the lantern mast, loose gear. A grabbed crewman is carried off in
+4 s unless the arm takes 80 damage (knife 20 a hit, harpoon 120; bullets barely mark it).
+3. Hold (60-90 s). An arm on the warps drags the stern down; cutting the net loose buys
+30 s. If the lantern is dark and the screw runs at full for 45 s straight, it loses the boat
+and sinks away.
+Page 54 of 79

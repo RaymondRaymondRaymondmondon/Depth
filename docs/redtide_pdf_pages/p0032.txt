@@ -1,0 +1,134 @@
+Red Tide
+Arcade Game 5 Design Document
+Beast
+Glass
+Shrimp
+Cave Krill
+Cave Isopod
+Amphipod
+Troglobite
+Crab
+Olm
+Blind Newt
+Poison Dart
+Newt
+Giant Cave
+Toad
+Cave
+Crayfish
+Fishing
+Spider
+Class
+Crustacean
+Crustacean
+Crustacean
+Crustacean
+Crustacean
+Amphibian
+Amphibian
+Amphibian
+Amphibian
+Crustacean
+Insect
+(arachnid)
+Size
+1
+1
+1
+1
+2
+2
+2
+1
+3
+2
+2
+Tier
+1
+1 (swarm)
+Scavenger
+1
+2
+2
+2
+2
+3
+2
+2
+Eats
+Detritus
+Bacterial mat
+Corpses
+Detritus
+Amphipods, glass
+shrimp
+Amphipods,
+isopods
+Insects,
+amphipods
+Crickets
+Newts, crickets,
+beetles, divers'
+hands
+Isopods,
+worms
+Cavefish, newts
+Eaten by
+Everything
+small
+Cavefish,
+sturgeon,
+gulper
+Crayfish
+Newts,
+beetles
+Caiman, toad
+Giant
+salamander
+Toad, krait
+Nothing
+(toxic)
+Caiman
+Catfish,
+salamander
+Swiftlets
+Behavior and
+note
+Transparent; lives
+in sponges; the
+cleaner of this
+map
+Sump swarm
+Silt scavengers;
+clean corpses
+slowly
+Pools and
+puddles in the
+dry chambers
+Ghost-white;
+clicks in the dark
+Blind; senses
+electricity: it can
+feel a diver's
+rebreather
+through a wall
+Pools in the dry
+chambers
+Bright even in the
+dark; touch: 10
+poison
+Sits at the pool's
+edge; a tongue
+grab from 5 m
+pulls a diver into
+the pool
+Nests in root
+tangles; pinches
+divers who hide
+there
+Runs on the
+water's surface in
+the chambers;
+drops onto divers
+from roots
+Page 32 of 90

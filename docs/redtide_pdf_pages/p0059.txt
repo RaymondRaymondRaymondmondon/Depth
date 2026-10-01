@@ -1,0 +1,81 @@
+Red Tide
+Arcade Game 5 Design Document
+Beast
+Sixgill Shark
+Colossal
+Squid
+Sperm Whale
+The Relict
+Class
+Fish
+Cephalopod
+Mammal
+Reptile
+Size
+5
+5
+5
+5
+Tier
+4
+4
+4
+4
+Eats
+Sharks, seals,
+chimaeras,
+enemies, divers
+Sperm whale
+calves, sharks,
+divers
+Colossal squid,
+giant squid
+Everything:
+sharks, seals,
+squid, the
+Station Chief's
+mech
+Eaten by
+Relict
+Sperm whale
+Nothing
+Nothing
+Behavior and
+note
+Slow, huge,
+patient;
+threshold 120;
+follows the
+amphipod
+swarms to
+corpses
+Comes to the
+overlooks from
+the abyss; hooks
+grab a diver and
+pull toward the
+edge
+Dives past the
+overlooks
+hunting squid;
+clicks so loud
+they stun small
+beasts; harmless
+to divers unless
+shot; a corpse
+feeds the whole
+map for a tide
+A mosasaur that
+survived down
+here: the map's
+apex, threshold
+200 blood,
+comes up from
+the abyss to the
+overlooks and
+the Vault; four
+flippers, a
+crocodile's
+mouth on a
+whale's body
+Page 59 of 90

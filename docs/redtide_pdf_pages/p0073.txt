@@ -1,0 +1,68 @@
+Red Tide — Arcade Game 5 Design Document
+Boss
+The Cistern
+Wyrm
+(Atlantis)
+The Lantern
+Leviathan
+(Void)
+HUD and Ul
+Arena
+The chapel's god-pool;
+from tide 12 every
+drain, so the city is the
+arena
+The Lowest Vault; from
+tide 12 its lure appears
+in the galleries
+The expose
+The god-pool trap
+drains and strands it
+for 6 s; netting three
+grates forces it to
+surface at the fourth
+Shooting the lure
+(500) blinds it 5 s; the
+reactor vent scalds it
+for
+Phase 3 twist
+It hunts the streets
+and drags divers into
+the cisterns; the
+aqueduct fills with its
+blood and calls the
+great white onto it
+Its lure splits into
+three; the ledge
+collapses; the Relict
+may arrive to fight it
+for the corpses
+The HUD is drawn as the inside of a brass diving helmet: gauges at the edges, the water in
+the middle. There is no tutorial; the how-to guide in the arcade menu and the dossier are
+the only teaching, so every gauge must be readable at a glance.
+In-match HUD
+Element
+Health
+Scrip
+Tide and quota
+Weapon and ammo
+Where
+Bottom left, a brass
+pressure gauge
+Top right, a chalk tally on
+the visor
+Top center, a tide dial
+Bottom right
+What it shows
+0-250; the needle shakes when hit;
+the glass cracks below 25
+Current scrip; +10 and bounty
+numbers float up from kills in ink
+Tide number; a ring that fills toward
+the quota; the 20 s calm countdown
+between tides
+Weapon name, magazine and reserve
+as brass counters, the Forge finish
+shown as sea-glass on the counter,
+the alternate-ammo glyph
+Page 73 of 90

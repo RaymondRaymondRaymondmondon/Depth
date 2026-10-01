@@ -1,0 +1,54 @@
+Red Tide — Arcade Game 5 Design Document
+Beast
+Silt
+Lamprey
+The Lobster
+Class
+Fish
+Crustacean
+Size
+1
+6
+Tier
+Parasite
+5
+Eats
+Blood
+Anything in the
+Cathedral
+Eaten by
+Catfish
+Behavior and
+note
+Attaches in the
+sump; bleeds 1
+per second
+From Depth's
+Cave: a boiler-
+sized lobster;
+claws crush a
+shield outright
+and hold a diver;
+its shell halves
+damage from the
+front; the crystal
+coral calls it
+The web in motion
+• Two webs, one cave. The wet web (mould -Y cavefish eels and catfish -Y caiman -Y
+sleeper shark) and the dry web (moss crickets newts and spiders toad caiman
+and salamander) meet at the pools, and the caiman walks both.
+• The Drowned don't bleed, so only the Ghost Worm and the caiman (which attacks cold
+things by habit) fight them. A team that learns to lead the Drowned past the Ghost
+Worm's wall crack wins Hunts cheaply.
+• Lanterns and lights: the Lantern Bearer, the glowworms, firefly squid, and drop bottles
+all draw CUriOUS species. The anglerfish's lure looks like a drop.
+• The sturgeon: 80 blood for one harmless fish. New players shoot it; the sleeper shark
+thanks them.
+Slipstreams move blood: a wounded fish fleeing into a slipstream carries its trail to the
+next hall.
+Definition of Done
+Slipstreams carry divers and beasts; --eco-sim cave 20 shows a wounded eel's trail
+crossing halls and a caiman following it.
+• Rockfall, the toad's tongue grab, the sturgeon trap, and a Drowned Hunt led into the
+Ghost Worm all OCCUr in a four-player test.
+Page 36 of 90

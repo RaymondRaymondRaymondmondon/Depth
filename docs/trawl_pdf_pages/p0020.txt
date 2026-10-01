@@ -1,0 +1,34 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+The bite
+A fish that decides to take goes through inspect (the rod tip ticks), nibble (small taps, 1-
+4), and take (the rod loads). Setting the hook during the take (a 250 ms window, 150 ms for
+wary species) hooks it; striking on a nibble spooks it and teaches that school to avoid that
+lure for 2 minutes. Circle hooks set themselves if the player simply reels.
+The fight
+The hooked fish is an agent with strength, stamina, and a fight pattern from its species
+record: runs, deep dives, jumps and head-shakes, circling under the boat, sounding into
+cover (a wreck or kelp, where the line chafes), or rolling (sharks, which wrap the line).
+The angler controls three things:
+1. Reel (hold): gains line only when tension is below drag.
+2. Rod angle (mouse direction relative to the fish): pulling against the direction of the run
+tires the fish fastest (side pressure); pulling straight back wastes stamina; a high rod
+angle while it jumps throws the hook.
+3. Drag (scroll): how much tension slips line instead of breaking it. Low drag is safe but
+lets the fish run into cover; high drag ends fights fast and snaps lines.
+Tension is computed from the chain physics, not a formula for the Ul. It breaks lines over
+their rating; below 5% for 1.5 s (slack) lets barbless or circle hooks fall out. A fish's pull is a
+real force on the boat: a 200 kg marlin can tow the Gannet at slow speed, and the helm
+can help by backing the boat down on it.
+Fight tuning
+Every hooked fish runs one model, shaped by its fight pattern. All constants live in
+trawl _ data. cpp ; these are the starting values
+-- trawl-fight is tuned against.
+The model
+• Pull: a fish's pull in kilograms-force = its weight x the pattern's pull ratio, rising to
+during a burst.
+• Stamina: seconds of full pull = 20 + 6 x Vweight (a 4 kg snapper has 32 s; a 200 kg
+marlin has 105 s).
+• Drain: stamina drops by (line tension + pull) per second. Side pressure (rod angle
+within 450 of square to the fish's heading, pulling against its turn) multiplies drain by
+1.5; pulling straight back by 0.6; slack drains nothing.
+Page 20 of 79

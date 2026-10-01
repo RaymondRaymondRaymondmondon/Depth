@@ -1,0 +1,44 @@
+Red Tide — Arcade Game 5 Design Document
+Map
+Atlantis
+Approaching the
+Void
+Weapon
+The Tide Staff
+The Abyssal Lure
+What it does
+Bends the current: a wave that carries beasts
+and enemies away, or pulls them into a trap;
+Forged: the Sovereign's Staff, the wave drowns
+enemies in air pockets and carries blood with it
+A lantern that draws every beast in 60 m to a
+point for 8 s, then bursts; Forged: the Deep Call,
+the burst also calls one apex beast to the point
+on your side for 30 s
+The Pressure Forge (Pack-a-Punch)
+5,000 scrip after power. A pressure chamber that crushes the weapon into a stronger
+form: +150% damage, +50% ammo, a new name, a sea-glass finish, and a slot for one
+alternate ammunition (rolled free, re-rolled for 2,500):
+Ammunition
+Galvanic
+Chum Rounds
+Flare Burst
+Riptide
+Boiling
+Effect (Zombies analogue)
+Every 6th hit chains lightning to 3 nearby (Dead
+Wire)
+Hits mark the target so predators prefer it for IO s:
+the beast becomes bait (Turned)
+Hits explode in light, blinding beasts with eyes for 3
+s (Fireworks)
+Every 6th hit pushes everything in a line 8 m
+(Thunder Wall)
+Hits cook: burn damage that leaves no blood (Blast
+Furnace)
+The Forge can also re-arm a Locker weapon (full ammo) for 4,500.
+Melee
+Diver's knife (100 damage, silent), Boarding Axe, Tesla Gaff, Trident, and the Forge-only
+Sawtooth (a sawfish rostrum, 450, bleed). Melee kills make no alarm and less blood (the
+wound is one clean cut), so a knife team is the quiet route through the early tides.
+Page 13 of 90

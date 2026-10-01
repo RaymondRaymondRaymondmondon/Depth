@@ -1,0 +1,33 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+The Trawl — Arcade Game 2 Design
+Document (Draft)
+Sep 29, 2026 • @Phillip Argall
+Overview and pillars
+The Trawl is a 1-6 player co-op fishing horror game: a crew works a steam trawler through
+three nights per deadline to meet the Owners' quota, while a living food web under the
+hull decides what bites, what hunts, and what comes up the rail. It replaces the Trawl
+section of the Depth Master Reference (1-4 players, one stub loop) and becomes the full
+design Claude Code builds from, the way Fathoms has its own document.
+What it takes from each source. From How to Fish, the core loop: catch it, kill it, cook it,
+sell it. The rod and lure decide what bites; what comes up fights back; the crew finishes it
+with fists, knives, and guns; and a stylish kill (a headshot, an airborne shot, a no-scope, a
+spin) multiplies its price through a Killscore. Cooking multiplies it again, boss lures
+summon mini-bosses, and money buys better weapons, attachments, and lures. From
+Lethal Company: the quota and deadline, a shared boat that the skiff crew leaves behind
+to scavenge, a dark interior below decks, a named consignment each deadline, a buy-back
+rate that changes by day, monsters with tells and counters, proximity voice, and dead
+players who stay USefUl.
+Pillars
+1. Catch, kill, cook, sell. Every catch is two fights: one on the line and one on the deck.
+The Killscore rewards skill and style on the second.
+2. Style costs safety. In How to Fish a flashy kill is free. Here, every shot is noise and
+every wound is blood that drains through the scuppers into the sea. The kill that pays
+most is the one most likely to bring the Great White.
+3. The sea is simulated, not scripted. Fish, predators, and threats are agents in one food
+web. A monster shows up because something drew it: blood, light, noise, the smoke of
+a cooking fire.
+4. Greed is the enemy. Brighter lanterns, boss lures, chum, cooking, and deeper water all
+pay more and all attract what kills you.
+5. Six people, one boat, too many jobs. There are always more stations than hands, so
+talking and trusting each other is the game.
+Page 1 of 79

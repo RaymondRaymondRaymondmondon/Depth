@@ -1,0 +1,41 @@
+Red Tide — Arcade Game 5 Design Document
+Should the boss beasts have a chance to appear in earlier tides as a rare event, or stay
+strictly tied to tide 12 and Predator Hunts?
+Should there be a sixth map later, or should new content go into the existing five as
+"seasons" of species?
+Map data workbooks
+Every number a map needs lives in one workbook per map, which Claude Code exports to
+redtide_maps/<map>/*. j son . The Sunken Ship workbook
+( RedTide_SunkenShip_data. xlsx ) is the template; the other four maps get the same
+sheets.
+Sheet
+Species
+Attacks
+Diet
+Flora
+Spawn
+TideCurve
+Holds
+One row per beast: size, tier, tags, archetype, social
+group, home zone and flora, defend radius, blood
+threshold, temperament (aggression, fear,
+curiosity), senses (sight, scent, hearing,
+electroreception), weak point, front armor, base HP
+and bounty, blood on death and per second, speed
+and turn rate, drop chance
+One row per attack move: damage, windup,
+cooldown, range, the visible tell, and the effect
+(bleed, hold, knockback, poison, stun)
+The 40 x 49 preference matrix: each predator's row
+sums to 1 across the species it eats plus plankton,
+corpses, parasites, each flora, and the enemy
+faction
+Type, zones, effect, contact damage, grazers,
+regrowth
+Per zone: species, count at tide 1, respawn seconds,
+capacity growth
+Tunables and the per-tide table: quota, HP and
+bounty multipliers, beast damage multiplier, alarm
+threshold, enemy spawn chance, blood decay, Hunt
+schedule, apex wander, boss availability, tide bonus
+Page 68 of 90

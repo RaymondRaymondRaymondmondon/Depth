@@ -185,6 +185,7 @@ struct Fight {
     bool alongside = false, gaffPending = false;
     bool lightHook = false;      // lip-hooked, barely: head-shakes shed it
     float t = 0;                 // seconds on
+    float noSnapUntil = 0;       // (the old hooks charm: the line never breaks on the first run)
     FightEnd end = FightEnd::None;
     uint32_t rng = 1;
     float Rand();
@@ -261,6 +262,8 @@ struct CatchRec {
     // cooked ashore (design doc v2, "Cooking"): 1.0x to 1.5x over 10 s + 1 s a kg, held 5 s, then burning to 0.3x over 5 s;
     // a cooked fish no longer spoils
     float cookT = -1, cook = 1; bool cooked = false;
+    bool glimmer = false;                                 // a rare shimmering variant: 3x its value
+    int boss = -1;                                        // a mini-boss (MiniBosses index): price is its flat value spread over its weight
 };
 enum class Role { Bosun, Angler, Diver, Medic, COUNT };
 const char* RoleName(Role r);
@@ -278,6 +281,7 @@ struct Crew {
     float inkT = 0;                                       // blinded by a landed octopus's ink (seconds left)
     float oarT = 9, rightT = 0;                           // since this hand's last stroke at the oars; righting a capsized skiff
     bool skiffLine = false;                               // in the skiff: working her line instead of the oars (T)
+    int charm = 0;                                        // the charm on a cord round this hand's neck (Charm); lost with a body lost at sea
     bool carrying = false; CatchRec carry;                // ashore: one thing in the arms (a fish, a chest, a crab)
     int workOn = -1; float workT = 0;                     // ashore: digging a cache (its index) or relighting the fire (100)
     // the hand's slots, injuries, and life (design doc, "Death, injury, and ghosts")
@@ -317,6 +321,18 @@ struct Rod {
 // A fish landed aboard (design doc, "Economy": value = base price x weight x grade x freshness x glut)
 
 float CookMultiplier(float kg, float t);                  // the curve above, t seconds on the fire
+
+// Mini-bosses, charms (design doc v2, "Mini-bosses, boss lures, and harbour requests", "Charms"; trawl_quest.cpp)
+struct MiniBossDef { const char* name; float kg, value; int deck; Pattern a, b; const char* drop; float lure; };
+const std::vector<MiniBossDef>& MiniBosses();            // the Lagoon's two: Old Snapjaw, the Crest Grouper (boss water: the Crest Pass)
+int MiniBossOf(const std::string& name);                  // index, or -1
+enum Charm { CH_NONE, CH_LUCKY_COIN, CH_SHARK_TOOTH, CH_ANKLET, CH_OLD_HOOKS, CH_BRASS_LURE, CH_COUNT };
+const char* CharmName(int c);
+const char* CharmEffect(int c);
+int CharmOfDrop(const std::string& drop);
+struct Gannet;
+void BossCast(Gannet& g);                                 // the skiff's line cast with a boss lure armed                 // a mini-boss drop worn as a charm (CH_NONE if it isn't one)
+const float GLIMMER_CHANCE = 0.02f;                       // a landed fish is a Glimmer variant (worth 3x; the collector wants them); a lucky coin doubles it
 
 // A landing (design doc v2, "Islands: fires, traders, and treasure"; trawl_landing.cpp): a small island reached by
 // skiff and walked on foot (DECK_SHORE: a hand's p is in the landing's frame, metres from its centre, world-aligned).
@@ -533,6 +549,21 @@ struct Gannet {
     // or more rocks her hard); anything bigger is killed alongside and goes on the tow line, slowing her and bleeding
     // all the way home. A hooked fish tows her and heels her toward it. Inside a skiff mark the bites come twice as often.
     Rod skiffRod;
+    // boss lures and what the harbour gives (trawl_quest.cpp)
+    int bossLures = 0; bool bossArmed = false;            // R on the skiff's line arms a boss lure for the next cast
+    float bossBiteT = -1; int bossBiteIdx = -1;           // a mini-boss coming to a boss lure over boss water
+    int bossCaught = 0;                                   // bits: mini-bosses landed this deadline
+    std::vector<std::string> drops;                       // mini-boss drops (not sold: harbour folk want them; one can be worn as a charm)
+    bool tagGun = false; int tagged = 0;                  // turtles tagged and released alive (the naturalist)
+    int highKills = 0;                                    // kills at Killscore 2.5x or better tonight (the gunsmith's apprentice)
+    bool spiceRub = false;                                // the cook's spice rub: cooking climbs 25% faster this deadline
+    int rareLures = 0; bool rareLureNight = false;        // the naturalist's lure: rare fish bite more, for a night (used at cast off)
+    int legendLures = 0;                                  // Mother Carey's legend lures (the legendary fish are still to be designed)
+    bool WearsCharm(int ci, int charm) const { return ci >= 0 && ci < (int)crew.size() && crew[ci].charm == charm; }
+    bool AnyWears(int charm) const { for (const auto& c : crew) if (c.charm == charm && !c.dead) return true; return false; }
+    bool ArmBossLure(int c);                              // R on the skiff's line
+    void StepBoss(float dt);                              // a boss lure over boss water calls the mark's mini-boss to it
+    void OnLanded(CatchRec& r, int holder);               // every hooked fish landed: a Glimmer roll (the lucky coin), the mini-boss's drop
     std::vector<CatchRec> towed;                          // on the tow line, alongside (into the hold when she's hauled up)
     void StepSkiffRod(float dt);
     Vector2 SkiffRodTip() const;                          // (world) the rod's tip over her starboard quarter
@@ -586,6 +617,7 @@ bool QuayWalkable(Vector2 p);                             // the quay beside her
 
 int RunTrawlSim(int argc, char** argv);                   // depth.exe --trawl-sim <ground> <nights> [crew] [pattern] [runs] [skill] (trawl_sim.cpp)
 int RunTrawlGearTest();
+int RunTrawlQuestTest();                                  // depth.exe --trawl-quest-test
 int RunTrawlSkiffTest();                                  // depth.exe --trawl-skiff-test                                   // depth.exe --trawl-gear-test
 int RunTrawlBotTest();                                    // depth.exe --trawl-bot-test
 int RunTrawlSailDiag();                                   // depth.exe --trawl-sail-diag (water shipped under way, by weather)

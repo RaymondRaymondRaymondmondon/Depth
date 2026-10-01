@@ -1,0 +1,125 @@
+Red Tide
+Arcade Game 5 Design Document
+Beast
+Titan
+Triggerfish
+Napoleon
+Wrasse
+Dugong
+Blacktip Reef
+Shark
+G Reef
+Shark
+Bottlenose
+Dolphin
+Monk Seal
+Manta Ray
+Great
+Hammerhead
+Class
+Fish
+Fish
+Mammal
+Fish
+Fish
+Mammal
+Mammal
+Fish
+Fish
+Size
+3
+4
+4
+4
+4
+4
+4
+5
+5
+Tier
+3
+2
+1
+4
+(pack)
+4
+3
+3
+1
+4
+Eats
+Urchins, crabs,
+coral
+Urchins,
+crustaceans,
+cone snails
+Seagrass
+Fish, cuttlefish,
+iguanas
+Fish, octopus,
+seals' pups
+Fish,
+Fish,
+squid
+lobsters,
+octopus
+Plankton
+Stingrays,
+sharks, turtles,
+seals, enemies
+Eaten by
+Sharks
+Orca
+Orca,
+hammerhead
+Hammerhead,
+orca
+Orca
+Orca
+Hammerhead,
+orca
+Orca
+Orca
+Behavior and note
+Defends a cone-
+shaped territory
+above its nest;
+charges divers at
+speed
+Enormous and
+gentle; eats cone
+snails and blue-
+rings; 80 blood if
+killed
+Grazes the flats;
+harmless; the flats'
+sturgeon trap
+Packs of 4 in the
+corridors; threshold
+60; skittish alone
+Patrols the wall;
+threshold 80; a
+threat display
+(hunched swim)
+before attacking
+A pod of 5 that
+shadows the divers
+and rams sharks off
+them; hostile
+forever after one
+dolphin is shot
+Curious; steals a
+held item and plays
+keep-away;
+harmless unless
+shot
+Glides the wall and
+the blue hole;
+harmless; 100 blood
+if killed
+Wanderer; threshold
+150;
+electroreception
+finds buried divers
+and buried rays
+Page 42 of 90

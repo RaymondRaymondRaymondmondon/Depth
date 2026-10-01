@@ -1,0 +1,75 @@
+Zones (metres)
+zone	level	x	y	w	h	door_cost_scrip	depth_m	notes
+The Mouth	Wet	30	0	16	10	0	0	Start pocket under a light shaft. Gannet rack, Juggernaut. Slipstream F arrives here.
+The Flooded Gallery	Wet	0	14	40	16	750	-10	Columns and root tangles; Needler Mk I, Quick Brine, workbench; the Ghost Worm's wall on the south side; slipstream A departs east
+The Chimney	Wet (vertical)	48	12	14	14	1000	-10 to -40	A shaft with four ledges: Long Speargun (ledge 2); stalactites overhead (trap anchor at ledge 4); glowworms; slipstream B departs at the bottom
+The Squeeze	Wet (crawl)	8	32	8	10	0	-25	A one-way crawl tunnel Gallery -> Sump; no weapons drawn; 40 s crawl; the Ghost Worm lives in its walls
+Dry Chamber I: the Cricket Cavern	Air	70	4	18	12	1250	-15	Walking; cave moss, crickets, swiftlet roost; Speed Brine; the Drowned's camp and entry (the Lantern Cache)
+Dry Chamber II: the Toad Pool	Air	70	20	18	12	0	-15	A pool with the toad, newts, kraits; Carbine rack; the salamander under the far ledge
+Dry Chamber III: the Roost	Air	90	12	14	14	0	-15	A tall chamber; ledges; the caiman's haul-out; slipstream C departs from the pool at its floor
+The Sump	Wet	20	46	44	18	1500	-45	Silt bottom; vents and mats; Bolt Harpoon, Double Shot; sleeper shark, electric rays; slipstream B and the Squeeze arrive; slipstream D departs
+The Dynamo Sump	Wet	70	44	22	16	1750	-40	The drowned expedition's generator (power); the Pressure Forge; Bloodvine by the Forge; slipstreams C and D arrive; E departs
+The Cathedral	Wet	50	66	44	24	2000	-30	Crystal coral; the Lobster's home; Kick Brine, Locker spot 2; two Cathedral overlooks onto the Sump; slipstream F departs back to the Mouth
+Links
+from	to	cost_scrip	passage
+The Mouth	The Flooded Gallery	750	The throat (a swim-down)
+The Flooded Gallery	The Chimney	1000	Chimney door
+The Flooded Gallery	The Squeeze	0	Crawl entrance (one-way)
+The Squeeze	The Sump	0	Crawl exit (one-way)
+The Chimney	Dry Chamber I: the Cricket Cavern	1250	Ledge 3 airlock (a natural sump you surface through)
+Dry Chamber I: the Cricket Cavern	Dry Chamber II: the Toad Pool	0	Open passage
+Dry Chamber II: the Toad Pool	Dry Chamber III: the Roost	0	Open passage
+The Chimney	The Sump	1500	Chimney bottom
+The Sump	The Dynamo Sump	1750	Generator door
+The Dynamo Sump	The Cathedral	2000	Crystal gate
+The Cathedral	The Sump	0	Overlook drops (one-way, 2 places)
+Slipstreams (one-way, 8 m/s, no firing inside)
+id	from	to	length_m	ride_s	hazard
+A	The Flooded Gallery	The Chimney (top)	40	5	Current Runner patrols
+B	The Chimney (bottom)	The Sump	50	6	Ends in silt: electric rays
+C	Dry Chamber III: the Roost (pool)	The Dynamo Sump	60	8	Passes the caiman's haul-out
+D	The Sump	The Dynamo Sump	30	4	Fast and safe; the cave's highway
+E	The Dynamo Sump	The Cathedral	40	5	Arrives under the crystal coral (touching it bleeds)
+F	The Cathedral	The Mouth	120	15	The escape stream: long, dark, Current Runner and Cave Eels; loops the whole map
+Points of interest
+name	type	zone	x	y
+Gannet rack	Rack	The Mouth	32	2
+Juggernaut Brine	Tonic	The Mouth	43	8
+Needler Mk I rack	Rack	The Flooded Gallery	4	16
+Quick Brine	Tonic	The Flooded Gallery	36	28
+Workbench	Build	The Flooded Gallery	20	22
+Locker spot 1	Locker	The Flooded Gallery	30	16
+Ghost Worm wall	Boss	The Flooded Gallery	10	29
+Cleaner station (sponges)	Feature	The Flooded Gallery	14	18
+Long Speargun rack (ledge 2)	Rack	The Chimney	50	20
+Stalactite trap anchor (ledge 4)	Trap	The Chimney	55	14
+Glowworm ceiling	Feature	The Chimney	58	24
+Speed Brine	Tonic	Dry Chamber I: the Cricket Cavern	72	6
+The Lantern Cache (Drowned entry)	Entry	Dry Chamber I: the Cricket Cavern	86	14
+Swiftlet roost	Hazard	Dry Chamber I: the Cricket Cavern	80	6
+Sea-Pattern Carbine rack	Rack	Dry Chamber II: the Toad Pool	72	22
+Toad pool	Hazard	Dry Chamber II: the Toad Pool	80	26
+Salamander ledge	Hazard	Dry Chamber II: the Toad Pool	86	30
+Caiman haul-out	Hazard	Dry Chamber III: the Roost	96	14
+Slipstream C mouth	Feature	Dry Chamber III: the Roost	97	24
+Bolt Harpoon rack	Rack	The Sump	24	48
+Double Shot	Tonic	The Sump	60	62
+Vent field & mats	Feature	The Sump	44	56
+Sleeper shark silt	Hazard	The Sump	30	60
+Electric ray silt	Hazard	The Sump	52	50
+Power switch (generator)	Power	The Dynamo Sump	74	46
+Pressure Forge	Forge	The Dynamo Sump	86	56
+Bloodvine by the Forge	Hazard	The Dynamo Sump	82	58
+Expedition wreckage (parts)	Build	The Dynamo Sump	78	52
+Kick Brine	Tonic	The Cathedral	54	86
+Locker spot 2	Locker	The Cathedral	90	86
+Crystal coral (calls the Lobster)	Feature	The Cathedral	72	78
+The Lobster's hollow	Boss	The Cathedral	84	72
+Overlook drops to the Sump	Feature	The Cathedral	52	68
+Slipstream F mouth	Feature	The Cathedral	92	68
+Design notes
+Training loop (wet): Gallery -> slipstream A -> Chimney -> Chimney bottom -> Sump -> slipstream D -> Dynamo -> slipstream E -> Cathedral -> slipstream F -> Mouth -> Gallery. About 3 minutes; every stream has a beast in it.
+Training loop (dry): Cavern -> Toad Pool -> Roost -> Cavern, on foot; safe from everything wet, unsafe from the toad, the salamander, and the caiman; where the Drowned are strongest.
+Blood flow: slipstreams carry blood the way they carry divers, so a kill in the Gallery smells in the Chimney 5 s later and in the Sump 11 s later; the Sump is the map's drain (blood pools there and calls the sleeper shark).
+Sightlines: Gallery 20 m between columns; Chimney vertical 30 m; dry chambers 15 m; Sump 6-10 m in silt; Cathedral 40 m across (the long-gun room). Alarm: one region; the Drowned enter from the Lantern Cache.
+Rockfall: any noise-6+ shot in the Chimney or Cathedral has a 5% chance to drop a stalactite (200 damage) within 8 m of the shooter's target.

@@ -1,0 +1,38 @@
+beast	attack	damage	windup_s	cooldown_s	range_m	tell (what the player sees)	effect
+Sergeant Major	Nip	2	0.3	1	1	Darts at the visor	
+Rabbitfish	Spine	8	0	0	0.5		Touch: poison 4 s
+Damselfish	Bite	1	0.2	0.5	1	Rushes in	
+Mantis Shrimp	Punch	30	0.4	2	1.5	Antennae flick up	Breaks a Shell Shield in 2 hits
+Lionfish	Spines	20	0	0	0.6		Contact: poison 5 s
+Cuttlefish	Flash	0	0.5	6	4	Skin ripples	Diver aim sway +30% for 3 s
+Banded Sea Snake	Bite	10	0.5	2	1	Coils back	Poison 20 over 10 s
+Stonefish	Spines	40	0	0	0.6		Contact: poison 8 s
+Jelly Bloom	Sting	5	0	1	1		Contact: 5/s
+Remora	Attach	0	0.3	0	0.5	Swims alongside	Diver swim speed -15% until brushed
+Lamprey	Latch	2	0.5	0	0.5	Circles the target	Host bleeds 2/s; host becomes a blood source
+Green Moray	Strike	35	0.4	1.5	2	Mouth opens wide	Bleed 3 s
+Green Moray	Hold	15	0.6	4	1.5	Body straightens	Holds 2 s
+Great Barracuda	Slash	30	0.3	1.2	2	Straightens and accelerates	Bleed 3 s
+Great Barracuda	Hit-and-run	45	0.5	4	10	Circles wide	Passes through; no hold
+Grouper	Gulp	40	0.6	2.5	2	Gills flare	Swallows size 1 whole; on a diver: 40 and 1 s hold
+Bluefin Trevally	Ram	25	0.4	1.5	3	Pack fans out	Knocks a diver 2 m
+Common Octopus	Grab	20	0.5	3	2.5	Arm extends	Steals a held part or charm, then flees home
+Nurse Shark	Bite	30	0.6	3	1.5	Only if shot	
+Hawksbill Turtle	Bite	25	0.6	3	1	Only if shot	
+Loggerhead Turtle	Crush	60	0.8	4	1.2	Head draws back	Destroys a Shell Shield
+Sand Tiger Shark	Bite	70	0.5	2	2	Mouth gapes, ragged teeth	Bleed 4 s
+Sand Tiger Shark	Thrash	40	0.4	3	2.5	Tail sweeps	Knockback 3 m
+Bull Shark	Bite	80	0.4	1.8	2	Pectorals drop	Bleed 4 s
+Bull Shark	Ram	50	0.5	3	6	Straight line charge	Knockback 4 m, stun 1 s
+Bull Shark	Hold	30	0.6	5	1.5	Head shakes	Holds 2 s; teammates must shoot it off
+Saltwater Crocodile	Death Roll	120	0.9	6	2.5	Rises from the air pocket, jaws open	Holds and rolls; teammates have 4 s
+Saltwater Crocodile	Snap	60	0.4	2	2	Jaw clicks	Bleed 3 s
+Saltwater Crocodile	Tail	45	0.5	3	3	Turns side-on	Knockback 4 m
+Tiger Shark	Bite	110	0.5	2	2.5	Rolls to one side	Bleed 5 s
+Tiger Shark	Ram	70	0.5	4	8	Straight charge	Knockback 5 m, stun 1 s
+Tiger Shark	Drag	50	0.7	8	2	Grabs and swims	Carries a diver 10 m; teammates shoot it off
+The Goliath	Inhale	0	1.5	12	4	Gills close, water rushes	Pulls a diver into its mouth; 5 s to shoot it out (150 damage to the gills)
+The Goliath	Tail Slam	90	0.8	5	4	Turns away	Knockback 6 m; drops loose cargo
+The Goliath	Boom	25	0.6	3	10	Swim bladder swells	Loud 10-noise pulse: stun 1 s in 10 m
+The Goliath	Lunge	140	0.7	4	6	Fins flare	Bleed 5 s
+Beasts with no rows here never attack; they flee or ignore divers. Damage is vs 100 HP divers at tide 1 and scales x1.05 per tide (TideCurve).

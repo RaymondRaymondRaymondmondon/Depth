@@ -1,0 +1,66 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+• Blood rules. Blood diffuses to neighbouring cells each second and decays 3% per
+second in open water (1% in the Grotto's still water) with the current carrying it
+downstream, so a slick trails away from the boat and predators arrive from down-
+current.
+Simulation budget
+--trawl-eco <ground> <minutes> [pattern] runs the web headless with a scripted
+crew and prints populations, blood, Wake, and threat arrivals. A ground with no crew must
+stay stable (no species extinct and none above 150% of its start) for three simulated
+nights.
+The four grounds
+The four grounds are Depth's four expedition locations seen from the surface, from safest
+to deadliest. Each is a map about 600 m across with its own depth chart, catch table, flora,
+threat roster, and one rule no other ground has.
+Ground
+Eclipse
+Lagoon
+The Weeds
+The Grotto
+Atlantis
+Waters
+Depth
+3¯40 m
+8-70 m
+5-120 m,
+under rock
+30-400 m
+Coal to
+reach
+10
+25
+40
+80
+Fish value
+Low
+Medium
+Medium-
+high
+Very high
+Salvage
+Little
+Some
+High
+(wrecks)
+Very high
+(relics)
+Signature rule
+The reef tide
+Kelp fouls
+everything
+Starting-gear quota
+rate (target)
+85%
+The cave mouth 45%
+closes
+The Pale Eye
+25%
+Eclipse Lagoon (the Island)
+A turquoise atoll lagoon under the Island's eclipse moon, with a coral crest between the
+lagoon and the open sea. It is where crews learn to fish and learn that blood matters.
+• Catch. Bait: silversides, sardines, flying fish. Reef: snapper, parrotfish, triggerfish,
+spiny lobster (pots), octopus. Open-water edge: mahi, bonito, barracuda, grouper in
+the crest's caves, reef sharks.
+• Flora. Coral heads (shelter, snag nets), seagrass (grazers), sargassum rafts (drift with
+the wind; mahi shelter under them).
+Page 37 of 79

@@ -1,0 +1,93 @@
+Red Tide
+Arcade Game 5 Design Document
+Class
+Powder carbines
+and rifles
+Scatter guns
+Spearguns and
+harpoons
+Needle LMG
+Launchers
+Spread hip
+/ ADS
+2.0 / 0.5
+8.0 / 6.0
+1.0 / 0.2
+5.0 / 2.5
+3.0 / 1.0
+ADS
+time
+0.30
+0.30
+0.45
+0.60
+0.50
+Swim while
+aiming
+0.6
+0.6
+0.4
+0.4
+0.5
+1.0
+Recoil
+High, kick and
+settle
+High
+Single heavy
+kick
+Medium,
+constant
+Heavy
+Headshot
+2.2
+1.5
+2.5
+1.6
+none
+2.0
+Falloff
+Full to 30 m, at
+45 m
+Full to 6 m, at
+12m
+Full to 60 m; bolts
+drop after 40 m
+Full to 20 m
+Charges sink after
+25m
+1.5 m, 2.5 with the
+Trident
+Every hit has a hit marker; weak-point hits ring; a bolt that pins a size-I or size-2 beast to a
+wall holds it for 4 s and can be recovered.
+The Forged list
+Weapon
+The Cormorant
+Gannet
+Twin Gannets
+Needler Mk I
+Needler Mk II
+Gatling Needler
+Reef Rattler
+Forged name
+The Albatross
+Frigatebird
+Storm Petrels
+The Hornet
+The Wasp's Nest
+The Swarm
+The Triple Reef
+The twist
+3-dart burst; the Last Stand pistol keeps this
+form
+Darts ricochet once off hard surfaces
+Alternating fire never needs to reload both at
+once (one reloads while the other fires)
+Darts leave a 2 s bleed
+Every 10th dart is a tracer that marks the
+target for the team (Chum Rounds effect, 5
+s)
+No spin-up; magazine 200
+4-round burst; the fourth is a weak-point
+seeker within 5 degrees
+Page 81 of 90

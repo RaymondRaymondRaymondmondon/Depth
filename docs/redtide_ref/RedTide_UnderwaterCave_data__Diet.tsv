@@ -1,0 +1,43 @@
+predator \ food	Blind Cavefish	Glass Shrimp	Cave Krill	Cave Isopod	Amphipod	Troglobite Crab	Olm	Blind Newt	Poison Dart Newt	Giant Cave Toad	Cave Crayfish	Fishing Spider	Cave Cricket	Diving Beetle	Giant Water Bug	Dragonfly Nymph	Glowworm Colony	Firefly Squid	Lanternfish	Cave Anglerfish	Cave Eel	Electric Ray	Blind Catfish	Whip Ray	Hagfish	Vampire Squid	Bristle Worm	Sea Spider	Cave Swiftlet	Snapping Turtle	Cave Krait	Epaulette Shark	Current Runner	Cave Sturgeon	Gulper Eel	Giant Salamander	Cave Caiman	Sleeper Shark	Ghost Worm	Silt Lamprey	The Lobster	Plankton	Detritus	Corpse	Parasites	Glow mould	Chemosynthetic mat	Cave moss	Stone lettuce	Cave sponge	White anemone cluster	The Drowned	Diver	row_sum
+Blind Cavefish																																										0.2				0.8								1
+Glass Shrimp																																											0.3		0.7									1
+Cave Krill																																															1							1
+Cave Isopod																																											0.2	0.8										1
+Amphipod																																											0.6					0.4						1
+Troglobite Crab		0.5			0.5																																																	1
+Olm				0.4	0.6																																																	1
+Blind Newt					0.5								0.3	0.2																																								1
+Poison Dart Newt													1																																									1
+Giant Cave Toad								0.3					0.2	0.2	0.1	0.1																																					0.1	1
+Cave Crayfish				0.5																							0.5																											1
+Fishing Spider	0.5							0.5																																														1
+Cave Cricket																																																1						1
+Diving Beetle					1																																																	1
+Giant Water Bug	0.4							0.6																																														1
+Dragonfly Nymph	0.5				0.5																																																	1
+Glowworm Colony													0.6																													0.4												1
+Firefly Squid	0.6		0.4																																																			1
+Lanternfish			1																																																			1
+Cave Anglerfish	0.5																	0.5																																				1
+Cave Eel	0.4										0.3							0.3																																				1
+Electric Ray	0.5										0.5																																											1
+Blind Catfish	0.3			0.2							0.3																																	0.2										1
+Whip Ray		0.5				0.5																																																1
+Hagfish																																												1										1
+Vampire Squid																																											0.7	0.3										1
+Bristle Worm																																												0.5			0.5							1
+Sea Spider																																																		0.4	0.6			1
+Cave Swiftlet												0.3	0.7																																									1
+Snapping Turtle	0.3							0.4																																									0.3					1
+Cave Krait	0.5							0.5																																														1
+Epaulette Shark						0.4					0.3																0.3																											1
+Current Runner	0.6																	0.4																																				1
+Cave Sturgeon			0.4																																												0.3		0.3					1
+Gulper Eel																		0.3	0.5							0.2																												1
+Giant Salamander							0.3				0.3												0.2																														0.2	1
+Cave Caiman										0.3																				0.2						0.2																0.1	0.2	1
+Sleeper Shark																				0.1				0.1										0.2	0.2		0.2							0.2										1
+Ghost Worm																					0.3																															0.7		1
+Silt Lamprey																							0.4											0.4	0.2																			1
+The Lobster																																					0.3	0.2														0.2	0.3	1
+Preference shares; each row sums to 1 (0 for non-feeders). Blank = never eats. Predators also obey the size rule (prey <= 60% of size unless pack/school).

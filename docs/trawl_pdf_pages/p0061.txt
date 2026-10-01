@@ -1,0 +1,98 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+Landing
+The Cannery
+Pier
+The
+Smugglers'
+Shelf
+Bone Beach
+The Drowned
+Stair
+The
+Watchtower
+stump
+The Cult
+Landing
+Ground
+The
+Weeds
+The
+Grotto
+The
+Grotto
+Atlantis
+Waters
+Atlantis
+Waters
+Atlantis
+Waters
+Fire
+The cannery
+boiler (sheltered;
+the only place to
+can fish)
+A smugglers'
+stove (sheltered)
+Volcanic vents
+(steam; can't
+burn, climbs 30%
+slower)
+The eternal
+brazier (twice as
+fast; +2 Wake per
+fish)
+A signal fire:
+lighting it shows
+every skiff mark
+on the sonar and
+draws everything
+on the ground
+The cult bonfire
+(fast; the
+longboats come
+back)
+Trader
+The last foreman:
+takes cooked and
+canned fish in trade
+at 150% of their
+value
+The quartermaster, if
+the Drowned are still
+asleep: buys salvage
+at the full deadline
+rate on any night
+The hermit: trades
+gear for bones and
+skulls
+The Keeper of the
+Stair, a drowned
+priest: harmless
+while he is paid in
+offerings
+None
+The cult
+quartermaster: dark
+goods for dark
+money
+Treasure
+Cannery safe,
+150-350
+2-3 stashes, 200-
+600
+Bone piles and a
+lost crew's kit,
+200-500
+Offering bowls,
+400-1,200, and
+relics
+The tower cache,
+300-800
+The cult'S hoard,
+500-1,200,
+guarded
+What the traders sell. Each trader stocks four to six items at a time from their own list,
+rotating each deadline, and those items are sold nowhere else. The full lists are in the
+weapons catalogue, the attachments table, the tools table, the boat and skiff upgrade
+tables, and the charms table under Economy, each marked with its trader. In short:
+Page 61 of 79

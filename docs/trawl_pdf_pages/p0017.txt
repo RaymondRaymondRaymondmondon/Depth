@@ -1,0 +1,62 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+The spaces
+Space
+Fo'c'sle
+Chain locker
+Fish hold
+Engine room
+Bilge
+crawlspace
+Reached by
+Fore hatch
+Crawl from the
+fo'c'sle
+Main hatch (big,
+slow)
+Aft companionway
+Hatches in the hold
+and engine room
+Holds
+Bunks, gear lockers, the
+magazine locker
+The anchor chain
+Ice, the iced catch,
+salvage, the
+consignment
+Boiler, coal bunker,
+pumps
+Water, lost items,
+whatever came in with
+the water
+Why crew go down
+Ammunition, dynamite,
+flares, spare line; the
+Medic's cot for serious
+injuries
+Freeing a fouled anchor
+Stowing fish, fetching
+ice, securing salvage
+Coal, pressure,
+pumping, fires
+Patching leaks from
+inside, recovering
+dropped gear
+A watertight door joins the hold and the engine room. Shutting it contains flooding, and
+can leave someone on the wrong side.
+Hatches and light
+• Hatches are open (fast, but they let water and things in), shut (4 s to open), or
+battened (secure, IO s, and cannot be opened from below).
+• Oil lamps go out past 200 of roll or when splashed; relighting takes 3 s with matches.
+Below, a hand lamp is the only reliable light.
+• The crew board shows who is below. Ghosts can go below and see what is there.
+What gets in
+Intruder
+Isopod
+swarm
+How it gets in
+Up the anchor chain into the chain
+locker
+What it does below
+Spreads into the hold and eats the
+iced catch, 1 kg per isopod a minute
+Page 17 of 79

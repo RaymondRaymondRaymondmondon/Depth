@@ -1,0 +1,111 @@
+Red Tide
+Arcade Game 5 Design Document
+Flora
+Halimeda beds
+Type
+Producer
+Producer
+Edible
+Turf algae
+Sea grape
+Beasts (41)
+Beast
+Anthias
+Clownfish
+Butterflyfish
+Cleaner
+Wrasse
+Sea Urchin
+Spiny Lobster
+Angelfish
+Triggerfish
+Surgeonfish
+Effect
+Sea hare and urchin food; brittle: shatters
+loudly when walked on
+Surgeonfish and iguana food
+A diver can eat a cluster: +10 HP, once per
+cluster; grazers compete for it
+Class
+Fish
+Fish
+Fish
+Fish
+Echinoderm
+Crustacean
+Fish
+Fish
+Fish
+Size
+1
+1
+1
+1
+1
+2
+2
+2
+2
+Tier
+1
+1
+1
+Cleaner
+1
+2
+1
+2
+1
+Eats
+Plankton
+Plankton, algae
+Coral polyps
+Parasites
+Halimeda, turf
+Urchins, snails
+Sponges, soft
+coral
+Urchins, crabs
+Turf algae
+Eaten by
+Groupers,
+triggerfish,
+jacks
+Nothing while
+in its anemone
+Groupers
+Nothing
+willingly
+Triggerfish,
+wrasse
+Groupers,
+octopus, seals
+Reef sharks
+Reef sharks
+Reef sharks
+Behavior and note
+A shimmering
+school over the
+Bommie; the reef's
+blood battery
+Bites divers near its
+anemone (1 damage,
+endlessly)
+Grazes staghorn;
+harmless
+The Bommie's
+cleaning station
+calms everything
+that visits, including
+sharks
+Spines: 8 damage on
+touch
+In crevices; free
+scrip at night tides
+Pairs; harmless
+Territorial over
+nests; bites (10) and
+chases
+Scalpel tail: 12 bleed
+if grabbed
+Page 39 of 90

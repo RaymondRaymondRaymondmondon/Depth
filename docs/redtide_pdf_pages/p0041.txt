@@ -1,0 +1,112 @@
+Red Tide
+Arcade Game 5 Design Document
+Beast
+Giant Reef
+Toad
+Marine Iguana
+Olive Sea
+Snake
+Green Turtle
+Moray Eel
+Coral Grouper
+Stingray
+Bobbit Worm
+Class
+Amphibian
+Reptile
+Reptile
+Reptile
+Fish
+Fish
+Fish
+Worm
+Size
+3
+2
+2
+3
+3
+3
+3
+3
+Tier
+3
+1
+2
+1
+3
+3
+3
+3
+Eats
+Shrimp, worms
+Frogs, axolotls,
+crabs
+Turf algae
+Eels, gobies
+Seagrass, jellies
+Octopus,
+cuttlefish,
+lobsters
+Anthias,
+butterflyfish,
+eels
+Garden eels,
+flounder,
+goatfish
+Anything that
+passes its hole
+Eaten by
+Toad, groupers
+Monk seal,
+sharks
+Sharks
+Sharks
+Hammerhead,
+orca
+Groupers,
+sharks
+Sharks
+Hammerhead
+Nothing
+Behavior and note
+Lagoon pools;
+regenerates: heals 5
+per second when
+hidden, so it's a
+tough small kill
+Mangrove edge;
+tongue grab from 5
+m; croaks are a
+sound-layer alarm
+Grazes on the
+Bommie's shallows;
+harmless; a herd is
+200 blood if wiped
+CUriOUS;
+approaches divers;
+venom 25 over 10 s
+Armored; eats box
+jellies (a reason to
+keep it alive)
+In the corridor holes;
+strikes 2 m;
+territorial
+Hunts with the
+moray (a real
+partnership): the
+moray flushes, the
+grouper catches
+Buried in seagrass;
+barb 40 bleed if
+stepped on
+Sand flats
+ambusher: a 3 m
+lunge from a hidden
+hole, 80 damage and
+a drag; the flats'
+reason to follow the
+goatfish clouds
+instead of the
+shortcuts
+Page 41 of 90

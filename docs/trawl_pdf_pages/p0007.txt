@@ -1,0 +1,66 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+Role
+Angler
+Diver
+Medic
+perk
+Hook-set window +75 ms; sees the
+species name on the bite; line tension
+gauge shows the break point
++15 s of helmet air; no Bends on a normal-
+speed recall; moves 15% faster and carries
+salvage 25% faster in dives
+Bandages stop bleeding in 2 s instead of 6;
+can treat one serious injury per night
+(sets a broken arm, removes a hook);
+revives a drowned crewman with CPR if
+they are hauled aboard within 15 s of
+drowning
+Starts with
+Medium rod
+Knife and helmet lamp
+Medical bag (does not take an
+inventory slot)
+Role upgrades. A role ranks up three times in a run: after the first, second, and fourth met
+deadlines. At each rank the player picks one of two upgrades on the dock chalkboard.
+Upgrades last until the run ends, survive death, and belong to the role: switching roles at
+the dock starts the new role at rank 1. Bots pick from a fixed preference list per role.
+Role
+Bosun
+Angler
+Rank 2 (after deadline 1)
+Shipwright: a patched
+section regains 30
+integrity • or Stoker:
+overpressure grace 5-5 IO
+s, screw one noise step
+quieter
+Light Touch: slack
+tolerance 1.5 3s • or
+Heavy Hand: side
+pressure tires fish 25%
+faster
+Rank 3 (after deadline 2)
+Old Salt: never slides on
+deck; crew within 4 m
+slide 50 later • or Deck
+Boss: bots under their
+orders work 20% faster
+Reader: the rod ticks 0.5
+s before each run • or
+Strong Line: +20% line
+strength on any rod
+they hold
+Rank 4 (after deadline 4)
+Iron Hull: +25 max
+integrity on every section
+• or Full Steam: +20%
+speed for 20 s, once a
+night
+Trophy Hunter: first
+catches pay a further
++50% • or Bait Master:
+their bait and lures keep
+scent twice as long and
+draw 25% more bites
+Page 7 of 79

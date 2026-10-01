@@ -1,0 +1,37 @@
+Red Tide — Arcade Game 5 Design Document
+to do it is real.
+• Traps cost 1,000 per use and kill by the map's rules: a cargo crane, a stalactite drop, a
+coral gate, a flooding chamber, a lab's pressure door.
+Drops
+Some beasts drop a glowing bottle on death (about 1 in 40 kills, weighted away from
+repeats).
+Drop
+Resupply
+Blood Frenzy
+Double Scrip
+Purge
+Shipwright
+Fire Sale
+Harpoon Hour
+Hunts
+Effect
+Full ammo for everyone
+30 s: every hit kills; the water fills with blood at
+rate (huge scrip, huge danger)
+30s
+Every beast within 40 m dies and leaves no blood;
+enemies flee
+All barricade nets repaired
+30 s: the Locker costs IO and appears at every
+location
+30 s: the Harpoon Cannon in hand, infinite bolts
+Every 5th tide from tide 5 is a Hunt: instead of a quota, the map's enemy faction arrives in
+force (see Enemy factions) and the tide ends when they're dead or eaten. Starting at tide
+10, a Hunt can also be a Predator Hunt: the map's apex beasts come to the players'
+position because the water is bloody enough, and the quota is a fixed number of apex
+kills. The reward for either is a Resupply and a guaranteed Locker weapon.
+The ecosystem engine
+Every map runs one simulation, Ecosystem , in which about 40 species and 12 flora live by
+a shared set of rules: what they eat, what eats them, what they smell, what they hear,
+where they live, and who they help. Players and enemy factions are members of the same
+Page 5 of 90

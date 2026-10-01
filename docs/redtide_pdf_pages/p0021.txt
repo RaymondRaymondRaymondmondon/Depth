@@ -1,0 +1,56 @@
+Red Tide — Arcade Game 5 Design Document
+• Tags: scavenger (eats corpses first), parasite (attaches), venom (damage over time on
+bite or touch), armored (front-facing damage halved), electric (stun), camouflage
+(invisible until it moves), luminous (draws CUriOUS species), amphibious (uses air
+pockets and dry areas), burrower (hides in sand or silt), cleaner (lowers hosts'
+aggression).
+Behavior archetypes
+Archetype
+Schooler
+Ambusher
+Patroller
+Territorial
+Pack
+hunter
+Swarmer
+Parasite
+Grazer
+Wanderer
+Pattern
+Boids; scatter when shot, regroup in
+10 s; the school is a blood battery
+Waits camouflaged in a home spot;
+strikes anything within 2 m
+Circles a route; investigates blood
+and sound
+Defends a radius; escalates warning,
+then attack
+3-6 coordinate flank and drive; target
+the wounded and the separated
+Many bodies, one agent; damage by
+contact time
+Attaches to a beast or diver; slows or
+bleeds until brushed off
+Eats flora, flees everything
+Apex; follows blood from far, leaves
+when fed
+Counter
+Melee or one-shot weapons; don't
+spray
+Flares and VUItUre'S Eye reveal; walk
+around, not over
+Time the route; fight it away from its
+home
+Leave the radius; use the beast as a
+wall against enemies
+Backs to a wall; kill the leader
+(marked)
+Ink, bubble walls, keep moving
+Cleaning brush or a cleaner station
+Free scrip, but every corpse is blood
+Feed it something else
+Damage model
+• Weak points: gills, eyes, the soft underside of shelled beasts, the vent of cephalopods,
+the throat of reptiles. Weak-point hits do and bleed
+• Armored fronts (crabs, turtles, armored fish) halve frontal damage; flank them.
+Page 21 of 90

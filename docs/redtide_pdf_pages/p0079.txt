@@ -1,0 +1,38 @@
+Red Tide — Arcade Game 5 Design Document
+Mode
+Custom
+Rules
+Sliders for every tunable in the
+TideCurve sheet, plus toggles for
+each faction, boss, and flora
+hazard
+Why play it
+Whatever the table wants
+Wonder weapon quests
+The Locker deals every wonder weapon, always. On the Coral Reef, Atlantis, and
+Approaching the Void a quest also awards it, guaranteed, to whoever finishes:
+• Reef: the Anemone Gun. Feed the Bommiels cleaning station three parasites (brushed
+off teammates into a jar), survive one Raider drum without shooting a dolphin, then
+carry a live blue-ringed octopus (netted) to the Blue Hole's ledge without being bitten.
+• Atlantis: the Tide Staff. Light three chapel braziers with the reactor-crystal's spark
+carried from the treasury, hold the plaza through one tuna crossing, and offer a Lost
+One's ichor (a Chummer jar filled from a corpse) at the god-pool while the Wyrm is
+submerged.
+• Void: the Abyssal Lure. Assemble the station's final log from five terminals, re-aim
+three lure beacons toward the abyss, and lure the Relict to the reactor vent, where the
+scald exposes its belly for one bolt from the Cannon Harpoon.
+Species seasons
+Instead of a sixth map, each season adds five to ten species across the five maps that
+change the webs:
+Season
+1: Invaders
+Theme
+Species that don't belong and
+outcompete
+Examples
+Lionfish on the reef (eats
+everything small, nothing eats it);
+Asian carp in the Atlantis farms; a
+tropical crocodile in the cave's
+warm pool
+Page 79 of 90

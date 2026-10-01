@@ -1,0 +1,49 @@
+Red Tide — Arcade Game 5 Design Document
+Situations (each with 6-10 lines per diver)
+Situation
+Match start
+First blood in the water
+Scent meter high
+Predator pulse
+Someone shoots a harmless big thing
+(dugong, whale, sturgeon)
+Killing a cleaner
+Chum thrown at the team
+Downed
+Revive
+Buying a tonic
+Locker pull, bad
+Locker pull, wonder weapon
+Forge
+Hunt begins
+Enemy eaten by a beast
+Example exchange
+Stowaway: "Who brought the snacks?"
+Mechanic: "We're the snacks."
+Diver: "That's blood. Watch the doors."
+Whaler: "Let it drift. Don't feed it."
+Mechanic: "Meter's red. Very red."
+Stowaway: "Ooh, red's my favorite."
+Whaler: "Something big's coming from the
+stern." Diver: "Then we go to the bow."
+Diver: "Why would you shoot that."
+Stowaway: "It looked at me funny."
+Mechanic: "That was a cleaner. The groupers
+are going to be in a mood."
+Whaler: "They're chumming us! Move!"
+Stowaway: "Bit of a lie-down, don't mind me."
+Whaler: "Get up, we're not carrying you."
+Diver: "You're welcome. Again." Mechanic:
+"Please stop doing that."
+Stowaway: "Bottoms up." Diver: "That's your
+fourth."
+Mechanic: "A Gannet. From a chest.
+Wonderful."
+Whaler: "Now THAT'S a fish-killer."
+Diver: "Pressed and ready." Stowaway:
+"Shiny."
+Whaler: "Wreckers! Cover the breach!"
+Mechanic: "Or let the crocodile handle it?"
+Stowaway: "Ha! Reef's on our side." Diver:
+"For now."
+Page 76 of 90

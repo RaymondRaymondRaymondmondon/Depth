@@ -1,0 +1,32 @@
+Red Tide — Arcade Game 5 Design Document
+• How to play: one scrolling page in the ship's log style: the loop, scrip, blood, the alarm,
+downs, the Locker, the Forge, tonics, drops. Six short paragraphs and one diagram of
+the blood rules. Nothing else teaches.
+• Dossier: a tabbed bestiary per map; pages unlock by kill or 30 s of observation; each
+page shows the beast's silhouette, class, diet, predators, weak point, and its dossier
+note.
+• Records: per map, highest tide, most scrip, fastest Forge, longest survival, and team
+records.
+• Pause (host only, 3 per match): the salon behind the porthole, the team list, options.
+• Results: the tide reached, scrip per diver, kills by class, deaths by cause, beasts eaten
+by beasts because of you, arcade tokens earned; a slow shanty.
+Controls (keyboard and mouse; gamepad mapped the same)
+Move, swim up and down (space and Ctrl), sprint (shift, with a stamina bar that only shows
+while sprinting), aim, fire, reload, melee (V), tactical (G), swap weapon (1, 2, 3), interact (E,
+hold for purchases over 1,000), lamp on and off (L), ping (middle mouse: a marker
+teammates see, with a voice line), charm (T), scoreboard (Tab).
+The divers and their quips
+The four divers are four suits, not four characters: the Diver, the Whaler, the Stowaway,
+and the Mechanic, each with a fixed silhouette and a voice, and each replaceable by a
+skin. Their lines are about the situation, not their lives, so any skin can say them; the fun is
+that they talk to each other.
+How quips work
+• Each diver has a voice (a formant synth pitch and rhythm) and a line set per situation.
+Lines are picked from the set, never repeated within 3 minutes, and only one diver
+speaks at a time.
+• Callbacks: about a third of lines are two-part: one diver speaks, and a teammate within
+15 m answers 1-2 s later with a reply from their own set. The four voices differ in tone:
+the Diver is dry, the Whaler is gruff, the Stowaway is cheerful and slightly drunk, the
+Mechanic is nervous and precise.
+Quips are subtitled and never interrupt a tell or a Hunt announcement.
+Page 75 of 90

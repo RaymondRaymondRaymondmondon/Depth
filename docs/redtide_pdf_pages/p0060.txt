@@ -1,0 +1,61 @@
+Red Tide — Arcade Game 5 Design Document
+Beast
+The Lantern
+Leviathan
+The Sand
+Worm
+Class
+Fish
+Worm
+Size
+6
+7
+Tier
+5
+Outside
+the web
+Eats
+Anything in the
+Vault
+Whatever
+crosses the bone
+stakes
+Eaten by
+Behavior and
+note
+An anglerfish the
+size of the
+station's reactor;
+its lure looks like
+the station's
+emergency light;
+it swallows a
+diver whole
+(teammates have
+5 s); from tide 12
+its lure appears
+in the galleries
+The largest thing
+in the game; seen
+tunneling on the
+rim's horizon;
+consumes any
+diver beyond the
+stakes; no
+interaction
+otherwise
+The web in motion
+• Corpses are the deep's economy. Rattails, isopods, amphipods, sea pigs, and bone
+worms finish everything; the sixgill follows them. Killing the scavengers to farm scrip
+on the rim turns the rim into a shark lane by tide 8.
+Lights: hatchetfish, specimen kelp, void blooms, the anglerfish's lure, the leviathan's
+lure, and the divers' own lamps. Turning lamps off lowers curiosity-driven approaches
+by half and doubles what a diver can't see.
+• The specimens: salamanders and coelacanths breed if ignored and only the caiman
+eats them; a lab overrun with specimens is loud and full of blood every time a Remnant
+squad passes through.
+• The overlooks: whale and squid fight each other; the Relict eats the winner; standing
+on an overlook during that is standing in the blood of three apex beasts.
+• The Chief's mech is size 5 and the Relict attacks it on sight: the Remnant's final Hunt
+can be ended by leading the mech to an overlook.
+Page 60 of 90

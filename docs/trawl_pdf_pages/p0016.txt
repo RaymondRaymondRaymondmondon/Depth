@@ -1,0 +1,41 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+error at the anchor end. When tension exceeds the line's rated strength for longer than its
+shock window (0.2 s for mono, 0.5 s for braid, 1 s for steel), it snaps. Lines can foul each
+other: two rod lines crossing under the boat tangle and mUSt be cut or walked around.
+Light. The lantern mast, deck lamps, hand lamps, flares, and bioluminescence write into a
+light grid shared with the ecosystem (a new light layer, see The food web). The top-down
+view is dark except where light reaches; the sea beyond the lantern radius is drawn black
+with only foam and glints. Lantern levels: hooded (4 m), low (8 m), full (14 m), searchlight
+(a 30 m cone the operator aims).
+Weather. Rolled per night and ground, changing once or twice a night.
+Weather
+Calm
+Fog
+Rain
+Squall
+Storm
+Swell
+0.2 m
+0.3 m
+0.6 m
+1.5 m
+Effect
+Voice carries far; fish bite light
+Light radius -40%; sonar is the only way to see
+anything coming
+Voice range halved; surface feeders bite more
+Roll up to 200; lines tangle; big predators hunt the
+surface
+Roll up to 300; waves wash the deck; only the brave
+fish
+The Glass O m, mirror-flat, no wind Rare. Everything stops biting. It precedes
+something enormous
+Moon. Full moon doubles plankton at the surface (more bait fish, more predators up high);
+new moon brings deep species shallower. The phase advances one step per night, so the
+three nights of a deadline differ.
+Below decks
+Under the Gannet's deck is a small, dark interior, and going down there is a short facility
+run. There is no lantern below, only swinging oil lamps and hand lamps. Voices from the
+deck are muffled to nothing except through the engine room's speaking tube, and every
+sound outside the hull is louder: a shark brushing the planks, the Drowned knocking.
+Page 16 of 79

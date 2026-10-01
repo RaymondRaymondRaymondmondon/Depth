@@ -1,0 +1,5 @@
+Red Tide — art workbook: body plans and per-species parameters
+
+BodyPlans: the 20 procedural body plans CreatureBuilder implements (primitives, parameters, animation). Each map's Species sheet assigns every beast a plan and its parameter values, a 3-band palette, a material, secondary-motion chains, an idle, and its distinctive part.
+Rules: length by size class (1: 0.1-0.3 m, 2: 0.3-0.9, 3: 1-2.2, 4: 2.5-4.5, 5: 5-12, 6: 18-30, 7: 120). Ink outline weight = 1 px per metre of length, min 1.5, max 6. Palettes use the map's 5 base tones and 2 accents (Palettes sheet) so a species reads as belonging to its map.
+Silhouette test: every species must be identifiable as a black shape at 20 m against the others in its map (the --silhouette shot mode from the master reference).

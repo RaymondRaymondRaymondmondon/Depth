@@ -1,0 +1,98 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+Weapon
+Harpoon
+cannon
+Swivel gun
+Class
+Mounted
+Mounted
+Damage
+120,
+tethered
+IO x 15
+grapeshot
+Magazine
+1
+1
+Noise
+5
+9
+Slots
+Where
+Slipway
+Slipway
+Price
+(sh)
+700
+600
+Special
+Giants and big
+threats;
+harpoons 20,
+explosive
+heads 80
+Rail-mounted;
+boarders and
+bird flocks
+The Gunsmith. Each gun takes three damage upgrades (+15% each; 60, 150, and 300
+shillings, doubled for the carbine, chatter gun, and long rifle) and up to three attachments.
+A well-upgraded early gun can outperform a new one with no upgrades.
+Attachment
+Extended
+magazine
+Drum magazine
+Speed loader
+Sight
+Compensator
+Rifled barrel
+Choke
+Hair trigger
+Bayonet
+Fits
+Magazine guns
+Chatter gun
+Revolver,
+pepperbox
+Any gun
+Any gun
+Rifles, carbine
+Shotguns
+Semi-automatics
+Long guns
+Effect
++50% magazine
+75 rounds
+Reloads twice as fast
+-40% spread; counts as
+scoped for the No-
+scope bonus
+-40% recoil
++10% damage, +50%
+range
+Tighter spread
++20% fire rate
+A 15-damage melee
+attack that counts as a
+Melee finish
+Where
+Gunsmith
+Gunsmith
+Gunsmith
+Gunsmith
+Gunsmith
+Gunsmith
+Gunsmith
+Gunsmith
+Gunsmith
+Price
+(sh)
+80
+200
+30
+100
+90
+150
+50
+70
+60
+Page 32 of 79

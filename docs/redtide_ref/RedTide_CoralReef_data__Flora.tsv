@@ -1,0 +1,13 @@
+flora	type	zones	effect	contact_damage	grazed_by	regrowth_rate_per_s	regrow_delay_s
+Staghorn thicket	Structure/Producer	Staghorn Forest	The corridors themselves; grazed by butterflyfish and crown-of-thorns; a shark ram breaks a segment (opens a lane)	4	Butterflyfish, Crown-of-thorns Starfish, Titan Triggerfish	0.2	600
+Brain coral	Cover	Brain Coral Maze	Solid; blocks shots and sight	0		0	0
+Table coral	Shelter	Staghorn Forest, Bommie	Roofs that hide divers from above (mantas, sharks, dolphins)	0		0	0
+Fire coral	Hazard	Corridor mouths, Surge Channel	Touch: 15 burn	15		0	0
+Reacher coral	Hazard/Trap	Brain Coral Maze, Staghorn Forest gates	Grabs a diver who brushes it: held until cut free by a teammate or shot to 0 (400); grabs beasts and Raiders too and feeds on them	20		0	900
+Seagrass meadow	Producer	The Sand Flats	Dugong and turtle food; cover for stingrays; hides the bobbit worm's hole	0	Dugong, Green Turtle	1	90
+Mangrove roots	Shelter	Mangrove Nursery, Lagoon edge	Air above; the frog and toad nursery; juvenile fish hide here	0		0	0
+Sea whip fans	Cover	The Bommie	Sway with current; razorfish cling to them	0		0	0
+Soft coral garden	Producer	Staghorn Forest	Angelfish food; luminous at night tides	0	Angelfish	0.5	180
+Halimeda beds	Producer	Brain Coral Maze	Urchin food; brittle: shatters loudly (4 noise) when walked on	0	Sea Urchin	0.8	120
+Turf algae	Producer	The Bommie	Surgeonfish and iguana food	0	Surgeonfish, Marine Iguana, Clownfish	1	60
+Sea grape	Edible	Lagoon, Turtle Beach	A diver eats a cluster: +10 HP, once per cluster	0		0	600

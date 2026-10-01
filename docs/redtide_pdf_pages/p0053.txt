@@ -1,0 +1,7 @@
+Red Tide — Arcade Game 5 Design Document
+• The station's lures. Researchers left lure beacons; the Remnant switches them on to
+pull beasts onto the players. Beacons can be destroyed (loud) or re-aimed (a build
+part).
+Specimens. Broken tanks released coelacanths and lab salamanders that don't fit the
+web: nothing hunts them but the caiman, so they multiply until the players cull them.
+Page 53 of 90

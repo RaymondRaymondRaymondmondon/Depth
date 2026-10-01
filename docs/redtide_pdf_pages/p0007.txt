@@ -1,0 +1,44 @@
+Red Tide — Arcade Game 5 Design Document
+A species record
+Field
+Class
+Size
+Trophic tier
+Diet
+Blood yield
+Blood threshold
+Senses
+Temperament
+Home
+Social
+Bounty
+Drops
+Meaning
+Fish, reptile, crustacean, amphibian, mammal,
+insect, cephalopod, cnidarian, echinoderm, worm,
+bird, enemy
+1 (finger) to 6 (leviathan); a predator eats prey up
+to 60% of its size, or larger when it hunts in a
+school or pack
+O flora, 1 grazer or filter feeder, 2 small predator, 3
+mid predator, 4 apex, 5 boss; scavengers and
+parasites carry a tag
+Species and tags it eats, each with a preference
+weight
+Blood emitted per second when wounded (z size x
+wound fraction x 2) and on death (z size x 20, then
+a trickle from the corpse)
+How much blood in the water makes it investigate
+(small scavengers 5, mid predators 30, apex 120,
+the boss 400)
+Sight range, scent sensitivity, sound sensitivity,
+and whether it has electroreception (sees players
+through walls at short range)
+Aggression, fear, curiosity (0-1 each)
+Flora or terrain it lives in, nest radius, whether it
+defends its home
+Solo, pair, school (boids), pack (coordinated),
+swarm
+Scrip on kill
+Chance of a drop bottle and any special part
+Page 7 of 90

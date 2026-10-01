@@ -1,0 +1,37 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+The three new layers
+1. Light. The light grid from the boat physics feeds the ecosystem. Plankton and forage
+fish rise toward light; predators follow the forage; light-shy deep species retreat from
+it; curious threats (Anglers, Sirens, Drowned sailors) are drawn to it. A full lantern
+roughly doubles bites after 30 minutes by pulling a whole food chain up under the hull.
+Red light is invisible to most deep species.
+2. Vibration. Taut lines, the trawl, the screw, a thrashing hooked fish, and hull impacts
+write vibration into the water. Ghost Worms, sharks, and anything with a lateral-line
+sense track it. A fish fought for five minutes is a beacon.
+3. Wake. A per-ground scalar (0-100) that sums what the crew has put into the water:
+blood above the ambient level, loud noise, bright light, cursed salvage, the Pale Eye's
+gaze, and depth charges (+15 each). It decays 1 point a minute when the crew is quiet
+and dark. Wake is what calls the big three (see Threats) and it is shown to the crew
+only indirectly: the music, the fish going quiet, the sonar's clutter, and the ghosts'
+outlines.
+How the web plays
+• Bait chains. Handline silversides, live-bait them for mahi, cut the mahi for shark
+chunks. Each step up the chain is worth more and bleeds more.
+• Depredation. A hooked fish is prey. A tuna on a line for two minutes in the Weeds has a
+real chance of coming up as a head; a barracuda pack strips a longline. What took the
+fish tells the crew what is under them.
+• Satiation. A predator that has just eaten ignores bait for a while. A Great White that
+took a tuna off the line gives the crew a few quiet minutes; a hungry one follows the
+boat.
+• Schools. Forage fish move as boids; predators herd them into bait balls near the
+surface, which the sonar shows and which surface feeders and gulls give away. Netting
+through a bait ball is the best trawl of the night, and every predator around it is already
+there.
+• Cascades across nights. Because a ground remembers across a deadline, heavy
+netting of forage fish on night one leaves predators hungry on night two (more bites,
+more bold approaches, more depredation), and killing the Weeds' sea otters lets
+urchins strip the kelp, emptying the canopy by night three.
+Bycatch and discards. Everything the net brings up that isn't sold goes back over the
+side dead, as blood and food, feeding scavengers and raising Wake. Sorting quickly and
+returning bycatch alive (a hand at the sorting chute) keeps the water quieter.
+Page 36 of 79

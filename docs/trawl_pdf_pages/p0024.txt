@@ -1,0 +1,34 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+good bait.
+Blood through the scuppers. Every hit on deck spills blood on the planking: 1 unit per hit, 3
+for a messy hit (shotgun, SMG, explosive), halved for a headshot kill. Deck blood drains
+through the scuppers into the sea at 20% a second, straight into the food web, unless a
+hand sluices it into the offal barrel with the deck bucket (the barrel then becomes chum).
+Gunfire on deck writes its noise into the water too. Melee kills are quiet and cheap; gun
+kills score higher and cost more.
+Don't shoot the deck. A missed round on deck can hit crew, and a round through the
+planking below the waterline starts a small leak (-3 to that section until patched).
+Protected species (turtles, otters) are never killed for money. Returning them alive within
+60 s avoids the Owners' fine.
+Cooking
+Cooking happens ashore. The Owners forbid open flame aboard a wooden trawler full of
+coal dust, so every cooking fire is on a landing, reached by skiff. A properly cooked catch
+sells for up to its price, and the multiplier stacks with the Killscore, so the best money
+in the game is a trick-shot kill rowed to an island and cooked to perfection. Each ground's
+fires are listed under Islands.
+• Getting fish ashore. The skiff carries 150 kg a trip. Fish waiting on the beach or in the
+skiff are fair game for birds (see Birds and the catch crates).
+• Cooking. A fish on the fire climbs from to over 10 s plus 1 s per kg. It holds at
+for 5 s, then burns, falling to over the next 5 s. The sizzle rises in pitch and the
+smoke turns from white to grey to black.
+• Fires differ. An open fire pit is standard; a hut stove is sheltered from rain; volcanic
+vents steam fish slowly but can't burn them; a brazier cooks twice as fast at a cost.
+Rain puts out open fires, and relighting takes 10 s with dry kindling.
+• Cooked fish keep. Cooking stops freshness loss, so cooked fish can ride back to the
+Gannet's hold, or traded on the spot to the island's trader.
+• Eating. A crewman who eats a cooked fish of 2 kg or more mends one minor injury (a
+pinch, a bruise, a burn). Serious injuries still need the Medic.
+• The smell. A cooking fish writes scent into the water and air around the island (5 a
+second per fish, doubled for a burning one). Birds come first, then whatever hunts the
+shallows, and a moored skiff is right in the middle of it.
+Page 24 of 79

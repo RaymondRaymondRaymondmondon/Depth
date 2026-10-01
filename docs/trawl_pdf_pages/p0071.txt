@@ -1,0 +1,74 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+Charm
+Tribal anklet
+Seal whisker
+Sealer's tally
+Cannery token
+Smuggler's die
+Glass eye
+Bone-crab claw
+Drowned man's
+ring
+Veil pearl
+Idol eye
+Old hooks
+Brass lure
+Golden scale
+Kelp crown
+White skull
+Glass lantern
+Inscribed bill
+Beak pendant
+Effect
++8 s before drowning
+Hook-set window +40 ms
+Birds the wearer shoots sell for
+Cooked and canned fish the wearer
+delivers sell for +10%
+Once a night, a dropped item doesn't
+break or ring
+Sees anything hiding below decks within 5
+m, through walls
+Immune to pinchers
+The Drowned ignore the wearer unless
+touched
+The wearer's kills add half as mi-JCh blood
+and noise
+The wearer's Killscore cap rises to
+each of their kills adds 2 Wake
+The wearer's line never breaks on a fish's
+first run
+Boss lures cost the crew half
+The wearer's Airborne bonus rises to 1.45
+The wearer is never entangled by kelp or
+Wraiths
+Anglers' lures don't work on the wearer
+A light the wearer carries doesn't draw
+anything
+Spearers can't hurt the wearer
+Grabbers can't hold the wearer
+Where
+Atoll trader, 90 sh
+Seal Rock trader, 100 sh
+Seal Rock trader, 80 sh
+Cannery Pier trader, 150
+sh
+Smugglers' Shelf trader,
+120 sh
+Smugglers' Shelf trader,
+200 sh
+Bone Beach trader, 70 sh
+Treasure: the Grotto
+Drowned Stair trader, 400
+sh
+Cult Landing trader, 350
+sh
+Drop: Old Snapjaw
+Drop: the Crest Grouper
+Drop: Gold Tail
+Drop: the Kelp King
+Drop: the Pale Abbot
+Drop: Lanternjaw
+Drop: Broadbill
+Drop: Old Red
+Page 71 of 79

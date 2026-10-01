@@ -1,0 +1,126 @@
+Red Tide
+Arcade Game 5 Design Document
+Beast
+Damselfish
+Blenny
+Arrow Crab
+Mantis
+Shrimp
+Lionfish
+Squirrelfish
+Reef Squid
+Cuttlefish
+Banded Sea
+Snake
+Stonefish
+Jelly Bloom
+Class
+Fish
+Fish
+Crustacean
+Crustacean
+Fish
+Fish
+Cephalopod
+Cephalopod
+Reptile
+Fish
+Cnidarian
+Size
+1
+1
+1
+2
+2
+2
+2
+2
+2
+2
+2
+Tier
+2
+2
+2
+2
+2
+2
+2
+2
+2
+2
+1 (swarm)
+Eats
+Small
+invertebrates
+Worms, gobies
+Worms
+Crabs, snails
+Sprats, gobies
+Crabs
+Sprats, silversides
+Crabs, shrimp
+Gobies, blennies,
+eels
+Sprats
+Plankton
+Eaten by
+Trevally
+Moray, sea
+snake
+Wrasse,
+octopus
+Octopus,
+grouper
+Grouper
+(rarely)
+Moray
+Trevally,
+barracuda,
+tuna
+Grouper
+Tiger shark
+Nothing
+Turtles
+Behavior and note
+Territorial; attacks
+divers in its patch;
+a swarm of bites at
+1 each
+Pipe-dweller
+On sea fans;
+harmless
+Punches: 30
+damage and breaks
+a Shell Shield in
+two hits; burrows
+in the sand
+Venom on touch
+(poison 5 s); drifts
+through doorways
+Night tides only;
+large eyes, loud
+clicks
+School; inks when
+threatened; drawn
+to dead man's
+fingers
+Camouflaged in
+cabins; hypnotic
+flashing slows a
+diver's aim briefly
+Hunts the pipes;
+must surface at the
+air pocket every 90
+s (predictable);
+venom: 20 poison
+over 10 s
+Ambusher on the
+sand and in the
+galley; step on it: 40
+damage and poison
+Drifts under the
+sargassum and into
+the stern; contact
+stings 5 per second
+Page 26 of 90

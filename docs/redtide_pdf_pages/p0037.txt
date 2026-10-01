@@ -1,0 +1,48 @@
+Red Tide — Arcade Game 5 Design Document
+Level 3: The Coral Reef
+The bright map: sunlit coral forests whose corridors hide eels and grabbing coral, a lagoon
+edged with mangroves where frogs and toads live, a sand flat with its own cast, and a
+drop-off where dolphins, seals, and whales pass. Mammals and amphibians join the fish,
+reptiles, and crustaceans, and the reef's first lesson is that some of them are on your side
+until you shoot one.
+Layout
+Zone
+The Lagoon (start
+pocket)
+Staghorn Forest
+The Bommie
+The Sand Flats
+Brain Coral Maze
+The Blue Hole
+The Drop-off Wall
+What's there
+Shallow, bright; mangrove roots on one edge;
+Gannet rack, Juggernaut
+Dense coral corridors; eel holes; Needler Mk l,
+Quick Brine, workbench
+A giant coral head with a cleaning station on top;
+power (a tide mill in the surge channel); Speed
+Brine
+The open expanse: seagrass meadows, garden
+eels, rays, the bobbit worm; Long Speargun, Bolt
+Harpoon, Double Shot; slow sightlines, no cover
+Winding corridors of brain and table coral;
+Reacher coral gates; Flechette, Carbine racks; the
+Raiders' entry from the drop-off
+A deep sinkhole in the flats; the Forge on a ledge;
+the hammerhead's and the whales' route; Kick
+Brine
+Open blue; mantas and the orca pod; second
+Locker spot; Mule Brine
+Opens
+with
+750
+1,000
+1,250
+1,500
+2,000
+2,000
+Traps: a Reacher coral gate (1,000) closes a corridor and eats whatever it holds; the surge
+channel (1,000) flushes the Bommie's top. Hidden quest: return the Shaman's drum to the
+sea turtle nesting beach.
+Page 37 of 90

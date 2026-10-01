@@ -1,0 +1,38 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+a visual cue for players who play without sound, and a subtitle toggle shows bot barks and
+telegraph messages as text.
+Tests, balance, and build order
+Self-tests on depth. exe
+--trawl-sim <nights> [crew] runs a bot crew of 1-6 (with a role per bot)
+and reports quota-met rate, money per night by source (hook, net, gun, dive), deaths
+by cause, and which threats arrived when.
+--trawl-eco <ground> <minutes> [pattern] runs the ecosystem alone with a
+scripted crew pattern (quiet, chumming, trawling, depth-charging) and prints
+population curves, blood, Wake, and threat arrival times.
+--trawl-fight <species> <tackle> N runs the fishing fight with a bot angler and
+reports land rate, mean fight time, and line breaks.
+--trawl-shots renders every species, threat, deck station, and weather to PNG.
+--net-loop trawl runs a host and five bots over loopback through a scripted night.
+--trawl-wreck <seed> prints a generated wreck and asserts its layout
+rules.
+Balance targets (six-player bot crew, starting gear, first deadline)
+Target
+Quota met, per ground
+Deaths per night (mean)
+Kraken seen per Atlantis night
+Share of money from diving
+Medium rod vs 15 kg lingcod, bot angler
+Mean session length
+Mean Killscore on fish over 1 kg (bot crew /
+skilled human crew)
+Value
+Lagoon 85%, Weeds 65%, Grotto 45%,
+Atlantis 25%
+Lagoon 0.3, Atlantis 2.5
+Careful pattern under 10%, depth-charge
+pattern over 70%
+20-35% by the third deadline
+70-80% landed, 60-120 s fights
+30-35 min
+1.2-1.4x / 1.6-2.2x
+Page 77 of 79

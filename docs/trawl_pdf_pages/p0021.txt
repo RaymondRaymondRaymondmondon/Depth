@@ -1,0 +1,66 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+• Recovery: when tension falls under 20% of pull, the fish recovers 0.3 s of stamina per
+second, so a timid angler never ends a fight.
+• Landing: at under 15% stamina the fish comes alongside and can be gaffed, netted, or
+lifted; it bursts once more if the gaff misses.
+• Passing the rod: a crewman can take over a rod with E; the handover gives 1 s of held
+tension, no slack.
+Fight patterns
+Pattern
+Run
+Dive
+Jump
+Circle
+Cover
+Roll
+None
+Pull ratio
+0.8
+0.9, straight
+down
+0.6
+0.5, steady
+0.7
+0.6
+What it does
+Bursts of 4-8 s at up to 3 m/s
+every 10—15 s
+SOUndS for depth; each 10 m
+gained adds 5% to its pull
+Leaps every 8-12 s
+Circles under the boat
+Heads for the nearest cover
+within 15 m
+Rolls to wrap the line
+Lifted straight in
+What the angler must do
+Let drag take the run, then side
+pressure between runs
+Pump: lift the rod, then reel
+down as it drops; the helm can
+move over it
+Lower the rod (bow) within 0.3
+s of the jump or a 40% chance
+to throw the hook
+Keep the line off the keel and
+other lines; a keel pass chafes
+the line 10%
+High drag to turn it early; in
+cover the line chafes 5% of its
+strength per second
+Wire leader, or each wrap cuts
+effective line strength by 10%
+Target fights (sensible bot angler, matched tackle)
+Fish
+3 kg snapper
+15 kg lingcod
+Tackle
+Light rod
+Medium rod
+Fight time
+20-40 s
+60-120 s
+Landed
+85%
+75%
+Page 21 of 79

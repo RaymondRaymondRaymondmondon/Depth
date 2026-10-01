@@ -1,0 +1,40 @@
+beast	attack	damage	windup_s	cooldown_s	range_m	tell (what the player sees)	effect
+Hadal Amphipod	Nibble	2	0	1	1		Downed divers: 2/s
+Cookiecutter Shark	Plug bite	15	0.4	10	1	A small glow, then a dark shape	Bleed 4 s; each bite is a blood source
+Squat Lobster	Pinch	8	0.4	2	1	Claws raise	
+Viperfish	Lunge bite	22	0.4	2	2	Its lure blinks	Bleed 2 s
+Fangtooth	Bite	20	0.3	1.5	1.2	Jaws part	Hangs on 2 s: 5/s
+Dragonfish	Bite	25	0.3	1.8	1.5	Nothing: its red light is invisible	Bleed 3 s
+Deep Jelly	Sting	10	0	1	1.5		Contact 10
+Abyssal Sea Snake	Bite	10	0.5	2	1	Coils	Poison 30 over 10 s
+Siphonophore	Bells	40	0	1	10	A 20 m chain of lights	Passing through costs 40
+Lab Salamander	Bite and hold	35	0.4	2	1.5	Gills flare	Hold 2 s
+Chimaera	Bite	30	0.4	1.5	1.5	Wing-fins flare	Bleed 3 s
+Chimaera	Spine	25	0	0	0.6		Contact: poison 6 s
+Frilled Shark	Lunge	50	0.4	2	3	Body coils like an eel	Bleed 4 s
+Anglerfish	Swallow	45	0.5	3	2	The lure blinks like a drop bottle	Pins 3 s
+Pelican Eel	Engulf	60	0.6	4	3	Jaw unfolds	Pins 3 s
+Deep Skate	Barb	35	0.3	3	2	Tail arches	Bleed 4 s
+Coelacanth	Bite	30	0.6	2.5	1.5	Slow turn	
+Goblin Shark	Slingshot jaw	90	0.3	2.5	1.5	Snout dips	Bleed 4 s; hold 1 s
+Elephant Seal	Ram	80	0.5	3	4	Rears and bellows	Knockback 5 m
+Elephant Seal	Bite	50	0.4	2	1.5	Head swings	
+Hadal Turtle	Bite	40	0.7	4	1.2	Only if shot	
+Pale Caiman	Bite	80	0.5	2	2	Jaws part; it turns to vibration	Bleed 4 s
+Pale Caiman	Death roll	110	0.9	6	2	Grabs and spins	Hold and roll 4 s
+Pale Caiman	Tail	45	0.5	3	3	Turns side-on	Knockback 4 m
+Sixgill Shark	Bite	120	0.6	2.5	2.5	A slow turn toward you	Bleed 5 s
+Sixgill Shark	Drag	60	0.8	8	2	Mouth closes on a limb	Carries 10 m
+Colossal Squid	Hook grab	70	0.7	4	10	An arm rises over the ledge	Hold 3 s; pulls toward the edge (the void)
+Colossal Squid	Beak	130	0.6	5	2	Eye fills the overlook	Bleed 5 s
+Sperm Whale	Click burst	0	0.5	10	20	A wall of sound	Stuns size-1/2 beasts 3 s; divers 1 s
+Sperm Whale	Fluke (if shot)	130	0.8	6	5	Tail rises	Knockback 8 m
+The Relict	Bite	160	0.5	2	3	Jaws open wide, a crocodile's mouth	Bleed 6 s; hold 2 s
+The Relict	Ram	90	0.5	4	10	Four flippers fold back	Knockback 6 m, stun 1 s
+The Relict	Roll	100	0.8	6	3	Rolls to tear	Drags 8 m toward the edge; belly exposed 2 s
+The Lantern Leviathan	Swallow	0	1.5	12	5	The lure (an emergency light) blinks slowly, then the dark rushes	Swallows a diver whole; teammates have 5 s to deal 200 to the gills
+The Lantern Leviathan	Lure	0	1	8	40	An emergency light appears where none was	Curious beasts and divers within 40 m drift toward it
+The Lantern Leviathan	Bite	150	0.6	3	4	Teeth catch the lure's light	Bleed 6 s
+The Lantern Leviathan	Dark	0	1	20	30	Every light in 30 m goes out for 6 s	Lamps, kelp, and beacons off; only its lure remains
+The Sand Worm	Consume	9999	8	0	20	The sand shakes for 8 s, then it surfaces	No down, no revive
+Beasts with no rows never attack. Damage is vs 100 HP divers at tide 1, x1.05 per tide (TideCurve), capped x2.5.

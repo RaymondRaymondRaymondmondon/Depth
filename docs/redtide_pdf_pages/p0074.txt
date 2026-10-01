@@ -1,0 +1,58 @@
+Red Tide — Arcade Game 5 Design Document
+Element
+Second weapon and
+tactical
+Tonics
+Scent meter
+Predator pulse
+Alarm
+Teammates
+Prompts
+Drops
+Downed
+Hit markers
+Captions
+Menus
+Where
+Under the ammo
+Bottom center, bottle
+icons
+Left edge, a thin vertical
+vial
+Around the visor
+No direct display
+Top left
+Center bottom
+Center, brief
+Whole visor
+Center
+Bottom
+What it shows
+Small icons; the tactical count
+Up to five bottles; a cracked bottle
+after a down
+Fills red with local blood; the visor's
+edge tints red as it fills
+A dull pulse from the direction of any
+approaching beast over size 3 within
+40 m; its rate rises with proximity
+The faction's arrival tell (sound and a
+visor flicker) is the only warning, by
+design
+Name, health bar, a down icon with a
+45 s ring, distance and an arrow when
+off-screen
+Contextual: buy (name and cost),
+revive, build, pick up, refill; drawn as
+chalk on the glass
+The drop's name and 30 s timer
+Water rises inside the helmet; the
+Cormorant only; a heartbeat
+A small ink splash; gold for weak
+points; a crack sound for kills
+Barks and radio chatter, toggleable
+• Arcade drum reel: the game's attract loop is the Sunken Ship at night with the Goliath's
+lamp.
+• Lobby: 1-4 slots, map picker with a tide record per map, mode picker (see Modes), skin
+picker, charm pouch (5 slots), ready lever.
+Page 74 of 90

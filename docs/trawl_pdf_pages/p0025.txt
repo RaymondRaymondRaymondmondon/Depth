@@ -1,0 +1,44 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+The trawl
+The net is the big-money, big-risk tool. Shooting it takes 15 s; while down it is a Verlet mesh
+of nodes towed on two warps. It fills by sweeping through schools (catch rate =
+school density x mouth width x speed), gets heavier, and drags the stern down and slows
+the boat. It catches everything in its path, including what the crew didn't want: bycatch
+jellies sting whoever empties the net, and a sleeping Ghost Worm in the mouth turns the
+haul into a fight. It snags on wrecks and reefs (warps shriek, the boat slews) and must be
+backed off or cut loose, losing the net. Hauling needs a hand on the winch and a hand
+guiding the boom. A full net's cod end is emptied onto the sorting deck in one wet,
+flopping pile.
+Set gear
+• Longline: 20 baited hooks on a line with a radio buoy at each end, set and left to fish.
+Returning finds fish, empty hooks, or fish heads: other predators strip hooked catch
+(depredation), which tells you what is feeding there.
+• Pots: crab and lobster pots dropped on a reef or wreck with a float, hauled on a later
+pass.
+• Set gear drifts with the current and can be stolen by the Ghost Ship's crew.
+Junk from the sea
+Not everything on the hook is a fish. A cast brings up junk 10% of the time in the Lagoon,
+12% in the Weeds, 18% in the Grotto (all those wrecks), and 15% in Atlantis, and every net
+haul brings up one to three pieces. Most junk sells for next to nothing, and none of it
+counts toward the quota: it sells for shillings or trades. A few pieces are worth real money,
+a few can be used, and a few point to treasure on the islands.
+Junk
+Tin can, cork float,
+empty bottle
+Old boot
+Teacup, spectacles,
+doorknob
+Grounds
+All
+All
+All
+Value
+(sh)
+0.5-1
+1
+3-7
+Notes
+Pure junk
+Sometimes has a crab in it
+Small brass and china
+Page 25 of 79

@@ -1,0 +1,96 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+Ground
+The
+Weeds
+The
+Grotto
+The
+Grotto
+Atlantis
+Waters
+Atlantis
+Waters
+Boss
+lure (sh)
+120
+200
+200
+400
+400
+Mini-boss
+The Kelp King, a giant
+sea bass
+The Pale Abbot, a
+giant white conger
+Lanternjaw, an old
+cave anglerfish
+Broadbill, a giant
+swordfish
+Old Red, a giant
+squid
+Weight
+250 kg
+60 kg
+45
+400 kg
+250 kg
+Deck behaviour
+Thrasher; dives into the
+canopy
+Biter and grabber
+Biter; its lure blinds the
+angler on the line
+Spearer; lunges every 4
+s
+Grabber; takes two
+crewmen at once
+Flat
+value
+600
+700
+800
+2,000
+2,500
+Drop (not
+sold)
+A kelp crown
+A white skull
+A glass lantern
+An inscribed
+bill
+A beak
+Mini-boss value is flat, then multiplied by the Killscore and cooking like any catch. Drops
+are not sold: harbour folk want them.
+Harbour requests. Five people on the dock each post one request per deadline on the
+chalkboard. Filling one pays and often unlocks something the Chandler or Gunsmith
+doesn't sell.
+Who
+The cannery cook
+The naturalist
+The collector
+The gunsmith's
+apprentice
+Mother Carey, an old
+fishwife
+Wants
+A named species, cooked to
+A protected species tagged and
+released alive (tag gun, 30 sh)
+A Glimmer variant of a named
+species
+Three kills at Killscore or
+better in one night
+A mini-boss drop
+Gives
+its value, and a pouch of the
+cook's spice rub (cooking climbs
+25% faster for a deadline)
+A special lure that raises rare
+species' bite chance for a night
+Pier Wheel tokens and a
+cosmetic
+A free attachment
+A legend lure, which calls a
+ground's legendary fish (to be
+designed)
+Page 48 of 79

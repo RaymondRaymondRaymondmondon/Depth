@@ -1,0 +1,168 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+Species
+Surgeonfish
+Parrotfish
+Grunt
+Triggerfish
+Blue crab
+Spiny
+lobster
+Reef
+octopus
+Snapper
+Bonito
+Jack
+crevalle
+Barracuda
+Moray eel
+Mahi-mahi
+Grouper
+Reef shark
+Green turtle
+Moon jelly
+Tier
+1
+1
+2
+2
+2
+2
+2
+2
+3
+3
+3
+3
+3
+3
+4
+2
+1
+Weight
+(kg)
+0.5-1.5
+2-5
+0.5-2
+1-4
+0.3-0.8
+1-4
+1-6
+1-6
+2-6
+5-15
+3-20
+3-15
+5-20
+8-40
+20-60
+40-120
+Depth
+Upper, reef
+Upper, reef
+Upper
+Upper, reef
+Seagrass floor
+Reef floor
+Reef holes
+Upper-mid
+Surface
+Upper
+Upper
+Reef holes
+Surface, under
+sargassum
+Crest caves
+Upper-mid
+Upper
+Surface
+Eats
+Coral algae
+Shrimp,
+worms
+Urchins, crabs
+Carrion
+Urchins,
+carrion
+Crabs, lobster
+Small fish,
+shrimp
+Sardines
+Sardines
+Sardines,
+snapper
+Fish, octopus
+Flying fish,
+squid
+Lobster,
+octopus, fish
+Fish
+Seagrass,
+jellies
+Plankton
+Takes
+Shrimp
+Shrimp, small
+jig
+Shrimp
+Squid strip
+Pots
+Pots
+Crab bait, pots
+Shrimp, squid,
+spoon
+Spoon, feather
+Popper, spoon
+Spoon, live
+bait
+Dead bait at
+night
+Live bait,
+popper
+Live bait, jig
+Chunks on
+wire
+Bycatch only
+Net bycatch
+Fight
+Circle
+Cover
+Circle
+Cover
+None
+None
+Cover
+(inks)
+Run
+Run
+Circle
+Run,
+jump
+Cover
+dump
+Cover
+Roll
+Dive
+None
+price
+(sh/kg)
+2
+2
+1.5
+3
+5
+8
+6
+3
+3
+1.5
+1.5
+1
+4
+5
+2
+Protected
+O (stings)
+Flora: coral heads (shelter, snag nets), seagrass (grazer food, crab habitat), sargassum
+rafts (drift with the wind; mahi and flying fish shelter under them), plankton bloom (rises
+under light and a full moon).
+Page 42 of 79

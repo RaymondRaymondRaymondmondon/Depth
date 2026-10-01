@@ -1,0 +1,41 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+Technical plan
+The Trawl is built on three existing pieces: the shared arcade networking layer, Red Tide's
+Ecosystem engine (extended from 3D to a 2.5D water column), and the parkour side's
+pixel-art and movement code.
+Files
+File
+trawl . cpp
+trawl _ boat . cpp
+trawl _ lines . cpp
+trawl _ fish . cpp
+trawl _ guns . cpp
+trawl _ dive . cpp
+trawl_eco . cpp
+trawl _ art . cpp
+trawl_data.cpp +
+trawl _ species . j son
+trawl_bots . cpp
+Holds
+Session state machine (dock, sail, night, return,
+sell), quota, clock
+Hull, buoyancy, roll/pitch/heave, engine, damage,
+bilge
+Verlet chains for lines, nets, hoses, and ropes;
+tension, snapping, tangles
+Cast, bite, fight, landing; set gear; the trawl net
+Projectiles, refraction, damage, the deck kill, the
+Killscore, cooking
+Side-view dive scenes, wreck generation, air and
+hose
+Adapter to the shared Ecosystem : water-column
+depth bands, light layer, vibration, Wake
+Procedural pixel art: deck, crew, fish, threats,
+water, lantern light
+Every number and every species record
+Bot crew brains, station behaviours, orders
+The water column. Red Tide's scent and sound grids are 3D at 2 m cells. The Trawl Uses a 4
+m horizontal grid with five depth bands (surface 0-2 m, upper 2-15, mid 15-60, deep 60-
+200, abyss 200+); agents keep a continuous depth for fishing and diving. Species records
+gain a depth band, a light preference, and a fight pattern.
+Page 73 of 79

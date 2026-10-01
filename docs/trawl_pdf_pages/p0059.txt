@@ -1,0 +1,94 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+Ground
+The
+Weeds
+The
+Grotto
+Atlantis
+Waters
+Fishing marks
+The Inner Lanes
+(bass,
+sheephead; Kelp
+King boss water),
+the Otter Raft
+(abalone dives),
+the Seaward
+Rocks (yellowtail;
+Gold Tail boss
+water)
+The Side Galleries
+(cavefish, glass
+eels; Lanternjaw
+boss water), the
+Still Pool
+(sturgeon; Pale
+Abbot boss
+water)
+The Terrace Rim
+(coelacanth, gold
+grouper, deep-
+drop), the Veil
+Drift (squid and
+swordfish;
+Broadbill boss
+water), the Whale
+Road (the sperm
+whale; Old Red
+boss water)
+Landings
+Seal Rock: a sea
+stack with a
+sealers' hut and a
+gull colony. The
+Cannery Pier: a
+ruined cannery
+with ledgers and
+brass, Wraiths in
+the pilings
+The Smugglers'
+Shelf: stash
+crates, lamps,
+and Drowned
+asleep in
+hammocks. Bone
+Beach: bone
+crabs, isopods,
+and the remains
+of lost crews
+The Drowned
+Stair: a temple
+top above the
+water with
+offering bowls.
+The Watchtower
+stump. The Cult
+Landing: the
+longboats' camp
+Worth it for
+The best mid-
+game fish and the
+cannery's salvage
+Sturgeon, rich
+stashes,
+consignment
+items
+The game's best
+fish and relics
+Risk
+Wraiths, Sirens
+in the lanes, the
+White at the
+seaward edge
+Anglers, the
+echo, the arch
+closing
+Everything; a
+lone skiff is the
+Kraken's
+favourite target
+On foot. Landings are small top-down pixel maps (the deck's art and movement) with
+caches to search, doors to force, and carryable salvage that has to be hauled to the skiff
+within its 150 kg. Each landing holds treasure, often a cooking fire and a trader with stock
+sold nowhere else (see Islands), and usually the ground's consignment candidates.
+Page 59 of 79

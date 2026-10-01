@@ -1,0 +1,83 @@
+Red Tide — Arcade Game 5 Design Document
+Sheet
+Blockout
+Boss
+Holds
+Zones with coordinates and door costs, links,
+points of interest, training loops, blood-flow
+direction, sightlines, alarm regions
+The map boss's phases, arena rules, and rewards
+The tide curve (from the TideCurve sheet)
+Value
+Kill quota (4 players)
+Beast HP
+Bounty
+Beast damage
+Alarm threshold
+Enemy spawn chance per
+roll
+Blood decay per second
+Hunt
+Apex wander
+Boss may appear
+Rule
+12 x 1.15A(tide-1)
+x 1.08 per tide
+x 1.10 per tide
+x 1.05 per tide, capped at 2.5
+100 / (1 + 0.1 x tide)
++ 3% x tide from tide 4, cap
+/ 0.5% by era
+Every 5th tide; Predator Hunts possible
+from 10
+From tide 10
+From tide 12 (Predator Hunts from 10)
+Tide 1
+12
+1.0
+1.0
+1.0
+91
+o
+2%
+no
+no
+Tide 5
+21
+1.36
+1.46
+1.22
+25%
+2%
+Faction
+no
+no
+Tide 10
+42
+2.0
+2.36
+1.55
+50
+1%
+Either
+yes
+Hunt
+only
+Tide
+20
+170
+4.3
+6.1
+2.5
+33
+0.5%
+Either
+yes
+yes
+Quota scales 0.4 / 0.6 / 0.8 / 1.0 with 1-4 players. All of these are single cells in the Tunables
+block, so a balance pass edits one sheet.
+Enemy factions in detail: the Wreckers (template)
+Each faction gets this treatment; the Wreckers are written out first because they belong
+to the first map. Enemy HP rises 8% per tide, weapons upgrade every 5 tides, and every
+unit has a tell and a bark set.
+Page 69 of 90

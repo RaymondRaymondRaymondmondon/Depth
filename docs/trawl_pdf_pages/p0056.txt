@@ -1,0 +1,66 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+Wreck generation. Wrecks are generated per ground at the start of each deadline and
+persist across its three nights: what is looted stays looted, and what the crew disturbed
+200-450
+300-700
+stays awake.
+Wreck type
+Sloop
+Whaler
+Smuggler hull
+Galleon
+Atlantean
+terrace
+Grounds
+Lagoon,
+Weeds
+Weeds, Grotto
+Grotto
+Atlantis
+Atlantis
+Depth
+8-20 m
+15-40 m
+20-60 m
+60-110 m
+(bell)
+40-120 m
+(bell)
+Rooms
+3-5
+6—9
+8-12
+12-18
+10-16, open
+ruins
+Salvage budget
+80-200
+600-1,400
+1-3 relics plus 300-
+800
+Locked
+cabins
+0-1
+1
+2
+3
+1 sealed vault
+Grounds hold Lagoon 1-2 wrecks, Weeds 2, Grotto 3-4, Atlantis 2-3 plus one terrace.
+Layout rules
+1. Start from a hull profile for the type and cut it into decks, then rooms on a 4 x 3 m cell
+grid joined by doors, hatches, and breaches. Some hulls lie on their side (30%), turning
+ladders into floors and floors into walls.
+2. Every room must be reachable within the hardhat's 40 m of hose from the entry point,
+or from the bell for bell wrecks.
+3. About 30% of wrecks have a squeeze passage (one diver, no carried salvage through it)
+that shortcuts to the richest room.
+4. Place one air pocket per five rooms.
+5. Spread the salvage budget with heavier and more valuable items deeper in; 40% of the
+value sits behind locked doors (crowbar or the Diver's Wreck Rat).
+6. Silt on every floor: moving fast raises it and blinds the helmet lamp for 5 s.
+7. Roll residents from the ground's roster: morays, octopus, isopods, congers, a Ghost
+Worm hatchling (Grotto, Atlantis), and one Drowned sailor per four rooms in the Grotto
+and Atlantis. Atlantis wrecks have a 10% chance per cabin of a cursed idol.
+--trawl-wreck <seed> prints a wreck as ASCII and asserts reachability, the
+hose limit, and the salvage budget.
+Page 56 of 79

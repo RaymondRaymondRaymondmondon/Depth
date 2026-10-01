@@ -1,0 +1,135 @@
+Red Tide
+Arcade Game 5 Design Document
+Crayfish, cavefish
+Crayfish, cavefish,
+Beast
+Cave
+Cricket
+Diving
+Beetle
+Giant Water
+Bug
+Dragonfly
+Nymph
+Glowworm
+Colony
+Firefly Squid
+Lanternfish
+Cave
+Anglerfish
+Cave Eel
+Electric Ray
+Blind
+Catfish
+Class
+Insect
+Insect
+Insect
+Insect
+Insect
+Cephalopod
+Fish
+Fish
+Fish
+Fish
+Fish
+Size
+1
+1
+2
+2
+1
+2
+2
+3
+3
+3
+3
+Tier
+1 (swarm)
+2
+2
+2
+1
+2
+1
+3
+3
+3
+3
+Eats
+Cave moss
+Amphipods, newt
+larvae
+Newts, small fish
+Cavefish,
+amphipods
+Cave crickets,
+midges
+Cavefish, krill
+Krill
+Cavefish, squid
+Cavefish, squid,
+crayfish
+isopods
+Eaten by
+Newts,
+spiders,
+swiftlets
+Newts
+Toad
+Toad, newts
+Nothing
+Eels,
+anglerfish
+Gulper, cave
+eel
+Sleeper
+shark
+Caiman,
+sleeper shark
+Sleeper
+shark
+Caiman
+Behavior and
+note
+Chirp swarm;
+goes silent when
+the Drowned
+pass (a warning)
+Carries a bubble;
+harmless, free
+scrip in pools
+Pierces a diver's
+suit: 15 bleed
+Jet-propelled; a
+lunging jaw
+Ceiling threads
+that glow; CUriOUS
+species gather
+beneath; lights
+the Chimney
+Luminous school;
+flashes when
+threatened,
+lighting divers up
+for ambushers
+Sump school; its
+lights draw the
+gulper
+A lure that looks
+like a drop bottle
+from a distance
+Ambusher in wall
+cracks; uses
+slipstreams to
+relocate
+Buried in silt; a
+shock stuns
+divers for 2 s and
+stops a Turbine
+Whiskers find
+blood fast: the
+first mid predator
+to any corpse
+Page 33 of 90

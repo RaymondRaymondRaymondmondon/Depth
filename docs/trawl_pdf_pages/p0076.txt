@@ -1,0 +1,42 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+• The boat: engine chuff by telegraph setting, boiler hiss and the relief valve's shriek, hull
+creaks with roll, water in the bilge, the pumps, the winch, warps groaning under load, a
+snagged net's shriek.
+• Guns: each weapon's report, muffled impacts under the surface, the harpoon's tether
+whine, the depth charge's thud felt through the hull.
+• Diving: the pump's rhythm heard in the helmet, the diver's breathing (faster at low air),
+bubbles, hose scrape, silt, distant knocks inside the wreck.
+Threat tells
+Threat
+Gulls
+Barracuda
+Sharks
+Siren
+Kelp Wraith
+Mermen
+Lantern Angler
+Ghost Worm
+Isopods
+Drowned sailors
+Cult longboat
+Ghost Ship
+Kraken
+Voice
+Sound tell
+Cries overhead, closer each pass
+Fast ticks on the hull mic
+Nothing, then a hull bump
+Singing that rises through the music's silence
+Kelp creaking against the current
+Clicking on the hull
+A low glassy hum at the second light
+Lines humming with no fish on them
+Clicking on the anchor chain
+Slow knocking on the hull, a few seconds apart
+Chanting and oars
+A bell answering yours
+Everything goes quiet, even the sea
+Proximity voice is processed in the world: muffled behind walls, thinned by wind and rain,
+lost under the engine at full, crackling on walkies, and bubbling for a crewman in the water.
+Ghosts hear each other with a cold reverb and hear the living faintly. Every sound tell has
+Page 76 of 79

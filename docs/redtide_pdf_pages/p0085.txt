@@ -1,0 +1,33 @@
+Red Tide — Arcade Game 5 Design Document
+The Underwater Cave: the expedition's key
+1. Trigger: the Lobster's kill drops the expedition's key.
+2. Find the three lanterns the Drowned left burning (one in each dry chamber) and put
+them out with an ink cap or an ink bomb; each doused lantern silences the swiftlets for
+5 minutes and drops a page of the expedition's log.
+3. With the key and three pages, open the Lantern Cache's locked crate in the Cricket
+Cavern during a tide (not the calm). The crate takes 15 s and the Drowned come for it (a
+mini-Hunt of 6).
+4. Reward: a free wonder weapon (the Resonator), 2,000 scrip each, and the Drowned no
+longer spawn from the Lantern Cache for the rest of the match (they use the Chimney
+instead).
+The Coral Reef: the drum
+1. Trigger: kill a Shaman (Hunt) and pick up the drum.
+2. Carry the drum to Turtle Beach's altar without beating it. A drum-carrier swims at 80%
+speed; beating it (a temptation the HUD offers) calls sharks and resets the step.
+3. At the altar, survive one tide on the beach while the turtles nest (the altar counts
+nests; 5 nests complete it). Raiders target the beach.
+4. Reward: the Anemone Gun (Forged), the dolphin pod becomes allied again if it was
+hostile, and hammerheads avoid Turtle Beach for the match. This is separate from the
+wonder-weapon quest for the Anemone Gun, which stays as written in Modes.
+Atlantis: the lighthouse
+1. Trigger: read quest terminal 1 (customs house).
+2. Read terminals 2-5 (wall fort, scroll store, treasury, crypts) in any order; each reveals
+one of the four wall-fires' positions on the rampart.
+3. Light the four wall-fires with the reactor-crystal's spark, carried from the treasury in a
+jar (the jar breaks if the carrier is downed). The rampart walk is 1,500 m of fire coral and
+barracuda.
+4. Climb the lighthouse and light it: the whole city appears on the sonar for the rest of the
+match (every grate, every Lost One, every apex).
+5. Reward: the Wyrm's key (opens the treasury vault: 5,000 scrip split) and the Tide Staff
+(Forged) for the lighter.
+Page 85 of 90

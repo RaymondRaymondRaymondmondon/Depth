@@ -1,0 +1,82 @@
+Zones (metres)
+zone	level	x_plan	y_plan	w	h	door_cost_scrip	depth_m	notes
+The Rim	Plain	-400	-400	800	800	0	0	The black sand plain beside the abyss; the hatch at (0,0); bone stakes at r=350; the worm beyond; only the Gannet rack and Juggernaut at the hatch
+The Abyss	Void	-1000	-400	600	800	0	none	The hole: a black column west of the rim; a 5 s pull with a warning; no floor
+The Descent	Chimney	-20	-20	40	40	750	0 to -60	A shaft with six ledges: Quick Brine (L2), Needler Mk I (L3), workbench (L4); Overlook 1 at L5 (-50)
+The Upper Galleries	Galleries	-120	-60	240	80	1000	-70	Glass sponge reefs, bamboo coral; Carbine, Flechette, Speed Brine; Locker spot 1; the Remnant's upper airlock; Overlook 2
+The Warrens	Tubes	-160	-140	320	70	1250	-95	A maze of lava tubes and vents; yeti crabs; the brine pool; Double Shot, Long Speargun; Overlooks 3 and 4
+The Station: Mess & Quarters	Module	40	-210	90	60	1500	-120	Flooded modules; algae tanks; specimen kelp; Bolt Harpoon, Kick Brine; air pockets (the seal, the snake); terminals 1-2
+The Station: Specimen Labs	Module	-80	-220	110	60	1750	-125	Broken tanks; coelacanths and salamanders loose; Mule Brine, Deadeye; the caiman's corridor; terminals 3-4; lure beacon controls
+The Station: Reactor	Module	-20	-290	80	50	2000	-140	Power (the reactor); the Pressure Forge; the Chief's mech bay; the reactor vent trap; terminal 5
+The Lowest Vault	Cathedral	-150	-420	300	110	2500	-180	Open to the abyss on its west side; black coral; Locker spot 2, Widow's Ink, Cold Coffin, Stormlock and Cannon Harpoon racks; the Leviathan's home; Overlook 5 (the collapsing ledge)
+Links
+from	to	cost_scrip	passage
+The Rim	The Descent	750	The surface hatch (a pressure door; always openable from inside)
+The Descent	The Upper Galleries	1000	Ledge 6 tunnel
+The Upper Galleries	The Warrens	1250	Three tube mouths (any one)
+The Warrens	The Station: Mess & Quarters	1500	Airlock A (east)
+The Warrens	The Station: Specimen Labs	1750	Airlock B (west)
+The Station: Mess & Quarters	The Station: Specimen Labs	0	Corridor (the caiman's)
+The Station: Specimen Labs	The Station: Reactor	2000	Pressure door (the trap)
+The Station: Mess & Quarters	The Station: Reactor	0	Service shaft (one-way drop)
+The Station: Reactor	The Lowest Vault	2500	The vault stair
+The Upper Galleries	The Abyss	0	Overlook 2 (a fall)
+The Lowest Vault	The Abyss	0	Overlook 5 (a fall)
+Points of interest
+name	type	zone	x	y
+Surface hatch (start)	Feature	The Rim	0	0
+Gannet rack	Rack	The Rim	6	4
+Juggernaut Brine	Tonic	The Rim	-8	6
+Bone stakes (the worm's line, r=350)	Hazard	The Rim	0	-350
+Worm tunnels (horizon)	Boss	The Rim	300	300
+Void edge	Hazard	The Rim	-400	0
+Quick Brine (L2)	Tonic	The Descent	-12	-12
+Needler Mk I rack (L3)	Rack	The Descent	12	-12
+Workbench (L4)	Build	The Descent	12	12
+Overlook 1 (L5)	Feature	The Descent	-18	10
+Sea-Pattern Carbine rack	Rack	The Upper Galleries	-100	-50
+Flechette 12 rack	Rack	The Upper Galleries	100	-50
+Speed Brine	Tonic	The Upper Galleries	0	-30
+Locker spot 1	Locker	The Upper Galleries	60	-20
+Upper airlock (Remnant entry)	Entry	The Upper Galleries	110	-10
+Overlook 2 (whale fall)	Feature	The Upper Galleries	-115	-20
+Beacon 1	Trap	The Upper Galleries	100	-30
+Double Shot	Tonic	The Warrens	-140	-120
+Long Speargun rack	Rack	The Warrens	140	-120
+Brine pool	Hazard	The Warrens	-60	-100
+Overlook 3	Feature	The Warrens	-155	-100
+Overlook 4 (Relict)	Feature	The Warrens	-150	-130
+Beacon 2	Trap	The Warrens	-40	-110
+Airlock A	Entry	The Warrens	90	-135
+Airlock B	Entry	The Warrens	-40	-135
+Bolt Harpoon rack (mess)	Rack	The Station: Mess & Quarters	50	-200
+Kick Brine (bunks)	Tonic	The Station: Mess & Quarters	110	-190
+Terminals 1-2	Quest	The Station: Mess & Quarters	80	-170
+Seal haul-out (air)	Hazard	The Station: Mess & Quarters	120	-205
+Mule Brine (wet lab)	Tonic	The Station: Specimen Labs	-60	-200
+Deadeye Brine (dry lab)	Tonic	The Station: Specimen Labs	-20	-180
+Beacon control panel	Trap	The Station: Specimen Labs	-70	-215
+Caiman corridor	Hazard	The Station: Specimen Labs	-30	-210
+Terminals 3-4	Quest	The Station: Specimen Labs	-50	-175
+Tank 7 (Relict egg)	Quest	The Station: Specimen Labs	-75	-190
+Power: the reactor	Power	The Station: Reactor	0	-270
+Pressure Forge	Forge	The Station: Reactor	20	-285
+Reactor vent trap	Trap	The Station: Reactor	-10	-255
+Mech bay (Chief's Hunt)	Entry	The Station: Reactor	40	-300
+Terminal 5	Quest	The Station: Reactor	-20	-300
+Locker spot 2	Locker	The Lowest Vault	120	-380
+Widow's Ink	Tonic	The Lowest Vault	100	-400
+Cold Coffin	Tonic	The Lowest Vault	130	-410
+Stormlock rack	Rack	The Lowest Vault	60	-340
+Cannon Harpoon rack	Rack	The Lowest Vault	80	-410
+Leviathan's hollow	Boss	The Lowest Vault	-40	-390
+Overlook 5 (collapsing ledge)	Trap	The Lowest Vault	-140	-370
+Beacon 3	Trap	The Lowest Vault	-130	-360
+Design notes
+Vertical map: 180 m from the rim floor to the vault; the plan view is stacked, so the cross-section in the image is the real layout. Every zone below the rim has at least one overlook onto the abyss on its west side.
+The Rim: 800 m across; the hatch at the centre; bone stakes at r=350 m mark the worm's line. Beyond the stakes the sand shakes for 8 s, then the worm consumes the diver (no down). The worm is visible tunneling at r=450-600 at all times: a horizon feature, nothing more.
+Training loop (station): Mess -> caiman corridor -> Labs -> pressure door -> Reactor -> service shaft (one-way back up to the Mess). About 2 min, indoors, past the seal, the caiman, and the vent trap.
+Training loop (deep): Galleries -> Warrens -> Airlock A -> Mess -> Reactor -> Vault -> vault stair back -> Reactor -> Labs -> Airlock B -> Warrens -> Galleries. About 6 min; the only loop that touches both Lockers.
+Blood flow: almost none. The water barely moves, so blood pools where it's made (decay 0.5% base here, not 2%); the only currents are the reactor's warm plume (rises from the Reactor up the service shaft into the Mess) and the brine pool's drain over Overlook 3.
+Sightlines: rim unlimited but dark (lamp 25 m); galleries 20 m; warrens 8 m; station 10-15 m; vault 40 m. Alarm regions: Rim, Galleries and Warrens, Station, Vault; the Remnant enters at the two airlocks and the upper airlock.
+Specimens: salamanders breed +1 per 90 s per pair in the bunks and coelacanths +1 per 120 s per pair in the wet lab (cap 12 each); only the caiman eats them. An overrun station is loud and full of blood whenever a Remnant squad passes through.

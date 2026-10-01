@@ -1,0 +1,89 @@
+Red Tide
+Arcade Game 5 Design Document
+Flora
+Anemone bed
+Bladder kelp (on the mast)
+Coralline crust
+Dead man's fingers
+Sargassum raft (surface)
+Luminous algae mat (engine
+room)
+Beasts (40)
+Type
+Host and hazard
+Shelter and
+current
+Producer
+Luminous soft
+coral
+Air and shelter
+Luminous
+producer
+Effect
+Clownfish home; stings divers (10) and
+holds size-I beasts
+Hides divers from sight; sways with
+current and shows its direction
+Snail and sea-hare food
+Glows when touched; draws squid and
+cuttlefish at night tides
+Shade and shelter outside the hull;
+jellyfish gather under it
+Attracts krill, which attracts sprats,
+which attracts everything; the Goliath's
+lamp
+Beast
+Bilge Sprat
+Silverside
+Sergeant
+Major
+Barnacle
+Goby
+Class
+Fish
+Fish
+Fish
+Fish
+Size
+1
+1
+1
+1
+Tier
+1
+1
+1
+1
+Eats
+Krill, algae
+Krill
+Algae, jellies
+Detritus
+Eaten by
+Almost
+everything
+Trevally,
+barracuda,
+squid
+Grouper,
+moray
+Sea snake,
+blenny
+Behavior and note
+Schooler in the
+corridors; the
+map's blood
+battery: 20 sprats
+is a shark's worth
+of blood
+Schooler outside;
+flashes when shot,
+drawing barracuda
+by sight
+Guards egg
+patches on the hull;
+nips divers (2)
+Lives in pipes; the
+sea snake's reason
+to be in the cabins
+Page 24 of 90

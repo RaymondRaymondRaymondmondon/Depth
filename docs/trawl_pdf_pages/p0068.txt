@@ -1,0 +1,89 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+Upgrade
+Watertight doors
+Second pump
+Bilge alarm
+Compound engine
+Screw guard
+Bigger ice hold
+Extra catch crates
+Chum chute
+Rail netting
+Deck lamps
+Hooded lantern
+mast
+Crow's nest
+Hull microphone
+Second sonar
+Twin warp winch
+Bigger trawl
+Harpoon cannon
+Swivel gun
+Effect
+Every space below decks can be
+sealed
+Bilge rate doubled
+A bell rings on deck when any space
+starts flooding
++30% speed, -25% screw noise
+The screw never fouls on kelp
+Hold 600 1,000 kg
++4 crates on deck
+Sluices deck blood into the offal
+barrel automatically: half as much
+blood reaches the sea
+Crew can't be knocked overboard
+from the stern rail
+The deck is always lit; the Drowned
+board more slowly
+Adds the searchlight and coloured
+filters
+A lookout post: birds, fins, and skiff
+marks seen from twice as far
+Passive sonar range +50%; knocks
+heard as bearings
+A second operator; depth on every
+contact
+The net hauls twice as fast
+Mouth width +50%, weight +50%
+Bow cannon and winch
+Rail-mounted grapeshot
+Where
+Slipway
+Slipway
+Slipway
+Slipway
+Slipway
+Slipway
+Slipway
+Slipway
+Slipway
+Slipway
+Slipway
+Slipway
+Slipway
+Slipway
+Slipway
+Slipway
+Slipway
+Slipway
+price
+(sh)
+400
+300
+80
+800
+250
+400
+150
+350
+250
+150
+500
+300
+200
+300
+600
+700
+600
+Page 68 of 79

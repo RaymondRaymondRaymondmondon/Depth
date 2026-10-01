@@ -1,0 +1,118 @@
+Red Tide
+Map
+Arcade Game 5 Design Document
+Atlantis
+Approaching
+the Void
+Faction
+The Lost
+Ones
+The
+Remnant
+Who they are
+Drowned
+citizens who
+breathe
+water:
+legionnaires,
+cultists, and a
+priest
+What's left of
+the research
+station: mad
+researchers
+in pressure
+suits,
+clockwork
+sentinels, and
+void cultists
+Squad (arrives
+on an alarm
+roll)
+4: two
+Legionnaires
+(gladius and
+shield), a
+Cultist (void
+chant slows
+players), a
+Slinger
+4: two
+Sentinels
+(rotary
+needlers,
+don't bleed), a
+Researcher
+(gas grenades,
+heals
+sentinels), a
+Cultist
+Hunt force
+14 plus an
+Armored Lost
+One and a
+priest
+16 plus the
+Station Chief
+in a diving
+mech
+Tactics
+Phalanx
+formations in
+streets; hold
+plazas;
+cultists chant
+to draw the
+Alien Horror
+when losing
+Sentinels hold
+chokepoints;
+researchers
+deploy lure
+beacons to
+send beasts
+at players;
+cultists try to
+reach the
+abyss's edge
+to summon
+In the food
+web
+They bleed
+black ichor: a
+different
+scent that
+the city's
+scavengers
+love and that
+apex beasts
+avoid; Lost
+Ones fight
+the beasts
+nesting in
+their old
+homes
+Sentinels
+leak oil (no
+scent);
+researchers
+and cultists
+bleed
+normally and
+are eaten;
+the Station
+Chief's mech
+is size 5 and
+the abyss's
+apex beasts
+attack it on
+sight
+Shared enemy rules
+Enemies see, hear, and smell like beasts: they can be lured by chum, blinded by ink, and
+distracted by beasts attacking them. Their squad Al prefers a fight against players over
+beasts but will turn to defend itself.
+Enemies scale with tide: +8% HP per tide, better weapons every 5 tides (Forged
+weapons at tide 15+).
+An enemy killed by a beast counts for no scrip, but the beast that ate it is now fed and
+calmer.
+Page 19 of 90

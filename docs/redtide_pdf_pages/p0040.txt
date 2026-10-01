@@ -1,0 +1,133 @@
+Red Tide
+Arcade Game 5 Design Document
+Jacks, sharks
+Crabs, shrimp
+Beast
+Garden Eel
+Goatfish
+Flounder
+Razorfish
+Sand Dollar
+Cone Snail
+Blue-ringed
+Octopus
+Box Jelly
+Crown-of-
+thorns
+Starfish
+Ribbon Eel
+Reef
+Cuttlefish
+Crab-eating
+Frog
+Class
+Fish
+Fish
+Fish
+Fish
+Echinoderm
+Mollusc
+Cephalopod
+Cnidarian
+Echinoderm
+Fish
+Cephalopod
+Amphibian
+Size
+1
+2
+2
+1
+1
+1
+1
+2
+2
+2
+2
+2
+Tier
+1
+2
+2
+1
+1
+2
+2
+2
+1
+2
+2
+2
+Eats
+Plankton
+Worms, crabs
+Shrimp, small
+fish
+Plankton
+Detritus
+Small fish,
+worms
+Crabs, shrimp
+Shrimp, small
+fish
+Coral
+Small fish
+Crabs, insects
+Eaten by
+Stingrays
+Stingrays,
+sharks
+Jacks
+Nothing
+Nothing
+Nothing
+Green turtle
+Triton snail
+(none here),
+nothing
+Grouper
+Grouper,
+dolphins
+Sea kraits, toad
+Behavior and note
+Hundreds in the
+flats' sand; retract
+when divers
+approach, which
+shows a diver's
+position to
+everything watching
+Stirs sand in the
+flats; a visible dust
+cloud
+Camouflaged on
+sand; startles when
+stepped on
+A vertical school
+that hides among
+sea whips
+Free scrip; a carpet
+in the flats
+Harpoon sting on
+touch: 30 poison
+over 15 s
+Rings flash when
+threatened; a bite is
+60 poison over 20 s
+and paralysis 3 s;
+the reef's deadliest
+small thing
+Nearly invisible;
+contact 25 and
+paralysis 1 s
+Erodes corridors;
+spines: 10 poison
+Eel-hole ambusher;
+a quick bite (20)
+Camouflage; dazzles
+a diver's aim
+Mangrove roots;
+leaps between roots
+and the surface
+Page 40 of 90

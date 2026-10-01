@@ -1,0 +1,44 @@
+Red Tide — Arcade Game 5 Design Document
+Build
+Shell Shield
+Turbine
+Net
+Tripwire
+Decoy Buoy
+Bubble Wall
+Parts
+Turtle shell, strap, brass
+rim
+Fan, dynamo, mount
+Net, two stakes, bell
+Buoy, lantern, chum tin
+Compressor, hose, valve
+Effect
+A back-mounted shield that blocks bites; held in
+hand for a bash
+Powers a nearby machine for 90 s before the
+map's power is on
+Holds the first beast up to size 3 that crosses it
+Draws beasts and enemies to it for 45 s
+A curtain small beasts won't cross; 60 s
+Player stats and progression
+• In-match stats: kills, headshots, scrip earned, downs, revives, beasts eaten by other
+beasts because of you, enemies eaten, highest tide.
+• Between matches: an arcade profile rank from 1 to 50 across all Red Tide maps; ranks
+unlock charms, skins, and dossier pages. No stat ever changes in-match power; every
+match starts from the same spawn-in.
+• Dossiers: every beast, flora, and enemy killed or observed for 30 s adds a dossier page
+(behavior, diet, weak point, what it fears). The full dossier is the map's real strategy
+guide.
+Player skins
+Four divers with fixed silhouettes, each a Depth character type: the Diver (brass helmet),
+the Whaler (slicker and hood), the Stowaway (a patched suit and a bottle on a cord), and
+the Mechanic (a riveted hard suit). Skins bought with tokens change suit colors and
+helmets (verdigris, red tide, bone, pearl, Atlantean) but never the silhouette, so
+teammates and enemies always read who is who.
+Enemy factions
+Each map has one faction drawn by the alarm and by Hunts. They are intelligent, they
+shoot back, and they are also animals in the food web: they bleed, they are hunted, and
+some of them use the web against the players. Enemies drop their weapons and 200-600
+scrip.
+Page 17 of 90

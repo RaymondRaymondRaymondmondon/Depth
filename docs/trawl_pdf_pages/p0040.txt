@@ -1,0 +1,72 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+Ground
+Any
+Any
+Any
+Any
+Any
+Eclipse
+Lagoon
+Eclipse
+Lagoon
+Eclipse
+Lagoon
+The Weeds
+The Weeds
+The Weeds
+The Grotto
+Variant
+Bait run
+Whale carcass
+Red tide bloom
+Drifting derelict
+Storm-exposed
+wreck
+King tide
+Turtle nesting
+Canoe night
+Tuna run
+Kelp storm
+Mermen's market
+Glass eel run
+Chance
+8%
+6%
+6%
+5%
+5%
+8%
+8%
+8%
+6%
+What changes
+Forage fish near the surface; every
+predator and bolder by midnight
+A floating carcass leaks blood all night;
+scavengers, sharks, and the ground's apex
+gather on it; oil and ambergris salvage
+(150-400) for anyone who cuts in
+Forage fish die and float; predators are
+hungry and take any bait; fish caught near
+the bloom sell at 50%
+A dark boat drifts through; boarding it is a
+small salvage run with something still
+aboard
+An extra shallow wreck to dive, sonar
+shows it at the start
+The crest stays passable all night; open-
+sea species come into the lagoon
+Turtles everywhere; net bycatch fines add
+up fast; tiger sharks follow the turtles
+Island war canoes are out: trade, pay
+tribute, or fight
+Bluefin along the seaward edge from
+22:00; the Great White follows at Wake 30
+instead of 40
+Drift mats everywhere; screw fouling
+twice as often; yellowtail under every mat
+Feral Mermen trade abalone and relics for
+fish instead of cutting nets
+Glass eels pour in with the tide; pale cod
+and anglers follow them to the light
+Page 40 of 79

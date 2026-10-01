@@ -1,0 +1,65 @@
+Red Tide — Arcade Game 5 Design Document
+District
+The Library and
+Academy
+The Forum and
+Government Hall
+(summit)
+The Grand
+Chapel (summit)
+Buildings
+Reading halls,
+scroll stores, an
+observatory
+Council chamber,
+treasury, courts
+Nave, crypts, the
+god-pool
+Ecology
+Dark stacks: the
+giant squid; glow-
+moss on the
+shelves
+The forum's sea
+fans; tuna and
+swordfish cross
+the open plaza
+The Cistern
+Wyrm's pool;
+temple kraits in
+the crypts
+What's there
+Kick Brine, the
+second
+workbench, Locker
+spot 2
+Power: the
+treasury's crystal
+engine; Deadeye
+Brine
+The Pressure
+Forge; Widow's Ink
+Opens
+with
+1,750
+2,000
+2,500
+The city has 60+ buildings on a hill 120 m tall and 500 m across, connected by streets,
+stairs, and the aqueduct. Traps: a canal sluice (floods a farm terrace), the bathhouse
+hypocaust (boils a room), the chapel's god-pool (drains and refills). Hidden quest: rekindle
+the lighthouse on the wall to see the whole city on the sonar.
+Level mechanics
+• The aqueduct carries blood downhill. Blood made on the summit flows down the
+aqueduct into the baths and the lower town within a minute. Fighting uphill sends
+predators to the players who stayed below.
+• Cisterns and drains. A network under every district: conger eels and the Wyrm come
+out of any drain grate; grates can be netted (a build) or watched.
+• Buildings are homes. Every building type hosts its species by data: amphorae mean
+octopus, baths mean grouper, cellars mean cardinalfish, granaries mean bream. The
+dossier teaches which door has what behind it.
+• The Lost Ones live here. Squads patrol streets, hold plazas, and know the drains. Their
+ichor scent draws the city's scavengers and repels its apex beasts, so a street full of
+dead Lost Ones is briefly safe from sharks and full of crabs.
+• The open plaza on the summit is the only long sightline: the tuna and swordfish lane,
+and the Priest's chosen ground.
+Page 45 of 90

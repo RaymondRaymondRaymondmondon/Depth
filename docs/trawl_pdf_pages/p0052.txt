@@ -1,0 +1,109 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+Threat
+Drowned
+sailor
+Cult
+longboat
+Ghost Ship
+The Kraken
+Size
+3
+Boat, 6
+rowers
+Ship
+6
+90
+Boat
+200,
+rowers
+40 each
+Hull
+1,200
+8 arms
+at 400,
+body
+3,000
+Speed
+(m/s)
+1.2
+4
+3.5
+On the crew
+Grabs and
+drags at 0.8
+m/s
+Thrown
+torches
+(burn)
+Boards with
+6-10 Drowned
+sailors
+Arm grabs
+(carry off)
+On the boat
+and catch
+Chums a ring
+of 20 blood a
+second
+Grapples
+alongside;
+steals set gear
+Crushes
+sections
+(-30), takes
+gear, can sink
+the boat
+Weak point
+Head; thrown
+overboard it
+climbs back in
+30s
+Rowers
+Its bell
+The eye, only
+when it
+surfaces
+Drawn at
+Light, the
+Ghost Ship's
+bell
+The Pale
+Eye's Wake
+Wake 65, a
+moonless
+night
+Wake 90,
+Atlantis
+Most threats are worth something dead: a shark sells at 2 sh/kg, a Ghost Worm hatchling's
+gill lanterns fetch 60 each, an adult's 400. The Siren, Wraith, Drowned, and Kraken leave
+nothing sellable except relics on the Ghost Ship.
+Resistances
+Guns kill fish; they rarely solve threats. Each threat takes damage from each kind of
+attack at a multiplier, and every shot still writes noise into the water, so shooting at the
+wrong thing makes a bad night worse. The big three can be driven off but are rarely killed.
+Threat
+Gull flock
+Barracuda
+pack
+Reef shark
+Bullets
+x1
+x1
+Blades and
+melee
+xl
+xl
+Fire and flares
+Scatters them
+Explosives What actually works
+x1
+xl
+Shotgun; cover the
+catch
+Wire leader, fast
+landing, the
+speargun
+Stop the blood; kill it
+if it's worth the
+noise
+Page 52 of 79

@@ -1,0 +1,132 @@
+Red Tide
+Arcade Game 5 Design Document
+Sixgill, goblin
+Beast
+Tripod Fish
+Snailfish
+Rattail
+Giant Isopod
+Yeti Crab
+Squat Lobster
+Dumbo
+Octopus
+Barreleye
+Viperfish
+Fangtooth
+Dragonfish
+Class
+Fish
+Fish
+Fish
+Crustacean
+Crustacean
+Crustacean
+Cephalopod
+Fish
+Fish
+Fish
+Fish
+Size
+2
+2
+2
+2
+2
+2
+2
+2
+2
+2
+2
+Tier
+2
+2
+Scavenger
+Scavenger
+1
+2
+2
+2
+2
+2
+2
+Eats
+Sand hoppers,
+plankton
+Amphipods, sand
+eels
+Corpses, brittle
+stars
+Corpses
+Bacteria on its
+own arms, mats
+Vent shrimp, yeti
+crabs
+Amphipods,
+worms
+Siphonophore
+parts, jellies
+Hatchetfish,
+barreleyes
+Hatchetfish,
+shrimp
+Hatchetfish
+Eaten by
+Skates
+Sixgill
+shark
+Nothing
+(armored)
+Squat lobsters,
+chimaera
+Chimaera,
+skates
+Sixgill
+Viperfish
+Anglerfish,
+chimaera
+Anglerfish
+Anglerfish
+Behavior and
+note
+Stands on fin
+stilts on the rim;
+faces the
+current, showing
+where blood will
+drift
+Deepest
+galleries;
+gelatinous;
+harmless
+The first to any
+corpse; the
+map's cleanup
+crew
+Armored; rolls up
+when shot;
+slowly eats
+anything dead
+Vent colonies;
+harmless
+Swarms the
+vents
+Harmless drifter;
+a curiosity the
+dossier rewards
+Transparent
+head; sees up: it
+watches the
+overlooks
+Chimney
+ambusher with a
+light lure
+Bites 20 and
+hangs on
+A red light only it
+can see: it hunts
+divers'
+silhouettes
+against
+specimen kelp
+Page 56 of 90

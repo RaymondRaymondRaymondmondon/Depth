@@ -1,0 +1,58 @@
+Red Tide — Arcade Game 5 Design Document
+Beast
+Humpback
+Whale
+The Matriarch
+Class
+Mammal
+Mammal
+Size
+5
+6
+Tier
+1
+5
+Eats
+Krill (passes
+through)
+Sharks, seals,
+dolphins,
+dugongs,
+enemies, divers
+Eaten by
+Nothing
+Behavior and note
+Passes the wall
+every few tides;
+harmless; a diver
+who shoots it
+produces 100 blood
+and a Predator Hunt
+on the spot
+An orca matriarch
+with a pod of 3: they
+hunt as one, herd
+divers away from
+cover, and ram the
+Bommie; the
+Shaman's drum can
+call her, which is the
+Raiders' mistake to
+exploit
+The web in motion
+• The corridor pair: moray flushes, grouper catches; kill one and the other becomes
+reckless.
+Dolphins versus sharks: the pod's protection is worth more than any tonic; the Raiders
+know it and shoot dolphins on purpose to turn them against the divers.
+• The flats: garden eels retract (revealing you), goatfish clouds mark safe sand, the
+bobbit worm punishes the straight line, and the dugong's blood calls the hammerhead.
+Keep the eaters of dangerous things alive: green turtles eat box jellies; Napoleon
+wrasse eat cone snails and blue-rings.
+• The drum: the Shaman's drum raises aggression and can call the Matriarch. Kill the
+Shaman first, or take the drum and use it on the Raiders.
+Definition of Done
+• Reacher coral grabs and feeds; the dolphin alliance flips on a shot,
+• --eco-sim reef 20
+shows crown-of-thorns eroding a corridor within 10 minutes if unchecked.
+• A four-player test sees a Raider Hunt, the flats at night, and the Matriarch's pod.
+Page 43 of 90

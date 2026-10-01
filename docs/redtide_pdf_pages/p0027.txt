@@ -1,0 +1,110 @@
+Red Tide
+Arcade Game 5 Design Document
+Beast
+Remora
+Lamprey
+Green Moray
+Great
+Barracuda
+Grouper
+Bluefin
+Trevally
+Common
+Octopus
+Nurse Shark
+Class
+Fish
+Fish
+Fish
+Fish
+Fish
+Fish
+Cephalopod
+Fish
+Size
+1
+2
+3
+3
+3
+3
+3
+3
+Tier
+Parasite
+Parasite
+3
+3
+3
+3 (pack)
+3
+Scavenger
+Eats
+Scraps
+Blood
+Octopus,
+squirrelfish,
+blennies
+Silversides, squid,
+sprats
+Parrotfish,
+lionfish, morays,
+cuttlefish
+Silversides, squid,
+damselfish
+Crabs, mantis
+shrimp, snails
+Corpses, crabs
+Eaten by
+Barracuda
+Barracuda
+Grouper, bull
+shark
+Bull shark,
+tiger shark
+Bull shark
+Sharks
+Moray,
+grouper
+Tiger shark
+Behavior and note
+Attaches to sharks,
+turtles, and divers;
+on a diver, slows
+swim 15% until
+brushed off
+Attaches and
+bleeds 2 per
+second; its host
+becomes a blood
+source that draws
+predators
+Ambusher in cabin
+pipes; strikes 2 m
+from its hole, then
+retreats; territorial
+Patroller in the
+salon and outside;
+drawn by flashes
+and the parrotfish
+crunch; hits and
+runs
+Ambusher in the
+engine room's
+shadows; swallows
+size 1 whole
+Pack of 5 outside
+the hull; drives
+schools against the
+hull where divers
+stand
+Steals a diver's held
+item (a part or a
+charm) and hides in
+a cabin; kill it to get
+it back
+Night tides; docile;
+eats corpses fast
+(the divers' best
+friend)
+Page 27 of 90

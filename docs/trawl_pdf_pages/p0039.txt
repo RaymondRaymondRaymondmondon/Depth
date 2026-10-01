@@ -1,0 +1,31 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+count as late, and the cave's night keeps waking the whole time.
+• Echo. Sound doubles in the Grotto: every Ping, shot, and shout feeds the sound layer at
+twice its value and returns as an echo on the sonar. Loud noises can drop stalactites
+(hull damage, crew damage).
+• Threats. Lantern Anglers (the second light), Ghost Worms (born in the Grotto),
+Drowned sailors from the wrecks, swarms of isopods that climb the anchor chain.
+Atlantis Waters
+Open ocean above the drowned city. The water drops from the terraces at 30 m to the
+Trench's edge at 400 m. The Pale Eye watches from the deep; the richest fishing in the
+game and the best relics sit under it.
+• Catch. Surface: marlin, giant bluefin, flying squid. Mid: swordfish, opah, oarfish. Deep-
+drop: Atlantean coelacanth, gulper eels, the drowned-gold grouper. Everything here is
+large, and a single marlin can cover a night's quota share.
+• Flora. Sunken gardens on the terraces, deep coral, the Eye's bioluminescent veils
+(lights that drift up through the night).
+• Signature: the Pale Eye. A great pale light far below. While any crewman looks at it (the
+searchlight pointed down, a diver facing it, or anyone on the sonar with a ping open
+over it), Wake rises twice as fast. It blinks when something big is coming.
+• Threats. Everything from the other grounds plus the Kraken, the Ghost Ship, the Deep
+Choir (a Siren chorus that sings the whole crew), and Cult longboats that chum the
+water around the Gannet on purpose.
+Rumors and variants. Each ground rolls one variant per night (a sardine run, a red tide
+bloom that kills bait fish, a whale carcass that draws every scavenger, a wreck exposed by
+a storm, a school of tuna at the surface, a missing boat's lights). The telegraph's rumor
+hints at it, correctly 70% of the time.
+Nightly variants
+Each night rolls at most one variant for the chosen ground; about 40% of nights roll none.
+The telegraph's rumor points at the variant (right 70% of the time). Every variant changes
+the web, not just a number, so the crew has to read it.
+Page 39 of 79

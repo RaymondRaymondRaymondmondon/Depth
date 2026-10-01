@@ -1,0 +1,56 @@
+zone	species	count_tide1	respawn_s	capacity_mult_per_tide	count_tide10
+The Mouth	Blind Cavefish	20	20	1.03	26
+The Mouth	Glass Shrimp	4	300	1.03	5
+The Flooded Gallery	Blind Cavefish	60	20	1.03	78
+The Flooded Gallery	Glass Shrimp	8	300	1.03	10
+The Flooded Gallery	Troglobite Crab	6	120	1.03	8
+The Flooded Gallery	Cave Crayfish	6	180	1.03	8
+The Flooded Gallery	Cave Eel	3	300	1.03	4
+The Flooded Gallery	Whip Ray	1	400	1.03	1
+The Flooded Gallery	Sea Spider	3	240	1.03	4
+The Squeeze	Ghost Worm	1	0	1.03	1
+The Chimney	Glowworm Colony	1	0	1.03	1
+The Chimney	Firefly Squid	12	120	1.03	16
+The Chimney	Blind Cavefish	30	20	1.03	39
+The Chimney	Cave Eel	2	300	1.03	3
+Dry Chamber I: the Cricket Cavern	Cave Cricket	1	60	1.03	1
+Dry Chamber I: the Cricket Cavern	Amphipod	20	60	1.03	26
+Dry Chamber I: the Cricket Cavern	Blind Newt	6	120	1.03	8
+Dry Chamber I: the Cricket Cavern	Poison Dart Newt	4	180	1.03	5
+Dry Chamber I: the Cricket Cavern	Fishing Spider	2	240	1.03	3
+Dry Chamber I: the Cricket Cavern	Cave Swiftlet	20	120	1.03	26
+Dry Chamber I: the Cricket Cavern	Diving Beetle	8	90	1.03	10
+Dry Chamber II: the Toad Pool	Giant Cave Toad	1	400	1.03	1
+Dry Chamber II: the Toad Pool	Blind Newt	6	120	1.03	8
+Dry Chamber II: the Toad Pool	Cave Krait	2	300	1.03	3
+Dry Chamber II: the Toad Pool	Giant Water Bug	3	180	1.03	4
+Dry Chamber II: the Toad Pool	Dragonfly Nymph	3	180	1.03	4
+Dry Chamber II: the Toad Pool	Giant Salamander	1	600	1.03	1
+Dry Chamber II: the Toad Pool	Snapping Turtle	1	500	1.03	1
+Dry Chamber II: the Toad Pool	Olm	3	240	1.03	4
+Dry Chamber III: the Roost	Cave Caiman	1	700	1.03	1
+Dry Chamber III: the Roost	Epaulette Shark	2	300	1.03	3
+Dry Chamber III: the Roost	Cave Swiftlet	20	120	1.03	26
+Dry Chamber III: the Roost	Olm	2	240	1.03	3
+The Sump	Cave Krill	1	60	1.03	1
+The Sump	Cave Isopod	10	90	1.03	13
+The Sump	Lanternfish	25	30	1.03	33
+The Sump	Cave Anglerfish	2	400	1.03	3
+The Sump	Electric Ray	3	400	1.03	4
+The Sump	Blind Catfish	3	300	1.03	4
+The Sump	Hagfish	3	240	1.03	4
+The Sump	Vampire Squid	3	240	1.03	4
+The Sump	Bristle Worm	5	180	1.03	7
+The Sump	Cave Sturgeon	1	600	1.03	1
+The Sump	Gulper Eel	2	500	1.03	3
+The Sump	Sleeper Shark	1	900	1.03	1
+The Sump	Silt Lamprey	4	120	1.03	5
+The Dynamo Sump	Blind Cavefish	30	20	1.03	39
+The Dynamo Sump	Cave Eel	2	300	1.03	3
+The Dynamo Sump	Blind Catfish	1	300	1.03	1
+The Cathedral	The Lobster	1	0	1.03	1
+The Cathedral	Firefly Squid	10	120	1.03	13
+The Cathedral	Sea Spider	4	240	1.03	5
+The Cathedral	Cave Eel	2	300	1.03	3
+Slipstreams	Current Runner	3	400	1.03	4
+respawn_s: seconds to replace one killed individual while below capacity; 0 = placed once (boss, sessile, ambush nests). Swarms and colonies count as 1 agent.

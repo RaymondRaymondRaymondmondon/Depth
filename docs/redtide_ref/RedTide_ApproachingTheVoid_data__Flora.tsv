@@ -1,0 +1,13 @@
+flora	type	zones	effect	contact_damage	grazed_by	regrowth_rate_per_s	regrow_delay_s
+Glass sponge reef	Structure	Upper Galleries	Sharp glass: bleeds on contact; hides small beasts; shatters loudly (5 noise)	6		0	0
+Tube worm garden (vents)	Producer	The Warrens	The vent web's base	0	Vent Shrimp, Yeti Crab	1	60
+Bacterial mat	Producer	The Warrens, Vault floor	Amphipods swarm it	0	Vent Shrimp, Hadal Amphipod, Yeti Crab	1	45
+Bamboo coral	Cover	Upper Galleries	Tall stalks	0		0	0
+Sea pen field	Cover	The Rim	Waist-high; sand eels beneath; glows when brushed and shows a diver's path across the plain for 20 s	0	Giant Sea Spider	0.5	180
+Xenophyophore carpet	Producer	Upper Galleries, Warrens	Brittle; walking on it kicks up silt that hides scent for 5 s	0	Brittle Star	0.3	120
+Black coral thicket	Cover	Lowest Vault	Dense and dark; the leviathan's hunting ground	0		0	0
+Specimen kelp	Luminous producer	Station: Labs and Quarters	Lab-grown, glowing; draws every luminous-curious species in the station; the dragonfish hunts silhouettes against it	0		0.5	180
+Pressure moss	Producer	Station walls	Thin growth; harmless	0		0.2	300
+Void bloom	Hazard	Overlook edges	A luminous flower that opens toward the abyss and lures curious beasts and divers over the lip	0		0	0
+Brine lily	Hazard	The Warrens (brine pool)	Touching it or the pool: 20 damage and 5 s slow	20		0	0
+Lab algae tanks	Producer	Station: Mess	Spirulina tanks the station's small fish (the lab algae fish) live on	0		1	60

@@ -614,20 +614,44 @@ void Panels(Game& g) {
     auto toast = [&](const std::string& t) { S.toast = t; S.toastT = 3; };
     switch (S.panel) {
         case (int)DockKind::Chalkboard: {
-            PanelFrame("The chalkboard", 560, 360, &r);
-            float x = r.x + 40, y = r.y + 64;
-            TxtBold(TextFormat("Deadline %d", ss.deadline), x, y, 22, ink);
-            TxtBold(TextFormat("Quota: %.0f shillings", ss.quota), x, y + 40, 22, ink);
-            TxtBold(TextFormat("Delivered to the Owners: %.0f", ss.sold), x, y + 74, 22, ss.sold >= ss.quota ? Color{40, 110, 50, 255} : ink);
-            Txt("(only fish delivered at the Owners' scales count; market money doesn't)", x + 300, y + 80, 12, dim);
-            TxtBold(TextFormat("Nights left: %d", ss.NightsLeft()), x, y + 108, 22, ink);
-            TxtBold(TextFormat("Money: %.0f shillings", ss.money), x, y + 142, 22, ink);
-            Txt(TextFormat("Arcade tokens this run: %d", ss.tokens), x, y + 180, 16, dim);
-            if (ss.night >= 3 && Button({r.x + r.width / 2 - 150, r.y + r.height - 76, 300, 44}, "Hand in to the Owners")) { Command(CMD_COUNT); S.panel = PANEL_END; }
+            PanelFrame("The chalkboard", 1040, 620, &r);
+            float x = r.x + 34, y = r.y + 60;
+            TxtBold(TextFormat("Deadline %d", ss.deadline), x, y, 20, ink);
+            TxtBold(TextFormat("Quota: %.0f shillings", ss.quota), x, y + 30, 20, ink);
+            TxtBold(TextFormat("Delivered to the Owners: %.0f", ss.sold), x, y + 58, 20, ss.sold >= ss.quota ? Color{40, 110, 50, 255} : ink);
+            Txt("(only fish delivered at the Owners' scales count)", x, y + 84, 12, dim);
+            TxtBold(TextFormat("Nights left: %d     Money: %.0f     Tokens: %d", ss.NightsLeft(), ss.money, ss.tokens), x, y + 104, 18, ink);
+            // the harbour's requests (one each a deadline)
+            float ry = y + 140;
+            TxtBold("Requests chalked up on the board", x, ry, 17, ink); ry += 26;
+            for (int i = 0; i < (int)ss.requests.size(); i++) {
+                const auto& q = ss.requests[i];
+                std::string why; bool ready = ss.RequestReady(S.you, i, &why);
+                DrawWrapped(ss.RequestText(i), {x, ry, 760, 40}, 14, q.done ? Fade(dim, 0.6f) : ink);
+                if (q.done) Txt("done", x + 800, ry + 4, 15, Color{40, 110, 50, 255});
+                else if (Button({x + 790, ry, 150, 28}, ready ? "Fill it" : "Not yet", ready, 13)) Command(CMD_REQUEST, "", i, "Request filled");
+                if (!q.done && !ready && CheckCollisionPointRec(GetMousePosition(), {x + 790, ry, 150, 28})) Txt(why.c_str(), x + 790, ry + 30, 11, dim);
+                ry += 46;
+            }
+            // what the crew wears, and the mini-boss drops aboard (Mother Carey above, or a cord round your neck)
+            ry += 6;
+            TxtBold("Charms", x, ry, 16, ink);
+            std::string worn;
+            for (int k = 0; k < (int)G.crew.size(); k++) if (G.crew[k].charm) worn += TextFormat("%s%s: %s", worn.empty() ? "" : "    ", k == S.you ? "you" : TextFormat("hand %d", k + 1), CharmName(G.crew[k].charm));
+            Txt(worn.empty() ? "nobody wears one (the Chandler's lucky coin, the Atoll's elder, mini-boss drops)" : worn.c_str(), x + 80, ry + 2, 14, dim);
+            ry += 26;
+            for (int d = 0; d < (int)G.drops.size(); d++) {
+                int ch = CharmOfDrop(G.drops[d]);
+                Txt(TextFormat("A drop: %s%s", G.drops[d].c_str(), ch ? TextFormat("  (as a charm: %s)", CharmEffect(ch)) : ""), x, ry + 4, 14, ink);
+                if (ch && Button({x + 790, ry, 150, 26}, "Wear it", true, 13)) Command(CMD_WEAR_DROP, "", d, "Worn on a cord");
+                ry += 30;
+            }
+            Txt(TextFormat("Boss lures %d%s   Legend lures %d   Tag gun: %s   Rare-fish lures %d   Free attachments %d", G.bossLures, G.AnyWears(CH_BRASS_LURE) ? " (half price)" : "", G.legendLures, G.tagGun ? "aboard" : "no", G.rareLures, ss.freeAttach), x, r.y + r.height - 34, 13, dim);
+            if (ss.night >= 3 && Button({r.x + r.width - 330, r.y + r.height - 76, 300, 44}, "Hand in to the Owners")) { Command(CMD_COUNT); S.panel = PANEL_END; }
             break;
         }
         case (int)DockKind::Chandler: {
-            PanelFrame("The Chandler", 1000, 600, &r);
+            PanelFrame("The Chandler", 1000, 680, &r);
             float x = r.x + 26, y = r.y + 56;
             TxtBold(TextFormat("Money %.0f     Ice %.0f kg     Shrimp %d     Squid %d     Coal %.0f kg     Chum %d", ss.money, G.ice, G.baitShrimp, G.baitSquid, G.boat.bunker, G.chum), x, y, 16, ink);
             const auto& I = ChandlerItems();
@@ -788,7 +812,8 @@ void Panels(Game& g) {
             for (const auto& id : ElderStock()) {
                 bool att = id.rfind("att:", 0) == 0;
                 std::string name, note; int price = 0;
-                if (att) { int ai = AttachmentIndex(id.substr(4)); if (ai < 0) continue; name = Attachments()[ai].name; note = Attachments()[ai].effect; price = Attachments()[ai].price; }
+                if (id.rfind("charm:", 0) == 0) { int ch = id == "charm:shark" ? CH_SHARK_TOOTH : CH_ANKLET; name = std::string(CharmName(ch)) + " (a charm)"; note = CharmEffect(ch); price = ch == CH_SHARK_TOOTH ? 120 : 90; }
+                else if (att) { int ai = AttachmentIndex(id.substr(4)); if (ai < 0) continue; name = Attachments()[ai].name; note = Attachments()[ai].effect; price = Attachments()[ai].price; }
                 else { int wi = WeaponIndex(id); if (wi < 0) continue; name = Weapons()[wi].name; note = Weapons()[wi].special; price = Weapons()[wi].price; }
                 TxtBold(name.c_str(), x, yy + 3, 14, ink);
                 Txt(note.c_str(), x + 170, yy + 4, 12, dim);
@@ -938,7 +963,11 @@ void Hud(Game& g) {
         std::string line;
         if (c.deck == DECK_SKIFF && !c.overboard) {
             DrawTextCenteredBold(TextFormat("Skiff   hull %.0f/%.0f   load %.0f/%.0f kg   roll %.0f deg", std::max(0.0f, sk.integrity), D().skiffIntegrity, sk.LoadKg(), D().skiffLoad, sk.roll * RAD2DEG), SCREEN_W / 2.0f, SCREEN_H - 118.0f, 15, fabsf(sk.roll * RAD2DEG) > 15 ? Color{240, 120, 90, 255} : paper);
-            if (c.skiffLine) { ReelGauge(G, c); if (G.SkiffAlongside(4)) line = "E: up the stern ladder"; }
+            if (c.skiffLine) {
+                ReelGauge(G, c);
+                if (G.SkiffAlongside(4)) line = "E: up the stern ladder";
+                Txt(G.bossArmed ? "A BOSS LURE is on: cast it into the Crest Pass (R takes it off)" : G.bossLures > 0 ? TextFormat("R: put on a boss lure (%d aboard)", G.bossLures) : "", 20, SCREEN_H - 272, 14, G.bossArmed ? Color{250, 200, 110, 255} : Fade(paper, 0.7f));
+            }
             else line = G.SkiffAlongside(4) ? "Left / right mouse: the oars, on a beat.   E: up the stern ladder   T: her line" : sk.crabT > 0 ? "Caught a crab! Keep the rhythm" : "Left mouse the port oar, right the starboard, in turn on a steady beat (both pull straight).   T: her line";
             { int mk = S.W->eco.g ? S.W->eco.MarkAt(sk.p) : -1; if (mk >= 0) DrawTextCenteredBold(TextFormat("%s: skiff water, the bites come twice as often", S.W->eco.marks[mk].name.c_str()), SCREEN_W / 2.0f, SCREEN_H - 140.0f, 15, Color{150, 220, 200, 255}); }
             if (!G.towed.empty()) { float kg = 0; for (const auto& t : G.towed) kg += t.kg; Txt(TextFormat("On the tow line: %d fish, %.0f kg (bleeding)", (int)G.towed.size(), kg), 20, SCREEN_H - 250, 14, Color{220, 140, 120, 255}); }
@@ -1596,6 +1625,10 @@ void DebugTrawlShot(Game& g, int which) {
         Crew& c = G.crew[0];
         if (which == 9 || which == 10 || which == 11) c.p = which == 11 ? Vector2{3.0f, -7.2f} : which == 10 ? Vector2{-3.5f, -7.2f} : Vector2{-6, -5.5f};
         if (which == 10) S.panel = (int)DockKind::Chandler;
+        if (which == 30) {   // the chalkboard: the harbour's requests, a mini-boss drop to wear, a lucky coin worn
+            c.p = {-6, -5.5f}; S.panel = (int)DockKind::Chalkboard;
+            G.drops = {"a jaw full of old hooks"}; c.charm = CH_LUCKY_COIN; G.bossLures = 1; G.highKills = 3;
+        }
         if (which == 26) {   // the Gunsmith, with a revolver in hand (one upgrade, a sight) and money to spend
             c.p = {-7.6f, -7.2f}; ss.money = 900;
             c.slots[3] = Slot{}; ss.GunBuy(0, "revolver"); ss.GunUpgrade(0, 3); ss.GunAttach(0, 3, "sight");

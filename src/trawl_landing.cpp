@@ -223,7 +223,7 @@ void Gannet::StepLandings(float dt) {
         if (Raining(sea)) L.fireLit = false;
         // the fire: the fish cook (and burn); the smell into the water and the air (5 a second a fish, doubled burning)
         for (auto& r : L.onFire) {
-            if (L.fireLit) r.cookT += dt;
+            if (L.fireLit) r.cookT += dt * (spiceRub ? 1.25f : 1.0f);   // (the cook's spice rub: 25% faster)
             r.cook = CookMultiplier(r.kg, r.cookT); r.cooked = r.cookT > 1;
             bool burning = r.cookT > 10 + r.kg + 5;
             if (eco) eco->AddBlood({L.at.x + L.fire.x, L.at.y + L.fire.y, 0.5f}, 5 * dt * (burning ? 2 : 1) * 0.1f);

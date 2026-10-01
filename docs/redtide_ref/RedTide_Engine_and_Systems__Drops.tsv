@@ -1,0 +1,23 @@
+drop	weight_tides_1_9	weight_tides_10_19	weight_tides_20+	min_tide	notes
+Resupply	30	30	35	1	Always available; weight rises late when ammo is the limit
+Double Scrip	25	20	15	1	
+Shipwright	15	10	5	1	Only if a barricade net is damaged; otherwise re-rolled
+Purge	10	15	15	3	Kills within 40 m, no blood
+Blood Frenzy	5	15	20	4	Never two in a row
+Fire Sale	10	5	5	5	Never within 3 tides of the last
+Harpoon Hour	5	5	5	8	
+A kill drops a bottle with chance 2.5% (1 in 40), rising to 4% when the team has had no drop for 3 minutes; the last two drops are excluded from the roll; drops last 30 s on the floor and never spawn inside Reacher coral, lava paths, or over the abyss.
+locker pool	weight	notes
+Rack weapons (any)	45	Each rack weapon equally likely
+Gatling Needler	6	
+Twin Gannets	7	
+Stormlock	7	Void: also on a rack in the Vault
+Drum Flechette	6	
+Reef Rattler	7	
+Cannon Harpoon	4	
+Limpet Launcher	4	
+Net Gun	6	
+Tesla Gaff	3	
+Trident	3	
+Wonder weapon (map's)	2	Guaranteed by the 12th team pull if no diver holds it; 0 while a diver holds it
+Pull costs 950 (10 during Fire Sale). The eel moves after a random 8-12 pulls (the chest snaps shut and sinks; a lantern buoy marks the new spot). Locations rotate among the map's Locker spots, never the same one twice in a row. A pull from a weapon the diver already holds refills that weapon instead.

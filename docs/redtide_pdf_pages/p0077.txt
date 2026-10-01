@@ -1,0 +1,42 @@
+Red Tide — Arcade Game 5 Design Document
+Situation
+Boss appears
+Boss swallow
+Tide cleared
+Quiet tide (no gunfire for 60 s)
+Last diver standing
+Match over
+Environmental lore (light, on purpose)
+Example exchange
+Mechanic: "That's... that's a fish. That's a very
+large fish."
+Diver, from inside: "It's warm in here. Shoot
+the gills!"
+Whaler: "Breathe. Buy. Go again."
+Stowaway: "Too quiet. I don't like it. I do like
+it."
+Diver: "Fine. Just me, then."
+Mechanic: "Tide twelve. We'll get thirteen."
+Stowaway: "Next time, more snacks."
+The divers work for the Owners, a salvage concern that pays scrip for cleared water and
+asks no questions. Each map's dossier terminals, chalk marks, and Wrecker chatter drop a
+line or two: the Marguerite went down with the captain's safe; the cave swallowed an
+expedition whose lanterns still burn; the reef's tribe hunts because the Owners pay them
+too; Atlantis's citizens drowned and kept walking; the station bred what it found in the
+abyss and the abyss bred back. That's all the story the game needs: the players supply the
+rest over voice chat.
+Modes
+All modes run on the same maps and ecosystem; each changes the rules, not the content.
+The host picks a mode in the lobby.
+Mode
+Red Tide
+(standard)
+Blackout
+Rules
+Tides, quotas, Hunts, as designed
+Lamps off, no luminous flora, sonar
+pings only
+Why play it
+The main game
+Horror: the reef by ear
+Page 77 of 90

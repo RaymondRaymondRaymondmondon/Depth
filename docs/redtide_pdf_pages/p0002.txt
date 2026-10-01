@@ -1,0 +1,38 @@
+Red Tide — Arcade Game 5 Design Document
+Zombies system
+Power-ups
+Buildables
+Downs, revives, Last Stand pistol
+Special rounds (hellhounds)
+Easter eggs and lore
+Design pillars
+Red Tide version
+Drops: Resupply, Blood Frenzy, Double Scrip,
+Purge, Shipwright, Fire Sale, Harpoon Hour
+Salvage builds: shield, turbine, tripwire nets,
+decoy buoys
+Unchanged, underwater
+Hunts: an enemy faction round, or a
+predator round when the water is bloody
+enough
+Dossiers and one hidden quest per map
+1. The food web is the enemy. Zombies come because it's a round; beasts come because
+you made blood, noise, or a corpse. The ecosystem runs without you and reacts to
+everything you do.
+2. Every kill is a decision. Small kills are safe scrip; big kills bring bigger things; too many
+kills bring the things that eat everything.
+3. Enemies are prey too. The human and unhuman factions that hunt you are also on the
+menu, and the smartest play is often to let the reef eat them.
+4. Each map is an ecosystem first and a level second. Layouts are built around where
+creatures live, feed, and hide.
+5. Zombies pacing. Fast, readable, arcade-loud: 60-second tides early, minutes-long late,
+always a way to run, always a reason to stop and buy.
+The five maps (smallest to largest): the Sunken Ship, the Underwater Cave, the Coral
+Reef, Atlantis the Forgotten City, and Approaching the Void.
+Session: 4 players (or 1-3 with scaled quotas), 20-60 minutes, ending when every player is
+dead. The score is the tide reached and the scrip earned, and both pay arcade tokens.
+Core loop and rules
+A match runs in tides. Each tide has a kill quota; meeting it ends the tide, pays a bonus,
+and starts the next one harder. Between tides the water calms for 20 seconds, the only
+reliable time to buy, build, and revive.
+Page 2 of 90

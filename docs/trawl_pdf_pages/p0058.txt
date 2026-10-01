@@ -1,0 +1,55 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+Guiding the skiff
+Out of the Gannet's light, the skiff crew sees only its own lantern radius; the sea is black.
+The sonar operator sees the skiff as a bright blip with every contact around it, and
+becomes the skiff's eyes, the way a Lethal Company terminal operator watches the radar.
+• Walkies are the lifeline: proximity voice dies past 12 m, so a skiff crew without walkies
+has only flares and the ship's bell.
+• Marks the sonar operator places show as bearing arrows on the skiff crew's screens.
+• The searchlight can hold the skiff in its cone for safety, but light draws the CUriOUS.
+• Left behind. Anyone not aboard the Gannet when it crosses the harbour line is lost for
+the night (dead, body lost, the Owners' fine).
+Fishing from the skiff
+The kill happens at the waterline. Anything under 30 kg can be landed in the skiff; bigger
+fish are killed in the water alongside (the Long shot bonus is easy here) or tow-roped and
+dragged back to the Gannet. There are no scuppers and no offal barrel: every drop of
+blood goes straight into the sea, and a landed thrasher can capsize the boat.
+Skiff destinations
+Each ground has skiff-only fishing marks (about twice the bite rate, the ground's rarer
+species, and its boss water) and landings (islands and ledges explored on foot, with
+salvage caches, consignment items, harbour-request finds, and shore bait).
+Ground
+Eclipse
+Lagoon
+Fishing marks
+The Crest Pass
+(grouper; Crest
+Grouper boss
+water), the
+Sargassum Line
+(mahi, flying fish),
+the Seagrass
+Flats (lobster,
+pots)
+Landings
+The Atoll: a palm
+islet with the
+tribe's shrine and
+a beached
+smuggler sloop.
+The Old
+Lighthouse rock:
+the keeper's
+store and his
+logbook. A
+sandbar that
+floods at 02:00
+Worth it for
+Easy marks, first
+salvage, the
+tribe's trade
+Risk
+Barracuda, reef
+sharks, canoes
+on canoe nights
+Page 58 of 79

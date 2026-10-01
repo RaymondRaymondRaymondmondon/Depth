@@ -1,0 +1,9 @@
+Red Tide — The Underwater Cave: map data workbook
+
+Sheets: Species (blue = tunable inputs), Attacks, Diet (predator rows x food columns, weights sum to 1), Flora, Spawn, TideCurve (formulas from the Tunables block), Blockout (zones, links, points of interest in metres), Boss, Faction.
+Claude Code loads these as redtide_maps/cave/*.json. Change blue cells only; formulas recompute.
+Rules: HP = base x 1.08^(tide-1); bounty = base x 1.10^(tide-1); blood on death = size x 20; blood/s wounded = size x 2 x wound fraction.
+Sizes 1-6 map to HP 20/60/250/900/3000/15000 and bounty 40/80/180/400/900/1500 (design doc, Shared beast rules).
+All values are design targets from the Red Tide design document (2026-09-29); tune with --eco-sim and --redtide-sim.
+Cave-specific: SLIPSTREAMS sheet lists the six one-way currents (8 m/s; no firing inside; beasts ride them too; the Drowned never do).
+Depth column in Blockout is metres below the Mouth; the Dry Chambers are air (walking speed 1.2 m/s, gravity on).

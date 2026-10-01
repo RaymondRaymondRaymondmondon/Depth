@@ -1,0 +1,57 @@
+Red Tide — Arcade Game 5 Design Document
+Flora (12)
+Flora
+Glass sponge reef
+Tube worm garden
+(vents)
+Bacterial mat
+Bamboo coral
+Sea pen field (rim)
+Xenophyophore carpet
+Black coral thicket
+(vault)
+Specimen kelp
+Pressure moss
+Void bloom
+Brine lily
+Lab algae tanks
+Type
+Structure
+Producer
+Producer
+Cover
+Cover
+Producer
+Cover
+Luminous
+producer
+Producer
+Hazard
+Hazard
+Producer
+Effect
+Sharp glass: bleeds on contact; hides small
+beasts; shatters loudly
+The vent web's base; yeti crabs and vent
+shrimp feed here
+Carpets the warrens; amphipods swarm it
+Tall stalks in the galleries
+Waist-high; sand eels beneath; glows when
+brushed, which shows a diver's path across
+the plain
+Brittle; walking on it kicks up silt that hides
+scent for 5 s
+Dense and dark; the leviathan's hunting
+ground
+Lab-grown, glowing; draws every luminous-
+CUriOUS species in the station
+Thin growth on the station walls; harmless
+A luminous flower on the overlook edges
+that opens toward the abyss and lures
+CUriOUS beasts, and divers, over the lip
+Grows at the brine pool in the warrens;
+touching it or the pool: 20 damage and 5 s of
+slow
+Spirulina tanks the station's small fish still
+live on
+Page 54 of 90

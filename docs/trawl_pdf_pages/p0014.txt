@@ -1,0 +1,34 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+Station
+Gutting table
+Overlay
+Species name, weight, grade, and freshness of the
+fish in hand
+Always on screen: the four inventory slots and carried weight (bottom left), a ping marker
+when a crewmate points something out, and the ship's bell icon when it rings. Time is read
+from the wheelhouse clock or a bought pocket watch, as in Lethal Company. Injuries show
+as small icons on the crew board and as their effects (a broken arm hangs; a bleeding
+player leaves drops). Overboard shows as a narrowing breathing vignette with the time
+left.
+The Killscore pops up over each kill as a short chalk stack (the fish and its base value,
+each bonus with its multiplier, and the total) that the whole crew sees for 2 s. Cooking
+progress shows as a number over the fire to whoever stands at it.
+The sonar
+The wheelhouse sonar is a round phosphor scope (the same visual language as the
+expedition sonar chart) and the crew's only view below the surface outside the lantern's
+light.
+• Passive (always on): shows only loud things near the boat. At half speed or more, the
+Gannet's own screw drowns it out.
+• Active Ping: one every 3 s, 150 m radius. Returns show for 6 s and fade. Every ping
+writes noise into the water at the boat, which Ghost Worms and CUriOUS species hear.
+• Depth dial: the operator picks which depth band the scope shows; a side-scan toggle
+shows the water column under the boat as a profile.
+• What returns look like: schools as dotted clouds, single fish as blips sized by size class,
+set gear as bright squares, wrecks as hard shapes, kelp as shadow that hides what is
+behind it, and in the Grotto every return has a faint echo twin. The Kraken whites out
+the whole scope.
+• Marking: the operator clicks a contact to mark it; every crewman sees a bearing arrow
+at the edge of their screen for 10 s.
+• Second sonar (Slipway upgrade): a second operator, and depth numbers on every
+contact.
+Page 14 of 79

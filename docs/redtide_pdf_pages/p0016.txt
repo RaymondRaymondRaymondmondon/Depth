@@ -1,0 +1,48 @@
+Red Tide — Arcade Game 5 Design Document
+Charm
+Fair Shares
+Slick Fins
+Clean Water
+Fisher's Luck
+Chum Bucket
+Hard Shell
+Ghost Fin
+Items
+Item
+Limpet charge
+Ink bomb
+Chum bag
+Flare
+Cleaning brush
+Repair kit
+Effect
+Every living diver's scrip is pooled and split evenly;
+the whole team sees the split (once per match)
+30 s of full sprint
+Clears blood within 30 m
+Next 10 kills drop double scrip
+Spawns a big chum cloud 30 m away: the reef looks
+over there
+60 s of 50% damage reduction
+15 s: beasts and enemies lose the player's scent
+and SOI-Jnd
+Slot
+Tactical (2-4)
+Tactical
+Tactical
+Tactical
+Equipment
+Equipment
+Use
+Sticks and blows; the loudest thing short of a trap
+A blinding cloud, no damage, cuts sight and scent
+for 8 s
+Throw a corpse chunk to lure predators to a spot
+Light that curious species approach and light-
+sensitive species flee
+Scrapes parasites off yourself or a teammate
+Fixes barricade nets faster
+Salvage builds (buildables)
+Parts are scattered across the map; carry them to a workbench. One build is held at a
+time.
+Page 16 of 90

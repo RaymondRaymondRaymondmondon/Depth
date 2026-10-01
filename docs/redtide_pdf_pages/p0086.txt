@@ -1,0 +1,32 @@
+Red Tide — Arcade Game 5 Design Document
+Approaching the Void: the final log
+1. Trigger: read terminal 1 in the mess.
+2. Read terminals 2-5 in order (bunks, dry lab, holding pens, mech bay); each requires the
+previous one and each spawns a Remnant squad on read.
+3. Open tank 7 in the wet lab with the station's master key (the Leviathan's kill drop). The
+Relict egg inside is a carried item; the Relict comes for it wherever it is (a permanent
+blood source of 300 to the Relict only).
+4. Carry the egg to Overlook 5 and place it on the collapsing ledge; when the Relict climbs
+onto the ledge for it, drop the ledge (the trap). The Relict falls into the abyss; it does
+not return this match.
+5. Reward: the Abyssal Lure (Forged), 5,000 scrip split, and the final logs dossier page:
+what the station was breeding. Fail-safe: if the egg falls into the void, the Relict follows
+it and the quest ends without the weapon.
+The wonder-weapon quests (Reef, Atlantis, Void)
+The three quests in Modes stay as written and are separate from the above; both can be
+completed in one match.
+Ecosystem test plan
+--eco-sim <map> <minutes> <pattern> and --web-check <map> assert the following
+before any art exists. Patterns: quiet (knife only), loud (every kill with a powder gun),
+camping (one room, every kill), spread (four divers in four regions).
+Every map
+- -web-check : every species has a predator or a listed reason not to; every tier-I
+species has a producer; every corpse has a scavenger within one region; no diet row
+references a missing species.
+Population is stable for IO minutes with no divers (no species goes to O or above its
+spawn count).
+A size-3 corpse in still water reaches a threshold-30 predator's cue at 20 m within 60 s
+and a threshold-120 apex only when four such corpses exist.
+The loud pattern at tide 8 produces an alarm squad within 90 s in a single region; the
+spread pattern produces none in the same time.
+Page 86 of 90

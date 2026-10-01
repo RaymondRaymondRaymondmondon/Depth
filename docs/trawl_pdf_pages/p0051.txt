@@ -1,0 +1,160 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+Threat
+Gull flock
+Barracuda
+pack
+Reef shark
+Great
+White
+Siren
+Kelp Wraith
+Feral
+Merman
+Lantern
+Angler
+Ghost
+Worm,
+hatchling
+Ghost
+Worm,
+adult
+Isopod
+swarm
+Size
+1 (x12)
+8)
+3
+5
+3
+3
+3
+4
+3
+6
+1 (x30)
+1 each
+30 each
+80
+600
+60
+50
+70
+200
+120
+1,500
+3 each
+Speed
+(m/s)
+8 in air
+burst
+burst
+burst
+2
+1
+(drifts)
+3
+lunge
+3
+surge
+1
+On the crew
+Pecks: no
+injury
+Bite on a diver
+(injury)
+Bite at the
+waterline
+(injury)
+Bite (serious
+injury);
+knocks crew
+off the rail
+Charm for 5 s
+within 40 m of
+the song
+Entangles;
+drags at 1 m/s
+toward the
+water
+Thrown spear
+(injury)
+Lures within
+12 m (walks
+them to the
+rail); grabs
+Bite (injury)
+Swallows a
+crewman in
+the water
+Ankle bites
+(slowed)
+On the boat
+and catch
+Takes one fish
+under 3 kg
+every s
+Bites hooked
+fish (-50%
+weight)
+Takes hooked
+fish
+Ram: -25 to
+one section
+Turns the
+helm 20 a
+second
+toward rocks
+CUtS a warp in
+4 s; strips set
+gear
+Bites through
+any line but
+Snags the net;
+coils the hull
+(-10 a second
+to two
+sections)
+Each eats 1 kg
+of catch a
+minute
+Weak point
+Any hit
+Head
+Gills
+Gills, eyes
+Head, when
+surfaced
+Body; a knife
+cut frees the
+crewman
+Head
+The lure: a hit
+blinds it for
+20s
+Head
+Three glowing
+gill slits
+Boiler steam
+kills
+Drawn at
+Fish on deck
+Flash lures,
+blood 15
+Blood 30
+Wake 40,
+blood 120
+Light, Wake
+20
+Movement
+at the rail
+Nets in the
+canopy
+Light,
+curiosity
+Vibration
+Vibration,
+Wake 55
+Corpses,
+offal on
+deck
+Page 51 of 79

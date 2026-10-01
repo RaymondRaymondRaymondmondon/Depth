@@ -1,0 +1,59 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+The larder. Cooked and canned fish don't spoil, so the crew can hold them in the hold
+across nights: a quota reserve for a bad night, or trade goods for the next island.
+The decision every night. Deliver enough to stay on pace for the quota; bank a good catch
+at market when the purse needs guns or upgrades; and row spare fish, especially the
+species a trader wants, to an island where they are worth more as trade than as cash. A
+crew that cashes everything is always short of quota, and a crew that delivers everything
+never affords the skiff's steam launch.
+Salvage is sold to the Owners at a rate that rises toward the deadline, the Lethal Company
+buy-back rule: 40% after night one, 70% after night two, 100% at the deadline count.
+Holding salvage is a bet that the crew will survive to sell it. Salvage never counts toward
+the quota; it pays shillings into the ship's purse.
+The Chandler. Consumables and hand gear, bought at the dock. Rods are priced in the
+Tackle table, guns and attachments at the Gunsmith (see Weapons), and boss lures with
+the mini-bosses. The Gannet starts every run with two handlines, one light rod, two gaffs,
+a fish priest, two knives, a deck bucket, one life ring, a patch kit, and 20 kg of ice.
+Item
+Ice
+Coal
+Squid strips, shrimp
+Chum bucket
+Line spool (mono / braid / wire
+leader / glow)
+Hooks (small, circle, big-game
+treble)
+Lures (spoon, jig, popper, plug,
+rattle, glow)
+Sabiki rig
+Longline
+Crab pot
+Price (sh)
+5 per 20
+kg
+10 per
+sack
+4 per tin
+15
+8/15/12/
+20
+3/5/12
+10-25
+each
+12
+60
+25
+Notes
+Keeps gutted fish fresh; the hold holds
+600 kg
+A sack runs the engine about 3 minutes
+at half, or the boiler grill for a night
+10 baits
+Writes 40 blood over 60 s
+One re-rig
+Per 5
+Lost with a broken line
+Catches 3-6 bait fish at once
+20 hooks, two radio buoys
+Reusable
+Page 64 of 79

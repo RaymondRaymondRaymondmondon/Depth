@@ -1,0 +1,36 @@
+Red Tide — Arcade Game 5 Design Document
+The web in motion
+• The sprat chain: algae mat krill sprats trevally and barracuda bull shark tiger
+shark. Shooting sprats for cheap scrip is the map's first trap.
+• The cleaner rule: the galley and the outside cleaning stations calm the hosts that visit
+(groupers, barracuda, turtles). Wiping them out makes the mid tiers hostile
+everywhere.
+• The crocodile problem: the only air inside is its lair. Feed it a turtle (shoot one near the
+pocket) and it eats for 60 s.
+• Wreckers feed the reef: a Wrecker squad dying in the salon is 80 blood in a closed
+room; the bull shark arrives 30 s later. Let the reef kill them outside instead.
+• The Goliath: everything that flees runs to the engine room's shadows and gets eaten
+there. The Forge is safe only right after it has fed.
+Definition of Done
+• All 40 beasts and 12 flora exist as data and models; --eco-sim ship 20 shows the
+sprat chain calling a bull shark within 90 s of 15 sprat kills in the salon.
+• A four-player LAN match reaches tide 10 with the crocodile, a Wrecker Hunt, and the
+Goliath's inhale all seen.
+Level 2: The Underwater Cave
+A flooded cave system with dry air chambers, a deep sump, and six slipstreams that carry
+divers and beasts between its halls in seconds. It is dark, loud (every shot echoes), and
+half its cast is insects and amphibians that live where the water meets the air.
+Layout
+Zone
+The Mouth (start
+pocket)
+The Flooded Gallery
+What's there
+Spawn under a light shaft, the Gannet rack,
+Juggernaut
+Long hall of columns; Needler Mk l, Quick Brine,
+workbench; slipstream A to the Chimney
+Opens
+with
+750
+Page 29 of 90

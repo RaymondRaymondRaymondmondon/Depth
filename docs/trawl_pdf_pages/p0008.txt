@@ -1,0 +1,61 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+Role
+Diver
+Medic
+Rank 2 (after deadline 1)
+Deep Lungs: +15 s more
+air • or Glint Eye: sees
+salvage through one wall
+Field Surgeon: treats two
+serious injuries a night • or
+Warm Blankets:
+overboard timer +8 s for
+the whole crew
+Rank 3 (after deadline 2)
+Pressure Hardened:
+hardhat works 30 m
+deeper; free-dives 20 s
+without a hose • or
+Wreck Rat: opens
+locked cabins without a
+crowbar
+Second Wind: CPR
+window 15 -Y 30 s • or
+Steady Nerves:
+charmed or stunned
+crew within 6 m recover
+twice as fast
+Rank 4 (after deadline 4)
+Strongback: carries two-
+diver lifts alone • or Old
+Hand: their hose and
+lifeline never tangle
+Miracle Worker: once per
+deadline, revives a
+crewman whose body is
+aboard, mid-night • or
+Ghost Speaker: hears
+and talks with the dead,
+and sees ghosts' outlines
+Upgrade numbers live in trawl _ data. cpp with the rest; --trawl-sim reports quota
+rates with and without upgrades so no single pick dominates its pair.
+Bots fill empty berths if the host chooses. In the lobby the host sets the crew size from 1
+to 6 and whether empty berths get bots. A bot takes a role, works the station it is ordered
+to through the ping wheel ("Take the pump," "Take port rod," "Follow me"), and falls back to
+a sensible default watch when no one gives orders. Bots fish at a competent-but-not-
+expert level, never dive unless ordered, and do not use voice. A dropped player's seat is
+taken by a bot after the 2-minute reconnect window, per the shared arcade rule.
+Bot crew
+A bot is a crewman with a role, an inventory, and a body that can fall overboard, driven by
+a small Utility brain in trawl _ bots . cpp . It scores every station it could work each second,
+weighted by its role, standing orders, and what is happening, and walks to the best one.
+Bots are good hands, not good captains: they never decide where the boat goes or when
+to go home.
+Skill. The host picks one of three levels for all bots.
+Skill
+Green
+Reaction time Hook-set SUCCess Gaff SUCCess
+700 ms
+Aim error (cannon, rifle)
+± 40
+Page 8 of 79

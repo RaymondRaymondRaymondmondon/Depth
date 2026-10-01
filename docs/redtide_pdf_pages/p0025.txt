@@ -1,0 +1,112 @@
+Red Tide
+Arcade Game 5 Design Document
+Beast
+Cleaner
+Wrasse
+Cleaner
+Shrimp
+Fiddler Crab
+Whelk
+Sea Hare
+Feather
+Duster Worm
+Parrotfish
+Rabbitfish
+Class
+Fish
+Crustacean
+Crustacean
+Mollusc
+Mollusc
+Worm
+Fish
+Fish
+Size
+1
+1
+1
+1
+2
+1
+2
+2
+Tier
+Cleaner
+Cleaner
+1
+1
+1
+1
+1
+1
+Eats
+Parasites
+Parasites
+Detritus
+Corpses
+Coralline crust
+Sea lettuce
+Plankton
+Plankton, algae
+mat
+Turf algae
+Algae
+Eaten by
+Nothing
+willingly
+Blenny
+Octopus,
+loggerhead,
+trevally
+Octopus
+Crabs,
+loggerhead
+Nothing
+(toxic)
+Blenny
+Sprats, whale-
+sized nothing
+here
+Grouper, bull
+shark
+Barracuda
+Behavior and note
+Runs a cleaning
+station in the
+galley; hosts there
+are calm; killing it
+raises host
+aggression 20%
+The other cleaning
+station; brushes
+parasites off divers
+who wait 3s
+Scuttles on the
+sand outside;
+waves a claw when
+a predator is near
+(a free warning)
+Reduces corpse
+blood; killing them
+slows blood
+cleanup
+Slow; free scrip
+Inks when shot: a
+free ink cloud
+Retracts when a
+diver passes; a
+motion sensor for
+ambushers
+A swarm around
+the algae mat;
+shooting it is
+pointless and loud
+Crunches loudly
+(sound layer);
+sleeps in a mucus
+cocoon in cabins at
+night tides
+Venomous dorsal
+spines: touching a
+live one hurts
+Page 25 of 90

@@ -1,0 +1,59 @@
+Red Tide — Arcade Game 5 Design Document
+Mode
+Quiet Water
+Feeding Frenzy
+Quota
+Aquarium
+Salvage Run
+The Long Night
+Apex
+Draft
+Poachers
+Rules
+Powder guns and explosives
+removed; knives, spearguns,
+needlers, nets only; alarm halved;
+blood decays slower
+Blood never decays; every kill
+bleeds 3x; Blood Frenzy drops
+constantly; tides are 60 s each
+No tides: survive until a timer, with
+the Owners' quota rising every 2
+minutes; scrip only from beasts
+over size 2
+No enemies, no Hunts, no tides;
+infinite scrip; every beast at once;
+a free camera
+One life each, no revives, a 15-
+minute timer, and five salvage
+crates to carry to the extraction
+point through the whole map
+A four-hour match saved between
+sessions (host-side save); tides
+continue where they stopped
+Every Hunt is a Predator Hunt; the
+boss is awake from tide 1; bounties
+doubled
+Each diver gets a different starting
+loadout from a shared pool, no
+Locker, no racks; weapons only
+from enemies
+The four divers are split 2 v 2: each
+pair earns scrip from the same
+reef; pairs can't hurt each other
+but can Chi-Jm each other; the
+richer pair at the timer wins
+Why play it
+The stealth game hidden inside the
+shooter
+Ten minutes of chaos
+Rewards patience and target
+selection
+Watch the web, learn tells, test
+builds, take screenshots
+A heist
+Friends across a week
+For teams that have beaten tide 30
+Forces the team to hunt Wreckers
+The only competitive mode
+Page 78 of 90

@@ -1,0 +1,41 @@
+Red Tide — Arcade Game 5 Design Document
+• Nets hold up to size 3; limpet charges and the Cannon Harpoon are the answer for size
+• A beast at 20% HP or less in the Flee state leaves a blood trail; a fleeing beast that
+reaches its home stops bleeding after 10 s.
+What a beast contributes to the web
+Killing a beast removes it from its region's population, adds its corpse (a blood source
+scavengers reduce), and changes who patrols there. Killing all the cleaners in a zone raises
+every host's aggression; killing all the grazers empties the zone of the predators' reason to
+come; killing an apex empties a zone of fear for one tide, and then something else moves
+in.
+Level 1: The Sunken Ship
+The Marguerite, a 60-meter steam yacht on her side on a sand shelf at 30 meters, is the
+smallest map and the tutorial for the whole game: tight corridors, flora that bites, fish
+whose blood calls sharks, and an alarm that fills fast when four divers fire in one room.
+Layout
+Zone
+The bridge (start
+pocket)
+Grand salon
+Galley and pantry
+Cabin deck
+Engine room
+What's there
+Spawn, the Gannet rack, Juggernaut machine
+visible below
+An air pocket under the tilted ceiling (the
+crocodile's lair), Quick Brine, Needler Mk I rack, a
+workbench
+Flechette 12 rack, the first Locker spot, parasite
+cleaning station (a cleaner shrimp colony)
+Six cabins with moray pipes, Speed Brine, Long
+Speargun rack, Sea-Pattern Carbine rack
+Power (the generator), the Pressure Forge, the
+Goliath's home
+Opens
+with
+750
+1,000
+1,250
+1,500
+Page 22 of 90

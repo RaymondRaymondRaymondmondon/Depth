@@ -1,0 +1,32 @@
+Red Tide — Arcade Game 5 Design Document
+Sheet
+Barks
+Movement, in one paragraph
+Holds
+252 diver lines across 21 situations (3 per diver
+per situation) plus the voice rules for expanding
+each set to 6-10
+Divers swim at 2.0 m/s, sprint at 3.4 for 6 s on a stamina bar that only appears while
+sprinting and refills in 8 s, rise and dive at 1.4, and reach full speed in 0.4 s. Aiming slows
+swimming to 60%; harpoons and spearguns to 40%. In air chambers they walk at 1.6 with
+no jump and a 1 m step-up. A hold can be broken early by mashing (six taps) or by a
+teammate dealing 15% of the holder's HP. Knockbacks unsettle aim for 0.6 s. Purchases
+over 1,000 need a 1 s hold; reviving requires holding still; downed divers drift-crawl at 0.6.
+Past the abyss edge the pull lasts 5 s with a warning at the first second.
+Progression, in one paragraph
+A match pays 10 tokens, a win (tide 10+) 25, and 2 per tide past 10; firsts pay more (tide 20
+on a map 50, a boss 30, a quest 100, a full dossier 75). Ranks cost 50 x rankA1.6 tokens
+each, so a good match earns 40-70 and rank 50 is about 150 matches. Ranks unlock
+charms, skins, pouch slots, and three bonus dossier pages; two charms (Lucky Locker, Fair
+Shares) come from tide milestones instead. Cosmetics cost 100-300. Nothing bought or
+earned changes in-match power.
+The how-to-play page (final text)
+One scrolling page in the arcade menu, styled as a page torn from the ship's log, chalk
+headings, and one diagram. This is the game's only teaching; nothing in a match explains
+itself.
+THE OWNERS ' STANDING ORDERS FOR DIVERS
+1. The job. You and up to three others go down with a pistol, a knife, two charges, and five
+hundred scrip. You kill what lives there and the Owners pay by the head. Every tide sets a
+quota; meet it and the next tide is worth more and wants more of you. There is no end.
+There is only how deep you get.
+Page 89 of 90

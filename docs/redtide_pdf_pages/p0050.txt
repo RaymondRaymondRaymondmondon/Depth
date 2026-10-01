@@ -1,0 +1,81 @@
+Red Tide — Arcade Game 5 Design Document
+Beast
+Nile Crocodile
+of the Canals
+Great White
+Giant Squid
+The Cistern
+Wyrm
+Class
+Reptile
+Fish
+Cephalopod
+Fish
+Size
+5
+5
+5
+6
+Tier
+4
+4
+4
+5
+Eats
+Monitors,
+loggerheads,
+frogs, Lost Ones,
+divers
+Tuna, seals,
+sharks, enemies,
+divers
+Tuna, seals,
+squid, anyone in
+the stacks
+Anything near a
+drain
+Eaten by
+Nothing but
+the Wyrm
+Nothing but
+the Wyrm
+Nothing
+Behavior and note
+Farms' canals;
+ambushes from
+the sluice gates;
+hauls out on the
+terraces
+Wanderer over the
+wall; threshold 150;
+avoids ichor-
+scented streets
+The library's dark:
+reaches through
+doorways; the
+glow-moss shows
+its eye
+A conger the
+length of a street
+living in the cistern
+network: surfaces
+from any grate,
+drags a diver into
+the drains
+(teammates have 6
+s), guards the
+chapel's god-pool;
+from tide 12 it
+hunts the streets
+The web in motion
+• Downhill: the aqueduct means the summit's fights are the lower town's problem; a
+team that sets one diver below to hold the drains will lose them to the Wyrm.
+• Ichor: dead Lost Ones repel sharks and the Wyrm for 60 s and draw crabs, cucumbers,
+and the monitor; a street of their dead is a safe corridor for a minute.
+• The library: the squid can't leave the stacks; the Locker there is a trade of pulls for
+reach.
+• The plaza lane: tuna and swordfish cross at speed; standing in the lane is a ram;
+standing beside it and shooting a tuna brings the great white over the wall.
+• The farms: harmless grazers everywhere, and the crocodile in every canal; the sluice
+trap floods a terrace and drowns a Lost One phalanx.
+Page 50 of 90

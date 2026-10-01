@@ -1,0 +1,36 @@
+Red Tide — Arcade Game 5 Design Document
+Tools
+--eco-sim <map> <minutes> (headless ecosystem), --redtide-shots (every
+creature, weapon, and map zone rendered to PNG), --redtide-sim <map> <tides> (a
+bot team plays to a tide count and reports scrip, downs, and which beasts did the
+killing), --net-loop redtide .
+Sound design
+Red Tide's sound is the ecosystem made audible: every species has a voice, every kill has
+a wet consequence, and the music is the round timer. All of it is synthesized through the
+cue registry and bUSes defined in the Depth master reference.
+Underwater mix rules
+• Everything is low-passed and reverberant; gunfire is a thump and a hiss of bubbles, not
+a crack, except the powder guns, which crack and then boom in the water.
+• Distance is muffling: sounds beyond 40 m lose their highs entirely, so the direction of a
+far predator is felt more than heard.
+• The diver's own breathing is always present and quickens with low HP and nearby
+blood.
+Music
+State
+Calm between tides
+Tide (early)
+Tide (late)
+Blood rising
+Predator approaching
+MusiC
+A slow brass-and-glass drone in the map's key; the
+20 s countdown ticks under it
+A pulse and a bass line; adds a melodic layer when
+the quota is more than half done
+Driving percussion, distorted brass; a siren layer at
+20 +
+A low string swell that grows with the local scent
+value; the strings are the scent meter you can hear
+The map's apex motif enters, panned from its
+direction
+Page 63 of 90

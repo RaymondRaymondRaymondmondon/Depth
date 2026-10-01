@@ -1,0 +1,34 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+5. Run for harbor. The crew decides when to leave. The return takes 45-90 s depending
+on distance and steam. The Gannet must cross the harbor line before 05:00; after that,
+the Owners' customs cutter seizes the hold and fines 10% of money. There is always a
+reason to stay ten more minutes.
+6. Sell. Fish are delivered to the Owners/ quota scales, sold at the Fish Market for the
+ship's purse, or kept aboard for trading and the larder (see Economy: Three ways to use
+a fish). Salvage goes to the Owners (paid at a rate that rises toward the deadline, see
+Economy). Only fish delivered to the Owners' scales count toward the quota;
+everything sold goes into the ship's purse to spend on gear.
+7. Repeat for nights two and three. After the third night's sale, the Owners count the
+quota.
+Quota. Starts at 400 shillings for six players (scaled solo, for two, for four;
+bots count as crew). After each met deadline it rises by 40% plus 60 shillings, so by the
+fourth deadline the crew must work Atlantis Waters or dive for relics to keep up. Fish
+delivered past the quota carry over as credit toward the next deadline at half their value;
+shillings in the ship's purse never pay the quota.
+Owners' consignments. Each deadline the telegraph also names one salvage item the
+Owners want delivered to their office window at the deadline count. The consignment is a
+separate demand from the quota, and it is what forces the crew to dive and to take the
+skiff to the landings.
+• Where it is. The telegraph names the item and the ground, with a one-line clue
+("STRONGBOX LAST SEEN ABOARD SLOOP MARY ANNE STOP"). The item is in one of
+that ground's wrecks or landings. Deadline 1 names the Lagoon or the Weeds, deadline
+2 the Weeds or the Grotto, deadline 3 the Grotto or Atlantis, and deadline 4 onward
+Atlantis.
+• What it pays. No shillings. The crew picks one: a free Slipway upgrade worth up to 600,
+or 10% off the next quota.
+• Missing it. The run continues, but the Owners raise the next quota by 25% and
+repossess the Gannet's most expensive upgrade. Missing two consignments in a row
+ends the run.
+• Keeping it. Once aboard, it sits in the hold. The Drowned and the Ghost Ship's
+boarders go for it first.
+Page 4 of 79

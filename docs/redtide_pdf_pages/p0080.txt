@@ -1,0 +1,66 @@
+Red Tide — Arcade Game 5 Design Document
+Season
+2: Migration
+3: Parasites and
+plagues
+4: Giants
+5: Night
+Theme
+Passers-through that arrive only in
+some tides
+New parasites and a fungal flora
+that spreads
+One new size-5 per map
+Nocturnal casts that only appear
+when lamps are off
+Examples
+A tuna run in the Sunken Ship's
+shark lane; a whale calf on the
+reef that the Matriarch hunts;
+salmon through the cave's
+slipstreams
+Isopods that replace fish tongues;
+a red-tide algae that blinds; a
+cordyceps for crabs
+A whale shark, a giant manta, a
+leatherback in the cave, a basking
+shark over Atlantis, a giant oarfish
+Flashlight fish, vampire squid on
+every map, a night-shift shark
+A season is a data drop: species rows, diet matrix columns, spawn entries, and dossier
+pages, with models from the existing body plans.
+Weapon handling and the Forged list
+Every weapon gets handling numbers (how it feels) and a Forged identity (what it
+becomes). The Forge still gives +150% damage and +50% ammo, but each weapon's
+Forged form has a name and one changed behavior, the way Pack-a-Punch weapons do.
+Handling
+Spread is in degrees at rest; ADS is aim-down-sight time in seconds; swim multiplier is
+speed while aiming; headshot is the weak-point multiplier for the class (Deadeye raises
+every class by 1.0).
+Class
+Gas pistols
+Needle repeaters
+Spread hip
+/ ADS
+2.5 / 0.8
+4.0/1.5
+ADS
+time
+0.20
+0.25
+Swim while
+aiming
+0.9
+0.7
+Recoil
+Low, vertical
+Medium,
+rising
+Headshot Falloff
+2.0
+1.8
+Full to 15 m, at
+25m
+Full to 20 m, at
+30m
+Page 80 of 90

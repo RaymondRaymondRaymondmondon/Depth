@@ -1,0 +1,53 @@
+zone	species	count_tide1	respawn_s	capacity_mult_per_tide	count_tide10
+The Lagoon	Box Jelly	4	240	1.03	5
+The Lagoon	Reef Axolotl	4	240	1.03	5
+The Lagoon	Monk Seal	1	600	1.03	1
+The Lagoon	Anthias	20	20	1.03	26
+Mangrove Nursery	Crab-eating Frog	6	180	1.03	8
+Mangrove Nursery	Reef Axolotl	4	240	1.03	5
+Mangrove Nursery	Giant Reef Toad	1	500	1.03	1
+Mangrove Nursery	Olive Sea Snake	1	300	1.03	1
+Staghorn Forest	Clownfish	8	120	1.03	10
+Staghorn Forest	Butterflyfish	8	90	1.03	10
+Staghorn Forest	Angelfish	6	120	1.03	8
+Staghorn Forest	Triggerfish	3	180	1.03	4
+Staghorn Forest	Crown-of-thorns Starfish	4	300	1.03	5
+Staghorn Forest	Ribbon Eel	4	300	1.03	5
+Staghorn Forest	Olive Sea Snake	2	300	1.03	3
+Staghorn Forest	Moray Eel	4	360	1.03	5
+Staghorn Forest	Coral Grouper	4	360	1.03	5
+Staghorn Forest	Blacktip Reef Shark	4	600	1.03	5
+The Bommie	Anthias	60	20	1.03	78
+The Bommie	Cleaner Wrasse	3	300	1.03	4
+The Bommie	Surgeonfish	8	120	1.03	10
+The Bommie	Razorfish	30	30	1.03	39
+The Bommie	Marine Iguana	8	200	1.03	10
+The Bommie	Napoleon Wrasse	1	600	1.03	1
+Brain Coral Maze	Sea Urchin	12	120	1.03	16
+Brain Coral Maze	Spiny Lobster	4	180	1.03	5
+Brain Coral Maze	Blue-ringed Octopus	3	300	1.03	4
+Brain Coral Maze	Reef Cuttlefish	3	240	1.03	4
+Brain Coral Maze	Titan Triggerfish	2	400	1.03	3
+Brain Coral Maze	Moray Eel	2	360	1.03	3
+The Sand Flats	Garden Eel	1	120	1.03	1
+The Sand Flats	Goatfish	10	120	1.03	13
+The Sand Flats	Flounder	5	180	1.03	7
+The Sand Flats	Sand Dollar	1	300	1.03	1
+The Sand Flats	Cone Snail	5	300	1.03	7
+The Sand Flats	Green Turtle	2	500	1.03	3
+The Sand Flats	Stingray	4	400	1.03	5
+The Sand Flats	Bobbit Worm	3	0	1.03	4
+The Sand Flats	Dugong	2	900	1.03	3
+The Sand Flats	Box Jelly	3	240	1.03	4
+Turtle Beach	Green Turtle	2	500	1.03	3
+Turtle Beach	Crab-eating Frog	4	180	1.03	5
+The Blue Hole	Manta Ray	1	600	1.03	1
+The Blue Hole	Great Hammerhead	1	900	1.03	1
+The Blue Hole	Anthias	30	20	1.03	39
+The Drop-off Wall	Grey Reef Shark	2	600	1.03	3
+The Drop-off Wall	Bottlenose Dolphin	5	0	1.03	7
+The Drop-off Wall	Manta Ray	1	600	1.03	1
+The Drop-off Wall	Humpback Whale	1	0	1.03	1
+The Drop-off Wall	The Matriarch	1	0	1.03	1
+The Drop-off Wall	Monk Seal	1	600	1.03	1
+respawn_s: seconds to replace one killed individual while below capacity; 0 = placed once (boss, sessile, ambush nests). Swarms and colonies count as 1 agent.

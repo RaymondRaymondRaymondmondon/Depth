@@ -1,0 +1,74 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+Station
+Port rod,
+Starboard rod
+Stern rods (2)
+Net winch
+Lantern mast
+Sonar and radio
+Harpoon
+cannon
+Gutting table
+and ice hold
+Air pump
+Skiff davit
+Where
+Rails
+Stern holders
+Stern gantry
+Midships
+Wheelhouse
+Bow
+Aft of the
+wheelhouse
+Beside the
+diving gantry
+Stern quarter
+What it does
+Cast, set, fight, land
+(see Fishing)
+Trolling rods for the
+whole night
+Shoot and haul the trawl
+Raise, lower, hood, or
+colour the lamp
+Pings, reads contacts,
+radios other stations
+and the Owners
+Aim, fire, reload
+(reloading is faster with
+two)
+Gut, grade, and ice fish
+so they keep their value
+Keeps a diver breathing
+(see Diving)
+Lowers and recovers
+the skiff (see The skiff)
+What happens if nobody's
+there
+Rigged rods can sit in
+holders; a strike without a
+hand usually breaks off
+They fish alone but only
+hold small fish
+A shot net keeps fishing
+and keeps getting heavier
+Stays where it was left
+Nobody sees below the
+surface
+Fish on deck lose
+freshness and bleed
+The diver has 30 s of air in
+the helmet
+A returning skiff has to be
+hooked on from the water,
+slowly
+Suggested six-hand watch. Helm and sonar (one person, swapping), boiler and pumps,
+two rods, net and gutting, lantern and cannon. When a dive goes down, one rod hand
+moves to the air pump. When something big comes, the rod hands drop everything for the
+cannon and the gaffs.
+Moving on the deck. Top-down, 8-way movement at 3 m/s, slower carrying (a 40 kg tuna
+halves speed; two hands carrying one halves it less). Ladders to the wheelhouse roof, the
+mast, and the engine room. The deck is wet: at more than 120 of roll, unbraced players
+slide; at 250 they fall. Holding a rail or a station braces.
+Page 11 of 79

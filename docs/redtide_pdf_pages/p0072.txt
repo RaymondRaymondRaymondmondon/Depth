@@ -1,0 +1,55 @@
+Red Tide — Arcade Game 5 Design Document
+The Goliath (the Sunken Ship)
+• Arena. The Engine Room until tide 12; after that it wanders and the ship is the arena.
+15,000 HP; front plates halve damage; the gills behind the plates are the weak point,
+exposed for 2 s after an Inhale and after a Tail Slam.
+• Phase 1 (100-60%). Inhale (a 1.5 s windup as the gills close and water rushes; pulls one
+diver from 4 m into its mouth; the team has 5 s to deal 150 damage to the gills or the
+diver is swallowed and downed), Lunge (140, bleed), Boom (a 10-noise pulse that stuns
+1 s in 10 m). It stays within 12 m of its home.
+• Phase 2 (60-30%). Adds Tail Slam (90, knocks back 6 m, drops loose cargo on three
+marked squares), Boom every 3 s, and calls two Groupers. It roams the whole room; the
+Forge can't be used while it is within 8 m.
+• Phase 3 (30-0%). Enraged: speed Inhale every 8 s, a swallow is an instant down. It
+breaks the aft bulkhead and chases into the Stern.
+• Arena rules. Shooting the luminous algae mat off the wall (300 damage) blinds it for 6 s
+because it hunts by the mat's light; cycling the power switch stuns it 2 s (once per
+fight); loose cargo can be shot to drop on it for 200.
+• Team plan. One diver baits the Inhale from 4 m; two shoot the gills in the 2 s window;
+one handles the Groupers and the cargo. Reward: 1,500 base scrip x the tide multiplier,
+a Locker weapon each, and the captain's safe key. It reforms in its home after 6 minutes
+The other four, in brief (full sheets in each map's workbook)
+Boss
+The Lobster
+(Cave)
+The Matriarch
+(Reef)
+Arena
+The Cathedral; from
+tide 12 any hall via
+slipstreams
+The Drop-off Wall and
+the Blue Hole; from
+tide 12 the flats and
+the lagoon
+The expose
+Ringing the crystal
+coral makes it rear up
+and show its
+underside for 3 s
+Killing her two pod
+members makes her
+charge in straight
+lines; the Bommie's
+surge channel flips
+her for 4 s
+Phase 3 twist
+Drops the Cathedral's
+stalactites on a timer;
+crushes a Shell Shield
+outright
+The pod herds divers
+off cover; she rams the
+Bommie and collapses
+the cleaning station
+Page 72 of 90

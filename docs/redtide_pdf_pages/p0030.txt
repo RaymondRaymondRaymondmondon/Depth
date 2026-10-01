@@ -1,0 +1,42 @@
+Red Tide — Arcade Game 5 Design Document
+Zone
+The Chimney
+The Dry Chambers
+The Sump
+The Dynamo Sump
+The Cathedral
+What's there
+A vertical shaft; ledges with Long Speargun;
+stalactites overhead (the map's trap: shoot the
+anchor to drop them, 1,000)
+Air, three linked caverns with pools; insects and
+amphibians; Speed Brine, Carbine rack; the
+Drowned's entry
+The deep, silty bottom; Bolt Harpoon, Double
+Shot; the Sleeper Shark's home; bacterial mats
+Power: a drowned expedition's generator; the
+Forge; slipstreams C and D converge here
+A vast chamber with the crystal coral and the
+Lobster's home; Kick Brine, second Locker spot
+Opens
+with
+1,000
+1,250
+1,500
+1,750
+2,000
+Slipstreams A-F are one-way currents (8 m/s) between zones; a diver can't fire inside one
+and arrives with 2 s of drift. Beasts use them too: what you see enter a slipstream behind
+you arrives where you do. The Drowned do not use them.
+Level mechanics
+• Rockfall. Gunfire in the Chimney and the Cathedral has a 5% chance per loud shot
+(noise 6+) to drop a stalactite somewhere nearby: 200 damage to whatever is under it,
+beast, enemy, or diver. The Resonator drops them on purpose.
+• Air chambers. The Dry Chambers hold the map's insects and amphibians; divers walk
+there, slowly, and the toad's tongue reaches from the pool.
+• Echo. The cave counts as one region for the alarm; the Drowned come from the Dry
+Chambers.
+• Bloodvine. A red alga that smells like blood to the web: shooting a patch makes
+predators investigate it. The cave's built-in decoy, and its built-in trap when it grows
+near the Forge.
+Page 30 of 90

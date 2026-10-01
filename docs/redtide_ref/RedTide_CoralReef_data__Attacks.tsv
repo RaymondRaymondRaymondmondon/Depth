@@ -1,0 +1,39 @@
+beast	attack	damage	windup_s	cooldown_s	range_m	tell (what the player sees)	effect
+Clownfish	Nip	1	0.2	0.4	1	Darts out	
+Sea Urchin	Spines	8	0	0	0.5		Contact 8
+Triggerfish	Bite	10	0.3	1.2	1	Fins flare	
+Surgeonfish	Scalpel	12	0	0	0.5		Bleed 3 s if grabbed
+Cone Snail	Harpoon sting	30	0.2	4	0.5	Siphon extends	Poison 30 over 15 s
+Blue-ringed Octopus	Bite	5	0.4	6	0.7	Blue rings flash	Poison 60 over 20 s; paralysis 3 s
+Box Jelly	Tentacles	25	0	1	2	Nearly invisible	Paralysis 1 s
+Crown-of-thorns Starfish	Spines	10	0	0	0.5		Poison 5 s
+Ribbon Eel	Bite	20	0.3	1.5	1.2	Ribbon flutters	
+Reef Cuttlefish	Dazzle	0	0.5	6	4	Skin ripples	Aim sway +30% for 3 s
+Giant Reef Toad	Tongue	20	0.6	4	5	Throat swells	Pulls 2 s, then Bite
+Giant Reef Toad	Bite	35	0.4	2	1.5	Jaw drops	Hold 1 s
+Olive Sea Snake	Bite	10	0.5	2	1	Investigates the visor first	Poison 25 over 10 s
+Green Turtle	Bite	25	0.6	3	1	Only if shot	
+Moray Eel	Strike	35	0.4	1.5	2	Mouth opens wide	Bleed 3 s
+Moray Eel	Hold	15	0.6	4	1.5	Straightens	Hold 2 s
+Coral Grouper	Gulp	40	0.6	2.5	2	Gills flare	Hold 1 s
+Stingray	Barb	40	0.3	3	2	Tail arches	Bleed 5 s
+Bobbit Worm	Lunge	80	0.3	5	3	Antennae tips above sand	Hold and drag 2 s
+Titan Triggerfish	Charge bite	45	0.4	1.5	2	Turns head-on, fins up	Knockback 2 m; bleed 3 s
+Napoleon Wrasse	Bite	50	0.6	3	1.5	Only if shot	
+Blacktip Reef Shark	Bite	60	0.4	1.8	2	Pectorals drop	Bleed 4 s
+Blacktip Reef Shark	Drive	30	0.5	3	4	Pack fans out	Knockback 3 m
+Grey Reef Shark	Bite	75	0.4	1.8	2	Hunched threat display first	Bleed 4 s
+Grey Reef Shark	Ram	50	0.5	3	6	Straight charge	Knockback 4 m, stun 1 s
+Bottlenose Dolphin	Ram (sharks)	80	0.4	2	3	Whistles	Knocks a shark back 5 m
+Bottlenose Dolphin	Ram (divers, if hostile)	40	0.4	2	3	Clicks	Knockback 3 m
+Monk Seal	Snatch	10	0.5	4	2	Rolls playfully	Steals a held item; keep-away
+Monk Seal	Bite	50	0.5	2.5	1.5	Only if shot	
+Great Hammerhead	Bite	110	0.5	2	2.5	Head swings side to side	Bleed 5 s
+Great Hammerhead	Ram	70	0.5	4	8	Straight charge	Knockback 5 m, stun 1 s
+Great Hammerhead	Pin	60	0.7	6	2	Pins with its head	Holds a diver 2 s against the sand
+Humpback Whale	Fluke (if shot)	120	0.8	6	5	Tail rises	Knockback 8 m
+The Matriarch	Ram	120	0.6	3	10	Straight charge with a click burst	Knockback 8 m, stun 1 s
+The Matriarch	Bite	150	0.5	2.5	3	Mouth opens	Hold 3 s; carries a diver 15 m
+The Matriarch	Tail Slap	90	0.5	4	5	Turns broadside	Knockback 6 m; collapses coral
+The Matriarch	Herd	0	1	8	30	Pod fans wide	Pod members push divers off cover toward her
+Beasts with no rows never attack. Damage is vs 100 HP divers at tide 1, x1.05 per tide (TideCurve), capped x2.5.

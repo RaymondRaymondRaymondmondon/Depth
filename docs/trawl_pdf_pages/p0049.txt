@@ -1,0 +1,145 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+Threats
+Threats are species in the food web with a size, a diet, senses, and a hunger meter, like
+everything else. What makes them threats is that the crew is on their menu. Each has a
+sonar tell, a sound tell, a visual tell, and at least one counter, all tested (see Definition of
+Done).
+Threat
+Gull flock
+Barracuda
+pack
+Reef or
+Great White
+shark
+Siren
+Kelp Wraith
+Feral
+Mermen
+Lantern
+Angler
+Ghost Worm
+Grounds
+Lagoon,
+Weeds
+Lagoon
+Lagoon
+(reef),
+Weeds,
+Atlantis
+Weeds,
+Atlantis (the
+Deep Choir)
+Weeds
+Weeds
+Grotto,
+Atlantis
+Grotto,
+Atlantis
+Drawn by
+Fish on deck,
+chum
+Flash lures,
+bleeding fish
+Blood above its
+threshold (30
+reef, 120 White)
+Light, singing
+back
+Movement at
+the rail
+Nets in the kelp
+Light and
+curiosity
+Vibration: taut
+lines, the net,
+the screw
+Tells
+Cries overhead,
+shadows
+Sonar: a tight fast
+group; silver
+flashes
+A fin at the
+lantern's edge;
+sonar: one slow
+large contact
+Song rises; the
+helm drifts on its
+own
+Canopy moves
+against the
+current; nothing
+on sonar
+Clicking on the
+hull mic
+A second light in
+the dark that you
+didn't hang
+Sonar: a long
+shape circling;
+lines hum
+What it does
+Lands and flies
+off with fish
+under 3 kg
+Strikes hooked
+fish to the head
+(you reel in half);
+bites divers
+Takes hooked
+fish; rams the
+hull; the White
+knocks crew off
+the rail
+Charms the
+nearest crewman
+for 5 s (walks
+them to the rail);
+turns the helm
+toward rocks
+Wraps a
+crewman at the
+rail and pulls
+them in
+Cut nets and
+warps, steal from
+set gear
+Lures a crewman
+to the rail and
+pulls them over
+Bites through
+lines, snags the
+net, at full size
+coils the hull
+Counters
+Shotgun, cover
+the catch, gut and
+ice fast
+Wire leader, land
+fish fast, spear
+the leader
+Harpoon cannon,
+full speed, stop
+the blood (ice the
+catch, stop
+chumming)
+Ear plugs, the bell
+breaks a charm,
+shoot the singer
+when it surfaces
+Stay off the rail in
+the canopy, cut
+them free with a
+knife, flare
+Haul early, rifle,
+trade them fish
+Don't walk toward
+lights; hood the
+lantern; flare
+burst blinds it
+Cut the line, stop
+the screw, lower
+the lantern;
+harpoon plus
+rifles on the head
+Page 49 of 79

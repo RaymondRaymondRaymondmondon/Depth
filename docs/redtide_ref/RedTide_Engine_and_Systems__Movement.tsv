@@ -1,0 +1,23 @@
+parameter	value	unit	note
+swim_speed	2	m/s	Base
+sprint_speed	3.4	m/s	Shift; stamina bar shows only while sprinting
+sprint_stamina_s	6	s	Full sprint duration
+stamina_regen_s	8	s	Empty to full
+vertical_speed	1.4	m/s	Space / Ctrl
+accel_s	0.4	s	0 to full speed
+decel_s	0.5	s	Full to 0 (water drag)
+turn_rate_deg_s	360	deg/s	Mouse turn is instant; body follows at this rate for animation
+ads_swim_mult	0.6	x	Speed while aiming
+walk_speed_air	1.6	m/s	In air chambers; gravity on; no jumping, a 1 m step-up
+kick_brine_swim_mult	1.25	x	Kick Brine speed
+kick_brine_stamina_mult	1.5	x	
+grab_break_taps	6	taps	Mash to break a hold early (hold time - taps x 0.25 s)
+grab_break_teammate_dmg	0.15	fraction of holder HP	Damage that makes a holder drop a diver
+knockback_aim_recover_s	0.6	s	Aim sway after a knockback
+stun_s_default	1	s	Unless the attack says otherwise
+slow_default	0.7	x	Slow effects unless stated
+melee_lunge_m	1.5	m	Knife lunge distance on sprint
+interact_hold_s	1	s	Purchases over 1,000 scrip need a hold
+revive_move_allowed	False	bool	Reviving diver must hold still
+downed_crawl_speed	0.6	m/s	Downed divers can drift-crawl
+fall_into_void_s	5	s	Pull duration past the abyss edge with a warning at 1 s

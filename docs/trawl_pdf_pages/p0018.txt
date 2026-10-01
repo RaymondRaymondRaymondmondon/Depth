@@ -1,0 +1,70 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+Intruder
+Drowned
+sailor
+Escaped
+catch
+Grabber
+arms
+Bilge eels
+Water
+Fire
+How it gets in
+An open hatch
+An octopus, eel, or conger left alive
+in the hold
+Portholes and open hatches (jumbo
+squid, the Kraken)
+Come in with flooding
+Breaches below the waterline
+A blown relief valve
+What it does below
+Goes below and hides (bunks, the
+coal bunker); drags off salvage,
+including the consignment
+Slips into the bilge and waits; a
+grabber can pin whoever crawls in
+after it
+Reach in blind and pull
+Bite anyone crawling in the bilge
+Floods one space at a time; the
+pumps and the watertight door are
+the answer
+Spreads to the coal bunker in 30 s
+unless smothered
+The rule for all of it: every trip below takes a crewman out of the light and out of earshot.
+Someone has to go for ammunition when the White comes, for ice when the hold is full,
+and for coal when the boiler drops, and the crew above has to remember they are there.
+Fishing
+Fishing is a physics fight between a player, a rod, a line, and an animal that is also an agent
+in the food web. The Ul shows only what an angler would feel: rod bend, line angle, reel
+sound, and a tension gauge on the reel. There is no minigame bar.
+Tackle
+Tackle
+Handline
+Light rod
+Medium
+rod
+Line
+strength
+8 kg
+6 kg
+15 kg
+Cast range
+6 m (thrown)
+30 m
+25m
+Reel speed
+Hand over hand
+Fast
+Medium
+Holds
+Bait fish, small reef fish
+Surface and reef fish
+to 5 kg
+Most fish to 25 kg
+Price
+Free
+40
+120
+Page 18 of 79

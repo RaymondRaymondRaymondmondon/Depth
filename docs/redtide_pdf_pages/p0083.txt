@@ -1,0 +1,36 @@
+Red Tide — Arcade Game 5 Design Document
+Weapon
+The Tide Staff
+The Abyssal Lure
+Forged name
+The Sovereign's Staff
+The Deep Call
+The twist
+The wave drowns enemies in air pockets and
+carries blood with it
+The burst calls one apex to the point on your
+side for 30 s
+Re-rolling the alternate ammunition costs 2,500; Forging a Locker weapon also re-arms it.
+All Forged weapons carry the sea-glass finish under any skin.
+Enemy spawning and Hunts
+Alarm squads
+1. Each region tracks its alarm (constants in the engine workbook). Above threshold, a
+roll every 5 s spawns a squad with the tide's chance; the alarm halves when it
+succeeds.
+2. The squad spawns at the region's nearest faction entry (each map lists them) that is at
+least 35 m from every diver and out of every diver's sight; if none qualifies, at the map's
+default entry.
+3. Squad size is 3 at tides 4-9, 4 at 10-19, 5 at 20+, drawn from the faction's composition
+(never two of the specialist unit in one squad).
+4. Squads path toward the region where the alarm fired, then toward the nearest diver's
+last known position; they lose the trail after 20 s without sight, scent, or sound, and
+then patrol the faction's route.
+5. At most 2 alarm squads are alive at once (3 at tide 20+); further rolls are skipped.
+6. A squad wiped by beasts counts as resolved: the alarm is not raised by their deaths.
+Hunts
+• Tide 5, 10, 15, and every 5th tide after: a Faction Hunt unless a Predator Hunt is rolled
+(50% from tide 10, from tide 20).
+• Faction Hunt. The quota is replaced by "eliminate the Hunt force": 10 units at tide 5, 12
+at 10, 14 at 15, 16 at 20+, plus the faction's Hunt leader. The force spawns in three waves
+30 s apart from the map's Hunt staging point; the leader spawns with the third wave.
+Page 83 of 90

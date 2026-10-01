@@ -1,0 +1,35 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+Networking. Host-authoritative, 6 players, through arcade _ net. cpp . Snapshots at 20 Hz;
+state is filtered by what each client can know: fish below the surface are sent only inside
+the light radius, on a client's sonar Ping, or while hooked. The rod holder's tension gauge is
+predicted locally from the chain physics and reconciled with the host so reeling feels
+immediate at 150 ms of latency. Voice uses the arcade layer's voice channel (Opus-
+encoded, positional), with the host mixing nothing: clients attenuate by distance and walls
+themselves
+. --net-loop trawl runs a host and five bot clients over loopback.
+Performance budget. About 250 active agents within 150 m of the boat at full rate (10 Hz
+decisions, 60 Hz movement); population counters beyond. Up to 16 Verlet chains at once
+(6 rod lines, 2 warps, the net mesh counted as one, hose, lifeline, tether, life ring, anchor,
+longlines).
+Art. Top-down pixel deck at the parkour pixel scale; the sea is drawn black outside the
+light grid with foam and glint pixels; fish show as shadows until lit or landed, then as full
+sprites; threats get the parkour beast sprite pipeline. Side views (dive, overboard, the reel
+camera on a big fight) use the parkour renderer. The porthole bezel frames everything, per
+the arcade's shared frame.
+Sound. Every cue goes through the master reference's cue registry and bUSes. Key CUes:
+reel ratchet pitched by tension, the line's hum rising before a snap, the drag's zip, the
+winch, rod creak, the pump's rhythm and the diver's breathing, the bell, the hull mic's
+knocks, each threat's tell. The music is a drone and a shanty fragment that stops when
+anything with Wake-level size is within 60 m: the silence is the first tell.
+Sound design
+In the Trawl, sound is information: most threats are heard before they are seen, and the
+music going quiet is the first warning. Everything is synthesized through the master
+reference's cue registry and buses; where a Red Tide cue fits the same animal, it is copied
+as a starting point and re-tuned.
+Music
+State
+Dock
+Music
+A concertina shanty with harbour bells; a new
+verse after each met deadline
+Page 74 of 79

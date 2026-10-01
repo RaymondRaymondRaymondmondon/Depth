@@ -1,0 +1,42 @@
+Red Tide — Arcade Game 5 Design Document
+Tides
+Tide
+1-3
+4-9
+10-19
+20+
+Kill quota (4 players)
+12/16/22
+28-60
+70-150
++20 per tide
+What changes
+Ecosystem calm; small and mid beasts only; no
+enemies
+Predators respond to blood; enemy attraction on; a
+Hunt every 5th tide
+Apex beasts wander; enemy squads carry
+upgraded weapons; blood decays slower
+Everything at once; Blood Frenzy needed to keep
+pace; the map's boss beast can appear at any time
+Quota scales 0.4 / 0.6 / 0.8 / 1.0 with 1-4 players. Kills by beasts eating enemies or each
+other do not count; kills by players' builds do.
+Health, downs, revives
+• 100 HP, regenerating 4s after the last hit at 20 HP/s (Zombies-style). Juggernaut Tonic
+raises HP to 250.
+• At O HP a diver is downed: they float with the Cormorant only, for 45 s, bleeding into
+the water (a downed diver is a strong blood source, which is the danger and the
+drama).
+• Any teammate can revive in 4 s (2 s with Quick Brine). A revived diver loses all tonics
+unless they hold a Salt Charm that keeps them.
+• If every diver is down, the match ends. Solo has one self-revive per Quick Brine bought
+(three per match).
+• Air. There is no air timer; divers breathe indefinitely. The pressure against camping in a
+corner comes from blood, scent, and the enemy alarm instead.
+Doors, power, and the map opening up
+• Doors and debris cost 750-2,500 scrip and open permanently for everyone. Each map
+opens in stages from the start pocket outward.
+• Power (the generator, the tide mill, the temple's crystal) turns on the Forge, the
+Locker's second location, tonic machines beyond the first two, and the map's traps.
+Turning on power also wakes the ecosystem's larger predators, so the choice of when
+Page 4 of 90

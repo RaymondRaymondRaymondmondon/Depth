@@ -610,3 +610,28 @@ bubble puff); Red Tide's gun models rebuilt with a dozen parts each.
     - the Slipway's steam launch kit (500: 3 m/s, noise 4) and the skiff upgrades (outrigger, painted eyes);
     - junk on the skiff's line;
     - the Old Lighthouse rock and the Sandbar landings.
+
+## Step 6: mini-bosses, boss lures, harbour requests, charms (2026-10-01; design doc v2, pages 47-48 and 70-71)
+- **Mini-bosses** (`trawl_quest.cpp`, `MiniBosses()`): the Lagoon's two both live in the Crest Pass coral.
+  - Old Snapjaw: a giant moray, 30 kg, a biter, Cover then Run. Worth a flat 180; drops a jaw full of old hooks.
+  - The Crest Grouper: 70 kg, a thrasher, Dive then Cover. Worth 240; drops a barnacled brass lure.
+- **Boss lures:** 60 at the Chandler, half price if anyone wears the brass lure.
+  - R on the skiff's line arms one on the heaviest rod aboard.
+  - Cast into boss water (the Crest Pass), it spends the lure, adds 10 to the Wake, and 6-12 s later that deadline's next mini-boss takes it (`StepBoss`).
+  - Outside boss water nothing answers and the lure stays on.
+  - A mini-boss is worth its flat value times the Killscore and cooking (`CatchRec::boss`; never spoils overnight). Its drop goes to `Gannet::drops`.
+- **Charms** (one a hand, `Crew::charm`; lost with a body lost at sea):
+  - the lucky coin (Chandler 50): Glimmer variants twice as likely;
+  - the shark tooth (the elder, 120): +0.1 Killscore on a melee finish;
+  - the tribal anklet (the elder, 90): +8 s before drowning;
+  - the old hooks (Snapjaw's drop): the line can't snap for its first 15 s (`Fight::noSnapUntil`), my reading of "never breaks on a fish's first run";
+  - the brass lure (the Grouper's drop): boss lures cost half.
+- **Glimmer variants:** 2% of landed hook fish (`OnLanded`), worth 3x.
+- **Harbour requests** (`Session::requests`, rolled each deadline; the chalkboard panel, CMD_REQUEST):
+  - The cook: a named species cooked to 1.5x, for 3x its value and the spice rub (cooking 25% faster for the deadline).
+  - The naturalist: a protected catch returned with the Chandler's tag gun (30), for a rare-fish lure (bites x1.3 for a night, used at cast-off).
+  - The collector: a named Glimmer, for 3 tokens and 100. The doc's Pier Wheel and cosmetic don't exist yet.
+  - The gunsmith's apprentice: three kills at 2.5x or better in one night, for a free attachment at the Gunsmith.
+  - Mother Carey: a mini-boss drop, for a legend lure (`legendLures`; the legendary fish are still to be designed).
+  - Drops can be worn instead (CMD_WEAR_DROP).
+- **Tests and shot:** `depth.exe --trawl-quest-test` (25 checks); shot `trawl_chalkboard`. Sim (6 careful hands): every deadline met, about 220 sh a night.

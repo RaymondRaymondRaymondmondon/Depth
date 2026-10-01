@@ -1,0 +1,59 @@
+Red Tide — Arcade Game 5 Design Document
+Build order
+Stage Work
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+Ecosystem engine headless: species
+records, scent grid, SOUnd layer, state
+machine, population; twelve generic
+species
+3D core: inked low-poly renderer,
+CreatureBui1der with the body plans,
+first-person diver, the Cormorant
+The Sunken Ship: layout, all 40 beasts and
+12 flora, racks, tonics, the Locker, the
+Forge, drops, tides, the Wreckers, the
+Goliath
+Multiplayer through the shared arcade
+layer: prediction, lag compensation,
+snapshots, downs and revives over LAN
+The Underwater Cave (slipstreams, dry
+chambers, rockfall)
+The Coral Reef (Reacher coral, dolphins,
+the flats)
+Atlantis (the city generator, aqueduct
+blood flow, cisterns)
+Approaching the Void (the rim, the worm,
+the station, the Vault)
+Charms, skins, dossiers, hidden quests,
+sound pass
+Internet play through the relay server;
+balance pass with
+--redtide-sim on
+every map
+Gate
+--eco-sim shows the sprat chain end
+to end
+A diver swims a box room among
+generated fish
+Sunken Ship Definition of Done
+Four players finish a Sunken Ship
+match on LAN
+Its Definition of Done
+Its Definition of Done
+Its Definition of Done
+Its Definition of Done
+--audio-test and the dossier
+complete for every species
+All balance targets met or logged
+Open questions for the designer
+Should killing a dolphin or a whale carry a scrip penalty on top of the ecological one?
+Page 67 of 90

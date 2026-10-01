@@ -1,0 +1,99 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+Threat
+Isopod
+swarm
+Drowned
+sailors
+Cult
+longboat
+Ghost Ship
+The Kraken
+Grounds
+Grotto
+Grotto,
+Atlantis
+Atlantis
+Grotto
+(rare),
+Atlantis
+Atlantis
+Drawn by
+Corpses, offal
+on deck
+Light, the bell of
+the Ghost Ship
+The Pale Eye's
+Wake
+Your bell rung
+too often; a
+moonless night
+Wake at
+maximum
+Tells
+Clicking on the
+anchor chain
+Knocking on the
+hull, slow and
+regular
+Chanting from
+the dark, torches
+A bell answering
+yours
+The Glass (dead
+calm), sonar
+whites out, the
+fish vanish
+What it does
+Climb aboard, eat
+the catch, bite
+ankles
+Climb aboard;
+slow, relentless,
+grab and drag
+Circles and
+chums the water
+around the
+Gannet
+Comes alongside
+and boards with
+drowned crew;
+steals set gear
+Arms take crew
+and gear off the
+deck, crush hull
+sections, can
+take the boat
+Counters
+Raise the anchor,
+boiling water from
+the boiler bleed,
+clean deck
+Gaffs and rifles,
+keep the deck lit,
+cast them back
+over
+Outrun it, rifle the
+rowers, stop
+looking at the Eye
+Flee at full steam,
+or fight: a beaten
+Ghost Ship leaves
+a relic chest
+Cut the net, kill
+the lantern, run at
+full steam,
+harpoon an arm to
+make it let go
+Wake and the big three. The Great White, the Ghost Ship, and the Kraken are not rolled
+on a timer. They come when a ground's Wake (see The food web) crosses their threshold:
+40 for the White, 65 for the Ghost Ship, 90 for the Kraken (Atlantis only). A careful crew
+can fish a whole night in Atlantis Waters without seeing the Kraken; a crew that depth-
+charges twice will see it before midnight.
+Scaling by deadline. From the second deadline on, threats gain 10% hunger rate and 5%
+size per deadline, and each ground adds one threat from the next ground down the list, so
+the Lagoon eventually has Anglers.
+Threat stats
+Crew have no hit points (see Death), so a threat's effect on a crewman is an injury, a grab,
+or a trip over the rail. Hull damage is to one section's integrity (0-100). HP is the threat's; a
+weak point takes double damage. Values rise with the per-deadline scaling above.
+Page 50 of 79

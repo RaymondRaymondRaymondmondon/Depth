@@ -1,0 +1,8 @@
+The Goliath — a goliath grouper the size of a boiler; arena = the Engine Room and, from tide 12, wherever it wanders (the ship itself is the arena)
+HP 15,000 (x1.08 per tide); armor: front plates halve damage; weak point: gills behind the plates, exposed for 2 s after Inhale and after Tail Slam
+Phase 1 (100-60% HP): Inhale (pulls one diver; 5 s to deal 150 to the gills or the diver is swallowed and downed), Lunge, Boom. Stays within 12 m of its home.
+Phase 2 (60-30%): adds Tail Slam (drops loose cargo: 3 crates fall on marked squares), Boom every 3 s, calls 2 Groupers. Roams the Engine Room; the Forge is unusable while it is within 8 m.
+Phase 3 (30-0%): Enrage: speed x1.5, Inhale cooldown 8 s, swallows count as an instant down. It breaks the aft bulkhead and can chase into the Stern.
+Arena rules: shooting the algae mat off (300 damage to the mat) blinds it for 6 s (it hunts by the mat's light); the power switch cycling stuns it 2 s (once per fight). Loose cargo can be shot to drop on it (200 damage).
+Kill reward: 1,500 base scrip x tide, a guaranteed Locker weapon for each diver, the captain's safe key. It reforms in its home after 6 minutes at 50% HP.
+Team plan the doc expects: one diver baits Inhale from 4 m, two shoot the gills during the 2 s window, one handles the Groupers and cargo.

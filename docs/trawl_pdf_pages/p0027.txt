@@ -1,0 +1,54 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+Junk
+Message in a bottle
+Brass key
+Torn chart piece
+Grounds
+All
+Value
+(sh)
+Notes
+A treasure map to a spot on one of
+this ground's landings
+Opens one named chest on this
+ground's landings
+Three pieces reveal a hidden skiff
+mark or a buried cache
+Junk never fights on deck, but it does take up room in the skiff and the hold, and the maps
+and keys only pay off for a crew willing to row to the islands.
+Birds and the catch crates
+A dead fish is only safe in the sell spot: the six lidded catch crates on the Gannet's aft
+deck, or the hold. Anything dead anywhere else (on the deck, on the gutting table left
+unattended for 10 s, in the skiff, on a beach by a cooking fire) is fair game for birds. Birds
+are sellable too, so a thief is also a second catch.
+How birds work. Birds are agents in the food web's air layer. Dead fish, cooking smoke,
+chum, net hauls, and gutting draw them. A bird grabs the heaviest fish it can lift and flies
+off with it; shooting it down drops both the bird and the fish, wherever they fall: on deck,
+on an island, or in the sea, where they bleed and have to be gaffed or netted before
+something else takes them. Every bird kill is airborne, so the Airborne bonus is automatic,
+which makes birds shotgun and rifle practice that pays.
+Bird
+Herring gull
+Brown
+pelican
+Frigatebird
+Grounds
+Lagoon, Weeds
+Lagoon
+Lagoon, Atlantis
+Lifts
+3 kg
+2 kg
+Behaviour
+Flocks of up to 12; picks the deck
+clean
+Scoops fish out of the skiff and
+the net; swallows whole
+Harries other birds until they drop
+their fish in mid-air
+Value
+(sh)
+4
+12
+15
+Page 27 of 79

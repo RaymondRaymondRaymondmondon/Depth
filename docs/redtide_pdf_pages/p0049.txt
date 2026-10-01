@@ -1,0 +1,132 @@
+Red Tide
+Arcade Game 5 Design Document
+Beast
+Spider Crab
+Sea Bass
+Dentex
+Amberjack
+Barracuda
+Lamprey
+Bluefin Tuna
+Swordfish
+Loggerhead
+Monk Seal
+Sandbar Shark
+Leatherback
+Class
+Crustacean
+Fish
+Fish
+Fish
+Fish
+Fish
+Fish
+Fish
+Reptile
+Mammal
+Fish
+Reptile
+Size
+3
+3
+3
+3
+3
+2
+4
+4
+4
+4
+4
+5
+Tier
+2
+3
+3
+3 (pack)
+3
+Parasite
+3
+3
+3
+3
+4
+1
+Eats
+Sea cucumbers,
+algae
+Bream,
+cuttlefish, kraits
+Sardines, bream,
+octopus
+Sardines, salema
+Sardines,
+cormorants
+Blood
+Sardines,
+amberjacks
+Sardines,
+cuttlefish
+Man o' war, crabs
+Octopus,
+lobsters, bream
+Sea bass, dentex,
+octopus, Lost
+Ones
+(reluctantly)
+Jellies, man o'
+war
+Eaten by
+Octopus
+(rarely)
+Sharks
+Sharks, tuna
+Sharks
+Sharks
+Barracuda
+Great white
+Great white
+Crocodile,
+great white
+Great white
+Great white
+Nothing
+Behavior and note
+Armored;
+decorates itself
+with kelp and
+looks like a bush
+until it moves
+Bathhouse
+patroller
+A fast street
+hunter in pairs
+A pack of 6 that
+drills the barracks
+yard in formation
+Waits in the gate
+arch; drawn to
+flashes
+Cistern parasite;
+bleeds hosts
+Crosses the
+summit plaza at
+full speed; a ram is
+60 damage
+Plaza lane; a
+charge impales for
+100 and pins
+Armored; eats the
+man o' war under
+the sargassum
+CUriOUS thief;
+harmless unless
+shot
+Patrols the lower
+town streets;
+threshold 70
+Gentle; 100 blood;
+eats every jelly in
+the forum if left
+alone
+Page 49 of 90

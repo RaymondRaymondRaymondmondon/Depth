@@ -1,0 +1,142 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+Species
+Mould snail
+Pale cave
+crab
+Hagfish
+Giant
+isopod
+Bone crab
+Albino
+octopus
+Echo bass
+Pale cod
+Cave
+dogfish
+White
+conger
+Ghost ray
+Grotto
+sturgeon
+Glowjelly
+Tier
+1
+1
+1
+2
+2
+2
+2
+2
+3
+3
+3
+4
+1
+Weight
+(kg)
+0.2
+0.3
+1-3
+1-3
+1-5
+1-4
+2-8
+5-15
+5-25
+10-40
+60-250
+Depth
+Walls
+Floor
+Floor
+Floor
+Wrecks
+Wrecks
+Upper
+Mid
+Deep
+Walls,
+wrecks
+Floor
+Deep
+floor
+Upper
+Eats
+Glowing
+mould
+Mould,
+carrion
+Carrion
+Carrion
+Carrion
+Crabs
+Shrimp
+Shrimp,
+cavefish
+Cod, eels
+Cod, crabs
+Crabs,
+isopods
+Crabs, cod
+Plankton
+Takes
+Diving
+Pots
+Any dead bait on
+the floor
+pots
+Pots set in
+wrecks
+Crab bait
+Rattle lure
+(hunts by sound)
+Glow jig, shrimp
+Chunks
+Dead bait on the
+bottom
+Squid on the
+floor
+Big dead bait,
+deep-drop reel
+Net bycatch
+Fight
+None
+None
+Roll (slimes
+the line)
+None
+None
+Cover (inks)
+Circle
+Dive
+Roll
+Cover, roll
+Run (glides)
+Dive (slow,
+very long)
+None
+Price (sh/kg)
+2
+5
+1
+7
+6
+7
+4
+4
+2
+3
+3
+8, plus 200 for
+a female's roe
+O (stings; a
+light source)
+Flora: glowing mould (the Grotto's main light and its base food), pale weed (shallow
+shelves), bacterial mats around warm vents (deep; draw isopods and hagfish).
+Web notes. The Grotto's web runs on mould, not sunlight, so it is small and fragile: a heavy
+night of netting shrimp starves the cod and cavefish by night two, and hungry cod bring
+the Lantern Anglers up. Sound doubles here (see The Grotto), so echo bass come to noise
+that sends everything else running. Sturgeon take 10-20 minutes on the deep-drop reel,
+and the vibration of that fight is the most reliable way to wake a Ghost Worm.
+Page 45 of 79

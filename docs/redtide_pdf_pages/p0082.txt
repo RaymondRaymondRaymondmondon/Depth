@@ -1,0 +1,70 @@
+Red Tide — Arcade Game 5 Design Document
+Weapon
+Sea-Pattern
+Carbine
+Trawlerman's Rifle
+Stormlock
+Flechette 12
+Drum Flechette
+Long Speargun
+Bolt Harpoon
+Cannon Harpoon
+Limpet Launcher
+Net Gun
+Chumthrower
+Diver's knife
+Boarding Axe
+Tesla Gaff
+Trident
+Sawtooth
+The Galvanic Rod
+The Resonator
+The Anemone Gun
+Forged name
+The Lieutenant
+The Skipper
+The Typhoon
+Twelve Apostles
+The Hurdy-Gurdy
+The Quiet Word
+The Judgement
+The Cathedral Gun
+The Barnacle King
+The Fisherman's
+Friend
+The Dinner Bell
+The Filleter
+The Boarder
+The Lightning Rod
+Neptune's Fork
+The Shipwright's Saw
+The Lightning Keel
+The Deep Bell
+The Garden
+The twist
+Headshots refund 2 rounds
+Penetrates two beasts in a line
+Full auto with no recoil climb for the first 10
+rounds of a magazine
+Flechettes stick and detonate 1 s later (small,
+silent)
+Fires 2 shells per trigger pull
+Kills of size 1-2 make no blood
+Bolts pin size 3 for 3 s and size 4 for 1 s
+Bolts explode on any size and chain-pull a
+size-3 corpse to you (a lure you can carry)
+Charges stick to beasts and detonate on the
+next hit instead of a timer
+Nets hold size 4 for 4 s and size 5 for 2 s
+Chum spots also apply Weaken (-20%
+attack) to beasts feeding there
+Kills of size 1-2 are instant from behind
+Sprint-swing knocks back 3 m
+Chains to 4 and stuns 2 s
+Throwable, returns in 3 s
+Bleed lasts IO s and doubles blood: a weapon
+that is also bait
+Arcs leave a 5 s electric field
+Its ring cancels blood scent in the cone for 5 s
+Polyps poison and spread once
+Page 82 of 90

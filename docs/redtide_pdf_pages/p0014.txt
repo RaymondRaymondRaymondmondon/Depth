@@ -1,0 +1,46 @@
+Red Tide — Arcade Game 5 Design Document
+Animations
+• Reloads are underwater and slow-fast-slow: gas pistols pop the cylinder and thumb in
+darts one at a time until full or interrupted; needlers swap a glass cartridge with a hiss
+of bubbles; powder guns eject a sealed brass clip that sinks; spearguns cock with both
+arms and a visible strain; harpoon rifles winch a bolt from a side quiver; the scatter gun
+is loaded shell by shell and can be interrupted. Every reload has an empty and a partial
+version and a Speed Brine version 30% faster.
+• Firing: bubble bursts from gas guns, a brass flash from powder guns, a line snapping
+taut from spearguns.
+• Inspect animations show the sea-glass Forge finish.
+• Weapon skins: arcade tokens buy finishes (barnacle, verdigris, bone inlay, pearl, red
+tide) that apply to all weapons.
+The Harpoon Cannon (Harpoon Hour)
+A shoulder-mounted salvage cannon with infinite bolts for 30 s, 500 damage, noise 10: the
+map's loudest sound, which is the joke and the risk.
+Tonics, charms, items, builds, and progression
+Tonics (perks)
+Brass vending machines that dispense a bottle; four can be held (five with a charm). Each
+map has 6-8 of the 12 placed by its designer; the first two are always Juggernaut and
+Quick Brine.
+Tonic
+Juggernaut
+Brine
+Quick Brine
+Speed Brine
+Double Shot
+Zombies parent
+Juggernog
+Quick Revive
+Speed Cola
+Double Tap
+Effect
+250 HP
+Revives in 2 s; solo: self-revive (3 per
+match)
+Reloads and builds 30% faster
++33% rate of fire and darts count
+double
+Scrip
+2,500
+1,500 (solo
+500)
+3,000
+2,000
+Page 14 of 90

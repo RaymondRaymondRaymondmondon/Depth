@@ -1,0 +1,138 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+Weapon
+Fists
+Fish priest
+Knife
+Gaff
+Brass
+knuckles
+Belaying pin
+Boat hook
+Marlinspike
+Cleaver
+Cutlass
+Coral club
+Shark-tooth
+blade
+Flensing
+spade
+Whaling
+lance
+Class
+Melee
+Melee
+Melee
+Melee
+Melee
+Damage
+5
+15
+10, fast
+12
+12, fast
+18
+14
+16
+30, slow
+24
+20
+28
+40, slow
+50
+Magazine
+Noise
+o
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+Slots
+o
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+2
+2
+Where
+Always
+Starting kit
+Starting kit
+Starting kit
+Gunsmith
+Gunsmith
+Gunsmith
+Gunsmith
+Gunsmith
+Gunsmith
+Atoll trader
+Atoll trader
+Seal Rock
+trader
+Seal Rock
+trader
+Price
+(sh)
+40
+30
+60
+70
+90
+150
+120
+260
+220
+300
+Special
+Quietest finish
+there is
+Clean
+headshots
+Cuts lines,
+arms, grapples,
+Wraiths
+2 m reach;
+holds a fish still
+Spin finishes
+Stuns a fish for
+Is
+3 m reach;
+drags fish and
+boarders off
+the rail
+Double damage
+through hide
+(sharks, the
+White)
+One-hit kills on
+mid-size fish
+Swings hit two
+targets
+Headshots do
+damage
+Extra bleed:
+fast kills, more
+blood
+2.5 m reach;
+built for
+thrashers
+3 m reach;
+thrown, it
+tethers
+Page 29 of 79

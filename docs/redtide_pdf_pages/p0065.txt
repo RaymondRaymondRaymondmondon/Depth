@@ -1,0 +1,33 @@
+Red Tide — Arcade Game 5 Design Document
+Effects
+• Every beast has a voice cue (clicks, grunts, croaks, whistles, or silence by design), a
+pain cue, a death cue, and a feeding cue (tearing, crunching, slurping). Feeding cues are
+loud by design: they tell the players where the corpses are being eaten and how many
+things are eating.
+• Blood has a sound: a wet bloom on a kill, a spreading hiss as a plume grows.
+• Weapons: fire, reload steps, empty click, the Forge's crush and hiss, the Locker's eel
+snap and the chest sinking, the Harpoon Cannon's boom.
+• Tonics: each machine has a jingle (the Zombies tradition), a bottle clink, and a gulp.
+• Drops: a bell for a drop appearing, a distinct sting per drop.
+• The alarm: no sound tells the player the alarm value, but the faction's arrival has a tell:
+the Wreckers' cutters scraping the hull, the Drowned's bell, the Raiders/ drum, the Lost
+Ones' marching, the Remnant's airlock cycling.
+• Tells for hazards: the sand worm's rumble, the Reacher coral's creak, the bobbit
+worm's hiss, the toad's croak, the Wyrmls grate rattle, the leviathan's lure hum.
+HUD and UI: the tide bell, the quota tick, the scrip counter's coin, the down and revive
+stings.
+Accessibility
+Every audio tell has a visual: a directional pulse on the mask, a caption for barks, and a
+scent meter for the blood strings.
+Balance, simulation, and build order
+Red Tide is balanced against Zombies' pacing (a competent team reaches tide 20 in about
+40 minutes) and against its own ecosystem, which must punish careless killing without
+making careful play boring.
+Balance targets
+Measure
+Tide reached by a bot team of four playing
+carefully
+Target
+25 ± 3 on the Sunken Ship, 20 on Atlantis and
+the Void
+Page 65 of 90

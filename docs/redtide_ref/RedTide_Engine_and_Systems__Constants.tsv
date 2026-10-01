@@ -1,0 +1,80 @@
+system	constant	value	unit	effect / intent
+SCENT	scent_cell_m	2	m	Scent grid cell size
+SCENT	scent_update_hz	1	Hz	Grid update rate (background thread)
+SCENT	scent_diffusion	0.15	fraction/s	Share of a cell's blood that spreads to its 6 neighbours each second (2.5% each)
+SCENT	scent_current_advect	0.8	fraction	How much of the local current velocity carries blood (0 = none, 1 = fully)
+SCENT	scent_decay_early	0.02	fraction/s	Tides 1-9 (from TideCurve)
+SCENT	scent_decay_mid	0.01	fraction/s	Tides 10-19
+SCENT	scent_decay_late	0.005	fraction/s	Tides 20+
+SCENT	scent_floor	0.5	blood	Below this a cell reads 0 (keeps the grid sparse)
+SCENT	scent_visible_min	3	blood	Blood plume particles start at this cell value
+BLOOD	blood_wound_fraction_min	0.1	fraction	A beast below full HP bleeds at least 10% of its size x 2 per s
+BLOOD	blood_corpse_burst	1	x size x 20	Death releases size x 20 at once
+BLOOD	blood_corpse_trickle	0.05	x burst/s	A corpse then trickles 5% of its burst per second until eaten
+BLOOD	blood_corpse_life_s	[30, 45, 60, 90, 120, 180]	s by size	How long a corpse lasts with no scavengers
+BLOOD	blood_scavenger_rate	[0.3, 0.5, 1.0, 3.0]	blood/s by scavenger size	How fast scavengers remove corpse blood
+BLOOD	blood_diver_wounded	2	blood/s	A diver below 50% HP
+BLOOD	blood_diver_downed	8	blood/s	A downed diver
+BLOOD	blood_melee_mult	0.5	x	Melee kills make half the blood
+BLOOD	blood_boiling_mult	0	x	Boiling ammunition makes no blood
+SENSE	sample_range_mult	1	x scent_m	A beast samples the grid out to its scent_m
+SENSE	threshold_hysteresis	0.7	x threshold	Stops investigating when local blood falls below 70% of threshold
+SENSE	gradient_step_m	4	m	Investigate moves toward the highest neighbouring cell at this stride
+SENSE	sight_cone_deg	120	deg	Field of view for sight (blind species: 0)
+SENSE	sight_in_silt_mult	0.4	x	Sight range in silt or ink clouds
+SENSE	electro_through_walls	True	bool	Electroreception ignores occlusion
+SENSE	lamp_visibility_bonus_m	10	m	A lit lamp adds this to the range any sighted beast sees the diver from
+SOUND	sound_cell_decay	0.2	fraction/s	Sound field decays fast
+SOUND	sound_diffusion	0.3	fraction/s	Spreads faster than scent
+SOUND	noise_gunshot_base	1	x weapon noise	Weapon noise 1-10 maps to field value x 10
+SOUND	noise_explosion	30	field	Limpet, Cannon Harpoon impact, traps
+SOUND	noise_melee	0	field	Melee is silent
+SOUND	fear_flee_threshold	15	field	Fearful beasts (fear > 0.6) flee sound above this
+SOUND	curious_approach_threshold	8	field	Curious beasts (curiosity > 0.5) approach sound between 8 and 25
+SOUND	aggressive_attack_threshold	20	field	Aggressive beasts (aggression > 0.7) attack the source above this
+ALARM	alarm_gunshot_mult	1	x weapon noise	Per shot
+ALARM	alarm_explosion_mult	3	x	Explosions and traps
+ALARM	alarm_decay	0.05	fraction/s	Region alarm decay
+ALARM	alarm_inside_hull_mult	2	x	Sunken Ship inside region (hull carries sound)
+ALARM	alarm_roll_interval_s	5	s	Spawn roll cadence above threshold
+ALARM	alarm_reset_on_spawn	0.5	x	Alarm halves when a squad spawns
+ALARM	alarm_min_distance_m	35	m	Squads never spawn closer than this to a diver
+HUNGER	hunger_rate	[0.4, 0.35, 0.3, 0.25, 0.2, 0.1]	/min by size	Hunger 0-1 rises at this rate
+HUNGER	hunt_weight_at_hunger	[0.0, 0.3, 0.7, 1.0]	weight at hunger 0/0.5/0.8/1	How much hunger raises Hunt over Graze/Rest
+HUNGER	fed_duration_s	[20, 30, 45, 60, 90, 120]	s by size	After eating, hunger resets and Hunt is suppressed
+HUNGER	eat_time_s	[2, 3, 5, 8, 12, 20]	s by prey size	Time to consume prey of that size
+STATE	investigate_timeout_s	30	s	Give up investigating if the source isn't found
+STATE	hunt_give_up_distance_m	60	m	Abandon a chase beyond this from home (territorial) or start (wanderer: 200)
+STATE	flee_hp_fraction	0.2	fraction	Flee below 20% HP (fear > 0.3)
+STATE	flee_trail_blood_mult	0.5	x	A fleeing beast bleeds at half rate and stops 10 s after reaching home
+STATE	defend_escalation_s	3	s	Territorial: warning display for 3 s, then attack
+STATE	return_home_calm_s	20	s	Return home after 20 s without stimuli
+SOCIAL	school_cohesion	0.6	boids weight	Schooling weights: cohesion / alignment / separation
+SOCIAL	school_alignment	0.8	boids weight	
+SOCIAL	school_separation	1.2	boids weight	
+SOCIAL	school_scatter_s	10	s	Regroup delay after a shot into the school
+SOCIAL	pack_roles	flank,drive,leader	list	Packs assign roles; the leader is marked (ink ring) and packs break for 15 s if it dies
+SOCIAL	swarm_contact_dps_mult	1	x	Swarm damage scales with bodies overlapping the diver
+POP	spawn_check_interval_s	10	s	Region spawn pools are checked every 10 s
+POP	capacity_flora_mult	1	x	Grazer capacity scales with local flora density (0.5-1.5)
+POP	predator_patrol_by_prey	0.02	per grazer	Extra predator visit chance per second per 10 grazers in a region
+POP	apex_wander_interval_s	[240, 180, 120]	s at tides 10/15/20+	How often a wandering apex picks a new region
+POP	boss_wander_interval_s	180	s from tide 12	Boss relocation cadence
+POP	respawn_tide_mult	0.97	x per tide	Respawn timers shorten 3% per tide
+SYMBIOSIS	cleaner_calm_radius_m	6	m	Hosts within this of a cleaner station lose 20% aggression
+SYMBIOSIS	cleaner_loss_penalty	0.2	fraction	Killing all cleaners in a region: +20% aggression map-wide for 300 s
+SYMBIOSIS	parasite_attach_s	0.5	s	Attach time on contact
+SYMBIOSIS	brush_off_s	1.5	s	Cleaning brush time per parasite
+FLORA	graze_rate	0.5	units/s per grazer	Flora units eaten per grazer per second
+FLORA	flora_unit_capacity	100	units	A patch's max units
+FLORA	flora_regrow_delay_s	60	s	After grazed to 0 (per flora override)
+ENEMY	enemy_hp_growth	1.08	x/tide	
+ENEMY	enemy_weapon_tier_every	5	tides	Weapons upgrade every 5 tides; Forged at 15+
+ENEMY	enemy_blood_yield	20	blood on death (size 2-3 humans)	Ichor for Lost Ones uses the same value in the ichor channel
+ENEMY	ichor_repel_s	60	s	Apex avoid ichor cells for this long
+PLAYER	player_hp	100	HP	250 with Juggernaut
+PLAYER	regen_delay_s	4	s	
+PLAYER	regen_rate	20	HP/s	
+PLAYER	down_bleedout_s	45	s	
+PLAYER	revive_s	4	s	2 with Quick Brine
+Worked check: a size-3 corpse (60 blood burst + 3/s trickle) with diffusion 0.15 and decay 0.02 reads about 30 blood at 20 m after 40 s in still water, which is a threshold-30 predator's cue at its scent range: the doc's '30-90 s to an apex' target holds when the apex threshold is 120 and four such corpses exist.

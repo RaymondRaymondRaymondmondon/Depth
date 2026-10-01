@@ -1,0 +1,115 @@
+Red Tide
+Arcade Game 5 Design Document
+Units
+Unit
+Cutter
+Speargunner
+Netman
+Chummer
+Foreman
+(Hunts only)
+HP
+120
+150
+180
+140
+900
+Weapon
+Boarding
+knife
+Long
+Speargun
+Net Gun and
+knife
+Chumthrower
+Harpoon
+Cannon
+Damage
+25
+melee,
+0.8 s
+60, 1 shot
+per 3 s
+Net
+holds 4 s;
+knife 20
+200 per
+bolt, 1
+per 4 s
+Speed
+Fast
+(2.4)
+Diver
+speed
+Diver
+speed
+Diver
+speed
+Slow
+(1.4)
+Role
+Flanker;
+goes for
+downed
+divers and
+lone divers
+Covers the
+squad from
+15-20 m;
+aims for the
+diver
+reviving
+Nets a
+diver, then
+the Cutters
+close
+Lobs chum
+at divers'
+feet to call
+the reef
+onto them;
+retreats
+Anchors
+the Hunt
+from the
+hull breach;
+shouts
+orders that
+buff
+Cutters
++20%
+speed
+Tell
+Bubbles from
+a fast exhale
+before a lunge
+A red laser
+dot from the
+speargun's
+sight, 1 s
+before firing
+Swings the
+net overhead
+twice
+Shakes the
+chum bucket
+Winds the
+cannon's
+winch for 2s
+Loot
+200 scrip
+Long Speargun,
+250
+Net Gun, 250
+Chumthrower,
+300
+Harpoon
+Cannon (10
+bolts), 600
+Squad tactics
+1. A squad enters at the hull breach and moves Stern -5 Engine Cabins Salon,
+checking each room's corners; it will not enter a room with a size-4 beast in it.
+2. On contact: the Netman targets the closest diver, the Speargunner takes a firing
+position 15 m back, the Cutters flank through the second doorway, the Chummer
+throws chum behind the divers so the reef arrives from the direction they retreat to.
+Page 70 of 90

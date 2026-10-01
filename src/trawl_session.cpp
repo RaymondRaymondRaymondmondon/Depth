@@ -65,6 +65,9 @@ const std::vector<ShopItem>& ChandlerItems() {   // design doc, "The Chandler" (
         {"shells", "Shells (24)", 18, "A box of two dozen"},
         {"charge", "Depth charge", 120, "12 m blast; the Owners fine 30 in the Lagoon"},
         {"explosive", "Explosive harpoon head", 80, "For the bow cannon: kills, but ruins the fish"},
+        {"bosslure", "Boss lure (the Lagoon)", 60, "Calls a mini-boss over boss water (the Crest Pass); +10 Wake"},
+        {"tag", "Tag gun", 30, "Tag a protected catch before it goes back: the naturalist wants them"},
+        {"coin", "Lucky coin (a charm)", 50, "Worn on a cord: Glimmer variants twice as likely"},
     };
     return I;
 }
@@ -145,6 +148,8 @@ void Session::Begin(Gannet& g, Eco& e, int pl, uint32_t sd) {
 }
 void Session::BeginDeadline() {
     night = 0; sold = carried; carried = 0; glutKg.clear(); phase = Phase::Dock;
+    if (G) { G->bossCaught = 0; G->spiceRub = false; }
+    RollRequests();
     Tape(TextFormat("QUOTA %.0f SHILLINGS STOP THREE NIGHTS STOP THE OWNERS ARE CONFIDENT STOP", quota));
 }
 void Session::Moor() {
@@ -188,9 +193,10 @@ float Session::Value(const CatchRec& c, float* glut, float* bonus) const {
     float g = std::max(0.2f, 1 - glutK * (it == glutKg.end() ? 0 : it->second) / 10);
     float b = c.first ? FIRST_CATCH_BONUS : 1;
     if (c.junk) { if (glut) *glut = 1; if (bonus) *bonus = 1; return c.price; }   // junk: a flat price, no freshness or glut
+    if (c.boss >= 0) { if (glut) *glut = 1; if (bonus) *bonus = 1; return c.price * c.kg * c.killScore * c.cook; }   // a mini-boss: its flat value, times the Killscore and cooking
     if (glut) *glut = g;
     if (bonus) *bonus = b;
-    return c.price * c.kg * c.grade * c.killScore * c.cook * c.fresh * g * b * (variant == Variant::RedTide ? 0.5f : 1.0f);   // fish from a red tide sell at half; cooked ashore up to 1.5x
+    return c.price * c.kg * c.grade * c.killScore * c.cook * c.fresh * g * b * (c.glimmer ? 3.0f : 1.0f) * (variant == Variant::RedTide ? 0.5f : 1.0f);   // fish from a red tide sell at half; cooked ashore up to 1.5x
 }
 // Canoe night's answer (design doc, "Eclipse Lagoon": canoes "trade fish for gear, or raid for it"). Trade: a quarter of
 // the hold's weight, heaviest first, for two tins of bait, 20 kg of ice and a patch kit. Tribute: a tenth of the money,
@@ -243,7 +249,8 @@ float Session::Sell(int idx) {
 float Session::QuotaValue(const CatchRec& c) const {
     if (c.fresh < QUOTA_MIN_FRESH || c.bycatch || c.junk) return 0;
     float b = c.first ? FIRST_CATCH_BONUS : 1;
-    return c.price * c.kg * c.grade * c.killScore * c.cook * c.fresh * b * (variant == Variant::RedTide ? 0.5f : 1.0f);   // (the scales ignore glut)
+    if (c.boss >= 0) return c.price * c.kg * c.killScore * c.cook;
+    return c.price * c.kg * c.grade * c.killScore * c.cook * c.fresh * b * (c.glimmer ? 3.0f : 1.0f) * (variant == Variant::RedTide ? 0.5f : 1.0f);   // (the scales ignore glut)
 }
 // ---------------------------------------------------------------- the Gunsmith
 bool Session::GunBuy(int ci, const std::string& id, std::string* why) {
@@ -289,6 +296,7 @@ std::vector<std::string> ElderStock() {
     std::vector<std::string> s;
     for (const auto& w : Weapons()) if (w.where == "atoll") s.push_back(w.id);
     for (const auto& a : Attachments()) if (a.where == "atoll") s.push_back("att:" + a.id);
+    s.push_back("charm:shark"); s.push_back("charm:anklet");   // (his charms: the shark tooth 120, the tribal anklet 90)
     return s;
 }
 bool Session::ElderBuy(int ci, const std::string& id, std::string* why) {
@@ -296,6 +304,13 @@ bool Session::ElderBuy(int ci, const std::string& id, std::string* why) {
     if (!ElderNear(ci, why)) return false;
     Landing& L = G->landings[G->skiff.landing];
     Crew& c = G->crew[ci];
+    if (id.rfind("charm:", 0) == 0) {
+        int ch = id == "charm:shark" ? CH_SHARK_TOOTH : CH_ANKLET; int price = ch == CH_SHARK_TOOTH ? 120 : 90;
+        if (L.elderCredit < price) return no("give him more fish first");
+        L.elderCredit -= price; c.charm = ch;
+        G->Say(TextFormat("The elder hangs a %s round your neck (%s)", CharmName(ch), CharmEffect(ch)));
+        return true;
+    }
     if (id.rfind("att:", 0) == 0) {
         // feather fletching onto the speargun in hand (or any spear weapon carried)
         int ai = AttachmentIndex(id.substr(4));
@@ -315,6 +330,73 @@ bool Session::ElderBuy(int ci, const std::string& id, std::string* why) {
     Slot ns; ns.it = Item::Weapon; ns.wpn = wi; ns.ammo = w.mag;
     for (auto& s : c.slots) if (s.it == Item::None) { s = ns; L.elderCredit -= w.price; G->Say(TextFormat("The elder gives you %s", w.name.c_str())); return true; }
     return no("your hands are full (four slots)");
+}
+// ---------------------------------------------------------------- harbour requests (design doc v2, page 48)
+void Session::RollRequests() {
+    requests.clear();
+    std::vector<std::string> named;
+    if (E && E->g) for (int sp : E->g->species) { const SpeciesRec& r = Species().sp[sp]; if (r.price > 0 && !r.protectedSp && !r.threat && !r.netOnly && r.band != BAND_AIR) named.push_back(r.name); }
+    if (named.empty()) named = {"snapper"};
+    uint32_t h = seed * 40503u + (uint32_t)deadline * 2654435761u;
+    auto pick = [&]() { h = h * 1664525u + 1013904223u; return named[(h >> 8) % named.size()]; };
+    for (int w = 0; w < REQ_COUNT; w++) { Request r; r.who = w; if (w == REQ_COOK || w == REQ_COLLECTOR) r.species = pick(); requests.push_back(r); }
+}
+std::string Session::RequestText(int i) const {
+    if (i < 0 || i >= (int)requests.size()) return "";
+    const Request& r = requests[i];
+    switch (r.who) {
+        case REQ_COOK: return "The cannery cook wants a " + r.species + " cooked to 1.5x.   Gives 3x its value, and the cook's spice rub (cooking 25% faster this deadline)";
+        case REQ_NATURALIST: return "The naturalist wants a protected catch tagged and released alive (the Chandler's tag gun).   Gives a lure that brings rare fish for a night";
+        case REQ_COLLECTOR: return "The collector wants a Glimmer " + r.species + ".   Gives 3 Pier Wheel tokens and 100 shillings";
+        case REQ_APPRENTICE: return "The gunsmith's apprentice wants three kills at 2.5x Killscore or better in one night.   Gives a free attachment";
+        default: return "Mother Carey, an old fishwife, wants a mini-boss drop.   Gives a legend lure (for a ground's legendary fish)";
+    }
+}
+bool Session::RequestReady(int ci, int i, std::string* why) const {
+    auto no = [&](const char* m) { if (why) *why = m; return false; };
+    if (i < 0 || i >= (int)requests.size()) return no("no such request");
+    const Request& r = requests[i];
+    if (r.done) return no("done this deadline");
+    switch (r.who) {
+        case REQ_COOK: for (const auto& h : G->hold) if (h.name == r.species && h.cooked && h.cook >= 1.49f) return true; return no("no such fish cooked to 1.5x in the hold");
+        case REQ_NATURALIST: return G->tagged > 0 ? true : no("tag a protected catch and return it alive first");
+        case REQ_COLLECTOR: for (const auto& h : G->hold) if (h.name == r.species && h.glimmer) return true; return no("no Glimmer of that kind in the hold");
+        case REQ_APPRENTICE: return G->highKills >= 3 ? true : no("three 2.5x kills in one night first");
+        default: return G->drops.empty() ? no("no mini-boss drop aboard") : true;
+    }
+    (void)ci;
+}
+bool Session::FillRequest(int ci, int i, std::string* why) {
+    if (!RequestReady(ci, i, why)) return false;
+    Request& r = requests[i];
+    switch (r.who) {
+        case REQ_COOK:
+            for (size_t k = 0; k < G->hold.size(); k++) if (G->hold[k].name == r.species && G->hold[k].cooked && G->hold[k].cook >= 1.49f) {
+                float v = Value(G->hold[k]) * 3; money += v; G->hold.erase(G->hold.begin() + k);
+                G->spiceRub = true;
+                Tape(TextFormat("THE COOK PAID %.0f STOP SPICE RUB GIVEN STOP", v));
+                break;
+            }
+            break;
+        case REQ_NATURALIST: G->tagged--; G->rareLures++; Tape("THE NATURALIST THANKS YOU STOP A LURE FOR RARE FISH STOP"); break;
+        case REQ_COLLECTOR:
+            for (size_t k = 0; k < G->hold.size(); k++) if (G->hold[k].name == r.species && G->hold[k].glimmer) { G->hold.erase(G->hold.begin() + k); break; }
+            tokens += 3; money += 100; Tape("THE COLLECTOR PAID 100 AND THREE TOKENS STOP"); break;
+        case REQ_APPRENTICE: freeAttach++; Tape("THE APPRENTICE WILL FIT AN ATTACHMENT FREE STOP"); break;
+        default: G->drops.erase(G->drops.begin()); G->legendLures++; Tape("MOTHER CAREY GAVE A LEGEND LURE STOP"); break;
+    }
+    r.done = true;
+    return true;
+}
+bool Session::WearDrop(int ci, int di, std::string* why) {
+    auto no = [&](const char* m) { if (why) *why = m; return false; };
+    if (ci < 0 || ci >= (int)G->crew.size() || di < 0 || di >= (int)G->drops.size()) return no("no such drop");
+    int ch = CharmOfDrop(G->drops[di]);
+    if (ch == CH_NONE) return no("it won't hang on a cord");
+    G->crew[ci].charm = ch;
+    G->drops.erase(G->drops.begin() + di);
+    G->Say(TextFormat("Worn on a cord: %s (%s)", CharmName(ch), CharmEffect(ch)));
+    return true;
 }
 bool Session::GunUpgrade(int ci, int slot, std::string* why) {
     auto no = [&](const char* m) { if (why) *why = m; return false; };
@@ -339,6 +421,7 @@ bool Session::GunAttach(int ci, int slot, const std::string& att, std::string* w
     if (HasAttachment(s.att, att.c_str())) return no("already fitted");
     int free = -1; for (int k = 0; k < 3; k++) if (s.att[k] < 0) { free = k; break; }
     if (free < 0) return no("three attachments already");
+    if (freeAttach > 0) { freeAttach--; s.att[free] = (int8_t)ai; return true; }   // (the apprentice's: fitted free)
     if (money < a.price) return no("not enough money");
     money -= a.price; s.att[free] = (int8_t)ai;
     return true;
@@ -372,15 +455,21 @@ float Session::Deliver(int idx, int* rejected) {
     if (lastRejected) Tape(TextFormat("%d FISH REJECTED STOP NOT FRESH STOP", lastRejected));
     return lastDeliveryTotal;
 }
-bool Session::Buy(const std::string& id, std::string* why) {
+bool Session::Buy(const std::string& id, std::string* why, int ci) {
     const ShopItem* it = nullptr;
     for (const auto& s : ChandlerItems()) if (id == s.id) it = &s;
     if (!it) { if (why) *why = "not sold here"; return false; }
     auto owns = [&](Tackle t) { return G->owned[(int)t]; };
     if ((id == "medium" && owns(Tackle::Medium)) || (id == "heavy" && owns(Tackle::Heavy)) || (id == "deepdrop" && owns(Tackle::DeepDrop)) || (id == "watch" && G->watch)) { if (why) *why = "already aboard"; return false; }
     if (id == "ice" && G->ice + 20 > G->iceCap) { if (why) *why = "the ice hold is full"; return false; }
-    if (money < it->price) { if (why) *why = "not enough money"; return false; }
-    money -= it->price;
+    int price = it->price;
+    if (id == "bosslure" && G->AnyWears(CH_BRASS_LURE)) price /= 2;   // (the brass lure charm: boss lures cost the crew half)
+    if (id == "tag" && G->tagGun) { if (why) *why = "already aboard"; return false; }
+    if (money < price) { if (why) *why = "not enough money"; return false; }
+    money -= price;
+    if (id == "bosslure") { G->bossLures++; return true; }
+    if (id == "tag") { G->tagGun = true; return true; }
+    if (id == "coin") { if (ci < 0 || ci >= (int)G->crew.size()) ci = 0; G->crew[ci].charm = CH_LUCKY_COIN; G->Say("A lucky coin on a cord: Glimmer variants twice as likely"); return true; }
     if (id == "ice") G->ice += 20;
     else if (id == "coal") G->boat.bunker += D().sackKg;
     else if (id == "shrimp") G->baitShrimp += 10;
@@ -452,7 +541,9 @@ bool Session::CastOff(std::string* why) {
     if (!CanCastOff(why)) return false;
     G->boat.bunker -= COAL_TO_REACH_LAGOON;
     // fish kept from an earlier night: iced lose a quarter, un-iced have rotted
-    for (auto& c : G->hold) c.fresh = c.iced ? c.fresh * OVERNIGHT_ICED : 0;
+    for (auto& c : G->hold) if (!c.cooked && !c.junk && c.boss < 0) c.fresh = c.iced ? c.fresh * OVERNIGHT_ICED : 0;   // (cooked fish keep)
+    G->highKills = 0;
+    G->rareLureNight = G->rareLures > 0; if (G->rareLureNight) { G->rareLures--; G->Say("The naturalist's lure goes on: rare fish bite more tonight"); }
     // the night's conditions (rolled per night and ground) and a rumour on the tape (right 70% of the time)
     uint32_t h = seed * 2654435761u + (uint32_t)(deadline * 31 + night * 7);
     auto R = [&]() { h = h * 1664525u + 1013904223u; return (h >> 8) * (1.0f / 16777216.0f); };

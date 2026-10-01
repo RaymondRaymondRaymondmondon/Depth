@@ -1,0 +1,42 @@
+id	name	class	size	tier	tags	archetype	social	group_size	home_zone	home_flora	defend_radius_m	blood_threshold	aggression	fear	curiosity	sight_m	scent_m	hearing_m	electro_m	weak_point	armor_front	hp_base	bounty_base	blood_death	blood_per_s_wounded	speed_mps	turn_deg_s	drop_pct	hp_tide10	bounty_tide10	special
+1	Sardine	Fish	1	1	schooler	Schooler	school	60	Lower Town		0	0	0	0.9	0.2	15	8	20	0	none	0	20	40	20	2	2.2	360	1	40	94	Street schools; the city's blood battery
+2	Cardinalfish	Fish	1	1	nocturnal	Grazer	group	10	Lower Town	Bathhouse sponges	0	0	0	0.8	0.2	10	6	10	0	none	0	20	40	20	2	2.2	360	1	40	94	Cellars and sponges
+3	Cleaner Goby	Fish	1	0	cleaner	Grazer	group	4	Bathhouses		0	0	0	0.6	0.5	8	6	8	0	none	0	20	40	20	2	2.2	360	0	40	94	Cleaning stations at the bath drains; hosts calm within 6 m
+4	Snapping Shrimp	Crustacean	1	2	swarm,sessile	Swarmer	swarm	100	Lower Town		0	0	0	1	0	2	2	4	0	none	0	20	40	20	2	2.2	360	0	40	94	Wall colonies; constant 1-noise crackle that masks gunfire by 15% in the Lower Town
+5	Porcelain Crab	Crustacean	1	1		Grazer	group	6	Lower Town	Amphora anemones	0	0	0	0.8	0.3	4	4	4	0	underside	1	20	40	20	2	2.2	360	2	40	94	In anemones; free scrip
+6	Nudibranch	Mollusc	1	1	toxic	Grazer	solo	1	Bathhouses	Bathhouse sponges	0	0	0	0.3	0.1	2	4	2	0	none	0	20	40	20	2	2.2	360	2	40	94	Bright; poison on touch
+7	Sea Cucumber	Echinoderm	1	0	scavenger	Grazer	group	8	Lower Town		0	5	0	0.2	0.1	0	15	0	0	none	0	20	40	20	2	2.2	360	2	40	94	Cleans corpses at 0.4 blood/s
+8	Feather Star	Echinoderm	1	1	sessile	Grazer	group	6	Forum	Column coral	0	0	0	0	0	0	0	0	0	none	0	20	40	20	2	2.2	360	1	40	94	On the columns; harmless
+9	Long-spined Urchin	Echinoderm	1	1		Grazer	group	15	Lower Town		0	0	0	0.1	0	0	3	0	0	none	1	20	40	20	2	2.2	360	2	40	94	Carpets the stairs
+10	Bream	Fish	2	1	schooler	Schooler	school	15	Farms	Sea lettuce terraces	0	0	0	0.8	0.2	12	6	12	0	gills	0	60	80	40	4	2	300	2	120	189	Granary schools
+11	Salema	Fish	2	1	schooler	Schooler	school	20	Farms	Posidonia meadows	0	0	0	0.9	0.2	12	6	12	0	gills	0	60	80	40	4	2	300	2	120	189	Farm herds; erratic after grazing the hallucinogenic patch (marks the off-limits meadow)
+12	Scorpionfish	Fish	2	2	venom,camouflage	Ambusher	solo	1	Lower Town		0	0	0.1	0.1	0.1	5	5	5	0	belly	2	60	80	40	4	2	300	4	120	189	Invisible on marble until touched
+13	Cuttlefish	Cephalopod	2	2	camouflage	Ambusher	solo	1	Lower Town		0	10	0.3	0.6	0.5	12	8	8	0	mantle	0	60	80	40	4	2	300	4	120	189	Market square
+14	Slipper Lobster	Crustacean	2	2	nocturnal	Grazer	group	3	Lower Town		0	5	0.1	0.7	0.3	6	8	6	0	underside	2	60	80	40	4	2	300	3	120	189	Under the market stalls
+15	Mantis Shrimp	Crustacean	2	2	burrower	Ambusher	solo	1	Lower Town		0	10	0.5	0.4	0.3	8	8	8	0	eyes	2	60	80	40	4	2	300	4	120	189	Nests in the toolsmiths' anvils
+16	Aqueduct Newt	Amphibian	1	2	amphibious	Grazer	group	8	Aqueduct		0	0	0	0.8	0.3	6	4	6	0	none	0	20	40	20	2	2.2	360	2	40	94	Rides the aqueduct channels; harmless
+17	Cistern Frog	Amphibian	2	2	amphibious	Grazer	group	6	Cisterns		0	5	0.1	0.7	0.4	6	6	10	0	none	0	60	80	40	4	2	300	3	120	189	Croaks echo through the drains: a 2-noise carrier that spreads alarm between districts
+18	Temple Krait	Reptile	2	2	venom,air-breather	Patroller	solo	1	Chapel		0	15	0.5	0.4	0.5	10	10	8	0	head	0	60	80	40	4	2	300	5	120	189	Crypt sea snake; surfaces at the caldarium dome
+19	Water Monitor	Reptile	3	3	amphibious	Patroller	solo	1	Bathhouses		5	30	0.6	0.3	0.4	12	15	12	0	throat	2	250	180	60	6	1.8	180	6	500	424	Prowls the hypocaust rooms and the drill yard; eats ichor-fed crabs
+20	Cormorant	Bird	2	2	flying,air-breather	Schooler	school	10	Courtyards	Courtyard sargassum	0	0	0	0.9	0.3	25	0	20	0	none	0	60	80	40	4	2	300	2	120	189	Dives from the courtyard air pockets; a startled flock is a 6-noise alarm
+21	Moon Jelly Bloom	Cnidarian	2	1	swarm	Swarmer	swarm	40	Forum		0	0	0	0	0	0	0	0	0	none	0	60	80	40	4	2	300	0	120	189	Drifts the forum
+22	Man o' War	Cnidarian	2	2	venom	Swarmer	group	3	Courtyards	Courtyard sargassum	0	0	0	0	0	0	0	0	0	float	0	60	80	40	4	2	300	2	120	189	10 m tentacles under the sargassum
+23	Octopus	Cephalopod	3	3	thief	Ambusher	solo	1	Lower Town	Amphora anemones	0	30	0.4	0.6	0.9	10	15	8	0	mantle	0	250	180	60	6	1.8	180	8	500	424	One per amphora street; the toolsmiths' parts are usually in its den
+24	Conger Eel	Fish	3	3		Ambusher	solo	1	Cisterns		2	30	0.7	0.2	0.3	8	25	12	0	gills	1	250	180	60	6	1.8	180	6	500	424	Strikes from any drain grate; retreats into the cistern
+25	Spider Crab	Crustacean	3	2	armored,camouflage	Grazer	solo	1	Farms	Doorway kelp curtains	0	0	0.1	0.4	0.2	6	8	6	0	underside	4	250	180	60	6	1.8	180	4	500	424	Decorated with kelp; looks like a bush until it moves
+26	Sea Bass	Fish	3	3		Patroller	solo	1	Bathhouses		0	30	0.6	0.3	0.4	15	20	12	0	gills	1	250	180	60	6	1.8	180	6	500	424	Bathhouse patroller
+27	Dentex	Fish	3	3	pair	Pack hunter	pair	2	Lower Town		0	30	0.7	0.3	0.5	25	20	20	0	gills	0	250	180	60	6	1.8	180	6	500	424	A fast street hunter in pairs
+28	Amberjack	Fish	3	3	pack	Pack hunter	pack	6	Barracks		0	30	0.7	0.3	0.4	25	20	20	0	gills	0	250	180	60	6	1.8	180	6	500	424	Drills the barracks yard in formation
+29	Barracuda	Fish	3	3		Patroller	solo	1	Harbor Gate		0	30	0.6	0.3	0.7	25	20	20	0	gills	0	250	180	60	6	1.8	180	6	500	424	Waits in the gate arch; drawn to flashes
+30	Lamprey	Fish	2	0	parasite	Parasite	solo	1	Cisterns		0	10	0.4	0.4	0.6	10	15	8	0	none	0	60	80	40	4	2	300	2	120	189	Cistern parasite
+31	Bluefin Tuna	Fish	4	3	fast	Patroller	school	3	Forum		0	0	0.5	0.4	0.3	30	15	20	0	gills	1	900	400	80	8	2.4	120	6	1799	943	Crosses the summit plaza at full speed every 40 s
+32	Swordfish	Fish	4	3	fast	Patroller	solo	1	Forum		0	30	0.7	0.2	0.4	30	20	20	0	gills	1	900	400	80	8	2.4	120	8	1799	943	Plaza lane
+33	Loggerhead	Reptile	4	3	armored,air-breather	Grazer	solo	1	Courtyards	Courtyard sargassum	0	0	0.2	0.4	0.3	12	12	10	0	neck	4	900	400	80	8	2.4	120	6	1799	943	Eats the man o' war under the sargassum
+34	Monk Seal	Mammal	4	3	thief,air-breather	Patroller	solo	1	Courtyards		0	30	0.3	0.5	0.9	15	10	15	0	none	1	900	400	80	8	2.4	120	6	1799	943	Curious thief
+35	Sandbar Shark	Fish	4	4		Patroller	solo	1	Lower Town		0	70	0.8	0.2	0.5	20	45	20	6	gills	1	900	400	80	8	2.4	120	8	1799	943	Patrols the lower town streets; threshold 70; avoids ichor for 60 s
+36	Leatherback	Reptile	5	1	air-breather	Grazer	solo	1	Forum		0	0	0	0.4	0.3	12	10	10	0	neck	3	3000	900	100	10	2.6	70	6	5997	2122	Gentle; 100 blood; eats every jelly in the forum if left alone
+37	Nile Crocodile of the Canals	Reptile	5	4	amphibious,armored	Territorial	solo	1	Farms		10	100	0.8	0.1	0.3	15	35	20	0	throat	4	3000	900	100	10	2.6	70	10	5997	2122	Every canal is its lane; hauls out on the terraces; eats Lost Ones
+38	Great White	Fish	5	4		Wanderer	solo	1	Beyond the wall		0	150	0.9	0	0.7	30	80	30	8	gills	1	3000	900	100	10	2.6	70	10	5997	2122	Comes over the wall for blood over 150; avoids ichor-scented streets
+39	Giant Squid	Cephalopod	5	4		Ambusher	solo	1	Library		10	100	0.9	0	0.3	15	30	15	0	eye	1	3000	900	100	10	2.6	70	10	5997	2122	Confined to the library stacks; reaches through doorways
+40	The Cistern Wyrm	Fish	6	5	boss	Boss	solo	1	Cisterns		0	400	1	0	0.2	15	60	25	10	gills (when surfaced)	3	15000	1500	120	12	1.2	40	100	29985	3537	A conger the length of a street; see Boss
+Blue = tunable input. Columns Y, Z, AD, AE are formulas.

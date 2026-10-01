@@ -1,0 +1,46 @@
+zone	species	count_tide1	respawn_s	capacity_mult_per_tide	count_tide10
+The Rim	Sand Eel	1	120	1.03	1
+The Rim	Sand Hopper	1	60	1.03	1
+The Rim	Sea Pig	12	300	1.03	16
+The Rim	Tripod Fish	6	200	1.03	8
+The Rim	Deep Skate	2	400	1.03	3
+The Rim	Giant Sea Spider	2	400	1.03	3
+The Rim	The Sand Worm	1	0	1.03	1
+The Descent	Hatchetfish	30	30	1.03	39
+The Descent	Viperfish	3	240	1.03	4
+The Descent	Fangtooth	3	240	1.03	4
+The Descent	Frilled Shark	1	500	1.03	1
+The Descent	Oarfish	1	0	1.03	1
+The Upper Galleries	Brittle Star	30	120	1.03	39
+The Upper Galleries	Rattail	5	180	1.03	7
+The Upper Galleries	Dumbo Octopus	2	300	1.03	3
+The Upper Galleries	Deep Jelly	5	180	1.03	7
+The Upper Galleries	Anglerfish	2	400	1.03	3
+The Upper Galleries	Goblin Shark	1	700	1.03	1
+The Upper Galleries	Hatchetfish	20	30	1.03	26
+Overlooks	Bone Worm (Osedax)	1	0	1.03	1
+Overlooks	Cookiecutter Shark	2	300	1.03	3
+Overlooks	Barreleye	3	240	1.03	4
+Overlooks	Siphonophore	2	400	1.03	3
+Overlooks	Hadal Turtle	1	600	1.03	1
+The Warrens	Vent Shrimp	1	60	1.03	1
+The Warrens	Giant Isopod	4	300	1.03	5
+The Warrens	Yeti Crab	10	120	1.03	13
+The Warrens	Squat Lobster	12	90	1.03	16
+The Warrens	Chimaera	2	400	1.03	3
+The Warrens	Pelican Eel	2	500	1.03	3
+The Station: Mess & Quarters	Abyssal Sea Snake	2	300	1.03	3
+The Station: Mess & Quarters	Lab Salamander	4	0	1.03	5
+The Station: Mess & Quarters	Elephant Seal	1	800	1.03	1
+The Station: Specimen Labs	Coelacanth	2	0	1.03	3
+The Station: Specimen Labs	Dragonfish	3	240	1.03	4
+The Station: Specimen Labs	Pale Caiman	1	900	1.03	1
+The Station: Specimen Labs	Lab Salamander	2	0	1.03	3
+The Lowest Vault	Hadal Amphipod	1	60	1.03	1
+The Lowest Vault	Snailfish	4	240	1.03	5
+The Lowest Vault	Sixgill Shark	1	900	1.03	1
+The Lowest Vault	The Lantern Leviathan	1	0	1.03	1
+The Abyss	Colossal Squid	1	900	1.03	1
+The Abyss	Sperm Whale	1	0	1.03	1
+The Abyss	The Relict	1	0	1.03	1
+respawn_s: seconds to replace one killed individual while below capacity; 0 = placed once (boss, sessile, ambush nests). Swarms and colonies count as 1 agent.

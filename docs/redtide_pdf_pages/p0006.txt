@@ -1,0 +1,4 @@
+Red Tide — Arcade Game 5 Design Document
+web. The engine is built so that a map's species list is data ( redtide_species . j son ) and
+the rules are the same everywhere.
+Page 6 of 90

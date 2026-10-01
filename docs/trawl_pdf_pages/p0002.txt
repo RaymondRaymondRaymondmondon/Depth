@@ -1,0 +1,37 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+6. Dread is readable. Every threat has a sound, visual, and sonar tell and a counter. Death
+is always explainable afterward.
+Scope rules. Everything stays procedural (no image or audio files). The deck is top-down
+pixel art from the parkour pipeline; underwater views (sonar, dive, reel camera) use the
+same pixel palette. Numbers live in trawl _ data. cpp . The host runs the simulation; clients
+send commands. Every system ships with a headless self-test on depth . exe .
+The session loop
+A run is a string of deadlines. Each deadline is three nights at sea; a session (one deadline)
+takes about 30-35 minutes with six players. Meet the quota and the next deadline starts
+with a higher one; miss it and the Owners repossess the boat and the run ends.
+The Owners. An unseen shipping concern that rents the crew the Gannet, a 22 m steam
+trawler, and licenses it to fish only at night. They speak through a brass telegraph in the
+wheelhouse (the Lethal Company terminal and Company voice in one). Their messages
+are terse, occasionally wrong, and never sympathetic.
+The telegraph. The Owners speak only by brass telegraph: a tape clatters out of the
+wheelhouse printer in capitals, with STOP for every full stop, and a bell tick every
+crewman hears. Their voice is mercantile, polite in form, indifferent in fact; they care
+about the hold and the boat, never the hands. Everything the Owners say is printed on
+tape that can be torn off and read later on the crew board. About 30% of rumors are
+wrong, and the Owners never admit it.
+When
+A deadline begins
+A night begins
+The Grotto closing time
+Midnight
+Example message
+QUOTA 400 SHILLINGS STOP THREE NIGHTS STOP
+THE OWNERS ARE CONFIDENT STOP
+WEEDS FOG STOP MOON WANING STOP
+WHALERS REPORT TUNA ON SEAWARD EDGE
+STOP
+ARCH IMPASSABLE AFTER 0315 STOP OWNERS
+ACCEPT NO RESPONSIBILITY STOP
+MIDNIGHT STOP HOLD INSPECTED AT HARBOUR
+LINE 0500 STOP
+Page 2 of 79

@@ -1,0 +1,37 @@
+Red Tide — Arcade Game 5 Design Document
+• Maps are built in code from layout data. Each map is a text layout of rooms, corridors,
+and props with decoration rules (which flora grows on which surface, where habitats
+go). Atlantis has a city generator: districts on a hill, streets by slope, building types by
+district, decorated by the habitat rules. The Sunken Ship is a lathed hull with decks cut
+from it. Caves are marched from noise fields with hand-placed anchors for the galleries
+and slipstreams.
+• Blood and water. A red tint at the mask edge that grows with local scent; visible blood
+plumes; the scent meter and predator pulse on the HUD.
+Performance budget
+Item
+Active agents near players
+Population counters beyond 120 m
+Mesh instancing
+LODs
+Scent grid
+Target
+Networking
+Budget
+300 at 10 Hz decisions, 60 Hz motion
+Unlimited (no bodies)
+One draw per species per LOD
+3 per creature; billboards past 80 m
+2 m cells, updated at 1 Hz, in a background thread
+60 fps at 1080p on a mid-range laptop with four
+players
+• Host-authoritative through the shared arcade layer (GameNetworkingSockets). The
+host runs the ecosystem and hit validation.
+• Client prediction for the local diver's movement; lag compensation for hits: the host
+rewinds beast positions up to 200 ms to judge a shot, so aiming feels local.
+• Snapshots at 20 Hz with delta compression; beasts and enemies interpolated 100 ms
+behind; interest management by distance (200 m) and line of sight.
+• Scent and alarm live only on the host; clients receive the HUD values for their own
+position.
+• Disconnect: the diver is downed and held for 2 minutes; reconnecting restores them if
+the body is revived.
+Page 62 of 90

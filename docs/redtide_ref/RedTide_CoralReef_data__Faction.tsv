@@ -1,0 +1,22 @@
+The Reef Raiders
+The Island tribe on a hunting raid: free-divers who breathe at the surface and ride sea turtles between the reef and the blue. They hunt beasts for meat and leave corpses everywhere they go, so a raid raises blood wherever it passes; their Shaman's drum turns the reef itself against the divers.
+unit	hp_tide1	weapon	damage	speed	role	tell	loot
+Spear Diver	130	Coral spear	35 melee, 0.9 s; thrown 45 (one throw, then retrieves)	Fast in water (2.2); must surface every 60 s (they use mangrove roots and the Bommie top)	Hunts in pairs; flanks through corridors	Exhales a bubble stream before a lunge; surfaces predictably	220 scrip
+Turtle Rider	160	Lance from turtle-back	50 charge	Turtle speed (1.6) but never surfaces (the turtle breathes)	Charges down the Flats and the Wall; the turtle is a shield (armored front)	The turtle's flippers churn sand	Turtle (becomes a neutral Green Turtle if the rider dies), 260
+Sling Diver	110	Sling: coconut bombs	40 blast, 2 m radius	Diver speed	Lobs from 15 m; targets divers in the open	Whirls the sling twice	Coconut bombs (3 tactical), 240
+Netter	150	Reed net	Holds 4 s	Diver speed	Nets a diver at a corridor mouth for the spears	Spreads the net wide	Net Gun, 250
+Shaman (Hunts)	800	The drum	0	Slow; rides a turtle	Drums from the Wall: +aggression to every beast in 40 m for 20 s; calls sharks on the third drum and the Matriarch on the fifth	Raises the drum overhead; each beat is a 6-noise pulse	The drum (a usable item: 5 uses), 600
+Squad tactics
+1. Squads arrive at the Wall on turtles and ride the Flats toward the Maze mouth, or come inland by B4 (Raider Road) on foot; they know the Reacher gates and jump them.
+2. On contact: the Netter nets the lead diver, Spear Divers flank through the nearest corridor, the Sling Diver lobs from open water, the Turtle Rider charges anyone on the Flats.
+3. They hunt beasts on the way in for meat (they'll spear a dugong or a turtle if they pass one), which drops corpses and calls sharks onto everyone; they shoot dolphins on purpose to turn the pod on the divers.
+4. They avoid the Blue Hole and the deep Wall (they must surface). Trapping them in the Flats far from the surface makes them retreat to the Bommie top, where the cleaning station calms the sharks they've called.
+5. In a Hunt the Shaman drums from the Wall on his turtle; every fifth beat can call the Matriarch. Kill him first, or take the drum and beat it near the Raiders.
+Barks (formant synth, subtitled)
+Spotting: 'Brass-heads on our reef.' / 'Take their meat.'
+Spearing a beast: 'Good eating.' / 'Let the blood bring the big ones.'
+Dolphin shot: 'Now the grey ones hate them too!'
+Netting: 'Wrapped. Bring the spears.'
+Retreat: 'To the coral head. The little fish will calm the sharks.'
+Shaman: 'The sea's mother hears the drum.' / 'Five beats and she comes.'
+Enemy HP x1.08 per tide; weapons upgrade every 5 tides (Forged at 15+).

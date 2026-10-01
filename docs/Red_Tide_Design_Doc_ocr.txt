@@ -1,0 +1,6111 @@
+=== PAGE 0001.txt
+Red Tide — Arcade Game 5 Design Document
+Red Tide — Arcade Game 5 Design Document
+sep 29, 2026 • @Phillip Argall
+Overview
+Red Tide is a four-player 3D survival shooter in the Deep Arcade, built on the bones of
+Black Ops 2 and 3 Zombies but with no zombies: the players are divers dropped into living
+ecosystems, earning money by killing beasts while the food web, the blood in the water,
+and the enemies drawn by their gunfire close in around them. Every map is an ecosystem
+of about 40 beasts and 12 flora that eat, hide, breed, and hunt each other whether or not
+the players are watching.
+What it keeps from Zombies
+Zombies system
+Rounds
+Points
+Wall buys
+Mystery Box
+Pack-a-Punch
+Perks (Juggernog, Speed Cola, Quick Revive,
+Double Tap, Stamin-Up, PhD, Deadshot, Mule
+Kick, Electric Cherry, Widow's Wine, Vulture
+Aid, Tombstone, Who's Who)
+Gobblegums
+Red Tide version
+Tides. Each tide raises the ecosystem's
+aggression, the enemy pressure, and the
+bounties. A tide ends when its kill quota is
+met
+Scrip, earned per hit and kill, spent on doors,
+racks, the Locker, tonics, and the Forge
+Racks: weapons chalked on the walls of the
+map
+Davy's Locker: a sea chest that deals a
+random weapon and moves when the eel
+inside gets bored
+The Pressure Forge: upgrades weapons and
+adds alternate ammunition
+Tonics: bottled brines from vending
+machines, each a reimagining of one perk
+Salt Charms: single-use charms earned
+between matches
+Page 1 of 90=== PAGE 0002.txt
+Red Tide — Arcade Game 5 Design Document
+Zombies system
+Power-ups
+Buildables
+Downs, revives, Last Stand pistol
+Special rounds (hellhounds)
+Easter eggs and lore
+Design pillars
+Red Tide version
+Drops: Resupply, Blood Frenzy, Double Scrip,
+Purge, Shipwright, Fire Sale, Harpoon Hour
+Salvage builds: shield, turbine, tripwire nets,
+decoy buoys
+Unchanged, underwater
+Hunts: an enemy faction round, or a
+predator round when the water is bloody
+enough
+Dossiers and one hidden quest per map
+1. The food web is the enemy. Zombies come because it's a round; beasts come because
+you made blood, noise, or a corpse. The ecosystem runs without you and reacts to
+everything you do.
+2. Every kill is a decision. Small kills are safe scrip; big kills bring bigger things; too many
+kills bring the things that eat everything.
+3. Enemies are prey too. The human and unhuman factions that hunt you are also on the
+menu, and the smartest play is often to let the reef eat them.
+4. Each map is an ecosystem first and a level second. Layouts are built around where
+creatures live, feed, and hide.
+5. Zombies pacing. Fast, readable, arcade-loud: 60-second tides early, minutes-long late,
+always a way to run, always a reason to stop and buy.
+The five maps (smallest to largest): the Sunken Ship, the Underwater Cave, the Coral
+Reef, Atlantis the Forgotten City, and Approaching the Void.
+Session: 4 players (or 1-3 with scaled quotas), 20-60 minutes, ending when every player is
+dead. The score is the tide reached and the scrip earned, and both pay arcade tokens.
+Core loop and rules
+A match runs in tides. Each tide has a kill quota; meeting it ends the tide, pays a bonus,
+and starts the next one harder. Between tides the water calms for 20 seconds, the only
+reliable time to buy, build, and revive.
+Page 2 of 90=== PAGE 0003.txt
+Red Tide — Arcade Game 5 Design Document
+The spawn-in (identical every match)
+Slot
+Sidearm
+Melee
+Tactical
+Scrip
+Lamp
+Build slot
+Item
+The Cormorant, a brass gas-pistol: 8 darts, 32
+reserve
+Diver's knife
+2 limpet charges (stick to surfaces or beasts, 3 s
+fuse)
+500
+Helmet lamp, switched on
+Empty
+All four divers spawn in the map's start pocket, a small safe room with one rack pistol, one
+door out, and the first tonic machine visible through the door.
+Scrip
+Action
+Hit a beast or enemy
+Kill
+Headshot or weak-point kill
+Melee kill
+Repair a barricade net
+Revive a teammate
+Tide cleared
+Enemy faction kill
+Scrip
+10
+The beast's bounty (40-1,500, in each map's table)
+Bounty +50%
+Bounty +30
+10 per plank, max 100 per tide
+100
+100 x tide number, split among the living
+Bounty 200-600 plus their dropped weapon
+Bounties rise 10% per tide. Scrip is per player and can't be traded or dropped; the only
+way to even it out is the Fair Shares charm.
+Page 3 of 90=== PAGE 0004.txt
+Red Tide — Arcade Game 5 Design Document
+Tides
+Tide
+1-3
+4-9
+10-19
+20+
+Kill quota (4 players)
+12/16/22
+28-60
+70-150
++20 per tide
+What changes
+Ecosystem calm; small and mid beasts only; no
+enemies
+Predators respond to blood; enemy attraction on; a
+Hunt every 5th tide
+Apex beasts wander; enemy squads carry
+upgraded weapons; blood decays slower
+Everything at once; Blood Frenzy needed to keep
+pace; the map's boss beast can appear at any time
+Quota scales 0.4 / 0.6 / 0.8 / 1.0 with 1-4 players. Kills by beasts eating enemies or each
+other do not count; kills by players' builds do.
+Health, downs, revives
+• 100 HP, regenerating 4s after the last hit at 20 HP/s (Zombies-style). Juggernaut Tonic
+raises HP to 250.
+• At O HP a diver is downed: they float with the Cormorant only, for 45 s, bleeding into
+the water (a downed diver is a strong blood source, which is the danger and the
+drama).
+• Any teammate can revive in 4 s (2 s with Quick Brine). A revived diver loses all tonics
+unless they hold a Salt Charm that keeps them.
+• If every diver is down, the match ends. Solo has one self-revive per Quick Brine bought
+(three per match).
+• Air. There is no air timer; divers breathe indefinitely. The pressure against camping in a
+corner comes from blood, scent, and the enemy alarm instead.
+Doors, power, and the map opening up
+• Doors and debris cost 750-2,500 scrip and open permanently for everyone. Each map
+opens in stages from the start pocket outward.
+• Power (the generator, the tide mill, the temple's crystal) turns on the Forge, the
+Locker's second location, tonic machines beyond the first two, and the map's traps.
+Turning on power also wakes the ecosystem's larger predators, so the choice of when
+Page 4 of 90=== PAGE 0005.txt
+Red Tide — Arcade Game 5 Design Document
+to do it is real.
+• Traps cost 1,000 per use and kill by the map's rules: a cargo crane, a stalactite drop, a
+coral gate, a flooding chamber, a lab's pressure door.
+Drops
+Some beasts drop a glowing bottle on death (about 1 in 40 kills, weighted away from
+repeats).
+Drop
+Resupply
+Blood Frenzy
+Double Scrip
+Purge
+Shipwright
+Fire Sale
+Harpoon Hour
+Hunts
+Effect
+Full ammo for everyone
+30 s: every hit kills; the water fills with blood at
+rate (huge scrip, huge danger)
+30s
+Every beast within 40 m dies and leaves no blood;
+enemies flee
+All barricade nets repaired
+30 s: the Locker costs IO and appears at every
+location
+30 s: the Harpoon Cannon in hand, infinite bolts
+Every 5th tide from tide 5 is a Hunt: instead of a quota, the map's enemy faction arrives in
+force (see Enemy factions) and the tide ends when they're dead or eaten. Starting at tide
+10, a Hunt can also be a Predator Hunt: the map's apex beasts come to the players'
+position because the water is bloody enough, and the quota is a fixed number of apex
+kills. The reward for either is a Resupply and a guaranteed Locker weapon.
+The ecosystem engine
+Every map runs one simulation, Ecosystem , in which about 40 species and 12 flora live by
+a shared set of rules: what they eat, what eats them, what they smell, what they hear,
+where they live, and who they help. Players and enemy factions are members of the same
+Page 5 of 90=== PAGE 0006.txt
+Red Tide — Arcade Game 5 Design Document
+web. The engine is built so that a map's species list is data ( redtide_species . j son ) and
+the rules are the same everywhere.
+Page 6 of 90=== PAGE 0007.txt
+Red Tide — Arcade Game 5 Design Document
+A species record
+Field
+Class
+Size
+Trophic tier
+Diet
+Blood yield
+Blood threshold
+Senses
+Temperament
+Home
+Social
+Bounty
+Drops
+Meaning
+Fish, reptile, crustacean, amphibian, mammal,
+insect, cephalopod, cnidarian, echinoderm, worm,
+bird, enemy
+1 (finger) to 6 (leviathan); a predator eats prey up
+to 60% of its size, or larger when it hunts in a
+school or pack
+O flora, 1 grazer or filter feeder, 2 small predator, 3
+mid predator, 4 apex, 5 boss; scavengers and
+parasites carry a tag
+Species and tags it eats, each with a preference
+weight
+Blood emitted per second when wounded (z size x
+wound fraction x 2) and on death (z size x 20, then
+a trickle from the corpse)
+How much blood in the water makes it investigate
+(small scavengers 5, mid predators 30, apex 120,
+the boss 400)
+Sight range, scent sensitivity, sound sensitivity,
+and whether it has electroreception (sees players
+through walls at short range)
+Aggression, fear, curiosity (0-1 each)
+Flora or terrain it lives in, nest radius, whether it
+defends its home
+Solo, pair, school (boids), pack (coordinated),
+swarm
+Scrip on kill
+Chance of a drop bottle and any special part
+Page 7 of 90=== PAGE 0008.txt
+Red Tide — Arcade Game 5 Design Document
+The seven layers of the web
+1. Trophic layer. The diet graph. Each beast has a hunger meter; hunger raises the weight
+of hunting over everything else. Grazers eat flora; predators eat by preference and
+size; scavengers eat corpses. A well-fed predator ignores prey, so an area that has just
+been hunted through is briefly safer.
+2. Blood and scent layer. The map holds a 3D scent grid (2 m cells). Blood diffuses to
+neighboring cells each second and decays 2% per second (1% at tide 10+, 0.5% at tide
+20+, so late tides never clear). Every species samples the grid within its scent range
+each second; when the total exceeds its threshold, it follows the gradient to the
+source. Because thresholds are per species, one dead minnow brings scavengers, a
+dead tuna brings sharks, and four dead tuna at once brings the thing that eats sharks.
+3. Sound layer. Every weapon has a noise value; explosions and traps are louder. Sound is
+a second field with fast decay (20% per second). Species react by temperament:
+fearful ones flee it, CUriOUS ones approach it, aggressive ones attack it. Sound also
+feeds the enemy alarm (below).
+4. Territory layer. Beasts with a home defend a radius around it against anything larger
+than prey, including players and enemies, and return home when calm. Nests, burrows,
+anemone beds, and wrecks are where fights start without any blood at all.
+5. Symbiosis layer. Cleaners reduce the aggression of hosts they service; hosts shelter
+symbionts; parasites attach to beasts and divers (slowing, bleeding, or blinding them
+until scraped off at a cleaning station). Mimics look like harmless species until touched.
+Lures and lights draw curious species.
+6. Flora layer. Flora grows, gets grazed, shelters, feeds, and sometimes hunts. Flora
+density sets grazer carrying capacity; grazer numbers set predator patrol frequency;
+so shooting up a kelp bed or a coral head changes what lives there for the rest of the
+match.
+7. Enemy layer. Enemy factions are species in the same web: they bleed, they are prey to
+apex beasts, they hunt beasts that threaten them, and some of them feed the web on
+purpose (chumming, netting).
+The blood rules the player learns
+• A shot beast bleeds; a dead one bleeds much more. Blood attracts by total amount in
+the area, not by the number of kills, so ten small fish and one big fish can call the same
+predator.
+• Corpses keep bleeding until scavengers finish them (30-120 s by size). Scavengers,
+therefore, are the players' friends, and killing them for scrip is the classic mistake.
+Page 8 of 90=== PAGE 0009.txt
+Red Tide — Arcade Game 5 Design Document
+• Wounded players bleed; downed players bleed heavily. Reviving fast is also ecology.
+• Moving out of bloody water is the only real reset; blood follows currents, so the map's
+flow tells you where it goes.
+• The HUD shows blood as a red tint at the edge of the mask and a small scent meter, and
+predators' approach as a pulse from their direction.
+The enemy alarm
+• Each map region has an alarm value. Gunfire adds the weapon's noise; explosions add
+triple; melee adds nothing. It decays 5% per second.
+When alarm exceeds x (1 / (1 + 0.1 x tide)) , a roll every 5 s spawns an
+enemy patrol at the region's faction entry with chance + 3% x tide (capped at
+70%). Higher tides make quieter play matter more.
+• Four divers firing in one region fill one alarm four times faster than four divers spread
+across four regions. Spreading out lowers enemy pressure but raises blood-in-one-
+place risk when someone goes down alone: the coordination trade-off the Sunken Ship
+teaches first.
+• Enemies that arrive follow the same sound and blood senses as beasts, so they find
+you the way the beasts do.
+Behavior state machine
+Every beast runs: Graze or Rest Investigate Hunt Feed Flee Defend Return
+Dead, with transitions driven by hunger, blood, sound, threat size, and home distance.
+Schools use boids with a shared leader; packs assign flank and drive roles; swarms are a
+single agent with many bodies. Fleeing beasts drop the blood they were about to make: a
+wounded fish that escapes leaves a thin trail, which is itself a lure for the next predator.
+Population
+• Each region has spawn pools per species with a carrying capacity tied to flora density
+and tide number.
+• Beasts that leave a region to follow blood are replaced slowly at home; beasts killed in a
+region are replaced at the region's respawn rate (small fast, apex slow, boss never).
+• Predators that overfeed leave; grazers then rebound; predators return. The cycle is
+tuned to about 3 minutes so a match feels alive without stalling quotas.
+• The boss beast of each map is a single persistent agent with a very high blood
+threshold and a home; it wanders more each tide.
+Page 9 of 90=== PAGE 0010.txt
+Red Tide — Arcade Game 5 Design Document
+Simulation budget
+About 300 active agents at full rate (10 Hz decisions, 60 Hz movement) near the players,
+and population counters only for regions beyond 120 m. The host runs the simulation;
+clients receive agent positions and states with fog filtering by distance. --eco-sim <map>
+runs the ecosystem headless and prints population curves, blood levels, and
+predator arrival times for a scripted player pattern.
+Weapons
+Red Tide's arsenal follows Zombies' shape (a fixed starting pistol, wall racks, a random
+box, a Pack-a-Punch, and a wonder weapon per map) with underwater guns: gas-driven
+dart and needle guns, spearguns, harpoon rifles, and sealed-cartridge powder guns. Every
+weapon has a noise value that feeds the alarm and the sound layer, so the loud guns are
+the strong ones and the quiet ones are the safe ones.
+Stats and rules
+• Two weapon slots (three with Mule Brine). Weapons are picked up from racks, the
+Locker, or dead enemies.
+• Damage is per dart or bolt; rate is rounds per minute; noise 1-10 feeds the alarm; reload
+is seconds.
+• Ammo is bought at the rack (half the weapon's price) or refilled by a Resupply drop.
+Locker weapons can only be refilled by Resupply or the Forge's re-arm.
+• Headshots and weak points do (3x with Deadeye Brine).
+• Water drag: dart weapons lose damage past 25 m, harpoons past 60 m, powder guns
+past 40 m.
+Racks (wall weapons)
+Weapon
+The Cormorant
+Gannet
+Type
+Gas pistol
+(start)
+Gas pistol
+Damage
+30
+40
+Rate
+300
+280
+Magl
+reserve
+8/ 32
+10 50
+Noise
+2
+2
+Reload
+1.4
+1.5
+Scrip
+500
+Notes
+The Last Stand
+pistol; Forged it
+becomes the
+Albatross, 3-dart
+burst
+Rack in every
+start pocket
+Page 10 of 90=== PAGE 0011.txt
+Red Tide
+Arcade Game 5 Design Document
+Weapon
+Needler Mk I
+Sea-Pattern
+Carbine
+Flechette 12
+Long Speargun
+Needler Mk II
+Trawlerman's
+Rifle
+Bolt Harpoon
+Chumthrower
+Boarding Axe
+(melee rack)
+Type
+Needle
+repeater
+(SMG)
+Powder
+carbine
+Scatter gun
+Speargun
+(marksman)
+Needle
+repeater
+Powder rifle
+Harpoon rifle
+(sniper)
+Support
+Damage
+22
+45
+120
+26
+70
+260
+180
+Rate
+900
+600
+80
+60
+950
+420
+40
+Magl
+reserve
+30 / 150
+24 / 168
+6 / 36
+1/20
+40 / 200
+201140
+1/16
+10/ 30
+Noise
+4
+6
+7
+3
+4
+6
+5
+1
+Reload
+2.0
+2.2
+3.0
+(shell by
+shell)
+1.8
+1.9
+2.4
+2.5
+2.0
+Scrip
+1,000
+1,200
+1,200
+1,500
+1,500
+1,750
+2,000
+1,500
+2,500
+Notes
+Early workhorse
+Loud, accurate
+Close corridors
+Quiet one-shot
+on small fish
+Pins small beasts
+to walls;
+retrievable bolts
+Fires chum:
+creates blood on
+a spot to steer
+predators, a
+deliberate lure
+Replaces the
+knife
+Davy's Locker (the box)
+950 scrip a pull; a moray eel inside shuffles the guns and, after 8-12 pulls, snaps the chest
+shut and it sinks to another location (a lantern buoy marks the new one). Fire Sale puts it
+everywhere for 10. The Locker deals from this pool plus every rack weapon and the map's
+wonder weapon (2% per pull, guaranteed within 12 pulls if not yet held by the team).
+Weapon
+Gatling
+Needler
+Type
+Needle LMG
+Damage Rate
+Mag I
+reserve
+120 / 360
+Noise Notes
+24
+1,100
+5
+Spins up 0.5 s
+Page 11 of 90=== PAGE 0012.txt
+Red Tide
+Arcade Game 5 Design Document
+Weapon
+Twin Gannets
+Stormlock
+Drum
+Flechette
+Reef Rattler
+Cannon
+Harpoon
+Limpet
+Launcher
+Net Gun
+Tesla Gaff
+(melee)
+Trident
+(melee)
+Type
+Akimbo gas
+pistols
+Powder auto-
+rifle
+Auto scatter
+gun
+Burst needle
+rifle
+Heavy
+harpoon
+Launcher
+Utility
+Damage
+40
+55
+11
+35 x 3
+400
+350
+splash
+250 +
+stun
+300
+Rate
+560
+720
+180
+3-
+burst
+30
+40
+60
+Mag /
+reserve
+20 / 100
+30 / 210
+12 / 48
+27 / 189
+1/12
+4/12
+4/12
+Noise
+3
+7
+8
+4
+8
+9
+2
+3
+o
+Notes
+Explodes on impact with a
+beast over size 3
+Charges stick and blow
+Nets hold a beast up to size 3
+for 6 s (size 4 for 3 s)
+Chains to 2 nearby
+Reach; lunge on sprint
+Wonder weapons (one per map, Locker only)
+Map
+The Sunken Ship
+The Underwater
+Cave
+The Coral Reef
+Weapon
+The Galvanic Rod
+The Resonator
+The Anemone
+Gun
+What it does
+A ship's dynamo on a pole: an arc that chains
+through everything in 10 m, stunning; Forged:
+the Lightning Keel, arcs leave a 5 s electric field
+A sonic cannon: a cone that kills small beasts
+outright and knocks large ones back, and
+shatters stalactites onto enemies; Forged: the
+Deep Bell, its ring also cancels blood scent in
+the cone for 5 s
+Fires living polyps that root where they land
+and grab anything that passes; Forged: the
+Garden, polyps also poison and spread once
+Page 12 of 90=== PAGE 0013.txt
+Red Tide — Arcade Game 5 Design Document
+Map
+Atlantis
+Approaching the
+Void
+Weapon
+The Tide Staff
+The Abyssal Lure
+What it does
+Bends the current: a wave that carries beasts
+and enemies away, or pulls them into a trap;
+Forged: the Sovereign's Staff, the wave drowns
+enemies in air pockets and carries blood with it
+A lantern that draws every beast in 60 m to a
+point for 8 s, then bursts; Forged: the Deep Call,
+the burst also calls one apex beast to the point
+on your side for 30 s
+The Pressure Forge (Pack-a-Punch)
+5,000 scrip after power. A pressure chamber that crushes the weapon into a stronger
+form: +150% damage, +50% ammo, a new name, a sea-glass finish, and a slot for one
+alternate ammunition (rolled free, re-rolled for 2,500):
+Ammunition
+Galvanic
+Chum Rounds
+Flare Burst
+Riptide
+Boiling
+Effect (Zombies analogue)
+Every 6th hit chains lightning to 3 nearby (Dead
+Wire)
+Hits mark the target so predators prefer it for IO s:
+the beast becomes bait (Turned)
+Hits explode in light, blinding beasts with eyes for 3
+s (Fireworks)
+Every 6th hit pushes everything in a line 8 m
+(Thunder Wall)
+Hits cook: burn damage that leaves no blood (Blast
+Furnace)
+The Forge can also re-arm a Locker weapon (full ammo) for 4,500.
+Melee
+Diver's knife (100 damage, silent), Boarding Axe, Tesla Gaff, Trident, and the Forge-only
+Sawtooth (a sawfish rostrum, 450, bleed). Melee kills make no alarm and less blood (the
+wound is one clean cut), so a knife team is the quiet route through the early tides.
+Page 13 of 90=== PAGE 0014.txt
+Red Tide — Arcade Game 5 Design Document
+Animations
+• Reloads are underwater and slow-fast-slow: gas pistols pop the cylinder and thumb in
+darts one at a time until full or interrupted; needlers swap a glass cartridge with a hiss
+of bubbles; powder guns eject a sealed brass clip that sinks; spearguns cock with both
+arms and a visible strain; harpoon rifles winch a bolt from a side quiver; the scatter gun
+is loaded shell by shell and can be interrupted. Every reload has an empty and a partial
+version and a Speed Brine version 30% faster.
+• Firing: bubble bursts from gas guns, a brass flash from powder guns, a line snapping
+taut from spearguns.
+• Inspect animations show the sea-glass Forge finish.
+• Weapon skins: arcade tokens buy finishes (barnacle, verdigris, bone inlay, pearl, red
+tide) that apply to all weapons.
+The Harpoon Cannon (Harpoon Hour)
+A shoulder-mounted salvage cannon with infinite bolts for 30 s, 500 damage, noise 10: the
+map's loudest sound, which is the joke and the risk.
+Tonics, charms, items, builds, and progression
+Tonics (perks)
+Brass vending machines that dispense a bottle; four can be held (five with a charm). Each
+map has 6-8 of the 12 placed by its designer; the first two are always Juggernaut and
+Quick Brine.
+Tonic
+Juggernaut
+Brine
+Quick Brine
+Speed Brine
+Double Shot
+Zombies parent
+Juggernog
+Quick Revive
+Speed Cola
+Double Tap
+Effect
+250 HP
+Revives in 2 s; solo: self-revive (3 per
+match)
+Reloads and builds 30% faster
++33% rate of fire and darts count
+double
+Scrip
+2,500
+1,500 (solo
+500)
+3,000
+2,000
+Page 14 of 90=== PAGE 0015.txt
+Red Tide — Arcade Game 5 Design Document
+Tonic
+Kick Brine
+Deadeye Brine
+Mule Brine
+Bubbleskin
+Shocking Salt
+Widow's Ink
+VUItUre'S Eye
+Cold Coffin
+Zombies parent
+Stamin-Up
+Deadshot
+Mule Kick
+PhD Flopper
+Electric Cherry
+Widow's Wine
+VUItUre Aid
+Tombstone / Who's
+Who
+Effect
+Faster swim, sprint longer, breaks
+free of grabs 50% faster
+Weak-point damage aim snaps to
+weak points
+Third weapon slot
+No self-damage; a dolphin dive from
+height bursts a blast
+Reloading releases a shock that
+stuns beasts within 4 m
+Melee and hits ink-cloud attackers;
+grenades become ink nets
+See scrip and ammo through walls;
+beasts sometimes drop ammo; scent
+meter shows predator direction
+earlier
+On death, a shadow of you swims for
+30 s and can revive your body with
+your gear
+Scrip
+2,000
+1,500
+4,000
+2,000
+2,000
+4,000
+3,000
+2,000
+Salt Charms (gobblegums)
+Earned between matches with arcade tokens and from tide milestones; a player brings 5
+into a match and uses one at a time from a charm pouch.
+Charm
+Keep Your Brines
+Salt Circle
+Locker
+Effect
+Tonics survive a down (once)
+20 s: beasts won't cross the player's position
+Next pull is pressure forged: upgrades weapons
+and adds alternate ammunition to weapon picked
+up
+Page 15 of 90=== PAGE 0016.txt
+Red Tide — Arcade Game 5 Design Document
+Charm
+Fair Shares
+Slick Fins
+Clean Water
+Fisher's Luck
+Chum Bucket
+Hard Shell
+Ghost Fin
+Items
+Item
+Limpet charge
+Ink bomb
+Chum bag
+Flare
+Cleaning brush
+Repair kit
+Effect
+Every living diver's scrip is pooled and split evenly;
+the whole team sees the split (once per match)
+30 s of full sprint
+Clears blood within 30 m
+Next 10 kills drop double scrip
+Spawns a big chum cloud 30 m away: the reef looks
+over there
+60 s of 50% damage reduction
+15 s: beasts and enemies lose the player's scent
+and SOI-Jnd
+Slot
+Tactical (2-4)
+Tactical
+Tactical
+Tactical
+Equipment
+Equipment
+Use
+Sticks and blows; the loudest thing short of a trap
+A blinding cloud, no damage, cuts sight and scent
+for 8 s
+Throw a corpse chunk to lure predators to a spot
+Light that curious species approach and light-
+sensitive species flee
+Scrapes parasites off yourself or a teammate
+Fixes barricade nets faster
+Salvage builds (buildables)
+Parts are scattered across the map; carry them to a workbench. One build is held at a
+time.
+Page 16 of 90=== PAGE 0017.txt
+Red Tide — Arcade Game 5 Design Document
+Build
+Shell Shield
+Turbine
+Net
+Tripwire
+Decoy Buoy
+Bubble Wall
+Parts
+Turtle shell, strap, brass
+rim
+Fan, dynamo, mount
+Net, two stakes, bell
+Buoy, lantern, chum tin
+Compressor, hose, valve
+Effect
+A back-mounted shield that blocks bites; held in
+hand for a bash
+Powers a nearby machine for 90 s before the
+map's power is on
+Holds the first beast up to size 3 that crosses it
+Draws beasts and enemies to it for 45 s
+A curtain small beasts won't cross; 60 s
+Player stats and progression
+• In-match stats: kills, headshots, scrip earned, downs, revives, beasts eaten by other
+beasts because of you, enemies eaten, highest tide.
+• Between matches: an arcade profile rank from 1 to 50 across all Red Tide maps; ranks
+unlock charms, skins, and dossier pages. No stat ever changes in-match power; every
+match starts from the same spawn-in.
+• Dossiers: every beast, flora, and enemy killed or observed for 30 s adds a dossier page
+(behavior, diet, weak point, what it fears). The full dossier is the map's real strategy
+guide.
+Player skins
+Four divers with fixed silhouettes, each a Depth character type: the Diver (brass helmet),
+the Whaler (slicker and hood), the Stowaway (a patched suit and a bottle on a cord), and
+the Mechanic (a riveted hard suit). Skins bought with tokens change suit colors and
+helmets (verdigris, red tide, bone, pearl, Atlantean) but never the silhouette, so
+teammates and enemies always read who is who.
+Enemy factions
+Each map has one faction drawn by the alarm and by Hunts. They are intelligent, they
+shoot back, and they are also animals in the food web: they bleed, they are hunted, and
+some of them use the web against the players. Enemies drop their weapons and 200-600
+scrip.
+Page 17 of 90=== PAGE 0018.txt
+Red Tide
+Map
+Arcade Game 5 Design Document
+Faction
+The
+Who they are
+Salvage
+The Sunken
+Ship
+The
+Underwater
+Cave
+The Coral
+Reef
+Wreckers pirates in
+The
+Drowned
+Reef
+Raiders
+patched
+diving suits,
+here for the
+yacht's safe
+Ghost sailors
+from a lost
+expedition,
+lanterns on
+poles
+The Island
+tribe on a
+hunting raid:
+free-divers
+with spears
+riding sea
+turtles, and
+their
+Shamans
+Squad (arrives
+on an alarm
+roll)
+3-4: two
+Cutters
+(knives, fast),
+a
+Speargunner,
+a Netman
+4: three
+Deckhands
+(boarding
+axes), a
+Lantern
+Bearer
+4: two Spear
+Divers, a
+Turtle Rider, a
+Sling Diver
+(coconut
+bombs)
+Hunt force
+10 plus a
+Foreman with
+a Harpoon
+Cannon
+12 plus the
+Bosun (a
+cutlass ghost
+who can walk
+through
+stalagmites)
+12 plus a
+Shaman who
+calls sharks
+with a drum
+Tactics
+Flank through
+the ship's two
+decks; throw
+chum at
+players to call
+the reef onto
+them; retreat
+to the cargo
+hold
+Advance
+slowly and
+steadily; the
+Lantern
+Bearer's light
+draws light-
+hungry beasts
+onto the
+players; they
+ignore
+slipstreams
+Ride turtles
+through coral
+corridors; the
+Shaman's
+drum raises
+the
+aggression of
+every beast in
+40 m for 20 s
+In the food
+web
+They bleed
+and panic;
+sharks and
+barracuda
+hunt them; a
+Wrecker
+corpse is 20
+blood
+They don't
+bleed, so
+predators
+ignore them,
+which is why
+they're
+dangerous;
+but the
+Ghost Worm
+and cave
+amphibians
+attack them
+as cold
+things, and
+their lanterns
+attract every
+CUriOUS
+species in
+the cave
+They hunt
+beasts for
+meat and
+leave
+corpses: a
+raid raises
+blood
+everywhere
+it goes;
+sharks the
+Shaman calls
+don't care
+whose side
+anyone is on
+Page 18 of 90=== PAGE 0019.txt
+Red Tide
+Map
+Arcade Game 5 Design Document
+Atlantis
+Approaching
+the Void
+Faction
+The Lost
+Ones
+The
+Remnant
+Who they are
+Drowned
+citizens who
+breathe
+water:
+legionnaires,
+cultists, and a
+priest
+What's left of
+the research
+station: mad
+researchers
+in pressure
+suits,
+clockwork
+sentinels, and
+void cultists
+Squad (arrives
+on an alarm
+roll)
+4: two
+Legionnaires
+(gladius and
+shield), a
+Cultist (void
+chant slows
+players), a
+Slinger
+4: two
+Sentinels
+(rotary
+needlers,
+don't bleed), a
+Researcher
+(gas grenades,
+heals
+sentinels), a
+Cultist
+Hunt force
+14 plus an
+Armored Lost
+One and a
+priest
+16 plus the
+Station Chief
+in a diving
+mech
+Tactics
+Phalanx
+formations in
+streets; hold
+plazas;
+cultists chant
+to draw the
+Alien Horror
+when losing
+Sentinels hold
+chokepoints;
+researchers
+deploy lure
+beacons to
+send beasts
+at players;
+cultists try to
+reach the
+abyss's edge
+to summon
+In the food
+web
+They bleed
+black ichor: a
+different
+scent that
+the city's
+scavengers
+love and that
+apex beasts
+avoid; Lost
+Ones fight
+the beasts
+nesting in
+their old
+homes
+Sentinels
+leak oil (no
+scent);
+researchers
+and cultists
+bleed
+normally and
+are eaten;
+the Station
+Chief's mech
+is size 5 and
+the abyss's
+apex beasts
+attack it on
+sight
+Shared enemy rules
+Enemies see, hear, and smell like beasts: they can be lured by chum, blinded by ink, and
+distracted by beasts attacking them. Their squad Al prefers a fight against players over
+beasts but will turn to defend itself.
+Enemies scale with tide: +8% HP per tide, better weapons every 5 tides (Forged
+weapons at tide 15+).
+An enemy killed by a beast counts for no scrip, but the beast that ate it is now fed and
+calmer.
+Page 19 of 90=== PAGE 0020.txt
+Red Tide — Arcade Game 5 Design Document
+• Enemies never respawn indoors near the players; each map has faction entries (a
+breach in the hull, a cave mouth, the reef's drop-off, the city gate, the station's airlocks)
+that the players can watch and net.
+Shared beast rules
+Every beast in every map is built from the same size classes, tiers, and behavior
+archetypes, so the 200 species are data on top of a small set of systems. Each map's
+tables give a beast's class, size, tier, diet, predators, and a behavior note; everything else
+follows from these rules.
+Size classes
+Size Scale
+1
+2
+3
+4
+5
+6
+Finger to hand
+Arm
+Human
+Large (shark,
+seal)
+Huge (great
+white, whale)
+Leviathan (boss)
+(tide
+l)
+20
+60
+250
+900
+3,000
+15,000
+Base
+bounty
+40
+80
+180
+400
+900
+1,500
+Blood on
+death
+20
+40
+60
+80
+100
+120
+Blood per second
+wounded
+2
+4
+6
+8
+10
+12
+Typical speed
+Fast, erratic
+Fast
+Diver speed
+Faster than a diver
+Fast in a straight line,
+slow to turn
+Slow, unstoppable
+HP rises 8% per tide. Bounties rise 10% per tide. Blood does not scale, which is why later
+tides feel calmer per kill and deadlier per minute.
+Tiers
+• Tier 1 grazers, filter feeders, and detritivores: eat flora and corpses; the base of the
+web and the safest scrip.
+• Tier 2 small predators: eat tier 1; territorial or venomous species here are the early
+hazards.
+• Tier 3 mid predators: eat tiers 1-2 and each other; the tide 4-9 pressure.
+• Tier 4 apex: eat everything below, including enemies and divers; arrive by blood from
+tide 4, wander from tide 10.
+• Tier 5 boss: one per map, size 6, a home and a habit; a Predator Hunt can call it.
+Page 20 of 90=== PAGE 0021.txt
+Red Tide — Arcade Game 5 Design Document
+• Tags: scavenger (eats corpses first), parasite (attaches), venom (damage over time on
+bite or touch), armored (front-facing damage halved), electric (stun), camouflage
+(invisible until it moves), luminous (draws CUriOUS species), amphibious (uses air
+pockets and dry areas), burrower (hides in sand or silt), cleaner (lowers hosts'
+aggression).
+Behavior archetypes
+Archetype
+Schooler
+Ambusher
+Patroller
+Territorial
+Pack
+hunter
+Swarmer
+Parasite
+Grazer
+Wanderer
+Pattern
+Boids; scatter when shot, regroup in
+10 s; the school is a blood battery
+Waits camouflaged in a home spot;
+strikes anything within 2 m
+Circles a route; investigates blood
+and sound
+Defends a radius; escalates warning,
+then attack
+3-6 coordinate flank and drive; target
+the wounded and the separated
+Many bodies, one agent; damage by
+contact time
+Attaches to a beast or diver; slows or
+bleeds until brushed off
+Eats flora, flees everything
+Apex; follows blood from far, leaves
+when fed
+Counter
+Melee or one-shot weapons; don't
+spray
+Flares and VUItUre'S Eye reveal; walk
+around, not over
+Time the route; fight it away from its
+home
+Leave the radius; use the beast as a
+wall against enemies
+Backs to a wall; kill the leader
+(marked)
+Ink, bubble walls, keep moving
+Cleaning brush or a cleaner station
+Free scrip, but every corpse is blood
+Feed it something else
+Damage model
+• Weak points: gills, eyes, the soft underside of shelled beasts, the vent of cephalopods,
+the throat of reptiles. Weak-point hits do and bleed
+• Armored fronts (crabs, turtles, armored fish) halve frontal damage; flank them.
+Page 21 of 90=== PAGE 0022.txt
+Red Tide — Arcade Game 5 Design Document
+• Nets hold up to size 3; limpet charges and the Cannon Harpoon are the answer for size
+• A beast at 20% HP or less in the Flee state leaves a blood trail; a fleeing beast that
+reaches its home stops bleeding after 10 s.
+What a beast contributes to the web
+Killing a beast removes it from its region's population, adds its corpse (a blood source
+scavengers reduce), and changes who patrols there. Killing all the cleaners in a zone raises
+every host's aggression; killing all the grazers empties the zone of the predators' reason to
+come; killing an apex empties a zone of fear for one tide, and then something else moves
+in.
+Level 1: The Sunken Ship
+The Marguerite, a 60-meter steam yacht on her side on a sand shelf at 30 meters, is the
+smallest map and the tutorial for the whole game: tight corridors, flora that bites, fish
+whose blood calls sharks, and an alarm that fills fast when four divers fire in one room.
+Layout
+Zone
+The bridge (start
+pocket)
+Grand salon
+Galley and pantry
+Cabin deck
+Engine room
+What's there
+Spawn, the Gannet rack, Juggernaut machine
+visible below
+An air pocket under the tilted ceiling (the
+crocodile's lair), Quick Brine, Needler Mk I rack, a
+workbench
+Flechette 12 rack, the first Locker spot, parasite
+cleaning station (a cleaner shrimp colony)
+Six cabins with moray pipes, Speed Brine, Long
+Speargun rack, Sea-Pattern Carbine rack
+Power (the generator), the Pressure Forge, the
+Goliath's home
+Opens
+with
+750
+1,000
+1,250
+1,500
+Page 22 of 90=== PAGE 0023.txt
+Red Tide — Arcade Game 5 Design Document
+Zone
+Stern and swim platform
+The keel and the sand
+What's there
+Bolt Harpoon rack, Double Shot, the second
+Locker spot, the Wreckers' entry (the hull breach)
+Outside: the open shelf under the hull, Kick Brine,
+the mast with its kelp; sharks' approach lane
+Opens
+with
+1,500
+2,000
+Trap: the cargo crane on the foredeck drops a container across the salon door (1,000).
+Hidden quest: the captain's safe (three keys held by the Goliath, the Foreman, and the
+octopus).
+Level mechanics
+• Localized alarm. The ship is one region with two sub-regions (inside, outside); gunfire
+inside fills the alarm because the hull carries sound. Splitting two-and-two between
+inside and outside is the intended lesson.
+• Listing. Every few tides the wreck settles: a cabin door jams, a container slides, the air
+pocket shrinks by a third.
+• The air pocket is the crocodile's lair and the place Wreckers retreat to.
+• Dangerous flora line the corridors; the price of sprinting is fire coral.
+Flora (12)
+Flora
+Turf algae
+Sea lettuce
+Fire coral
+Stinging hydroids
+Barrel sponge
+Sea fan
+Type
+Producer on the
+hull
+Producer
+Hazard
+Hazard
+Shelter
+Cover
+Effect
+Grazer food; parrotfish crunch it loudly,
+and that crunch draws barracuda
+Grazer food in the salon; dies off if
+grazers are wiped out, then regrows
+Touch: 15 damage burn and a brief flinch
+Touch: bleed 3 s; drift in doorways
+Small beasts hide inside; hawksbills eat
+it
+Blocks sight lines; a moray or stonefish is
+usually behind one
+Page 23 of 90=== PAGE 0024.txt
+Red Tide
+Arcade Game 5 Design Document
+Flora
+Anemone bed
+Bladder kelp (on the mast)
+Coralline crust
+Dead man's fingers
+Sargassum raft (surface)
+Luminous algae mat (engine
+room)
+Beasts (40)
+Type
+Host and hazard
+Shelter and
+current
+Producer
+Luminous soft
+coral
+Air and shelter
+Luminous
+producer
+Effect
+Clownfish home; stings divers (10) and
+holds size-I beasts
+Hides divers from sight; sways with
+current and shows its direction
+Snail and sea-hare food
+Glows when touched; draws squid and
+cuttlefish at night tides
+Shade and shelter outside the hull;
+jellyfish gather under it
+Attracts krill, which attracts sprats,
+which attracts everything; the Goliath's
+lamp
+Beast
+Bilge Sprat
+Silverside
+Sergeant
+Major
+Barnacle
+Goby
+Class
+Fish
+Fish
+Fish
+Fish
+Size
+1
+1
+1
+1
+Tier
+1
+1
+1
+1
+Eats
+Krill, algae
+Krill
+Algae, jellies
+Detritus
+Eaten by
+Almost
+everything
+Trevally,
+barracuda,
+squid
+Grouper,
+moray
+Sea snake,
+blenny
+Behavior and note
+Schooler in the
+corridors; the
+map's blood
+battery: 20 sprats
+is a shark's worth
+of blood
+Schooler outside;
+flashes when shot,
+drawing barracuda
+by sight
+Guards egg
+patches on the hull;
+nips divers (2)
+Lives in pipes; the
+sea snake's reason
+to be in the cabins
+Page 24 of 90=== PAGE 0025.txt
+Red Tide
+Arcade Game 5 Design Document
+Beast
+Cleaner
+Wrasse
+Cleaner
+Shrimp
+Fiddler Crab
+Whelk
+Sea Hare
+Feather
+Duster Worm
+Parrotfish
+Rabbitfish
+Class
+Fish
+Crustacean
+Crustacean
+Mollusc
+Mollusc
+Worm
+Fish
+Fish
+Size
+1
+1
+1
+1
+2
+1
+2
+2
+Tier
+Cleaner
+Cleaner
+1
+1
+1
+1
+1
+1
+Eats
+Parasites
+Parasites
+Detritus
+Corpses
+Coralline crust
+Sea lettuce
+Plankton
+Plankton, algae
+mat
+Turf algae
+Algae
+Eaten by
+Nothing
+willingly
+Blenny
+Octopus,
+loggerhead,
+trevally
+Octopus
+Crabs,
+loggerhead
+Nothing
+(toxic)
+Blenny
+Sprats, whale-
+sized nothing
+here
+Grouper, bull
+shark
+Barracuda
+Behavior and note
+Runs a cleaning
+station in the
+galley; hosts there
+are calm; killing it
+raises host
+aggression 20%
+The other cleaning
+station; brushes
+parasites off divers
+who wait 3s
+Scuttles on the
+sand outside;
+waves a claw when
+a predator is near
+(a free warning)
+Reduces corpse
+blood; killing them
+slows blood
+cleanup
+Slow; free scrip
+Inks when shot: a
+free ink cloud
+Retracts when a
+diver passes; a
+motion sensor for
+ambushers
+A swarm around
+the algae mat;
+shooting it is
+pointless and loud
+Crunches loudly
+(sound layer);
+sleeps in a mucus
+cocoon in cabins at
+night tides
+Venomous dorsal
+spines: touching a
+live one hurts
+Page 25 of 90=== PAGE 0026.txt
+Red Tide
+Arcade Game 5 Design Document
+Beast
+Damselfish
+Blenny
+Arrow Crab
+Mantis
+Shrimp
+Lionfish
+Squirrelfish
+Reef Squid
+Cuttlefish
+Banded Sea
+Snake
+Stonefish
+Jelly Bloom
+Class
+Fish
+Fish
+Crustacean
+Crustacean
+Fish
+Fish
+Cephalopod
+Cephalopod
+Reptile
+Fish
+Cnidarian
+Size
+1
+1
+1
+2
+2
+2
+2
+2
+2
+2
+2
+Tier
+2
+2
+2
+2
+2
+2
+2
+2
+2
+2
+1 (swarm)
+Eats
+Small
+invertebrates
+Worms, gobies
+Worms
+Crabs, snails
+Sprats, gobies
+Crabs
+Sprats, silversides
+Crabs, shrimp
+Gobies, blennies,
+eels
+Sprats
+Plankton
+Eaten by
+Trevally
+Moray, sea
+snake
+Wrasse,
+octopus
+Octopus,
+grouper
+Grouper
+(rarely)
+Moray
+Trevally,
+barracuda,
+tuna
+Grouper
+Tiger shark
+Nothing
+Turtles
+Behavior and note
+Territorial; attacks
+divers in its patch;
+a swarm of bites at
+1 each
+Pipe-dweller
+On sea fans;
+harmless
+Punches: 30
+damage and breaks
+a Shell Shield in
+two hits; burrows
+in the sand
+Venom on touch
+(poison 5 s); drifts
+through doorways
+Night tides only;
+large eyes, loud
+clicks
+School; inks when
+threatened; drawn
+to dead man's
+fingers
+Camouflaged in
+cabins; hypnotic
+flashing slows a
+diver's aim briefly
+Hunts the pipes;
+must surface at the
+air pocket every 90
+s (predictable);
+venom: 20 poison
+over 10 s
+Ambusher on the
+sand and in the
+galley; step on it: 40
+damage and poison
+Drifts under the
+sargassum and into
+the stern; contact
+stings 5 per second
+Page 26 of 90=== PAGE 0027.txt
+Red Tide
+Arcade Game 5 Design Document
+Beast
+Remora
+Lamprey
+Green Moray
+Great
+Barracuda
+Grouper
+Bluefin
+Trevally
+Common
+Octopus
+Nurse Shark
+Class
+Fish
+Fish
+Fish
+Fish
+Fish
+Fish
+Cephalopod
+Fish
+Size
+1
+2
+3
+3
+3
+3
+3
+3
+Tier
+Parasite
+Parasite
+3
+3
+3
+3 (pack)
+3
+Scavenger
+Eats
+Scraps
+Blood
+Octopus,
+squirrelfish,
+blennies
+Silversides, squid,
+sprats
+Parrotfish,
+lionfish, morays,
+cuttlefish
+Silversides, squid,
+damselfish
+Crabs, mantis
+shrimp, snails
+Corpses, crabs
+Eaten by
+Barracuda
+Barracuda
+Grouper, bull
+shark
+Bull shark,
+tiger shark
+Bull shark
+Sharks
+Moray,
+grouper
+Tiger shark
+Behavior and note
+Attaches to sharks,
+turtles, and divers;
+on a diver, slows
+swim 15% until
+brushed off
+Attaches and
+bleeds 2 per
+second; its host
+becomes a blood
+source that draws
+predators
+Ambusher in cabin
+pipes; strikes 2 m
+from its hole, then
+retreats; territorial
+Patroller in the
+salon and outside;
+drawn by flashes
+and the parrotfish
+crunch; hits and
+runs
+Ambusher in the
+engine room's
+shadows; swallows
+size 1 whole
+Pack of 5 outside
+the hull; drives
+schools against the
+hull where divers
+stand
+Steals a diver's held
+item (a part or a
+charm) and hides in
+a cabin; kill it to get
+it back
+Night tides; docile;
+eats corpses fast
+(the divers' best
+friend)
+Page 27 of 90=== PAGE 0028.txt
+Red Tide
+Arcade Game 5 Design Document
+Beast
+Hawksbill
+Turtle
+Loggerhead
+Turtle
+Sand Tiger
+Shark
+Bull Shark
+Saltwater
+Crocodile
+Tiger Shark
+The Goliath
+Class
+Reptile
+Reptile
+Fish
+Fish
+Reptile
+Fish
+Fish
+Size
+3
+4
+4
+4
+5
+5
+6
+Tier
+2
+3
+4
+4
+4
+4
+5
+Eats
+Sponges, jellies
+Crabs, whelks,
+mantis shrimp
+Trevally,
+barracuda,
+grouper
+Everything size 3
+and below,
+Wreckers
+Turtles, bull
+sharks, Wreckers,
+divers
+Everything,
+including sea
+snakes and
+turtles
+Anything that
+enters the engine
+room
+Eaten by
+Tiger shark
+Tiger shark,
+crocodile
+Tiger shark
+Tiger shark,
+crocodile
+Nothing but
+the Goliath
+Nothing
+Behavior and note
+Armored; eats the
+jelly bloom;
+harmless unless
+shot
+Armored; crushes a
+diver's shield in a
+bite if provoked
+Hangs motionless
+near the keel;
+investigates blood
+over 60
+Enters the hull
+through the
+breach; aggressive;
+threshold 80 blood
+Amphibious: lives
+in the salon's air
+pocket; a death roll
+grabs a diver
+(teammates shoot
+it off); leaves for
+the sand when the
+pocket shrinks
+Wanderer;
+threshold 150
+blood; eats
+enemies as readily
+as divers; leaves
+when fed
+A goliath grouper
+the size of a boiler:
+inhales a diver from
+4 m (teammates
+have 5 s to shoot it
+out); guards the
+Forge; wanders
+from tide 12
+Page 28 of 90=== PAGE 0029.txt
+Red Tide — Arcade Game 5 Design Document
+The web in motion
+• The sprat chain: algae mat krill sprats trevally and barracuda bull shark tiger
+shark. Shooting sprats for cheap scrip is the map's first trap.
+• The cleaner rule: the galley and the outside cleaning stations calm the hosts that visit
+(groupers, barracuda, turtles). Wiping them out makes the mid tiers hostile
+everywhere.
+• The crocodile problem: the only air inside is its lair. Feed it a turtle (shoot one near the
+pocket) and it eats for 60 s.
+• Wreckers feed the reef: a Wrecker squad dying in the salon is 80 blood in a closed
+room; the bull shark arrives 30 s later. Let the reef kill them outside instead.
+• The Goliath: everything that flees runs to the engine room's shadows and gets eaten
+there. The Forge is safe only right after it has fed.
+Definition of Done
+• All 40 beasts and 12 flora exist as data and models; --eco-sim ship 20 shows the
+sprat chain calling a bull shark within 90 s of 15 sprat kills in the salon.
+• A four-player LAN match reaches tide 10 with the crocodile, a Wrecker Hunt, and the
+Goliath's inhale all seen.
+Level 2: The Underwater Cave
+A flooded cave system with dry air chambers, a deep sump, and six slipstreams that carry
+divers and beasts between its halls in seconds. It is dark, loud (every shot echoes), and
+half its cast is insects and amphibians that live where the water meets the air.
+Layout
+Zone
+The Mouth (start
+pocket)
+The Flooded Gallery
+What's there
+Spawn under a light shaft, the Gannet rack,
+Juggernaut
+Long hall of columns; Needler Mk l, Quick Brine,
+workbench; slipstream A to the Chimney
+Opens
+with
+750
+Page 29 of 90=== PAGE 0030.txt
+Red Tide — Arcade Game 5 Design Document
+Zone
+The Chimney
+The Dry Chambers
+The Sump
+The Dynamo Sump
+The Cathedral
+What's there
+A vertical shaft; ledges with Long Speargun;
+stalactites overhead (the map's trap: shoot the
+anchor to drop them, 1,000)
+Air, three linked caverns with pools; insects and
+amphibians; Speed Brine, Carbine rack; the
+Drowned's entry
+The deep, silty bottom; Bolt Harpoon, Double
+Shot; the Sleeper Shark's home; bacterial mats
+Power: a drowned expedition's generator; the
+Forge; slipstreams C and D converge here
+A vast chamber with the crystal coral and the
+Lobster's home; Kick Brine, second Locker spot
+Opens
+with
+1,000
+1,250
+1,500
+1,750
+2,000
+Slipstreams A-F are one-way currents (8 m/s) between zones; a diver can't fire inside one
+and arrives with 2 s of drift. Beasts use them too: what you see enter a slipstream behind
+you arrives where you do. The Drowned do not use them.
+Level mechanics
+• Rockfall. Gunfire in the Chimney and the Cathedral has a 5% chance per loud shot
+(noise 6+) to drop a stalactite somewhere nearby: 200 damage to whatever is under it,
+beast, enemy, or diver. The Resonator drops them on purpose.
+• Air chambers. The Dry Chambers hold the map's insects and amphibians; divers walk
+there, slowly, and the toad's tongue reaches from the pool.
+• Echo. The cave counts as one region for the alarm; the Drowned come from the Dry
+Chambers.
+• Bloodvine. A red alga that smells like blood to the web: shooting a patch makes
+predators investigate it. The cave's built-in decoy, and its built-in trap when it grows
+near the Forge.
+Page 30 of 90=== PAGE 0031.txt
+Red Tide — Arcade Game 5 Design Document
+Flora (12)
+Flora
+Glow mould
+Chemosynthetic mat (sump
+vents)
+Pale cave moss (dry
+chambers)
+Snottite curtain
+Crystal coral (Cathedral)
+Root tangle
+Drip fungi-JS
+Ink cap
+Bloodvine
+Cave sponge
+White anemone cluster
+Stone lettuce
+Beasts (40)
+Type
+Luminous
+producer
+Producer
+Producer
+Hazard
+Hazard and tool
+Shelter
+Hazard
+Tool
+Tool and trap
+Shelter
+Hazard
+Producer
+Effect
+The base of the wet web; lights
+corridors; cavefish graze it
+The base of the sump web; krill and
+isopods swarm it
+Insect and newt food
+Acid drips: 5 damage per second under
+it
+Sharp (touch bleeds); shooting a
+cluster rings it, calling the Lobster
+Hanging roots from above; divers hide
+in it; crayfish nest in it
+A spore CIOUd when disturbed: slows
+for 5 s
+Bursts into an ink cloud when shot
+Smells like 40 blood when cut
+Glass shrimp and blennies inside
+Holds size 1 and stings divers (8)
+Sturgeon and snapping turtle food
+Beast
+Blind
+Cavefish
+Class
+Fish
+Size
+1
+Tier
+1
+Eats
+Glow mould
+Eaten by
+Eels, catfish,
+anglerfish
+Behavior and
+note
+Schooler; no
+eyes, so it ignores
+light and follows
+sound
+Page 31 of 90=== PAGE 0032.txt
+Red Tide
+Arcade Game 5 Design Document
+Beast
+Glass
+Shrimp
+Cave Krill
+Cave Isopod
+Amphipod
+Troglobite
+Crab
+Olm
+Blind Newt
+Poison Dart
+Newt
+Giant Cave
+Toad
+Cave
+Crayfish
+Fishing
+Spider
+Class
+Crustacean
+Crustacean
+Crustacean
+Crustacean
+Crustacean
+Amphibian
+Amphibian
+Amphibian
+Amphibian
+Crustacean
+Insect
+(arachnid)
+Size
+1
+1
+1
+1
+2
+2
+2
+1
+3
+2
+2
+Tier
+1
+1 (swarm)
+Scavenger
+1
+2
+2
+2
+2
+3
+2
+2
+Eats
+Detritus
+Bacterial mat
+Corpses
+Detritus
+Amphipods, glass
+shrimp
+Amphipods,
+isopods
+Insects,
+amphipods
+Crickets
+Newts, crickets,
+beetles, divers'
+hands
+Isopods,
+worms
+Cavefish, newts
+Eaten by
+Everything
+small
+Cavefish,
+sturgeon,
+gulper
+Crayfish
+Newts,
+beetles
+Caiman, toad
+Giant
+salamander
+Toad, krait
+Nothing
+(toxic)
+Caiman
+Catfish,
+salamander
+Swiftlets
+Behavior and
+note
+Transparent; lives
+in sponges; the
+cleaner of this
+map
+Sump swarm
+Silt scavengers;
+clean corpses
+slowly
+Pools and
+puddles in the
+dry chambers
+Ghost-white;
+clicks in the dark
+Blind; senses
+electricity: it can
+feel a diver's
+rebreather
+through a wall
+Pools in the dry
+chambers
+Bright even in the
+dark; touch: 10
+poison
+Sits at the pool's
+edge; a tongue
+grab from 5 m
+pulls a diver into
+the pool
+Nests in root
+tangles; pinches
+divers who hide
+there
+Runs on the
+water's surface in
+the chambers;
+drops onto divers
+from roots
+Page 32 of 90=== PAGE 0033.txt
+Red Tide
+Arcade Game 5 Design Document
+Crayfish, cavefish
+Crayfish, cavefish,
+Beast
+Cave
+Cricket
+Diving
+Beetle
+Giant Water
+Bug
+Dragonfly
+Nymph
+Glowworm
+Colony
+Firefly Squid
+Lanternfish
+Cave
+Anglerfish
+Cave Eel
+Electric Ray
+Blind
+Catfish
+Class
+Insect
+Insect
+Insect
+Insect
+Insect
+Cephalopod
+Fish
+Fish
+Fish
+Fish
+Fish
+Size
+1
+1
+2
+2
+1
+2
+2
+3
+3
+3
+3
+Tier
+1 (swarm)
+2
+2
+2
+1
+2
+1
+3
+3
+3
+3
+Eats
+Cave moss
+Amphipods, newt
+larvae
+Newts, small fish
+Cavefish,
+amphipods
+Cave crickets,
+midges
+Cavefish, krill
+Krill
+Cavefish, squid
+Cavefish, squid,
+crayfish
+isopods
+Eaten by
+Newts,
+spiders,
+swiftlets
+Newts
+Toad
+Toad, newts
+Nothing
+Eels,
+anglerfish
+Gulper, cave
+eel
+Sleeper
+shark
+Caiman,
+sleeper shark
+Sleeper
+shark
+Caiman
+Behavior and
+note
+Chirp swarm;
+goes silent when
+the Drowned
+pass (a warning)
+Carries a bubble;
+harmless, free
+scrip in pools
+Pierces a diver's
+suit: 15 bleed
+Jet-propelled; a
+lunging jaw
+Ceiling threads
+that glow; CUriOUS
+species gather
+beneath; lights
+the Chimney
+Luminous school;
+flashes when
+threatened,
+lighting divers up
+for ambushers
+Sump school; its
+lights draw the
+gulper
+A lure that looks
+like a drop bottle
+from a distance
+Ambusher in wall
+cracks; uses
+slipstreams to
+relocate
+Buried in silt; a
+shock stuns
+divers for 2 s and
+stops a Turbine
+Whiskers find
+blood fast: the
+first mid predator
+to any corpse
+Page 33 of 90=== PAGE 0034.txt
+Red Tide
+Arcade Game 5 Design Document
+Crabs, shrimp
+Beast
+Whip Ray
+Hagfish
+Vampire
+Squid
+Bristle
+Worm
+Sea Spider
+Cave
+Swiftlet
+Snapping
+Turtle
+Cave Krait
+Epaulette
+Shark
+Class
+Fish
+Fish
+Cephalopod
+Worm
+Crustacean-
+like
+(pycnogonid)
+Bird
+Reptile
+Reptile
+Fish
+Size
+3
+2
+2
+2
+2
+1
+3
+2
+3
+Tier
+3
+Scavenger
+Scavenger
+Scavenger
+2
+2
+3
+2
+3
+Eats
+Corpses
+Marine snow,
+corpse bits
+Corpses, mats
+Anemones,
+sponges
+Crickets, spiders
+Newts, fish, stone
+lettuce
+Newts, cavefish
+Crabs,
+worms
+Eaten by
+Sleeper
+shark
+Nothing
+(slime)
+Gulper
+Catfish
+Crayfish
+Nothing here
+Caiman
+Snapping
+turtle
+Caiman
+Behavior and
+note
+Glides the
+Gallery; a tail
+barb (bleed) if
+stepped on
+Slimes divers who
+touch a corpse
+it's in (slows 40%
+until brushed)
+Sump drifter;
+harmless; its
+cloak flashes
+when shot
+Venomous
+bristles: touch
+burns 10
+Slow; hollow;
+ignores divers
+Flies in the dry
+chambers; a flock
+startled by
+gunfire is a loud
+alarm
+Armored; sits
+still; a bite takes
+60 and holds
+Swims between
+pools; venom 25
+over 10 s;
+surfaces to
+breathe in the
+chambers
+Walks on its fins
+across dry rock
+between pools;
+ambushes from
+ledges
+Page 34 of 90=== PAGE 0035.txt
+Red Tide
+Arcade Game 5 Design Document
+Beast
+Current
+Runner
+Cave
+Sturgeon
+Gulper Eel
+Giant
+Salamander
+Cave
+Caiman
+Sleeper
+Shark
+Ghost Worm
+Class
+Fish
+Fish
+Fish
+Amphibian
+Reptile
+Fish
+Worm
+Size
+3
+4
+4
+4
+4
+5
+4
+Tier
+3
+1
+3
+4
+4
+4
+4
+Eats
+Cavefish, squid
+Krill, stone
+lettuce, mats
+Lanternfish,
+squid, vampire
+squid
+Olms, crayfish,
+catfish, divers
+Toads, turtles,
+salamanders, the
+Drowned's flesh
+(none), divers
+Everything in the
+sump, caiman,
+enemies
+The Drowned,
+eels
+Eaten by
+Sleeper
+shark
+Sleeper
+shark
+Sleeper
+shark
+Caiman
+Sleeper
+shark
+Nothing
+Nothing
+Behavior and
+note
+A sailfish-like
+hunter that lives
+in the
+slipstreams; hits
+divers riding
+them
+Armored grazer;
+harmless; a huge
+blood source if
+killed (the sump's
+trap)
+Sump; swallows
+size 2 whole; a
+bite on a diver
+takes 80 and pins
+them 3 s
+Ambusher under
+the pool ledges in
+the dry
+chambers; a bite
+holds and drags
+Amphibious
+patroller
+between the
+chambers and
+the Gallery;
+threshold 60
+blood
+Slow, silent, cold;
+threshold 120
+blood; nearly
+invisible in silt; a
+bite takes 150
+From Depth's
+Cave: lives in the
+walls; attacks the
+Drowned on sight
+and any diver
+who shoots it; the
+cave's answer to
+the faction that
+doesn't bleed
+Page 35 of 90=== PAGE 0036.txt
+Red Tide — Arcade Game 5 Design Document
+Beast
+Silt
+Lamprey
+The Lobster
+Class
+Fish
+Crustacean
+Size
+1
+6
+Tier
+Parasite
+5
+Eats
+Blood
+Anything in the
+Cathedral
+Eaten by
+Catfish
+Behavior and
+note
+Attaches in the
+sump; bleeds 1
+per second
+From Depth's
+Cave: a boiler-
+sized lobster;
+claws crush a
+shield outright
+and hold a diver;
+its shell halves
+damage from the
+front; the crystal
+coral calls it
+The web in motion
+• Two webs, one cave. The wet web (mould -Y cavefish eels and catfish -Y caiman -Y
+sleeper shark) and the dry web (moss crickets newts and spiders toad caiman
+and salamander) meet at the pools, and the caiman walks both.
+• The Drowned don't bleed, so only the Ghost Worm and the caiman (which attacks cold
+things by habit) fight them. A team that learns to lead the Drowned past the Ghost
+Worm's wall crack wins Hunts cheaply.
+• Lanterns and lights: the Lantern Bearer, the glowworms, firefly squid, and drop bottles
+all draw CUriOUS species. The anglerfish's lure looks like a drop.
+• The sturgeon: 80 blood for one harmless fish. New players shoot it; the sleeper shark
+thanks them.
+Slipstreams move blood: a wounded fish fleeing into a slipstream carries its trail to the
+next hall.
+Definition of Done
+Slipstreams carry divers and beasts; --eco-sim cave 20 shows a wounded eel's trail
+crossing halls and a caiman following it.
+• Rockfall, the toad's tongue grab, the sturgeon trap, and a Drowned Hunt led into the
+Ghost Worm all OCCUr in a four-player test.
+Page 36 of 90=== PAGE 0037.txt
+Red Tide — Arcade Game 5 Design Document
+Level 3: The Coral Reef
+The bright map: sunlit coral forests whose corridors hide eels and grabbing coral, a lagoon
+edged with mangroves where frogs and toads live, a sand flat with its own cast, and a
+drop-off where dolphins, seals, and whales pass. Mammals and amphibians join the fish,
+reptiles, and crustaceans, and the reef's first lesson is that some of them are on your side
+until you shoot one.
+Layout
+Zone
+The Lagoon (start
+pocket)
+Staghorn Forest
+The Bommie
+The Sand Flats
+Brain Coral Maze
+The Blue Hole
+The Drop-off Wall
+What's there
+Shallow, bright; mangrove roots on one edge;
+Gannet rack, Juggernaut
+Dense coral corridors; eel holes; Needler Mk l,
+Quick Brine, workbench
+A giant coral head with a cleaning station on top;
+power (a tide mill in the surge channel); Speed
+Brine
+The open expanse: seagrass meadows, garden
+eels, rays, the bobbit worm; Long Speargun, Bolt
+Harpoon, Double Shot; slow sightlines, no cover
+Winding corridors of brain and table coral;
+Reacher coral gates; Flechette, Carbine racks; the
+Raiders' entry from the drop-off
+A deep sinkhole in the flats; the Forge on a ledge;
+the hammerhead's and the whales' route; Kick
+Brine
+Open blue; mantas and the orca pod; second
+Locker spot; Mule Brine
+Opens
+with
+750
+1,000
+1,250
+1,500
+2,000
+2,000
+Traps: a Reacher coral gate (1,000) closes a corridor and eats whatever it holds; the surge
+channel (1,000) flushes the Bommie's top. Hidden quest: return the Shaman's drum to the
+sea turtle nesting beach.
+Page 37 of 90=== PAGE 0038.txt
+Red Tide — Arcade Game 5 Design Document
+Level mechanics
+• Coral corridors limit fire lanes to 8-12 m; loud guns are wasted, spearguns and knives
+shine.
+• Eel holes line the corridors: passing within 1 m risks a moray or ribbon eel strike;
+Vulture's Eye shows occupied holes.
+• Reacher coral grabs a diver who brushes it and holds until a teammate cuts them loose
+(or the coral is shot to O); it also grabs beasts and enemies, which feed it.
+• The sand flats have no cover and full sightlines: the loud-gun zone, and the place
+where a downed diver's blood spreads fastest.
+• Dolphins. The pod follows the divers and drives sharks off while nobody has shot a
+dolphin. One shot turns the pod hostile for the match.
+• Crown-of-thorns eat coral: leaving them alive erodes corridors (opening lanes for
+sharks); killing them is 40 blood each.
+Flora (12)
+Flora
+Staghorn thicket
+Brain coral
+Table coral
+Fire coral
+Reacher coral
+Seagrass
+meadow
+Mangrove roots
+Sea whip fans
+Soft coral garden
+Type
+Structure and
+producer
+Cover
+Shelter
+Hazard
+Hazard and trap
+Producer (flats)
+Shelter (lagoon)
+Cover
+Producer
+Effect
+The corridors themselves; grazed by
+butterflyfish and crown-of-thorns; breaks
+under a shark ram
+Solid; blocks shots and sight
+Roofs that hide divers from above (mantas,
+sharks)
+Touch: 15 burn
+Grabs and holds; feeds on what it holds
+Dugong and turtle food; cover for stingrays;
+hides the bobbit worm's hole
+Air pocket above; the frog and toad nursery;
+juvenile fish hide here, which draws barracuda
+Sway with current; seahorses and pipefish
+cling to them
+Angelfish food; luminous at night tides
+Page 38 of 90=== PAGE 0039.txt
+Red Tide
+Arcade Game 5 Design Document
+Flora
+Halimeda beds
+Type
+Producer
+Producer
+Edible
+Turf algae
+Sea grape
+Beasts (41)
+Beast
+Anthias
+Clownfish
+Butterflyfish
+Cleaner
+Wrasse
+Sea Urchin
+Spiny Lobster
+Angelfish
+Triggerfish
+Surgeonfish
+Effect
+Sea hare and urchin food; brittle: shatters
+loudly when walked on
+Surgeonfish and iguana food
+A diver can eat a cluster: +10 HP, once per
+cluster; grazers compete for it
+Class
+Fish
+Fish
+Fish
+Fish
+Echinoderm
+Crustacean
+Fish
+Fish
+Fish
+Size
+1
+1
+1
+1
+1
+2
+2
+2
+2
+Tier
+1
+1
+1
+Cleaner
+1
+2
+1
+2
+1
+Eats
+Plankton
+Plankton, algae
+Coral polyps
+Parasites
+Halimeda, turf
+Urchins, snails
+Sponges, soft
+coral
+Urchins, crabs
+Turf algae
+Eaten by
+Groupers,
+triggerfish,
+jacks
+Nothing while
+in its anemone
+Groupers
+Nothing
+willingly
+Triggerfish,
+wrasse
+Groupers,
+octopus, seals
+Reef sharks
+Reef sharks
+Reef sharks
+Behavior and note
+A shimmering
+school over the
+Bommie; the reef's
+blood battery
+Bites divers near its
+anemone (1 damage,
+endlessly)
+Grazes staghorn;
+harmless
+The Bommie's
+cleaning station
+calms everything
+that visits, including
+sharks
+Spines: 8 damage on
+touch
+In crevices; free
+scrip at night tides
+Pairs; harmless
+Territorial over
+nests; bites (10) and
+chases
+Scalpel tail: 12 bleed
+if grabbed
+Page 39 of 90=== PAGE 0040.txt
+Red Tide
+Arcade Game 5 Design Document
+Jacks, sharks
+Crabs, shrimp
+Beast
+Garden Eel
+Goatfish
+Flounder
+Razorfish
+Sand Dollar
+Cone Snail
+Blue-ringed
+Octopus
+Box Jelly
+Crown-of-
+thorns
+Starfish
+Ribbon Eel
+Reef
+Cuttlefish
+Crab-eating
+Frog
+Class
+Fish
+Fish
+Fish
+Fish
+Echinoderm
+Mollusc
+Cephalopod
+Cnidarian
+Echinoderm
+Fish
+Cephalopod
+Amphibian
+Size
+1
+2
+2
+1
+1
+1
+1
+2
+2
+2
+2
+2
+Tier
+1
+2
+2
+1
+1
+2
+2
+2
+1
+2
+2
+2
+Eats
+Plankton
+Worms, crabs
+Shrimp, small
+fish
+Plankton
+Detritus
+Small fish,
+worms
+Crabs, shrimp
+Shrimp, small
+fish
+Coral
+Small fish
+Crabs, insects
+Eaten by
+Stingrays
+Stingrays,
+sharks
+Jacks
+Nothing
+Nothing
+Nothing
+Green turtle
+Triton snail
+(none here),
+nothing
+Grouper
+Grouper,
+dolphins
+Sea kraits, toad
+Behavior and note
+Hundreds in the
+flats' sand; retract
+when divers
+approach, which
+shows a diver's
+position to
+everything watching
+Stirs sand in the
+flats; a visible dust
+cloud
+Camouflaged on
+sand; startles when
+stepped on
+A vertical school
+that hides among
+sea whips
+Free scrip; a carpet
+in the flats
+Harpoon sting on
+touch: 30 poison
+over 15 s
+Rings flash when
+threatened; a bite is
+60 poison over 20 s
+and paralysis 3 s;
+the reef's deadliest
+small thing
+Nearly invisible;
+contact 25 and
+paralysis 1 s
+Erodes corridors;
+spines: 10 poison
+Eel-hole ambusher;
+a quick bite (20)
+Camouflage; dazzles
+a diver's aim
+Mangrove roots;
+leaps between roots
+and the surface
+Page 40 of 90=== PAGE 0041.txt
+Red Tide
+Arcade Game 5 Design Document
+Beast
+Giant Reef
+Toad
+Marine Iguana
+Olive Sea
+Snake
+Green Turtle
+Moray Eel
+Coral Grouper
+Stingray
+Bobbit Worm
+Class
+Amphibian
+Reptile
+Reptile
+Reptile
+Fish
+Fish
+Fish
+Worm
+Size
+3
+2
+2
+3
+3
+3
+3
+3
+Tier
+3
+1
+2
+1
+3
+3
+3
+3
+Eats
+Shrimp, worms
+Frogs, axolotls,
+crabs
+Turf algae
+Eels, gobies
+Seagrass, jellies
+Octopus,
+cuttlefish,
+lobsters
+Anthias,
+butterflyfish,
+eels
+Garden eels,
+flounder,
+goatfish
+Anything that
+passes its hole
+Eaten by
+Toad, groupers
+Monk seal,
+sharks
+Sharks
+Sharks
+Hammerhead,
+orca
+Groupers,
+sharks
+Sharks
+Hammerhead
+Nothing
+Behavior and note
+Lagoon pools;
+regenerates: heals 5
+per second when
+hidden, so it's a
+tough small kill
+Mangrove edge;
+tongue grab from 5
+m; croaks are a
+sound-layer alarm
+Grazes on the
+Bommie's shallows;
+harmless; a herd is
+200 blood if wiped
+CUriOUS;
+approaches divers;
+venom 25 over 10 s
+Armored; eats box
+jellies (a reason to
+keep it alive)
+In the corridor holes;
+strikes 2 m;
+territorial
+Hunts with the
+moray (a real
+partnership): the
+moray flushes, the
+grouper catches
+Buried in seagrass;
+barb 40 bleed if
+stepped on
+Sand flats
+ambusher: a 3 m
+lunge from a hidden
+hole, 80 damage and
+a drag; the flats'
+reason to follow the
+goatfish clouds
+instead of the
+shortcuts
+Page 41 of 90=== PAGE 0042.txt
+Red Tide
+Arcade Game 5 Design Document
+Beast
+Titan
+Triggerfish
+Napoleon
+Wrasse
+Dugong
+Blacktip Reef
+Shark
+G Reef
+Shark
+Bottlenose
+Dolphin
+Monk Seal
+Manta Ray
+Great
+Hammerhead
+Class
+Fish
+Fish
+Mammal
+Fish
+Fish
+Mammal
+Mammal
+Fish
+Fish
+Size
+3
+4
+4
+4
+4
+4
+4
+5
+5
+Tier
+3
+2
+1
+4
+(pack)
+4
+3
+3
+1
+4
+Eats
+Urchins, crabs,
+coral
+Urchins,
+crustaceans,
+cone snails
+Seagrass
+Fish, cuttlefish,
+iguanas
+Fish, octopus,
+seals' pups
+Fish,
+Fish,
+squid
+lobsters,
+octopus
+Plankton
+Stingrays,
+sharks, turtles,
+seals, enemies
+Eaten by
+Sharks
+Orca
+Orca,
+hammerhead
+Hammerhead,
+orca
+Orca
+Orca
+Hammerhead,
+orca
+Orca
+Orca
+Behavior and note
+Defends a cone-
+shaped territory
+above its nest;
+charges divers at
+speed
+Enormous and
+gentle; eats cone
+snails and blue-
+rings; 80 blood if
+killed
+Grazes the flats;
+harmless; the flats'
+sturgeon trap
+Packs of 4 in the
+corridors; threshold
+60; skittish alone
+Patrols the wall;
+threshold 80; a
+threat display
+(hunched swim)
+before attacking
+A pod of 5 that
+shadows the divers
+and rams sharks off
+them; hostile
+forever after one
+dolphin is shot
+Curious; steals a
+held item and plays
+keep-away;
+harmless unless
+shot
+Glides the wall and
+the blue hole;
+harmless; 100 blood
+if killed
+Wanderer; threshold
+150;
+electroreception
+finds buried divers
+and buried rays
+Page 42 of 90=== PAGE 0043.txt
+Red Tide — Arcade Game 5 Design Document
+Beast
+Humpback
+Whale
+The Matriarch
+Class
+Mammal
+Mammal
+Size
+5
+6
+Tier
+1
+5
+Eats
+Krill (passes
+through)
+Sharks, seals,
+dolphins,
+dugongs,
+enemies, divers
+Eaten by
+Nothing
+Behavior and note
+Passes the wall
+every few tides;
+harmless; a diver
+who shoots it
+produces 100 blood
+and a Predator Hunt
+on the spot
+An orca matriarch
+with a pod of 3: they
+hunt as one, herd
+divers away from
+cover, and ram the
+Bommie; the
+Shaman's drum can
+call her, which is the
+Raiders' mistake to
+exploit
+The web in motion
+• The corridor pair: moray flushes, grouper catches; kill one and the other becomes
+reckless.
+Dolphins versus sharks: the pod's protection is worth more than any tonic; the Raiders
+know it and shoot dolphins on purpose to turn them against the divers.
+• The flats: garden eels retract (revealing you), goatfish clouds mark safe sand, the
+bobbit worm punishes the straight line, and the dugong's blood calls the hammerhead.
+Keep the eaters of dangerous things alive: green turtles eat box jellies; Napoleon
+wrasse eat cone snails and blue-rings.
+• The drum: the Shaman's drum raises aggression and can call the Matriarch. Kill the
+Shaman first, or take the drum and use it on the Raiders.
+Definition of Done
+• Reacher coral grabs and feeds; the dolphin alliance flips on a shot,
+• --eco-sim reef 20
+shows crown-of-thorns eroding a corridor within 10 minutes if unchecked.
+• A four-player test sees a Raider Hunt, the flats at night, and the Matriarch's pod.
+Page 43 of 90=== PAGE 0044.txt
+Red Tide — Arcade Game 5 Design Document
+Level 4: Atlantis, the Forgotten City
+A walled city on a hill, drowned and overgrown: farms and irrigation on the flat ground
+inside the wall, workshops and markets in the lower town, bathhouses and barracks on
+the slopes, and the government hall and the grand chapel on the summit. Every building
+type is now a habitat, and the city's own water systems, the aqueducts and cisterns, move
+blood and beasts through it.
+Layout (a real city plan)
+District
+The Harbor Gate
+(start pocket)
+The Farms
+The Lower Town
+The Bathhouses
+The Barracks and
+Armory
+Buildings
+The gatehouse in
+the great wall, a
+customs house
+Terraced fields,
+irrigation canals,
+granaries, a mill
+Houses, food
+stores, a market
+square, the
+toolsmiths' street
+Hot and cold
+baths, a
+gymnasium,
+latrines
+Drill yard, armory,
+stables, a small
+fort on the wall
+Ecology
+Sardines in the
+gate arch; the
+Lost Ones' entry
+Seagrass
+meadows now;
+the crocodile's
+canals; grazers
+Octopi in
+amphorae, eels in
+drains,
+cardinalfish in
+cellars
+Sponges and
+groupers in the
+baths; the water
+monitor in the dry
+hypocaust rooms
+The Lost Ones'
+garrison;
+amberjacks drill
+the yard
+What's there
+Spawn, Gannet
+rack, Juggernaut
+Needler Mk l,
+Quick Brine,
+workbench, canal
+traps
+Carbine and
+Flechette racks,
+Speed Brine,
+Locker spot 1,
+workshop parts
+Double Shot, Long
+Speargun; an air
+pocket in the
+caldarium dome
+Trawlerman's Rifle,
+Bolt Harpoon,
+Mule Brine; the
+Lost Ones' Hunt
+staging
+Opens
+with
+750
+1,000
+1,250
+1,500
+Page 44 of 90=== PAGE 0045.txt
+Red Tide — Arcade Game 5 Design Document
+District
+The Library and
+Academy
+The Forum and
+Government Hall
+(summit)
+The Grand
+Chapel (summit)
+Buildings
+Reading halls,
+scroll stores, an
+observatory
+Council chamber,
+treasury, courts
+Nave, crypts, the
+god-pool
+Ecology
+Dark stacks: the
+giant squid; glow-
+moss on the
+shelves
+The forum's sea
+fans; tuna and
+swordfish cross
+the open plaza
+The Cistern
+Wyrm's pool;
+temple kraits in
+the crypts
+What's there
+Kick Brine, the
+second
+workbench, Locker
+spot 2
+Power: the
+treasury's crystal
+engine; Deadeye
+Brine
+The Pressure
+Forge; Widow's Ink
+Opens
+with
+1,750
+2,000
+2,500
+The city has 60+ buildings on a hill 120 m tall and 500 m across, connected by streets,
+stairs, and the aqueduct. Traps: a canal sluice (floods a farm terrace), the bathhouse
+hypocaust (boils a room), the chapel's god-pool (drains and refills). Hidden quest: rekindle
+the lighthouse on the wall to see the whole city on the sonar.
+Level mechanics
+• The aqueduct carries blood downhill. Blood made on the summit flows down the
+aqueduct into the baths and the lower town within a minute. Fighting uphill sends
+predators to the players who stayed below.
+• Cisterns and drains. A network under every district: conger eels and the Wyrm come
+out of any drain grate; grates can be netted (a build) or watched.
+• Buildings are homes. Every building type hosts its species by data: amphorae mean
+octopus, baths mean grouper, cellars mean cardinalfish, granaries mean bream. The
+dossier teaches which door has what behind it.
+• The Lost Ones live here. Squads patrol streets, hold plazas, and know the drains. Their
+ichor scent draws the city's scavengers and repels its apex beasts, so a street full of
+dead Lost Ones is briefly safe from sharks and full of crabs.
+• The open plaza on the summit is the only long sightline: the tuna and swordfish lane,
+and the Priest's chosen ground.
+Page 45 of 90=== PAGE 0046.txt
+Red Tide — Arcade Game 5 Design Document
+Flora (12)
+Flora
+Posidonia meadows
+(farms)
+Sea lettuce terraces
+Column coral
+Doorway kelp curtains
+Bathhouse sponges
+Forum sea fans
+Temple glow-moss
+Amphora anemones
+Barnacle marble
+Fire coral on the wall
+Courtyard sargassum
+Stinging hydroid drains
+Type
+Producer
+Producer
+Structure
+Cover
+Shelter
+Cover
+Luminous
+producer
+Hazard
+Hazard
+Hazard
+Air
+Hazard
+Effect
+Grazer base for the whole lower city
+Farm grazers; regrows fast
+Grows on every pillar; sharp corners bleed
+Hangs in every doorway; hides what's
+inside, both ways
+Cardinalfish and shrimp inside; groupers
+wait beside them
+Break sightlines across the plaza
+Lights the chapel and the library; draws
+squid
+Stings (10); an octopus is usually behind one
+Cuts (bleed 3 s) on every wall a diver
+brushes at speed
+Burns (15) along the rampart walk
+Air pockets in the roofless courtyards; man
+o' war beneath
+Every drain grate stings (bleed) when
+Beasts (40)
+Beast
+Sardine
+Cardinalfish
+Class
+Fish
+Fish
+Size
+1
+1
+Tier
+1
+1
+touched
+Eats
+Plankton
+Plankton
+Eaten by
+Tuna,
+amberjacks,
+dentex
+Groupers, sea
+bass
+Behavior and note
+Street schools; the
+city's blood
+battery
+Cellars and
+sponges; nocturnal
+Page 46 of 90=== PAGE 0047.txt
+Red Tide
+Arcade Game 5 Design Document
+Beast
+Cleaner Goby
+Snapping
+Shrimp
+Porcelain
+Crab
+Nudibranch
+Sea
+Cucumber
+Feather Star
+Long-spined
+Urchin
+Bream
+Salema
+Scorpionfish
+Cuttlefish
+Slipper
+Lobster
+Class
+Fish
+Crustacean
+Crustacean
+Mollusc
+Echinoderm
+Echinoderm
+Echinoderm
+Fish
+Fish
+Fish
+Cephalopod
+Crustacean
+Size
+1
+1
+1
+1
+1
+1
+1
+2
+2
+2
+2
+2
+Tier
+Cleaner
+2 (swarm)
+1
+1
+Scavenger
+1
+1
+1
+1
+2
+2
+2
+Eats
+Parasites
+Small worms
+Plankton
+Sponges,
+hydroids
+Detritus
+Plankton
+Algae
+Algae, snapping
+shrimp
+Posidonia
+Cardinalfish,
+shrimp
+Crabs, shrimp
+Snails,
+worms
+Eaten by
+Nothing
+willingly
+Bream,
+octopus
+Octopus,
+monitor
+Nothing
+(toxic)
+Nothing
+Nothing
+Triggerfish,
+monitor
+Dentex, sea
+bass
+Amberjacks
+Groupers
+Sea bass
+Octopus,
+monitor
+Behavior and note
+Cleaning stations
+at the bath drains
+Colonies in the
+walls; their pops
+are constant
+sound-layer noise
+that hides gunfire
+partially (a quiet-
+gun bonus in the
+lower town)
+In anemones; free
+scrip
+Bright; poison on
+touch
+Cleans corpses
+slowly; spits sticky
+threads if shot
+On the columns;
+harmless
+Carpets the lower
+town's stairs
+Granary schools
+Farm herds;
+harmless; eating a
+hallucinogenic
+patch makes them
+erratic (the map's
+joke and a sign of
+which meadow is
+off-limits)
+Ambusher on
+marble; venom
+(poison 8 s)
+Market square;
+dazzles
+Under the market
+stalls
+Page 47 of 90=== PAGE 0048.txt
+Red Tide
+Arcade Game 5 Design Document
+Crabs, snails
+Beast
+Mantis Shrimp
+Aqueduct
+Newt
+Cistern Frog
+Temple Krait
+Water Monitor
+Cormorant
+Moon Jelly
+Bloom
+Man o' War
+Octopus
+Conger Eel
+Class
+Crustacean
+Amphibian
+Amphibian
+Reptile
+Reptile
+Bird
+Cnidarian
+Cnidarian
+Cephalopod
+Fish
+Size
+2
+1
+2
+2
+3
+2
+2
+2
+3
+3
+Tier
+2
+2
+2
+2
+3
+2
+1 (swarm)
+2
+3
+3
+Eats
+Insects, shrimp
+Newts, shrimp
+Eels, gobies
+Crabs, frogs,
+urchins, eggs
+Sardines, bream
+Plankton
+Small fish
+Crabs, lobsters,
+shrimp
+Octopus, frogs,
+cardinalfish
+Eaten by
+Octopus
+Cistern frogs,
+kraits
+Monitor,
+conger
+Sea bass
+Crocodile
+Nothing
+Leatherback
+Leatherback,
+loggerhead
+Conger,
+dentex, monk
+seal
+Crocodile,
+great white
+Behavior and note
+Breaks shields;
+nests in the
+toolsmiths' anvils
+Aqueduct
+channels;
+harmless
+Cisterns; croaks
+echo through
+drains (a sound-
+layer alarm carrier)
+Crypt sea snake;
+venom 30 over IO
+s; surfaces at the
+caldarium air
+pocket
+Amphibious;
+prowls the
+bathhouse dry
+rooms and the drill
+yard; bites hold
+Dives from the
+courtyard air
+pockets; a startled
+flock is an alarm
+Drifts the forum;
+mild stings
+Under courtyard
+sargassum;
+tentacles 10 m
+long: 30 damage
+and paralysis 1 s
+One per amphora
+street; steals
+items; the
+toolsmiths' parts
+are usually in its
+den
+The drains; strikes
+from grates;
+retreats into the
+cistern
+Page 48 of 90=== PAGE 0049.txt
+Red Tide
+Arcade Game 5 Design Document
+Beast
+Spider Crab
+Sea Bass
+Dentex
+Amberjack
+Barracuda
+Lamprey
+Bluefin Tuna
+Swordfish
+Loggerhead
+Monk Seal
+Sandbar Shark
+Leatherback
+Class
+Crustacean
+Fish
+Fish
+Fish
+Fish
+Fish
+Fish
+Fish
+Reptile
+Mammal
+Fish
+Reptile
+Size
+3
+3
+3
+3
+3
+2
+4
+4
+4
+4
+4
+5
+Tier
+2
+3
+3
+3 (pack)
+3
+Parasite
+3
+3
+3
+3
+4
+1
+Eats
+Sea cucumbers,
+algae
+Bream,
+cuttlefish, kraits
+Sardines, bream,
+octopus
+Sardines, salema
+Sardines,
+cormorants
+Blood
+Sardines,
+amberjacks
+Sardines,
+cuttlefish
+Man o' war, crabs
+Octopus,
+lobsters, bream
+Sea bass, dentex,
+octopus, Lost
+Ones
+(reluctantly)
+Jellies, man o'
+war
+Eaten by
+Octopus
+(rarely)
+Sharks
+Sharks, tuna
+Sharks
+Sharks
+Barracuda
+Great white
+Great white
+Crocodile,
+great white
+Great white
+Great white
+Nothing
+Behavior and note
+Armored;
+decorates itself
+with kelp and
+looks like a bush
+until it moves
+Bathhouse
+patroller
+A fast street
+hunter in pairs
+A pack of 6 that
+drills the barracks
+yard in formation
+Waits in the gate
+arch; drawn to
+flashes
+Cistern parasite;
+bleeds hosts
+Crosses the
+summit plaza at
+full speed; a ram is
+60 damage
+Plaza lane; a
+charge impales for
+100 and pins
+Armored; eats the
+man o' war under
+the sargassum
+CUriOUS thief;
+harmless unless
+shot
+Patrols the lower
+town streets;
+threshold 70
+Gentle; 100 blood;
+eats every jelly in
+the forum if left
+alone
+Page 49 of 90=== PAGE 0050.txt
+Red Tide — Arcade Game 5 Design Document
+Beast
+Nile Crocodile
+of the Canals
+Great White
+Giant Squid
+The Cistern
+Wyrm
+Class
+Reptile
+Fish
+Cephalopod
+Fish
+Size
+5
+5
+5
+6
+Tier
+4
+4
+4
+5
+Eats
+Monitors,
+loggerheads,
+frogs, Lost Ones,
+divers
+Tuna, seals,
+sharks, enemies,
+divers
+Tuna, seals,
+squid, anyone in
+the stacks
+Anything near a
+drain
+Eaten by
+Nothing but
+the Wyrm
+Nothing but
+the Wyrm
+Nothing
+Behavior and note
+Farms' canals;
+ambushes from
+the sluice gates;
+hauls out on the
+terraces
+Wanderer over the
+wall; threshold 150;
+avoids ichor-
+scented streets
+The library's dark:
+reaches through
+doorways; the
+glow-moss shows
+its eye
+A conger the
+length of a street
+living in the cistern
+network: surfaces
+from any grate,
+drags a diver into
+the drains
+(teammates have 6
+s), guards the
+chapel's god-pool;
+from tide 12 it
+hunts the streets
+The web in motion
+• Downhill: the aqueduct means the summit's fights are the lower town's problem; a
+team that sets one diver below to hold the drains will lose them to the Wyrm.
+• Ichor: dead Lost Ones repel sharks and the Wyrm for 60 s and draw crabs, cucumbers,
+and the monitor; a street of their dead is a safe corridor for a minute.
+• The library: the squid can't leave the stacks; the Locker there is a trade of pulls for
+reach.
+• The plaza lane: tuna and swordfish cross at speed; standing in the lane is a ram;
+standing beside it and shooting a tuna brings the great white over the wall.
+• The farms: harmless grazers everywhere, and the crocodile in every canal; the sluice
+trap floods a terrace and drowns a Lost One phalanx.
+Page 50 of 90=== PAGE 0051.txt
+Red Tide — Arcade Game 5 Design Document
+Definition of Done
+• The city generator places 60+ buildings by district with correct habitats; the aqueduct
+moves blood downhill in
+--eco-sim atlantis 20 .
+The Wyrm surfaces from grates; ichor repels and attracts as specified; a four-player
+test reaches the chapel and survives a Lost Ones Hunt on the summit.
+Level 5: Approaching the Void
+The largest map: a black sand plain on the rim of an abyss, and beneath it a cave system,
+built as vertical chimneys and galleries rather than the second map's halls, that descends
+past a drowned research station to a vault that looks straight down into the void. The rim
+is empty and enormous; the guns, tonics, and the Forge are all below, and every gallery
+deeper is more dangerous and richer. The Sand Worm patrols the far rim so that no one
+wanders off the map.
+Layout
+Zone
+The Rim (start pocket at the station's
+surface hatch)
+The Descent
+The Upper Galleries
+The Warrens
+What's there
+A vast plain beside the abyss; sea
+pens, sand eels, the worm's tunnels on
+the horizon; only the Gannet rack and
+Juggernaut
+A chimney down from the hatch;
+ledges with Quick Brine, Needler Mk l,
+a workbench; the first overlook onto
+the abyss
+Glass sponge reefs and bamboo coral;
+Carbine, Flechette, Speed Brine;
+Locker spot 1; the Remnant's upper
+airlock
+A maze of tubes and vents; yeti crabs
+and tube worms; Double Shot, Long
+Speargun; two overlooks
+Opens
+with
+750
+1,000
+1,250
+Page 51 of 90=== PAGE 0052.txt
+Red Tide — Arcade Game 5 Design Document
+Zone
+The Station: Mess and Quarters
+The Station: Specimen Labs
+The Station: Reactor
+The Lowest Vault
+What's there
+Flooded modules; specimen kelp
+tanks; Bolt Harpoon, Kick Brine;
+dossier terminals with the
+researchers' logs
+Tanks (some broken: the coelacanths
+and salamanders are loose); Mule
+Brine, Deadeye; the Pale Caiman's
+corridor
+Power (the reactor); the Pressure
+Forge; the Station Chief's mech bay
+A cathedral cave open to the abyss on
+one side; black coral; Locker spot 2,
+Widow's Ink, Cold Coffin; the Lantern
+Leviathan's home; the best loot: two
+extra racks (Stormlock, Cannon
+Harpoon)
+Opens
+with
+1,500
+1,750
+2,000
+2,500
+Overlooks: every level has at least one gallery open to the abyss. The void is a visual: a
+black column with drifting motes and a faint pale light far below; a diver who swims out
+over it sinks and dies (a 5 s pull with a warning). Traps: a pressure door (crushes a
+corridor), the reactor vent (a scalding jet), the vault's collapsing ledge over the abyss.
+Hidden quest: assemble the station's final log from five terminals to learn what the
+researchers were breeding.
+Level mechanics
+• Down is better. Racks and tonics deepen with the galleries; the Forge is at the reactor;
+the Vault's racks and Locker are the best on any map. Blood decays slowest here (the
+water barely moves), so every deep fight lingers.
+• The Sand Worm. A size-7 behemoth seen tunneling on the rim's horizon. Beyond a
+marked line of bone stakes, the sand shakes; 8 s later, the worm surfaces and
+consumes the diver (no down, no revive). It never enters the caves and takes part in no
+web; it is the edge of the world.
+• Overlooks are where the abyss's own beasts arrive: the colossal squid, the sperm
+whale, the Relict. Fighting there is fighting with your back to a fall.
+Page 52 of 90=== PAGE 0053.txt
+Red Tide — Arcade Game 5 Design Document
+• The station's lures. Researchers left lure beacons; the Remnant switches them on to
+pull beasts onto the players. Beacons can be destroyed (loud) or re-aimed (a build
+part).
+Specimens. Broken tanks released coelacanths and lab salamanders that don't fit the
+web: nothing hunts them but the caiman, so they multiply until the players cull them.
+Page 53 of 90=== PAGE 0054.txt
+Red Tide — Arcade Game 5 Design Document
+Flora (12)
+Flora
+Glass sponge reef
+Tube worm garden
+(vents)
+Bacterial mat
+Bamboo coral
+Sea pen field (rim)
+Xenophyophore carpet
+Black coral thicket
+(vault)
+Specimen kelp
+Pressure moss
+Void bloom
+Brine lily
+Lab algae tanks
+Type
+Structure
+Producer
+Producer
+Cover
+Cover
+Producer
+Cover
+Luminous
+producer
+Producer
+Hazard
+Hazard
+Producer
+Effect
+Sharp glass: bleeds on contact; hides small
+beasts; shatters loudly
+The vent web's base; yeti crabs and vent
+shrimp feed here
+Carpets the warrens; amphipods swarm it
+Tall stalks in the galleries
+Waist-high; sand eels beneath; glows when
+brushed, which shows a diver's path across
+the plain
+Brittle; walking on it kicks up silt that hides
+scent for 5 s
+Dense and dark; the leviathan's hunting
+ground
+Lab-grown, glowing; draws every luminous-
+CUriOUS species in the station
+Thin growth on the station walls; harmless
+A luminous flower on the overlook edges
+that opens toward the abyss and lures
+CUriOUS beasts, and divers, over the lip
+Grows at the brine pool in the warrens;
+touching it or the pool: 20 damage and 5 s of
+slow
+Spirulina tanks the station's small fish still
+live on
+Page 54 of 90=== PAGE 0055.txt
+Red Tide
+Arcade Game 5 Design Document
+Beasts (40, the boss, and the Sand Worm)
+Beast
+Sand Eel
+Sand Hopper
+Sea Pig
+Brittle Star
+Bone Worm
+(Osedax)
+Vent Shrimp
+Hatchetfish
+Hadal
+Amphipod
+Cookiecutter
+Shark
+Class
+Fish
+Crustacean
+Echinoderm
+Echinoderm
+Worm
+Crustacean
+Fish
+Crustacean
+Fish
+Size
+1
+1
+1
+1
+1
+1
+1
+1
+1
+Tier
+1
+1
+Scavenger
+Scavenger
+Scavenger
+1
+1
+Scavenger
+(swarm)
+Parasite
+Eats
+Plankton
+Detritus
+Corpses, mud
+Detritus
+Bones
+Bacterial mat
+Plankton
+Corpses, mats
+Plugs of flesh
+Eaten by
+Skates,
+snailfish, seals
+Tripod fish,
+rattails
+Nothing
+Rattails
+Nothing
+Squat lobsters,
+chimaera
+Viperfish,
+dragonfish
+Snailfish
+Nothing
+Behavior and
+note
+Rim burrower; a
+school erupts
+underfoot
+Rim swarm
+Herds on the rim;
+cleans corpses;
+free scrip, but
+every dead one
+stops cleanup
+Carpets the
+galleries
+Colonizes big
+corpses; the only
+thing that
+finishes a whale
+Vent swarms
+Luminous school
+in the chimney;
+its lights follow
+divers' lamps
+A swarm that
+strips a corpse in
+20 s and nibbles
+downed divers (2
+per second)
+Takes a round
+bite from beasts
+and divers (15)
+and leaves; each
+bite is a bleed
+source
+Page 55 of 90=== PAGE 0056.txt
+Red Tide
+Arcade Game 5 Design Document
+Sixgill, goblin
+Beast
+Tripod Fish
+Snailfish
+Rattail
+Giant Isopod
+Yeti Crab
+Squat Lobster
+Dumbo
+Octopus
+Barreleye
+Viperfish
+Fangtooth
+Dragonfish
+Class
+Fish
+Fish
+Fish
+Crustacean
+Crustacean
+Crustacean
+Cephalopod
+Fish
+Fish
+Fish
+Fish
+Size
+2
+2
+2
+2
+2
+2
+2
+2
+2
+2
+2
+Tier
+2
+2
+Scavenger
+Scavenger
+1
+2
+2
+2
+2
+2
+2
+Eats
+Sand hoppers,
+plankton
+Amphipods, sand
+eels
+Corpses, brittle
+stars
+Corpses
+Bacteria on its
+own arms, mats
+Vent shrimp, yeti
+crabs
+Amphipods,
+worms
+Siphonophore
+parts, jellies
+Hatchetfish,
+barreleyes
+Hatchetfish,
+shrimp
+Hatchetfish
+Eaten by
+Skates
+Sixgill
+shark
+Nothing
+(armored)
+Squat lobsters,
+chimaera
+Chimaera,
+skates
+Sixgill
+Viperfish
+Anglerfish,
+chimaera
+Anglerfish
+Anglerfish
+Behavior and
+note
+Stands on fin
+stilts on the rim;
+faces the
+current, showing
+where blood will
+drift
+Deepest
+galleries;
+gelatinous;
+harmless
+The first to any
+corpse; the
+map's cleanup
+crew
+Armored; rolls up
+when shot;
+slowly eats
+anything dead
+Vent colonies;
+harmless
+Swarms the
+vents
+Harmless drifter;
+a curiosity the
+dossier rewards
+Transparent
+head; sees up: it
+watches the
+overlooks
+Chimney
+ambusher with a
+light lure
+Bites 20 and
+hangs on
+A red light only it
+can see: it hunts
+divers'
+silhouettes
+against
+specimen kelp
+Page 56 of 90=== PAGE 0057.txt
+Red Tide
+Arcade Game 5 Design Document
+Sixgill, Relict
+Sixgill, Relict
+Beast
+Deep Jelly
+Abyssal Sea
+Snake
+Siphonophore
+Lab
+Salamander
+Chimaera
+Frilled Shark
+Anglerfish
+Pelican Eel
+Deep Skate
+Class
+Cnidarian
+Reptile
+Cnidarian
+Amphibian
+Fish
+Fish
+Fish
+Fish
+Fish
+Size
+2
+2
+3
+3
+3
+3
+3
+3
+3
+Tier
+1
+2
+2
+3
+3
+3
+3
+3
+3
+Eats
+Plankton
+Snailfish, sand
+eels
+Small fish
+Lab fish, shrimp,
+divers' hands
+Squat lobsters,
+shrimp, crabs
+Squid, small fish
+Viperfish,
+fangtooth,
+dragonfish
+Hatchetfish,
+shrimp
+Sand eels, tripod
+fish
+Eaten by
+Hadal turtle
+Sixgill
+Hadal turtle
+Pale caiman
+Sixgill
+Goblin shark
+Sixgill
+Behavior and
+note
+Drifts the
+galleries; stings
+(10)
+Surfaces at the
+station's air
+pockets; venom
+30 over 10 s
+A 20 m chain of
+stinging bells in
+the overlooks;
+passing through
+costs 40
+Escaped
+specimens: bite
+and hold,
+regenerate,
+breed in the
+flooded quarters
+unless culled
+Ghost shark of
+the warrens; a
+venomous dorsal
+spine
+An eel-like lunge;
+300 needle
+teeth: 50 and
+bleed
+Lure that mimics
+a drop bottle; a
+swallow pins a
+diver 3s
+A swallow that
+engulfs size 2
+and takes 60
+from a diver
+Rim glider;
+harmless unless
+stepped on
+Page 57 of 90=== PAGE 0058.txt
+Red Tide
+Arcade Game 5 Design Document
+Sixgill, Relict
+Sixgill, Relict,
+Beast
+Coelacanth
+Giant Sea
+Spider
+Oarfish
+Goblin Shark
+Elephant Seal
+Hadal Turtle
+Pale Caiman
+Class
+Fish
+Crustacean-
+like
+Fish
+Fish
+Mammal
+Reptile
+Reptile
+Size
+3
+3
+4
+4
+4
+4
+4
+Tier
+3
+2
+1
+4
+3
+1
+4
+Eats
+Lab fish, squid
+Sea pens, jellies
+Krill,
+amphipods
+Anglerfish,
+squid, rattails
+Squid, snailfish
+Jellies,
+siphonophores
+Salamanders,
+coelacanths,
+researchers,
+divers
+Eaten by
+Pale caiman
+Nothing
+Sperm whale
+sperm whale
+(competition)
+Relict
+Relict
+Behavior and
+note
+Escaped
+specimen; slow,
+armored,
+ancient; breeds
+in the labs
+Two meters
+across on the
+rim; harmless;
+frightening
+A 10 m ribbon
+that rises
+through the
+chimney;
+harmless; an
+omen: its
+appearance
+precedes a
+Predator Hunt by
+60s
+A slingshot jaw
+from 1 m;
+threshold 60
+blood
+Dives from the
+station's air
+pockets to the
+galleries;
+territorial bull: 80
+damage rams
+Ancient,
+armored, gentle;
+eats the
+overlooks'
+siphonophores
+Bred in the labs
+and loose in the
+station's
+corridors;
+amphibious;
+blind, hunts by
+vibration
+Page 58 of 90=== PAGE 0059.txt
+Red Tide
+Arcade Game 5 Design Document
+Beast
+Sixgill Shark
+Colossal
+Squid
+Sperm Whale
+The Relict
+Class
+Fish
+Cephalopod
+Mammal
+Reptile
+Size
+5
+5
+5
+5
+Tier
+4
+4
+4
+4
+Eats
+Sharks, seals,
+chimaeras,
+enemies, divers
+Sperm whale
+calves, sharks,
+divers
+Colossal squid,
+giant squid
+Everything:
+sharks, seals,
+squid, the
+Station Chief's
+mech
+Eaten by
+Relict
+Sperm whale
+Nothing
+Nothing
+Behavior and
+note
+Slow, huge,
+patient;
+threshold 120;
+follows the
+amphipod
+swarms to
+corpses
+Comes to the
+overlooks from
+the abyss; hooks
+grab a diver and
+pull toward the
+edge
+Dives past the
+overlooks
+hunting squid;
+clicks so loud
+they stun small
+beasts; harmless
+to divers unless
+shot; a corpse
+feeds the whole
+map for a tide
+A mosasaur that
+survived down
+here: the map's
+apex, threshold
+200 blood,
+comes up from
+the abyss to the
+overlooks and
+the Vault; four
+flippers, a
+crocodile's
+mouth on a
+whale's body
+Page 59 of 90=== PAGE 0060.txt
+Red Tide — Arcade Game 5 Design Document
+Beast
+The Lantern
+Leviathan
+The Sand
+Worm
+Class
+Fish
+Worm
+Size
+6
+7
+Tier
+5
+Outside
+the web
+Eats
+Anything in the
+Vault
+Whatever
+crosses the bone
+stakes
+Eaten by
+Behavior and
+note
+An anglerfish the
+size of the
+station's reactor;
+its lure looks like
+the station's
+emergency light;
+it swallows a
+diver whole
+(teammates have
+5 s); from tide 12
+its lure appears
+in the galleries
+The largest thing
+in the game; seen
+tunneling on the
+rim's horizon;
+consumes any
+diver beyond the
+stakes; no
+interaction
+otherwise
+The web in motion
+• Corpses are the deep's economy. Rattails, isopods, amphipods, sea pigs, and bone
+worms finish everything; the sixgill follows them. Killing the scavengers to farm scrip
+on the rim turns the rim into a shark lane by tide 8.
+Lights: hatchetfish, specimen kelp, void blooms, the anglerfish's lure, the leviathan's
+lure, and the divers' own lamps. Turning lamps off lowers curiosity-driven approaches
+by half and doubles what a diver can't see.
+• The specimens: salamanders and coelacanths breed if ignored and only the caiman
+eats them; a lab overrun with specimens is loud and full of blood every time a Remnant
+squad passes through.
+• The overlooks: whale and squid fight each other; the Relict eats the winner; standing
+on an overlook during that is standing in the blood of three apex beasts.
+• The Chief's mech is size 5 and the Relict attacks it on sight: the Remnant's final Hunt
+can be ended by leading the mech to an overlook.
+Page 60 of 90=== PAGE 0061.txt
+Red Tide — Arcade Game 5 Design Document
+Definition of Done
+• The rim is at least 800 m across with the worm patrolling beyond the stakes and
+consuming a diver on cue; the void kills correctly with warning.
+--eco-sim void 30 shows the scavenger economy, the specimen breeding curve, and
+the Relict's arrival at an overlook after a whale kill.
+• A four-player test reaches the Vault, sees the leviathan's lure in the galleries at tide 12,
+and survives a Remnant Hunt with the mech.
+Presentation and technology
+Red Tide is first-person 3D in raylib, extending the code that already draws the parkour
+side's 3D Abyss ( abyss . cpp ), with every mesh, texture, and animation generated in code,
+per Depth's no-assets rule. The look is inked low-poly: flat-shaded meshes with a screen-
+space ink outline and hatching, so a screenshot still reads as Depth.
+Art
+Style. Low-poly meshes with flat shading, a post-process ink outline (depth and normal
+edge detection, line weight by distance), Bayer stipple in shadow, and the same paper-
+tone palette rules as the salon. Underwater fog by depth, volumetric light shafts,
+caustics projected on surfaces near the surface, and particle marine snow everywhere.
+• Creatures are procedural meshes. A CreatureBui1der makes a body from a lathed
+profile curve, adds fins, limbs, shells, tentacles, spines, and eyes from parameter sets,
+and generates a 3-band material (base, belly, accent) from the species record. Forty
+species per map is forty parameter sets plus a dozen body plans (fusiform fish, flat
+fish, eel, ray, shark, turtle, crocodilian, crab, shrimp, cephalopod, jelly, worm, amphibian,
+seal, whale).
+• Animation. Fish swim by a traveling sine along the spine; rays flap; eels undulate; crabs
+walk on inverse-kinematics legs; cephalopods run Chains on every arm; reptiles and
+mammals use a four-limb gait. Attack, flee, feed, and death clips per body plan; blood
+as ribbon particles that follow the scent grid's flow so what the player sees is what the
+web smells.
+• Weapons and hands. First-person hands and guns are procedural meshes with the
+reload clips from the Weapons section; the sea-glass Forge finish is a material swap.
+Page 61 of 90=== PAGE 0062.txt
+Red Tide — Arcade Game 5 Design Document
+• Maps are built in code from layout data. Each map is a text layout of rooms, corridors,
+and props with decoration rules (which flora grows on which surface, where habitats
+go). Atlantis has a city generator: districts on a hill, streets by slope, building types by
+district, decorated by the habitat rules. The Sunken Ship is a lathed hull with decks cut
+from it. Caves are marched from noise fields with hand-placed anchors for the galleries
+and slipstreams.
+• Blood and water. A red tint at the mask edge that grows with local scent; visible blood
+plumes; the scent meter and predator pulse on the HUD.
+Performance budget
+Item
+Active agents near players
+Population counters beyond 120 m
+Mesh instancing
+LODs
+Scent grid
+Target
+Networking
+Budget
+300 at 10 Hz decisions, 60 Hz motion
+Unlimited (no bodies)
+One draw per species per LOD
+3 per creature; billboards past 80 m
+2 m cells, updated at 1 Hz, in a background thread
+60 fps at 1080p on a mid-range laptop with four
+players
+• Host-authoritative through the shared arcade layer (GameNetworkingSockets). The
+host runs the ecosystem and hit validation.
+• Client prediction for the local diver's movement; lag compensation for hits: the host
+rewinds beast positions up to 200 ms to judge a shot, so aiming feels local.
+• Snapshots at 20 Hz with delta compression; beasts and enemies interpolated 100 ms
+behind; interest management by distance (200 m) and line of sight.
+• Scent and alarm live only on the host; clients receive the HUD values for their own
+position.
+• Disconnect: the diver is downed and held for 2 minutes; reconnecting restores them if
+the body is revived.
+Page 62 of 90=== PAGE 0063.txt
+Red Tide — Arcade Game 5 Design Document
+Tools
+--eco-sim <map> <minutes> (headless ecosystem), --redtide-shots (every
+creature, weapon, and map zone rendered to PNG), --redtide-sim <map> <tides> (a
+bot team plays to a tide count and reports scrip, downs, and which beasts did the
+killing), --net-loop redtide .
+Sound design
+Red Tide's sound is the ecosystem made audible: every species has a voice, every kill has
+a wet consequence, and the music is the round timer. All of it is synthesized through the
+cue registry and bUSes defined in the Depth master reference.
+Underwater mix rules
+• Everything is low-passed and reverberant; gunfire is a thump and a hiss of bubbles, not
+a crack, except the powder guns, which crack and then boom in the water.
+• Distance is muffling: sounds beyond 40 m lose their highs entirely, so the direction of a
+far predator is felt more than heard.
+• The diver's own breathing is always present and quickens with low HP and nearby
+blood.
+Music
+State
+Calm between tides
+Tide (early)
+Tide (late)
+Blood rising
+Predator approaching
+MusiC
+A slow brass-and-glass drone in the map's key; the
+20 s countdown ticks under it
+A pulse and a bass line; adds a melodic layer when
+the quota is more than half done
+Driving percussion, distorted brass; a siren layer at
+20 +
+A low string swell that grows with the local scent
+value; the strings are the scent meter you can hear
+The map's apex motif enters, panned from its
+direction
+Page 63 of 90=== PAGE 0064.txt
+Red Tide — Arcade Game 5 Design Document
+State
+Hunt
+Boss present
+Downed
+Match over
+Music
+A faction theme: the Wreckers' shanty on broken
+accordion, the Drowned's bell and choir, the
+Raiders' drums, the Lost Ones' organ, the
+Remnant's alarm klaxon and clockwork
+The boss theme; everything else ducks
+Music thins to a heartbeat and the breathing
+A slow shanty over the score
+Each map has its own palette: the ship's creaking brass, the cave's echoes and drips, the
+reef's bright marimba-like synths, Atlantis's choir and organ, the Void's sub-bass and near-
+silence.
+Ambience
+Map
+The Sunken Ship
+The Underwater Cave
+The Coral Reef
+Atlantis
+Approaching the Void
+Bed
+Hull groans, the list's creak, sprats fluttering, the
+air pocket's slosh, the crocodile's breath from the
+salon
+Drips, slipstream rush, cricket chirps in the dry
+chambers, the swiftlets, distant rockfall
+Snapping shrimp crackle, parrotfish crunch, surf
+above the lagoon, dolphin whistles, whale song at
+the wall
+Aqueduct flow, the cisterns' echo, snapping shrimp
+in the walls, cormorant wings, the chapel's god-
+pool
+Almost nothing: the reactor hum, vent hiss, sperm
+whale clicks, the worm's distant rumble, the void's
+low tone
+Page 64 of 90=== PAGE 0065.txt
+Red Tide — Arcade Game 5 Design Document
+Effects
+• Every beast has a voice cue (clicks, grunts, croaks, whistles, or silence by design), a
+pain cue, a death cue, and a feeding cue (tearing, crunching, slurping). Feeding cues are
+loud by design: they tell the players where the corpses are being eaten and how many
+things are eating.
+• Blood has a sound: a wet bloom on a kill, a spreading hiss as a plume grows.
+• Weapons: fire, reload steps, empty click, the Forge's crush and hiss, the Locker's eel
+snap and the chest sinking, the Harpoon Cannon's boom.
+• Tonics: each machine has a jingle (the Zombies tradition), a bottle clink, and a gulp.
+• Drops: a bell for a drop appearing, a distinct sting per drop.
+• The alarm: no sound tells the player the alarm value, but the faction's arrival has a tell:
+the Wreckers' cutters scraping the hull, the Drowned's bell, the Raiders/ drum, the Lost
+Ones' marching, the Remnant's airlock cycling.
+• Tells for hazards: the sand worm's rumble, the Reacher coral's creak, the bobbit
+worm's hiss, the toad's croak, the Wyrmls grate rattle, the leviathan's lure hum.
+HUD and UI: the tide bell, the quota tick, the scrip counter's coin, the down and revive
+stings.
+Accessibility
+Every audio tell has a visual: a directional pulse on the mask, a caption for barks, and a
+scent meter for the blood strings.
+Balance, simulation, and build order
+Red Tide is balanced against Zombies' pacing (a competent team reaches tide 20 in about
+40 minutes) and against its own ecosystem, which must punish careless killing without
+making careful play boring.
+Balance targets
+Measure
+Tide reached by a bot team of four playing
+carefully
+Target
+25 ± 3 on the Sunken Ship, 20 on Atlantis and
+the Void
+Page 65 of 90=== PAGE 0066.txt
+Red Tide — Arcade Game 5 Design Document
+Measure
+Tide reached by a bot team that shoots
+everything
+Time to tide 10
+First apex arrival after 100 blood in one
+region
+Share of deaths caused by beasts, enemies,
+hazards
+Scrip at tide 10 for a careful player
+Enemy squads per tide from the alarm,
+careful team
+Weapon cost-efficiency
+Simulation tools
+Target
+12 ± 3 (the ecosystem mt.JSt end them)
+15-20 minutes
+30-90 s by map
+About 60 / 25 / 15 at tide 15
+15,000-20,000 (enough for Juggernaut, two
+tonics, a rack gun, and one Forge)
+0.5 • careless team: 3
+Damage per second per 1,000 scrip within
+±20% across rack weapons of the same tier;
+Locker weapons Forged
+--eco-sim <map> <minutes> [pattern] runs the ecosystem with a scripted player
+pattern (quiet, loud, camping, spread) and prints population curves, blood levels by
+region, and predator arrival times.
+--redtide-sim <map> <tides> [careful I careless] plays a bot team and reports
+the balance targets above.
+--web-check asserts every species has at least one predator or a reason not to
+(toxic, apex, boss), every tier-I species has a producer, no diet cycle is unreachable,
+and every corpse has a scavenger.
+All numbers live in redtide_species.json , redtide_weapons.json , and
+redtide_maps/ ; nothing is inline.
+Page 66 of 90=== PAGE 0067.txt
+Red Tide — Arcade Game 5 Design Document
+Build order
+Stage Work
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+Ecosystem engine headless: species
+records, scent grid, SOUnd layer, state
+machine, population; twelve generic
+species
+3D core: inked low-poly renderer,
+CreatureBui1der with the body plans,
+first-person diver, the Cormorant
+The Sunken Ship: layout, all 40 beasts and
+12 flora, racks, tonics, the Locker, the
+Forge, drops, tides, the Wreckers, the
+Goliath
+Multiplayer through the shared arcade
+layer: prediction, lag compensation,
+snapshots, downs and revives over LAN
+The Underwater Cave (slipstreams, dry
+chambers, rockfall)
+The Coral Reef (Reacher coral, dolphins,
+the flats)
+Atlantis (the city generator, aqueduct
+blood flow, cisterns)
+Approaching the Void (the rim, the worm,
+the station, the Vault)
+Charms, skins, dossiers, hidden quests,
+sound pass
+Internet play through the relay server;
+balance pass with
+--redtide-sim on
+every map
+Gate
+--eco-sim shows the sprat chain end
+to end
+A diver swims a box room among
+generated fish
+Sunken Ship Definition of Done
+Four players finish a Sunken Ship
+match on LAN
+Its Definition of Done
+Its Definition of Done
+Its Definition of Done
+Its Definition of Done
+--audio-test and the dossier
+complete for every species
+All balance targets met or logged
+Open questions for the designer
+Should killing a dolphin or a whale carry a scrip penalty on top of the ecological one?
+Page 67 of 90=== PAGE 0068.txt
+Red Tide — Arcade Game 5 Design Document
+Should the boss beasts have a chance to appear in earlier tides as a rare event, or stay
+strictly tied to tide 12 and Predator Hunts?
+Should there be a sixth map later, or should new content go into the existing five as
+"seasons" of species?
+Map data workbooks
+Every number a map needs lives in one workbook per map, which Claude Code exports to
+redtide_maps/<map>/*. j son . The Sunken Ship workbook
+( RedTide_SunkenShip_data. xlsx ) is the template; the other four maps get the same
+sheets.
+Sheet
+Species
+Attacks
+Diet
+Flora
+Spawn
+TideCurve
+Holds
+One row per beast: size, tier, tags, archetype, social
+group, home zone and flora, defend radius, blood
+threshold, temperament (aggression, fear,
+curiosity), senses (sight, scent, hearing,
+electroreception), weak point, front armor, base HP
+and bounty, blood on death and per second, speed
+and turn rate, drop chance
+One row per attack move: damage, windup,
+cooldown, range, the visible tell, and the effect
+(bleed, hold, knockback, poison, stun)
+The 40 x 49 preference matrix: each predator's row
+sums to 1 across the species it eats plus plankton,
+corpses, parasites, each flora, and the enemy
+faction
+Type, zones, effect, contact damage, grazers,
+regrowth
+Per zone: species, count at tide 1, respawn seconds,
+capacity growth
+Tunables and the per-tide table: quota, HP and
+bounty multipliers, beast damage multiplier, alarm
+threshold, enemy spawn chance, blood decay, Hunt
+schedule, apex wander, boss availability, tide bonus
+Page 68 of 90=== PAGE 0069.txt
+Red Tide — Arcade Game 5 Design Document
+Sheet
+Blockout
+Boss
+Holds
+Zones with coordinates and door costs, links,
+points of interest, training loops, blood-flow
+direction, sightlines, alarm regions
+The map boss's phases, arena rules, and rewards
+The tide curve (from the TideCurve sheet)
+Value
+Kill quota (4 players)
+Beast HP
+Bounty
+Beast damage
+Alarm threshold
+Enemy spawn chance per
+roll
+Blood decay per second
+Hunt
+Apex wander
+Boss may appear
+Rule
+12 x 1.15A(tide-1)
+x 1.08 per tide
+x 1.10 per tide
+x 1.05 per tide, capped at 2.5
+100 / (1 + 0.1 x tide)
++ 3% x tide from tide 4, cap
+/ 0.5% by era
+Every 5th tide; Predator Hunts possible
+from 10
+From tide 10
+From tide 12 (Predator Hunts from 10)
+Tide 1
+12
+1.0
+1.0
+1.0
+91
+o
+2%
+no
+no
+Tide 5
+21
+1.36
+1.46
+1.22
+25%
+2%
+Faction
+no
+no
+Tide 10
+42
+2.0
+2.36
+1.55
+50
+1%
+Either
+yes
+Hunt
+only
+Tide
+20
+170
+4.3
+6.1
+2.5
+33
+0.5%
+Either
+yes
+yes
+Quota scales 0.4 / 0.6 / 0.8 / 1.0 with 1-4 players. All of these are single cells in the Tunables
+block, so a balance pass edits one sheet.
+Enemy factions in detail: the Wreckers (template)
+Each faction gets this treatment; the Wreckers are written out first because they belong
+to the first map. Enemy HP rises 8% per tide, weapons upgrade every 5 tides, and every
+unit has a tell and a bark set.
+Page 69 of 90=== PAGE 0070.txt
+Red Tide
+Arcade Game 5 Design Document
+Units
+Unit
+Cutter
+Speargunner
+Netman
+Chummer
+Foreman
+(Hunts only)
+HP
+120
+150
+180
+140
+900
+Weapon
+Boarding
+knife
+Long
+Speargun
+Net Gun and
+knife
+Chumthrower
+Harpoon
+Cannon
+Damage
+25
+melee,
+0.8 s
+60, 1 shot
+per 3 s
+Net
+holds 4 s;
+knife 20
+200 per
+bolt, 1
+per 4 s
+Speed
+Fast
+(2.4)
+Diver
+speed
+Diver
+speed
+Diver
+speed
+Slow
+(1.4)
+Role
+Flanker;
+goes for
+downed
+divers and
+lone divers
+Covers the
+squad from
+15-20 m;
+aims for the
+diver
+reviving
+Nets a
+diver, then
+the Cutters
+close
+Lobs chum
+at divers'
+feet to call
+the reef
+onto them;
+retreats
+Anchors
+the Hunt
+from the
+hull breach;
+shouts
+orders that
+buff
+Cutters
++20%
+speed
+Tell
+Bubbles from
+a fast exhale
+before a lunge
+A red laser
+dot from the
+speargun's
+sight, 1 s
+before firing
+Swings the
+net overhead
+twice
+Shakes the
+chum bucket
+Winds the
+cannon's
+winch for 2s
+Loot
+200 scrip
+Long Speargun,
+250
+Net Gun, 250
+Chumthrower,
+300
+Harpoon
+Cannon (10
+bolts), 600
+Squad tactics
+1. A squad enters at the hull breach and moves Stern -5 Engine Cabins Salon,
+checking each room's corners; it will not enter a room with a size-4 beast in it.
+2. On contact: the Netman targets the closest diver, the Speargunner takes a firing
+position 15 m back, the Cutters flank through the second doorway, the Chummer
+throws chum behind the divers so the reef arrives from the direction they retreat to.
+Page 70 of 90=== PAGE 0071.txt
+Red Tide — Arcade Game 5 Design Document
+3. A Wrecker below 30% HP retreats toward the breach and calls for help (+1 Cutter if
+the alarm is still above threshold).
+4. Wreckers ignore beasts below size 3 and fight anything bigger that attacks them; they
+will abandon a fight with divers to flee a shark.
+5. In a Hunt, the Foreman holds the Stern; the squad's job is to drive the divers toward
+him.
+Barks
+Spoken as gurgling radio chatter (formant synth, subtitled). Each unit has 6-8 lines per
+situation; examples:
+Spotting divers: "Divers on the wreck. Nobody's collecting our salvage." / "Four of 'em.
+Chum 'em."
+• Chum thrown: "Dinner's served, fish." / "Let the reef do the work."
+• Shark arrives: "That's not ours! Back to the breach!" / "Cut the chum, cut the chum!"
+• A Wrecker dies: "Marlow's gone. Keep working." / "The safe's worth it. Push."
+• Netting a diver: "Got one wrapped!" / "Pull it in, pull it in."
+• Foreman: "The safe's mine, and sols the ship." / "Winch up. Put a bolt through the
+helmet."
+The same treatment for the other factions
+The Drowned (Deckhand, Lantern Bearer, Bosun), the Reef Raiders (Spear Diver, Turtle
+Rider, Sling Diver, Shaman), the Lost Ones (Legionnaire, Cultist, Slinger, Armored Lost
+One, Priest), and the Remnant (Sentinel, Researcher, Cultist, Station Chief) each get a
+units table, five tactics, and bark sets in their map's workbook on a Faction sheet.
+Boss fights
+Every map boss follows one template: three phases at 100-60, 60-30, and 30-0% HP; an
+arena that is a room until tide 12 and the whole map after; one way to blind, stun, or
+expose it that rewards knowing the map; and a reward of 1,500 base scrip, a Locker
+weapon per diver, and a quest key.
+Page 71 of 90=== PAGE 0072.txt
+Red Tide — Arcade Game 5 Design Document
+The Goliath (the Sunken Ship)
+• Arena. The Engine Room until tide 12; after that it wanders and the ship is the arena.
+15,000 HP; front plates halve damage; the gills behind the plates are the weak point,
+exposed for 2 s after an Inhale and after a Tail Slam.
+• Phase 1 (100-60%). Inhale (a 1.5 s windup as the gills close and water rushes; pulls one
+diver from 4 m into its mouth; the team has 5 s to deal 150 damage to the gills or the
+diver is swallowed and downed), Lunge (140, bleed), Boom (a 10-noise pulse that stuns
+1 s in 10 m). It stays within 12 m of its home.
+• Phase 2 (60-30%). Adds Tail Slam (90, knocks back 6 m, drops loose cargo on three
+marked squares), Boom every 3 s, and calls two Groupers. It roams the whole room; the
+Forge can't be used while it is within 8 m.
+• Phase 3 (30-0%). Enraged: speed Inhale every 8 s, a swallow is an instant down. It
+breaks the aft bulkhead and chases into the Stern.
+• Arena rules. Shooting the luminous algae mat off the wall (300 damage) blinds it for 6 s
+because it hunts by the mat's light; cycling the power switch stuns it 2 s (once per
+fight); loose cargo can be shot to drop on it for 200.
+• Team plan. One diver baits the Inhale from 4 m; two shoot the gills in the 2 s window;
+one handles the Groupers and the cargo. Reward: 1,500 base scrip x the tide multiplier,
+a Locker weapon each, and the captain's safe key. It reforms in its home after 6 minutes
+The other four, in brief (full sheets in each map's workbook)
+Boss
+The Lobster
+(Cave)
+The Matriarch
+(Reef)
+Arena
+The Cathedral; from
+tide 12 any hall via
+slipstreams
+The Drop-off Wall and
+the Blue Hole; from
+tide 12 the flats and
+the lagoon
+The expose
+Ringing the crystal
+coral makes it rear up
+and show its
+underside for 3 s
+Killing her two pod
+members makes her
+charge in straight
+lines; the Bommie's
+surge channel flips
+her for 4 s
+Phase 3 twist
+Drops the Cathedral's
+stalactites on a timer;
+crushes a Shell Shield
+outright
+The pod herds divers
+off cover; she rams the
+Bommie and collapses
+the cleaning station
+Page 72 of 90=== PAGE 0073.txt
+Red Tide — Arcade Game 5 Design Document
+Boss
+The Cistern
+Wyrm
+(Atlantis)
+The Lantern
+Leviathan
+(Void)
+HUD and Ul
+Arena
+The chapel's god-pool;
+from tide 12 every
+drain, so the city is the
+arena
+The Lowest Vault; from
+tide 12 its lure appears
+in the galleries
+The expose
+The god-pool trap
+drains and strands it
+for 6 s; netting three
+grates forces it to
+surface at the fourth
+Shooting the lure
+(500) blinds it 5 s; the
+reactor vent scalds it
+for
+Phase 3 twist
+It hunts the streets
+and drags divers into
+the cisterns; the
+aqueduct fills with its
+blood and calls the
+great white onto it
+Its lure splits into
+three; the ledge
+collapses; the Relict
+may arrive to fight it
+for the corpses
+The HUD is drawn as the inside of a brass diving helmet: gauges at the edges, the water in
+the middle. There is no tutorial; the how-to guide in the arcade menu and the dossier are
+the only teaching, so every gauge must be readable at a glance.
+In-match HUD
+Element
+Health
+Scrip
+Tide and quota
+Weapon and ammo
+Where
+Bottom left, a brass
+pressure gauge
+Top right, a chalk tally on
+the visor
+Top center, a tide dial
+Bottom right
+What it shows
+0-250; the needle shakes when hit;
+the glass cracks below 25
+Current scrip; +10 and bounty
+numbers float up from kills in ink
+Tide number; a ring that fills toward
+the quota; the 20 s calm countdown
+between tides
+Weapon name, magazine and reserve
+as brass counters, the Forge finish
+shown as sea-glass on the counter,
+the alternate-ammo glyph
+Page 73 of 90=== PAGE 0074.txt
+Red Tide — Arcade Game 5 Design Document
+Element
+Second weapon and
+tactical
+Tonics
+Scent meter
+Predator pulse
+Alarm
+Teammates
+Prompts
+Drops
+Downed
+Hit markers
+Captions
+Menus
+Where
+Under the ammo
+Bottom center, bottle
+icons
+Left edge, a thin vertical
+vial
+Around the visor
+No direct display
+Top left
+Center bottom
+Center, brief
+Whole visor
+Center
+Bottom
+What it shows
+Small icons; the tactical count
+Up to five bottles; a cracked bottle
+after a down
+Fills red with local blood; the visor's
+edge tints red as it fills
+A dull pulse from the direction of any
+approaching beast over size 3 within
+40 m; its rate rises with proximity
+The faction's arrival tell (sound and a
+visor flicker) is the only warning, by
+design
+Name, health bar, a down icon with a
+45 s ring, distance and an arrow when
+off-screen
+Contextual: buy (name and cost),
+revive, build, pick up, refill; drawn as
+chalk on the glass
+The drop's name and 30 s timer
+Water rises inside the helmet; the
+Cormorant only; a heartbeat
+A small ink splash; gold for weak
+points; a crack sound for kills
+Barks and radio chatter, toggleable
+• Arcade drum reel: the game's attract loop is the Sunken Ship at night with the Goliath's
+lamp.
+• Lobby: 1-4 slots, map picker with a tide record per map, mode picker (see Modes), skin
+picker, charm pouch (5 slots), ready lever.
+Page 74 of 90=== PAGE 0075.txt
+Red Tide — Arcade Game 5 Design Document
+• How to play: one scrolling page in the ship's log style: the loop, scrip, blood, the alarm,
+downs, the Locker, the Forge, tonics, drops. Six short paragraphs and one diagram of
+the blood rules. Nothing else teaches.
+• Dossier: a tabbed bestiary per map; pages unlock by kill or 30 s of observation; each
+page shows the beast's silhouette, class, diet, predators, weak point, and its dossier
+note.
+• Records: per map, highest tide, most scrip, fastest Forge, longest survival, and team
+records.
+• Pause (host only, 3 per match): the salon behind the porthole, the team list, options.
+• Results: the tide reached, scrip per diver, kills by class, deaths by cause, beasts eaten
+by beasts because of you, arcade tokens earned; a slow shanty.
+Controls (keyboard and mouse; gamepad mapped the same)
+Move, swim up and down (space and Ctrl), sprint (shift, with a stamina bar that only shows
+while sprinting), aim, fire, reload, melee (V), tactical (G), swap weapon (1, 2, 3), interact (E,
+hold for purchases over 1,000), lamp on and off (L), ping (middle mouse: a marker
+teammates see, with a voice line), charm (T), scoreboard (Tab).
+The divers and their quips
+The four divers are four suits, not four characters: the Diver, the Whaler, the Stowaway,
+and the Mechanic, each with a fixed silhouette and a voice, and each replaceable by a
+skin. Their lines are about the situation, not their lives, so any skin can say them; the fun is
+that they talk to each other.
+How quips work
+• Each diver has a voice (a formant synth pitch and rhythm) and a line set per situation.
+Lines are picked from the set, never repeated within 3 minutes, and only one diver
+speaks at a time.
+• Callbacks: about a third of lines are two-part: one diver speaks, and a teammate within
+15 m answers 1-2 s later with a reply from their own set. The four voices differ in tone:
+the Diver is dry, the Whaler is gruff, the Stowaway is cheerful and slightly drunk, the
+Mechanic is nervous and precise.
+Quips are subtitled and never interrupt a tell or a Hunt announcement.
+Page 75 of 90=== PAGE 0076.txt
+Red Tide — Arcade Game 5 Design Document
+Situations (each with 6-10 lines per diver)
+Situation
+Match start
+First blood in the water
+Scent meter high
+Predator pulse
+Someone shoots a harmless big thing
+(dugong, whale, sturgeon)
+Killing a cleaner
+Chum thrown at the team
+Downed
+Revive
+Buying a tonic
+Locker pull, bad
+Locker pull, wonder weapon
+Forge
+Hunt begins
+Enemy eaten by a beast
+Example exchange
+Stowaway: "Who brought the snacks?"
+Mechanic: "We're the snacks."
+Diver: "That's blood. Watch the doors."
+Whaler: "Let it drift. Don't feed it."
+Mechanic: "Meter's red. Very red."
+Stowaway: "Ooh, red's my favorite."
+Whaler: "Something big's coming from the
+stern." Diver: "Then we go to the bow."
+Diver: "Why would you shoot that."
+Stowaway: "It looked at me funny."
+Mechanic: "That was a cleaner. The groupers
+are going to be in a mood."
+Whaler: "They're chumming us! Move!"
+Stowaway: "Bit of a lie-down, don't mind me."
+Whaler: "Get up, we're not carrying you."
+Diver: "You're welcome. Again." Mechanic:
+"Please stop doing that."
+Stowaway: "Bottoms up." Diver: "That's your
+fourth."
+Mechanic: "A Gannet. From a chest.
+Wonderful."
+Whaler: "Now THAT'S a fish-killer."
+Diver: "Pressed and ready." Stowaway:
+"Shiny."
+Whaler: "Wreckers! Cover the breach!"
+Mechanic: "Or let the crocodile handle it?"
+Stowaway: "Ha! Reef's on our side." Diver:
+"For now."
+Page 76 of 90=== PAGE 0077.txt
+Red Tide — Arcade Game 5 Design Document
+Situation
+Boss appears
+Boss swallow
+Tide cleared
+Quiet tide (no gunfire for 60 s)
+Last diver standing
+Match over
+Environmental lore (light, on purpose)
+Example exchange
+Mechanic: "That's... that's a fish. That's a very
+large fish."
+Diver, from inside: "It's warm in here. Shoot
+the gills!"
+Whaler: "Breathe. Buy. Go again."
+Stowaway: "Too quiet. I don't like it. I do like
+it."
+Diver: "Fine. Just me, then."
+Mechanic: "Tide twelve. We'll get thirteen."
+Stowaway: "Next time, more snacks."
+The divers work for the Owners, a salvage concern that pays scrip for cleared water and
+asks no questions. Each map's dossier terminals, chalk marks, and Wrecker chatter drop a
+line or two: the Marguerite went down with the captain's safe; the cave swallowed an
+expedition whose lanterns still burn; the reef's tribe hunts because the Owners pay them
+too; Atlantis's citizens drowned and kept walking; the station bred what it found in the
+abyss and the abyss bred back. That's all the story the game needs: the players supply the
+rest over voice chat.
+Modes
+All modes run on the same maps and ecosystem; each changes the rules, not the content.
+The host picks a mode in the lobby.
+Mode
+Red Tide
+(standard)
+Blackout
+Rules
+Tides, quotas, Hunts, as designed
+Lamps off, no luminous flora, sonar
+pings only
+Why play it
+The main game
+Horror: the reef by ear
+Page 77 of 90=== PAGE 0078.txt
+Red Tide — Arcade Game 5 Design Document
+Mode
+Quiet Water
+Feeding Frenzy
+Quota
+Aquarium
+Salvage Run
+The Long Night
+Apex
+Draft
+Poachers
+Rules
+Powder guns and explosives
+removed; knives, spearguns,
+needlers, nets only; alarm halved;
+blood decays slower
+Blood never decays; every kill
+bleeds 3x; Blood Frenzy drops
+constantly; tides are 60 s each
+No tides: survive until a timer, with
+the Owners' quota rising every 2
+minutes; scrip only from beasts
+over size 2
+No enemies, no Hunts, no tides;
+infinite scrip; every beast at once;
+a free camera
+One life each, no revives, a 15-
+minute timer, and five salvage
+crates to carry to the extraction
+point through the whole map
+A four-hour match saved between
+sessions (host-side save); tides
+continue where they stopped
+Every Hunt is a Predator Hunt; the
+boss is awake from tide 1; bounties
+doubled
+Each diver gets a different starting
+loadout from a shared pool, no
+Locker, no racks; weapons only
+from enemies
+The four divers are split 2 v 2: each
+pair earns scrip from the same
+reef; pairs can't hurt each other
+but can Chi-Jm each other; the
+richer pair at the timer wins
+Why play it
+The stealth game hidden inside the
+shooter
+Ten minutes of chaos
+Rewards patience and target
+selection
+Watch the web, learn tells, test
+builds, take screenshots
+A heist
+Friends across a week
+For teams that have beaten tide 30
+Forces the team to hunt Wreckers
+The only competitive mode
+Page 78 of 90=== PAGE 0079.txt
+Red Tide — Arcade Game 5 Design Document
+Mode
+Custom
+Rules
+Sliders for every tunable in the
+TideCurve sheet, plus toggles for
+each faction, boss, and flora
+hazard
+Why play it
+Whatever the table wants
+Wonder weapon quests
+The Locker deals every wonder weapon, always. On the Coral Reef, Atlantis, and
+Approaching the Void a quest also awards it, guaranteed, to whoever finishes:
+• Reef: the Anemone Gun. Feed the Bommiels cleaning station three parasites (brushed
+off teammates into a jar), survive one Raider drum without shooting a dolphin, then
+carry a live blue-ringed octopus (netted) to the Blue Hole's ledge without being bitten.
+• Atlantis: the Tide Staff. Light three chapel braziers with the reactor-crystal's spark
+carried from the treasury, hold the plaza through one tuna crossing, and offer a Lost
+One's ichor (a Chummer jar filled from a corpse) at the god-pool while the Wyrm is
+submerged.
+• Void: the Abyssal Lure. Assemble the station's final log from five terminals, re-aim
+three lure beacons toward the abyss, and lure the Relict to the reactor vent, where the
+scald exposes its belly for one bolt from the Cannon Harpoon.
+Species seasons
+Instead of a sixth map, each season adds five to ten species across the five maps that
+change the webs:
+Season
+1: Invaders
+Theme
+Species that don't belong and
+outcompete
+Examples
+Lionfish on the reef (eats
+everything small, nothing eats it);
+Asian carp in the Atlantis farms; a
+tropical crocodile in the cave's
+warm pool
+Page 79 of 90=== PAGE 0080.txt
+Red Tide — Arcade Game 5 Design Document
+Season
+2: Migration
+3: Parasites and
+plagues
+4: Giants
+5: Night
+Theme
+Passers-through that arrive only in
+some tides
+New parasites and a fungal flora
+that spreads
+One new size-5 per map
+Nocturnal casts that only appear
+when lamps are off
+Examples
+A tuna run in the Sunken Ship's
+shark lane; a whale calf on the
+reef that the Matriarch hunts;
+salmon through the cave's
+slipstreams
+Isopods that replace fish tongues;
+a red-tide algae that blinds; a
+cordyceps for crabs
+A whale shark, a giant manta, a
+leatherback in the cave, a basking
+shark over Atlantis, a giant oarfish
+Flashlight fish, vampire squid on
+every map, a night-shift shark
+A season is a data drop: species rows, diet matrix columns, spawn entries, and dossier
+pages, with models from the existing body plans.
+Weapon handling and the Forged list
+Every weapon gets handling numbers (how it feels) and a Forged identity (what it
+becomes). The Forge still gives +150% damage and +50% ammo, but each weapon's
+Forged form has a name and one changed behavior, the way Pack-a-Punch weapons do.
+Handling
+Spread is in degrees at rest; ADS is aim-down-sight time in seconds; swim multiplier is
+speed while aiming; headshot is the weak-point multiplier for the class (Deadeye raises
+every class by 1.0).
+Class
+Gas pistols
+Needle repeaters
+Spread hip
+/ ADS
+2.5 / 0.8
+4.0/1.5
+ADS
+time
+0.20
+0.25
+Swim while
+aiming
+0.9
+0.7
+Recoil
+Low, vertical
+Medium,
+rising
+Headshot Falloff
+2.0
+1.8
+Full to 15 m, at
+25m
+Full to 20 m, at
+30m
+Page 80 of 90=== PAGE 0081.txt
+Red Tide
+Arcade Game 5 Design Document
+Class
+Powder carbines
+and rifles
+Scatter guns
+Spearguns and
+harpoons
+Needle LMG
+Launchers
+Spread hip
+/ ADS
+2.0 / 0.5
+8.0 / 6.0
+1.0 / 0.2
+5.0 / 2.5
+3.0 / 1.0
+ADS
+time
+0.30
+0.30
+0.45
+0.60
+0.50
+Swim while
+aiming
+0.6
+0.6
+0.4
+0.4
+0.5
+1.0
+Recoil
+High, kick and
+settle
+High
+Single heavy
+kick
+Medium,
+constant
+Heavy
+Headshot
+2.2
+1.5
+2.5
+1.6
+none
+2.0
+Falloff
+Full to 30 m, at
+45 m
+Full to 6 m, at
+12m
+Full to 60 m; bolts
+drop after 40 m
+Full to 20 m
+Charges sink after
+25m
+1.5 m, 2.5 with the
+Trident
+Every hit has a hit marker; weak-point hits ring; a bolt that pins a size-I or size-2 beast to a
+wall holds it for 4 s and can be recovered.
+The Forged list
+Weapon
+The Cormorant
+Gannet
+Twin Gannets
+Needler Mk I
+Needler Mk II
+Gatling Needler
+Reef Rattler
+Forged name
+The Albatross
+Frigatebird
+Storm Petrels
+The Hornet
+The Wasp's Nest
+The Swarm
+The Triple Reef
+The twist
+3-dart burst; the Last Stand pistol keeps this
+form
+Darts ricochet once off hard surfaces
+Alternating fire never needs to reload both at
+once (one reloads while the other fires)
+Darts leave a 2 s bleed
+Every 10th dart is a tracer that marks the
+target for the team (Chum Rounds effect, 5
+s)
+No spin-up; magazine 200
+4-round burst; the fourth is a weak-point
+seeker within 5 degrees
+Page 81 of 90=== PAGE 0082.txt
+Red Tide — Arcade Game 5 Design Document
+Weapon
+Sea-Pattern
+Carbine
+Trawlerman's Rifle
+Stormlock
+Flechette 12
+Drum Flechette
+Long Speargun
+Bolt Harpoon
+Cannon Harpoon
+Limpet Launcher
+Net Gun
+Chumthrower
+Diver's knife
+Boarding Axe
+Tesla Gaff
+Trident
+Sawtooth
+The Galvanic Rod
+The Resonator
+The Anemone Gun
+Forged name
+The Lieutenant
+The Skipper
+The Typhoon
+Twelve Apostles
+The Hurdy-Gurdy
+The Quiet Word
+The Judgement
+The Cathedral Gun
+The Barnacle King
+The Fisherman's
+Friend
+The Dinner Bell
+The Filleter
+The Boarder
+The Lightning Rod
+Neptune's Fork
+The Shipwright's Saw
+The Lightning Keel
+The Deep Bell
+The Garden
+The twist
+Headshots refund 2 rounds
+Penetrates two beasts in a line
+Full auto with no recoil climb for the first 10
+rounds of a magazine
+Flechettes stick and detonate 1 s later (small,
+silent)
+Fires 2 shells per trigger pull
+Kills of size 1-2 make no blood
+Bolts pin size 3 for 3 s and size 4 for 1 s
+Bolts explode on any size and chain-pull a
+size-3 corpse to you (a lure you can carry)
+Charges stick to beasts and detonate on the
+next hit instead of a timer
+Nets hold size 4 for 4 s and size 5 for 2 s
+Chum spots also apply Weaken (-20%
+attack) to beasts feeding there
+Kills of size 1-2 are instant from behind
+Sprint-swing knocks back 3 m
+Chains to 4 and stuns 2 s
+Throwable, returns in 3 s
+Bleed lasts IO s and doubles blood: a weapon
+that is also bait
+Arcs leave a 5 s electric field
+Its ring cancels blood scent in the cone for 5 s
+Polyps poison and spread once
+Page 82 of 90=== PAGE 0083.txt
+Red Tide — Arcade Game 5 Design Document
+Weapon
+The Tide Staff
+The Abyssal Lure
+Forged name
+The Sovereign's Staff
+The Deep Call
+The twist
+The wave drowns enemies in air pockets and
+carries blood with it
+The burst calls one apex to the point on your
+side for 30 s
+Re-rolling the alternate ammunition costs 2,500; Forging a Locker weapon also re-arms it.
+All Forged weapons carry the sea-glass finish under any skin.
+Enemy spawning and Hunts
+Alarm squads
+1. Each region tracks its alarm (constants in the engine workbook). Above threshold, a
+roll every 5 s spawns a squad with the tide's chance; the alarm halves when it
+succeeds.
+2. The squad spawns at the region's nearest faction entry (each map lists them) that is at
+least 35 m from every diver and out of every diver's sight; if none qualifies, at the map's
+default entry.
+3. Squad size is 3 at tides 4-9, 4 at 10-19, 5 at 20+, drawn from the faction's composition
+(never two of the specialist unit in one squad).
+4. Squads path toward the region where the alarm fired, then toward the nearest diver's
+last known position; they lose the trail after 20 s without sight, scent, or sound, and
+then patrol the faction's route.
+5. At most 2 alarm squads are alive at once (3 at tide 20+); further rolls are skipped.
+6. A squad wiped by beasts counts as resolved: the alarm is not raised by their deaths.
+Hunts
+• Tide 5, 10, 15, and every 5th tide after: a Faction Hunt unless a Predator Hunt is rolled
+(50% from tide 10, from tide 20).
+• Faction Hunt. The quota is replaced by "eliminate the Hunt force": 10 units at tide 5, 12
+at 10, 14 at 15, 16 at 20+, plus the faction's Hunt leader. The force spawns in three waves
+30 s apart from the map's Hunt staging point; the leader spawns with the third wave.
+Page 83 of 90=== PAGE 0084.txt
+Red Tide — Arcade Game 5 Design Document
+The Hunt ends when the force and the leader are dead or eaten. Reward: a Resupply
+drop and a guaranteed Locker weapon for each diver (a free pull from the nearest
+spot).
+• Predator Hunt. The quota is a fixed number of apex kills: 2 at tide 10, 3 at 15, 4 at 20+
+(the map's boss counts as 2). The map's apex beasts are given the divers/ position as a
+blood source of 500 and arrive within 60 s from their home regions. Reward as above.
+• During any Hunt the ecosystem keeps running; beasts eat Hunt forces and Hunt forces
+fight beasts. A Hunt has no time limit but the calm between tides is doubled to 40 s
+after one.
+• The oarfish (the Void) and the drum (the Reef) are pre-warnings of 60 s; other maps
+warn with the faction's tell 20 s before the first wave.
+Solo and duo
+• Quotas scale 0.4/0.6 / 0.8; squads are 2/ 3/3 units; Hunt forces are 5/719; Predator
+Hunt kills are 1/2/3.
+• Solo: Quick Brine gives a self-revive (3 per match); a downed solo diver has 60 s.
+• DUO: a downed diver has 55 s; revives take 3 s.
+Hidden quests: step lists
+Each map has one hidden quest. Steps are ordered; a step that fails (the item is lost, the
+timer runs out) resets only that step. Every quest has a fail-safe: nothing in it can make a
+match unwinnable.
+The Sunken Ship: the captain's safe
+1. Trigger: read the captain's log on the bridge (a chalk prompt appears after tide 3).
+2. Collect three keys: one drops from the Goliath (any kill), one from the Wreckers'
+Foreman (a Hunt), one is held by the Common Octopus (kill it in its den; if it has stolen
+an item, the key is with it).
+3. Carry all three to the safe on the bridge; opening takes 20 s and rings the ship's bell (10
+noise). Fail: a diver holding a key who dies drops it where they fell.
+4. Reward: 3,000 scrip each, a Forged wonder weapon (the Lightning Keel) for the
+opener, and the dossier page "The Owners".
+Page 84 of 90=== PAGE 0085.txt
+Red Tide — Arcade Game 5 Design Document
+The Underwater Cave: the expedition's key
+1. Trigger: the Lobster's kill drops the expedition's key.
+2. Find the three lanterns the Drowned left burning (one in each dry chamber) and put
+them out with an ink cap or an ink bomb; each doused lantern silences the swiftlets for
+5 minutes and drops a page of the expedition's log.
+3. With the key and three pages, open the Lantern Cache's locked crate in the Cricket
+Cavern during a tide (not the calm). The crate takes 15 s and the Drowned come for it (a
+mini-Hunt of 6).
+4. Reward: a free wonder weapon (the Resonator), 2,000 scrip each, and the Drowned no
+longer spawn from the Lantern Cache for the rest of the match (they use the Chimney
+instead).
+The Coral Reef: the drum
+1. Trigger: kill a Shaman (Hunt) and pick up the drum.
+2. Carry the drum to Turtle Beach's altar without beating it. A drum-carrier swims at 80%
+speed; beating it (a temptation the HUD offers) calls sharks and resets the step.
+3. At the altar, survive one tide on the beach while the turtles nest (the altar counts
+nests; 5 nests complete it). Raiders target the beach.
+4. Reward: the Anemone Gun (Forged), the dolphin pod becomes allied again if it was
+hostile, and hammerheads avoid Turtle Beach for the match. This is separate from the
+wonder-weapon quest for the Anemone Gun, which stays as written in Modes.
+Atlantis: the lighthouse
+1. Trigger: read quest terminal 1 (customs house).
+2. Read terminals 2-5 (wall fort, scroll store, treasury, crypts) in any order; each reveals
+one of the four wall-fires' positions on the rampart.
+3. Light the four wall-fires with the reactor-crystal's spark, carried from the treasury in a
+jar (the jar breaks if the carrier is downed). The rampart walk is 1,500 m of fire coral and
+barracuda.
+4. Climb the lighthouse and light it: the whole city appears on the sonar for the rest of the
+match (every grate, every Lost One, every apex).
+5. Reward: the Wyrm's key (opens the treasury vault: 5,000 scrip split) and the Tide Staff
+(Forged) for the lighter.
+Page 85 of 90=== PAGE 0086.txt
+Red Tide — Arcade Game 5 Design Document
+Approaching the Void: the final log
+1. Trigger: read terminal 1 in the mess.
+2. Read terminals 2-5 in order (bunks, dry lab, holding pens, mech bay); each requires the
+previous one and each spawns a Remnant squad on read.
+3. Open tank 7 in the wet lab with the station's master key (the Leviathan's kill drop). The
+Relict egg inside is a carried item; the Relict comes for it wherever it is (a permanent
+blood source of 300 to the Relict only).
+4. Carry the egg to Overlook 5 and place it on the collapsing ledge; when the Relict climbs
+onto the ledge for it, drop the ledge (the trap). The Relict falls into the abyss; it does
+not return this match.
+5. Reward: the Abyssal Lure (Forged), 5,000 scrip split, and the final logs dossier page:
+what the station was breeding. Fail-safe: if the egg falls into the void, the Relict follows
+it and the quest ends without the weapon.
+The wonder-weapon quests (Reef, Atlantis, Void)
+The three quests in Modes stay as written and are separate from the above; both can be
+completed in one match.
+Ecosystem test plan
+--eco-sim <map> <minutes> <pattern> and --web-check <map> assert the following
+before any art exists. Patterns: quiet (knife only), loud (every kill with a powder gun),
+camping (one room, every kill), spread (four divers in four regions).
+Every map
+- -web-check : every species has a predator or a listed reason not to; every tier-I
+species has a producer; every corpse has a scavenger within one region; no diet row
+references a missing species.
+Population is stable for IO minutes with no divers (no species goes to O or above its
+spawn count).
+A size-3 corpse in still water reaches a threshold-30 predator's cue at 20 m within 60 s
+and a threshold-120 apex only when four such corpses exist.
+The loud pattern at tide 8 produces an alarm squad within 90 s in a single region; the
+spread pattern produces none in the same time.
+Page 86 of 90=== PAGE 0087.txt
+Red Tide — Arcade Game 5 Design Document
+Killing every cleaner in a region raises host aggression map-wide within 5 s and it
+decays after 300 s.
+A downed diver (8 blood/s) draws the region's tier-3 patroller within 45 s.
+The camping pattern loses to the ecosystem (bot team dead) by tide 14 ± 3; the quiet
+pattern reaches tide 22 ± 4.
+The Sunken Ship
+15 sprats killed in the salon calls the barracuda within 30 s and the bull shark within 90
+s.
+Blood made in the salon reads at the stern within 40 s (current).
+a
+Feeding the crocodile a turtle suppresses its attacks for 60 s.
+a
+The Goliath inhales from 4 m and releases at 150 gill damage.
+The Underwater Cave
+A wounded eel entering slipstream A is smelled in the Chimney 5 s later and the Sump
+11 s later.
+A Drowned squad walked past the Ghost Worm's wall loses two Deckhands.
+The sturgeon's death (80 blood) brings the sleeper shark within 90 s.
+Rockfall triggers at 5% per noise-6 shot in the Chimney and never elsewhere.
+The Coral Reef
+a
+Crown-of-thorns erode one corridor segment per 90 s and a shark Uses the gap within
+2 minutes.
+The dolphin pod rams a shark within 10 m of a diver in under 3 s; one dolphin hit by a
+diver flips the pod for the match.
+a
+The tide reverses every 4 minutes and blood on the Flats reaches the Wall in 40 s on
+the ebb.
+The third drum beat calls a shark; the fifth calls the Matriarch.
+Atlantis
+The generator places 60+ buildings by district with no overlaps and every catalogue
+count met.
+a
+Plaza blood reaches the market in 75 s and the outfall in 120 s.
+Page 87 of 90=== PAGE 0088.txt
+Red Tide — Arcade Game 5 Design Document
+Dead Lost Ones repel the sandbar shark within 20 m for 60 s and draw crabs within 30
+s.
+Netting three grates in a district forces the Wyrm to the fourth.
+Approaching the Void
+Salamanders and coelacanths reach their caps (12) within 20 minutes if uncontrolled;
+the caiman alone holds them at about 6.
+A whale kill at Overlook 2 brings the Relict within 3 minutes.
+Crossing the bone stakes consumes a diver after 8 s of tremor, every time.
+The Leviathan's Dark puts out every light within 30 m for 6 s and its lure remains.
+Engine and systems workbook
+RedTide_Engine_and_Systems . xlsx holds the numbers that are not per-map. Claude
+Code loads it as json .
+Sheet
+Constants
+Movement
+Drops
+Progression
+Dossier_ship, _
+void
+cave,
+reef, atlantis,
+Holds
+80 tuning constants for scent, blood, senses,
+sound, alarm, hunger, states, social behavior,
+population, symbiosis, flora, enemies, and the
+player, each with its intended effect and a
+worked check
+The diver's body: swim, sprint, stamina, vertical,
+acceleration, aiming speed, walking in air, grab-
+break rules, knockback and stun defaults,
+interaction holds, the void's pull
+Drop weights by tide era, the anti-repeat rule,
+and the Locker pool weights with the eel's move
+rule
+Token sources, cosmetic costs, and the 50 ranks
+with their unlocks
+A generated dossier page for every species and
+flora: class, size, tier, diet and predators (derived
+from each map's diet matrix), weak point, field
+note, and how to handle it
+Page 88 of 90=== PAGE 0089.txt
+Red Tide — Arcade Game 5 Design Document
+Sheet
+Barks
+Movement, in one paragraph
+Holds
+252 diver lines across 21 situations (3 per diver
+per situation) plus the voice rules for expanding
+each set to 6-10
+Divers swim at 2.0 m/s, sprint at 3.4 for 6 s on a stamina bar that only appears while
+sprinting and refills in 8 s, rise and dive at 1.4, and reach full speed in 0.4 s. Aiming slows
+swimming to 60%; harpoons and spearguns to 40%. In air chambers they walk at 1.6 with
+no jump and a 1 m step-up. A hold can be broken early by mashing (six taps) or by a
+teammate dealing 15% of the holder's HP. Knockbacks unsettle aim for 0.6 s. Purchases
+over 1,000 need a 1 s hold; reviving requires holding still; downed divers drift-crawl at 0.6.
+Past the abyss edge the pull lasts 5 s with a warning at the first second.
+Progression, in one paragraph
+A match pays 10 tokens, a win (tide 10+) 25, and 2 per tide past 10; firsts pay more (tide 20
+on a map 50, a boss 30, a quest 100, a full dossier 75). Ranks cost 50 x rankA1.6 tokens
+each, so a good match earns 40-70 and rank 50 is about 150 matches. Ranks unlock
+charms, skins, pouch slots, and three bonus dossier pages; two charms (Lucky Locker, Fair
+Shares) come from tide milestones instead. Cosmetics cost 100-300. Nothing bought or
+earned changes in-match power.
+The how-to-play page (final text)
+One scrolling page in the arcade menu, styled as a page torn from the ship's log, chalk
+headings, and one diagram. This is the game's only teaching; nothing in a match explains
+itself.
+THE OWNERS ' STANDING ORDERS FOR DIVERS
+1. The job. You and up to three others go down with a pistol, a knife, two charges, and five
+hundred scrip. You kill what lives there and the Owners pay by the head. Every tide sets a
+quota; meet it and the next tide is worth more and wants more of you. There is no end.
+There is only how deep you get.
+Page 89 of 90=== PAGE 0090.txt
+Red Tide — Arcade Game 5 Design Document
+2. Scrip. Ten for a hit, the bounty for a kill, more for the eyes and the gills. Scrip opens
+doors, buys guns off the walls, pulls from DavVs Locker, pours tonics, and feeds the
+Pressure Forge. It's yours alone; the Fair Shares charm is the only way to split it. Spend
+between tides. Twenty seconds of calm is all you get.
+3. Blood. Everything you shoot bleeds, and everything you kill bleeds more. Blood drifts
+with the current and the water remembers it. Small things smell a little blood and come to
+eat. Big things need a lot of blood, but ten small kills make as much as one big one.
+Scavengers clean it up; kill them and nothing does. Watch the red at the edge of your
+mask, watch the vial, and when the pulse starts, leave.
+4. Noise. Guns are heard. Fire enough in one place and someone comes to see who's
+spending the reef: Wreckers, the Drowned, the tribe, the Lost Ones, what's left of the
+station. They hunt you, and the reef hunts them, and the smart diver stands where the
+second thing happens. Four divers firing in one room bring them four times faster than
+four rooms. Knives bring nobody.
+5. Going down. At zero you're floating with the pistol and forty-five seconds, and you're
+bleeding into the water the whole time. A friend can pull you up in four; fewer with Quick
+Brine. Dead is when everyone's down. Cold Coffin and Quick Brine buy second chances;
+nothing buys a third.
+6. The rest you learn by dying. Which coral grabs. Which light isn't a light. Which fish is on
+your side until you shoot it. Which door the shark can't fit through. The dossier fills in as
+you go: every beast you kill or watch for half a minute tells you what it eats, what eats it,
+where it's soft, and what it's afraid of. Read it between matches. It's the only map that
+matters.
+Diagram caption (a chalk drawing of a diver, a dead fish, and three arrows): One kill: a little
+blood, the scavengers come. Ten kills in one place: the shark comes. A diver down:
+everything comes. Move, spread out, keep it quiet, and let the water forget you.
+Below the page, in smaller chalk: Controls are on the back. Good luck. The Owners are not
+responsible for anything that happens below the surface, including the surface.
+Page 90 of 90

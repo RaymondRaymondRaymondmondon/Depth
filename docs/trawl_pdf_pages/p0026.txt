@@ -1,0 +1,80 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+Junk
+Sea glass
+Someone's lobster trap
+Tangled net
+Rusted anchor
+Whaler's harpoon head
+Oil lantern
+Rusty knife
+Waterlogged pistol
+Coin purse
+Pocket watch, drowned
+Scrimshaw tooth
+Old diving helmet
+Signet ring
+Idol fragment
+Human skull
+Letters in oilcloth
+Grounds
+Lagoon,
+Weeds
+Lagoon,
+Weeds
+All
+Weeds,
+Grotto
+Weeds,
+Grotto
+All
+Grotto,
+Atlantis
+All
+Grotto,
+Atlantis
+Weeds,
+Grotto
+Grotto,
+Atlantis
+Atlantis
+Atlantis
+Grotto,
+Atlantis
+All
+Value
+(sh)
+2
+5
+2
+8
+6
+10
+2
+3
+15-60
+25
+30
+50
+80
+40
+Notes
+The collector buys ten at once for 40
+Holds 1-3 crabs or lobsters
+Snags the line: fight it in like a fish
+40 kg, two-hand carry
+Can be fitted as a single cannon
+harpoon
+Works: a free hand lamp that never
+needs batteries
+Works, badly (damage 6)
+The Gunsmith cleans it for 40 into a
+working revolver
+Works if cleaned (10)
+Heavy; the island traders pay more
+Rare
+Cursed: +2 Wake while aboard
++2 Wake; the Drowned want it back
+Lore: pages from the Gannet's last
+crew, for a mystery thread still to be
+designed
+Page 26 of 79

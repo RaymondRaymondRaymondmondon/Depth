@@ -1,0 +1,112 @@
+Red Tide
+Arcade Game 5 Design Document
+Sixgill, Relict
+Sixgill, Relict
+Beast
+Deep Jelly
+Abyssal Sea
+Snake
+Siphonophore
+Lab
+Salamander
+Chimaera
+Frilled Shark
+Anglerfish
+Pelican Eel
+Deep Skate
+Class
+Cnidarian
+Reptile
+Cnidarian
+Amphibian
+Fish
+Fish
+Fish
+Fish
+Fish
+Size
+2
+2
+3
+3
+3
+3
+3
+3
+3
+Tier
+1
+2
+2
+3
+3
+3
+3
+3
+3
+Eats
+Plankton
+Snailfish, sand
+eels
+Small fish
+Lab fish, shrimp,
+divers' hands
+Squat lobsters,
+shrimp, crabs
+Squid, small fish
+Viperfish,
+fangtooth,
+dragonfish
+Hatchetfish,
+shrimp
+Sand eels, tripod
+fish
+Eaten by
+Hadal turtle
+Sixgill
+Hadal turtle
+Pale caiman
+Sixgill
+Goblin shark
+Sixgill
+Behavior and
+note
+Drifts the
+galleries; stings
+(10)
+Surfaces at the
+station's air
+pockets; venom
+30 over 10 s
+A 20 m chain of
+stinging bells in
+the overlooks;
+passing through
+costs 40
+Escaped
+specimens: bite
+and hold,
+regenerate,
+breed in the
+flooded quarters
+unless culled
+Ghost shark of
+the warrens; a
+venomous dorsal
+spine
+An eel-like lunge;
+300 needle
+teeth: 50 and
+bleed
+Lure that mimics
+a drop bottle; a
+swallow pins a
+diver 3s
+A swallow that
+engulfs size 2
+and takes 60
+from a diver
+Rim glider;
+harmless unless
+stepped on
+Page 57 of 90

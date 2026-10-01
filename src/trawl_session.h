@@ -95,8 +95,19 @@ struct Session {
     int NightsLeft() const { return 3 - night; }
     float QuotaScale() const;
     void Tape(const std::string& s);
+    // harbour requests (design doc v2, "Harbour requests"): five people on the dock each chalk one request a deadline;
+    // filling one pays and often unlocks something the Chandler or the Gunsmith doesn't sell
+    enum ReqWho { REQ_COOK, REQ_NATURALIST, REQ_COLLECTOR, REQ_APPRENTICE, REQ_CAREY, REQ_COUNT };
+    struct Request { int who = 0; std::string species; bool done = false; };
+    std::vector<Request> requests;
+    int freeAttach = 0;                         // the apprentice's reward: the Gunsmith fits one attachment free
+    void RollRequests();                        // a fresh set for the deadline (the cook's and the collector's named species)
+    std::string RequestText(int i) const;       // "The cannery cook wants a snapper cooked to 1.5x" ...
+    bool RequestReady(int ci, int i, std::string* why = nullptr) const;
+    bool FillRequest(int ci, int i, std::string* why = nullptr);   // at the chalkboard; hand ci's carried / the hold's fish, the deck's tally
+    bool WearDrop(int ci, int dropIdx, std::string* why = nullptr);   // a mini-boss drop on a cord round hand ci's neck (instead of Mother Carey)
     // the dock
-    bool Buy(const std::string& id, std::string* why = nullptr);
+    bool Buy(const std::string& id, std::string* why = nullptr, int ci = 0);
     bool BuySlip(int idx, std::string* why = nullptr);
     float Sell(int idx = -1);                   // at the Fish Market: one fish (an index into the hold) or all (-1); fills lastSale; pays the purse
     float Deliver(int idx = -1, int* rejected = nullptr);   // at the Owners' scales: one fish or every fresh enough one (-1); quota credit; fills lastDelivery

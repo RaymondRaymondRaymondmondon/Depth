@@ -1,0 +1,106 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+Species
+Drowned-gold
+grouper
+Giant squid
+Ocean
+sunfish
+Sperm whale
+Tier
+4
+4
+2
+4
+Weight
+(kg)
+80-300
+100-300
+200-
+1,000
+Depth
+Terraces
+Deep
+Surface
+Surface to
+abyss
+Eats
+Fish,
+crabs
+Fish,
+squid
+Jellies
+Giant
+squid
+Takes
+Deep-drop live
+bait
+Deep-drop
+whole tuna
+Never bites; net
+bycatch
+Never
+Fight
+Cover
+Dive, roll
+None
+Price (sh/kg)
+9
+8
+Never
+caught
+Flora: sunken gardens on the terraces (shelter the grouper and coelacanth), deep coral
+(the crabs' habitat), the Eye's bioluminescent veils (drifting lights that rise through the
+night and draw lantern fish, and so everything above them).
+Web notes. Atlantis has the longest chain in the game: lantern fish rise to the veils, squid
+rise to the lantern fish, tuna and swordfish rise to the squid, marlin hunt the tuna, and the
+Kraken takes whatever is largest. The sperm whale is a tell, not a catch: its clicks on the
+sonar mean a giant squid is below and the whale is hunting it, which briefly makes the
+deep safer for divers. Jumbo squid packs strip hooked fish and bite divers.
+Mini-bosses, boss lures, and harbour requests
+Every ground has two mini-bosses that only a boss lure calls up, as in How to Fish. Boss
+lures are separate items from ordinary lures and cost much more. A boss lure only works
+over boss water, which lies at the ground's skiff-only fishing marks (see The skiff) and
+shows on the sonar as slow rings. Casting one adds 10 to the ground's Wake, so a boss
+fight is also an invitation to the ground's apex.
+Ground
+Eclipse
+Lagoon
+Eclipse
+Lagoon
+The
+Weeds
+Boss
+lure (sh)
+60
+60
+120
+Mini-boss
+Old Snapjaw, a giant
+moray
+The Crest Grouper
+Gold Tail, a yellowtail
+school leader
+Weight
+30 kg
+70 kg
+30 kg
+Deck behaviour
+Biter; retreats into the
+crest's holes on the line
+Thrasher; sounds into
+caves
+Flopper; jumps every 4
+s, a gift for Airborne kills
+Flat
+value
+180
+240
+400
+Drop (not
+sold)
+A jaw full of
+old hooks
+A barnacled
+brass lure
+A golden scale
+Page 47 of 79

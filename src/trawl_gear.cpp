@@ -294,6 +294,7 @@ void Gannet::RestockAtLocker(int ci) {
 // little cost to the grade); the gutting table kills what it guts. Netted fish come up stunned, and flop less.
 const char* DeckBehaviourName(int b) { static const char* N[DB_COUNT] = {"flopper", "thrasher", "biter", "spearer", "grabber", "pincher", "stinger"}; return N[std::clamp(b, 0, DB_COUNT - 1)]; }
 int DeckBehaviourOf(const std::string& name, float kg) {
+    if (MiniBossOf(name) >= 0) return MiniBosses()[MiniBossOf(name)].deck;
     auto has = [&](const char* k) { return name.find(k) != std::string::npos; };
     if (has("marlin") || has("swordfish") || has("sailfish")) return DB_SPEARER;
     if (has("barracuda") || has("moray") || has("conger") || has("eel") || has("lingcod") || has("shark") || has("dogfish")) return DB_BITER;
@@ -339,11 +340,12 @@ bool Gannet::HitDeckFish(int idx, float dmg, int by, int how, bool head, float r
     bonus(fabsf(boat.RollDeg()) > 15, 1.15f, "heavy seas");
     if (eco) { Vector2 w = boat.ToWorld(h.deckAt); bonus(eco->LightAt({w.x, w.y, 0}) < 0.04f, 1.2f, "in the dark"); }
     h.killScore = std::min(KILLSCORE_MAX, k);
+    if (how == KH_MELEE && WearsCharm(by, CH_SHARK_TOOTH)) { h.killScore = std::min(KILLSCORE_MAX, h.killScore + 0.1f); why += ", shark tooth"; }   // (the charm)
     h.killHow = why.empty() ? "a plain kill" : why;
     h.killT = 0; h.dead = true; h.hp = 0; h.grabbed = -1;
     deckBlood += head ? blood * 0.5f : blood;
+    if (h.killScore >= 2.5f) highKills++;   // (the gunsmith's apprentice counts these)
     Say(TextFormat("Killscore x%.2f on the %s (%s)", h.killScore, h.name.c_str(), h.killHow.c_str()));
-    (void)by;
     return true;
 }
 const BirdDef& BirdOf(int k) {
@@ -735,6 +737,7 @@ void Gannet::Kill(int ci, const std::string& cause, bool lost) {
     Crew& c = crew[ci];
     if (c.dead) return;
     c.dead = true; c.bodyLost = lost; c.cause = cause; c.station = -1;
+    if (lost && c.charm) { Say(TextFormat("The %s went down with them", CharmName(c.charm))); c.charm = CH_NONE; }   // (a charm is lost with a body lost at sea)
     // the dead walk the deck (a ghost): a body lost to the sea still leaves its ghost aboard
     if (c.overboard) { c.overboard = false; c.deck = 0; c.p = {-10.2f, 0}; }
     for (auto& r : rings) if (r.holder == ci) r.holder = -1;
@@ -746,7 +749,7 @@ void Gannet::GoOverboard(int ci, const std::string& why) {
     c.overboard = true; c.station = -1;
     Vector2 d = c.p; d.y = d.y < 0 ? -4.2f : 4.2f;
     c.swim = boat.ToWorld(d);
-    c.drownT = (sea.weather == Weather::Storm || sea.weather == Weather::Squall) ? DROWN_STORM_S : DROWN_S;
+    c.drownT = ((sea.weather == Weather::Storm || sea.weather == Weather::Squall) ? DROWN_STORM_S : DROWN_S) + (c.charm == CH_ANKLET ? 8.0f : 0.0f);   // (the tribal anklet: +8 s)
     Say("Man overboard! (" + why + ")");
 }
 bool Gannet::AllDead() const {

@@ -1,0 +1,105 @@
+Red Tide
+Arcade Game 5 Design Document
+Beasts (40, the boss, and the Sand Worm)
+Beast
+Sand Eel
+Sand Hopper
+Sea Pig
+Brittle Star
+Bone Worm
+(Osedax)
+Vent Shrimp
+Hatchetfish
+Hadal
+Amphipod
+Cookiecutter
+Shark
+Class
+Fish
+Crustacean
+Echinoderm
+Echinoderm
+Worm
+Crustacean
+Fish
+Crustacean
+Fish
+Size
+1
+1
+1
+1
+1
+1
+1
+1
+1
+Tier
+1
+1
+Scavenger
+Scavenger
+Scavenger
+1
+1
+Scavenger
+(swarm)
+Parasite
+Eats
+Plankton
+Detritus
+Corpses, mud
+Detritus
+Bones
+Bacterial mat
+Plankton
+Corpses, mats
+Plugs of flesh
+Eaten by
+Skates,
+snailfish, seals
+Tripod fish,
+rattails
+Nothing
+Rattails
+Nothing
+Squat lobsters,
+chimaera
+Viperfish,
+dragonfish
+Snailfish
+Nothing
+Behavior and
+note
+Rim burrower; a
+school erupts
+underfoot
+Rim swarm
+Herds on the rim;
+cleans corpses;
+free scrip, but
+every dead one
+stops cleanup
+Carpets the
+galleries
+Colonizes big
+corpses; the only
+thing that
+finishes a whale
+Vent swarms
+Luminous school
+in the chimney;
+its lights follow
+divers' lamps
+A swarm that
+strips a corpse in
+20 s and nibbles
+downed divers (2
+per second)
+Takes a round
+bite from beasts
+and divers (15)
+and leaves; each
+bite is a bleed
+source
+Page 55 of 90

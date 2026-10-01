@@ -1,0 +1,34 @@
+Red Tide — Arcade Game 5 Design Document
+• Wounded players bleed; downed players bleed heavily. Reviving fast is also ecology.
+• Moving out of bloody water is the only real reset; blood follows currents, so the map's
+flow tells you where it goes.
+• The HUD shows blood as a red tint at the edge of the mask and a small scent meter, and
+predators' approach as a pulse from their direction.
+The enemy alarm
+• Each map region has an alarm value. Gunfire adds the weapon's noise; explosions add
+triple; melee adds nothing. It decays 5% per second.
+When alarm exceeds x (1 / (1 + 0.1 x tide)) , a roll every 5 s spawns an
+enemy patrol at the region's faction entry with chance + 3% x tide (capped at
+70%). Higher tides make quieter play matter more.
+• Four divers firing in one region fill one alarm four times faster than four divers spread
+across four regions. Spreading out lowers enemy pressure but raises blood-in-one-
+place risk when someone goes down alone: the coordination trade-off the Sunken Ship
+teaches first.
+• Enemies that arrive follow the same sound and blood senses as beasts, so they find
+you the way the beasts do.
+Behavior state machine
+Every beast runs: Graze or Rest Investigate Hunt Feed Flee Defend Return
+Dead, with transitions driven by hunger, blood, sound, threat size, and home distance.
+Schools use boids with a shared leader; packs assign flank and drive roles; swarms are a
+single agent with many bodies. Fleeing beasts drop the blood they were about to make: a
+wounded fish that escapes leaves a thin trail, which is itself a lure for the next predator.
+Population
+• Each region has spawn pools per species with a carrying capacity tied to flora density
+and tide number.
+• Beasts that leave a region to follow blood are replaced slowly at home; beasts killed in a
+region are replaced at the region's respawn rate (small fast, apex slow, boss never).
+• Predators that overfeed leave; grazers then rebound; predators return. The cycle is
+tuned to about 3 minutes so a match feels alive without stalling quotas.
+• The boss beast of each map is a single persistent agent with a very high blood
+threshold and a home; it wanders more each tide.
+Page 9 of 90

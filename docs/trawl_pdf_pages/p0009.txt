@@ -1,0 +1,47 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+Skill
+Able
+Reaction time
+400 ms
+Hook-set SUCCess
+85%
+Gaff SUCCess
+Aim error (cannon, rifle)
+Old Hand 250 ms
+Default watch by role (used when no one gives orders): Bosun bot on the boiler, moving to
+the pumps whenever there is water; Angler bot on a rod; Diver bot on the net winch and
+gutting table; Medic bot on the gutting table, watching the rails.
+What a bot does at each station
+Station
+Helm
+Boiler
+Pumps
+Rods
+Net winch
+Lantern
+Sonar
+Harpoon cannon
+Gutting table
+Air pump
+Bot behaviour
+Holds heading and speed as ordered; holds station
+over a marked wreck or diver; never chooses a
+COUrse on its own
+Keeps pressure in the green; bleeds at the first red
+Pumps until the section is dry
+Casts the rigged lure at the nearest marked
+contact or a school it can see; fights by the model
+with side pressure; asks for a gaff with a ping
+Shoots and hauls only when ordered; cuts a
+snagged net only when ordered
+Leaves it where it is unless ordered
+Pings every 6 s, marks the largest contact, marks
+any threat
+Fires only at threats, or at a hooked giant when
+ordered
+Guts and ices landed fish, heaviest first; throws
+bycatch back alive
+Pumps in rhythm; never leaves while a diver is
+down
+Reactions that override the watch
+Page 9 of 79

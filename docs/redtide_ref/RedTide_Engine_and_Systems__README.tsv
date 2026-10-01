@@ -1,0 +1,5 @@
+Red Tide — engine and systems workbook
+
+Constants: every tuning number in the ecosystem, blood, sound, alarm, and population systems, with the effect it should have. Blue = tunable.
+Movement: the diver's body. Drops and Locker: probability tables. Progression: tokens, ranks, cosmetics. Dossier_<map>: generated dossier pages for every species (diet and predators derived from each map's diet matrix). Barks: the four divers' line sets.
+All numbers are design targets (2026-09-30); verify with --eco-sim and playtests. Load as redtide_engine/*.json with the same export approach as the map workbooks.

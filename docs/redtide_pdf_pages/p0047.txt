@@ -1,0 +1,135 @@
+Red Tide
+Arcade Game 5 Design Document
+Beast
+Cleaner Goby
+Snapping
+Shrimp
+Porcelain
+Crab
+Nudibranch
+Sea
+Cucumber
+Feather Star
+Long-spined
+Urchin
+Bream
+Salema
+Scorpionfish
+Cuttlefish
+Slipper
+Lobster
+Class
+Fish
+Crustacean
+Crustacean
+Mollusc
+Echinoderm
+Echinoderm
+Echinoderm
+Fish
+Fish
+Fish
+Cephalopod
+Crustacean
+Size
+1
+1
+1
+1
+1
+1
+1
+2
+2
+2
+2
+2
+Tier
+Cleaner
+2 (swarm)
+1
+1
+Scavenger
+1
+1
+1
+1
+2
+2
+2
+Eats
+Parasites
+Small worms
+Plankton
+Sponges,
+hydroids
+Detritus
+Plankton
+Algae
+Algae, snapping
+shrimp
+Posidonia
+Cardinalfish,
+shrimp
+Crabs, shrimp
+Snails,
+worms
+Eaten by
+Nothing
+willingly
+Bream,
+octopus
+Octopus,
+monitor
+Nothing
+(toxic)
+Nothing
+Nothing
+Triggerfish,
+monitor
+Dentex, sea
+bass
+Amberjacks
+Groupers
+Sea bass
+Octopus,
+monitor
+Behavior and note
+Cleaning stations
+at the bath drains
+Colonies in the
+walls; their pops
+are constant
+sound-layer noise
+that hides gunfire
+partially (a quiet-
+gun bonus in the
+lower town)
+In anemones; free
+scrip
+Bright; poison on
+touch
+Cleans corpses
+slowly; spits sticky
+threads if shot
+On the columns;
+harmless
+Carpets the lower
+town's stairs
+Granary schools
+Farm herds;
+harmless; eating a
+hallucinogenic
+patch makes them
+erratic (the map's
+joke and a sign of
+which meadow is
+off-limits)
+Ambusher on
+marble; venom
+(poison 8 s)
+Market square;
+dazzles
+Under the market
+stalls
+Page 47 of 90

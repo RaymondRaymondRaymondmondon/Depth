@@ -1,0 +1,35 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+• Atoll: coral club, shark-tooth blade, tribal longbow, feather fletching, fermented chum,
+conch horn, outrigger floats, painted eyes, skiff outrigger, shark tooth and anklet
+charms.
+• Seal Rock: flensing spade, whaling lance, punt gun, night glass, sealskin gloves, seal-oil
+lantern, whalebone ram, sealers' sail, seal whisker and sealer's tally charms.
+• Cannery Pier: piston maul, twin speargun, harpoon pistol, steam riveter, steam feed,
+can sealer, sorting conveyor, refrigerated hold, kelp-cutter prow, cannery token.
+• Smugglers' Shelf: air pistol, blunderbuss, air rifle, lodestone sight, lockpicks, dark
+lantern, false-bottom crate, smuggler's hold, muffled screw, quiet launch engine,
+smuggler's die and glass eye.
+• Bone Beach: galvanic prod, bone stock, vent SUIfUr, bone-lattice rail, cave rudder, bone-
+crab claw.
+• Drowned Stair: rocket harpoon, eyeglass scope, veil lantern, Atlantean sonar lens,
+Atlantean prow, veil pearl.
+Cult Landing: obsidian dagger, cult incense, Kraken bait, cult banner, idol eye.
+Treasure. Each landing holds one to three caches: some in plain sight, some locked (brass
+keys from junk, lockpicks, or a crowbar), and some buried (a message in a bottle or three
+chart pieces marks the spot; a shovel digs it up; a dowsing coil finds it without a map).
+Caches hold coins, jewellery, gold, rare charms, and now and then a weapon. Chests are
+physical and heavy, so hauling a 40 kg chest to the skiff through the dark, with the
+cooking smoke still drawing birds, is its own small facility run.
+Island dangers. The shallows around a landing are where things hunt a moored skiff, the
+smoke from any fire draws birds and predators, and each landing has its own residents:
+crabs and a moray in the Atoll's lagoon, gulls on Seal Rock, Wraiths in the cannery pilings,
+the sleeping Drowned on the Smugglers' Shelf, isopods on Bone Beach, and the cult itself
+at the Cult Landing.
+Economy and progression
+Money is shillings, kept in the ship's purse, and the quota is paid only in fish. Fish pay now
+and spoil unless iced or cooked; salvage keeps and pays best on deadline day. How a fish
+dies and how it is cooked decide most of what it earns.
+Fish value = species base price x weight x Killscore x cooking x freshness x glut.
+• Killscore is lx to from the finishing blow (see Fishing: The kill); an overkilled fish
+sells 40% of its weight at
+Page 62 of 79

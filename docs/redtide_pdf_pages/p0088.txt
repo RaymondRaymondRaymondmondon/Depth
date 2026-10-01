@@ -1,0 +1,42 @@
+Red Tide — Arcade Game 5 Design Document
+Dead Lost Ones repel the sandbar shark within 20 m for 60 s and draw crabs within 30
+s.
+Netting three grates in a district forces the Wyrm to the fourth.
+Approaching the Void
+Salamanders and coelacanths reach their caps (12) within 20 minutes if uncontrolled;
+the caiman alone holds them at about 6.
+A whale kill at Overlook 2 brings the Relict within 3 minutes.
+Crossing the bone stakes consumes a diver after 8 s of tremor, every time.
+The Leviathan's Dark puts out every light within 30 m for 6 s and its lure remains.
+Engine and systems workbook
+RedTide_Engine_and_Systems . xlsx holds the numbers that are not per-map. Claude
+Code loads it as json .
+Sheet
+Constants
+Movement
+Drops
+Progression
+Dossier_ship, _
+void
+cave,
+reef, atlantis,
+Holds
+80 tuning constants for scent, blood, senses,
+sound, alarm, hunger, states, social behavior,
+population, symbiosis, flora, enemies, and the
+player, each with its intended effect and a
+worked check
+The diver's body: swim, sprint, stamina, vertical,
+acceleration, aiming speed, walking in air, grab-
+break rules, knockback and stun defaults,
+interaction holds, the void's pull
+Drop weights by tide era, the anti-repeat rule,
+and the Locker pool weights with the eel's move
+rule
+Token sources, cosmetic costs, and the 50 ranks
+with their unlocks
+A generated dossier page for every species and
+flora: class, size, tier, diet and predators (derived
+from each map's diet matrix), weak point, field
+note, and how to handle it
+Page 88 of 90

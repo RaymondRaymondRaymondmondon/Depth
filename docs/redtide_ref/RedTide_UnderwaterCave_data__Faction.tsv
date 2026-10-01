@@ -1,0 +1,22 @@
+The Drowned
+Ghost sailors from the lost expedition. They do not bleed, so no predator hunts them by scent; only the Ghost Worm and the Cave Caiman attack them (cold things). They never use slipstreams and walk the dry chambers as easily as they swim.
+unit	hp_tide1	weapon	damage	speed	role	tell	loot
+Deckhand	140	Boarding axe	30 melee, 1.0 s	Slow (1.2 swim, 1.0 walk)	Advances in a line; never retreats	Its lantern-less face glows faintly 1 s before it swings	220 scrip
+Lantern Bearer	120	Lantern on a pole	0	Diver speed	Walks ahead of the squad; its light draws luminous-curious beasts (firefly squid, anglerfish) onto whoever stands near it; 30 nerves	The lantern flares before beasts arrive	Lantern (a 60 s flare item), 250
+Rope Hand	130	Grapple line	15, then a 3 s drag	Diver speed	Hooks a diver and drags them toward the Deckhands	Coils the rope twice	260
+Bell Ringer	160	Ship's bell	0	Slow	Rings: every beast in 30 m investigates the ringer's target (it points at a diver); 8 noise	Raises the bell overhead	Bell (a build part), 300
+The Bosun (Hunts)	900	Cutlass and pistol	60 melee; 40 ranged	Diver speed; passes through stalagmites	Commands from the rear; Deckhands within 10 m ignore stun and slow	His lantern turns green before an order	Cutlass (melee), 600
+Squad tactics
+1. A squad enters at the Lantern Cache in the Cricket Cavern and walks Cavern -> Toad Pool -> Roost, then swims down the Chimney to the Gallery; it never enters a slipstream and never crawls the Squeeze.
+2. On contact: the Lantern Bearer stands still (a lure), the Rope Hand hooks the nearest diver, the Deckhands close in a line, the Bell Ringer rings at the diver who is reviving or reloading.
+3. They ignore beasts entirely; beasts ignore them except the Ghost Worm and the caiman. A squad walked past the Ghost Worm's wall loses two Deckhands.
+4. They cannot be lured by chum or blinded by ink; flares confuse them (they walk toward flares). Nets hold them 4 s. Melee kills them fastest (axes are silent and they are slow).
+5. In a Hunt the Bosun waits in the Roost; the squads try to drive the divers up into the dry chambers where they walk faster than divers.
+Barks (formant synth, subtitled)
+Spotting: 'Living ones. Fetch the lanterns.' / 'Down here we're all crew.'
+Bell: 'Ring them in.' / 'The bell calls what's hungry.'
+Ghost Worm attacks them: 'It knows us. Back, back!'
+A Deckhand falls: 'He'll be back at the cache.' / 'Ninety days out and no relief.'
+Rope Hand: 'Line fast. Haul.'
+Bosun: 'Every hand to the light. Bring them below.' / 'The captain wants a full muster.'
+Enemy HP x1.08 per tide; weapons upgrade every 5 tides (Forged at 15+).

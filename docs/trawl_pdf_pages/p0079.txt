@@ -1,0 +1,54 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+Question
+Grounds
+Species and Red Tide
+Failed quota
+Roles
+Role upgrades
+Crew size
+Master reference
+What counts toward
+the quota
+Cooking and island
+traders
+Decision
+The four drafted here (Eclipse Lagoon,
+the Weeds, the Grotto, Atlantis
+Waters) replace the master
+reference's five
+Engine code and some species may be
+shared; the Trawl's records, art, and
+systems are its own
+The run ends on the first missed quota
+Light roles with small perks: Bosun,
+Angler, Diver, Medic
+Three ranks per run, each a choice
+between two upgrades
+1-6 players; the host can fill empty
+berths with bots
+Its Trawl section now points to this
+document, as it does for Fathoms
+Only fish delivered to the Owners'
+quota scales. Fish sold at market,
+salvage, junk, birds, and treasure go to
+the shared ship's purse; spare fish can
+also be bartered with traders
+Cooking happens only at island fires;
+seven island traders sell weapons,
+gear, and upgrades found nowhere
+else
+Where it lands
+The four grounds
+The food web
+The session loop
+The crew of six: Roles
+The crew of six: Role
+upgrades
+The crew of six: Bots
+Depth master
+reference
+The session loop;
+Economy
+Fishing: Cooking;
+Islands
+Page 79 of 79

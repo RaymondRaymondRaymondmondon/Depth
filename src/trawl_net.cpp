@@ -50,7 +50,7 @@ void ApplyInput(TrawlWorld& w, int ci, const HandInput& in, float dt) {
     auto on = [&](uint16_t b) { return (in.btn & b) != 0; };
     // ---- the presses (once)
     if (in.sel >= 0 && c.station < 0) c.sel = in.sel;
-    if (on(HI_R_P)) { if (!(c.deck == DECK_SHORE && g.EatCooked(ci))) g.Reload(ci); }
+    if (on(HI_R_P)) { if (c.deck == DECK_SKIFF && c.skiffLine) g.ArmBossLure(ci); else if (!(c.deck == DECK_SHORE && g.EatCooked(ci))) g.Reload(ci); }
     if (on(HI_T_P) && c.station >= 0 && Stations()[c.station].kind == StationKind::Harpoon) g.explosiveLoaded = !g.explosiveLoaded && g.explosives > 0;
     if (on(HI_E_P)) {
         int d = g.moored && c.deck == 0 && c.station < 0 ? NearestDock(c.p, 1.4f) : -1;
@@ -156,7 +156,9 @@ bool DoCommand(TrawlWorld& w, int ci, int cmd, const std::string& id, int arg, s
     auto no = [&](const char* m) { if (why) *why = m; return false; };
     bool dock = s.phase == Phase::Dock && g.moored;
     switch (cmd) {
-        case CMD_BUY: if (!dock) return no("the Chandler is ashore"); return s.Buy(id, why);
+        case CMD_BUY: if (!dock) return no("the Chandler is ashore"); return s.Buy(id, why, ci);
+        case CMD_REQUEST: if (!dock) return no("the chalkboard is ashore"); return s.FillRequest(ci, arg, why);
+        case CMD_WEAR_DROP: return s.WearDrop(ci, arg, why);
         case CMD_SELL: if (!dock) return no("the Fish Market is ashore"); if (g.hold.empty() || arg >= (int)g.hold.size()) return no("nothing to sell"); s.Sell(arg); return true;
         case CMD_GUN_BUY: if (!dock) return no("the Gunsmith is ashore"); return s.GunBuy(ci, id, why);
         case CMD_GUN_UPGRADE: if (!dock) return no("the Gunsmith is ashore"); return s.GunUpgrade(ci, arg, why);
@@ -232,7 +234,7 @@ template <class A> void VisitCatch(A& a, CatchRec& h) {
     a.b(h.gutted); a.b(h.iced); a.b(h.first); a.b(h.bycatch); a.b(h.protectedSp); a.f(h.aboardT); a.i(h.src);
     a.b(h.dead); a.f(h.flopT); a.v2(h.deckAt);
     a.f(h.hp); a.f(h.hpMax); a.f(h.heading); a.i(h.deckKind); a.f(h.airT); a.f(h.killScore); a.s(h.killHow); a.f(h.killT); a.i(h.grabbed); a.b(h.crated); a.b(h.junk);
-    a.f(h.cookT); a.f(h.cook); a.b(h.cooked);
+    a.f(h.cookT); a.f(h.cook); a.b(h.cooked); a.b(h.glimmer); a.i(h.boss);
 }
 template <class A> void VisitSlot(A& a, Slot& s) { a.e(s.it); a.i(s.ammo); a.i(s.wpn); a.i(s.lvl); a.i(s.spare); for (int k = 0; k < 3; k++) { int v = s.att[k]; a.i(v); s.att[k] = (int8_t)v; } }
 template <class A> void VisitFight(A& a, Fight& f) {
@@ -268,6 +270,7 @@ template <class A> void Visit(A& a, TrawlWorld& w) {
     a.e(s.phase); a.i(s.deadline); a.i(s.night); a.i(s.players);
     a.f(s.quota); a.f(s.money); a.f(s.sold); a.f(s.clock); a.b(s.clockOn); a.s(s.ground); a.e(s.weather); a.f(s.moon); a.f(s.wxAt); a.e(s.wxTo);
     a.e(s.variant); a.e(s.canoe); a.f(s.canoeAt); a.f(s.canoeT); a.s(s.canoeWord);
+    a.vec(s.requests, [&](Session::Request& q) { a.i(q.who); a.s(q.species); a.b(q.done); }); a.i(s.freeAttach);
     a.i(s.tokens); a.b(s.met); for (bool& x : s.slip) a.b(x); a.v2(s.harbour); a.f(s.harbourR); a.u(s.seed); a.f(s.lastSaleTotal);
     VisitTail(a, s.tape, 14);
     a.vec(s.lastSale, [&](SaleLine& l) { a.s(l.name); a.f(l.kg); a.f(l.price); a.f(l.grade); a.f(l.fresh); a.f(l.glut); a.f(l.bonus); a.f(l.value); a.i(l.src); });
@@ -317,7 +320,7 @@ template <class A> void Visit(A& a, TrawlWorld& w) {
         for (Slot& sl : c.slots) VisitSlot(a, sl);
         a.i(c.sel); a.f(c.cool); a.f(c.reloadT); a.i(c.injuries); a.i(c.serious);
         a.b(c.dead); a.b(c.bodyLost); a.v2(c.swim); a.f(c.drownT); a.f(c.bleedT); a.s(c.cause); a.f(c.inkT);
-        a.f(c.oarT); a.f(c.rightT); a.b(c.skiffLine); a.b(c.carrying); VisitCatch(a, c.carry); a.i(c.workOn); a.f(c.workT);
+        a.f(c.oarT); a.f(c.rightT); a.b(c.skiffLine); a.i(c.charm); a.b(c.carrying); VisitCatch(a, c.carry); a.i(c.workOn); a.f(c.workT);
     });
     {   // the skiff
         Skiff& s = g.skiff;
@@ -343,6 +346,8 @@ template <class A> void Visit(A& a, TrawlWorld& w) {
     });
     a.b(g.foughtCanoes);
     a.f(g.deckBlood); a.i(g.junkBottles); a.i(g.junkKeys); a.i(g.junkCharts); a.i(g.landedSmall); a.i(g.landedBig);
+    a.i(g.bossLures); a.b(g.bossArmed); a.f(g.bossBiteT); a.i(g.bossBiteIdx); a.i(g.bossCaught); a.b(g.tagGun); a.i(g.tagged); a.i(g.highKills); a.b(g.spiceRub); a.i(g.rareLures); a.b(g.rareLureNight); a.i(g.legendLures);
+    a.vec(g.drops, [&](std::string& d) { a.s(d); });
     a.i(g.ammoRounds); a.i(g.ammoShells); a.i(g.ammoSpears); a.i(g.ammoFlares); a.i(g.ammoPellets); a.i(g.ammoRivets);
     // ---- what's in the water
     a.vec(g.shots, [&](Projectile& p) { a.e(p.kind); a.v3(p.p); a.v3(p.v); a.i(p.owner); a.f(p.life); a.b(p.tether); a.b(p.inWater); });

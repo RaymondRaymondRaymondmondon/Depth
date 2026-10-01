@@ -1,0 +1,62 @@
+The Trawl — Arcade Game 2 Design Document (Draft)
+Consignment
+Ship's bell
+Sealed
+strongbox
+Ship's
+chronometer
+Lighthouse lens
+Cannery
+ledgers
+Figurehead
+Atlantean idol
+Found
+A wreck
+A locked cabin or a
+smugglers' stash
+A wreck
+The Old Lighthouse
+rock
+The Cannery Pier
+A wreck or the
+beached sloop
+Weight
+60 kg, two
+carriers
+40 kg
+50 kg
+3 kg
+120 kg
+The Drowned Stair ora 30 kg
+terrace
+The catch
+Rings when dropped, and
+every ring counts toward
+calling the Ghost Ship
+Must arrive sealed; opening it
+costs a fine and voids the
+consignment
+Breaks if dropped or carried
+across a deck rolled past 200
+Glass: fragile, and it glows
+when any light hits it
+Ruined if they get wet, so not
+in the bottom of the skiff
+Too heavy for the skiff; towed
+in the water or winched
+Cursed: +10 Wake while
+aboard, and the Pale Eye blinks
+The ground remembers. A ground's ecosystem state (populations, hunger, blood, and any
+Wake the crew raised) persists across the three nights of a deadline. Emptying the Weeds
+of sardines on night one means hungrier, bolder predators there on night two. Grounds
+reset when a new deadline starts.
+Night pacing (the Stir clock). Each ground has a baseline threat curve that rises through
+the night, plus whatever the crew adds. The first two minutes are almost always safe; the
+last two minutes of an ordinary night have a large threat on the water about half the time.
+First night: the shakedown
+The first time a lobby includes a player with no completed nights, the host is offered a
+shakedown night: a 6-minute night on Eclipse Lagoon with a fixed seed, no quota, and no
+deaths that count. It can be skipped, and any crew can replay it from the arcade menu.
+The only guide is Kess, an old deckhand who is aboard for this night only and talks in short
+chalked lines on the deck ("Line's slack. Reel.").
+Page 5 of 79

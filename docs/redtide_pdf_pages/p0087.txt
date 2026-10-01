@@ -1,0 +1,36 @@
+Red Tide — Arcade Game 5 Design Document
+Killing every cleaner in a region raises host aggression map-wide within 5 s and it
+decays after 300 s.
+A downed diver (8 blood/s) draws the region's tier-3 patroller within 45 s.
+The camping pattern loses to the ecosystem (bot team dead) by tide 14 ± 3; the quiet
+pattern reaches tide 22 ± 4.
+The Sunken Ship
+15 sprats killed in the salon calls the barracuda within 30 s and the bull shark within 90
+s.
+Blood made in the salon reads at the stern within 40 s (current).
+a
+Feeding the crocodile a turtle suppresses its attacks for 60 s.
+a
+The Goliath inhales from 4 m and releases at 150 gill damage.
+The Underwater Cave
+A wounded eel entering slipstream A is smelled in the Chimney 5 s later and the Sump
+11 s later.
+A Drowned squad walked past the Ghost Worm's wall loses two Deckhands.
+The sturgeon's death (80 blood) brings the sleeper shark within 90 s.
+Rockfall triggers at 5% per noise-6 shot in the Chimney and never elsewhere.
+The Coral Reef
+a
+Crown-of-thorns erode one corridor segment per 90 s and a shark Uses the gap within
+2 minutes.
+The dolphin pod rams a shark within 10 m of a diver in under 3 s; one dolphin hit by a
+diver flips the pod for the match.
+a
+The tide reverses every 4 minutes and blood on the Flats reaches the Wall in 40 s on
+the ebb.
+The third drum beat calls a shark; the fifth calls the Matriarch.
+Atlantis
+The generator places 60+ buildings by district with no overlaps and every catalogue
+count met.
+a
+Plaza blood reaches the market in 75 s and the outfall in 120 s.
+Page 87 of 90
