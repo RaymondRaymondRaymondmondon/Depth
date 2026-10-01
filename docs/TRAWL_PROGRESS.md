@@ -411,3 +411,8 @@ slipping over the side (`Session::shake`, `ShakeStep`; the arcade's "Shakedown n
 Back to the arcade on the HUD). `--trawl-shakedown-test` plays it through with a scripted hand in about 7.5 minutes
 of sim time. Not yet: the Field Manual, the shakedown offered automatically to a lobby with a new player (networked
 shakedowns), the sardine ball marked for the net lesson.
+
+### Short crews with the net (sim, netYield 0.25, careful)
+Solo 3/3 deadlines met (123 a night against the halved quota of 200), two hands 3/3 (262 against 280), three hands
+3/4 (188), six 5/6 (248). Two hands out-earn three in the sim because the short-crew skipper works the winch without
+walking (a sim shortcut; a real hand runs between the helm and the winch). Deaths stay at 0.0 with bots.
