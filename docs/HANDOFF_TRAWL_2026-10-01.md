@@ -122,6 +122,33 @@ flopping doesn't wreck the bots' quota numbers: the gutting-table bot should clu
   - **The Gunsmith:** a new quay station (`DockKind::Gunsmith`) with a tabbed panel (weapons / upgrades / attachments / ammo). Only the `where == gunsmith` rows are sold there; `gunsmith3` opens from deadline 3. The trader-only weapons come with the landings (the Atoll's coral club, shark-tooth blade, longbow and fletching).
   - **Wiring:** commands `CMD_GUN_BUY` / `CMD_GUN_UPGRADE` / `CMD_GUN_ATTACH` / `CMD_AMMO`; the slot fields and the ammo stock go into the snapshot's `Visit`; checks in `--trawl-gear-test`; shots `trawl_gunsmith`.
 - **Step 3 is DONE** (see docs/TRAWL_PROGRESS.md "Step 3"). **Next: step 4, birds and junk** (doc v2 ~1302-1312: gulls/frigatebirds stealing unattended fish, the six catch crates, junk from the sea), then step 5, the skiff and the Atoll (both views).
+- **Step 4 spec** (doc v2, pages 26-28; read from the PNGs):
+  - A dead fish is safe only in the **six lidded catch crates** on the aft deck, or in the hold.
+  - Anything dead elsewhere is fair game for birds: on the deck; on the gutting table if it's left unattended 10 s; in the skiff; on a beach.
+  - Birds are agents in the web's air layer. They're drawn by dead fish, smoke, chum, net hauls and gutting.
+  - A bird grabs the heaviest fish it can lift and flies off. Shooting it down drops the bird and the fish where they fall.
+  - Every bird kill is Airborne. Birds sell.
+  - The Lagoon's birds:
+
+    | Bird | Lifts | Value | Behaviour |
+    |---|---|---|---|
+    | Herring gull | 3 kg | 4 | Flocks up to 12; picks the deck clean |
+    | Brown pelican | 5 kg | 12 | Scoops from the skiff and the net; swallows whole |
+    | Frigatebird | 2 kg | 15 | Harries other birds until they drop their fish |
+
+  - Other grounds have the cormorant, skua, cave swifts, storm petrel and albatross.
+  - Bots put loose fish in the crates when idle.
+  - **Junk** (any ground, 0 sh):
+    - a message in a bottle (a treasure map to a spot on a landing);
+    - a brass key (opens one named chest on the landings);
+    - a torn chart piece (three reveal a hidden skiff mark or a buried cache).
+  - Junk never fights; it takes room in the skiff and the hold.
+- **Step 4 plan:**
+  - `CatchRec::crated`: fish in a crate, safe and not on deck.
+  - A crate station on the aft deck: E with a dead fish near you crates it, and bots crate when idle.
+  - Change the gull steal in `EcoTick` (trawl_eco.cpp ~851: it takes any un-gutted fish under 3 kg every 4 s) to take only dead, uncrated, ungutted fish, the heaviest it can lift, by bird type. Add the pelican and the frigatebird to the Lagoon's species (json).
+  - A shot bird drops its fish onto the deck (or as a floater) and is itself a 4/12/15-shilling catch.
+  - Junk as `CatchRec` with `junk=true` (from net hauls and floating), kept for the landings.
 - **Step 3 status (old notes; it is finished):**
   - **Built and wired:**
     - `trawl_weapons.h/.cpp`: loads the TSVs (via `TrawlDataPath()`) and has `AttachmentFits`, `UpgradePrice`, and `WeaponDamage`/`Magazine`/`Cooldown`/`Reach`/`Spread`/`Noise`.
