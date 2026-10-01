@@ -678,8 +678,12 @@ bool Session::CastOff(std::string* why) {
     moon = fmodf(0.5f + (deadline * 3 + night) * 0.14f, 1.0f);
     G->sea.Set(weather, h);
     static const char* WX[] = {"CALM", "FOG", "RAIN", "SQUALL", "STORM", "GLASS"};
-    const char* rumours[] = {"WHALERS REPORT BARRACUDA THICK ON THE CREST", "SARDINE BALLS SEEN OFF THE FLATS", "REEF SHARKS QUIET THIS WEEK",
-                             "MAHI UNDER THE WEED RAFTS", "SNAPPER BITING ON SHRIMP"};
+    // (each ground's own talk on the telegraph)
+    static const char* LAGOON_R[] = {"WHALERS REPORT BARRACUDA THICK ON THE CREST", "SARDINE BALLS SEEN OFF THE FLATS", "REEF SHARKS QUIET THIS WEEK", "MAHI UNDER THE WEED RAFTS", "SNAPPER BITING ON SHRIMP"};
+    static const char* WEEDS_R[] = {"KELP BASS BITING IN THE LANES", "OTTERS RAFTED UP OFF THE ROCKS", "A WHITE SEEN ON THE EDGE", "MACKEREL THICK OVER THE SAND", "HALIBUT ON THE OPEN BOTTOM"};
+    static const char* GROTTO_R[] = {"PALE COD UNDER THE LIGHTS", "ECHO BASS LOUD IN THE GALLERIES", "A STURGEON SEEN IN THE STILL POOL", "LIGHTS IN THE WRECKS AGAIN", "MOULD BRIGHT ON THE NORTH WALL"};
+    static const char* ATL_R[] = {"MARLIN ON THE SURFACE", "THE EYE BLINKED TWICE", "SWORDFISH UNDER THE VEILS", "GROUPER ON THE TERRACES", "A BELL HEARD AT SEA"};
+    const char** rumours = ground == "weeds" ? WEEDS_R : ground == "grotto" ? GROTTO_R : ground == "atlantis" ? ATL_R : LAGOON_R;
     Tape(TextFormat("%s %s STOP MOON %s STOP %s STOP", ground == "weeds" ? "WEEDS" : ground == "grotto" ? "GROTTO" : ground == "atlantis" ? "ATLANTIS" : "LAGOON", WX[(int)weather], moon < 0.25f ? "NEW" : moon < 0.5f ? "WAXING" : moon < 0.75f ? "FULL" : "WANING",
                     rumours[(int)(R() * 5) % 5]));
     // the weather turns in the night about one night in three, between 23:00 and 03:00, mostly for the worse; the
