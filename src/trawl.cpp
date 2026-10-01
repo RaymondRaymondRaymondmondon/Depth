@@ -1102,7 +1102,22 @@ void DrawDeckFx() {
                 Vector2 pa{ox + (a.x + a.w * 0.5f) * cw, oy + (a.y + 0.5f) * ch}, pb{ox + (b.x + b.w * 0.5f) * cw, oy + (b.y + 0.5f) * ch};
                 DrawLineEx(pa, pb, L.kind == 2 ? 1.0f : 2.0f, Fade(L.kind == 1 ? Color{140, 130, 100, 255} : L.kind == 2 ? Color{200, 120, 80, 255} : Color{110, 100, 80, 255}, 0.35f));
             }
-            DrawCircleV(me2, cw * 0.9f, Fade(Color{255, 230, 170, 255}, 0.06f));   // the helmet lamp
+            // the residents, where the lamp shows them: a moray's head in a crack, an octopus, isopods, a pale Drowned
+            for (const auto& rs : wk.residents) {
+                if (rs.room < 0 || rs.room >= wk.Rooms()) continue;
+                const WreckRoom& r = wk.rooms[rs.room];
+                Vector2 q{ox + (r.x + r.w * 0.75f) * cw, oy + (r.y + 0.55f) * ch};
+                float lit = std::clamp(1.0f - Vector2Distance(me2, q) / (cw * 1.6f), 0.0f, 1.0f) * (G.dive.lampOutT > 0 ? 0.15f : 1.0f);
+                if (lit < 0.1f) continue;
+                Color rc = rs.what.find("Drowned") != std::string::npos ? Color{120, 140, 128, 255} : rs.what.find("Worm") != std::string::npos ? Color{210, 210, 200, 255}
+                         : rs.what == "isopods" ? Color{200, 196, 176, 255} : rs.what.find("octopus") != std::string::npos ? Color{220, 200, 200, 255} : Color{90, 110, 80, 255};
+                if (rs.what == "isopods") for (int k = 0; k < 5; k++) DrawRectangle((int)(q.x - 10 + k * 5), (int)(q.y + 8 + (k % 2) * 2), 3, 2, Fade(rc, lit));
+                else { DrawEllipse((int)q.x, (int)q.y, 9, 5, Fade(rc, lit)); if (rs.awake) DrawCircleV({q.x - 6, q.y - 1}, 1.5f, Fade(Color{240, 230, 160, 255}, lit)); }
+            }
+            if (G.dive.lampOutT <= 0) DrawCircleV(me2, cw * 0.9f, Fade(Color{255, 230, 170, 255}, 0.06f));   // the helmet lamp (unless an octopus has it)
+            if (G.dive.siltT > 0) DrawCircleV(me2, cw * 0.8f, Fade(Color{70, 66, 54, 255}, 0.75f * std::min(1.0f, G.dive.siltT / 2)));   // a cloud of silt
+            if (G.dive.holdT > 0) DrawTextCentered("HELD", me2.x, me2.y - 28, 14, Color{240, 140, 110, 255});
+            if (G.dive.hoseBitten) DrawTextCentered("The hose is bitten through: no fresh air - get up", SCREEN_W / 2.0f, 110, 16, Color{240, 140, 110, 255});
             DrawCircleV(me2, 7, Color{150, 150, 140, 255}); DrawCircleV({me2.x + 2, me2.y - 1}, 3, Color{230, 220, 160, 255});
             if (G.dive.diver2 >= 0) { DrawCircleV({me2.x - 16, me2.y}, 7, Color{140, 140, 132, 255}); DrawCircleV({me2.x - 14, me2.y - 1}, 3, Color{230, 220, 160, 255}); }   // (the bell's second diver)
             if (G.dive.bell && !wk.entries.empty()) {   // the bell itself, hanging at the first breach

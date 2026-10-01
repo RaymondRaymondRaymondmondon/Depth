@@ -325,6 +325,7 @@ template <class A> void Visit(A& a, TrawlWorld& w) {
             a.f(wk.x); a.f(wk.y); a.f(wk.depth);
             for (auto& it : wk.salvage) a.b(it.taken);
             for (auto& r : wk.rooms) a.b(r.locked);
+            for (auto& r : wk.residents) a.b(r.awake);
         }
         if constexpr (A::reading) w.G.wrecks = &w.sess.wrecks;
     }
@@ -392,6 +393,7 @@ template <class A> void Visit(A& a, TrawlWorld& w) {
     a.vec(g.drowned, [&](Gannet::DrownedSailor& d) { a.v2(d.p); a.f(d.hp); a.i(d.grab); a.f(d.hitT); });
     a.b(g.eyeLooked); a.f(g.eyeBlinkT); a.f(g.bellT); a.i(g.bellRings); a.b(g.netLast);
     a.b(g.hardhat); a.i(g.dive.diver); a.i(g.dive.wreck); a.i(g.dive.room); a.f(g.dive.depth); a.f(g.dive.air); a.f(g.dive.gauge); a.b(g.dive.recall); a.b(g.dive.carrying); a.i(g.dive.item); a.i(g.dive.diver2); a.b(g.dive.bell); a.b(g.divingBell);
+    a.f(g.dive.holdT); a.f(g.dive.lampOutT); a.f(g.dive.siltT); a.b(g.dive.hoseBitten);
     a.b(g.choir.on); a.f(g.choir.t); a.v2(g.choir.singer); a.b(g.choir.surfaced); a.f(g.choir.calmT);
     a.b(g.longboat.on); a.v2(g.longboat.p); a.f(g.longboat.ang); a.f(g.longboat.t);
     a.i(g.ghost.state); a.v2(g.ghost.p); a.f(g.ghost.t); a.i(g.kraken.state); a.f(g.kraken.t);

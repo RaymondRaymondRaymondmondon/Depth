@@ -651,6 +651,8 @@ struct Gannet {
         bool recall = false; float ascentRate = 1;        // being winched up; m/s
         bool carrying = false; int item = -1;             // salvage in both hands (the wreck's item index)
         float pumpT = 0;                                  // since the last pump stroke
+        float roomT = 0, holdT = 0, lampOutT = 0, siltT = 0, moveT = 9;   // in this room; held fast (a bite, a Drowned's grip); the lamp stolen; blinded by silt; since the last move
+        bool hoseBitten = false;                          // a Ghost Worm hatchling bit through the hose: no fresh air until she's up
         std::vector<CatchRec> basket;                     // salvage gone up in the basket (into the hold when she's aboard)
     };
     DiveState dive;

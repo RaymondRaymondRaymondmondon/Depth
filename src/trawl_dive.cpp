@@ -66,7 +66,9 @@ bool Gannet::DiveMove(int to) {
         int o = L.a == dive.room ? L.b : L.b == dive.room ? L.a : -1;
         if (o != to) continue;
         if (L.kind == 2 && dive.carrying) { Say("Too tight with salvage in your arms: the squeeze is one diver, empty-handed"); return false; }
-        dive.room = to;
+        if (dive.holdT > 0) { Say("Held fast: you can't get free yet"); return false; }
+        if (dive.moveT < 1.5f) { dive.siltT = 5; Say("Too fast through the silt: it boils up and the lamp shows nothing"); }
+        dive.room = to; dive.roomT = 0; dive.moveT = 0;
         return true;
     }
     return false;
@@ -74,6 +76,7 @@ bool Gannet::DiveMove(int to) {
 
 bool Gannet::DiveTake() {
     if (dive.diver < 0 || dive.room < 0 || dive.carrying || !wrecks) return false;
+    if (dive.siltT > 0 || dive.lampOutT > 0) { Say(dive.lampOutT > 0 ? "No lamp: you can't see what's here" : "The silt hasn't settled: you can't see a thing"); return false; }
     Wreck& w = (*wrecks)[dive.wreck];
     WreckRoom& R = w.rooms[dive.room];
     if (R.locked) {
@@ -86,6 +89,7 @@ bool Gannet::DiveTake() {
     for (int i = 0; i < (int)w.salvage.size(); i++) if (w.salvage[i].room == dive.room && !w.salvage[i].taken) {
         if (w.salvage[i].twoDiver && dive.diver2 < 0) { heavyLeft = true; continue; }   // (a two-diver lift: the bell's pair)
         w.salvage[i].taken = true; dive.carrying = true; dive.item = i;
+        for (auto& r : w.residents) if (r.room == dive.room && r.what.find("Ghost Worm") != std::string::npos && !r.awake) { r.awake = true; Say("Something long uncoils in the dark corner: a Ghost Worm hatchling, woken"); }
         Say(TextFormat(w.salvage[i].twoDiver ? "Between the two of you: %s (%.0f kg)" : "In your arms: %s (%.0f kg)", w.salvage[i].name.c_str(), w.salvage[i].kg));
         return true;
     }
@@ -127,9 +131,32 @@ void Gannet::StepDive(float dt) {
         dive.gauge = green ? 1.0f : 0.0f;
     } else {
         dive.gauge = fouled ? 0 : std::max(0.0f, dive.gauge - 0.08f * dt);
-        green = dive.gauge >= 0.4f;
+        green = dive.gauge >= 0.4f && !dive.hoseBitten;
     }
-    dive.air = green ? std::min(30.0f, dive.air + 3 * dt) : dive.air - dt;
+    dive.air = green ? std::min(30.0f, dive.air + 3 * dt) : dive.air - dt * (dive.holdT > 0 && dive.room >= 0 ? 2.0f : 1.0f);   // (a grip on you: breathing hard)
+    // the wreck's residents, acting on a diver in their room (morays and congers bite and hold; octopus take the lamp;
+    // jumbo squid and frill sharks bite; isopods nip; a Drowned grips; a woken Ghost Worm hatchling bites the hose)
+    dive.roomT += dt; dive.moveT += dt;
+    dive.holdT = std::max(0.0f, dive.holdT - dt); dive.lampOutT = std::max(0.0f, dive.lampOutT - dt); dive.siltT = std::max(0.0f, dive.siltT - dt);
+    if (dive.room >= 0 && !dive.recall) {
+        Wreck& ww = (*wrecks)[dive.wreck];
+        for (auto& r : ww.residents) {
+            r.cool = std::max(0.0f, r.cool - dt);
+            if (r.room != dive.room || r.cool > 0) continue;
+            int victim = dive.diver2 >= 0 && ((int)(dive.roomT * 7) % 2) ? dive.diver2 : dive.diver;
+            const std::string& w2 = r.what;
+            if ((w2 == "moray eel" || w2 == "white conger") && dive.roomT > 2) { r.awake = true; r.cool = 20; dive.holdT = 3; Injure(victim, INJ_BITE, "bitten and held by a " + w2 + " in a wreck"); Say("Teeth in the dark: it has you by the arm"); }
+            else if ((w2 == "reef octopus" || w2 == "albino octopus") && dive.roomT > 3) { r.awake = true; r.cool = 40; dive.lampOutT = 20; Say("An arm round the helmet: the octopus has your lamp"); }
+            else if ((w2 == "jumbo squid" || w2 == "frill shark") && dive.roomT > 1.5f) { r.awake = true; r.cool = 15; Injure(victim, INJ_BITE, "bitten by a " + w2 + " in a wreck"); Say(TextFormat("A %s comes out of the dark at you", w2.c_str())); }
+            else if (w2 == "isopods" && dive.roomT > 4) { r.cool = 25; if ((int)(ww.seed + dive.roomT * 13) % 3 == 0) Injure(victim, INJ_BITE, "isopods in a wreck"); }
+            else if (w2 == "a Drowned sailor" && dive.roomT > 2) { r.awake = true; r.cool = 25; dive.holdT = 5; Say("Cold hands close on you out of the silt: a Drowned sailor, glad of the company"); }
+            else if (w2.find("Ghost Worm") != std::string::npos && r.awake && dive.roomT > 1) {
+                r.cool = 30;
+                if (!dive.bell && !dive.hoseBitten) { dive.hoseBitten = true; Say("The hatchling bites through the air hose: no fresh air until you're up - get out"); }
+                else Injure(victim, INJ_BITE, "a Ghost Worm hatchling");
+            }
+        }
+    }
     if (dive.air <= 0) {
         int k = dive.diver, k2 = dive.diver2; bool bell = dive.bell; dive = DiveState{};
         crew[k].deck = 0; Kill(k, fouled ? (bell ? "the bell dragged off the wreck" : "the air hose fouled") : bell ? "too long from the bell's air" : "the air ran out in the helmet", true);
@@ -213,6 +240,27 @@ int RunTrawlDiveTest() {
         check(b.crew[0].Has(INJ_BURN), "winched up three times too fast: the bends");
         Gannet n; setup(n, 1); n.hardhat = false;
         check(!n.StartDive(0), "no suit, no dive");
+    }
+    // the residents and the silt
+    {
+        auto down = [&](Gannet& g) { setup(g, 2); g.crew[1].p = Stations()[pump].at; g.crew[1].station = pump; g.StartDive(0); g.dive.depth = sl->depth; g.dive.room = sl->entries[0]; g.dive.gauge = 1; };
+        int room = sl->entries[0];
+        auto with = [&](const char* what, bool awake = false) { sl->residents.clear(); sl->residents.push_back({what, room, awake, 0}); };
+        auto run = [&](Gannet& g, float s) { for (int i = 0; i < (int)(s * 60); i++) { if (i % 30 == 0) g.DivePump(1, true); g.StepDive(dt); } };
+        { Gannet g; down(g); with("moray eel"); run(g, 2.5f);
+          int other = -1; for (const auto& L : sl->links) if (L.a == room || L.b == room) { other = L.a == room ? L.b : L.a; break; }
+          check(g.crew[0].Has(INJ_BITE) && g.dive.holdT > 0 && (other < 0 || !g.DiveMove(other)), "a moray in the room bites and holds: you can't move for a moment"); }
+        { Gannet g; down(g); with("reef octopus"); run(g, 3.5f); bool dark = g.dive.lampOutT > 0 && !g.DiveTake();
+          check(dark, "an octopus takes the lamp: too dark to find the salvage"); }
+        { Gannet g; down(g); with("a Drowned sailor"); run(g, 2.5f); float a0 = g.dive.air; g.dive.gauge = 0; run(g, 1.0f);
+          check(g.dive.holdT > 0 && a0 - g.dive.air > 1.5f, "a Drowned sailor's grip: held fast, breathing twice as hard"); }
+        { Gannet g; down(g); with("a Ghost Worm hatchling", true); run(g, 1.5f); g.dive.gauge = 1; float a0 = g.dive.air; run(g, 2.0f);
+          check(g.dive.hoseBitten && g.dive.air < a0, "a woken Ghost Worm hatchling bites through the hose: no fresh air, however hard the deck pumps"); }
+        { Gannet g; down(g); sl->residents.clear();
+          int a = -1, b = -1; for (const auto& L : sl->links) if (L.kind != 2 && (L.a == room || L.b == room)) { a = L.a == room ? L.b : L.a; break; }
+          if (a >= 0) { g.DiveMove(a); g.DiveMove(room); b = room; }
+          check(a < 0 || (g.dive.siltT > 0 && !g.DiveTake()), "two rooms in a rush: the silt boils up and blinds you"); (void)b; }
+        sl->residents.clear();
     }
     // the diving bell: a galleon too deep for the hardhat; two divers; the bell's own air; a two-diver lift
     {

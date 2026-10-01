@@ -24,7 +24,7 @@ struct WreckRoom {
 };
 struct WreckLink { int a = -1, b = -1; int kind = 0; };   // 0 door, 1 hatch, 2 squeeze
 struct SalvageItem { std::string name; float value = 0, kg = 0; int room = -1; bool relic = false, cursed = false, twoDiver = false, taken = false; };
-struct Resident { std::string what; int room = -1; bool awake = false; };
+struct Resident { std::string what; int room = -1; bool awake = false; float cool = 0; };   // (cool: until it acts again)
 
 struct Wreck {
     WreckType type = WreckType::Sloop;
