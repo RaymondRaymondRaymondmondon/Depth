@@ -66,6 +66,12 @@ void DrawSea(const Gannet& g, const View& v) {
             float dep = g.eco->DepthAt(w);
             int hb = g.eco->HabAt(w);
             if (hb == H_LAND) { DrawRectangle(cx, cy, C, C, Dim(Color{150, 138, 100, 255}, 0.3f + 0.7f * lit)); continue; }
+            if (hb == H_KELP) {
+                // the Weeds' canopy: golden-brown kelp mats lying on the surface, swaying with the swell, dark gaps between
+                float n = H01((int)(w.x * 1.6f), (int)(w.y * 1.6f), 9), sway = sinf(g.time * 0.8f + w.x * 0.3f + w.y * 0.2f);
+                Color kelp = n < 0.55f ? Color{120, 92, 34, 255} : n < 0.8f ? Color{150, 118, 44, 255} : Color{70, 58, 30, 255};
+                c = Mix(c, kelp, 0.75f + 0.1f * sway);
+            } else if (hb == H_BARREN && dep < 14) c = Mix(c, Color{70, 64, 72, 255}, expf(-dep / 6) * 0.6f);   // urchin barrens: bare purple-grey rock
             if (dep < 10) {
                 Color bed = hb == H_SEAGRASS ? Color{40, 96, 60, 255} : (hb == H_REEF || hb == H_CREST) ? Color{150, 110, 110, 255} : Color{150, 150, 120, 255};
                 if ((hb == H_REEF || hb == H_CREST) && H01((int)(w.x * 1.3f), (int)(w.y * 1.3f), 3) < 0.35f) bed = Color{200, 150, 130, 255};

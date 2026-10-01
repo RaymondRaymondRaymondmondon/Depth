@@ -1455,6 +1455,22 @@ void DebugTrawlShot(Game& g, int which) {
         S.eye.pitch = which == 15 ? -0.3f : which == 9 || which == 0 ? -0.08f : -0.22f;
         S.eye.yaw = which == 4 || which == 5 ? 1.25f : which == 15 || which == 21 || which == 22 ? 3.1f : which == 9 ? -1.9f : which == 16 ? 1.3f : which == 17 ? 1.9f : which == 1 ? -2.4f : which == 6 || which == 8 ? 2.6f : 0.0f;
     }
+    if (which == 31) {
+        // the Weeds: the Gannet lying at the edge of the kelp canopy at night, her lantern full
+        StartTrawl(g, fp, 2, 1);
+        S.shot = true;
+        Gannet& G = S.W->G; Session& ss = S.W->sess; Eco& e = S.W->eco;
+        G.crew[0].p = {3.0f, 0.8f}; G.crew[1].p = {-2.0f, 1.0f};
+        ss.SetGround("weeds");
+        ss.Buy("shrimp"); while (G.boat.bunker < 60 && ss.Buy("coal")) {}
+        ss.CastOff();
+        Vector2 at = Vector2Add(ss.harbour, {160, 0});
+        for (int y = 0; y < e.n && e.HabAt(at) != H_KELP; y++) for (int x = e.n / 3; x < e.n * 2 / 3; x++) { Vector2 p{(x + 0.5f) * e.cell, (y + 0.5f) * e.cell}; if (e.HabAt(p) == H_KELP && e.HabAt(Vector2Add(p, {-14, 0})) != H_KELP) { at = Vector2Add(p, {-10, 0}); break; } }
+        G.boat.pos = at; G.boat.heading = 0.3f; G.boat.telegraph = 0; G.boat.lantern = 2;
+        for (int i = 0; i < 60 * 4; i++) { G.Step(1 / 60.0f); ss.Step(1 / 60.0f); }
+        if (fp) { S.eye.yaw = 0.2f; S.eye.pitch = -0.2f; }
+        return;
+    }
     if (which == 27 || which == 28 || which == 29) {
         // 27 out in the skiff, rowing away from the Gannet (lying stopped, her lantern full) with a fish aboard; 28 the
         // skiff going down on the davit, a hand at it

@@ -570,7 +570,7 @@ bool Session::CastOff(std::string* why) {
     static const char* WX[] = {"CALM", "FOG", "RAIN", "SQUALL", "STORM", "GLASS"};
     const char* rumours[] = {"WHALERS REPORT BARRACUDA THICK ON THE CREST", "SARDINE BALLS SEEN OFF THE FLATS", "REEF SHARKS QUIET THIS WEEK",
                              "MAHI UNDER THE WEED RAFTS", "SNAPPER BITING ON SHRIMP"};
-    Tape(TextFormat("LAGOON %s STOP MOON %s STOP %s STOP", WX[(int)weather], moon < 0.25f ? "NEW" : moon < 0.5f ? "WAXING" : moon < 0.75f ? "FULL" : "WANING",
+    Tape(TextFormat("%s %s STOP MOON %s STOP %s STOP", ground == "weeds" ? "WEEDS" : ground == "grotto" ? "GROTTO" : ground == "atlantis" ? "ATLANTIS" : "LAGOON", WX[(int)weather], moon < 0.25f ? "NEW" : moon < 0.5f ? "WAXING" : moon < 0.75f ? "FULL" : "WANING",
                     rumours[(int)(R() * 5) % 5]));
     // the weather turns in the night about one night in three, between 23:00 and 03:00, mostly for the worse; the
     // telegraph's forecast is right 70% of the time (the other 30% it names the wrong weather)

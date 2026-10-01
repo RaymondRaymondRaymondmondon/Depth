@@ -422,7 +422,7 @@ static void EnsureSea() {
     gSea = LoadModelFromMesh(m);
     gSeaReady = true;
 }
-static void UpdateSea(const Sea& sea, Vector3 eye) {
+static void UpdateSea(const Sea& sea, Vector3 eye, const Eco* eco = nullptr) {
     float cx = floorf(eye.x / SC) * SC - SN * SC / 2, cz = floorf(eye.z / SC) * SC - SN * SC / 2;
     static std::vector<float> H;
     H.resize((SN + 1) * (SN + 1));
@@ -433,6 +433,22 @@ static void UpdateSea(const Sea& sea, Vector3 eye) {
     auto put = [&](int i, int j) { v[k++] = cx + i * SC; v[k++] = H[j * (SN + 1) + i] - 0.02f; v[k++] = cz + j * SC; };
     for (int j = 0; j < SN; j++) for (int i = 0; i < SN; i++) { put(i, j); put(i + 1, j); put(i + 1, j + 1); put(i, j); put(i + 1, j + 1); put(i, j + 1); }
     UpdateMeshBuffer(m, 0, v, m.vertexCount * 3 * sizeof(float), 0);
+    // the Weeds' kelp canopy: golden-brown mats on the water where the chart has kelp (the sea's own vertices, so the ink
+    // pass sees one surface, not a field of boxes)
+    static bool tinted = false;
+    bool kelp = eco && eco->g && eco->ground == "weeds";
+    if (kelp || tinted) {
+        unsigned char* col = m.colors; int q = 0;
+        for (int j = 0; j < SN; j++) for (int i = 0; i < SN; i++) {
+            Vector2 w{cx + (i + 0.5f) * SC, cz + (j + 0.5f) * SC};
+            bool k = kelp && eco->HabAt(w) == H_KELP;
+            float n = k ? 0.5f + 0.5f * sinf(w.x * 0.9f + w.y * 1.3f) : 0;
+            unsigned char r = k ? (unsigned char)(110 + 40 * n) : 40, g2 = k ? (unsigned char)(86 + 30 * n) : 84, b = k ? 34 : 96, a = k ? 245 : 205;
+            for (int t = 0; t < 6; t++) { col[q++] = r; col[q++] = g2; col[q++] = b; col[q++] = a; }
+        }
+        UpdateMeshBuffer(m, 3, col, m.vertexCount * 4, 0);
+        tinted = kelp;
+    }
 }
 // the land in the chart (the atoll, the reef's dry crest): built once per ground from its cells
 static void EnsureLand(const Eco* e) {
@@ -1073,7 +1089,7 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
         if ((held == Item::Rifle || held == Item::Shotgun) && kick > 0.5f) rt::DrawCubeGlow(MatrixMultiply(MatrixMultiply(MatrixScale(0.06f, 0.06f, 0.06f), MatrixTranslate(held == Item::Rifle ? 0.62f : 0.5f, 0.02f, 0)), hm), Color{255, 220, 140, 255}, 1.0f);
     }
     // ---- the sea, last (its surface is glass the rest is seen through)
-    UpdateSea(g.sea, cam.position);
+    UpdateSea(g.sea, cam.position, eco);
     rt::DrawStatic(gSea, MatrixIdentity(), WHITE);
     rt::RenderEnd();
 }
