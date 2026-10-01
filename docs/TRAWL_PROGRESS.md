@@ -591,3 +591,22 @@ bubble puff); Red Tide's gun models rebuilt with a dozen parts each.
   - predators that prefer the smallest vessel with the most blood;
   - the sonar showing the skiff as a bright blip;
   - bots in the skiff.
+- **5d (`ae3e2d1`): skiff water, her line, and the dangers.**
+  - **The marks** (`Eco::marks`, `MarkAt`):
+    - The Crest Pass: a coral maze through the crest, 1.2 m deep, where the Gannet grounds.
+    - The Sargassum Line: a weed bank toward the crest; a turning screw in it fouls and she keeps about 40% of her way.
+    - A skiff line inside either mark gets twice the bite rate. The sim skipper avoids both.
+  - **The skiff's line** (`Gannet::skiffRod`, `StepSkiffRod`; trawl_fish.cpp):
+    - T in the skiff switches between the oars and the line. The line has the same controls and reel gauge as a rod station.
+    - Under 30 kg lands in her bottom boards, killed at the waterline; a thrasher of 10 kg or more rocks her hard.
+    - Bigger fish are killed alongside onto the tow line (`Gannet::towed`). The tow drags at her (48 kg: 1.16 against 1.52 m/s), bleeds into the water, comes aboard when she's hauled up, and parts if she capsizes.
+    - A hooked fish tows the skiff and heels her.
+  - **Sharks ram the skiff first:** a hungry rammer within 4 m of her, in 60% of the blood the Gannet would need, heels her hard and takes up to 14 of her 40.
+  - **Finding her:** the sonar shows the skiff as a bright pulsing blip, with the marks as dashed rings. The helm chart shows the Atoll, the marks and the skiff. Mark arrows point from wherever you are.
+  - **Bots:** a bot following you (F) walks to the davit and drops in after you, rows on your beat, keeps her while you're ashore, and comes back up with you. A bot in the water climbs into a nearby skiff.
+  - **The shakedown** now counts fish landed (`landedSmall`/`landedBig`), not fish still in the hold: the birds steal the small dead ones.
+  - **Not built:**
+    - walkies and proximity voice (no voice chat yet), the flares/bell kit, the skiff's anchor;
+    - the Slipway's steam launch kit (500: 3 m/s, noise 4) and the skiff upgrades (outrigger, painted eyes);
+    - junk on the skiff's line;
+    - the Old Lighthouse rock and the Sandbar landings.

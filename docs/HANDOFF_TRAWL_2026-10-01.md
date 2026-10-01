@@ -238,3 +238,5 @@ wreck's listing, the Reef's wonder-weapon quest, the repair kit, the stage-10 ba
   - The sonar shows the skiff as a bright blip.
   - Bots: F makes a bot follow you into the skiff and row on your beat.
 - Then steps 6-8.
+- 5d is DONE (`ae3e2d1`); step 5 is complete. The "Not built" list in TRAWL_PROGRESS covers what's left of it.
+- **Next: step 6.** Mini-bosses, boss lures, harbour requests and charms (doc v2: the mini-boss section around OCR line 3404, harbour requests, and the charms table under Economy). Read the PNG pages for the tables.
