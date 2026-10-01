@@ -259,8 +259,14 @@ The user asked for two versions of the Trawl, one top-down as it was and one fir
 - **In game:** G orders the nearest free bot to the station you point at. In first person, `AimAtDeck` finds that
   station on the planks. Pointing at nothing sends every bot back to its watch. A crew list sits top right.
 - **Shots:** `trawl_bots`, `trawl3d_bots`.
-- **Not yet:**
-  - Follow orders.
-  - Throwing the life ring for a hand overboard.
-  - Patching leaks.
-  - Bots using items (rifle, flare).
+- **Emergencies** (second pass), each handed once a tick to the nearest free bot. A bot fighting a fish keeps fighting
+  it, and the fireman is pulled off the boiler last.
+  - **A hand overboard:** the bot takes the ship's life ring from whoever has it (or the locker) and goes to the rail
+    nearest the swimmer. It throws within 17.5 m, hauls a miss back and throws again, then hauls them in.
+  - **A leak:** the bot goes to the section (`SectionSpot`) and patches it with the ship's kits (`PatchKits`).
+- **Patching** is now real for everyone: `Gannet::StartPatch`. Stand in the leaking section and press E. It takes 6 s,
+  or 3 for a Bosun. Walking off, falling or a station cancels it. A kit is borrowed from whoever carries the ship's
+  kits. The HUD prompts "E: patch the leak".
+- **F (follow me):** the nearest free bot follows you, down the ladder too; press F again and it goes back to its watch
+  (`OrderFollow`).
+- **Not yet:** bots using items (the rifle, flares).

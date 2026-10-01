@@ -35,6 +35,12 @@ std::string Gannet::BotDoing(int ci) const {
     if (c.dead) return "dead";
     if (c.overboard) return "in the water";
     if (c.fallen) return "down on the deck";
+    if (ci < (int)brains.size()) {
+        const Brain& b = brains[ci];
+        if (b.task == 1) return "the life ring!";
+        if (b.task == 2) return c.patchSec >= 0 ? TextFormat("patching (%.0f s)", std::max(0.0f, c.patchT)) : "to the leak";
+        if (b.task == 3) return b.follow == 0 ? "following you" : "following";
+    }
     if (c.station >= 0) {
         int ri = RodAt(c.station);
         if (ri >= 0 && rods[ri].state == RodState::Fighting) return std::string(Stations()[c.station].name) + ": fish on";
@@ -63,9 +69,28 @@ int Gannet::OrderBot(int station) {
     }
     if (best >= 0) {
         for (int i = 1; i < (int)crew.size(); i++) if (brains[i].order == station) brains[i].order = -1;
-        brains[best].order = station; brains[best].think = 0;
+        brains[best].order = station; brains[best].follow = -1; brains[best].think = 0;
         brains[best].bark = std::string("Aye: the ") + Stations()[station].name; brains[best].barkT = 2.5f;
     }
+    return best;
+}
+
+int Gannet::OrderFollow(int leader) {
+    if ((int)brains.size() < (int)crew.size()) brains.resize(crew.size());
+    // asked again: whoever was following goes back to its watch
+    bool any = false;
+    for (int i = 1; i < (int)crew.size(); i++) if (brains[i].follow == leader) { brains[i].follow = -1; brains[i].think = 0; brains[i].bark = "Back to it"; brains[i].barkT = 2; any = true; }
+    if (any) return -1;
+    int best = -1; float bd = 1e9f;
+    const Crew& L = crew[leader];
+    for (int i = 1; i < (int)crew.size(); i++) {
+        const Crew& c = crew[i];
+        if (!c.bot || c.dead || c.overboard || i == leader || brains[i].task == 1 || brains[i].task == 2) continue;
+        int ri = c.station >= 0 ? RodAt(c.station) : -1;
+        float d = Vector2Distance(c.p, L.p) + (c.deck != L.deck ? 6.0f : 0) + (ri >= 0 && rods[ri].state == RodState::Fighting ? 50.0f : 0);
+        if (d < bd) { bd = d; best = i; }
+    }
+    if (best >= 0) { brains[best].follow = leader; brains[best].order = -1; brains[best].think = 0; brains[best].bark = "Right behind you"; brains[best].barkT = 2.5f; }
     return best;
 }
 
@@ -89,6 +114,60 @@ void Gannet::StepBots(float dt) {
         int holder = -1; for (int j = 0; j < (int)crew.size(); j++) if (crew[j].station == r.station && !crew[j].overboard) holder = j;
         if (holder >= 0) r.botAngler = crew[holder].bot;
     }
+    // ---- emergencies, handed out once a tick to the nearest free bot: a hand in the water (the life ring), a leak
+    // (a patch kit). A bot fighting a fish keeps fighting it; the fireman is the last to be pulled off the boiler.
+    auto fighting = [&](int j) { int ri = crew[j].station >= 0 ? RodAt(crew[j].station) : -1; return ri >= 0 && rods[ri].state == RodState::Fighting; };
+    auto nearestFree = [&](Vector2 at, int deck, int notThis) {
+        int best = -1; float bd = 1e9f;
+        for (int j = 1; j < (int)crew.size(); j++) {
+            const Crew& o = crew[j];
+            if (!o.bot || o.dead || o.overboard || o.fallen || j == notThis || brains[j].task == 1 || brains[j].task == 2 || fighting(j)) continue;
+            float d = Vector2Distance(o.p, at) + (o.deck != deck ? 8.0f : 0) + (j == fireman ? 12.0f : 0);
+            if (d < bd) { bd = d; best = j; }
+        }
+        return best;
+    };
+    for (int k = 0; k < (int)crew.size(); k++) {
+        if (!crew[k].overboard || crew[k].dead || rings.empty()) continue;
+        bool has = false; for (int j = 1; j < (int)brains.size(); j++) if (brains[j].task == 1 && brains[j].target == k) has = true;
+        if (has) continue;
+        int j = nearestFree(boat.ToDeck(crew[k].swim), 0, k);
+        if (j < 0) continue;
+        if (crew[j].station >= 0) LeaveStation(j);
+        brains[j].task = 1; brains[j].target = k; brains[j].taskT = 0; brains[j].goal = -1;
+        brains[j].bark = "Man overboard! The ring!"; brains[j].barkT = 3;
+    }
+    if (PatchKits() > 0) for (int s = 0; s < SEC_COUNT; s++) {
+        if (boat.integrity[s] >= D().leakBelow || boat.patched[s]) continue;
+        bool has = false;
+        for (int j = 0; j < (int)crew.size(); j++) if (crew[j].patchSec == s || (j < (int)brains.size() && brains[j].task == 2 && brains[j].target == s)) has = true;
+        if (has) continue;
+        int j = nearestFree(SectionSpot(s), 0, -1);
+        if (j < 0) continue;
+        if (crew[j].station >= 0) LeaveStation(j);
+        brains[j].task = 2; brains[j].target = s; brains[j].taskT = 0; brains[j].goal = -1;
+        brains[j].bark = TextFormat("She's holed, %s! I'll patch it", SectionName(s)); brains[j].barkT = 3;
+    }
+    // walking to a spot on a deck: the ladder, the wheelhouse door, a sidestep when stuck; true once there
+    auto walk = [&](int i, int deck, Vector2 at, float arrive, bool* climbed) {
+        Crew& c = crew[i]; Brain& b = brains[i];
+        *climbed = false;
+        if (c.deck == deck && Vector2Distance(c.p, at) < arrive) return true;
+        bool climb = false;
+        Vector2 wp = Waypoint(c, deck, at, &climb);
+        if (climb) { TakeStation(i); *climbed = true; return false; }
+        Vector2 to = Vector2Subtract(wp, c.p);
+        float d = Vector2Length(to);
+        Vector2 wish = d > 0.05f ? Vector2Scale(to, 1 / d) : Vector2{0, 0};
+        // stuck on the drum, the table or the mast: step sideways for a moment
+        b.stuckT = Vector2Distance(c.p, b.lastP) < 0.6f * dt ? b.stuckT + dt : 0;
+        b.lastP = c.p;
+        if (b.stuckT > 0.35f) { b.sideT = 0.7f; b.side = -b.side; b.stuckT = 0; }
+        if (b.sideT > 0) { b.sideT -= dt; wish = Vector2Add(Vector2Scale(wish, 0.3f), Vector2Scale({-wish.y, wish.x}, (float)b.side)); }
+        if (d < 0.6f && wp.x == at.x && wp.y == at.y) wish = Vector2Scale(wish, std::max(0.35f, d / 0.6f));   // ease into place
+        Move(i, wish, false, dt);
+        return false;
+    };
     for (int i = 0; i < (int)crew.size(); i++) {
         Crew& c = crew[i];
         if (!c.bot) continue;
@@ -103,6 +182,74 @@ void Gannet::StepBots(float dt) {
             continue;
         }
         if (c.fallen) continue;
+        if (b.task == 0 && b.follow >= 0) b.task = 3;
+        if (b.task == 3 && b.follow < 0) b.task = 0;
+        // ---- the life ring: to the rail nearest the swimmer, throw, haul in a miss and throw again, haul them home
+        if (b.task == 1) {
+            if (b.target < 0 || b.target >= (int)crew.size() || !crew[b.target].overboard || crew[b.target].dead) {
+                // aboard (or lost): haul in a ring still out, then back to work
+                LifeRing* out = nullptr; for (auto& r : rings) if (r.thrower == i && r.state != 0) out = &r;
+                if (out && out->state == 2) { UseItem(i, c.p, false, true, false, dt); Move(i, {0, 0}, false, dt); continue; }
+                b.task = 0; b.think = 0; continue;
+            }
+            const Crew& sw = crew[b.target];
+            if (c.station >= 0) LeaveStation(i);
+            // the ring itself: from its own slot, else from another hand's or the locker
+            int slot = -1; for (int k = 0; k < 4; k++) if (c.slots[k].it == Item::Ring) slot = k;
+            if (slot < 0) {
+                Slot got{}; bool found = false;
+                // (the ring is the ship's: it hangs by the rail even when the hand who "carries" it is in the water)
+                for (int j = 0; j < (int)crew.size() && !found; j++) if (j != i)
+                    for (auto& s : crew[j].slots) if (s.it == Item::Ring) { bool busy = false; for (auto& r : rings) if (r.thrower == j && r.state != 0) busy = true; if (!busy) { got = s; s = Slot{}; found = true; break; } }
+                for (size_t k = 0; k < locker.size() && !found; k++) if (locker[k].it == Item::Ring) { got = locker[k]; locker.erase(locker.begin() + k); found = true; }
+                if (!found) { if (b.barkT <= 0) { b.bark = "Where's the ring?!"; b.barkT = 3; } b.task = 0; continue; }
+                for (int k = 0; k < 4 && slot < 0; k++) if (c.slots[k].it == Item::None) slot = k;
+                if (slot < 0) { slot = 3; locker.push_back(c.slots[3]); }
+                c.slots[slot] = got;
+                Say("A hand grabs the life ring");
+            }
+            c.sel = slot;
+            Vector2 sd = boat.ToDeck(sw.swim);
+            Vector2 spot{std::clamp(sd.x, -9.4f, 8.4f), sd.y < 0 ? -2.3f : 2.3f};
+            if (spot.x > 0.9f && spot.x < 5.2f) spot.y = sd.y < 0 ? -2.4f : 2.4f;   // (the wheelhouse's sides)
+            bool climbed;
+            if (!walk(i, 0, spot, 0.8f, &climbed)) continue;
+            Move(i, {0, 0}, false, dt);
+            LifeRing* r = nullptr; for (auto& rr : rings) if (rr.thrower == i && rr.state != 0) r = &rr;
+            if (!r) {
+                if (Vector2Distance(RailWorld(i), sw.swim) < 17.5f) { UseItem(i, sd, true, false, false, dt); b.taskT = 0; }
+                else if (b.barkT <= 0) { b.bark = "Too far! Bring her round!"; b.barkT = 3; }
+            } else if (r->state == 2) {
+                b.taskT += dt;
+                bool miss = r->holder < 0 && Vector2Distance(r->p, sw.swim) > 2.5f && b.taskT > 2.5f;
+                if (r->holder >= 0 || miss) UseItem(i, sd, false, true, false, dt);   // haul (them, or the ring to throw again)
+                if (r->holder >= 0 && b.barkT <= 0) { b.bark = "Hold on! Hauling!"; b.barkT = 3; }
+            }
+            continue;
+        }
+        // ---- a leak: stand in the section and patch it (with the ship's kits)
+        if (b.task == 2) {
+            int s = b.target;
+            if (s < 0 || boat.patched[s] || boat.integrity[s] >= D().leakBelow) { b.task = 0; b.think = 0; continue; }
+            if (c.station >= 0) LeaveStation(i);
+            bool climbed;
+            if (!walk(i, 0, SectionSpot(s), 0.5f, &climbed)) continue;
+            Move(i, {0, 0}, false, dt);
+            if (c.patchSec < 0 && Vector2Length(c.v) < 0.3f && !StartPatch(i) && PatchKits() == 0) { b.task = 0; b.think = 0; }
+            continue;
+        }
+        // ---- following a hand about (F): keep a couple of metres off them, down the ladder after them
+        if (b.task == 3) {
+            const Crew& L = crew[b.follow];
+            if (L.dead || L.overboard) { Move(i, {0, 0}, false, dt); continue; }
+            if (c.station >= 0) LeaveStation(i);
+            Vector2 away = Vector2Subtract(c.p, L.p);
+            Vector2 at = c.deck == L.deck && Vector2Length(away) > 0.1f ? Vector2Add(L.p, Vector2Scale(Vector2Normalize(away), 1.3f)) : L.p;
+            bool climbed;
+            if (c.deck == L.deck && Vector2Distance(c.p, L.p) < 1.8f) { Move(i, {0, 0}, false, dt); continue; }
+            walk(i, L.deck, at, 0.4f, &climbed);
+            continue;
+        }
         // ---- choose (twice a second): orders, then what's happening, then the role's watch
         b.think -= dt;
         if (b.think <= 0) {
@@ -140,24 +287,11 @@ void Gannet::StepBots(float dt) {
         if (b.goal >= 0 && c.station != b.goal) {
             Vector2 at = S[b.goal].at;
             if (c.station >= 0) LeaveStation(i);
-            bool climb = false;
-            Vector2 wp = Waypoint(c, b.goalDeck, at, &climb);
-            if (climb) { TakeStation(i); continue; }
-            Vector2 to = Vector2Subtract(wp, c.p);
-            float d = Vector2Length(to);
-            if (c.deck == b.goalDeck && Vector2Distance(c.p, at) < 0.55f) {
+            bool climbed;
+            if (walk(i, b.goalDeck, at, 0.55f, &climbed)) {
                 if (!TakeStation(i)) b.think = 0;   // (somebody beat it there: choose again)
                 Move(i, {0, 0}, false, dt);
-                continue;
             }
-            Vector2 wish = d > 0.05f ? Vector2Scale(to, 1 / d) : Vector2{0, 0};
-            // stuck on the drum, the table or the mast: step sideways for a moment
-            b.stuckT = Vector2Distance(c.p, b.lastP) < 0.6f * dt ? b.stuckT + dt : 0;
-            b.lastP = c.p;
-            if (b.stuckT > 0.35f) { b.sideT = 0.7f; b.side = -b.side; b.stuckT = 0; }
-            if (b.sideT > 0) { b.sideT -= dt; wish = Vector2Add(Vector2Scale(wish, 0.3f), Vector2Scale({-wish.y, wish.x}, (float)b.side)); }
-            if (d < 0.6f && wp.x == at.x && wp.y == at.y) wish = Vector2Scale(wish, std::max(0.35f, d / 0.6f));   // ease into place
-            Move(i, wish, false, dt);
             continue;
         }
         Move(i, {0, 0}, false, dt);
@@ -265,6 +399,46 @@ int RunTrawlBotTest() {
         g.boat.telegraph = 0; g.boat.shaft = 0;
         for (int k = 0; k < 60 * 30 && g.crew[1].overboard; k++) g.Step(dt);
         check(!g.crew[1].overboard && !g.crew[1].dead, "a bot overboard swims to the stern ladder and climbs aboard");
+    }
+    // a hole amidships to port: the nearest free bot fetches the ship's patch kit and patches it
+    {
+        Gannet g; g.Init(4, 11); g.botsOn = true; g.GiveStartingKit();
+        g.crew[0].p = {3.0f, 0.8f};
+        for (int k = 0; k < 60 * 15; k++) g.Step(dt);
+        g.boat.Hit(SEC_MID_P, g.boat.integrity[SEC_MID_P] - D().leakBelow + 15);
+        bool leaking = g.boat.integrity[SEC_MID_P] < D().leakBelow;
+        int kits = g.PatchKits();
+        for (int k = 0; k < 60 * 40 && !g.boat.patched[SEC_MID_P]; k++) g.Step(dt);
+        check(leaking && g.boat.patched[SEC_MID_P] && g.PatchKits() == kits - 1, TextFormat("holed amidships to port: a bot patches it with the ship's kit (%d kit(s) left)", g.PatchKits()));
+        bool back = false; for (int k = 0; k < 60 * 20 && !back; k++) { g.Step(dt); back = true; for (int i = 1; i < 4; i++) back = back && g.brains[i].task == 0 && g.crew[i].station >= 0; }
+        check(back, "and every bot is back at a station after");
+    }
+    // the skipper overboard off the beam: a bot throws the ring, hauls them in to the rail
+    {
+        Gannet g; g.Init(3, 5); g.botsOn = true; g.GiveStartingKit();
+        for (int k = 0; k < 60 * 15; k++) g.Step(dt);
+        g.GoOverboard(0, "test"); g.crew[0].swim = g.boat.ToWorld({-2, 9});
+        g.boat.telegraph = 0;
+        bool thrown = false, held = false;
+        for (int k = 0; k < 60 * 45 && g.crew[0].overboard && !g.crew[0].dead; k++) {
+            g.Step(dt);
+            for (const auto& r : g.rings) { if (r.state != 0) thrown = true; if (r.holder == 0) held = true; }
+            if (getenv("DEPTH_TRACE") && k % 120 == 0) { int ri = 0; printf("    t%2d swim d %.1f drown %.0f | 1:%s (%.1f,%.1f) 2:%s | ring %d holder %d\n", k / 60, Vector2Distance(g.crew[0].swim, g.boat.pos), g.crew[0].drownT, g.BotDoing(1).c_str(), g.crew[1].p.x, g.crew[1].p.y, g.BotDoing(2).c_str(), g.rings.empty() ? -1 : g.rings[ri].state, g.rings.empty() ? -9 : g.rings[ri].holder); }
+        }
+        check(thrown && held, "the skipper in the water: a bot fetches the ring and throws it to them");
+        check(!g.crew[0].overboard && !g.crew[0].dead, "and hauls them back aboard over the rail");
+    }
+    // F: a bot follows the skipper below
+    {
+        Gannet g; g.Init(3, 9); g.botsOn = true;
+        for (int k = 0; k < 60 * 15; k++) g.Step(dt);
+        int who = g.OrderFollow(0);
+        g.crew[0].deck = 1; g.crew[0].p = {-4.6f, 0.4f};
+        for (int k = 0; k < 60 * 25; k++) g.Step(dt);
+        check(who > 0 && g.crew[who].deck == 1 && Vector2Distance(g.crew[who].p, g.crew[0].p) < 2.5f, TextFormat("F: hand %d follows the skipper down the ladder (%.1f m off)", who, who > 0 ? Vector2Distance(g.crew[who].p, g.crew[0].p) : -1.0f));
+        g.OrderFollow(0);
+        for (int k = 0; k < 60 * 25; k++) g.Step(dt);
+        check(who > 0 && g.crew[who].station >= 0, TextFormat("F again: it goes back to its watch (%s)", who > 0 ? g.BotDoing(who).c_str() : "-"));
     }
     // a night's fishing on a real ground: the bots land fish without the skipper touching a rod
     {

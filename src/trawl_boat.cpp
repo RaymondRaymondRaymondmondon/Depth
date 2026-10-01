@@ -38,6 +38,28 @@ int SectionAt(Vector2 d) {
     int row = d.x > 3.6f ? 0 : d.x > -3.6f ? 1 : 2;
     return row * 2 + (d.y > 0 ? 1 : 0);
 }
+Vector2 SectionSpot(int s) {
+    // somewhere open to stand in each section (clear of the wheelhouse, the drum, the table and the mast)
+    static const Vector2 AT[SEC_COUNT] = {{6.6f, -1.2f}, {6.6f, 1.2f}, {-1.6f, -2.0f}, {-1.6f, 2.0f}, {-7.8f, -1.6f}, {-7.8f, 1.6f}};
+    return AT[std::clamp(s, 0, SEC_COUNT - 1)];
+}
+bool Gannet::StartPatch(int ci) {
+    Crew& c = crew[ci];
+    if (c.overboard || c.dead || c.fallen || c.station >= 0 || c.patchSec >= 0) return false;
+    int s = SectionAt(c.p);
+    if (boat.integrity[s] >= D().leakBelow || boat.patched[s]) return false;
+    for (const auto& o : crew) if (o.patchSec == s) return false;   // (one hand to a leak)
+    if (c.patchKits <= 0) {
+        // the ship's kits: borrow one from whoever aboard is carrying them
+        int from = -1; for (int k = 0; k < (int)crew.size(); k++) if (crew[k].patchKits > 0 && !crew[k].overboard) from = k;
+        if (from < 0) { Say("No patch kit aboard"); return false; }
+        crew[from].patchKits--; c.patchKits++;
+    }
+    c.patchSec = s; c.patchT = c.role == Role::Bosun ? 3.0f : 6.0f;
+    Say(std::string("Patching the leak: ") + SectionName(s));
+    return true;
+}
+int Gannet::PatchKits() const { int n = 0; for (const auto& c : crew) if (!c.overboard) n += c.patchKits; return n; }
 float Boat::TotalMass() const {
     float m = D().dryMass + bilge;
     for (const auto& l : loads) m += l.kg;
@@ -288,7 +310,7 @@ void Gannet::Primary(int ci, bool held, float dt) {
                 CatchRec& r = hold[f];
                 r.gutted = true;
                 float iceNeed = r.kg * 0.5f;
-                if (ice >= iceNeed) { ice -= iceNeed; r.iced = true; Say(TextFormat("Gutted and iced: %s, %.1f kg", r.name.c_str(), r.kg)); }
+                if (ice >= iceNeed) { ice -= iceNeed; r.iced = true; Say(TextFormat("Gutted and iced: %s, %s", r.name.c_str(), KgText(r.kg).c_str())); }
                 else Say(TextFormat("Gutted, but no ice: the %s will spoil", r.name.c_str()));
                 GutsOverboard(r.kg);
             }
@@ -335,9 +357,10 @@ void Gannet::Step(float dt) {
     for (auto& h : hold) h.fresh = std::max(0.0f, h.fresh - dt / 60.0f * (h.iced ? 0.002f : 0.01f));
     if (boat.sunk && !wasSunk) Say("The Gannet founders");
     if (boat.valveT > 0 && valve0 <= 0) Say("The relief valve blows: steam in the engine room, the screw stops");
-    // a hand patching a leak (a Bosun in 3 s): stand in the flooded section with a patch kit, hold the pump key's
-    // neighbour... (the scene's E at a leak starts it)
+    // a hand patching a leak (a Bosun in 3 s, anyone else in 6): stand in the leaking section with a patch kit and
+    // stay there (StartPatch; the scene's E at a leak, or a bot); walking off, falling or going over loses it
     for (auto& c : crew) if (c.patchSec >= 0) {
+        if (c.overboard || c.dead || c.fallen || c.station >= 0 || SectionAt(c.p) != c.patchSec || Vector2Length(c.v) > 0.6f) { c.patchSec = -1; continue; }
         c.patchT -= dt;
         if (c.patchT <= 0) { boat.patched[c.patchSec] = true; c.patchKits--; Say(std::string("Leak patched: ") + SectionName(c.patchSec)); c.patchSec = -1; }
     }

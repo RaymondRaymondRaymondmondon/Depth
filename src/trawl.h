@@ -14,6 +14,7 @@
 #include <cmath>
 #include <cstdint>
 #include <string>
+#include <cstdio>
 #include <vector>
 
 namespace tw {
@@ -66,6 +67,8 @@ struct Sea {
 enum Section { SEC_BOW_P, SEC_BOW_S, SEC_MID_P, SEC_MID_S, SEC_STERN_P, SEC_STERN_S, SEC_COUNT };
 const char* SectionName(int s);
 int SectionAt(Vector2 deck);                              // which section a deck point sits over
+Vector2 SectionSpot(int s);                               // an open place to stand in a section (to patch it)
+inline std::string KgText(float kg) { char b[32]; snprintf(b, sizeof b, kg < 1 ? "%.0f g" : "%.1f kg", kg < 1 ? kg * 1000 : kg); return b; }   // "80 g", "2.4 kg"
 struct Load { Vector2 at{}; float kg = 0; };              // a weight aboard at a deck position (crew, fish, the hold, the net)
 struct Boat {
     Vector2 pos{0, 0}, vel{0, 0};                         // world x/z, m/s
@@ -335,11 +338,15 @@ struct Gannet {
         float castT = 0; bool struck = false; RodState lastRod = RodState::Idle;
         Vector2 lastP{}; float stuckT = 0, sideT = 0; int side = 1;
         std::string bark; float barkT = 0;                // a short line over its head ("Fish on, port!")
+        int task = 0;                                     // 0 a station, 1 the life ring for a hand overboard, 2 a leak, 3 following the skipper
+        int target = -1; float taskT = 0;                 // who or what the task is for; how long it has been at it
+        int follow = -1;                                  // ordered to follow this hand (F), -1 not
         uint32_t rng = 1;
     };
     std::vector<Brain> brains;
     void StepBots(float dt);
     int OrderBot(int station);                            // the nearest bot takes it (-1: every bot back to its watch); returns the bot
+    int OrderFollow(int leader);                          // the nearest free bot follows that hand about (again: stops); returns the bot
     std::string BotDoing(int c) const;                    // what it's about, for the crew list
     int DeckFish() const;                                 // landed and not yet gutted (they draw gulls, they spoil)
     int RodAt(int station) const;                         // index into rods, or -1
@@ -370,6 +377,8 @@ struct Gannet {
     void Move(int c, Vector2 wish, bool brace, float dt);
     bool TakeStation(int c);                              // E near a station
     void LeaveStation(int c);                             // X
+    bool StartPatch(int c);                               // E in a leaking section, with a patch kit (or the ship's)
+    int PatchKits() const;
     void Primary(int c, bool held, float dt);             // left mouse at a station (shovel, pump, ...)
     void Secondary(int c, bool held, float dt);           // right mouse (bleed at the boiler)
     void Scroll(int c, float amount);                     // telegraph, lantern level

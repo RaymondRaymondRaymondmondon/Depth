@@ -583,7 +583,7 @@ void Gannet::StepRods(float dt) {
                         CatchRec rec; rec.name = nm; rec.kg = f.spec.kg; rec.price = f.spec.price; rec.sp = r.fishSp;
                         rec.grade = r.headOnly ? 0.9f : 1.0f;             // hook 100%, less 10% for the bite taken out of it
                         hold.push_back(rec);
-                        r.lastCatch = TextFormat("%.1f kg %s", f.spec.kg, nm.c_str());
+                        r.lastCatch = KgText(f.spec.kg) + " " + nm;
                         Say(std::string("Landed: a ") + r.lastCatch);
                         if (eco && r.fishSp >= 0) eco->Harvest(r.fishSp, r.headOnly ? f.spec.kg / 0.45f : f.spec.kg, f.p, false);
                     } else {

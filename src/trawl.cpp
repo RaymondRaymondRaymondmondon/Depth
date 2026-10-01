@@ -152,6 +152,7 @@ void Pressed(Game& g) {
         int d = G.moored && c.deck == 0 && c.station < 0 ? NearestDock(c.p, 1.4f) : -1;
         if (d >= 0) S.panel = (int)DockStations()[d].kind;
         else if (c.station < 0 && !c.dead && (G.GaffFloater(S.you) || G.HaulSetGear(S.you))) {}
+        else if (c.station < 0 && !c.dead && !G.moored && G.StartPatch(S.you)) {}
         else if (G.TakeStation(S.you) && Stations()[c.station].kind == StationKind::Helm && S.sess.phase == Phase::Dock) S.panel = PANEL_CHART;
     }
     if (IsKeyPressed(KEY_X)) G.LeaveStation(S.you);
@@ -167,6 +168,10 @@ void Pressed(Game& g) {
             S.toast = who >= 0 ? TextFormat("%s: to the %s", RoleName(G.crew[who].role), Stations()[st].name) : "No hand free";
         } else { G.OrderBot(-1); S.toast = "All hands to their watch"; }
         S.toastT = 2.5f;
+    }
+    if (IsKeyPressed(KEY_F) && G.botsOn) {
+        int who = G.OrderFollow(S.you);
+        S.toast = who >= 0 ? TextFormat("%s follows you", RoleName(G.crew[who].role)) : "Back to your watch"; S.toastT = 2.5f;
     }
     float wheel = GetMouseWheelMove();
     bool atRod = G.crew[S.you].station >= 0 && G.RodAt(G.crew[S.you].station) >= 0;
@@ -532,7 +537,14 @@ void Hud(Game& g) {
             Txt(G.BotDoing(i).c_str(), SCREEN_W - 190, y, 13, Fade(paper, o.dead ? 0.35f : o.overboard ? 1.0f : 0.65f));
             y += 16;
         }
-        Txt("G: order a hand to the station you point at", SCREEN_W - 260, y + 2, 11, Fade(paper, 0.4f));
+        Txt("G: order a hand to the station you point at   F: follow me", SCREEN_W - 260, y + 2, 11, Fade(paper, 0.4f));
+    }
+    // a leak where you stand: E patches it (6 s, 3 for a Bosun) with the ship's kits
+    if (!c.overboard && !c.dead && c.station < 0 && !G.moored) {
+        int s = SectionAt(c.p);
+        if (c.patchSec >= 0) DrawTextCenteredBold(TextFormat("Patching the leak... %.1f s (stand still)", std::max(0.0f, c.patchT)), SCREEN_W / 2.0f, SCREEN_H - 110.0f, 20, Color{240, 200, 140, 255});
+        else if (G.boat.integrity[s] < D().leakBelow && !G.boat.patched[s])
+            DrawTextCenteredBold(G.PatchKits() > 0 ? TextFormat("E: patch the leak (%s)", SectionName(s)) : "Holed here, and no patch kit aboard", SCREEN_W / 2.0f, SCREEN_H - 110.0f, 20, Color{240, 160, 120, 255});
     }
     // the four slots and what's wrong with you (design doc: "Always on screen: the four inventory slots")
     for (int k = 0; k < 4; k++) {
