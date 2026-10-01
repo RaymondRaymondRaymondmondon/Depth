@@ -26,6 +26,7 @@ struct Scene {
     PlatformState p;
     int room = -1, lastAsk = -1; float askT = 0;
     Vector2 lastGood{};
+    Vector2 hose[28], hosePrev[28]; bool hoseInit = false;   // the air hose (or the bell's lifeline): a Verlet rope from the breach to the helmet
 };
 Scene gD;
 
@@ -64,7 +65,7 @@ void Build(const Wreck& w) {
         int cx = OX + r.x * CW + std::max(2, r.w * CW / 2);
         for (int y = 0; y <= OY + r.y * CH + CH - 1; y++) { Carve(p, cx, y, 'l'); if (p.tiles[y][cx + 1] == '#') Carve(p, cx + 1, y, ' '); }
     }
-    gD.built = true; gD.wreck = -1; gD.room = -1;
+    gD.built = true; gD.wreck = -1; gD.room = -1; gD.hoseInit = false;
 }
 int RoomAt(const Wreck& w, Vector2 px) {
     float tx = px.x / TT, ty = px.y / TT;
@@ -97,6 +98,28 @@ int DiveSceneStep(const Gannet& G, int you, float dt, float dir, bool jumpHeld, 
     gD.p.upHeld = up && !held; gD.p.inDown = down && !held; gD.p.climbDir = up ? -1 : down ? 1 : 0;
     gD.p.accumulator += std::min(dt, 0.1f);
     while (gD.p.accumulator >= 1.0f / STEP_HZ) { gD.p.accumulator -= 1.0f / STEP_HZ; PlatStepPlayer(gD.p, held ? 0.0f : dir, jumpHeld && !held); }
+    // the hose: pinned at the breach's top and at the helmet, drifting on the current between, kept out of the timbers
+    {
+        const int N = 28;
+        const WreckRoom& er = w.rooms[w.entries.empty() ? 0 : w.entries[0]];
+        Vector2 top{(float)(OX + er.x * CW + std::max(2, er.w * CW / 2)) * TT + TT / 2.0f, 0}, head{gD.p.pos.x + BODY_W / 2, gD.p.pos.y + 6};
+        if (!gD.hoseInit) { for (int i = 0; i < N; i++) { gD.hose[i] = gD.hosePrev[i] = Vector2Lerp(top, head, i / (N - 1.0f)); } gD.hoseInit = true; }
+        float seg = std::max(TT * 0.6f, Vector2Distance(top, head) / (N - 1) * 1.15f);
+        for (int i = 1; i < N - 1; i++) { Vector2 v = Vector2Scale(Vector2Subtract(gD.hose[i], gD.hosePrev[i]), 0.96f); gD.hosePrev[i] = gD.hose[i]; gD.hose[i] = Vector2Add(Vector2Add(gD.hose[i], v), {sinf((float)gD.p.time * 0.7f + i) * 0.05f, 0.02f}); }
+        gD.hose[0] = top; gD.hose[N - 1] = head;
+        for (int it = 0; it < 6; it++) {
+            for (int i = 0; i < N - 1; i++) {
+                Vector2 d = Vector2Subtract(gD.hose[i + 1], gD.hose[i]); float L = Vector2Length(d); if (L < 1e-3f) continue;
+                Vector2 c = Vector2Scale(d, (L - seg) / L * 0.5f);
+                if (i > 0) gD.hose[i] = Vector2Add(gD.hose[i], c);
+                if (i + 1 < N - 1) gD.hose[i + 1] = Vector2Subtract(gD.hose[i + 1], c);
+            }
+            for (int i = 1; i < N - 1; i++) {   // out of the solid timbers (pushed back toward its previous place)
+                int tx = (int)(gD.hose[i].x / TT), ty = (int)(gD.hose[i].y / TT);
+                if (tx >= 0 && ty >= 0 && tx < gD.p.w && ty < gD.p.h && gD.p.tiles[ty][tx] == '#') gD.hose[i] = gD.hosePrev[i];
+            }
+        }
+    }
     int r = RoomAt(w, {gD.p.pos.x + BODY_W / 2, gD.p.pos.y + BODY_H / 2});
     if (r >= 0 && r == gD.room) gD.lastGood = gD.p.pos;
     if (r >= 0 && r != gD.room && r != gD.lastAsk) { gD.lastAsk = r; gD.askT = 0.5f; return r; }
@@ -163,7 +186,11 @@ void DiveSceneDraw(const Gannet& G, int you) {
     }
     // the bell at the first breach; the lifeline/hose up from the diver
     if (G.dive.bell && !w.entries.empty()) { Vector2 b{RoomFloor(w.rooms[w.entries[0]]).x + 16 - cam.x, (OY - 1) * TT - cam.y}; DrawCircleSector(b, 26, 180, 360, 16, Color{150, 120, 70, 255}); DrawLineEx({b.x, -10}, {b.x, b.y - 26}, 3, Color{90, 90, 86, 255}); }
-    else { Vector2 a{me.x - cam.x, me.y - cam.y - 10}; DrawLineBezier(a, {a.x + 60, -20}, 2, Fade(Color{170, 160, 120, 255}, 0.7f)); }
+    if (gD.hoseInit && G.dive.room >= 0) for (int i = 0; i < 27; i++) {   // the hose (or the bell's lifeline), lit where the lamp reaches
+        Vector2 a = Vector2Subtract(gD.hose[i], cam), b = Vector2Subtract(gD.hose[i + 1], cam);
+        float lit = std::clamp(1.0f - Vector2Distance(gD.hose[i], me) / (lamp * 1.3f), 0.15f, 1.0f);
+        DrawLineEx(a, b, G.dive.bell ? 2.0f : 3.0f, Fade(G.dive.hoseBitten && i > 20 ? Color{200, 80, 60, 255} : Color{170, 160, 120, 255}, lit));
+    }
     // the diver: a brass helmet, the lamp's beam, heavy boots
     Vector2 s{p.pos.x - cam.x, p.pos.y - cam.y};
     if (G.dive.room >= 0) {

@@ -69,6 +69,14 @@ bool Gannet::DiveMove(int to) {
         if (dive.holdT > 0) { Say("Held fast: you can't get free yet"); return false; }
         if (dive.moveT < 1.5f) { dive.siltT = 5; Say("Too fast through the silt: it boils up and the lamp shows nothing"); }
         dive.room = to; dive.roomT = 0; dive.moveT = 0;
+        // a long hose run tangles on the wreckage (the bell's divers swim free of a hose)
+        if (!dive.bell) {
+            auto d = HoseDistances(w);
+            if (to < (int)d.size() && d[to] > 32) {
+                uint32_t h = w.seed * 2654435761u + (uint32_t)to * 97u + (uint32_t)(time * 10);
+                if ((h >> 8) % 4 == 0) { dive.holdT = std::max(dive.holdT, 4.0f); Say("The hose snags on the wreckage behind you: work it free"); }
+            }
+        }
         return true;
     }
     return false;
