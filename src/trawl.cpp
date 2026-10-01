@@ -1073,6 +1073,51 @@ void DrawDeckFx() {
         DrawTextCenteredBold(TextFormat("x%.2f", h.killScore), at.x, at.y - 12, big ? 26 : 20, Fade(kc, a));
         DrawTextCentered(h.killHow, at.x, at.y + 12, 13, Fade(Color{230, 220, 196, 255}, a * 0.85f));
     }
+    // diving: the diver's own view is the wreck in section (rooms on their 4 x 3 m grid, the helmet lamp's pool round
+    // the diver, salvage glinting, locked doors and air pockets); the deck sees the gauge, the air and the depth
+    if (G.dive.diver >= 0 && G.wrecks && G.dive.wreck >= 0 && G.dive.wreck < (int)G.wrecks->size()) {
+        const Wreck& wk = (*G.wrecks)[G.dive.wreck];
+        const Color paper{230, 220, 196, 255};
+        if (S.you == G.dive.diver) {
+            DrawRectangle(0, 0, SCREEN_W, SCREEN_H, Color{4, 10, 14, 255});
+            float cw = std::min(90.0f, (SCREEN_W - 160.0f) / std::max(1, wk.gw)), ch = cw * 0.75f;
+            float ox = SCREEN_W / 2.0f - wk.gw * cw / 2, oy = SCREEN_H / 2.0f - wk.gh * ch / 2;
+            const WreckRoom* here = G.dive.room >= 0 ? &wk.rooms[G.dive.room] : nullptr;
+            Vector2 me2 = here ? Vector2{ox + (here->x + here->w * 0.5f) * cw, oy + (here->y + 0.6f) * ch} : Vector2{SCREEN_W / 2.0f, oy - 40};
+            for (int i = 0; i < wk.Rooms(); i++) {
+                const WreckRoom& r = wk.rooms[i];
+                Rectangle rr{ox + r.x * cw + 2, oy + r.y * ch + 2, r.w * cw - 4, ch - 4};
+                float lit = std::clamp(1.0f - Vector2Distance(me2, {rr.x + rr.width / 2, rr.y + rr.height / 2}) / (cw * 2.2f), 0.08f, 1.0f);
+                DrawRectangleRec(rr, Fade(Color{46, 40, 32, 255}, lit));
+                DrawRectangleLinesEx(rr, 2, Fade(r.locked ? Color{170, 120, 60, 255} : Color{90, 80, 64, 255}, lit));
+                DrawRectangle((int)rr.x, (int)(rr.y + rr.height - 5), (int)rr.width, 5, Fade(Color{70, 66, 54, 255}, lit));   // silt on the floor
+                if (r.air) DrawCircleV({rr.x + rr.width - 10, rr.y + 10}, 5, Fade(Color{170, 210, 230, 255}, 0.4f + 0.4f * lit));
+                bool entry = std::find(wk.entries.begin(), wk.entries.end(), i) != wk.entries.end();
+                if (entry) DrawLineEx({rr.x + rr.width / 2 - 8, rr.y - 2}, {rr.x + rr.width / 2 + 8, rr.y - 2}, 4, Color{120, 170, 200, 255});   // a breach to the sea
+                int n = 0; for (const auto& s : wk.salvage) if (s.room == i && !s.taken) n++;
+                for (int k = 0; k < n && lit > 0.3f; k++) DrawRectangle((int)(rr.x + 8 + k * 9), (int)(rr.y + rr.height - 12), 6, 6, Color{210, 180, 90, 255});
+            }
+            for (const auto& L : wk.links) {
+                const WreckRoom& a = wk.rooms[L.a]; const WreckRoom& b = wk.rooms[L.b];
+                Vector2 pa{ox + (a.x + a.w * 0.5f) * cw, oy + (a.y + 0.5f) * ch}, pb{ox + (b.x + b.w * 0.5f) * cw, oy + (b.y + 0.5f) * ch};
+                DrawLineEx(pa, pb, L.kind == 2 ? 1.0f : 2.0f, Fade(L.kind == 1 ? Color{140, 130, 100, 255} : L.kind == 2 ? Color{200, 120, 80, 255} : Color{110, 100, 80, 255}, 0.35f));
+            }
+            DrawCircleV(me2, cw * 0.9f, Fade(Color{255, 230, 170, 255}, 0.06f));   // the helmet lamp
+            DrawCircleV(me2, 7, Color{150, 150, 140, 255}); DrawCircleV({me2.x + 2, me2.y - 1}, 3, Color{230, 220, 160, 255});
+            if (G.dive.carrying) DrawRectangle((int)me2.x + 8, (int)me2.y - 2, 8, 6, Color{210, 180, 90, 255});
+            // the air and the gauge, the depth, what the keys do
+            DrawRectangle(30, 30, 220, 12, Fade(BLACK, 0.6f)); DrawRectangle(30, 30, (int)(220 * G.dive.gauge), 12, G.dive.gauge >= 0.4f ? Color{90, 170, 110, 255} : Color{200, 80, 60, 255});
+            Txt("The pump's gauge (the deck keeps it green)", 30, 46, 13, paper);
+            DrawRectangle(30, 70, 220, 12, Fade(BLACK, 0.6f)); DrawRectangle(30, 70, (int)(220 * G.dive.air / 30), 12, Color{150, 200, 230, 255});
+            Txt(TextFormat("Air in the helmet: %.0f s   Depth %.0f m", G.dive.air, G.dive.depth), 30, 86, 13, paper);
+            TxtBold(TextFormat("%s, %.0f m%s", WreckTypeName(wk.type), wk.depth, here ? TextFormat(": the %s%s", here->kind.c_str(), here->locked ? " (locked)" : "") : ": going down the line"), 30, SCREEN_H - 120.0f, 16, paper);
+            DrawTextCentered(G.dive.recall ? "Hauling you up..." : G.dive.carrying ? "Space + direction: to the next room   E at a breach: into the basket   R: two tugs (haul me up)"
+                                                                                  : "Space + direction: to the next room   E: lift salvage   R: two tugs (haul me up)", SCREEN_W / 2.0f, SCREEN_H - 60.0f, 15, paper);
+            return;
+        }
+        DrawTextCentered(TextFormat("Diver down %.0f m: gauge %s, %.0f s of air in the helmet%s", G.dive.depth, G.dive.gauge >= 0.4f ? "green" : "LOW - PUMP", G.dive.air, G.dive.recall ? " (hauling up)" : ""),
+                         SCREEN_W / 2.0f, 130.0f, 15, G.dive.gauge >= 0.4f ? Color{170, 220, 180, 255} : Color{240, 140, 110, 255});
+    }
     // the Weeds: a hand in a Kelp Wraith's grip (a countdown over them: 8 s to the rail), and you in it
     for (size_t k = 0; k < G.crew.size(); k++) {
         const Crew& c = G.crew[k];
@@ -1575,6 +1620,27 @@ void DebugTrawlShot(Game& g, int which) {
         Gannet::DrownedSailor d; d.p = {-6.5f, -1.8f}; G.drowned.push_back(d);
         G.crew[1].station = -1; G.crew[1].deck = 0; G.crew[1].p = {-5.0f, -1.2f};
         if (fp) { G.crew[0].station = -1; G.crew[0].p = {-1.5f, 1.2f}; S.eye.yaw = PI - 0.4f; S.eye.pitch = -0.1f; }
+        return;
+    }
+    if (which == 35) {
+        // diving: down on a Weeds wreck in the hardhat, a hand at the air pump
+        StartTrawl(g, fp, 2, 1);
+        S.shot = true;
+        Gannet& G = S.W->G; Session& ss = S.W->sess;
+        G.crew[0].p = {3.0f, 0.8f}; G.crew[1].p = {-2.0f, 1.0f};
+        ss.SetGround("weeds");
+        ss.Buy("shrimp"); while (G.boat.bunker < 70 && ss.Buy("coal")) {}
+        ss.CastOff();
+        G.hardhat = true; G.botsOn = false; for (auto& c : G.crew) c.bot = false;
+        if (G.wrecks && !G.wrecks->empty()) {
+            const Wreck& wk = (*G.wrecks)[0];
+            G.boat.pos = {wk.x + 4, wk.y}; G.boat.vel = {0, 0}; G.boat.telegraph = 0;
+            int pump = -1; for (int i = 0; i < (int)Stations().size(); i++) if (Stations()[i].kind == StationKind::AirPump) pump = i;
+            G.crew[1].p = Stations()[pump].at; G.crew[1].station = pump;
+            G.crew[0].p = {-10.5f, 0}; G.crew[0].station = -1;
+            G.StartDive(0);
+            G.dive.depth = wk.depth; G.dive.room = wk.entries.empty() ? 0 : wk.entries[0]; G.dive.gauge = 0.7f;
+        }
         return;
     }
     if (which == 34) {
