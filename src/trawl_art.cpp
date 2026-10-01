@@ -422,6 +422,11 @@ void DrawQuay(const Gannet& g, const View& v) {
                 PxC(v, {p.x, p.y + 0.1f}, 1.2f, 0.6f, Dim(Color{180, 150, 70, 255}, L));     // the brass scales
                 PxC(v, {p.x - 1.2f, p.y + 0.1f}, 0.9f, 0.6f, Dim(Color{170, 190, 200, 255}, L));   // a crate of ice
                 break;
+            case DockKind::Gunsmith:
+                PxC(v, {p.x, p.y - 0.9f}, 2.6f, 1.5f, Dim(Color{60, 56, 52, 255}, L));       // the gun shop, iron-shuttered
+                PxC(v, {p.x, p.y + 0.1f}, 2.2f, 0.45f, Dim(Color{110, 80, 52, 255}, L));     // the counter
+                for (int k = 0; k < 3; k++) PxC(v, {p.x - 0.7f + k * 0.7f, p.y - 1.1f}, 0.12f, 0.9f, Dim(Color{150, 150, 156, 255}, L));   // long guns on the rack
+                break;
             case DockKind::Scales:
                 PxC(v, {p.x, p.y - 0.9f}, 2.4f, 1.4f, Dim(Color{70, 62, 74, 255}, L));       // the Owners' weighhouse
                 PxC(v, {p.x, p.y + 0.1f}, 1.6f, 0.7f, Dim(Color{200, 170, 80, 255}, L));     // the great brass beam scales
@@ -589,7 +594,7 @@ void DrawCrewMember(const Crew& c, const View& v, float t, bool you) {
     // what's in hand, held out along the facing: a gaff or priest swings down and across on a use (Crew::cool), a
     // gun kicks back on a shot and dips while reloading, a flare pistol's barrel is short and fat
     if (c.station < 0) {
-        Item it = c.slots[c.sel].it;
+        Item it = DrawItemOf(c.slots[c.sel]);   // (a catalogue weapon is drawn as its nearest kind)
         float sw = 0;                                   // the swing: 0..1 through the arc
         if ((it == Item::Gaff || it == Item::Priest || it == Item::Knife) && c.cool > 0) sw = 1 - c.cool / (it == Item::Gaff ? 0.5f : 0.4f);
         bool gun = it == Item::Rifle || it == Item::Shotgun || it == Item::Speargun || it == Item::Flare;

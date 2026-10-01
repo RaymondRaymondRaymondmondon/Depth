@@ -239,7 +239,7 @@ bool Session::GunBuy(int ci, const std::string& id, std::string* why) {
     int wi = WeaponIndex(id);
     if (wi < 0) return no("not in the catalogue");
     const WeaponDef& w = Weapons()[wi];
-    bool here = w.where == "gunsmith" || (w.where == "gunsmith3" && deadline >= 3);
+    bool here = (w.where == "gunsmith" || (w.where == "gunsmith3" && deadline >= 3)) && w.cls != WC_THROWN;   // (thrown weapons wait for throwing: the depth charge stays at the Chandler)
     if (!here) return no(w.where == "gunsmith3" ? "the Gunsmith gets those in from the third deadline" : "not sold at the Gunsmith");
     if (ci < 0 || ci >= (int)G->crew.size()) return no("no such hand");
     if (money < w.price) return no("not enough money");

@@ -7,6 +7,7 @@
 #include "trawl_session.h"
 #include "trawl_view3d.h"
 #include "trawl_net.h"
+#include "trawl_weapons.h"
 #include "sound.h"
 #include "arcade_session.h"
 #include "net.h"
@@ -530,11 +531,11 @@ void StationOverlay() {
         case StationKind::Locker: {
             float x0 = SCREEN_W / 2.0f - 300, y0 = 130;
             DrawRectangle((int)x0 - 14, (int)y0 - 14, 628, 340, Color{40, 32, 24, 235});
-            TxtBold(TextFormat("The deck locker: click an item to swap it with your slot %d (%s)", c.sel + 1, ItemOf(c.slots[c.sel].it).name), x0, y0, 16, paper);
+            TxtBold(TextFormat("The deck locker: click an item to swap it with your slot %d (%s)", c.sel + 1, SlotName(c.slots[c.sel])), x0, y0, 16, paper);
             auto& G2 = S.W->G;
             for (int i = 0; i < (int)G2.locker.size() && i < 12; i++) {
                 const Slot& sl = G2.locker[i];
-                if (Button({x0 + (i % 2) * 300, y0 + 34 + (i / 2) * 42.0f, 290, 36}, sl.ammo > 0 && sl.it != Item::Ring ? TextFormat("%s (%d)", ItemOf(sl.it).name, sl.ammo) : ItemOf(sl.it).name, true, 15)) {
+                if (Button({x0 + (i % 2) * 300, y0 + 34 + (i / 2) * 42.0f, 290, 36}, sl.ammo > 0 && sl.it != Item::Ring ? TextFormat("%s (%d)", SlotName(sl), sl.ammo) : SlotName(sl), true, 15)) {
                     Command(CMD_LOCKER_TAKE, "", i);
                     break;
                 }
@@ -660,6 +661,62 @@ void Panels(Game& g) {
             Txt("(Wrecks and diving come aboard in a later stage. Salvage pays 40% after night one,", r.x + 40, r.y + 120, 14, dim);
             Txt("70% after night two, 100% at the deadline count.)", r.x + 40, r.y + 140, 14, dim);
             break;
+        case (int)DockKind::Gunsmith: {
+            // the Gunsmith (design doc v2, "Weapons"): guns and blades for sale; the gun in the selected slot's three
+            // damage upgrades and up to three attachments; ammunition into the ship's magazine stock (restock at the locker)
+            PanelFrame("The Gunsmith", 1180, 620, &r);
+            const Crew& me = G.crew[S.you];
+            float x = r.x + 24, y = r.y + 54;
+            TxtBold(TextFormat("Purse %.0f", ss.money), x, y, 16, ink);
+            // ---- for sale
+            TxtBold("For sale", x, y + 26, 16, ink);
+            int row = 0;
+            for (int i = 0; i < (int)Weapons().size(); i++) {
+                const WeaponDef& w = Weapons()[i];
+                bool here = (w.where == "gunsmith" || (w.where == "gunsmith3" && ss.deadline >= 3)) && w.cls != WC_THROWN;   // (thrown weapons wait for throwing)
+                if (!here) continue;
+                float yy = y + 50 + row * 24.0f; row++;
+                Txt(w.name.c_str(), x, yy + 3, 13, ink);
+                Txt(w.Gun() ? TextFormat("%.0f%s, %d", w.dmg, w.pellets > 1 ? TextFormat("x%d", w.pellets) : "", w.mag) : TextFormat("%.0f", w.dmg), x + 160, yy + 3, 13, dim);
+                if (Button({x + 250, yy, 92, 22}, TextFormat("%d sh", w.price), ss.money >= w.price, 12)) Command(CMD_GUN_BUY, w.id, 0, std::string("Bought: ") + w.name);
+            }
+            // ---- the gun in hand
+            float mx = r.x + 400;
+            const Slot& sl = me.slots[me.sel];
+            TxtBold(TextFormat("In hand (slot %d): %s", me.sel + 1, SlotName(sl)), mx, y + 26, 16, ink);
+            if (sl.it == Item::Weapon && sl.wpn >= 0) {
+                const WeaponDef& w = Weapons()[sl.wpn];
+                Txt(TextFormat("Damage %.1f   Magazine %d (%d loaded, %d spare)   Noise %.0f", WeaponDamage(w, sl.lvl, sl.att), WeaponMagazine(w, sl.att), sl.ammo, sl.spare, WeaponNoise(w, sl.att)), mx, y + 50, 13, dim);
+                Txt(w.special.c_str(), mx, y + 68, 12, dim);
+                int up = UpgradePrice(w, sl.lvl);
+                Txt(TextFormat("Damage upgrades: %d of 3", sl.lvl), mx, y + 94, 14, ink);
+                if (up > 0 && Button({mx + 220, y + 90, 150, 24}, TextFormat("+15%% for %d", up), ss.money >= up, 12)) Command(CMD_GUN_UPGRADE, "", me.sel, "Upgraded");
+                TxtBold("Attachments (up to three)", mx, y + 126, 14, ink);
+                int ar = 0;
+                for (int a = 0; a < (int)Attachments().size(); a++) {
+                    const AttachmentDef& at = Attachments()[a];
+                    if (at.where != "gunsmith" || !AttachmentFits(at, w)) continue;
+                    float yy = y + 150 + ar * 26.0f; ar++;
+                    bool fitted = HasAttachment(sl.att, at.id.c_str());
+                    Txt(at.name.c_str(), mx, yy + 3, 13, ink);
+                    Txt(at.effect.c_str(), mx + 140, yy + 3, 11, dim);
+                    if (Button({mx + 460, yy, 80, 22}, fitted ? "Fitted" : TextFormat("%d sh", at.price), !fitted && ss.money >= at.price, 12)) Command(CMD_GUN_ATTACH, at.id, me.sel, std::string("Fitted: ") + at.name);
+                }
+            } else Txt("Pick a gun's slot (1-4) to upgrade it here.", mx, y + 50, 13, dim);
+            // ---- ammunition
+            float ax = r.x + r.width - 230;
+            TxtBold("Ammunition (to the locker)", ax, y + 26, 15, ink);
+            static const char* K[] = {"rounds", "shells", "spears", "flares", "pellets", "rivets"};
+            for (int k = 0; k < 6; k++) {
+                int* stock = G.AmmoStock(K[k]);
+                int per = 0; for (const auto& w : Weapons()) if (w.ammo == K[k] && w.ammoPrice > 0) { per = w.ammoPrice; break; }
+                float yy = y + 52 + k * 30.0f;
+                Txt(TextFormat("%s: %d", K[k], stock ? *stock : 0), ax, yy + 4, 14, ink);
+                if (per > 0 && Button({ax + 110, yy, 100, 24}, TextFormat("%d for %d", AmmoPack(K[k]), per * AmmoPack(K[k])), ss.money >= per * AmmoPack(K[k]), 12)) Command(CMD_AMMO, K[k], 0, "Into the locker");
+            }
+            Txt("A hand carries the loaded magazine and one spare reload; restock at the deck locker. Wet powder misfires in rain.", r.x + 24, r.y + r.height - 26, 12, dim);
+            break;
+        }
         case (int)DockKind::Slipway: {
             PanelFrame("The Slipway", 760, 500, &r);
             float x = r.x + 30, y = r.y + 60;
@@ -755,7 +812,7 @@ void Hud(Game& g) {
         Rectangle r{20.0f + k * 104, SCREEN_H - 196.0f, 98, 40};
         DrawRectangleRec(r, Fade(Color{20, 16, 12, 255}, 0.7f));
         DrawRectangleLinesEx(r, k == c.sel ? 2 : 1, k == c.sel ? Color{230, 200, 130, 255} : Fade(paper, 0.3f));
-        Txt(TextFormat("%d %s", k + 1, sl.it == Item::None ? "" : ItemOf(sl.it).name), r.x + 6, r.y + 5, 13, Fade(paper, sl.it == Item::None ? 0.4f : 0.9f));
+        Txt(TextFormat("%d %s", k + 1, sl.it == Item::None ? "" : SlotName(sl)), r.x + 6, r.y + 5, 13, Fade(paper, sl.it == Item::None ? 0.4f : 0.9f));
         if (sl.it == Item::Rifle || sl.it == Item::Shotgun || sl.it == Item::Speargun || sl.it == Item::Flare || sl.it == Item::Charge || sl.it == Item::Bandage)
             Txt(TextFormat("x%d", sl.ammo), r.x + 6, r.y + 22, 12, Fade(paper, 0.7f));
         if (sl.it == Item::Ring && sl.ammo == 0) Txt("out: hold to haul", r.x + 6, r.y + 22, 11, Fade(paper, 0.7f));
@@ -1363,6 +1420,12 @@ void DebugTrawlShot(Game& g, int which) {
         Crew& c = G.crew[0];
         if (which == 9 || which == 10 || which == 11) c.p = which == 11 ? Vector2{3.0f, -7.2f} : which == 10 ? Vector2{-3.5f, -7.2f} : Vector2{-6, -5.5f};
         if (which == 10) S.panel = (int)DockKind::Chandler;
+        if (which == 26) {   // the Gunsmith, with a revolver in hand (one upgrade, a sight) and money to spend
+            c.p = {-7.6f, -7.2f}; ss.money = 900;
+            c.slots[3] = Slot{}; ss.GunBuy(0, "revolver"); ss.GunUpgrade(0, 3); ss.GunAttach(0, 3, "sight");
+            c.sel = 3; G.ammoRounds = 24;
+            S.panel = (int)DockKind::Gunsmith;
+        }
         if (which == 11 || which == 25) {   // (25: the Owners' quota scales, one fish too far gone to be taken)
             if (which == 25) c.p = {4.6f, -7.2f};
             const char* names[] = {"snapper", "grunt", "reef squid", "bonito", "snapper (head)"};

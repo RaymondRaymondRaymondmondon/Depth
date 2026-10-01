@@ -209,6 +209,7 @@ static void TakeShots(const Game& base, const std::string& dir) {
         {"trawl_chandler", [](Game& g) { DebugTrawlShot(g, 10); }},
         {"trawl_market", [](Game& g) { DebugTrawlShot(g, 11); }},
         {"trawl_scales", [](Game& g) { DebugTrawlShot(g, 25); }},
+        {"trawl_gunsmith", [](Game& g) { DebugTrawlShot(g, 26); }},
         {"trawl_chart", [](Game& g) { DebugTrawlShot(g, 12); }},
         {"trawl_clock", [](Game& g) { DebugTrawlShot(g, 13); }},
         {"trawl_quota", [](Game& g) { DebugTrawlShot(g, 14); }},

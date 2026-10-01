@@ -225,6 +225,7 @@ const ItemDef& ItemOf(Item i);
 // is the ship's (Gannet::ammo), restocked at the locker
 struct Slot { Item it = Item::None; int ammo = 0; int wpn = -1, lvl = 0, spare = 0; int8_t att[3] = {-1, -1, -1}; };
 const char* SlotName(const Slot& s);                      // the item's name, or the catalogue weapon's
+Item DrawItemOf(const Slot& s);                           // what the screens draw in hand: a catalogue weapon as its nearest kind (blade, gaff, rifle, shotgun, speargun, flare pistol)
 enum Injury { INJ_HOOKED_HAND = 1, INJ_BROKEN_ARM = 2, INJ_BURN = 4, INJ_BITE = 8 };
 const char* InjuryName(int bit);
 

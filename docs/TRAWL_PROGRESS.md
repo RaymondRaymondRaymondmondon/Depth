@@ -505,3 +505,29 @@ bubble puff); Red Tide's gun models rebuilt with a dozen parts each.
   - Fixed a latent bug: a fallen bot never got up (it skipped `Move`, where a hand rises). A thrashing fish or a wet-deck fall left a bot down for the rest of the night.
 - **Tests:** `--trawl-gear-test` covers the HP table, two priest blows on a 4 kg snapper (x1.50), a one-hit long headshot, an airborne club, an overkill, the value multiplier, blood draining, a barracuda biting, an octopus dragging a hand overboard, and the Lagoon's behaviours.
 - **Sim:** `--trawl-sim lagoon 3 6 careful 3`: 3 of 3 deadlines, 272 a night, 0 deaths. `DEPTH_NODECKACT=1` turns the behaviours off for diagnosis. The sim's trace prints the winch hand's state every 20 s.
+
+## Step 3: weapons and the Gunsmith (2026-10-01)
+- **The catalogue is data:** `data/trawl/weapons.tsv` (41 weapons from the doc's pages 29-31) and `data/trawl/attachments.tsv` (18), loaded by `trawl_weapons.cpp`.
+- **In a slot:** a catalogue weapon is `Item::Weapon` (`Slot::wpn`, `lvl`, `att[3]`, `ammo`, `spare`). The older items keep their behaviour.
+  - Melee weapons hit deck fish with their damage and reach. The coral club's headshots do 1.5x.
+  - Guns fire their projectiles with damage x1.15 per upgrade. Rapid guns fire while held. The nitro express's recoil pushes the shooter back; the punt gun knocks them down.
+  - **Wet powder:** cartridge guns misfire 10% in rain, 25% in a squall, 40% in a storm, unless they have an oilskin breech.
+  - A shot aimed at the deck flies at deck height, so a fish on the planks can be shot. Before, the shot aimed at the sea beneath and passed under it.
+- **Carrying and ammunition:** a hand holds the loaded magazine plus one spare reload (R loads it). The spare refills from the ship's magazine stock (`Gannet::ammo*`) while the hand stands at the deck locker. The fo'c'sle magazine locker comes with below decks.
+- **The Gunsmith** (`DockKind::Gunsmith` on the quay, -7.6, -8.2):
+  - It sells its own rows; the nitro express from deadline 3.
+  - A hand carries one long weapon at most.
+  - Three damage upgrades per gun (60/150/300, doubled for the carbine, chatter gun and long rifle).
+  - Its own attachments, fitted by the doc's table.
+  - Ammunition packs into the locker.
+  - Thrown weapons stay off sale until throwing exists.
+  - Commands: `CMD_GUN_BUY/UPGRADE/ATTACH/AMMO`. Everything is in the snapshot.
+- **Drawing:** held catalogue weapons are drawn as their nearest kind (`DrawItemOf`). The HUD names them (`SlotName`).
+- **Tests** (`--trawl-gear-test`): the catalogue loads; buying; the third-deadline rule; the one-long-weapon rule; upgrade price and damage; attachment fit rules; a revolver killing a deck fish; reloads from the spare and restocking at the locker; ammo packs; a 25% squall misfire rate.
+- Shot: `trawl_gunsmith`.
+- **Not yet:**
+  - Trader-only weapons (they come with the landings).
+  - Throwing; the bayonet's melee.
+  - The lodestone and bone-stock effects.
+  - Misfires after a swim.
+  - Two-slot weapons blocking a second slot.

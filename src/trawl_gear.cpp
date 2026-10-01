@@ -108,9 +108,11 @@ void Gannet::UseItem(int ci, Vector2 aimDeck, bool pressed, bool held, bool sigh
     Slot& s = c.slots[c.sel];
     Vector2 aimW = boat.ToWorld(aimDeck), from = boat.ToWorld(c.p);
     Vector3 muzzle{from.x, from.y, -RAIL_H};
+    // aimed at something on the deck (a fish), the shot goes at deck height, not at the sea under it
+    bool aimOnDeck = fabsf(aimDeck.y) < 2.8f && aimDeck.x > -11.0f && aimDeck.x < 10.0f;
     auto fire = [&](Shot k, float speed, float spreadDeg, int n) {
         for (int i = 0; i < n; i++) {
-            Vector3 to{aimW.x, aimW.y, 0};
+            Vector3 to{aimW.x, aimW.y, aimOnDeck ? -RAIL_H + 0.7f : 0.0f};
             Vector3 d = Vector3Normalize(Vector3Subtract(to, muzzle));
             float a = (RandF(gRng) - 0.5f) * 2 * spreadDeg * DEG2RAD, e = (RandF(gRng) - 0.5f) * spreadDeg * DEG2RAD;
             Vector2 hd = Vector2Rotate({d.x, d.y}, a);
@@ -234,7 +236,9 @@ void Gannet::UseItem(int ci, Vector2 aimDeck, bool pressed, bool held, bool sigh
             float misfire = 0;
             if (cartridge && !HasAttachment(s.att, "oilskin") && w.id != "captainpistol")
                 misfire = sea.weather == Weather::Rain ? 0.10f : sea.weather == Weather::Squall ? 0.25f : sea.weather == Weather::Storm ? 0.40f : 0;
-            if (RandF(gRng) < misfire) { Say(TextFormat("Misfire: the %s's powder is wet", w.name.c_str())); break; }
+            static uint32_t wet = 0x9E3779B9u;   // (its own generator: the spread's draws from gRng follow this one)
+            wet ^= wet << 13; wet ^= wet >> 17; wet ^= wet << 5;
+            if ((wet >> 8) * (1.0f / 16777216.0f) < misfire) { Say(TextFormat("Misfire: the %s's powder is wet", w.name.c_str())); break; }
             size_t before = shots.size();
             Shot k = w.ammo == "spears" ? Shot::Spear : w.pellets > 1 ? Shot::Pellet : Shot::Bullet;
             fire(k, k == Shot::Spear ? 40.0f : 300.0f, WeaponSpread(w, s.att) * (sight ? 0.3f : 1.0f), w.pellets);
@@ -250,6 +254,15 @@ void Gannet::UseItem(int ci, Vector2 aimDeck, bool pressed, bool held, bool sigh
         }
         default: break;
     }
+}
+Item DrawItemOf(const Slot& s) {
+    if (s.it != Item::Weapon || s.wpn < 0 || s.wpn >= (int)Weapons().size()) return s.it;
+    const WeaponDef& w = Weapons()[s.wpn];
+    if (w.cls == WC_MELEE) return WeaponReach(w) >= 2 ? Item::Gaff : w.dmg >= 18 ? Item::Priest : Item::Knife;
+    if (w.ammo == "spears" || w.ammo == "arrows") return Item::Speargun;
+    if (w.ammo == "flares") return Item::Flare;
+    if (w.ammo == "shells" || w.pellets > 1) return Item::Shotgun;
+    return Item::Rifle;
 }
 const char* SlotName(const Slot& s) {
     if (s.it == Item::Weapon && s.wpn >= 0 && s.wpn < (int)Weapons().size()) return Weapons()[s.wpn].name.c_str();
@@ -1249,6 +1262,65 @@ int RunTrawlGearTest() {
             check(fabsf(sv.Value(sold) / sv.Value(plain) - big) < 0.01f, "the Killscore multiplies what the fish sells for");
             float b0 = k.deckBlood; run(k, 10);
             check(b0 > 1 && k.deckBlood < b0 * 0.2f, TextFormat("blood on the deck (%.1f) runs out through the scuppers at 20%% a second", b0));
+        }
+        {   // step 3: the Gunsmith's catalogue, buying, the one-long-weapon rule, a revolver on a deck fish, upgrades,
+            // attachments, the spare reload and the locker, wet powder
+            check(Weapons().size() == 41 && Attachments().size() == 18, TextFormat("the catalogue loads: %d weapons, %d attachments", (int)Weapons().size(), (int)Attachments().size()));
+            Gannet gs; Eco es; Session ss; ss.Begin(gs, es, 1, 40); ss.money = 5000;
+            gs.crew[0].slots[2] = Slot{}; gs.crew[0].slots[3] = Slot{};   // (the starting kit fills all four: make room)
+            std::string why;
+            bool rev = ss.GunBuy(0, "revolver", &why);
+            int rs = -1; for (int k = 0; k < 4; k++) if (gs.crew[0].slots[k].it == Item::Weapon) rs = k;
+            check(rev && rs >= 0 && gs.crew[0].slots[rs].ammo == 6 && std::string(SlotName(gs.crew[0].slots[rs])) == "Service revolver", "a service revolver bought at the Gunsmith goes into a free slot, loaded with six");
+            bool nitro = !ss.GunBuy(0, "nitro", &why);
+            check(nitro, TextFormat("the Nitro express waits for the third deadline (%s)", why.c_str()));
+            ss.GunBuy(0, "shotgun"); bool second = !ss.GunBuy(0, "carbine", &why);
+            check(second, TextFormat("a hand carries one long weapon at most (%s)", why.c_str()));
+            const WeaponDef& R = Weapons()[gs.crew[0].slots[rs].wpn];
+            float d0 = WeaponDamage(R, 0, gs.crew[0].slots[rs].att);
+            check(ss.GunUpgrade(0, rs) && fabsf(WeaponDamage(R, gs.crew[0].slots[rs].lvl, gs.crew[0].slots[rs].att) - d0 * 1.15f) < 0.01f && UpgradePrice(Weapons()[WeaponIndex("rifle")], 0) == 120, "a damage upgrade adds 15% (60 sh; doubled for the long rifle)");
+            bool sight = ss.GunAttach(0, rs, "sight"), choke = !ss.GunAttach(0, rs, "choke", &why), drum = !AttachmentFits(Attachments()[AttachmentIndex("drum")], R);
+            check(sight && choke && drum && HasAttachment(gs.crew[0].slots[rs].att, "sight"), "attachments fit by the table: a sight on the revolver, but no choke, and the drum only on the chatter gun");
+            // out at sea: the revolver into a live fish on the deck
+            gs.moored = false;
+            CatchRec f; f.name = "snapper"; f.kg = 4; f.price = 3; f.deckAt = {-2, 1.2f};
+            gs.hold = {f}; gs.crew[0].p = {-2, -0.6f}; gs.crew[0].sel = rs; gs.crew[0].station = -1;
+            run(gs, dt);
+            for (int sh = 0; sh < 6 && !gs.hold.empty() && !gs.hold[0].dead; sh++) {
+                size_t n0 = gs.shots.size();
+                gs.crew[0].cool = 0;   // (the gun's cool-down only runs inside UseItem, which a frame calls every step)
+                gs.UseItem(0, {-2, 1.2f}, true, true, false, dt);
+                if (getenv("DEPTH_TRACE") && gs.shots.size() > n0) { const Projectile& p = gs.shots.back(); printf("    shot from (%.1f,%.1f,%.1f) v (%.0f,%.0f,%.0f) fish at deck (%.1f,%.1f) hp %.0f\n", p.p.x, p.p.y, p.p.z, p.v.x, p.v.y, p.v.z, gs.hold[0].deckAt.x, gs.hold[0].deckAt.y, gs.hold[0].hp); }
+                run(gs, 0.6f);
+            }
+            check(!gs.hold.empty() && gs.hold[0].dead, TextFormat("revolver rounds aimed at a fish on the deck kill it (Killscore x%.2f: %s)", gs.hold.empty() ? 0 : gs.hold[0].killScore, gs.hold.empty() ? "" : gs.hold[0].killHow.c_str()));
+            // the spare reload and the locker
+            Slot& sl = gs.crew[0].slots[rs];
+            sl.ammo = 0; sl.spare = 0; gs.ammoRounds = 20;
+            gs.Reload(0);
+            bool noSpare = sl.ammo == 0;
+            int lk = -1; for (int i = 0; i < (int)Stations().size(); i++) if (Stations()[i].kind == StationKind::Locker) lk = i;
+            gs.crew[0].station = lk; run(gs, dt); gs.crew[0].station = -1;
+            bool restocked = sl.spare == 6 && gs.ammoRounds == 14;
+            gs.Reload(0);
+            check(noSpare && restocked && sl.ammo == 6 && sl.spare == 0, "with no spare there's no reload; at the locker the spare fills from the ship's stock, and R loads it");
+            bool ammo = ss.AmmoBuy("shells") && gs.ammoShells == 8;
+            check(ammo, "the Gunsmith sells ammunition into the locker by the pack (8 shells)");
+            // wet powder in a squall
+            gs.sea.weather = Weather::Squall; sl.ammo = 1000;
+            int fired = 0; size_t before = gs.shots.size(); int misfires = 0;
+            for (int sh = 0; sh < 400; sh++) {
+                size_t n0 = gs.shots.size(), l0 = gs.log.size();
+                gs.crew[0].cool = 0; gs.crew[0].reloadT = 0;
+                gs.UseItem(0, {6, 12}, true, true, false, dt);
+                if (gs.shots.size() > n0) fired++;
+                for (size_t q = l0; q < gs.log.size(); q++) if (gs.log[q].find("Misfire") != std::string::npos) misfires++;
+                gs.shots.clear();
+            }
+            (void)before;
+            (void)misfires;   // (the log is capped: count what fired instead)
+            float rate = (400 - fired) / 400.0f;
+            check(rate > 0.18f && rate < 0.32f, TextFormat("in a squall a cartridge gun misfires about a quarter of the time (%.0f%%, %d of 400 fired)", rate * 100, fired));
         }
         {   // the deck behaviours: a landed barracuda bites, a reef octopus grabs and drags toward the rail
             Gannet k; Eco ek; setup(k, ek, 1, 31);

@@ -533,7 +533,7 @@ static void DrawHand(const Gannet& g, const Crew& c, float t) {
         put(gArm[r], MatrixMultiply(MatrixMultiply(MatrixRotateZ(a), MatrixRotateX(s * 0.1f)), MatrixTranslate(0, 1.38f, s * 0.27f)), frame);
     }
     // what's in the right hand
-    Item it = c.slots[c.sel].it;
+    Item it = DrawItemOf(c.slots[c.sel]);
     if (!c.dead && c.station < 0 && it != Item::None && gItem[(int)it].meshCount > 0) {
         Matrix hand = MatrixMultiply(MatrixMultiply(MatrixTranslate(0.08f, -0.63f, 0), MatrixRotateZ(-swing * 1.1f)), MatrixTranslate(0, 1.38f, 0.27f));
         rt::DrawStatic(gItem[(int)it], MatrixMultiply(hand, frame), tint);
@@ -766,7 +766,7 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
         }
     }
     // ---- what you hold, at the bottom right of your view (off station, alive, aboard)
-    Item held = me.slots[me.sel].it;
+    Item held = DrawItemOf(me.slots[me.sel]);
     if (gCrewReady && held != Item::None && me.station < 0 && !me.dead && !me.overboard) {
         Vector3 f = Vector3Normalize(Vector3Subtract(cam.target, cam.position));
         Vector3 rgt = Vector3Normalize(Vector3CrossProduct(f, cam.up)), up = Vector3CrossProduct(rgt, f);
