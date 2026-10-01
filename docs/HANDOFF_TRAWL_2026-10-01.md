@@ -304,3 +304,11 @@ wreck's listing, the Reef's wonder-weapon quest, the repair kit, the stage-10 ba
     - The otter fine (80).
     - The landings (Seal Rock, the Cannery Pier).
   - Then the Grotto.
+- `b323fff`: the Weeds' kelp is drawn (top-down mats and barrens; first person tints the sea grid's vertex colours in `UpdateSea`), and the tape names the ground.
+- **Still open for the Weeds:**
+  - Economy tuning toward 65%.
+  - Kelp in nets.
+  - Sirens, Wraiths, mermen.
+  - The otter fine.
+  - Seal Rock and the Cannery Pier.
+  - Ground-specific nightly variants: the Lagoon's are rolled everywhere today (turtles and canoes on the Weeds).
