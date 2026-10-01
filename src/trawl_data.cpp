@@ -47,6 +47,7 @@ const std::vector<StationDef>& Stations() {
         {StationKind::Bell, "Ship's bell", {6.0f, 1.9f}, 0, "Ring it"},
         {StationKind::Printer, "Telegraph printer", {2.4f, 1.2f}, 0, "Tear off and read the Owners' tape"},
         {StationKind::Locker, "Deck locker", {-6.4f, -2.3f}, 0, "Stow and take gear: 1-4 picks a slot"},
+        {StationKind::Davit, "Skiff davit", {-10.5f, 0}, 0, "Hold left mouse to lower the skiff (8 s) or recover it (10 s, alongside, stopped); E beside it boards"},
     };
     return S;
 }

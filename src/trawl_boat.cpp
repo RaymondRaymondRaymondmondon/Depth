@@ -228,12 +228,14 @@ void Gannet::Say(const std::string& s) { log.push_back(s); if (log.size() > 12) 
 void Gannet::Move(int ci, Vector2 wish, bool brace, float dt) {
     Crew& c = crew[ci];
     gMoored = moored;
+    if (c.deck == DECK_SKIFF && !c.overboard) { c.v = {0, 0}; c.braced = true; return; }   // seated in the skiff (the oars move her)
     if (c.overboard) {
         // treading water: a slow swim, screen-relative like the deck (the deck frame turned into the sea's)
         if (c.dead) return;
         float l = Vector2Length(wish);
         if (l > 1) wish = Vector2Scale(wish, 1 / l);
         Vector2 f = boat.Forward(), sd{-f.y, f.x};
+        if (SwimInSkiffFrame(ci)) { f = skiff.Forward(); sd = {-f.y, f.x}; }   // (near the skiff: swim in her frame, the one on screen)
         Vector2 w{f.x * wish.x + sd.x * wish.y, f.y * wish.x + sd.y * wish.y};
         c.swim = Vector2Add(c.swim, Vector2Scale(w, 0.9f * dt));
         return;
@@ -313,6 +315,7 @@ void Gannet::Primary(int ci, bool held, float dt) {
             while (c.strokeT >= D().strokeTime) { c.strokeT -= D().strokeTime; boat.Pump(D().pumpKgPerStroke * (secondPump ? 2 : 1)); }
             break;
         case StationKind::Bell: if (held) Say("The bell"); break;
+        case StationKind::Davit: DavitWork(ci, held, dt); break;
         case StationKind::Gutting: {
             // gut, grade and ice the catch one fish at a time; the guts go over the rail
             if (!held) { gutT = 0; break; }
@@ -366,7 +369,7 @@ void Gannet::Step(float dt) {
     time += dt; sea.t += dt;
     // the hands' weight into the boat
     boat.loads.clear();
-    for (const auto& c : crew) if (!c.overboard) boat.loads.push_back({c.deck == 1 ? Vector2{c.p.x, c.p.y * 0.5f} : c.p, D().crewMass + c.carryKg});
+    for (const auto& c : crew) if (!c.overboard && c.deck <= 1) boat.loads.push_back({c.deck == 1 ? Vector2{c.p.x, c.p.y * 0.5f} : c.p, D().crewMass + c.carryKg});
     int leaks = 0; for (int s = 0; s < SEC_COUNT; s++) if (boat.integrity[s] < D().leakBelow && !boat.patched[s]) leaks++;
     bool wasSunk = boat.sunk; float valve0 = boat.valveT;
     if (botsOn) StepBots(dt);
@@ -376,6 +379,7 @@ void Gannet::Step(float dt) {
     if (eco) EcoTick(*eco, *this, dt);
     boat.Step(dt, sea);
     if (moored) { boat.pos = moorPos; boat.heading = moorHeading; boat.vel = {0, 0}; boat.yawRate = 0; boat.roll *= 0.9f; boat.pitch *= 0.9f; }
+    StepSkiff(dt);
     // the catch spoils: 1% a real minute on deck, 0.2% gutted and iced
     for (auto& h : hold) h.fresh = std::max(0.0f, h.fresh - dt / 60.0f * (h.iced ? 0.002f : 0.01f));
     if (boat.sunk && !wasSunk) Say("The Gannet founders");

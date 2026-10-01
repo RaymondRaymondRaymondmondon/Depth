@@ -156,10 +156,20 @@ void Session::Moor() {
     if (G->net.state != NetState::Stowed && G->net.state != NetState::Lost) { G->net = Trawl{}; }   // (the net comes in with her)
     for (auto& r : G->rings) { r.state = 0; r.holder = -1; r.thrower = -1; }
     for (auto& c : G->crew) for (auto& sl : c.slots) if (sl.it == Item::Ring) sl.ammo = 1;
+    // left behind (design doc v2, "Guiding the skiff"): anyone not aboard her when she crosses the harbour line is lost
+    // for the night (dead, body lost, the Owners' fine); a skiff left out is towed in by the harbour launch for 40
+    for (auto& c : G->crew) if (!c.dead && (c.deck >= DECK_SKIFF || c.overboard) && !shake.on) {
+        c.dead = true; c.bodyLost = true; c.cause = "left behind";
+        G->fines += 25; Tape("HAND LEFT BEHIND AT SEA STOP FINED 25 STOP");
+    }
+    if (G->skiff.state != SkiffState::Stowed) {
+        if (!shake.on) { G->fines += 40; Tape("SKIFF RECOVERED BY HARBOUR LAUNCH STOP 40 STOP"); }
+        G->skiff = Skiff{};
+    }
     // at the dock the dead revive and the injured are seen to; a body lost to the sea costs 8% for a replacement hand
     for (auto& c : G->crew) {
         if (c.dead && c.bodyLost && money > 0 && !shake.on) { float f = money * 0.08f; money -= f; Tape(TextFormat("HAND DECEASED STOP REPLACEMENT CHARGED %.0f SHILLINGS STOP", f)); }
-        if (c.dead || c.overboard) { c.p = {-1.0f, 0.8f}; c.deck = 0; }
+        if (c.dead || c.overboard || c.deck >= DECK_SKIFF) { c.p = {-1.0f, 0.8f}; c.deck = 0; }
         c.dead = false; c.bodyLost = false; c.overboard = false; c.injuries = 0; c.serious = 0; c.drownT = 0; c.station = -1;
     }
     if (G->fines > 0) { money -= G->fines; Tape(TextFormat("FINES DEDUCTED %.0f SHILLINGS STOP", G->fines)); G->fines = 0; }

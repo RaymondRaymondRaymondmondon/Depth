@@ -855,6 +855,7 @@ void EcoTick(Eco& e, Gannet& gn, float dt) {
     Vector2 stern = b.ToWorld({-10.4f, 0});
     e.lamps.push_back({{stern.x, stern.y, -2}, 5, 0.4f});
     for (const auto& fl : gn.flares) e.lamps.push_back({{fl.p.x, fl.p.y, -1}, 18, 1.4f});   // a flare burning on the water
+    if (gn.skiff.Up()) { Vector2 bow = gn.skiff.ToWorld({1.9f, 0}); e.lamps.push_back({{bow.x, bow.y, -1}, D().skiffLantern, 0.8f}); }   // the skiff's bow lantern (6 m)
     // gulls over a deck with fish on it: one under 3 kg every 4 s (design doc, "Threat stats")
     {
         // every deck thief over her (gulls, a pelican, a frigatebird) takes the heaviest dead fish it can lift

@@ -53,6 +53,12 @@ struct TrawlData {
     float railDrag = 0.5f;                                // per second at the worst: a running fish past 45% of the line's rating while she rolls past braceRoll toward it
     float junkPerCast = 0.10f;                            // a cast reeled in on the Lagoon brings up junk (design doc v2: Weeds 12%, Grotto 18%, Atlantis 15%)
     float chumBlood = 40, chumSeconds = 60;              // a chum bucket: 40 blood over 60 s at the rail (design doc, "The Chandler")
+    // the skiff (design doc v2, "The skiff": the boat's table)
+    float skiffRowOne = 1.5f, skiffRowTwo = 2.2f;         // m/s on the oars, one rower and two
+    float skiffIntegrity = 40, skiffCapsize = 25, skiffLoad = 150, skiffLantern = 6;   // one section; degrees of roll; kg of catch; metres of light
+    float skiffLower = 8, skiffRecover = 10;              // s at the davit (recovery: alongside the stern, the Gannet stopped)
+    float skiffStroke = 0.55f, skiffCrab = 0.32f;         // a good stroke's rhythm; a stroke sooner than this after the last "catches a crab"
+    float skiffRight = 4;                                 // s for a swimmer to right a capsized skiff (my call: the doc doesn't say)
 };
 const TrawlData& D();
 
@@ -210,7 +216,7 @@ void BotFight(Fight& f, Skill s, float dt, uint32_t& rng);    // sets drag, reel
 int RunTrawlFight(int argc, char** argv);   // depth.exe --trawl-fight <species|all> [tackle] [N]
 
 // ---------------------------------------------------------------- stations and the crew
-enum class StationKind { Helm, Boiler, Pumps, PortRod, StarRod, SternRodP, SternRodS, NetWinch, Lantern, Sonar, Harpoon, Gutting, AirPump, Bell, Printer, Locker, COUNT };
+enum class StationKind { Helm, Boiler, Pumps, PortRod, StarRod, SternRodP, SternRodS, NetWinch, Lantern, Sonar, Harpoon, Gutting, AirPump, Bell, Printer, Locker, Davit, COUNT };
 struct StationDef { StationKind kind; const char* name; Vector2 at; int deck; const char* does; };   // deck 0 main deck, 1 engine room
 const std::vector<StationDef>& Stations();
 float LanternRadius(int level);                           // 4, 8, 14, 30 m
@@ -244,6 +250,7 @@ struct Crew {
     Vector2 facing{1, 0};
     float z = 0, vz = 0;                                  // a jump (the playtest, 2026-10-01): height over the deck and the climb; a careless leap clears the rail
     float inkT = 0;                                       // blinded by a landed octopus's ink (seconds left)
+    float oarT = 9, rightT = 0;                           // since this hand's last stroke at the oars; righting a capsized skiff
     // the hand's slots, injuries, and life (design doc, "Death, injury, and ghosts")
     Slot slots[4]; int sel = 0;
     float cool = 0, reloadT = 0;
@@ -362,6 +369,31 @@ const float SONAR_RANGE = 150, SONAR_COOL = 3, SONAR_LIFE = 6, SONAR_MARK_LIFE =
 
 struct Eco;                                               // the food web (trawl_eco.h)
 
+// The skiff (design doc v2, "The skiff"; trawl_skiff.cpp): a 4.5 m rowing boat hung on the stern davit. A hand at the
+// davit lowers it (8 s) or recovers it (10 s, alongside the stern with the Gannet stopped). Hands aboard it are on
+// deck DECK_SKIFF, their p in the skiff's own frame (x forward, y to starboard); ashore on a landing they are on
+// DECK_SHORE, their p in the landing's frame. It rows on the two mouse buttons (left the port oar, right the
+// starboard): a good rhythm makes 1.5 m/s with one rower and 2.2 with two; a stroke too soon after the last "catches a
+// crab" and stops her a second; every stroke writes a little noise into the water. One section of 40; past 25 degrees
+// of roll it capsizes and everyone aboard goes in.
+const int DECK_SKIFF = 2, DECK_SHORE = 3;
+enum class SkiffState { Stowed, Lowering, Afloat, Recovering, Capsized, Beached, Lost };
+struct Skiff {
+    SkiffState state = SkiffState::Stowed; float t = 0;   // the davit's progress (lowering / recovering), or the righting
+    Vector2 p{}, vel{}; float heading = 0, yawRate = 0;   // world
+    float roll = 0, rollV = 0;                            // radians
+    float integrity = 40;
+    float crabT = 0;                                      // a caught crab: no way on for a second
+    float noise = 0;                                      // the strokes' splash, decaying (into the water's sound)
+    std::vector<CatchRec> load;                           // catch and salvage aboard (150 kg)
+    int landing = -1;                                     // beached at this landing (-1 none)
+    float LoadKg() const { float k = 0; for (const auto& c : load) k += c.kg; return k; }
+    Vector2 Forward() const { return {cosf(heading), sinf(heading)}; }
+    Vector2 ToWorld(Vector2 l) const { Vector2 f = Forward(); return {p.x + f.x * l.x - f.y * l.y, p.y + f.y * l.x + f.x * l.y}; }
+    Vector2 ToLocal(Vector2 w) const { Vector2 f = Forward(), d{w.x - p.x, w.y - p.y}; return {d.x * f.x + d.y * f.y, -d.x * f.y + d.y * f.x}; }
+    bool Up() const { return state == SkiffState::Afloat || state == SkiffState::Beached; }
+};
+
 // The boat and her crew as one step (the host's 60 Hz tick): the hands' weights into the boat, the boat's roll into
 // the hands.
 struct Gannet {
@@ -450,7 +482,24 @@ struct Gannet {
     int junkBottles = 0, junkKeys = 0, junkCharts = 0;    // junk kept for the landings (the skiff)
     void FindJunk(Vector2 deckAt, const char* how);
     void CastJunk(Vector2 deckAt);                        // an empty cast reeled home: junk on the hook now and then
-    void DropFish(int idx);                             // harried (a frigatebird): only the fish comes down         // the priest, a gaff or a knife (or fists) strike the nearest live fish on the deck; true if one was hit
+    void DropFish(int idx);                               // harried (a frigatebird): only the fish comes down
+    // the skiff (trawl_skiff.cpp)
+    Skiff skiff;
+    Vector2 SkiffBerth() const;                           // where she lies alongside the stern (world)
+    bool SkiffAlongside(float r = 4) const;               // afloat within r m of the berth
+    void DavitWork(int c, bool held, float dt);           // a hand at the davit: lower it, or recover it
+    bool BoardSkiff(int c);                               // E: from the davit (or the water beside it) into the skiff
+    bool LeaveSkiff(int c);                               // E in the skiff: up onto the Gannet's stern, or ashore when beached
+    void Oar(int c, bool port, bool starboard);           // a stroke on either oar (the press)
+    void StepSkiff(float dt);
+    void SkiffCapsize(const std::string& why);
+    void SkiffHit(float dmg, const std::string& why);
+    void SkiffRock(float rad);                            // a shove to her roll (a ram, a thrashing fish, a wave's slap)
+    bool SkiffLand(const CatchRec& r);                    // a fish or salvage into her (false: over 150 kg)
+    int SkiffRowers() const;
+    Vector2 HandWorld(int c) const;                       // where a hand is on the sea, whichever deck it is on
+    bool SwimInSkiffFrame(int c) const;                   // a swimmer nearer the skiff than the Gannet (the screens follow her then)
+    void SkiffSwim(int c, bool held, float dt);           // a swimmer beside a capsized skiff holding left mouse rights her
     bool HitDeckFish(int idx, float dmg, int by, int how, bool head, float range);   // a blow on a deck fish (KillHow); true if it died of it
     float deckBlood = 0;                                  // blood on the planking: drains through the scuppers into the sea at 20% a second
     // the magazine stock (design doc v2, "Carrying and ammunition"): rounds, shells, spears, flares, pellets, rivets kept
@@ -486,7 +535,8 @@ void EcoTick(Eco& e, Gannet& g, float dt);                // what the Gannet put
 bool QuayWalkable(Vector2 p);                             // the quay beside her port side (boat frame) when she's moored
 
 int RunTrawlSim(int argc, char** argv);                   // depth.exe --trawl-sim <ground> <nights> [crew] [pattern] [runs] [skill] (trawl_sim.cpp)
-int RunTrawlGearTest();                                   // depth.exe --trawl-gear-test
+int RunTrawlGearTest();
+int RunTrawlSkiffTest();                                  // depth.exe --trawl-skiff-test                                   // depth.exe --trawl-gear-test
 int RunTrawlBotTest();                                    // depth.exe --trawl-bot-test
 int RunTrawlSailDiag();                                   // depth.exe --trawl-sail-diag (water shipped under way, by weather)
 int RunTrawlBoatTest();                                   // depth.exe --trawl-boat-test

@@ -179,7 +179,7 @@ void Gannet::UseItem(int ci, Vector2 aimDeck, bool pressed, bool held, bool sigh
                 if (L < 2.5f) {
                     if (r->holder >= 0) {
                         Crew& h = crew[r->holder];
-                        h.overboard = false; h.p = c.p; h.p.y = c.p.y < 0 ? -2.5f : 2.5f; h.v = {0, 0}; h.drownT = 0;
+                        h.overboard = false; h.deck = c.deck; h.p = c.p; h.p.y = c.p.y < 0 ? -2.5f : 2.5f; h.v = {0, 0}; h.drownT = 0;
                         Say("Hauled aboard over the rail");
                     }
                     r->state = 0; r->holder = -1; r->thrower = -1; s.ammo = 1;
@@ -736,7 +736,7 @@ void Gannet::Kill(int ci, const std::string& cause, bool lost) {
     if (c.dead) return;
     c.dead = true; c.bodyLost = lost; c.cause = cause; c.station = -1;
     // the dead walk the deck (a ghost): a body lost to the sea still leaves its ghost aboard
-    if (c.overboard) { c.overboard = false; c.p = {-10.2f, 0}; }
+    if (c.overboard) { c.overboard = false; c.deck = 0; c.p = {-10.2f, 0}; }
     for (auto& r : rings) if (r.holder == ci) r.holder = -1;
     Say(TextFormat("A hand is dead: %s%s", cause.c_str(), lost ? " (lost to the sea)" : ""));
 }
@@ -858,7 +858,7 @@ void Gannet::StepGear(float dt) {
             // friendly fire: a round crossing a hand on deck (not its owner) hits them
             if (p.p.z < -0.8f && p.p.z > -2.8f) for (int k = 0; k < (int)crew.size(); k++) {
                 if (k == p.owner || crew[k].dead || crew[k].overboard) continue;
-                if (Vector2Distance(boat.ToWorld(crew[k].p), {p.p.x, p.p.y}) < 0.45f) { Injure(k, INJ_BITE, "a stray shot"); p.life = -1; done = true; break; }
+                if (Vector2Distance(HandWorld(k), {p.p.x, p.p.y}) < 0.45f) { Injure(k, INJ_BITE, "a stray shot"); p.life = -1; done = true; break; }
             }
             // a round into a bird making off with a fish: both come down (on her deck if it's over her, else afloat)
             if (!done && p.kind != Shot::Harpoon) for (int ti = 0; ti < (int)thieves.size(); ti++) {
@@ -1058,14 +1058,14 @@ void Gannet::StepGear(float dt) {
     for (int k = 0; k < (int)crew.size(); k++) {
         Crew& c = crew[k];
         if (c.dead) continue;
-        if (c.Has(INJ_BITE)) { c.bleedT += dt; if (eco && c.bleedT > 1) { c.bleedT = 0; Vector2 w = c.overboard ? c.swim : boat.ToWorld(c.p); eco->AddBlood({w.x, w.y, 1}, 1.5f); } }
+        if (c.Has(INJ_BITE)) { c.bleedT += dt; if (eco && c.bleedT > 1) { c.bleedT = 0; Vector2 w = HandWorld(k); eco->AddBlood({w.x, w.y, 1}, 1.5f); } }
         if (!c.overboard) continue;
         bool onRing = false; for (const auto& r : rings) if (r.holder == k) onRing = true;
         if (!onRing && eco) c.swim = Vector2Add(c.swim, Vector2Scale(eco->g->current, dt * 0.5f));
         c.drownT -= dt * (onRing ? 0.3f : 1.0f);
         if (eco) { eco->AddNoise({c.swim.x, c.swim.y, 0.5f}, 3 * dt); eco->AddVibration({c.swim.x, c.swim.y, 0.5f}, 2 * dt); }
         if (Vector2Distance(c.swim, stern) < 4.5f && boat.shaft > 0.1f) { Kill(k, "the screw", true); continue; }
-        if (Vector2Distance(c.swim, stern) < 2.0f && boat.shaft < 0.05f) { c.overboard = false; c.p = {-10.4f, 0}; c.v = {0, 0}; Say("Up the stern ladder, aboard again"); continue; }
+        if (Vector2Distance(c.swim, stern) < 2.0f && boat.shaft < 0.05f) { c.overboard = false; c.deck = 0; c.p = {-10.4f, 0}; c.v = {0, 0}; Say("Up the stern ladder, aboard again"); continue; }
         if (c.drownT <= 0) Kill(k, "drowned", true);
     }
     // bycatch that's protected: the Owners fine a landed turtle not returned within 60 s

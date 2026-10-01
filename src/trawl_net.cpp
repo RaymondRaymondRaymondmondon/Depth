@@ -54,7 +54,9 @@ void ApplyInput(TrawlWorld& w, int ci, const HandInput& in, float dt) {
     if (on(HI_T_P) && c.station >= 0 && Stations()[c.station].kind == StationKind::Harpoon) g.explosiveLoaded = !g.explosiveLoaded && g.explosives > 0;
     if (on(HI_E_P)) {
         int d = g.moored && c.deck == 0 && c.station < 0 ? NearestDock(c.p, 1.4f) : -1;
-        if (d >= 0) {}   // (the dock's panels are the player's own screen: their buttons come back as commands)
+        if (c.deck == DECK_SKIFF && !c.overboard) g.LeaveSkiff(ci);   // up the stern ladder (or ashore, beached)
+        else if (c.overboard && !c.dead) g.BoardSkiff(ci);            // a swimmer beside her climbs in
+        else if (d >= 0) {}   // (the dock's panels are the player's own screen: their buttons come back as commands)
         else if (c.station < 0 && !c.dead && (g.GaffFloater(ci) || g.HaulSetGear(ci))) {}
         else if (c.station < 0 && !c.dead && g.CrateFish(ci)) {}   // (a dead fish beside you into a catch crate)
         else if (c.station < 0 && !c.dead && !g.moored && g.StartPatch(ci)) {}
@@ -72,8 +74,16 @@ void ApplyInput(TrawlWorld& w, int ci, const HandInput& in, float dt) {
         // in the water you swim; dead, you walk the deck as a ghost (and can only ring the bell)
         g.Move(ci, in.wish, false, dt);
         if (c.dead) g.Primary(ci, lmb, dt);
+        else g.SkiffSwim(ci, lmb, dt);   // (beside a capsized skiff: right her)
         return;
     }
+    if (c.deck == DECK_SKIFF) {
+        // in the skiff: the oars are the mouse buttons (left port, right starboard; both together pull straight)
+        g.Oar(ci, on(HI_LMB_P), on(HI_RMB_P));
+        g.Move(ci, {0, 0}, false, dt);
+        return;
+    }
+    if (c.station < 0 && on(HI_SPACE_P) && g.BoardSkiff(ci)) return;   // Space at the stern by the davit: down into the skiff
     if (c.station >= 0 && Stations()[c.station].kind == StationKind::NetWinch) { g.NetInput(ci, lmb, on(HI_RMB_P), dt); g.Move(ci, {0, 0}, false, dt); return; }
     if (c.station >= 0 && Stations()[c.station].kind == StationKind::Harpoon) { g.HarpoonInput(ci, in.aim, on(HI_LMB_P), lmb, on(HI_RMB_P), dt); g.Move(ci, {0, 0}, false, dt); return; }
     if (c.station >= 0 && Stations()[c.station].kind == StationKind::Sonar) {
@@ -277,7 +287,14 @@ template <class A> void Visit(A& a, TrawlWorld& w) {
         for (Slot& sl : c.slots) VisitSlot(a, sl);
         a.i(c.sel); a.f(c.cool); a.f(c.reloadT); a.i(c.injuries); a.i(c.serious);
         a.b(c.dead); a.b(c.bodyLost); a.v2(c.swim); a.f(c.drownT); a.f(c.bleedT); a.s(c.cause); a.f(c.inkT);
+        a.f(c.oarT); a.f(c.rightT);
     });
+    {   // the skiff
+        Skiff& s = g.skiff;
+        a.e(s.state); a.f(s.t); a.v2(s.p); a.v2(s.vel); a.f(s.heading); a.f(s.yawRate); a.f(s.roll); a.f(s.rollV);
+        a.f(s.integrity); a.f(s.crabT); a.f(s.noise); a.i(s.landing);
+        a.vec(s.load, [&](CatchRec& h) { a.s(h.name); a.f(h.kg); a.f(h.price); a.i(h.sp); a.f(h.grade); a.f(h.fresh); a.b(h.dead); a.b(h.junk); a.f(h.killScore); a.i(h.src); });
+    }
     a.vec(g.brains, [&](Gannet::Brain& br) { a.i(br.order); a.i(br.goal); a.i(br.task); a.i(br.target); a.i(br.follow); a.s(br.bark); a.f(br.barkT); });
     // ---- lines and the catch
     a.vec(g.rods, [&](Rod& r) { VisitRod(a, r); });
