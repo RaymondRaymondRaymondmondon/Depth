@@ -86,9 +86,9 @@ def flat(name, rgb, rough=0.5, metal=0.0):
     return m
 
 
-def setup_mats():
+def setup_mats(names):
     T = tiles.build_all()
-    for k in ("deck", "hull_red", "boot", "bottom", "house", "cream", "iron", "bulk", "chequer"):
+    for k in names:
         MATS[k] = tile_mat(T[k])
     MATS["brass"] = flat("brass", (0.42, 0.31, 0.15), 0.42, 1.0)
     MATS["glass"] = flat("glass", (0.012, 0.016, 0.02), 0.06, 0.0)
@@ -679,7 +679,8 @@ def below():
 
 
 # ---------------------------------------------------------------- finishing: join, UVs, occlusion, export
-def finish(out):
+def finish(out, fname="boat.glb", grime=None):
+    grime = grime or boat_grime
     for o in PARTS:
         C.apply_all(o)
     groups = {}
@@ -737,15 +738,10 @@ def finish(out):
         for i, v in enumerate(me.vertices):
             x, y, z = v.co.x, v.co.z, -v.co.y   # back to the game's frame
             ao = a.data[i].color[0]
-            k = 0.2 + 0.8 * ao
-            if math.hypot(x - 0.6, z - 1.0) < 0.5 and y > DECK + 2.2:      # soot on the funnel's top
-                k *= 1.0 - 0.6 * min(1.0, (y - DECK - 2.2) / 1.2)
-            if abs(y - DECK) < 0.02 and abs(z) > HB(x) - 0.6:              # grime along the waterways
-                k *= 0.7 + 0.3 * min(1.0, (HB(x) - abs(z)) / 0.6)
-            k = max(0.08, min(1.0, k))
+            k = max(0.08, min(1.0, grime(x, y, z, 0.2 + 0.8 * ao)))
             a.data[i].color = (k, k, k, 1.0)
     sc["depth_vcao"] = 1
-    path = os.path.join(out, "boat.glb")
+    path = os.path.join(out, fname)
     C.select_only(joined)
     kw = dict(filepath=path, export_format='GLB', use_selection=True, export_apply=True, export_yup=True,
               export_texcoords=True, export_normals=True, export_tangents=False, export_materials='EXPORT',
@@ -758,12 +754,21 @@ def finish(out):
     print(f"artgen: wrote {path} ({len(joined)} materials, {tris} triangles)")
 
 
+def boat_grime(x, y, z, k):
+    if math.hypot(x - 0.6, z - 1.0) < 0.5 and y > DECK + 2.2:      # soot on the funnel's top
+        k *= 1.0 - 0.6 * min(1.0, (y - DECK - 2.2) / 1.2)
+    if abs(y - DECK) < 0.02 and abs(z) > HB(x) - 0.6:              # grime along the waterways
+        k *= 0.7 + 0.3 * min(1.0, (HB(x) - abs(z)) / 0.6)
+    return k
+
+
 def main():
     out = C.out_dir()
     C.reset()
-    setup_mats()
+    setup_mats(("deck", "hull_red", "boot", "bottom", "house", "cream", "iron", "bulk", "chequer"))
     hull(); deck(); wheelhouse(); helm(); stations(); funnel_mast_gantry(); net_winch(); deck_fittings(); clutter(); below()
     finish(out)
 
 
-main()
+if __name__ == "__main__" and os.path.basename(sys.argv[sys.argv.index("-P") + 1] if "-P" in sys.argv else "") == "boat.py":
+    main()

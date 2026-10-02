@@ -1646,7 +1646,13 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
     if (gMouldOn) rt::DrawStaticGlow(gMould, MatrixIdentity(), WHITE, 0.55f + 0.15f * sinf(t * 0.6f));   // (the mould is the cave's own light)
     Matrix Q = MatrixMultiply(MatrixRotateY(-g.moorHeading), MatrixTranslate(g.moorPos.x, 0, g.moorPos.y));
     if (Vector2Distance(b.pos, g.moorPos) < 120) {
-        rt::DrawStatic(gQuay, Q, WHITE);
+        // (the baked quay from tools/artgen/dock.py; its sheds' lit windows are its WINDOWS list)
+        if (const Model* dm = getenv("DEPTH_OLDBOAT") ? nullptr : rt::LoadAsset("trawl/dock.glb")) {
+            rt::DrawPbr(*dm, Q);
+            static const float SHED[4][2] = {{-7.6f, 1.5f}, {-3.5f, 1.7f}, {8.0f, 1.5f}, {12.5f, 1.4f}};
+            for (const auto& s : SHED)
+                rt::DrawCubeGlow(MatrixMultiply(MatrixMultiply(MatrixScale(0.6f, 0.56f, 0.01f), MatrixTranslate(s[0] + 0.55f * s[1], QUAY_Y + 1.55f, -9.755f)), Q), Color{255, 196, 120, 255}, 1.1f);
+        } else rt::DrawStatic(gQuay, Q, WHITE);
         for (float x : {-9.0f, -1.0f, 7.0f, 13.0f}) Glow(Vector3Transform({x, QUAY_Y + 3.2f, -6.8f}, Q), 0.22f, Color{255, 220, 160, 255}, 2.2f);
     }
     for (int k = 0; k < 16; k++) {
