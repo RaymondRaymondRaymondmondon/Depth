@@ -746,6 +746,7 @@ int main(int argc, char** argv) {
         SetTraceLogLevel(LOG_WARNING);
         return rt::RunRedTideProfileTest();
     }
+    if (argc >= 2 && strcmp(argv[1], "--redtide-mode-test") == 0) { SetTraceLogLevel(LOG_WARNING); return rt::RunRedTideModeTest(); }
     if (argc >= 2 && strcmp(argv[1], "--redtide-match-test") == 0) {
         SetTraceLogLevel(LOG_WARNING);
         return rt::RunRedTideMatchTest();

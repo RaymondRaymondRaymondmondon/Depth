@@ -879,6 +879,11 @@ void DebugTrawlShot(Game& g, int which);   // --shots: 0 the deck, 1 the engine 
 void SceneRedTide(Game& g);   // Red Tide, the Deep Arcade's survival shooter (redtide_game.cpp)
 void StartRedTide(Game& g, const char* map = "ship");
 void StartRedTideNet(Game& g, arcade::Session* net);   // a Deep Arcade match of Red Tide (host or guest)
+void SetRedTideMode(int mode);                         // the modes (design doc "Modes"): the next solo dive's
+int RedTideModeCount();
+const char* RedTideModeName(int mode);
+const char* RedTideModeRules(int mode);
+const char* RedTideModeKey(int mode);                  // a host's option: "<map>:<mode key>"
 void LeaveRedTideMatch(Game& g);                       // back to the arcade (a host takes the table back to the lobby; a guest's diver goes on as a bot)
 void RedTideMenuTick(float dt);                        // (the game menu is open) a networked match keeps talking
 bool RedTideAudioActive();     // a Red Tide match is playing (its own music, not the salon's)

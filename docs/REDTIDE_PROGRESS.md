@@ -559,3 +559,43 @@ Red Tide is the second real-time game on the Deep Arcade's session (`arcade_game
   the effects log, the host), `depth.exe --net-loop redtide [mem]` (a host and three guests on Atlantis: looks, a guest
   swimming, a tide on every screen, a guest leaving; over loopback UDP the 13 KB snapshots arrive in parts). Shot:
   `--shots shots redtide_guest`. The worktree build needs `external/` (a junction to the main checkout's) for GNS.
+
+## Stage 10: the balance pass (2026-10-02, logged; not met)
+
+Fixes that changed every number: `Field::BoxSum` left its centroid unwritten for an empty box (sims weren't
+repeatable; now the same seed always plays the same); `armor_front` is a workbook level (1, 2, 3), now "halve frontal
+damage" as the doc says (it was 90%); the Goliath's linger clock only runs with the power on ("before the power it
+dozes"). Doc rules now in: Faction Hunts in three waves 30 s apart (leader with the third; forces 10/12/14/16, 5/7/9 for
+fewer divers), the calm after a Hunt doubled, Predator Hunt kills 2/3/4. Bots: a wide berth round a sleeping boss, no
+door or station beside it (the Forge only while it digests), out of its room once the power's on, regroup, back off when
+hurt, stand off an awake boss past its Boom, flee out of its room by the far passage, revive only out of its reach, aim
+for open gills. `tools\rt_balance.ps1 -Map <map> -Style <careful|careless> -Seeds N` runs seeds in parallel; the sim
+prints each diver's final loadout; `DEPTH_HITLOG=1` logs every hit on a diver with the boss's distance.
+
+| four bots, 8-12 seeds | Tide reached | Target |
+|---|---|---|
+| careful, Ship | 12.4 (median 13, 8-17) | 25 +/- 3 |
+| careless, Ship | 4.6 | 12 +/- 3 |
+| careful, Atlantis | 7.3 | 20 |
+| careful, Void | 7.3 (runs stall rather than wipe) | 20 |
+| careful, Cave / Reef | 7.4 / 7.5 | (none given) |
+
+What's left: no bot team has killed the Goliath (about 47,000 HP at tide 16; its Lunge one-shots a Juggernaut diver);
+the bots rarely Forge (it sits beside the Goliath) and finish with 30-40k scrip unspent. Next: real boss tactics (bait
+the Inhale, the algae mat, the power-cycle stun, feeding it before the Forge), Locker pulls with spare scrip, and the
+Atlantis Hunt (Legionnaires and Slingers).
+
+## The first four modes (design doc, "Modes")
+`Match::mode` (`RtMode`, kept by Init; `ModeName/ModeRules/ModeKey`). The reel picks one for solo dives, the host in the
+lobby (`gameOpts` is "<map>:<mode>", the guests hear it in the chat); the snapshot carries it.
+- **Blackout**: no lamp, no sun shafts, near-black water, luminous flora dark; H pings the sonar (`Match::Ping`,
+  `DI_PING_P`): every creature within 40 m in front shows as a ring for 2 s (the big and the faction red), the ping is
+  heard (noise 3), 4 s to recharge.
+- **Quiet Water**: `Match::Allowed`: gas guns, spearguns, needlers, the Gatling Needler, melee and the Net Gun only (racks
+  of others won't sell, the Locker and the Wreckers' drops skip them); no limpet charges; the alarm halved and blood
+  decays at half rate (`Ecosystem::alarmMult/decayMult`).
+- **Feeding Frenzy**: blood never decays, kills bleed 3x (`killBloodMult`), a Blood Frenzy drop beside a diver every 25 s,
+  and every tide ends after 60 s.
+- **Apex**: every Hunt tide is a Predator Hunt, the boss wakes from tide 1 and never dozes off, bounties doubled.
+- Check: `depth.exe --redtide-mode-test`; `DEPTH_RTMODE=<key>` for `--redtide-sim` and `--shots`.
+- Later modes (doc): Quota, Aquarium, Salvage Run, the Long Night, Draft, Poachers, Custom.

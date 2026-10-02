@@ -57,6 +57,7 @@ void ApplyDiverInput(Match& m, int di, const DiverInput& in, float dt) {
     if (in.btn & DI_BENCH_P) { int si = m.NearestStation(d.pos, 3.0f); if (si >= 0 && m.level.stations[si].type == StationType::Workbench) m.CycleBench(di); }
     if (in.btn & DI_DRUM_P) m.BeatDrum(di);
     if (in.btn & DI_CHARM_P) m.UseCharm(di);
+    if (in.btn & DI_PING_P) m.Ping(di);
     if (in.btn & DI_USE_P) m.Interact(di, false, dt);
     else if (in.btn & DI_USE) m.Interact(di, true, dt);
     if (in.slot >= 0) m.SwapWeapon(di, in.slot);
@@ -152,7 +153,7 @@ template <class A> void VisitDiver(A& a, DiverState& d) {
     a.i(d.inkBombs); a.i(d.tactical); a.i(d.chumBags); a.i(d.flares); a.b(d.brush); a.i(d.partsMask); a.e(d.build);
     a.f(d.shieldHP); a.f(d.bashCd); a.i(d.benchSel); a.i(d.inkCaps); a.b(d.drumClean);
     a.f(d.circleT); a.f(d.finsT); a.f(d.shellT); a.f(d.ghostT); a.v3(d.circlePos); a.i(d.luckKills); a.b(d.keepBrines); a.b(d.luckyLocker);
-    a.f(d.cutT);
+    a.f(d.cutT); a.f(d.pingT); a.f(d.pingCd);
     a.i(d.kills); a.i(d.headshots); a.i(d.downs); a.i(d.revives);
     a.s(d.suit); a.s(d.helmet); a.s(d.skin); a.s(d.costume);
     a.f(d.hitMarker); a.b(d.hitWeak); a.f(d.hurtT); a.v3(d.hurtFrom);
@@ -278,7 +279,7 @@ void WriteMatch(const Match& mc, Writer& out) {
     Out o{out};
     uint32_t magic = 0x31545452;   // "RTT1"
     o.u(magic);
-    o.s(m.mapKey); int players = m.players; o.i(players); o.u(m.seed);
+    o.s(m.mapKey); int players = m.players; o.i(players); o.u(m.seed); int mode = m.mode; o.i(mode);
     Visit(o, m);
 }
 
@@ -287,9 +288,11 @@ bool ReadMatch(Reader& r, Match& m, int keepLook) {
     uint32_t magic = 0; in.u(magic);
     if (magic != 0x31545452) return false;
     std::string key; int players = 1; uint32_t seed = 0;
-    in.s(key); in.i(players); in.u(seed);
-    if (r.bad || players < 1 || players > 4) return false;
-    if (!m.map || m.mapKey != key || m.seed != seed || m.players != players) {
+    int mode = 0;
+    in.s(key); in.i(players); in.u(seed); in.i(mode);
+    if (r.bad || players < 1 || players > 4 || mode < 0 || mode >= RM_COUNT) return false;
+    if (!m.map || m.mapKey != key || m.seed != seed || m.players != players || m.mode != mode) {
+        m.mode = mode;
         std::string why;
         if (!DataOk(&why)) return false;
         m.Init(key, players, seed, false);
@@ -316,6 +319,7 @@ class RedTideHost : public arcade::GameHost {
 public:
     std::unique_ptr<Match> m = std::make_unique<Match>();
     std::string mapKey = "ship";
+    int mode = RM_STANDARD;
     DiverInput pend[4];
     bool looked[4] = {};
     int players = 1;
@@ -326,12 +330,15 @@ public:
 
     void Configure(const std::string& opts) override {
         static const char* MAPS[] = {"ship", "cave", "reef", "atlantis", "void"};
+        std::string mk = opts.substr(0, opts.find(':'));
+        mode = opts.find(':') == std::string::npos ? RM_STANDARD : ModeFromKey(opts.substr(opts.find(':') + 1));
         mapKey = "ship";
-        for (const char* k : MAPS) if (opts == k) mapKey = k;
+        for (const char* k : MAPS) if (mk == k) mapKey = k;
     }
     void Start(int n, uint32_t seed) override {
         players = std::clamp(n, 1, 4);
         m = std::make_unique<Match>();
+        m->mode = mode;
         m->Init(mapKey, players, seed, false);
         for (int i = 0; i < 4; i++) { pend[i] = DiverInput{}; looked[i] = false; }
         for (int i = 0; i < players && i < (int)m->divers.size(); i++) { pend[i].yaw = m->divers[i].yaw; pend[i].pitch = m->divers[i].pitch; }

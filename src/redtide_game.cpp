@@ -498,8 +498,10 @@ static void ShipDressing() {
 }
 
 // ---------------------------------------------------------------- starting a match
+static int gRtModeSel = 0;   // the mode solo dives use (the arcade reel's picker; DEPTH_RTMODE for --shots)
 static void StartShip(int players, uint32_t seed, const std::string& key = "ship") {
     S.m = std::make_unique<Match>();
+    S.m->mode = getenv("DEPTH_RTMODE") ? ModeFromKey(getenv("DEPTH_RTMODE")) : gRtModeSel;
     S.m->Init(key, players, seed, false);
     S.mode = 1;
     Vector3 lo = M().map->boundsMin, hi = M().map->boundsMax;
@@ -677,6 +679,7 @@ static DiverInput Gather() {
     if (IsKeyPressed(KEY_Z)) in.btn |= DI_BENCH_P;
     if (IsKeyPressed(KEY_F)) in.btn |= DI_DRUM_P;
     if (IsKeyPressed(KEY_T)) in.btn |= DI_CHARM_P;
+    if (IsKeyPressed(KEY_H)) in.btn |= DI_PING_P;
     if (IsKeyPressed(KEY_E)) in.btn |= DI_USE_P;
     if (IsKeyDown(KEY_E)) in.btn |= DI_USE;
     for (int k = 0; k < 3; k++) if (IsKeyPressed(KEY_ONE + k)) in.slot = (int8_t)k;
@@ -986,7 +989,7 @@ static Color FloraColor(const std::string& n) {
     if (n.find("Coralline") != std::string::npos) return {204, 122, 132, 255};
     if (n.find("Dead man") != std::string::npos) return {236, 224, 168, 255};
     if (n.find("Sargassum") != std::string::npos) return {136, 112, 52, 255};
-    if (n.find("Luminous") != std::string::npos) return {126, 226, 176, 255};
+    if (n.find("Luminous") != std::string::npos) return M().mode == RM_BLACKOUT ? Color{30, 40, 34, 255} : Color{126, 226, 176, 255};   // (Blackout: it doesn't glow)
     return {76, 116, 62, 255};
 }
 
@@ -1356,6 +1359,12 @@ static Camera3D MakeCamera(SceneLight& L) {
         if (z >= 0 && M().map->zones[z].air) { L.fogDensity *= 0.5f; L.fog = {20, 22, 22, 255}; }   // dry air: clearer, and black
     }
     WaterLook(L, z, cam);
+    if (M().mode == RM_BLACKOUT) {
+        // Blackout: "lamps off, no luminous flora, sonar pings only": no lamp, no sun shafts, the water nearly black
+        L.lampRange = 0; L.nShafts = 0;
+        L.ambK *= 0.12f; L.moonK *= 0.08f;
+        L.fog = {2, 6, 8, 255}; L.fogDensity = std::max(L.fogDensity, 0.07f);
+    }
     return cam;
 }
 
@@ -1974,6 +1983,30 @@ static void DrawHud() {
     DiverState& d = Me();
     float cx = SCREEN_W / 2.0f, cy = SCREEN_H / 2.0f;
     Color paper{235, 230, 210, 255}, brass{214, 168, 72, 255}, blood{190, 40, 30, 255};
+    if (m.mode != RM_STANDARD) TxtBold(ModeName(m.mode), SCREEN_W - 200.0f, 74, 15, Fade(brass, 0.85f));   // (the mode, under the scrip counter)
+    if (m.mode == RM_BLACKOUT && S.lineup < 0) {
+        // the sonar ping's echo: a ring over everything alive within 40 m in front of you, fading over its 2 s (the big
+        // ones in red), and a ring sweeping out from the middle of the view
+        if (d.pingT > 0) {
+            float k = std::clamp(d.pingT / 2.0f, 0.0f, 1.0f);
+            Camera3D cam{}; cam.position = m.Eye(d); cam.target = Vector3Add(cam.position, m.Forward(d)); cam.up = {0, 1, 0}; cam.fovy = d.ads ? 55.0f : 72.0f; cam.projection = CAMERA_PERSPECTIVE;
+            Vector3 f = m.Forward(d);
+            for (const auto& a : m.eco.agents) {
+                if (!a.alive || a.diver >= 0) continue;
+                Vector3 to = Vector3Subtract(a.pos, cam.position);
+                float dist = Vector3Length(to);
+                if (dist > 40 || Vector3DotProduct(to, f) < 0.2f * dist) continue;
+                Vector2 sp = GetWorldToScreenEx(a.pos, cam, SCREEN_W, SCREEN_H);
+                int size = m.map->species[a.sp].size;
+                float r = 4 + 3.0f * size * (1 - dist / 60);
+                Color c = size >= 4 || m.map->species[a.sp].isEnemy ? Color{240, 90, 70, 255} : Color{120, 230, 220, 255};
+                DrawRing(sp, r, r + 2, 0, 360, 20, Fade(c, 0.85f * k));
+            }
+            float sweep = (1 - k) * SCREEN_W * 0.7f;
+            DrawRing({cx, cy}, sweep, sweep + 3, 0, 360, 64, Fade(Color{120, 230, 220, 255}, 0.35f * k));
+        }
+        Txt(d.pingCd > 0 ? TextFormat("sonar recharging %.0f", d.pingCd) : "H: sonar ping", cx - 50, SCREEN_H - 48.0f, 14, Fade(Color{120, 230, 220, 255}, 0.8f));
+    }
     // the crosshair (tightens on aim) and the hit marker
     float spread = d.ads ? 4 : 7;
     DrawRing({cx, cy}, spread - 2, spread, 0, 360, 24, Fade(paper, 0.8f));
@@ -2158,6 +2191,11 @@ using namespace rt;
 
 static std::string gRtMap = "ship";
 bool RedTideAudioActive() { return S.audioOn; }
+void SetRedTideMode(int mode) { gRtModeSel = std::clamp(mode, 0, (int)RM_COUNT - 1); }
+int RedTideModeCount() { return RM_COUNT; }
+const char* RedTideModeName(int mode) { return ModeName(mode); }
+const char* RedTideModeRules(int mode) { return ModeRules(mode); }
+const char* RedTideModeKey(int mode) { return ModeKey(mode); }
 void StartRedTide(Game& g, const char* map) {
     gRtMap = map ? map : "ship";
     gSndMap = gRtMap;

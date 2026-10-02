@@ -127,6 +127,7 @@ struct DiverState {
     float circleT = 0, finsT = 0, shellT = 0, ghostT = 0; Vector3 circlePos{}; int luckKills = 0; bool keepBrines = false, luckyLocker = false;   // the Void: the Relict egg carried; the worm's tremor; the void's pull
     float cutT = 0;                    // being cut free of Reacher coral by a teammate
     int kills = 0, headshots = 0, downs = 0, revives = 0;
+    float pingT = 0, pingCd = 0;               // Blackout: the sonar ping's echo on screen, and its recharge
     std::string suit, helmet, skin, costume;   // the player's look (the Locker's suit and helmet, the Wardrobe's skin and costume), for teammates' screens
     float hitMarker = 0; bool hitWeak = false;
     float hurtT = 0; Vector3 hurtFrom{};
@@ -151,6 +152,13 @@ struct Crate { Vector3 pos{}; float t = 1.5f; bool fallen = false; int kind = 0;
 
 enum class TidePhase { Calm, Tide, Hunt, Over };
 
+// the modes (design doc, "Modes": the same maps and ecosystem, different rules; the host picks one in the lobby)
+enum RtMode { RM_STANDARD, RM_BLACKOUT, RM_QUIET, RM_FRENZY, RM_APEX, RM_COUNT };
+const char* ModeName(int mode);
+const char* ModeRules(int mode);
+const char* ModeKey(int mode);                  // "standard", "blackout", ... (the lobby's option string)
+int ModeFromKey(const std::string& key);
+
 struct Match {
     std::string mapKey, artKey;
     const MapData* map = nullptr;
@@ -168,6 +176,10 @@ struct Match {
     uint32_t FxEnd() const { return fxBase + (uint32_t)fx.size(); }
     void TrimFx(size_t keep) { if (fx.size() > keep) { size_t n = fx.size() - keep; fx.erase(fx.begin(), fx.begin() + n); fxBase += (uint32_t)n; } }
     uint32_t seed = 0;                // Init's (a network mirror is built from it)
+    int mode = RM_STANDARD;           // set before Init (Init keeps it)
+    bool Allowed(int weaponDef) const;   // Quiet Water: knives, spearguns, needlers and nets only
+    float frenzyDropT = 20;           // Feeding Frenzy: the next Blood Frenzy drop
+    void Ping(int d);                 // Blackout: a sonar ping (shows what's near for 2 s; it's heard)
     std::vector<Crate> crates;
     int tide = 1, quota = 12, tideKills = 0, players = 1;
     TidePhase phase = TidePhase::Calm;
@@ -395,6 +407,7 @@ struct Match {
 
 int RunRedTideSim(const std::string& mapKey, int tides, const std::string& style, int runs, int players);
 int RunRedTideMatchTest();
+int RunRedTideModeTest();                 // depth.exe --redtide-mode-test
 int RunRedTideProfileTest();              // depth.exe --redtide-profile-test
 int RunRedTideMapTest(const std::string& key);
 

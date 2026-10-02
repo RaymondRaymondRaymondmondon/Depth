@@ -175,7 +175,7 @@ int Ecosystem::CountInZone(int sp, int zone) const {
 }
 float Ecosystem::DecayRate() const {
     // TideCurve: 2% / 1% / 0.5% by era (the tide table carries it per tide)
-    return map->Tide(tide).bloodDecay;
+    return map->Tide(tide).bloodDecay * decayMult;
 }
 std::vector<int> Ecosystem::ZonePath(int from, int to, bool enemy, int size) const {
     std::vector<int> prev(map->zones.size(), -2);
@@ -385,7 +385,7 @@ void Ecosystem::AddNoise(Vector3 pos, float noise, bool explosion) {
     if (zi < 0 || noise <= 0) return;
     int reg = map->zones[zi].alarmRegion;
     float mult = map->alarmRegions[reg].mult * (explosion ? eng->C("alarm_explosion_mult", 3) : eng->C("alarm_gunshot_mult", 1));
-    alarm[reg] += noise * mult;
+    alarm[reg] += noise * mult * alarmMult;
 }
 
 void Ecosystem::Damage(int ai, float dmg, int attacker, bool melee, bool weakPoint) {
@@ -436,7 +436,7 @@ void Ecosystem::Kill(int ai, int killer, bool melee) {
     if (killer == -3) byPlayer = true; // scripted player kills in the headless tools
     if (byPlayer) killsBySpecies[a.sp]++;
     else if (killer >= 0 && killer < (int)agents.size()) eatenBy[{agents[killer].sp, a.sp}]++;
-    float burst = s.bloodDeath * eng->C("blood_corpse_burst", 1) * (melee ? eng->C("blood_melee_mult", 0.5f) : 1.0f);
+    float burst = s.bloodDeath * eng->C("blood_corpse_burst", 1) * (melee ? eng->C("blood_melee_mult", 0.5f) : 1.0f) * killBloodMult;
     if (s.bloodless || a.oil) burst = 0;
     if (a.diver < 0) {
         AddBlood(a.pos, burst);

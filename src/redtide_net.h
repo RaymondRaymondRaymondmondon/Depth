@@ -18,8 +18,8 @@ namespace rt {
 enum : uint32_t {
     DI_FIRE = 1, DI_ADS = 2, DI_SPRINT = 4, DI_USE = 8,                                  // held
     DI_USE_P = 16, DI_RELOAD_P = 32, DI_MELEE_P = 64, DI_THROW_P = 128, DI_TAC_P = 256,     // presses
-    DI_BUILD_P = 512, DI_BRUSH_P = 1024, DI_BENCH_P = 2048, DI_DRUM_P = 4096, DI_CHARM_P = 8192,
-    DI_PRESSES = DI_USE_P | DI_RELOAD_P | DI_MELEE_P | DI_THROW_P | DI_TAC_P | DI_BUILD_P | DI_BRUSH_P | DI_BENCH_P | DI_DRUM_P | DI_CHARM_P,
+    DI_BUILD_P = 512, DI_BRUSH_P = 1024, DI_BENCH_P = 2048, DI_DRUM_P = 4096, DI_CHARM_P = 8192, DI_PING_P = 16384,
+    DI_PRESSES = DI_USE_P | DI_RELOAD_P | DI_MELEE_P | DI_THROW_P | DI_TAC_P | DI_BUILD_P | DI_BRUSH_P | DI_BENCH_P | DI_DRUM_P | DI_CHARM_P | DI_PING_P,
 };
 struct DiverInput {
     float yaw = 0, pitch = 0;    // the look (the client owns its own view)
@@ -48,7 +48,7 @@ void WriteMatch(const Match& m, Writer& out);
 // diver's yaw and pitch (the guest's own view) and blends its position toward the host's instead of jumping
 bool ReadMatch(Reader& r, Match& m, int keepLook = -1);
 
-// the host's game (arcade_games.cpp's MakeGameHost for G_RED_TIDE); Configure takes the map key
+// the host's game (arcade_games.cpp's MakeGameHost for G_RED_TIDE); Configure takes "<map>[:<mode key>]"
 std::unique_ptr<arcade::GameHost> MakeRedTideHost();
 Match* RedTideHostMatch(arcade::GameHost* h);              // the host's real match (the host's own screen draws it), or null
 uint32_t RedTideDataHash();                                // the rules a peer must share (into arcade::DataHash)

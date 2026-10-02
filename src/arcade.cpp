@@ -20,6 +20,8 @@ Session gSess;
 const char* RT_MAP_KEYS[5] = {"ship", "cave", "reef", "atlantis", "void"};
 const char* RT_TITLES[5] = {"The Sunken Ship", "The Underwater Cave", "The Coral Reef", "Atlantis", "Approaching the Void"};
 int gRtMapSel = 0;        // Red Tide's map on the reel (solo, and what a host's table dives)
+int gRtModeSel = 0;       // and its mode (design doc "Modes")
+std::string RtOpts() { return std::string(RT_MAP_KEYS[gRtMapSel]) + ":" + RedTideModeKey(gRtModeSel); }
 bool gTrawlFp = false;   // the Trawl's view for a networked match (the reel remembers the last one chosen)
 int twCrew = 4;           // the Trawl's hands sailing solo (the rest are bots)
 net::LanBrowser gBrowse;
@@ -199,7 +201,7 @@ void DrawReels(Game& g) {
             gError.clear();
             if (k == 0) {
                 std::string err;
-                if (gSess.Host(gProfile, selGame, &err)) { gMode = MODE_ROOM; gSess.gameOpts = selGame == G_RED_TIDE ? RT_MAP_KEYS[gRtMapSel] : ""; }
+                if (gSess.Host(gProfile, selGame, &err)) { gMode = MODE_ROOM; gSess.gameOpts = selGame == G_RED_TIDE ? RtOpts() : ""; }
                 else gError = "Couldn't host: " + err;
             } else if (k == 1) { gMode = MODE_JOIN; gJoinFocus = true; }
             else gMode = MODE_BROWSE;
@@ -241,7 +243,17 @@ void DrawReels(Game& g) {
         if (IsKeyPressed(KEY_RIGHT)) rtMap = (rtMap + 1) % RT_N;
         static const char* PAGES[] = {"Dossier", "Records", "How to play", "Charm pouch", "Locker room"};
         for (int k = 0; k < 5; k++) if (Button({40, 250 + k * 58.0f, 200, 44}, PAGES[k], true, 18)) { OpenRedTidePage(g, k + 1); return; }
-        if (Button({c.x - 110, c.y + 236, 220, 36}, "Dive (solo)", true, 15)) { StartRedTide(g, RT_MAPS[rtMap]); return; }
+        {   // the mode under the map
+            Rectangle ml{c.x - 150, c.y + 80, 24, 22}, mr{c.x + 126, c.y + 80, 24, 22};
+            int nm = RedTideModeCount();
+            DrawTextCenteredBold(RedTideModeName(gRtModeSel), c.x, c.y + 81, 16, Color{180, 230, 220, 255});
+            DrawTextCenteredBold("<", ml.x + 12, ml.y, 18, Pal::Brass);
+            DrawTextCenteredBold(">", mr.x + 12, mr.y, 18, Pal::Brass);
+            if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), ml)) { gRtModeSel = (gRtModeSel + nm - 1) % nm; PlayCue("ui.click"); }
+            if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), mr)) { gRtModeSel = (gRtModeSel + 1) % nm; PlayCue("ui.click"); }
+            if (CheckCollisionPointRec(GetMousePosition(), {c.x - 150, c.y + 78, 300, 26})) DrawWrapped(RedTideModeRules(gRtModeSel), {c.x - 200, c.y + 104, 400, 60}, 14, SCREEN_INK);
+        }
+        if (Button({c.x - 110, c.y + 236, 220, 36}, "Dive (solo)", true, 15)) { SetRedTideMode(gRtModeSel); StartRedTide(g, RT_MAPS[rtMap]); return; }
         DrawTextCentered("Host or Join to dive with up to three friends (the host's map)", c.x, c.y + 280, 13, SCREEN_DIM);
     }
     if (ready && selGame == G_SCUTTLE && Button({c.x - 110, c.y + 236, 220, 36}, "Practice with AI crabs", true, 15)) {
@@ -373,8 +385,17 @@ void DrawLobby() {
         DrawTextCenteredBold(RT_TITLES[gRtMapSel], p.x + 195, p.y + p.height - 106, 19, Color{230, 200, 150, 255});
         if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), l)) gRtMapSel = (gRtMapSel + 4) % 5;
         if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), r)) gRtMapSel = (gRtMapSel + 1) % 5;
-        gSess.gameOpts = RT_MAP_KEYS[gRtMapSel];
-        if (before != gRtMapSel) gSess.Chat(std::string("We dive ") + RT_TITLES[gRtMapSel]);
+        // and the mode
+        int beforeMode = gRtModeSel, nm = RedTideModeCount();
+        Rectangle ml{p.x + 380, p.y + p.height - 110, 30, 30}, mr{p.x + 600, p.y + p.height - 110, 30, 30};
+        DrawTextCenteredBold("<", ml.x + 15, ml.y + 2, 22, Pal::Brass);
+        DrawTextCenteredBold(">", mr.x + 15, mr.y + 2, 22, Pal::Brass);
+        DrawTextCenteredBold(RedTideModeName(gRtModeSel), p.x + 505, p.y + p.height - 106, 19, Color{180, 230, 220, 255});
+        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), ml)) gRtModeSel = (gRtModeSel + nm - 1) % nm;
+        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), mr)) gRtModeSel = (gRtModeSel + 1) % nm;
+        gSess.gameOpts = RtOpts();
+        if (before != gRtMapSel || beforeMode != gRtModeSel)
+            gSess.Chat(std::string("We dive ") + RT_TITLES[gRtMapSel] + (gRtModeSel ? std::string(": ") + RedTideModeName(gRtModeSel) + " - " + RedTideModeRules(gRtModeSel) : std::string()));
     }
     if (host) {
         std::string why;
