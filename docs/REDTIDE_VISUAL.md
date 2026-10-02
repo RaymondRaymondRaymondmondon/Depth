@@ -286,6 +286,24 @@ The spec: `Red_Tide_Reference/Red Tide — Visual Overhaul Spec.pdf` (25 pages, 
 - **The Sawtooth** (spec p.12, "a real sawfish rostrum with teeth, bound to a handle") isn't in the game's weapon data
   (data/redtide). It needs a design decision, its stats, before a model would show anywhere.
 - **The air pocket's surface from below** needs a water line inside the air zones; today they're wholly dry.
+- **Interactables as their own models.** The spec: "each get a distinct, well-lit, detailed model that never gets lost
+  in the decor". `tools/artgen/stations_rt.py` -> `assets/redtide/stations/`, drawn by `DrawStationModel` in
+  redtide_game.cpp. Each stands on its station's floor facing into the room, with moving parts posed by `DrawRtProp`.
+  - **Tonic machine:** a brass cabinet, the bottle lit in the tonic's colour behind a port.
+  - **Davy's Locker:** an iron-bound sea chest, its lantern buoy riding the swell above with the lamp lit.
+  - **The Pressure Forge:** a riveted copper vessel, sea-glass glowing in its door.
+  - **Workbench.**
+  - **Power switch:** a knife switch whose lever follows the power.
+  - **Cache:** a strongbox; the lid opens.
+  - **Racks:** the real gun hung across a board on two pegs, with a chalk outline.
+  - **The bought doors in each map's style:** the ship's and the Void's riveted bulkhead (dogs, wheel and price plate
+    on both faces), the cave's rockfall shored with timber, the reef's net hung with floats, Atlantis's bronze grille;
+    scaled to each doorway.
+  - **The traps as set pieces:** the cargo drop is a banded crate in a cargo net on a hook. The cave's rockfall is a
+    stalactite trembling at the roof, then a heap of rubble.
+  - `DEPTH_OLDSTATIONS=1` draws the old boxes.
+  - Shots: `rvis_3_hands` with `DEPTH_STATION=tonic|locker|forge|power|workbench|cache|rack|door|traps` and
+    `DEPTH_RTMAP=<map>`.
 
 ## Afterwards (2026-10-02)
 - Teammates hold their current gun's baked model in third person (`DrawTeammate`).
