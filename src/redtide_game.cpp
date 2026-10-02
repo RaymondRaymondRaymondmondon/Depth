@@ -1676,6 +1676,28 @@ static void DrawScene() {
         DrawBillboard(cam, SoftDot(), c, sf.cell * 1.6f, Fade(BloodCol(Color{(unsigned char)(96 - 60 * deep), (unsigned char)(6 - 3 * deep), (unsigned char)(10 - 5 * deep), 255}), a * 0.9f));
     }
     for (const auto& p : S.fx) DrawCube(p.pos, p.size, p.size, p.size, Fade(p.col, p.life / p.max));
+    // the air pocket's surface from below (the spec: "the air pocket under the tilted ceiling with a silver surface"): the
+    // silvered underside of the trapped air, ripples spreading across it, glints playing over it, a bubble now and then
+    for (const Poi& po : m.map->pois) {
+        if (po.zone < 0 || po.name.find("Air pocket") == std::string::npos) continue;
+        const Zone& z = m.map->zones[po.zone];
+        Vector3 c{po.pos.x, z.y1 - 0.95f, po.pos.z};
+        if (Vector3Distance(c, eye) > 35) continue;
+        DrawPlane(c, {6.2f, 4.6f}, Fade(Color{205, 225, 230, 255}, 0.28f));
+        for (int k = 0; k < 4; k++) {
+            float ph = fmodf(S.time * 0.35f + k * 0.25f, 1.0f);
+            Vector3 rc{c.x + sinf(k * 2.3f) * 1.4f, c.y - 0.01f, c.z + cosf(k * 1.7f) * 1.0f};
+            for (int sgm = 0; sgm < 28; sgm++) {
+                float a0 = sgm * PI / 14, a1 = (sgm + 1) * PI / 14, r = 0.15f + ph * 1.3f;
+                DrawLine3D({rc.x + cosf(a0) * r, rc.y, rc.z + sinf(a0) * r}, {rc.x + cosf(a1) * r, rc.y, rc.z + sinf(a1) * r}, Fade(Color{235, 245, 250, 255}, (1 - ph) * 0.6f));
+            }
+        }
+        for (int k = 0; k < 10; k++) {
+            float tw = 0.5f + 0.5f * sinf(S.time * (3 + k) + k * 1.3f);
+            DrawSphere({c.x + sinf(k * 7.1f + S.time * 0.2f) * 2.6f, c.y - 0.02f, c.z + cosf(k * 3.3f + S.time * 0.17f) * 1.9f}, 0.02f + 0.02f * tw, Fade(WHITE, 0.4f * tw));
+        }
+        if (fmodf(S.time, 1.7f) < GetFrameTime()) FxBubbles({c.x + sinf(S.time) * 1.5f, c.y - 2.5f, c.z + cosf(S.time * 1.3f)}, 2, 0.1f, 0.025f);
+    }
     // states on the body, after the ink: a rope net round anything held in one (a net gun's, a Netman's), bubbles
     // circling the head of anything stunned
     for (int i = 0; i < (int)m.eco.agents.size(); i++) {
