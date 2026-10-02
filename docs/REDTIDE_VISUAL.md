@@ -105,3 +105,26 @@ The spec: `Red_Tide_Reference/Red Tide — Visual Overhaul Spec.pdf` (25 pages, 
 - **Not done yet:** third-person weapon holds for teammates (phase 4 gives them their guns), downs and revives,
   states (netted, grabbed, swallowed, parasite, stunned, poisoned breath), the head turning to a teammate who speaks,
   the HUD's gauges as real dials, cracks on the glass when badly hurt.
+
+## Phase 4: the guns (first part, 2026-10-02)
+- `tools/artgen/weapons_rt.py` (on the shared gun kit, `gunkit.py`) builds Red Tide's own weapons into
+  `assets/redtide/weapons/<id>.glb`, every one a machine for firing under water: gas bulbs with valves and seals,
+  pressure gauges whose needle drops as the gas is used, bubble-vent shrouds, rubber O-rings at the joints, drain ports,
+  sealed breech covers, lanyard rings, maker's panels. Built so far: **the Cormorant** (six-dart cylinder that turns a
+  sixth a shot, a crane that swings out, the gas bulb in the grip, a side gauge), **the Gannet** (ten-dart drum, a
+  vented shroud, the screw-in cartridge under the barrel), **the Needler Mk I** (a glass cartridge of steel needles on
+  top that slides out for the reload, a gas-bottle stock, a perforated cooling shroud), **the Sea-Pattern Carbine**
+  (a rubber-sealed breech cover, a booted bolt, a sealed brass clip, a rubber muzzle cap on a cord), **Flechette 12**
+  (the pump, the loading gate, a red flechette shell going in), **the Long Speargun** (a pneumatic brass tube, the
+  barbed spear shown while loaded, the line to its reel, the charging lever), **the diver's knife** and **the
+  Boarding Axe**.
+- `DrawRtWeapon` poses the parts by group (hammer, trigger, cylinder/drum by rounds fired, latch, clip, bolt, pump,
+  load shown while loaded, gauge by what's left); in first person the baked gun replaces the old one where it exists
+  (at 1.5x, a viewmodel's licence: the stylised gloves would hide a true-size pistol), the fists on its own
+  `grip_r` / `grip_l` markers. Shot `rvis_4_guns` (each gun side on, the Cormorant firing, the Needler and the
+  Flechette mid-reload).
+- **Still to build:** Needler Mk II, Trawlerman's Rifle, Bolt Harpoon, Chumthrower, Gatling Needler, Twin Gannets,
+  Stormlock, Drum Flechette, Reef Rattler, Cannon Harpoon, Limpet Launcher, Net Gun, Harpoon Cannon; Tesla Gaff,
+  Trident; the five wonder weapons; the Forge's sea-glass finish and the alternate ammunition on the gun; the glass
+  material reads as opaque white in the PBR path (it needs a tinted, see-through treatment); third-person guns for
+  teammates; spent clips sinking, the gas guns' bubble bursts.

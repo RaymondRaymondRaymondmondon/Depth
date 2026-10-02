@@ -683,8 +683,33 @@ static void DrawGun(const Camera3D& cam) {
     Color fin = FinishColor(prof.finish), tint = WHITE;
     if (fin.a > 0) tint = {(unsigned char)(fin.r * 0.6f + 102), (unsigned char)(fin.g * 0.6f + 102), (unsigned char)(fin.b * 0.6f + 102), 255};
     Matrix gunM = MatrixMultiply(tilt, m);
-    DrawStatic(gGuns[GunModelFor(w.cls)], gunM, tint);
     Color suit = SuitColor(prof.suit);
+    // the baked gun (the Visual Overhaul, phase 4) where one has been built: its own grip where the old model's was,
+    // its parts posed by the shot, the reload and what's left in it; the fists on its own grip markers
+    {
+        std::string wid = w.id == "knife" || w.id == "diversknife" ? "knife" : w.id;
+        if (const Model* bm = RtWeaponModel(wid)) {
+            (void)bm;
+            static const Vector3 OLDGRIP[8] = {{0, -0.08f, -0.03f}, {0, -0.07f, -0.04f}, {0, -0.04f, -0.06f}, {0, -0.04f, -0.05f}, {0, -0.06f, -0.1f}, {0, -0.085f, -0.06f}, {0, -0.1f, 0.0f}, {0, 0, -0.05f}};
+            Vector3 g = RtWeaponMarker(wid, "grip_r", {0, 0, 0}), og = OLDGRIP[GunModelFor(w.cls)];
+            // (the asset: +x along the barrel, +y up, +z its right; the gun's frame here: +z ahead, +y up, +x its left)
+            // (a viewmodel's licence: half as big again, so the gun, not the stylised glove, fills the hands)
+            Matrix frame = MatrixMultiply(MatrixMultiply(MatrixMultiply(MatrixTranslate(-g.x, -g.y, -g.z), MatrixScale(1.5f, 1.5f, 1.5f)), MatrixRotateY(-PI / 2)), MatrixMultiply(MatrixTranslate(og.x, og.y, og.z), gunM));
+            const Held& h = d.weapons.empty() ? d.downHeld : d.weapons[std::clamp(d.cur, 0, (int)d.weapons.size() - 1)];
+            RtGunAnim an;
+            an.fire = std::clamp((d.recoil - 0.6f) * 2.5f, 0.0f, 1.0f);
+            an.cycle = d.fireT > 0 ? std::clamp(1 - d.fireT * w.rpm / 60.0f, 0.0f, 1.0f) : 0;
+            an.reload = rl;
+            an.steps = std::max(0, w.mag - h.mag);
+            an.loaded = h.mag > 0 || w.mag <= 0;
+            an.gas = w.mag > 0 ? (float)h.mag / w.mag : 1;
+            Vector3 gR, gL;
+            DrawRtWeapon(wid, frame, an, tint, &gR, &gL, nullptr);
+            if (DiversReady() && DrawFirstPersonArms(M().VoiceOf(0), cam, gR, gL, ms < 0, S.time, prof.suit, prof.helmet)) goto muzzle;
+            goto muzzle;
+        }
+    }
+    DrawStatic(gGuns[GunModelFor(w.cls)], gunM, tint);
     // your own arms in your suit (the Visual Overhaul, phase 3): the right fist on the grip, the left on the fore-end
     // (a pistol's under the grip), or pulling the magazine and pushing the new one home
     if (DiversReady()) {

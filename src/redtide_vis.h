@@ -12,6 +12,13 @@ bool DiversReady();
 // draws a diver at frame (feet at the origin, x forward), posed; returns the skinning matrices (for grips)
 std::vector<Matrix> DrawDiverFigure(int voice, Matrix frame, fig::Pose P, float t, Color tint, const std::string& suit = "", const std::string& helmet = "");
 bool DrawFirstPersonArms(int voice, const Camera3D& cam, Vector3 gripR, Vector3 gripL, bool leftOn, float t, const std::string& suit = "", const std::string& helmet = "");
+// Red Tide's own guns (tools/artgen/weapons_rt.py -> assets/redtide/weapons/<id>.glb), their moving parts posed:
+// fire (the hammer falls, the trigger in), cycle (a bolt or pump working after a shot), reload 0..1 (-1 none), the
+// rounds fired (the cylinder or drum turns), loaded (a spear or a shell shown), gas (the gauge's needle)
+struct RtGunAnim { float fire = 0, cycle = 0, reload = -1; int steps = 0; bool loaded = true; float gas = 1; };
+const Model* RtWeaponModel(const std::string& id);   // nullptr until that gun has been built
+bool DrawRtWeapon(const std::string& id, Matrix frame, const RtGunAnim& a, Color tint, Vector3* gripR = nullptr, Vector3* gripL = nullptr, Vector3* muzzle = nullptr);
+Vector3 RtWeaponMarker(const std::string& id, const char* name, Vector3 def);   // in the model's own frame
 void DrawHelmetPort(float wet, float t);   // the helmet's port rim round the first-person view (2D, before the HUD)
 void DiverSkinColours(const std::string& suit, const std::string& helmet, std::vector<Recolor>& out);   // the Locker's suit/helmet ids
 void DrawRedTideStudio(int which, float t);

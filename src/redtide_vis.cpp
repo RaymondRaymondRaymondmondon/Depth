@@ -6,6 +6,7 @@
 #include "game.h"
 #include "raymath.h"
 #include <algorithm>
+#include <map>
 #include <cmath>
 #include <string>
 
@@ -89,6 +90,55 @@ bool DrawFirstPersonArms(int voice, const Camera3D& cam, Vector3 gripR, Vector3 
     DiverSkinColours(suit, helmet, rc);
     DrawPbrSkinned(*m, frame, skin, rc, 0.35f, WHITE);
     return true;
+}
+
+// ---------------------------------------------------------------- the guns (phase 4: tools/artgen/weapons_rt.py)
+const Model* RtWeaponModel(const std::string& id) {
+    static std::map<std::string, bool> missing;
+    if (missing.count(id)) return nullptr;
+    const Model* m = LoadAsset("redtide/weapons/" + id + ".glb");
+    if (!m) missing[id] = true;
+    return m;
+}
+static float RtGroupValue(const std::string& g, const RtGunAnim& a) {
+    auto open = [&](float r0, float r1, float r2, float r3) { return a.reload < 0 ? 0.0f : std::clamp((a.reload - r0) / (r1 - r0), 0.0f, 1.0f) * (1 - std::clamp((a.reload - r2) / (r3 - r2), 0.0f, 1.0f)); };
+    if (g == "hammer") return 1 - a.fire;
+    if (g == "trigger") return a.fire;
+    if (g == "cylinder" || g == "drum") return (float)a.steps;
+    if (g == "latch") return open(0.0f, 0.15f, 0.85f, 1.0f);
+    if (g == "clip") return open(0.1f, 0.3f, 0.6f, 0.8f);
+    if (g == "bolt") return a.cycle > 0 && a.cycle < 1 ? sinf(a.cycle * PI) : open(0.05f, 0.2f, 0.8f, 0.95f);
+    if (g == "pump") return a.reload >= 0 ? 0.5f + 0.5f * sinf(a.reload * PI * 6) : (a.cycle > 0 && a.cycle < 1 ? sinf(a.cycle * PI) : 0.0f);
+    if (g == "load") return a.loaded && !(a.reload > 0.2f && a.reload < 0.8f) ? 1.0f : 0.0f;
+    if (g == "gauge") return 1 - std::clamp(a.gas, 0.0f, 1.0f);
+    return 0;
+}
+bool DrawRtWeapon(const std::string& id, Matrix frame, const RtGunAnim& a, Color tint, Vector3* gripR, Vector3* gripL, Vector3* muzzle) {
+    const Model* m = RtWeaponModel(id);
+    const AssetInfo* A = m ? AssetInfoOf(m) : nullptr;
+    if (!m || !A) return false;
+    int n = (int)A->parts.size();
+    std::vector<Matrix> M(n, MatrixIdentity());
+    for (int i = 0; i < n; i++) {
+        const AssetPart& p = A->parts[i];
+        if (p.group == "static") continue;
+        float v = RtGroupValue(p.group, a);
+        if (p.kind == "slide") M[i] = MatrixTranslate(p.axis.x * p.amount * v, p.axis.y * p.amount * v, p.axis.z * p.amount * v);
+        else if (p.kind == "show") M[i] = v < 0.5f ? MatrixMultiply(MatrixMultiply(MatrixTranslate(-p.pivot.x, -p.pivot.y, -p.pivot.z), MatrixScale(0, 0, 0)), MatrixTranslate(p.pivot.x, p.pivot.y, p.pivot.z)) : MatrixIdentity();
+        else M[i] = MatrixMultiply(MatrixMultiply(MatrixTranslate(-p.pivot.x, -p.pivot.y, -p.pivot.z), MatrixRotate(p.axis, p.amount * v)), MatrixTranslate(p.pivot.x, p.pivot.y, p.pivot.z));
+    }
+    DrawPbrParts(*m, frame, M, tint, 0);
+    auto mk = [&](const char* name, Vector3 def) { const AssetMarker* k = A->Marker(name); return Vector3Transform(k ? k->p : def, frame); };
+    if (gripR) *gripR = mk("grip_r", {0, 0, 0});
+    if (gripL) *gripL = mk("grip_l", {0, 0, 0});
+    if (muzzle) *muzzle = mk("muzzle", {0.3f, 0, 0});
+    return true;
+}
+Vector3 RtWeaponMarker(const std::string& id, const char* name, Vector3 def) {
+    const Model* m = RtWeaponModel(id);
+    const AssetInfo* A = m ? AssetInfoOf(m) : nullptr;
+    const AssetMarker* k = A ? A->Marker(name) : nullptr;
+    return k ? k->p : def;
 }
 
 // The helmet from inside (spec, "First person": "the brass HUD frames the screen, with faint glass reflections"): the
@@ -255,7 +305,25 @@ void DrawRedTideStudio(int which, float t) {
             Vector3 at{(s - 2.5f) * 1.25f, (1.5f - d) * 2.05f - 1.6f, 0};
             DrawDiverFigure(d, MatrixMultiply(MatrixScale(0.9f, 0.9f, 0.9f), fig::Frame(at, FRONT + 0.35f)), P, t, WHITE, SK[s], std::string("h_") + SK[s]);
         }
-    } else if (which == 2) {
+    } else if (which == 4) {
+        // the guns (spec, shot set 3): every baked Red Tide weapon side on, on a neutral ground, in three states for the
+        // first (at rest, the shot, mid-reload)
+        static const char* ID[8] = {"cormorant", "gannet", "needler1", "carbine", "flechette12", "longspeargun", "knife", "boardingaxe"};
+        cam.position = {0.35f, 0.0f, 2.3f}; cam.target = {0.35f, 0.0f, 0}; cam.fovy = 36;
+        lamp({-0.5f, 1.5f, 2.2f}, {0.3f, 0, 0});
+        L.fog = {70, 92, 98, 255}; L.fogDensity = 0.002f; L.water = 0; L.outline = 0;
+        L.AddPoint({1.2f, 0.8f, 1.2f}, 5, {255, 220, 180, 255}, 0.6f);
+        RenderBegin(cam, L);
+        for (int k = 0; k < 8; k++) {
+            RtGunAnim a; a.gas = 0.6f;
+            float x = (k % 2) * 0.62f - 0.05f, y = 0.55f - (k / 2) * 0.33f;
+            DrawRtWeapon(ID[k], MatrixMultiply(MatrixRotateX(-0.12f), MatrixTranslate(x, y, 0)), a, WHITE);
+        }
+        RtGunAnim fire; fire.fire = 1; fire.steps = 1;
+        RtGunAnim rel; rel.reload = 0.5f; rel.steps = 3; rel.loaded = false;
+        DrawRtWeapon("cormorant", MatrixMultiply(MatrixScale(1.4f, 1.4f, 1.4f), MatrixTranslate(1.25f, 0.45f, 0)), fire, WHITE);
+        DrawRtWeapon("needler1", MatrixMultiply(MatrixScale(1.2f, 1.2f, 1.2f), MatrixTranslate(1.2f, 0.05f, 0)), rel, WHITE);
+        DrawRtWeapon("flechette12", MatrixTranslate(1.15f, -0.35f, 0), rel, WHITE);    } else if (which == 2) {
         cam.position = {0, 2.2f, 8.5f}; cam.target = {0, 1.4f, 0}; cam.fovy = 38;
         lamp({-3, 6, 6}, {0, 1, 0});
         RenderBegin(cam, L);
