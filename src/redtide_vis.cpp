@@ -246,6 +246,42 @@ static const char* PlanFor(const CreatureModel& cm) {
     return nullptr;
 }
 static bool DrawPlanPbr(const CreatureModel& cm, const char* plan, Vector3 pos, float yaw, float pitch, float scale, float phase, float inten, Color tint, Color gill = {150, 40, 30, 255});
+// flora with bones (tools/artgen/flora_rt.py): a plant of `height` standing at pos, swaying in the current by its own
+// rig (kelp along its stipe, grass blade by blade, a fan as one sheet, an anemone's tentacles waving), painted its colour
+static int gFloraBudget = 1 << 30;
+void FloraBudget(int n) { gFloraBudget = n; }
+bool FloraBudgetLeft() { return gFloraBudget > 0; }
+bool DrawFloraPbr(const char* kind, Vector3 pos, float yaw, float height, Color c, float t, float phase) {
+    if (getenv("DEPTH_OLDCREATURES")) return false;
+    if (gFloraBudget <= 0) return true;   // (spent: drawn as nothing rather than as a box)
+    gFloraBudget--;
+    const Model* m = LoadAsset(std::string("redtide/flora/cr_fl_") + kind + ".glb");
+    if (!m) return false;
+    const RigInfo& R = RigOf(*m);
+    RigPose P; P.Reset((int)R.parent.size());
+    std::string k = kind;
+    const Vector3 X{1, 0, 0}, Z{0, 0, 1};
+    for (int b = 0; b < (int)R.name.size(); b++) {
+        const std::string& n = R.name[b];
+        float a = 0, a2 = 0;
+        if (k == "kelp" && n[0] == 'k') { int j = n[1] - '0'; a = (0.06f + 0.025f * j) * sinf(t * 0.8f - j * 0.6f + phase); a2 = 0.5f * a * cosf(t * 0.5f + phase); }
+        else if (k == "grass" && n[0] == 'b') { int i = atoi(n.c_str() + 1), j = n.back() - '0'; a = (0.1f + 0.06f * j) * sinf(t * 1.2f + i * 0.7f - j * 0.5f + phase); a2 = 0.4f * a; }
+        else if (k == "fan") a = 0.07f * sinf(t * 0.7f + phase + (n == "f1" ? -0.6f : 0));
+        else if (k == "anemone" && n[0] == 't') { int i = atoi(n.c_str() + 1), j = n.back() - '0'; a = (0.15f + 0.1f * j) * sinf(t * 1.5f + i * 0.4f + phase); a2 = 0.6f * a; }
+        else if (k == "branch" && n[0] == 'b' && n[1] == 'r') a = 0.03f * sinf(t * 0.9f + n[2] + phase);
+        else if (k == "sargassum" && n[0] == 's') { a = 0.1f * sinf(t * 1.1f + n[1] + phase); a2 = a; }
+        if (a != 0 || a2 != 0) P.rot[b] = QuaternionMultiply(QuaternionFromAxisAngle(Z, a), QuaternionFromAxisAngle(X, a2));
+    }
+    auto sk = SolveRig(R, P);
+    if (getenv("DEPTH_FLORATINY")) height *= 0.01f;   // (a profiling switch: the draws without their pixels)
+    Matrix w = MatrixMultiply(MatrixMultiply(MatrixScale(height, height, height), MatrixRotateY(yaw)), MatrixTranslate(pos.x, pos.y, pos.z));
+    Color tip{(unsigned char)std::min(255, c.r + 40), (unsigned char)std::min(255, c.g + 40), (unsigned char)std::min(255, c.b + 30), 255};
+    Color base{(unsigned char)(c.r * 0.6f), (unsigned char)(c.g * 0.6f), (unsigned char)(c.b * 0.6f), 255};
+    SetNextNoShadow();   // (many, small, swaying: their shadows aren't worth a pass)
+    DrawPbrSkinned(*m, w, sk, {{"back", c}, {"fin", tip}, {"belly", base}}, 0.4f, WHITE);
+    return true;
+}
+
 // the bosses (spec, "Bosses"): each its own model in creatures_rt.py; kind as Match::bossKind (0 the Goliath, 1 the
 // Lobster, 2 the Matriarch, 3 the Cistern Wyrm, 4 the Lantern Leviathan); hot 0..1 lights the weak point (the
 // Goliath's gills in their windows, the Lobster's crystal ringing, the Leviathan's lure)

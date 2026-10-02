@@ -30,6 +30,10 @@ bool DrawVmArms(const Model& m, const Camera3D& cam, const Matrix* handR, const 
 void CreatureBudget(int n);
 void CreatureRoll(float r);   // creature draws after this are rolled about their length (0 upright; a corpse belly-up)
 bool DrawCreaturePbr(const CreatureModel& cm, Vector3 pos, float yaw, float pitch, float scale, float phase, float inten, Color tint);
+// flora with bones (flora_rt.py: kelp, grass, fan, anemone, branch, sponge, roots, sargassum), swaying; false if missing
+void FloraBudget(int n);        // how many flora draws this frame (the nearest first: the caller orders them)
+bool FloraBudgetLeft();
+bool DrawFloraPbr(const char* kind, Vector3 pos, float yaw, float height, Color c, float t, float phase);
 bool DrawBossPbr(int kind, const CreatureModel& cm, Vector3 pos, float yaw, float pitch, float scale, float phase, float inten, Color tint, float hot);
 
 // Red Tide's own guns (tools/artgen/weapons_rt.py -> assets/redtide/weapons/<id>.glb), their moving parts posed:

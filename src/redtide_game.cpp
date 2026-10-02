@@ -324,8 +324,10 @@ static void ShipDressing(); void BuildLevelModel() {
             case PropKind::Brain: if (kit("brain", {c.x, z.y0, c.z}, std::max(0.5f, h.x * 2.0f), rnd() * 6.28f)) break; mb.Lathe(h.x * 2, 4, 8, [&](float u) { return h.x * sinf(u * 3.14159f) + 0.05f; }, [&](float u) { return h.y * sinf(u * 3.14159f) + 0.05f; }, Color{206, 180, 120, 255}, Color{176, 150, 100, 255}, c); break;
             case PropKind::Table: if (kit("table", {c.x, z.y0, c.z}, std::max(0.5f, (c.y - z.y0) / 0.47f), rnd() * 6.28f)) break; mb.Box(c, h, Color{176, 196, 150, 255}); mb.Box({c.x, (z.y0 + c.y) / 2, c.z}, {0.25f, (c.y - z.y0) / 2, 0.25f}, Color{150, 150, 120, 255}); break;
             case PropKind::Staghorn: if (kit("staghorn", c, std::max(0.6f, h.y * 1.4f), rnd() * 6.28f)) break; for (int j = 0; j < 7; j++) { float a = rnd() * 6.28f, lean = 0.3f + rnd() * 0.5f; mb.Cone({c.x, c.y, c.z}, {c.x + cosf(a) * lean * h.y, c.y + h.y * (0.6f + rnd() * 0.5f), c.z + sinf(a) * lean * h.y}, 0.09f, 4, Color{(unsigned char)(190 + rnd() * 40), (unsigned char)(140 + rnd() * 40), 110, 255}); } break;
-            case PropKind::Seagrass: for (int j = 0; j < 6; j++) mb.Box({c.x + (rnd() - 0.5f) * h.x * 2, c.y + h.y / 2, c.z + (rnd() - 0.5f) * h.z * 2}, {0.03f, h.y / 2, 0.12f}, Color{96, 150, 80, 255}); break;
-            case PropKind::Mangrove: for (int j = 0; j < 5; j++) { Vector3 top{c.x + (rnd() - 0.5f), c.y, c.z + (rnd() - 0.5f)}; mb.Cone(top, {top.x + (rnd() - 0.5f) * 2.5f, z.y0, top.z + (rnd() - 0.5f) * 2.5f}, 0.12f, 4, Color{100, 80, 58, 255}); } break;
+            case PropKind::Seagrass: if (!getenv("DEPTH_OLDSTATIONS") && LoadAsset("redtide/flora/cr_fl_grass.glb")) break;   // (drawn swaying each frame instead: DrawFlora)
+                for (int j = 0; j < 6; j++) mb.Box({c.x + (rnd() - 0.5f) * h.x * 2, c.y + h.y / 2, c.z + (rnd() - 0.5f) * h.z * 2}, {0.03f, h.y / 2, 0.12f}, Color{96, 150, 80, 255}); break;
+            case PropKind::Mangrove: if (!getenv("DEPTH_OLDSTATIONS") && LoadAsset("redtide/flora/cr_fl_roots.glb")) break;
+                for (int j = 0; j < 5; j++) { Vector3 top{c.x + (rnd() - 0.5f), c.y, c.z + (rnd() - 0.5f)}; mb.Cone(top, {top.x + (rnd() - 0.5f) * 2.5f, z.y0, top.z + (rnd() - 0.5f) * 2.5f}, 0.12f, 4, Color{100, 80, 58, 255}); } break;
             case PropKind::Mound: mb.Lathe(h.x * 2, 5, 10, [&](float u) { return h.x * sinf(u * 3.14159f) + 0.1f; }, [&](float u) { return h.y * 1.4f * sinf(u * 3.14159f) + 0.1f; }, Color{200, 150, 120, 255}, Color{150, 120, 100, 255}, c); break;
             case PropKind::Building: {
                 // a drowned house of marble: walls, a roof slab, a dark doorway, a pair of columns at its front, weed
@@ -908,12 +910,45 @@ static Color FloraColor(const std::string& n) {
 static void DrawFlora() {
     const Match& m = M();
     Vector3 eye = m.Eye(Me());
+    // (the swaying plants are budgeted: drawn nearest first, in three bands of distance, forty a frame; small ones only
+    // within 20 m, the rest to 40 m: past that, or once the budget is spent, they're left out rather than boxed)
+    FloraBudget(28);
+    static const float BAND[4] = {0, 12, 25, 45};
+    for (int band = 0; band < 3; band++) {
     for (const auto& p : m.eco.flora) {
-        if (p.units <= 0 || Vector3Distance(p.pos, eye) > 45) continue;
+        float dist = Vector3Distance(p.pos, eye);
+        if (p.units <= 0 || dist < BAND[band] || dist >= BAND[band + 1]) continue;
         const std::string& n = m.map->flora[p.flora].name;
         Color c = FloraColor(n);
         float s = 0.4f + 0.6f * std::clamp(p.units / 100.0f, 0.0f, 1.0f);
         uint32_t h = (uint32_t)(fabsf(p.pos.x) * 73 + fabsf(p.pos.z) * 31);
+        // flora with bones (flora_rt.py), swaying in the current: each kind of plant on its model, a few of them for a
+        // patch; the flat mats and crusts stay flat (the level's seagrass and mangrove props are drawn after this loop)
+        {
+            auto has = [&](const char* k) { return n.find(k) != std::string::npos; };
+            const char* kind = has("kelp") || has("Bloodvine") ? "kelp"
+                : has("meadow") || has("lettuce") || has("Halimeda") || has("grape") || has("Sea pen") || has("Posidonia") ? "grass"
+                : has("fan") || has("whip") || has("Bamboo") || has("Black coral") ? "fan"
+                : has("nemone") || has("lily") ? "anemone"
+                : has("Fire coral") || has("hydroid") || has("Dead man") || has("Staghorn") || has("Soft coral") || has("Tube worm") || has("Crystal coral") || has("Column coral") ? "branch"
+                : has("ponge") ? "sponge" : has("roots") || has("Root tangle") ? "roots" : has("argassum") ? "sargassum" : nullptr;
+            if (kind && !getenv("DEPTH_OLDSTATIONS")) {
+                std::string kd = kind;
+                bool small = kd == "grass" || kd == "anemone" || kd == "branch" || kd == "sargassum";
+                if ((small && dist > 16) || dist > 40) continue;
+                int count = kd == "grass" ? 7 : kd == "kelp" ? 4 : kd == "branch" ? 3 : kd == "anemone" ? 3 : 1;
+                float height = kd == "kelp" ? 6.0f * s : kd == "grass" ? 0.55f * s : kd == "fan" ? 1.6f * s : kd == "anemone" ? 0.6f * s
+                             : kd == "branch" ? 0.8f * s : kd == "sponge" ? 1.0f * s : kd == "roots" ? 1.8f * s : 2.2f * s;
+                float spread = kd == "grass" ? 1.4f : kd == "kelp" ? 0.8f : 0.5f;
+                bool any = false;
+                for (int k = 0; k < count; k++) {
+                    float a = (float)((h >> (k * 3)) % 628) * 0.01f + k * 2.4f, r = count > 1 ? spread * (0.3f + 0.7f * ((h >> (k * 2 + 1)) % 100) / 100.0f) : 0;
+                    Vector3 at{p.pos.x + cosf(a) * r, p.pos.y, p.pos.z + sinf(a) * r};
+                    any |= DrawFloraPbr(kind, at, a, height * (0.8f + 0.2f * ((h >> k) & 3) / 3.0f), c, S.time, a + p.pos.x);
+                }
+                if (any) continue;
+            }
+        }
         if (n.find("kelp") != std::string::npos) {
             for (int k = 0; k < 4; k++) { float sw = sinf(S.time * 0.8f + k) * 0.3f; DrawWorldCube({p.pos.x + (k - 1.5f) * 0.4f + sw, p.pos.y + 3 * s, p.pos.z + ((h >> k) & 1) * 0.3f}, {0.12f, 6 * s, 0.05f}, c); }
         } else if (n.find("Sea fan") != std::string::npos) {
@@ -930,6 +965,25 @@ static void DrawFlora() {
             DrawWorldCube({p.pos.x, p.pos.y + 0.05f, p.pos.z}, {1.6f * s, 0.1f, 1.4f * s}, c);   // mats and crusts
         }
     }
+    // the level's own seagrass beds and mangroves (left out of the baked level when these models exist): tufts scattered
+    // over each bed, swaying; the mangroves' prop roots arching into the water
+    if (getenv("DEPTH_OLDSTATIONS")) continue;
+    for (const auto& pr : m.level.props) {
+        if (pr.kind != PropKind::Seagrass && pr.kind != PropKind::Mangrove) continue;
+        float dist = Vector3Distance(pr.pos, eye);
+        if (dist < BAND[band] || dist >= BAND[band + 1] || dist > (pr.kind == PropKind::Seagrass ? 16.0f : 40.0f)) continue;
+        int zp = pr.zone >= 0 ? pr.zone : m.eco.ZoneAt(pr.pos);
+        float floorY = zp >= 0 ? m.map->zones[zp].y0 : pr.pos.y - pr.half.y;
+        uint32_t h = pr.seed ? pr.seed : (uint32_t)(fabsf(pr.pos.x) * 97 + fabsf(pr.pos.z) * 41);
+        if (pr.kind == PropKind::Mangrove) { DrawFloraPbr("roots", {pr.pos.x, floorY, pr.pos.z}, (h % 628) * 0.01f, std::max(1.4f, pr.half.y * 2 + 0.6f), Color{100, 80, 58, 255}, S.time, 0); continue; }
+        int n = std::clamp((int)(pr.half.x * pr.half.z * 3), 3, 8);
+        for (int k = 0; k < n; k++) {
+            uint32_t q = h * 2654435761u + k * 40503u;
+            float ox = ((q >> 3) % 1000 / 1000.0f - 0.5f) * pr.half.x * 1.8f, oz = ((q >> 13) % 1000 / 1000.0f - 0.5f) * pr.half.z * 1.8f;
+            DrawFloraPbr("grass", {pr.pos.x + ox, floorY, pr.pos.z + oz}, (q % 628) * 0.01f, std::max(0.35f, pr.half.y * 2) * (0.8f + 0.4f * ((q >> 7) % 100) / 100.0f), Color{96, 150, 80, 255}, S.time, (q % 100) * 0.06f);
+        }
+    }
+    }   // (the bands)
 }
 
 // the interactables' own models (tools/artgen/stations_rt.py; the spec: "each get a distinct, well-lit, detailed model
@@ -987,6 +1041,7 @@ static bool DrawStationModel(const Match& m, const Station& s, bool dead) {
             // outline round it (the spec: "Racks (weapons chalked on walls)")
             const auto& WW = Weapons().weapons;
             if (s.weapon < 0 || s.weapon >= (int)WW.size()) return false;
+            if (Vector3Distance(s.pos, m.Eye(Me())) > 15) return false;   // (beyond 15 m the plain board: a gun is sixty parts)
             std::string wid = WW[s.weapon].id == "diversknife" ? "knife" : WW[s.weapon].id;
             if (!RtWeaponModel(wid)) return false;
             Matrix wall = MatrixMultiply(MatrixRotateY(yaw), MatrixTranslate(s.pos.x, s.pos.y, s.pos.z));
@@ -1012,9 +1067,11 @@ static bool DrawStationModel(const Match& m, const Station& s, bool dead) {
 
 static void DrawStations() {
     const Match& m = M();
+    Vector3 eyeS = m.Eye(Me());
     for (const auto& s : m.level.stations) {
         Vector3 p = s.pos;
         bool dead = s.needsPower && !m.power;
+        if (Vector3Distance(p, eyeS) > 45) continue;   // (the models aren't batched like the old boxes: only those near)
         if (DrawStationModel(m, s, dead)) continue;
         switch (s.type) {
             case StationType::Rack:
@@ -1091,8 +1148,9 @@ static void DrawStations() {
         }
     }
     // closed doors: debris and grating across the passage
+    Vector3 eyeD = m.Eye(Me());
     for (const auto& d : m.level.doors) {
-        if (d.open) continue;
+        if (d.open || Vector3Distance(d.pos, eyeD) > 50) continue;
         const Volume& v = m.level.vols[m.map->zones.size() + d.link];
         Vector3 size = Vector3Subtract(v.hi, v.lo);
         const Link& l = m.map->links[d.link];
@@ -1518,7 +1576,7 @@ static void DrawScene() {
         // behind it; a camouflaged one lying still goes the colour of the water round it until it moves
         // (what bleeds out of it: a Lost One's ichor, a Sentinel's oil, otherwise blood)
         if (a.wound > 0.45f && Vector3Distance(a.pos, eye) < 25 && fmodf(S.time * (1.5f + a.wound * 3) + (a.rng % 97) * 0.01f, 1.0f) < GetFrameTime() * (1.5f + a.wound * 3)) {
-            Color bleed = sp.isEnemy && m.mapKey == "atlantis" ? Color{40, 130, 150, 255} : sp.isEnemy && m.mapKey == "void" ? Color{28, 26, 22, 255} : BloodCol({120, 14, 14, 255});
+            Color bleed = a.oil ? Color{28, 26, 22, 255} : sp.isEnemy && m.mapKey == "atlantis" ? Color{40, 130, 150, 255} : BloodCol({120, 14, 14, 255});
             Burst(Vector3Subtract(a.pos, Vector3Scale(Vector3Normalize(v), cm.length * (a.sp < (int)m.bodyScale.size() ? m.bodyScale[a.sp] : 1.0f) * 0.4f)), 1, bleed, 0.08f, 1.6f, 0.05f + a.wound * 0.05f);
         }
         // silt: anything moving fast along the bottom kicks up a slow cloud of it
@@ -1558,6 +1616,29 @@ static void DrawScene() {
         DrawBillboard(cam, SoftDot(), c, sf.cell * 1.6f, Fade(BloodCol(Color{(unsigned char)(96 - 60 * deep), (unsigned char)(6 - 3 * deep), (unsigned char)(10 - 5 * deep), 255}), a * 0.9f));
     }
     for (const auto& p : S.fx) DrawCube(p.pos, p.size, p.size, p.size, Fade(p.col, p.life / p.max));
+    // states on the body, after the ink: a rope net round anything held in one (a net gun's, a Netman's), bubbles
+    // circling the head of anything stunned
+    for (int i = 0; i < (int)m.eco.agents.size(); i++) {
+        const Agent& a = m.eco.agents[i];
+        if (!a.alive || a.diver >= 0 || (a.held <= 0 && a.stun <= 0) || Vector3Distance(a.pos, eye) > 25) continue;
+        const CreatureModel& cm = Creature(m.artKey, m.ArtName(a.sp));
+        float r = std::clamp(cm.length * (a.sp < (int)m.bodyScale.size() ? m.bodyScale[a.sp] : 1.0f) * 0.55f, 0.25f, 3.0f);
+        if (a.held > 0) {
+            Color rope{170, 150, 110, 220};
+            for (int la = 1; la < 5; la++) {   // rings of latitude and meridians: a net drawn tight round it
+                float y = -r + 2 * r * la / 5.0f, rr = sqrtf(std::max(0.0f, r * r - y * y));
+                for (int k = 0; k < 16; k++) { float a0 = k * PI / 8, a1 = (k + 1) * PI / 8; DrawLine3D({a.pos.x + cosf(a0) * rr, a.pos.y + y, a.pos.z + sinf(a0) * rr}, {a.pos.x + cosf(a1) * rr, a.pos.y + y, a.pos.z + sinf(a1) * rr}, rope); }
+            }
+            for (int k = 0; k < 8; k++) {
+                float ang = k * PI / 4;
+                for (int la = 0; la < 6; la++) { float t0 = -PI / 2 + PI * la / 6, t1 = -PI / 2 + PI * (la + 1) / 6; DrawLine3D({a.pos.x + cosf(ang) * cosf(t0) * r, a.pos.y + sinf(t0) * r, a.pos.z + sinf(ang) * cosf(t0) * r}, {a.pos.x + cosf(ang) * cosf(t1) * r, a.pos.y + sinf(t1) * r, a.pos.z + sinf(ang) * cosf(t1) * r}, rope); }
+            }
+        }
+        if (a.stun > 0) for (int k = 0; k < 5; k++) {
+            float ang = S.time * 3 + k * 1.2566f;
+            DrawSphere({a.pos.x + cosf(ang) * r * 0.6f, a.pos.y + r * 0.7f + 0.05f * sinf(S.time * 6 + k), a.pos.z + sinf(ang) * r * 0.6f}, 0.03f, Fade(Color{220, 240, 255, 255}, 0.8f));
+        }
+    }
     if (gWonder.kind) {
         const WonderFx& w = gWonder;
         Vector3 a = w.axis, s1 = Vector3Normalize(Vector3CrossProduct(a, {0, 1, 0})), s2 = Vector3CrossProduct(s1, a);
@@ -2146,6 +2227,12 @@ void DebugRedTideShot(Game& g, int which) {
                         m.eco.corpses.push_back(c);
                     }
                     d.pitch = -0.25f;
+                }
+                if (std::string(st) == "netted") {   // (the nearest animal before you, held in a net and stunned)
+                    Vector3 f{sinf(d.yaw), 0, cosf(d.yaw)};
+                    int best = -1; float bd = 1e9f;
+                    for (int i = 0; i < (int)m.eco.agents.size(); i++) { const Agent& ag = m.eco.agents[i]; if (!ag.alive || ag.diver >= 0 || m.IsBoss(i) || m.map->species[ag.sp].isEnemy) continue; float dd = Vector3Distance(ag.pos, d.pos); if (dd < bd) { bd = dd; best = i; } }
+                    if (best >= 0) { Agent& ag = m.eco.agents[best]; ag.pos = Vector3Add(m.Eye(d), Vector3Scale(f, 3.0f)); ag.zone = d.zone; ag.held = 30; ag.stun = 30; ag.vel = {0, 0, 0}; }
                 }
                 if (std::string(st) == "traps") {   // (the set pieces before you: a crate and a stalactite each falling, each fallen)
                     Vector3 f{sinf(d.yaw), 0, cosf(d.yaw)}, r{cosf(d.yaw), 0, -sinf(d.yaw)};

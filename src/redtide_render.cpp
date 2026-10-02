@@ -1288,6 +1288,7 @@ struct DrawCmd {
     int sky = 0;                   // the colour pass only, unlit and unfogged
     int pbr = 0; float wrap = 0;   // the physically based path (every mesh of the model, its own materials)
     bool allGlass = false;         // every mesh drawn in the glass pass (a sea-glass shell over a Forged gun)
+    bool noShadow = false;         // left out of the lamp's shadow pass (swaying flora: many, small, cheap to skip)
     int boneOff = -1, boneN = 0;   // a skinned pose: its matrices in gBonePool
     int recOff = 0, recN = 0;      // recoloured materials in gRecPool
     int partOff = -1, partN = 0;   // per-mesh local transforms in gPartPool (an asset's moving parts)
@@ -1350,9 +1351,11 @@ void DrawPbr(const Model& m, Matrix world, Color tint, float wrap) {
     d.pbr = 1; d.wrap = wrap;
     gQueue.push_back(d);
 }
+static bool gNextNoShadow = false;
+void SetNextNoShadow() { gNextNoShadow = true; }
 void DrawPbrSkinned(const Model& m, Matrix world, const std::vector<Matrix>& skin, const std::vector<Recolor>& recolor, float wrap, Color tint) {
     DrawCmd d{&m, world, (int)AnimMode::Static, 0, 0, 0, 1, 0, 0, tint};
-    d.pbr = 1; d.wrap = wrap;
+    d.pbr = 1; d.wrap = wrap; d.noShadow = gNextNoShadow; gNextNoShadow = false;
     d.boneOff = (int)gBonePool.size(); d.boneN = (int)skin.size();
     gBonePool.insert(gBonePool.end(), skin.begin(), skin.end());
     d.recOff = (int)gRecPool.size(); d.recN = (int)recolor.size();
@@ -1617,6 +1620,7 @@ static void DrawQueue(Shader sh, bool lit) {
         if (pre && d.pbr && gBig.count(d.model)) { rlDrawRenderBatchActive(); rlDisableDepthMask(); DrawPbrCmd(d, gPbr, true); rlDrawRenderBatchActive(); rlEnableDepthMask(); continue; }
         if (d.skydome) { if (lit) DrawSkyCmd(d); continue; }
         if (d.water && gShadowPass) continue;
+        if (d.noShadow && gShadowPass) continue;
         if (d.water) { if (lit) DrawWaterCmd(d); else { DrawCmd e = d; e.pbr = 1; e.world = MatrixIdentity(); Model& m = const_cast<Model&>(*d.model); Material mat = m.materials[0]; mat.shader = gNDPbr; SetI(gNDPbr, L_ndPbrSkinned, 0); for (int i = 0; i < m.meshCount; i++) DrawMesh(m.meshes[i], mat, MatrixIdentity()); } continue; }
         if (d.pbr) {
             if (!lit) DrawPbrCmd(d, gNDPbr, false);   // the normal/depth pass: the same skinning, the same edges

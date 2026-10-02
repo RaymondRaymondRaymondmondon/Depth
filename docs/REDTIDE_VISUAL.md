@@ -332,6 +332,26 @@ The spec: `Red_Tide_Reference/Red Tide — Visual Overhaul Spec.pdf` (25 pages, 
   - the Lost Ones bleed ichor and the Sentinels oil;
   - corpses (the ecosystem's, which weren't drawn) lie belly-up on their own models (`CreatureRoll`), settle to the
     floor, pale with age, and jerk and bleed while fed on. Shot: `DEPTH_STATION=corpse`.
+- **Flora with bones** (`tools/artgen/flora_rt.py` -> `assets/redtide/flora/cr_fl_*.glb`, `DrawFloraPbr`), mapped by
+  name:
+  - **kelp:** the kelps and the bloodvine;
+  - **grass:** the meadows, lettuces, sea grape and sea pens;
+  - **fans:** sea fans, sea whips, bamboo and black coral;
+  - **anemones:** the anemones and the brine lily;
+  - **branching coral:** fire coral, hydroids, staghorn, soft coral, tube worms, crystal and column coral;
+  - **sponges, mangrove roots, sargassum.**
+
+  They sway in the current by their own rigs. The level's seagrass beds and mangroves are drawn this way too instead
+  of being baked as boxes.
+- **Performance, a lesson worth keeping:** on this PC the cost is draw calls, not pixels (shrinking the flora to 1%
+  changed nothing). So:
+  - the flora's parts are joined into one mesh per material (`finish_joined`);
+  - they're budgeted at 28 a frame, nearest first in distance bands; small plants within 16 m, the rest within 40 m;
+  - they cast no lamp shadow (`SetNextNoShadow`);
+  - stations are culled past 45 m, doors past 50 m, and a rack shows its gun only within 15 m;
+  - the gun kit can join a model's still parts after the bake (`finish(..., merge_static=True)`), and the station,
+    ship, map and gun kits now do. A tonic machine was sixty draws a pass; now it's one plus its moving and glass
+    parts.
 - **The dossier** shows each beast on its rigged model (lit for the PBR path) and factions on the diver figure.
 - **The reef's sand** was a pale (210,192,146) that blew out to white under the surface light; it's (168,150,112) now,
   and the caustics show on it.

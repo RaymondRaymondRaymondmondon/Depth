@@ -192,6 +192,7 @@ Matrix BoneWorld(const RigInfo& rig, const std::vector<Matrix>& skin, int bone, 
 // Draws a skinned model in a pose, with named materials recoloured (a sailor's skin tone, coat, hat)
 struct Recolor { const char* material; Color c; };
 void DrawPbrSkinned(const Model& m, Matrix world, const std::vector<Matrix>& skin, const std::vector<Recolor>& recolor = {}, float wrap = 0.35f, Color tint = WHITE);
+void SetNextNoShadow();   // the next DrawPbrSkinned casts no lamp shadow
 // The quality settings (the Visual Overhaul's phase 7: shadow quality, AO, fog quality, resolution scale)
 struct Quality {
     int shadow = 1024;        // the lamp's shadow map: 0 off, 512, 1024, 2048

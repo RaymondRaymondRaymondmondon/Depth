@@ -142,4 +142,4 @@ if __name__ == "__main__":
             continue
         W = K.Weapon(pid)
         fn(W)
-        W.finish(out, size=512)
+        W.finish(out, size=512, merge_static=True)

@@ -287,9 +287,18 @@ class Weapon:
                    (x - 0.03, 0, z - 0.024), (x - 0.04, 0, z - 0.008)]
             self.add(self.tube("trigger_guard", pts, 0.0025), mat)
 
-    def finish(self, out, size=1024):
-        """Bakes every part onto one texture set and writes <out>/<id>.glb with the markers and part extras."""
+    def finish(self, out, size=1024, merge_static=False):
+        """Bakes every part onto one texture set and writes <out>/<id>.glb with the markers and part extras.
+        merge_static: the parts that never move are joined into one mesh after the bake (props placed many times: a
+        tonic machine of sixty parts is one draw, not sixty); glass parts stay apart (they're drawn in their own pass)."""
         C.bake_pbr(self.parts, self.id, size=size, ao_distance=0.02)
+        if merge_static:
+            still = [o for o in self.parts if o.get("group", "static") == "static" and not o.get("glass")]
+            if len(still) > 1:
+                C.select_only(still); bpy.context.view_layer.objects.active = still[0]
+                bpy.ops.object.join()
+                keep = bpy.context.view_layer.objects.active
+                self.parts = [keep] + [o for o in self.parts if o not in still]
         path = os.path.join(out, f"{self.id}.glb")
         C.select_only(self.parts + self.markers)
         bpy.ops.export_scene.gltf(filepath=path, export_format='GLB', use_selection=True, export_apply=True,

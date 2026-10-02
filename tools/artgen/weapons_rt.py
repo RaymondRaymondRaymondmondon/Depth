@@ -571,4 +571,4 @@ if __name__ == "__main__":
             continue
         W = K.Weapon(wid)
         fn(W)
-        W.finish(out, size=getattr(fn, "texture", 1024))
+        W.finish(out, size=getattr(fn, "texture", 1024), merge_static=True)   # (the still parts one mesh: a gun is drawn by every diver and squad)
