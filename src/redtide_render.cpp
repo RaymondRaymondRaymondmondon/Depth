@@ -585,12 +585,75 @@ float keyShadow(vec3 wp, vec3 n, vec3 L) {   // (the same as the physically base
     for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++) lit += (q.z - bias > texture(uShadowMap, q.xy + vec2(x, y) * tx * 1.5).r) ? 0.0 : 1.0;
     return lit / 9.0;
 }
+// The map kit's surfaces (Red Tide's Visual Overhaul, phase 6): static geometry gets procedural material detail from
+// where it is and what it faces, so no surface is a bare flat colour. uSurf: 0 off, 1 the Sunken Ship (warm: planks
+// and mahogany panelling; cool: riveted plate with rust running down it), 2 the Cave (strata, mottled wet rock),
+// 3 the Reef (rippled sand, lumpy coral rock), 4 Atlantis (marble ashlar, algae), 5 the Void (rusted plate, black sand).
+uniform float uSurf;
+float sh1(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float sn(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+    return mix(mix(sh1(i), sh1(i + vec2(1, 0)), f.x), mix(sh1(i + vec2(0, 1)), sh1(i + vec2(1, 1)), f.x), f.y); }
+float fbm2(vec2 p) { return sn(p) * 0.55 + sn(p * 2.3 + 7.1) * 0.3 + sn(p * 5.1 + 3.3) * 0.15; }
+vec3 surfaceDetail(vec3 base, vec3 wp, vec3 n) {
+    int style = int(uSurf + 0.5);
+    vec3 an = abs(n);
+    // the face's own 2D coordinates: floors and ceilings in xz, walls along their run and up
+    vec2 uv = an.y > 0.7 ? wp.xz : (an.x > an.z ? wp.zy : wp.xy);
+    float warm = base.r - base.b, lum = dot(base, vec3(0.3, 0.59, 0.11));
+    float k = 1.0;
+    if (style == 1 || style == 5) {   // the ship and the station: wood where it's warm, plate where it's cool
+        if (warm > 0.08 && style == 1) {
+            if (an.y > 0.7) {   // deck planks: 18 cm boards along x, seams, grain, each board its own shade
+                float row = floor(wp.z / 0.18); float seam = smoothstep(0.0, 0.012, abs(fract(wp.z / 0.18) - 0.0)) * smoothstep(0.0, 0.012, abs(fract(wp.z / 0.18) - 1.0));
+                float endj = step(0.985, fract(wp.x / 2.4 + sh1(vec2(row, 3.0))));
+                k = (0.82 + 0.3 * sh1(vec2(row, 1.0))) * mix(0.55, 1.0, seam) * (1.0 - 0.4 * endj) * (0.9 + 0.2 * sn(vec2(wp.x * 9.0, row * 3.0)));
+            } else {            // mahogany panelling: tall panels, a moulding at the dado, wallpaper peeling above it
+                float px = fract(uv.x / 0.9); float frame = smoothstep(0.03, 0.06, px) * smoothstep(0.03, 0.06, 1.0 - px);
+                float dado = abs(fract(uv.y) - 0.0);
+                float above = step(1.1, mod(uv.y + 100.0, 3.2));
+                float peel = smoothstep(0.55, 0.62, fbm2(uv * 1.3));
+                k = mix(0.7, 1.0, frame) * (0.9 + 0.2 * sn(vec2(uv.x * 0.8, uv.y * 14.0)));
+                if (above > 0.5) { base = mix(base, base * vec3(0.95, 0.88, 0.7) + vec3(0.06, 0.05, 0.02), 0.5 * (1.0 - peel)); }
+                k *= 1.0 - 0.25 * smoothstep(0.0, 0.03, 0.03 - abs(fract(uv.y / 1.1) - 0.5) * 0.06);
+            }
+        } else {
+            // riveted plate: 1.2 x 0.8 m plates, a dark seam, a row of rivets along each seam, rust bleeding down
+            vec2 pc = vec2(uv.x / 1.2, uv.y / 0.8);
+            vec2 f = fract(pc);
+            float seam = min(min(f.x, 1.0 - f.x) * 1.2, min(f.y, 1.0 - f.y) * 0.8);
+            float sline = smoothstep(0.004, 0.012, seam);
+            vec2 rv = fract(uv / 0.1); float rivet = (f.y < 0.06 || f.y > 0.94) ? smoothstep(0.32, 0.18, length(rv - 0.5)) : 0.0;
+            float plate = 0.86 + 0.24 * sh1(floor(pc));
+            float rust = an.y < 0.7 ? smoothstep(0.45, 0.85, sn(vec2(uv.x * 6.0, uv.y * 0.6)) * fbm2(uv * 0.7 + 4.0) * 1.6) : smoothstep(0.55, 0.9, fbm2(uv * 0.6));
+            base = mix(base, base * vec3(1.25, 0.72, 0.45) + vec3(0.12, 0.04, 0.0), 0.65 * rust);
+            k = plate * mix(0.45, 1.0, sline) * (1.0 + 0.35 * rivet);
+            if (style == 5 && an.y > 0.7 && lum < 0.2) { k = 0.85 + 0.25 * fbm2(wp.xz * 3.0); }   // (black sand)
+        }
+    } else if (style == 2) {   // the Cave: strata in the walls, mottled, wet
+        float strata = sn(vec2(uv.x * 0.15, wp.y * 2.6 + sn(uv * 0.4) * 2.0));
+        k = (0.72 + 0.5 * strata) * (0.85 + 0.3 * fbm2(uv * 1.7));
+        if (an.y > 0.7) k = 0.8 + 0.35 * fbm2(wp.xz * 0.9);
+    } else if (style == 3) {   // the Reef: rippled sand floors, lumpy encrusted rock
+        if (an.y > 0.7 && lum > 0.35) { float rip = sin(wp.x * 5.0 + sn(wp.xz * 0.6) * 4.0) * 0.5 + 0.5; k = 0.88 + 0.16 * rip + 0.08 * sn(wp.xz * 8.0); }
+        else k = 0.78 + 0.4 * fbm2(uv * 2.2);
+    } else if (style == 4) {   // Atlantis: marble ashlar, the courses offset, algae in the joints and on the tops
+        float course = floor(uv.y / 0.6); vec2 bl = vec2(uv.x / 1.4 + 0.5 * mod(course, 2.0), uv.y / 0.6);
+        vec2 f = fract(bl); float joint = smoothstep(0.0, 0.03, min(min(f.x, 1.0 - f.x), min(f.y, 1.0 - f.y)));
+        if (an.y > 0.7) { vec2 g = fract(wp.xz / 1.1); joint = smoothstep(0.0, 0.025, min(min(g.x, 1.0 - g.x), min(g.y, 1.0 - g.y))); }
+        float vein = smoothstep(0.48, 0.5, abs(sn(uv * 1.5 + vec2(sn(uv * 3.0) * 2.0)) - 0.5) + 0.48) * 0.12;
+        k = (0.9 + 0.15 * sh1(floor(bl))) * mix(0.55, 1.0, joint) * (1.0 - vein);
+        float algae = smoothstep(0.5, 0.8, fbm2(uv * 0.8 + 2.0)) * (an.y > 0.7 ? 0.8 : 0.45) + (1.0 - joint) * 0.4;
+        base = mix(base, vec3(0.2, 0.32, 0.16), 0.5 * clamp(algae, 0.0, 1.0));
+    }
+    return base * k;
+}
 void main() {
     if (uSky == 1) { finalColor = vec4(fragColor.rgb * colDiffuse.rgb, fragColor.a * colDiffuse.a); return; }
     vec3 n = normalize(cross(dFdx(fragWorld), dFdy(fragWorld)));
     vec3 V = normalize(uCam - fragWorld);
     if (dot(n, V) < 0.0) n = -n;
     vec3 base = fragColor.rgb * colDiffuse.rgb;
+    if (uSurf > 0.5) base = surfaceDetail(base, fragWorld, n);
     // key: the helmet lamp, a spotlight
     vec3 L = uLampPos - fragWorld; float d = length(L); L /= max(d, 0.0001);
     float cone = smoothstep(uLampCone, uLampCone + 0.18, dot(-L, normalize(uLampDir)));
@@ -1559,7 +1622,7 @@ static void DrawQueue(Shader sh, bool lit) {
         SetF(sh, L[LU_LEN], d.len);
         SetF(sh, L[LU_INTEN], d.inten);
         if (!lit && d.sky) continue;
-        if (lit) { SetF(sh, L_litGlow, d.glow); SetI(sh, L_litSky, d.sky); }
+        if (lit) { SetF(sh, L_litGlow, d.glow); SetI(sh, L_litSky, d.sky); static int ls = GetShaderLocation(gLit, "uSurf"); SetF(sh, ls, d.anim == (int)AnimMode::Static && !d.sky ? gLight.surf : 0.0f); }
         DrawMesh(m.meshes[0], m.materials[0], d.world);
     }
 }

@@ -888,6 +888,7 @@ static float gSurfY = 34;   // the surface's height (for the particles)
     bool air = z >= 0 && map.zones[z].air;
     bool open = z >= 0 && (map.zones[z].deck == "Outside" || map.extra["open_zones"].IsArr() && [&] { for (size_t i = 0; i < map.extra["open_zones"].Size(); i++) if (map.extra["open_zones"][i].Str0() == map.zones[z].name) return true; return false; }());
     L.water = air ? 0.0f : 1.0f;
+    { const std::string& k = M().mapKey; L.surf = k == "cave" ? 2.0f : k == "reef" ? 3.0f : k == "atlantis" ? 4.0f : k == "void" ? 5.0f : 1.0f; }   // (the map kit's surfaces)
     const Json& pal = map.extra["palette"];
     if (pal.IsObj() && pal["absorb"].IsArr()) L.absorb = {pal["absorb"][0].F(0.075f), pal["absorb"][1].F(0.034f), pal["absorb"][2].F(0.026f)};
     L.depthDark = pal.IsObj() ? pal["depth_dark"].F(0.012f) : 0.012f;

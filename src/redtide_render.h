@@ -102,6 +102,7 @@ struct SceneLight {                // the master reference's three-light rig
     // helmet port's lens (barrel distortion, a chromatic fringe at the rim, a darker vignette); the ink line fades
     // into the water with distance
     float water = 0;
+    float surf = 0;                          // the map kit's procedural surfaces on static geometry: 0 off, 1 ship, 2 cave, 3 reef, 4 Atlantis, 5 the Void
     Vector3 absorb{0.075f, 0.034f, 0.026f};    // per metre at fogDensity 0.045 (scaled with it, so the maps' palettes still tune it)
     float depthDark = 0.012f;                // per metre below surfaceY: the in-scatter darkens toward the deep
     float causticK = 0;                      // caustics' strength on surfaces facing up (0 off)

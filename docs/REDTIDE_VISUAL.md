@@ -145,3 +145,17 @@ The spec: `Red_Tide_Reference/Red Tide — Visual Overhaul Spec.pdf` (25 pages, 
 - **Not done yet:** the hero species' individual sculpts (the sharks, groupers, orcas, mantas, the giant squid, the
   Ghost Worm ...); weak points modelled visibly; the states on the body (hunting, fed, wounded, fleeing, netted,
   parasite, camouflage, dead); schools as instanced boids with phase offsets; flora with bones.
+
+## Phase 6: the Sunken Ship (first part, 2026-10-02) and the map kit's surfaces for every map
+- **Procedural surfaces on the levels' static geometry** (`surfaceDetail` in the inked shader, `SceneLight::surf` by
+  map): the surface's facing and colour choose its material, so no wall or floor is a bare flat colour any more.
+  The Sunken Ship (and the Void's station): riveted hull plate (1.2 x 0.8 m plates, dark seams, rows of rivets, rust
+  bleeding down the walls) where it is cool; where it is warm, 18 cm deck planks (seams, butt joints, grain, each board
+  its own shade) on the floors and mahogany panelling on the walls (panels, a dado moulding, wallpaper peeling above
+  it). The Cave: strata and mottled wet rock. The Reef: rippled sand, encrusted rock. Atlantis: marble ashlar in offset
+  courses, veins, algae in the joints and on the tops. The Void: rusted plate and black sand.
+- Frame cost: the cabins 13.7 ms, Atlantis's lower town 14.9, the reef wall 11.2, a Wrecker hunt 13.7.
+- **Not done yet for the Ship:** its modular kit as real models (the Marguerite's hull, funnel and masts outside; the
+  salon's sideways chandelier, furniture piled against the low walls; the galley's tiles; the engine room's generator
+  and the Goliath's nest), the Wreckers on figures, the Goliath's hero sculpt, the Galvanic Rod's arcs, and the traps
+  as animated set pieces.
