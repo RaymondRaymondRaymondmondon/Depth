@@ -396,6 +396,7 @@ template <class A> void Visit(A& a, TrawlWorld& w) {
     a.vec(g.hold, [&](CatchRec& h) { VisitCatch(a, h); });
     a.vec(g.basketLine, [&](CatchRec& h) { VisitCatch(a, h); });
     a.vec(g.landings, [&](Landing& L) {
+        a.i(L.kind); a.b(L.flooded);
         a.s(L.name); a.v2(L.at); a.f(L.r); a.v2(L.pond); a.f(L.pondR); a.v2(L.fire); a.b(L.fireLit); a.v2(L.elder); a.v2(L.sloop); a.f(L.sloopHead);
         a.vec(L.palms, [&](Vector2& p) { a.v2(p); });
         a.vec(L.caches, [&](Cache& k) { a.v2(k.p); a.i(k.kind); a.f(k.value); a.f(k.kg); a.b(k.open); a.b(k.found); a.s(k.what); });

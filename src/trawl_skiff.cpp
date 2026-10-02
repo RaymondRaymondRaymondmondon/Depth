@@ -341,6 +341,47 @@ int RunTrawlSkiffTest() {
         h.SkiffHit(25, "a reef shark"); h.SkiffHit(20, "a reef shark");
         check(h.skiff.state == SkiffState::Lost && h.crew[0].overboard, "40 of hull: a second ram stoves her in and she goes down");
     }
+    // the Lagoon's other landings: the Old Lighthouse rock (the keeper's strongbox, his logbook, the lens) and the Sandbar
+    // (chests buried where the logbook marks them; the tide makes over it at 02:00)
+    {
+        Gannet h; Eco he; setup(h, he, 1, 22);
+        h.BuildLandings();
+        int lh = -1, sb = -1; for (int i = 0; i < (int)h.landings.size(); i++) { if (h.landings[i].kind == LK_LIGHTHOUSE) lh = i; if (h.landings[i].kind == LK_SANDBAR) sb = i; }
+        check(lh >= 0 && sb >= 0 && he.DepthAt(h.landings[lh].at) <= 0 && he.DepthAt(h.landings[sb].at) <= 0 && Vector2Distance(h.landings[lh].at, h.landings[0].at) > 100 && Vector2Distance(h.landings[sb].at, h.landings[0].at) > 60,
+              "the Lagoon has the Old Lighthouse rock and the Sandbar, dry land well apart from the Atoll");
+        if (lh >= 0 && sb >= 0) {
+            Landing& L = h.landings[lh]; Landing& B = h.landings[sb];
+            bool hidden = true; for (const auto& k : B.caches) if (k.found || k.kind != 2) hidden = false;
+            check(hidden && B.caches.size() >= 1 && B.caches.size() <= 3 && !B.fireLit, TextFormat("the Sandbar: %d chest%s buried out of sight, no fire", (int)B.caches.size(), B.caches.size() == 1 ? "" : "s"));
+            h.skiff.state = SkiffState::Afloat; h.skiff.integrity = D().skiffIntegrity; h.skiff.p = Vector2Add(L.at, {L.r + 2.5f, 0}); h.skiff.heading = PI;
+            h.crew[0].deck = DECK_SKIFF; h.crew[0].p = {0.2f, 0};
+            check(h.LeaveSkiff(0) && h.crew[0].deck == DECK_SHORE && h.skiff.landing == lh, "the skiff runs up on the lighthouse rock");
+            Crew& c = h.crew[0];
+            Cache& box = L.caches[0];
+            c.p = Vector2Add(box.p, {0.6f, -0.9f}); h.junkKeys = 0; h.ShoreUse(0);
+            bool locked = !box.open; h.junkKeys = 1; h.ShoreUse(0);
+            check(locked && box.open && c.carrying && box.value >= 100 && box.value <= 250, TextFormat("the keeper's strongbox: locked until a brass key (worth %.0f)", box.value));
+            c.carrying = false; c.carryKg = 0;
+            int lg = -1; for (int i = 0; i < (int)L.onBeach.size(); i++) if (L.onBeach[i].name == "the keeper's logbook") lg = i;
+            if (lg >= 0) { c.p = L.onBeach[lg].deckAt; h.ShoreUse(0); }
+            bool marked = true; for (const auto& k : B.caches) if (!k.found) marked = false;
+            check(lg >= 0 && c.carrying && marked, "his logbook marks where the Sandbar's chests are buried");
+            bool lens = false; for (const auto& r : L.onBeach) if (r.name == "the lighthouse lens" && r.kg == 3) lens = true;
+            check(lens, "the great lens lies on the rock (salvage, 3 kg)");
+            c.carrying = false; c.carryKg = 0;
+            // over to the Sandbar: ashore, dig one chest; then the tide
+            c.deck = DECK_SKIFF; h.skiff.state = SkiffState::Afloat; h.skiff.landing = -1; h.skiff.p = Vector2Add(B.at, {B.r + 2.5f, 0});
+            check(h.LeaveSkiff(0) && h.skiff.landing == sb, "the skiff runs up on the Sandbar");
+            c.p = Vector2Add(B.caches[0].p, {0.5f, 0}); h.ShoreUse(0); run(h, 5.2f);
+            check(B.caches[0].open && c.carrying, "5 s of digging at the keeper's mark brings a chest up");
+            c.carrying = false; c.carryKg = 0;
+            h.FloodSandbar(sb);
+            bool lost = true; for (const auto& k : B.caches) if (!k.open) lost = false;
+            check(B.flooded && c.overboard && h.skiff.state == SkiffState::Afloat && lost, "02:00: the Sandbar goes under - the hand ashore is in the water, the skiff floats off, the chests not dug are lost");
+            h.crew[0].overboard = false; c.deck = DECK_SKIFF; h.skiff.p = Vector2Add(B.at, {B.r + 2.0f, 0});
+            check(!h.LeaveSkiff(0) || c.deck != DECK_SHORE, "a flooded bar can't be landed on");
+        }
+    }
     // calm water never capsizes her; a storm can
     {
         Gannet h; Eco he; setup(h, he, 1, 16);
@@ -354,7 +395,7 @@ int RunTrawlSkiffTest() {
         Gannet h; Eco he; setup(h, he, 1, 21);
         Session ss; (void)ss;
         h.BuildLandings();
-        check(h.landings.size() == 1 && he.DepthAt(h.landings[0].at) <= 0 && he.DepthAt(Vector2Add(h.landings[0].at, {16, 0})) > 0.5f, "the Lagoon has the Atoll: sand at its centre, a shelf the skiff can reach");
+        check(h.landings.size() == 3 && he.DepthAt(h.landings[0].at) <= 0 && he.DepthAt(Vector2Add(h.landings[0].at, {16, 0})) > 0.5f, "the Lagoon has the Atoll: sand at its centre, a shelf the skiff can reach");
         Landing& L = h.landings[0];
         h.skiff.state = SkiffState::Afloat; h.skiff.integrity = D().skiffIntegrity; h.skiff.p = Vector2Add(L.at, {L.r + 2.5f, 0}); h.skiff.heading = PI;
         h.crew[0].deck = DECK_SKIFF; h.crew[0].p = {0.2f, 0};

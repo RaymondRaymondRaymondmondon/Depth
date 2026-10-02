@@ -38,7 +38,31 @@ void Gannet::BuildLandings() {
         if (kind != LK_ATOLL) {
             Landing L; L.kind = kind; L.at = eco->landingAt[k];
             gLr = eco->initSeed * 2654435761u + 31 + (uint32_t)k * 977;
-            if (kind == LK_STAIR) {
+            if (kind == LK_LIGHTHOUSE) {
+                // (the Lagoon) a bare rock on the reef inside the crest: the old lighthouse tower (the keeper's hearth at
+                // its foot, sheltered), his strongbox in the tower (100-250, locked: a brass key), his logbook on the
+                // gallery steps (it marks where the Sandbar's chests are buried), and the great lens, cracked out of
+                // its frame (salvage: 3 kg, breaks if it's dropped)
+                L.name = "The Old Lighthouse rock"; L.r = 8;
+                L.sloop = {0.0f, -2.6f}; L.sloopHead = 0; L.fire = {1.6f, 1.8f}; L.elder = {999, 999}; L.pond = {0, 0}; L.pondR = 0;
+                Cache box; box.p = Vector2Add(L.sloop, {-1.4f, 0.2f}); box.kind = 1; box.value = 100 + LR() * 150; box.kg = 16 + LR() * 8; box.what = "the keeper's strongbox";
+                L.caches.push_back(box);
+                CatchRec log; log.name = "the keeper's logbook"; log.junk = true; log.kg = 1; log.price = 30; log.dead = log.gutted = log.iced = true; log.deckAt = {2.6f, 2.4f}; L.onBeach.push_back(log);
+                CatchRec lens; lens.name = "the lighthouse lens"; lens.junk = true; lens.kg = 3; lens.price = 160 + LR() * 80; lens.dead = lens.gutted = lens.iced = true; lens.deckAt = {-2.8f, 2.6f}; L.onBeach.push_back(lens);
+                for (int i = 0; i < 2; i++) { float a = LR() * 6.2832f; L.crabs.push_back({cosf(a) * (L.r - 1.0f), sinf(a) * (L.r - 1.0f)}); }
+            } else if (kind == LK_SANDBAR) {
+                // (the Lagoon) a bar of bare sand: no fire, no trader; 1-3 chests buried in it (80-300), found from a
+                // bottle's map, three chart pieces or the keeper's logbook; the tide makes over it at 02:00
+                L.name = "The Sandbar"; L.r = 10;
+                L.sloop = {999, 999}; L.sloopHead = 0; L.fire = {999, 999}; L.fireLit = false; L.elder = {999, 999}; L.pond = {0, 0}; L.pondR = 0;
+                int n = 1 + (int)(LR() * 3);
+                for (int i = 0; i < n; i++) {
+                    float a = 0.6f + i * 2.1f + LR() * 0.6f, rr = 3 + LR() * 4.5f;
+                    Cache c; c.p = {cosf(a) * rr, sinf(a) * rr}; c.kind = 2; c.found = false; c.value = 80 + LR() * 220; c.kg = 14 + LR() * 18; c.what = "a buried chest";
+                    L.caches.push_back(c);
+                }
+                for (int i = 0; i < 3; i++) { float a = LR() * 6.2832f; L.crabs.push_back({cosf(a) * (L.r - 1.2f), sinf(a) * (L.r - 1.2f)}); }
+            } else if (kind == LK_STAIR) {
                 // (Atlantis) a broad stairway climbing out of the terraces to a landing of white stone: the eternal
                 // brazier (cooks twice as fast, +2 Wake a fish), the Keeper of the Stair (a drowned priest, harmless
                 // while he is paid in offerings), offering bowls (400-1200) that he lets go for an offering
@@ -163,6 +187,7 @@ bool Gannet::BeachSkiff(int ci) {
     int li = s.state == SkiffState::Beached ? s.landing : LandingNear(s.p, 3.5f);
     if (li < 0) return false;
     Landing& L = landings[li];
+    if (L.flooded) { Say("The Sandbar is under the tide: nothing to land on"); return false; }
     Vector2 out = Vector2Subtract(s.p, L.at); float d = Vector2Length(out);
     out = d > 0.01f ? Vector2Scale(out, 1 / d) : Vector2{1, 0};
     if (s.state == SkiffState::Afloat) {
@@ -174,6 +199,28 @@ bool Gannet::BeachSkiff(int ci) {
     c.deck = DECK_SHORE; c.p = Vector2Scale(out, L.r - 1.0f); c.v = {0, 0};
     Say(TextFormat("Ashore on %s", L.name.c_str()));
     return true;
+}
+
+// The Sandbar floods (02:00): the bar goes under. Whoever is still on it is in the water (the skiff floats off with
+// them if she's there), and whatever lies on it - fish, salvage, chests not dug - is gone with the tide.
+void Gannet::FloodSandbar(int li) {
+    if (li < 0 || li >= (int)landings.size() || landings[li].flooded) return;
+    Landing& L = landings[li];
+    L.flooded = true;
+    L.onBeach.clear(); L.onFire.clear(); L.crabs.clear();
+    for (auto& k : L.caches) k.open = true;   // (what wasn't dug is lost)
+    if (skiff.landing == li && skiff.state == SkiffState::Beached) { skiff.state = SkiffState::Afloat; skiff.landing = -1; }
+    for (int i = 0; i < (int)crew.size(); i++) {
+        Crew& c = crew[i];
+        if (c.dead || c.deck != DECK_SHORE) continue;
+        if (skiff.landing >= 0 && skiff.landing != li) continue;
+        Vector2 w = L.ToWorld(c.p);
+        c.carrying = false; c.carryKg = 0;
+        c.deck = 0; c.v = {0, 0};
+        GoOverboard(i, "the Sandbar went under");
+        c.swim = w;   // (in the water where they stood)
+    }
+    Say("The tide makes over the Sandbar: the bar is gone under the water");
 }
 
 // E ashore: in order, the beached skiff (load what you carry, or unload her), the fire, a cache, the elder is the
@@ -251,7 +298,16 @@ bool Gannet::ShoreUse(int ci) {
     }
     // something on the beach
     if (!c.carrying) {
-        for (int i = 0; i < (int)L.onBeach.size(); i++) if (Vector2Distance(c.p, L.onBeach[i].deckAt) < REACH) { take(L.onBeach[i]); L.onBeach.erase(L.onBeach.begin() + i); Say(TextFormat("Picked up: %s", c.carry.name.c_str())); return true; }
+        for (int i = 0; i < (int)L.onBeach.size(); i++) if (Vector2Distance(c.p, L.onBeach[i].deckAt) < REACH) {
+            take(L.onBeach[i]); L.onBeach.erase(L.onBeach.begin() + i); Say(TextFormat("Picked up: %s", c.carry.name.c_str()));
+            if (c.carry.name == "the keeper's logbook") {
+                // his last entries: where the wreckers buried their chests on the Sandbar
+                int marked = 0;
+                for (auto& B : landings) if (B.kind == LK_SANDBAR && !B.flooded) for (auto& k : B.caches) if (k.kind == 2 && !k.found) { k.found = true; marked++; }
+                if (marked) Say(TextFormat("The keeper's last pages: %d chest%s buried on the Sandbar, the marks drawn in. It floods at 02:00", marked, marked == 1 ? "" : "s"));
+            }
+            return true;
+        }
         for (int i = 0; i < (int)L.crabs.size(); i++) if (Vector2Distance(c.p, L.crabs[i]) < 1.0f) {
             int sp = Species().Find("blue crab");
             CatchRec r; r.name = "blue crab"; r.sp = sp; r.kg = 0.5f + LR() * 0.4f; r.price = sp >= 0 ? Species().sp[sp].price : 2; r.dead = true; r.src = CS_HOOK;

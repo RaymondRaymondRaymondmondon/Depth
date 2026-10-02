@@ -1020,8 +1020,9 @@ static std::vector<PropAt> gAtollProps[4];
 static void BuildAtollBaked(int li, const Landing& L) {
     bool seal = L.kind == LK_SEALROCK || L.kind == LK_SHELF || L.kind == LK_BONEBEACH, pier = L.kind == LK_CANNERY;
     bool stair = L.kind == LK_STAIR, tower = L.kind == LK_TOWER, cultL = L.kind == LK_CULT;
-    int top = stair ? TM_MARBLE : tower || seal ? TM_ROCK : cultL || L.kind == LK_BONEBEACH ? TM_CAVEROCK : pier ? TM_DECK : TM_SAND;
-    int skirt = pier ? -1 : stair || tower || seal ? TM_ROCK : cultL ? TM_CAVEROCK : TM_WETSAND;
+    bool lightH = L.kind == LK_LIGHTHOUSE, sandB = L.kind == LK_SANDBAR;
+    int top = stair ? TM_MARBLE : tower || seal || lightH ? TM_ROCK : cultL || L.kind == LK_BONEBEACH ? TM_CAVEROCK : pier ? TM_DECK : TM_SAND;
+    int skirt = pier ? -1 : stair || tower || seal || lightH ? TM_ROCK : cultL ? TM_CAVEROCK : TM_WETSAND;
     auto W = [&](Vector2 l, float y) { return Vector3{L.at.x + l.x, y, L.at.y + l.y}; };
     TerrainBuilder tb;
     const int N = 36, RINGS = 4;
@@ -1042,11 +1043,18 @@ static void BuildAtollBaked(int li, const Landing& L) {
     {
         MeshBuilder mb;
         Color pond = seal ? Color{66, 80, 70, 255} : Color{30, 96, 104, 255};
-        for (int k = 0; k < N && !pier && !stair && !tower; k++) {
+        for (int k = 0; k < N && !pier && !stair && !tower && !lightH && !sandB; k++) {
             float a0 = k * 2 * PI / N, a1 = a0 + 2 * PI / N;
             Vector2 q0 = Vector2Add(L.pond, Vector2Scale({cosf(a0), sinf(a0)}, L.pondR)), q1 = Vector2Add(L.pond, Vector2Scale({cosf(a1), sinf(a1)}, L.pondR));
             mb.Tri(W(L.pond, ATOLL_Y + 0.2f), W(q1, ATOLL_Y + 0.2f), W(q0, ATOLL_Y + 0.2f), pond);
             mb.Tri(W(L.pond, ATOLL_Y + 0.2f), W(q0, ATOLL_Y + 0.2f), W(q1, ATOLL_Y + 0.2f), pond);
+        }
+        if (lightH) {   // the old lighthouse: a white tower, a red band, the lamp room's dark glass and its cap
+            Vector3 b = W(L.sloop, ATOLL_Y);
+            mb.Tube({b, Vector3Add(b, {0, 7.5f, 0})}, 2.1f, 1.6f, 14, Color{220, 216, 206, 255}, Color{200, 196, 186, 255}, 0);
+            mb.Tube({Vector3Add(b, {0, 7.5f, 0}), Vector3Add(b, {0, 9.0f, 0})}, 1.6f, 1.5f, 14, Color{170, 50, 40, 255}, Color{150, 44, 36, 255}, 0);
+            mb.Tube({Vector3Add(b, {0, 9.0f, 0}), Vector3Add(b, {0, 10.4f, 0})}, 1.2f, 1.2f, 12, Color{40, 50, 56, 255}, Color{30, 38, 44, 255}, 0);
+            mb.Tube({Vector3Add(b, {0, 10.4f, 0}), Vector3Add(b, {0, 11.4f, 0})}, 1.45f, 0.2f, 12, Color{60, 64, 60, 255}, Color{40, 44, 40, 255}, 0);
         }
         if (pier) for (int k = 0; k < N; k += 2) { float a0 = k * 2 * PI / N; Vector2 p0{cosf(a0), sinf(a0)}; mb.Tube({W(Vector2Scale(p0, L.r - 0.2f), -3.0f), W(Vector2Scale(p0, L.r - 0.2f), ATOLL_Y)}, 0.18f, 0.18f, 6, Color{58, 46, 34, 255}, Color{40, 46, 36, 255}, 0); }
         if (gAtollX[li].meshCount > 0) UnloadModel(gAtollX[li]);
@@ -1058,6 +1066,8 @@ static void BuildAtollBaked(int li, const Landing& L) {
     float gy = ATOLL_Y + 0.12f;
     if (stair) { at("trawl/props/stair.glb", {0, 0}, ATOLL_Y); at("trawl/props/shrine.glb", L.sloop, ATOLL_Y); at("trawl/props/brazier.glb", L.fire, gy); return; }
     if (tower) { at("trawl/props/tower.glb", L.sloop, ATOLL_Y); at("trawl/props/firering.glb", L.fire, gy); return; }
+    if (lightH) { at("trawl/props/stove.glb", L.fire, gy); for (int i = 0; i < 6; i++) { float a = i * 1.1f + 0.5f; Vector2 b{cosf(a) * 6.0f, sinf(a) * 6.0f}; at("trawl/props/boulder.glb", b, gy - 0.05f, a, 0.8f + 0.2f * (i % 3)); } return; }   // (the keeper's hearth: a stove in the tower's lee)
+    if (sandB) return;   // (bare sand)
     if (cultL) {
         at("trawl/props/tent.glb", L.sloop, ATOLL_Y); at("trawl/props/firering.glb", L.fire, gy);
         for (int k = 0; k < 4; k++) { float a = k * 1.57f + 0.4f; at("trawl/props/skullpost.glb", Vector2Add(L.fire, {cosf(a) * 3.2f, sinf(a) * 3.2f}), gy, -a); }
@@ -1085,6 +1095,7 @@ static void BuildAtollBaked(int li, const Landing& L) {
 static void DrawLanding3D(const Gannet& g, float t) {
     for (size_t li = 0; li < g.landings.size() && li < 4; li++) {
         const Landing& L = g.landings[li];
+        if (L.flooded) continue;   // (the Sandbar under the tide)
         if (gAtollFor[li].x != L.at.x || gAtollFor[li].y != L.at.y) {
             if (gAtoll[li].meshCount > 0) UnloadModel(gAtoll[li]);
             MeshBuilder mb; BuildAtoll(mb, L); gAtoll[li] = LoadModelFromMesh(mb.Build()); gAtollFor[li] = L.at;
@@ -1104,7 +1115,7 @@ static void DrawLanding3D(const Gannet& g, float t) {
             DrawFishAt(gFish, W(Vector2Add(L.fire, {(float)i * 0.2f - 0.3f, 0}), ATOLL_Y + 0.5f), {1, 0, 0.1f}, len, r.cookT > T + 5 ? Color{50, 36, 26, 255} : r.cookT > T ? Color{200, 140, 70, 255} : Color{200, 200, 196, 255}, 1.5f);
         }
         // the elder before his hut
-        if (L.kind != LK_TOWER) {   // (nobody keeps the Watchtower)
+        if (L.kind != LK_TOWER && L.kind != LK_LIGHTHOUSE && L.kind != LK_SANDBAR) {   // (nobody keeps the Watchtower, the lighthouse or the bar)
             // the elder; Old Hoskins in yellow oilskins; the foreman in a leather apron; the quartermaster; the hermit; the
             // Keeper of the Stair, pale and drowned; the cult quartermaster in red
             Color cl = L.kind == LK_SEALROCK ? Color{176, 154, 62, 255} : L.kind == LK_CANNERY ? Color{96, 70, 50, 255} : L.kind == LK_SHELF ? Color{44, 44, 54, 255}

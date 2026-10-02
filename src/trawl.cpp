@@ -1887,7 +1887,7 @@ void DebugTrawlShot(Game& g, int which) {
         if (fp) { G.crew[0].station = -1; G.crew[0].p = {-1.5f, 1.2f}; S.eye.yaw = -1.2f; S.eye.pitch = -0.05f; }
         return;
     }
-    if (which == 27 || which == 28 || which == 29) {
+    if (which == 27 || which == 28 || which == 29 || which == 37 || which == 38) {
         // 27 out in the skiff, rowing away from the Gannet (lying stopped, her lantern full) with a fish aboard; 28 the
         // skiff going down on the davit, a hand at it
         StartTrawl(g, fp, 2, 1);
@@ -1900,6 +1900,21 @@ void DebugTrawlShot(Game& g, int which) {
         S.W->eco.agentBudget = 200;
         for (int i = 0; i < 60 * 8; i++) { G.Step(1 / 60.0f); ss.Step(1 / 60.0f); }
         int dv = -1; for (int i = 0; i < (int)Stations().size(); i++) if (Stations()[i].kind == StationKind::Davit) dv = i;
+        int lk = which == 37 ? LK_LIGHTHOUSE : which == 38 ? LK_SANDBAR : LK_ATOLL, li = -1;
+        for (int i = 0; i < (int)G.landings.size(); i++) if (G.landings[i].kind == lk) li = i;
+        if (which >= 37 && li >= 0) {
+            // 37 ashore on the Old Lighthouse rock by the keeper's hearth; 38 digging on the Sandbar at the keeper's mark
+            Landing& L = G.landings[li];
+            G.sea.weather = Weather::Calm; ss.wxTo = Weather::Calm;
+            G.skiff.state = SkiffState::Afloat; G.skiff.integrity = D().skiffIntegrity; G.skiff.p = Vector2Add(L.at, {L.r + 2.0f, -3.0f});
+            G.crew[0].deck = DECK_SKIFF; G.crew[0].p = {0.2f, 0}; G.BeachSkiff(0);
+            for (auto& k : L.caches) if (k.kind == 2) k.found = true;
+            G.crew[0].p = which == 37 ? Vector2{2.5f, 5.6f} : Vector2Add(L.caches[0].p, {0.6f, 0.2f}); G.crew[0].facing = {-1, 0};
+            if (which == 37) { CatchRec f; f.name = "snapper"; f.sp = Species().Find("snapper"); f.kg = 3.4f; f.price = 3; f.dead = true; f.cookT = 9; f.deckAt = L.fire; L.onFire.push_back(f); }
+            for (int i = 0; i < 20; i++) G.Step(1 / 60.0f);
+            if (fp) { S.eye.yaw = which == 37 ? (getenv("DEPTH_YAW") ? (float)atof(getenv("DEPTH_YAW")) : -2.27f) : 3.4f; S.eye.pitch = which == 37 ? 0.12f : -0.3f; }
+            return;
+        }
         if (which == 29 && !G.landings.empty()) {
             // ashore on the Atoll by the fire: a snapper cooking, a grunt waiting on the sand, the skiff beached, the elder
             Landing& L = G.landings[0];

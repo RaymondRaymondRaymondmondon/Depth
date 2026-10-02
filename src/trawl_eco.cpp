@@ -399,6 +399,28 @@ void Eco::BuildChart(uint32_t seed) {
         marks.push_back({"The Crest Pass", pass, 26, 0});
         marks.push_back({"The Sargassum Line", {size * 0.66f, size * (0.30f + 0.40f * H2(5, 9, seed))}, 24, 1});   // (out toward the crest: skiff water, not the basin she fishes)
     }
+    // the Lagoon's other two landings (design doc v2, "Islands"): the Old Lighthouse rock on the reef inside the crest,
+    // across the lagoon from the Atoll, and the Sandbar out in the basin, dry until the tide makes over it at 02:00
+    // (both hashed from the seed and carved last, so the rest of the chart is unchanged)
+    if (!getenv("DEPTH_NOATOLL")) {
+        Vector2 atoll = landingAt[0];
+        Vector2 light{size * 0.70f + (H2(13, 2, seed) - 0.5f) * size * 0.03f, size - atoll.y};
+        Vector2 bar{size * 0.50f + (H2(17, 6, seed) - 0.5f) * size * 0.04f, size * (atoll.y < size * 0.5f ? 0.34f : 0.66f) + (H2(19, 3, seed) - 0.5f) * size * 0.04f};   // (between the Atoll and the basin's middle, clear of where she fishes)
+        landingAt.push_back(light); landingKind.push_back(8);   // (LK_LIGHTHOUSE)
+        landingAt.push_back(bar); landingKind.push_back(9);   // (LK_SANDBAR)
+        for (int y = 0; y < n; y++) for (int x = 0; x < n; x++) {
+            Vector2 w{(x + 0.5f) * cell, (y + 0.5f) * cell};
+            int i = y * n + x;
+            float dl = Vector2Distance(w, light), db = Vector2Distance(w, bar);
+            if (dl < 22) {   // a rock 8 m round, its reef falling to the basin
+                float d = dl < 8 ? 0 : dl < 14 ? 1.5f + (dl - 8) * 0.3f : 3.3f + (dl - 14) * 0.5f;
+                if (dl < 14 || d < depth[i]) { depth[i] = d; hab[i] = (uint8_t)(dl < 8 ? H_LAND : H_REEF); holes[i] = dl >= 8 && H2(x, y, seed + 41) < 0.3f; }
+            } else if (db < 24) {   // a bar of sand 10 m round with a seagrass apron (a keel finds it at 1 m)
+                float d = db < 10 ? 0 : db < 16 ? 0.4f + (db - 10) * 0.1f : 1.0f + (db - 16) * 0.5f;
+                if (db < 16 || d < depth[i]) { depth[i] = d; hab[i] = (uint8_t)(db < 10 ? H_LAND : H_SEAGRASS); holes[i] = 0; }
+            }
+        }
+    }
     // sargassum rafts drift on the wind across the lagoon and the sea
     rafts.clear();
     for (int i = 0; i < 9; i++) rafts.push_back({{80 + Rand() * (size - 120), 40 + Rand() * (size - 80)}, 5 + Rand() * 6});

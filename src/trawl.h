@@ -369,7 +369,7 @@ struct Cache { Vector2 p{}; int kind = 0; float value = 0, kg = 0; bool open = f
 // `elder` is the elder, Old Hoskins or the last foreman; `sloop` is the beached sloop, the sealers' hut or the cannery
 // shed; `pond` is the Atoll's lagoon or Seal Rock's haul-out (the bull seal stands in for the moray); the Cannery Pier
 // is a stage on pilings with no pond, and Kelp Wraiths in the pilings take a hand at its edge.
-enum LandingKind { LK_ATOLL, LK_SEALROCK, LK_CANNERY, LK_SHELF, LK_BONEBEACH, LK_STAIR, LK_TOWER, LK_CULT };   // (3, 4: the Grotto's Smugglers' Shelf and Bone Beach; 5-7: Atlantis's Drowned Stair, Watchtower stump, Cult Landing)
+enum LandingKind { LK_ATOLL, LK_SEALROCK, LK_CANNERY, LK_SHELF, LK_BONEBEACH, LK_STAIR, LK_TOWER, LK_CULT, LK_LIGHTHOUSE, LK_SANDBAR };   // (8, 9: the Lagoon's Old Lighthouse rock and the Sandbar)   // (3, 4: the Grotto's Smugglers' Shelf and Bone Beach; 5-7: Atlantis's Drowned Stair, Watchtower stump, Cult Landing)
 struct Landing {
     int kind = LK_ATOLL;
     std::string name; Vector2 at{}; float r = 13;         // world centre; the shore's radius
@@ -383,6 +383,7 @@ struct Landing {
     std::vector<Vector2> crabs;
     Vector2 moray{}; float morayT = 0;                    // where it lurks in the pond; its next bite
     float elderCredit = 0;                                // fish given to the elder, at 150% of their value, to spend on his goods
+    bool flooded = false;                                 // the Sandbar: under water from 02:00 (what was left on it is gone)
     Vector2 ToWorld(Vector2 l) const { return {at.x + l.x, at.y + l.y}; }
 };
 // The junk table (design doc v2, pages 25-27): what a cast or a net haul brings up besides fish
@@ -621,6 +622,7 @@ struct Gannet {
     std::vector<Landing> landings;
     bool foughtCanoes = false;                            // refused the canoes: the Atoll's elder won't trade
     void BuildLandings();                                 // from the ground's chart (Eco::landingAt)
+    void FloodSandbar(int li);                            // 02:00: the Sandbar goes under (what's on it is lost; who's on it swims)
     int LandingNear(Vector2 world, float extra) const;    // the landing whose shore is within extra m, or -1
     void StepLandings(float dt);
     void ShoreMove(int c, Vector2 wish, float dt);        // on foot ashore (wish in the Gannet's frame, as on screen)

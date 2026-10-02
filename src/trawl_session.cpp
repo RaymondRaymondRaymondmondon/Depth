@@ -844,6 +844,7 @@ bool Session::CastOff(std::string* why) {
     G->boat.lantern = std::min(G->boat.lantern, G->searchlight ? 3 : 2);
     phase = Phase::SailOut; clock = 0; clockOn = false;
     for (bool& c : cues) c = false;
+    for (auto& L : G->landings) if (L.kind == LK_SANDBAR) L.flooded = false;   // (the bar is dry again by the next night: bare, its chests long gone)
     return true;
 }
 // ---------------------------------------------------------------- role upgrades and the Owners' consignments
@@ -983,6 +984,13 @@ void Session::Step(float dt) {
                 bool inside = G->boat.pos.x > E->archX1;
                 Tape("THE ARCH IS CLOSED STOP");
                 G->Say(inside ? "The tide closes the arch behind her: she's shut in the Grotto until 05:00" : "The tide closes the arch: the Grotto is shut for the night");
+            }
+            // the Lagoon's Sandbar: the tide makes over it at 02:00 (a warning on the tape half an hour before)
+            for (int li = 0; li < (int)G->landings.size(); li++) {
+                Landing& L = G->landings[li];
+                if (L.kind != LK_SANDBAR || L.flooded) continue;
+                if (clock >= 330 && !cues[4]) { cues[4] = true; Tape("TIDE MAKING OVER SANDBAR 0200 STOP"); G->Say("The tide is making: the Sandbar goes under at 02:00"); }
+                if (clock >= 360) G->FloodSandbar(li);
             }
             // the tuna run: the bluefin come along the seaward edge from 22:00, the Great White after them
             if (variant == Variant::TunaRun && clock >= 120 && E->speciesMul.find("bluefin tuna") == E->speciesMul.end()) {

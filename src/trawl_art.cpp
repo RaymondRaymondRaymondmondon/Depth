@@ -716,8 +716,10 @@ void DrawLanding(const Gannet& g, const View& v) {
         float l0 = lit({0, 0});
         bool seal = L.kind == LK_SEALROCK, pier = L.kind == LK_CANNERY, shelf = L.kind == LK_SHELF, boneB = L.kind == LK_BONEBEACH;
         bool stair = L.kind == LK_STAIR, tower = L.kind == LK_TOWER, cultL = L.kind == LK_CULT;
+        bool lightH = L.kind == LK_LIGHTHOUSE, sandB = L.kind == LK_SANDBAR;
+        if (sandB && L.flooded) { DrawCircleV(c0, L.r * pr, Fade(Dim(Color{120, 190, 180, 255}, l0), 0.25f)); continue; }   // (the Sandbar under the tide: a paler patch of shallow water)
         Color ground = seal ? Color{128, 124, 116, 255} : pier ? Color{126, 98, 66, 255} : shelf ? Color{84, 80, 76, 255} : boneB ? Color{58, 54, 52, 255}
-                     : stair ? Color{200, 196, 186, 255} : tower ? Color{150, 146, 136, 255} : cultL ? Color{90, 78, 66, 255} : Color{214, 196, 150, 255};
+                     : stair ? Color{200, 196, 186, 255} : tower ? Color{150, 146, 136, 255} : cultL ? Color{90, 78, 66, 255} : lightH ? Color{136, 132, 124, 255} : sandB ? Color{226, 212, 170, 255} : Color{214, 196, 150, 255};
         if (pier) for (int k = 0; k < 20; k++) { float a = k * 0.314f; DrawCircleV(C({cosf(a) * (L.r + 0.3f), sinf(a) * (L.r + 0.3f)}), 2.0f, Dim(Color{58, 46, 34, 255}, l0)); }   // the pilings
         else {
             DrawCircleV(c0, (L.r + 6) * pr, Fade(Dim(seal ? Color{40, 70, 80, 255} : Color{40, 120, 120, 255}, l0), 0.35f));   // the shelf
@@ -753,7 +755,17 @@ void DrawLanding(const Gannet& g, const View& v) {
             for (int k = 0; k < 6; k++) { Vector2 a = Vector2Add(L.moray, {k * 0.18f - 0.45f, sinf(g.time * 3 + k) * 0.12f}); Vector2 q = C(a); DrawRectangle((int)q.x, (int)q.y, 2, 1, Fade(Color{20, 30, 24, 255}, 0.7f)); }
         }
         if (stair) for (int s = 0; s < 6; s++) { Vector2 a = C({-6.0f + s * 1.0f, -7}), b = C({-6.0f + s * 1.0f, 7}); DrawLineV(a, b, Dim(Color{160, 156, 146, 255}, l0)); }   // (the stair's treads)
-        if (seal || pier || shelf || boneB || stair || tower || cultL) {
+        if (lightH) {
+            // the old lighthouse: a white tower with a red band, its lamp room dark, the door toward the hearth
+            Vector2 tc = C(L.sloop); float k = lit(L.sloop);
+            DrawCircleV(tc, 2.3f * pr, Dim(Color{214, 210, 200, 255}, k));
+            DrawRing(tc, 1.2f * pr, 1.7f * pr, 0, 360, 24, Dim(Color{170, 50, 40, 255}, k));
+            DrawCircleV(tc, 0.8f * pr, Dim(Color{40, 44, 48, 255}, k));
+            DrawLineEx(C(Vector2Add(L.sloop, {-0.5f, 2.3f})), C(Vector2Add(L.sloop, {0.5f, 2.3f})), 2, Dim(Color{30, 24, 20, 255}, k));   // the door
+        } else if (sandB) {
+            // bare sand: ripples, and a line of wrack where the last tide left it
+            for (int r = 3; r < (int)L.r; r += 3) DrawCircleLinesV(c0, r * pr, Fade(Dim(Color{190, 176, 136, 255}, l0), 0.5f));
+        } else if (seal || pier || shelf || boneB || stair || tower || cultL) {
             // the sealers' hut (stone, a turf roof), the cannery shed (corrugated iron), the smugglers' lean-to of crates, a
             // lost crew's upturned boat, the Keeper's shrine, the tower's stump, the cult's tent: walls with a door
             float c = cosf(L.sloopHead), s = sinf(L.sloopHead);
@@ -778,7 +790,7 @@ void DrawLanding(const Gannet& g, const View& v) {
             DrawLineV(P(0.3f, -0.9f), P(0.6f, 2.2f), Dim(Color{120, 100, 70, 255}, lit(L.sloop)));   // her mast, fallen across the sand
         }
         // the elder's hut (thatch) and the elder before it, feathers in his hair
-        if (tower) {}   // (nobody keeps the Watchtower)
+        if (tower || lightH || sandB) {}   // (nobody keeps the Watchtower, the lighthouse or the bar)
         else if (seal || pier || shelf || boneB || stair || cultL) {
             // Old Hoskins in his oilskins and sou'wester; the foreman in a leather apron and a cap; the quartermaster in a
             // long coat and a red scarf; the hermit in rags and a bone necklace; the Keeper, drowned and pale in his
