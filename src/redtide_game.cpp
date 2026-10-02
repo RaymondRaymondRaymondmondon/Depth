@@ -1085,7 +1085,20 @@ static bool DrawTeammate(const Match& m, const Agent& a) {
     // the hips at the agent's position; the figure faces its yaw (its +x along the look), tipped about the hips
     Matrix tip = MatrixMultiply(MatrixMultiply(MatrixTranslate(0, -1.0f, 0), MatrixRotateZ(-tilt)), MatrixTranslate(0, 1.0f, 0));
     Matrix frame = MatrixMultiply(tip, fig::Frame(Vector3Subtract(a.pos, {0, 1.0f, 0}), d->yaw - PI / 2));
-    DrawDiverFigure(m.VoiceOf(di), frame, P, S.time, d->dead ? Color{170, 200, 220, 160} : WHITE);
+    std::vector<Matrix> tsk = DrawDiverFigure(m.VoiceOf(di), frame, P, S.time, d->dead ? Color{170, 200, 220, 160} : WHITE);
+    // their gun in the right fist, the same baked model as in first person (spec: "the third-person model of every gun")
+    if (!d->dead && !tsk.empty() && !d->weapons.empty()) {
+        const WeaponDef& w = m.W(m.Cur(*d));
+        std::string wid = w.id;
+        if (RtWeaponModel(wid)) {
+            Vector3 fist = fig::FistWorld(*DiverModel(m.VoiceOf(di)), tsk, frame);
+            Vector3 g = RtWeaponMarker(wid, "grip_r", {0, 0, 0});
+            Matrix rotOnly = frame; rotOnly.m12 = rotOnly.m13 = rotOnly.m14 = 0;
+            Matrix wm = MatrixMultiply(MatrixMultiply(MatrixTranslate(-g.x, -g.y, -g.z), MatrixMultiply(MatrixRotateZ(-0.2f), rotOnly)), MatrixTranslate(fist.x, fist.y, fist.z));
+            RtGunAnim an; an.fire = std::clamp((d->recoil - 0.6f) * 2.5f, 0.0f, 1.0f);
+            DrawRtWeapon(wid, wm, an, WHITE);
+        }
+    }
     // a breath out through the helmet's exhaust every few seconds, quicker when swimming hard
     if (!d->dead) { float rate = 0.33f + 0.25f * P.swim, ph = fmodf(S.time * rate + di * 0.31f, 1.0f); if (ph < rate / 60.0f) FxBubbles(Vector3Transform({-0.12f, 1.88f, 0}, frame), 7, 0.08f); }
     return true;
