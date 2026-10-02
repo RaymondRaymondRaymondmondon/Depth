@@ -293,6 +293,8 @@ void DebugWardrobe(Game& g, int game); void TakeShots(const Game& base, const st
         {"rvis_4_guns", [](Game& g) { DebugRedTideShot(g, 204); }},
         {"rvis_3_crew_salon", [](Game& g) { DebugRedTideShot(g, 17); }},
         {"rvis_6_wreckers", [](Game& g) { DebugRedTideShot(g, 18); }},
+        {"rvis_3_hands", [](Game& g) { DebugRedTideShot(g, 19); }},
+        {"rvis_3_handstudio", [](Game& g) { DebugRedTideShot(g, 205); }},
         {"rvis_7_drowned", [](Game& g) { DebugRedTideShot(g, 26); }},
         {"rvis_10_remnant", [](Game& g) { DebugRedTideShot(g, 58); }},
         {"redtide_silhouette", [](Game& g) { DebugRedTideShot(g, 1); }},

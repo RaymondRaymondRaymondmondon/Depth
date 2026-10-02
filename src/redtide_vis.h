@@ -12,6 +12,12 @@ bool DiversReady();
 // draws a diver at frame (feet at the origin, x forward), posed; returns the skinning matrices (for grips)
 std::vector<Matrix> DrawDiverFigure(int voice, Matrix frame, fig::Pose P, float t, Color tint, const std::string& suit = "", const std::string& helmet = "");
 bool DrawFirstPersonArms(int voice, const Camera3D& cam, Vector3 gripR, Vector3 gripL, bool leftOn, float t, const std::string& suit = "", const std::string& helmet = "");
+// the viewmodel hands (tools/artgen/rt_fphands.py) on a baked gun: gun is its model-to-world frame (with the 1.5 scale),
+// gripR/gripL its markers in model space, angle the grip's slant from the barrel in degrees (72-78 a pistol grip, ~58 a
+// stock's wrist, 0 a haft or a knife's handle); left 0 none, 1 cupping the fore-end at gripL (magOut 0..1 pulls it down
+// for a reload), 2 closed over the right hand on the grip, 3 round a second gun leftShift (world) from the first
+struct VmHold { Matrix gun; Vector3 gripR{0, 0, 0}, gripL{0, 0, 0}; float angle = 74; int left = 1; Vector3 leftShift{0, 0, 0}; float magOut = 0; };
+bool DrawViewmodelHands(int voice, const Camera3D& cam, const VmHold& h, float t, const std::string& suit = "", const std::string& helmet = "");
 // the creature kit (phase 5): a fish-shaped species drawn on the shared rigged fish, swum on its spine and painted
 // from its record; false (draw the CreatureBuilder model) when it isn't a fish plan or the frame's budget is spent
 void CreatureBudget(int n);

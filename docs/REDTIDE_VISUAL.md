@@ -99,6 +99,20 @@ The spec: `Red_Tide_Reference/Red Tide — Visual Overhaul Spec.pdf` (25 pages, 
   on the gun's grip and the left on its fore-end (cupped under a pistol's grip, on the gatling's crank, on the
   magazine while reloading) by two-bone IK; each diver's gloves (rubber, tarred, mismatched mitts, steel). The
   first-person gun moved out to 0.4 m so the hands are in view.
+- **First-person hands, second pass** (after the user's playtest, 2026-10-02: the arms were out of proportion, at odd
+  angles, and the hands looked awful). A real viewmodel replaces the headless body:
+  - `tools/artgen/rt_fphands.py` -> `fp_<diver>.glb`: a right hand modelled closed round a pistol grip (index on the
+    trigger, thumb over the frame), a left hand cupping a fore-end, a mirrored left grip hand, and per arm a gauntlet
+    cuff (brass ring) and a sleeve, each rigid on its own bone.
+  - `DrawViewmodelHands` puts them straight on the baked gun's `grip_r` / `grip_l` markers in the gun's own frame (so they
+    kick and roll with it), slanted by the kind of grip (pistol grips 72-78 degrees, a stock's wrist 58, a haft 0), and
+    runs each forearm from its wrist out of the bottom corner.
+  - Sidearms are held in one hand; two-handed guns cup the fore-end (it drops toward the magazine in a reload); the Twin
+    Gannets one in each fist; melee in the right. The guns sit further out to the lower right, turned a little in
+    toward the crosshair.
+  - Gloves: dark rubber (the Diver), tar (the Whaler), the Stowaway's mitts, the Mechanic's steel.
+  - Shots `rvis_3_hands` (`DEPTH_RTGUN=<id>`) and `rvis_3_handstudio` (from outside; `DEPTH_VMDBG=1` paints glove,
+    sleeve and trim red, green and blue). The old IK arms remain only for a gun with no model.
 - **The helmet's port** (`DrawHelmetPort`): the brass rim with rivets round the view, the dark copper of the helmet in
   the corners, two faint reflections on the glass, and droplets running down it in an air pocket. Off with the Helmet
   lens setting.

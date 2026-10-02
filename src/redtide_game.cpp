@@ -729,7 +729,7 @@ static void DrawGun(const Camera3D& cam) {
     Vector3 up = Vector3CrossProduct(right, f);
     float bobx = sinf(S.bob) * 0.008f, boby = fabsf(cosf(S.bob)) * 0.006f;
     float kick = d.recoil * 0.035f * w.handling.recoil;
-    float side = d.ads ? 0.0f : 0.14f, low = d.ads ? -0.075f : -0.095f;   // (far enough out that the hands on it are in view)
+    float side = d.ads ? 0.0f : 0.18f, low = d.ads ? -0.075f : -0.115f;   // (far enough out that the hands on it are in view)
     // the reload: the gun drops and rolls out to the side (0-35%), the magazine, clip or drum comes out and a fresh
     // one goes in (35-75%), the gun snaps back up with a little overshoot (75-100%); a thumb-loaded gun just dips
     // for each round
@@ -758,7 +758,8 @@ static void DrawGun(const Camera3D& cam) {
     m.m4 = up.x; m.m5 = up.y; m.m6 = up.z;
     m.m8 = f.x; m.m9 = f.y; m.m10 = f.z;
     m.m12 = p.x; m.m13 = p.y; m.m14 = p.z;
-    Matrix tilt = MatrixMultiply(MatrixMultiply(MatrixRotateZ(roll), MatrixRotateY(meleeYaw)), MatrixRotateX(-d.recoil * 0.25f * w.handling.recoil + meleePitch));
+    // (turned a little in toward the crosshair, so its left side shows past the fist)
+    Matrix tilt = MatrixMultiply(MatrixMultiply(MatrixRotateZ(roll), MatrixRotateY(meleeYaw + (d.ads ? 0.0f : 0.1f))), MatrixRotateX(-d.recoil * 0.25f * w.handling.recoil + meleePitch));
     // the Locker room's finish on the gun, and the suit's colour on the glove that holds it
     const Profile& prof = GetProfile();
     Color fin = FinishColor(prof.finish), tint = WHITE;
@@ -791,6 +792,22 @@ static void DrawGun(const Camera3D& cam) {
             if (wid == "twingannets") {   // the pair: a mirrored Gannet in the left fist
                 Matrix frame2 = MatrixMultiply(MatrixMultiply(MatrixMultiply(MatrixMultiply(MatrixTranslate(-g.x, -g.y, -g.z), MatrixScale(1.5f, 1.5f, -1.5f)), MatrixRotateY(-PI / 2)), MatrixTranslate(og.x + 0.27f, og.y, og.z)), gunM);
                 Vector3 g2; DrawRtWeapon(wid, frame2, an, tint, &g2, nullptr, nullptr); gL = g2;
+            }
+            // the hands: the viewmodel's own gloves closed on this gun's grip markers (the slant of its grip by kind)
+            {
+                VmHold vh; vh.gun = frame;
+                vh.gripR = g; vh.gripL = RtWeaponMarker(wid, "grip_l", g);
+                static const std::map<std::string, float> SLANT = {
+                    {"cormorant", 72.0f}, {"gannet", 72.0f}, {"twingannets", 72.0f}, {"boltharpoon", 72.0f}, {"needler1", 76.0f}, {"needler2", 76.0f},
+                    {"stormlock", 76.0f}, {"longspeargun", 78.0f}, {"carbine", 58.0f}, {"flechette12", 58.0f}, {"trawlerman", 58.0f}, {"drumflechette", 58.0f},
+                    {"knife", 0.0f}, {"boardingaxe", 0.0f}, {"teslagaff", 0.0f}, {"trident", 0.0f}, {"galvanicrod", 0.0f}, {"tidestaff", 0.0f}, {"abyssallure", 0.0f}};
+                auto it = SLANT.find(wid);
+                vh.angle = it != SLANT.end() ? it->second : 74;
+                bool near = Vector3Distance(vh.gripL, vh.gripR) < 0.05f;
+                vh.left = w.cls == "melee" || ms >= 0 || near ? 0 : wid == "twingannets" ? 3 : 1;   // (a sidearm in one hand, as in any shooter)
+                if (vh.left == 3) vh.leftShift = Vector3Subtract(gL, gR);
+                vh.magOut = magOut;
+                if (DrawViewmodelHands(M().VoiceOf(0), cam, vh, S.time, prof.suit, prof.helmet)) goto muzzle;
             }
             if (DiversReady() && DrawFirstPersonArms(M().VoiceOf(0), cam, gR, gL, ms < 0, S.time, prof.suit, prof.helmet)) goto muzzle;
             goto muzzle;
@@ -1800,6 +1817,13 @@ void DebugRedTideShot(Game& g, int which) {
             break;
         }
         case 15: place("Cabin Deck", {3, 2, 3}, 0.0f, 0); break;                             // the cabins and the moray pipes
+        case 19: {                                                                            // the viewmodel: a gun in the hands (DEPTH_RTGUN=<id>)
+            place("Engine Room", {12.5f, 3, 11}, 0.4f, -0.05f);
+            const char* id = getenv("DEPTH_RTGUN") ? getenv("DEPTH_RTGUN") : "cormorant";
+            const auto& WW = Weapons().weapons;
+            for (int i = 0; i < (int)WW.size(); i++) if (WW[i].id == id) { Held h; h.def = i; h.mag = WW[i].mag; d.weapons = {h}; d.cur = 0; }
+            break;
+        }
         case 16: {                                                                            // salvage: the builds set down before a workbench
             int wb = -1; for (int i = 0; i < (int)m.level.stations.size(); i++) if (m.level.stations[i].type == StationType::Workbench) wb = i;
             const Station& st = m.level.stations[wb];
