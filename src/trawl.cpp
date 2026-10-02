@@ -1678,6 +1678,12 @@ void SceneTrawl(Game& g) {
         HandInput in = Gather();
         if (S.net) { Writer w; WriteInputAction(in, w); S.net->Act(w); }
         else MergeInput(S.pend, in);
+        if (S.net && S.net->role != arcade::R_HOST && (in.btn & HI_LMB)) {
+            // a guest's own rod: the reel answers at once on its mirror (the host's next snapshot corrects it)
+            Gannet& G = S.W->G;
+            int ri = me.station >= 0 ? G.RodAt(me.station) : -1;
+            if (ri >= 0 && ri < (int)G.rods.size() && G.rods[ri].state == RodState::Fighting) G.rods[ri].fight.PredictReel(dt);
+        }
     }
     if (!S.net) {
         // solo: our own Gannet, stepped here at 60 Hz through the same input path as network play

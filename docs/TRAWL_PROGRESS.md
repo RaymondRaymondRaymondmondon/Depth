@@ -815,3 +815,16 @@ bubble puff); Red Tide's gun models rebuilt with a dozen parts each.
 - Not yet: the traders' skiff refits (the outrigger, the sealers' sail, the kelp-cutter prow, the quiet launch engine,
   the cave rudder, the Atlantean prow); a funnel on the skiff when the launch kit is fitted.
 - Tests in `--trawl-skiff-test`; shots `trawl_lighthouse`, `trawl_sandbar`, `trawl3d_lighthouse`, `trawl3d_sandbar`.
+
+## Netcode polish (2026-10-02)
+- **Snapshot trimming**: a busy night's world went from 17.1 KB to 9.7 KB. The web's agents are quantised (position 16
+  bits across the chart, depth 16, velocity 8 a component, the flash 8, the clock in 60ths, the hurt only when hurt):
+  8.4 -> 3.0 KB for 215. Sonar returns the same way (4.3 KB for 179 -> about 2.3). A catch record no longer carries its
+  species' name (the guest looks it up) and its twelve yes/no facts go as one set of bits. The mirror still writes back
+  the bytes it read (`--trawl-net-test` prints where the bytes go).
+- The arcade session (protocol 3) now sends any real-time snapshot over 12 KB in parts, so a late-night hold can't push
+  the Trawl's snapshot into GameNetworkingSockets' reliable fallback.
+- **Reel prediction**: a guest holding the reel during a fight shortens the line on its own mirror at the reel's rate
+  (`Fight::PredictReel`: the reel's own arithmetic from `Fight::Step`, not while the drag slips), so the line and the
+  tension gauge answer the button at once; the host's next snapshot puts the truth back.
+- Next: a real LAN night on two or more PCs (the user's).

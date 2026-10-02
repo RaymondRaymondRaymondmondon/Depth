@@ -83,6 +83,20 @@ void Fight::HookFish(const FishSpec& f, Vector3 at, uint32_t seed) {
     for (int i = 0; i < 14; i++) { Vector3 q = Vector3Lerp(tip, p, i / 13.0f); node.push_back(q); prev.push_back(q); }
 }
 
+// (the reel's own arithmetic from Step, without the fish: on a guest's screen the line answers the button at once and
+// the next snapshot from the host puts the truth back)
+void Fight::PredictReel(float dt) {
+    if (!on) return;
+    const TackleDef& td = TackleOf(tackle);
+    const LineDef& ld = LineOf(line);
+    float Dist = Vector3Length(Vector3Subtract(p, tip));
+    float kEff = 1.0f / (std::max(1.0f, L) * ld.stretch / td.strength + td.rodSoft);
+    if (std::max(0.0f, Dist - L) * kEff >= drag) return;   // (the drag is slipping: reeling gains nothing)
+    float rate = (td.reelLow < td.reel && tension > 0.5f * drag) ? td.reelLow : td.reel;
+    L = std::max(1.0f, L - rate * dt);
+    tension = std::min(drag, std::max(0.0f, Dist - L) * kEff);
+}
+
 void Fight::Step(float dt) {
     if (!on || end != FightEnd::None) return;
     const TackleDef& td = TackleOf(tackle);

@@ -196,6 +196,7 @@ struct Fight {
     float Pull() const;          // what the fish pulls with now (kgf)
     void HookFish(const FishSpec& f, Vector3 at, uint32_t seed);
     void Step(float dt);         // physics, the fish's mind, stamina, snaps
+    void PredictReel(float dt);  // a guest's mirror: its own reeling, ahead of the host (the line shortens, the tension follows)
     bool Land(float skill);      // gaff/lift/tail rope at alongside; false on a miss (the fish runs again)
     Vector2 PullOnBoat() const;  // kgf on the rod tip, horizontal, world frame
 };

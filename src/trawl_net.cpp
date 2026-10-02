@@ -243,6 +243,10 @@ struct Out {
     template <class E> void e(E& v) { int k = (int)v; i(k); }
     void cs(const char*& p) { bool has = p != nullptr; b(has); if (has) { std::string t = p; s(t); } }
     template <class T, class F> void vec(std::vector<T>& v, F fn) { w.VarU((uint32_t)v.size()); for (auto& x : v) fn(x); }
+    // quantised: 16 bits across lo..hi, 8 bits across 0..max, 8 signed bits across -max..max
+    void q16(float& v, float lo, float hi) { w.U16((uint32_t)std::clamp((int)lroundf((v - lo) / (hi - lo) * 65535), 0, 65535)); }
+    void q8(float& v, float max) { w.U8((uint32_t)std::clamp((int)lroundf(v / max * 255), 0, 255)); }
+    void s8(float& v, float max) { w.U8((uint32_t)(uint8_t)(int8_t)std::clamp((int)lroundf(v / max * 127), -127, 127)); }
     bool bad() const { return false; }
 };
 struct In {
@@ -263,15 +267,41 @@ struct In {
         v.resize(n);
         for (auto& x : v) { fn(x); if (r.bad) break; }
     }
+    void q16(float& v, float lo, float hi) { v = lo + r.U16() / 65535.0f * (hi - lo); }
+    void q8(float& v, float max) { v = r.U8() / 255.0f * max; }
+    void s8(float& v, float max) { v = (int8_t)(uint8_t)r.U8() / 127.0f * max; }
     bool bad() const { return r.bad; }
 };
 
+// a fish (or junk) aboard, on a beach or in the skiff: the species' own name isn't sent (the guest knows it), and the
+// dozen yes/no facts go as one set of bits (a full hold is the snapshot's other long list)
 template <class A> void VisitCatch(A& a, CatchRec& h) {
-    a.s(h.name); a.f(h.kg); a.f(h.price); a.i(h.sp); a.f(h.grade); a.f(h.fresh);
-    a.b(h.gutted); a.b(h.iced); a.b(h.first); a.b(h.trophy); a.b(h.bycatch); a.b(h.protectedSp); a.f(h.aboardT); a.i(h.src);
-    a.b(h.dead); a.f(h.flopT); a.v2(h.deckAt);
-    a.f(h.hp); a.f(h.hpMax); a.f(h.heading); a.i(h.deckKind); a.f(h.airT); a.f(h.killScore); a.s(h.killHow); a.f(h.killT); a.i(h.grabbed); a.b(h.crated); a.b(h.junk);
-    a.f(h.cookT); a.f(h.cook); a.b(h.cooked); a.b(h.glimmer); a.i(h.boss); a.b(h.cursed);
+    a.i(h.sp);
+    bool spName = h.sp >= 0 && h.sp < (int)Species().sp.size() && h.name == Species().sp[h.sp].name;
+    a.b(spName);
+    if (spName) { if constexpr (A::reading) h.name = Species().sp[h.sp].name; }
+    else a.s(h.name);
+    a.f(h.kg); a.f(h.price); a.f(h.grade); a.f(h.fresh);
+    bool* B[12] = {&h.gutted, &h.iced, &h.first, &h.trophy, &h.bycatch, &h.protectedSp, &h.dead, &h.crated, &h.junk, &h.cooked, &h.glimmer, &h.cursed};
+    int bits = 0; for (int k = 0; k < 12; k++) if (*B[k]) bits |= 1 << k;
+    a.i(bits);
+    if constexpr (A::reading) for (int k = 0; k < 12; k++) *B[k] = (bits >> k) & 1;
+    a.f(h.aboardT); a.i(h.src); a.f(h.flopT); a.v2(h.deckAt);
+    a.f(h.hp); a.f(h.hpMax); a.f(h.heading); a.i(h.deckKind); a.f(h.airT); a.f(h.killScore); a.s(h.killHow); a.f(h.killT); a.i(h.grabbed);
+    a.f(h.cookT); a.f(h.cook); a.i(h.boss);
+}
+// a creature of the web (the snapshot's biggest list): position in 16 bits across the chart (a couple of cm), depth in
+// 16 bits, velocity in 8 bits a component, the flash in 8, its clock in 60ths of a second; the hurt only when it's hurt
+template <class A> void VisitEcoAgent(A& a, EcoAgent& ag, float size) {
+    a.i(ag.sp); a.i(ag.count);
+    a.q16(ag.p.x, -300, size + 300); a.q16(ag.p.y, -300, size + 300); a.q16(ag.p.z, -80, 200);
+    a.s8(ag.v.x, 25); a.s8(ag.v.y, 25); a.s8(ag.v.z, 25);
+    int flags = (ag.alive ? 1 : 0) | (ag.hurt > 0 ? 2 : 0) | (lroundf(ag.flash / 3 * 255) > 0 ? 4 : 0); a.i(flags);
+    if constexpr (A::reading) { ag.alive = flags & 1; if (!(flags & 2)) ag.hurt = 0; if (!(flags & 4)) ag.flash = 0; }
+    if (flags & 2) a.f(ag.hurt);
+    if (flags & 4) a.q8(ag.flash, 3);
+    int tt = (int)lroundf(fmodf(std::max(0.0f, ag.t), 1000.0f) * 60); a.i(tt);
+    if constexpr (A::reading) ag.t = tt / 60.0f;
 }
 template <class A> void VisitSlot(A& a, Slot& s) { a.e(s.it); a.i(s.ammo); a.i(s.wpn); a.i(s.lvl); a.i(s.spare); for (int k = 0; k < 3; k++) { int v = s.att[k]; a.i(v); s.att[k] = (int8_t)v; } }
 template <class A> void VisitFight(A& a, Fight& f) {
@@ -329,7 +359,10 @@ template <class A> void Visit(A& a, TrawlWorld& w) {
     a.s(ground); a.u(eseed);
     if constexpr (A::reading) { if (a.bad()) return; if (!ground.empty() && (ground != e.ground || eseed != e.initSeed || !e.g)) e.Init(ground, eseed); }
     a.f(e.tide); a.f(e.coral); a.f(e.time); a.f(e.clock); a.i(e.night); a.f(e.wake);
-    a.vec(e.agents, [&](EcoAgent& ag) { a.i(ag.sp); a.i(ag.count); a.v3(ag.p); a.v3(ag.v); a.b(ag.alive); a.f(ag.flash); a.f(ag.hurt); a.f(ag.t); });
+    {
+        float size = e.n * e.cell;
+        a.vec(e.agents, [&](EcoAgent& ag) { VisitEcoAgent(a, ag, size); });
+    }
     a.vec(e.rafts, [&](Raft& rf) { a.v2(rf.p); a.f(rf.r); });
     a.b(e.archOpen);
     // the wrecks: each regenerated from its type and seed on a guest, then where it lies and what's been taken
@@ -444,7 +477,16 @@ template <class A> void Visit(A& a, TrawlWorld& w) {
     // ---- the sonar: the scope's returns, the marks every hand's arrows point at
     SonarState& so = g.sonar;
     a.f(so.cool); a.f(so.sinceP); a.i(so.band);
-    a.vec(so.ret, [&](SonarReturn& r) { a.v3(r.p); a.i(r.sp); a.e(r.kind); a.f(r.size); a.f(r.t); a.i(r.count); a.b(r.passive); });
+    {   // (quantised like the web's agents: a return is a blip on a scope)
+        float size = e.n * e.cell;
+        a.vec(so.ret, [&](SonarReturn& r) {
+            a.q16(r.p.x, -300, size + 300); a.q16(r.p.y, -300, size + 300); a.q16(r.p.z, -80, 200);
+            a.i(r.sp); a.e(r.kind); a.i(r.count); a.b(r.passive);
+            int sz = (int)lroundf(r.size); a.i(sz);
+            int tq = (int)lroundf(std::max(0.0f, r.t) * 20); a.i(tq);
+            if constexpr (A::reading) { r.size = (float)sz; r.t = tq / 20.0f; }
+        });
+    }
     a.vec(so.marks, [&](SonarMark& m) { a.v2(m.p); a.f(m.t); a.s(m.what); a.i(m.by); });
 }
 } // namespace
@@ -589,6 +631,18 @@ int RunTrawlNetTest() {
         Writer b; WriteWorld(m, b);
         check(ok && r.Done(), TextFormat("a night's world is %d bytes; the mirror reads all of it", (int)a.b.size()));
         check(a.b == b.b, "the mirror writes back exactly the bytes it read (nothing drawn is left out)");
+        {   // where the bytes go
+            Writer wa, wh, wr, wc; Out oa{wa}, oh{wh}, orr{wr}, oc{wc};
+            oa.vec(w.eco.agents, [&](EcoAgent& ag) { VisitEcoAgent(oa, ag, w.eco.n * w.eco.cell); });
+            oh.vec(w.G.hold, [&](CatchRec& h) { VisitCatch(oh, h); });
+            orr.vec(w.G.rods, [&](Rod& r) { VisitRod(orr, r); });
+            Writer wl, ws; Out ol{wl}, os{ws};
+            ol.vec(w.G.landings, [&](Landing& L) { ol.vec(L.palms, [&](Vector2& p) { ol.v2(p); }); ol.vec(L.caches, [&](Cache& k) { ol.v2(k.p); ol.s(k.what); }); ol.vec(L.onBeach, [&](CatchRec& h) { VisitCatch(ol, h); }); });
+            os.vec(w.G.sonar.ret, [&](SonarReturn& r) { os.v3(r.p); os.i(r.sp); os.e(r.kind); os.f(r.size); os.f(r.t); os.i(r.count); os.b(r.passive); });
+            Writer wcw; Out ocw{wcw}; Crew cc0; if (!w.G.crew.empty()) cc0 = w.G.crew[0];
+            printf("        (landings ~%d B, sonar %d B for %d returns, the rest below)\n", (int)wl.b.size(), (int)ws.b.size(), (int)w.G.sonar.ret.size());
+            printf("        (agents %d B for %d, hold %d B for %d fish, rods %d B, the rest %d B)\n", (int)wa.b.size(), (int)w.eco.agents.size(), (int)wh.b.size(), (int)w.G.hold.size(), (int)wr.b.size(), (int)(a.b.size() - wa.b.size() - wh.b.size() - wr.b.size()));
+        }
         check(m.G.crew.size() == 4 && m.eco.g && m.eco.n == w.eco.n && m.eco.DepthAt(w.G.boat.pos) == w.eco.DepthAt(w.G.boat.pos) && m.G.eco == &m.eco,
               "the mirror rebuilt the same chart from the ground's seed");
         int out = 0; for (auto& rd : m.G.rods) out += rd.state != RodState::Idle;
@@ -602,6 +656,14 @@ int RunTrawlNetTest() {
         check(ok2 && m.eco.depth.data() == depth0, "the next snapshot reuses the mirror's chart");
         Reader bad(a.b.data(), a.b.size() / 2); TrawlWorld m2;
         check(!ReadWorld(bad, m2), "a cut-off snapshot is refused");
+    }
+    // a guest's reel answers at once on its own mirror: the line shortens at the reel's rate while the drag holds
+    {
+        Fight f; f.on = true; f.tackle = Tackle::Light; f.tip = {0, 0, 0}; f.p = {18, 0, 2}; f.L = 20; f.drag = TackleOf(Tackle::Light).strength * 0.5f; f.tension = 0;
+        float L0 = f.L; f.PredictReel(0.5f);
+        check(f.L < L0 && f.L >= L0 - TackleOf(Tackle::Light).reel * 0.5f - 0.01f && f.tension <= f.drag, TextFormat("reel prediction: half a second of reeling takes in %.2f m on the guest's screen", L0 - f.L));
+        f.L = 5; f.tension = f.drag; float L1 = f.L; f.PredictReel(0.5f);
+        check(f.L == L1, "and none while the drag is slipping");
     }
     // the host game: two players and an AI seat; the AI's hand is a bot, a player's input moves its hand
     {
