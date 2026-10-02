@@ -3,6 +3,7 @@
 // simulation; trawl.cpp feeds it input and puts the shared HUD over it.
 #include "trawl_view3d.h"
 #include "game.h"
+#include "input.h"
 #include "raymath.h"
 #include "redtide_render.h"
 #include <algorithm>
@@ -980,6 +981,11 @@ static std::vector<Matrix> PoseSailor(const Model& m, const SailorLook& L, const
     return rt::SolveRig(rig, pose);
 }
 static Vector3 SailorGrip(const Model& m, const std::vector<Matrix>& skin, Matrix frame);
+// a held tool: the baked model where one has been made (the rifle is the Visual Overhaul's lever carbine), else the old one
+static void DrawHeldItem(Item it, Matrix m, Color tint, float glow = 0) {
+    if (it == Item::Rifle) { if (const Model* gun = rt::LoadAsset("shared/test/carbine_test.glb")) { rt::DrawPbr(*gun, MatrixMultiply(MatrixTranslate(0.06f, 0.0f, 0), m), tint); return; } }
+    if (glow > 0) rt::DrawStaticGlow(gItem[(int)it], m, tint, glow); else rt::DrawStatic(gItem[(int)it], m, tint);
+}
 // draws one sailor at frame (feet on the deck, x forward), and anything held in the right hand
 static void DrawSailor(const SailorLook& L, const SailorPose& P, Matrix frame, float t, Item held, Color tint) {
     const Model* m = SailorModel(L.role);
@@ -1002,7 +1008,7 @@ static void DrawSailor(const SailorLook& L, const SailorPose& P, Matrix frame, f
         Matrix rotOnly = frame; rotOnly.m12 = rotOnly.m13 = rotOnly.m14 = 0;
         Matrix hold = MatrixMultiply(MatrixMultiply(MatrixTranslate(-0.08f, 0, 0), MatrixRotateZ(-0.35f)), rotOnly);
         hold.m12 += at.x; hold.m13 += at.y; hold.m14 += at.z;
-        rt::DrawStatic(gItem[(int)held], hold, tint);
+        DrawHeldItem(held, hold, tint);
     }
 }
 // where the right fist closes (the middle finger's root, a little in toward the palm), in the world
@@ -1027,7 +1033,7 @@ static Vector3 DrawFirstPersonBody(const Crew& me, const Camera3D& cam, float t,
     Vector3 up{0, 1, 0}, rgt = Vector3Normalize(Vector3CrossProduct(flat, up));
     float pitch = asinf(std::clamp(f.y, -1.0f, 1.0f));
     P.aimUp += std::clamp(pitch, -0.9f, 0.9f);
-    Vector3 o = Vector3Add(cam.position, Vector3Add(Vector3Scale(up, -1.63f * L.height), Vector3Scale(flat, -0.1f)));
+    Vector3 o = Vector3Add(cam.position, Vector3Add(Vector3Scale(up, -1.63f * L.height), Vector3Scale(flat, -0.2f)));   // (the shoulders behind the eye, out of the view: the arms reach forward)
     Matrix frame = {flat.x, up.x, rgt.x, o.x, flat.y, up.y, rgt.y, o.y, flat.z, up.z, rgt.z, o.z, 0, 0, 0, 1};
     if (grips) {   // fists locked to a tool's grip and fore-end, the rod or the spokes
         Matrix inv = MatrixInvert(frame);
@@ -1278,6 +1284,17 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
     L.fogDensity = g.sea.weather == Weather::Fog ? 0.09f : g.sea.weather == Weather::Rain || g.sea.weather == Weather::Squall ? 0.05f : 0.028f;
     L.fill = {34, 40, 58, 255}; L.rim = {70, 90, 112, 255}; L.key = {255, 226, 170, 255};
     L.surfaceY = 1e5f; L.time = t;
+    // the Visual Overhaul's lit look: no hard ink (a thin tinted line if the player asks for it), no stipple, a faint
+    // grain; contact shadows from screen-space occlusion; a filmic curve with cold darks and warm lamplight, greyer in
+    // fog and a touch cooler in rain; the lamp casts shadows across the deck
+    L.outline = GameSettings().trawlOutline ? 0.5f : 0.0f; L.outlineTint = {34, 44, 58, 255};
+    L.stipple = 0; L.grain = 0.35f;
+    L.aoK = 0.75f; L.aoRadius = 0.4f;
+    L.filmic = 1; L.exposure = 1.05f; L.gradeK = 0.45f;
+    L.gradeLo = {104, 126, 150, 255}; L.gradeHi = {140, 128, 114, 255};
+    L.saturation = g.sea.weather == Weather::Fog ? 0.75f : g.sea.weather == Weather::Rain || g.sea.weather == Weather::Squall ? 0.85f : 0.92f;
+    if (g.sea.weather == Weather::Fog) { L.gradeLo = {112, 124, 132, 255}; L.gradeHi = {140, 130, 116, 255}; }
+    L.keyShadow = true;
     float lantern = LanternRadius(b.lantern) * (g.sea.weather == Weather::Fog ? 0.6f : 1.0f);
     L.lampPos = BoatPoint(b, {0.2f, DECK_Y + 5.45f, 0});
     if (below) {
@@ -1687,7 +1704,7 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
             bool on[2] = {longTool && rl < 0, true};
             DrawFirstPersonBody(me, cam, t, -0.2f, longTool ? 1.0f : 0.0f, false, grips, on);
         }
-        rt::DrawStaticGlow(gItem[(int)held], hm, WHITE, 0.25f);   // (a touch of light from the lamp at your shoulder)
+        DrawHeldItem(held, hm, WHITE, 0.25f);   // (a touch of light from the lamp at your shoulder)
         // the speargun's spear slides home in the last third of the reload; a muzzle flash on a powder shot
         if (held == Item::Speargun && rl > 0.66f) { float s = (rl - 0.66f) / 0.34f; rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(0.5f * s, 0.006f, 0.006f), MatrixTranslate(0.1f + 0.25f * s, 0.03f, 0)), hm), Color{150, 156, 160, 255}); }
         if ((held == Item::Rifle || held == Item::Shotgun) && kick > 0.5f) rt::DrawCubeGlow(MatrixMultiply(MatrixMultiply(MatrixScale(0.06f, 0.06f, 0.06f), MatrixTranslate(held == Item::Rifle ? 0.62f : 0.5f, 0.02f, 0)), hm), Color{255, 220, 140, 255}, 1.0f);
@@ -1696,6 +1713,24 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
     UpdateSea(g.sea, cam.position, eco);
     rt::DrawStatic(gSea, MatrixIdentity(), WHITE);
     rt::RenderEnd();
+    // halos: each lamp blooms in the wet air (a soft glow round it, wide in fog, a ring of it in rain, faint on a
+    // clear night), drawn over the frame
+    {
+        float wet = g.sea.weather == Weather::Fog ? 1.0f : g.sea.weather == Weather::Rain || g.sea.weather == Weather::Squall || g.sea.weather == Weather::Storm ? 0.6f : 0.25f;
+        Vector3 fw = Vector3Normalize(Vector3Subtract(cam.target, cam.position));
+        BeginBlendMode(BLEND_ADDITIVE);
+        for (const auto& p : pts) {
+            Vector3 d = Vector3Subtract(p.p, cam.position);
+            float dist = Vector3Length(d);
+            if (dist < 0.6f || dist > 60 || Vector3DotProduct(d, fw) <= 0.2f * dist) continue;
+            Vector2 s = GetWorldToScreenEx(p.p, cam, SCREEN_W, SCREEN_H);
+            float rad = SCREEN_H * (0.35f + 0.9f * wet) * std::min(1.5f, p.r * 0.25f) / dist * 1.6f;
+            float a = std::clamp(0.10f + 0.22f * wet, 0.0f, 0.4f) * std::min(1.0f, p.k);
+            DrawCircleGradient((int)s.x, (int)s.y, rad, Fade(p.c, a), Fade(p.c, 0));
+            DrawCircleGradient((int)s.x, (int)s.y, rad * 0.25f, Fade(p.c, a * 1.4f), Fade(p.c, 0));
+        }
+        EndBlendMode();
+    }
 }
 
 void UnloadTrawl3D() {

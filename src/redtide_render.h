@@ -85,6 +85,14 @@ struct SceneLight {                // the master reference's three-light rig
     // the ink composite: outline weight (1 the full ink, 0 none), its tint, and the stipple and paper grain (1 on)
     float outline = 1, stipple = 1, grain = 1;
     Color outlineTint{13, 13, 18, 255};
+    // the Trawl's lit look (Visual Overhaul phase 2; Red Tide leaves these off): screen-space ambient occlusion from
+    // the depth and normal pass (contact shadows), a filmic curve with a split-tone grade, and the lantern's shadow
+    float aoK = 0, aoRadius = 0.45f;         // occlusion strength (0 off) and reach in metres
+    float filmic = 0, exposure = 1;          // 0 the old straight colour, 1 the filmic curve
+    Color gradeLo{0, 0, 0, 255}, gradeHi{255, 255, 255, 255};   // shadows pulled toward gradeLo, highlights toward gradeHi
+    float gradeK = 0, saturation = 1;
+    bool keyShadow = false;                  // the lamp (the key light) casts shadows (a shadow map from lampPos along lampDir)
+    float keyShadowFov = 120;                // its frustum, degrees
 };
 
 void RenderBegin(const Camera3D& cam, const SceneLight& light);   // opens the colour pass

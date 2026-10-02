@@ -26,6 +26,7 @@ struct Settings {
     float brightness = 1.0f;             // 0.6 .. 1.6: a gamma on the final frame
     bool fullscreen = false;
     bool showHints = true;               // first-meeting hints and station hints
+    bool trawlOutline = false;           // the Trawl in first person: a thin tinted outline (the Visual Overhaul's option; off by default)
 };
 Settings& GameSettings();
 void LoadSettings();                     // settings.txt; call after the audio is up

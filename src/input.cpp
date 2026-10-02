@@ -78,6 +78,7 @@ void SaveSettings() {
     f << "brightness " << gSettings.brightness << "\n";
     f << "fullscreen " << (gSettings.fullscreen ? 1 : 0) << "\n";
     f << "hints " << (gSettings.showHints ? 1 : 0) << "\n";
+    f << "trawl_outline " << (gSettings.trawlOutline ? 1 : 0) << "\n";
     for (int a = 0; a < ACT_COUNT; a++) f << "bind " << a << " " << gKeys[a][0] << " " << gKeys[a][1] << "\n";
 }
 
@@ -94,6 +95,7 @@ void LoadSettings() {
         else if (key == "brightness") in >> gSettings.brightness;
         else if (key == "fullscreen") { int v = 0; in >> v; gSettings.fullscreen = v != 0; }
         else if (key == "hints") { int v = 1; in >> v; gSettings.showHints = v != 0; }
+        else if (key == "trawl_outline") { int v = 0; in >> v; gSettings.trawlOutline = v != 0; }
         else if (key == "bind") { int a = -1, k0 = 0, k1 = 0; in >> a >> k0 >> k1; if (a >= 0 && a < ACT_COUNT) { gKeys[a][0] = k0; gKeys[a][1] = k1; } }
     }
     if (gSettings.brightness < 0.6f || gSettings.brightness > 1.6f) gSettings.brightness = 1.0f;

@@ -542,7 +542,18 @@ uniform vec3 uCam, uLampPos, uLampDir, uKey, uFill, uRim, uFog;
 uniform float uLampRange, uLampCone, uFogDensity, uSurfaceY, uTime, uGlow, uSil;
 uniform vec4 uPL[8]; uniform vec4 uPLC[8]; uniform int uPLN;   // point lights: xyz + radius; rgb (0..1) + strength
 uniform int uSky;                                                // 1: the sky (stars, the moon, rain): unlit and unfogged
+uniform sampler2D uShadowMap; uniform mat4 uLightVP; uniform int uHasShadow;
 out vec4 finalColor;
+float keyShadow(vec3 wp, vec3 n, vec3 L) {   // (the same as the physically based path's)
+    if (uHasShadow == 0) return 1.0;
+    vec4 lp = uLightVP * vec4(wp + n * 0.03, 1.0);
+    vec3 q = lp.xyz / lp.w * 0.5 + 0.5;
+    if (q.x <= 0.0 || q.y <= 0.0 || q.x >= 1.0 || q.y >= 1.0 || q.z >= 1.0) return 1.0;
+    float bias = 0.0015 + 0.004 * (1.0 - max(dot(n, L), 0.0));
+    float lit = 0.0; vec2 tx = 1.0 / vec2(textureSize(uShadowMap, 0));
+    for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++) lit += (q.z - bias > texture(uShadowMap, q.xy + vec2(x, y) * tx * 1.5).r) ? 0.0 : 1.0;
+    return lit / 9.0;
+}
 void main() {
     if (uSky == 1) { finalColor = vec4(fragColor.rgb * colDiffuse.rgb, fragColor.a * colDiffuse.a); return; }
     vec3 n = normalize(cross(dFdx(fragWorld), dFdy(fragWorld)));
@@ -553,7 +564,7 @@ void main() {
     vec3 L = uLampPos - fragWorld; float d = length(L); L /= max(d, 0.0001);
     float cone = smoothstep(uLampCone, uLampCone + 0.18, dot(-L, normalize(uLampDir)));
     float att = clamp(1.0 - d / uLampRange, 0.0, 1.0); att *= att;
-    float key = max(dot(n, L), 0.0) * cone * att;
+    float key = max(dot(n, L), 0.0) * cone * att * keyShadow(fragWorld, n, L);
     // fill: the sea's light from above; rim on the edge away from the key
     float fill = 0.35 + 0.35 * n.y;
     float rim = pow(1.0 - max(dot(n, V), 0.0), 3.0);
@@ -612,7 +623,19 @@ uniform vec4 colDiffuse; uniform float uMetal, uRough; uniform vec3 uEmitCol; un
 uniform vec3 uCam, uLampPos, uLampDir, uKey, uFog; uniform float uLampRange, uLampCone, uFogDensity;
 uniform vec4 uPL[8]; uniform vec4 uPLC[8]; uniform int uPLN;
 uniform vec3 uMoonDir, uMoon, uSkyAmb, uSeaAmb; uniform float uMoonK, uAmbK, uSil;
+uniform sampler2D uShadowMap; uniform mat4 uLightVP; uniform int uHasShadow;
 out vec4 finalColor;
+// the lamp's shadow: a 3x3 filtered look-up in its depth map (1 lit, 0 in shadow); outside the map, lit
+float keyShadow(vec3 wp, vec3 n, vec3 L) {
+    if (uHasShadow == 0) return 1.0;
+    vec4 lp = uLightVP * vec4(wp + n * 0.03, 1.0);
+    vec3 q = lp.xyz / lp.w * 0.5 + 0.5;
+    if (q.x <= 0.0 || q.y <= 0.0 || q.x >= 1.0 || q.y >= 1.0 || q.z >= 1.0) return 1.0;
+    float bias = 0.0015 + 0.004 * (1.0 - max(dot(n, L), 0.0));
+    float lit = 0.0; vec2 tx = 1.0 / vec2(textureSize(uShadowMap, 0));
+    for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++) lit += (q.z - bias > texture(uShadowMap, q.xy + vec2(x, y) * tx * 1.5).r) ? 0.0 : 1.0;
+    return lit / 9.0;
+}
 const float PI = 3.14159265;
 vec3 toLin(vec3 c) { return pow(max(c, 0.0), vec3(2.2)); }
 mat3 cotangentFrame(vec3 N, vec3 p, vec2 uv) {
@@ -656,7 +679,7 @@ void main() {
     { vec3 L = uLampPos - fragWorld; float d = length(L); L /= max(d, 1e-4);
       float cone = smoothstep(uLampCone, uLampCone + 0.18, dot(-L, normalize(uLampDir)));
       float att = clamp(1.0 - d / uLampRange, 0.0, 1.0); att *= att;
-      col += shade(L, toLin(uKey / 255.0) * cone * att * 5.0); }
+      col += shade(L, toLin(uKey / 255.0) * cone * att * 5.0 * keyShadow(fragWorld, N, L)); }
     // the moon
     col += shade(normalize(-uMoonDir), toLin(uMoon / 255.0) * uMoonK * 2.5);
     // the practical lights
@@ -704,14 +727,43 @@ in vec2 fragTexCoord; in vec4 fragColor;
 uniform sampler2D texture0; uniform sampler2D uND;
 uniform vec2 uRes; uniform float uTime; uniform float uBlood; uniform float uSil; uniform vec3 uFog;
 uniform float uOutline, uStipple, uGrain; uniform vec3 uInkTint;
+uniform float uAOK, uAORad, uFarD, uTanHalf, uAspect, uFilmic, uExposure, uGradeK, uSat; uniform vec3 uGradeLo, uGradeHi;
 out vec4 finalColor;
 float depthAt(vec2 uv) { vec4 t = texture(uND, uv); if (t.b == 0.0 && t.a == 0.0 && t.r == 0.0 && t.g == 0.0) return 1.0; return (t.b * 255.0 * 256.0 + t.a * 255.0) / 65535.0; }
 vec3 normAt(vec2 uv) { vec4 t = texture(uND, uv); vec2 xy = t.rg * 2.0 - 1.0; return vec3(xy, sqrt(max(0.0, 1.0 - dot(xy, xy)))); }
 float bayer(vec2 p) { int x = int(mod(p.x, 4.0)), y = int(mod(p.y, 4.0)); int m[16] = int[16](0,8,2,10,12,4,14,6,3,11,1,9,15,7,13,5); return float(m[y * 4 + x]) / 16.0; }
+vec3 viewPos(vec2 uv, float dm) { return vec3((uv * 2.0 - 1.0) * vec2(uTanHalf * uAspect, uTanHalf) * dm, -dm); }
+// screen-space ambient occlusion: eight taps on a disc in view space round the point, turned by a 4x4 pattern, each
+// counting when the surface it lands on stands in front of it (and near enough to matter): the contact shadows
+float ssao(vec2 uv, float d) {
+    float dm = d * uFarD;
+    if (d >= 0.999 || dm > 40.0) return 1.0;
+    vec3 P = viewPos(uv, dm);
+    vec3 n = normAt(uv);
+    float rot = bayer(gl_FragCoord.xy) * 6.2832;
+    float occ = 0.0;
+    for (int i = 0; i < 8; i++) {
+        float a = rot + float(i) * 2.39996;
+        float r = uAORad * (0.25 + 0.75 * fract(float(i) * 0.618 + bayer(gl_FragCoord.yx)));
+        vec3 dir = normalize(vec3(cos(a), sin(a), 0.6) + n);   // leaning out of the surface
+        vec3 S = P + dir * r;
+        vec2 su = (S.xy / -S.z) / vec2(uTanHalf * uAspect, uTanHalf) * 0.5 + 0.5;
+        if (su.x < 0.0 || su.y < 0.0 || su.x > 1.0 || su.y > 1.0) continue;
+        float sd = depthAt(su) * uFarD;
+        float diff = -S.z - sd;                                 // positive: something stands in front of the tap
+        occ += (diff > 0.02 ? 1.0 : 0.0) * smoothstep(uAORad * 3.0, 0.0, abs(dm - sd));
+    }
+    return 1.0 - occ / 8.0;
+}
+vec3 filmic(vec3 x) {   // a gentle ACES-style curve (Narkowicz), keeping the night's darks
+    x *= uExposure;
+    return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0);
+}
 void main() {
     vec2 uv = fragTexCoord;
     vec3 col = texture(texture0, uv).rgb;
     float d = depthAt(uv);
+    if (uAOK > 0.0) col *= mix(1.0, ssao(uv, d), uAOK);
     // line weight: thicker near, thinner far (1.8 px near to 0.8 px at the far plane); a thin outline (uOutline < 1)
     // is a 1 px line at most
     float wpx = mix(1.8, 0.8, clamp(d * 3.0, 0.0, 1.0)) * (uOutline < 0.99 ? 0.55 : 1.0);
@@ -742,6 +794,16 @@ void main() {
     col *= 0.72 + 0.28 * vig;
     // the red at the mask's edge (scent meter)
     col = mix(col, vec3(0.5, 0.02, 0.02), clamp(uBlood, 0.0, 1.0) * (1.0 - vig) * 0.8);
+    if (uFilmic > 0.0) {
+        // the filmic curve on linear light, then a split tone (cold darks, warm lamplight) and the saturation
+        vec3 lin = pow(max(col, 0.0), vec3(2.2));
+        vec3 f = pow(filmic(lin * 1.6), vec3(1.0 / 2.2));
+        col = mix(col, f, uFilmic);
+        float l = dot(col, vec3(0.299, 0.587, 0.114));
+        vec3 tone = mix(uGradeLo / 255.0, uGradeHi / 255.0, smoothstep(0.05, 0.6, l));
+        col = mix(col, col * tone * 2.0, uGradeK);
+        col = mix(vec3(l), col, uSat);
+    }
     if (uSil > 0.5) col = d < 0.999 ? vec3(0.0) : vec3(0.85, 0.82, 0.74);
     finalColor = vec4(col, 1.0);
 }
@@ -756,6 +818,26 @@ enum { PU_HASALB, PU_HASMR, PU_HASNRM, PU_HASAO, PU_HASEMIT, PU_METAL, PU_ROUGH,
        PU_CAM, PU_LAMPPOS, PU_LAMPDIR, PU_KEY, PU_FOG, PU_RANGE, PU_CONE, PU_FOGD, PU_PL, PU_PLC,
        PU_PLN, PU_MOONDIR, PU_MOON, PU_SKYAMB, PU_SEAAMB, PU_MOONK, PU_AMBK, PU_SIL, PU_COUNT };
 static int L_inkOutline, L_inkStipple, L_inkGrain, L_inkTint;
+static int L_inkX[16];
+// the lamp's shadow map: a depth-only framebuffer (1024 square: this PC's integrated graphics is the target)
+static RenderTexture2D gShadowRT{};
+static const int SHADOW_SIZE = 1024, SHADOW_UNIT = 12;   // (texture unit 12: above the twelve material map slots)
+static int L_litShadow[3], L_pbrShadow[3];               // the sampler, the light's view-projection, the switch
+static bool EnsureShadowMap() {
+    if (gShadowRT.id) return true;
+    gShadowRT.id = rlLoadFramebuffer();
+    if (!gShadowRT.id) return false;
+    unsigned int dt = rlLoadTextureDepth(SHADOW_SIZE, SHADOW_SIZE, false);
+    gShadowRT.texture = {dt, SHADOW_SIZE, SHADOW_SIZE, 1, 19};
+    gShadowRT.depth = gShadowRT.texture;
+    rlEnableFramebuffer(gShadowRT.id);
+    rlFramebufferAttach(gShadowRT.id, dt, RL_ATTACHMENT_DEPTH, RL_ATTACHMENT_TEXTURE2D, 0);
+    bool ok = rlFramebufferComplete(gShadowRT.id);
+    rlDisableFramebuffer();
+    if (!ok) { TraceLog(LOG_WARNING, "rt: the shadow map's framebuffer is incomplete: no lamp shadows"); rlUnloadFramebuffer(gShadowRT.id); gShadowRT.id = 0; }
+    return ok;
+}
+static const char* INK_X[] = {"uAOK", "uAORad", "uFarD", "uTanHalf", "uAspect", "uFilmic", "uExposure", "uGradeK", "uSat", "uGradeLo", "uGradeHi"};
 static RenderTexture2D gColorRT{}, gNDRT{};
 static Model gCube{};
 static int L_lit[16], L_nd[8], L_ink[8];
@@ -788,6 +870,9 @@ static void EnsureShaders() {
     L_ink[5] = GetShaderLocation(gInk, "uFog");
     L_inkOutline = GetShaderLocation(gInk, "uOutline"); L_inkStipple = GetShaderLocation(gInk, "uStipple");
     L_inkGrain = GetShaderLocation(gInk, "uGrain"); L_inkTint = GetShaderLocation(gInk, "uInkTint");
+    for (int i = 0; i < 11; i++) L_inkX[i] = GetShaderLocation(gInk, INK_X[i]);
+    const char* SH[3] = {"uShadowMap", "uLightVP", "uHasShadow"};
+    for (int i = 0; i < 3; i++) { L_litShadow[i] = GetShaderLocation(gLit, SH[i]); L_pbrShadow[i] = GetShaderLocation(gPbr, SH[i]); }
     gPbr = LoadShaderFromMemory(RT_PBR_VS, RT_PBR_FS);
     for (int i = 0; i < PU_COUNT; i++) L_pbr[i] = GetShaderLocation(gPbr, PBR_U[i]);
     // the material maps DrawMesh binds: albedo in texture0, then the metallic-roughness, normal, occlusion and emission
@@ -1081,6 +1166,35 @@ void RenderEnd() {
         SetF(gPbr, L_pbr[PU_AMBK], gLight.ambK);
         SetF(gPbr, L_pbr[PU_SIL], gLight.silhouette);
     }
+    // the lamp's shadow map: the frame's geometry from the lamp, depth only
+    bool shadow = gLight.keyShadow && gLight.silhouette < 0.5f && EnsureShadowMap();
+    if (shadow) {
+        Camera3D lc{};
+        lc.position = gLight.lampPos;
+        lc.target = Vector3Add(gLight.lampPos, gLight.lampDir);
+        lc.up = fabsf(gLight.lampDir.y) > 0.9f ? Vector3{1, 0, 0} : Vector3{0, 1, 0};
+        lc.fovy = gLight.keyShadowFov; lc.projection = CAMERA_PERSPECTIVE;
+        BeginLayer(gShadowRT);
+        rlClearScreenBuffers();
+        rlSetClipPlanes(0.2, std::max(4.0, (double)gLight.lampRange));
+        BeginMode3D(lc);
+        Matrix lightVP = MatrixMultiply(rlGetMatrixModelview(), rlGetMatrixProjection());
+        rlDisableBackfaceCulling();
+        DrawQueue(gND, false);
+        rlDrawRenderBatchActive();
+        rlEnableBackfaceCulling();
+        EndMode3D();
+        rlSetClipPlanes(RL_CULL_DISTANCE_NEAR, RL_CULL_DISTANCE_FAR);
+        EndLayer();
+        int unit = SHADOW_UNIT;
+        for (int k = 0; k < 2; k++) {
+            Shader s = k ? gPbr : gLit; const int* Ls = k ? L_pbrShadow : L_litShadow;
+            if (Ls[0] >= 0) SetShaderValue(s, Ls[0], &unit, SHADER_UNIFORM_INT);
+            if (Ls[1] >= 0) SetShaderValueMatrix(s, Ls[1], lightVP);
+            SetI(s, Ls[2], 1);
+        }
+        rlActiveTextureSlot(SHADOW_UNIT); rlEnableTexture(gShadowRT.texture.id); rlActiveTextureSlot(0);
+    } else { SetI(gLit, L_litShadow[2], 0); SetI(gPbr, L_pbrShadow[2], 0); }
     BeginLayer(gColorRT);
     ClearBackground(gLight.silhouette > 0.5f ? Color{216, 209, 189, 255} : gLight.fog);
     BeginMode3D(gCam);
@@ -1115,6 +1229,10 @@ void RenderEnd() {
     SetV3(gInk, L_ink[5], C3(gLight.fog));
     SetF(gInk, L_inkOutline, gLight.outline); SetF(gInk, L_inkStipple, gLight.stipple); SetF(gInk, L_inkGrain, gLight.grain);
     SetV3(gInk, L_inkTint, C3(gLight.outlineTint));
+    SetF(gInk, L_inkX[0], gLight.aoK); SetF(gInk, L_inkX[1], gLight.aoRadius); SetF(gInk, L_inkX[2], FAR);
+    SetF(gInk, L_inkX[3], tanf(gCam.fovy * DEG2RAD * 0.5f)); SetF(gInk, L_inkX[4], (float)SCREEN_W / SCREEN_H);
+    SetF(gInk, L_inkX[5], gLight.filmic); SetF(gInk, L_inkX[6], gLight.exposure); SetF(gInk, L_inkX[7], gLight.gradeK);
+    SetF(gInk, L_inkX[8], gLight.saturation); SetV3(gInk, L_inkX[9], C3(gLight.gradeLo)); SetV3(gInk, L_inkX[10], C3(gLight.gradeHi));
     static int rtView = getenv("DEPTH_RTVIEW") ? atoi(getenv("DEPTH_RTVIEW")) : 0;   // debug: 1 raw normal/depth, 2 raw colour
     if (rtView == 1) { DrawTexturePro(gNDRT.texture, {0, 0, (float)gNDRT.texture.width, -(float)gNDRT.texture.height}, {0, 0, (float)SCREEN_W, (float)SCREEN_H}, {0, 0}, 0, WHITE); return; }
     if (rtView == 2) { DrawTexturePro(gColorRT.texture, {0, 0, (float)gColorRT.texture.width, -(float)gColorRT.texture.height}, {0, 0, (float)SCREEN_W, (float)SCREEN_H}, {0, 0}, 0, WHITE); return; }

@@ -535,13 +535,18 @@ static void TakeShots(const Game& base, const std::string& dir) {
         Game g = base;
         DebugSalonHover(-1);
         s.setup(g);
-        for (int f = 0; f < 90; f++) {
+        // DEPTH_SHOTFRAMES=N: run N frames instead of 90 and print the average frame time (a frame-rate check on this PC)
+        static int nFrames = getenv("DEPTH_SHOTFRAMES") ? std::max(2, atoi(getenv("DEPTH_SHOTFRAMES"))) : 90;
+        double tFrames = 0;
+        for (int f = 0; f < nFrames; f++) {
+            if (f == nFrames / 2) tFrames = GetTime();
             g.time += 1 / 60.0f;
             if (f == 60 && strncmp(s.name, "menu_", 5) == 0) { SnapshotFrame(); DebugMenuPage(strstr(s.name, "settings") ? 1 : strstr(s.name, "controls") ? 2 : 0); } // between frames, as in play
             BeginFrame();
             if (GameMenuActive()) GameMenuFrame(g); else RunScene(g);
             EndFrame(g.time);
         }
+        if (getenv("DEPTH_SHOTFRAMES")) printf("frame time %s: %.2f ms (%d frames)\n", s.name, (GetTime() - tFrames) * 1000.0 / (nFrames - nFrames / 2), nFrames - nFrames / 2);
         std::string path = dir + "/" + s.name + ".png";
         TraceLog(LOG_INFO, "shot %s: %s", path.c_str(), SaveFrameShot(path.c_str()) ? "ok" : "FAILED");
     }

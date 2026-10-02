@@ -115,6 +115,8 @@ void SettingsPage(Rectangle p) {
     // a strip from dark to light, to judge brightness by: the darkest steps should just be told apart
     for (int k = 0; k < 10; k++) { unsigned char v = (unsigned char)(k * 7 + 4); DrawRectangle((int)(x + 320 + k * 26), (int)y + 4, 24, 22, Color{v, v, v, 255}); }
     Txt("the two darkest squares should just differ", x + 320, y + 30, 12, Color{160, 150, 130, 255});
+    y += 44;
+    S.trawlOutline = Toggle({x, y, w, 30}, "Thin outlines (the Trawl)", S.trawlOutline);
 }
 
 void ControlsPage(Rectangle p) {
