@@ -267,6 +267,26 @@ The spec: `Red_Tide_Reference/Red Tide — Visual Overhaul Spec.pdf` (25 pages, 
   - Shots: `costumes_gallery_trawl` / `costumes_gallery_redtide` (`DEPTH_SKINPAGE=0..1`), `costumes_wardrobe_*`, and
     the skins galleries `skins_gallery_*` (`DEPTH_SKINPAGE=0..7`).
 
+## Later the same day
+- **Glass:** clear in the PBR path. Glass parts are drawn last, blended, with a Fresnel edge: clear face on, silvered
+  toward the rim. A part counts as glass if its material is named `glass`, or if the gun kit tagged it `glass` before
+  the bake merged materials. That covers:
+  - Red Tide's guns: the Needler's cartridge (its needles show), the gauges, the hoppers;
+  - the ship's chandelier drops;
+  - the specimen tanks and sponges.
+  The Trawl's shared weapons weren't rebaked: each rebake adds about 13 MB to the public repo's history, so do it
+  once, together with other changes to them.
+- **Creature states on the body:**
+  - a badly wounded animal trails a thread of blood;
+  - a camouflaged one at rest takes on the water's colour.
+  Still to do: netted, parasite, and dead bodies.
+- **`--redtide-profile-test` passes again.** Its flare check put the curious fish beside the nocturnal one and a
+  lamprey, and the fish rightly fled them. A burning flare also now outdraws a fish that's investigating something
+  else.
+- **The Sawtooth** (spec p.12, "a real sawfish rostrum with teeth, bound to a handle") isn't in the game's weapon data
+  (data/redtide). It needs a design decision, its stats, before a model would show anywhere.
+- **The air pocket's surface from below** needs a water line inside the air zones; today they're wholly dry.
+
 ## Afterwards (2026-10-02)
 - Teammates hold their current gun's baked model in third person (`DrawTeammate`).
 - Gas, needle, spear and gatling guns breathe out a burst of bubbles from the muzzle as they fire.
