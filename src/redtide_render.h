@@ -141,6 +141,7 @@ bool AssetMaterial(const Model* m, const std::string& name, Material* out);
 void MarkVertexOcclusion(const Model* m, bool big);          // nullptr unless the model came from LoadAsset(.glb)
 // Draws a model with each mesh under its own local transform first (partLocal[i], model space; missing = identity)
 void DrawPbrParts(const Model& m, Matrix world, const std::vector<Matrix>& partLocal, Color tint = WHITE, float glow = 0);
+void SetNextPbrGlass(bool on);   // the next DrawPbrParts draws every mesh as glass (blended, last): a sea-glass shell
 // a light added after RenderBegin (a muzzle flash found only once the gun is placed); dropped if the eight are taken
 void AddLateLight(Vector3 p, float r, Color c, float k);
 

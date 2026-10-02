@@ -96,6 +96,7 @@ struct DiverState {
     int zone = 0;
     float hp = 100, hpMax = 100, regenT = 99;
     bool downed = false, dead = false; float downT = 0, reviveT = 0, reviveTouchT = 0, selfReviveT = 0; int selfRevives = 0, quickBought = 0;
+    int reviver = -1;                  // who's reviving them (a diver index), while reviveTouchT runs
     std::vector<Held> weapons; int cur = 0; int slots = 2;
     Held downHeld;                     // downed: the Cormorant only
     std::vector<Held> savedWeapons; int savedCur = 0; bool harpoonHour = false;

@@ -36,7 +36,7 @@ bool DrawBossPbr(int kind, const CreatureModel& cm, Vector3 pos, float yaw, floa
 // rounds fired (the cylinder or drum turns), loaded (a spear or a shell shown), gas (the gauge's needle)
 struct RtGunAnim { float fire = 0, cycle = 0, reload = -1; int steps = 0; bool loaded = true; float gas = 1; };
 const Model* RtWeaponModel(const std::string& id);   // nullptr until that gun has been built
-bool DrawRtWeapon(const std::string& id, Matrix frame, const RtGunAnim& a, Color tint, Vector3* gripR = nullptr, Vector3* gripL = nullptr, Vector3* muzzle = nullptr);
+bool DrawRtWeapon(const std::string& id, Matrix frame, const RtGunAnim& a, Color tint, Vector3* gripR = nullptr, Vector3* gripL = nullptr, Vector3* muzzle = nullptr, float glow = 0);   // glow: lit from within (the Forge's sea-glass)
 Vector3 RtWeaponMarker(const std::string& id, const char* name, Vector3 def);   // in the model's own frame
 // a baked prop with moving parts (stations_rt.py: the power lever, the cache's lid): value(group) 0..1 poses each group
 bool DrawRtProp(const std::string& path, Matrix frame, const std::function<float(const std::string&)>& value, Color tint = WHITE, float glow = 0);

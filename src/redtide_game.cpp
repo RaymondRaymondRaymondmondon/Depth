@@ -762,7 +762,7 @@ static void DrawGun(const Camera3D& cam) {
     if (const char* dk = getenv("DEPTH_VMDRINK")) { drinkT = (float)atof(dk) * 1.4f; drinkId = "juggernaut"; }   // (shots: hold the drink at k)
     if (drinkT >= 0 && !getenv("DEPTH_VMDRINK")) { drinkT += GetFrameTime(); if (drinkT > 1.4f) drinkT = -1; }
     bool reviving = false;
-    for (const auto& o : M().divers) if (&o != &d && o.downed && o.reviveT > 0 && o.reviveTouchT > 0 && Vector3Distance(o.pos, d.pos) < 3.5f) reviving = true;
+    for (const auto& o : M().divers) if (&o != &d && o.downed && o.reviveTouchT > 0 && o.reviver == (int)(&d - &M().divers[0])) reviving = true;   // (you, not a bot beside you)
     if (getenv("DEPTH_VMREVIVE")) reviving = true;
     dip += drinkT >= 0 ? sinf(std::min(1.0f, drinkT / 1.4f) * PI) * 0.1f : 0;
     if (reviving) dip += 0.45f;
@@ -808,7 +808,16 @@ static void DrawGun(const Camera3D& cam) {
             an.loaded = h.mag > 0 || w.mag <= 0;
             an.gas = w.mag > 0 ? (float)h.mag / w.mag : 1;
             Vector3 gR, gL, mz;
-            DrawRtWeapon(wid, frame, an, tint, &gR, &gL, &mz);
+            // the Forge's finish (the spec: sea-glass, translucent frosted green-blue with light glowing through): the gun
+            // takes the sea-glass's colour and a slow light from within
+            float forgeGlow = 0;
+            bool forged = h.forged || getenv("DEPTH_FORGED");
+            if (forged) { tint = {150, 220, 210, 255}; forgeGlow = 0.12f; }
+            DrawRtWeapon(wid, frame, an, tint, &gR, &gL, &mz, forgeGlow);
+            if (forged) {   // (the sea-glass: a frosted green-blue shell over it, its light breathing)
+                SetNextPbrGlass(true);
+                DrawRtWeapon(wid, MatrixMultiply(MatrixScale(1.025f, 1.06f, 1.06f), frame), an, {50, 190, 170, 255}, nullptr, nullptr, nullptr, 0.35f + 0.15f * sinf(S.time * 1.7f));
+            }
             // a shot: gas, needle and spear guns breathe out a burst of bubbles from the muzzle's vents (spec: "Firing underwater")
             if (d.recoil > 0.9f && (w.cls == "gas" || w.cls == "needle" || w.cls == "spear" || w.cls == "lmg")) FxBubbles(mz, 4, 0.05f, 0.02f);
             if (wid == "twingannets") {   // the pair: a mirrored Gannet in the left fist

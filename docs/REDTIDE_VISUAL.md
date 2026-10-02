@@ -302,6 +302,21 @@ The spec: `Red_Tide_Reference/Red Tide — Visual Overhaul Spec.pdf` (25 pages, 
   - **The traps as set pieces:** the cargo drop is a banded crate in a cargo net on a hook. The cave's rockfall is a
     stalactite trembling at the roof, then a heap of rubble.
   - `DEPTH_OLDSTATIONS=1` draws the old boxes.
+- **The HUD as the helmet's instruments** (`DrawDial`, `DrawCounter`, `DrawPortCracks`):
+  - brass dials with needles for pressure (health), the scent meter, the predator pulse (the nearest tier-4+ hunter's
+    closeness; the needle trembles with it) and the air (your wind);
+  - scrip on a mechanical counter whose drums roll;
+  - cracks across the port when badly hurt, and fully when down.
+- **First-person moments:**
+  - **Drinking a tonic:** the left hand brings a glass flask (`flask.glb`, the tonic glowing inside) up to the
+    helmet's valve and tips it.
+  - **Reviving:** the gun goes down out of view while both hands work below.
+  - Shots: `DEPTH_VMDRINK=<0..1>`, `DEPTH_VMREVIVE=1`.
+- **Accessibility** (the Graphics page, Red Tide's two columns):
+  - **Viewmodel sway:** off holds the gun still.
+  - **Colourblind:** blood, wound trails, the scent clouds and the scent dial in amber.
+  - **Fog density:** x0.6 to 1.4, with a calibration strip.
+  - Brightness has its own calibration strip on the Settings page.
   - Shots: `rvis_3_hands` with `DEPTH_STATION=tonic|locker|forge|power|workbench|cache|rack|door|traps` and
     `DEPTH_RTMAP=<map>`.
 

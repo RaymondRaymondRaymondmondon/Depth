@@ -3916,7 +3916,7 @@ bool Match::Interact(int di, bool hold, float dt) {
     // revives are held (4 s; 2 s with Quick Brine)
     for (auto& o : divers) if (&o != &d && o.downed && Vector3Distance(o.pos, d.pos) < 1.8f) {
         o.reviveT += dt;
-        o.reviveTouchT = 0.25f;
+        o.reviveTouchT = 0.25f; o.reviver = di;
         float need = Engine().C("revive_s", 4) * (d.tonics.count("quick") ? 0.5f : 1.0f);
         if (o.reviveT >= need) Revive(o, d.slot);
         return true;

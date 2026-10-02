@@ -762,7 +762,7 @@ void main() {
     // (an asset with tiling textures carries its baked occlusion in the vertex colours instead of a map)
     vec4 bc = uVcAO == 1 ? colDiffuse : colDiffuse * fragColor;
     albedo = bc.rgb;
-    if (uHasAlb == 1) { vec4 tx = texture(texture0, fragUV); albedo *= toLin(tx.rgb); bc.a *= tx.a; }
+    if (uHasAlb == 1 && uGlass < 1.5) { vec4 tx = texture(texture0, fragUV); albedo *= toLin(tx.rgb); bc.a *= tx.a; }   // (a sea-glass shell, uGlass 2: its own colour, not the texture's)
     if (uGlass < 0.5 && bc.a < 0.4) discard;
     metal = uMetal; rough = uRough;
     if (uHasMR == 1) { vec4 mr = texture(uMR, fragUV); rough *= mr.g; metal *= mr.b; }
@@ -811,7 +811,7 @@ void main() {
     col = pow(col, vec3(1.0 / 2.2));
     col = sceneFog(col, fragWorld, fragViewZ, uFog / 255.0, uFogDensity);
     if (uSil > 0.5) col = vec3(0.0);
-    float ga = uGlass > 0.5 ? mix(0.18, 0.85, pow(1.0 - max(dot(N, V), 0.0), 3.0)) : 1.0;
+    float ga = uGlass > 1.5 ? mix(0.22, 0.75, pow(1.0 - max(dot(N, V), 0.0), 2.0)) : uGlass > 0.5 ? mix(0.18, 0.85, pow(1.0 - max(dot(N, V), 0.0), 3.0)) : 1.0;
     finalColor = vec4(col, ga);
 }
 )";
@@ -1287,6 +1287,7 @@ struct DrawCmd {
     Color tint;
     int sky = 0;                   // the colour pass only, unlit and unfogged
     int pbr = 0; float wrap = 0;   // the physically based path (every mesh of the model, its own materials)
+    bool allGlass = false;         // every mesh drawn in the glass pass (a sea-glass shell over a Forged gun)
     int boneOff = -1, boneN = 0;   // a skinned pose: its matrices in gBonePool
     int recOff = 0, recN = 0;      // recoloured materials in gRecPool
     int partOff = -1, partN = 0;   // per-mesh local transforms in gPartPool (an asset's moving parts)
@@ -1372,9 +1373,11 @@ bool AssetMaterial(const Model* m, const std::string& name, Material* out) {
     return false;
 }
 void MarkVertexOcclusion(const Model* m, bool big) { gVcAO.insert(m); if (big) gBig.insert(m); else gBig.erase(m); }
+static bool gNextAllGlass = false;
+void SetNextPbrGlass(bool on) { gNextAllGlass = on; }
 void DrawPbrParts(const Model& m, Matrix world, const std::vector<Matrix>& partLocal, Color tint, float glow) {
     DrawCmd d{&m, world, (int)AnimMode::Static, 0, 0, 0, 1, 0, glow, tint};
-    d.pbr = 1;
+    d.pbr = 1; d.allGlass = gNextAllGlass; gNextAllGlass = false;
     d.partOff = (int)gPartPool.size(); d.partN = (int)partLocal.size();
     gPartPool.insert(gPartPool.end(), partLocal.begin(), partLocal.end());
     gQueue.push_back(d);
@@ -1557,6 +1560,7 @@ static void DrawPbrCmd(const DrawCmd& d, Shader sh, bool lit) {
     auto names = gMatNames.find(d.model);
     for (int i = 0; i < m.meshCount; i++) {
         bool glass = names != gMatNames.end() && m.meshMaterial[i] >= 1 && m.meshMaterial[i] - 1 < (int)names->second.size() && names->second[m.meshMaterial[i] - 1].find("glass") != std::string::npos;
+        if (d.allGlass) glass = true;
         if (!glass) { auto ai = gAssetInfo.find(d.model); glass = ai != gAssetInfo.end() && i < (int)ai->second.parts.size() && ai->second.parts[i].glass; }   // (a baked part tagged glass)
         if (glass != (gGlassMode == 1)) { if (glass) gGlassSeen = true; continue; }
         Material mat = m.materials[m.meshMaterial[i]];
@@ -1584,7 +1588,7 @@ static void DrawPbrCmd(const DrawCmd& d, Shader sh, bool lit) {
             SetI(gPbr, L_pbr[PU_HASEMIT], has(MATERIAL_MAP_EMISSION));
             SetF(gPbr, L_pbr[PU_METAL], mat.maps[MATERIAL_MAP_METALNESS].value);
             SetF(gPbr, L_pbr[PU_ROUGH], mat.maps[MATERIAL_MAP_ROUGHNESS].value);
-            { static int lg = GetShaderLocation(gPbr, "uGlass"); SetF(gPbr, lg, glass ? 1.0f : 0.0f); }
+            { static int lg = GetShaderLocation(gPbr, "uGlass"); SetF(gPbr, lg, d.allGlass ? 2.0f : glass ? 1.0f : 0.0f); }
             Color e = mat.maps[MATERIAL_MAP_EMISSION].color;
             SetV3(gPbr, L_pbr[PU_EMITCOL], {e.r / 255.0f, e.g / 255.0f, e.b / 255.0f});
         }

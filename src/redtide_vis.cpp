@@ -367,7 +367,7 @@ static float RtGroupValue(const std::string& g, const RtGunAnim& a) {
     if (g == "gauge") return 1 - std::clamp(a.gas, 0.0f, 1.0f);
     return 0;
 }
-bool DrawRtWeapon(const std::string& id, Matrix frame, const RtGunAnim& a, Color tint, Vector3* gripR, Vector3* gripL, Vector3* muzzle) {
+bool DrawRtWeapon(const std::string& id, Matrix frame, const RtGunAnim& a, Color tint, Vector3* gripR, Vector3* gripL, Vector3* muzzle, float glow) {
     const Model* m = RtWeaponModel(id);
     const AssetInfo* A = m ? AssetInfoOf(m) : nullptr;
     if (!m || !A) return false;
@@ -381,7 +381,7 @@ bool DrawRtWeapon(const std::string& id, Matrix frame, const RtGunAnim& a, Color
         else if (p.kind == "show") M[i] = v < 0.5f ? MatrixMultiply(MatrixMultiply(MatrixTranslate(-p.pivot.x, -p.pivot.y, -p.pivot.z), MatrixScale(0, 0, 0)), MatrixTranslate(p.pivot.x, p.pivot.y, p.pivot.z)) : MatrixIdentity();
         else M[i] = MatrixMultiply(MatrixMultiply(MatrixTranslate(-p.pivot.x, -p.pivot.y, -p.pivot.z), MatrixRotate(p.axis, p.amount * v)), MatrixTranslate(p.pivot.x, p.pivot.y, p.pivot.z));
     }
-    DrawPbrParts(*m, frame, M, tint, 0);
+    DrawPbrParts(*m, frame, M, tint, glow);
     auto mk = [&](const char* name, Vector3 def) { const AssetMarker* k = A->Marker(name); return Vector3Transform(k ? k->p : def, frame); };
     if (gripR) *gripR = mk("grip_r", {0, 0, 0});
     if (gripL) *gripL = mk("grip_l", {0, 0, 0});
