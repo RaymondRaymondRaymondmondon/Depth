@@ -352,6 +352,18 @@ The spec: `Red_Tide_Reference/Red Tide — Visual Overhaul Spec.pdf` (25 pages, 
   - the gun kit can join a model's still parts after the bake (`finish(..., merge_static=True)`), and the station,
     ship, map and gun kits now do. A tonic machine was sixty draws a pass; now it's one plus its moving and glass
     parts.
+- **The Void's station modules furnished:**
+  - the Specimen Labs lined with specimen tanks lit from their plinths (`gLabGlow`; the nearest three light the
+    room), with benches down the middle;
+  - the Mess & Quarters with bunks, tables and stores;
+  - the Reactor's two generators.
+- **A landmark in every zone (cave and reef):**
+  - the Mouth's great stalagmite cluster, the Gallery's line of stalagmites, crystal in the Chimney, the Cathedral's
+    giant crystal ringed with stalagmites, the Dynamo Sump's dynamo;
+  - the Bommie's great brain coral, the Staghorn Forest's giant staghorn, the maze's brain corals, fans round the
+    Blue Hole's rim and along the Drop-off, a table coral on Turtle Beach.
+- **States on the body:** a held animal is drawn inside a rope net, a stunned one with bubbles circling. Shot:
+  `DEPTH_STATION=netted`.
 - **The dossier** shows each beast on its rigged model (lit for the PBR path) and factions on the diver figure.
 - **The reef's sand** was a pale (210,192,146) that blew out to white under the surface light; it's (168,150,112) now,
   and the caustics show on it.
