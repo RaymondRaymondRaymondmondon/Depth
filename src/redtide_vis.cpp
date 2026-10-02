@@ -308,22 +308,25 @@ void DrawRedTideStudio(int which, float t) {
     } else if (which == 4) {
         // the guns (spec, shot set 3): every baked Red Tide weapon side on, on a neutral ground, in three states for the
         // first (at rest, the shot, mid-reload)
-        static const char* ID[8] = {"cormorant", "gannet", "needler1", "carbine", "flechette12", "longspeargun", "knife", "boardingaxe"};
-        cam.position = {0.35f, 0.0f, 2.3f}; cam.target = {0.35f, 0.0f, 0}; cam.fovy = 36;
+        static const char* ID[] = {"cormorant", "gannet", "needler1", "carbine", "flechette12", "longspeargun", "needler2", "trawlerman", "boltharpoon", "chumthrower", "gatling", "stormlock",
+                                   "drumflechette", "reefrattler", "cannonharpoon", "limpetlauncher", "netgun", "harpooncannon", "knife", "boardingaxe", "teslagaff", "trident",
+                                   "galvanicrod", "resonator", "anemonegun", "tidestaff", "abyssallure"};
+        const int NID = (int)(sizeof(ID) / sizeof(ID[0]));
+        cam.position = {0.75f, -0.15f, 4.1f}; cam.target = {0.75f, -0.15f, 0}; cam.fovy = 36;
         lamp({-0.5f, 1.5f, 2.2f}, {0.3f, 0, 0});
         L.fog = {70, 92, 98, 255}; L.fogDensity = 0.002f; L.water = 0; L.outline = 0;
         L.AddPoint({1.2f, 0.8f, 1.2f}, 5, {255, 220, 180, 255}, 0.6f);
         RenderBegin(cam, L);
-        for (int k = 0; k < 8; k++) {
+        for (int k = 0; k < NID; k++) {
             RtGunAnim a; a.gas = 0.6f;
-            float x = (k % 2) * 0.62f - 0.05f, y = 0.55f - (k / 2) * 0.33f;
+            float x = (k % 3) * 0.78f - 0.35f, y = 0.85f - (k / 3) * 0.24f;
             DrawRtWeapon(ID[k], MatrixMultiply(MatrixRotateX(-0.12f), MatrixTranslate(x, y, 0)), a, WHITE);
         }
         RtGunAnim fire; fire.fire = 1; fire.steps = 1;
         RtGunAnim rel; rel.reload = 0.5f; rel.steps = 3; rel.loaded = false;
-        DrawRtWeapon("cormorant", MatrixMultiply(MatrixScale(1.4f, 1.4f, 1.4f), MatrixTranslate(1.25f, 0.45f, 0)), fire, WHITE);
-        DrawRtWeapon("needler1", MatrixMultiply(MatrixScale(1.2f, 1.2f, 1.2f), MatrixTranslate(1.2f, 0.05f, 0)), rel, WHITE);
-        DrawRtWeapon("flechette12", MatrixTranslate(1.15f, -0.35f, 0), rel, WHITE);    } else if (which == 2) {
+        DrawRtWeapon("cormorant", MatrixMultiply(MatrixScale(1.4f, 1.4f, 1.4f), MatrixTranslate(1.95f, 0.85f, 0)), fire, WHITE);
+        DrawRtWeapon("needler1", MatrixMultiply(MatrixScale(1.2f, 1.2f, 1.2f), MatrixTranslate(1.95f, 0.55f, 0)), rel, WHITE);
+        DrawRtWeapon("flechette12", MatrixTranslate(1.95f, 0.25f, 0), rel, WHITE);    } else if (which == 2) {
         cam.position = {0, 2.2f, 8.5f}; cam.target = {0, 1.4f, 0}; cam.fovy = 38;
         lamp({-3, 6, 6}, {0, 1, 0});
         RenderBegin(cam, L);

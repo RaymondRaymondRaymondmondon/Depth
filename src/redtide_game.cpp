@@ -705,6 +705,10 @@ static void DrawGun(const Camera3D& cam) {
             an.gas = w.mag > 0 ? (float)h.mag / w.mag : 1;
             Vector3 gR, gL;
             DrawRtWeapon(wid, frame, an, tint, &gR, &gL, nullptr);
+            if (wid == "twingannets") {   // the pair: a mirrored Gannet in the left fist
+                Matrix frame2 = MatrixMultiply(MatrixMultiply(MatrixMultiply(MatrixMultiply(MatrixTranslate(-g.x, -g.y, -g.z), MatrixScale(1.5f, 1.5f, -1.5f)), MatrixRotateY(-PI / 2)), MatrixTranslate(og.x + 0.27f, og.y, og.z)), gunM);
+                Vector3 g2; DrawRtWeapon(wid, frame2, an, tint, &g2, nullptr, nullptr); gL = g2;
+            }
             if (DiversReady() && DrawFirstPersonArms(M().VoiceOf(0), cam, gR, gL, ms < 0, S.time, prof.suit, prof.helmet)) goto muzzle;
             goto muzzle;
         }
