@@ -890,7 +890,7 @@ static void DrawFlora() {
 // that never gets lost in the decor"): standing on the station's floor, facing into its room; a few lit from within
 static bool DrawStationModel(const Match& m, const Station& s, bool dead) {
     if (getenv("DEPTH_OLDSTATIONS")) return false;
-    static const char* ID[] = {"", "tonic", "locker", "forge", "power", "workbench", "", "", "", "", "", "", "", "", "cache"};
+    static const char* ID[] = {"rack", "tonic", "locker", "forge", "power", "workbench", "", "", "", "", "", "", "", "", "cache"};
     int ti = (int)s.type;
     if (ti < 0 || ti >= (int)(sizeof(ID) / sizeof(ID[0])) || !ID[ti][0]) return false;
     // (the floor under it, and its front turned toward the middle of the room)
@@ -936,6 +936,28 @@ static bool DrawStationModel(const Match& m, const Station& s, bool dead) {
         case StationType::Cache:
             if (!DrawRtProp(path, frame, [&](const std::string& g) { return g == "lid" && m.cacheOpen ? 1.0f : 0.0f; }, WHITE)) return false;
             break;
+        case StationType::Rack: {
+            // a weapon chalked on the wall: a weathered board, the gun itself hung across it on two pegs, a rough chalk
+            // outline round it (the spec: "Racks (weapons chalked on walls)")
+            const auto& WW = Weapons().weapons;
+            if (s.weapon < 0 || s.weapon >= (int)WW.size()) return false;
+            std::string wid = WW[s.weapon].id == "diversknife" ? "knife" : WW[s.weapon].id;
+            if (!RtWeaponModel(wid)) return false;
+            Matrix wall = MatrixMultiply(MatrixRotateY(yaw), MatrixTranslate(s.pos.x, s.pos.y, s.pos.z));
+            DrawCubeM(MatrixMultiply(MatrixScale(0.08f, 0.9f, 1.4f), wall), Color{86, 64, 42, 255});
+            for (int k = 0; k < 2; k++) DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(0.12f, 0.04f, 0.04f), MatrixTranslate(0.06f, 0.0f, k ? 0.3f : -0.3f)), wall), Color{60, 44, 30, 255});
+            Color chalk{150, 148, 138, 255};
+            for (int k = 0; k < 4; k++) {   // (the outline, drawn freehand: a little crooked)
+                float w = k < 2 ? 1.2f : 0.03f, h = k < 2 ? 0.03f : 0.5f, y = k == 0 ? 0.26f : k == 1 ? -0.24f : 0.01f, z = k == 2 ? -0.6f : k == 3 ? 0.61f : 0.0f;
+                DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixMultiply(MatrixScale(0.01f, h, w), MatrixRotateX(0.02f * (k - 1.5f))), MatrixTranslate(0.045f, y, z)), wall), chalk);
+            }
+            RtGunAnim an;
+            float L = 1.0f;
+            { float len = RtWeaponMarker(wid, "muzzle", {0.3f, 0, 0}).x - RtWeaponMarker(wid, "grip_r", {0, 0, 0}).x + 0.3f; L = std::clamp(1.0f / std::max(0.2f, len), 1.0f, 1.6f); }   // (its length from its own marks: a pistol drawn up, a long gun to the board)
+            float cx = 0.5f * (RtWeaponMarker(wid, "muzzle", {0.3f, 0, 0}).x + RtWeaponMarker(wid, "grip_r", {0, 0, 0}).x - 0.12f);   // (centred on the board)
+            DrawRtWeapon(wid, MatrixMultiply(MatrixMultiply(MatrixMultiply(MatrixTranslate(-cx, 0, 0), MatrixScale(L, L, L)), MatrixRotateY(yaw + PI / 2)), MatrixTranslate(s.pos.x + cosf(yaw) * 0.1f, s.pos.y, s.pos.z - sinf(yaw) * 0.1f)), an, WHITE);
+            break;
+        }
         default: return false;
     }
     (void)at;
