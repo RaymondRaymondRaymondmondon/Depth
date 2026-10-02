@@ -288,6 +288,10 @@ The spec: `Red_Tide_Reference/Red Tide — Visual Overhaul Spec.pdf` (25 pages, 
 - **The air pocket's surface from below:** at the Grand Salon's air-pocket feature, a silvered sheet with ripples
   spreading across it, glints playing over it and the odd bubble rising into it (drawn after the ink). The air zones
   themselves are still wholly dry: no water line inside them.
+- **Hero sculpts, begun:** the creature kit's loft_body lofts one smooth body through superellipse sections,
+  weighted along the spine, so it bends as one surface. The Goliath is rebuilt on it as a mottled grouper (the jaw,
+  eleven dorsal spines and their membrane, pectorals, a rounded tail fan, flatter armour plates, in browns). The
+  Lobster, the Matriarch, the Cistern Wyrm and the Lantern Leviathan are still assemblies of parts: next.
 - **Boss phases on the body:** the second phase darker and hotter, the third pulsing, the weak point lit, the
   movement quicker.
 - **Interactables as their own models.** The spec: "each get a distinct, well-lit, detailed model that never gets lost
