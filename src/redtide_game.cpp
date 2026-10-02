@@ -1337,6 +1337,14 @@ static void DrawScene() {
         float phase = S.time * cm.freq * (0.6f + inten * 0.6f) + (a.rng % 1000) * 0.01f;
         Color tint = a.wound > 0.3f ? Color{255, (unsigned char)(255 - a.wound * 120), (unsigned char)(255 - a.wound * 120), 255} : WHITE;
         if (m.IsBoss(i) && m.bossGillsT > 0) tint = {255, 170, 150, 255};
+        // states on the body (the spec's creature states): a badly wounded animal leaves a thread of blood in the water
+        // behind it; a camouflaged one lying still goes the colour of the water round it until it moves
+        if (a.wound > 0.45f && Vector3Distance(a.pos, eye) < 25 && fmodf(S.time * (1.5f + a.wound * 3) + (a.rng % 97) * 0.01f, 1.0f) < GetFrameTime() * (1.5f + a.wound * 3))
+            Burst(Vector3Subtract(a.pos, Vector3Scale(Vector3Normalize(v), cm.length * (a.sp < (int)m.bodyScale.size() ? m.bodyScale[a.sp] : 1.0f) * 0.4f)), 1, {120, 14, 14, 255}, 0.08f, 1.6f, 0.05f + a.wound * 0.05f);
+        if (sp.Has("camouflage") && (a.st == State::Rest || spd < 0.05f)) {
+            Color w = L.fog;
+            tint = {(unsigned char)((tint.r * 2 + w.r) / 3), (unsigned char)((tint.g * 2 + w.g) / 3), (unsigned char)((tint.b * 2 + w.b) / 3), 255};
+        }
         if (sp.isEnemy && a.unit >= 0 && Vector3Distance(a.pos, eye) < 45 && DrawFactionFigure(m, a, yaw)) continue;   // (the factions on the figure)
         float bsc = a.sp < (int)m.bodyScale.size() ? m.bodyScale[a.sp] : 1.0f;
         if (m.IsBoss(i) && DrawBossPbr(m.bossKind, cm, a.pos, yaw, pitch, bsc, phase, inten, WHITE, m.bossGillsT > 0 ? 1.0f : 0.0f)) continue;   // (the boss's own model)
