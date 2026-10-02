@@ -130,7 +130,26 @@ static const char* PlanFor(const CreatureModel& cm) {
     if (p == "cetacean" || p == "pinniped") return "cetacean";
     return nullptr;
 }
-static bool DrawPlanPbr(const CreatureModel& cm, const char* plan, Vector3 pos, float yaw, float pitch, float scale, float phase, float inten, Color tint) {
+static bool DrawPlanPbr(const CreatureModel& cm, const char* plan, Vector3 pos, float yaw, float pitch, float scale, float phase, float inten, Color tint, Color gill = {150, 40, 30, 255});
+// the bosses (spec, "Bosses"): each its own model in creatures_rt.py; kind as Match::bossKind (0 the Goliath, 1 the
+// Lobster, 2 the Matriarch, 3 the Cistern Wyrm, 4 the Lantern Leviathan); hot 0..1 lights the weak point (the
+// Goliath's gills in their windows, the Lobster's crystal ringing, the Leviathan's lure)
+bool DrawBossPbr(int kind, const CreatureModel& cm, Vector3 pos, float yaw, float pitch, float scale, float phase, float inten, Color tint, float hot) {
+    static const char* PL[5] = {"goliath", "lobster", "orca", "wyrm", "angler"};
+    if (kind < 0 || kind > 4 || getenv("DEPTH_OLDCREATURES")) return false;
+    Color g = kind == 0 ? ColorLerp(Color{70, 30, 26, 255}, Color{255, 70, 40, 255}, hot)
+            : kind == 1 ? ColorLerp(Color{170, 150, 220, 255}, Color{240, 230, 255, 255}, hot)
+            : kind == 3 ? Color{176, 120, 50, 255}
+            : kind == 4 ? ColorLerp(Color{200, 230, 220, 255}, Color{255, 250, 230, 255}, hot) : Color{150, 40, 30, 255};
+    CreatureModel c = cm;
+    if (kind == 2) { c.base = {22, 24, 28, 255}; c.belly = {230, 232, 228, 255}; c.accent = {30, 32, 36, 255}; }   // (an orca's black and white)
+    if (kind == 1) { c.base = {220, 206, 196, 255}; c.belly = {236, 200, 196, 255}; }                                 // (pale from life in the dark; a veined underside)
+    int keep = gCreatureBudget; gCreatureBudget = 1;
+    bool ok = DrawPlanPbr(c, PL[kind], pos, yaw, pitch, scale, phase, inten, tint, g);
+    gCreatureBudget = keep;
+    return ok;
+}
+static bool DrawPlanPbr(const CreatureModel& cm, const char* plan, Vector3 pos, float yaw, float pitch, float scale, float phase, float inten, Color tint, Color gill) {
     const Model* m = LoadAsset(std::string("redtide/creatures/cr_") + plan + ".glb");
     if (!m) return false;
     gCreatureBudget--;
@@ -165,14 +184,24 @@ static bool DrawPlanPbr(const CreatureModel& cm, const char* plan, Vector3 pos, 
         rot("flip.FL", Z, f); rot("flip.FR", Z, -f);
         rot("flip.RL", Y, 0.25f * sinf(phase * 0.5f + 1)); rot("flip.RR", Y, -0.25f * sinf(phase * 0.5f + 1));
         rot("head", X, 0.08f * sinf(phase * 0.3f));
-    } else if (pl == "cetacean") {
+    } else if (pl == "cetacean" || pl == "orca") {
         for (int k = 0; k < 4; k++) rot(TextFormat("s%d", k), X, amp * 0.6f * sinf(phase * 0.5f - k * 1.2f) * (0.12f + 0.12f * k));
+    } else if (pl == "goliath" || pl == "angler") {
+        for (int k = 0; k < 4; k++) rot(TextFormat("s%d", k), Y, amp * 0.5f * sinf(phase * 0.6f - k * 1.25f) * (0.1f + 0.14f * k));
+        rot("lure", X, 0.2f * sinf(phase * 0.35f)); rot("lure", Y, 0.15f * sinf(phase * 0.27f));
+    } else if (pl == "wyrm") {
+        for (int k = 0; k < 12; k++) rot(TextFormat("w%d", k), Y, amp * 0.28f * sinf(phase * 0.8f - k * 0.7f));
+    } else if (pl == "lobster") {
+        for (int i = 0; i < 4; i++) for (int s = 0; s < 2; s++) rot(TextFormat("leg%d%sa", i, s ? "R" : "L"), Y, 0.25f * amp * cosf(phase * 1.2f + i * PI / 2 + s * PI));
+        for (int k = 0; k < 4; k++) rot(TextFormat("t%d", k), X, 0.08f * amp * sinf(phase * 0.7f - k * 0.8f));
+        float open = 0.3f * (0.5f + 0.5f * sinf(phase * 0.5f));
+        rot("pincer.L", Y, open); rot("pincer.R", Y, -open);
     }
     std::vector<Matrix> sk = SolveRig(R, P);
     float len = std::max(0.05f, cm.length * scale);
     Matrix w = MatrixMultiply(MatrixMultiply(MatrixScale(len, len, len), MatrixRotateX(-pitch)), MatrixMultiply(MatrixRotateY(yaw), MatrixTranslate(pos.x, pos.y, pos.z)));
     Color fin = cm.accent.a > 0 ? cm.accent : Color{(unsigned char)(cm.base.r * 0.8f), (unsigned char)(cm.base.g * 0.8f), (unsigned char)(cm.base.b * 0.8f), 255};
-    DrawPbrSkinned(*m, w, sk, {{"back", cm.base}, {"belly", cm.belly}, {"fin", fin}}, 0.2f, tint);
+    DrawPbrSkinned(*m, w, sk, {{"back", cm.base}, {"belly", cm.belly}, {"fin", fin}, {"gill", gill}}, 0.2f, tint);
     return true;
 }
 bool DrawCreaturePbr(const CreatureModel& cm, Vector3 pos, float yaw, float pitch, float scale, float phase, float inten, Color tint) {

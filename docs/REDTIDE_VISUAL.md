@@ -175,3 +175,10 @@ The spec: `Red_Tide_Reference/Red Tide — Visual Overhaul Spec.pdf` (25 pages, 
   cost: the salon 13.9 ms, the engine room 14.7 (the Goliath's nest).
 - Small fish only get the rigged models within 10 m (big creatures to 28 m), and up to 60 a frame, so a school close by
   doesn't use up the budget the sharks need.
+- **The bosses as their own rigged models** (`creatures_rt.py`: `cr_goliath|lobster|orca|wyrm|angler`; `DrawBossPbr`,
+  by `Match::bossKind`): the **Goliath** (a heavy grouper with armour plates over the gills and flanks, barnacles, two
+  old harpoons and a chain in it; its gills glow red in their windows), the **Lobster** (pale and eyeless, crystal coral
+  growing from its shell, a veined underside, walking with its tail flexing), the **Matriarch** (an orca, black and
+  white, a scar and a tall dorsal), the **Cistern Wyrm** (a serpent on twelve bones with bronze collars, a crest and
+  horns, undulating), the **Lantern Leviathan** (a vast anglerfish, a mouth of needle teeth, the pale lure on its rod,
+  swaying). Still stylised assemblies of rounded parts, not the spec's hero sculpts; phase changes don't show yet.

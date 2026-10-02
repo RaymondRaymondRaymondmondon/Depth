@@ -16,6 +16,7 @@ bool DrawFirstPersonArms(int voice, const Camera3D& cam, Vector3 gripR, Vector3 
 // from its record; false (draw the CreatureBuilder model) when it isn't a fish plan or the frame's budget is spent
 void CreatureBudget(int n);
 bool DrawCreaturePbr(const CreatureModel& cm, Vector3 pos, float yaw, float pitch, float scale, float phase, float inten, Color tint);
+bool DrawBossPbr(int kind, const CreatureModel& cm, Vector3 pos, float yaw, float pitch, float scale, float phase, float inten, Color tint, float hot);
 
 // Red Tide's own guns (tools/artgen/weapons_rt.py -> assets/redtide/weapons/<id>.glb), their moving parts posed:
 // fire (the hammer falls, the trigger in), cycle (a bolt or pump working after a shot), reload 0..1 (-1 none), the

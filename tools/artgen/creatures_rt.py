@@ -33,6 +33,7 @@ def mats():
     return {
         "back": C.mat_flat("back", (0.5, 0.35, 0.25), 0.55), "belly": C.mat_flat("belly", (0.85, 0.8, 0.7), 0.6),
         "fin": C.mat_flat("fin", (0.4, 0.25, 0.18), 0.6), "eye": C.mat_flat("eye", (0.02, 0.02, 0.025), 0.1),
+        "gill": C.mat_flat("gill", (0.7, 0.2, 0.15), 0.4),   # (gills, crystal, bronze fittings, lures: the game colours them per boss)
     }
 
 
@@ -234,14 +235,134 @@ def cetacean(K):
     for k in range(len(prof) - 1):
         (z0, r0), (z1, r1) = prof[k], prof[k + 1]
         bone = "s0" if z0 > 0.22 else "s1" if z0 > -0.02 else "s2" if z0 > -0.25 else "s3"
-        K.ell(f"body{k}", (0, 0.0, (z0 + z1) / 2), ((r0 + r1) / 2, (r0 + r1) / 2 * 0.95, abs(z0 - z1) * 0.75), "back", bone, 24)
-        K.ell(f"bellyp{k}", (0, -((r0 + r1) / 2) * 0.35, (z0 + z1) / 2), ((r0 + r1) / 2 * 0.85, (r0 + r1) / 2 * 0.6, abs(z0 - z1) * 0.7), "belly", bone, 20)
+        K.ell(f"body{k}", (0, 0.0, (z0 + z1) / 2), ((r0 + r1) / 2, (r0 + r1) / 2 * 0.95, abs(z0 - z1) * 1.25), "back", bone, 24)
+        K.ell(f"bellyp{k}", (0, -((r0 + r1) / 2) * 0.35, (z0 + z1) / 2), ((r0 + r1) / 2 * 0.85, (r0 + r1) / 2 * 0.6, abs(z0 - z1) * 1.2), "belly", bone, 20)
     K.limb("beak", (0, -0.01, 0.46), (0, -0.015, 0.56), 0.035, 0.018, "back", "s0")
     for s, sd in ((1, "L"), (-1, "R")):
         K.ell(f"eye{sd}", (s * 0.07, 0.02, 0.38), (0.012, 0.012, 0.012), "eye", "s0", 10)
         K.limb(f"flipper{sd}", (s * 0.1, -0.06, 0.2), (s * 0.26, -0.14, 0.08), 0.04, 0.012, "fin", "s1", 10)
         K.ell(f"fluke{sd}", (s * 0.11, 0.0, -0.5), (0.12, 0.012, 0.05), "fin", "s3", 16)
     K.limb("dorsal", (0, 0.11, 0.0), (0, 0.24, -0.1), 0.05, 0.006, "fin", "s1", 10)
+
+
+# ---------------------------------------------------------------- the bosses (spec, "Bosses"), unit length like the rest
+def spine(K, zs, prefix="s"):
+    for k in range(len(zs) - 1):
+        K.bone(f"{prefix}{k}", (0, 0.0, zs[k]), (0, 0.0, zs[k + 1]), f"{prefix}{k - 1}" if k else None)
+
+
+@plan("goliath")
+def goliath(K):
+    # a colossal grouper: a deep heavy body, a huge mouth, armour plates on the head and flanks, barnacles, old
+    # harpoons and a chain embedded in it, the gills behind the plates (they glow red in the game's windows)
+    zs = [0.5, 0.22, -0.02, -0.25, -0.5]
+    spine(K, zs)
+    prof = [(0.46, 0.1), (0.36, 0.17), (0.2, 0.21), (0.0, 0.22), (-0.18, 0.18), (-0.32, 0.1), (-0.42, 0.06)]
+    for k in range(len(prof) - 1):
+        (z0, r0), (z1, r1) = prof[k], prof[k + 1]
+        b = "s0" if z0 > 0.22 else "s1" if z0 > -0.02 else "s2" if z0 > -0.25 else "s3"
+        r = (r0 + r1) / 2
+        K.ell(f"body{k}", (0, 0.0, (z0 + z1) / 2), (r * 0.8, r * 1.1, abs(z0 - z1) * 1.25), "back", b, 28)
+        K.ell(f"bellyp{k}", (0, -r * 0.45, (z0 + z1) / 2), (r * 0.7, r * 0.6, abs(z0 - z1) * 1.2), "belly", b, 20)
+    K.ell("jaw", (0, -0.05, 0.47), (0.12, 0.07, 0.07), "belly", "s0", 20)
+    K.ell("lip", (0, 0.04, 0.48), (0.13, 0.04, 0.06), "back", "s0", 20)
+    for s, sd in ((1, "L"), (-1, "R")):
+        K.ell(f"eye{sd}", (s * 0.13, 0.08, 0.38), (0.028, 0.028, 0.028), "eye", "s0", 12)
+        K.ell(f"gill{sd}", (s * 0.15, 0.0, 0.28), (0.02, 0.13, 0.05), "gill", "s0", 16)
+        K.ell(f"plate_head{sd}", (s * 0.16, 0.06, 0.33), (0.03, 0.14, 0.09), "back", "s0", 16)   # the armour over the gills
+        for k in range(3):
+            K.ell(f"plate_flank{sd}{k}", (s * 0.17, 0.05 - k * 0.04, 0.12 - k * 0.14), (0.03, 0.12, 0.08), "back", "s1" if k < 2 else "s2", 16)
+        K.limb(f"pectoral{sd}", (s * 0.15, -0.05, 0.2), (s * 0.3, -0.12, 0.08), 0.06, 0.01, "fin", "s1", 10)
+    for k in range(10):   # barnacles
+        K.ell(f"barnacle{k}", (0.12 * math.sin(k * 2.3), 0.1 + 0.06 * math.cos(k * 1.7), 0.3 - k * 0.07), (0.018, 0.012, 0.018), "belly", "s0" if k < 3 else "s1" if k < 6 else "s2", 8)
+    for k, (a, b) in enumerate([((0.1, 0.16, 0.1), (0.36, 0.36, 0.0)), ((-0.12, 0.12, -0.15), (-0.4, 0.3, -0.25))]):
+        K.limb(f"harpoon{k}", a, b, 0.008, 0.006, "fin", "s1" if k == 0 else "s2", 6)
+    K.limb("chain", (0.05, 0.2, -0.05), (0.2, -0.2, -0.3), 0.012, 0.012, "fin", "s2", 6)
+    K.limb("dorsal", (0, 0.2, 0.15), (0, 0.32, -0.15), 0.07, 0.01, "fin", "s1", 10)
+    for s in (-1, 1):
+        K.limb(f"tail{s}", (0, 0.0, -0.42), (0, s * 0.16, -0.58), 0.05, 0.01, "fin", "s3", 10)
+
+
+@plan("lobster")
+def lobster(K):
+    # the giant cave lobster: pale and eyeless, crystal coral grown on its shell, a soft veined underside
+    K.bone("body", (0, 0, 0.0), (0, 0, 0.25))
+    zs = [0.0, -0.1, -0.2, -0.3, -0.4]
+    for k in range(4):
+        K.bone(f"t{k}", (0, 0, zs[k]), (0, 0, zs[k + 1]), "body" if k == 0 else f"t{k - 1}")
+        K.ell(f"seg{k}", (0, 0.02, (zs[k] + zs[k + 1]) / 2), (0.12 - k * 0.015, 0.08, 0.06), "back", f"t{k}", 20)
+        K.ell(f"segb{k}", (0, -0.03, (zs[k] + zs[k + 1]) / 2), (0.1 - k * 0.015, 0.04, 0.05), "belly", f"t{k}", 16)
+    K.ell("carapace", (0, 0.04, 0.15), (0.15, 0.1, 0.2), "back", "body", 28)
+    K.ell("underside", (0, -0.04, 0.15), (0.13, 0.06, 0.18), "belly", "body", 20)
+    for s in (-1, 0, 1):
+        K.limb(f"fan{s}", (0, 0.0, -0.4), (s * 0.08, 0.0, -0.5), 0.04, 0.015, "fin", "t3")
+    for k in range(6):   # crystal coral on the shell
+        K.limb(f"crystal{k}", (0.05 * math.sin(k * 2.1), 0.12, 0.25 - k * 0.06), (0.08 * math.sin(k * 2.1), 0.24 + 0.03 * (k % 2), 0.22 - k * 0.06), 0.02, 0.0, "gill", "body" if k < 3 else "t0", 6)
+    for s, sd in ((1, "L"), (-1, "R")):
+        K.bone(f"claw.{sd}", (s * 0.12, 0.0, 0.3), (s * 0.22, 0.04, 0.6), "body")
+        K.limb(f"arm{sd}", (s * 0.12, 0.0, 0.3), (s * 0.2, 0.04, 0.55), 0.035, 0.03, "fin", f"claw.{sd}")
+        K.ell(f"palm{sd}", (s * 0.22, 0.05, 0.66), (0.07, 0.05, 0.12), "back", f"claw.{sd}", 20)
+        K.bone(f"pincer.{sd}", (s * 0.24, 0.09, 0.7), (s * 0.24, 0.1, 0.86), f"claw.{sd}")
+        K.limb(f"pincer{sd}", (s * 0.24, 0.09, 0.7), (s * 0.24, 0.1, 0.86), 0.03, 0.005, "back", f"pincer.{sd}")
+        K.limb(f"antenna{sd}", (s * 0.04, 0.06, 0.32), (s * 0.3, 0.2, 0.95), 0.01, 0.002, "fin", "body", 6)
+        for i in range(4):
+            z = 0.22 - i * 0.07
+            n = f"leg{i}{sd}"
+            K.bone(n + "a", (s * 0.12, -0.02, z), (s * 0.26, 0.04, z - 0.02), "body")
+            K.limb(n + "a", (s * 0.12, -0.02, z), (s * 0.26, 0.04, z - 0.02), 0.016, 0.012, "fin", n + "a")
+            K.bone(n + "b", (s * 0.26, 0.04, z - 0.02), (s * 0.34, -0.1, z - 0.04), n + "a")
+            K.limb(n + "b", (s * 0.26, 0.04, z - 0.02), (s * 0.34, -0.1, z - 0.04), 0.012, 0.004, "fin", n + "b")
+
+
+@plan("orca")
+def orca(K):
+    cetacean(K)
+    for s in (-1, 1):   # the eye patch and the saddle (the game paints back black, belly white)
+        K.ell(f"patch{s}", (s * 0.09, 0.04, 0.32), (0.015, 0.03, 0.06), "belly", "s0", 12)
+    K.limb("scar", (0.12, 0.05, 0.1), (0.1, -0.05, -0.05), 0.006, 0.006, "gill", "s1", 6)
+    K.limb("tall_dorsal", (0, 0.12, 0.02), (0, 0.38, -0.05), 0.06, 0.008, "fin", "s1", 10)
+
+
+@plan("wyrm")
+def wyrm(K):
+    # the Cistern Wyrm: a long sea serpent on twelve bones, bronze collars from its taming, a crest of fins
+    n = 12
+    zs = [0.5 - k * (1.0 / n) for k in range(n + 1)]
+    spine(K, zs, "w")
+    for k in range(n):
+        r = 0.05 * (1.0 - 0.6 * k / n) + 0.02
+        K.ell(f"seg{k}", (0, 0.0, (zs[k] + zs[k + 1]) / 2), (r, r, (zs[k] - zs[k + 1]) * 1.2), "back", f"w{k}", 18)
+        K.ell(f"segb{k}", (0, -r * 0.4, (zs[k] + zs[k + 1]) / 2), (r * 0.8, r * 0.5, (zs[k] - zs[k + 1]) * 0.6), "belly", f"w{k}", 14)
+        if k % 3 == 1:
+            K.ell(f"collar{k}", (0, 0.0, zs[k]), (r * 1.15, r * 1.15, 0.012), "gill", f"w{k}", 18)
+        K.limb(f"crest{k}", (0, r * 0.9, (zs[k] + zs[k + 1]) / 2), (0, r * 0.9 + 0.035, zs[k + 1]), 0.012, 0.002, "fin", f"w{k}", 6)
+    K.ell("head", (0, 0.01, 0.52), (0.08, 0.06, 0.09), "back", "w0", 22)
+    K.ell("jaw", (0, -0.035, 0.55), (0.06, 0.025, 0.07), "belly", "w0", 16)
+    for s, sd in ((1, "L"), (-1, "R")):
+        K.ell(f"eye{sd}", (s * 0.06, 0.04, 0.56), (0.015, 0.015, 0.015), "eye", "w0", 10)
+        K.limb(f"horn{sd}", (s * 0.04, 0.05, 0.48), (s * 0.08, 0.12, 0.38), 0.012, 0.002, "gill", "w0", 6)
+
+
+@plan("angler")
+def angler(K):
+    # the Lantern Leviathan: a vast dark anglerfish, a mouth like a cave, needle teeth, the pale lure on its rod
+    zs = [0.5, 0.2, -0.05, -0.28, -0.5]
+    spine(K, zs)
+    K.ell("body", (0, 0.0, 0.05), (0.3, 0.28, 0.38), "back", "s1", 32)
+    K.ell("head", (0, 0.02, 0.32), (0.32, 0.27, 0.2), "back", "s0", 32)
+    K.ell("tailbody", (0, 0.0, -0.3), (0.12, 0.13, 0.18), "back", "s2", 20)
+    K.ell("mouth", (0, -0.05, 0.48), (0.26, 0.12, 0.04), "eye", "s0", 24)
+    for k in range(14):   # needle teeth round the mouth
+        a = math.pi * (k / 13.0)
+        K.limb(f"tooth{k}", (0.24 * math.cos(a), -0.05 + 0.1 * math.sin(a), 0.5), (0.22 * math.cos(a), -0.05 + 0.04 * math.sin(a), 0.54), 0.008, 0.0, "belly", "s0", 5)
+    for s, sd in ((1, "L"), (-1, "R")):
+        K.ell(f"eye{sd}", (s * 0.18, 0.15, 0.38), (0.02, 0.02, 0.02), "eye", "s0", 10)
+        K.limb(f"pectoral{sd}", (s * 0.26, -0.05, 0.08), (s * 0.42, -0.15, -0.05), 0.07, 0.01, "fin", "s1", 10)
+    K.bone("lure", (0, 0.26, 0.3), (0, 0.46, 0.62), "s0")
+    K.limb("rod", (0, 0.26, 0.3), (0, 0.46, 0.62), 0.012, 0.006, "fin", "lure", 8)
+    K.ell("bulb", (0, 0.46, 0.64), (0.045, 0.045, 0.045), "gill", "lure", 14)
+    for s in (-1, 1):
+        K.limb(f"tail{s}", (0, 0.0, -0.45), (0, s * 0.14, -0.6), 0.05, 0.01, "fin", "s3", 10)
 
 
 if __name__ == "__main__":

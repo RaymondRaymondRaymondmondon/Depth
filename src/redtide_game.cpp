@@ -1268,6 +1268,7 @@ static void DrawScene() {
         if (m.IsBoss(i) && m.bossGillsT > 0) tint = {255, 170, 150, 255};
         if (sp.isEnemy && a.unit >= 0 && Vector3Distance(a.pos, eye) < 45 && DrawFactionFigure(m, a, yaw)) continue;   // (the factions on the figure)
         float bsc = a.sp < (int)m.bodyScale.size() ? m.bodyScale[a.sp] : 1.0f;
+        if (m.IsBoss(i) && DrawBossPbr(m.bossKind, cm, a.pos, yaw, pitch, bsc, phase, inten, WHITE, m.bossGillsT > 0 ? 1.0f : 0.0f)) continue;   // (the boss's own model)
         if (Vector3Distance(a.pos, eye) < (cm.length * bsc < 0.35f ? 10.0f : 28.0f) && !m.IsBoss(i) && DrawCreaturePbr(cm, a.pos, yaw, pitch, bsc, phase, inten, tint)) continue;   // (the rigged fish, near)
         DrawCreature(cm, a.pos, yaw, pitch, bsc, phase, inten, tint);
     }
