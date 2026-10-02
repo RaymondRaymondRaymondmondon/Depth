@@ -36,7 +36,7 @@ struct RedTideScene {
     int lineup = -1;               // --shots: every species of the Ship posed in rows (page number)
     int studio = -1;               // --shots: the Visual Overhaul's studio (redtide_vis.cpp), which set
     bool freeze = false;           // --shots: hold the match still (a squad lined up for its portrait)
-    struct Dress { std::string path; Matrix m; };
+    struct Dress { std::string path; Matrix m; Color tint = WHITE; };
     std::vector<Dress> dress;      // the map kit's placed models (ShipDressing)
     int lastZone = -1; float zoneT = 0;
     float bob = 0;
@@ -150,9 +150,20 @@ static void FaceWithHoles(MeshBuilder& mb, int axis, float at, Vector2 lo, Vecto
 static void ShipDressing(); void BuildLevelModel() {
     if (S.levelReady) { UnloadModel(S.level); S.levelReady = false; }
     if (!IsWindowReady() || S.mode != 1) return;
+    S.dress.clear();
     const Match& m = M();
     const MapData& map = *m.map;
     MeshBuilder mb;
+    // the map kits' models (tools/artgen/maps_rt.py) stand in for these props' boxes where they've been built
+    static const Color CORAL[6] = {{236, 110, 96, 255}, {244, 170, 70, 255}, {176, 96, 196, 255}, {96, 196, 160, 255}, {240, 140, 160, 255}, {226, 200, 90, 255}};
+    int coralN = 0;
+    auto kit = [&](const char* id, Vector3 base, float sc, float yaw) {
+        std::string path = std::string("redtide/maps/") + id + ".glb";
+        if (!LoadAsset(path)) return false;
+        std::string sid = id; bool coral = sid == "brain" || sid == "staghorn" || sid == "table" || sid == "fan";
+        S.dress.push_back({path, MatrixMultiply(MatrixMultiply(MatrixScale(sc, sc, sc), MatrixRotateY(yaw)), MatrixTranslate(base.x, base.y, base.z)), coral ? CORAL[coralN++ % 6] : WHITE});   // (the reef's saturated colours on the pale baked coral)
+        return true;
+    };
     const Json& pal = map.extra["palette"];
     auto pc = [&](const Json& j, Color def) { return j.IsArr() ? Color{(unsigned char)j[0].I(), (unsigned char)j[1].I(), (unsigned char)j[2].I(), 255} : def; };
     for (const auto& v : m.level.vols) {
@@ -283,9 +294,9 @@ static void ShipDressing(); void BuildLevelModel() {
         Vector3 c = pr.pos, h = pr.half;
         switch (pr.kind) {
             case PropKind::Column: mb.Box(c, h, Color{(unsigned char)(rock.r + 8), (unsigned char)(rock.g + 8), (unsigned char)(rock.b + 6), 255}); break;
+            case PropKind::Stalagmite: if (kit("stalagmites", c, std::max(0.4f, h.y), rnd() * 6.28f)) break; mb.Cone(c, {c.x, c.y + h.y, c.z}, h.x, 5, rock); break;
             case PropKind::Stalactite: mb.Cone(c, {c.x, c.y - h.y, c.z}, h.x, 5, lighter); break;
-            case PropKind::Stalagmite: mb.Cone(c, {c.x, c.y + h.y, c.z}, h.x, 5, rock); break;
-            case PropKind::Crystal: for (int j = 0; j < 5; j++) mb.Cone({c.x + (rnd() - 0.5f), c.y, c.z + (rnd() - 0.5f)}, {c.x + (rnd() - 0.5f) * 1.5f, c.y + 1 + rnd() * 2.5f, c.z + (rnd() - 0.5f) * 1.5f}, 0.18f + rnd() * 0.2f, 4, Color{150, 220, 230, 255}); break;
+            case PropKind::Crystal: if (kit("crystal", c, 2.6f, rnd() * 6.28f)) break; for (int j = 0; j < 5; j++) mb.Cone({c.x + (rnd() - 0.5f), c.y, c.z + (rnd() - 0.5f)}, {c.x + (rnd() - 0.5f) * 1.5f, c.y + 1 + rnd() * 2.5f, c.z + (rnd() - 0.5f) * 1.5f}, 0.18f + rnd() * 0.2f, 4, Color{150, 220, 230, 255}); break;
             case PropKind::Root: for (int j = 0; j < 4; j++) mb.Box({c.x + (rnd() - 0.5f) * 1.2f, c.y - 1.2f, c.z + (rnd() - 0.5f) * 1.2f}, {0.05f, 1.2f + rnd(), 0.05f}, Color{92, 76, 52, 255}); break;
             case PropKind::Ledge: mb.Box(c, h, rock); break;
             case PropKind::Pool: mb.Box(c, h, Color{40, 86, 96, 255}); break;
@@ -303,13 +314,16 @@ static void ShipDressing(); void BuildLevelModel() {
                     float t = rnd() * 2 - 1;
                     Vector3 q = h.x > h.z ? Vector3{c.x + t * h.x, c.y + h.y, c.z} : Vector3{c.x, c.y + h.y, c.z + t * h.z};
                     float rr = 0.4f + rnd() * 0.5f;
-                    mb.Box({q.x, q.y - rnd() * h.y * 1.6f, q.z + (h.x > h.z ? (rnd() - 0.5f) * 1.4f : 0)}, {rr, rr * 0.8f, rr}, cols[j % 5]);
+                    Vector3 hc{q.x, q.y - rnd() * h.y * 1.6f, q.z + (h.x > h.z ? (rnd() - 0.5f) * 1.4f : 0)};
+                    // (every other head a coral model on the wall's top: brain and staghorn by turns)
+                    if (j % 2 == 0 && kit(j % 4 == 0 ? "brain" : "staghorn", {hc.x, c.y + h.y - 0.2f, hc.z}, rr * 1.8f, rnd() * 6.28f)) continue;
+                    mb.Box(hc, {rr, rr * 0.8f, rr}, cols[j % 5]);
                 }
                 break;
             }
-            case PropKind::Brain: mb.Lathe(h.x * 2, 4, 8, [&](float u) { return h.x * sinf(u * 3.14159f) + 0.05f; }, [&](float u) { return h.y * sinf(u * 3.14159f) + 0.05f; }, Color{206, 180, 120, 255}, Color{176, 150, 100, 255}, c); break;
-            case PropKind::Table: mb.Box(c, h, Color{176, 196, 150, 255}); mb.Box({c.x, (z.y0 + c.y) / 2, c.z}, {0.25f, (c.y - z.y0) / 2, 0.25f}, Color{150, 150, 120, 255}); break;
-            case PropKind::Staghorn: for (int j = 0; j < 7; j++) { float a = rnd() * 6.28f, lean = 0.3f + rnd() * 0.5f; mb.Cone({c.x, c.y, c.z}, {c.x + cosf(a) * lean * h.y, c.y + h.y * (0.6f + rnd() * 0.5f), c.z + sinf(a) * lean * h.y}, 0.09f, 4, Color{(unsigned char)(190 + rnd() * 40), (unsigned char)(140 + rnd() * 40), 110, 255}); } break;
+            case PropKind::Brain: if (kit("brain", {c.x, z.y0, c.z}, std::max(0.5f, h.x * 2.0f), rnd() * 6.28f)) break; mb.Lathe(h.x * 2, 4, 8, [&](float u) { return h.x * sinf(u * 3.14159f) + 0.05f; }, [&](float u) { return h.y * sinf(u * 3.14159f) + 0.05f; }, Color{206, 180, 120, 255}, Color{176, 150, 100, 255}, c); break;
+            case PropKind::Table: if (kit("table", {c.x, z.y0, c.z}, std::max(0.5f, (c.y - z.y0) / 0.47f), rnd() * 6.28f)) break; mb.Box(c, h, Color{176, 196, 150, 255}); mb.Box({c.x, (z.y0 + c.y) / 2, c.z}, {0.25f, (c.y - z.y0) / 2, 0.25f}, Color{150, 150, 120, 255}); break;
+            case PropKind::Staghorn: if (kit("staghorn", c, std::max(0.6f, h.y * 1.4f), rnd() * 6.28f)) break; for (int j = 0; j < 7; j++) { float a = rnd() * 6.28f, lean = 0.3f + rnd() * 0.5f; mb.Cone({c.x, c.y, c.z}, {c.x + cosf(a) * lean * h.y, c.y + h.y * (0.6f + rnd() * 0.5f), c.z + sinf(a) * lean * h.y}, 0.09f, 4, Color{(unsigned char)(190 + rnd() * 40), (unsigned char)(140 + rnd() * 40), 110, 255}); } break;
             case PropKind::Seagrass: for (int j = 0; j < 6; j++) mb.Box({c.x + (rnd() - 0.5f) * h.x * 2, c.y + h.y / 2, c.z + (rnd() - 0.5f) * h.z * 2}, {0.03f, h.y / 2, 0.12f}, Color{96, 150, 80, 255}); break;
             case PropKind::Mangrove: for (int j = 0; j < 5; j++) { Vector3 top{c.x + (rnd() - 0.5f), c.y, c.z + (rnd() - 0.5f)}; mb.Cone(top, {top.x + (rnd() - 0.5f) * 2.5f, z.y0, top.z + (rnd() - 0.5f) * 2.5f}, 0.12f, 4, Color{100, 80, 58, 255}); } break;
             case PropKind::Mound: mb.Lathe(h.x * 2, 5, 10, [&](float u) { return h.x * sinf(u * 3.14159f) + 0.1f; }, [&](float u) { return h.y * 1.4f * sinf(u * 3.14159f) + 0.1f; }, Color{200, 150, 120, 255}, Color{150, 120, 100, 255}, c); break;
@@ -329,15 +343,15 @@ static void ShipDressing(); void BuildLevelModel() {
                 break;
             }
             case PropKind::Terrace: mb.Box(c, h, Color{120, 110, 84, 255}); mb.Box({c.x, c.y + h.y + 0.02f, c.z}, {h.x - 0.2f, 0.02f, h.z - 0.2f}, Color{90, 130, 70, 255}); break;
-            case PropKind::Fan: for (int j = 0; j < 5; j++) mb.Box({c.x + (rnd() - 0.5f) * 0.6f, c.y + (rnd() - 0.3f) * h.y, c.z}, {h.x * (0.5f + rnd() * 0.5f), h.y * 0.35f, 0.03f}, Color{(unsigned char)(150 + rnd() * 60), 70, (unsigned char)(110 + rnd() * 50), 255}); mb.Box({c.x, z.y0 + (c.y - z.y0) / 2, c.z}, {0.05f, (c.y - z.y0) / 2, 0.05f}, Color{120, 60, 80, 255}); break;
-            case PropKind::Amphora: mb.Lathe(h.y * 2, 4, 8, [&](float u) { return h.x * (0.4f + 0.6f * sinf(u * 3.14159f)); }, [&](float u) { return h.y * 2 * u - h.y; }, Color{170, 100, 60, 255}, Color{140, 80, 50, 255}, c); break;
+            case PropKind::Fan: if (kit("fan", {c.x, z.y0, c.z}, std::max(0.6f, (c.y + h.y - z.y0) / 0.84f), rnd() * 6.28f)) break; for (int j = 0; j < 5; j++) mb.Box({c.x + (rnd() - 0.5f) * 0.6f, c.y + (rnd() - 0.3f) * h.y, c.z}, {h.x * (0.5f + rnd() * 0.5f), h.y * 0.35f, 0.03f}, Color{(unsigned char)(150 + rnd() * 60), 70, (unsigned char)(110 + rnd() * 50), 255}); mb.Box({c.x, z.y0 + (c.y - z.y0) / 2, c.z}, {0.05f, (c.y - z.y0) / 2, 0.05f}, Color{120, 60, 80, 255}); break;
+            case PropKind::Amphora: if (kit("amphora", {c.x, c.y - h.y, c.z}, std::max(0.5f, h.y * 2.2f), rnd() * 6.28f)) break; mb.Lathe(h.y * 2, 4, 8, [&](float u) { return h.x * (0.4f + 0.6f * sinf(u * 3.14159f)); }, [&](float u) { return h.y * 2 * u - h.y; }, Color{170, 100, 60, 255}, Color{140, 80, 50, 255}, c); break;
             case PropKind::Grate: {
                 mb.Box({c.x, c.y - 0.01f, c.z}, {h.x, 0.01f, h.z}, Color{12, 16, 18, 255});
                 for (int j = -2; j <= 2; j++) { mb.Box({c.x + j * h.x * 0.4f, c.y + 0.02f, c.z}, {0.05f, 0.03f, h.z}, Color{70, 74, 70, 255}); mb.Box({c.x, c.y + 0.02f, c.z + j * h.z * 0.4f}, {h.x, 0.03f, 0.05f}, Color{70, 74, 70, 255}); }
                 break;
             }
             case PropKind::Stake: mb.Box(c, h, Color{214, 206, 184, 255}); mb.Box({c.x, c.y + h.y, c.z}, {0.35f, 0.12f, 0.12f}, Color{200, 190, 170, 255}); break;
-            case PropKind::Tank: {
+            case PropKind::Tank: { if (kit("tank", {c.x, z.y0, c.z}, std::max(0.6f, h.y), 0)) break;
                 mb.Box({c.x, z.y0 + 0.15f, c.z}, {h.x + 0.1f, 0.15f, h.z + 0.1f}, Color{70, 74, 72, 255});
                 mb.Box(c, {h.x, h.y, 0.04f}, Color{120, 170, 160, 255}); mb.Box(c, {0.04f, h.y, h.z}, Color{120, 170, 160, 255});
                 mb.Box({c.x, c.y + h.y + 0.1f, c.z}, {h.x + 0.1f, 0.1f, h.z + 0.1f}, Color{70, 74, 72, 255});
@@ -364,7 +378,6 @@ static void ShipDressing(); void BuildLevelModel() {
 // range with its pots, crates and barrels; a bunk in every cabin; the engine room's generator; the bridge's wheel and
 // binnacle; the funnel on the foredeck; barrels on the stern. (The models' frame: +x forward, +y up, the base at 0.)
 static void ShipDressing() {
-    S.dress.clear();
     if (M().mapKey != "ship") return;
     const MapData& map = *M().map;
     auto put = [&](const char* id, Vector3 at, float yaw, Matrix tilt = MatrixIdentity()) {
@@ -1138,7 +1151,7 @@ static void DrawScene() {
         if (S.mode == 0) for (const auto& b : S.boxes) DrawWorldCube(b.c, Vector3Scale(b.half, 2), b.col);
         if (S.mode == 1 && S.levelReady) DrawStatic(S.level, MatrixIdentity());
         if (S.mode == 1) { DrawStations(); DrawFlora(); }
-        for (const auto& dr : S.dress) if (Vector3Distance({dr.m.m12, dr.m.m13, dr.m.m14}, eye) < 50) if (const Model* dm = LoadAsset(dr.path)) DrawPbr(*dm, dr.m);
+        for (const auto& dr : S.dress) if (Vector3Distance({dr.m.m12, dr.m.m13, dr.m.m14}, eye) < 50) if (const Model* dm = LoadAsset(dr.path)) DrawPbr(*dm, dr.m, dr.tint);
         for (const auto& f : m.drops) {
             float pulse = 0.8f + 0.2f * sinf(S.time * 5);
             if (f.weapon >= 0) DrawWorldCube(f.pos, {0.8f, 0.15f, 0.25f}, {160, 150, 130, 255});

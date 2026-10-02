@@ -182,3 +182,15 @@ The spec: `Red_Tide_Reference/Red Tide — Visual Overhaul Spec.pdf` (25 pages, 
   white, a scar and a tall dorsal), the **Cistern Wyrm** (a serpent on twelve bones with bronze collars, a crest and
   horns, undulating), the **Lantern Leviathan** (a vast anglerfish, a mouth of needle teeth, the pale lure on its rod,
   swaying). Still stylised assemblies of rounded parts, not the spec's hero sculpts; phase changes don't show yet.
+
+## Phases 7-10: the other maps' kits (first pass, 2026-10-02)
+- `tools/artgen/maps_rt.py` -> `assets/redtide/maps/` (baked like the guns): the Cave's stalagmite clusters and crystal
+  coral; the Reef's brain, table, staghorn and fan corals and a giant clam; Atlantis's fluted column, bronze statue,
+  amphora and brazier; the Void's specimen tank and glass sponge. In `BuildLevelModel` they stand in for the props the
+  levels already place as boxes (stalagmites, crystals, brain and table corals, staghorn, fans, amphorae, tanks), scaled
+  to each prop's box, and every other coral head along a reef wall is a brain or staghorn model; the reef's corals are
+  tinted from a palette of saturated pinks, oranges, purples and greens (the baked coral is pale).
+- Frame cost: the reef forest 13.3 ms, the bommie 12.6, the cave cathedral 13.8, Atlantis's forum 15.0.
+- **Not yet:** the columns, statues, braziers, clam and sponge models aren't placed (no prop kind asks for them yet);
+  each map's landmark per zone, its traps as animated set pieces, the air pocket's surface, the mangroves and
+  sea grass as bending flora, the station's modules as models.
