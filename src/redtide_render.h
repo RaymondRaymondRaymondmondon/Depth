@@ -77,6 +77,13 @@ struct SceneLight {                // the master reference's three-light rig
     Point points[MAX_POINTS];
     int nPoints = 0;
     bool AddPoint(Vector3 p, float r, Color c, float k) { if (nPoints >= MAX_POINTS) return false; points[nPoints++] = {p, r, c, k}; return true; }
+    // the physically based path (DrawPbr; the Trawl's visual overhaul): a directional moon, a hemisphere ambient
+    Vector3 moonDir{-0.4f, -0.8f, 0.3f};     // the way the moonlight travels
+    Color moon{150, 170, 210, 255}; float moonK = 0;
+    Color skyAmb{30, 40, 60, 255}, seaAmb{6, 10, 16, 255}; float ambK = 0;
+    // the ink composite: outline weight (1 the full ink, 0 none), its tint, and the stipple and paper grain (1 on)
+    float outline = 1, stipple = 1, grain = 1;
+    Color outlineTint{13, 13, 18, 255};
 };
 
 void RenderBegin(const Camera3D& cam, const SceneLight& light);   // opens the colour pass
@@ -88,6 +95,10 @@ void DrawCubeGlow(Matrix world, Color col, float glow);             // the same,
 void DrawStaticGlow(const Model& m, Matrix world, Color tint, float glow);
 void DrawSky(const Model& m, Matrix world, Color tint);           // unlit, unfogged, no ink edges (stars, the moon, rain)
 void DrawWorldCube(Vector3 c, Vector3 size, Color col);             // blockout boxes (walls, floors, props)
+// The physically based path: a glTF model (base colour, metallic-roughness, normal, occlusion and emission maps, as
+// the art generators bake them into assets/) under the same lamp, points and fog, plus the moon and the ambient.
+const Model* LoadAsset(const std::string& relPath);                 // assets/<relPath>, cached; nullptr if missing
+void DrawPbr(const Model& m, Matrix world, Color tint = WHITE, float wrap = 0);   // wrap: soft wrap-diffuse (skin, cloth)
 void RenderEnd();                                                   // runs the normal/depth pass and the ink composite into the scene
 void RenderShutdown();
 bool RenderReady();

@@ -32,6 +32,7 @@ struct TrawlScene {
     int you = 0;
     float acc = 0;                 // the fixed 60 Hz step's accumulator
     bool shot = false;             // --shots: no input, fixed time
+    int studio = -1;               // --shots: the visual overhaul's turnaround stage (DrawTrawlStudio), or -1
     int shotView = 0;
     HandInput pend;                // (solo) this hand's input, gathered per frame for the next fixed step
     View view;                     // the last frame's view (the mouse's deck position)
@@ -1207,6 +1208,7 @@ void DrawBarks() {
 void Draw(Game& g) {
     const Gannet& G = S.W->G;
     const Crew& c = G.crew[S.you];
+    if (S.studio >= 0) { DrawTrawlStudio(S.studio, 1.0f); return; }
     if (c.deck == DECK_DIVE && !c.dead) { DrawDeckFx(); return; }   // (down on a wreck: the diver's view alone, in either version)
     if (S.fp) {
         // first person: the same Gannet through the hand's eyes, the shared HUD over it, a crosshair to aim with
@@ -1596,6 +1598,38 @@ void DebugTrawlShot(Game& g, int which) {
         S.eye.pitch = which == 15 ? -0.3f : which == 9 || which == 0 ? -0.08f : -0.22f;
         S.eye.yaw = which == 4 || which == 5 ? 1.25f : which == 15 || which == 21 || which == 22 ? 3.1f : which == 9 ? -1.9f : which == 16 ? 1.3f : which == 17 ? 1.9f : which == 1 ? -2.4f : which == 6 || which == 8 ? 2.6f : 0.0f;
     }
+    if (which >= 45 && which <= 49) { S.studio = which - 45; return; }   // the visual overhaul's turnaround stage
+    if (which == 40 || which == 41 || which == 43) {
+        // the visual overhaul's harness (spec, "Process and acceptance"): 40 the helm at night in the Lagoon's fog;
+        // 41 a hand at the gutting table in rain; 43 aiming the lever carbine at a fish on the surface in rain
+        Gannet& G = S.W->G;
+        G.Init(4, 11, which == 40 ? Weather::Fog : Weather::Rain);
+        S.W->eco.Init("lagoon", 11); G.eco = &S.W->eco;
+        G.moored = false;
+        G.boat.pos = {S.W->eco.n * S.W->eco.cell * 0.42f, S.W->eco.n * S.W->eco.cell * 0.5f}; G.boat.heading = -0.3f;
+        G.boat.telegraph = which == 40 ? 1 : 0; G.boat.pressure = 0.7f; G.boat.lantern = 2;
+        Crew& c = G.crew[0];
+        G.crew[2].p = {-8.2f, 0.4f}; G.crew[2].facing = {-1, 0};
+        G.crew[3].p = {-2.2f, -1.6f}; G.crew[3].facing = {0, -1};
+        int gut = -1, helm = -1;
+        for (int i = 0; i < (int)Stations().size(); i++) { if (Stations()[i].kind == StationKind::Gutting) gut = i; if (Stations()[i].kind == StationKind::Helm) helm = i; }
+        if (which == 40) { c.p = Stations()[helm].at; c.station = helm; G.boat.rudder = 0.2f; G.crew[1].p = {-1.5f, 1.2f}; }
+        if (which == 41) {
+            G.crew[1].p = Stations()[gut].at; G.crew[1].station = gut; G.crew[1].facing = {0, 1};
+            c.p = Vector2Add(G.crew[1].p, {2.4f, -0.4f}); c.station = -1;
+            Vector2 d = Vector2Subtract(G.crew[1].p, c.p); S.eye.yaw = atan2f(d.y, d.x); S.eye.pitch = -0.18f;
+            CatchRec f; f.name = "snapper"; f.kg = 3; f.price = 3; f.dead = true; f.deckAt = Vector2Add(G.crew[1].p, {0.3f, 0.6f}); G.hold.push_back(f);
+        }
+        if (which == 43) {
+            c.p = {-1.0f, 1.9f}; c.station = -1;
+            c.slots[0] = {}; c.slots[0].it = Item::Rifle; c.slots[0].ammo = 8; c.sel = 0;
+            Floater fl; fl.name = "yellowfin tuna"; fl.kg = 18; fl.p = G.boat.ToWorld({2.0f, 11.0f}); G.floaters.push_back(fl);
+            S.eye.yaw = atan2f(11.0f - 1.9f, 2.0f - -1.0f); S.eye.pitch = -0.2f;
+        }
+        for (int i = 0; i < 60 * 3; i++) { G.Step(1 / 60.0f); }
+        if (which == 41 || which == 43) G.sea.weather = Weather::Rain;
+        return;
+    }
     if (which == 36) {
         // spray: full ahead into a squall, the hand on the foredeck looking over the bow as she buries it
         Gannet& G = S.W->G;
@@ -1929,6 +1963,7 @@ void DebugTrawlShot(Game& g, int which) {
         for (int i = 0; i < 30; i++) { G.Step(1 / 60.0f); ss.Step(1 / 60.0f); }
         return;
     }
+
 
     Gannet& G = S.W->G;
     G.Init(4, 11, which == 3 ? Weather::Squall : Weather::Calm);

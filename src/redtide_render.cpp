@@ -577,6 +577,101 @@ void main() {
 }
 )";
 
+// The physically based path (the Trawl's visual overhaul, shared with Red Tide): glTF meshes with real normals and
+// UVs, metallic-roughness GGX, normal maps through a cotangent frame from screen derivatives (no tangents needed),
+// baked occlusion, emission; lit by the same lamp, points and fog as the inked path, plus the moon and a hemisphere
+// ambient. Colour maths in linear light, written back in display space to sit beside the rest of the frame.
+static const char* RT_PBR_VS = R"(#version 330
+in vec3 vertexPosition; in vec2 vertexTexCoord; in vec3 vertexNormal; in vec4 vertexColor;
+uniform mat4 mvp; uniform mat4 matModel; uniform mat4 matView; uniform mat4 matNormal;
+out vec3 fragWorld; out vec3 fragNormal; out vec2 fragUV; out vec4 fragColor; out float fragViewZ;
+void main() {
+    vec4 wp = matModel * vec4(vertexPosition, 1.0);
+    fragWorld = wp.xyz;
+    fragNormal = normalize((matNormal * vec4(vertexNormal, 0.0)).xyz);
+    fragUV = vertexTexCoord;
+    fragColor = vertexColor;
+    fragViewZ = -(matView * wp).z;
+    gl_Position = mvp * vec4(vertexPosition, 1.0);
+}
+)";
+static const char* RT_PBR_FS = R"(#version 330
+in vec3 fragWorld; in vec3 fragNormal; in vec2 fragUV; in vec4 fragColor; in float fragViewZ;
+uniform sampler2D texture0; uniform sampler2D uMR; uniform sampler2D uNrm; uniform sampler2D uAO; uniform sampler2D uEmit;
+uniform int uHasAlb, uHasMR, uHasNrm, uHasAO, uHasEmit;
+uniform vec4 colDiffuse; uniform float uMetal, uRough; uniform vec3 uEmitCol; uniform float uWrap, uGlow;
+uniform vec3 uCam, uLampPos, uLampDir, uKey, uFog; uniform float uLampRange, uLampCone, uFogDensity;
+uniform vec4 uPL[8]; uniform vec4 uPLC[8]; uniform int uPLN;
+uniform vec3 uMoonDir, uMoon, uSkyAmb, uSeaAmb; uniform float uMoonK, uAmbK, uSil;
+out vec4 finalColor;
+const float PI = 3.14159265;
+vec3 toLin(vec3 c) { return pow(max(c, 0.0), vec3(2.2)); }
+mat3 cotangentFrame(vec3 N, vec3 p, vec2 uv) {
+    vec3 dp1 = dFdx(p), dp2 = dFdy(p); vec2 duv1 = dFdx(uv), duv2 = dFdy(uv);
+    vec3 dp2perp = cross(dp2, N), dp1perp = cross(N, dp1);
+    vec3 T = dp2perp * duv1.x + dp1perp * duv2.x, B = dp2perp * duv1.y + dp1perp * duv2.y;
+    float im = inversesqrt(max(max(dot(T, T), dot(B, B)), 1e-12));
+    return mat3(T * im, B * im, N);
+}
+float D_GGX(float NdH, float a) { float a2 = a * a; float d = NdH * NdH * (a2 - 1.0) + 1.0; return a2 / (PI * d * d); }
+float G_Smith(float NdV, float NdL, float r) { float k = (r + 1.0) * (r + 1.0) / 8.0; return (NdV / (NdV * (1.0 - k) + k)) * (NdL / (NdL * (1.0 - k) + k)); }
+vec3 F_Schlick(float c, vec3 F0) { return F0 + (1.0 - F0) * pow(1.0 - c, 5.0); }
+vec3 albedo; float metal, rough; vec3 F0, N, V;
+vec3 shade(vec3 L, vec3 radiance) {
+    vec3 H = normalize(L + V);
+    float NdL = dot(N, L), NdV = max(dot(N, V), 0.001), NdH = max(dot(N, H), 0.0);
+    float wrapL = max((NdL + uWrap) / (1.0 + uWrap), 0.0);       // soft wrap for skin and cloth
+    NdL = max(NdL, 0.0);
+    vec3 F = F_Schlick(max(dot(H, V), 0.0), F0);
+    vec3 spec = D_GGX(NdH, rough * rough) * G_Smith(NdV, NdL, rough) * F / max(4.0 * NdV * NdL, 0.001);
+    vec3 kd = (1.0 - F) * (1.0 - metal);
+    vec3 tint = mix(vec3(1.0), vec3(1.0, 0.8, 0.75), uWrap * (1.0 - NdL));   // the warm shadow edge of skin
+    return (kd * albedo / PI * wrapL * tint + spec * NdL) * radiance;
+}
+void main() {
+    vec4 bc = colDiffuse * fragColor;
+    if (uHasAlb == 1) bc *= texture(texture0, fragUV);
+    if (bc.a < 0.4) discard;
+    albedo = toLin(bc.rgb);
+    metal = uMetal; rough = uRough;
+    if (uHasMR == 1) { vec4 mr = texture(uMR, fragUV); rough *= mr.g; metal *= mr.b; }
+    rough = clamp(rough, 0.04, 1.0);
+    N = normalize(fragNormal);
+    V = normalize(uCam - fragWorld);
+    if (!gl_FrontFacing) N = -N;
+    if (uHasNrm == 1) { vec3 tn = texture(uNrm, fragUV).xyz * 2.0 - 1.0; N = normalize(cotangentFrame(N, fragWorld, fragUV) * tn); }
+    F0 = mix(vec3(0.04), albedo, metal);
+    vec3 col = vec3(0.0);
+    // the lamp: a spot with a soft cone and inverse-square-ish fall-off to its range
+    { vec3 L = uLampPos - fragWorld; float d = length(L); L /= max(d, 1e-4);
+      float cone = smoothstep(uLampCone, uLampCone + 0.18, dot(-L, normalize(uLampDir)));
+      float att = clamp(1.0 - d / uLampRange, 0.0, 1.0); att *= att;
+      col += shade(L, toLin(uKey / 255.0) * cone * att * 5.0); }
+    // the moon
+    col += shade(normalize(-uMoonDir), toLin(uMoon / 255.0) * uMoonK * 2.5);
+    // the practical lights
+    for (int i = 0; i < 8; i++) {
+        if (i >= uPLN) break;
+        vec3 L = uPL[i].xyz - fragWorld; float d = length(L); L /= max(d, 1e-4);
+        float att = clamp(1.0 - d / uPL[i].w, 0.0, 1.0); att *= att;
+        col += shade(L, toLin(uPLC[i].rgb) * uPLC[i].a * att * 6.0);
+    }
+    // hemisphere ambient, with the baked occlusion
+    float ao = uHasAO == 1 ? texture(uAO, fragUV).r : 1.0;
+    vec3 amb = mix(toLin(uSeaAmb / 255.0), toLin(uSkyAmb / 255.0), N.y * 0.5 + 0.5) * uAmbK;
+    col += amb * albedo * (1.0 - metal * 0.7) * ao;
+    col += F_Schlick(max(dot(N, V), 0.0), F0) * amb * ao * (1.0 - rough) * 0.8;   // a little of the sky in polished metal
+    col *= mix(1.0, ao, 0.6);
+    if (uHasEmit == 1) col += toLin(texture(uEmit, fragUV).rgb * uEmitCol);
+    col += albedo * uGlow;
+    col = pow(col, vec3(1.0 / 2.2));
+    float fog = 1.0 - exp(-uFogDensity * fragViewZ);
+    col = mix(col, uFog / 255.0, clamp(fog, 0.0, 1.0));
+    if (uSil > 0.5) col = vec3(0.0);
+    finalColor = vec4(col, 1.0);
+}
+)";
+
 // The normal/depth pass: view-space normal in rg, linear depth split over ba (16 bits).
 static const char* RT_ND_FS = R"(#version 330
 in vec3 fragWorld; in vec4 fragColor; in float fragViewZ; in vec2 fragUV;
@@ -598,6 +693,7 @@ static const char* RT_INK_FS = R"(#version 330
 in vec2 fragTexCoord; in vec4 fragColor;
 uniform sampler2D texture0; uniform sampler2D uND;
 uniform vec2 uRes; uniform float uTime; uniform float uBlood; uniform float uSil; uniform vec3 uFog;
+uniform float uOutline, uStipple, uGrain; uniform vec3 uInkTint;
 out vec4 finalColor;
 float depthAt(vec2 uv) { vec4 t = texture(uND, uv); if (t.b == 0.0 && t.a == 0.0 && t.r == 0.0 && t.g == 0.0) return 1.0; return (t.b * 255.0 * 256.0 + t.a * 255.0) / 65535.0; }
 vec3 normAt(vec2 uv) { vec4 t = texture(uND, uv); vec2 xy = t.rg * 2.0 - 1.0; return vec3(xy, sqrt(max(0.0, 1.0 - dot(xy, xy)))); }
@@ -606,8 +702,9 @@ void main() {
     vec2 uv = fragTexCoord;
     vec3 col = texture(texture0, uv).rgb;
     float d = depthAt(uv);
-    // line weight: thicker near, thinner far (1.8 px near to 0.8 px at the far plane)
-    float wpx = mix(1.8, 0.8, clamp(d * 3.0, 0.0, 1.0));
+    // line weight: thicker near, thinner far (1.8 px near to 0.8 px at the far plane); a thin outline (uOutline < 1)
+    // is a 1 px line at most
+    float wpx = mix(1.8, 0.8, clamp(d * 3.0, 0.0, 1.0)) * (uOutline < 0.99 ? 0.55 : 1.0);
     vec2 px = wpx / uRes;
     float dd = 0.0; vec3 nn = normAt(uv); float ne = 0.0;
     for (int i = 0; i < 4; i++) {
@@ -620,16 +717,16 @@ void main() {
     edge = clamp(edge, 0.0, 1.0);
     float lum = dot(col, vec3(0.299, 0.587, 0.114));
     // Bayer stipple in the shadows (only on geometry, not the open water)
-    if (d < 0.999) {
+    if (d < 0.999 && uStipple > 0.5) {
         float th = bayer(gl_FragCoord.xy);
         float shade = smoothstep(0.07, 0.01, lum);
         if (th < shade * 0.7) col *= 0.45;
     }
-    vec3 ink = vec3(0.05, 0.05, 0.07);
-    col = mix(col, ink, edge * 0.9);
+    vec3 ink = uInkTint / 255.0;
+    col = mix(col, ink, edge * 0.9 * uOutline);
     // paper grain that never scrolls, and a vignette
     float g = fract(sin(dot(floor(gl_FragCoord.xy), vec2(12.9898, 78.233))) * 43758.5453);
-    col *= 0.94 + 0.06 * g;
+    col *= 1.0 - (0.06 - 0.06 * g) * uGrain;
     vec2 c = uv - 0.5;
     float vig = smoothstep(0.85, 0.3, length(c * vec2(1.25, 1.0)));
     col *= 0.72 + 0.28 * vig;
@@ -640,7 +737,15 @@ void main() {
 }
 )";
 
-static Shader gInk{};
+static Shader gInk{}, gPbr{};
+static int L_pbr[40];
+static const char* PBR_U[] = {"uHasAlb", "uHasMR", "uHasNrm", "uHasAO", "uHasEmit", "uMetal", "uRough", "uEmitCol", "uWrap", "uGlow",
+                              "uCam", "uLampPos", "uLampDir", "uKey", "uFog", "uLampRange", "uLampCone", "uFogDensity", "uPL", "uPLC",
+                              "uPLN", "uMoonDir", "uMoon", "uSkyAmb", "uSeaAmb", "uMoonK", "uAmbK", "uSil"};
+enum { PU_HASALB, PU_HASMR, PU_HASNRM, PU_HASAO, PU_HASEMIT, PU_METAL, PU_ROUGH, PU_EMITCOL, PU_WRAP, PU_GLOW,
+       PU_CAM, PU_LAMPPOS, PU_LAMPDIR, PU_KEY, PU_FOG, PU_RANGE, PU_CONE, PU_FOGD, PU_PL, PU_PLC,
+       PU_PLN, PU_MOONDIR, PU_MOON, PU_SKYAMB, PU_SEAAMB, PU_MOONK, PU_AMBK, PU_SIL, PU_COUNT };
+static int L_inkOutline, L_inkStipple, L_inkGrain, L_inkTint;
 static RenderTexture2D gColorRT{}, gNDRT{};
 static Model gCube{};
 static int L_lit[16], L_nd[8], L_ink[8];
@@ -671,6 +776,17 @@ static void EnsureShaders() {
     L_ink[3] = GetShaderLocation(gInk, "uBlood");
     L_ink[4] = GetShaderLocation(gInk, "uSil");
     L_ink[5] = GetShaderLocation(gInk, "uFog");
+    L_inkOutline = GetShaderLocation(gInk, "uOutline"); L_inkStipple = GetShaderLocation(gInk, "uStipple");
+    L_inkGrain = GetShaderLocation(gInk, "uGrain"); L_inkTint = GetShaderLocation(gInk, "uInkTint");
+    gPbr = LoadShaderFromMemory(RT_PBR_VS, RT_PBR_FS);
+    for (int i = 0; i < PU_COUNT; i++) L_pbr[i] = GetShaderLocation(gPbr, PBR_U[i]);
+    // the material maps DrawMesh binds: albedo in texture0, then the metallic-roughness, normal, occlusion and emission
+    gPbr.locs[SHADER_LOC_MAP_ALBEDO] = GetShaderLocation(gPbr, "texture0");
+    gPbr.locs[SHADER_LOC_MAP_ROUGHNESS] = GetShaderLocation(gPbr, "uMR");
+    gPbr.locs[SHADER_LOC_MAP_NORMAL] = GetShaderLocation(gPbr, "uNrm");
+    gPbr.locs[SHADER_LOC_MAP_OCCLUSION] = GetShaderLocation(gPbr, "uAO");
+    gPbr.locs[SHADER_LOC_MAP_EMISSION] = GetShaderLocation(gPbr, "uEmit");
+    gPbr.locs[SHADER_LOC_MATRIX_NORMAL] = GetShaderLocation(gPbr, "matNormal");
     gColorRT = LoadRenderTexture(SCREEN_W, SCREEN_H);
     gNDRT = LoadRenderTexture(SCREEN_W, SCREEN_H);
     SetTextureFilter(gColorRT.texture, TEXTURE_FILTER_BILINEAR);
@@ -688,7 +804,7 @@ void RenderShutdown() {
     UnloadModel(gCube);
     UnloadRenderTexture(gColorRT);
     UnloadRenderTexture(gNDRT);
-    UnloadShader(gLit); UnloadShader(gND); UnloadShader(gInk);
+    UnloadShader(gLit); UnloadShader(gND); UnloadShader(gInk); UnloadShader(gPbr);
     gShadersReady = false;
 }
 
@@ -699,6 +815,7 @@ struct DrawCmd {
     int anim; float phase, amp, waves, len, inten, glow;
     Color tint;
     int sky = 0;                   // the colour pass only, unlit and unfogged
+    int pbr = 0; float wrap = 0;   // the physically based path (every mesh of the model, its own materials)
 };
 static std::vector<DrawCmd> gQueue;
 static Camera3D gCam;
@@ -738,13 +855,74 @@ void DrawCubeGlow(Matrix world, Color col, float glow) {
 void DrawStaticGlow(const Model& m, Matrix world, Color tint, float glow) {
     gQueue.push_back({&m, world, (int)AnimMode::Static, 0, 0, 0, 1, 0, glow, tint});
 }
+void DrawPbr(const Model& m, Matrix world, Color tint, float wrap) {
+    DrawCmd d{&m, world, (int)AnimMode::Static, 0, 0, 0, 1, 0, 0, tint};
+    d.pbr = 1; d.wrap = wrap;
+    gQueue.push_back(d);
+}
+std::string AssetDir() {
+    static std::string dir;
+    if (dir.empty()) { dir = DataDir() + "/../../assets"; if (!DirectoryExists(dir.c_str())) dir = "assets"; }
+    return dir;
+}
+const Model* LoadAsset(const std::string& relPath) {
+    static std::map<std::string, std::unique_ptr<Model>> cache;
+    auto it = cache.find(relPath);
+    if (it != cache.end()) return it->second.get();
+    std::string path = AssetDir() + "/" + relPath;
+    std::unique_ptr<Model> m;
+    if (IsWindowReady() && FileExists(path.c_str())) {
+        EnsureShaders();
+        m = std::make_unique<Model>(LoadModel(path.c_str()));
+        if (m->meshCount == 0) m.reset();
+    }
+    if (!m) TraceLog(LOG_WARNING, "rt: asset %s not found", path.c_str());
+    const Model* raw = m.get();
+    cache[relPath] = std::move(m);
+    return raw;
+}
 void DrawWorldCube(Vector3 c, Vector3 size, Color col) {
     Matrix world = MatrixMultiply(MatrixScale(size.x, size.y, size.z), MatrixTranslate(c.x, c.y, c.z));
     gQueue.push_back({&gCube, world, (int)AnimMode::Static, 0, 0, 0, 1, 0, 0, col});
 }
 
+static void DrawPbrCmd(const DrawCmd& d, Shader sh, bool lit) {
+    Model& m = const_cast<Model&>(*d.model);
+    Matrix world = MatrixMultiply(m.transform, d.world);
+    if (lit) { SetF(gPbr, L_pbr[PU_WRAP], d.wrap); SetF(gPbr, L_pbr[PU_GLOW], d.glow); }
+    for (int i = 0; i < m.meshCount; i++) {
+        Material mat = m.materials[m.meshMaterial[i]];
+        Shader keep = mat.shader;
+        mat.shader = sh;
+        if (lit) {
+            Color a = mat.maps[MATERIAL_MAP_ALBEDO].color;
+            mat.maps[MATERIAL_MAP_ALBEDO].color = {(unsigned char)(a.r * d.tint.r / 255), (unsigned char)(a.g * d.tint.g / 255), (unsigned char)(a.b * d.tint.b / 255), a.a};
+            // (raylib's default 1x1 white texture counts as no map)
+            auto has = [&](int k) { return mat.maps[k].texture.id > 0 && mat.maps[k].texture.id != rlGetTextureIdDefault() ? 1 : 0; };
+            SetI(gPbr, L_pbr[PU_HASALB], has(MATERIAL_MAP_ALBEDO));
+            SetI(gPbr, L_pbr[PU_HASMR], has(MATERIAL_MAP_ROUGHNESS));
+            SetI(gPbr, L_pbr[PU_HASNRM], has(MATERIAL_MAP_NORMAL));
+            SetI(gPbr, L_pbr[PU_HASAO], has(MATERIAL_MAP_OCCLUSION));
+            SetI(gPbr, L_pbr[PU_HASEMIT], has(MATERIAL_MAP_EMISSION));
+            SetF(gPbr, L_pbr[PU_METAL], mat.maps[MATERIAL_MAP_METALNESS].value);
+            SetF(gPbr, L_pbr[PU_ROUGH], mat.maps[MATERIAL_MAP_ROUGHNESS].value);
+            Color e = mat.maps[MATERIAL_MAP_EMISSION].color;
+            SetV3(gPbr, L_pbr[PU_EMITCOL], {e.r / 255.0f, e.g / 255.0f, e.b / 255.0f});
+        }
+        DrawMesh(m.meshes[i], mat, world);
+        (void)keep;
+    }
+}
+
 static void DrawQueue(Shader sh, bool lit) {
     for (const DrawCmd& d : gQueue) {
+        if (d.pbr) {
+            if (!lit) {   // the normal/depth pass treats it like any other geometry
+                SetI(sh, L_nd[LU_ANIM], (int)AnimMode::Static); SetF(sh, L_nd[LU_AMP], 0); SetF(sh, L_nd[LU_INTEN], 0);
+                DrawPbrCmd(d, sh, false);
+            } else DrawPbrCmd(d, gPbr, true);
+            continue;
+        }
         Model& m = const_cast<Model&>(*d.model);
         m.materials[0].shader = sh;
         m.materials[0].maps[MATERIAL_MAP_DIFFUSE].color = d.tint;
@@ -789,6 +967,25 @@ void RenderEnd() {
         if (L_litPL >= 0) SetShaderValueV(gLit, L_litPL, pl, SHADER_UNIFORM_VEC4, SceneLight::MAX_POINTS);
         if (L_litPLC >= 0) SetShaderValueV(gLit, L_litPLC, plc, SHADER_UNIFORM_VEC4, SceneLight::MAX_POINTS);
         SetI(gLit, L_litPLN, np);
+        // the physically based path sees the same lights, and the moon and the ambient besides
+        if (L_pbr[PU_PL] >= 0) SetShaderValueV(gPbr, L_pbr[PU_PL], pl, SHADER_UNIFORM_VEC4, SceneLight::MAX_POINTS);
+        if (L_pbr[PU_PLC] >= 0) SetShaderValueV(gPbr, L_pbr[PU_PLC], plc, SHADER_UNIFORM_VEC4, SceneLight::MAX_POINTS);
+        SetI(gPbr, L_pbr[PU_PLN], np);
+        SetV3(gPbr, L_pbr[PU_CAM], gCam.position);
+        SetV3(gPbr, L_pbr[PU_LAMPPOS], gLight.lampPos);
+        SetV3(gPbr, L_pbr[PU_LAMPDIR], gLight.lampDir);
+        SetV3(gPbr, L_pbr[PU_KEY], C3(gLight.key));
+        SetV3(gPbr, L_pbr[PU_FOG], C3(gLight.fog));
+        SetF(gPbr, L_pbr[PU_RANGE], gLight.lampRange);
+        SetF(gPbr, L_pbr[PU_CONE], gLight.lampCone);
+        SetF(gPbr, L_pbr[PU_FOGD], gLight.fogDensity);
+        SetV3(gPbr, L_pbr[PU_MOONDIR], Vector3Normalize(gLight.moonDir));
+        SetV3(gPbr, L_pbr[PU_MOON], C3(gLight.moon));
+        SetV3(gPbr, L_pbr[PU_SKYAMB], C3(gLight.skyAmb));
+        SetV3(gPbr, L_pbr[PU_SEAAMB], C3(gLight.seaAmb));
+        SetF(gPbr, L_pbr[PU_MOONK], gLight.moonK);
+        SetF(gPbr, L_pbr[PU_AMBK], gLight.ambK);
+        SetF(gPbr, L_pbr[PU_SIL], gLight.silhouette);
     }
     BeginLayer(gColorRT);
     ClearBackground(gLight.silhouette > 0.5f ? Color{216, 209, 189, 255} : gLight.fog);
@@ -820,6 +1017,8 @@ void RenderEnd() {
     SetF(gInk, L_ink[3], gLight.bloodTint);
     SetF(gInk, L_ink[4], gLight.silhouette);
     SetV3(gInk, L_ink[5], C3(gLight.fog));
+    SetF(gInk, L_inkOutline, gLight.outline); SetF(gInk, L_inkStipple, gLight.stipple); SetF(gInk, L_inkGrain, gLight.grain);
+    SetV3(gInk, L_inkTint, C3(gLight.outlineTint));
     static int rtView = getenv("DEPTH_RTVIEW") ? atoi(getenv("DEPTH_RTVIEW")) : 0;   // debug: 1 raw normal/depth, 2 raw colour
     if (rtView == 1) { DrawTexturePro(gNDRT.texture, {0, 0, (float)gNDRT.texture.width, -(float)gNDRT.texture.height}, {0, 0, (float)SCREEN_W, (float)SCREEN_H}, {0, 0}, 0, WHITE); return; }
     if (rtView == 2) { DrawTexturePro(gColorRT.texture, {0, 0, (float)gColorRT.texture.width, -(float)gColorRT.texture.height}, {0, 0, (float)SCREEN_W, (float)SCREEN_H}, {0, 0}, 0, WHITE); return; }

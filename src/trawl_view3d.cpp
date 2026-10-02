@@ -889,6 +889,71 @@ static void DrawHand(const Gannet& g, const Crew& c, float t) {
     }
 }
 
+// ---------------------------------------------------------------- the studio (the visual overhaul's harness)
+// Turnarounds on a neutral stage under a lantern and the moon: 0 every role front, side and back; 1 the faces close
+// up; 2 the guns side and three-quarter (the baked test carbine beside the old box rifle); 3 the baked test head;
+// 4 four bots side by side. The current figures draw as they do aboard, so these are the "before" set.
+static void DrawFigureAt(Role role, Matrix frame, float t, int slot) {
+    int r = std::clamp((int)role, 0, (int)Role::COUNT - 1);
+    rt::DrawStatic(gBody[r], frame, WHITE);
+    for (int s = -1; s <= 1; s += 2) rt::DrawStatic(gLeg, MatrixMultiply(MatrixTranslate(0, 0.88f, s * 0.12f), frame), WHITE);
+    for (int s = -1; s <= 1; s += 2) rt::DrawStatic(gArm[r], MatrixMultiply(MatrixMultiply(MatrixRotateZ(0.05f * sinf(t + slot + s)), MatrixRotateX(s * 0.1f)), MatrixMultiply(MatrixTranslate(0, 1.38f, s * 0.27f), frame)), WHITE);
+}
+void DrawTrawlStudio(int which, float t) {
+    EnsureCrewModels();
+    if (!gCrewReady) return;
+    rt::SceneLight L;
+    L.fog = {58, 60, 66, 255}; L.fogDensity = 0.004f;
+    L.fill = {44, 48, 60, 255}; L.rim = {90, 110, 140, 255}; L.key = {255, 214, 160, 255};
+    L.surfaceY = 1e5f; L.time = t;
+    L.lampRange = 14; L.lampCone = 0.55f;
+    L.moonK = 0.5f; L.ambK = 0.8f; L.skyAmb = {70, 80, 100, 255}; L.seaAmb = {30, 28, 26, 255};
+    Camera3D cam{}; cam.fovy = 40; cam.projection = CAMERA_PERSPECTIVE; cam.up = {0, 1, 0};
+    auto lantern = [&](Vector3 at, Vector3 target) { L.lampPos = at; L.lampDir = Vector3Normalize(Vector3Subtract(target, at)); };
+    const float FRONT = -PI / 2, SIDE = 0, BACK = PI / 2;   // the figure's yaw: its +x (forward) toward the camera, to the right, away
+    if (which == 0) {
+        cam.position = {0, 1.4f, 10.5f}; cam.target = {0, 1.0f, 0}; cam.fovy = 34;
+        lantern({-3, 5, 7}, {0, 1, 0});
+        L.AddPoint({4, 3, 4}, 9, {255, 190, 120, 255}, 0.7f);
+        rt::RenderBegin(cam, L);
+        for (int r = 0; r < 4; r++) for (int v = 0; v < 3; v++) {
+            float x = (r - 1.5f) * 2.6f + (v - 1) * 0.75f;
+            DrawFigureAt((Role)r, Frame({x, 0, (float)(v == 1 ? -0.3f : 0)}, v == 0 ? FRONT : v == 1 ? SIDE : BACK), t, r * 3 + v);
+        }
+    } else if (which == 1) {
+        cam.position = {0, 1.66f, 2.2f}; cam.target = {0, 1.62f, 0}; cam.fovy = 30;
+        lantern({-1.2f, 2.6f, 2.2f}, {0, 1.6f, 0});
+        rt::RenderBegin(cam, L);
+        for (int r = 0; r < 4; r++) DrawFigureAt((Role)r, Frame({(r - 1.5f) * 0.42f, 0, 0}, FRONT - 0.35f), t, r);
+    } else if (which == 2 || which == 3) {
+        cam.position = which == 2 ? Vector3{0.05f, 0.25f, 1.55f} : Vector3{0, 0.15f, 0.75f};
+        cam.target = which == 2 ? Vector3{0.05f, 0.0f, 0} : Vector3{0, 0.13f, 0};
+        lantern(which == 2 ? Vector3{-0.6f, 1.2f, 1.4f} : Vector3{-0.5f, 0.5f, 0.9f}, cam.target);
+        L.AddPoint({0.9f, 0.6f, 0.8f}, 4, {255, 200, 140, 255}, 0.5f);
+        rt::RenderBegin(cam, L);
+        if (which == 2) {
+            const Model* gun = rt::LoadAsset("shared/test/carbine_test.glb");
+            if (gun) {
+                rt::DrawPbr(*gun, MatrixTranslate(-0.05f, 0.2f, 0));                                                // side
+                rt::DrawPbr(*gun, MatrixMultiply(MatrixRotateY(0.6f), MatrixTranslate(-0.05f, -0.05f, 0.05f)));   // three-quarter
+            }
+            Matrix old = MatrixMultiply(MatrixScale(1.3f, 1.3f, 1.3f), MatrixTranslate(-0.3f, -0.28f, 0));
+            if (gItem[(int)Item::Rifle].meshCount > 0) rt::DrawStatic(gItem[(int)Item::Rifle], old, WHITE);  // the old one
+        } else {
+            const Model* head = rt::LoadAsset("shared/test/head_test.glb");
+            for (int k = 0; k < 3 && head; k++) rt::DrawPbr(*head, MatrixMultiply(MatrixRotateY(-0.9f + k * 0.9f), MatrixTranslate((k - 1) * 0.26f, 0, 0)), WHITE, 0.45f);
+        }
+    } else {
+        cam.position = {0, 1.5f, 5.2f}; cam.target = {0, 1.15f, 0};
+        lantern({-2, 4, 4}, {0, 1, 0});
+        L.AddPoint({2.5f, 2.6f, 2}, 7, {255, 190, 120, 255}, 0.6f);
+        rt::RenderBegin(cam, L);
+        const Role roles[4] = {Role::Bosun, Role::Angler, Role::Diver, Role::Medic};
+        for (int k = 0; k < 4; k++) DrawFigureAt(roles[k], Frame({(k - 1.5f) * 0.95f, 0, 0}, FRONT + (k - 1.5f) * 0.15f), t, k);
+    }
+    rt::RenderEnd();
+}
+
 // ---------------------------------------------------------------- the frame
 void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, const Camera3D& cam, float ghostSee) {
     EnsureModels(); EnsureSea(); EnsureLand(eco);

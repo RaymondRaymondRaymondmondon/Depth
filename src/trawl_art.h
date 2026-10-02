@@ -36,4 +36,5 @@ bool DiveSceneActive();
 Color RoleColor(Role r);
 
 extern int gSprayWarm;   // frames of first-person spray to run before the next draw (shots)
+void DrawTrawlStudio(int which, float t);   // the visual overhaul's turnaround stage (shots tvis_6/7/8, the test assets)
 } // namespace tw

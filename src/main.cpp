@@ -248,6 +248,18 @@ static void TakeShots(const Game& base, const std::string& dir) {
         {"trawl3d_wheelhouse", [](Game& g) { DebugTrawlShot(g, 102); }},
         {"trawl3d_squall", [](Game& g) { DebugTrawlShot(g, 103); }},
         {"trawl3d_spray", [](Game& g) { DebugTrawlShot(g, 136); }},
+        // the Trawl Visual Overhaul Spec's harness (--shots shots/vis tvis_): the same eight views before and after
+        // each phase
+        {"tvis_1_helm_fog", [](Game& g) { DebugTrawlShot(g, 140); }},
+        {"tvis_2_gutting_rain", [](Game& g) { DebugTrawlShot(g, 141); }},
+        {"tvis_3_dock", [](Game& g) { DebugTrawlShot(g, 109); }},
+        {"tvis_4_carbine_rain", [](Game& g) { DebugTrawlShot(g, 143); }},
+        {"tvis_5_starboard_rod", [](Game& g) { DebugTrawlShot(g, 104); }},
+        {"tvis_6_roles", [](Game& g) { DebugTrawlShot(g, 145); }},
+        {"tvis_6_faces", [](Game& g) { DebugTrawlShot(g, 146); }},
+        {"tvis_7_guns", [](Game& g) { DebugTrawlShot(g, 147); }},
+        {"tvis_7_test_head", [](Game& g) { DebugTrawlShot(g, 148); }},
+        {"tvis_8_bots", [](Game& g) { DebugTrawlShot(g, 149); }},
         {"trawl3d_fishon", [](Game& g) { DebugTrawlShot(g, 104); }},
         {"trawl3d_jump", [](Game& g) { DebugTrawlShot(g, 105); }},
         {"trawl3d_lagoon", [](Game& g) { DebugTrawlShot(g, 106); }},
