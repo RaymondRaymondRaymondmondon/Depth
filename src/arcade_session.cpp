@@ -10,7 +10,11 @@
 
 namespace arcade {
 
-enum Msg : uint8_t { M_HELLO = 1, M_WELCOME, M_REJECT, M_LOBBY, M_READY, M_CHAT, M_LAUNCH, M_ACTION, M_STATE, M_PING, M_PONG, M_BYE };
+enum Msg : uint8_t { M_HELLO = 1, M_WELCOME, M_REJECT, M_LOBBY, M_READY, M_CHAT, M_LAUNCH, M_ACTION, M_STATE, M_PING, M_PONG, M_BYE, M_STATE_PART };
+// a real-time snapshot bigger than this goes as parts (GameNetworkingSockets sends an unreliable message over about
+// 16 KB as a reliable one, which would queue behind loss); a guest puts them back together, and a lost part only
+// loses that one snapshot
+constexpr size_t STATE_PART = 12000;
 
 uint32_t BuildId() { static const char* s = DEPTH_BUILD_STAMP; return Fnv1a(s, strlen(s)); }
 std::string MakeCode(uint32_t seed) {
@@ -112,8 +116,18 @@ void Session::SendState() {
     for (int i = 0; i < MAX_PLAYERS; i++) {
         SeatInfo& s = seats[i];
         if (!s.used || s.conn < 0 || s.lost) continue;
+        Writer body; truth->Snapshot(PlayerOfSeat(i), body);
+        if (rt && body.b.size() > STATE_PART) {
+            uint32_t n = (uint32_t)((body.b.size() + STATE_PART - 1) / STATE_PART);
+            for (uint32_t k = 0; k < n && n < 256; k++) {
+                size_t at = k * STATE_PART, len = std::min(STATE_PART, body.b.size() - at);
+                Writer w; w.U8(M_STATE_PART); w.U32(snapSeq); w.U8(k); w.U8(n); w.Bytes(body.b.data() + at, len);
+                SendTo(s.conn, w, net::CH_STATE);
+            }
+            continue;
+        }
         Writer w; w.U8(M_STATE); w.U32(snapSeq);
-        truth->Snapshot(PlayerOfSeat(i), w);
+        w.Bytes(body.b.data(), body.b.size());
         SendTo(s.conn, w, rt ? net::CH_STATE : net::CH_CONTROL);
     }
     // the host plays too: its screen gets the same filtered view as everyone else
@@ -184,6 +198,7 @@ bool Session::Launch(std::string* why) {
     int n = 0;
     for (int& c : playerSeat) c = -1;
     for (int i = 0; i < MAX_PLAYERS; i++) if (seats[i].used) playerSeat[n++] = i;
+    truth->Configure(gameOpts);
     truth->Start(n, Rnd(rng) | 1);
     stage = S_PLAYING; lastSnap = now;
     Writer w; w.U8(M_LAUNCH); w.U8(game); Broadcast(w);
@@ -351,12 +366,26 @@ void Session::ClientMessage(Reader& r) {
             }
         } break;
         case M_CHAT: { int seat = r.U8(); std::string t = r.Str(); if (!r.bad && seat < MAX_PLAYERS) Log((seats[seat].used ? seats[seat].name : std::string("?")) + ": " + t); } break;
-        case M_LAUNCH: { int g = r.U8(); stage = S_PLAYING; lastSeq = 0; Log("The game begins: " + std::string(Info(g).name) + "."); } break;
+        case M_LAUNCH: { int g = r.U8(); stage = S_PLAYING; lastSeq = 0; partSeq = 0; parts.clear(); partsHave = 0;Log("The game begins: " + std::string(Info(g).name) + "."); } break;
         case M_STATE: {
             uint32_t seq = r.U32();
             if (r.bad || (seq <= lastSeq && lastSeq - seq < 0x80000000u)) break;   // a late unreliable snapshot: the newer one already arrived
             lastSeq = seq;
             snapshot.assign(r.p + r.i, r.p + r.n);
+            stateVersion++; snapshotsReceived++;
+        } break;
+        case M_STATE_PART: {
+            uint32_t seq = r.U32(); int k = (int)r.U8(), n = (int)r.U8();
+            if (r.bad || n < 2 || k >= n || (seq <= lastSeq && lastSeq - seq < 0x80000000u)) break;
+            if (seq != partSeq) { partSeq = seq; parts.assign(n, {}); partsHave = 0; }   // (a newer snapshot: the old one's parts are dropped)
+            if ((int)parts.size() != n || !parts[k].empty()) break;
+            parts[k].assign(r.p + r.i, r.p + r.n);
+            if (parts[k].empty()) break;
+            if (++partsHave < n) break;
+            lastSeq = seq;
+            snapshot.clear();
+            for (auto& p : parts) snapshot.insert(snapshot.end(), p.begin(), p.end());
+            parts.clear(); partsHave = 0;
             stateVersion++; snapshotsReceived++;
         } break;
         case M_PING: { uint32_t t = r.U32(); Writer w; w.U8(M_PONG); w.U32(t); SendTo(server, w); } break;

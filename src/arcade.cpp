@@ -17,7 +17,10 @@ namespace {
 using namespace arcade;
 
 Session gSess;
-bool gTrawlFp = false;    // the Trawl's view for a networked match (the reel remembers the last one chosen)
+const char* RT_MAP_KEYS[5] = {"ship", "cave", "reef", "atlantis", "void"};
+const char* RT_TITLES[5] = {"The Sunken Ship", "The Underwater Cave", "The Coral Reef", "Atlantis", "Approaching the Void"};
+int gRtMapSel = 0;        // Red Tide's map on the reel (solo, and what a host's table dives)
+bool gTrawlFp = false;   // the Trawl's view for a networked match (the reel remembers the last one chosen)
 int twCrew = 4;           // the Trawl's hands sailing solo (the rest are bots)
 net::LanBrowser gBrowse;
 bool gBrowsing = false;
@@ -196,7 +199,7 @@ void DrawReels(Game& g) {
             gError.clear();
             if (k == 0) {
                 std::string err;
-                if (gSess.Host(gProfile, selGame, &err)) gMode = MODE_ROOM;
+                if (gSess.Host(gProfile, selGame, &err)) { gMode = MODE_ROOM; gSess.gameOpts = selGame == G_RED_TIDE ? RT_MAP_KEYS[gRtMapSel] : ""; }
                 else gError = "Couldn't host: " + err;
             } else if (k == 1) { gMode = MODE_JOIN; gJoinFocus = true; }
             else gMode = MODE_BROWSE;
@@ -225,10 +228,9 @@ void DrawReels(Game& g) {
         if (CheckCollisionPointRec(GetMousePosition(), {c.x - 200, c.y + 274, 400, 20}) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) gTrawlFp = !gTrawlFp;
     }
     if (selGame == G_RED_TIDE) {
-        static const char* RT_MAPS[] = {"ship", "cave", "reef", "atlantis", "void"};
-        static const char* RT_TITLES[] = {"The Sunken Ship", "The Underwater Cave", "The Coral Reef", "Atlantis", "Approaching the Void"};
-        static int rtMap = 0;
-        const int RT_N = (int)(sizeof(RT_MAPS) / sizeof(RT_MAPS[0]));
+        const char* const* RT_MAPS = RT_MAP_KEYS;
+        int& rtMap = gRtMapSel;
+        const int RT_N = 5;
         Rectangle lt{c.x - 190, c.y + 52, 30, 26}, rtR{c.x + 160, c.y + 52, 30, 26};
         DrawTextCenteredBold(RT_TITLES[rtMap], c.x, c.y + 54, 20, Color{230, 200, 150, 255});
         DrawTextCenteredBold("<", lt.x + 15, lt.y, 22, Pal::Brass);
@@ -240,8 +242,9 @@ void DrawReels(Game& g) {
         static const char* PAGES[] = {"Dossier", "Records", "How to play", "Charm pouch", "Locker room"};
         for (int k = 0; k < 5; k++) if (Button({40, 250 + k * 58.0f, 200, 44}, PAGES[k], true, 18)) { OpenRedTidePage(g, k + 1); return; }
         if (Button({c.x - 110, c.y + 236, 220, 36}, "Dive (solo)", true, 15)) { StartRedTide(g, RT_MAPS[rtMap]); return; }
+        DrawTextCentered("Host or Join to dive with up to three friends (the host's map)", c.x, c.y + 280, 13, SCREEN_DIM);
     }
-    if (ready && Button({c.x - 110, c.y + 236, 220, 36}, "Practice with AI crabs", true, 15)) {
+    if (ready && selGame == G_SCUTTLE && Button({c.x - 110, c.y + 236, 220, 36}, "Practice with AI crabs", true, 15)) {
         std::string err;
         if (gSess.Host(gProfile, selGame, &err, 47790, net::MakeMemoryTransport(), false)) { gSess.AddAI(); gSess.AddAI(); gSess.AddAI(); gMode = MODE_ROOM; }
         else gError = err;
@@ -361,10 +364,23 @@ void DrawLobby() {
         if (host && k == used && Button({row.x + row.width - 120, row.y + 8, 108, 36}, "Add AI", true, 15)) gSess.AddAI();
         y += 60;
     }
+    if (gSess.game == G_RED_TIDE && host) {
+        // the host picks the water (the guests hear it in the chat)
+        int before = gRtMapSel;
+        Rectangle l{p.x + 30, p.y + p.height - 110, 30, 30}, r{p.x + 330, p.y + p.height - 110, 30, 30};
+        DrawTextCenteredBold("<", l.x + 15, l.y + 2, 22, Pal::Brass);
+        DrawTextCenteredBold(">", r.x + 15, r.y + 2, 22, Pal::Brass);
+        DrawTextCenteredBold(RT_TITLES[gRtMapSel], p.x + 195, p.y + p.height - 106, 19, Color{230, 200, 150, 255});
+        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), l)) gRtMapSel = (gRtMapSel + 4) % 5;
+        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), r)) gRtMapSel = (gRtMapSel + 1) % 5;
+        gSess.gameOpts = RT_MAP_KEYS[gRtMapSel];
+        if (before != gRtMapSel) gSess.Chat(std::string("We dive ") + RT_TITLES[gRtMapSel]);
+    }
     if (host) {
         std::string why;
         bool can = gSess.CanLaunch(&why);
-        if (Button({p.x + p.width - 250, p.y + p.height - 66, 220, 50}, "Start the race", can, 20)) { std::string w2; gSess.Launch(&w2); }
+        const char* go = gSess.game == G_RED_TIDE ? "Dive" : gSess.game == G_TRAWL ? "Cast off" : "Start the race";
+        if (Button({p.x + p.width - 250, p.y + p.height - 66, 220, 50}, go, can, 20)) { std::string w2; gSess.Launch(&w2); }
         if (!can) Txt(why, p.x + 30, p.y + p.height - 50, 15, SCREEN_DIM);
     } else if (gSess.mySeat >= 0) {
         bool ready = gSess.seats[gSess.mySeat].ready;
@@ -782,6 +798,7 @@ void DrawRoom(Game& g) {
         case S_LOBBY: DrawLobby(); break;
         case S_PLAYING:
             if (gSess.game == G_TRAWL) { StartTrawlNet(g, &gSess, gTrawlFp); return; }   // aboard the Gannet (host or guest)
+            if (gSess.game == G_RED_TIDE) { StartRedTideNet(g, &gSess); return; }       // into the water (host or guest)
             DrawTable(g);
             break;
         case S_ENDED: {

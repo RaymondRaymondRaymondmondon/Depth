@@ -112,9 +112,9 @@ Roll OpenCrate(int game, uint32_t seed) {
     Save();
     return r;
 }
-std::vector<Tint> WornColours(int game) {
-    const Wardrobe& w = Get(game);
-    const Skin* s = w.worn.empty() ? nullptr : Find(game, w.worn);
+std::vector<Tint> WornColours(int game) { return ColoursOf(game, Get(game).worn); }
+std::vector<Tint> ColoursOf(int game, const std::string& id) {
+    const Skin* s = id.empty() ? nullptr : Find(game, id);
     if (!s) return {};
     return {{"top", s->top}, {"trousers", s->trousers}, {"hat", s->hat}, {"accent", s->trim}};
 }

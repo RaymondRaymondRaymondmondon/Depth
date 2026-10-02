@@ -574,6 +574,7 @@ void Match::InitMap(const MapData& m, const std::string& art, int playerCount, u
     *this = Match{};
     botStyle = style;
     map = &m; mapKey = m.key; artKey = art;
+    this->seed = seed;
     players = std::clamp(playerCount, 1, 4);
     rng = seed ? seed * 2654435761u + 1 : 99;
     BuildLevel(m, level);
@@ -788,6 +789,7 @@ void Match::Step(float dt) {
     crates.erase(std::remove_if(crates.begin(), crates.end(), [](const Crate& c) { return c.t < -2; }), crates.end());
     for (auto& c : captions) c.t -= dt;
     captions.erase(std::remove_if(captions.begin(), captions.end(), [](const Caption& c) { return c.t <= 0; }), captions.end());
+    TrimFx(256);
     // the tide's end
     float calm = map->tunables.count("calm_seconds") ? (float)map->tunables.at("calm_seconds") : 20.0f;
     if (phase == TidePhase::Calm && phaseT >= calm) BeginTide(tide + 1);
@@ -4654,7 +4656,7 @@ int RunRedTideSim(const std::string& mapKey, int tides, const std::string& style
         int lastTide = 1; float lastLog = 0;
         while (!M->over && M->tide <= tides && M->time < limit) {
             M->Step(dt);
-            M->fx.clear();
+            M->TrimFx(0);
             if (getenv("DEPTH_SIMLOG") && M->time - lastLog > (getenv("DEPTH_SIMLOG")[0] == '3' ? 2 : 60)) {
                 lastLog = M->time;
                 const DiverState& d = M->divers[0];

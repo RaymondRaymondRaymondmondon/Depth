@@ -48,7 +48,7 @@ add_executable(depth
     src/study_audio.cpp src/study_data.cpp src/study_test.cpp src/study.cpp src/study_scenes.cpp
     src/json.cpp src/expr.cpp src/course.cpp
     src/redtide_data.cpp src/redtide_eco.cpp src/redtide_tools.cpp src/redtide_render.cpp src/figure3d.cpp src/skins.cpp src/skins_data.cpp src/skins_ui.cpp src/redtide_vis.cpp src/redtide_game.cpp
-    src/redtide_match.cpp src/redtide_profile.cpp src/redtide_menu.cpp
+    src/redtide_match.cpp src/redtide_net.cpp src/redtide_profile.cpp src/redtide_menu.cpp
     src/trawl_data.cpp src/trawl_boat.cpp src/trawl_fish.cpp src/trawl_eco.cpp src/trawl_session.cpp src/trawl_gear.cpp src/trawl_art.cpp src/trawl.cpp src/trawl_view3d.cpp src/trawl_bots.cpp src/trawl_net.cpp src/trawl_sonar.cpp src/trawl_weapons.cpp src/trawl_sim.cpp src/trawl_skiff.cpp src/trawl_landing.cpp src/trawl_quest.cpp src/trawl_below.cpp src/trawl_weeds.cpp src/trawl_grotto.cpp src/trawl_atlantis.cpp src/trawl_wreck.cpp src/trawl_dive.cpp src/trawl_divescene.cpp
 )
 target_link_libraries(depth PRIVATE raylib)

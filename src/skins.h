@@ -74,6 +74,7 @@ Roll OpenCrate(int game, uint32_t seed);      // spends a crate; a duplicate giv
 // the colours a worn skin puts on the figure's materials (name, colour); empty as issued
 struct Tint { const char* material; Color c; };
 std::vector<Tint> WornColours(int game);
+std::vector<Tint> ColoursOf(int game, const std::string& id);   // any skin's (a teammate's, from the network)
 
 int RunSkinsTest();                     // depth.exe --skins-test
 bool WardrobePage(int game);            // the page (skins_ui.cpp); true when Back is pressed
@@ -81,6 +82,5 @@ bool WardrobePage(int game);            // the page (skins_ui.cpp); true when Ba
 struct GalleryLabel { Vector2 at; const char* name; const char* rarity; Color c; int price; };
 extern std::vector<GalleryLabel> gGallery;
 void DrawGallery(int game, int page, bool costumes = false);   // the labels and a page title; clears them
-// the gallery shots (--shots shots skins_gallery): each figure's label, collected by a studio as it draws, then printed GalleryLabel { Vector2 at; const char* name; const char* rarity; Color c; int price; }; std::vector<GalleryLabel> gGallery; DrawGallery(int game, int page);   // the labels and a title; clears them
 
 } // namespace skins

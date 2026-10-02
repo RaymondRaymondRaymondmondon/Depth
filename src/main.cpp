@@ -5,6 +5,7 @@
 #include "trawl_eco.h"
 #include "trawl_session.h"
 #include "trawl_net.h"
+#include "redtide_net.h"
 #include "redtide.h"
 #include "redtide_match.h"
 #include "skins.h"
@@ -292,6 +293,7 @@ void DebugWardrobe(Game& g, int game); void TakeShots(const Game& base, const st
         {"trawl3d_ghost", [](Game& g) { DebugTrawlShot(g, 118); }},
         {"trawl3d_harpoon", [](Game& g) { DebugTrawlShot(g, 119); }},
         {"redtide_tank", [](Game& g) { DebugRedTideShot(g, 0); }},
+        {"redtide_guest", [](Game& g) { DebugRedTideShot(g, 90); }},
         {"rvis_3_divers", [](Game& g) { DebugRedTideShot(g, 200); }},
         {"rvis_3_faces", [](Game& g) { DebugRedTideShot(g, 201); }},
         {"rvis_3_swim", [](Game& g) { DebugRedTideShot(g, 202); }},
@@ -721,6 +723,7 @@ int main(int argc, char** argv) {
     if (argc >= 2 && strcmp(argv[1], "--trawl-wreck") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlWreck(argc, argv); }
     if (argc >= 2 && strcmp(argv[1], "--trawl-bot-test") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlBotTest(); }
     if (argc >= 2 && strcmp(argv[1], "--trawl-net-test") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlNetTest(); }
+    if (argc >= 2 && strcmp(argv[1], "--redtide-net-test") == 0) { SetTraceLogLevel(LOG_WARNING); return rt::RunRedTideNetTest(); }
     if (argc >= 2 && strcmp(argv[1], "--trawl-sail-diag") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlSailDiag(); }
     if (argc >= 2 && strcmp(argv[1], "--trawl-session-test") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlSessionTest(); }
     if (argc >= 2 && strcmp(argv[1], "--skins-test") == 0) { SetTraceLogLevel(LOG_WARNING); return skins::RunSkinsTest(); }
@@ -805,9 +808,10 @@ int main(int argc, char** argv) {
     if (argc >= 2 && strcmp(argv[1], "--course-seed-test") == 0) return RunCourseSeedTest(argc, argv, 2);
     if (argc >= 2 && strcmp(argv[1], "--scuttle-sim") == 0) return RunScuttleSim(argc >= 3 ? std::max(1, atoi(argv[2])) : 2000);
     if (argc >= 2 && strcmp(argv[1], "--net-loop") == 0) {
-        int lag = 0; bool mem = false, trawl = false;
-        for (int i = 2; i < argc; i++) { if (strcmp(argv[i], "mem") == 0) mem = true; else if (strcmp(argv[i], "trawl") == 0) trawl = true; else if (strcmp(argv[i], "scuttle") != 0) lag = atoi(argv[i]); }
+        int lag = 0; bool mem = false, trawl = false, redtide = false;
+        for (int i = 2; i < argc; i++) { if (strcmp(argv[i], "mem") == 0) mem = true; else if (strcmp(argv[i], "trawl") == 0) trawl = true; else if (strcmp(argv[i], "redtide") == 0) redtide = true; else if (strcmp(argv[i], "scuttle") != 0) lag = atoi(argv[i]); }
         if (trawl) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlNetLoop(mem); }
+        if (redtide) { SetTraceLogLevel(LOG_WARNING); return rt::RunRedTideNetLoop(mem); }
         return RunNetLoop(lag, mem);
     }
     if (argc >= 4 && strcmp(argv[1], "--brain-test") == 0) { SetTraceLogLevel(LOG_WARNING); BrainTest(atoi(argv[2]), std::max(1, atoi(argv[3]))); return 0; }
@@ -901,6 +905,7 @@ int main(int argc, char** argv) {
                 BeginFrame();
                 GameMenuFrame(g);
                 if (g.scene == Scene::Trawl) TrawlMenuTick(GetFrameTime());   // (a crew at sea doesn't stop for one hand's menu)
+                if (g.scene == Scene::RedTide) RedTideMenuTick(GetFrameTime());   // (nor does the tide)
                 MouseLookFrameEnd();                                          // (the menu needs the pointer)
                 AudioFrame(GetFrameTime(), g.scene == Scene::Platformer || g.scene == Scene::Abyss);
                 EndFrame(g.time);

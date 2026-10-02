@@ -10,6 +10,10 @@ namespace tw {   // the Trawl's host (trawl_net.cpp; declared here so this file 
 std::unique_ptr<arcade::GameHost> MakeTrawlHost();
 uint32_t TrawlDataHash();
 }
+namespace rt {   // Red Tide's host (redtide_net.cpp)
+std::unique_ptr<arcade::GameHost> MakeRedTideHost();
+uint32_t RedTideDataHash();
+}
 
 namespace arcade {
 
@@ -19,7 +23,7 @@ const GameInfo& Info(int g) {
         {"The Trawl", 1, 6, true, 20, true},
         {"Scuttle", 2, scuttle::MAX_SEATS, false, 0, true},
         {"Fathoms", 2, 6, true, 20, false},
-        {"Red Tide", 1, 4, true, 20, false},
+        {"Red Tide", 1, 4, true, 20, true},
     };
     static const GameInfo DRIFT = {"Drift (test)", 2, 6, true, 20, true};
     static const GameInfo NONE = {"?", 2, 2, false, 0, false};
@@ -118,6 +122,7 @@ uint32_t DataHash() {
     for (int c = 0; c < scuttle::C_COUNT; c++) { w.Str(scuttle::Card(c).name); w.U8(scuttle::Card(c).copies); }
     w.U8(scuttle::TRACK); w.U8(scuttle::HAND); w.U8(scuttle::BETS_PER_ROUND); w.F32(scuttle::TURN_SECONDS); w.F32(scuttle::RESPONSE_SECONDS);
     w.U32(tw::TrawlDataHash());
+    w.U32(rt::RedTideDataHash());
     return Fnv1a(w.b.data(), w.b.size());
 }
 
@@ -125,6 +130,7 @@ std::unique_ptr<GameHost> MakeGameHost(int g) {
     switch (g) {
         case G_SCUTTLE: return std::make_unique<ScuttleHost>();
         case G_TRAWL: return tw::MakeTrawlHost();
+        case G_RED_TIDE: return rt::MakeRedTideHost();
         case G_TEST_DRIFT: return std::make_unique<DriftHost>();
         default: return nullptr;   // Flats Duel, the Trawl, Fathoms and the fifth game come aboard in stages 12-14 and later
     }

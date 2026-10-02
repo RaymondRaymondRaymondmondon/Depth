@@ -529,3 +529,33 @@ Sentinels do the downing. Balance stays with Stage 10.
   the Cave's ray stopping a Turbine). The Bull Shark check in `--redtide-match-test` now strikes until a bite lands
   (its attack is picked at random, and the new parts shifted the random draws onto its hold). Shot:
   `--shots shots redtide_ship_salvage`.
+
+## Stage 4: four divers over the network (2026-10-02)
+
+Red Tide is the second real-time game on the Deep Arcade's session (`arcade_game.h`), built like the Trawl's stage 5.
+- `redtide_net.h/.cpp`: `DiverInput` (the look, the swim, the held buttons and the presses since the last send;
+  14 bytes), `ApplyDiverInput` (solo play goes through it too, so solo and network can't drift apart),
+  `WriteMatch`/`ReadMatch` (one templated `Visit` writes and reads every field the screens draw: the match's clocks and
+  boss state, doors, drops, darts, crates, deployed builds, captions, the divers, every beast, corpses, flora, squads,
+  ink, curtains, the blood in the water as its non-empty cells), and `RedTideHost` (the GameHost for `G_RED_TIDE`:
+  1-4 divers, AI seats are bot divers, 60 Hz steps, 20 snapshots a second).
+- A guest's mirror is a real `Match` built from the same map and seed (`Match::seed`), so the level, props and stations
+  are already in place; the snapshot only overwrites what moves. The guest's own view is its own (`keepLook`), its
+  diver swims ahead on the mirror and is eased toward the host's position; everything else dead-reckons between
+  snapshots.
+- **Effects** are a numbered log now (`Match::fxBase`, `FxEnd`, `TrimFx`): each screen reads it with its own cursor,
+  and a snapshot carries the newest 48 events with their numbers, so a guest replays each hit and blast once.
+- **Looks**: `DiverState::suit/helmet/skin/costume`. The host sets its own; a guest sends `RA_LOOK` when it changes.
+  Teammates are drawn in their Locker suit, Wardrobe skin (`skins::ColoursOf`) and costume (`fig::DrawCostume`).
+- **Size**: beasts are quantised (positions 16 bits per axis across the map, velocity and stats 8 bits): about 12 KB
+  on the Ship, 19 KB on a busy Atlantis. The session (protocol 3) now sends any real-time snapshot over 12 KB as parts
+  (`M_STATE_PART`), because GameNetworkingSockets turns unreliable messages over ~16 KB into reliable ones.
+- The arcade: Host on the Red Tide reel takes the map shown; the host can change it in the lobby (the guests hear it in
+  the chat); Dive launches. Enter at the match's end: the host starts a rematch. The menu's Leave the match: the host
+  takes everyone back to the lobby, a guest's diver goes on as a bot.
+- Not yet: a guest's Salt Charms (only the host's pouch is used), the quip babble on guests' screens (the captions
+  arrive), and per-player arcade awards are each player's own (as solo).
+- Checks: `depth.exe --redtide-net-test` (inputs, all five maps round-trip byte-identical, the blood reads the same,
+  the effects log, the host), `depth.exe --net-loop redtide [mem]` (a host and three guests on Atlantis: looks, a guest
+  swimming, a tide on every screen, a guest leaving; over loopback UDP the 13 KB snapshots arrive in parts). Shot:
+  `--shots shots redtide_guest`. The worktree build needs `external/` (a junction to the main checkout's) for GNS.

@@ -127,6 +127,7 @@ struct DiverState {
     float circleT = 0, finsT = 0, shellT = 0, ghostT = 0; Vector3 circlePos{}; int luckKills = 0; bool keepBrines = false, luckyLocker = false;   // the Void: the Relict egg carried; the worm's tremor; the void's pull
     float cutT = 0;                    // being cut free of Reacher coral by a teammate
     int kills = 0, headshots = 0, downs = 0, revives = 0;
+    std::string suit, helmet, skin, costume;   // the player's look (the Locker's suit and helmet, the Wardrobe's skin and costume), for teammates' screens
     float hitMarker = 0; bool hitWeak = false;
     float hurtT = 0; Vector3 hurtFrom{};
     std::string lastHitBy, lastKill; float lastKillT = 0;
@@ -160,7 +161,13 @@ struct Match {
     std::vector<Dart> darts;
     std::vector<FloorDrop> drops;
     std::vector<Caption> captions;
-    std::vector<FxEvent> fx;          // the scene drains these for particles
+    // the effects log: every screen (the solo scene, the host's, a guest's mirror) reads it with its own cursor, an
+    // absolute count (fxBase + index); Step keeps the last 256
+    std::vector<FxEvent> fx;
+    uint32_t fxBase = 0;
+    uint32_t FxEnd() const { return fxBase + (uint32_t)fx.size(); }
+    void TrimFx(size_t keep) { if (fx.size() > keep) { size_t n = fx.size() - keep; fx.erase(fx.begin(), fx.begin() + n); fxBase += (uint32_t)n; } }
+    uint32_t seed = 0;                // Init's (a network mirror is built from it)
     std::vector<Crate> crates;
     int tide = 1, quota = 12, tideKills = 0, players = 1;
     TidePhase phase = TidePhase::Calm;

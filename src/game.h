@@ -878,6 +878,9 @@ void TrawlMenuTick(float dt);                                                  /
 void DebugTrawlShot(Game& g, int which);   // --shots: 0 the deck, 1 the engine room, 2 the wheelhouse, 3 a squall
 void SceneRedTide(Game& g);   // Red Tide, the Deep Arcade's survival shooter (redtide_game.cpp)
 void StartRedTide(Game& g, const char* map = "ship");
+void StartRedTideNet(Game& g, arcade::Session* net);   // a Deep Arcade match of Red Tide (host or guest)
+void LeaveRedTideMatch(Game& g);                       // back to the arcade (a host takes the table back to the lobby; a guest's diver goes on as a bot)
+void RedTideMenuTick(float dt);                        // (the game menu is open) a networked match keeps talking
 bool RedTideAudioActive();     // a Red Tide match is playing (its own music, not the salon's)
 void OpenRedTidePage(Game& g, int page);    // the arcade's Red Tide pages: 1 dossier, 2 records, 3 how to play, 4 charms, 5 locker (redtide_menu.cpp)
 namespace rt { void DebugRedTidePage(int page, int map, int sel); }

@@ -15,7 +15,7 @@
 namespace arcade {
 
 constexpr int MAX_PLAYERS = 6;
-constexpr uint8_t PROTOCOL = 2;
+constexpr uint8_t PROTOCOL = 3;   // (3: big real-time snapshots go in parts)
 constexpr double LOST_AFTER = 6.0, TAKEOVER_AFTER = 120.0, PING_EVERY = 1.0, BEACON_EVERY = 1.0;
 
 struct Profile { std::string name = "Diver"; uint64_t id = 0; };
@@ -74,6 +74,7 @@ public:
     float pauseLeft = 0;
     uint32_t rejoinToken = 0;             // client: keep it to get this seat back
     std::string hostAddr;                 // client: where we joined (for rejoin)
+    std::string gameOpts;                 // host: the game's options for the next launch (Red Tide: the map key)
     int stateVersion = 0;                 // bumps whenever a new snapshot arrives (the screen decodes and animates on it)
     int rejects = 0;
     int snapshotsReceived = 0;            // tests
@@ -94,6 +95,7 @@ private:
     std::unique_ptr<GameHost> truth;      // host: the real game
     int playerSeat[MAX_PLAYERS] = {-1, -1, -1, -1, -1, -1};   // game player -> lobby seat
     uint32_t rng = 1, snapSeq = 0, lastSeq = 0;
+    uint32_t partSeq = 0; int partsHave = 0; std::vector<std::vector<uint8_t>> parts;   // client: a big snapshot arriving in parts
     std::vector<uint8_t> snapshot;
 
     void SendTo(int conn, const Writer& w, net::Channel ch = net::CH_CONTROL);

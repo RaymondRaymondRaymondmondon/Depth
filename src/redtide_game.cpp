@@ -6,6 +6,11 @@
 #include "redtide_render.h"
 #include "redtide_profile.h"
 #include "redtide_vis.h"
+#include "redtide_net.h"
+#include "arcade_session.h"
+#include "net.h"
+#include "skins.h"
+#include "figure3d.h"
 #include "game.h"
 #include "sound.h"
 #include "input.h"
@@ -47,12 +52,20 @@ struct RedTideScene {
     float callCd = 0;
     int sndPhase = -1, sndSquads = 0, sndTonics = 0, sndDrops = 0, sndKills = 0, sndCrates = 0; bool sndDown = false, sndReload = false; float sndHurt = 0;
     bool audioOn = false;
+    // network play (stage 4): the arcade's session; the host draws its real match (live), a guest its mirror (m)
+    arcade::Session* net = nullptr;
+    Match* live = nullptr;
+    int me = 0;                    // my diver
+    int seenVersion = -1; float sinceSnap = 0;
+    uint32_t fxSeen = 0;           // the effects log read so far (an absolute count)
+    std::string lookSent; float lookT = 0;
+    DiverInput pend;               // solo: the input gathered for the next step
 };
 static RedTideScene S;
 
-static Match& M() { return *S.m; }
+static Match& M() { return S.live ? *S.live : *S.m; }
 static std::string gSndMap = "ship";   // the map being played (for its sound palette)
-static DiverState& Me() { return S.m->divers[0]; }
+static DiverState& Me() { return M().divers[std::clamp(S.me, 0, (int)M().divers.size() - 1)]; }
 
 // ---------------------------------------------------------------- the test tank
 // A 30 x 12 x 30 m box room with a few crates and pillars, and a population drawn from the Sunken Ship's species so
@@ -605,7 +618,11 @@ static void SoundFrame(float dt) {
 }
 
 static void DrainFx() {
-    for (const FxEvent& e : M().fx) {
+    // the effects log since this screen last read it (the match keeps the newest 256; a mirror receives them numbered)
+    const Match& mm = M();
+    if (S.fxSeen > mm.FxEnd() || S.fxSeen + 1024 < mm.fxBase) S.fxSeen = mm.fxBase;   // (a new match)
+    for (uint32_t k = std::max(S.fxSeen, mm.fxBase); k < mm.FxEnd(); k++) {
+        const FxEvent& e = mm.fx[k - mm.fxBase];
         if (S.audioOn) FxSound(e);
         switch (e.kind) {
             case 0: Burst(e.pos, 6, BloodCol({150, 20, 20, 255}), 0.6f, 1.2f, 0.07f); break;     // blood
@@ -621,14 +638,17 @@ static void DrainFx() {
             case 10: { for (int k = 0; k < 40; k++) { float f = k / 40.0f; Vector3 p = Vector3Add(e.pos, Vector3Scale(e.dir, f)); S.fx.push_back({p, Vector3Scale(Vector3Normalize(e.dir), 2.0f), 0.4f, 0.4f, {200, 220, 255, 255}, 0.05f + f * 0.2f}); } break; }   // the Resonator's ring
         }
     }
-    M().fx.clear();
+    S.fxSeen = mm.FxEnd();
 }
 
 // ---------------------------------------------------------------- input
-static void Input(float dt) {
+// This diver's input (DiverInput, redtide_net.h): solo it's applied here, in network play it goes to the host (and a
+// guest's own diver swims ahead on its mirror until the host's answer comes back)
+static DiverInput Gather() {
     Match& m = M();
     DiverState& d = Me();
-    if (S.shotMode || m.over) { m.SteerDiver(0, {0, 0, 0}, 0, false, false, dt); return; }
+    DiverInput in; in.yaw = d.yaw; in.pitch = d.pitch;
+    if (S.shotMode || m.over) return in;
     Vector2 md = MouseLook(true);
     float sens = d.ads ? 0.0016f : 0.0025f;
     d.yaw -= md.x * sens;
@@ -642,23 +662,40 @@ static void Input(float dt) {
     if (IsKeyDown(KEY_D)) want = Vector3Add(want, r);        // r is the camera's right: D strafes right, A left
     if (IsKeyDown(KEY_A)) want = Vector3Subtract(want, r);
     float vert = (IsKeyDown(KEY_SPACE) ? 1.0f : 0.0f) - (IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_C) ? 1.0f : 0.0f);
-    m.SteerDiver(0, want, vert, IsKeyDown(KEY_LEFT_SHIFT), IsMouseButtonDown(MOUSE_BUTTON_RIGHT), dt);
+    in.yaw = d.yaw; in.pitch = d.pitch;
+    in.wish = Vector3Length(want) > 1 ? Vector3Normalize(want) : want; in.vert = vert;
+    if (IsKeyDown(KEY_LEFT_SHIFT)) in.btn |= DI_SPRINT;
+    if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT)) in.btn |= DI_ADS;
     if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && !d.downed && !d.reloading && m.Cur(d).mag <= 0) RedTideCue(RTC_EMPTY, 1, 0, 0);
-    m.Fire(0, IsMouseButtonDown(MOUSE_BUTTON_LEFT), dt);
-    if (IsKeyPressed(KEY_R)) m.Reload(0);
-    if (IsKeyPressed(KEY_V) || IsMouseButtonPressed(MOUSE_BUTTON_MIDDLE)) m.Melee(0);
-    if (IsKeyPressed(KEY_G)) m.ThrowLimpet(0);
-    if (IsKeyPressed(KEY_Q)) m.CycleTactical(0);
-    if (IsKeyPressed(KEY_B)) m.UseBuild(0);
-    if (IsKeyPressed(KEY_X)) m.UseBrush(0);
-    if (IsKeyPressed(KEY_Z)) { int si = m.NearestStation(d.pos, 3.0f); if (si >= 0 && m.level.stations[si].type == StationType::Workbench) m.CycleBench(0); }
-    if (IsKeyPressed(KEY_F)) m.BeatDrum(0);
-    if (IsKeyPressed(KEY_T)) m.UseCharm(0);
-    if (IsKeyPressed(KEY_E)) m.Interact(0, false, dt);
-    else if (IsKeyDown(KEY_E)) m.Interact(0, true, dt);
-    for (int k = 0; k < 3; k++) if (IsKeyPressed(KEY_ONE + k)) m.SwapWeapon(0, k);
+    if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) in.btn |= DI_FIRE;
+    if (IsKeyPressed(KEY_R)) in.btn |= DI_RELOAD_P;
+    if (IsKeyPressed(KEY_V) || IsMouseButtonPressed(MOUSE_BUTTON_MIDDLE)) in.btn |= DI_MELEE_P;
+    if (IsKeyPressed(KEY_G)) in.btn |= DI_THROW_P;
+    if (IsKeyPressed(KEY_Q)) in.btn |= DI_TAC_P;
+    if (IsKeyPressed(KEY_B)) in.btn |= DI_BUILD_P;
+    if (IsKeyPressed(KEY_X)) in.btn |= DI_BRUSH_P;
+    if (IsKeyPressed(KEY_Z)) in.btn |= DI_BENCH_P;
+    if (IsKeyPressed(KEY_F)) in.btn |= DI_DRUM_P;
+    if (IsKeyPressed(KEY_T)) in.btn |= DI_CHARM_P;
+    if (IsKeyPressed(KEY_E)) in.btn |= DI_USE_P;
+    if (IsKeyDown(KEY_E)) in.btn |= DI_USE;
+    for (int k = 0; k < 3; k++) if (IsKeyPressed(KEY_ONE + k)) in.slot = (int8_t)k;
     float wheel = GetMouseWheelMove();
-    if (wheel != 0 && d.weapons.size() > 1) m.SwapWeapon(0, (d.cur + (wheel > 0 ? 1 : (int)d.weapons.size() - 1)) % (int)d.weapons.size());
+    if (wheel != 0 && d.weapons.size() > 1) in.slot = (int8_t)((d.cur + (wheel > 0 ? 1 : (int)d.weapons.size() - 1)) % (int)d.weapons.size());
+    return in;
+}
+static void Input(float dt) {
+    DiverInput in = Gather();
+    if (!S.net) { ApplyDiverInput(M(), S.me, in, dt); return; }
+    Writer w; WriteInputAction(in, w); S.net->Act(w);
+    if (S.net->role != arcade::R_HOST) {
+        // a guest's own diver swims ahead on the mirror (the host's position is eased in as each snapshot lands)
+        Match& m = M(); DiverState& d = Me();
+        if (!m.over && !d.dead) {
+            m.SteerDiver(S.me, in.wish, in.vert, in.btn & DI_SPRINT, in.btn & DI_ADS, dt);
+            if (d.slipLink < 0) d.pos = m.level.Move(d.pos, Vector3Add(d.pos, Vector3Scale(d.vel, dt)), 0.4f, m.linkOpen);
+        }
+    }
 }
 
 // ---------------------------------------------------------------- drawing
@@ -901,11 +938,11 @@ static void DrawGun(const Camera3D& cam) {
                 if (drinkT >= 0 || reviving) {
                     vh.left = 0;   // (the left hand is busy)
                     Color liquid = drinkId == "juggernaut" ? Color{200, 60, 50, 255} : drinkId == "quick" ? Color{80, 180, 220, 255} : drinkId == "speed" ? Color{120, 220, 90, 255} : drinkId == "double" ? Color{230, 170, 60, 255} : Color{170, 120, 220, 255};
-                    DrawViewmodelAction(M().VoiceOf(0), cam, reviving ? 1 : 0, std::clamp(drinkT / 1.4f, 0.0f, 1.0f), liquid, S.time, prof.suit, prof.helmet);
+                    DrawViewmodelAction(M().VoiceOf(S.me), cam, reviving ? 1 : 0, std::clamp(drinkT / 1.4f, 0.0f, 1.0f), liquid, S.time, prof.suit, prof.helmet);
                 }
-                if (DrawViewmodelHands(M().VoiceOf(0), cam, vh, S.time, prof.suit, prof.helmet)) goto muzzle;
+                if (DrawViewmodelHands(M().VoiceOf(S.me), cam, vh, S.time, prof.suit, prof.helmet)) goto muzzle;
             }
-            if (DiversReady() && DrawFirstPersonArms(M().VoiceOf(0), cam, gR, gL, ms < 0, S.time, prof.suit, prof.helmet)) goto muzzle;
+            if (DiversReady() && DrawFirstPersonArms(M().VoiceOf(S.me), cam, gR, gL, ms < 0, S.time, prof.suit, prof.helmet)) goto muzzle;
             goto muzzle;
         }
     }
@@ -921,7 +958,7 @@ static void DrawGun(const Camera3D& cam) {
         Vector3 gR = Vector3Transform(GR[gm], gunM);
         Vector3 gL = magOut > 0 ? Vector3Transform({0, -0.1f - 0.1f * magOut, 0.08f}, gunM) : Vector3Transform(GL[gm], gunM);
         if (magOut > 0) DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(0.03f, 0.05f, 0.05f), MatrixTranslate(0, -0.06f - 0.1f * magOut, 0.08f)), gunM), w.cls == "needle" || w.cls == "lmg" ? Color{120, 176, 190, 255} : Color{70, 74, 78, 255});
-        if (DrawFirstPersonArms(M().VoiceOf(0), cam, gR, gL, ms < 0, S.time, prof.suit, prof.helmet)) goto muzzle;
+        if (DrawFirstPersonArms(M().VoiceOf(S.me), cam, gR, gL, ms < 0, S.time, prof.suit, prof.helmet)) goto muzzle;
     }
     DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(0.045f, 0.05f, 0.08f), MatrixTranslate(0, -0.035f, -0.06f)), gunM), suit);
     // the other glove: on the fore-end, or pulling the magazine out and pushing the new one home
@@ -1374,7 +1411,13 @@ static bool DrawTeammate(const Match& m, const Agent& a) {
     // the hips at the agent's position; the figure faces its yaw (its +x along the look), tipped about the hips
     Matrix tip = MatrixMultiply(MatrixMultiply(MatrixTranslate(0, -1.0f, 0), MatrixRotateZ(-tilt)), MatrixTranslate(0, 1.0f, 0));
     Matrix frame = MatrixMultiply(tip, fig::Frame(Vector3Subtract(a.pos, {0, 1.0f, 0}), d->yaw - PI / 2));
-    std::vector<Matrix> tsk = DrawDiverFigure(m.VoiceOf(di), frame, P, S.time, d->dead ? Color{170, 200, 220, 160} : WHITE);
+    // in their own look: the Locker's suit and helmet, the Wardrobe's skin over it, and a costume over all
+    std::vector<Recolor> look;
+    for (const auto& w : skins::ColoursOf(skins::REDTIDE, d->skin)) look.push_back({w.material, w.c});
+    Color tint = d->dead ? Color{170, 200, 220, 160} : WHITE;
+    std::vector<Matrix> tsk = DrawDiverFigure(m.VoiceOf(di), frame, P, S.time, tint, d->suit, d->helmet, &look);
+    if (const skins::Costume* cos = d->costume.empty() ? nullptr : skins::FindCostume(skins::REDTIDE, d->costume))
+        if (const Model* dm = DiverModel(m.VoiceOf(di)); dm && !tsk.empty()) fig::DrawCostume(cos->model, *dm, tsk, frame, tint);
     // their gun in the right fist, the same baked model as in first person (spec: "the third-person model of every gun")
     if (!d->dead && !tsk.empty() && !d->weapons.empty()) {
         const WeaponDef& w = m.W(m.Cur(*d));
@@ -1609,7 +1652,7 @@ static void DrawScene() {
     CreatureBudget(60);   // (the nearest fish on the rigged models: the Visual Overhaul's creature kit)
     for (int i = 0; i < (int)m.eco.agents.size(); i++) {
         const Agent& a = m.eco.agents[i];
-        if (!a.alive || a.diver == 0) continue;               // (diver 0 is you)
+        if (!a.alive || a.diver == Me().slot) continue;       // (that one is you)
         if (Vector3Distance(a.pos, eye) > 55) continue;
         if (a.diver > 0 && DrawTeammate(m, a)) continue;
         const Species& sp = m.map->species[a.sp];
@@ -2068,7 +2111,7 @@ static void DrawHud() {
     }
     // the prompt
     int cost = 0;
-    std::string prompt = m.PromptFor(0, &cost);
+    std::string prompt = m.PromptFor(S.me, &cost);
     if (!prompt.empty()) DrawTextCentered(prompt, cx, cy + 70, 18, cost > d.scrip ? Color{230, 110, 90, 255} : paper);
     if (d.lastKillT > 0) DrawTextCentered(d.lastKill, cx, cy + 40, 16, Fade(Color{235, 220, 190, 255}, std::min(1.0f, d.lastKillT)));
     // captions: barks, the tide bell, what the ecosystem just did
@@ -2118,6 +2161,7 @@ bool RedTideAudioActive() { return S.audioOn; }
 void StartRedTide(Game& g, const char* map) {
     gRtMap = map ? map : "ship";
     gSndMap = gRtMap;
+    S.net = nullptr; S.live = nullptr; S.me = 0; S.fxSeen = 0;
     StartShip(1, (uint32_t)GetRandomValue(1, 1 << 30), gRtMap);
     S.shotMode = false; S.awarded = false; S.awardLines.clear(); S.awardTokens = 0;
     Me().pouch = GetProfile().pouch;                    // the Salt Charms the diver brought
@@ -2126,20 +2170,97 @@ void StartRedTide(Game& g, const char* map) {
     g.scene = Scene::RedTide;   // (the mouse look takes the pointer itself: MouseLook in Input)
 }
 
+// Network play (stage 4): the arcade's session launched Red Tide. The host draws its real match; a guest draws its
+// mirror of the host's snapshots. Either way the diver is played by sending input.
+static std::string gNetMap;   // the map the level model was built for (a rematch may change it)
+void StartRedTideNet(Game& g, arcade::Session* net) {
+    S.net = net;
+    S.me = std::max(0, net->MyPlayer());
+    S.m = std::make_unique<Match>();   // (a guest's mirror; empty until the first snapshot)
+    S.live = net->role == arcade::R_HOST ? RedTideHostMatch(net->HostGame()) : nullptr;
+    S.seenVersion = -1; S.sinceSnap = 0; S.fxSeen = 0; S.lookSent.clear(); S.lookT = 0;
+    S.mode = 1; S.active = true; S.shotMode = false; S.awarded = false; S.awardLines.clear(); S.awardTokens = 0;
+    S.silhouette = 0; S.lineup = -1; S.studio = -1; S.freeze = false;
+    gNetMap.clear();
+    if (S.levelReady) { UnloadModel(S.level); S.levelReady = false; }
+    g.scene = Scene::RedTide;
+}
+void LeaveRedTideMatch(Game& g) {
+    if (S.net) {
+        if (S.net->role == arcade::R_HOST) S.net->BackToLobby();
+        else S.net->Leave();
+    }
+    S.net = nullptr; S.live = nullptr; S.active = false; S.me = 0;
+    g.scene = Scene::Arcade;
+}
+void RedTideMenuTick(float dt) {
+    if (!S.active || !S.net) return;
+    DiverInput in; if (S.m && !M().divers.empty()) { in.yaw = Me().yaw; in.pitch = Me().pitch; }
+    Writer w; WriteInputAction(in, w); S.net->Act(w);
+    S.net->Update(GetTime(), dt);
+}
+
 void SceneRedTide(Game& g) {
     S.audioOn = false;
     if (RedTidePageFrame(g, (float)GetTime())) { AudioRedTide(RtAudio{}); return; }   // an arcade page (the dossier, records, ...)
     if (S.studio >= 0) { S.time += 1 / 60.0f; DrawRedTideStudio(S.studio, S.time); return; }
     if (!S.active || !S.m) { StartRedTide(g, gRtMap.c_str()); return; }
-    if (S.mode == 1 && !S.levelReady && IsWindowReady()) BuildLevelModel();
     float dt = std::min(GetFrameTime(), 1 / 30.0f);
     if (S.shotMode) dt = 1 / 60.0f;
+    if (S.net) {
+        // ---- network play: the session first (the host's match steps inside it), then the snapshot into the mirror
+        arcade::Session& N = *S.net;
+        N.Update(GetTime(), dt);
+        if (N.stage != arcade::S_PLAYING) {   // the host went back to the lobby, or the table closed
+            S.net = nullptr; S.live = nullptr; S.active = false; S.me = 0; g.scene = Scene::Arcade;
+            return;
+        }
+        S.me = std::max(0, N.MyPlayer());
+        if (N.role == arcade::R_HOST) S.live = RedTideHostMatch(N.HostGame());
+        else {
+            S.sinceSnap += dt;
+            if (N.stateVersion != S.seenVersion && !N.Snapshot().empty()) {
+                S.seenVersion = N.stateVersion;
+                Reader r(N.Snapshot());
+                if (ReadMatch(r, *S.m, S.m->map ? S.me : -1)) S.sinceSnap = 0;
+            } else if (S.m->map && S.sinceSnap < 0.25f) {
+                // between snapshots everything else swims on along its last heading
+                for (auto& a : S.m->eco.agents) if (a.alive && a.diver < 0) a.pos = Vector3Add(a.pos, Vector3Scale(a.vel, dt));
+                for (int i = 0; i < (int)S.m->divers.size(); i++) if (i != S.me && !S.m->divers[i].dead) { DiverState& o = S.m->divers[i]; o.pos = Vector3Add(o.pos, Vector3Scale(o.vel, dt)); if (o.agent >= 0 && o.agent < (int)S.m->eco.agents.size()) S.m->eco.agents[o.agent].pos = o.pos; }
+            }
+        }
+        if (!M().map || S.me >= (int)M().divers.size()) {
+            ClearBackground(Color{2, 6, 10, 255});
+            DrawTextCenteredBold("Into the water...", SCREEN_W / 2.0f, SCREEN_H / 2.0f - 12, 24, Color{200, 230, 230, 255});
+            return;
+        }
+        if (gNetMap != M().mapKey + "#" + std::to_string(M().seed)) {   // (a new match, a rematch: its own water and level)
+            gNetMap = M().mapKey + "#" + std::to_string(M().seed);
+            gRtMap = M().mapKey; gSndMap = gRtMap;
+            Vector3 lo = M().map->boundsMin, hi = M().map->boundsMax;
+            ResetFx(std::max(hi.x - lo.x, hi.z - lo.z), hi.y - lo.y, lo.y, Vector3Lerp(lo, hi, 0.5f));
+            if (S.levelReady) { UnloadModel(S.level); S.levelReady = false; }
+            S.fxSeen = M().FxEnd(); S.awarded = false; S.awardLines.clear();
+            if (N.role == arcade::R_HOST) Me().pouch = GetProfile().pouch;   // (the host's Salt Charms; a guest's don't travel yet)
+        }
+        {   // your look (the Locker's suit and helmet, the Wardrobe's skin and costume) for your teammates' screens
+            const Profile& prof = GetProfile();
+            const skins::Wardrobe& wd = skins::Get(skins::REDTIDE);
+            std::string look = prof.suit + "|" + prof.helmet + "|" + wd.worn + "|" + wd.costume;
+            if (N.role == arcade::R_HOST) { DiverState& d = Me(); d.suit = prof.suit; d.helmet = prof.helmet; d.skin = wd.worn; d.costume = wd.costume; }
+            else if (look != S.lookSent && (S.lookT -= dt) <= 0) { Writer w; WriteLookAction(prof.suit, prof.helmet, wd.worn, wd.costume, w); N.Act(w); S.lookSent = look; S.lookT = 0.5f; }
+        }
+    } else if (S.mode == 1 && S.m && !M().divers.empty()) {
+        const Profile& prof = GetProfile(); const skins::Wardrobe& wd = skins::Get(skins::REDTIDE);
+        DiverState& d = Me(); d.suit = prof.suit; d.helmet = prof.helmet; d.skin = wd.worn; d.costume = wd.costume;
+    }
+    if (S.mode == 1 && !S.levelReady && IsWindowReady()) BuildLevelModel();
     S.time += dt;
     if (S.lineup < 0) {
         Input(dt);
         Match& m = M();
         if (S.mode == 0) { m.phase = TidePhase::Calm; m.phaseT = -1e9f; }   // the tank never tides
-        if (!S.freeze) m.Step(dt);
+        if (!S.freeze && !S.net) m.Step(dt);
         S.audioOn = !S.shotMode;
         SoundFrame(dt);
         DrainFx();
@@ -2151,7 +2272,10 @@ void SceneRedTide(Game& g) {
             ms.pages.assign(m.dossierSeen.begin(), m.dossierSeen.end()); ms.bonusPages = m.bonusEarned;
             S.awardLines = AwardMatch(ms, &S.awardTokens);
         }
-        if (m.over && !S.shotMode && IsKeyPressed(KEY_ENTER)) { StartRedTide(g, gRtMap.c_str()); return; }
+        if (m.over && !S.shotMode && IsKeyPressed(KEY_ENTER)) {
+            if (!S.net) { StartRedTide(g, gRtMap.c_str()); return; }
+            if (S.net->role == arcade::R_HOST) { std::string why; S.net->Rematch(&why); }   // (the same divers, the next match)
+        }
         DiverState& d = Me();
         S.bob += Vector3Length(d.vel) * dt * 2.2f;
         int z = m.eco.ZoneAt(d.pos);
@@ -2191,6 +2315,49 @@ void DebugRedTideShot(Game& g, int which) {
     if (S.studio >= 0) { S.time = 2.0f; g.scene = Scene::RedTide; return; }   // (the studio: 200 + its set)
     S.lineup = -1;
     S.silhouette = 0;
+    S.net = nullptr; S.live = nullptr; S.me = 0; S.fxSeen = 0;
+    if (which == 90) {
+        // a guest's screen in a networked match: a host and a guest over the in-memory transport and two AI divers; the
+        // guest's scene draws its mirror of the host's snapshot, its three teammates before it in their own costumes
+        static arcade::Session host, guest;
+        host.Leave(); guest.Leave();
+        std::string err;
+        arcade::Profile ph{"Host", 1}, pg{"Guest", 2};
+        host.Host(ph, arcade::G_RED_TIDE, &err, 47797, net::MakeMemoryTransport(), false);
+        host.gameOpts = "ship";
+        guest.Join(pg, "mem:47797", &err, 0, net::MakeMemoryTransport());
+        double t = 0;
+        auto pump = [&](int frames) { for (int i = 0; i < frames; i++) { t += 1 / 60.0; host.Update(t, 1 / 60.0f); guest.Update(t, 1 / 60.0f); } };
+        for (int i = 0; i < 120 && guest.stage != arcade::S_LOBBY; i++) pump(1);
+        host.AddAI(); host.AddAI(); guest.SetReady(true);
+        pump(30);
+        std::string why; host.Launch(&why);
+        pump(60 * 4);
+        if (Match* hm = RedTideHostMatch(host.HostGame())) {
+            int me = std::max(0, guest.MyPlayer());
+            DiverState& d = hm->divers[me];
+            int zi = hm->map->ZoneIndex("Grand Salon"); const Zone& z = hm->map->zones[zi];
+            d.pos = z.Clamp(Vector3Add({z.plan.x, z.y0, z.plan.y}, {2, 3, 2}), 0.6f);
+            Vector3 c = z.Center(); d.zone = zi; d.yaw = atan2f(c.x - d.pos.x, c.z - d.pos.z); d.pitch = -0.02f;
+            Vector3 f{sinf(d.yaw), 0, cosf(d.yaw)}, r{cosf(d.yaw), 0, -sinf(d.yaw)};
+            static const char* COS[4] = {"rc_lobster", "", "rc_jelly", "rc_hermit"};
+            for (int k = 0, n = 0; k < (int)hm->divers.size(); k++) {
+                DiverState& o = hm->divers[k];
+                o.invulnerable = true; o.bot = false; o.hp = o.hpMax; o.hurtT = 0; o.downed = false; o.dead = false; o.stunT = 0;
+                o.costume = COS[k % 4]; o.suit = k == 2 ? "verdigris" : ""; o.skin = k == 3 ? "r_salvage_orange" : "";
+                if (k == me) continue;
+                n++;
+                o.pos = z.Clamp(Vector3Add(d.pos, Vector3Add(Vector3Scale(f, 3.2f + n * 0.9f), Vector3Scale(r, (n - 2) * 1.7f))), 0.8f);
+                o.yaw = d.yaw + PI + (n - 2) * 0.5f; o.pitch = 0; o.vel = {0, 0, 0};
+                if (o.agent >= 0) hm->eco.agents[o.agent].pos = o.pos;
+            }
+            hm->phase = TidePhase::Calm; hm->phaseT = 0;
+        }
+        pump(6);
+        StartRedTideNet(g, &guest);
+        S.shotMode = true;
+        return;
+    }
     if (which < 10) {
         StartTank();
         S.shotMode = true;

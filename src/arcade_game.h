@@ -26,6 +26,7 @@ const GameInfo& Info(int game);
 class GameHost {
 public:
     virtual ~GameHost() = default;
+    virtual void Configure(const std::string& opts) { (void)opts; }   // the host's options, before Start (Red Tide: the map)
     virtual void Start(int players, uint32_t seed) = 0;
     virtual bool Act(int player, Reader& r) = 0;               // an action from `player` (already checked to be theirs): true if it changed the game
     virtual bool Tick(float dt, uint32_t aiPlayers) = 0;       // timers and the AI players (a bit per player): true if it changed the game
