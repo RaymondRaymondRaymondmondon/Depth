@@ -233,6 +233,40 @@ The spec: `Red_Tide_Reference/Red Tide — Visual Overhaul Spec.pdf` (25 pages, 
 - Note: `--redtide-profile-test` fails one check ("a curious fish comes to the flare's light"), an ecosystem check none
   of this touches; not investigated.
 
+## Costumes for both games (2026-10-02, after the user's note and A Night Off's examples)
+- **What they are:** whole outfits worn over the figure that change how it looks. The colour skins above stay as they
+  are, and a costume is worn over whatever skin is worn.
+- **The models:** `tools/artgen/costumes.py` builds 32 of them on crew.py's skeleton, which both games' figures share,
+  so one costume fits a sailor or a diver. Each is a padded suit grown round the skeleton (soft, weighted) plus rigid
+  pieces on single bones: hoods with the face open, shells, fins, claws, hats and props. They go to
+  `assets/shared/costumes/costume_<model>.glb`, about 6.5 MB in all.
+  `fig::DrawCostume` draws one over any figure with that figure's own skinning matrices, matched by bone name.
+- **The line-up, 20 per game** (`Costumes()` in skins_data.cpp), in A Night Off's tiers:
+  - Red Tide:
+    - common: Lobster Suit, Crab Shell, Puffed Up, Moon Jelly, Hermit's Lodgings, Starfish, Kelp Ghillie, Barnacled
+    - rare: Shark Suit, Octopus, Lantern Angler, Sea Turtle, the Drowned's Sheet, Living Reef
+    - super rare: Diving Bell, Contact Mine, Swordfish, Kraken Hood
+    - special: the Goliath, the Nautilus (a submarine round the waist, the periscope as a hat)
+  - The Trawl:
+    - common: Fish Costume, Lobster Suit, the Gull, the Sack, Sandwich Board, Life Ring, Scarecrow, the Big Sou'wester
+    - rare: Octopus, Crab, Mermaid Tail, Ghost Sheet, the Pirate, Lantern Angler
+    - super rare: Great White, the Marlin, Over a Barrel, Kraken Hood
+    - special: the Gannet (your boat round your waist), the Matriarch (an orca suit with three balloon orcas)
+- **Getting them (my call; the user may change it):** they're bought outright on the Wardrobe's new **Costumes** tab,
+  kept apart from the skins and their crates. Red Tide's cost 250 / 450 / 700 / 1000 tokens by tier; the Trawl's
+  350 / 650 / 1000 / 1500 in its own tokens. Hovering one tries it on in a live 3D preview of your figure
+  (`skins::gPreview`, set by each game).
+- **Where they show:**
+  - your figure in the Wardrobe;
+  - in the Trawl, every hand's figure: each player's skin and costume reach the boat by `CMD_WARDROBE` and travel in
+    the snapshot (`Crew::skin`, `Crew::costume`), so crewmates see them;
+  - in first person, the sleeves take the costume's colour.
+  - Not yet: Red Tide's other players (it has no networking yet), and the Trawl's top-down pixel figures.
+- **Checks:**
+  - `--skins-test` checks the counts, unique ids, a model for every costume, buying and wearing.
+  - Shots: `costumes_gallery_trawl` / `costumes_gallery_redtide` (`DEPTH_SKINPAGE=0..1`), `costumes_wardrobe_*`, and
+    the skins galleries `skins_gallery_*` (`DEPTH_SKINPAGE=0..7`).
+
 ## Afterwards (2026-10-02)
 - Teammates hold their current gun's baked model in third person (`DrawTeammate`).
 - Gas, needle, spear and gatling guns breathe out a burst of bubbles from the muzzle as they fire.

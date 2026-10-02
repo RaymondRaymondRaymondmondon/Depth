@@ -183,6 +183,25 @@ int RunSkinsTest() {
           TextFormat("crate odds over 10,000 rolls: common %d, rare %d, super rare %d, legendary %d", hist[COMMON], hist[RARE], hist[SUPER], hist[LEGEND]));
     w.owned = {"t_harbour_blue"};
     check(!Wear(TRAWL, "t_glimmer") && Wear(TRAWL, "t_harbour_blue") && WornColours(TRAWL).size() == 4 && Wear(TRAWL, "") && WornColours(TRAWL).empty(), "only owned skins can be worn; as issued has no colours");
+    // the costumes: 20 a game in A Night Off's tiers, unique ids, each one's model built; bought, worn, taken off
+    for (int g = 0; g < GAME_COUNT; g++) {
+        int n[RARITY_COUNT] = {}; std::vector<std::string> ids; bool models = true;
+        for (const auto& c : Costumes(g)) {
+            if (c.tier > 0 && c.tier < RARITY_COUNT) n[c.tier]++;
+            ids.push_back(c.id);
+            std::string path = std::string(GetApplicationDirectory()) + "../../assets/shared/costumes/costume_" + c.model + ".glb";
+            if (!FileExists(path.c_str()) && !FileExists((std::string("assets/shared/costumes/costume_") + c.model + ".glb").c_str())) { models = false; printf("  (no model for %s)\n", c.id); }
+        }
+        std::sort(ids.begin(), ids.end());
+        check(Costumes(g).size() == 20 && n[COMMON] == 8 && n[RARE] == 6 && n[SUPER] == 4 && n[LEGEND] == 2, TextFormat("%s: 20 costumes, 8/6/4/2", g ? "Red Tide" : "the Trawl"));
+        check(std::adjacent_find(ids.begin(), ids.end()) == ids.end() && models, "costume ids unique, every model built");
+    }
+    {
+        Wardrobe& w = Get(TRAWL); w.tokens = 400; w.costume = "";
+        check(!BuyCostume(TRAWL, "tc_shark") && !WearCostume(TRAWL, "tc_fish"), "a costume can't be bought short of tokens, or worn unowned");
+        check(BuyCostume(TRAWL, "tc_fish") && w.tokens == 50 && WornCostume(TRAWL) && WornCostume(TRAWL)->model == std::string("fish"), "buying one spends its price and wears it");
+        check(!BuyCostume(TRAWL, "tc_fish") && WearCostume(TRAWL, "") && !WornCostume(TRAWL), "it can't be bought twice; it comes off");
+    }
     printf(fails ? "skins-test: %d check(s) failed\n" : "skins-test: all checks passed\n", fails);
     gNoSave = false; gLoaded = false;
     return fails ? 1 : 0;

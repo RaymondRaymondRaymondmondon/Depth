@@ -299,6 +299,7 @@ struct Crew {
     bool skiffLine = false;                               // in the skiff: working her line instead of the oars (T)
     int charm = 0;                                        // the charm on a cord round this hand's neck (Charm); lost with a body lost at sea
     bool carrying = false; CatchRec carry;                // ashore: one thing in the arms (a fish, a chest, a crab)
+    std::string skin, costume;                            // the player's Wardrobe (skins.h ids, empty as issued): sent by CMD_WARDROBE, drawn for all
     int workOn = -1; float workT = 0;                     // ashore: digging a cache (its index) or relighting the fire (100)
     float tangleT = 0;                                    // (the Weeds) seconds a Kelp Wraith has had this hand by the ankle at the rail (0: free)
     float heldT = 0;                                      // (the Grotto) lured by an Angler's light or in a Drowned sailor's grip: moved by it, not by their own feet

@@ -7,6 +7,7 @@
 #include "trawl_session.h"
 #include "trawl_view3d.h"
 #include "trawl_net.h"
+#include "skins.h"
 #include "trawl_weapons.h"
 #include "sound.h"
 #include "arcade_session.h"
@@ -1664,6 +1665,12 @@ void SceneTrawl(Game& g) {
             S.eye.pitch = std::clamp(S.eye.pitch - md.y * 0.0025f, -1.35f, 1.25f);
             if (S.eye.yaw > PI) S.eye.yaw -= 2 * PI;
             if (S.eye.yaw < -PI) S.eye.yaw += 2 * PI;
+        }
+        {   // your Wardrobe's skin and costume, told to the boat (every hand sees them) whenever they differ, at most twice a second
+            static float wardT = 0; wardT -= dt;
+            const skins::Wardrobe& wd = skins::Get(skins::TRAWL);
+            std::string want = wd.worn + "|" + wd.costume;
+            if (want != me.skin + "|" + me.costume && wardT <= 0) { Command(CMD_WARDROBE, want); wardT = 0.5f; }
         }
         HandInput in = Gather();
         if (S.net) { Writer w; WriteInputAction(in, w); S.net->Act(w); }

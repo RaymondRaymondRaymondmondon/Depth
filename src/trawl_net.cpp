@@ -2,6 +2,7 @@
 // world's snapshot (one Visit walks every field the screens draw, for writing and for reading, so the two can never
 // disagree), the host's GameHost, and the tests: --trawl-net-test and --net-loop trawl.
 #include "trawl_net.h"
+#include "skins.h"
 #include "arcade_session.h"
 #include "net.h"
 #include "raymath.h"
@@ -185,6 +186,12 @@ bool DoCommand(TrawlWorld& w, int ci, int cmd, const std::string& id, int arg, s
         case CMD_GROUND: return s.SetGround(id, why);
         case CMD_ROLE_UP: if (!dock) return no("the chalkboard is on the quay"); return s.ChooseUp(ci, arg / 10, arg % 10, why);
         case CMD_CONSIGN_REWARD: if (s.phase != Phase::Result || !s.consignDone) return no("no consignment to be rewarded for"); s.consignReward = arg ? 1 : 0; return true;
+        case CMD_WARDROBE: {   // (each player's own skin and costume, as their Wardrobe has them: only known ids are taken)
+            size_t bar = id.find('|'); std::string sk = id.substr(0, bar), co = bar == std::string::npos ? "" : id.substr(bar + 1);
+            g.crew[ci].skin = sk.empty() || skins::Find(skins::TRAWL, sk) ? sk : "";
+            g.crew[ci].costume = co.empty() || skins::FindCostume(skins::TRAWL, co) ? co : "";
+            return true;
+        }
         case CMD_SELL: if (!dock) return no("the Fish Market is ashore"); if (g.hold.empty() || arg >= (int)g.hold.size()) return no("nothing to sell"); s.Sell(arg); return true;
         case CMD_GUN_BUY: if (!dock) return no("the Gunsmith is ashore"); return s.GunBuy(ci, id, why);
         case CMD_GUN_UPGRADE: if (!dock) return no("the Gunsmith is ashore"); return s.GunUpgrade(ci, arg, why);
@@ -368,7 +375,7 @@ template <class A> void Visit(A& a, TrawlWorld& w) {
     a.vec(g.crew, [&](Crew& c) {
         a.i(c.slot); a.b(c.bot); a.e(c.role); a.v2(c.p); a.v2(c.v); a.i(c.deck); a.i(c.station); a.f(c.z); a.f(c.vz);
         a.b(c.braced); a.b(c.fallen); a.b(c.overboard); a.f(c.fallT); a.f(c.strokeT); a.f(c.patchT); a.i(c.patchSec); a.i(c.patchKits);
-        a.f(c.carryKg); a.v2(c.facing);
+        a.f(c.carryKg); a.v2(c.facing); a.s(c.skin); a.s(c.costume);
         for (Slot& sl : c.slots) VisitSlot(a, sl);
         a.i(c.sel); a.f(c.cool); a.f(c.reloadT); a.i(c.injuries); a.i(c.serious);
         a.b(c.dead); a.b(c.bodyLost); a.v2(c.swim); a.f(c.drownT); a.f(c.cprT); a.u(c.ups); a.f(c.bleedT); a.s(c.cause); a.f(c.inkT); a.f(c.tangleT); a.f(c.heldT);

@@ -1162,9 +1162,12 @@ static SailorLook LookOf(const Crew& c) {
     static const Color HAIR[5] = {{40, 30, 24, 255}, {84, 56, 34, 255}, {150, 104, 60, 255}, {170, 160, 150, 255}, {120, 52, 30, 255}};
     L.hair = HAIR[(int)(R() * 4.99f)];
     float bd = R(); L.beard = bd < 0.35f ? 0 : bd < 0.6f ? 1 : bd < 0.82f ? 2 : 3;
-    if (c.slot == gLocalSlot)   // the skin you wear (skins.h): the oilskins or jacket, the trousers, the hat
-        for (const auto& w : skins::WornColours(skins::TRAWL)) { std::string m = w.material; if (m == "top") L.top = w.c; else if (m == "trousers") L.trousers = w.c; else if (m == "hat") L.hat = w.c; }
-    if (c.slot == gLocalSlot) if (const skins::Costume* k = skins::WornCostume(skins::TRAWL)) { L.costume = k->model; L.top = k->sleeve; }
+    // the skin and costume each player wears (skins.h): yours straight from your Wardrobe, everyone else's as their
+    // CMD_WARDROBE told the boat (Crew::skin, Crew::costume)
+    const skins::Skin* sk = c.slot == gLocalSlot ? skins::Find(skins::TRAWL, skins::Get(skins::TRAWL).worn) : skins::Find(skins::TRAWL, c.skin);
+    if (sk) { L.top = sk->top; L.trousers = sk->trousers; L.hat = sk->hat; }
+    const skins::Costume* co = c.slot == gLocalSlot ? skins::WornCostume(skins::TRAWL) : skins::FindCostume(skins::TRAWL, c.costume);
+    if (co) { L.costume = co->model; L.top = co->sleeve; }
     return L;
 }
 using SailorPose = fig::Pose;   // (the pose and its IK live in figure3d.cpp, shared with Red Tide's divers)
