@@ -760,8 +760,10 @@ static void DrawGun(const Camera3D& cam) {
             an.steps = std::max(0, w.mag - h.mag);
             an.loaded = h.mag > 0 || w.mag <= 0;
             an.gas = w.mag > 0 ? (float)h.mag / w.mag : 1;
-            Vector3 gR, gL;
-            DrawRtWeapon(wid, frame, an, tint, &gR, &gL, nullptr);
+            Vector3 gR, gL, mz;
+            DrawRtWeapon(wid, frame, an, tint, &gR, &gL, &mz);
+            // a shot: gas, needle and spear guns breathe out a burst of bubbles from the muzzle's vents (spec: "Firing underwater")
+            if (d.recoil > 0.9f && (w.cls == "gas" || w.cls == "needle" || w.cls == "spear" || w.cls == "lmg")) FxBubbles(mz, 4, 0.05f, 0.02f);
             if (wid == "twingannets") {   // the pair: a mirrored Gannet in the left fist
                 Matrix frame2 = MatrixMultiply(MatrixMultiply(MatrixMultiply(MatrixMultiply(MatrixTranslate(-g.x, -g.y, -g.z), MatrixScale(1.5f, 1.5f, -1.5f)), MatrixRotateY(-PI / 2)), MatrixTranslate(og.x + 0.27f, og.y, og.z)), gunM);
                 Vector3 g2; DrawRtWeapon(wid, frame2, an, tint, &g2, nullptr, nullptr); gL = g2;
