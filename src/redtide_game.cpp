@@ -1497,8 +1497,17 @@ static void DrawScene() {
         if (m.IsBoss(i) && m.bossGillsT > 0) tint = {255, 170, 150, 255};
         // states on the body (the spec's creature states): a badly wounded animal leaves a thread of blood in the water
         // behind it; a camouflaged one lying still goes the colour of the water round it until it moves
-        if (a.wound > 0.45f && Vector3Distance(a.pos, eye) < 25 && fmodf(S.time * (1.5f + a.wound * 3) + (a.rng % 97) * 0.01f, 1.0f) < GetFrameTime() * (1.5f + a.wound * 3))
-            Burst(Vector3Subtract(a.pos, Vector3Scale(Vector3Normalize(v), cm.length * (a.sp < (int)m.bodyScale.size() ? m.bodyScale[a.sp] : 1.0f) * 0.4f)), 1, BloodCol({120, 14, 14, 255}), 0.08f, 1.6f, 0.05f + a.wound * 0.05f);
+        // (what bleeds out of it: a Lost One's ichor, a Sentinel's oil, otherwise blood)
+        if (a.wound > 0.45f && Vector3Distance(a.pos, eye) < 25 && fmodf(S.time * (1.5f + a.wound * 3) + (a.rng % 97) * 0.01f, 1.0f) < GetFrameTime() * (1.5f + a.wound * 3)) {
+            Color bleed = sp.isEnemy && m.mapKey == "atlantis" ? Color{40, 130, 150, 255} : sp.isEnemy && m.mapKey == "void" ? Color{28, 26, 22, 255} : BloodCol({120, 14, 14, 255});
+            Burst(Vector3Subtract(a.pos, Vector3Scale(Vector3Normalize(v), cm.length * (a.sp < (int)m.bodyScale.size() ? m.bodyScale[a.sp] : 1.0f) * 0.4f)), 1, bleed, 0.08f, 1.6f, 0.05f + a.wound * 0.05f);
+        }
+        // silt: anything moving fast along the bottom kicks up a slow cloud of it
+        if (spd > 0.9f && Vector3Distance(a.pos, eye) < 22 && fmodf(S.time * 4 + (a.rng % 89) * 0.013f, 1.0f) < GetFrameTime() * 4) {
+            int za = m.eco.ZoneAt(a.pos);
+            if (za >= 0 && !m.map->zones[za].air && a.pos.y - m.map->zones[za].y0 < 0.6f)
+                Burst({a.pos.x, m.map->zones[za].y0 + 0.1f, a.pos.z}, 2, Color{120, 112, 92, 255}, 0.12f, 2.4f, 0.08f);
+        }
         if (sp.Has("camouflage") && (a.st == State::Rest || spd < 0.05f)) {
             Color w = L.fog;
             tint = {(unsigned char)((tint.r * 2 + w.r) / 3), (unsigned char)((tint.g * 2 + w.g) / 3), (unsigned char)((tint.b * 2 + w.b) / 3), 255};
