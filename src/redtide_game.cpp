@@ -381,7 +381,9 @@ static void ShipDressing(); void BuildLevelModel() {
 // binnacle; the funnel on the foredeck; barrels on the stern. (The models' frame: +x forward, +y up, the base at 0.)
 // the other maps' landmarks from their kits (maps_rt.py): statues in Atlantis's forum and gate, braziers in its chapel,
 // columns down its streets; giant clams on the reef's sand flats; glass sponges in the Void's galleries
+static std::vector<Vector3> gLabGlow;   // the Void's specimen tanks, lit from below each frame (DrawStations)
 static void MapDressing() {
+    gLabGlow.clear();
     const MapData& map = *M().map;
     const std::string& key = M().mapKey;
     auto put = [&](const char* id, Vector3 at, float sc, float yaw) {
@@ -399,6 +401,31 @@ static void MapDressing() {
             if (has("Sand") || has("Lagoon")) for (int k = 0; k < 3; k++) put("clam", {x0 + w * (0.2f + 0.3f * k), z.y0, z0 + h * (0.3f + 0.2f * (k % 2))}, 0.9f + 0.3f * k, k * 1.3f);
         } else if (key == "void") {
             if (has("Galler") || has("Warren")) for (int k = 0; k < 5; k++) put("sponge", {x0 + w * (0.15f + 0.17f * k), z.y0, z0 + h * (0.25f + 0.5f * (k % 2))}, 0.9f + 0.25f * (k % 3), k * 0.7f);
+            // the station's modules furnished (the spec: "the station's modules as models"): the labs lined with
+            // specimen tanks lit from below (gLabGlow) and benches down the middle; the mess with its bunks, tables and
+            // stores; the reactor's two generators
+            auto kitPut = [&](const char* path, Vector3 at, float sc, float yaw) { if (LoadAsset(path)) S.dress.push_back({path, MatrixMultiply(MatrixMultiply(MatrixScale(sc, sc, sc), MatrixRotateY(yaw)), MatrixTranslate(at.x, at.y, at.z)), WHITE}); };
+            bool alongX = w >= h;
+            float len = alongX ? w : h;
+            int n = std::clamp((int)(len / 2.8f), 2, 10);
+            auto along = [&](float u, float side) { return alongX ? Vector3{x0 + w * u, z.y0, side < 0 ? z0 + 1.2f : z0 + h - 1.2f} : Vector3{side < 0 ? x0 + 1.2f : x0 + w - 1.2f, z.y0, z0 + h * u}; };
+            if (has("Labs")) {
+                for (int k = 0; k < n; k++) for (int s = -1; s <= 1; s += 2) {
+                    Vector3 p = along((k + 0.5f) / n, (float)s);
+                    put("tank", p, 1.0f, 0);
+                    gLabGlow.push_back({p.x, p.y, p.z});
+                }
+                for (int k = 0; k < std::max(1, n / 2); k++) kitPut("redtide/stations/workbench.glb", alongX ? Vector3{x0 + w * (k + 0.5f) / std::max(1, n / 2), z.y0, cz} : Vector3{cx, z.y0, z0 + h * (k + 0.5f) / std::max(1, n / 2)}, 1.0f, alongX ? PI / 2 : 0);
+            }
+            if (has("Mess")) {
+                for (int k = 0; k < n; k++) kitPut("redtide/ship/bunk.glb", along((k + 0.5f) / n, -1), 1.0f, alongX ? 0 : PI / 2);
+                for (int k = 0; k < std::max(1, n / 3); k++) kitPut("redtide/ship/table.glb", {cx + (k - (n / 3 - 1) * 0.5f) * 3.0f * (alongX ? 1 : 0), z.y0, cz + (k - (n / 3 - 1) * 0.5f) * 3.0f * (alongX ? 0 : 1)}, 1.0f, k * 0.6f);
+                kitPut("redtide/ship/crate.glb", along(0.92f, 1), 1.0f, 0.3f); kitPut("redtide/ship/barrel.glb", along(0.08f, 1), 1.0f, 0);
+            }
+            if (has("Reactor")) {
+                for (int k = -1; k <= 1; k += 2) kitPut("redtide/ship/generator.glb", {cx + (alongX ? k * w * 0.22f : 0), z.y0, cz + (alongX ? 0 : k * h * 0.22f)}, 1.3f, alongX ? 0 : PI / 2);
+                for (int k = 0; k < 3; k++) kitPut("redtide/ship/barrel.glb", along(0.1f + k * 0.06f, 1), 1.0f, k);
+            }
         }
     }
 }
@@ -1068,6 +1095,12 @@ static bool DrawStationModel(const Match& m, const Station& s, bool dead) {
 static void DrawStations() {
     const Match& m = M();
     Vector3 eyeS = m.Eye(Me());
+    {   // the Void's specimen tanks: a cold light from the plinth up through each, the nearest three lighting the room
+        std::vector<std::pair<float, Vector3>> near;
+        for (const Vector3& g : gLabGlow) { float dd = Vector3Distance(g, eyeS); if (dd > 30) continue; DrawCubeGlow(MatrixMultiply(MatrixScale(0.78f, 0.04f, 0.78f), MatrixTranslate(g.x, g.y + 0.22f, g.z)), Color{120, 255, 210, 255}, 1.0f); near.push_back({dd, g}); }
+        std::sort(near.begin(), near.end(), [](const auto& a, const auto& b) { return a.first < b.first; });
+        for (int k = 0; k < (int)near.size() && k < 3; k++) AddLateLight(Vector3Add(near[k].second, {0, 1.0f, 0}), 6, Color{110, 240, 200, 255}, 0.9f);
+    }
     for (const auto& s : m.level.stations) {
         Vector3 p = s.pos;
         bool dead = s.needsPower && !m.power;
