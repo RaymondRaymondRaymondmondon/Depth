@@ -265,6 +265,8 @@ static void TakeShots(const Game& base, const std::string& dir) {
     {"tvis_10_boat_bow", [](Game& g) { DebugTrawlShot(g, 152); }},
     {"tvis_10_boat_stern", [](Game& g) { DebugTrawlShot(g, 153); }},
     {"tvis_10_boat_deck", [](Game& g) { DebugTrawlShot(g, 154); }},
+    {"tvis_11_fish", [](Game& g) { DebugTrawlShot(g, 155); }},
+    {"tvis_11_deck_catch", [](Game& g) { DebugTrawlShot(g, 156); }},
         {"tvis_4_sidearm_rain", [](Game& g) { DebugTrawlShot(g, 144); }},
         {"trawl3d_fishon", [](Game& g) { DebugTrawlShot(g, 104); }},
         {"trawl3d_jump", [](Game& g) { DebugTrawlShot(g, 105); }},

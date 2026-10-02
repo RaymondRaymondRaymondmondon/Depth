@@ -526,6 +526,82 @@ static void DrawFishAt(const Model& m, Vector3 p, Vector3 heading, float len, Co
     w = MatrixMultiply(w, MatrixMultiply(MatrixRotateY(yaw), MatrixTranslate(p.x, p.y, p.z)));
     rt::DrawStatic(m, w, c);
 }
+// ---- the baked fish (tools/artgen/fish.py): a body archetype per kind of fish, recoloured per species ('back',
+// 'belly', 'fin'), swum on its four-bone spine. Only fish near the eye get one (a per-frame budget); the rest, and
+// anything that isn't a fish, keep the old unit model.
+static const char* FishArchOf(const std::string& n) {
+    struct A { const char* k; const char* a; };
+    static const A T[] = {
+        {"shark", "shark"}, {"dogfish", "shark"}, {"great white", "shark"}, {"sturgeon", "shark"}, {" ray", "ray"},
+        {"halibut", "flat"}, {"swordfish", "billfish"}, {"marlin", "billfish"}, {"barracuda", "pike"}, {"lingcod", "pike"},
+        {"eel", "eel"}, {"conger", "eel"}, {"hagfish", "eel"}, {"oarfish", "eel"},
+        {"tuna", "tuna"}, {"bluefin", "tuna"}, {"bonito", "tuna"}, {"skipjack", "tuna"}, {"mackerel", "tuna"}, {"yellowtail", "tuna"},
+        {"jack", "tuna"}, {"mahi", "tuna"}, {"silverside", "herring"}, {"sardine", "herring"}, {"anchovy", "herring"},
+        {"flying fish", "herring"}, {"lantern fish", "herring"}, {"barreleye", "herring"},
+        {"surgeon", "deep"}, {"trigger", "deep"}, {"opah", "deep"}, {"sunfish", "deep"},
+        {"snapper", "perch"}, {"grunt", "perch"}, {"grouper", "perch"}, {"bass", "perch"}, {"sheephead", "perch"}, {"rockfish", "perch"},
+        {"perch", "perch"}, {"opaleye", "perch"}, {"parrotfish", "perch"}, {" cod", "perch"}, {"cavefish", "perch"}, {"coelacanth", "perch"},
+        {"angler", "perch"}};
+    std::string s = " " + n;
+    for (const auto& x : T) if (s.find(x.k) != std::string::npos) return x.a;
+    return nullptr;
+}
+static const Model* FishModelOf(const std::string& species) {
+    const char* a = FishArchOf(species);
+    return a ? rt::LoadAsset(std::string("trawl/fish/fish_") + a + ".glb") : nullptr;
+}
+static void FishColours(const std::string& n, Color fallback, Color* back, Color* belly) {
+    struct FC { const char* k; Color back, belly; };
+    static const FC T[] = {
+        {"mahi", {40, 120, 70, 255}, {210, 190, 60, 255}}, {"vermilion", {180, 50, 40, 255}, {225, 140, 120, 255}},
+        {"snapper", {170, 64, 52, 255}, {225, 160, 150, 255}}, {"parrotfish", {40, 140, 130, 255}, {130, 200, 180, 255}},
+        {"yellowfin", {25, 36, 70, 255}, {210, 205, 170, 255}}, {"bluefin", {22, 32, 72, 255}, {200, 205, 212, 255}},
+        {"skipjack", {32, 42, 72, 255}, {205, 208, 214, 255}}, {"bonito", {42, 62, 82, 255}, {205, 208, 214, 255}},
+        {"mackerel", {40, 92, 90, 255}, {215, 218, 218, 255}}, {"yellowtail", {70, 90, 104, 255}, {225, 212, 150, 255}},
+        {"jack", {70, 86, 96, 255}, {210, 205, 170, 255}}, {"sheephead", {32, 26, 32, 255}, {200, 80, 66, 255}},
+        {"gold", {170, 130, 40, 255}, {225, 195, 95, 255}}, {"grouper", {92, 82, 62, 255}, {160, 150, 120, 255}},
+        {"bass", {72, 72, 62, 255}, {175, 170, 155, 255}}, {"great white", {92, 98, 106, 255}, {235, 235, 230, 255}},
+        {"leopard", {124, 112, 90, 255}, {222, 212, 192, 255}}, {"shark", {92, 102, 112, 255}, {222, 222, 216, 255}},
+        {"dogfish", {100, 100, 96, 255}, {210, 206, 196, 255}}, {" ray", {72, 62, 52, 255}, {222, 216, 210, 255}},
+        {"ghost", {190, 192, 196, 255}, {232, 232, 232, 255}}, {"halibut", {92, 82, 62, 255}, {230, 226, 216, 255}},
+        {"barracuda", {82, 96, 106, 255}, {214, 218, 222, 255}}, {"swordfish", {44, 42, 62, 255}, {185, 185, 195, 255}},
+        {"marlin", {22, 42, 92, 255}, {205, 208, 218, 255}}, {"moray", {84, 92, 42, 255}, {150, 152, 82, 255}},
+        {"conger", {200, 200, 196, 255}, {232, 232, 228, 255}}, {"opah", {164, 72, 82, 255}, {205, 145, 145, 255}},
+        {"sunfish", {140, 142, 144, 255}, {205, 205, 205, 255}}, {"coelacanth", {42, 62, 92, 255}, {125, 142, 162, 255}},
+        {"surgeon", {42, 62, 122, 255}, {84, 104, 152, 255}}, {"trigger", {92, 82, 62, 255}, {155, 145, 122, 255}},
+        {"oarfish", {205, 205, 214, 255}, {225, 225, 232, 255}}, {"cave", {200, 196, 200, 255}, {230, 226, 230, 255}},
+        {"pale", {196, 196, 192, 255}, {228, 228, 224, 255}}, {"lingcod", {92, 96, 70, 255}, {180, 182, 150, 255}},
+        {"sturgeon", {120, 118, 110, 255}, {210, 208, 200, 255}}, {"angler", {60, 50, 46, 255}, {110, 96, 88, 255}}};
+    std::string s = " " + n;
+    for (const auto& x : T) if (s.find(x.k) != std::string::npos) { *back = x.back; *belly = x.belly; return; }
+    *back = fallback;
+    *belly = {(unsigned char)std::min(255, fallback.r / 2 + 115), (unsigned char)std::min(255, fallback.g / 2 + 118), (unsigned char)std::min(255, fallback.b / 2 + 120), 255};
+}
+static int gFishBudget = 0;   // the baked fish left this frame
+// A baked fish: 'swim' is its phase, 'amp' how hard it beats its tail (a flop on deck is a big slow one); 'dim' the
+// water's darkening. Returns false (and draws nothing) when there's no model or the frame's budget is spent.
+static bool DrawFishPbr(const std::string& species, Vector3 p, Vector3 heading, float len, float roll, float swim, float amp, Color fallback, float dim = 1) {
+    if (gFishBudget <= 0 || getenv("DEPTH_OLDBOAT")) return false;
+    const Model* m = FishModelOf(species);
+    if (!m) return false;
+    gFishBudget--;
+    const rt::RigInfo& R = rt::RigOf(*m);
+    rt::RigPose P; P.Reset((int)R.parent.size());
+    for (int k = 0; k < 4; k++) {
+        int b = R.Find(TextFormat("s%d", k));
+        if (b >= 0) P.rot[b] = QuaternionFromAxisAngle({0, 1, 0}, amp * sinf(swim - k * 1.25f) * (0.25f + 0.3f * k));
+    }
+    auto sk = rt::SolveRig(R, P);
+    float yaw = atan2f(heading.x, heading.z), pitch = atan2f(heading.y, sqrtf(heading.x * heading.x + heading.z * heading.z));
+    Matrix w = MatrixMultiply(MatrixScale(len, len, len), MatrixRotateZ(roll));
+    w = MatrixMultiply(w, MatrixRotateX(-pitch));
+    w = MatrixMultiply(w, MatrixMultiply(MatrixRotateY(yaw), MatrixTranslate(p.x, p.y, p.z)));
+    Color back, belly; FishColours(species, fallback, &back, &belly);
+    Color fin = Mul(back, 0.8f);
+    unsigned char d = (unsigned char)std::clamp(dim * 255.0f, 0.0f, 255.0f);
+    rt::DrawPbrSkinned(*m, w, sk, {{"back", back}, {"belly", belly}, {"fin", fin}}, 0.0f, Color{d, d, d, 255});
+    return true;
+}
 static Color SpeciesTint(const SpeciesRec& r) {
     Color base = r.cls == "jelly" ? Color{190, 200, 230, 255} : r.cls == "reptile" ? Color{80, 110, 70, 255} : r.cls == "invert" ? Color{170, 110, 90, 255}
                : r.tier == 1 ? Color{170, 190, 200, 255} : r.tier >= 4 ? Color{70, 80, 90, 255} : Color{120, 140, 130, 255};
@@ -675,7 +751,9 @@ static void DrawSkiff3D(const Gannet& g, float t) {
             Vector2 bw = g.skiff.ToWorld({-3.2f - i * 0.9f, 0.3f * (i % 2 ? 1 : -1)});
             Vector3 b = W3(bw, g.sea.Height(bw.x, bw.y) + 0.05f);
             Seg(a, b, 0.012f, Color{200, 190, 160, 255});
-            DrawFishAt(gFish, b, Vector3Normalize(Vector3Subtract(b, a)), std::clamp(0.4f + sqrtf(g.towed[i].kg) * 0.25f, 0.6f, 3.0f), Color{150, 158, 164, 255}, 1.5f);
+            float tl = std::clamp(0.4f + sqrtf(g.towed[i].kg) * 0.25f, 0.6f, 3.0f);
+            if (!DrawFishPbr(g.towed[i].name, b, Vector3Normalize(Vector3Subtract(b, a)), tl, 1.5f, t * 2, 0.08f, Color{150, 158, 164, 255}, 0.8f))
+                DrawFishAt(gFish, b, Vector3Normalize(Vector3Subtract(b, a)), tl, Color{150, 158, 164, 255}, 1.5f);
         }
     }
     // her load: fish and salvage in the bottom
@@ -683,7 +761,8 @@ static void DrawSkiff3D(const Gannet& g, float t) {
         float x = -0.6f - (float)(i % 4) * 0.35f, z = -0.3f + (float)(i / 4) * 0.3f;
         float len = std::clamp(0.3f + sqrtf(s.load[i].kg) * 0.22f, 0.3f, 1.4f);
         if (s.load[i].junk) rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(0.25f, 0.18f, 0.2f), MatrixTranslate(x, -0.12f, z)), M), Color{110, 100, 80, 255});
-        else DrawFishAt(gFish, Vector3Transform({x, -0.15f, z}, M), Vector3Normalize({1, 0, 0.2f}), len, Color{170, 178, 184, 255}, 1.5f);
+        else if (!DrawFishPbr(s.load[i].name, Vector3Transform({x, -0.15f, z}, M), Vector3Normalize({1, 0, 0.2f}), len, 1.5f, 0, 0, Color{170, 178, 184, 255}, 0.85f))
+            DrawFishAt(gFish, Vector3Transform({x, -0.15f, z}, M), Vector3Normalize({1, 0, 0.2f}), len, Color{170, 178, 184, 255}, 1.5f);
     }
 }
 
@@ -1471,6 +1550,35 @@ void DrawTrawlStudio(int which, float t) {
             float sc = std::clamp(0.24f / std::max(0.05f, ext), 0.2f, 3.0f);
             for (int k = 0; k < 3; k++) rt::DrawPbrParts(*m, MatrixMultiply(MatrixScale(sc, sc, sc), MatrixMultiply(MatrixRotateY(k == 1 ? 0.0f : 0.35f), MatrixTranslate((k - 1) * 0.29f - 0.03f, -0.03f, 0))), PoseWeapon(*A, st[k]), WHITE);
         }
+    } else if (which == 11) {
+        // a catch on the Gannet's deck by the gutting table under the lamp: lying on their sides, one arched in a slap
+        EnsureModels();
+        cam.position = {-1.2f, DECK_Y + 1.5f, 0.2f}; cam.target = {-2.3f, DECK_Y, 1.5f}; cam.fovy = 50;
+        lantern({-2.2f, DECK_Y + 3.0f, 1.0f}, {-2.3f, DECK_Y, 1.5f}); L.lampRange = 8; L.lampCone = 0.3f;
+        L.filmic = 1; L.exposure = 1.1f; L.aoK = 0.75f; L.aoRadius = 0.4f; L.outline = 0; L.stipple = 0;
+        rt::RenderBegin(cam, L);
+        if (const Model* bm = rt::LoadAsset("trawl/boat.glb")) rt::DrawPbr(*bm, MatrixIdentity());
+        gFishBudget = 8;
+        static const char* SP[4] = {"snapper", "mahi-mahi", "bonito", "kelp bass"};
+        static const Vector3 AT[4] = {{-2.6f, 0, 1.2f}, {-1.9f, 0, 0.9f}, {-3.0f, 0, 1.75f}, {-2.1f, 0, 1.6f}};
+        for (int k = 0; k < 4; k++) {
+            float arch = k == 1 ? 0.8f : 0;
+            Vector3 hd = Vector3Normalize({cosf(k * 1.9f), arch * 0.5f, sinf(k * 1.9f)});
+            DrawFishPbr(SP[k], {AT[k].x, DECK_Y + 0.06f + arch * 0.1f, AT[k].z}, hd, k == 1 ? 0.9f : 0.5f, 1.5f + arch * 0.4f, t * 18 + k, k == 1 ? 0.9f : 0.12f, GRAY);
+        }
+    } else if (which == 10) {
+        // the fish: one species of each body archetype, mid-stroke, in two rows (DEPTH_FISHPHASE moves the stroke)
+        static const char* SP[10] = {"bluefin tuna", "mahi-mahi", "snapper", "sheephead", "opah", "moray eel", "reef shark", "bat ray", "halibut", "blue marlin"};
+        cam.position = {0, 1.1f, 4.6f}; cam.target = {0, 0.0f, 0}; cam.fovy = 40;
+        lantern({-2, 4, 4}, {0, 0, 0});
+        L.AddPoint({2.5f, 1.5f, 2}, 7, {200, 220, 255, 255}, 0.5f);
+        rt::RenderBegin(cam, L);
+        gFishBudget = 20;
+        float ph = getenv("DEPTH_FISHPHASE") ? (float)atof(getenv("DEPTH_FISHPHASE")) : 0.8f;
+        for (int k = 0; k < 10; k++) {
+            float x = (k % 5 - 2) * 1.25f, y = k < 5 ? 0.55f : -0.6f;
+            DrawFishPbr(SP[k], {x, y, 0}, {1, 0, 0.35f}, 1.05f, 0, ph + k, 0.3f, GRAY);
+        }
     } else if (which >= 7 && which <= 9) {
         // the Gannet on a still dark sea: off her starboard bow, off her port quarter, and over her deck from aloft
         // (DEPTH_OLDBOAT=1 draws the old box model for the before and after)
@@ -1513,6 +1621,7 @@ void DrawTrawlStudio(int which, float t) {
 void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, const Camera3D& cam, float ghostSee) {
     EnsureModels(); EnsureSea(); EnsureLand(eco);
     if (!gReady || !gSeaReady) return;
+    gFishBudget = 36;
     const Boat& b = g.boat;
     const Crew& me = g.crew[you];
     float t = g.time;
@@ -1730,14 +1839,18 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
             for (size_t i = 1; i < f.node.size(); i++) { Vector3 q = WD(f.node[i]); Seg(prev, q, 0.014f, lc); prev = q; }
             float len = std::clamp(0.35f + sqrtf(f.spec.kg) * 0.22f, 0.4f, 4.5f);
             Color fc = f.jumpT >= 0 ? Color{200, 215, 225, 255} : Color{70, 96, 110, 255};
-            DrawFishAt(gFish, WD(f.p), {f.h.x, -f.h.z, f.h.y}, len, fc, f.alongside ? 1.3f : 0);
+            float beat = std::clamp(0.3f + f.tension / std::max(1.0f, f.Strength()) * 0.5f, 0.3f, 0.8f);
+            if (!DrawFishPbr(f.spec.name, WD(f.p), {f.h.x, -f.h.z, f.h.y}, len, f.alongside ? 1.3f : 0, t * (f.alongside ? 4.0f : 11.0f), f.alongside ? 0.2f : beat, fc))
+                DrawFishAt(gFish, WD(f.p), {f.h.x, -f.h.z, f.h.y}, len, fc, f.alongside ? 1.3f : 0);
         }
     }
     if (g.harpoon.state == RodState::Fighting) {
         const Fight& f = g.harpoon.fight;
         Vector3 prev = BoatPoint(b, {10.6f, DECK_Y + 1.06f, 0});
         for (size_t i = 1; i < f.node.size(); i++) { Vector3 q = WD(f.node[i]); Seg(prev, q, 0.02f, Color{120, 110, 90, 255}); prev = q; }
-        DrawFishAt(gFish, WD(f.p), {f.h.x, -f.h.z, f.h.y}, std::clamp(0.35f + sqrtf(f.spec.kg) * 0.22f, 0.4f, 4.5f), Color{60, 70, 80, 255});
+        float hl = std::clamp(0.35f + sqrtf(f.spec.kg) * 0.22f, 0.4f, 4.5f);
+        if (!DrawFishPbr(f.spec.name, WD(f.p), {f.h.x, -f.h.z, f.h.y}, hl, 0, t * 9, 0.6f, Color{60, 70, 80, 255}))
+            DrawFishAt(gFish, WD(f.p), {f.h.x, -f.h.z, f.h.y}, hl, Color{60, 70, 80, 255});
     }
     // ---- the net, set gear, rings, shots, flares, shot fish afloat
     const Trawl& n = g.net;
@@ -1866,7 +1979,11 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
         if (!h.dead && h.airT > 0) { float s = sinf(h.airT / 0.45f * 3.1416f); hop = std::max(hop, s * 0.35f); arch = std::max(arch, s); }   // (thrown across the deck by a flop)
         Vector3 hd = Vector3Normalize(BoatDir(b, {cosf(h.heading), arch * 0.5f, sinf(h.heading)}));   // (lying the way the sim has it: its head is where a headshot lands)
         Color col = h.dead ? Color{150, 158, 164, 255} : Color{196, 206, 214, 255};
-        DrawFishAt(gFish, BoatPoint(b, {h.deckAt.x, DECK_Y + 0.06f + hop, h.deckAt.y}), hd, len, col, 1.5f + arch * 0.4f);
+        Vector3 at = BoatPoint(b, {h.deckAt.x, DECK_Y + 0.06f + hop, h.deckAt.y});
+        // (a live fish on deck lies gasping, its tail twitching, and arches through a slap; the dead lie still and dull)
+        float twitch = h.dead ? 0.0f : 0.12f + arch * 0.9f;
+        if (!DrawFishPbr(h.name, at, hd, len, 1.5f + arch * 0.4f, g.time * (arch > 0 ? 18.0f : 5.0f) + i, twitch, col, h.dead ? 0.8f : 1.0f))
+            DrawFishAt(gFish, at, hd, len, col, 1.5f + arch * 0.4f);
     }
     // ---- the web's life: schools and hunters in the water, gulls over it
     if (eco) {
@@ -1904,13 +2021,17 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
                 for (int k = 0; k < nd; k++) {
                     float ang = H01((int)i, k, 11) * 6.2832f, rr = sqrtf(H01(k, (int)i, 12)) * spread;
                     Vector3 q{p2.x + cosf(ang) * rr + sinf(t * 2 + k) * 0.15f, -depth - H01(k, (int)i, 13) * spread * 0.4f, p2.y + sinf(ang) * rr};
-                    DrawFishAt(jelly ? gJelly : gFish, q, hd, jelly ? len * 1.4f : len, c);
+                    bool nearEye = !jelly && Vector3Distance(q, cam.position) < 15;
+                    if (!nearEye || !DrawFishPbr(r.name, q, hd, len, 0, t * 12 + k * 1.7f, 0.3f, SpeciesTint(r), 0.4f + 0.6f * dim))
+                        DrawFishAt(jelly ? gJelly : gFish, q, hd, jelly ? len * 1.4f : len, c);
                 }
             } else {
                 float len = std::clamp(0.3f + sqrtf(r.MeanKg()) * 0.3f, 0.3f, 3.5f);
                 for (int k = 0; k < a.count; k++) {
                     Vector3 q{p2.x + H01((int)i, k, 5) * 1.2f - 0.6f, -depth, p2.y + H01(k, (int)i, 6) * 1.2f - 0.6f};
-                    DrawFishAt(jelly ? gJelly : gFish, q, hd, len, c);
+                    bool nearEye = !jelly && Vector3Distance(q, cam.position) < 25;
+                    if (!nearEye || !DrawFishPbr(r.name, q, hd, len, 0, t * (r.size >= 4 ? 3.0f : 7.0f) + k * 1.3f + i, 0.28f, SpeciesTint(r), 0.4f + 0.6f * dim))
+                        DrawFishAt(jelly ? gJelly : gFish, q, hd, len, c);
                 }
             }
         }
