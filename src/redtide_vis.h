@@ -28,6 +28,7 @@ bool DrawVmArms(const Model& m, const Camera3D& cam, const Matrix* handR, const 
 // the creature kit (phase 5): a fish-shaped species drawn on the shared rigged fish, swum on its spine and painted
 // from its record; false (draw the CreatureBuilder model) when it isn't a fish plan or the frame's budget is spent
 void CreatureBudget(int n);
+void CreatureRoll(float r);   // creature draws after this are rolled about their length (0 upright; a corpse belly-up)
 bool DrawCreaturePbr(const CreatureModel& cm, Vector3 pos, float yaw, float pitch, float scale, float phase, float inten, Color tint);
 bool DrawBossPbr(int kind, const CreatureModel& cm, Vector3 pos, float yaw, float pitch, float scale, float phase, float inten, Color tint, float hot);
 

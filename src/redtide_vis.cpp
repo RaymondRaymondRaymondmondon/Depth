@@ -230,6 +230,8 @@ static const char* ArchFor(const CreatureModel& cm) {
 }
 static int gCreatureBudget = 0;
 void CreatureBudget(int n) { gCreatureBudget = n; }
+static float gCreatureRoll = 0;
+void CreatureRoll(float r) { gCreatureRoll = r; }   // (the next creature draws rolled about their length: a corpse belly-up)
 // the other body plans (tools/artgen/creatures_rt.py), posed here: the crab's legs step in alternate pairs and its
 // pincers open and shut, the shrimp curls its tail, the cephalopod's arms trail in waves, the jelly's bell pulses
 // and its tentacles sway, the turtle beats its front flippers, the cetacean's spine undulates up and down
@@ -312,7 +314,7 @@ static bool DrawPlanPbr(const CreatureModel& cm, const char* plan, Vector3 pos, 
     }
     std::vector<Matrix> sk = SolveRig(R, P);
     float len = std::max(0.05f, cm.length * scale);
-    Matrix w = MatrixMultiply(MatrixMultiply(MatrixScale(len, len, len), MatrixRotateX(-pitch)), MatrixMultiply(MatrixRotateY(yaw), MatrixTranslate(pos.x, pos.y, pos.z)));
+    Matrix w = MatrixMultiply(MatrixMultiply(MatrixMultiply(MatrixScale(len, len, len), MatrixRotateZ(gCreatureRoll)), MatrixRotateX(-pitch)), MatrixMultiply(MatrixRotateY(yaw), MatrixTranslate(pos.x, pos.y, pos.z)));
     Color fin = cm.accent.a > 0 ? cm.accent : Color{(unsigned char)(cm.base.r * 0.8f), (unsigned char)(cm.base.g * 0.8f), (unsigned char)(cm.base.b * 0.8f), 255};
     DrawPbrSkinned(*m, w, sk, {{"back", cm.base}, {"belly", cm.belly}, {"fin", fin}, {"gill", gill}}, 0.2f, tint);
     return true;
@@ -340,7 +342,7 @@ bool DrawCreaturePbr(const CreatureModel& cm, Vector3 pos, float yaw, float pitc
     }
     std::vector<Matrix> sk = SolveRig(R, P);
     float len = std::max(0.05f, cm.length * scale);
-    Matrix w = MatrixMultiply(MatrixMultiply(MatrixScale(len, len, len), MatrixRotateX(-pitch)), MatrixMultiply(MatrixRotateY(yaw), MatrixTranslate(pos.x, pos.y, pos.z)));
+    Matrix w = MatrixMultiply(MatrixMultiply(MatrixMultiply(MatrixScale(len, len, len), MatrixRotateZ(gCreatureRoll)), MatrixRotateX(-pitch)), MatrixMultiply(MatrixRotateY(yaw), MatrixTranslate(pos.x, pos.y, pos.z)));
     Color fin = cm.accent.a > 0 ? cm.accent : Color{(unsigned char)(cm.base.r * 0.8f), (unsigned char)(cm.base.g * 0.8f), (unsigned char)(cm.base.b * 0.8f), 255};
     DrawPbrSkinned(*m, w, sk, {{"back", cm.base}, {"belly", cm.belly}, {"fin", fin}}, 0.0f, tint);
     return true;

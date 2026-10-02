@@ -1477,6 +1477,25 @@ static void DrawScene() {
             } else DrawWorldCube(c.fallen ? Vector3{c.pos.x, c.pos.y - 0.6f, c.pos.z} : Vector3{c.pos.x, c.pos.y + std::max(0.0f, c.t) * 3 + 0.4f, c.pos.z}, {1.2f, 1.2f, 1.2f}, {120, 92, 60, 255});
         }
     }
+    // the dead (the spec: "corpses sink and get picked over"): belly up on their own model, settling to the bottom,
+    // paling as they age; jerked about while something feeds on them, a puff of blood each time
+    CreatureBudget(16);
+    for (const auto& c : m.eco.corpses) {
+        if (!c.active || c.sp < 0 || c.sp >= (int)m.map->species.size() || Vector3Distance(c.pos, eye) > 30) continue;
+        const CreatureModel& cm = Creature(m.artKey, m.ArtName(c.sp));
+        int zc = c.zone >= 0 && c.zone < (int)m.map->zones.size() ? c.zone : m.eco.ZoneAt(c.pos);
+        float floorY = zc >= 0 ? m.map->zones[zc].y0 + 0.15f : c.pos.y - 2;
+        Vector3 at{c.pos.x, std::max(floorY, c.pos.y - c.age * 0.35f), c.pos.z};
+        float jerk = c.feeders > 0 ? sinf(S.time * 17 + c.pos.x) * 0.05f : 0;
+        at.x += jerk;
+        if (c.feeders > 0 && fmodf(S.time * 2 + c.pos.z, 1.0f) < GetFrameTime() * 2) Burst(at, 1, BloodCol({110, 14, 14, 255}), 0.1f, 1.4f, 0.06f);
+        float pale = std::clamp(c.age / 40.0f, 0.0f, 0.6f);
+        Color tint{(unsigned char)(255 - 90 * pale), (unsigned char)(255 - 80 * pale), (unsigned char)(255 - 70 * pale), 255};
+        float bsc = c.sp < (int)m.bodyScale.size() ? m.bodyScale[c.sp] : 1.0f;
+        CreatureRoll(2.6f + jerk * 3);
+        if (!DrawCreaturePbr(cm, at, (float)((int)(c.pos.x * 13 + c.pos.z * 7) % 628) * 0.01f, 0, bsc, 0, 0.0f, tint)) { CreatureRoll(0); DrawCreature(cm, at, 0, 0, bsc, 0, 0, tint); }
+        CreatureRoll(0);
+    }
     CreatureBudget(60);   // (the nearest fish on the rigged models: the Visual Overhaul's creature kit)
     for (int i = 0; i < (int)m.eco.agents.size(); i++) {
         const Agent& a = m.eco.agents[i];
@@ -2119,6 +2138,15 @@ void DebugRedTideShot(Game& g, int which) {
             if (const char* st = getenv("DEPTH_STATION")) {   // (DEPTH_STATION=tonic|locker|forge|power|workbench|cache: stand before the first one)
                 static const char* N[] = {"rack", "tonic", "locker", "forge", "power", "workbench", "trap", "quest", "cleaning", "feature", "hazard", "entry", "boss", "queststep", "cache"};
                 int want = -1; for (int k = 0; k < 15; k++) if (std::string(st) == N[k]) want = k;
+                if (std::string(st) == "corpse") {   // (two of the dead before you: a fresh one, one being picked over)
+                    Vector3 f{sinf(d.yaw), 0, cosf(d.yaw)}, r{cosf(d.yaw), 0, -sinf(d.yaw)};
+                    int fish = -1; for (int i = 0; i < (int)m.map->species.size(); i++) if (!m.map->species[i].isEnemy && m.map->species[i].size >= 3 && Creature(m.artKey, m.ArtName(i)).plan == "fusiform") { fish = i; break; }
+                    for (int k = 0; k < 2 && fish >= 0; k++) {
+                        Corpse c; c.sp = fish; c.pos = Vector3Add(d.pos, Vector3Add(Vector3Scale(f, 4), Vector3Scale(r, k ? 1.2f : -1.2f))); c.zone = d.zone; c.age = k ? 25 : 1; c.feeders = k; c.active = true; c.life = 120; c.bloodLeft = 30;
+                        m.eco.corpses.push_back(c);
+                    }
+                    d.pitch = -0.25f;
+                }
                 if (std::string(st) == "traps") {   // (the set pieces before you: a crate and a stalactite each falling, each fallen)
                     Vector3 f{sinf(d.yaw), 0, cosf(d.yaw)}, r{cosf(d.yaw), 0, -sinf(d.yaw)};
                     int zi = d.zone; float y0 = zi >= 0 ? m.map->zones[zi].y0 : d.pos.y - 1;
