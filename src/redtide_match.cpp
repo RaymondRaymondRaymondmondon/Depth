@@ -469,7 +469,7 @@ float Match::Rand() { rng ^= rng << 13; rng ^= rng >> 17; rng ^= rng << 5; retur
 
 // ---------------------------------------------------------------- the modes (design doc, "Modes")
 const char* ModeName(int m) {
-    static const char* N[RM_COUNT] = {"Red Tide", "Blackout", "Quiet Water", "Feeding Frenzy", "Apex", "Quota", "Aquarium", "Salvage Run", "Draft", "Poachers", "The Long Night"};
+    static const char* N[RM_COUNT] = {"Red Tide", "Blackout", "Quiet Water", "Feeding Frenzy", "Apex", "Quota", "Aquarium", "Salvage Run", "Draft", "Poachers", "The Long Night", "Custom"};
     return m >= 0 && m < RM_COUNT ? N[m] : N[0];
 }
 const char* ModeRules(int m) {
@@ -485,11 +485,12 @@ const char* ModeRules(int m) {
         "Each diver is dealt two guns from a shared pool. No Locker, no racks: more guns only from the enemies you kill.",
         "Two pairs work the same water for twenty minutes; the richer pair wins. No one can hurt a rival, but a chum bag on them brings the beasts.",
         "Four hours, kept between sessions: leave whenever you like and the tides go on where they stopped next time. A wipe ends it.",
+        "Your own water: every tide's quota, health, bounty, damage, alarm, spawns, blood, bonus and calm on sliders, and the faction, the boss and the flora hazards switched on or off.",
     };
     return m >= 0 && m < RM_COUNT ? R[m] : R[0];
 }
 const char* ModeKey(int m) {
-    static const char* K[RM_COUNT] = {"standard", "blackout", "quiet", "frenzy", "apex", "quota", "aquarium", "salvage", "draft", "poachers", "longnight"};
+    static const char* K[RM_COUNT] = {"standard", "blackout", "quiet", "frenzy", "apex", "quota", "aquarium", "salvage", "draft", "poachers", "longnight", "custom"};
     return m >= 0 && m < RM_COUNT ? K[m] : K[0];
 }
 int ModeFromKey(const std::string& k) { for (int m = 0; m < RM_COUNT; m++) if (k == ModeKey(m)) return m; return RM_STANDARD; }
@@ -681,13 +682,14 @@ static Held NewHeld(int def, bool forged) {
     return h;
 }
 
-void Match::Init(const std::string& key, int playerCount, uint32_t seed, bool bots) { InitMap(MapSeason(key, season), key, playerCount, seed, bots); }
+void Match::Init(const std::string& key, int playerCount, uint32_t seed, bool bots) { InitMap(mode == RM_CUSTOM ? MapCustom(key, season, custom) : MapSeason(key, season), key, playerCount, seed, bots); }
 
 void Match::InitMap(const MapData& m, const std::string& art, int playerCount, uint32_t seed, bool bots) {
     std::string style = botStyle;
     int keepMode = mode, keepSeason = season;
+    std::string keepCustom = custom;
     *this = Match{};
-    botStyle = style; season = keepSeason;
+    botStyle = style; season = keepSeason; custom = keepCustom; customFlora = CustomRules::Parse(custom).flora;
     mode = std::clamp(keepMode, 0, (int)RM_COUNT - 1);
     map = &m; mapKey = m.key; artKey = art;
     this->seed = seed;
@@ -697,7 +699,7 @@ void Match::InitMap(const MapData& m, const std::string& art, int playerCount, u
     BuildLevel(m, level);
     linkOpen.assign(m.links.size(), 0);
     for (size_t i = 0; i < level.doors.size(); i++) linkOpen[level.doors[i].link] = level.doors[i].open ? 1 : 0;
-    eco.noEnemies = mode == RM_AQUARIUM;                  // (Aquarium: no faction at all)
+    eco.noEnemies = mode == RM_AQUARIUM || (mode == RM_CUSTOM && !CustomRules::Parse(custom).faction);   // (Aquarium, or Custom with the faction off: none at all)
     eco.Init(m, seed ? seed : 20260930, 1, players);
     eco.onDeath = [this](int a, int k) { OnDeath(a, k); };
     eco.onDiverHit = [this](int d, int a, float dmg) { OnDiverHit(d, a, dmg); };
@@ -786,7 +788,7 @@ void Match::BeginTide(int t) {
         huntsSeen++;
         bool apexAround = false;
         for (const auto& a : eco.agents) if (a.alive && a.diver < 0 && map->species[a.sp].tier == 4) apexAround = true;
-        bool predator = (HasW(tr.hunt, "predator") || mode == RM_APEX) && apexAround && (mode == RM_APEX || Rand() < 0.5f || map->faction.units.empty());   // (Apex: "every Hunt is a Predator Hunt")
+        bool predator = (HasW(tr.hunt, "predator") || mode == RM_APEX) && apexAround && (mode == RM_APEX || Rand() < 0.5f || map->faction.units.empty() || eco.noEnemies);   // (Apex: "every Hunt is a Predator Hunt")
         if (predator) {
             // a Predator Hunt: the apex beasts come to the divers because the water is bloody enough
             predatorHunt = true;
@@ -794,7 +796,7 @@ void Match::BeginTide(int t) {
             huntApexLeft = std::max(1, (t >= 20 ? 4 : t >= 15 ? 3 : 2) - (4 - players));
             for (auto& a : eco.agents) if (a.alive && a.diver < 0 && map->species[a.sp].tier == 4) { a.hunger = 1; a.fedT = 0; }
             Say("Tide " + std::to_string(t), "PREDATOR HUNT: the water is red enough. The apex beasts are coming.", 6);
-        } else if (!map->faction.units.empty()) {
+        } else if (!map->faction.units.empty() && !eco.noEnemies) {
             // "10 units at tide 5, 12 at 10, 14 at 15, 16 at 20+, plus the faction's Hunt leader... in three waves 30 s
             // apart... the leader spawns with the third wave"; solo, duo and three: forces of 5, 7 and 9
             int force = t >= 20 ? 16 : t >= 15 ? 14 : t >= 10 ? 12 : 10;
@@ -899,6 +901,8 @@ void Match::StartModeRules() {
         PlaceHauls(); captions.clear();
         Say("Salvage Run", "Five crates in the far rooms, fifteen minutes, one life each. Tow them to the extraction buoy.", 6);
     }
+    if (mode == RM_CUSTOM && !CustomRules::Parse(custom).boss)   // (Custom with the boss off: it was never there)
+        for (auto& a : eco.agents) if (a.alive && a.diver < 0 && map->species[a.sp].tier == 5) a.alive = false;
     if (mode == RM_POACHERS) {
         for (auto& d : divers) { d.chumBags = 2; d.tactical = TAC_CHUM; }
         Say("Poachers", "Two pairs, one reef, twenty minutes: the richer pair wins. G throws a chum bag; on a rival it brings the beasts to them.", 6);
@@ -2216,6 +2220,7 @@ void Match::BeastsVsDivers(float dt) {
 }
 
 void Match::FloraHazards(float dt) {
+    if (mode == RM_CUSTOM && !customFlora) return;   // (Custom with the flora hazards off)
     for (auto& kv : patchT) kv.second -= dt;
     for (auto& d : divers) {
         if (d.dead || d.downed) continue;
@@ -5422,6 +5427,22 @@ int RunRedTideModeTest() {
         r.over = true; SaveLongNight(r);
         check(!LongNightSaved("ship"), "The Long Night: a finished night is cleared");
         ClearLongNight("ship");
+    }    // Custom: the TideCurve's sliders on a copy of the map, and the three switches; a mirror builds the same water
+    {
+        CustomRules cr; cr.quota = 2; cr.hp = 1.5f; cr.calm = 40; cr.faction = false; cr.boss = false; cr.flora = false;
+        CustomRules back = CustomRules::Parse(cr.Str());
+        check(back.Str() == cr.Str() && !back.faction && !back.boss && !back.flora && back.calm == 40, TextFormat("Custom: the rules survive their string (%s)", cr.Str().c_str()));
+        Match m; m.mode = RM_CUSTOM; m.custom = cr.Str(); m.Init("ship", 4, 45, true);
+        Match s; s.Init("ship", 4, 45, true);
+        check(m.quota == 2 * s.quota && fabsf(m.map->Tide(3).hpMult - s.map->Tide(3).hpMult * 1.5f) < 0.01f && m.map->tunables.at("calm_seconds") == 40 && Map("ship").Tide(1).quota4p == s.map->Tide(1).quota4p && m.map != s.map,
+              TextFormat("Custom: quota x2 (%d), health x1.5, a 40 s calm, on a copy of the map (the plain one untouched)", m.quota));
+        for (auto& d : m.divers) d.invulnerable = true;
+        for (int i = 0; i < 60 * 30; i++) m.Step(1 / 60.0f);
+        bool enemy = false, boss = false;
+        for (const auto& a : m.eco.agents) if (a.alive) { if (m.map->species[a.sp].isEnemy) enemy = true; if (m.map->species[a.sp].tier == 5) boss = true; }
+        check(!enemy && !boss && !m.customFlora, "Custom: with the faction, the boss and the flora hazards off, none of them is there");
+        Writer w; WriteMatch(m, w); Reader rr(w.b); Match g;
+        check(ReadMatch(rr, g) && g.custom == m.custom && g.quota == m.quota && g.map == m.map, "Custom: a guest's mirror builds the same rules from the snapshot");
     }    // Draft: two guns each from a shared pool, no Locker, no racks
     {
         Match m; m.mode = RM_DRAFT; m.Init("ship", 4, 42, true);

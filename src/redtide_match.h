@@ -159,7 +159,7 @@ struct Crate { Vector3 pos{}; float t = 1.5f; bool fallen = false; int kind = 0;
 enum class TidePhase { Calm, Tide, Hunt, Over };
 
 // the modes (design doc, "Modes": the same maps and ecosystem, different rules; the host picks one in the lobby)
-enum RtMode { RM_STANDARD, RM_BLACKOUT, RM_QUIET, RM_FRENZY, RM_APEX, RM_QUOTA, RM_AQUARIUM, RM_SALVAGE, RM_DRAFT, RM_POACHERS, RM_LONGNIGHT, RM_COUNT };
+enum RtMode { RM_STANDARD, RM_BLACKOUT, RM_QUIET, RM_FRENZY, RM_APEX, RM_QUOTA, RM_AQUARIUM, RM_SALVAGE, RM_DRAFT, RM_POACHERS, RM_LONGNIGHT, RM_CUSTOM, RM_COUNT };
 const char* ModeName(int mode);
 const char* ModeRules(int mode);
 const char* ModeKey(int mode);                  // "standard", "blackout", ... (the lobby's option string)
@@ -184,6 +184,8 @@ struct Match {
     uint32_t seed = 0;                // Init's (a network mirror is built from it)
     int mode = RM_STANDARD;           // set before Init (Init keeps it)
     int season = 0;                   // a species season (design doc, "Species seasons"; 0 none): set before Init
+    std::string custom;               // Custom mode's rules (CustomRules::Str): set before Init
+    bool customFlora = true;          // (Custom: the flora hazards on)
     bool Allowed(int weaponDef) const;   // Quiet Water: knives, spearguns, needlers and nets only
     float frenzyDropT = 20;           // Feeding Frenzy: the next Blood Frenzy drop
     void Ping(int d);                 // Blackout: a sonar ping (shows what's near for 2 s; it's heard)

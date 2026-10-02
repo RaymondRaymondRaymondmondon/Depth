@@ -677,6 +677,55 @@ std::string SeasonName(int season) {
     Json s = LoadJsonFile(DataDir() + "/seasons/" + std::to_string(season) + ".json");
     return s["name"].Str0("Season " + std::to_string(season));
 }
+// ---------------------------------------------------------------- Custom mode's rules
+std::string CustomRules::Str() const {
+    char b[160];
+    snprintf(b, sizeof b, "q%.2fh%.2fb%.2fd%.2fa%.2fs%.2fk%.2fx%.2fc%.0ff%do%dl%d", quota, hp, bounty, dmg, alarm, spawn, decay, bonus, calm, faction ? 1 : 0, boss ? 1 : 0, flora ? 1 : 0);
+    return b;
+}
+CustomRules CustomRules::Parse(const std::string& s) {
+    CustomRules r;
+    const char* p = s.c_str();
+    while (*p) {
+        char k = *p++;
+        char* end = nullptr; float v = strtof(p, &end);
+        if (end == p) continue;
+        p = end;
+        auto clampf = [](float x, float lo, float hi) { return x < lo ? lo : x > hi ? hi : x; };
+        switch (k) {
+            case 'q': r.quota = clampf(v, 0.25f, 4); break;   case 'h': r.hp = clampf(v, 0.25f, 4); break;
+            case 'b': r.bounty = clampf(v, 0.25f, 4); break;  case 'd': r.dmg = clampf(v, 0.25f, 4); break;
+            case 'a': r.alarm = clampf(v, 0.25f, 4); break;   case 's': r.spawn = clampf(v, 0, 4); break;
+            case 'k': r.decay = clampf(v, 0, 4); break;       case 'x': r.bonus = clampf(v, 0, 4); break;
+            case 'c': r.calm = clampf(v, 5, 120); break;
+            case 'f': r.faction = v != 0; break;  case 'o': r.boss = v != 0; break;  case 'l': r.flora = v != 0; break;
+            default: break;
+        }
+    }
+    return r;
+}
+void CustomRules::Apply(MapData& m) const {
+    for (auto& t : m.tides) {
+        t.quota4p = std::max(1, (int)lroundf(t.quota4p * quota));
+        t.hpMult *= hp; t.bountyMult *= bounty; t.dmgMult *= dmg;
+        t.alarmThreshold *= alarm;                                   // (a higher threshold: the faction answers less)
+        t.enemySpawnChance = std::min(1.0f, t.enemySpawnChance * spawn);
+        t.bloodDecay *= decay;
+        t.tideBonus = (int)lroundf(t.tideBonus * bonus);
+    }
+    m.tunables["calm_seconds"] = calm;
+}
+const MapData& MapCustom(const std::string& key, int season, const std::string& rules) {
+    CustomRules r = CustomRules::Parse(rules);
+    std::string ck = key + "#s" + std::to_string(season) + "#c" + r.Str();
+    auto it = gMaps.find(ck);
+    if (it != gMaps.end()) return *it->second;
+    auto md = std::make_unique<MapData>(MapSeason(key, season));   // (a copy: the plain map stays as it is)
+    r.Apply(*md);
+    const MapData& out = *md;
+    gMaps[ck] = std::move(md);
+    return out;
+}
 static const MapData& MapLoad(const std::string& cacheKey, const std::string& key);
 const MapData& Map(const std::string& key) { return MapLoad(key, key); }
 const MapData& MapSeason(const std::string& key, int season) {

@@ -658,3 +658,10 @@ Picked in the reel and the lobby like the first four (`RtMode`, keys `quota`, `a
 - Loading (`LoadLongNight(map, m, seats)`): a seat that wasn't there last time gets a fresh diver at the start (`Match::AddNewDiver`, factored out of Init); divers whose seats are gone are played by bots. Host-only state the snapshot doesn't carry (bot memory, spawn timers) starts fresh, which doesn't show.
 - The reel shows "Resume: tide N, h:mm in" and "Begin a new night" when this map has a saved night. In the host's lobby, "The Long Night goes on: ..." and "Begin a new night" (it clears the save). Checked in `--redtide-mode-test` (save, load into two seats, ten more seconds, cleared when over).
 - Left from the doc's list: Custom.
+
+## Custom (2026-10-02; design doc, "Modes")
+- `CustomRules` (redtide.h, data layer) sets multipliers on every TideCurve row: quota, beast health, bounty, beast damage, alarm threshold, faction spawn chance, blood decay and tide bonus. It also sets the calm in seconds and three switches: the faction, the boss, and the flora hazards. `MapCustom(key, season, rules)` applies them to a cached copy of the map, so the plain map is never touched.
+- The rules travel as a short string (`Str`/`Parse`, e.g. `q2.00h1.50...c40f0o0l0`): it is the lobby's fourth option part (`map:mode:season:custom`) and sits in the snapshot header, so a guest's mirror builds the same water.
+- In the match: the faction off is `Ecosystem::noEnemies`, and its Hunts become Predator Hunts or nothing. The boss off means it was never there. The flora hazards off means `FloraHazards` doesn't run (`customFlora`).
+- UI: "Custom rules..." on the reel and in the host's lobby opens the panel (`RedTideCustomPanel`): nine sliders with the standard value marked, three toggles, "Standard rules" and "Done". The session keeps running underneath, and the lobby chat announces the rules. Shot `arcade_custom`; checks in `--redtide-mode-test`.
+- **Every mode in the design doc is in now** (13 with the standard game).

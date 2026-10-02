@@ -22,7 +22,8 @@ const char* RT_TITLES[5] = {"The Sunken Ship", "The Underwater Cave", "The Coral
 int gRtMapSel = 0;        // Red Tide's map on the reel (solo, and what a host's table dives)
 int gRtModeSel = 0;       // and its mode (design doc "Modes")
 int gRtSeasonPick = 0;    // and the species season (0 none)
-std::string RtOpts() { return std::string(RT_MAP_KEYS[gRtMapSel]) + ":" + RedTideModeKey(gRtModeSel) + ":" + std::to_string(gRtSeasonPick); }
+static bool gRtCustomOpen = false;   // Custom mode's rules panel, over the arcade
+std::string RtOpts() { return std::string(RT_MAP_KEYS[gRtMapSel]) + ":" + RedTideModeKey(gRtModeSel) + ":" + std::to_string(gRtSeasonPick) + (std::string(RedTideModeKey(gRtModeSel)) == "custom" ? ":" + RedTideCustomRules() : std::string()); }
 bool gTrawlFp = false;   // the Trawl's view for a networked match (the reel remembers the last one chosen)
 int twCrew = 4;           // the Trawl's hands sailing solo (the rest are bots)
 net::LanBrowser gBrowse;
@@ -267,6 +268,7 @@ void DrawReels(Game& g) {
             if (Button({c.x - 110, c.y + 236, 220, 36}, TextFormat("Resume: tide %d, %d:%02d in", lnTide, (int)lnTime / 3600, ((int)lnTime / 60) % 60), true, 15)) { SetRedTideMode(gRtModeSel); SetRedTideSeason(gRtSeasonPick); SetRedTideResume(true); StartRedTide(g, RT_MAPS[rtMap]); return; }
             if (Button({c.x - 90, c.y + 196, 180, 30}, "Begin a new night", true, 13)) { RedTideClearLongNight(RT_MAPS[rtMap]); SetRedTideMode(gRtModeSel); SetRedTideSeason(gRtSeasonPick); StartRedTide(g, RT_MAPS[rtMap]); return; }
         } else if (Button({c.x - 110, c.y + 236, 220, 36}, "Dive (solo)", true, 15)) { SetRedTideMode(gRtModeSel); SetRedTideSeason(gRtSeasonPick); StartRedTide(g, RT_MAPS[rtMap]); return; }
+        if (std::string(RedTideModeKey(gRtModeSel)) == "custom" && Button({c.x - 90, c.y + 196, 180, 30}, "Custom rules...", true, 13)) gRtCustomOpen = true;
         DrawTextCentered("Host or Join to dive with up to three friends (the host's map)", c.x, c.y + 280, 13, SCREEN_DIM);
     }
     if (ready && selGame == G_SCUTTLE && Button({c.x - 110, c.y + 236, 220, 36}, "Practice with AI crabs", true, 15)) {
@@ -417,6 +419,7 @@ void DrawLobby() {
             gSess.gameOpts = RtOpts();
         }
         if (beforeSeason != gRtSeasonPick && gRtSeasonPick) gSess.Chat("Season " + std::to_string(gRtSeasonPick) + ": " + RedTideSeasonName(gRtSeasonPick));
+        if (std::string(RedTideModeKey(gRtModeSel)) == "custom" && Button({p.x + 650, p.y + p.height - 112, 150, 26}, "Custom rules...", true, 13)) gRtCustomOpen = true;
         int lnTide = 0; float lnTime = 0;
         if (std::string(RedTideModeKey(gRtModeSel)) == "longnight" && RedTideLongNightSaved(RT_MAP_KEYS[gRtMapSel], &lnTide, &lnTime)) {
             // the host's Long Night on this map goes on when the dive starts, unless they begin a new one
@@ -879,6 +882,11 @@ void SceneArcade(Game& g) {
     if (gSess.stage == S_LOBBY && seated > lastSeats && lastSeats > 0) PlayCue("arc.join");
     if (gSess.chat.size() != lastChat && gSess.stage >= S_LOBBY && !gSess.chat.empty() && gSess.chat.back().find(": ") != std::string::npos) PlayCue("arc.chat");
     lastSeats = seated; lastChat = gSess.chat.size();
+    if (gRtCustomOpen) {   // Custom mode's rules (the session keeps running underneath)
+        DrawCabinBackground();
+        if (RedTideCustomPanel()) { gRtCustomOpen = false; if (gSess.stage == S_LOBBY) gSess.Chat("Custom rules: " + RedTideCustomRules()); }
+        return;
+    }
 
     DrawCabinBackground();
     DrawRectangle(0, 0, SCREEN_W, SCREEN_H, Fade(BLACK, gMode == MODE_ROOM ? 0.55f : 0.0f));
@@ -916,7 +924,7 @@ void SceneArcade(Game& g) {
 }
 
 // --shots: turn the drum to a reel (0 Flats Duel ... 4 Red Tide) on the front page
-void DebugArcadeReel(int reel) { gMode = MODE_MENU; gSel = reel; gDrum = (float)reel; }
+void DebugArcadeReel(int reel) { gMode = MODE_MENU; gSel = reel; gDrum = (float)reel; gRtCustomOpen = reel == 104; if (reel == 104) { gSel = 4; gDrum = 4; SetRedTideCustom("q1.50h1.25c30f0l1o1"); } }   // (104: the Custom rules panel)
 
 // the shots (no network needed): 0 the lobby, 1 the table mid-heat, 2 the match over, 3 the rules
 void DebugArcadeShot(int which) {

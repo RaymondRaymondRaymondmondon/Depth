@@ -886,7 +886,10 @@ const char* RedTideModeRules(int mode);
 const char* RedTideModeKey(int mode);                  // a host's option: "<map>:<mode key>:<season>"
 bool RedTideLongNightSaved(const char* map, int* tide = nullptr, float* time = nullptr);   // a Long Night kept on this machine (the host's)
 void RedTideClearLongNight(const char* map);
-void SetRedTideResume(bool resume);                      // the next solo Long Night resumes the saved one
+void SetRedTideResume(bool resume);
+void SetRedTideCustom(const std::string& rules);         // Custom mode's rules (solo dives and the lobby's option)
+std::string RedTideCustomRules();
+bool RedTideCustomPanel();                               // the rules panel over the arcade; true when closed                      // the next solo Long Night resumes the saved one
 void SetRedTideSeason(int season);                     // a species season (design doc "Species seasons"; 0 none)
 int RedTideSeasonCount();
 std::string RedTideSeasonName(int season);

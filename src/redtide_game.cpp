@@ -499,6 +499,7 @@ static void ShipDressing() {
 
 // ---------------------------------------------------------------- starting a match
 static int gRtSeasonSel = 0;   // the species season solo dives use (DEPTH_RTSEASON for --shots)
+static std::string gRtCustom;   // Custom mode's rules (the arcade's panel)
 static bool gRtResume = false; static LongNightSaver gLnSaver;   // the Long Night: resume the saved one; its autosave
 static bool gFreeCam = false; static Vector3 gFreePos{};   // Aquarium's free camera (K): it flies, the diver waits
 static int gRtModeSel = 0;   // the mode solo dives use (the arcade reel's picker; DEPTH_RTMODE for --shots)
@@ -506,6 +507,7 @@ static void StartShip(int players, uint32_t seed, const std::string& key = "ship
     S.m = std::make_unique<Match>();
     S.m->mode = getenv("DEPTH_RTMODE") ? ModeFromKey(getenv("DEPTH_RTMODE")) : gRtModeSel;
     S.m->season = getenv("DEPTH_RTSEASON") ? atoi(getenv("DEPTH_RTSEASON")) : gRtSeasonSel;
+    S.m->custom = getenv("DEPTH_RTCUSTOM") ? getenv("DEPTH_RTCUSTOM") : gRtCustom;
     S.m->Init(key, players, seed, false);
     if (S.m->mode == RM_LONGNIGHT && gRtResume && LongNightSaved(key)) {   // (the Long Night saved on this machine goes on)
         auto r = std::make_unique<Match>();
@@ -2279,7 +2281,56 @@ int RedTideModeCount() { return RM_COUNT; }
 const char* RedTideModeName(int mode) { return ModeName(mode); }
 const char* RedTideModeRules(int mode) { return ModeRules(mode); }
 const char* RedTideModeKey(int mode) { return ModeKey(mode); }
-bool RedTideLongNightSaved(const char* map, int* tide, float* time) { return LongNightSaved(map ? map : "ship", tide, time); }
+void SetRedTideCustom(const std::string& rules) { gRtCustom = rules; }
+std::string RedTideCustomRules() { return CustomRules::Parse(gRtCustom).Str(); }
+// Custom mode's rules (design doc, "Modes": sliders for the TideCurve sheet, toggles for the faction, boss and flora
+// hazards), drawn over the arcade; true when it's closed
+bool RedTideCustomPanel() {
+    CustomRules r = CustomRules::Parse(gRtCustom);
+    struct Sl { const char* name; float* v; float lo, hi; bool secs; const char* what; };
+    Sl sl[] = {
+        {"Kill quota", &r.quota, 0.25f, 4, false, "every tide's quota"},
+        {"Beast health", &r.hp, 0.25f, 4, false, "the beasts' health at every tide"},
+        {"Bounties", &r.bounty, 0.25f, 4, false, "scrip for each kill"},
+        {"Beast damage", &r.dmg, 0.25f, 4, false, "what a bite takes"},
+        {"Alarm threshold", &r.alarm, 0.25f, 4, false, "higher: the faction answers less noise"},
+        {"Faction spawns", &r.spawn, 0, 4, false, "the chance a squad answers the alarm"},
+        {"Blood decay", &r.decay, 0, 4, false, "0: blood never fades"},
+        {"Tide bonus", &r.bonus, 0, 4, false, "scrip for clearing a tide"},
+        {"Calm", &r.calm, 5, 120, true, "seconds between tides"},
+    };
+    const int N = sizeof sl / sizeof sl[0];
+    DrawRectangle(0, 0, SCREEN_W, SCREEN_H, Fade(BLACK, 0.7f));
+    Rectangle p{SCREEN_W / 2.0f - 340, SCREEN_H / 2.0f - 300, 680, 600};
+    DrawRectangleRec(p, Color{16, 30, 34, 245}); DrawRectangleLinesEx(p, 2, Color{176, 140, 80, 255});
+    DrawTextCenteredBold("Custom water", p.x + p.width / 2, p.y + 16, 26, Color{230, 200, 150, 255});
+    Vector2 mouse = GetMousePosition();
+    for (int i = 0; i < N; i++) {
+        float y = p.y + 66 + i * 44.0f;
+        Txt(sl[i].name, p.x + 30, y, 16, Color{230, 222, 200, 255});
+        Txt(sl[i].what, p.x + 30, y + 18, 12, Fade(Color{200, 210, 200, 255}, 0.6f));
+        Rectangle bar{p.x + 250, y + 8, 300, 8};
+        float f = (*sl[i].v - sl[i].lo) / (sl[i].hi - sl[i].lo);
+        DrawRectangleRec(bar, Color{40, 60, 64, 255});
+        DrawRectangleRec({bar.x, bar.y, bar.width * f, bar.height}, Color{110, 200, 180, 255});
+        if (!sl[i].secs) { float one = (1 - sl[i].lo) / (sl[i].hi - sl[i].lo); DrawRectangleRec({bar.x + bar.width * one - 1, bar.y - 4, 2, bar.height + 8}, Fade(Color{230, 222, 200, 255}, 0.5f)); }   // (the standard)
+        DrawCircleV({bar.x + bar.width * f, bar.y + 4}, 8, Color{230, 200, 150, 255});
+        if (IsMouseButtonDown(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(mouse, {bar.x - 10, bar.y - 12, bar.width + 20, bar.height + 24})) {
+            float t = std::clamp((mouse.x - bar.x) / bar.width, 0.0f, 1.0f);
+            float v = sl[i].lo + t * (sl[i].hi - sl[i].lo);
+            *sl[i].v = sl[i].secs ? roundf(v) : roundf(v * 20) / 20;
+        }
+        Txt(sl[i].secs ? TextFormat("%.0f s", *sl[i].v) : TextFormat("x%.2f", *sl[i].v), p.x + 575, y + 2, 16, Color{230, 222, 200, 255});
+    }
+    float ty = p.y + 66 + N * 44.0f + 6;
+    auto toggle = [&](float x, const char* name, bool& v) { if (Button({x, ty, 200, 34}, TextFormat("%s: %s", name, v ? "on" : "off"), true, 15)) v = !v; };
+    toggle(p.x + 25, "Faction", r.faction); toggle(p.x + 240, "Boss", r.boss); toggle(p.x + 455, "Flora hazards", r.flora);
+    gRtCustom = r.Str();
+    bool done = false;
+    if (Button({p.x + 25, p.y + p.height - 52, 200, 38}, "Standard rules", true, 15)) gRtCustom = CustomRules{}.Str();
+    if (Button({p.x + p.width - 225, p.y + p.height - 52, 200, 38}, "Done", true, 16)) done = true;
+    return done;
+}bool RedTideLongNightSaved(const char* map, int* tide, float* time) { return LongNightSaved(map ? map : "ship", tide, time); }
 void RedTideClearLongNight(const char* map) { ClearLongNight(map ? map : "ship"); }
 void SetRedTideResume(bool resume) { gRtResume = resume; }
 void StartRedTide(Game& g, const char* map) {

@@ -145,7 +145,18 @@ struct EngineData {
 std::string DataDir();
 const EngineData& Engine();
 const MapData& Map(const std::string& key);      // loads on first use; "ship", "cave", "reef", "atlantis", "void"
-const MapData& MapSeason(const std::string& key, int season);   // the map with a species season's data drop merged in (0: the map itself)
+const MapData& MapSeason(const std::string& key, int season);
+// Red Tide's Custom mode (design doc, "Modes": "sliders for every tunable in the TideCurve sheet, plus toggles for each
+// faction, boss, and flora hazard"): multipliers on every tide row, the calm, and three switches. Carried as a short
+// string (the lobby's option, the snapshot's header) so a guest's mirror builds the same water.
+struct CustomRules {
+    float quota = 1, hp = 1, bounty = 1, dmg = 1, alarm = 1, spawn = 1, decay = 1, bonus = 1, calm = 20;
+    bool faction = true, boss = true, flora = true;
+    std::string Str() const;
+    static CustomRules Parse(const std::string& s);
+    void Apply(MapData& m) const;      // the TideCurve multipliers and the calm, on a copy of the map
+};
+const MapData& MapCustom(const std::string& key, int season, const std::string& rules);   // (cached per rules)   // the map with a species season's data drop merged in (0: the map itself)
 int SeasonCount();                                // data/redtide/seasons/1.json, 2.json, ...
 std::string SeasonName(int season);
 bool DataOk(std::string* why = nullptr);
