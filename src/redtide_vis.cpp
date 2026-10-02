@@ -92,6 +92,59 @@ bool DrawFirstPersonArms(int voice, const Camera3D& cam, Vector3 gripR, Vector3 
     return true;
 }
 
+// ---------------------------------------------------------------- the creature kit (phase 5)
+// Red Tide's fish on the Trawl's rigged fish (tools/artgen/fish.py: ten archetypes on a four-bone spine, a ray with
+// wings): the body plan and the name choose the archetype, the species record's three colours paint it (back, belly,
+// fins), and it swims its spine. Everything else (shells, arms, legs, jellies, colonies) keeps the CreatureBuilder
+// model for now. A budget per frame keeps the cost to the nearest few dozen.
+static const char* ArchFor(const CreatureModel& cm) {
+    std::string n = " " + cm.species;
+    for (auto& c : n) c = (char)tolower((unsigned char)c);
+    auto has = [&](const char* k) { return n.find(k) != std::string::npos; };
+    const std::string& p = cm.plan;
+    if (has("swordfish") || has("marlin") || has("sailfish")) return "billfish";
+    if (p == "shark" || has("shark") || has("dogfish")) return "shark";
+    if (p == "depressiform") return has("flounder") || has("halibut") || has(" sole") || has("plaice") ? "flat" : "ray";
+    if (p == "anguilliform") return "eel";
+    if (p == "compressiform") return "deep";
+    if (p == "fusiform") {
+        if (has("tuna") || has("mackerel") || has("jack") || has("bonito") || has("trevally") || has("amberjack")) return "tuna";
+        if (has("barracuda") || has("pike") || has("needlefish") || has("gar")) return "pike";
+        if (has("herring") || has("sardine") || has("anchov") || has("sprat") || has("silverside") || has("minnow") || has("fry")) return "herring";
+        return "perch";
+    }
+    return nullptr;
+}
+static int gCreatureBudget = 0;
+void CreatureBudget(int n) { gCreatureBudget = n; }
+bool DrawCreaturePbr(const CreatureModel& cm, Vector3 pos, float yaw, float pitch, float scale, float phase, float inten, Color tint) {
+    if (gCreatureBudget <= 0 || getenv("DEPTH_OLDCREATURES")) return false;
+    const char* a = ArchFor(cm);
+    if (!a) return false;
+    const Model* m = LoadAsset(std::string("trawl/fish/fish_") + a + ".glb");
+    if (!m) return false;
+    gCreatureBudget--;
+    const RigInfo& R = RigOf(*m);
+    RigPose P; P.Reset((int)R.parent.size());
+    float amp = std::clamp(0.25f + 0.55f * inten, 0.15f, 1.0f);
+    for (int k = 0; k < 4; k++) {
+        int b = R.Find(TextFormat("s%d", k));
+        if (b >= 0) P.rot[b] = QuaternionFromAxisAngle({0, 1, 0}, amp * sinf(phase - k * 1.25f) * (0.25f + 0.3f * k));
+    }
+    int wl = R.Find("wing.L"), wr = R.Find("wing.R");
+    if (wl >= 0 && wr >= 0) {
+        float f = (0.25f + amp * 1.2f) * sinf(phase * 0.45f);
+        P.rot[wl] = QuaternionFromAxisAngle({0, 0, 1}, f);
+        P.rot[wr] = QuaternionFromAxisAngle({0, 0, 1}, -f);
+    }
+    std::vector<Matrix> sk = SolveRig(R, P);
+    float len = std::max(0.05f, cm.length * scale);
+    Matrix w = MatrixMultiply(MatrixMultiply(MatrixScale(len, len, len), MatrixRotateX(-pitch)), MatrixMultiply(MatrixRotateY(yaw), MatrixTranslate(pos.x, pos.y, pos.z)));
+    Color fin = cm.accent.a > 0 ? cm.accent : Color{(unsigned char)(cm.base.r * 0.8f), (unsigned char)(cm.base.g * 0.8f), (unsigned char)(cm.base.b * 0.8f), 255};
+    DrawPbrSkinned(*m, w, sk, {{"back", cm.base}, {"belly", cm.belly}, {"fin", fin}}, 0.0f, tint);
+    return true;
+}
+
 // ---------------------------------------------------------------- the guns (phase 4: tools/artgen/weapons_rt.py)
 const Model* RtWeaponModel(const std::string& id) {
     static std::map<std::string, bool> missing;

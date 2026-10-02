@@ -12,6 +12,11 @@ bool DiversReady();
 // draws a diver at frame (feet at the origin, x forward), posed; returns the skinning matrices (for grips)
 std::vector<Matrix> DrawDiverFigure(int voice, Matrix frame, fig::Pose P, float t, Color tint, const std::string& suit = "", const std::string& helmet = "");
 bool DrawFirstPersonArms(int voice, const Camera3D& cam, Vector3 gripR, Vector3 gripL, bool leftOn, float t, const std::string& suit = "", const std::string& helmet = "");
+// the creature kit (phase 5): a fish-shaped species drawn on the shared rigged fish, swum on its spine and painted
+// from its record; false (draw the CreatureBuilder model) when it isn't a fish plan or the frame's budget is spent
+void CreatureBudget(int n);
+bool DrawCreaturePbr(const CreatureModel& cm, Vector3 pos, float yaw, float pitch, float scale, float phase, float inten, Color tint);
+
 // Red Tide's own guns (tools/artgen/weapons_rt.py -> assets/redtide/weapons/<id>.glb), their moving parts posed:
 // fire (the hammer falls, the trigger in), cycle (a bolt or pump working after a shot), reload 0..1 (-1 none), the
 // rounds fired (the cylinder or drum turns), loaded (a spear or a shell shown), gas (the gauge's needle)

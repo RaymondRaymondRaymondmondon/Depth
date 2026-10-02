@@ -982,6 +982,8 @@ static void DrawLineup() {
     SceneLight L;
     L.lampPos = {0, 6, -9}; L.lampDir = Vector3Normalize({0, -0.4f, 1}); L.lampRange = 40; L.lampCone = 0.2f; L.fogDensity = 0.004f; L.fog = {26, 52, 58, 255};
     L.time = S.time;
+    L.moonK = 0.5f; L.ambK = 0.7f; L.skyAmb = {90, 140, 150, 255}; L.seaAmb = {20, 40, 46, 255};
+    CreatureBudget(40);
     RenderBegin(cam, L);
     int per = 20, first = S.lineup * per, cols = 5;
     for (int k = 0; k < per && first + k < (int)ship.species.size(); k++) {
@@ -991,7 +993,7 @@ static void DrawLineup() {
         int cx = k % cols, cy = k / cols;
         Vector3 at{(cx - (cols - 1) * 0.5f) * 2.3f, (1.5f - cy) * 2.0f, 0};
         float sc = 0.95f / std::max(0.05f, cm.extent);
-        DrawCreature(cm, at, 1.5708f, 0, sc, S.time * cm.freq, 0.8f);
+        if (!DrawCreaturePbr(cm, at, 1.5708f, 0, sc, S.time * cm.freq, 0.8f, WHITE)) DrawCreature(cm, at, 1.5708f, 0, sc, S.time * cm.freq, 0.8f);
     }
     RenderEnd();
     for (int k = 0; k < per && first + k < (int)ship.species.size(); k++) {
@@ -1152,6 +1154,7 @@ static void DrawScene() {
             } else DrawWorldCube(c.fallen ? Vector3{c.pos.x, c.pos.y - 0.6f, c.pos.z} : Vector3{c.pos.x, c.pos.y + std::max(0.0f, c.t) * 3 + 0.4f, c.pos.z}, {1.2f, 1.2f, 1.2f}, {120, 92, 60, 255});
         }
     }
+    CreatureBudget(40);   // (the nearest fish on the rigged models: the Visual Overhaul's creature kit)
     for (int i = 0; i < (int)m.eco.agents.size(); i++) {
         const Agent& a = m.eco.agents[i];
         if (!a.alive || a.diver == 0) continue;               // (diver 0 is you)
@@ -1169,7 +1172,9 @@ static void DrawScene() {
         float phase = S.time * cm.freq * (0.6f + inten * 0.6f) + (a.rng % 1000) * 0.01f;
         Color tint = a.wound > 0.3f ? Color{255, (unsigned char)(255 - a.wound * 120), (unsigned char)(255 - a.wound * 120), 255} : WHITE;
         if (m.IsBoss(i) && m.bossGillsT > 0) tint = {255, 170, 150, 255};
-        DrawCreature(cm, a.pos, yaw, pitch, a.sp < (int)m.bodyScale.size() ? m.bodyScale[a.sp] : 1.0f, phase, inten, tint);
+        float bsc = a.sp < (int)m.bodyScale.size() ? m.bodyScale[a.sp] : 1.0f;
+        if (Vector3Distance(a.pos, eye) < 28 && !m.IsBoss(i) && DrawCreaturePbr(cm, a.pos, yaw, pitch, bsc, phase, inten, tint)) continue;   // (the rigged fish, near)
+        DrawCreature(cm, a.pos, yaw, pitch, bsc, phase, inten, tint);
     }
     if (S.silhouette < 0.5f) DrawGun(cam);
     RenderEnd();
