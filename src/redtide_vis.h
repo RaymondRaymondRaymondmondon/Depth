@@ -4,6 +4,7 @@
 #include "redtide_render.h"
 #include "figure3d.h"
 #include <vector>
+#include <functional>
 
 namespace rt {
 
@@ -35,6 +36,8 @@ struct RtGunAnim { float fire = 0, cycle = 0, reload = -1; int steps = 0; bool l
 const Model* RtWeaponModel(const std::string& id);   // nullptr until that gun has been built
 bool DrawRtWeapon(const std::string& id, Matrix frame, const RtGunAnim& a, Color tint, Vector3* gripR = nullptr, Vector3* gripL = nullptr, Vector3* muzzle = nullptr);
 Vector3 RtWeaponMarker(const std::string& id, const char* name, Vector3 def);   // in the model's own frame
+// a baked prop with moving parts (stations_rt.py: the power lever, the cache's lid): value(group) 0..1 poses each group
+bool DrawRtProp(const std::string& path, Matrix frame, const std::function<float(const std::string&)>& value, Color tint = WHITE, float glow = 0);
 void DrawHelmetPort(float wet, float t);   // the helmet's port rim round the first-person view (2D, before the HUD)
 void DiverSkinColours(const std::string& suit, const std::string& helmet, std::vector<Recolor>& out);   // the Locker's suit/helmet ids
 void DrawRedTideStudio(int which, float t);

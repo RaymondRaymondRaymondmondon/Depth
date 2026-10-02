@@ -886,11 +886,68 @@ static void DrawFlora() {
     }
 }
 
+// the interactables' own models (tools/artgen/stations_rt.py; the spec: "each get a distinct, well-lit, detailed model
+// that never gets lost in the decor"): standing on the station's floor, facing into its room; a few lit from within
+static bool DrawStationModel(const Match& m, const Station& s, bool dead) {
+    if (getenv("DEPTH_OLDSTATIONS")) return false;
+    static const char* ID[] = {"", "tonic", "locker", "forge", "power", "workbench", "", "", "", "", "", "", "", "", "cache"};
+    int ti = (int)s.type;
+    if (ti < 0 || ti >= (int)(sizeof(ID) / sizeof(ID[0])) || !ID[ti][0]) return false;
+    // (the floor under it, and its front turned toward the middle of the room)
+    float floorY = s.zone >= 0 && s.zone < (int)m.map->zones.size() ? m.map->zones[s.zone].y0 : s.pos.y - 1;
+    Vector3 c = s.zone >= 0 && s.zone < (int)m.map->zones.size() ? m.map->zones[s.zone].Center() : Vector3Add(s.pos, {1, 0, 0});
+    float dx = c.x - s.pos.x, dz = c.z - s.pos.z;
+    float yaw = fabsf(dx) + fabsf(dz) > 0.01f ? atan2f(-dz, dx) : 0;
+    Matrix frame = MatrixMultiply(MatrixRotateY(yaw), MatrixTranslate(s.pos.x, floorY, s.pos.z));
+    Color tint = dead ? Color{120, 120, 120, 255} : WHITE;
+    std::string path = std::string("redtide/stations/") + ID[ti] + ".glb";
+    auto at = [&](Vector3 local) { return Vector3Transform(local, frame); };
+    auto glowBox = [&](Vector3 local, Vector3 size, Color col, float k) { DrawCubeGlow(MatrixMultiply(MatrixMultiply(MatrixScale(size.x, size.y, size.z), MatrixTranslate(local.x, local.y, local.z)), frame), col, k); };
+    switch (s.type) {
+        case StationType::Tonic: {
+            if (!DrawRtProp(path, frame, nullptr, tint)) return false;
+            Color glass = s.tonic == "juggernaut" ? Color{200, 60, 50, 255} : s.tonic == "quick" ? Color{80, 180, 220, 255} : s.tonic == "speed" ? Color{120, 220, 90, 255} : s.tonic == "double" ? Color{230, 170, 60, 255} : Color{170, 120, 220, 255};
+            if (dead) glass = {50, 50, 50, 255};
+            glowBox({0.22f, 0.98f, 0}, {0.1f, 0.26f, 0.1f}, glass, dead ? 0.0f : 0.8f + 0.2f * sinf(S.time * 3 + s.pos.x));   // the bottle behind the port
+            break;
+        }
+        case StationType::Locker: {
+            if (!DrawRtProp(path, frame, nullptr, tint)) return false;
+            if (m.LockerLiveAt(s)) {   // the lantern buoy on its chain, riding the swell, its lamp alight
+                float bob = sinf(S.time * 1.4f + s.pos.z) * 0.08f;
+                Matrix bf = MatrixMultiply(MatrixMultiply(MatrixRotateZ(0.08f * sinf(S.time * 0.9f)), MatrixTranslate(-0.2f, 1.7f + bob, 0)), frame);
+                DrawRtProp("redtide/stations/buoy.glb", bf, nullptr, WHITE);
+                DrawCubeGlow(MatrixMultiply(MatrixMultiply(MatrixScale(0.1f, 0.14f, 0.1f), MatrixTranslate(0, 0.65f, 0)), bf), {255, 210, 120, 255}, 1.0f);
+            }
+            break;
+        }
+        case StationType::Forge:
+            if (!DrawRtProp(path, frame, nullptr, tint)) return false;
+            glowBox({0.6f, 1.0f, 0}, {0.04f, 0.36f, 0.36f}, dead ? Color{30, 40, 40, 255} : Color{120, 230, 210, 255}, dead ? 0.0f : 0.9f + 0.1f * sinf(S.time * 2));   // sea-glass light
+            break;
+        case StationType::Power:
+            if (!DrawRtProp(path, frame, [&](const std::string& g) { return g == "lever" ? (m.power ? 0.0f : 1.0f) : 0.0f; }, WHITE)) return false;
+            glowBox({0.06f, 1.56f, 0}, {0.02f, 0.05f, 0.05f}, m.power ? Color{120, 230, 110, 255} : Color{230, 70, 50, 255}, 1.0f);   // the pilot lamp
+            break;
+        case StationType::Workbench:
+            if (!DrawRtProp(path, frame, nullptr, tint)) return false;
+            glowBox({-0.2f, 1.03f, -0.75f}, {0.06f, 0.1f, 0.06f}, {255, 200, 120, 255}, 0.9f);   // its lamp
+            break;
+        case StationType::Cache:
+            if (!DrawRtProp(path, frame, [&](const std::string& g) { return g == "lid" && m.cacheOpen ? 1.0f : 0.0f; }, WHITE)) return false;
+            break;
+        default: return false;
+    }
+    (void)at;
+    return true;
+}
+
 static void DrawStations() {
     const Match& m = M();
     for (const auto& s : m.level.stations) {
         Vector3 p = s.pos;
         bool dead = s.needsPower && !m.power;
+        if (DrawStationModel(m, s, dead)) continue;
         switch (s.type) {
             case StationType::Rack:
                 DrawWorldCube({p.x, p.y + 0.4f, p.z}, {1.2f, 0.8f, 0.12f}, {96, 70, 44, 255});
@@ -1832,6 +1889,19 @@ void DebugRedTideShot(Game& g, int which) {
             const char* id = getenv("DEPTH_RTGUN") ? getenv("DEPTH_RTGUN") : "cormorant";
             const auto& WW = Weapons().weapons;
             for (int i = 0; i < (int)WW.size(); i++) if (WW[i].id == id) { Held h; h.def = i; h.mag = WW[i].mag; d.weapons = {h}; d.cur = 0; }
+            if (const char* st = getenv("DEPTH_STATION")) {   // (DEPTH_STATION=tonic|locker|forge|power|workbench|cache: stand before the first one)
+                static const char* N[] = {"rack", "tonic", "locker", "forge", "power", "workbench", "trap", "quest", "cleaning", "feature", "hazard", "entry", "boss", "queststep", "cache"};
+                int want = -1; for (int k = 0; k < 15; k++) if (std::string(st) == N[k]) want = k;
+                for (const auto& s : m.level.stations) if ((int)s.type == want) {
+                    Vector3 c = s.zone >= 0 ? m.map->zones[s.zone].Center() : Vector3Add(s.pos, {3, 0, 0});
+                    Vector3 dir = Vector3Normalize({c.x - s.pos.x, 0, c.z - s.pos.z});
+                    d.pos = Vector3Add(s.pos, Vector3Scale(dir, 3.2f)); d.zone = s.zone;
+                    if (s.zone >= 0) d.pos = m.map->zones[s.zone].Clamp(d.pos, 0.5f);
+                    Vector3 to = Vector3Subtract(s.pos, d.pos);
+                    d.yaw = atan2f(to.x, to.z); d.pitch = -0.12f;
+                    break;
+                }
+            }
             break;
         }
         case 16: {                                                                            // salvage: the builds set down before a workbench

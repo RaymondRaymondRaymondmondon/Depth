@@ -343,6 +343,26 @@ bool DrawRtWeapon(const std::string& id, Matrix frame, const RtGunAnim& a, Color
     if (muzzle) *muzzle = mk("muzzle", {0.3f, 0, 0});
     return true;
 }
+// a baked prop with moving parts (tools/artgen/stations_rt.py and the like): each part's group posed by value(group)
+// (0 at rest .. 1 its full travel); false if the model isn't built
+bool DrawRtProp(const std::string& path, Matrix frame, const std::function<float(const std::string&)>& value, Color tint, float glow) {
+    const Model* m = LoadAsset(path);
+    const AssetInfo* A = m ? AssetInfoOf(m) : nullptr;
+    if (!m) return false;
+    std::vector<Matrix> M;
+    if (A) {
+        M.assign(A->parts.size(), MatrixIdentity());
+        for (size_t i = 0; i < A->parts.size(); i++) {
+            const AssetPart& p = A->parts[i];
+            if (p.group == "static" || p.group.empty()) continue;
+            float v = value ? value(p.group) : 0;
+            if (p.kind == "slide") M[i] = MatrixTranslate(p.axis.x * p.amount * v, p.axis.y * p.amount * v, p.axis.z * p.amount * v);
+            else M[i] = MatrixMultiply(MatrixMultiply(MatrixTranslate(-p.pivot.x, -p.pivot.y, -p.pivot.z), MatrixRotate(p.axis, p.amount * v)), MatrixTranslate(p.pivot.x, p.pivot.y, p.pivot.z));
+        }
+    }
+    DrawPbrParts(*m, frame, M, tint, glow);
+    return true;
+}
 Vector3 RtWeaponMarker(const std::string& id, const char* name, Vector3 def) {
     const Model* m = RtWeaponModel(id);
     const AssetInfo* A = m ? AssetInfoOf(m) : nullptr;
