@@ -350,10 +350,16 @@ def lobster(K):
     zs = [0.0, -0.1, -0.2, -0.3, -0.4]
     for k in range(4):
         K.bone(f"t{k}", (0, 0, zs[k]), (0, 0, zs[k + 1]), "body" if k == 0 else f"t{k - 1}")
-        K.ell(f"seg{k}", (0, 0.02, (zs[k] + zs[k + 1]) / 2), (0.12 - k * 0.015, 0.08, 0.06), "back", f"t{k}", 20)
-        K.ell(f"segb{k}", (0, -0.03, (zs[k] + zs[k + 1]) / 2), (0.1 - k * 0.015, 0.04, 0.05), "belly", f"t{k}", 16)
-    K.ell("carapace", (0, 0.04, 0.15), (0.15, 0.1, 0.2), "back", "body", 28)
-    K.ell("underside", (0, -0.04, 0.15), (0.13, 0.06, 0.18), "belly", "body", 20)
+    # the shell sculpted as one piece (lofted, bending down the tail's bones): the rostrum, the carapace, the tail
+    # tapering to the fan; the veined underside a second skin; ridge bands where the tail's plates overlap
+    shell = [(0.34, 0.02, 0.02, 0.05), (0.28, 0.1, 0.08, 0.045), (0.15, 0.15, 0.11, 0.04), (0.02, 0.14, 0.1, 0.03),
+             (-0.08, 0.12, 0.075, 0.02), (-0.18, 0.105, 0.065, 0.015), (-0.28, 0.09, 0.055, 0.01), (-0.37, 0.07, 0.045, 0.0),
+             (-0.42, 0.05, 0.03, 0.0)]
+    bones, sz = ["body", "t0", "t1", "t2", "t3"], [0.34, 0.0, -0.1, -0.2, -0.3, -0.42]
+    K.loft_body("shell", shell, "back", bones, sz)
+    K.loft_body("underside", [(z, hw * 0.85, hh * 0.45, yc - hh * 0.55) for (z, hw, hh, yc) in shell[1:-1]], "belly", bones, sz)
+    for k in range(4):
+        K.ell(f"ridge{k}", (0, 0.02, zs[k] - 0.005), (0.125 - k * 0.015, 0.075 - k * 0.006, 0.012), "back", f"t{k}", 18)
     for s in (-1, 0, 1):
         K.limb(f"fan{s}", (0, 0.0, -0.4), (s * 0.08, 0.0, -0.5), 0.04, 0.015, "fin", "t3")
     for k in range(6):   # crystal coral on the shell
