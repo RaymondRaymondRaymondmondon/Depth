@@ -1052,6 +1052,14 @@ static void DrawStations() {
         const Link& l = m.map->links[d.link];
         Vector3 dir = Vector3Subtract(l.b, l.a);
         int k = fabsf(dir.x) > fabsf(dir.z) ? 0 : 2;
+        // the door in the map's own style (stations_rt.py: built for a 2 m x 2.4 m doorway, scaled to this one)
+        {
+            const std::string& mk = M().mapKey;
+            const char* door = mk == "cave" ? "door_rubble" : mk == "reef" ? "door_net" : mk == "atlantis" ? "door_grille" : "door_bulkhead";
+            float wide = k == 0 ? size.z : size.x;
+            Matrix fr = MatrixMultiply(MatrixMultiply(MatrixScale(1, size.y / 2.4f, wide / 2.0f), MatrixRotateY(k == 0 ? 0.0f : PI / 2)), MatrixTranslate(d.pos.x, v.lo.y, d.pos.z));
+            if (!getenv("DEPTH_OLDSTATIONS") && DrawRtProp(std::string("redtide/stations/") + door + ".glb", fr, nullptr, WHITE)) continue;
+        }
         (&size.x)[k] = 0.35f;
         DrawWorldCube(d.pos, Vector3Scale(size, 0.98f), {92, 70, 50, 255});
         DrawWorldCube(Vector3Add(d.pos, {0, 0.4f, 0}), {k == 0 ? 0.5f : size.x * 0.6f, 0.3f, k == 2 ? 0.5f : size.z * 0.6f}, {120, 96, 64, 255});
@@ -1816,7 +1824,7 @@ void DebugRedTideShot(Game& g, int which) {
         g.scene = Scene::RedTide;
         return;
     }
-    StartShip(which == 17 ? 4 : 1, 20260930, which >= 50 ? "void" : which >= 40 ? "atlantis" : which >= 30 ? "reef" : which >= 20 ? "cave" : "ship");
+    StartShip(which == 17 ? 4 : 1, 20260930, which == 19 && getenv("DEPTH_RTMAP") ? getenv("DEPTH_RTMAP") : which >= 50 ? "void" : which >= 40 ? "atlantis" : which >= 30 ? "reef" : which >= 20 ? "cave" : "ship");
     S.shotMode = true;
     Match& m = M();
     if (which != 10) {                                           // every door open, so the views can see through
@@ -1907,13 +1915,23 @@ void DebugRedTideShot(Game& g, int which) {
         }
         case 15: place("Cabin Deck", {3, 2, 3}, 0.0f, 0); break;                             // the cabins and the moray pipes
         case 19: {                                                                            // the viewmodel: a gun in the hands (DEPTH_RTGUN=<id>)
-            place("Engine Room", {12.5f, 3, 11}, 0.4f, -0.05f);
+            if (m.map->ZoneIndex("Engine Room") >= 0) place("Engine Room", {12.5f, 3, 11}, 0.4f, -0.05f);
             const char* id = getenv("DEPTH_RTGUN") ? getenv("DEPTH_RTGUN") : "cormorant";
             const auto& WW = Weapons().weapons;
             for (int i = 0; i < (int)WW.size(); i++) if (WW[i].id == id) { Held h; h.def = i; h.mag = WW[i].mag; d.weapons = {h}; d.cur = 0; }
             if (const char* st = getenv("DEPTH_STATION")) {   // (DEPTH_STATION=tonic|locker|forge|power|workbench|cache: stand before the first one)
                 static const char* N[] = {"rack", "tonic", "locker", "forge", "power", "workbench", "trap", "quest", "cleaning", "feature", "hazard", "entry", "boss", "queststep", "cache"};
                 int want = -1; for (int k = 0; k < 15; k++) if (std::string(st) == N[k]) want = k;
+                if (std::string(st) == "door" && !m.level.doors.empty()) {   // (the doors shut again, and stand before the first)
+                    for (auto& dr : m.level.doors) dr.open = false;
+                    const auto& dr = m.level.doors[getenv("DEPTH_DOOR") ? std::clamp(atoi(getenv("DEPTH_DOOR")), 0, (int)m.level.doors.size() - 1) : 0];
+                    const Link& l = m.map->links[dr.link];
+                    Vector3 dir = Vector3Normalize(Vector3Subtract(l.a, l.b)); dir.y = 0; dir = Vector3Normalize(dir);
+                    d.pos = Vector3Add(dr.pos, Vector3Scale(dir, 3.5f)); d.pos.y = dr.pos.y + 0.2f;
+                    d.zone = m.eco.ZoneAt(d.pos);
+                    Vector3 to = Vector3Subtract(dr.pos, d.pos);
+                    d.yaw = atan2f(to.x, to.z); d.pitch = -0.05f;
+                }
                 for (const auto& s : m.level.stations) if ((int)s.type == want) {
                     Vector3 c = s.zone >= 0 ? m.map->zones[s.zone].Center() : Vector3Add(s.pos, {3, 0, 0});
                     Vector3 dir = Vector3Normalize({c.x - s.pos.x, 0, c.z - s.pos.z});

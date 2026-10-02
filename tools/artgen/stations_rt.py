@@ -185,6 +185,77 @@ def build_cache(W):
     rivets(W, "rv", 0.305, -0.42, 0.42, 0.06, 8, "steel", 0.01)
 
 
+# ---------------------------------------------------------------- the bought doors, one per map's style, each built to a
+# 2 m wide, 2.4 m tall doorway (the game scales it to the real one) with a brass plate for its price: the ship's and
+# the station's riveted bulkhead door with its dogs; the cave's rockfall shored with timber; the reef's net hung with
+# floats; Atlantis's bronze grille. Thickness along X (the way through), width along Y, height up Z from the floor.
+def build_door_bulkhead(W):
+    # the frame round the opening (posts, a head and a sill), the leaf inside it, dogged and wheeled on both faces
+    for y in (-0.9, 0.9):
+        W.add(W.box(f"post{y}", (0.34, 0.2, 2.4), (0, y, 1.2), bevel=0.03), "iron")
+    W.add(W.box("head", (0.34, 2.0, 0.22), (0, 0, 2.29), bevel=0.03), "iron")
+    W.add(W.box("sill", (0.34, 1.6, 0.16), (0, 0, 0.08), bevel=0.03), "iron")
+    W.add(W.box("leaf", (0.1, 1.6, 2.02), (0, 0, 1.17), bevel=0.12, segments=4), "steel")
+    for sx in (1, -1):
+        x = sx * 0.07
+        for z in (0.4, 1.17, 1.95):
+            W.add(W.box(f"stiffener{sx}{z}", (0.04, 1.4, 0.06), (x, 0, z), bevel=0.01), "steel")
+        for k in range(6):   # the dogs round the leaf
+            y = -0.7 if k < 3 else 0.7
+            z = 0.45 + (k % 3) * 0.7
+            W.add(W.box(f"dog{sx}{k}", (0.06, 0.16, 0.05), (sx * 0.12, y, z), bevel=0.01, rot=(0.4 if k < 3 else -0.4, 0, 0)), "iron")
+        W.add(W.ring(f"wheel{sx}", (sx * 0.13, 0, 1.17), 0.18, 0.02, 'X'), "red")
+        for k in range(3):
+            a = k * math.pi / 3
+            W.add(W.box(f"wheel_spoke{sx}{k}", (0.02, 0.36, 0.02), (sx * 0.13, 0, 1.17), bevel=0.003, rot=(a, 0, 0)), "red")
+        W.add(W.box(f"plate{sx}", (0.02, 0.4, 0.14), (sx * 0.18, 0, 2.1), bevel=0.01), "brass")
+        for y in (-0.6, -0.3, 0.0, 0.3, 0.6):
+            for z in (0.2, 2.15):
+                W.add(W.sphere(f"rv{sx}{y}{z}", (sx * 0.06, y, z), (0.016, 0.016, 0.016), 8), "steel")
+
+def build_door_rubble(W):
+    import random
+    rng = random.Random(5)
+    W.M["stone"] = K._mat("limestone", (0.16, 0.155, 0.14), 0.9)
+    W.M["stone2"] = K._mat("dark limestone", (0.09, 0.09, 0.085), 0.85)
+    for k in range(22):   # a heap of fallen limestone filling the passage, bigger blocks low
+        z = rng.uniform(0.2, 2.2); s = 0.5 - z * 0.12 + rng.uniform(-0.08, 0.08)
+        W.add(W.sphere(f"rock{k}", (rng.uniform(-0.2, 0.2), rng.uniform(-0.85, 0.85), z), (s * 0.8, s, s * 0.75), 5), "stone" if k % 3 else "stone2")   # (few segments: faceted, broken stone)
+    for s in (-1, 1):   # the timber shoring someone put in, and the plate nailed to it
+        W.add(W.box(f"prop{s}", (0.14, 0.14, 2.4), (0.35, s * 0.75, 1.2), bevel=0.01, rot=(s * 0.08, 0, 0)), "laminate")
+    W.add(W.box("lintel", (0.16, 1.8, 0.16), (0.35, 0, 2.35), bevel=0.01), "laminate")
+    W.add(W.box("plate", (0.02, 0.4, 0.14), (0.44, 0, 2.15), bevel=0.01), "brass")
+
+
+def build_door_net(W):
+    W.add(W.box("top_rope", (0.05, 2.0, 0.05), (0, 0, 2.3), bevel=0.01), "rope")
+    for k in range(9):   # the net: hanging strands, a few knotted across
+        y = -0.9 + k * 0.225
+        W.add(W.box(f"strand{k}", (0.015, 0.015, 2.2), (0, y, 1.2), bevel=0.003, rot=(0.03 * (k - 4), 0, 0)), "rope")
+    for k in range(8):
+        W.add(W.box(f"cross{k}", (0.015, 1.9, 0.015), (0, 0, 0.3 + k * 0.27), bevel=0.003), "rope")
+    for k in range(5):   # floats along the top, weights along the bottom, weed caught in it
+        W.add(W.sphere(f"float{k}", (0.05, -0.8 + k * 0.4, 2.3), (0.08, 0.08, 0.08), 12), "red")
+        W.add(W.sphere(f"weight{k}", (0.0, -0.8 + k * 0.4, 0.1), (0.05, 0.05, 0.05), 10), "iron")
+    for k in range(4):
+        W.add(W.box(f"weed{k}", (0.01, 0.12, 0.6), (0.03, -0.6 + k * 0.4, 1.0 + 0.2 * k), bevel=0.003), "coral")
+    W.add(W.box("plate", (0.02, 0.4, 0.14), (0.04, 0, 2.05), bevel=0.01), "brass")
+
+
+def build_door_grille(W):
+    W.add(W.box("arch_l", (0.4, 0.3, 2.4), (0, -0.85, 1.2), bevel=0.03), "bone")
+    W.add(W.box("arch_r", (0.4, 0.3, 2.4), (0, 0.85, 1.2), bevel=0.03), "bone")
+    W.add(W.box("lintel", (0.42, 2.0, 0.3), (0, 0, 2.3), bevel=0.03), "bone")
+    for k in range(7):
+        W.add(W.cyl(f"bar{k}", 0.03, 2.1, (0.05, -0.6 + k * 0.2, 1.08), 'Z', verts=12, bevel=0.004), "verdigris")
+        W.add(W.cone(f"spike{k}", 0.04, 0.0, 0.1, (0.05, -0.6 + k * 0.2, 2.18), 'Z', verts=10), "verdigris")
+    for z in (0.5, 1.6):
+        W.add(W.box(f"rail{z}", (0.05, 1.5, 0.06), (0.05, 0, z), bevel=0.01), "verdigris")
+    W.add(W.ring("sun", (0.08, 0, 1.05), 0.2, 0.025, 'X'), "brass")
+    for sx in (1, -1):
+        W.add(W.box(f"plate{sx}", (0.02, 0.4, 0.14), (sx * 0.22, 0, 2.3), bevel=0.01), "brass")
+
+
 RECIPES = {n[6:]: f for n, f in globals().items() if n.startswith("build_")}
 
 if __name__ == "__main__":
