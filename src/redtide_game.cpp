@@ -1399,6 +1399,30 @@ static void DrawScene() {
             DrawWorldCube(p.pos, {0.3f, 0.16f, 0.3f}, {180, 90, 120, 255});
         }
         for (const auto& c : m.crates) {
+            // the set pieces (stations_rt.py): the stalactite trembling at the roof, dropping, and the heap it leaves; the
+            // cargo crate in its net swinging on the crane's chain, then dropped, and lying canted where it struck
+            if (!getenv("DEPTH_OLDSTATIONS")) {
+                int zc = m.eco.ZoneAt(c.pos); float floorY = zc >= 0 ? m.map->zones[zc].y0 : c.pos.y - 1.2f;
+                float spin = (float)((int)(c.pos.x * 7 + c.pos.z * 13) % 628) * 0.01f;
+                if (c.kind == 1) {
+                    if (!c.fallen) {
+                        float y = std::min(c.top, c.pos.y + std::max(0.0f, c.t) * 14);
+                        float tremble = sinf(S.time * 40) * 0.03f;
+                        if (DrawRtProp("redtide/stations/stalactite.glb", MatrixMultiply(MatrixRotateY(spin), MatrixTranslate(c.pos.x + tremble, y + 1.6f, c.pos.z)), nullptr, WHITE)) continue;
+                    } else if (DrawRtProp("redtide/stations/rubble.glb", MatrixMultiply(MatrixRotateY(spin), MatrixTranslate(c.pos.x, floorY, c.pos.z)), nullptr, WHITE)) continue;
+                } else {
+                    Vector3 ctr = c.fallen ? Vector3{c.pos.x, floorY + 0.6f, c.pos.z} : Vector3{c.pos.x, c.pos.y + std::max(0.0f, c.t) * 3 + 0.4f, c.pos.z};
+                    float sway = c.fallen ? 0.0f : sinf(S.time * 1.3f + spin) * 0.06f;
+                    Matrix fr = MatrixMultiply(MatrixMultiply(MatrixRotateY(spin), MatrixRotateZ(c.fallen ? 0.14f : sway)), MatrixTranslate(ctr.x, ctr.y, ctr.z));
+                    if (DrawRtProp("redtide/stations/trap_crate.glb", fr, nullptr, WHITE)) {
+                        if (!c.fallen && c.top > ctr.y + 1.3f) {   // the chain up to the crane (cargo hung from one)
+                            float top = c.top;
+                            DrawCubeM(MatrixMultiply(MatrixScale(0.05f, top - ctr.y - 1.2f, 0.05f), MatrixTranslate(ctr.x, (top + ctr.y + 1.2f) * 0.5f, ctr.z)), {70, 66, 60, 255});
+                        }
+                        continue;
+                    }
+                }
+            }
             if (c.kind == 1) {
                 // a stalactite: hangs trembling at the ceiling, then drops and shatters
                 float y = c.fallen ? c.pos.y - 0.2f : std::min(c.top, c.pos.y + std::max(0.0f, c.t) * 14);
@@ -1922,6 +1946,17 @@ void DebugRedTideShot(Game& g, int which) {
             if (const char* st = getenv("DEPTH_STATION")) {   // (DEPTH_STATION=tonic|locker|forge|power|workbench|cache: stand before the first one)
                 static const char* N[] = {"rack", "tonic", "locker", "forge", "power", "workbench", "trap", "quest", "cleaning", "feature", "hazard", "entry", "boss", "queststep", "cache"};
                 int want = -1; for (int k = 0; k < 15; k++) if (std::string(st) == N[k]) want = k;
+                if (std::string(st) == "traps") {   // (the set pieces before you: a crate and a stalactite each falling, each fallen)
+                    Vector3 f{sinf(d.yaw), 0, cosf(d.yaw)}, r{cosf(d.yaw), 0, -sinf(d.yaw)};
+                    int zi = d.zone; float y0 = zi >= 0 ? m.map->zones[zi].y0 : d.pos.y - 1;
+                    auto put = [&](int kind, float side, bool fallen) {
+                        Crate c; c.kind = kind; c.fallen = fallen; c.t = fallen ? -2 : 0.5f;
+                        c.pos = Vector3Add(d.pos, Vector3Add(Vector3Scale(f, 5), Vector3Scale(r, side))); c.pos.y = y0 + 1.2f; c.top = y0 + 4.5f;
+                        m.crates.push_back(c);
+                    };
+                    put(0, -2.4f, false); put(0, -0.8f, true); put(1, 0.8f, false); put(1, 2.4f, true);
+                    d.pitch = 0.05f;
+                }
                 if (std::string(st) == "door" && !m.level.doors.empty()) {   // (the doors shut again, and stand before the first)
                     for (auto& dr : m.level.doors) dr.open = false;
                     const auto& dr = m.level.doors[getenv("DEPTH_DOOR") ? std::clamp(atoi(getenv("DEPTH_DOOR")), 0, (int)m.level.doors.size() - 1) : 0];

@@ -256,6 +256,40 @@ def build_door_grille(W):
         W.add(W.box(f"plate{sx}", (0.02, 0.4, 0.14), (sx * 0.22, 0, 2.3), bevel=0.01), "brass")
 
 
+# ---------------------------------------------------------------- the traps' set pieces: the ship's cargo drop (a crate
+# in a cargo net on the crane's hook, 1.2 m, centred on its middle) and the cave's rockfall (a stalactite, its base at
+# the top, z = 0, hanging down 1.6 m; and the heap it shatters into)
+def build_trap_crate(W):
+    W.add(W.box("crate", (1.2, 1.2, 1.2), (0, 0, 0), bevel=0.03), "laminate")
+    for z in (-0.45, 0.45):
+        for ax in range(2):
+            W.add(W.box(f"band{z}{ax}", (1.24, 0.08, 0.08) if ax == 0 else (0.08, 1.24, 0.08), (0, 0, z), bevel=0.01), "iron")
+    for k in range(5):   # the cargo net over it, gathered to the hook
+        y = -0.5 + k * 0.25
+        W.add(W.tube(f"net_a{k}", [(-0.62, y, -0.6), (-0.62, y, 0.62), (0, y * 0.2, 0.85)], 0.012), "rope")
+        W.add(W.tube(f"net_b{k}", [(0.62, y, -0.6), (0.62, y, 0.62), (0, y * 0.2, 0.85)], 0.012), "rope")
+    W.add(W.ring("hook_eye", (0, 0, 0.9), 0.06, 0.015, 'Y'), "iron")
+    W.add(W.tube("hook", [(0, 0, 0.95), (0, 0, 1.15), (0.08, 0, 1.25), (0.1, 0, 1.15)], 0.025), "iron")
+    W.add(W.box("stencil", (0.01, 0.5, 0.25), (0.61, 0, 0.1), bevel=0.002), "red")
+
+
+def build_stalactite(W):
+    W.M["stone"] = K._mat("limestone", (0.3, 0.28, 0.24), 0.8)
+    W.add(W.cone("spike", 0.02, 0.26, 1.6, (0, 0, -0.8), 'Z', verts=9), "stone")   # (point down, its root at the roof)
+    for k, (z, r) in enumerate(((-0.25, 0.27), (-0.6, 0.2), (-0.95, 0.13))):   # the drip rings down it
+        W.add(W.ring(f"ring{k}", (0, 0, z), r, 0.03, 'Z'), "stone")
+    W.add(W.cone("spur", 0.01, 0.08, 0.5, (0.12, 0.08, -0.35), 'Z', verts=7), "stone")
+
+
+def build_rubble(W):
+    import random
+    rng = random.Random(11)
+    W.M["stone"] = K._mat("limestone", (0.3, 0.28, 0.24), 0.8)
+    for k in range(14):
+        a = rng.uniform(0, 2 * math.pi); r = rng.uniform(0, 0.55); s = rng.uniform(0.08, 0.22)
+        W.add(W.sphere(f"chunk{k}", (r * math.cos(a), r * math.sin(a), s * 0.5), (s, s * 0.8, s * 0.6), 5), "stone")
+
+
 RECIPES = {n[6:]: f for n, f in globals().items() if n.startswith("build_")}
 
 if __name__ == "__main__":
