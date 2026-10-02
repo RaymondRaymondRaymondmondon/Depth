@@ -36,6 +36,8 @@ struct RedTideScene {
     int lineup = -1;               // --shots: every species of the Ship posed in rows (page number)
     int studio = -1;               // --shots: the Visual Overhaul's studio (redtide_vis.cpp), which set
     bool freeze = false;           // --shots: hold the match still (a squad lined up for its portrait)
+    struct Dress { std::string path; Matrix m; };
+    std::vector<Dress> dress;      // the map kit's placed models (ShipDressing)
     int lastZone = -1; float zoneT = 0;
     float bob = 0;
     bool awarded = false; int awardTokens = 0; std::vector<std::string> awardLines;   // the arcade profile's pay for the match
@@ -145,7 +147,7 @@ static void FaceWithHoles(MeshBuilder& mb, int axis, float at, Vector2 lo, Vecto
     }
 }
 
-static void BuildLevelModel() {
+static void ShipDressing(); void BuildLevelModel() {
     if (S.levelReady) { UnloadModel(S.level); S.levelReady = false; }
     if (!IsWindowReady() || S.mode != 1) return;
     const Match& m = M();
@@ -354,6 +356,47 @@ static void BuildLevelModel() {
     }
     S.level = LoadModelFromMesh(mb.Build());
     S.levelReady = true;
+    ShipDressing();
+}
+
+// The Sunken Ship's kit placed in its rooms (the Visual Overhaul, phase 6: tools/artgen/ship_rt.py): the salon's
+// chandelier hanging askew, its armchairs piled against the wall, a table tipped on its side, the piano; the galley's
+// range with its pots, crates and barrels; a bunk in every cabin; the engine room's generator; the bridge's wheel and
+// binnacle; the funnel on the foredeck; barrels on the stern. (The models' frame: +x forward, +y up, the base at 0.)
+static void ShipDressing() {
+    S.dress.clear();
+    if (M().mapKey != "ship") return;
+    const MapData& map = *M().map;
+    auto put = [&](const char* id, Vector3 at, float yaw, Matrix tilt = MatrixIdentity()) {
+        S.dress.push_back({std::string("redtide/ship/") + id + ".glb", MatrixMultiply(MatrixMultiply(tilt, MatrixRotateY(yaw)), MatrixTranslate(at.x, at.y, at.z))});
+    };
+    for (const Zone& z : map.zones) {
+        float x0 = z.plan.x, z0 = z.plan.y, w = z.plan.width, h = z.plan.height, cx = x0 + w / 2, cz = z0 + h / 2;
+        if (z.name == "Grand Salon") {
+            put("chandelier", {cx + 1.5f, z.y1 - 1.5f, cz}, 0.3f, MatrixRotateZ(0.32f));
+            for (int k = 0; k < 3; k++) put("armchair", {x0 + 1.0f, z.y0, z0 + 1.4f + k * 1.0f}, 0.4f * k - 0.3f);
+            put("armchair", {x0 + 1.1f, z.y0 + 0.75f, z0 + 2.0f}, 1.9f, MatrixRotateX(1.1f));       // (thrown on top of the others)
+            put("table", {cx + 2.5f, z.y0, cz - 1.5f}, 0.2f);
+            put("table", {x0 + 2.6f, z.y0 + 0.55f, z0 + h - 1.6f}, 0.8f, MatrixRotateZ(1.5708f));  // (tipped on its side)
+            put("piano", {x0 + w - 0.5f, z.y0, cz + 2.0f}, PI);
+        } else if (z.name.find("Galley") != std::string::npos) {
+            put("range", {x0 + 0.5f, z.y0, z0 + 2.0f}, 0.0f);
+            for (int k = 0; k < 3; k++) put("crate", {x0 + w - 1.0f, z.y0 + (k == 2 ? 0.6f : 0.0f), z0 + 1.0f + (k % 2) * 0.9f}, 0.2f * k);
+            for (int k = 0; k < 2; k++) put("barrel", {x0 + w - 0.8f - k * 0.7f, z.y0, z0 + h - 0.8f}, 0.0f);
+        } else if (z.name == "Cabin Deck") {
+            for (int k = 0; k < 6; k++) put("bunk", {x0 + (k + 0.5f) * w / 6, z.y0, z0 + h - 1.2f}, 1.5708f);
+        } else if (z.name == "Engine Room") {
+            put("generator", {x0 + 9.0f, z.y0, z0 + h - 2.0f}, 0.0f);
+            for (int k = 0; k < 2; k++) put("barrel", {x0 + w - 1.0f, z.y0, z0 + 1.0f + k * 0.7f}, 0.0f);
+        } else if (z.name == "Bridge") {
+            put("wheel", {cx, z.y0, z0 + 1.0f}, -1.5708f);
+        } else if (z.name.find("Foredeck") != std::string::npos) {
+            put("funnel", {cx, z.y0, cz}, 0.0f);
+        } else if (z.name.find("Stern") != std::string::npos) {
+            for (int k = 0; k < 3; k++) put("barrel", {x0 + 1.0f + k * 0.75f, z.y0, z0 + 1.0f}, 0.0f);
+            put("crate", {x0 + 1.4f, z.y0, z0 + 2.2f}, 0.4f);
+        }
+    }
 }
 
 // ---------------------------------------------------------------- starting a match
@@ -1095,6 +1138,7 @@ static void DrawScene() {
         if (S.mode == 0) for (const auto& b : S.boxes) DrawWorldCube(b.c, Vector3Scale(b.half, 2), b.col);
         if (S.mode == 1 && S.levelReady) DrawStatic(S.level, MatrixIdentity());
         if (S.mode == 1) { DrawStations(); DrawFlora(); }
+        for (const auto& dr : S.dress) if (Vector3Distance({dr.m.m12, dr.m.m13, dr.m.m14}, eye) < 50) if (const Model* dm = LoadAsset(dr.path)) DrawPbr(*dm, dr.m);
         for (const auto& f : m.drops) {
             float pulse = 0.8f + 0.2f * sinf(S.time * 5);
             if (f.weapon >= 0) DrawWorldCube(f.pos, {0.8f, 0.15f, 0.25f}, {160, 150, 130, 255});
@@ -1204,7 +1248,7 @@ static void DrawScene() {
             } else DrawWorldCube(c.fallen ? Vector3{c.pos.x, c.pos.y - 0.6f, c.pos.z} : Vector3{c.pos.x, c.pos.y + std::max(0.0f, c.t) * 3 + 0.4f, c.pos.z}, {1.2f, 1.2f, 1.2f}, {120, 92, 60, 255});
         }
     }
-    CreatureBudget(40);   // (the nearest fish on the rigged models: the Visual Overhaul's creature kit)
+    CreatureBudget(60);   // (the nearest fish on the rigged models: the Visual Overhaul's creature kit)
     for (int i = 0; i < (int)m.eco.agents.size(); i++) {
         const Agent& a = m.eco.agents[i];
         if (!a.alive || a.diver == 0) continue;               // (diver 0 is you)
@@ -1224,7 +1268,7 @@ static void DrawScene() {
         if (m.IsBoss(i) && m.bossGillsT > 0) tint = {255, 170, 150, 255};
         if (sp.isEnemy && a.unit >= 0 && Vector3Distance(a.pos, eye) < 45 && DrawFactionFigure(m, a, yaw)) continue;   // (the factions on the figure)
         float bsc = a.sp < (int)m.bodyScale.size() ? m.bodyScale[a.sp] : 1.0f;
-        if (Vector3Distance(a.pos, eye) < 28 && !m.IsBoss(i) && DrawCreaturePbr(cm, a.pos, yaw, pitch, bsc, phase, inten, tint)) continue;   // (the rigged fish, near)
+        if (Vector3Distance(a.pos, eye) < (cm.length * bsc < 0.35f ? 10.0f : 28.0f) && !m.IsBoss(i) && DrawCreaturePbr(cm, a.pos, yaw, pitch, bsc, phase, inten, tint)) continue;   // (the rigged fish, near)
         DrawCreature(cm, a.pos, yaw, pitch, bsc, phase, inten, tint);
     }
     if (S.silhouette < 0.5f) DrawGun(cam);

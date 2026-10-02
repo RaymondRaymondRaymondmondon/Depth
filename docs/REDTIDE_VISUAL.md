@@ -167,3 +167,11 @@ The spec: `Red_Tide_Reference/Red Tide — Visual Overhaul Spec.pdf` (25 pages, 
   holds its baked weapon in its right fist. Shots `rvis_6_wreckers`, `rvis_7_drowned`, `rvis_10_remnant` (a squad
   lined up, the match held still: `S.freeze`). The Reef Raiders (free divers without helmets) and the Lost Ones (not
   divers) still use their CreatureBuilder models.
+- **The Ship's kit** (`tools/artgen/ship_rt.py` -> `assets/redtide/ship/`, baked like the guns; placed by `ShipDressing`
+  in redtide_game.cpp and drawn with the level within 50 m): the salon's chandelier (two tiers of candle arms and glass
+  drops) hanging askew, armchairs piled against the wall with one thrown on top, a table tipped on its side and one
+  standing, the upright piano; the galley's range with its copper pots, crates and barrels; a bunk in every cabin; the
+  engine room's generator; the bridge's wheel and binnacle; the funnel on the foredeck; barrels on the stern. Frame
+  cost: the salon 13.9 ms, the engine room 14.7 (the Goliath's nest).
+- Small fish only get the rigged models within 10 m (big creatures to 28 m), and up to 60 a frame, so a school close by
+  doesn't use up the budget the sharks need.
