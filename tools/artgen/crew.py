@@ -55,12 +55,13 @@ def joints():
         J[f"toe.{sd}"] = (0.13, s * 0.115, 0.045)
         J[f"toe_tip.{sd}"] = (0.2, s * 0.115, 0.04)
         J[f"eye.{sd}"] = (0.09, s * 0.036, 1.67)
+    J["mouth"] = (0.093, 0, 1.598)
     return J
 
 # bone: (head joint, tail joint, parent)
 def bones():
     B = [("pelvis", "pelvis", "spine", None), ("spine", "spine", "chest", "pelvis"), ("chest", "chest", "neck", "spine"),
-         ("neck", "neck", "head", "chest"), ("head", "head", "crown", "neck")]
+         ("neck", "neck", "head", "chest"), ("head", "head", "crown", "neck"), ("mouth", "mouth", None, "head")]
     for sd in ("L", "R"):
         B += [(f"clavicle.{sd}", f"clavicle.{sd}", f"upperarm.{sd}", "chest"),
               (f"upperarm.{sd}", f"upperarm.{sd}", f"forearm.{sd}", f"clavicle.{sd}"),
@@ -179,6 +180,9 @@ def head_parts(J, mats):
         w = sphere(f"eye_white.{sd}", (ex, ey, ez), (0.008, 0.019, 0.022), "eye_white", 24, 16)
         p = sphere(f"eye_dark.{sd}", (ex + 0.0075, ey * 0.97, ez - 0.002), (0.004, 0.0095, 0.0105), "eye_dark", 16, 12)
         w["bone"] = f"eye.{sd}"; p["bone"] = f"eye.{sd}"
+    # the mouth: a dark lozenge on its own bone, drawn as a thin line at rest and opened for a shout
+    mo = sphere("mouth", J["mouth"], (0.007, 0.022, 0.01), "eye_dark", 20, 12)
+    mo["bone"] = "mouth"
     for o in parts:
         if "bone" not in o:
             o["bone"] = "head"
@@ -195,6 +199,8 @@ def tube_ring(name, centre, r_major, r_minor, mat, mats, axis='Z', squash=1.0):
         o.rotation_euler = (0, math.pi / 2, 0)
     if axis == 'ARM':   # square to the left upper arm in the A-pose
         o.rotation_euler = (math.radians(40), 0, 0)
+    if axis == 'ARM_R':
+        o.rotation_euler = (math.radians(-40), 0, 0)
     o.scale = (1, squash, 1)
     bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
     C.assign(o, mats[mat]); C.smooth(o, 180)
@@ -250,6 +256,13 @@ def role_pieces(role, J, mats):
             v.co.x += bodyx + 0.018 - 3.2 * (v.co.y ** 2) * (1.0 if z > 0.92 else 0.6)
         C.smooth(ap, 40); soft(ap)
         kit = C.bevelled_box("patch_kit", (0.06, 0.04, 0.05), loc=(0.02, -0.17, 0.9), bevel=0.008); C.assign(kit, mats["accent"]); C.apply_all(kit); rigid(kit, "pelvis")
+        # the rolled sleeves: a thick cuff where the wool ends on each forearm
+        for s, sd in ((1, "L"), (-1, "R")):
+            a, b = Vector(J[f"forearm.{sd}"]), Vector(J[f"hand.{sd}"])
+            p = a.lerp(b, (a.z - 1.17) / (a.z - b.z))
+            cuff = tube_ring(f"cuff.{sd}", (0, 0, 0), 0.06, 0.018, "top", mats, axis='ARM' if s > 0 else 'ARM_R')
+            cuff.location = p; C.select_only([cuff]); bpy.ops.object.transform_apply(location=True)
+            rigid(cuff, f"forearm.{sd}")
     elif role == "angler":
         # the wide sou'wester, long at the back; a bait tin at the hip
         crown = rigid(lathe_z("souwester", [(0.105, 0.0), (0.104, 0.04), (0.09, 0.085), (0.0, 0.1)], (-0.01, 0, 1.715), "hat", mats, sx=1.05))
@@ -382,6 +395,42 @@ def build(role, out):
     print("artgen: wrote", path)
 
 
+def build_beards(out):
+    """Facial hair as separate small static models, made in the rig's bind space: the game draws one on a sailor's
+    head bone and tints it with the sailor's hair colour (so the material is a pale neutral)."""
+    for kind in ("beard_full", "beard_moustache", "beard_chops"):
+        C.reset()
+        hair = C.mat_flat("hair", (0.8, 0.8, 0.8), rough=0.85)
+        nt = hair.node_tree
+        b = next(n for n in nt.nodes if n.type == 'BSDF_PRINCIPLED')
+        w = nt.nodes.new('ShaderNodeTexWave'); w.inputs['Scale'].default_value = 300; w.inputs['Distortion'].default_value = 6
+        C._bump(nt, b, w.outputs['Fac'], 0.4, 0.001)
+        parts = []
+        def ell(name, loc, scale, rot=(0, 0, 0)):
+            bpy.ops.mesh.primitive_uv_sphere_add(segments=28, ring_count=18, radius=1.0, location=loc, rotation=rot)
+            o = bpy.context.active_object; o.name = name; o.scale = scale
+            bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+            C.assign(o, hair); C.smooth(o, 180); parts.append(o); return o
+        if kind == "beard_full":
+            # a full beard round the jaw and chin, open at the mouth, joined to the moustache
+            o = ell("beard", (0.052, 0, 1.585), (0.068, 0.094, 0.072))
+            bm = bmesh.new(); bm.from_mesh(o.data)
+            cut = [v for v in bm.verts if v.co.z > 1.618 - 0.06 * max(0.0, -v.co.x + 0.02) / 0.05 or v.co.x < -0.005
+                   or (v.co.x > 0.08 and abs(v.co.y) < 0.022 and 1.588 < v.co.z < 1.608)]
+            bmesh.ops.delete(bm, geom=cut, context='VERTS'); bm.to_mesh(o.data); bm.free()
+            sol = o.modifiers.new("thick", 'SOLIDIFY'); sol.thickness = 0.01
+            C.select_only([o]); bpy.ops.object.modifier_apply(modifier="thick")
+            for s in (1, -1):
+                ell(f"moustache{s}", (0.1, s * 0.017, 1.612), (0.011, 0.024, 0.009), (math.radians(s * -14), 0, 0))
+        elif kind == "beard_moustache":
+            for s in (1, -1):   # a walrus moustache, drooping at the ends
+                ell(f"moustache{s}", (0.1, s * 0.02, 1.61), (0.012, 0.028, 0.01), (math.radians(s * -22), 0, 0))
+        else:
+            for s in (1, -1):   # mutton chops down the cheeks
+                ell(f"chop{s}", (0.055, s * 0.068, 1.6), (0.032, 0.012, 0.046), (0, math.radians(-12), math.radians(s * 22)))
+        C.export_glb(parts, os.path.join(out, f"{kind}.glb"))
+
+
 a = C.args()
 only = a[a.index("--role") + 1] if "--role" in a else None
 out = C.out_dir()
@@ -389,3 +438,5 @@ for r in ROLES:
     if only and r != only:
         continue
     build(r, out)
+if not only:
+    build_beards(out)

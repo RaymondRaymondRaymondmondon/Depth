@@ -1181,6 +1181,35 @@ void DrawDeckFx() {
         }
     }
 }
+// A hand's name: a player's own (the arcade seat), or a bot's, picked from its slot the same on every client
+static std::string HandName(int i) {
+    if (S.net && i >= 0 && i < (int)(sizeof(S.net->seats) / sizeof(S.net->seats[0])) && S.net->seats[i].used && !S.net->seats[i].ai && !S.net->seats[i].name.empty()) return S.net->seats[i].name;
+    static const char* N[] = {"Abel", "Silas", "Tobias", "Ezra", "Jonah", "Amos", "Gideon", "Caleb", "Rufus", "Elias", "Barnaby", "Thaddeus", "Ned", "Hiram", "Josiah", "Obadiah", "Ike", "Ansel", "Mungo", "Lem"};
+    if (i < (int)S.W->G.crew.size() && i == 1 && S.W->sess.shake.on) return "Kess";
+    uint32_t h = (uint32_t)S.W->G.crew[i].slot * 2246822519u + 77u; h ^= h >> 15;
+    return N[h % (sizeof(N) / sizeof(N[0]))];
+}
+// First person: each other hand's name over its head, small and warm white, fading out beyond 15 m (the spec)
+void DrawNameTags() {
+    const Gannet& G = S.W->G;
+    const Crew& me = G.crew[S.you];
+    for (int i = 0; i < (int)G.crew.size(); i++) {
+        const Crew& o = G.crew[i];
+        if (i == S.you || o.dead) continue;
+        if (!o.overboard && o.deck != me.deck && !(o.deck <= 1 && me.deck <= 1)) continue;
+        Vector2 at;
+        if (!CrewHeadOnScreen(G, i, S.cam, &at, 1.98f)) continue;
+        Vector2 w = o.overboard ? o.swim : G.HandWorld(i);
+        float d = Vector2Distance(w, {S.cam.position.x, S.cam.position.z});
+        float a = std::clamp((18.0f - d) / 3.0f, 0.0f, 1.0f);
+        if (a <= 0.01f) continue;
+        bool barking = i < (int)G.brains.size() && G.brains[i].barkT > 0;
+        if (barking) continue;   // (the bark is said there instead)
+        std::string n = HandName(i);
+        DrawTextCentered(n, at.x, at.y - 2, 14, Fade(Color{246, 236, 214, 255}, 0.85f * a));   // (the point is just over the crown)
+    }
+}
+
 void DrawBarks() {
     const Gannet& G = S.W->G;
     if (!G.botsOn) return;
@@ -1216,6 +1245,7 @@ void Draw(Game& g) {
         DrawTrawl3D(G, G.eco, S.W->sess, S.you, S.cam, S.ghostSee);
         DrawLandingFx2D(G, S.cam);
         if (c.dead) DrawRectangle(0, 0, SCREEN_W, SCREEN_H, Fade(Color{120, 170, 200, 255}, 0.08f));
+        DrawNameTags();
         DrawBarks();
         DrawDeckFx();
         Hud(g);

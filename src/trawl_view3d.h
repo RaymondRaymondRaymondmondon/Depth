@@ -24,7 +24,7 @@ Camera3D EyeCamera(const Gannet& g, int you, const Eye3D& e);
 bool AimAtWater(const Gannet& g, const Camera3D& cam, Vector2 screen, Vector2* deckOut);
 bool AimAtDeck(const Gannet& g, const Camera3D& cam, Vector2 screen, int deck, Vector2* deckOut);   // the same onto the deck's planks
 void DrawLandingFx2D(const Gannet& g, const Camera3D& cam);   // a landing's fire and smoke over the finished frame
-bool CrewHeadOnScreen(const Gannet& g, int c, const Camera3D& cam, Vector2* out);
+bool CrewHeadOnScreen(const Gannet& g, int c, const Camera3D& cam, Vector2* out, float height = 2.05f);   // a point over the hand's head (metres above its feet)
 bool DeckPointOnScreen(const Gannet& g, Vector2 deck, float up, const Camera3D& cam, Vector2* out);   // a point `up` metres over the main deck                // over a hand's head (barks)
 Vector2 LookDeckDir(const Eye3D& e);                    // the look's direction along the deck (deck frame, unit)
 

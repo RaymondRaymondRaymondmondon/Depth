@@ -151,13 +151,13 @@ bool DeckPointOnScreen(const Gannet& g, Vector2 deck, float up, const Camera3D& 
     *out = GetWorldToScreenEx(p, cam, SCREEN_W, SCREEN_H);
     return out->x > 0 && out->y > 0 && out->x < SCREEN_W && out->y < SCREEN_H;
 }
-bool CrewHeadOnScreen(const Gannet& g, int ci, const Camera3D& cam, Vector2* out) {
+bool CrewHeadOnScreen(const Gannet& g, int ci, const Camera3D& cam, Vector2* out, float height) {
     const Crew& c = g.crew[ci];
     Vector3 p;
     if (c.overboard) p = W3(c.swim, 0.8f);
     else if (c.deck == DECK_SKIFF) p = Vector3Transform({c.p.x, 1.4f, c.p.y}, SkiffMatrix(g));
-    else if (c.deck == DECK_SHORE) p = W3(g.HandWorld(ci), ATOLL_Y_EYE + 2.05f);
-    else { Vector2 sp = StandSpot(c); p = BoatPoint(g.boat, {sp.x, (c.deck == 1 ? ENGINE_Y : DECK_Y) + 2.05f, sp.y}); }
+    else if (c.deck == DECK_SHORE) p = W3(g.HandWorld(ci), ATOLL_Y_EYE + height);
+    else { Vector2 sp = StandSpot(c); p = BoatPoint(g.boat, {sp.x, (c.deck == 1 ? ENGINE_Y : DECK_Y) + height, sp.y}); }
     Vector3 fw = Vector3Subtract(cam.target, cam.position);
     if (Vector3DotProduct(Vector3Subtract(p, cam.position), fw) <= 0.1f || Vector3Distance(p, cam.position) > 40) return false;
     *out = GetWorldToScreenEx(p, cam, SCREEN_W, SCREEN_H);
@@ -831,7 +831,7 @@ static void DrawLanding3D(const Gannet& g, float t) {
 // ---------------------------------------------------------------- the sailors (Visual Overhaul phase 3)
 // Every hand, player or bot, is the shared skinned rig in its role's outfit (tools/artgen/crew.py), posed here in code
 // and given an identity from its slot: a skin tone, outfit shades, a build and a head shape, the same on every client.
-struct SailorLook { Role role = Role::Bosun; Color skin{}, top{}, trousers{}, hat{}; float build = 1, height = 1, headW = 1, headH = 1; };
+struct SailorLook { Role role = Role::Bosun; Color skin{}, top{}, trousers{}, hat{}, hair{}; float build = 1, height = 1, headW = 1, headH = 1; int beard = 0; };   // beard: 0 none, 1 full, 2 moustache, 3 chops
 static SailorLook LookOf(const Crew& c) {
     SailorLook L; L.role = c.role;
     uint32_t h = (uint32_t)c.slot * 2654435761u + 0x9E37u; auto R = [&]() { h ^= h << 13; h ^= h >> 17; h ^= h << 5; return (h & 0xffff) / 65535.0f; };
@@ -848,6 +848,9 @@ static SailorLook LookOf(const Crew& c) {
     }
     L.build = 0.92f + 0.2f * R(); L.height = 0.95f + 0.1f * R();
     L.headW = 1.08f + 0.12f * R(); L.headH = 1.08f + 0.12f * R();   // (a big head reads at a distance: the user's reference)
+    static const Color HAIR[5] = {{40, 30, 24, 255}, {84, 56, 34, 255}, {150, 104, 60, 255}, {170, 160, 150, 255}, {120, 52, 30, 255}};
+    L.hair = HAIR[(int)(R() * 4.99f)];
+    float bd = R(); L.beard = bd < 0.35f ? 0 : bd < 0.6f ? 1 : bd < 0.82f ? 2 : 3;
     return L;
 }
 struct SailorPose {
@@ -858,10 +861,51 @@ struct SailorPose {
     float sit = 0, tread = 0;           // seated on a thwart; treading water (arms out, working)
     float breathe = 0, look = 0, nod = 0;   // breathing phase; head turned (rad), tipped (rad)
     float blink = 0;                    // 0 open, 1 shut
+    float shout = 0;                    // the mouth open (a bark, a shout)
     float swingT = 0;                   // a melee swing (0..1)
     bool fp = false;                    // your own body seen from inside it: no head, the arms up in front of you
     float aimUp = 0, twoHand = 0;       // first person: the arms tipped up (a kick, a raised swing); the left hand under a long tool
+    bool ik[2] = {false, false};        // a hand locked to a grip (0 left, 1 right): the rod, the helm's spokes, a fore-end
+    Vector3 target[2]{};                // where each fist closes, in the figure's frame (x forward, y up, z right)
 };
+// the rotation part of a skinning matrix (its columns normalised: a build or a breath may scale it)
+static Quaternion RotOf(Matrix m) {
+    Vector3 x = Vector3Normalize({m.m0, m.m1, m.m2}), y = Vector3Normalize({m.m4, m.m5, m.m6}), z = Vector3Normalize({m.m8, m.m9, m.m10});
+    Matrix r = MatrixIdentity();
+    r.m0 = x.x; r.m1 = x.y; r.m2 = x.z; r.m4 = y.x; r.m5 = y.y; r.m6 = y.z; r.m8 = z.x; r.m9 = z.y; r.m10 = z.z;
+    return QuaternionNormalize(QuaternionFromMatrix(r));
+}
+// Two-bone IK: turns the upper arm and forearm so the fist closes on the target, the elbow bending down and out
+// (toward the pole). The fist sits a hand's length past the wrist, so the wrist aims short of the target.
+static void ArmIK(const rt::RigInfo& rig, rt::RigPose& pose, int side, Vector3 target) {
+    const char* sd = side ? "R" : "L";
+    int ua = rig.Find(TextFormat("upperarm.%s", sd)), fa = rig.Find(TextFormat("forearm.%s", sd)), hn = rig.Find(TextFormat("hand.%s", sd));
+    if (ua < 0 || fa < 0 || hn < 0 || rig.parent[ua] < 0) return;
+    std::vector<Matrix> skin = rt::SolveRig(rig, pose);
+    int par = rig.parent[ua];
+    Vector3 S = Vector3Transform(rig.joint[ua], skin[par]);
+    float a = Vector3Distance(rig.joint[ua], rig.joint[fa]), b = Vector3Distance(rig.joint[fa], rig.joint[hn]);
+    Vector3 toT = Vector3Subtract(target, S);
+    float dT = std::max(Vector3Length(toT), 1e-4f);
+    Vector3 dir = Vector3Scale(toT, 1 / dT);
+    Vector3 W = Vector3Subtract(target, Vector3Scale(dir, 0.075f));   // the wrist, short of the fist
+    float d = std::clamp(Vector3Distance(W, S), fabsf(a - b) + 0.01f, a + b - 0.005f);
+    float ca = std::clamp((a * a + d * d - b * b) / (2 * a * d), -1.0f, 1.0f), sa = sqrtf(1 - ca * ca);
+    Vector3 pole{-0.3f, -1.0f, side ? 0.6f : -0.6f};                   // the elbow: down, back a little, out to its side
+    Vector3 bend = Vector3Subtract(pole, Vector3Scale(dir, Vector3DotProduct(pole, dir)));
+    bend = Vector3Length(bend) > 1e-4f ? Vector3Normalize(bend) : Vector3{0, -1, 0};
+    Vector3 E = Vector3Add(S, Vector3Add(Vector3Scale(dir, a * ca), Vector3Scale(bend, a * sa)));
+    Vector3 Wd = Vector3Add(S, Vector3Scale(Vector3Normalize(Vector3Subtract(W, S)), d));
+    Quaternion C = RotOf(skin[par]);
+    Vector3 bindUA = Vector3Normalize(Vector3Subtract(rig.joint[fa], rig.joint[ua]));
+    Vector3 bindFA = Vector3Normalize(Vector3Subtract(rig.joint[hn], rig.joint[fa]));
+    Vector3 wantUA = Vector3RotateByQuaternion(Vector3Normalize(Vector3Subtract(E, S)), QuaternionInvert(C));
+    Quaternion qUA = QuaternionFromVector3ToVector3(bindUA, wantUA);
+    pose.rot[ua] = qUA;
+    Quaternion U = QuaternionMultiply(C, qUA);
+    Vector3 wantFA = Vector3RotateByQuaternion(Vector3Normalize(Vector3Subtract(Wd, E)), QuaternionInvert(U));
+    pose.rot[fa] = QuaternionFromVector3ToVector3(bindFA, wantFA);
+}
 static const Model* SailorModel(Role r) {
     static const char* F[4] = {"shared/crew/crew_bosun.glb", "shared/crew/crew_angler.glb", "shared/crew/crew_diver.glb", "shared/crew/crew_medic.glb"};
     return rt::LoadAsset(F[std::clamp((int)r, 0, 3)]);
@@ -880,6 +924,7 @@ static std::vector<Matrix> PoseSailor(const Model& m, const SailorLook& L, const
     if (ch >= 0) pose.scale[ch] = {L.build * (1 + 0.015f * br), 1 + 0.008f * br, L.build * (1 + 0.012f * br)};
     if (hd >= 0) pose.scale[hd] = {L.headW, L.headH, L.headW};
     for (const char* e : {"eye.L", "eye.R"}) { int b = B(e); if (b >= 0) pose.scale[b] = {1, std::max(0.08f, 1 - P.blink), 1}; }
+    { int mo = B("mouth"); if (mo >= 0) pose.scale[mo] = {1, 0.3f + 1.1f * P.shout, 0.85f + 0.2f * P.shout}; }   // a thin line at rest
     // the walk: thighs swing, knees bend on the forward leg, a little hip roll; seated: thighs forward, shins down
     float s1 = sinf(P.walkPh), stride = 0.55f * P.walk;
     rot(B("thigh.L"), Z, s1 * stride + 1.45f * P.sit); rot(B("thigh.R"), Z, -s1 * stride + 1.45f * P.sit);
@@ -931,6 +976,7 @@ static std::vector<Matrix> PoseSailor(const Model& m, const SailorLook& L, const
         if (hd >= 0) pose.scale[hd] = {0.001f, 0.001f, 0.001f};
         int nk = B("neck"); if (nk >= 0) pose.scale[nk] = {0.4f, 0.4f, 0.4f};
     }
+    for (int s = 0; s < 2; s++) if (P.ik[s]) ArmIK(rig, pose, s, P.target[s]);
     return rt::SolveRig(rig, pose);
 }
 static Vector3 SailorGrip(const Model& m, const std::vector<Matrix>& skin, Matrix frame);
@@ -941,6 +987,15 @@ static void DrawSailor(const SailorLook& L, const SailorPose& P, Matrix frame, f
     std::vector<Matrix> skin = PoseSailor(*m, L, P, t);
     std::vector<rt::Recolor> rc = {{"skin", L.skin}, {"top", L.top}, {"trousers", L.trousers}, {"hat", L.hat}};
     rt::DrawPbrSkinned(*m, frame, skin, rc, 0.35f, tint);
+    if (L.beard > 0 && !P.fp) {   // facial hair rides the head bone, in the sailor's hair colour
+        static const char* BEARD[4] = {nullptr, "shared/crew/beard_full.glb", "shared/crew/beard_moustache.glb", "shared/crew/beard_chops.glb"};
+        const Model* bm = rt::LoadAsset(BEARD[L.beard]);
+        int hd = rt::RigOf(*m).Find("head");
+        if (bm && hd >= 0) {
+            Color hc{(unsigned char)(L.hair.r * tint.r / 255), (unsigned char)(L.hair.g * tint.g / 255), (unsigned char)(L.hair.b * tint.b / 255), tint.a};
+            rt::DrawPbr(*bm, MatrixMultiply(skin[hd], frame), hc, 0.2f);
+        }
+    }
     if (held != Item::None && gItem[(int)held].meshCount > 0) {
         // in the fist: at the hand, the tool pointing ahead along the figure and tipped down a little
         Vector3 at = SailorGrip(*m, skin, frame);
@@ -960,7 +1015,7 @@ static Vector3 SailorGrip(const Model& m, const std::vector<Matrix>& skin, Matri
 }
 // your own body in first person: drawn with the camera (it turns and tips with your look), head hidden, arms up
 // before you; returns where the right fist is, for the tool
-static Vector3 DrawFirstPersonBody(const Crew& me, const Camera3D& cam, float t, float aimUp, float twoHand, bool working) {
+static Vector3 DrawFirstPersonBody(const Crew& me, const Camera3D& cam, float t, float aimUp, float twoHand, bool working, const Vector3* grips = nullptr, const bool* gripOn = nullptr) {
     const Model* m = SailorModel(me.role);
     if (!m) return cam.position;
     SailorLook L = LookOf(me);
@@ -974,6 +1029,10 @@ static Vector3 DrawFirstPersonBody(const Crew& me, const Camera3D& cam, float t,
     P.aimUp += std::clamp(pitch, -0.9f, 0.9f);
     Vector3 o = Vector3Add(cam.position, Vector3Add(Vector3Scale(up, -1.63f * L.height), Vector3Scale(flat, -0.1f)));
     Matrix frame = {flat.x, up.x, rgt.x, o.x, flat.y, up.y, rgt.y, o.y, flat.z, up.z, rgt.z, o.z, 0, 0, 0, 1};
+    if (grips) {   // fists locked to a tool's grip and fore-end, the rod or the spokes
+        Matrix inv = MatrixInvert(frame);
+        for (int s = 0; s < 2; s++) if (!gripOn || gripOn[s]) { P.ik[s] = true; P.target[s] = Vector3Transform(grips[s], inv); }
+    }
     std::vector<Matrix> skin = PoseSailor(*m, L, P, t);
     std::vector<rt::Recolor> rc = {{"skin", L.skin}, {"top", L.top}, {"trousers", L.trousers}, {"hat", L.hat}};
     rt::DrawPbrSkinned(*m, frame, skin, rc, 0.35f, WHITE);
@@ -981,11 +1040,43 @@ static Vector3 DrawFirstPersonBody(const Crew& me, const Camera3D& cam, float t,
 }
 static bool SailorsReady() { return SailorModel(Role::Bosun) != nullptr; }
 
+// Where a hand's fists close at its station, in the world: the rod (the right hand up the handle, the left on the
+// reel below it) and the helm (both hands on the spokes, turning with the rudder). False for the other stations.
+static bool StationGrips(const Gannet& g, const Crew& c, Vector3 out[2]) {
+    if (c.station < 0 || c.deck != 0) return false;
+    const StationDef& sd = Stations()[c.station];
+    const Boat& b = g.boat;
+    if (sd.kind == StationKind::Helm) {
+        Vector3 ctr{4.36f, DECK_Y + 1.2f, 0};
+        float turn = b.rudder * 1.4f;
+        for (int s = 0; s < 2; s++) {
+            float th = (s ? 0.75f : PI - 0.75f) + turn;
+            out[s] = BoatPoint(b, {ctr.x - 0.02f, ctr.y + sinf(th) * 0.42f, cosf(th) * 0.42f});
+        }
+        return true;
+    }
+    for (const auto& r : g.rods) {
+        if (r.station != c.station) continue;
+        Vector2 tip = r.TipDeck();
+        float bend = r.state == RodState::Fighting ? std::clamp(r.fight.tension / TackleOf(r.tackle).strength, 0.0f, 1.2f) : 0;
+        Vector3 base{sd.at.x, DECK_Y + 0.75f, sd.at.y}, tip3{tip.x, DECK_Y + 2.3f - bend * 0.5f, tip.y};
+        Vector3 dir = Vector3Normalize(Vector3Subtract(tip3, base));
+        out[1] = BoatPoint(b, Vector3Add(base, Vector3Scale(dir, 0.48f)));   // the fore grip
+        out[0] = BoatPoint(b, Vector3Add(base, Vector3Scale(dir, 0.2f)));    // the reel
+        return true;
+    }
+    return false;
+}
+
 static void DrawHandSailor(const Gannet& g, const Crew& c, float t) {
     SailorLook L = LookOf(c);
     SailorPose P;
     P.breathe = t * 1.7f + c.slot; P.walkPh = t * 9 + c.slot;
     P.blink = fmodf(t * 0.23f + c.slot * 0.37f, 1.0f) < 0.03f ? 1.0f : 0.0f;   // a blink every four seconds or so
+    {   // a bot barking ("Fish on, port!") shouts it: the mouth works with the words
+        int ci = (int)(&c - &g.crew[0]);
+        if (ci >= 0 && ci < (int)g.brains.size() && g.brains[ci].barkT > 0) P.shout = 0.55f + 0.45f * sinf(t * 18);
+    }
     Color tint = c.dead ? Color{190, 225, 245, 120} : WHITE;
     Item held = Item::None;
     Matrix frame;
@@ -1006,7 +1097,15 @@ static void DrawHandSailor(const Gannet& g, const Crew& c, float t) {
         P.sit = 1; P.reach = pull / 1.4f; P.grip = 0.9f;
     } else {
         if (OnQuay(g, c)) frame = Frame(W3(g.boat.ToWorld(c.p), QUAY_Y), yawLocal - g.boat.heading);
-        else { Vector2 sp = StandSpot(c); frame = MatrixMultiply(Frame({sp.x, (c.deck == 1 ? ENGINE_Y : DECK_Y) + c.z, sp.y}, yawLocal), BoatMatrix(g.boat)); }
+        else {
+            // sea legs: standing against her roll and pitch (pivoting at the feet), so the hands stay upright as
+            // the deck tilts under them; past 12 degrees the arms come out to brace
+            Vector2 sp = StandSpot(c);
+            Vector3 feet{sp.x, (c.deck == 1 ? ENGINE_Y : DECK_Y) + c.z, sp.y};
+            Matrix legs = MatrixMultiply(MatrixMultiply(MatrixTranslate(-feet.x, -feet.y, -feet.z), MatrixMultiply(MatrixRotateX(-g.boat.roll * 0.65f), MatrixRotateZ(-g.boat.pitch * 0.5f))), MatrixTranslate(feet.x, feet.y, feet.z));
+            frame = MatrixMultiply(MatrixMultiply(Frame(feet, yawLocal), legs), BoatMatrix(g.boat));
+            if (c.station < 0 && !c.fallen) P.tread = std::clamp((fabsf(g.boat.roll) - 0.2f) * 3.0f, 0.0f, 0.6f) * 0.5f;
+        }
         if (c.dead) frame = MatrixMultiply(MatrixTranslate(0, 0.08f + 0.05f * sinf(t * 2 + c.slot), 0), frame);
         if (c.fallen) frame = MatrixMultiply(MatrixMultiply(MatrixRotateZ(1.5f), MatrixTranslate(0, 0.2f, 0)), frame);
         P.walk = c.station < 0 && Vector2Length(c.v) > 0.3f && !c.fallen ? 1.0f : 0.0f;
@@ -1014,6 +1113,12 @@ static void DrawHandSailor(const Gannet& g, const Crew& c, float t) {
         if (!c.dead && c.station < 0) { held = DrawItemOf(c.slots[c.sel]); if (held != Item::None) P.grip = 0.85f; }
     }
     if (c.dead) P.grip = 0.1f;
+    Vector3 grips[2];
+    if (!c.dead && !c.fallen && StationGrips(g, c, grips)) {   // the fists on the rod or the spokes
+        Matrix inv = MatrixInvert(frame);
+        for (int s = 0; s < 2; s++) { P.ik[s] = true; P.target[s] = Vector3Transform(grips[s], inv); }
+        P.grip = 0.9f;
+    }
     DrawSailor(L, P, frame, t, held, tint);
 }
 
@@ -1083,11 +1188,12 @@ static void DrawHand(const Gannet& g, const Crew& c, float t) {
 // Turnarounds on a neutral stage under a lantern and the moon: 0 every role front, side and back; 1 the faces close
 // up; 2 the guns side and three-quarter (the baked test carbine beside the old box rifle); 3 the baked test head;
 // 4 four bots side by side. The current figures draw as they do aboard, so these are the "before" set.
-static void DrawFigureAt(Role role, Matrix frame, float t, int slot) {
+static void DrawFigureAt(Role role, Matrix frame, float t, int slot, int beard = -1) {
     if (SailorsReady()) {
         Crew c; c.role = role; c.slot = slot;
         SailorPose P; P.breathe = t * 1.7f + slot;
-        DrawSailor(LookOf(c), P, frame, t, Item::None, WHITE);
+        SailorLook L = LookOf(c); if (beard >= 0) L.beard = beard;
+        DrawSailor(L, P, frame, t, Item::None, WHITE);
         return;
     }
     int r = std::clamp((int)role, 0, (int)Role::COUNT - 1);
@@ -1120,7 +1226,7 @@ void DrawTrawlStudio(int which, float t) {
         cam.position = {0, 1.66f, 2.2f}; cam.target = {0, 1.62f, 0}; cam.fovy = 30;
         lantern({-1.2f, 2.6f, 2.2f}, {0, 1.6f, 0});
         rt::RenderBegin(cam, L);
-        for (int r = 0; r < 4; r++) DrawFigureAt((Role)r, Frame({(r - 1.5f) * 0.42f, 0, 0}, FRONT - 0.35f), t, r);
+        for (int r = 0; r < 4; r++) DrawFigureAt((Role)r, Frame({(r - 1.5f) * 0.42f, 0, 0}, FRONT - 0.35f), t, r, (r + 1) % 4);   // (one of each beard)
     } else if (which == 2 || which == 3) {
         cam.position = which == 2 ? Vector3{0.05f, 0.25f, 1.55f} : Vector3{0, 0.15f, 0.75f};
         cam.target = which == 2 ? Vector3{0.05f, 0.0f, 0} : Vector3{0, 0.13f, 0};
@@ -1543,7 +1649,11 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
     Item held = DrawItemOf(me.slots[me.sel]);
     // your own arms and hands (the shared sailor, head hidden), with or without a tool, at a station reaching to the work
     bool fpBody = SailorsReady() && !me.dead && !me.overboard && me.deck != DECK_SKIFF && me.deck != DECK_DIVE;
-    if (fpBody && (held == Item::None || me.station >= 0)) DrawFirstPersonBody(me, cam, t, me.station >= 0 ? 0.1f * sinf(t * 5) : -0.25f, 0, me.station >= 0);
+    if (fpBody && (held == Item::None || me.station >= 0)) {
+        Vector3 grips[2];
+        bool on = StationGrips(g, me, grips);
+        DrawFirstPersonBody(me, cam, t, me.station >= 0 ? 0.1f * sinf(t * 5) : -0.25f, 0, me.station >= 0, on ? grips : nullptr);
+    }
     if (gCrewReady && held != Item::None && me.station < 0 && !me.dead && !me.overboard) {
         Vector3 f = Vector3Normalize(Vector3Subtract(cam.target, cam.position));
         Vector3 rgt = Vector3Normalize(Vector3CrossProduct(f, cam.up)), up = Vector3CrossProduct(rgt, f);
@@ -1564,18 +1674,19 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
         float swingPitch = sw >= 0 ? (0.6f - sinf(sw * PI) * 1.6f) : 0;                 // raised, then chopped down past level
         float swingYaw = sw >= 0 ? (sw - 0.5f) * 0.8f : 0;
         Vector3 p = Vector3Add(cam.position, Vector3Add(Vector3Scale(f, 0.42f - back), Vector3Add(Vector3Scale(rgt, 0.2f + swingYaw * 0.1f), Vector3Scale(up, -0.2f + bob - dip + (sw >= 0 ? 0.08f * sinf(sw * PI) : 0)))));
-        if (fpBody) {
-            // the arms carry the tool: kicked up by a shot, raised and chopped by a swing, dipped by a reload; the tool
-            // sits in the right fist, a long one with the left hand under its fore-end
-            bool longTool = held == Item::Rifle || held == Item::Shotgun || held == Item::Speargun || held == Item::Gaff;
-            float aim = pitchUp * 0.8f + (sw >= 0 ? 0.9f - sinf(sw * PI) * 1.4f : 0) - dip * 2.0f;
-            p = DrawFirstPersonBody(me, cam, t, aim, longTool ? 1.0f : 0.0f, false);
-        }
         // the item's +X along the look, tipped a little up and in; the swing and the kick tilt it
         Vector3 ax = Vector3Normalize(Vector3Add(f, Vector3Add(Vector3Scale(up, 0.12f + pitchUp + swingPitch), Vector3Scale(rgt, -0.12f + swingYaw))));
         Vector3 az = Vector3Normalize(Vector3CrossProduct(ax, up)), ay = Vector3CrossProduct(az, ax);
         Matrix hm = {ax.x, ay.x, az.x, p.x, ax.y, ay.y, az.y, p.y, ax.z, ay.z, az.z, p.z, 0, 0, 0, 1};
         if (rl >= 0) hm = MatrixMultiply(MatrixRotateZ(-0.5f * sinf(rl * PI)), hm);   // (rolled out to the side while the hands work)
+        if (fpBody) {
+            // your hands on it: the right fist at the grip, a long tool's fore-end in the left (which lets go to work
+            // the action through a reload); the tool keeps its own swing, kick and dip and the arms follow
+            bool longTool = held == Item::Rifle || held == Item::Shotgun || held == Item::Speargun || held == Item::Gaff;
+            Vector3 grips[2] = {Vector3Transform({held == Item::Gaff ? 0.3f : 0.26f, -0.01f, 0}, hm), Vector3Transform({0.0f, -0.015f, 0}, hm)};
+            bool on[2] = {longTool && rl < 0, true};
+            DrawFirstPersonBody(me, cam, t, -0.2f, longTool ? 1.0f : 0.0f, false, grips, on);
+        }
         rt::DrawStaticGlow(gItem[(int)held], hm, WHITE, 0.25f);   // (a touch of light from the lamp at your shoulder)
         // the speargun's spear slides home in the last third of the reload; a muzzle flash on a powder shot
         if (held == Item::Speargun && rl > 0.66f) { float s = (rl - 0.66f) / 0.34f; rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(0.5f * s, 0.006f, 0.006f), MatrixTranslate(0.1f + 0.25f * s, 0.03f, 0)), hm), Color{150, 156, 160, 255}); }
