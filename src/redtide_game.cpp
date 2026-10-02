@@ -397,8 +397,27 @@ static void MapDressing() {
             if (has("Forum") || has("Gate")) { put("statue", {cx, z.y0, cz}, 1.6f, 0.5f); for (int k = -1; k <= 1; k += 2) put("column", {cx + k * w * 0.3f, z.y0, cz - h * 0.3f}, 1.3f, 0); }
             if (has("Chapel") || has("Temple")) for (int k = -1; k <= 1; k += 2) put("brazier", {cx + k * 3.0f, z.y0, cz}, 1.2f, 0);
             if (has("Town") || has("Market")) for (int k = 0; k < 3; k++) put("column", {x0 + w * (0.25f + 0.25f * k), z.y0, z0 + 1.2f}, 1.1f, 0);
+        } else if (key == "cave") {
+            // a landmark in every chamber, seen from its entrance (the spec): the Mouth's great stalagmite cluster, the
+            // Gallery's line of them, crystal in the Chimney, the Cathedral's giant crystal ringed with stalagmites, the
+            // Dynamo Sump's dynamo, stalagmites in the dry chambers
+            if (has("Mouth")) put("stalagmites", {cx, z.y0, cz}, 2.2f, 0.4f);
+            if (has("Gallery")) for (int k = 0; k < 3; k++) put("stalagmites", {x0 + w * (0.25f + 0.25f * k), z.y0, cz + (k % 2 ? 1.5f : -1.5f)}, 1.3f, k * 1.1f);
+            if (has("Chimney")) put("crystal", {cx, z.y0, cz}, 1.6f, 0.2f);
+            if (has("Cathedral")) { put("crystal", {cx, z.y0, cz}, 3.2f, 0); for (int k = 0; k < 5; k++) put("stalagmites", {cx + cosf(k * 1.2566f) * w * 0.32f, z.y0, cz + sinf(k * 1.2566f) * h * 0.32f}, 1.5f, k); }
+            if (has("Dry Chamber")) put("stalagmites", {cx + w * 0.2f, z.y0, cz}, 1.2f, 0.9f);
+            if (has("Dynamo") && LoadAsset("redtide/ship/generator.glb")) S.dress.push_back({std::string("redtide/ship/generator.glb"), MatrixMultiply(MatrixScale(1.4f, 1.4f, 1.4f), MatrixTranslate(cx, z.y0, cz)), WHITE});
         } else if (key == "reef") {
             if (has("Sand") || has("Lagoon")) for (int k = 0; k < 3; k++) put("clam", {x0 + w * (0.2f + 0.3f * k), z.y0, z0 + h * (0.3f + 0.2f * (k % 2))}, 0.9f + 0.3f * k, k * 1.3f);
+            // the reef's landmarks: the Bommie's great brain coral, the forest's giant staghorn, the maze's brains, fans
+            // round the Blue Hole's rim and along the wall, a table coral on Turtle Beach, staghorn in the Surge Channel
+            if (has("Bommie")) put("brain", {cx, z.y0, cz}, 3.0f, 0.3f);
+            if (has("Staghorn")) put("staghorn", {cx, z.y0, cz}, 2.6f, 0);
+            if (has("Maze")) for (int k = 0; k < 3; k++) put("brain", {x0 + w * (0.25f + 0.25f * k), z.y0, z0 + h * (0.35f + 0.3f * (k % 2))}, 1.5f, k);
+            if (has("Blue Hole")) for (int k = 0; k < 4; k++) put("fan", {cx + cosf(k * 1.5708f) * w * 0.35f, z.y0, cz + sinf(k * 1.5708f) * h * 0.35f}, 1.8f, k * 1.5708f);
+            if (has("Drop-off")) for (int k = 0; k < 3; k++) put("fan", {x0 + w * (0.25f + 0.25f * k), z.y0, z0 + 1.0f}, 2.0f, 0);
+            if (has("Turtle")) put("table", {cx, z.y0, cz}, 2.2f, 0.6f);
+            if (has("Surge")) put("staghorn", {cx, z.y0, cz}, 1.8f, 1.0f);
         } else if (key == "void") {
             if (has("Galler") || has("Warren")) for (int k = 0; k < 5; k++) put("sponge", {x0 + w * (0.15f + 0.17f * k), z.y0, z0 + h * (0.25f + 0.5f * (k % 2))}, 0.9f + 0.25f * (k % 3), k * 0.7f);
             // the station's modules furnished (the spec: "the station's modules as models"): the labs lined with
