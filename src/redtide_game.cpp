@@ -1643,7 +1643,15 @@ static void DrawScene() {
         }
         if (sp.isEnemy && a.unit >= 0 && Vector3Distance(a.pos, eye) < 45 && DrawFactionFigure(m, a, yaw)) continue;   // (the factions on the figure)
         float bsc = a.sp < (int)m.bodyScale.size() ? m.bodyScale[a.sp] : 1.0f;
-        if (m.IsBoss(i) && DrawBossPbr(m.bossKind, cm, a.pos, yaw, pitch, bsc, phase, inten, WHITE, m.bossGillsT > 0 ? 1.0f : 0.0f)) continue;   // (the boss's own model)
+        // (the boss's phase on its body: the second darker and hotter, the third pulsing with it, its weak point never
+        // quite dark; the frenzy quickens its movement)
+        if (m.IsBoss(i)) {
+            int ph = std::clamp(m.bossPhase, 1, 3);
+            float pulse = ph >= 3 ? 0.5f + 0.5f * sinf(S.time * 4) : 0;
+            Color bt = ph == 1 ? WHITE : ph == 2 ? Color{235, 200, 190, 255} : Color{(unsigned char)(235 + 20 * pulse), (unsigned char)(170 + 20 * pulse), (unsigned char)(160 + 20 * pulse), 255};
+            float hot = std::max(m.bossGillsT > 0 ? 1.0f : 0.0f, ph >= 3 ? 0.35f + 0.35f * pulse : ph == 2 ? 0.2f : 0.0f);
+            if (DrawBossPbr(m.bossKind, cm, a.pos, yaw, pitch, bsc, phase * (ph >= 3 ? 1.4f : 1.0f), inten * (ph >= 2 ? 1.3f : 1.0f), bt, hot)) continue;   // (the boss's own model)
+        }
         if (Vector3Distance(a.pos, eye) < (cm.length * bsc < 0.35f ? 10.0f : 28.0f) && !m.IsBoss(i) && DrawCreaturePbr(cm, a.pos, yaw, pitch, bsc, phase, inten, tint)) continue;   // (the rigged fish, near)
         DrawCreature(cm, a.pos, yaw, pitch, bsc, phase, inten, tint);
     }
