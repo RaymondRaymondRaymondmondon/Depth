@@ -37,7 +37,7 @@ static const struct { const char* name; const char* note; } ROLE_UP[UP_COUNT] = 
     {"Deep Lungs", "+15 s more air"}, {"Glint Eye", "sees salvage through one wall"},
     {"Pressure Hardened", "the hardhat works 30 m deeper"}, {"Wreck Rat", "opens locked cabins without a crowbar"},
     {"Strongback", "carries two-diver lifts alone"}, {"Old Hand", "their hose and lifeline never tangle"},
-    {"Field Surgeon", "treats two serious injuries a night"}, {"Warm Blankets", "overboard timer +8 s for the whole crew"},
+    {"Field Surgeon", "sets two serious injuries in one sitting, twice as quick"}, {"Warm Blankets", "overboard timer +8 s for the whole crew"},
     {"Second Wind", "CPR window 15 -> 30 s"}, {"Steady Nerves", "charmed or stunned crew within 6 m recover twice as fast"},
     {"Miracle Worker", "once a deadline, revives a crewman whose body is aboard, mid-night"}, {"Ghost Speaker", "hears and talks with the dead, and sees ghosts' outlines"}};
 const char* RoleUpName(int u) { return u >= 0 && u < UP_COUNT ? ROLE_UP[u].name : "?"; }

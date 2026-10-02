@@ -26,7 +26,8 @@ namespace tw {
 
 // the Diver's perk (design doc, "The crew of six"): +15 s of helmet air, 15% quicker through the rooms, no bends from a
 // normal recall (only one brought up at twice the speed or faster)
-static float HelmetAir(const Crew& c) { return c.role == Role::Diver ? 45.0f : 30.0f; }
+static float HelmetAir(const Crew& c) { return (c.role == Role::Diver ? 45.0f : 30.0f) + (c.Up(UP_DEEPLUNGS) ? 15.0f : 0.0f); }   // (Deep Lungs)
+const float HARDHAT_PRESSURE_MAX = 90;   // (Pressure Hardened: a hardhat on a bell wreck this shallow)
 int Gannet::WreckNear(float r) const {
     if (!wrecks) return -1;
     int best = -1; float bd = r;
@@ -41,8 +42,9 @@ bool Gannet::StartDive(int ci) {
     if (w < 0) { Say("No wreck under her here: lie still within 15 m of one (the sonar shows them)"); return false; }
     const Wreck& wk = (*wrecks)[w];
     // the bell when she has it (any wreck to 120 m; two divers; its own air), else the hardhat (no bell wrecks)
-    bool useBell = divingBell && (wk.bell || !hardhat);
-    if (wk.bell && !divingBell) { Say("Too deep for a hardhat: that wreck wants the diving bell (the Slipway)"); return false; }
+    bool hardened = hardhat && c.Up(UP_PRESSURE) && wk.depth <= HARDHAT_PRESSURE_MAX;   // (Pressure Hardened: 30 m deeper in the hardhat)
+    bool useBell = divingBell && ((wk.bell && !hardened) || !hardhat);
+    if (wk.bell && !divingBell && !hardened) { Say("Too deep for a hardhat: that wreck wants the diving bell (the Slipway)"); return false; }
     if (wk.depth > 120) { Say("Deeper than even the bell goes"); return false; }
     dive = DiveState{}; dive.diver = ci; dive.wreck = w; dive.room = -1; dive.depth = 0; dive.air = HelmetAir(crew[ci]); dive.gauge = 0.7f; dive.bell = useBell;
     c.station = -1; c.deck = DECK_DIVE;
@@ -73,7 +75,7 @@ bool Gannet::DiveMove(int to) {
         if (dive.moveT < (crew[dive.diver].role == Role::Diver ? 1.3f : 1.5f)) { dive.siltT = 5; Say("Too fast through the silt: it boils up and the lamp shows nothing"); }
         dive.room = to; dive.roomT = 0; dive.moveT = 0;
         // a long hose run tangles on the wreckage (the bell's divers swim free of a hose)
-        if (!dive.bell) {
+        if (!dive.bell && !crew[dive.diver].Up(UP_OLDHAND)) {   // (Old Hand: the hose never snags)
             auto d = HoseDistances(w);
             if (to < (int)d.size() && d[to] > 32) {
                 uint32_t h = w.seed * 2654435761u + (uint32_t)to * 97u + (uint32_t)(time * 10);
@@ -93,15 +95,15 @@ bool Gannet::DiveTake() {
     if (R.locked) {
         const Crew& c = crew[dive.diver];
         bool bar = false; for (const auto& s : c.slots) if (s.it == Item::Weapon && s.wpn >= 0 && Weapons()[s.wpn].id == "crowbar") bar = true;
-        if (!bar && c.role != Role::Diver) { Say("A locked cabin: a crowbar, or a Diver's knack with old locks"); return false; }
+        if (!bar && !c.Up(UP_WRECKRAT)) { Say("A locked cabin: a crowbar, or a Wreck Rat's knack with old locks"); return false; }
         R.locked = false; Say("The cabin door gives");
     }
     bool heavyLeft = false;
     for (int i = 0; i < (int)w.salvage.size(); i++) if (w.salvage[i].room == dive.room && !w.salvage[i].taken) {
-        if (w.salvage[i].twoDiver && dive.diver2 < 0) { heavyLeft = true; continue; }   // (a two-diver lift: the bell's pair)
+        if (w.salvage[i].twoDiver && dive.diver2 < 0 && !crew[dive.diver].Up(UP_STRONGBACK)) { heavyLeft = true; continue; }   // (a two-diver lift: the bell's pair, or a Strongback)
         w.salvage[i].taken = true; dive.carrying = true; dive.item = i;
         for (auto& r : w.residents) if (r.room == dive.room && r.what.find("Ghost Worm") != std::string::npos && !r.awake) { r.awake = true; Say("Something long uncoils in the dark corner: a Ghost Worm hatchling, woken"); }
-        Say(TextFormat(w.salvage[i].twoDiver ? "Between the two of you: %s (%.0f kg)" : "In your arms: %s (%.0f kg)", w.salvage[i].name.c_str(), w.salvage[i].kg));
+        Say(TextFormat(w.salvage[i].twoDiver && dive.diver2 >= 0 ? "Between the two of you: %s (%.0f kg)" : "In your arms: %s (%.0f kg)", w.salvage[i].name.c_str(), w.salvage[i].kg));
         return true;
     }
     Say(heavyLeft ? "What's left here is too heavy for one diver: it wants two (the bell)" : "Nothing more worth lifting in here");

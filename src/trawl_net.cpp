@@ -183,6 +183,8 @@ bool DoCommand(TrawlWorld& w, int ci, int cmd, const std::string& id, int arg, s
         case CMD_REQUEST: if (!dock) return no("the chalkboard is ashore"); return s.FillRequest(ci, arg, why);
         case CMD_WEAR_DROP: return s.WearDrop(ci, arg, why);
         case CMD_GROUND: return s.SetGround(id, why);
+        case CMD_ROLE_UP: if (!dock) return no("the chalkboard is on the quay"); return s.ChooseUp(ci, arg / 10, arg % 10, why);
+        case CMD_CONSIGN_REWARD: if (s.phase != Phase::Result || !s.consignDone) return no("no consignment to be rewarded for"); s.consignReward = arg ? 1 : 0; return true;
         case CMD_SELL: if (!dock) return no("the Fish Market is ashore"); if (g.hold.empty() || arg >= (int)g.hold.size()) return no("nothing to sell"); s.Sell(arg); return true;
         case CMD_GUN_BUY: if (!dock) return no("the Gunsmith is ashore"); return s.GunBuy(ci, id, why);
         case CMD_GUN_UPGRADE: if (!dock) return no("the Gunsmith is ashore"); return s.GunUpgrade(ci, arg, why);
@@ -255,7 +257,7 @@ struct In {
 
 template <class A> void VisitCatch(A& a, CatchRec& h) {
     a.s(h.name); a.f(h.kg); a.f(h.price); a.i(h.sp); a.f(h.grade); a.f(h.fresh);
-    a.b(h.gutted); a.b(h.iced); a.b(h.first); a.b(h.bycatch); a.b(h.protectedSp); a.f(h.aboardT); a.i(h.src);
+    a.b(h.gutted); a.b(h.iced); a.b(h.first); a.b(h.trophy); a.b(h.bycatch); a.b(h.protectedSp); a.f(h.aboardT); a.i(h.src);
     a.b(h.dead); a.f(h.flopT); a.v2(h.deckAt);
     a.f(h.hp); a.f(h.hpMax); a.f(h.heading); a.i(h.deckKind); a.f(h.airT); a.f(h.killScore); a.s(h.killHow); a.f(h.killT); a.i(h.grabbed); a.b(h.crated); a.b(h.junk);
     a.f(h.cookT); a.f(h.cook); a.b(h.cooked); a.b(h.glimmer); a.i(h.boss); a.b(h.cursed);
@@ -300,6 +302,9 @@ template <class A> void Visit(A& a, TrawlWorld& w) {
     a.vec(s.lastSale, [&](SaleLine& l) { a.s(l.name); a.f(l.kg); a.f(l.price); a.f(l.grade); a.f(l.fresh); a.f(l.glut); a.f(l.bonus); a.f(l.value); a.i(l.src); });
     a.vec(s.lastDelivery, [&](SaleLine& l) { a.s(l.name); a.f(l.kg); a.f(l.price); a.f(l.grade); a.f(l.fresh); a.f(l.glut); a.f(l.bonus); a.f(l.value); a.i(l.src); });
     a.f(s.lastDeliveryTotal); a.i(s.lastRejected); a.f(s.carried);
+    // role upgrades and the Owners' consignment
+    a.i(s.metCount); for (auto& row : s.roleUp) for (int& x : row) a.i(x); for (int& x : s.upRole) a.i(x);
+    a.s(s.consign); a.s(s.consignGround); a.i(s.consignMissed); a.b(s.consignDone); a.i(s.consignReward); a.b(s.miracleUsed);
     {   // the glut and the run's firsts (the market's prices)
         std::vector<std::pair<std::string, float>> glut(s.glutKg.begin(), s.glutKg.end());
         a.vec(glut, [&](std::pair<std::string, float>& p) { a.s(p.first); a.f(p.second); });
@@ -324,6 +329,14 @@ template <class A> void Visit(A& a, TrawlWorld& w) {
             int t = (int)wk.type; uint32_t s = wk.seed; a.i(t); a.u(s);
             if constexpr (A::reading) { if (a.bad() || t < 0 || t >= (int)WreckType::COUNT) return; if (wk.seed != s || (int)wk.type != t || wk.rooms.empty()) wk = GenerateWreck((WreckType)t, s, e.ground); }
             a.f(wk.x); a.f(wk.y); a.f(wk.depth);
+            // (the Owners' consignment is added to one wreck on the host: the mirror adds it the same way)
+            bool cons = !w.sess.consign.empty() && !wk.salvage.empty() && wk.salvage.back().name == w.sess.consign;
+            a.b(cons);
+            if constexpr (A::reading) {
+                bool has = !wk.salvage.empty() && !w.sess.consign.empty() && wk.salvage.back().name == w.sess.consign;
+                if (cons && !has) AddConsignItem(wk, w.sess.consign);
+                else if (!cons && has) wk.salvage.pop_back();
+            }
             for (auto& it : wk.salvage) a.b(it.taken);
             for (auto& r : wk.rooms) a.b(r.locked);
             for (auto& r : wk.residents) a.b(r.awake);
@@ -629,6 +642,7 @@ int RunTrawlNetLoop(bool forceMemory) {
                     seen[k] = gs[k].stateVersion;
                     Reader r(gs[k].Snapshot());
                     if (ReadWorld(r, mirror[k])) mirrorOk[k]++;
+                    else if (getenv("DEPTH_NETDBG")) printf("    guest %d: a snapshot of %d bytes failed to read (phase %d)\n", k, (int)gs[k].Snapshot().size(), (int)mirror[k].sess.phase);
                     bytes += gs[k].Snapshot().size(); snaps++;
                 }
             }

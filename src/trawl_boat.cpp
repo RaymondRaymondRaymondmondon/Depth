@@ -140,19 +140,19 @@ void Boat::Step(float dt, const Sea& sea) {
     pressure = std::clamp(pressure, 0.0f, 1.4f);
     if (pressure > K.redAt) {
         redT += dt;
-        if (redT > K.redGrace) { valveT = K.valveStop; fireT = 8; pressure -= 0.5f; redT = 0; }   // the relief valve blows: steam, a fire, a dead screw
+        if (redT > K.redGrace * graceMul) { valveT = K.valveStop; fireT = 8; pressure -= 0.5f; redT = 0; }   // the relief valve blows: steam, a fire, a dead screw
     } else redT = std::max(0.0f, redT - dt);
     if (valveT > 0) valveT -= dt;
     if (fireT > 0) fireT -= dt;
     float steam = std::clamp((pressure - 0.2f) / (K.greenLo - 0.2f), 0.0f, 1.0f);
     float want = valveT > 0 ? 0 : draw * steam;
     shaft += std::clamp(want - shaft, -0.5f * dt, 0.5f * dt);
-    noise = shaft > 0.05f ? K.noiseByTelegraph[step] * noiseMult : 0;
+    noise = shaft > 0.05f ? K.noiseByTelegraph[step <= 1 ? step : step - (graceMul > 1 ? 1 : 0)] * noiseMult : 0;   // (a Stoker at the boiler: one step quieter)
     // ---- through the water: thrust, drag, the rudder, wind and current
     Vector2 f = Forward(), side{-f.y, f.x};
     Vector2 rel = Vector2Subtract(vel, sea.current);
     float vf = Vector2DotProduct(rel, f), vs = Vector2DotProduct(rel, side);
-    float thrust = K.maxThrust * thrustMult * thrustMult * shaft * (tel < 0 ? -1.0f : 1.0f);   // (drag goes as speed squared: 1.3x speed wants 1.69x thrust)
+    float thrust = K.maxThrust * thrustMult * thrustMult * speedMul * speedMul * shaft * (tel < 0 ? -1.0f : 1.0f);   // (speedMul: Full Steam)   // (drag goes as speed squared: 1.3x speed wants 1.69x thrust)
     float Ff = thrust - K.dragFwd * vf * fabsf(vf), Fs = -K.dragSide * vs * fabsf(vs);
     Vector2 windF = Vector2Scale(sea.wind, 60 * Vector2Length(sea.wind));
     Vector2 acc = Vector2Scale(Vector2Add(Vector2Add(Vector2Add(Vector2Scale(f, Ff), Vector2Scale(side, Fs)), windF), extraForce), 1.0f / M);
@@ -263,6 +263,11 @@ void Gannet::Move(int ci, Vector2 wish, bool brace, float dt) {
     // the wet deck: past 12 deg of roll an unbraced hand slides to the low side; past 25 deg they fall
     float rollDeg = boat.RollDeg(), pitchDeg = boat.pitch * 57.2958f;
     Vector2 slide{0, 0};
+    // (Old Salt: never slides; hands within 4 m of one slide only past half again the roll)
+    float saltK = 1;
+    if (c.Up(UP_OLDSALT)) saltK = 1e3f;
+    else for (const auto& o : crew) if (&o != &c && !o.dead && o.deck == 0 && o.Up(UP_OLDSALT) && Vector2Distance(o.p, c.p) < 4) saltK = 1.5f;
+    rollDeg /= saltK; pitchDeg /= saltK;
     if (c.deck == 0 && !c.braced) {
         if (fabsf(rollDeg) > D().braceRoll) slide.y = (rollDeg > 0 ? 1 : -1) * D().slideAccel * (fabsf(rollDeg) - D().braceRoll) / 13.0f;
         if (fabsf(pitchDeg) > D().braceRoll) slide.x = (pitchDeg > 0 ? -1 : 1) * D().slideAccel * (fabsf(pitchDeg) - D().braceRoll) / 13.0f;
@@ -318,6 +323,7 @@ void Gannet::Primary(int ci, bool held, float dt) {
     Crew& c = crew[ci];
     if (c.station < 0) return;
     float rate = (c.role == Role::Bosun ? 1.25f : 1.0f) * (c.Has(INJ_BROKEN_ARM) ? 0.5f : 1.0f);   // the Bosun's perk: winch, pump and shovel 25% faster; a broken arm halves it
+    if (c.bot && ci < (int)brains.size() && brains[ci].order >= 0) for (const auto& o : crew) if (!o.dead && o.Up(UP_DECKBOSS)) { rate *= 1.2f; break; }   // (Deck Boss: bots under orders, 20% faster)
     switch (Stations()[c.station].kind) {
         case StationKind::Boiler:
             if (!held) break;
@@ -388,6 +394,27 @@ void Gannet::Steer(int ci, float amount, float dt) {
 
 void Gannet::Step(float dt) {
     time += dt; sea.t += dt;
+    // the crew's role upgrades that act on the whole boat (design doc, "The crew of six")
+    {
+        bool stoker = false, iron = false;
+        for (int k = 0; k < (int)crew.size(); k++) {
+            Crew& c = crew[k];
+            if (c.dead) continue;
+            stoker |= c.Up(UP_STOKER); iron |= c.Up(UP_IRONHULL);
+            // Full Steam: once a night, the Bosun at the boiler with the telegraph at full: +20% for 20 s
+            if (c.Up(UP_FULLSTEAM) && !fullSteamUsed && boat.telegraph >= 3 && c.station >= 0 && Stations()[c.station].kind == StationKind::Boiler) { fullSteamUsed = true; fullSteamT = 20; Say("Full steam! The Bosun crams the firebox: she leaps forward"); }
+            // Steady Nerves: stunned or charmed hands within 6 m shake it off twice as fast
+            if (c.Up(UP_STEADY)) for (auto& o : crew) if (&o != &c && !o.dead && o.deck == c.deck && Vector2Distance(o.p, c.p) < 6) { o.inkT = std::max(0.0f, o.inkT - dt); o.tangleT = std::max(0.0f, o.tangleT - dt); }
+            // Miracle Worker: once a deadline, a Medic standing over a body aboard for 5 s brings them back
+            if (c.Up(UP_MIRACLE) && !miracleUsed) for (auto& o : crew) if (&o != &c && o.dead && !o.bodyLost && o.deck == c.deck && Vector2Distance(o.p, c.p) < 1.6f) {
+                if ((miracleT += dt) > 5) { o.dead = false; o.serious = 0; o.injuries = 0; o.fallen = true; o.cause.clear(); miracleUsed = true; miracleT = 0; Say("The Medic works and works, and the dead hand gasps: a miracle"); }
+            }
+        }
+        boat.graceMul = stoker ? 2.0f : 1.0f;
+        if (fullSteamT > 0) fullSteamT -= dt;
+        boat.speedMul = fullSteamT > 0 ? 1.2f : 1.0f;
+        if (iron && !ironHull) { ironHull = true; for (int s = 0; s < SEC_COUNT; s++) { boat.integrityMax[s] += 25; boat.integrity[s] += 25; } }   // (Iron Hull: +25 on every section)
+    }
     // the hands' weight into the boat
     boat.loads.clear();
     for (const auto& c : crew) if (!c.overboard && c.deck <= 1) boat.loads.push_back({c.deck == 1 ? Vector2{c.p.x, c.p.y * 0.5f} : c.p, D().crewMass + c.carryKg});
@@ -418,7 +445,11 @@ void Gannet::Step(float dt) {
     for (auto& c : crew) if (c.patchSec >= 0) {
         if (c.overboard || c.dead || c.fallen || c.station >= 0 || SectionAt(c.p) != c.patchSec || Vector2Length(c.v) > 0.6f) { c.patchSec = -1; continue; }
         c.patchT -= dt;
-        if (c.patchT <= 0) { boat.patched[c.patchSec] = true; c.patchKits--; Say(std::string("Leak patched: ") + SectionName(c.patchSec)); c.patchSec = -1; }
+        if (c.patchT <= 0) {
+            boat.patched[c.patchSec] = true; c.patchKits--; Say(std::string("Leak patched: ") + SectionName(c.patchSec));
+            if (c.Up(UP_SHIPWRIGHT)) boat.integrity[c.patchSec] = std::min(boat.integrityMax[c.patchSec], boat.integrity[c.patchSec] + 30);   // (Shipwright)
+            c.patchSec = -1;
+        }
     }
     (void)leaks;
 }

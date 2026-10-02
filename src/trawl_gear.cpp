@@ -595,7 +595,7 @@ void Gannet::StepDeckFish(float dt) {
 bool Gannet::ThrowChum(int ci) {
     const Crew& c = crew[ci];
     if (c.dead || c.overboard || chum <= 0 || moored) return false;
-    chum--; chumLeft += D().chumBlood;
+    chum--; chumLeft += D().chumBlood * (c.Up(UP_BAITMASTER) ? 2.0f : 1.0f);   // (Bait Master: twice the scent)
     Say("A bucket of chum goes over the side");
     return true;
 }
@@ -757,6 +757,7 @@ void Gannet::GoOverboard(int ci, const std::string& why) {
     Vector2 d = c.p; d.y = d.y < 0 ? -4.2f : 4.2f;
     c.swim = boat.ToWorld(d);
     c.drownT = ((sea.weather == Weather::Storm || sea.weather == Weather::Squall) ? DROWN_STORM_S : DROWN_S) + (c.charm == CH_ANKLET ? 8.0f : 0.0f);   // (the tribal anklet: +8 s)
+    for (const auto& o : crew) if (o.role == Role::Medic && !o.dead && o.Up(UP_BLANKETS)) { c.drownT += 8; break; }   // (Warm Blankets: the crew are kept warm, +8 s in the water)
     Say("Man overboard! (" + why + ")");
 }
 bool Gannet::AllDead() const {
@@ -1087,8 +1088,8 @@ void Gannet::StepGear(float dt) {
         if (Vector2Distance(c.swim, stern) < 4.5f && boat.shaft > 0.1f) { Kill(k, "the screw", true); continue; }
         if (Vector2Distance(c.swim, stern) < 2.0f && boat.shaft < 0.05f) { c.overboard = false; c.deck = 0; c.p = {-10.4f, 0}; c.v = {0, 0}; Say("Up the stern ladder, aboard again"); continue; }   // (a limp one can't climb: the ring it has to be)
         if (c.drownT <= 0) {
-            bool medic = false; for (const auto& o : crew) if (o.role == Role::Medic && !o.dead && !o.overboard && o.deck <= 1) medic = true;
-            if (medic) { c.cprT = 15; Say("They've gone limp in the water: haul them in now and the Medic can bring them back"); }
+            bool medic = false, wind = false; for (const auto& o : crew) if (o.role == Role::Medic && !o.dead && !o.overboard && o.deck <= 1) { medic = true; wind = wind || o.Up(UP_SECONDWIND); }
+            if (medic) { c.cprT = wind ? 30.0f : 15.0f; Say("They've gone limp in the water: haul them in now and the Medic can bring them back"); }
             else Kill(k, "drowned", true);
         }
     }

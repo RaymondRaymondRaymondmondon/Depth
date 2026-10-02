@@ -236,10 +236,11 @@ void ReelGauge(const Gannet& g, const Crew& c) {
             break;
         case RodState::Fighting:
             tip = r.fight.alongside ? "Alongside: SPACE to gaff" : r.fight.jumpT >= 0 ? "It jumps: RIGHT MOUSE to bow!" :
+                  r.lastTick > 0 ? "The tip ticks: it's about to run (Reader)" :
                   "Left: reel   Right: bow   Mouse to one side: side pressure   Scroll: drag";
             break;
     }
-    if (tip) DrawTextCenteredBold(tip, SCREEN_W / 2.0f, SCREEN_H - 150.0f, 18, r.bite.stage == BiteStage::Take || (r.state == RodState::Fighting && (r.fight.alongside || r.fight.jumpT >= 0)) ? Color{250, 200, 110, 255} : paper);
+    if (tip) DrawTextCenteredBold(tip, SCREEN_W / 2.0f, SCREEN_H - 150.0f, 18, r.bite.stage == BiteStage::Take || (r.state == RodState::Fighting && (r.fight.alongside || r.fight.jumpT >= 0 || r.lastTick > 0)) ? Color{250, 200, 110, 255} : paper);
     if (r.state == RodState::Fighting && c.role == Role::Angler) TxtBold(TextFormat("%s, about %.0f kg", r.fight.spec.name, r.fight.spec.kg), x0, SCREEN_H - 82, 15, Color{150, 200, 170, 255});
     if (!r.lastCatch.empty() && r.state != RodState::Fighting) Txt(TextFormat("Last: %s", r.lastCatch.c_str()), x0, SCREEN_H - 82, 14, Fade(paper, 0.6f));
 }
@@ -634,6 +635,7 @@ void PanelFrame(const char* title, float w, float h, Rectangle* out) {
     Txt("X to close", r.x + r.width - 96, r.y + r.height - 26, 14, Color{90, 70, 50, 255});
     *out = r;
 }
+static bool gChalkUps = false;   // the chalkboard shows the role upgrades (else the requests)
 void Panels(Game& g) {
     if (S.panel < 0) return;
     Session& ss = S.W->sess;
@@ -651,6 +653,53 @@ void Panels(Game& g) {
             TxtBold(TextFormat("Delivered to the Owners: %.0f", ss.sold), x, y + 58, 20, ss.sold >= ss.quota ? Color{40, 110, 50, 255} : ink);
             Txt("(only fish delivered at the Owners' scales count)", x, y + 84, 12, dim);
             TxtBold(TextFormat("Nights left: %d     Money: %.0f     Tokens: %d", ss.NightsLeft(), ss.money, ss.tokens), x, y + 104, 18, ink);
+            bool& upPage = gChalkUps;
+            if (Button({r.x + r.width - 230, r.y + 56, 200, 34}, upPage ? "Requests" : "Role upgrades", true, 15)) upPage = !upPage;
+            if (!ss.consign.empty()) {
+                Txt(TextFormat("The Owners' consignment: %s, in a wreck on %s%s", ss.consign.c_str(), ss.consignGround.c_str(), ss.consignMissed ? "  (one missed already: miss another and she's taken)" : ""), x + 420, y + 44, 13, ss.consignMissed ? Color{150, 50, 30, 255} : dim);
+                Txt("In the hold by the count. Missed: quota +25%, the dearest fitting repossessed.", x + 420, y + 62, 12, dim);
+            }
+            if (upPage) {
+                // role upgrades (design doc, "The crew of six"): rank 2 after the first met deadline, 3 after the second, 4 after the fourth
+                const Crew& me = G.crew[S.you];
+                float uy = y + 150;
+                TxtBold(TextFormat("Your role: %s   (met deadlines: %d, ranks open to %d)", RoleName(me.role), ss.metCount, ss.RankOpen()), x, uy, 18, ink);
+                Txt("An upgrade belongs to the role: switch roles and you start again at rank 1.", x, uy + 24, 13, dim);
+                uy += 54;
+                bool sameRole = S.you < 6 && ss.upRole[S.you] == (int)me.role;
+                for (int rank = 2; rank <= 4; rank++) {
+                    bool open = rank <= ss.RankOpen();
+                    int chosen = S.you < 6 && sameRole ? ss.roleUp[S.you][rank - 2] : -1;
+                    TxtBold(TextFormat("Rank %d", rank), x, uy + 8, 18, open ? ink : Fade(dim, 0.6f));
+                    if (!open) Txt(rank == 2 ? "(after the first met deadline)" : rank == 3 ? "(after the second)" : "(after the fourth)", x, uy + 30, 12, dim);
+                    for (int ch = 0; ch < 2; ch++) {
+                        int u = RoleUpOf((int)me.role, rank, ch);
+                        Rectangle b{x + 110 + ch * 420.0f, uy, 400, 64};
+                        bool pick = chosen == ch, other = chosen >= 0 && chosen != ch;
+                        DrawRectangleRec(b, pick ? Color{196, 214, 170, 255} : Fade(Color{200, 186, 156, 255}, other || !open ? 0.4f : 1.0f));
+                        DrawRectangleLinesEx(b, pick ? 3.0f : 1.0f, pick ? Color{40, 110, 50, 255} : dim);
+                        TxtBold(RoleUpName(u), b.x + 10, b.y + 8, 17, other || !open ? Fade(ink, 0.5f) : ink);
+                        DrawWrapped(RoleUpNote(u), {b.x + 10, b.y + 30, b.width - 20, 32}, 13, other || !open ? Fade(dim, 0.6f) : dim);
+                        if (open && chosen < 0 && CheckCollisionPointRec(GetMousePosition(), b)) {
+                            DrawRectangleLinesEx(b, 2, Color{160, 110, 40, 255});
+                            if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) Command(CMD_ROLE_UP, "", rank * 10 + ch, std::string("Chalked up: ") + RoleUpName(u));
+                        }
+                    }
+                    uy += 78;
+                }
+                // the rest of the crew's upgrades, at a glance
+                uy += 6;
+                TxtBold("The crew", x, uy, 16, ink); uy += 24;
+                for (int k = 0; k < (int)G.crew.size(); k++) {
+                    if (k == S.you) continue;
+                    std::string list;
+                    for (int u = 0; u < tw::UP_COUNT; u++) if (G.crew[k].Up(u)) list += std::string(list.empty() ? "" : ", ") + RoleUpName(u);
+                    Txt(TextFormat("Hand %d (%s%s): %s", k + 1, RoleName(G.crew[k].role), G.crew[k].bot ? ", bot" : "", list.empty() ? "nothing yet" : list.c_str()), x, uy, 13, dim);
+                    uy += 20;
+                }
+                if (ss.night >= 3 && Button({r.x + r.width - 330, r.y + r.height - 76, 300, 44}, "Hand in to the Owners")) { Command(CMD_COUNT); S.panel = PANEL_END; }
+                break;
+            }
             // the harbour's requests (one each a deadline)
             float ry = y + 140;
             TxtBold("Requests chalked up on the board", x, ry, 17, ink); ry += 26;
@@ -910,6 +959,15 @@ void Panels(Game& g) {
             PanelFrame(met ? "QUOTA MET" : "GANNET REPOSSESSED", 600, 300, &r);
             TxtBold(TextFormat("Sold %.0f against a quota of %.0f", ss.sold, ss.quota), r.x + 40, r.y + 80, 20, ink);
             Txt(ss.tape.empty() ? "" : ss.tape.back().c_str(), r.x + 40, r.y + 120, 14, dim);
+            if (met && ss.consignDone) {   // the Owners' reward for the consignment, chosen at the office
+                Txt("The consignment came home. The Owners' reward:", r.x + 40, r.y + 148, 14, ink);
+                for (int k = 0; k < 2; k++) {
+                    Rectangle b{r.x + 40 + k * 265.0f, r.y + 168, 250, 30};
+                    bool pick = (ss.consignReward == 1) == (k == 1);
+                    if (Button(b, k == 0 ? "A Slipway fitting, gratis" : "10% off the next quota", true, 13)) Command(CMD_CONSIGN_REWARD, "", k);
+                    if (pick) DrawRectangleLinesEx(b, 3, Color{40, 110, 50, 255});
+                }
+            }
             if (met) { if (Button({r.x + r.width / 2 - 130, r.y + r.height - 80, 260, 46}, "Next deadline")) { Command(CMD_CONTINUE); S.panel = -1; } }
             else if (Button({r.x + r.width / 2 - 130, r.y + r.height - 80, 260, 46}, "Back to the arcade")) LeaveTrawlMatch(g);
             break;
@@ -2003,8 +2061,12 @@ void DebugTrawlShot(Game& g, int which) {
         Crew& c = G.crew[0];
         if (which == 9 || which == 10 || which == 11) c.p = which == 11 ? Vector2{3.0f, -7.2f} : which == 10 ? Vector2{-3.5f, -7.2f} : Vector2{-6, -5.5f};
         if (which == 10) S.panel = (int)DockKind::Chandler;
+        if (which == 57) {   // the chalkboard's role upgrades: an Angler two met deadlines in, rank 2 chosen, a bot crewmate
+            c.p = {-6, -5.5f}; S.panel = (int)DockKind::Chalkboard; gChalkUps = true;
+            c.role = Role::Angler; ss.metCount = 2; ss.ChooseUp(0, 2, 1);
+        }
         if (which == 30) {   // the chalkboard: the harbour's requests, a mini-boss drop to wear, a lucky coin worn
-            c.p = {-6, -5.5f}; S.panel = (int)DockKind::Chalkboard;
+            c.p = {-6, -5.5f}; S.panel = (int)DockKind::Chalkboard; gChalkUps = false;
             G.drops = {"a jaw full of old hooks"}; c.charm = CH_LUCKY_COIN; G.bossLures = 1; G.highKills = 3;
         }
         if (which == 26) {   // the Gunsmith, with a revolver in hand (one upgrade, a sight) and money to spend

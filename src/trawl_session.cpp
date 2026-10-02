@@ -168,6 +168,7 @@ void Session::BeginDeadline() {
     // the Owners' consignment: a named salvage item in one of a ground's wrecks (deadline 1 the Lagoon or the Weeds, 2 the
     // Weeds or the Grotto, 3 the Grotto or Atlantis, then Atlantis), a clue on the tape; none on the shakedown
     consign.clear(); consignGround.clear(); consignDone = false; consignReward = -1; miracleUsed = false; consignPlaced = false;
+    if (G) G->miracleUsed = false;
     if (!shake.on) {
         uint32_t h = seed * 2654435761u + (uint32_t)deadline * 40503u;
         static const char* G1[] = {"lagoon", "weeds"}, *G2[] = {"weeds", "grotto"}, *G3[] = {"grotto", "atlantis"};
@@ -184,11 +185,13 @@ void Session::BeginDeadline() {
 void Session::PlaceConsignment() {
     if (consign.empty() || consignPlaced || ground != consignGround || wrecks.empty()) return;
     int wi = 0; for (int k = 0; k < (int)wrecks.size(); k++) if (!wrecks[k].bell) { wi = k; break; }
-    Wreck& w = wrecks[wi];
-    int room = 0; for (int r = 0; r < w.Rooms(); r++) if (w.rooms[r].y >= w.rooms[room].y) room = r;
-    SalvageItem it; it.name = consign; it.value = 0; it.kg = 25; it.room = room;
-    w.salvage.push_back(it);
+    AddConsignItem(wrecks[wi], consign);
     consignPlaced = true;
+}
+void AddConsignItem(Wreck& w, const std::string& name) {   // (in the wreck's deepest room; a guest's mirror adds it the same way)
+    int room = 0; for (int r = 0; r < w.Rooms(); r++) if (w.rooms[r].y >= w.rooms[room].y) room = r;
+    SalvageItem it; it.name = name; it.value = 0; it.kg = 25; it.room = room;
+    w.salvage.push_back(it);
 }
 void Session::Moor() {
     G->moored = true;
@@ -229,7 +232,7 @@ float Session::Value(const CatchRec& c, float* glut, float* bonus) const {
     auto it = glutKg.find(base);
     static float glutK = getenv("DEPTH_GLUT") ? (float)atof(getenv("DEPTH_GLUT")) : GLUT_PER_10KG;   // (the tuning grid)
     float g = std::max(0.2f, 1 - glutK * (it == glutKg.end() ? 0 : it->second) / 10);
-    float b = c.first ? FIRST_CATCH_BONUS : 1;
+    float b = c.first ? FIRST_CATCH_BONUS + (c.trophy ? 0.5f : 0.0f) : 1;   // (Trophy Hunter)
     if (c.junk) { if (glut) *glut = 1; if (bonus) *bonus = 1; return c.price; }   // junk: a flat price, no freshness or glut
     if (c.boss >= 0) { if (glut) *glut = 1; if (bonus) *bonus = 1; return c.price * c.kg * c.killScore * c.cook; }   // a mini-boss: its flat value, times the Killscore and cooking
     if (glut) *glut = g;
@@ -312,7 +315,7 @@ float Session::Sell(int idx) {
 }
 float Session::QuotaValue(const CatchRec& c) const {
     if (c.fresh < QUOTA_MIN_FRESH || c.bycatch || c.junk) return 0;
-    float b = c.first ? FIRST_CATCH_BONUS : 1;
+    float b = c.first ? FIRST_CATCH_BONUS + (c.trophy ? 0.5f : 0.0f) : 1;
     if (c.boss >= 0) return c.price * c.kg * c.killScore * c.cook;
     return c.price * c.kg * c.grade * c.killScore * c.cook * c.fresh * b * (c.glimmer ? 3.0f : 1.0f) * (variant == Variant::RedTide ? 0.5f : 1.0f);   // (the scales ignore glut)
 }
@@ -739,6 +742,8 @@ bool Session::CastOff(std::string* why) {
     PlaceConsignment();
     G->wrecks = &wrecks;
     ApplyUps();
+    G->fullSteamUsed = false; G->fullSteamT = 0;
+    miracleUsed = miracleUsed || G->miracleUsed; G->miracleUsed = miracleUsed;   // (once a deadline, across its nights)
     G->sonar.wrecksMarked = 0;
     E->StartNight();
     // tonight's variant (design doc, "Nightly variants": at most one, about 40% of nights none): the web feels it
@@ -874,8 +879,23 @@ void Session::Count() {
         if (consignDone) { consignMissed = 0; Tape("CONSIGNMENT RECEIVED STOP THE OWNERS ARE GRATIFIED STOP CHOOSE YOUR REWARD AT THE OFFICE STOP"); }
         else {
             consignMissed++;
-            int dear = -1, dp = 0; for (int i = 0; i < (int)SlipwayItems().size() && i < 16; i++) if (slip[i] && SlipwayItems()[i].price > dp) { dp = SlipwayItems()[i].price; dear = i; }
-            if (dear >= 0) slip[dear] = false;
+            int dear = -1, dp = 0;
+            for (int i = 0; i < (int)SlipwayItems().size() && i < 16; i++) {
+                std::string id = SlipwayItems()[i].id;
+                if (slip[i] && id != "plates" && id != "net" && SlipwayItems()[i].price > dp) { dp = SlipwayItems()[i].price; dear = i; }
+            }
+            if (dear >= 0) {   // (taken off her: the fitting goes with the flag)
+                slip[dear] = false;
+                std::string id = SlipwayItems()[dear].id; Boat& b = G->boat;
+                if (id == "icehold") G->iceCap = Gannet{}.iceCap;
+                else if (id == "pump") G->secondPump = false;
+                else if (id == "engine") { b.thrustMult = 1; b.noiseMult = 1; }
+                else if (id == "mast") G->searchlight = false;
+                else if (id == "chair") G->owned[(int)Tackle::Chair] = false;
+                else if (id == "harpoon") { G->harpoonCannon = false; G->harpoons = 0; }
+                else if (id == "bignet") G->biggerNet = false;
+                else if (id == "bell") G->divingBell = false;
+            }
             Tape(TextFormat("CONSIGNMENT NOT DELIVERED STOP QUOTA RAISED STOP %s REPOSSESSED STOP", dear >= 0 ? SlipwayItems()[dear].name : "NOTHING LEFT TO"));
             if (consignMissed >= 2) { Tape("SECOND CONSIGNMENT LOST STOP GANNET REPOSSESSED STOP"); phase = Phase::Over; return; }
         }
@@ -900,8 +920,12 @@ void Session::Continue() {
     if (consignDone) {
         if (consignReward == 1) quota *= 0.9f;                                 // 10% off the next quota
         else {   // (the default) a free Slipway upgrade worth up to 600: the dearest not yet fitted
-            int best = -1, bp = 0; for (int i = 0; i < (int)SlipwayItems().size() && i < 16; i++) if (!slip[i] && SlipwayItems()[i].price <= 600 && SlipwayItems()[i].price > bp) { bp = SlipwayItems()[i].price; best = i; }
-            if (best >= 0) { slip[best] = true; Tape(TextFormat("OWNERS FIT %s GRATIS STOP", SlipwayItems()[best].name)); }
+            int best = -1, bp = 0;
+            for (int i = 0; i < (int)SlipwayItems().size() && i < 16; i++) {
+                std::string id = SlipwayItems()[i].id;
+                if (!slip[i] && id != "plates" && id != "net" && SlipwayItems()[i].price <= 600 && SlipwayItems()[i].price > bp) { bp = SlipwayItems()[i].price; best = i; }
+            }
+            if (best >= 0) { money += bp; BuySlip(best); Tape(TextFormat("OWNERS FIT %s GRATIS STOP", SlipwayItems()[best].name)); }
         }
     }
     BeginDeadline();
@@ -1070,7 +1094,9 @@ int RunTrawlSessionTest() {
     {
         Gannet g; Eco e; Session s; s.Begin(g, e, 1, 5);
         check(fabsf(s.quota - 200) < 0.01f && s.phase == Phase::Dock && g.moored, TextFormat("a solo run starts at the quay with a quota of %.0f (400 x 0.5)", s.quota));
-        check(!s.tape.empty() && s.tape.back().find("QUOTA 200 SHILLINGS") != std::string::npos, "the Owners' first tape: QUOTA 200 SHILLINGS STOP THREE NIGHTS STOP");
+        bool quotaTape = false; for (const auto& t : s.tape) quotaTape |= t.find("QUOTA 200 SHILLINGS") != std::string::npos;
+        check(quotaTape, "the Owners' first tape: QUOTA 200 SHILLINGS STOP THREE NIGHTS STOP");
+        s.consign.clear();   // (the consignment is tested on its own below)
         Session s6; Gannet g6; Eco e6; s6.Begin(g6, e6, 6, 5);
         check(fabsf(s6.quota - 400) < 0.01f, "six hands: 400");
         CatchRec c; c.name = "snapper"; c.kg = 2; c.price = 3; c.grade = 1; c.fresh = 0.9f;
@@ -1158,6 +1184,45 @@ int RunTrawlSessionTest() {
         check(q == 0 && rej == 0 && g.hold.size() == 1, "junk is never taken at the quota scales (and isn't 'rejected': it stays for the market)");
         float v = s.Sell(-1);
         check(fabsf(v - 30) < 0.01f, TextFormat("the market pays a coin purse its flat 30 (paid %.1f), freshness or not", v));
+    }
+    // role upgrades (design doc, "The crew of six") and the Owners' consignments
+    {
+        Gannet g; Eco e; Session s; s.Begin(g, e, 2, 31);
+        std::string why;
+        g.crew[0].role = Role::Angler;
+        check(!s.ChooseUp(0, 2, 0, &why), "no upgrade before the first met deadline");
+        s.metCount = 1;
+        check(s.ChooseUp(0, 2, 1, &why) && g.crew[0].Up(UP_HEAVYHAND), "after one met deadline an Angler picks rank 2: Heavy Hand");
+        check(!s.ChooseUp(0, 2, 0, &why), "a rank's choice is final");
+        check(!s.ChooseUp(0, 3, 0, &why), "rank 3 waits for the second met deadline");
+        g.crew[0].role = Role::Diver; s.ApplyUps();
+        check(g.crew[0].ups == 0 && s.roleUp[0][0] == -1, "a hand who changes role starts again at rank 1");
+        g.crew[1].bot = true; g.crew[1].role = Role::Medic; s.ApplyUps();
+        check(g.crew[1].Up(UP_FIELDSURGEON), "a bot Medic takes its preferred upgrade (Field Surgeon)");
+        // the perks bite: Strong Line, Light Touch, Trophy Hunter, Deep Lungs, Warm Blankets, Second Wind
+        Fight f; f.tackle = Tackle::Light; float s0 = f.Strength(); f.holderUps = 1u << UP_STRONGLINE;
+        check(fabsf(f.Strength() - s0 * 1.2f) < 0.01f, "Strong Line: +20% line strength");
+        CatchRec c; c.name = "snapper"; c.kg = 2; c.price = 3; c.fresh = 1; c.first = true; float v0 = s.Value(c); c.trophy = true;
+        check(fabsf(s.Value(c) / v0 - 2.0f / 1.5f) < 0.01f, "Trophy Hunter: a first catch pays a further 50%");
+        g.crew[1].ups = 1u << UP_BLANKETS; g.moored = false;
+        g.GoOverboard(0, "test"); float t0 = g.crew[0].drownT;
+        check(t0 >= 25 + 8 - 0.01f, TextFormat("Warm Blankets: +8 s in the water (%.0f s)", t0));
+        // the consignment: named, on a ground, missed raises the next quota a quarter and repossesses the dearest fitting
+        Gannet g2; Eco e2; Session s2; s2.Begin(g2, e2, 1, 9);
+        check(!s2.consign.empty() && !s2.consignGround.empty(), TextFormat("the Owners name a consignment: %s on %s", s2.consign.c_str(), s2.consignGround.c_str()));
+        s2.money = 2000; s2.BuySlip(2);   // (the second pump)
+        s2.night = 3; s2.sold = s2.quota + 1; s2.Count();
+        check(s2.consignMissed == 1 && !g2.secondPump && !s2.slip[2], "missed: the second pump is repossessed and taken off her");
+        float q = s2.quota; s2.Continue();
+        check(fabsf(s2.quota - (q * 1.4f + 30) * 1.25f) < 0.5f, "and the next quota is a quarter higher");
+        // delivered: the reward, chosen at the office
+        Gannet g3; Eco e3; Session s3; s3.Begin(g3, e3, 1, 9);
+        CatchRec item; item.name = s3.consign; item.junk = true; item.price = 1; g3.hold = {item};
+        s3.night = 3; s3.sold = s3.quota + 1; s3.Count();
+        check(s3.consignDone && g3.hold.empty() && s3.consignMissed == 0, "the consignment in the hold at the count: received");
+        s3.consignReward = 0; s3.Continue();
+        bool fitted = false; for (int i = 0; i < 16; i++) fitted |= s3.slip[i];
+        check(fitted, "the reward: a Slipway fitting, gratis");
     }
     // a whole solo deadline played by a bot: bait, cast off, fish the port rod, gut and ice, home before 05:00, sell
     {

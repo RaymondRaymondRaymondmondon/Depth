@@ -143,11 +143,15 @@ void Gannet::StepBelow(float dt) {
         if (patient >= 0) for (int k = 0; k < (int)crew.size(); k++) if (k != patient && crew[k].role == Role::Medic && !crew[k].dead && crew[k].deck == 1 && Vector2Distance(crew[k].p, crew[patient].p) < 2.5f) medic = k;
         if (patient >= 0 && medic >= 0) {
             cotT += dt;
-            if (cotT >= COT_S) {
+            bool surgeon = crew[medic].Up(UP_FIELDSURGEON);   // (Field Surgeon: twice as quick, and every serious injury at once)
+            if (cotT >= COT_S * (surgeon ? 0.5f : 1.0f)) {
                 Crew& p = crew[patient];
-                int fix = p.Has(INJ_BROKEN_ARM) ? INJ_BROKEN_ARM : INJ_HOOKED_HAND;
-                p.injuries &= ~fix; p.serious = std::max(0, p.serious - 1);
-                Say(TextFormat("The Medic %s", fix == INJ_BROKEN_ARM ? "sets the broken arm" : "works the hook out of the hand"));
+                for (int pass = 0; pass < (surgeon ? 2 : 1); pass++) {
+                    if (!p.Has(INJ_BROKEN_ARM) && !p.Has(INJ_HOOKED_HAND)) break;
+                    int fix = p.Has(INJ_BROKEN_ARM) ? INJ_BROKEN_ARM : INJ_HOOKED_HAND;
+                    p.injuries &= ~fix; p.serious = std::max(0, p.serious - 1);
+                    Say(TextFormat("The Medic %s", fix == INJ_BROKEN_ARM ? "sets the broken arm" : "works the hook out of the hand"));
+                }
                 cotT = 0;
             }
         } else cotT = 0;

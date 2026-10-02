@@ -155,6 +155,7 @@ struct Session {
     void Moor();
 };
 
+void AddConsignItem(Wreck& w, const std::string& name);   // the Owners' consignment, set down in a wreck
 Vector2 LagoonHarbour(const Eco& e, float* moorHeading, Vector2* moorPos);
 int RunTrawlSessionTest();                     // depth.exe --trawl-session-test
 int RunTrawlShakedownTest();                   // depth.exe --trawl-shakedown-test (a scripted hand plays the shakedown through)

@@ -43,7 +43,7 @@ const FightK& K() { static FightK k; return k; }
 float Fight::Rand() { rng = rng * 1664525u + 1013904223u; return (rng >> 8) * (1.0f / 16777216.0f); }
 
 float Fight::Strength() const {
-    float s = TackleOf(tackle).strength * (1 - chafe);
+    float s = TackleOf(tackle).strength * (1 - chafe) * (holderUps >> UP_STRONGLINE & 1u ? 1.2f : 1.0f);   // (Strong Line)
     if (!LineOf(line).biteProof) s *= powf(0.9f, (float)wraps);
     return std::max(0.0f, s);
 }
@@ -219,7 +219,7 @@ void Fight::Step(float dt) {
     else overT = 0;
     if (tension < 0.05f * rating) {
         slackT += dt;
-        if (slackT > 1.5f && hook == Hook::Circle) { end = FightEnd::SlackHook; return; }
+        if (slackT > 1.5f * (holderUps >> UP_LIGHTTOUCH & 1u ? 2.0f : 1.0f) && hook == Hook::Circle) { end = FightEnd::SlackHook; return; }   // (Light Touch: 3 s)
     } else slackT = 0;
     if (inCover) {
         chafe += 0.05f * dt;                             // the line rasps on the rock or the wreck
@@ -249,7 +249,7 @@ void Fight::Step(float dt) {
         Vector2 pd = Rot(Vector2Scale(Flat(u), -1), rodLean * k.leanRad);
         float a = Ang(pd, fishH) * 57.2958f;
         float lateral = fishH.x * pd.y - fishH.y * pd.x;   // which side the pull comes from
-        if (a >= 45 && a <= 135 && (turn == 0 || lateral * turn <= 0 || fabsf(turn) < 0.05f)) mult = 1.5f;
+        if (a >= 45 && a <= 135 && (turn == 0 || lateral * turn <= 0 || fabsf(turn) < 0.05f)) mult = 1.5f * (holderUps >> UP_HEAVYHAND & 1u ? 1.25f : 1.0f);   // (Heavy Hand)
         else if (a > 150) mult = 0.6f;
     }
     if (!inCover) S -= tension / std::max(0.2f, P0) * mult * dt;
@@ -520,7 +520,8 @@ void Gannet::StepRods(float dt) {
                     if (settled && manned && eco) {
                         // the web decides: a fish near the lure that eats what's on it, hungry enough to take
                         if (r.bait.empty()) r.bait = DefaultBait(r.tackle);
-                        int sp = eco->TryBite(r.lure, r.tackle, r.bait, dt * (rareLureNight ? 1.3f : 1.0f) * eco->biteMul, nullptr);
+                        float baitK = holderIdx >= 0 && crew[holderIdx].Up(UP_BAITMASTER) ? 1.25f : 1.0f;   // (Bait Master)
+                        int sp = eco->TryBite(r.lure, r.tackle, r.bait, dt * (rareLureNight ? 1.3f : 1.0f) * eco->biteMul * baitK, nullptr);
                         if (sp >= 0) {
                             r.biteSpec = eco->SpecOf(sp, RRand(r.rng)); r.fishSp = sp;
                             r.bite.Start(&r.biteSpec, r.biteSpec.wary, role == Role::Angler, r.rng++);
@@ -540,6 +541,7 @@ void Gannet::StepRods(float dt) {
                         r.fight.drag = 0.33f * td.strength;
                         r.fight.tip = tip3; r.fight.outboard = outW;
                         r.fight.HookFish(f, r.lure, r.rng++);
+                        if (holderIdx >= 0) r.fight.holderUps = crew[holderIdx].ups;
                         if (WearsCharm(holderIdx, CH_OLD_HOOKS)) r.fight.noSnapUntil = 15;
                         r.state = RodState::Fighting; r.alongT = 0;
                         Say(role == Role::Angler ? std::string("Fish on: ") + f.name : std::string("Fish on!"));
@@ -558,6 +560,9 @@ void Gannet::StepRods(float dt) {
                 else if (manned) { f.reeling = r.reel; f.rodLean = r.lean; f.bowed = r.bow; f.pumping = r.reel && r.bow; f.keelClear = 0; }
                 else { f.reeling = false; f.bowed = false; }        // an unmanned rod holds in its holder
                 f.Step(dt);
+                // (Reader: the tip ticks half a second before the fish runs)
+                r.readWarn = (f.holderUps >> UP_READER & 1u) && f.burstT <= 0 && f.nextBurst > 0 && f.nextBurst < 0.5f;
+                r.lastTick = r.readWarn ? 0.6f : 0.0f;
                 // a hooked fish is prey: the thieves come to the thrashing
                 if (eco && f.end == FightEnd::None && !r.headOnly) {
                     int kind = 0, thief = eco->Depredate(f.p, f.spec.kg, dt, &kind);
@@ -607,6 +612,7 @@ void Gannet::StepRods(float dt) {
                         rec.grade = r.headOnly ? 0.9f : 1.0f;             // hook 100%, less 10% for the bite taken out of it
                         rec.deckAt = Vector2Add(sd.at, Vector2Scale(outDeck, -1.5f));   // it lands on the deck inboard of the rod
                         rec.dead = r.headOnly;                            // (a head doesn't flop)
+                        rec.trophy = (f.holderUps >> UP_TROPHY & 1u) != 0;
                         OnLanded(rec, holderIdx);
                         hold.push_back(rec);
                         if (f.spec.kg < 0.4f) landedSmall++; if (f.spec.kg >= 1.0f) landedBig++;
@@ -686,7 +692,7 @@ void Gannet::StepSkiffRod(float dt) {
                 if (settled && manned && eco && bossBiteT < 0) {
                     if (r.bait.empty()) r.bait = DefaultBait(r.tackle);
                     // the skiff-only marks: about twice the bite rate (design doc v2, "Skiff destinations"); the naturalist's lure
-                    float mul = (eco->MarkAt({r.lure.x, r.lure.y}) >= 0 ? 2.0f : 1.0f) * (rareLureNight ? 1.3f : 1.0f) * eco->biteMul;
+                    float mul = (eco->MarkAt({r.lure.x, r.lure.y}) >= 0 ? 2.0f : 1.0f) * (rareLureNight ? 1.3f : 1.0f) * eco->biteMul * (crew[holder].Up(UP_BAITMASTER) ? 1.25f : 1.0f);
                     int sp = eco->TryBite(r.lure, r.tackle, r.bait, dt * mul, nullptr);
                     if (sp >= 0) { r.biteSpec = eco->SpecOf(sp, RRand(r.rng)); r.fishSp = sp; r.bite.Start(&r.biteSpec, r.biteSpec.wary, role == Role::Angler, r.rng++); }
                 }
@@ -700,6 +706,7 @@ void Gannet::StepSkiffRod(float dt) {
                     r.fight.tackle = r.tackle; r.fight.line = r.line; r.fight.hook = r.hook; r.fight.drag = 0.33f * td.strength;
                     r.fight.tip = tip3; r.fight.outboard = outW;
                     r.fight.HookFish(f, r.lure, r.rng++);
+                    if (holder >= 0) r.fight.holderUps = crew[holder].ups;
                     if (WearsCharm(holder, CH_OLD_HOOKS)) r.fight.noSnapUntil = 15;
                     r.state = RodState::Fighting; r.alongT = 0;
                     Say(role == Role::Angler ? std::string("Fish on in the skiff: ") + f.name : std::string("Fish on in the skiff!"));

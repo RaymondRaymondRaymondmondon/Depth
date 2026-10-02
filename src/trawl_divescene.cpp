@@ -160,12 +160,14 @@ void DiveSceneDraw(const Gannet& G, int you) {
         }
     }
     // salvage glinting on the floors, residents in the dark, air pockets shimmering at the ceilings
+    bool glint = G.dive.diver >= 0 && G.dive.diver < (int)G.crew.size() && G.crew[G.dive.diver].Up(UP_GLINTEYE);
     for (int i = 0; i < w.Rooms(); i++) {
         const WreckRoom& r = w.rooms[i]; Rectangle I = Interior(r);
         int n = 0;
         for (const auto& s : w.salvage) if (s.room == i && !s.taken) {
             Vector2 q{(I.x + 1 + (n % 4) * 1.2f) * TT - cam.x, (I.y + I.height) * TT - 10 - cam.y}; n++;
             float lit = std::clamp(1.0f - Vector2Distance(Vector2Add(q, cam), me) / lamp, 0.0f, 1.0f);
+            if (glint) lit = std::max(lit, 0.55f * std::clamp(1.0f - Vector2Distance(Vector2Add(q, cam), me) / (14.0f * TT), 0.0f, 1.0f));   // (Glint Eye: salvage shows through the bulkheads)
             if (lit > 0.05f) { DrawRectangle((int)q.x, (int)q.y, s.twoDiver ? 16 : 9, s.twoDiver ? 10 : 7, Fade(s.relic ? Color{160, 220, 230, 255} : Color{200, 170, 80, 255}, lit)); if (fmodf((float)GetTime() * 2 + n, 3.0f) < 0.2f) DrawPixel((int)q.x + 2, (int)q.y + 1, WHITE); }
         }
         if (r.air) { Vector2 q{(I.x + I.width / 2) * TT - cam.x, I.y * TT + 6 - cam.y}; DrawEllipse((int)q.x, (int)q.y, (int)(I.width * TT / 3), 5, Fade(Color{170, 210, 230, 255}, 0.25f + 0.1f * sinf((float)GetTime() * 2))); }

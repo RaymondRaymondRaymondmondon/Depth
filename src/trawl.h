@@ -94,6 +94,7 @@ struct Boat {
     float bilge = 0;                                      // kg of water in her
     // the engine
     float bunker = 5 * 18, firebox = 4, pressure = 0.6f, redT = 0, valveT = 0, fireT = 0;
+    float graceMul = 1, speedMul = 1;     // the crew's upgrades, set each step: Stoker (2x the overpressure grace), Full Steam (+20%)
     int telegraph = 0;                                    // 0 stop, 1 slow, 2 half, 3 full; -1 slow astern
     int lantern = 2;                                      // 0 hooded (4 m), 1 low (8 m), 2 full (14 m), 3 searchlight (a 30 m cone)
     float searchAim = 0;                                  // the searchlight's bearing off the bow (radians)
@@ -187,6 +188,7 @@ struct Fight {
     bool lightHook = false;      // lip-hooked, barely: head-shakes shed it
     float t = 0;                 // seconds on
     float noSnapUntil = 0;       // (the old hooks charm: the line never breaks on the first run)
+    uint32_t holderUps = 0;      // the angler's role upgrades (Light Touch, Heavy Hand, Strong Line, Reader)
     FightEnd end = FightEnd::None;
     uint32_t rng = 1;
     float Rand();
@@ -256,6 +258,7 @@ struct CatchRec {
     float fresh = 1;                                      // 1% a real minute on deck, 0.2% gutted and iced
     bool gutted = false, iced = false;
     bool first = false;                                   // the run's first of its kind: the Owners pay 50% more
+    bool trophy = false;                                  // landed by a Trophy Hunter: a first catch pays 50% more again
     bool bycatch = false, protectedSp = false; float aboardT = 0;   // worthless or protected: back over the side (a turtle within 60 s)
     int src = 0;                                          // how it came aboard: CatchSource (the sim's money by source)
     // on the deck (the playtest, 2026-10-01): a landed fish lies where it came aboard and flops for the rail until
@@ -326,6 +329,7 @@ struct Rod {
     float settleT = 0, biteClock = 0;
     Bite bite; Fight fight;
     float lastTick = 0;
+    bool readWarn = false;       // (Reader) the fish is about to run
     float lineOut = 0;                                    // metres off the reel while the lure is out
     bool castHeld = false, reel = false, strikeQ = false, bow = false, gaffQ = false;   // this step's hands on it
     float lean = 0;
@@ -708,6 +712,8 @@ struct Gannet {
     void CutScrew(int c, bool held, float dt);           // a swimmer at the stern holding left mouse cuts it free (4 s)           // a swimmer beside a capsized skiff holding left mouse rights her
     bool HitDeckFish(int idx, float dmg, int by, int how, bool head, float range);   // a blow on a deck fish (KillHow); true if it died of it
     float deckBlood = 0;                                  // blood on the planking: drains through the scuppers into the sea at 20% a second
+    // role upgrades' state: Full Steam (once a night, the session resets it), Iron Hull (applied once), Miracle Worker
+    bool fullSteamUsed = false, ironHull = false, miracleUsed = false; float fullSteamT = 0, miracleT = 0;
     // the magazine stock (design doc v2, "Carrying and ammunition"): rounds, shells, spears, flares, pellets, rivets kept
     // in the locker; a hand restocks its spare reload there (until below decks has the fo'c'sle's magazine locker)
     int ammoRounds = 0, ammoShells = 0, ammoSpears = 0, ammoFlares = 0, ammoPellets = 0, ammoRivets = 0;

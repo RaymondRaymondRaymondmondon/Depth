@@ -2120,7 +2120,7 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
         const Crew& c = g.crew[i];
         if (i == you) continue;
         if (!c.overboard && c.deck == 1 && !below) continue;       // below decks, out of sight
-        if (c.dead && !me.dead) continue;                          // only the dead see the dead aboard
+        if (c.dead && !me.dead && !me.Up(UP_GHOSTSPEAKER)) continue;   // only the dead see the dead aboard (and a Ghost Speaker)
         DrawHand(g, c, t);
     }
     // ---- rods and lines
