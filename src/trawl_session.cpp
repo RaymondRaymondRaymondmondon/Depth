@@ -708,6 +708,7 @@ bool Session::CastOff(std::string* why) {
     if (night == 0) { E->Init(ground, seed + deadline * 97); PlaceWrecks(); }
     else E->Day(15);
     G->wrecks = &wrecks;
+    G->sonar.wrecksMarked = 0;
     E->StartNight();
     // tonight's variant (design doc, "Nightly variants": at most one, about 40% of nights none): the web feels it
     // through the Eco's multipliers; the rumour on the tape points at it 70% of the time

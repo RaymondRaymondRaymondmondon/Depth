@@ -410,7 +410,7 @@ struct LifeRing { int state = 0; Vector2 p{}, v{}; int thrower = -1, holder = -1
 
 // The wheelhouse sonar (design doc, "The sonar"; trawl_sonar.cpp): the crew's only view below the surface outside the
 // lantern. Returns live 6 s after a ping (passive returns 2 s); a mark shows every hand a bearing arrow for 10 s.
-enum class SonarKind { School, Fish, Threat, Gear };
+enum class SonarKind { School, Fish, Threat, Gear, Wreck };   // (a Wreck return's count is its index in the ground's wrecks)
 struct SonarReturn { Vector3 p{}; int sp = -1; SonarKind kind = SonarKind::Fish; float size = 1, t = 0; int count = 1; bool passive = false; };
 struct SonarMark { Vector2 p{}; float t = 0; std::string what; int by = -1; };
 struct SonarState {
@@ -420,6 +420,7 @@ struct SonarState {
     std::vector<SonarReturn> ret;
     std::vector<SonarMark> marks;
     float passiveT = 0, botT = 0;
+    unsigned wrecksMarked = 0;                            // a bot on the sonar calls each wreck once a night (bit = index)
 };
 const char* SonarBandName(int band);
 bool SonarBandHas(int band, float depth);

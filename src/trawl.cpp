@@ -299,6 +299,18 @@ void DrawSonarScope() {
             case SonarKind::Fish: DrawCircleV(s, 1 + r.size * 0.5f, Fade(glow, a * 0.8f)); break;
             case SonarKind::Threat: DrawCircleV(s, 3 + r.size, Fade(glow, a)); DrawRing(s, 6 + r.size * 1.4f, 7.5f + r.size * 1.4f, 0, 360, 24, Fade(glow, a * 0.5f)); break;
             case SonarKind::Gear: DrawRectangle((int)s.x - 3, (int)s.y - 3, 7, 7, Fade(Color{220, 255, 220, 255}, a)); break;
+            case SonarKind::Wreck: {
+                // a long hard return lying on the floor: a hull's outline at the wreck's own heading, bright at its ends
+                float ang = (float)(r.count * 2.399f), len = 3.0f + r.size * 1.6f;
+                Vector2 ax{cosf(ang) * len, sinf(ang) * len}, nx{-sinf(ang) * 2.5f, cosf(ang) * 2.5f};
+                Color wc = Fade(Color{235, 255, 230, 255}, a);
+                DrawLineEx(Vector2Subtract(Vector2Subtract(s, ax), nx), Vector2Add(Vector2Subtract(s, nx), ax), 2, wc);
+                DrawLineEx(Vector2Add(Vector2Subtract(s, ax), nx), Vector2Add(Vector2Add(s, nx), Vector2Scale(ax, 0.8f)), 2, wc);
+                DrawLineEx(Vector2Add(Vector2Add(s, nx), Vector2Scale(ax, 0.8f)), Vector2Add(s, Vector2Scale(ax, 1.25f)), 2, wc);
+                DrawLineEx(Vector2Add(Vector2Subtract(s, nx), ax), Vector2Add(s, Vector2Scale(ax, 1.25f)), 2, wc);
+                DrawText("WRECK", (int)(s.x + 8), (int)(s.y + 6), 10, Fade(wc, a * 0.8f));
+                break;
+            }
         }
     }
     for (const auto& m : so.marks) {
@@ -354,6 +366,12 @@ void DrawSonarScope() {
         Vector2 d = g.boat.ToDeck({r.p.x, r.p.y});
         if (fabsf(d.y) > 30 || fabsf(d.x) > SONAR_RANGE || r.kind == SonarKind::Gear) continue;   // (a slice 60 m wide)
         float a = std::clamp(r.t / SONAR_LIFE, 0.0f, 1.0f);
+        if (r.kind == SonarKind::Wreck) {   // a hull lying on the floor at its depth
+            float cx = pr.x + pr.width * (d.x + SONAR_RANGE) / (2 * SONAR_RANGE), w = 6 + r.size * 2, y = py(r.p.z + 2);
+            DrawRectangle((int)(cx - w), (int)(y - 4), (int)(w * 2), 5, Fade(Color{235, 255, 230, 255}, a));
+            DrawTri({cx + w, y - 4}, {cx + w, y + 1}, {cx + w + 5, y - 4}, Fade(Color{235, 255, 230, 255}, a));
+            continue;
+        }
         DrawCircleV({pr.x + pr.width * (d.x + SONAR_RANGE) / (2 * SONAR_RANGE), py(r.p.z)}, r.kind == SonarKind::School ? 4.0f : r.kind == SonarKind::Threat ? 6.0f : 2.0f, Fade(glow, a));
     }
     DrawText("ASTERN", (int)pr.x + 6, (int)pr.y + 4, 10, dim);
@@ -1860,7 +1878,9 @@ void DebugTrawlShot(Game& g, int which) {
         StationKind want = which == 23 ? StationKind::Sonar : StationKind::Helm;
         for (int i = 0; i < (int)Stations().size(); i++) if (Stations()[i].kind == want) { G.crew[0].p = Stations()[i].at; G.crew[0].station = i; }
         if (which == 23) {
+            if (!ss.wrecks.empty()) G.boat.pos = {ss.wrecks[0].x + 55, ss.wrecks[0].y + 25};   // (a wreck in range)
             G.SonarPing(0);
+            for (int k = 0; k < (int)G.sonar.ret.size(); k++) if (G.sonar.ret[k].kind == SonarKind::Wreck) { G.SonarMarkAt(0, G.boat.ToDeck({G.sonar.ret[k].p.x, G.sonar.ret[k].p.y})); break; }
             int best = -1, most = 0;
             for (int k = 0; k < (int)G.sonar.ret.size(); k++) if (G.sonar.ret[k].kind == SonarKind::School && G.sonar.ret[k].count > most) { most = G.sonar.ret[k].count; best = k; }
             if (best >= 0) G.SonarMarkAt(0, G.boat.ToDeck({G.sonar.ret[best].p.x, G.sonar.ret[best].p.y}));

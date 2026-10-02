@@ -54,8 +54,11 @@ bool Gannet::SonarPing(int ci) {
     for (const auto& l : longlines) { gear(l.a); gear(l.b); }
     for (const auto& p : pots) gear(p.p);
     // the wrecks: a long hard return on the floor (where to dive)
-    if (wrecks) for (const auto& w : *wrecks) if (Vector2Distance({w.x, w.y}, boat.pos) <= SONAR_RANGE) {
-        SonarReturn r; r.p = {w.x, w.y, w.depth}; r.kind = SonarKind::Gear; r.size = 4; r.t = SONAR_LIFE; sonar.ret.push_back(r);
+    if (wrecks) for (int k = 0; k < (int)wrecks->size(); k++) {
+        const Wreck& w = (*wrecks)[k];
+        if (Vector2Distance({w.x, w.y}, boat.pos) > SONAR_RANGE) continue;
+        SonarReturn r; r.p = {w.x, w.y, w.depth}; r.kind = SonarKind::Wreck; r.size = (float)std::max(2, w.gw); r.count = k; r.t = SONAR_LIFE * 1.5f;   // (a hard return lingers)
+        sonar.ret.push_back(r);
     }
     return true;
 }
@@ -74,6 +77,10 @@ bool Gannet::SonarMarkAt(int ci, Vector2 aimDeck) {
     SonarMark m; m.p = {r.p.x, r.p.y}; m.t = SONAR_MARK_LIFE; m.by = ci;
     m.what = r.kind == SonarKind::Gear ? "our gear" : r.sp >= 0 ? (r.kind == SonarKind::School ? Species().sp[r.sp].name + " school" : Species().sp[r.sp].name) : "a contact";
     if (r.kind == SonarKind::Threat) m.what = "something big";   // (the scope shows a shape, not a name)
+    if (r.kind == SonarKind::Wreck) {
+        const Wreck* wk = wrecks && r.count >= 0 && r.count < (int)wrecks->size() ? &(*wrecks)[r.count] : nullptr;
+        m.what = wk ? TextFormat("a wreck, %.0f m down%s", wk->depth, wk->bell ? " (the bell's depth)" : "") : "a wreck";
+    }
     // one mark per contact: re-marking refreshes it
     for (auto& o : sonar.marks) if (Vector2Distance(o.p, m.p) < 8) { o = m; return true; }
     sonar.marks.push_back(m);
@@ -117,6 +124,11 @@ void Gannet::StepSonar(float dt) {
         for (int k = 0; k < (int)sonar.ret.size(); k++) {
             const SonarReturn& r = sonar.ret[k];
             if (r.kind == SonarKind::Threat) { SonarMarkAt(i, boat.ToDeck({r.p.x, r.p.y})); continue; }
+            if (r.kind == SonarKind::Wreck && r.count >= 0 && r.count < 32 && !(sonar.wrecksMarked & (1u << r.count))) {   // (each wreck called once)
+                sonar.wrecksMarked |= 1u << r.count;
+                SonarMarkAt(i, boat.ToDeck({r.p.x, r.p.y}));
+                continue;
+            }
             if (r.kind == SonarKind::School && r.count > most) { most = r.count; best = k; }
         }
         if (best >= 0) SonarMarkAt(i, boat.ToDeck({sonar.ret[best].p.x, sonar.ret[best].p.y}));
