@@ -583,16 +583,25 @@ void main() {
 // ambient. Colour maths in linear light, written back in display space to sit beside the rest of the frame.
 static const char* RT_PBR_VS = R"(#version 330
 in vec3 vertexPosition; in vec2 vertexTexCoord; in vec3 vertexNormal; in vec4 vertexColor;
+in vec4 vertexBoneIds; in vec4 vertexBoneWeights;
 uniform mat4 mvp; uniform mat4 matModel; uniform mat4 matView; uniform mat4 matNormal;
+uniform mat4 boneMatrices[64]; uniform int uSkinned;
 out vec3 fragWorld; out vec3 fragNormal; out vec2 fragUV; out vec4 fragColor; out float fragViewZ;
 void main() {
-    vec4 wp = matModel * vec4(vertexPosition, 1.0);
+    vec4 p = vec4(vertexPosition, 1.0);
+    vec3 n = vertexNormal;
+    if (uSkinned == 1) {   // the shared rig: four influences per vertex
+        mat4 s = boneMatrices[int(vertexBoneIds.x)] * vertexBoneWeights.x + boneMatrices[int(vertexBoneIds.y)] * vertexBoneWeights.y
+               + boneMatrices[int(vertexBoneIds.z)] * vertexBoneWeights.z + boneMatrices[int(vertexBoneIds.w)] * vertexBoneWeights.w;
+        p = s * p; n = mat3(s) * n;
+    }
+    vec4 wp = matModel * p;
     fragWorld = wp.xyz;
-    fragNormal = normalize((matNormal * vec4(vertexNormal, 0.0)).xyz);
+    fragNormal = normalize((matNormal * vec4(n, 0.0)).xyz);
     fragUV = vertexTexCoord;
     fragColor = vertexColor;
     fragViewZ = -(matView * wp).z;
-    gl_Position = mvp * vec4(vertexPosition, 1.0);
+    gl_Position = mvp * p;
 }
 )";
 static const char* RT_PBR_FS = R"(#version 330
@@ -629,10 +638,11 @@ vec3 shade(vec3 L, vec3 radiance) {
     return (kd * albedo / PI * wrapL * tint + spec * NdL) * radiance;
 }
 void main() {
+    // glTF's colour factors and vertex colours are linear already; only a texture's sRGB needs undoing
     vec4 bc = colDiffuse * fragColor;
-    if (uHasAlb == 1) bc *= texture(texture0, fragUV);
+    albedo = bc.rgb;
+    if (uHasAlb == 1) { vec4 tx = texture(texture0, fragUV); albedo *= toLin(tx.rgb); bc.a *= tx.a; }
     if (bc.a < 0.4) discard;
-    albedo = toLin(bc.rgb);
     metal = uMetal; rough = uRough;
     if (uHasMR == 1) { vec4 mr = texture(uMR, fragUV); rough *= mr.g; metal *= mr.b; }
     rough = clamp(rough, 0.04, 1.0);
@@ -737,8 +747,8 @@ void main() {
 }
 )";
 
-static Shader gInk{}, gPbr{};
-static int L_pbr[40];
+static Shader gInk{}, gPbr{}, gNDPbr{};
+static int L_pbr[40], L_pbrSkinned = -1, L_ndPbrSkinned = -1, L_ndPbrFar = -1, L_ndPbrCam = -1;
 static const char* PBR_U[] = {"uHasAlb", "uHasMR", "uHasNrm", "uHasAO", "uHasEmit", "uMetal", "uRough", "uEmitCol", "uWrap", "uGlow",
                               "uCam", "uLampPos", "uLampDir", "uKey", "uFog", "uLampRange", "uLampCone", "uFogDensity", "uPL", "uPLC",
                               "uPLN", "uMoonDir", "uMoon", "uSkyAmb", "uSeaAmb", "uMoonK", "uAmbK", "uSil"};
@@ -787,6 +797,12 @@ static void EnsureShaders() {
     gPbr.locs[SHADER_LOC_MAP_OCCLUSION] = GetShaderLocation(gPbr, "uAO");
     gPbr.locs[SHADER_LOC_MAP_EMISSION] = GetShaderLocation(gPbr, "uEmit");
     gPbr.locs[SHADER_LOC_MATRIX_NORMAL] = GetShaderLocation(gPbr, "matNormal");
+    L_pbrSkinned = GetShaderLocation(gPbr, "uSkinned");
+    // the normal/depth pass for the physically based path: the same vertex shader (so skinned figures bend there too)
+    gNDPbr = LoadShaderFromMemory(RT_PBR_VS, RT_ND_FS);
+    L_ndPbrSkinned = GetShaderLocation(gNDPbr, "uSkinned");
+    L_ndPbrFar = GetShaderLocation(gNDPbr, "uFar");
+    L_ndPbrCam = GetShaderLocation(gNDPbr, "uCam");
     gColorRT = LoadRenderTexture(SCREEN_W, SCREEN_H);
     gNDRT = LoadRenderTexture(SCREEN_W, SCREEN_H);
     SetTextureFilter(gColorRT.texture, TEXTURE_FILTER_BILINEAR);
@@ -804,7 +820,7 @@ void RenderShutdown() {
     UnloadModel(gCube);
     UnloadRenderTexture(gColorRT);
     UnloadRenderTexture(gNDRT);
-    UnloadShader(gLit); UnloadShader(gND); UnloadShader(gInk); UnloadShader(gPbr);
+    UnloadShader(gLit); UnloadShader(gND); UnloadShader(gInk); UnloadShader(gPbr); UnloadShader(gNDPbr);
     gShadersReady = false;
 }
 
@@ -816,7 +832,12 @@ struct DrawCmd {
     Color tint;
     int sky = 0;                   // the colour pass only, unlit and unfogged
     int pbr = 0; float wrap = 0;   // the physically based path (every mesh of the model, its own materials)
+    int boneOff = -1, boneN = 0;   // a skinned pose: its matrices in gBonePool
+    int recOff = 0, recN = 0;      // recoloured materials in gRecPool
 };
+static std::vector<Matrix> gBonePool;
+static std::vector<Recolor> gRecPool;
+static std::map<const Model*, std::vector<std::string>> gMatNames;   // glTF material names, index = raylib material - 1
 static std::vector<DrawCmd> gQueue;
 static Camera3D gCam;
 static SceneLight gLight;
@@ -831,6 +852,7 @@ void RenderBegin(const Camera3D& cam, const SceneLight& light) {
     gCam = cam;
     gLight = light;
     gQueue.clear();
+    gBonePool.clear(); gRecPool.clear();
 }
 
 void DrawCreature(const CreatureModel& cm, Vector3 pos, float yaw, float pitch, float scale, float phase, float intensity, Color tint) {
@@ -860,6 +882,59 @@ void DrawPbr(const Model& m, Matrix world, Color tint, float wrap) {
     d.pbr = 1; d.wrap = wrap;
     gQueue.push_back(d);
 }
+void DrawPbrSkinned(const Model& m, Matrix world, const std::vector<Matrix>& skin, const std::vector<Recolor>& recolor, float wrap, Color tint) {
+    DrawCmd d{&m, world, (int)AnimMode::Static, 0, 0, 0, 1, 0, 0, tint};
+    d.pbr = 1; d.wrap = wrap;
+    d.boneOff = (int)gBonePool.size(); d.boneN = (int)skin.size();
+    gBonePool.insert(gBonePool.end(), skin.begin(), skin.end());
+    d.recOff = (int)gRecPool.size(); d.recN = (int)recolor.size();
+    for (Recolor r : recolor) {   // (given in display colour; the materials are linear)
+        auto lin = [](unsigned char v) { return (unsigned char)std::clamp(powf(v / 255.0f, 2.2f) * 255.0f + 0.5f, 0.0f, 255.0f); };
+        r.c = {lin(r.c.r), lin(r.c.g), lin(r.c.b), r.c.a};
+        gRecPool.push_back(r);
+    }
+    gQueue.push_back(d);
+}
+
+// ---------------------------------------------------------------- the rig
+const RigInfo& RigOf(const Model& m) {
+    static std::map<const Model*, RigInfo> cache;
+    auto it = cache.find(&m);
+    if (it != cache.end()) return it->second;
+    RigInfo r;
+    for (int i = 0; i < m.boneCount; i++) {
+        r.parent.push_back(m.bones[i].parent);
+        r.joint.push_back(m.bindPose[i].translation);
+        r.name.push_back(m.bones[i].name);
+        if (getenv("DEPTH_RIGDBG")) { Transform b = m.bindPose[i]; printf("rig %2d %-12s parent %2d  t(%.3f %.3f %.3f) r(%.2f %.2f %.2f %.2f) s(%.2f %.2f %.2f)\n", i, m.bones[i].name, m.bones[i].parent, b.translation.x, b.translation.y, b.translation.z, b.rotation.x, b.rotation.y, b.rotation.z, b.rotation.w, b.scale.x, b.scale.y, b.scale.z); }
+    }
+    return cache[&m] = r;
+}
+std::vector<Matrix> SolveRig(const RigInfo& rig, const RigPose& pose) {
+    int n = (int)rig.parent.size();
+    std::vector<Matrix> M(n);
+    std::vector<char> done(n, 0);
+    // each bone: about its bind joint, its own rotation and scale, then its parent's posed frame (bones may come in any order)
+    std::function<const Matrix&(int)> solve = [&](int b) -> const Matrix& {
+        if (done[b]) return M[b];
+        Vector3 h = rig.joint[b];
+        Quaternion q = b < (int)pose.rot.size() ? pose.rot[b] : QuaternionIdentity();
+        Vector3 s = b < (int)pose.scale.size() ? pose.scale[b] : Vector3{1, 1, 1};
+        Matrix local = MatrixMultiply(MatrixMultiply(MatrixMultiply(MatrixTranslate(-h.x, -h.y, -h.z), MatrixScale(s.x, s.y, s.z)), QuaternionToMatrix(q)), MatrixTranslate(h.x, h.y, h.z));
+        int p = rig.parent[b];
+        M[b] = p >= 0 && p < n ? MatrixMultiply(local, solve(p)) : MatrixMultiply(local, MatrixTranslate(pose.offset.x, pose.offset.y, pose.offset.z));
+        done[b] = 1;
+        return M[b];
+    };
+    for (int b = 0; b < n; b++) solve(b);
+    return M;
+}
+Matrix BoneWorld(const RigInfo& rig, const std::vector<Matrix>& skin, int bone, Matrix world) {
+    if (bone < 0 || bone >= (int)skin.size()) return world;
+    Vector3 h = rig.joint[bone];
+    return MatrixMultiply(MatrixMultiply(MatrixTranslate(h.x, h.y, h.z), skin[bone]), world);
+}
+
 std::string AssetDir() {
     static std::string dir;
     if (dir.empty()) { dir = DataDir() + "/../../assets"; if (!DirectoryExists(dir.c_str())) dir = "assets"; }
@@ -877,6 +952,19 @@ const Model* LoadAsset(const std::string& relPath) {
         if (m->meshCount == 0) m.reset();
     }
     if (!m) TraceLog(LOG_WARNING, "rt: asset %s not found", path.c_str());
+    if (m && path.size() > 4 && path.substr(path.size() - 4) == ".glb") {
+        // the material names from the glb's own JSON chunk (raylib keeps only their order: material i + 1)
+        int sz = 0; unsigned char* data = LoadFileData(path.c_str(), &sz);
+        if (data && sz > 20) {
+            uint32_t jlen; memcpy(&jlen, data + 12, 4);
+            if (20 + (int)jlen <= sz) {
+                Json j; std::string err;
+                if (ParseJson(std::string((const char*)data + 20, jlen), j, &err))
+                    for (const Json& mt : j["materials"].a) gMatNames[m.get()].push_back(mt["name"].Str0());
+            }
+        }
+        if (data) UnloadFileData(data);
+    }
     const Model* raw = m.get();
     cache[relPath] = std::move(m);
     return raw;
@@ -890,11 +978,19 @@ static void DrawPbrCmd(const DrawCmd& d, Shader sh, bool lit) {
     Model& m = const_cast<Model&>(*d.model);
     Matrix world = MatrixMultiply(m.transform, d.world);
     if (lit) { SetF(gPbr, L_pbr[PU_WRAP], d.wrap); SetF(gPbr, L_pbr[PU_GLOW], d.glow); }
+    auto names = gMatNames.find(d.model);
     for (int i = 0; i < m.meshCount; i++) {
         Material mat = m.materials[m.meshMaterial[i]];
         Shader keep = mat.shader;
         mat.shader = sh;
+        // the pose: this draw's matrices into the mesh (several sailors share one model)
+        bool skinned = d.boneOff >= 0 && m.meshes[i].boneMatrices && m.meshes[i].boneCount > 0;
+        if (skinned) memcpy(m.meshes[i].boneMatrices, gBonePool.data() + d.boneOff, sizeof(Matrix) * std::min(d.boneN, m.meshes[i].boneCount));
+        SetI(sh, sh.id == gPbr.id ? L_pbrSkinned : L_ndPbrSkinned, skinned ? 1 : 0);
         if (lit) {
+            if (names != gMatNames.end() && m.meshMaterial[i] >= 1 && m.meshMaterial[i] - 1 < (int)names->second.size())
+                for (int k = 0; k < d.recN; k++)
+                    if (names->second[m.meshMaterial[i] - 1] == gRecPool[d.recOff + k].material) mat.maps[MATERIAL_MAP_ALBEDO].color = gRecPool[d.recOff + k].c;
             Color a = mat.maps[MATERIAL_MAP_ALBEDO].color;
             mat.maps[MATERIAL_MAP_ALBEDO].color = {(unsigned char)(a.r * d.tint.r / 255), (unsigned char)(a.g * d.tint.g / 255), (unsigned char)(a.b * d.tint.b / 255), a.a};
             // (raylib's default 1x1 white texture counts as no map)
@@ -917,10 +1013,8 @@ static void DrawPbrCmd(const DrawCmd& d, Shader sh, bool lit) {
 static void DrawQueue(Shader sh, bool lit) {
     for (const DrawCmd& d : gQueue) {
         if (d.pbr) {
-            if (!lit) {   // the normal/depth pass treats it like any other geometry
-                SetI(sh, L_nd[LU_ANIM], (int)AnimMode::Static); SetF(sh, L_nd[LU_AMP], 0); SetF(sh, L_nd[LU_INTEN], 0);
-                DrawPbrCmd(d, sh, false);
-            } else DrawPbrCmd(d, gPbr, true);
+            if (!lit) DrawPbrCmd(d, gNDPbr, false);   // the normal/depth pass: the same skinning, the same edges
+            else DrawPbrCmd(d, gPbr, true);
             continue;
         }
         Model& m = const_cast<Model&>(*d.model);
@@ -998,6 +1092,8 @@ void RenderEnd() {
     // normal/depth pass
     SetF(gND, L_nd[6], FAR);
     SetV3(gND, L_nd[7], gCam.position);
+    SetF(gNDPbr, L_ndPbrFar, FAR);
+    SetV3(gNDPbr, L_ndPbrCam, gCam.position);
     BeginLayer(gNDRT);
     ClearBackground(BLANK);
     BeginMode3D(gCam);

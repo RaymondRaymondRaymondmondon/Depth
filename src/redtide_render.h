@@ -10,6 +10,7 @@
 //  shader lays them into the scene.
 // ============================================================================
 #include "raylib.h"
+#include "raymath.h"
 #include "redtide.h"
 #include <functional>
 #include <string>
@@ -99,6 +100,28 @@ void DrawWorldCube(Vector3 c, Vector3 size, Color col);             // blockout 
 // the art generators bake them into assets/) under the same lamp, points and fog, plus the moon and the ambient.
 const Model* LoadAsset(const std::string& relPath);                 // assets/<relPath>, cached; nullptr if missing
 void DrawPbr(const Model& m, Matrix world, Color tint = WHITE, float wrap = 0);   // wrap: soft wrap-diffuse (skin, cloth)
+
+// Skinned characters (the shared rig, tools/artgen/crew.py). A pose is a model-space rotation (and scale) per bone
+// about its bind joint, applied down the chain: so "swing the right arm forward" is a rotation about the model's
+// lateral axis on upperarm.R, whatever the bone's own axes. SolveRig turns it into the skinning matrices.
+struct RigInfo {
+    std::vector<int> parent;                 // per bone, -1 at the root
+    std::vector<Vector3> joint;              // bind joint positions, model space
+    std::vector<std::string> name;
+    int Find(const std::string& n) const { for (size_t i = 0; i < name.size(); i++) if (name[i] == n) return (int)i; return -1; }
+};
+const RigInfo& RigOf(const Model& m);
+struct RigPose {
+    std::vector<Quaternion> rot;             // per bone, model axes, relative to its parent's posed frame
+    std::vector<Vector3> scale;              // per bone (1 = as built): builds, head shapes, a blink
+    Vector3 offset{0, 0, 0};                 // the whole figure (a crouch, a bob)
+    void Reset(int n) { rot.assign(n, QuaternionIdentity()); scale.assign(n, {1, 1, 1}); offset = {0, 0, 0}; }
+};
+std::vector<Matrix> SolveRig(const RigInfo& rig, const RigPose& pose);   // skinning matrices (bind model space -> posed)
+Matrix BoneWorld(const RigInfo& rig, const std::vector<Matrix>& skin, int bone, Matrix world);   // a joint's frame in the world (to hold things)
+// Draws a skinned model in a pose, with named materials recoloured (a sailor's skin tone, coat, hat)
+struct Recolor { const char* material; Color c; };
+void DrawPbrSkinned(const Model& m, Matrix world, const std::vector<Matrix>& skin, const std::vector<Recolor>& recolor = {}, float wrap = 0.35f, Color tint = WHITE);
 void RenderEnd();                                                   // runs the normal/depth pass and the ink composite into the scene
 void RenderShutdown();
 bool RenderReady();
