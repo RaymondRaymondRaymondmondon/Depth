@@ -125,3 +125,23 @@ The spec: `Red_Tide_Reference/Red Tide — Visual Overhaul Spec.pdf` (25 pages, 
   Flechette mid-reload).
 - **Built since (phase 4, second part):** Needler Mk II (a drum-shaped glass cartridge on the side), Trawlerman's Rifle (box magazine of brass clips, booted bolt, ladder sight), Bolt Harpoon (side quiver, winch crank, brass scope), Chumthrower (glass tank with the chum inside, hand pump, nozzle), Gatling Needler (six barrels that spin, a glass hopper of needles, a motor, a gas hose and strap), Twin Gannets (a mirrored Gannet in the left fist), Stormlock (finned barrel, side magazine, fins), Drum Flechette, Reef Rattler (three-chambered glass cartridges, the striker), Cannon Harpoon (explosive head with a fuse, recoil spring, shoulder pad), Limpet Launcher (four-round drum of charges, glue pad, fuse light), Net Gun (bell muzzle with the folded net and its weights), Harpoon Cannon; the Tesla Gaff (battery, copper coils, hook) and the Trident (bronze, barbed); the wonder weapons: the Galvanic Rod (a dynamo on a pole with a crank), the Resonator (brass horns and crystal), the Anemone Gun (coral and shell over a brass core, polyps in the barrel), the Tide Staff (a crystal in golden fins) and the Abyssal Lure (a caged lure on a stalk). 26 models, about 13 MB.
 - **Still to do for the guns:** the Sawtooth; the Forge's sea-glass finish and the alternate ammunition shown on the gun; the wonder weapons' living effects (arcs, ringing, pulsing polyps, swirling water, the lure's heartbeat); glass reads as opaque in the PBR path; third-person guns for teammates; spent clips sinking and the gas guns' bubble bursts.
+
+## Phase 5: the creature kit (2026-10-02)
+- **Fish** (`DrawCreaturePbr` in redtide_vis.cpp): every fish-shaped species (plans fusiform, compressiform, shark,
+  depressiform, anguilliform) draws on the Trawl's rigged fish (`assets/trawl/fish`: tuna, herring, perch, deep, pike,
+  shark, ray, flat, billfish, eel archetypes on a four-bone spine; the name picks among them: a barracuda is the pike,
+  a mackerel the tuna, a flounder the flat), painted from the species record's three colours (back, belly, fins) and
+  swimming its spine at the agent's pace; rays beat their wings.
+- **The other body plans** (`tools/artgen/creatures_rt.py` -> `assets/redtide/creatures/cr_<plan>.glb`, posed in code):
+  the **crab** (carapace, eye stalks, clawed arms whose pincers open and shut, eight two-part legs stepping in
+  alternate pairs), the **shrimp** (six segments curling, tail fan, rostrum, long antennae), the **cephalopod**
+  (mantle, eyes, eight arms of four bones trailing in waves), the **jelly** (a pulsing bell, eight tentacles, oral
+  arms), the **turtle** (carapace with scutes, plastron, head on its neck, beating front flippers) and the
+  **cetacean** (a dolphin's body undulating up and down, flukes, a dorsal fin; seals use it too).
+- The nearest 40 creatures within 28 m a frame get the rigged models; the rest, the bosses, and the plans not yet
+  rigged (echinoderms, colonies, worms, birds, amphibians, crocodilians, leviathans, the factions) keep the
+  CreatureBuilder models. `DEPTH_OLDCREATURES=1` draws the old ones for comparison. Frame cost after: the lagoon
+  10.6 ms, the bridge 12.3, the cave mouth 11.5.
+- **Not done yet:** the hero species' individual sculpts (the sharks, groupers, orcas, mantas, the giant squid, the
+  Ghost Worm ...); weak points modelled visibly; the states on the body (hunting, fed, wounded, fleeing, netted,
+  parasite, camouflage, dead); schools as instanced boids with phase offsets; flora with bones.

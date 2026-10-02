@@ -117,8 +117,67 @@ static const char* ArchFor(const CreatureModel& cm) {
 }
 static int gCreatureBudget = 0;
 void CreatureBudget(int n) { gCreatureBudget = n; }
+// the other body plans (tools/artgen/creatures_rt.py), posed here: the crab's legs step in alternate pairs and its
+// pincers open and shut, the shrimp curls its tail, the cephalopod's arms trail in waves, the jelly's bell pulses
+// and its tentacles sway, the turtle beats its front flippers, the cetacean's spine undulates up and down
+static const char* PlanFor(const CreatureModel& cm) {
+    const std::string& p = cm.plan;
+    if (p == "crab") return "crab";
+    if (p == "shrimp") return "shrimp";
+    if (p == "cephalopod") return "cephalopod";
+    if (p == "jelly") return "jelly";
+    if (p == "turtle") return "turtle";
+    if (p == "cetacean" || p == "pinniped") return "cetacean";
+    return nullptr;
+}
+static bool DrawPlanPbr(const CreatureModel& cm, const char* plan, Vector3 pos, float yaw, float pitch, float scale, float phase, float inten, Color tint) {
+    const Model* m = LoadAsset(std::string("redtide/creatures/cr_") + plan + ".glb");
+    if (!m) return false;
+    gCreatureBudget--;
+    const RigInfo& R = RigOf(*m);
+    RigPose P; P.Reset((int)R.parent.size());
+    auto rot = [&](const char* n, Vector3 ax, float a) { int b = R.Find(n); if (b >= 0) P.rot[b] = QuaternionMultiply(P.rot[b], QuaternionFromAxisAngle(ax, a)); };
+    const Vector3 X{1, 0, 0}, Y{0, 1, 0}, Z{0, 0, 1};
+    float amp = std::clamp(0.3f + 0.7f * inten, 0.2f, 1.2f);
+    std::string pl = plan;
+    if (pl == "crab") {
+        for (int i = 0; i < 4; i++) for (int s = 0; s < 2; s++) {
+            float ph = phase * 1.4f + i * PI / 2 + s * PI;
+            rot(TextFormat("leg%d%sa", i, s ? "R" : "L"), Z, (s ? -1.0f : 1.0f) * 0.3f * amp * std::max(0.0f, sinf(ph)));
+            rot(TextFormat("leg%d%sa", i, s ? "R" : "L"), Y, 0.25f * amp * cosf(ph));
+        }
+        float open = 0.35f * (0.5f + 0.5f * sinf(phase * 0.6f));
+        rot("pincer.L", Y, open); rot("pincer.R", Y, -open);
+        rot("claw.L", X, 0.15f * sinf(phase * 0.4f)); rot("claw.R", X, 0.15f * sinf(phase * 0.4f + 1));
+    } else if (pl == "shrimp") {
+        for (int k = 0; k < 6; k++) rot(TextFormat("t%d", k), X, 0.1f * amp * sinf(phase - k * 0.8f));
+    } else if (pl == "cephalopod") {
+        for (int i = 0; i < 8; i++) for (int j = 0; j < 4; j++) {
+            float w = sinf(phase * 0.7f - j * 0.9f + i * 0.8f) * (0.15f + 0.12f * j) * amp;
+            rot(TextFormat("a%d_%d", i, j), X, w); rot(TextFormat("a%d_%d", i, j), Y, 0.5f * w * cosf(i * 0.8f));
+        }
+    } else if (pl == "jelly") {
+        float pulse = 0.5f + 0.5f * sinf(phase * 0.9f);
+        int b = R.Find("bell"); if (b >= 0) P.scale[b] = {1 + 0.1f * pulse, 1 - 0.18f * pulse, 1 + 0.1f * pulse};
+        for (int i = 0; i < 8; i++) for (int j = 0; j < 4; j++) rot(TextFormat("k%d_%d", i, j), X, 0.18f * sinf(phase * 0.45f - j * 0.7f + i));
+    } else if (pl == "turtle") {
+        float f = 0.55f * amp * sinf(phase * 0.5f);
+        rot("flip.FL", Z, f); rot("flip.FR", Z, -f);
+        rot("flip.RL", Y, 0.25f * sinf(phase * 0.5f + 1)); rot("flip.RR", Y, -0.25f * sinf(phase * 0.5f + 1));
+        rot("head", X, 0.08f * sinf(phase * 0.3f));
+    } else if (pl == "cetacean") {
+        for (int k = 0; k < 4; k++) rot(TextFormat("s%d", k), X, amp * 0.6f * sinf(phase * 0.5f - k * 1.2f) * (0.12f + 0.12f * k));
+    }
+    std::vector<Matrix> sk = SolveRig(R, P);
+    float len = std::max(0.05f, cm.length * scale);
+    Matrix w = MatrixMultiply(MatrixMultiply(MatrixScale(len, len, len), MatrixRotateX(-pitch)), MatrixMultiply(MatrixRotateY(yaw), MatrixTranslate(pos.x, pos.y, pos.z)));
+    Color fin = cm.accent.a > 0 ? cm.accent : Color{(unsigned char)(cm.base.r * 0.8f), (unsigned char)(cm.base.g * 0.8f), (unsigned char)(cm.base.b * 0.8f), 255};
+    DrawPbrSkinned(*m, w, sk, {{"back", cm.base}, {"belly", cm.belly}, {"fin", fin}}, 0.2f, tint);
+    return true;
+}
 bool DrawCreaturePbr(const CreatureModel& cm, Vector3 pos, float yaw, float pitch, float scale, float phase, float inten, Color tint) {
     if (gCreatureBudget <= 0 || getenv("DEPTH_OLDCREATURES")) return false;
+    if (const char* pl = PlanFor(cm)) return DrawPlanPbr(cm, pl, pos, yaw, pitch, scale, phase, inten, tint);
     const char* a = ArchFor(cm);
     if (!a) return false;
     const Model* m = LoadAsset(std::string("trawl/fish/fish_") + a + ".glb");
