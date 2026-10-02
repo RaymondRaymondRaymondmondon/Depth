@@ -377,8 +377,32 @@ static void ShipDressing(); void BuildLevelModel() {
 // chandelier hanging askew, its armchairs piled against the wall, a table tipped on its side, the piano; the galley's
 // range with its pots, crates and barrels; a bunk in every cabin; the engine room's generator; the bridge's wheel and
 // binnacle; the funnel on the foredeck; barrels on the stern. (The models' frame: +x forward, +y up, the base at 0.)
+// the other maps' landmarks from their kits (maps_rt.py): statues in Atlantis's forum and gate, braziers in its chapel,
+// columns down its streets; giant clams on the reef's sand flats; glass sponges in the Void's galleries
+static void MapDressing() {
+    const MapData& map = *M().map;
+    const std::string& key = M().mapKey;
+    auto put = [&](const char* id, Vector3 at, float sc, float yaw) {
+        std::string path = std::string("redtide/maps/") + id + ".glb";
+        if (LoadAsset(path)) S.dress.push_back({path, MatrixMultiply(MatrixMultiply(MatrixScale(sc, sc, sc), MatrixRotateY(yaw)), MatrixTranslate(at.x, at.y, at.z)), WHITE});
+    };
+    for (const Zone& z : map.zones) {
+        float x0 = z.plan.x, z0 = z.plan.y, w = z.plan.width, h = z.plan.height, cx = x0 + w / 2, cz = z0 + h / 2;
+        auto has = [&](const char* k) { return z.name.find(k) != std::string::npos; };
+        if (key == "atlantis") {
+            if (has("Forum") || has("Gate")) { put("statue", {cx, z.y0, cz}, 1.6f, 0.5f); for (int k = -1; k <= 1; k += 2) put("column", {cx + k * w * 0.3f, z.y0, cz - h * 0.3f}, 1.3f, 0); }
+            if (has("Chapel") || has("Temple")) for (int k = -1; k <= 1; k += 2) put("brazier", {cx + k * 3.0f, z.y0, cz}, 1.2f, 0);
+            if (has("Town") || has("Market")) for (int k = 0; k < 3; k++) put("column", {x0 + w * (0.25f + 0.25f * k), z.y0, z0 + 1.2f}, 1.1f, 0);
+        } else if (key == "reef") {
+            if (has("Sand") || has("Lagoon")) for (int k = 0; k < 3; k++) put("clam", {x0 + w * (0.2f + 0.3f * k), z.y0, z0 + h * (0.3f + 0.2f * (k % 2))}, 0.9f + 0.3f * k, k * 1.3f);
+        } else if (key == "void") {
+            if (has("Galler") || has("Warren")) for (int k = 0; k < 5; k++) put("sponge", {x0 + w * (0.15f + 0.17f * k), z.y0, z0 + h * (0.25f + 0.5f * (k % 2))}, 0.9f + 0.25f * (k % 3), k * 0.7f);
+        }
+    }
+}
+
 static void ShipDressing() {
-    if (M().mapKey != "ship") return;
+    if (M().mapKey != "ship") { MapDressing(); return; }
     const MapData& map = *M().map;
     auto put = [&](const char* id, Vector3 at, float yaw, Matrix tilt = MatrixIdentity()) {
         S.dress.push_back({std::string("redtide/ship/") + id + ".glb", MatrixMultiply(MatrixMultiply(tilt, MatrixRotateY(yaw)), MatrixTranslate(at.x, at.y, at.z))});
