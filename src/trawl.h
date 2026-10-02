@@ -311,6 +311,8 @@ struct Crew {
     bool dead = false, bodyLost = false;                  // dead for the night: a ghost on deck, or lost to the sea
     Vector2 swim{0, 0};                                   // overboard: where in the sea (world x/y)
     float drownT = 0, bleedT = 0;
+    float wetT = 0;                                       // after a swim: the powder in their guns is wet (40% misfires) until it dries
+    int shotsFired = 0;                                   // (the lodestone sight: every fifth)
     float cprT = 0;   // drowned with a Medic aboard: seconds left to haul them in for CPR (design doc: 15 s)
     uint32_t ups = 0; // role upgrades held (bit = RoleUp), set by the session from the hand's choices
     bool Up(int u) const { return (ups >> u) & 1u; }
@@ -410,6 +412,8 @@ enum class Shot { Bullet, Pellet, Spear, Harpoon, Explosive, Flare, Charge };
 struct Projectile {
     Shot kind; Vector3 p, v;                              // world x/y; z below the surface (negative is in the air)
     int owner = -1; float life = 3, dmg = 0; bool tether = false, inWater = false; float travel = 0;
+    int payload = -1;                                     // a thrown weapon's row (trawl_weapons): it goes off where it lands
+    bool snapHead = false, boneStock = false;             // the lodestone sight's fifth shot (to the head); fired from a bone stock (+0.1 Killscore)
 };
 struct Floater { std::string name; int sp = -1; float kg = 0, price = 0, grade = 1; Vector2 p; float life = 90; bool tethered = false; };
 struct FlareLight { Vector2 p; float t; };
@@ -566,6 +570,7 @@ struct Gannet {
     void Steal(int holdIdx, int kind);                    // a bird takes this fish off the deck
     void StepThieves(float dt);
     void DropThief(int idx, int by);                      // shot: the bird and its fish come down
+    void ThrownLands(const Projectile& p);                // a thrown weapon (crackerjack, lamp oil, dynamite) goes off where it hits the water
     int landedSmall = 0, landedBig = 0;                   // hook fish landed this run under 0.4 kg / of 1 kg or more (the shakedown's lessons count these: birds may have the fish)
     int junkBottles = 0, junkKeys = 0, junkCharts = 0;    // junk kept for the landings (the skiff)
     void FindJunk(Vector2 deckAt, const char* how);

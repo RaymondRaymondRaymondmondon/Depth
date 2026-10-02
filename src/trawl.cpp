@@ -813,7 +813,7 @@ void Panels(Game& g) {
             int row = 0;
             for (int i = 0; i < (int)Weapons().size(); i++) {
                 const WeaponDef& w = Weapons()[i];
-                bool here = (w.where == "gunsmith" || (w.where == "gunsmith3" && ss.deadline >= 3)) && w.cls != WC_THROWN;   // (thrown weapons wait for throwing)
+                bool here = (w.where == "gunsmith" || (w.where == "gunsmith3" && ss.deadline >= 3)) && w.id != "depthcharge";   // (the depth charge stays at the Chandler)
                 if (!here) continue;
                 float yy = y + 50 + row * 24.0f; row++;
                 Txt(w.name.c_str(), x, yy + 3, 13, ink);

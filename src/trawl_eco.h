@@ -94,6 +94,7 @@ struct EcoAgent {
     int target = -1;
     bool alive = true;
     float flash = 0;                            // a strike or a flee just happened (drawing)
+    float stunT = 0;                            // stunned (a crackerjack): it hangs where it is
     Vector3 goal{}; float goalT = 0;            // a hooked fish it is going for
 };
 struct Raft { Vector2 p; float r; };
@@ -181,7 +182,8 @@ struct Eco {
     void AddBlood(Vector3 p, float amount);
     void AddNoise(Vector3 p, float amount);
     void AddVibration(Vector3 p, float amount);
-    void DepthCharge(Vector3 p, std::vector<std::pair<int, float>>* floated = nullptr);   // +15 Wake, a blast of noise; everything in 12 m stunned or killed, floating up (kg per species)
+    void DepthCharge(Vector3 p, std::vector<std::pair<int, float>>* floated = nullptr, float radius = 12);   // (dynamite: 4 m)
+    void Stun(Vector3 p, float radius, float seconds);   // a crackerjack: everything in the radius hangs stunned   // +15 Wake, a blast of noise; everything in 12 m stunned or killed, floating up (kg per species)
     // shooting and gear (stage 6)
     float SpeciesHP(int sp) const;              // a threat's HP from the doc's stat table; a fish's from its weight
     int HitAgent(Vector3 p, float r, bool air) const;   // the agent whose body a projectile at p touches, or -1

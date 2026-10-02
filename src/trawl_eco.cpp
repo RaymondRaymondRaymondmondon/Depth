@@ -603,12 +603,17 @@ void Eco::Harvest(int sp, float kg, Vector3 at, bool bleed) {
     B[sp] = std::max(0.0f, B[sp] - kg);
     if (bleed) AddBlood(at, kg * 2);
 }
-void Eco::DepthCharge(Vector3 p, std::vector<std::pair<int, float>>* floated) {
-    // design doc: "12 m blast radius. Stuns everything in range, floating fish to the surface"
+void Eco::Stun(Vector3 p, float radius, float seconds) {
+    for (auto& a : agents) if (a.alive && Vector3Distance(a.p, p) < radius) { a.stunT = std::max(a.stunT, seconds); a.flash = 0.5f; }
+    AddNoise(p, 60);
+}
+void Eco::DepthCharge(Vector3 p, std::vector<std::pair<int, float>>* floated, float radius) {
+    // design doc: "12 m blast radius. Stuns everything in range, floating fish to the surface" (dynamite: "150 in 4 m")
     const auto& S = Species().sp;
-    const float RAD = 12;
-    wake = std::min(100.0f, wake + 15);
-    AddNoise(p, 400); AddVibration(p, 400); AddBlood(p, 80);
+    const float RAD = radius;
+    float k = radius / 12.0f;
+    wake = std::min(100.0f, wake + 15 * k);
+    AddNoise(p, 400 * k); AddVibration(p, 400 * k); AddBlood(p, 80 * k);
     auto addF = [&](int s, float kg) {
         if (!floated || kg <= 0) return;
         for (auto& f : *floated) if (f.first == s) { f.second += kg; return; }
@@ -847,6 +852,7 @@ void Eco::StepAgents(float dt) {
         a.hunger = std::min(1.0f, a.hunger + dt / 240.0f * (r.threat && boat ? (0.5f + Stir()) * threatHungerMul * (1 + 0.1f * toughness) : 1.0f));   // threats grow bold with the Stir clock
         if (a.fedT > 0) a.fedT -= dt;
         if (a.flash > 0) a.flash -= dt;
+        if (a.stunT > 0) { a.stunT -= dt; a.v = Vector3Scale(a.v, 0.9f); continue; }   // (a crackerjack: it hangs where it is)
         Vector2 p2{a.p.x, a.p.y};
         float fd = DepthAt(p2);
         // where it wants to be in the column: its band, risen at night

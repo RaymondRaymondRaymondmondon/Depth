@@ -828,3 +828,11 @@ bubble puff); Red Tide's gun models rebuilt with a dozen parts each.
   (`Fight::PredictReel`: the reel's own arithmetic from `Fight::Step`, not while the drag slips), so the line and the
   tension gauge answer the button at once; the host's next snapshot puts the truth back.
 - Next: a real LAN night on two or more PCs (the user's).
+
+## The weapons' odds and ends (2026-10-02; design doc v2 weapon and attachment tables)
+- **Throwables** (`WC_THROWN`): the Gunsmith now sells the crackerjack, the lamp-oil bottle and dynamite (the depth charge stays at the Chandler). Thrown over the rail on an arc (`Projectile::payload` = the catalogue row), each goes off where it hits the water (`Gannet::ThrownLands`): the crackerjack stuns fish (`Eco::Stun`, `EcoAgent::stunT`) and drops thieving birds within 4 m for 3 s; dynamite is a 4 m blast (`Eco::DepthCharge(p, fl, radius)`) whose fish float up chum-grade (20%) and kills a swimmer in range; lamp oil burns on the water for 8 s and sets the Drowned within 3 m alight (40).
+- **The bayonet**: an empty gun with one stabs (15 at 1.8 m, a melee finish) instead of clicking.
+- **The lodestone sight**: every fifth shot (`Crew::shotsFired`) flies true and counts as a head shot (`Projectile::snapHead`).
+- **The bone stock**: a kill with the gun adds 0.1 to the Killscore (`Projectile::boneStock`).
+- **Wet powder**: a hand who has been overboard misfires 40% of the time for two minutes after (`Crew::wetT`), whatever the weather; the oilskin's rule still applies.
+- Checks in `--trawl-gear-test` (each of the above).

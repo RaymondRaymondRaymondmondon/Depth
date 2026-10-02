@@ -227,26 +227,49 @@ void Gannet::UseItem(int ci, Vector2 aimDeck, bool pressed, bool held, bool sigh
                 if (pressed && c.cool <= 0) { c.cool = WeaponCooldown(w, s.att); KillDeckFish(ci, WeaponReach(w), WeaponDamage(w, s.lvl, s.att) * (w.id == "coralclub" ? 1.5f : 1.0f), w.id == "coralclub"); }
                 break;
             }
+            if (w.cls == WC_THROWN) {
+                // thrown over the rail on an arc: it goes off where it lands (a depth charge sinks to 5 m first)
+                if (!pressed || c.cool > 0) break;
+                int row = s.wpn;
+                if (s.ammo > 1) s.ammo--; else s = Slot{};
+                Projectile p; p.kind = Shot::Charge; p.owner = ci; p.life = 12; p.payload = Weapons()[row].id == "depthcharge" ? -1 : row;
+                Vector2 d = Vector2Subtract(aimW, from); float L = std::clamp(Vector2Length(d), 4.0f, 14.0f);
+                d = Vector2Length(d) > 0.1f ? Vector2Normalize(d) : boat.Forward();
+                float T = 1.2f;
+                p.p = muzzle; p.v = {d.x * L / T, d.y * L / T, -(G * T / 2) + RAIL_H / T};
+                shots.push_back(p); c.cool = 1.0f;
+                if (p.payload < 0) chargesUsed++;
+                Say(TextFormat("Thrown: the %s", Weapons()[row].name.c_str()));
+                break;
+            }
             if (!w.Gun()) break;
             bool rapid = w.speed == WS_RAPID;
             if (!(rapid ? held : pressed) || c.cool > 0 || c.reloadT > 0) break;
             // (the Visual Overhaul Spec: a two-handed long gun can't be fired with a broken arm; a sidearm still can)
             if (c.Has(INJ_BROKEN_ARM) && (w.cls == WC_LONGGUN || w.cls == WC_SPECIAL)) { if (pressed) Say(TextFormat("One-handed with a broken arm: the %s can't be shouldered (a sidearm can)", w.name.c_str())); break; }
-            if (s.ammo <= 0) { if (pressed) Say(s.spare > 0 ? "Click: empty (R to reload)" : "Click: empty, no spare reload (restock at the locker)"); break; }
+            if (s.ammo <= 0) {
+                // the bayonet: an empty long gun still stabs (15, a melee finish)
+                if (pressed && HasAttachment(s.att, "bayonet")) { c.cool = 0.6f; KillDeckFish(ci, 1.8f, 15, false); break; }
+                if (pressed) Say(s.spare > 0 ? "Click: empty (R to reload)" : "Click: empty, no spare reload (restock at the locker)");
+                break;
+            }
             s.ammo--; c.cool = WeaponCooldown(w, s.att);
             // wet powder: cartridge guns misfire in rain (10%), a squall (25%), a storm or after a swim (40%), unless oilskinned
             bool cartridge = w.ammo == "rounds" || w.ammo == "shells";
             float misfire = 0;
             if (cartridge && !HasAttachment(s.att, "oilskin") && w.id != "captainpistol")
-                misfire = sea.weather == Weather::Rain ? 0.10f : sea.weather == Weather::Squall ? 0.25f : sea.weather == Weather::Storm ? 0.40f : 0;
+                misfire = std::max(sea.weather == Weather::Rain ? 0.10f : sea.weather == Weather::Squall ? 0.25f : sea.weather == Weather::Storm ? 0.40f : 0.0f, c.wetT > 0 ? 0.40f : 0.0f);   // (and after a swim)
             static uint32_t wet = 0x9E3779B9u;   // (its own generator: the spread's draws from gRng follow this one)
             wet ^= wet << 13; wet ^= wet >> 17; wet ^= wet << 5;
             if ((wet >> 8) * (1.0f / 16777216.0f) < misfire) { Say(TextFormat("Misfire: the %s's powder is wet", w.name.c_str())); break; }
             size_t before = shots.size();
             Shot k = w.ammo == "spears" ? Shot::Spear : w.pellets > 1 ? Shot::Pellet : Shot::Bullet;
-            fire(k, k == Shot::Spear ? 40.0f : 300.0f, WeaponSpread(w, s.att) * (sight ? 0.3f : 1.0f), w.pellets);
+            // the lodestone sight: every fifth shot snaps to the head (no spread)
+            bool snap = HasAttachment(s.att, "lodestone") && (++c.shotsFired % 5 == 0);
+            fire(k, k == Shot::Spear ? 40.0f : 300.0f, snap ? 0.0f : WeaponSpread(w, s.att) * (sight ? 0.3f : 1.0f), w.pellets);
             float dmg = WeaponDamage(w, s.lvl, s.att);
-            for (size_t q = before; q < shots.size(); q++) shots[q].dmg = dmg;
+            bool bone = HasAttachment(s.att, "bonestock");
+            for (size_t q = before; q < shots.size(); q++) { shots[q].dmg = dmg; shots[q].snapHead = snap; shots[q].boneStock = bone; }
             if (eco) eco->AddNoise({muzzle.x, muzzle.y, 1}, WeaponNoise(w, s.att) * 6);
             if (w.id == "nitro" || w.id == "puntgun") {   // the recoil
                 Vector2 back = Vector2Normalize(Vector2Subtract(c.p, aimDeck));
@@ -814,10 +837,41 @@ void Gannet::HitShot(Projectile& p, int hit) {
         p.life = -1;
 }
 
+// The Gunsmith's throwables (weapons.tsv): they go off where they hit the water. The crackerjack stuns fish and birds
+// in 4 m for 3 s; the dynamite blasts 4 m (150: it overkills anything small, so what floats up is chum-grade); the
+// lamp-oil bottle burns on the water for 8 s and sets light to the Drowned within 3 m (40)
+void Gannet::ThrownLands(const Projectile& p) {
+    if (p.payload < 0 || p.payload >= (int)Weapons().size()) return;
+    const std::string& id = Weapons()[p.payload].id;
+    Vector2 at{p.p.x, p.p.y};
+    if (id == "crackerjack") {
+        if (eco) { eco->Stun(p.p, 4, 3); eco->AddNoise(p.p, 40); }
+        for (int i = (int)thieves.size() - 1; i >= 0; i--) if (Vector2Distance(thieves[i].p, at) < 4) DropThief(i, p.owner);
+        Say("The crackerjack pops: everything near it stops dead");
+    } else if (id == "dynamite") {
+        std::vector<std::pair<int, float>> fl;
+        if (eco) { eco->DepthCharge(p.p, &fl, 4); eco->AddNoise(p.p, 120); }
+        const auto& SP = Species().sp;
+        for (const auto& f : fl) if (f.second > 0.05f) {
+            Floater fo; fo.name = SP[f.first].name; fo.sp = f.first; fo.kg = f.second; fo.price = SP[f.first].price; fo.grade = 0.2f;
+            fo.p = {at.x + (RandF(gRng) - 0.5f) * 4, at.y + (RandF(gRng) - 0.5f) * 4};
+            floaters.push_back(fo);
+        }
+        for (int k = 0; k < (int)crew.size(); k++) if (crew[k].overboard && !crew[k].dead && Vector2Distance(crew[k].swim, at) < 4) Kill(k, "the dynamite", true);
+        Say("The dynamite goes off: what floats up is chum");
+    } else if (id == "lampoil") {
+        flares.push_back({at, 8});
+        int burnt = 0;
+        for (auto& d : drowned) if (d.hp > 0 && Vector2Distance(boat.ToWorld(d.p), at) < 3) { d.hp -= 40; burnt++; }
+        Say(burnt ? "The lamp oil catches: the Drowned burn" : "The lamp oil burns on the water");
+    }
+}
+
 // ---------------------------------------------------------------- the step
 void Gannet::StepGear(float dt) {
     const auto& SP = Species().sp;
     Vector2 fwd = boat.Forward();
+    for (auto& c : crew) { if (c.overboard) c.wetT = 120; else if (c.wetT > 0) c.wetT -= dt; }   // (a swim wets the powder: two minutes to dry)
     StepDeckFish(dt);
     for (int ci = 0; ci < (int)crew.size(); ci++) if (crew[ci].station >= 0 && Stations()[crew[ci].station].kind == StationKind::Magazine) RestockAtLocker(ci);   // (the magazine locker in the fo'c'sle: restocking is a trip below)
     // projectiles
@@ -825,7 +879,14 @@ void Gannet::StepGear(float dt) {
         p.life -= dt;
         if (p.kind == Shot::Charge) {
             // in the air it arcs; in the water it sinks to 5 m and goes off
-            if (p.p.z < 0) { p.v.z += G * dt; p.p = Vector3Add(p.p, Vector3Scale(p.v, dt)); if (p.p.z >= 0) { p.p.z = 0.01f; p.v = {0, 0, 1.5f}; } }
+            if (p.p.z < 0) {
+                p.v.z += G * dt; p.p = Vector3Add(p.p, Vector3Scale(p.v, dt));
+                if (p.p.z >= 0) {
+                    p.p.z = 0.01f; p.v = {0, 0, 1.5f};
+                    if (p.payload >= 0) { ThrownLands(p); p.life = -1; continue; }   // (a thrown weapon goes off where it lands)
+                }
+                if (p.payload >= 0 && p.life <= 0) { p.life = -1; continue; }
+            }
             else { p.p.z += 1.5f * dt; p.v = {0, 0, 1.5f}; }
             float floorD = eco ? eco->DepthAt({p.p.x, p.p.y}) : 30;
             if (p.p.z >= std::min(5.0f, floorD - 0.3f) || p.life <= 0) {
@@ -888,11 +949,11 @@ void Gannet::StepGear(float dt) {
                     if (h.dead || h.gutted || Vector2Distance(h.deckAt, lp) > 0.45f) continue;
                     // the head is the front fifth of the fish: a round through it is a headshot
                     Vector2 headAt = Vector2Add(h.deckAt, Vector2Scale({cosf(h.heading), sinf(h.heading)}, FishLen(h.kg) * 0.4f));
-                    bool head = Vector2Distance(headAt, lp) < 0.15f + FishLen(h.kg) * 0.08f;
+                    bool head = Vector2Distance(headAt, lp) < 0.15f + FishLen(h.kg) * 0.08f || p.snapHead;
                     float range = p.owner >= 0 && p.owner < (int)crew.size() ? Vector2Distance(crew[p.owner].p, h.deckAt) : 0;
                     int how = p.kind == Shot::Pellet ? KH_PELLET : p.kind == Shot::Spear ? KH_SPEAR : KH_BULLET;
                     h.grade *= 0.97f;   // (a hole in the flank)
-                    HitDeckFish(hi, p.dmg, p.owner, how, head, range);
+                    if (HitDeckFish(hi, p.dmg, p.owner, how, head, range) && p.boneStock) { h.killScore = std::min(KILLSCORE_MAX, h.killScore + 0.1f); h.killHow += ", bone stock"; }   // (the bone stock)
                     p.life = -1; done = true; break;
                 }
             }
@@ -1467,6 +1528,76 @@ int RunTrawlGearTest() {
             (void)misfires;   // (the log is capped: count what fired instead)
             float rate = (400 - fired) / 400.0f;
             check(rate > 0.18f && rate < 0.32f, TextFormat("in a squall a cartridge gun misfires about a quarter of the time (%.0f%%, %d of 400 fired)", rate * 100, fired));
+            // wet powder after a swim: 40% in a calm
+            gs.sea.weather = Weather::Calm; gs.crew[0].wetT = 120; fired = 0;
+            for (int sh = 0; sh < 400; sh++) {
+                size_t n0 = gs.shots.size();
+                gs.crew[0].cool = 0; gs.crew[0].reloadT = 0;
+                gs.UseItem(0, {6, 12}, true, true, false, dt);
+                if (gs.shots.size() > n0) fired++;
+                gs.shots.clear();
+            }
+            float wet = (400 - fired) / 400.0f;
+            gs.crew[0].wetT = 0.5f; run(gs, 1);
+            check(wet > 0.32f && wet < 0.48f && gs.crew[0].wetT <= 0, TextFormat("after a swim the powder is wet: 40%% misfires for two minutes, even in a calm (%.0f%%)", wet * 100));
+        }
+        {   // the odds and ends: throwables, the bayonet, the lodestone sight, the bone stock
+            Gannet gs; Eco es; Session ss; ss.Begin(gs, es, 1, 41); ss.money = 5000;
+            gs.crew[0].slots[2] = Slot{}; gs.crew[0].slots[3] = Slot{};
+            std::string why;
+            bool buy = ss.GunBuy(0, "crackerjack") && ss.GunBuy(0, "dynamite") && !ss.GunBuy(0, "depthcharge", &why);
+            check(buy, TextFormat("the Gunsmith sells crackerjacks and dynamite; the depth charge stays at the Chandler (%s)", why.c_str()));
+            auto throwAt = [&](Gannet& g, Eco& e, const char* id, int sp, float depth) {
+                g.crew[0].slots[3] = Slot{Item::Weapon, 1, WeaponIndex(id)}; g.crew[0].sel = 3; g.crew[0].cool = 0; g.crew[0].p = {0, 2.4f};
+                Vector2 land = g.boat.ToWorld({0, 10});
+                int ai = e.SpawnAgentPublic(sp, land); e.agents[ai].p = {land.x, land.y, depth}; e.agents[ai].count = 3; e.agents[ai].fedT = 1000;
+                g.UseItem(0, {0, 10}, true, true, false, dt);
+                bool thrown = g.crew[0].slots[3].it == Item::None && !g.shots.empty();
+                for (int i = 0; i < 60 * 2; i++) { e.agents[ai].p = {land.x, land.y, depth}; g.Step(dt); }
+                return std::make_pair(thrown, ai);
+            };
+            {
+                Gannet g; Eco e; setup(g, e, 1, 42);
+                auto r = throwAt(g, e, "dynamite", sp("snapper"), 1.0f);
+                bool chum = !g.floaters.empty(); for (const auto& f : g.floaters) if (fabsf(f.grade - 0.2f) > 0.01f) chum = false;
+                check(r.first && chum && g.shots.empty(), TextFormat("thrown dynamite leaves the hand, goes off where it lands, and floats up chum-grade fish (%d afloat)", (int)g.floaters.size()));
+            }
+            {
+                Gannet g; Eco e; setup(g, e, 1, 43);
+                auto r = throwAt(g, e, "crackerjack", sp("snapper"), 1.0f);
+                bool stunned = r.second < (int)e.agents.size() && e.agents[r.second].stunT > 0;
+                check(r.first && stunned && g.floaters.empty(), "a crackerjack stuns the fish where it lands, and kills nothing");
+            }
+            auto deckFish = [&](Gannet& g, Vector2 hand) {
+                g.moored = false;
+                CatchRec f; f.name = "snapper"; f.kg = 4; f.price = 3; f.deckAt = {-2, 1.2f};
+                g.hold = {f}; g.crew[0].p = hand; g.crew[0].station = -1;
+                run(g, dt);
+            };
+            Slot rifle{Item::Weapon, 0, WeaponIndex("rifle")};
+            rifle.att[0] = (int8_t)AttachmentIndex("bayonet");
+            gs.crew[0].slots[3] = rifle; gs.crew[0].sel = 3;
+            deckFish(gs, {-2, 0.3f});
+            float hp0 = gs.hold[0].hp;
+            gs.crew[0].cool = 0; gs.UseItem(0, {-2, 1.2f}, true, true, false, dt);
+            check(gs.shots.empty() && (gs.hold[0].dead || gs.hold[0].hp < hp0), TextFormat("an empty rifle with a bayonet stabs the fish on the deck (%.0f -> %.0f)", hp0, gs.hold[0].hp));
+            Slot rev{Item::Weapon, 1000, WeaponIndex("revolver")};
+            rev.att[0] = (int8_t)AttachmentIndex("lodestone");
+            gs.crew[0].slots[3] = rev; gs.hold.clear(); gs.sea.weather = Weather::Calm; gs.crew[0].wetT = 0;
+            std::string snaps;
+            for (int sh = 0; sh < 10; sh++) {
+                size_t n0 = gs.shots.size();
+                gs.crew[0].cool = 0; gs.crew[0].reloadT = 0;
+                gs.UseItem(0, {6, 12}, true, true, false, dt);
+                if (gs.shots.size() > n0) snaps += gs.shots.back().snapHead ? 'H' : '.';
+                gs.shots.clear();
+            }
+            check(snaps == "....H....H", TextFormat("the lodestone sight snaps every fifth shot to the head (%s)", snaps.c_str()));
+            rev.att[0] = (int8_t)AttachmentIndex("bonestock");
+            gs.crew[0].slots[3] = rev;
+            deckFish(gs, {-2, -0.6f});
+            for (int sh = 0; sh < 8 && !gs.hold.empty() && !gs.hold[0].dead; sh++) { gs.crew[0].cool = 0; gs.UseItem(0, {-2, 1.2f}, true, true, false, dt); run(gs, 0.6f); }
+            check(!gs.hold.empty() && gs.hold[0].dead && gs.hold[0].killHow.find("bone stock") != std::string::npos, TextFormat("a kill with a bone-stocked gun adds 0.1 to the Killscore (x%.2f: %s)", gs.hold.empty() ? 0 : gs.hold[0].killScore, gs.hold.empty() ? "" : gs.hold[0].killHow.c_str()));
         }
         {   // step 4: the catch crates and the birds (a gull flock over the deck)
             Gannet b; Eco eb; setup(b, eb, 1, 33);
