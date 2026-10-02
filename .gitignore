@@ -17,3 +17,5 @@ study/reports/
 study_save.txt
 redtide_profile.txt
 build_dev/
+
+__pycache__/
