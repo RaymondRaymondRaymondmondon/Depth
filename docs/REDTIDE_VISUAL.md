@@ -285,7 +285,11 @@ The spec: `Red_Tide_Reference/Red Tide — Visual Overhaul Spec.pdf` (25 pages, 
   else.
 - **The Sawtooth** (spec p.12, "a real sawfish rostrum with teeth, bound to a handle") isn't in the game's weapon data
   (data/redtide). It needs a design decision, its stats, before a model would show anywhere.
-- **The air pocket's surface from below** needs a water line inside the air zones; today they're wholly dry.
+- **The air pocket's surface from below:** at the Grand Salon's air-pocket feature, a silvered sheet with ripples
+  spreading across it, glints playing over it and the odd bubble rising into it (drawn after the ink). The air zones
+  themselves are still wholly dry: no water line inside them.
+- **Boss phases on the body:** the second phase darker and hotter, the third pulsing, the weak point lit, the
+  movement quicker.
 - **Interactables as their own models.** The spec: "each get a distinct, well-lit, detailed model that never gets lost
   in the decor". `tools/artgen/stations_rt.py` -> `assets/redtide/stations/`, drawn by `DrawStationModel` in
   redtide_game.cpp. Each stands on its station's floor facing into the room, with moving parts posed by `DrawRtProp`.
