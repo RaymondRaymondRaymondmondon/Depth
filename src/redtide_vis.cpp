@@ -160,6 +160,51 @@ bool DrawViewmodelHands(int voice, const Camera3D& cam, const VmHold& h, float t
     // eye the helmet lamp would wash the gloves out to tan)
     return DrawVmArms(*m, cam, &hr, h.left ? &hl : nullptr, h.left >= 2, 1.1f, t, rc, Color{165, 165, 165, 255});
 }
+// the hands' own moments (the spec: "Tonic drinking ... reviving ... have first-person hand animations. Drinking a tonic
+// underwater: the bottle feeds through a valve in the helmet"): kind 0 drinks (k 0..1: the left hand brings the bottle up
+// to the helmet's valve under the port, tips it, takes it away), kind 1 revives (both hands down before you, working)
+bool DrawViewmodelAction(int voice, const Camera3D& cam, int kind, float k, Color liquid, float t, const std::string& suit, const std::string& helmet) {
+    static const char* F[4] = {"shared/divers/fp_diver.glb", "shared/divers/fp_whaler.glb", "shared/divers/fp_stowaway.glb", "shared/divers/fp_mechanic.glb"};
+    const Model* m = LoadAsset(F[std::clamp(voice, 0, 3)]);
+    if (!m) return false;
+    Vector3 f = Vector3Normalize(Vector3Subtract(cam.target, cam.position));
+    Vector3 rgt = Vector3Normalize(Vector3CrossProduct(f, {0, 1, 0})), up = Vector3CrossProduct(rgt, f);
+    auto P = [&](float fw, float side, float h) { return Vector3Add(cam.position, Vector3Add(Vector3Scale(f, fw), Vector3Add(Vector3Scale(rgt, side), Vector3Scale(up, h)))); };
+    auto hand = [&](Vector3 at, Vector3 fwd, Vector3 axis, float s) {   // a grip hand at `at`: its grip along axis, its front toward fwd
+        Vector3 y = Vector3Normalize(axis), x = Vector3Normalize(Vector3Subtract(fwd, Vector3Scale(y, Vector3DotProduct(fwd, y)))), z = Vector3CrossProduct(x, y);
+        x = Vector3Scale(x, s); y = Vector3Scale(y, s); z = Vector3Scale(z, s);
+        return Matrix{x.x, y.x, z.x, at.x, x.y, y.y, z.y, at.y, x.z, y.z, z.z, at.z, 0, 0, 0, 1};
+    };
+    std::vector<Recolor> rc;
+    DiverSkinColours(suit, helmet, rc);
+    for (const auto& w : skins::WornColours(skins::REDTIDE)) rc.push_back({w.material, w.c});
+    if (const skins::Costume* c = skins::WornCostume(skins::REDTIDE)) rc.push_back({"top", c->sleeve});
+    const Color tint{165, 165, 165, 255};
+    if (kind == 0) {
+        // up (0-0.35), tipped into the valve (0.35-0.75), away (0.75-1)
+        float rise = k < 0.35f ? k / 0.35f : k < 0.75f ? 1 : 1 - (k - 0.75f) / 0.25f;
+        rise = rise * rise * (3 - 2 * rise);
+        float tip = k > 0.3f && k < 0.8f ? sinf((k - 0.3f) / 0.5f * PI) : 0;
+        Vector3 at = Vector3Lerp(P(0.46f, -0.3f, -0.44f), P(0.38f, -0.04f, -0.2f), rise);
+        Vector3 axis = Vector3Normalize(Vector3Add(up, Vector3Add(Vector3Scale(f, -0.6f * tip), Vector3Scale(rgt, 0.5f * tip))));   // (the neck toward the valve)
+        Matrix hl = hand(at, f, axis, 1.5f);
+        DrawVmArms(*m, cam, nullptr, &hl, true, 1.1f, t, rc, tint);
+        // the flask in the fist (stations_rt.py: glass, a brass valve neck), the tonic glowing inside it; the fist closes
+        // round its body (the flask's base a little under the grip, its neck up the grip's axis)
+        Matrix bm = hand(Vector3Add(at, Vector3Scale(axis, -0.06f)), f, axis, 1.5f);
+        if (!DrawRtProp("redtide/stations/flask.glb", bm, nullptr, WHITE))
+            DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(0.05f, 0.1f, 0.05f), MatrixTranslate(0, 0.05f, 0)), bm), Color{170, 130, 60, 255});
+        DrawCubeGlow(MatrixMultiply(MatrixMultiply(MatrixScale(0.04f, 0.07f, 0.04f), MatrixTranslate(0, 0.045f, 0)), bm), liquid, 0.8f);
+        return true;
+    }
+    // reviving: both hands down before you, pressing and working at the helmet's purge valve of the one who's down
+    float pump = sinf(t * 7) * 0.025f;
+    Vector3 down = Vector3Normalize(Vector3Add(Vector3Scale(up, -1), Vector3Scale(f, 0.5f)));
+    Matrix hr = hand(P(0.45f, 0.1f, -0.36f + pump), f, Vector3Scale(down, -1), 1.5f), hl = hand(P(0.45f, -0.1f, -0.36f - pump), f, Vector3Scale(down, -1), 1.5f);
+    DrawVmArms(*m, cam, &hr, &hl, true, 1.1f, t, rc, tint);
+    return true;
+}
+
 // ---------------------------------------------------------------- the creature kit (phase 5)
 // Red Tide's fish on the Trawl's rigged fish (tools/artgen/fish.py: ten archetypes on a four-bone spine, a ray with
 // wings): the body plan and the name choose the archetype, the species record's three colours paint it (back, belly,

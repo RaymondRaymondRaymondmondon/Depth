@@ -290,6 +290,18 @@ def build_rubble(W):
         W.add(W.sphere(f"chunk{k}", (r * math.cos(a), r * math.sin(a), s * 0.5), (s, s * 0.8, s * 0.6), 5), "stone")
 
 
+# ---------------------------------------------------------------- the tonic flask drunk in first person: a stoppered glass
+# flask with a brass valve neck that screws into the helmet's feed (the game lights the tonic inside); its base at z = 0
+def build_flask(W):
+    W.add(W.cyl("body", 0.032, 0.09, (0, 0, 0.045), 'Z', verts=20, bevel=0.012), "glass")
+    W.add(W.cone("shoulder", 0.032, 0.012, 0.03, (0, 0, 0.105), 'Z', verts=20), "glass")
+    W.add(W.cyl("neck", 0.012, 0.03, (0, 0, 0.135), 'Z', verts=14, bevel=0.002), "brass")
+    W.add(W.ring("collar", (0, 0, 0.125), 0.014, 0.004, 'Z'), "brass")
+    W.add(W.cyl("valve", 0.009, 0.02, (0, 0, 0.16), 'Z', verts=12, bevel=0.002), "steel")
+    W.add(W.box("label", (0.002, 0.03, 0.035), (0.033, 0, 0.05), bevel=0.0005), "bone")
+    W.add(W.ring("base_ring", (0, 0, 0.004), 0.031, 0.004, 'Z'), "brass")
+
+
 RECIPES = {n[6:]: f for n, f in globals().items() if n.startswith("build_")}
 
 if __name__ == "__main__":

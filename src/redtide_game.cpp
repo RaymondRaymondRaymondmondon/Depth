@@ -746,6 +746,19 @@ static void DrawGun(const Camera3D& cam) {
             magOut = rl < 0.35f ? 0 : rl < 0.55f ? (rl - 0.35f) / 0.2f : rl < 0.75f ? 1 - (rl - 0.55f) / 0.2f : 0;
         }
     }
+    // the hands' own moments (local to your view): a tonic just bought is drunk (the gun drops a little, the left hand
+    // brings the bottle to the helmet's valve), and reviving a teammate puts the gun down out of view for both hands
+    static std::set<std::string> lastTonics; static float drinkT = -1; static std::string drinkId; static const Match* lastMatch = nullptr;
+    if (lastMatch != &M()) { lastMatch = &M(); lastTonics = d.tonics; drinkT = -1; }   // (a new match: what it starts with isn't drunk)
+    for (const auto& tn : d.tonics) if (!lastTonics.count(tn)) { drinkT = 0; drinkId = tn; }
+    lastTonics = d.tonics;
+    if (const char* dk = getenv("DEPTH_VMDRINK")) { drinkT = (float)atof(dk) * 1.4f; drinkId = "juggernaut"; }   // (shots: hold the drink at k)
+    if (drinkT >= 0 && !getenv("DEPTH_VMDRINK")) { drinkT += GetFrameTime(); if (drinkT > 1.4f) drinkT = -1; }
+    bool reviving = false;
+    for (const auto& o : M().divers) if (&o != &d && o.downed && o.reviveT > 0 && o.reviveTouchT > 0 && Vector3Distance(o.pos, d.pos) < 3.5f) reviving = true;
+    if (getenv("DEPTH_VMREVIVE")) reviving = true;
+    dip += drinkT >= 0 ? sinf(std::min(1.0f, drinkT / 1.4f) * PI) * 0.1f : 0;
+    if (reviving) dip += 0.45f;
     // the melee swing: wound back and up, then chopped down and across, then back to the guard
     float ms = d.meleeT > 0 ? std::clamp(d.meleeT * 2.2f, 0.0f, 1.0f) : -1;
     float meleeFwd = 0, meleeYaw = 0, meleePitch = 0, meleeUp = 0;
@@ -809,6 +822,11 @@ static void DrawGun(const Camera3D& cam) {
                 vh.left = w.cls == "melee" || ms >= 0 || near ? 0 : wid == "twingannets" ? 3 : 1;   // (a sidearm in one hand, as in any shooter)
                 if (vh.left == 3) vh.leftShift = Vector3Subtract(gL, gR);
                 vh.magOut = magOut;
+                if (drinkT >= 0 || reviving) {
+                    vh.left = 0;   // (the left hand is busy)
+                    Color liquid = drinkId == "juggernaut" ? Color{200, 60, 50, 255} : drinkId == "quick" ? Color{80, 180, 220, 255} : drinkId == "speed" ? Color{120, 220, 90, 255} : drinkId == "double" ? Color{230, 170, 60, 255} : Color{170, 120, 220, 255};
+                    DrawViewmodelAction(M().VoiceOf(0), cam, reviving ? 1 : 0, std::clamp(drinkT / 1.4f, 0.0f, 1.0f), liquid, S.time, prof.suit, prof.helmet);
+                }
                 if (DrawViewmodelHands(M().VoiceOf(0), cam, vh, S.time, prof.suit, prof.helmet)) goto muzzle;
             }
             if (DiversReady() && DrawFirstPersonArms(M().VoiceOf(0), cam, gR, gL, ms < 0, S.time, prof.suit, prof.helmet)) goto muzzle;
