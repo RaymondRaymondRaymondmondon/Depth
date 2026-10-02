@@ -10,7 +10,10 @@ namespace rt {
 const Model* DiverModel(int voice);   // 0 the Diver, 1 the Whaler, 2 the Stowaway, 3 the Mechanic (Match::VoiceOf)
 bool DiversReady();
 // draws a diver at frame (feet at the origin, x forward), posed; returns the skinning matrices (for grips)
-std::vector<Matrix> DrawDiverFigure(int voice, Matrix frame, fig::Pose P, float t, Color tint);
+std::vector<Matrix> DrawDiverFigure(int voice, Matrix frame, fig::Pose P, float t, Color tint, const std::string& suit = "", const std::string& helmet = "");
+bool DrawFirstPersonArms(int voice, const Camera3D& cam, Vector3 gripR, Vector3 gripL, bool leftOn, float t, const std::string& suit = "", const std::string& helmet = "");
+void DrawHelmetPort(float wet, float t);   // the helmet's port rim round the first-person view (2D, before the HUD)
+void DiverSkinColours(const std::string& suit, const std::string& helmet, std::vector<Recolor>& out);   // the Locker's suit/helmet ids
 void DrawRedTideStudio(int which, float t);
 
 // the water's particles (phase 2), drawn after the ink pass as soft sprites: bubbles (rising, wobbling, growing

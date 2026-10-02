@@ -1492,6 +1492,9 @@ static void DrawPbrCmd(const DrawCmd& d, Shader sh, bool lit) {
         Material mat = m.materials[m.meshMaterial[i]];
         Shader keep = mat.shader;
         mat.shader = sh;
+        // (mat.maps points into the model's own material: the recolour and the tint below are undone after the draw,
+        // or they would stay on the model and leak into the next figure that shares it)
+        Color keepCol = mat.maps[MATERIAL_MAP_ALBEDO].color;
         // the pose: this draw's matrices into the mesh (several sailors share one model)
         bool skinned = d.boneOff >= 0 && m.meshes[i].boneMatrices && m.meshes[i].boneCount > 0;
         if (skinned) memcpy(m.meshes[i].boneMatrices, gBonePool.data() + d.boneOff, sizeof(Matrix) * std::min(d.boneN, m.meshes[i].boneCount));
@@ -1516,6 +1519,7 @@ static void DrawPbrCmd(const DrawCmd& d, Shader sh, bool lit) {
         }
         Matrix w = d.partOff >= 0 && i < d.partN ? MatrixMultiply(gPartPool[d.partOff + i], world) : world;
         DrawMesh(m.meshes[i], mat, w);
+        mat.maps[MATERIAL_MAP_ALBEDO].color = keepCol;
         (void)keep;
     }
 }

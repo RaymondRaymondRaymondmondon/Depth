@@ -84,3 +84,24 @@ The spec: `Red_Tide_Reference/Red Tide — Visual Overhaul Spec.pdf` (25 pages, 
   below; silt clouds where divers and beasts touch the bottom; ichor and oil ribbons (the Lost Ones, the Sentinels);
   bubbles from guns, slipstreams and vents; the brass helmet HUD as a model (with the divers' first person, phase 3);
   the brightness and fog calibration screen and the colourblind setting for blood, ichor and scent.
+
+## Phase 3: the divers (2026-10-02)
+- **Token skins as material sets** (`DiverSkinColours`): the Locker's suits recolour the canvas (top, trousers) and its
+  helmets the helmet and its trim (hat, accent): Verdigris (green patina), Red Tide (deep red canvas, rust-red brass),
+  Bone (bleached ivory), Pearl (nacre), Atlantean (bronze and gold). The silhouette never changes. The local diver
+  wears the profile's suit and helmet in first person; `rvis_3_skins` shows every diver in every set.
+- **A renderer fix** that came with it: a PBR draw's recolour and tint were written into the model's shared material
+  and never undone, so they leaked into the next figure drawing the same model (and a tint compounded frame on
+  frame). `DrawPbrCmd` now restores the colour after each mesh. (The Trawl's sailors recolour every material they
+  use, which had hidden it.)
+- **First-person arms** (`diver_<name>_fp.glb`: the diver without the helmet and chest gear, which would fill the
+  view; `DrawFirstPersonArms`): drawn at viewmodel scale (0.7) with the shoulders just under the eye, the right fist
+  on the gun's grip and the left on its fore-end (cupped under a pistol's grip, on the gatling's crank, on the
+  magazine while reloading) by two-bone IK; each diver's gloves (rubber, tarred, mismatched mitts, steel). The
+  first-person gun moved out to 0.4 m so the hands are in view.
+- **The helmet's port** (`DrawHelmetPort`): the brass rim with rivets round the view, the dark copper of the helmet in
+  the corners, two faint reflections on the glass, and droplets running down it in an air pocket. Off with the Helmet
+  lens setting.
+- **Not done yet:** third-person weapon holds for teammates (phase 4 gives them their guns), downs and revives,
+  states (netted, grabbed, swallowed, parasite, stunned, poisoned breath), the head turning to a teammate who speaks,
+  the HUD's gauges as real dials, cracks on the glass when badly hurt.

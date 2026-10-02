@@ -285,6 +285,7 @@ static void TakeShots(const Game& base, const std::string& dir) {
         {"rvis_3_divers", [](Game& g) { DebugRedTideShot(g, 200); }},
         {"rvis_3_faces", [](Game& g) { DebugRedTideShot(g, 201); }},
         {"rvis_3_swim", [](Game& g) { DebugRedTideShot(g, 202); }},
+        {"rvis_3_skins", [](Game& g) { DebugRedTideShot(g, 203); }},
         {"rvis_3_crew_salon", [](Game& g) { DebugRedTideShot(g, 17); }},
         {"redtide_silhouette", [](Game& g) { DebugRedTideShot(g, 1); }},
         {"redtide_species_ship_1", [](Game& g) { DebugRedTideShot(g, 2); }},

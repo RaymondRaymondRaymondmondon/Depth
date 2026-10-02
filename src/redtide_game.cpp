@@ -648,7 +648,7 @@ static void DrawGun(const Camera3D& cam) {
     Vector3 up = Vector3CrossProduct(right, f);
     float bobx = sinf(S.bob) * 0.008f, boby = fabsf(cosf(S.bob)) * 0.006f;
     float kick = d.recoil * 0.035f * w.handling.recoil;
-    float side = d.ads ? 0.0f : 0.13f, low = d.ads ? -0.075f : -0.12f;
+    float side = d.ads ? 0.0f : 0.14f, low = d.ads ? -0.075f : -0.095f;   // (far enough out that the hands on it are in view)
     // the reload: the gun drops and rolls out to the side (0-35%), the magazine, clip or drum comes out and a fresh
     // one goes in (35-75%), the gun snaps back up with a little overshoot (75-100%); a thumb-loaded gun just dips
     // for each round
@@ -670,7 +670,7 @@ static void DrawGun(const Camera3D& cam) {
         float wind = ms < 0.25f ? ms / 0.25f : ms < 0.55f ? 1 - (ms - 0.25f) / 0.3f * 2 : -1 + (ms - 0.55f) / 0.45f;   // +1 wound, -1 struck through
         meleeFwd = (1 - fabsf(wind)) * 0.14f; meleeYaw = wind * 0.7f; meleePitch = -wind * 0.9f; meleeUp = wind > 0 ? wind * 0.05f : wind * 0.02f;
     }
-    Vector3 p = Vector3Add(cam.position, Vector3Add(Vector3Scale(f, 0.30f - kick + meleeFwd), Vector3Add(Vector3Scale(right, side + bobx + meleeYaw * 0.08f), Vector3Scale(up, low - boby - dip + meleeUp))));
+    Vector3 p = Vector3Add(cam.position, Vector3Add(Vector3Scale(f, 0.40f - kick + meleeFwd), Vector3Add(Vector3Scale(right, side + bobx + meleeYaw * 0.08f), Vector3Scale(up, low - boby - dip + meleeUp))));
     Matrix m = MatrixIdentity();
     Vector3 rx = Vector3Scale(right, -1);
     m.m0 = rx.x; m.m1 = rx.y; m.m2 = rx.z;
@@ -685,6 +685,19 @@ static void DrawGun(const Camera3D& cam) {
     Matrix gunM = MatrixMultiply(tilt, m);
     DrawStatic(gGuns[GunModelFor(w.cls)], gunM, tint);
     Color suit = SuitColor(prof.suit);
+    // your own arms in your suit (the Visual Overhaul, phase 3): the right fist on the grip, the left on the fore-end
+    // (a pistol's under the grip), or pulling the magazine and pushing the new one home
+    if (DiversReady()) {
+        // per gun model (BuildGuns): the grip, and where the other hand goes (the pistol's cupped under it, the
+        // carbine's fore-end, the needler's clip, the speargun's rail, the gatling's crank, the launcher's tube)
+        static const Vector3 GR[8] = {{0, -0.08f, -0.03f}, {0, -0.07f, -0.04f}, {0, -0.04f, -0.06f}, {0, -0.04f, -0.05f}, {0, -0.06f, -0.1f}, {0, -0.085f, -0.06f}, {0, -0.1f, 0.0f}, {0, 0, -0.05f}};
+        static const Vector3 GL[8] = {{-0.02f, -0.11f, -0.02f}, {0, -0.045f, 0.1f}, {0, -0.025f, 0.15f}, {0, -0.012f, 0.14f}, {0, -0.01f, 0.2f}, {0.075f, -0.05f, -0.05f}, {0, -0.06f, 0.2f}, {0, 0, 0.12f}};
+        int gm = GunModelFor(w.cls);
+        Vector3 gR = Vector3Transform(GR[gm], gunM);
+        Vector3 gL = magOut > 0 ? Vector3Transform({0, -0.1f - 0.1f * magOut, 0.08f}, gunM) : Vector3Transform(GL[gm], gunM);
+        if (magOut > 0) DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(0.03f, 0.05f, 0.05f), MatrixTranslate(0, -0.06f - 0.1f * magOut, 0.08f)), gunM), w.cls == "needle" || w.cls == "lmg" ? Color{120, 176, 190, 255} : Color{70, 74, 78, 255});
+        if (DrawFirstPersonArms(M().VoiceOf(0), cam, gR, gL, ms < 0, S.time, prof.suit, prof.helmet)) goto muzzle;
+    }
     DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(0.045f, 0.05f, 0.08f), MatrixTranslate(0, -0.035f, -0.06f)), gunM), suit);
     // the other glove: on the fore-end, or pulling the magazine out and pushing the new one home
     if (magOut > 0) {
@@ -692,6 +705,7 @@ static void DrawGun(const Camera3D& cam) {
         DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(0.03f, 0.05f, 0.05f), MatrixTranslate(magAt.x, magAt.y, magAt.z)), gunM), w.cls == "needle" || w.cls == "lmg" ? Color{120, 176, 190, 255} : Color{70, 74, 78, 255});
         DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(0.045f, 0.04f, 0.06f), MatrixTranslate(magAt.x, magAt.y - 0.04f, magAt.z)), gunM), suit);
     } else if (ms < 0 && !d.ads) DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(0.045f, 0.04f, 0.06f), MatrixTranslate(-0.01f, -0.045f, 0.16f)), gunM), suit);
+muzzle:
     // the muzzle: a flash on a powder shot, a puff of bubbles from a gas gun, for the first moment of the recoil
     if (d.recoil > 0.8f && w.cls != "melee") {
         float z = w.cls == "launcher" ? 0.5f : w.cls == "scatter" ? 0.32f : w.cls == "powder" ? 0.47f : w.cls == "lmg" ? 0.38f : w.cls == "spear" ? 0.6f : 0.28f;
@@ -1490,6 +1504,7 @@ void SceneRedTide(Game& g) {
         }
         DrawTextCenteredBold(M().map->links[Me().slipLink].passage, SCREEN_W / 2.0f, SCREEN_H / 2.0f - 12, 26, Color{220, 240, 240, 255});
     }
+    if (S.lineup < 0 && S.silhouette < 0.5f && GameSettings().rtLens) { int zz = M().eco.ZoneAt(Me().pos); DrawHelmetPort(zz >= 0 && M().map->zones[zz].air ? 1.0f : 0.0f, S.time); }   // the helmet's port rim (the Visual Overhaul)
     if (S.lineup < 0 && S.silhouette < 0.5f) DrawHud();
     else if (S.lineup >= 0) TxtBold(TextFormat("Red Tide - the Sunken Ship's species, page %d (CreatureBuilder)", S.lineup + 1), 24, 18, 20, Color{220, 90, 80, 255});
 }

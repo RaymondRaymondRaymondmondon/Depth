@@ -349,13 +349,19 @@ def build(who, out):
         for d in ca.data:
             a = 0.55 + 0.45 * d.color[0]
             d.color = (a, a, a, 1.0)
-    path = os.path.join(out, f"diver_{who}.glb")
-    C.select_only(meshes + [rig])
-    bpy.ops.export_scene.gltf(filepath=path, export_format='GLB', use_selection=True, export_apply=False,
-                              export_yup=True, export_texcoords=False, export_normals=True, export_skins=True,
-                              export_animations=False, export_materials='EXPORT', export_vertex_color='ACTIVE',
-                              export_all_influences=False)
-    print("artgen: wrote", path)
+    def export(objs, name):
+        path = os.path.join(out, name)
+        C.select_only(objs + [rig])
+        bpy.ops.export_scene.gltf(filepath=path, export_format='GLB', use_selection=True, export_apply=False,
+                                  export_yup=True, export_texcoords=False, export_normals=True, export_skins=True,
+                                  export_animations=False, export_materials='EXPORT', export_vertex_color='ACTIVE',
+                                  export_all_influences=False)
+        print("artgen: wrote", path)
+    export(meshes, f"diver_{who}.glb")
+    # first-person arms (spec: "First-person arms wear that diver's gloves and sleeves"): the same rig and body with
+    # everything on the head and the chest left off (from inside the helmet those would fill the view)
+    off = {"chest", "head", "eye.L", "eye.R", "mouth", "neck"}
+    export([o for o in meshes if o.get("bone") not in off], f"diver_{who}_fp.glb")
 
 
 a = C.args()
