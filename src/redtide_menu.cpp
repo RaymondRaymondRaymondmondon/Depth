@@ -5,6 +5,7 @@
 #include "redtide_profile.h"
 #include "skins.h"
 #include "redtide_render.h"
+#include "redtide_vis.h"
 #include "game.h"
 #include "json.h"
 #include "raymath.h"
@@ -83,11 +84,24 @@ static void DrawBeast(const std::string& mapKey, const Page& pg, bool known, Rec
     // place the beast in the left window: offset the target so it sits in the view rectangle
     float cx = (view.x + view.width / 2) / SCREEN_W - 0.5f;
     Vector3 at{-cx * 5.6f, 0, 0};
+    // (the Visual Overhaul's models need the moon and the ambient the PBR path lights by)
+    L.moonDir = Vector3Normalize({-0.3f, -1.0f, 0.4f}); L.moon = {200, 220, 220, 255}; L.moonK = 0.6f;
+    L.ambK = 0.7f; L.skyAmb = {80, 120, 130, 255}; L.seaAmb = {20, 30, 34, 255};
     RenderBegin(cam, L);
     if (!pg.flora && !pg.faction) {
+        // the beast on its own rigged model where it has one (the creature kit), else the CreatureBuilder model
         const CreatureModel& cm = Creature(mapKey, pg.name);
-        float sc = 2.2f / std::max(0.05f, cm.extent);
-        DrawCreature(cm, at, t * 0.5f + 1.2f, 0, sc, t * cm.freq, 0.7f, known ? WHITE : Color{14, 14, 16, 255});
+        Color tint = known ? WHITE : Color{14, 14, 16, 255};
+        CreatureBudget(1);
+        if (!DrawCreaturePbr(cm, at, t * 0.5f + 1.2f, 0, 1.25f / std::max(0.05f, cm.length), t * cm.freq, 0.7f, tint)) {
+            float sc = 2.2f / std::max(0.05f, cm.extent);
+            DrawCreature(cm, at, t * 0.5f + 1.2f, 0, sc, t * cm.freq, 0.7f, tint);
+        }
+    } else if (pg.faction && DiversReady()) {
+        // a faction's diver on the shared figure, turning
+        fig::Pose P; P.breathe = t * 1.4f;
+        std::vector<Recolor> rc = {{"top", {120, 44, 30, 255}}, {"trousers", {90, 40, 30, 255}}};
+        DrawDiverFigure(0, MatrixMultiply(MatrixScale(1.3f, 1.3f, 1.3f), fig::Frame(Vector3Add(at, {0, -1.2f, 0}), t * 0.5f)), P, t, known ? WHITE : Color{14, 14, 16, 255}, "", "", &rc);
     } else if (pg.flora) {
         Color c = known ? Color{90, 170, 110, 255} : BLACK;
         for (int k = 0; k < 7; k++) DrawWorldCube(Vector3Add(at, {sinf(k * 1.7f) * 0.8f, -0.6f + (k % 3) * 0.4f, cosf(k * 1.7f) * 0.6f}), {0.2f, 0.9f + (k % 2) * 0.5f, 0.2f}, c);
