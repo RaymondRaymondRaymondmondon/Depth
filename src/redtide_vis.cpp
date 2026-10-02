@@ -294,7 +294,8 @@ bool DrawBossPbr(int kind, const CreatureModel& cm, Vector3 pos, float yaw, floa
             : kind == 4 ? ColorLerp(Color{200, 230, 220, 255}, Color{255, 250, 230, 255}, hot) : Color{150, 40, 30, 255};
     CreatureModel c = cm;
     if (kind == 2) { c.base = {22, 24, 28, 255}; c.belly = {230, 232, 228, 255}; c.accent = {30, 32, 36, 255}; }   // (an orca's black and white)
-    if (kind == 1) { c.base = {220, 206, 196, 255}; c.belly = {236, 200, 196, 255}; }                                 // (pale from life in the dark; a veined underside)
+    if (kind == 1) { c.base = {220, 206, 196, 255}; c.belly = {236, 200, 196, 255}; }
+    if (kind == 0) { c.base = {112, 96, 70, 255}; c.belly = {176, 156, 116, 255}; c.accent = {70, 56, 40, 255}; }   // (a grouper's browns: dark fins, darker mottling)                                 // (pale from life in the dark; a veined underside)
     int keep = gCreatureBudget; gCreatureBudget = 1;
     bool ok = DrawPlanPbr(c, PL[kind], pos, yaw, pitch, scale, phase, inten, tint, g);
     gCreatureBudget = keep;

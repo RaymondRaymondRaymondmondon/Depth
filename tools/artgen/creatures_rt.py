@@ -65,10 +65,56 @@ class Kit:
         C.assign(o, self.M[mat]); C.smooth(o, 60)
         self.parts.append((o, bone)); return o
 
+    def loft_body(self, name, sections, mat, spine_bones, spine_z, segs=28):
+        """One smooth body lofted through sections [(z, half_width, half_height, y_centre), ...] head first (game frame),
+        weighted along the spine: each vertex shared between the two nearest spine bones by its z (a hero sculpt bends
+        as one surface, not as a stack of beads). spine_z: the bones' joint z values, head first, one more than bones."""
+        import bmesh
+        bm = bmesh.new(); rings = []
+        for (z, hw, hh, yc) in sections:
+            ring = []
+            for k in range(segs):
+                a = 2 * math.pi * k / segs
+                c, s = math.cos(a), math.sin(a)
+                # a superellipse: fuller than an ellipse along the flanks, the belly a little flatter
+                x = hw * math.copysign(abs(c) ** 0.8, c)
+                y = yc + hh * math.copysign(abs(s) ** 0.85, s) * (0.92 if s < 0 else 1.0)
+                ring.append(bm.verts.new(G(x, y, z)))
+            rings.append(ring)
+        for a, b in zip(rings, rings[1:]):
+            for k in range(segs):
+                bm.faces.new((a[k], a[(k + 1) % segs], b[(k + 1) % segs], b[k]))
+        for ring, sgn in ((rings[0], 1), (rings[-1], -1)):   # (the ends capped)
+            bm.faces.new(ring if sgn < 0 else list(reversed(ring)))
+        bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+        me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free()
+        o = C.link(bpy.data.objects.new(name, me))
+        C.assign(o, self.M[mat]); C.smooth(o, 180)
+        sub = o.modifiers.new("sub", 'SUBSURF'); sub.levels = 1
+        C.select_only([o]); bpy.ops.object.modifier_apply(modifier="sub")
+        self.soft = getattr(self, "soft", [])
+        self.soft.append((o, list(spine_bones), list(spine_z)))
+        return o
+
     def finish(self, name, out):
-        objs = [o for o, _ in self.parts]
+        objs = [o for o, _ in self.parts] + [o for o, _, _ in getattr(self, "soft", [])]
         for o in objs:
             C.select_only([o]); bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+        for o, bones, zs in getattr(self, "soft", []):
+            # (the lofted bodies' weights: by each vertex's game-frame z between the spine joints; Blender's -y is the game's z)
+            groups = {b: o.vertex_groups.new(name=b) for b in bones}
+            for v in o.data.vertices:
+                z = -v.co.y
+                w = [0.0] * len(bones)
+                for i in range(len(bones)):
+                    mid = (zs[i] + zs[i + 1]) / 2; half = abs(zs[i] - zs[i + 1]) / 2 + 1e-6
+                    w[i] = max(0.0, 1 - abs(z - mid) / (half * 1.6))
+                if sum(w) <= 0:
+                    w[0 if z > zs[0] else len(bones) - 1] = 1.0
+                tot = sum(w)
+                for i, b in enumerate(bones):
+                    if w[i] > 0:
+                        groups[b].add([v.index], w[i] / tot, 'REPLACE')
         arm = bpy.data.armatures.new(name + "_rig")
         rig = C.link(bpy.data.objects.new(name + "_rig", arm))
         C.select_only([rig]); bpy.ops.object.mode_set(mode='EDIT')
@@ -84,6 +130,9 @@ class Kit:
         for o, bn in self.parts:
             g = o.vertex_groups.new(name=bn)
             g.add(list(range(len(o.data.vertices))), 1.0, 'REPLACE')
+            mod = o.modifiers.new("rig", 'ARMATURE'); mod.object = rig
+            o.parent = rig
+        for o, _, _ in getattr(self, "soft", []):
             mod = o.modifiers.new("rig", 'ARMATURE'); mod.object = rig
             o.parent = rig
         sc = bpy.context.scene
@@ -253,35 +302,46 @@ def spine(K, zs, prefix="s"):
 
 @plan("goliath")
 def goliath(K):
-    # a colossal grouper: a deep heavy body, a huge mouth, armour plates on the head and flanks, barnacles, old
-    # harpoons and a chain embedded in it, the gills behind the plates (they glow red in the game's windows)
+    # a colossal grouper, sculpted (the spec's hero sculpt): one smooth deep body lofted head to tail and bent along its
+    # spine, a huge underslung jaw, the spined dorsal fin with its membrane, broad pectorals, a rounded tail fan, mottled
+    # flanks; armour plates over the gills (they glow red in the game's windows) and flanks, barnacles, two old
+    # harpoons and a chain embedded in it
     zs = [0.5, 0.22, -0.02, -0.25, -0.5]
     spine(K, zs)
-    prof = [(0.46, 0.1), (0.36, 0.17), (0.2, 0.21), (0.0, 0.22), (-0.18, 0.18), (-0.32, 0.1), (-0.42, 0.06)]
-    for k in range(len(prof) - 1):
-        (z0, r0), (z1, r1) = prof[k], prof[k + 1]
-        b = "s0" if z0 > 0.22 else "s1" if z0 > -0.02 else "s2" if z0 > -0.25 else "s3"
-        r = (r0 + r1) / 2
-        K.ell(f"body{k}", (0, 0.0, (z0 + z1) / 2), (r * 0.8, r * 1.1, abs(z0 - z1) * 1.25), "back", b, 28)
-        K.ell(f"bellyp{k}", (0, -r * 0.45, (z0 + z1) / 2), (r * 0.7, r * 0.6, abs(z0 - z1) * 1.2), "belly", b, 20)
-    K.ell("jaw", (0, -0.05, 0.47), (0.12, 0.07, 0.07), "belly", "s0", 20)
-    K.ell("lip", (0, 0.04, 0.48), (0.13, 0.04, 0.06), "back", "s0", 20)
+    body = [(0.54, 0.05, 0.06, -0.02), (0.48, 0.13, 0.14, 0.0), (0.38, 0.19, 0.2, 0.02), (0.24, 0.215, 0.235, 0.03),
+            (0.06, 0.205, 0.225, 0.02), (-0.12, 0.17, 0.185, 0.02), (-0.28, 0.115, 0.125, 0.01), (-0.4, 0.06, 0.075, 0.0),
+            (-0.47, 0.035, 0.05, 0.0)]
+    K.loft_body("body", body, "back", ["s0", "s1", "s2", "s3"], zs)
+    K.loft_body("belly", [(z, hw * 0.86, hh * 0.55, yc - hh * 0.45) for (z, hw, hh, yc) in body[1:-1]], "belly", ["s0", "s1", "s2", "s3"], zs)
+    # the mouth: a jutting lower jaw, thick lips, the dark gape between
+    K.ell("jaw", (0, -0.075, 0.5), (0.125, 0.05, 0.075), "belly", "s0", 24)
+    K.ell("lip_up", (0, 0.03, 0.53), (0.12, 0.035, 0.05), "back", "s0", 20)
+    K.ell("gape", (0, -0.02, 0.55), (0.1, 0.025, 0.02), "eye", "s0", 16)
     for s, sd in ((1, "L"), (-1, "R")):
-        K.ell(f"eye{sd}", (s * 0.13, 0.08, 0.38), (0.028, 0.028, 0.028), "eye", "s0", 12)
-        K.ell(f"gill{sd}", (s * 0.15, 0.0, 0.28), (0.02, 0.13, 0.05), "gill", "s0", 16)
-        K.ell(f"plate_head{sd}", (s * 0.16, 0.06, 0.33), (0.03, 0.14, 0.09), "back", "s0", 16)   # the armour over the gills
+        K.ell(f"eye{sd}", (s * 0.12, 0.1, 0.4), (0.03, 0.03, 0.03), "eye", "s0", 14)
+        K.ell(f"brow{sd}", (s * 0.11, 0.13, 0.39), (0.04, 0.02, 0.05), "back", "s0", 12)
+        K.ell(f"gill{sd}", (s * 0.18, 0.0, 0.28), (0.02, 0.14, 0.055), "gill", "s0", 16)
+        K.ell(f"plate_head{sd}", (s * 0.19, 0.06, 0.33), (0.016, 0.12, 0.08), "back", "s0", 16)   # the armour over the gills
         for k in range(3):
-            K.ell(f"plate_flank{sd}{k}", (s * 0.17, 0.05 - k * 0.04, 0.12 - k * 0.14), (0.03, 0.12, 0.08), "back", "s1" if k < 2 else "s2", 16)
-        K.limb(f"pectoral{sd}", (s * 0.15, -0.05, 0.2), (s * 0.3, -0.12, 0.08), 0.06, 0.01, "fin", "s1", 10)
+            K.ell(f"plate_flank{sd}{k}", (s * 0.205, 0.05 - k * 0.04, 0.12 - k * 0.14), (0.014, 0.08, 0.06), "back", "s1" if k < 2 else "s2", 16)
+        K.ell(f"pectoral{sd}", (s * 0.24, -0.05, 0.16), (0.11, 0.015, 0.09), "fin", "s1", 16)
+        K.ell(f"pelvic{sd}", (s * 0.08, -0.2, 0.16), (0.03, 0.06, 0.07), "fin", "s1", 12)
+        for k in range(9):   # the mottling: darker blotches down the flanks
+            z = 0.3 - k * 0.08; y = 0.08 * math.sin(k * 2.1)
+            K.ell(f"spot{sd}{k}", (s * (0.2 - abs(z) * 0.18), y, z), (0.012, 0.035, 0.04), "fin", "s1" if z > -0.02 else "s2", 10)
+    # the dorsal fin: eleven spines and the membrane between them, then the soft rear dorsal; the anal fin; the tail fan
+    for k in range(11):
+        z = 0.3 - k * 0.055; h = 0.08 + 0.05 * math.sin(k / 10 * math.pi)
+        K.limb(f"spine{k}", (0, 0.2 + 0.02 * math.cos(k * 0.3), z), (0, 0.2 + h + 0.03, z - 0.02), 0.01, 0.002, "fin", "s1" if z > -0.02 else "s2", 6)
+    K.ell("dorsal_web", (0, 0.27, 0.02), (0.008, 0.06, 0.29), "fin", "s1", 16)
+    K.ell("dorsal_soft", (0, 0.2, -0.28), (0.01, 0.07, 0.1), "fin", "s3", 14)
+    K.ell("anal", (0, -0.16, -0.27), (0.01, 0.06, 0.08), "fin", "s3", 12)
+    K.ell("tail_fan", (0, 0.0, -0.54), (0.012, 0.17, 0.1), "fin", "s3", 18)
     for k in range(10):   # barnacles
-        K.ell(f"barnacle{k}", (0.12 * math.sin(k * 2.3), 0.1 + 0.06 * math.cos(k * 1.7), 0.3 - k * 0.07), (0.018, 0.012, 0.018), "belly", "s0" if k < 3 else "s1" if k < 6 else "s2", 8)
-    for k, (a, b) in enumerate([((0.1, 0.16, 0.1), (0.36, 0.36, 0.0)), ((-0.12, 0.12, -0.15), (-0.4, 0.3, -0.25))]):
+        K.ell(f"barnacle{k}", (0.13 * math.sin(k * 2.3), 0.12 + 0.06 * math.cos(k * 1.7), 0.3 - k * 0.07), (0.018, 0.012, 0.018), "belly", "s0" if k < 3 else "s1" if k < 6 else "s2", 8)
+    for k, (a, b) in enumerate([((0.1, 0.18, 0.1), (0.38, 0.38, 0.0)), ((-0.12, 0.14, -0.15), (-0.42, 0.32, -0.25))]):
         K.limb(f"harpoon{k}", a, b, 0.008, 0.006, "fin", "s1" if k == 0 else "s2", 6)
     K.limb("chain", (0.05, 0.2, -0.05), (0.2, -0.2, -0.3), 0.012, 0.012, "fin", "s2", 6)
-    K.limb("dorsal", (0, 0.2, 0.15), (0, 0.32, -0.15), 0.07, 0.01, "fin", "s1", 10)
-    for s in (-1, 1):
-        K.limb(f"tail{s}", (0, 0.0, -0.42), (0, s * 0.16, -0.58), 0.05, 0.01, "fin", "s3", 10)
-
 
 @plan("lobster")
 def lobster(K):
