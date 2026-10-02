@@ -599,3 +599,15 @@ lobby (`gameOpts` is "<map>:<mode>", the guests hear it in the chat); the snapsh
 - **Apex**: every Hunt tide is a Predator Hunt, the boss wakes from tide 1 and never dozes off, bounties doubled.
 - Check: `depth.exe --redtide-mode-test`; `DEPTH_RTMODE=<key>` for `--redtide-sim` and `--shots`.
 - Later modes (doc): Quota, Aquarium, Salvage Run, the Long Night, Draft, Poachers, Custom.
+
+## The blades: the Boarding Axe and the Sawtooth (2026-10-02; design doc, "Melee", the Forged list)
+- `DiverState::blade` / `bladeForged`: what V swings when a gun is in hand (-1 the diver's knife, 100). Both are in
+  weapons.json (appended; `source` "blade" and "forge", never in the Locker's pool).
+- **The Boarding Axe** ("melee rack", "replaces the knife"): a rack is added beside the start pocket's first rack on
+  every map (`BuildLevel`); 2,500; 180, reach 1.7. Forged, **the Boarder**: a sprint-swing knocks a beast (size 4 or less,
+  not a boss) back 3 m.
+- **The Sawtooth** ("Forge-only ... a sawfish rostrum, 450, bleed"): Z at the Forge makes it from the knife for the
+  Forge's price (5,000); its cut leaves the beast bleeding (wound 0.7). Forged with Z again, **the Shipwright's Saw**: the
+  cut bleeds hard (wound 1) and spills blood at once: "a weapon that is also bait". A blade is forged once.
+- The Forge's prompt shows the Z work; the dead come back with the knife; careful bots buy the axe once their guns are
+  sorted. Tests in `--redtide-mode-test`.

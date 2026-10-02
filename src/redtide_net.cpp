@@ -54,7 +54,7 @@ void ApplyDiverInput(Match& m, int di, const DiverInput& in, float dt) {
     if (in.btn & DI_TAC_P) m.CycleTactical(di);
     if (in.btn & DI_BUILD_P) m.UseBuild(di);
     if (in.btn & DI_BRUSH_P) m.UseBrush(di);
-    if (in.btn & DI_BENCH_P) { int si = m.NearestStation(d.pos, 3.0f); if (si >= 0 && m.level.stations[si].type == StationType::Workbench) m.CycleBench(di); }
+    if (in.btn & DI_BENCH_P) { int si = m.NearestStation(d.pos, 3.0f); if (si >= 0 && m.level.stations[si].type == StationType::Workbench) m.CycleBench(di); else if (si >= 0 && m.level.stations[si].type == StationType::Forge) m.ForgeBlade(di); }
     if (in.btn & DI_DRUM_P) m.BeatDrum(di);
     if (in.btn & DI_CHARM_P) m.UseCharm(di);
     if (in.btn & DI_PING_P) m.Ping(di);
@@ -153,7 +153,7 @@ template <class A> void VisitDiver(A& a, DiverState& d) {
     a.i(d.inkBombs); a.i(d.tactical); a.i(d.chumBags); a.i(d.flares); a.b(d.brush); a.i(d.partsMask); a.e(d.build);
     a.f(d.shieldHP); a.f(d.bashCd); a.i(d.benchSel); a.i(d.inkCaps); a.b(d.drumClean);
     a.f(d.circleT); a.f(d.finsT); a.f(d.shellT); a.f(d.ghostT); a.v3(d.circlePos); a.i(d.luckKills); a.b(d.keepBrines); a.b(d.luckyLocker);
-    a.f(d.cutT); a.f(d.pingT); a.f(d.pingCd);
+    a.f(d.cutT); a.f(d.pingT); a.f(d.pingCd); a.i(d.blade); a.b(d.bladeForged);
     a.i(d.kills); a.i(d.headshots); a.i(d.downs); a.i(d.revives);
     a.s(d.suit); a.s(d.helmet); a.s(d.skin); a.s(d.costume);
     a.f(d.hitMarker); a.b(d.hitWeak); a.f(d.hurtT); a.v3(d.hurtFrom);
@@ -183,7 +183,7 @@ template <class A> void VisitAgent(A& a, Agent& g, const Box& box) {
 template <class A> void VisitScent(A& a, Field& f) {
     std::vector<std::pair<uint32_t, float>> cells;
     if constexpr (!A::reading) {
-        for (uint32_t k = 0; k < (uint32_t)f.v.size(); k++) if (f.v[k] >= 0.25f) cells.push_back({k, f.v[k]});
+        for (uint32_t k = 0; k < (uint32_t)f.v.size(); k++) if (f.v[k] >= 0.12f) cells.push_back({k, f.v[k]});
         if (cells.size() > 4000) { std::partial_sort(cells.begin(), cells.begin() + 4000, cells.end(), [](auto& x, auto& y) { return x.second > y.second; }); cells.resize(4000); }
     }
     uint32_t prev = 0;

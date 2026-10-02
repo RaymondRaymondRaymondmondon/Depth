@@ -529,6 +529,42 @@
    "forged": "The Deep Call",
    "forged_twist": "The burst is twice as strong and calls every apex in 60 m to it",
    "_source": "Wonder weapons: 'A lantern that draws every beast in 60 m to a point for 8 s, then bursts; Forged: the Deep Call, the burst also calls one apex beast to the point on your side for 30 s.' Numbers ours: a 150 burst in 6 m."
+  },
+  {
+   "id": "boardingaxe",
+   "name": "Boarding Axe",
+   "class": "melee",
+   "damage": 180,
+   "pellets": 1,
+   "rpm": 60,
+   "mag": 0,
+   "reserve": 0,
+   "noise": 0,
+   "reload": 0,
+   "price": 2500,
+   "source": "blade",
+   "reach": 1.7,
+   "forged": "The Boarder",
+   "forged_twist": "Sprint-swing knocks back 3 m",
+   "_source": "Racks: 'Boarding Axe (melee rack) ... 2,500 ... Replaces the knife'; the melee table's 180 and 1.7 m; Forged list: 'The Boarder: Sprint-swing knocks back 3 m'. A blade is swung with V (it replaces the knife), not carried in a weapon slot."
+  },
+  {
+   "id": "sawtooth",
+   "name": "Sawtooth",
+   "class": "melee",
+   "damage": 450,
+   "pellets": 1,
+   "rpm": 50,
+   "mag": 0,
+   "reserve": 0,
+   "noise": 0,
+   "reload": 0,
+   "price": 0,
+   "source": "forge",
+   "reach": 1.8,
+   "forged": "The Shipwright's Saw",
+   "forged_twist": "Bleed lasts 10 s and doubles blood: a weapon that is also bait",
+   "_source": "Melee: 'the Forge-only Sawtooth (a sawfish rostrum, 450, bleed)'; Forged list: 'The Shipwright's Saw: bleed lasts 10 s and doubles blood: a weapon that is also bait'. Made at the Forge from the knife (Z), for the Forge's price."
   }
  ],
  "melee": [

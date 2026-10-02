@@ -231,6 +231,19 @@ void BuildLevel(const MapData& m, Level& L) {
         else s.type = HasW(p.name, "cleaning") ? StationType::Cleaning : StationType::Feature;
         L.stations.push_back(s);
     }
+    // the Boarding Axe's rack ("melee rack": it replaces the knife) beside the start pocket's first rack
+    if (int axe = W.Index("boardingaxe"); axe >= 0) {
+        const Station* near = nullptr;
+        for (const auto& st : L.stations) if (st.type == StationType::Rack && st.zone == L.startZone) { near = &st; break; }
+        if (!near) for (const auto& st : L.stations) if (st.type == StationType::Rack) { near = &st; break; }
+        if (near) {
+            Station s; s.type = StationType::Rack; s.name = "Boarding Axe rack"; s.zone = near->zone; s.weapon = axe;
+            const Zone& z = m.zones[near->zone];
+            s.pos = z.Clamp(Vector3Add(near->pos, {1.6f, 0, 0.4f}), 0.6f);
+            if (Vector3Distance(s.pos, near->pos) < 0.8f) s.pos = z.Clamp(Vector3Add(near->pos, {-1.6f, 0, -0.4f}), 0.6f);
+            L.stations.push_back(s);
+        }
+    }
     // the map's dressing: what each zone's notes describe, placed from a fixed seed (the renderer draws these)
     const Json& dr = m.extra["dressing"];
     for (int zi = 0; zi < (int)m.zones.size() && dr.IsObj(); zi++) {
@@ -488,6 +501,30 @@ void Match::Ping(int di) {
     if (mode != RM_BLACKOUT || d.dead || d.pingCd > 0) return;
     d.pingT = 2.0f; d.pingCd = 4.0f;
     eco.AddNoise(d.pos, 3);   // (a ping is heard: the curious come to it)
+}
+
+// Z at the Forge: the blade's work, for the Forge's price ("the Forge-only Sawtooth"): the knife becomes the Sawtooth;
+// a Sawtooth is forged into the Shipwright's Saw, a Boarding Axe into the Boarder
+bool Match::ForgeBlade(int di) {
+    if (di < 0 || di >= (int)divers.size()) return false;
+    DiverState& d = divers[di];
+    if (d.dead || d.downed) return false;
+    int si = NearestStation(d.pos, 3.0f);
+    if (si < 0 || level.stations[si].type != StationType::Forge) return false;
+    const Station& s = level.stations[si];
+    if (s.needsPower && !Powered(s)) return false;
+    if (bossActive && bossPhase >= 2 && bossAgent >= 0 && Vector3Distance(eco.agents[bossAgent].pos, s.pos) < 8) { Say("", "The Goliath is too close to the Forge", 2); return false; }
+    const WeaponsData& WD = Weapons();
+    int saw = WD.Index("sawtooth");
+    if (saw < 0 || (d.blade >= 0 && d.bladeForged)) return false;
+    int price = (int)WD.forgePrice;
+    if (d.scrip < price) return false;
+    d.scrip -= price;
+    if (forgeAt < 0) forgeAt = time;
+    if (d.blade < 0) { d.blade = saw; d.bladeForged = false; Say("The Pressure Forge", "the knife comes out a Sawtooth (a sawfish's rostrum: 450, and the cut bleeds)", 4); }
+    else { d.bladeForged = true; const WeaponDef& b = WD.weapons[d.blade]; Say("The Pressure Forge", b.forged + ": " + b.forgedTwist, 4); }
+    Quip("Forge", d.slot, 1.2f);
+    return true;
 }
 // ---------------------------------------------------------------- quips (stage 9)
 const char* Match::VoiceName(int voice) { static const char* N[4] = {"Diver", "Whaler", "Stowaway", "Mechanic"}; return N[std::clamp(voice, 0, 3)]; }
@@ -761,7 +798,7 @@ void Match::EndTide() {
     for (auto& d : divers) if (d.dead) {
         d.dead = false; d.downed = false;
         d.hpMax = d.hp = Engine().C("player_hp", 100);
-        d.tonics.clear(); d.slots = 2;
+        d.tonics.clear(); d.slots = 2; d.blade = -1; d.bladeForged = false;
         d.weapons = {NewHeld(Weapons().Index(Weapons().sidearm), false)}; d.cur = 0;
         d.pos = level.start; d.vel = {0, 0, 0};
         d.limpets = Weapons().startLimpets;
@@ -1357,9 +1394,11 @@ void Match::Melee(int di) {
     const Held& h = Cur(d);
     const WeaponDef& w = W(h);
     bool weaponMelee = w.melee;
-    float dmg = weaponMelee ? w.damage * (h.forged ? WD.forgeDmg : 1.0f) : WD.knifeDamage;
-    float reach = weaponMelee ? (w.reach > 0 ? w.reach : 1.7f) : WD.knifeReach;
-    float rate = weaponMelee ? w.rpm / 60.0f : WD.knifeRate;
+    // V with a gun in hand swings the diver's blade: the knife, or what replaced it (the Boarding Axe, the Sawtooth)
+    const WeaponDef* bw = !weaponMelee && d.blade >= 0 && d.blade < (int)WD.weapons.size() ? &WD.weapons[d.blade] : nullptr;
+    float dmg = weaponMelee ? w.damage * (h.forged ? WD.forgeDmg : 1.0f) : bw ? bw->damage * (d.bladeForged ? WD.forgeDmg : 1.0f) : WD.knifeDamage;
+    float reach = weaponMelee ? (w.reach > 0 ? w.reach : 1.7f) : bw ? (bw->reach > 0 ? bw->reach : 1.7f) : WD.knifeReach;
+    float rate = weaponMelee ? w.rpm / 60.0f : bw ? bw->rpm / 60.0f : WD.knifeRate;
     d.meleeT = 1.0f / std::max(0.2f, rate);
     Vector3 f = Forward(d);
     fx.push_back({8, Vector3Add(Eye(d), Vector3Scale(f, 0.6f)), f});
@@ -1385,8 +1424,20 @@ void Match::Melee(int di) {
         if (score < bd) { bd = score; best = i; }
     }
     if (best < 0) return;
+    bool sprinting = Vector3Length(d.vel) > Engine().M("swim_speed", 2) * 1.2f;
     HitAgent(&d, best, dmg, false, true, f, nullptr);
     if (weaponMelee && w.chain > 0) Arc(d, best, dmg * 0.5f, h.forged ? 4 : w.chain, 6, h.forged ? 2.0f : 1.0f);
+    if (bw && best < (int)eco.agents.size()) {
+        Agent& a = eco.agents[best];
+        if (bw->id == "sawtooth" && a.alive) {
+            // the rostrum's teeth: a cut that keeps bleeding; forged (the Shipwright's Saw) it bleeds for 10 s and twice
+            // the blood ("a weapon that is also bait")
+            a.wound = std::max(a.wound, d.bladeForged ? 1.0f : 0.7f);
+            if (d.bladeForged) { a.fleeBleedT = 0; eco.AddBlood(a.pos, 10); }
+        }
+        if (bw->id == "boardingaxe" && d.bladeForged && sprinting && a.alive && !IsBoss(best) && map->species[a.sp].size <= 4)
+            a.pos = map->zones[a.zone].Clamp(Vector3Add(a.pos, Vector3Scale(f, 3)), 0.5f);   // (the Boarder: a sprint-swing knocks back 3 m)
+    }
 }
 
 void Match::Arc(DiverState& d, int first, float dmg, int chain, float radius, float stun) {
@@ -3910,6 +3961,7 @@ std::string Match::PromptFor(int di, int* cost) const {
             if (s.weapon < 0) return "";
             if (!Allowed(s.weapon)) return WD.weapons[s.weapon].name + ": racked (Quiet Water)";
             const WeaponDef& w = WD.weapons[s.weapon];
+            if (w.source == "blade") { if (d.blade == s.weapon) return "The " + w.name + " (yours: V swings it)"; if (cost) *cost = w.price; return "E: take the " + w.name + ": it replaces the " + (d.blade < 0 ? std::string("knife") : WD.weapons[d.blade].name) + " (" + std::to_string(w.price) + ")"; }
             for (const auto& h : d.weapons) if (h.def == s.weapon) { int c = h.forged ? (int)WD.rearm : w.price / 2; if (cost) *cost = c; return "E: " + w.name + " ammo (" + std::to_string(c) + ")"; }
             if (cost) *cost = w.price;
             return "E: take the " + w.name + " (" + std::to_string(w.price) + ")";
@@ -3923,7 +3975,12 @@ std::string Match::PromptFor(int di, int* cost) const {
             return "E: " + t->name + ": " + t->effect + " (" + std::to_string(c) + ")";
         }
         case StationType::Locker: { int c = fireSaleT > 0 ? WD.fireSalePull : WD.lockerPull; if (cost) *cost = c; return "E: Davy's Locker (" + std::to_string(c) + ")"; }
-        case StationType::Forge: { int c = ForgePrice(Cur(d)); if (cost) *cost = c; return std::string("E: ") + (Cur(d).forged ? "re-roll the Forge's ammunition" : "pressure-forge the " + W(Cur(d)).name) + " (" + std::to_string(c) + ")"; }
+        case StationType::Forge: {
+            int c = ForgePrice(Cur(d)); if (cost) *cost = c;
+            std::string blade = d.blade < 0 ? "   Z: the knife into a Sawtooth" : !d.bladeForged ? "   Z: forge the " + WD.weapons[d.blade].name : "";
+            if (!blade.empty()) blade += " (" + std::to_string((int)WD.forgePrice) + ")";
+            return std::string("E: ") + (Cur(d).forged ? "re-roll the Forge's ammunition" : "pressure-forge the " + W(Cur(d)).name) + " (" + std::to_string(c) + ")" + blade;
+        }
         case StationType::Power: return power ? (bossActive && !bossStunUsed ? "E: cycle the power (stuns the Goliath)" : "Power is on") : "E: throw the power switch";
         case StationType::Trap: {
             const Json* tjp = &map->extra["trap"];
@@ -4060,6 +4117,12 @@ bool Match::Interact(int di, bool hold, float dt) {
         case StationType::Rack: {
             if (s.weapon < 0 || !Allowed(s.weapon)) return false;
             const WeaponDef& w = WD.weapons[s.weapon];
+            if (w.source == "blade") {   // (a melee rack: the blade replaces the knife)
+                if (d.blade == s.weapon || !pay(w.price)) return false;
+                d.blade = s.weapon; d.bladeForged = false;
+                Say("", "The " + w.name + " replaces the knife (V)", 3);
+                return true;
+            }
             for (auto& h : d.weapons) if (h.def == s.weapon) {
                 if (!pay(h.forged ? (int)WD.rearm : w.price / 2)) return false;
                 h.mag = (int)MagMax(w, h); h.reserve = (int)ResMax(w, h);
@@ -4609,6 +4672,9 @@ void Match::Bot(DiverState& d, float dt) {
                     cost = t->id == "quick" && players == 1 && t->priceSolo > 0 ? t->priceSolo : t->price;
                     if (t->id == "quick" && players == 1 && d.quickBought >= 3) continue;
                     score = t->id == "juggernaut" ? 90 : t->id == "quick" ? (players == 1 ? 95 : 60) : t->id == "speed" ? 50 : t->id == "double" ? 70 : 40;
+                } else if (s.type == StationType::Rack && s.weapon >= 0 && Allowed(s.weapon) && WD.weapons[s.weapon].source == "blade") {
+                    if (d.blade >= 0) continue;                       // (the axe over the knife: worth it once the guns are sorted)
+                    cost = WD.weapons[s.weapon].price; score = 45;
                 } else if (s.type == StationType::Rack && s.weapon >= 0 && Allowed(s.weapon)) {
                     const WeaponDef& w = WD.weapons[s.weapon];
                     bool have = false; for (const auto& h : d.weapons) if (h.def == s.weapon) have = true;
@@ -4927,6 +4993,43 @@ int RunRedTideModeTest() {
         Match std_; std_.Init("ship", 1, 35, false); std_.Ping(0);
         check(std_.divers[0].pingT == 0, "the ping is Blackout's alone");
     }
+    // the blades (design doc, "Melee"): the Boarding Axe's rack replaces the knife; the Forge makes the Sawtooth from the
+    // knife and forges a blade
+    {
+        Match m; m.Init("ship", 1, 36, false);
+        DiverState& d = m.divers[0]; d.invulnerable = true;
+        int rack = -1; for (int i = 0; i < (int)m.level.stations.size(); i++) if (m.level.stations[i].name == "Boarding Axe rack") rack = i;
+        check(rack >= 0, "the start pocket has a Boarding Axe rack");
+        // a test beast before the diver, too tough to die from one cut
+        auto victim = [&]() {
+            int vi = -1; for (int i = 0; i < (int)m.eco.agents.size(); i++) { const Agent& a = m.eco.agents[i]; if (a.alive && a.diver < 0 && !m.IsBoss(i) && m.map->species[a.sp].size <= 3) { vi = i; break; } }
+            Agent& a = m.eco.agents[vi];
+            Vector3 f = m.Forward(d);
+            a.pos = Vector3Add(m.Eye(d), Vector3Scale(f, 0.9f)); a.zone = d.zone; a.hp = a.hpMax = 100000; a.vel = {0, 0, 0}; a.wound = 0; a.st = State::Graze;
+            d.meleeT = 0;
+            return vi;
+        };
+        if (rack >= 0) {
+            d.pos = m.level.stations[rack].pos; d.zone = m.level.stations[rack].zone; d.scrip = 10000;
+            int v = victim(); float hp0 = m.eco.agents[v].hp; m.Melee(0); float knife = hp0 - m.eco.agents[v].hp;
+            int s0 = d.scrip; m.Interact(0, false, 0.01f);
+            check(d.blade == Weapons().Index("boardingaxe") && d.scrip == s0 - 2500, "E at the rack: the Boarding Axe replaces the knife (2,500)");
+            v = victim(); hp0 = m.eco.agents[v].hp; m.Melee(0); float axe = hp0 - m.eco.agents[v].hp;
+            check(knife > 90 && knife < 110 && axe > 170 && axe < 190, TextFormat("V: the knife cuts %.0f, the axe %.0f", knife, axe));
+        }
+        int forge = -1; for (int i = 0; i < (int)m.level.stations.size(); i++) if (m.level.stations[i].type == StationType::Forge) forge = i;
+        if (forge >= 0) {
+            m.power = true; d.blade = -1; d.bladeForged = false; d.scrip = 20000;
+            d.pos = m.level.stations[forge].pos; d.zone = m.level.stations[forge].zone;
+            check(m.ForgeBlade(0) && d.blade == Weapons().Index("sawtooth") && d.scrip == 15000, "Z at the Forge: the knife comes out a Sawtooth (the Forge's 5,000)");
+            int v = victim(); float hp0 = m.eco.agents[v].hp; m.Melee(0);
+            float cut = hp0 - m.eco.agents[v].hp, wound = m.eco.agents[v].wound;
+            check(cut > 430 && cut < 470 && wound >= 0.69f, TextFormat("the Sawtooth cuts %.0f and leaves it bleeding (wound %.1f)", cut, wound));
+            check(m.ForgeBlade(0) && d.bladeForged && !m.ForgeBlade(0), "forged again: the Shipwright's Saw (and that's as far as a blade goes)");
+            v = victim(); m.Melee(0);
+            check(m.eco.agents[v].wound >= 0.99f, "the Shipwright's Saw: the cut bleeds hard (bait)");
+        }
+    }
     printf(fails ? "%d FAILED\n" : "redtide-mode-test: all checks passed\n", fails);
     return fails ? 1 : 0;
 }
@@ -4947,7 +5050,7 @@ int RunRedTideMatchTest() {
     check(m.quota == 5, TextFormat("solo tide 1 quota: %d (12 x 0.4)", m.quota));
     int racks = 0, tonics = 0, lockers = 0;
     for (const auto& s : m.level.stations) { racks += s.type == StationType::Rack; tonics += s.type == StationType::Tonic; lockers += s.type == StationType::Locker; }
-    check(racks == 6 && tonics == 5 && lockers == 2, TextFormat("stations from the blockout: %d racks, %d tonic machines, %d Locker spots", racks, tonics, lockers));
+    check(racks == 7 && tonics == 5 && lockers == 2, TextFormat("stations from the blockout: %d racks (and the Boarding Axe's), %d tonic machines, %d Locker spots", racks, tonics, lockers));
     // the closed Salon door stops the diver; buying it lets them through
     int salonDoor = -1;
     for (int i = 0; i < (int)m.level.doors.size(); i++) if (m.level.doors[i].name == "Salon door") salonDoor = i;

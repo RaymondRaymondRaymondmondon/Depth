@@ -128,6 +128,7 @@ struct DiverState {
     float cutT = 0;                    // being cut free of Reacher coral by a teammate
     int kills = 0, headshots = 0, downs = 0, revives = 0;
     float pingT = 0, pingCd = 0;               // Blackout: the sonar ping's echo on screen, and its recharge
+    int blade = -1; bool bladeForged = false;  // what V swings: -1 the diver's knife, else a weapon (the Boarding Axe, the Sawtooth)
     std::string suit, helmet, skin, costume;   // the player's look (the Locker's suit and helmet, the Wardrobe's skin and costume), for teammates' screens
     float hitMarker = 0; bool hitWeak = false;
     float hurtT = 0; Vector3 hurtFrom{};
@@ -180,6 +181,7 @@ struct Match {
     bool Allowed(int weaponDef) const;   // Quiet Water: knives, spearguns, needlers and nets only
     float frenzyDropT = 20;           // Feeding Frenzy: the next Blood Frenzy drop
     void Ping(int d);                 // Blackout: a sonar ping (shows what's near for 2 s; it's heard)
+    bool ForgeBlade(int d);           // Z at the Forge: the knife into the Sawtooth; a Sawtooth or a Boarding Axe forged
     std::vector<Crate> crates;
     int tide = 1, quota = 12, tideKills = 0, players = 1;
     TidePhase phase = TidePhase::Calm;
