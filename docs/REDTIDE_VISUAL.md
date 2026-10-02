@@ -333,8 +333,8 @@ The spec: `Red_Tide_Reference/Red Tide — Visual Overhaul Spec.pdf` (25 pages, 
   - corpses (the ecosystem's, which weren't drawn) lie belly-up on their own models (`CreatureRoll`), settle to the
     floor, pale with age, and jerk and bleed while fed on. Shot: `DEPTH_STATION=corpse`.
 - **The dossier** shows each beast on its rigged model (lit for the PBR path) and factions on the diver figure.
-- **Open:** the reef lagoon's pale sand glares under the surface light (the inked shader's floor and the bloom; it
-  isn't the caustics). Tune the palette or the bloom threshold for bright floors.
+- **The reef's sand** was a pale (210,192,146) that blew out to white under the surface light; it's (168,150,112) now,
+  and the caustics show on it.
   - Shots: `rvis_3_hands` with `DEPTH_STATION=tonic|locker|forge|power|workbench|cache|rack|door|traps` and
     `DEPTH_RTMAP=<map>`.
 
