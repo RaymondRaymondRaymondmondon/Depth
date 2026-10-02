@@ -1140,7 +1140,7 @@ static void DrawLanding3D(const Gannet& g, float t) {
 // ---------------------------------------------------------------- the sailors (Visual Overhaul phase 3)
 // Every hand, player or bot, is the shared skinned rig in its role's outfit (tools/artgen/crew.py), posed here in code
 // and given an identity from its slot: a skin tone, outfit shades, a build and a head shape, the same on every client.
-struct SailorLook { Role role = Role::Bosun; Color skin{}, top{}, trousers{}, hat{}, hair{}; float build = 1, height = 1, headW = 1, headH = 1; int beard = 0; };   // beard: 0 none, 1 full, 2 moustache, 3 chops
+struct SailorLook { Role role = Role::Bosun; Color skin{}, top{}, trousers{}, hat{}, hair{}; float build = 1, height = 1, headW = 1, headH = 1; int beard = 0; const char* costume = nullptr; };   // costume: a model of skins::Costume   // beard: 0 none, 1 full, 2 moustache, 3 chops
 static int gLocalSlot = -1;   // your own hand's slot (DrawTrawl3D): it wears the Wardrobe's skin
 static SailorLook LookOf(const Crew& c) {
     SailorLook L; L.role = c.role;
@@ -1163,6 +1163,7 @@ static SailorLook LookOf(const Crew& c) {
     float bd = R(); L.beard = bd < 0.35f ? 0 : bd < 0.6f ? 1 : bd < 0.82f ? 2 : 3;
     if (c.slot == gLocalSlot)   // the skin you wear (skins.h): the oilskins or jacket, the trousers, the hat
         for (const auto& w : skins::WornColours(skins::TRAWL)) { std::string m = w.material; if (m == "top") L.top = w.c; else if (m == "trousers") L.trousers = w.c; else if (m == "hat") L.hat = w.c; }
+    if (c.slot == gLocalSlot) if (const skins::Costume* k = skins::WornCostume(skins::TRAWL)) { L.costume = k->model; L.top = k->sleeve; }
     return L;
 }
 using SailorPose = fig::Pose;   // (the pose and its IK live in figure3d.cpp, shared with Red Tide's divers)
@@ -1364,6 +1365,7 @@ static void DrawSailor(const SailorLook& L, const SailorPose& P, Matrix frame, f
     std::vector<Matrix> skin = PoseSailor(*m, L, P, t);
     std::vector<rt::Recolor> rc = {{"skin", L.skin}, {"top", L.top}, {"trousers", L.trousers}, {"hat", L.hat}};
     rt::DrawPbrSkinned(*m, frame, skin, rc, 0.35f, tint);
+    if (L.costume && !P.fp) fig::DrawCostume(L.costume, *m, skin, frame, tint);   // (in first person only its sleeves' colour)
     if (L.beard > 0 && !P.fp) {   // facial hair rides the head bone, in the sailor's hair colour
         static const char* BEARD[4] = {nullptr, "shared/crew/beard_full.glb", "shared/crew/beard_moustache.glb", "shared/crew/beard_chops.glb"};
         const Model* bm = rt::LoadAsset(BEARD[L.beard]);
@@ -1661,6 +1663,28 @@ void DrawTrawlStudio(int which, float t) {
         }
         rt::RenderEnd();
         skins::DrawGallery(skins::TRAWL, page);
+        return;
+    } else if (which == 13) {
+        // the costumes gallery: ten of the Trawl's costumes a page (DEPTH_SKINPAGE 0-1), the roles in turn
+        int page = getenv("DEPTH_SKINPAGE") ? atoi(getenv("DEPTH_SKINPAGE")) : 0;
+        const auto& cat = skins::Costumes(skins::TRAWL);
+        cam.position = {0, 1.0f, 9.6f}; cam.target = {0, 0.85f, 0}; cam.fovy = 40;
+        lantern({-3, 5, 8}, {0, 1, 0});
+        L.AddPoint({4, 3, 4}, 9, {255, 190, 120, 255}, 0.7f);
+        rt::RenderBegin(cam, L);
+        for (int k = 0; k < 10; k++) {
+            int i = page * 10 + k;
+            if (i >= (int)cat.size()) break;
+            const skins::Costume& co = cat[i];
+            Crew c; c.role = (Role)(k % 4); c.slot = k;
+            SailorLook Lk = LookOf(c); Lk.costume = co.model; Lk.top = co.sleeve;
+            SailorPose P; P.breathe = t * 1.7f + k;
+            Vector3 at{(k % 5 - 2) * 1.75f, k < 5 ? 1.15f : -1.55f, 0};
+            if (SailorsReady()) DrawSailor(Lk, P, MatrixMultiply(MatrixScale(0.82f, 0.82f, 0.82f), Frame(at, FRONT + 0.5f)), t, Item::None, WHITE);
+            skins::gGallery.push_back({GetWorldToScreenEx({at.x, at.y - 0.12f, at.z}, cam, SCREEN_W, SCREEN_H), co.name, skins::CostumeTierName(co.tier), skins::RarityColor(co.tier), co.price});
+        }
+        rt::RenderEnd();
+        skins::DrawGallery(skins::TRAWL, page, true);
         return;
     } else if (which == 6) {
         // one weapon in three states: at rest, the instant of a shot, half way through a reload (the action open)
@@ -2552,4 +2576,32 @@ void DrawLandingFx2D(const Gannet& g, const Camera3D& cam) {
         }
     }
 }
+} // namespace tw
+
+namespace tw {
+// the Wardrobe's costume preview (skins::gPreview): a deckhand in your skin, turning slowly on the right of the screen
+static void TrawlWardrobePreview(int game, const char* model, float t) {
+    (void)game;
+    EnsureCrewModels();
+    if (!gCrewReady || !SailorsReady()) return;
+    rt::SceneLight L;
+    L.fog = {58, 60, 66, 255}; L.fogDensity = 0.004f;
+    L.fill = {44, 48, 60, 255}; L.rim = {90, 110, 140, 255}; L.key = {255, 214, 160, 255};
+    L.surfaceY = 1e5f; L.time = t; L.lampRange = 14; L.lampCone = 0.55f;
+    L.moonK = 0.5f; L.ambK = 0.8f; L.skyAmb = {70, 80, 100, 255}; L.seaAmb = {30, 28, 26, 255};
+    Camera3D cam{}; cam.projection = CAMERA_PERSPECTIVE; cam.up = {0, 1, 0}; cam.fovy = 34;
+    cam.position = {-1.35f, 1.25f, 4.6f}; cam.target = {-1.35f, 1.0f, 0};
+    L.lampPos = {-2, 4, 5}; L.lampDir = Vector3Normalize({2, -3, -5});
+    L.AddPoint({2, 2.5f, 3}, 9, {255, 190, 120, 255}, 0.6f);
+    rt::RenderBegin(cam, L);
+    Crew c; c.role = Role::Bosun; c.slot = 0;
+    int keep = gLocalSlot; gLocalSlot = 0;
+    SailorLook Lk = LookOf(c);
+    gLocalSlot = keep;
+    Lk.costume = model && model[0] ? model : nullptr;
+    SailorPose P; P.breathe = t * 1.7f;
+    DrawSailor(Lk, P, Frame({0, 0, 0}, -PI / 2 + 0.6f * sinf(t * 0.35f) + 0.3f), t, Item::None, WHITE);
+    rt::RenderEnd();
+}
+static bool gTrawlPreviewSet = (skins::gPreview[skins::TRAWL] = &TrawlWardrobePreview, true);
 } // namespace tw

@@ -190,4 +190,55 @@ static const std::vector<Skin> REDTIDE_SKINS = {
 
 const std::vector<Skin>& Catalogue(int game) { return game == REDTIDE ? REDTIDE_SKINS : TRAWL_SKINS; }
 
+// ---------------------------------------------------------------- costumes (20 a game: 8 common, 6 rare, 4 super rare,
+// 2 special; prices by tier, the Trawl's in its own larger tokens)
+static Color Hx(unsigned v) { return {(unsigned char)(v >> 16), (unsigned char)(v >> 8), (unsigned char)v, 255}; }
+#define K(id, model, name, tier, price, sleeve, note) Costume{id, model, name, tier, price, Hx(sleeve), note}
+static const std::vector<Costume> REDTIDE_COSTUMES = {
+    K("rc_lobster", "lobster", "Lobster Suit", COMMON, 250, 0x9e1a0e, "Claws on both hands, feelers, a tail fan at the seat"),
+    K("rc_crab", "crab", "Crab Shell", COMMON, 250, 0xc06018, "A carapace like a table, one claw bigger than the other"),
+    K("rc_puffer", "pufferfish", "Puffed Up", COMMON, 250, 0xa08440, "A spiny ball from the knees to the helmet"),
+    K("rc_jelly", "jelly", "Moon Jelly", COMMON, 250, 0x8a6a88, "A bell over the helmet, tentacles to the knee"),
+    K("rc_hermit", "hermit", "Hermit's Lodgings", COMMON, 250, 0x80382c, "A spiral shell on the back and a claw for the door"),
+    K("rc_starfish", "starfish", "Starfish", COMMON, 250, 0x6e5a48, "Five arms round the body, one past the helmet"),
+    K("rc_kelp", "kelp", "Kelp Ghillie", COMMON, 250, 0x3a4a1c, "Fronds from the shoulders down, floats on the helmet"),
+    K("rc_barnacle", "barnacle", "Barnacled", COMMON, 250, 0x5a5650, "Twenty years on a hull in an afternoon"),
+    K("rc_shark", "shark", "Shark Suit", RARE, 450, 0x5a646e, "A grey hood with a mouthful of teeth, a dorsal fin, a tail"),
+    K("rc_octopus", "octopus", "Octopus", RARE, 450, 0x722a72, "A mantle over the helmet and eight arms from the waist"),
+    K("rc_angler", "angler", "Lantern Angler", RARE, 450, 0x1e1c1e, "Your helmet is the lure's last sight"),
+    K("rc_turtle", "turtle", "Sea Turtle", RARE, 450, 0x5c7246, "A shell on the back, flippers at the wrists"),
+    K("rc_ghost", "ghost", "The Drowned's Sheet", RARE, 450, 0xd0d8dc, "A sheet with two holes, as the Drowned wear them"),
+    K("rc_coral", "coral", "Living Reef", RARE, 450, 0x665a50, "Coral grown over the shoulders and the helmet"),
+    K("rc_bell", "divingbell", "Diving Bell", SUPER, 700, 0x8a6a30, "A brass bell to the waist with one porthole"),
+    K("rc_mine", "seamine", "Contact Mine", SUPER, 700, 0x22222a, "Horned, chained, and best not bumped"),
+    K("rc_swordfish", "swordfish", "Swordfish", SUPER, 700, 0x1e2c58, "A bill a metre long and a sail on the back"),
+    K("rc_kraken", "kraken", "Kraken Hood", SUPER, 700, 0x7a1414, "Its mantle on your helmet, its arms on your shoulders"),
+    K("rc_goliath", "goliath", "The Goliath", LEGEND, 1000, 0x4e4e2a, "The grouper itself, plates, harpoon and all"),
+    K("rc_nautilus", "nautilus", "The Nautilus", LEGEND, 1000, 0x4a504c, "The submarine round your waist, the periscope as a hat"),
+};
+static const std::vector<Costume> TRAWL_COSTUMES = {
+    K("tc_fish", "fish", "Fish Costume", COMMON, 350, 0x8a98a4, "A fish's head for a hood, fins and a tail"),
+    K("tc_lobster", "lobster", "Lobster Suit", COMMON, 350, 0x9e1a0e, "Claws on both hands; the gutting goes slowly"),
+    K("tc_gull", "gull", "The Gull", COMMON, 350, 0xe4e4e0, "Wings on the arms, a beak cap, a red spot"),
+    K("tc_sack", "sack", "The Sack", COMMON, 350, 0x8a6a40, "A potato sack with eyeholes, tied at the knees"),
+    K("tc_sandwich", "sandwich", "Sandwich Board", COMMON, 350, 0x2a2a30, "FRESH FISH, front and back, and a bowler"),
+    K("tc_lifebuoy", "lifebuoy", "Life Ring", COMMON, 350, 0x3a4a6a, "A ring round the waist and a sailor's cap"),
+    K("tc_scarecrow", "scarecrow", "Scarecrow", COMMON, 350, 0x806a42, "Straw at the cuffs and the collar, a wide hat"),
+    K("tc_souwester", "souwester", "The Big Sou'wester", COMMON, 350, 0xe0b010, "A hat you could bail with, and a cape"),
+    K("tc_octopus", "octopus", "Octopus", RARE, 650, 0x722a72, "Eight arms that drag on the deck"),
+    K("tc_crab", "crab", "Crab", RARE, 650, 0xc06018, "A carapace like a table, one claw bigger than the other"),
+    K("tc_mermaid", "mermaid", "Mermaid Tail", RARE, 650, 0x2e7a70, "A tail to the deck, a crown, and you shuffle"),
+    K("tc_ghost", "ghost", "Ghost Sheet", RARE, 650, 0xd0d8dc, "The Drowned's sheet, borrowed"),
+    K("tc_pirate", "pirate", "The Pirate", RARE, 650, 0x5a0e10, "The platformer's captain: tricorn, coat and patch"),
+    K("tc_angler", "angler", "Lantern Angler", RARE, 650, 0x1e1c1e, "Your head is a lure"),
+    K("tc_shark", "shark", "Great White", SUPER, 1000, 0x5a646e, "A shark suit with a mouthful of teeth"),
+    K("tc_marlin", "swordfish", "The Marlin", SUPER, 1000, 0x1e2c58, "The one on the office wall, worn"),
+    K("tc_barrel", "barrel", "Over a Barrel", SUPER, 1000, 0x2a2a30, "A barrel on braces and nothing else"),
+    K("tc_kraken", "kraken", "Kraken Hood", SUPER, 1000, 0x7a1414, "Its mantle on your head, its arms on your shoulders"),
+    K("tc_gannet", "gannet", "The Gannet", LEGEND, 1500, 0x1e2c4a, "Your own boat round your waist, the funnel as a hat"),
+    K("tc_matriarch", "orca", "The Matriarch", LEGEND, 1500, 0x101012, "An orca suit, and a pod of three balloon orcas"),
+};
+#undef K
+const std::vector<Costume>& Costumes(int game) { return game == REDTIDE ? REDTIDE_COSTUMES : TRAWL_COSTUMES; }
+
 } // namespace skins

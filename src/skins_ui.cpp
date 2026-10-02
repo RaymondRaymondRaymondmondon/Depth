@@ -18,13 +18,73 @@ static void Swatch(Rectangle r, const Skin& s, bool owned) {
     for (int k = 0; k < 4; k++) DrawRectangleRec({r.x + k * w, r.y, w + 0.5f, r.height}, c[k]);
 }
 
+static int gTab[GAME_COUNT] = {0, 0};          // 0 the skins, 1 the costumes
+static std::string gTry[GAME_COUNT];           // the costume under the mouse last frame (tried on in the preview)
+static std::string gShotTry[GAME_COUNT];       // (--shots: one to show tried on)
+void SetWardrobeTab(int game, int tab, const char* tryOn) { gTab[game] = tab; gShotTry[game] = tryOn ? tryOn : ""; }
+
+// the costume rack: the 20 by tier down the left, the figure wearing the one under the mouse (or the one worn) on the
+// right, drawn full screen first by the game's own preview
+static void CostumePage(int game) {
+    Wardrobe& w = Get(game);
+    const Color INK{226, 222, 206, 255}, DIM{150, 150, 140, 255};
+    if (!gShotTry[game].empty()) gTry[game] = gShotTry[game];
+    const Costume* show = !gTry[game].empty() ? FindCostume(game, gTry[game]) : WornCostume(game);
+    if (gPreview[game]) gPreview[game](game, show ? show->model : "", (float)GetTime());
+    else DrawRectangle(0, 0, SCREEN_W, SCREEN_H, Color{14, 22, 26, 255});
+    DrawRectangle(0, 0, 640, SCREEN_H, Fade(Color{10, 16, 20, 255}, 0.86f));
+    gTry[game].clear();
+    std::string why;
+    TxtBold(TextFormat("Tokens: %d", Tokens(game)), 40, 92, 20, Color{230, 200, 110, 255});
+    Txt("Whole outfits worn over your figure (and over your skin). Hover to try one on.", 40, 118, 13, DIM);
+    float y = 146;
+    for (int tier = COMMON; tier <= LEGEND; tier++) {
+        int have = 0, n = 0;
+        for (const auto& c : Costumes(game)) if (c.tier == tier) { n++; have += w.Owns(c.id); }
+        TxtBold(TextFormat("%s  %d / %d", CostumeTierName(tier), have, n), 40, y, 15, RarityColor(tier));
+        y += 22;
+        int k = 0;
+        for (const auto& c : Costumes(game)) {
+            if (c.tier != tier) continue;
+            Rectangle r{40.0f + (k % 2) * 290.0f, y + (k / 2) * 40.0f, 282, 36};
+            bool own = w.Owns(c.id), worn = w.costume == c.id, hov = CheckCollisionPointRec(GetMousePosition(), r);
+            DrawRectangleRounded(r, 0.2f, 6, worn ? Color{56, 76, 60, 255} : hov ? Color{40, 52, 54, 255} : Color{30, 40, 42, 255});
+            DrawRectangleRec({r.x + 6, r.y + 6, 6, 24}, RarityColor(tier));
+            Txt(c.name, r.x + 20, r.y + 3, 15, INK);
+            Txt(worn ? "worn: click to take it off" : own ? "owned: wear" : TextFormat("%d tokens", c.price), r.x + 20, r.y + 20, 12,
+                worn ? Color{140, 220, 140, 255} : own ? DIM : (Tokens(game) >= c.price ? Color{230, 200, 110, 255} : Fade(DIM, 0.5f)));
+            if (hov) {
+                gTry[game] = c.id;
+                Txt(c.note, 40, SCREEN_H - 60, 13, DIM);
+                if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+                    if (worn) WearCostume(game, ""); else if (own) WearCostume(game, c.id); else BuyCostume(game, c.id, &why);
+                    PlayCue("ui.click");
+                }
+            }
+            k++;
+        }
+        y += ((k + 1) / 2) * 40.0f + 6;
+    }
+    const Costume* worn = WornCostume(game);
+    TxtBold(TextFormat("Costume: %s", worn ? worn->name : "none"), 40, SCREEN_H - 36, 16, INK);
+}
+
 bool WardrobePage(int game) {
     Wardrobe& w = Get(game);
     const auto& cat = Catalogue(game);
     const Color INK{226, 222, 206, 255}, DIM{150, 150, 140, 255};
+    if (gTab[game] == 1) {
+        CostumePage(game);
+        DrawTextCenteredBold(game == REDTIDE ? "THE WARDROBE: Red Tide's divers" : "THE WARDROBE: the Trawl's crew", SCREEN_W / 2.0f, 18, 28, INK);
+        if (Button({SCREEN_W - 330.0f, 16, 150, 34}, "Skins", true, 16)) gTab[game] = 0;
+        Button({SCREEN_W - 170.0f, 16, 150, 34}, "Costumes", false, 16);
+        return Button({30, 16, 120, 34}, "< Back", true, 16) || IsKeyPressed(KEY_ESCAPE);
+    }
     DrawRectangle(0, 0, SCREEN_W, SCREEN_H, Color{14, 22, 26, 255});
+    Button({SCREEN_W - 330.0f, 16, 150, 34}, "Skins", false, 16);
+    if (Button({SCREEN_W - 170.0f, 16, 150, 34}, "Costumes", true, 16)) gTab[game] = 1;
     DrawTextCenteredBold(game == REDTIDE ? "THE WARDROBE: Red Tide's divers" : "THE WARDROBE: the Trawl's crew", SCREEN_W / 2.0f, 18, 28, INK);
-    DrawTextCentered("Colours on your own figure: the silhouette never changes. Crates come from milestones, or 150 tokens. A skin you already own rolls nothing.", SCREEN_W / 2.0f, 56, 14, DIM);
+    DrawTextCentered("Colours on your own figure: the silhouette never changes (the Costumes tab changes it). Crates come from milestones, or 150 tokens. A skin you already own rolls nothing.", SCREEN_W / 2.0f, 56, 14, DIM);
     bool back = Button({30, 16, 120, 34}, "< Back", true, 16) || IsKeyPressed(KEY_ESCAPE);
     // the wallet and the crates
     std::string why;
@@ -90,11 +150,11 @@ bool WardrobePage(int game) {
 
 // ---------------------------------------------------------------- the gallery shots
 std::vector<GalleryLabel> gGallery;
-void DrawGallery(int game, int page) {
+void DrawGallery(int game, int page, bool costumes) {
     const Color INK{236, 226, 200, 255}, DIM{170, 166, 150, 255};
-    int n = (int)Catalogue(game).size();
+    int n = costumes ? (int)Costumes(game).size() : (int)Catalogue(game).size();
     DrawRectangle(0, 0, SCREEN_W, 40, Fade(BLACK, 0.55f));
-    DrawTextCenteredBold(TextFormat("%s skins %d-%d of %d", game == REDTIDE ? "Red Tide" : "The Trawl", page * 10 + 1, std::min(n, page * 10 + 10), n), SCREEN_W / 2.0f, 8, 22, INK);
+    DrawTextCenteredBold(TextFormat("%s %s %d-%d of %d", game == REDTIDE ? "Red Tide" : "The Trawl", costumes ? "costumes" : "skins", page * 10 + 1, std::min(n, page * 10 + 10), n), SCREEN_W / 2.0f, 8, 22, INK);
     for (const auto& l : gGallery) {
         DrawRectangleRounded({l.at.x - 92, l.at.y + 4, 184, 40}, 0.3f, 6, Fade(BLACK, 0.6f));
         DrawTextCentered(l.name, l.at.x, l.at.y + 8, 15, INK);

@@ -4,6 +4,7 @@
 #include "redtide_vis.h"
 #include "figure3d.h"
 #include "skins.h"
+#include "redtide_profile.h"
 #include "game.h"
 #include "raymath.h"
 #include <algorithm>
@@ -149,6 +150,7 @@ bool DrawViewmodelHands(int voice, const Camera3D& cam, const VmHold& h, float t
     std::vector<Recolor> rc;
     DiverSkinColours(suit, helmet, rc);
     for (const auto& w : skins::WornColours(skins::REDTIDE)) rc.push_back({w.material, w.c});
+    if (const skins::Costume* c = skins::WornCostume(skins::REDTIDE)) rc.push_back({"top", c->sleeve});   // (a costume's sleeves)
     if (getenv("DEPTH_VMDBG")) rc = {{"leather", RED}, {"top", GREEN}, {"accent", BLUE}};   // (which part is which)
     // (a tint down: this close to the eye the helmet lamp would wash the gloves out to tan)
     DrawPbrSkinned(*m, MatrixIdentity(), skin, rc, 0.35f, Color{165, 165, 165, 255});
@@ -573,6 +575,24 @@ void DrawRedTideStudio(int which, float t) {
             DrawDiverFigure(0, MatrixMultiply(MatrixScale(0.82f, 0.82f, 0.82f), fig::Frame(at, FRONT + 0.4f)), P, t, WHITE, "", "", &rc);
             skins::gGallery.push_back({GetWorldToScreenEx({at.x, at.y - 0.12f, at.z}, cam, SCREEN_W, SCREEN_H), s.name, skins::RarityName(s.rarity), skins::RarityColor(s.rarity), s.price});
         }
+    } else if (which == 7) {
+        // the costumes gallery (skins.h): ten of Red Tide's costumes a page (DEPTH_SKINPAGE 0-1), each worn by the Diver
+        int page = getenv("DEPTH_SKINPAGE") ? atoi(getenv("DEPTH_SKINPAGE")) : 0;
+        const auto& cat = skins::Costumes(skins::REDTIDE);
+        cam.position = {0, 1.0f, 9.6f}; cam.target = {0, 0.85f, 0}; cam.fovy = 40;
+        lamp({-3, 5, 8}, {0, 1, 0});
+        RenderBegin(cam, L);
+        for (int k = 0; k < 10; k++) {
+            int i = page * 10 + k;
+            if (i >= (int)cat.size()) break;
+            const skins::Costume& c = cat[i];
+            fig::Pose P; P.breathe = t * 1.4f + k;
+            Vector3 at{(k % 5 - 2) * 1.75f, k < 5 ? 1.15f : -1.55f, 0};
+            Matrix fr = MatrixMultiply(MatrixScale(0.82f, 0.82f, 0.82f), fig::Frame(at, FRONT + 0.5f));
+            std::vector<Matrix> sk = DrawDiverFigure(0, fr, P, t, WHITE);
+            if (const Model* dm = DiverModel(0)) fig::DrawCostume(c.model, *dm, sk, fr);
+            skins::gGallery.push_back({GetWorldToScreenEx({at.x, at.y - 0.12f, at.z}, cam, SCREEN_W, SCREEN_H), c.name, skins::CostumeTierName(c.tier), skins::RarityColor(c.tier), c.price});
+        }
     } else if (which == 2) {
         cam.position = {0, 2.2f, 8.5f}; cam.target = {0, 1.4f, 0}; cam.fovy = 38;
         lamp({-3, 6, 6}, {0, 1, 0});
@@ -585,7 +605,30 @@ void DrawRedTideStudio(int which, float t) {
         }
     }
     RenderEnd();
-    if (which == 6) skins::DrawGallery(skins::REDTIDE, getenv("DEPTH_SKINPAGE") ? atoi(getenv("DEPTH_SKINPAGE")) : 0);
+    if (which == 6 || which == 7) skins::DrawGallery(skins::REDTIDE, getenv("DEPTH_SKINPAGE") ? atoi(getenv("DEPTH_SKINPAGE")) : 0, which == 7);
 }
+
+// the Wardrobe's costume preview (skins::gPreview): the diver you play, turning slowly on the right of the screen
+static void WardrobePreview(int game, const char* model, float t) {
+    (void)game;
+    SceneLight L;
+    L.fog = {38, 92, 104, 255}; L.fogDensity = 0.01f;
+    L.fill = {40, 96, 112, 255}; L.rim = {120, 200, 220, 255}; L.key = {255, 236, 200, 255};
+    L.surfaceY = 6; L.time = t; L.lampRange = 14; L.lampCone = 0.55f;
+    L.moonDir = Vector3Normalize({-0.3f, -1.0f, -0.2f}); L.moon = {200, 230, 235, 255}; L.moonK = 0.55f;
+    L.ambK = 0.55f; L.skyAmb = {60, 116, 136, 255}; L.seaAmb = {16, 34, 40, 255};
+    L.filmic = 1; L.exposure = 0.85f; L.aoK = 0.6f; L.outline = 0.35f; L.outlineTint = {16, 44, 52, 255}; L.stipple = 0;
+    Camera3D cam{}; cam.projection = CAMERA_PERSPECTIVE; cam.up = {0, 1, 0}; cam.fovy = 34;
+    cam.position = {-1.35f, 1.25f, 4.6f}; cam.target = {-1.35f, 1.0f, 0};
+    L.lampPos = {-2, 4, 5}; L.lampDir = Vector3Normalize({2, -3, -5});
+    RenderBegin(cam, L);
+    fig::Pose P; P.breathe = t * 1.4f;
+    Matrix fr = fig::Frame({0, 0, 0}, -PI / 2 + 0.6f * sinf(t * 0.35f) + 0.3f);
+    const Profile& prof = GetProfile();
+    std::vector<Matrix> sk = DrawDiverFigure(0, fr, P, t, WHITE, prof.suit, prof.helmet);
+    if (const Model* dm = DiverModel(0)) fig::DrawCostume(model, *dm, sk, fr);
+    RenderEnd();
+}
+static bool gPreviewSet = (skins::gPreview[skins::REDTIDE] = &WardrobePreview, true);
 
 } // namespace rt

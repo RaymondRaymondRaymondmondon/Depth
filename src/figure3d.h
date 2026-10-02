@@ -36,4 +36,8 @@ Vector3 FistWorld(const Model& m, const std::vector<Matrix>& skin, Matrix frame,
 // a frame from feet, facing yaw (radians about +Y; 0 faces +X)
 Matrix Frame(Vector3 feet, float yaw);
 
+// a costume (skins.h; tools/artgen/costumes.py) over a figure on the crew rig: the figure's own skinning matrices, matched
+// to the costume's bones by name; false if the costume's model is missing
+bool DrawCostume(const char* model, const Model& figure, const std::vector<Matrix>& skin, Matrix frame, Color tint = WHITE);
+
 } // namespace fig

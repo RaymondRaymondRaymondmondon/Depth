@@ -38,7 +38,8 @@ void Load() {
         in >> key >> g;
         if (g < 0 || g >= GAME_COUNT) continue;
         Wardrobe& w = gW[g];
-        if (key == "own") { std::string id; while (in >> id) if (Find(g, id) && !w.Owns(id)) w.owned.push_back(id); }
+        if (key == "own") { std::string id; while (in >> id) if ((Find(g, id) || FindCostume(g, id)) && !w.Owns(id)) w.owned.push_back(id); }
+        else if (key == "costume") { std::string id; in >> id; w.costume = id == "-" || !FindCostume(g, id) ? "" : id; }
         else if (key == "wear") { std::string id; in >> id; w.worn = id == "-" ? "" : id; }
         else if (key == "crates") in >> w.crates;
         else if (key == "tokens") in >> w.tokens;
@@ -51,6 +52,7 @@ void Save() {
         const Wardrobe& w = gW[g];
         f << "own " << g; for (const auto& id : w.owned) f << " " << id; f << "\n";
         f << "wear " << g << " " << (w.worn.empty() ? "-" : w.worn) << "\n";
+        f << "costume " << g << " " << (w.costume.empty() ? "-" : w.costume) << "\n";
         f << "crates " << g << " " << w.crates << "\n";
         f << "tokens " << g << " " << w.tokens << "\n";
     }
@@ -117,6 +119,29 @@ std::vector<Tint> WornColours(int game) {
     return {{"top", s->top}, {"trousers", s->trousers}, {"hat", s->hat}, {"accent", s->trim}};
 }
 
+// ---------------------------------------------------------------- costumes
+PreviewFn gPreview[2] = {nullptr, nullptr};
+const char* CostumeTierName(int tier) { return tier == LEGEND ? "Special" : RarityName(tier); }
+const Costume* FindCostume(int game, const std::string& id) {
+    for (const auto& c : Costumes(game)) if (id == c.id) return &c;
+    return nullptr;
+}
+bool BuyCostume(int game, const std::string& id, std::string* why) {
+    const Costume* c = FindCostume(game, id);
+    Wardrobe& w = Get(game);
+    if (!c) { if (why) *why = "no such costume"; return false; }
+    if (w.Owns(id)) { if (why) *why = "already yours"; return false; }
+    if (!Spend(game, c->price)) { if (why) *why = "not enough tokens"; return false; }
+    w.owned.push_back(id); w.costume = id; Save();
+    return true;
+}
+bool WearCostume(int game, const std::string& id) {
+    Wardrobe& w = Get(game);
+    if (!id.empty() && (!FindCostume(game, id) || !w.Owns(id))) return false;
+    w.costume = id; Save();
+    return true;
+}
+const Costume* WornCostume(int game) { const Wardrobe& w = Get(game); return w.costume.empty() ? nullptr : FindCostume(game, w.costume); }
 // ---------------------------------------------------------------- depth.exe --skins-test
 int RunSkinsTest() {
     int fails = 0;

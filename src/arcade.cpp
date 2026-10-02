@@ -887,6 +887,17 @@ void DebugArcadeShot(int which) {
 }
 // --shots: the Wardrobe page with a few skins owned (in memory: shots never save)
 void DebugWardrobe(Game& g, int game) {
+    int tab = game >= 2 ? 1 : 0;   // (2, 3: the costume rack, a costume tried on)
+    game %= 2;
+    skins::SetWardrobeTab(game, tab, tab ? (game == skins::REDTIDE ? "rc_shark" : "tc_gull") : nullptr);
+    if (tab) {
+        skins::Wardrobe& w = skins::Get(game);
+        w.tokens = 900; w.owned.clear();
+        for (int k = 0; k < (int)skins::Costumes(game).size(); k += 4) w.owned.push_back(skins::Costumes(game)[k].id);
+        w.costume = w.owned.empty() ? "" : w.owned[0];
+        g.scene = Scene::Arcade; gWardrobe = game;
+        return;
+    }
     g.scene = Scene::Arcade; gWardrobe = game;
     skins::Wardrobe& w = skins::Get(game);
     w.crates = 3; w.tokens = 420; w.owned.clear();

@@ -202,6 +202,10 @@ void DebugWardrobe(Game& g, int game); void TakeShots(const Game& base, const st
         {"skins_redtide", [](Game& g) { DebugWardrobe(g, 1); }},
         {"skins_gallery_trawl", [](Game& g) { DebugTrawlShot(g, 58); }},   // (DEPTH_SKINPAGE=0..7: ten skins a page)
         {"skins_gallery_redtide", [](Game& g) { DebugRedTideShot(g, 206); }},
+        {"costumes_gallery_trawl", [](Game& g) { DebugTrawlShot(g, 59); }},   // (DEPTH_SKINPAGE=0..1)
+        {"costumes_gallery_redtide", [](Game& g) { DebugRedTideShot(g, 207); }},
+        {"costumes_wardrobe_trawl", [](Game& g) { DebugWardrobe(g, 2); }},
+        {"costumes_wardrobe_redtide", [](Game& g) { DebugWardrobe(g, 3); }},
         {"arcade_trawl", [](Game& g) { g.scene = Scene::Arcade; DebugArcadeReel(1); }},
         {"trawl_deck", [](Game& g) { DebugTrawlShot(g, 0); }},
         {"trawl_engine", [](Game& g) { DebugTrawlShot(g, 1); }},

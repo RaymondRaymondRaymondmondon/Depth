@@ -26,6 +26,7 @@ $jobs = @(
     @{ script = "crew.py";         out = "assets\shared\crew" },
     @{ script = "rt_divers.py";    out = "assets\shared\divers" },
     @{ script = "rt_fphands.py";   out = "assets\shared\divers" },
+    @{ script = "costumes.py";     out = "assets\shared\costumes" },
     @{ script = "weapons_rt.py";   out = "assets\redtide\weapons" },
     @{ script = "creatures_rt.py"; out = "assets\redtide\creatures" },
     @{ script = "ship_rt.py";      out = "assets\redtide\ship" },

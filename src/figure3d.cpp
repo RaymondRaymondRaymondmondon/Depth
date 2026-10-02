@@ -3,6 +3,8 @@
 #include "raymath.h"
 #include <algorithm>
 #include <cmath>
+#include <map>
+#include <string>
 
 namespace fig {
 
@@ -128,6 +130,26 @@ Vector3 FistWorld(const Model& m, const std::vector<Matrix>& skin, Matrix frame,
 
 Matrix Frame(Vector3 feet, float yaw) {
     return MatrixMultiply(MatrixRotateY(yaw), MatrixTranslate(feet.x, feet.y, feet.z));
+}
+
+bool DrawCostume(const char* model, const Model& figure, const std::vector<Matrix>& skin, Matrix frame, Color tint) {
+    if (!model || !model[0]) return false;
+    const Model* c = rt::LoadAsset(std::string("shared/costumes/costume_") + model + ".glb");
+    if (!c) return false;
+    // (the costume's bone order is its own export's: map each to the figure's bone of the same name, once per pair)
+    static std::map<std::pair<const Model*, const Model*>, std::vector<int>> maps;
+    auto key = std::make_pair(c, &figure);
+    auto it = maps.find(key);
+    if (it == maps.end()) {
+        const rt::RigInfo& RC = rt::RigOf(*c); const rt::RigInfo& RF = rt::RigOf(figure);
+        std::vector<int> m(RC.name.size());
+        for (size_t i = 0; i < RC.name.size(); i++) m[i] = RF.Find(RC.name[i]);
+        it = maps.emplace(key, m).first;
+    }
+    std::vector<Matrix> cs(it->second.size(), MatrixIdentity());
+    for (size_t i = 0; i < cs.size(); i++) { int b = it->second[i]; if (b >= 0 && b < (int)skin.size()) cs[i] = skin[b]; }
+    rt::DrawPbrSkinned(*c, frame, cs, {}, 0.3f, tint);
+    return true;
 }
 
 } // namespace fig
