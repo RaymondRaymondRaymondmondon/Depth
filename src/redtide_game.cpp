@@ -448,6 +448,12 @@ static void StartShip(int players, uint32_t seed, const std::string& key = "ship
 }
 
 // ---------------------------------------------------------------- effects
+// blood (and scent) in amber instead of red for red-green colourblindness (the Graphics page), keeping its darkness
+static Color BloodCol(Color c) {
+    if (!GameSettings().rtColorblind) return c;
+    float k = std::max(c.r, std::max(c.g, c.b)) / 255.0f;
+    return {(unsigned char)(235 * k), (unsigned char)(160 * k), (unsigned char)(40 * k), c.a};
+}
 static void Burst(Vector3 p, int n, Color c, float speed, float life, float size) {
     for (int i = 0; i < n; i++) {
         Vector3 v{GetRandomValue(-100, 100) / 100.0f, GetRandomValue(-100, 100) / 100.0f, GetRandomValue(-100, 100) / 100.0f};
@@ -554,7 +560,7 @@ static void DrainFx() {
     for (const FxEvent& e : M().fx) {
         if (S.audioOn) FxSound(e);
         switch (e.kind) {
-            case 0: Burst(e.pos, 6, {150, 20, 20, 255}, 0.6f, 1.2f, 0.07f); break;     // blood
+            case 0: Burst(e.pos, 6, BloodCol({150, 20, 20, 255}), 0.6f, 1.2f, 0.07f); break;     // blood
             case 1: Burst(e.pos, 3, {170, 160, 140, 255}, 0.5f, 0.5f, 0.05f); break;   // a wall
             case 2: Burst(e.pos, 4, {200, 235, 250, 255}, 0.8f, 0.6f, 0.04f); break;   // gas from the muzzle
             case 3: Burst(e.pos, 40, {255, 210, 140, 255}, 3.0f, 0.9f, 0.12f); Burst(e.pos, 30, {220, 230, 240, 255}, 1.5f, 2.0f, 0.08f); break;
@@ -727,7 +733,8 @@ static void DrawGun(const Camera3D& cam) {
     Vector3 f = M().Forward(d);
     Vector3 right = Vector3Normalize(Vector3CrossProduct(f, {0, 1, 0}));
     Vector3 up = Vector3CrossProduct(right, f);
-    float bobx = sinf(S.bob) * 0.008f, boby = fabsf(cosf(S.bob)) * 0.006f;
+    float swayK = GameSettings().rtSway ? 1.0f : 0.0f;   // (motion comfort: the viewmodel held still)
+    float bobx = sinf(S.bob) * 0.008f * swayK, boby = fabsf(cosf(S.bob)) * 0.006f * swayK;
     float kick = d.recoil * 0.035f * w.handling.recoil;
     // (a melee weapon is carried upright in the right fist at the bottom corner, blade up and forward, as any shooter's knife)
     bool upright = w.cls == "melee" && !d.ads;
@@ -1091,6 +1098,7 @@ static float gSurfY = 34;   // the surface's height (for the particles)
  static void WaterLook(SceneLight& L, int z, const Camera3D& cam) {
     gSurfY = L.surfaceY;
     const Settings& st = GameSettings();
+    L.fogDensity *= st.rtFog;   // (the player's calibration, the Graphics page)
     const MapData& map = *M().map;
     bool air = z >= 0 && map.zones[z].air;
     bool open = z >= 0 && (map.zones[z].deck == "Outside" || map.extra["open_zones"].IsArr() && [&] { for (size_t i = 0; i < map.extra["open_zones"].Size(); i++) if (map.extra["open_zones"][i].Str0() == map.zones[z].name) return true; return false; }());
@@ -1469,7 +1477,7 @@ static void DrawScene() {
         // states on the body (the spec's creature states): a badly wounded animal leaves a thread of blood in the water
         // behind it; a camouflaged one lying still goes the colour of the water round it until it moves
         if (a.wound > 0.45f && Vector3Distance(a.pos, eye) < 25 && fmodf(S.time * (1.5f + a.wound * 3) + (a.rng % 97) * 0.01f, 1.0f) < GetFrameTime() * (1.5f + a.wound * 3))
-            Burst(Vector3Subtract(a.pos, Vector3Scale(Vector3Normalize(v), cm.length * (a.sp < (int)m.bodyScale.size() ? m.bodyScale[a.sp] : 1.0f) * 0.4f)), 1, {120, 14, 14, 255}, 0.08f, 1.6f, 0.05f + a.wound * 0.05f);
+            Burst(Vector3Subtract(a.pos, Vector3Scale(Vector3Normalize(v), cm.length * (a.sp < (int)m.bodyScale.size() ? m.bodyScale[a.sp] : 1.0f) * 0.4f)), 1, BloodCol({120, 14, 14, 255}), 0.08f, 1.6f, 0.05f + a.wound * 0.05f);
         if (sp.Has("camouflage") && (a.st == State::Rest || spd < 0.05f)) {
             Color w = L.fog;
             tint = {(unsigned char)((tint.r * 2 + w.r) / 3), (unsigned char)((tint.g * 2 + w.g) / 3), (unsigned char)((tint.b * 2 + w.b) / 3), 255};
@@ -1498,7 +1506,7 @@ static void DrawScene() {
         float a = std::clamp(v / 60.0f, 0.05f, 0.45f);
         // blood in the water: soft dark-red clouds (never orange or pink), near black in the deep (the Visual Overhaul)
         float deep = std::clamp((gSurfY - c.y) / 60.0f, 0.0f, 1.0f);
-        DrawBillboard(cam, SoftDot(), c, sf.cell * 1.6f, Fade(Color{(unsigned char)(96 - 60 * deep), (unsigned char)(6 - 3 * deep), (unsigned char)(10 - 5 * deep), 255}, a * 0.9f));
+        DrawBillboard(cam, SoftDot(), c, sf.cell * 1.6f, Fade(BloodCol(Color{(unsigned char)(96 - 60 * deep), (unsigned char)(6 - 3 * deep), (unsigned char)(10 - 5 * deep), 255}), a * 0.9f));
     }
     for (const auto& p : S.fx) DrawCube(p.pos, p.size, p.size, p.size, Fade(p.col, p.life / p.max));
     // the Void's lights: the Leviathan's lure (and its two decoys in phase 3), the Abyssal Lure's lanterns
@@ -1798,7 +1806,7 @@ static void DrawHud() {
     }
     pulse = std::clamp(pulse, 0.0f, 1.0f);
     float tremble = pulse > 0.3f ? sinf(S.time * (14 + pulse * 20)) * 0.02f * pulse : 0;
-    DrawDial({52, SCREEN_H - 172.0f}, 26, scent, "SCENT", Color{150, 26, 20, 255}, 0.7f);
+    DrawDial({52, SCREEN_H - 172.0f}, 26, scent, "SCENT", BloodCol(Color{150, 26, 20, 255}), 0.7f);
     DrawDial({52, SCREEN_H - 238.0f}, 26, pulse + tremble, "PULSE", Color{40, 34, 28, 255}, 0.75f);
     DrawDial({52, SCREEN_H - 304.0f}, 26, d.stamina, "AIR", Color{40, 70, 110, 255}, 0.2f, true);
     DrawPortCracks(d.downed ? 1.0f : (0.3f - frac) / 0.3f);

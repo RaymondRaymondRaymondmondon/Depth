@@ -124,9 +124,10 @@ void SettingsPage(Rectangle p) {
 void GraphicsPage(Rectangle p) {
     Settings& S = GameSettings();
     float x = p.x + 50, y = p.y + 60, w = p.width - 100;
+    float bx = 200, bw = 160;   // (the buttons' offset and width: narrower in Red Tide's two columns)
     auto choice = [&](const char* label, int v, int n, const char* const* names) {
         Txt(label, x, y + 4, 17, Pal::Paper);
-        if (Button({x + 200, y, 160, 30}, names[v], true, 15)) v = (v + 1) % n;
+        if (Button({x + bx, y, bw, 30}, names[v], true, 15)) v = (v + 1) % n;
         y += 44;
         return v;
     };
@@ -141,9 +142,22 @@ void GraphicsPage(Rectangle p) {
     y += 54;
     static const char* INK[3] = {"Off", "Thin", "Full"};
     TxtBold("Red Tide", x, y, 16, Pal::Brass); y += 26;
+    // (two columns: the look on the left; motion comfort, colour and the fog's calibration on the right)
+    float y0 = y, x0 = x;
+    bx = 150; bw = 140;
     S.rtInk = choice("Ink line", S.rtInk, 3, INK);
     S.rtStipple = choice("Stipple", S.rtStipple ? 1 : 0, 2, OF) != 0;
     S.rtLens = choice("Helmet lens", S.rtLens ? 1 : 0, 2, OF) != 0;
+    x = x0 + w * 0.5f; y = y0;
+    S.rtSway = choice("Viewmodel sway", S.rtSway ? 1 : 0, 2, OF) != 0;
+    static const char* CB[2] = {"Off", "Blood in amber"};
+    S.rtColorblind = choice("Colourblind", S.rtColorblind, 2, CB);
+    S.rtFog = Slider(6, {x, y, w * 0.5f, 30}, "Fog density", S.rtFog, 0.6f, 1.4f, TextFormat("%d%%", (int)(S.rtFog * 100 + 0.5f)));
+    {   // the calibration: a water-coloured strip fading into the fog: the far end should just merge
+        for (int k = 0; k < 12; k++) { float f = 1 - expf(-k * 0.35f * S.rtFog); Color c = ColorLerp(Color{70, 120, 110, 255}, Color{18, 44, 50, 255}, f); DrawRectangle((int)(x + k * 18), (int)y + 36, 16, 18, c); }
+        Txt("the last squares should just melt into the water", x, y + 58, 12, Color{160, 150, 130, 255});
+    }
+    x = x0; y = y0 + 3 * 44 + 40;
     Txt("If the deck stutters in rain and fog with a full crew, lower the lamp shadows first, then the resolution.", x, y, 13, Color{160, 150, 130, 255});
 }
 
