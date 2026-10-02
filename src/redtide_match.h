@@ -128,6 +128,7 @@ struct DiverState {
     float cutT = 0;                    // being cut free of Reacher coral by a teammate
     int kills = 0, headshots = 0, downs = 0, revives = 0;
     float pingT = 0, pingCd = 0;               // Blackout: the sonar ping's echo on screen, and its recharge
+    bool repairKit = false; float repairT = 0; int repairPaid = 0;   // the repair kit (mends nets 3x as fast); mending's clock; scrip from mending this tide (100 at most)
     int blade = -1; bool bladeForged = false;  // what V swings: -1 the diver's knife, else a weapon (the Boarding Axe, the Sawtooth)
     std::string suit, helmet, skin, costume;   // the player's look (the Locker's suit and helmet, the Wardrobe's skin and costume), for teammates' screens
     float hitMarker = 0; bool hitWeak = false;
@@ -181,6 +182,14 @@ struct Match {
     bool Allowed(int weaponDef) const;   // Quiet Water: knives, spearguns, needlers and nets only
     float frenzyDropT = 20;           // Feeding Frenzy: the next Blood Frenzy drop
     void Ping(int d);                 // Blackout: a sonar ping (shows what's near for 2 s; it's heard)
+    // barricade nets (design doc, scrip: "Repair a barricade net: 10 per plank, max 100 per tide"): five strands across each
+    // passage the beasts use and the divers don't (the breach, the slide); a beast that wants through tears a strand every
+    // 2.5 s and comes through when they're gone; hold E beside one to mend a strand
+    struct Barricade { int link = -1; Vector3 pos{}, dir{}; int strands = 5; float tearT = 0; };
+    std::vector<Barricade> barricades;
+    static const int NET_STRANDS = 5;
+    int BarricadeNear(Vector3 p, float r) const;
+    void UpdateBarricades(float dt);
     bool ForgeBlade(int d);           // Z at the Forge: the knife into the Sawtooth; a Sawtooth or a Boarding Axe forged
     std::vector<Crate> crates;
     int tide = 1, quota = 12, tideKills = 0, players = 1;
@@ -272,7 +281,7 @@ struct Match {
     std::vector<Deployed> deployed;
     struct FlareLight { Vector3 pos{}; float t = 20; int owner = -1; };
     std::vector<FlareLight> flareLights;
-    static const int BENCH_ITEMS = 4;        // the workbench's stock: ink bomb, chum bag, flare, cleaning brush
+    static const int BENCH_ITEMS = 5;        // the workbench's stock: ink bomb, chum bag, flare, cleaning brush, repair kit
     static int BenchPrice(int item);
     static const char* BenchName(int item);
     bool Powered(const Station& s) const;    // the map's power, or a Turbine running within 12 m

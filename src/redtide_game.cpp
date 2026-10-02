@@ -1154,6 +1154,28 @@ static bool DrawStationModel(const Match& m, const Station& s, bool dead) {
 static void DrawStations() {
     const Match& m = M();
     Vector3 eyeS = m.Eye(Me());
+    // the barricade nets: tarred cords strung across each passage the beasts use, the torn ones hanging loose; floats
+    // along the top
+    for (const auto& b : m.barricades) {
+        if (Vector3Distance(b.pos, eyeS) > 40) continue;
+        Vector3 side = Vector3Normalize(Vector3CrossProduct(b.dir, {0, 1, 0}));
+        if (Vector3Length(side) < 0.1f) side = {1, 0, 0};
+        float yaw = atan2f(side.x, side.z);
+        auto cord = [&](Vector3 c, float len, bool across, Color col) {
+            Matrix r = MatrixMultiply(MatrixScale(across ? 0.035f : 0.03f, across ? 0.035f : len, across ? len : 0.03f), MatrixMultiply(MatrixRotateY(yaw), MatrixTranslate(c.x, c.y, c.z)));
+            DrawCubeM(r, col);
+        };
+        const Color tar{58, 50, 40, 255}, frayed{96, 84, 64, 255};
+        float shake = b.tearT > 0 ? sinf(S.time * 30) * 0.03f * b.tearT : 0;
+        for (int k = 0; k < Match::NET_STRANDS; k++) {
+            float y = -0.75f + k * 0.37f;
+            Vector3 c = Vector3Add(b.pos, {side.x * shake, y, side.z * shake});
+            if (k < b.strands) cord(c, 2.0f, true, tar);
+            else { cord(Vector3Add(c, Vector3Add(Vector3Scale(side, -0.8f), {0, -0.2f, 0})), 0.45f, false, frayed); cord(Vector3Add(c, Vector3Add(Vector3Scale(side, 0.75f), {0, -0.25f, 0})), 0.5f, false, frayed); }   // (torn: two ends hanging)
+        }
+        for (int k = -2; k <= 2; k++) cord(Vector3Add(b.pos, Vector3Scale(side, k * 0.48f)), b.strands > 0 ? 1.6f : 0.4f, false, tar);   // the uprights
+        for (int k = -2; k <= 2; k += 2) DrawCubeM(MatrixMultiply(MatrixScale(0.16f, 0.16f, 0.16f), MatrixTranslate(b.pos.x + side.x * k * 0.48f, b.pos.y + 0.85f, b.pos.z + side.z * k * 0.48f)), Color{200, 120, 50, 255});   // the floats
+    }
     {   // the Void's specimen tanks: a cold light from the plinth up through each, the nearest three lighting the room
         std::vector<std::pair<float, Vector3>> near;
         for (const Vector3& g : gLabGlow) { float dd = Vector3Distance(g, eyeS); if (dd > 30) continue; DrawCubeGlow(MatrixMultiply(MatrixScale(0.78f, 0.04f, 0.78f), MatrixTranslate(g.x, g.y + 0.22f, g.z)), Color{120, 255, 210, 255}, 1.0f); near.push_back({dd, g}); }
@@ -2506,6 +2528,15 @@ void DebugRedTideShot(Game& g, int which) {
             if (const char* st = getenv("DEPTH_STATION")) {   // (DEPTH_STATION=tonic|locker|forge|power|workbench|cache: stand before the first one)
                 static const char* N[] = {"rack", "tonic", "locker", "forge", "power", "workbench", "trap", "quest", "cleaning", "feature", "hazard", "entry", "boss", "queststep", "cache"};
                 int want = -1; for (int k = 0; k < 15; k++) if (std::string(st) == N[k]) want = k;
+                if (std::string(st) == "barricade" && !m.barricades.empty()) {   // (a net half torn, seen from the divers' mouth)
+                    Match::Barricade& b = m.barricades[0]; b.strands = 3;
+                    const Link& l = m.map->links[b.link];
+                    bool aSide = m.map->zones[l.from].diverOk;
+                    Vector3 mouth = aSide ? l.a : l.b, away = Vector3Normalize(Vector3Subtract(mouth, b.pos));
+                    int zi = aSide ? l.from : l.to;
+                    d.pos = m.map->zones[zi].Clamp(Vector3Add(mouth, Vector3Scale(away, 2.2f)), 0.6f); d.zone = zi;
+                    d.yaw = atan2f(b.pos.x - d.pos.x, b.pos.z - d.pos.z); d.pitch = 0;
+                }
                 if (std::string(st) == "corpse") {   // (two of the dead before you: a fresh one, one being picked over)
                     Vector3 f{sinf(d.yaw), 0, cosf(d.yaw)}, r{cosf(d.yaw), 0, -sinf(d.yaw)};
                     int fish = -1; for (int i = 0; i < (int)m.map->species.size(); i++) if (!m.map->species[i].isEnemy && m.map->species[i].size >= 3 && Creature(m.artKey, m.ArtName(i)).plan == "fusiform") { fish = i; break; }

@@ -28,8 +28,8 @@ const BuildDef& Build(BuildType b) {
     return D[std::clamp((int)b, 0, (int)BuildType::COUNT - 1)];
 }
 const char* TacticalName(int t) { static const char* N[TAC_COUNT] = {"limpets", "ink bombs", "chum bags", "flares"}; return N[std::clamp(t, 0, TAC_COUNT - 1)]; }
-int Match::BenchPrice(int item) { static const int P[BENCH_ITEMS] = {750, 500, 500, 1000}; return P[std::clamp(item, 0, BENCH_ITEMS - 1)]; }
-const char* Match::BenchName(int item) { static const char* N[BENCH_ITEMS] = {"an ink bomb", "a chum bag", "a flare", "a cleaning brush"}; return N[std::clamp(item, 0, BENCH_ITEMS - 1)]; }
+int Match::BenchPrice(int item) { static const int P[BENCH_ITEMS] = {750, 500, 500, 1000, 500}; return P[std::clamp(item, 0, BENCH_ITEMS - 1)]; }
+const char* Match::BenchName(int item) { static const char* N[BENCH_ITEMS] = {"an ink bomb", "a chum bag", "a flare", "a cleaning brush", "a repair kit"}; return N[std::clamp(item, 0, BENCH_ITEMS - 1)]; }
 
 // ---------------------------------------------------------------- small helpers
 static std::string Lower(std::string s) { for (auto& c : s) c = (char)tolower((unsigned char)c); return s; }
@@ -503,6 +503,39 @@ void Match::Ping(int di) {
     eco.AddNoise(d.pos, 3);   // (a ping is heard: the curious come to it)
 }
 
+int Match::BarricadeNear(Vector3 p, float r) const {
+    int best = -1; float bd = r;
+    for (int i = 0; i < (int)barricades.size(); i++) {
+        const Link& l = map->links[barricades[i].link];
+        float d = std::min({Vector3Distance(p, barricades[i].pos), Vector3Distance(p, l.a), Vector3Distance(p, l.b)});   // (mended from either mouth)
+        if (d < bd) { bd = d; best = i; }
+    }
+    return best;
+}
+// beasts at a net tear at it: a hunting or curious beast of size 2 or more at an intact net pulls a strand out every
+// 2.5 s (the big ones faster); the last strand gone, the passage is open to them until it's mended
+void Match::UpdateBarricades(float dt) {
+    for (auto& b : barricades) {
+        if (b.strands <= 0) continue;
+        int pulling = 0; float big = 0;
+        for (const auto& a : eco.agents) {
+            if (!a.alive || a.diver >= 0 || map->species[a.sp].isEnemy || map->species[a.sp].size < 2) continue;
+            if (a.st != State::Hunt && a.st != State::Investigate) continue;
+            const Link& l = map->links[b.link];
+            float near = std::min({Vector3Distance(a.pos, b.pos), Vector3Distance(a.pos, l.a), Vector3Distance(a.pos, l.b)});
+            if (near > 4.0f + bodies[a.sp].length * 0.4f) continue;   // (at either mouth of the passage)
+            pulling++; big = std::max(big, (float)map->species[a.sp].size);
+        }
+        if (!pulling) { b.tearT = std::max(0.0f, b.tearT - dt); continue; }
+        b.tearT += dt * (1 + 0.25f * (big - 2));
+        if (b.tearT >= 2.5f) {
+            b.tearT = 0; b.strands--;
+            fx.push_back({1, b.pos, b.dir}); eco.AddNoise(b.pos, 2);
+            if (b.strands == 0) Say("", "A barricade net is torn open: the beasts come through " + map->links[b.link].passage, 4);
+        }
+    }
+}
+
 // Z at the Forge: the blade's work, for the Forge's price ("the Forge-only Sawtooth"): the knife becomes the Sawtooth;
 // a Sawtooth is forged into the Shipwright's Saw, a Boarding Axe into the Boarder
 bool Match::ForgeBlade(int di) {
@@ -720,6 +753,17 @@ void Match::InitMap(const MapData& m, const std::string& art, int playerCount, u
         d.agent = eco.AddDiver(i, d.pos);
         divers.push_back(d);
     }
+    // barricade nets across the passages the beasts use and the divers don't (a breach, a beast-only gap; never a
+    // slipstream or a porthole-hatch)
+    barricades.clear();
+    for (int li = 0; li < (int)m.links.size(); li++) {
+        const Link& l = m.links[li];
+        if (l.slip || l.beastRule == 1 || !(l.beastRule == 2 || !l.diverOk)) continue;
+        if (l.from >= (int)m.zones.size() || l.to >= (int)m.zones.size()) continue;
+        Barricade b; b.link = li; b.pos = Vector3Lerp(l.a, l.b, 0.5f);
+        Vector3 dd = Vector3Subtract(l.b, l.a); b.dir = Vector3Length(dd) > 0.01f ? Vector3Normalize(dd) : Vector3{1, 0, 0};
+        barricades.push_back(b);
+    }
     // the modes' ecosystem rules
     if (mode == RM_QUIET) { eco.alarmMult = 0.5f; eco.decayMult = 0.5f; }        // "alarm halved; blood decays slower"
     if (mode == RM_FRENZY) { eco.decayMult = 0; eco.killBloodMult = 3; }          // "blood never decays; every kill bleeds 3x"
@@ -736,6 +780,7 @@ void Match::BeginTide(int t) {
     tideKills = 0;
     phaseT = 0;
     predatorHunt = false;
+    for (auto& d : divers) d.repairPaid = 0;   // (mending pays up to 100 a tide)
     if (t >= 10 && timeToTide10 < 0) {
         timeToTide10 = time;
         int s = 0; for (const auto& d : divers) s += d.scripEarned;
@@ -831,6 +876,7 @@ void Match::Step(float dt) {
         const Link& l = map->links[i];
         eco.linkClosed[i] = l.beastRule == 1 ? 1 : l.beastRule == 2 ? (breachOpen ? 0 : 1) : (linkOpen[i] ? 0 : 1);
     }
+    for (const auto& b : barricades) if (b.strands > 0 && b.link >= 0 && b.link < (int)eco.linkClosed.size()) eco.linkClosed[b.link] = 1;   // (an intact net)
     for (auto& d : divers) if (d.bot) Bot(d, dt);
     for (auto& d : divers) UpdateDiver(d, dt);
     UpdateDarts(dt);
@@ -847,6 +893,7 @@ void Match::Step(float dt) {
     UpdateCharms(dt);
     UpdateQuests(dt);
     UpdateDrops(dt);
+    UpdateBarricades(dt);
     UpdateSalvage(dt);
     UpdateQuips(dt);
     for (auto& c : crates) {
@@ -3568,7 +3615,7 @@ void Match::MaybeDrop(Vector3 at) {
         for (int k = 0; k < (int)DropType::COUNT; k++) if (n == DropName((DropType)k)) t = (DropType)k;
         if (t == DropType::COUNT || r["min_tide"].I(1) > tide) continue;
         if (std::find(recentDrops.begin(), recentDrops.end(), t) != recentDrops.end()) continue;
-        if (t == DropType::Shipwright) continue;               // "only if a barricade net is damaged" (the Ship has none yet)
+        if (t == DropType::Shipwright && std::none_of(barricades.begin(), barricades.end(), [](const Barricade& b) { return b.strands < NET_STRANDS; })) continue;   // "only if a barricade net is damaged"
         if (t == DropType::FireSale && tide - lastFireSaleTide < 3) continue;
         float w = tide >= 20 ? r["weight_tides_20+"].F(5) : tide >= 10 ? r["weight_tides_10_19"].F(5) : r["weight_tides_1_9"].F(5);
         pool.push_back({t, w});
@@ -3611,7 +3658,7 @@ void Match::ApplyDrop(DropType t, Vector3 at) {
             if (phase == TidePhase::Tide) tideKills += n;
             break;
         }
-        case DropType::Shipwright: break;
+        case DropType::Shipwright: for (auto& b : barricades) { b.strands = NET_STRANDS; b.tearT = 0; } break;   // ("all barricade nets repaired")
         case DropType::FireSale: fireSaleT = 30; lastFireSaleTide = tide; break;
         case DropType::HarpoonHour: {
             int hc = Weapons().Index("harpooncannon");
@@ -3945,6 +3992,8 @@ std::string Match::PromptFor(int di, int* cost) const {
         float heal = map->extra["flora_rules"][map->flora[fp.flora].name]["edible"].F(0);
         if (heal > 0 && fp.units > 0 && Vector3Distance(fp.pos, d.pos) < 1.8f) return "E: eat the " + map->flora[fp.flora].name + " (+" + std::to_string((int)heal) + " HP)";
     }
+    if (int bi = BarricadeNear(d.pos, 2.5f); bi >= 0 && barricades[bi].strands < NET_STRANDS)
+        return TextFormat("Hold E: mend the barricade net (%d of %d strands)%s", barricades[bi].strands, NET_STRANDS, d.repairKit ? " - the repair kit" : "");
     int si = NearestStation(d.pos, 2.0f);
     int doorI = NearestDoor(d.pos, 2.2f);
     if (doorI >= 0 && (si < 0 || SegPointDist(map->links[level.doors[doorI].link].a, map->links[level.doors[doorI].link].b, d.pos) < Vector3Distance(level.stations[si].pos, d.pos))) {
@@ -4005,7 +4054,7 @@ std::string Match::PromptFor(int di, int* cost) const {
                 if ((d.partsMask & set) == set) return d.build != BuildType::None ? std::string("Workbench: you already carry the ") + Build(d.build).name : std::string("E: build the ") + Build((BuildType)b).name;
             }
             int item = std::clamp(d.benchSel, 0, BENCH_ITEMS - 1);
-            int have = item == 0 ? d.inkBombs : item == 1 ? d.chumBags : item == 2 ? d.flares : (d.brush ? 2 : 0);
+            int have = item == 0 ? d.inkBombs : item == 1 ? d.chumBags : item == 2 ? d.flares : item == 3 ? (d.brush ? 2 : 0) : (d.repairKit ? 2 : 0);
             std::string parts;
             for (int b = 1; b < (int)BuildType::COUNT; b++) { int n = 0; for (int k = 0; k < 3; k++) if (d.partsMask & (1 << (b * 3 + k))) n++; if (n) parts += TextFormat("  [%s %d/3]", Build((BuildType)b).name, n); }
             if (have >= 2) return std::string("Workbench: you have all the ") + (item == 3 ? "brushes" : TacticalName(item + 1)) + " you can carry (Z: next)" + parts;
@@ -4066,6 +4115,17 @@ bool Match::Interact(int di, bool hold, float dt) {
         // a long open in progress (the captain's safe, the Lantern Cache's crate): held E, or bots standing at it
         int si0 = NearestStation(d.pos, 2.0f);
         if (si0 >= 0 && si0 == openSt) { const Station& s0 = level.stations[si0]; return LongOpen(d, si0, s0.type == StationType::Cache ? map->extra["hidden_quest"]["open_s"].F(15) : map->extra["hidden_quest"]["open_s"].F(20), dt); }
+    }
+    // a torn barricade net: hold E to mend it a strand at a time (10 scrip a strand, 100 a tide at most)
+    if (int bi = BarricadeNear(d.pos, 2.5f); bi >= 0 && barricades[bi].strands < NET_STRANDS) {
+        if (!hold) { d.repairT = 0; return true; }
+        d.repairT += dt;
+        if (d.repairT >= (d.repairKit ? 0.4f : 1.2f)) {
+            d.repairT = 0; barricades[bi].strands++; barricades[bi].tearT = 0;
+            if (d.repairPaid < 100) { int pay = std::min(10, 100 - d.repairPaid); Pay(d, (float)pay); d.repairPaid += pay; }
+            if (barricades[bi].strands == NET_STRANDS) Say("", "The barricade net is whole again", 2);
+        }
+        return true;
     }
     if (hold) return false;
     const WeaponsData& WD = Weapons();
@@ -4422,10 +4482,10 @@ bool Match::Interact(int di, bool hold, float dt) {
             // otherwise the bench's stock (the design doc leaves open where the tacticals and the brush come from)
             int item = std::clamp(d.benchSel, 0, BENCH_ITEMS - 1);
             int* n = item == 0 ? &d.inkBombs : item == 1 ? &d.chumBags : item == 2 ? &d.flares : nullptr;
-            if (n ? *n >= 2 : d.brush) return false;
+            if (n ? *n >= 2 : item == 4 ? d.repairKit : d.brush) return false;
             if (!pay(BenchPrice(item))) return false;
-            if (n) { ++*n; d.tactical = item == 0 ? TAC_INK : item == 1 ? TAC_CHUM : TAC_FLARE; } else d.brush = true;
-            Say("", n ? TextFormat("%s (%d). Q picks the tactical, G throws it.", BenchName(item), *n) : "A cleaning brush: X scrapes the parasites off you or a teammate", 3);
+            if (n) { ++*n; d.tactical = item == 0 ? TAC_INK : item == 1 ? TAC_CHUM : TAC_FLARE; } else if (item == 4) d.repairKit = true; else d.brush = true;
+            Say("", n ? TextFormat("%s (%d). Q picks the tactical, G throws it.", BenchName(item), *n) : item == 4 ? "A repair kit: barricade nets mend three times as fast" : "A cleaning brush: X scrapes the parasites off you or a teammate", 3);
             return true;
         }
         case StationType::Cleaning: {
@@ -4639,6 +4699,15 @@ void Match::Bot(DiverState& d, float dt) {
         }
         // hurt: a careful diver backs off what's on it and lets the suit heal
         if (careful && d.botFlee < 0 && threat >= 0 && d.hp < d.hpMax * 0.4f && Vector3Distance(eco.agents[threat].pos, d.pos) < 9) d.botFlee = threat;
+        if (careful && d.botPlan.empty() && phase == TidePhase::Calm) {
+            // 3b. in the calm a careful diver mends a torn barricade net near it (from the mouth on the divers' side)
+            for (const auto& b : barricades) {
+                if (b.strands >= NET_STRANDS) continue;
+                const Link& l = map->links[b.link];
+                Vector3 mouth = map->zones[l.from].diverOk ? l.a : l.b;
+                if (Vector3Distance(mouth, d.pos) < 30 && !avoidZone(map->zones[l.from].diverOk ? l.from : l.to)) { d.botGoal = mouth; d.botPlan = "mend"; break; }
+            }
+        }
         if (d.botPlan.empty()) {
             // 4. drops on the floor
             for (const auto& f : drops) if (f.weapon < 0 && Vector3Distance(f.pos, d.pos) < 25) { d.botGoal = f.pos; d.botPlan = "drop"; break; }
@@ -4791,6 +4860,8 @@ void Match::Bot(DiverState& d, float dt) {
         d.botPlan = "flee";
     } else if (d.botPlan == "revive") {
         for (auto& o : divers) if (&o != &d && o.downed) { if (go(o.pos, 1.2f)) Interact(d.slot, true, dt); break; }
+    } else if (d.botPlan == "mend") {
+        if (go(d.botGoal, 1.2f)) Interact(d.slot, true, dt);
     } else if (d.botPlan == "door" || d.botPlan == "buy") {
         if (go(d.botGoal, 1.2f)) { Interact(d.slot, false, dt); d.botThinkT = 0; }
         sprint = !t;
@@ -5030,6 +5101,36 @@ int RunRedTideModeTest() {
             check(m.eco.agents[v].wound >= 0.99f, "the Shipwright's Saw: the cut bleeds hard (bait)");
         }
     }
+    // barricade nets
+    {
+        Match m; m.Init("ship", 1, 37, false);
+        DiverState& d = m.divers[0]; d.invulnerable = true;
+        check(!m.barricades.empty(), TextFormat("the Ship's beast-only passages carry barricade nets (%d)", (int)m.barricades.size()));
+        if (!m.barricades.empty()) {
+            Match::Barricade& b = m.barricades[0];
+            const Link& l = m.map->links[b.link];
+            m.breachOpen = true; m.Step(0.01f);
+            check(m.eco.linkClosed[b.link] == 1, TextFormat("an intact net keeps the beasts out of %s", l.passage.c_str()));
+            // a hungry shark at the net's mouth tears it open
+            int sh = -1; for (int i = 0; i < (int)m.eco.agents.size(); i++) { const Agent& a = m.eco.agents[i]; if (a.alive && a.diver < 0 && !m.IsBoss(i) && m.map->species[a.sp].size >= 3 && !m.map->species[a.sp].isEnemy) { sh = i; break; } }
+            float t = 0;
+            while (sh >= 0 && b.strands > 0 && t < 30) { Agent& a = m.eco.agents[sh]; a.pos = l.a; a.st = State::Hunt; a.stateT = 0; a.vel = {0, 0, 0}; m.UpdateBarricades(0.1f); t += 0.1f; }
+            check(sh >= 0 && b.strands == 0 && t > 5 && t < 15, TextFormat("a hunting beast at the mouth tears the net open strand by strand (%.1f s)", t));
+            m.Step(0.01f);
+            check(m.eco.linkClosed[b.link] == 0 || l.beastRule == 2, "torn open, the passage is the beasts' again");
+            if (sh >= 0) m.eco.agents[sh].alive = false;
+            // mending from the mouth on the divers' side
+            d.pos = m.map->zones[l.from].diverOk ? l.a : l.b; int s0 = d.scrip; d.repairPaid = 0;
+            float hold = 0; m.Interact(0, false, 0.01f);
+            while (b.strands < Match::NET_STRANDS && hold < 10) { m.Interact(0, true, 0.05f); hold += 0.05f; }
+            check(b.strands == Match::NET_STRANDS && hold > 5.5f && hold < 6.5f && d.scrip - s0 == 50, TextFormat("hold E at the mouth: five strands mended in %.1f s, 10 scrip a strand", hold));
+            b.strands = 0; hold = 0; d.repairKit = true;
+            while (b.strands < Match::NET_STRANDS && hold < 10) { m.Interact(0, true, 0.05f); hold += 0.05f; }
+            check(hold < 2.3f && d.repairPaid == 100, TextFormat("the repair kit mends it three times as fast (%.1f s); mending pays 100 a tide at most", hold));
+            b.strands = 1; m.ApplyDropPublic(DropType::Shipwright, d.pos);
+            check(b.strands == Match::NET_STRANDS, "the Shipwright drop mends every net");
+        }
+    }
     printf(fails ? "%d FAILED\n" : "redtide-mode-test: all checks passed\n", fails);
     return fails ? 1 : 0;
 }
@@ -5262,7 +5363,10 @@ int RunRedTideMatchTest() {
         for (int li = 0; li < (int)m.map->links.size(); li++) if (m.map->links[li].beastRule == 2) bl = li;
         check(bl >= 0 && m.eco.linkClosed[bl] == 1 && !m.breachOpen, "the hull breach is shut to the sharks at tide 1");
         m.BeginTidePublic(4); m.Step(0.05f);
-        check(m.breachOpen && m.eco.linkClosed[bl] == 0, "and torn open at tide 4");
+        bool netHolds = m.eco.linkClosed[bl] == 1;
+        for (auto& b : m.barricades) if (b.link == bl) b.strands = 0;
+        m.Step(0.05f);
+        check(m.breachOpen && netHolds && m.eco.linkClosed[bl] == 0, "and torn open at tide 4 (its barricade net holds the sharks until they tear it)");
         (void)keel;
     }
     // Supper Call: the log, the whistle, three blasts on the boiler cord (power off) wake the Goliath into its fight

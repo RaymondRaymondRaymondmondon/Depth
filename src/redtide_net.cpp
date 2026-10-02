@@ -153,7 +153,7 @@ template <class A> void VisitDiver(A& a, DiverState& d) {
     a.i(d.inkBombs); a.i(d.tactical); a.i(d.chumBags); a.i(d.flares); a.b(d.brush); a.i(d.partsMask); a.e(d.build);
     a.f(d.shieldHP); a.f(d.bashCd); a.i(d.benchSel); a.i(d.inkCaps); a.b(d.drumClean);
     a.f(d.circleT); a.f(d.finsT); a.f(d.shellT); a.f(d.ghostT); a.v3(d.circlePos); a.i(d.luckKills); a.b(d.keepBrines); a.b(d.luckyLocker);
-    a.f(d.cutT); a.f(d.pingT); a.f(d.pingCd); a.i(d.blade); a.b(d.bladeForged);
+    a.f(d.cutT); a.f(d.pingT); a.f(d.pingCd); a.i(d.blade); a.b(d.bladeForged); a.b(d.repairKit); a.f(d.repairT); a.i(d.repairPaid);
     a.i(d.kills); a.i(d.headshots); a.i(d.downs); a.i(d.revives);
     a.s(d.suit); a.s(d.helmet); a.s(d.skin); a.s(d.costume);
     a.f(d.hitMarker); a.b(d.hitWeak); a.f(d.hurtT); a.v3(d.hurtFrom);
@@ -234,6 +234,7 @@ template <class A> void Visit(A& a, Match& m) {
     Chars(a, m.linkOpen);
     a.vec(m.level.doors, [&](Door& d) { a.b(d.open); });
     MapInt(a, m.enemyTellT, [&](float& v) { a.f(v); });
+    a.vec(m.barricades, [&](Match::Barricade& b) { a.i(b.strands); a.f(b.tearT); });   // (where they are is the map's: the mirror built the same ones)
     a.b(m.breachOpen); a.b(m.cacheOpen); a.i(m.drumBeats); a.b(m.alliesHostile); a.f(m.tideTurnT);
     a.vec(m.polyps, [&](Match::Polyp& p) { a.v3(p.pos); a.f(p.t); a.i(p.owner); a.b(p.forged); });
     SetStr(a, m.dossierSeen); a.f(m.forgeAt); a.b(m.questDone); a.b(m.logRead);

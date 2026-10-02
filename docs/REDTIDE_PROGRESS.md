@@ -611,3 +611,14 @@ lobby (`gameOpts` is "<map>:<mode>", the guests hear it in the chat); the snapsh
   cut bleeds hard (wound 1) and spills blood at once: "a weapon that is also bait". A blade is forged once.
 - The Forge's prompt shows the Z work; the dead come back with the knife; careful bots buy the axe once their guns are
   sorted. Tests in `--redtide-mode-test`.
+
+## Barricade nets and the repair kit (2026-10-02; design doc scrip table, drops, the workbench)
+- `Match::barricades`: five strands across every passage the beasts use and the divers don't (a breach, a beast-only gap;
+  never a slipstream or a porthole-hatch; the Ship has two). An intact net closes its passage to the web. A hunting or
+  curious beast of size 2+ at either mouth tears a strand every 2.5 s (the bigger, the faster); with the last strand gone
+  the passage is open until it's mended. The faction isn't stopped by them.
+- Hold E at a mouth to mend a strand (1.2 s; 0.4 s with the **repair kit**, the workbench's fifth item, 500): "10 per
+  plank, max 100 per tide" (`repairPaid`). The **Shipwright** drop is back in the pool whenever a net is damaged and mends
+  them all. Careful bots mend in the calm. Drawn as tarred cords with orange floats, the torn strands hanging; the prompt
+  counts the strands. In the snapshot.
+- Tests in `--redtide-mode-test`; view `DEPTH_STATION=barricade depth.exe --shots shots rvis_3_hands`.
