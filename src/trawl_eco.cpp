@@ -402,7 +402,7 @@ void Eco::BuildChart(uint32_t seed) {
     // the Lagoon's other two landings (design doc v2, "Islands"): the Old Lighthouse rock on the reef inside the crest,
     // across the lagoon from the Atoll, and the Sandbar out in the basin, dry until the tide makes over it at 02:00
     // (both hashed from the seed and carved last, so the rest of the chart is unchanged)
-    if (!getenv("DEPTH_NOATOLL")) {
+    if (!getenv("DEPTH_NOATOLL") && !getenv("DEPTH_NOLANDINGS")) {   // (DEPTH_NOLANDINGS: these two only, for comparisons)
         Vector2 atoll = landingAt[0];
         Vector2 light{size * 0.70f + (H2(13, 2, seed) - 0.5f) * size * 0.03f, size - atoll.y};
         Vector2 bar{size * 0.50f + (H2(17, 6, seed) - 0.5f) * size * 0.04f, size * (atoll.y < size * 0.5f ? 0.34f : 0.66f) + (H2(19, 3, seed) - 0.5f) * size * 0.04f};   // (between the Atoll and the basin's middle, clear of where she fishes)
