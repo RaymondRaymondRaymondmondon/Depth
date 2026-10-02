@@ -56,5 +56,10 @@ std::vector<Tint> WornColours(int game);
 
 int RunSkinsTest();                     // depth.exe --skins-test
 bool WardrobePage(int game);            // the page (skins_ui.cpp); true when Back is pressed
+// the gallery shots (skins_gallery_*): each figure's label, collected by a studio as it draws, then printed over it
+struct GalleryLabel { Vector2 at; const char* name; const char* rarity; Color c; int price; };
+extern std::vector<GalleryLabel> gGallery;
+void DrawGallery(int game, int page);   // the labels and a page title; clears them
+// the gallery shots (--shots shots skins_gallery): each figure's label, collected by a studio as it draws, then printed GalleryLabel { Vector2 at; const char* name; const char* rarity; Color c; int price; }; std::vector<GalleryLabel> gGallery; DrawGallery(int game, int page);   // the labels and a title; clears them
 
 } // namespace skins

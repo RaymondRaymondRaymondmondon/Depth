@@ -53,7 +53,7 @@ void DiverSkinColours(const std::string& suit, const std::string& helmet, std::v
     else if (h == "atlantean") { out.push_back({"hat", {150, 104, 50, 255}}); out.push_back({"accent", {236, 186, 64, 255}}); }
 }
 
-std::vector<Matrix> DrawDiverFigure(int voice, Matrix frame, fig::Pose P, float t, Color tint, const std::string& suit, const std::string& helmet) {
+std::vector<Matrix> DrawDiverFigure(int voice, Matrix frame, fig::Pose P, float t, Color tint, const std::string& suit, const std::string& helmet, const std::vector<Recolor>* extra) {
     const Model* m = DiverModel(voice);
     if (!m) return {};
     Temperament(voice, P, t);
@@ -61,6 +61,7 @@ std::vector<Matrix> DrawDiverFigure(int voice, Matrix frame, fig::Pose P, float 
     std::vector<Matrix> skin = fig::PoseFigure(*m, B, P, t);
     std::vector<Recolor> rc = {{"skin", DiverSkin(voice)}};
     DiverSkinColours(suit, helmet, rc);
+    if (extra) rc.insert(rc.end(), extra->begin(), extra->end());
     DrawPbrSkinned(*m, frame, skin, rc, 0.35f, tint);
     return skin;
 }
@@ -554,6 +555,24 @@ void DrawRedTideStudio(int which, float t) {
             h.left = k == 3 ? 0 : Vector3Distance(h.gripL, h.gripR) < 0.05f ? 2 : 1;
             DrawViewmodelHands(0, eye, h, t);
         }
+    } else if (which == 6) {
+        // the skins gallery (skins.h): ten of Red Tide's skins a page (DEPTH_SKINPAGE 0-7), each on the Diver, three
+        // quarters on, with its name and rarity under it
+        int page = getenv("DEPTH_SKINPAGE") ? atoi(getenv("DEPTH_SKINPAGE")) : 0;
+        const auto& cat = skins::Catalogue(skins::REDTIDE);
+        cam.position = {0, 1.0f, 9.6f}; cam.target = {0, 0.85f, 0}; cam.fovy = 40;
+        lamp({-3, 5, 8}, {0, 1, 0});
+        RenderBegin(cam, L);
+        for (int k = 0; k < 10; k++) {
+            int i = page * 10 + k;
+            if (i >= (int)cat.size()) break;
+            const skins::Skin& s = cat[i];
+            std::vector<Recolor> rc = {{"top", s.top}, {"trousers", s.trousers}, {"hat", s.hat}, {"accent", s.trim}};
+            fig::Pose P; P.breathe = t * 1.4f + k;
+            Vector3 at{(k % 5 - 2) * 1.75f, k < 5 ? 1.15f : -1.55f, 0};
+            DrawDiverFigure(0, MatrixMultiply(MatrixScale(0.82f, 0.82f, 0.82f), fig::Frame(at, FRONT + 0.4f)), P, t, WHITE, "", "", &rc);
+            skins::gGallery.push_back({GetWorldToScreenEx({at.x, at.y - 0.12f, at.z}, cam, SCREEN_W, SCREEN_H), s.name, skins::RarityName(s.rarity), skins::RarityColor(s.rarity), s.price});
+        }
     } else if (which == 2) {
         cam.position = {0, 2.2f, 8.5f}; cam.target = {0, 1.4f, 0}; cam.fovy = 38;
         lamp({-3, 6, 6}, {0, 1, 0});
@@ -566,6 +585,7 @@ void DrawRedTideStudio(int which, float t) {
         }
     }
     RenderEnd();
+    if (which == 6) skins::DrawGallery(skins::REDTIDE, getenv("DEPTH_SKINPAGE") ? atoi(getenv("DEPTH_SKINPAGE")) : 0);
 }
 
 } // namespace rt

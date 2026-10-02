@@ -1639,6 +1639,29 @@ void DrawTrawlStudio(int which, float t) {
             const Model* head = rt::LoadAsset("shared/test/head_test.glb");
             for (int k = 0; k < 3 && head; k++) rt::DrawPbr(*head, MatrixMultiply(MatrixRotateY(-0.9f + k * 0.9f), MatrixTranslate((k - 1) * 0.26f, 0, 0)), WHITE, 0.45f);
         }
+    } else if (which == 12) {
+        // the skins gallery (skins.h): ten of the Trawl's skins a page (DEPTH_SKINPAGE 0-7), each on a deckhand three
+        // quarters on (the roles in turn), its name and rarity under it
+        int page = getenv("DEPTH_SKINPAGE") ? atoi(getenv("DEPTH_SKINPAGE")) : 0;
+        const auto& cat = skins::Catalogue(skins::TRAWL);
+        cam.position = {0, 1.0f, 9.6f}; cam.target = {0, 0.85f, 0}; cam.fovy = 40;
+        lantern({-3, 5, 8}, {0, 1, 0});
+        L.AddPoint({4, 3, 4}, 9, {255, 190, 120, 255}, 0.7f);
+        rt::RenderBegin(cam, L);
+        for (int k = 0; k < 10; k++) {
+            int i = page * 10 + k;
+            if (i >= (int)cat.size()) break;
+            const skins::Skin& s = cat[i];
+            Crew c; c.role = (Role)(k % 4); c.slot = k;
+            SailorLook Lk = LookOf(c); Lk.top = s.top; Lk.trousers = s.trousers; Lk.hat = s.hat;
+            SailorPose P; P.breathe = t * 1.7f + k;
+            Vector3 at{(k % 5 - 2) * 1.75f, k < 5 ? 1.15f : -1.55f, 0};
+            if (SailorsReady()) DrawSailor(Lk, P, MatrixMultiply(MatrixScale(0.82f, 0.82f, 0.82f), Frame(at, FRONT + 0.4f)), t, Item::None, WHITE);
+            skins::gGallery.push_back({GetWorldToScreenEx({at.x, at.y - 0.12f, at.z}, cam, SCREEN_W, SCREEN_H), s.name, skins::RarityName(s.rarity), skins::RarityColor(s.rarity), s.price});
+        }
+        rt::RenderEnd();
+        skins::DrawGallery(skins::TRAWL, page);
+        return;
     } else if (which == 6) {
         // one weapon in three states: at rest, the instant of a shot, half way through a reload (the action open)
         static const char* ID = getenv("DEPTH_GUN") ? getenv("DEPTH_GUN") : "revolver";

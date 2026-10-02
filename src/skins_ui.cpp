@@ -5,6 +5,7 @@
 #include "game.h"
 #include "sound.h"
 #include <cmath>
+#include <algorithm>
 
 namespace skins {
 
@@ -87,4 +88,18 @@ bool WardrobePage(int game) {
     return back;
 }
 
+// ---------------------------------------------------------------- the gallery shots
+std::vector<GalleryLabel> gGallery;
+void DrawGallery(int game, int page) {
+    const Color INK{236, 226, 200, 255}, DIM{170, 166, 150, 255};
+    int n = (int)Catalogue(game).size();
+    DrawRectangle(0, 0, SCREEN_W, 40, Fade(BLACK, 0.55f));
+    DrawTextCenteredBold(TextFormat("%s skins %d-%d of %d", game == REDTIDE ? "Red Tide" : "The Trawl", page * 10 + 1, std::min(n, page * 10 + 10), n), SCREEN_W / 2.0f, 8, 22, INK);
+    for (const auto& l : gGallery) {
+        DrawRectangleRounded({l.at.x - 92, l.at.y + 4, 184, 40}, 0.3f, 6, Fade(BLACK, 0.6f));
+        DrawTextCentered(l.name, l.at.x, l.at.y + 8, 15, INK);
+        DrawTextCentered(l.price > 0 ? TextFormat("%s, %d tokens", l.rarity, l.price) : l.rarity, l.at.x, l.at.y + 26, 13, l.c.a ? l.c : DIM);
+    }
+    gGallery.clear();
+}
 } // namespace skins
