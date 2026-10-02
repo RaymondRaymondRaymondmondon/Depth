@@ -469,7 +469,7 @@ float Match::Rand() { rng ^= rng << 13; rng ^= rng >> 17; rng ^= rng << 5; retur
 
 // ---------------------------------------------------------------- the modes (design doc, "Modes")
 const char* ModeName(int m) {
-    static const char* N[RM_COUNT] = {"Red Tide", "Blackout", "Quiet Water", "Feeding Frenzy", "Apex", "Quota", "Aquarium", "Salvage Run", "Draft"};
+    static const char* N[RM_COUNT] = {"Red Tide", "Blackout", "Quiet Water", "Feeding Frenzy", "Apex", "Quota", "Aquarium", "Salvage Run", "Draft", "Poachers"};
     return m >= 0 && m < RM_COUNT ? N[m] : N[0];
 }
 const char* ModeRules(int m) {
@@ -483,11 +483,12 @@ const char* ModeRules(int m) {
         "No enemies, no Hunts, no tides, endless scrip and every beast in the water: watch the web, learn the tells, try builds. K: free camera.",
         "One life each, no revives, 15 minutes: carry five salvage crates from the far rooms to the extraction point.",
         "Each diver is dealt two guns from a shared pool. No Locker, no racks: more guns only from the enemies you kill.",
+        "Two pairs work the same water for twenty minutes; the richer pair wins. No one can hurt a rival, but a chum bag on them brings the beasts.",
     };
     return m >= 0 && m < RM_COUNT ? R[m] : R[0];
 }
 const char* ModeKey(int m) {
-    static const char* K[RM_COUNT] = {"standard", "blackout", "quiet", "frenzy", "apex", "quota", "aquarium", "salvage", "draft"};
+    static const char* K[RM_COUNT] = {"standard", "blackout", "quiet", "frenzy", "apex", "quota", "aquarium", "salvage", "draft", "poachers"};
     return m >= 0 && m < RM_COUNT ? K[m] : K[0];
 }
 int ModeFromKey(const std::string& k) { for (int m = 0; m < RM_COUNT; m++) if (k == ModeKey(m)) return m; return RM_STANDARD; }
@@ -690,6 +691,7 @@ void Match::InitMap(const MapData& m, const std::string& art, int playerCount, u
     map = &m; mapKey = m.key; artKey = art;
     this->seed = seed;
     players = std::clamp(playerCount, 1, 4);
+    if (mode == RM_POACHERS) players = 4;   // (Poachers is two pairs: bots fill the empty seats)
     rng = seed ? seed * 2654435761u + 1 : 99;
     BuildLevel(m, level);
     linkOpen.assign(m.links.size(), 0);
@@ -894,6 +896,10 @@ void Match::StartModeRules() {
         PlaceHauls(); captions.clear();
         Say("Salvage Run", "Five crates in the far rooms, fifteen minutes, one life each. Tow them to the extraction buoy.", 6);
     }
+    if (mode == RM_POACHERS) {
+        for (auto& d : divers) { d.chumBags = 2; d.tactical = TAC_CHUM; }
+        Say("Poachers", "Two pairs, one reef, twenty minutes: the richer pair wins. G throws a chum bag; on a rival it brings the beasts to them.", 6);
+    }
     if (mode == RM_DRAFT) {
         // a pool of every Locker and rack gun, dealt two to a diver, no two divers the same
         std::vector<int> pool;
@@ -1002,7 +1008,27 @@ void Match::UpdateHauls(float dt) {
         if (getenv("DEPTH_SIMLOG")) for (const auto& h : hauls) if (!h.home) printf("    [salvage] a crate left in %s\n", h.zone >= 0 ? map->zones[h.zone].name.c_str() : "?");
     }
 }
+std::string Match::PoachStanding() const {
+    int a = TeamScrip(0), b = TeamScrip(1);
+    return a == b ? TextFormat("the pairs are level at %d", a) : TextFormat("the %s pair wins, %d to %d", a > b ? "port" : "starboard", std::max(a, b), std::min(a, b));
+}
+void Match::Bloody(DiverState& o, int by) {
+    if (o.dead) return;
+    o.chumT = 20;
+    eco.AddChum(o.pos, 30);
+    fx.push_back({0, o.pos, {0, 0, 0}});
+    Say("", "Diver " + std::to_string(o.slot + 1) + " is chummed by diver " + std::to_string(by + 1) + ": the beasts will follow the trail", 4);
+    Quip("Chummed", o.slot);
+}
 void Match::UpdateModeRules(float dt) {
+    if (mode == RM_POACHERS) {
+        for (auto& d : divers) if (d.chumT > 0) { d.chumT -= dt; if (!d.dead) eco.AddChum(d.pos, 6 * dt); }   // (a rival's chum: a trail the beasts follow)
+        if (!over && time >= POACH_MATCH) {
+            over = true; phase = TidePhase::Over;
+            won = TeamScrip(0) != TeamScrip(1);
+            overReason = "Twenty minutes: " + PoachStanding();
+        }
+    }
     if (mode == RM_QUOTA) UpdateQuotaMode();
     if (mode == RM_SALVAGE) UpdateHauls(dt);
     if (mode == RM_AQUARIUM) {
@@ -1785,9 +1811,13 @@ void Match::UpdateDarts(float dt) {
             bool hit = !level.Inside(np, 0.05f, linkOpen, true);
             if (!hit) t.pos = np;
             for (int i = 0; i < (int)eco.agents.size() && !hit; i++) { const Agent& a = eco.agents[i]; if (a.alive && a.diver < 0 && Vector3Distance(a.pos, t.pos) < bodies[a.sp].radius + 0.15f) hit = true; }
+            if (mode == RM_POACHERS && t.kind == 12) for (const auto& o : divers) if (!o.dead && TeamOf(o.slot) != TeamOf(t.owner) && Vector3Distance(o.pos, t.pos) < 0.6f) hit = true;   // (a rival: it bursts on them)
             if (hit || t.fuse <= 0) {
                 if (t.kind == 11) InkBurst(t.pos, t.owner);
-                else if (t.kind == 12) { eco.AddChum(t.pos, 60); fx.push_back({0, t.pos, {0, 0, 0}}); }   // "a corpse chunk to lure predators to a spot"
+                else if (t.kind == 12) {
+                    eco.AddChum(t.pos, 60); fx.push_back({0, t.pos, {0, 0, 0}});   // "a corpse chunk to lure predators to a spot"
+                    if (mode == RM_POACHERS) for (auto& o : divers) if (!o.dead && TeamOf(o.slot) != TeamOf(t.owner) && Vector3Distance(o.pos, t.pos) < 2.5f) Bloody(o, t.owner);
+                }
                 else { FlareLight fl; fl.pos = t.pos; fl.owner = t.owner; flareLights.push_back(fl); fx.push_back({4, t.pos, {0, 0, 0}}); }
                 t.alive = false;
             }
@@ -4751,6 +4781,18 @@ Vector3 Match::Skirt(const DiverState& d, Vector3 to) const {
 // whatever is nearest, schools and cleaners included.
 void Match::Bot(DiverState& d, float dt) {
     if (d.dead) return;
+    if (mode == RM_POACHERS && !d.downed && d.chumBags > 0 && (d.botChumCd -= dt) <= 0) {
+        // Poachers: a chum bag at a rival 4-12 m off in clear water (then not again for half a minute)
+        for (const auto& o : divers) {
+            float od = Vector3Distance(o.pos, d.pos);
+            if (o.dead || o.downed || TeamOf(o.slot) == TeamOf(d.slot) || o.chumT > 0 || od < 4 || od > 12 || !level.Sight(Eye(d), o.pos, linkOpen)) continue;
+            Vector3 to = Vector3Subtract(o.pos, Eye(d));
+            d.yaw = atan2f(to.x, to.z); d.pitch = atan2f(to.y + od * 0.05f, sqrtf(to.x * to.x + to.z * to.z));
+            d.tactical = TAC_CHUM; ThrowLimpet(d.slot); d.botChumCd = 30;
+            break;
+        }
+        if (d.botChumCd <= 0) d.botChumCd = 2;
+    }
     const WeaponsData& WD = Weapons();
     bool careful = botStyle != "careless";
     d.botThinkT -= dt;
@@ -5336,7 +5378,22 @@ int RunRedTideModeTest() {
         s.BeginTidePublic(2); s.EndTidePublic();
         check(s.divers[0].dead && s.HaulOf(0) < 0 && !s.hauls[0].home, "Salvage Run: a downed diver is lost at once, drops the crate, and isn't back at the tide's end");
     }
-    // Draft: two guns each from a shared pool, no Locker, no racks
+    // Poachers: two pairs, a chum bag on a rival, the richer pair at twenty minutes
+    {
+        Match m; m.mode = RM_POACHERS; m.Init("ship", 1, 43, false);
+        check(m.divers.size() == 4 && m.players == 4 && !m.divers[0].bot && m.divers[1].bot && m.divers[3].bot && m.divers[0].chumBags == 2,
+              "Poachers: a solo dive is filled to two pairs with bots, each diver carrying two chum bags");
+        for (auto& d : m.divers) { d.invulnerable = true; d.bot = false; }
+        DiverState& me = m.divers[0]; DiverState& rival = m.divers[1]; DiverState& mate = m.divers[2];
+        rival.pos = m.level.Move(me.pos, Vector3Add(me.pos, {0, 0, 3}), 0.4f, m.linkOpen); mate.pos = Vector3Add(rival.pos, {0.3f, 0, 0.3f});
+        Vector3 to = Vector3Subtract(rival.pos, m.Eye(me)); me.yaw = atan2f(to.x, to.z); me.pitch = atan2f(to.y, sqrtf(to.x * to.x + to.z * to.z));
+        me.tactical = TAC_CHUM; m.ThrowLimpet(0);
+        for (int i = 0; i < 60; i++) m.Step(0.02f);
+        check(rival.chumT > 0 && mate.chumT == 0 && me.chumBags == 1, TextFormat("Poachers: a chum bag bursts on the rival (chummed %.0f s), never on your own pair", rival.chumT));
+        me.scripEarned = 3000; mate.scripEarned = 1000; rival.scripEarned = 2500; m.divers[3].scripEarned = 1000;
+        m.time = Match::POACH_MATCH - 0.01f; m.Step(0.05f);
+        check(m.over && m.won && m.overReason.find("port pair wins, 4000 to 3500") != std::string::npos, TextFormat("Poachers: at twenty minutes the richer pair wins (%s)", m.overReason.c_str()));
+    }    // Draft: two guns each from a shared pool, no Locker, no racks
     {
         Match m; m.mode = RM_DRAFT; m.Init("ship", 4, 42, true);
         std::set<int> dealt; bool two = true;

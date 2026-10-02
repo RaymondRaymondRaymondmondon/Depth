@@ -2096,6 +2096,12 @@ static void DrawHud() {
     else { int left = 0; for (const auto& s : m.eco.squads) if (s.hunt && s.alive) left += (int)s.members.size(); Txt(TextFormat("%s left: %d", m.map->faction.name.c_str(), left), 24, 56, 14, Fade(paper, 0.8f)); }
     // active drops and keys
     float dy = 90;
+    if (m.mode == RM_POACHERS) {   // the two pairs' takings, the clock, and a rival's chum on you
+        int mine = Match::TeamOf(d.slot), us = m.TeamScrip(mine), them = m.TeamScrip(1 - mine);
+        TxtBold(TextFormat("your pair %d   rivals %d", us, them), 24, dy, 16, us >= them ? Color{150, 250, 210, 255} : Color{255, 170, 120, 255}); dy += 20;
+        Txt(TextFormat("%s left", clock(Match::POACH_MATCH - m.time)), 24, dy, 14, Fade(paper, 0.7f)); dy += 18;
+        if (d.chumT > 0) { Txt(TextFormat("CHUMMED: the beasts follow you for %d s", (int)d.chumT + 1), 24, dy, 15, Color{230, 80, 60, 255}); dy += 20; }
+    }
     auto timer = [&](const char* name, float t) { if (t > 0) { Txt(TextFormat("%s  %d s", name, (int)t + 1), 24, dy, 14, Color{150, 250, 210, 255}); dy += 18; } };
     timer("Blood Frenzy", m.frenzyT); timer("Double Scrip", m.doubleScripT); timer("Fire Sale", m.fireSaleT); timer("Harpoon Hour", m.harpoonT);
     if (!m.keys.empty()) Txt(TextFormat("safe keys: %d of 3", (int)m.keys.size()), 24, dy, 14, brass);

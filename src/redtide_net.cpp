@@ -135,7 +135,7 @@ template <class A> void Ints(A& a, std::vector<int>& v) { a.vec(v, [&](int& x) {
 template <class A> void VisitHeld(A& a, Held& h) { a.i(h.def); a.i(h.mag); a.i(h.reserve); a.b(h.forged); a.i(h.altAmmo); }
 
 template <class A> void VisitDiver(A& a, DiverState& d) {
-    a.i(d.slot); a.b(d.bot); a.b(d.invulnerable);
+    a.i(d.slot); a.b(d.bot); a.b(d.invulnerable); a.f(d.chumT);
     a.v3(d.pos); a.v3(d.vel); a.f(d.yaw); a.f(d.pitch); a.i(d.zone);
     a.f(d.hp); a.f(d.hpMax); a.f(d.regenT);
     a.b(d.downed); a.b(d.dead); a.f(d.downT); a.f(d.reviveT); a.f(d.reviveTouchT); a.f(d.selfReviveT); a.i(d.selfRevives); a.i(d.quickBought); a.i(d.reviver);

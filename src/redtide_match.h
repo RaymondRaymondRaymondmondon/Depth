@@ -130,6 +130,7 @@ struct DiverState {
     float pingT = 0, pingCd = 0;               // Blackout: the sonar ping's echo on screen, and its recharge
     std::vector<int> draftKit;                 // Draft: the two guns dealt from the pool (a diver comes back with them)
     float respawnT = 0;                        // Aquarium: seconds until a dead diver comes back
+    float chumT = 0, botChumCd = 0;            // Poachers: seconds a rival's chum bag keeps this diver bleeding chum (the beasts follow); a bot's next throw
     bool repairKit = false; float repairT = 0; int repairPaid = 0;   // the repair kit (mends nets 3x as fast); mending's clock; scrip from mending this tide (100 at most)
     int blade = -1; bool bladeForged = false;  // what V swings: -1 the diver's knife, else a weapon (the Boarding Axe, the Sawtooth)
     std::string suit, helmet, skin, costume;   // the player's look (the Locker's suit and helmet, the Wardrobe's skin and costume), for teammates' screens
@@ -158,7 +159,7 @@ struct Crate { Vector3 pos{}; float t = 1.5f; bool fallen = false; int kind = 0;
 enum class TidePhase { Calm, Tide, Hunt, Over };
 
 // the modes (design doc, "Modes": the same maps and ecosystem, different rules; the host picks one in the lobby)
-enum RtMode { RM_STANDARD, RM_BLACKOUT, RM_QUIET, RM_FRENZY, RM_APEX, RM_QUOTA, RM_AQUARIUM, RM_SALVAGE, RM_DRAFT, RM_COUNT };
+enum RtMode { RM_STANDARD, RM_BLACKOUT, RM_QUIET, RM_FRENZY, RM_APEX, RM_QUOTA, RM_AQUARIUM, RM_SALVAGE, RM_DRAFT, RM_POACHERS, RM_COUNT };
 const char* ModeName(int mode);
 const char* ModeRules(int mode);
 const char* ModeKey(int mode);                  // "standard", "blackout", ... (the lobby's option string)
@@ -205,6 +206,13 @@ struct Match {
     void UpdateHauls(float dt);
     bool won = false;                 // the match ended in a win (Quota's watch survived, every crate home)
     bool Shops() const { return mode != RM_DRAFT; }   // Draft: no Locker, no racks
+    // Poachers: the four split into pairs by seat (0 and 2, 1 and 3) working the same water; the richer pair at
+    // POACH_MATCH wins. They can't hurt each other, but a chum bag that bursts on a rival leaves them bleeding chum
+    static constexpr float POACH_MATCH = 1200;
+    static int TeamOf(int slot) { return slot % 2; }
+    int TeamScrip(int team) const { int s = 0; for (const auto& d : divers) if (TeamOf(d.slot) == team) s += d.scripEarned; return s; }
+    std::string PoachStanding() const;
+    void Bloody(DiverState& d, int by);
     // barricade nets (design doc, scrip: "Repair a barricade net: 10 per plank, max 100 per tide"): five strands across each
     // passage the beasts use and the divers don't (the breach, the slide); a beast that wants through tears a strand every
     // 2.5 s and comes through when they're gone; hold E beside one to mend a strand

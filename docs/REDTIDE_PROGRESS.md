@@ -644,3 +644,10 @@ Picked in the reel and the lobby like the first four (`RtMode`, keys `quota`, `a
 - Network: `hauls`, `extract` and `won` are in the snapshot. Checks in `--redtide-mode-test`; the scene draws the crates (a lamp on each while out) and the buoy, with a HUD per mode.
 - **Bots** (`--redtide-sim` with `DEPTH_RTMODE`): Draft is fine (careful Ship averages tide 14.7). Quota: careful bots skip anything over size 3 and miss the count by 4-10 minutes on every map, so the mode is for human teams. Salvage Run: bots fetch reachable crates (plan "haul", and give a crate up for a minute if they can't close on it in 20 s). On the Ship they bring home 2-3 of 5 (the rest sit past the Goliath). On the Cave, Reef and Atlantis, one life wipes them; on the Void their navigation can't make the 100-200 m hauls.
 - Left from the doc's list: The Long Night (a host-side save), Poachers (2 v 2) and Custom (sliders and toggles).
+
+## Poachers (2026-10-02; design doc, "Modes")
+- Two pairs by seat (0 and 2 are the port pair, 1 and 3 the starboard pair: `Match::TeamOf`) work the same water for 20 minutes (`POACH_MATCH`). The richer pair by scrip earned (`TeamScrip`) wins; the result names it (`PoachStanding`). A wipe ends it early with the standings.
+- A solo dive or a short lobby is filled to four with bots (`players` forced to 4; the host only drives the session's seats, so the padded divers stay bots).
+- Divers can't hurt each other anyway. Instead each diver starts with two chum bags: one that bursts on or within 2.5 m of a rival leaves them bleeding chum for 20 s (`DiverState::chumT`, `Bloody`), and the beasts follow the trail. Your own pair is never chummed. Bots throw one at a rival 4-12 m off in clear water, every 30 s at most.
+- The HUD shows both pairs' takings, the clock, and "CHUMMED" with its seconds. `chumT` is in the snapshot. Checks in `--redtide-mode-test`. A 4-bot Reef sim finishes both runs at 20 minutes, with the pairs about 15% apart.
+- Left from the doc's list: The Long Night (a host-side save) and Custom (sliders and toggles).
