@@ -261,7 +261,12 @@ void DrawReels(Game& g) {
             if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), sl)) gRtSeasonPick = (gRtSeasonPick + ns) % (ns + 1);
             if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), sr)) gRtSeasonPick = (gRtSeasonPick + 1) % (ns + 1);
         }
-        if (Button({c.x - 110, c.y + 236, 220, 36}, "Dive (solo)", true, 15)) { SetRedTideMode(gRtModeSel); SetRedTideSeason(gRtSeasonPick); StartRedTide(g, RT_MAPS[rtMap]); return; }
+        int lnTide = 0; float lnTime = 0;
+        bool longNight = std::string(RedTideModeKey(gRtModeSel)) == "longnight" && RedTideLongNightSaved(RT_MAPS[rtMap], &lnTide, &lnTime);
+        if (longNight) {   // (a Long Night kept on this machine: go on with it, or begin a new one)
+            if (Button({c.x - 110, c.y + 236, 220, 36}, TextFormat("Resume: tide %d, %d:%02d in", lnTide, (int)lnTime / 3600, ((int)lnTime / 60) % 60), true, 15)) { SetRedTideMode(gRtModeSel); SetRedTideSeason(gRtSeasonPick); SetRedTideResume(true); StartRedTide(g, RT_MAPS[rtMap]); return; }
+            if (Button({c.x - 90, c.y + 196, 180, 30}, "Begin a new night", true, 13)) { RedTideClearLongNight(RT_MAPS[rtMap]); SetRedTideMode(gRtModeSel); SetRedTideSeason(gRtSeasonPick); StartRedTide(g, RT_MAPS[rtMap]); return; }
+        } else if (Button({c.x - 110, c.y + 236, 220, 36}, "Dive (solo)", true, 15)) { SetRedTideMode(gRtModeSel); SetRedTideSeason(gRtSeasonPick); StartRedTide(g, RT_MAPS[rtMap]); return; }
         DrawTextCentered("Host or Join to dive with up to three friends (the host's map)", c.x, c.y + 280, 13, SCREEN_DIM);
     }
     if (ready && selGame == G_SCUTTLE && Button({c.x - 110, c.y + 236, 220, 36}, "Practice with AI crabs", true, 15)) {
@@ -412,6 +417,12 @@ void DrawLobby() {
             gSess.gameOpts = RtOpts();
         }
         if (beforeSeason != gRtSeasonPick && gRtSeasonPick) gSess.Chat("Season " + std::to_string(gRtSeasonPick) + ": " + RedTideSeasonName(gRtSeasonPick));
+        int lnTide = 0; float lnTime = 0;
+        if (std::string(RedTideModeKey(gRtModeSel)) == "longnight" && RedTideLongNightSaved(RT_MAP_KEYS[gRtMapSel], &lnTide, &lnTime)) {
+            // the host's Long Night on this map goes on when the dive starts, unless they begin a new one
+            DrawTextCentered(TextFormat("The Long Night goes on: tide %d, %d:%02d in", lnTide, (int)lnTime / 3600, ((int)lnTime / 60) % 60), p.x + 505, p.y + p.height - 166, 15, Color{150, 250, 210, 255});
+            if (Button({p.x + 650, p.y + p.height - 172, 150, 26}, "Begin a new night", true, 13)) { RedTideClearLongNight(RT_MAP_KEYS[gRtMapSel]); gSess.Chat("A new Long Night"); }
+        }
         if (before != gRtMapSel || beforeMode != gRtModeSel)
             gSess.Chat(std::string("We dive ") + RT_TITLES[gRtMapSel] + (gRtModeSel ? std::string(": ") + RedTideModeName(gRtModeSel) + " - " + RedTideModeRules(gRtModeSel) : std::string()));
     }

@@ -47,6 +47,18 @@ void WriteMatch(const Match& m, Writer& out);
 // into a mirror: (re)built from the map and seed when they change; `keepLook` (a diver index, -1 none) keeps that
 // diver's yaw and pitch (the guest's own view) and blends its position toward the host's instead of jumping
 bool ReadMatch(Reader& r, Match& m, int keepLook = -1);
+// The Long Night (a host-side save, redtide_longnight_<map>.sav next to the exe): a small head (tide, clock) the menus
+// read cheaply, then the match's snapshot. Loading fits it to the seats: new seats get a fresh diver at the start,
+// seats no longer there are played by bots. A finished Long Night is cleared.
+bool SaveLongNight(const Match& m);
+bool LongNightSaved(const std::string& map, int* tide = nullptr, float* time = nullptr);
+bool LoadLongNight(const std::string& map, Match& m, int seats);
+void ClearLongNight(const std::string& map);
+// keeps a Long Night saved while it's played: at every calm, every two minutes, and cleared when it ends
+struct LongNightSaver {
+    int lastPhase = -1; float t = 0;
+    void Tick(const Match& m, float dt);
+};
 
 // the host's game (arcade_games.cpp's MakeGameHost for G_RED_TIDE); Configure takes "<map>[:<mode key>]"
 std::unique_ptr<arcade::GameHost> MakeRedTideHost();

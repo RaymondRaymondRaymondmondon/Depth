@@ -499,6 +499,7 @@ static void ShipDressing() {
 
 // ---------------------------------------------------------------- starting a match
 static int gRtSeasonSel = 0;   // the species season solo dives use (DEPTH_RTSEASON for --shots)
+static bool gRtResume = false; static LongNightSaver gLnSaver;   // the Long Night: resume the saved one; its autosave
 static bool gFreeCam = false; static Vector3 gFreePos{};   // Aquarium's free camera (K): it flies, the diver waits
 static int gRtModeSel = 0;   // the mode solo dives use (the arcade reel's picker; DEPTH_RTMODE for --shots)
 static void StartShip(int players, uint32_t seed, const std::string& key = "ship") {
@@ -506,6 +507,11 @@ static void StartShip(int players, uint32_t seed, const std::string& key = "ship
     S.m->mode = getenv("DEPTH_RTMODE") ? ModeFromKey(getenv("DEPTH_RTMODE")) : gRtModeSel;
     S.m->season = getenv("DEPTH_RTSEASON") ? atoi(getenv("DEPTH_RTSEASON")) : gRtSeasonSel;
     S.m->Init(key, players, seed, false);
+    if (S.m->mode == RM_LONGNIGHT && gRtResume && LongNightSaved(key)) {   // (the Long Night saved on this machine goes on)
+        auto r = std::make_unique<Match>();
+        if (LoadLongNight(key, *r, players)) S.m = std::move(r);
+    }
+    gRtResume = false; gLnSaver = LongNightSaver{};
     gFreeCam = false;
     S.mode = 1;
     Vector3 lo = M().map->boundsMin, hi = M().map->boundsMax;
@@ -2273,6 +2279,9 @@ int RedTideModeCount() { return RM_COUNT; }
 const char* RedTideModeName(int mode) { return ModeName(mode); }
 const char* RedTideModeRules(int mode) { return ModeRules(mode); }
 const char* RedTideModeKey(int mode) { return ModeKey(mode); }
+bool RedTideLongNightSaved(const char* map, int* tide, float* time) { return LongNightSaved(map ? map : "ship", tide, time); }
+void RedTideClearLongNight(const char* map) { ClearLongNight(map ? map : "ship"); }
+void SetRedTideResume(bool resume) { gRtResume = resume; }
 void StartRedTide(Game& g, const char* map) {
     gRtMap = map ? map : "ship";
     gSndMap = gRtMap;
@@ -2301,6 +2310,7 @@ void StartRedTideNet(Game& g, arcade::Session* net) {
     g.scene = Scene::RedTide;
 }
 void LeaveRedTideMatch(Game& g) {
+    if (!S.net && S.m && S.m->map && S.mode == 1 && !S.shotMode && S.m->mode == RM_LONGNIGHT) SaveLongNight(*S.m);   // (left mid-night: kept)
     if (S.net) {
         if (S.net->role == arcade::R_HOST) S.net->BackToLobby();
         else S.net->Leave();
@@ -2376,6 +2386,7 @@ void SceneRedTide(Game& g) {
         Match& m = M();
         if (S.mode == 0) { m.phase = TidePhase::Calm; m.phaseT = -1e9f; }   // the tank never tides
         if (!S.freeze && !S.net) m.Step(dt);
+        if (!S.net && !S.shotMode && S.mode == 1) gLnSaver.Tick(m, dt);   // (a solo Long Night keeps itself saved)
         S.audioOn = !S.shotMode;
         SoundFrame(dt);
         DrainFx();

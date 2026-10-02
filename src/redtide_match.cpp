@@ -469,7 +469,7 @@ float Match::Rand() { rng ^= rng << 13; rng ^= rng >> 17; rng ^= rng << 5; retur
 
 // ---------------------------------------------------------------- the modes (design doc, "Modes")
 const char* ModeName(int m) {
-    static const char* N[RM_COUNT] = {"Red Tide", "Blackout", "Quiet Water", "Feeding Frenzy", "Apex", "Quota", "Aquarium", "Salvage Run", "Draft", "Poachers"};
+    static const char* N[RM_COUNT] = {"Red Tide", "Blackout", "Quiet Water", "Feeding Frenzy", "Apex", "Quota", "Aquarium", "Salvage Run", "Draft", "Poachers", "The Long Night"};
     return m >= 0 && m < RM_COUNT ? N[m] : N[0];
 }
 const char* ModeRules(int m) {
@@ -484,11 +484,12 @@ const char* ModeRules(int m) {
         "One life each, no revives, 15 minutes: carry five salvage crates from the far rooms to the extraction point.",
         "Each diver is dealt two guns from a shared pool. No Locker, no racks: more guns only from the enemies you kill.",
         "Two pairs work the same water for twenty minutes; the richer pair wins. No one can hurt a rival, but a chum bag on them brings the beasts.",
+        "Four hours, kept between sessions: leave whenever you like and the tides go on where they stopped next time. A wipe ends it.",
     };
     return m >= 0 && m < RM_COUNT ? R[m] : R[0];
 }
 const char* ModeKey(int m) {
-    static const char* K[RM_COUNT] = {"standard", "blackout", "quiet", "frenzy", "apex", "quota", "aquarium", "salvage", "draft", "poachers"};
+    static const char* K[RM_COUNT] = {"standard", "blackout", "quiet", "frenzy", "apex", "quota", "aquarium", "salvage", "draft", "poachers", "longnight"};
     return m >= 0 && m < RM_COUNT ? K[m] : K[0];
 }
 int ModeFromKey(const std::string& k) { for (int m = 0; m < RM_COUNT; m++) if (k == ModeKey(m)) return m; return RM_STANDARD; }
@@ -745,22 +746,7 @@ void Match::InitMap(const MapData& m, const std::string& art, int playerCount, u
     for (const auto& s : level.stations) if (s.type == StationType::Locker) lockerSpots = std::max(lockerSpots, s.lockerSpot + 1);
     const WeaponsData& W = Weapons();
     lockerMoveAt = W.lockerMoveMin + (int)(Rand() * (W.lockerMoveMax - W.lockerMoveMin + 1));
-    int side = W.Index(W.sidearm);
-    for (int i = 0; i < players; i++) {
-        DiverState d;
-        d.slot = i;
-        d.bot = bots || i > 0;
-        d.pos = level.Move(level.start, Vector3Add(level.start, {(i % 2) * 1.2f - 0.6f, 0, (i / 2) * 1.2f - 0.6f}), 0.4f, linkOpen);
-        d.zone = level.startZone;
-        d.yaw = 1.5708f;
-        d.hpMax = d.hp = Engine().C("player_hp", 100);
-        d.weapons = {NewHeld(side, false)};
-        d.downHeld = NewHeld(side, false);
-        d.scrip = W.startScrip;
-        d.limpets = mode == RM_QUIET ? 0 : W.startLimpets;   // (Quiet Water: no explosives)
-        d.agent = eco.AddDiver(i, d.pos);
-        divers.push_back(d);
-    }
+    for (int i = 0; i < players; i++) AddNewDiver(bots || i > 0);
     // barricade nets across the passages the beasts use and the divers don't (a breach, a beast-only gap; never a
     // slipstream or a porthole-hatch)
     barricades.clear();
@@ -855,6 +841,23 @@ void Match::EndTide() {
     phaseT = 0;
 }
 
+void Match::AddNewDiver(bool bot) {
+    const WeaponsData& WD = Weapons();
+    int side = WD.Index(WD.sidearm), i = (int)divers.size();
+    DiverState d;
+    d.slot = i;
+    d.bot = bot;
+    d.pos = level.Move(level.start, Vector3Add(level.start, {(i % 2) * 1.2f - 0.6f, 0, (i / 2) * 1.2f - 0.6f}), 0.4f, linkOpen);
+    d.zone = level.startZone;
+    d.yaw = 1.5708f;
+    d.hpMax = d.hp = Engine().C("player_hp", 100);
+    d.weapons = {NewHeld(side, false)};
+    d.downHeld = NewHeld(side, false);
+    d.scrip = WD.startScrip;
+    d.limpets = mode == RM_QUIET ? 0 : WD.startLimpets;   // (Quiet Water: no explosives)
+    d.agent = eco.AddDiver(i, d.pos);
+    divers.push_back(d);
+}
 void Match::Respawn(DiverState& d) {
     d.dead = false; d.downed = false; d.respawnT = 0;
     d.hpMax = d.hp = Engine().C("player_hp", 100);
@@ -1021,6 +1024,10 @@ void Match::Bloody(DiverState& o, int by) {
     Quip("Chummed", o.slot);
 }
 void Match::UpdateModeRules(float dt) {
+    if (mode == RM_LONGNIGHT && !over && time >= LONG_NIGHT) {
+        over = true; won = true; phase = TidePhase::Over;
+        overReason = "The Long Night is over: four hours, and tide " + std::to_string(maxTide) + " reached";
+    }
     if (mode == RM_POACHERS) {
         for (auto& d : divers) if (d.chumT > 0) { d.chumT -= dt; if (!d.dead) eco.AddChum(d.pos, 6 * dt); }   // (a rival's chum: a trail the beasts follow)
         if (!over && time >= POACH_MATCH) {
@@ -5393,6 +5400,28 @@ int RunRedTideModeTest() {
         me.scripEarned = 3000; mate.scripEarned = 1000; rival.scripEarned = 2500; m.divers[3].scripEarned = 1000;
         m.time = Match::POACH_MATCH - 0.01f; m.Step(0.05f);
         check(m.over && m.won && m.overReason.find("port pair wins, 4000 to 3500") != std::string::npos, TextFormat("Poachers: at twenty minutes the richer pair wins (%s)", m.overReason.c_str()));
+    }    // The Long Night: saved, loaded into more seats, and on it goes; a finished one is cleared
+    {
+        ClearLongNight("ship");
+        Match m; m.mode = RM_LONGNIGHT; m.Init("ship", 1, 44, true);
+        for (auto& d : m.divers) d.invulnerable = true;
+        for (int i = 0; i < 60 * 20; i++) m.Step(1 / 60.0f);
+        m.BeginTidePublic(3);
+        m.divers[0].scrip = 4321;
+        int lt = 0; float ls = 0;
+        bool saved = SaveLongNight(m) && LongNightSaved("ship", &lt, &ls) && lt == 3 && fabsf(ls - m.time) < 0.01f;
+        check(saved, TextFormat("The Long Night: saved on the host (tide %d, %.0f s in)", lt, ls));
+        Match r;
+        bool loaded = LoadLongNight("ship", r, 2);
+        check(loaded && r.mode == RM_LONGNIGHT && r.tide == 3 && fabsf(r.time - m.time) < 0.01f && r.divers.size() == 2 && r.divers[0].scrip == 4321 && !r.divers[0].bot && !r.divers[1].bot,
+              "The Long Night: loaded where it stopped, with a fresh diver for the seat that joined");
+        float t0 = r.time;
+        for (auto& d : r.divers) { d.invulnerable = true; d.bot = true; }
+        for (int i = 0; i < 60 * 10; i++) r.Step(1 / 60.0f);
+        check(r.time > t0 + 9.9f && !r.over, "The Long Night: the tides go on");
+        r.over = true; SaveLongNight(r);
+        check(!LongNightSaved("ship"), "The Long Night: a finished night is cleared");
+        ClearLongNight("ship");
     }    // Draft: two guns each from a shared pool, no Locker, no racks
     {
         Match m; m.mode = RM_DRAFT; m.Init("ship", 4, 42, true);

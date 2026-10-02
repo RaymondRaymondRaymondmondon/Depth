@@ -4,6 +4,7 @@
 #include "redtide_net.h"
 #include "arcade_session.h"
 #include "net.h"
+#include "raylib.h"
 #include "raymath.h"
 #include <algorithm>
 #include <chrono>
@@ -315,6 +316,70 @@ bool ReadMatch(Reader& r, Match& m, int keepLook) {
     return true;
 }
 
+
+// ---------------------------------------------------------------- the Long Night's save (host-side)
+static std::string LongNightPath(const std::string& map) { return std::string(GetApplicationDirectory()) + "redtide_longnight_" + map + ".sav"; }
+static const uint32_t LN_MAGIC = 0x4E4C5452;   // "RTLN"
+bool SaveLongNight(const Match& m) {
+    if (m.mode != RM_LONGNIGHT || !m.map) return false;
+    if (m.over) { ClearLongNight(m.mapKey); return false; }   // (a finished night isn't kept)
+    Writer w; w.U32(LN_MAGIC); w.I32(m.tide); w.F32(m.time);
+    WriteMatch(m, w);
+    std::string path = LongNightPath(m.mapKey), tmp = path + ".tmp";
+    FILE* f = fopen(tmp.c_str(), "wb");
+    if (!f) return false;
+    bool ok = fwrite(w.b.data(), 1, w.b.size(), f) == w.b.size();
+    ok = fclose(f) == 0 && ok;
+    if (!ok) { remove(tmp.c_str()); return false; }
+    remove(path.c_str());
+    return rename(tmp.c_str(), path.c_str()) == 0;   // (written whole, then swapped in: a crash mid-save keeps the last one)
+}
+static bool ReadAll(const std::string& path, std::vector<uint8_t>& out) {
+    FILE* f = fopen(path.c_str(), "rb");
+    if (!f) return false;
+    fseek(f, 0, SEEK_END); long n = ftell(f); fseek(f, 0, SEEK_SET);
+    if (n <= 12) { fclose(f); return false; }
+    out.resize((size_t)n);
+    bool ok = fread(out.data(), 1, out.size(), f) == out.size();
+    fclose(f);
+    return ok;
+}
+bool LongNightSaved(const std::string& map, int* tide, float* time) {
+    FILE* f = fopen(LongNightPath(map).c_str(), "rb");
+    if (!f) return false;
+    uint8_t head[12]; bool ok = fread(head, 1, 12, f) == 12; fclose(f);
+    if (!ok) return false;
+    Reader r(head, 12);
+    if (r.U32() != LN_MAGIC) return false;
+    int t = r.I32(); float s = r.F32();
+    if (tide) *tide = t;
+    if (time) *time = s;
+    return true;
+}
+bool LoadLongNight(const std::string& map, Match& m, int seats) {
+    std::vector<uint8_t> bytes;
+    if (!ReadAll(LongNightPath(map), bytes)) return false;
+    Reader r(bytes);
+    if (r.U32() != LN_MAGIC) return false;
+    r.I32(); r.F32();
+    if (!ReadMatch(r, m, -1) || m.mode != RM_LONGNIGHT || m.mapKey != map) return false;
+    seats = std::clamp(seats, 1, 4);
+    while ((int)m.divers.size() < seats) m.AddNewDiver(false);                  // (a seat that wasn't there last time)
+    for (int i = 0; i < (int)m.divers.size(); i++) m.divers[i].bot = i >= seats ? true : i > 0 ? m.divers[i].bot : false;
+    m.players = std::clamp((int)m.divers.size(), 1, 4);
+    m.over = false;
+    m.Say("The Long Night", TextFormat("goes on: tide %d, %d:%02d in", m.tide, (int)m.time / 3600, ((int)m.time / 60) % 60), 6);
+    return true;
+}
+void ClearLongNight(const std::string& map) { remove(LongNightPath(map).c_str()); }
+void LongNightSaver::Tick(const Match& m, float dt) {
+    if (m.mode != RM_LONGNIGHT || !m.map) return;
+    if (m.over) { if (lastPhase != -2) { ClearLongNight(m.mapKey); lastPhase = -2; } return; }
+    t += dt;
+    int ph = (int)m.phase;
+    if ((ph == (int)TidePhase::Calm && lastPhase != ph && lastPhase >= 0) || t > 120) { SaveLongNight(m); t = 0; }
+    lastPhase = ph;
+}
 // ---------------------------------------------------------------- the host
 namespace {
 class RedTideHost : public arcade::GameHost {
@@ -339,11 +404,17 @@ public:
         mapKey = "ship";
         for (const char* k : MAPS) if (mk == k) mapKey = k;
     }
+    LongNightSaver saver;
+    ~RedTideHost() override { if (m && m->mode == RM_LONGNIGHT && m->map && !m->over) SaveLongNight(*m); }   // (the host closing keeps the night)
     void Start(int n, uint32_t seed) override {
         players = std::clamp(n, 1, 4);
         m = std::make_unique<Match>();
         m->mode = mode; m->season = season;
-        m->Init(mapKey, players, seed, false);
+        if (!(mode == RM_LONGNIGHT && LongNightSaved(mapKey) && LoadLongNight(mapKey, *m, players))) {   // (a Long Night on the host's disk goes on)
+            m = std::make_unique<Match>(); m->mode = mode; m->season = season;
+            m->Init(mapKey, players, seed, false);
+        }
+        saver = LongNightSaver{};
         for (int i = 0; i < 4; i++) { pend[i] = DiverInput{}; looked[i] = false; }
         for (int i = 0; i < players && i < (int)m->divers.size(); i++) { pend[i].yaw = m->divers[i].yaw; pend[i].pitch = m->divers[i].pitch; }
         acc = 0; tick = 0; cachedTick = ~0u;
@@ -376,6 +447,7 @@ public:
             m->Step(step);
             tick++;
         }
+        saver.Tick(*m, std::min(dt, 0.1f));
         return true;
     }
     void Snapshot(int, Writer& out) const override {

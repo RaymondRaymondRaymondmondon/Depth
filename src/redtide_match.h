@@ -159,7 +159,7 @@ struct Crate { Vector3 pos{}; float t = 1.5f; bool fallen = false; int kind = 0;
 enum class TidePhase { Calm, Tide, Hunt, Over };
 
 // the modes (design doc, "Modes": the same maps and ecosystem, different rules; the host picks one in the lobby)
-enum RtMode { RM_STANDARD, RM_BLACKOUT, RM_QUIET, RM_FRENZY, RM_APEX, RM_QUOTA, RM_AQUARIUM, RM_SALVAGE, RM_DRAFT, RM_POACHERS, RM_COUNT };
+enum RtMode { RM_STANDARD, RM_BLACKOUT, RM_QUIET, RM_FRENZY, RM_APEX, RM_QUOTA, RM_AQUARIUM, RM_SALVAGE, RM_DRAFT, RM_POACHERS, RM_LONGNIGHT, RM_COUNT };
 const char* ModeName(int mode);
 const char* ModeRules(int mode);
 const char* ModeKey(int mode);                  // "standard", "blackout", ... (the lobby's option string)
@@ -194,6 +194,9 @@ struct Match {
     void UpdateQuotaMode();
     void StartModeRules();            // (end of Init: the Draft's deal, the hauls, Aquarium's water)
     void UpdateModeRules(float dt);
+    void AddNewDiver(bool bot);       // a diver at the start with the spawn-in kit (Init; a seat that joins a resumed Long Night)
+    // The Long Night: four hours, saved on the host between sessions (redtide_net.h: SaveLongNight / LoadLongNight)
+    static constexpr float LONG_NIGHT = 4 * 3600.0f;
     void Respawn(DiverState& d);      // a dead diver back at the start with the spawn-in kit (a tide's end; Quota's count; Aquarium after 10 s)
     // Salvage Run: five crates in the far rooms, carried one at a time (E) to the extraction point at the start; one life,
     // no revives, a 15-minute clock

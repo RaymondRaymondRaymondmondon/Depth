@@ -651,3 +651,10 @@ Picked in the reel and the lobby like the first four (`RtMode`, keys `quota`, `a
 - Divers can't hurt each other anyway. Instead each diver starts with two chum bags: one that bursts on or within 2.5 m of a rival leaves them bleeding chum for 20 s (`DiverState::chumT`, `Bloody`), and the beasts follow the trail. Your own pair is never chummed. Bots throw one at a rival 4-12 m off in clear water, every 30 s at most.
 - The HUD shows both pairs' takings, the clock, and "CHUMMED" with its seconds. `chumT` is in the snapshot. Checks in `--redtide-mode-test`. A 4-bot Reef sim finishes both runs at 20 minutes, with the pairs about 15% apart.
 - Left from the doc's list: The Long Night (a host-side save) and Custom (sliders and toggles).
+
+## The Long Night (2026-10-02; design doc, "Modes")
+- A four-hour match (`Match::LONG_NIGHT`) kept on the host between sessions; a wipe or the four hours ends it, and a finished night is cleared. Saved as `redtide_longnight_<map>.sav` next to the exe: a 12-byte head (magic "RTLN", tide, clock) the menus read cheaply, then the match snapshot (`WriteMatch`, the guests' mirror format). The file is written whole and then swapped in.
+- `LongNightSaver` saves at every calm and every two minutes. The host also saves when it closes (`~RedTideHost`), and a solo diver when they leave (`LeaveRedTideMatch`).
+- Loading (`LoadLongNight(map, m, seats)`): a seat that wasn't there last time gets a fresh diver at the start (`Match::AddNewDiver`, factored out of Init); divers whose seats are gone are played by bots. Host-only state the snapshot doesn't carry (bot memory, spawn timers) starts fresh, which doesn't show.
+- The reel shows "Resume: tide N, h:mm in" and "Begin a new night" when this map has a saved night. In the host's lobby, "The Long Night goes on: ..." and "Begin a new night" (it clears the save). Checked in `--redtide-mode-test` (save, load into two seats, ten more seconds, cleared when over).
+- Left from the doc's list: Custom.
