@@ -241,6 +241,7 @@ struct Ecosystem {
     bool suppressBlood = false;
     float bloodMult = 1;               // Blood Frenzy: the water fills with blood at 5x
     float alarmMult = 1, decayMult = 1, killBloodMult = 1;   // the modes: Quiet Water halves the alarm and the decay; Feeding Frenzy stops it and bleeds kills 3x
+    bool noEnemies = false;                                  // (Aquarium: no faction at all; set before Init)
     bool LinkOpen(int li) const { return li < 0 || li >= (int)linkClosed.size() || !linkClosed[li]; }
     void SpawnSquad(int region, bool hunt, int count = -1, bool leader = false);
 

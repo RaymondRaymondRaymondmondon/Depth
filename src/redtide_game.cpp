@@ -499,12 +499,14 @@ static void ShipDressing() {
 
 // ---------------------------------------------------------------- starting a match
 static int gRtSeasonSel = 0;   // the species season solo dives use (DEPTH_RTSEASON for --shots)
+static bool gFreeCam = false; static Vector3 gFreePos{};   // Aquarium's free camera (K): it flies, the diver waits
 static int gRtModeSel = 0;   // the mode solo dives use (the arcade reel's picker; DEPTH_RTMODE for --shots)
 static void StartShip(int players, uint32_t seed, const std::string& key = "ship") {
     S.m = std::make_unique<Match>();
     S.m->mode = getenv("DEPTH_RTMODE") ? ModeFromKey(getenv("DEPTH_RTMODE")) : gRtModeSel;
     S.m->season = getenv("DEPTH_RTSEASON") ? atoi(getenv("DEPTH_RTSEASON")) : gRtSeasonSel;
     S.m->Init(key, players, seed, false);
+    gFreeCam = false;
     S.mode = 1;
     Vector3 lo = M().map->boundsMin, hi = M().map->boundsMax;
     ResetFx(std::max(hi.x - lo.x, hi.z - lo.z), hi.y - lo.y, lo.y, Vector3Lerp(lo, hi, 0.5f));
@@ -666,6 +668,15 @@ static DiverInput Gather() {
     if (IsKeyDown(KEY_D)) want = Vector3Add(want, r);        // r is the camera's right: D strafes right, A left
     if (IsKeyDown(KEY_A)) want = Vector3Subtract(want, r);
     float vert = (IsKeyDown(KEY_SPACE) ? 1.0f : 0.0f) - (IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_C) ? 1.0f : 0.0f);
+    if (m.mode == RM_AQUARIUM && IsKeyPressed(KEY_K)) { gFreeCam = !gFreeCam; gFreePos = m.Eye(d); }
+    if (gFreeCam && m.mode == RM_AQUARIUM) {
+        // the free camera: it flies through walls along the look (Shift faster); the diver holds still
+        Vector3 fw = m.Forward(d), mv = Vector3Add(Vector3Scale(fw, (IsKeyDown(KEY_W) ? 1.0f : 0.0f) - (IsKeyDown(KEY_S) ? 1.0f : 0.0f)), Vector3Scale(r, (IsKeyDown(KEY_D) ? 1.0f : 0.0f) - (IsKeyDown(KEY_A) ? 1.0f : 0.0f)));
+        mv.y += vert;
+        gFreePos = Vector3Add(gFreePos, Vector3Scale(mv, (IsKeyDown(KEY_LEFT_SHIFT) ? 16.0f : 6.0f) * GetFrameTime()));
+        in.yaw = d.yaw; in.pitch = d.pitch;
+        return in;
+    }
     in.yaw = d.yaw; in.pitch = d.pitch;
     in.wish = Vector3Length(want) > 1 ? Vector3Normalize(want) : want; in.vert = vert;
     if (IsKeyDown(KEY_LEFT_SHIFT)) in.btn |= DI_SPRINT;
@@ -1178,6 +1189,23 @@ static void DrawStations() {
         for (int k = -2; k <= 2; k++) cord(Vector3Add(b.pos, Vector3Scale(side, k * 0.48f)), b.strands > 0 ? 1.6f : 0.4f, false, tar);   // the uprights
         for (int k = -2; k <= 2; k += 2) DrawCubeM(MatrixMultiply(MatrixScale(0.16f, 0.16f, 0.16f), MatrixTranslate(b.pos.x + side.x * k * 0.48f, b.pos.y + 0.85f, b.pos.z + side.z * k * 0.48f)), Color{200, 120, 50, 255});   // the floats
     }
+    if (m.mode == RM_SALVAGE) {
+        // Salvage Run: the crates (banded, a lamp on each so they read across a room) and the extraction buoy
+        for (const auto& h : m.hauls) {
+            float bob = h.carrier >= 0 ? 0 : sinf(S.time * 1.3f + h.pos.x) * 0.05f;
+            Matrix base = MatrixTranslate(h.pos.x, h.pos.y + bob, h.pos.z);
+            DrawCubeM(MatrixMultiply(MatrixScale(0.7f, 0.5f, 0.5f), base), Color{120, 86, 50, 255});
+            for (int k = -1; k <= 1; k += 2) DrawCubeM(MatrixMultiply(MatrixScale(0.06f, 0.54f, 0.54f), MatrixMultiply(MatrixTranslate(k * 0.25f, 0, 0), base)), Color{70, 70, 76, 255});
+            if (!h.home) {
+                DrawCubeGlow(MatrixMultiply(MatrixScale(0.1f, 0.1f, 0.1f), MatrixMultiply(MatrixTranslate(0, 0.32f, 0), base)), Color{255, 200, 110, 255}, 0.6f + 0.4f * sinf(S.time * 4));
+                if (Vector3Distance(h.pos, eyeS) < 30) AddLateLight(Vector3Add(h.pos, {0, 0.5f, 0}), 3, Color{255, 190, 110, 255}, 0.6f);
+            }
+        }
+        Vector3 x = m.extract;
+        DrawCubeM(MatrixMultiply(MatrixScale(0.08f, 3.0f, 0.08f), MatrixTranslate(x.x, x.y + 0.5f, x.z)), Color{180, 60, 50, 255});   // the buoy's line
+        DrawCubeGlow(MatrixMultiply(MatrixScale(0.3f, 0.3f, 0.3f), MatrixTranslate(x.x, x.y + 2.1f, x.z)), Color{120, 255, 160, 255}, 0.7f + 0.3f * sinf(S.time * 2.5f));
+        AddLateLight(Vector3Add(x, {0, 2.0f, 0}), 7, Color{120, 255, 160, 255}, 0.8f);
+    }
     {   // the Void's specimen tanks: a cold light from the plinth up through each, the nearest three lighting the room
         std::vector<std::pair<float, Vector3>> near;
         for (const Vector3& g : gLabGlow) { float dd = Vector3Distance(g, eyeS); if (dd > 30) continue; DrawCubeGlow(MatrixMultiply(MatrixScale(0.78f, 0.04f, 0.78f), MatrixTranslate(g.x, g.y + 0.22f, g.z)), Color{120, 255, 210, 255}, 1.0f); near.push_back({dd, g}); }
@@ -1356,6 +1384,7 @@ static Camera3D MakeCamera(SceneLight& L) {
     Vector3 f = M().Forward(d);
     cam.position = M().Eye(d);
     if (d.downed || d.dead) cam.position.y -= 0.35f;
+    if (gFreeCam && M().mode == RM_AQUARIUM) cam.position = gFreePos;
     cam.target = Vector3Add(cam.position, f);
     cam.up = {0, 1, 0};
     cam.fovy = d.ads ? 55.0f : 72.0f;
@@ -2040,8 +2069,23 @@ static void DrawHud() {
     }
     // the tide bell, top left
     const char* phase = m.phase == TidePhase::Calm ? "CALM" : m.phase == TidePhase::Hunt ? "HUNT" : "TIDE";
+    auto clock = [](float s) { s = std::max(0.0f, s); return TextFormat("%d:%02d", (int)s / 60, (int)s % 60); };
+    if (m.mode == RM_QUOTA) {
+        TxtBold(TextFormat("COUNT %d", m.tide), 24, 18, 30, paper);
+        DrawBar({24, 56, 180, 8}, m.tideKills / (float)std::max(1, m.quota), blood);
+        Txt(TextFormat("%d / %d big kills   next count %s", m.tideKills, m.quota, clock((m.tide + 1) * Match::QUOTA_PERIOD - m.time)), 24, 68, 14, Fade(paper, 0.8f));
+        Txt(TextFormat("the watch ends in %s", clock(Match::QUOTA_MATCH - m.time)), 24, 86, 14, Fade(paper, 0.6f));
+    } else if (m.mode == RM_AQUARIUM) {
+        TxtBold("AQUARIUM", 24, 18, 30, paper);
+        Txt(gFreeCam ? "free camera: WASD, Space/C, Shift faster; K back to the diver" : "no tides, no enemies; K: free camera", 24, 56, 14, Fade(paper, 0.8f));
+    } else if (m.mode == RM_SALVAGE) {
+        TxtBold(TextFormat("SALVAGE %d / %d", m.HaulsHome(), (int)m.hauls.size()), 24, 18, 30, paper);
+        Txt(TextFormat("%s left   %s", clock(Match::SALVAGE_MATCH - m.time), m.HaulOf(S.me) >= 0 ? "a crate in tow: to the extraction buoy" : "one life each"), 24, 56, 14, Fade(paper, 0.8f));
+        Txt(TextFormat("%s %d", phase, m.tide), 24, 74, 14, Fade(paper, 0.6f));
+    } else
     TxtBold(TextFormat("%s %d", phase, m.tide), 24, 18, 30, m.phase == TidePhase::Hunt ? Color{230, 80, 60, 255} : paper);
-    if (m.phase == TidePhase::Tide) {
+    if (m.mode == RM_QUOTA || m.mode == RM_AQUARIUM || m.mode == RM_SALVAGE) {}
+    else if (m.phase == TidePhase::Tide) {
         DrawBar({24, 56, 180, 8}, m.tideKills / (float)std::max(1, m.quota), blood);
         Txt(TextFormat("%d / %d kills", m.tideKills, m.quota), 24, 68, 14, Fade(paper, 0.8f));
     } else if (m.phase == TidePhase::Calm) {

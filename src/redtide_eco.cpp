@@ -337,7 +337,7 @@ void Ecosystem::Init(const MapData& m, uint32_t seed, int tideNum, int playerCou
     for (int ri = 0; ri < (int)m.spawns.size(); ri++) {
         const SpawnRow& r = m.spawns[ri];
         int sp = m.SpeciesIndex(r.species);
-        if (sp < 0) continue;
+        if (sp < 0 || (noEnemies && m.species[sp].isEnemy)) continue;
         int zi = m.ZoneIndex(r.zone);
         if (zi < 0) zi = m.ZoneIndex(m.species[sp].homeZone);
         if (zi < 0) zi = 0;
@@ -1039,6 +1039,7 @@ void Ecosystem::Population(float dt) {
     for (int ri = 0; ri < (int)map->spawns.size(); ri++) {
         const SpawnRow& r = map->spawns[ri];
         if (r.respawnS <= 0) continue;     // bosses and placed ambushers never respawn
+        if (noEnemies && map->SpeciesIndex(r.species) >= 0 && map->species[map->SpeciesIndex(r.species)].isEnemy) continue;
         int sp = map->SpeciesIndex(r.species), zi = map->ZoneIndex(r.zone);
         if (sp < 0) continue;
         if (zi < 0) zi = std::max(0, map->ZoneIndex(map->species[sp].homeZone));
@@ -1070,7 +1071,7 @@ void Ecosystem::Population(float dt) {
 
 // ---------------------------------------------------------------- the enemy alarm and squads
 void Ecosystem::SpawnSquad(int region, bool hunt, int count, bool leader) {
-    if (map->enemySpecies < 0 || map->faction.units.empty()) return;
+    if (noEnemies || map->enemySpecies < 0 || map->faction.units.empty()) return;
     const Faction& f = map->faction;
     // the faction's entry point (at least 35 m from every diver)
     Vector3 at{};

@@ -128,6 +128,8 @@ struct DiverState {
     float cutT = 0;                    // being cut free of Reacher coral by a teammate
     int kills = 0, headshots = 0, downs = 0, revives = 0;
     float pingT = 0, pingCd = 0;               // Blackout: the sonar ping's echo on screen, and its recharge
+    std::vector<int> draftKit;                 // Draft: the two guns dealt from the pool (a diver comes back with them)
+    float respawnT = 0;                        // Aquarium: seconds until a dead diver comes back
     bool repairKit = false; float repairT = 0; int repairPaid = 0;   // the repair kit (mends nets 3x as fast); mending's clock; scrip from mending this tide (100 at most)
     int blade = -1; bool bladeForged = false;  // what V swings: -1 the diver's knife, else a weapon (the Boarding Axe, the Sawtooth)
     std::string suit, helmet, skin, costume;   // the player's look (the Locker's suit and helmet, the Wardrobe's skin and costume), for teammates' screens
@@ -135,6 +137,7 @@ struct DiverState {
     float hurtT = 0; Vector3 hurtFrom{};
     std::string lastHitBy, lastKill; float lastKillT = 0;
     // bot memory
+    int botHaulSkip = -1; float botHaulSkipT = 0, botHaulBest = 1e9f, botHaulT = 0;   // (Salvage Run: a crate it couldn't get closer to, left alone a minute)
     int botTarget = -1, botFlee = -1; float botThinkT = 0; Vector3 botGoal{}; std::string botPlan; float botStuckT = 0; Vector3 botLastPos{};
 };
 
@@ -155,7 +158,7 @@ struct Crate { Vector3 pos{}; float t = 1.5f; bool fallen = false; int kind = 0;
 enum class TidePhase { Calm, Tide, Hunt, Over };
 
 // the modes (design doc, "Modes": the same maps and ecosystem, different rules; the host picks one in the lobby)
-enum RtMode { RM_STANDARD, RM_BLACKOUT, RM_QUIET, RM_FRENZY, RM_APEX, RM_COUNT };
+enum RtMode { RM_STANDARD, RM_BLACKOUT, RM_QUIET, RM_FRENZY, RM_APEX, RM_QUOTA, RM_AQUARIUM, RM_SALVAGE, RM_DRAFT, RM_COUNT };
 const char* ModeName(int mode);
 const char* ModeRules(int mode);
 const char* ModeKey(int mode);                  // "standard", "blackout", ... (the lobby's option string)
@@ -183,6 +186,25 @@ struct Match {
     bool Allowed(int weaponDef) const;   // Quiet Water: knives, spearguns, needlers and nets only
     float frenzyDropT = 20;           // Feeding Frenzy: the next Blood Frenzy drop
     void Ping(int d);                 // Blackout: a sonar ping (shows what's near for 2 s; it's heard)
+    // Quota: no tides; every QUOTA_PERIOD the Owners count the kills of beasts over size 2 (tideKills against quota) and
+    // raise it; a missed count ends the match, the watch's end (QUOTA_MATCH) wins it
+    static constexpr float QUOTA_PERIOD = 120, QUOTA_MATCH = 1200;
+    int QuotaPeriodTarget(int period) const;
+    void UpdateQuotaMode();
+    void StartModeRules();            // (end of Init: the Draft's deal, the hauls, Aquarium's water)
+    void UpdateModeRules(float dt);
+    void Respawn(DiverState& d);      // a dead diver back at the start with the spawn-in kit (a tide's end; Quota's count; Aquarium after 10 s)
+    // Salvage Run: five crates in the far rooms, carried one at a time (E) to the extraction point at the start; one life,
+    // no revives, a 15-minute clock
+    static constexpr float SALVAGE_MATCH = 900, PRY_S = 6; static const int HAULS = 5;
+    struct Haul { Vector3 pos{}; int zone = -1; int carrier = -1; bool home = false, loose = false; float pryT = 0; };   // (chained down until PRY_S of held E)
+    std::vector<Haul> hauls; Vector3 extract{};
+    int HaulsHome() const { int n = 0; for (const auto& h : hauls) n += h.home; return n; }
+    int HaulOf(int d) const { for (int i = 0; i < (int)hauls.size(); i++) if (hauls[i].carrier == d) return i; return -1; }
+    void PlaceHauls();
+    void UpdateHauls(float dt);
+    bool won = false;                 // the match ended in a win (Quota's watch survived, every crate home)
+    bool Shops() const { return mode != RM_DRAFT; }   // Draft: no Locker, no racks
     // barricade nets (design doc, scrip: "Repair a barricade net: 10 per plank, max 100 per tide"): five strands across each
     // passage the beasts use and the divers don't (the breach, the slide); a beast that wants through tears a strand every
     // 2.5 s and comes through when they're gone; hold E beside one to mend a strand
@@ -362,6 +384,7 @@ struct Match {
     void HitDiverPublic(DiverState& d, float dmg, const std::string& by, const std::string& effect, Vector3 from, int attacker) { HitDiver(d, dmg, by, effect, from, attacker); }
     void ApplyDropPublic(DropType t, Vector3 at) { ApplyDrop(t, at); }
     void BeginTidePublic(int t) { BeginTide(t); }
+    void EndTidePublic() { EndTide(); }
     void DropRocksPublic(Vector3 at, int n, float spread, float dmg, float radius, float delay, int owner) { DropRocks(at, n, spread, dmg, radius, delay, owner); }
     void FloraToolPublic(int patch, Vector3 at) { FloraTool(patch, at, nullptr); }
     void HitAgentPublic(int d, int agent, float dmg, bool blast = false) { Dart t; t.weapon = -1; HitAgent(d >= 0 ? &divers[d] : nullptr, agent, dmg, false, false, {1, 0, 0}, blast ? nullptr : &t); }

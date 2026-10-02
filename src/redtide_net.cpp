@@ -248,6 +248,7 @@ template <class A> void Visit(A& a, Match& m) {
     a.f(m.lureHP); a.f(m.darkT); a.f(m.tentacleT); a.v3(m.tentaclePos);
     a.b(m.eggPlaced); a.v3(m.eggPos); a.b(m.relictGone); a.b(m.ledgeDropped);
     a.vec(m.salvage, [&](Match::SalvagePart& p) { a.i(p.build); a.i(p.part); a.v3(p.pos); a.i(p.zone); a.b(p.taken); a.i(p.carrier); });
+    a.vec(m.hauls, [&](Match::Haul& h) { a.v3(h.pos); a.i(h.zone); a.i(h.carrier); a.b(h.home); a.b(h.loose); a.f(h.pryT); }); a.v3(m.extract); a.b(m.won);   // (the modes: Salvage Run's crates)
     a.vec(m.deployed, [&](Match::Deployed& d) { a.e(d.type); a.v3(d.pos); a.v3(d.dir); a.f(d.t); a.i(d.owner); a.b(d.alive); a.b(d.stopped); a.i(d.held); });
     a.vec(m.flareLights, [&](Match::FlareLight& f) { a.v3(f.pos); a.f(f.t); a.i(f.owner); });
     a.vec(m.captions, [&](Caption& c) { a.s(c.who); a.s(c.text); a.f(c.t); });

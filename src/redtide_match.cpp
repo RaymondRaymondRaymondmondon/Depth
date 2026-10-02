@@ -469,7 +469,7 @@ float Match::Rand() { rng ^= rng << 13; rng ^= rng >> 17; rng ^= rng << 5; retur
 
 // ---------------------------------------------------------------- the modes (design doc, "Modes")
 const char* ModeName(int m) {
-    static const char* N[RM_COUNT] = {"Red Tide", "Blackout", "Quiet Water", "Feeding Frenzy", "Apex"};
+    static const char* N[RM_COUNT] = {"Red Tide", "Blackout", "Quiet Water", "Feeding Frenzy", "Apex", "Quota", "Aquarium", "Salvage Run", "Draft"};
     return m >= 0 && m < RM_COUNT ? N[m] : N[0];
 }
 const char* ModeRules(int m) {
@@ -479,11 +479,15 @@ const char* ModeRules(int m) {
         "Powder guns and explosives gone: knives, spearguns, needlers and nets only. The alarm is halved and blood lingers.",
         "Blood never decays, every kill bleeds 3x, Blood Frenzy drops keep coming, and every tide lasts 60 s.",
         "Every Hunt is a Predator Hunt, the boss is awake from tide 1, and bounties are doubled. For teams that beat tide 30.",
+        "No tides: survive twenty minutes while the Owners' quota of big kills rises every 2 minutes. Only beasts over size 2 pay or count.",
+        "No enemies, no Hunts, no tides, endless scrip and every beast in the water: watch the web, learn the tells, try builds. K: free camera.",
+        "One life each, no revives, 15 minutes: carry five salvage crates from the far rooms to the extraction point.",
+        "Each diver is dealt two guns from a shared pool. No Locker, no racks: more guns only from the enemies you kill.",
     };
     return m >= 0 && m < RM_COUNT ? R[m] : R[0];
 }
 const char* ModeKey(int m) {
-    static const char* K[RM_COUNT] = {"standard", "blackout", "quiet", "frenzy", "apex"};
+    static const char* K[RM_COUNT] = {"standard", "blackout", "quiet", "frenzy", "apex", "quota", "aquarium", "salvage", "draft"};
     return m >= 0 && m < RM_COUNT ? K[m] : K[0];
 }
 int ModeFromKey(const std::string& k) { for (int m = 0; m < RM_COUNT; m++) if (k == ModeKey(m)) return m; return RM_STANDARD; }
@@ -690,6 +694,7 @@ void Match::InitMap(const MapData& m, const std::string& art, int playerCount, u
     BuildLevel(m, level);
     linkOpen.assign(m.links.size(), 0);
     for (size_t i = 0; i < level.doors.size(); i++) linkOpen[level.doors[i].link] = level.doors[i].open ? 1 : 0;
+    eco.noEnemies = mode == RM_AQUARIUM;                  // (Aquarium: no faction at all)
     eco.Init(m, seed ? seed : 20260930, 1, players);
     eco.onDeath = [this](int a, int k) { OnDeath(a, k); };
     eco.onDiverHit = [this](int d, int a, float dmg) { OnDiverHit(d, a, dmg); };
@@ -770,6 +775,7 @@ void Match::InitMap(const MapData& m, const std::string& art, int playerCount, u
     if (mode == RM_FRENZY) { eco.decayMult = 0; eco.killBloodMult = 3; }          // "blood never decays; every kill bleeds 3x"
     PlaceSalvage();
     BeginTide(1);
+    StartModeRules();
 }
 
 // ---------------------------------------------------------------- tides
@@ -841,20 +847,172 @@ void Match::EndTide() {
         for (auto& d : divers) if (!d.dead && !d.downed) GiveLockerWeapon(d);
     }
     // the dead come back for the next tide with the spawn-in kit (and keep their scrip)
-    for (auto& d : divers) if (d.dead) {
-        d.dead = false; d.downed = false;
-        d.hpMax = d.hp = Engine().C("player_hp", 100);
-        d.tonics.clear(); d.slots = 2; d.blade = -1; d.bladeForged = false;
-        d.weapons = {NewHeld(Weapons().Index(Weapons().sidearm), false)}; d.cur = 0;
-        d.pos = level.start; d.vel = {0, 0, 0};
-        d.limpets = Weapons().startLimpets;
-        if (d.agent >= 0) { eco.agents[d.agent].alive = true; eco.agents[d.agent].downed = false; eco.agents[d.agent].pos = d.pos; }
-    }
+    for (auto& d : divers) if (d.dead && mode != RM_SALVAGE) Respawn(d);   // (Salvage Run: one life)
     Say("Tide " + std::to_string(tide), "cleared. The water calms for " + std::to_string((int)map->tunables.count("calm_seconds") ? (int)map->tunables.at("calm_seconds") : 20) + " s.", 4);
     phase = TidePhase::Calm;
     phaseT = 0;
 }
 
+void Match::Respawn(DiverState& d) {
+    d.dead = false; d.downed = false; d.respawnT = 0;
+    d.hpMax = d.hp = Engine().C("player_hp", 100);
+    d.tonics.clear(); d.slots = 2; d.blade = -1; d.bladeForged = false;
+    d.weapons = {NewHeld(Weapons().Index(Weapons().sidearm), false)}; d.cur = 0;
+    if (!d.draftKit.empty()) { d.weapons.clear(); for (int k : d.draftKit) d.weapons.push_back(NewHeld(k, false)); }   // (Draft: the guns dealt)
+    d.pos = level.start; d.vel = {0, 0, 0};
+    d.limpets = mode == RM_QUIET ? 0 : Weapons().startLimpets;
+    if (d.agent >= 0) { eco.agents[d.agent].alive = true; eco.agents[d.agent].downed = false; eco.agents[d.agent].pos = d.pos; }
+}
+
+// ---------------------------------------------------------------- the modes' own rules (Quota, Aquarium, Salvage Run, Draft)
+int Match::QuotaPeriodTarget(int period) const {
+    static const float scale[] = {0.5f, 0.7f, 0.85f, 1.0f};
+    return std::max(1, (int)lroundf((1 + 0.5f * period) * scale[std::clamp(players, 1, 4) - 1]));   // (big beasts are few: 1, 2, 2, 3, 3, 4... for four)
+}
+void Match::StartModeRules() {
+    const WeaponsData& WD = Weapons();
+    if (mode == RM_QUOTA) {
+        quota = QuotaPeriodTarget(0); captions.clear();
+        for (auto& d : divers) d.scrip = std::max(d.scrip, 2000);   // (the Owners advance enough for a door or two: the small fry pay nothing)
+        Say("The Owners", "No tides tonight. Twenty minutes, and " + std::to_string(quota) + " kills of beasts over size 2 by the first count at four minutes, more every two after.", 6);
+    }
+    if (mode == RM_AQUARIUM) {
+        eco.alarmMult = 0; eco.SetTide(10);   // (the populations fill toward a deep tide's)
+        phase = TidePhase::Calm; captions.clear();
+        for (auto& d : divers) d.scrip = 50000;
+        Say("Aquarium", "The water is yours: no enemies, no tides, scrip without end. K frees the camera.", 6);
+    }
+    if (mode == RM_SALVAGE) {
+        // the salvagers cut the way in before the dive: every door is open but the boss's
+        std::vector<char> lairZ(map->zones.size(), 0);
+        for (const auto& sp : map->species) if (sp.tier == 5) { int hz = map->ZoneIndex(sp.homeZone); if (hz >= 0) lairZ[hz] = 1; }
+        for (auto& dr : level.doors) {
+            const Link& l = map->links[dr.link];
+            if ((l.from >= 0 && l.from < (int)lairZ.size() && lairZ[l.from]) || (l.to >= 0 && l.to < (int)lairZ.size() && lairZ[l.to])) continue;
+            dr.open = true; linkOpen[dr.link] = 1;
+        }
+        PlaceHauls(); captions.clear();
+        Say("Salvage Run", "Five crates in the far rooms, fifteen minutes, one life each. Tow them to the extraction buoy.", 6);
+    }
+    if (mode == RM_DRAFT) {
+        // a pool of every Locker and rack gun, dealt two to a diver, no two divers the same
+        std::vector<int> pool;
+        int wonder = WD.Index(WonderId());
+        for (int i = 0; i < (int)WD.weapons.size(); i++) {
+            const WeaponDef& w = WD.weapons[i];
+            if ((w.source == "locker" || w.source == "rack") && !w.melee && i != wonder && Allowed(i)) pool.push_back(i);
+        }
+        for (int i = (int)pool.size() - 1; i > 0; i--) std::swap(pool[i], pool[(int)(Rand() * (i + 1)) % (i + 1)]);
+        size_t k = 0;
+        for (auto& d : divers) {
+            d.draftKit.clear();
+            for (int n = 0; n < 2 && k < pool.size(); n++) d.draftKit.push_back(pool[k++]);
+            if (!d.draftKit.empty()) { d.weapons.clear(); for (int w : d.draftKit) d.weapons.push_back(NewHeld(w, false)); d.cur = 0; }
+        }
+        Say("Draft", "Two guns each from the pool. No Locker, no racks: take the rest off the enemy.", 6);
+    }
+}
+void Match::UpdateQuotaMode() {
+    if (over) return;
+    if (time >= (tide + 1) * QUOTA_PERIOD) {   // (the first count at 4 minutes, then every 2)
+        // the Owners count
+        if (tideKills < quota) {
+            over = true; phase = TidePhase::Over;
+            overReason = "The Owners' quota was missed (" + std::to_string(tideKills) + " of " + std::to_string(quota) + ")";
+            return;
+        }
+        if (time >= QUOTA_MATCH) {
+            over = true; won = true; phase = TidePhase::Over;
+            overReason = "Twenty minutes, every quota met: the Owners are satisfied";
+            for (auto& d : divers) if (!d.dead) Pay(d, 1000);
+            return;
+        }
+        tide++; maxTide = std::max(maxTide, tide);
+        eco.SetTide(tide);
+        quota = QuotaPeriodTarget(tide - 1); tideKills = 0; phaseT = 0;
+        for (auto& d : divers) if (d.dead) Respawn(d);   // (the count brings the lost back, as a tide's end would)
+        Say("The Owners", "Quota met. The next two minutes: " + std::to_string(quota) + ".", 4);
+    }
+}
+void Match::PlaceHauls() {
+    // the five rooms furthest from the start (by passages), one crate each
+    hauls.clear(); extract = level.start;
+    int nz = (int)map->zones.size();
+    // not in or past the boss's own room (a heist, not a boss fight) unless the map is too small for a run without it:
+    // then the far rooms past the lair count too, through its shut door
+    std::vector<char> lair(nz, 0);
+    for (const auto& sp : map->species) if (sp.tier == 5) { int hz = map->ZoneIndex(sp.homeZone); if (hz >= 0) lair[hz] = 1; }
+    std::vector<int> dist, order;
+    for (int allowLair = 0; allowLair < 2; allowLair++) {
+        dist.assign(nz, -1); order.clear();
+        std::vector<int> q{level.startZone};
+        if (level.startZone >= 0 && level.startZone < nz) dist[level.startZone] = 0;
+        for (size_t h = 0; h < q.size(); h++) {
+            int z = q[h];
+            for (int li = 0; li < (int)map->links.size(); li++) {
+                const Link& l = map->links[li];
+                bool lairDoor = allowLair && ((l.from >= 0 && l.from < nz && lair[l.from]) || (l.to >= 0 && l.to < nz && lair[l.to])) && l.diverOk;
+                if ((!DiverLink(li) && !lairDoor) || l.slip || l.oneWay) continue;   // (the divers' own way, and a crate must be able to come back the way it went)
+                int o = l.from == z ? l.to : l.to == z ? l.from : -1;
+                if (o < 0 || o >= nz || dist[o] >= 0 || (lair[o] && !allowLair)) continue;
+                dist[o] = dist[z] + 1; q.push_back(o);
+            }
+        }
+        for (int z = 0; z < nz; z++) if (dist[z] > 0 && map->zones[z].diverOk && !map->zones[z].air && !(z < (int)voidZone.size() && voidZone[z])) order.push_back(z);
+        if ((int)order.size() >= 4) break;
+    }
+    std::stable_sort(order.begin(), order.end(), [&](int a, int b) { return dist[a] > dist[b]; });
+    std::vector<char> open(map->links.size(), 1);
+    for (int pass = 0; pass < 2 && !order.empty(); pass++)   // (a small map: a second crate in the far rooms)
+    for (int z : order) {
+        if ((int)hauls.size() >= HAULS) break;
+        const Zone& zz = map->zones[z];
+        for (int tries = 0; tries < 40; tries++) {
+            Rectangle b = zz.plan;
+            if (!zz.parts.empty()) { std::vector<Rectangle> vis; for (const auto& p : zz.parts) if (!p.hidden) vis.push_back(p.r); if (!vis.empty()) b = vis[(int)(Rand() * vis.size()) % vis.size()]; }
+            Vector3 p{b.x + 1 + (b.width - 2) * Rand(), zz.y0 + 0.6f, b.y + 1 + (b.height - 2) * Rand()};
+            if (!level.Inside(p, 0.4f, open) || Forbidden(p, 30)) continue;   // (well clear of the void and the worm's stakes: the bots keep 25 m off)
+            Haul h; h.pos = p; h.zone = z; hauls.push_back(h);
+            break;
+        }
+    }
+}
+void Match::UpdateHauls(float dt) {
+    (void)dt;
+    if (over) return;
+    for (auto& h : hauls) {
+        if (h.home || h.carrier < 0) continue;
+        DiverState& d = divers[h.carrier];
+        if (d.dead || d.downed) { h.pos = d.pos; h.zone = d.zone; h.carrier = -1; Say("", "A salvage crate drifts loose", 3); continue; }
+        h.pos = Vector3Add(d.pos, {0, -0.45f, 0});
+        if (Vector3Distance(d.pos, extract) < 3.0f) {
+            h.home = true; h.carrier = -1;
+            int n = HaulsHome();
+            h.pos = Vector3Add(extract, {(n % 3) * 0.8f - 0.8f, -0.4f, (n / 3) * 0.8f - 0.4f});
+            for (auto& o : divers) if (!o.dead) Pay(o, 400);
+            Say("Salvage Run", std::to_string(n) + " of " + std::to_string((int)hauls.size()) + " crates at the extraction buoy", 4);
+        }
+    }
+    if (!hauls.empty() && HaulsHome() >= (int)hauls.size()) {
+        over = true; won = true; phase = TidePhase::Over;
+        overReason = "Every crate is home: the salvage run is done (" + std::to_string((int)time / 60) + ":" + (((int)time % 60) < 10 ? "0" : "") + std::to_string((int)time % 60) + ")";
+    } else if (time >= SALVAGE_MATCH) {
+        over = true; phase = TidePhase::Over;
+        overReason = "The clock ran out with " + std::to_string(HaulsHome()) + " of " + std::to_string((int)hauls.size()) + " crates home";
+        if (getenv("DEPTH_SIMLOG")) for (const auto& h : hauls) if (!h.home) printf("    [salvage] a crate left in %s\n", h.zone >= 0 ? map->zones[h.zone].name.c_str() : "?");
+    }
+}
+void Match::UpdateModeRules(float dt) {
+    if (mode == RM_QUOTA) UpdateQuotaMode();
+    if (mode == RM_SALVAGE) UpdateHauls(dt);
+    if (mode == RM_AQUARIUM) {
+        phase = TidePhase::Calm; phaseT = 0;
+        for (auto& d : divers) {
+            d.scrip = std::max(d.scrip, 50000);   // (endless scrip)
+            if (d.dead && (d.respawnT += dt) >= 10) Respawn(d);
+        }
+    }
+}
 // ---------------------------------------------------------------- the step
 void Match::Step(float dt) {
     if (over) return;
@@ -943,7 +1101,9 @@ void Match::Step(float dt) {
             drops.push_back(fd);
         }
     }
-    if (phase == TidePhase::Calm && phaseT >= calm) BeginTide(tide + 1);
+    UpdateModeRules(dt);
+    if (mode == RM_QUOTA || mode == RM_AQUARIUM) {}   // (no tides: UpdateModeRules keeps their clocks)
+    else if (phase == TidePhase::Calm && phaseT >= calm) BeginTide(tide + 1);
     else if (phase == TidePhase::Tide && (tideKills >= quota || (mode == RM_FRENZY && phaseT >= 60))) EndTide();   // (Feeding Frenzy: "tides are 60 s each")
     else if (phase == TidePhase::Hunt) {
         // the rest of a Faction Hunt's force, 30 s apart; the leader with the last wave
@@ -997,6 +1157,7 @@ void Match::SteerDiver(int di, Vector3 wish, float vert, bool sprint, bool ads, 
     if (d.zone >= 0 && d.zone < (int)crawlZone.size()) speed *= crawlZone[d.zone];
     if (d.downed) speed = e.M("downed_crawl_speed", 0.6f);
     if (d.slowT > 0) speed *= d.slowMult;
+    if (mode == RM_SALVAGE && HaulOf(di) >= 0) speed *= 0.6f;    // (a salvage crate in tow)
     if (d.drumUses > 0 && map->extra["quest_altar"].IsObj()) speed *= map->extra["quest_altar"]["carry_speed"].F(0.8f);   // (the drum's weight)
     Vector3 want = moving ? Vector3Scale(Vector3Normalize(wish), speed) : Vector3{0, 0, 0};
     want.y = std::clamp(vert, -1.0f, 1.0f) * e.M("vertical_speed", 1.4f) * (d.downed ? 0.4f : 1.0f);
@@ -1099,7 +1260,7 @@ void Match::UpdateDiver(DiverState& d, float dt) {
             d.downed = false; d.dead = true;
             if (body) body->alive = false;
             DropKeys(d, d.pos);
-            Say("", "Diver " + std::to_string(d.slot + 1) + " bled out (back next tide)", 4);
+            Say("", "Diver " + std::to_string(d.slot + 1) + (mode == RM_SALVAGE ? " is lost (one life)" : mode == RM_AQUARIUM ? " is lost (back in 10 s)" : " bled out (back next tide)"), 4);
         }
         if (!d.reloading) return;
     }
@@ -1213,6 +1374,7 @@ void Match::DownDiver(DiverState& d, const std::string& by) {
     if (d.agent >= 0) eco.agents[d.agent].downed = true;
     // solo: one self-revive per Quick Brine bought (three per match)
     if (players == 1 && d.selfRevives > 0) d.selfReviveT = 3;
+    if (mode == RM_SALVAGE) { d.downT = 0; d.selfReviveT = 0; }   // (Salvage Run: one life, no revives)
     Say("", "Diver " + std::to_string(d.slot + 1) + " is down (" + by + ")" + (d.selfReviveT > 0 ? ": the Quick Brine kicks in" : ""), 4);
 }
 
@@ -1604,7 +1766,7 @@ void Match::HitAgent(DiverState* d, int ai, float dmg, bool weak, bool melee, Ve
     pendingKiller = -1;
     fx.push_back({0, a.pos, dir});
     if (d) {
-        Pay(*d, 10);                                        // "Hit a beast or enemy: 10"
+        if (mode != RM_QUOTA || map->species[a.sp].size > 2) Pay(*d, 10);   // "Hit a beast or enemy: 10" (Quota: only beasts over size 2)
         d->hitMarker = 0.2f; d->hitWeak = weak;
     }
 }
@@ -1802,6 +1964,7 @@ void Match::OnDeath(int ai, int killer) {
     if (di >= 0 && !quipFirst) { quipFirst = true; Quip("First blood", di); }
     else if (di >= 0 && s.Cleaner()) Quip("Cleaner killed", Living() > 1 ? -2 - di : di);
     if (di < 0) return;                                      // eaten or killed by the reef: no scrip, not the quota
+    if (mode == RM_QUOTA && s.size <= 2) { divers[di].kills++; killsBy[s.name]++; return; }   // (Quota: "scrip only from beasts over size 2")
     DiverState& d = divers[di];
     float bounty;
     if (s.isEnemy && a.unit >= 0) {
@@ -3906,6 +4069,7 @@ void Match::GiveWeapon(DiverState& d, int def, bool forged) {
 }
 
 void Match::GiveLockerWeapon(DiverState& d) {
+    if (!Shops()) { for (auto& h : d.weapons) if (h.def >= 0) { h.mag = (int)MagMax(W(h), h); h.reserve = (int)ResMax(W(h), h); } return; }   // (Draft: no Locker)
     // the Locker deals from its pool plus every rack weapon and the map's wonder weapon
     // (2% per pull, guaranteed within 12 pulls if not yet held by the team)
     const WeaponsData& WD = Weapons();
@@ -3933,7 +4097,7 @@ void Match::GiveLockerWeapon(DiverState& d) {
 }
 
 bool Match::LockerLiveAt(const Station& s) const {
-    if (s.type != StationType::Locker) return false;
+    if (s.type != StationType::Locker || !Shops()) return false;
     if (fireSaleT > 0) return !s.needsPower || Powered(s);     // Fire Sale: it appears at every location
     return s.lockerSpot == lockerSpot;
 }
@@ -3978,6 +4142,10 @@ std::string Match::PromptFor(int di, int* cost) const {
     if (cost) *cost = 0;
     if (d.dead) return "";
     if (d.downed) return d.selfReviveT > 0 ? "Quick Brine: getting back up..." : "Downed: hold on for a teammate";
+    if (mode == RM_SALVAGE) {
+        if (HaulOf(di) >= 0) return Vector3Distance(d.pos, extract) < 6 ? "Bring the crate to the extraction buoy" : "";
+        for (const auto& h : hauls) if (!h.home && h.carrier < 0 && Vector3Distance(h.pos, d.pos) < 2.0f) return h.loose ? std::string("E: take the salvage crate in tow") : TextFormat("Hold E: cut the crate's chains (%.0f s; it's loud)", std::max(0.0f, PRY_S - h.pryT));
+    }
     if (d.heldT > 0 && d.holder <= -2) return "Reacher coral! Shoot or knife it (V), or tap E to hack free";
     if (d.heldT > 0) return d.holdLethal ? "Held! Tap E hard (or get it shot off)" : "Tap E to struggle free";
     for (const auto& o : divers) if (&o != &d && o.downed && Vector3Distance(o.pos, d.pos) < 1.8f) return "Hold E to revive diver " + std::to_string(o.slot + 1);
@@ -4009,7 +4177,7 @@ std::string Match::PromptFor(int di, int* cost) const {
     switch (s.type) {
         case StationType::Rack: {
             if (s.weapon < 0) return "";
-            if (!Allowed(s.weapon)) return WD.weapons[s.weapon].name + ": racked (Quiet Water)";
+            if (!Allowed(s.weapon)) return WD.weapons[s.weapon].name + ": racked (Quiet Water)";            if (!Shops()) return WD.weapons[s.weapon].name + ": chained (Draft: guns only from the enemy)";
             const WeaponDef& w = WD.weapons[s.weapon];
             if (w.source == "blade") { if (d.blade == s.weapon) return "The " + w.name + " (yours: V swings it)"; if (cost) *cost = w.price; return "E: take the " + w.name + ": it replaces the " + (d.blade < 0 ? std::string("knife") : WD.weapons[d.blade].name) + " (" + std::to_string(w.price) + ")"; }
             for (const auto& h : d.weapons) if (h.def == s.weapon) { int c = h.forged ? (int)WD.rearm : w.price / 2; if (cost) *cost = c; return "E: " + w.name + " ammo (" + std::to_string(c) + ")"; }
@@ -4102,6 +4270,17 @@ bool Match::Interact(int di, bool hold, float dt) {
     DiverState& d = divers[di];
     if (d.dead || d.downed) return false;
     if (d.heldT > 0) { if (!hold) { d.struggle++; return true; } return false; }
+    if (mode == RM_SALVAGE && HaulOf(di) < 0)   // (a salvage crate: chained down until cut loose (held E, loud); one in tow at a time)
+        for (auto& h : hauls) if (!h.home && h.carrier < 0 && Vector3Distance(h.pos, d.pos) < 2.0f) {
+            if (!h.loose) {
+                if (!hold) return false;
+                float before = h.pryT; h.pryT += dt;
+                if ((int)before != (int)h.pryT) { eco.AddNoise(h.pos, 2); fx.push_back({4, h.pos, {0, 1, 0}}); }   // (the cutter rings through the hull)
+                if (h.pryT < PRY_S) return true;
+                h.loose = true;
+            } else if (hold) return false;
+            h.carrier = di; Say("", "Diver " + std::to_string(d.slot + 1) + " has a salvage crate in tow", 3); return true;
+        }
     // a teammate in Reacher coral: hold to cut them free
     for (auto& o : divers) if (&o != &d && o.heldT > 0 && o.holder <= -2 && Vector3Distance(o.pos, d.pos) < 1.8f) { o.cutT += dt * 1.5f + (hold ? 0 : 0.2f); return true; }
     // revives are held (4 s; 2 s with Quick Brine)
@@ -4176,7 +4355,7 @@ bool Match::Interact(int di, bool hold, float dt) {
     auto pay = [&](int c) { if (d.scrip < c) return false; d.scrip -= c; return true; };
     switch (s.type) {
         case StationType::Rack: {
-            if (s.weapon < 0 || !Allowed(s.weapon)) return false;
+            if (s.weapon < 0 || !Allowed(s.weapon) || !Shops()) return false;
             const WeaponDef& w = WD.weapons[s.weapon];
             if (w.source == "blade") {   // (a melee rack: the blade replaces the knife)
                 if (d.blade == s.weapon || !pay(w.price)) return false;
@@ -4669,6 +4848,7 @@ void Match::Bot(DiverState& d, float dt) {
             if (careful && (s.size > 3 || s.tier >= 4 || s.Cleaner() || a.host >= 0)) continue;
             if (careful && (s.Has("pack") || s.social == "pack") && W(Cur(d)).damage * W(Cur(d)).pellets < 60) continue;   // a pack answers for its own
             if (Forbidden(a.pos, 30)) continue;                                          // not out over the void or past the stakes
+            if (mode == RM_QUOTA && s.size <= 2) continue;                               // (Quota: the small fry don't count)
             if (careful && s.size <= 1 && s.social == "school" && eco.CountInZone(a.sp, a.zone) > 8 && tide >= 3) continue;   // don't bleed the school
             float dist = Vector3Distance(a.pos, d.pos);
             if (!careful) dist *= 0.8f;
@@ -4709,6 +4889,10 @@ void Match::Bot(DiverState& d, float dt) {
                 if (Vector3Distance(mouth, d.pos) < 30 && !avoidZone(map->zones[l.from].diverOk ? l.from : l.to)) { d.botGoal = mouth; d.botPlan = "mend"; break; }
             }
         }
+        if (d.botPlan.empty() && mode == RM_SALVAGE) {
+            // 3c. Salvage Run: a crate in tow goes straight to the buoy (fetching one is weighed with the shopping, 5)
+            if (HaulOf(d.slot) >= 0) { d.botGoal = extract; d.botPlan = "haul"; }
+        }
         if (d.botPlan.empty()) {
             // 4. drops on the floor
             for (const auto& f : drops) if (f.weapon < 0 && Vector3Distance(f.pos, d.pos) < 25) { d.botGoal = f.pos; d.botPlan = "drop"; break; }
@@ -4742,10 +4926,10 @@ void Match::Bot(DiverState& d, float dt) {
                     cost = t->id == "quick" && players == 1 && t->priceSolo > 0 ? t->priceSolo : t->price;
                     if (t->id == "quick" && players == 1 && d.quickBought >= 3) continue;
                     score = t->id == "juggernaut" ? 90 : t->id == "quick" ? (players == 1 ? 95 : 60) : t->id == "speed" ? 50 : t->id == "double" ? 70 : 40;
-                } else if (s.type == StationType::Rack && s.weapon >= 0 && Allowed(s.weapon) && WD.weapons[s.weapon].source == "blade") {
+                } else if (s.type == StationType::Rack && s.weapon >= 0 && Allowed(s.weapon) && Shops() && WD.weapons[s.weapon].source == "blade") {
                     if (d.blade >= 0) continue;                       // (the axe over the knife: worth it once the guns are sorted)
                     cost = WD.weapons[s.weapon].price; score = 45;
-                } else if (s.type == StationType::Rack && s.weapon >= 0 && Allowed(s.weapon)) {
+                } else if (s.type == StationType::Rack && s.weapon >= 0 && Allowed(s.weapon) && Shops()) {
                     const WeaponDef& w = WD.weapons[s.weapon];
                     bool have = false; for (const auto& h : d.weapons) if (h.def == s.weapon) have = true;
                     const Held& cur = Cur(d);
@@ -4777,7 +4961,20 @@ void Match::Bot(DiverState& d, float dt) {
                 }
                 if (!door || dr.cost < door->cost) door = &dr;
             }
-            if (door && (bestScore < 70 || !want)) {
+            if (mode == RM_SALVAGE && bestScore < 90) {
+                // 5c. Salvage Run: the nearest crate this bot can reach that nobody else is fetching, before more doors
+                float best = 1e9f;
+                for (int hi = 0; hi < (int)hauls.size(); hi++) {
+                    const Haul& h = hauls[hi];
+                    if (h.home || h.carrier >= 0 || !zoneOpen(h.zone) || (hi == d.botHaulSkip && d.botHaulSkipT > 0)) continue;
+                    bool claimed = false;
+                    for (const auto& o : divers) if (&o != &d && o.botPlan == "haul" && Vector3Distance(o.botGoal, h.pos) < 0.5f) claimed = true;
+                    float dd = Vector3Distance(h.pos, d.pos);
+                    if (!claimed && dd < best) { best = dd; d.botGoal = h.pos; d.botPlan = "haul"; d.botHaulBest = 1e9f; d.botHaulT = 0; }
+                }
+            }
+            if (d.botPlan == "haul") {}
+            else if (door && (bestScore < 70 || !want)) {
                 const Link& l = map->links[door->link];
                 d.botGoal = zoneOpen(l.from) ? l.a : l.b; d.botPlan = "door";
             } else if (want) { d.botGoal = want->pos; d.botPlan = "buy"; }
@@ -4861,6 +5058,16 @@ void Match::Bot(DiverState& d, float dt) {
         d.botPlan = "flee";
     } else if (d.botPlan == "revive") {
         for (auto& o : divers) if (&o != &d && o.downed) { if (go(o.pos, 1.2f)) Interact(d.slot, true, dt); break; }
+    } else if (d.botPlan == "haul") {
+        // a crate it can't get any nearer to in 20 s (a passage its navigation can't find): leave it a minute
+        float gd = Vector3Distance(d.botGoal, d.pos);
+        if (gd < d.botHaulBest - 2) { d.botHaulBest = gd; d.botHaulT = 0; }
+        else if ((d.botHaulT += dt) > 20) {
+            for (int hi = 0; hi < (int)hauls.size(); hi++) if (Vector3Distance(hauls[hi].pos, d.botGoal) < 0.5f) d.botHaulSkip = hi;
+            d.botHaulSkipT = 60; d.botHaulT = 0; d.botHaulBest = 1e9f; d.botPlan.clear(); d.botThinkT = 0;
+        }
+        if (go(d.botGoal, HaulOf(d.slot) >= 0 ? 1.2f : 1.8f) && HaulOf(d.slot) < 0) { bool loose = false; for (const auto& h : hauls) if (Vector3Distance(h.pos, d.botGoal) < 0.5f) loose = h.loose; Interact(d.slot, !loose, dt); }
+        sprint = !t;
     } else if (d.botPlan == "mend") {
         if (go(d.botGoal, 1.2f)) Interact(d.slot, true, dt);
     } else if (d.botPlan == "door" || d.botPlan == "buy") {
@@ -4905,6 +5112,7 @@ void Match::Bot(DiverState& d, float dt) {
     }
     // unstick
     d.botStuckT += dt;
+    if (d.botHaulSkipT > 0) d.botHaulSkipT -= dt;
     if (d.botStuckT > 3) {
         if (Vector3Distance(d.pos, d.botLastPos) < 0.4f && Vector3Length(wish) > 0.1f) { d.botThinkT = 0; d.pos = level.Move(d.pos, Vector3Add(d.pos, {Rand(-1, 1), Rand(-0.5f, 0.5f), Rand(-1, 1)}), 0.4f, linkOpen); }
         d.botStuckT = 0; d.botLastPos = d.pos;
@@ -4941,6 +5149,7 @@ int RunRedTideSim(const std::string& mapKey, int tides, const std::string& style
                 if (d.botTarget >= 0) { const Agent& ta = M->eco.agents[d.botTarget]; printf("      target %s (%s) at %.1f m, sight %d, alive %d, pos %.1f %.1f %.1f me %.1f %.1f %.1f\n", M->map->species[ta.sp].name.c_str(), StateName(ta.st), Vector3Distance(ta.pos, d.pos), (int)M->level.Sight(M->Eye(d), ta.pos, M->linkOpen), (int)ta.alive, ta.pos.x, ta.pos.y, ta.pos.z, d.pos.x, d.pos.y, d.pos.z); }
                 if (getenv("DEPTH_SIMLOG")[0] >= '2') { std::map<std::string, int> c; for (const auto& a : M->eco.agents) if (a.alive && a.zone == d.zone && a.diver < 0) c[M->map->species[a.sp].name]++; for (auto& kv : c) printf("      %s %d\n", kv.first.c_str(), kv.second); }
                 printf("   t=%4.0f tide %d %s kills %d/%d  hp %3.0f scrip %5d  zone %s plan %s  weapons %d\n", M->time, M->tide, M->phase == TidePhase::Calm ? "calm" : M->phase == TidePhase::Hunt ? "HUNT" : "tide", M->tideKills, M->quota, d.hp, d.scrip, M->map->zones[d.zone].name.c_str(), d.botPlan.c_str(), (int)d.weapons.size());
+                if (d.botPlan == "haul") printf("      haul goal %.1f %.1f %.1f (%.1f m) me %.1f %.1f %.1f, in tow %d, zone at goal %d, mine %d\n", d.botGoal.x, d.botGoal.y, d.botGoal.z, Vector3Distance(d.botGoal, d.pos), d.pos.x, d.pos.y, d.pos.z, M->HaulOf(0), M->eco.ZoneAt(d.botGoal), d.zone);
                 if (d.botPlan == "door" || d.botPlan == "buy") {
                     int di = M->NearestDoor(d.botGoal, 3), si = M->NearestStation(d.botGoal, 3);
                     printf("      goal %.1f %.1f %.1f (%.1f m): door %s cost %d open %d; station %s\n", d.botGoal.x, d.botGoal.y, d.botGoal.z, Vector3Distance(d.botGoal, d.pos),
@@ -5065,6 +5274,81 @@ int RunRedTideModeTest() {
         check(first && again > 0 && d.pingT == 0.5f && m.eco.sound.At(d.pos) > s0, "Blackout: a sonar ping shows what's near for 2 s, is heard, and recharges before the next");
         Match std_; std_.Init("ship", 1, 35, false); std_.Ping(0);
         check(std_.divers[0].pingT == 0, "the ping is Blackout's alone");
+    }
+    // Quota: no tides, a count every 2 minutes, only beasts over size 2 pay or count
+    {
+        Match m; m.mode = RM_QUOTA; m.Init("ship", 1, 37, false);
+        DiverState& d = m.divers[0]; d.invulnerable = true;
+        check(m.phase == TidePhase::Tide && m.quota == m.QuotaPeriodTarget(0) && m.QuotaPeriodTarget(5) > m.QuotaPeriodTarget(0), TextFormat("Quota: one long watch, the first count's quota %d, rising", m.quota));
+        int small = -1, big = -1;
+        for (int i = 0; i < (int)m.eco.agents.size(); i++) {
+            const Agent& a = m.eco.agents[i]; const Species& s = m.map->species[a.sp];
+            if (!a.alive || a.diver >= 0 || s.isEnemy || m.IsBoss(i) || s.bountyBase <= 0) continue;
+            if (s.size <= 2 && small < 0) small = i;
+            if (s.size > 2 && s.tier < 5 && big < 0) big = i;
+        }
+        if (small >= 0 && big >= 0) {
+            int s0 = d.scrip; m.HitAgentPublic(0, small, 1e6f);
+            int s1 = d.scrip, k1 = m.tideKills;
+            m.HitAgentPublic(0, big, 1e6f);
+            check(s1 == s0 && k1 == 0 && d.scrip > s0 && m.tideKills == 1, TextFormat("Quota: a small fish (%s) pays nothing and doesn't count; a beast over size 2 (%s) pays and counts (%d/%d, %d/%d)", m.map->species[m.eco.agents[small].sp].name.c_str(), m.map->species[m.eco.agents[big].sp].name.c_str(), s1 - s0, k1, d.scrip - s1, m.tideKills));
+        } else check(false, "Quota: the ship has small and big beasts to test");
+        m.tideKills = 0; m.quota = 5; m.time = 2 * Match::QUOTA_PERIOD - 0.01f; m.Step(0.05f);
+        check(m.over && !m.won && m.overReason.find("missed") != std::string::npos, "Quota: a missed count ends the match");
+        Match q; q.mode = RM_QUOTA; q.Init("ship", 1, 38, false); q.divers[0].invulnerable = true;
+        int q0 = q.quota;
+        for (int k = 0; k < 12 && !q.over; k++) { q.tideKills = q.quota; q.time = (q.tide + 1) * Match::QUOTA_PERIOD; q.Step(0.01f); }
+        check(q.over && q.won && q.tide == 9 && q.quota > q0, TextFormat("Quota: nine counts met in twenty minutes win it (quota %d -> %d)", q0, q.quota));
+    }
+    // Aquarium: no enemies, no tides, endless scrip, the lost back in 10 s
+    {
+        Match m; m.mode = RM_AQUARIUM; m.Init("ship", 2, 39, true);
+        for (int i = 0; i < 60 * 20; i++) m.Step(1 / 60.0f);
+        bool enemies = false; for (const auto& a : m.eco.agents) if (a.alive && m.map->species[a.sp].isEnemy) enemies = true;
+        check(!enemies && m.eco.squads.empty() && m.phase == TidePhase::Calm && m.tide == 1, "Aquarium: after a minute, no enemies, no squads and no tides");
+        check(m.divers[0].scrip >= 50000, "Aquarium: scrip without end");
+        m.divers[1].dead = true; m.divers[1].downed = false;
+        for (int i = 0; i < 60 * 11; i++) m.Step(1 / 60.0f);
+        check(!m.divers[1].dead, "Aquarium: a lost diver is back in 10 s");
+    }
+    // Salvage Run: five crates in the far rooms, towed home; one life
+    {
+        Match m; m.mode = RM_SALVAGE; m.Init("ship", 1, 40, false);
+        DiverState& d = m.divers[0]; d.invulnerable = true;
+        std::set<int> zones; bool far = true;
+        for (const auto& h : m.hauls) { zones.insert(h.zone); if (Vector3Distance(h.pos, m.extract) < 10) far = false; }
+        check(m.hauls.size() == 5 && zones.size() >= 4 && far, TextFormat("Salvage Run: five crates in the far rooms (%d crates, %d rooms; a small map like the Ship's reaches past the boss)", (int)m.hauls.size(), (int)zones.size()));
+        bool towed = true;
+        for (int k = 0; k < (int)m.hauls.size(); k++) {
+            d.pos = m.hauls[k].pos; d.zone = m.hauls[k].zone;
+            bool early = m.Interact(0, false, 0.01f) && m.HaulOf(0) >= 0;   // (a press won't do: it's chained)
+            for (int i = 0; i < 70 && m.HaulOf(0) < 0; i++) m.Interact(0, true, 0.1f);
+            if (early) towed = false;
+            if (m.HaulOf(0) != k) towed = false;
+            d.pos = m.extract; d.zone = m.level.startZone;
+            m.Step(0.02f);
+        }
+        check(towed && m.over && m.won && m.HaulsHome() == 5, "Salvage Run: each crate cut loose (6 s of held E) and towed to the buoy; all five win it");
+        Match s; s.mode = RM_SALVAGE; s.Init("ship", 2, 41, false);
+        s.divers[0].pos = s.hauls[0].pos; s.hauls[0].loose = true; s.Interact(0, false, 0.01f);
+        s.HitDiverPublic(s.divers[0], 1000, "test", "", s.divers[0].pos, -1);
+        for (int i = 0; i < 10; i++) s.Step(0.02f);
+        s.BeginTidePublic(2); s.EndTidePublic();
+        check(s.divers[0].dead && s.HaulOf(0) < 0 && !s.hauls[0].home, "Salvage Run: a downed diver is lost at once, drops the crate, and isn't back at the tide's end");
+    }
+    // Draft: two guns each from a shared pool, no Locker, no racks
+    {
+        Match m; m.mode = RM_DRAFT; m.Init("ship", 4, 42, true);
+        std::set<int> dealt; bool two = true;
+        for (const auto& d : m.divers) { if (d.weapons.size() != 2) two = false; for (const auto& h : d.weapons) dealt.insert(h.def); }
+        check(two && dealt.size() == 8 && !dealt.count(W.Index(W.sidearm)), "Draft: each diver is dealt two different guns, none shared");
+        bool locker = false; for (const auto& s : m.level.stations) if (m.LockerLiveAt(s)) locker = true;
+        int rack = -1; for (int i = 0; i < (int)m.level.stations.size(); i++) if (m.level.stations[i].type == StationType::Rack && m.level.stations[i].weapon >= 0) rack = i;
+        DiverState& d = m.divers[0]; d.scrip = 100000; int s0 = d.scrip;
+        if (rack >= 0) { d.pos = m.level.stations[rack].pos; m.Interact(0, false, 0.01f); }
+        check(!locker && rack >= 0 && d.scrip == s0, "Draft: no Locker and the racks won't sell");
+        std::vector<int> kit = d.draftKit; d.dead = true; m.Respawn(d);
+        check(d.weapons.size() == 2 && d.weapons[0].def == kit[0] && d.weapons[1].def == kit[1], "Draft: a diver comes back with the guns they were dealt");
     }
     // the blades (design doc, "Melee"): the Boarding Axe's rack replaces the knife; the Forge makes the Sawtooth from the
     // knife and forges a blade
