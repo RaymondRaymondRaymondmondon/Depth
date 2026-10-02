@@ -254,7 +254,10 @@ static void LoadSpecies(MapData& m, const Json& arr) {
         s.hearing = r["hearing_m"].F(10);
         s.electro = r["electro_m"].F();
         s.weakPoint = r["weak_point"].Str0();
+        // the workbook gives armour as a level (1, 2): "Armored fronts ... halve frontal damage" (design doc); a value
+        // under 1 is read as the fraction it takes off
         s.armorFront = r["armor_front"].F();
+        if (s.armorFront >= 1) s.armorFront = 0.5f;
         s.hpBase = r["hp_base"].F(SIZE_HP[s.size]);
         s.bountyBase = r["bounty_base"].F(SIZE_BOUNTY[s.size]);
         s.bloodDeath = r["blood_death"].F(s.size * 20.0f);

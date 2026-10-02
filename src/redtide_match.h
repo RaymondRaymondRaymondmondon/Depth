@@ -177,6 +177,9 @@ struct Match {
     float fireSaleT = 0, doubleScripT = 0, frenzyT = 0, harpoonT = 0, lastDropT = 0; int lastFireSaleTide = -99;
     std::vector<DropType> recentDrops;
     bool predatorHunt = false; int huntApexLeft = 0;
+    // a Faction Hunt comes in three waves 30 s apart, the leader with the third (design doc, "Hunts"); the calm after a
+    // Hunt is doubled
+    int huntWavesLeft = 0, huntWaveSize = 0, huntRegion = 0, huntForceLeft = 0; float huntWaveT = 0; bool calmLong = false;
     bool bossActive = false; int bossAgent = -1; int bossPhase = 1; float bossLingerT = 0, bossIdleT = 0, bossCd[4] = {0, 0, 0, 0};
     int bossWind = -1; float bossWindT = 0; int bossTarget = -1;
     float bossGillsT = 0, bossInhaleT = -1; int bossInhaleDiver = -1; float bossGillDmg = 0; bool bossStunUsed = false, bossCalled = false, bossProvoked = false;

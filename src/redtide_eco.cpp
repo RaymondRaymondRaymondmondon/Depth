@@ -81,6 +81,7 @@ void Field::BuildSat() {
     }
 }
 float Field::BoxSum(Vector3 p, float r, Vector3* centroid) const {
+    if (centroid) *centroid = p;   // (an empty box has no centroid: callers get the point they asked about, never garbage)
     if (sat.empty()) return 0;
     int x0 = (int)floorf((p.x - r - origin.x) / cell), x1 = (int)floorf((p.x + r - origin.x) / cell);
     int y0 = (int)floorf((p.y - r - origin.y) / cell), y1 = (int)floorf((p.y + r - origin.y) / cell);

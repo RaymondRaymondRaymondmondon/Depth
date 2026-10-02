@@ -670,17 +670,24 @@ void Match::BeginTide(int t) {
         if (HasW(tr.hunt, "predator") && apexAround && (Rand() < 0.5f || map->faction.units.empty())) {
             // a Predator Hunt: the apex beasts come to the divers because the water is bloody enough
             predatorHunt = true;
-            huntApexLeft = std::max(1, (int)lroundf(4 * QuotaFor(t) / (float)std::max(1, map->Tide(t).quota4p)));
-            huntApexLeft = std::clamp(huntApexLeft, 1, 4);
+            // "a fixed number of apex kills: 2 at tide 10, 3 at 15, 4 at 20+ (the map's boss counts as 2)"; fewer divers, fewer
+            huntApexLeft = std::max(1, (t >= 20 ? 4 : t >= 15 ? 3 : 2) - (4 - players));
             for (auto& a : eco.agents) if (a.alive && a.diver < 0 && map->species[a.sp].tier == 4) { a.hunger = 1; a.fedT = 0; }
             Say("Tide " + std::to_string(t), "PREDATOR HUNT: the water is red enough. The apex beasts are coming.", 6);
         } else if (!map->faction.units.empty()) {
-            static const float scale[] = {0.4f, 0.6f, 0.8f, 1.0f};
-            int count = std::max(3, (int)lroundf(10 * scale[players - 1])) + 1;   // "10 plus a Foreman"
+            // "10 units at tide 5, 12 at 10, 14 at 15, 16 at 20+, plus the faction's Hunt leader... in three waves 30 s
+            // apart... the leader spawns with the third wave"; solo, duo and three: forces of 5, 7 and 9
+            int force = t >= 20 ? 16 : t >= 15 ? 14 : t >= 10 ? 12 : 10;
+            if (players < 4) force = force * (players == 1 ? 5 : players == 2 ? 7 : 9) / 10;
             int region = 0;
             for (const auto& p : map->pois) if (p.name == map->faction.entryPoi && p.zone >= 0) region = map->zones[p.zone].alarmRegion;
+            huntRegion = region;
+            huntWaveSize = std::max(1, force / 3);
+            huntWavesLeft = 2;                       // (the second and the third with the leader: the rest of the force)
+            huntWaveT = 30;
+            huntForceLeft = force - huntWaveSize;
             size_t before = eco.squads.size();
-            eco.SpawnSquad(region, true, count, true);
+            eco.SpawnSquad(region, true, huntWaveSize, false);
             if (eco.squads.size() > before) {
                 auto& b = map->faction.barks;
                 auto it = b.find("foreman");
@@ -700,6 +707,8 @@ void Match::EndTide() {
     int living = 0;
     for (const auto& d : divers) if (!d.dead) living++;
     for (auto& d : divers) if (!d.dead) Pay(d, (float)tr.tideBonus / std::max(1, living) / (doubleScripT > 0 ? 2.0f : 1.0f));
+    calmLong = phase == TidePhase::Hunt;
+    huntWavesLeft = 0;
     if (phase == TidePhase::Hunt) {
         // "The reward for either is a Resupply and a guaranteed Locker weapon."
         ApplyDrop(DropType::Resupply, level.start);
@@ -792,17 +801,26 @@ void Match::Step(float dt) {
     TrimFx(256);
     // the tide's end
     float calm = map->tunables.count("calm_seconds") ? (float)map->tunables.at("calm_seconds") : 20.0f;
+    if (calmLong) calm *= 2;                                  // "the calm between tides is doubled to 40 s after one"
     if (phase == TidePhase::Calm && phaseT >= calm) BeginTide(tide + 1);
     else if (phase == TidePhase::Tide && tideKills >= quota) EndTide();
     else if (phase == TidePhase::Hunt) {
+        // the rest of a Faction Hunt's force, 30 s apart; the leader with the last wave
+        if (!predatorHunt && huntWavesLeft > 0 && (huntWaveT -= dt) <= 0) {
+            bool last = huntWavesLeft == 1;
+            int n = last ? huntForceLeft : std::min(huntForceLeft, huntWaveSize);
+            eco.SpawnSquad(huntRegion, true, n + (last ? 1 : 0), last);
+            huntForceLeft -= n; huntWavesLeft--; huntWaveT = 30;
+            if (last) { auto& b = map->faction.barks; auto it = b.find("foreman"); Say(map->faction.name, it != b.end() && it->second.size() > 1 ? it->second[1] : "The boss is here.", 5); }
+        }
         bool done;
         if (predatorHunt) done = huntApexLeft <= 0;
         else {
             int left = 0;
             for (const auto& s : eco.squads) if (s.hunt && s.alive) left += (int)s.members.size();
-            done = left == 0;
+            done = left == 0 && huntWavesLeft == 0;
         }
-        if (done || phaseT > 360) EndTide();                 // a force that fled the ship and never came back ends it too
+        if (done || phaseT > 480) EndTide();                 // (a force that fled the ship and never came back ends it too)
     }
     // "If every diver is down, the match ends" (a solo diver with a Quick Brine self-revive in hand isn't down yet)
     bool anyUp = false;
@@ -1098,6 +1116,7 @@ void Match::HitDiver(DiverState& d, float dmg, const std::string& by, const std:
     bool hold = e.find("hold") != std::string::npos || e.find("carr") != std::string::npos || e.find("roll") != std::string::npos || e.find("pin") != std::string::npos || e.find("drag") != std::string::npos;
     bool deferred = hold && e.find("teammate") != std::string::npos;   // "teammates have 4 s": the damage lands if nobody shoots it off
     if (!deferred) d.hp -= dmg;
+    if (getenv("DEPTH_HITLOG") && dmg > 0) printf("   [diver] t=%.1f diver %d takes %.0f from %s (%s), hp %.0f, boss %.1f m, plan %s\n", time, d.slot, dmg, by.c_str(), effect.c_str(), d.hp, bossAgent >= 0 ? Vector3Distance(eco.agents[bossAgent].pos, d.pos) : -1.0f, d.botPlan.c_str());
     d.regenT = 0;
     d.hurtT = 1; d.hurtFrom = from;
     d.lastHitBy = by;
@@ -2215,7 +2234,10 @@ void Match::UpdateBoss(float dt) {
         if (d.zone == b.homeZone) inRoom = true;
         if ((d.zone == b.zone || bossActive) && sees && dist < nd) { nd = dist; near = d.slot; }
     }
-    bossLingerT = inRoom ? bossLingerT + dt : std::max(0.0f, bossLingerT - dt * 0.5f);
+    bossLingerT = inRoom && (power || bossKind != 0) ? bossLingerT + dt : std::max(0.0f, bossLingerT - dt * 0.5f);   // (dozing before the power: company isn't counted)
+    if (getenv("DEPTH_HITLOG") && inRoom && bossLingerT > 10 && fmodf(bossLingerT, 15.0f) < dt)
+        for (const auto& d : divers) if (!d.dead && !d.downed && d.zone == b.homeZone)
+            printf("   [linger] t=%.1f %.0f s: diver %d plan '%s' flee %d held %.1f bot %d at %.1f m\n", time, bossLingerT, d.slot, d.botPlan.c_str(), d.botFlee, d.heldT, (int)d.bot, Vector3Distance(d.pos, b.pos));
     bool provoked = bossProvoked;                             // a diver's shot, blade or blast landed on it
     float patience = b.fedT > 0 ? 1e9f : 25.0f * (1.2f - b.hunger);
     // before the power is on it dozes: only a shot or a touch wakes it ("turning on power also wakes the
@@ -4387,6 +4409,9 @@ void Match::Bot(DiverState& d, float dt) {
         if (!t) return;
         if (getenv("DEPTH_HITLOG") && IsBoss(d.botTarget) && fmodf(time, 1.0f) < dt) printf("   [bot] t=%.1f diver %d targets the boss: plan '%s' downed %d held %d flee %d active %d\n", time, d.slot, d.botPlan.c_str(), (int)d.downed, (int)(d.heldT > 0), d.botFlee, (int)bossActive);
         Vector3 p = Vector3Add(t->pos, Vector3Scale(t->vel, Vector3Distance(t->pos, d.pos) / 28.0f));
+        // a boss: its gills behind the head when they're open (after an Inhale or a Tail Slam, or a diver in its mouth)
+        if (IsBoss(d.botTarget) && (bossGillsT > 0 || bossInhaleT >= 0 || swallowDiver >= 0))
+            p = Vector3Add(p, Vector3Scale(Facing(*t), bodies[t->sp].length * 0.32f));
         aimAt(p, careful ? 0.4f : 1.2f);
         Held& h = Cur(d);
         bool dry = h.mag + h.reserve <= 0 && !W(h).melee;
@@ -4443,7 +4468,7 @@ void Match::Bot(DiverState& d, float dt) {
             float dist = Vector3Distance(a.pos, d.pos);
             bool boss = IsBoss(i) && bossActive;                  // a sleeping Goliath is left sleeping
             if (IsBoss(i) && !bossActive) continue;
-            if ((onMe || (enemy && dist < 25) || boss) && dist < (enemy || boss ? 25 : td) && level.Sight(Eye(d), a.pos, linkOpen, true)) { td = dist; threat = i; }
+            if ((onMe || (enemy && dist < 25) || boss) && dist < (boss ? 35 : enemy ? 25 : td) && level.Sight(Eye(d), a.pos, linkOpen, true)) { td = dist; threat = i; }
         }
         // 3. prey
         int prey = -1; float pd = 22;
@@ -4470,7 +4495,22 @@ void Match::Bot(DiverState& d, float dt) {
             if (s.size < 4 || a.target != d.agent || a.targetCorpse) continue;
             if (a.st == State::Defend || (careful && a.st == State::Hunt && Cur(d).forged == false && W(Cur(d)).damage * W(Cur(d)).pellets < 60)) { d.botFlee = i; break; }
         }
-        if (bossActive && bossAgent >= 0 && !strong && Vector3Distance(eco.agents[bossAgent].pos, d.pos) < 16) d.botFlee = bossAgent;
+        // an awake boss: the whole team shoots it from range; nobody lets it close inside its reach (the Goliath's
+        // Inhale pulls from 4 m off its snout)
+        if (bossActive && bossAgent >= 0 && eco.agents[bossAgent].alive) {
+            const Agent& b = eco.agents[bossAgent];
+            float gap = Vector3Distance(b.pos, d.pos) - bodies[b.sp].length * 0.5f;
+            if (gap < (careful ? 10.5f : 6.0f)) d.botFlee = bossAgent;   // (the Goliath's Boom stuns 10 m out, then it Lunges)
+        }
+        // with the power on a sleeping boss wakes to company that lingers in its room: a careful diver does its business
+        // there and leaves before it stirs (the leaving is the flee's way out of the boss's room)
+        if (careful && d.botFlee < 0 && power && !bossActive && bossZone >= 0 && d.zone == bossZone) {
+            const Agent& b = eco.agents[bossAgent];
+            float patience = b.fedT > 0 ? 1e9f : 25.0f * (1.2f - b.hunger);   // (UpdateBoss's: shorter when it's hungry)
+            if (bossLingerT > (d.botPlan == "buy" ? patience - 2.5f : 1.5f)) d.botFlee = bossAgent;
+        }
+        // hurt: a careful diver backs off what's on it and lets the suit heal
+        if (careful && d.botFlee < 0 && threat >= 0 && d.hp < d.hpMax * 0.4f && Vector3Distance(eco.agents[threat].pos, d.pos) < 9) d.botFlee = threat;
         if (d.botPlan.empty()) {
             // 4. drops on the floor
             for (const auto& f : drops) if (f.weapon < 0 && Vector3Distance(f.pos, d.pos) < 25) { d.botGoal = f.pos; d.botPlan = "drop"; break; }
@@ -4495,6 +4535,8 @@ void Match::Bot(DiverState& d, float dt) {
             int bestScore = -1;
             for (const auto& s : level.stations) {
                 if (!zoneOpen(s.zone) || (s.needsPower && !Powered(s)) || avoidZone(s.zone)) continue;
+                if (careful && power && !bossActive && bossAgent >= 0 && eco.agents[bossAgent].alive && eco.agents[bossAgent].fedT <= 0 &&
+                    Vector3Distance(s.pos, eco.agents[bossAgent].pos) - bodies[eco.agents[bossAgent].sp].length * 0.5f < 8) continue;   // ("the Forge is safe only right after it has fed")
                 int score = -1, cost = 0;
                 if (s.type == StationType::Tonic) {
                     const TonicDef* t = WD.Tonic(s.tonic);
@@ -4528,12 +4570,22 @@ void Match::Bot(DiverState& d, float dt) {
                 bool trapped = true;
                 for (int z2 = 0; z2 < (int)map->zones.size(); z2++) if (seen[z2] && z2 == level.startZone) trapped = false;
                 if (dr.cost + (trapped ? 0 : reserve) > d.scrip) continue;
+                if (careful && !bossActive && bossAgent >= 0 && eco.agents[bossAgent].alive) {   // (not past a sleeping boss's snout)
+                    Vector3 at = zoneOpen(l.from) ? l.a : l.b;
+                    if (Vector3Distance(at, eco.agents[bossAgent].pos) - bodies[eco.agents[bossAgent].sp].length * 0.5f < 6) continue;
+                }
                 if (!door || dr.cost < door->cost) door = &dr;
             }
             if (door && (bestScore < 70 || !want)) {
                 const Link& l = map->links[door->link];
                 d.botGoal = zoneOpen(l.from) ? l.a : l.b; d.botPlan = "door";
             } else if (want) { d.botGoal = want->pos; d.botPlan = "buy"; }
+        }
+        if (careful && d.botPlan.empty() && d.botTarget < 0) {
+            // 5b. a careful team keeps together: a diver who has strayed swims back to the others
+            Vector3 c{0, 0, 0}; int n = 0;
+            for (const auto& o : divers) if (&o != &d && !o.dead && !o.downed) { c = Vector3Add(c, o.pos); n++; }
+            if (n > 0) { c = Vector3Scale(c, 1.0f / n); if (Vector3Distance(c, d.pos) > 16 && !Forbidden(c, 20)) { d.botGoal = c; d.botPlan = "regroup"; } }
         }
         if (d.botPlan.empty() && d.botTarget < 0) {
             // 6. go where the prey is: the reachable room with the most killable beasts (down a one-way drop only
@@ -4548,7 +4600,7 @@ void Match::Bot(DiverState& d, float dt) {
                     if (nn >= 0 && !seen[nn]) { seen[nn] = 1; q.push_back(nn); }
                 }
                 for (int z = 0; z < (int)map->zones.size(); z++) {
-                    if (!seen[z] || avoidZone(z)) continue;
+                    if (!seen[z] || avoidZone(z) || (careful && z == bossZone && power && !bossActive)) continue;   // (no hunting in a sleeping boss's room once the power's on)
                     int n = 0;
                     for (const auto& a : eco.agents) if (a.alive && a.diver < 0 && a.zone == z && map->species[a.sp].size <= (careful ? 2 : 4) && map->species[a.sp].tier <= (careful ? 2 : 4)) n++;
                     if (careful && z != d.zone) n = n * 3 / 4;   // careful bots stay put a little longer
@@ -4603,7 +4655,7 @@ void Match::Bot(DiverState& d, float dt) {
     } else if (d.botPlan == "door" || d.botPlan == "buy") {
         if (go(d.botGoal, 1.2f)) { Interact(d.slot, false, dt); d.botThinkT = 0; }
         sprint = !t;
-    } else if (d.botPlan == "drop" || d.botPlan == "roam") {
+    } else if (d.botPlan == "drop" || d.botPlan == "roam" || d.botPlan == "regroup") {
         go(d.botGoal, 1.0f);
         sprint = !t;
     }
@@ -4613,7 +4665,7 @@ void Match::Bot(DiverState& d, float dt) {
         if (d.botPlan.empty()) {
             const Held& ch = Cur(d);
             bool dry = ch.mag + ch.reserve <= 0 && !W(ch).melee;
-            float keep = dry ? 0.8f : s.size >= 3 || s.isEnemy ? 7.0f : 3.0f;
+            float keep = dry ? 0.8f : IsBoss(d.botTarget) ? bodies[t->sp].length * 0.5f + (careful ? 12.5f : 8.0f) : s.size >= 3 || s.isEnemy ? 7.0f : 3.0f;
             if (dist > keep + 3 || !level.Sight(Eye(d), t->pos, linkOpen)) go(t->pos, keep);
             else if (dist < keep - 1.5f) { Vector3 away = Vector3Subtract(d.pos, t->pos); wish = {away.x, 0, away.z}; vert = std::clamp(away.y, -1.0f, 1.0f); }
         }
@@ -4626,6 +4678,18 @@ void Match::Bot(DiverState& d, float dt) {
         int best = d.cur; float bv = -1;
         for (int i = 0; i < (int)d.weapons.size(); i++) { const WeaponDef& w = W(d.weapons[i]); float v = w.damage * w.pellets * w.rpm * (d.weapons[i].forged ? 2.5f : 1) * (d.weapons[i].mag + d.weapons[i].reserve > 0 ? 1 : 0); if (v > bv) { bv = v; best = i; } }
         if (best != d.cur) SwapWeapon(d.slot, best);
+    }
+    // a careful bot gives a sleeping boss a wide berth (a touch on its snout wakes it)
+    if (careful && bossAgent >= 0 && !bossActive && eco.agents[bossAgent].alive) {
+        const Agent& b = eco.agents[bossAgent];
+        Vector3 away = Vector3Subtract(d.pos, b.pos);
+        float gap = Vector3Length(away) - bodies[b.sp].length * 0.5f;
+        if (gap < 6.5f) {
+            Vector3 flat = Vector3Length(Vector3{away.x, 0, away.z}) > 0.01f ? Vector3Normalize({away.x, 0, away.z}) : Vector3{1, 0, 0};
+            float k = std::clamp((6.5f - gap) / 3.0f, 0.0f, 1.0f);
+            wish = Vector3Add(Vector3Scale(wish, 1 - k), Vector3Scale(flat, 1.2f * k));
+            vert = std::clamp(vert + k * (away.y >= 0 ? 1.0f : -1.0f), -1.0f, 1.0f);
+        }
     }
     // unstick
     d.botStuckT += dt;
@@ -4663,6 +4727,11 @@ int RunRedTideSim(const std::string& mapKey, int tides, const std::string& style
                 if (d.botTarget >= 0) { const Agent& ta = M->eco.agents[d.botTarget]; printf("      target %s (%s) at %.1f m, sight %d, alive %d, pos %.1f %.1f %.1f me %.1f %.1f %.1f\n", M->map->species[ta.sp].name.c_str(), StateName(ta.st), Vector3Distance(ta.pos, d.pos), (int)M->level.Sight(M->Eye(d), ta.pos, M->linkOpen), (int)ta.alive, ta.pos.x, ta.pos.y, ta.pos.z, d.pos.x, d.pos.y, d.pos.z); }
                 if (getenv("DEPTH_SIMLOG")[0] >= '2') { std::map<std::string, int> c; for (const auto& a : M->eco.agents) if (a.alive && a.zone == d.zone && a.diver < 0) c[M->map->species[a.sp].name]++; for (auto& kv : c) printf("      %s %d\n", kv.first.c_str(), kv.second); }
                 printf("   t=%4.0f tide %d %s kills %d/%d  hp %3.0f scrip %5d  zone %s plan %s  weapons %d\n", M->time, M->tide, M->phase == TidePhase::Calm ? "calm" : M->phase == TidePhase::Hunt ? "HUNT" : "tide", M->tideKills, M->quota, d.hp, d.scrip, M->map->zones[d.zone].name.c_str(), d.botPlan.c_str(), (int)d.weapons.size());
+                if (d.botPlan == "door" || d.botPlan == "buy") {
+                    int di = M->NearestDoor(d.botGoal, 3), si = M->NearestStation(d.botGoal, 3);
+                    printf("      goal %.1f %.1f %.1f (%.1f m): door %s cost %d open %d; station %s\n", d.botGoal.x, d.botGoal.y, d.botGoal.z, Vector3Distance(d.botGoal, d.pos),
+                           di >= 0 ? M->level.doors[di].name.c_str() : "-", di >= 0 ? M->level.doors[di].cost : 0, di >= 0 ? (int)M->level.doors[di].open : 0, si >= 0 ? M->level.stations[si].name.c_str() : "-");
+                }
             }
             if (M->tide != lastTide) lastTide = M->tide;
         }
@@ -4836,9 +4905,12 @@ int RunRedTideMatchTest() {
         for (auto& dr : m.level.doors) dr.open = true;
         q.hp = q.hpMax = 5000;
         m.BeginTidePublic(5);
-        int wreckers = 0, foreman = 0;
-        for (const auto& a : m.eco.agents) if (a.alive && m.map->species[a.sp].isEnemy) { wreckers++; if (a.unit >= 0 && m.map->faction.units[a.unit].huntOnly) foreman++; }
-        check(m.phase == TidePhase::Hunt && wreckers >= 4 && foreman == 1, TextFormat("tide 5 is a Hunt: %d Wreckers through the breach, led by the Foreman", wreckers));
+        auto count = [&](int& wreckers, int& foreman) { wreckers = foreman = 0; for (const auto& a : m.eco.agents) if (a.alive && m.map->species[a.sp].isEnemy) { wreckers++; if (a.unit >= 0 && m.map->faction.units[a.unit].huntOnly) foreman++; } };
+        int w1, f1; count(w1, f1);
+        for (int i = 0; i < 20 * 62; i++) m.Step(0.05f);   // (the second and third waves, 30 s apart)
+        int wreckers, foreman; count(wreckers, foreman);
+        check(m.phase == TidePhase::Hunt && w1 >= 1 && f1 == 0 && wreckers >= 3 && foreman == 1,
+              TextFormat("tide 5 is a Hunt in three waves: %d Wreckers first, %d by the third wave, led by the Foreman", w1, wreckers));
         for (const auto& s : m.level.stations) if (s.name == "Bolt Harpoon rack") q.pos = s.pos;
         float hp0 = q.hp;
         for (int i = 0; i < 60 * 20 && q.hp >= hp0; i++) { m.Step(0.05f); q.pos = q.pos; }
