@@ -729,7 +729,9 @@ static void DrawGun(const Camera3D& cam) {
     Vector3 up = Vector3CrossProduct(right, f);
     float bobx = sinf(S.bob) * 0.008f, boby = fabsf(cosf(S.bob)) * 0.006f;
     float kick = d.recoil * 0.035f * w.handling.recoil;
-    float side = d.ads ? 0.0f : 0.18f, low = d.ads ? -0.075f : -0.115f;   // (far enough out that the hands on it are in view)
+    // (a melee weapon is carried upright in the right fist at the bottom corner, blade up and forward, as any shooter's knife)
+    bool upright = w.cls == "melee" && !d.ads;
+    float side = d.ads ? 0.0f : upright ? 0.2f : 0.18f, low = d.ads ? -0.075f : upright ? -0.17f : -0.115f;   // (far enough out that the hands on it are in view)
     // the reload: the gun drops and rolls out to the side (0-35%), the magazine, clip or drum comes out and a fresh
     // one goes in (35-75%), the gun snaps back up with a little overshoot (75-100%); a thumb-loaded gun just dips
     // for each round
@@ -759,7 +761,7 @@ static void DrawGun(const Camera3D& cam) {
     m.m8 = f.x; m.m9 = f.y; m.m10 = f.z;
     m.m12 = p.x; m.m13 = p.y; m.m14 = p.z;
     // (turned a little in toward the crosshair, so its left side shows past the fist)
-    Matrix tilt = MatrixMultiply(MatrixMultiply(MatrixRotateZ(roll), MatrixRotateY(meleeYaw + (d.ads ? 0.0f : 0.1f))), MatrixRotateX(-d.recoil * 0.25f * w.handling.recoil + meleePitch));
+    Matrix tilt = MatrixMultiply(MatrixMultiply(MatrixMultiply(MatrixRotateX(upright ? -1.05f : 0.0f), MatrixRotateZ(roll + (upright ? 0.25f : 0.0f))), MatrixRotateY(meleeYaw + (d.ads ? 0.0f : 0.1f))), MatrixRotateX(-d.recoil * 0.25f * w.handling.recoil + meleePitch));
     // the Locker room's finish on the gun, and the suit's colour on the glove that holds it
     const Profile& prof = GetProfile();
     Color fin = FinishColor(prof.finish), tint = WHITE;

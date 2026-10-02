@@ -9,6 +9,7 @@
 #include "raymath.h"
 #include "redtide_render.h"
 #include "figure3d.h"
+#include "redtide_vis.h"
 #include "skins.h"
 #include "rlgl.h"
 #include "sound.h"
@@ -1392,6 +1393,24 @@ static Vector3 SailorGrip(const Model& m, const std::vector<Matrix>& skin, Matri
     Matrix w = rt::BoneWorld(rig, skin, b, frame);
     return {w.m12, w.m13, w.m14};
 }
+// your own hands in first person (the user's references, 2026-10-02): the bare-handed viewmodel (tools/artgen/
+// rt_fphands.py -> fp_sailor.glb: hands built closed on a grip, rolled sleeves) placed straight on what they hold, the
+// forearms out of the bottom corners; false if it isn't built (the whole first-person body is drawn instead)
+static Matrix HandFrame(Vector3 p, Vector3 fwd, Vector3 axis, float s) {   // a grip hand at p: its grip along axis, its front toward fwd
+    Vector3 y = Vector3Normalize(axis);
+    Vector3 x = Vector3Normalize(Vector3Subtract(fwd, Vector3Scale(y, Vector3DotProduct(fwd, y))));
+    Vector3 z = Vector3CrossProduct(x, y);
+    x = Vector3Scale(x, s); y = Vector3Scale(y, s); z = Vector3Scale(z, s);
+    return Matrix{x.x, y.x, z.x, p.x, x.y, y.y, z.y, p.y, x.z, y.z, z.z, p.z, 0, 0, 0, 1};
+}
+static bool SailorArms(const Crew& me, const Camera3D& cam, float t, const Matrix* hr, const Matrix* hl, bool leftGrip) {
+    const Model* m = rt::LoadAsset("shared/divers/fp_sailor.glb");
+    if (!m) return false;
+    SailorLook L = LookOf(me);
+    std::vector<rt::Recolor> rc = {{"skin", L.skin}, {"top", L.top}, {"accent", L.top}};
+    return rt::DrawVmArms(*m, cam, hr, hl, leftGrip, 1.0f, t, rc, WHITE);
+}
+static const float VM_HAND = 1.1f;   // (the hands' scale beside the tools: a viewmodel's licence, a touch over life size)
 // your own body in first person: drawn with the camera (it turns and tips with your look), head hidden, arms up
 // before you; returns where the right fist is, for the tool
 static Vector3 DrawFirstPersonBody(const Crew& me, const Camera3D& cam, float t, float aimUp, float twoHand, bool working, const Vector3* grips = nullptr, const bool* gripOn = nullptr) {
@@ -2312,10 +2331,46 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
     Item held = DrawItemOf(me.slots[me.sel]);
     // your own arms and hands (the shared sailor, head hidden), with or without a tool, at a station reaching to the work
     bool fpBody = SailorsReady() && !me.dead && !me.overboard && me.deck != DECK_SKIFF && me.deck != DECK_DIVE;
-    if (fpBody && (held == Item::None || me.station >= 0)) {
+    // (shots: DEPTH_CARRYFISH=<species> puts one in your hand)
+    CatchRec shotCarry; const CatchRec* carry = me.carrying ? &me.carry : nullptr;
+    if (const char* cf = getenv("DEPTH_CARRYFISH")) { shotCarry.name = cf; shotCarry.kg = 4; for (int i = 0; i < (int)Species().sp.size(); i++) if (Species().sp[i].name == cf) shotCarry.sp = i; carry = &shotCarry; }
+    if (fpBody && carry && !carry->junk && me.station < 0) {
+        // a fish in the hand (the user's reference): held up by the tail in the right fist before you, hanging head
+        // down and swaying with your step, its weight in how far it hangs
+        Vector3 f = Vector3Normalize(Vector3Subtract(cam.target, cam.position));
+        Vector3 rgt = Vector3Normalize(Vector3CrossProduct(f, cam.up)), up = Vector3CrossProduct(rgt, f);
+        float sway = sinf(t * 2.1f) * 0.06f + (Vector2Length(me.v) > 0.3f ? sinf(t * 9) * 0.05f : 0);
+        Vector3 fist = Vector3Add(cam.position, Vector3Add(Vector3Scale(f, 0.6f), Vector3Add(Vector3Scale(rgt, 0.12f), Vector3Scale(up, 0.08f))));
+        Vector3 at = Vector3Add(fist, Vector3Scale(up, -0.035f));
+        Matrix hr = HandFrame(fist, f, up, VM_HAND);   // (the tail upright through the fist)
+        if (!SailorArms(me, cam, t, &hr, nullptr, false)) { Vector3 grips[2] = {fist, fist}; bool on[2] = {false, true}; at = DrawFirstPersonBody(me, cam, t, 0.3f, 0, false, grips, on); }
+        float len = std::clamp(0.28f + sqrtf(std::max(0.1f, carry->kg)) * 0.2f, 0.28f, 0.85f);
+        Vector3 hang = Vector3Normalize(Vector3Add(Vector3Scale(up, -1), Vector3Add(Vector3Scale(rgt, sway), Vector3Scale(f, 0.18f))));
+        Vector3 c = Vector3Add(at, Vector3Scale(hang, len * 0.5f + 0.03f));
+        const auto& SP = Species().sp;
+        Color tintF = carry->sp >= 0 && carry->sp < (int)SP.size() ? SpeciesTint(SP[carry->sp]) : Color{150, 150, 140, 255};
+        float roll = getenv("DEPTH_FISHROLL") ? (float)atof(getenv("DEPTH_FISHROLL")) : 1.57f;   // (its flank to you)
+        if (!DrawFishPbr(carry->name, c, hang, len, roll, t * 4, 0.12f, tintF)) DrawFishAt(gFish, c, hang, len, tintF, roll);
+    } else if (fpBody && (held == Item::None || me.station >= 0)) {
         Vector3 grips[2];
         bool on = StationGrips(g, me, grips);
-        DrawFirstPersonBody(me, cam, t, me.station >= 0 ? 0.1f * sinf(t * 5) : -0.25f, 0, me.station >= 0, on ? grips : nullptr);
+        Vector3 f = Vector3Normalize(Vector3Subtract(cam.target, cam.position));
+        Vector3 rgt = Vector3Normalize(Vector3CrossProduct(f, cam.up)), up = Vector3CrossProduct(rgt, f);
+        bool drawn = false;
+        if (on) {   // on the rod (along it, the right hand on the fore grip, the left on the reel) or the wheel's spokes
+            bool wheel = fabsf(grips[0].y - grips[1].y) < 0.1f;
+            Vector3 axis = wheel ? up : Vector3Normalize(Vector3Subtract(grips[1], grips[0]));
+            Matrix hr = HandFrame(grips[1], f, axis, VM_HAND), hl = HandFrame(grips[0], f, axis, VM_HAND);
+            drawn = SailorArms(me, cam, t, &hr, &hl, true);
+        } else if (me.station < 0) {   // empty-handed: two loose fists low in the corners, swinging a little with the step
+            float sw = Vector2Length(me.v) > 0.3f ? sinf(t * 9) * 0.02f : 0.004f * sinf(t * 1.7f);
+            Vector3 pr = Vector3Add(cam.position, Vector3Add(Vector3Scale(f, 0.42f), Vector3Add(Vector3Scale(rgt, 0.24f), Vector3Scale(up, -0.27f + sw))));
+            Vector3 pl = Vector3Add(cam.position, Vector3Add(Vector3Scale(f, 0.42f), Vector3Add(Vector3Scale(rgt, -0.24f), Vector3Scale(up, -0.27f - sw))));
+            Vector3 ax = Vector3Normalize(Vector3Add(up, Vector3Scale(f, 0.6f)));
+            Matrix hr = HandFrame(pr, f, ax, VM_HAND), hl = HandFrame(pl, f, ax, VM_HAND);
+            drawn = SailorArms(me, cam, t, &hr, &hl, true);
+        }
+        if (!drawn) DrawFirstPersonBody(me, cam, t, me.station >= 0 ? 0.1f * sinf(t * 5) : -0.25f, 0, me.station >= 0, on ? grips : nullptr);
     }
     // the viewmodel's own moments (local to your view: the game's state doesn't change): switching slots lowers what you
     // held out of view and raises the new one; an inspect (I, or after a long while standing idle) turns it to show its
@@ -2419,7 +2474,13 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
             bool twoHands = baked ? (longTool || held != Item::Knife) : longTool;
             Vector3 grips[2] = {leftHand, Vector3Transform({0.0f, -0.015f, 0}, hm)};
             bool on[2] = {twoHands && rl < 0 && !slung && va.clearT < 0, true};   // (a broken arm hangs; the left hand works a misfire clear)
-            DrawFirstPersonBody(me, cam, t, -0.2f, longTool ? 1.0f : 0.0f, false, grips, on);
+            // (the right hand closed on the grip, slanted by the kind of grip; the left cupping the fore-end)
+            bool gunGrip = gun || (sl.it == Item::Weapon && sl.wpn >= 0 && sl.wpn < (int)Weapons().size() && Weapons()[sl.wpn].Gun());
+            float slant = !gunGrip ? 0.0f : longTool ? 58.0f : 74.0f;
+            Matrix hr = MatrixMultiply(MatrixMultiply(MatrixMultiply(MatrixScale(VM_HAND, VM_HAND, VM_HAND), MatrixRotateZ(-(90 - slant) * DEG2RAD)), MatrixTranslate(0.0f, -0.015f, 0)), hm);
+            Matrix hl = MatrixMultiply(MatrixScale(VM_HAND, VM_HAND, VM_HAND), hm); hl.m12 = leftHand.x; hl.m13 = leftHand.y + 0.01f; hl.m14 = leftHand.z;
+            if (!SailorArms(me, cam, t, &hr, on[0] ? &hl : nullptr, false))
+                DrawFirstPersonBody(me, cam, t, -0.2f, longTool ? 1.0f : 0.0f, false, grips, on);
         }
         // the old speargun's spear slides home in the last third of the reload; a muzzle flash on a powder shot that
         // lights the deck for an instant

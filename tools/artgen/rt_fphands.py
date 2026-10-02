@@ -26,13 +26,14 @@ import common as C
 bpy = C.bpy
 
 # (the divers' colours, as rt_divers.py; importing it would build the divers)
-DIVERS = ["diver", "whaler", "stowaway", "mechanic"]
+DIVERS = ["diver", "whaler", "stowaway", "mechanic", "sailor"]   # (sailor: the Trawl crew's bare hands, rolled sleeves)
 STYLE = {"skin": ((0.78, 0.55, 0.42), 0.6), "leather": ((0.3, 0.19, 0.1), 0.65), "metal": ((0.7, 0.52, 0.24), 0.32)}
 COLOURS = {
     "diver":    {"top": ((0.62, 0.55, 0.4), 0.9), "accent": ((0.82, 0.62, 0.28), 0.3), "leather": ((0.055, 0.05, 0.045), 0.55)},
     "whaler":   {"top": ((0.2, 0.22, 0.2), 0.35), "accent": ((0.42, 0.33, 0.2), 0.7), "leather": ((0.025, 0.022, 0.02), 0.4)},
     "stowaway": {"top": ((0.55, 0.47, 0.36), 0.92), "accent": ((0.42, 0.5, 0.56), 0.85)},
     "mechanic": {"top": ((0.46, 0.47, 0.48), 0.42), "accent": ((0.76, 0.56, 0.26), 0.3)},
+    "sailor":   {"top": ((0.2, 0.22, 0.3), 0.85), "accent": ((0.2, 0.22, 0.3), 0.85)},
 }
 METALLIC = {"metal", "accent"}
 
@@ -50,7 +51,7 @@ FR = 0.018                     # the fore-end's radius the left hand cups
 WRIST_R = (-0.072, -0.024, -0.006)
 WRIST_L = (-0.03, 0.036, -0.066)
 CUFF_LEN = 0.1
-GLOVE = {"diver": "leather", "whaler": "leather", "stowaway": "accent", "mechanic": "top"}
+GLOVE = {"diver": "leather", "whaler": "leather", "stowaway": "accent", "mechanic": "top", "sailor": "skin"}
 
 
 def capsule_chain(name, pts, radii, verts=10):
@@ -143,7 +144,7 @@ def support_hand(mat):
     return parts
 
 
-def cuff(mats, glove):
+def cuff(mats, glove, sailor=False):
     """The gauntlet from the wrist toward the elbow, flaring, with a ring at its mouth."""
     o = C.cylinder("cuff", 1.0, 1.0, verts=16, bevel=0)
     bm = bmesh.new(); bm.from_mesh(o.data)
@@ -152,7 +153,9 @@ def cuff(mats, glove):
         r = 0.029 + 0.013 * t ** 1.4
         v.co = Vector((t * CUFF_LEN, v.co.x * r, v.co.y * r))
     bm.to_mesh(o.data); bm.free()
-    C.assign(o, mats[glove]); C.smooth(o, 60)
+    C.assign(o, mats["top" if sailor else glove]); C.smooth(o, 60)
+    if sailor:   # (a rolled sleeve: a fat roll of the cloth at the mouth, no ring)
+        return [o, ring_at("cuff_roll", (CUFF_LEN * 0.9, 0, 0), (1, 0, 0), 0.04, 0.012, mats["top"])]
     ring = ring_at("cuff_ring", (CUFF_LEN * 0.92, 0, 0), (1, 0, 0), 0.043, 0.0055, mats["accent"])
     return [o, ring]
 
@@ -185,7 +188,7 @@ def build(who, out):
         mats[name] = C.mat_flat(name, c, rough=r, metal=0.9 if name in METALLIC else 0.0)
     glove = GLOVE[who]
     groups = {"hand.R": grip_hand(mats[glove]), "grip.L": mirror_y(grip_hand(mats[glove])), "hand.L": support_hand(mats[glove]),
-              "cuff.R": cuff(mats, glove), "cuff.L": cuff(mats, glove), "arm.R": sleeve(mats), "arm.L": sleeve(mats)}
+              "cuff.R": cuff(mats, glove, who == "sailor"), "cuff.L": cuff(mats, glove, who == "sailor"), "arm.R": sleeve(mats), "arm.L": sleeve(mats)}
     arm = bpy.data.armatures.new("vm"); rig = C.link(bpy.data.objects.new("vm", arm))
     C.select_only([rig]); bpy.ops.object.mode_set(mode='EDIT')
     for b in groups:

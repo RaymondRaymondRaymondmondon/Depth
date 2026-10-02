@@ -99,64 +99,67 @@ bool DrawFirstPersonArms(int voice, const Camera3D& cam, Vector3 gripR, Vector3 
 // the viewmodel (tools/artgen/rt_fphands.py -> fp_<diver>.glb): gloved hands built closed on a grip, a gauntlet cuff
 // and a sleeve per arm, each rigid on its own bone, placed here with one matrix each (no body, no IK): the hands ride the
 // gun's own frame, so they kick, roll and sway with it, and each forearm runs from its wrist out of the bottom corner
-bool DrawViewmodelHands(int voice, const Camera3D& cam, const VmHold& h, float t, const std::string& suit, const std::string& helmet) {
-    static const char* F[4] = {"shared/divers/fp_diver.glb", "shared/divers/fp_whaler.glb", "shared/divers/fp_stowaway.glb", "shared/divers/fp_mechanic.glb"};
-    const Model* m = LoadAsset(F[std::clamp(voice, 0, 3)]);
-    if (!m) return false;
-    const RigInfo& R = RigOf(*m);
+bool DrawVmArms(const Model& m, const Camera3D& cam, const Matrix* handR, const Matrix* handL, bool leftGrip, float girth, float t, const std::vector<Recolor>& rc, Color tint) {
+    const RigInfo& R = RigOf(m);
     std::vector<Matrix> skin(R.parent.size(), Matrix{});   // (all zero: a part not used this frame folds away)
     auto set = [&](const char* n, Matrix mm) { int b = R.Find(n); if (b >= 0) skin[b] = mm; };
     // (the generator's frame, Blender's x forward, y left, z up, arrives as the glTF's x, z, -y: the same as the guns')
-    const float S = 1.5f;      // the viewmodel's scale, the guns' own
     const float CUFF = 0.1f;   // rt_fphands.py CUFF_LEN
-    const float SA = 1.1f;     // the forearms' girth (slimmer than the hands' licence: they pass close to the eye)
     Vector3 f = Vector3Normalize(Vector3Subtract(cam.target, cam.position));
     Vector3 up0{0, 1, 0}, rgt = Vector3Normalize(Vector3CrossProduct(f, up0)), up = Vector3CrossProduct(rgt, f);
-    float tilt = -(90 - h.angle) * DEG2RAD;
-    auto gripAt = [&](Vector3 at) { return MatrixMultiply(MatrixMultiply(MatrixRotateZ(tilt), MatrixTranslate(at.x, at.y, at.z)), h.gun); };
-    // a forearm: the gauntlet from the wrist toward the elbow, the sleeve on from inside its mouth to past the elbow
+    // a forearm: the cuff from the wrist toward the elbow, the sleeve on from inside its mouth to past the elbow
     auto forearm = [&](const char* cuff, const char* arm, Vector3 wrist, Vector3 elbow) {
         Vector3 X = Vector3Normalize(Vector3Subtract(elbow, wrist));
         Vector3 Y = Vector3Normalize(Vector3Subtract(up, Vector3Scale(X, Vector3DotProduct(up, X))));
         Vector3 Z = Vector3CrossProduct(X, Y);
         auto basis = [&](Vector3 p, float sx) {
-            Vector3 a = Vector3Scale(X, sx), b = Vector3Scale(Y, SA), c = Vector3Scale(Z, SA);
+            Vector3 a = Vector3Scale(X, sx), b = Vector3Scale(Y, girth), c = Vector3Scale(Z, girth);
             return Matrix{a.x, b.x, c.x, p.x, a.y, b.y, c.y, p.y, a.z, b.z, c.z, p.z, 0, 0, 0, 1};
         };
-        set(cuff, basis(wrist, SA));
-        Vector3 s0 = Vector3Add(wrist, Vector3Scale(X, CUFF * SA * 0.6f));
+        set(cuff, basis(wrist, girth));
+        Vector3 s0 = Vector3Add(wrist, Vector3Scale(X, CUFF * girth * 0.6f));
         if (getenv("DEPTH_VMNOARM")) return;
         set(arm, basis(s0, Vector3Distance(s0, elbow) + 0.25f));
     };
-    // the elbows: below and out to each side, a little behind the gun (off the bottom of the view), breathing
+    // the elbows: below and out to each side, a little ahead of the eye (off the bottom of the view), breathing
     float br = 0.006f * sinf(t * 1.7f);
     auto elbowAt = [&](float side) { return Vector3Add(cam.position, Vector3Add(Vector3Scale(rgt, side * 0.3f), Vector3Add(Vector3Scale(up, -0.6f + br), Vector3Scale(f, 0.12f)))); };
-    // the right hand on the grip
-    Matrix hr = gripAt(h.gripR);
-    set("hand.R", hr);
-    forearm("cuff.R", "arm.R", Vector3Transform({-0.072f, -0.006f, 0.024f}, hr), elbowAt(1));
-    // the left: cupping the fore-end, closed over the right hand on a pistol's grip, or round a second pistol
-    if (h.left == 1) {
-        Vector3 at = Vector3Add(h.gripL, {0.04f * h.magOut, 0.012f - 0.09f * h.magOut, 0});
-        Matrix hl = MatrixMultiply(MatrixTranslate(at.x, at.y, at.z), h.gun);
-        set("hand.L", hl);
-        forearm("cuff.L", "arm.L", Vector3Transform({-0.03f, -0.066f, -0.036f}, hl), elbowAt(-1));
-    } else if (h.left >= 2) {
-        Matrix hl = h.left == 2 ? gripAt(Vector3Add(h.gripR, {0.004f, -0.014f, -0.028f}))
-                                : MatrixMultiply(gripAt(h.gripR), MatrixTranslate(h.leftShift.x, h.leftShift.y, h.leftShift.z));
-        set("grip.L", hl);
-        forearm("cuff.L", "arm.L", Vector3Transform({-0.072f, -0.006f, -0.024f}, hl), elbowAt(-1));
+    if (handR) {
+        set("hand.R", *handR);
+        forearm("cuff.R", "arm.R", Vector3Transform({-0.072f, -0.006f, 0.024f}, *handR), elbowAt(1));
     }
+    if (handL && !leftGrip) {
+        set("hand.L", *handL);
+        forearm("cuff.L", "arm.L", Vector3Transform({-0.03f, -0.066f, -0.036f}, *handL), elbowAt(-1));
+    } else if (handL) {
+        set("grip.L", *handL);
+        forearm("cuff.L", "arm.L", Vector3Transform({-0.072f, -0.006f, -0.024f}, *handL), elbowAt(-1));
+    }
+    DrawPbrSkinned(m, MatrixIdentity(), skin, rc, 0.35f, tint);
+    return true;
+}
+
+bool DrawViewmodelHands(int voice, const Camera3D& cam, const VmHold& h, float t, const std::string& suit, const std::string& helmet) {
+    static const char* F[4] = {"shared/divers/fp_diver.glb", "shared/divers/fp_whaler.glb", "shared/divers/fp_stowaway.glb", "shared/divers/fp_mechanic.glb"};
+    const Model* m = LoadAsset(F[std::clamp(voice, 0, 3)]);
+    if (!m) return false;
+    float tilt = -(90 - h.angle) * DEG2RAD;
+    auto gripAt = [&](Vector3 at) { return MatrixMultiply(MatrixMultiply(MatrixRotateZ(tilt), MatrixTranslate(at.x, at.y, at.z)), h.gun); };
+    // the right hand on the grip; the left cupping the fore-end, closed over the right hand on a pistol's grip, or
+    // round a second pistol
+    Matrix hr = gripAt(h.gripR), hl{};
+    if (h.left == 1) { Vector3 at = Vector3Add(h.gripL, {0.04f * h.magOut, 0.012f - 0.09f * h.magOut, 0}); hl = MatrixMultiply(MatrixTranslate(at.x, at.y, at.z), h.gun); }
+    else if (h.left == 2) hl = gripAt(Vector3Add(h.gripR, {0.004f, -0.014f, -0.028f}));
+    else if (h.left == 3) hl = MatrixMultiply(gripAt(h.gripR), MatrixTranslate(h.leftShift.x, h.leftShift.y, h.leftShift.z));
     std::vector<Recolor> rc;
     DiverSkinColours(suit, helmet, rc);
     for (const auto& w : skins::WornColours(skins::REDTIDE)) rc.push_back({w.material, w.c});
     if (const skins::Costume* c = skins::WornCostume(skins::REDTIDE)) rc.push_back({"top", c->sleeve});   // (a costume's sleeves)
     if (getenv("DEPTH_VMDBG")) rc = {{"leather", RED}, {"top", GREEN}, {"accent", BLUE}};   // (which part is which)
-    // (a tint down: this close to the eye the helmet lamp would wash the gloves out to tan)
-    DrawPbrSkinned(*m, MatrixIdentity(), skin, rc, 0.35f, Color{165, 165, 165, 255});
-    return true;
+    // (girth 1.1: slimmer than the hands' 1.5 licence, the forearms pass close to the eye; a tint down: this close to the
+    // eye the helmet lamp would wash the gloves out to tan)
+    return DrawVmArms(*m, cam, &hr, h.left ? &hl : nullptr, h.left >= 2, 1.1f, t, rc, Color{165, 165, 165, 255});
 }
-
 // ---------------------------------------------------------------- the creature kit (phase 5)
 // Red Tide's fish on the Trawl's rigged fish (tools/artgen/fish.py: ten archetypes on a four-bone spine, a ray with
 // wings): the body plan and the name choose the archetype, the species record's three colours paint it (back, belly,

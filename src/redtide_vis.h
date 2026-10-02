@@ -18,6 +18,10 @@ bool DrawFirstPersonArms(int voice, const Camera3D& cam, Vector3 gripR, Vector3 
 // for a reload), 2 closed over the right hand on the grip, 3 round a second gun leftShift (world) from the first
 struct VmHold { Matrix gun; Vector3 gripR{0, 0, 0}, gripL{0, 0, 0}; float angle = 74; int left = 1; Vector3 leftShift{0, 0, 0}; float magOut = 0; };
 bool DrawViewmodelHands(int voice, const Camera3D& cam, const VmHold& h, float t, const std::string& suit = "", const std::string& helmet = "");
+// the same hands and forearms placed directly (any fp_*.glb, e.g. the Trawl's bare-handed fp_sailor): the right grip hand's
+// world matrix (scale included), the left hand's (leftGrip: the mirrored grip hand, else the cupping one), the forearms'
+// girth; each forearm runs from its wrist out of the bottom corner of the view
+bool DrawVmArms(const Model& m, const Camera3D& cam, const Matrix* handR, const Matrix* handL, bool leftGrip, float girth, float t, const std::vector<Recolor>& rc, Color tint);
 // the creature kit (phase 5): a fish-shaped species drawn on the shared rigged fish, swum on its spine and painted
 // from its record; false (draw the CreatureBuilder model) when it isn't a fish plan or the frame's budget is spent
 void CreatureBudget(int n);
