@@ -1,4 +1,4 @@
-# Regenerates Depth's baked art (the Trawl Visual Overhaul Spec, section 4) by running every generator in this folder
+﻿# Regenerates Depth's baked art (the Trawl Visual Overhaul Spec, section 4) by running every generator in this folder
 # through Blender headless. The outputs (glTF .glb with embedded PNG texture sets) are committed, so the game builds
 # without Blender; run this after changing a generator.
 #     .\tools\artgen\run.ps1                 every generator
@@ -27,7 +27,8 @@ $jobs = @(
     @{ script = "attachments.py";  out = "assets\shared\attachments" },
     @{ script = "boat.py";         out = "assets\trawl" },
     @{ script = "dock.py";         out = "assets\trawl" },
-    @{ script = "fish.py";         out = "assets\trawl\fish" }
+    @{ script = "fish.py";         out = "assets\trawl\fish" },
+    @{ script = "props.py";        out = "assets\trawl\props" }
 )
 foreach ($w in $weapons) { $jobs += @{ script = "weapons.py"; out = "assets\shared\weapons"; extra = "--only $w"; tag = $w.Split(",")[0] } }
 $procs = @()

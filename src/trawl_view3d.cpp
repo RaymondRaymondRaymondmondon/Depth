@@ -718,7 +718,10 @@ static void DrawSkiff3D(const Gannet& g, float t) {
     const Skiff& s = g.skiff;
     if (s.state == SkiffState::Lost || gSkiff.meshCount == 0) return;
     Matrix M = SkiffMatrix(g);
-    rt::DrawStatic(gSkiff, M, WHITE);
+    const bool baked = !getenv("DEPTH_OLDBOAT");
+    const Model* skM = baked ? rt::LoadAsset("trawl/props/skiff.glb") : nullptr;
+    const Model* oarM = baked ? rt::LoadAsset("trawl/props/oar.glb") : nullptr;
+    if (skM) rt::DrawPbr(*skM, M); else rt::DrawStatic(gSkiff, M, WHITE);
     if (s.state == SkiffState::Capsized) return;
     if (s.Up()) Glow(Vector3Transform({1.95f, 0.85f, 0}, M), 0.12f, Color{255, 214, 140, 255}, 2.2f);   // the bow lantern
     // the oars: each rower's pair sweeps from the catch (blades forward) to the finish and feathers back
@@ -729,9 +732,12 @@ static void DrawSkiff3D(const Gannet& g, float t) {
         float lift = ph < 0.45f ? -0.12f : 0.12f;
         for (int sd = -1; sd <= 1; sd += 2) {
             Vector3 lock{0.2f, 0.42f, sd * (SkiffHB(0.2f) - 0.02f)};
-            Matrix o = MatrixMultiply(MatrixMultiply(MatrixScale(0.04f, 0.04f, 2.6f), MatrixTranslate(0, 0, sd * 0.95f)), MatrixRotateY(sd * sweep));
+            // (the baked oar runs handle -z to blade +z: mirrored for the port one; the blade squares in the pull and
+            // feathers flat on the recovery)
+            Matrix shape = oarM ? MatrixMultiply(MatrixRotateZ(ph < 0.45f ? 0.0f : 1.4f), MatrixScale(1, 1, (float)sd)) : MatrixScale(0.04f, 0.04f, 2.6f);
+            Matrix o = MatrixMultiply(MatrixMultiply(shape, MatrixTranslate(0, 0, sd * 0.95f)), MatrixRotateY(sd * sweep));
             o = MatrixMultiply(MatrixMultiply(o, MatrixRotateX(sd * (0.18f + lift))), MatrixTranslate(lock.x, lock.y, lock.z));
-            rt::DrawCubeM(MatrixMultiply(o, M), Color{170, 130, 80, 255});
+            if (oarM) rt::DrawPbr(*oarM, MatrixMultiply(o, M)); else rt::DrawCubeM(MatrixMultiply(o, M), Color{170, 130, 80, 255});
         }
     }
     // her line: the rod over the starboard quarter, bent by the fish, and the line to the lure or the fish
@@ -1749,7 +1755,9 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
         }
         spray.erase(std::remove_if(spray.begin(), spray.end(), [](const Drop& d) { return d.life <= 0; }), spray.end());
         }
-        for (const auto& d : spray) { float s = 0.11f + 0.09f * std::min(1.0f, d.life); rt::DrawCubeGlow(MatrixMultiply(MatrixScale(s, s, s), MatrixTranslate(d.p.x, d.p.y, d.p.z)), Color{210, 224, 230, 255}, 0.9f); }   // (faintly self-lit: white water catches what light there is)
+        static Model drop{};   // (a round drop, not a cube: phase 7's no raw primitives)
+        if (drop.meshCount == 0) drop = LoadModelFromMesh(GenMeshSphere(0.5f, 5, 7));
+        for (const auto& d : spray) { float s = 0.11f + 0.09f * std::min(1.0f, d.life); rt::DrawStaticGlow(drop, MatrixMultiply(MatrixScale(s, s * 1.3f, s), MatrixTranslate(d.p.x, d.p.y, d.p.z)), Color{210, 224, 230, 255}, 0.9f); }   // (faintly self-lit: white water catches what light there is)
     }
     // ---- the land, the quay, the harbour's buoys
     if (gLandFor) rt::DrawStatic(gLand, MatrixIdentity(), WHITE);
@@ -1771,7 +1779,9 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
         if (eco && eco->g && eco->DepthAt(w) < 1) continue;
         if (Vector2Distance(w, {cam.position.x, cam.position.z}) > 90) continue;
         float h = g.sea.Height(w.x, w.y);
-        rt::DrawWorldCube(W3(w, h + 0.4f), {0.5f, 0.9f, 0.5f}, Color{50, 50, 54, 255});
+        const Model* bu = getenv("DEPTH_OLDBOAT") ? nullptr : rt::LoadAsset(cosf(a) > 0 ? "trawl/props/buoy_green.glb" : "trawl/props/buoy_red.glb");
+        if (bu) rt::DrawPbr(*bu, MatrixMultiply(MatrixRotateZ(0.08f * sinf(t * 0.9f + k)), MatrixTranslate(w.x, h, w.y)));   // (riding the swell)
+        else rt::DrawWorldCube(W3(w, h + 0.4f), {0.5f, 0.9f, 0.5f}, Color{50, 50, 54, 255});
         bool blink = fmodf(t + k * 0.37f, 2.0f) < 1.2f;
         Color lc = cosf(a) > 0 ? Color{90, 230, 120, 255} : Color{240, 80, 70, 255};
         Glow(W3(w, h + 1.05f), 0.2f, blink ? lc : Mul(lc, 0.25f), blink ? 2.5f : 0.1f);
@@ -1792,11 +1802,25 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
         localGlow({-4.0f, ENGINE_Y + 1.2f, -0.85f}, 0.12f, gauge, 1.0f);
     }
     // below: the watertight door as it stands, the oil lamps (lit or dark), the hatches' covers seen from beneath
+    const Model* coverM = getenv("DEPTH_OLDBOAT") ? nullptr : rt::LoadAsset("trawl/props/hatch_cover.glb");
+    const Model* battenM = coverM ? rt::LoadAsset("trawl/props/batten.glb") : nullptr;
+    if (coverM && battenM) {
+        // the baked hatch covers: on the coaming when shut (seen from above or below), battened with two bars; an
+        // open hatch is the deck's own opening, the ladder showing down it
+        for (const auto& h : g.hatches) {
+            if (h.state == 0) continue;
+            rt::DrawPbr(*coverM, MatrixMultiply(MatrixTranslate(h.at.x, DECK_Y + 0.16f, h.at.y), M));
+            if (h.state == 2) for (int s = -1; s <= 1; s += 2) rt::DrawPbr(*battenM, MatrixMultiply(MatrixTranslate(h.at.x, DECK_Y + 0.25f, h.at.y + s * 0.3f), M));
+        }
+    }
     if (below) {
-        if (!g.doorOpen) rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(0.08f, 1.9f, 1.2f), MatrixTranslate(-2.75f, ENGINE_Y + 0.95f, 0)), M), Color{120, 120, 126, 255});
+        if (!g.doorOpen) {
+            if (const Model* dm = getenv("DEPTH_OLDBOAT") ? nullptr : rt::LoadAsset("trawl/props/door.glb")) rt::DrawPbr(*dm, MatrixMultiply(MatrixTranslate(-2.72f, ENGINE_Y + 0.95f, 0), M));
+            else rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(0.08f, 1.9f, 1.2f), MatrixTranslate(-2.75f, ENGINE_Y + 0.95f, 0)), M), Color{120, 120, 126, 255});
+        }
         for (const auto& lp : g.lamps) localGlow({lp.at.x, DECK_Y - 0.3f, lp.at.y}, 0.1f, lp.lit ? Color{255, 200, 120, 255} : Color{50, 44, 38, 255}, lp.lit ? 2.0f : 0.0f);
-        for (const auto& h : g.hatches) if (h.state != 0) rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(1.0f, 0.06f, 1.0f), MatrixTranslate(h.at.x, DECK_Y - 0.04f, h.at.y)), M), Color{86, 64, 42, 255});
-    } else for (const auto& h : g.hatches) {
+        if (!coverM) for (const auto& h : g.hatches) if (h.state != 0) rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(1.0f, 0.06f, 1.0f), MatrixTranslate(h.at.x, DECK_Y - 0.04f, h.at.y)), M), Color{86, 64, 42, 255});
+    } else if (!coverM) for (const auto& h : g.hatches) {
         // on deck: a coaming round each hatch, a cover on it unless it's open
         rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(1.05f, 0.18f, 1.05f), MatrixTranslate(h.at.x, DECK_Y + 0.09f, h.at.y)), M), h.state == 0 ? Color{20, 18, 16, 255} : Color{120, 92, 60, 255});
         if (h.state == 2) for (int s = -1; s <= 1; s += 2) rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(1.1f, 0.05f, 0.08f), MatrixTranslate(h.at.x, DECK_Y + 0.2f, h.at.y + s * 0.3f)), M), Color{70, 74, 76, 255});
@@ -1873,6 +1897,13 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
     for (const auto& rg : g.rings) {
         if (rg.state == 0) continue;
         float h = g.sea.Height(rg.p.x, rg.p.y) + (rg.state == 1 ? 1.2f : 0.05f);
+        if (const Model* lr = getenv("DEPTH_OLDBOAT") ? nullptr : rt::LoadAsset("trawl/props/life_ring.glb")) {
+            // (spinning flat through the air, riding the water once it lands)
+            float spin = rg.state == 1 ? t * 9.0f : 0.3f;
+            rt::DrawPbr(*lr, MatrixMultiply(MatrixMultiply(MatrixRotateY(spin), MatrixRotateX(rg.state == 1 ? 0.35f : 0.05f * sinf(t))), MatrixTranslate(rg.p.x, h, rg.p.y)));
+            if (rg.thrower >= 0 && rg.thrower < (int)g.crew.size()) Seg(BoatPoint(b, {g.crew[rg.thrower].p.x, DECK_Y + 1.0f, g.crew[rg.thrower].p.y}), W3(rg.p, h), 0.012f, Color{200, 190, 160, 255});
+            continue;
+        }
         for (int k = 0; k < 8; k++) { float a0 = k * 0.785f, a1 = a0 + 0.785f; Seg(W3({rg.p.x + cosf(a0) * 0.35f, rg.p.y + sinf(a0) * 0.35f}, h), W3({rg.p.x + cosf(a1) * 0.35f, rg.p.y + sinf(a1) * 0.35f}, h), 0.1f, k % 2 ? Color{240, 240, 230, 255} : Color{220, 70, 50, 255}); }
         if (rg.thrower >= 0 && rg.thrower < (int)g.crew.size()) Seg(BoatPoint(b, {g.crew[rg.thrower].p.x, DECK_Y + 1.0f, g.crew[rg.thrower].p.y}), W3(rg.p, h), 0.012f, Color{200, 190, 160, 255});
     }
