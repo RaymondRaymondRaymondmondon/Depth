@@ -88,6 +88,19 @@ struct Session {
     float lastSaleTotal = 0;
     int tokens = 0;
     bool met = false;                           // (Result) the last count
+    // role upgrades (design doc, "The crew of six"): ranks open after the 1st, 2nd and 4th met deadlines; each hand's
+    // choice per rank (-1 not yet chosen); they belong to the role (a hand that switches role starts again at rank 1)
+    int metCount = 0;
+    int roleUp[6][3] = {{-1, -1, -1}, {-1, -1, -1}, {-1, -1, -1}, {-1, -1, -1}, {-1, -1, -1}, {-1, -1, -1}};
+    int upRole[6] = {-1, -1, -1, -1, -1, -1};
+    int RankOpen() const { return metCount >= 4 ? 4 : metCount >= 2 ? 3 : metCount >= 1 ? 2 : 1; }   // the highest rank unlocked
+    bool ChooseUp(int ci, int rank, int choice, std::string* why = nullptr);   // at the dock chalkboard
+    void ApplyUps();                            // each hand's chosen upgrades onto the crew (bots choose by their preference)
+    // the Owners' consignments (design doc, "Owners' consignments"): one named salvage item a deadline
+    std::string consign, consignGround; int consignMissed = 0; bool consignDone = false; int consignReward = -1;   // reward: 0 a free upgrade, 1 10% off the next quota
+    bool miracleUsed = false;                   // (Miracle Worker: once a deadline)
+    bool consignPlaced = false; std::string wrecksGround;
+    void PlaceConsignment();
     bool slip[16] = {};                         // Slipway upgrades bought (by index in SlipwayItems)
     Vector2 harbour{};                          // the harbour mouth: inside this ring she is in harbour
     float harbourR = 70;

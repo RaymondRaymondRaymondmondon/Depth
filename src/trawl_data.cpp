@@ -26,6 +26,23 @@ const char* SectionName(int s) {
     return N[s < 0 || s >= SEC_COUNT ? 0 : s];
 }
 const char* RoleName(Role r) { static const char* N[(int)Role::COUNT] = {"Bosun", "Angler", "Diver", "Medic"}; return N[(int)r]; }
+// the role upgrades (design doc, "The crew of six", the upgrade table)
+static const struct { const char* name; const char* note; } ROLE_UP[UP_COUNT] = {
+    {"Shipwright", "a patched section regains 30 integrity"}, {"Stoker", "overpressure grace 5 -> 10 s; the screw one noise step quieter"},
+    {"Old Salt", "never slides on deck; crew within 4 m slide 50% later"}, {"Deck Boss", "bots under their orders work 20% faster"},
+    {"Iron Hull", "+25 max integrity on every section"}, {"Full Steam", "+20% speed for 20 s, once a night (at the boiler, telegraph full)"},
+    {"Light Touch", "slack tolerance 1.5 -> 3 s"}, {"Heavy Hand", "side pressure tires fish 25% faster"},
+    {"Reader", "the rod ticks 0.5 s before each run"}, {"Strong Line", "+20% line strength on any rod they hold"},
+    {"Trophy Hunter", "first catches pay a further +50%"}, {"Bait Master", "their bait keeps scent twice as long and draws 25% more bites"},
+    {"Deep Lungs", "+15 s more air"}, {"Glint Eye", "sees salvage through one wall"},
+    {"Pressure Hardened", "the hardhat works 30 m deeper"}, {"Wreck Rat", "opens locked cabins without a crowbar"},
+    {"Strongback", "carries two-diver lifts alone"}, {"Old Hand", "their hose and lifeline never tangle"},
+    {"Field Surgeon", "treats two serious injuries a night"}, {"Warm Blankets", "overboard timer +8 s for the whole crew"},
+    {"Second Wind", "CPR window 15 -> 30 s"}, {"Steady Nerves", "charmed or stunned crew within 6 m recover twice as fast"},
+    {"Miracle Worker", "once a deadline, revives a crewman whose body is aboard, mid-night"}, {"Ghost Speaker", "hears and talks with the dead, and sees ghosts' outlines"}};
+const char* RoleUpName(int u) { return u >= 0 && u < UP_COUNT ? ROLE_UP[u].name : "?"; }
+const char* RoleUpNote(int u) { return u >= 0 && u < UP_COUNT ? ROLE_UP[u].note : ""; }
+int RoleUpOf(int role, int rank, int choice) { return std::clamp(role, 0, 3) * 6 + (std::clamp(rank, 2, 4) - 2) * 2 + (choice ? 1 : 0); }
 
 // The Gannet's stations (design doc, "The Gannet's stations"), laid out on a 22 x 6 m deck: bow at +x, starboard at
 // +y. The wheelhouse stands just forward of midships; the engine room is below, reached by the ladder aft of it.

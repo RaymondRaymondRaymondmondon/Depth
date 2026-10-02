@@ -236,6 +236,17 @@ struct Slot { Item it = Item::None; int ammo = 0; int wpn = -1, lvl = 0, spare =
 const char* SlotName(const Slot& s);                      // the item's name, or the catalogue weapon's
 Item DrawItemOf(const Slot& s);                           // what the screens draw in hand: a catalogue weapon as its nearest kind (blade, gaff, rifle, shotgun, speargun, flare pistol)
 enum Injury { INJ_HOOKED_HAND = 1, INJ_BROKEN_ARM = 2, INJ_BURN = 4, INJ_BITE = 8 };
+// Role upgrades (design doc, "The crew of six": a role ranks up after the 1st, 2nd and 4th met deadlines; at each rank
+// the hand picks one of two on the dock chalkboard). In rank order per role: rank 2 pair, rank 3 pair, rank 4 pair.
+enum RoleUp {
+    UP_SHIPWRIGHT, UP_STOKER, UP_OLDSALT, UP_DECKBOSS, UP_IRONHULL, UP_FULLSTEAM,               // Bosun
+    UP_LIGHTTOUCH, UP_HEAVYHAND, UP_READER, UP_STRONGLINE, UP_TROPHY, UP_BAITMASTER,           // Angler
+    UP_DEEPLUNGS, UP_GLINTEYE, UP_PRESSURE, UP_WRECKRAT, UP_STRONGBACK, UP_OLDHAND,            // Diver
+    UP_FIELDSURGEON, UP_BLANKETS, UP_SECONDWIND, UP_STEADY, UP_MIRACLE, UP_GHOSTSPEAKER,       // Medic
+    UP_COUNT };
+const char* RoleUpName(int u);
+const char* RoleUpNote(int u);
+int RoleUpOf(int role, int rank, int choice);   // the upgrade for (Role, rank 2..4, choice 0/1)
 const char* InjuryName(int bit);
 
 struct CatchRec {
@@ -296,6 +307,8 @@ struct Crew {
     Vector2 swim{0, 0};                                   // overboard: where in the sea (world x/y)
     float drownT = 0, bleedT = 0;
     float cprT = 0;   // drowned with a Medic aboard: seconds left to haul them in for CPR (design doc: 15 s)
+    uint32_t ups = 0; // role upgrades held (bit = RoleUp), set by the session from the hand's choices
+    bool Up(int u) const { return (ups >> u) & 1u; }
     std::string cause;                                    // what killed them
     bool Has(int inj) const { return (injuries & inj) != 0; }
 };

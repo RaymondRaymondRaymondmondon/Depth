@@ -159,11 +159,36 @@ void Session::Begin(Gannet& g, Eco& e, int pl, uint32_t sd) {
     g.crew[0].p = {0, -6.5f};   // on the quay, by the gangplank
     BeginDeadline();
 }
+static const char* CONSIGN_ITEMS[] = {"ship's bell", "sealed strongbox", "ship's chronometer", "lighthouse lens", "cannery ledgers", "figurehead", "Atlantean idol"};
 void Session::BeginDeadline() {
     night = 0; sold = carried; carried = 0; glutKg.clear(); phase = Phase::Dock;
     if (G) { G->bossCaught = 0; G->spiceRub = false; }
     RollRequests();
     Tape(TextFormat("QUOTA %.0f SHILLINGS STOP THREE NIGHTS STOP THE OWNERS ARE CONFIDENT STOP", quota));
+    // the Owners' consignment: a named salvage item in one of a ground's wrecks (deadline 1 the Lagoon or the Weeds, 2 the
+    // Weeds or the Grotto, 3 the Grotto or Atlantis, then Atlantis), a clue on the tape; none on the shakedown
+    consign.clear(); consignGround.clear(); consignDone = false; consignReward = -1; miracleUsed = false; consignPlaced = false;
+    if (!shake.on) {
+        uint32_t h = seed * 2654435761u + (uint32_t)deadline * 40503u;
+        static const char* G1[] = {"lagoon", "weeds"}, *G2[] = {"weeds", "grotto"}, *G3[] = {"grotto", "atlantis"};
+        consignGround = deadline == 1 ? G1[h % 2] : deadline == 2 ? G2[h % 2] : deadline == 3 ? G3[h % 2] : "atlantis";
+        consign = CONSIGN_ITEMS[(h >> 8) % 7];
+        static const char* VESSEL[] = {"SLOOP MARY ANNE", "CUTTER PERSEVERANCE", "WHALER HOPE", "LUGGER SWIFT", "BRIG CONSTANCE"};
+        std::string up = consign; for (auto& ch : up) ch = (char)toupper((unsigned char)ch);
+        std::string gn = Species().grounds.count(consignGround) ? Species().grounds.at(consignGround).name : consignGround;
+        for (auto& ch : gn) ch = (char)toupper((unsigned char)ch);
+        Tape(TextFormat("CONSIGNMENT %s LAST SEEN ABOARD %s %s STOP DELIVER BY THE COUNT STOP", up.c_str(), VESSEL[(h >> 16) % 5], gn.c_str()));
+    }
+}
+// the consignment goes into the deepest room of the named ground's first hardhat wreck the first time the crew works it
+void Session::PlaceConsignment() {
+    if (consign.empty() || consignPlaced || ground != consignGround || wrecks.empty()) return;
+    int wi = 0; for (int k = 0; k < (int)wrecks.size(); k++) if (!wrecks[k].bell) { wi = k; break; }
+    Wreck& w = wrecks[wi];
+    int room = 0; for (int r = 0; r < w.Rooms(); r++) if (w.rooms[r].y >= w.rooms[room].y) room = r;
+    SalvageItem it; it.name = consign; it.value = 0; it.kg = 25; it.room = room;
+    w.salvage.push_back(it);
+    consignPlaced = true;
 }
 void Session::Moor() {
     G->moored = true;
@@ -274,6 +299,7 @@ float Session::Sell(int idx) {
     for (int i = (int)G->hold.size() - 1; i >= 0; i--) {
         if (idx >= 0 && i != idx) continue;
         const CatchRec& c = G->hold[i];
+        if (!consign.empty() && c.name == consign) continue;   // (the Owners' consignment isn't the market's to buy)
         float g, b, v = Value(c, &g, &b);
         lastSale.push_back({c.name, c.kg, c.price, c.grade, c.fresh, g, b, v, c.src});
         glutKg[c.name.substr(0, c.name.find(" ("))] += c.kg;   // (the glut counts after each fish: a big haul drives its own price down)
@@ -707,9 +733,12 @@ bool Session::CastOff(std::string* why) {
         Tape(TextFormat("GLASS %s STOP %s BY %02d00 STOP", (int)wxTo > w0 ? "FALLING" : "RISING", WX[said], hh));
     }
     // the ground remembers across a deadline's nights; a new deadline starts it afresh
-    if (night == 0) { E->Init(ground, seed + deadline * 97); PlaceWrecks(); }
+    if (night == 0) { E->Init(ground, seed + deadline * 97); PlaceWrecks(); wrecksGround = ground; }
     else E->Day(15);
+    if (wrecksGround != ground && E->ground == ground) { PlaceWrecks(); wrecksGround = ground; }   // (a different ground mid-deadline: its own wrecks)
+    PlaceConsignment();
     G->wrecks = &wrecks;
+    ApplyUps();
     G->sonar.wrecksMarked = 0;
     E->StartNight();
     // tonight's variant (design doc, "Nightly variants": at most one, about 40% of nights none): the web feels it
@@ -811,10 +840,48 @@ bool Session::CastOff(std::string* why) {
     for (bool& c : cues) c = false;
     return true;
 }
+// ---------------------------------------------------------------- role upgrades and the Owners' consignments
+bool Session::ChooseUp(int ci, int rank, int choice, std::string* why) {
+    if (ci < 0 || ci >= (int)G->crew.size() || ci >= 6) { if (why) *why = "no such hand"; return false; }
+    if (rank < 2 || rank > 4 || rank > RankOpen()) { if (why) *why = "that rank isn't open yet (after the 1st, 2nd and 4th met deadlines)"; return false; }
+    if ((int)G->crew[ci].role != upRole[ci]) { upRole[ci] = (int)G->crew[ci].role; for (int& r : roleUp[ci]) r = -1; }   // (a new role starts again)
+    if (roleUp[ci][rank - 2] >= 0) { if (why) *why = "already chosen for this rank"; return false; }
+    roleUp[ci][rank - 2] = choice ? 1 : 0;
+    ApplyUps();
+    return true;
+}
+void Session::ApplyUps() {
+    // (bots choose by a fixed preference per role: Bosun Shipwright, Deck Boss, Iron Hull; Angler Heavy Hand, Strong Line,
+    // Trophy Hunter; Diver Deep Lungs, Wreck Rat, Old Hand; Medic Field Surgeon, Second Wind, Miracle Worker)
+    static const int PREF[4][3] = {{0, 1, 0}, {1, 1, 0}, {0, 1, 1}, {0, 0, 0}};
+    for (int ci = 0; ci < (int)G->crew.size() && ci < 6; ci++) {
+        Crew& c = G->crew[ci];
+        if ((int)c.role != upRole[ci]) { upRole[ci] = (int)c.role; for (int& r : roleUp[ci]) r = -1; }
+        c.ups = 0;
+        for (int rank = 2; rank <= RankOpen(); rank++) {
+            int ch = roleUp[ci][rank - 2];
+            if (ch < 0 && c.bot) ch = roleUp[ci][rank - 2] = PREF[std::clamp((int)c.role, 0, 3)][rank - 2];
+            if (ch >= 0) c.ups |= 1u << RoleUpOf((int)c.role, rank, ch);
+        }
+    }
+}
 void Session::Count() {
     if (phase != Phase::Dock || night < 3) return;
     met = sold >= quota;
+    // the consignment: in the hold at the count, or missed (the quota +25%, the dearest upgrade repossessed; twice running ends the run)
+    if (!consign.empty()) {
+        for (size_t i = 0; i < G->hold.size(); i++) if (G->hold[i].name == consign) { consignDone = true; G->hold.erase(G->hold.begin() + i); break; }
+        if (consignDone) { consignMissed = 0; Tape("CONSIGNMENT RECEIVED STOP THE OWNERS ARE GRATIFIED STOP CHOOSE YOUR REWARD AT THE OFFICE STOP"); }
+        else {
+            consignMissed++;
+            int dear = -1, dp = 0; for (int i = 0; i < (int)SlipwayItems().size() && i < 16; i++) if (slip[i] && SlipwayItems()[i].price > dp) { dp = SlipwayItems()[i].price; dear = i; }
+            if (dear >= 0) slip[dear] = false;
+            Tape(TextFormat("CONSIGNMENT NOT DELIVERED STOP QUOTA RAISED STOP %s REPOSSESSED STOP", dear >= 0 ? SlipwayItems()[dear].name : "NOTHING LEFT TO"));
+            if (consignMissed >= 2) { Tape("SECOND CONSIGNMENT LOST STOP GANNET REPOSSESSED STOP"); phase = Phase::Over; return; }
+        }
+    }
     if (met) {
+        metCount++;
         tokens += TOKENS_PER_DEADLINE;
         carried = (sold - quota) * CREDIT_CARRY;   // fish delivered past the quota count toward the next at half their value
         float next = quota * QUOTA_GROWTH + QUOTA_ADD * QuotaScale();
@@ -829,7 +896,16 @@ void Session::Continue() {
     if (phase != Phase::Result) return;
     deadline++;
     quota = quota * QUOTA_GROWTH + QUOTA_ADD * QuotaScale();
+    if (!consign.empty() && !consignDone) quota *= 1.25f;                       // (the missed consignment)
+    if (consignDone) {
+        if (consignReward == 1) quota *= 0.9f;                                 // 10% off the next quota
+        else {   // (the default) a free Slipway upgrade worth up to 600: the dearest not yet fitted
+            int best = -1, bp = 0; for (int i = 0; i < (int)SlipwayItems().size() && i < 16; i++) if (!slip[i] && SlipwayItems()[i].price <= 600 && SlipwayItems()[i].price > bp) { bp = SlipwayItems()[i].price; best = i; }
+            if (best >= 0) { slip[best] = true; Tape(TextFormat("OWNERS FIT %s GRATIS STOP", SlipwayItems()[best].name)); }
+        }
+    }
     BeginDeadline();
+    ApplyUps();
 }
 
 // ---------------------------------------------------------------- at sea
