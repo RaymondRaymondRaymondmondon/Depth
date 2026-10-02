@@ -1996,6 +1996,7 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
         static std::vector<Splash> sp; static uint32_t sr = 4242;
         auto SR = [&]() { sr = sr * 1664525u + 1013904223u; return (sr >> 8) / 16777216.0f; };
         float fdt = GetFrameTime();
+        if (getenv("DEPTH_NORAINFX")) rain = 0;
         if (rain > 0 && !below && me.deck == 0) {
             for (float n = rain * 90 * fdt; n > 0; n -= 1) {   // bursts on the planks within a few metres of you
                 if (n < 1 && SR() > n) break;
@@ -2030,6 +2031,7 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
         // the baked-look land, and its props near enough to matter (palms to 140 m, dripstones 90, the mould 60)
         rt::DrawPbr(gTerrain, MatrixIdentity());
         for (const auto& pa : gLandProps) {
+            if (getenv("DEPTH_NOLANDPROPS")) break;
             Vector3 at{pa.m.m12, pa.m.m13, pa.m.m14};
             float far = pa.glow > 0 ? 60.0f : strstr(pa.asset, "palm") ? 140.0f : 90.0f;
             if (Vector3Distance(at, cam.position) > far) continue;
