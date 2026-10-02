@@ -26,7 +26,8 @@ $jobs = @(
     @{ script = "crew.py";         out = "assets\shared\crew" },
     @{ script = "attachments.py";  out = "assets\shared\attachments" },
     @{ script = "boat.py";         out = "assets\trawl" },
-    @{ script = "dock.py";         out = "assets\trawl" }
+    @{ script = "dock.py";         out = "assets\trawl" },
+    @{ script = "fish.py";         out = "assets\trawl\fish" }
 )
 foreach ($w in $weapons) { $jobs += @{ script = "weapons.py"; out = "assets\shared\weapons"; extra = "--only $w"; tag = $w.Split(",")[0] } }
 $procs = @()
