@@ -1,0 +1,35 @@
+Red Tide — Visual Overhaul Spec
+• Surfaces: scales as a normal-map pattern sized to the species, iridescence on silver
+fish, slime sheen on eels and amphibians, shark skin as fine denticles, shells with
+growth rings and encrusting life, cephalopod skin with chromatophores that animate
+colour and pattern.
+• Each species record's 3-band colour (base, belly, accent) from the design doc drives
+the material, plus a species pattern (stripes, spots, bars, mottling) authored once per
+species.
+• Size class sets detail: size 1-2 are clean and readable; size 3-4 add scars, parasites, and
+individual markings; size 5-6 get hero-level sculpting.
+• Weak points from the design doc's damage model are modelled visibly: gills that flare
+open, soft pale undersides on shelled beasts, the cephalopod vent, reptile throats.
+Hero species to model individually
+At minimum, give individual sculpting and animation to every apex (tier 4) and every
+unique map resident: the sharks (reef, hammerhead, great white, Sleeper Shark),
+barracuda, morays, the grouper family, the salon's crocodile, the octopus, the orca pod
+and the Matriarch's pod, mantas, whales, dolphins and seals, sea turtles, the bobbit worm,
+the giant squid, the water monitor, temple kraits, the Pale Caiman, coelacanths, yeti crabs,
+the Ghost Worm, the Sand Worm, the Relict, and the Alien Horror. The rest come from the
+kit with species tuning.
+Animation by body plan
+Keep the design doc's animation rules (sine along the spine, flapping rays, undulating eels,
+1K crab legs, Chains for cephalopod arms, four-limb gaits), but author them properly in
+Blender as actions and blend them in-engine:
+• Fish. Idle hover with fin flutter, cruise, burst swim, sharp turn, feed (strike and
+swallow), flee, a hurt flinch, and death (rolling belly-up and sinking or floating by
+species).
+• Sharks. A slow, heavy cruise; the pectoral-fin drop and arched back as a threat display;
+a jaw-protrusion bite with the eyes rolling back.
+• Eels and morays. Undulation, a strike from a hole and a pull back, the jaws working
+constantly.
+• Rays and mantas. Wing flaps, gliding, the burrow-and-burst from sand.
+• Crustaceans. 1K walking, claw threats and snaps, defensive retreat into a hole, shells
+that crack.
+Page 14 of 25

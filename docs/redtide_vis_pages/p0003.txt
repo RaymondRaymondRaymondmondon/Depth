@@ -1,0 +1,35 @@
+Red Tide — Visual Overhaul Spec
+brass clips, steel spears. Atlantis is ancient (bronze, marble, mosaic); the Void station is
+early-20th-century industrial with something alien seeping in. Nothing modern: no
+polymer, no LEDs, no modern scuba fins.
+Three levels of realism.
+1. Realistic layer: guns and diving gear. Accurate mechanical parts, true materials (brass,
+copper, blued steel, glass, rubber, leather, walnut), wear and corrosion from salt water.
+The gun in your hands is the most detailed object on screen.
+2. Stylized-realistic layer: creatures, divers' bodies, enemies, bosses. Anatomically
+believable, real species read at a glance, slightly exaggerated features for readability
+(bigger eyes on prey, bigger teeth on predators), detailed skin, scales, and shells.
+3. Stylized layer: environments. Rich and detailed but painterly: clean big shapes, then
+dense small detail (coral, weed, barnacles, debris) that sells scale.
+The Depth ink identity, refined (decided). Keep the ink line: a thin depth-and-normal
+edge line, coloured by the water tint rather than black, fading with distance and fog, so a
+screenshot still reads as Depth. The Blender-built detail takes priority over the line:
+wherever the line hides or flattens modelled detail (bevels, faces, gun parts, scale
+patterns), thin it or drop it locally. Tune line weight per asset class so guns and faces stay
+clean. The Bayer stipple is off by default and kept only as a settings toggle, since it fights
+the baked texture detail. Both get settings toggles.
+Readability rules.
+• Every creature's size class, threat, and weak point read at a glance (the design doc's
+weak points: gills, eyes, underside, vent, throat get subtle visual emphasis: lighter,
+softer, or veined).
+• Divers always out-silhouette everything: four fixed shapes, visible at 40 m in clear
+water.
+• Enemies never look like beasts, and beasts never look like decor. Camouflaged
+ambushers are hidden on purpose and get a subtle shimmer tell up close.
+• Blood is the game's central resource, so it must always read: dark red ribbons in clear
+water, near-black in the deep, never orange or pink.
+Blender pipeline
+Claude Code builds every asset in Blender through the connected Blender tool, but every
+asset must also be reproducible from a committed Python script, so nothing lives only
+inside a .blend file that no one can regenerate.
+Page 3 of 25

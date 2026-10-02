@@ -442,12 +442,13 @@ def build_beards(out):
         C.export_glb(parts, os.path.join(out, f"{kind}.glb"))
 
 
-a = C.args()
-only = a[a.index("--role") + 1] if "--role" in a else None
-out = C.out_dir()
-for r in ROLES:
-    if only and r != only:
-        continue
-    build(r, out)
-if not only:
-    build_beards(out)
+if __name__ == "__main__" and not getattr(C, "CREW_AS_LIBRARY", False):   # (rt_divers.py imports this file for its rig and body)
+    a = C.args()
+    only = a[a.index("--role") + 1] if "--role" in a else None
+    out = C.out_dir()
+    for r in ROLES:
+        if only and r != only:
+            continue
+        build(r, out)
+    if not only:
+        build_beards(out)

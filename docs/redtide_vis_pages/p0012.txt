@@ -1,0 +1,39 @@
+Red Tide — Visual Overhaul Spec
+Weapon
+Harpoon Cannon
+(Harpoon Hour)
+Visual concept
+A shoulder-mounted salvage
+cannon
+Key parts to model
+Massive barrel, a feed of bolts,
+an exaggerated recoil that
+shoves the diver back
+Melee weapons get the same care: the diver's knife (a stainless blade with a rubber grip
+and a sheath), the Boarding Axe (a rusted steel head on a tarred haft), the Tesla Gaff (a
+hook with copper coils and a battery), the Trident (a bronze trident with barbs), and the
+Sawtooth (a real sawfish rostrum with teeth, bound to a handle).
+Wonder weapons
+Each map's wonder weapon is the most spectacular object on that map, and its look
+should explain what it does.
+• The Galvanic Rod (Ship). A ship's dynamo on a pole: brass housing, copper windings, a
+hand crank, arcs crawling over the coils. Forged as the Lightning Keel with a ship's keel
+plate and a constant crackle.
+• The Resonator (Cave). A sonic cannon of tuned crystal coral and brass horns; it visibly
+vibrates and rings. Forged as the Deep Bell, with a bronze bell at the muzzle.
+• The Anemone Gun (Reef). A living weapon: coral and shell grown around a brass core,
+with polyps pulsing in the barrel. Forged as the Garden, which blooms with colour.
+• The Tide Staff (Atlantis). A bronze staff with an Atlantean crystal held in fins of gold;
+water visibly swirls around it. Forged as the Sovereign's Staff with a crowned head.
+• The Abyssal Lure (Void). A lantern made from an anglerfish lure and station brass, with
+a cold living light inside. Forged as the Deep Call, its light shifting and pulsing like a
+heartbeat.
+Forge finish and skins
+• The Pressure Forge finish is sea-glass: translucent frosted green-blue glass panels and
+inlays replacing parts of the metal, with light glowing through. Each Forged gun gets its
+new name engraved and a slightly altered shape (crushed, compressed, stronger-
+looking), not only a material swap.
+• Alternate ammunition shows on the gun: Galvanic (copper coils on the barrel, sparks),
+Chum Rounds (red cartridges), Flare Burst (orange-tipped darts), Riptide (fins and
+vents at the muzzle), Boiling (a glowing heat jacket).
+Page 12 of 25

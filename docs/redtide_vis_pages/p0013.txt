@@ -1,0 +1,33 @@
+Red Tide — Visual Overhaul Spec
+• Token skins (barnacle, verdigris, bone inlay, pearl, red tide) are material sets on every
+gun, with real geometry where the name implies it: barnacles sit on the surface, bone
+inlay is set into the stock.
+Viewmodels, animation, and underwater effects
+• Both hands always grip the gun correctly. A separate viewmodel FOV (55-650). Aiming
+down sights aligns real sights or scopes with the eye.
+• Every gun has draw, holster, idle sway (slower and floatier than on land), aim, fire, dry
+fire, partial and empty reloads, a Speed Brine reload 30% faster, and an inspect that
+shows the Forge finish, exactly as the design doc's Animations section lists.
+• Reloads are mechanically true: gas pistols pop the cylinder and thumb in darts one at a
+time; needlers swap a glass cartridge with a hiss of bubbles; powder guns eject a
+sealed brass clip that sinks and glints; spearguns cock with both arms straining;
+harpoon rifles winch a bolt from the quiver; the scatter gun loads shell by shell.
+• Firing underwater: gas guns release a burst of bubbles from vents; powder guns give a
+brass flash and a shock ring in the water; spears and bolts leave a cavitation trail and a
+line snapping taut. Recoil is damped and drifts as in water. Spent cases and clips sink
+with physics.
+• Hits on beasts release blood ribbons and scales; misses kick up silt or chip coral.
+• The third-person model of every gun (held by teammates and enemies) shows the
+same finish, attachments, and Forge state at lower detail.
+Fish, beasts, and flora
+All -200 beasts and -60 flora must read as their real species at a glance, look alive in
+motion, and show the ecosystem's state (hungry, fed, wounded, fleeing, dead) on their
+bodies. Use the creature kit from section 3 for the common work and give hero species
+individual attention.
+Anatomy standard
+• Correct body plan and proportions per species: fin count and placement, gill slits or
+plates, the lateral line, eyes set where the species has them, mouths that open to the
+right shape, teeth, barbels, spines, and claws.
+Eyes are separate meshes with a wet specular highlight and, for predators, a reflective
+tapetum that glints in diver lamps.
+Page 13 of 25

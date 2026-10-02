@@ -1,0 +1,39 @@
+Red Tide — Visual Overhaul Spec
+HUD. Keep the design doc's brass-helmet HUD and make it a real model: the inside of the
+helmet rendered with brass, rivets, and glass, gauges as real dials with needles (the scent
+meter, the predator pulse, air, scrip as a mechanical counter), condensation and droplets
+on the glass, and cracks when the diver is badly hurt. Menus, the dossier, and the how-to-
+play page get matching period design: aged paper, brass, typewriter and engraved type.
+Accessibility and readability. A brightness and fog-density calibration screen; a
+colourblind setting for blood, ichor, and scent colours; and a motion-comfort setting for
+viewmodel sway and lens effects.
+Process and acceptance
+Work in ten phases, building one complete map (the Sunken Ship) to full quality before
+scaling to the other four. Each phase ends with before/after renders that Ray approves
+before the next starts.
+Screenshot harness. Extend the design doc's -- redtide-shots (every creature,
+weapon, and map zone to PNG) to render at with the new renderer, from fixed
+cameras. Also render turntables from Blender for every new asset before it enters the
+game. Claude Code looks at both, compares them with this spec, and fixes problems
+before showing Ray. The fixed shots are:
+1. Every map zone from its entrance, showing its landmark.
+2. Each diver: front, side, back, a face close-up through the helmet port, and each skin.
+3. Each gun: side and three-quarter views on a neutral background, the viewmodel at
+rest, aiming down sights, and mid-reload, plus the Forged version.
+4. Each faction: a full squad lined up, then the same squad in combat.
+5. Each boss: a full-body hero shot and one shot per phase.
+6. Each hero species, plus a sample of kit species, in its habitat.
+7. A busy combat moment per map: four divers, a squad, beasts, blood in the water.
+Phases.
+Phase
+1. Pipeline
+Work
+Blender connection, build scripts,
+glTF export, raylib loading with
+skinning and instancing, the
+material library, the harness
+Done when
+A test gun, a test diver, and a test
+fish load in-game with full
+materials and animation
+Page 22 of 25

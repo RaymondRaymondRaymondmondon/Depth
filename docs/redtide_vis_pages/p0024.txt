@@ -1,0 +1,33 @@
+Red Tide — Visual Overhaul Spec
+• Each gun looks like a plausible machine for firing underwater (seals, gas, valves,
+cartridges visible).
+• The gun is the most detailed object in its frame.
+Sights align when aiming down sights.
+Creature criteria.
+A player who knows the real animal can name its species at a glance.
+• Weak points are visible.
+• Hungry, wounded, fleeing, and dead states read without the HUD.
+• Schools look alive (no lockstep motion).
+Map criteria.
+• No surface is a bare untextured primitive.
+• Every zone has a landmark recognisable from its entrance.
+• Racks, the Locker, tonics, the Forge, doors, and traps stand out from set dressing.
+• Each map matches its mood row in section 2.
+Performance (decided). The target machine is the computer the game is being coded on.
+In phase 1, Claude Code reads that machine's hardware (CPU, GPU, VRAM, RAM, screen
+resolution), records it at the top of the build notes, and holds the design doc's target on it:
+60 fps at 1080p with four players and 300 active agents. Use instancing, LODs, billboards
+past 80 m, texture atlases, and occlusion culling per zone. If a feature costs too much on
+that machine, report it with frame-time numbers and propose a cheaper version.
+Decisions from Ray.
+• Ink line: keep it where possible; Blender-built detail takes priority (section 2).
+• Reef Raiders: acceptable as written; no redesign.
+• Performance target: the computer the game is coded on (above).
+Kickoff prompt for Claude Code
+Paste this into Claude Code with the link to this doc and current Red Tide screenshots
+attached.
+Read "Red Tide — Visual Overhaul Spec" in full, then the Red Tide design
+doc's Presentation
+and technology section. The spec replaces the design doc's Art section and
+the no-assets rule
+Page 24 of 25

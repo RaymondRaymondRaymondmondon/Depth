@@ -1,0 +1,34 @@
+Red Tide — Visual Overhaul Spec
+silt and bacterial mats; the Dynamo Sump's drowned expedition generator with cables;
+the Cathedral's vast space with glowing crystal coral. Slipstreams are visible as rushing
+particle currents and bubble streams with a clear entry mouth.
+The Coral Reef. The showcase map: dense, layered reef built from many coral species
+(staghorn, brain, table, fan, soft corals), with fish everywhere. The Lagoon's mangrove
+roots and bright shallows, the Staghorn Forest's corridors, the Bommie with its cleaning
+station, the open Sand Flats with sea grass and garden eels, the Brain Coral Maze, the Blue
+Hole's dark circular drop, and the Drop-off Wall falling into deep blue where mantas, orcas,
+and whales pass. Sunlight caustics everywhere; colour falls off to blue with depth.
+Atlantis. A real city plan on a 120 m hill, 500 m across, with 60+ buildings: the great wall
+and gatehouse, terraced farms with irrigation canals and a mill, the lower town's houses,
+market, and toolsmithsl street, bathhouses with hypocausts, barracks and the armory, the
+library with its observatory, the forum and government hall, and the grand chapel with the
+god-pool on the summit. Marble and sandstone with mosaics, bronze statues, and
+columns, all overgrown: algae, sponges, sea fans, coral growing out of windows, silt drifts
+in streets. The aqueduct as a landmark running down the hill. The lighthouse on the wall.
+The crystal engine glowing in the treasury.
+Approaching the Void. The Rim: a vast black sand plain with sea pens and sand eels, the
+worm's tunnels on the horizon, and the abyss as an enormous black edge. Below: vertical
+chimneys and galleries with glass sponge reefs, bamboo coral, black coral, tube worms,
+and hydrothermal vents in the Warrens. The research station: a rusted early-20th-century
+structure of riveted steel modules, portholes, specimen tanks (some broken), terminals,
+the reactor, and the mech bay. The Lowest Vault: a cathedral cave open to the abyss. The
+void itself: a black column with drifting motes and a faint pale light far below, as the design
+doc says, which must look vast and wrong.
+Traps and dynamic set pieces
+Every trap in the design doc gets a full animated set piece: the cargo container dropping
+across the salon door, the Chimney's stalactites falling, the Reacher coral gate closing and
+eating, the surge channel flushing the Bommie, the canal sluice flooding a terrace, the
+hypocaust boiling a room (steam and bubbles), the god-pool draining and refilling, the
+pressure door crushing a corridor, the reactor vent's scalding jet, and the vault ledge
+collapsing into the abyss.
+Page 20 of 25

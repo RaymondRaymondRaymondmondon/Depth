@@ -1,0 +1,75 @@
+Red Tide — Visual Overhaul Spec
+Faction (map)
+The Reef
+Raiders (Reef)
+Look and materials
+An invented island
+tribe of free-divers:
+carved bone and shell
+ornaments, woven
+gear, patterned body
+paint, riding sea turtles
+The Lost Ones Drowned Atlantean
+(Atlantis)
+The Remnant
+(Void)
+citizens who breathe
+water: grey-green skin,
+gill slits, bronze and
+gold armour, tattered
+robes
+A drowned research
+station's survivors:
+pressure-suited
+researchers, brass
+clockwork sentinels,
+void cultists
+Unit silhouettes
+Spear Diver: long spear.
+Turtle Rider: on a
+saddled turtle. Sling
+Diver: a sling and
+coconut bombs.
+Shaman: a drum, a
+feathered and shell
+headdress
+Legionnaire: gladius
+and tower shield,
+phalanx-ready. Cultist:
+robes, a void-glowing
+amulet. Slinger: light
+armour. Armored Lost
+One: heavy plate.
+Priest: a tall crown and
+staff
+Sentinel: clockwork,
+rotary needlers,
+exposed gears.
+Researcher: a bulky
+pressure suit, gas
+grenades, a medical
+pack. Cultist: robes
+over a diving suit. The
+Station Chief: a size-5
+diving mech
+Food-web tells
+They carry meat and
+trail blood from their
+kills. The Shaman's
+drum sends visible
+pulses through the
+water
+Black ichor instead of
+blood: a distinct dark,
+oily ribbon
+Sentinels leak oil
+(iridescent slick, no
+scent); the others
+bleed normally
+Shared enemy needs. Squad formations, flanking, suppressing fire, taking cover, and
+retreating as the design doc describes, with readable body language: pointing, signalling,
+reloading behind cover, panicking when a beast attacks. Each faction gets bark
+animations to match its barks. Enemies dropped weapons use the same gun models as
+the players' guns. Faction entries (the hull breach, the cave mouth, the drop-off, the city
+gate, the airlocks) get visual set-dressing so players learn to watch them.
+Page 17 of 25

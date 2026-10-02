@@ -1,0 +1,33 @@
+Red Tide — Visual Overhaul Spec
+Red Tide — Visual Overhaul Spec
+Oct 1, 2026 • @Phillip Argall
+Purpose
+This spec rebuilds every visual in Red Tide with Blender: the four divers, every weapon, all
+-200 beasts and flora, the five enemy factions and five bosses, and all five maps.
+Systems, numbers, and rules in the Red Tide design doc (Arcade Game 5) stay exactly as
+they are; this changes how the game looks, never how it plays.
+What it supersedes in the design doc.
+• The "Presentation and technology" opening and the "Art" section: flat-shaded
+procedural meshes, CreatureBuilder lathe bodies, and "every mesh, texture, and
+animation generated in code".
+• Depth's no-assets rule as it applies to Red Tide visuals. Section 3 sets the new rule:
+models, textures, and animations are authored in Blender by Claude Code through the
+connected Blender tool, saved as committed source files and Python build scripts, and
+exported to glTF for raylib.
+• "Weapons and hands" (procedural meshes) and "Maps are built in code from layout
+data" as the source of geometry. Layout data still defines where rooms, racks, and
+habitats go; Blender builds what they look like.
+What stays. Raylib as the engine, the ecosystem and its species records, the layout data,
+the ink identity of Depth (refined, see section 2), the brass-helmet HUD, the dossiers, and
+every tell and counter. A beast's species record keeps driving its colours and parameters;
+Blender now turns those into a properly modelled creature.
+Relationship to The Trawl. The Trawl Visual Overhaul Spec covers the same ground for the
+trawler game. Red Tide and The Trawl share the engine, so build these once in shared code
+and use them in both: the PBR and lighting renderer, the humanoid rig, the first-person
+arms and viewmodel system, the gun-part kit and materials, the fish rigs, and the
+screenshot harness. Where the two specs overlap, follow whichever was built first and
+keep them consistent.
+How Claude Code should use it. Work in the phases in section IO. Reread the relevant
+section before each phase. After each phase, render the screenshot set and check it
+against the acceptance criteria. If something here is impossible in raylib or too expensive,
+Page 1 of 25

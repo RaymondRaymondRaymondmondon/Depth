@@ -1,0 +1,62 @@
+Red Tide — Visual Overhaul Spec
+Phase
+2. Rendering
+3. Divers
+4. Guns
+5. Creature kit
+6. Sunken Ship
+complete
+7. The Underwater
+Cave
+8. The Coral Reef
+9. Atlantis
+10. Approaching
+the Void
+Diver criteria.
+Work
+Underwater light, fog, caustics,
+shafts, particles, post, the
+refined ink line
+The four suits, bodies, faces,
+skins, animations, first-person
+arms, the helmet HUD
+Rack guns, melee, Locker guns,
+the Forge finish, skins, all
+animations and effects
+All 15 body-plan rigs, the species-
+record script, the states, flora
+Ship kit, all zones, the Ship's
+species, the Wreckers, the
+Goliath, the Galvanic Rod
+Map, species, the Drowned, the
+Lobster, the Resonator
+Map, species, the Reef Raiders,
+the Matriarch, the Anemone Gun
+Map, species, the Lost Ones, the
+Cistern Wyrm, the Tide Staff
+Map, species, the Remnant, the
+Lantern Leviathan, the Abyssal
+Lure; final polish and
+performance
+Done when
+One Sunken Ship room looks
+finished with placeholder props
+Shot set 2 passes the diver
+criteria
+Shot set 3 passes the gun criteria
+20 sample species pass the
+creature criteria
+The whole map passes every
+criterion: this is the vertical slice
+Map passes
+Map passes
+Map passes
+Map passes; the whole game
+meets the performance target
+• Each diver is identifiable from silhouette alone at 40 m, in every skin.
+A face is visible and expressive through the helmet port.
+• Gear reads as real brass, copper, canvas, rubber, and steel with salt wear.
+• First-person hands grip every item correctly.
+Gun criteria.
+• Every gun has the parts in its per-weapon row, with every moving part animated.
+Page 23 of 25

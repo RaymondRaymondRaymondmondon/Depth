@@ -1,0 +1,44 @@
+Red Tide — Visual Overhaul Spec
+Diver
+The
+Mechanic
+Silhouette (never
+changes)
+Riveted hard suit,
+boxy and armoured
+Gear to model
+Riveted steel
+atmospheric suit with
+articulated joints, a
+domed helmet with a
+grid of small ports,
+gauges and valves on the
+chest, a tool roll, pincer-
+glove option
+Personality in posture
+(from the quips)
+Nervous and precise:
+tight, tidy, quick small
+movements
+Bodies and faces
+• One shared humanoid rig and body (about 7 heads tall), shared with The Trawl. The
+body exists under every suit so suits fold and move like clothing over a person.
+• Faces are visible through helmet ports, so model them: brow, eyes with wet highlights
+and blinks, nose, mouth, stubble or beards. Expressions as shape keys (neutral, strain,
+fear, grin, shout). The mouth moves with voice chat and quips.
+• Fogged or wet glass and reflections on the helmet port glass, so the face reads through
+it without looking like an empty hole.
+Suit materials and wear
+• Brass and copper with verdigris collecting in seams and around rivets, polished bright
+where hands touch.
+• Canvas that darkens and stiffens with water, rubber with cracks at folds, leather straps
+with stitching, steel with rust bloom at joints.
+• Grime and blood build up through a match: blood clouds briefly from wounds and fouls
+the suit, then thins.
+Skins
+The design doc's token skins (verdigris, red tide, bone, pearl, Atlantean) change materials
+and colours only, never the silhouette. Build each as a material set on the same mesh:
+verdigris (green patina, aged), red tide (deep red dyed canvas, rust-red brass), bone
+(bleached ivory plates, scrimshaw), pearl (nacre plating, iridescent), and Atlantean
+(bronze with gold inlay and Atlantis motifs).
+Page 7 of 25

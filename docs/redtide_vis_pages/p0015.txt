@@ -1,0 +1,39 @@
+Red Tide — Visual Overhaul Spec
+• Cephalopods. Jetting, arms trailing, crawling, ink release, colour flashes and
+camouflage that blends into the surface beneath.
+• Reptiles, amphibians, mammals. Four-limb swimming, surfacing to breathe in air
+pockets, death rolls (crocodilians), the whale's slow tail beat.
+• Schools (boids). Instanced, each fish with a small phase offset; the scatter and
+regroup from the design doc is the school bursting outward in silver flashes.
+States shown on the body
+State
+Hungry or hunting
+Fed
+Wounded
+Fleeing at low HP
+Netted
+Parasite attached
+Camouflaged
+Dead
+Flora
+What the player sees
+Faster tail beat, mouth slightly open, colour
+darkening (cephalopods flash), eyes tracking the
+diver
+Distended belly, slow cruise, settling to rest
+Visible wounds where hit, blood ribbons streaming
+from them (following the scent grid's flow as the
+design doc says), torn fins
+A blood trail behind it, erratic swimming, fins
+clamped
+The net mesh wrapped around the body, struggling
+The parasite model clinging and pulsing
+Pattern matched to the surface beneath; a faint
+shimmer within 2 m
+Eyes clouding, colour draining over IO s, sinking or
+floating; scavengers tearing pieces off the corpse
+over time
+Flora is part of the ecosystem and often a hazard, so it gets creature-level care: kelp with
+flexible bones that sway in current and part around divers, sea grass that bends,
+anemones that retract when touched, grabbing coral (the Reef's Reacher gates) with
+Page 15 of 25

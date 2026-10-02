@@ -1,0 +1,33 @@
+Red Tide — Visual Overhaul Spec
+The maps
+Each map becomes a dense, handcrafted-looking place built from a Blender modular kit
+and placed by the existing layout data. The zones, routes, doors, and costs in the design
+doc stay exactly where they are. Every zone gets a landmark visible from its entrance, so
+players learn the map by sight.
+Rules for every map
+Big shapes, then small detail. Strong readable architecture or rock forms first, then
+dense layered set dressing: weed, barnacles, sediment, debris, flora, and drifting
+particles.
+• Interactables stand out. Racks (weapons chalked on walls), Davy's Locker (with its
+lantern buoy), tonic machines, the Forge, workbenches, doors with their scrip prices,
+traps, and power switches each get a distinct, well-lit, detailed model that never gets
+lost in the decor.
+• Habitats look like habitats. Where a species lives (the crocodile's lair, the moray pipes,
+the eel holes, the cleaning station) the set dressing shows it: bones, nests, cleared
+sand, shed shells.
+• The map responds. Blood drifts with the current; shot coral chips; corpses sink and get
+picked over; doors bought open stay open with debris pushed aside.
+Per-map treatment
+The Sunken Ship. The Marguerite as a real 60 m steam yacht on her side at 30 m: hull
+plates with rivets, a funnel, masts and rigging trailing kelp, portholes throwing light shafts.
+Inside, the tilt matters: furniture piled against the low walls, the grand salon's chandelier
+hanging sideways, the air pocket under the tilted ceiling with a silver surface. Rotting
+mahogany panelling, peeling wallpaper, tarnished brass, a velvet-and-gilt salon, a tiled
+galley, cabins with personal belongings, a riveted engine room with the generator and the
+Goliath's nest. Outside: the sand shelf, the keel, and the sharks' approach lane fading into
+blue. The foredeck crane and container trap are visible from the salon.
+The Underwater Cave. Wet black and grey limestone with layered strata, flowstone,
+columns, stalactites and stalagmites, silt floors that cloud when disturbed. The Mouth's
+single light shaft; the Flooded Gallery's columns; the Chimney's vertical shaft with ledges;
+the Dry Chambers in air with dripping water, ripples, insects, and amphibians; the Sump's
+Page 19 of 25

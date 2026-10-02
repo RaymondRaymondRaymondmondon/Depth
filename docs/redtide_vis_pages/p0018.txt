@@ -1,0 +1,59 @@
+Red Tide — Visual Overhaul Spec
+Bosses
+Every boss gets a hero sculpt, a full custom rig, and animations for every attack and phase
+in the design doc. The expose and the weak point must be visually obvious once the
+player knows to look.
+Boss (map)
+The Goliath (Ship)
+The Lobster (Cave)
+The Matriarch
+(Reef)
+The Cistern Wyrm
+(Atlantis)
+The Lantern
+Leviathan (Void)
+Visual design
+A colossal grouper-like fish with
+heavy armoured plates on the
+head and flanks, barnacles, old
+harpoons and chains embedded
+in it
+A giant cave lobster, pale and
+eyeless from life in the dark, with
+crystal coral grown on its shell
+An enormous orca matriarch,
+scarred and old, leading her pod
+A huge sea serpent in Atlantean
+colours, with bronze fittings
+once used to tame it
+A giant deep-sea anglerfish-like
+apex with a vast mouth, dark
+skin, and a pale lure
+What must read
+The gills behind the plates flare
+open and glow red during the 2 s
+windows; the Inhale shows
+water rushing into its mouth; it
+stops being lit when the algae
+mat is shot off
+Rearing up to show a soft,
+veined underside when the
+crystal coral rings; stalactite
+impacts that crack the shell
+Her charges in straight lines;
+flipping and exposing her belly
+when the surge channel hits her;
+pod members marked so the
+team can find them
+Stranded and writhing when the
+god-pool drains; surfacing at the
+fourth grate; its blood filling the
+aqueduct
+The lure as the bright weak
+point; the lure splitting into
+three in phase 3; the reactor
+scald showing as burns
+Each phase transition changes the boss visibly: plates crack, wounds open, colour shifts,
+behaviour gets frantic. Phase 3 enragement shows in posture, eye glow, and speed.
+Bosses that reform after 6 minutes come back scarred.
+Page 18 of 25

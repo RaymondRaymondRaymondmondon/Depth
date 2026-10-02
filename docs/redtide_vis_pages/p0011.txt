@@ -1,0 +1,61 @@
+Red Tide — Visual Overhaul Spec
+Weapon
+Flechette 12 and Drum
+Flechette
+Long Speargun
+Bolt Harpoon
+Reef Rattler
+Gatling Needler
+Cannon Harpoon
+Limpet Launcher
+Net Gun
+Chumthrower
+Visual concept
+A pump scatter gun loaded
+with flechette shells
+A long rubber-band or
+pneumatic speargun
+Heavy harpoon rifle
+A three-round burst needle
+rifle
+A crank-and-motor rotary
+needle gun
+A shoulder harpoon launcher
+A drum launcher for sticky
+charges
+A wide-mouth launcher
+A pump sprayer for chum
+Key parts to model
+Tube magazine and loading
+gate, shells shown going in one
+by one; the Drum version with a
+round drum and a heavier
+frame
+Wooden or steel stock, a steel
+spear with barbs and a line, a
+cocking strain visible on both
+arms
+A side quiver of bolts, a winch
+crank, a scope with a brass
+tube; bolts pinned in walls stay
+visible until retrieved
+Three-chambered glass
+cartridges, a striker that clicks
+visibly three times
+Rotating barrel cluster that
+spins up for 0.5 s, a large glass
+hopper, a gas tank on a back
+strap
+Explosive harpoon head with a
+fuse, a recoil spring, a heavy
+shoulder pad
+Four-round drum, charges with
+magnetic or barnacle-glue pads
+and a blinking fuse light
+A folded net visible in the
+muzzle with weights at its
+corners
+A glass and brass tank showing
+the chum sloshing inside, a
+hand pump, a nozzle
+Page 11 of 25

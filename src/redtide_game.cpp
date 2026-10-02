@@ -5,6 +5,7 @@
 #include "redtide_match.h"
 #include "redtide_render.h"
 #include "redtide_profile.h"
+#include "redtide_vis.h"
 #include "game.h"
 #include "sound.h"
 #include "input.h"
@@ -33,6 +34,7 @@ struct RedTideScene {
     bool shotMode = false;         // --shots: fixed camera, no input
     float silhouette = 0;
     int lineup = -1;               // --shots: every species of the Ship posed in rows (page number)
+    int studio = -1;               // --shots: the Visual Overhaul's studio (redtide_vis.cpp), which set
     int lastZone = -1; float zoneT = 0;
     float bob = 0;
     bool awarded = false; int awardTokens = 0; std::vector<std::string> awardLines;   // the arcade profile's pay for the match
@@ -896,6 +898,31 @@ static void DrawLineup() {
     }
 }
 
+// a teammate (or a bot diver) on the shared figure in their suit (the Visual Overhaul, phase 3): treading water when
+// still, lying into a flutter-kick when swimming, sinking on their back when downed
+static bool DrawTeammate(const Match& m, const Agent& a) {
+    if (!DiversReady()) return false;
+    const DiverState* d = nullptr;
+    int di = -1;
+    for (int k = 0; k < (int)m.divers.size(); k++) if (m.divers[k].slot == a.diver) { d = &m.divers[k]; di = k; }
+    if (!d) return false;
+    float spd = Vector3Length(d->vel);
+    fig::Pose P;
+    P.breathe = S.time * (1.6f + std::min(1.0f, spd * 0.3f)) + di;
+    P.swim = std::clamp((spd - 0.4f) / 1.6f, 0.0f, 1.0f);
+    P.kickPh = S.time * (3.5f + 2.0f * P.swim) + di * 1.7f;
+    P.tread = (1 - P.swim) * 0.7f;
+    P.reach = 0.55f; P.elbow = 0.35f; P.grip = 0.85f;   // (the gun held before them: phase 4 puts the real one in the fists)
+    P.blink = fmodf(S.time * 0.25f + di * 0.37f, 1.0f) < 0.03f ? 1.0f : 0.0f;
+    float tilt = P.swim * 1.15f + std::clamp(d->pitch, -0.6f, 0.6f) * P.swim;
+    if (d->downed) { tilt = -1.2f; P.tread = 0.3f; P.swim = 0; P.reach = 0.2f; }
+    // the hips at the agent's position; the figure faces its yaw (its +x along the look), tipped about the hips
+    Matrix tip = MatrixMultiply(MatrixMultiply(MatrixTranslate(0, -1.0f, 0), MatrixRotateZ(-tilt)), MatrixTranslate(0, 1.0f, 0));
+    Matrix frame = MatrixMultiply(tip, fig::Frame(Vector3Subtract(a.pos, {0, 1.0f, 0}), d->yaw - PI / 2));
+    DrawDiverFigure(m.VoiceOf(di), frame, P, S.time, d->dead ? Color{170, 200, 220, 160} : WHITE);
+    return true;
+}
+
 static void DrawScene() {
     if (S.lineup >= 0) { DrawLineup(); return; }
     Match& m = M();
@@ -1021,6 +1048,7 @@ static void DrawScene() {
         const Agent& a = m.eco.agents[i];
         if (!a.alive || a.diver == 0) continue;               // (diver 0 is you)
         if (Vector3Distance(a.pos, eye) > 55) continue;
+        if (a.diver > 0 && DrawTeammate(m, a)) continue;
         const Species& sp = m.map->species[a.sp];
         const CreatureModel& cm = Creature(m.artKey, m.ArtName(a.sp));
         float spd = Vector3Length(a.vel);
@@ -1336,13 +1364,14 @@ void StartRedTide(Game& g, const char* map) {
     S.shotMode = false; S.awarded = false; S.awardLines.clear(); S.awardTokens = 0;
     Me().pouch = GetProfile().pouch;                    // the Salt Charms the diver brought
     S.silhouette = 0;
-    S.lineup = -1;
+    S.lineup = -1; S.studio = -1;
     g.scene = Scene::RedTide;   // (the mouse look takes the pointer itself: MouseLook in Input)
 }
 
 void SceneRedTide(Game& g) {
     S.audioOn = false;
     if (RedTidePageFrame(g, (float)GetTime())) { AudioRedTide(RtAudio{}); return; }   // an arcade page (the dossier, records, ...)
+    if (S.studio >= 0) { S.time += 1 / 60.0f; DrawRedTideStudio(S.studio, S.time); return; }
     if (!S.active || !S.m) { StartRedTide(g, gRtMap.c_str()); return; }
     if (S.mode == 1 && !S.levelReady && IsWindowReady()) BuildLevelModel();
     float dt = std::min(GetFrameTime(), 1 / 30.0f);
@@ -1393,6 +1422,8 @@ void SceneRedTide(Game& g) {
 
 // --shots: 0 the tank, 1 its silhouettes, 2-3 the species lineup, 10+ the Sunken Ship from set places
 void DebugRedTideShot(Game& g, int which) {
+    S.studio = which >= 200 ? which - 200 : -1;
+    if (S.studio >= 0) { S.time = 2.0f; g.scene = Scene::RedTide; return; }   // (the studio: 200 + its set)
     S.lineup = -1;
     S.silhouette = 0;
     if (which < 10) {
@@ -1407,7 +1438,7 @@ void DebugRedTideShot(Game& g, int which) {
         g.scene = Scene::RedTide;
         return;
     }
-    StartShip(1, 20260930, which >= 50 ? "void" : which >= 40 ? "atlantis" : which >= 30 ? "reef" : which >= 20 ? "cave" : "ship");
+    StartShip(which == 17 ? 4 : 1, 20260930, which >= 50 ? "void" : which >= 40 ? "atlantis" : which >= 30 ? "reef" : which >= 20 ? "cave" : "ship");
     S.shotMode = true;
     Match& m = M();
     if (which != 10) {                                           // every door open, so the views can see through
@@ -1465,7 +1496,20 @@ void DebugRedTideShot(Game& g, int which) {
             d.hp = 140; d.hpMax = 250; d.heldT = 0; d.stunT = 0; d.vel = {0, 0, 0};
             break;
         }
-        case 15: place("Cabin Deck", {3, 2, 3}, 0.0f, 0); break;                             // the cabins and the moray pipes
+        case 17: {                                                                            // the crew: three divers in the salon before you
+            place("Grand Salon", {2, 3, 2}, 0.0f, -0.02f);
+            Vector3 f{sinf(d.yaw), 0, cosf(d.yaw)}, r{cosf(d.yaw), 0, -sinf(d.yaw)};
+            const int zi = d.zone; const Zone& z = m.map->zones[zi];
+            for (int k = 1; k < (int)m.divers.size() && k < 4; k++) {
+                DiverState& o = m.divers[k];
+                o.pos = z.Clamp(Vector3Add(d.pos, Vector3Add(Vector3Scale(f, 3.2f + k * 0.9f), Vector3Scale(r, (k - 2) * 1.7f))), 0.8f);
+                o.yaw = d.yaw + PI + (k - 2) * 0.5f; o.pitch = 0;
+                o.vel = k == 3 ? Vector3Scale(r, -2.5f) : Vector3{0, 0, 0};   // (one swimming across)
+                if (k == 3) o.yaw = atan2f(-r.x, -r.z);
+                if (o.agent >= 0) m.eco.agents[o.agent].pos = o.pos;
+            }
+            break;
+        }        case 15: place("Cabin Deck", {3, 2, 3}, 0.0f, 0); break;                             // the cabins and the moray pipes
         case 16: {                                                                            // salvage: the builds set down before a workbench
             int wb = -1; for (int i = 0; i < (int)m.level.stations.size(); i++) if (m.level.stations[i].type == StationType::Workbench) wb = i;
             const Station& st = m.level.stations[wb];

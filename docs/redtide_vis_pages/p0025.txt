@@ -1,0 +1,35 @@
+Red Tide — Visual Overhaul Spec
+for Red Tide visuals; every system, number, and rule in the design doc still
+stands. It
+changes how the game looks, never how it plays.
+Use the connected Blender tool for all modelling, texturing, rigging, and
+animation, and
+follow the spec's Blender pipeline exactly: every approved asset also gets a
+committed
+Python rebuild script and . blend file, and is exported to glTF for raylib.
+The overhaul covers everything: the four divers, every weapon (the most
+realistic objects
+in the game), all beasts and flora, the five factions and five bosses, all
+five maps, and
+the underwater renderer. Build the renderer, rig, viewmodel system, gun-part
+kit, fish
+rigs, and screenshot harness as shared engine code with The Trawl.
+Decisions already made (see the spec's Decisions from Ray): keep the refined
+ink line, but
+Blender-built detail takes priority over it; the Reef Raiders stay as
+written; the
+performance target is this computer, so read and record its hardware first.
+Start with phase 1 only: confirm the Blender connection works by building and
+rendering
+one test asset, then build the pipeline and harness. At the end of each
+phase, show me
+before/after renders, check them against the acceptance criteria yourself,
+and wait for my
+approval before the next phase. The Sunken Ship is the vertical slice: get it
+fully
+finished before starting the other maps. If anything in the spec is
+impossible in raylib
+or too expensive on this computer, say so with numbers and propose an
+alternative instead
+of quietly doing less.
+Page 25 of 25

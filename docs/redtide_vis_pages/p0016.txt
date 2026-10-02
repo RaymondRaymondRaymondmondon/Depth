@@ -1,0 +1,61 @@
+Red Tide — Visual Overhaul Spec
+visible muscle, bacterial mats with a sickly sheen, glow-moss that pulses, glass sponges
+with fine lattice detail, and black coral. Grazed flora visibly thins; trampled flora bends and
+recovers.
+Enemies and bosses
+Each faction is a fully designed group of characters with its own materials, silhouettes per
+unit type, and a look that tells the player what it is and how it fits the food web. Each boss
+is the hero creature of its map and gets the most modelling time of anything in the game.
+Faction design
+Faction units use the shared humanoid rig (or their own rigs where they are not human).
+Every unit type in a squad must be identifiable by silhouette at 30 m, because tactics
+depend on spotting the Netman, the Lantern Bearer, or the Shaman first.
+Faction (map)
+The Wreckers
+(Sunken Ship)
+The Drowned
+Look and materials
+Salvage pirates in
+patched, mismatched
+diving suits; rusty
+helmets with welded
+grilles; tattoos and
+gold teeth visible
+through ports; chum
+buckets on belts
+Ghost sailors: pale
+translucent bodies
+inside rotted period
+clothing, drifting hair,
+empty glowing eyes,
+lanterns on poles
+Unit silhouettes
+Cutter: lean, two
+knives, fast crouched
+swim. Speargunner:
+long speargun. Netman:
+net folded on the back,
+weighted lines.
+Foreman: big,
+armoured, a Harpoon
+Cannon on the
+shoulder
+Deckhand: boarding
+axe, hunched. Lantern
+Bearer: a tall pole with
+a bright lantern. The
+Bosun: a cutlass ghost
+who phases through
+stalagmites with a
+distortion effect
+Food-web tells
+They bleed like
+beasts: wounds
+stream blood; they
+panic visibly when
+sharks arrive
+No blood. Their
+lanterns throw real
+light and visibly draw
+CUriOUS species
+Page 16 of 25

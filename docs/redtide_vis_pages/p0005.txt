@@ -1,0 +1,46 @@
+Red Tide — Visual Overhaul Spec
+• Texture with Blender shader nodes (noise, Voronoi, musgrave, curvature-driven wear
+and grime), then bake to images. No downloaded textures, purchased assets, or Al-
+generated images.
+• Clean UVs with consistent texel density, packed with trim sheets for architecture.
+Rig with Rigify-style skeletons; animate with keyframes plus procedural shape keys.
+Bake every action to the glTF before export.
+• Three LODs per creature, character, and gun (the design doc's "3 per creature;
+billboards past 80 m" stands), generated with decimate and checked by eye.
+Raylib integration. Raylib loads glTF meshes, materials, and skeletal animations
+( LoadMode1 , LoadMode1Animations ). Write custom PBR and water shaders, add GPU
+skinning and instancing (one draw per species per LOD, as the budget requires), and
+convert .glb to a faster engine format at build time if load times demand it.
+Budgets (LODO).
+Asset
+First-person gun
+First-person arms (per
+diver)
+Diver, full body
+Faction enemy
+Boss (size 6)
+Beast, size 4-5
+Beast, size 1-3
+Schooling fish
+Flora and coral pieces
+Map modules
+Triangles
+10,000-25,000
+500-4,000
+150-500
+100-3,000
+Per the per-map draw-call
+budget
+Textures
+20482 PBR set
+10242
+20482 suit + 10242
+helmet
+10242
+40962 or several 20482
+10242
+256-5122
+Shared atlas
+Shared atlases
+Trim sheets
+Page 5 of 25

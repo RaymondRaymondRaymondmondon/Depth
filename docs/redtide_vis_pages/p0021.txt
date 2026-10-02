@@ -1,0 +1,33 @@
+Red Tide — Visual Overhaul Spec
+Rendering, effects, and UI
+The renderer must make water the main material of the game: light that scatters and
+fades with distance and depth, caustics near the surface, and particles everywhere. It
+builds on the shared PBR renderer from The Trawl spec, extended in raylib with custom
+shaders.
+Underwater light.
+• Distance and depth fog with per-channel absorption (red disappears first, then green),
+so colour shifts toward blue-green with distance and depth, tuned per map and zone.
+• Volumetric light shafts from the surface, portholes, and openings, plus caustics
+projected onto surfaces near the surface (the design doc's caustics stay; make them
+animated and soft).
+• PBR shading with cascaded shadows from the sun shaft where it exists, and point and
+spot lights with shadows for diver helmet lamps, station lights, lanterns, muzzle
+flashes, and bioluminescence.
+• Screen-space ambient occlusion and baked AO so creatures and divers sit in the
+scene.
+• Bioluminescence as emissive materials with bloom, which matters most in the Cave
+and the Void.
+Particles and water effects.
+• Marine snow everywhere (the design doc's rule), denser in the deep.
+• Bubbles from helmets, guns, slipstreams, vents, and struggling creatures, rising and
+wobbling.
+• Silt clouds when divers or beasts touch the bottom; shells and coral chips from hits.
+• Blood as ribbon particles following the scent grid's flow (from the design doc), dark red
+and thick in clear water, and black ichor for the Lost Ones, iridescent oil for Sentinels.
+• Air pockets with a mirrored, rippling surface from below, and a dry, dripping world
+above.
+Post-processing. HDR, filmic tonemapping, bloom on bright sources, a gentle lens
+distortion and vignette at the helmet edges, chromatic fringing at the very edge of the
+port, and the design doc's red tint at the mask edge as local scent rises. The refined ink
+line from section 2 is applied here, after fog, so it fades with the water.
+Page 21 of 25

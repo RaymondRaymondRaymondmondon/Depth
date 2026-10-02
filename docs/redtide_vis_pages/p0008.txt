@@ -1,0 +1,31 @@
+Red Tide — Visual Overhaul Spec
+Animation
+• Swimming. Underwater locomotion, not land walking: slow heavy strokes, legs kicking,
+the body pitching with direction. Heavy-boot walking on the bottom where the design
+doc has floors. Drifting out of a slipstream.
+• Air pockets. Head and shoulders above the surface, wet suit and dripping in the air, a
+different breathing rhythm.
+• Combat. Each weapon class's hold, aim, fire, and reload in third person (matching first
+person), melee swings that fight water resistance (slow windup, fast strike).
+• Downs and revives. Downed divers drift and sink slowly, a hand pressed to the wound,
+firing the Last Stand pistol. Revives show a teammate grabbing the harness and
+working a valve.
+• States. Netted, grabbed by tentacles, swallowed (the Goliath's Inhale), parasite
+attached, stunned, poisoned (a green tint to the breath bubbles), and death.
+• Quips and pings. Head turns to the teammate who is talking; a gesture accompanies
+callbacks.
+• Bubbles leave every helmet exhaust on each breath. Breathing speeds up when the
+predator pulse rises.
+First person
+• The view is from inside the helmet: the brass HUD from the design doc frames the
+screen, with faint glass reflections, droplets after an air pocket, and condensation
+when breathing fast.
+• First-person arms wear that diver's gloves and sleeves (rubber gauntlets, tarred
+gloves, mismatched mitts, or the Mechanic's armoured sleeves).
+• Every held item is gripped correctly with both hands where it should be: fingers
+wrapped around grips and fore-ends, thumbs on hammers, a hand on the cocking lever
+of spearguns.
+• Looking down shows the diver's own chest gear and boots.
+• Tonic drinking, charm use, buying, building, and reviving all have first-person hand
+animations. Drinking a tonic underwater: the bottle feeds through a valve in the helmet.
+Page 8 of 25

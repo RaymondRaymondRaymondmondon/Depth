@@ -1,0 +1,55 @@
+Red Tide — Visual Overhaul Spec
+Wear, salt bloom, and handling polish are procedural (curvature, AO, and grip masks).
+Every gun carries invented maker's stamps, serial numbers, and pressure-test marks.
+Never real trademarks.
+Per-weapon design
+Weapon
+The Cormorant (start
+pistol)
+Gannet
+Twin Gannets
+Needler Mk I and Mk II
+Sea-Pattern Carbine
+Trawlerman's Rifle
+Stormlock
+Visual concept
+A compact brass gas revolver
+Bigger brother of the
+Cormorant
+Two Gannets with mirrored
+grips
+A needle submachine gun fed
+from a glass cartridge
+A period service carbine
+sealed for water
+A heavier sealed powder rifle
+A powder automatic rifle
+Key parts to model
+Six-dart cylinder that swings
+out, a small gas bulb in the grip,
+a pressure needle on the side;
+darts with fins visible in the
+cylinder
+Ten-dart rotary magazine, a
+longer barrel with a bubble-
+vent shroud, a screw-in gas
+cartridge under the barrel
+Both hands visible, alternating
+fire and reload
+Glass cartridge of steel
+needles on top or side, a gas
+bottle stock, a cooling-and-
+bubble shroud; the Mk II longer
+with a drum-shaped cartridge
+Rubber-sealed breech, brass
+sealed clips that eject and sink,
+a barrel band, a rubber muzzle
+cap on a lanyard
+Longer barrel, bolt with a
+rubber-booted handle, a box
+magazine of sealed brass clips,
+ladder sight
+Finned barrel, side-mounted
+magazine of sealed clips, a
+pistol grip and bipod-style fins
+Page 10 of 25

@@ -1,0 +1,53 @@
+Red Tide — Visual Overhaul Spec
+Player characters: the four divers
+Each diver is a fully modelled person inside heavy, believable period diving gear, with a
+silhouette that no skin can change, as the design doc requires. Gear is the realistic layer,
+so helmets, suits, and fittings get gun-level care.
+The four suits
+Diver
+The Diver
+The
+Whaler
+The
+Stowaway
+Silhouette (never
+changes)
+Round brass helmet,
+classic standard dress
+Hooded oilskin slicker
+over a lighter rig
+Patched, mismatched,
+bottle on a cord
+Gear to model
+Copper-and-brass
+helmet with three ports
+and grilles, a bolted
+corselet, canvas-and-
+rubber dress, weighted
+belt, lead-soled boots,
+an air hose looping from
+the back, a sheath knife
+Hood drawn over a
+smaller face-plate
+helmet, long slicker with
+straps and toggles,
+harpoon-line coil, rope
+belt, tarred gloves
+A suit patched in
+different canvases and
+rubber, a dented helmet
+with one mismatched
+port, a bottle swinging
+on a cord at the chest, a
+sack, string-tied boots
+Personality in posture
+(from the quips)
+Dry: economical,
+upright, unhurried
+Gruff: heavy-
+shouldered, forward-
+leaning
+Cheerful and slightly
+drunk: loose, bouncy, a
+little sway
+Page 6 of 25

@@ -19,3 +19,5 @@ redtide_profile.txt
 build_dev/
 
 __pycache__/
+
+docs/redtide_vis_pages/*.png

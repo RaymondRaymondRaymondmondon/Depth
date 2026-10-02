@@ -1,0 +1,34 @@
+Red Tide — Visual Overhaul Spec
+Working method.
+1. Use the live Blender connection to model, inspect, and iterate: build the object, render
+a preview from several angles, look at the render, fix, repeat.
+2. When an asset is approved, capture the steps as a Blender Python script
+( tools/blender/<category>/<asset> . py ) that rebuilds it from scratch, and commit
+both the script and the resulting .blend file.
+3. Export to glTF 2.0 binary (.glb) with skins and animations into assets/redtide/ (map
+and creature content) or assets/shared/ (renderer test assets, diver rig, arms, gun
+kit, shared fish).
+4. A single command ( tools/blender/build_all . py , run with Blender headless)
+rebuilds every asset, so a change to a shared part (for example, the brass helmet) can
+be pushed to every diver and skin.
+Shared building blocks. Write these once and reuse them everywhere:
+• Material library (one .blend appended by all others): brass, copper with verdigris,
+blued and bright steel, rusted iron, walnut, rubber, canvas, leather, glass, marble,
+sandstone, coral, sand, scale and skin types. Every material bakes to a PBR set.
+• Creature kit: one rig per body plan from the design doc (fusiform fish, flat fish, eel, ray,
+shark, turtle, crocodilian, crab, shrimp, cephalopod, jelly, worm, amphibian, seal, whale),
+plus a script that reads a species record (size, colours, fins, spines, eyes, tags) and
+adjusts the base mesh for that species. Unique beasts and bosses are modelled
+individually on top of the kit.
+• Humanoid kit: one diver rig shared with The Trawl, with outfit layers per diver and per
+faction.
+• Gun-part kit: reusable barrels, cylinders, triggers, screws, sights, gas reservoirs, and
+stocks, so new guns are assembled from proven parts.
+• Modular map kits per map (hull plates and decks, cave rock and formations, coral
+pieces, Atlantis building parts, station modules), placed by the existing layout data.
+Technique standards.
+• Bevel every hard edge (bevel modifier, 0.5-2 mm on guns, 1-5 cm on architecture) and
+use weighted normals. Edge highlights are most of what makes models look finished.
+• Model high-poly detail, then bake normal, AO, and curvature maps onto the game
+mesh.
+Page 4 of 25

@@ -1,0 +1,52 @@
+Red Tide — Visual Overhaul Spec
+Weapons
+Red Tide's guns are invented underwater weapons, so their realism comes from
+engineering logic: every gun must look like a machine someone could have built in 1910 to
+fire under 30 m of water, with every part that would need to exist (gas reservoirs, seals,
+valves, cartridges, cocking mechanisms) modelled and animated.
+Construction standard
+• Model each gun as an assembly of real parts: barrel with a bore and muzzle, receiver,
+trigger and guard, sights, grips and stocks, screws and pins, and the underwater
+systems: gas bottles with valves and gauges, rubber seals and O-rings at every joint,
+drain ports, sealed breech covers, and lanyard rings.
+• Moving parts are separate, pivoted objects: cylinders turn, hammers cock, levers and
+bolts work, spears slide out, gauges' needles drop as gas is used, glass cartridges show
+their remaining needles.
+• True scale in centimetres, then framed by the viewmodel FOV.
+• Bevels on every edge (0.5-2 mm); weighted normals; baked normal, AO, and curvature
+maps from a high-poly version.
+Materials
+Material
+Brass and bronze
+Blued and
+parkerized steel
+Glass
+Rubber and gutta-
+percha
+Oiled walnut, teak
+Salt corrosion
+Look
+Warm gold, darkened in
+recesses, verdigris in seams
+Blue-black or grey, worn bright at
+edges
+Thick, slightly green, with
+bubbles inside and refraction
+Matte black-brown, cracked at
+folds
+Grain and figure, darker and
+swollen where wet
+Pitting, white salt bloom,
+barnacle spots at the muzzle
+Where
+Gas reservoirs, fittings, sealed
+clips, the Gannet family
+Barrels, receivers, the powder
+guns
+Needler cartridges, gauges, the
+Galvanic Rod's cells
+Seals, grips, bladders, hoses
+Stocks and fore-ends
+Generated from curvature and
+AO on all metal
+Page g of 25
