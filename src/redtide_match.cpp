@@ -2,6 +2,7 @@
 // scrip, health, downs and revives, doors and power, drops, Hunts), "Weapons" and "Weapon handling", "Davy's Locker",
 // "The Pressure Forge", "Tonics", "Enemy factions" and the Sunken Ship's boss sheet; numbers from data/redtide.
 #include "redtide_match.h"
+#include "skins.h"
 #include "redtide_profile.h"
 #include <cstdio>
 #include "raymath.h"
@@ -5751,6 +5752,7 @@ int RunRedTideProfileTest() {
     int fails = 0;
     auto check = [&](bool ok, const std::string& what) { printf("  %s  %s\n", ok ? "ok  " : "FAIL", what.c_str()); if (!ok) fails++; };
     printf("Red Tide profile test\n");
+    skins::gNoSave = true;   // (the match's skin crates must not touch the player's wardrobe)
     std::string path = ProfilePath(), bak = path + ".testbak";
     bool had = FileExists(path.c_str());
     if (had) std::rename(path.c_str(), bak.c_str());

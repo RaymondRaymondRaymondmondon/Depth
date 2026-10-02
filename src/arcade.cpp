@@ -6,6 +6,8 @@
 #include "arcade_session.h"
 #include "scuttle.h"
 #include "net.h"
+#include "skins.h"
+static int gWardrobe = -1;   // the skins page over the arcade (skins::TRAWL), -1 none
 #include "sound.h"
 #include <algorithm>
 #include <cmath>
@@ -218,6 +220,7 @@ void DrawReels(Game& g) {
         if (Button({c.x - 226, c.y + 236, 220, 36}, "Sail: top-down", true, 15)) { gTrawlFp = false; StartTrawl(g, false, twCrew, twSkill); return; }
         if (Button({c.x + 6, c.y + 236, 220, 36}, "Sail: first person", true, 15)) { gTrawlFp = true; StartTrawl(g, true, twCrew, twSkill); return; }
         if (Button({c.x - 110, c.y + 278, 220, 30}, "Shakedown night (with Kess)", true, 14)) { StartTrawlShakedown(g, gTrawlFp); return; }
+        if (Button({c.x + 120, c.y + 278, 150, 30}, TextFormat("Wardrobe (%d)", skins::Get(skins::TRAWL).crates), true, 14)) { gWardrobe = skins::TRAWL; return; }
         DrawTextCentered(TextFormat("Host or Join to sail with friends (view: %s, V switches aboard)", gTrawlFp ? "first person" : "top-down"), c.x, c.y + 280, 13, SCREEN_DIM);
         if (CheckCollisionPointRec(GetMousePosition(), {c.x - 200, c.y + 274, 400, 20}) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) gTrawlFp = !gTrawlFp;
     }
@@ -801,6 +804,7 @@ void DrawRoom(Game& g) {
 // ============================================================ the Deep Arcade
 void SceneArcade(Game& g) {
     if (!gProfileLoaded) LoadProfile();
+    if (gWardrobe >= 0) { if (skins::WardrobePage(gWardrobe)) gWardrobe = -1; return; }
     // the lobby's small noises: someone sits down, someone speaks
     static int lastSeats = 0; static size_t lastChat = 0;
     gSess.Update(GetTime(), GetFrameTime());
@@ -880,4 +884,13 @@ void DebugArcadeShot(int which) {
         } else TakeView();
     }
     SetAudioSuppressed(false);
+}
+// --shots: the Wardrobe page with a few skins owned (in memory: shots never save)
+void DebugWardrobe(Game& g, int game) {
+    g.scene = Scene::Arcade; gWardrobe = game;
+    skins::Wardrobe& w = skins::Get(game);
+    w.crates = 3; w.tokens = 420; w.owned.clear();
+    int k = 0;
+    for (const auto& s : skins::Catalogue(game)) { if (k % 3 == 0) w.owned.push_back(s.id); k++; }
+    w.worn = w.owned.empty() ? "" : w.owned[1];
 }

@@ -3,6 +3,7 @@
 // the studio, the harness's fixed shots of each new asset (--shots shots/vis rvis_).
 #include "redtide_vis.h"
 #include "figure3d.h"
+#include "skins.h"
 #include "game.h"
 #include "raymath.h"
 #include <algorithm>
@@ -88,6 +89,7 @@ bool DrawFirstPersonArms(int voice, const Camera3D& cam, Vector3 gripR, Vector3 
     std::vector<Matrix> skin = fig::PoseFigure(*m, B, P, t);
     std::vector<Recolor> rc = {{"skin", DiverSkin(voice)}};
     DiverSkinColours(suit, helmet, rc);
+    for (const auto& w : skins::WornColours(skins::REDTIDE)) rc.push_back({w.material, w.c});   // (the Wardrobe's skin, over the Locker's)
     DrawPbrSkinned(*m, frame, skin, rc, 0.35f, WHITE);
     return true;
 }

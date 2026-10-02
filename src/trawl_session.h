@@ -87,6 +87,7 @@ struct Session {
     std::vector<SaleLine> lastSale;
     float lastSaleTotal = 0;
     int tokens = 0;
+    bool wardrobe = false;                      // a real run (not a test): met deadlines pay into the skins wallet and give a crate (skins.h)
     bool met = false;                           // (Result) the last count
     // role upgrades (design doc, "The crew of six"): ranks open after the 1st, 2nd and 4th met deadlines; each hand's
     // choice per rank (-1 not yet chosen); they belong to the role (a hand that switches role starts again at rank 1)

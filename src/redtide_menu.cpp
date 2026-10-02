@@ -3,6 +3,7 @@
 // the Deep Arcade's Red Tide reel; drawn full screen with the match renderer so a page shows the beast itself.
 #include "redtide.h"
 #include "redtide_profile.h"
+#include "skins.h"
 #include "redtide_render.h"
 #include "game.h"
 #include "json.h"
@@ -234,6 +235,7 @@ bool RedTidePageFrame(Game& g, float t) {
     else if (gPage == 3) HowToPage(g);
     else if (gPage == 4) CharmsPage(g);
     else if (gPage == 5) LockerPage(g);
+    else if (gPage == 6) { if (skins::WardrobePage(skins::REDTIDE)) gPage = 5; }   // (the skins, beside the Locker)
     return true;
 }
 
@@ -314,6 +316,7 @@ void LockerPage(Game& g) {
     BackRow(g);
     DrawTextCenteredBold("THE LOCKER ROOM", SCREEN_W / 2.0f, 22, 28, CHALK);
     DrawTextCentered("Finishes, suit colours and helmets, bought with arcade tokens. They never change a silhouette, or the fight.", SCREEN_W / 2.0f, 80, 15, Fade(CHALK, 0.8f));
+    if (Button({SCREEN_W - 250.0f, 16, 220, 36}, TextFormat("The Wardrobe (%d crates)", skins::Get(skins::REDTIDE).crates), true, 15)) { gPage = 6; return; }
     const char* kinds[] = {"suit", "helmet", "finish"};
     const char* heads[] = {"Suit colours", "Helmets", "Weapon finishes"};
     for (int k = 0; k < 3; k++) {

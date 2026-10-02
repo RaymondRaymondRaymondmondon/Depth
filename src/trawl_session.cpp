@@ -1,6 +1,7 @@
 // The Trawl's session loop (see trawl_session.h): deadlines, the quota, the night's clock, the Owners' telegraph,
 // the Fish Market, the Chandler and the Slipway, customs; and --trawl-session-test (a bot plays a solo deadline).
 #include "trawl_session.h"
+#include "skins.h"
 #include "trawl_weapons.h"
 #include "raymath.h"
 #include <algorithm>
@@ -903,6 +904,7 @@ void Session::Count() {
     if (met) {
         metCount++;
         tokens += TOKENS_PER_DEADLINE;
+        if (wardrobe) { skins::AddTokens(skins::TRAWL, TOKENS_PER_DEADLINE); skins::AwardCrates(skins::TRAWL, 1); Tape("A CRATE FOR THE CREW STOP SEE THE WARDROBE STOP"); }
         carried = (sold - quota) * CREDIT_CARRY;   // fish delivered past the quota count toward the next at half their value
         float next = quota * QUOTA_GROWTH + QUOTA_ADD * QuotaScale();
         Tape(TextFormat("QUOTA MET STOP NEW QUOTA %.0f STOP THE OWNERS EXPECTED NOTHING LESS STOP", next));

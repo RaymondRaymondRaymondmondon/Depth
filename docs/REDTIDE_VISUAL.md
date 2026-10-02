@@ -194,3 +194,27 @@ The spec: `Red_Tide_Reference/Red Tide — Visual Overhaul Spec.pdf` (25 pages, 
 - **Not yet:** the columns, statues, braziers, clam and sponge models aren't placed (no prop kind asks for them yet);
   each map's landmark per zone, its traps as animated set pieces, the air pocket's surface, the mangroves and
   sea grass as bending flora, the station's modules as models.
+
+## Skins and costumes for both games (2026-10-02, the user's last step)
+- `skins.h/.cpp` (the core, headless), `skins_data.cpp` (the catalogue), `skins_ui.cpp` (the Wardrobe page).
+  **80 per game:** 15 in the store bought outright with tokens (Trawl 200-600, Red Tide 120-400) and 65 from crates (25
+  common, 20 rare, 15 super rare, 5 legendary), every one named and coloured (the Trawl's from the harbour, its
+  grounds and their fish, the Owners and the weather; Red Tide's from the reefs, the wrecks, the factions and, for the
+  legendaries, the five bosses).
+- **Characters only, silhouettes fixed:** a skin is four colours on the figure's own materials (top, trousers, hat or
+  helmet, trim). Red Tide: your first-person arms (and the Locker's suit and helmet underneath); the Trawl: your own
+  hand in the 3D view (`gLocalSlot` in trawl_view3d.cpp). Not yet: the Trawl's top-down figures, and teammates'
+  skins over the network (each player's choice is local).
+- **Crates:** earned at milestones (Red Tide: tide 10, 20 and 30 in a match, and the boss, in `AwardMatch`; the Trawl:
+  every met deadline, in `Session::Count`, only on a real run: `Session::wardrobe`) and bought for 150 tokens. A roll
+  picks the rarity (60 / 27 / 10 / 3 %), then a skin of it; **a skin you already own is a failed roll: nothing given,
+  the crate spent** (the user's call). The legendary roll plays the boss stinger.
+- **Tokens:** Red Tide's are its arcade profile's (the Locker's too); the Trawl's run tokens weren't kept anywhere, so
+  the Wardrobe keeps a Trawl wallet, paid at each met deadline. Saved in `skins_save.txt` next to the exe (owned,
+  worn, crates, the Trawl's tokens); tests and `--shots` never write it (`skins::gNoSave`).
+- **Where:** Red Tide's Locker room has a "The Wardrobe" button; the arcade's Trawl reel a "Wardrobe" button. Shots
+  `skins_trawl`, `skins_redtide`. `depth.exe --skins-test` checks the counts (15/25/20/15/5, unique ids, prices), the
+  store, buying and opening crates, that a duplicate gives nothing and spends the crate, the odds over 10,000 rolls,
+  and that only owned skins can be worn.
+- Note: `--redtide-profile-test` fails one check ("a curious fish comes to the flare's light"), an ecosystem check none
+  of this touches; not investigated.

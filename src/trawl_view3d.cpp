@@ -9,6 +9,7 @@
 #include "raymath.h"
 #include "redtide_render.h"
 #include "figure3d.h"
+#include "skins.h"
 #include "rlgl.h"
 #include "sound.h"
 #include <algorithm>
@@ -1140,6 +1141,7 @@ static void DrawLanding3D(const Gannet& g, float t) {
 // Every hand, player or bot, is the shared skinned rig in its role's outfit (tools/artgen/crew.py), posed here in code
 // and given an identity from its slot: a skin tone, outfit shades, a build and a head shape, the same on every client.
 struct SailorLook { Role role = Role::Bosun; Color skin{}, top{}, trousers{}, hat{}, hair{}; float build = 1, height = 1, headW = 1, headH = 1; int beard = 0; };   // beard: 0 none, 1 full, 2 moustache, 3 chops
+static int gLocalSlot = -1;   // your own hand's slot (DrawTrawl3D): it wears the Wardrobe's skin
 static SailorLook LookOf(const Crew& c) {
     SailorLook L; L.role = c.role;
     uint32_t h = (uint32_t)c.slot * 2654435761u + 0x9E37u; auto R = [&]() { h ^= h << 13; h ^= h >> 17; h ^= h << 5; return (h & 0xffff) / 65535.0f; };
@@ -1159,6 +1161,8 @@ static SailorLook LookOf(const Crew& c) {
     static const Color HAIR[5] = {{40, 30, 24, 255}, {84, 56, 34, 255}, {150, 104, 60, 255}, {170, 160, 150, 255}, {120, 52, 30, 255}};
     L.hair = HAIR[(int)(R() * 4.99f)];
     float bd = R(); L.beard = bd < 0.35f ? 0 : bd < 0.6f ? 1 : bd < 0.82f ? 2 : 3;
+    if (c.slot == gLocalSlot)   // the skin you wear (skins.h): the oilskins or jacket, the trousers, the hat
+        for (const auto& w : skins::WornColours(skins::TRAWL)) { std::string m = w.material; if (m == "top") L.top = w.c; else if (m == "trousers") L.trousers = w.c; else if (m == "hat") L.hat = w.c; }
     return L;
 }
 using SailorPose = fig::Pose;   // (the pose and its IK live in figure3d.cpp, shared with Red Tide's divers)
@@ -1720,6 +1724,7 @@ void DrawTrawlStudio(int which, float t) {
 
 // ---------------------------------------------------------------- the frame
 void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, const Camera3D& cam, float ghostSee) {
+    gLocalSlot = you >= 0 && you < (int)g.crew.size() ? g.crew[you].slot : -1;
     EnsureModels(); EnsureSea(); EnsureLand(eco);
     if (!gReady || !gSeaReady) return;
     gFishBudget = 36;

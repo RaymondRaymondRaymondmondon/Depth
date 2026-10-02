@@ -7,6 +7,7 @@
 #include "trawl_net.h"
 #include "redtide.h"
 #include "redtide_match.h"
+#include "skins.h"
 // ============================================================================
 //  DEPTH - entry point. Opens the window and runs whichever scene is active.
 //
@@ -164,7 +165,8 @@ static void ShotKraken(Game& g, int which) {
     if (which == 2) for (int f = 0; f < 20; f++) BeastsUpdate(p, 1 / 60.0f);
 }
 static const char* gShotFilter = nullptr; // depth.exe --shots <folder> <text>: only screens whose name contains <text>
-static void TakeShots(const Game& base, const std::string& dir) {
+void DebugWardrobe(Game& g, int game); void TakeShots(const Game& base, const std::string& dir) {
+    skins::gNoSave = true;   // (shots play counts and match ends: the player's wardrobe file is never touched)
     struct Shot { const char* name; std::function<void(Game&)> setup; };
     const Shot shots[] = {
         {"hub", [](Game& g) { g.scene = Scene::Hub; }},
@@ -196,6 +198,8 @@ static void TakeShots(const Game& base, const std::string& dir) {
         {"arcade_result", [](Game& g) { g.scene = Scene::Arcade; DebugArcadeShot(2); }},
         {"arcade_rules", [](Game& g) { g.scene = Scene::Arcade; DebugArcadeShot(3); }},
         {"arcade_redtide", [](Game& g) { g.scene = Scene::Arcade; DebugArcadeReel(4); }},
+        {"skins_trawl", [](Game& g) { DebugWardrobe(g, 0); }},
+        {"skins_redtide", [](Game& g) { DebugWardrobe(g, 1); }},
         {"arcade_trawl", [](Game& g) { g.scene = Scene::Arcade; DebugArcadeReel(1); }},
         {"trawl_deck", [](Game& g) { DebugTrawlShot(g, 0); }},
         {"trawl_engine", [](Game& g) { DebugTrawlShot(g, 1); }},
@@ -711,6 +715,7 @@ int main(int argc, char** argv) {
     if (argc >= 2 && strcmp(argv[1], "--trawl-net-test") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlNetTest(); }
     if (argc >= 2 && strcmp(argv[1], "--trawl-sail-diag") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlSailDiag(); }
     if (argc >= 2 && strcmp(argv[1], "--trawl-session-test") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlSessionTest(); }
+    if (argc >= 2 && strcmp(argv[1], "--skins-test") == 0) { SetTraceLogLevel(LOG_WARNING); return skins::RunSkinsTest(); }
     if (argc >= 2 && strcmp(argv[1], "--trawl-shakedown-test") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlShakedownTest(); }
     if (argc >= 2 && strcmp(argv[1], "--trawl-eco-test") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlEcoTest(); }
     if (argc >= 2 && strcmp(argv[1], "--trawl-fight") == 0) return tw::RunTrawlFight(argc, argv);

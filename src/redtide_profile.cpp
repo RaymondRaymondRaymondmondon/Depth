@@ -1,5 +1,6 @@
 // Red Tide's arcade profile: see redtide_profile.h.
 #include "redtide_profile.h"
+#include "skins.h"
 #include "json.h"
 #include "redtide.h"
 #include "raylib.h"
@@ -169,6 +170,11 @@ std::vector<std::string> AwardMatch(const MatchSummary& s, int* tokensOut) {
     best(p.bestScrip, s.scrip, false);
     best(p.bestTimeS, (int)s.timeS, false);
     if (s.forgeAtS >= 0) best(p.forgeTimeS, (int)s.forgeAtS, true);
+    // skin crates (skins.h) at the match's milestones: tide 10, 20 and 30, and the boss
+    {
+        int crates = (s.tide >= 10) + (s.tide >= 20) + (s.tide >= 30) + (s.bossKilled ? 1 : 0);
+        if (crates) { skins::AwardCrates(skins::REDTIDE, crates); lines.push_back(TextFormat("Skin crates: %d (the Wardrobe)", crates)); }
+    }
     int r0 = p.Rank();
     p.tokens += tok; p.earned += tok;
     if (p.Rank() > r0) lines.push_back(TextFormat("Rank %d", p.Rank()));
