@@ -2,6 +2,7 @@
 // scrip, health, downs and revives, doors and power, drops, Hunts), "Weapons" and "Weapon handling", "Davy's Locker",
 // "The Pressure Forge", "Tonics", "Enemy factions" and the Sunken Ship's boss sheet; numbers from data/redtide.
 #include "redtide_match.h"
+#include "redtide_net.h"
 #include "skins.h"
 #include "redtide_profile.h"
 #include <cstdio>
@@ -674,13 +675,13 @@ static Held NewHeld(int def, bool forged) {
     return h;
 }
 
-void Match::Init(const std::string& key, int playerCount, uint32_t seed, bool bots) { InitMap(Map(key), key, playerCount, seed, bots); }
+void Match::Init(const std::string& key, int playerCount, uint32_t seed, bool bots) { InitMap(MapSeason(key, season), key, playerCount, seed, bots); }
 
 void Match::InitMap(const MapData& m, const std::string& art, int playerCount, uint32_t seed, bool bots) {
     std::string style = botStyle;
-    int keepMode = mode;
+    int keepMode = mode, keepSeason = season;
     *this = Match{};
-    botStyle = style;
+    botStyle = style; season = keepSeason;
     mode = std::clamp(keepMode, 0, (int)RM_COUNT - 1);
     map = &m; mapKey = m.key; artKey = art;
     this->seed = seed;
@@ -4927,6 +4928,7 @@ int RunRedTideSim(const std::string& mapKey, int tides, const std::string& style
         auto M = std::make_unique<Match>();
         M->botStyle = style;
         if (getenv("DEPTH_RTMODE")) M->mode = ModeFromKey(getenv("DEPTH_RTMODE"));
+        if (getenv("DEPTH_RTSEASON")) M->season = atoi(getenv("DEPTH_RTSEASON"));
         M->Init(mapKey, players, base + r * 7919, true);
         float dt = 1 / 20.0f, limit = 60.0f * 90;
         int lastTide = 1; float lastLog = 0;
@@ -5100,6 +5102,28 @@ int RunRedTideModeTest() {
             v = victim(); m.Melee(0);
             check(m.eco.agents[v].wound >= 0.99f, "the Shipwright's Saw: the cut bleeds hard (bait)");
         }
+    }
+    // species seasons (design doc, "Species seasons"): season 1, Invaders
+    {
+        check(SeasonCount() >= 1 && SeasonName(1) == "Invaders", TextFormat("%d season%s on disk; season 1 is %s", SeasonCount(), SeasonCount() == 1 ? "" : "s", SeasonName(1).c_str()));
+        const MapData& reef = Map("reef"); const MapData& reef1 = MapSeason("reef", 1);
+        int lf = reef1.SpeciesIndex("Lionfish");
+        bool eatsSmall = false, eaten = false;
+        if (lf >= 0) {
+            for (const auto& pw : reef1.diet[lf].prey) if (pw.first >= 0 && reef1.species[pw.first].size <= 1) eatsSmall = true;
+            for (int i = 0; i < (int)reef1.diet.size(); i++) for (const auto& pw : reef1.diet[i].prey) if (pw.first == lf) eaten = true;
+        }
+        check(reef.SpeciesIndex("Lionfish") < 0 && lf >= 0 && eatsSmall && !eaten, "the Reef with Invaders: lionfish that eat the small fry, and nothing eats them (the plain Reef has none)");
+        const MapData& atl1 = MapSeason("atlantis", 1); const MapData& cave1 = MapSeason("cave", 1);
+        int carp = atl1.SpeciesIndex("Asian Carp"), croc = cave1.SpeciesIndex("Tropical Crocodile");
+        bool crocBites = false; if (croc >= 0) for (const auto& a : cave1.attacks) if (a.beast == "Tropical Crocodile") crocBites = true;
+        check(carp >= 0 && atl1.diet[carp].plankton > 0.5f && croc >= 0 && crocBites, "Asian carp grazing the Atlantis farms; a tropical crocodile (with the Ship crocodile's attacks) in the cave's warm pool");
+        Match m; m.season = 1; m.Init("reef", 1, 41, true);
+        int n = 0; for (const auto& a : m.eco.agents) if (a.alive && a.sp == m.map->SpeciesIndex("Lionfish")) n++;
+        check(m.season == 1 && n > 0, TextFormat("a Reef match in season 1 has %d lionfish in it", n));
+        Writer w; WriteMatch(m, w);
+        Match mir; Reader r(w.b);
+        check(ReadMatch(r, mir) && mir.season == 1 && mir.map->SpeciesIndex("Lionfish") >= 0, "a guest's mirror builds the same season");
     }
     // barricade nets
     {

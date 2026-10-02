@@ -883,7 +883,10 @@ void SetRedTideMode(int mode);                         // the modes (design doc 
 int RedTideModeCount();
 const char* RedTideModeName(int mode);
 const char* RedTideModeRules(int mode);
-const char* RedTideModeKey(int mode);                  // a host's option: "<map>:<mode key>"
+const char* RedTideModeKey(int mode);                  // a host's option: "<map>:<mode key>:<season>"
+void SetRedTideSeason(int season);                     // a species season (design doc "Species seasons"; 0 none)
+int RedTideSeasonCount();
+std::string RedTideSeasonName(int season);
 void LeaveRedTideMatch(Game& g);                       // back to the arcade (a host takes the table back to the lobby; a guest's diver goes on as a bot)
 void RedTideMenuTick(float dt);                        // (the game menu is open) a networked match keeps talking
 bool RedTideAudioActive();     // a Red Tide match is playing (its own music, not the salon's)

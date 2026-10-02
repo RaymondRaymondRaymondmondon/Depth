@@ -280,7 +280,7 @@ void WriteMatch(const Match& mc, Writer& out) {
     Out o{out};
     uint32_t magic = 0x31545452;   // "RTT1"
     o.u(magic);
-    o.s(m.mapKey); int players = m.players; o.i(players); o.u(m.seed); int mode = m.mode; o.i(mode);
+    o.s(m.mapKey); int players = m.players; o.i(players); o.u(m.seed); int mode = m.mode; o.i(mode); int season = m.season; o.i(season);
     Visit(o, m);
 }
 
@@ -289,11 +289,11 @@ bool ReadMatch(Reader& r, Match& m, int keepLook) {
     uint32_t magic = 0; in.u(magic);
     if (magic != 0x31545452) return false;
     std::string key; int players = 1; uint32_t seed = 0;
-    int mode = 0;
-    in.s(key); in.i(players); in.u(seed); in.i(mode);
+    int mode = 0, season = 0;
+    in.s(key); in.i(players); in.u(seed); in.i(mode); in.i(season);
     if (r.bad || players < 1 || players > 4 || mode < 0 || mode >= RM_COUNT) return false;
-    if (!m.map || m.mapKey != key || m.seed != seed || m.players != players || m.mode != mode) {
-        m.mode = mode;
+    if (!m.map || m.mapKey != key || m.seed != seed || m.players != players || m.mode != mode || m.season != season) {
+        m.mode = mode; m.season = std::clamp(season, 0, 99);
         std::string why;
         if (!DataOk(&why)) return false;
         m.Init(key, players, seed, false);
@@ -320,7 +320,7 @@ class RedTideHost : public arcade::GameHost {
 public:
     std::unique_ptr<Match> m = std::make_unique<Match>();
     std::string mapKey = "ship";
-    int mode = RM_STANDARD;
+    int mode = RM_STANDARD, season = 0;
     DiverInput pend[4];
     bool looked[4] = {};
     int players = 1;
@@ -332,14 +332,16 @@ public:
     void Configure(const std::string& opts) override {
         static const char* MAPS[] = {"ship", "cave", "reef", "atlantis", "void"};
         std::string mk = opts.substr(0, opts.find(':'));
-        mode = opts.find(':') == std::string::npos ? RM_STANDARD : ModeFromKey(opts.substr(opts.find(':') + 1));
+        std::string rest = opts.find(':') == std::string::npos ? std::string() : opts.substr(opts.find(':') + 1);
+        mode = rest.empty() ? RM_STANDARD : ModeFromKey(rest.substr(0, rest.find(':')));
+        season = rest.find(':') == std::string::npos ? 0 : std::max(0, atoi(rest.substr(rest.find(':') + 1).c_str()));
         mapKey = "ship";
         for (const char* k : MAPS) if (mk == k) mapKey = k;
     }
     void Start(int n, uint32_t seed) override {
         players = std::clamp(n, 1, 4);
         m = std::make_unique<Match>();
-        m->mode = mode;
+        m->mode = mode; m->season = season;
         m->Init(mapKey, players, seed, false);
         for (int i = 0; i < 4; i++) { pend[i] = DiverInput{}; looked[i] = false; }
         for (int i = 0; i < players && i < (int)m->divers.size(); i++) { pend[i].yaw = m->divers[i].yaw; pend[i].pitch = m->divers[i].pitch; }

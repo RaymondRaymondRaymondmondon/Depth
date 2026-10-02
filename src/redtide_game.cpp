@@ -498,10 +498,12 @@ static void ShipDressing() {
 }
 
 // ---------------------------------------------------------------- starting a match
+static int gRtSeasonSel = 0;   // the species season solo dives use (DEPTH_RTSEASON for --shots)
 static int gRtModeSel = 0;   // the mode solo dives use (the arcade reel's picker; DEPTH_RTMODE for --shots)
 static void StartShip(int players, uint32_t seed, const std::string& key = "ship") {
     S.m = std::make_unique<Match>();
     S.m->mode = getenv("DEPTH_RTMODE") ? ModeFromKey(getenv("DEPTH_RTMODE")) : gRtModeSel;
+    S.m->season = getenv("DEPTH_RTSEASON") ? atoi(getenv("DEPTH_RTSEASON")) : gRtSeasonSel;
     S.m->Init(key, players, seed, false);
     S.mode = 1;
     Vector3 lo = M().map->boundsMin, hi = M().map->boundsMax;
@@ -2214,6 +2216,9 @@ using namespace rt;
 static std::string gRtMap = "ship";
 bool RedTideAudioActive() { return S.audioOn; }
 void SetRedTideMode(int mode) { gRtModeSel = std::clamp(mode, 0, (int)RM_COUNT - 1); }
+void SetRedTideSeason(int season) { gRtSeasonSel = std::max(0, season); }
+int RedTideSeasonCount() { return SeasonCount(); }
+std::string RedTideSeasonName(int season) { return SeasonName(season); }
 int RedTideModeCount() { return RM_COUNT; }
 const char* RedTideModeName(int mode) { return ModeName(mode); }
 const char* RedTideModeRules(int mode) { return ModeRules(mode); }

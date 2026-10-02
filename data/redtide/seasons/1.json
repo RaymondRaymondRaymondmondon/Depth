@@ -1,0 +1,53 @@
+{
+ "name": "Invaders",
+ "theme": "Species that don't belong and outcompete",
+ "_source": "Design doc, 'Species seasons': 'Season 1: Invaders. Species that don't belong and outcompete. Lionfish on the reef (eats everything small, nothing eats it); Asian carp in the Atlantis farms; a tropical crocodile in the cave's warm pool.' A season is a data drop: each map's fragment below is merged into its extra.json (species_import copies a row and its attacks from another map). Counts and diets ours; the Void's lionfish is our fourth placement.",
+ "maps": {
+  "reef": {
+   "species_import": [
+    {"from": "ship", "species": "Lionfish", "home_zone": "Staghorn Forest", "tags_add": "invader"}
+   ],
+   "spawn_add": [
+    {"zone": "Staghorn Forest", "species": "Lionfish", "count": 10, "respawn_s": 40}
+   ],
+   "diet_patch": {
+    "Lionfish": {"Anthias": 0.3, "Clownfish": 0.2, "Butterflyfish": 0.15, "Garden Eel": 0.1, "Razorfish": 0.15, "Cleaner Wrasse": 0.1}
+   }
+  },
+  "atlantis": {
+   "species_add": [
+    {"base": "Bream", "name": "Asian Carp", "size": 2, "tier": 1, "home_zone": "The Farms", "tags": "invader, grazer, school", "hp": 60, "bounty": 50}
+   ],
+   "spawn_add": [
+    {"zone": "The Farms", "species": "Asian Carp", "count": 30, "respawn_s": 15}
+   ],
+   "diet_patch": {
+    "Asian Carp": {"plankton": 0.8, "corpse": 0.2},
+    "Sea Bass": {"Asian Carp": 0.2},
+    "Amberjack": {"Asian Carp": 0.15}
+   }
+  },
+  "cave": {
+   "species_import": [
+    {"from": "ship", "species": "Saltwater Crocodile", "name": "Tropical Crocodile", "home_zone": "Dry Chamber II: the Toad Pool", "tags_add": "invader"}
+   ],
+   "spawn_add": [
+    {"zone": "Dry Chamber II: the Toad Pool", "species": "Tropical Crocodile", "count": 1, "respawn_s": 300}
+   ],
+   "diet_patch": {
+    "Tropical Crocodile": {"Giant Cave Toad": 0.35, "Blind Newt": 0.15, "Olm": 0.15, "Snapping Turtle": 0.15, "Cave Crayfish": 0.2}
+   }
+  },
+  "void": {
+   "species_import": [
+    {"from": "ship", "species": "Lionfish", "home_zone": "The Descent", "tags_add": "invader"}
+   ],
+   "spawn_add": [
+    {"zone": "The Descent", "species": "Lionfish", "count": 6, "respawn_s": 60}
+   ],
+   "diet_patch": {
+    "Lionfish": {"Hatchetfish": 0.4, "Vent Shrimp": 0.3, "Sand Hopper": 0.3}
+   }
+  }
+ }
+}

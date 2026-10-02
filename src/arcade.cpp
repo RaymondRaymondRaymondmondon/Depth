@@ -21,7 +21,8 @@ const char* RT_MAP_KEYS[5] = {"ship", "cave", "reef", "atlantis", "void"};
 const char* RT_TITLES[5] = {"The Sunken Ship", "The Underwater Cave", "The Coral Reef", "Atlantis", "Approaching the Void"};
 int gRtMapSel = 0;        // Red Tide's map on the reel (solo, and what a host's table dives)
 int gRtModeSel = 0;       // and its mode (design doc "Modes")
-std::string RtOpts() { return std::string(RT_MAP_KEYS[gRtMapSel]) + ":" + RedTideModeKey(gRtModeSel); }
+int gRtSeasonPick = 0;    // and the species season (0 none)
+std::string RtOpts() { return std::string(RT_MAP_KEYS[gRtMapSel]) + ":" + RedTideModeKey(gRtModeSel) + ":" + std::to_string(gRtSeasonPick); }
 bool gTrawlFp = false;   // the Trawl's view for a networked match (the reel remembers the last one chosen)
 int twCrew = 4;           // the Trawl's hands sailing solo (the rest are bots)
 net::LanBrowser gBrowse;
@@ -251,9 +252,16 @@ void DrawReels(Game& g) {
             DrawTextCenteredBold(">", mr.x + 12, mr.y, 18, Pal::Brass);
             if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), ml)) { gRtModeSel = (gRtModeSel + nm - 1) % nm; PlayCue("ui.click"); }
             if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), mr)) { gRtModeSel = (gRtModeSel + 1) % nm; PlayCue("ui.click"); }
-            if (CheckCollisionPointRec(GetMousePosition(), {c.x - 150, c.y + 78, 300, 26})) DrawWrapped(RedTideModeRules(gRtModeSel), {c.x - 200, c.y + 104, 400, 60}, 14, SCREEN_INK);
+            if (CheckCollisionPointRec(GetMousePosition(), {c.x - 150, c.y + 78, 300, 26})) DrawWrapped(RedTideModeRules(gRtModeSel), {c.x - 200, c.y + 128, 400, 60}, 14, SCREEN_INK);
         }
-        if (Button({c.x - 110, c.y + 236, 220, 36}, "Dive (solo)", true, 15)) { SetRedTideMode(gRtModeSel); StartRedTide(g, RT_MAPS[rtMap]); return; }
+        if (int ns = RedTideSeasonCount(); ns > 0) {   // the species season (a data drop of new species)
+            Rectangle sl{c.x - 150, c.y + 104, 24, 22}, sr{c.x + 126, c.y + 104, 24, 22};
+            DrawTextCentered(gRtSeasonPick ? ("Season " + std::to_string(gRtSeasonPick) + ": " + RedTideSeasonName(gRtSeasonPick)).c_str() : "No season", c.x, c.y + 106, 14, Color{170, 210, 200, 255});
+            DrawTextCenteredBold("<", sl.x + 12, sl.y, 16, Pal::BrassDk); DrawTextCenteredBold(">", sr.x + 12, sr.y, 16, Pal::BrassDk);
+            if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), sl)) gRtSeasonPick = (gRtSeasonPick + ns) % (ns + 1);
+            if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), sr)) gRtSeasonPick = (gRtSeasonPick + 1) % (ns + 1);
+        }
+        if (Button({c.x - 110, c.y + 236, 220, 36}, "Dive (solo)", true, 15)) { SetRedTideMode(gRtModeSel); SetRedTideSeason(gRtSeasonPick); StartRedTide(g, RT_MAPS[rtMap]); return; }
         DrawTextCentered("Host or Join to dive with up to three friends (the host's map)", c.x, c.y + 280, 13, SCREEN_DIM);
     }
     if (ready && selGame == G_SCUTTLE && Button({c.x - 110, c.y + 236, 220, 36}, "Practice with AI crabs", true, 15)) {
@@ -394,6 +402,16 @@ void DrawLobby() {
         if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), ml)) gRtModeSel = (gRtModeSel + nm - 1) % nm;
         if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), mr)) gRtModeSel = (gRtModeSel + 1) % nm;
         gSess.gameOpts = RtOpts();
+        int beforeSeason = gRtSeasonPick, ns = RedTideSeasonCount();
+        if (ns > 0) {
+            Rectangle sl{p.x + 380, p.y + p.height - 140, 26, 26}, sr{p.x + 600, p.y + p.height - 140, 26, 26};
+            DrawTextCenteredBold("<", sl.x + 13, sl.y + 2, 18, Pal::BrassDk); DrawTextCenteredBold(">", sr.x + 13, sr.y + 2, 18, Pal::BrassDk);
+            DrawTextCentered(gRtSeasonPick ? ("Season: " + RedTideSeasonName(gRtSeasonPick)).c_str() : "No season", p.x + 505, p.y + p.height - 136, 15, Color{170, 210, 200, 255});
+            if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), sl)) gRtSeasonPick = (gRtSeasonPick + ns) % (ns + 1);
+            if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), sr)) gRtSeasonPick = (gRtSeasonPick + 1) % (ns + 1);
+            gSess.gameOpts = RtOpts();
+        }
+        if (beforeSeason != gRtSeasonPick && gRtSeasonPick) gSess.Chat("Season " + std::to_string(gRtSeasonPick) + ": " + RedTideSeasonName(gRtSeasonPick));
         if (before != gRtMapSel || beforeMode != gRtModeSel)
             gSess.Chat(std::string("We dive ") + RT_TITLES[gRtMapSel] + (gRtModeSel ? std::string(": ") + RedTideModeName(gRtModeSel) + " - " + RedTideModeRules(gRtModeSel) : std::string()));
     }

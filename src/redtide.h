@@ -145,6 +145,9 @@ struct EngineData {
 std::string DataDir();
 const EngineData& Engine();
 const MapData& Map(const std::string& key);      // loads on first use; "ship", "cave", "reef", "atlantis", "void"
+const MapData& MapSeason(const std::string& key, int season);   // the map with a species season's data drop merged in (0: the map itself)
+int SeasonCount();                                // data/redtide/seasons/1.json, 2.json, ...
+std::string SeasonName(int season);
 bool DataOk(std::string* why = nullptr);
 
 // ---------------------------------------------------------------- the simulation

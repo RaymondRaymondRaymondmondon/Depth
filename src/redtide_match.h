@@ -179,6 +179,7 @@ struct Match {
     void TrimFx(size_t keep) { if (fx.size() > keep) { size_t n = fx.size() - keep; fx.erase(fx.begin(), fx.begin() + n); fxBase += (uint32_t)n; } }
     uint32_t seed = 0;                // Init's (a network mirror is built from it)
     int mode = RM_STANDARD;           // set before Init (Init keeps it)
+    int season = 0;                   // a species season (design doc, "Species seasons"; 0 none): set before Init
     bool Allowed(int weaponDef) const;   // Quiet Water: knives, spearguns, needlers and nets only
     float frenzyDropT = 20;           // Feeding Frenzy: the next Blood Frenzy drop
     void Ping(int d);                 // Blackout: a sonar ping (shows what's near for 2 s; it's heard)

@@ -622,3 +622,15 @@ lobby (`gameOpts` is "<map>:<mode>", the guests hear it in the chat); the snapsh
   them all. Careful bots mend in the calm. Drawn as tarred cords with orange floats, the torn strands hanging; the prompt
   counts the strands. In the snapshot.
 - Tests in `--redtide-mode-test`; view `DEPTH_STATION=barricade depth.exe --shots shots rvis_3_hands`.
+
+## Species seasons (2026-10-02; design doc, "Species seasons")
+- "A season is a data drop": `data/redtide/seasons/<n>.json` holds a fragment of each map's extra.json, merged in when
+  the season is played (`MapSeason(key, season)`, cached apart from the plain map; arrays appended, objects merged a
+  level deep). New: `species_import` copies a species row and its attack rows from another map under a new name and home;
+  `diet_patch` takes "plankton".
+- **Season 1, Invaders** ("species that don't belong and outcompete"): lionfish on the Reef's Staghorn Forest (eat the
+  small fry, nothing eats them), Asian carp in Atlantis's farms (plankton grazers; the sea bass and amberjack take some),
+  a Tropical Crocodile (the Ship crocodile's row and attacks) in the Cave's warm pool, and lionfish on the Void's Descent.
+- `Match::season` (kept by Init, in the snapshot header); the reel and the host's lobby pick it (`gameOpts`
+  "<map>:<mode>:<season>"); `DEPTH_RTSEASON=<n>` for `--redtide-sim` and `--shots`. Tests in `--redtide-mode-test`.
+- Next seasons (doc): Migration, Parasites and plagues, Giants, Night - each a JSON file.

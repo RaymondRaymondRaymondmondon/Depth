@@ -303,6 +303,7 @@ static void LoadFactionSheet(MapData& m, const Json& rows) {
     for (const auto& u : f.units) if (!u.huntOnly) f.composition.push_back(u.unit);
 }
 
+static int gLoadSeason = 0;   // the season Map is building (MapSeason)
 static void LoadExtra(MapData& m, const Json& ex) {
     if (!ex.IsObj()) return;
 
@@ -436,6 +437,20 @@ static void LoadExtra(MapData& m, const Json& ex) {
     for (const Json& sa : ex["spawn_add"].a) {
         SpawnRow r; r.zone = sa["zone"].Str0(); r.species = sa["species"].Str0(); r.count = sa["count"].I(); r.respawnS = sa["respawn_s"].F(60); r.capMult = 1.03f;
         if (r.count > 0) m.spawns.push_back(r);
+    }
+    // a season's species from another map (its row and its attacks), under a new name and home if it gives them
+    for (const Json& si : ex["species_import"].a) {
+        std::string from = si["from"].Str0(), name = si["species"].Str0();
+        if (from.empty() || from == m.key) continue;
+        int keep = gLoadSeason; gLoadSeason = 0; const MapData& src = Map(from); gLoadSeason = keep;
+        int bi = src.SpeciesIndex(name);
+        if (bi < 0) continue;
+        Species n = src.species[bi];
+        n.name = si["name"].Str0(name); n.homeZone = si["home_zone"].Str0(n.homeZone);
+        for (const std::string& tg : SplitList(si["tags_add"].Str0())) n.tags.push_back(Lower(tg));
+        n.id = (int)m.species.size();
+        m.species.push_back(n);
+        for (const auto& at : src.attacks) if (at.beast == name) { Attack c = at; c.beast = n.name; m.attacks.push_back(c); }
     }
     // species added (the Reef's pod orcas), cloned from a base row
     for (const Json& sa : ex["species_add"].a) {
@@ -624,8 +639,59 @@ static void LinkMouths(const MapData& m, Link& l) {
 
 static std::map<std::string, std::unique_ptr<MapData>> gMaps;
 
-const MapData& Map(const std::string& key) {
-    auto it = gMaps.find(key);
+// ---------------------------------------------------------------- species seasons (design doc, "Species seasons")
+// "A season is a data drop: species rows, diet matrix columns, spawn entries, and dossier pages, with models from the
+// existing body plans": data/redtide/seasons/<n>.json carries, per map, a fragment of extra.json merged into the map's
+// own (arrays appended, objects merged a level deep) when that season is played.
+static void MergeJson(Json& into, const Json& add) {
+    if (!add.IsObj()) return;
+    if (!into.IsObj()) { into = add; return; }
+    for (const auto& kv : add.o) {
+        Json* t = nullptr;
+        for (auto& p : into.o) if (p.first == kv.first) t = &p.second;
+        if (!t) { into.o.push_back(kv); continue; }
+        if (t->IsArr() && kv.second.IsArr()) t->a.insert(t->a.end(), kv.second.a.begin(), kv.second.a.end());
+        else if (t->IsObj() && kv.second.IsObj()) for (const auto& sub : kv.second.o) {
+            bool done = false;
+            for (auto& p : t->o) if (p.first == sub.first) { p.second = sub.second; done = true; }
+            if (!done) t->o.push_back(sub);
+        }
+        else *t = kv.second;
+    }
+}
+static Json ExtraFor(const std::string& d, const std::string& key) {
+    Json ex = FileExists(d + "/extra.json") ? LoadJsonFile(d + "/extra.json") : Json{};
+    if (gLoadSeason > 0) {
+        Json s = LoadJsonFile(DataDir() + "/seasons/" + std::to_string(gLoadSeason) + ".json");
+        if (s["maps"][key].IsObj()) { if (!ex.IsObj()) { ex = Json{}; ex.type = Json::Obj; } MergeJson(ex, s["maps"][key]); }
+    }
+    return ex;
+}
+int SeasonCount() {
+    int n = 0;
+    while (FileExists(DataDir() + "/seasons/" + std::to_string(n + 1) + ".json")) n++;
+    return n;
+}
+std::string SeasonName(int season) {
+    if (season <= 0) return "No season";
+    Json s = LoadJsonFile(DataDir() + "/seasons/" + std::to_string(season) + ".json");
+    return s["name"].Str0("Season " + std::to_string(season));
+}
+static const MapData& MapLoad(const std::string& cacheKey, const std::string& key);
+const MapData& Map(const std::string& key) { return MapLoad(key, key); }
+const MapData& MapSeason(const std::string& key, int season) {
+    if (season <= 0 || season > SeasonCount()) return Map(key);
+    std::string ck = key + "#s" + std::to_string(season);
+    auto it = gMaps.find(ck);
+    if (it != gMaps.end()) return *it->second;
+    Map(key);   // (the plain map first: a season's imports read other maps' rows)
+    int keep = gLoadSeason; gLoadSeason = season;
+    const MapData& m = MapLoad(ck, key);
+    gLoadSeason = keep;
+    return m;
+}
+static const MapData& MapLoad(const std::string& cacheKey, const std::string& key) {
+    auto it = gMaps.find(cacheKey);
     if (it != gMaps.end()) return *it->second;
     auto md = std::make_unique<MapData>();
     MapData& m = *md;
@@ -666,7 +732,7 @@ const MapData& Map(const std::string& key) {
     LoadBlockout(m, LoadJsonFile(d + "/blockout.json"));
     for (const Json& b : LoadJsonFile(d + "/boss.json").a) m.boss.push_back(b.Str0());
     if (FileExists(d + "/faction.json")) LoadFactionSheet(m, LoadJsonFile(d + "/faction.json"));
-    if (FileExists(d + "/extra.json")) LoadExtra(m, LoadJsonFile(d + "/extra.json"));
+    { Json ex = ExtraFor(d, key); if (ex.IsObj()) LoadExtra(m, ex); }
     // The faction joins the web as a species record ("Enemy factions are species in the same web").
     if (!m.faction.units.empty()) {
         Species e;
@@ -712,8 +778,8 @@ const MapData& Map(const std::string& key) {
         }
     }
     // Diet patches from extra.json (reconciling the workbook with the design doc), renormalised per row.
-    if (FileExists(d + "/extra.json")) {
-        Json ex = LoadJsonFile(d + "/extra.json");
+    {
+        Json ex = ExtraFor(d, key);
         for (const auto& kv : ex["diet_patch"].o) {
             int pi = m.SpeciesIndex(kv.first);
             if (pi < 0) continue;
@@ -722,6 +788,7 @@ const MapData& Map(const std::string& key) {
                 int si = m.SpeciesIndex(fw.first);
                 if (si >= 0) row.prey.push_back({si, fw.second.F()});
                 else if (Lower(fw.first) == "corpse") row.corpse += fw.second.F();
+                else if (Lower(fw.first) == "plankton") row.plankton += fw.second.F();   // (a season's grazer)
             }
             float sum = row.corpse + row.plankton + row.parasites + row.flora;
             for (const auto& pw : row.prey) sum += pw.second;
@@ -801,8 +868,8 @@ const MapData& Map(const std::string& key) {
     }
     for (int ri = 0; ri < (int)m.alarmRegions.size(); ri++) for (int zi : m.alarmRegions[ri].zones) m.zones[zi].alarmRegion = ri;
     for (auto& p : m.pois) if (p.zone >= 0) { const Zone& z = m.zones[p.zone]; p.pos.y = z.y0 + 1; }
-    gMaps[key] = std::move(md);
-    return *gMaps[key];
+    gMaps[cacheKey] = std::move(md);
+    return *gMaps[cacheKey];
 }
 
 } // namespace rt
