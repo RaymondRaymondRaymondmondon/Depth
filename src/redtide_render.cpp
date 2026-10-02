@@ -10,6 +10,7 @@
 #include <cstring>
 #include <map>
 #include <memory>
+#include <set>
 
 namespace rt {
 
@@ -618,7 +619,7 @@ void main() {
 static const char* RT_PBR_FS = R"(#version 330
 in vec3 fragWorld; in vec3 fragNormal; in vec2 fragUV; in vec4 fragColor; in float fragViewZ;
 uniform sampler2D texture0; uniform sampler2D uMR; uniform sampler2D uNrm; uniform sampler2D uAO; uniform sampler2D uEmit;
-uniform int uHasAlb, uHasMR, uHasNrm, uHasAO, uHasEmit;
+uniform int uHasAlb, uHasMR, uHasNrm, uHasAO, uHasEmit, uVcAO;
 uniform vec4 colDiffuse; uniform float uMetal, uRough; uniform vec3 uEmitCol; uniform float uWrap, uGlow;
 uniform vec3 uCam, uLampPos, uLampDir, uKey, uFog; uniform float uLampRange, uLampCone, uFogDensity;
 uniform vec4 uPL[8]; uniform vec4 uPLC[8]; uniform int uPLN;
@@ -662,7 +663,8 @@ vec3 shade(vec3 L, vec3 radiance) {
 }
 void main() {
     // glTF's colour factors and vertex colours are linear already; only a texture's sRGB needs undoing
-    vec4 bc = colDiffuse * fragColor;
+    // (an asset with tiling textures carries its baked occlusion in the vertex colours instead of a map)
+    vec4 bc = uVcAO == 1 ? colDiffuse : colDiffuse * fragColor;
     albedo = bc.rgb;
     if (uHasAlb == 1) { vec4 tx = texture(texture0, fragUV); albedo *= toLin(tx.rgb); bc.a *= tx.a; }
     if (bc.a < 0.4) discard;
@@ -676,21 +678,26 @@ void main() {
     F0 = mix(vec3(0.04), albedo, metal);
     vec3 col = vec3(0.0);
     // the lamp: a spot with a soft cone and inverse-square-ish fall-off to its range
+    // (every light is skipped where it can't reach or faces away: this PC's integrated graphics pays per pixel)
     { vec3 L = uLampPos - fragWorld; float d = length(L); L /= max(d, 1e-4);
       float cone = smoothstep(uLampCone, uLampCone + 0.18, dot(-L, normalize(uLampDir)));
       float att = clamp(1.0 - d / uLampRange, 0.0, 1.0); att *= att;
-      col += shade(L, toLin(uKey / 255.0) * cone * att * 5.0 * keyShadow(fragWorld, N, L)); }
+      if (cone * att > 0.0 && dot(N, L) > -0.2) col += shade(L, toLin(uKey / 255.0) * cone * att * 5.0 * keyShadow(fragWorld, N, L)); }
     // the moon
-    col += shade(normalize(-uMoonDir), toLin(uMoon / 255.0) * uMoonK * 2.5);
+    if (uMoonK > 0.0) col += shade(normalize(-uMoonDir), toLin(uMoon / 255.0) * uMoonK * 2.5);
     // the practical lights
     for (int i = 0; i < 8; i++) {
         if (i >= uPLN) break;
-        vec3 L = uPL[i].xyz - fragWorld; float d = length(L); L /= max(d, 1e-4);
-        float att = clamp(1.0 - d / uPL[i].w, 0.0, 1.0); att *= att;
+        vec3 L = uPL[i].xyz - fragWorld; float d = length(L);
+        if (d >= uPL[i].w) continue;
+        L /= max(d, 1e-4);
+        if (dot(N, L) < -0.2 && uWrap < 0.01) continue;
+        float att = 1.0 - d / uPL[i].w; att *= att;
         col += shade(L, toLin(uPLC[i].rgb) * uPLC[i].a * att * 6.0);
     }
     // hemisphere ambient, with the baked occlusion
     float ao = uHasAO == 1 ? texture(uAO, fragUV).r : 1.0;
+    if (uVcAO == 1) ao *= fragColor.r;
     vec3 amb = mix(toLin(uSeaAmb / 255.0), toLin(uSkyAmb / 255.0), N.y * 0.5 + 0.5) * uAmbK;
     col += amb * albedo * (1.0 - metal * 0.7) * ao;
     col += F_Schlick(max(dot(N, V), 0.0), F0) * amb * ao * (1.0 - rough) * 0.8;   // a little of the sky in polished metal
@@ -749,6 +756,10 @@ void main() {
     vec2 d2 = rp - uBoatPos; float ch = cos(uBoatHead), sh = sin(uBoatHead);
     vec2 bl = vec2(d2.x * ch + d2.y * sh, -d2.x * sh + d2.y * ch);
     float hl = uBoatLen * 0.5, hb = uBoatBeam * 0.5;
+    // never inside her hull (the engine room's eye is barely over the waterline): her plan, full amidships and
+    // narrowing over the forward quarter
+    float hbx = bl.x > hl * 0.45 ? max(0.5, hb - (bl.x - hl * 0.45) * 0.42) : hb;
+    if (bl.x > -hl && bl.x < hl + 0.3 && abs(bl.y) < hbx - 0.12) discard;
     float e = length(vec2(bl.x / hl, bl.y / hb));
     float way = clamp(uBoatSpeed / 2.5, 0.0, 1.0);
     float foam = smoothstep(1.22, 1.0, e) * (0.25 + 0.75 * way);
@@ -919,15 +930,16 @@ void main() {
 }
 )";
 
-static Shader gInk{}, gPbr{}, gNDPbr{}, gWaterSh{}, gSkySh{};
+static Shader gInk{}, gPbr{}, gNDPbr{}, gWaterSh{}, gSkySh{}, gDepthSh{};
+static int L_depthSkinned = -1;
 static Model gSkyBall{};
 static int L_pbr[40], L_pbrSkinned = -1, L_ndPbrSkinned = -1, L_ndPbrFar = -1, L_ndPbrCam = -1;
 static const char* PBR_U[] = {"uHasAlb", "uHasMR", "uHasNrm", "uHasAO", "uHasEmit", "uMetal", "uRough", "uEmitCol", "uWrap", "uGlow",
                               "uCam", "uLampPos", "uLampDir", "uKey", "uFog", "uLampRange", "uLampCone", "uFogDensity", "uPL", "uPLC",
-                              "uPLN", "uMoonDir", "uMoon", "uSkyAmb", "uSeaAmb", "uMoonK", "uAmbK", "uSil"};
+                              "uPLN", "uMoonDir", "uMoon", "uSkyAmb", "uSeaAmb", "uMoonK", "uAmbK", "uSil", "uVcAO"};
 enum { PU_HASALB, PU_HASMR, PU_HASNRM, PU_HASAO, PU_HASEMIT, PU_METAL, PU_ROUGH, PU_EMITCOL, PU_WRAP, PU_GLOW,
        PU_CAM, PU_LAMPPOS, PU_LAMPDIR, PU_KEY, PU_FOG, PU_RANGE, PU_CONE, PU_FOGD, PU_PL, PU_PLC,
-       PU_PLN, PU_MOONDIR, PU_MOON, PU_SKYAMB, PU_SEAAMB, PU_MOONK, PU_AMBK, PU_SIL, PU_COUNT };
+       PU_PLN, PU_MOONDIR, PU_MOON, PU_SKYAMB, PU_SEAAMB, PU_MOONK, PU_AMBK, PU_SIL, PU_VCAO, PU_COUNT };
 static int L_inkOutline, L_inkStipple, L_inkGrain, L_inkTint;
 static int L_inkX[16];
 // the lamp's shadow map: a depth-only framebuffer (1024 square: this PC's integrated graphics is the target)
@@ -983,8 +995,10 @@ static void EnsureShaders() {
     L_inkGrain = GetShaderLocation(gInk, "uGrain"); L_inkTint = GetShaderLocation(gInk, "uInkTint");
     for (int i = 0; i < 11; i++) L_inkX[i] = GetShaderLocation(gInk, INK_X[i]);
     const char* SH[3] = {"uShadowMap", "uLightVP", "uHasShadow"};
-    for (int i = 0; i < 3; i++) { L_litShadow[i] = GetShaderLocation(gLit, SH[i]); L_pbrShadow[i] = GetShaderLocation(gPbr, SH[i]); }
     gPbr = LoadShaderFromMemory(RT_PBR_VS, RT_PBR_FS);
+    for (int i = 0; i < 3; i++) { L_litShadow[i] = GetShaderLocation(gLit, SH[i]); L_pbrShadow[i] = GetShaderLocation(gPbr, SH[i]); }
+    gDepthSh = LoadShaderFromMemory(RT_PBR_VS, "#version 330\nout vec4 finalColor;\nvoid main() { finalColor = vec4(0.0); }\n");
+    L_depthSkinned = GetShaderLocation(gDepthSh, "uSkinned");
     for (int i = 0; i < PU_COUNT; i++) L_pbr[i] = GetShaderLocation(gPbr, PBR_U[i]);
     // the material maps DrawMesh binds: albedo in texture0, then the metallic-roughness, normal, occlusion and emission
     gPbr.locs[SHADER_LOC_MAP_ALBEDO] = GetShaderLocation(gPbr, "texture0");
@@ -1047,6 +1061,7 @@ static std::map<const Model*, AssetInfo> gAssetInfo;
 static std::vector<Matrix> gBonePool;
 static std::vector<Recolor> gRecPool;
 static std::map<const Model*, std::vector<std::string>> gMatNames;   // glTF material names, index = raylib material - 1
+static std::set<const Model*> gVcAO;                                  // assets whose vertex colours are baked occlusion
 static std::vector<DrawCmd> gQueue;
 static Camera3D gCam;
 static SceneLight gLight;
@@ -1218,6 +1233,19 @@ const Model* LoadAsset(const std::string& relPath) {
         EnsureShaders();
         m = std::make_unique<Model>(LoadModel(path.c_str()));
         if (m->meshCount == 0) m.reset();
+        else {
+            // mipmaps and anisotropic filtering on every map: tiling planks and plating shimmer without them
+            std::set<unsigned int> done;
+            for (int i = 0; i < m->materialCount; i++)
+                for (int k = 0; k <= MATERIAL_MAP_BRDF; k++) {
+                    Texture2D& tx = m->materials[i].maps[k].texture;
+                    if (tx.id == 0 || tx.id == rlGetTextureIdDefault() || done.count(tx.id)) continue;
+                    done.insert(tx.id);
+                    GenTextureMipmaps(&tx);
+                    SetTextureFilter(tx, TEXTURE_FILTER_TRILINEAR);
+                    rlTextureParameters(tx.id, RL_TEXTURE_FILTER_ANISOTROPIC, 4);
+                }
+        }
     }
     if (!m) TraceLog(LOG_WARNING, "rt: asset %s not found", path.c_str());
     if (m && path.size() > 4 && path.substr(path.size() - 4) == ".glb") {
@@ -1229,6 +1257,7 @@ const Model* LoadAsset(const std::string& relPath) {
                 Json j; std::string err;
                 if (ParseJson(std::string((const char*)data + 20, jlen), j, &err)) {
                     for (const Json& mt : j["materials"].a) gMatNames[m.get()].push_back(mt["name"].Str0());
+                    if (j["scenes"].IsArr() && !j["scenes"].a.empty() && j["scenes"][0]["extras"]["depth_vcao"].I(0)) gVcAO.insert(m.get());
                     // the parts and markers (raylib makes one mesh per primitive, walking the nodes in order)
                     AssetInfo info;
                     auto v3 = [](const Json& a, Vector3 def) { return a.IsArr() && a.a.size() >= 3 ? Vector3{a[0].F(0), a[1].F(0), a[2].F(0)} : def; };
@@ -1266,7 +1295,7 @@ void DrawWorldCube(Vector3 c, Vector3 size, Color col) {
 static void DrawPbrCmd(const DrawCmd& d, Shader sh, bool lit) {
     Model& m = const_cast<Model&>(*d.model);
     Matrix world = MatrixMultiply(m.transform, d.world);
-    if (lit) { SetF(gPbr, L_pbr[PU_WRAP], d.wrap); SetF(gPbr, L_pbr[PU_GLOW], d.glow); }
+    if (lit) { SetF(gPbr, L_pbr[PU_WRAP], d.wrap); SetF(gPbr, L_pbr[PU_GLOW], d.glow); SetI(gPbr, L_pbr[PU_VCAO], gVcAO.count(d.model) ? 1 : 0); }
     auto names = gMatNames.find(d.model);
     for (int i = 0; i < m.meshCount; i++) {
         Material mat = m.materials[m.meshMaterial[i]];
@@ -1301,7 +1330,20 @@ static void DrawPbrCmd(const DrawCmd& d, Shader sh, bool lit) {
 }
 
 static void DrawQueue(Shader sh, bool lit) {
+    // the big baked assets (the boat, the quay) first lay down their depth alone, so the expensive lighting runs
+    // once per pixel instead of once per overlapping surface
+    bool pre = false;
+    if (lit)
+        for (const DrawCmd& d : gQueue) {
+            if (!d.pbr || !gVcAO.count(d.model)) continue;
+            if (!pre) { rlDrawRenderBatchActive(); rlColorMask(false, false, false, false); SetI(gDepthSh, L_depthSkinned, 0); pre = true; }
+            Model& m = const_cast<Model&>(*d.model);
+            Matrix world = MatrixMultiply(m.transform, d.world);
+            for (int i = 0; i < m.meshCount; i++) { Material mat = m.materials[m.meshMaterial[i]]; mat.shader = gDepthSh; DrawMesh(m.meshes[i], mat, world); }
+        }
+    if (pre) { rlDrawRenderBatchActive(); rlColorMask(true, true, true, true); }
     for (const DrawCmd& d : gQueue) {
+        if (pre && d.pbr && gVcAO.count(d.model)) { rlDrawRenderBatchActive(); rlDisableDepthMask(); DrawPbrCmd(d, gPbr, true); rlDrawRenderBatchActive(); rlEnableDepthMask(); continue; }
         if (d.skydome) { if (lit) DrawSkyCmd(d); continue; }
         if (d.water) { if (lit) DrawWaterCmd(d); else { DrawCmd e = d; e.pbr = 1; e.world = MatrixIdentity(); Model& m = const_cast<Model&>(*d.model); Material mat = m.materials[0]; mat.shader = gNDPbr; SetI(gNDPbr, L_ndPbrSkinned, 0); for (int i = 0; i < m.meshCount; i++) DrawMesh(m.meshes[i], mat, MatrixIdentity()); } continue; }
         if (d.pbr) {

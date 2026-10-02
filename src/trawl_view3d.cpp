@@ -1471,6 +1471,27 @@ void DrawTrawlStudio(int which, float t) {
             float sc = std::clamp(0.24f / std::max(0.05f, ext), 0.2f, 3.0f);
             for (int k = 0; k < 3; k++) rt::DrawPbrParts(*m, MatrixMultiply(MatrixScale(sc, sc, sc), MatrixMultiply(MatrixRotateY(k == 1 ? 0.0f : 0.35f), MatrixTranslate((k - 1) * 0.29f - 0.03f, -0.03f, 0))), PoseWeapon(*A, st[k]), WHITE);
         }
+    } else if (which >= 7 && which <= 9) {
+        // the Gannet on a still dark sea: off her starboard bow, off her port quarter, and over her deck from aloft
+        // (DEPTH_OLDBOAT=1 draws the old box model for the before and after)
+        EnsureModels();
+        static const Vector3 POS[3] = {{19, 4.5f, 13}, {-20, 6, -12}, {-13, 9.5f, 4}}, TGT[3] = {{0, 1.2f, 0}, {-1, 1.6f, 0}, {1, 1.0f, 0}};
+        cam.position = POS[which - 7]; cam.target = TGT[which - 7]; cam.fovy = which == 9 ? 50 : 40;
+        L.fog = {14, 18, 26, 255}; L.fogDensity = 0.006f;
+        L.filmic = 1; L.exposure = 1.1f; L.gradeK = 0.4f; L.gradeLo = {104, 126, 150, 255}; L.gradeHi = {140, 128, 114, 255};
+        L.aoK = 0.75f; L.aoRadius = 0.4f; L.grain = 0.35f; L.outline = 0; L.stipple = 0;
+        L.moonDir = Vector3Normalize({-0.5f, -0.6f, -0.6f}); L.moonK = 0.9f; L.ambK = 0.9f;
+        L.skyAmb = {60, 72, 96, 255}; L.seaAmb = {16, 20, 26, 255};
+        lantern({0.2f, DECK_Y + 5.45f, 0}, {0.2f, 0, 0}); L.lampRange = 16; L.lampCone = 0.25f;
+        L.AddPoint({3.0f, DECK_Y + 2.05f, 0}, 5, {255, 214, 150, 255}, 0.8f);
+        L.AddPoint({-10.4f, DECK_Y + 3.15f, 0}, 7, {255, 220, 170, 255}, 0.7f);
+        rt::RenderBegin(cam, L);
+        if (const Model* bm = getenv("DEPTH_OLDBOAT") ? nullptr : rt::LoadAsset("trawl/boat.glb")) rt::DrawPbr(*bm, MatrixIdentity());
+        else rt::DrawStatic(gBoat, MatrixIdentity(), WHITE);
+        rt::DrawWorldCube({0, -0.05f, 0}, {200, 0.1f, 200}, Color{8, 16, 22, 255});
+        rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.24f, 0.24f, 0.24f), MatrixTranslate(0.2f, DECK_Y + 5.45f, 0)), Color{255, 226, 160, 255}, 2.5f);
+        rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.12f, 0.12f, 0.12f), MatrixTranslate(3.0f, DECK_Y + 2.05f, 0)), Color{255, 214, 150, 255}, 1.8f);
+        rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.16f, 0.16f, 0.16f), MatrixTranslate(-10.4f, DECK_Y + 3.15f, 0)), Color{255, 220, 170, 255}, 1.8f);
     } else if (which == 5) {
         // the first-person pose from the side (a debug view of your own arms)
         cam.position = {0.6f, 1.5f, 2.6f}; cam.target = {0.3f, 1.3f, 0};
@@ -1640,7 +1661,9 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
         Glow(W3(w, h + 1.05f), 0.2f, blink ? lc : Mul(lc, 0.25f), blink ? 2.5f : 0.1f);
     }
     // ---- the Gannet, her lamps and the parts that move
-    rt::DrawStatic(gBoat, M, WHITE);
+    // (the baked model from tools/artgen/boat.py, on the same layout; the old box model if the asset is missing)
+    if (const Model* bm = getenv("DEPTH_OLDBOAT") ? nullptr : rt::LoadAsset("trawl/boat.glb")) { if (getenv("DEPTH_BOATSTATIC")) rt::DrawStatic(*bm, M, WHITE); else rt::DrawPbr(*bm, M); }
+    else rt::DrawStatic(gBoat, M, WHITE);
     auto localGlow = [&](Vector3 c, float s, Color col, float glow) { rt::DrawCubeGlow(MatrixMultiply(MatrixMultiply(MatrixScale(s, s, s), MatrixTranslate(c.x, c.y, c.z)), M), col, glow); };
     localGlow({0.2f, DECK_Y + 5.45f, 0}, 0.24f, Color{255, 226, 160, 255}, b.lantern == 0 ? 0.3f : 2.5f);
     localGlow({3.0f, DECK_Y + 2.05f, 0}, 0.12f, Color{255, 214, 150, 255}, 1.8f);

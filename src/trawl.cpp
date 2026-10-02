@@ -1628,7 +1628,7 @@ void DebugTrawlShot(Game& g, int which) {
         S.eye.pitch = which == 15 ? -0.3f : which == 9 || which == 0 ? -0.08f : -0.22f;
         S.eye.yaw = which == 4 || which == 5 ? 1.25f : which == 15 || which == 21 || which == 22 ? 3.1f : which == 9 ? -1.9f : which == 16 ? 1.3f : which == 17 ? 1.9f : which == 1 ? -2.4f : which == 6 || which == 8 ? 2.6f : 0.0f;
     }
-    if (which >= 45 && which <= 51) { S.studio = which - 45; return; }   // the visual overhaul's turnaround stage
+    if (which >= 45 && which <= 54) { S.studio = which - 45; return; }   // the visual overhaul's turnaround stage
     if (which == 40 || which == 41 || which == 43 || which == 44) {
         // the visual overhaul's harness (spec, "Process and acceptance"): 40 the helm at night in the Lagoon's fog;
         // 41 a hand at the gutting table in rain; 43 aiming the lever carbine at a fish on the surface in rain
