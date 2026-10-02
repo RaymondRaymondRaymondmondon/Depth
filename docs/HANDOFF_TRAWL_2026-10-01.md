@@ -340,3 +340,25 @@ wreck's listing, the Reef's wonder-weapon quest, the repair kit, the stage-10 ba
 - **The Weeds' balance (item 2):** bots read the sounder (lure depth), rig rods over handlines, and step to an empty gutting table; the sim skipper fishes kelp edges, plans a course round the canopy and the drift mats, buys a medium rod. The Weeds moved from 38% to about 45% (doc 65%); the Lagoon is 92% (doc 85%). **Open for the user:** close the last gap through the Weeds' economy (rod-fish density or prices at the kelp edge)? And still the Atlantis quota question (83% against the doc's 25%).
 - **Polish (item 3):** threats harden per deadline (+10% hunger, +5% size) and a stray from the next ground comes in late once a night from the second deadline; first-person spray and a bow wave (the crew figures, sky, rain and held items were already done). Shot `trawl3d_spray` doesn't frame the spray well yet.
 - Commits: 8541ff4, d87f34c, 072210f, da5e79b, ffbcf7b.
+
+## Sixth session (2026-10-02): the plan the user set (work unattended; questions only when prompted)
+1. **Now: the Trawl's two missing systems** (the user chose "now, before Red Tide"): role upgrades (design doc p. 6-8:
+   three ranks per role after the 1st, 2nd and 4th met deadlines, two choices each on the dock chalkboard, bots pick
+   from a fixed preference list, upgrades belong to the role and survive death) and the Owners' consignments (doc p. 4:
+   one named salvage item per deadline in a ground's wreck or landing, a telegraph clue, reward = free Slipway upgrade
+   up to 600 or 10% off the next quota; missing = next quota +25% and the most expensive upgrade repossessed; two
+   missed in a row ends the run; the Drowned and Ghost Ship boarders go for it first). Then the sim and tests.
+2. **Then: Red Tide Visual Overhaul Spec** (Red_Tide_Reference/Red Tide — Visual Overhaul Spec.pdf, 25 pages; OCR in
+   the scratchpad was temporary: re-run tools\pdfpages.ps1 -Ocr). Ten phases, no approval gates (the user's call):
+   1 pipeline (record this PC's hardware; harness shots per zone/diver/gun/faction/boss), 2 underwater rendering
+   (per-channel absorption fog, caustics, shafts, marine snow, bubbles, silt, blood ribbons/ichor/oil, helmet vignette
+   and fringing, the ink line tinted by the water and thinned on detail, stipple off by default), 3 divers (the four
+   suits on the shared crew rig in the Trawl's stylised look - the user's call - with period gear; skins as material
+   sets; first-person gloves; helmet HUD), 4 guns, 5 creature kit, 6 Sunken Ship complete, 7-10 the other maps.
+   User's calls: scripts + .glb only (no .blend), 60 fps with the 3D view at 720p internal upscaled to 1080p.
+3. **Last: skins/costumes for both games** (memory depth-redtide-visual-overhaul): characters only; per game 15 bought
+   with tokens + 65 from loot crates (25 common, 20 rare, 15 super rare, 5 legendary); crates earned at play milestones
+   and bought with tokens; a duplicate roll gives nothing (tokens spent); Red Tide's existing Locker skins and Salt
+   Charms stay alongside.
+- If the weekly limit runs out: commit, update this section, schedule a resume after the weekly reset.
+- Done this session: commits 9c7afa8, 49c0b55, 33ca27b (see TRAWL_PROGRESS "Loose ends and the spec's leftovers").
