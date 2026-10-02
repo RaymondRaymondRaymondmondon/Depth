@@ -834,6 +834,68 @@ static void DrawStations() {
     }
 }
 
+// The Visual Overhaul's water (phase 2): absorption by channel, the in-scatter darkening with depth, caustics, light
+// shafts (through the room's portholes; from the surface out in the open), bloom, the helmet port's lens, the ink line
+// tinted by the water and fading into it, the stipple off; the PBR figures lit by the light from above.
+static float gSurfY = 34;   // the surface's height (for the particles)
+ static void WaterLook(SceneLight& L, int z, const Camera3D& cam) {
+    gSurfY = L.surfaceY;
+    const Settings& st = GameSettings();
+    const MapData& map = *M().map;
+    bool air = z >= 0 && map.zones[z].air;
+    bool open = z >= 0 && (map.zones[z].deck == "Outside" || map.extra["open_zones"].IsArr() && [&] { for (size_t i = 0; i < map.extra["open_zones"].Size(); i++) if (map.extra["open_zones"][i].Str0() == map.zones[z].name) return true; return false; }());
+    L.water = air ? 0.0f : 1.0f;
+    const Json& pal = map.extra["palette"];
+    if (pal.IsObj() && pal["absorb"].IsArr()) L.absorb = {pal["absorb"][0].F(0.075f), pal["absorb"][1].F(0.034f), pal["absorb"][2].F(0.026f)};
+    L.depthDark = pal.IsObj() ? pal["depth_dark"].F(0.012f) : 0.012f;
+    L.causticK = open ? 0.9f : 0.35f;
+    L.bloom = 0.35f;
+    L.lens = st.rtLens ? 1.0f : 0.0f;
+    L.inkFade = 1;
+    L.outline = st.rtInk == 0 ? 0.0f : st.rtInk == 1 ? 0.6f : 1.0f;
+    L.outlineTint = {(unsigned char)(L.fog.r * 0.35f), (unsigned char)(L.fog.g * 0.35f), (unsigned char)(L.fog.b * 0.35f), 255};
+    L.stipple = st.rtStipple ? 1.0f : 0.0f;
+    L.grain = 0.5f;
+    L.aoK = 0.55f; L.aoRadius = 0.5f;
+    L.filmic = 0.6f; L.exposure = 1.05f; L.saturation = 1.0f;
+    // the light from above for the PBR figures and caustics: the fill colour, brighter near the surface
+    float depthBelow = std::max(0.0f, L.surfaceY - cam.position.y);
+    float sun = std::clamp(expf(-depthBelow * 0.03f), 0.15f, 1.0f);
+    L.moonDir = Vector3Normalize({0.2f, -1.0f, 0.15f});
+    L.moon = {(unsigned char)std::min(255, L.fill.r * 3), (unsigned char)std::min(255, L.fill.g * 3), (unsigned char)std::min(255, L.fill.b * 3), 255};
+    L.moonK = (open ? 0.7f : 0.3f) * sun;
+    L.ambK = 0.55f; L.skyAmb = {(unsigned char)std::min(255, L.fill.r * 2), (unsigned char)std::min(255, L.fill.g * 2), (unsigned char)std::min(255, L.fill.b * 2), 255}; L.seaAmb = L.fog;
+    if (air) return;
+    // shafts: the nearest portholes of this room throw a beam in and down; in open water, beams from the surface on a
+    // fixed grid round the eye (so they stand still as you swim through them)
+    Color sc{(unsigned char)std::min(255, L.fill.r * 4 + 40), (unsigned char)std::min(255, L.fill.g * 4 + 40), (unsigned char)std::min(255, L.fill.b * 4 + 30), 255};
+    std::vector<std::pair<float, int>> near;
+    for (int i = 0; i < (int)map.windows.size(); i++) if (map.windows[i].zone == z) {
+        Vector3 c = Vector3Scale(Vector3Add(map.windows[i].lo, map.windows[i].hi), 0.5f);
+        near.push_back({Vector3Distance(c, cam.position), i});
+    }
+    std::sort(near.begin(), near.end());
+    for (int k = 0; k < (int)near.size() && k < 4; k++) {
+        const Window& w = map.windows[near[k].second];
+        Vector3 c = Vector3Scale(Vector3Add(w.lo, w.hi), 0.5f);
+        Vector3 in{0, 0, 0};
+        if (w.axis == 0) in.x = w.outHigh ? -1.0f : 1.0f; else in.z = w.outHigh ? -1.0f : 1.0f;
+        Vector3 dir = Vector3Normalize(Vector3Add(in, {0, -0.75f, 0}));
+        L.AddShaft(c, dir, 0.35f, 8, sc, 0.35f * sun + 0.12f);
+    }
+    if (open) {
+        float cell = 9;
+        int cx = (int)floorf(cam.position.x / cell), cz = (int)floorf(cam.position.z / cell);
+        for (int dz = -1; dz <= 1 && L.nShafts < SceneLight::MAX_SHAFTS; dz++) for (int dx = -1; dx <= 1 && L.nShafts < SceneLight::MAX_SHAFTS; dx++) {
+            uint32_t h = (uint32_t)(cx + dx) * 73856093u ^ (uint32_t)(cz + dz) * 19349663u;
+            if ((h >> 7) % 3 == 0) continue;   // (some cells have none)
+            float ox = ((h >> 11) % 100) / 100.0f, oz = ((h >> 17) % 100) / 100.0f;
+            Vector3 top{(cx + dx + ox) * cell, L.surfaceY, (cz + dz + oz) * cell};
+            L.AddShaft(top, Vector3Normalize({0.2f, -1.0f, 0.15f}), 0.6f + 0.5f * ox, std::min(40.0f, L.surfaceY - (cam.position.y - 12)), sc, 0.16f * sun);
+        }
+    }
+}
+
 static Camera3D MakeCamera(SceneLight& L) {
     DiverState& d = Me();
     Camera3D cam{};
@@ -866,6 +928,7 @@ static Camera3D MakeCamera(SceneLight& L) {
         L.surfaceY = pal["surface_y"].F(L.surfaceY);
         if (z >= 0 && M().map->zones[z].air) { L.fogDensity *= 0.5f; L.fog = {20, 22, 22, 255}; }   // dry air: clearer, and black
     }
+    WaterLook(L, z, cam);
     return cam;
 }
 
@@ -920,6 +983,8 @@ static bool DrawTeammate(const Match& m, const Agent& a) {
     Matrix tip = MatrixMultiply(MatrixMultiply(MatrixTranslate(0, -1.0f, 0), MatrixRotateZ(-tilt)), MatrixTranslate(0, 1.0f, 0));
     Matrix frame = MatrixMultiply(tip, fig::Frame(Vector3Subtract(a.pos, {0, 1.0f, 0}), d->yaw - PI / 2));
     DrawDiverFigure(m.VoiceOf(di), frame, P, S.time, d->dead ? Color{170, 200, 220, 160} : WHITE);
+    // a breath out through the helmet's exhaust every few seconds, quicker when swimming hard
+    if (!d->dead) { float rate = 0.33f + 0.25f * P.swim, ph = fmodf(S.time * rate + di * 0.31f, 1.0f); if (ph < rate / 60.0f) FxBubbles(Vector3Transform({-0.12f, 1.88f, 0}, frame), 7, 0.08f); }
     return true;
 }
 
@@ -1079,7 +1144,9 @@ static void DrawScene() {
         if (v < vis) continue;
         Vector3 c{sf.origin.x + (x + 0.5f) * sf.cell, sf.origin.y + (y + 0.5f) * sf.cell, sf.origin.z + (z + 0.5f) * sf.cell};
         float a = std::clamp(v / 60.0f, 0.05f, 0.45f);
-        DrawSphere(c, sf.cell * 0.55f, Fade(Color{120, 10, 12, 255}, a * 0.5f));
+        // blood in the water: soft dark-red clouds (never orange or pink), near black in the deep (the Visual Overhaul)
+        float deep = std::clamp((gSurfY - c.y) / 60.0f, 0.0f, 1.0f);
+        DrawBillboard(cam, SoftDot(), c, sf.cell * 1.6f, Fade(Color{(unsigned char)(96 - 60 * deep), (unsigned char)(6 - 3 * deep), (unsigned char)(10 - 5 * deep), 255}, a * 0.9f));
     }
     for (const auto& p : S.fx) DrawCube(p.pos, p.size, p.size, p.size, Fade(p.col, p.life / p.max));
     // the Void's lights: the Leviathan's lure (and its two decoys in phase 3), the Abyssal Lure's lanterns
@@ -1149,7 +1216,9 @@ static void DrawScene() {
             DrawCube(p, 0.05f, 0.05f, 0.05f, Fade(Color{190, 230, 240, 255}, 0.7f * (1 - f)));
         }
     }
-    for (const auto& s : S.snow) DrawCube(s, 0.02f, 0.02f, 0.02f, Fade(Color{220, 230, 220, 255}, 0.6f));
+    // marine snow: soft specks that fade with distance; then the bubbles
+    for (const auto& s : S.snow) { float dd = Vector3Distance(s, eye); if (dd < 22) DrawBillboard(cam, SoftDot(), s, 0.05f, Fade(Color{220, 232, 226, 255}, 0.55f * (1 - dd / 22))); }
+    FxDrawBubbles(cam);
     EndMode3D();
     EndLayer();
     RenderTexture2D& ov = Mode3DRT();
@@ -1404,6 +1473,11 @@ void SceneRedTide(Game& g) {
     S.fx.erase(std::remove_if(S.fx.begin(), S.fx.end(), [](const Particle& p) { return p.life <= 0; }), S.fx.end());
     Vector3 lo = M().map->boundsMin, hi = M().map->boundsMax;
     for (auto& s : S.snow) { s.y -= dt * 0.12f; s.x += sinf(S.time * 0.3f + s.z) * dt * 0.05f; if (s.y < lo.y) s.y += hi.y - lo.y; }
+    FxStep(dt, gSurfY);
+    if (S.lineup < 0 && S.m && !Me().dead) {   // your own breath: a burst from the exhaust above the helmet's rim, rising across the top of the view
+        float rate = 0.3f + 0.25f * (1 - std::clamp(Me().stamina, 0.0f, 1.0f)) + (Me().hurtT > 0 ? 0.25f : 0.0f), ph = fmodf(S.time * rate, 1.0f);   // (quicker winded or hurt)
+        if (ph < rate * dt) { Vector3 f = M().Forward(Me()); FxBubbles(Vector3Add(M().Eye(Me()), Vector3Add(Vector3Scale(f, 0.35f), {0, 0.32f, 0})), 9, 0.1f); }
+    }
     DrawScene();
     if (S.lineup < 0 && S.m && Me().slipLink >= 0) {
         // riding a slipstream: the rock streams past in the dark

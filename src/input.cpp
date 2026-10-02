@@ -81,6 +81,7 @@ void SaveSettings() {
     f << "hints " << (gSettings.showHints ? 1 : 0) << "\n";
     f << "trawl_outline " << (gSettings.trawlOutline ? 1 : 0) << "\n";
     f << "gfx " << gSettings.gfxShadows << " " << (gSettings.gfxAO ? 1 : 0) << " " << gSettings.gfxFog << " " << gSettings.gfxScale << "\n";
+    f << "redtide_look " << gSettings.rtInk << " " << (gSettings.rtStipple ? 1 : 0) << " " << (gSettings.rtLens ? 1 : 0) << "\n";
     for (int a = 0; a < ACT_COUNT; a++) f << "bind " << a << " " << gKeys[a][0] << " " << gKeys[a][1] << "\n";
 }
 
@@ -102,6 +103,7 @@ void LoadSettings() {
             int s = 2, a = 1, fg = 1, sc = 100; in >> s >> a >> fg >> sc;
             gSettings.gfxShadows = std::clamp(s, 0, 3); gSettings.gfxAO = a != 0; gSettings.gfxFog = std::clamp(fg, 0, 1); gSettings.gfxScale = std::clamp(sc, 50, 100);
         }
+        else if (key == "redtide_look") { int i = 1, s = 0, l = 1; in >> i >> s >> l; gSettings.rtInk = std::clamp(i, 0, 2); gSettings.rtStipple = s != 0; gSettings.rtLens = l != 0; }
         else if (key == "bind") { int a = -1, k0 = 0, k1 = 0; in >> a >> k0 >> k1; if (a >= 0 && a < ACT_COUNT) { gKeys[a][0] = k0; gKeys[a][1] = k1; } }
     }
     if (gSettings.brightness < 0.6f || gSettings.brightness > 1.6f) gSettings.brightness = 1.0f;

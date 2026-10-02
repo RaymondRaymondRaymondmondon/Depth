@@ -54,3 +54,33 @@ The spec: `Red_Tide_Reference/Red Tide — Visual Overhaul Spec.pdf` (25 pages, 
 - **Frame cost now** (1280 x 720 window, uncapped, `DEPTH_UNCAPPED=1 DEPTH_SHOTFRAMES=300`): the salon 8.2 ms, the
   engine room 8.2, the reef wall 7.3, a Wrecker hunt 8.5; three divers in the salon 9.2 (each skinned diver about
   0.35 ms, skinned on the CPU).
+
+## Phase 2: underwater rendering (2026-10-02)
+- **The water** (`SceneLight::water` and friends in redtide_render.h; the Trawl leaves them off, so its look is unchanged):
+  - per-channel absorption in place of the grey fog (`absorb`, scaled with the zone's fog density, so the maps'
+    palettes still tune it; a palette may give `absorb` and `depth_dark`): red goes first, then green;
+  - the in-scattered water colour darkens with depth below the surface (`depthDark`);
+  - soft animated caustics on up-facing surfaces near the surface, in both the inked and the PBR paths (`causticK`:
+    0.9 in open water, 0.35 inside).
+  The shared snippet is `sceneFog()` / `caust()` in `RT_FOGBANK`.
+- **Light shafts** (`SceneLight::AddShaft`): each is a volume (a top, a direction, a radius widening as it falls, a
+  length); the light it scatters toward the eye is integrated analytically from the view ray's closest pass to its
+  axis, up to the surface the ray ends on. Red Tide places them through the room's four nearest portholes (in and
+  down), and in open water on a fixed 9 m world grid from the surface (they stand still as you swim through).
+  They are computed with the bloom in one quarter-resolution pass (`RT_BLOOM_HEAD + RT_SHAFTS + RT_BLOOM_MAIN`); at
+  full resolution they cost the open reef 8 ms.
+- **Bloom** off bright sources (threshold 0.78), **the helmet port's lens** (a gentle barrel, a chromatic fringe toward
+  the rim, a darker vignette), **the ink line** tinted by the water and fading into it with distance (`inkFade`), the
+  stipple off, a softer grain, SSAO on, a light filmic curve.
+- **Particles:** marine snow as soft specks fading with distance, blood as soft dark-red clouds (near black in the
+  deep, never orange or pink), and bubbles (`FxBubbles` / `FxStep` / `FxDrawBubbles` in redtide_vis.cpp: rising
+  faster when bigger, wobbling, swelling as they rise, popping at the surface) from every diver's helmet exhaust on
+  each breath (quicker when swimming hard, winded or hurt).
+- **Settings** (Graphics page, saved as the `redtide_look` line): the ink line Off / Thin (default) / Full, the
+  stipple (off by default), the helmet lens (the motion-comfort switch).
+- **Frame cost** (1280 x 720, uncapped): the salon 10.4 ms, the bridge 10.4, the reef wall 9.7, a Wrecker hunt 11.2,
+  three divers in the salon 12.0. All inside the 16.7 ms budget at 720p.
+- **Not done yet from the spec's rendering section** (later phases): the air pocket's mirrored rippling surface from
+  below; silt clouds where divers and beasts touch the bottom; ichor and oil ribbons (the Lost Ones, the Sentinels);
+  bubbles from guns, slipstreams and vents; the brass helmet HUD as a model (with the divers' first person, phase 3);
+  the brightness and fog calibration screen and the colourblind setting for blood, ichor and scent.

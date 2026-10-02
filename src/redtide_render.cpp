@@ -549,7 +549,21 @@ void main() {
 "  vec2 p = wp.xz * 0.03 + vec2(uFogBank.y * 0.025, uFogBank.y * 0.011);\n" \
 "  float n = fbN(p) * 0.65 + fbN(p * 2.7 + 3.1) * 0.35;\n" \
 "  float h = exp(-max(wp.y, 0.0) * 0.08);\n" \
-"  return mix(1.0, (0.25 + 1.6 * n * n) * (0.55 + 0.45 * h), uFogBank.x); }\n"
+"  return mix(1.0, (0.25 + 1.6 * n * n) * (0.55 + 0.45 * h), uFogBank.x); }\n" \
+"uniform float uWaterK, uDepthDark, uSurfW, uCaustK, uTimeW; uniform vec3 uAbsorb;\n" \
+"vec3 sceneFog(vec3 col, vec3 wp, float dist, vec3 fogCol, float dens) {\n" \
+"  if (uWaterK <= 0.0) return mix(col, fogCol, clamp(1.0 - exp(-dens * fogBank(wp) * dist), 0.0, 1.0));\n" \
+"  vec3 T = exp(-uAbsorb * dist * fogBank(wp));\n" \
+"  float deep = exp(-uDepthDark * max(uSurfW - wp.y, 0.0));\n" \
+"  return col * T + fogCol * mix(0.3, 1.0, deep) * (1.0 - T); }\n" \
+"float caust(vec3 wp) {\n" \
+"  if (uCaustK <= 0.0) return 0.0;\n" \
+"  vec2 p = wp.xz * 0.9; float t = uTimeW * 0.8;\n" \
+"  vec2 q = p + vec2(sin(p.y * 1.7 + t), cos(p.x * 1.3 - t * 0.9)) * 0.6;\n" \
+"  float a = abs(sin(q.x * 2.1 + t * 1.3) + sin(q.y * 2.4 - t * 1.1) + sin((q.x + q.y) * 1.6 + t * 0.7));\n" \
+"  float c = pow(clamp(1.0 - a / 1.6, 0.0, 1.0), 4.0);\n" \
+"  float near = clamp(1.0 - (uSurfW - wp.y) / 22.0, 0.0, 1.0);\n" \
+"  return c * near * uCaustK; }\n"
 
 static const char* RT_LIT_FS = "#version 330\n" RT_FOGBANK R"(
 in vec3 fragWorld; in vec4 fragColor; in float fragViewZ; in vec2 fragUV;
@@ -589,7 +603,8 @@ void main() {
     // caustics near the surface
     float cz = clamp(1.0 - (uSurfaceY - fragWorld.y) / 18.0, 0.0, 1.0);
     float ca = sin(fragWorld.x * 1.3 + uTime * 1.1) * sin(fragWorld.z * 1.1 - uTime * 0.9) + sin((fragWorld.x + fragWorld.z) * 0.7 + uTime * 1.7);
-    col += base * max(ca, 0.0) * 0.18 * cz * max(n.y, 0.0);
+    if (uWaterK > 0.0) col += base * uFill / 255.0 * caust(fragWorld) * 3.0 * max(n.y, 0.0);   // (under water: the sharper caustics)
+    else col += base * max(ca, 0.0) * 0.18 * cz * max(n.y, 0.0);
     for (int i = 0; i < 8; i++) {                          // point lights (the Trawl's lamps, fires, flares)
         if (i >= uPLN) break;
         vec3 Lp = uPL[i].xyz - fragWorld; float dp = length(Lp);
@@ -597,9 +612,8 @@ void main() {
         col += base * uPLC[i].rgb * uPLC[i].a * ap * (0.25 + 0.75 * max(dot(n, Lp / max(dp, 0.0001)), 0.0)) * 1.6;
     }
     col += base * uGlow;                                   // luminous species glow in the dark
-    // fog by distance (thicker the deeper the scene sets it)
-    float fog = 1.0 - exp(-uFogDensity * fogBank(fragWorld) * fragViewZ);
-    col = mix(col, uFog / 255.0, clamp(fog, 0.0, 1.0));
+    // fog by distance (thicker the deeper the scene sets it; under water, absorbed channel by channel)
+    col = sceneFog(col, fragWorld, fragViewZ, uFog / 255.0, uFogDensity);
     if (uSil > 0.5) col = vec3(0.0);
     finalColor = vec4(col, fragColor.a * colDiffuse.a);
 }
@@ -729,9 +743,9 @@ void main() {
     if (uFlash > 0.0) col += albedo * uFlash * vec3(0.75, 0.82, 1.0) * mix(0.25, 1.0, N.y * 0.5 + 0.5);   // lightning: the whole scene lit from the sky for an instant
     if (uHasEmit == 1) col += toLin(texture(uEmit, fragUV).rgb * uEmitCol);
     col += albedo * uGlow;
+    col += albedo * toLin(uMoon / 255.0) * caust(fragWorld) * 2.0 * max(N.y, 0.0) * ao;   // (under water, near the surface)
     col = pow(col, vec3(1.0 / 2.2));
-    float fog = 1.0 - exp(-uFogDensity * fogBank(fragWorld) * fragViewZ);
-    col = mix(col, uFog / 255.0, clamp(fog, 0.0, 1.0));
+    col = sceneFog(col, fragWorld, fragViewZ, uFog / 255.0, uFogDensity);
     if (uSil > 0.5) col = vec3(0.0);
     finalColor = vec4(col, 1.0);
 }
@@ -921,6 +935,10 @@ uniform sampler2D texture0; uniform sampler2D uND; uniform sampler2D uAOTex; uni
 uniform vec2 uRes; uniform float uTime; uniform float uBlood; uniform float uSil; uniform vec3 uFog;
 uniform float uOutline, uStipple, uGrain; uniform vec3 uInkTint;
 uniform float uAOK, uAORad, uFarD, uTanHalf, uAspect, uFilmic, uExposure, uGradeK, uSat; uniform vec3 uGradeLo, uGradeHi;
+// under water (phase 2): the port's lens, the bloom and the light shafts (both from a quarter-resolution pass), the
+// ink line fading into the water
+uniform float uWaterC, uLens, uBloomK, uInkFade;
+uniform sampler2D uBloomTex; uniform vec2 uBloomTexel;
 out vec4 finalColor;
 float depthAt(vec2 uv) { vec4 t = texture(uND, uv); if (t.b == 0.0 && t.a == 0.0 && t.r == 0.0 && t.g == 0.0) return 1.0; return (t.b * 255.0 * 256.0 + t.a * 255.0) / 65535.0; }
 vec3 normAt(vec2 uv) { vec4 t = texture(uND, uv); vec2 xy = t.rg * 2.0 - 1.0; return vec3(xy, sqrt(max(0.0, 1.0 - dot(xy, xy)))); }
@@ -937,9 +955,23 @@ vec3 filmic(vec3 x) {   // a gentle ACES-style curve (Narkowicz), keeping the ni
 }
 void main() {
     vec2 uv = fragTexCoord;
+    vec2 cc = uv - 0.5;
+    float r2 = dot(cc * vec2(uAspect, 1.0), cc * vec2(uAspect, 1.0));
+    if (uLens > 0.0) uv = 0.5 + cc * (1.0 - uLens * 0.045 * r2);   // the port's glass: a gentle barrel
     vec3 col = texture(texture0, uv).rgb;
+    if (uLens > 0.0) {   // a chromatic fringe toward the rim of the port
+        float f = uLens * 0.004 * r2;
+        col.r = texture(texture0, 0.5 + (uv - 0.5) * (1.0 + f)).r;
+        col.b = texture(texture0, 0.5 + (uv - 0.5) * (1.0 - f)).b;
+    }
     float d = depthAt(uv);
     if (uAOK > 0.0) col *= mix(1.0, aoAt(uv), uAOK);
+    if (uBloomK > 0.0 || uWaterC > 0.0) {   // the bloom off bright sources and the light shafts (the quarter-resolution pass)
+        vec2 o = uBloomTexel;
+        vec3 b = 0.25 * (texture(uBloomTex, uv + vec2(o.x, o.y)).rgb + texture(uBloomTex, uv + vec2(-o.x, o.y)).rgb
+                       + texture(uBloomTex, uv + vec2(o.x, -o.y)).rgb + texture(uBloomTex, uv + vec2(-o.x, -o.y)).rgb);
+        col += b;
+    }
     // line weight: thicker near, thinner far (1.8 px near to 0.8 px at the far plane); a thin outline (uOutline < 1)
     // is a 1 px line at most; no outline, no edge taps
     float edge = 0.0;
@@ -963,13 +995,17 @@ void main() {
         if (th < shade * 0.7) col *= 0.45;
     }
     vec3 ink = uInkTint / 255.0;
+    if (uInkFade > 0.0) {   // under water the line takes the water's colour and fades into it with distance
+        edge *= 1.0 - uInkFade * smoothstep(0.04, 0.45, d);
+        ink = mix(ink, uFog / 255.0 * 0.45, clamp(d * 3.0, 0.0, 1.0));
+    }
     col = mix(col, ink, edge * 0.9 * uOutline);
-    // paper grain that never scrolls, and a vignette
+    // paper grain that never scrolls, and a vignette (the helmet port's rim: darker and tighter with the lens)
     float g = fract(sin(dot(floor(gl_FragCoord.xy), vec2(12.9898, 78.233))) * 43758.5453);
     col *= 1.0 - (0.06 - 0.06 * g) * uGrain;
-    vec2 c = uv - 0.5;
-    float vig = smoothstep(0.85, 0.3, length(c * vec2(1.25, 1.0)));
-    col *= 0.72 + 0.28 * vig;
+    vec2 c = fragTexCoord - 0.5;
+    float vig = smoothstep(0.85 - 0.08 * uLens, 0.3, length(c * vec2(1.25, 1.0)));
+    col *= mix(0.72, 0.5, uLens) + mix(0.28, 0.5, uLens) * vig;
     // the red at the mask's edge (scent meter)
     col = mix(col, vec3(0.5, 0.02, 0.02), clamp(uBlood, 0.0, 1.0) * (1.0 - vig) * 0.8);
     if (uFilmic > 0.0) {
@@ -987,7 +1023,70 @@ void main() {
 }
 )";
 
-static Shader gInk{}, gPbr{}, gNDPbr{}, gWaterSh{}, gSkySh{}, gDepthSh{}, gAOSh{};
+// the light shafts (computed in the bloom pass, at a quarter of the view's resolution: they are soft, and were the
+// open water's biggest cost at full resolution): top xyz + radius; dir xyz + length; rgb + strength
+static const char* RT_SHAFTS = R"(
+uniform vec3 uCamP, uCamF, uCamR, uCamU;
+uniform vec4 uShA[8]; uniform vec4 uShB[8]; uniform vec4 uShC[8]; uniform int uShN;
+// the light a shaft scatters toward the eye along the view ray up to the surface it ends on: the ray's closest pass
+// to the shaft's axis (clamped to both segments), a soft Gaussian across it, fading down its length, flickering
+float shafts(vec2 uv, float dm, out vec3 tint) {
+    tint = vec3(0.0);
+    if (uShN == 0) return 0.0;
+    vec3 rd = normalize(uCamF + (uv.x * 2.0 - 1.0) * uTanHalf * uAspect * uCamR + (uv.y * 2.0 - 1.0) * uTanHalf * uCamU);
+    float rayLen = dm / max(dot(rd, uCamF), 0.05);
+    float sum = 0.0;
+    for (int i = 0; i < 8; i++) {
+        if (i >= uShN) break;
+        vec3 A = uShA[i].xyz, D = normalize(uShB[i].xyz); float R = uShA[i].w, Lh = uShB[i].w;
+        vec3 w0 = uCamP - A;
+        float b = dot(rd, D), d = dot(rd, w0), e = dot(D, w0), den = 1.0 - b * b;
+        float s = den > 1e-4 ? clamp((b * e - d) / den, 0.0, rayLen) : 0.0;   // along the view ray
+        float u = clamp(e + b * s, 0.0, Lh);                                    // along the shaft
+        s = clamp(dot(A + D * u - uCamP, rd), 0.0, rayLen);
+        vec3 P = uCamP + rd * s, Q = A + D * u;
+        float r = R * (1.0 + 0.6 * u / Lh);                                     // widening as it falls
+        float g = exp(-pow(length(P - Q) / r, 2.0) * 2.2);
+        float fade = smoothstep(0.0, 0.12 * Lh, u) * (1.0 - smoothstep(0.55 * Lh, Lh, u));
+        float flick = 0.75 + 0.25 * sin(uTime * 0.9 + float(i) * 2.3 + u * 0.4);
+        float k = g * fade * flick * uShC[i].a * min(1.0, rayLen / max(r, 0.5));
+        sum += k; tint += uShC[i].rgb * k;
+    }
+    if (sum > 0.0) tint /= sum;
+    return sum;
+}
+)";
+// bloom (under water): the bright parts of the view (lamps, glow, sunlit sand, shafts' cores) at a quarter of its
+// resolution, a 5x5 Gaussian of what passes the threshold; the composite blurs it again as it reads it
+// (the shafts ride in the same pass and the same texture: the composite adds it as it is)
+static const char* RT_BLOOM_HEAD = R"(#version 330
+in vec2 fragTexCoord; in vec4 fragColor;
+uniform sampler2D texture0; uniform sampler2D uND; uniform vec2 uTexel;
+uniform float uBloomK, uWaterC, uTanHalf, uAspect, uTime, uFarD;
+out vec4 finalColor;
+)";
+static const char* RT_BLOOM_MAIN = R"(
+float depthAt(vec2 uv) { vec4 t = texture(uND, uv); if (t.b == 0.0 && t.a == 0.0 && t.r == 0.0 && t.g == 0.0) return 1.0; return (t.b * 255.0 * 256.0 + t.a * 255.0) / 65535.0; }
+void main() {
+    vec3 s = vec3(0.0); float w = 0.0;
+    if (uBloomK > 0.0)
+        for (int y = -2; y <= 2; y++) for (int x = -2; x <= 2; x++) {
+            vec3 c = texture(texture0, fragTexCoord + vec2(x, y) * uTexel).rgb;
+            float l = dot(c, vec3(0.3, 0.59, 0.11)), k = exp(-float(x * x + y * y) * 0.3);
+            s += c * smoothstep(0.78, 1.0, l) * k; w += k;
+        }
+    vec3 col = w > 0.0 ? s / w * 1.6 * uBloomK : vec3(0.0);
+    if (uWaterC > 0.0) {
+        vec3 st; float sh = shafts(fragTexCoord, depthAt(fragTexCoord) * uFarD, st);
+        vec3 under = texture(texture0, fragTexCoord).rgb;
+        col += st * sh * 0.55 * (1.0 - 0.5 * dot(under, vec3(0.333)));
+    }
+    finalColor = vec4(col, 1.0);
+}
+)";
+static Shader gInk{}, gPbr{}, gNDPbr{}, gWaterSh{}, gSkySh{}, gDepthSh{}, gAOSh{}, gBloomSh{};
+static RenderTexture2D gBloomRT{};
+static int gInkBloomLoc = -1;
 static int L_depthSkinned = -1, L_ao[4], L_inkAOTex = -1, L_inkAOTexel = -1;
 static RenderTexture2D gAORT{};
 static Model gSkyBall{};
@@ -1073,6 +1172,7 @@ static void EnsureShaders() {
     gDepthSh = LoadShaderFromMemory(RT_PBR_VS, "#version 330\nout vec4 finalColor;\nvoid main() { finalColor = vec4(0.0); }\n");
     L_depthSkinned = GetShaderLocation(gDepthSh, "uSkinned");
     gAOSh = LoadShaderFromMemory(nullptr, RT_AO_FS);
+    gBloomSh = LoadShaderFromMemory(nullptr, (std::string(RT_BLOOM_HEAD) + RT_SHAFTS + RT_BLOOM_MAIN).c_str());
     { const char* N[4] = {"uAORad", "uFarD", "uTanHalf", "uAspect"}; for (int i = 0; i < 4; i++) L_ao[i] = GetShaderLocation(gAOSh, N[i]); }
     L_inkAOTex = GetShaderLocation(gInk, "uAOTex"); L_inkAOTexel = GetShaderLocation(gInk, "uAOTexel");
     for (int i = 0; i < PU_COUNT; i++) L_pbr[i] = GetShaderLocation(gPbr, PBR_U[i]);
@@ -1521,6 +1621,17 @@ void RenderEnd() {
         if (lW == -2) { lW = GetShaderLocation(gPbr, "uWet"); lF = GetShaderLocation(gPbr, "uWetFloor"); lL = GetShaderLocation(gPbr, "uFlash"); }
         SetF(gPbr, lW, gLight.wet); SetF(gPbr, lF, gLight.wetFloor); SetF(gPbr, lL, gLight.flash);
     }
+    {   // under water: absorption (scaled with the scene's fog density), the depth's darkening, caustics
+        static int lw[2][6]; static bool got = false;
+        static const char* N[6] = {"uWaterK", "uAbsorb", "uDepthDark", "uSurfW", "uCaustK", "uTimeW"};
+        if (!got) { for (int k = 0; k < 6; k++) { lw[0][k] = GetShaderLocation(gLit, N[k]); lw[1][k] = GetShaderLocation(gPbr, N[k]); } got = true; }
+        Vector3 ab = Vector3Scale(gLight.absorb, gLight.fogDensity / 0.045f);
+        for (int s = 0; s < 2; s++) {
+            Shader sh = s ? gPbr : gLit;
+            SetF(sh, lw[s][0], gLight.water); SetV3(sh, lw[s][1], ab); SetF(sh, lw[s][2], gLight.depthDark);
+            SetF(sh, lw[s][3], gLight.surfaceY); SetF(sh, lw[s][4], gLight.water > 0 ? gLight.causticK : 0.0f); SetF(sh, lw[s][5], gLight.time);
+        }
+    }
     {   // fog banks (high fog quality)
         Vector2 fb{gQuality.fog ? gLight.fogBanks : 0.0f, gLight.time};
         static int lL = -1, lP = -1;
@@ -1619,8 +1730,59 @@ void RenderEnd() {
     static int rtView = getenv("DEPTH_RTVIEW") ? atoi(getenv("DEPTH_RTVIEW")) : 0;   // debug: 1 raw normal/depth, 2 raw colour
     if (rtView == 1) { DrawTexturePro(gNDRT.texture, {0, 0, (float)gNDRT.texture.width, -(float)gNDRT.texture.height}, {0, 0, (float)SCREEN_W, (float)SCREEN_H}, {0, 0}, 0, WHITE); return; }
     if (rtView == 2) { DrawTexturePro(gColorRT.texture, {0, 0, (float)gColorRT.texture.width, -(float)gColorRT.texture.height}, {0, 0, (float)SCREEN_W, (float)SCREEN_H}, {0, 0}, 0, WHITE); return; }
+    // the quarter-resolution pass: the bloom over the colour, and the light shafts through the water
+    float bloomK = gLight.silhouette > 0.5f ? 0.0f : gLight.bloom;
+    int nShafts = gLight.water > 0 && gLight.silhouette < 0.5f ? std::min(gLight.nShafts, SceneLight::MAX_SHAFTS) : 0;
+    bool quarter = bloomK > 0 || nShafts > 0;
+    if (quarter) {
+        if (gBloomRT.texture.width != std::max(1, vw / 4)) {
+            if (gBloomRT.id) UnloadRenderTexture(gBloomRT);
+            gBloomRT = LoadRenderTexture(std::max(1, vw / 4), std::max(1, vh / 4));
+            SetTextureFilter(gBloomRT.texture, TEXTURE_FILTER_BILINEAR);
+        }
+        static int lu[16]; static bool got = false;
+        static const char* N[16] = {"uTexel", "uBloomK", "uWaterC", "uTanHalf", "uAspect", "uTime", "uFarD", "uCamP", "uCamF", "uCamR", "uCamU", "uShA", "uShB", "uShC", "uShN", "uND"};
+        if (!got) { for (int k = 0; k < 16; k++) lu[k] = GetShaderLocation(gBloomSh, N[k]); got = true; }
+        Vector2 tx{2.0f / vw, 2.0f / vh};
+        SetShaderValue(gBloomSh, lu[0], &tx, SHADER_UNIFORM_VEC2);
+        SetF(gBloomSh, lu[1], bloomK); SetF(gBloomSh, lu[2], nShafts > 0 ? 1.0f : 0.0f);
+        SetF(gBloomSh, lu[3], tanf(gCam.fovy * DEG2RAD * 0.5f)); SetF(gBloomSh, lu[4], (float)SCREEN_W / SCREEN_H);
+        SetF(gBloomSh, lu[5], gLight.time); SetF(gBloomSh, lu[6], FAR);
+        Vector3 F = Vector3Normalize(Vector3Subtract(gCam.target, gCam.position));
+        Vector3 R = Vector3Normalize(Vector3CrossProduct(F, gCam.up)), U = Vector3CrossProduct(R, F);
+        SetV3(gBloomSh, lu[7], gCam.position); SetV3(gBloomSh, lu[8], F); SetV3(gBloomSh, lu[9], R); SetV3(gBloomSh, lu[10], U);
+        float a[32] = {}, b[32] = {}, c[32] = {};
+        for (int i = 0; i < nShafts; i++) {
+            const auto& s = gLight.shafts[i];
+            Vector3 dn = Vector3Normalize(s.dir);
+            a[i * 4] = s.top.x; a[i * 4 + 1] = s.top.y; a[i * 4 + 2] = s.top.z; a[i * 4 + 3] = std::max(0.1f, s.radius);
+            b[i * 4] = dn.x; b[i * 4 + 1] = dn.y; b[i * 4 + 2] = dn.z; b[i * 4 + 3] = std::max(0.5f, s.length);
+            c[i * 4] = s.c.r / 255.0f; c[i * 4 + 1] = s.c.g / 255.0f; c[i * 4 + 2] = s.c.b / 255.0f; c[i * 4 + 3] = s.k;
+        }
+        if (lu[11] >= 0) SetShaderValueV(gBloomSh, lu[11], a, SHADER_UNIFORM_VEC4, SceneLight::MAX_SHAFTS);
+        if (lu[12] >= 0) SetShaderValueV(gBloomSh, lu[12], b, SHADER_UNIFORM_VEC4, SceneLight::MAX_SHAFTS);
+        if (lu[13] >= 0) SetShaderValueV(gBloomSh, lu[13], c, SHADER_UNIFORM_VEC4, SceneLight::MAX_SHAFTS);
+        SetI(gBloomSh, lu[14], nShafts);
+        BeginLayer(gBloomRT);
+        ClearBackground(BLACK);
+        BeginShaderMode(gBloomSh);
+        if (lu[15] >= 0) SetShaderValueTexture(gBloomSh, lu[15], gNDRT.texture);
+        DrawTexturePro(gColorRT.texture, {0, 0, (float)gColorRT.texture.width, -(float)gColorRT.texture.height}, {0, 0, (float)gBloomRT.texture.width, (float)gBloomRT.texture.height}, {0, 0}, 0, WHITE);
+        EndShaderMode();
+        EndLayer();
+    }
+    {   // the water's composite: the lens, the quarter pass added, the ink's fade
+        static int lu[8]; static bool got = false;
+        static const char* N[6] = {"uWaterC", "uLens", "uBloomK", "uInkFade", "uBloomTex", "uBloomTexel"};
+        if (!got) { for (int k = 0; k < 6; k++) lu[k] = GetShaderLocation(gInk, N[k]); got = true; }
+        SetF(gInk, lu[0], nShafts > 0 ? 1.0f : 0.0f); SetF(gInk, lu[1], gLight.lens); SetF(gInk, lu[2], bloomK); SetF(gInk, lu[3], gLight.inkFade);
+        Vector2 bt{quarter ? 1.2f / gBloomRT.texture.width : 0.0f, quarter ? 1.2f / gBloomRT.texture.height : 0.0f};
+        SetShaderValue(gInk, lu[5], &bt, SHADER_UNIFORM_VEC2);
+        gInkBloomLoc = lu[4];
+    }
     BeginShaderMode(gInk);
     SetShaderValueTexture(gInk, L_ink[0], gNDRT.texture);
+    if (quarter && gInkBloomLoc >= 0) SetShaderValueTexture(gInk, gInkBloomLoc, gBloomRT.texture);
     if (aoK > 0 && L_inkAOTex >= 0) {
         SetShaderValueTexture(gInk, L_inkAOTex, gAORT.texture);
         Vector2 tx{0.75f / gAORT.texture.width, 0.75f / gAORT.texture.height};

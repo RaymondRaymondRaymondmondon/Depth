@@ -13,4 +13,12 @@ bool DiversReady();
 std::vector<Matrix> DrawDiverFigure(int voice, Matrix frame, fig::Pose P, float t, Color tint);
 void DrawRedTideStudio(int which, float t);
 
+// the water's particles (phase 2), drawn after the ink pass as soft sprites: bubbles (rising, wobbling, growing
+// toward the surface, popping there or after their life), and the soft dot the snow and the blood are drawn with
+const Texture2D& SoftDot();
+void FxBubbles(Vector3 at, int n, float spread, float size = 0.03f);
+void FxStep(float dt, float surfaceY);
+void FxDrawBubbles(const Camera3D& cam);
+void FxClear();
+
 } // namespace rt

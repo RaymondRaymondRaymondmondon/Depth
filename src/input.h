@@ -29,6 +29,9 @@ struct Settings {
     bool trawlOutline = false;           // the Trawl in first person: a thin tinted outline (the Visual Overhaul's option; off by default)
     // the 3D views' quality (the Trawl and Red Tide): shadows 0 off, 1 low (512), 2 medium (1024), 3 high (2048);
     // occlusion; fog 0 plain, 1 with lantern halos; the 3D view's resolution in percent of the screen (50-100)
+    int rtInk = 1;                       // Red Tide's ink line: 0 off, 1 thin and water-tinted (the Visual Overhaul's default), 2 the old full line
+    bool rtStipple = false;              // Red Tide's Bayer stipple in the shadows (off by default: it fights the baked detail)
+    bool rtLens = true;                  // the helmet port's lens: barrel, fringe, the darker rim (the motion-comfort setting turns it off)
     int gfxShadows = 2;
     bool gfxAO = true;
     int gfxFog = 1;

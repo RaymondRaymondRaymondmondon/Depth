@@ -139,6 +139,11 @@ void GraphicsPage(Rectangle p) {
     S.gfxFog = choice("Fog", S.gfxFog, 2, FG);
     S.gfxScale = (int)roundf(Slider(5, {x, y, w, 30}, "Resolution", (float)S.gfxScale, 50, 100, TextFormat("%d%%", S.gfxScale)) / 5) * 5;
     y += 54;
+    static const char* INK[3] = {"Off", "Thin", "Full"};
+    TxtBold("Red Tide", x, y, 16, Pal::Brass); y += 26;
+    S.rtInk = choice("Ink line", S.rtInk, 3, INK);
+    S.rtStipple = choice("Stipple", S.rtStipple ? 1 : 0, 2, OF) != 0;
+    S.rtLens = choice("Helmet lens", S.rtLens ? 1 : 0, 2, OF) != 0;
     Txt("If the deck stutters in rain and fog with a full crew, lower the lamp shadows first, then the resolution.", x, y, 13, Color{160, 150, 130, 255});
 }
 

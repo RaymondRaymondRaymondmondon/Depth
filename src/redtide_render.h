@@ -96,6 +96,21 @@ struct SceneLight {                // the master reference's three-light rig
     float gradeK = 0, saturation = 1;
     bool keyShadow = false;                  // the lamp (the key light) casts shadows (a shadow map from lampPos along lampDir)
     float keyShadowFov = 120;                // its frustum, degrees
+    // under water (Red Tide's Visual Overhaul phase 2; the Trawl leaves water 0): per-channel absorption in place of the
+    // grey fog (red goes first, then green: the far things turn blue-green), the in-scattered water colour (fog) darker
+    // the deeper it is below surfaceY, soft animated caustics near the surface, volumetric light shafts, bloom, and the
+    // helmet port's lens (barrel distortion, a chromatic fringe at the rim, a darker vignette); the ink line fades
+    // into the water with distance
+    float water = 0;
+    Vector3 absorb{0.075f, 0.034f, 0.026f};    // per metre at fogDensity 0.045 (scaled with it, so the maps' palettes still tune it)
+    float depthDark = 0.012f;                // per metre below surfaceY: the in-scatter darkens toward the deep
+    float causticK = 0;                      // caustics' strength on surfaces facing up (0 off)
+    float lens = 0, bloom = 0, inkFade = 0;  // the port's lens (0..1), bloom on bright sources, the ink line's fade with depth
+    static constexpr int MAX_SHAFTS = 8;
+    struct Shaft { Vector3 top, dir; float radius, length; Color c; float k; };
+    Shaft shafts[MAX_SHAFTS];
+    int nShafts = 0;
+    bool AddShaft(Vector3 top, Vector3 dir, float radius, float length, Color c, float k) { if (nShafts >= MAX_SHAFTS) return false; shafts[nShafts++] = {top, dir, radius, length, c, k}; return true; }
 };
 
 void RenderBegin(const Camera3D& cam, const SceneLight& light);   // opens the colour pass
