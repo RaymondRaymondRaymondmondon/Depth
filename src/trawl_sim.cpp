@@ -6,6 +6,7 @@
 // rate, money per night by source (hook, net, gun, set gear, dive), deaths by cause, which threats arrived and when,
 // and the time at sea. Headless; the same Gannet, Eco and Session the game runs. DEPTH_TRACE=1 prints each night.
 #include "trawl_session.h"
+#include "trawl_wreck.h"
 #include "raymath.h"
 #include <algorithm>
 #include <chrono>
@@ -42,6 +43,7 @@ struct Night {
     Variant variant = Variant::None; std::string canoeWord;
 };
 
+const char* Clock(float minutes);
 int StationIdx(StationKind k) { for (int i = 0; i < (int)Stations().size(); i++) if (Stations()[i].kind == k) return i; return -1; }
 
 struct Skipper {
@@ -56,6 +58,8 @@ struct Skipper {
     bool chargeNow = false;
     float groundT = 0, fouledT = 0, snagT = 0; int groundSide = 1, groundN = 0, snagN = 0; bool wasSnag = false, viaMark = false, viaDone = false;
     float leftAt = -1, lastLoad = 0;             // the minute the skipper turned for home; the net load last seen
+    // salvage: once a night, with the hardhat aboard and a hand to pump, a dive on the nearest wreck a hardhat reaches
+    int diveState = 0, diveWreck = -1, diver = -1, pieces = 0; float diveT = 0, diveStart = 0; bool diveDone = false;
     Skipper(Gannet& g, Session& s, Eco& e, const SkipperPattern& p, uint32_t seed) : G(g), S(s), E(e), P(p), rng(seed * 7919u + 13) {
         helm = StationIdx(StationKind::Helm); gut = StationIdx(StationKind::Gutting); portRod = StationIdx(StationKind::PortRod); winch = StationIdx(StationKind::NetWinch);
     }
@@ -201,6 +205,7 @@ struct Skipper {
             for (Vector2 q : {c, Vector2{c.x + 3, c.y + 3}, Vector2{c.x - 3, c.y - 3}, Vector2{c.x + 3, c.y - 3}, Vector2{c.x - 3, c.y + 3}}) {
                 int h = E.HabAt(q);
                 if (E.DepthAt(q) < 3 || h == H_LAND || E.MarkAt(q) >= 0) ok = false;
+                if (!homeward && S.phase == Phase::Night && Vector2Distance(q, S.harbour) < S.harbourR + 6) ok = false;   // (back inside the harbour line ends the night)
                 if (h == H_KELP || InMat(q, 5)) weed = true;
             }
             open[i] = ok; wcost[i] = weed ? 12.0f : 1.0f;
@@ -259,13 +264,137 @@ struct Skipper {
         if (G.PatchKits() == 0 && S.money > 40) S.Buy("patch");
         if (!G.owned[(int)Tackle::Medium] && E.ground != "lagoon" && S.money > 280) S.Buy("medium");   // (past the Lagoon: a rod for the bigger fish)
         if (P.chum) while (G.chum < 2 && S.money > 50 && S.Buy("chum")) {}
+        // the hardhat (the doc's salvage income): the greedy and reckless buy it once the purse can spare it, the careful later
+        // (DEPTH_SIMHARDHAT=1: aboard from the start, as a crew that bought it in an earlier run: the dive's own numbers)
+        if (!G.hardhat && G.crew.size() >= 2 && getenv("DEPTH_SIMHARDHAT")) G.hardhat = true;
+        if (!G.hardhat && G.crew.size() >= 2 && !getenv("DEPTH_SIMNODIVE") && S.money > (P.chum ? 240 : 320)) S.Buy("hardhat");   // (200, the user's price: diving on the first run)
         if (P.charges) { int have = 0; for (const auto& sl : G.crew[0].slots) if (sl.it == Item::Charge) have += sl.ammo; for (const auto& sl : G.locker) if (sl.it == Item::Charge) have += sl.ammo; if (have == 0 && S.money > 150) S.Buy("charge"); }
     }
     void Begin() {
         ChooseSpots();
+        diveState = 0; diveWreck = -1; diver = -1; pieces = 0; diveT = 0; diveDone = false;
         onSpot = false; homeward = false; slowT = 0; chumT = 0; t = 0; groundN = 0; snagN = 0; wasSnag = false; viaMark = false; viaDone = false; h0 = G.hold.size(); chargeNow = false; towing = false; netHand = -1; towLeg = 0; leftAt = -1;
         G.boat.lantern = std::min(P.lantern, G.searchlight ? 3 : 2);
+        if (getenv("DEPTH_TRACE")) printf("    purse %d sh, hardhat %s, %d wreck(s)\n", (int)S.money, G.hardhat ? "aboard" : "no", G.wrecks ? (int)G.wrecks->size() : 0);
         if (getenv("DEPTH_TRACE")) { printf("    marks:"); for (const auto& s : spots) printf("  (%.0f,%.0f d%.0f%s)", s.p.x, s.p.y, E.DepthAt(s.p), s.tow ? " tow" : s.edge ? " edge" : ""); printf("  harbour (%.0f,%.0f)\n", S.harbour.x, S.harbour.y); }
+    }
+    // ---- the dive: pick a wreck worth it, lie over it, send a bot down, work the rooms, recall
+    int PickWreck() const {
+        if (!G.hardhat || !G.wrecks || G.crew.size() < 2) return -1;
+        int best = -1; float bd = 1e9f;
+        for (int k = 0; k < (int)G.wrecks->size(); k++) {
+            const Wreck& w = (*G.wrecks)[k];
+            if (w.bell || w.depth > 30) continue;   // (a hardhat's reach)
+            bool worth = false; for (const auto& s : w.salvage) if (!s.taken && !s.twoDiver) worth = true;
+            if (!worth) continue;
+            Vector2 p = Standoff(k);
+            if (p.x < -1e8f) continue;   // (no open water within the hose's reach of her)
+            float d = Vector2Distance(G.boat.pos, p);
+            // (never a course back across the harbour line: crossing it inward ends the night)
+            Vector2 ab = Vector2Subtract(p, G.boat.pos); float t = std::clamp(Vector2DotProduct(Vector2Subtract(S.harbour, G.boat.pos), ab) / std::max(1e-3f, Vector2DotProduct(ab, ab)), 0.0f, 1.0f);
+            if (Vector2Distance(Vector2Add(G.boat.pos, Vector2Scale(ab, t)), S.harbour) < S.harbourR + 20) continue;
+            if (d < bd && d < 260) { bd = d; best = k; }
+        }
+        return best;
+    }
+    // where to lie for a dive: open water within 12 m of the wreck (the planner finds the way round kelp and mats)
+    Vector2 Standoff(int k) const {
+        const Wreck& w = (*G.wrecks)[k];
+        Vector2 c{w.x, w.y};
+        if (Open(c)) return c;
+        for (float r : {4.0f, 8.0f, 12.0f})
+            for (int a = 0; a < 12; a++) { Vector2 p{c.x + cosf(a * 0.5236f) * r, c.y + sinf(a * 0.5236f) * r}; if (Open(p)) return p; }
+        return {-1e9f, -1e9f};
+    }
+    std::vector<int> RoomPath(const Wreck& w, int from, bool toSalvage, bool carrying) const {
+        // breadth-first through the doors and hatches (the squeeze only empty-handed) to the nearest room with a piece
+        // one diver can lift (toSalvage), or to the nearest breach
+        std::vector<int> prev(w.Rooms(), -2); std::vector<int> q{from}; prev[from] = -1; int goal = -1;
+        auto isGoal = [&](int r) {
+            if (!toSalvage) return std::find(w.entries.begin(), w.entries.end(), r) != w.entries.end();
+            for (const auto& s : w.salvage) if (s.room == r && !s.taken && !s.twoDiver) return true;
+            return false;
+        };
+        for (size_t h = 0; h < q.size() && goal < 0; h++) {
+            if (isGoal(q[h])) { goal = q[h]; break; }
+            for (const auto& L : w.links) {
+                int o = L.a == q[h] ? L.b : L.b == q[h] ? L.a : -1;
+                if (o >= 0 && prev[o] == -2 && !(L.kind == 2 && carrying)) { prev[o] = q[h]; q.push_back(o); }
+            }
+        }
+        std::vector<int> path;
+        if (goal < 0) return {-1};
+        for (int r = goal; r >= 0 && r != from; r = prev[r]) path.insert(path.begin(), r);
+        return path;
+    }
+    bool DiveStep(float dt) {
+        if (diveState == 0) {
+            if (diveDone || homeward || S.phase != Phase::Night) return false;   // (first thing out: the salvage, then the fishing)
+            if (Vector2Distance(G.boat.pos, S.harbour) < S.harbourR + 40) return false;   // (well clear of the harbour line first)
+            diveWreck = PickWreck();
+            if (getenv("DEPTH_TRACE") && G.wrecks) for (const auto& w : *G.wrecks) {
+                int one = 0; for (const auto& s : w.salvage) if (!s.taken && !s.twoDiver) one++;
+                Vector2 c{w.x, w.y};
+                printf("      wreck %s at (%.0f,%.0f) %.0f m%s, %d one-diver piece(s), %.0f m off, course %s; floor %.1f m, hab %d, mark %d, mat %d\n", WreckTypeName(w.type), w.x, w.y, w.depth, w.bell ? " (bell)" : "", one, Vector2Distance(G.boat.pos, c), RouteClear(G.boat.pos, c) ? "clear" : "blocked", E.DepthAt(c), E.HabAt(c), E.MarkAt(c), InMat(c, 5) ? 1 : 0);
+            }
+            if (getenv("DEPTH_TRACE")) printf("      dive: picked %d (clock %.0f, phase %d)\n", diveWreck, S.clock, (int)S.phase);
+            if (diveWreck < 0) { diveDone = true; return false; }
+            diveState = 1; diveStart = S.clock;
+            G.Say("The skipper takes her over a wreck for the salvage");
+        }
+        const Wreck& w = (*G.wrecks)[diveWreck];
+        Vector2 wp = Standoff(diveWreck);
+        AtHelm();
+        if (diveState == 1) {   // steam there and lie still over her
+            if (homeward || S.clock - diveStart > 150) {   // (a game minute is a real second: 260 m is over an hour at her pace)
+                if (getenv("DEPTH_TRACE")) printf("      dive: gave up at %s, %.0f m from the standoff, speed %.2f, shaft %.2f, foul %d\n", Clock(S.clock), Vector2Distance(G.boat.pos, wp), G.boat.Speed(), G.boat.shaft, G.screwFouled ? 1 : 0);
+                diveState = 0; diveDone = true; G.Say("The skipper can't get her over the wreck: back to the fishing"); return false;
+            }
+            float d = Vector2Distance(G.boat.pos, wp), wd = Vector2Distance(G.boat.pos, {w.x, w.y});
+            if (d > 9 && wd > 11) { SteerTo(wp, 35); return true; }
+            // there: brake astern until she lies still (she carries her way a long time with the engine stopped)
+            float sp = G.boat.Speed();
+            G.boat.telegraph = sp > 0.25f ? -1 : sp < -0.25f ? 1 : 0; G.boat.rudder *= powf(0.3f, dt);
+            if (fabsf(sp) > 0.35f || wd > 14) return true;
+            // a bot over the stern (the Diver if there is one, never the fireman's job if another hand can go)
+            diver = -1;
+            for (int j = 1; j < (int)G.crew.size(); j++) { const Crew& c = G.crew[j]; if (c.bot && !c.dead && !c.overboard && c.deck == 0 && c.role == Role::Diver) diver = j; }
+            if (diver < 0) for (int j = (int)G.crew.size() - 1; j >= 1; j--) { const Crew& c = G.crew[j]; if (c.bot && !c.dead && !c.overboard && c.deck == 0) { diver = j; break; } }
+            if (diver < 0) { diveState = 0; diveDone = true; return false; }
+            if (G.crew[diver].station >= 0) G.crew[diver].station = -1;
+            G.crew[diver].p = {-10.5f, 0.3f};
+            if (!G.StartDive(diver)) { diveState = 0; diveDone = true; return false; }
+            diveState = 2; diveT = 0; pieces = 0;
+            if (getenv("DEPTH_TRACE")) printf("      dive: hand %d over the side at %s, %.0f m from the wreck\n", diver, Clock(S.clock), Vector2Distance(G.boat.pos, {w.x, w.y}));
+            return true;
+        }
+        // down: keep her over the wreck; the diver works the rooms
+        diveT += dt;
+        float d = Vector2Distance(G.boat.pos, {w.x, w.y});   // (the hose fouls at 15 m from the wreck)
+        if (d > 10) { SteerTo(wp, 0); G.boat.telegraph = 1; } else { G.boat.telegraph = 0; G.boat.rudder *= powf(0.3f, dt); }
+        if (getenv("DEPTH_TRACE") && fmodf(diveT, 60) < dt) printf("      dive: %.0f s, room %d, air %.0f, gauge %.2f, carrying %d, pieces %d, recall %d, hold %.1f silt %.1f lamp %.1f, %.0f m off\n", diveT, G.dive.room, G.dive.air, G.dive.gauge, G.dive.carrying ? 1 : 0, pieces, G.dive.recall ? 1 : 0, G.dive.holdT, G.dive.siltT, G.dive.lampOutT, d);
+        if (G.dive.diver < 0) {   // up again (or lost): back to the fishing
+            if (getenv("DEPTH_TRACE")) printf("      dive: up at %s, %d piece(s) sent up\n", Clock(S.clock), pieces);
+            diveState = 0; diveDone = true; onSpot = false;
+            return false;
+        }
+        auto& dv = G.dive;
+        bool done = homeward || diveT > 45 || pieces >= 4 || dv.air < 14 || G.crew[diver].dead;
+        if (dv.room < 0 || dv.recall) return true;               // (going down, or coming up)
+        if (done && !dv.carrying) { G.DiveRecall(); return true; }
+        if (dv.holdT > 0 || dv.siltT > 0 || dv.lampOutT > 0) return true;   // (held, blinded: wait it out)
+        if (dv.moveT < 1.7f) return true;                        // (slowly through the silt)
+        if (dv.carrying) {
+            if (std::find(w.entries.begin(), w.entries.end(), dv.room) != w.entries.end()) { if (G.DiveBasket()) pieces++; return true; }
+            auto path = RoomPath(w, dv.room, false, true);
+            if (!path.empty() && path[0] >= 0) G.DiveMove(path[0]); else G.DiveRecall();
+            return true;
+        }
+        auto path = RoomPath(w, dv.room, true, false);
+        if (path.size() == 1 && path[0] < 0) { G.DiveRecall(); return true; }   // (nothing left one diver can lift)
+        if (path.empty()) { if (!G.DiveTake()) G.DiveRecall(); return true; }
+        G.DiveMove(path[0]);
+        return true;
     }
     void AtHelm() { Crew& c = G.crew[0]; if (c.dead || c.overboard) return; c.deck = 0; c.p = Stations()[helm].at; c.station = helm; }
     void Step(float dt) {
@@ -321,6 +450,8 @@ struct Skipper {
             if (slot >= 0) { me.station = -1; me.p = {-6, 1.5f}; me.sel = slot; G.UseItem(0, {-6, 14}, true, false, false, dt); }
             chargeNow = false;
         }
+        // the dive (once a night, before or between the fishing): only with the net aboard
+        if ((diveState > 0 || (G.net.state == NetState::Stowed || G.net.state == NetState::Lost)) && DiveStep(dt)) return;
         if (homeward) {
             AtHelm();
             // the net comes in first (the winch hand hauls once told to), then home
@@ -522,7 +653,7 @@ int RunTrawlSim(int argc, char** argv) {
                 std::sort(v.begin(), v.end(), [](const auto& a, const auto& b) { return a.second.second > b.second.second; });
                 printf("    sold:"); for (size_t i = 0; i < v.size() && i < 7; i++) printf("  %s %.1f kg %.1f", v[i].first.c_str(), v[i].second.first, v[i].second.second); printf("\n");
             }
-            if (trace) printf("  run %d night %d: %s, %d fish sold for %.0f (hook %.0f net %.0f gun %.0f set %.0f), %d death(s), %d overboard, %d ram(s), threats: %d, %.1f min at sea%s%s\n", run, done + 1, S.ClockText().c_str(), landed, N.sold, N.money[0], N.money[1], N.money[2], N.money[3], (int)N.deaths.size(), N.overboard, N.rams, (int)N.arrivals.size(), N.seaMin, N.customs ? ", SEIZED" : "", N.sunk ? ", SUNK" : "");
+            if (trace) printf("  run %d night %d: %s, %d fish sold for %.0f (hook %.0f net %.0f gun %.0f set %.0f dive %.0f), %d death(s), %d overboard, %d ram(s), threats: %d, %.1f min at sea%s%s\n", run, done + 1, S.ClockText().c_str(), landed, N.sold, N.money[0], N.money[1], N.money[2], N.money[3], N.money[CS_DIVE], (int)N.deaths.size(), N.overboard, N.rams, (int)N.arrivals.size(), N.seaMin, N.customs ? ", SEIZED" : "", N.sunk ? ", SUNK" : "");
             all.push_back(N);
             done++;
             if (S.night >= 3) {

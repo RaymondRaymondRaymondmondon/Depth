@@ -111,6 +111,14 @@ void Gannet::StepBots(float dt) {
     int fireman = -1;
     for (int j = 1; j < (int)crew.size(); j++) if (crew[j].bot && !crew[j].dead && !crew[j].overboard && crew[j].role == Role::Bosun) { fireman = j; break; }
     if (fireman < 0) for (int j = 1; j < (int)crew.size(); j++) if (crew[j].bot && !crew[j].dead && !crew[j].overboard) { fireman = j; break; }
+    // a diver down in the hardhat: one bot keeps the air pump going the whole dive (the one already on it, else the
+    // first free bot that isn't keeping the fire; the fireman if there's nobody else)
+    int airPump = StationOfKind(StationKind::AirPump), airHand = -1;
+    if (dive.diver >= 0 && !dive.bell && airPump >= 0) {
+        for (int j = 1; j < (int)crew.size(); j++) if (crew[j].bot && crew[j].station == airPump && !crew[j].dead) airHand = j;
+        if (airHand < 0) for (int j = 1; j < (int)crew.size(); j++) { const Crew& o = crew[j]; if (o.bot && !o.dead && !o.overboard && o.deck == 0 && j != fireman && j != dive.diver && j != dive.diver2) { airHand = j; break; } }
+        if (airHand < 0 && fireman >= 0 && fireman != dive.diver) airHand = fireman;
+    }
     // keep the rods' fight brains in step with who holds them
     for (auto& r : rods) {
         int holder = -1; for (int j = 0; j < (int)crew.size(); j++) if (crew[j].station == r.station && !crew[j].overboard) holder = j;
@@ -196,6 +204,7 @@ void Gannet::StepBots(float dt) {
             continue;
         }
         if (c.fallen) { Move(i, {0, 0}, false, dt); continue; }   // (Move is where a fallen hand gets back up)
+        if (c.deck == DECK_DIVE) continue;      // (down a wreck: the dive moves them, not the deck's watch)
         // self-defence: a landed fish that has hold of this hand, or anything but a flopper within reach (a biter, a
         // grabber, a pincher...), gets clubbed first, whatever the watch is (the deck kill, design doc v2)
         if (c.deck == 0) {
@@ -317,7 +326,10 @@ void Gannet::StepBots(float dt) {
             bool water = boat.bilge > 300 || (b.goal == pumps && boat.bilge > 10);   // once at the pumps, pump her dry
             for (int s = 0; s < SEC_COUNT; s++) if (boat.integrity[s] < D().leakBelow && !boat.patched[s]) water = water || boat.bilge > 60;
             if (b.order >= 0) goal = b.order;
-            else if (water && takenBy(pumps, i) < 0 && i == fireman) {
+            else if (i == airHand) {
+                goal = airPump;
+                if (b.goal != airPump) { b.bark = "I've got the air pump!"; b.barkT = 3; }
+            } else if (water && takenBy(pumps, i) < 0 && i == fireman) {
                 goal = pumps;
                 if (b.goal != pumps) { b.bark = "Water in her! To the pumps"; b.barkT = 3; Say("A hand goes below to the pumps"); }
             } else {
@@ -373,6 +385,10 @@ void Gannet::StepBots(float dt) {
             case StationKind::Pumps:
                 Primary(i, boat.bilge > 10, dt);
                 if (boat.bilge <= 10 && b.order < 0) b.think = 0;        // dry: back to the watch
+                break;
+            case StationKind::AirPump:
+                if (dive.diver >= 0 && !dive.bell && dive.gauge < 0.92f) DivePump(i, true);   // (in rhythm: the pump takes a stroke a half second at most)
+                if (dive.diver < 0 && b.order < 0) b.think = 0;          // the diver's up: back to the watch
                 break;
             case StationKind::Gutting: {
                 bool any = DeckFish() > 0;

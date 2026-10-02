@@ -12,7 +12,16 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import numpy as np
 import common as C
 import boat as B
-from boat import box, cyl, rod, disc, lathe, quads
+import tiles
+from boat import box, cyl, rod, disc, lathe, quads, G
+
+_TILES = None
+def all_tiles():
+    global _TILES
+    if _TILES is None:
+        _TILES = tiles.build_all()
+    return _TILES
+tiles.build_all_cached = all_tiles
 
 
 def reset():
@@ -161,8 +170,203 @@ def oar():
     quads([(0, -0.03, 0.5), (0, 0.03, 0.5), (0, 0.075, 0.75), (0, 0.075, 1.3), (0, -0.075, 1.3), (0, -0.075, 0.75)], [(0, 1, 2, 3, 4, 5)], "house", "blade")
 
 
+# ---------------------------------------------------------------- the landings and the Grotto (each about its base)
+def land_mats():
+    T = all_tiles()
+    for k in ("sand", "wetsand", "jungle", "rock", "caverock", "stone", "shed"):
+        if k not in B.MATS:
+            B.MATS[k] = B.tile_mat(T[k])
+    for k, rgb, r in (("bark", (0.22, 0.16, 0.1), 0.9), ("frond", (0.1, 0.22, 0.07), 0.6), ("thatch", (0.42, 0.33, 0.17), 0.95),
+                      ("marble", (0.72, 0.7, 0.64), 0.55), ("tent", (0.35, 0.05, 0.04), 0.85), ("bone", (0.75, 0.71, 0.6), 0.6),
+                      ("mould", (0.1, 0.55, 0.45), 0.4), ("char", (0.04, 0.035, 0.03), 0.95), ("turf", (0.2, 0.28, 0.1), 0.95)):
+        B.MATS[k] = B.flat(k, rgb, r)
+
+
+def boulder_mesh(name, r, mat, seed, squash=0.7):
+    bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=3, radius=r)
+    o = bpy.context.active_object
+    rng = np.random.default_rng(seed)
+    for v in o.data.vertices:
+        d = v.co.normalized()
+        v.co *= 1 + 0.22 * math.sin(d.x * 5 + seed) * math.cos(d.y * 4) + 0.1 * rng.random()
+        v.co.z = v.co.z * squash
+        if v.co.z < -0.25 * r:
+            v.co.z = -0.25 * r   # (sits flat in the sand)
+    o.location.z = 0.25 * r
+    return B.put(o, mat)
+
+
+def palm():
+    # a leaning, ringed trunk and a crown of drooping, split fronds; the base at the origin, leaning toward +x
+    pts = [(0.9 * (t ** 1.6), 5.0 * t, 0.15 * math.sin(t * 3)) for t in np.linspace(0, 1, 9)]
+    rod(pts, 0.17, "bark", 10)
+    for t in np.linspace(0.08, 0.95, 14):
+        p = (0.9 * (t ** 1.6), 5.0 * t, 0.15 * math.sin(t * 3))
+        lathe(p, [(0.19 - 0.06 * t, -0.03), (0.2 - 0.06 * t, 0.0), (0.17 - 0.06 * t, 0.03)], "bark", 10)
+    top = (0.9, 5.0, 0.15 * math.sin(3))
+    lathe(top, [(0.12, -0.2), (0.25, 0.0), (0.12, 0.25)], "frond", 8)
+    for k in range(9):
+        a = k * 2 * math.pi / 9 + 0.3
+        ca, sa = math.cos(a), math.sin(a)
+        L = 2.6 + 0.4 * (k % 3)
+        spine = [(top[0] + ca * L * s, top[1] + 0.5 * s - 1.6 * s * s, top[2] + sa * L * s) for s in np.linspace(0, 1, 8)]
+        rod(spine, 0.02, "frond", 4)
+        vs, fs = [], []
+        for i, (x, y, z) in enumerate(spine):
+            w = 0.42 * math.sin(math.pi * min(1, i / 7 * 1.1))
+            vs += [(x - sa * w, y - 0.12 * w, z + ca * w), (x, y + 0.04, z), (x + sa * w, y - 0.12 * w, z - ca * w)]
+        for i in range(len(spine) - 1):
+            fs += [(3 * i, 3 * i + 1, 3 * i + 4, 3 * i + 3), (3 * i + 1, 3 * i + 2, 3 * i + 5, 3 * i + 4)]
+        quads(vs, fs, "frond", "frond")
+    for k in range(4):   # coconuts
+        a = k * 1.7
+        lathe((top[0] + math.cos(a) * 0.2, top[1] - 0.25, top[2] + math.sin(a) * 0.2), [(0.0001, -0.11), (0.1, -0.05), (0.11, 0.0), (0.09, 0.06), (0.0001, 0.11)], "bark", 10)
+
+
+def hut():
+    # the elder's hut: a low round wall of boards, a door gap, a deep thatched cone with a ragged eave
+    for k in range(18):
+        a = k * 2 * math.pi / 18
+        if abs(a - math.pi / 2) < 0.35:
+            continue   # (the door, facing +z)
+        box((math.cos(a) * 1.05, 0.75, math.sin(a) * 1.05), (0.19, 0.75, 0.04), "shed", 0.01, rot_y=-a + math.pi / 2)
+    lathe((0, 0, 0), [(1.75, 1.45), (1.7, 1.55), (1.2, 2.2), (0.5, 3.0), (0.08, 3.5), (0.0001, 3.55)], "thatch", 18)
+    for k in range(24):   # the eave's straggle
+        a = k * 2 * math.pi / 24
+        rod([(math.cos(a) * 1.72, 1.5, math.sin(a) * 1.72), (math.cos(a) * 1.82, 1.32 - 0.05 * (k % 3), math.sin(a) * 1.82)], 0.025, "thatch", 4)
+    cyl((0, 1.5, 0), (0, 3.6, 0), 0.05, "bark", 6)
+
+
+def beached_sloop():
+    # the skiff's lines enlarged into a small sloop lying on her side in the sand, her mast broken off
+    skiff()
+    for o in B.PARTS:
+        o.scale = (1.15, 1.15, 1.15)
+        o.rotation_euler = (math.radians(72), 0, 0)   # (rolled onto her side: her keel toward the sea)
+        o.location = (0, 0, 0.55)
+    rod([(0.6, 0.6, 0.0), (0.7, 0.9, -1.4)], 0.07, "house", 6)
+
+
+def firering():
+    for k in range(9):
+        a = k * 2 * math.pi / 9
+        o = boulder_mesh("stone", 0.13, "rock", 30 + k, 0.6)
+        o.location = G(math.cos(a) * 0.5, 0.03, math.sin(a) * 0.5)
+    for k in range(4):
+        a = k * 0.8
+        rod([(math.cos(a) * 0.35, 0.06, math.sin(a) * 0.35), (-math.cos(a) * 0.3, 0.12, -math.sin(a) * 0.3)], 0.05, "char", 6)
+    lathe((0, 0, 0), [(0.0001, 0.0), (0.38, 0.0), (0.3, 0.03), (0.0001, 0.04)], "char", 14)
+
+
+def boulder():
+    boulder_mesh("boulder", 0.6, "rock", 7, 0.65)
+
+
+def stonehut():
+    # the sealers' hut: dry-stone walls, a turf roof, the door; the stove by it is its own prop
+    for (c, h) in (((0, 1.0, -1.55), (2.6, 1.0, 0.12)), ((-2.5, 1.0, 0), (0.12, 1.0, 1.6)), ((2.5, 1.0, 0), (0.12, 1.0, 1.6))):
+        box(c, h, "stone", 0.03)
+    box((-1.6, 1.0, 1.55), (1.0, 1.0, 0.12), "stone", 0.03)
+    box((1.6, 1.0, 1.55), (1.0, 1.0, 0.12), "stone", 0.03)
+    box((0, 1.85, 1.55), (0.6, 0.15, 0.12), "stone", 0.02)
+    box((0, 0.85, 1.62), (0.55, 0.85, 0.02), "shed", 0.01)
+    quads([(-2.8, 2.0, -1.8), (2.8, 2.0, -1.8), (2.8, 2.45, 0), (-2.8, 2.45, 0)], [(0, 1, 2, 3)], "turf", "roof")
+    quads([(-2.8, 2.0, 1.8), (2.8, 2.0, 1.8), (2.8, 2.45, 0), (-2.8, 2.45, 0)], [(0, 1, 2, 3)], "turf", "roof")
+
+
+def stove():
+    box((0, 0.35, 0), (0.4, 0.35, 0.3), "iron", 0.02)
+    cyl((0.2, 0.7, 0), (0.2, 2.6, 0), 0.08, "iron", 10)
+    lathe((0.2, 0, 0), [(0.0001, 2.6), (0.15, 2.62), (0.0001, 2.7)], "iron", 10)
+
+
+def cannery():
+    # the cannery's shed of corrugated iron and its door; the boiler drum and stack are their own prop
+    box((0, 1.4, 0), (2.6, 1.4, 1.6), "iron", 0.02)
+    for k in range(27):
+        x = -2.6 + k * 0.2
+        for s in (-1, 1):
+            cyl((x, 0.05, s * 1.62), (x, 2.75, s * 1.62), 0.025, "iron", 6, bevel=0)
+    quads([(-2.75, 2.8, -1.75), (2.75, 2.8, -1.75), (2.75, 3.15, 0), (-2.75, 3.15, 0)], [(0, 1, 2, 3)], "iron", "roof")
+    quads([(-2.75, 2.8, 1.75), (2.75, 2.8, 1.75), (2.75, 3.15, 0), (-2.75, 3.15, 0)], [(0, 1, 2, 3)], "iron", "roof")
+    box((0, 1.0, 1.65), (0.7, 1.0, 0.03), "shed", 0.01)
+
+
+def boiler():
+    cyl((-1.0, 0.8, 0), (1.0, 0.8, 0), 0.75, "iron", 20)
+    for x in (-1.0, 1.0):
+        disc((x, 0.8, 0), 'x', 0.78, 0.05, "iron", 20)
+    cyl((0.4, 1.4, 0), (0.4, 4.6, 0), 0.2, "iron", 12, r2=0.18)
+    for x in (-0.8, 0.8):
+        box((x, 0.2, 0), (0.15, 0.2, 0.6), "stone", 0.02)
+
+
+def tower():
+    # the watchtower's stump: a ring of masonry, broken off unevenly, a fallen block
+    for k in range(20):
+        a = k * 2 * math.pi / 20
+        top = 3.5 + 2.0 * abs(math.sin(k * 1.3)) * (1 if k % 5 else 0.3)
+        box((math.cos(a) * 2.45, top / 2 - 1, math.sin(a) * 2.45), (0.42, top / 2, 0.3), "stone", 0.03, rot_y=-a + math.pi / 2)
+    box((3.4, 0.25, 1.2), (0.5, 0.25, 0.32), "stone", 0.04, rot_y=0.5)
+
+
+def shrine():
+    for s in (-1, 1):
+        lathe((s * 1.8, 0, 0), [(0.45, 0.0), (0.42, 0.2), (0.32, 0.3)] + [(0.3 - 0.02 * t, 0.3 + t * 3.1) for t in np.linspace(0, 1, 6)] + [(0.38, 3.45), (0.4, 3.6)], "marble", 16)
+    box((0, 3.8, 0), (2.4, 0.25, 0.6), "marble", 0.03)
+
+
+def stair():
+    for s in range(6):
+        box((-6.0 + s * 0.9, -0.8 + s * 0.15, 0), (0.45, 0.15 + s * 0.15, 6.5), "marble", 0.03)
+
+
+def tent():
+    lathe((0, 0, 0), [(2.6, 0.0), (2.0, 1.0), (1.0, 2.3), (0.08, 3.4), (0.0001, 3.45)], "tent", 14)
+    cyl((0, 0, 0), (0, 3.7, 0), 0.05, "bark", 6)
+
+
+def skullpost():
+    cyl((0, 0, 0), (0, 2.4, 0), 0.12, "bark", 8, r2=0.1)
+    for y in (0.6, 1.2, 1.8):
+        lathe((0, 0, 0), [(0.125, y), (0.15, y + 0.04), (0.125, y + 0.08)], "bark", 8)
+    lathe((0, 0, 0), [(0.0001, 2.4), (0.15, 2.45), (0.17, 2.6), (0.13, 2.75), (0.0001, 2.78)], "bone", 12)
+    for s in (-1, 1):
+        lathe((0.12, 0, s * 0.06), [(0.0001, 2.6), (0.035, 2.61), (0.0001, 2.66)], "char", 6)
+
+
+def brazier():
+    for k in range(3):
+        a = k * 2 * math.pi / 3
+        rod([(math.cos(a) * 0.5, 0, math.sin(a) * 0.5), (math.cos(a) * 0.3, 0.6, math.sin(a) * 0.3)], 0.03, "iron", 4)
+    lathe((0, 0, 0), [(0.25, 0.55), (0.6, 0.9), (0.55, 0.92), (0.2, 0.6)], "iron", 16)
+
+
+def stalactite():
+    # a dripstone hanging from its root at the origin, 1 m long (the game scales it), wet and ridged
+    prof = [(0.32 * (1 - t) ** 1.3 + 0.008, -t) for t in np.linspace(0, 1, 9)]
+    lathe((0, 0, 0), prof, "caverock", 10)
+
+
+def mould():
+    # a mat of glowing mould on a ledge: lumpy blobs in a patch about 1 m across
+    rng = np.random.default_rng(5)
+    for k in range(9):
+        o = boulder_mesh("blob", 0.12 + 0.1 * rng.random(), "mould", 50 + k, 0.45)
+        o.location = G((rng.random() - 0.5) * 0.9, 0, (rng.random() - 0.5) * 0.9)
+
+
+def terrain_mats():
+    # the ground's tiling sets, each on a token quad, for the game to put on the land it builds
+    if "deck" not in B.MATS:
+        B.MATS["deck"] = B.tile_mat(all_tiles()["deck"])
+    for i, k in enumerate(("sand", "wetsand", "jungle", "rock", "caverock", "deck", "marble")):
+        quads([(i, 0, 0), (i + 0.5, 0, 0), (i + 0.5, 0, 0.5), (i, 0, 0.5)], [(0, 1, 2, 3)], k, k)
+
+
 def build(name, fn, out):
     reset()
+    land_mats()
     fn()
     B.finish(out, name + ".glb", lambda x, y, z, k: k)
 
@@ -170,7 +374,11 @@ def build(name, fn, out):
 def main():
     out = C.out_dir()
     for name, fn in (("hatch_cover", hatch_cover), ("batten", batten), ("door", door), ("buoy_red", lambda: buoy("red")),
-                     ("buoy_green", lambda: buoy("green")), ("life_ring", life_ring), ("skiff", skiff), ("oar", oar)):
+                     ("buoy_green", lambda: buoy("green")), ("life_ring", life_ring), ("skiff", skiff), ("oar", oar),
+                     ("palm", palm), ("hut", hut), ("beached_sloop", beached_sloop), ("firering", firering), ("boulder", boulder),
+                     ("stonehut", stonehut), ("stove", stove), ("cannery", cannery), ("boiler", boiler), ("tower", tower),
+                     ("shrine", shrine), ("stair", stair), ("tent", tent), ("skullpost", skullpost), ("brazier", brazier),
+                     ("stalactite", stalactite), ("mould", mould), ("terrain_mats", terrain_mats)):
         a = C.args()
         if "--only" in a and name not in a[a.index("--only") + 1].split(","):
             continue

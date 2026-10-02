@@ -75,7 +75,7 @@ const std::vector<ShopItem>& ChandlerItems() {   // design doc, "The Chandler" (
         {"charge", "Depth charge", 120, "12 m blast; the Owners fine 30 in the Lagoon"},
         {"explosive", "Explosive harpoon head", 80, "For the bow cannon: kills, but ruins the fish"},
         {"bosslure", "Boss lure (the Lagoon)", 60, "Calls a mini-boss over boss water (the Crest Pass); +10 Wake"},
-        {"hardhat", "Hardhat diving suit", 350, "Down to a wreck off the stern (30 m); a hand at the air pump keeps the diver breathing"},
+        {"hardhat", "Hardhat diving suit", 200, "Down to a wreck off the stern (30 m); a hand at the air pump keeps the diver breathing"},
         {"tag", "Tag gun", 30, "Tag a protected catch before it goes back: the naturalist wants them"},
         {"coin", "Lucky coin (a charm)", 50, "Worn on a cord: Glimmer variants twice as likely"},
     };
@@ -385,6 +385,8 @@ void Session::PlaceWreck(int idx, uint32_t hs) {
         for (int k = 0; k < 400; k++) {
             Vector2 p{60 + R() * (size - 120), 40 + R() * (size - 80)};
             float d = E->DepthAt(p); if (d < 3) continue;
+            if (E->HabAt(p) == H_KELP || E->MarkAt(p) >= 0) continue;   // (the Gannet must lie over her to dive: never under the canopy or in skiff water)
+            if (Vector2Distance(p, harbour) < harbourR + 40) continue;  // (out on the ground, not in the harbour mouth)
             bool clear = true; for (const auto& o : wrecks) if (&o != &w && o.x != 0 && Vector2Distance(p, {o.x, o.y}) < 60) clear = false;
             for (Vector2 la : E->landingAt) if (Vector2Distance(p, la) < 30) clear = false;
             if (!clear) continue;

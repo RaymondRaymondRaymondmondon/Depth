@@ -87,7 +87,7 @@ def flat(name, rgb, rough=0.5, metal=0.0):
 
 
 def setup_mats(names):
-    T = tiles.build_all()
+    T = getattr(tiles, "build_all_cached", tiles.build_all)()   # (props.py builds many models: it caches the sets)
     for k in names:
         MATS[k] = tile_mat(T[k])
     MATS["brass"] = flat("brass", (0.42, 0.31, 0.15), 0.42, 1.0)

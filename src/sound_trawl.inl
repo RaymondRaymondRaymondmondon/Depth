@@ -226,6 +226,13 @@ void TwCueImpl(int kind, float vol, float pan, float pitch) {
         case TWC_CHURCH: { PlayInst(I_BELL, TwNote(0, 1) * 0.5f, 6.0f, 0.09f, 0, 0.2f); break; }
         case TWC_CANOE: { for (int k = 0; k < 4; k++) PlayInst(I_LOGDRUM, TwNote(k % 2 ? 2 : 0, 0), 0.3f, 0.05f, 0.5f, 0.4f * (k + 1) / 4.0f); PlayChant(TwNote(0, 2), 2, 0.5f, 0.02f, 0.5f); break; }
         case TWC_DEATH: { PlayInst(I_BELL, TwNote(0, 1), 4.0f, 0.06f, 0, 0.2f); Voice& v = Tone(c, W_SAW, 110, 55, 2.5f, 0.03f); v.cut0 = 600; v.cut1 = 150; v.decPow = 1.2f; v.send = 0.8f; break; }
+        case TWC_THUNDER: {   // a crack, then the long roll rumbling off across the sea
+            Voice& k = Puff(c, 2400, 400, 0.35f, 0.35f); k.decPow = 2;
+            for (int i = 0; i < 4; i++) { Voice& v = Puff(c, RR(260, 380), 70, 2.6f + i * 0.6f, 0.28f - i * 0.04f, 0.15f + i * RR(0.25f, 0.5f)); v.decPow = 1.1f; v.send = 0.9f; }
+            Thud(c, 38, 0.45f);
+            break;
+        }
+        case TWC_CASE: { for (int k = 0; k < 3; k++) { Voice& v = Tone(c, W_FM, RR(3100, 3900), 0, 0.09f, 0.035f / (k + 1), k * RR(0.09f, 0.16f)); v.f1 = v.f0 * 0.97f; v.fmRatio = 2.4f; v.fmIndex = 1.2f; v.decPow = 2.5f; v.send = 0.3f; } break; }   // a spent case on the planks: tink, tink-tink
         default: { Voice& v = Tone(c, W_SINE, 600, 600, 0.1f, 0.03f); v.decPow = 2; break; }
     }
 }

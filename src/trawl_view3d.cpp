@@ -1,4 +1,4 @@
-// The Trawl in first person: the Gannet, the sea and the Lagoon's life drawn in 3D through Red Tide's inked
+﻿// The Trawl in first person: the Gannet, the sea and the Lagoon's life drawn in 3D through Red Tide's inked
 // renderer, from the eyes of the hand you play (see trawl_view3d.h for the frames). Everything here only reads the
 // simulation; trawl.cpp feeds it input and puts the shared HUD over it.
 #include "trawl_view3d.h"
@@ -8,6 +8,8 @@
 #include <functional>
 #include "raymath.h"
 #include "redtide_render.h"
+#include "rlgl.h"
+#include "sound.h"
 #include <algorithm>
 #include <cmath>
 #include <vector>
@@ -464,6 +466,69 @@ static void UpdateSea(const Sea& sea, Vector3 eye, const Eco* eco = nullptr) {
     }
 }
 // the land in the chart (the atoll, the reef's dry crest): built once per ground from its cells
+// ---- the ground as baked-looking terrain: quads gathered per tiling material (sand, wet sand, jungle, rock, cave
+// rock, deck, marble from assets/trawl/props/terrain_mats.glb) with smooth normals, UVs in metres and occlusion in the
+// vertex colour; drawn by the PBR path like the boat. Its materials are the asset's (never unloaded with it).
+enum TerrMat { TM_SAND, TM_WETSAND, TM_JUNGLE, TM_ROCK, TM_CAVEROCK, TM_DECK, TM_MARBLE, TM_COUNT };
+struct TerrainBuilder {
+    std::vector<float> v[TM_COUNT], n[TM_COUNT], uv[TM_COUNT]; std::vector<unsigned char> c[TM_COUNT];
+    void Vert(int m, Vector3 p, Vector3 nn, float ao) {
+        v[m].insert(v[m].end(), {p.x, p.y, p.z}); n[m].insert(n[m].end(), {nn.x, nn.y, nn.z});
+        // (UVs by the face's facing: tops by x/z, walls by their run and height, 3 m a tile)
+        float ax = fabsf(nn.x), ay = fabsf(nn.y), az = fabsf(nn.z);
+        float u = ay >= ax && ay >= az ? p.x : ax >= az ? p.z : p.x, w = ay >= ax && ay >= az ? p.z : p.y;
+        uv[m].insert(uv[m].end(), {u / 3.0f, w / 3.0f});
+        unsigned char a = (unsigned char)std::clamp(ao * 255.0f, 0.0f, 255.0f);
+        c[m].insert(c[m].end(), {a, a, a, 255});
+    }
+    void Quad(int m, Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p3, Vector3 n0, Vector3 n1, Vector3 n2, Vector3 n3, float a0 = 1, float a1 = 1, float a2 = 1, float a3 = 1) {
+        Vert(m, p0, n0, a0); Vert(m, p1, n1, a1); Vert(m, p2, n2, a2);
+        Vert(m, p0, n0, a0); Vert(m, p2, n2, a2); Vert(m, p3, n3, a3);
+    }
+    void QuadFlat(int m, Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p3, float ao = 1) {
+        Vector3 nn = Vector3Normalize(Vector3CrossProduct(Vector3Subtract(p1, p0), Vector3Subtract(p2, p0)));
+        if (nn.y < -0.5f) nn = Vector3Negate(nn);   // (the land's tops always face up; double-sided anyway)
+        Quad(m, p0, p1, p2, p3, nn, nn, nn, nn, ao, ao, ao, ao);
+    }
+    // a model with one mesh per material in use; false if the materials asset is missing
+    bool Build(Model* out) {
+        const Model* mats = rt::LoadAsset("trawl/props/terrain_mats.glb");
+        if (!mats) return false;
+        static const char* NAME[TM_COUNT] = {"sand", "wetsand", "jungle", "rock", "caverock", "deck", "marble"};
+        Model m{}; m.transform = MatrixIdentity();
+        int used = 0; for (int k = 0; k < TM_COUNT; k++) if (!v[k].empty()) used++;
+        if (!used) return false;
+        m.meshCount = used; m.materialCount = used;
+        m.meshes = (Mesh*)RL_CALLOC(used, sizeof(Mesh)); m.materials = (Material*)RL_CALLOC(used, sizeof(Material)); m.meshMaterial = (int*)RL_CALLOC(used, sizeof(int));
+        int i = 0;
+        for (int k = 0; k < TM_COUNT; k++) {
+            if (v[k].empty()) continue;
+            Mesh& me = m.meshes[i];
+            me.vertexCount = (int)v[k].size() / 3; me.triangleCount = me.vertexCount / 3;
+            me.vertices = (float*)RL_MALLOC(v[k].size() * sizeof(float)); memcpy(me.vertices, v[k].data(), v[k].size() * sizeof(float));
+            me.normals = (float*)RL_MALLOC(n[k].size() * sizeof(float)); memcpy(me.normals, n[k].data(), n[k].size() * sizeof(float));
+            me.texcoords = (float*)RL_MALLOC(uv[k].size() * sizeof(float)); memcpy(me.texcoords, uv[k].data(), uv[k].size() * sizeof(float));
+            me.colors = (unsigned char*)RL_MALLOC(c[k].size()); memcpy(me.colors, c[k].data(), c[k].size());
+            UploadMesh(&me, false);
+            if (!rt::AssetMaterial(mats, NAME[k], &m.materials[i])) m.materials[i] = LoadMaterialDefault();
+            m.meshMaterial[i] = i;
+            i++;
+        }
+        *out = m;
+        rt::MarkVertexOcclusion(out, true);
+        return true;
+    }
+};
+static void UnloadTerrain(Model& m) {   // (its meshes only: the materials belong to terrain_mats.glb)
+    for (int i = 0; i < m.meshCount; i++) UnloadMesh(m.meshes[i]);
+    RL_FREE(m.meshes); RL_FREE(m.materials); RL_FREE(m.meshMaterial);
+    m = Model{};
+}
+// where the baked props stand on the land (palms on the chart's land, stalactites and mould in the Grotto)
+struct PropAt { const char* asset; Matrix m; float glow; };
+static std::vector<PropAt> gLandProps;
+static Model gTerrain{};
+
 static void EnsureLand(const Eco* e) {
     if (!e || !e->g || gLandFor == (const void*)e->g) return;
     if (gLandFor) UnloadModel(gLand);
@@ -498,6 +563,61 @@ static void EnsureLand(const Eco* e) {
     if (gMouldOn) { UnloadModel(gMould); gMouldOn = false; }
     if (grotto) { gMould = LoadModelFromMesh(mould.Build()); gMouldOn = true; }
     gLandFor = (const void*)e->g;
+    // the terrain (the old boxes above stay as the fallback): a smooth heightfield over the chart's cells
+    if (gTerrain.meshCount > 0) UnloadTerrain(gTerrain);
+    gLandProps.clear();
+    {
+        const int n = e->n; const float C = e->cell;
+        auto inLanding = [&](Vector2 w) { for (Vector2 la : e->landingAt) if (Vector2Distance(w, la) < 16) return true; return false; };
+        std::vector<float> H((size_t)n * n);
+        std::vector<char> cave((size_t)n * n);
+        for (int y = 0; y < n; y++) for (int x = 0; x < n; x++) {
+            size_t i = (size_t)y * n + x;
+            float d = e->depth[i]; Vector2 wc{(x + 0.5f) * C, (y + 0.5f) * C};
+            cave[i] = grotto && wc.x > e->archX0 - 2;
+            if (d > 0.01f || inLanding(wc)) H[i] = -std::min(3.0f, std::max(0.6f, d)) * 0.6f;
+            else if (cave[i]) H[i] = 18 + 8 * fabsf(sinf(x * 0.7f + y * 1.1f));
+            else H[i] = 0.6f + 0.35f * sinf(x * 1.7f + y * 2.3f) * sinf(x * 0.9f);
+        }
+        auto cellH = [&](int x, int y) { x = std::clamp(x, 0, n - 1); y = std::clamp(y, 0, n - 1); return H[(size_t)y * n + x]; };
+        auto cornerH = [&](int x, int y) { return 0.25f * (cellH(x - 1, y - 1) + cellH(x, y - 1) + cellH(x - 1, y) + cellH(x, y)); };   // (corner (x,y) of cell (x,y))
+        auto cornerN = [&](int x, int y) { float dx = cornerH(x + 1, y) - cornerH(x - 1, y), dz = cornerH(x, y + 1) - cornerH(x, y - 1); return Vector3Normalize({-dx / (2 * C), 1, -dz / (2 * C)}); };
+        auto cornerAO = [&](int x, int y) { float h = cornerH(x, y), m = 0; for (int dy = -1; dy <= 1; dy++) for (int dx = -1; dx <= 1; dx++) m += cornerH(x + dx, y + dy); m /= 9; return std::clamp(1.0f - std::max(0.0f, m - h) * 0.12f, 0.45f, 1.0f); };
+        TerrainBuilder tb;
+        for (int y = 0; y < n; y++) for (int x = 0; x < n; x++) {
+            float h00 = cornerH(x, y), h10 = cornerH(x + 1, y), h11 = cornerH(x + 1, y + 1), h01 = cornerH(x, y + 1);
+            if (std::max(std::max(h00, h10), std::max(h11, h01)) < -0.75f) continue;   // (open water: the sea covers it)
+            size_t i = (size_t)y * n + x;
+            int mat;
+            if (cave[i]) mat = TM_CAVEROCK;
+            else {
+                float mean = 0.25f * (h00 + h10 + h11 + h01);
+                bool inner = true; for (int dy = -1; dy <= 1; dy++) for (int dx = -1; dx <= 1; dx++) if (cellH(x + dx, y + dy) < 0) inner = false;
+                mat = mean < 0.12f ? TM_WETSAND : inner && mean > 0.5f ? TM_JUNGLE : TM_SAND;
+            }
+            Vector3 p00{x * C, h00, y * C}, p10{(x + 1) * C, h10, y * C}, p11{(x + 1) * C, h11, (y + 1) * C}, p01{x * C, h01, (y + 1) * C};
+            tb.Quad(mat, p00, p10, p11, p01, cornerN(x, y), cornerN(x + 1, y), cornerN(x + 1, y + 1), cornerN(x, y + 1), cornerAO(x, y), cornerAO(x + 1, y), cornerAO(x + 1, y + 1), cornerAO(x, y + 1));
+            // (a palm here and there on the open land, as before; the Grotto's mould on its wall ledges)
+            Vector2 wc{(x + 0.5f) * C, (y + 0.5f) * C};
+            if (!cave[i] && H[i] > 0 && ((x * 7 + y * 13) % 23) == 0)
+                gLandProps.push_back({"trawl/props/palm.glb", MatrixMultiply(MatrixMultiply(MatrixScale(0.9f + 0.1f * (x % 4), 0.9f + 0.1f * (x % 4), 0.9f + 0.1f * (x % 4)), MatrixRotateY(x * 1.3f + y * 0.7f)), MatrixTranslate(wc.x, H[i] - 0.05f, wc.y)), 0});
+            if (grotto && e->depth[i] > 0.01f && e->hab[i] == H_WALL && ((x + y) % 2 == 0))
+                gLandProps.push_back({"trawl/props/mould.glb", MatrixMultiply(MatrixRotateY(x * 2.1f + y), MatrixTranslate(wc.x, 0.6f + 0.5f * sinf(x * 2.1f + y), wc.y)), 0.6f});
+        }
+        // (the Grotto) the cave's roof over its black water, its dripstones
+        if (grotto) for (int y = 0; y < n; y++) for (int x = 0; x < n; x++) {
+            size_t i = (size_t)y * n + x;
+            Vector2 wc{(x + 0.5f) * C, (y + 0.5f) * C};
+            if (!(cave[i] && e->depth[i] > 0.01f && wc.x > e->archX1)) continue;
+            auto rh = [&](int xx, int yy) { return 24 + 4 * sinf(xx * 0.31f) * sinf(yy * 0.27f); };
+            tb.QuadFlat(TM_CAVEROCK, {x * C, rh(x, y), y * C}, {(x + 1) * C, rh(x + 1, y), y * C}, {(x + 1) * C, rh(x + 1, y + 1), (y + 1) * C}, {x * C, rh(x, y + 1), (y + 1) * C}, 0.6f);
+            if (((x * 11 + y * 17) % 13) == 0) {
+                float len = 4 + 6 * fabsf(sinf(x * 1.7f + y));
+                gLandProps.push_back({"trawl/props/stalactite.glb", MatrixMultiply(MatrixScale(2.8f, len, 2.8f), MatrixTranslate(wc.x, rh(x, y), wc.y)), 0});
+            }
+        }
+        if (!tb.Build(&gTerrain)) gTerrain = Model{};
+    }
 }
 
 
@@ -578,9 +698,13 @@ static void FishColours(const std::string& n, Color fallback, Color* back, Color
     *belly = {(unsigned char)std::min(255, fallback.r / 2 + 115), (unsigned char)std::min(255, fallback.g / 2 + 118), (unsigned char)std::min(255, fallback.b / 2 + 120), 255};
 }
 static int gFishBudget = 0;   // the baked fish left this frame
+static float gFlashNow = 0, gThunderPending = -1;   // lightning this frame; seconds until its thunder (-1: none)
+static const Model& DropModel() { static Model m{}; if (m.meshCount == 0) m = LoadModelFromMesh(GenMeshSphere(0.5f, 5, 7)); return m; }   // (spray, splashes, drips)
 // A baked fish: 'swim' is its phase, 'amp' how hard it beats its tail (a flop on deck is a big slow one); 'dim' the
 // water's darkening. Returns false (and draws nothing) when there's no model or the frame's budget is spent.
+static float gFishDull = 0, gFishCut = 0;   // for the next DrawFishPbr: dulled after death (0 fresh .. 1), opened by the knife (0 .. 1)
 static bool DrawFishPbr(const std::string& species, Vector3 p, Vector3 heading, float len, float roll, float swim, float amp, Color fallback, float dim = 1) {
+    const float dull = gFishDull, cut = gFishCut; gFishDull = gFishCut = 0;   // (this call's, whatever happens below)
     if (gFishBudget <= 0 || getenv("DEPTH_OLDBOAT")) return false;
     const Model* m = FishModelOf(species);
     if (!m) return false;
@@ -591,12 +715,23 @@ static bool DrawFishPbr(const std::string& species, Vector3 p, Vector3 heading, 
         int b = R.Find(TextFormat("s%d", k));
         if (b >= 0) P.rot[b] = QuaternionFromAxisAngle({0, 1, 0}, amp * sinf(swim - k * 1.25f) * (0.25f + 0.3f * k));
     }
+    // a ray flies on its wings: both beat together, slow and deep, and its tail barely swings
+    int wl = R.Find("wing.L"), wr = R.Find("wing.R");
+    if (wl >= 0 && wr >= 0) {
+        float f = (0.25f + amp * 1.2f) * sinf(swim * 0.45f);
+        P.rot[wl] = QuaternionFromAxisAngle({0, 0, 1}, f);
+        P.rot[wr] = QuaternionFromAxisAngle({0, 0, 1}, -f);
+    }
     auto sk = rt::SolveRig(R, P);
     float yaw = atan2f(heading.x, heading.z), pitch = atan2f(heading.y, sqrtf(heading.x * heading.x + heading.z * heading.z));
     Matrix w = MatrixMultiply(MatrixScale(len, len, len), MatrixRotateZ(roll));
     w = MatrixMultiply(w, MatrixRotateX(-pitch));
     w = MatrixMultiply(w, MatrixMultiply(MatrixRotateY(yaw), MatrixTranslate(p.x, p.y, p.z)));
     Color back, belly; FishColours(species, fallback, &back, &belly);
+    // a fresh fish is bright and slick; dead, it dulls toward grey as it loses its freshness; opened, the belly is red
+    auto grey = [](Color c, float k) { unsigned char g = (unsigned char)((c.r + c.g + c.b) / 3); return Color{(unsigned char)(c.r + (g - c.r) * k), (unsigned char)(c.g + (g - c.g) * k), (unsigned char)(c.b + (g - c.b) * k), 255}; };
+    if (dull > 0) { back = Mul(grey(back, 0.55f * dull), 1 - 0.25f * dull); belly = Mul(grey(belly, 0.6f * dull), 1 - 0.3f * dull); }
+    if (cut > 0) belly = ColorLerp(belly, Color{120, 22, 20, 255}, std::min(1.0f, cut * 1.4f));
     Color fin = Mul(back, 0.8f);
     unsigned char d = (unsigned char)std::clamp(dim * 255.0f, 0.0f, 255.0f);
     rt::DrawPbrSkinned(*m, w, sk, {{"back", back}, {"belly", belly}, {"fin", fin}}, 0.0f, Color{d, d, d, 255});
@@ -875,14 +1010,88 @@ static void BuildAtoll(MeshBuilder& mb, const Landing& L) {
     }
     for (int k = 0; k < 8; k++) { float a = k * 0.785f; mb.Box(W(Vector2Add(L.fire, {cosf(a) * 0.45f, sinf(a) * 0.45f}), ATOLL_Y + 0.08f), {0.12f, 0.08f, 0.12f}, stone); }
 }
+// the landings in baked props on terrain: the island's top in its kind's material (sand, rock, the Stair's marble, the
+// cannery's planked stage), a beach skirt running under the water, and the props where BuildAtoll put its boxes
+static Model gAtollT[4]{}, gAtollX[4]{};
+static std::vector<PropAt> gAtollProps[4];
+static void BuildAtollBaked(int li, const Landing& L) {
+    bool seal = L.kind == LK_SEALROCK || L.kind == LK_SHELF || L.kind == LK_BONEBEACH, pier = L.kind == LK_CANNERY;
+    bool stair = L.kind == LK_STAIR, tower = L.kind == LK_TOWER, cultL = L.kind == LK_CULT;
+    int top = stair ? TM_MARBLE : tower || seal ? TM_ROCK : cultL || L.kind == LK_BONEBEACH ? TM_CAVEROCK : pier ? TM_DECK : TM_SAND;
+    int skirt = pier ? -1 : stair || tower || seal ? TM_ROCK : cultL ? TM_CAVEROCK : TM_WETSAND;
+    auto W = [&](Vector2 l, float y) { return Vector3{L.at.x + l.x, y, L.at.y + l.y}; };
+    TerrainBuilder tb;
+    const int N = 36, RINGS = 4;
+    auto domeY = [&](float f) { return ATOLL_Y + (pier ? 0.0f : 0.18f * (1 - f * f)); };   // (a low crown in the middle)
+    for (int k = 0; k < N; k++) {
+        float a0 = k * 2 * PI / N, a1 = a0 + 2 * PI / N;
+        Vector2 p0{cosf(a0), sinf(a0)}, p1{cosf(a1), sinf(a1)};
+        for (int r = 0; r < RINGS; r++) {
+            float f0 = (float)r / RINGS, f1 = (float)(r + 1) / RINGS;
+            tb.QuadFlat(top, W(Vector2Scale(p0, L.r * f0), domeY(f0)), W(Vector2Scale(p1, L.r * f0), domeY(f0)), W(Vector2Scale(p1, L.r * f1), domeY(f1)), W(Vector2Scale(p0, L.r * f1), domeY(f1)), 1 - 0.15f * f1);
+        }
+        if (skirt >= 0) tb.QuadFlat(skirt, W(Vector2Scale(p0, L.r), ATOLL_Y), W(Vector2Scale(p1, L.r), ATOLL_Y), W(Vector2Scale(p1, L.r + 2.2f), -0.9f), W(Vector2Scale(p0, L.r + 2.2f), -0.9f), 0.8f);
+        else tb.QuadFlat(TM_DECK, W(Vector2Scale(p0, L.r), ATOLL_Y), W(Vector2Scale(p1, L.r), ATOLL_Y), W(Vector2Scale(p1, L.r), ATOLL_Y - 0.35f), W(Vector2Scale(p0, L.r), ATOLL_Y - 0.35f), 0.7f);   // (the stage's edge)
+    }
+    if (gAtollT[li].meshCount > 0) UnloadTerrain(gAtollT[li]);
+    if (!tb.Build(&gAtollT[li])) gAtollT[li] = Model{};
+    // the bits that stay procedural: the little lagoon's surface, the stage's pilings
+    {
+        MeshBuilder mb;
+        Color pond = seal ? Color{66, 80, 70, 255} : Color{30, 96, 104, 255};
+        for (int k = 0; k < N && !pier && !stair && !tower; k++) {
+            float a0 = k * 2 * PI / N, a1 = a0 + 2 * PI / N;
+            Vector2 q0 = Vector2Add(L.pond, Vector2Scale({cosf(a0), sinf(a0)}, L.pondR)), q1 = Vector2Add(L.pond, Vector2Scale({cosf(a1), sinf(a1)}, L.pondR));
+            mb.Tri(W(L.pond, ATOLL_Y + 0.2f), W(q1, ATOLL_Y + 0.2f), W(q0, ATOLL_Y + 0.2f), pond);
+            mb.Tri(W(L.pond, ATOLL_Y + 0.2f), W(q0, ATOLL_Y + 0.2f), W(q1, ATOLL_Y + 0.2f), pond);
+        }
+        if (pier) for (int k = 0; k < N; k += 2) { float a0 = k * 2 * PI / N; Vector2 p0{cosf(a0), sinf(a0)}; mb.Tube({W(Vector2Scale(p0, L.r - 0.2f), -3.0f), W(Vector2Scale(p0, L.r - 0.2f), ATOLL_Y)}, 0.18f, 0.18f, 6, Color{58, 46, 34, 255}, Color{40, 46, 36, 255}, 0); }
+        if (gAtollX[li].meshCount > 0) UnloadModel(gAtollX[li]);
+        gAtollX[li] = LoadModelFromMesh(mb.Build());
+    }
+    // the props
+    auto& P = gAtollProps[li]; P.clear();
+    auto at = [&](const char* a, Vector2 l, float y, float yaw = 0, float s = 1, float glow = 0) { P.push_back({a, MatrixMultiply(MatrixMultiply(MatrixScale(s, s, s), MatrixRotateY(yaw)), MatrixTranslate(L.at.x + l.x, y, L.at.y + l.y)), glow}); };
+    float gy = ATOLL_Y + 0.12f;
+    if (stair) { at("trawl/props/stair.glb", {0, 0}, ATOLL_Y); at("trawl/props/shrine.glb", L.sloop, ATOLL_Y); at("trawl/props/brazier.glb", L.fire, gy); return; }
+    if (tower) { at("trawl/props/tower.glb", L.sloop, ATOLL_Y); at("trawl/props/firering.glb", L.fire, gy); return; }
+    if (cultL) {
+        at("trawl/props/tent.glb", L.sloop, ATOLL_Y); at("trawl/props/firering.glb", L.fire, gy);
+        for (int k = 0; k < 4; k++) { float a = k * 1.57f + 0.4f; at("trawl/props/skullpost.glb", Vector2Add(L.fire, {cosf(a) * 3.2f, sinf(a) * 3.2f}), gy, -a); }
+        return;
+    }
+    if (seal) {
+        for (int i = 0; i < 9; i++) {
+            float a = i * 2.39f, rr = 3 + fmodf(i * 3.7f, L.r - 4.5f); Vector2 b{cosf(a) * rr, sinf(a) * rr};
+            if (Vector2Distance(b, L.sloop) < 3.4f || Vector2Distance(b, L.fire) < 1.8f || Vector2Distance(b, L.elder) < 1.6f || Vector2Distance(b, L.pond) < L.pondR + 0.6f) continue;
+            at("trawl/props/boulder.glb", b, gy - 0.05f, a, 0.9f + 0.25f * (i % 3));
+        }
+        at("trawl/props/stonehut.glb", L.sloop, gy); at("trawl/props/stove.glb", L.fire, gy);
+        return;
+    }
+    if (pier) { at("trawl/props/cannery.glb", L.sloop, ATOLL_Y); at("trawl/props/boiler.glb", L.fire, ATOLL_Y); return; }
+    for (size_t i = 0; i < L.palms.size(); i++) {   // palms leaning out toward the sea
+        Vector2 b = L.palms[i];
+        Vector2 dir = Vector2Normalize(b.x == 0 && b.y == 0 ? Vector2{1, 0} : b);
+        at("trawl/props/palm.glb", b, gy - 0.05f, -atan2f(dir.y, dir.x), 0.9f + 0.1f * (i % 3));
+    }
+    at("trawl/props/hut.glb", Vector2Add(L.elder, {0, -1.6f}), gy, PI);
+    at("trawl/props/beached_sloop.glb", L.sloop, ATOLL_Y, -L.sloopHead);
+    at("trawl/props/firering.glb", L.fire, gy);
+}
 static void DrawLanding3D(const Gannet& g, float t) {
     for (size_t li = 0; li < g.landings.size() && li < 4; li++) {
         const Landing& L = g.landings[li];
         if (gAtollFor[li].x != L.at.x || gAtollFor[li].y != L.at.y) {
             if (gAtoll[li].meshCount > 0) UnloadModel(gAtoll[li]);
             MeshBuilder mb; BuildAtoll(mb, L); gAtoll[li] = LoadModelFromMesh(mb.Build()); gAtollFor[li] = L.at;
+            BuildAtollBaked((int)li, L);
         }
-        rt::DrawStatic(gAtoll[li], MatrixIdentity(), WHITE);
+        if (gAtollT[li].meshCount > 0 && !getenv("DEPTH_OLDBOAT")) {
+            rt::DrawPbr(gAtollT[li], MatrixIdentity());
+            if (gAtollX[li].meshCount > 0) rt::DrawStatic(gAtollX[li], MatrixIdentity(), WHITE);
+            for (const auto& pa : gAtollProps[li]) if (const Model* pm = rt::LoadAsset(pa.asset)) rt::DrawPbr(*pm, pa.m);
+        } else rt::DrawStatic(gAtoll[li], MatrixIdentity(), WHITE);
         auto W = [&](Vector2 l, float y) { return Vector3{L.at.x + l.x, y, L.at.y + l.y}; };
         // the fire, the fish on it, and the smoke going grey and black as they burn
         float worst = 0;
@@ -1230,7 +1439,10 @@ static void GunEvents(const Crew& me, const GunAnim& a, Vector3 muzzle, Vector3 
     // step them
     for (auto& c : gCases) {
         c.v.y -= 9.8f * dt; c.p = Vector3Add(c.p, Vector3Scale(c.v, dt)); c.rot += c.spin * dt; c.life -= dt;
-        if (c.p.y < deckY && c.v.y < 0) { c.p.y = deckY; c.v = {c.v.x * 0.45f, -c.v.y * 0.35f, c.v.z * 0.45f}; c.spin *= 0.6f; }
+        if (c.p.y < deckY && c.v.y < 0) {
+            if (c.v.y < -0.6f) TrawlCue(TWC_CASE, std::min(1.0f, -c.v.y * 0.25f), 0.3f, 0.9f + 0.2f * R());   // (tink: fainter with each bounce)
+            c.p.y = deckY; c.v = {c.v.x * 0.45f, -c.v.y * 0.35f, c.v.z * 0.45f}; c.spin *= 0.6f;
+        }
     }
     gCases.erase(std::remove_if(gCases.begin(), gCases.end(), [](const Casing& c) { return c.life <= 0; }), gCases.end());
     for (auto& p : gSmoke) { p.p = Vector3Add(p.p, Vector3Scale(p.v, dt)); p.v = Vector3Scale(p.v, expf(-1.6f * dt)); p.v.y += 0.06f * dt; p.r += 0.25f * dt; p.life += dt; }
@@ -1647,6 +1859,24 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
     L.stipple = 0; L.grain = 0.35f;
     L.aoK = 0.75f; L.aoRadius = 0.4f;
     L.fogBanks = g.sea.weather == Weather::Fog ? 0.9f : g.sea.weather == Weather::Rain || g.sea.weather == Weather::Squall ? 0.5f : 0.35f;   // (drifting banks, not a wall)
+    // wet: rain soaks everything above the deck (fog leaves a dew on it); dry below
+    {
+        Weather wx = g.sea.weather;
+        float target = wx == Weather::Rain ? 0.75f : wx == Weather::Squall || wx == Weather::Storm ? 1.0f : wx == Weather::Fog ? 0.3f : 0.0f;
+        static float wet = 0; static int frames = 0;
+        wet += (target - wet) * std::min(1.0f, GetFrameTime() / 20.0f);   // (it soaks in and dries out over half a minute)
+        if (frames++ < 3) wet = target;                                    // (a night that starts in rain starts soaked)
+        L.wet = wet; L.wetFloor = BoatPoint(b, {0, DECK_Y, 0}).y - 1.0f;
+        // lightning in a squall or storm: a double flash every 15-45 s
+        static float nextBolt = 20, boltT = -1; static uint32_t lr = 99;
+        auto LR = [&]() { lr = lr * 1664525u + 1013904223u; return (lr >> 8) / 16777216.0f; };
+        bool stormy = wx == Weather::Squall || wx == Weather::Storm;
+        if (stormy) { nextBolt -= GetFrameTime(); if (nextBolt <= 0) { boltT = 0; nextBolt = 15 + LR() * 30; gThunderPending = 0.8f + LR() * 2.5f; } }
+        if (boltT >= 0) { boltT += GetFrameTime(); if (boltT > 0.45f) boltT = -1; }
+        float fl = boltT < 0 ? 0 : boltT < 0.06f ? 1.5f : boltT < 0.14f ? 0.2f : boltT < 0.2f ? 1.1f : std::max(0.0f, 1.1f - (boltT - 0.2f) * 4.4f);
+        if (getenv("DEPTH_FLASH")) fl = 1.1f;   // (shots: the frame a bolt lights)
+        L.flash = fl; gFlashNow = fl;
+    }
     L.filmic = 1; L.exposure = 1.05f; L.gradeK = 0.45f;
     L.gradeLo = {104, 126, 150, 255}; L.gradeHi = {140, 128, 114, 255};
     L.saturation = g.sea.weather == Weather::Fog ? 0.75f : g.sea.weather == Weather::Rain || g.sea.weather == Weather::Squall ? 0.85f : 0.92f;
@@ -1755,13 +1985,63 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
         }
         spray.erase(std::remove_if(spray.begin(), spray.end(), [](const Drop& d) { return d.life <= 0; }), spray.end());
         }
-        static Model drop{};   // (a round drop, not a cube: phase 7's no raw primitives)
-        if (drop.meshCount == 0) drop = LoadModelFromMesh(GenMeshSphere(0.5f, 5, 7));
-        for (const auto& d : spray) { float s = 0.11f + 0.09f * std::min(1.0f, d.life); rt::DrawStaticGlow(drop, MatrixMultiply(MatrixScale(s, s * 1.3f, s), MatrixTranslate(d.p.x, d.p.y, d.p.z)), Color{210, 224, 230, 255}, 0.9f); }   // (faintly self-lit: white water catches what light there is)
+        for (const auto& d : spray) { float s = 0.11f + 0.09f * std::min(1.0f, d.life); rt::DrawStaticGlow(DropModel(), MatrixMultiply(MatrixScale(s, s * 1.3f, s), MatrixTranslate(d.p.x, d.p.y, d.p.z)), Color{210, 224, 230, 255}, 0.9f); }   // (faintly self-lit: white water catches what light there is)
+    }
+    // rain on her: drops bursting on the deck and the rail round you, and drips running off the yard, the gantry and the
+    // rail's edge (the frame's own clock; only in the open, never below)
+    {
+        Weather wx = g.sea.weather;
+        float rain = wx == Weather::Rain ? 0.7f : wx == Weather::Squall || wx == Weather::Storm ? 1.0f : 0.0f;
+        struct Splash { Vector3 p; float t; bool drip; Vector3 v; };
+        static std::vector<Splash> sp; static uint32_t sr = 4242;
+        auto SR = [&]() { sr = sr * 1664525u + 1013904223u; return (sr >> 8) / 16777216.0f; };
+        float fdt = GetFrameTime();
+        if (rain > 0 && !below && me.deck == 0) {
+            for (float n = rain * 90 * fdt; n > 0; n -= 1) {   // bursts on the planks within a few metres of you
+                if (n < 1 && SR() > n) break;
+                Vector2 at{me.p.x + (SR() - 0.5f) * 9, me.p.y + (SR() - 0.5f) * 6};
+                if (fabsf(at.y) > HalfBeam3(at.x) - 0.15f) continue;
+                sp.push_back({BoatPoint(b, {at.x, DECK_Y + 0.01f, at.y}), 0, false, {0, 0, 0}});
+            }
+            for (float n = rain * 14 * fdt; n > 0; n -= 1) {   // and on the cap rail
+                if (n < 1 && SR() > n) break;
+                float x = me.p.x + (SR() - 0.5f) * 10; int s = SR() < 0.5f ? -1 : 1;
+                sp.push_back({BoatPoint(b, {x, DECK_Y + 0.89f, s * (HalfBeam3(x) - 0.02f)}), 0, false, {0, 0, 0}});
+            }
+            static const Vector3 DRIP[] = {{0.2f, DECK_Y + 4.97f, -1.25f}, {0.2f, DECK_Y + 4.97f, 1.25f}, {0.2f, DECK_Y + 4.97f, -0.6f}, {0.2f, DECK_Y + 4.97f, 0.7f},
+                                            {-10.6f, DECK_Y + 3.2f, -1.2f}, {-10.6f, DECK_Y + 3.2f, 0.4f}, {-10.6f, DECK_Y + 3.2f, 1.3f}, {3.0f, DECK_Y + 2.12f, 2.36f}, {3.0f, DECK_Y + 2.12f, -2.36f}, {5.3f, DECK_Y + 2.12f, 0.8f}};
+            for (const auto& dp : DRIP) if (SR() < rain * 1.6f * fdt) sp.push_back({BoatPoint(b, {dp.x + (SR() - 0.5f) * 0.3f, dp.y, dp.z}), 0, true, {0, 0, 0}});
+        }
+        for (auto& s : sp) {
+            s.t += fdt;
+            if (s.drip) { s.v.y -= 9.8f * fdt; s.p = Vector3Add(s.p, Vector3Scale(s.v, fdt)); if (s.p.y < BoatPoint(b, {0, DECK_Y, 0}).y) { s.drip = false; s.t = 0; s.p.y = BoatPoint(b, {0, DECK_Y, 0}).y + 0.01f; } }
+        }
+        sp.erase(std::remove_if(sp.begin(), sp.end(), [](const Splash& s) { return !s.drip && s.t > 0.16f; }), sp.end());
+        if (sp.size() > 400) sp.erase(sp.begin(), sp.begin() + (sp.size() - 400));
+        for (const auto& s : sp) {
+            if (s.drip) { rt::DrawStaticGlow(DropModel(), MatrixMultiply(MatrixScale(0.018f, 0.05f, 0.018f), MatrixTranslate(s.p.x, s.p.y, s.p.z)), Color{200, 215, 225, 255}, 0.5f); continue; }
+            float k = s.t / 0.16f, r = 0.03f + 0.07f * k;   // a burst: a flat crown widening, a bead thrown up in its middle
+            rt::DrawStaticGlow(DropModel(), MatrixMultiply(MatrixScale(r, 0.008f, r), MatrixTranslate(s.p.x, s.p.y, s.p.z)), Color{190, 205, 215, 255}, 0.45f * (1 - k));
+            if (k < 0.6f) rt::DrawStaticGlow(DropModel(), MatrixMultiply(MatrixScale(0.012f, 0.02f, 0.012f), MatrixTranslate(s.p.x, s.p.y + 0.05f * sinf(k / 0.6f * PI), s.p.z)), Color{205, 220, 230, 255}, 0.5f);
+        }
     }
     // ---- the land, the quay, the harbour's buoys
-    if (gLandFor) rt::DrawStatic(gLand, MatrixIdentity(), WHITE);
-    if (gMouldOn) rt::DrawStaticGlow(gMould, MatrixIdentity(), WHITE, 0.55f + 0.15f * sinf(t * 0.6f));   // (the mould is the cave's own light)
+    if (gTerrain.meshCount > 0 && !getenv("DEPTH_OLDBOAT")) {
+        // the baked-look land, and its props near enough to matter (palms to 140 m, dripstones 90, the mould 60)
+        rt::DrawPbr(gTerrain, MatrixIdentity());
+        for (const auto& pa : gLandProps) {
+            Vector3 at{pa.m.m12, pa.m.m13, pa.m.m14};
+            float far = pa.glow > 0 ? 60.0f : strstr(pa.asset, "palm") ? 140.0f : 90.0f;
+            if (Vector3Distance(at, cam.position) > far) continue;
+            const Model* pm = rt::LoadAsset(pa.asset);
+            if (!pm) continue;
+            if (pa.glow > 0) rt::DrawPbrParts(*pm, pa.m, {}, WHITE, pa.glow * (0.9f + 0.25f * sinf(t * 0.6f + at.x)));   // (the mould is the cave's own light)
+            else rt::DrawPbr(*pm, pa.m);
+        }
+    } else {
+        if (gLandFor) rt::DrawStatic(gLand, MatrixIdentity(), WHITE);
+        if (gMouldOn) rt::DrawStaticGlow(gMould, MatrixIdentity(), WHITE, 0.55f + 0.15f * sinf(t * 0.6f));   // (the mould is the cave's own light)
+    }
     Matrix Q = MatrixMultiply(MatrixRotateY(-g.moorHeading), MatrixTranslate(g.moorPos.x, 0, g.moorPos.y));
     if (Vector2Distance(b.pos, g.moorPos) < 120) {
         // (the baked quay from tools/artgen/dock.py; its sheds' lit windows are its WINDOWS list)
@@ -2004,9 +2284,29 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
         DrawFishAt(gFish, W3(th.p, h - 0.35f), {0, -1, 0.2f}, len, Color{170, 178, 184, 255}, 1.5f);
     }
     // ---- fish on the deck: on their sides where they came aboard; the live ones arch and slap every so often
+    // the gutting table: the fish under the knife lies on the zinc and is opened as the work goes on; past halfway its
+    // fillet lies beside it
+    int onTable = -1;
+    {
+        int gutI = -1; for (int i = 0; i < (int)Stations().size(); i++) if (Stations()[i].kind == StationKind::Gutting) gutI = i;
+        bool worked = false; for (const auto& c : g.crew) if (c.station == gutI && !c.dead && !c.overboard) worked = true;
+        if (worked && g.gutT > 0) for (int i = 0; i < (int)g.hold.size(); i++) if (!g.hold[i].gutted && !g.hold[i].bycatch && !g.hold[i].protectedSp) { onTable = i; break; }
+        if (onTable >= 0) {
+            const CatchRec& h = g.hold[onTable];
+            float need = 1.2f + std::min(3.0f, h.kg * 0.08f), k = std::clamp(g.gutT / need, 0.0f, 1.0f);
+            float len = std::clamp(0.3f + sqrtf(h.kg) * 0.22f, 0.3f, 1.3f);
+            Vector3 at = BoatPoint(b, {-2.3f, DECK_Y + 0.93f, 2.2f});
+            gFishCut = k; gFishDull = 0.3f;
+            if (!DrawFishPbr(h.name, at, BoatDir(b, {1, 0, 0}), len, 1.55f, 0, 0, Color{196, 206, 214, 255})) DrawFishAt(gFish, at, BoatDir(b, {1, 0, 0}), len, Color{196, 206, 214, 255}, 1.5f);
+            if (k > 0.5f) {   // the fillet: a pale pink slab beside it
+                Matrix fm = MatrixMultiply(MatrixMultiply(MatrixScale(len * 0.5f, 0.025f, len * 0.16f), MatrixTranslate(-1.95f, DECK_Y + 0.92f, 2.05f)), M);
+                rt::DrawStaticGlow(DropModel(), fm, Color{232, 168, 150, 255}, 0.05f);
+            }
+        }
+    }
     for (size_t i = 0; i < g.hold.size(); i++) {
         const CatchRec& h = g.hold[i];
-        if (h.gutted || h.crated) continue;   // (crated fish are under the crates' lids)
+        if (h.gutted || h.crated || (int)i == onTable) continue;   // (crated fish are under the crates' lids; the one being gutted is on the table)
         float len = std::clamp(0.3f + sqrtf(h.kg) * 0.22f, 0.3f, 2.6f);
         float arch = 0, hop = 0;
         if (!h.dead) { float ph = fmodf(g.time * 1.3f + i * 0.7f, 1.0f); if (ph < 0.18f) { float s = sinf(ph / 0.18f * 3.1416f); arch = s * 0.9f; hop = s * 0.12f; } }
@@ -2016,6 +2316,7 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
         Vector3 at = BoatPoint(b, {h.deckAt.x, DECK_Y + 0.06f + hop, h.deckAt.y});
         // (a live fish on deck lies gasping, its tail twitching, and arches through a slap; the dead lie still and dull)
         float twitch = h.dead ? 0.0f : 0.12f + arch * 0.9f;
+        gFishDull = h.dead ? std::clamp(0.35f + (1 - h.fresh) * 4, 0.0f, 1.0f) : 0.0f;
         if (!DrawFishPbr(h.name, at, hd, len, 1.5f + arch * 0.4f, g.time * (arch > 0 ? 18.0f : 5.0f) + i, twitch, col, h.dead ? 0.8f : 1.0f))
             DrawFishAt(gFish, at, hd, len, col, 1.5f + arch * 0.4f);
     }
@@ -2079,7 +2380,33 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
         bool on = StationGrips(g, me, grips);
         DrawFirstPersonBody(me, cam, t, me.station >= 0 ? 0.1f * sinf(t * 5) : -0.25f, 0, me.station >= 0, on ? grips : nullptr);
     }
+    // the viewmodel's own moments (local to your view: the game's state doesn't change): switching slots lowers what you
+    // held out of view and raises the new one; an inspect (I, or after a long while standing idle) turns it to show its
+    // side; a misfire is cleared with a tip and a slap; right mouse brings the sights to your eye
+    static struct ViewAnim { int key = -1; Slot cur{}, prev{}; float changeT = 9, inspectT = -1, idleT = 0, clearT = -1, ads = 0; std::string lastLog; } va;
+    {
+        const Slot& s0 = me.slots[me.sel];
+        int key = me.sel * 100000 + (int)s0.it * 1000 + s0.wpn + 1;
+        if (key != va.key) { if (va.key >= 0) { va.prev = va.cur; va.changeT = va.prev.it == Item::None ? 0.2f : 0; } va.cur = s0; va.key = key; va.inspectT = va.clearT = -1; }
+        va.cur = s0;
+        float fdt = std::min(GetFrameTime(), 0.05f);
+        va.changeT += fdt;
+        if (va.inspectT >= 0 && (va.inspectT += fdt) > 2.4f) va.inspectT = -1;
+        if (va.clearT >= 0 && (va.clearT += fdt) > 1.0f) va.clearT = -1;
+        bool quiet = Vector2Length(me.v) < 0.1f && me.cool <= 0 && me.reloadT <= 0 && va.changeT > 0.6f;
+        va.idleT = quiet ? va.idleT + fdt : 0;
+        if (me.station < 0 && quiet && va.inspectT < 0 && (IsKeyPressed(KEY_I) || va.idleT > 16)) { va.inspectT = 0; va.idleT = 0; }
+        if (!g.log.empty() && g.log.back() != va.lastLog) { if (g.log.back().find("Misfire") != std::string::npos) va.clearT = 0; va.lastLog = g.log.back(); }
+        // (shots: DEPTH_VM=inspect|clear|draw holds that moment; DEPTH_ADS=1 holds the sights to the eye)
+        if (const char* vm = getenv("DEPTH_VM")) { std::string s = vm; if (s == "inspect") va.inspectT = 1.0f; if (s == "clear") va.clearT = 0.4f; if (s == "draw") va.changeT = 0.4f; }
+    }
     if (gCrewReady && held != Item::None && me.station < 0 && !me.dead && !me.overboard) {
+        // (mid-switch the old item goes down before the new one comes up)
+        bool holstering = va.changeT < 0.2f && va.prev.it != Item::None;
+        const Slot& drawSl = holstering ? va.prev : me.slots[me.sel];
+        held = DrawItemOf(drawSl);
+        float lower = holstering ? va.changeT / 0.2f : std::max(0.0f, 1 - (va.changeT - 0.2f) / 0.35f);
+        lower = lower * lower * (3 - 2 * lower);
         Vector3 f = Vector3Normalize(Vector3Subtract(cam.target, cam.position));
         Vector3 rgt = Vector3Normalize(Vector3CrossProduct(f, cam.up)), up = Vector3CrossProduct(rgt, f);
         float bob = Vector2Length(me.v) > 0.3f ? sinf(t * 9) * 0.012f : 0;
@@ -2098,19 +2425,46 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
         float back = kick * 0.07f, pitchUp = kick * 0.35f;
         float swingPitch = sw >= 0 ? (0.6f - sinf(sw * PI) * 1.6f) : 0;                 // raised, then chopped down past level
         float swingYaw = sw >= 0 ? (sw - 0.5f) * 0.8f : 0;
-        Vector3 p = Vector3Add(cam.position, Vector3Add(Vector3Scale(f, 0.42f - back), Vector3Add(Vector3Scale(rgt, 0.2f + swingYaw * 0.1f), Vector3Scale(up, -0.2f + bob - dip + (sw >= 0 ? 0.08f * sinf(sw * PI) : 0)))));
-        if (fpBody) {   // (within the arm's reach of the right shoulder: the body stands a little behind the eye)
+        // a broken arm: a long gun hangs one-handed and low (it can't be shouldered or fired); no sights for it
+        const Slot& sl = drawSl;
+        bool longGun = held == Item::Rifle || held == Item::Shotgun || held == Item::Speargun;
+        if (sl.it == Item::Weapon && sl.wpn >= 0 && sl.wpn < (int)Weapons().size()) longGun = Weapons()[sl.wpn].cls == WC_LONGGUN || Weapons()[sl.wpn].cls == WC_SPECIAL;
+        bool slung = me.Has(INJ_BROKEN_ARM) && longGun;
+        bool canAim = gun && !slung && rl < 0 && sw < 0 && va.changeT > 0.55f && va.inspectT < 0 && va.clearT < 0 && (IsMouseButtonDown(MOUSE_BUTTON_RIGHT) || getenv("DEPTH_ADS"));
+        if (sl.it == Item::Weapon && sl.wpn >= 0 && sl.wpn < (int)Weapons().size() && !Weapons()[sl.wpn].Gun()) canAim = false;
+        va.ads += ((canAim ? 1.0f : 0.0f) - va.ads) * std::min(1.0f, GetFrameTime() * 10);
+        float insp = va.inspectT >= 0 ? sinf(va.inspectT / 2.4f * PI) : 0;            // turned to show its side
+        float clr = va.clearT >= 0 ? sinf(va.clearT / 1.0f * PI) : 0;                  // tipped to clear the misfire
+        float slap = va.clearT > 0.45f && va.clearT < 0.6f ? (0.6f - va.clearT) / 0.15f : 0;   // ...and the slap
+        Vector3 p = Vector3Add(cam.position, Vector3Add(Vector3Scale(f, 0.42f - back - 0.05f * insp), Vector3Add(Vector3Scale(rgt, 0.2f + swingYaw * 0.1f - 0.08f * insp), Vector3Scale(up, -0.2f + bob - dip + (sw >= 0 ? 0.08f * sinf(sw * PI) : 0) - 0.38f * lower + 0.04f * insp - (slung ? 0.16f : 0) - 0.015f * slap))));
+        if (fpBody && va.ads < 0.05f) {   // (within the arm's reach of the right shoulder: the body stands a little behind the eye)
             Vector3 sh = Vector3Add(cam.position, Vector3Add(Vector3Scale(up, -0.24f), Vector3Add(Vector3Scale(rgt, 0.19f), Vector3Scale(f, -0.2f))));
             Vector3 d = Vector3Subtract(p, sh); float dl = Vector3Length(d);
             if (dl > 0.5f) p = Vector3Add(sh, Vector3Scale(d, 0.5f / dl));
         }
-        // the item's +X along the look, tipped a little up and in; the swing and the kick tilt it
-        Vector3 ax = Vector3Normalize(Vector3Add(f, Vector3Add(Vector3Scale(up, 0.12f + pitchUp + swingPitch), Vector3Scale(rgt, -0.12f + swingYaw))));
+        // the item's +X along the look, tipped a little up and in; the swing and the kick tilt it; lowered, drawn, held
+        // slung, or turned for a look, it pitches and rolls with that
+        Vector3 ax = Vector3Normalize(Vector3Add(f, Vector3Add(Vector3Scale(up, 0.12f + pitchUp + swingPitch - 0.9f * lower - (slung ? 0.45f : 0)), Vector3Scale(rgt, -0.12f + swingYaw - 0.55f * insp))));
         Vector3 az = Vector3Normalize(Vector3CrossProduct(ax, up)), ay = Vector3CrossProduct(az, ax);
+        // aiming down the sights: the sight (or the top of the action) on the line of your look, 30 cm out, level
+        if (va.ads > 0.01f) {
+            const Model* wm = WeaponModel(sl);
+            const rt::AssetInfo* A = wm ? rt::AssetInfoOf(wm) : nullptr;
+            Vector3 gp = A && A->Marker("grip_r") ? A->Marker("grip_r")->p : Vector3{0, 0, 0};
+            Vector3 sp = A && A->Marker("sight") ? A->Marker("sight")->p : Vector3{gp.x + 0.15f, gp.y + 0.07f, gp.z};
+            Vector3 fa = f, za = Vector3Normalize(Vector3CrossProduct(fa, up)), ya = Vector3CrossProduct(za, fa);
+            Vector3 o = Vector3Subtract(sp, gp);
+            Vector3 pa = Vector3Subtract(Vector3Add(cam.position, Vector3Scale(f, 0.40f - back * 0.5f)), Vector3Add(Vector3Scale(fa, o.x), Vector3Add(Vector3Scale(ya, o.y), Vector3Scale(za, o.z))));
+            float k = va.ads * va.ads * (3 - 2 * va.ads);
+            p = Vector3Lerp(p, pa, k);
+            ax = Vector3Normalize(Vector3Lerp(ax, Vector3Normalize(Vector3Add(fa, Vector3Scale(up, pitchUp * 0.5f))), k));
+            az = Vector3Normalize(Vector3CrossProduct(ax, up)); ay = Vector3CrossProduct(az, ax);
+        }
         Matrix hm = {ax.x, ay.x, az.x, p.x, ax.y, ay.y, az.y, p.y, ax.z, ay.z, az.z, p.z, 0, 0, 0, 1};
         if (rl >= 0) hm = MatrixMultiply(MatrixMultiply(MatrixRotateZ(0.35f * sinf(rl * PI)), MatrixRotateX(-0.6f * sinf(rl * PI))), hm);   // (tipped up and rolled toward you so the open action shows)
+        if (insp > 0) hm = MatrixMultiply(MatrixRotateX(-1.1f * insp), hm);                               // (rolled to show its flank)
+        if (clr > 0) hm = MatrixMultiply(MatrixMultiply(MatrixRotateX(0.75f * clr), MatrixRotateZ(0.25f * clr + 0.12f * slap)), hm);   // (canted over, the action worked, slapped)
         // the weapon: its baked model posed by what it's doing (or the old one, until every weapon is baked)
-        const Slot& sl = me.slots[me.sel];
         GunAnim ga = GunAnimOf(me);
         Vector3 leftHand{}, muzzle{}, ejectAt{};
         bool baked = DrawWeapon(sl, ga, hm, WHITE, 0.25f, &leftHand, &muzzle, &ejectAt);   // (a touch of light from the lamp at your shoulder)
@@ -2127,7 +2481,7 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
             if (sl.it == Item::Weapon && sl.wpn >= 0 && sl.wpn < (int)Weapons().size()) longTool = Weapons()[sl.wpn].cls == WC_LONGGUN || Weapons()[sl.wpn].cls == WC_SPECIAL || WeaponReach(Weapons()[sl.wpn]) >= 2;
             bool twoHands = baked ? (longTool || held != Item::Knife) : longTool;
             Vector3 grips[2] = {leftHand, Vector3Transform({0.0f, -0.015f, 0}, hm)};
-            bool on[2] = {twoHands && rl < 0, true};
+            bool on[2] = {twoHands && rl < 0 && !slung && va.clearT < 0, true};   // (a broken arm hangs; the left hand works a misfire clear)
             DrawFirstPersonBody(me, cam, t, -0.2f, longTool ? 1.0f : 0.0f, false, grips, on);
         }
         // the old speargun's spear slides home in the last third of the reload; a muzzle flash on a powder shot that
@@ -2150,6 +2504,29 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
         w.moonK = overcast ? 0.08f : 0.25f + 0.75f * (1 - fabsf(sess.moon - 0.5f) * 2);
         if (eco && eco->ground == "grotto" && b.pos.x > eco->archX0) { w.moonK = 0; w.zenith = {2, 4, 6, 255}; w.horizon = {6, 10, 12, 255}; }
         w.deep = eco && eco->ground == "lagoon" ? Color{8, 26, 30, 255} : Color{6, 18, 26, 255};
+        // blood off her: the deck's blood drains out through the freeing ports (and chum and guts at the gutting rail),
+        // leaving stains on the water that spread and fade where they fell, a trail astern when she's under way
+        {
+            struct Stain { Vector2 p; float age, k; };
+            static std::vector<Stain> st; static float spawnT = 0; static uint32_t sr2 = 77;
+            auto SR = [&]() { sr2 = sr2 * 1664525u + 1013904223u; return (sr2 >> 8) / 16777216.0f; };
+            float fdt = GetFrameTime();
+            spawnT -= fdt;
+            float bleed = std::min(1.0f, g.deckBlood / 15.0f), chum = g.chumLeft > 0 ? 0.8f : 0.0f;
+            if (spawnT <= 0 && (bleed > 0.05f || chum > 0)) {
+                spawnT = 1.2f;
+                static const float PORTS[5] = {-8.75f, -5.75f, -1.75f, 2.25f, 6.25f};
+                Vector2 at;
+                if (chum > bleed) at = g.boat.ToWorld({-2.2f, 3.2f});
+                else { float x = PORTS[(int)(SR() * 5) % 5]; int sd = SR() < 0.5f ? -1 : 1; at = g.boat.ToWorld({x, sd * (HalfBeam3(x) + 0.4f)}); }
+                st.push_back({at, 0, std::max(bleed, chum)});
+                if (st.size() > 8) st.erase(st.begin());
+            }
+            for (auto& s : st) s.age += fdt;
+            st.erase(std::remove_if(st.begin(), st.end(), [](const Stain& s) { return s.age > 45; }), st.end());
+            w.stains = 0;
+            for (const auto& s : st) if (w.stains < 8) w.stain[w.stains++] = {s.p.x, s.p.y, 0.6f + std::min(3.2f, s.age * 0.25f), s.k * std::clamp(1 - s.age / 45, 0.0f, 1.0f)};
+        }
         rt::DrawWater(gSea, w);
     }
     rt::RenderEnd();
@@ -2160,6 +2537,45 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
         Vector3 fw = Vector3Normalize(Vector3Subtract(cam.target, cam.position));
         DrawGunSmoke(cam);
         BeginBlendMode(BLEND_ADDITIVE);
+        // light shafts: in rain and fog the lamps' light hangs in the air as cones down to the deck or the water
+        // (screen-space: a soft fan from the lamp to the ring it lights, brightest at the lamp)
+        if (wet > 0.3f && !below) {
+            auto shaft = [&](Vector3 top, float r, float drop, Color c, float k) {
+                Vector3 d = Vector3Subtract(top, cam.position);
+                if (Vector3DotProduct(d, fw) <= 0.5f || Vector3Length(d) > 45) return;
+                Vector2 s0 = GetWorldToScreenEx(top, cam, SCREEN_W, SCREEN_H);
+                const int SEG = 14;
+                Vector2 ring[SEG + 1]; bool ok = true;
+                for (int i = 0; i <= SEG; i++) {
+                    float a = i * 2 * PI / SEG;
+                    Vector3 q{top.x + cosf(a) * r, top.y - drop, top.z + sinf(a) * r};
+                    if (Vector3DotProduct(Vector3Subtract(q, cam.position), fw) <= 0.3f) { ok = false; break; }
+                    ring[i] = GetWorldToScreenEx(q, cam, SCREEN_W, SCREEN_H);
+                }
+                if (!ok) return;
+                float a0 = std::clamp(k * 0.09f * wet, 0.0f, 0.22f);
+                rlBegin(RL_TRIANGLES);
+                for (int i = 0; i < SEG; i++) {
+                    rlColor4ub(c.r, c.g, c.b, (unsigned char)(a0 * 255)); rlVertex2f(s0.x, s0.y);
+                    rlColor4ub(c.r, c.g, c.b, 0); rlVertex2f(ring[i + 1].x, ring[i + 1].y);
+                    rlColor4ub(c.r, c.g, c.b, 0); rlVertex2f(ring[i].x, ring[i].y);
+                    rlColor4ub(c.r, c.g, c.b, (unsigned char)(a0 * 255)); rlVertex2f(s0.x, s0.y);
+                    rlColor4ub(c.r, c.g, c.b, 0); rlVertex2f(ring[i].x, ring[i].y);
+                    rlColor4ub(c.r, c.g, c.b, 0); rlVertex2f(ring[i + 1].x, ring[i + 1].y);
+                }
+                rlEnd();
+            };
+            float lamp = b.lantern == 0 ? 0.25f : b.lantern / 2.0f;
+            shaft(BoatPoint(b, {0.2f, DECK_Y + 5.4f, 0}), 2.8f + b.lantern * 0.8f, 4.2f, Color{255, 228, 170, 255}, lamp * 1.4f);
+            shaft(BoatPoint(b, {-10.4f, DECK_Y + 3.1f, 0}), 1.8f, 2.0f, Color{255, 222, 172, 255}, 0.8f);
+            if (Vector2Distance(b.pos, g.moorPos) < 80) {
+                Matrix Qm = MatrixMultiply(MatrixRotateY(-g.moorHeading), MatrixTranslate(g.moorPos.x, 0, g.moorPos.y));
+                for (float x : {-9.0f, -1.0f, 7.0f, 13.0f}) shaft(Vector3Transform({x, QUAY_Y + 3.15f, -6.8f}, Qm), 2.2f, 3.1f, Color{255, 220, 160, 255}, 0.9f);
+            }
+        }
+        // lightning: the whole frame washed white for an instant; the thunder follows by the distance
+        if (gFlashNow > 0) DrawRectangle(0, 0, SCREEN_W, SCREEN_H, Fade(Color{200, 210, 235, 255}, std::min(0.35f, gFlashNow * 0.22f)));
+        if (gThunderPending >= 0) { gThunderPending -= GetFrameTime(); if (gThunderPending < 0) { TrawlCue(TWC_THUNDER, 0.9f, 0.0f); gThunderPending = -1; } }
         if (rt::GetQuality().fog > 0) for (const auto& p : pts) {
             Vector3 d = Vector3Subtract(p.p, cam.position);
             float dist = Vector3Length(d);
@@ -2176,9 +2592,12 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
 
 void UnloadTrawl3D() {
     for (int i = 0; i < 4; i++) if (gAtoll[i].meshCount > 0) { UnloadModel(gAtoll[i]); gAtoll[i] = Model{}; gAtollFor[i] = {-1e9f, -1e9f}; }
+    for (int i = 0; i < 4; i++) { if (gAtollT[i].meshCount > 0) UnloadTerrain(gAtollT[i]); if (gAtollX[i].meshCount > 0) { UnloadModel(gAtollX[i]); gAtollX[i] = Model{}; } gAtollProps[i].clear(); }
     if (gReady) { UnloadModel(gSkiff); UnloadModel(gBoat); UnloadModel(gQuay); UnloadModel(gFish); UnloadModel(gJelly); UnloadModel(gGull); gReady = false; }
     if (gSeaReady) { UnloadModel(gSea); gSeaReady = false; }
     if (gLandFor) { UnloadModel(gLand); gLandFor = nullptr; }
+    if (gTerrain.meshCount > 0) UnloadTerrain(gTerrain);
+    gLandProps.clear();
     if (gMouldOn) { UnloadModel(gMould); gMouldOn = false; }
     if (gCrewReady) {
         for (int r = 0; r < (int)Role::COUNT; r++) { UnloadModel(gBody[r]); UnloadModel(gArm[r]); }

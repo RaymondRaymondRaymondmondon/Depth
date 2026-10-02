@@ -236,6 +236,49 @@ def shingles(name, w, h, size_m, seed, col=(0.2, 0.16, 0.14)):
     return planks(name, w, h, 6, size_m, ((col[0] * 1.4, col[1] * 1.4, col[2] * 1.4), col), (0.04, 0.035, 0.03), seed, butts=3, nails=False, gloss=0.2)
 
 
+def sand(name, w, h, size_m, seed, tone=(0.72, 0.64, 0.47), wet=False):
+    """Beach sand: fine grain, ripples, scattered shell grit; wet sand darker and glossy."""
+    n = fbm(h, w, 30, seed, 4)
+    grain = noise(h, w, 1.5, 1.5, seed + 1)
+    yy = np.arange(h)[:, None] / h
+    rip = 0.5 + 0.5 * np.sin((yy * 9 + 0.25 * fbm(h, w, 60, seed + 2, 2)) * 2 * np.pi)
+    t = 0.85 + 0.2 * n + 0.12 * (grain - 0.5) - 0.02 * rip
+    base = colour(tone, t)
+    rng = _rng(seed + 3)
+    shells = noise(h, w, 2, 2, seed + 4) > 0.82
+    base = np.where(shells[..., None], np.array([0.86, 0.82, 0.74]) * (0.9 + 0.1 * grain[..., None]), base)
+    if wet:
+        base = base * 0.55
+    rough = (0.35 if wet else 0.9) - 0.05 * n
+    return Tile(name, base, rough, np.zeros((h, w)), 0.12 * rip + 0.35 * grain + 0.4 * n, 2.0, size_m)   # (ripples a hint, not corduroy)
+
+
+def jungle(name, w, h, size_m, seed):
+    """The island's floor under the palms: dark soil, leaf litter and tufts of grass."""
+    n = fbm(h, w, 40, seed, 4)
+    leaves = fbm(h, w, 6, seed + 1, 3)
+    soil = colour((0.2, 0.15, 0.09), 0.8 + 0.4 * n)
+    litter = mix(np.ones((h, w, 3)) * np.array([0.36, 0.26, 0.12]), np.ones((h, w, 3)) * np.array([0.24, 0.3, 0.1]), fbm(h, w, 12, seed + 2, 2))
+    m = smoothstep(0.45, 0.65, leaves)
+    base = mix(soil, litter, m)
+    grass = noise(h, w, 3, 9, seed + 3) > 0.7
+    base = np.where(grass[..., None], np.array([0.18, 0.3, 0.1]) * (0.8 + 0.4 * n[..., None]), base)
+    return Tile(name, base, 0.85 - 0.1 * m, np.zeros((h, w)), 0.5 * leaves + 0.3 * n, 5.0, size_m)
+
+
+def rock(name, w, h, size_m, seed, tone=(0.33, 0.31, 0.29), wet=0.0):
+    """Weathered rock: cracks, strata and lichen; the cave's darker and slick."""
+    n = fbm(h, w, 50, seed, 5)
+    strata = 0.5 + 0.5 * np.sin((np.arange(h)[:, None] / h * 7 + 0.6 * fbm(h, w, 80, seed + 1, 3)) * 2 * np.pi)
+    crack = smoothstep(0.03, 0.0, np.abs(fbm(h, w, 25, seed + 2, 3) - 0.5))
+    base = colour(tone, 0.75 + 0.45 * n + 0.1 * strata)
+    base = base * (1 - 0.6 * crack[..., None])
+    lich = smoothstep(0.62, 0.72, fbm(h, w, 18, seed + 3, 3)) * (1 - wet)
+    base = mix(base, np.ones((h, w, 3)) * np.array([0.5, 0.5, 0.36]), lich * 0.6)
+    rough = 0.85 - 0.5 * wet - 0.1 * n
+    return Tile(name, base, rough, np.zeros((h, w)), 0.7 * n + 0.2 * strata - 0.5 * crack, 6.0, size_m)
+
+
 def build_all():
     """Every tile set the boat and the dock use, by name."""
     T = {}
@@ -251,4 +294,9 @@ def build_all():
     T["stone"] = stone("stone", 512, 512, (2.4, 1.6), 71)
     T["shingle"] = shingles("shingle", 512, 512, (1.5, 1.5), 81)
     T["shed"] = planks("shed", 512, 512, 5, (2.0, 1.0), ((0.46, 0.36, 0.26), (0.24, 0.17, 0.11)), (0.05, 0.04, 0.03), 91, weather=0.5, butts=1, nails=False)
+    T["sand"] = sand("sand", 512, 512, (3.0, 3.0), 101)
+    T["wetsand"] = sand("wetsand", 512, 512, (3.0, 3.0), 103, wet=True)
+    T["jungle"] = jungle("jungle", 512, 512, (3.0, 3.0), 105)
+    T["rock"] = rock("rock", 512, 512, (3.0, 3.0), 107)
+    T["caverock"] = rock("caverock", 512, 512, (3.0, 3.0), 109, tone=(0.22, 0.21, 0.21), wet=0.7)
     return T

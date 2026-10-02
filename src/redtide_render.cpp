@@ -641,6 +641,7 @@ uniform vec3 uCam, uLampPos, uLampDir, uKey, uFog; uniform float uLampRange, uLa
 uniform vec4 uPL[8]; uniform vec4 uPLC[8]; uniform int uPLN;
 uniform vec3 uMoonDir, uMoon, uSkyAmb, uSeaAmb; uniform float uMoonK, uAmbK, uSil;
 uniform sampler2D uShadowMap; uniform mat4 uLightVP; uniform int uHasShadow;
+uniform float uWet, uWetFloor, uFlash;
 out vec4 finalColor;
 // the lamp's shadow: a 3x3 filtered look-up in its depth map (1 lit, 0 in shadow); outside the map, lit
 float keyShadow(vec3 wp, vec3 n, vec3 L) {
@@ -687,11 +688,17 @@ void main() {
     if (bc.a < 0.4) discard;
     metal = uMetal; rough = uRough;
     if (uHasMR == 1) { vec4 mr = texture(uMR, fragUV); rough *= mr.g; metal *= mr.b; }
-    rough = clamp(rough, 0.04, 1.0);
     N = normalize(fragNormal);
     V = normalize(uCam - fragWorld);
     if (!gl_FrontFacing) N = -N;
-    if (uHasNrm == 1) { vec3 tn = texture(uNrm, fragUV).xyz * 2.0 - 1.0; N = normalize(cotangentFrame(N, fragWorld, fragUV) * tn); }
+    // rain: what it falls on goes darker and glossier, the flat tops most (below the deck's level stays dry)
+    if (uWet > 0.0) {
+        float w = uWet * mix(0.45, 1.0, smoothstep(0.2, 0.8, N.y)) * smoothstep(0.6, 1.0, fragWorld.y - uWetFloor);
+        albedo *= mix(1.0, 0.62, w * (1.0 - metal));
+        rough = mix(rough, rough * 0.3, w);
+    }
+    rough = clamp(rough, 0.04, 1.0);
+    if (uHasNrm == 1) { vec3 tn = texture(uNrm, fragUV).xyz * 2.0 - 1.0; N = normalize(cotangentFrame(N, fragWorld, fragUV) * mix(tn, vec3(0.0, 0.0, 1.0), uWet * 0.35)); }   // (a film of water smooths the grain)
     F0 = mix(vec3(0.04), albedo, metal);
     vec3 col = vec3(0.0);
     // the lamp: a spot with a soft cone and inverse-square-ish fall-off to its range
@@ -719,6 +726,7 @@ void main() {
     col += amb * albedo * (1.0 - metal * 0.7) * ao;
     col += F_Schlick(max(dot(N, V), 0.0), F0) * amb * ao * (1.0 - rough) * 0.8;   // a little of the sky in polished metal
     col *= mix(1.0, ao, 0.6);
+    if (uFlash > 0.0) col += albedo * uFlash * vec3(0.75, 0.82, 1.0) * mix(0.25, 1.0, N.y * 0.5 + 0.5);   // lightning: the whole scene lit from the sky for an instant
     if (uHasEmit == 1) col += toLin(texture(uEmit, fragUV).rgb * uEmitCol);
     col += albedo * uGlow;
     col = pow(col, vec3(1.0 / 2.2));
@@ -738,6 +746,7 @@ uniform vec3 uCam, uMoonDir, uDeep, uZenith, uHorizon, uFog, uLampPos, uLampDir,
 uniform float uFogDensity, uTime, uCrest, uRain, uAlpha, uMoonK, uLampRange, uLampCone;
 uniform vec4 uPL[8]; uniform vec4 uPLC[8]; uniform int uPLN;
 uniform vec2 uBoatPos; uniform float uBoatHead, uBoatSpeed, uBoatLen, uBoatBeam;
+uniform vec4 uStain[8]; uniform int uStainN;
 out vec4 finalColor;
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float noise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
@@ -790,6 +799,15 @@ void main() {
     foam = smoothstep(0.3, 0.75, foam * (0.45 + 0.75 * noise(rp * 4.0 + vec2(uTime * 0.4, 0.0))));
     vec3 foamCol = vec3(0.7, 0.76, 0.8) * (0.18 + 1.6 * pool) + vec3(0.6, 0.66, 0.75) * uMoonK * 0.15;
     col = mix(col, foamCol, foam);
+    // blood on the water: dark, ragged-edged stains spreading off her scuppers and the gutting rail
+    for (int i = 0; i < 8; i++) {
+        if (i >= uStainN) break;
+        float sd = length(rp - uStain[i].xy) / max(uStain[i].z, 0.1);
+        if (sd > 1.4) continue;
+        float rag = 0.75 + 0.5 * noise(rp * 1.7 + float(i) * 13.0);
+        float m = smoothstep(rag, rag * 0.35, sd) * uStain[i].w;
+        col = mix(col, vec3(0.16, 0.015, 0.015) * (0.35 + 1.4 * pool), m * 0.85);
+    }
     if (uRain > 0.0) {   // rings where the drops land
         vec2 g = rp * 1.6, cell = floor(g), fp = fract(g);
         float h = hash(cell), tt = fract(uTime * 0.9 + h);
@@ -1181,6 +1199,14 @@ void DrawPbrSkinned(const Model& m, Matrix world, const std::vector<Matrix>& ski
 }
 
 const AssetInfo* AssetInfoOf(const Model* m) { auto it = gAssetInfo.find(m); return it == gAssetInfo.end() ? nullptr : &it->second; }
+bool AssetMaterial(const Model* m, const std::string& name, Material* out) {
+    auto it = gMatNames.find(m);
+    if (!m || it == gMatNames.end()) return false;
+    for (size_t i = 0; i < it->second.size(); i++)
+        if (it->second[i] == name && (int)i + 1 < m->materialCount) { *out = m->materials[i + 1]; return true; }
+    return false;
+}
+void MarkVertexOcclusion(const Model* m, bool big) { gVcAO.insert(m); if (big) gBig.insert(m); else gBig.erase(m); }
 void DrawPbrParts(const Model& m, Matrix world, const std::vector<Matrix>& partLocal, Color tint, float glow) {
     DrawCmd d{&m, world, (int)AnimMode::Static, 0, 0, 0, 1, 0, glow, tint};
     d.pbr = 1;
@@ -1213,6 +1239,7 @@ static void DrawWaterCmd(const DrawCmd& d) {
     f1("uMoonK", w.moonK); f1("uLampRange", gLight.lampRange); f1("uLampCone", gLight.lampCone);
     f1("uBoatHead", w.boatHeading); f1("uBoatSpeed", w.boatSpeed); f1("uBoatLen", w.boatLen); f1("uBoatBeam", w.boatBeam);
     { int l = WL("uBoatPos"); if (l >= 0) SetShaderValue(s, l, &w.boatPos, SHADER_UNIFORM_VEC2); }
+    { int n = std::clamp(w.stains, 0, 8); int l = WL("uStain"); if (l >= 0 && n > 0) SetShaderValueV(s, l, w.stain, SHADER_UNIFORM_VEC4, n); SetI(s, WL("uStainN"), n); }
     float pl[4 * SceneLight::MAX_POINTS] = {}, plc[4 * SceneLight::MAX_POINTS] = {};
     int np = std::min(gLight.nPoints, SceneLight::MAX_POINTS);
     for (int i = 0; i < np; i++) { const auto& q = gLight.points[i]; pl[i * 4] = q.p.x; pl[i * 4 + 1] = q.p.y; pl[i * 4 + 2] = q.p.z; pl[i * 4 + 3] = std::max(0.1f, q.r); plc[i * 4] = q.c.r / 255.0f; plc[i * 4 + 1] = q.c.g / 255.0f; plc[i * 4 + 2] = q.c.b / 255.0f; plc[i * 4 + 3] = q.k; }
@@ -1488,6 +1515,11 @@ void RenderEnd() {
         SetF(gPbr, L_pbr[PU_MOONK], gLight.moonK);
         SetF(gPbr, L_pbr[PU_AMBK], gLight.ambK);
         SetF(gPbr, L_pbr[PU_SIL], gLight.silhouette);
+    }
+    {   // rain on surfaces, lightning
+        static int lW = -2, lF, lL;
+        if (lW == -2) { lW = GetShaderLocation(gPbr, "uWet"); lF = GetShaderLocation(gPbr, "uWetFloor"); lL = GetShaderLocation(gPbr, "uFlash"); }
+        SetF(gPbr, lW, gLight.wet); SetF(gPbr, lF, gLight.wetFloor); SetF(gPbr, lL, gLight.flash);
     }
     {   // fog banks (high fog quality)
         Vector2 fb{gQuality.fog ? gLight.fogBanks : 0.0f, gLight.time};

@@ -69,6 +69,8 @@ struct SceneLight {                // the master reference's three-light rig
     Color fog{8, 24, 30, 255};
     float fogDensity = 0.045f;
     float fogBanks = 0;                      // 0 even fog .. 1 drifting banks thinning with height (needs Quality::fog 1)
+    float wet = 0, wetFloor = -1e5f;         // rain on surfaces (0 dry .. 1 soaked); below wetFloor + 0.6 m stays dry
+    float flash = 0;                         // lightning: 0 .. about 1.5 for the frame or two it lasts
     float surfaceY = 40;                     // caustics fade in near this height
     float time = 0;
     float bloodTint = 0;                     // 0..1: the red at the mask's edge (the scent meter you can see)
@@ -116,7 +118,11 @@ void DrawPbr(const Model& m, Matrix world, Color tint = WHITE, float wrap = 0); 
 struct AssetPart { std::string name, group, kind, parent; Vector3 pivot{0, 0, 0}, axis{0, 0, 1}; float amount = 0; };
 struct AssetMarker { Vector3 p{0, 0, 0}, dir{1, 0, 0}; };
 struct AssetInfo { std::vector<AssetPart> parts; std::vector<std::pair<std::string, AssetMarker>> markers; const AssetMarker* Marker(const char* n) const { for (const auto& m : markers) if (m.first == n) return &m.second; return nullptr; } };
-const AssetInfo* AssetInfoOf(const Model* m);          // nullptr unless the model came from LoadAsset(.glb)
+const AssetInfo* AssetInfoOf(const Model* m);
+// a baked asset's material by its glTF name (for meshes the game builds itself, like the land); false if missing
+bool AssetMaterial(const Model* m, const std::string& name, Material* out);
+// a model the game built whose vertex colours carry baked occlusion (as the baked boat's do); big: give it a depth prepass
+void MarkVertexOcclusion(const Model* m, bool big);          // nullptr unless the model came from LoadAsset(.glb)
 // Draws a model with each mesh under its own local transform first (partLocal[i], model space; missing = identity)
 void DrawPbrParts(const Model& m, Matrix world, const std::vector<Matrix>& partLocal, Color tint = WHITE, float glow = 0);
 // a light added after RenderBegin (a muzzle flash found only once the gun is placed); dropped if the eight are taken
@@ -132,6 +138,8 @@ struct WaterLook {
     float rain = 0;           // rain rings (0..1)
     float alpha = 0.86f;
     float moonK = 0.5f;       // how bright the moon's path is (its phase; 0 under cloud)
+    Vector4 stain[8] = {};    // blood on the water: x, z, radius (m), strength 0..1
+    int stains = 0;
 };
 void DrawWater(const Model& m, const WaterLook& w);
 // The night sky as a dome round the eye: a gradient, the moon (in its phase, lit side toward its light), clouds lit

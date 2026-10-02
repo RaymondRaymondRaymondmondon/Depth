@@ -229,6 +229,8 @@ void Gannet::UseItem(int ci, Vector2 aimDeck, bool pressed, bool held, bool sigh
             if (!w.Gun()) break;
             bool rapid = w.speed == WS_RAPID;
             if (!(rapid ? held : pressed) || c.cool > 0 || c.reloadT > 0) break;
+            // (the Visual Overhaul Spec: a two-handed long gun can't be fired with a broken arm; a sidearm still can)
+            if (c.Has(INJ_BROKEN_ARM) && (w.cls == WC_LONGGUN || w.cls == WC_SPECIAL)) { if (pressed) Say(TextFormat("One-handed with a broken arm: the %s can't be shouldered (a sidearm can)", w.name.c_str())); break; }
             if (s.ammo <= 0) { if (pressed) Say(s.spare > 0 ? "Click: empty (R to reload)" : "Click: empty, no spare reload (restock at the locker)"); break; }
             s.ammo--; c.cool = WeaponCooldown(w, s.att);
             // wet powder: cartridge guns misfire in rain (10%), a squall (25%), a storm or after a swim (40%), unless oilskinned

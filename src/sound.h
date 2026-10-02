@@ -127,6 +127,7 @@ enum TwCue { TWC_REEL, TWC_DRAG, TWC_HUM, TWC_SNAP, TWC_CREAK, TWC_SPLASH, TWC_G
              TWC_TELEGRAPH, TWC_VALVE, TWC_HULL, TWC_PUMP, TWC_WINCH, TWC_WARP, TWC_SNAG, TWC_CODEND,
              TWC_RIFLE, TWC_SHOTGUN, TWC_SPEAR, TWC_HARPOON, TWC_CHARGE, TWC_FLARE,
              TWC_BUMP, TWC_TICKS, TWC_GULL, TWC_OVERBOARD, TWC_RING, TWC_BELL, TWC_TAPE, TWC_SELL, TWC_FANFARE, TWC_CHURCH, TWC_CANOE, TWC_DEATH,
+             TWC_THUNDER, TWC_CASE,
              TWC_COUNT };
 void AudioTrawl(const TwAudio& a);
 void TrawlCue(int kind, float vol, float pan, float pitch = 1);   // an effect; pitch scales its frequencies (the reel's ratchet by tension)

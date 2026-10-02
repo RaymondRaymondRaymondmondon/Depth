@@ -435,6 +435,11 @@ def build(name, out):
             b.parent = prev; b.use_connect = True
         b.use_deform = True
         prev = b
+    if name == "ray":   # the wings beat on their own bones from the body's edge (the game flaps them)
+        for sd, s in (("L", 1), ("R", -1)):
+            b = arm.edit_bones.new(f"wing.{sd}")
+            b.head = G(s * 0.09, 0, 0.22); b.tail = G(s * 0.45, 0, 0.12)
+            b.parent = arm.edit_bones["s1"]; b.use_deform = True
     bpy.ops.object.mode_set(mode='OBJECT')
     # weights by hand: each vertex between its two nearest joints along the spine, smoothly (so a bend is a curve)
     for o in parts:
@@ -448,9 +453,15 @@ def build(name, out):
                 d = abs(z - c) / (half * 1.6)
                 ws.append(max(0.0, 1 - d) ** 1.5 if not (k == 0 and z > c) and not (k == 3 and z < c) else 1.0)
             tot = sum(ws) or 1.0
+            wing = 0.0
+            if name == "ray":   # (out along the wing, the wing's bone takes over from the spine)
+                wing = max(0.0, min(1.0, (abs(v.co.x) - 0.08) / 0.22))
             for k in range(4):
                 if ws[k] > 0:
-                    groups[k].add([v.index], ws[k] / tot, 'REPLACE')
+                    groups[k].add([v.index], ws[k] / tot * (1 - wing), 'REPLACE')
+            if wing > 0:
+                g = o.vertex_groups.get("wing.L" if v.co.x > 0 else "wing.R") or o.vertex_groups.new(name="wing.L" if v.co.x > 0 else "wing.R")
+                g.add([v.index], wing, 'REPLACE')
         mod = o.modifiers.new("rig", 'ARMATURE'); mod.object = rig
         o.parent = rig
     # UVs in metres for the scale and ray tiles; a soft occlusion and a countershade in the vertex colour
