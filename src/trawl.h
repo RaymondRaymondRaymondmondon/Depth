@@ -295,6 +295,7 @@ struct Crew {
     bool dead = false, bodyLost = false;                  // dead for the night: a ghost on deck, or lost to the sea
     Vector2 swim{0, 0};                                   // overboard: where in the sea (world x/y)
     float drownT = 0, bleedT = 0;
+    float cprT = 0;   // drowned with a Medic aboard: seconds left to haul them in for CPR (design doc: 15 s)
     std::string cause;                                    // what killed them
     bool Has(int inj) const { return (injuries & inj) != 0; }
 };

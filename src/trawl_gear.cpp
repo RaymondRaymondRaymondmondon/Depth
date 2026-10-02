@@ -180,7 +180,8 @@ void Gannet::UseItem(int ci, Vector2 aimDeck, bool pressed, bool held, bool sigh
                     if (r->holder >= 0) {
                         Crew& h = crew[r->holder];
                         h.overboard = false; h.deck = c.deck; h.p = c.p; h.p.y = c.p.y < 0 ? -2.5f : 2.5f; h.v = {0, 0}; h.drownT = 0;
-                        Say("Hauled aboard over the rail");
+                        if (h.cprT > 0) { h.cprT = 0; h.fallen = true; Say("Hauled aboard limp: the Medic works on them, and they cough up the sea (CPR)"); }
+                        else Say("Hauled aboard over the rail");
                     }
                     r->state = 0; r->holder = -1; r->thrower = -1; s.ammo = 1;
                 }
@@ -1075,11 +1076,21 @@ void Gannet::StepGear(float dt) {
         if (!c.overboard) continue;
         bool onRing = false; for (const auto& r : rings) if (r.holder == k) onRing = true;
         if (!onRing && eco) c.swim = Vector2Add(c.swim, Vector2Scale(eco->g->current, dt * 0.5f));
+        // drowned, but a Medic aboard: limp in the water, 15 s to haul them in (the ring or the ladder) for CPR
+        if (c.cprT > 0) {
+            c.cprT -= dt;
+            if (c.cprT <= 0) { c.cprT = 0; Kill(k, "drowned", true); }
+            continue;
+        }
         c.drownT -= dt * (onRing ? 0.3f : 1.0f);
         if (eco) { eco->AddNoise({c.swim.x, c.swim.y, 0.5f}, 3 * dt); eco->AddVibration({c.swim.x, c.swim.y, 0.5f}, 2 * dt); }
         if (Vector2Distance(c.swim, stern) < 4.5f && boat.shaft > 0.1f) { Kill(k, "the screw", true); continue; }
-        if (Vector2Distance(c.swim, stern) < 2.0f && boat.shaft < 0.05f) { c.overboard = false; c.deck = 0; c.p = {-10.4f, 0}; c.v = {0, 0}; Say("Up the stern ladder, aboard again"); continue; }
-        if (c.drownT <= 0) Kill(k, "drowned", true);
+        if (Vector2Distance(c.swim, stern) < 2.0f && boat.shaft < 0.05f) { c.overboard = false; c.deck = 0; c.p = {-10.4f, 0}; c.v = {0, 0}; Say("Up the stern ladder, aboard again"); continue; }   // (a limp one can't climb: the ring it has to be)
+        if (c.drownT <= 0) {
+            bool medic = false; for (const auto& o : crew) if (o.role == Role::Medic && !o.dead && !o.overboard && o.deck <= 1) medic = true;
+            if (medic) { c.cprT = 15; Say("They've gone limp in the water: haul them in now and the Medic can bring them back"); }
+            else Kill(k, "drowned", true);
+        }
     }
     // bycatch that's protected: the Owners fine a landed turtle not returned within 60 s
     for (auto& h : hold) if (h.protectedSp) { float was = h.aboardT; h.aboardT += dt; if (was < 60 && h.aboardT >= 60) { fines += 50; Say(TextFormat("LANDING OF PROTECTED %s NOTED: the Owners fine 50", h.name.c_str())); } }

@@ -1,4 +1,4 @@
-// Diving, the deck's side and the diver's moves (design doc v2, "Diving and salvage", page 55). The wrecks are
+﻿// Diving, the deck's side and the diver's moves (design doc v2, "Diving and salvage", page 55). The wrecks are
 // trawl_wreck.cpp's. Design calls where the doc leaves numbers open:
 //  - Going down: a hand with the hardhat suit at the stern (x < -10), she lying still (under 0.4 m/s) within 15 m of a
 //    wreck that a hardhat reaches (a bell wreck needs the diving bell: not yet built). The descent takes the wreck's
@@ -24,6 +24,9 @@
 
 namespace tw {
 
+// the Diver's perk (design doc, "The crew of six"): +15 s of helmet air, 15% quicker through the rooms, no bends from a
+// normal recall (only one brought up at twice the speed or faster)
+static float HelmetAir(const Crew& c) { return c.role == Role::Diver ? 45.0f : 30.0f; }
 int Gannet::WreckNear(float r) const {
     if (!wrecks) return -1;
     int best = -1; float bd = r;
@@ -41,7 +44,7 @@ bool Gannet::StartDive(int ci) {
     bool useBell = divingBell && (wk.bell || !hardhat);
     if (wk.bell && !divingBell) { Say("Too deep for a hardhat: that wreck wants the diving bell (the Slipway)"); return false; }
     if (wk.depth > 120) { Say("Deeper than even the bell goes"); return false; }
-    dive = DiveState{}; dive.diver = ci; dive.wreck = w; dive.room = -1; dive.depth = 0; dive.air = 30; dive.gauge = 0.7f; dive.bell = useBell;
+    dive = DiveState{}; dive.diver = ci; dive.wreck = w; dive.room = -1; dive.depth = 0; dive.air = HelmetAir(crew[ci]); dive.gauge = 0.7f; dive.bell = useBell;
     c.station = -1; c.deck = DECK_DIVE;
     if (useBell) {   // a second hand at the stern beside the first goes down in the bell too
         for (int k = 0; k < (int)crew.size(); k++) { Crew& o = crew[k]; if (k == ci || o.dead || o.overboard || o.deck != 0 || o.station >= 0) continue; if (Vector2Distance(o.p, c.p) < 2.0f) { dive.diver2 = k; o.deck = DECK_DIVE; break; } }
@@ -67,7 +70,7 @@ bool Gannet::DiveMove(int to) {
         if (o != to) continue;
         if (L.kind == 2 && dive.carrying) { Say("Too tight with salvage in your arms: the squeeze is one diver, empty-handed"); return false; }
         if (dive.holdT > 0) { Say("Held fast: you can't get free yet"); return false; }
-        if (dive.moveT < 1.5f) { dive.siltT = 5; Say("Too fast through the silt: it boils up and the lamp shows nothing"); }
+        if (dive.moveT < (crew[dive.diver].role == Role::Diver ? 1.3f : 1.5f)) { dive.siltT = 5; Say("Too fast through the silt: it boils up and the lamp shows nothing"); }
         dive.room = to; dive.roomT = 0; dive.moveT = 0;
         // a long hose run tangles on the wreckage (the bell's divers swim free of a hose)
         if (!dive.bell) {
@@ -151,7 +154,7 @@ void Gannet::StepDive(float dt) {
         dive.gauge = fouled ? 0 : std::max(0.0f, dive.gauge - 0.08f * dt);
         green = dive.gauge >= 0.4f && !dive.hoseBitten;
     }
-    dive.air = green ? std::min(30.0f, dive.air + 3 * dt) : dive.air - dt * (dive.holdT > 0 && dive.room >= 0 ? 2.0f : 1.0f);   // (a grip on you: breathing hard)
+    dive.air = green ? std::min(HelmetAir(crew[dive.diver]), dive.air + 3 * dt) : dive.air - dt * (dive.holdT > 0 && dive.room >= 0 ? 2.0f : 1.0f);   // (a grip on you: breathing hard)
     // the wreck's residents, acting on a diver in their room (morays and congers bite and hold; octopus take the lamp;
     // jumbo squid and frill sharks bite; isopods nip; a Drowned grips; a woken Ghost Worm hatchling bites the hose)
     dive.roomT += dt; dive.moveT += dt;
@@ -185,7 +188,7 @@ void Gannet::StepDive(float dt) {
         dive.room = -1;
         dive.depth -= dive.ascentRate * dt;
         if (dive.depth <= 0) {
-            int k = dive.diver, k2 = dive.diver2; bool bends = dive.ascentRate > 1.2f;
+            int k = dive.diver, k2 = dive.diver2; bool bends = dive.ascentRate > (crew[k].role == Role::Diver ? 2.0f : 1.2f);
             dive = DiveState{};
             for (int who : {k, k2}) {
                 if (who < 0) continue;
@@ -252,7 +255,7 @@ int RunTrawlDiveTest() {
         float g0 = h.dive.gauge; for (int i = 0; i < 60; i++) { h.DivePump(1, true); h.StepDive(dt); }
         check(h.dive.gauge < g0 + 0.5f, "pumping without a rhythm (every frame) doesn't fill the gauge any faster");
         h.boat.pos = {340, 300};
-        for (int i = 0; i < 60 * 35 && !h.crew[0].dead; i++) { h.DivePump(1, true); h.StepDive(dt); }
+        for (int i = 0; i < 60 * 50 && !h.crew[0].dead; i++) { h.DivePump(1, true); h.StepDive(dt); }   // (the Diver's 45 s of helmet air)
         check(h.crew[0].dead, "she drifts 35 m off the wreck: the hose fouls and the air is cut");
         Gannet b; setup(b, 2); b.crew[1].p = Stations()[pump].at; b.crew[1].station = pump; b.StartDive(0);
         float pT = 0; for (int i = 0; i < 60 * ((int)sl->depth + 2); i++) { pT += dt; if (pT > 0.6f) { pT = 0; b.DivePump(1, true); } b.StepDive(dt); }

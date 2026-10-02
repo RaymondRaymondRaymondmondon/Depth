@@ -358,7 +358,7 @@ template <class A> void Visit(A& a, TrawlWorld& w) {
         a.f(c.carryKg); a.v2(c.facing);
         for (Slot& sl : c.slots) VisitSlot(a, sl);
         a.i(c.sel); a.f(c.cool); a.f(c.reloadT); a.i(c.injuries); a.i(c.serious);
-        a.b(c.dead); a.b(c.bodyLost); a.v2(c.swim); a.f(c.drownT); a.f(c.bleedT); a.s(c.cause); a.f(c.inkT); a.f(c.tangleT); a.f(c.heldT);
+        a.b(c.dead); a.b(c.bodyLost); a.v2(c.swim); a.f(c.drownT); a.f(c.cprT); a.f(c.bleedT); a.s(c.cause); a.f(c.inkT); a.f(c.tangleT); a.f(c.heldT);
         a.f(c.oarT); a.f(c.rightT); a.b(c.skiffLine); a.i(c.charm); a.b(c.carrying); VisitCatch(a, c.carry); a.i(c.workOn); a.f(c.workT);
     });
     {   // the skiff
