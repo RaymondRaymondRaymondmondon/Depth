@@ -21,6 +21,7 @@ import common as C
 bpy = C.bpy
 
 ROLES = ["bosun", "angler", "diver", "medic"]
+HEAD_DZ = -0.045   # (the head and all it carries, lowered onto a shorter, thicker neck)
 
 # ---------------------------------------------------------------- the skeleton (A-pose: arms 45 degrees down)
 def joints():
@@ -56,6 +57,10 @@ def joints():
         J[f"toe_tip.{sd}"] = (0.2, s * 0.115, 0.04)
         J[f"eye.{sd}"] = (0.09, s * 0.036, 1.67)
     J["mouth"] = (0.093, 0, 1.598)
+    # the head sits HEAD_DZ lower than it was first built (the user: the necks were too long); everything carried by
+    # the head bone (the skull, the face, hats, glasses, beards) moves with it
+    for k in ("head", "crown", "eye.L", "eye.R", "mouth"):
+        J[k] = (J[k][0], J[k][1], J[k][2] + HEAD_DZ)
     return J
 
 # bone: (head joint, tail joint, parent)
@@ -117,7 +122,7 @@ def body_mesh(J, build=1.0):
             edges.append((prev, len(pts) - 1)); prev = len(pts) - 1
         edges.append((prev, ib))
     P("pelvis", (0.15 * build, 0.15 * build)); P("spine", (0.135 * build, 0.135 * build)); P("chest", (0.165 * build, 0.165 * build))
-    P("neck", 0.064); P("head", 0.062); P("headin", 0.05, (0.0, 0, 1.6))   # (the neck runs up inside the skull: no seam)
+    P("neck", 0.072); P("head", 0.066); P("headin", 0.05, (0.0, 0, 1.6 + HEAD_DZ))   # (the neck runs up inside the skull: no seam)
     E("pelvis", "spine", 2); E("spine", "chest", 2); E("chest", "neck", 2); E("neck", "head"); E("head", "headin")
     for sd in ("L", "R"):
         P(f"clavicle.{sd}", 0.085); P(f"upperarm.{sd}", 0.074); P(f"forearm.{sd}", 0.058); P(f"hand.{sd}", 0.043); P(f"palm.{sd}", (0.054, 0.028))
@@ -356,6 +361,9 @@ def build(role, out):
     body = body_mesh(J, 1.08 if role == "bosun" else 1.0)
     paint_body(body, J, role, mats)
     meshes = [body] + head_parts(J, mats) + role_pieces(role, J, mats)
+    for o in meshes:   # (built at the old head height: the eyes and mouth already sit on their lowered joints)
+        if o.get("bone") == "head":
+            o.location.z += HEAD_DZ
     # skin everything to the rig: the body and soft clothes by automatic weights, the rest wholly to one bone
     for o in meshes:
         C.select_only([o])
@@ -428,6 +436,9 @@ def build_beards(out):
         else:
             for s in (1, -1):   # mutton chops down the cheeks
                 ell(f"chop{s}", (0.055, s * 0.068, 1.6), (0.032, 0.012, 0.046), (0, math.radians(-12), math.radians(s * 22)))
+        for o in parts:
+            o.location.z += HEAD_DZ
+        C.select_only(parts); bpy.ops.object.transform_apply(location=True, rotation=False, scale=False)
         C.export_glb(parts, os.path.join(out, f"{kind}.glb"))
 
 
