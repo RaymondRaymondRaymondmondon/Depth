@@ -1599,6 +1599,76 @@ static void DrawScene() {
 }
 
 // ---------------------------------------------------------------- the HUD
+// The helmet's instruments (the spec's HUD: "gauges as real dials with needles (the scent meter, the predator pulse, air,
+// scrip as a mechanical counter) ... cracks when the diver is badly hurt"): a brass bezel, an aged-paper face with its
+// ticks and a red zone, a needle with its shadow and a cap, a glint on the glass.
+static void DrawDial(Vector2 c, float r, float v, const char* label, Color needle, float redFrom = 2, bool redLow = false, const char* readout = nullptr) {
+    const float A0 = -225 * DEG2RAD, SWEEP = 270 * DEG2RAD;   // (the sweep: 7:30 round to 4:30)
+    DrawCircleV({c.x + 2, c.y + 3}, r + 4, Fade(BLACK, 0.35f));                                    // its shadow on the helmet
+    DrawRing(c, r, r + 5, 0, 360, 48, Color{150, 110, 46, 255});                                    // the bezel
+    DrawRing(c, r + 1, r + 4, 200, 340, 24, Color{226, 186, 104, 255});                             // (lit along its top)
+    DrawCircleV(c, r, Color{214, 202, 170, 255});                                                   // the face, aged paper
+    DrawCircleV(c, r * 0.96f, Color{224, 214, 184, 255});
+    if (redFrom <= 1) {   // the red zone
+        float a = redLow ? 0 : redFrom, b = redLow ? redFrom : 1;
+        DrawRing(c, r * 0.72f, r * 0.86f, (A0 + SWEEP * a) * RAD2DEG + 90 - 90, (A0 + SWEEP * b) * RAD2DEG, 16, Color{176, 44, 32, 255});
+    }
+    for (int k = 0; k <= 10; k++) {   // the ticks
+        float a = A0 + SWEEP * k / 10.0f, l = k % 5 == 0 ? 0.24f : 0.13f;
+        DrawLineEx({c.x + cosf(a) * r * (0.9f - l), c.y + sinf(a) * r * (0.9f - l)}, {c.x + cosf(a) * r * 0.9f, c.y + sinf(a) * r * 0.9f}, k % 5 == 0 ? 2.0f : 1.0f, Color{40, 34, 28, 255});
+    }
+    if (label) DrawTextCentered(label, c.x, c.y + r * 0.34f, (int)std::max(9.0f, r * 0.22f), Color{70, 58, 44, 255});
+    if (readout) DrawTextCentered(readout, c.x, c.y - r * 0.5f, (int)std::max(10.0f, r * 0.26f), Color{40, 34, 28, 255});
+    float a = A0 + SWEEP * std::clamp(v, 0.0f, 1.0f);
+    Vector2 tip{c.x + cosf(a) * r * 0.82f, c.y + sinf(a) * r * 0.82f}, tail{c.x - cosf(a) * r * 0.18f, c.y - sinf(a) * r * 0.18f};
+    DrawLineEx({tail.x + 2, tail.y + 2}, {tip.x + 2, tip.y + 2}, 3, Fade(BLACK, 0.25f));            // the needle's shadow on the face
+    DrawLineEx(tail, tip, 2.5f, needle);
+    DrawCircleV(c, r * 0.1f, Color{60, 50, 36, 255}); DrawCircleV(c, r * 0.06f, Color{200, 160, 80, 255});
+    DrawRing(c, r * 0.55f, r * 0.95f, 200, 250, 16, Fade(WHITE, 0.16f));                          // a glint on the glass
+}
+// scrip on a mechanical counter: brass-framed drums whose digits roll over as the count changes
+static void DrawCounter(float x, float y, int value, float shown, int digits) {
+    float w = 22, h = 32;
+    DrawRectangleRounded({x - 6, y - 5, digits * w + 12, h + 10}, 0.2f, 6, Color{150, 110, 46, 255});
+    DrawRectangleRounded({x - 3, y - 2, digits * w + 6, h + 4}, 0.15f, 6, Color{30, 26, 22, 255});
+    for (int k = 0; k < digits; k++) {
+        float place = powf(10.0f, (float)(digits - 1 - k));
+        float dv = shown / place;                       // this drum's position (fractional while it rolls)
+        int dig = (int)floorf(dv) % 10; float frac = dv - floorf(dv);
+        if (k < digits - 1) frac = std::max(0.0f, (frac - 0.9f) * 10.0f);   // (a higher drum turns only as the one below passes 9)
+        Rectangle cell{x + k * w, y, w - 2, h};
+        DrawRectangleRec(cell, Color{226, 216, 190, 255});
+        // (no scissor: the HUD draws into a scaled target; each digit slides a little and fades as it rolls out of its window)
+        for (int s = 0; s < 2; s++) {
+            int dd = (dig + s) % 10;
+            float off = s - frac;   // 0 in the window, -1 gone above, +1 waiting below
+            if (fabsf(off) >= 1) continue;
+            TxtBold(TextFormat("%d", dd), cell.x + 5, cell.y + 3 + off * h * 0.45f, 24, Fade(Color{30, 26, 22, 255}, 1 - fabsf(off)));
+        }
+        DrawRectangleGradientV((int)cell.x, (int)cell.y, (int)cell.width, 8, Fade(BLACK, 0.45f), Fade(BLACK, 0.0f));   // (the drum's curve)
+        DrawRectangleGradientV((int)cell.x, (int)(cell.y + h - 8), (int)cell.width, 8, Fade(BLACK, 0.0f), Fade(BLACK, 0.45f));
+    }
+    (void)value;
+}
+// cracks across the port when the diver is badly hurt: fixed fracture lines from two impact points, more as it worsens
+static void DrawPortCracks(float k) {
+    if (k <= 0) return;
+    static std::vector<std::pair<Vector2, Vector2>> lines;
+    if (lines.empty()) {
+        uint32_t h = 0x51ED27u; auto R = [&]() { h ^= h << 13; h ^= h >> 17; h ^= h << 5; return (h & 0xffff) / 65535.0f; };
+        Vector2 hits[2] = {{SCREEN_W * 0.22f, SCREEN_H * 0.3f}, {SCREEN_W * 0.8f, SCREEN_H * 0.7f}};
+        for (auto hp : hits) for (int s = 0; s < 9; s++) {
+            float a = s * 0.7f + R() * 0.5f; Vector2 p = hp;
+            for (int seg = 0; seg < 4; seg++) { float l = 20 + R() * 60; a += (R() - 0.5f) * 0.6f; Vector2 q{p.x + cosf(a) * l, p.y + sinf(a) * l}; lines.push_back({p, q}); p = q; }
+        }
+    }
+    int n = (int)(lines.size() * std::clamp(k, 0.0f, 1.0f));
+    for (int i = 0; i < n; i++) {
+        DrawLineEx(lines[i].first, lines[i].second, 2.2f, Fade(WHITE, 0.35f));
+        DrawLineEx({lines[i].first.x + 1, lines[i].first.y + 1}, {lines[i].second.x + 1, lines[i].second.y + 1}, 1.0f, Fade(BLACK, 0.35f));
+    }
+}
+
 static void DrawHud() {
     Match& m = M();
     DiverState& d = Me();
@@ -1629,8 +1699,12 @@ static void DrawHud() {
     timer("Blood Frenzy", m.frenzyT); timer("Double Scrip", m.doubleScripT); timer("Fire Sale", m.fireSaleT); timer("Harpoon Hour", m.harpoonT);
     if (!m.keys.empty()) Txt(TextFormat("safe keys: %d of 3", (int)m.keys.size()), 24, dy, 14, brass);
     // scrip, top right
-    TxtBold(TextFormat("%d", d.scrip), SCREEN_W - 150, 20, 30, paper);
-    Txt("scrip", SCREEN_W - 150, 52, 14, Fade(paper, 0.7f));
+    {   // (the counter's drums roll toward the new figure)
+        static float shown = -1; if (shown < 0 || fabsf(shown - d.scrip) > 50000) shown = (float)d.scrip;
+        shown += ((float)d.scrip - shown) * std::min(1.0f, GetFrameTime() * 6); if (fabsf(shown - d.scrip) < 0.02f) shown = (float)d.scrip;
+        DrawCounter(SCREEN_W - 150.0f, 20, d.scrip, shown, 5);
+        Txt("scrip", SCREEN_W - 150, 60, 14, Fade(paper, 0.7f));
+    }
     // the zone's name as you enter
     if (S.zoneT > 0 && S.lastZone >= 0) DrawTextCenteredBold(m.map->zones[S.lastZone].name, cx, 60, 22, Fade(paper, std::min(1.0f, S.zoneT)));
     // the Goliath's bar
@@ -1695,12 +1769,9 @@ static void DrawHud() {
     if (!d.downed) for (int i = 0; i < (int)d.weapons.size(); i++) Txt(TextFormat("%d %s", i + 1, m.W(d.weapons[i]).name.c_str()), SCREEN_W - 280, SCREEN_H - 150 + i * 16.0f, 13, i == d.cur ? paper : Fade(paper, 0.5f));
     // health: a brass pressure gauge, bottom left; the tonics' bottles beside it
     Vector2 g{80, SCREEN_H - 80.0f};
-    DrawCircleV(g, 46, Color{60, 48, 30, 255});
-    DrawRing(g, 40, 46, 0, 360, 40, brass);
     float frac = std::clamp(d.hp / d.hpMax, 0.0f, 1.0f);
-    float ang = (-220 + 260 * frac) * DEG2RAD;
-    DrawLineEx(g, {g.x + cosf(ang) * 34, g.y + sinf(ang) * 34}, 3, blood);
-    TxtBold(TextFormat("%d", (int)std::max(0.0f, d.hp)), g.x - 14, g.y + 10, 16, Pal::Paper);
+    DrawDial(g, 44, frac, "PRESSURE", Color{150, 26, 20, 255}, 0.25f, true, TextFormat("%d", (int)std::max(0.0f, d.hp)));
+    (void)brass;
     float tx = 140;
     for (const auto& t : d.tonics) {
         const TonicDef* td = Weapons().Tonic(t);
@@ -1717,11 +1788,20 @@ static void DrawHud() {
     // the scent vial, left edge
     int z = m.eco.ZoneAt(d.pos);
     float scent = std::clamp(m.eco.Smell(d.pos, z, 6) / 120.0f, 0.0f, 1.0f);
-    Rectangle vial{24, 180, 14, 200};
-    DrawRectangleRec(vial, Fade(BLACK, 0.4f));
-    DrawRectangleRec({vial.x, vial.y + vial.height * (1 - scent), vial.width, vial.height * scent}, Color{170, 20, 24, 230});
-    DrawRectangleLinesEx(vial, 2, Color{214, 168, 72, 200});
-    if (d.stamina < 0.999f) DrawBar({cx - 80, SCREEN_H - 40.0f, 160, 8}, d.stamina, Color{150, 220, 230, 255});
+    // the scent meter, the predator pulse (the nearest hunter's closeness; the needle trembles with it) and the air (your
+    // wind) up the left of the helmet above the pressure gauge
+    float pulse = 0;
+    for (int i = 0; i < (int)m.eco.agents.size(); i++) {
+        const Agent& ga = m.eco.agents[i];
+        if (!ga.alive || ga.diver >= 0 || m.IsBoss(i) || m.map->species[ga.sp].tier < 4) continue;
+        pulse = std::max(pulse, 1 - Vector3Distance(ga.pos, d.pos) / 40);
+    }
+    pulse = std::clamp(pulse, 0.0f, 1.0f);
+    float tremble = pulse > 0.3f ? sinf(S.time * (14 + pulse * 20)) * 0.02f * pulse : 0;
+    DrawDial({52, SCREEN_H - 172.0f}, 26, scent, "SCENT", Color{150, 26, 20, 255}, 0.7f);
+    DrawDial({52, SCREEN_H - 238.0f}, 26, pulse + tremble, "PULSE", Color{40, 34, 28, 255}, 0.75f);
+    DrawDial({52, SCREEN_H - 304.0f}, 26, d.stamina, "AIR", Color{40, 70, 110, 255}, 0.2f, true);
+    DrawPortCracks(d.downed ? 1.0f : (0.3f - frac) / 0.3f);
     // where the last hit came from: a red arc at the screen's edge
     if (d.hurtT > 0) {
         Vector3 to = Vector3Subtract(d.hurtFrom, d.pos);
