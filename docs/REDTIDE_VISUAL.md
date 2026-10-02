@@ -351,7 +351,18 @@ The spec: `Red_Tide_Reference/Red Tide — Visual Overhaul Spec.pdf` (25 pages, 
   - stations are culled past 45 m, doors past 50 m, and a rack shows its gun only within 15 m;
   - the gun kit can join a model's still parts after the bake (`finish(..., merge_static=True)`), and the station,
     ship, map and gun kits now do. A tonic machine was sixty draws a pass; now it's one plus its moving and glass
-    parts.
+    parts. The guns went from 60-100 meshes to 5-13.
+  - **Measured afterwards**, best of three interleaved with `DEPTH_OLDSTATIONS=1` (the old boxes), 1280x720
+    uncapped:
+
+    | View | New | Old boxes |
+    |---|---|---|
+    | Engine room | 17.4 ms | 16.9 ms |
+    | Reef lagoon | 12.9 ms | 12.5 ms |
+    | Reef forest | 13.9 ms | 13.8 ms |
+
+    Every new model together costs under 1 ms. This PC's speed drifts a lot between runs, so always interleave A
+    and B when timing.
 - **The Void's station modules furnished:**
   - the Specimen Labs lined with specimen tanks lit from their plinths (`gLabGlow`; the nearest three light the
     room), with benches down the middle;
