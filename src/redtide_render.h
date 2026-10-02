@@ -109,6 +109,18 @@ void DrawWorldCube(Vector3 c, Vector3 size, Color col);             // blockout 
 const Model* LoadAsset(const std::string& relPath);                 // assets/<relPath>, cached; nullptr if missing
 void DrawPbr(const Model& m, Matrix world, Color tint = WHITE, float wrap = 0);   // wrap: soft wrap-diffuse (skin, cloth)
 
+// Assets with moving parts (the gun kit, tools/artgen/gunkit.py): one mesh per part, in the glb's node order; each
+// part's pivot (its node's position), its group (hammer, trigger, cylinder, lever, bolt, break, load...), axis, travel
+// and the group it rides on; and the markers (grip_r, grip_l, muzzle, eject, sight, mount_*), all in model space.
+struct AssetPart { std::string name, group, kind, parent; Vector3 pivot{0, 0, 0}, axis{0, 0, 1}; float amount = 0; };
+struct AssetMarker { Vector3 p{0, 0, 0}, dir{1, 0, 0}; };
+struct AssetInfo { std::vector<AssetPart> parts; std::vector<std::pair<std::string, AssetMarker>> markers; const AssetMarker* Marker(const char* n) const { for (const auto& m : markers) if (m.first == n) return &m.second; return nullptr; } };
+const AssetInfo* AssetInfoOf(const Model* m);          // nullptr unless the model came from LoadAsset(.glb)
+// Draws a model with each mesh under its own local transform first (partLocal[i], model space; missing = identity)
+void DrawPbrParts(const Model& m, Matrix world, const std::vector<Matrix>& partLocal, Color tint = WHITE, float glow = 0);
+// a light added after RenderBegin (a muzzle flash found only once the gun is placed); dropped if the eight are taken
+void AddLateLight(Vector3 p, float r, Color c, float k);
+
 // Skinned characters (the shared rig, tools/artgen/crew.py). A pose is a model-space rotation (and scale) per bone
 // about its bind joint, applied down the chain: so "swing the right arm forward" is a rotation about the model's
 // lateral axis on upperarm.R, whatever the bone's own axes. SolveRig turns it into the skinning matrices.

@@ -204,14 +204,14 @@ def _bump(nt, bsdf, height_src, strength, distance=0.001):
 
 def _edge_wear(nt):
     """A mask that is 1 on worn edges: the curvature (pointiness) of the geometry, broken up by noise."""
+    # (pointiness is 0.5 on a flat face and rises on convex edges; a little noise breaks the line of the wear)
     geo = nt.nodes.new('ShaderNodeNewGeometry')
     n = _noise(nt, 90, 3)
-    mix = nt.nodes.new('ShaderNodeMath')
-    mix.operation = 'MULTIPLY_ADD'
-    nt.links.new(geo.outputs['Pointiness'], mix.inputs[0])
-    mix.inputs[1].default_value = 1.0
-    nt.links.new(n.outputs['Fac'], mix.inputs[2])
-    r = _ramp(nt, mix.outputs['Value'], [(0.95, (0, 0, 0, 1)), (1.08, (1, 1, 1, 1))])
+    jitter = nt.nodes.new('ShaderNodeMath'); jitter.operation = 'MULTIPLY_ADD'
+    nt.links.new(n.outputs['Fac'], jitter.inputs[0]); jitter.inputs[1].default_value = 0.06; jitter.inputs[2].default_value = -0.03
+    mix = nt.nodes.new('ShaderNodeMath'); mix.operation = 'ADD'
+    nt.links.new(geo.outputs['Pointiness'], mix.inputs[0]); nt.links.new(jitter.outputs['Value'], mix.inputs[1])
+    r = _ramp(nt, mix.outputs['Value'], [(0.56, (0, 0, 0, 1)), (0.63, (1, 1, 1, 1))])
     return r.outputs['Color']
 
 
@@ -221,14 +221,13 @@ def mat_blued_steel(name="blued steel"):
     nt, b = _nodes(m)
     wear = _edge_wear(nt)
     mixc = nt.nodes.new('ShaderNodeMixRGB')
-    mixc.inputs['Color1'].default_value = (0.035, 0.045, 0.065, 1)
-    mixc.inputs['Color2'].default_value = (0.62, 0.63, 0.64, 1)
+    mixc.inputs['Color1'].default_value = (0.022, 0.028, 0.045, 1)
+    mixc.inputs['Color2'].default_value = (0.5, 0.51, 0.53, 1)
     nt.links.new(wear, mixc.inputs['Fac'])
     nt.links.new(mixc.outputs['Color'], b.inputs['Base Color'])
     b.inputs['Metallic'].default_value = 1.0
     rr = _ramp(nt, _noise(nt, 40, 2).outputs['Fac'], [(0.3, (0.26, 0.26, 0.26, 1)), (0.7, (0.38, 0.38, 0.38, 1))])
     nt.links.new(rr.outputs['Color'], b.inputs['Roughness'])
-    _bump(nt, b, _noise(nt, 600, 2).outputs['Fac'], 0.04)
     return m
 
 
@@ -236,9 +235,9 @@ def mat_case_hardened(name="case-hardened steel"):
     """Mottled blue, straw and purple (metallic 1, roughness 0.3)."""
     m = bpy.data.materials.new(name)
     nt, b = _nodes(m)
-    n = _noise(nt, 18, 6, 0.6)
-    r = _ramp(nt, n.outputs['Fac'], [(0.3, (0.10, 0.12, 0.22, 1)), (0.45, (0.30, 0.18, 0.30, 1)),
-                                     (0.55, (0.55, 0.45, 0.22, 1)), (0.7, (0.42, 0.44, 0.48, 1))])
+    n = _noise(nt, 7, 3, 0.45)   # (broad swirls, not speckle: linear colours, deep on screen)
+    r = _ramp(nt, n.outputs['Fac'], [(0.3, (0.03, 0.035, 0.07, 1)), (0.45, (0.09, 0.05, 0.09, 1)),
+                                     (0.56, (0.2, 0.15, 0.06, 1)), (0.7, (0.12, 0.13, 0.15, 1))])
     wear = _edge_wear(nt)
     mixc = nt.nodes.new('ShaderNodeMixRGB')
     nt.links.new(r.outputs['Color'], mixc.inputs['Color1'])
@@ -277,7 +276,7 @@ def mat_walnut(name="oiled walnut", axis='X'):
     wave.inputs['Distortion'].default_value = 6
     wave.inputs['Detail'].default_value = 3
     nt.links.new(mp.outputs['Vector'], wave.inputs['Vector'])
-    r = _ramp(nt, wave.outputs['Fac'], [(0.0, (0.10, 0.045, 0.02, 1)), (0.5, (0.24, 0.11, 0.05, 1)), (1.0, (0.36, 0.18, 0.08, 1))])
+    r = _ramp(nt, wave.outputs['Fac'], [(0.0, (0.035, 0.014, 0.007, 1)), (0.5, (0.085, 0.036, 0.016, 1)), (1.0, (0.15, 0.07, 0.03, 1))])   # (linear: a deep red-brown on screen)
     nt.links.new(r.outputs['Color'], b.inputs['Base Color'])
     rr = _ramp(nt, dist.outputs['Fac'], [(0.3, (0.36, 0.36, 0.36, 1)), (0.7, (0.5, 0.5, 0.5, 1))])
     nt.links.new(rr.outputs['Color'], b.inputs['Roughness'])

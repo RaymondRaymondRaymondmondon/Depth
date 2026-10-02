@@ -1628,8 +1628,8 @@ void DebugTrawlShot(Game& g, int which) {
         S.eye.pitch = which == 15 ? -0.3f : which == 9 || which == 0 ? -0.08f : -0.22f;
         S.eye.yaw = which == 4 || which == 5 ? 1.25f : which == 15 || which == 21 || which == 22 ? 3.1f : which == 9 ? -1.9f : which == 16 ? 1.3f : which == 17 ? 1.9f : which == 1 ? -2.4f : which == 6 || which == 8 ? 2.6f : 0.0f;
     }
-    if (which >= 45 && which <= 50) { S.studio = which - 45; return; }   // the visual overhaul's turnaround stage
-    if (which == 40 || which == 41 || which == 43) {
+    if (which >= 45 && which <= 51) { S.studio = which - 45; return; }   // the visual overhaul's turnaround stage
+    if (which == 40 || which == 41 || which == 43 || which == 44) {
         // the visual overhaul's harness (spec, "Process and acceptance"): 40 the helm at night in the Lagoon's fog;
         // 41 a hand at the gutting table in rain; 43 aiming the lever carbine at a fish on the surface in rain
         Gannet& G = S.W->G;
@@ -1650,14 +1650,15 @@ void DebugTrawlShot(Game& g, int which) {
             Vector2 d = Vector2Subtract(G.crew[1].p, c.p); S.eye.yaw = atan2f(d.y, d.x); S.eye.pitch = -0.18f;
             CatchRec f; f.name = "snapper"; f.kg = 3; f.price = 3; f.dead = true; f.deckAt = Vector2Add(G.crew[1].p, {0.3f, 0.6f}); G.hold.push_back(f);
         }
-        if (which == 43) {
+        if (which == 43 || which == 44) {
             c.p = {-1.0f, 1.9f}; c.station = -1;
             c.slots[0] = {}; c.slots[0].it = Item::Rifle; c.slots[0].ammo = 8; c.sel = 0;
+            if (which == 44) { c.slots[0].it = Item::Weapon; c.slots[0].wpn = WeaponIndex(getenv("DEPTH_GUN") ? getenv("DEPTH_GUN") : "revolver"); c.slots[0].ammo = 6; if (getenv("DEPTH_FIRE")) c.cool = 0.95f * WeaponCooldown(Weapons()[c.slots[0].wpn], c.slots[0].att); if (getenv("DEPTH_RELOAD")) c.reloadT = 0.9f; }
             Floater fl; fl.name = "yellowfin tuna"; fl.kg = 18; fl.p = G.boat.ToWorld({2.0f, 11.0f}); G.floaters.push_back(fl);
             S.eye.yaw = atan2f(11.0f - 1.9f, 2.0f - -1.0f); S.eye.pitch = -0.2f;
         }
         for (int i = 0; i < 60 * 3; i++) { G.Step(1 / 60.0f); }
-        if (which == 41 || which == 43) G.sea.weather = Weather::Rain;
+        if (which == 41 || which == 43 || which == 44) G.sea.weather = Weather::Rain;
         return;
     }
     if (which == 36) {

@@ -16,19 +16,28 @@ if (-not $blender) {
 if (-not $blender) { throw "Blender not found: install it or set DEPTH_BLENDER to blender.exe" }
 
 # generator -> output folder (relative to the repo root)
+$weapons = @("revolver,derringer,pepperbox,flarepistol,speargun,twinspear,harpistol,airpistol,captainpistol,shotgun",
+             "carbine,chatter,rifle,nitro,longbow,puntgun,riveter,blunderbuss,airrifle,prod",
+             "rocketharpoon,priest,knife,gaff,knuckles,pin,boathook,spike,cleaver,cutlass",
+             "coralclub,sharkblade,flenser,lance,maul,obsidian,crackerjack,lampoil,dynamite,depthcharge")
 $jobs = @(
     @{ script = "test_carbine.py"; out = "assets\shared\test" },
-    @{ script = "test_head.py";    out = "assets\shared\test" }
+    @{ script = "test_head.py";    out = "assets\shared\test" },
+    @{ script = "crew.py";         out = "assets\shared\crew" },
+    @{ script = "attachments.py";  out = "assets\shared\attachments" }
 )
+foreach ($w in $weapons) { $jobs += @{ script = "weapons.py"; out = "assets\shared\weapons"; extra = "--only $w"; tag = $w.Split(",")[0] } }
 $procs = @()
 foreach ($j in $jobs) {
-    if ($Only -and $j.script -notlike "*$Only*") { continue }
+    if ($Only -and $j.script -notlike "*$Only*" -and -not ($j.extra -and $j.extra -like "*$Only*")) { continue }
     $out = Join-Path $root $j.out
     New-Item -ItemType Directory -Force $out | Out-Null
-    $log = Join-Path $env:TEMP ("artgen_" + [IO.Path]::GetFileNameWithoutExtension($j.script) + ".log")
-    Write-Host "artgen: $($j.script) -> $($j.out)"
+    $log = Join-Path $env:TEMP ("artgen_" + [IO.Path]::GetFileNameWithoutExtension($j.script) + $(if ($j.tag) { "_" + $j.tag } else { "" }) + ".log")
+    $extra = if ($j.extra) { $j.extra } else { "" }
+    if ($Only -and $j.extra -and $j.extra -like "*$Only*") { $extra = "--only $Only" }
+    Write-Host "artgen: $($j.script) $extra -> $($j.out)"
     $procs += @{ p = (Start-Process -PassThru -NoNewWindow -FilePath $blender -WorkingDirectory $root `
-        -ArgumentList "-b --factory-startup -P `"$(Join-Path $PSScriptRoot $j.script)`" -- --out `"$out`"" `
+        -ArgumentList "-b --factory-startup -P `"$(Join-Path $PSScriptRoot $j.script)`" -- --out `"$out`" $extra" `
         -RedirectStandardOutput $log -RedirectStandardError "$log.err"); log = $log; name = $j.script }
 }
 $failed = 0

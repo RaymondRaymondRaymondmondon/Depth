@@ -919,7 +919,10 @@ struct DrawCmd {
     int pbr = 0; float wrap = 0;   // the physically based path (every mesh of the model, its own materials)
     int boneOff = -1, boneN = 0;   // a skinned pose: its matrices in gBonePool
     int recOff = 0, recN = 0;      // recoloured materials in gRecPool
+    int partOff = -1, partN = 0;   // per-mesh local transforms in gPartPool (an asset's moving parts)
 };
+static std::vector<Matrix> gPartPool;
+static std::map<const Model*, AssetInfo> gAssetInfo;
 static std::vector<Matrix> gBonePool;
 static std::vector<Recolor> gRecPool;
 static std::map<const Model*, std::vector<std::string>> gMatNames;   // glTF material names, index = raylib material - 1
@@ -937,7 +940,7 @@ void RenderBegin(const Camera3D& cam, const SceneLight& light) {
     gCam = cam;
     gLight = light;
     gQueue.clear();
-    gBonePool.clear(); gRecPool.clear();
+    gBonePool.clear(); gRecPool.clear(); gPartPool.clear();
 }
 
 void DrawCreature(const CreatureModel& cm, Vector3 pos, float yaw, float pitch, float scale, float phase, float intensity, Color tint) {
@@ -980,6 +983,16 @@ void DrawPbrSkinned(const Model& m, Matrix world, const std::vector<Matrix>& ski
     }
     gQueue.push_back(d);
 }
+
+const AssetInfo* AssetInfoOf(const Model* m) { auto it = gAssetInfo.find(m); return it == gAssetInfo.end() ? nullptr : &it->second; }
+void DrawPbrParts(const Model& m, Matrix world, const std::vector<Matrix>& partLocal, Color tint, float glow) {
+    DrawCmd d{&m, world, (int)AnimMode::Static, 0, 0, 0, 1, 0, glow, tint};
+    d.pbr = 1;
+    d.partOff = (int)gPartPool.size(); d.partN = (int)partLocal.size();
+    gPartPool.insert(gPartPool.end(), partLocal.begin(), partLocal.end());
+    gQueue.push_back(d);
+}
+void AddLateLight(Vector3 p, float r, Color c, float k) { gLight.AddPoint(p, r, c, k); }
 
 // ---------------------------------------------------------------- the rig
 const RigInfo& RigOf(const Model& m) {
@@ -1044,8 +1057,29 @@ const Model* LoadAsset(const std::string& relPath) {
             uint32_t jlen; memcpy(&jlen, data + 12, 4);
             if (20 + (int)jlen <= sz) {
                 Json j; std::string err;
-                if (ParseJson(std::string((const char*)data + 20, jlen), j, &err))
+                if (ParseJson(std::string((const char*)data + 20, jlen), j, &err)) {
                     for (const Json& mt : j["materials"].a) gMatNames[m.get()].push_back(mt["name"].Str0());
+                    // the parts and markers (raylib makes one mesh per primitive, walking the nodes in order)
+                    AssetInfo info;
+                    auto v3 = [](const Json& a, Vector3 def) { return a.IsArr() && a.a.size() >= 3 ? Vector3{a[0].F(0), a[1].F(0), a[2].F(0)} : def; };
+                    auto blenderToGl = [](Vector3 b) { return Vector3{b.x, b.z, -b.y}; };   // (extras keep Blender's axes)
+                    for (const Json& n : j["nodes"].a) {
+                        Vector3 t = v3(n["translation"], {0, 0, 0});
+                        const Json& ex = n["extras"];
+                        if (n["mesh"].IsNull()) {
+                            if (ex["marker"].I(0)) info.markers.push_back({n["name"].Str0(), {t, blenderToGl(v3(ex["dir"], {1, 0, 0}))}});
+                            continue;
+                        }
+                        int prims = (int)j["meshes"][n["mesh"].I(0)]["primitives"].a.size();
+                        AssetPart p;
+                        p.name = n["name"].Str0(); p.group = ex["group"].Str0(); p.kind = ex["kind"].Str0(); p.parent = ex["parent"].Str0();
+                        if (p.group.empty()) p.group = "static";
+                        p.pivot = t; p.axis = blenderToGl(v3(ex["axis"], {0, 1, 0})); p.amount = ex["amount"].F(0);
+                        for (int k = 0; k < std::max(1, prims); k++) info.parts.push_back(p);
+                    }
+                    if ((int)info.parts.size() == m->meshCount) gAssetInfo[m.get()] = info;
+                    else TraceLog(LOG_WARNING, "rt: %s: %d parts in the JSON for %d meshes (no moving parts)", path.c_str(), (int)info.parts.size(), m->meshCount);
+                }
             }
         }
         if (data) UnloadFileData(data);
@@ -1090,7 +1124,8 @@ static void DrawPbrCmd(const DrawCmd& d, Shader sh, bool lit) {
             Color e = mat.maps[MATERIAL_MAP_EMISSION].color;
             SetV3(gPbr, L_pbr[PU_EMITCOL], {e.r / 255.0f, e.g / 255.0f, e.b / 255.0f});
         }
-        DrawMesh(m.meshes[i], mat, world);
+        Matrix w = d.partOff >= 0 && i < d.partN ? MatrixMultiply(gPartPool[d.partOff + i], world) : world;
+        DrawMesh(m.meshes[i], mat, w);
         (void)keep;
     }
 }

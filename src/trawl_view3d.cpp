@@ -4,6 +4,8 @@
 #include "trawl_view3d.h"
 #include "game.h"
 #include "input.h"
+#include "trawl_weapons.h"
+#include <functional>
 #include "raymath.h"
 #include "redtide_render.h"
 #include <algorithm>
@@ -980,6 +982,181 @@ static std::vector<Matrix> PoseSailor(const Model& m, const SailorLook& L, const
     for (int s = 0; s < 2; s++) if (P.ik[s]) ArmIK(rig, pose, s, P.target[s]);
     return rt::SolveRig(rig, pose);
 }
+// ---------------------------------------------------------------- weapons (Visual Overhaul phase 5)
+// Each catalogue weapon is a baked model with moving parts (tools/artgen/weapons*.py): assets/shared/weapons/<id>.glb.
+// The old starter items wear their catalogue counterparts.
+static std::string WeaponModelId(const Slot& s) {
+    if (s.it == Item::Weapon && s.wpn >= 0 && s.wpn < (int)Weapons().size()) return Weapons()[s.wpn].id;
+    switch (s.it) {
+        case Item::Rifle: return "carbine"; case Item::Shotgun: return "shotgun"; case Item::Speargun: return "speargun";
+        case Item::Flare: return "flarepistol"; case Item::Gaff: return "gaff"; case Item::Priest: return "priest";
+        case Item::Knife: return "knife"; case Item::Charge: return "depthcharge"; default: return "";
+    }
+}
+static const Model* WeaponModel(const Slot& s) {
+    std::string id = WeaponModelId(s);
+    if (id.empty()) return nullptr;
+    return rt::LoadAsset("shared/weapons/" + id + ".glb");
+}
+// what the gun is doing: a shot's first instant (the hammer falls, the trigger is in), the action cycling after it,
+// a reload's progress (0..1, or -1), the rounds fired from the cylinder or drum, and whether it is loaded
+struct GunAnim { float fire = 0, cycle = 0, reload = -1; int steps = 0; bool loaded = true; };
+static GunAnim GunAnimOf(const Crew& c) {
+    GunAnim a;
+    const Slot& s = c.slots[c.sel];
+    float coolMax = 1.0f; int mag = 1;
+    if (s.it == Item::Weapon && s.wpn >= 0 && s.wpn < (int)Weapons().size()) { const WeaponDef& w = Weapons()[s.wpn]; coolMax = std::max(0.15f, WeaponCooldown(w, s.att)); mag = std::max(1, WeaponMagazine(w, s.att)); }
+    else { coolMax = s.it == Item::Rifle ? 1.2f : s.it == Item::Shotgun ? 0.8f : s.it == Item::Speargun ? 2.0f : 1.0f; mag = s.it == Item::Rifle ? 8 : s.it == Item::Shotgun ? 2 : 1; }
+    if (c.cool > 0) { float since = coolMax - c.cool; a.fire = std::clamp(1 - since * 8, 0.0f, 1.0f); a.cycle = std::clamp(since / coolMax, 0.0f, 1.0f); }
+    float reloadLen = s.it == Item::Speargun ? 1.2f : 1.8f;
+    if (c.reloadT > 0) a.reload = std::clamp(1 - c.reloadT / reloadLen, 0.0f, 1.0f);
+    a.steps = std::max(0, mag - s.ammo);
+    a.loaded = s.ammo > 0 || mag <= 0;
+    return a;
+}
+static float GroupValue(const std::string& g, const GunAnim& a) {
+    auto open = [&](float r0, float r1, float r2, float r3) { return a.reload < 0 ? 0.0f : (r0 >= r1 ? 1.0f : std::clamp((a.reload - r0) / (r1 - r0), 0.0f, 1.0f)) * (1 - std::clamp((a.reload - r2) / (r3 - r2), 0.0f, 1.0f)); };
+    if (g == "hammer" || g == "hammer2") return 1 - a.fire;
+    if (g == "trigger") return a.fire;
+    if (g == "frizzen") return a.fire > 0 || (a.cycle > 0 && a.cycle < 0.6f) ? 1.0f : 0.0f;   // (the flintlock's: thrown open by the cock)
+    if (g == "cylinder" || g == "drum" || g == "barrels") return (float)a.steps;
+    if (g == "lever" || g == "bolt") return a.cycle > 0 && a.cycle < 1 ? sinf(a.cycle * PI) : open(0.1f, 0.25f, 0.75f, 0.9f);
+    if (g == "break") return open(0.0f, 0.15f, 0.85f, 1.0f);
+    if (g == "latch") return open(0.0f, 0.08f, 0.15f, 0.25f);
+    if (g == "ejector") return open(0.15f, 0.25f, 0.35f, 0.45f);
+    if (g == "pump") return a.reload < 0 ? 0.0f : 0.5f + 0.5f * sinf(a.reload * PI * 8);
+    if (g == "load") return a.loaded && !(a.reload > 0.25f && a.reload < 0.75f) ? 1.0f : 0.0f;
+    if (g == "string" || g == "string2") return a.loaded ? 1.0f : 0.0f;   // (the bow's string, drawn back while an arrow is on)
+    return 0;
+}
+// the moving parts' local transforms: each part about its pivot by its group's value, then whatever it rides on
+static std::vector<Matrix> PoseWeapon(const rt::AssetInfo& A, const GunAnim& a) {
+    int n = (int)A.parts.size();
+    std::vector<Matrix> M(n, MatrixIdentity());
+    std::vector<char> done(n, 0);
+    std::function<Matrix(int)> part = [&](int i) -> Matrix {
+        if (done[i]) return M[i];
+        const rt::AssetPart& p = A.parts[i];
+        Matrix local = MatrixIdentity();
+        if (p.group != "static") {
+            float v = GroupValue(p.group, a);
+            if (p.kind == "slide") local = MatrixTranslate(p.axis.x * p.amount * v, p.axis.y * p.amount * v, p.axis.z * p.amount * v);
+            else if (p.kind == "show") local = v < 0.5f ? MatrixMultiply(MatrixMultiply(MatrixTranslate(-p.pivot.x, -p.pivot.y, -p.pivot.z), MatrixScale(0, 0, 0)), MatrixTranslate(p.pivot.x, p.pivot.y, p.pivot.z)) : MatrixIdentity();
+            else local = MatrixMultiply(MatrixMultiply(MatrixTranslate(-p.pivot.x, -p.pivot.y, -p.pivot.z), MatrixRotate(p.axis, p.amount * v)), MatrixTranslate(p.pivot.x, p.pivot.y, p.pivot.z));
+        }
+        if (!p.parent.empty())
+            for (int k = 0; k < n; k++) if (k != i && A.parts[k].group == p.parent) { local = MatrixMultiply(local, part(k)); break; }
+        M[i] = local; done[i] = 1;
+        return M[i];
+    };
+    for (int i = 0; i < n; i++) part(i);
+    return M;
+}
+// Draws the slot's weapon with its grip in the fist at `grip` (world; +X along the barrel), its parts posed; returns
+// false (draw the old model) if it has no baked model yet. leftHand/muzzle: where the left hand goes and the muzzle.
+static bool DrawWeapon(const Slot& s, const GunAnim& a, Matrix grip, Color tint, float glow, Vector3* leftHand = nullptr, Vector3* muzzle = nullptr, Vector3* ejectAt = nullptr) {
+    const Model* m = WeaponModel(s);
+    const rt::AssetInfo* A = m ? rt::AssetInfoOf(m) : nullptr;
+    if (!m || !A) return false;
+    Vector3 g = A->Marker("grip_r") ? A->Marker("grip_r")->p : Vector3{0, 0, 0};
+    Matrix M = MatrixMultiply(MatrixTranslate(-g.x, -g.y, -g.z), grip);
+    // the Gunsmith's damage upgrades show as the finish: cleaned and oiled, fresh bluing, then a warm gold cast
+    // (an approximation of the spec's engraved, gold-inlaid tier three)
+    static const Color FINISH[4] = {{255, 255, 255, 255}, {255, 255, 255, 255}, {222, 232, 255, 255}, {255, 228, 170, 255}};
+    Color ft = FINISH[std::clamp(s.lvl, 0, 3)];
+    Color tt{(unsigned char)(tint.r * ft.r / 255), (unsigned char)(tint.g * ft.g / 255), (unsigned char)(tint.b * ft.b / 255), tint.a};
+    rt::DrawPbrParts(*m, M, PoseWeapon(*A, a), tt, glow);
+    // the attachments, each on its mount (the speed loader only while a revolver reloads)
+    auto mount = [&](const char* id) -> const char* {
+        std::string s2 = id;
+        if (s2 == "compensator" || s2 == "choke" || s2 == "baffle" || s2 == "bayonet") return "mount_muzzle";
+        if (s2 == "sight" || s2 == "nightglass" || s2 == "eyeglass" || s2 == "lodestone") return "mount_top";
+        if (s2 == "extmag" || s2 == "drum") return "mount_under";
+        if (s2 == "steamfeed") return "mount_top";
+        if (s2 == "oilskin") return "eject";
+        return nullptr;
+    };
+    for (int k = 0; k < 3; k++) {
+        if (s.att[k] < 0 || s.att[k] >= (int)Attachments().size()) continue;
+        const std::string& aid = Attachments()[s.att[k]].id;
+        const char* mk = mount(aid.c_str());
+        const rt::AssetMarker* mm = mk ? A->Marker(mk) : nullptr;
+        const Model* am = mm ? rt::LoadAsset("shared/attachments/att_" + aid + ".glb") : nullptr;
+        if (am) rt::DrawPbrParts(*am, MatrixMultiply(MatrixTranslate(mm->p.x, mm->p.y, mm->p.z), M), {}, tt, glow);
+    }
+    if (a.reload > 0.35f && a.reload < 0.7f && HasAttachment(s.att, "speedloader")) {
+        const rt::AssetMarker* ej = A->Marker("eject");
+        if (const Model* sl = ej ? rt::LoadAsset("shared/attachments/att_speedloader.glb") : nullptr)
+            rt::DrawPbrParts(*sl, MatrixMultiply(MatrixTranslate(ej->p.x - 0.05f + 0.04f * (a.reload - 0.35f) / 0.35f, ej->p.y, ej->p.z), M), {}, tt, glow);
+    }
+    if (leftHand) { const rt::AssetMarker* L = A->Marker("grip_l"); *leftHand = Vector3Transform(L ? L->p : g, M); }
+    if (muzzle) { const rt::AssetMarker* Mu = A->Marker("muzzle"); *muzzle = Vector3Transform(Mu ? Mu->p : Vector3{0.5f, 0, 0}, M); }
+    if (ejectAt) { const rt::AssetMarker* E = A->Marker("eject"); *ejectAt = Vector3Transform(E ? E->p : g, M); }
+    return true;
+}
+
+// spent cases and powder smoke (world space; your own gun's): cases tumble from the ejection port and bounce on the
+// deck, smoke drifts and spreads from the muzzle (thick and white from black powder, a wisp from smokeless)
+struct Casing { Vector3 p, v; float rot, spin, life; };
+struct Puff { Vector3 p, v; float r, life, maxLife, dense; };
+static std::vector<Casing> gCases;
+static std::vector<Puff> gSmoke;
+// a gun that burns powder (a flash, smoke, a case): not the spring, air, bow, riveter or the prod
+static bool PowderGun(const Slot& s) {
+    std::string ammo = s.it == Item::Weapon && s.wpn >= 0 && s.wpn < (int)Weapons().size() ? Weapons()[s.wpn].ammo : s.it == Item::Rifle ? "rounds" : s.it == Item::Shotgun ? "shells" : s.it == Item::Flare ? "flares" : "";
+    return ammo == "rounds" || ammo == "shells" || ammo == "flares" || ammo == "junk" || ammo == "rockets";
+}
+static bool BlackPowder(const std::string& id) { return id == "blunderbuss" || id == "puntgun" || id == "captainpistol" || id == "pepperbox" || id == "derringer" || id == "shotgun"; }
+static void GunEvents(const Crew& me, const GunAnim& a, Vector3 muzzle, Vector3 eject, Vector3 fwd, Vector3 rgt, float deckY, float dt) {
+    static float prevCool = 0, prevReload = 0;
+    const Slot& s = me.slots[me.sel];
+    std::string id = WeaponModelId(s);
+    const Model* m = WeaponModel(s);
+    const rt::AssetInfo* A = m ? rt::AssetInfoOf(m) : nullptr;
+    bool repeater = false, opens = false, gun = false;
+    if (A) for (const auto& p : A->parts) { if (p.group == "lever" || p.group == "bolt" || p.group == "drum") repeater = true; if (p.group == "break" || p.group == "cylinder") opens = true; }
+    std::string ammo = s.it == Item::Weapon && s.wpn >= 0 && s.wpn < (int)Weapons().size() ? Weapons()[s.wpn].ammo : s.it == Item::Rifle ? "rounds" : s.it == Item::Shotgun ? "shells" : "";
+    gun = PowderGun(s);
+    static uint32_t r = 77; auto R = [&]() { r = r * 1664525u + 1013904223u; return (r >> 8) / 16777216.0f; };
+    bool shot = me.cool > prevCool + 0.05f && gun;
+    if (shot) {
+        bool bp = BlackPowder(id);
+        for (int k = 0; k < (bp ? 14 : 3); k++)
+            gSmoke.push_back({muzzle, Vector3Add(Vector3Scale(fwd, (bp ? 2.2f : 1.2f) * (0.3f + R())), {(R() - 0.5f) * 0.4f, 0.15f + 0.2f * R(), (R() - 0.5f) * 0.4f}),
+                              bp ? 0.08f : 0.03f, 0, bp ? 3.5f + R() * 2 : 1.2f, bp ? 0.55f : 0.18f});
+        if (repeater && (ammo == "rounds" || ammo == "shells"))
+            gCases.push_back({eject, Vector3Add(Vector3Scale(rgt, 1.6f + R()), {0, 1.4f + R(), 0}), R() * 6, 8 + R() * 10, 4});
+    }
+    bool reloadStart = me.reloadT > prevReload + 0.05f;
+    if (reloadStart && opens && (ammo == "rounds" || ammo == "shells"))
+        for (int k = 0; k < std::min(6, a.steps); k++)
+            gCases.push_back({Vector3Add(eject, {(R() - 0.5f) * 0.02f, 0, (R() - 0.5f) * 0.02f}), {(R() - 0.5f) * 0.4f, -0.3f, (R() - 0.5f) * 0.4f}, R() * 6, 4 + R() * 6, 4});
+    prevCool = me.cool; prevReload = me.reloadT;
+    // step them
+    for (auto& c : gCases) {
+        c.v.y -= 9.8f * dt; c.p = Vector3Add(c.p, Vector3Scale(c.v, dt)); c.rot += c.spin * dt; c.life -= dt;
+        if (c.p.y < deckY && c.v.y < 0) { c.p.y = deckY; c.v = {c.v.x * 0.45f, -c.v.y * 0.35f, c.v.z * 0.45f}; c.spin *= 0.6f; }
+    }
+    gCases.erase(std::remove_if(gCases.begin(), gCases.end(), [](const Casing& c) { return c.life <= 0; }), gCases.end());
+    for (auto& p : gSmoke) { p.p = Vector3Add(p.p, Vector3Scale(p.v, dt)); p.v = Vector3Scale(p.v, expf(-1.6f * dt)); p.v.y += 0.06f * dt; p.r += 0.25f * dt; p.life += dt; }
+    gSmoke.erase(std::remove_if(gSmoke.begin(), gSmoke.end(), [](const Puff& p) { return p.life >= p.maxLife; }), gSmoke.end());
+    if (gCases.size() > 40) gCases.erase(gCases.begin(), gCases.begin() + (gCases.size() - 40));
+    for (const auto& c : gCases)
+        rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(0.022f, 0.009f, 0.009f), MatrixRotateXYZ({c.rot, c.rot * 0.7f, c.rot * 0.3f})), MatrixTranslate(c.p.x, c.p.y, c.p.z)), Color{196, 150, 70, 255});
+}
+// the smoke, drawn over the frame (soft grey discs that grow and thin)
+static void DrawGunSmoke(const Camera3D& cam) {
+    for (const auto& p : gSmoke) {
+        Vector3 d = Vector3Subtract(p.p, cam.position);
+        if (Vector3DotProduct(d, Vector3Subtract(cam.target, cam.position)) <= 0.05f) continue;
+        Vector2 s = GetWorldToScreenEx(p.p, cam, SCREEN_W, SCREEN_H);
+        float dist = std::max(0.2f, Vector3Length(d));
+        float rad = SCREEN_H * p.r / dist;
+        float a = p.dense * (1 - p.life / p.maxLife) * std::min(1.0f, p.life * 6);
+        DrawCircleGradient((int)s.x, (int)s.y, rad, Fade(Color{150, 154, 160, 255}, a * 0.7f), Fade(Color{150, 154, 160, 255}, 0));
+    }
+}
+
 static Vector3 SailorGrip(const Model& m, const std::vector<Matrix>& skin, Matrix frame);
 // a held tool: the baked model where one has been made (the rifle is the Visual Overhaul's lever carbine), else the old one
 static void DrawHeldItem(Item it, Matrix m, Color tint, float glow = 0) {
@@ -987,7 +1164,7 @@ static void DrawHeldItem(Item it, Matrix m, Color tint, float glow = 0) {
     if (glow > 0) rt::DrawStaticGlow(gItem[(int)it], m, tint, glow); else rt::DrawStatic(gItem[(int)it], m, tint);
 }
 // draws one sailor at frame (feet on the deck, x forward), and anything held in the right hand
-static void DrawSailor(const SailorLook& L, const SailorPose& P, Matrix frame, float t, Item held, Color tint) {
+static void DrawSailor(const SailorLook& L, const SailorPose& P, Matrix frame, float t, Item held, Color tint, const Crew* who = nullptr) {
     const Model* m = SailorModel(L.role);
     if (!m) return;
     std::vector<Matrix> skin = PoseSailor(*m, L, P, t);
@@ -1008,7 +1185,7 @@ static void DrawSailor(const SailorLook& L, const SailorPose& P, Matrix frame, f
         Matrix rotOnly = frame; rotOnly.m12 = rotOnly.m13 = rotOnly.m14 = 0;
         Matrix hold = MatrixMultiply(MatrixMultiply(MatrixTranslate(-0.08f, 0, 0), MatrixRotateZ(-0.35f)), rotOnly);
         hold.m12 += at.x; hold.m13 += at.y; hold.m14 += at.z;
-        DrawHeldItem(held, hold, tint);
+        if (!who || !DrawWeapon(who->slots[who->sel], GunAnimOf(*who), hold, tint, 0)) DrawHeldItem(held, hold, tint);
     }
 }
 // where the right fist closes (the middle finger's root, a little in toward the palm), in the world
@@ -1125,7 +1302,7 @@ static void DrawHandSailor(const Gannet& g, const Crew& c, float t) {
         for (int s = 0; s < 2; s++) { P.ik[s] = true; P.target[s] = Vector3Transform(grips[s], inv); }
         P.grip = 0.9f;
     }
-    DrawSailor(L, P, frame, t, held, tint);
+    DrawSailor(L, P, frame, t, held, tint, &c);
 }
 
 static void DrawHand(const Gannet& g, const Crew& c, float t) {
@@ -1240,16 +1417,49 @@ void DrawTrawlStudio(int which, float t) {
         L.AddPoint({0.9f, 0.6f, 0.8f}, 4, {255, 200, 140, 255}, 0.5f);
         rt::RenderBegin(cam, L);
         if (which == 2) {
-            const Model* gun = rt::LoadAsset("shared/test/carbine_test.glb");
-            if (gun) {
-                rt::DrawPbr(*gun, MatrixTranslate(-0.05f, 0.2f, 0));                                                // side
-                rt::DrawPbr(*gun, MatrixMultiply(MatrixRotateY(0.6f), MatrixTranslate(-0.05f, -0.05f, 0.05f)));   // three-quarter
+            // every baked weapon of the catalogue on a rack, side on, each scaled to its cell: the firearms (or, with
+            // DEPTH_RACK=melee, the melee and thrown weapons)
+            bool melee = getenv("DEPTH_RACK") && std::string(getenv("DEPTH_RACK")) == "melee";
+            std::vector<const Model*> ms;
+            for (const auto& w : Weapons()) {
+                if (w.id == "fists" || ((w.cls == WC_MELEE || w.cls == WC_THROWN) != melee)) continue;
+                if (const Model* m = rt::LoadAsset("shared/weapons/" + w.id + ".glb")) ms.push_back(m);
             }
-            Matrix old = MatrixMultiply(MatrixScale(1.3f, 1.3f, 1.3f), MatrixTranslate(-0.3f, -0.28f, 0));
-            if (gItem[(int)Item::Rifle].meshCount > 0) rt::DrawStatic(gItem[(int)Item::Rifle], old, WHITE);  // the old one
+            const int COLS = 4; const float CW = 0.56f, RH = 0.24f;
+            int rows = std::max(1, ((int)ms.size() + COLS - 1) / COLS);
+            cam.position = {0, 0, 0.6f + rows * RH * 1.45f}; cam.target = {0, 0, 0}; cam.fovy = 40;
+            lantern({-0.8f, 1.5f, cam.position.z}, {0, 0, 0});
+            rt::RenderBegin(cam, L);
+            for (int k = 0; k < (int)ms.size(); k++) {
+                float ext = 0.01f; BoundingBox all{{1e9f, 1e9f, 1e9f}, {-1e9f, -1e9f, -1e9f}};
+                for (int i = 0; i < ms[k]->meshCount; i++) { BoundingBox bb = GetMeshBoundingBox(ms[k]->meshes[i]); all.min = Vector3Min(all.min, bb.min); all.max = Vector3Max(all.max, bb.max); }
+                ext = std::max(all.max.x - all.min.x, all.max.y - all.min.y);
+                float sc = std::min(1.0f, CW * 0.86f / ext);
+                Vector3 ctr = Vector3Scale(Vector3Add(all.min, all.max), 0.5f);
+                float x = (k % COLS - (COLS - 1) / 2.0f) * CW, y = ((rows - 1) / 2.0f - k / COLS) * RH;
+                rt::DrawPbrParts(*ms[k], MatrixMultiply(MatrixMultiply(MatrixTranslate(-ctr.x, -ctr.y, -ctr.z), MatrixScale(sc, sc, sc)), MatrixTranslate(x, y, 0)), {}, WHITE);
+            }
+            rt::RenderEnd();
+            return;
         } else {
             const Model* head = rt::LoadAsset("shared/test/head_test.glb");
             for (int k = 0; k < 3 && head; k++) rt::DrawPbr(*head, MatrixMultiply(MatrixRotateY(-0.9f + k * 0.9f), MatrixTranslate((k - 1) * 0.26f, 0, 0)), WHITE, 0.45f);
+        }
+    } else if (which == 6) {
+        // one weapon in three states: at rest, the instant of a shot, half way through a reload (the action open)
+        static const char* ID = getenv("DEPTH_GUN") ? getenv("DEPTH_GUN") : "revolver";
+        cam.position = {0, 0.05f, 0.95f}; cam.target = {0, 0.0f, 0}; cam.fovy = 34;
+        lantern({-0.5f, 0.8f, 1.0f}, {0, 0, 0});
+        L.AddPoint({0.6f, 0.4f, 0.6f}, 3, {255, 200, 140, 255}, 0.6f);
+        rt::RenderBegin(cam, L);
+        Slot s; s.it = Item::Weapon; s.wpn = WeaponIndex(ID);
+        const Model* m = WeaponModel(s);
+        const rt::AssetInfo* A = m ? rt::AssetInfoOf(m) : nullptr;
+        if (m && A) {
+            GunAnim st[3]; st[1].fire = 1; st[1].cycle = 0.05f; st[2].reload = 0.5f; st[2].steps = 3;
+            float ext = 0; for (int i = 0; i < m->meshCount; i++) { BoundingBox bb = GetMeshBoundingBox(m->meshes[i]); ext = std::max(ext, bb.max.x - bb.min.x); }
+            float sc = std::clamp(0.24f / std::max(0.05f, ext), 0.2f, 3.0f);
+            for (int k = 0; k < 3; k++) rt::DrawPbrParts(*m, MatrixMultiply(MatrixScale(sc, sc, sc), MatrixMultiply(MatrixRotateY(k == 1 ? 0.0f : 0.35f), MatrixTranslate((k - 1) * 0.29f - 0.03f, -0.03f, 0))), PoseWeapon(*A, st[k]), WHITE);
         }
     } else if (which == 5) {
         // the first-person pose from the side (a debug view of your own arms)
@@ -1686,28 +1896,49 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
         float kick = gun && me.cool > 0 ? std::max(0.0f, 1 - (coolMax - me.cool) * 7) : 0;   // the first seventh of a second
         float reloadLen = held == Item::Speargun ? 1.2f : 1.8f;
         float rl = gun && me.reloadT > 0 ? 1 - me.reloadT / reloadLen : -1;             // 0..1 through the reload
-        float dip = rl >= 0 ? sinf(rl * PI) * 0.16f : 0;
+        float dip = rl >= 0 ? sinf(rl * PI) * 0.05f : 0;   // (the gun stays in view through a reload, its action open to you)
         float back = kick * 0.07f, pitchUp = kick * 0.35f;
         float swingPitch = sw >= 0 ? (0.6f - sinf(sw * PI) * 1.6f) : 0;                 // raised, then chopped down past level
         float swingYaw = sw >= 0 ? (sw - 0.5f) * 0.8f : 0;
         Vector3 p = Vector3Add(cam.position, Vector3Add(Vector3Scale(f, 0.42f - back), Vector3Add(Vector3Scale(rgt, 0.2f + swingYaw * 0.1f), Vector3Scale(up, -0.2f + bob - dip + (sw >= 0 ? 0.08f * sinf(sw * PI) : 0)))));
+        if (fpBody) {   // (within the arm's reach of the right shoulder: the body stands a little behind the eye)
+            Vector3 sh = Vector3Add(cam.position, Vector3Add(Vector3Scale(up, -0.24f), Vector3Add(Vector3Scale(rgt, 0.19f), Vector3Scale(f, -0.2f))));
+            Vector3 d = Vector3Subtract(p, sh); float dl = Vector3Length(d);
+            if (dl > 0.5f) p = Vector3Add(sh, Vector3Scale(d, 0.5f / dl));
+        }
         // the item's +X along the look, tipped a little up and in; the swing and the kick tilt it
         Vector3 ax = Vector3Normalize(Vector3Add(f, Vector3Add(Vector3Scale(up, 0.12f + pitchUp + swingPitch), Vector3Scale(rgt, -0.12f + swingYaw))));
         Vector3 az = Vector3Normalize(Vector3CrossProduct(ax, up)), ay = Vector3CrossProduct(az, ax);
         Matrix hm = {ax.x, ay.x, az.x, p.x, ax.y, ay.y, az.y, p.y, ax.z, ay.z, az.z, p.z, 0, 0, 0, 1};
-        if (rl >= 0) hm = MatrixMultiply(MatrixRotateZ(-0.5f * sinf(rl * PI)), hm);   // (rolled out to the side while the hands work)
+        if (rl >= 0) hm = MatrixMultiply(MatrixMultiply(MatrixRotateZ(0.35f * sinf(rl * PI)), MatrixRotateX(-0.6f * sinf(rl * PI))), hm);   // (tipped up and rolled toward you so the open action shows)
+        // the weapon: its baked model posed by what it's doing (or the old one, until every weapon is baked)
+        const Slot& sl = me.slots[me.sel];
+        GunAnim ga = GunAnimOf(me);
+        Vector3 leftHand{}, muzzle{}, ejectAt{};
+        bool baked = DrawWeapon(sl, ga, hm, WHITE, 0.25f, &leftHand, &muzzle, &ejectAt);   // (a touch of light from the lamp at your shoulder)
+        if (baked) GunEvents(me, ga, muzzle, ejectAt, f, rgt, cam.position.y - 1.62f, std::min(GetFrameTime(), 0.05f));
+        if (!baked) {
+            DrawHeldItem(held, hm, WHITE, 0.25f);
+            leftHand = Vector3Transform({held == Item::Gaff ? 0.3f : 0.26f, -0.01f, 0}, hm);
+            muzzle = Vector3Transform({held == Item::Rifle ? 0.62f : 0.5f, 0.02f, 0}, hm);
+        }
         if (fpBody) {
-            // your hands on it: the right fist at the grip, a long tool's fore-end in the left (which lets go to work
-            // the action through a reload); the tool keeps its own swing, kick and dip and the arms follow
+            // your hands on it: the right fist at the grip, the left on the fore-end of a long gun or cupping a pistol
+            // (it lets go to work the action through a reload); the weapon keeps its own swing, kick and dip
             bool longTool = held == Item::Rifle || held == Item::Shotgun || held == Item::Speargun || held == Item::Gaff;
-            Vector3 grips[2] = {Vector3Transform({held == Item::Gaff ? 0.3f : 0.26f, -0.01f, 0}, hm), Vector3Transform({0.0f, -0.015f, 0}, hm)};
-            bool on[2] = {longTool && rl < 0, true};
+            if (sl.it == Item::Weapon && sl.wpn >= 0 && sl.wpn < (int)Weapons().size()) longTool = Weapons()[sl.wpn].cls == WC_LONGGUN || Weapons()[sl.wpn].cls == WC_SPECIAL || WeaponReach(Weapons()[sl.wpn]) >= 2;
+            bool twoHands = baked ? (longTool || held != Item::Knife) : longTool;
+            Vector3 grips[2] = {leftHand, Vector3Transform({0.0f, -0.015f, 0}, hm)};
+            bool on[2] = {twoHands && rl < 0, true};
             DrawFirstPersonBody(me, cam, t, -0.2f, longTool ? 1.0f : 0.0f, false, grips, on);
         }
-        DrawHeldItem(held, hm, WHITE, 0.25f);   // (a touch of light from the lamp at your shoulder)
-        // the speargun's spear slides home in the last third of the reload; a muzzle flash on a powder shot
-        if (held == Item::Speargun && rl > 0.66f) { float s = (rl - 0.66f) / 0.34f; rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(0.5f * s, 0.006f, 0.006f), MatrixTranslate(0.1f + 0.25f * s, 0.03f, 0)), hm), Color{150, 156, 160, 255}); }
-        if ((held == Item::Rifle || held == Item::Shotgun) && kick > 0.5f) rt::DrawCubeGlow(MatrixMultiply(MatrixMultiply(MatrixScale(0.06f, 0.06f, 0.06f), MatrixTranslate(held == Item::Rifle ? 0.62f : 0.5f, 0.02f, 0)), hm), Color{255, 220, 140, 255}, 1.0f);
+        // the old speargun's spear slides home in the last third of the reload; a muzzle flash on a powder shot that
+        // lights the deck for an instant
+        if (!baked && held == Item::Speargun && rl > 0.66f) { float s = (rl - 0.66f) / 0.34f; rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(0.5f * s, 0.006f, 0.006f), MatrixTranslate(0.1f + 0.25f * s, 0.03f, 0)), hm), Color{150, 156, 160, 255}); }
+        if (ga.fire > 0.5f && PowderGun(sl)) {
+            rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.06f * ga.fire, 0.06f * ga.fire, 0.06f * ga.fire), MatrixTranslate(muzzle.x, muzzle.y, muzzle.z)), Color{255, 220, 140, 255}, 1.0f);
+            rt::AddLateLight(muzzle, 7, Color{255, 200, 130, 255}, 1.5f * ga.fire);
+        }
     }
     // ---- the sea, last (its surface is glass the rest is seen through)
     UpdateSea(g.sea, cam.position, eco);
@@ -1718,6 +1949,7 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
     {
         float wet = g.sea.weather == Weather::Fog ? 1.0f : g.sea.weather == Weather::Rain || g.sea.weather == Weather::Squall || g.sea.weather == Weather::Storm ? 0.6f : 0.25f;
         Vector3 fw = Vector3Normalize(Vector3Subtract(cam.target, cam.position));
+        DrawGunSmoke(cam);
         BeginBlendMode(BLEND_ADDITIVE);
         for (const auto& p : pts) {
             Vector3 d = Vector3Subtract(p.p, cam.position);

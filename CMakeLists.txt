@@ -15,6 +15,8 @@ FetchContent_Declare(
     GIT_SHALLOW TRUE
 )
 FetchContent_MakeAvailable(raylib)
+# JPEG textures inside glTF (tools/artgen bakes the Trawl's guns and props with JPEG texture sets to keep them small)
+target_compile_definitions(raylib PRIVATE SUPPORT_FILEFORMAT_JPG=1)
 
 add_executable(depth
     src/main.cpp
