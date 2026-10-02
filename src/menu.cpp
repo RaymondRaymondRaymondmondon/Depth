@@ -10,7 +10,7 @@
 #include <cmath>
 
 namespace {
-enum Page { P_MAIN, P_SETTINGS, P_CONTROLS };
+enum Page { P_MAIN, P_SETTINGS, P_CONTROLS, P_GRAPHICS };
 bool gOpen = false, gQuit = false;
 Page gPage = P_MAIN;
 int gRebind = -1, gRebindSlot = 0;   // the action (and which of its two keys) waiting for a key press
@@ -68,6 +68,7 @@ void MainPage(Game& g, Rectangle p) {
     if (item("Resume")) { gOpen = false; PlayCue("ui.confirm"); }   // (a first-person scene takes the pointer back itself)
     if (item("Settings")) { gPage = P_SETTINGS; }
     if (item("Controls")) { gPage = P_CONTROLS; }
+    if (g.scene == Scene::RedTide || g.scene == Scene::Trawl || g.scene == Scene::Arcade) { if (item("Graphics (3D)")) gPage = P_GRAPHICS; }
     if (g.scene == Scene::RedTide || g.scene == Scene::Trawl) {
         if (item("Leave the match")) { gOpen = false; if (g.scene == Scene::Trawl) LeaveTrawlMatch(g); else g.scene = Scene::Arcade; }
     }
@@ -119,6 +120,28 @@ void SettingsPage(Rectangle p) {
     S.trawlOutline = Toggle({x, y, w, 30}, "Thin outlines (the Trawl)", S.trawlOutline);
 }
 
+// The 3D games' quality (the Visual Overhaul's phase 7): what each costs on this PC is in docs/TRAWL_PROGRESS.md
+void GraphicsPage(Rectangle p) {
+    Settings& S = GameSettings();
+    float x = p.x + 50, y = p.y + 60, w = p.width - 100;
+    auto choice = [&](const char* label, int v, int n, const char* const* names) {
+        Txt(label, x, y + 4, 17, Pal::Paper);
+        if (Button({x + 200, y, 160, 30}, names[v], true, 15)) v = (v + 1) % n;
+        y += 44;
+        return v;
+    };
+    static const char* SH[4] = {"Off", "Low", "Medium", "High"};
+    static const char* FG[2] = {"Plain", "Lantern halos"};
+    static const char* OF[2] = {"Off", "On"};
+    TxtBold("The Trawl and Red Tide", x, y - 30, 18, Pal::Brass);
+    S.gfxShadows = choice("Lamp shadows", S.gfxShadows, 4, SH);
+    S.gfxAO = choice("Ambient occlusion", S.gfxAO ? 1 : 0, 2, OF) != 0;
+    S.gfxFog = choice("Fog", S.gfxFog, 2, FG);
+    S.gfxScale = (int)roundf(Slider(5, {x, y, w, 30}, "Resolution", (float)S.gfxScale, 50, 100, TextFormat("%d%%", S.gfxScale)) / 5) * 5;
+    y += 54;
+    Txt("If the deck stutters in rain and fog with a full crew, lower the lamp shadows first, then the resolution.", x, y, 13, Color{160, 150, 130, 255});
+}
+
 void ControlsPage(Rectangle p) {
     float x = p.x + 40, y = p.y + 50;
     TxtBold("Action", x, y - 26, 16, Pal::Brass);
@@ -167,11 +190,12 @@ void GameMenuFrame(Game& g) {
     DrawRectangle(0, 0, SCREEN_W, SCREEN_H, Fade(Color{4, 6, 8, 255}, 0.62f * a));
     float slide = (1 - a) * (1 - a) * 40;
     Rectangle p = gPage == P_MAIN ? Rectangle{SCREEN_W / 2.0f - 220, 150 + slide, 440, 360} : Rectangle{SCREEN_W / 2.0f - 380, 90 + slide, 760, 540};
-    Frame(p, gPage == P_MAIN ? "Paused" : gPage == P_SETTINGS ? "Settings" : "Controls");
+    Frame(p, gPage == P_MAIN ? "Paused" : gPage == P_SETTINGS ? "Settings" : gPage == P_GRAPHICS ? "Graphics" : "Controls");
     switch (gPage) {
         case P_MAIN: MainPage(g, p); break;
         case P_SETTINGS: SettingsPage(p); break;
         case P_CONTROLS: ControlsPage(p); break;
+        case P_GRAPHICS: GraphicsPage(p); break;
     }
     if (gPage != P_MAIN && Button({p.x + 30, p.y + p.height - 56, 140, 36}, "< Back", true, 15)) { gPage = P_MAIN; SaveSettings(); }
     // Esc (or the menu key): back a page, or close; never while waiting for a rebinding key

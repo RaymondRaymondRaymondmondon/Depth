@@ -3,6 +3,7 @@
 // ============================================================================
 #include "input.h"
 #include "sound.h"
+#include <algorithm>
 #include <cstdio>
 #include <fstream>
 #include <sstream>
@@ -79,6 +80,7 @@ void SaveSettings() {
     f << "fullscreen " << (gSettings.fullscreen ? 1 : 0) << "\n";
     f << "hints " << (gSettings.showHints ? 1 : 0) << "\n";
     f << "trawl_outline " << (gSettings.trawlOutline ? 1 : 0) << "\n";
+    f << "gfx " << gSettings.gfxShadows << " " << (gSettings.gfxAO ? 1 : 0) << " " << gSettings.gfxFog << " " << gSettings.gfxScale << "\n";
     for (int a = 0; a < ACT_COUNT; a++) f << "bind " << a << " " << gKeys[a][0] << " " << gKeys[a][1] << "\n";
 }
 
@@ -96,6 +98,10 @@ void LoadSettings() {
         else if (key == "fullscreen") { int v = 0; in >> v; gSettings.fullscreen = v != 0; }
         else if (key == "hints") { int v = 1; in >> v; gSettings.showHints = v != 0; }
         else if (key == "trawl_outline") { int v = 0; in >> v; gSettings.trawlOutline = v != 0; }
+        else if (key == "gfx") {
+            int s = 2, a = 1, fg = 1, sc = 100; in >> s >> a >> fg >> sc;
+            gSettings.gfxShadows = std::clamp(s, 0, 3); gSettings.gfxAO = a != 0; gSettings.gfxFog = std::clamp(fg, 0, 1); gSettings.gfxScale = std::clamp(sc, 50, 100);
+        }
         else if (key == "bind") { int a = -1, k0 = 0, k1 = 0; in >> a >> k0 >> k1; if (a >= 0 && a < ACT_COUNT) { gKeys[a][0] = k0; gKeys[a][1] = k1; } }
     }
     if (gSettings.brightness < 0.6f || gSettings.brightness > 1.6f) gSettings.brightness = 1.0f;

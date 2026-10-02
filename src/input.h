@@ -27,6 +27,12 @@ struct Settings {
     bool fullscreen = false;
     bool showHints = true;               // first-meeting hints and station hints
     bool trawlOutline = false;           // the Trawl in first person: a thin tinted outline (the Visual Overhaul's option; off by default)
+    // the 3D views' quality (the Trawl and Red Tide): shadows 0 off, 1 low (512), 2 medium (1024), 3 high (2048);
+    // occlusion; fog 0 plain, 1 with lantern halos; the 3D view's resolution in percent of the screen (50-100)
+    int gfxShadows = 2;
+    bool gfxAO = true;
+    int gfxFog = 1;
+    int gfxScale = 100;
 };
 Settings& GameSettings();
 void LoadSettings();                     // settings.txt; call after the audio is up

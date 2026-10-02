@@ -2,6 +2,7 @@
 // inked low-poly renderer. See redtide_render.h.
 #include "redtide_render.h"
 #include "game.h"
+#include "input.h"
 #include "raymath.h"
 #include "rlgl.h"
 #include <algorithm>
@@ -536,7 +537,21 @@ void main() {
 }
 )";
 
-static const char* RT_LIT_FS = R"(#version 330
+// Fog banks (the Fog setting's high quality): the fog's density at a point, drifting with the wind in banks and
+// thinning with height, instead of one even wall. uFogBank.x is how patchy (0: even fog), .y the clock.
+#define RT_FOGBANK \
+"uniform vec2 uFogBank;\n" \
+"float fbH(vec2 p) { return fract(sin(dot(p, vec2(41.7, 289.3))) * 15731.743); }\n" \
+"float fbN(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);\n" \
+"  return mix(mix(fbH(i), fbH(i + vec2(1, 0)), f.x), mix(fbH(i + vec2(0, 1)), fbH(i + vec2(1, 1)), f.x), f.y); }\n" \
+"float fogBank(vec3 wp) {\n" \
+"  if (uFogBank.x <= 0.0) return 1.0;\n" \
+"  vec2 p = wp.xz * 0.03 + vec2(uFogBank.y * 0.025, uFogBank.y * 0.011);\n" \
+"  float n = fbN(p) * 0.65 + fbN(p * 2.7 + 3.1) * 0.35;\n" \
+"  float h = exp(-max(wp.y, 0.0) * 0.08);\n" \
+"  return mix(1.0, (0.25 + 1.6 * n * n) * (0.55 + 0.45 * h), uFogBank.x); }\n"
+
+static const char* RT_LIT_FS = "#version 330\n" RT_FOGBANK R"(
 in vec3 fragWorld; in vec4 fragColor; in float fragViewZ; in vec2 fragUV;
 uniform vec4 colDiffuse;
 uniform vec3 uCam, uLampPos, uLampDir, uKey, uFill, uRim, uFog;
@@ -547,10 +562,11 @@ uniform sampler2D uShadowMap; uniform mat4 uLightVP; uniform int uHasShadow;
 out vec4 finalColor;
 float keyShadow(vec3 wp, vec3 n, vec3 L) {   // (the same as the physically based path's)
     if (uHasShadow == 0) return 1.0;
-    vec4 lp = uLightVP * vec4(wp + n * 0.03, 1.0);
+    float grazing = 1.0 - max(dot(n, L), 0.0);   // (a lamp grazing the planks streaks them with acne without more offset)
+    vec4 lp = uLightVP * vec4(wp + n * (0.03 + 0.06 * grazing), 1.0);
     vec3 q = lp.xyz / lp.w * 0.5 + 0.5;
     if (q.x <= 0.0 || q.y <= 0.0 || q.x >= 1.0 || q.y >= 1.0 || q.z >= 1.0) return 1.0;
-    float bias = 0.0015 + 0.004 * (1.0 - max(dot(n, L), 0.0));
+    float bias = 0.0015 + 0.006 * grazing;
     float lit = 0.0; vec2 tx = 1.0 / vec2(textureSize(uShadowMap, 0));
     for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++) lit += (q.z - bias > texture(uShadowMap, q.xy + vec2(x, y) * tx * 1.5).r) ? 0.0 : 1.0;
     return lit / 9.0;
@@ -582,7 +598,7 @@ void main() {
     }
     col += base * uGlow;                                   // luminous species glow in the dark
     // fog by distance (thicker the deeper the scene sets it)
-    float fog = 1.0 - exp(-uFogDensity * fragViewZ);
+    float fog = 1.0 - exp(-uFogDensity * fogBank(fragWorld) * fragViewZ);
     col = mix(col, uFog / 255.0, clamp(fog, 0.0, 1.0));
     if (uSil > 0.5) col = vec3(0.0);
     finalColor = vec4(col, fragColor.a * colDiffuse.a);
@@ -616,7 +632,7 @@ void main() {
     gl_Position = mvp * p;
 }
 )";
-static const char* RT_PBR_FS = R"(#version 330
+static const char* RT_PBR_FS = "#version 330\n" RT_FOGBANK R"(
 in vec3 fragWorld; in vec3 fragNormal; in vec2 fragUV; in vec4 fragColor; in float fragViewZ;
 uniform sampler2D texture0; uniform sampler2D uMR; uniform sampler2D uNrm; uniform sampler2D uAO; uniform sampler2D uEmit;
 uniform int uHasAlb, uHasMR, uHasNrm, uHasAO, uHasEmit, uVcAO;
@@ -629,10 +645,11 @@ out vec4 finalColor;
 // the lamp's shadow: a 3x3 filtered look-up in its depth map (1 lit, 0 in shadow); outside the map, lit
 float keyShadow(vec3 wp, vec3 n, vec3 L) {
     if (uHasShadow == 0) return 1.0;
-    vec4 lp = uLightVP * vec4(wp + n * 0.03, 1.0);
+    float grazing = 1.0 - max(dot(n, L), 0.0);   // (a lamp grazing the planks streaks them with acne without more offset)
+    vec4 lp = uLightVP * vec4(wp + n * (0.03 + 0.06 * grazing), 1.0);
     vec3 q = lp.xyz / lp.w * 0.5 + 0.5;
     if (q.x <= 0.0 || q.y <= 0.0 || q.x >= 1.0 || q.y >= 1.0 || q.z >= 1.0) return 1.0;
-    float bias = 0.0015 + 0.004 * (1.0 - max(dot(n, L), 0.0));
+    float bias = 0.0015 + 0.006 * grazing;
     float lit = 0.0; vec2 tx = 1.0 / vec2(textureSize(uShadowMap, 0));
     for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++) lit += (q.z - bias > texture(uShadowMap, q.xy + vec2(x, y) * tx * 1.5).r) ? 0.0 : 1.0;
     return lit / 9.0;
@@ -705,7 +722,7 @@ void main() {
     if (uHasEmit == 1) col += toLin(texture(uEmit, fragUV).rgb * uEmitCol);
     col += albedo * uGlow;
     col = pow(col, vec3(1.0 / 2.2));
-    float fog = 1.0 - exp(-uFogDensity * fragViewZ);
+    float fog = 1.0 - exp(-uFogDensity * fogBank(fragWorld) * fragViewZ);
     col = mix(col, uFog / 255.0, clamp(fog, 0.0, 1.0));
     if (uSil > 0.5) col = vec3(0.0);
     finalColor = vec4(col, 1.0);
@@ -715,7 +732,7 @@ void main() {
 // The sea (the Trawl's world pass): Fresnel between the water's dark body (lit in the lamp's pool) and the reflected
 // sky; the moon's glitter path; each lamp stretched on the swell; foam at the hull, the bow and in the wake, white crests
 // in heavy weather; rain rings. Display-space colours, like the inked path beside it.
-static const char* RT_WATER_FS = R"(#version 330
+static const char* RT_WATER_FS = "#version 330\n" RT_FOGBANK R"(
 in vec3 fragWorld; in vec3 fragNormal; in vec2 fragUV; in vec4 fragColor; in float fragViewZ;
 uniform vec3 uCam, uMoonDir, uDeep, uZenith, uHorizon, uFog, uLampPos, uLampDir, uKey;
 uniform float uFogDensity, uTime, uCrest, uRain, uAlpha, uMoonK, uLampRange, uLampCone;
@@ -779,7 +796,7 @@ void main() {
         float r = length(fp - vec2(hash(cell + 3.1), hash(cell + 7.7)));
         col += vec3(0.35) * smoothstep(0.05, 0.0, abs(r - tt * 0.45)) * (1.0 - tt) * uRain * (0.25 + pool);
     }
-    float fog = 1.0 - exp(-uFogDensity * fragViewZ);
+    float fog = 1.0 - exp(-uFogDensity * fogBank(fragWorld) * fragViewZ);
     col = mix(col, uFog / 255.0, clamp(fog, 0.0, 1.0));
     finalColor = vec4(col, uAlpha + foam * (1.0 - uAlpha));
 }
@@ -841,21 +858,20 @@ void main() {
 }
 )";
 
-// The ink composite: Sobel edges on depth and normals (line weight by distance), Bayer stipple in shadow, paper
-// grain, a vignette, and the red at the mask's edge that grows with the local scent.
-static const char* RT_INK_FS = R"(#version 330
+// Screen-space ambient occlusion, its own pass at half the view's resolution (it was a third of the frame's cost on
+// this PC run per screen pixel in the composite); the composite blurs it as it reads it.
+static const char* RT_AO_FS = R"(#version 330
 in vec2 fragTexCoord; in vec4 fragColor;
-uniform sampler2D texture0; uniform sampler2D uND;
-uniform vec2 uRes; uniform float uTime; uniform float uBlood; uniform float uSil; uniform vec3 uFog;
-uniform float uOutline, uStipple, uGrain; uniform vec3 uInkTint;
-uniform float uAOK, uAORad, uFarD, uTanHalf, uAspect, uFilmic, uExposure, uGradeK, uSat; uniform vec3 uGradeLo, uGradeHi;
+uniform sampler2D texture0;
+uniform float uAORad, uFarD, uTanHalf, uAspect;
 out vec4 finalColor;
+#define uND texture0
 float depthAt(vec2 uv) { vec4 t = texture(uND, uv); if (t.b == 0.0 && t.a == 0.0 && t.r == 0.0 && t.g == 0.0) return 1.0; return (t.b * 255.0 * 256.0 + t.a * 255.0) / 65535.0; }
 vec3 normAt(vec2 uv) { vec4 t = texture(uND, uv); vec2 xy = t.rg * 2.0 - 1.0; return vec3(xy, sqrt(max(0.0, 1.0 - dot(xy, xy)))); }
 float bayer(vec2 p) { int x = int(mod(p.x, 4.0)), y = int(mod(p.y, 4.0)); int m[16] = int[16](0,8,2,10,12,4,14,6,3,11,1,9,15,7,13,5); return float(m[y * 4 + x]) / 16.0; }
 vec3 viewPos(vec2 uv, float dm) { return vec3((uv * 2.0 - 1.0) * vec2(uTanHalf * uAspect, uTanHalf) * dm, -dm); }
-// screen-space ambient occlusion: eight taps on a disc in view space round the point, turned by a 4x4 pattern, each
-// counting when the surface it lands on stands in front of it (and near enough to matter): the contact shadows
+// eight taps on a disc in view space round the point, turned by a 4x4 pattern, each counting when the surface it
+// lands on stands in front of it (and near enough to matter): the contact shadows
 float ssao(vec2 uv, float d) {
     float dm = d * uFarD;
     if (d >= 0.999 || dm > 40.0) return 1.0;
@@ -876,6 +892,27 @@ float ssao(vec2 uv, float d) {
     }
     return 1.0 - occ / 8.0;
 }
+void main() { float a = ssao(fragTexCoord, depthAt(fragTexCoord)); finalColor = vec4(a, a, a, 1.0); }
+)";
+
+// The ink composite: Sobel edges on depth and normals (line weight by distance), Bayer stipple in shadow, paper
+// grain, a vignette, and the red at the mask's edge that grows with the local scent.
+static const char* RT_INK_FS = R"(#version 330
+in vec2 fragTexCoord; in vec4 fragColor;
+uniform sampler2D texture0; uniform sampler2D uND; uniform sampler2D uAOTex; uniform vec2 uAOTexel;
+uniform vec2 uRes; uniform float uTime; uniform float uBlood; uniform float uSil; uniform vec3 uFog;
+uniform float uOutline, uStipple, uGrain; uniform vec3 uInkTint;
+uniform float uAOK, uAORad, uFarD, uTanHalf, uAspect, uFilmic, uExposure, uGradeK, uSat; uniform vec3 uGradeLo, uGradeHi;
+out vec4 finalColor;
+float depthAt(vec2 uv) { vec4 t = texture(uND, uv); if (t.b == 0.0 && t.a == 0.0 && t.r == 0.0 && t.g == 0.0) return 1.0; return (t.b * 255.0 * 256.0 + t.a * 255.0) / 65535.0; }
+vec3 normAt(vec2 uv) { vec4 t = texture(uND, uv); vec2 xy = t.rg * 2.0 - 1.0; return vec3(xy, sqrt(max(0.0, 1.0 - dot(xy, xy)))); }
+float bayer(vec2 p) { int x = int(mod(p.x, 4.0)), y = int(mod(p.y, 4.0)); int m[16] = int[16](0,8,2,10,12,4,14,6,3,11,1,9,15,7,13,5); return float(m[y * 4 + x]) / 16.0; }
+// the half-resolution occlusion, softened by four bilinear taps (which is a 4x4 blur)
+float aoAt(vec2 uv) {
+    vec2 o = uAOTexel;
+    return 0.25 * (texture(uAOTex, uv + vec2(o.x, o.y)).r + texture(uAOTex, uv + vec2(-o.x, o.y)).r
+                 + texture(uAOTex, uv + vec2(o.x, -o.y)).r + texture(uAOTex, uv + vec2(-o.x, -o.y)).r);
+}
 vec3 filmic(vec3 x) {   // a gentle ACES-style curve (Narkowicz), keeping the night's darks
     x *= uExposure;
     return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0);
@@ -884,20 +921,22 @@ void main() {
     vec2 uv = fragTexCoord;
     vec3 col = texture(texture0, uv).rgb;
     float d = depthAt(uv);
-    if (uAOK > 0.0) col *= mix(1.0, ssao(uv, d), uAOK);
+    if (uAOK > 0.0) col *= mix(1.0, aoAt(uv), uAOK);
     // line weight: thicker near, thinner far (1.8 px near to 0.8 px at the far plane); a thin outline (uOutline < 1)
-    // is a 1 px line at most
-    float wpx = mix(1.8, 0.8, clamp(d * 3.0, 0.0, 1.0)) * (uOutline < 0.99 ? 0.55 : 1.0);
-    vec2 px = wpx / uRes;
-    float dd = 0.0; vec3 nn = normAt(uv); float ne = 0.0;
-    for (int i = 0; i < 4; i++) {
-        vec2 o = (i == 0) ? vec2(px.x, 0) : (i == 1) ? vec2(-px.x, 0) : (i == 2) ? vec2(0, px.y) : vec2(0, -px.y);
-        float d2 = depthAt(uv + o);
-        dd += abs(d2 - d);
-        ne += 1.0 - max(dot(nn, normAt(uv + o)), 0.0);
+    // is a 1 px line at most; no outline, no edge taps
+    float edge = 0.0;
+    if (uOutline > 0.0) {
+        float wpx = mix(1.8, 0.8, clamp(d * 3.0, 0.0, 1.0)) * (uOutline < 0.99 ? 0.55 : 1.0);
+        vec2 px = wpx / uRes;
+        float dd = 0.0; vec3 nn = normAt(uv); float ne = 0.0;
+        for (int i = 0; i < 4; i++) {
+            vec2 o = (i == 0) ? vec2(px.x, 0) : (i == 1) ? vec2(-px.x, 0) : (i == 2) ? vec2(0, px.y) : vec2(0, -px.y);
+            float d2 = depthAt(uv + o);
+            dd += abs(d2 - d);
+            ne += 1.0 - max(dot(nn, normAt(uv + o)), 0.0);
+        }
+        edge = clamp(smoothstep(0.004 + d * 0.02, 0.012 + d * 0.05, dd) + smoothstep(0.35, 0.8, ne) * (1.0 - d), 0.0, 1.0);
     }
-    float edge = smoothstep(0.004 + d * 0.02, 0.012 + d * 0.05, dd) + smoothstep(0.35, 0.8, ne) * (1.0 - d);
-    edge = clamp(edge, 0.0, 1.0);
     float lum = dot(col, vec3(0.299, 0.587, 0.114));
     // Bayer stipple in the shadows (only on geometry, not the open water)
     if (d < 0.999 && uStipple > 0.5) {
@@ -930,8 +969,9 @@ void main() {
 }
 )";
 
-static Shader gInk{}, gPbr{}, gNDPbr{}, gWaterSh{}, gSkySh{}, gDepthSh{};
-static int L_depthSkinned = -1;
+static Shader gInk{}, gPbr{}, gNDPbr{}, gWaterSh{}, gSkySh{}, gDepthSh{}, gAOSh{};
+static int L_depthSkinned = -1, L_ao[4], L_inkAOTex = -1, L_inkAOTexel = -1;
+static RenderTexture2D gAORT{};
 static Model gSkyBall{};
 static int L_pbr[40], L_pbrSkinned = -1, L_ndPbrSkinned = -1, L_ndPbrFar = -1, L_ndPbrCam = -1;
 static const char* PBR_U[] = {"uHasAlb", "uHasMR", "uHasNrm", "uHasAO", "uHasEmit", "uMetal", "uRough", "uEmitCol", "uWrap", "uGlow",
@@ -944,14 +984,29 @@ static int L_inkOutline, L_inkStipple, L_inkGrain, L_inkTint;
 static int L_inkX[16];
 // the lamp's shadow map: a depth-only framebuffer (1024 square: this PC's integrated graphics is the target)
 static RenderTexture2D gShadowRT{};
-static const int SHADOW_SIZE = 1024, SHADOW_UNIT = 12;   // (texture unit 12: above the twelve material map slots)
+static const int SHADOW_UNIT = 12;                       // (texture unit 12: above the twelve material map slots)
 static int L_litShadow[3], L_pbrShadow[3];               // the sampler, the light's view-projection, the switch
+static Quality gQuality;
+void SetQuality(const Quality& q) { gQuality = q; gQuality.scale = std::clamp(q.scale, 0.5f, 1.0f); }
+const Quality& GetQuality() { return gQuality; }
+void ApplyGameQuality() {
+    // the player's Graphics page, or DEPTH_GFX="shadows,ao,fog,scale%" (0-3, 0/1, 0/1, 50-100) for measuring
+    const Settings& S = GameSettings();
+    int sh = S.gfxShadows, ao = S.gfxAO ? 1 : 0, fg = S.gfxFog, sc = S.gfxScale;
+    if (const char* e = getenv("DEPTH_GFX")) sscanf(e, "%d,%d,%d,%d", &sh, &ao, &fg, &sc);
+    static const int SIZE[4] = {0, 512, 1024, 2048};
+    Quality q; q.shadow = SIZE[std::clamp(sh, 0, 3)]; q.ao = ao != 0; q.fog = fg; q.scale = sc / 100.0f;
+    SetQuality(q);
+}
 static bool EnsureShadowMap() {
-    if (gShadowRT.id) return true;
+    int size = gQuality.shadow;
+    if (size <= 0) return false;
+    if (gShadowRT.id && gShadowRT.texture.width == size) return true;
+    if (gShadowRT.id) { rlUnloadTexture(gShadowRT.texture.id); rlUnloadFramebuffer(gShadowRT.id); gShadowRT = {}; }   // (the quality changed)
     gShadowRT.id = rlLoadFramebuffer();
     if (!gShadowRT.id) return false;
-    unsigned int dt = rlLoadTextureDepth(SHADOW_SIZE, SHADOW_SIZE, false);
-    gShadowRT.texture = {dt, SHADOW_SIZE, SHADOW_SIZE, 1, 19};
+    unsigned int dt = rlLoadTextureDepth(size, size, false);
+    gShadowRT.texture = {dt, size, size, 1, 19};
     gShadowRT.depth = gShadowRT.texture;
     rlEnableFramebuffer(gShadowRT.id);
     rlFramebufferAttach(gShadowRT.id, dt, RL_ATTACHMENT_DEPTH, RL_ATTACHMENT_TEXTURE2D, 0);
@@ -999,6 +1054,9 @@ static void EnsureShaders() {
     for (int i = 0; i < 3; i++) { L_litShadow[i] = GetShaderLocation(gLit, SH[i]); L_pbrShadow[i] = GetShaderLocation(gPbr, SH[i]); }
     gDepthSh = LoadShaderFromMemory(RT_PBR_VS, "#version 330\nout vec4 finalColor;\nvoid main() { finalColor = vec4(0.0); }\n");
     L_depthSkinned = GetShaderLocation(gDepthSh, "uSkinned");
+    gAOSh = LoadShaderFromMemory(nullptr, RT_AO_FS);
+    { const char* N[4] = {"uAORad", "uFarD", "uTanHalf", "uAspect"}; for (int i = 0; i < 4; i++) L_ao[i] = GetShaderLocation(gAOSh, N[i]); }
+    L_inkAOTex = GetShaderLocation(gInk, "uAOTex"); L_inkAOTexel = GetShaderLocation(gInk, "uAOTexel");
     for (int i = 0; i < PU_COUNT; i++) L_pbr[i] = GetShaderLocation(gPbr, PBR_U[i]);
     // the material maps DrawMesh binds: albedo in texture0, then the metallic-roughness, normal, occlusion and emission
     gPbr.locs[SHADER_LOC_MAP_ALBEDO] = GetShaderLocation(gPbr, "texture0");
@@ -1073,6 +1131,7 @@ static Vector3 C3(Color c) { return {(float)c.r, (float)c.g, (float)c.b}; }
 
 void RenderBegin(const Camera3D& cam, const SceneLight& light) {
     EnsureShaders();
+    ApplyGameQuality();
     gCam = cam;
     gLight = light;
     gQueue.clear();
@@ -1329,6 +1388,7 @@ static void DrawPbrCmd(const DrawCmd& d, Shader sh, bool lit) {
     }
 }
 
+static bool gShadowPass = false;   // (the lamp's depth pass: the sea and the sky don't cast its shadows)
 static void DrawQueue(Shader sh, bool lit) {
     // the big baked assets (the boat, the quay) first lay down their depth alone, so the expensive lighting runs
     // once per pixel instead of once per overlapping surface
@@ -1345,6 +1405,7 @@ static void DrawQueue(Shader sh, bool lit) {
     for (const DrawCmd& d : gQueue) {
         if (pre && d.pbr && gVcAO.count(d.model)) { rlDrawRenderBatchActive(); rlDisableDepthMask(); DrawPbrCmd(d, gPbr, true); rlDrawRenderBatchActive(); rlEnableDepthMask(); continue; }
         if (d.skydome) { if (lit) DrawSkyCmd(d); continue; }
+        if (d.water && gShadowPass) continue;
         if (d.water) { if (lit) DrawWaterCmd(d); else { DrawCmd e = d; e.pbr = 1; e.world = MatrixIdentity(); Model& m = const_cast<Model&>(*d.model); Material mat = m.materials[0]; mat.shader = gNDPbr; SetI(gNDPbr, L_ndPbrSkinned, 0); for (int i = 0; i < m.meshCount; i++) DrawMesh(m.meshes[i], mat, MatrixIdentity()); } continue; }
         if (d.pbr) {
             if (!lit) DrawPbrCmd(d, gNDPbr, false);   // the normal/depth pass: the same skinning, the same edges
@@ -1370,6 +1431,14 @@ static void DrawQueue(Shader sh, bool lit) {
 void RenderEnd() {
     if (!gShadersReady) return;
     const float FAR = 90.0f;
+    // the 3D view's own resolution (the composite scales it to the screen)
+    int vw = (int)roundf(SCREEN_W * gQuality.scale), vh = (int)roundf(SCREEN_H * gQuality.scale);
+    if (gColorRT.texture.width != vw) {
+        UnloadRenderTexture(gColorRT); UnloadRenderTexture(gNDRT);
+        gColorRT = LoadRenderTexture(vw, vh); gNDRT = LoadRenderTexture(vw, vh);
+        SetTextureFilter(gColorRT.texture, TEXTURE_FILTER_BILINEAR);
+        SetTextureFilter(gNDRT.texture, TEXTURE_FILTER_POINT);   // (depth must never blend across an edge)
+    }
     // colour pass
     SetV3(gLit, L_lit[LU_CAM], gCam.position);
     SetV3(gLit, L_lit[LU_LAMPPOS], gLight.lampPos);
@@ -1415,6 +1484,14 @@ void RenderEnd() {
         SetF(gPbr, L_pbr[PU_AMBK], gLight.ambK);
         SetF(gPbr, L_pbr[PU_SIL], gLight.silhouette);
     }
+    {   // fog banks (high fog quality)
+        Vector2 fb{gQuality.fog ? gLight.fogBanks : 0.0f, gLight.time};
+        static int lL = -1, lP = -1;
+        if (lL < 0) { lL = GetShaderLocation(gLit, "uFogBank"); lP = GetShaderLocation(gPbr, "uFogBank"); }
+        if (lL >= 0) SetShaderValue(gLit, lL, &fb, SHADER_UNIFORM_VEC2);
+        if (lP >= 0) SetShaderValue(gPbr, lP, &fb, SHADER_UNIFORM_VEC2);
+        int lW = WL("uFogBank"); if (lW >= 0) SetShaderValue(gWaterSh, lW, &fb, SHADER_UNIFORM_VEC2);
+    }
     // the lamp's shadow map: the frame's geometry from the lamp, depth only
     bool shadow = gLight.keyShadow && gLight.silhouette < 0.5f && EnsureShadowMap();
     if (shadow) {
@@ -1429,7 +1506,9 @@ void RenderEnd() {
         BeginMode3D(lc);
         Matrix lightVP = MatrixMultiply(rlGetMatrixModelview(), rlGetMatrixProjection());
         rlDisableBackfaceCulling();
+        gShadowPass = true;
         DrawQueue(gND, false);
+        gShadowPass = false;
         rlDrawRenderBatchActive();
         rlEnableBackfaceCulling();
         EndMode3D();
@@ -1469,8 +1548,26 @@ void RenderEnd() {
     rlEnableBackfaceCulling();
     EndMode3D();
     EndLayer();
+    // the occlusion at half the view's resolution (drawn with the same flip as the composite, so its texels line up
+    // with the normal/depth target's)
+    float aoK = gQuality.ao ? gLight.aoK : 0.0f;
+    if (aoK > 0) {
+        if (gAORT.texture.width != vw / 2) {
+            if (gAORT.id) UnloadRenderTexture(gAORT);
+            gAORT = LoadRenderTexture(vw / 2, vh / 2);
+            SetTextureFilter(gAORT.texture, TEXTURE_FILTER_BILINEAR);
+        }
+        SetF(gAOSh, L_ao[0], gLight.aoRadius); SetF(gAOSh, L_ao[1], FAR);
+        SetF(gAOSh, L_ao[2], tanf(gCam.fovy * DEG2RAD * 0.5f)); SetF(gAOSh, L_ao[3], (float)SCREEN_W / SCREEN_H);
+        BeginLayer(gAORT);
+        ClearBackground(WHITE);
+        BeginShaderMode(gAOSh);
+        DrawTexturePro(gNDRT.texture, {0, 0, (float)gNDRT.texture.width, -(float)gNDRT.texture.height}, {0, 0, (float)gAORT.texture.width, (float)gAORT.texture.height}, {0, 0}, 0, WHITE);
+        EndShaderMode();
+        EndLayer();
+    }
     // the ink composite into the scene
-    Vector2 res{(float)SCREEN_W, (float)SCREEN_H};
+    Vector2 res{(float)vw, (float)vh};   // (the view's texel size: the edge and occlusion taps are per texel)
     SetShaderValue(gInk, L_ink[1], &res, SHADER_UNIFORM_VEC2);
     SetF(gInk, L_ink[2], gLight.time);
     SetF(gInk, L_ink[3], gLight.bloodTint);
@@ -1478,7 +1575,7 @@ void RenderEnd() {
     SetV3(gInk, L_ink[5], C3(gLight.fog));
     SetF(gInk, L_inkOutline, gLight.outline); SetF(gInk, L_inkStipple, gLight.stipple); SetF(gInk, L_inkGrain, gLight.grain);
     SetV3(gInk, L_inkTint, C3(gLight.outlineTint));
-    SetF(gInk, L_inkX[0], gLight.aoK); SetF(gInk, L_inkX[1], gLight.aoRadius); SetF(gInk, L_inkX[2], FAR);
+    SetF(gInk, L_inkX[0], aoK); SetF(gInk, L_inkX[1], gLight.aoRadius); SetF(gInk, L_inkX[2], FAR);
     SetF(gInk, L_inkX[3], tanf(gCam.fovy * DEG2RAD * 0.5f)); SetF(gInk, L_inkX[4], (float)SCREEN_W / SCREEN_H);
     SetF(gInk, L_inkX[5], gLight.filmic); SetF(gInk, L_inkX[6], gLight.exposure); SetF(gInk, L_inkX[7], gLight.gradeK);
     SetF(gInk, L_inkX[8], gLight.saturation); SetV3(gInk, L_inkX[9], C3(gLight.gradeLo)); SetV3(gInk, L_inkX[10], C3(gLight.gradeHi));
@@ -1487,6 +1584,11 @@ void RenderEnd() {
     if (rtView == 2) { DrawTexturePro(gColorRT.texture, {0, 0, (float)gColorRT.texture.width, -(float)gColorRT.texture.height}, {0, 0, (float)SCREEN_W, (float)SCREEN_H}, {0, 0}, 0, WHITE); return; }
     BeginShaderMode(gInk);
     SetShaderValueTexture(gInk, L_ink[0], gNDRT.texture);
+    if (aoK > 0 && L_inkAOTex >= 0) {
+        SetShaderValueTexture(gInk, L_inkAOTex, gAORT.texture);
+        Vector2 tx{0.75f / gAORT.texture.width, 0.75f / gAORT.texture.height};
+        SetShaderValue(gInk, L_inkAOTexel, &tx, SHADER_UNIFORM_VEC2);
+    }
     DrawTexturePro(gColorRT.texture, {0, 0, (float)gColorRT.texture.width, -(float)gColorRT.texture.height}, {0, 0, (float)SCREEN_W, (float)SCREEN_H}, {0, 0}, 0, WHITE);
     EndShaderMode();
 }

@@ -1640,6 +1640,7 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
     L.outline = GameSettings().trawlOutline ? 0.5f : 0.0f; L.outlineTint = {34, 44, 58, 255};
     L.stipple = 0; L.grain = 0.35f;
     L.aoK = 0.75f; L.aoRadius = 0.4f;
+    L.fogBanks = g.sea.weather == Weather::Fog ? 0.9f : g.sea.weather == Weather::Rain || g.sea.weather == Weather::Squall ? 0.5f : 0.35f;   // (drifting banks, not a wall)
     L.filmic = 1; L.exposure = 1.05f; L.gradeK = 0.45f;
     L.gradeLo = {104, 126, 150, 255}; L.gradeHi = {140, 128, 114, 255};
     L.saturation = g.sea.weather == Weather::Fog ? 0.75f : g.sea.weather == Weather::Rain || g.sea.weather == Weather::Squall ? 0.85f : 0.92f;
@@ -2126,7 +2127,7 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
         Vector3 fw = Vector3Normalize(Vector3Subtract(cam.target, cam.position));
         DrawGunSmoke(cam);
         BeginBlendMode(BLEND_ADDITIVE);
-        for (const auto& p : pts) {
+        if (rt::GetQuality().fog > 0) for (const auto& p : pts) {
             Vector3 d = Vector3Subtract(p.p, cam.position);
             float dist = Vector3Length(d);
             if (dist < 0.6f || dist > 60 || Vector3DotProduct(d, fw) <= 0.2f * dist) continue;

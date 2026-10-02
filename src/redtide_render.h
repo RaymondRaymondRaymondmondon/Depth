@@ -68,6 +68,7 @@ struct SceneLight {                // the master reference's three-light rig
     Color rim{120, 190, 210, 255};
     Color fog{8, 24, 30, 255};
     float fogDensity = 0.045f;
+    float fogBanks = 0;                      // 0 even fog .. 1 drifting banks thinning with height (needs Quality::fog 1)
     float surfaceY = 40;                     // caustics fade in near this height
     float time = 0;
     float bloodTint = 0;                     // 0..1: the red at the mask's edge (the scent meter you can see)
@@ -166,6 +167,16 @@ Matrix BoneWorld(const RigInfo& rig, const std::vector<Matrix>& skin, int bone, 
 // Draws a skinned model in a pose, with named materials recoloured (a sailor's skin tone, coat, hat)
 struct Recolor { const char* material; Color c; };
 void DrawPbrSkinned(const Model& m, Matrix world, const std::vector<Matrix>& skin, const std::vector<Recolor>& recolor = {}, float wrap = 0.35f, Color tint = WHITE);
+// The quality settings (the Visual Overhaul's phase 7: shadow quality, AO, fog quality, resolution scale)
+struct Quality {
+    int shadow = 1024;        // the lamp's shadow map: 0 off, 512, 1024, 2048
+    bool ao = true;           // screen-space ambient occlusion
+    int fog = 1;              // 0: plain fog; 1: lantern halos in it too (the caller draws them; read with GetQuality)
+    float scale = 1.0f;       // the 3D view's resolution, 0.5..1 of the screen (scaled up in the composite)
+};
+void SetQuality(const Quality& q);
+void ApplyGameQuality();      // from the game's settings (the menu's Graphics page); call once a frame before RenderBegin
+const Quality& GetQuality();
 void RenderEnd();                                                   // runs the normal/depth pass and the ink composite into the scene
 void RenderShutdown();
 bool RenderReady();

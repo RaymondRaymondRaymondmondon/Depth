@@ -1661,6 +1661,24 @@ void DebugTrawlShot(Game& g, int which) {
         if (which == 41 || which == 43 || which == 44) G.sea.weather = Weather::Rain;
         return;
     }
+    if (which == 42) {
+        // the spec's performance case: six hands on deck in rain (the fog thickened to the Lagoon's), seen from the
+        // stern gantry looking forward over all of them, a catch on the planks, the lamps lit
+        Gannet& G = S.W->G;
+        G.Init(6, 11, Weather::Rain);
+        S.W->eco.Init("lagoon", 11); G.eco = &S.W->eco;
+        G.moored = false;
+        G.boat.pos = {S.W->eco.n * S.W->eco.cell * 0.42f, S.W->eco.n * S.W->eco.cell * 0.5f}; G.boat.heading = -0.3f;
+        G.boat.telegraph = 1; G.boat.pressure = 0.7f; G.boat.lantern = 2;
+        const Vector2 AT[6] = {{-9.6f, 0.6f}, {-6.0f, 1.6f}, {-2.2f, 1.5f}, {-0.8f, -2.2f}, {2.0f, 2.6f}, {7.0f, -0.8f}};
+        for (int i = 0; i < 6; i++) { G.crew[i].p = AT[i]; G.crew[i].station = -1; G.crew[i].facing = {i % 2 ? 1.0f : -1.0f, 0}; }
+        for (int k = 0; k < 5; k++) { CatchRec f; f.name = k % 2 ? "bonito" : "snapper"; f.kg = 2 + k; f.price = 3; f.dead = k > 1; f.deckAt = {-3.5f + k * 0.4f, 1.2f - k * 0.3f}; f.heading = k * 1.3f; G.hold.push_back(f); }
+        for (int i = 0; i < 60 * 3; i++) G.Step(1 / 60.0f);
+        for (int i = 0; i < 6; i++) G.crew[i].p = AT[i];
+        G.sea.weather = Weather::Rain;
+        S.eye.yaw = 0.0f; S.eye.pitch = -0.25f;
+        return;
+    }
     if (which == 36) {
         // spray: full ahead into a squall, the hand on the foredeck looking over the bow as she buries it
         Gannet& G = S.W->G;

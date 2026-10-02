@@ -266,6 +266,7 @@ static void TakeShots(const Game& base, const std::string& dir) {
     {"tvis_10_boat_stern", [](Game& g) { DebugTrawlShot(g, 153); }},
     {"tvis_10_boat_deck", [](Game& g) { DebugTrawlShot(g, 154); }},
     {"tvis_11_fish", [](Game& g) { DebugTrawlShot(g, 155); }},
+    {"tvis_12_six_rain", [](Game& g) { DebugTrawlShot(g, 142); }},
     {"tvis_11_deck_catch", [](Game& g) { DebugTrawlShot(g, 156); }},
         {"tvis_4_sidearm_rain", [](Game& g) { DebugTrawlShot(g, 144); }},
         {"trawl3d_fishon", [](Game& g) { DebugTrawlShot(g, 104); }},
@@ -377,6 +378,7 @@ static void TakeShots(const Game& base, const std::string& dir) {
         {"menu_main", [](Game& g) { g.scene = Scene::Hub; }},
         {"menu_settings", [](Game& g) { g.scene = Scene::Hub; }},
         {"menu_controls", [](Game& g) { g.scene = Scene::Hub; }},
+        {"menu_graphics", [](Game& g) { DebugTrawlShot(g, 140); }},
         {"combat_walk", [](Game& g) { DebugEnterCombat(g); g.dungeon.phase = DPhase::Walking; g.dungeon.walkT = 0.4f; }},
         {"combat_deep", [](Game& g) { g.tierCleared[(int)Location::Cave] = 4; g.tierSel[(int)Location::Cave] = 3; DebugEnterCombat(g); }},
         {"boss_sun_phase2", [](Game& g) { DebugSetEnemies(g, Location::Island, {EnemyType::SunGod, EnemyType::TribalShaman}); g.dungeon.enemies[0].hp = g.dungeon.enemies[0].maxHp / 3; }},
@@ -548,7 +550,7 @@ static void TakeShots(const Game& base, const std::string& dir) {
         for (int f = 0; f < nFrames; f++) {
             if (f == nFrames / 2) tFrames = GetTime();
             g.time += 1 / 60.0f;
-            if (f == 60 && strncmp(s.name, "menu_", 5) == 0) { SnapshotFrame(); DebugMenuPage(strstr(s.name, "settings") ? 1 : strstr(s.name, "controls") ? 2 : 0); } // between frames, as in play
+            if (f == 60 && strncmp(s.name, "menu_", 5) == 0) { SnapshotFrame(); DebugMenuPage(strstr(s.name, "settings") ? 1 : strstr(s.name, "controls") ? 2 : strstr(s.name, "graphics") ? 3 : 0); } // between frames, as in play
             BeginFrame();
             if (GameMenuActive()) GameMenuFrame(g); else RunScene(g);
             EndFrame(g.time);
@@ -815,11 +817,13 @@ int main(int argc, char** argv) {
     // --silhouette [dir] [filter]: the same sheets with every figure solid black, as <dir>/sil_<name>.png
     const bool figSheets = argc >= 3 && strcmp(argv[1], "--figures") == 0, silSheets = argc >= 2 && strcmp(argv[1], "--silhouette") == 0;
 
-    SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_RESIZABLE);
+    // (DEPTH_UNCAPPED=1: no vsync and no frame cap, so DEPTH_SHOTFRAMES measures the real cost of a frame)
+    const bool uncapped = getenv("DEPTH_UNCAPPED") != nullptr;
+    SetConfigFlags((uncapped ? 0 : FLAG_VSYNC_HINT) | FLAG_WINDOW_RESIZABLE);
     InitWindow(SCREEN_W, SCREEN_H, "Depth");
     SetWindowMinSize(640, 360);
     SetExitKey(KEY_NULL); // Esc is used in-game, so it shouldn't close the window
-    SetTargetFPS(60);
+    SetTargetFPS(uncapped ? 0 : 60);
     InitArt();
     RelicSpriteGenerator::Init(); // draw every relic's SVG icon
 
