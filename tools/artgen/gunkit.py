@@ -186,6 +186,8 @@ class Weapon:
         C.apply_all(o)
         C.smooth(o, smooth)
         o["group"] = group
+        if mat == "glass":
+            o["glass"] = 1   # (the game draws glass parts last, blended: the bake can't say which they were)
         if group != "static":
             o["kind"] = kind
             o["axis"] = list(axis) if axis else [0.0, 1.0, 0.0]

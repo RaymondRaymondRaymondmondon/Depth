@@ -131,7 +131,7 @@ void DrawPbr(const Model& m, Matrix world, Color tint = WHITE, float wrap = 0); 
 // Assets with moving parts (the gun kit, tools/artgen/gunkit.py): one mesh per part, in the glb's node order; each
 // part's pivot (its node's position), its group (hammer, trigger, cylinder, lever, bolt, break, load...), axis, travel
 // and the group it rides on; and the markers (grip_r, grip_l, muzzle, eject, sight, mount_*), all in model space.
-struct AssetPart { std::string name, group, kind, parent; Vector3 pivot{0, 0, 0}, axis{0, 0, 1}; float amount = 0; };
+struct AssetPart { std::string name, group, kind, parent; Vector3 pivot{0, 0, 0}, axis{0, 0, 1}; float amount = 0; bool glass = false; };   // glass: drawn last, blended
 struct AssetMarker { Vector3 p{0, 0, 0}, dir{1, 0, 0}; };
 struct AssetInfo { std::vector<AssetPart> parts; std::vector<std::pair<std::string, AssetMarker>> markers; const AssetMarker* Marker(const char* n) const { for (const auto& m : markers) if (m.first == n) return &m.second; return nullptr; } };
 const AssetInfo* AssetInfoOf(const Model* m);

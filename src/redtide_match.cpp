@@ -3669,7 +3669,7 @@ void Match::UpdateSalvage(float dt) {
                 Vector3 away = Vector3Subtract(a.pos, fl.pos); if (Vector3Length(away) < 0.1f) away = {1, 0, 0};
                 a.st = State::Flee; a.goal = map->zones[a.zone].Clamp(Vector3Add(a.pos, Vector3Scale(Vector3Normalize(away), 12)), 0.4f); a.stateT = 0; a.target = -1;
             } else if (sp.Has("camouflage") && a.st == State::Rest && dd < 15) { a.st = State::Graze; a.stateT = 0; }
-            else if (sp.curiosity >= 0.5f && (a.st == State::Graze || a.st == State::Rest || a.st == State::Return)) { a.st = State::Investigate; a.goal = fl.pos; a.stateT = 0; }
+            else if (sp.curiosity >= 0.5f && (a.st == State::Graze || a.st == State::Rest || a.st == State::Return || a.st == State::Investigate)) { a.st = State::Investigate; a.goal = fl.pos; if (a.stateT > 0.5f) a.stateT = 0; }   // (a burning flare outdraws any lesser curiosity)
         }
     }
     flareLights.erase(std::remove_if(flareLights.begin(), flareLights.end(), [](const FlareLight& f) { return f.t <= 0; }), flareLights.end());
@@ -5953,8 +5953,12 @@ int RunRedTideProfileTest() {
         Vector3 fl = k.flareLights[0].pos; int zf = k.eco.ZoneAt(fl);
         int curious = -1, shy = -1;
         for (int i = 0; i < (int)k.eco.agents.size(); i++) { const Agent& g = k.eco.agents[i]; if (!g.alive || g.diver >= 0 || k.IsBoss(i)) continue; const Species& sp = k.map->species[g.sp]; if (sp.isEnemy || sp.Sessile()) continue; if (sp.Has("nocturnal") && shy < 0) shy = i; else if (sp.curiosity >= 0.5f && !sp.Has("camouflage") && curious < 0 && sp.size <= 3) curious = i; }
-        for (int i : {curious, shy}) if (i >= 0) { Agent& g = k.eco.agents[i]; g.pos = k.map->zones[zf].Clamp(Vector3Add(fl, {5, 0, 0}), 0.5f); g.zone = zf; g.st = State::Graze; g.stun = 0; g.held = 0; g.target = -1; }
+        // (the flare alone: on opposite sides of it, and nothing else near; set side by side, or by a lamprey, the curious
+        // one rightly fled its neighbour instead)
+        for (int i = 0; i < (int)k.eco.agents.size(); i++) if (i != curious && i != shy && k.eco.agents[i].diver < 0 && !k.IsBoss(i) && Vector3Distance(k.eco.agents[i].pos, fl) < 25) k.eco.agents[i].pos.y -= 1000;
+        for (int i : {curious, shy}) if (i >= 0) { Agent& g = k.eco.agents[i]; g.pos = k.map->zones[zf].Clamp(Vector3Add(fl, {i == curious ? 5.0f : -5.0f, 0, 0}), 0.5f); g.zone = zf; g.st = State::Graze; g.stun = 0; g.held = 0; g.target = -1; }
         k.Step(0.05f);
+        if (getenv("DEPTH_FLAREDBG") && curious >= 0) { const Agent& g = k.eco.agents[curious]; printf("  curious %d (%s) st %d goal %.2f from the flare, %.2f away, zone %d/%d, target %d (%s, diver %d) sound %.1f hp %.0f/%.0f\n", curious, k.map->species[g.sp].name.c_str(), (int)g.st, Vector3Distance(g.goal, fl), Vector3Distance(g.pos, fl), g.zone, zf, g.target, g.target >= 0 ? k.map->species[k.eco.agents[g.target].sp].name.c_str() : "-", g.target >= 0 ? k.eco.agents[g.target].diver : -1, k.eco.sound.At(g.pos), g.hp, g.hpMax); }
         check(curious >= 0 && k.eco.agents[curious].st == State::Investigate && Vector3Distance(k.eco.agents[curious].goal, fl) < 0.5f, "a curious fish comes to the flare's light");
         check(shy >= 0 && k.eco.agents[shy].st == State::Flee && Vector3Distance(k.eco.agents[shy].goal, fl) > Vector3Distance(k.eco.agents[shy].pos, fl), "a nocturnal one flees it");
         // the cleaning brush

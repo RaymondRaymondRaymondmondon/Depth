@@ -391,5 +391,16 @@ amespace {} reopened before DrawRichEnemy). Shots: `foes_new_cave|island|weeds|a
   `SceneLight` (`water`, `absorb`, shafts, bloom, lens, `surf` procedural map surfaces). Harness `--shots shots/vis rvis_`.
 - **Skins for both games** (`skins.h/.cpp`, `skins_data.cpp`, `skins_ui.cpp`): 80 per game (15 store, 65 in crates
   by rarity), the Wardrobe page (Red Tide's Locker room, the arcade's Trawl reel), `--skins-test`.
+- **Costumes (the user: outfits that change the look; the skins stay):** 20 per game (8/6/4/2), `tools/artgen/costumes.py`
+  on the shared crew rig, `fig::DrawCostume`, the Wardrobe's Costumes tab with a live preview (`skins::gPreview`), Trawl
+  sync via `CMD_WARDROBE` + `Crew::skin/costume`. **Send the user gallery shots whenever skins or costumes change:**
+  `skins_gallery_*` (`DEPTH_SKINPAGE=0..7`), `costumes_gallery_*` (`0..1`), `costumes_wardrobe_*`.
+- **First-person hands (both games): a real viewmodel, not the headless body** (the user found the IK'd body arms out of
+  proportion): `tools/artgen/rt_fphands.py` -> `assets/shared/divers/fp_<diver|sailor>.glb`, placed by `rt::DrawVmArms`
+  (`DrawViewmodelHands` for Red Tide's baked guns, `SailorArms` in trawl_view3d.cpp). The user's references: melee held
+  upright from the bottom-right fist; a caught fish held up by the tail, hanging head down. Shots `rvis_3_hands`
+  (`DEPTH_RTGUN=<id>`), `rvis_3_handstudio` (`DEPTH_VMDBG=1` colours the parts).
+- **Glass in the PBR path** is drawn last, blended (`uGlass`): a material named `glass`, or a baked part tagged `glass` by
+  the gun kit (`AssetPart::glass`).
 - **Role upgrades and consignments (2026-10-02):** `Crew::ups` bits (`RoleUp`, `Crew::Up(u)`), chosen at the chalkboard's Role upgrades page (`CMD_ROLE_UP`, `Session::ChooseUp`/`ApplyUps`; ranks after 1/2/4 met deadlines; per role); the fight reads them through `Fight::holderUps`. The Owners' consignment (`Session::consign`, `PlaceConsignment`, reward via `CMD_CONSIGN_REWARD` on the count panel; a repossession removes the fitting's effect). Details in docs/TRAWL_PROGRESS.md; shot `trawl_roleups`.
 - **Phase 6 (the world, approved 2026-10-02):** the sea and sky shaders (`rt::DrawWater`, `rt::DrawSkyDome`), the Gannet (`tools/artgen/boat.py`), the quay (`dock.py`) and ten fish archetypes (`fish.py`, skinned spines, `DrawFishPbr`/`FishArchOf`). Big surfaces use tiling numpy texture sets (`tiles.py`) with UVs in metres and occlusion baked into vertex colours (glTF scene extra `depth_vcao`); such assets get a depth prepass. `DEPTH_OLDBOAT=1` draws the old boat, quay and fish for before/after shots. Details in docs/TRAWL_PROGRESS.md.

@@ -1,6 +1,7 @@
 // The Trawl's procedural pixel art (design doc, "Art"): a top-down deck drawn at twice the parkour pixel scale into
 // the pixel canvas, in the boat's own frame (bow to the right) so the planks stay crisp while the sea turns under her.
 // The sea is black outside the light: only the lantern's pool shows water, foam and glints.
+#include "skins.h"
 #include "trawl_art.h"
 #include "trawl_eco.h"
 #include "trawl_session.h"
@@ -939,6 +940,10 @@ void DrawCrewMember(const Crew& c, const View& v, float t, bool you) {
     }
     float k = 0.35f + 0.65f * v.LightAt(c.p);
     Color coat = Dim(RoleColor(c.role), k), dark = Dim(Color{30, 26, 22, 255}, k), skin = Dim(Color{214, 170, 130, 255}, k);
+    // the player's Wardrobe (Crew::skin, Crew::costume, as the boat has them): the coat and the hat's brim take the skin's
+    // colours, a costume its own; the role's colour stays at the crown so the role still reads
+    if (const skins::Skin* sk = skins::Find(skins::TRAWL, c.skin)) { coat = Dim(sk->top, k); dark = Dim(sk->hat, k * 0.8f); }
+    if (const skins::Costume* co = skins::FindCostume(skins::TRAWL, c.costume)) coat = Dim(co->sleeve, k);
     if (c.fallen) {   // flat on the deck
         DrawRectangle((int)p.x - 4, (int)p.y - 2, 9, 5, coat);
         DrawRectangle((int)p.x + 3, (int)p.y - 1, 3, 3, skin);

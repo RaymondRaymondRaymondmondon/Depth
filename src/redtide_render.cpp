@@ -719,6 +719,7 @@ uniform vec4 uPL[8]; uniform vec4 uPLC[8]; uniform int uPLN;
 uniform vec3 uMoonDir, uMoon, uSkyAmb, uSeaAmb; uniform float uMoonK, uAmbK, uSil;
 uniform sampler2D uShadowMap; uniform mat4 uLightVP; uniform int uHasShadow;
 uniform float uWet, uWetFloor, uFlash;
+uniform float uGlass;   // 1: a glass part (drawn last, blended: clear face-on, silvered toward its edges)
 out vec4 finalColor;
 // the lamp's shadow: a 3x3 filtered look-up in its depth map (1 lit, 0 in shadow); outside the map, lit
 float keyShadow(vec3 wp, vec3 n, vec3 L) {
@@ -762,7 +763,7 @@ void main() {
     vec4 bc = uVcAO == 1 ? colDiffuse : colDiffuse * fragColor;
     albedo = bc.rgb;
     if (uHasAlb == 1) { vec4 tx = texture(texture0, fragUV); albedo *= toLin(tx.rgb); bc.a *= tx.a; }
-    if (bc.a < 0.4) discard;
+    if (uGlass < 0.5 && bc.a < 0.4) discard;
     metal = uMetal; rough = uRough;
     if (uHasMR == 1) { vec4 mr = texture(uMR, fragUV); rough *= mr.g; metal *= mr.b; }
     N = normalize(fragNormal);
@@ -810,7 +811,8 @@ void main() {
     col = pow(col, vec3(1.0 / 2.2));
     col = sceneFog(col, fragWorld, fragViewZ, uFog / 255.0, uFogDensity);
     if (uSil > 0.5) col = vec3(0.0);
-    finalColor = vec4(col, 1.0);
+    float ga = uGlass > 0.5 ? mix(0.18, 0.85, pow(1.0 - max(dot(N, V), 0.0), 3.0)) : 1.0;
+    finalColor = vec4(col, ga);
 }
 )";
 
@@ -1525,7 +1527,7 @@ const Model* LoadAsset(const std::string& relPath) {
                         }
                         int prims = (int)j["meshes"][n["mesh"].I(0)]["primitives"].a.size();
                         AssetPart p;
-                        p.name = n["name"].Str0(); p.group = ex["group"].Str0(); p.kind = ex["kind"].Str0(); p.parent = ex["parent"].Str0();
+                        p.name = n["name"].Str0(); p.group = ex["group"].Str0(); p.kind = ex["kind"].Str0(); p.parent = ex["parent"].Str0(); p.glass = ex["glass"].I(0) != 0;
                         if (p.group.empty()) p.group = "static";
                         p.pivot = t; p.axis = blenderToGl(v3(ex["axis"], {0, 1, 0})); p.amount = ex["amount"].F(0);
                         for (int k = 0; k < std::max(1, prims); k++) info.parts.push_back(p);
@@ -1546,12 +1548,17 @@ void DrawWorldCube(Vector3 c, Vector3 size, Color col) {
     gQueue.push_back({&gCube, world, (int)AnimMode::Static, 0, 0, 0, 1, 0, 0, col});
 }
 
+static int gGlassMode = 0;     // 0: everything but glass (and note there was some), 1: the glass alone (the last, blended pass)
+static bool gGlassSeen = false;
 static void DrawPbrCmd(const DrawCmd& d, Shader sh, bool lit) {
     Model& m = const_cast<Model&>(*d.model);
     Matrix world = MatrixMultiply(m.transform, d.world);
     if (lit) { SetF(gPbr, L_pbr[PU_WRAP], d.wrap); SetF(gPbr, L_pbr[PU_GLOW], d.glow); SetI(gPbr, L_pbr[PU_VCAO], gVcAO.count(d.model) ? 1 : 0); }
     auto names = gMatNames.find(d.model);
     for (int i = 0; i < m.meshCount; i++) {
+        bool glass = names != gMatNames.end() && m.meshMaterial[i] >= 1 && m.meshMaterial[i] - 1 < (int)names->second.size() && names->second[m.meshMaterial[i] - 1].find("glass") != std::string::npos;
+        if (!glass) { auto ai = gAssetInfo.find(d.model); glass = ai != gAssetInfo.end() && i < (int)ai->second.parts.size() && ai->second.parts[i].glass; }   // (a baked part tagged glass)
+        if (glass != (gGlassMode == 1)) { if (glass) gGlassSeen = true; continue; }
         Material mat = m.materials[m.meshMaterial[i]];
         Shader keep = mat.shader;
         mat.shader = sh;
@@ -1577,6 +1584,7 @@ static void DrawPbrCmd(const DrawCmd& d, Shader sh, bool lit) {
             SetI(gPbr, L_pbr[PU_HASEMIT], has(MATERIAL_MAP_EMISSION));
             SetF(gPbr, L_pbr[PU_METAL], mat.maps[MATERIAL_MAP_METALNESS].value);
             SetF(gPbr, L_pbr[PU_ROUGH], mat.maps[MATERIAL_MAP_ROUGHNESS].value);
+            { static int lg = GetShaderLocation(gPbr, "uGlass"); SetF(gPbr, lg, glass ? 1.0f : 0.0f); }
             Color e = mat.maps[MATERIAL_MAP_EMISSION].color;
             SetV3(gPbr, L_pbr[PU_EMITCOL], {e.r / 255.0f, e.g / 255.0f, e.b / 255.0f});
         }
@@ -1625,6 +1633,15 @@ static void DrawQueue(Shader sh, bool lit) {
         if (lit) { SetF(sh, L_litGlow, d.glow); SetI(sh, L_litSky, d.sky); static int ls = GetShaderLocation(gLit, "uSurf"); SetF(sh, ls, d.anim == (int)AnimMode::Static && !d.sky ? gLight.surf : 0.0f); }
         DrawMesh(m.meshes[0], m.materials[0], d.world);
     }
+    // the glass (gauges' faces, cartridges, ports, tanks), last: blended over what's behind it, writing no depth
+    if (lit && gGlassSeen) {
+        rlDrawRenderBatchActive(); BeginBlendMode(BLEND_ALPHA); rlDisableDepthMask();
+        gGlassMode = 1;
+        for (const DrawCmd& d : gQueue) if (d.pbr && !d.water && !d.skydome) DrawPbrCmd(d, gPbr, true);
+        gGlassMode = 0;
+        rlDrawRenderBatchActive(); rlEnableDepthMask(); EndBlendMode();
+    }
+    gGlassSeen = false;
 }
 
 void RenderEnd() {
