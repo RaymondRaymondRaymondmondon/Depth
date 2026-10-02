@@ -724,7 +724,11 @@ static void BuildGuns() {
     gGunsReady = true;
 }
 
+// the wonder weapon in the hand this frame (DrawGun sets it; the post-ink pass draws its living effect)
+struct WonderFx { int kind = 0; Vector3 at{}, axis{1, 0, 0}; bool forged = false; };
+static WonderFx gWonder;
 static void DrawGun(const Camera3D& cam) {
+    gWonder.kind = 0;
     if (!gGunsReady && IsWindowReady()) BuildGuns();
     if (!gGunsReady) return;
     DiverState& d = Me();
@@ -814,6 +818,14 @@ static void DrawGun(const Camera3D& cam) {
             bool forged = h.forged || getenv("DEPTH_FORGED");
             if (forged) { tint = {150, 220, 210, 255}; forgeGlow = 0.12f; }
             DrawRtWeapon(wid, frame, an, tint, &gR, &gL, &mz, forgeGlow);
+            // the wonder weapons are alive in the hand (the spec): their effects drawn after the ink with the particles
+            gWonder = {}; gWonder.kind = wid == "galvanicrod" ? 1 : wid == "resonator" ? 2 : wid == "anemonegun" ? 3 : wid == "tidestaff" ? 4 : wid == "abyssallure" ? 5 : 0;
+            if (gWonder.kind) {
+                gWonder.at = mz; gWonder.forged = forged;
+                Vector3 back = Vector3Transform(RtWeaponMarker(wid, "grip_r", {0, 0, 0}), frame);
+                gWonder.axis = Vector3Normalize(Vector3Subtract(mz, back));
+                if (gWonder.kind == 1 || gWonder.kind == 5) AddLateLight(mz, 4, gWonder.kind == 1 ? Color{150, 220, 255, 255} : Color{220, 255, 230, 255}, gWonder.kind == 1 ? 0.6f + 0.4f * (GetRandomValue(0, 100) / 100.0f) : 0.5f);
+            }
             if (forged) {   // (the sea-glass: a frosted green-blue shell over it, its light breathing)
                 SetNextPbrGlass(true);
                 DrawRtWeapon(wid, MatrixMultiply(MatrixScale(1.025f, 1.06f, 1.06f), frame), an, {50, 190, 170, 255}, nullptr, nullptr, nullptr, 0.35f + 0.15f * sinf(S.time * 1.7f));
@@ -1518,6 +1530,43 @@ static void DrawScene() {
         DrawBillboard(cam, SoftDot(), c, sf.cell * 1.6f, Fade(BloodCol(Color{(unsigned char)(96 - 60 * deep), (unsigned char)(6 - 3 * deep), (unsigned char)(10 - 5 * deep), 255}), a * 0.9f));
     }
     for (const auto& p : S.fx) DrawCube(p.pos, p.size, p.size, p.size, Fade(p.col, p.life / p.max));
+    if (gWonder.kind) {
+        const WonderFx& w = gWonder;
+        Vector3 a = w.axis, s1 = Vector3Normalize(Vector3CrossProduct(a, {0, 1, 0})), s2 = Vector3CrossProduct(s1, a);
+        auto around = [&](float r, float ang, float along) { return Vector3Add(w.at, Vector3Add(Vector3Scale(a, along), Vector3Add(Vector3Scale(s1, cosf(ang) * r), Vector3Scale(s2, sinf(ang) * r)))); };
+        float t = S.time;
+        if (w.kind == 1) {          // the Galvanic Rod: arcs crawling over the coils, flickering
+            for (int k = 0; k < 4; k++) {
+                if (GetRandomValue(0, 100) < 30) continue;
+                Vector3 p = around(0.05f, GetRandomValue(0, 628) * 0.01f, -0.12f - k * 0.05f);
+                for (int seg = 0; seg < 5; seg++) {
+                    Vector3 q = around(0.03f + GetRandomValue(0, 50) * 0.001f, GetRandomValue(0, 628) * 0.01f, -0.12f - k * 0.05f + seg * 0.03f);
+                    DrawLine3D(p, q, seg % 2 ? Color{220, 245, 255, 255} : Color{130, 200, 255, 255}); p = q;
+                }
+            }
+            DrawSphere(w.at, 0.03f + 0.01f * sinf(t * 40), Fade(Color{200, 240, 255, 255}, 0.8f));
+        } else if (w.kind == 2) {   // the Resonator: rings shivering out of its horns
+            for (int k = 0; k < 3; k++) {
+                float ph = fmodf(t * 1.5f + k / 3.0f, 1.0f);
+                float r = 0.04f + ph * 0.22f;
+                for (int sgm = 0; sgm < 24; sgm++) DrawSphere(around(r, sgm * PI / 12, ph * 0.1f), 0.004f + 0.004f * (1 - ph), Fade(Color{230, 220, 255, 255}, (1 - ph) * 0.85f));   // (a ring of beads: lines are a pixel thin)
+            }
+        } else if (w.kind == 3) {   // the Anemone Gun: its polyps pulsing pink at the muzzle (gold when Forged)
+            for (int k = 0; k < 6; k++) {
+                float pu = 0.5f + 0.5f * sinf(t * 3 + k * 1.1f);
+                DrawSphere(around(0.035f, k * PI / 3 + t * 0.4f, 0.01f + 0.02f * pu), 0.008f + 0.008f * pu, w.forged ? Color{255, 190, 90, 255} : Color{255, 130, 180, 255});
+            }
+        } else if (w.kind == 4) {   // the Tide Staff: the water swirling round the crystal
+            for (int k = 0; k < 18; k++) {
+                float ang = t * 3 + k * 0.7f, r = 0.06f + 0.04f * sinf(k * 1.3f + t);
+                DrawSphere(around(r, ang, -0.05f + (k % 6) * 0.025f), 0.006f, Fade(Color{190, 235, 255, 255}, 0.7f));
+            }
+        } else if (w.kind == 5) {   // the Abyssal Lure: its light beating like a heart (two beats, a rest)
+            float c = fmodf(t, 1.1f), beat = expf(-powf((c - 0.1f) / 0.05f, 2)) + 0.7f * expf(-powf((c - 0.3f) / 0.05f, 2));
+            DrawSphere(w.at, 0.03f + 0.02f * beat, Fade(Color{220, 255, 230, 255}, 0.6f + 0.4f * beat));
+            DrawSphere(w.at, 0.12f + 0.08f * beat, Fade(Color{150, 255, 210, 255}, 0.1f + 0.15f * beat));
+        }
+    }
     // the Void's lights: the Leviathan's lure (and its two decoys in phase 3), the Abyssal Lure's lanterns
     if (m.bossKind == 4 && m.bossActive && m.bossAgent >= 0 && m.lureHP > 0) {
         Vector3 lp = m.LurePos();
