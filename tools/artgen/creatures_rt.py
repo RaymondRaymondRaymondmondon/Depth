@@ -280,12 +280,12 @@ def cetacean(K):
     zs = [0.5, 0.22, -0.02, -0.25, -0.5]
     for k in range(4):
         K.bone(f"s{k}", (0, 0.0, zs[k]), (0, 0.0, zs[k + 1]), f"s{k - 1}" if k else None)
-    prof = [(0.48, 0.035), (0.4, 0.08), (0.25, 0.12), (0.05, 0.13), (-0.15, 0.1), (-0.32, 0.055), (-0.44, 0.03)]
-    for k in range(len(prof) - 1):
-        (z0, r0), (z1, r1) = prof[k], prof[k + 1]
-        bone = "s0" if z0 > 0.22 else "s1" if z0 > -0.02 else "s2" if z0 > -0.25 else "s3"
-        K.ell(f"body{k}", (0, 0.0, (z0 + z1) / 2), ((r0 + r1) / 2, (r0 + r1) / 2 * 0.95, abs(z0 - z1) * 1.25), "back", bone, 24)
-        K.ell(f"bellyp{k}", (0, -((r0 + r1) / 2) * 0.35, (z0 + z1) / 2), ((r0 + r1) / 2 * 0.85, (r0 + r1) / 2 * 0.6, abs(z0 - z1) * 1.2), "belly", bone, 20)
+    # one smooth streamlined body (the hero sculpt: lofted, bent along the spine), its pale belly a second skin under it
+    body = [(0.5, 0.03, 0.03, 0.0), (0.44, 0.07, 0.075, 0.0), (0.34, 0.11, 0.115, 0.005), (0.18, 0.13, 0.135, 0.01),
+            (0.0, 0.13, 0.135, 0.01), (-0.16, 0.105, 0.11, 0.005), (-0.3, 0.065, 0.07, 0.0), (-0.42, 0.035, 0.04, 0.0),
+            (-0.48, 0.022, 0.03, 0.0)]
+    K.loft_body("body", body, "back", ["s0", "s1", "s2", "s3"], zs)
+    K.loft_body("belly", [(z, hw * 0.82, hh * 0.5, yc - hh * 0.5) for (z, hw, hh, yc) in body[1:-1]], "belly", ["s0", "s1", "s2", "s3"], zs)
     K.limb("beak", (0, -0.01, 0.46), (0, -0.015, 0.56), 0.035, 0.018, "back", "s0")
     for s, sd in ((1, "L"), (-1, "R")):
         K.ell(f"eye{sd}", (s * 0.07, 0.02, 0.38), (0.012, 0.012, 0.012), "eye", "s0", 10)
@@ -389,10 +389,12 @@ def wyrm(K):
     n = 12
     zs = [0.5 - k * (1.0 / n) for k in range(n + 1)]
     spine(K, zs, "w")
+    # one long smooth serpent (lofted, bent over its twelve bones), the pale belly a second skin along it
+    body = [(zs[0] + 0.02, 0.05, 0.045, 0.0)] + [(zs[k], 0.07 * (1.0 - 0.6 * k / n) + 0.012, 0.065 * (1.0 - 0.6 * k / n) + 0.012, 0.0) for k in range(n + 1)]
+    K.loft_body("body", body, "back", [f"w{k}" for k in range(n)], zs, 20)
+    K.loft_body("belly", [(z, hw * 0.75, hh * 0.45, -hh * 0.55) for (z, hw, hh, yc) in body[1:-1]], "belly", [f"w{k}" for k in range(n)], zs, 16)
     for k in range(n):
         r = 0.05 * (1.0 - 0.6 * k / n) + 0.02
-        K.ell(f"seg{k}", (0, 0.0, (zs[k] + zs[k + 1]) / 2), (r, r, (zs[k] - zs[k + 1]) * 1.2), "back", f"w{k}", 18)
-        K.ell(f"segb{k}", (0, -r * 0.4, (zs[k] + zs[k + 1]) / 2), (r * 0.8, r * 0.5, (zs[k] - zs[k + 1]) * 0.6), "belly", f"w{k}", 14)
         if k % 3 == 1:
             K.ell(f"collar{k}", (0, 0.0, zs[k]), (r * 1.15, r * 1.15, 0.012), "gill", f"w{k}", 18)
         K.limb(f"crest{k}", (0, r * 0.9, (zs[k] + zs[k + 1]) / 2), (0, r * 0.9 + 0.035, zs[k + 1]), 0.012, 0.002, "fin", f"w{k}", 6)
@@ -408,9 +410,13 @@ def angler(K):
     # the Lantern Leviathan: a vast dark anglerfish, a mouth like a cave, needle teeth, the pale lure on its rod
     zs = [0.5, 0.2, -0.05, -0.28, -0.5]
     spine(K, zs)
-    K.ell("body", (0, 0.0, 0.05), (0.3, 0.28, 0.38), "back", "s1", 32)
-    K.ell("head", (0, 0.02, 0.32), (0.32, 0.27, 0.2), "back", "s0", 32)
-    K.ell("tailbody", (0, 0.0, -0.3), (0.12, 0.13, 0.18), "back", "s2", 20)
+    # one vast globular body (lofted: a head as wide as it is long, falling away to the narrow tail)
+    body = [(0.5, 0.2, 0.12, -0.04), (0.44, 0.31, 0.24, 0.0), (0.3, 0.34, 0.29, 0.02), (0.1, 0.31, 0.29, 0.02),
+            (-0.08, 0.24, 0.24, 0.01), (-0.24, 0.15, 0.16, 0.0), (-0.36, 0.09, 0.1, 0.0), (-0.46, 0.05, 0.06, 0.0)]
+    K.loft_body("body", body, "back", ["s0", "s1", "s2", "s3"], zs, 32)
+    for k in range(12):   # warty skin and the lateral-line pores of a deep-sea angler
+        a = k * 2.4
+        K.ell(f"wart{k}", (0.3 * math.cos(a) * 0.95, 0.22 * math.sin(a), 0.25 - (k % 4) * 0.12), (0.022, 0.022, 0.022), "fin", "s0" if k % 4 == 0 else "s1", 8)
     K.ell("mouth", (0, -0.05, 0.48), (0.26, 0.12, 0.04), "eye", "s0", 24)
     for k in range(14):   # needle teeth round the mouth
         a = math.pi * (k / 13.0)

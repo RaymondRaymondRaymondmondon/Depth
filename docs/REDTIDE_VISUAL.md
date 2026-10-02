@@ -290,8 +290,9 @@ The spec: `Red_Tide_Reference/Red Tide — Visual Overhaul Spec.pdf` (25 pages, 
   themselves are still wholly dry: no water line inside them.
 - **Hero sculpts, begun:** the creature kit's loft_body lofts one smooth body through superellipse sections,
   weighted along the spine, so it bends as one surface. The Goliath is rebuilt on it as a mottled grouper (the jaw,
-  eleven dorsal spines and their membrane, pectorals, a rounded tail fan, flatter armour plates, in browns). The
-  Lobster, the Matriarch, the Cistern Wyrm and the Lantern Leviathan are still assemblies of parts: next.
+  eleven dorsal spines and their membrane, pectorals, a rounded tail fan, flatter armour plates, in browns). Also
+  on smooth lofted bodies now: the cetaceans (the dolphins and the Matriarch), the Cistern Wyrm (one serpent over
+  twelve bones) and the Lantern Leviathan (a vast globular body with warts). The Lobster is still parts.
 - **Boss phases on the body:** the second phase darker and hotter, the third pulsing, the weak point lit, the
   movement quicker.
 - **Interactables as their own models.** The spec: "each get a distinct, well-lit, detailed model that never gets lost
