@@ -1120,6 +1120,7 @@ static std::vector<Matrix> gBonePool;
 static std::vector<Recolor> gRecPool;
 static std::map<const Model*, std::vector<std::string>> gMatNames;   // glTF material names, index = raylib material - 1
 static std::set<const Model*> gVcAO;                                  // assets whose vertex colours are baked occlusion
+static std::set<const Model*> gBig;                                   // ...and of those, the big ones (a depth prepass pays)
 static std::vector<DrawCmd> gQueue;
 static Camera3D gCam;
 static SceneLight gLight;
@@ -1316,7 +1317,11 @@ const Model* LoadAsset(const std::string& relPath) {
                 Json j; std::string err;
                 if (ParseJson(std::string((const char*)data + 20, jlen), j, &err)) {
                     for (const Json& mt : j["materials"].a) gMatNames[m.get()].push_back(mt["name"].Str0());
-                    if (j["scenes"].IsArr() && !j["scenes"].a.empty() && j["scenes"][0]["extras"]["depth_vcao"].I(0)) gVcAO.insert(m.get());
+                    if (j["scenes"].IsArr() && !j["scenes"].a.empty() && j["scenes"][0]["extras"]["depth_vcao"].I(0)) {
+                        gVcAO.insert(m.get());
+                        int tris = 0; for (int i = 0; i < m->meshCount; i++) tris += m->meshes[i].triangleCount;
+                        if (tris > 20000) gBig.insert(m.get());
+                    }
                     // the parts and markers (raylib makes one mesh per primitive, walking the nodes in order)
                     AssetInfo info;
                     auto v3 = [](const Json& a, Vector3 def) { return a.IsArr() && a.a.size() >= 3 ? Vector3{a[0].F(0), a[1].F(0), a[2].F(0)} : def; };
@@ -1395,7 +1400,7 @@ static void DrawQueue(Shader sh, bool lit) {
     bool pre = false;
     if (lit)
         for (const DrawCmd& d : gQueue) {
-            if (!d.pbr || !gVcAO.count(d.model)) continue;
+            if (!d.pbr || !gBig.count(d.model)) continue;
             if (!pre) { rlDrawRenderBatchActive(); rlColorMask(false, false, false, false); SetI(gDepthSh, L_depthSkinned, 0); pre = true; }
             Model& m = const_cast<Model&>(*d.model);
             Matrix world = MatrixMultiply(m.transform, d.world);
@@ -1403,7 +1408,7 @@ static void DrawQueue(Shader sh, bool lit) {
         }
     if (pre) { rlDrawRenderBatchActive(); rlColorMask(true, true, true, true); }
     for (const DrawCmd& d : gQueue) {
-        if (pre && d.pbr && gVcAO.count(d.model)) { rlDrawRenderBatchActive(); rlDisableDepthMask(); DrawPbrCmd(d, gPbr, true); rlDrawRenderBatchActive(); rlEnableDepthMask(); continue; }
+        if (pre && d.pbr && gBig.count(d.model)) { rlDrawRenderBatchActive(); rlDisableDepthMask(); DrawPbrCmd(d, gPbr, true); rlDrawRenderBatchActive(); rlEnableDepthMask(); continue; }
         if (d.skydome) { if (lit) DrawSkyCmd(d); continue; }
         if (d.water && gShadowPass) continue;
         if (d.water) { if (lit) DrawWaterCmd(d); else { DrawCmd e = d; e.pbr = 1; e.world = MatrixIdentity(); Model& m = const_cast<Model&>(*d.model); Material mat = m.materials[0]; mat.shader = gNDPbr; SetI(gNDPbr, L_ndPbrSkinned, 0); for (int i = 0; i < m.meshCount; i++) DrawMesh(m.meshes[i], mat, MatrixIdentity()); } continue; }

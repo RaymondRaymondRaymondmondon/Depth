@@ -1779,6 +1779,8 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
         if (eco && eco->g && eco->DepthAt(w) < 1) continue;
         if (Vector2Distance(w, {cam.position.x, cam.position.z}) > 90) continue;
         float h = g.sea.Height(w.x, w.y);
+        bool nearBuoy = Vector2Distance(w, {cam.position.x, cam.position.z}) < 45;   // (further off, at night, only its lamp shows)
+        if (!nearBuoy && !getenv("DEPTH_OLDBOAT")) { bool bl = fmodf(t + k * 0.37f, 2.0f) < 1.2f; Color c2 = cosf(a) > 0 ? Color{90, 230, 120, 255} : Color{240, 80, 70, 255}; Glow(W3(w, h + 1.05f), 0.2f, bl ? c2 : Mul(c2, 0.25f), bl ? 2.5f : 0.1f); continue; }
         const Model* bu = getenv("DEPTH_OLDBOAT") ? nullptr : rt::LoadAsset(cosf(a) > 0 ? "trawl/props/buoy_green.glb" : "trawl/props/buoy_red.glb");
         if (bu) rt::DrawPbr(*bu, MatrixMultiply(MatrixRotateZ(0.08f * sinf(t * 0.9f + k)), MatrixTranslate(w.x, h, w.y)));   // (riding the swell)
         else rt::DrawWorldCube(W3(w, h + 0.4f), {0.5f, 0.9f, 0.5f}, Color{50, 50, 54, 255});
