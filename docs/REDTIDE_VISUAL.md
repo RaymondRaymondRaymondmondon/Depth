@@ -218,3 +218,9 @@ The spec: `Red_Tide_Reference/Red Tide — Visual Overhaul Spec.pdf` (25 pages, 
   and that only owned skins can be worn.
 - Note: `--redtide-profile-test` fails one check ("a curious fish comes to the flare's light"), an ecosystem check none
   of this touches; not investigated.
+
+## Afterwards (2026-10-02)
+- Teammates hold their current gun's baked model in third person (`DrawTeammate`).
+- Gas, needle, spear and gatling guns breathe out a burst of bubbles from the muzzle as they fire.
+- Landmarks from the map kits (`MapDressing`): Atlantis's forum and gate have a bronze statue and columns, its chapel
+  braziers, its town columns; giant clams on the reef's sand flats and lagoon; glass sponges in the Void's galleries.
