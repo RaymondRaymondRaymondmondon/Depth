@@ -121,6 +121,30 @@ void DrawPbrParts(const Model& m, Matrix world, const std::vector<Matrix>& partL
 // a light added after RenderBegin (a muzzle flash found only once the gun is placed); dropped if the eight are taken
 void AddLateLight(Vector3 p, float r, Color c, float k);
 
+// The sea (the Trawl's world pass): a surface mesh with real normals, lit as water: Fresnel reflection of the sky, the
+// moon's glitter path, each lamp's reflection stretched on the swell, foam at the hull, the bow and in the wake, white
+// crests in heavy weather, rain rings; translucent so what swims near the light shows through.
+struct WaterLook {
+    Color deep{6, 18, 24, 255}, zenith{8, 12, 22, 255}, horizon{30, 40, 52, 255};
+    Vector2 boatPos{0, 0}; float boatHeading = 0, boatSpeed = 0, boatLen = 22, boatBeam = 6;
+    float crest = 0;          // white water on the swell's tops (0 calm .. 1 a storm)
+    float rain = 0;           // rain rings (0..1)
+    float alpha = 0.86f;
+    float moonK = 0.5f;       // how bright the moon's path is (its phase; 0 under cloud)
+};
+void DrawWater(const Model& m, const WaterLook& w);
+// The night sky as a dome round the eye: a gradient, the moon (in its phase, lit side toward its light), clouds lit
+// from behind by it, a horizon glow; drawn first, unfogged except near the horizon.
+struct SkyLook {
+    Color zenith{4, 6, 14, 255}, horizon{26, 34, 46, 255}, cloud{40, 46, 58, 255};
+    Vector3 moonDir{-0.4f, 0.45f, 0.6f};   // toward the moon
+    float moonPhase = 0.5f;                // 0 new, 0.5 full, 1 new again
+    float cloudCover = 0.3f;               // cover 0..1
+    float stars = 1;                       // 0 hidden (fog, overcast)
+    float time = 0;
+};
+void DrawSkyDome(const SkyLook& s);
+
 // Skinned characters (the shared rig, tools/artgen/crew.py). A pose is a model-space rotation (and scale) per bone
 // about its bind joint, applied down the chain: so "swing the right arm forward" is a rotation about the model's
 // lateral axis on upperarm.R, whatever the bone's own axes. SolveRig turns it into the skinning matrices.

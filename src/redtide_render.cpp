@@ -705,6 +705,116 @@ void main() {
 }
 )";
 
+// The sea (the Trawl's world pass): Fresnel between the water's dark body (lit in the lamp's pool) and the reflected
+// sky; the moon's glitter path; each lamp stretched on the swell; foam at the hull, the bow and in the wake, white crests
+// in heavy weather; rain rings. Display-space colours, like the inked path beside it.
+static const char* RT_WATER_FS = R"(#version 330
+in vec3 fragWorld; in vec3 fragNormal; in vec2 fragUV; in vec4 fragColor; in float fragViewZ;
+uniform vec3 uCam, uMoonDir, uDeep, uZenith, uHorizon, uFog, uLampPos, uLampDir, uKey;
+uniform float uFogDensity, uTime, uCrest, uRain, uAlpha, uMoonK, uLampRange, uLampCone;
+uniform vec4 uPL[8]; uniform vec4 uPLC[8]; uniform int uPLN;
+uniform vec2 uBoatPos; uniform float uBoatHead, uBoatSpeed, uBoatLen, uBoatBeam;
+out vec4 finalColor;
+float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float noise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+    return mix(mix(hash(i), hash(i + vec2(1, 0)), f.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), f.x), f.y); }
+void main() {
+    vec2 rp = fragWorld.xz;
+    vec3 N = normalize(fragNormal);
+    // the small ripples on the swell
+    N = normalize(N + vec3((noise(rp * 3.0 + uTime * 0.6) - 0.5) * 0.22 + (noise(rp * 8.0 - uTime * 0.9) - 0.5) * 0.1, 0.0,
+                           (noise(rp * 3.0 + 17.0 - uTime * 0.5) - 0.5) * 0.22 + (noise(rp * 8.0 + 5.0 + uTime) - 0.5) * 0.1));
+    vec3 V = normalize(uCam - fragWorld);
+    if (dot(N, V) < 0.0) N = -N;
+    float NdV = max(dot(N, V), 0.0);
+    float F = 0.02 + 0.98 * pow(1.0 - NdV, 5.0);
+    vec3 R = reflect(-V, N);
+    vec3 sky = mix(uHorizon / 255.0, uZenith / 255.0, clamp(R.y * 1.6, 0.0, 1.0));
+    vec3 md = normalize(uMoonDir);
+    float glit = pow(max(dot(R, md), 0.0), 140.0) * 5.0 * uMoonK * (0.5 + noise(rp * 14.0 + uTime * 3.0));
+    vec3 refl = sky + vec3(0.8, 0.86, 0.95) * glit;
+    for (int i = 0; i < 8; i++) {   // the lamps, stretched long on the swell
+        if (i >= uPLN) break;
+        vec3 L = uPL[i].xyz - fragWorld; float d = length(L); L /= max(d, 1e-3);
+        refl += uPLC[i].rgb * uPLC[i].a * pow(max(dot(R, L), 0.0), 36.0) * clamp(1.0 - d / (uPL[i].w * 5.0), 0.0, 1.0) * 2.2;
+    }
+    vec3 Lk = uLampPos - fragWorld; float dk = length(Lk); Lk /= max(dk, 1e-3);
+    float cone = smoothstep(uLampCone, uLampCone + 0.18, dot(-Lk, normalize(uLampDir)));
+    float att = clamp(1.0 - dk / uLampRange, 0.0, 1.0); att *= att;
+    float pool = cone * att;
+    refl += uKey / 255.0 * pow(max(dot(R, Lk), 0.0), 50.0) * pool * 2.0;
+    vec3 body = uDeep / 255.0 * (0.7 + 3.0 * pool) + uKey / 255.0 * pool * 0.06;
+    vec3 col = mix(body, refl, F);
+    // foam: along the hull and at the bow with way on her, the wake widening behind, crests in a blow
+    vec2 d2 = rp - uBoatPos; float ch = cos(uBoatHead), sh = sin(uBoatHead);
+    vec2 bl = vec2(d2.x * ch + d2.y * sh, -d2.x * sh + d2.y * ch);
+    float hl = uBoatLen * 0.5, hb = uBoatBeam * 0.5;
+    float e = length(vec2(bl.x / hl, bl.y / hb));
+    float way = clamp(uBoatSpeed / 2.5, 0.0, 1.0);
+    float foam = smoothstep(1.22, 1.0, e) * (0.25 + 0.75 * way);
+    if (bl.x > hl * 0.55) foam += smoothstep(1.45, 1.0, e) * way;
+    float along = -(bl.x + hl * 0.85);
+    if (along > 0.0) {
+        float w = hb * 0.5 + along * 0.33;
+        foam += (smoothstep(w, 0.0, abs(bl.y)) * 0.55 + smoothstep(1.4, 0.0, abs(abs(bl.y) - w)) * 0.8) * exp(-along / (5.0 + uBoatSpeed * 9.0)) * way;
+    }
+    foam += uCrest * smoothstep(0.35, 0.9, fragWorld.y / max(0.2, uCrest * 2.2));
+    foam = smoothstep(0.3, 0.75, foam * (0.45 + 0.75 * noise(rp * 4.0 + vec2(uTime * 0.4, 0.0))));
+    vec3 foamCol = vec3(0.7, 0.76, 0.8) * (0.18 + 1.6 * pool) + vec3(0.6, 0.66, 0.75) * uMoonK * 0.15;
+    col = mix(col, foamCol, foam);
+    if (uRain > 0.0) {   // rings where the drops land
+        vec2 g = rp * 1.6, cell = floor(g), fp = fract(g);
+        float h = hash(cell), tt = fract(uTime * 0.9 + h);
+        float r = length(fp - vec2(hash(cell + 3.1), hash(cell + 7.7)));
+        col += vec3(0.35) * smoothstep(0.05, 0.0, abs(r - tt * 0.45)) * (1.0 - tt) * uRain * (0.25 + pool);
+    }
+    float fog = 1.0 - exp(-uFogDensity * fragViewZ);
+    col = mix(col, uFog / 255.0, clamp(fog, 0.0, 1.0));
+    finalColor = vec4(col, uAlpha + foam * (1.0 - uAlpha));
+}
+)";
+// The night sky on a dome round the eye: gradient, moon (lit in its phase), back-lit clouds, a fogged horizon.
+static const char* RT_SKY_FS = R"(#version 330
+in vec3 fragWorld; in vec3 fragNormal; in vec2 fragUV; in vec4 fragColor; in float fragViewZ;
+uniform vec3 uCam, uZen, uHor, uCloudC, uMoonDir, uFog; uniform float uPhase, uCloudK, uTime, uFogK;
+out vec4 finalColor;
+float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float noise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+    return mix(mix(hash(i), hash(i + vec2(1, 0)), f.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), f.x), f.y); }
+float fbm(vec2 p) { float s = 0.0, a = 0.5; for (int i = 0; i < 5; i++) { s += a * noise(p); p *= 2.03; a *= 0.5; } return s; }
+void main() {
+    vec3 dir = normalize(fragWorld - uCam);
+    float h = dir.y;
+    vec3 col = mix(uHor / 255.0, uZen / 255.0, smoothstep(-0.05, 0.55, h));
+    vec3 md = normalize(uMoonDir);
+    float a = dot(dir, md);
+    vec3 moonC = vec3(0.92, 0.9, 0.82);
+    float lit = abs(uPhase - 0.5) * 2.0;           // 0 full .. 1 new
+    col += moonC * 0.12 * pow(max(a, 0.0), 40.0) * (1.0 - lit) * (1.0 - uCloudK * 0.6);   // the halo
+    float rr = 0.032;
+    if (a > cos(rr)) {
+        vec3 rt = normalize(cross(md, vec3(0, 1, 0))), up = cross(rt, md);
+        vec2 q = vec2(dot(dir - md * a, rt), dot(dir - md * a, up)) / sin(rr);    // on the disc, -1..1
+        float z = sqrt(max(0.0, 1.0 - dot(q, q)));
+        // the lit side: the disc as a sphere lit from an angle set by the phase (full: from behind the eye; new: from behind it)
+        float th = (uPhase - 0.5) * 6.2832;
+        float shade = clamp(dot(vec3(q, z), vec3(sin(th), 0.0, cos(th))) * 4.0, 0.0, 1.0);
+        float mare = 0.82 + 0.18 * noise(q * 3.0 + 4.0);
+        col = mix(col, moonC * mare * (0.08 + 0.92 * shade), smoothstep(1.0, 0.9, length(q)));
+    }
+    // clouds: drifting, thicker toward the horizon, their edges silvered near the moon
+    if (h > -0.02) {
+        vec2 cp = dir.xz / (h + 0.12) * 1.6 + vec2(uTime * 0.012, uTime * 0.004);
+        float c = smoothstep(1.0 - uCloudK, 1.25 - uCloudK * 0.6, fbm(cp));
+        float back = pow(max(a, 0.0), 6.0);
+        vec3 cc = uCloudC / 255.0 * (0.6 + 0.4 * (1.0 - h)) + moonC * back * 0.35 * (1.0 - lit) * (1.0 - c * 0.5);
+        col = mix(col, cc, c * 0.92);
+    }
+    col = mix(col, uFog / 255.0, uFogK * (1.0 - smoothstep(-0.02, 0.32, h)));
+    finalColor = vec4(col, 1.0);
+}
+)";
+
 // The normal/depth pass: view-space normal in rg, linear depth split over ba (16 bits).
 static const char* RT_ND_FS = R"(#version 330
 in vec3 fragWorld; in vec4 fragColor; in float fragViewZ; in vec2 fragUV;
@@ -809,7 +919,8 @@ void main() {
 }
 )";
 
-static Shader gInk{}, gPbr{}, gNDPbr{};
+static Shader gInk{}, gPbr{}, gNDPbr{}, gWaterSh{}, gSkySh{};
+static Model gSkyBall{};
 static int L_pbr[40], L_pbrSkinned = -1, L_ndPbrSkinned = -1, L_ndPbrFar = -1, L_ndPbrCam = -1;
 static const char* PBR_U[] = {"uHasAlb", "uHasMR", "uHasNrm", "uHasAO", "uHasEmit", "uMetal", "uRough", "uEmitCol", "uWrap", "uGlow",
                               "uCam", "uLampPos", "uLampDir", "uKey", "uFog", "uLampRange", "uLampCone", "uFogDensity", "uPL", "uPLC",
@@ -888,6 +999,10 @@ static void EnsureShaders() {
     L_ndPbrSkinned = GetShaderLocation(gNDPbr, "uSkinned");
     L_ndPbrFar = GetShaderLocation(gNDPbr, "uFar");
     L_ndPbrCam = GetShaderLocation(gNDPbr, "uCam");
+    gWaterSh = LoadShaderFromMemory(RT_PBR_VS, RT_WATER_FS);
+    gWaterSh.locs[SHADER_LOC_MATRIX_NORMAL] = GetShaderLocation(gWaterSh, "matNormal");
+    gSkySh = LoadShaderFromMemory(RT_PBR_VS, RT_SKY_FS);
+    gSkyBall = LoadModelFromMesh(GenMeshSphere(85.0f, 24, 32));
     gColorRT = LoadRenderTexture(SCREEN_W, SCREEN_H);
     gNDRT = LoadRenderTexture(SCREEN_W, SCREEN_H);
     SetTextureFilter(gColorRT.texture, TEXTURE_FILTER_BILINEAR);
@@ -920,7 +1035,13 @@ struct DrawCmd {
     int boneOff = -1, boneN = 0;   // a skinned pose: its matrices in gBonePool
     int recOff = 0, recN = 0;      // recoloured materials in gRecPool
     int partOff = -1, partN = 0;   // per-mesh local transforms in gPartPool (an asset's moving parts)
+    int water = 0, skydome = 0;    // the sea's and the sky's own shaders (one of each a frame)
 };
+static WaterLook gWaterLook;
+static SkyLook gSkyLook;
+static std::map<std::string, int> gWaterLoc, gSkyLoc;
+static int WL(const char* n) { auto it = gWaterLoc.find(n); if (it != gWaterLoc.end()) return it->second; return gWaterLoc[n] = GetShaderLocation(gWaterSh, n); }
+static int SL(const char* n) { auto it = gSkyLoc.find(n); if (it != gSkyLoc.end()) return it->second; return gSkyLoc[n] = GetShaderLocation(gSkySh, n); }
 static std::vector<Matrix> gPartPool;
 static std::map<const Model*, AssetInfo> gAssetInfo;
 static std::vector<Matrix> gBonePool;
@@ -993,6 +1114,55 @@ void DrawPbrParts(const Model& m, Matrix world, const std::vector<Matrix>& partL
     gQueue.push_back(d);
 }
 void AddLateLight(Vector3 p, float r, Color c, float k) { gLight.AddPoint(p, r, c, k); }
+void DrawWater(const Model& m, const WaterLook& w) {
+    gWaterLook = w;
+    DrawCmd d{&m, MatrixIdentity(), (int)AnimMode::Static, 0, 0, 0, 1, 0, 0, WHITE};
+    d.water = 1;
+    gQueue.push_back(d);
+}
+void DrawSkyDome(const SkyLook& s) {
+    gSkyLook = s;
+    DrawCmd d{&gSkyBall, MatrixIdentity(), (int)AnimMode::Static, 0, 0, 0, 1, 0, 0, WHITE};
+    d.skydome = 1; d.sky = 1;
+    gQueue.push_back(d);
+}
+static void DrawWaterCmd(const DrawCmd& d) {
+    const WaterLook& w = gWaterLook;
+    Shader s = gWaterSh;
+    auto v3 = [&](const char* n, Vector3 v) { int l = WL(n); if (l >= 0) SetShaderValue(s, l, &v, SHADER_UNIFORM_VEC3); };
+    auto f1 = [&](const char* n, float v) { int l = WL(n); if (l >= 0) SetShaderValue(s, l, &v, SHADER_UNIFORM_FLOAT); };
+    v3("uCam", gCam.position); v3("uMoonDir", Vector3Normalize(Vector3Negate(gLight.moonDir)));
+    v3("uDeep", C3(w.deep)); v3("uZenith", C3(w.zenith)); v3("uHorizon", C3(w.horizon)); v3("uFog", C3(gLight.fog));
+    v3("uLampPos", gLight.lampPos); v3("uLampDir", gLight.lampDir); v3("uKey", C3(gLight.key));
+    f1("uFogDensity", gLight.fogDensity); f1("uTime", gLight.time); f1("uCrest", w.crest); f1("uRain", w.rain); f1("uAlpha", w.alpha);
+    f1("uMoonK", w.moonK); f1("uLampRange", gLight.lampRange); f1("uLampCone", gLight.lampCone);
+    f1("uBoatHead", w.boatHeading); f1("uBoatSpeed", w.boatSpeed); f1("uBoatLen", w.boatLen); f1("uBoatBeam", w.boatBeam);
+    { int l = WL("uBoatPos"); if (l >= 0) SetShaderValue(s, l, &w.boatPos, SHADER_UNIFORM_VEC2); }
+    float pl[4 * SceneLight::MAX_POINTS] = {}, plc[4 * SceneLight::MAX_POINTS] = {};
+    int np = std::min(gLight.nPoints, SceneLight::MAX_POINTS);
+    for (int i = 0; i < np; i++) { const auto& q = gLight.points[i]; pl[i * 4] = q.p.x; pl[i * 4 + 1] = q.p.y; pl[i * 4 + 2] = q.p.z; pl[i * 4 + 3] = std::max(0.1f, q.r); plc[i * 4] = q.c.r / 255.0f; plc[i * 4 + 1] = q.c.g / 255.0f; plc[i * 4 + 2] = q.c.b / 255.0f; plc[i * 4 + 3] = q.k; }
+    { int l = WL("uPL"); if (l >= 0) SetShaderValueV(s, l, pl, SHADER_UNIFORM_VEC4, SceneLight::MAX_POINTS); }
+    { int l = WL("uPLC"); if (l >= 0) SetShaderValueV(s, l, plc, SHADER_UNIFORM_VEC4, SceneLight::MAX_POINTS); }
+    { int l = WL("uPLN"); if (l >= 0) SetShaderValue(s, l, &np, SHADER_UNIFORM_INT); }
+    Model& m = const_cast<Model&>(*d.model);
+    Material mat = m.materials[0]; mat.shader = s;
+    for (int i = 0; i < m.meshCount; i++) DrawMesh(m.meshes[i], mat, d.world);
+}
+static void DrawSkyCmd(const DrawCmd& d) {
+    const SkyLook& k = gSkyLook;
+    Shader s = gSkySh;
+    auto v3 = [&](const char* n, Vector3 v) { int l = SL(n); if (l >= 0) SetShaderValue(s, l, &v, SHADER_UNIFORM_VEC3); };
+    auto f1 = [&](const char* n, float v) { int l = SL(n); if (l >= 0) SetShaderValue(s, l, &v, SHADER_UNIFORM_FLOAT); };
+    v3("uCam", gCam.position); v3("uZen", C3(k.zenith)); v3("uHor", C3(k.horizon)); v3("uCloudC", C3(k.cloud));
+    v3("uMoonDir", Vector3Normalize(k.moonDir)); v3("uFog", C3(gLight.fog));
+    f1("uPhase", k.moonPhase); f1("uCloudK", k.cloudCover); f1("uTime", k.time); f1("uFogK", std::clamp(gLight.fogDensity * 9.0f, 0.0f, 1.0f));
+    Model& m = const_cast<Model&>(*d.model);
+    Material mat = m.materials[0]; mat.shader = s;
+    rlDisableDepthMask();
+    DrawMesh(m.meshes[0], mat, MatrixTranslate(gCam.position.x, gCam.position.y, gCam.position.z));
+    rlDrawRenderBatchActive();
+    rlEnableDepthMask();
+}
 
 // ---------------------------------------------------------------- the rig
 const RigInfo& RigOf(const Model& m) {
@@ -1132,6 +1302,8 @@ static void DrawPbrCmd(const DrawCmd& d, Shader sh, bool lit) {
 
 static void DrawQueue(Shader sh, bool lit) {
     for (const DrawCmd& d : gQueue) {
+        if (d.skydome) { if (lit) DrawSkyCmd(d); continue; }
+        if (d.water) { if (lit) DrawWaterCmd(d); else { DrawCmd e = d; e.pbr = 1; e.world = MatrixIdentity(); Model& m = const_cast<Model&>(*d.model); Material mat = m.materials[0]; mat.shader = gNDPbr; SetI(gNDPbr, L_ndPbrSkinned, 0); for (int i = 0; i < m.meshCount; i++) DrawMesh(m.meshes[i], mat, MatrixIdentity()); } continue; }
         if (d.pbr) {
             if (!lit) DrawPbrCmd(d, gNDPbr, false);   // the normal/depth pass: the same skinning, the same edges
             else DrawPbrCmd(d, gPbr, true);

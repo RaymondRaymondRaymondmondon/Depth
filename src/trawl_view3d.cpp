@@ -420,6 +420,8 @@ static void EnsureSea() {
     m.vertices = (float*)MemAlloc(m.vertexCount * 3 * sizeof(float));
     m.texcoords = (float*)MemAlloc(m.vertexCount * 2 * sizeof(float));
     m.colors = (unsigned char*)MemAlloc(m.vertexCount * 4);
+    m.normals = (float*)MemAlloc(m.vertexCount * 3 * sizeof(float));
+    for (int i = 0; i < m.vertexCount * 3; i++) m.normals[i] = (i % 3 == 1) ? 1.0f : 0.0f;
     for (int i = 0; i < m.vertexCount; i++) { m.colors[i * 4] = 40; m.colors[i * 4 + 1] = 84; m.colors[i * 4 + 2] = 96; m.colors[i * 4 + 3] = 205; }
     UploadMesh(&m, true);
     gSea = LoadModelFromMesh(m);
@@ -436,6 +438,14 @@ static void UpdateSea(const Sea& sea, Vector3 eye, const Eco* eco = nullptr) {
     auto put = [&](int i, int j) { v[k++] = cx + i * SC; v[k++] = H[j * (SN + 1) + i] - 0.02f; v[k++] = cz + j * SC; };
     for (int j = 0; j < SN; j++) for (int i = 0; i < SN; i++) { put(i, j); put(i + 1, j); put(i + 1, j + 1); put(i, j); put(i + 1, j + 1); put(i, j + 1); }
     UpdateMeshBuffer(m, 0, v, m.vertexCount * 3 * sizeof(float), 0);
+    // smooth normals from the swell's slopes (the water shader lights the surface with them)
+    {
+        float* n = m.normals; int q = 0;
+        auto hh = [&](int i, int j) { i = std::clamp(i, 0, SN); j = std::clamp(j, 0, SN); return H[j * (SN + 1) + i]; };
+        auto nput = [&](int i, int j) { Vector3 nn = Vector3Normalize({-(hh(i + 1, j) - hh(i - 1, j)) / (2 * SC), 1.0f, -(hh(i, j + 1) - hh(i, j - 1)) / (2 * SC)}); n[q++] = nn.x; n[q++] = nn.y; n[q++] = nn.z; };
+        for (int j = 0; j < SN; j++) for (int i = 0; i < SN; i++) { nput(i, j); nput(i + 1, j); nput(i + 1, j + 1); nput(i, j); nput(i + 1, j + 1); nput(i, j + 1); }
+        UpdateMeshBuffer(m, 2, n, m.vertexCount * 3 * sizeof(float), 0);
+    }
     // the Weeds' kelp canopy: golden-brown mats on the water where the chart has kelp (the sea's own vertices, so the ink
     // pass sees one surface, not a field of boxes)
     static bool tinted = false;
@@ -1505,6 +1515,7 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
     L.saturation = g.sea.weather == Weather::Fog ? 0.75f : g.sea.weather == Weather::Rain || g.sea.weather == Weather::Squall ? 0.85f : 0.92f;
     if (g.sea.weather == Weather::Fog) { L.gradeLo = {112, 124, 132, 255}; L.gradeHi = {140, 130, 116, 255}; }
     L.keyShadow = true;
+    L.moonDir = Vector3Negate(Vector3Normalize({cosf(0.45f) * cosf(2.2f), sinf(0.45f), cosf(0.45f) * sinf(2.2f)}));   // (the way the moonlight travels: from the moon in the sky dome)
     float lantern = LanternRadius(b.lantern) * (g.sea.weather == Weather::Fog ? 0.6f : 1.0f);
     L.lampPos = BoatPoint(b, {0.2f, DECK_Y + 5.45f, 0});
     if (below) {
@@ -1544,13 +1555,16 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
     bool clouded = wx == Weather::Fog || wx == Weather::Rain || wx == Weather::Squall || wx == Weather::Storm;
     bool underRoof = g.eco && g.eco->ground == "grotto" && g.boat.pos.x > g.eco->archX0;   // (the Grotto: no sky under the cave's roof, no rain)
     if (gCrewReady && !below && !underRoof) {
+        // the sky dome: the night's gradient, the moon in its phase, clouds lit from behind by it, a fogged horizon
+        rt::SkyLook sk;
+        sk.moonDir = Vector3Normalize({cosf(0.45f) * cosf(2.2f), sinf(0.45f), cosf(0.45f) * sinf(2.2f)});
+        sk.moonPhase = sess.moon;
+        sk.cloudCover = wx == Weather::Fog ? 0.95f : wx == Weather::Storm || wx == Weather::Squall ? 0.85f : wx == Weather::Rain ? 0.7f : 0.25f;
+        sk.time = t;
+        if (wx == Weather::Fog) { sk.zenith = {30, 34, 38, 255}; sk.horizon = {36, 40, 44, 255}; sk.cloudCover = 0.95f; }
+        rt::DrawSkyDome(sk);
         if (!clouded) {
             rt::DrawSky(gStars, MatrixTranslate(cam.position.x, 0, cam.position.z), WHITE);
-            Vector3 md = Vector3Normalize({cosf(0.45f) * cosf(2.2f), sinf(0.45f), cosf(0.45f) * sinf(2.2f)});
-            Vector3 mp = Vector3Add({cam.position.x, 0, cam.position.z}, Vector3Scale(md, 78));
-            Vector3 z = Vector3Scale(md, -1), x = Vector3Normalize(Vector3CrossProduct({0, 1, 0}, z)), y = Vector3CrossProduct(z, x);
-            Matrix mm = {x.x, y.x, z.x, mp.x, x.y, y.y, z.y, mp.y, x.z, y.z, z.z, mp.z, 0, 0, 0, 1};
-            rt::DrawSky(gMoon, mm, WHITE);
         } else if (wx != Weather::Fog && !(me.deck == 0 && !me.overboard && me.p.x > 0.9f && me.p.x < 5.1f && fabsf(me.p.y) < 2.1f)) {   // (dry under the wheelhouse roof)
             float fall = fmodf(t * (wx == Weather::Rain ? 9.0f : 13.0f), 12.0f);
             for (int k = 0; k < 2; k++) rt::DrawSky(gRain, MatrixTranslate(cam.position.x, cam.position.y - 6 - fall + 12 * k, cam.position.z), WHITE);
@@ -1942,7 +1956,18 @@ void DrawTrawl3D(const Gannet& g, const Eco* eco, const Session& sess, int you, 
     }
     // ---- the sea, last (its surface is glass the rest is seen through)
     UpdateSea(g.sea, cam.position, eco);
-    rt::DrawStatic(gSea, MatrixIdentity(), WHITE);
+    {   // the sea as water: the sky and the moon in it, the lamps, foam at the hull and in the wake, crests, rain rings
+        rt::WaterLook w;
+        Weather wx2 = g.sea.weather;
+        bool overcast = wx2 == Weather::Fog || wx2 == Weather::Rain || wx2 == Weather::Squall || wx2 == Weather::Storm;
+        w.boatPos = b.pos; w.boatHeading = b.heading; w.boatSpeed = fabsf(b.Speed()); w.boatLen = 21; w.boatBeam = 5.6f;
+        w.crest = wx2 == Weather::Storm ? 1.0f : wx2 == Weather::Squall ? 0.7f : wx2 == Weather::Rain ? 0.25f : 0.05f;
+        w.rain = wx2 == Weather::Rain ? 0.7f : wx2 == Weather::Squall || wx2 == Weather::Storm ? 1.0f : 0.0f;
+        w.moonK = overcast ? 0.08f : 0.25f + 0.75f * (1 - fabsf(sess.moon - 0.5f) * 2);
+        if (eco && eco->ground == "grotto" && b.pos.x > eco->archX0) { w.moonK = 0; w.zenith = {2, 4, 6, 255}; w.horizon = {6, 10, 12, 255}; }
+        w.deep = eco && eco->ground == "lagoon" ? Color{8, 26, 30, 255} : Color{6, 18, 26, 255};
+        rt::DrawWater(gSea, w);
+    }
     rt::RenderEnd();
     // halos: each lamp blooms in the wet air (a soft glow round it, wide in fog, a ring of it in rain, faint on a
     // clear night), drawn over the frame
