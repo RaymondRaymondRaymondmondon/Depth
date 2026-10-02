@@ -35,6 +35,7 @@ struct RedTideScene {
     float silhouette = 0;
     int lineup = -1;               // --shots: every species of the Ship posed in rows (page number)
     int studio = -1;               // --shots: the Visual Overhaul's studio (redtide_vis.cpp), which set
+    bool freeze = false;           // --shots: hold the match still (a squad lined up for its portrait)
     int lastZone = -1; float zoneT = 0;
     float bob = 0;
     bool awarded = false; int awardTokens = 0; std::vector<std::string> awardLines;   // the arcade profile's pay for the match
@@ -1034,6 +1035,54 @@ static bool DrawTeammate(const Match& m, const Agent& a) {
     return true;
 }
 
+// A faction diver on the shared figure (the Visual Overhaul, phase 6): the suit and the weapon make each unit type's
+// silhouette (spec: "every unit type in a squad must be identifiable by silhouette at 30 m"). The Wreckers in rusted,
+// patched gear (the Cutter with a knife, the Speargunner's long speargun, the Netman's net gun, the Foreman in a hard
+// suit with the Harpoon Cannon); the Drowned pale as ghosts in their hoods; the Remnant's pressure suits, brass
+// sentinels and hooded cultists. Others keep their CreatureBuilder models.
+static bool DrawFactionFigure(const Match& m, const Agent& a, float yaw) {
+    if (!DiversReady() || a.unit < 0 || a.unit >= (int)m.map->faction.units.size()) return false;
+    const FactionUnit& u = m.map->faction.units[a.unit];
+    std::string fn = m.map->faction.name, un = u.unit;
+    auto has = [](const std::string& s, const char* k) { return s.find(k) != std::string::npos; };
+    int voice = -1; std::string weapon, suit, helmet; Color tint = WHITE;
+    std::vector<Recolor> extra;
+    if (has(fn, "Wreck")) {
+        voice = has(un, "Foreman") ? 3 : has(un, "Spear") ? 1 : 2;
+        weapon = has(un, "Foreman") ? "harpooncannon" : has(un, "Spear") ? "longspeargun" : has(un, "Net") ? "netgun" : "knife";
+        suit = "redtide"; helmet = "h_redtide";
+    } else if (has(fn, "Drowned")) {
+        voice = 1; tint = {176, 214, 224, 255};
+        weapon = has(un, "Deckhand") ? "boardingaxe" : has(un, "Lantern") ? "abyssallure" : has(un, "Bosun") ? "boardingaxe" : "trident";
+        suit = "bone"; helmet = "h_bone";
+    } else if (has(fn, "Remnant")) {
+        if (has(un, "Chief")) return false;
+        voice = has(un, "Sentinel") ? 3 : has(un, "Cultist") ? 1 : 3;
+        weapon = has(un, "Sentinel") ? "gatling" : has(un, "Cultist") ? "tidestaff" : "needler1";
+        if (has(un, "Sentinel")) helmet = "h_atlantean"; else if (has(un, "Cultist")) { suit = "atlantean"; helmet = "h_verdigris"; } else { suit = "pearl"; helmet = "h_pearl"; }
+    } else return false;
+    float spd = Vector3Length(a.vel);
+    fig::Pose P;
+    P.breathe = S.time * 1.8f + a.rng % 7;
+    P.swim = std::clamp((spd - 0.4f) / 1.6f, 0.0f, 1.0f);
+    P.kickPh = S.time * 4.5f + (a.rng % 13);
+    P.tread = (1 - P.swim) * 0.15f;   // (weapon-ready: the arms in, not out treading)
+    P.reach = 0.75f; P.elbow = 0.45f; P.grip = 0.9f;
+    Matrix tip = MatrixMultiply(MatrixMultiply(MatrixTranslate(0, -1.0f, 0), MatrixRotateZ(-P.swim * 1.1f)), MatrixTranslate(0, 1.0f, 0));
+    Matrix frame = MatrixMultiply(tip, fig::Frame(Vector3Subtract(a.pos, {0, 1.0f, 0}), yaw - PI / 2));
+    std::vector<Matrix> skin = DrawDiverFigure(voice, frame, P, S.time, tint, suit, helmet);
+    if (skin.empty() || weapon.empty()) return true;
+    // the weapon in the right fist, along the figure's forward
+    const Model* dm = DiverModel(voice);
+    Vector3 fist = fig::FistWorld(*dm, skin, frame);
+    Vector3 g = RtWeaponMarker(weapon, "grip_r", {0, 0, 0});
+    Matrix rotOnly = frame; rotOnly.m12 = rotOnly.m13 = rotOnly.m14 = 0;
+    Matrix w = MatrixMultiply(MatrixMultiply(MatrixTranslate(-g.x, -g.y, -g.z), MatrixMultiply(MatrixRotateZ(-0.25f), rotOnly)), MatrixTranslate(fist.x, fist.y, fist.z));
+    RtGunAnim an; an.fire = 0;
+    DrawRtWeapon(weapon, w, an, tint);
+    return true;
+}
+
 static void DrawScene() {
     if (S.lineup >= 0) { DrawLineup(); return; }
     Match& m = M();
@@ -1173,6 +1222,7 @@ static void DrawScene() {
         float phase = S.time * cm.freq * (0.6f + inten * 0.6f) + (a.rng % 1000) * 0.01f;
         Color tint = a.wound > 0.3f ? Color{255, (unsigned char)(255 - a.wound * 120), (unsigned char)(255 - a.wound * 120), 255} : WHITE;
         if (m.IsBoss(i) && m.bossGillsT > 0) tint = {255, 170, 150, 255};
+        if (sp.isEnemy && a.unit >= 0 && Vector3Distance(a.pos, eye) < 45 && DrawFactionFigure(m, a, yaw)) continue;   // (the factions on the figure)
         float bsc = a.sp < (int)m.bodyScale.size() ? m.bodyScale[a.sp] : 1.0f;
         if (Vector3Distance(a.pos, eye) < 28 && !m.IsBoss(i) && DrawCreaturePbr(cm, a.pos, yaw, pitch, bsc, phase, inten, tint)) continue;   // (the rigged fish, near)
         DrawCreature(cm, a.pos, yaw, pitch, bsc, phase, inten, tint);
@@ -1482,7 +1532,7 @@ void StartRedTide(Game& g, const char* map) {
     S.shotMode = false; S.awarded = false; S.awardLines.clear(); S.awardTokens = 0;
     Me().pouch = GetProfile().pouch;                    // the Salt Charms the diver brought
     S.silhouette = 0;
-    S.lineup = -1; S.studio = -1;
+    S.lineup = -1; S.studio = -1; S.freeze = false;
     g.scene = Scene::RedTide;   // (the mouse look takes the pointer itself: MouseLook in Input)
 }
 
@@ -1499,7 +1549,7 @@ void SceneRedTide(Game& g) {
         Input(dt);
         Match& m = M();
         if (S.mode == 0) { m.phase = TidePhase::Calm; m.phaseT = -1e9f; }   // the tank never tides
-        m.Step(dt);
+        if (!S.freeze) m.Step(dt);
         S.audioOn = !S.shotMode;
         SoundFrame(dt);
         DrainFx();
@@ -1547,6 +1597,7 @@ void SceneRedTide(Game& g) {
 // --shots: 0 the tank, 1 its silhouettes, 2-3 the species lineup, 10+ the Sunken Ship from set places
 void DebugRedTideShot(Game& g, int which) {
     S.studio = which >= 200 ? which - 200 : -1;
+    S.freeze = false;
     if (S.studio >= 0) { S.time = 2.0f; g.scene = Scene::RedTide; return; }   // (the studio: 200 + its set)
     S.lineup = -1;
     S.silhouette = 0;
@@ -1633,7 +1684,25 @@ void DebugRedTideShot(Game& g, int which) {
                 if (o.agent >= 0) m.eco.agents[o.agent].pos = o.pos;
             }
             break;
-        }        case 15: place("Cabin Deck", {3, 2, 3}, 0.0f, 0); break;                             // the cabins and the moray pipes
+        }
+        case 18: case 26: case 58: {                                                          // a faction squad lined up before you (spec shot set 4)
+            if (which == 18) place("Stern & Swim Platform", {2, 2, 2}, 0.0f, 0);
+            else if (which == 26) place("The Flooded Gallery", {2, 2, 2}, 0.0f, 0);
+            else view("The Station: Specimen Labs", 2.0f, 0.0f);
+            m.BeginTidePublic(5);
+            for (int i = 0; i < 600 && [&] { for (const auto& a : m.eco.agents) if (a.alive && a.unit >= 0) return false; return true; }(); i++) m.Step(1 / 20.0f);
+            Vector3 f{sinf(d.yaw), 0, cosf(d.yaw)}, r{cosf(d.yaw), 0, -sinf(d.yaw)};
+            int k = 0;
+            for (auto& a : m.eco.agents) if (a.alive && a.unit >= 0 && k < 5) {
+                a.pos = Vector3Add(d.pos, Vector3Add(Vector3Scale(f, 4.5f + (k % 2) * 1.5f), Vector3Add(Vector3Scale(r, (k - 2) * 1.5f), {0, 0.2f, 0})));
+                a.vel = Vector3Scale(f, -0.05f); k++;
+            }
+            d.pitch = -0.05f; d.hp = d.hpMax = 250;
+            TraceLog(LOG_INFO, "squad shot: %d faction divers placed", k);
+            S.freeze = true;
+            break;
+        }
+        case 15: place("Cabin Deck", {3, 2, 3}, 0.0f, 0); break;                             // the cabins and the moray pipes
         case 16: {                                                                            // salvage: the builds set down before a workbench
             int wb = -1; for (int i = 0; i < (int)m.level.stations.size(); i++) if (m.level.stations[i].type == StationType::Workbench) wb = i;
             const Station& st = m.level.stations[wb];

@@ -159,3 +159,11 @@ The spec: `Red_Tide_Reference/Red Tide — Visual Overhaul Spec.pdf` (25 pages, 
   salon's sideways chandelier, furniture piled against the low walls; the galley's tiles; the engine room's generator
   and the Goliath's nest), the Wreckers on figures, the Goliath's hero sculpt, the Galvanic Rod's arcs, and the traps
   as animated set pieces.
+- **The human factions on the diver rig** (`DrawFactionFigure`, redtide_game.cpp): the **Wreckers** in rust-red
+  patched gear (the Cutter with a knife, the Speargunner's long speargun, the Netman's net gun, the Foreman in the
+  riveted hard suit with the Harpoon Cannon), the **Drowned** as pale ghosts in their hoods (the Deckhand's boarding
+  axe, the Lantern Bearer's lantern on a pole, tridents), the **Remnant** (brass-domed sentinels with gatlings,
+  pearl-suited researchers with needlers, hooded cultists with staffs; the Station Chief's mech keeps its model). Each
+  holds its baked weapon in its right fist. Shots `rvis_6_wreckers`, `rvis_7_drowned`, `rvis_10_remnant` (a squad
+  lined up, the match held still: `S.freeze`). The Reef Raiders (free divers without helmets) and the Lost Ones (not
+  divers) still use their CreatureBuilder models.
