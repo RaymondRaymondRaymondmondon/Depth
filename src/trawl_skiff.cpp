@@ -18,7 +18,7 @@ namespace tw {
 namespace {
 const float SKIFF_HALF_L = 2.25f, SKIFF_HALF_B = 0.8f;
 const float ROW_DRAG = 0.9f;                       // per second: the hull's drag along her length
-const Vector2 SEATS[2] = {{0.2f, 0}, {-1.3f, 0}};  // the rower's thwart; the stern sheets
+const Vector2 SEATS[3] = {{0.2f, 0}, {-1.3f, 0}, {1.4f, 0}};  // the rower's thwart; the stern sheets; the bow (the bigger skiff's third seat)
 int Davit() { for (int i = 0; i < (int)Stations().size(); i++) if (Stations()[i].kind == StationKind::Davit) return i; return -1; }
 }
 
@@ -59,7 +59,7 @@ void Gannet::DavitWork(int ci, bool held, float dt) {
         if (s.t >= D().skiffLower) {
             s.state = SkiffState::Afloat; s.t = -1;   // (-1: let go of the davit before it will haul her back up)
             s.p = SkiffBerth(); s.heading = boat.heading + PI; s.vel = boat.vel; s.yawRate = 0; s.roll = s.rollV = 0;
-            s.integrity = D().skiffIntegrity; s.landing = -1;
+            s.integrity = SkiffHullMax(); s.landing = -1;
             Say("The skiff is in the water astern (Space at the davit drops into her)");
         }
         return;
@@ -95,20 +95,20 @@ bool Gannet::BoardSkiff(int ci) {
     int aboard = 0; for (const auto& o : crew) if (o.deck == DECK_SKIFF && !o.overboard && !o.dead) aboard++;
     if (c.overboard) {
         if (Vector2Distance(c.swim, s.p) > SKIFF_HALF_L + 0.8f) return false;
-        if (aboard >= 2) { Say("The skiff takes two"); return false; }
+        if (aboard >= SkiffSeats()) { Say(SkiffSeats() == 3 ? "The skiff takes three" : "The skiff takes two"); return false; }
         c.overboard = false; c.drownT = 0; Say("Hauled over the gunwale into the skiff");
     } else if (c.deck == DECK_SHORE) {
-        if (aboard >= 2) { Say("The skiff takes two"); return false; }
+        if (aboard >= SkiffSeats()) { Say(SkiffSeats() == 3 ? "The skiff takes three" : "The skiff takes two"); return false; }
         Say("Into the skiff");
     } else {
         int d = Davit();
         if (c.deck != 0 || d < 0 || Vector2Distance(c.p, Stations()[d].at) > 1.6f || !SkiffAlongside(4)) return false;
-        if (aboard >= 2) { Say("The skiff takes two"); return false; }
+        if (aboard >= SkiffSeats()) { Say(SkiffSeats() == 3 ? "The skiff takes three" : "The skiff takes two"); return false; }
         Say("Down into the skiff");
     }
     c.deck = DECK_SKIFF; c.station = -1; c.v = {0, 0}; c.z = c.vz = 0; c.oarT = 9;
-    c.p = SEATS[aboard];
-    for (const auto& o : crew) if (&o != &c && o.deck == DECK_SKIFF && !o.overboard && Vector2Distance(o.p, c.p) < 0.3f) c.p = SEATS[1 - aboard];
+    // the first free seat (the thwart, the stern sheets, then the bow)
+    for (int k = 0; k < SkiffSeats(); k++) { bool taken = false; for (const auto& o : crew) if (&o != &c && o.deck == DECK_SKIFF && !o.overboard && Vector2Distance(o.p, SEATS[k]) < 0.3f) taken = true; if (!taken) { c.p = SEATS[k]; break; } }
     return true;
 }
 
@@ -135,7 +135,7 @@ void Gannet::Oar(int ci, bool port, bool star) {
     if (c.oarT < D().skiffCrab || s.crabT > 0) {
         // rushed: the blade digs in and stops her
         s.crabT = 1.0f; s.vel = Vector2Scale(s.vel, 0.35f); s.yawRate *= 0.5f; c.oarT = 0;
-        if (eco) eco->AddNoise({s.p.x, s.p.y, 0.3f}, 2.0f);
+        if (eco) eco->AddNoise({s.p.x, s.p.y, 0.3f}, SkiffUp(SU_MUFFLED) ? 1.0f : 2.0f);
         Say("Caught a crab! (keep the rhythm)");
         return;
     }
@@ -149,17 +149,36 @@ void Gannet::Oar(int ci, bool port, bool star) {
         s.vel = Vector2Add(s.vel, Vector2Scale(s.Forward(), k));
         s.yawRate += port ? 0.42f : -0.42f;
     }
-    s.noise = std::min(3.0f, s.noise + 0.5f);
-    if (eco) eco->AddNoise({s.p.x, s.p.y, 0.3f}, 0.6f);
+    s.noise = std::min(3.0f, s.noise + (SkiffUp(SU_MUFFLED) ? 0.25f : 0.5f));   // (muffled oarlocks: rowing noise halved)
+    if (eco) eco->AddNoise({s.p.x, s.p.y, 0.3f}, SkiffUp(SU_MUFFLED) ? 0.3f : 0.6f);
 }
 
 void Gannet::SkiffRock(float rad) { skiff.rollV += rad; }
+
+// the Slipway's skiff refits (design doc v2, "Skiff upgrades")
+float Gannet::SkiffHullMax() const { return SkiffUp(SU_PLANKED) ? 70.0f : D().skiffIntegrity; }
+float Gannet::SkiffLoadMax() const { return SkiffUp(SU_BIGGER) ? 250.0f : D().skiffLoad; }
+bool Gannet::SkiffEngine(int ci) {
+    if (!SkiffUp(SU_LAUNCH) || crew[ci].deck != DECK_SKIFF || skiff.state != SkiffState::Afloat) return false;
+    skiff.engine = !skiff.engine;
+    Say(skiff.engine ? "The steam launch kit chuffs into life (3 m/s; the mouse buttons steer; X stops it)" : "The launch engine is stopped: back to the oars");
+    return true;
+}
+bool Gannet::SkiffMortar(int ci) {
+    if (!SkiffUp(SU_MORTAR) || crew[ci].deck != DECK_SKIFF || !skiff.Up()) return false;
+    if (skiff.mortar <= 0) { Say("The flare mortar is empty (three a night)"); return false; }
+    skiff.mortar--;
+    flares.push_back({skiff.p, 20});   // (a 40 m pool of light round her, seen from everywhere on the ground)
+    if (eco) eco->AddNoise({skiff.p.x, skiff.p.y, 0.3f}, 3.0f);
+    Say(TextFormat("The flare mortar thumps: a flare over the skiff (%d left tonight)", skiff.mortar));
+    return true;
+}
 
 void Gannet::SkiffHit(float dmg, const std::string& why) {
     Skiff& s = skiff;
     if (!s.Up()) return;
     s.integrity -= dmg;
-    Say(TextFormat("The skiff is hit (%s): %.0f of %.0f left", why.c_str(), std::max(0.0f, s.integrity), D().skiffIntegrity));
+    Say(TextFormat("The skiff is hit (%s): %.0f of %.0f left", why.c_str(), std::max(0.0f, s.integrity), SkiffHullMax()));
     if (s.integrity <= 0) { SkiffCapsize("stove in: " + why); s.state = SkiffState::Lost; Say("The skiff goes down"); }
 }
 
@@ -183,7 +202,7 @@ void Gannet::SkiffCapsize(const std::string& why) {
 }
 
 bool Gannet::SkiffLand(const CatchRec& r) {
-    if (skiff.LoadKg() + r.kg > D().skiffLoad) { Say("The skiff can't take any more weight"); return false; }
+    if (skiff.LoadKg() + r.kg > SkiffLoadMax()) { Say("The skiff can't take any more weight"); return false; }
     skiff.load.push_back(r);
     return true;
 }
@@ -214,6 +233,27 @@ void Gannet::StepSkiff(float dt) {
     Vector2 f = s.Forward(), side{-f.y, f.x};
     float vf = Vector2DotProduct(s.vel, f), vs = Vector2DotProduct(s.vel, side);
     float vmax = (SkiffRowers() >= 2 ? D().skiffRowTwo : D().skiffRowOne) * 1.15f;
+    // the steam launch kit: 3 m/s with nobody rowing, and loud (noise 4)
+    bool launch = s.engine && SkiffUp(SU_LAUNCH) && s.state == SkiffState::Afloat && SkiffRowers() > 0;
+    if (!SkiffUp(SU_LAUNCH) || SkiffRowers() == 0) s.engine = false;
+    if (launch) {
+        float vf0 = Vector2DotProduct(s.vel, f);
+        s.vel = Vector2Add(s.vel, Vector2Scale(f, (3.0f - vf0) * std::min(1.0f, dt * 0.9f) + 3.0f * ROW_DRAG * dt));
+        vmax = std::max(vmax, 3.1f);
+        s.noise = 3;
+        if (eco) eco->AddNoise({s.p.x, s.p.y, 0.3f}, 4.0f * dt);
+        vf = Vector2DotProduct(s.vel, f);
+    }
+    // the trolling holders: four rods astern fish while she's under way
+    if (SkiffUp(SU_TROLL) && s.state == SkiffState::Afloat && eco && vf > 0.6f && (s.trollT += dt) > 20) {
+        Vector2 stern = s.ToWorld({-2.6f, 0});
+        int ai = -1, sp = eco->TryBite({stern.x, stern.y, 2.0f}, Tackle::Light, "shrimp", dt * 4, &ai);
+        if (sp >= 0 && sp < (int)Species().sp.size()) {
+            const auto& R = Species().sp[sp];
+            CatchRec r; r.name = R.name; r.sp = sp; r.kg = R.kgLo + (R.kgHi - R.kgLo) * 0.4f; r.price = R.price; r.dead = true; r.src = CS_HOOK;
+            if (r.kg <= 12 && SkiffLand(r)) { Say(TextFormat("A trolling rod bends: a %s, boated (%.1f kg)", r.name.c_str(), r.kg)); s.trollT = 0; }
+        }
+    }
     float towKg = 0; for (const auto& t : towed) towKg += t.kg;
     vf -= vf * (ROW_DRAG + towKg / 120.0f) * dt;   // (a fish on the tow line drags at her)
     if (vf > vmax) vf -= (vf - vmax) * std::min(1.0f, 4 * dt);
@@ -340,6 +380,35 @@ int RunTrawlSkiffTest() {
         check(h.BoardSkiff(0) && !h.crew[0].overboard && h.crew[0].deck == DECK_SKIFF, "and climbs back in (E)");
         h.SkiffHit(25, "a reef shark"); h.SkiffHit(20, "a reef shark");
         check(h.skiff.state == SkiffState::Lost && h.crew[0].overboard, "40 of hull: a second ram stoves her in and she goes down");
+    }
+    // the Slipway's skiff refits (design doc v2, "Skiff upgrades")
+    {
+        Gannet h; Eco he; setup(h, he, 3, 23);
+        Session ss; ss.G = &h; ss.E = &he; ss.money = 100000;
+        int bought = 0; for (int i = 0; i < (int)SlipwayItems().size(); i++) if (std::string(SlipwayItems()[i].id).rfind("skiff_", 0) == 0 && ss.BuySlip(i)) bought++;
+        check(bought == 8 && h.skiffUps == (SU_LANTERN | SU_PLANKED | SU_BIGGER | SU_CRATE | SU_TROLL | SU_MUFFLED | SU_MORTAR | SU_LAUNCH), TextFormat("the Slipway fits all eight skiff refits (%d bought)", bought));
+        check(h.SkiffHullMax() == 70 && h.SkiffLoadMax() == 250 && h.SkiffSeats() == 3, "planked-up sides: 70 of hull; the bigger skiff: three seats and 250 kg");
+        h.skiff.state = SkiffState::Afloat; h.skiff.p = h.SkiffBerth(); h.skiff.heading = PI; h.skiff.integrity = h.SkiffHullMax();
+        int dv = Davit();
+        int aboard = 0; for (int k = 0; k < 3; k++) { h.crew[k].deck = 0; h.crew[k].p = Stations()[dv].at; if (h.BoardSkiff(k)) aboard++; }
+        bool apart = Vector2Distance(h.crew[0].p, h.crew[1].p) > 0.3f && Vector2Distance(h.crew[1].p, h.crew[2].p) > 0.3f && Vector2Distance(h.crew[0].p, h.crew[2].p) > 0.3f;
+        check(aboard == 3 && apart, "three hands sit in the bigger skiff, a seat each");
+        CatchRec big; big.name = "grouper"; big.kg = 200; big.dead = true;
+        check(h.SkiffLand(big), "she takes a 200 kg load");
+        h.skiff.load.clear();
+        // the muffled oarlocks: a stroke makes half the noise
+        h.skiff.p = Vector2Add(h.boat.pos, {-60, 0}); h.skiff.noise = 0; h.crew[0].oarT = 9; h.Oar(0, true, true);
+        float quiet = h.skiff.noise;
+        check(quiet > 0 && quiet <= 0.26f, TextFormat("muffled oarlocks: a stroke's splash %.2f (0.5 without)", quiet));
+        // the steam launch kit: 3 m/s with nobody rowing
+        check(h.SkiffEngine(0) && h.skiff.engine, "X in the skiff: the launch engine starts");
+        Vector2 p0 = h.skiff.p; run(h, 10); float v = Vector2Distance(h.skiff.p, p0) / 10;
+        check(v > 2.3f && v < 3.4f && h.skiff.noise >= 2.9f, TextFormat("the launch runs her at about 3 m/s without an oar in the water (%.2f m/s), and loud", v));
+        h.SkiffEngine(0);
+        // the flare mortar: three a night
+        h.skiff.mortar = 3; size_t f0 = h.flares.size();
+        bool fired = h.SkiffMortar(0) && h.SkiffMortar(0) && h.SkiffMortar(0), fourth = h.SkiffMortar(0);
+        check(fired && !fourth && h.flares.size() == f0 + 3, "the flare mortar: three flares a night over the skiff, then empty");
     }
     // the Lagoon's other landings: the Old Lighthouse rock (the keeper's strongbox, his logbook, the lens) and the Sandbar
     // (chests buried where the logbook marks them; the tide makes over it at 02:00)

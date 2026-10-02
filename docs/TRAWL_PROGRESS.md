@@ -794,3 +794,24 @@ bubble puff); Red Tide's gun models rebuilt with a dozen parts each.
 - **Role upgrades** (design doc, "The crew of six"): ranks open after the 1st, 2nd and 4th met deadlines (`Session::RankOpen`, `metCount`); each hand picks one of two per rank at the dock chalkboard's **Role upgrades** page (`CMD_ROLE_UP`, `Session::ChooseUp`); a choice is final; an upgrade belongs to the role (switch roles and you start again at rank 1); bots take a fixed preference (`ApplyUps`). The bits are `Crew::ups` (`Crew::Up(u)`, `RoleUp` in trawl.h, names and notes in trawl_data.cpp). Effects: Shipwright (+30 integrity on a patch), Stoker (overpressure grace 10 s, the screw a noise step quieter), Old Salt (no sliding; crew near slide later), Deck Boss (bots +20%), Iron Hull (+25 per section), Full Steam (+20% speed 20 s a night); Light Touch (slack 3 s), Heavy Hand (side pressure x1.25), Reader (the tip ticks 0.5 s before a run, `Rod::readWarn`), Strong Line (+20%, `Fight::holderUps`), Trophy Hunter (`CatchRec::trophy`: a first catch +50% more), Bait Master (+25% bites, chum twice the scent); Deep Lungs (+15 s air), Glint Eye (salvage glints through the bulkheads), Pressure Hardened (the hardhat on a bell wreck down to 90 m), Wreck Rat (locked cabins without a crowbar: now the upgrade, not every Diver), Strongback (two-diver lifts alone), Old Hand (no hose snags); Field Surgeon (the cot sets two injuries at once, twice as quick), Warm Blankets (+8 s overboard for everyone), Second Wind (CPR window 30 s), Steady Nerves, Miracle Worker (once a deadline), Ghost Speaker (sees the dead aboard).
 - **The Owners' consignments**: one named salvage item a deadline in a wreck on a named ground (`Session::consign`, `consignGround`, placed in the deepest room of a wreck by `PlaceConsignment`), named on the tape and the chalkboard. In the hold at the count: the reward is chosen on the count panel (`CMD_CONSIGN_REWARD`: a Slipway fitting worth up to 600 fitted free, or 10% off the next quota). Missed: the next quota +25% and the dearest fitting repossessed (its effect taken off her too); two missed in a row ends the run.
 - Both are in the snapshot for guests. `--trawl-session-test` checks the ranks, the role reset, a bot's preference, Strong Line, Trophy Hunter, Warm Blankets, a missed and a delivered consignment. Shot: `trawl_roleups`.
+
+## The Lagoon's other landings and the skiff's refits (2026-10-02; design doc v2, "Islands", "Skiff upgrades")
+- **The Old Lighthouse rock** (`LK_LIGHTHOUSE`): carved on the reef inside the crest across the lagoon from the Atoll
+  (hashed from the seed, after the rest of the chart). The keeper's hearth in the tower's lee (sheltered: rain doesn't
+  reach it), his strongbox in the tower (100-250, locked: a brass key), his logbook on the rock (picking it up marks the
+  Sandbar's buried chests), and the great lens (salvage, 3 kg). Top-down a white tower with a red band; in first person a
+  tall white tower, red band, the lamp room's dark glass, the keeper's stove smoking.
+- **The Sandbar** (`LK_SANDBAR`): bare sand between the Atoll and the basin's middle (clear of where she fishes): no fire,
+  no trader, 1-3 chests buried (80-300) where a bottle's map, three chart pieces or the logbook marks them. The tape warns
+  at 01:30; at 02:00 the tide makes over it (`Gannet::FloodSandbar`): whoever is on it is in the water, the skiff floats
+  off, anything left (and every chest not dug) is gone, and nobody can land on it again that night. Dry the next night.
+- `Landing::kind` and `flooded` now travel in the snapshot (the kind didn't before).
+- **The skiff's refits** (`Gannet::skiffUps`, `SkiffUp` bits; the Slipway sells them, a repossession takes them back):
+  skiff lantern 60 (bow light 6 -> 10 m), planked-up sides 200 (hull 40 -> 70), bigger skiff 450 (three seats, 250 kg),
+  skiff crate 50 (birds can't steal from her), trolling holders 80 (while she's under way a rod astern can take a fish
+  of up to 12 kg, one every 20 s at most, from the web's own bites), muffled oarlocks 70 (rowing noise halved), flare
+  mortar 90 (W in the skiff: a flare over her, three a night), steam launch kit 500 (X in the skiff: 3 m/s with nobody
+  rowing, the mouse buttons steer, noise 4).
+- Not yet: the traders' skiff refits (the outrigger, the sealers' sail, the kelp-cutter prow, the quiet launch engine,
+  the cave rudder, the Atlantean prow); a funnel on the skiff when the launch kit is fitted.
+- Tests in `--trawl-skiff-test`; shots `trawl_lighthouse`, `trawl_sandbar`, `trawl3d_lighthouse`, `trawl3d_sandbar`.

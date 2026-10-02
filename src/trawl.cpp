@@ -1093,13 +1093,16 @@ void Hud(Game& g) {
         bool atDavit = c.deck == 0 && dv >= 0 && Vector2Distance(c.p, Stations()[dv].at) < 1.6f;
         std::string line;
         if (c.deck == DECK_SKIFF && !c.overboard) {
-            DrawTextCenteredBold(TextFormat("Skiff   hull %.0f/%.0f   load %.0f/%.0f kg   roll %.0f deg", std::max(0.0f, sk.integrity), D().skiffIntegrity, sk.LoadKg(), D().skiffLoad, sk.roll * RAD2DEG), SCREEN_W / 2.0f, SCREEN_H - 118.0f, 15, fabsf(sk.roll * RAD2DEG) > 15 ? Color{240, 120, 90, 255} : paper);
+            DrawTextCenteredBold(TextFormat("Skiff   hull %.0f/%.0f   load %.0f/%.0f kg   roll %.0f deg", std::max(0.0f, sk.integrity), G.SkiffHullMax(), sk.LoadKg(), G.SkiffLoadMax(), sk.roll * RAD2DEG), SCREEN_W / 2.0f, SCREEN_H - 118.0f, 15, fabsf(sk.roll * RAD2DEG) > 15 ? Color{240, 120, 90, 255} : paper);
             if (c.skiffLine) {
                 ReelGauge(G, c);
                 if (G.SkiffAlongside(4)) line = "E: up the stern ladder";
                 Txt(G.bossArmed ? "A BOSS LURE is on: cast it into the Crest Pass (R takes it off)" : G.bossLures > 0 ? TextFormat("R: put on a boss lure (%d aboard)", G.bossLures) : "", 20, SCREEN_H - 272, 14, G.bossArmed ? Color{250, 200, 110, 255} : Fade(paper, 0.7f));
             }
             else line = G.SkiffAlongside(4) ? "Left / right mouse: the oars, on a beat.   E: up the stern ladder   T: her line" : sk.crabT > 0 ? "Caught a crab! Keep the rhythm" : "Left mouse the port oar, right the starboard, in turn on a steady beat (both pull straight).   T: her line";
+            if (sk.engine) line = "The launch is running: hold left / right mouse to steer.   X: stop the engine";
+            else if (G.SkiffUp(SU_LAUNCH) && line.find("crab") == std::string::npos) line += "   X: the launch engine";
+            if (G.SkiffUp(SU_MORTAR)) line += TextFormat("   W: flare mortar (%d)", sk.mortar);
             { int mk = S.W->eco.g ? S.W->eco.MarkAt(sk.p) : -1; if (mk >= 0) DrawTextCenteredBold(TextFormat("%s: skiff water, the bites come twice as often", S.W->eco.marks[mk].name.c_str()), SCREEN_W / 2.0f, SCREEN_H - 140.0f, 15, Color{150, 220, 200, 255}); }
             if (!G.towed.empty()) { float kg = 0; for (const auto& t : G.towed) kg += t.kg; Txt(TextFormat("On the tow line: %d fish, %.0f kg (bleeding)", (int)G.towed.size(), kg), 20, SCREEN_H - 250, 14, Color{220, 140, 120, 255}); }
         } else if (c.deck == DECK_SHORE && sk.landing >= 0 && sk.landing < (int)G.landings.size()) {

@@ -457,6 +457,8 @@ struct Eco;                                               // the food web (trawl
 // of roll it capsizes and everyone aboard goes in.
 const int DECK_SKIFF = 2, DECK_SHORE = 3, DECK_DIVE = 4;   // (DECK_DIVE: down on a wreck in the hardhat; Gannet::dive has where)
 enum class SkiffState { Stowed, Lowering, Afloat, Recovering, Capsized, Beached, Lost };
+// The skiff's refits (design doc v2, "Skiff upgrades", bought at the Slipway; bits of Gannet::skiffUps)
+enum SkiffUp : uint32_t { SU_LANTERN = 1, SU_PLANKED = 2, SU_BIGGER = 4, SU_CRATE = 8, SU_TROLL = 16, SU_MUFFLED = 32, SU_MORTAR = 64, SU_LAUNCH = 128 };
 struct Skiff {
     SkiffState state = SkiffState::Stowed; float t = 0;   // the davit's progress (lowering / recovering), or the righting
     Vector2 p{}, vel{}; float heading = 0, yawRate = 0;   // world
@@ -466,6 +468,9 @@ struct Skiff {
     float noise = 0;                                      // the strokes' splash, decaying (into the water's sound)
     std::vector<CatchRec> load;                           // catch and salvage aboard (150 kg)
     int landing = -1;                                     // beached at this landing (-1 none)
+    bool engine = false;                                  // the steam launch kit running (3 m/s with nobody rowing; noise 4)
+    int mortar = 0;                                       // flare mortar shells left tonight (three a night)
+    float trollT = 0;                                     // the trolling holders' rods: time since the last strike
     float LoadKg() const { float k = 0; for (const auto& c : load) k += c.kg; return k; }
     Vector2 Forward() const { return {cosf(heading), sinf(heading)}; }
     Vector2 ToWorld(Vector2 l) const { Vector2 f = Forward(); return {p.x + f.x * l.x - f.y * l.y, p.y + f.y * l.x + f.x * l.y}; }
@@ -623,6 +628,13 @@ struct Gannet {
     bool foughtCanoes = false;                            // refused the canoes: the Atoll's elder won't trade
     void BuildLandings();                                 // from the ground's chart (Eco::landingAt)
     void FloodSandbar(int li);                            // 02:00: the Sandbar goes under (what's on it is lost; who's on it swims)
+    uint32_t skiffUps = 0;                                // SkiffUp bits (the Slipway's skiff refits)
+    bool SkiffUp(uint32_t u) const { return (skiffUps & u) != 0; }
+    float SkiffHullMax() const;                           // 40, or 70 with planked-up sides
+    float SkiffLoadMax() const;                           // 150 kg, or 250 in the bigger skiff
+    int SkiffSeats() const { return SkiffUp(SU_BIGGER) ? 3 : 2; }
+    bool SkiffEngine(int c);                              // X in the skiff with the steam launch kit: the engine on or off
+    bool SkiffMortar(int c);                              // W in the skiff with the flare mortar: a flare 40 m round her for 20 s (everyone sees it)
     int LandingNear(Vector2 world, float extra) const;    // the landing whose shore is within extra m, or -1
     void StepLandings(float dt);
     void ShoreMove(int c, Vector2 wish, float dt);        // on foot ashore (wish in the Gannet's frame, as on screen)

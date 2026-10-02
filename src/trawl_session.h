@@ -102,7 +102,7 @@ struct Session {
     bool miracleUsed = false;                   // (Miracle Worker: once a deadline)
     bool consignPlaced = false; std::string wrecksGround;
     void PlaceConsignment();
-    bool slip[16] = {};                         // Slipway upgrades bought (by index in SlipwayItems)
+    bool slip[24] = {};                         // Slipway upgrades bought (by index in SlipwayItems)
     Vector2 harbour{};                          // the harbour mouth: inside this ring she is in harbour
     float harbourR = 70;
     bool cues[6] = {};                          // midnight, 04:00, damage, the canoe, the Sandbar's tide, (spare)

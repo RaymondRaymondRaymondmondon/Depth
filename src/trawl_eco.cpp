@@ -1090,7 +1090,7 @@ void EcoTick(Eco& e, Gannet& gn, float dt) {
     Vector2 stern = b.ToWorld({-10.4f, 0});
     e.lamps.push_back({{stern.x, stern.y, -2}, 5, 0.4f});
     for (const auto& fl : gn.flares) e.lamps.push_back({{fl.p.x, fl.p.y, -1}, 18, 1.4f});   // a flare burning on the water
-    if (gn.skiff.Up()) { Vector2 bow = gn.skiff.ToWorld({1.9f, 0}); e.lamps.push_back({{bow.x, bow.y, -1}, D().skiffLantern, 0.8f}); }   // the skiff's bow lantern (6 m)
+    if (gn.skiff.Up()) { Vector2 bow = gn.skiff.ToWorld({1.9f, 0}); e.lamps.push_back({{bow.x, bow.y, -1}, D().skiffLantern * (gn.SkiffUp(SU_LANTERN) ? 10.0f / 6.0f : 1.0f), 0.8f}); }   // the skiff's bow lantern (6 m)
     // gulls over a deck with fish on it: one under 3 kg every 4 s (design doc, "Threat stats")
     {
         // every deck thief over her (gulls, a pelican, a frigatebird) takes the heaviest dead fish it can lift
@@ -1123,13 +1123,13 @@ void EcoTick(Eco& e, Gannet& gn, float dt) {
         } else gn.gullT = 0;
         e.birdDrawOn = false;
         for (const auto& L : gn.landings) if (!L.onFire.empty() || !L.onBeach.empty()) { e.birdDrawOn = true; e.birdDraw = L.ToWorld(L.fire); }
-        if (!e.birdDrawOn && gn.skiff.Up() && !gn.skiff.load.empty() && Vector2Distance(gn.skiff.p, b.pos) > 30) { e.birdDrawOn = true; e.birdDraw = gn.skiff.p; }
+        if (!e.birdDrawOn && gn.skiff.Up() && !gn.SkiffUp(SU_CRATE) && !gn.skiff.load.empty() && Vector2Distance(gn.skiff.p, b.pos) > 30) { e.birdDrawOn = true; e.birdDraw = gn.skiff.p; }
         // away from her: fish in the skiff, on a beach or on a cooking fire are fair game too (design doc v2, "Cooking":
         // "fish waiting on the beach or in the skiff are fair game for birds")
         {
             struct Spot { std::vector<CatchRec>* v; Vector2 at; };
             std::vector<Spot> spots;
-            if (gn.skiff.Up()) spots.push_back({&gn.skiff.load, gn.skiff.p});
+            if (gn.skiff.Up() && !gn.SkiffUp(SU_CRATE)) spots.push_back({&gn.skiff.load, gn.skiff.p});   // (the skiff crate: a lid birds can't open)
             for (auto& L : gn.landings) { spots.push_back({&L.onBeach, L.at}); spots.push_back({&L.onFire, L.ToWorld(L.fire)}); }
             gn.awayGullT += dt;
             if (gn.awayGullT >= 4) {

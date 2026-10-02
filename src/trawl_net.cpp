@@ -120,8 +120,12 @@ void ApplyInput(TrawlWorld& w, int ci, const HandInput& in, float dt) {
             if (in.wheel != 0 && r.state == RodState::Fighting) { float rating = TackleOf(r.tackle).strength; r.fight.drag = std::clamp(r.fight.drag + in.wheel * rating * 0.05f, 0.05f * rating, 1.1f * rating); }
             r.lean = 0;
         } else {
-            // the oars are the mouse buttons (left port, right starboard; both together pull straight)
-            g.Oar(ci, on(HI_LMB_P), on(HI_RMB_P));
+            // the steam launch kit (X) drives her; the mouse buttons steer it. Otherwise the oars are the mouse buttons
+            // (left port, right starboard; both together pull straight). W fires the flare mortar.
+            if (on(HI_X_P)) g.SkiffEngine(ci);
+            if (on(HI_W_P)) g.SkiffMortar(ci);
+            if (g.skiff.engine) g.skiff.yawRate += ((lmb ? 1.0f : 0.0f) - (rmb ? 1.0f : 0.0f)) * 1.6f * dt;
+            else g.Oar(ci, on(HI_LMB_P), on(HI_RMB_P));
             // Space alongside with nobody at the davit: hook her on to the falls from the water (slow)
             if (on(HI_SPACE_P) && g.SkiffAlongside(3)) { c.workOn = c.workOn == 600 ? -1 : 600; g.Say(c.workOn == 600 ? "Hooking her on to the falls from the water (25 s, the Gannet stopped)" : "Let go of the falls"); }
         }
@@ -385,6 +389,7 @@ template <class A> void Visit(A& a, TrawlWorld& w) {
         Skiff& s = g.skiff;
         a.e(s.state); a.f(s.t); a.v2(s.p); a.v2(s.vel); a.f(s.heading); a.f(s.yawRate); a.f(s.roll); a.f(s.rollV);
         a.f(s.integrity); a.f(s.crabT); a.f(s.noise); a.i(s.landing);
+        a.b(s.engine); a.i(s.mortar); a.f(s.trollT); a.u(g.skiffUps);
         a.vec(s.load, [&](CatchRec& h) { VisitCatch(a, h); });
     }
     a.vec(g.brains, [&](Gannet::Brain& br) { a.i(br.order); a.i(br.goal); a.i(br.task); a.i(br.target); a.i(br.follow); a.s(br.bark); a.f(br.barkT); });

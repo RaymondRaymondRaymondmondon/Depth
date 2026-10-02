@@ -82,6 +82,10 @@ const std::vector<ShopItem>& ChandlerItems() {   // design doc, "The Chandler" (
     };
     return I;
 }
+uint32_t SkiffUpOf(const std::string& id) {
+    return id == "skiff_lantern" ? SU_LANTERN : id == "skiff_planked" ? SU_PLANKED : id == "skiff_bigger" ? SU_BIGGER : id == "skiff_crate" ? SU_CRATE
+         : id == "skiff_troll" ? SU_TROLL : id == "skiff_muffled" ? SU_MUFFLED : id == "skiff_mortar" ? SU_MORTAR : id == "skiff_launch" ? SU_LAUNCH : 0;
+}
 const std::vector<ShopItem>& SlipwayItems() {    // design doc, "The Slipway"
     static const std::vector<ShopItem> I = {
         {"plates", "Hull plates (a section)", 150, "The weakest section's integrity 100 -> 150"},
@@ -94,6 +98,15 @@ const std::vector<ShopItem>& SlipwayItems() {    // design doc, "The Slipway"
         {"bignet", "Bigger trawl", 600, "Mouth width +50%, weight +50%"},
         {"net", "A new trawl net", 150, "Replaces one cut away (the Owners' price)"},
         {"bell", "Diving bell", 1200, "Two divers to 120 m, with a pocket of air at the breach to come back to (no pump)"},
+        // the skiff (design doc v2, "Skiff upgrades")
+        {"skiff_lantern", "Skiff lantern", 60, "Her bow light reaches 10 m (was 6)"},
+        {"skiff_planked", "Planked-up sides", 200, "Skiff hull 40 -> 70"},
+        {"skiff_bigger", "Bigger skiff", 450, "Three seats and 250 kg"},
+        {"skiff_crate", "Skiff crate", 50, "A lidded crate birds can't open"},
+        {"skiff_troll", "Trolling holders", 80, "Rods astern fish while she's under way"},
+        {"skiff_muffled", "Muffled oarlocks", 70, "Rowing noise halved"},
+        {"skiff_mortar", "Flare mortar", 90, "W in the skiff: a flare 40 m round her for 20 s, three a night (everyone sees it)"},
+        {"skiff_launch", "Steam launch kit", 500, "X in the skiff: 3 m/s without rowing, the mouse buttons steer (noise 4)"},
     };
     return I;
 }
@@ -675,6 +688,7 @@ bool Session::BuySlip(int idx, std::string* why) {
     else if (id == "bignet") G->biggerNet = true;
     else if (id == "net") G->net = Trawl{};
     else if (id == "bell") G->divingBell = true;
+    else if (id.rfind("skiff_", 0) == 0) G->skiffUps |= SkiffUpOf(id);
     return true;
 }
 bool Session::CanCastOff(std::string* why) const {
@@ -844,7 +858,8 @@ bool Session::CastOff(std::string* why) {
     G->boat.lantern = std::min(G->boat.lantern, G->searchlight ? 3 : 2);
     phase = Phase::SailOut; clock = 0; clockOn = false;
     for (bool& c : cues) c = false;
-    for (auto& L : G->landings) if (L.kind == LK_SANDBAR) L.flooded = false;   // (the bar is dry again by the next night: bare, its chests long gone)
+    for (auto& L : G->landings) if (L.kind == LK_SANDBAR) L.flooded = false;
+    G->skiff.mortar = G->SkiffUp(SU_MORTAR) ? 3 : 0; G->skiff.engine = false;   // (the flare mortar: three shells a night)   // (the bar is dry again by the next night: bare, its chests long gone)
     return true;
 }
 // ---------------------------------------------------------------- role upgrades and the Owners' consignments
@@ -897,6 +912,7 @@ void Session::Count() {
                 else if (id == "harpoon") { G->harpoonCannon = false; G->harpoons = 0; }
                 else if (id == "bignet") G->biggerNet = false;
                 else if (id == "bell") G->divingBell = false;
+                else if (id.rfind("skiff_", 0) == 0) G->skiffUps &= ~SkiffUpOf(id);
             }
             Tape(TextFormat("CONSIGNMENT NOT DELIVERED STOP QUOTA RAISED STOP %s REPOSSESSED STOP", dear >= 0 ? SlipwayItems()[dear].name : "NOTHING LEFT TO"));
             if (consignMissed >= 2) { Tape("SECOND CONSIGNMENT LOST STOP GANNET REPOSSESSED STOP"); phase = Phase::Over; return; }
@@ -1231,7 +1247,7 @@ int RunTrawlSessionTest() {
         s3.night = 3; s3.sold = s3.quota + 1; s3.Count();
         check(s3.consignDone && g3.hold.empty() && s3.consignMissed == 0, "the consignment in the hold at the count: received");
         s3.consignReward = 0; s3.Continue();
-        bool fitted = false; for (int i = 0; i < 16; i++) fitted |= s3.slip[i];
+        bool fitted = false; for (int i = 0; i < 24; i++) fitted |= s3.slip[i];
         check(fitted, "the reward: a Slipway fitting, gratis");
     }
     // a whole solo deadline played by a bot: bait, cast off, fish the port rod, gut and ice, home before 05:00, sell
