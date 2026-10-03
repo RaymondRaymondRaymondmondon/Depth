@@ -613,6 +613,7 @@ void DrawColony(const fl::World& w, const fl::Colony& c, const Camera3D& cam, Co
             float bob = 0.04f * fabsf(sinf(S.t * 3 + b.id)), grow = 0.6f + 0.25f * std::min(1.0f, b.age / fl::Econ().chickDays);
             Matrix m = MatrixMultiply(MatrixMultiply(MatrixScale(grow, grow, grow), MatrixRotateY(b.id * 1.3f + 0.4f * sinf(S.t + b.id))), MatrixTranslate(b.pos.x, b.pos.y + bob, b.pos.z));
             rt::DrawStatic(S.chick, m, b.hunger < 0.25f ? Color{200, 170, 160, 255} : WHITE);
+            if (b.id == c.heirId) rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.05f, 0.12f, 0.05f), MatrixTranslate(b.pos.x, b.pos.y + bob + 0.2f * grow, b.pos.z)), Color{255, 210, 90, 255}, 1.0f);   // (the heir's crest)
         } else DrawColonyBird(w, b, side, look);
     }
     // caches: a twig platform on the ground with its fish on it; the colony's twig stock beside the first
@@ -1119,6 +1120,10 @@ void DrawHud(const fl::World& w) {
         if (w.seasons > 0 && w.Season() >= 0) {   // (the long match: the season and the day of the match)
             static const Color SC[4] = {{170, 240, 160, 255}, {255, 220, 120, 255}, {240, 160, 90, 255}, {190, 220, 255, 255}};
             DrawTextCentered(TextFormat("%s, day %d of %d", w.SeasonNow().name.c_str(), w.GameDay(), fl::SeasonDays(w.seasons)), c.x - 20, c.y + 174, 14, SC[w.Season()]);   // (at the panel's foot: the rising fish has the line under the clock)
+            if (w.LongFlight()) {   // (the Long Flight: the year and the Founder's age)
+                static const char* AG[3] = {"young", "in its prime", "old"};
+                DrawTextCentered(TextFormat("year %d   the Founder is %s%s", w.Year(), AG[w.AgeStage(w.cur)], w.col.regent ? "   (a regent)" : ""), c.x - 20, c.y + 206, 13, w.AgeStage(w.cur) == 2 ? Color{255, 170, 140, 255} : Color{200, 230, 255, 255});
+            }
             if (w.col.decree >= 0 && w.col.decree < (int)fl::Decrees().size()) DrawTextCentered(TextFormat("decree: %s", fl::Decrees()[w.col.decree].name.c_str()), c.x - 20, c.y + 190, 13, Color{255, 226, 160, 255});
         }
         if (rise) DrawTextCentered("the fish are rising", c.x - 30, c.y + 88, 15, Color{180, 255, 220, 255});
@@ -1521,6 +1526,32 @@ void DrawLongPanel(fl::World& w) {
             if (SmallBtn({x + 80, ly, 300, 20}, TextFormat("hire them against %s (%d fish)", w.SideName(hireAt).c_str(), fl::PirateHireFish()))) { Writer o; fl::OrderHire(o, hireAt); Order(o); }
             ly += 26;
         }
+    }
+    // the Long Flight's generations: the Founder's age, the heir, the succession choice, the perk it keeps, the dynasty
+    if (w.LongFlight()) {
+        static const char* AG[3] = {"young", "in its prime (+10%)", "old (slower each day; no size-4 fish)"};
+        ly += 4; TxtBold("Generations", x + 16, ly, 17, ink);
+        Txt(TextFormat("year %d; generation %d; the Founder is %s, %.0f days into its life of %d", w.Year(), w.col.gen + 1, AG[w.AgeStage(w.cur)], w.FounderAge(w.cur), fl::YearDays()), x + 130, ly + 3, 12, dim); ly += 22;
+        const fl::Bird* h = nullptr; for (const auto& b : w.col.birds) if (b.alive && b.id == w.col.heirId) h = &b;
+        std::string heir = h ? std::string(h->stage == fl::BStage::Chick ? "a chick" : "a young adult") + (h->trait >= 0 && h->trait < fl::MT_COUNT ? " (its mother " + fl::MateTraits()[h->trait].name + ")" : "") + (h->kin >= 0 && h->kin != w.me.def ? std::string(", half ") + fl::Founders()[h->kin].name : "") : "none yet";
+        Txt("Heir: " + heir, x + 16, ly + 2, 13, h ? ink : bad);
+        if (SmallBtn({x + 420, ly, 120, 20}, "mark another")) { Writer o; fl::OrderHeir(o, -1); Order(o); }
+        ly += 22;
+        if (SmallBtn({x + 16, ly, 24, 20}, "<")) { Writer o; fl::OrderSuccession(o, (w.col.succChoice + 2) % 3); Order(o); }
+        if (SmallBtn({x + 44, ly, 24, 20}, ">")) { Writer o; fl::OrderSuccession(o, (w.col.succChoice + 1) % 3); Order(o); }
+        Txt(std::string("At the succession: ") + fl::SuccessionName(w.col.succChoice) + ", " + fl::SuccessionWhat(w.col.succChoice), x + 76, ly + 3, 12, ink); ly += 22;
+        {   // the perk the heir keeps
+            std::vector<int> have; for (int i = 0; i < 32 && i < (int)fl::Perks().size(); i++) if ((w.me.perks >> i) & 1) have.push_back(i);
+            std::string kp = w.col.keepPerk >= 0 && w.col.keepPerk < (int)fl::Perks().size() ? fl::Perks()[w.col.keepPerk].name : std::string("the first it took");
+            if (!have.empty() && SmallBtn({x + 16, ly, 24, 20}, ">")) { size_t k = 0; for (size_t i = 0; i < have.size(); i++) if (have[i] == w.col.keepPerk) k = i + 1; Writer o; fl::OrderKeepPerk(o, have[k % have.size()]); Order(o); }
+            Txt("The heir keeps the perk: " + kp, x + 48, ly + 3, 12, ink); ly += 22;
+        }
+        if (w.col.gen == 0) {
+            if (SmallBtn({x + 16, ly, 24, 20}, ">")) { Writer o; fl::OrderDynasty(o, (w.col.dynastyPick + 1) % (int)fl::DynastyNames().size()); Order(o); }
+            Txt("The dynasty, named at the first succession: " + w.DynastyOf(w.cur), x + 48, ly + 3, 12, ink);
+        } else Txt(w.DynastyOf(w.cur) + TextFormat(", generation %d%s", w.col.gen + 1, w.col.regent ? " (a regency)" : ""), x + 16, ly + 3, 13, Color{255, 220, 150, 255});
+        ly += 22;
+        if (int el = w.Elders(w.cur); el > 0) { Txt(TextFormat("Elders: %d (they teach: a Keen elder makes the scouts exact)", el), x + 16, ly + 2, 12, dim); ly += 18; }
     }
     // structures beyond nests (doc p49): lay them out for the builders; light the Beacon
     {

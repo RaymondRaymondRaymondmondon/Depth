@@ -1,0 +1,33 @@
+The Flight — The Long Flight (tv.'o-hour expansion)
+• The heir inherits: the founder species (always), one of the Founder's perks (the
+player's choice), and its mother's trait as a permanent bonus (so breeding the heir's
+mother matters).
+An heir that dies before succession is replaced by the next marked chick; a colony with
+no chicks at succession takes a regent (the oldest veteran, with no founder bonus)
+until a chick is hatched and grown.
+Succession
+When the Founder dies, the heir becomes the player's bird immediately, adult if it has
+fledged, chick-leader if not. The colony gets:
+• A succession day: fervour -20 (grief), warriors home, and the Chronicle writes the
+Founder's obituary (what it did, who killed it or didn't).
+• A succession choice, one of three: The Old Way (keep every colony bonus as is), The
+New Broom (swap the founder species' boost for the heir's mother's species if she was
+wild-born of another species, which is how a Taloned colony becomes half-Swift), or
+The Pilgrimage (the heir flies to the shrine and claims a relic's effect permanently for
+the colony, if the colony holds one).
+• Enemies know. A colony on its succession day is the day to raid it, and everyone's map
+says so.
+Dynasties
+A colony's succession line is its dynasty: Founder, heir, and (if the heir dies in year two)
+the heir's heir. Dynasties show on the leaderboard as a name the player picks at the first
+succession ("the House of Longbeak") and in the Chronicle. Two dynasties can marry: an
+heir sent to another colony's nest (by Ferrier, with a truce) produces a chick that both
+colonies treat as their own, and the colonies can't war for a season. It's the Long Flight's
+alliance mechanic that doesn't need a screen.
+Elders
+Veterans that survive a whole year become elders: they stop fighting and start teaching.
+An elder in a colony gives one permanent bonus from its trait (a Fearless elder: the
+colony's warriors rout 10% less; a Keen elder: scouts report exact), and its death (of age,
+at the Reckoning) is in the Chronicle. A colony with five elders by year two is a colony with
+a culture.
+Page 4 of 21

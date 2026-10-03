@@ -1,0 +1,24 @@
+The Flight — The Long Flight (tv.'o-hour expansion)
+• One to three wonders are finished by day 16 in a six-player match; six to nine by day 32.
+• The Great War is declared in about 60% of six-player matches and lasts 3-4 days.
+• The Reckoning's day-31 event costs the average colony 10-20% of its nests; a prepared
+one, under 5%.
+The score spread between first and last in a six-player match is under with the
+catch-up winds.
+Build order
+The Long Flight is built after The Flight and its one-hour expansion are playable, in this
+order: generations and succession; evolution; the Far Sea (the map generator's second
+ring, the Roc, the wild colonies); Grand Projects; leagues and the Council; trade empires
+and the Exchange; the Chronicle, titles, songs; tools and taming; the Reckoning; save-and-
+resume. Each stage ends with
+--flight-long running one more layer.
+Open questions for the designer
+Should a Founder be able to abdicate early (hand the colony to the heir on purpose,
+keeping the old bird as an elder)?
+Should speciated colonies be saveable to the arcade profile as a starting founder for
+future matches (a custom species you bred, playable from day one)?
+Should the Great War be mandatory in every six-player match, or stay a Council
+decision as written?
+Is the Chronicle read aloud at the Reckoning (two minutes of captions) a highlight or a
+delay? It can be a skippable screen.
+Page 21 of 21

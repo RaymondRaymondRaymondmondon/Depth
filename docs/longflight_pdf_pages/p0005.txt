@@ -1,0 +1,44 @@
+The Flight — The Long Flight (tv.'o-hour expansion)
+Breeding and evolution
+In the one-hour game a mate's trait gives its chicks a small bonus. In the Long Flight traits
+compound: a chick with a Quick mother and a Quick father is Quick II, its chicks can be
+Quick Ill, and by year two a colony that has bred for one thing is a species that nobody
+started with. Evolution is the Long Flight's deepest system and it is still one screen: the
+nest panel's family tree.
+How traits compound
+• Every bird has up to three traits with ranks I-Ill. A chick gets each parent's traits; where
+both parents share a trait, the chick's rank is one higher (max Ill). Where they differ,
+the chick gets one from each (random), up to three.
+• Rank II is double the bonus; rank Ill is triple and adds a visible change: Quick Ill birds
+are slimmer and swept-winged; Hardy Ill are broad; Fierce Ill have a hooked beak; Keen
+Ill have the owl's eyes; Big Eggs Ill lay visibly larger eggs; Fertile Ill clutches are five.
+• The player steers breeding by which mate gets which nest and which fish fills the
+courtship bowl (a trait's favorite fish calls that trait).
+Twelve traits
+Trait
+Quick
+Hardy
+Fierce
+Big Eggs
+Deep
+Tireless
+Silent
+speed
++5% attack
+SCOUt sight +10%
+Chicks +10 HP as adults
+Clutch +1
+Dives 10% deeper
+Stamina +10%
+splash -20%
++15%, swept wings
++30%, broad
++15%, a hooked beak
++30%, night sight
++30, large eggs
+Clutch +3
+Fishes the trench; pearls without
+research
++30%; no night rest
+No splash; raids unseen
+Page 5 of 21

@@ -1,0 +1,31 @@
+The Flight — The Long Flight (tv.'o-hour expansion)
+• Towns remember routes: a route kept for a season raises reputation to the point where
+the town's gulls escort it.
+The Bird Exchange
+The Market Hall's builder runs the Exchange: a single price board for the whole map,
+updated every dawn, where any player can post a buy or sell order for any good and
+Traders fill it. The builder takes a fee (1 in 20, set between 1 in IO and 1 in 40) and can
+embargo one player a season (their orders don't post). Without a Market Hall, the
+Exchange runs from the largest town with no fee and no embargoes.
+Market events
+The towns' fleet has a bad season (fish prices triple); a Far Sea town is burned by the
+navy's enemy (spices vanish); a town's festival wants feathers (the only time feathers are
+worth anything); the Sigma's cornering, twice a match now. An Augur predicts them a day
+ahead.
+Why trade
+Pearls are research and Grand Projects; the Far Sea's goods are the only way to afford a
+second-tier project before the Reckoning; a trade empire with three routes and a Market
+Hall can out-score a war empire without a war. The Sigma's whole year two is this.
+Culture: the Chronicle, titles, songs, tools, and taming
+Two hours is long enough for a colony to have a story. The Chronicle writes it; titles and
+songs are how the colony wears it; tools and taming are what a clever colony learns to do
+with its hands and its neighbors.
+The Chronicle
+Every colony has a book, visible to its player at any time and to everyone at the Reckoning,
+written automatically from tagged moments: foundings, first clutches, raids suffered and
+given, deaths of Founders and veterans, wonders, wars, successions, marriages, oaths
+kept and broken, the Roc's visit, the day the kraken ate the heir. Chapters are seasons; the
+prose is generated from templates in the Depth style with the colony's names and the
+dynasty's name. At the Reckoning each Chronicle is read aloud (captions) in order of
+score. The Chronicle is exported as a text file at the end: the thing the group keeps.
+Page 14 of 21

@@ -1,6 +1,6 @@
 {
   "_source": "The Flight design document pp. 35-36 (the long match: the seasons, what they change and reward, their events) and p. 49 (pacing). Days are game days (2 real minutes each, the user's call), so a four-season match is 16 days.",
-  "season_days": {"2": 11, "3": 17, "4": 24},
+  "season_days": {"2": 11, "3": 17, "4": 24, "6": 36, "8": 48},
   "_days_note": "The user (2026-10-03): the expected game may run more days to fit the progression. The colony grows about 1.6x slower in days than the doc's targets, so the doc's day numbers are stretched by about 1.5: seasons of 5-7 days, a four-season match of 24 days (48 real minutes), perks at days 5, 11 and 17.",
   "seasons": [
     {"name": "Spring", "first": 1, "last": 5,

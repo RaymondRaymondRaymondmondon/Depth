@@ -1,0 +1,9 @@
+{
+  "_source": "The Flight - The Long Flight (two-hour expansion), docs/longflight_pdf_pages. The doc's days are stretched by 1.5 to fit the colony's growth (the user's call): a year is the four-season match's 24 days.",
+  "generations": {
+    "_source": "doc pp. 3-4: young days 1-8, prime 9-12 (+10%), old 13-16 (-10% speed and stamina a day, no size-4 fish), death at dawn of day 17; stretched: prime 12-18, old 18-24, death at 24; -6.7% a day over six old days is the doc's -40% at the end",
+    "prime_from_day": 12, "old_from_day": 18, "life_days": 24, "prime_mul": 1.1, "old_per_day": 0.067, "old_min": 0.6, "old_carry": 3,
+    "grief_fervour": 20, "elder_days": 24, "mate_other_kin": 0.3,
+    "houses": ["Longbeak", "Saltwing", "Greycrest", "Stormfeather", "Tidecaller", "Ironclaw", "Brightwater", "Driftwood", "Kelpcrown", "Seastack", "Duskwing", "Pearlbeak"]
+  }
+}

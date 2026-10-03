@@ -160,4 +160,85 @@ void World::StepGenerations(float dt) {
 }
 int World::Elders(int side, int trait) const { int n = 0; for (const auto& b : ColOf(side).birds) n += b.alive && b.elder && (trait < 0 || b.vet == trait); return n; }
 
+// ---------------------------------------------------------------- --flight-longflight-test
+int RunFlightLongFlightTest() {
+    int fails = 0;
+    auto check = [&](bool ok, const std::string& what) { printf("  %s  %s\n", ok ? "ok  " : "FAIL", what.c_str()); if (!ok) fails++; };
+    printf("The Flight, the Long Flight (the two-hour expansion)\n");
+    std::string why;
+    if (!rt::DataOk(&why)) { printf("FAIL: no data: %s\n", why.c_str()); return 1; }
+    auto make = [](int seasons, uint32_t seed = 41) { auto w = std::make_unique<World>(); MapOpts o; o.players = 2; o.seasons = seasons; w->Init("taloned", seed, o); w->ape.isle = -1; w->kraken.isle = -1; w->weather.next = 1e9f; return w; };
+    auto adult = [](World& w, Role r, Vector3 at) -> Bird& { Bird b; b.id = w.col.nextId++; b.stage = BStage::Adult; b.role = r; b.hp = 60; b.hunger = 1; b.pos = at; w.col.birds.push_back(b); return w.col.birds.back(); };
+    // ---- the calendar: two years of four seasons
+    {
+        auto w = make(8);
+        bool len = w->LongFlight() && w->matchLen == 48 * World::DAY && SeasonDays(6) == 36;
+        int got[4]; int k = 0; for (int d : {3, 27, 33, 46}) { w->time = (d - 0.5f) * World::DAY; got[k++] = w->Season(); }
+        w->time = 30 * World::DAY; int y2 = w->Year(); w->time = 10 * World::DAY; int y1 = w->Year();
+        check(len && got[0] == SEASON_SPRING && got[1] == SEASON_SPRING && got[2] == SEASON_SUMMER && got[3] == SEASON_WINTER && y1 == 1 && y2 == 2,
+              "the Long Flight is two years of 24 days (48 in all; 36 for the short one), the seasons coming round again in year two");
+        bool twice = true; for (int e = 0; e < EV_SEASON_COUNT; e++) twice &= w->eventDay[e] < 0 || (w->eventDay2[e] > 24 && w->eventDay2[e] <= 48);
+        check(twice, "each season's event comes again in year two");
+        auto s = make(4); check(!s->LongFlight(), "a four-season match isn't the Long Flight");
+    }
+    // ---- aging
+    {
+        auto w = make(8);
+        auto at = [&](float d) { w->time = d * World::DAY; w->StepGenerations(0.1f); };
+        at(5); float young = w->me.ageSpeed;
+        at(14); float prime = w->me.ageSpeed, primeAtk = w->me.ageAttack;
+        at(22); float old = w->me.ageSpeed; int carry = w->me.Carry(w->Def());
+        check(young == 1 && prime > 1.05f && primeAtk > 1.05f && old < 0.9f && w->me.old && carry <= 3,
+              TextFormat("the Founder is young, then in its prime (x%.2f), then old (x%.2f, carrying at most %d)", prime, old, carry));
+    }
+    // ---- the heir and the succession (the Pilgrimage keeps a relic for good)
+    {
+        auto w = make(8);
+        Bird ch; ch.id = w->col.nextId++; ch.stage = BStage::Chick; ch.nest = 0; ch.pos = w->col.nests[0].pos; ch.trait = MT_QUICK; ch.hunger = 1; w->col.birds.push_back(ch); int hid = ch.id;
+        w->time = 3 * World::DAY; w->StepGenerations(0.1f);
+        check(w->col.heirId == hid, "the first chick of the generation is marked as the heir");
+        w->col.relics = 1u << RL_BELL; w->col.succChoice = 2; w->col.fervour = 50; w->me.perks = 0b110; w->col.keepPerk = 2;
+        w->time = 24.05f * World::DAY; w->StepGenerations(0.1f);
+        bool heirGone = true; for (const auto& b : w->col.birds) if (b.id == hid) heirGone = !b.alive;
+        check(w->col.gen == 1 && heirGone && w->me.chick && w->col.heirTrait == MT_QUICK && w->me.perks == 0b100 && w->col.fervour <= 30.1f,
+              "at the end of its year the Founder dies of age: the heir (a chick yet) takes the colony, keeps one perk, inherits its mother's trait; a day of grief");
+        check((w->col.relicsKept >> RL_BELL) & 1 && (w->col.relics = 0, w->HasRelic(0, RL_BELL)), "the Pilgrimage: the relic's effect is the colony's for good, even when the relic is gone");
+        bool obit = false; for (const auto& l : w->col.chronicle) obit |= l.kind == CK_DEATH;
+        check(obit && !w->col.dynasty.empty(), "the Chronicle writes the obituary; the dynasty is named (" + w->col.dynasty + ")");
+        w->time = 25 * World::DAY; w->StepGenerations(0.1f);
+        check(w->AgeStage(0) == 0 && w->me.ageSpeed > 1.0f, "the heir starts young (and its Quick mother's trait is its for good: faster)");
+    }
+    // ---- no heir: a regent, with no founder bonus
+    {
+        auto w = make(8);
+        for (auto& b : w->col.birds) if (b.stage == BStage::Chick || b.stage == BStage::Egg) b.alive = false;
+        Bird& v = adult(*w, Role::Striker, w->col.caches[0].pos); v.vet = VT_LUCKY; int vid = v.id;
+        w->time = 24.05f * World::DAY; w->StepGenerations(0.1f);
+        bool gone = true; for (const auto& b : w->col.birds) if (b.id == vid) gone = !b.alive;
+        check(w->col.regent && gone && &w->BendNow() == &NoBend(), "no heir: the oldest veteran rules as a regent, without the founder's bonus");
+    }
+    // ---- the New Broom: the heir's mother was of another species
+    {
+        auto w = make(8);
+        int other = (w->me.def + 3) % (int)Founders().size();
+        Bird ch; ch.id = w->col.nextId++; ch.stage = BStage::Chick; ch.nest = 0; ch.pos = w->col.nests[0].pos; ch.kin = other; ch.hunger = 1; w->col.birds.push_back(ch);
+        w->col.succChoice = 1; w->time = 3 * World::DAY; w->StepGenerations(0.1f);
+        w->time = 24.05f * World::DAY; w->StepGenerations(0.1f);
+        check(w->me.def == other, std::string("the New Broom: the colony takes the heir's mother's species (") + Founders()[other].name + ")");
+    }
+    // ---- elders
+    {
+        auto w = make(8);
+        Bird& v = adult(*w, Role::Striker, w->col.caches[0].pos); v.vet = VT_KEEN; v.vetT = 0; int vid = v.id;
+        w->time = 24.5f * World::DAY;
+        for (auto& b : w->col.birds) if (b.stage == BStage::Chick) b.alive = false;
+        w->col.genStart = 10 * World::DAY;   // (keep the Founder alive through this)
+        w->StepGenerations(0.1f);
+        bool el = false; for (const auto& b : w->col.birds) if (b.id == vid) el = b.elder;
+        check(el && w->Elders(0, VT_KEEN) == 1, "a veteran that survives a year becomes an elder (a Keen elder makes the scouts exact)");
+    }
+    printf(fails ? "flight-longflight-test: %d check(s) failed\n" : "flight-longflight-test: all checks passed\n", fails);
+    return fails ? 1 : 0;
+}
+
 }  // namespace fl

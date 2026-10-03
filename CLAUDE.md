@@ -422,7 +422,13 @@ amespace {} reopened before DrawRichEnemy). Shots: `foes_new_cave|island|weeds|a
 - **The sea:** Red Tide's `rt::Ecosystem` on `data/flight/sea/<island>/` (map key `flight_<island>`; `MapLoad` and the art-sheet lookup redirect `flight_` keys). The bird is a Diver agent in the web while it is low over the water.
 - **Data files** must be saved as UTF-8 without a BOM: the JSON reader rejects a BOM.
 - **Checks:** `depth.exe --flight-test`. Shots: `flight_*`, `arcade_flight`.
-- **Stages 1-7 are done:** flight and fishing; the colony; islands, scouting and the map; war; multiplayer; research, faith, trade and the twelve founders; dangerous islands, sieges, bombing and chemistry. Stage 8 (costumes, sound, internet play, balance) is next. Details per stage in docs/FLIGHT_PROGRESS.md.
+- **Stages 1-8 are done:** flight and fishing; the colony; islands, scouting and the map; war; multiplayer; research, faith, trade and the founders; dangerous islands, sieges, bombing and chemistry; costumes (`flight_costumes.*`), sound (`sound_flight.inl`), internet play and the balance pass. Details per stage in docs/FLIGHT_PROGRESS.md.
+- **The expansion (the long match, doc pp. 35-51) is done:**
+  - Code: `flight_long.cpp` (seasons, decrees, perks, veterans and mates' traits, relics, legends, great events, factions, diplomacy, fishing techniques, nest styles, structures, the legacy score) and `flight_isles.cpp` (the twelve new islands: `Island::GenerateMore`, `World::StepIsles`).
+  - Data: `data/flight/flight_long.json`.
+  - Everything is gated on `seasons > 0` (the new islands appear only on long-match maps).
+  - Check: `DEPTH_LONG_QUICK=1 depth.exe --flight-long-test`. Shots: `flight_long`, `flight_visitor`, `flight_isle_*`.
+  - The snapshot header carries `seasons`, so a guest's mirror builds the same map. The mastery hints are kept in `flight_wardrobe.txt`.
 - **Stage 5, multiplayer** (`flight_net.*`): `FlightHost` on the arcade session. Every order goes through `ApplyOrder` (`FA_*`; solo too, via the scene's `Order()`). The snapshot is one templated `Visit`: any new field a screen draws must be added there. Checks: `--flight-net-test`, `--net-loop flight [mem]`.
 - **Stage 6, society** (`flight_society.cpp`; data `flight_research.json`, `flight_bends.json`, `flight_towns.json`): the Roost and research, fervour, towns, barter and truces, and the founders' bends (`BendOf`, `BendOfSide`). Checks: `--flight-society-test`, `--flight-sim founders`.
 - **Stage 7, dangers** (`flight_danger.cpp`, `flight_danger.json`): `HolderOf`, outposts, the kraken, ape, volcano, wreck, weather, blockade and wall, assault, the Works (bombs and stimulants). The scene's `DrawDangers`. Checks: `--flight-danger-test`, `--flight-siege [runs]` (the gate).

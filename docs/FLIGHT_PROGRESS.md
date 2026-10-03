@@ -540,7 +540,7 @@ Doc pp. 15-18, 21, 24-25, 34. Code: `flight_danger.cpp`. Data: `flight_danger.js
 - *Logged, not measured:* fisher deaths per fishing-day (1 per 15 safe, 1 per 4 on the cove); siege starvation pacing; the kraken killed about 1 match in 10.
 - *Gates:* `--flight-siege 3` passes (3 of 3 taken, 2 held); `--flight-war all` passes; the colony gate reaches 40 by day 10.
 
-## The expansion: the long match (doc pp. 35-51), in progress
+## The expansion: the long match (doc pp. 35-51), done 2026-10-03
 Code: `flight_long.cpp`. Data: `data/flight/flight_long.json` (every number). Checks: `--flight-long-test`. A long match is picked by seasons (2, 3 or 4) in the lobby or on the solo plate.
 
 **The calendar:** stretched by about 1.5 to fit the colony's growth (the user's call). Spring is days 1-5, Summer 6-11, Autumn 12-17, Winter 18-24; matches of 11, 17 or 24 days.
@@ -570,13 +570,101 @@ Code: `flight_long.cpp`. Data: `data/flight/flight_long.json` (every number). Ch
 - Mates arrive with one of six traits that their chicks inherit. A bowl filled with the wanted trait's favourite fish calls that trait (`FA_WANT_TRAIT`, on the colony panel).
 - Veterans wear a feather and a name tag.
 
-**Still to come** (in this order):
-- Six more founders.
-- The new warrior and working roles.
-- Relics, legendary birds and great events.
-- Neutral factions.
-- Diplomacy (feed pacts, bounties, flock loans).
-- Fishing techniques, nest styles and structures.
-- The ten new islands.
-- The added scoring and the mastery hints.
-- Then the Long Flight PDF.
+**Six more founders** (doc pp. 39-40): the Gannet (Plunge Strike from a dive), the Pelican (the Pouch: the Founder brings two fish, feeders carry bigger), the Frigatebird (pirate raids), the Penguin, the Owl (night fishing, deaf to the Sirens) and the Phoenix (a starving chick fledges small instead). There are 18 founders now; their bends are in `flight_bends.json`.
+- Balance, round 6 (`--flight-sim founders`, 18 founders x 3 seeds, 10 days): every founder lands between -7% and +8% of the field. Round 5 was -10% to +11%. 6 of 18 windows land where the doc puts them.
+
+**New roles** (doc p41): eight warriors (Plunger, Swallow, Mimic, Nurse, Ferrier, Lancer, Harrier, Drummer) and six workers (Diver, Gardener, Keeper, Teacher, Herald, Augur), each opened in a long match by the tree it grows from.
+
+**Relics, legendary birds and great events** (doc pp. 44-46):
+- 8 relics lie on dangerous islands; they're taken by landing on them and can be stolen in a raid at the shrine.
+- 5 legendary birds come as the Visitor and join for a fish.
+- 8 great events, one per match: Red Tide, the Kraken Walks, the Great Storm, the Eclipse, the Treasure Ship, the Plague, the Calm, the Visitor.
+
+**Neutral factions** (doc pp. 46-47):
+- The pirates: hired with fish to raid a rival.
+- The fishing fleet: its boats work the grounds, and a bird that steals from them pays in reputation.
+- The Grey Wings: they hunt chicks and lone fishers until paid tribute.
+
+**Diplomacy** (doc pp. 47-48):
+- Feed pacts: twice a day the better-fed colony sends fish down the line, and a raid on either partner is war on both.
+- Flock loans: a flock lent for a day, for fish, follows the borrower's lead flock.
+- Bounties: fish posted on a rival's Founder, collected by its killer.
+- Breaking a truce costs 20 fervour and reputation.
+- Orders: `FA_PACT`, `FA_LOAN`, `FA_BOUNTY` and `FA_BREAK`. The section is on the long-match page (Tab, page 4).
+
+**Fishing mastery** (doc p48):
+- Six techniques: Plunge (big fish; sharks see the splash; a miss is 2 s underwater; the Gannet), Skim (small fish; the Swift), Hover-strike (precision and shallows; slower; frigatebirds steal), Drive (needs three fishers on the ground; a triple splash the sharks come to), Deep dive (Divers, Penguins, Deep Dive research; reaches 2.5x deeper; a predator is a fight, not a death) and Night fishing (dusk, dawn and night; two fish a trip; safe only for the Owl and the Shadow).
+- The colony panel picks one (or auto, which reads the log and now and then tries an untested one). It shows catch and loss per dive for every technique on the chosen ground.
+- Mastery grows with each catch (+0.006, to +25% hit at full). Order: `FA_TECH`.
+
+**Nest styles** (doc p49), chosen for new nests on the colony panel (`FA_NEST_STYLE`). The default is the Cup.
+
+| Style | Cost | Site | Effect |
+|---|---|---|---|
+| Platform | 20 twigs | any | holds 6 eggs; egg thieves find it from farther |
+| Burrow | 5 twigs | low ground | hidden from scouts; a storm floods it and drowns its young |
+| Hanging | 15 twigs | a palm | no theft, raid or ground creature reaches it; no Watcher can guard it |
+| Mud | 10 twigs | by water | fireproof; two days of rain dissolve it |
+| Cliff ledge | 8 twigs and 10 shells | a high site | nothing climbs to it |
+| Floating | 25 twigs | by water | out on the water, immune to everything on land; sharks take a chick about one day in four |
+
+Each style is drawn differently.
+
+**Structures** (doc p49):
+- Perch: the next Watcher's post, +25% sight.
+- Smokehouse (Caches 1): the caches keep 1.5x as long.
+- Lookout: scouts report from twice as far.
+- Rookery: with three adults about it, its eggs stay warm and its chicks fledge together.
+- Beacon: lit from the long-match page, it calls every flock home; relit in a quarter day.
+- Monument (from autumn, 60 shells): score and nothing else; more than one may be raised.
+
+Costs are in `flight_research.json`, health in `flight_danger.json`. Bots lay these out too, and each is drawn.
+
+**Score additions** (doc p50, the results' "legacy" column):
+
+| What | Points |
+|---|---|
+| A veteran alive | 10 each |
+| A relic held | 60 each |
+| A legendary bird alive | 100 (the Dodo 200) |
+| A Monument | 30 each |
+| Decrees used | 5 per distinct one, at most 60 |
+| A truce kept to the end | 20 each (none if the colony ever broke one) |
+
+Winter's holdings still count double.
+
+**The twelve new islands** (doc pp. 43-45; `flight_isles.cpp`). Long-match maps draw from all ten starting and eleven dangerous islands, and a Ghost Ship sails on each. The lobby offers all ten homes. A guest's mirror now knows a long match: the snapshot header carries its seasons.
+
+Starting islands:
+
+| Island | Shape and sites | Rules |
+|---|---|---|
+| The Iceberg | 15 ledges and a cave | Ice nests cost 6 shells, not twigs. Raiders can't land. A ledge melts each Summer day. |
+| Lighthouse Rock | 18 sites on the lamp gallery and rocks | The keeper trades 5 fish for a pearl daily. The beam reveals 400 m at night, blinds night raiders, and lets everyone see the island. |
+| Shipwreck Island | 22 sites in the rigging, deck, stern cabin and hold | Starts with a hold of 20 salted fish and the ship's bell. Rats take an egg now and then. The hold floods in Autumn. |
+| The Mangrove | 35 sites in the roots | Endless twigs and crabs below. Nothing raids its nests. No thermals. Crocodiles take diving fishers. |
+| The Kelp Raft | 20 sites on a floating mat | Fish shelter under it. Kelp is twig-grade. |
+| The Cliff Town | 30 roofs and ledges | Two markets, the town's at 1.15x. Wild gulls raid the caches daily unless a Watcher is alive. |
+
+Dangerous islands:
+
+| Island | What happens there |
+|---|---|
+| Iron Island | Cannons fire on any flock of more than six. Marines shoot into a colony with more than three nests inside. The holder gets the stores (30 fish) and a pearl a day for the flag. |
+| The Whale | Krill feeds the holder. It dives once a season: everything on it is lost. An Augur warns a day ahead, others half a day. |
+| Siren Rocks | Birds within 160 m fly to the rocks and sit for a day, unless the colony has a Drummer or an Owl Founder. The holder gets +30 fervour. |
+| The Maelstrom | Anything below 30 m within 110 m is pulled in. The rocks can be held only on a calm day, and raiders can't touch nests there. The holder gets a pearl and fish daily and one relic. |
+| The Ghost Ship | Drifts (as a function of time) and can't be held. The Drowned take eggs within 150 m at night. A Founder who boards it by day gets the cabin's relic and fires its cannon at the nearest rival, once a season. |
+| Bird Island | Mobs anything that lands. Priests convert it (an Ibis 10x faster), and the converted colony is the holder's. The holder's wild mates and guano are refilled. |
+
+Numbers are in `flight_long.json` "isles". Shots: `flight_isle_*`.
+
+**The mastery map** (doc p50): eight hints, in the doc's order, each shown once when its moment first comes. A returning player isn't told twice: they're kept in `flight_wardrobe.txt` ("hints").
+
+**Not done, or done more simply than the doc:**
+- The Iceberg and the Kelp Raft don't drift; the Whale surfaces where it dived.
+- The Siren's "a mate of any trait for a pearl" isn't built.
+- The Ghost Ship doesn't ram islands.
+- The Mangrove isn't burnt faster by Bombers.
+- Nests on the Whale aren't moved automatically before a dive.
+- Bots don't choose nest styles or techniques (they use the Cup and auto).

@@ -1,0 +1,36 @@
+The Flight — The Long Flight (tv.'o-hour expansion)
+Real time
+Days
+21-24
+25-28
+29-32
+What the table is doing
+The Exchange; the Council; second-tier projects;
+marriages
+The Great War or the Long Peace; second
+successions
+The Reckoning
+Lobby options (added)
+Match length (24 or 32 days); Far Sea on or off (off: a two-hour match on the old map,
+denser); Great War allowed or Council-only; the Roc on or off; save-and-resume at season
+breaks; the Reckoning's events on or off (off: the final season is a normal Winter, for
+groups who want the peaceful version).
+Data files (added to The Flight's)
+flight_long_arc . json (seasons, events, the Reckoning), flight _ generations . json
+(aging, heirs, succession choices, elders), flight _ evolution . json (traits, ranks,
+speciation, species powers, mutations), flight _ projects . json (the nine wonders and
+second tiers), flight_farsea. json (places, wild colonies, the Roc, the navy),
+flight _ council. json (leagues, motions, the war deck), flight_trade_long.json
+(goods, routes, the Exchange), flight _ chronicle. json (templates, titles, songs),
+flight _ tools _ taming. json .
+Tests (added)
+--flight-long <days> rt-Jns a full bot Long Flight and reports:
+successions, speciations, wonders built, the Council's votes, whether a Great War
+happened, the Reckoning's events, and the score spread.
+--flight-breed <trait> <generations> asserts rank-up rules and speciation at 20
+birds.
+--flight-chronicle <seed> generates a Chronicle from a scripted match and checks
+every template has its slots filled.
+Balance targets (added)
+A bot colony speciates by day 22 if it breeds for one trait from day 5; never if it doesn't.
+Page 20 of 21

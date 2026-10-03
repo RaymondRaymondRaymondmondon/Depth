@@ -1,0 +1,35 @@
+The Flight — The Long Flight (tv.'o-hour expansion)
+Trait
+Thick-
+skinned
+Clever
+Lucky
+Damage taken -5%
+Research 5% faster per Clever bird at
+the Roost
+5% chance to survive a killing blow
+-15%; immune to spines
+Tools (see Culture)
+15%, and a Lucky Ill elder is a relic
+Becoming a species
+When a colony has 20 birds with the same rank-III trait, it speciates: the player names the
+species, every bird's model takes the rank-III look, the colony's livery shows it, and the
+species gets one species power chosen from three offered for that trait (a Quick species:
+the Swift's Skim; a Fierce species: the Beaked's Tear; a Deep species: the Penguin's
+underwater fishing; a Silent species: the Shadow's Dusk Raid; and so on, so a long-bred
+colony borrows another founder's unique). A second species power at 40 birds of a
+second rank-III trait is the deepest a colony can go.
+Hybrids
+A dynastic marriage (see Generations) or a converted wild bird of another founder
+species in a nest produces hybrids: a chick with two founder species' boosts at half
+strength each. A hybrid line is slower to breed (traits don't rank up for a generation) and is
+the only way to have, say, a colony that is half Pelican logistics and half Gannet plunging.
+The Cuckoo's stolen chicks are hybrids by definition, which is why the Cuckoo's colony in
+year two is a zoo.
+Drift
+Traits also drift: every generation has a 5% chance of a mutation, a random trait at rank I
+the parents didn't have, and a 1% chance of a rare one (Albino: visible from anywhere,
+mates arrive Giant: a size-4 bird that carries 6 and fights like a Striker but eats for
+three; Crested: fervour +5 per Crested bird). The family tree shows them; a colony can
+breed toward a mutation it likes.
+Page 6 of 21

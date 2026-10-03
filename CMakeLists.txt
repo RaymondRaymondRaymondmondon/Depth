@@ -34,6 +34,7 @@ src/flight_danger.cpp
 src/flight_costumes.cpp
 src/flight_long.cpp
     src/flight_isles.cpp
+    src/flight_longflight.cpp
     src/data.cpp
     src/ui.cpp
     src/render.cpp
