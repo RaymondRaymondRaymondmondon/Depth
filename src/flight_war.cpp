@@ -641,6 +641,7 @@ void World::BotGovern(float dt) {
     if (RoleUnlocked(Role::Priest) && Built(ST_SHRINE)) col.plan[(int)Role::Priest] = BendNow().fervourGain > 1.3f ? 0.1f : 0.04f;
     BotSociety(dt);
     BotDanger(dt);
+    BotFactions();
 }
 void World::BotWar(int side, float dt) {
     Colony& C = ColOf(side);

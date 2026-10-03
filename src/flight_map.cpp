@@ -503,6 +503,7 @@ void World::Init(const std::string& founderKey, uint32_t seed, const MapOpts& o)
     InitDanger();
     seasons = o.seasons; InitSeasons();   // (the long match: seasons and their events)
     InitRelics();
+    InitFactions();
     truceUntil.assign((sides.size() + 1) * (sides.size() + 1), -1);
     Reveal(me.pos, 120, home);
     StepMap(0);

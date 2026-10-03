@@ -571,6 +571,160 @@ void World::StepGreat(float dt) {
     for (int s = 0; s < N; s++) if (HasRelic(s, RL_LOGBOOK) && fmodf(time, 2.0f) < dt) WithSide(s, [&] { for (int z = 0; z < (int)know.ground.size() && z < (int)eco.map->zones.size(); z++) { know.ground[z].t = time; know.ground[z].stock = StockOf(z); } });
 }
 
+// ---------------------------------------------------------------- the neutral factions (doc p46)
+namespace {
+struct FactionData {
+    int band = 8, cacheTake = 2, hireFish = 8, boats = 3, tributeFish = 6;
+    float pHp = 400, pSpeed = 16, stealEvery = 20, frigShare = 0.5f, scatterDays = 4;
+    float boatSpeed = 4, fleetFish = 0.08f, netR = 15, netBelow = 5, netS = 5, chum = 4;
+    float gHp = 300, huntEvery = 45, killChance = 0.5f, gRange = 700, peaceDays = 1;
+};
+const FactionData& FD() {
+    static FactionData d; static bool loaded = false;
+    if (loaded) return d;
+    loaded = true;
+    Json j = LoadJsonFile(FlightDataDir() + "/flight_long.json");
+    const Json& p = j["factions"]["pirates"]; const Json& f = j["factions"]["fleet"]; const Json& g = j["factions"]["grey_wings"];
+    d.band = p["band"].I(d.band); d.pHp = p["hp"].F(d.pHp); d.pSpeed = p["speed"].F(d.pSpeed); d.stealEvery = p["steal_every_s"].F(d.stealEvery); d.cacheTake = p["cache_take"].I(d.cacheTake);
+    d.hireFish = p["hire_fish"].I(d.hireFish); d.frigShare = p["frigatebird_share"].F(d.frigShare); d.scatterDays = p["scatter_days"].F(d.scatterDays);
+    d.boats = f["boats"].I(d.boats); d.boatSpeed = f["speed"].F(d.boatSpeed); d.fleetFish = f["fish_per_day"].F(d.fleetFish); d.netR = f["net_radius_m"].F(d.netR); d.netBelow = f["net_below_m"].F(d.netBelow); d.netS = f["net_s"].F(d.netS); d.chum = f["chum_blood"].F(d.chum);
+    d.gHp = g["hp"].F(d.gHp); d.huntEvery = g["hunt_every_s"].F(d.huntEvery); d.killChance = g["kill_chance"].F(d.killChance); d.gRange = g["range_m"].F(d.gRange); d.tributeFish = g["tribute_fish"].I(d.tributeFish); d.peaceDays = g["peace_days"].F(d.peaceDays);
+    return d;
+}
+// fish from a colony's caches (the payment for a hire or a tribute); false if it hasn't enough
+bool PayFish(Colony& C, int n) {
+    int have = 0; for (const auto& c : C.caches) have += (int)c.fish.size();
+    if (have < n) return false;
+    for (auto& c : C.caches) while (n > 0 && !c.fish.empty()) { c.fish.pop_back(); n--; }
+    return true;
+}
+}  // namespace
+int PirateHireFish() { return FD().hireFish; }
+int TributeFish() { return FD().tributeFish; }
+
+void World::InitFactions() {
+    pirates = Pirates{}; fleet.clear(); grey = GreyWings{};
+    if (seasons <= 0 || !wholeMap || isles.empty()) return;
+    const FactionData& D = FD();
+    // the pirates start at sea between the islands; the fleet off the towns; the Grey Wings on the highest crag that isn't anyone's home
+    Vector3 mid{}; for (const auto& is : isles) mid = Vector3Add(mid, is.c); mid = Vector3Scale(mid, 1.0f / isles.size());
+    pirates.pos = {mid.x + 80, 30, mid.z - 60}; pirates.hp = D.pHp; pirates.on = true;
+    for (int k = 0; k < D.boats; k++) {
+        Boat b; Vector3 base = towns.empty() ? mid : towns[k % towns.size()].dock;
+        b.pos = {base.x + 60 * cosf(k * 2.1f), 0, base.z + 60 * sinf(k * 2.1f)}; b.goal = b.pos; fleet.push_back(b);
+    }
+    int best = -1; float hy = -1;
+    for (int i = 0; i < (int)isles.size(); i++) { if (IsStartType(isles[i].type) && isles[i].start >= 0) continue; if (isles[i].hill.y > hy) { hy = isles[i].hill.y; best = i; } }
+    grey.isle = best; if (best >= 0) grey.crag = Vector3Add(isles[best].hill, {0, 6, 0});
+    grey.hp = D.gHp; grey.peaceUntil.assign(sides.size() + 1, 0);
+}
+
+bool World::HirePirates(int target) {   // (the colony in the fields)
+    const FactionData& D = FD();
+    if (!pirates.on || time < pirates.scatterUntil || target < 0 || target > (int)sides.size() || target == cur) return false;
+    int cost = (int)ceilf(D.hireFish * (BendNow().steal ? D.frigShare : 1.0f));   // (the Frigatebird is their cousin: half)
+    if (!PayFish(col, cost)) { Say(TextFormat("The pirates want %d fish.", cost)); return false; }
+    pirates.target = target; pirates.hiredBy = cur; pirates.hireUntil = time + DAY;
+    Say(TextFormat("The Frigate Pirates take %d fish: they'll raid %s for a day.", cost, SideName(target).c_str()));
+    return true;
+}
+bool World::PayTribute() {
+    const FactionData& D = FD();
+    if (grey.isle < 0 || grey.dead) return false;
+    if (!PayFish(col, D.tributeFish)) { Say(TextFormat("The Grey Wings want %d fish.", D.tributeFish)); return false; }
+    if ((int)grey.peaceUntil.size() <= cur) grey.peaceUntil.resize(cur + 1, 0);
+    grey.peaceUntil[cur] = time + D.peaceDays * DAY;
+    Say("The Grey Wings take the tribute: a day's peace.");
+    return true;
+}
+
+void World::StepFactions(float dt) {
+    if (seasons <= 0 || !wholeMap || mirror) return;
+    const FactionData& D = FD();
+    int N = (int)sides.size() + 1;
+    // ---- the Frigate Pirates: hunt a carrying fisher (or a full cache), steal, and fight back
+    if (pirates.on && time >= pirates.scatterUntil) {
+        if (time > pirates.hireUntil) pirates.target = -1;
+        Bird* prey = nullptr; int preySide = -1; float bd = 1e9f;
+        for (int s = 0; s < N; s++) {
+            if (pirates.target >= 0 && s != pirates.target) continue;
+            if (BendOfSide(s).steal) continue;   // (they don't rob their cousins)
+            for (auto& b : ColOf(s).birds) if (b.alive && b.stage == BStage::Adult && b.carrySp >= 0 && b.flock < 0) { float d = Vector3Distance(b.pos, pirates.pos); if (d < bd) { bd = d; prey = &b; preySide = s; } }
+        }
+        Vector3 goal = prey ? prey->pos : Vector3{pirates.pos.x + 30 * cosf(time * 0.05f), 30, pirates.pos.z + 30 * sinf(time * 0.05f)};
+        pirates.stealT += dt;
+        if (!prey && pirates.stealT > D.stealEvery * 3) {   // (nothing in the air: a cache)
+            for (int s = 0; s < N; s++) {
+                if ((pirates.target >= 0 && s != pirates.target) || BendOfSide(s).steal) continue;
+                Colony& C = ColOf(s);
+                if (!C.caches.empty() && C.caches[0].fish.size() > 4) { goal = C.caches[0].pos; if (Vector3Distance(pirates.pos, goal) < 8) { for (int q = 0; q < D.cacheTake && !C.caches[0].fish.empty(); q++) C.caches[0].fish.pop_back(); pirates.loot += D.cacheTake; pirates.stealT = 0; SayTo(s, "The Frigate Pirates raid your cache."); } break; }
+            }
+        }
+        Vector3 d = Vector3Subtract(goal, pirates.pos); float l = Vector3Length(d);
+        if (l > 0.5f) pirates.pos = Vector3Add(pirates.pos, Vector3Scale(d, std::min(1.0f, D.pSpeed * dt / l)));
+        if (prey && bd < 8) { prey->carrySp = -1; prey->carrySize = 0; pirates.loot++; pirates.stealT = 0; if (preySide >= 0 && Rand() < 0.3f) SayTo(preySide, "The Frigate Pirates steal a fisher's catch."); }
+        // a flock that closes with them fights: the captain falls at 0 HP and the band scatters
+        for (int s = 0; s < N; s++) for (auto& fl : ColOf(s).flocks) {
+            if (fl.members.size() < 3 || fl.retreating || Vector3Distance(fl.pos, pirates.pos) > 30) continue;
+            pirates.hp -= fl.members.size() * 4 * dt;
+            if (Rand() < 0.1f * dt) { Bird* v = FindBird(s, fl.members[(int)(Rand() * fl.members.size()) % fl.members.size()]); if (v) WithSide(s, [&] { BirdDies(*v, "killed by the Frigate Pirates"); }); }
+            if (pirates.hp <= 0) {
+                pirates.hp = D.pHp; pirates.scatterUntil = time + D.scatterDays * DAY; pirates.target = -1;
+                for (int o = 0; o < N; o++) SayTo(o, SideName(s) + " kills the pirates' captain: the band scatters.");
+                break;
+            }
+        }
+    }
+    // ---- the Fishing Fleet: boats work the grounds, drop chum, and net low fliers
+    for (auto& b : fleet) {
+        Vector3 d = Vector3Subtract(b.goal, b.pos); float l = Vector2Length({d.x, d.z});
+        if (l < 5 && eco.map && !eco.map->zones.empty()) { int z = (int)(Rand() * eco.map->zones.size()) % (int)eco.map->zones.size(); b.goal = eco.map->zones[z].Center(); b.goal.y = 0; }
+        else if (l > 0.1f) { b.pos.x += d.x / l * D.boatSpeed * dt; b.pos.z += d.z / l * D.boatSpeed * dt; }
+        int z = eco.ZoneAt({b.pos.x, -1, b.pos.z});
+        if (z >= 0) for (auto& st : stocks) if (st.zone == z) st.pop = std::max(0.0f, st.pop - st.K * D.fleetFish * dt / DAY);   // (competition)
+        b.chumT += dt; if (b.chumT > 10) { b.chumT = 0; eco.AddBlood({b.pos.x, -0.5f, b.pos.z}, D.chum); }   // (chum: feed in the water, and the sharks come)
+        for (int s = 0; s < N; s++) for (auto& bird : ColOf(s).birds)
+            if (bird.alive && bird.stage == BStage::Adult && bird.netT <= 0 && bird.pos.y < D.netBelow && Vector2Distance({bird.pos.x, bird.pos.z}, {b.pos.x, b.pos.z}) < D.netR && Rand() < 0.2f * dt) bird.netT = D.netS;
+    }
+    // ---- the Grey Wings: hunt chicks and lone fishers in their range, unless paid; their eagle can be killed
+    if (grey.isle >= 0 && !grey.dead) {
+        grey.huntT += dt; grey.hunterT = std::max(0.0f, grey.hunterT - dt);
+        if (grey.huntT >= D.huntEvery) {
+            grey.huntT = 0;
+            for (int tries = 0; tries < 6; tries++) {
+                int s = (int)(Rand() * N) % N;
+                if (s < (int)grey.peaceUntil.size() && time < grey.peaceUntil[s]) continue;
+                Colony& C = ColOf(s);
+                Bird* t = nullptr; for (auto& b : C.birds) if (b.alive && Vector3Distance(b.pos, grey.crag) < D.gRange && (b.stage == BStage::Chick || (b.stage == BStage::Adult && b.role == Role::Fisher && b.flock < 0))) { t = &b; if (Rand() < 0.3f) break; }
+                if (!t) continue;
+                grey.hunter = t->pos; grey.hunterT = 2;
+                if (Rand() < D.killChance) { Bird& v = *t; WithSide(s, [&] { BirdDies(v, "taken by the Grey Wings"); }); C.greyHit = time; }
+                break;
+            }
+        }
+        for (int s = 0; s < N && !grey.dead; s++) for (auto& fl : ColOf(s).flocks) {
+            if (fl.members.size() < 3 || fl.retreating || Vector3Distance(fl.pos, grey.crag) > 40) continue;
+            grey.hp -= fl.members.size() * 3 * dt;
+            if (grey.hp <= 0) {
+                grey.dead = true;
+                if (RelicCount(s) < RelicsMax()) ColOf(s).relics |= 1u << RL_FEATHER;
+                for (int o = 0; o < N; o++) SayTo(o, SideName(s) + " kills the Grey Wings' eagle: the Eagle's Feather is theirs.");
+                break;
+            }
+        }
+    }
+}
+
+void World::BotFactions() {   // (the colony in the fields, a bot: tribute when the Grey Wings are taking its young; a hire against the leader now and then)
+    if (seasons <= 0 || !wholeMap) return;
+    int have = 0; for (const auto& c : col.caches) have += (int)c.fish.size();
+    if (grey.isle >= 0 && !grey.dead && time - col.greyHit < DAY * 0.5f && (cur >= (int)grey.peaceUntil.size() || time > grey.peaceUntil[cur]) && have >= FD().tributeFish + 6) PayTribute();
+    if (pirates.on && time > pirates.hireUntil && time > pirates.scatterUntil && have >= FD().hireFish + 12 && Rand() < 0.002f) {
+        int leader = -1, best = Score(cur).total; for (int s = 0; s <= (int)sides.size(); s++) if (s != cur && !Truce(cur, s) && Score(s).total > best * 1.15f) { best = Score(s).total; leader = s; }
+        if (leader >= 0) HirePirates(leader);
+    }
+}
+
 // ---------------------------------------------------------------- --flight-long-test (the expansion's long match)
 int RunFlightLongTest() {
     int fails = 0;
@@ -792,6 +946,35 @@ int RunFlightLongTest() {
             if (e == GE_RED_TIDE) effect = v->col.caches[0].fish.size() < 10;
             check(on && effect, std::string("the great event: ") + GreatEvents()[e].name);
         }
+    }    // ---- the neutral factions (doc p46)
+    {
+        auto w = make(4, 101); w->ape.isle = -1; w->kraken.isle = -1;
+        check(w->pirates.on && w->fleet.size() == 3 && w->grey.isle >= 0 && !IsStartType(w->isles[w->grey.isle].type), "a long match has the Frigate Pirates, a fishing fleet of three boats, and the Grey Wings on a crag");
+        // the pirates steal a carried fish
+        Colony& C1 = w->ColOf(1);
+        Bird f; f.id = C1.nextId++; f.stage = BStage::Adult; f.role = Role::Fisher; f.hp = 60; f.hunger = 1; f.carrySp = 0; f.carrySize = 2; f.pos = Vector3Add(w->pirates.pos, {3, 0, 0}); C1.birds.push_back(f);
+        int fid = f.id; w->StepFactions(0.1f);
+        bool stolen = false; for (const auto& b : C1.birds) if (b.id == fid) stolen = b.carrySp < 0;
+        check(stolen && w->pirates.loot >= 1, "the pirates steal a fisher's catch in the air");
+        // a hire: fish paid, a target for a day
+        for (int q = 0; q < 20; q++) w->col.caches[0].fish.push_back({0, 2, 0});
+        size_t before = w->col.caches[0].fish.size();
+        bool hired = w->HirePirates(1);
+        check(hired && w->pirates.target == 1 && w->col.caches[0].fish.size() == before - PirateHireFish(), TextFormat("the pirates hired against %s for %d fish (hired %d, target %d, %d to %d fish)", w->SideName(1).c_str(), PirateHireFish(), (int)hired, w->pirates.target, (int)before, (int)w->col.caches[0].fish.size()));
+        // a flock that fights them kills the captain: the band scatters
+        std::vector<int> ids; for (int q = 0; q < 8; q++) { Bird k; k.id = w->col.nextId++; k.stage = BStage::Adult; k.role = Role::Tank; k.hp = 180; k.hunger = 1; k.pos = w->pirates.pos; w->col.birds.push_back(k); ids.push_back(k.id); }
+        int fl = w->MakeFlock(0, ids, Formation::Chevron, Alt::Mid, Stance::Hold);
+        if (Flock* F = w->FindFlock(0, fl)) F->pos = w->pirates.pos;
+        for (int q = 0; q < 200 && w->time >= w->pirates.scatterUntil; q++) { if (Flock* F = w->FindFlock(0, fl)) F->pos = w->pirates.pos; w->StepFactions(0.1f); w->time += 0.1f; }
+        check(w->time < w->pirates.scatterUntil, "a flock kills the pirates' captain: the band scatters");
+        // the Grey Wings: tribute buys a day's peace
+        size_t b2 = w->col.caches[0].fish.size();
+        check(w->PayTribute() && w->time < w->grey.peaceUntil[0] && w->col.caches[0].fish.size() == b2 - TributeFish(), "tribute to the Grey Wings: a day's peace");
+        // the fleet nets a bird flying low beside a boat
+        Bird lo; lo.id = w->col.nextId++; lo.stage = BStage::Adult; lo.role = Role::Fisher; lo.hp = 60; lo.hunger = 1; lo.pos = {w->fleet[0].pos.x + 2, 2, w->fleet[0].pos.z}; w->col.birds.push_back(lo);
+        int lid = lo.id; bool netted = false;
+        for (int q = 0; q < 200 && !netted; q++) { for (auto& b : w->col.birds) if (b.id == lid) { b.pos = {w->fleet[0].pos.x + 2, 2, w->fleet[0].pos.z}; netted = b.netT > 0; } w->StepFactions(0.1f); }
+        check(netted, "the Fishing Fleet nets a bird flying low beside its boat");
     }    printf(fails ? "flight-long-test: %d check(s) failed\n" : "flight-long-test: all checks passed\n", fails);
     return fails ? 1 : 0;
 }

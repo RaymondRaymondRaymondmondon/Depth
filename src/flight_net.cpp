@@ -82,6 +82,8 @@ void OrderBrew(Writer& w, int stim) { w.U8(FA_BREW); w.U8((uint8_t)stim); }
 void OrderDecree(Writer& w, int k) { w.U8(FA_DECREE); w.U8((uint8_t)k); }
 void OrderPerk(Writer& w, int k) { w.U8(FA_PERK); w.U8((uint8_t)k); }
 void OrderWantTrait(Writer& w, int trait) { w.U8(FA_WANT_TRAIT); w.I32(trait); }
+void OrderHire(Writer& w, int target) { w.U8(FA_HIRE); w.I32(target); }
+void OrderTribute(Writer& w) { w.U8(FA_TRIBUTE); }
 bool FormationUnlocked(const Colony& c, Formation f) { return f == Formation::Chevron || f == Formation::Scatter || c.HasTier(Tree::War, 1); }
 
 std::string TargetText(World& w, const Flock& f) {
@@ -232,6 +234,8 @@ bool OrderIn(World& w, int side, int kind, Reader& r) {
     case FA_DOSE: { int id = r.I32(); int s = (int)r.U8(); if (r.bad) return false; return w.Dose(id, s); }
     case FA_DECREE: { int k = (int)r.U8(); if (r.bad) return false; return w.PickDecree(k); }
     case FA_PERK: { int k = (int)r.U8(); if (r.bad) return false; return w.PickPerk(k); }
+    case FA_HIRE: { int t = r.I32(); if (r.bad) return false; return w.HirePirates(t); }
+    case FA_TRIBUTE: return w.PayTribute();
     case FA_WANT_TRAIT: { int k = r.I32(); if (r.bad || k < -1 || k >= MT_COUNT) return false; C.wantTrait = k; for (auto& n : C.nests) n.favFish = 0; if (k >= 0) w.Say("The courtship bowls ask for a " + MateTraits()[k].name + " mate: fill them with " + MateTraits()[k].favorite + "."); return true; }
     case FA_BREW: { int s = (int)r.U8(); if (r.bad || s <= STIM_NONE || s >= STIM_COUNT) return false; C.brewFor = s; w.Say(std::string("The Chemists will brew ") + StimName(s) + "."); return true; }
     default: return false;
@@ -498,6 +502,9 @@ template <class A> void Visit(A& a, World& w, bool full) {
     a.s(w.name0);
     a.f(w.dayAcc); a.i(w.dayNum);
     a.vec(w.relicSpots, [&](World::RelicSpot& r) { a.v3(r.pos); a.i(r.relic); a.i(r.isle); a.b(r.taken); });
+    a.v3(w.pirates.pos); a.f(w.pirates.hp); a.f(w.pirates.scatterUntil); a.f(w.pirates.hireUntil); a.i(w.pirates.target); a.b(w.pirates.on);
+    a.vec(w.fleet, [&](World::Boat& b) { a.v3(b.pos); });
+    a.i(w.grey.isle); a.v3(w.grey.crag); a.v3(w.grey.hunter); a.f(w.grey.hp); a.f(w.grey.hunterT); a.b(w.grey.dead); a.vec(w.grey.peaceUntil, [&](float& p) { a.f(p); });
     a.i(w.greatEvent); a.f(w.greatDay); a.f(w.greatUntil); a.i(w.treasure); a.i(w.legendFree); a.v3(w.greatPos); a.v3(w.legendPos); a.v3(w.walkFrom); a.v3(w.walkTo);
     { a.i(w.seasons); a.i(w.seasonEvent); a.f(w.eventUntil); int ed = (int)w.eventsDone; a.i(ed); w.eventsDone = (uint32_t)ed; for (float& d : w.eventDay) a.f(d); }   // (the long match's seasons and events)
     int N = (int)w.sides.size(); a.i(N);

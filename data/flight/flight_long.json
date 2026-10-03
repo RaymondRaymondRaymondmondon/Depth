@@ -112,7 +112,12 @@
     {"key": "plague", "name": "The Plague", "what": "A sickness spreads through crowded colonies (over 60 birds); Chemistry 1 or a Nurse per 20 birds cures it", "crowd": 60, "loss": 0.1},
     {"key": "calm", "name": "The Calm", "what": "No wind for a day; thermals die; Bombers are grounded; fishers reach everything", "catch": 1.25},
     {"key": "visitor", "name": "The Visitor", "what": "A legendary bird lands on the map: bring it a fish of size 3 or more to recruit it"}
-  ],  "spawning_regrow": 3.0,
+  ],  "_factions_source": "Doc p46: three neutral powers on every map of a long match, dealt with by reputation. Design calls: the pirates are a band of 8 that can be fought (its captain falls at 0 HP: the band scatters for four days); a hire lasts a day; the fleet is three boats; the Grey Wings hunt every few hours; tribute buys a day's peace.",
+  "factions": {
+    "pirates": {"band": 8, "hp": 400, "speed": 16, "steal_every_s": 20, "cache_take": 2, "hire_fish": 8, "frigatebird_share": 0.5, "scatter_days": 4},
+    "fleet": {"boats": 3, "speed": 4, "fish_per_day": 0.08, "net_radius_m": 15, "net_below_m": 5, "net_s": 5, "chum_blood": 4},
+    "grey_wings": {"hp": 300, "hunt_every_s": 45, "kill_chance": 0.5, "range_m": 700, "tribute_fish": 6, "peace_days": 1}
+  },  "spawning_regrow": 3.0,
   "migration_mates": 6,
   "tuna": {"count": 26, "size_min": 4},
   "winter_holdings": 2.0

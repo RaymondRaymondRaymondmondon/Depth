@@ -124,6 +124,8 @@ const std::vector<LegendDef>& Legends();
 const std::vector<GreatDef>& GreatEvents();
 int RelicsMax();
 float RelicStealChance();
+int PirateHireFish();
+int TributeFish();
 // Founder perks (doc p38)
 struct PerkDef {
     std::string key, name, effect;
@@ -390,7 +392,8 @@ struct Colony {
     int stims[STIM_COUNT] = {}; int brewFor = STIM_HASTE; float brewT = 0;
     // the long match: today's decree, the three offered at dawn, the ones used (no repeats), yesterday's (its after-effects)
     int wantTrait = -1, nextVetName = 0;
-    uint32_t relics = 0; int legend = -1; bool legendAlive = false, goldenEggUsed = false;   // (the long match: relics at the shrine, a legendary bird)        // (the long match) the trait the courtship bowls ask for (-1 any); the next veteran's name
+    uint32_t relics = 0; int legend = -1; bool legendAlive = false, goldenEggUsed = false;
+    float greyHit = -1000;                      // (the last time the Grey Wings took one of its birds)   // (the long match: relics at the shrine, a legendary bird)        // (the long match) the trait the courtship bowls ask for (-1 any); the next veteran's name
     int decree = -1, yesterday = -1, offer[3] = {-1, -1, -1}, dealtDay = 0, lastRaider = -1; uint32_t decreesUsed = 0; float salvageT = 0, titheFish = 0;
     bool bell = false; float offeredKraken = -1e9f, apeFedT = -1e9f;
     int krakenKill = 0;                       // (the kraken killed: 150 to the score)
@@ -534,6 +537,11 @@ struct World {
     int seasonEvent = -1; float eventUntil = 0; uint32_t eventsDone = 0; float eventDay[EV_SEASON_COUNT] = {-1, -1, -1, -1};
     std::vector<int> tuna;                      // (the Tuna Run's school: agent indices)
     struct RelicSpot { Vector3 pos{}; int relic = -1, isle = -1; bool taken = false; };
+    // the neutral factions (doc p46)
+    struct Pirates { Vector3 pos{}; float hp = 400, stealT = 0, scatterUntil = 0, hireUntil = 0; int target = -1, hiredBy = -1, loot = 0; bool on = false; };
+    struct Boat { Vector3 pos{}, goal{}; float chumT = 0; };
+    struct GreyWings { int isle = -1; Vector3 crag{}, hunter{}; float hp = 300, huntT = 0, hunterT = 0; bool dead = false; std::vector<float> peaceUntil; };
+    Pirates pirates; std::vector<Boat> fleet; GreyWings grey;
     std::vector<RelicSpot> relicSpots;          // (relics lying on the dangerous islands)
     int greatEvent = -1, greatZone = -1, treasure = 0, legendFree = -1; float greatDay = -1, greatUntil = 0; bool greatAnnounced = false, greatDone = false;
     Vector3 greatPos{}, walkFrom{}, walkTo{}, legendPos{};
@@ -566,7 +574,12 @@ struct World {
     bool RecruitLegend();                       // the Founder gives the Visitor a fish of size 3+
     void GiveLegend(int side, int legend);
     bool GreatNow(int e) const;
-    void StepGreat(float dt);                // warriors that have survived three fights become veterans (the colony in the fields)
+    void StepGreat(float dt);
+    void InitFactions();
+    void StepFactions(float dt);
+    void BotFactions();
+    bool HirePirates(int target);               // the colony in the fields pays the Frigate Pirates to raid a colony for a day
+    bool PayTribute();                          // ... and the Grey Wings for a day's peace                // warriors that have survived three fights become veterans (the colony in the fields)
     std::string VetLabel(const Bird& b) const;  // "Old Gray, Fearless" ("" for a bird that isn't one)
     int wantTraitOrder = 0;                     // (scratch)
     std::vector<std::string> lookOf;            // (stage 8) per absolute side: "costume;livery colour;livery hat" (cosmetic; from the hello)

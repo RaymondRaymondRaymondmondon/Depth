@@ -268,7 +268,7 @@ fl::FounderInput Gather(float dt) {
     fl::FounderInput in;
     fl::Founder& f = WD().me;
     if (S.shot) { in.yaw = S.aimYaw; in.pitch = S.aimPitch; return in; }
-    if (IsKeyPressed(KEY_TAB)) { if (!S.panel) { S.panel = true; S.page = 0; } else if (S.page < 2) S.page++; else S.panel = false; S.chart = false; }
+    if (IsKeyPressed(KEY_TAB)) { if (!S.panel) { S.panel = true; S.page = 0; } else if (S.page < (WD().seasons > 0 ? 3 : 2)) S.page++; else S.panel = false; S.chart = false; }   // (a long match has a fourth page)
     // G: the Founder takes the lead of the nearest flock of yours (or lets it go)
     if (IsKeyPressed(KEY_G) && f.st != fl::FState::Dead) { Writer o; fl::OrderLead(o); Order(o); }
     if (IsKeyPressed(KEY_M)) { S.chart = !S.chart; S.panel = false; }
@@ -794,6 +794,19 @@ void DrawDangers(const fl::World& w, const Camera3D& cam, float dt) {
         Vector3 c = w.isles[w.wreck.isle].hill;
         for (int k = 0; k < 5; k++) rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.7f, 1.0f, 0.7f), MatrixTranslate(c.x - 12 + 6 * k, c.y + 3 + 0.4f * sinf(S.t * 2 + k), c.z)), Color{120, 255, 190, 255}, 1.6f);
     }
+    // ---- the neutral factions: the pirate band, the fleet's boats, the Grey Wings over their crag
+    if (w.pirates.on && w.time >= w.pirates.scatterUntil && Vector3Distance(w.pirates.pos, cam.position) < 500)
+        for (int k = 0; k < 8; k++) { float a = S.t * 0.8f + k * 0.785f; Vector3 p = Vector3Add(w.pirates.pos, {cosf(a) * 6, 2 * sinf(S.t + k), sinf(a) * 6}); float bt = sinf(S.t * 8 + k);
+            DrawBirdBody(w.Def(), PoseWorld(p, a + PI * 0.5f, 0, 0.3f, 0.8f), 0.5f * bt, 0.3f * bt, 0, 0, 0, 0.9f, Color{40, 40, 46, 255}); }
+    for (const auto& b : w.fleet) if (Vector3Distance(b.pos, cam.position) < 600) {
+        float yaw = atan2f(b.pos.z, b.pos.x);
+        rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(7, 1.4f, 2.4f), MatrixRotateY(yaw)), MatrixTranslate(b.pos.x, 0.3f, b.pos.z)), Color{150, 100, 60, 255});
+        rt::DrawCubeM(MatrixMultiply(MatrixScale(0.25f, 6, 0.25f), MatrixTranslate(b.pos.x, 3.5f, b.pos.z)), Color{120, 90, 60, 255});
+        rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(0.1f, 4, 3), MatrixRotateY(yaw)), MatrixTranslate(b.pos.x + 0.3f, 4, b.pos.z)), Color{236, 230, 214, 255});
+    }
+    if (w.grey.isle >= 0 && !w.grey.dead && Vector3Distance(w.grey.crag, cam.position) < 700)
+        for (int k = 0; k < 3; k++) { float a = S.t * 0.3f + k * 2.1f; Vector3 p = w.grey.hunterT > 0 && k == 0 ? w.grey.hunter : Vector3Add(w.grey.crag, {cosf(a) * 20, 12.0f + 3.0f * k, sinf(a) * 20});
+            DrawBirdBody(w.Def(), PoseWorld(p, a + PI * 0.5f, 0, 0.4f, 1.6f), 0.1f, 0, 0, 0, 0, 1.0f, Color{120, 90, 60, 255}); }
     // ---- the long match: relics glinting where they lie; the treasure ship's wreck; the Visitor on its island
     for (const auto& r : w.relicSpots) if (!r.taken && Vector3Distance(r.pos, cam.position) < 500) {
         float k = 0.6f + 0.4f * sinf(S.t * 3 + r.relic);
@@ -1319,8 +1332,54 @@ void DrawFlockPanel(fl::World& w) {
     DrawWrapped("Pick a flock, then click a target on the chart (M). G: the Founder leads the nearest flock (+20 morale, +10% speed).", {x + 16, ly, W - 32, 34}, 13, dim);
 }
 
+// The fourth page in a long match (Tab four times; doc pp. 35-48): the season, today's decree, the Founder's perks, the
+// relics at the shrine and the legend, the veterans by name, and the neutral powers (hire the pirates, pay the Grey Wings)
+void DrawLongPanel(fl::World& w) {
+    Color ink{250, 248, 236, 255}, dim{200, 214, 214, 255}, gold{255, 220, 150, 255}, bad{255, 140, 120, 255};
+    float x = 20, y = 78, W = 540, H = 620;
+    DrawRectangleRounded({x, y, W, H}, 0.05f, 6, Fade(Color{8, 18, 28, 255}, 0.88f));
+    DrawRectangleRoundedLinesEx({x, y, W, H}, 0.05f, 6, 2, Color{200, 180, 120, 255});
+    TxtBold("The long match", x + 16, y + 10, 22, ink);
+    Txt("Tab: close", x + W - 90, y + 16, 14, dim);
+    float ly = y + 44;
+    auto line = [&](const std::string& s, Color c, int size = 15) { DrawWrapped(s, {x + 16, ly, W - 32, 40}, size, c); ly += size + 7; };
+    const fl::SeasonFx& S0 = w.SeasonNow();
+    line(TextFormat("%s, day %d of %d. %s", S0.name.c_str(), w.GameDay(), fl::SeasonDays(w.seasons), S0.sea.c_str()), Color{170, 240, 160, 255});
+    line("Rewards: " + S0.rewards, dim, 13);
+    if (w.col.decree >= 0) line("Today's decree: " + fl::Decrees()[w.col.decree].name + " (" + fl::Decrees()[w.col.decree].effect + ")", gold);
+    { std::string p; for (int i = 0; i < (int)fl::Perks().size(); i++) if ((w.me.perks >> i) & 1) p += (p.empty() ? "" : ", ") + fl::Perks()[i].name;
+      line("The Founder's perks: " + (p.empty() ? std::string("none yet (days 5, 11 and 17)") : p), Color{200, 240, 255, 255}); }
+    ly += 6; TxtBold("At the shrine", x + 16, ly, 17, ink); ly += 24;
+    int nr = 0; for (int r = 0; r < fl::RL_COUNT; r++) if ((w.col.relics >> r) & 1) { line(fl::Relics()[r].name + ": " + fl::Relics()[r].effect, gold, 14); nr++; }
+    if (!nr) line(TextFormat("No relics (three at most). %d still lie on the dangerous islands.", (int)std::count_if(w.relicSpots.begin(), w.relicSpots.end(), [](const fl::World::RelicSpot& s) { return !s.taken; })), dim, 13);
+    if (w.col.legend >= 0) line(fl::Legends()[w.col.legend].name + (w.col.legendAlive ? ": " + fl::Legends()[w.col.legend].effect : std::string(" (lost)")), Color{255, 236, 170, 255}, 14);
+    ly += 6; TxtBold("Veterans", x + 16, ly, 17, ink); ly += 24;
+    int nv = 0; for (const auto& b : w.col.birds) if (b.alive && b.vet >= 0 && nv < 6) { line(w.VetLabel(b) + TextFormat(" (a %s, %d fights)", fl::RoleName(b.role), b.fights), ink, 13); nv++; }
+    if (!nv) line("None yet: a warrior that survives three fights earns a name.", dim, 13);
+    ly += 6; TxtBold("The neutral powers", x + 16, ly, 17, ink); ly += 24;
+    if (w.pirates.on) {
+        bool scattered = w.time < w.pirates.scatterUntil;
+        line(scattered ? TextFormat("The Frigate Pirates are scattered (their captain fell) for %.1f more days.", (w.pirates.scatterUntil - w.time) / fl::World::DAY)
+                       : w.pirates.target >= 0 && w.time < w.pirates.hireUntil ? "The Frigate Pirates are hired against " + w.SideName(w.pirates.target) + "." : std::string("The Frigate Pirates rove: they steal carried fish and raid full caches. A flock can kill their captain."), dim, 13);
+        static int hireAt = 1;
+        if (!scattered) {
+            int n = (int)w.sides.size() + 1; if (hireAt == w.cur || hireAt >= n) hireAt = (w.cur + 1) % n;
+            if (SmallBtn({x + 16, ly, 26, 20}, "<")) { do hireAt = (hireAt + n - 1) % n; while (hireAt == w.cur); }
+            if (SmallBtn({x + 46, ly, 26, 20}, ">")) { do hireAt = (hireAt + 1) % n; while (hireAt == w.cur); }
+            if (SmallBtn({x + 80, ly, 300, 20}, TextFormat("hire them against %s (%d fish)", w.SideName(hireAt).c_str(), fl::PirateHireFish()))) { Writer o; fl::OrderHire(o, hireAt); Order(o); }
+            ly += 26;
+        }
+    }
+    line(TextFormat("The Fishing Fleet: %d boats work the grounds, drop chum, and net birds that fly low near them.", (int)w.fleet.size()), dim, 13);
+    if (w.grey.isle >= 0) {
+        bool peace = w.cur < (int)w.grey.peaceUntil.size() && w.time < w.grey.peaceUntil[w.cur];
+        line(w.grey.dead ? std::string("The Grey Wings' eagle is dead.") : "The Grey Wings hunt chicks and lone fishers from " + w.isles[w.grey.isle].name + (peace ? " (you have peace today)." : "."), w.grey.dead ? dim : bad, 13);
+        if (!w.grey.dead && !peace && SmallBtn({x + 16, ly, 260, 20}, TextFormat("pay them tribute (%d fish)", fl::TributeFish()))) { Writer o; fl::OrderTribute(o); Order(o); }
+    }
+}
 // The third page (Tab three times; design doc pp. 20-22, 25-27): research at the Roost, faith and fervour, trade at
 // the towns and with the other colonies, and the founder's own button (the Tycoon's boom, the Sigma's corner).
+void DrawLongPanel(fl::World& w);
 void DrawSocietyPanel(fl::World& w) {
     Color ink{250, 248, 236, 255}, dim{200, 214, 214, 255}, good{170, 240, 180, 255}, bad{255, 140, 120, 255}, gold{255, 220, 150, 255};
     float x = 20, y = 78, W = 540, H = 640;
@@ -2178,7 +2237,7 @@ void SceneFlight(Game& g) {
         Render(dt);
         if (!S.shot || getenv("DEPTH_FLAUDIO")) FlightAudioFrame(w, dt);
         DrawHud(w);
-        if (S.panel) { if (S.page == 0) DrawColonyPanel(w); else if (S.page == 1) DrawFlockPanel(w); else DrawSocietyPanel(w); }
+        if (S.panel) { if (S.page == 0) DrawColonyPanel(w); else if (S.page == 1) DrawFlockPanel(w); else if (S.page == 2) DrawSocietyPanel(w); else DrawLongPanel(w); }
         if (S.chart) DrawChart(w);
         // a person lost: their colony runs on its last orders, then the AI stands in
         for (int k = 0; k < arcade::MAX_PLAYERS; k++) if (N.seats[k].used && N.seats[k].lost && !N.seats[k].ai && fmodf(S.t, 1.4f) < 1.0f)
@@ -2195,7 +2254,7 @@ void SceneFlight(Game& g) {
     Render(dt * WD().timeScale);
     if (!S.shot || getenv("DEPTH_FLAUDIO")) FlightAudioFrame(WD(), dt);
     DrawHud(WD());
-    if (S.panel) { if (S.page == 0) DrawColonyPanel(WD()); else if (S.page == 1) DrawFlockPanel(WD()); else DrawSocietyPanel(WD()); }
+    if (S.panel) { if (S.page == 0) DrawColonyPanel(WD()); else if (S.page == 1) DrawFlockPanel(WD()); else if (S.page == 2) DrawSocietyPanel(WD()); else DrawLongPanel(WD()); }
     if (S.chart) DrawChart(WD());
     if (WD().over) DrawResults(g, WD());
 }

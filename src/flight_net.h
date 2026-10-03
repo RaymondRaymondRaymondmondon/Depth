@@ -26,7 +26,7 @@ enum : uint8_t {
     FA_FLOCK_MAKE, FA_FLOCK_SET, FA_FLOCK_ORDER, FA_FLOCK_HOME, FA_FLOCK_DISBAND, FA_LEAD, FA_BUILD,
     FA_RESEARCH, FA_TRADEFOR, FA_BOOM, FA_CORNER, FA_PELICAN, FA_BARTER, FA_ANSWER,   // (stage 6)
     FA_FOUND, FA_DOSE, FA_BREW,                                                        // (stage 7)
-    FA_DECREE, FA_PERK, FA_WANT_TRAIT,                                                                         // (the long match: today's decree, 0-2 of the three offered)
+    FA_DECREE, FA_PERK, FA_WANT_TRAIT, FA_HIRE, FA_TRIBUTE,                                                                         // (the long match: today's decree, 0-2 of the three offered)
     FA_AUTOPILOT,          // (tests only: a host configured with "test" lets a seat's colony and Founder run themselves)
     FA_COUNT
 };
@@ -63,7 +63,9 @@ void OrderDose(Writer& w, int flock, int stim);
 void OrderBrew(Writer& w, int stim);
 void OrderDecree(Writer& w, int k);
 void OrderPerk(Writer& w, int k);
-void OrderWantTrait(Writer& w, int trait);     // the trait the courtship bowls ask for (-1 any)
+void OrderWantTrait(Writer& w, int trait);
+void OrderHire(Writer& w, int target);         // the Frigate Pirates against a colony, for a day
+void OrderTribute(Writer& w);                  // the Grey Wings, for a day's peace     // the trait the courtship bowls ask for (-1 any)
 bool FormationUnlocked(const Colony& c, Formation f);   // (War 1: formations beyond the chevron and the scatter)
 // a side's order on the world (anything but FA_INPUT, FA_AUTOPILOT); false if it was refused or changed nothing
 bool ApplyOrder(World& w, int side, Reader& r);
