@@ -26,7 +26,7 @@ namespace {
 struct ResearchData {
     ResearchTier tiers[(int)Tree::COUNT][4];
     ResearchCost cost[4];
-    int stTwigs[ST_COUNT] = {10, 20, 16, 14, 20}, stShells[ST_COUNT] = {0, 5, 0, 10, 15};
+    int stTwigs[ST_COUNT] = {10, 20, 16, 14, 20, 6, 18, 24, 22, 16, 0}, stShells[ST_COUNT] = {0, 5, 0, 10, 15, 0, 4, 6, 0, 4, 60};
     float fBase = 20, fDrift = 10, fPriest = 7, fPrayer = 15, fPrayerHours = 1, fOffer = 2.5f, fStarve = -25, fDeath = -10, fZealDeath = -30, fRout = -8, convert = 1, zealHunger = 1.2f;
     float guano = 0.25f, deepPearl = 0.07f, goldenPearls = 1;
 };
@@ -43,7 +43,7 @@ const ResearchData& RD() {
         const Json& tr = j["trees"][TREE_KEYS[t]];
         for (int k = 0; k < 4 && k < (int)tr.a.size(); k++) { d.tiers[t][k].name = tr[k]["name"].Str0(); d.tiers[t][k].what = tr[k]["what"].Str0(); }
     }
-    static const char* SK[ST_COUNT] = {"hedge", "tower", "roost", "shrine", "works"};
+    static const char* SK[ST_COUNT] = {"hedge", "tower", "roost", "shrine", "works", "perch", "smokehouse", "lookout", "rookery", "beacon", "monument"};
     for (int s = 2; s < ST_COUNT; s++) { const Json& o = j["structures"][SK[s]]; if (o.IsObj()) { d.stTwigs[s] = o["twigs"].I(d.stTwigs[s]); d.stShells[s] = o["shells"].I(d.stShells[s]); } }
     const Json& f = j["fervour"];
     auto F = [&](const char* k, float& v) { if (f[k].IsNum()) v = f[k].F(v); };
@@ -80,7 +80,7 @@ const char* TreeName(Tree t) { static const char* N[(int)Tree::COUNT] = {"Nestin
 const ResearchTier& ResearchOf(Tree t, int tier) { return RD().tiers[std::clamp((int)t, 0, (int)Tree::COUNT - 1)][std::clamp(tier, 1, 4) - 1]; }
 ResearchCost ResearchCostOf(int tier) { return RD().cost[std::clamp(tier, 1, 4) - 1]; }
 const char* GoodName(int g) { static const char* N[G_COUNT] = {"fish", "twigs", "shells", "pearls"}; return N[std::clamp(g, 0, G_COUNT - 1)]; }
-const char* StructureName(int k) { static const char* N[ST_COUNT] = {"hedge", "tower", "Roost", "shrine", "Works"}; return N[std::clamp(k, 0, ST_COUNT - 1)]; }
+const char* StructureName(int k) { static const char* N[ST_COUNT] = {"hedge", "tower", "Roost", "shrine", "Works", "perch", "smokehouse", "Lookout", "Rookery", "Beacon", "Monument"}; return N[std::clamp(k, 0, ST_COUNT - 1)]; }
 const char* RoleAbbrev(Role r) {
     static const char* A[(int)Role::COUNT] = {"", "Fsh", "Fdr", "Bld", "Sct", "Trd", "Pst", "Chm", "Pth", "Skm", "Tnk", "Str", "Wch", "Scr", "FM", "Bmb", "Prt",
                                                  "Plg", "Swl", "Mim", "Nrs", "Fer", "Lnc", "Har", "Drm", "Dvr", "Gdn", "Kpr", "Tch", "Hrd", "Aug"};
@@ -178,6 +178,9 @@ bool World::BuildUnlocked(int kind) const {
     case ST_HEDGE: case ST_TOWER: return col.HasTier(Tree::War, 3);
     case ST_SHRINE: return col.HasTier(Tree::Faith, 1);
     case ST_WORKS: return col.HasTier(Tree::Bombing, 1) || col.HasTier(Tree::Chemistry, 1);
+    case ST_PERCH: case ST_ROOKERY: case ST_LOOKOUT: case ST_BEACON: return seasons > 0;   // (the long match's structures, doc p49)
+    case ST_SMOKEHOUSE: return seasons > 0 && col.HasTier(Tree::Caches, 1);
+    case ST_MONUMENT: return seasons > 0 && Season() >= SEASON_AUTUMN;   // (late: the kind of thing built at the end of a long match)
     default: return true;   // (the Roost)
     }
 }
@@ -198,7 +201,7 @@ float World::FervourRout() const { return RD().fRout; }
 float World::WindPenalty(int side) const { return BendOfSide(side).wind * (ColOf(side).HasTier(Tree::Flight, 3) ? 0.5f : 1.0f); }
 float World::FightStamina(int side) const { return 25 * BendOfSide(side).stamina * (ColOf(side).HasTier(Tree::Flight, 2) ? 1.5f : 1.0f); }
 int World::CacheCap() const { return (int)((col.HasTier(Tree::Caches, 2) ? 50 : Econ().cacheCap) * BendNow().cacheCap); }   // (the Pelican: double)
-float World::SpoilDays() const { return (col.HasTier(Tree::Caches, 1) ? 6 : Econ().spoilDays) / std::max(0.25f, DecreeNow().spoil) * (Count(BStage::Adult, Role::Keeper) > 0 ? 2.0f : 1.0f); }   // (Feast Day: faster; a Keeper: half as fast)   // (Feast Day: caches empty faster)
+float World::SpoilDays() const { return (col.HasTier(Tree::Caches, 1) ? 6 : Econ().spoilDays) / std::max(0.25f, DecreeNow().spoil) * (Count(BStage::Adult, Role::Keeper) > 0 ? 2.0f : 1.0f) * (BuiltOf(col, ST_SMOKEHOUSE) ? SmokehouseSpoil() : 1.0f); }   // (a smokehouse keeps them longer)   // (Feast Day: faster; a Keeper: half as fast)   // (Feast Day: caches empty faster)
 int World::NestEggs() const { return col.HasTier(Tree::Nesting, 2) ? 6 : Econ().nestEggs; }
 int World::ShellsWanted() const {
     // the builders keep a stock of shells at the cache: enough for the cheapest next research and a shrine

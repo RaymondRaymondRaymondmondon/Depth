@@ -999,6 +999,68 @@ void World::StepNestStyles(float dt) {
     }
 }
 
+// ---------------------------------------------------------------- structures beyond nests (doc p49): perch, smokehouse, Lookout, Rookery, Beacon, Monument
+namespace {
+struct StructData { float perchSight = 1.25f, smoke = 1.5f, lookoutReport = 2, rookeryR = 40, beaconCd = 0.25f; int rookeryAdults = 3; };
+const StructData& STD() {
+    static StructData d; static bool loaded = false;
+    if (loaded) return d;
+    loaded = true;
+    Json j = LoadJsonFile(FlightDataDir() + "/flight_long.json");
+    const Json& t = j["structures"];
+    d.perchSight = t["perch_sight"].F(d.perchSight); d.smoke = t["smokehouse_spoil"].F(d.smoke); d.lookoutReport = t["lookout_report"].F(d.lookoutReport);
+    d.rookeryR = t["rookery_m"].F(d.rookeryR); d.rookeryAdults = t["rookery_adults"].I(d.rookeryAdults); d.beaconCd = t["beacon_days"].F(d.beaconCd);
+    return d;
+}
+}  // namespace
+const Structure* BuiltOf(const Colony& C, int kind) { for (const auto& s : C.builds) if (s.kind == kind && s.built && s.hp > 0) return &s; return nullptr; }
+int MonumentsOf(const Colony& C) { int n = 0; for (const auto& s : C.builds) n += s.kind == ST_MONUMENT && s.built && s.hp > 0; return n; }
+float PerchSight() { return STD().perchSight; }
+float SmokehouseSpoil() { return STD().smoke; }
+float LookoutReport() { return STD().lookoutReport; }
+static float FlatD(Vector3 a, Vector3 b) { return sqrtf((a.x - b.x) * (a.x - b.x) + (a.z - b.z) * (a.z - b.z)); }
+bool World::InRookery(const Nest& n) const { const Structure* r = BuiltOf(col, ST_ROOKERY); return r && FlatD(r->pos, n.pos) < STD().rookeryR; }
+bool World::LightBeacon() {
+    const Structure* b = BuiltOf(col, ST_BEACON);
+    if (!b) { Say("There's no Beacon to light."); return false; }
+    if (time - col.beaconT < STD().beaconCd * DAY) { Say("The Beacon is still being relit."); return false; }
+    col.beaconT = time;
+    int n = 0; for (auto& f : col.flocks) if (f.loanTo < 0) { OrderFlock(cur, f.id, Target::Home, -1, -1, -1, -1, {}); n++; }
+    Say(TextFormat("The Beacon is lit: every flock (%d) turns for home.", n));
+    return true;
+}
+void World::StepStructures(float dt) {
+    if (seasons <= 0) return;
+    const StructData& D = STD();
+    for (int s = 0; s <= (int)sides.size(); s++) {
+        Colony& C = ColOf(s);
+        // the Rookery: chicks there are warmed by any adult (enough adults about it) and fledge together
+        const Structure* r = BuiltOf(C, ST_ROOKERY);
+        C.rookeryWarm = false;
+        if (r) { int a = 0; for (const auto& b : C.birds) a += b.alive && b.stage == BStage::Adult && FlatD(b.pos, r->pos) < D.rookeryR; C.rookeryWarm = a >= D.rookeryAdults; }
+        // the bots lay out what they want once a day: a perch at 10 birds, a smokehouse with the research, a Rookery at 15, a Lookout at 20, a Beacon at war, a Monument in winter
+        if (HumanOf(s) || fmodf(time, DAY) >= dt) continue;
+        WithSide(s, [&] {
+            int alive = 0; for (const auto& b : col.birds) alive += b.alive && b.stage == BStage::Adult;
+            auto laid = [&](int k) { for (const auto& st : col.builds) if (st.kind == k && (k != ST_MONUMENT || !st.built)) return true; return false; };
+            auto want = [&](int k, bool when) { if (when && !laid(k) && BuildUnlocked(k)) LayStructure(k); };
+            want(ST_PERCH, alive >= 10); want(ST_SMOKEHOUSE, alive >= 8); want(ST_ROOKERY, alive >= 15); want(ST_LOOKOUT, alive >= 20);
+            want(ST_BEACON, !col.flocks.empty() && alive >= 18); want(ST_MONUMENT, col.shells >= StructureShells(ST_MONUMENT) + 20);
+        });
+    }
+}
+bool World::LayStructure(int kind) {
+    if (kind < 0 || kind >= ST_COUNT || col.caches.empty()) return false;
+    int same = 0; for (const auto& s : col.builds) if (s.kind == kind) { if (kind != ST_MONUMENT || !s.built) return false; same++; }
+    if (!BuildUnlocked(kind)) return false;
+    static const Vector3 OFF[ST_COUNT] = {{0, 0, 0}, {6, 0, 4}, {-5, 0, 3}, {4, 0, -5}, {-6, 0, -4}, {3, 0, 7}, {-3, 0, -8}, {9, 0, -2}, {-9, 0, 1}, {2, 0, 10}, {11, 0, 7}};
+    Structure n; n.kind = kind; n.isle = home; n.hp = StructureHp(kind);
+    Vector3 o = OFF[kind]; if (kind == ST_MONUMENT) { o.x += 4 * same; o.z -= 3 * same; }
+    n.pos = kind == ST_HEDGE ? col.caches[0].pos : GroundAt(col.caches[0].pos.x + o.x, col.caches[0].pos.z + o.z);
+    col.builds.push_back(n);
+    return true;
+}
+
 // ---------------------------------------------------------------- --flight-long-test (the expansion's long match)
 int RunFlightLongTest() {
     int fails = 0;
@@ -1358,6 +1420,41 @@ int RunFlightLongTest() {
         }
         auto s = make(0, 111); s->col.nestStyle = NS_PLATFORM; Nest n; n.site = 0; s->StyleNest(n);
         check(n.style == NS_CUP, "a standard match lays cups");
+    }    // ---- structures beyond nests (doc p49)
+    {
+        auto w = make(4, 111); w->ape.isle = -1; w->kraken.isle = -1; w->weather.next = 1e9f;
+        auto s0 = make(0, 111);
+        check(StructureTwigs(ST_PERCH) == 6 && StructureShells(ST_MONUMENT) == 60 && std::string(StructureName(ST_ROOKERY)) == "Rookery", "six new structures with their costs (a Monument: 60 shells)");
+        check(!s0->BuildUnlocked(ST_PERCH) && w->BuildUnlocked(ST_PERCH) && !w->BuildUnlocked(ST_SMOKEHOUSE) && !w->BuildUnlocked(ST_MONUMENT), "they're the long match's; a smokehouse wants Caches 1, a Monument the autumn");
+        w->time = 13.5f * World::DAY; bool lateOk = w->BuildUnlocked(ST_MONUMENT); w->time = 0;
+        check(lateOk, "from autumn, a Monument can be raised");
+        auto built = [&](int k) { w->LayStructure(k); auto& s = w->col.builds.back(); s.built = true; s.twigs = (float)StructureTwigs(k); return &s; };
+        // a perch: the Watcher's post, and its sight
+        built(ST_PERCH);
+        Bird wt; wt.id = w->col.nextId++; wt.stage = BStage::Adult; wt.role = Role::Watcher; wt.hp = 60; wt.hunger = 1; wt.pos = w->col.caches[0].pos; w->col.birds.push_back(wt);
+        for (int q = 0; q < 20; q++) w->Step(0.1f, FounderInput{});
+        const Bird* wb = nullptr; for (const auto& b : w->col.birds) if (b.id == wt.id) wb = &b;
+        check(wb && w->OnPerch(0, wb->post) && PerchSight() > 1, "a Watcher takes the perch as its post, and sees farther from it");
+        // a smokehouse
+        w->col.tier[(int)Tree::Caches] = 1; float sp0 = w->SpoilDays(); built(ST_SMOKEHOUSE);
+        check(w->SpoilDays() > sp0 * 1.4f, TextFormat("a smokehouse keeps the caches longer (%.1f days to %.1f)", sp0, w->SpoilDays()));
+        // the Rookery: eggs kept warm by any adult about it; chicks fledge together
+        auto* ro = built(ST_ROOKERY); ro->pos = w->col.nests[0].pos;
+        for (int q = 0; q < 3; q++) { Bird a; a.id = w->col.nextId++; a.stage = BStage::Adult; a.role = Role::Builder; a.hp = 60; a.hunger = 1; a.pos = ro->pos; a.task = Task::Sit; w->col.birds.push_back(a); }
+        w->StepStructures(0.1f);
+        check(w->col.rookeryWarm && w->InRookery(w->col.nests[0]), "three adults about the Rookery: its nests are warm");
+        // the Beacon: every flock home at once
+        built(ST_BEACON);
+        std::vector<int> ids; for (int q = 0; q < 3; q++) { Bird k; k.id = w->col.nextId++; k.stage = BStage::Adult; k.role = Role::Skirmisher; k.hp = 50; k.hunger = 1; k.pos = w->col.caches[0].pos; w->col.birds.push_back(k); ids.push_back(k.id); }
+        int fl = w->MakeFlock(0, ids, Formation::Chevron, Alt::Mid, Stance::Raid);
+        w->OrderFlock(0, fl, Target::Point, -1, -1, -1, -1, Vector3Add(w->col.caches[0].pos, {300, 20, 0}));
+        w->time = World::DAY;
+        bool lit = w->LightBeacon(); Flock* F = w->FindFlock(0, fl);
+        check(lit && F && F->target == Target::Home && !w->LightBeacon(), "the Beacon calls every flock home at once (and is relit in a quarter day)");
+        // Monuments: more than one
+        w->time = 14 * World::DAY; w->col.shells = 200;
+        built(ST_MONUMENT); bool second = w->LayStructure(ST_MONUMENT);
+        check(second && MonumentsOf(w->col) == 1, "a second Monument can be laid once the first is raised");
     }    printf(fails ? "flight-long-test: %d check(s) failed\n" : "flight-long-test: all checks passed\n", fails);
     return fails ? 1 : 0;
 }

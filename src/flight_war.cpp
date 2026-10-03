@@ -295,7 +295,7 @@ void World::StepWar(float dt) {
         b.atkCd -= dt;
         if (b.netT > 0) { b.netT -= dt; b.vel = {0, 0, 0}; continue; }   // (held in a net)
         // the nearest enemy in reach (a Watcher looks from its post)
-        float sight = guardian ? w.watchSight * (b.post.y > 15 ? w.towerMult : 1.0f) * (FogNow() ? FogSight() : 1.0f) * (HasLegend(x.side, LG_OLD_OWL) ? 3.0f : 1.0f) : w.engage;   // (the Old Owl)
+        float sight = guardian ? w.watchSight * (b.post.y > 15 ? w.towerMult : OnPerch(x.side, b.post) ? PerchSight() : 1.0f) * (FogNow() ? FogSight() : 1.0f) * (HasLegend(x.side, LG_OLD_OWL) ? 3.0f : 1.0f) : w.engage;   // (the Old Owl)
         Vector3 from = guardian ? b.post : b.pos;
         if (b.role == Role::Flockmaster) sight = std::min(sight, 10.0f);   // (the Flockmaster directs from the rear: it fights only what reaches it)
         Fighter* best = nullptr; float bd = sight;

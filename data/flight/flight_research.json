@@ -9,7 +9,13 @@
   "structures": {
     "roost": {"twigs": 16, "shells": 0, "what": "The colony's first structure after the nest: research happens here, one line at a time"},
     "shrine": {"twigs": 14, "shells": 10, "what": "Faith 1: priests tend it, the Founder prays at it, offerings are laid on it"},
-    "works": {"twigs": 20, "shells": 15, "what": "Bombing 1 / Chemistry 1: bombs from guano and sulfur, stimulants from guano and pearls"}
+    "works": {"twigs": 20, "shells": 15, "what": "Bombing 1 / Chemistry 1: bombs from guano and sulfur, stimulants from guano and pearls"},
+    "perch": {"twigs": 6, "shells": 0, "what": "the long match (doc p49): a Watcher's post; +25% sight"},
+    "smokehouse": {"twigs": 18, "shells": 4, "what": "the long match, Caches 1: the caches keep half as long again"},
+    "lookout": {"twigs": 24, "shells": 6, "what": "the long match: a tall perch that doubles a scout's report range"},
+    "rookery": {"twigs": 22, "shells": 0, "what": "the long match: a nursery; with three adults about it its eggs are warm, and its chicks fledge together"},
+    "beacon": {"twigs": 16, "shells": 4, "what": "the long match: a signal fire that calls every flock home at once (relit in a quarter day)"},
+    "monument": {"twigs": 0, "shells": 60, "what": "the long match, from autumn: a pile of shells that is score (30) and nothing else; more than one may be raised"}
   },
   "trees": {
     "nesting": [

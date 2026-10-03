@@ -647,6 +647,33 @@ void DrawColony(const fl::World& w, const fl::Colony& c, const Camera3D& cam, Co
             if (k >= 1) { rt::DrawCubeGlow(MatrixMultiply(MatrixScale(1, 0.6f, 1), MatrixTranslate(s.pos.x, s.pos.y + 0.6f, s.pos.z + 4.1f)), Color{255, 140, 50, 255}, 1.2f);
                 for (int j = 0; j < 4; j++) { float ph = fmodf(S.t * 0.3f + j * 0.25f, 1.0f); rt::DrawCubeM(MatrixMultiply(MatrixScale(1 + ph * 2, 1 + ph * 2, 1 + ph * 2), MatrixTranslate(s.pos.x + ph * 2, s.pos.y + 3.5f + ph * 10, s.pos.z + 3)), Mix(Color{120, 116, 112, 255}, Color{200, 200, 198, 255}, ph)); } }
         }
+        else if (s.kind == fl::ST_PERCH) {   // a perch: one tall pole and a crossbar
+            Color wood{112, 86, 56, 255};
+            rt::DrawCubeM(MatrixMultiply(MatrixScale(0.22f, 6 * k, 0.22f), MatrixTranslate(s.pos.x, s.pos.y + 3 * k, s.pos.z)), wood);
+            if (k >= 1) rt::DrawCubeM(MatrixMultiply(MatrixScale(1.8f, 0.14f, 0.14f), MatrixTranslate(s.pos.x, s.pos.y + 6.1f, s.pos.z)), wood);
+        }
+        else if (s.kind == fl::ST_SMOKEHOUSE) {   // a smokehouse: a low hut of stones with fish hung inside and a thread of smoke
+            rt::DrawCubeM(MatrixMultiply(MatrixScale(3, 2 * k, 2.4f), MatrixTranslate(s.pos.x, s.pos.y + k, s.pos.z)), Color{120, 112, 104, 255});
+            if (k >= 1) { rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(3.4f, 0.2f, 1.5f), MatrixRotateX(0.5f)), MatrixTranslate(s.pos.x, s.pos.y + 2.3f, s.pos.z - 0.6f)), Color{86, 120, 60, 255});
+                rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(3.4f, 0.2f, 1.5f), MatrixRotateX(-0.5f)), MatrixTranslate(s.pos.x, s.pos.y + 2.3f, s.pos.z + 0.6f)), Color{86, 120, 60, 255});
+                for (int j = 0; j < 3; j++) { float ph = fmodf(S.t * 0.25f + j * 0.33f, 1.0f); rt::DrawCubeM(MatrixMultiply(MatrixScale(0.4f + ph, 0.4f + ph, 0.4f + ph), MatrixTranslate(s.pos.x + ph, s.pos.y + 2.8f + ph * 6, s.pos.z)), Mix(Color{150, 146, 140, 255}, Color{210, 210, 206, 255}, ph)); } }
+        }
+        else if (s.kind == fl::ST_LOOKOUT) {   // the Lookout: a tall mast of lashed poles with a crow's nest
+            for (int j = 0; j < 3; j++) { float a = j * 2 * PI / 3; rt::DrawCubeM(MatrixMultiply(MatrixScale(0.25f, 24 * k, 0.25f), MatrixTranslate(s.pos.x + cosf(a) * 0.8f, s.pos.y + 12 * k, s.pos.z + sinf(a) * 0.8f)), Color{112, 86, 56, 255}); }
+            if (k >= 1) rt::DrawCubeM(MatrixMultiply(MatrixScale(2.4f, 0.8f, 2.4f), MatrixTranslate(s.pos.x, s.pos.y + 24, s.pos.z)), Color{132, 100, 64, 255});
+        }
+        else if (s.kind == fl::ST_ROOKERY) {   // the Rookery: a low platform with a ring of little nests
+            rt::DrawCubeM(MatrixMultiply(MatrixScale(7, 0.5f * k, 7), MatrixTranslate(s.pos.x, s.pos.y + 0.25f * k, s.pos.z)), Color{132, 100, 64, 255});
+            if (k >= 1) for (int j = 0; j < 8; j++) { float a = j * PI / 4; rt::DrawStatic(S.nest, MatrixMultiply(MatrixScale(0.7f, 0.6f, 0.7f), MatrixTranslate(s.pos.x + cosf(a) * 2.6f, s.pos.y + 0.5f, s.pos.z + sinf(a) * 2.6f))); }
+        }
+        else if (s.kind == fl::ST_BEACON) {   // the Beacon: a stack of driftwood; lit, a tall fire
+            for (int j = 0; j < 6; j++) rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(3.2f, 0.35f, 0.35f), MatrixRotateY(j * 1.05f)), MatrixTranslate(s.pos.x, s.pos.y + 0.2f + 0.35f * j * k, s.pos.z)), Color{122, 92, 58, 255});
+            if (k >= 1 && w.time - c.beaconT < 40) for (int j = 0; j < 4; j++) { float ph = fmodf(S.t * 1.5f + j * 0.25f, 1.0f); rt::DrawCubeGlow(MatrixMultiply(MatrixScale(1.4f - ph, 1.2f, 1.4f - ph), MatrixTranslate(s.pos.x, s.pos.y + 2.4f + ph * 3, s.pos.z)), Color{255, (unsigned char)(200 - 120 * ph), 60, 255}, 1.6f); }
+        }
+        else if (s.kind == fl::ST_MONUMENT) {   // a Monument: a cone of shells, white and pearl
+            for (int j = 0; j < 7; j++) rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(3.2f - 0.42f * j, 0.8f, 3.2f - 0.42f * j), MatrixRotateY(j * 0.45f)), MatrixTranslate(s.pos.x, s.pos.y + 0.4f + 0.8f * j * k, s.pos.z)), j % 2 ? Color{236, 230, 220, 255} : Color{214, 220, 236, 255});
+            if (k >= 1) rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.6f, 0.6f, 0.6f), MatrixTranslate(s.pos.x, s.pos.y + 6.2f, s.pos.z)), Color{240, 236, 255, 255}, 0.6f);
+        }
         else {
             for (int j = 0; j < 4; j++) { float a = j * PI / 2 + 0.78f; rt::DrawCubeM(MatrixMultiply(MatrixScale(0.25f, 16 * k, 0.25f), MatrixTranslate(s.pos.x + cosf(a) * 1.2f, s.pos.y + 8 * k, s.pos.z + sinf(a) * 1.2f)), Color{112, 86, 56, 255}); }
             if (k >= 1) rt::DrawCubeM(MatrixMultiply(MatrixScale(3.2f, 0.3f, 3.2f), MatrixTranslate(s.pos.x, s.pos.y + 16, s.pos.z)), Color{132, 100, 64, 255});
@@ -1403,6 +1430,24 @@ void DrawLongPanel(fl::World& w) {
             if (SmallBtn({x + 80, ly, 300, 20}, TextFormat("hire them against %s (%d fish)", w.SideName(hireAt).c_str(), fl::PirateHireFish()))) { Writer o; fl::OrderHire(o, hireAt); Order(o); }
             ly += 26;
         }
+    }
+    // structures beyond nests (doc p49): lay them out for the builders; light the Beacon
+    {
+        ly += 4; TxtBold("Structures", x + 16, ly, 17, ink); ly += 22;
+        static const int KINDS[] = {fl::ST_PERCH, fl::ST_SMOKEHOUSE, fl::ST_LOOKOUT, fl::ST_ROOKERY, fl::ST_BEACON, fl::ST_MONUMENT};
+        for (int q = 0; q < 6; q++) {
+            int kd = KINDS[q]; const fl::Structure* st = nullptr; int done = 0;
+            for (const auto& s : w.col.builds) if (s.kind == kd) { if (s.built) done++; else st = &s; }
+            std::string name = fl::StructureName(kd); name[0] = (char)toupper(name[0]);
+            std::string what = st ? TextFormat("%s: under way (%.0f/%d twigs, %d/%d shells)", name.c_str(), st->twigs, fl::StructureTwigs(kd), st->shells, fl::StructureShells(kd))
+                             : done ? (kd == fl::ST_MONUMENT ? TextFormat("%s: %d raised", name.c_str(), done) : name + ": built") : name + ": none";
+            float bx = x + 16 + (q % 2) * 300.0f, by = ly + (q / 2) * 24.0f;
+            Txt(what, bx, by + 2, 12, done ? Color{170, 240, 180, 255} : ink);
+            bool can = !st && (!done || kd == fl::ST_MONUMENT) && w.BuildUnlocked(kd);
+            if (!st && (!done || kd == fl::ST_MONUMENT) && SmallBtn({bx + 210, by, 80, 20}, w.BuildUnlocked(kd) ? TextFormat("%d/%d", fl::StructureTwigs(kd), fl::StructureShells(kd)) : "locked", can)) { Writer o; fl::OrderBuild(o, kd); Order(o); }
+            if (kd == fl::ST_BEACON && done && SmallBtn({bx + 210, by, 80, 20}, "light it", w.time - w.col.beaconT > 0.25f * fl::World::DAY)) { Writer o; fl::OrderBeacon(o); Order(o); }
+        }
+        ly += 76;
     }
     // diplomacy, lightly: a pact, a bounty, a loan, a broken truce (doc pp. 47-48)
     {

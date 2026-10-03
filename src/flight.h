@@ -332,10 +332,14 @@ float StructureHp(int kind); float StimSpeed(int stim); float StimAttack(int sti
 float BellMorale(); float FogSight(); float TearPerStrike(); float SkullShrineFervour(); float DesertDays();
 // what a colony has raised (doc p24, p20): hedges round nest sites, towers for Watchers, the Roost (research), the
 // shrine (faith), the Works (bombs and stimulants: stage 7)
-enum { ST_HEDGE = 0, ST_TOWER = 1, ST_ROOST = 2, ST_SHRINE = 3, ST_WORKS = 4, ST_COUNT };
+enum { ST_HEDGE = 0, ST_TOWER = 1, ST_ROOST = 2, ST_SHRINE = 3, ST_WORKS = 4, ST_PERCH, ST_SMOKEHOUSE, ST_LOOKOUT, ST_ROOKERY, ST_BEACON, ST_MONUMENT, ST_COUNT };   // (5 on: the long match's, doc p49)
 int StructureTwigs(int kind); int StructureShells(int kind);   // (flight_war.json and flight_research.json)
 const char* StructureName(int kind);
 struct Structure { int kind = 0; Vector3 pos{}; float twigs = 0; int shells = 0; bool built = false; int site = -1; float hp = 100; int isle = -1; };
+struct Colony;
+const Structure* BuiltOf(const Colony& C, int kind);   // (the long match's structures, doc p49)
+int MonumentsOf(const Colony& C);
+float PerchSight(); float SmokehouseSpoil(); float LookoutReport();
 
 // ---------------------------------------------------------------- stage 6: research, faith, trade, the founders' bends
 // (flight_society.cpp; data/flight/flight_research.json, flight_bends.json, flight_towns.json)
@@ -416,6 +420,7 @@ struct Colony {
     uint32_t relics = 0; int legend = -1; bool legendAlive = false, goldenEggUsed = false;
     float greyHit = -1000;
     int nestStyle = 0;                        // (the long match: the style new nests are laid in)
+    float beaconT = -1e9f, rookeryFledgeT = -1e9f; bool rookeryWarm = false;   // (the Beacon last lit; the Rookery's chicks fledging together; enough adults about it)
     int tech = -1; float techMastery[TK_COUNT] = {}; std::vector<int> techLog;   // (fishing mastery: the colony's technique, -1 auto; per ground x technique: tries, catches, losses)
     int pact = -1, bounty = 0, bountyBy = -1; float pactT = 0, truceBroken = -1000;   // (diplomacy: a feed-pact partner; fish posted on this colony's Founder)                      // (the last time the Grey Wings took one of its birds)   // (the long match: relics at the shrine, a legendary bird)        // (the long match) the trait the courtship bowls ask for (-1 any); the next veteran's name
     int decree = -1, yesterday = -1, offer[3] = {-1, -1, -1}, dealtDay = 0, lastRaider = -1; uint32_t decreesUsed = 0; float salvageT = 0, titheFish = 0;
@@ -602,6 +607,11 @@ struct World {
     void InitFactions();
     void StepFactions(float dt);
     void BotFactions();
+    bool InRookery(const Nest& n) const;        // (structures, doc p49)
+    bool LightBeacon();
+    void StepStructures(float dt);
+    bool LayStructure(int kind);
+    bool OnPerch(int side, Vector3 p) const { const Structure* s = BuiltOf(ColOf(side), ST_PERCH); return s && fabsf(s->pos.x - p.x) < 2 && fabsf(s->pos.z - p.z) < 2; }
     bool WaterNear(Vector3 p, float r, Vector3* at = nullptr) const;   // (nest styles, doc p49)
     bool NestStyleFits(int style, int site) const;
     void StyleNest(Nest& n, bool tell = false);

@@ -713,9 +713,10 @@ void World::ScoutStep(Bird& b, float dt) {
     float best = Vector3Distance(b.pos, homeAt);
     if (me.st != FState::Dead && Vector3Distance(b.pos, me.pos) < best) { best = Vector3Distance(b.pos, me.pos); homeAt = me.pos; }
     auto flat = [&](Vector3 a) { return Vector2Distance({b.pos.x, b.pos.z}, {a.x, a.z}); };
-    bool near = me.st != FState::Dead && flat(me.pos) < 60;
-    for (const auto& n : col.nests) if (flat(n.pos) < 60) near = true;
-    for (const auto& c : col.caches) if (flat(c.pos) < 60) near = true;
+    float rr = 60 * (BuiltOf(col, ST_LOOKOUT) ? LookoutReport() : 1.0f);   // (a Lookout: twice as far)
+    bool near = me.st != FState::Dead && flat(me.pos) < rr;
+    for (const auto& n : col.nests) if (flat(n.pos) < rr) near = true;
+    for (const auto& c : col.caches) if (flat(c.pos) < rr) near = true;
     if (near) { ScoutReport(b); b.hasOrder = false; b.task = Task::Idle; return; }
     Vector3 cruise{homeAt.x, flat(homeAt) < 150 ? homeAt.y + 10 : std::max(y, homeAt.y + 10), homeAt.z};   // (down over home to report)
     MoveTo(b, cruise, R.speed, dt, 4);

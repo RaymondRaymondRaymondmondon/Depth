@@ -532,7 +532,9 @@ void World::BuilderStep(Bird& b, float dt) {
                 if (st.twigs >= StructureTwigs(st.kind) && st.shells >= StructureShells(st.kind)) {
                     st.built = true;
                     static const char* DONE[ST_COUNT] = {"A hedge of thorn now rings the home nest: Skirmishers can't get through.", "A tower stands over the colony: a Watcher on it sees farther and nets farther.",
-                                                         "The Roost is built: research can begin (the colony panel's third page).", "The shrine is raised: priests can tend it, and the Founder can pray there.", "The Works stand: bombs and stimulants can be made."};
+                                                         "The Roost is built: research can begin (the colony panel's third page).", "The shrine is raised: priests can tend it, and the Founder can pray there.", "The Works stand: bombs and stimulants can be made.",
+                                                         "A perch stands: a Watcher on it sees farther.", "The smokehouse is built: the caches keep longer.", "The Lookout stands: scouts report from twice as far.",
+                                                         "The Rookery is built: chicks there are warmed by any adult and fledge together.", "The Beacon is built: light it to call every flock home at once.", "A Monument is raised: score, and nothing else."};
                     Say(DONE[std::clamp(st.kind, 0, ST_COUNT - 1)]);
                 }
             }
@@ -723,6 +725,7 @@ void World::StepBird(Bird& b, float dt) {
         bool warm = false;
         if (n.mate >= 0) for (const auto& o : col.birds) if (o.id == n.mate && o.alive && o.task == Task::Sit) warm = true;
         if (n.founders && me.st == FState::Perched && Vector3Distance(me.pos, n.pos) < 2) warm = true;
+        if (col.rookeryWarm && InRookery(n)) warm = true;   // (the Rookery: any adult keeps them warm)
         if (warm) { b.age += dt / DAY * (n.shells >= E.liningShells || col.HasTier(Tree::Nesting, 1) ? 1 + E.liningHatch : 1.0f); b.chillT = std::max(0.0f, b.chillT - dt * 0.5f); }
         else if (DecreeNow().hatchAll) b.age += dt / DAY * 2;   // (a Hatching Moon: they hatch today regardless)
         else { b.chillT += dt * DecreeNow().chill; if (b.chillT > E.chillDays * DAY) { BirdDies(b, "chilled"); return; } }
@@ -733,7 +736,8 @@ void World::StepBird(Bird& b, float dt) {
         b.pos = Vector3Add(n.pos, {0.15f * cosf(b.id * 1.7f), 0.2f, 0.15f * sinf(b.id * 1.7f)});
         b.age += dt / DAY * (b.hunger > 0.9f ? 1 + E.overfeed : 1.0f) * DecreeNow().grow * (PerkSum(me.perks).chickGrow > 1 && Vector3Distance(b.pos, me.pos) < PerkSum(me.perks).sightM ? PerkSum(me.perks).chickGrow : 1.0f);   // (Mother's Instinct)   // (Feast Day: a day's growth in half)
         bool taught = false; for (const auto& t : col.birds) if (t.alive && t.role == Role::Teacher && t.stage == BStage::Adult && Vector3Distance(t.pos, b.pos) < 80) { taught = true; break; }
-        if (b.age >= E.chickDays + BendNow().fledgeDays - (taught ? 0.4f : 0.0f)) { b.taught = taught; Fledge(b); }   // (a Teacher: early)
+        if (b.age >= E.chickDays + BendNow().fledgeDays - (taught ? 0.4f : 0.0f)) { b.taught = taught; if (col.rookeryWarm && InRookery(n)) col.rookeryFledgeT = time; Fledge(b); }   // (a Teacher: early)
+        else if (time - col.rookeryFledgeT < 2 && col.rookeryWarm && InRookery(n) && b.age >= (E.chickDays + BendNow().fledgeDays) * 0.75f) Fledge(b);   // (the Rookery: they fledge together)
     } break;
     case BStage::Mate: MateStep(b, dt); break;
     case BStage::Adult: {
@@ -777,7 +781,9 @@ void World::StepBird(Bird& b, float dt) {
             if (b.role == Role::Watcher) {
                 int k = 0, mine = 0; for (const auto& o : col.birds) { if (&o == &b) mine = k; if (o.alive && o.role == Role::Watcher && o.stage == BStage::Adult) k++; }
                 const Structure* tw = nullptr; for (const auto& s : col.builds) if (s.kind == 1 && s.built) tw = &s;
+                const Structure* pc = BuiltOf(col, ST_PERCH);
                 if (tw && mine == 0) post = Vector3Add(tw->pos, {0, 16, 0});
+                else if (pc && mine == (tw ? 1 : 0)) post = Vector3Add(pc->pos, {0, 6.4f, 0});   // (a perch: the next Watcher's post)
                 else {   // (an outpost's nests first: a held island is where the assaults come)
                     std::vector<int> order; for (int q = 0; q < (int)col.nests.size(); q++) if (col.nests[q].isle >= 0 && col.nests[q].isle != home) order.push_back(q);
                     for (int q = 0; q < (int)col.nests.size(); q++) if (!(col.nests[q].isle >= 0 && col.nests[q].isle != home)) order.push_back(q);

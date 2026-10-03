@@ -31,7 +31,7 @@ struct DangerData {
     float stormMin = 3, stormMax = 5, stormHours = 2, fogChance = 0.3f, fogHours = 2, fogSight = 0.5f;
     float blockadeM = 120, wallM = 150, desert = 0.15f, tear = 3;
     float bGuano = 5, bSulfur = 1, bMax = 4, bDmg = 60, bR = 8, bIncR = 12, blockEvery = 2, bMorale = 15, bNoise = 10;
-    float hp[ST_COUNT] = {60, 120, 150, 100, 120};
+    float hp[ST_COUNT] = {60, 120, 150, 100, 120, 50, 90, 100, 110, 80, 220};
     float stGuano[STIM_COUNT] = {0, 3, 4, 4, 6}, stPearls[STIM_COUNT] = {0, 0, 1, 1, 2};
     float haste = 1.3f, fury = 1.4f, furyBleed = 1.5f, clotBleed = 0.5f, draught = 1.5f, brewDays = 0.5f, effectDays = 1, crashDays = 1;
 };
@@ -57,7 +57,7 @@ const DangerData& DD() {
     F(j["siege"], "blockade_m", d.blockadeM); F(j["siege"], "wall_m", d.wallM); F(j["siege"], "desert_days_of_food", d.desert); F(j["assault"], "tear_per_strike", d.tear);
     const Json& b = j["bombs"]; F(b, "guano", d.bGuano); F(b, "sulfur", d.bSulfur); F(b, "max", d.bMax); F(b, "damage", d.bDmg); F(b, "radius_m", d.bR); F(b, "incendiary_radius_m", d.bIncR);
     F(b, "blockbuster_every_days", d.blockEvery); F(b, "morale_hit", d.bMorale); F(b, "noise", d.bNoise);
-    static const char* SH[ST_COUNT] = {"hedge", "tower", "roost", "shrine", "works"};
+    static const char* SH[ST_COUNT] = {"hedge", "tower", "roost", "shrine", "works", "perch", "smokehouse", "lookout", "rookery", "beacon", "monument"};
     for (int i = 0; i < ST_COUNT; i++) F(j["structures_hp"], SH[i], d.hp[i]);
     const Json& st = j["stims"];
     static const char* SK[STIM_COUNT] = {"", "haste", "fury", "clot", "draught"};

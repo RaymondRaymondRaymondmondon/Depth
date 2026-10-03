@@ -151,5 +151,6 @@
       {"key": "cliff", "name": "Cliff ledge", "twigs": 8, "shells": 10, "cost": "8 twigs and 10 shells, a high site", "effect": "the stack's nest: nothing climbs to it (no theft, no raid, no lizards)"},
       {"key": "floating", "name": "Floating", "twigs": 25, "cost": "25 twigs, water nearby", "effect": "on the water: immune to everything on land; sharks take from it"}
     ]
-  }
+  },
+  "structures": {"source": "doc p49: structures beyond nests (costs in flight_research.json, health in flight_danger.json)", "perch_sight": 1.25, "smokehouse_spoil": 1.5, "lookout_report": 2, "rookery_m": 40, "rookery_adults": 3, "beacon_days": 0.25}
 }
