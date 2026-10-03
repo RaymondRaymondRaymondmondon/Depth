@@ -599,7 +599,10 @@ void World::BotGovern(float dt) {
     col.restBelow = 0.45f;
     if (fmodf(time, DAY * 0.5f) < dt) {
         int under = 0; for (const auto& n : col.nests) under += !n.built;
-        int bld = Count(BStage::Adult, Role::Builder), fdr = Count(BStage::Adult, Role::Feeder), wk = Count(BStage::Adult) - fdr;
+        // (birds already retraining don't count: they're leaving the role, and retraining another each half day emptied it)
+        int bld = 0, fdr = 0, leaving = 0; for (const auto& o : col.birds) if (o.alive && o.stage == BStage::Adult) { if (o.retrainT > 0) leaving++; else { bld += o.role == Role::Builder; fdr += o.role == Role::Feeder; } }
+        int wk = Count(BStage::Adult) - fdr;
+        if (leaving > 0) bld = 0, fdr = 0;   // (one change at a time)
         if (bld > 1 + 2 * under) Retrain(Role::Fisher, Role::Builder);
         else if (fdr > 1 + wk / Econ().feederCover) Retrain(Role::Fisher, Role::Feeder);
     }

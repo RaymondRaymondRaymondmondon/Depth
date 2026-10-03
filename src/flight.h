@@ -517,7 +517,8 @@ struct World {
     void StepWorks(float dt);                   // bombs and stimulants at the colony's Works (the colony in the fields)
     void Blast(Vector3 at, int side, int kind); // a bomb (kind 0 plain, 1 incendiary, 2 blockbuster)
     bool Dose(int flock, int stim);             // a stimulant into a flock of the colony in the fields
-    bool Grounded(Vector3 p) const;             // (a storm, or the volcano's ash: birds stay down)
+    bool Grounded(Vector3 p) const;
+    float ApeCeiling(Vector3 p, Vector3 goal) const;   // (a bird passing an awake ape climbs above its throws: the height to keep, or 0)             // (a storm, or the volcano's ash: birds stay down)
     bool Blockaded(int zone, int side) const;   // a hostile flock holds that ground
     bool Walled(int isle, int side) const;      // a hostile Wall holds the air over that island
     bool OfferKraken();                          // the Founder at the cove with a fish

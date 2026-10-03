@@ -238,6 +238,7 @@ bool World::MoveTo(Bird& b, Vector3 goal, float speed, float dt, float arrive) {
     if (Vector3Length(d) < arrive) { b.vel = Vector3Scale(b.vel, 0.5f); return true; }
     // travel at a cruising height, coming down over the last stretch
     float cruise = std::max(goal.y, std::max(0.0f, HeightAt(b.pos.x, b.pos.z)) + 10);
+    cruise = std::max(cruise, ApeCeiling(b.pos, goal));   // (passing skull island: over the ape's throws)
     Vector3 aim = flat > 14 ? Vector3{goal.x, std::max(goal.y, cruise), goal.z} : goal;
     Vector3 want = Vector3Scale(Vector3Normalize(Vector3Subtract(aim, b.pos)), speed);
     b.vel = Vector3Lerp(b.vel, want, std::min(1.0f, dt * 3 * Econ().workPace));
@@ -481,6 +482,8 @@ void World::BuilderStep(Bird& b, float dt) {
         for (int i = 0; i < (int)col.twigSrc.size(); i++) { const auto& s = col.twigSrc[i]; if (!s.shells || s.twigs < 1) continue; float d = Vector3Distance(b.pos, s.pos); if (d < bd) { bd = d; src = i; } }
         if (src >= 0) { b.task = Task::Gather; if (MoveTo(b, Vector3Add(col.twigSrc[src].pos, {0, 0.3f, 0}), R.speed, dt)) { int k = std::min((int)col.twigSrc[src].twigs, R.carry); col.twigSrc[src].twigs -= k; b.carryShells = k; } return; }
     }
+    // an outpost short of three nests comes first (an island is held by its nests): lay its next one before any structure
+    if (!col.leaderless && !nestWaiting) if (int s = OutpostSite(); s >= 0) { Nest n; n.site = s; n.pos = col.sites[s].pos; n.isle = col.sites[s].isle; n.bowlNeed = E.courtFish + E.courtStep * (int)col.nests.size(); col.sites[s].nest = (int)col.nests.size(); col.nests.push_back(n); nestWaiting = true; }
     bool nestJob = false; for (const auto& n : col.nests) nestJob |= !n.built;
     for (const auto& st : col.builds) if (!st.built && st.kind == ST_ROOST) nestJob = false;   // (the Roost before more nests: research waits on it)
     if (!nestJob) for (int pass = 0; pass < 2; pass++) for (auto& st : col.builds) {
@@ -733,7 +736,11 @@ void World::StepBird(Bird& b, float dt) {
                 int k = 0, mine = 0; for (const auto& o : col.birds) { if (&o == &b) mine = k; if (o.alive && o.role == Role::Watcher && o.stage == BStage::Adult) k++; }
                 const Structure* tw = nullptr; for (const auto& s : col.builds) if (s.kind == 1 && s.built) tw = &s;
                 if (tw && mine == 0) post = Vector3Add(tw->pos, {0, 16, 0});
-                else { const Nest& n = col.nests[mine % col.nests.size()]; post = Vector3Add(n.pos, {1.2f, 0.3f, 0.8f}); }
+                else {   // (an outpost's nests first: a held island is where the assaults come)
+                    std::vector<int> order; for (int q = 0; q < (int)col.nests.size(); q++) if (col.nests[q].isle >= 0 && col.nests[q].isle != home) order.push_back(q);
+                    for (int q = 0; q < (int)col.nests.size(); q++) if (!(col.nests[q].isle >= 0 && col.nests[q].isle != home)) order.push_back(q);
+                    const Nest& n = col.nests[order[mine % order.size()]]; post = Vector3Add(n.pos, {1.2f, 0.3f, 0.8f});
+                }
                 b.post = post;
             } else { const Site& s = col.sites[(b.id * 5) % col.sites.size()]; post = Vector3Add(s.pos, {0.4f * cosf(b.id * 1.3f), 0.25f, 0.4f * sinf(b.id * 1.3f)}); }
             b.task = MoveTo(b, post, RoleOf(b.role).speed, dt, 0.4f) ? Task::Sit : Task::Fly;

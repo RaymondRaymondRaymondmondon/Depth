@@ -126,6 +126,12 @@ bool World::FoundOutpost(int isle, Vector3 near) {
     return true;
 }
 
+float World::ApeCeiling(Vector3 p, Vector3 goal) const {
+    if (ape.isle < 0 || ape.sleepT > 0) return 0;
+    const DangerData& D = DD();
+    if (Flat2(p, ape.pos) > D.apeRange + 60 || Flat2(goal, ape.pos) < 60) return 0;   // (far from it, or going to it)
+    return D.apeBelow + ape.pos.y * 0.3f + 8;
+}
 int World::OutpostSite() const {
     // a free site on an outpost island that has fewer than three nests (built or under way)
     for (const auto& n0 : col.nests) {
@@ -526,6 +532,21 @@ void World::BotDanger(float dt) {
     if (kraken.isle >= 0 && !kraken.dead && atCove && time - C.offeredKraken > DAY * 0.8f) {
         if (Count(BStage::Adult, Role::Priest) > 0) { int ci = NearestCache(isles[kraken.isle].c, true, false); if (ci >= 0) { C.caches[ci].fish.pop_back(); C.offeredKraken = time; } }
     }
+    // a colony working in the great ape's reach (an outpost, or one on the way) feeds it a big fish whenever it wakes
+    if (ape.isle >= 0 && ape.sleepT <= 0) {
+        const DangerData& D = DD();
+        bool near = false;
+        for (const auto& n : C.nests) near |= Flat2(n.pos, ape.pos) < D.apeRange + 80;
+        if (C.expandTo >= 0 && C.expandTo < (int)isles.size()) near |= Flat2(isles[C.expandTo].c, ape.pos) < D.apeRange + isles[C.expandTo].radius + 80;
+        if (near) for (auto& c : C.caches) {
+            int k = -1; for (int q = 0; q < (int)c.fish.size(); q++) if (c.fish[q].size >= D.apeFeed) { k = q; break; }
+            if (k < 0 && c.fish.size() >= 2 && c.fish[0].size + c.fish[1].size >= D.apeFeed) { c.fish.erase(c.fish.begin()); k = 0; }   // (two smaller ones, bundled)
+            if (k < 0) continue;
+            c.fish.erase(c.fish.begin() + k); ape.sleepT = D.apeSleep * DAY; C.apeFedT = time;
+            Say("Your birds feed the great ape: it sleeps for a day.");
+            break;
+        }
+    }
     // expansion: a strong colony takes another island (the cove when it's strong enough to hold it)
     int outposts = 0; for (const auto& n : C.nests) outposts += n.isle >= 0 && n.isle != home;
     if (C.expandTo < 0 && alive >= 16 && C.HasTier(Tree::War, 2) && outposts == 0 && time > DAY * 2) {
@@ -790,7 +811,10 @@ int RunFlightSiege(int argc, char** argv) {
             if (getenv("DEPTH_SIEGETRACE") && fmodf(t1, World::DAY * 0.25f) < 0.1f) {
                 const Colony& C = w->ColOf(1); int laid = 0, built = 0, caches = 0, cachesB = 0; for (const auto& n : C.nests) if (n.isle == cove) { laid++; built += n.built; } for (const auto& c : C.caches) { caches++; cachesB += c.built; }
                 const Founder& F = w->FounderOf(1);
-                printf("    [%.2f d] expandTo %d; cove nests %d laid %d built; caches %d/%d; twigs %d; builders %d; founder %.0f m from the cove; nests wanted %d of %d\n", t1 / World::DAY, C.expandTo, laid, built, cachesB, caches, C.twigs,
+                int freeSites = 0; for (const auto& s : C.sites) freeSites += s.isle == cove && s.nest < 0; int osite = -1; float fpd = 0, mouths = 0; int fishN = 0; w->WithSide(1, [&] { osite = w->OutpostSite(); fpd = w->FeedPerDayEstimate(); mouths = w->MouthsPerDay(); }); for (const auto& c : C.caches) fishN += (int)c.fish.size();
+                for (const auto& b : C.birds) if (b.alive && b.role == Role::Builder && b.stage == BStage::Adult) printf("      builder %d: task %d hunger %.2f twigs %d shells %d retrain %.0f pos %.0f %.0f %.0f\n", b.id, (int)b.task, b.hunger, b.carryTwigs, b.carryShells, b.retrainT, b.pos.x, b.pos.y, b.pos.z);
+                printf("      food: %d fish stored, feed/day %.0f, mouths %.0f, fishers %d, alive %d\n", fishN, fpd, mouths, (int)std::count_if(C.birds.begin(), C.birds.end(), [](const Bird& b) { return b.alive && b.role == Role::Fisher && b.stage == BStage::Adult; }), (int)std::count_if(C.birds.begin(), C.birds.end(), [](const Bird& b) { return b.alive; }));
+                printf("    [%.2f d] expandTo %d; cove nests %d laid %d built; free cove sites %d, outpost site %d; caches %d/%d; twigs %d; builders %d; founder %.0f m from the cove; nests wanted %d of %d\n", t1 / World::DAY, C.expandTo, laid, built, freeSites, osite, cachesB, caches, C.twigs,
                        (int)std::count_if(C.birds.begin(), C.birds.end(), [](const Bird& b) { return b.alive && b.role == Role::Builder; }), Vector2Distance({F.pos.x, F.pos.z}, {w->isles[cove].c.x, w->isles[cove].c.z}), C.nestsWanted, (int)C.nests.size());
             }
         }

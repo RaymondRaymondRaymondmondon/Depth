@@ -23,7 +23,7 @@
   "climb_mps": 2.5,
   "dive_mps": 16,
   "wind_ground_k": 0.3,
-  "upwind_stamina_per_s": 0.6,
+  "upwind_stamina_per_s": 0.9,
   "fight_stamina_s": 25,
   "_stamina_note": "doc: flapping fights last 20-30 s before a flock is exhausted (half speed, no climb); diving and gliding cost nothing",
   "recover_per_s": 0.5,
