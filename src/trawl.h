@@ -1,4 +1,5 @@
 #pragma once
+namespace voice { struct Hearing; }   // (voice.h)
 // ============================================================================
 //  THE TRAWL - arcade game 2 of the Deep Arcade (The_Trawl_Reference/, "The Trawl - Arcade Game 2 Design Document").
 //  A 1-6 player co-op fishing horror game: a crew works the steam trawler Gannet through three nights per deadline
@@ -229,7 +230,7 @@ int NearestStation(Vector2 at, int deck, float r);
 
 // ---------------------------------------------------------------- hands' gear (trawl_gear.cpp)
 // Four slots a hand (design doc, "Inventory"); the rest lives in the deck locker.
-enum class Item { None, Gaff, Priest, Knife, Speargun, Flare, Rifle, Shotgun, Charge, Ring, Bandage, Longline, Pot, Weapon, Cup, COUNT };   // (Cup: the Chandler's cup of something yellow; it never runs dry)
+enum class Item { None, Gaff, Priest, Knife, Speargun, Flare, Rifle, Shotgun, Charge, Ring, Bandage, Longline, Pot, Weapon, Cup, Walkie, COUNT };   // (Cup: the Chandler's cup of something yellow; it never runs dry)
 struct ItemDef { const char* name; int price; int ammoPer; int ammoPrice; float noise; const char* use; };
 const ItemDef& ItemOf(Item i);
 // a hand's slot. Item::Weapon is a row of the Gunsmith's catalogue (trawl_weapons.h): its damage upgrades, up to three
@@ -316,6 +317,7 @@ struct Crew {
     int shotsFired = 0;                                   // (the lodestone sight: every fifth)
     float yellow = 0;                                     // drenched by a cup of something yellow (0..1; it fades over 45 s, a swim rinses it)
     float pourT = 0; Vector2 pourAt{0, 0};                // pouring the cup (the stream drawn while > 0) and where it lands (deck frame)
+    float talk = 0;                                       // (local, not in the snapshot) how loud this hand's voice is right now: the mouth moves with it
     float cprT = 0;   // drowned with a Medic aboard: seconds left to haul them in for CPR (design doc: 15 s)
     uint32_t ups = 0; // role upgrades held (bit = RoleUp), set by the session from the hand's choices
     bool Up(int u) const { return (ups >> u) & 1u; }
@@ -772,6 +774,11 @@ bool QuayWalkable(Vector2 p);                             // the quay beside her
 
 int RunTrawlSim(int argc, char** argv);                   // depth.exe --trawl-sim <ground> <nights> [crew] [pattern] [runs] [skill] (trawl_sim.cpp)
 int RunTrawlGearTest();
+// the proximity voice (trawl_voice.cpp): how hand `you` hears hand `them` (distance, weather, the engine, decks and the
+// speaking tube, the water, walkies, ghosts); a hand talking on a live walkie
+voice::Hearing HearOnBoard(const Gannet& g, int you, int them);
+bool OnWalkie(const Crew& c);
+int RunTrawlVoiceTest();                                  // depth.exe --trawl-voice-test
 int RunTrawlBelowTest();                                  // depth.exe --trawl-below-test
 int RunTrawlWeedsTest();                                  // depth.exe --trawl-weeds-test
 int RunTrawlGrottoTest();                                 // depth.exe --trawl-grotto-test

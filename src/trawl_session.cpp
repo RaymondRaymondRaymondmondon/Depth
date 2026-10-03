@@ -66,6 +66,8 @@ const std::vector<ShopItem>& ChandlerItems() {   // design doc, "The Chandler" (
         {"longline", "Longline", 60, "20 hooks, two buoys: set it, fish elsewhere, haul it"},
         {"pot", "Crab pot", 25, "Reusable: crabs, lobster, octopus"},
         {"cup", "A cup of something yellow", 5, "The Chandler won't say what it is. It never runs dry"},
+        {"walkie", "Walkie", 40, "Channel-wide voice: hold it to talk to every hand with one (comes with a battery)"},
+        {"battery", "Batteries", 5, "For walkies: a battery lasts one night"},
         {"flare", "Flare pistol (3 flares)", 40, "A 40 m arc of light"},
         {"flares", "Flares (6)", 20, "A box of six"},
         {"speargun", "Speargun (3 spears)", 80, "8 m in water, 12 m in air, tethered"},
@@ -656,6 +658,12 @@ bool Session::Buy(const std::string& id, std::string* why, int ci) {
         else if (id == "ring") G->AddItem(Item::Ring, 1);
         else if (id == "longline") G->AddItem(Item::Longline, 1);
         else if (id == "pot") G->AddItem(Item::Pot, 1);
+        else if (id == "walkie") {   // (into the buyer's hands, with a battery in it)
+            Crew& b = G->crew[ci >= 0 && ci < (int)G->crew.size() ? ci : 0]; bool put = false;
+            for (auto& sl : b.slots) if (sl.it == Item::None) { sl = {Item::Walkie, 1}; put = true; break; }
+            if (!put) G->locker.push_back({Item::Walkie, 1});
+        }
+        else if (id == "battery") ok = ammo(Item::Walkie, 1);
         else if (id == "cup") {   // (into the buyer's own hands: it's a personal thing)
             Crew& b = G->crew[ci >= 0 && ci < (int)G->crew.size() ? ci : 0]; bool put = false;
             for (auto& sl : b.slots) if (sl.it == Item::None) { sl = {Item::Cup, 0}; put = true; break; }
@@ -729,6 +737,10 @@ bool Session::CastOff(std::string* why) {
     G->netLast = false;
     G->siren = {}; G->mermen = {}; G->sirenCool = 150; G->wraithCool = 100; G->mermenCool = 120;   // (the Weeds' threats, fresh each night)
     for (auto& c : G->crew) c.tangleT = 0;
+    // walkies: a battery a night (design doc: "Batteries last one night"); one with a fresh battery is live till she's home
+    auto charge = [&](Slot& s) { if (s.it != Item::Walkie) return; s.spare = s.ammo > 0 ? 1 : 0; if (s.ammo > 0) s.ammo--; };
+    for (auto& c : G->crew) for (auto& s : c.slots) charge(s);
+    for (auto& s : G->locker) charge(s);
     G->rareLureNight = G->rareLures > 0; if (G->rareLureNight) { G->rareLures--; G->Say("The naturalist's lure goes on: rare fish bite more tonight"); }
     // the night's conditions (rolled per night and ground) and a rumour on the tape (right 70% of the time)
     uint32_t h = seed * 2654435761u + (uint32_t)(deadline * 31 + night * 7);

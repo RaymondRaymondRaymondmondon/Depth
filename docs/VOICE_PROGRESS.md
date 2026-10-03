@@ -34,3 +34,14 @@ supply the rest over voice chat"; the mouth moves with voice chat). Built in ste
 - **Check:** `depth.exe --voice-test` (the codec, the gate, in-order/lost/reordered frames, the wrap, out of earshot,
   each shaping, and the session relay with a host and two guests in memory). The session's protocol changed (a new
   message), so friends need the same build, as always.
+
+## Step 2: the Trawl's proximity voice (done, 2026-10-02)
+- `trawl_voice.cpp`, `HearOnBoard(g, you, them)`: how one hand hears another, from the world, every frame (`TrawlVoiceFrame` in trawl.cpp sets each player's `voice::Hearing` by lobby seat):
+  - **Range:** full within 2 m, fading to nothing at 12 m on the same deck. A squall or storm halves the range and adds wind muffle; rain takes a fifth; the engine at full halves it at sea.
+  - **Decks and the tube:** between the engine room and the deck you hear nothing, except mouth to mouth through the speaking tube (the wheel, the engine room's boiler, the bow), which carries at 0.9 with a slight tube colour.
+  - **Water:** a hand in the water bubbles and carries 6 m; a listener in the water hears dully.
+  - **Side:** pan follows which side of you the speaker stands, in the Gannet's frame.
+  - **The dead:** the living never hear a ghost; ghosts hear each other in the cold reverb and the living faintly.
+- **Walkies** (design doc: 40 shillings, "channel-wide voice"; batteries 5, "last one night"): `Item::Walkie`, sold with one battery. At cast-off each walkie takes a battery and is live for the night (`Slot::ammo` batteries, `Slot::spare` live). Held in hand, it carries your voice crackling to every hand with a live walkie anywhere in their slots, the length of the boat or out to the skiff. Drawn in hand in both views (a green light while it talks).
+- **Mouths:** `Crew::talk` (local, not synced) is set from each player's voice level; the first-person figures' mouths work with it, as they do for a bot's bark.
+- Check: `depth.exe --trawl-voice-test`.

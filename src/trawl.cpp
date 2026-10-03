@@ -2,6 +2,7 @@
 // from above, the hand you play walking her deck and working her stations. The simulation is trawl_boat.cpp (and,
 // as the stages come, the lines, the fish and the web); this file feeds it input and draws it.
 #include "trawl.h"
+#include "voice.h"
 #include "trawl_art.h"
 #include "trawl_eco.h"
 #include "trawl_session.h"
@@ -1623,7 +1624,17 @@ void TrawlAudioFrame(const TrawlWorld& W, int you, float dt) {
     A.canoe = ss.canoe;
 }
 
-void SceneTrawl(Game& g) {
+// the proximity voice (trawl_voice.cpp): every other player's voice shaped by where they are from this hand, and
+// every player's mouth moving with their voice (Crew::talk, local)
+static void TrawlVoiceFrame() {
+    if (!S.net || !S.W) return;
+    Gannet& G = S.W->G;
+    for (int p = 0; p < (int)G.crew.size(); p++) {
+        int seat = S.net->SeatOfPlayer(p);
+        G.crew[p].talk = seat < 0 ? 0.0f : p == S.you ? (VoiceTalking() ? VoiceMicLevel() : 0.0f) : (voice::Speaking(seat) ? voice::Level(seat) : 0.0f);
+        if (seat >= 0 && p != S.you) voice::SetHearing(seat, HearOnBoard(G, S.you, p));
+    }
+}void SceneTrawl(Game& g) {
     if (!S.active) StartTrawl(g, false);
     SetPost(0.25f, 0.02f, 0.1f);
     float dt = S.shot ? 1 / 60.0f : std::min(GetFrameTime(), 0.1f);
@@ -1656,6 +1667,7 @@ void SceneTrawl(Game& g) {
             DrawTextCenteredBold("Coming aboard...", SCREEN_W / 2.0f, SCREEN_H / 2.0f - 12, 24, Color{230, 220, 196, 255});
             return;
         }
+        TrawlVoiceFrame();   // the proximity voice: how each hand at the table is heard from here, and the mouths
     }
     if (!S.shot) {
         // first person takes the mouse to look with, except where a panel or the locker needs a pointer

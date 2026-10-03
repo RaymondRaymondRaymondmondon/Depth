@@ -1001,6 +1001,7 @@ void DrawCrewMember(const Crew& c, const View& v, float t, bool you) {
             case Item::Flare: seg(h, 3, brass, 2); break;
             case Item::Ring: DrawCircleLines((int)(h.x + d.x * 2), (int)(h.y + d.y * 2), 3, Dim(Color{230, 120, 60, 255}, k)); break;
             case Item::Charge: DrawRectangle((int)(h.x + d.x * 2) - 1, (int)(h.y + d.y * 2) - 1, 3, 3, Dim(Color{60, 62, 66, 255}, k)); break;
+            case Item::Walkie: { Vector2 cp = Vector2Add(h, Vector2Scale(d, 1.5f)); DrawRectangle((int)cp.x - 1, (int)cp.y - 1, 2, 3, Dim(Color{52, 58, 50, 255}, k)); DrawPixel((int)cp.x, (int)cp.y - 2, Dim(Color{30, 30, 30, 255}, k)); if (c.talk > 0.05f) DrawPixel((int)cp.x + 1, (int)cp.y - 3, Color{120, 240, 160, 255}); } break;   // (a radio; its light on while it talks)
             case Item::Cup: {   // a tin cup, brimming; tipped forward and pouring while the stream runs
                 Vector2 cp = Vector2Add(h, Vector2Scale(d, 1.5f));
                 DrawRectangle((int)cp.x - 1, (int)cp.y - 1, 3, 3, Dim(Color{200, 200, 196, 255}, k));

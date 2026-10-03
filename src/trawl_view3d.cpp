@@ -807,6 +807,7 @@ static void BuildItem(MeshBuilder& mb, Item it) {
         case Item::Longline: for (int k = 0; k < 10; k++) { float a0 = k * 0.628f, a1 = a0 + 0.628f; mb.Tube({{0.1f + cosf(a0) * 0.12f, sinf(a0) * 0.12f, 0}, {0.1f + cosf(a1) * 0.12f, sinf(a1) * 0.12f, 0}}, 0.03f, 0.03f, 4, Color{150, 140, 110, 255}, Color{150, 140, 110, 255}, 0); } break;
         case Item::Pot: mb.Box({0.15f, 0, 0}, {0.16f, 0.1f, 0.12f}, Color{100, 84, 60, 255}); break;
         case Item::Cup: mb.Tube({{0.06f, -0.06f, 0}, {0.06f, 0.06f, 0}}, 0.035f, 0.045f, 10, Color{196, 198, 194, 255}, Color{210, 212, 208, 255}, 0); mb.Box({0.06f, 0.055f, 0}, {0.04f, 0.004f, 0.04f}, Color{236, 206, 60, 255}); mb.Tube({{0.105f, 0.03f, 0}, {0.13f, 0.0f, 0}, {0.105f, -0.03f, 0}}, 0.008f, 0.008f, 4, Color{196, 198, 194, 255}, Color{196, 198, 194, 255}, 0); break;   // (a tin cup brimming yellow, its handle)
+        case Item::Walkie: mb.Box({0.04f, 0.02f, 0}, {0.035f, 0.08f, 0.02f}, Color{52, 58, 50, 255}); mb.Box({0.04f, 0.075f, 0.021f}, {0.02f, 0.02f, 0.002f}, Color{150, 160, 140, 255}); mb.Tube({{0.065f, 0.1f, 0}, {0.065f, 0.24f, 0}}, 0.006f, 0.004f, 4, Color{30, 30, 30, 255}, Color{30, 30, 30, 255}, 0); break;   // (a field radio and its aerial)
         default: mb.Box({0, 0, 0}, {0.01f, 0.01f, 0.01f}, iron); break;
     }
 }
@@ -1489,6 +1490,7 @@ static void DrawHandSailor(const Gannet& g, const Crew& c, float t) {
     {   // a bot barking ("Fish on, port!") shouts it: the mouth works with the words
         int ci = (int)(&c - &g.crew[0]);
         if (ci >= 0 && ci < (int)g.brains.size() && g.brains[ci].barkT > 0) P.shout = 0.55f + 0.45f * sinf(t * 18);
+        if (c.talk > 0.05f) P.shout = std::max(P.shout, 0.2f + 0.7f * c.talk * (0.55f + 0.45f * sinf(t * 23 + c.slot)));   // (a player talking: the mouth works with their voice)
     }
     Color tint = c.dead ? Color{190, 225, 245, 120} : c.yellow > 0.01f ? ColorLerp(WHITE, Color{240, 212, 70, 255}, c.yellow * 0.65f) : WHITE;   // (drenched in something yellow)
     Item held = Item::None;

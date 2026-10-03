@@ -34,6 +34,7 @@ const ItemDef& ItemOf(Item i) {
         {"Crab pot",          25,  1,  0, 1,  "Dropped on a reef, hauled on a later pass"},
         {"(weapon)",           0,  0,  0, 0,  "A weapon from the Gunsmith's catalogue"},
         {"Cup of something yellow", 5, 0, 0, 0, "Hold to pour it (on someone, ideally). It never runs dry"},
+        {"Walkie",            40,  1,  5, 0, "Hold it to talk to every hand with a walkie; a battery a night"},
     };
     return D[(int)i];
 }
