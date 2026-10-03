@@ -880,6 +880,8 @@ void DebugTrawlShot(Game& g, int which);   // --shots: 0 the deck, 1 the engine 
 void SceneFlight(Game& g);    // The Flight, arcade game 7: the Founder flown over the tropical island (flight_game.cpp)
 void StartFlight(Game& g, const char* founder = "taloned", int isleType = 0, int arrangement = 0, int players = 4, int seasons = 0);   // seasons: the long match (2-4), 0 standard   // a whole map: your island type (0 tropical, 1 stack, 2 town, 3 atoll), the arrangement, 2-6 starting islands
 const char* FlightIsleTypeName(int t);
+bool ResumeFlight(Game& g);                      // (the Long Flight: the save made at the last season's break)
+bool FlightResumable();
 const char* FlightArrangementName(int a);
 void LeaveFlight(Game& g);
 void StartFlightNet(Game& g, arcade::Session* net, const char* founderKey, const char* name);   // a Deep Arcade match of the Flight (host or guest)

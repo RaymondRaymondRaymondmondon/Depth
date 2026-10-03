@@ -449,6 +449,7 @@ template <class A> void VisitBird(A& a, Bird& b, bool own) {
     a.i(b.vet); a.i(b.vetName); a.i(b.trait);   // (the long match: veterans and mates' traits)
     if (own) { a.i(b.scoutIsle); a.i(b.scoutZone); a.e(b.alt); a.b(b.hasOrder); a.b(b.observed); a.i(b.caught); }
 }
+bool gSaveAll = false;   // (the Long Flight's save: every colony in full, every fish, not a viewer's slice)
 template <class A> void VisitColony(A& a, Colony& c, bool own, bool full, const std::function<bool(const Bird&)>& keep) {
     // the living birds (another colony's only where the viewer can see them)
     std::vector<Bird> sent;
@@ -533,7 +534,7 @@ template <class A> void VisitSea(A& a, World& w, Vector3 eye) {
     std::vector<int> idx;
     if constexpr (!A::reading) {
         Vector2 e{eye.x, eye.z};
-        for (int k = 0; k < n; k++) { const rt::Agent& g = w.eco.agents[k]; if (g.alive && g.diver < 0 && Vector2Distance(Qxz(g.pos), e) < 160) idx.push_back(k); }
+        for (int k = 0; k < n; k++) { const rt::Agent& g = w.eco.agents[k]; if (g.alive && g.diver < 0 && (gSaveAll || Vector2Distance(Qxz(g.pos), e) < 160)) idx.push_back(k); }
     }
     int m = (int)idx.size(); a.i(m);
     if constexpr (A::reading) { if (m < 0 || m > n) { a.r.bad = true; return; } idx.resize(m); }
@@ -576,12 +577,12 @@ template <class A> void Visit(A& a, World& w, bool full) {
     if (N != (int)w.sides.size()) { if constexpr (A::reading) a.r.bad = true; return; }
     // every side, in absolute order: its Founder, who flies it, its colony (yours in full), its name and livery
     Vector2 eye{w.me.pos.x, w.me.pos.z};
-    auto near = [&](const Bird& b) { return Vector2Distance(Qxz(b.pos), eye) < 330; };
+    auto near = [&](const Bird& b) { return gSaveAll || Vector2Distance(Qxz(b.pos), eye) < 330; };
     std::function<bool(const Bird&)> keep = near;
     for (int s = 0; s <= N && !a.bad(); s++) {
         VisitFounder(a, w.FounderOf(s));
         a.b(HumanRef(w, s)); a.b(BotRef(w, s));
-        VisitColony(a, w.ColOf(s), s == w.cur, full, keep);
+        VisitColony(a, w.ColOf(s), s == w.cur || gSaveAll, full, keep);
         a.s(w.LookOf(s));
         if (s > 0) { Side& sd = w.sides[s - 1]; a.s(sd.name); int c = sd.livery.r | sd.livery.g << 8 | sd.livery.b << 16; a.i(c); if constexpr (A::reading) sd.livery = {(unsigned char)(c & 255), (unsigned char)((c >> 8) & 255), (unsigned char)((c >> 16) & 255), 255}; }
     }
@@ -702,7 +703,31 @@ bool ReadWorld(Reader& r, World& w, bool keepOwn) {
     return true;
 }
 
-// ---------------------------------------------------------------- the host
+// ---------------------------------------------------------------- the Long Flight's save and resume (doc p3: the host saves between seasons)
+bool SaveFlight(World& w, const std::string& path) {
+    Writer out; out.U32(0x56534C46);   // "FLSV"
+    gSaveAll = true; WriteWorld(w, 0, out, true); gSaveAll = false;
+    out.I32((int)w.stocks.size());
+    for (const auto& s : w.stocks) { out.F32(s.pop); out.F32(s.K); out.F32(s.births); out.F32(s.fracSum); out.I32(s.days); }
+    out.I32((int)w.sides.size() + 1); for (int s = 0; s <= (int)w.sides.size(); s++) { std::string l = w.LookOf(s); out.I32((int)l.size()); out.Bytes(l.data(), l.size()); }
+    return SaveFileData(path.c_str(), out.b.data(), (int)out.b.size());
+}
+bool LoadFlight(World& w, const std::string& path) {
+    int n = 0; unsigned char* d = LoadFileData(path.c_str(), &n);
+    if (!d || n < 8) { if (d) UnloadFileData(d); return false; }
+    Reader r(d, (size_t)n);
+    bool ok = r.U32() == 0x56534C46;
+    if (ok) { gSaveAll = true; ok = ReadWorld(r, w); gSaveAll = false; }
+    if (ok) {
+        int ns = r.I32();
+        if (!r.bad && ns == (int)w.stocks.size()) for (auto& s : w.stocks) { s.pop = r.F32(); s.K = r.F32(); s.births = r.F32(); s.fracSum = r.F32(); s.days = r.I32(); }
+        int nl = r.I32(); for (int s = 0; s < nl && !r.bad && s <= (int)w.sides.size(); s++) { int len = r.I32(); if (len < 0 || len > 512) { r.bad = true; break; } std::string l(len, ' '); for (int k = 0; k < len; k++) l[k] = (char)r.U8(); w.LookOf(s) = l; }
+        w.mirror = false; w.mirrorStock.clear();
+        ok = !r.bad;
+    }
+    UnloadFileData(d);
+    return ok;
+}// ---------------------------------------------------------------- the host
 namespace {
 class FlightHost : public arcade::GameHost {
 public:

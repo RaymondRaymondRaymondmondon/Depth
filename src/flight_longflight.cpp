@@ -21,6 +21,7 @@
 // The calendar (the user's call: the doc's days stretched to fit the colony's growth): a year is the four-season
 // match's 24 days, so the Long Flight is 48 days (or 36 for the shorter one); the Founder's life is a year.
 #include "flight.h"
+#include "flight_net.h"
 #include "json.h"
 #include "raymath.h"
 #include <algorithm>
@@ -1577,6 +1578,19 @@ int RunFlightLongFlightTest() {
         for (auto& n : w->col.nests) n.built = true;
         w->time = 46.5f * World::DAY; ScoreCard sc = w->Score(0); w->time = 20.5f * World::DAY; ScoreCard s1 = w->Score(0);
         check(s1.nests > 0 && sc.nests >= (int)(s1.nests * 1.4f), "the last winter's holdings count triple (the first winter's double)");
+    }    // ---- save and resume (between seasons)
+    {
+        auto w = make(8, 77); w->founderBot = true;
+        for (float t = 0; t < World::DAY * 3; t += 0.2f) w->Step(0.2f, FounderInput{});
+        w->Chronicle(0, CK_OTHER, "A line to keep.");
+        bool saved = SaveFlight(*w, "flight_lf_test_save.bin");
+        auto v = std::make_unique<World>(); bool loaded = LoadFlight(*v, "flight_lf_test_save.bin");
+        std::remove("flight_lf_test_save.bin");
+        bool same = loaded && fabsf(v->time - w->time) < 0.01f && v->LongFlight() && !v->mirror && v->sides.size() == w->sides.size();
+        for (int s = 0; same && s <= (int)w->sides.size(); s++) { int a = 0, b = 0; for (const auto& x : w->ColOf(s).birds) a += x.alive; for (const auto& x : v->ColOf(s).birds) b += x.alive; same = a == b && w->ColOf(s).chronicle.size() == v->ColOf(s).chronicle.size(); }
+        check(saved && same, "the Long Flight saves the whole world (every colony, its Chronicle) and loads it back");
+        v->founderBot = true; for (float t = 0; t < World::DAY; t += 0.2f) v->Step(0.2f, FounderInput{});
+        check(v->time > w->time + World::DAY * 0.3f && !v->mirror, "and the resumed match plays on");
     }    printf(fails ? "flight-longflight-test: %d check(s) failed\n" : "flight-longflight-test: all checks passed\n", fails);
     return fails ? 1 : 0;
 }

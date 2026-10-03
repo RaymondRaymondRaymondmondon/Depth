@@ -99,6 +99,8 @@ constexpr int SNAP_FULL_EVERY = 4;
 // into a mirror: (re)built from the seed and options when they change; `keepOwn` keeps the guest's own Founder's flight
 // (its prediction) and eases it toward the host's
 bool ReadWorld(Reader& r, World& w, bool keepOwn = false);
+bool SaveFlight(World& w, const std::string& path);   // (the Long Flight: the whole world, between seasons)
+bool LoadFlight(World& w, const std::string& path);
 
 // ---------------------------------------------------------------- the host
 // Configure: "<arrangement 0-3>:<home type 0-3>:<minutes>[:test]"

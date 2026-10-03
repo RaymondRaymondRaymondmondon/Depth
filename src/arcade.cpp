@@ -287,6 +287,7 @@ void DrawReels(Game& g) {
           int mv = 0; for (int k = 0; k < 6; k++) if (SV[k] == gFlSoloSeasons) mv = k; cyc(426, "the match", mv, 6, M[mv]); gFlSoloSeasons = SV[mv]; }
         DrawWrapped(FlightFounderLine(flSel), {40, 478, 244, 48}, 13, SCREEN_DIM);
         if (Button({c.x - 110, c.y + 236, 220, 36}, "Fly (solo)", true, 15)) { StartFlight(g, FlightFounderKey(flSel), flIsle, flArr, flPlayers, gFlSoloSeasons); return; }
+        if (FlightResumable() && Button({c.x - 110, c.y + 280, 220, 30}, "Resume the Long Flight", true, 13)) { if (ResumeFlight(g)) return; }
         if (Button({c.x + 120, c.y + 236, 170, 36}, "Roost wardrobe", true, 14)) { gFlWardrobe = true; return; }
         DrawTextCentered("Host or Join to fly with friends (2-6; the host picks the map and the length in the lobby)", c.x, c.y + 280, 13, SCREEN_DIM);
     }

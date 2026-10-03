@@ -2556,6 +2556,20 @@ void FlightAudioFrame(const fl::World& w, float dt) {
 }
 }  // namespace
 
+bool ResumeFlight(Game& g) {
+    std::string why;
+    if (!rt::DataOk(&why) || !FileExists("flight_longflight_save.bin")) return false;
+    if (!fl::LoadFlight(S.W, "flight_longflight_save.bin")) return false;
+    S.active = true; S.shot = false; S.founder = fl::Founders()[S.W.me.def].key; S.opts = S.W.opts;
+    ResetFlightSound();
+    S.chart = false; S.panel = false; S.chartZoom = 1; S.chartAt = {0, 0};
+    S.aimYaw = WD().me.yaw; S.aimPitch = 0.1f; S.camYaw = S.aimYaw; S.camPitch = -0.1f;
+    S.t = 0; S.help = false;
+    g.scene = Scene::Flight;
+    WD().Say("The Long Flight resumes.");
+    return true;
+}
+bool FlightResumable() { return FileExists("flight_longflight_save.bin"); }
 void StartFlight(Game& g, const char* founder, int isleType, int arrangement, int players, int seasons) {
     fl::MapOpts o; o.home = fl::StartTypeOf(isleType); o.arr = (fl::Arrangement)std::clamp(arrangement, 0, 3); o.players = std::clamp(players, 2, 6); o.seasons = seasons;
     Start(g, founder ? founder : "taloned", (uint32_t)GetRandomValue(1, 1 << 30), false, o);
@@ -2706,6 +2720,11 @@ void SceneFlight(Game& g) {
     Render(dt * WD().timeScale);
     if (!S.shot || getenv("DEPTH_FLAUDIO")) FlightAudioFrame(WD(), dt);
     DrawHud(WD()); if (!S.panel) MasteryHints(WD());
+    if (WD().LongFlight() && !S.shot && !S.net && !WD().over) {   // (the Long Flight: saved at each season's break, to resume another night)
+        static int savedAt = -2; int sa = WD().SeasonAbs();
+        if (savedAt == -2) savedAt = sa;
+        if (sa != savedAt) { savedAt = sa; if (fl::SaveFlight(WD(), "flight_longflight_save.bin")) WD().Say("The Long Flight is saved at the season's break (resume it from the arcade's Flight plate)."); }
+    }
     if (WD().LongFlight() && WD().reading) {
         static float readT = 0; static bool skipped = false; static int forDay = -1;
         fl::World& rw = WD();
