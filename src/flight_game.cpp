@@ -2528,11 +2528,27 @@ void SceneFlight(Game& g) {
 void DebugFlightShot(Game& g, int which) {
     fl::MapOpts o; o.seasons = which == 21 || which == 22 || (which >= 23 && which <= 34) ? 4 : 0; o.home = which == 6 ? fl::IsleType::Stack : which == 7 ? fl::IsleType::Town : which == 8 ? fl::IsleType::Atoll : fl::IsleType::Tropical;
     if (which >= 23 && which <= 28) o.home = (fl::IsleType)((int)fl::IsleType::Iceberg + which - 23);   // (the expansion's starting islands)
+    if (which >= 35 && which <= 38) o.seasons = 8;   // (the Long Flight)
     Start(g, which == 3 ? "albatross" : "taloned", 11, true, o);
     fl::World& w = WD();
     fl::Founder& f = w.me;
     f.st = fl::FState::Fly; f.airspeed = 11; f.yaw = PI * 0.5f; f.pitch = 0;
     S.help = which == 0;
+    if (which >= 35 && which <= 38) {   // the Long Flight: the fog before the Far Sea opens; the Roc's Peak; the Sunken City; the Thorns
+        fl::IsleType want = which == 36 ? fl::IsleType::RocPeak : which == 37 ? fl::IsleType::SunkenCity : fl::IsleType::Thorns;
+        int k = -1; for (int i = 0; i < (int)w.isles.size(); i++) if (w.isles[i].type == want) k = i;
+        if (which == 35) {
+            w.time = 10.3f * fl::World::DAY;
+            Vector3 dir = Vector3Normalize(Vector3Subtract(w.isles[k].c, w.far.c));
+            f.pos = Vector3Add(w.far.c, Vector3Scale(dir, w.far.fogR - 260)); f.pos.y = 60; f.yaw = atan2f(dir.z, dir.x);
+        } else if (k >= 0) {
+            w.time = (which == 36 ? 30.3f : 30.36f) * fl::World::DAY; w.StepFarSea(0.1f);
+            const fl::Island& is = w.isles[k];
+            f.pos = {is.c.x - is.radius - 90, std::max(60.0f, is.hill.y * 0.8f + 30), is.c.z + 50}; f.yaw = atan2f(is.c.z - f.pos.z, is.c.x - f.pos.x);
+            if (which == 36) w.far.roc = Vector3Add(is.hill, {-40, 30, 20});
+        }
+        S.aimYaw = 0; S.aimPitch = -0.2f;
+    }
     if (which >= 23 && which <= 34) {   // the expansion's islands (doc pp. 43-45): a starting one as home, a dangerous one turned out of a neutral island
         fl::IsleType ty = (fl::IsleType)((int)fl::IsleType::Iceberg + which - 23);
         int k = w.home;

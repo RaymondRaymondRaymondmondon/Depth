@@ -243,6 +243,8 @@ void DebugWardrobe(Game& g, int game); void TakeShots(const Game& base, const st
         {"flight_isle_iron", [](Game& g) { DebugFlightShot(g, 29); }}, {"flight_isle_whale", [](Game& g) { DebugFlightShot(g, 30); }},
         {"flight_isle_siren", [](Game& g) { DebugFlightShot(g, 31); }}, {"flight_isle_maelstrom", [](Game& g) { DebugFlightShot(g, 32); }},
         {"flight_isle_ghost", [](Game& g) { DebugFlightShot(g, 33); }}, {"flight_isle_bird", [](Game& g) { DebugFlightShot(g, 34); }},
+        {"flight_lf_fog", [](Game& g) { DebugFlightShot(g, 35); }}, {"flight_lf_roc", [](Game& g) { DebugFlightShot(g, 36); }},
+        {"flight_lf_sunken", [](Game& g) { DebugFlightShot(g, 37); }}, {"flight_lf_thorns", [](Game& g) { DebugFlightShot(g, 38); }},
         {"flight_wardrobe", [](Game& g) { DebugArcadeFlightWardrobe(g, 0, "captain_nemo", -1); }},
         {"flight_wardrobe_eggs", [](Game& g) { DebugArcadeFlightWardrobe(g, 1, "phoenix", -1); }},
         {"flight_wardrobe_livery", [](Game& g) { DebugArcadeFlightWardrobe(g, 2, "top_hats", -1); }},
