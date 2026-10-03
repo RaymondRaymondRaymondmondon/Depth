@@ -131,3 +131,29 @@ enum TwCue { TWC_REEL, TWC_DRAG, TWC_HUM, TWC_SNAP, TWC_CREAK, TWC_SPLASH, TWC_G
              TWC_COUNT };
 void AudioTrawl(const TwAudio& a);
 void TrawlCue(int kind, float vol, float pan, float pitch = 1);   // an effect; pitch scales its frequencies (the reel's ratchet by tension)
+
+// ---------------------------------------------------------------- the Flight (the Deep Arcade's bird RTS; doc p32 "Sound")
+// Set every frame by the Flight scene (flight_game.cpp FlightAudioFrame); main.cpp turns it off elsewhere.
+struct FlAudio {
+    bool on = false;
+    float altitude = 0, speed = 0, wind = 0;   // the Founder's height (m) and airspeed; the wind (m/s): the wind bed rises with height
+    float dayPhase = 0.3f;      // 0..1 through the game day (a dawn chorus, a dusk hush, the night)
+    float colony = 0;           // your colony's birds (the theme layers with it)
+    float chorus = 0;           // 0..1 a colony's chorus near you (its size and nearness: how a scout hears one first)
+    float hungry = 0;           // 0..1 your chicks' hunger near you (peeps before the panel flashes)
+    float surf = 0;             // 0..1 nearness to a shore; surfType 0 sand, 1 cliff, 2 reef
+    int surfType = 0;
+    float town = 0;             // 0..1 nearness to a fishing town (rigging on its boats)
+    float cove = 0;             // 0..1 nearness to the kraken's cove while it sleeps (its slow breathing)
+    int kraken = 0;             // 0 none near, 1 awake near, 2 surfaced near (its theme)
+    float war = 0;              // 0..1 flocks engaged near you (the war motif)
+    bool storm = false, fog = false;
+    bool underwater = false;    // the Founder in the water (a strike, a struggle): everything muffled
+    int over = 0;               // 1 a won match, 2 a lost one
+    int founderVoice = 0;       // the founder's species (its signature call)
+};
+enum FlCue { FLC_FLAP, FLC_DIVE, FLC_SPLASH, FLC_STRUGGLE, FLC_SLAP, FLC_CALL, FLC_PEEP, FLC_WINGBEATS, FLC_SHRIEK, FLC_HIT,
+             FLC_FALL, FLC_NET, FLC_BOMB, FLC_BURN, FLC_SCREAM, FLC_ROUT, FLC_ROAR, FLC_REPORT, FLC_MAP, FLC_PEARL,
+             FLC_ERUPT, FLC_THUNDER, FLC_ROCK, FLC_BELL, FLC_LAND, FLC_HATCH, FLC_EGG, FLC_DEATH, FLC_COUNT };
+void AudioFlight(const FlAudio& a);
+void FlightCue(int kind, float vol, float pan, float pitch = 1);   // pitch: the species' voice for calls, a bigger bird lower

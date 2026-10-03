@@ -1673,11 +1673,13 @@ void Render(float dt) {
     rt::RenderEnd();
 }
 
+void ResetFlightSound();
 void Start(Game& g, const std::string& founder, uint32_t seed, bool shot, const fl::MapOpts& o = fl::MapOpts{}) {
     std::string why;
     if (!rt::DataOk(&why)) { g.scene = Scene::Arcade; return; }
     S.active = true; S.shot = shot; S.founder = founder; S.opts = o;
     S.W.Init(founder, seed, o);
+    ResetFlightSound();
     S.W.LookOf(0) = shot ? std::string() : MyLook();   // (your costume and livery; shots wear none unless they say)
 
     S.chart = false; S.panel = false; S.chartZoom = 1; S.chartAt = {0, 0};
@@ -1879,6 +1881,109 @@ void DrawFlightCostumeGallery(int page) {
     DrawTextCenteredBold(TextFormat("The Flight: Founder costumes, page %d of %d", page + 1, ((int)C.size() + PER - 1) / PER), SCREEN_W / 2.0f, 14, 22, WHITE);
 }
 namespace {
+// ---------------------------------------------------------------- sound (stage 8; doc p32)
+// The music and the beds read the world every frame; the effects come from what changed since the last one (the
+// simulation never calls audio, so the tests and the network are untouched).
+struct FlSnd {
+    bool init = false; fl::FState st = fl::FState::Perched; int carry = -1, eggs = 0, chicks = 0, pearls = 0, retreating = 0, flocks = 0, krakenMood = 0, weather = 0;
+    size_t fxSeen = 0, logSeen = 0; float ash = 0, rock = 0, warT = 0, struggleT = 0, flapPrev = 0; bool chart = false;
+};
+FlSnd gSnd;
+void ResetFlightSound() { gSnd.init = false; }
+float PanOf(Vector3 p) {
+    Vector3 fwd = Vector3Normalize(Vector3Subtract(S.cam.target, S.cam.position)), right = Vector3Normalize(Vector3CrossProduct(fwd, S.cam.up));
+    Vector3 d = Vector3Subtract(p, S.cam.position); float l = Vector3Length(d);
+    return l < 0.01f ? 0 : std::clamp(Vector3DotProduct(d, right) / l, -1.0f, 1.0f);
+}
+float Near(Vector3 p, float range) { return std::clamp(1 - Vector3Distance(p, S.cam.position) / range, 0.0f, 1.0f); }
+void FlightAudioFrame(const fl::World& w, float dt) {
+    fl::World& W = const_cast<fl::World&>(w);
+    const fl::Founder& f = w.me;
+    FlAudio a; a.on = true;
+    float ground = std::max(0.0f, w.HeightAt(f.pos.x, f.pos.z));
+    a.altitude = std::max(0.0f, f.pos.y - ground); a.speed = Vector3Length(f.vel); a.wind = Vector2Length(W.WindAt());
+    a.dayPhase = w.DayPhase(); a.colony = (float)w.Alive();
+    a.storm = w.weather.kind == 1; a.fog = w.weather.kind == 2;
+    a.underwater = f.st == fl::FState::Under || f.st == fl::FState::Struggle;
+    a.over = w.over ? (w.winner == w.cur ? 1 : 2) : 0;
+    float pitch = std::clamp(1.4f - w.Def().span * 0.25f, 0.6f, 1.5f);   // (a big bird's voice is lower)
+    // the chorus: every colony's birds near you; your chicks' hunger near you
+    int nearBirds = 0, hungry = 0;
+    for (int s = 0; s <= (int)w.sides.size(); s++) for (const auto& b : W.ColOf(s).birds) {
+        if (!b.alive || b.stage == fl::BStage::Egg) continue;
+        float d = Vector3Distance(b.pos, f.pos);
+        if (d < 260) nearBirds++;
+        if (s == w.cur && b.stage == fl::BStage::Chick && b.hunger < 0.3f && d < 70) hungry++;
+    }
+    a.chorus = std::clamp(nearBirds / 40.0f, 0.0f, 1.0f); a.hungry = std::clamp(hungry / 4.0f, 0.0f, 1.0f);
+    // the shore: the nearest island's edge, and its kind; a town; the cove
+    if (w.wholeMap) {
+        float best = 1e9f; int bi = -1;
+        for (int i = 0; i < (int)w.isles.size(); i++) { float d = fabsf(Vector2Distance({f.pos.x, f.pos.z}, {w.isles[i].c.x, w.isles[i].c.z}) - w.isles[i].radius); if (d < best) { best = d; bi = i; } }
+        if (bi >= 0) { a.surf = std::clamp(1 - best / 90.0f, 0.0f, 1.0f); fl::IsleType ty = w.isles[bi].type; a.surfType = ty == fl::IsleType::Stack || ty == fl::IsleType::Skull ? 1 : ty == fl::IsleType::Atoll || ty == fl::IsleType::ReefGarden ? 2 : 0; }
+        for (const auto& t : w.towns) a.town = std::max(a.town, std::clamp(1 - Vector3Distance(t.dock, f.pos) / 220.0f, 0.0f, 1.0f));
+        if (w.kraken.isle >= 0 && !w.kraken.dead) {
+            float d = Vector3Distance(w.isles[w.kraken.isle].c, f.pos);
+            if (w.kraken.mood == 0) a.cove = std::clamp(1 - d / 400.0f, 0.0f, 1.0f); else if (d < 450) a.kraken = w.kraken.mood;
+        }
+    } else { a.surf = std::clamp(1 - fabsf(Vector2Distance({f.pos.x, f.pos.z}, {w.island.c.x, w.island.c.z}) - w.island.radius) / 90.0f, 0.0f, 1.0f); }
+    // ---- what changed: the effects
+    if (!gSnd.init) { gSnd = FlSnd{}; gSnd.init = true; gSnd.st = f.st; gSnd.carry = f.carrySp; gSnd.fxSeen = w.warFxBase + w.warFx.size(); gSnd.logSeen = w.know.log.size(); gSnd.pearls = w.col.pearls; gSnd.krakenMood = w.kraken.mood; gSnd.weather = w.weather.kind; gSnd.ash = w.volcano.ashT; gSnd.rock = w.ape.rockT; }
+    int eggs = 0, chicks = 0; for (const auto& b : w.col.birds) if (b.alive) { eggs += b.stage == fl::BStage::Egg; chicks += b.stage == fl::BStage::Chick; }
+    if (f.st != gSnd.st) {
+        if (f.st == fl::FState::Strike) FlightCue(FLC_DIVE, 0.8f, 0, pitch);
+        else if ((f.st == fl::FState::Struggle || f.st == fl::FState::Under) && gSnd.st == fl::FState::Strike) FlightCue(FLC_SPLASH, 0.9f, 0);
+        else if (f.st == fl::FState::Perched) FlightCue(FLC_LAND, 0.7f, 0);
+        else if (f.st == fl::FState::Dead) FlightCue(FLC_DEATH, 0.9f, 0);
+        else if (f.st == fl::FState::Fly && gSnd.st == fl::FState::Perched) FlightCue(FLC_CALL, 0.6f, 0, pitch);   // (the signature call on taking off)
+        gSnd.st = f.st;
+    }
+    if (f.st == fl::FState::Struggle) { gSnd.struggleT -= dt; if (gSnd.struggleT <= 0) { gSnd.struggleT = 0.6f; FlightCue(FLC_STRUGGLE, 0.7f, 0); } }
+    if (f.flapping && (f.st == fl::FState::Fly) && fmodf(S.flapPh, 2 * PI) < fmodf(gSnd.flapPrev, 2 * PI)) FlightCue(FLC_FLAP, 0.25f, 0, pitch);
+    gSnd.flapPrev = S.flapPh;
+    if (gSnd.carry >= 0 && f.carrySp < 0 && f.st == fl::FState::Perched) FlightCue(FLC_SLAP, 0.7f, 0);
+    gSnd.carry = f.carrySp;
+    if (eggs > gSnd.eggs && gSnd.init) FlightCue(FLC_EGG, 0.5f, 0);
+    if (chicks > gSnd.chicks) FlightCue(FLC_HATCH, 0.6f, 0);
+    gSnd.eggs = eggs; gSnd.chicks = chicks;
+    if (w.col.pearls > gSnd.pearls) FlightCue(FLC_PEARL, 0.6f, 0);
+    gSnd.pearls = w.col.pearls;
+    // the war: blows, falls, nets and bombs near you; your flocks forming and routing
+    size_t end = w.warFxBase + w.warFx.size();
+    if (gSnd.fxSeen < w.warFxBase || gSnd.fxSeen > end) gSnd.fxSeen = w.warFxBase;
+    for (; gSnd.fxSeen < end; gSnd.fxSeen++) {
+        const auto& e = w.warFx[gSnd.fxSeen - w.warFxBase];
+        float v = Near(e.p, e.kind == 3 ? 700.0f : 260.0f);
+        if (v <= 0) continue;
+        if (e.kind != 2) gSnd.warT = 5;
+        int kind = e.kind == 0 ? FLC_HIT : e.kind == 1 ? FLC_FALL : e.kind == 2 ? FLC_NET : FLC_BOMB;
+        FlightCue(kind, v, PanOf(e.p));
+        if (e.kind == 3 && (int)e.yaw == 1) FlightCue(FLC_BURN, v, PanOf(e.p));
+        if (e.kind == 0 && e.role == fl::Role::Striker && Hash((float)gSnd.fxSeen, 1.7f) < 0.3f) FlightCue(FLC_SHRIEK, v * 0.7f, PanOf(e.p));
+        if (e.kind == 0 && e.role == fl::Role::Screamer && Hash((float)gSnd.fxSeen, 1.7f) < 0.3f) FlightCue(FLC_SCREAM, v * 0.8f, PanOf(e.p));
+    }
+    gSnd.warT = std::max(0.0f, gSnd.warT - dt);
+    a.war = std::clamp(gSnd.warT / 3.0f, 0.0f, 1.0f);
+    int retreating = 0; for (const auto& fk : w.col.flocks) retreating += fk.retreating;
+    if (retreating > gSnd.retreating) FlightCue(FLC_ROUT, 0.8f, 0);
+    if ((int)w.col.flocks.size() > gSnd.flocks) FlightCue(FLC_WINGBEATS, 0.8f, 0);
+    gSnd.retreating = retreating; gSnd.flocks = (int)w.col.flocks.size();
+    // the dangers
+    if (w.kraken.isle >= 0 && w.kraken.mood == 2 && gSnd.krakenMood < 2) { float v = Near(w.isles[w.kraken.isle].c, 1200); if (v > 0) FlightCue(FLC_ROAR, 0.4f + 0.6f * v, PanOf(w.isles[w.kraken.isle].c)); }
+    gSnd.krakenMood = w.kraken.mood;
+    if (w.volcano.isle >= 0 && w.volcano.ashT > 0 && gSnd.ash <= 0) FlightCue(FLC_ERUPT, 0.3f + 0.7f * Near(w.isles[w.volcano.isle].c, 1500), PanOf(w.isles[w.volcano.isle].c));
+    gSnd.ash = w.volcano.ashT;
+    if (w.ape.isle >= 0 && w.ape.rockT > 0 && gSnd.rock <= 0) { float v = Near(w.ape.pos, 400); if (v > 0) FlightCue(FLC_ROCK, v, PanOf(w.ape.pos)); }
+    gSnd.rock = w.ape.rockT;
+    if (w.weather.kind == 1 && gSnd.weather != 1) FlightCue(FLC_THUNDER, 0.8f, 0);
+    gSnd.weather = w.weather.kind;
+    // the reports and the chart
+    if (w.know.log.size() > gSnd.logSeen && S.t > 1) FlightCue(FLC_REPORT, 0.5f, 0);   // (a scout's report)
+    gSnd.logSeen = w.know.log.size();
+    if (S.chart != gSnd.chart) FlightCue(FLC_MAP, 0.6f, 0);
+    gSnd.chart = S.chart;
+    AudioFlight(a);
+}
 }  // namespace
 
 void StartFlight(Game& g, const char* founder, int isleType, int arrangement, int players) {
@@ -1900,7 +2005,7 @@ void StartFlightNet(Game& g, arcade::Session* net, const char* founderKey, const
     if (!rt::DataOk(&why)) { g.scene = Scene::Arcade; return; }
     S.net = net; S.live = nullptr;
     S.W = fl::World{};
-    S.seenVersion = -1; S.sinceSnap = 0; S.helloSent = false; S.flocksSeen = 0;
+    S.seenVersion = -1; S.sinceSnap = 0; S.helloSent = false; S.flocksSeen = 0; gSnd.init = false;
     S.netFounder = founderKey ? founderKey : "taloned"; S.netName = name ? name : "Founder";
     S.active = true; S.shot = false;
     S.chart = false; S.panel = false; S.chartZoom = 1; S.chartAt = {0, 0};
@@ -1999,6 +2104,7 @@ void SceneFlight(Game& g) {
         if (!S.live) { w.fogNow = true; w.StepFog(dt); }
         S.t += dt;
         Render(dt);
+        if (!S.shot || getenv("DEPTH_FLAUDIO")) FlightAudioFrame(w, dt);
         DrawHud(w);
         if (S.panel) { if (S.page == 0) DrawColonyPanel(w); else if (S.page == 1) DrawFlockPanel(w); else DrawSocietyPanel(w); }
         if (S.chart) DrawChart(w);
@@ -2015,6 +2121,7 @@ void SceneFlight(Game& g) {
     WD().Step(dt, in);
     S.t += dt * WD().timeScale;
     Render(dt * WD().timeScale);
+    if (!S.shot || getenv("DEPTH_FLAUDIO")) FlightAudioFrame(WD(), dt);
     DrawHud(WD());
     if (S.panel) { if (S.page == 0) DrawColonyPanel(WD()); else if (S.page == 1) DrawFlockPanel(WD()); else DrawSocietyPanel(WD()); }
     if (S.chart) DrawChart(WD());

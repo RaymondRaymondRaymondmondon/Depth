@@ -985,6 +985,7 @@ int main(int argc, char** argv) {
                 if (g.scene != Scene::Dungeon) AudioExpedition(ExpAudio{});   // (the Dungeon scene sets it every frame)
                 if (g.scene != Scene::RedTide) AudioRedTide(RtAudio{});      // (and the Red Tide scene)
                 if (g.scene != Scene::Trawl) AudioTrawl(TwAudio{});          // (and the Trawl)
+                if (g.scene != Scene::Flight) AudioFlight(FlAudio{});        // (and the Flight)
             }
             ArcadeVoiceFrame(GetFrameTime());   // the arcade's voice chat: the mic out, the table's voices in
             AudioFrame(GetFrameTime(), g.scene == Scene::Platformer || g.scene == Scene::Abyss);

@@ -1032,7 +1032,7 @@ const CueDef* CueTable(int& count) {
         {"amb.clock", CB_AMB, CR_CLOCK, 2200, 0.05f, 0.05f, 0.02f, 2, 0, 2, false},
         {"amb.creak", CB_AMB, CR_CREAK, 110, 1.4f, 0.07f, 0.12f, 6, 0, 2, false},
         {"amb.step", CB_AMB, CR_STEP, 120, 0.12f, 0.08f, 0.1f, 5, 0, 4, false},
-        {"amb.organbreath", CB_AMB, CR_WHOOSH, 180, 2.6f, 0.05f, 0.05f, 3, 0, 1, false},
+        {"amb.organbreath", CB_AMB, CR_WHOOSH, 180, 2.6f, 0.07f, 0.05f, 3, 0, 1, false},
         // --- instruments the scores use as one-shots (checked by --audio-test like every other cue)
         {"mus.pluck", CB_MUSIC, CR_PLUCK, 440, 1.2f, 0.1f, 0.0f, 3, 1, 8, false},
         {"mus.bell", CB_MUSIC, CR_BELL, 880, 1.4f, 0.08f, 0.0f, 3, 1, 8, false},
