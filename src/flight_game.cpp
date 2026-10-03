@@ -574,6 +574,16 @@ void DrawHud(const fl::World& w) {
     }
 }
 
+// a small flat button for the panel (the game's Button is drawn for bigger plates)
+bool SmallBtn(Rectangle r, const char* text, bool enabled = true) {
+    bool hover = enabled && CheckCollisionPointRec(GetMousePosition(), r);
+    DrawRectangleRounded(r, 0.3f, 4, enabled ? (hover ? Color{120, 96, 54, 255} : Color{82, 66, 40, 255}) : Color{44, 40, 36, 255});
+    DrawRectangleRoundedLinesEx(r, 0.3f, 4, 1.5f, enabled ? Color{214, 180, 110, 255} : Color{90, 84, 76, 255});
+    DrawTextCenteredBold(text, r.x + r.width / 2, r.y + (r.height - 16) / 2, 16, enabled ? Color{250, 240, 220, 255} : Color{130, 124, 116, 255});
+    bool hit = hover && IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
+    if (hit) PlayCue("ui.click");
+    return hit;
+}
 // The colony panel (Tab; design doc p7): birds by role, mouths per day, feed per day, days of food, the stores, the
 // nests, and the orders a stage-2 colony takes: the fledging plan, retraining, nests wanted, the fishers' ground.
 void DrawColonyPanel(fl::World& w) {
@@ -601,13 +611,13 @@ void DrawColonyPanel(fl::World& w) {
         int n = w.Count(fl::BStage::Adult, role), training = 0;
         for (const auto& b : w.col.birds) if (b.alive && b.retrainT > 0 && b.retrainTo == role) training++;
         Txt(TextFormat("%-8s %2d%s", fl::RoleName(role), n, training ? TextFormat(" (+%d training)", training) : ""), x + 16, ly + 3, 16, ink);
-        if (Button({x + 168, ly, 66, 24}, "retrain", w.Count(fl::BStage::Adult) > n, 13)) {
+        if (SmallBtn({x + 168, ly, 66, 24}, "retrain", w.Count(fl::BStage::Adult) > n)) {
             w.Retrain(role);
         }
         float total = 0; for (int k = 1; k < (int)fl::Role::COUNT; k++) total += w.col.plan[k];
         Txt(TextFormat("%3.0f%%", 100 * w.col.plan[r] / std::max(0.01f, total)), x + 262, ly + 3, 16, ink);
-        if (Button({x + 318, ly, 26, 24}, "-", w.col.plan[r] > 0.01f, 16)) w.col.plan[r] = std::max(0.0f, w.col.plan[r] - 0.1f);
-        if (Button({x + 350, ly, 26, 24}, "+", true, 16)) w.col.plan[r] += 0.1f;
+        if (SmallBtn({x + 318, ly, 26, 24}, "-", w.col.plan[r] > 0.01f)) w.col.plan[r] = std::max(0.0f, w.col.plan[r] - 0.1f);
+        if (SmallBtn({x + 350, ly, 26, 24}, "+", true)) w.col.plan[r] += 0.1f;
         ly += 30;
     }
     ly += 4;
@@ -617,8 +627,8 @@ void DrawColonyPanel(fl::World& w) {
     TxtBold("Nests", x + 16, ly, 17, ink); ly += 24;
     Txt(TextFormat("%d built, %d under way, %d free sites", built, under, free), x + 16, ly + 3, 16, ink);
     Txt(TextFormat("builders raise up to %d", w.col.nestsWanted), x + 16, ly + 24, 15, dim);
-    if (Button({x + 318, ly + 18, 26, 24}, "-", w.col.nestsWanted > 1, 16)) w.col.nestsWanted--;
-    if (Button({x + 350, ly + 18, 26, 24}, "+", w.col.nestsWanted < (int)w.col.sites.size(), 16)) w.col.nestsWanted++;
+    if (SmallBtn({x + 318, ly + 18, 26, 24}, "-", w.col.nestsWanted > 1)) w.col.nestsWanted--;
+    if (SmallBtn({x + 350, ly + 18, 26, 24}, "+", w.col.nestsWanted < (int)w.col.sites.size())) w.col.nestsWanted++;
     ly += 52;
     Txt("A mate comes to a nest whose courtship bowl you fill:", x + 16, ly, 14, dim); ly += 17;
     Txt(TextFormat("carry fish of size %d+ to it and press E (%d for the first).", E.courtMinSize, E.courtFish), x + 16, ly, 14, dim); ly += 26;
@@ -626,9 +636,9 @@ void DrawColonyPanel(fl::World& w) {
     TxtBold("Fishers fish", x + 16, ly, 17, ink);
     const auto& zones = w.eco.map->zones;
     std::string gname = w.col.ground < 0 ? "the best ground" : zones[w.col.ground].name;
-    if (Button({x + 150, ly - 2, 26, 24}, "<", true, 16)) w.col.ground = w.col.ground < 0 ? (int)zones.size() - 1 : w.col.ground - 1;
+    if (SmallBtn({x + 150, ly - 2, 26, 24}, "<", true)) w.col.ground = w.col.ground < 0 ? (int)zones.size() - 1 : w.col.ground - 1;
     Txt(gname, x + 184, ly + 1, 16, ink);
-    if (Button({x + 350, ly - 2, 26, 24}, ">", true, 16)) w.col.ground = w.col.ground + 1 >= (int)zones.size() ? -1 : w.col.ground + 1;
+    if (SmallBtn({x + 350, ly - 2, 26, 24}, ">", true)) w.col.ground = w.col.ground + 1 >= (int)zones.size() ? -1 : w.col.ground + 1;
     ly += 26;
     if (w.col.ground >= 0) { Txt(TextFormat("its stock: %.0f%% of what it holds", w.StockOf(w.col.ground) * 100), x + 16, ly, 14, w.StockOf(w.col.ground) < 0.35f ? bad : dim); }
     else if (w.lagoonZone >= 0) Txt(TextFormat("the lagoon's stock: %.0f%%", w.StockOf(w.lagoonZone) * 100), x + 16, ly, 14, w.StockOf(w.lagoonZone) < 0.35f ? bad : dim);
@@ -748,8 +758,9 @@ void DebugFlightShot(Game& g, int which) {
         w.col.restBelow = 0.45f;
         for (float tt = 0; tt < fl::World::DAY * 6.3f; tt += 0.1f) { w.col.nestsWanted = std::max(2, w.Count(fl::BStage::Mate) + 1); w.Step(0.1f, fl::FounderInput{}); }
         w.founderBot = false;
-        f.st = fl::FState::Fly; f.pos = Vector3Add(w.col.caches[0].pos, {-10, 9, -8}); f.yaw = 0.7f; f.airspeed = 8; f.pitch = -0.2f; f.carrySp = -1;
-        S.aimYaw = f.yaw; S.aimPitch = -0.45f; S.panel = which == 5; S.help = false;
+        Vector3 home = w.island.nest;   // (hovering off the home nest, looking at it and the palms round it)
+        f.st = fl::FState::Fly; f.pos = Vector3Add(home, {-7, 2.5f, -5}); f.yaw = atan2f(home.z - f.pos.z, home.x - f.pos.x); f.airspeed = 6; f.pitch = -0.15f; f.carrySp = -1;
+        S.aimYaw = f.yaw; S.aimPitch = -0.3f; S.panel = which == 5; S.help = false;
     }
     if (which == 3) { w.time = fl::World::DAY * 0.27f; f.pos = {40, 70, 120}; f.yaw = -PI * 0.6f; S.aimPitch = -0.35f; }
     S.aimYaw = which == 2 ? S.aimYaw : f.yaw; S.camYaw = S.aimYaw; S.camPitch = S.aimPitch * 0.8f - 0.12f;
