@@ -123,7 +123,7 @@ int Founder::Carry(const FounderDef& d) const { return std::max(1, chick ? d.car
 
 // ---------------------------------------------------------------- the world
 float World::Rand() { rng ^= rng << 13; rng ^= rng >> 17; rng ^= rng << 5; return (rng & 0xFFFFFF) / 16777216.0f; }
-void World::Say(const std::string& s) { log.push_back(s); if (log.size() > 60) log.erase(log.begin()); }
+void World::Say(const std::string& s) { if (quiet) return; log.push_back(s); if (log.size() > 60) log.erase(log.begin()); }
 float World::DayPhase() const { return fmodf(time / DAY + 0.22f, 1.0f); }   // (the match opens just before dawn's rise)
 float World::FeedValue(int sp) const { return sp >= 0 && eco.map && sp < (int)eco.map->species.size() ? (float)eco.map->species[sp].size : 1; }
 float World::Thermal(Vector3 p) const {
@@ -418,7 +418,8 @@ void World::Step(float realDt, const FounderInput& in) {
             const rt::Zone& z = eco.map->zones[zi];
             float hh = sinf(a.home.x * 12.9898f + a.home.z * 78.233f) * 43758.5453f;   // (from its home point: steady, unlike its rng)
             float own = (hh - floorf(hh) - 0.5f) * (rise > 0.01f ? 1.0f : 4.0f);   // (each fish keeps its own depth round the shoal's)
-            float t = std::clamp(target + own, z.y0 + 0.4f, z.y1 - 0.3f);
+            float tz = rise <= 0.01f && day > 0 && zi < (int)zoneDay.size() ? zoneDay[zi] : target;   // (a zone's own day depth: upwelling round a stack)
+            float t = std::clamp(tz + own, z.y0 + 0.4f, z.y1 - 0.3f);
             // (the web steers a fish back to its home point and toward its goal: move their depth too, or it dives back)
             a.home.y = t;
             if (a.st == rt::State::Return || a.st == rt::State::Graze || a.st == rt::State::Rest) a.goal.y = t;
@@ -429,6 +430,19 @@ void World::Step(float realDt, const FounderInput& in) {
     eco.Step(dt);
     StepColony(dt);   // (the caches spoil, the grounds regrow, the colony lives)
     StepMap(dt);      // (a whole map: the fog, the scouts, the sea waking where the birds are)
+    // the rival colonies: each swapped in and stepped by the same code (its Founder flown by the colony's logic, its
+    // panel by a careful bot), then the war over every colony
+    if (wholeMap && !sides.empty()) {
+        for (int i = 0; i < (int)sides.size(); i++) {
+            SwapSide(i); quiet = true;
+            if (me.st != FState::Strike) BotFounderStep(dt);
+            BotGovern(dt);
+            StepColony(dt);
+            quiet = false; SwapSide(i);
+        }
+        for (int i = 0; i < (int)sides.size(); i++) BotWar(i + 1, dt);
+    }
+    if (wholeMap) StepWar(dt);
 }
 
 // ---------------------------------------------------------------- --flight-test

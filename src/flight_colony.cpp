@@ -49,10 +49,27 @@ const RoleDef& RoleOf(Role r) {
         v[2] = {"feeder", "Feeder", "Carries fish from the caches to the nests.", 60, 14, 2};
         v[3] = {"builder", "Builder", "Gathers twigs and shells; builds nests and caches.", 70, 11, 3};
         v[4] = {"scout", "Scout", "Flies to a target at the height you set, looks, and comes home to report.", 50, 18, 0};
+        v[5] = {"skirmisher", "Skirmisher", "Quick attacks: hit, climb, hit again; raids caches and nests; harasses fishers.", 50, 20, 1};
+        v[6] = {"tank", "Tank", "Takes hits: a wall in the air; escorts.", 180, 10, 0};
+        v[7] = {"striker", "Striker", "Strong, slow attacks from above: the killer; takes chicks.", 90, 14, 0};
+        v[8] = {"watcher", "Watcher", "Island defence: guards the nests and caches, throws nets that hold a bird.", 80, 9, 0};
+        v[9] = {"screamer", "Screamer", "Morale: raises its flock's and lowers the enemy's.", 60, 15, 0};
+        v[10] = {"flockmaster", "Flockmaster", "Leads a flock without the Founder: holds formation, +5% speed.", 90, 13, 0};
         Json j = LoadJsonFile(FlightDataDir() + "/flight_roles.json");
         for (const Json& r : j.a) {
             std::string k = r["key"].Str0();
             for (auto& d : v) if (d.key == k) { d.name = r["name"].Str0(d.name.c_str()); d.what = r["what"].Str0(d.what.c_str()); d.hp = r["hp"].F(d.hp); d.speed = r["speed"].F(d.speed); d.carry = r["carry"].I(d.carry); }
+        }
+        // war: attack, cooldown, the height it likes, what it beats and what beats it (flight_war.json)
+        Json war = LoadJsonFile(FlightDataDir() + "/flight_war.json");
+        auto bit = [&](const std::string& key) { for (int i = 0; i < (int)v.size(); i++) if (v[i].key == key) return 1u << i; return 0u; };
+        for (auto& d : v) {
+            const Json& r = war["roles"][d.key];
+            if (!r.IsObj()) continue;
+            d.hp = r["hp"].F(d.hp); d.speed = r["speed"].F(d.speed); d.attack = r["attack"].F(d.attack); d.cooldown = r["cooldown"].F(d.cooldown);
+            std::string a = r["alt"].Str0("mid"); d.pref = a == "high" ? Alt::High : a == "low" ? Alt::Low : Alt::Mid; d.perched = a == "perched";
+            for (const Json& s : r["strong"].a) d.strong |= bit(s.Str0());
+            for (const Json& s : r["weak"].a) d.weak |= bit(s.Str0());
         }
     }
     return v[std::clamp((int)r, 0, (int)Role::COUNT - 1)];
@@ -166,7 +183,7 @@ void World::InitColony() {
     // twigs: palms drop fronds and sticks; driftwood on the beaches and ledges; the town's woodpile; shells
     for (const auto& tp : island.twigPts) { TwigSource t; t.pos = tp.first; t.cap = tp.second < 0 ? (float)E.palmTwigs : tp.second; t.twigs = t.cap; col.twigSrc.push_back(t); }
     for (const auto& sp : island.shellPts) { TwigSource t; t.pos = Vector3Add(sp, {0, 0.15f, 0}); t.shells = true; t.cap = 4; t.twigs = t.cap; col.twigSrc.push_back(t); }    // the grounds: the sea's spawn rows, regrown logistically from here on
-    stocks.clear();
+    if (!stocks.empty()) { dayAcc = 0; dayNum = 0; return; }   // (a rival's colony: the grounds are the world's, already counted)
     for (int ri = 0; ri < (int)eco.map->spawns.size(); ri++) {
         const auto& r = eco.map->spawns[ri];
         Stock s; s.row = ri; s.sp = eco.map->SpeciesIndex(r.species); s.zone = eco.map->ZoneIndex(r.zone); s.K = (float)r.count;
@@ -250,11 +267,26 @@ int World::ChooseGround(Vector3 from) const {
         if (!Catchable(s) || s.size > carry) continue;
         score[a.zone] += expf(-Dist2(from, a.pos) / 100);   // (a fisher wants the nearest good patch: far fish are worth little)
     }
-    int best = lagoonZone; float bs = -1;
+    // waters asleep (no fish drawn there now): their count, at the share the time of day brings within reach
+    if (wholeMap) {
+        float ph = DayPhase();
+        bool rise = (ph > 0.19f && ph < 0.34f) || (ph > 0.68f && ph < 0.82f), night = ph < 0.19f || ph > 0.87f;
+        for (const auto& s : stocks) {
+            if (s.zone >= (int)liveZone.size() || liveZone[s.zone]) continue;
+            const rt::Species& sp = eco.map->species[s.sp];
+            if (!Catchable(sp) || sp.size > carry) continue;
+            const rt::Zone& Z = eco.map->zones[s.zone];
+            float reach = Z.y0 > -FISHER_REACH - 0.5f ? 1.0f : rise ? 1.0f : night ? 0.0f : 0.2f;
+            float dz = std::max(0.0f, Dist2(from, Z.Center()) - std::min(Z.plan.width, Z.plan.height) * 0.4f);
+            score[s.zone] += s.pop * reach * expf(-dz / 100);
+        }
+    }
+    int best = wholeMap ? -1 : lagoonZone; float bs = -1;
     for (int z = 0; z < (int)score.size(); z++) {
         const rt::Zone& Z = eco.map->zones[z];
         Vector3 c = Z.Center();
         float s = score[z]; (void)c;
+        if (wholeMap && s < 0.3f) continue;   // (not worth the trip)
         if (col.restBelow > 0 && score[z] > 0 && StockOf(z) < col.restBelow) s *= 0.02f;   // (resting: only if nothing else is left)
         if (s > bs) { bs = s; best = z; }
     }
@@ -289,13 +321,33 @@ void World::FisherStep(Bird& b, float dt) {
         }
         return;
     }
+    if (b.fleeT > 0) { b.fleeT -= dt; b.task = Task::Sit; MoveTo(b, Vector3Add(col.caches[0].pos, {0.5f, 0.4f, 0.5f}), speed, dt, 0.5f); return; }   // (chased off its ground)
     if (b.hunger < 0.35f && BirdEatsAtCache(b, dt)) return;
     int minSize = b.target >= 1000 ? Econ().courtMinSize : 1;
+    // in waters that sleep (no bird of yours near: a rival's fisher far away) the catch comes from the ground's count
+    if (wholeMap && b.task == Task::Search) {
+        int z = eco.ZoneAt({b.goal.x, -1, b.goal.z});
+        if (z >= 0 && z < (int)liveZone.size() && !liveZone[z]) {
+            b.taskT += dt * Econ().workPace;
+            if (b.taskT > 6) {
+                b.taskT = 0;
+                float stock = StockOf(z), total = 0;
+                for (const auto& s : stocks) if (s.zone == z) { const rt::Species& sp = eco.map->species[s.sp]; if (Catchable(sp) && sp.size <= carry && sp.size >= minSize) total += s.pop; }
+                if (total >= 1 && Rand() < 0.55f * std::clamp(stock * 1.5f, 0.1f, 1.0f)) {
+                    float pick = Rand() * total;
+                    for (auto& s : stocks) if (s.zone == z) { const rt::Species& sp = eco.map->species[s.sp]; if (!Catchable(sp) || sp.size > carry || sp.size < minSize) continue; pick -= s.pop; if (pick <= 0) { s.pop -= 1; b.carrySp = s.sp; b.carrySize = sp.size; b.task = Task::Idle; break; } }
+                }
+                if (b.carrySp < 0 && Rand() < 0.3f) b.task = Task::Idle;
+            }
+            return;
+        }
+    }
     switch (b.task) {
     default:
     case Task::Idle: {
         // the ground, then where its fish show from the air (schools are dark patches; a lone fish a glint)
         int z = ChooseGround(b.pos);
+        if (z < 0) { b.task = Task::Sit; b.taskT = 0; MoveTo(b, Vector3Add(col.caches[0].pos, {0.6f, 0.4f, -0.6f}), speed, dt, 0.5f); return; }   // (nothing worth the trip: wait at home)
         const rt::Zone& Z = eco.map->zones[z];
         b.goal = {Z.plan.x + Z.plan.width * (0.2f + 0.6f * Rand()), 12, Z.plan.y + Z.plan.height * (0.2f + 0.6f * Rand())};
         int seen = 0;
@@ -398,6 +450,28 @@ void World::BuilderStep(Bird& b, float dt) {
     if (b.hunger < 0.35f && BirdEatsAtCache(b, dt)) return;
     // what needs raising: a nest under way, a cache under way; else lay one out (nests up to the wanted count, a cache
     // when the piles are filling)
+    // defences after nests: a hedge (twigs) or a tower (twigs and shells) the colony has laid out
+    bool nestJob = false; for (const auto& n : col.nests) nestJob |= !n.built;
+    if (!nestJob) for (auto& st : col.builds) {
+        if (st.built) continue;
+        int needT = StructureTwigs(st.kind) - (int)st.twigs, needS = StructureShells(st.kind) - st.shells;
+        if (b.carryTwigs > 0 || b.carryShells > 0) {
+            b.task = Task::Build;
+            if (MoveTo(b, Vector3Add(st.pos, {0, 0.6f, 0}), R.speed, dt)) {
+                st.twigs += b.carryTwigs; st.shells += b.carryShells; b.carryTwigs = 0; b.carryShells = 0; b.task = Task::Idle;
+                if (st.twigs >= StructureTwigs(st.kind) && st.shells >= StructureShells(st.kind)) { st.built = true; Say(st.kind == 0 ? "A hedge of thorn now rings the home nest: Skirmishers can't get through." : "A tower stands over the colony: a Watcher on it sees farther and nets farther."); }
+            }
+            return;
+        }
+        if (needS > 0 && col.shells > 0) { b.task = Task::Fetch; if (MoveTo(b, Vector3Add(col.caches[0].pos, {0, 0.5f, 0}), R.speed, dt)) { int s = std::min(col.shells, std::min(needS, R.carry)); col.shells -= s; b.carryShells = s; } return; }
+        if (needT > 0 && col.twigs > 0) { b.task = Task::Fetch; if (MoveTo(b, Vector3Add(col.caches[0].pos, {0, 0.5f, 0}), R.speed, dt)) { int s = std::min(col.twigs, std::min(needT, R.carry)); col.twigs -= s; b.carryTwigs = s; } return; }
+        int src = -1; float bd = 1e9f;
+        for (int i = 0; i < (int)col.twigSrc.size(); i++) { const auto& s = col.twigSrc[i]; if (s.twigs < 1 || s.shells != (needT <= 0)) continue; float d = Vector3Distance(b.pos, s.pos); if (d < bd) { bd = d; src = i; } }
+        if (src < 0) break;
+        b.task = Task::Gather;
+        if (MoveTo(b, Vector3Add(col.twigSrc[src].pos, {0, 0.3f, 0}), R.speed, dt)) { int k = std::min((int)col.twigSrc[src].twigs, R.carry); col.twigSrc[src].twigs -= k; if (col.twigSrc[src].shells) b.carryShells = k; else b.carryTwigs = k; }
+        return;
+    }
     int job = -1; bool jobCache = false;
     for (int i = 0; i < (int)col.nests.size() && job < 0; i++) if (!col.nests[i].built) job = i;
     if (job < 0) for (int i = 0; i < (int)col.caches.size() && job < 0; i++) if (!col.caches[i].built) { job = i; jobCache = true; }
@@ -509,7 +583,7 @@ void World::MateStep(Bird& b, float dt) {
 
 bool World::Retrain(Role to, Role from) {
     if (from == Role::None) { int most = 0; for (int o = 1; o < (int)Role::COUNT; o++) if ((Role)o != to && Count(BStage::Adult, (Role)o) > most) { most = Count(BStage::Adult, (Role)o); from = (Role)o; } }
-    for (auto& b : col.birds) if (b.alive && b.stage == BStage::Adult && b.role == from && b.retrainT <= 0 && b.carrySp < 0 && b.carryTwigs == 0) {
+    for (auto& b : col.birds) if (b.alive && b.stage == BStage::Adult && b.role == from && b.retrainT <= 0 && b.carrySp < 0 && b.carryTwigs == 0 && b.flock < 0) {
         b.retrainTo = to; b.retrainT = Econ().retrainDays * DAY; b.task = Task::Idle;
         Say(std::string("A ") + RoleName(from) + " retrains as a " + RoleName(to) + " (a day).");
         return true;
@@ -529,7 +603,7 @@ void World::Fledge(Bird& b) {
         if (r == Role::None) r = Role::Fisher;
         if (col.leaderless) r = Role::Fisher;
     }
-    b.stage = BStage::Adult; b.role = r; b.retrainTo = Role::None; b.task = Task::Idle; b.age = 0;
+    b.stage = BStage::Adult; b.role = r; b.retrainTo = Role::None; b.task = Task::Idle; b.age = 0; b.hp = RoleOf(r).hp; b.fight = 25;
     b.pos.y += 0.5f;
     Say(std::string("A chick fledges: a ") + RoleName(r) + ".");
 }
@@ -579,14 +653,32 @@ void World::StepBird(Bird& b, float dt) {
         // night: the colony roosts (fervour, a later stage, will keep it working); a bird with a fish brings it home first
         float ph = DayPhase();
         bool night = ph < 0.19f || ph > 0.87f;
-        if (night && b.carrySp < 0 && b.carryTwigs == 0 && b.carryShells == 0 && !(b.role == Role::Scout && b.hasOrder)) {   // (a scout out on an order flies on)
+        if (night && b.carrySp < 0 && b.carryTwigs == 0 && b.carryShells == 0 && !(b.role == Role::Scout && b.hasOrder) && b.flock < 0 && b.role != Role::Watcher) {   // (a scout out, a flock and a Watcher stay up)   // (a scout out on an order flies on)
             if (b.hunger < 0.3f && BirdEatsAtCache(b, dt)) break;
             const Site& s = col.sites[(b.id * 7) % col.sites.size()];
             b.task = MoveTo(b, Vector3Add(s.pos, {0.3f * cosf(b.id * 1.1f), 0.2f, 0.3f * sinf(b.id * 1.1f)}), 12, dt, 0.4f) ? Task::Sit : Task::Fly;
             if (b.task == Task::Sit) b.vel = {0, 0, 0};
             break;
         }
-        if (b.retrainT > 0) { b.retrainT -= dt; b.task = Task::Sit; MoveTo(b, Vector3Add(col.caches[0].pos, {0, 0.4f, -1.2f}), 10, dt, 0.4f); if (b.retrainT <= 0) { b.role = b.retrainTo; b.retrainTo = Role::None; b.task = Task::Idle; } break; }
+        if (b.retrainT > 0) { b.retrainT -= dt; b.task = Task::Sit; MoveTo(b, Vector3Add(col.caches[0].pos, {0, 0.4f, -1.2f}), 10, dt, 0.4f); if (b.retrainT <= 0) { b.role = b.retrainTo; b.retrainTo = Role::None; b.task = Task::Idle; b.hp = RoleOf(b.role).hp; b.fight = 25; } break; }
+        if (IsWarrior(b.role)) {
+            if (b.flock >= 0) break;   // (StepWar flies it)
+            if (b.hunger < 0.4f && BirdEatsAtCache(b, dt)) break;
+            b.fight = std::min(25.0f, b.fight + 0.5f * dt);
+            if (b.hp < RoleOf(b.role).hp) b.hp = std::min(RoleOf(b.role).hp, b.hp + RoleOf(b.role).hp * dt / DAY);   // (it heals over a day at home)
+            // a Watcher perches by the nests (on a tower if there is one); the rest roost round home
+            Vector3 post;
+            if (b.role == Role::Watcher) {
+                int k = 0, mine = 0; for (const auto& o : col.birds) { if (&o == &b) mine = k; if (o.alive && o.role == Role::Watcher && o.stage == BStage::Adult) k++; }
+                const Structure* tw = nullptr; for (const auto& s : col.builds) if (s.kind == 1 && s.built) tw = &s;
+                if (tw && mine == 0) post = Vector3Add(tw->pos, {0, 16, 0});
+                else { const Nest& n = col.nests[mine % col.nests.size()]; post = Vector3Add(n.pos, {1.2f, 0.3f, 0.8f}); }
+                b.post = post;
+            } else { const Site& s = col.sites[(b.id * 5) % col.sites.size()]; post = Vector3Add(s.pos, {0.4f * cosf(b.id * 1.3f), 0.25f, 0.4f * sinf(b.id * 1.3f)}); }
+            b.task = MoveTo(b, post, RoleOf(b.role).speed, dt, 0.4f) ? Task::Sit : Task::Fly;
+            if (b.task == Task::Sit) b.vel = {0, 0, 0};
+            break;
+        }
         if (b.role == Role::Fisher || b.role == Role::None) FisherStep(b, dt);
         else if (b.role == Role::Feeder) FeederStep(b, dt);
         else if (b.role == Role::Builder) BuilderStep(b, dt);
@@ -607,7 +699,7 @@ void World::DayTick() {
 
 void World::StepColony(float dt) {
     const Economy& E = Econ();
-    RegrowFish(dt);
+    if (cur == 0) RegrowFish(dt);   // (once a step, not once a colony)
     born.clear();
     for (size_t i = 0; i < col.birds.size(); i++) if (col.birds[i].alive) StepBird(col.birds[i], dt);
     col.birds.insert(col.birds.end(), born.begin(), born.end());
@@ -641,9 +733,8 @@ void World::StepColony(float dt) {
         }
     }
     // the colony without its leader: after a minute the old orders run down (no new nests, fledglings fish)
-    static float downT = 0;
-    downT = me.st == FState::Dead || me.chick ? downT + dt : 0;
-    col.leaderless = downT > 60;
+    col.downT = me.st == FState::Dead || me.chick ? col.downT + dt : 0;
+    col.leaderless = col.downT > 60;
     dayAcc += dt;
     if (dayAcc >= DAY) { dayAcc -= DAY; DayTick(); }
 }
@@ -762,6 +853,14 @@ int World::BotFounderStep(float dt) {
     if (f.hunger <= 0) { f.hunger = 0; static float st = 0; st += dt; if (st > E.starveDays * DAY) { st = 0; Kill("starved"); } return 0; }
     if (f.chick && f.chickFish >= 3) f.chick = false;
     fb.pos = f.pos; fb.hunger = 1;   // (its own hunger is the Founder's)
+    // night: home to the nest (it eats from the cache if it can)
+    float ph = DayPhase();
+    if ((ph < 0.19f || ph > 0.87f) && fb.carrySp < 0) {
+        int ci = NearestCache(f.pos, true, false);
+        if (f.hunger < 0.5f && ci >= 0) { if (MoveTo(fb, Vector3Add(col.caches[ci].pos, {0, 0.5f, 0}), 11, dt)) { auto& fish = col.caches[ci].fish; f.hunger = std::min(1.0f, f.hunger + fish.back().size / E.feedFounder); fish.pop_back(); fishEaten++; } }
+        else MoveTo(fb, Vector3Add(col.nests[0].pos, {0, 0.3f, 0}), 11, dt, 0.5f);
+        f.pos = fb.pos; f.yaw = fb.yaw; return 0;
+    }
     // 1. hungry: eat from a cache, or the catch
     if (f.hunger < 0.4f) {
         if (fb.carrySp >= 0) { f.hunger = std::min(1.0f, f.hunger + fb.carrySize / E.feedFounder); if (f.chick) f.chickFish++; fb.carrySp = -1; fishEaten++; fb.task = Task::Idle; }

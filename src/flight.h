@@ -166,8 +166,14 @@ struct Economy {
     int feederCover = 8;                      // one feeder serves this many working birds
 };
 const Economy& Econ();
-enum class Role : uint8_t { None, Fisher, Feeder, Builder, Scout, COUNT };
-struct RoleDef { std::string key, name, what; float hp = 60, speed = 12; int carry = 2; };
+// working roles (doc p11) and warrior roles (p11-12; stage 4); the Bomber comes with the Works (stage 7)
+enum class Role : uint8_t { None, Fisher, Feeder, Builder, Scout, Skirmisher, Tank, Striker, Watcher, Screamer, Flockmaster, COUNT };
+inline bool IsWarrior(Role r) { return r >= Role::Skirmisher; }
+struct RoleDef {
+    std::string key, name, what; float hp = 60, speed = 12; int carry = 2;
+    float attack = 3, cooldown = 1.2f; Alt pref = Alt::Mid; bool perched = false;   // (flight_war.json)
+    uint32_t strong = 0, weak = 0;            // bits by Role: what it beats, what beats it
+};
 const RoleDef& RoleOf(Role r);
 int SpawnFishSlot(rt::Ecosystem& eco, int sp, Vector3 pos, int zone);   // a fish into a dead slot (the web only appends)
 const char* RoleName(Role r);
@@ -186,6 +192,11 @@ struct Bird {
     // a scout's order (doc p19): where, how high, what it saw, and the report it carries home
     int scoutIsle = -1, scoutZone = -1; Vector3 scoutAt{}; Alt alt = Alt::Mid; bool hasOrder = false, observed = false;
     Sighting obs; GroundInfo gobs; float obsT = 0;
+    // war (stage 4): its health, its fighting breath, a strike's cooldown, a net holding it, its flock and its target
+    float hp = 60, fight = 25, atkCd = 0, netT = 0, fleeT = 0, zoomT = 0;
+    int flock = -1; int tgtSide = -1, tgtId = 0;   // tgtId 0 = the side's Founder
+    bool struck = false;                      // (its first strike in this engagement is spent)
+    Vector3 post{};                           // a Watcher's perch
 };
 struct Site { Vector3 pos{}; int palm = -1; int nest = -1; };
 struct Nest {
@@ -198,7 +209,28 @@ struct Cache { Vector3 pos{}; std::vector<CachedFish> fish; bool built = true; f
 struct TwigSource { Vector3 pos{}; float twigs = 0, cap = 6; bool shells = false; };
 struct Stock { int row = 0, sp = 0, zone = 0; float K = 0, births = 0, pop = 0; };   // a fishing ground's species (one spawn row); pop: its count while the zone sleeps
 struct DayStats { int day = 0, birds = 0, eggs = 0, chicks = 0, mates = 0, nests = 0, caught = 0, deaths = 0; float feedCaught = 0, mouths = 0, cacheFeed = 0, lagoon = 0; };
+// A flock (doc p13): 2-12 warriors with a leader, a formation, an altitude order, a stance and a target
+enum class Formation : uint8_t { Chevron, Wall, Spiral, Scatter, Hammer, Cover, COUNT };
+const char* FormationName(Formation f);
+enum class Stance : uint8_t { Raid, Hold, Escort, RetreatHalf, COUNT };
+const char* StanceName(Stance s);
+enum class Target : uint8_t { Home, Cache, Nests, Ground, Flock, Point, COUNT };   // Home: guard your island
+struct Flock {
+    int id = 0; std::vector<int> members;     // bird ids
+    int leader = -1;                          // -2 the Founder (when it flies with the flock), a Flockmaster's id, or -1
+    Formation form = Formation::Chevron; Alt alt = Alt::Mid; Stance stance = Stance::Raid;
+    Target target = Target::Home; int tSide = -1, tIsle = -1, tZone = -1, tFlock = -1; Vector3 tAt{};
+    Vector3 pos{}, vel{};                     // its middle, how it's moving
+    float morale = 50, wins = 0, engagedT = 0, overWaterT = 0;
+    int startSize = 0, lost = 0;
+    bool retreating = false, scattered = false, leaderDead = false;
+    std::string name;
+};
+// what a colony has raised to defend its nests (doc p24): hedges round nest sites, towers for Watchers
+int StructureTwigs(int kind); int StructureShells(int kind);   // (flight_war.json: a hedge 10 twigs, a tower 20 and 5 shells)
+struct Structure { int kind = 0; Vector3 pos{}; float twigs = 0; int shells = 0; bool built = false; int site = -1; };   // kind 0 hedge, 1 tower
 struct Colony {
+    int side = 0;                             // whose (0 you; 1.. the rivals)
     std::vector<Bird> birds;
     std::vector<Nest> nests;
     std::vector<Cache> caches;
@@ -214,6 +246,18 @@ struct Colony {
     std::vector<std::pair<std::string, int>> deaths;   // by cause
     std::vector<DayStats> days;
     bool leaderless = false;
+    std::vector<Flock> flocks; int nextFlock = 1;
+    std::vector<Structure> builds;
+    int stolen = 0, lostToRaids = 0, kills = 0, losses = 0;   // (war tallies)
+    float warT = 0;                           // (a bot's next war decision)
+    float downT = 0;                          // (how long its Founder has been down)
+};
+// A rival (and, while it steps, you): everything that is one player's and not the world's. The colony code works on the
+// World's own fields; a rival steps by swapping its Side in (World::SwapSide), so one set of code runs every colony.
+struct Side {
+    Colony col; Island island; int home = 0; Founder me; Bird fb; bool founderBot = true;
+    int lagoonZone = -1, inshoreZone = -1; float dayAcc = 0; int dayNum = 0; int caughtIn[16] = {};
+    int slot = 1; std::string name; Color livery{200, 60, 60, 255};
 };
 
 // ---------------------------------------------------------------- the world (one Founder, one island: stage 1)
@@ -244,11 +288,32 @@ struct World {
     // the map
     MapOpts opts; bool wholeMap = false;
     std::vector<Island> isles; int home = 0;    // every island (home is yours; island above is a copy of it)
-    std::vector<Rival> rivals;
+    std::vector<Rival> rivals;                  // (stage 3's still colonies; stage 4 makes them sides)
+    std::vector<Side> sides;                    // the rival colonies, run by bots (slot 1..)
+    int cur = 0;                                // whose colony is in the fields now (0 you; i+1 sides[i] swapped in)
+    bool quiet = false;                         // (a rival is stepping: its news isn't yours)
+    void SwapSide(int i);                       // trade the World's colony fields with sides[i] (call twice to swap back)
+    Colony& ColOf(int side);                    // a side's colony, wherever it is
+    Founder& FounderOf(int side);
+    const std::string& SideName(int side) const;
+    Color SideColor(int side) const;
+    // war (flight_war.cpp)
+    void StepWar(float dt);
+    void BotWar(int side, float dt);            // a bot's decisions: its plan, its flocks' orders
+    void BotGovern(float dt);                   // a bot's colony panel (nests, plan, retraining), on the colony swapped in
+    int MakeFlock(int side, const std::vector<int>& ids, Formation f, Alt a, Stance s);
+    void OrderFlock(int side, int flock, Target t, int tSide, int tIsle, int tZone, int tFlock, Vector3 at);
+    Flock* FindFlock(int side, int id);
+    Bird* FindBird(int side, int id);
+    float Morale(int side, const Flock& f) const;
+    std::vector<std::string> warLog;            // (fights, for the tests and the HUD)
+    struct WarFx { Vector3 p{}; int kind = 0; int side = 0; Role role = Role::None; float yaw = 0; };   // 0 a hit, 1 a death (it falls), 2 a net
+    std::vector<WarFx> warFx; size_t warFxBase = 0;   // (the scene reads them by cursor; trimmed now and then)
     Knowledge know;
     std::unique_ptr<rt::MapData> sea;           // the generated sea (a whole map)
     std::vector<uint8_t> liveZone; std::vector<float> zoneNearT;   // zones with fish in them now; when a bird was last near
     int inshoreZone = -1;
+    std::vector<float> zoneDay;                 // each zone's daytime shoal depth (stage 4: the stack's upwelling)
     float HeightAt(float x, float z) const;     // every island's ground; the deep sea elsewhere
     bool LandAt(float x, float z) const { return HeightAt(x, z) > 0.15f; }
     Vector3 GroundAt(float x, float z) const { return {x, std::max(0.0f, HeightAt(x, z)), z}; }
@@ -260,7 +325,7 @@ struct World {
     void ScoutStep(Bird& b, float dt);
     void StepMap(float dt);                     // the fog, the live zones
     void Step(float dt, const FounderInput& in); // dt in real seconds (the slow motion scales the world inside)
-    void Say(const std::string& s);
+    void Say(const std::string& s);              // (your log; silent while a rival steps)
     float Rand();
     // the sea
     Vector2 WindAt() const { return wind.At(time); }
@@ -319,5 +384,6 @@ int RunFlightColonyTest();                      // depth.exe --flight-colony-tes
 int RunFlightSim(int argc, char** argv);        // depth.exe --flight-sim <island> <days> [careful|lagoon] [founder] [seed]
 int RunFlightFairTest(int argc, char** argv);   // depth.exe --flight-fair [seed]: every arrangement and player count is fair
 int RunFlightScoutTest();                       // depth.exe --flight-scout-test: the stage-3 gate (a scout's report from each altitude)
+int RunFlightWar(int argc, char** argv);         // depth.exe --flight-war [scenario|all] [runs]: the five rules in scripted fights; the stage-4 gate
 
 }  // namespace fl

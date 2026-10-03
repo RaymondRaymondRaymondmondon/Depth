@@ -27,6 +27,7 @@ src/flight.cpp
 src/flight_game.cpp
 src/flight_colony.cpp
 src/flight_map.cpp
+src/flight_war.cpp
     src/data.cpp
     src/ui.cpp
     src/render.cpp

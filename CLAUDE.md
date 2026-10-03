@@ -422,7 +422,12 @@ amespace {} reopened before DrawRichEnemy). Shots: `foes_new_cave|island|weeds|a
 - **The sea:** Red Tide's `rt::Ecosystem` on `data/flight/sea/<island>/` (map key `flight_<island>`; `MapLoad` and the art-sheet lookup redirect `flight_` keys). The bird is a Diver agent in the web while it is low over the water.
 - **Data files** must be saved as UTF-8 without a BOM: the JSON reader rejects a BOM.
 - **Checks:** `depth.exe --flight-test`. Shots: `flight_*`, `arcade_flight`.
-- **Stages 1-3 are done:** flight and fishing; the colony; islands, scouting and the map. Stage 4 (war) is next.
+- **Stages 1-4 are done:** flight and fishing; the colony; islands, scouting and the map; war. Stage 5 (multiplayer) is next.
+- **War (stage 4):** `flight_war.cpp` and `data/flight/flight_war.json`.
+  - Warrior roles, flocks (`MakeFlock`, `OrderFlock`), morale (`Morale`), `StepWar` (fights, the five rules, raids, Watchers, home guards), hedges and towers (`Colony::builds`).
+  - **Rivals are `Side`s** swapped into the World's fields to step (`SwapSide`; `ColOf(side)` and `FounderOf(side)` find any side's data wherever it is), run by `BotGovern` and `BotWar`.
+  - **Never cache a `Bird*` across a kill:** `FindBird` returns null for the dead.
+- **Checks:** `--flight-war [scenario|all] [runs]` (the gate is `gate`).
 - **A game day is 120 s** (`day_seconds`): the user wants shorter days than the doc's 4 minutes, with the doc's per-day timings kept. Colony birds work at `work_pace` (240/day).
 - **The map (stage 3):** `flight_map.cpp`.
   - `World::Init(founder, seed, MapOpts)` makes the whole map: `LayoutMap` (arrangements, fairness), `Island::Generate(type, ...)`, and a generated `rt::MapData` (via `rt::RebuildMapGeometry`).

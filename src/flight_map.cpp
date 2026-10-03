@@ -102,9 +102,9 @@ void Island::Generate(IsleType t, uint32_t s, Vector3 centre) {
             addSite(p);
         }
         nest = sites[0];
-        for (int j = 0; j < 8; j++) {   // driftwood and shells on the lowest ledge
-            float a = j * 2 * PI / 8 + 0.2f, r = 36; Vector3 p{c.x + cosf(a) * r, 0, c.z + sinf(a) * r}; p.y = Height(p.x, p.z) + 0.2f;
-            if (j % 2) shellPts.push_back(p); else twigPts.push_back({p, 2.0f});
+        for (int j = 0; j < 12; j++) {   // driftwood and shells on the lowest ledge (no trees: the stack's twigs are what the sea brings)
+            float a = j * 2 * PI / 12 + 0.2f, r = 36; Vector3 p{c.x + cosf(a) * r, 0, c.z + sinf(a) * r}; p.y = Height(p.x, p.z) + 0.2f;
+            if (j % 3 == 2) shellPts.push_back(p); else twigPts.push_back({p, 3.0f});
         }
     } break;
     case IsleType::Town: {
@@ -346,7 +346,7 @@ std::vector<SpawnT> SpawnsFor(IsleType t, const std::string& tag) {
         if (tag == "North Shelf") return {{"Sardine", 60}, {"Snapper", 12}};
         if (tag == "The Drop-off") return {{"Squid", 20}, {"Barracuda", 4}, {"Sardine", 60}, {"Reef Shark", 1}};
         break;
-    case IsleType::Stack: return {{"Mackerel", 20}, {"Sardine", 30}, {"Squid", 8}, {"Tuna", 2}};
+    case IsleType::Stack: return {{"Mackerel", 32}, {"Sardine", 50}, {"Squid", 12}, {"Tuna", 3}};   // (deep water all round: the guano feeds it; no shallows, so it fishes at the rises)
     case IsleType::Town:
         if (tag == "Harbour") return {{"Mullet", 14}, {"Sardine", 30}, {"Crab", 10}};
         return {{"Mackerel", 16}, {"Sardine", 20}};
@@ -415,6 +415,7 @@ void World::Init(const std::string& founderKey, uint32_t seed, const MapOpts& o)
     m.key = base.key; m.title = "The Flight's sea"; m.species = base.species; m.attacks = base.attacks; m.diet = base.diet; m.foodNames = base.foodNames;
     m.tunables = base.tunables; m.tides = base.tides; m.extra = base.extra; m.faction = base.faction; m.enemySpecies = base.enemySpecies;
     std::vector<std::pair<int, std::string>> zoneIsle;   // (island, tag) per zone
+    zoneDay.clear();
     for (int i = 0; i < (int)isles.size(); i++) {
         std::vector<ZoneT> zs; ZonesFor(isles[i].type, zs);
         for (const auto& zt : zs) {
@@ -422,6 +423,7 @@ void World::Init(const std::string& founderKey, uint32_t seed, const MapOpts& o)
             z.plan = {isles[i].c.x + zt.r.x, isles[i].c.z + zt.r.y, zt.r.width, zt.r.height};
             z.y0 = zt.depth; z.y1 = 0;
             m.zones.push_back(z); zoneIsle.push_back({i, zt.tag});
+            zoneDay.push_back(isles[i].type == IsleType::Stack ? -2.6f : -3.8f);   // (round a stack the deep water wells up: shoals sit higher by day)
             for (const auto& sp : SpawnsFor(isles[i].type, zt.tag)) if (sp.count > 0) { rt::SpawnRow r; r.zone = z.name; r.species = sp.species; r.count = sp.count; r.respawnS = 0; m.spawns.push_back(r); }
         }
     }
@@ -433,7 +435,7 @@ void World::Init(const std::string& founderKey, uint32_t seed, const MapOpts& o)
     for (int j = 0; j < oz; j++) for (int i = 0; i < ox; i++) {
         rt::Zone z; z.name = TextFormat("Open sea %c%d", 'A' + i, j + 1);
         z.plan = {bx0 + i * OC, bz0 + j * OC, OC, OC}; z.y0 = -60; z.y1 = 0;
-        m.zones.push_back(z); zoneIsle.push_back({-1, "open"});
+        m.zones.push_back(z); zoneIsle.push_back({-1, "open"}); zoneDay.push_back(-3.8f);
         auto row = [&](const char* sp, int n) { rt::SpawnRow r; r.zone = z.name; r.species = sp; r.count = n; r.respawnS = 0; m.spawns.push_back(r); };
         row("Sardine", 30); row("Flying Fish", 10);
         if ((i + j) % 2 == 0) row("Tuna", 2);
@@ -457,6 +459,7 @@ void World::Init(const std::string& founderKey, uint32_t seed, const MapOpts& o)
         Kill("taken by a " + who);
     };
     // the colony on its island, the grounds' stocks (asleep, full), the live zones, the fog
+    stocks.clear();
     InitColony();
     for (auto& s : stocks) s.pop = s.K;
     liveZone.assign(m.zones.size(), 0); zoneNearT.assign(m.zones.size(), -1e9f);
@@ -470,20 +473,27 @@ void World::Init(const std::string& founderKey, uint32_t seed, const MapOpts& o)
     know.isle.assign(isles.size(), 0); know.sight.assign(isles.size(), Sighting{});
     know.ground.assign(m.zones.size(), GroundInfo{});
     know.isle[home] = 2;
-    // rivals: the other starting islands each hold a colony (it sits still until stage 4's bots): a few nests and caches
-    rivals.clear();
-    Rng R{seed * 7477u + 5};
+    // rivals (stage 4): every other starting island holds a bot colony, run by the same colony code (its own Founder, a
+    // random species, a livery) swapped in to step
+    rivals.clear(); sides.clear();
+    static const Color LIV[5] = {{206, 64, 56, 255}, {64, 112, 210, 255}, {70, 170, 90, 255}, {200, 130, 40, 255}, {150, 80, 180, 255}};
+    Rng RR{seed * 7477u + 5};
     for (int i = 0; i < (int)isles.size(); i++) {
         if (isles[i].start <= 0) continue;
-        Rival rv; rv.isle = i;
-        int nn = 3 + (int)(R() * 5);
-        for (int k = 0; k < nn && k < (int)isles[i].sites.size(); k++) rv.nests.push_back(isles[i].sites[(k * 3) % isles[i].sites.size()]);
-        int nc = 1 + (int)(R() * 2);
-        for (int k = 0; k < nc; k++) { Vector3 p = isles[i].nest; float a = k * 2.1f; Vector3 q = GroundAt(p.x + cosf(a) * 8, p.z + sinf(a) * 8); rv.caches.push_back(q); }
-        rv.birds = nn * 3 + (int)(R() * 6);
-        rivals.push_back(rv);
-    }
-    me.st = FState::Perched; me.pos = island.nest;
+        Side sd; sd.slot = isles[i].start; sd.name = TextFormat("Rival %d", isles[i].start); sd.livery = LIV[(isles[i].start - 1) % 5];
+        sides.push_back(std::move(sd));
+        int k = (int)sides.size() - 1;
+        SwapSide(k);
+        island = isles[i]; home = i;
+        me = Founder{}; me.def = (int)(RR() * Founders().size()) % (int)Founders().size();
+        me.st = FState::Perched; me.pos = island.nest; me.hunger = 1; me.stamina = Def().stamina; me.hp = Def().hp;
+        founderBot = true; fb = Bird{};
+        InitColony();
+        col.side = k + 1;
+        inshoreZone = -1; for (int z = 0; z < (int)zoneIsle.size(); z++) if (zoneIsle[z].first == i && inshoreZone < 0) inshoreZone = z;
+        lagoonZone = inshoreZone;
+        SwapSide(k);
+    }    me.st = FState::Perched; me.pos = island.nest;
     Reveal(me.pos, 120, home);
     StepMap(0);
     Say(TextFormat("%s, %s, %d islands. Fill your nest's courtship bowl (three fish) to call a mate.", ArrangementName(opts.arr), IsleTypeName(island.type), (int)isles.size()));
@@ -522,8 +532,15 @@ void World::Reveal(Vector3 p, float radius, int landedIsle) {
 static Sighting Observe(World& w, int isle, Alt alt, Rng& R) {
     Sighting s; s.t = w.time; s.alt = (int)alt; s.scouts = 1;
     int nests = 0, caches = 0, birds = 0;
-    for (const auto& rv : w.rivals) if (rv.isle == isle) { nests = (int)rv.nests.size(); caches = (int)rv.caches.size(); birds = rv.birds; }
-    if (isle == w.home) { for (const auto& n : w.col.nests) nests += n.built; caches = (int)w.col.caches.size(); birds = w.Alive(); }
+    // whose island it is (whichever colony is swapped in, the others wait in their sides)
+    for (int s = 0; s <= (int)w.sides.size(); s++) {
+        int h = s == w.cur ? w.home : s == 0 ? w.sides[w.cur - 1].home : w.sides[s - 1].home;
+        if (h != isle) continue;
+        Colony& C = w.ColOf(s);
+        for (const auto& n : C.nests) nests += n.built;
+        caches = (int)C.caches.size();
+        birds = 1; for (const auto& b : C.birds) birds += b.alive && b.stage != BStage::Egg;
+    }
     if (alt == Alt::High) {
         auto off = [&](int v) { if (v == 0) return 0; float k = 1 + (R() * 2 - 1) * 0.3f; int o = (int)roundf(v * k); return o == v ? (R() < 0.5f ? std::max(0, v - 1) : v + 1) : std::max(0, o); };
         s.nests = off(nests); s.caches = caches; s.birds = off(birds); s.exact = false;
@@ -607,6 +624,7 @@ void World::StepMap(float dt) {
         std::vector<Vector3> pts;
         if (me.st != FState::Dead) pts.push_back(me.pos);
         for (const auto& b : col.birds) if (b.alive && b.stage == BStage::Adult && (b.role == Role::Fisher || b.role == Role::Scout)) pts.push_back(b.task == Task::Search || b.task == Task::Dive || b.role == Role::Scout ? b.pos : b.goal);
+        for (int s = 0; s <= (int)sides.size(); s++) for (const auto& fl : ColOf(s).flocks) if (!fl.members.empty()) pts.push_back(fl.pos);   // (a fight wakes the water under it, whoever's it is)
         const rt::MapData& m = *eco.map;
         for (int z = 0; z < (int)m.zones.size(); z++) {
             bool near = false;
@@ -743,12 +761,15 @@ int RunFlightScoutTest() {
     int known = 0; for (auto s : w.know.isle) known += s > 0;
     check(w.know.isle[w.home] == 2 && known <= 3, TextFormat("the fog: your island charted, %d islands known at the start", known));
     int target = -1; for (int i = 0; i < (int)w.isles.size(); i++) if (w.isles[i].start == 1) target = i;
-    int trueNests = 0; for (const auto& rv : w.rivals) if (rv.isle == target) trueNests = (int)rv.nests.size();
+    // (the rival there: a few nests built for the test, so there's something to count)
+    auto seedRival = [&](World& v) { for (int s = 1; s <= (int)v.sides.size(); s++) if (v.sides[s - 1].home == target) { Colony& C = v.ColOf(s); for (int k = 1; k < 6 && k < (int)C.sites.size(); k++) { Nest n; n.site = k; n.pos = C.sites[k].pos; n.built = true; C.sites[k].nest = (int)C.nests.size(); C.nests.push_back(n); } } };
+    seedRival(w);
+    int trueNests = 0; for (int s = 1; s <= (int)w.sides.size(); s++) if (w.sides[s - 1].home == target) for (const auto& n : w.ColOf(s).nests) trueNests += n.built;
     float dist = Vector3Distance(w.isles[target].c, w.island.c);
     // ---- one scout at each height, each in its own world (so no cross-check)
     int cells[3] = {};
     for (int alt = 0; alt < 3; alt++) {
-        World v; fresh(v, 1);
+        World v; fresh(v, 1); seedRival(v);
         v.SendScout(target, -1, {}, (Alt)alt);
         float t0 = v.time; bool reported = false;
         while (v.time - t0 < World::DAY * 2 && !reported) { v.Step(0.1f, FounderInput{}); reported = v.know.sight[target].t >= 0; }
@@ -768,7 +789,7 @@ int RunFlightScoutTest() {
     check(cells[2] > cells[1] && cells[1] > cells[0], "the higher it flies, the more of the map it clears");
     // ---- two high scouts on the same island cross-check: the count becomes exact
     {
-        World v; fresh(v, 2);
+        World v; fresh(v, 2); seedRival(v);
         v.SendScout(target, -1, {}, Alt::High); v.SendScout(target, -1, {}, Alt::High);
         float t0 = v.time; int reports = 0;
         while (v.time - t0 < World::DAY * 2 && reports < 2) { size_t before = v.know.log.size(); v.Step(0.1f, FounderInput{}); for (size_t k = before; k < v.know.log.size(); k++) reports += v.know.log[k].text.find(" nests") != std::string::npos; }

@@ -249,5 +249,87 @@ Gate (doc p34): "A Scout report updates the map correctly from each altitude."
 **Carried over:**
 - *The colony on other home types:* the colony runs on any home island using that island's own sites and twig spots, but its numbers were tuned on the tropical island.
 - *The careful sim:* it varies from seed to seed: 40 birds on days 10-19.
-## Next: stage 4, war
-Formations, altitude and wind rules, morale, the warrior roles, raids, Watchers, hedges, towers; the rival colonies become bot colonies. Gate: two bot colonies fight and the higher, downwind flock wins (doc p34).
+## Stage 4: war (done; gate met)
+
+Gate (doc p34): "Two bot colonies fight and the higher, downwind flock wins."
+
+**Code:**
+- `src/flight_war.cpp`: the war, flocks, morale, raids, defences, the bots' governor and war, and `--flight-war`.
+- Numbers: `data/flight/flight_war.json`.
+- Colony and scene changes alongside.
+
+**Warriors** (doc pp. 11-12): Skirmisher, Tank, Striker, Watcher, Screamer and Flockmaster, with the doc's health, speed and attack.
+- Counters: ×1.6 against what a role is strong against, ×0.6 against what it's weak against.
+- They are fledged by the plan or retrained (a day).
+- At home they roost and heal over a day. Watchers perch by the nests, or on a tower.
+- The Bomber waits for the Works (stage 7).
+
+**Flocks** (doc p13):
+- 2-12 warriors with a leader: the Founder, who takes the lead with G within 70 m (+20 morale, +10% speed), or a Flockmaster (+10, +5%).
+- A formation (Chevron, Wall, Spiral, Scatter, Hammer, Cover), a height (low 12, mid 40, high 120 m), a stance (raid, hold, escort, retreat at half), and a target: home, a cache raid, a chick snatch, a ground to harass, an enemy flock, or a mark.
+- They fly at the slowest member's pace, with the wind: ±30% along it.
+- A flying army eats 1.6× (the campaign).
+
+**The five rules** (doc pp. 22-23):
+1. **Altitude:** the first strike diving from above does +50%. A bird zooms back up after a dive (its speed turns into height), and later re-dives do +25%. Strikes made upward do ×0.6, and climbing is slow (2.5 m/s). Strikers climb above their target before they dive.
+2. **Wind:** downwind is faster, and flapping upwind costs 0.6 breath a second more.
+3. **Stamina:** 25 s of flapping fight. Climbing and upwind cost breath; gliding and diving give it back. An exhausted bird flies at half speed and can't climb.
+4. **Morale:** base 50, plus a leader, plus Screamers (up to +15), plus wins (+10 each, up to 2); fed +5 / hungry -15; enemy Screamers nearby -4 each; -40 × the share of the flock lost; a killed leader -30. At 30 a flock retreats home; at 0 it scatters.
+5. **Blood:** a bird killed over water bleeds into Red Tide's scent field, and a fight over water for more than a minute keeps bleeding. Sharks come.
+
+**Formations:**
+- Chevron: +10% speed; hits from the side do +25%.
+- Wall: its Tanks stand in front; Strikers diving onto it do +25%.
+- Spiral: climbs 2× (3× on a thermal); +30% damage when hit from above.
+- Scatter: 20% dodge; organised flocks do +20% against it.
+- Hammer: Strikers fly 30 m above.
+- Cover: Tanks take 60% of the blows aimed at the escorted.
+
+**Raids** (doc p24):
+- *Cache raids:* Skirmishers take fish home. A hedge keeps them out, and a Watcher nets one (held 3 s).
+- *Chick snatches:* Strikers take chicks, but not while a Watcher guards the nest. Watchers are weak against Strikers, which kill them first.
+- *Fisher harassment:* Skirmishers make enemy fishers drop their catch (it bleeds) and flee their ground.
+
+**Defences:**
+- Hedges (10 twigs) round the home cache.
+- Towers (20 twigs, 5 shells): a Watcher on one gets ×1.5 sight and net range.
+- Builders raise them after nests. The bots raise a hedge at 12 birds and a tower at 20.
+- Idle warriors rise as a "Home guard" against an enemy flock over their island (every colony, yours too).
+
+**Rival colonies are bots:**
+- Each rival is a `Side` (its colony, island and Founder) swapped into the World to step, so all colonies run the same code. A bot Founder, a careful governor (`BotGovern`: nests, the fledging plan with warriors from 10 birds, retraining, defences) and `BotWar` (a raid every 20 s when it has 4+ idle warriors and food, waiting for a fair wind) drive it.
+- Rival fishers in sleeping waters catch from the stock numbers.
+- Grounds are chosen counting sleeping waters too. Fishers wait at home when nothing is worth the trip, and the bot Founder roosts at night.
+
+**The scene:**
+- *Birds:* rival birds in their livery colours, warriors shaped by role (Tanks wear shell armour), and the rival Founders.
+- *Combat:* feather bursts on hits, birds tumbling into the sea with a splash and a blood stain, nets, and health bars over the fighting.
+- *The Flocks page (Tab twice):*
+  - idle warriors and "form a flock";
+  - each flock's members, leader, morale bar, formation, height and stance, target, and buttons (pick, home, disband);
+  - defences (raise a hedge or a tower).
+- *The chart:* a Flock order mode (an island to raid, choosing caches or chicks; a ground to harass; an enemy flock to meet; your island to guard), with flocks drawn (an enemy's only where your birds see it now).
+- *The HUD:* a raid alarm, and the led flock's morale.
+
+**Checks:** `depth.exe --flight-war [scenario|all] [runs]`, over 20 runs each.
+
+| Scenario | Last run |
+|---|---|
+| altitude | 20/20 |
+| wind | 15-19/20 |
+| stamina | 19-20/20 |
+| morale | fed against hungry 20/20; a leader and a Screamer against an extra Skirmisher 10-13/20; killing the leader 65 → 25; retreat under 30 |
+| blood | a hungry shark drawn from 40 m to within 4 m |
+| formation | Hammer over Scatter, 16-17/20 |
+| raids | cache, net, hedge, chick snatch, harassment |
+| **gate** | **the higher, downwind flock wins 20/20** |
+| bots | 14 days of two bot colonies, which raise warriors and raid |
+
+`homes` and `rival` are balance and trace probes. Shots: `flight_battle`, `flight_flocks`, `flight_chartwar`.
+
+**Balance notes (for stage 8):**
+- *Home islands:* a sea stack colony grows to about 13 birds by day 8, where tropical, town and atoll colonies reach 24-27. The doc wants about 75%; this is about 54%, because the stack is short of twigs and has few fish within reach.
+- *Changes made:* the stack's waters got 1.6× the fish, upwelling (shoals at 2.6 m by day) and more driftwood.
+- *Morale:* morale is now decisive, and the Flockmaster is a liability if it dies early.
+## Next: stage 5, multiplayer
+The Flight on the Deep Arcade's shared session (host-authoritative, like the Trawl and Red Tide): six founders in a match on LAN. Gate: six players finish a 30-minute match (doc p34).
