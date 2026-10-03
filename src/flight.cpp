@@ -119,7 +119,7 @@ const char* FStateName(FState s) {
 float Founder::StatMul() const { return (chick ? 0.5f : 1.0f) * (hunger < 0.25f ? 0.7f : 1.0f) * (deaths >= 3 ? 0.9f : 1.0f); }
 float Founder::Cruise(const FounderDef& d) const { return d.cruise * std::max(0.5f, StatMul()); }
 float Founder::Sprint(const FounderDef& d) const { return d.sprint * std::max(0.5f, StatMul()); }
-int Founder::Carry(const FounderDef& d) const { return std::max(1, chick ? d.carry / 2 : d.carry); }
+int Founder::Carry(const FounderDef& d) const { return std::max(1, (chick ? d.carry / 2 : d.carry) + PerkSum(perks).carry); }   // (Iron Talons +1)
 
 // ---------------------------------------------------------------- the world
 float World::Rand() { rng ^= rng << 13; rng ^= rng >> 17; rng ^= rng << 5; return (rng & 0xFFFFFF) / 16777216.0f; }
@@ -198,6 +198,11 @@ void World::Kill(const std::string& cause) {
 }
 void World::Respawn() {
     me.st = FState::Perched; me.pos = island.nest; me.vel = {0, 0, 0}; me.airspeed = 0; me.pitch = 0;
+    if (PerkSum(me.perks).nineLives && !me.nineUsed) {   // (Nine Lives: one respawn whole)
+        me.nineUsed = true; me.chick = false; me.hunger = 1; me.stamina = Def().stamina; me.hp = Def().hp;
+        Say("Nine lives: the Founder is back in the nest, whole.");
+        return;
+    }
     me.chick = true; me.chickFish = 0; me.adultT = 0;
     me.hunger = std::max(me.hunger, 0.5f); me.stamina = Def().stamina * 0.5f; me.hp = Def().hp * 0.5f;
     Say("Back in the nest as a chick-leader: half speed, half carry. Three fish make you the Founder again.");
@@ -241,6 +246,7 @@ void World::ResolveStrike() {
         if (hit) {
             if (s.size <= me.Carry(d)) {
                 me.carrySp = a.sp; me.carrySize = s.size;
+    if (float pd = PerkSum(me.perks).pearl; pd > 0 && Rand() < pd) { col.pearls++; Say("The Founder dives the oyster beds: a pearl."); }   // (Pearl Diver)
                 eco.agents[fi].alive = false;   // (out of the sea: in the talons)
                 if (a.sp < (int)eco.deathsBySpecies.size()) eco.deathsBySpecies[a.sp]++;
                 fishCaught++;
@@ -264,7 +270,7 @@ void World::ResolveStrike() {
 void World::StepFounder(float dt, const FounderInput& in) {
     const FounderDef& d = Def();
     Founder& f = me;
-    float maxStam = d.stamina * (f.chick ? 0.5f : 1.0f);
+    float maxStam = d.stamina * (f.chick ? 0.5f : 1.0f) * PerkSum(f.perks).stamina;   // (Broad Wings)
     // hunger drains over a game day (a chick-leader's twice as fast); at 0 the Founder faints
     if (f.st != FState::Dead) {
         f.hunger -= dt / std::max(30.0f, Econ().founderHungerS) * (f.chick ? 2.0f : 1.0f);
@@ -363,7 +369,7 @@ void World::StepFounder(float dt, const FounderInput& in) {
 void World::FlyMotion(float dt, const FounderInput& in) {
     const FounderDef& d = Def();
     Founder& f = me;
-    float maxStam = d.stamina * (f.chick ? 0.5f : 1.0f) * (col.HasTier(Tree::Flight, 2) ? 1.5f : 1.0f);   // (Long wings)
+    float maxStam = d.stamina * (f.chick ? 0.5f : 1.0f) * (col.HasTier(Tree::Flight, 2) ? 1.5f : 1.0f) * PerkSum(f.perks).stamina;   // (Long wings; Broad Wings)
     float carryMul = 1 - 0.06f * f.carrySize;
     {
         // steering: toward the player's aim, banking into the turn
@@ -482,6 +488,7 @@ void World::Step(float realDt, const FounderInput& in) {
     if (wholeMap) StepDanger(dt);
     StepSeasons(dt);
     StepDecrees(dt);
+    StepPerks(dt);
     fogT += dt; fogNow = fogT >= 0.25f;
     if (fogNow) fogT = 0;
     StepColony(dt);   // (the caches spoil, the grounds regrow, the colony lives)

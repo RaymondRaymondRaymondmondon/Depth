@@ -206,7 +206,7 @@ void World::StepWar(float dt) {
             // a rout: at 30 it goes home on its own; at 0 it scatters (every bird for itself, and it's eaten)
             int band = FervourBandOf(s);
             float routAt = band == 0 ? std::max(40.0f, w.mRetreat) : w.mRetreat;   // (low fervour: flocks break sooner; at zeal, never)
-            bool steady = band >= 4 || (fl.stimT > 0 && (fl.stim == STIM_FURY || fl.stim == STIM_DRAUGHT));   // (Fury and the Draught won't retreat)
+            bool steady = band >= 4 || (fl.stimT > 0 && (fl.stim == STIM_FURY || fl.stim == STIM_DRAUGHT)) || (fl.leader == -2 && PerksOf(s).noRout);   // (Loud Voice)   // (Fury and the Draught won't retreat)
             if (!steady && !fl.retreating && (fl.morale <= routAt || (fl.stance == Stance::RetreatHalf && fl.lost * 2 >= fl.startSize))) {
                 fl.retreating = true; fl.target = Target::Home;
                 C.fervour = std::max(0.0f, C.fervour + FervourRout());
@@ -229,7 +229,8 @@ void World::StepWar(float dt) {
         Bird* a = att.b; Role ar = roleOf(att), vr = roleOf(vic);
         const RoleDef& R = RoleOf(ar);
         Flock* af = inFlock(att); Flock* vf = inFlock(vic);
-        float dmg = att.f ? Founders()[att.f->def].attack * (att.f->chick ? 0.5f : 1.0f) : R.attack * BendOfSide(att.side).attack;
+        float dmg = att.f ? Founders()[att.f->def].attack * (att.f->chick ? 0.5f : 1.0f) * PerksOf(att.side).attack : R.attack * BendOfSide(att.side).attack;   // (Hooked Beak)
+        if (af && af->leader == -2) dmg *= PerksOf(att.side).ledAttack;   // (the flock the Founder leads)
         if (af && af->stimT > 0) dmg *= StimAttack(af->stim);   // (Fury, the Draught)
         if (att.b && !IsWarrior(att.b->role) && DecreeOf(att.side).callToArms) dmg = RoleOf(Role::Skirmisher).attack * BendOfSide(att.side).attack;   // (Call to Arms: Skirmisher stats for the day)
         if (float g = DecreeOf(att.side).grudge; g > 0) dmg *= ColOf(att.side).lastRaider == vic.side ? 1 + g : 1 - g;   // (Grudge: +20% on whoever last raided you, -20% on the rest)

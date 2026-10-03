@@ -80,6 +80,7 @@ void OrderFound(Writer& w, int isle) { w.U8(FA_FOUND); w.I32(isle); }
 void OrderDose(Writer& w, int flock, int stim) { w.U8(FA_DOSE); w.I32(flock); w.U8((uint8_t)stim); }
 void OrderBrew(Writer& w, int stim) { w.U8(FA_BREW); w.U8((uint8_t)stim); }
 void OrderDecree(Writer& w, int k) { w.U8(FA_DECREE); w.U8((uint8_t)k); }
+void OrderPerk(Writer& w, int k) { w.U8(FA_PERK); w.U8((uint8_t)k); }
 bool FormationUnlocked(const Colony& c, Formation f) { return f == Formation::Chevron || f == Formation::Scatter || c.HasTier(Tree::War, 1); }
 
 std::string TargetText(World& w, const Flock& f) {
@@ -229,6 +230,7 @@ bool OrderIn(World& w, int side, int kind, Reader& r) {
     }
     case FA_DOSE: { int id = r.I32(); int s = (int)r.U8(); if (r.bad) return false; return w.Dose(id, s); }
     case FA_DECREE: { int k = (int)r.U8(); if (r.bad) return false; return w.PickDecree(k); }
+    case FA_PERK: { int k = (int)r.U8(); if (r.bad) return false; return w.PickPerk(k); }
     case FA_BREW: { int s = (int)r.U8(); if (r.bad || s <= STIM_NONE || s >= STIM_COUNT) return false; C.brewFor = s; w.Say(std::string("The Chemists will brew ") + StimName(s) + "."); return true; }
     default: return false;
     }
@@ -374,6 +376,7 @@ template <class A> void VisitFounder(A& a, Founder& f) {
     a.i(fl);
     if constexpr (A::reading) { f.flapping = fl & 1; f.sprinting = fl & 2; f.gliding = fl & 4; f.exhausted = fl & 8; f.chick = fl & 16; }
     a.i(f.carrySp); a.i(f.carrySize); a.i(f.carryTwigs); a.f(f.airT);
+    { int pk = (int)f.perks; a.i(pk); f.perks = (uint32_t)pk; for (int& o : f.perkOffer) a.i(o); a.i(f.perkLevel); a.b(f.nineUsed); }   // (the long match's perks)
     a.f(f.strikeT); a.f(f.strikeLen); a.v3(f.strikeAt); a.v3(f.strikeAim); a.f(f.strikeSpeed);
     a.f(f.struggleT); a.i(f.struggleSp); a.f(f.underT); a.f(f.faintT); a.f(f.respawnT);
     a.i(f.chickFish); a.f(f.adultT); a.i(f.deaths); a.i(f.agent); a.s(f.lastCause);

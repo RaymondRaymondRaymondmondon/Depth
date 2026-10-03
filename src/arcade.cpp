@@ -283,7 +283,7 @@ void DrawReels(Game& g) {
         cyc(276, "your island", flIsle, 4, FlightIsleTypeName(flIsle));
         cyc(326, "the arrangement", flArr, 4, FlightArrangementName(flArr));
         { int pv = flPlayers - 2; cyc(376, "starting islands (solo)", pv, 5, TextFormat("%d: you and %d bot colonies", flPlayers, flPlayers - 1)); flPlayers = pv + 2; }
-        { static const char* M[4] = {"Standard (no limit)", "Two seasons (7 days)", "Three seasons (11 days)", "Four seasons (16 days)"}; int mv = gFlSoloSeasons ? gFlSoloSeasons - 1 : 0; cyc(426, "the match", mv, 4, M[mv]); gFlSoloSeasons = mv ? mv + 1 : 0; }
+        { static const char* M[4] = {"Standard (no limit)", "Two seasons (11 days)", "Three seasons (17 days)", "Four seasons (24 days)"}; int mv = gFlSoloSeasons ? gFlSoloSeasons - 1 : 0; cyc(426, "the match", mv, 4, M[mv]); gFlSoloSeasons = mv ? mv + 1 : 0; }
         DrawWrapped(FlightFounderLine(flSel), {40, 478, 244, 48}, 13, SCREEN_DIM);
         if (Button({c.x - 110, c.y + 236, 220, 36}, "Fly (solo)", true, 15)) { StartFlight(g, FlightFounderKey(flSel), flIsle, flArr, flPlayers, gFlSoloSeasons); return; }
         if (Button({c.x + 120, c.y + 236, 170, 36}, "Roost wardrobe", true, 14)) { gFlWardrobe = true; return; }

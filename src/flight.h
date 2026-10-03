@@ -107,6 +107,16 @@ struct DecreeFx {
 struct DecreeDef { std::string key, name, effect, tradeoff; DecreeFx fx; DecreeFx tomorrow; };
 const std::vector<DecreeDef>& Decrees();
 int DecreeIndex(const std::string& key);
+// Founder perks (doc p38)
+struct PerkDef {
+    std::string key, name, effect;
+    float stamina = 1, attack = 1, ledAttack = 1, chickGrow = 1, pearl = 0, barter = 1, sightM = 0; int carry = 0;
+    bool sharpEyes = false, noRout = false, weatherSense = false, nineLives = false, thiefsEye = false, oldSalt = false;
+};
+const std::vector<PerkDef>& Perks();
+int PerkIndex(const std::string& key);
+const std::vector<int>& PerkDays();
+PerkDef PerkSum(uint32_t bits);                 // every perk in the bits folded into one (multipliers multiplied, flags or-ed)
 float WinterHoldings();
 int RunFlightLongTest();                        // depth.exe --flight-long-test                         // (a four-season match: Winter's islands and nests count this many times)
 struct IsleSpec { IsleType type = IsleType::Islet; Vector3 c{}; int start = -1; std::string name; };
@@ -167,6 +177,8 @@ struct Founder {
     float Cruise(const FounderDef& d) const;
     float Sprint(const FounderDef& d) const;
     int Carry(const FounderDef& d) const;
+    // the long match: perks picked at days 3, 7 and 11 (a bit each, flight_long.json "perks"), and the three on offer
+    uint32_t perks = 0; int perkOffer[3] = {-1, -1, -1}; int perkLevel = 0, saltDay = 0; bool nineUsed = false; float stormWarned = -1;
     float StatMul() const;                      // starving -30%, three deaths -10%, a chick half
 };
 struct FounderInput {
@@ -500,11 +512,16 @@ struct World {
     void InitSeasons();
     void StepSeasons(float dt);
     float RegrowMul(int zone) const;
+    void RespawnNow() { Respawn(); }            // (tests)
     const DecreeFx& DecreeOf(int side) const;   // today's decree for any side (none: no change); yesterday's after-effects folded in
     const DecreeFx& DecreeNow() const { return DecreeOf(cur); }
     void StepDecrees(float dt);                 // dawn: deal three to every colony; bots (and anyone who hasn't picked by mid-morning) choose
     bool PickDecree(int k);                     // the colony in the fields takes offer k (0-2)
     int BotDecree() const;                      // (what a bot would pick from its offer)
+    PerkDef PerksOf(int side) const { return PerkSum(FounderOf(side).perks); }
+    void StepPerks(float dt);                   // the Founder levels at days 3, 7 and 11: three perks offered (a bot picks at once)
+    bool PickPerk(int k);                       // the Founder in the fields takes offer k
+    int BotPerk() const;
     std::vector<std::string> lookOf;            // (stage 8) per absolute side: "costume;livery colour;livery hat" (cosmetic; from the hello)
     std::string& LookOf(int s) { if ((int)lookOf.size() <= s) lookOf.resize(s + 1); return lookOf[s]; }
     std::vector<int> outpostIsle;               // (scratch)

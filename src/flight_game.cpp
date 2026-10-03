@@ -1066,6 +1066,22 @@ void DrawHud(const fl::World& w) {
             wy += 30;
         }
     }
+    // the long match: the Founder grows (doc p38): three perks; one click picks one
+    if (w.seasons > 0 && w.me.perkOffer[0] >= 0 && !S.chart) {
+        const auto& P = fl::Perks();
+        float cw = 250, ch = 96, x0 = SCREEN_W / 2.0f - cw * 1.5f - 12, y0 = 150;
+        DrawTextCenteredBold(TextFormat("The Founder grows (level %d): choose a perk", w.me.perkLevel + 1), SCREEN_W / 2.0f, y0 - 28, 20, Color{200, 240, 255, 255});
+        for (int k = 0; k < 3; k++) {
+            int i = w.me.perkOffer[k]; if (i < 0 || i >= (int)P.size()) continue;
+            Rectangle r{x0 + k * (cw + 12), y0, cw, ch};
+            bool hover = CheckCollisionPointRec(GetMousePosition(), r);
+            DrawRectangleRounded(r, 0.08f, 6, Fade(hover ? Color{34, 54, 70, 255} : Color{20, 28, 40, 255}, 0.92f));
+            DrawRectangleRoundedLinesEx(r, 0.08f, 6, 2, hover ? Color{170, 230, 255, 255} : Color{110, 160, 200, 255});
+            DrawTextCenteredBold(P[i].name, r.x + cw / 2, r.y + 10, 18, Color{200, 240, 255, 255});
+            DrawWrapped(P[i].effect, {r.x + 12, r.y + 38, cw - 24, 52}, 14, Color{220, 236, 240, 255});
+            if (hover && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) { Writer o; fl::OrderPerk(o, k); Order(o); PlayCue("ui.click"); }
+        }
+    }
     // the long match: at dawn, today's three decrees (doc pp. 36-38): one click picks one; by mid-morning, a Day of Rest
     if (w.seasons > 0 && w.col.decree < 0 && w.col.offer[0] >= 0 && !S.chart) {
         const auto& D = fl::Decrees();

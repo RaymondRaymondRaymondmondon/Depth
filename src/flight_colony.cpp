@@ -332,7 +332,7 @@ void World::FisherStep(Bird& b, float dt) {
             col.caches[ci].fish.push_back({b.carrySp, b.carrySize, 0});
             col.feedToday += b.carrySize; col.caughtToday++; b.caught++;
             if ((col.HasTier(Tree::Fishing, 2) || DecreeNow().pearlDive) && Rand() < DeepDivePearl()) { col.pearls++; Say("A fisher brings up a pearl from the oyster beds."); }   // (Deep dive)
-            else if (&b == &fb && Rand() < 0.1f) { col.pearls++; Say("The Founder brings up a pearl with the catch."); }   // (the Founder dives deep: doc p6)
+            else if (&b == &fb && Rand() < std::max(0.1f, PerkSum(me.perks).pearl)) { col.pearls++; Say("The Founder brings up a pearl with the catch."); }   // (the Founder dives deep: doc p6)
         else if (Rand() < Econ().pearlCatch) col.pearls++;   // (now and then an oyster comes up with the fish)
             b.carrySp = -1; b.carrySize = 0; b.task = Task::Idle;
         }
@@ -690,7 +690,7 @@ void World::StepBird(Bird& b, float dt) {
     case BStage::Chick: {
         Nest& n = col.nests[b.nest];
         b.pos = Vector3Add(n.pos, {0.15f * cosf(b.id * 1.7f), 0.2f, 0.15f * sinf(b.id * 1.7f)});
-        b.age += dt / DAY * (b.hunger > 0.9f ? 1 + E.overfeed : 1.0f) * DecreeNow().grow;   // (Feast Day: a day's growth in half)
+        b.age += dt / DAY * (b.hunger > 0.9f ? 1 + E.overfeed : 1.0f) * DecreeNow().grow * (PerkSum(me.perks).chickGrow > 1 && Vector3Distance(b.pos, me.pos) < PerkSum(me.perks).sightM ? PerkSum(me.perks).chickGrow : 1.0f);   // (Mother's Instinct)   // (Feast Day: a day's growth in half)
         if (b.age >= E.chickDays + BendNow().fledgeDays) Fledge(b);
     } break;
     case BStage::Mate: MateStep(b, dt); break;
@@ -1279,7 +1279,7 @@ int RunFlightSim(int argc, char** argv) {
     int starved = 0; for (const auto& d : w.col.deaths) if (d.first == "starved") starved += d.second;
     int day40 = 0; for (const auto& d : w.col.days) if (!day40 && d.birds >= 40) day40 = d.day;
     if (lagoon) printf("  GATE (outfishing the lagoon starves the colony): %s - the lagoon at %.0f%%, %d starved, %d birds left of %d\n", starved > peak / 2 && w.StockOf(w.lagoonZone) < 0.15f ? "yes" : "no", w.StockOf(w.lagoonZone) * 100, starved, w.Alive(), peak);
-    else printf("  GATE (a careful colony grows to 40): %s%s (design target: 40 by day 6, 100 by day 10)\n", day40 ? "yes, on day " : "no", day40 ? std::to_string(day40).c_str() : "");
+    else printf("  GATE (a careful colony grows to 40): %s%s (target: 40 by day 10, 100 by day 16: the doc's 6 and 10 stretched to fit the progression, the user's call)\n", day40 ? "yes, on day " : "no", day40 ? std::to_string(day40).c_str() : "");
     static const char* TN[] = {"idle", "fly", "search", "dive", "deliver", "eat", "gather", "build", "sit", "fetch", "feed"};
     for (int r = 1; r < (int)Role::COUNT; r++) {
         float tot = 0; for (int k = 0; k < 11; k++) tot += taskT[r][k];

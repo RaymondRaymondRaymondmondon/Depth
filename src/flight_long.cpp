@@ -273,6 +273,99 @@ void World::StepDecrees(float dt) {
         });
     }
 }
+// ---------------------------------------------------------------- Founder perks (doc p38)
+namespace {
+struct PerkData { std::vector<PerkDef> perks; std::vector<int> days{3, 7, 11}; };
+const PerkData& PD() {
+    static PerkData d; static bool loaded = false;
+    if (loaded) return d;
+    loaded = true;
+    Json j = LoadJsonFile(FlightDataDir() + "/flight_long.json");
+    if (j["perk_days"].IsArr()) { d.days.clear(); for (const Json& x : j["perk_days"].a) d.days.push_back(x.I()); }
+    for (const Json& p : j["perks"].a) {
+        PerkDef x; x.key = p["key"].Str0(); x.name = p["name"].Str0(x.key); x.effect = p["effect"].Str0();
+        x.stamina = p["stamina"].F(1); x.attack = p["attack"].F(1); x.ledAttack = p["led_attack"].F(1); x.chickGrow = p["chick_grow"].F(1); x.pearl = p["pearl"].F(0);
+        x.barter = p["barter"].F(1); x.sightM = p["sight_m"].F(0); x.carry = p["carry"].I(0);
+        x.sharpEyes = p["sharp_eyes"].Bool0(false); x.noRout = p["no_rout"].Bool0(false); x.weatherSense = p["weather_sense"].Bool0(false);
+        x.nineLives = p["nine_lives"].Bool0(false); x.thiefsEye = p["thiefs_eye"].Bool0(false); x.oldSalt = p["old_salt"].Bool0(false);
+        d.perks.push_back(x);
+    }
+    return d;
+}
+}  // namespace
+const std::vector<PerkDef>& Perks() { return PD().perks; }
+const std::vector<int>& PerkDays() { return PD().days; }
+int PerkIndex(const std::string& key) { const auto& v = Perks(); for (int i = 0; i < (int)v.size(); i++) if (v[i].key == key) return i; return -1; }
+PerkDef PerkSum(uint32_t bits) {
+    PerkDef s;
+    if (!bits) return s;
+    const auto& v = Perks();
+    for (int i = 0; i < (int)v.size() && i < 32; i++) if ((bits >> i) & 1) {
+        const PerkDef& p = v[i];
+        s.stamina *= p.stamina; s.attack *= p.attack; s.ledAttack *= p.ledAttack; s.chickGrow *= p.chickGrow; s.barter *= p.barter;
+        s.pearl = std::max(s.pearl, p.pearl); s.carry += p.carry;
+        if (p.chickGrow > 1) s.sightM = std::max(s.sightM, p.sightM);
+        s.sharpEyes |= p.sharpEyes; s.noRout |= p.noRout; s.weatherSense |= p.weatherSense; s.nineLives |= p.nineLives; s.thiefsEye |= p.thiefsEye; s.oldSalt |= p.oldSalt;
+    }
+    return s;
+}
+
+int World::BotPerk() const {
+    // a bot's build: fighters and breath first, then the colony's growth, then the rest
+    static const char* PREF[] = {"hooked_beak", "broad_wings", "mothers_instinct", "loud_voice", "iron_talons", "pearl_diver", "nine_lives", "sharp_eyes", "weather_sense", "diplomat", "thiefs_eye", "old_salt"};
+    int best = -1, br = 99;
+    for (int k = 0; k < 3; k++) {
+        int i = me.perkOffer[k]; if (i < 0) continue;
+        for (int r = 0; r < 12; r++) if (Perks()[i].key == PREF[r] && r < br) { br = r; best = k; }
+    }
+    return best >= 0 ? best : (me.perkOffer[0] >= 0 ? 0 : -1);
+}
+bool World::PickPerk(int k) {
+    Founder& F = me;
+    if (k < 0 || k > 2 || F.perkOffer[k] < 0) return false;
+    int i = F.perkOffer[k];
+    F.perks |= 1u << i; F.perkLevel++;
+    for (int& o : F.perkOffer) o = -1;
+    if (Perks()[i].stamina > 1) F.stamina = Def().stamina * PerkSum(F.perks).stamina;
+    Say(TextFormat("The Founder grows: %s (%s).", Perks()[i].name.c_str(), Perks()[i].effect.c_str()));
+    return true;
+}
+
+void World::StepPerks(float dt) {
+    if (seasons <= 0) return;
+    const auto& days = PerkDays();
+    int day = GameDay();
+    int due = 0; for (int d : days) due += day >= d;
+    for (int s = 0; s <= (int)sides.size(); s++) {
+        WithSide(s, [&] {
+            Founder& F = me;
+            if (F.perkLevel < due && F.perkOffer[0] < 0) {   // (a level: three perks it doesn't have)
+                std::vector<int> pool; for (int i = 0; i < (int)Perks().size() && i < 32; i++) if (!((F.perks >> i) & 1)) pool.push_back(i);
+                for (int k = 0; k < 3 && !pool.empty(); k++) { int q = (int)(Rand() * pool.size()) % (int)pool.size(); F.perkOffer[k] = pool[q]; pool.erase(pool.begin() + q); }
+                if (BotFlown(s) || !HumanOf(s)) { int k = BotPerk(); if (k >= 0) PickPerk(k); }
+                else Say("The Founder has grown: pick a perk (one of three).");
+            }
+            if (F.perkOffer[0] >= 0 && day > days[std::min(F.perkLevel, (int)days.size() - 1)]) PickPerk(0);   // (not picked within its day: the first)
+            PerkDef P = PerkSum(F.perks);
+            // Weather Sense: storms warned a day ahead
+            if (P.weatherSense && weather.next - time < DAY && weather.next > time && F.stormWarned != weather.next) { F.stormWarned = weather.next; Say("Weather sense: a storm comes within the day."); }
+            // Old Salt: at dawn, where tomorrow's fish will be
+            if (P.oldSalt && F.saltDay != day) {
+                F.saltDay = day;
+                int best = -1; float bv = -1;
+                for (int z = 0; z < (int)eco.map->zones.size(); z++) { float v = StockOf(z) * RegrowMul(z); if (v > bv) { bv = v; best = z; } }
+                if (best >= 0) Say("Old salt: the fish will run thickest at " + eco.map->zones[best].name + " tomorrow.");
+            }
+            // Sharp Eyes and Thief's Eye: what the Founder flies near is known exactly (a Scout's eye at any height; caches through walls)
+            if ((P.sharpEyes || P.thiefsEye) && wholeMap && !mirror) {
+                float r = P.thiefsEye ? std::max(P.sightM, 150.0f) : 150.0f;
+                for (int i = 0; i < (int)isles.size(); i++) if (i != home && Vector2Distance({me.pos.x, me.pos.z}, {isles[i].c.x, isles[i].c.z}) < isles[i].radius + r && fmodf(time, 1.0f) < dt) {
+                    Sighting x = TrueSighting(i); know.sight[i] = x; if (know.isle[i] < 1) know.isle[i] = 1;
+                }
+            }
+        });
+    }
+}
 // ---------------------------------------------------------------- --flight-long-test (the expansion's long match)
 int RunFlightLongTest() {
     int fails = 0;
@@ -281,23 +374,23 @@ int RunFlightLongTest() {
     std::string why;
     if (!rt::DataOk(&why)) { printf("FAIL: no data: %s\n", why.c_str()); return 1; }
     const auto& S = Seasons();
-    check(S.size() == 4 && S[0].name == "Spring" && S[3].name == "Winter" && S[1].firstDay == 4 && S[2].firstDay == 8 && S[3].firstDay == 12,
-          "four seasons: Spring 1-3, Summer 4-7, Autumn 8-11, Winter 12-16");
-    check(SeasonDays(2) == 7 && SeasonDays(3) == 11 && SeasonDays(4) == 16, "a match by seasons: two 7 days, three 11, four 16");
+    check(S.size() == 4 && S[0].name == "Spring" && S[3].name == "Winter" && S[1].firstDay == 6 && S[2].firstDay == 12 && S[3].firstDay == 18,
+          "four seasons: Spring 1-5, Summer 6-11, Autumn 12-17, Winter 18-24 (the doc's days stretched to fit the colony's growth)");
+    check(SeasonDays(2) == 11 && SeasonDays(3) == 17 && SeasonDays(4) == 24, "a match by seasons: two 11 days, three 17, four 24");
     auto make = [](int seasons, uint32_t seed = 41) { auto w = std::make_unique<World>(); MapOpts o; o.players = 2; o.seasons = seasons; w->Init("taloned", seed, o); return w; };
     {
         auto w = make(4);
-        bool ok = w->matchLen == 16 * World::DAY;
-        int got[5] = {}; for (int d : {1, 5, 9, 13}) { w->time = (d - 0.5f) * World::DAY; got[d / 4] = w->Season(); }
-        check(ok && got[0] == SEASON_SPRING && got[1] == SEASON_SUMMER && got[2] == SEASON_AUTUMN && got[3] == SEASON_WINTER, "a four-season match runs 16 days; days 1, 5, 9 and 13 fall in spring, summer, autumn and winter");
+        bool ok = w->matchLen == 24 * World::DAY;
+        int got[5] = {}; int di = 0; for (int d : {1, 8, 14, 20}) { w->time = (d - 0.5f) * World::DAY; got[di++] = w->Season(); }
+        check(ok && got[0] == SEASON_SPRING && got[1] == SEASON_SUMMER && got[2] == SEASON_AUTUMN && got[3] == SEASON_WINTER, "a four-season match runs 24 days; days 1, 8, 14 and 20 fall in spring, summer, autumn and winter");
         auto s = make(0);
         check(s->Season() == -1 && s->matchLen == 0 && s->RegrowMul(0) == 1, "a standard match has no seasons and no limit");
         // the season's pull on the sea, the wind and the work
         int nearZ = -1, farZ = -1; for (int z = 0; z < (int)w->zoneNear.size(); z++) { if (w->zoneNear[z] && nearZ < 0) nearZ = z; if (!w->zoneNear[z] && farZ < 0) farZ = z; }
-        w->time = 5.5f * World::DAY; w->seasonEvent = -1;
+        w->time = 8.5f * World::DAY; w->seasonEvent = -1;
         check(nearZ >= 0 && farZ >= 0 && w->RegrowMul(nearZ) < 1 && w->RegrowMul(farZ) > 1, TextFormat("summer thins the grounds near the shores (x%.1f) and fattens the blue (x%.1f)", w->RegrowMul(nearZ), w->RegrowMul(farZ)));
-        w->time = 9.5f * World::DAY; float autumnWind = w->SeasonNow().windK; w->time = 1.5f * World::DAY; float springWind = w->SeasonNow().windK;
-        w->time = 13.5f * World::DAY;
+        w->time = 14.5f * World::DAY; float autumnWind = w->SeasonNow().windK; w->time = 1.5f * World::DAY; float springWind = w->SeasonNow().windK;
+        w->time = 20.5f * World::DAY;
         check(autumnWind > 1.4f && springWind < 0.8f && w->SeasonNow().stamina > 1.2f && w->SeasonNow().fishDepth > 1, "spring's wind is light and autumn's a gale; winter costs breath and sends the fish deep");
     }
     {   // the events, each once on its day
@@ -305,7 +398,7 @@ int RunFlightLongTest() {
         w->ape.isle = -1; w->kraken.isle = -1; w->weather.next = 1e9f;
         int fired[EV_SEASON_COUNT] = {}; bool darkLongNight = true, sharksDeep = true, tunaMoved = false; int tunaBorn = 0, matesBefore = w->ColOf(0).wildMates, matesAfter = 0; float tunaX0 = 0;
         int last = -1;
-        for (float t = 0; t < World::DAY * 16 && !w->over; t += 0.25f) {
+        for (float t = 0; t < World::DAY * 24 && !w->over; t += 0.25f) {
             w->time += 0.25f; w->StepSeasons(0.25f);
             if (w->seasonEvent != last && w->seasonEvent >= 0) { fired[w->seasonEvent]++; if (w->seasonEvent == EV_MIGRATION) matesAfter = w->ColOf(0).wildMates;
                 if (w->seasonEvent == EV_TUNA_RUN) { tunaBorn = (int)w->tuna.size(); if (!w->tuna.empty()) tunaX0 = w->eco.agents[w->tuna[0]].home.x; } }
@@ -330,16 +423,16 @@ int RunFlightLongTest() {
     }
     {   // winter's holdings count double at the end of a four-season match
         auto w = make(4, 13);
-        w->time = 5 * World::DAY; ScoreCard a = w->Score(0);
-        w->time = 14 * World::DAY; ScoreCard b = w->Score(0);
+        w->time = 8 * World::DAY; ScoreCard a = w->Score(0);
+        w->time = 20 * World::DAY; ScoreCard b = w->Score(0);
         check(a.nests > 0 && b.nests == (int)lroundf(a.nests * WinterHoldings()), TextFormat("Winter's nests count double (%d in summer, %d in winter)", a.nests, b.nests));
     }
     {   // two bot colonies through a two-season match: it ends on its last day
         auto w = make(2, 21);
         w->founderBot = true; w->me.st = FState::Fly; w->me.pos = Vector3Add(w->island.nest, {0, 2, 0});
         float t0 = 0;
-        for (; t0 < World::DAY * 8 && !w->over; t0 += 0.1f) { w->BotGovern(0.1f); w->BotWar(0, 0.1f); w->Step(0.1f, FounderInput{}); }
-        check(w->over && fabsf(w->time - 7 * World::DAY) < 2, TextFormat("a two-season bot match ends on day 7 (%s; %d and %d birds)", w->overReason.c_str(), w->Alive(), (int)w->ColOf(1).birds.size()));
+        for (; t0 < World::DAY * 12 && !w->over; t0 += 0.1f) { w->BotGovern(0.1f); w->BotWar(0, 0.1f); w->Step(0.1f, FounderInput{}); }
+        check(w->over && fabsf(w->time - 11 * World::DAY) < 2, TextFormat("a two-season bot match ends on day 11 (%s; %d and %d birds)", w->overReason.c_str(), w->Alive(), (int)w->ColOf(1).birds.size()));
     }
     // ---- decrees (doc pp. 36-38)
     {
@@ -357,8 +450,8 @@ int RunFlightLongTest() {
         check(C.decree == DecreeIndex("day_of_rest"), "no choice by mid-morning: a Day of Rest");
         // a match of picks: never the same decree twice (the Day of Rest aside)
         std::map<int, int> seen; bool repeat = false;
-        for (int day = 2; day <= 16; day++) { w->time = (day - 1 + 0.05f) * World::DAY; w->StepDecrees(0.1f); if (w->PickDecree(0) && C.decree != DecreeIndex("day_of_rest") && ++seen[C.decree] > 1) repeat = true; }
-        check(!repeat && seen.size() >= 12, TextFormat("sixteen days of decrees, %d different, none repeated", (int)seen.size()));
+        for (int day = 2; day <= 24; day++) { w->time = (day - 1 + 0.05f) * World::DAY; w->StepDecrees(0.1f); if (w->PickDecree(0) && C.decree != DecreeIndex("day_of_rest") && ++seen[C.decree] > 1) repeat = true; }
+        check(!repeat && seen.size() >= 12, TextFormat("24 days of decrees, %d different, none repeated", (int)seen.size()));
         // their effects: catch, after-effects, the one-off costs and gifts, visibility
         auto force = [&](World& v, const char* key) { Colony& K = v.col; K.yesterday = K.decree; K.decree = -1; K.offer[0] = DecreeIndex(key); K.offer[1] = K.offer[2] = -1; return v.PickDecree(0); };
         auto v = make(4, 23); v->ape.isle = -1; v->kraken.isle = -1;
@@ -385,11 +478,33 @@ int RunFlightLongTest() {
         auto w = make(2, 31);
         w->founderBot = true; w->me.st = FState::Fly; w->me.pos = Vector3Add(w->island.nest, {0, 2, 0});
         int days = 0, decreed = 0, lastDay = 0;
-        for (float t = 0; t < World::DAY * 7 && !w->over; t += 0.1f) {
+        for (float t = 0; t < World::DAY * 11 && !w->over; t += 0.1f) {
             w->BotGovern(0.1f); w->BotWar(0, 0.1f); w->Step(0.1f, FounderInput{});
             if (w->GameDay() != lastDay && fmodf(w->time, World::DAY) > World::DAY * 0.5f) { lastDay = w->GameDay(); days++; for (int s = 0; s <= (int)w->sides.size(); s++) decreed += w->ColOf(s).decree >= 0; }
         }
-        check(decreed == days * ((int)w->sides.size() + 1) && days >= 6, TextFormat("a two-season bot match: a decree for every colony every day (%d of %d)", decreed, days * ((int)w->sides.size() + 1)));
+        check(decreed == days * ((int)w->sides.size() + 1) && days >= 10, TextFormat("a two-season bot match: a decree for every colony every day (%d of %d)", decreed, days * ((int)w->sides.size() + 1)));
+    }    // ---- Founder perks (doc p38)
+    {
+        check(Perks().size() == 12 && PerkDays().size() == 3 && PerkDays()[0] == 5 && PerkDays()[2] == 17, "twelve Founder perks, offered at days 5, 11 and 17");
+        auto w = make(4, 51); w->ape.isle = -1; w->kraken.isle = -1;
+        w->time = 3.5f * World::DAY; w->StepPerks(0.1f);
+        bool none = w->me.perkOffer[0] < 0;
+        w->time = 4.2f * World::DAY; w->StepPerks(0.1f);
+        bool offered = w->me.perkOffer[0] >= 0 && w->me.perkOffer[1] >= 0 && w->me.perkOffer[2] >= 0;
+        bool botsGrew = true; for (int s = 1; s <= (int)w->sides.size(); s++) botsGrew &= w->FounderOf(s).perkLevel == 1 && w->FounderOf(s).perks != 0;
+        check(none && offered && botsGrew, "on day 5 the Founder is offered three perks (none before); the bots pick at once");
+        auto give = [&](const char* key) { w->me.perkOffer[0] = PerkIndex(key); w->me.perkOffer[1] = w->me.perkOffer[2] = -1; return w->PickPerk(0); };
+        int carry0 = w->me.Carry(w->Def()); give("iron_talons");
+        check(w->me.Carry(w->Def()) == carry0 + 1, TextFormat("Iron Talons: carry %d to %d", carry0, w->me.Carry(w->Def())));
+        give("broad_wings"); give("hooked_beak");
+        check(fabsf(w->PerksOf(0).stamina - 1.5f) < 0.01f && fabsf(w->PerksOf(0).attack - 1.3f) < 0.01f && fabsf(w->PerksOf(0).ledAttack - 1.1f) < 0.01f, "Broad Wings +50% stamina, Hooked Beak +30% attack and +10% for the flock it leads; perks stack");
+        give("nine_lives");
+        w->me.st = FState::Dead; w->RespawnNow();
+        bool whole = !w->me.chick && w->me.nineUsed;
+        w->me.st = FState::Dead; w->RespawnNow();
+        check(whole && w->me.chick, "Nine Lives: one respawn whole; the next as a chick-leader");
+        give("loud_voice");
+        check(w->PerksOf(0).noRout, "Loud Voice: the Founder's flocks never rout");
     }    printf(fails ? "flight-long-test: %d check(s) failed\n" : "flight-long-test: all checks passed\n", fails);
     return fails ? 1 : 0;
 }

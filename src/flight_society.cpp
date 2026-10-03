@@ -580,7 +580,7 @@ void World::BotSociety(float dt) {
     // offers to this colony: fair or better, and it can pay
     auto value = [](const int g[G_COUNT]) { return g[G_FISH] * 1.0f + g[G_TWIGS] * 0.5f + g[G_SHELLS] * 1.0f + g[G_PEARLS] * 8.0f; };
     for (auto& o : offers) if (o.state == 0 && o.to == cur) {
-        bool fair = value(o.give) + o.truceDays * 3 >= value(o.get) * 1.1f;
+        bool fair = value(o.give) * PerksOf(o.from).barter + o.truceDays * 3 >= value(o.get) * 1.1f;   // (a Diplomat's offers +20%)
         AnswerOffer(cur, o.id, fair && PayGoods(cur, o.get, false));
     }
     (void)dt;
