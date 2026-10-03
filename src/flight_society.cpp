@@ -106,6 +106,9 @@ const Bend& BendOf(int def) {
             Fl("trade", b.trade); Fl("trader_carry", b.traderCarry); Fl("convert", b.convert); Fl("rest", b.rest); Fl("guano", b.guano); Fl("research", b.research);
             Fl("stamina", b.stamina); Fl("wind", b.wind); Fl("scout", b.scout); Fl("reach", b.reach); Fl("nest_twigs", b.nestTwigs); Fl("predator_range", b.predatorRange);
             In("carry", b.carry); Fl("clutch", b.clutch); Fl("fledge_days", b.fledgeDays);
+            In("feeder_carry", b.feederCarry); Fl("cache_cap", b.cacheCap); Fl("colony_speed", b.colonySpeed); Fl("daylight", b.daylight);
+            Bo("plunge_strike", b.plungeStrike); Bo("no_low_strike", b.noLowStrike); Bo("pouch", b.pouch); Bo("steal", b.steal); Bo("piracy", b.piracy); Bo("no_water", b.noWater);
+            Bo("swim", b.swim); Bo("no_air_war", b.noAirWar); Bo("night_day", b.nightDay); Bo("silent_wings", b.silentWings); Bo("phoenix_chicks", b.phoenixChicks); Bo("rebirth", b.rebirth); Bo("fervour_decay", b.fervourDecay);
             Bo("night_fishing", b.nightFishing); Bo("egg_theft", b.eggTheft); Bo("no_faith", b.noFaith); Bo("boom", b.boom); Bo("golden_nest", b.goldenNest);
             Bo("talon_lock", b.talonLock); Bo("skim", b.skim); Bo("tear", b.tear); Bo("serenade", b.serenade); Bo("dusk_raid", b.duskRaid); Bo("cornering", b.cornering);
             Bo("pilgrimage", b.pilgrimage); Bo("brood", b.brood); Bo("long_reach", b.longReach);
@@ -144,13 +147,14 @@ bool World::StartResearch(Tree t) {
 }
 bool World::RoleUnlocked(Role r) const {
     switch (r) {
-    case Role::Skirmisher: case Role::Striker: return col.HasTier(Tree::War, 2);
+    case Role::Striker: return col.HasTier(Tree::War, 2) && !BendNow().noAirWar;   // (the Penguin dives no Strikers)
+    case Role::Skirmisher: return col.HasTier(Tree::War, 2);
     case Role::Flockmaster: return col.HasTier(Tree::War, 4);
     case Role::Pirate: return col.HasTier(Tree::War, 3);
     case Role::Trader: return col.HasTier(Tree::Trade, 1);
     case Role::Priest: return col.HasTier(Tree::Faith, 1);
     case Role::Chemist: return col.HasTier(Tree::Chemistry, 1);
-    case Role::Bomber: return col.HasTier(Tree::Bombing, 2);
+    case Role::Bomber: return col.HasTier(Tree::Bombing, 2) && !BendNow().noAirWar;
     case Role::Pathfinder: return col.HasTier(Tree::Trade, 4);
     default: return true;
     }
@@ -179,7 +183,7 @@ int World::FervourBandOf(int side) const {
 float World::FervourRout() const { return RD().fRout; }
 float World::WindPenalty(int side) const { return BendOfSide(side).wind * (ColOf(side).HasTier(Tree::Flight, 3) ? 0.5f : 1.0f); }
 float World::FightStamina(int side) const { return 25 * BendOfSide(side).stamina * (ColOf(side).HasTier(Tree::Flight, 2) ? 1.5f : 1.0f); }
-int World::CacheCap() const { return col.HasTier(Tree::Caches, 2) ? 50 : Econ().cacheCap; }
+int World::CacheCap() const { return (int)((col.HasTier(Tree::Caches, 2) ? 50 : Econ().cacheCap) * BendNow().cacheCap); }   // (the Pelican: double)
 float World::SpoilDays() const { return (col.HasTier(Tree::Caches, 1) ? 6 : Econ().spoilDays) / std::max(0.25f, DecreeNow().spoil); }   // (Feast Day: caches empty faster)
 int World::NestEggs() const { return col.HasTier(Tree::Nesting, 2) ? 6 : Econ().nestEggs; }
 int World::ShellsWanted() const {
@@ -428,7 +432,7 @@ void World::StepSociety(float dt) {
     int priests = 0; const Structure* shrine = Built(ST_SHRINE);
     for (const auto& b : C.birds) priests += b.alive && b.stage == BStage::Adult && b.role == Role::Priest && b.retrainT <= 0;
     if (!shrine) priests = 0;
-    float target = D.fBase + priests * 18.0f;
+    float target = (B.fervourDecay && !shrine ? 0.0f : D.fBase) + priests * 18.0f;   // (the Phoenix: no shrine, no faith)
     float f = C.fervour;
     float gain = B.fervourGain * (ape.isle >= 0 && HolderOf(ape.isle) == cur ? 1 + SkullShrineFervour() : 1.0f);   // (skull island's summit shrine: +20% to its holder)
     if (f < target) f = std::min(target, f + (D.fDrift + priests * D.fPriest) * gain * day);
@@ -630,7 +634,8 @@ int RunFlightFounders(int days, int seeds) {
     double mean[3] = {};
     for (int m = 0; m < 3; m++) { for (int fi = 0; fi < nf; fi++) mean[m] += score[fi][m]; mean[m] /= std::max(1, nf); }
     static const char* PH[3] = {"early", "mid", "late"};
-    static const char* WANT[12][2] = {{"taloned", "early"}, {"strongbird", "early"}, {"lyrebird", "early"}, {"beaked", "mid"}, {"swift", "mid"}, {"shadow", "mid"}, {"cuckoo", "mid"},
+    // (the expansion's six: windows read from their playstyles, doc pp. 39-40: the Pelican's sieges fail, the Penguin is slow to expand, the Phoenix is dangerous in Winter)
+    static const char* WANT[18][2] = {{"gannet", "mid"}, {"pelican", "late"}, {"frigatebird", "mid"}, {"penguin", "late"}, {"owl", "mid"}, {"phoenix", "late"}, {"taloned", "early"}, {"strongbird", "early"}, {"lyrebird", "early"}, {"beaked", "mid"}, {"swift", "mid"}, {"shadow", "mid"}, {"cuckoo", "mid"},
                                       {"sigma", "late"}, {"ibis", "late"}, {"tycoon", "late"}, {"alchemist", "late"}, {"albatross", "late"}};
     printf("  %-16s %9s %9s %9s   %-6s %-6s  overall  research  birds(late)\n", "founder", "day 3", "day 6", TextFormat("day %d", days), "window", "doc");
     int matched = 0;
@@ -663,8 +668,8 @@ int RunFlightSocietyTest() {
     if (!rt::DataOk(&why)) { printf("FAIL: no data: %s\n", why.c_str()); return 1; }
     // the founders' bends
     {
-        int set = 0; for (int i = 0; i < (int)Founders().size(); i++) { const Bend& b = BendOf(i); set += b.fishHit != 1 || b.carry || b.speed != 1 || b.attack != 1 || b.boom || b.eggTheft || b.mateTime != 1 || b.fervourCap != 100 || b.trade != 1 || b.fervourGain != 1 || b.guano != 1 || b.stamina != 1; }
-        check(set == 12, TextFormat("all twelve founders bend their colonies (%d of 12 read)", set));
+        int set = 0; for (int i = 0; i < (int)Founders().size(); i++) { const Bend& b = BendOf(i); set += b.fishHit != 1 || b.carry || b.speed != 1 || b.attack != 1 || b.boom || b.eggTheft || b.mateTime != 1 || b.fervourCap != 100 || b.trade != 1 || b.fervourGain != 1 || b.guano != 1 || b.stamina != 1 || b.pouch || b.steal || b.swim || b.nightDay || b.phoenixChicks || b.plungeStrike; }
+        check(set == (int)Founders().size(), TextFormat("every founder bends its colony (%d of %d read)", set, (int)Founders().size()));
         check(BendOf(FounderIndex("tycoon")).boom && BendOf(FounderIndex("cuckoo")).eggTheft && BendOf(FounderIndex("sigma")).noFaith && BendOf(FounderIndex("alchemist")).earlyTrees == ((1 << (int)Tree::Bombing) | (1 << (int)Tree::Chemistry)), "the uniques: the Tycoon's boom, the Cuckoo's egg theft, the Sigma's lack of faith, the Alchemist's early trees");
     }
     auto fresh = [](const char* founder, int players = 4, uint32_t seed = 31) { auto w = std::make_unique<World>(); MapOpts o; o.players = players; w->Init(founder, seed, o); return w; };

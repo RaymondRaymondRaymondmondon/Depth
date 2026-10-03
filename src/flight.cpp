@@ -198,6 +198,11 @@ void World::Kill(const std::string& cause) {
 }
 void World::Respawn() {
     me.st = FState::Perched; me.pos = island.nest; me.vel = {0, 0, 0}; me.airspeed = 0; me.pitch = 0;
+    if (BendNow().rebirth && me.rebornSeason != (seasons > 0 ? Season() : (int)(time / (DAY * 4)))) {   // (the Phoenix: reborn whole once a season; in a standard match, once every four days)
+        me.rebornSeason = seasons > 0 ? Season() : (int)(time / (DAY * 4)); me.chick = false; me.hunger = 1; me.stamina = Def().stamina; me.hp = Def().hp;
+        Say("Rebirth: the Founder rises from the nest, whole.");
+        return;
+    }
     if (PerkSum(me.perks).nineLives && !me.nineUsed) {   // (Nine Lives: one respawn whole)
         me.nineUsed = true; me.chick = false; me.hunger = 1; me.stamina = Def().stamina; me.hp = Def().hp;
         Say("Nine lives: the Founder is back in the nest, whole.");
@@ -295,7 +300,8 @@ void World::StepFounder(float dt, const FounderInput& in) {
             }
         }
         // the strike: a fast dive about to meet open water
-        if (!overLand && f.vel.y < -4 && f.airspeed > 10 && f.pos.y > 0.3f && f.pos.y / -f.vel.y < 0.35f) { StartStrike(); break; }
+        if (f.vel.y > -1) f.diveTop = f.pos.y; else f.diveTop = std::max(f.diveTop, f.pos.y);
+        if (!overLand && f.vel.y < -4 && f.airspeed > 10 && f.pos.y > 0.3f && f.pos.y / -f.vel.y < 0.35f && (!BendNow().noLowStrike || f.diveTop > 15)) { StartStrike(); break; }   // (the Gannet must climb first)
         // the ground and the sea
         ground = std::max(0.0f, HeightAt(f.pos.x, f.pos.z));
         overLand = LandAt(f.pos.x, f.pos.z);
@@ -459,6 +465,7 @@ void World::Step(float realDt, const FounderInput& in) {
         Say(TextFormat("The wind shifts: %.0f m/s from the %s.", wind.nextSpeed, fabsf(wind.nextDir.x) > fabsf(wind.nextDir.y) ? (wind.nextDir.x > 0 ? "west" : "east") : (wind.nextDir.y > 0 ? "north" : "south")));
     }
     if (me.st != FState::Strike) { if (founderBot) BotFounderStep(dt); else StepFounder(dt, in); }
+    if (BendNow().noWater && me.st == FState::Floating) { me.drownT += dt; if (me.drownT > 6) { me.drownT = 0; Kill("drowned (a frigatebird can't sit on the water)"); } } else me.drownT = 0;   // (the Frigatebird)
     // fish rise at dawn and dusk and sink by day and night (the best fishing is at the rises)
     {
         float ph = DayPhase();
@@ -489,6 +496,7 @@ void World::Step(float realDt, const FounderInput& in) {
     StepSeasons(dt);
     StepDecrees(dt);
     StepPerks(dt);
+    if (seasons > 0) for (int s = 0; s <= (int)sides.size(); s++) WithSide(s, [&] { StepVeterans(dt); });
     fogT += dt; fogNow = fogT >= 0.25f;
     if (fogNow) fogT = 0;
     StepColony(dt);   // (the caches spoil, the grounds regrow, the colony lives)
@@ -521,7 +529,7 @@ int RunFlightTest() {
     printf("The Flight, stage 1: the Founder, the island, the sea\n");
     std::string why;
     if (!rt::DataOk(&why)) { printf("FAIL: no data: %s\n", why.c_str()); return 1; }
-    check(Founders().size() == 12 && FounderIndex("albatross") >= 0 && Founders()[FounderIndex("albatross")].stamina == 16, TextFormat("the twelve founders load (%d)", (int)Founders().size()));
+    check(Founders().size() == 18 && FounderIndex("phoenix") >= 0 && FounderIndex("albatross") >= 0 && Founders()[FounderIndex("albatross")].stamina == 16, TextFormat("the eighteen founders load (%d: twelve, and the expansion's six)", (int)Founders().size()));
     World w; w.Init("taloned", 3);
     const Island& is = w.island;
     check(is.hill.y > 20 && is.Height(0, 70) < -1.5f && is.Height(0, 70) > -4 && is.Height(0, -10) > 1 && is.Height(160, 0) < -8, TextFormat("the island: a %.0f m hill, a 2-3 m lagoon bay to the south, land in the middle, the shelf falling away", is.hill.y));
@@ -586,11 +594,12 @@ int RunFlightTest() {
         // fly it home and drop it in the cache; eat it
         v.me.st = FState::Perched; v.me.pos = v.col.caches[0].pos;
         float h0 = v.me.hunger = 0.3f;
+        std::string hint0 = v.InteractHint();
         FounderInput drop; drop.interact = true; v.Step(1 / 60.0f, drop);
         bool cached = v.Cache0().size() == 1 && v.me.carrySp < 0;
         FounderInput eat; eat.eat = true; v.Step(1 / 60.0f, eat);
         float want = h0 + 2 / Econ().feedFounder;
-        check(cached && v.Cache0().empty() && fabsf(v.me.hunger - want) < 0.02f, TextFormat("into the cache, then eaten: hunger %.2f -> %.2f", h0, v.me.hunger));
+        check(cached && v.Cache0().empty() && fabsf(v.me.hunger - want) < 0.02f, TextFormat("into the cache, then eaten: hunger %.2f -> %.2f (cached %d, left %d; hint: %s)", h0, v.me.hunger, (int)cached, (int)v.Cache0().size(), hint0.c_str()));
     }
     {
         World v; v.Init("swift", 7); v.forceHit = true;   // (the Swift lifts only size 2: a snapper is too heavy)

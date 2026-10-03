@@ -107,6 +107,12 @@ struct DecreeFx {
 struct DecreeDef { std::string key, name, effect, tradeoff; DecreeFx fx; DecreeFx tomorrow; };
 const std::vector<DecreeDef>& Decrees();
 int DecreeIndex(const std::string& key);
+enum VetTrait { VT_FEARLESS = 0, VT_LUCKY, VT_KEEN, VT_GREEDY, VT_LOYAL, VT_COUNT };
+enum MateTrait { MT_BIG_EGGS = 0, MT_QUICK, MT_HARDY, MT_KEEN, MT_FIERCE, MT_FERTILE, MT_COUNT };
+struct MateTraitDef { std::string key, name, effect, favorite; float hpAdd = 0, hpMul = 1, speed = 1, scout = 1, attack = 1; int clutch = 0; };
+struct VetData { int fights = 3; float bonus = 0.15f, fearlessMorale = 15, loyalAttack = 1.2f; std::vector<std::string> names, traitNames, traitWhat; };
+const VetData& Veterans();
+const std::vector<MateTraitDef>& MateTraits();
 // Founder perks (doc p38)
 struct PerkDef {
     std::string key, name, effect;
@@ -179,6 +185,7 @@ struct Founder {
     int Carry(const FounderDef& d) const;
     // the long match: perks picked at days 3, 7 and 11 (a bit each, flight_long.json "perks"), and the three on offer
     uint32_t perks = 0; int perkOffer[3] = {-1, -1, -1}; int perkLevel = 0, saltDay = 0; bool nineUsed = false; float stormWarned = -1;
+    float diveTop = 0; int rebornSeason = -9; float drownT = 0;   // (the Gannet: the dive's top; the Phoenix: the season it was last reborn; the Frigatebird: time on the water)
     float StatMul() const;                      // starving -30%, three deaths -10%, a chick half
 };
 struct FounderInput {
@@ -246,12 +253,15 @@ struct Bird {
     int flock = -1; int tgtSide = -1, tgtId = 0;   // tgtId 0 = the side's Founder
     bool struck = false;                      // (its first strike in this engagement is spent)
     Vector3 post{};                           // a Watcher's perch
-    int carryGood = -1, carryN = 0;           // (a Trader's goods coming home; carrySp -2 an egg being stolen, -3 a bomb)
+    int carryGood = -1, carryN = 0;
+    // the long match: veterans (doc p42) and mates' traits (p43)
+    int fights = 0; int vet = -1, vetName = -1; bool luckyUsed = false; float foughtT = -100, countedT = -100;   // vet: VT_* trait, -1 none
+    int trait = -1;                           // MT_*: a mate's trait, and its chicks' (inherited)           // (a Trader's goods coming home; carrySp -2 an egg being stolen, -3 a bomb)
 };
 struct Site { Vector3 pos{}; int palm = -1; int nest = -1; int isle = -1; };
 struct Nest {
     int site = -1; Vector3 pos{}; float twigs = 0; bool built = false, founders = false;
-    int mate = -1; int bowl = 0, bowlNeed = 3; float mateT = -1;   // mateT: counting down to the mate's arrival
+    int mate = -1; int bowl = 0, bowlNeed = 3; float mateT = -1; int favFish = 0;   // favFish: courtship fish of the wanted trait's favourite   // mateT: counting down to the mate's arrival
     float larder = 0;                         // feed laid in the nest (chicks and the mate eat from it)
     int shells = 0;                           // lining
     int isle = -1;                            // (the island it stands on: an island is held by whoever has the most nests there)
@@ -306,6 +316,10 @@ struct Bend {
     int carry = 0, earlyTrees = 0; float clutch = 0, fledgeDays = 0;   // (clutch: eggs, fractional = a chance of one more or one less)   // earlyTrees: bits by Tree that research faster and a day sooner
     bool nightFishing = false, eggTheft = false, noFaith = false, boom = false, goldenNest = false, talonLock = false, skim = false;
     bool tear = false, serenade = false, duskRaid = false, cornering = false, pilgrimage = false, brood = false, longReach = false;
+    // the expansion's six (doc pp. 39-40)
+    int feederCarry = 0; float cacheCap = 1, colonySpeed = 1, daylight = 1;
+    bool plungeStrike = false, noLowStrike = false, pouch = false, steal = false, piracy = false, noWater = false, swim = false, noAirWar = false,
+         nightDay = false, silentWings = false, phoenixChicks = false, rebirth = false, fervourDecay = false;
 };
 const Bend& BendOf(int founderDef);
 // a fishing town's dock market (doc p26): prices in feed (fish), moving with supply and the hour
@@ -361,6 +375,7 @@ struct Colony {
     int bombs = 0, blockbusters = 0; float bombT = 0, blockT = 0;
     int stims[STIM_COUNT] = {}; int brewFor = STIM_HASTE; float brewT = 0;
     // the long match: today's decree, the three offered at dawn, the ones used (no repeats), yesterday's (its after-effects)
+    int wantTrait = -1, nextVetName = 0;        // (the long match) the trait the courtship bowls ask for (-1 any); the next veteran's name
     int decree = -1, yesterday = -1, offer[3] = {-1, -1, -1}, dealtDay = 0, lastRaider = -1; uint32_t decreesUsed = 0; float salvageT = 0, titheFish = 0;
     bool bell = false; float offeredKraken = -1e9f, apeFedT = -1e9f;
     int krakenKill = 0;                       // (the kraken killed: 150 to the score)
@@ -513,6 +528,7 @@ struct World {
     void StepSeasons(float dt);
     float RegrowMul(int zone) const;
     void RespawnNow() { Respawn(); }            // (tests)
+    void FledgeNow(Bird& b) { Fledge(b); }      // (tests)
     const DecreeFx& DecreeOf(int side) const;   // today's decree for any side (none: no change); yesterday's after-effects folded in
     const DecreeFx& DecreeNow() const { return DecreeOf(cur); }
     void StepDecrees(float dt);                 // dawn: deal three to every colony; bots (and anyone who hasn't picked by mid-morning) choose
@@ -522,6 +538,9 @@ struct World {
     void StepPerks(float dt);                   // the Founder levels at days 3, 7 and 11: three perks offered (a bot picks at once)
     bool PickPerk(int k);                       // the Founder in the fields takes offer k
     int BotPerk() const;
+    void StepVeterans(float dt);                // warriors that have survived three fights become veterans (the colony in the fields)
+    std::string VetLabel(const Bird& b) const;  // "Old Gray, Fearless" ("" for a bird that isn't one)
+    int wantTraitOrder = 0;                     // (scratch)
     std::vector<std::string> lookOf;            // (stage 8) per absolute side: "costume;livery colour;livery hat" (cosmetic; from the hello)
     std::string& LookOf(int s) { if ((int)lookOf.size() <= s) lookOf.resize(s + 1); return lookOf[s]; }
     std::vector<int> outpostIsle;               // (scratch)

@@ -542,6 +542,8 @@ void RoleLook(fl::Role r, float* scale, Color* tint) {
     default: *scale = 0.75f; *tint = WHITE; break;
     }
 }
+struct NameTag { Vector3 p; std::string name; Color c; };
+std::vector<NameTag> gNames;   // (people's Founders and veterans, labelled after the 3D pass)
 void DrawColonyBird(const fl::World& w, const fl::Bird& b, Color side, const SideLook* look = nullptr) {
     const fl::FounderDef& d = w.Def();
     float L = 0.22f + d.span * 0.14f;
@@ -559,6 +561,12 @@ void DrawColonyBird(const fl::World& w, const fl::Bird& b, Color side, const Sid
     DrawBirdBody(d, W, shoulder, sitting ? 0 : 0.35f * sinf(b.flapPh - 0.9f), sitting ? 1.0f : diving ? 0.85f : 0.0f, 0, sitting ? 0.1f * sinf(S.t * 2 + b.id) : 0, 0.7f, Tint(tint, side));
     gLook = nullptr;
     DrawCarried(w, W, L * sc, b.carrySp, b.carryTwigs + b.carryShells, b.yaw, pitch);
+    if (b.vet >= 0) {   // (a veteran: a feather in its cap, in its trait's colour)
+        static const Color VC[5] = {{230, 60, 50, 255}, {80, 200, 90, 255}, {90, 170, 255, 255}, {240, 200, 60, 255}, {200, 120, 240, 255}};
+        Matrix H = MatrixMultiply(MatrixTranslate(0, L * 0.25f, L * 0.42f), W);
+        rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(L * 0.05f, L * 0.45f, L * 0.08f), MatrixRotateX(-0.5f)), H), VC[std::clamp(b.vet, 0, 4)]);
+        if (Vector3Distance(b.pos, S.cam.position) < 40) gNames.push_back({Vector3Add(b.pos, {0, 0.9f, 0}), w.VetLabel(b), VC[std::clamp(b.vet, 0, 4)]});
+    }
     if (b.role == fl::Role::Tank) rt::DrawCubeM(MatrixMultiply(MatrixScale(L * 0.5f, L * 0.08f, L * 0.7f), MatrixMultiply(MatrixTranslate(0, L * 0.22f, 0), W)), Color{214, 206, 190, 255});   // (shell armour on its back)
 }
 void DrawColony(const fl::World& w, const fl::Colony& c, const Camera3D& cam, Color side, const SideLook* look = nullptr) {
@@ -649,8 +657,6 @@ void DrawColony(const fl::World& w, const fl::Colony& c, const Camera3D& cam, Co
 struct Feather { Vector3 p, v; float life, spin; Color c; };
 struct Faller { Vector3 p, v; float yaw, spin; Color tint; fl::Role role; bool splashed; };
 struct Stain { Vector2 p; float age; };
-struct NameTag { Vector3 p; std::string name; Color c; };
-std::vector<NameTag> gNames;   // (people's Founders, labelled after the 3D pass)
 std::vector<Feather> gFeathers; std::vector<Faller> gFallers; std::vector<Stain> gStains;
 size_t gFxSeen = 0;
 void StepWarFx(const fl::World& w, float dt) {
@@ -1174,6 +1180,13 @@ void DrawColonyPanel(fl::World& w) {
     if (SmallBtn({x + 318, ly + 18, 26, 24}, "-", w.col.nestsWanted > 1)) { Writer o; fl::OrderNests(o, w.col.nestsWanted - 1); Order(o); }
     if (SmallBtn({x + 350, ly + 18, 26, 24}, "+", w.col.nestsWanted < (int)w.col.sites.size())) { Writer o; fl::OrderNests(o, w.col.nestsWanted + 1); Order(o); }
     ly += 52;
+    if (w.seasons > 0) {   // (the long match: mates with traits; a picky bowl)
+        const auto& MT = fl::MateTraits();
+        std::string want = w.col.wantTrait < 0 ? std::string("any trait") : MT[w.col.wantTrait].name + " (" + MT[w.col.wantTrait].favorite + "): " + MT[w.col.wantTrait].effect;
+        if (SmallBtn({x + 16, ly - 2, 26, 20}, "<", true)) { Writer o; fl::OrderWantTrait(o, w.col.wantTrait <= -1 ? fl::MT_COUNT - 1 : w.col.wantTrait - 1); Order(o); }
+        if (SmallBtn({x + 46, ly - 2, 26, 20}, ">", true)) { Writer o; fl::OrderWantTrait(o, w.col.wantTrait >= fl::MT_COUNT - 1 ? -1 : w.col.wantTrait + 1); Order(o); }
+        Txt("Mates wanted: " + want, x + 80, ly, 13, Color{255, 220, 170, 255}); ly += 22;
+    }
     Txt("A mate comes to a nest whose courtship bowl you fill:", x + 16, ly, 14, dim); ly += 17;
     Txt(TextFormat("carry fish of size %d+ to it and press E (%d for the first).", E.courtMinSize, E.courtFish), x + 16, ly, 14, dim); ly += 26;
     // the fishers' ground

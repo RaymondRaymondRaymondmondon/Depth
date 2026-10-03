@@ -232,7 +232,7 @@ void World::RegrowFish(float dt) {
 
 // ---------------------------------------------------------------- flying
 bool World::MoveTo(Bird& b, Vector3 goal, float speed, float dt, float arrive) {
-    speed *= Econ().workPace;
+    speed *= Econ().workPace * (b.trait >= 0 ? MateTraits()[b.trait].speed : 1.0f) * BendNow().colonySpeed;   // (a Quick mother; the Pelican and the Penguin are slow)
     Vector3 d = Vector3Subtract(goal, b.pos);
     float flat = sqrtf(d.x * d.x + d.z * d.z);
     if (Vector3Length(d) < arrive) { b.vel = Vector3Scale(b.vel, 0.5f); return true; }
@@ -319,7 +319,7 @@ void World::FisherStep(Bird& b, float dt) {
         if (b.target >= 1000 && b.target - 1000 < (int)col.nests.size()) {
             Nest& n = col.nests[b.target - 1000];
             if (MoveTo(b, Vector3Add(n.pos, {0, 0.4f, 0}), speed, dt)) {
-                if (n.mate < 0 && n.mateT < 0) n.bowl++;
+                if (n.mate < 0 && n.mateT < 0) { n.bowl++; if (col.wantTrait >= 0 && eco.map && b.carrySp >= 0 && eco.map->species[b.carrySp].name == MateTraits()[col.wantTrait].favorite) n.favFish++; }
                 n.larder += b.carrySize;
                 b.carrySp = -1; b.carrySize = 0; b.target = -1; b.task = Task::Idle;
             }
@@ -330,6 +330,7 @@ void World::FisherStep(Bird& b, float dt) {
         b.task = Task::Deliver;
         if (MoveTo(b, Vector3Add(col.caches[ci].pos, {0, 0.6f, 0}), speed, dt)) {
             col.caches[ci].fish.push_back({b.carrySp, b.carrySize, 0});
+            if (&b == &fb && BendNow().pouch && (int)col.caches[ci].fish.size() < CacheCap()) col.caches[ci].fish.push_back({b.carrySp, b.carrySize, 0});   // (the Pelican's Pouch: the Founder brings two)
             col.feedToday += b.carrySize; col.caughtToday++; b.caught++;
             if ((col.HasTier(Tree::Fishing, 2) || DecreeNow().pearlDive) && Rand() < DeepDivePearl()) { col.pearls++; Say("A fisher brings up a pearl from the oyster beds."); }   // (Deep dive)
             else if (&b == &fb && Rand() < std::max(0.1f, PerkSum(me.perks).pearl)) { col.pearls++; Say("The Founder brings up a pearl with the catch."); }   // (the Founder dives deep: doc p6)
@@ -351,7 +352,8 @@ void World::FisherStep(Bird& b, float dt) {
                 b.taskT = 0;
                 float stock = StockOf(z), total = 0;
                 for (const auto& s : stocks) if (s.zone == z) { const rt::Species& sp = eco.map->species[s.sp]; if (Catchable(sp) && sp.size <= carry && sp.size >= minSize) total += s.pop; }
-                if (total >= 1 && Rand() < 0.55f * BD.fishHit * boom * DecreeNow().catchK * (coop ? 1.5f : 1.0f) * std::clamp(stock * 1.5f, 0.1f, 1.0f)) {
+                float owlDay = BD.daylight < 1 && DayPhase() > 0.25f && DayPhase() < 0.75f ? BD.daylight : 1.0f;   // (the Owl by day)
+        if (total >= 1 && Rand() < 0.55f * BD.fishHit * owlDay * boom * DecreeNow().catchK * (coop ? 1.5f : 1.0f) * std::clamp(stock * 1.5f, 0.1f, 1.0f)) {
                     float pick = Rand() * total;
                     for (auto& s : stocks) if (s.zone == z) { const rt::Species& sp = eco.map->species[s.sp]; if (!Catchable(sp) || sp.size > carry || sp.size < minSize) continue; pick -= s.pop; if (pick <= 0) { s.pop -= 1; b.carrySp = s.sp; b.carrySize = sp.size; b.task = Task::Idle; break; } }
                 }
@@ -459,7 +461,7 @@ void World::FeederStep(Bird& b, float dt) {
     b.task = Task::Fetch;
     if (MoveTo(b, Vector3Add(c.pos, {0, 0.6f, 0}), R.speed, dt)) {
         int k = -1;
-        for (int i = 0; i < (int)c.fish.size(); i++) if (c.fish[i].size <= R.carry && (k < 0 || c.fish[i].age > c.fish[k].age)) k = i;
+        for (int i = 0; i < (int)c.fish.size(); i++) if (c.fish[i].size <= R.carry + BendNow().feederCarry && (k < 0 || c.fish[i].age > c.fish[k].age)) k = i;   // (the Pelican's feeders carry bigger)
         if (k < 0) { b.task = Task::Sit; return; }
         b.carrySp = c.fish[k].sp; b.carrySize = c.fish[k].size; c.fish.erase(c.fish.begin() + k);
         b.target = bestN; b.task = Task::Feed;
@@ -612,10 +614,11 @@ void World::MateStep(Bird& b, float dt) {
             int inNest = 0; for (const auto& o : col.birds) if (o.alive && o.nest == b.nest && (o.stage == BStage::Egg || o.stage == BStage::Chick)) inNest++;
             int eggs = E.clutchMin + (int)(Rand() * (E.clutchMax - E.clutchMin + 1));
             { float c = BendNow().clutch; eggs += (int)floorf(c) + (Rand() < c - floorf(c) ? 1 : 0); }
-            if (DecreeNow().extraEgg) eggs++;   // (Brood Day)   // (a fractional bend: a chance of one egg more)
+            if (DecreeNow().extraEgg) eggs++;   // (Brood Day)
+            if (b.trait >= 0) eggs += MateTraits()[b.trait].clutch;   // (a Fertile mate)   // (a fractional bend: a chance of one egg more)
             eggs = std::min(eggs, NestEggs() - inNest);
             if (eggs > 0) {
-                for (int k = 0; k < eggs; k++) { Bird e; e.id = col.nextId++; e.stage = BStage::Egg; e.nest = b.nest; e.pos = n.pos; e.hunger = 1; born.push_back(e); }   // (appended after the loop: b is a reference into col.birds)
+                for (int k = 0; k < eggs; k++) { Bird e; e.id = col.nextId++; e.stage = BStage::Egg; e.nest = b.nest; e.pos = n.pos; e.hunger = 1; e.trait = b.trait; born.push_back(e); }   // (its chicks inherit its trait)   // (appended after the loop: b is a reference into col.birds)
                 b.clutches++; b.clutchT = 0;
                 Say(TextFormat("A clutch of %d eggs.", eggs));
             }
@@ -648,6 +651,7 @@ void World::Fledge(Bird& b) {
     }
     if (!RoleUnlocked(r)) r = Role::Fisher;
     b.stage = BStage::Adult; b.role = r; b.retrainTo = Role::None; b.task = Task::Idle; b.age = 0; b.hp = MaxHp(r); b.fight = 25;
+    if (b.trait >= 0) b.hp = b.hp * MateTraits()[b.trait].hpMul + MateTraits()[b.trait].hpAdd;   // (Big Eggs, Hardy)
     b.pos.y += 0.5f;
     Say(std::string("A chick fledges: a ") + RoleName(r) + ".");
 }
@@ -673,7 +677,9 @@ void World::StepBird(Bird& b, float dt) {
             float take = std::min(n.larder, (1 - b.hunger) * cap);
             n.larder -= take; b.hunger += take / cap;
         }
-        if (b.hunger <= 0) { b.hunger = 0; b.starveT += dt; if (b.starveT > E.starveDays * DAY) { BirdDies(b, "starved"); return; } }
+        if (b.hunger <= 0) { b.hunger = 0; b.starveT += dt; if (b.starveT > E.starveDays * DAY) {
+            if (b.stage == BStage::Chick && BendNow().phoenixChicks) { Fledge(b); b.hp *= 0.5f; b.hunger = 0.4f; b.starveT = 0; Say("A starving chick fledges small instead (the Phoenix)."); return; }
+            BirdDies(b, "starved"); return; } }
         else b.starveT = 0;
     }
     switch (b.stage) {
@@ -807,6 +813,8 @@ void World::StepColony(float dt) {
                 Bird m; m.id = col.nextId++; m.stage = BStage::Mate; m.nest = i; m.hunger = 1; m.task = Task::Fly;
                 float a = Rand() * 2 * PI; m.pos = {n.pos.x + cosf(a) * 120, 20, n.pos.z + sinf(a) * 120};
                 m.clutchT = (E.clutchDays - 0.3f) * DAY;   // (the first clutch comes soon after it settles)
+                if (seasons > 0) m.trait = col.wantTrait >= 0 && n.favFish >= n.bowlNeed ? col.wantTrait : (int)(Rand() * MT_COUNT) % MT_COUNT;   // (a picky bowl calls the trait it asked for)
+                n.favFish = 0;
                 col.birds.push_back(m);
                 n.mate = m.id; n.mateT = -1; n.bowl = 0; col.wildMates--;
             }
@@ -920,12 +928,12 @@ void World::Interact() {
     switch (a) {
     case Act::Bowl: {
         Nest& n = col.nests[i];
-        if (f.carrySize >= E.courtMinSize) { n.bowl++; Say(TextFormat("Into the courtship bowl: %d of %d.", n.bowl, n.bowlNeed)); }
+        if (f.carrySize >= E.courtMinSize) { n.bowl++; if (col.wantTrait >= 0 && eco.map && f.carrySp >= 0 && eco.map->species[f.carrySp].name == MateTraits()[col.wantTrait].favorite) n.favFish++; Say(TextFormat("Into the courtship bowl: %d of %d.", n.bowl, n.bowlNeed)); }
         else Say("Too small for courtship: laid in the nest instead.");
         n.larder += f.carrySize; f.carrySp = -1; f.carrySize = 0;
     } break;
     case Act::Larder: col.nests[i].larder += f.carrySize; Say("Laid in the nest."); f.carrySp = -1; f.carrySize = 0; break;
-    case Act::Store: col.caches[i].fish.push_back({f.carrySp, f.carrySize, 0}); Say("Into the cache: " + eco.map->species[f.carrySp].name + "."); f.carrySp = -1; f.carrySize = 0; break;
+    case Act::Store: col.caches[i].fish.push_back({f.carrySp, f.carrySize, 0}); if (BendNow().pouch) col.caches[i].fish.push_back({f.carrySp, f.carrySize, 0}); /* (the Pelican's Pouch) */ Say("Into the cache: " + eco.map->species[f.carrySp].name + "."); f.carrySp = -1; f.carrySize = 0; break;
     case Act::PickFish: {
         auto& fish = col.caches[i].fish; int k = -1;
         for (int j = 0; j < (int)fish.size(); j++) if (fish[j].size <= f.Carry(Def()) && (k < 0 || fish[j].size > fish[k].size)) k = j;

@@ -466,5 +466,245 @@
                                     64
                                 ]
                  }
+    },
+    {
+        "key":  "gannet",
+        "name":  "The Gannet",
+        "bird":  "a northern gannet",
+        "expansion":  true,
+        "boost":  "Plunge: every bird\u0027s dive from high altitude is a 50% stronger strike, on fish or on enemies",
+        "unique":  "Plunge Strike: the Founder\u0027s dive from above 60 m hits a bird or a nest for triple damage",
+        "weakness":  "Can\u0027t fish from low altitude at all (must climb first)",
+        "playstyle":  "A vertical colony: everything happens from the top; Strikers and fishers are the same bird",
+        "stats":  {
+                      "cruise":  13,
+                      "sprint":  22,
+                      "stamina_s":  8,
+                      "carry":  3,
+                      "talon":  1.2,
+                      "attack":  22,
+                      "hp":  100
+                  },
+        "look":  {
+                     "wingspan":  1.8,
+                     "beak":  0.14,
+                     "tail":  0.35,
+                     "crest":  0,
+                     "back":  [
+                                  244,
+                                  244,
+                                  240
+                              ],
+                     "belly":  [
+                                   250,
+                                   250,
+                                   248
+                               ],
+                     "accent":  [
+                                    236,
+                                    200,
+                                    90
+                                ]
+                 }
+    },
+    {
+        "key":  "pelican",
+        "name":  "The Pelican",
+        "bird":  "a brown pelican",
+        "expansion":  true,
+        "boost":  "Carry +3 size classes for Feeders; caches hold double",
+        "unique":  "Pouch: the Founder carries three fish at once",
+        "weakness":  "Speed -15% for the whole colony",
+        "playstyle":  "The logistics colony: feed lines that can\u0027t be cut by starving them; sieges fail against it",
+        "stats":  {
+                      "cruise":  10.5,
+                      "sprint":  17,
+                      "stamina_s":  9,
+                      "carry":  4,
+                      "talon":  1,
+                      "attack":  18,
+                      "hp":  120
+                  },
+        "look":  {
+                     "wingspan":  2.0,
+                     "beak":  0.3,
+                     "tail":  0.3,
+                     "crest":  0,
+                     "back":  [
+                                  120,
+                                  100,
+                                  80
+                              ],
+                     "belly":  [
+                                   220,
+                                   210,
+                                   190
+                               ],
+                     "accent":  [
+                                    230,
+                                    170,
+                                    90
+                                ]
+                 }
+    },
+    {
+        "key":  "frigatebird",
+        "name":  "The Frigatebird",
+        "bird":  "a magnificent frigatebird",
+        "expansion":  true,
+        "boost":  "Every warrior can steal a carried fish in the air (Fisher-of-Birds for all)",
+        "unique":  "Piracy: the colony eats what other colonies catch; your fishers may fish enemy grounds unseen",
+        "weakness":  "Can\u0027t land on water (drowns); nests only on cliffs and trees",
+        "playstyle":  "A pirate colony that lives off its neighbours and needs no grounds of its own",
+        "stats":  {
+                      "cruise":  14,
+                      "sprint":  23,
+                      "stamina_s":  12,
+                      "carry":  3,
+                      "talon":  0.9,
+                      "attack":  22,
+                      "hp":  90
+                  },
+        "look":  {
+                     "wingspan":  2.1,
+                     "beak":  0.16,
+                     "tail":  0.6,
+                     "crest":  0,
+                     "back":  [
+                                  30,
+                                  30,
+                                  36
+                              ],
+                     "belly":  [
+                                   40,
+                                   40,
+                                   46
+                               ],
+                     "accent":  [
+                                    220,
+                                    40,
+                                    40
+                                ]
+                 }
+    },
+    {
+        "key":  "penguin",
+        "name":  "The Penguin",
+        "bird":  "a gentoo penguin",
+        "expansion":  true,
+        "boost":  "Birds swim: fishers dive and hunt underwater (no predator breaches; sharks are a fight, not a death); walking is 2x",
+        "unique":  "No flight: the colony\u0027s birds don\u0027t fly; they swim and walk; islands are reached by sea; the Founder flies (it\u0027s the one that can)",
+        "weakness":  "No altitude, no Bombers, no Strikers\u0027 dives; Watchers see nothing above them",
+        "playstyle":  "The underwater colony: immune to air raids except from above, deadly below, slow to expand",
+        "stats":  {
+                      "cruise":  11,
+                      "sprint":  18,
+                      "stamina_s":  9,
+                      "carry":  3,
+                      "talon":  1.2,
+                      "attack":  20,
+                      "hp":  110
+                  },
+        "look":  {
+                     "wingspan":  1.2,
+                     "beak":  0.1,
+                     "tail":  0.15,
+                     "crest":  0,
+                     "back":  [
+                                  34,
+                                  36,
+                                  44
+                              ],
+                     "belly":  [
+                                   244,
+                                   244,
+                                   240
+                               ],
+                     "accent":  [
+                                    240,
+                                    150,
+                                    40
+                                ]
+                 }
+    },
+    {
+        "key":  "owl",
+        "name":  "The Owl",
+        "bird":  "a barn owl",
+        "expansion":  true,
+        "boost":  "Night is day: the colony works and fights at night without fervour; Watchers for everyone are free",
+        "unique":  "Silent Wings: the Founder and the flocks it leads make no noise",
+        "weakness":  "Daylight: -20% to everything from dawn to dusk",
+        "playstyle":  "The night colony: raids, scouting, and sieges after dark; sleeps through noon",
+        "stats":  {
+                      "cruise":  11,
+                      "sprint":  19,
+                      "stamina_s":  8,
+                      "carry":  3,
+                      "talon":  1.1,
+                      "attack":  22,
+                      "hp":  100
+                  },
+        "look":  {
+                     "wingspan":  1.5,
+                     "beak":  0.06,
+                     "tail":  0.3,
+                     "crest":  0.05,
+                     "back":  [
+                                  200,
+                                  160,
+                                  110
+                              ],
+                     "belly":  [
+                                   246,
+                                   236,
+                                   220
+                               ],
+                     "accent":  [
+                                    60,
+                                    40,
+                                    30
+                                ]
+                 }
+    },
+    {
+        "key":  "phoenix",
+        "name":  "The Phoenix",
+        "bird":  "a crested firebird",
+        "expansion":  true,
+        "boost":  "Chicks that would starve instead fledge at half size (a colony that never fully dies)",
+        "unique":  "Rebirth: the Founder\u0027s death respawns instantly at full stats, once per season",
+        "weakness":  "Fervour decays: the colony needs a shrine to hold any at all",
+        "playstyle":  "The comeback colony: hard to finish, easy to bully, dangerous in Winter",
+        "stats":  {
+                      "cruise":  12,
+                      "sprint":  20,
+                      "stamina_s":  8,
+                      "carry":  3,
+                      "talon":  1,
+                      "attack":  20,
+                      "hp":  100
+                  },
+        "look":  {
+                     "wingspan":  1.7,
+                     "beak":  0.1,
+                     "tail":  0.7,
+                     "crest":  0.2,
+                     "back":  [
+                                  220,
+                                  90,
+                                  40
+                              ],
+                     "belly":  [
+                                   250,
+                                   190,
+                                   80
+                               ],
+                     "accent":  [
+                                    255,
+                                    220,
+                                    90
+                                ]
+                 }
     }
 ]

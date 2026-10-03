@@ -366,6 +366,54 @@ void World::StepPerks(float dt) {
         });
     }
 }
+// ---------------------------------------------------------------- veterans (doc p42) and mates' traits (p43)
+const VetData& Veterans() {
+    static VetData d; static bool loaded = false;
+    if (loaded) return d;
+    loaded = true;
+    Json j = LoadJsonFile(FlightDataDir() + "/flight_long.json");
+    const Json& v = j["veterans"];
+    d.fights = v["fights"].I(d.fights); d.bonus = v["bonus"].F(d.bonus); d.fearlessMorale = v["fearless_morale"].F(d.fearlessMorale); d.loyalAttack = v["loyal_attack"].F(d.loyalAttack);
+    for (const Json& n : v["names"].a) d.names.push_back(n.Str0());
+    for (const Json& t : v["traits"].a) { d.traitNames.push_back(t["name"].Str0()); d.traitWhat.push_back(t["effect"].Str0()); }
+    if (d.names.empty()) d.names.push_back("Old Gray");
+    while (d.traitNames.size() < VT_COUNT) { d.traitNames.push_back("?"); d.traitWhat.push_back(""); }
+    return d;
+}
+const std::vector<MateTraitDef>& MateTraits() {
+    static std::vector<MateTraitDef> v; static bool loaded = false;
+    if (loaded) return v;
+    loaded = true;
+    Json j = LoadJsonFile(FlightDataDir() + "/flight_long.json");
+    for (const Json& t : j["mate_traits"].a) {
+        MateTraitDef m; m.key = t["key"].Str0(); m.name = t["name"].Str0(m.key); m.effect = t["effect"].Str0(); m.favorite = t["favorite"].Str0();
+        m.hpAdd = t["hp_add"].F(0); m.hpMul = t["hp_mul"].F(1); m.speed = t["speed"].F(1); m.scout = t["scout"].F(1); m.attack = t["attack"].F(1); m.clutch = t["clutch"].I(0);
+        v.push_back(m);
+    }
+    while (v.size() < MT_COUNT) v.push_back(MateTraitDef{});
+    return v;
+}
+std::string World::VetLabel(const Bird& b) const {
+    if (b.vet < 0) return "";
+    const VetData& V = Veterans();
+    return V.names[std::max(0, b.vetName) % V.names.size()] + ", " + V.traitNames[std::clamp(b.vet, 0, VT_COUNT - 1)];
+}
+void World::StepVeterans(float dt) {
+    // a fight is an engagement it struck or was struck in: counted once the air has been quiet round it for ten seconds
+    const VetData& V = Veterans();
+    for (auto& b : col.birds) {
+        if (!b.alive || b.stage != BStage::Adult || !IsWarrior(b.role)) continue;
+        if (b.foughtT > b.countedT && time - b.foughtT > 10) {
+            b.countedT = time; b.fights++;
+            if (b.vet < 0 && b.fights >= V.fights) {
+                b.vet = (int)(Rand() * VT_COUNT) % VT_COUNT; b.vetName = col.nextVetName++ % (int)V.names.size();
+                b.hp = std::min(MaxHp(b.role) * (1 + V.bonus), b.hp * (1 + V.bonus));
+                Say(TextFormat("%s the %s has survived %d fights: a veteran (%s: %s).", V.names[b.vetName].c_str(), RoleName(b.role), b.fights, V.traitNames[b.vet].c_str(), V.traitWhat[b.vet].c_str()));
+            }
+        }
+    }
+    (void)dt;
+}
 // ---------------------------------------------------------------- --flight-long-test (the expansion's long match)
 int RunFlightLongTest() {
     int fails = 0;
@@ -427,7 +475,8 @@ int RunFlightLongTest() {
         w->time = 20 * World::DAY; ScoreCard b = w->Score(0);
         check(a.nests > 0 && b.nests == (int)lroundf(a.nests * WinterHoldings()), TextFormat("Winter's nests count double (%d in summer, %d in winter)", a.nests, b.nests));
     }
-    {   // two bot colonies through a two-season match: it ends on its last day
+    const bool quick = getenv("DEPTH_LONG_QUICK") != nullptr;   // (skips the two bot matches: about ten minutes)
+    if (!quick) {   // two bot colonies through a two-season match: it ends on its last day
         auto w = make(2, 21);
         w->founderBot = true; w->me.st = FState::Fly; w->me.pos = Vector3Add(w->island.nest, {0, 2, 0});
         float t0 = 0;
@@ -474,7 +523,7 @@ int RunFlightLongTest() {
         force(*v, "feast_day"); float spoilFeast = v->SpoilDays(); force(*v, "day_of_rest");
         check(spoilFeast < v->SpoilDays() * 0.6f, "Feast Day: the caches spoil twice as fast");
     }
-    {   // a two-season match: every colony has a decree every day
+    if (!quick) {   // a two-season match: every colony has a decree every day
         auto w = make(2, 31);
         w->founderBot = true; w->me.st = FState::Fly; w->me.pos = Vector3Add(w->island.nest, {0, 2, 0});
         int days = 0, decreed = 0, lastDay = 0;
@@ -505,6 +554,33 @@ int RunFlightLongTest() {
         check(whole && w->me.chick, "Nine Lives: one respawn whole; the next as a chick-leader");
         give("loud_voice");
         check(w->PerksOf(0).noRout, "Loud Voice: the Founder's flocks never rout");
+    }    // ---- veterans (doc p42) and mates' traits (p43)
+    {
+        check(Veterans().fights == 3 && Veterans().names.size() >= 30 && MateTraits().size() == 6, "veterans after three fights (a name list, five traits); six mates' traits");
+        auto w = make(4, 61); w->ape.isle = -1; w->kraken.isle = -1;
+        Colony& C = w->col;
+        Bird k; k.id = C.nextId++; k.stage = BStage::Adult; k.role = Role::Skirmisher; k.hp = w->MaxHp(Role::Skirmisher); k.pos = C.caches[0].pos; C.birds.push_back(k);
+        Bird& v = C.birds.back();
+        for (int f = 0; f < 3; f++) { w->time += 30; v.foughtT = w->time; w->time += 11; w->StepVeterans(0.1f); }
+        check(v.fights == 3 && v.vet >= 0 && v.vetName >= 0 && !w->VetLabel(v).empty(), "a Skirmisher that survives three fights is named a veteran: " + w->VetLabel(v) + TextFormat(" (fights %d, vet %d, alive %d, stage %d)", v.fights, v.vet, (int)v.alive, (int)v.stage));
+        v.vet = VT_FEARLESS;
+        int fl = w->MakeFlock(0, {v.id}, Formation::Chevron, Alt::Mid, Stance::Hold);
+        float withVet = fl >= 0 ? w->Morale(0, *w->FindFlock(0, fl)) : 0; v.vet = -1; float without = fl >= 0 ? w->Morale(0, *w->FindFlock(0, fl)) : 0;
+        check(withVet - without >= 14, TextFormat("a Fearless veteran steadies its flock (morale %.0f with it, %.0f without)", withVet, without));
+        // mates: a picky bowl calls the trait it asks for, and the chicks inherit it
+        C.wantTrait = MT_FERTILE;
+        Nest& n = C.nests[0]; n.built = true; n.mate = -1; n.mateT = 0.01f; n.bowl = n.bowlNeed; n.favFish = n.bowlNeed;
+        for (auto& b : C.birds) if (b.stage == BStage::Mate) b.alive = false;
+        w->StepColony(0.1f);
+        int mt = -2; for (const auto& b : C.birds) if (b.alive && b.stage == BStage::Mate) mt = b.trait;
+        check(mt == MT_FERTILE, TextFormat("a bowl filled with %s calls a Fertile mate", MateTraits()[MT_FERTILE].favorite.c_str()));
+        Bird* mate = nullptr; for (auto& b : C.birds) if (b.alive && b.stage == BStage::Mate) mate = &b;
+        if (mate) { mate->pos = Vector3Add(n.pos, {0, 0.25f, 0}); mate->task = Task::Sit; mate->hunger = 1; mate->clutchT = 1e9f; for (int q = 0; q < 3; q++) w->StepColony(0.1f); }
+        for (const auto& b : w->born) C.birds.push_back(b); w->born.clear();
+        int eggs = 0, inherit = 0; for (const auto& b : C.birds) if (b.alive && b.stage == BStage::Egg) { eggs++; inherit += b.trait == MT_FERTILE; }
+        check(eggs > 0 && inherit == eggs, TextFormat("its eggs inherit the trait (%d of %d)", inherit, eggs));
+        Bird ch; ch.stage = BStage::Chick; ch.trait = MT_HARDY; ch.retrainTo = Role::Fisher; C.birds.push_back(ch); w->FledgeNow(C.birds.back());
+        check(C.birds.back().hp > w->MaxHp(Role::Fisher) * 1.05f, "a Hardy mother's chick fledges with more health");
     }    printf(fails ? "flight-long-test: %d check(s) failed\n" : "flight-long-test: all checks passed\n", fails);
     return fails ? 1 : 0;
 }

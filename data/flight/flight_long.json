@@ -61,6 +61,27 @@
     {"key": "thiefs_eye", "name": "Thief's Eye", "effect": "The Founder sees enemy caches through walls", "thiefs_eye": true, "sight_m": 300},
     {"key": "diplomat", "name": "Diplomat", "effect": "Barter offers from the Founder in person are +20%", "barter": 1.2},
     {"key": "old_salt", "name": "Old Salt", "effect": "The Founder's reports include the next day's fish movement", "old_salt": true}
+  ],  "_veterans_source": "Doc p42: a warrior that survives three fights becomes a veteran: a name, +15% to its stats, a feather marker, and a trait. Design calls: a fight is an engagement in which it struck or was struck; Fearless gives its flock +15 morale (+30 at most) and never retreats with it; Loyal fights +20% beside the Founder.",
+  "veterans": {"fights": 3, "bonus": 0.15, "fearless_morale": 15, "loyal_attack": 1.2,
+    "traits": [
+      {"key": "fearless", "name": "Fearless", "effect": "never routs"},
+      {"key": "lucky", "name": "Lucky", "effect": "survives one killing blow"},
+      {"key": "keen", "name": "Keen", "effect": "sees stealth: silent raids and fog banks"},
+      {"key": "greedy", "name": "Greedy", "effect": "steals a fish from every kill"},
+      {"key": "loyal", "name": "Loyal", "effect": "follows the Founder anywhere (+20% beside it)"}
+    ],
+    "names": ["Old Gray", "Scar", "Bramble", "Talon", "Gusty", "Salt", "Ember", "Rook", "Pip", "Captain", "Hook", "Squall", "Flint", "Moss", "Tidewell", "Breaker",
+              "One-Eye", "Marlin", "Cinder", "Ash", "Whistle", "Biscuit", "Nettle", "Barnacle", "Storm", "Kestrel", "Dusk", "Brine", "Copper", "Thistle", "Gale", "Juniper",
+              "Mackerel", "Shingle", "Driftwood", "Tern", "Briar", "Pebble", "Quill", "Harrow"]
+  },
+  "_mates_source": "Doc p43: every mate has one visible trait its chicks inherit as a small bonus; a nest's bowl filled with the trait's favourite fish attracts a mate with that trait.",
+  "mate_traits": [
+    {"key": "big_eggs", "name": "Big Eggs", "effect": "+10 HP to chicks' adult form", "hp_add": 10, "favorite": "Mullet"},
+    {"key": "quick", "name": "Quick", "effect": "+5% speed", "speed": 1.05, "favorite": "Flying Fish"},
+    {"key": "hardy", "name": "Hardy", "effect": "+10% HP", "hp_mul": 1.1, "favorite": "Snapper"},
+    {"key": "keen", "name": "Keen", "effect": "+scouting (sight +25%)", "scout": 1.25, "favorite": "Squid"},
+    {"key": "fierce", "name": "Fierce", "effect": "+5% attack", "attack": 1.05, "favorite": "Barracuda"},
+    {"key": "fertile", "name": "Fertile", "effect": "clutch +1", "clutch": 1, "favorite": "Sardine"}
   ],  "spawning_regrow": 3.0,
   "migration_mates": 6,
   "tuna": {"count": 26, "size_min": 4},

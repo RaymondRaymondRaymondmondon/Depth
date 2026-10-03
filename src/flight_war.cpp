@@ -124,6 +124,7 @@ float World::Morale(int side, const Flock& f) const {
     { int band = W_.FervourBandOf(side); m += band == 2 ? 10.0f : band >= 3 ? 20.0f : 0.0f; }
     if (W_.ColOf(side).bell) m += BellMorale();
     m += W_.DecreeOf(side).morale;   // (Mutiny Watch -10)
+    { int fearless = 0; for (int id : f.members) if (Bird* b = W_.FindBird(side, id)) fearless += b->vet == VT_FEARLESS; m += std::min(2, fearless) * Veterans().fearlessMorale; }   // (a Fearless veteran steadies the flock)
     if (f.stim == STIM_DRAUGHT && f.stimT > 0) return 100;   // (the Draught: immune to morale)
     // the colony's feed: a hungry colony's flocks fight poorly
     float food = 0, mouths = 1;
@@ -231,6 +232,8 @@ void World::StepWar(float dt) {
         Flock* af = inFlock(att); Flock* vf = inFlock(vic);
         float dmg = att.f ? Founders()[att.f->def].attack * (att.f->chick ? 0.5f : 1.0f) * PerksOf(att.side).attack : R.attack * BendOfSide(att.side).attack;   // (Hooked Beak)
         if (af && af->leader == -2) dmg *= PerksOf(att.side).ledAttack;   // (the flock the Founder leads)
+        if (BendOfSide(att.side).daylight < 1 && DayPhase() > 0.25f && DayPhase() < 0.75f) dmg *= BendOfSide(att.side).daylight;   // (the Owl by day)
+        if (att.f && BendOfSide(att.side).plungeStrike && att.f->vel.y < -8) dmg *= 3;   // (the Gannet's Plunge Strike: a diving Founder)
         if (af && af->stimT > 0) dmg *= StimAttack(af->stim);   // (Fury, the Draught)
         if (att.b && !IsWarrior(att.b->role) && DecreeOf(att.side).callToArms) dmg = RoleOf(Role::Skirmisher).attack * BendOfSide(att.side).attack;   // (Call to Arms: Skirmisher stats for the day)
         if (float g = DecreeOf(att.side).grudge; g > 0) dmg *= ColOf(att.side).lastRaider == vic.side ? 1 + g : 1 - g;   // (Grudge: +20% on whoever last raided you, -20% on the rest)
@@ -262,8 +265,12 @@ void World::StepWar(float dt) {
         // cover: a Tank by the escorted bird takes the blow
         if (vf && vf->form == Formation::Cover && vr != Role::Tank && Rand() < w.coverRedirect)
             for (int id : vf->members) { Bird* t = FindBird(vic.side, id); if (t && t->role == Role::Tank && Vector3Distance(t->pos, vp) < 15) { t->hp -= dmg; if (t->hp <= 0) { Fighter tv{vic.side, t, nullptr, vf->id}; kill(tv, att.side, ar); } return; } }
+        if (att.b) { att.b->foughtT = time; if (att.b->vet >= 0) dmg *= 1 + Veterans().bonus; if (att.b->vet == VT_LOYAL && af && af->leader == -2) dmg *= Veterans().loyalAttack; if (att.b->trait >= 0) dmg *= MateTraits()[att.b->trait].attack; }   // (veterans +15%, Loyal beside the Founder, a Fierce mother)
+        if (vic.b) vic.b->foughtT = time;
         float& hp = hpOf(vic);
         hp -= dmg;
+        if (hp <= 0 && vic.b && vic.b->vet == VT_LUCKY && !vic.b->luckyUsed) { hp = 1; vic.b->luckyUsed = true; SayTo(vic.side, vic.b->vetName >= 0 ? Veterans().names[vic.b->vetName % Veterans().names.size()] + " shakes off a killing blow (Lucky)." : "A veteran shakes off a killing blow."); }
+        if (hp <= 0 && att.b && att.b->vet == VT_GREEDY) { Colony& AC = ColOf(att.side); if (!AC.caches.empty() && (int)AC.caches[0].fish.size() < 60) AC.caches[0].fish.push_back({eco.map && !eco.map->species.empty() ? 0 : -1, 2, 0}); }   // (Greedy: a fish from every kill)
         if (BendOfSide(att.side).tear && !LandAt(vp.x, vp.z)) eco.AddBlood({vp.x, -0.5f, vp.z}, 2);   // (the Beaked's Tear: hits bleed, and the sea notices)
         warFx.push_back({vp, 0, vic.side, vr, 0});
         if (hp <= 0) kill(vic, att.side, ar);
@@ -538,7 +545,7 @@ void World::StepWar(float dt) {
                         break;
                     }
                 }
-                if (b->role == Role::Skirmisher && (fl.target == Target::Ground || fl.target == Target::Cache || fl.target == Target::Point)) {
+                if ((b->role == Role::Skirmisher || (BendOfSide(s).steal && IsWarrior(b->role))) && (fl.target == Target::Ground || fl.target == Target::Cache || fl.target == Target::Point)) {   // (the Frigatebird: every warrior)
                     for (int t = 0; t < nSides; t++) {
                         if (t == s) continue;
                         for (auto& fsh : ColOf(t).birds) {
@@ -668,7 +675,8 @@ void World::BotWar(int side, float dt) {
     if (f < 0) return;
     OrderFlock(side, f, t, tgt, -1, -1, -1, to);
     if (Flock* fl = FindFlock(side, f)) fl->name = t == Target::Cache ? "Cache raiders" : "Chick snatchers";
-    if (!DecreeOf(side).silentRaids) SayTo(tgt, TextFormat("%s's flock (%d) leaves its island, heading your way.", SideName(side).c_str(), (int)idle.size()));   // (Quiet Wings: no warning)
+    bool keen = false; for (const auto& b : ColOf(tgt).birds) keen |= b.alive && b.vet == VT_KEEN;
+    if (!DecreeOf(side).silentRaids || keen) SayTo(tgt, TextFormat("%s's flock (%d) leaves its island, heading your way.", SideName(side).c_str(), (int)idle.size()));   // (Quiet Wings: no warning)
     ColOf(tgt).lastRaider = side;
 }
 

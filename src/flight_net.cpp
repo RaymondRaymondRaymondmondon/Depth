@@ -81,6 +81,7 @@ void OrderDose(Writer& w, int flock, int stim) { w.U8(FA_DOSE); w.I32(flock); w.
 void OrderBrew(Writer& w, int stim) { w.U8(FA_BREW); w.U8((uint8_t)stim); }
 void OrderDecree(Writer& w, int k) { w.U8(FA_DECREE); w.U8((uint8_t)k); }
 void OrderPerk(Writer& w, int k) { w.U8(FA_PERK); w.U8((uint8_t)k); }
+void OrderWantTrait(Writer& w, int trait) { w.U8(FA_WANT_TRAIT); w.I32(trait); }
 bool FormationUnlocked(const Colony& c, Formation f) { return f == Formation::Chevron || f == Formation::Scatter || c.HasTier(Tree::War, 1); }
 
 std::string TargetText(World& w, const Flock& f) {
@@ -231,6 +232,7 @@ bool OrderIn(World& w, int side, int kind, Reader& r) {
     case FA_DOSE: { int id = r.I32(); int s = (int)r.U8(); if (r.bad) return false; return w.Dose(id, s); }
     case FA_DECREE: { int k = (int)r.U8(); if (r.bad) return false; return w.PickDecree(k); }
     case FA_PERK: { int k = (int)r.U8(); if (r.bad) return false; return w.PickPerk(k); }
+    case FA_WANT_TRAIT: { int k = r.I32(); if (r.bad || k < -1 || k >= MT_COUNT) return false; C.wantTrait = k; for (auto& n : C.nests) n.favFish = 0; if (k >= 0) w.Say("The courtship bowls ask for a " + MateTraits()[k].name + " mate: fill them with " + MateTraits()[k].favorite + "."); return true; }
     case FA_BREW: { int s = (int)r.U8(); if (r.bad || s <= STIM_NONE || s >= STIM_COUNT) return false; C.brewFor = s; w.Say(std::string("The Chemists will brew ") + StimName(s) + "."); return true; }
     default: return false;
     }
@@ -389,6 +391,7 @@ template <class A> void VisitBird(A& a, Bird& b, bool own) {
     a.e(b.task); a.i(b.carrySp); a.i(b.carrySize); a.i(b.carryTwigs); a.i(b.carryShells);
     a.q8(b.hp, 255); a.q8(b.fight, 25.5f); a.q8(b.netT, 25.5f); a.i(b.flock); a.i(b.tgtSide); a.i(b.tgtId);
     a.i(b.carryGood); a.i(b.carryN);
+    a.i(b.vet); a.i(b.vetName); a.i(b.trait);   // (the long match: veterans and mates' traits)
     if (own) { a.i(b.scoutIsle); a.i(b.scoutZone); a.e(b.alt); a.b(b.hasOrder); a.b(b.observed); a.i(b.caught); }
 }
 template <class A> void VisitColony(A& a, Colony& c, bool own, bool full, const std::function<bool(const Bird&)>& keep) {
@@ -424,6 +427,7 @@ template <class A> void VisitColony(A& a, Colony& c, bool own, bool full, const 
     a.i(c.boomState); a.f(c.boomT); a.f(c.boomCd); a.b(c.cornered); a.i(c.serenadeDay); a.i(c.eggsStolen); a.i(c.nestsDestroyed); a.i(c.converted);
     if (own) a.vec(c.spies, [&](int& s) { a.i(s); });
     a.i(c.bombs); a.i(c.blockbusters); for (int k = 0; k < STIM_COUNT; k++) a.i(c.stims[k]); a.i(c.brewFor); a.b(c.bell); a.f(c.offeredKraken); a.i(c.krakenKill); a.i(c.expandTo);
+    a.i(c.wantTrait);
     a.i(c.decree); a.i(c.yesterday); for (int& o : c.offer) a.i(o); a.i(c.dealtDay); a.i(c.lastRaider); { int u = (int)c.decreesUsed; a.i(u); c.decreesUsed = (uint32_t)u; }   // (the long match's decrees)
 }
 // each zone's stock as a share of what it holds (one pass over the fish)

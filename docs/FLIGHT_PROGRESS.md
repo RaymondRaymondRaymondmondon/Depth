@@ -499,4 +499,84 @@ Doc pp. 15-18, 21, 24-25, 34. Code: `flight_danger.cpp`. Data: `flight_danger.js
 - *The bots test* (`--flight-war bots`): the bots now raise warriors and reach War 2 by about day 10, but don't raid in 14 days. Their colonies stall near 20 birds, short of food.
 - *The colony gate* (`--flight-sim tropical 16 careful`) peaks at 35 birds, against 40 (the doc wants 40 by day 6).
 
-## Next: stage 8, costumes, sound, internet play and the balance pass
+## Stage 8: costumes, sound, internet play, the balance pass (done 2026-10-03; targets met or logged)
+**Costumes** (doc pp. 28-30; `flight_costumes.*`, `data/flight/flight_costumes.json`):
+- 52 Founder costumes: 10 in the token shop (50-250 tokens) and 42 in the egg crate (15 common, 11 rare, 10 super rare, 6 special at 60/25/12/3%).
+- A crate costs one token. Tap an egg to hatch it; a duplicate hatches a feather.
+- Colony liveries: six colours at 60 tokens and six hats at 80; every colony bird wears them.
+- Tokens per match: 10, plus 1 per 50 score, 5 for each first-ever (kraken kill, dangerous island held, tier 4), and 20 for a win. Kept in `flight_wardrobe.txt`.
+- Drawing: each look is parts on the bird: a hat, extras, a tint, the beak, a scale (the Roc is drawn 3x) and effects (embers, lightning on a dive, a blur, gulls or chicks following, a glow at night). The Founder's Crown shows its best score on the name tag.
+- The Roost wardrobe (arcade reel, "Roost wardrobe"): shop, eggs, liveries and owned items, with the Founder turning on a perch in the chosen look.
+- Over the network: the look goes in the hello and the snapshot (`World::lookOf`).
+- Checks: `--flight-costume-test`. Shots: `flight_wardrobe*`, `flight_costumes_1-4` (the gallery).
+
+**Sound** (doc p32; `sound_flight.inl`, `FlAudio`/`FlightCue`, `FlightAudioFrame` in the scene):
+- Beds: sea swell, wind by height and speed, surf by shore type, the cove breathing while the kraken sleeps, rigging at towns, rain in a storm.
+- Life: the colony chorus by size and nearness, hungry chicks peeping, gulls, the dawn chorus.
+- Music: a 3/4 brass-and-strings theme that layers with colony size (strings always, a pipe for a small colony, the horn theme from 12 birds, a second horn from 40, a flute from 70); a war motif while flocks fight near you; a kraken theme (a tritone heave); a hush at dusk and at night; a horn call or a bell at the end of a match.
+- 28 effects, each triggered by a change in the world. Everything is muffled under water.
+- `--audio-test` renders 10 Flight states and every effect.
+
+**Internet play:**
+- `--net-loop flight 100` passes over GameNetworkingSockets with 100 ms of simulated lag.
+- Fixed: a guest who left on purpose had their goodbye destroyed unsent (GNS was torn down at once). The host treated it as a drop and the AI waited two minutes. Connections are now flushed before closing.
+- Interest management is by distance (others' birds within 330 m).
+
+**The balance pass** (doc p34 targets):
+- *Growth.* Chicks fledge in 1.2 days, clutches are 3-4 eggs, fishers carry 3, and the careful bot courts when its catch keeps up with its mouths.
+  - Result: 40 birds by day 10 and 83 by day 16, after which the lagoon is fished to a third.
+  - **The user's call:** the doc's days may stretch to fit the progression. The targets are now 40 by day 10 and 100 by day 16 (logged: 83).
+- *Bot fixes:*
+  - A bot retrained every builder at once (it counted those already retraining).
+  - A starving bot Founder sat still.
+  - The first builder stocked shells while nests waited.
+  - Outposts now get their nests first and their Watchers first.
+  - Birds climb over an awake ape, and bots feed it.
+  - Shells are stocked for the next tier.
+  - War comes before Trade in the bots' research.
+  - A 5% pearl chance per catch.
+- *War:* upwind fights cost 0.9 stamina a second; the wind rule holds at 77% with equal founders. The Flockmaster leads from the rear, screened by its Tanks.
+- *Founders (±3% target), logged:* four-seed runs (`--flight-sim founders 10 4`, 25 minutes). After three rounds of bend tuning the spread was still -9% to +21%. The Sigma's trade-first research wins day 3; the Lyrebird's mates compound. See the latest round in this file's history; 3 of 12 windows match the doc.
+- *Logged, not measured:* fisher deaths per fishing-day (1 per 15 safe, 1 per 4 on the cove); siege starvation pacing; the kraken killed about 1 match in 10.
+- *Gates:* `--flight-siege 3` passes (3 of 3 taken, 2 held); `--flight-war all` passes; the colony gate reaches 40 by day 10.
+
+## The expansion: the long match (doc pp. 35-51), in progress
+Code: `flight_long.cpp`. Data: `data/flight/flight_long.json` (every number). Checks: `--flight-long-test`. A long match is picked by seasons (2, 3 or 4) in the lobby or on the solo plate.
+
+**The calendar:** stretched by about 1.5 to fit the colony's growth (the user's call). Spring is days 1-5, Summer 6-11, Autumn 12-17, Winter 18-24; matches of 11, 17 or 24 days.
+
+**Seasons** (doc pp. 35-36):
+- Regrowth near shores and in the open sea, mate arrival, wind, storm frequency, kraken waking, stamina and fish depth.
+- Thermals all day in summer; bombs cheaper in summer; autumn gales from one quarter for a day at a time.
+- Each season's event, once, on a day within it:
+  - *The Spawning:* grounds regrow 3x and the sharks sleep.
+  - *The Tuna Run:* 26 Tuna cross the map in a day.
+  - *The Migration:* +6 wild mates, and mates come free.
+  - *The Long Night:* a day of darkness.
+- Winter's islands and nests count double in a four-season match.
+- HUD: the season, the day and an event banner.
+
+**Decrees** (doc pp. 36-38):
+- 24 in the data, each with its effect and trade-off as numbers (and "tomorrow" numbers for after-effects).
+- Three dealt at dawn, no repeats in a match. Bots choose at once; people pick from cards, or get a Day of Rest by mid-morning.
+- The hooks cover the catch, splash, growth, spoilage, hatching, clutches, building, mates, guano, conversion, trade and the Tithe, reputation, morale, raids (Egg Watch), flock speed, formations, Grudge, Call to Arms, scouting (Scouts Aloft, Fog Bank), Lighthouse, Thermal Day, Offerings, Salvage, Hospitality and healing.
+- Snapshot and order: `FA_DECREE`.
+
+**Founder perks** (doc p38): 12 perks, offered at days 5, 11 and 17 (three each). Bots pick by a build order. The hooks cover stamina, attack and led flocks, carry, Loud Voice, Mother's Instinct, Pearl Diver, Weather Sense, Nine Lives, Sharp Eyes and Thief's Eye, Diplomat and Old Salt. Order: `FA_PERK`.
+
+**Veterans and mates' traits** (doc pp. 42-43):
+- A warrior that survives three fights becomes a veteran: a name from a list of 40 and +15%.
+- Veteran traits: Fearless (+15 morale to its flock), Lucky (survives a killing blow once), Keen (hears silent raids), Greedy (a fish per kill), Loyal (+20% beside the Founder).
+- Mates arrive with one of six traits that their chicks inherit. A bowl filled with the wanted trait's favourite fish calls that trait (`FA_WANT_TRAIT`, on the colony panel).
+- Veterans wear a feather and a name tag.
+
+**Still to come** (in this order):
+- Six more founders.
+- The new warrior and working roles.
+- Relics, legendary birds and great events.
+- Neutral factions.
+- Diplomacy (feed pacts, bounties, flock loans).
+- Fishing techniques, nest styles and structures.
+- The ten new islands.
+- The added scoring and the mastery hints.
+- Then the Long Flight PDF.

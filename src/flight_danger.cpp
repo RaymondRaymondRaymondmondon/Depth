@@ -196,6 +196,7 @@ bool World::Grounded(Vector3 p) const {
     return false;
 }
 bool World::Blockaded(int zone, int side) const {
+    if (BendOfSide(side).piracy) return false;   // (the Frigatebird's fishers slip past unseen)
     if (zone < 0 || zone >= (int)eco.map->zones.size()) return false;
     Vector3 zc = eco.map->zones[zone].Center();
     for (int s = 0; s <= (int)sides.size(); s++) {
