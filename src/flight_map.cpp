@@ -502,6 +502,7 @@ void World::Init(const std::string& founderKey, uint32_t seed, const MapOpts& o)
     InitTowns();
     InitDanger();
     seasons = o.seasons; InitSeasons();   // (the long match: seasons and their events)
+    InitRelics();
     truceUntil.assign((sides.size() + 1) * (sides.size() + 1), -1);
     Reveal(me.pos, 120, home);
     StepMap(0);
@@ -630,7 +631,7 @@ void World::StepFog(float dt) {
     if (!fogNow && dt != 0) return;
     if (me.st != FState::Dead) {
         int landed = me.st == FState::Perched ? IsleAt(me.pos.x, me.pos.z, 10) : -1;
-        Reveal(me.pos, std::clamp(45 + 1.6f * me.pos.y, 45.0f, 300.0f) * (FogNow() ? FogSight() : 1.0f) * BendNow().scout, mirror ? -1 : landed);
+        Reveal(me.pos, std::clamp(45 + 1.6f * me.pos.y, 45.0f, 300.0f) * (FogNow() ? FogSight() : 1.0f) * BendNow().scout * (HasRelic(cur, RL_LENS) ? Relics()[RL_LENS].scout : 1.0f), mirror ? -1 : landed);   // (the Lamp Lens)
     }
     for (const auto& b : col.birds) if (b.alive && (b.stage == BStage::Adult || b.stage == BStage::Mate) && Vector3Length(b.vel) > 0.5f)
         Reveal(b.pos, (b.role == Role::Scout && b.hasOrder ? AltSight(b.alt) * BendNow().scout : 45) * (FogNow() ? FogSight() : 1.0f));

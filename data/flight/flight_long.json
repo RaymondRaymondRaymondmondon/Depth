@@ -82,6 +82,36 @@
     {"key": "keen", "name": "Keen", "effect": "+scouting (sight +25%)", "scout": 1.25, "favorite": "Squid"},
     {"key": "fierce", "name": "Fierce", "effect": "+5% attack", "attack": 1.05, "favorite": "Barracuda"},
     {"key": "fertile", "name": "Fertile", "effect": "clutch +1", "clutch": 1, "favorite": "Sardine"}
+  ],  "_relics_source": "Doc pp. 46-47. Relics: single items found on dangerous islands; a colony holds at most three, at its shrine; raids on the shrine can steal one. Design calls: until the expansion's islands exist, relics lie at the kraken's cove, skull island's summit, the volcano's rim and the wreck; a raid that reaches a colony's home cache takes a relic one time in four.",
+  "relics_max": 3, "relic_steal": 0.25,
+  "relics": [
+    {"key": "ships_bell", "name": "The Ship's Bell", "effect": "Morale +10 everywhere", "morale": 10},
+    {"key": "lamp_lens", "name": "The Lamp Lens", "effect": "Scouting range +50%", "scout": 1.5},
+    {"key": "krakens_beak", "name": "The Kraken's Beak", "effect": "Your flocks ignore the kraken", "kraken_ignores": true},
+    {"key": "golden_egg", "name": "The Golden Egg", "effect": "One mate's clutch doubles", "double_clutch": true},
+    {"key": "forts_flag", "name": "The Fort's Flag", "effect": "Every town's rates +20%", "trade": 1.2},
+    {"key": "eagles_feather", "name": "The Eagle's Feather", "effect": "Strikers +20%", "striker": 1.2},
+    {"key": "sirens_shell", "name": "The Siren's Shell", "effect": "Mates arrive on call", "mate_time": 0.1},
+    {"key": "keepers_logbook", "name": "The Keeper's Logbook", "effect": "Every ground's yield known", "logbook": true}
+  ],
+  "_legends_source": "Doc p47. One legendary bird per map, by the Visitor event: whoever reaches it first with the right gift (a fish of size 3 or more) recruits it.",
+  "legends": [
+    {"key": "albatross_south", "name": "The Albatross of the South", "effect": "Your flocks never tire over water"},
+    {"key": "fisher_king", "name": "The Fisher King", "effect": "Every ground your colony fishes regrows twice as fast"},
+    {"key": "old_owl", "name": "The Old Owl", "effect": "Every Watcher sees three times as far"},
+    {"key": "phoenix_chick", "name": "The Phoenix Chick", "effect": "Fledges into your best warrior: a veteran Striker"},
+    {"key": "dodo", "name": "The Dodo", "effect": "Does nothing; worth 200 score if alive at the end, and everyone wants to eat it", "score": 200}
+  ],
+  "_great_source": "Doc pp. 46-47: one great event per long match, announced a day ahead to colonies with an Augur. It falls between days 8 and 20.",
+  "great_events": [
+    {"key": "red_tide", "name": "The Red Tide", "what": "A bloom kills a ground's fish and poisons feed for a day; caches with Keepers are safe", "stock": 0.2, "poison": 0.3},
+    {"key": "krakens_walk", "name": "The Kraken's Walk", "what": "The kraken leaves its cove and crosses the map, eating nests below 20 m; the cove is free for a day"},
+    {"key": "great_storm", "name": "The Great Storm", "what": "Two days of gales; the wreck breaks up faster", "days": 2},
+    {"key": "eclipse", "name": "The Eclipse", "what": "A day of night; owls and Shadows own it"},
+    {"key": "treasure_ship", "name": "The Wreck of the Treasure Ship", "what": "A ship sinks near a colony with a hold of pearls; everyone comes", "pearls": 16, "take": 4},
+    {"key": "plague", "name": "The Plague", "what": "A sickness spreads through crowded colonies (over 60 birds); Chemistry 1 or a Nurse per 20 birds cures it", "crowd": 60, "loss": 0.1},
+    {"key": "calm", "name": "The Calm", "what": "No wind for a day; thermals die; Bombers are grounded; fishers reach everything", "catch": 1.25},
+    {"key": "visitor", "name": "The Visitor", "what": "A legendary bird lands on the map: bring it a fish of size 3 or more to recruit it"}
   ],  "spawning_regrow": 3.0,
   "migration_mates": 6,
   "tuna": {"count": 26, "size_min": 4},

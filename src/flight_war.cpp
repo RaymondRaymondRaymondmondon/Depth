@@ -122,7 +122,7 @@ float World::Morale(int side, const Flock& f) const {
     if (f.leaderDead) m += w.mLeader;
     // fervour (doc p26): high fervour steadies a flock (+10, +20); the wreck's bell rings in their ears
     { int band = W_.FervourBandOf(side); m += band == 2 ? 10.0f : band >= 3 ? 20.0f : 0.0f; }
-    if (W_.ColOf(side).bell) m += BellMorale();
+    if (W_.ColOf(side).bell || W_.HasRelic(side, RL_BELL)) m += BellMorale();   // (the wreck's bell, carried home; or the Ship's Bell relic)
     m += W_.DecreeOf(side).morale;   // (Mutiny Watch -10)
     { int fearless = 0; for (int id : f.members) if (Bird* b = W_.FindBird(side, id)) fearless += b->vet == VT_FEARLESS; m += std::min(2, fearless) * Veterans().fearlessMorale; }   // (a Fearless veteran steadies the flock)
     if (f.stim == STIM_DRAUGHT && f.stimT > 0) return 100;   // (the Draught: immune to morale)
@@ -131,8 +131,10 @@ float World::Morale(int side, const Flock& f) const {
     { Colony& C = W_.ColOf(side); for (const auto& c : C.caches) for (const auto& x : c.fish) food += x.size; mouths = 3; for (const auto& b : C.birds) if (b.alive && b.stage != BStage::Egg) mouths += b.stage == BStage::Chick ? 1 : 2.5f; }
     float days = food / mouths;
     m += days < 0.5f ? w.mHungry : days > 2 ? w.mFed : 0;
+    // a Drummer at home: the island's defenders +15, and enemy Screamers drowned out
+    bool drum = false; { const Colony& DC = W_.ColOf(side); for (const auto& b : DC.birds) drum |= b.alive && b.stage == BStage::Adult && b.role == Role::Drummer; if (drum && !DC.caches.empty() && Flat(f.pos, DC.caches[0].pos) < 220) m += 15; else drum = false; }
     // enemy Screamers within earshot
-    for (int s = 0; s <= (int)sides.size(); s++) {
+    for (int s = 0; s <= (int)sides.size() && !drum; s++) {
         if (s == side) continue;
         for (const auto& b : W_.ColOf(s).birds) if (b.alive && b.role == Role::Screamer && b.stage == BStage::Adult && Flat(b.pos, f.pos) < 60) m += w.mEnemyScreamer;
     }
@@ -204,6 +206,10 @@ void World::StepWar(float dt) {
             if (fl.leader == -2 && (F.st == FState::Dead || Flat(F.pos, fl.pos) > 80)) fl.leader = -1;   // (the Founder has left it)
             if (fl.leader == -1) for (int id : fl.members) { Bird* b = FindBird(s, id); if (b && b->role == Role::Flockmaster) { fl.leader = id; break; } }
             fl.morale = Morale(s, fl);
+            {   // a Nurse in the flock: 10 HP a minute to its birds, and a fish from its pouch for the hungry
+                bool nurse = false; for (int id : fl.members) if (Bird* b = FindBird(s, id); b && b->role == Role::Nurse) nurse = true;
+                if (nurse) for (int id : fl.members) if (Bird* b = FindBird(s, id)) { b->hp = std::min(MaxHp(b->role), b->hp + 10 * dt / 60); if (b->hunger < 0.5f) b->hunger = std::min(1.0f, b->hunger + 0.2f * dt / 60); }
+            }
             // a rout: at 30 it goes home on its own; at 0 it scatters (every bird for itself, and it's eaten)
             int band = FervourBandOf(s);
             float routAt = band == 0 ? std::max(40.0f, w.mRetreat) : w.mRetreat;   // (low fervour: flocks break sooner; at zeal, never)
@@ -233,7 +239,9 @@ void World::StepWar(float dt) {
         float dmg = att.f ? Founders()[att.f->def].attack * (att.f->chick ? 0.5f : 1.0f) * PerksOf(att.side).attack : R.attack * BendOfSide(att.side).attack;   // (Hooked Beak)
         if (af && af->leader == -2) dmg *= PerksOf(att.side).ledAttack;   // (the flock the Founder leads)
         if (BendOfSide(att.side).daylight < 1 && DayPhase() > 0.25f && DayPhase() < 0.75f) dmg *= BendOfSide(att.side).daylight;   // (the Owl by day)
-        if (att.f && BendOfSide(att.side).plungeStrike && att.f->vel.y < -8) dmg *= 3;   // (the Gannet's Plunge Strike: a diving Founder)
+        if (att.f && BendOfSide(att.side).plungeStrike && att.f->vel.y < -8) dmg *= 3;
+        if (att.b && att.b->role == Role::Plunger && att.b->vel.y > -6) dmg = 8 * BendOfSide(att.side).attack;
+        if (att.b && att.b->role == Role::Striker && HasRelic(att.side, RL_FEATHER)) dmg *= Relics()[RL_FEATHER].striker;   // (the Eagle's Feather)   // (a Plunger at level flight: 8)   // (the Gannet's Plunge Strike: a diving Founder)
         if (af && af->stimT > 0) dmg *= StimAttack(af->stim);   // (Fury, the Draught)
         if (att.b && !IsWarrior(att.b->role) && DecreeOf(att.side).callToArms) dmg = RoleOf(Role::Skirmisher).attack * BendOfSide(att.side).attack;   // (Call to Arms: Skirmisher stats for the day)
         if (float g = DecreeOf(att.side).grudge; g > 0) dmg *= ColOf(att.side).lastRaider == vic.side ? 1 + g : 1 - g;   // (Grudge: +20% on whoever last raided you, -20% on the rest)
@@ -280,13 +288,13 @@ void World::StepWar(float dt) {
         Bird& b = *x.b;
         if (!b.alive) continue;
         Flock* fl = inFlock(x);
-        bool guardian = b.role == Role::Watcher;
+        bool guardian = b.role == Role::Watcher || (b.role == Role::Harrier && b.flock < 0);   // (a Harrier patrols on its own)
         if (!fl && !guardian) continue;
         const RoleDef& R = RoleOf(b.role);
         b.atkCd -= dt;
         if (b.netT > 0) { b.netT -= dt; b.vel = {0, 0, 0}; continue; }   // (held in a net)
         // the nearest enemy in reach (a Watcher looks from its post)
-        float sight = guardian ? w.watchSight * (b.post.y > 15 ? w.towerMult : 1.0f) * (FogNow() ? FogSight() : 1.0f) : w.engage;
+        float sight = guardian ? w.watchSight * (b.post.y > 15 ? w.towerMult : 1.0f) * (FogNow() ? FogSight() : 1.0f) * (HasLegend(x.side, LG_OLD_OWL) ? 3.0f : 1.0f) : w.engage;   // (the Old Owl)
         Vector3 from = guardian ? b.post : b.pos;
         if (b.role == Role::Flockmaster) sight = std::min(sight, 10.0f);   // (the Flockmaster directs from the rear: it fights only what reaches it)
         Fighter* best = nullptr; float bd = sight;
@@ -297,6 +305,7 @@ void World::StepWar(float dt) {
             Vector3 yp = posOf(y);
             float d = Vector3Distance(from, yp);
             if (guardian && yp.y - from.y > 50) continue;   // (a Watcher only sees what flies mid or low)
+            if (guardian && y.b && y.b->role == Role::Mimic) continue;   // (a Mimic in their livery: the Watchers don't see it)
             if (guardian && BendOfSide(y.side).duskRaid && (DayPhase() < 0.2f || DayPhase() > 0.85f)) continue;   // (the Shadow's Dusk Raid: unseen at night)
             float pref = (R.strong & (1u << (int)roleOf(y))) ? 0.7f : roleOf(y) == Role::Flockmaster ? 1.5f : 1.0f;   // (a leader behind its flock is reached last, except by the Strikers who hunt it)
             // a leader screened by its flock's Tanks: they put themselves in the way (an attacker must get past them first)
@@ -402,7 +411,7 @@ void World::StepWar(float dt) {
                         // flapping in a fight costs breath; upwind costs more; diving is free
                         float cost = b->vel.y < -2 ? 0 : 1;
                         if (Vector2DotProduct({b->vel.x, b->vel.z}, wind) < 0) cost += w.upwindCost * std::min(1.0f, windSp / 8) * WindPenalty(s);
-                        b->fight = std::max(0.0f, b->fight - cost * dt);
+                        if (!(HasLegend(s, LG_ALBATROSS) && !LandAt(b->pos.x, b->pos.z))) b->fight = std::max(0.0f, b->fight - cost * dt);   // (the Albatross of the South: never tired over water)
                         if (Vector2Length({b->vel.x, b->vel.z}) > 0.3f) b->yaw = atan2f(b->vel.z, b->vel.x);
                         b->flapPh += dt * 2 * PI * 3.2f; b->task = Task::Fly;
                         float g = std::max(0.0f, HeightAt(b->pos.x, b->pos.z));
@@ -514,6 +523,10 @@ void World::StepWar(float dt) {
                     if (fl.target == Target::Ground && fl.tZone >= 0) goal = eco.map->zones[fl.tZone].Center();
                     if (Flat(b->pos, goal) < 6) { Blast(GroundAt(goal.x, goal.z), s, b->carrySize); b->carrySp = -1; b->carrySize = 0; SayTo(s, "A Bomber drops its bomb."); }
                 }
+                if (fl.target == Target::Cache && seasons > 0 && (b->role == Role::Skirmisher || b->role == Role::Striker) && ColOf(fl.tSide).relics && !ColOf(fl.tSide).caches.empty() && Vector3Distance(b->pos, ColOf(fl.tSide).caches[0].pos) < 4 && fmodf(time, 1.0f) < dt && Rand() < RelicStealChance()) {   // (a raid at the shrine: a relic taken)
+                    Colony& T = ColOf(fl.tSide);
+                    for (int r = 0; r < RL_COUNT; r++) if (((T.relics >> r) & 1) && RelicCount(s) < RelicsMax()) { T.relics &= ~(1u << r); C.relics |= 1u << r; SayTo(fl.tSide, SideName(s) + " has stolen " + Relics()[r].name + "!"); SayTo(s, "Your raiders bring home " + Relics()[r].name + "."); break; }
+                }
                 if (fl.target == Target::Nests && b->role == Role::Striker && !DecreeOf(fl.tSide).noRaids) {   // (Egg Watch: nests can't be raided)
                     Colony& T = ColOf(fl.tSide);
                     // an assault: with no chick or egg left in it, the nest is torn down (and the island's holding with it)
@@ -602,6 +615,11 @@ void World::BotGovern(float dt) {
     if (alive >= 10 && (DaysOfFood() > 0.8f || fpd > mouths * 1.1f)) {   // (a store of food, or a catch that outruns the mouths)
         col.plan[(int)Role::Fisher] = std::max(0.5f, fish - 0.2f);
         col.plan[(int)Role::Skirmisher] = 0.1f; col.plan[(int)Role::Striker] = 0.05f; col.plan[(int)Role::Tank] = 0.04f; col.plan[(int)Role::Watcher] = Count(BStage::Adult, Role::Watcher) < 2 ? 0.04f : 0;
+        if (seasons > 0 && alive >= 14) {   // (the long match: a few of the expansion's roles where they're open)
+            auto one = [&](Role r, float share) { if (RoleUnlocked(r)) col.plan[(int)r] = Count(BStage::Adult, r) < 1 ? share : share * 0.3f; };
+            one(Role::Diver, 0.05f); one(Role::Keeper, 0.02f); one(Role::Gardener, 0.02f); one(Role::Teacher, 0.02f); one(Role::Augur, 0.02f); one(Role::Drummer, 0.02f);
+            one(Role::Nurse, 0.02f); one(Role::Harrier, 0.03f); one(Role::Swallow, 0.03f); one(Role::Plunger, 0.02f); one(Role::Lancer, 0.02f);
+        }
         if (alive >= 18) { col.plan[(int)Role::Screamer] = 0.02f; col.plan[(int)Role::Flockmaster] = Count(BStage::Adult, Role::Flockmaster) < 1 ? 0.03f : 0; }
     }
     col.restBelow = 0.45f;

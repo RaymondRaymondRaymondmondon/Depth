@@ -58,7 +58,7 @@ const ResearchData& RD() {
 struct TownData {
     float sell[G_COUNT] = {1, 0.5f, 1, 4}, morning = 0.8f, evening = 1.3f, glut = 0.006f, recover = 0.5f;
     float stock[G_COUNT] = {0, 80, 60, 12}, restock[G_COUNT] = {0, 40, 25, 5};
-    float repTrade = 1, repShoo = -50, repTrader = -25, pelican = 1, surplusDays = 2;
+    float repTrade = 1, repShoo = -50, repTrader = -25, pelican = 1, surplusDays = 2, cornerMax = 4;
 };
 const TownData& TD() {
     static TownData d; static bool loaded = false;
@@ -71,7 +71,7 @@ const TownData& TD() {
     for (int g = 0; g < G_COUNT; g++) if (j["stock"][GK[g]].IsNum()) d.stock[g] = j["stock"][GK[g]].F(d.stock[g]);
     auto F = [&](const char* k, float& v) { if (j[k].IsNum()) v = j[k].F(v); };
     F("fish_price_morning", d.morning); F("fish_price_evening", d.evening); F("fish_glut_per_feed", d.glut); F("recover_per_day", d.recover);
-    F("rep_per_trade", d.repTrade); F("rep_shoo", d.repShoo); F("rep_trader_killed", d.repTrader); F("pelican_pearls", d.pelican); F("trader_surplus_days", d.surplusDays);
+    F("rep_per_trade", d.repTrade); F("rep_shoo", d.repShoo); F("rep_trader_killed", d.repTrader); F("pelican_pearls", d.pelican); F("trader_surplus_days", d.surplusDays); F("corner_max_pearls", d.cornerMax);
     return d;
 }
 }  // namespace
@@ -82,7 +82,8 @@ ResearchCost ResearchCostOf(int tier) { return RD().cost[std::clamp(tier, 1, 4) 
 const char* GoodName(int g) { static const char* N[G_COUNT] = {"fish", "twigs", "shells", "pearls"}; return N[std::clamp(g, 0, G_COUNT - 1)]; }
 const char* StructureName(int k) { static const char* N[ST_COUNT] = {"hedge", "tower", "Roost", "shrine", "Works"}; return N[std::clamp(k, 0, ST_COUNT - 1)]; }
 const char* RoleAbbrev(Role r) {
-    static const char* A[(int)Role::COUNT] = {"", "Fsh", "Fdr", "Bld", "Sct", "Trd", "Pst", "Chm", "Pth", "Skm", "Tnk", "Str", "Wch", "Scr", "FM", "Bmb", "Prt"};
+    static const char* A[(int)Role::COUNT] = {"", "Fsh", "Fdr", "Bld", "Sct", "Trd", "Pst", "Chm", "Pth", "Skm", "Tnk", "Str", "Wch", "Scr", "FM", "Bmb", "Prt",
+                                                 "Plg", "Swl", "Mim", "Nrs", "Fer", "Lnc", "Har", "Drm", "Dvr", "Gdn", "Kpr", "Tch", "Hrd", "Aug"};
     return A[std::clamp((int)r, 0, (int)Role::COUNT - 1)];
 }
 int StructureTwigsOf(int kind) { return RD().stTwigs[std::clamp(kind, 0, ST_COUNT - 1)]; }
@@ -156,6 +157,19 @@ bool World::RoleUnlocked(Role r) const {
     case Role::Chemist: return col.HasTier(Tree::Chemistry, 1);
     case Role::Bomber: return col.HasTier(Tree::Bombing, 2) && !BendNow().noAirWar;
     case Role::Pathfinder: return col.HasTier(Tree::Trade, 4);
+    // the expansion's roles (long matches): by the trees they grow from
+    case Role::Swallow: return seasons > 0 && col.HasTier(Tree::War, 1);
+    case Role::Lancer: case Role::Harrier: return seasons > 0 && col.HasTier(Tree::War, 2);
+    case Role::Plunger: return seasons > 0 && col.HasTier(Tree::War, 3) && !BendNow().noAirWar;
+    case Role::Mimic: return seasons > 0 && col.HasTier(Tree::Trade, 3);
+    case Role::Ferrier: case Role::Herald: return seasons > 0 && col.HasTier(Tree::Trade, 2);
+    case Role::Nurse: return seasons > 0 && col.HasTier(Tree::Faith, 2);
+    case Role::Drummer: return seasons > 0 && col.HasTier(Tree::Faith, 1);
+    case Role::Augur: return seasons > 0 && col.HasTier(Tree::Faith, 3);
+    case Role::Diver: return seasons > 0 && col.HasTier(Tree::Fishing, 1);
+    case Role::Gardener: return seasons > 0 && col.HasTier(Tree::Nesting, 1);
+    case Role::Keeper: return seasons > 0 && col.HasTier(Tree::Caches, 1);
+    case Role::Teacher: return seasons > 0 && col.HasTier(Tree::Nesting, 3);
     default: return true;
     }
 }
@@ -184,7 +198,7 @@ float World::FervourRout() const { return RD().fRout; }
 float World::WindPenalty(int side) const { return BendOfSide(side).wind * (ColOf(side).HasTier(Tree::Flight, 3) ? 0.5f : 1.0f); }
 float World::FightStamina(int side) const { return 25 * BendOfSide(side).stamina * (ColOf(side).HasTier(Tree::Flight, 2) ? 1.5f : 1.0f); }
 int World::CacheCap() const { return (int)((col.HasTier(Tree::Caches, 2) ? 50 : Econ().cacheCap) * BendNow().cacheCap); }   // (the Pelican: double)
-float World::SpoilDays() const { return (col.HasTier(Tree::Caches, 1) ? 6 : Econ().spoilDays) / std::max(0.25f, DecreeNow().spoil); }   // (Feast Day: caches empty faster)
+float World::SpoilDays() const { return (col.HasTier(Tree::Caches, 1) ? 6 : Econ().spoilDays) / std::max(0.25f, DecreeNow().spoil) * (Count(BStage::Adult, Role::Keeper) > 0 ? 2.0f : 1.0f); }   // (Feast Day: faster; a Keeper: half as fast)   // (Feast Day: caches empty faster)
 int World::NestEggs() const { return col.HasTier(Tree::Nesting, 2) ? 6 : Econ().nestEggs; }
 int World::ShellsWanted() const {
     // the builders keep a stock of shells at the cache: enough for the cheapest next research and a shrine
@@ -289,7 +303,7 @@ bool World::TradeAt(int town, int feedIn, int good, int* got) {
     if ((int)T.rep.size() <= cur) T.rep.resize(cur + 1, 0);
     if (T.rep[cur] <= TD().repShoo) { Say(isles[T.isle].name + "'s people shoo your birds away (your reputation there)."); return false; }
     // the colony's credit at the town (feed sold and not yet spent) buys as many of the good as it covers
-    float value = feedIn * FishPrice(town) * BendNow().trade * DecreeNow().trade * (T.rep[cur] >= 50 ? 1.1f : 1.0f);   // (Market Day +30%)
+    float value = feedIn * FishPrice(town) * BendNow().trade * DecreeNow().trade * (HasRelic(cur, RL_FLAG) ? Relics()[RL_FLAG].trade : 1.0f) * (T.rep[cur] >= 50 ? 1.1f : 1.0f);   // (the Fort's Flag)   // (Market Day +30%)
     if (int tithe = DecreeNow().tithe; tithe > 0) { col.titheFish += feedIn; while (col.titheFish >= tithe) { col.titheFish -= tithe; col.pearls++; } }   // (the Tithe: a pearl per 20 traded)
     T.stock[G_FISH] += feedIn;
     if (townCredit.size() < towns.size() * 8) townCredit.resize(towns.size() * 8, 0);
@@ -481,7 +495,7 @@ void World::StepSociety(float dt) {
     if (C.cornered && C.cornerTown >= 0 && C.cornerT > 0 && DayPhase() > 0.7f && time - C.cornerT < DAY) {
         Town& T = towns[C.cornerTown];
         float sell = T.stock[G_FISH] * FishPrice(C.cornerTown);
-        int pearls = std::max(0, (int)((sell - C.cornerBuy) / std::max(1.0f, SellPrice(C.cornerTown, G_PEARLS))));
+        int pearls = std::clamp((int)((sell - C.cornerBuy) / std::max(1.0f, SellPrice(C.cornerTown, G_PEARLS))), 0, (int)TD().cornerMax);   // (capped: the doc leaves the profit open, and uncapped it won the match on day 3)
         C.pearls += pearls; C.cornerT = -1;
         Say(TextFormat("The cornered catch sells at evening: %d pearls of profit.", pearls));
     }
@@ -584,7 +598,8 @@ void World::BotSociety(float dt) {
     // offers to this colony: fair or better, and it can pay
     auto value = [](const int g[G_COUNT]) { return g[G_FISH] * 1.0f + g[G_TWIGS] * 0.5f + g[G_SHELLS] * 1.0f + g[G_PEARLS] * 8.0f; };
     for (auto& o : offers) if (o.state == 0 && o.to == cur) {
-        bool fair = value(o.give) * PerksOf(o.from).barter + o.truceDays * 3 >= value(o.get) * 1.1f;   // (a Diplomat's offers +20%)
+        bool herald = false; for (const auto& hb : ColOf(o.from).birds) herald |= hb.alive && hb.role == Role::Herald && hb.stage == BStage::Adult;
+        bool fair = value(o.give) * PerksOf(o.from).barter * (herald ? 1.1f : 1.0f) + o.truceDays * 3 >= value(o.get) * 1.1f;   // (a Diplomat's offers +20%; a Herald's +10%)   // (a Diplomat's offers +20%)
         AnswerOffer(cur, o.id, fair && PayGoods(cur, o.get, false));
     }
     (void)dt;

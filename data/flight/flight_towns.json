@@ -1,4 +1,5 @@
 {
+  "corner_max_pearls": 4, "_corner_note": "Stage 8 balance: the Sigma's corner pays at most this many pearls (uncapped, it won the match on day 3).",
   "_source": "The Flight design document p7 (Trade) and p26 (Towns, reputation, the Sigma's cornering, the pelican). Prices are in feed (a fish's size).",
   "sell_price": {"twigs": 0.5, "shells": 1.0, "pearls": 4.0},
   "fish_price_morning": 0.8,

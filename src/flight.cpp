@@ -125,9 +125,10 @@ int Founder::Carry(const FounderDef& d) const { return std::max(1, (chick ? d.ca
 float World::Rand() { rng ^= rng << 13; rng ^= rng >> 17; rng ^= rng << 5; return (rng & 0xFFFFFF) / 16777216.0f; }
 void World::Say(const std::string& s) { if (quiet || predicting || !human) return; log.push_back(s); if (log.size() > 60) log.erase(log.begin()); }
 void World::SayTo(int side, const std::string& s) { if (side < 0 || side > (int)sides.size() || !HumanOf(side)) return; WithSide(side, [&] { bool q = quiet; quiet = false; Say(s); quiet = q; }); }
-float World::DayPhase() const { return EventNow(EV_LONG_NIGHT) ? 0.02f : fmodf(time / DAY + 0.22f, 1.0f); }   // (the Long Night: a whole day of dark)   // (the match opens just before dawn's rise)
+float World::DayPhase() const { return EventNow(EV_LONG_NIGHT) || GreatNow(GE_ECLIPSE) ? 0.02f : fmodf(time / DAY + 0.22f, 1.0f); }   // (the Long Night: a whole day of dark)   // (the match opens just before dawn's rise)
 float World::FeedValue(int sp) const { return sp >= 0 && eco.map && sp < (int)eco.map->species.size() ? (float)eco.map->species[sp].size : 1; }
 float World::Thermal(Vector3 p) const {
+    if (GreatNow(GE_CALM)) return 0;   // (the Calm: the thermals die)
     // thermals rise off the hill in the afternoon: free altitude
     if (wholeMap) for (int s = 0; s <= (int)sides.size(); s++) if (DecreeOf(s).thermalHome) { int h = HomeOf(s); if (h >= 0 && h < (int)isles.size() && p.y < 160 && Vector2Distance({p.x, p.z}, {isles[h].c.x, isles[h].c.z}) < isles[h].radius) return 2.0f; }   // (Thermal Day)
     float ph = DayPhase(), k = Smooth(0.42f, 0.5f, ph) * (1 - Smooth(0.68f, 0.76f, ph));
@@ -496,6 +497,7 @@ void World::Step(float realDt, const FounderInput& in) {
     StepSeasons(dt);
     StepDecrees(dt);
     StepPerks(dt);
+    StepGreat(dt);
     if (seasons > 0) for (int s = 0; s <= (int)sides.size(); s++) WithSide(s, [&] { StepVeterans(dt); });
     fogT += dt; fogNow = fogT >= 0.25f;
     if (fogNow) fogT = 0;

@@ -10,7 +10,15 @@
     "striker":     {"hp": 90,  "speed": 14, "attack": 30, "cooldown": 2.4, "alt": "high", "strong": ["tank", "flockmaster", "watcher"], "weak": ["skirmisher"]},
     "watcher":     {"hp": 80,  "speed": 9,  "attack": 8,  "cooldown": 1.4, "alt": "perched", "strong": ["skirmisher", "scout"], "weak": ["striker"]},
     "screamer":    {"hp": 60,  "speed": 15, "attack": 5,  "cooldown": 1.2, "alt": "mid",  "strong": ["fisher"], "weak": []},
-    "flockmaster": {"hp": 90,  "speed": 13, "attack": 15, "cooldown": 1.2, "alt": "mid",  "strong": [], "weak": ["tank"]}
+    "flockmaster": {"hp": 90,  "speed": 13, "attack": 15, "cooldown": 1.2, "alt": "mid",  "strong": [], "weak": ["tank"]},
+    "plunger":     {"hp": 70,  "speed": 13, "attack": 40, "cooldown": 2.6, "alt": "high", "strong": ["tank", "watcher"], "weak": ["screamer"]},
+    "swallow":     {"hp": 100, "speed": 22, "attack": 15, "cooldown": 0.6, "alt": "any",  "strong": ["bomber", "scout"], "weak": ["tank", "lancer"]},
+    "mimic":       {"hp": 60,  "speed": 15, "attack": 10, "cooldown": 1.2, "alt": "mid",  "strong": ["scout", "watcher"], "weak": []},
+    "nurse":       {"hp": 70,  "speed": 12, "attack": 5,  "cooldown": 1.4, "alt": "mid",  "strong": [], "weak": []},
+    "ferrier":     {"hp": 90,  "speed": 12, "attack": 0,  "cooldown": 2.0, "alt": "mid",  "strong": [], "weak": ["skirmisher"]},
+    "lancer":      {"hp": 80,  "speed": 12, "attack": 25, "cooldown": 1.6, "alt": "low",  "strong": ["skirmisher", "swallow"], "weak": ["bomber", "plunger"]},
+    "harrier":     {"hp": 85,  "speed": 16, "attack": 20, "cooldown": 1.2, "alt": "low",  "strong": ["skirmisher", "pirate", "mimic"], "weak": ["tank", "striker"]},
+    "drummer":     {"hp": 60,  "speed": 10, "attack": 5,  "cooldown": 1.6, "alt": "perched", "strong": [], "weak": []}
   },
   "counter_strong": 1.6,
   "counter_weak": 0.6,

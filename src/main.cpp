@@ -235,6 +235,8 @@ void DebugWardrobe(Game& g, int game); void TakeShots(const Game& base, const st
         {"flight_volcano", [](Game& g) { DebugFlightShot(g, 18); }},
         {"flight_storm", [](Game& g) { DebugFlightShot(g, 19); }},
         {"flight_outpost", [](Game& g) { DebugFlightShot(g, 20); }},
+        {"flight_long", [](Game& g) { DebugFlightShot(g, 21); }},
+        {"flight_visitor", [](Game& g) { DebugFlightShot(g, 22); }},
         {"flight_wardrobe", [](Game& g) { DebugArcadeFlightWardrobe(g, 0, "captain_nemo", -1); }},
         {"flight_wardrobe_eggs", [](Game& g) { DebugArcadeFlightWardrobe(g, 1, "phoenix", -1); }},
         {"flight_wardrobe_livery", [](Game& g) { DebugArcadeFlightWardrobe(g, 2, "top_hats", -1); }},

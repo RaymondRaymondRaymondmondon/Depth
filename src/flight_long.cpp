@@ -347,6 +347,7 @@ void World::StepPerks(float dt) {
             }
             if (F.perkOffer[0] >= 0 && day > days[std::min(F.perkLevel, (int)days.size() - 1)]) PickPerk(0);   // (not picked within its day: the first)
             PerkDef P = PerkSum(F.perks);
+            if (Count(BStage::Adult, Role::Augur) > 0) { P.weatherSense = true; P.oldSalt = true; }   // (an Augur reads the sea for the whole colony)
             // Weather Sense: storms warned a day ahead
             if (P.weatherSense && weather.next - time < DAY && weather.next > time && F.stormWarned != weather.next) { F.stormWarned = weather.next; Say("Weather sense: a storm comes within the day."); }
             // Old Salt: at dawn, where tomorrow's fish will be
@@ -414,6 +415,162 @@ void World::StepVeterans(float dt) {
     }
     (void)dt;
 }
+// ---------------------------------------------------------------- relics, legendary birds and great events (doc pp. 46-47)
+namespace {
+struct ExtraData {
+    std::vector<RelicDef> relics; std::vector<LegendDef> legends; std::vector<GreatDef> events;
+    int relicsMax = 3; float relicSteal = 0.25f;
+};
+const ExtraData& XD() {
+    static ExtraData d; static bool loaded = false;
+    if (loaded) return d;
+    loaded = true;
+    Json j = LoadJsonFile(FlightDataDir() + "/flight_long.json");
+    d.relicsMax = j["relics_max"].I(d.relicsMax); d.relicSteal = j["relic_steal"].F(d.relicSteal);
+    for (const Json& r : j["relics"].a) { RelicDef x; x.key = r["key"].Str0(); x.name = r["name"].Str0(); x.effect = r["effect"].Str0(); x.morale = r["morale"].F(0); x.scout = r["scout"].F(1); x.trade = r["trade"].F(1); x.striker = r["striker"].F(1); x.mateTime = r["mate_time"].F(1); d.relics.push_back(x); }
+    for (const Json& r : j["legends"].a) { LegendDef x; x.key = r["key"].Str0(); x.name = r["name"].Str0(); x.effect = r["effect"].Str0(); x.score = r["score"].I(100); d.legends.push_back(x); }
+    for (const Json& r : j["great_events"].a) { GreatDef x; x.key = r["key"].Str0(); x.name = r["name"].Str0(); x.what = r["what"].Str0(); x.stock = r["stock"].F(1); x.poison = r["poison"].F(0); x.days = r["days"].F(1); x.pearls = r["pearls"].I(0); x.take = r["take"].I(0); x.crowd = r["crowd"].I(60); x.loss = r["loss"].F(0); x.catchK = r["catch"].F(1); d.events.push_back(x); }
+    while (d.relics.size() < RL_COUNT) d.relics.push_back(RelicDef{});
+    while (d.legends.size() < LG_COUNT) d.legends.push_back(LegendDef{});
+    while (d.events.size() < GE_COUNT) d.events.push_back(GreatDef{});
+    return d;
+}
+}  // namespace
+const std::vector<RelicDef>& Relics() { return XD().relics; }
+const std::vector<LegendDef>& Legends() { return XD().legends; }
+const std::vector<GreatDef>& GreatEvents() { return XD().events; }
+int RelicsMax() { return XD().relicsMax; }
+float RelicStealChance() { return XD().relicSteal; }
+
+bool World::HasRelic(int side, int relic) const { return seasons > 0 && side >= 0 && side <= (int)sides.size() && ((ColOf(side).relics >> relic) & 1); }
+bool World::HasLegend(int side, int legend) const { return seasons > 0 && side >= 0 && side <= (int)sides.size() && ColOf(side).legend == legend && ColOf(side).legendAlive; }
+int World::RelicCount(int side) const { int n = 0; uint32_t r = ColOf(side).relics; while (r) { n += r & 1; r >>= 1; } return n; }
+
+void World::InitRelics() {
+    relicSpots.clear(); greatEvent = -1; greatDay = -1; greatUntil = 0; greatAnnounced = greatDone = false; treasure = 0; legendFree = -1;
+    if (seasons <= 0 || !wholeMap) return;
+    // the relics lie on the dangerous islands: the kraken's cove, skull island's summit, the volcano's rim, the wreck
+    std::vector<int> pool; for (int r = 0; r < RL_COUNT; r++) pool.push_back(r);
+    auto place = [&](int isle, Vector3 at) {
+        if (isle < 0 || pool.empty()) return;
+        int q = (int)(Rand() * pool.size()) % (int)pool.size();
+        RelicSpot s; s.isle = isle; s.pos = at; s.relic = pool[q]; pool.erase(pool.begin() + q); relicSpots.push_back(s);
+    };
+    if (kraken.isle >= 0) place(kraken.isle, Vector3Add(isles[kraken.isle].c, {0, 2, 0}));
+    if (ape.isle >= 0) place(ape.isle, Vector3Add(ape.pos, {6, 1, 4}));
+    if (volcano.isle >= 0) place(volcano.isle, Vector3Add(isles[volcano.isle].hill, {8, -2, 0}));
+    if (wreck.isle >= 0) place(wreck.isle, Vector3Add(isles[wreck.isle].c, {0, 2, 0}));
+    // the match's one great event, on a day in its middle
+    int last = SeasonDays(seasons);
+    greatEvent = (int)(Rand() * GE_COUNT) % GE_COUNT;
+    int lo = std::min(last, 8), hi = std::max(lo, std::min(last - 2, 20));
+    greatDay = (float)(lo + (int)(Rand() * (hi - lo + 1)));
+}
+
+bool World::TakeRelic(int spot) {   // (the colony in the fields)
+    if (spot < 0 || spot >= (int)relicSpots.size() || relicSpots[spot].taken || RelicCount(cur) >= XD().relicsMax) return false;
+    RelicSpot& s = relicSpots[spot];
+    s.taken = true; col.relics |= 1u << s.relic;
+    const RelicDef& r = XD().relics[s.relic];
+    Say(r.name + ": " + r.effect + ". It goes to the shrine.");
+    for (int o = 0; o <= (int)sides.size(); o++) if (o != cur) SayTo(o, SideName(cur) + " has found " + r.name + ".");
+    return true;
+}
+bool World::RecruitLegend() {   // (the Founder at the Visitor with a fish of size 3 or more)
+    if (legendFree < 0 || me.carrySp < 0 || me.carrySize < 3 || Vector3Distance(me.pos, legendPos) > 10 || col.legend >= 0) return false;
+    me.carrySp = -1; me.carrySize = 0;
+    GiveLegend(cur, legendFree);
+    return true;
+}
+void World::GiveLegend(int side, int legend) {
+    WithSide(side, [&] {
+        col.legend = legend; col.legendAlive = true;
+        Say(XD().legends[legend].name + " joins the colony: " + XD().legends[legend].effect + ".");
+        if (legend == LG_PHOENIX_CHICK && !col.caches.empty()) {   // (it fledges into the founder's best warrior)
+            Bird b; b.id = col.nextId++; b.stage = BStage::Adult; b.role = Role::Striker; b.hp = MaxHp(b.role) * 1.15f; b.hunger = 1; b.fight = 25;
+            b.vet = VT_FEARLESS; b.vetName = col.nextVetName++ % (int)Veterans().names.size(); b.fights = 3; b.pos = Vector3Add(col.caches[0].pos, {0, 3, 0}); born.push_back(b);
+        }
+    });
+    for (int o = 0; o <= (int)sides.size(); o++) if (o != side) SayTo(o, SideName(side) + " has recruited " + XD().legends[legend].name + ".");
+    legendFree = -1;
+}
+bool World::GreatNow(int e) const { return seasons > 0 && greatEvent == e && time < greatUntil && greatUntil > 0; }
+
+void World::StepGreat(float dt) {
+    if (seasons <= 0 || !wholeMap) return;
+    const ExtraData& X = XD();
+    int day = GameDay();
+    int N = (int)sides.size() + 1;
+    // a day ahead, an Augur reads it
+    if (!greatAnnounced && greatEvent >= 0 && day >= (int)greatDay - 1) {
+        greatAnnounced = true;
+        for (int s = 0; s < N; s++) { bool augur = false; for (const auto& b : ColOf(s).birds) augur |= b.alive && b.stage == BStage::Adult && b.role == Role::Augur; if (augur) SayTo(s, "Your Augur reads the sea: " + X.events[greatEvent].name + " tomorrow. " + X.events[greatEvent].what + "."); }
+    }
+    if (!greatDone && greatEvent >= 0 && day >= (int)greatDay) {
+        greatDone = true; greatUntil = time + DAY * X.events[greatEvent].days;
+        const GreatDef& g = X.events[greatEvent];
+        for (int s = 0; s < N; s++) SayTo(s, g.name + ": " + g.what + ".");
+        switch (greatEvent) {
+            case GE_RED_TIDE: {   // a ground's fish die; caches without a Keeper are poisoned
+                int best = -1; float bv = -1; for (int z = 0; z < (int)stocks.size() && z < (int)eco.map->zones.size(); z++) { float v = StockOf(z); if (v > bv) { bv = v; best = z; } }
+                greatZone = best;
+                for (auto& st : stocks) if (st.zone == best) st.pop *= g.stock;
+                for (auto& a : eco.agents) if (a.alive && a.diver < 0 && a.homeZone == best && Rand() > g.stock) a.alive = false;
+                for (int s = 0; s < N; s++) {
+                    Colony& C = ColOf(s); bool keeper = false; for (const auto& b : C.birds) keeper |= b.alive && b.role == Role::Keeper && b.stage == BStage::Adult;
+                    if (!keeper) for (auto& c : C.caches) { int lose = (int)(c.fish.size() * g.poison); for (int q = 0; q < lose && !c.fish.empty(); q++) c.fish.pop_back(); }
+                }
+            } break;
+            case GE_KRAKEN_WALK:
+                if (kraken.isle >= 0 && !kraken.dead) { walkFrom = isles[kraken.isle].c; int t = -1; for (int k = 0; k < 20 && (t < 0 || t == kraken.isle); k++) t = (int)(Rand() * isles.size()) % (int)isles.size(); walkTo = isles[std::max(0, t)].c; }
+                break;
+            case GE_GREAT_STORM: weather.kind = 1; weather.t = DAY * g.days; if (wreck.isle >= 0 && !wreck.gone) wreck.sunk += 1; break;
+            case GE_TREASURE: {   // a ship sinks near a colony: its hold of pearls
+                int s = (int)(Rand() * N) % N; Vector3 h = isles[HomeOf(s)].c; float a = Rand() * 2 * PI;
+                greatPos = {h.x + cosf(a) * (isles[HomeOf(s)].radius + 140), 0, h.z + sinf(a) * (isles[HomeOf(s)].radius + 140)}; treasure = g.pearls;
+            } break;
+            case GE_PLAGUE:
+                for (int s = 0; s < N; s++) {
+                    Colony& C = ColOf(s); int alive = 0, nurses = 0; for (const auto& b : C.birds) if (b.alive && b.stage != BStage::Egg) { alive++; nurses += b.role == Role::Nurse && b.stage == BStage::Adult; }
+                    if (alive <= g.crowd || C.HasTier(Tree::Chemistry, 1) || nurses * 20 >= alive) continue;
+                    int lose = (int)(alive * g.loss);
+                    WithSide(s, [&] { for (auto& b : col.birds) { if (lose <= 0) break; if (b.alive && b.stage == BStage::Adult && Rand() < 0.5f) { BirdDies(b, "taken by the plague"); lose--; } } });
+                }
+                break;
+            case GE_VISITOR: {
+                legendFree = (int)(Rand() * LG_COUNT) % LG_COUNT;
+                int t = -1; for (int k = 0; k < 30 && (t < 0 || IsStartType(isles[t].type)); k++) t = (int)(Rand() * isles.size()) % (int)isles.size();
+                legendPos = Vector3Add(isles[std::max(0, t)].hill, {0, 3, 0});
+            } break;
+            default: break;
+        }
+    }
+    // the event's day: the Kraken's Walk crosses the map; the treasure is taken; bots court the Visitor
+    if (GreatNow(GE_KRAKEN_WALK)) {
+        float k = 1 - (greatUntil - time) / DAY;
+        Vector3 at = Vector3Lerp(walkFrom, walkTo, std::clamp(k, 0.0f, 1.0f));
+        kraken.arm = {at.x, 6, at.z}; kraken.armT = 0.5f;
+        for (int s = 0; s < N; s++) {
+            if (HasRelic(s, RL_BEAK)) continue;
+            Colony& C = ColOf(s);
+            for (auto& b : C.birds) if (b.alive && b.stage == BStage::Adult && b.pos.y < 20 && Vector2Distance({b.pos.x, b.pos.z}, {at.x, at.z}) < 60 && Rand() < 0.08f * dt) WithSide(s, [&] { BirdDies(b, "taken by the walking kraken"); });
+            for (int ni = 0; ni < (int)C.nests.size(); ni++) {
+                Nest& n = C.nests[ni];
+                if (n.pos.y >= 20 || Vector2Distance({n.pos.x, n.pos.z}, {at.x, at.z}) > 70) continue;
+                for (auto& b : C.birds) if (b.alive && b.nest == ni && (b.stage == BStage::Egg || b.stage == BStage::Chick) && Rand() < 0.2f * dt) WithSide(s, [&] { BirdDies(b, "eaten by the walking kraken"); });
+            }
+        }
+    }
+    if (treasure > 0) {
+        for (int s = 0; s < N; s++) if (BotFlown(s) || !HumanOf(s)) {   // (a bot colony near the wreck sends its divers)
+            if (Vector2Distance({isles[HomeOf(s)].c.x, isles[HomeOf(s)].c.z}, {greatPos.x, greatPos.z}) < 700 && Rand() < 0.05f * dt) { int k = std::min(treasure, X.events[GE_TREASURE].take); treasure -= k; ColOf(s).pearls += k; SayTo(s, TextFormat("Your birds dive the treasure ship: %d pearls.", k)); }
+        }
+    }
+    if (legendFree >= 0) for (int s = 0; s < N; s++) if ((BotFlown(s) || !HumanOf(s)) && ColOf(s).legend < 0 && Rand() < 0.02f * dt && Vector2Distance({isles[HomeOf(s)].c.x, isles[HomeOf(s)].c.z}, {legendPos.x, legendPos.z}) < 900) { GiveLegend(s, legendFree); break; }
+    // the Keeper's Logbook: every ground's yield known
+    for (int s = 0; s < N; s++) if (HasRelic(s, RL_LOGBOOK) && fmodf(time, 2.0f) < dt) WithSide(s, [&] { for (int z = 0; z < (int)know.ground.size() && z < (int)eco.map->zones.size(); z++) { know.ground[z].t = time; know.ground[z].stock = StockOf(z); } });
+}
+
 // ---------------------------------------------------------------- --flight-long-test (the expansion's long match)
 int RunFlightLongTest() {
     int fails = 0;
@@ -581,6 +738,60 @@ int RunFlightLongTest() {
         check(eggs > 0 && inherit == eggs, TextFormat("its eggs inherit the trait (%d of %d)", inherit, eggs));
         Bird ch; ch.stage = BStage::Chick; ch.trait = MT_HARDY; ch.retrainTo = Role::Fisher; C.birds.push_back(ch); w->FledgeNow(C.birds.back());
         check(C.birds.back().hp > w->MaxHp(Role::Fisher) * 1.05f, "a Hardy mother's chick fledges with more health");
+    }    // ---- the expansion's roles (doc pp. 40-42)
+    {
+        check(IsWarrior(Role::Plunger) && IsWarrior(Role::Drummer) && !IsWarrior(Role::Diver) && !IsWarrior(Role::Augur) && RoleOf(Role::Augur).key == "augur" && RoleOf(Role::Plunger).attack == 40,
+              "eight new warriors and six new workers, with their stats (a Plunger strikes for 40)");
+        auto s = make(0, 71); s->col.tier[(int)Tree::War] = 3; s->col.tier[(int)Tree::Caches] = 1;
+        auto w = make(4, 71); w->col.tier[(int)Tree::War] = 3; w->col.tier[(int)Tree::Caches] = 1;
+        check(!s->RoleUnlocked(Role::Plunger) && !s->RoleUnlocked(Role::Keeper) && w->RoleUnlocked(Role::Plunger) && w->RoleUnlocked(Role::Keeper) && !w->RoleUnlocked(Role::Augur),
+              "they open in a long match only, by the trees they grow from (War 3: the Plunger; Caches 1: the Keeper)");
+        float spoil = w->SpoilDays();
+        Colony& C = w->col;
+        auto add = [&](Role r) { Bird b; b.id = C.nextId++; b.stage = BStage::Adult; b.role = r; b.hp = w->MaxHp(r); b.hunger = 1; b.pos = C.caches[0].pos; C.birds.push_back(b); return b.id; };
+        add(Role::Keeper);
+        check(w->SpoilDays() > spoil * 1.9f, TextFormat("a Keeper halves the spoilage (%.1f to %.1f days)", spoil, w->SpoilDays()));
+        // a Teacher: a chick near it fledges early
+        add(Role::Teacher);
+        Bird ch; ch.id = C.nextId++; ch.stage = BStage::Chick; ch.nest = 0; ch.pos = C.caches[0].pos; ch.hunger = 1; ch.age = Econ().chickDays - 0.35f; C.birds.push_back(ch);
+        int chid = ch.id; w->StepColony(0.1f);
+        bool fledged = false; for (const auto& b : C.birds) if (b.id == chid) fledged = b.stage == BStage::Adult;
+        check(fledged, "a Teacher's chick fledges early");
+        // a Drummer at home: the island's defenders +15
+        int k1 = add(Role::Skirmisher), k2 = add(Role::Skirmisher);
+        int fl = w->MakeFlock(0, {k1, k2}, Formation::Chevron, Alt::Mid, Stance::Hold);
+        float before = fl >= 0 ? w->Morale(0, *w->FindFlock(0, fl)) : 0;
+        add(Role::Drummer);
+        float after = fl >= 0 ? w->Morale(0, *w->FindFlock(0, fl)) : 0;
+        check(after - before >= 14, TextFormat("a Drummer at home steadies the defenders (morale %.0f to %.0f)", before, after));
+    }    // ---- relics, legendary birds and great events (doc pp. 46-47)
+    {
+        check(Relics().size() == 8 && Legends().size() == 5 && GreatEvents().size() == 8 && RelicsMax() == 3, "8 relics (three at most to a colony), 5 legendary birds, 8 great events");
+        auto w = make(4, 81);
+        int spots = (int)w->relicSpots.size(); bool onDanger = true; for (const auto& r : w->relicSpots) onDanger &= IsDangerous(w->isles[r.isle].type);
+        check(spots >= 3 && onDanger && w->greatEvent >= 0 && w->greatDay >= 8 && w->greatDay <= 20, TextFormat("relics lie on %d dangerous islands; the great event (%s) comes on day %.0f", spots, GreatEvents()[std::max(0, w->greatEvent)].name.c_str(), w->greatDay));
+        // take them: three at most
+        int took = 0; for (int i = 0; i < spots; i++) took += w->TakeRelic(i);
+        check(took == std::min(3, spots) && w->RelicCount(0) == took, TextFormat("the Founder takes relics home (%d taken, %d held)", took, w->RelicCount(0)));
+        w->col.relics = 0; w->relicSpots[0].taken = false; w->relicSpots[0].relic = RL_FLAG; w->TakeRelic(0);
+        check(w->HasRelic(0, RL_FLAG), "the Fort's Flag held: every town's rates +20%");
+        // the Visitor: a fish of size 3 recruits it
+        w->legendFree = LG_DODO; w->legendPos = w->me.pos; w->me.carrySp = 0; w->me.carrySize = 3; w->col.legend = -1;
+        check(w->RecruitLegend() && w->col.legend == LG_DODO && w->HasLegend(0, LG_DODO) && w->legendFree < 0, "the Visitor takes the gift and joins: the Dodo");
+        // every event runs on its day
+        for (int e = 0; e < GE_COUNT; e++) {
+            auto v = make(4, 90 + e);
+            v->greatEvent = e; v->greatDay = 9; v->greatDone = v->greatAnnounced = false;
+            for (auto& c : v->col.caches) for (int q = 0; q < 10; q++) c.fish.push_back({0, 2, 0});
+            v->time = 8.6f * World::DAY; v->StepGreat(0.1f);
+            bool on = v->GreatNow(e) || (e == GE_TREASURE && v->treasure > 0) || (e == GE_VISITOR && v->legendFree >= 0) || e == GE_PLAGUE;
+            bool effect = true;
+            if (e == GE_ECLIPSE) effect = v->DayPhase() < 0.1f;
+            if (e == GE_CALM) effect = Vector2Length(v->WindAt()) < 0.01f && v->Thermal(v->isles[0].hill) == 0;
+            if (e == GE_GREAT_STORM) effect = v->weather.kind == 1;
+            if (e == GE_RED_TIDE) effect = v->col.caches[0].fish.size() < 10;
+            check(on && effect, std::string("the great event: ") + GreatEvents()[e].name);
+        }
     }    printf(fails ? "flight-long-test: %d check(s) failed\n" : "flight-long-test: all checks passed\n", fails);
     return fails ? 1 : 0;
 }

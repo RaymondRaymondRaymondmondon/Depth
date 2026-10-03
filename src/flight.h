@@ -113,6 +113,17 @@ struct MateTraitDef { std::string key, name, effect, favorite; float hpAdd = 0, 
 struct VetData { int fights = 3; float bonus = 0.15f, fearlessMorale = 15, loyalAttack = 1.2f; std::vector<std::string> names, traitNames, traitWhat; };
 const VetData& Veterans();
 const std::vector<MateTraitDef>& MateTraits();
+enum RelicId { RL_BELL = 0, RL_LENS, RL_BEAK, RL_EGG, RL_FLAG, RL_FEATHER, RL_SHELL, RL_LOGBOOK, RL_COUNT };
+enum LegendId { LG_ALBATROSS = 0, LG_FISHER_KING, LG_OLD_OWL, LG_PHOENIX_CHICK, LG_DODO, LG_COUNT };
+enum GreatId { GE_RED_TIDE = 0, GE_KRAKEN_WALK, GE_GREAT_STORM, GE_ECLIPSE, GE_TREASURE, GE_PLAGUE, GE_CALM, GE_VISITOR, GE_COUNT };
+struct RelicDef { std::string key, name, effect; float morale = 0, scout = 1, trade = 1, striker = 1, mateTime = 1; };
+struct LegendDef { std::string key, name, effect; int score = 100; };
+struct GreatDef { std::string key, name, what; float stock = 1, poison = 0, days = 1, loss = 0, catchK = 1; int pearls = 0, take = 0, crowd = 60; };
+const std::vector<RelicDef>& Relics();
+const std::vector<LegendDef>& Legends();
+const std::vector<GreatDef>& GreatEvents();
+int RelicsMax();
+float RelicStealChance();
 // Founder perks (doc p38)
 struct PerkDef {
     std::string key, name, effect;
@@ -222,8 +233,10 @@ struct Economy {
 const Economy& Econ();
 // working roles (doc p11) and warrior roles (p11-12; stage 4); the Bomber comes with the Works (stage 7)
 // (stage 6 adds the Trader, Priest, Chemist and Pathfinder; stage 7 the Bomber and the frigatebird Pirate)
-enum class Role : uint8_t { None, Fisher, Feeder, Builder, Scout, Trader, Priest, Chemist, Pathfinder, Skirmisher, Tank, Striker, Watcher, Screamer, Flockmaster, Bomber, Pirate, COUNT };
-inline bool IsWarrior(Role r) { return r >= Role::Skirmisher; }
+enum class Role : uint8_t { None, Fisher, Feeder, Builder, Scout, Trader, Priest, Chemist, Pathfinder, Skirmisher, Tank, Striker, Watcher, Screamer, Flockmaster, Bomber, Pirate,
+                            // the expansion (doc pp. 40-42): eight warriors, then six workers (appended: saved indices stay put)
+                            Plunger, Swallow, Mimic, Nurse, Ferrier, Lancer, Harrier, Drummer, Diver, Gardener, Keeper, Teacher, Herald, Augur, COUNT };
+inline bool IsWarrior(Role r) { return (r >= Role::Skirmisher && r <= Role::Pirate) || (r >= Role::Plunger && r <= Role::Drummer); }
 const char* RoleAbbrev(Role r);
 struct RoleDef {
     std::string key, name, what; float hp = 60, speed = 12; int carry = 2;
@@ -256,7 +269,8 @@ struct Bird {
     int carryGood = -1, carryN = 0;
     // the long match: veterans (doc p42) and mates' traits (p43)
     int fights = 0; int vet = -1, vetName = -1; bool luckyUsed = false; float foughtT = -100, countedT = -100;   // vet: VT_* trait, -1 none
-    int trait = -1;                           // MT_*: a mate's trait, and its chicks' (inherited)           // (a Trader's goods coming home; carrySp -2 an egg being stolen, -3 a bomb)
+    int trait = -1;                           // MT_*: a mate's trait, and its chicks' (inherited)
+    bool taught = false;                      // (a Teacher saw it fledge)           // (a Trader's goods coming home; carrySp -2 an egg being stolen, -3 a bomb)
 };
 struct Site { Vector3 pos{}; int palm = -1; int nest = -1; int isle = -1; };
 struct Nest {
@@ -375,7 +389,8 @@ struct Colony {
     int bombs = 0, blockbusters = 0; float bombT = 0, blockT = 0;
     int stims[STIM_COUNT] = {}; int brewFor = STIM_HASTE; float brewT = 0;
     // the long match: today's decree, the three offered at dawn, the ones used (no repeats), yesterday's (its after-effects)
-    int wantTrait = -1, nextVetName = 0;        // (the long match) the trait the courtship bowls ask for (-1 any); the next veteran's name
+    int wantTrait = -1, nextVetName = 0;
+    uint32_t relics = 0; int legend = -1; bool legendAlive = false, goldenEggUsed = false;   // (the long match: relics at the shrine, a legendary bird)        // (the long match) the trait the courtship bowls ask for (-1 any); the next veteran's name
     int decree = -1, yesterday = -1, offer[3] = {-1, -1, -1}, dealtDay = 0, lastRaider = -1; uint32_t decreesUsed = 0; float salvageT = 0, titheFish = 0;
     bool bell = false; float offeredKraken = -1e9f, apeFedT = -1e9f;
     int krakenKill = 0;                       // (the kraken killed: 150 to the score)
@@ -518,6 +533,10 @@ struct World {
     int seasons = 0;                            // (MapOpts::seasons) 0: a standard match, no seasons
     int seasonEvent = -1; float eventUntil = 0; uint32_t eventsDone = 0; float eventDay[EV_SEASON_COUNT] = {-1, -1, -1, -1};
     std::vector<int> tuna;                      // (the Tuna Run's school: agent indices)
+    struct RelicSpot { Vector3 pos{}; int relic = -1, isle = -1; bool taken = false; };
+    std::vector<RelicSpot> relicSpots;          // (relics lying on the dangerous islands)
+    int greatEvent = -1, greatZone = -1, treasure = 0, legendFree = -1; float greatDay = -1, greatUntil = 0; bool greatAnnounced = false, greatDone = false;
+    Vector3 greatPos{}, walkFrom{}, walkTo{}, legendPos{};
     Vector3 tunaFrom{}, tunaTo{};
     std::vector<uint8_t> zoneNear;              // (a ground near an island's shore: summer thins them)
     int GameDay() const { return (int)(time / DAY) + 1; }
@@ -538,7 +557,16 @@ struct World {
     void StepPerks(float dt);                   // the Founder levels at days 3, 7 and 11: three perks offered (a bot picks at once)
     bool PickPerk(int k);                       // the Founder in the fields takes offer k
     int BotPerk() const;
-    void StepVeterans(float dt);                // warriors that have survived three fights become veterans (the colony in the fields)
+    void StepVeterans(float dt);
+    bool HasRelic(int side, int relic) const;
+    bool HasLegend(int side, int legend) const;
+    int RelicCount(int side) const;
+    void InitRelics();
+    bool TakeRelic(int spot);                   // the colony in the fields picks up a relic (at most three)
+    bool RecruitLegend();                       // the Founder gives the Visitor a fish of size 3+
+    void GiveLegend(int side, int legend);
+    bool GreatNow(int e) const;
+    void StepGreat(float dt);                // warriors that have survived three fights become veterans (the colony in the fields)
     std::string VetLabel(const Bird& b) const;  // "Old Gray, Fearless" ("" for a bird that isn't one)
     int wantTraitOrder = 0;                     // (scratch)
     std::vector<std::string> lookOf;            // (stage 8) per absolute side: "costume;livery colour;livery hat" (cosmetic; from the hello)
@@ -596,7 +624,7 @@ struct World {
     void Say(const std::string& s);              // (your log; silent while a rival steps)
     float Rand();
     // the sea
-    Vector2 WindAt() const { Vector2 v = wind.At(time); float k = (weather.kind == 1 ? 2.5f : 1.0f) * SeasonNow().windK; return {v.x * k, v.y * k}; }   // (a storm: a gale)
+    Vector2 WindAt() const { Vector2 v = wind.At(time); float k = (weather.kind == 1 ? 2.5f : 1.0f) * SeasonNow().windK * (GreatNow(GE_CALM) ? 0.0f : 1.0f); return {v.x * k, v.y * k}; }   // (a storm: a gale)
     float Thermal(Vector3 p) const;             // updraft m/s (the hill in the afternoon)
     int FishNear(Vector3 p, float r, float maxDepth, int* count = nullptr) const;   // nearest catchable fish agent
     float FeedValue(int sp) const;              // a fish's size class

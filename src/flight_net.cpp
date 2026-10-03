@@ -428,6 +428,7 @@ template <class A> void VisitColony(A& a, Colony& c, bool own, bool full, const 
     if (own) a.vec(c.spies, [&](int& s) { a.i(s); });
     a.i(c.bombs); a.i(c.blockbusters); for (int k = 0; k < STIM_COUNT; k++) a.i(c.stims[k]); a.i(c.brewFor); a.b(c.bell); a.f(c.offeredKraken); a.i(c.krakenKill); a.i(c.expandTo);
     a.i(c.wantTrait);
+    { int rl = (int)c.relics; a.i(rl); c.relics = (uint32_t)rl; a.i(c.legend); a.b(c.legendAlive); }
     a.i(c.decree); a.i(c.yesterday); for (int& o : c.offer) a.i(o); a.i(c.dealtDay); a.i(c.lastRaider); { int u = (int)c.decreesUsed; a.i(u); c.decreesUsed = (uint32_t)u; }   // (the long match's decrees)
 }
 // each zone's stock as a share of what it holds (one pass over the fish)
@@ -496,6 +497,8 @@ template <class A> void Visit(A& a, World& w, bool full) {
     a.b(w.over); a.i(w.winner); a.s(w.overReason); a.f(w.matchLen);
     a.s(w.name0);
     a.f(w.dayAcc); a.i(w.dayNum);
+    a.vec(w.relicSpots, [&](World::RelicSpot& r) { a.v3(r.pos); a.i(r.relic); a.i(r.isle); a.b(r.taken); });
+    a.i(w.greatEvent); a.f(w.greatDay); a.f(w.greatUntil); a.i(w.treasure); a.i(w.legendFree); a.v3(w.greatPos); a.v3(w.legendPos); a.v3(w.walkFrom); a.v3(w.walkTo);
     { a.i(w.seasons); a.i(w.seasonEvent); a.f(w.eventUntil); int ed = (int)w.eventsDone; a.i(ed); w.eventsDone = (uint32_t)ed; for (float& d : w.eventDay) a.f(d); }   // (the long match's seasons and events)
     int N = (int)w.sides.size(); a.i(N);
     if (N != (int)w.sides.size()) { if constexpr (A::reading) a.r.bad = true; return; }

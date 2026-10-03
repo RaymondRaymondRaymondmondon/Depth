@@ -794,6 +794,23 @@ void DrawDangers(const fl::World& w, const Camera3D& cam, float dt) {
         Vector3 c = w.isles[w.wreck.isle].hill;
         for (int k = 0; k < 5; k++) rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.7f, 1.0f, 0.7f), MatrixTranslate(c.x - 12 + 6 * k, c.y + 3 + 0.4f * sinf(S.t * 2 + k), c.z)), Color{120, 255, 190, 255}, 1.6f);
     }
+    // ---- the long match: relics glinting where they lie; the treasure ship's wreck; the Visitor on its island
+    for (const auto& r : w.relicSpots) if (!r.taken && Vector3Distance(r.pos, cam.position) < 500) {
+        float k = 0.6f + 0.4f * sinf(S.t * 3 + r.relic);
+        rt::DrawCubeGlow(MatrixMultiply(MatrixMultiply(MatrixScale(0.7f, 0.7f, 0.7f), MatrixRotateY(S.t)), MatrixTranslate(r.pos.x, r.pos.y + 0.5f, r.pos.z)), Color{255, 230, 140, 255}, 1.5f * k);
+        rt::DrawCubeM(MatrixMultiply(MatrixScale(1.6f, 0.4f, 1.6f), MatrixTranslate(r.pos.x, r.pos.y - 0.1f, r.pos.z)), Color{120, 110, 96, 255});
+    }
+    if (w.treasure > 0 && Vector3Distance(w.greatPos, cam.position) < 900) {
+        Vector3 p = w.greatPos;
+        rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(18, 3, 5), MatrixRotateZ(0.25f)), MatrixTranslate(p.x, -0.5f, p.z)), Color{96, 70, 48, 255});
+        rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(0.5f, 12, 0.5f), MatrixRotateZ(0.5f)), MatrixTranslate(p.x + 2, 4, p.z)), Color{110, 84, 58, 255});
+        rt::DrawCubeGlow(MatrixMultiply(MatrixScale(1.4f, 0.6f, 1.4f), MatrixTranslate(p.x - 3, 0.6f, p.z)), Color{240, 240, 255, 255}, 1.2f + 0.5f * sinf(S.t * 4));
+    }
+    if (w.legendFree >= 0 && Vector3Distance(w.legendPos, cam.position) < 600) {   // (a legendary bird: twice the size, gilded)
+        float bob = 0.3f * sinf(S.t * 1.5f);
+        DrawBirdBody(w.Def(), PoseWorld(Vector3Add(w.legendPos, {0, bob, 0}), S.t * 0.2f, 0, 0, 2.0f), 0, 0, 1.0f, 0, 0.1f * sinf(S.t), 0.8f, Color{255, 220, 140, 255});
+        rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.4f, 0.4f, 0.4f), MatrixTranslate(w.legendPos.x, w.legendPos.y + 2.5f, w.legendPos.z)), Color{255, 240, 180, 255}, 2.0f);
+    }
     // ---- bomb blasts
     size_t end = w.warFxBase + w.warFx.size();
     if (gBlastSeen < w.warFxBase || gBlastSeen > end) gBlastSeen = w.warFxBase;
@@ -963,8 +980,8 @@ void DrawHud(const fl::World& w) {
         DrawTextCentered(TextFormat("%02d:%02d  %s", hh, mm, part), c.x - 20, c.y + 66, 17, ink);
         if (w.seasons > 0 && w.Season() >= 0) {   // (the long match: the season and the day of the match)
             static const Color SC[4] = {{170, 240, 160, 255}, {255, 220, 120, 255}, {240, 160, 90, 255}, {190, 220, 255, 255}};
-            DrawTextCentered(TextFormat("%s, day %d of %d", w.SeasonNow().name.c_str(), w.GameDay(), fl::SeasonDays(w.seasons)), c.x - 20, c.y + 86, 14, SC[w.Season()]);
-            if (w.col.decree >= 0 && w.col.decree < (int)fl::Decrees().size()) DrawTextCentered(TextFormat("decree: %s", fl::Decrees()[w.col.decree].name.c_str()), c.x - 20, c.y + 102, 13, Color{255, 226, 160, 255});
+            DrawTextCentered(TextFormat("%s, day %d of %d", w.SeasonNow().name.c_str(), w.GameDay(), fl::SeasonDays(w.seasons)), c.x - 20, c.y + 174, 14, SC[w.Season()]);   // (at the panel's foot: the rising fish has the line under the clock)
+            if (w.col.decree >= 0 && w.col.decree < (int)fl::Decrees().size()) DrawTextCentered(TextFormat("decree: %s", fl::Decrees()[w.col.decree].name.c_str()), c.x - 20, c.y + 190, 13, Color{255, 226, 160, 255});
         }
         if (rise) DrawTextCentered("the fish are rising", c.x - 30, c.y + 88, 15, Color{180, 255, 220, 255});
         float dof = w.DaysOfFood();
@@ -1053,6 +1070,8 @@ void DrawHud(const fl::World& w) {
     // the dangers (stage 7): the weather, the volcano, the kraken and the ape when they're near
     if (w.wholeMap) {
         std::vector<std::pair<std::string, Color>> warn;
+        if (w.greatEvent >= 0 && (w.GreatNow(w.greatEvent) || (w.greatEvent == fl::GE_TREASURE && w.treasure > 0) || (w.greatEvent == fl::GE_VISITOR && w.legendFree >= 0)))
+            warn.push_back({fl::GreatEvents()[w.greatEvent].name + ": " + fl::GreatEvents()[w.greatEvent].what, Color{255, 200, 120, 255}});
         if (w.seasonEvent >= 0 && w.EventNow(w.seasonEvent)) warn.push_back({std::string(fl::SeasonEventName(w.seasonEvent)) + ": " + fl::Seasons()[w.seasonEvent].eventWhat, Color{255, 236, 160, 255}});
         if (w.weather.kind == 1) warn.push_back({"STORM: the wind runs wild; every flock makes for home", Color{200, 220, 255, 255}});
         if (w.weather.kind == 2) warn.push_back({"FOG: the sea is shut in; Watchers see half as far", Color{230, 236, 240, 255}});
@@ -1065,6 +1084,7 @@ void DrawHud(const fl::World& w) {
             warn.push_back({w.kraken.mood == 2 ? "THE KRAKEN HAS SURFACED: keep high, or fight it" : "The kraken stirs: its arms take low fliers", Color{255, 130, 130, 255}});
         if (w.ape.isle >= 0 && w.ape.sleepT <= 0 && Vector3Distance(f.pos, w.ape.pos) < 260) warn.push_back({"The great ape is awake: it throws at what flies near (feed it to calm it)", Color{240, 210, 170, 255}});
         float wy = 46;
+        if (warn.size() > 2) warn.resize(2);   // (the two most pressing; the log has the rest)
         for (const auto& wn : warn) {
             int tw = MeasureText(wn.first.c_str(), 18) + 30;
             DrawRectangleRounded({SCREEN_W / 2.0f - tw / 2.0f, wy - 3, (float)tw, 26}, 0.4f, 6, Fade(BLACK, 0.5f));
@@ -1075,7 +1095,7 @@ void DrawHud(const fl::World& w) {
     // the long match: the Founder grows (doc p38): three perks; one click picks one
     if (w.seasons > 0 && w.me.perkOffer[0] >= 0 && !S.chart) {
         const auto& P = fl::Perks();
-        float cw = 250, ch = 96, x0 = SCREEN_W / 2.0f - cw * 1.5f - 12, y0 = 150;
+        float cw = 250, ch = 96, x0 = SCREEN_W / 2.0f - cw * 1.5f - 12, y0 = 190;
         DrawTextCenteredBold(TextFormat("The Founder grows (level %d): choose a perk", w.me.perkLevel + 1), SCREEN_W / 2.0f, y0 - 28, 20, Color{200, 240, 255, 255});
         for (int k = 0; k < 3; k++) {
             int i = w.me.perkOffer[k]; if (i < 0 || i >= (int)P.size()) continue;
@@ -2182,7 +2202,7 @@ void SceneFlight(Game& g) {
 
 // --shots: 0 cruising over the lagoon at dawn, 1 the strike, 2 at the nest with a fish, 3 noon from high over the island
 void DebugFlightShot(Game& g, int which) {
-    fl::MapOpts o; o.home = which == 6 ? fl::IsleType::Stack : which == 7 ? fl::IsleType::Town : which == 8 ? fl::IsleType::Atoll : fl::IsleType::Tropical;
+    fl::MapOpts o; o.seasons = which == 21 || which == 22 ? 4 : 0; o.home = which == 6 ? fl::IsleType::Stack : which == 7 ? fl::IsleType::Town : which == 8 ? fl::IsleType::Atoll : fl::IsleType::Tropical;
     Start(g, which == 3 ? "albatross" : "taloned", 11, true, o);
     fl::World& w = WD();
     fl::Founder& f = w.me;
@@ -2318,6 +2338,15 @@ void DebugFlightShot(Game& g, int which) {
         w.weather.kind = 1; w.weather.t = 60;
         w.warFx.push_back({w.GroundAt(c0.x + 18, c0.z - 14), 3, 1, fl::Role::Bomber, 1.0f});
         f.st = fl::FState::Fly; f.pos = {c0.x - 34, c0.y + 20, c0.z + 30}; f.yaw = atan2f(c0.z - f.pos.z, c0.x - f.pos.x); f.airspeed = 9;
+        S.aimPitch = -0.35f;
+    }
+    if (which == 21 || which == 22) {   // a long match: dawn of day 5 (a perk and a decree to pick); or the Visitor and a relic
+        S.help = false;
+        w.time = 4.02f * fl::World::DAY; w.StepPerks(0.1f); w.StepDecrees(0.1f);
+        if (which == 22) { w.me.perkOffer[0] = -1; w.col.decree = 0; w.legendFree = fl::LG_FISHER_KING; w.time = 4.4f * fl::World::DAY; }
+        Vector3 at = !w.relicSpots.empty() ? w.relicSpots[0].pos : w.island.c;
+        if (which == 22) { w.legendPos = Vector3Add(at, {14, 6, 6}); }
+        f.st = fl::FState::Fly; f.pos = Vector3Add(at, {-22, 14, 18}); f.yaw = atan2f(at.z - f.pos.z, at.x - f.pos.x); f.airspeed = 9;
         S.aimPitch = -0.35f;
     }
     if (which == 20) {   // the chart's outpost orders, with a rival holding the kraken's cove

@@ -358,7 +358,7 @@ void World::StepDanger(float dt) {
             kraken.grabT = 0;
             for (int s = 0; s < N; s++) {
                 Colony& C = ColOf(s);
-                bool safe = time - C.offeredKraken < D.kOfferDays * DAY || DecreeOf(s).dangersIgnore;   // (Offerings: it ignores you today)
+                bool safe = time - C.offeredKraken < D.kOfferDays * DAY || DecreeOf(s).dangersIgnore || HasRelic(s, RL_BEAK) || GreatNow(GE_KRAKEN_WALK);   // (Offerings: it ignores you today; the Kraken's Beak; on its walk the cove is free)
                 if (safe) continue;
                 auto chance = [&](float y) { return kraken.mood == 2 ? D.kSurfaced : kraken.mood == 1 ? D.kAwake : (y < 5 ? D.kAsleep : 0.0f); };
                 for (auto& b : C.birds) {
