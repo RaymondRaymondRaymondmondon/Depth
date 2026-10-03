@@ -136,7 +136,7 @@ template <class A> void Ints(A& a, std::vector<int>& v) { a.vec(v, [&](int& x) {
 
 template <class A> void VisitHeld(A& a, Held& h) { a.i(h.def); a.i(h.mag); a.i(h.reserve); a.b(h.forged); a.i(h.altAmmo); }
 
-template <class A> void VisitDiver(A& a, DiverState& d) {
+template <class A> void VisitDiver(A& a, DiverState& d, bool full = true) {
     a.i(d.slot); a.b(d.bot); a.b(d.invulnerable); a.f(d.chumT);
     a.v3(d.pos); a.v3(d.vel); a.f(d.yaw); a.f(d.pitch); a.i(d.zone);
     a.f(d.hp); a.f(d.hpMax); a.f(d.regenT);
@@ -151,22 +151,39 @@ template <class A> void VisitDiver(A& a, DiverState& d) {
     a.f(d.stunT); a.f(d.aimSway); a.f(d.poisonT); a.f(d.bleedT); a.f(d.slowT); a.f(d.slowMult); a.f(d.flinchT);
     a.i(d.agent); a.i(d.slipLink); a.f(d.slipT); a.f(d.driftT); a.i(d.drumUses);
     a.b(d.spark); a.b(d.ichorJar); a.b(d.egg); a.f(d.wormT); a.f(d.voidT); a.f(d.decoyCd);
-    a.vec(d.pouch, [&](std::string& s) { a.s(s); }); a.i(d.pouchNext);
+    a.i(d.pouchNext);
     a.i(d.inkBombs); a.i(d.tactical); a.i(d.chumBags); a.i(d.flares); a.b(d.brush); a.i(d.partsMask); a.e(d.build);
     a.f(d.shieldHP); a.f(d.bashCd); a.i(d.benchSel); a.i(d.inkCaps); a.b(d.drumClean);
     a.f(d.circleT); a.f(d.finsT); a.f(d.shellT); a.f(d.ghostT); a.v3(d.circlePos); a.i(d.luckKills); a.b(d.keepBrines); a.b(d.luckyLocker);
     a.f(d.cutT); a.f(d.pingT); a.f(d.pingCd); a.i(d.blade); a.b(d.bladeForged); a.b(d.repairKit); a.f(d.repairT); a.i(d.repairPaid);
     a.i(d.kills); a.i(d.headshots); a.i(d.downs); a.i(d.revives);
-    a.s(d.suit); a.s(d.helmet); a.s(d.skin); a.s(d.costume);
+    if (full) { a.s(d.suit); a.s(d.helmet); a.s(d.skin); a.s(d.costume); a.vec(d.pouch, [&](std::string& s) { a.s(s); }); }   // (the look changes in the Locker, not mid-tide)
     a.f(d.hitMarker); a.b(d.hitWeak); a.f(d.hurtT); a.v3(d.hurtFrom);
     a.s(d.lastHitBy); a.s(d.lastKill); a.f(d.lastKillT);
 }
 
 // (an agent in about 25 bytes: the snapshot has to fit GameNetworkingSockets' unreliable message, 16 KB)
-template <class A> void VisitAgent(A& a, Agent& g, const Box& box) {
-    a.b(g.alive);
+template <class A> void VisitAgent(A& a, Agent& g, const Box& box, bool skip = false, bool motion = false) {
+    // a code: 0 dead, 1 sent in full, 2 kept as it was (a beast far from every diver, between full snapshots: the
+    // mirror keeps what it had, and one it hasn't seen alive yet stays hidden until a full snapshot)
+    int code = 0;
+    if constexpr (!A::reading) code = g.alive ? (skip ? 2 : motion ? 3 : 1) : 0;   // (3: its motion only, between full snapshots)
+    a.i(code);
     a.i(g.sp); a.i(g.diver);
-    if (!g.alive) return;   // (the dead keep only their species: their bodies are corpses)
+    if constexpr (A::reading) { if (code == 0) g.alive = false; else if (code == 1) g.alive = true; }
+    if (code == 3) {
+        // what moves: where it is and is going, what it's doing, its health, its target; the rest stays as it was
+        bool known = g.alive;
+        Agent tmp = g; Agent& w = known ? g : tmp;   // (one the mirror hasn't seen alive stays hidden till a full snapshot)
+        P16(a, w.pos, box); a.s8(w.vel.x, 12.7f); a.s8(w.vel.y, 12.7f); a.s8(w.vel.z, 12.7f);
+        a.i(w.zone); a.e(w.st);
+        float frac = w.hpMax > 0 ? std::clamp(w.hp / w.hpMax, 0.0f, 1.0f) : 0;
+        a.q8(frac, 1);
+        if constexpr (A::reading) w.hp = frac * w.hpMax;
+        a.i(w.target); a.q8(w.stun, 25.5f); a.q8(w.held, 25.5f);
+        return;
+    }
+    if (code != 1) return;   // (the dead keep only their species: their bodies are corpses)
     P16(a, g.pos, box);
     // velocity (it only turns the drawing and dead-reckons between snapshots)
     a.s8(g.vel.x, 12.7f); a.s8(g.vel.y, 12.7f); a.s8(g.vel.z, 12.7f);
@@ -204,25 +221,27 @@ template <class A> void VisitScent(A& a, Field& f) {
     }
 }
 
-template <class A> void VisitEco(A& a, Ecosystem& e, const Box& box) {
+template <class A> void VisitEco(A& a, Ecosystem& e, const Box& box, bool full, const std::vector<char>& near) {
     a.f(e.time); a.i(e.tide); a.i(e.squadsSpawned); a.f(e.flowSign); a.f(e.cleanerRage);
-    a.vec(e.agents, [&](Agent& g) { VisitAgent(a, g, box); });
+    { size_t k = 0; a.vec(e.agents, [&](Agent& g) { bool far = !full && k < near.size() && !near[k]; VisitAgent(a, g, box, far, !full && !far && g.diver < 0); k++; }); }
     if constexpr (A::reading) for (size_t k = 0; k < e.agents.size(); k++) e.agents[k].rng = (uint32_t)(k + 1) * 2654435761u;   // (a steady per-beast phase for the drawing)
     a.vec(e.corpses, [&](Corpse& c) { a.b(c.active); if (!c.active) return; a.i(c.sp); P16(a, c.pos, box); a.i(c.zone); a.f(c.bloodLeft); a.f(c.life); a.f(c.age); a.b(c.byPlayer); });
-    a.vec(e.flora, [&](FloraPatch& p) { a.f(p.units); });   // (the patches themselves are the map's: the mirror placed the same ones)
+    if (full) a.vec(e.flora, [&](FloraPatch& p) { a.f(p.units); });   // (the patches themselves are the map's: the mirror placed the same ones; slow: full snapshots only)
     a.vec(e.squads, [&](Squad& s) { a.b(s.alive); a.b(s.hunt); Ints(a, s.members); });
-    a.vec(e.alarm, [&](float& x) { a.f(x); });
+    if (full) a.vec(e.alarm, [&](float& x) { a.f(x); });
     a.vec(e.inks, [&](Ecosystem::Ink& k) { a.v3(k.pos); a.f(k.r); a.f(k.t); });
     a.vec(e.curtains, [&](Ecosystem::Curtain& c) { a.v3(c.a); a.v3(c.b); a.f(c.y0); a.f(c.y1); a.f(c.t); a.i(c.maxSize); });
-    {   // beasts eaten by beasts (the results panel)
+    if (full) {   // beasts eaten by beasts (the results panel)
         std::vector<std::pair<std::pair<int, int>, int>> t(e.eatenBy.begin(), e.eatenBy.end());
         a.vec(t, [&](std::pair<std::pair<int, int>, int>& kv) { a.i(kv.first.first); a.i(kv.first.second); a.i(kv.second); });
         if constexpr (A::reading) { e.eatenBy.clear(); for (auto& kv : t) e.eatenBy[kv.first] = kv.second; }
     }
-    VisitScent(a, e.scent);
+    if (full) VisitScent(a, e.scent);   // (blood spreads and fades over seconds: five times a second is plenty)
 }
 
-template <class A> void Visit(A& a, Match& m) {
+// Every snapshot carries what moves; a full one (every SNAP_FULL_EVERY-th, and any a test or a save writes) also carries
+// what changes slowly (the blood, the flora, the dossier, the statistics) and the beasts far from every diver.
+template <class A> void Visit(A& a, Match& m, bool full = true) {
     // ---- the match itself
     a.f(m.time); a.i(m.tide); a.i(m.quota); a.i(m.tideKills); a.e(m.phase); a.f(m.phaseT); a.i(m.maxTide);
     a.b(m.over); a.s(m.overReason); a.b(m.power);
@@ -239,9 +258,11 @@ template <class A> void Visit(A& a, Match& m) {
     a.vec(m.barricades, [&](Match::Barricade& b) { a.i(b.strands); a.f(b.tearT); });   // (where they are is the map's: the mirror built the same ones)
     a.b(m.breachOpen); a.b(m.cacheOpen); a.i(m.drumBeats); a.b(m.alliesHostile); a.f(m.tideTurnT);
     a.vec(m.polyps, [&](Match::Polyp& p) { a.v3(p.pos); a.f(p.t); a.i(p.owner); a.b(p.forged); });
-    SetStr(a, m.dossierSeen); a.f(m.forgeAt); a.b(m.questDone); a.b(m.logRead);
-    SetInt(a, m.lanternsOut); a.b(m.nesting); a.i(m.nests); a.i(m.questStep); Ints(a, m.questAt);
-    a.vec(m.bonusEarned, [&](std::string& s) { a.s(s); });
+    if (full) {
+        SetStr(a, m.dossierSeen); a.f(m.forgeAt); a.b(m.questDone); a.b(m.logRead);
+        SetInt(a, m.lanternsOut); a.b(m.nesting); a.i(m.nests); a.i(m.questStep); Ints(a, m.questAt);
+        a.vec(m.bonusEarned, [&](std::string& s) { a.s(s); });
+    }
     a.vec(m.ichor, [&](Match::Ichor& k) { a.v3(k.pos); a.f(k.t); });
     a.i(m.wyrmState); a.i(m.wyrmGrate); a.f(m.wyrmT); a.f(m.wyrmUp); a.i(m.horror); a.b(m.revealAll);
     MapInt(a, m.beaconOn, [&](bool& v) { a.b(v); });
@@ -253,21 +274,34 @@ template <class A> void Visit(A& a, Match& m) {
     a.vec(m.hauls, [&](Match::Haul& h) { a.v3(h.pos); a.i(h.zone); a.i(h.carrier); a.b(h.home); a.b(h.loose); a.f(h.pryT); }); a.v3(m.extract); a.b(m.won);   // (the modes: Salvage Run's crates)
     a.vec(m.deployed, [&](Match::Deployed& d) { a.e(d.type); a.v3(d.pos); a.v3(d.dir); a.f(d.t); a.i(d.owner); a.b(d.alive); a.b(d.stopped); a.i(d.held); });
     a.vec(m.flareLights, [&](Match::FlareLight& f) { a.v3(f.pos); a.f(f.t); a.i(f.owner); });
-    a.vec(m.captions, [&](Caption& c) { a.s(c.who); a.s(c.text); a.f(c.t); });
-    a.vec(m.darts, [&](Dart& d) { a.v3(d.pos); a.v3(d.vel); a.v3(d.start); a.f(d.life); a.i(d.weapon); a.i(d.owner); a.b(d.forged); a.b(d.alive); a.i(d.enemy); a.i(d.kind); a.i(d.stuck); });
+    if (full) a.vec(m.captions, [&](Caption& c) { a.s(c.who); a.s(c.text); a.f(c.t); });   // (words on screen for seconds: five times a second is plenty)
+    {   // darts in flight: quantised (positions in the map's box, velocities to 1/256 of 128 m/s)
+        Box bx = BoxOf(m);
+        a.vec(m.darts, [&](Dart& d) { P16(a, d.pos, bx); a.q16(d.vel.x, -128, 128); a.q16(d.vel.y, -128, 128); a.q16(d.vel.z, -128, 128); P16(a, d.start, bx); a.q8(d.life, 25.5f); a.i(d.weapon); a.i(d.owner); a.b(d.forged); a.b(d.alive); a.i(d.enemy); a.i(d.kind); a.i(d.stuck); });
+    }
     a.vec(m.drops, [&](FloorDrop& d) { a.e(d.type); a.v3(d.pos); a.f(d.t); a.b(d.alive); a.i(d.weapon); });
     a.vec(m.crates, [&](Crate& c) { a.v3(c.pos); a.f(c.t); a.b(c.fallen); a.i(c.kind); a.f(c.radius); a.f(c.top); });
-    a.i(m.deathsByBeast); a.i(m.deathsByEnemy); a.i(m.deathsByHazard); a.f(m.timeToTide10); a.i(m.scripAt10);
+    if (full) { a.i(m.deathsByBeast); a.i(m.deathsByEnemy); a.i(m.deathsByHazard); a.f(m.timeToTide10); a.i(m.scripAt10); }
     // ---- the divers
-    a.vec(m.divers, [&](DiverState& d) { VisitDiver(a, d); });
+    a.vec(m.divers, [&](DiverState& d) { VisitDiver(a, d, full); });
     // ---- the web
-    VisitEco(a, m.eco, BoxOf(m));
+    std::vector<char> near;
+    if constexpr (!A::reading) if (!full) {
+        // the beasts within 50 m of a diver (and the boss, and the divers' own bodies) go every time; the rest wait
+        near.assign(m.eco.agents.size(), 0);
+        for (size_t k = 0; k < m.eco.agents.size(); k++) {
+            const Agent& g = m.eco.agents[k];
+            if (!g.alive || g.diver >= 0 || (int)k == m.bossAgent) { near[k] = 1; continue; }
+            for (const auto& d : m.divers) if (Vector3Distance(d.pos, g.pos) < 50) { near[k] = 1; break; }
+        }
+    }
+    VisitEco(a, m.eco, BoxOf(m), full, near);
     // ---- the newest effects, numbered (a mirror appends the ones it hasn't had)
     uint32_t end = m.FxEnd();
     a.u(end);
     std::vector<FxEvent> tail;
-    if constexpr (!A::reading) { size_t k = std::min<size_t>(m.fx.size(), 48); tail.assign(m.fx.end() - k, m.fx.end()); }
-    a.vec(tail, [&](FxEvent& e) { a.i(e.kind); a.v3(e.pos); a.v3(e.dir); });
+    if constexpr (!A::reading) { size_t k = std::min<size_t>(m.fx.size(), 24); tail.assign(m.fx.end() - k, m.fx.end()); }   // (the newest 24: a snapshot is 50 ms)
+    { Box bx = BoxOf(m); a.vec(tail, [&](FxEvent& e) { a.i(e.kind); P16(a, e.pos, bx); a.q16(e.dir.x, -64, 64); a.q16(e.dir.y, -64, 64); a.q16(e.dir.z, -64, 64); }); }
     if constexpr (A::reading) {
         uint32_t first = end - (uint32_t)tail.size(), have = m.FxEnd();
         if (have > end || end - have > 4096) { m.fx.clear(); m.fxBase = first; have = first; }   // (a new match, or far behind: start at the window)
@@ -278,22 +312,45 @@ template <class A> void Visit(A& a, Match& m) {
 }
 } // namespace
 
-void WriteMatch(const Match& mc, Writer& out) {
+void WriteMatch(const Match& mc, Writer& out, bool full) {
     Match& m = const_cast<Match&>(mc);
     Out o{out};
     uint32_t magic = 0x31545452;   // "RTT1"
     o.u(magic);
     o.s(m.mapKey); int players = m.players; o.i(players); o.u(m.seed); int mode = m.mode; o.i(mode); int season = m.season; o.i(season); o.s(m.custom);
-    Visit(o, m);
+    o.b(full);
+    Visit(o, m, full);
+}
+// the host's snapshot as it goes on the wire: deflated ("RTTZ", the raw size, then the deflate stream)
+void PackMatch(const Match& m, Writer& out, bool full) {
+    Writer raw; WriteMatch(m, raw, full);
+    int cz = 0;
+    unsigned char* z = CompressData(raw.b.data(), (int)raw.b.size(), &cz);
+    if (!z || cz <= 0) { out.Bytes(raw.b.data(), raw.b.size()); return; }   // (no compressor: the plain snapshot reads too)
+    out.U32(0x5A545452); out.U32((uint32_t)raw.b.size()); out.Bytes(z, (size_t)cz);
+    MemFree(z);
 }
 
 bool ReadMatch(Reader& r, Match& m, int keepLook) {
     In in{r};
     uint32_t magic = 0; in.u(magic);
+    if (magic == 0x5A545452) {   // a packed snapshot: inflate it and read what's inside
+        uint32_t rawN = r.U32();
+        if (r.bad || r.i >= r.n || rawN == 0 || rawN > (1u << 22)) return false;
+        int outN = 0;
+        unsigned char* raw = DecompressData(r.p + r.i, (int)(r.n - r.i), &outN);
+        r.i = r.n;
+        if (!raw) return false;
+        bool ok = (uint32_t)outN == rawN;
+        if (ok) { Reader inner(raw, (size_t)outN); ok = ReadMatch(inner, m, keepLook) && !inner.bad; }
+        MemFree(raw);
+        return ok;
+    }
     if (magic != 0x31545452) return false;
     std::string key; int players = 1; uint32_t seed = 0;
     int mode = 0, season = 0;
     std::string custom; in.s(key); in.i(players); in.u(seed); in.i(mode); in.i(season); in.s(custom);
+    bool full = true; in.b(full);
     if (r.bad || players < 1 || players > 4 || mode < 0 || mode >= RM_COUNT) return false;
     if (!m.map || m.mapKey != key || m.seed != seed || m.players != players || m.mode != mode || m.season != season || m.custom != custom) {
         m.mode = mode; m.season = std::clamp(season, 0, 99); m.custom = custom;
@@ -305,7 +362,7 @@ bool ReadMatch(Reader& r, Match& m, int keepLook) {
     bool keep = keepLook >= 0 && keepLook < (int)m.divers.size();
     DiverState mine = keep ? m.divers[keepLook] : DiverState{};
     size_t nAgents = m.eco.agents.size();
-    Visit(in, m);
+    Visit(in, m, full);
     if (r.bad) return false;
     if (keep && keepLook < (int)m.divers.size()) {
         DiverState& d = m.divers[keepLook];
@@ -452,6 +509,7 @@ public:
     uint32_t tick = 0;
     mutable uint32_t cachedTick = ~0u;
     mutable std::vector<uint8_t> cache;
+    mutable uint32_t sent = 0;   // (snapshots written: every SNAP_FULL_EVERY-th is a full one)
 
     void Configure(const std::string& opts) override {
         static const char* MAPS[] = {"ship", "cave", "reef", "atlantis", "void"};
@@ -511,7 +569,7 @@ public:
     }
     void Snapshot(int, Writer& out) const override {
         // (every diver sees the same water: written once a step, copied to each player)
-        if (cachedTick != tick) { Writer t; WriteMatch(*m, t); cache = std::move(t.b); cachedTick = tick; }
+        if (cachedTick != tick) { Writer t; PackMatch(*m, t, (sent++ % SNAP_FULL_EVERY) == 0); cache = std::move(t.b); cachedTick = tick; }
         out.Bytes(cache.data(), cache.size());
     }
     bool Over() const override { return m->over; }
@@ -580,6 +638,27 @@ int RunRedTideNetTest() {
         m.eco.scent.BuildSat();   // (the host's sums are rebuilt on the field's own clock; compare against fresh ones)
         float smell = m.eco.Smell(m.divers[0].pos, m.eco.ZoneAt(m.divers[0].pos), 8), smellM = mir.eco.Smell(mir.divers[0].pos, mir.eco.ZoneAt(mir.divers[0].pos), 8);
         check(fabsf(smell - smellM) <= 0.05f * smell + 2.0f, TextFormat("%s: the blood in the water reads the same on the mirror (%.0f / %.0f)", key, smell, smellM));
+        {   // on the wire: deflated, and a full snapshot one time in four
+            Writer pf, pp; PackMatch(m, pf, true); PackMatch(m, pp, false);
+            float avg = (pf.b.size() + 3.0f * pp.b.size()) / 4, kbs = avg * 20 / 1024;
+            check(kbs * 8 / 1024 < 1.0f, TextFormat("%s: on the wire a full snapshot is %d B, the ones between %d B: %.0f KB/s, %.2f Mbit/s to each guest at 20 Hz", key, (int)pf.b.size(), (int)pp.b.size(), kbs, kbs * 8 / 1024));
+            // between full ones: the beasts near a diver move on, the far ones and the blood keep what the mirror had
+            Match mir2; Reader rf(pf.b); bool o1 = ReadMatch(rf, mir2);
+            std::vector<Vector3> was(mir2.eco.agents.size()); for (size_t k = 0; k < was.size(); k++) was[k] = mir2.eco.agents[k].pos;
+            std::vector<float> blood = mir2.eco.scent.v;
+            for (int k = 0; k < 120; k++) m.Step(dt);
+            Writer p2; PackMatch(m, p2, false); Reader rp(p2.b); bool o2 = ReadMatch(rp, mir2);
+            int nearOk = 0, nearN = 0, farOk = 0, farN = 0;
+            for (size_t k = 0; k < m.eco.agents.size() && k < was.size(); k++) {
+                const Agent& g = m.eco.agents[k];
+                if (!g.alive || g.diver >= 0 || !mir2.eco.agents[k].alive || (int)k == m.bossAgent) continue;
+                bool nr = false; for (const auto& d : m.divers) if (Vector3Distance(d.pos, g.pos) < 50) nr = true;
+                if (nr) { nearN++; nearOk += Vector3Distance(mir2.eco.agents[k].pos, g.pos) < 0.1f; }
+                else { farN++; farOk += Vector3Distance(mir2.eco.agents[k].pos, was[k]) < 1e-4f; }
+            }
+            check(o1 && o2 && nearOk == nearN && farOk == farN && mir2.eco.scent.v == blood,
+                  TextFormat("%s: between full snapshots the %d beasts near a diver move on, the %d far ones and the blood wait for the next full one", key, nearN, farN));
+        }
     }
     {   // the effects log: a mirror replays each event once, however many snapshots carry it
         Match m; m.Init("ship", 2, 7, true);

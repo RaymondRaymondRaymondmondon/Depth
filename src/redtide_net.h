@@ -44,7 +44,9 @@ void WriteLookAction(const std::string& suit, const std::string& helmet, const s
 // ---------------------------------------------------------------- the snapshot
 // (everything a screen draws or the HUD reads; the effects log rides along as its newest events with their absolute
 // numbers, so a mirror's screen replays each hit and blast once, however many snapshots carry it)
-void WriteMatch(const Match& m, Writer& out);
+void WriteMatch(const Match& m, Writer& out, bool full = true);   // full: with the slow parts and the far beasts (a save, a test)
+void PackMatch(const Match& m, Writer& out, bool full);   // the wire form: deflated (ReadMatch reads both)
+constexpr int SNAP_FULL_EVERY = 4;                         // the host's snapshots: a full one every 4th (5 a second at 20 Hz)
 // into a mirror: (re)built from the map and seed when they change; `keepLook` (a diver index, -1 none) keeps that
 // diver's yaw and pitch (the guest's own view) and blends its position toward the host's instead of jumping
 bool ReadMatch(Reader& r, Match& m, int keepLook = -1);

@@ -665,3 +665,12 @@ Picked in the reel and the lobby like the first four (`RtMode`, keys `quota`, `a
 - In the match: the faction off is `Ecosystem::noEnemies`, and its Hunts become Predator Hunts or nothing. The boss off means it was never there. The flora hazards off means `FloraHazards` doesn't run (`customFlora`).
 - UI: "Custom rules..." on the reel and in the host's lobby opens the panel (`RedTideCustomPanel`): nine sliders with the standard value marked, three toggles, "Standard rules" and "Done". The session keeps running underneath, and the lobby chat announces the rules. Shot `arcade_custom`; checks in `--redtide-mode-test`.
 - **Every mode in the design doc is in now** (13 with the standard game).
+
+## Bandwidth for internet play (2026-10-02)
+Before this pass, Red Tide's host sent each guest about 13 KB, 20 times a second: about 2.1 Mbit/s per friend, or 6 Mbit/s of upload for three friends. Now (redtide_net.cpp):
+- **Deflate** (raylib's own `CompressData`): the wire form is "RTTZ", the raw size, then the stream (`PackMatch`). `ReadMatch` detects it, so saves and tests can still write plain snapshots.
+- **A full snapshot every 4th** (`SNAP_FULL_EVERY`, so 5 a second). The ones between leave out what changes slowly: the blood field, flora units, the alarm, beasts eaten, the dossier and quests, the statistics, captions, and the divers' looks and pouches. The guest keeps its last copy of those.
+- **Beasts:** each beast carries a code (0 dead, 1 full, 2 kept, 3 motion only). Between full snapshots, beasts more than 50 m from every diver are kept as they were (the boss and the divers' bodies always go). Near beasts send only their motion: position, velocity, zone, state, health, target, stun, held.
+- **Quantised:** darts (positions in the map's box, velocities to 1/256 of 128 m/s), and the effects log, capped at its newest 24 events.
+- **Result:** the real loop over UDP with 100 ms of lag averages **3.0 KB a snapshot (was 13.0)**, about 0.47 Mbit/s per guest. Per map, from `--redtide-net-test` (a full snapshot / the ones between / per guest): Ship 6.0 / 4.6 KB, 0.75 Mbit/s; Cave 7.8 / 4.9 KB, 0.85; Reef 5.7 / 2.0 KB, 0.45; Atlantis 9.2 / 4.0 KB, 0.81; Void 3.8 / 1.3 KB, 0.30.
+- The test checks each map stays under 1 Mbit/s per guest, and that between full snapshots the near beasts move on while the far ones and the blood wait.
