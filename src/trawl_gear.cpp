@@ -33,6 +33,7 @@ const ItemDef& ItemOf(Item i) {
         {"Longline",          60,  1,  0, 1,  "20 hooks between two buoys, set off the stern"},
         {"Crab pot",          25,  1,  0, 1,  "Dropped on a reef, hauled on a later pass"},
         {"(weapon)",           0,  0,  0, 0,  "A weapon from the Gunsmith's catalogue"},
+        {"Cup of something yellow", 5, 0, 0, 0, "Hold to pour it (on someone, ideally). It never runs dry"},
     };
     return D[(int)i];
 }
@@ -205,6 +206,22 @@ void Gannet::UseItem(int ci, Vector2 aimDeck, bool pressed, bool held, bool sigh
             }
             longlines.push_back(L); s = Slot{};
             Say("The longline pays out astern between its buoys");
+            break;
+        }
+        case Item::Cup: {   // hold to pour: a stream just ahead of the hand; whoever stands under it is drenched
+            if (!held) break;
+            c.pourT = 0.15f;
+            c.pourAt = Vector2Add(c.p, Vector2Scale(c.facing, 0.85f));
+            for (int k = 0; k < (int)crew.size(); k++) {
+                Crew& o = crew[k];
+                if (k == ci || o.dead || o.overboard || o.deck != c.deck || Vector2Distance(o.p, c.pourAt) > 0.65f) continue;
+                bool first = o.yellow < 0.3f;
+                o.yellow = std::min(1.0f, o.yellow + dt * 0.9f);
+                if (first && o.yellow >= 0.3f) {
+                    Say(TextFormat("Hand %d is drenched in something yellow", k + 1));
+                    if (o.bot && k < (int)brains.size()) { static const char* B[] = {"Oi!", "Is that... no.", "Not again.", "I'll get you for that.", "Why is it warm?"}; brains[k].bark = B[(int)(RandF(gRng) * 5) % 5]; brains[k].barkT = 3; }
+                }
+            }
             break;
         }
         case Item::Pot: {
@@ -871,7 +888,11 @@ void Gannet::ThrownLands(const Projectile& p) {
 void Gannet::StepGear(float dt) {
     const auto& SP = Species().sp;
     Vector2 fwd = boat.Forward();
-    for (auto& c : crew) { if (c.overboard) c.wetT = 120; else if (c.wetT > 0) c.wetT -= dt; }   // (a swim wets the powder: two minutes to dry)
+    for (auto& c : crew) {
+        if (c.overboard) { c.wetT = 120; c.yellow = 0; } else if (c.wetT > 0) c.wetT -= dt;   // (a swim wets the powder: two minutes to dry; it rinses the yellow off)
+        if (c.yellow > 0) c.yellow = std::max(0.0f, c.yellow - dt / 45);
+        if (c.pourT > 0) c.pourT -= dt;
+    }
     StepDeckFish(dt);
     for (int ci = 0; ci < (int)crew.size(); ci++) if (crew[ci].station >= 0 && Stations()[crew[ci].station].kind == StationKind::Magazine) RestockAtLocker(ci);   // (the magazine locker in the fo'c'sle: restocking is a trip below)
     // projectiles
@@ -1541,7 +1562,24 @@ int RunTrawlGearTest() {
             gs.crew[0].wetT = 0.5f; run(gs, 1);
             check(wet > 0.32f && wet < 0.48f && gs.crew[0].wetT <= 0, TextFormat("after a swim the powder is wet: 40%% misfires for two minutes, even in a calm (%.0f%%)", wet * 100));
         }
-        {   // the odds and ends: throwables, the bayonet, the lodestone sight, the bone stock
+        {   // the cup of something yellow: the Chandler's 5 shillings, into the buyer's hands; held, it pours on whoever
+            // stands just ahead, never runs dry, fades over 45 s, and a swim rinses it off
+            Gannet gs; Eco es; Session ss; ss.Begin(gs, es, 2, 44); ss.money = 100;
+            gs.crew[1].slots[1] = Slot{};
+            bool bought = ss.Buy("cup", nullptr, 1) && ss.money == 95;
+            int cs = -1; for (int k = 0; k < 4; k++) if (gs.crew[1].slots[k].it == Item::Cup) cs = k;
+            check(bought && cs >= 0, "the Chandler sells a cup of something yellow (5 shillings) into the buyer's own hands");
+            gs.crew[1].sel = cs; gs.crew[1].station = -1; gs.crew[0].station = -1;
+            gs.crew[1].p = {0, 0}; gs.crew[1].facing = {1, 0}; gs.crew[0].p = {0.85f, 0};
+            for (int i = 0; i < 60 * 30; i++) gs.UseItem(1, {1, 0}, i == 0, true, false, dt);
+            check(gs.crew[0].yellow > 0.9f && gs.crew[1].yellow == 0 && gs.crew[1].slots[cs].it == Item::Cup && gs.crew[1].pourT > 0,
+                  TextFormat("held, it pours on the hand ahead (drenched %.0f%%), not the one pouring, and after half a minute it still isn't empty", gs.crew[0].yellow * 100));
+            float y0 = gs.crew[0].yellow;
+            gs.moored = false; run(gs, 10);
+            bool fades = gs.crew[0].yellow < y0 - 0.15f && gs.crew[0].yellow > 0;
+            gs.crew[0].overboard = true; run(gs, dt);
+            check(fades && gs.crew[0].yellow == 0, "the yellow fades over 45 s, and a swim rinses it off");
+        }        {   // the odds and ends: throwables, the bayonet, the lodestone sight, the bone stock
             Gannet gs; Eco es; Session ss; ss.Begin(gs, es, 1, 41); ss.money = 5000;
             gs.crew[0].slots[2] = Slot{}; gs.crew[0].slots[3] = Slot{};
             std::string why;

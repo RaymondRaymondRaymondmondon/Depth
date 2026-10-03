@@ -1896,6 +1896,21 @@ void DebugTrawlShot(Game& g, int which) {
         if (fp) { G.crew[0].station = -1; G.crew[0].p = {-1.5f, 1.2f}; S.eye.yaw = -1.2f; S.eye.pitch = -0.05f; }
         return;
     }
+    if (which == 39) {
+        // 39 the cup of something yellow: hand 2 pouring it over hand 3 amidships, hand 1 (you) watching
+        StartTrawl(g, fp, 3, 1);
+        Gannet& G = S.W->G;
+        G.botsOn = false;
+        for (auto& c : G.crew) c.station = -1;
+        G.crew[1].slots[1] = {Item::Cup, 0}; G.crew[1].sel = 1;
+        G.crew[1].p = {-1.0f, -0.4f}; G.crew[1].facing = {1, 0};
+        G.crew[2].p = {-0.15f, -0.4f}; G.crew[2].facing = {-1, 0};
+        G.crew[0].p = {-3.6f, 1.3f}; G.crew[0].facing = {1, -0.4f};
+        for (int i = 0; i < 60 * 2; i++) { G.UseItem(1, {0, -0.4f}, i == 0, true, false, 1 / 60.0f); G.Step(1 / 60.0f); G.crew[1].p = {-1.0f, -0.4f}; G.crew[2].p = {-0.15f, -0.4f}; G.crew[0].p = {-3.6f, 1.3f}; }
+        G.crew[1].pourT = 30;   // (the stream keeps running through the shot's frames)
+        if (fp) { S.eye.yaw = -0.45f; S.eye.pitch = -0.12f; }
+        return;
+    }
     if (which == 27 || which == 28 || which == 29 || which == 37 || which == 38) {
         // 27 out in the skiff, rowing away from the Gannet (lying stopped, her lantern full) with a fish aboard; 28 the
         // skiff going down on the davit, a hand at it

@@ -229,7 +229,7 @@ int NearestStation(Vector2 at, int deck, float r);
 
 // ---------------------------------------------------------------- hands' gear (trawl_gear.cpp)
 // Four slots a hand (design doc, "Inventory"); the rest lives in the deck locker.
-enum class Item { None, Gaff, Priest, Knife, Speargun, Flare, Rifle, Shotgun, Charge, Ring, Bandage, Longline, Pot, Weapon, COUNT };
+enum class Item { None, Gaff, Priest, Knife, Speargun, Flare, Rifle, Shotgun, Charge, Ring, Bandage, Longline, Pot, Weapon, Cup, COUNT };   // (Cup: the Chandler's cup of something yellow; it never runs dry)
 struct ItemDef { const char* name; int price; int ammoPer; int ammoPrice; float noise; const char* use; };
 const ItemDef& ItemOf(Item i);
 // a hand's slot. Item::Weapon is a row of the Gunsmith's catalogue (trawl_weapons.h): its damage upgrades, up to three
@@ -313,6 +313,8 @@ struct Crew {
     float drownT = 0, bleedT = 0;
     float wetT = 0;                                       // after a swim: the powder in their guns is wet (40% misfires) until it dries
     int shotsFired = 0;                                   // (the lodestone sight: every fifth)
+    float yellow = 0;                                     // drenched by a cup of something yellow (0..1; it fades over 45 s, a swim rinses it)
+    float pourT = 0; Vector2 pourAt{0, 0};                // pouring the cup (the stream drawn while > 0) and where it lands (deck frame)
     float cprT = 0;   // drowned with a Medic aboard: seconds left to haul them in for CPR (design doc: 15 s)
     uint32_t ups = 0; // role upgrades held (bit = RoleUp), set by the session from the hand's choices
     bool Up(int u) const { return (ups >> u) & 1u; }

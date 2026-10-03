@@ -836,3 +836,8 @@ bubble puff); Red Tide's gun models rebuilt with a dozen parts each.
 - **The bone stock**: a kill with the gun adds 0.1 to the Killscore (`Projectile::boneStock`).
 - **Wet powder**: a hand who has been overboard misfires 40% of the time for two minutes after (`Crew::wetT`), whatever the weather; the oilskin's rule still applies.
 - Checks in `--trawl-gear-test` (each of the above).
+
+## The cup of something yellow (2026-10-02; the user's request)
+- `Item::Cup` (appended after `Weapon`). The Chandler sells it for 5 shillings ("cup"), and it goes into the buyer's own hands. **It never runs dry** (the user: "infinite yellow liquid so a player can continue to pour it").
+- Hold the use button to pour a stream just ahead of you (`Crew::pourT`, `pourAt`). Any other hand standing under it on the same deck is drenched (`Crew::yellow` rises 0.9 a second to 1). A drenched hand fades over 45 s, and a swim rinses it off. The log says "Hand N is drenched in something yellow", and a bot barks ("Oi!", "Why is it warm?"). Purely a prank: no gameplay effect.
+- Drawn top-down (the cup in hand, a dotted stream and splash, the drenched figure tinted, with a yellow puddle, a wet glint and drips) and in first person (a tin cup brimming yellow, the stream from the raised hand, the puddle round the boots, drips off the shoulders; the multiply tint alone was lost on dark oilskins). In the snapshot. Checked in `--trawl-gear-test`; shots `trawl_cup`, `trawl3d_cup`.

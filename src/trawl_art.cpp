@@ -956,6 +956,7 @@ void DrawCrewMember(const Crew& c, const View& v, float t, bool you) {
     // colours, a costume its own; the role's colour stays at the crown so the role still reads
     if (const skins::Skin* sk = skins::Find(skins::TRAWL, c.skin)) { coat = Dim(sk->top, k); dark = Dim(sk->hat, k * 0.8f); }
     if (const skins::Costume* co = skins::FindCostume(skins::TRAWL, c.costume)) coat = Dim(co->sleeve, k);
+    if (c.yellow > 0.01f) { Color y = Dim(Color{232, 206, 60, 255}, k); coat = ColorLerp(coat, y, c.yellow * 0.75f); dark = ColorLerp(dark, y, c.yellow * 0.6f); }   // (drenched in something yellow)
     if (c.fallen) {   // flat on the deck
         DrawRectangle((int)p.x - 4, (int)p.y - 2, 9, 5, coat);
         DrawRectangle((int)p.x + 3, (int)p.y - 1, 3, 3, skin);
@@ -967,6 +968,7 @@ void DrawCrewMember(const Crew& c, const View& v, float t, bool you) {
     Vector2 p0 = p; float lift = c.z * v.ppm * 0.7f; p.y -= lift;
     // shadow, shoulders, arms toward the facing, the sou'wester hat
     DrawRectangle((int)p0.x - 3, (int)p0.y - 3 + 1, 7, 7, Fade(BLACK, c.z > 0 ? 0.2f : 0.35f));
+    if (c.yellow > 0.15f) { float r = 4 + 2.5f * c.yellow; DrawEllipse((int)p0.x, (int)p0.y + 2, r, r * 0.6f, Fade(Color{236, 210, 60, 255}, 0.35f + 0.35f * c.yellow)); DrawPixel((int)(p0.x + r - 1), (int)p0.y + 2, Color{255, 246, 180, 255}); }   // (the puddle round a drenched hand, and its wet glint)
     if (c.tangleT > 0)   // a Kelp Wraith's grip: wet strands wound round them from the rail, writhing
         for (int s = 0; s < 4; s++) { float a = s * 1.57f + sinf(t * 3 + s) * 0.3f; DrawLineEx({p0.x + cosf(a) * 2, p0.y + sinf(a) * 2}, {p0.x + cosf(a) * 7, p0.y + sinf(a) * 7 + 1}, 1.5f, Color{60, 110, 60, 255}); }
     DrawRectangle((int)p.x - 3, (int)p.y - 3, 7, 7, coat);
@@ -999,6 +1001,16 @@ void DrawCrewMember(const Crew& c, const View& v, float t, bool you) {
             case Item::Flare: seg(h, 3, brass, 2); break;
             case Item::Ring: DrawCircleLines((int)(h.x + d.x * 2), (int)(h.y + d.y * 2), 3, Dim(Color{230, 120, 60, 255}, k)); break;
             case Item::Charge: DrawRectangle((int)(h.x + d.x * 2) - 1, (int)(h.y + d.y * 2) - 1, 3, 3, Dim(Color{60, 62, 66, 255}, k)); break;
+            case Item::Cup: {   // a tin cup, brimming; tipped forward and pouring while the stream runs
+                Vector2 cp = Vector2Add(h, Vector2Scale(d, 1.5f));
+                DrawRectangle((int)cp.x - 1, (int)cp.y - 1, 3, 3, Dim(Color{200, 200, 196, 255}, k));
+                DrawPixel((int)cp.x, (int)cp.y, Dim(Color{240, 214, 60, 255}, k));
+                if (c.pourT > 0) {
+                    Vector2 to = v.ToCanvas(c.pourAt);
+                    for (int s = 0; s < 6; s++) { float u = fmodf(s / 6.0f + t * 3, 1.0f); Vector2 q = Vector2Lerp(cp, to, u); DrawPixel((int)q.x, (int)q.y, Color{240, 214, 60, 230}); }
+                    DrawCircleV(to, 1.5f + sinf(t * 20) * 0.5f, Fade(Color{240, 214, 60, 255}, 0.6f));   // (the splash)
+                }
+            } break;
             default: break;
         }
     }
@@ -1006,6 +1018,7 @@ void DrawCrewMember(const Crew& c, const View& v, float t, bool you) {
     DrawRectangle((int)p.x - 1, (int)p.y - 1, 3, 3, Dim(RoleColor(c.role), k * 0.8f));
     if (you) DrawRectangleLines((int)p.x - 5, (int)p.y - 5, 11, 11, Fade(Color{255, 240, 200, 255}, 0.25f + 0.2f * sinf(t * 4)));
     if (c.Has(INJ_BITE) && fmodf(t, 0.7f) < 0.35f) DrawPixel((int)p.x + 2, (int)p.y + 5, Color{150, 20, 20, 255});   // a bleeding hand leaves drops
+    if (c.yellow > 0.2f && fmodf(t + c.slot * 0.3f, 0.9f) < 0.3f) DrawPixel((int)p.x - 2, (int)p.y + 5, Color{232, 206, 60, 255});   // and a drenched one drips yellow
     if (c.Has(INJ_BROKEN_ARM)) DrawRectangle((int)(p.x - f.y * 3), (int)(p.y + f.x * 3) + 2, 2, 2, Dim(coat, 0.6f));    // the arm hangs
 }
 

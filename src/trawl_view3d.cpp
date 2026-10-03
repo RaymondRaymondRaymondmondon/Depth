@@ -806,6 +806,7 @@ static void BuildItem(MeshBuilder& mb, Item it) {
         case Item::Bandage: mb.Tube({{0, 0, -0.04f}, {0, 0, 0.04f}}, 0.05f, 0.05f, 8, white, white, 0); break;
         case Item::Longline: for (int k = 0; k < 10; k++) { float a0 = k * 0.628f, a1 = a0 + 0.628f; mb.Tube({{0.1f + cosf(a0) * 0.12f, sinf(a0) * 0.12f, 0}, {0.1f + cosf(a1) * 0.12f, sinf(a1) * 0.12f, 0}}, 0.03f, 0.03f, 4, Color{150, 140, 110, 255}, Color{150, 140, 110, 255}, 0); } break;
         case Item::Pot: mb.Box({0.15f, 0, 0}, {0.16f, 0.1f, 0.12f}, Color{100, 84, 60, 255}); break;
+        case Item::Cup: mb.Tube({{0.06f, -0.06f, 0}, {0.06f, 0.06f, 0}}, 0.035f, 0.045f, 10, Color{196, 198, 194, 255}, Color{210, 212, 208, 255}, 0); mb.Box({0.06f, 0.055f, 0}, {0.04f, 0.004f, 0.04f}, Color{236, 206, 60, 255}); mb.Tube({{0.105f, 0.03f, 0}, {0.13f, 0.0f, 0}, {0.105f, -0.03f, 0}}, 0.008f, 0.008f, 4, Color{196, 198, 194, 255}, Color{196, 198, 194, 255}, 0); break;   // (a tin cup brimming yellow, its handle)
         default: mb.Box({0, 0, 0}, {0.01f, 0.01f, 0.01f}, iron); break;
     }
 }
@@ -1489,7 +1490,7 @@ static void DrawHandSailor(const Gannet& g, const Crew& c, float t) {
         int ci = (int)(&c - &g.crew[0]);
         if (ci >= 0 && ci < (int)g.brains.size() && g.brains[ci].barkT > 0) P.shout = 0.55f + 0.45f * sinf(t * 18);
     }
-    Color tint = c.dead ? Color{190, 225, 245, 120} : WHITE;
+    Color tint = c.dead ? Color{190, 225, 245, 120} : c.yellow > 0.01f ? ColorLerp(WHITE, Color{240, 212, 70, 255}, c.yellow * 0.65f) : WHITE;   // (drenched in something yellow)
     Item held = Item::None;
     Matrix frame;
     float yawLocal = -atan2f(c.facing.y, c.facing.x);
@@ -1532,6 +1533,29 @@ static void DrawHandSailor(const Gannet& g, const Crew& c, float t) {
         P.grip = 0.9f;
     }
     DrawSailor(L, P, frame, t, held, tint, &c);
+    if (c.yellow > 0.15f && !c.dead && !c.overboard) {
+        // drenched: a yellow puddle round the boots and drips running off the shoulders (a tint alone is lost on dark oilskins)
+        Color y{236, 208, 62, 255};
+        float r = 0.32f + 0.2f * c.yellow;
+        rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(r, 0.012f, r), MatrixTranslate(0, 0.015f, 0)), frame), y);
+        for (int k = 0; k < 5; k++) {
+            float u = fmodf(t * 1.6f + k * 0.37f + c.slot * 0.11f, 1.0f);
+            float a = k * 1.26f + c.slot;
+            rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(0.025f, 0.05f, 0.025f), MatrixTranslate(cosf(a) * 0.24f, 1.45f * (1 - u * u), sinf(a) * 0.2f)), frame), y);
+        }
+    }
+    if (c.pourT > 0 && !c.dead && !c.overboard && (c.deck == 0 || c.deck == 1) && !OnQuay(g, c)) {
+        // the cup's stream: from the raised hand down to where it lands on the planks, in her frame
+        float y0 = c.deck == 1 ? ENGINE_Y : DECK_Y;
+        Vector3 a{c.p.x + c.facing.x * 0.45f, y0 + 1.25f, c.p.y + c.facing.y * 0.45f}, b{c.pourAt.x, y0 + 0.04f, c.pourAt.y};
+        Matrix boat = BoatMatrix(g.boat);
+        for (int s = 0; s < 14; s++) {
+            float u = fmodf(s / 14.0f + t * 2.5f, 1.0f);
+            Vector3 q = Vector3Lerp(a, b, u); q.y += sinf(u * PI) * 0.08f - u * u * 0.1f;
+            rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(0.025f, 0.05f, 0.025f), MatrixTranslate(q.x, q.y, q.z)), boat), Color{238, 208, 64, 255});
+        }
+        rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(0.22f + 0.05f * sinf(t * 17), 0.01f, 0.22f), MatrixTranslate(b.x, b.y, b.z)), boat), Color{232, 204, 70, 255});   // (the puddle)
+    }
 }
 
 static void DrawHand(const Gannet& g, const Crew& c, float t) {

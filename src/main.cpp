@@ -233,6 +233,8 @@ void DebugWardrobe(Game& g, int game); void TakeShots(const Game& base, const st
         {"trawl_sandbar", [](Game& g) { DebugTrawlShot(g, 38); }},
         {"trawl3d_lighthouse", [](Game& g) { DebugTrawlShot(g, 137); }},
         {"trawl3d_sandbar", [](Game& g) { DebugTrawlShot(g, 138); }},
+        {"trawl_cup", [](Game& g) { DebugTrawlShot(g, 39); }},
+        {"trawl3d_cup", [](Game& g) { DebugTrawlShot(g, 139); }},
         {"trawl_chalkboard", [](Game& g) { DebugTrawlShot(g, 30); }},
         {"trawl_roleups", [](Game& g) { DebugTrawlShot(g, 57); }},
         {"trawl_weeds", [](Game& g) { DebugTrawlShot(g, 31); }},

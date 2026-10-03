@@ -65,6 +65,7 @@ const std::vector<ShopItem>& ChandlerItems() {   // design doc, "The Chandler" (
         {"ring", "Extra life ring", 40, "Thrown on a rope"},
         {"longline", "Longline", 60, "20 hooks, two buoys: set it, fish elsewhere, haul it"},
         {"pot", "Crab pot", 25, "Reusable: crabs, lobster, octopus"},
+        {"cup", "A cup of something yellow", 5, "The Chandler won't say what it is. It never runs dry"},
         {"flare", "Flare pistol (3 flares)", 40, "A 40 m arc of light"},
         {"flares", "Flares (6)", 20, "A box of six"},
         {"speargun", "Speargun (3 spears)", 80, "8 m in water, 12 m in air, tethered"},
@@ -653,6 +654,11 @@ bool Session::Buy(const std::string& id, std::string* why, int ci) {
         else if (id == "ring") G->AddItem(Item::Ring, 1);
         else if (id == "longline") G->AddItem(Item::Longline, 1);
         else if (id == "pot") G->AddItem(Item::Pot, 1);
+        else if (id == "cup") {   // (into the buyer's own hands: it's a personal thing)
+            Crew& b = G->crew[ci >= 0 && ci < (int)G->crew.size() ? ci : 0]; bool put = false;
+            for (auto& sl : b.slots) if (sl.it == Item::None) { sl = {Item::Cup, 0}; put = true; break; }
+            if (!put) G->locker.push_back({Item::Cup, 0});
+        }
         else if (id == "flare") G->AddItem(Item::Flare, 3);
         else if (id == "speargun") G->AddItem(Item::Speargun, 3);
         else if (id == "rifle") G->AddItem(Item::Rifle, 10);
