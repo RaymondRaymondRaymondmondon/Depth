@@ -25,7 +25,7 @@ const Economy& Econ() {
     if (!j.IsObj()) return e;
     auto F = [&](const char* k, float& v) { if (j.Has(k)) v = j[k].F(v); };
     auto I = [&](const char* k, int& v) { if (j.Has(k)) v = j[k].I(v); };
-    F("day_seconds", e.daySeconds); F("work_pace", e.workPace);
+    F("day_seconds", e.daySeconds); F("work_pace", e.workPace); F("founder_hunger_s", e.founderHungerS);
     if (e.workPace <= 0) e.workPace = 240 / std::max(30.0f, e.daySeconds);   // (0: the pace the doc's 4-minute day was tuned at)
     F("feed_adult", e.feedAdult); F("feed_chick", e.feedChick); F("feed_founder", e.feedFounder); F("chick_drain", e.chickDrain);
     F("starve_days", e.starveDays); I("cache_capacity", e.cacheCap); F("spoil_days", e.spoilDays);
@@ -89,6 +89,7 @@ constexpr float FISHER_REACH = 2.7f;   // how deep a colony bird's plunge reache
 }  // namespace
 
 float World::StockOf(int zone) const {
+    if (mirror) return zone >= 0 && zone < (int)mirrorStock.size() ? mirrorStock[zone] : 0;   // (a guest's copy: the host's count)
     float n = 0, k = 0;
     bool asleep = wholeMap && zone >= 0 && zone < (int)liveZone.size() && !liveZone[zone];
     for (const auto& s : stocks) if (s.zone == zone && Catchable(eco.map->species[s.sp])) {
@@ -195,9 +196,9 @@ void World::InitColony() {
 
 // ---------------------------------------------------------------- the grounds regrow (stock-dependent: overfishing collapses a ground)
 void World::RegrowFish(float dt) {
-    static float acc = 0; acc += dt;
-    if (acc < 2) return;
-    float step = acc; acc = 0;
+    regrowAcc += dt;
+    if (regrowAcc < 2) return;
+    float step = regrowAcc; regrowAcc = 0;
     const Economy& E = Econ();
     for (auto& s : stocks) {
         const rt::Species& sp = eco.map->species[s.sp];
@@ -850,7 +851,7 @@ int World::BotFounderStep(float dt) {
     const Economy& E = Econ();
     if (f.st == FState::Dead) { f.respawnT -= dt; if (f.respawnT <= 0) Respawn(); return 0; }
     f.hunger -= dt / DAY * (f.chick ? 2.0f : 1.0f);
-    if (f.hunger <= 0) { f.hunger = 0; static float st = 0; st += dt; if (st > E.starveDays * DAY) { st = 0; Kill("starved"); } return 0; }
+    if (f.hunger <= 0) { f.hunger = 0; f.starveT += dt; if (f.starveT > E.starveDays * DAY) { f.starveT = 0; Kill("starved"); } return 0; }
     if (f.chick && f.chickFish >= 3) f.chick = false;
     fb.pos = f.pos; fb.hunger = 1;   // (its own hunger is the Founder's)
     // night: home to the nest (it eats from the cache if it can)

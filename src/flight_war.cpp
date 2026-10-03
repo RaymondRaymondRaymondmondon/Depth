@@ -62,6 +62,7 @@ void World::SwapSide(int i) {
     std::swap(col, s.col); std::swap(island, s.island); std::swap(home, s.home); std::swap(me, s.me); std::swap(fb, s.fb); std::swap(founderBot, s.founderBot);
     std::swap(lagoonZone, s.lagoonZone); std::swap(inshoreZone, s.inshoreZone); std::swap(dayAcc, s.dayAcc); std::swap(dayNum, s.dayNum);
     for (int k = 0; k < 16; k++) std::swap(caughtIn[k], s.caughtIn[k]);
+    std::swap(know, s.know); std::swap(log, s.log); std::swap(human, s.human);
     cur = cur == 0 ? i + 1 : 0;
 }
 Colony& World::ColOf(int side) {
@@ -74,7 +75,7 @@ Founder& World::FounderOf(int side) {
     if (side == 0) return sides[cur - 1].me;
     return sides[side - 1].me;
 }
-const std::string& World::SideName(int side) const { static const std::string you = "your colony"; return side <= 0 || side > (int)sides.size() ? you : sides[side - 1].name; }
+const std::string& World::SideName(int side) const { return side <= 0 || side > (int)sides.size() ? name0 : sides[side - 1].name; }
 Color World::SideColor(int side) const { return side <= 0 || side > (int)sides.size() ? Color{230, 200, 90, 255} : sides[side - 1].livery; }
 Bird* World::FindBird(int side, int id) { for (auto& b : ColOf(side).birds) if (b.id == id && b.alive) return &b; return nullptr; }
 Flock* World::FindFlock(int side, int id) { for (auto& f : ColOf(side).flocks) if (f.id == id) return &f; return nullptr; }
@@ -169,11 +170,11 @@ void World::StepWar(float dt) {
             for (auto& d : C.deaths) if (d.first == cause) { d.second++; counted = true; }
             if (!counted) C.deaths.push_back({cause, 1});
             if (Flock* f = FindFlock(v.side, b.flock)) { f->lost++; if (f->leader == b.id) { f->leaderDead = true; f->leader = -1; } }
-            if (v.side == 0) Say(std::string("Your ") + RoleName(b.role) + " was " + cause + ".");
+            SayTo(v.side, std::string("Your ") + RoleName(b.role) + " was " + cause + ".");
         } else {
             Founder& f = *v.f;
             for (auto& fl : ColOf(v.side).flocks) if (fl.leader == -2) { fl.leaderDead = true; fl.leader = -1; }
-            if (v.side == cur) { Kill(cause); }
+            if (HumanOf(v.side)) WithSide(v.side, [&] { Kill(cause); });
             else { f.st = FState::Dead; f.respawnT = 30; f.deaths++; f.lastCause = cause; }
         }
     };
@@ -194,7 +195,7 @@ void World::StepWar(float dt) {
             // a rout: at 30 it goes home on its own; at 0 it scatters (every bird for itself, and it's eaten)
             if (!fl.retreating && (fl.morale <= w.mRetreat || (fl.stance == Stance::RetreatHalf && fl.lost * 2 >= fl.startSize))) {
                 fl.retreating = true; fl.target = Target::Home;
-                if (s == 0) Say(fl.name + " breaks off and flies home.");
+                SayTo(s, fl.name + " breaks off and flies home.");
                 warLog.push_back(TextFormat("%.0f: %s's %s retreats (morale %.0f, %d of %d lost)", time, SideName(s).c_str(), fl.name.c_str(), fl.morale, fl.lost, fl.startSize));
             }
             if (fl.morale <= 0 && !fl.scattered) { fl.scattered = true; fl.form = Formation::Scatter; }
@@ -281,7 +282,7 @@ void World::StepWar(float dt) {
         // Watchers: a net at what comes in range; a peck at what comes close
         if (guardian) {
             float range = w.netRange * (b.post.y > 15 ? w.towerMult : 1.0f);
-            if (b.atkCd <= 0 && Vector3Distance(b.post, tp) < range && best->b) { best->b->netT = w.netHold; b.atkCd = w.netCd; warFx.push_back({tp, 2, best->side, best->b->role, 0}); if (best->side == 0 || x.side == 0) Say(x.side == 0 ? "A Watcher nets a raider." : "A Watcher's net holds one of your birds!"); }
+            if (b.atkCd <= 0 && Vector3Distance(b.post, tp) < range && best->b) { best->b->netT = w.netHold; b.atkCd = w.netCd; warFx.push_back({tp, 2, best->side, best->b->role, 0}); SayTo(x.side, "A Watcher nets a raider."); SayTo(best->side, "A Watcher's net holds one of your birds!"); }
             if (Vector3Distance(b.pos, tp) < w.reach * 2 && b.atkCd <= w.netCd - 1.4f) { strike(x, *best, false); }
             continue;
         }
@@ -295,16 +296,18 @@ void World::StepWar(float dt) {
             b.vel = Vector3Add(b.vel, {0, 6, 0});
         }
     }
-    // the Founder you fly: a dive onto an enemy bird strikes it
-    if (cur == 0 && me.st == FState::Fly) {
-        static float cd = 0; cd -= dt;
+    // a Founder a person flies: a dive onto an enemy bird strikes it
+    for (int s = 0; s < nSides; s++) {
+        Founder& F = FounderOf(s);
+        if (!HumanOf(s) || BotFlown(s) || F.st != FState::Fly) continue;
+        F.strikeCd -= dt;
         for (auto& y : all) {
-            if (y.side == 0 || !y.b || !y.b->alive || cd > 0) continue;
-            if (Vector3Distance(me.pos, y.b->pos) < w.reach + 0.5f && Vector3Length(me.vel) > 9) {
-                Fighter mine{0, nullptr, &me, -1};
-                strike(mine, y, me.vel.y < -3);
-                cd = 0.8f;
-                Say(y.b->alive ? TextFormat("You strike %s's %s.", SideName(y.side).c_str(), RoleName(y.b->role)) : TextFormat("You kill %s's %s.", SideName(y.side).c_str(), RoleName(y.b->role)));
+            if (y.side == s || !y.b || !y.b->alive || F.strikeCd > 0) continue;
+            if (Vector3Distance(F.pos, y.b->pos) < w.reach + 0.5f && Vector3Length(F.vel) > 9) {
+                Fighter mine{s, nullptr, &F, -1};
+                strike(mine, y, F.vel.y < -3);
+                F.strikeCd = 0.8f;
+                SayTo(s, y.b->alive ? TextFormat("You strike %s's %s.", SideName(y.side).c_str(), RoleName(y.b->role)) : TextFormat("You kill %s's %s.", SideName(y.side).c_str(), RoleName(y.b->role)));
             }
         }
     }
@@ -438,7 +441,7 @@ void World::StepWar(float dt) {
                         size_t k = 0; for (size_t i = 1; i < ca.fish.size(); i++) if (ca.fish[i].size < ca.fish[k].size) k = i;
                         b->carrySp = ca.fish[k].sp; b->carrySize = ca.fish[k].size; ca.fish.erase(ca.fish.begin() + k);
                         C.stolen++; T.lostToRaids++;
-                        if (fl.tSide == 0) Say(SideName(s) + "'s Skirmishers are robbing your cache!");
+                        SayTo(fl.tSide, SideName(s) + "'s Skirmishers are robbing your cache!");
                         break;
                     }
                 }
@@ -455,7 +458,7 @@ void World::StepWar(float dt) {
                         c.alive = false; c.cause = "taken by " + SideName(s) + "'s Striker";
                         bool counted = false; for (auto& d : T.deaths) if (d.first == c.cause) { d.second++; counted = true; }
                         if (!counted) T.deaths.push_back({c.cause, 1});
-                        if (fl.tSide == 0) Say(SideName(s) + "'s Striker has taken one of your chicks!");
+                        SayTo(fl.tSide, SideName(s) + "'s Striker has taken one of your chicks!");
                         break;
                     }
                 }
@@ -466,7 +469,7 @@ void World::StepWar(float dt) {
                             if (!fsh.alive || fsh.stage != BStage::Adult || fsh.role != Role::Fisher || Vector3Distance(fsh.pos, b->pos) > w.harassRange || fsh.fleeT > 0) continue;
                             if (fsh.carrySp >= 0) { eco.AddBlood({fsh.pos.x, -0.4f, fsh.pos.z}, 3); fsh.carrySp = -1; fsh.carrySize = 0; }   // (dropped: it bleeds)
                             fsh.fleeT = w.harassSpoil; fsh.task = Task::Idle;
-                            if (t == 0) Say(SideName(s) + "'s Skirmishers chase your fishers off their ground!");
+                            SayTo(t, SideName(s) + "'s Skirmishers chase your fishers off their ground!");
                         }
                     }
                 }
@@ -488,7 +491,7 @@ void World::StepWar(float dt) {
         if (ids.size() < 2) continue;
         int f = MakeFlock(s, ids, Formation::Hammer, Alt::Mid, Stance::Hold);
         if (Flock* fl = FindFlock(s, f)) { fl->name = "Home guard"; OrderFlock(s, f, Target::Flock, threatSide, -1, -1, threat->id, threat->pos); }
-        if (s == 0) Say(TextFormat("%s's flock is over your island: your %d warriors rise to meet it.", SideName(threatSide).c_str(), (int)ids.size()));
+        SayTo(s, TextFormat("%s's flock is over your island: your %d warriors rise to meet it.", SideName(threatSide).c_str(), (int)ids.size()));
     }
     (void)E;
 }
@@ -497,7 +500,6 @@ void World::StepWar(float dt) {
 void World::BotGovern(float dt) {
     // (on the colony swapped in) a careful player: nests just ahead of the mates, the plan by the feed, warriors once
     // the colony can feed them, idle hands retrained, a hedge round home and a tower when it's big enough
-    static float t = 0; t += dt;
     int mates = Count(BStage::Mate), alive = Alive();
     col.nestsWanted = std::min((int)col.sites.size(), std::max(2, mates + 1));
     float fpd = FeedPerDayEstimate(), mouths = MouthsPerDay();
@@ -520,7 +522,6 @@ void World::BotGovern(float dt) {
     bool hedge = false, tower = false; for (const auto& s : col.builds) { hedge |= s.kind == 0; tower |= s.kind == 1; }
     if (!hedge && alive >= 12) { Structure s; s.kind = 0; s.pos = col.caches[0].pos; col.builds.push_back(s); }
     if (!tower && alive >= 20) { Structure s; s.kind = 1; s.pos = Vector3Add(col.caches[0].pos, {6, 0, 4}); s.pos = GroundAt(s.pos.x, s.pos.z); col.builds.push_back(s); }
-    (void)t;
 }
 void World::BotWar(int side, float dt) {
     Colony& C = ColOf(side);
@@ -546,7 +547,7 @@ void World::BotWar(int side, float dt) {
     if (f < 0) return;
     OrderFlock(side, f, t, tgt, -1, -1, -1, to);
     if (Flock* fl = FindFlock(side, f)) fl->name = t == Target::Cache ? "Cache raiders" : "Chick snatchers";
-    if (tgt == 0) Say(TextFormat("%s's flock (%d) leaves its island, heading your way.", SideName(side).c_str(), (int)idle.size()));
+    SayTo(tgt, TextFormat("%s's flock (%d) leaves its island, heading your way.", SideName(side).c_str(), (int)idle.size()));
 }
 
 // ---------------------------------------------------------------- --flight-war [scenario|all] [runs]: the five rules, raids, the gate

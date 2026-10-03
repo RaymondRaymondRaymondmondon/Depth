@@ -1736,7 +1736,7 @@ static void DrawScene() {
         const Agent& a = m.eco.agents[i];
         if (!a.alive || a.diver == Me().slot) continue;       // (that one is you)
         if (Vector3Distance(a.pos, eye) > 55) continue;
-        if (a.diver > 0 && DrawTeammate(m, a)) continue;
+        if (a.diver >= 0 && DrawTeammate(m, a)) continue;   // (slot 0 too: a guest sees the host on the figure, not the old boxes)
         const Species& sp = m.map->species[a.sp];
         const CreatureModel& cm = Creature(m.artKey, m.ArtName(a.sp));
         float spd = Vector3Length(a.vel);
@@ -1766,7 +1766,7 @@ static void DrawScene() {
             Color w = L.fog;
             tint = {(unsigned char)((tint.r * 2 + w.r) / 3), (unsigned char)((tint.g * 2 + w.g) / 3), (unsigned char)((tint.b * 2 + w.b) / 3), 255};
         }
-        if (sp.isEnemy && a.unit >= 0 && Vector3Distance(a.pos, eye) < 45 && DrawFactionFigure(m, a, yaw)) continue;   // (the factions on the figure)
+        if (sp.isEnemy && a.unit >= 0 && DrawFactionFigure(m, a, yaw)) continue;   // (the factions on the figure, as far as anything is drawn: the old box divers beyond 45 m looked broken)
         float bsc = a.sp < (int)m.bodyScale.size() ? m.bodyScale[a.sp] : 1.0f;
         // (the boss's phase on its body: the second darker and hotter, the third pulsing with it, its weak point never
         // quite dark; the frenzy quickens its movement)

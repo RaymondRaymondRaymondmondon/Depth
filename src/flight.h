@@ -77,6 +77,10 @@ struct MapOpts {
     Arrangement arr = Arrangement::Archipelago;
     IsleType home = IsleType::Tropical;         // your starting island's type
     uint32_t seed = 1;
+    // a networked match (stage 5): which sides people play (a bit per side; side 0 is the host), the time limit
+    uint32_t humanMask = 1;
+    float minutes = 0;                          // 0: no limit (solo)
+    bool multi = false;                         // no slow motion in a strike (the world can't crawl for one player)
 };
 struct IsleSpec { IsleType type = IsleType::Islet; Vector3 c{}; int start = -1; std::string name; };
 std::vector<IsleSpec> LayoutMap(const MapOpts& o);   // slot 0 at the origin; rotational fairness
@@ -131,6 +135,7 @@ struct Founder {
     int deaths = 0;
     int agent = -1;                             // the body in the sea's web (a "Diver" record) while low over water
     std::string lastCause;
+    float starveT = 0, strikeCd = 0, airT = 0;   // (airT: seconds since it took off: it can't settle back on a site at once)            // (a bot Founder's time at 0 hunger; the cooldown on a flown Founder's strike at a bird)
     // what this founder is now (species stats, chick-leader, starvation and three deaths applied)
     float Cruise(const FounderDef& d) const;
     float Sprint(const FounderDef& d) const;
@@ -150,6 +155,7 @@ struct FounderInput {
 // Every number is data: data/flight/flight_economy.json (Economy) and flight_roles.json (RoleDef).
 struct Economy {
     float daySeconds = 120, workPace = 1;     // a game day in real seconds; colony birds work this much faster (keeps the per-day economy when days are short)
+    float founderHungerS = 360;               // real seconds a full Founder lasts (the user: a day's worth emptied far too fast once days were 2 minutes)
     float feedAdult = 2.5f, feedChick = 1, feedFounder = 3;   // feed units a full hunger bar holds (one day's eating)
     float chickDrain = 2;                     // chicks empty twice as fast
     float starveDays = 0.5f;                  // at 0 hunger this long, a bird dies
@@ -257,8 +263,11 @@ struct Colony {
 struct Side {
     Colony col; Island island; int home = 0; Founder me; Bird fb; bool founderBot = true;
     int lagoonZone = -1, inshoreZone = -1; float dayAcc = 0; int dayNum = 0; int caughtIn[16] = {};
+    Knowledge know; std::vector<std::string> log; bool human = false;   // (a person's side: its own fog, reports and news)
     int slot = 1; std::string name; Color livery{200, 60, 60, 255};
 };
+// the score (design doc p27; data/flight/flight_scoring.json)
+struct ScoreCard { int birds = 0, nests = 0, isles = 0, cache = 0, kills = 0, founder = 0, total = 0; };
 
 // ---------------------------------------------------------------- the world (one Founder, one island: stage 1)
 struct World {
@@ -294,9 +303,40 @@ struct World {
     bool quiet = false;                         // (a rival is stepping: its news isn't yours)
     void SwapSide(int i);                       // trade the World's colony fields with sides[i] (call twice to swap back)
     Colony& ColOf(int side);                    // a side's colony, wherever it is
+    const Colony& ColOf(int side) const { return const_cast<World*>(this)->ColOf(side); }
     Founder& FounderOf(int side);
+    const Founder& FounderOf(int side) const { return const_cast<World*>(this)->FounderOf(side); }
+    int HomeOf(int side) const;                 // a side's home island
+    int OwnerOf(int isle) const;                // the side whose home it is, or -1
+    bool HumanOf(int side) const;               // a person plays it (their own news, fog and input)
+    bool BotFlown(int side) const;              // its Founder is flown by the colony's logic
+    template <class F> void WithSide(int side, F fn) {   // run fn with that side swapped into the fields (whatever is in now)
+        if (side == cur) { fn(); return; }
+        int was = cur;
+        if (was != 0) SwapSide(was - 1);
+        if (side != 0) SwapSide(side - 1);
+        fn();
+        if (side != 0) SwapSide(side - 1);
+        if (was != 0) SwapSide(was - 1);
+    }
+    void SayTo(int side, const std::string& s); // a side's own news (nothing for a bot's)
     const std::string& SideName(int side) const;
     Color SideColor(int side) const;
+    std::string name0 = "your colony";          // side 0's name (a networked match: the host's)
+    // a networked match (stage 5; flight_net.cpp): each person's side is flown from its own input, one world
+    bool human = true;                          // (side 0's, swapped like the rest: a person plays the side in the fields)
+    std::vector<FounderInput> sideIn;           // each side's input this step (by side; side 0's is Step's argument)
+    bool multi = false, mirror = false;         // a networked match; a guest's copy of the host's (it never steps)
+    bool predicting = false;                    // (a guest flying its own Founder ahead of the host: no side effects)
+    std::vector<float> mirrorStock;             // (a mirror: each zone's stock as the host has it)
+    uint32_t cautiousMask = 0;                  // (people's sides the AI stands in for: it fishes and defends, it doesn't raid)
+    float matchLen = 0;                         // seconds (0: no limit)
+    bool over = false; int winner = -1; std::string overReason;
+    std::vector<ScoreCard> scores; float scoreT = 0;   // (every side's, kept a second at a time; a mirror's come from the host)
+    ScoreCard Score(int side) const;
+    void CheckEnd();
+    void PredictFounder(float dt, const FounderInput& in);   // the guest's own Founder between snapshots
+    void StepFog(float dt);                     // the fog round the side in the fields
     // war (flight_war.cpp)
     void StepWar(float dt);
     void BotWar(int side, float dt);            // a bot's decisions: its plan, its flocks' orders
@@ -370,13 +410,17 @@ struct World {
     void DayTick();
   public:
     float dayAcc = 0; int dayNum = 0;
-  private:
+    float fogT = 0, liveT = 0, regrowAcc = 0; bool fogNow = false;   // (the map's timers)
     void StepFounder(float dt, const FounderInput& in);
+    void StrikeStep(float realDt, const FounderInput& in);   // the strike, on real time
+    void Kill(const std::string& cause);
+    void SyncBody();
+    void HookDiverHits();                       // a shark's strike on a Founder's body in the web: whose it is, and its death
+  private:
+    void FlyMotion(float dt, const FounderInput& in);   // the Founder's flight (Fly): steering, speed, breath, the wind
     void StartStrike();
     void ResolveStrike();
-    void Kill(const std::string& cause);
     void Respawn();
-    void SyncBody();
 };
 
 int RunFlightTest();                            // depth.exe --flight-test
@@ -385,5 +429,7 @@ int RunFlightSim(int argc, char** argv);        // depth.exe --flight-sim <islan
 int RunFlightFairTest(int argc, char** argv);   // depth.exe --flight-fair [seed]: every arrangement and player count is fair
 int RunFlightScoutTest();                       // depth.exe --flight-scout-test: the stage-3 gate (a scout's report from each altitude)
 int RunFlightWar(int argc, char** argv);         // depth.exe --flight-war [scenario|all] [runs]: the five rules in scripted fights; the stage-4 gate
+int RunFlightNetTest();                         // depth.exe --flight-net-test: inputs, orders, snapshots, mirrors, the score (flight_net.cpp)
+int RunFlightNetLoop(bool forceMemory);         // depth.exe --net-loop flight [mem]: the stage-5 gate (six players finish a 30-minute match)
 
 }  // namespace fl

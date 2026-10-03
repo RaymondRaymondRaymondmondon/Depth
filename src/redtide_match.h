@@ -240,6 +240,7 @@ struct Match {
     // Hunt is doubled
     int huntWavesLeft = 0, huntWaveSize = 0, huntRegion = 0, huntForceLeft = 0; float huntWaveT = 0; bool calmLong = false;
     bool bossActive = false; int bossAgent = -1; int bossPhase = 1; float bossLingerT = 0, bossIdleT = 0, bossCd[4] = {0, 0, 0, 0};
+    float bossFarT = 0;                       // (the Goliath: how long its target has stayed out of its reach; then it inhales from afar)
     int bossWind = -1; float bossWindT = 0; int bossTarget = -1;
     float bossGillsT = 0, bossInhaleT = -1; int bossInhaleDiver = -1; float bossGillDmg = 0; bool bossStunUsed = false, bossCalled = false, bossProvoked = false;
     float trapT = 0;

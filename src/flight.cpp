@@ -123,7 +123,8 @@ int Founder::Carry(const FounderDef& d) const { return std::max(1, chick ? d.car
 
 // ---------------------------------------------------------------- the world
 float World::Rand() { rng ^= rng << 13; rng ^= rng >> 17; rng ^= rng << 5; return (rng & 0xFFFFFF) / 16777216.0f; }
-void World::Say(const std::string& s) { if (quiet) return; log.push_back(s); if (log.size() > 60) log.erase(log.begin()); }
+void World::Say(const std::string& s) { if (quiet || predicting || !human) return; log.push_back(s); if (log.size() > 60) log.erase(log.begin()); }
+void World::SayTo(int side, const std::string& s) { if (side < 0 || side > (int)sides.size() || !HumanOf(side)) return; WithSide(side, [&] { bool q = quiet; quiet = false; Say(s); quiet = q; }); }
 float World::DayPhase() const { return fmodf(time / DAY + 0.22f, 1.0f); }   // (the match opens just before dawn's rise)
 float World::FeedValue(int sp) const { return sp >= 0 && eco.map && sp < (int)eco.map->species.size() ? (float)eco.map->species[sp].size : 1; }
 float World::Thermal(Vector3 p) const {
@@ -157,11 +158,7 @@ void World::Init(const std::string& founderKey, uint32_t seed) {
     // a bird low over the water is a body in the web: a shark's strike on it is the game's to resolve
     me.agent = eco.AddDiver(0, {0, 50, 0});
     if (me.agent >= 0) eco.agents[me.agent].alive = false;
-    eco.onDiverHit = [this](int, int attacker, float) {
-        if (me.st == FState::Dead || me.pos.y > 10 || LandAt(me.pos.x, me.pos.z)) return;
-        std::string who = attacker >= 0 && attacker < (int)eco.agents.size() ? eco.map->species[eco.agents[attacker].sp].name : std::string("something below");
-        Kill("taken by a " + who);
-    };
+    HookDiverHits();
     wind.dir = Vector2Normalize({1, 0.4f}); wind.nextDir = wind.dir; wind.speed = wind.nextSpeed = 6; wind.shiftT = 999;
     int fi = FounderIndex(founderKey);
     me.def = fi >= 0 ? fi : 0;
@@ -169,6 +166,19 @@ void World::Init(const std::string& founderKey, uint32_t seed) {
     me.strikeLen = Def().key == "taloned" ? 1.0f : 0.5f;   // (the Taloned's strike window is twice as long)
     InitColony();
     Say(Def().name + " (" + Def().bird + ") wakes in its nest. Fill its courtship bowl with three fish to call a mate.");
+}
+void World::HookDiverHits() {
+    eco.onDiverHit = [this](int ai, int attacker, float) {
+        // whose Founder's body it is (each side's flown Founder has one in the web)
+        for (int s = 0; s <= (int)sides.size(); s++) {
+            Founder& f = FounderOf(s);
+            if (f.agent != ai) continue;
+            if (f.st == FState::Dead || f.pos.y > 10 || LandAt(f.pos.x, f.pos.z)) return;
+            std::string who = attacker >= 0 && attacker < (int)eco.agents.size() ? eco.map->species[eco.agents[attacker].sp].name : std::string("something below");
+            WithSide(s, [&] { Kill("taken by a " + who); });
+            return;
+        }
+    };
 }
 
 void World::Kill(const std::string& cause) {
@@ -202,7 +212,7 @@ void World::StartStrike() {
     float tImpact = me.vel.y < -0.1f ? me.pos.y / -me.vel.y : 0.2f;
     me.strikeAt = {me.pos.x + me.vel.x * tImpact, 0, me.pos.z + me.vel.z * tImpact};
     me.strikeAim = me.strikeAt;
-    timeScale = 0.25f;
+    if (!multi) timeScale = 0.25f;   // (alone, the world crawls; in a networked match the strike runs at the world's pace)
 }
 void World::ResolveStrike() {
     timeScale = 1;
@@ -250,7 +260,7 @@ void World::StepFounder(float dt, const FounderInput& in) {
     float maxStam = d.stamina * (f.chick ? 0.5f : 1.0f);
     // hunger drains over a game day (a chick-leader's twice as fast); at 0 the Founder faints
     if (f.st != FState::Dead) {
-        f.hunger -= dt / DAY * (f.chick ? 2.0f : 1.0f);
+        f.hunger -= dt / std::max(30.0f, Econ().founderHungerS) * (f.chick ? 2.0f : 1.0f);
         if (f.hunger <= 0 && f.st != FState::Fainted) { f.hunger = 0; f.st = FState::Fainted; f.faintT = 10; Say("The Founder faints from hunger!"); }
     }
     if (f.chick && !f.adultT && f.chickFish >= 3) { f.chick = false; f.adultT = 0.001f; Say("Fed back up: the Founder again. Ten seconds more and the colony takes orders."); }
@@ -262,6 +272,85 @@ void World::StepFounder(float dt, const FounderInput& in) {
     bool overLand = LandAt(f.pos.x, f.pos.z);
     switch (f.st) {
     case FState::Fly: {
+        FlyMotion(dt, in);
+        // the strike: a fast dive about to meet open water
+        if (!overLand && f.vel.y < -4 && f.airspeed > 10 && f.pos.y > 0.3f && f.pos.y / -f.vel.y < 0.35f) { StartStrike(); break; }
+        // the ground and the sea
+        ground = std::max(0.0f, HeightAt(f.pos.x, f.pos.z));
+        overLand = LandAt(f.pos.x, f.pos.z);
+        if (f.pos.y < ground + 0.3f) {
+            float sp = Vector3Length(f.vel);
+            if (overLand) {
+                if (sp < 11 && f.pitch > -0.6f) { f.st = FState::Perched; f.pos.y = ground; f.vel = {0, 0, 0}; f.airspeed = 0; f.pitch = 0; f.bank = 0; }
+                else { f.pos.y = ground + 0.3f; f.airspeed *= 0.4f; f.pitch = 0.25f; Say("Bump!"); }
+            } else if (sp < 9) { f.st = FState::Floating; f.pos.y = 0; f.vel = {0, 0, 0}; f.airspeed = 0; f.pitch = 0; }
+            else { f.pos.y = 0.3f; f.pitch = std::max(f.pitch, 0.05f); f.airspeed *= 0.9f; }   // (a skim off the swell)
+        }
+        // a slow approach to a palm crown (a nest site) perches there
+        f.airT += dt;
+        if (f.st == FState::Fly && Vector3Length(f.vel) < 9 && f.airT > 1.0f && f.vel.y < 0.5f)   // (not straight off it: a take-off is slower than 9 m/s)
+            for (const auto& s : col.sites) if (Vector3Distance(f.pos, s.pos) < 1.8f) { f.st = FState::Perched; f.pos = s.pos; f.vel = {0, 0, 0}; f.airspeed = 0; f.pitch = 0; f.bank = 0; break; }
+        if (in.interact) Interact();   // (low and slow over a nest or a cache: E works on the wing too)
+    } break;
+    case FState::Strike: break;   // (Step runs the strike on real time)
+    case FState::Struggle: {
+        f.pos.y = -0.3f; f.vel = {0, 0, 0};
+        f.struggleT -= dt;
+        eco.AddBlood({f.pos.x, -0.5f, f.pos.z}, 3 * dt);   // (it bleeds: the sharks notice)
+        if (f.struggleAgent >= 0 && f.struggleAgent < (int)eco.agents.size() && eco.agents[f.struggleAgent].alive) eco.agents[f.struggleAgent].pos = {f.pos.x, -0.6f, f.pos.z};
+        if (f.struggleT <= 0) {
+            if (f.struggleAgent >= 0 && f.struggleAgent < (int)eco.agents.size()) { rt::Agent& a = eco.agents[f.struggleAgent]; a.wound = std::max(a.wound, 0.5f); a.held = 0; }
+            fishLost++;
+            Say("It tore free and is gone, bleeding.");
+            f.st = FState::Fly; f.airspeed = 6; f.pitch = 0.6f; f.pos.y = 0.4f; f.struggleAgent = -1;
+        }
+    } break;
+    case FState::Under:
+        f.pos.y = -0.6f; f.vel = {0, 0, 0};
+        f.underT -= dt;
+        if (f.underT <= 0) { f.st = FState::Fly; f.airspeed = 7; f.pitch = 0.55f; f.pos.y = 0.4f; f.stamina = std::max(0.0f, f.stamina - 0.5f); }
+        break;
+    case FState::Perched:
+    case FState::Floating: {
+        f.vel = {0, 0, 0}; f.airspeed = 0; f.bank = 0;
+        if (f.st == FState::Perched) {
+            float y = ground;
+            for (const auto& s : col.sites) if (Vector2Distance({f.pos.x, f.pos.z}, {s.pos.x, s.pos.z}) < 1.5f && fabsf(f.pos.y - s.pos.y) < 2) y = s.pos.y;
+            f.pos.y = y;
+        }
+        else f.pos.y = 0;
+        f.yaw += atan2f(sinf(in.yaw - f.yaw), cosf(in.yaw - f.yaw)) * std::min(1.0f, dt * 6);
+        f.stamina = std::min(maxStam, f.stamina + (f.st == FState::Perched ? 1.2f : 0.6f) * dt);
+        if (in.interact) Interact();
+        if (in.eat) Eat();
+        if (in.takeoff && f.stamina > 0.4f) {
+            f.st = FState::Fly; f.airspeed = f.pos.y <= 0.01f && !overLand ? 6.0f : 8.0f; f.pitch = 0.6f; f.pos.y += 0.4f; f.airT = 0;
+            f.stamina -= f.pos.y <= 0.5f ? 1.0f : 0.4f;   // (off the water is hard work)
+        }
+    } break;
+    case FState::Fainted: {
+        f.faintT -= dt;
+        // it drops: onto the land, or into the sea (where it floats, helpless)
+        if (f.pos.y > ground + 0.05f) f.pos.y = std::max(ground, f.pos.y - 6 * dt);
+        f.vel = {0, 0, 0};
+        if (f.faintT <= 0) { f.hunger = 0.12f; f.st = overLand ? FState::Perched : FState::Floating; Say("The Founder comes to, weak with hunger."); }
+    } break;
+    case FState::Dead:
+        f.respawnT -= dt;
+        if (f.respawnT <= 0) Respawn();
+        break;
+    }
+    // stay in the world's box
+    f.pos.x = std::clamp(f.pos.x, -1400.0f, 1400.0f); f.pos.z = std::clamp(f.pos.z, -1400.0f, 1400.0f);
+}
+
+// The Founder's flight through the air (the Fly state's motion, shared with a guest's prediction of its own bird)
+void World::FlyMotion(float dt, const FounderInput& in) {
+    const FounderDef& d = Def();
+    Founder& f = me;
+    float maxStam = d.stamina * (f.chick ? 0.5f : 1.0f);
+    float carryMul = 1 - 0.06f * f.carrySize;
+    {
         // steering: toward the player's aim, banking into the turn
         float dyaw = atan2f(sinf(in.yaw - f.yaw), cosf(in.yaw - f.yaw));
         float turn = (f.sprinting ? 1.5f : 1.9f) * dt;
@@ -311,88 +400,34 @@ void World::StepFounder(float dt, const FounderInput& in) {
         f.vel.y += lift;
         if (f.pos.y > 200 && f.vel.y > 0) f.vel.y = 0;
         f.pos = Vector3Add(f.pos, Vector3Scale(f.vel, dt));
-        // the strike: a fast dive about to meet open water
-        if (!overLand && f.vel.y < -4 && f.airspeed > 10 && f.pos.y > 0.3f && f.pos.y / -f.vel.y < 0.35f) { StartStrike(); break; }
-        // the ground and the sea
-        ground = std::max(0.0f, HeightAt(f.pos.x, f.pos.z));
-        overLand = LandAt(f.pos.x, f.pos.z);
-        if (f.pos.y < ground + 0.3f) {
-            float sp = Vector3Length(f.vel);
-            if (overLand) {
-                if (sp < 11 && f.pitch > -0.6f) { f.st = FState::Perched; f.pos.y = ground; f.vel = {0, 0, 0}; f.airspeed = 0; f.pitch = 0; f.bank = 0; }
-                else { f.pos.y = ground + 0.3f; f.airspeed *= 0.4f; f.pitch = 0.25f; Say("Bump!"); }
-            } else if (sp < 9) { f.st = FState::Floating; f.pos.y = 0; f.vel = {0, 0, 0}; f.airspeed = 0; f.pitch = 0; }
-            else { f.pos.y = 0.3f; f.pitch = std::max(f.pitch, 0.05f); f.airspeed *= 0.9f; }   // (a skim off the swell)
-        }
-        // a slow approach to a palm crown (a nest site) perches there
-        if (f.st == FState::Fly && Vector3Length(f.vel) < 9)
-            for (const auto& s : col.sites) if (Vector3Distance(f.pos, s.pos) < 1.8f) { f.st = FState::Perched; f.pos = s.pos; f.vel = {0, 0, 0}; f.airspeed = 0; f.pitch = 0; f.bank = 0; break; }
-        if (in.interact) Interact();   // (low and slow over a nest or a cache: E works on the wing too)
-    } break;
-    case FState::Strike: break;   // (Step runs the strike on real time)
-    case FState::Struggle: {
-        f.pos.y = -0.3f; f.vel = {0, 0, 0};
-        f.struggleT -= dt;
-        eco.AddBlood({f.pos.x, -0.5f, f.pos.z}, 3 * dt);   // (it bleeds: the sharks notice)
-        if (f.struggleAgent >= 0 && f.struggleAgent < (int)eco.agents.size() && eco.agents[f.struggleAgent].alive) eco.agents[f.struggleAgent].pos = {f.pos.x, -0.6f, f.pos.z};
-        if (f.struggleT <= 0) {
-            if (f.struggleAgent >= 0 && f.struggleAgent < (int)eco.agents.size()) { rt::Agent& a = eco.agents[f.struggleAgent]; a.wound = std::max(a.wound, 0.5f); a.held = 0; }
-            fishLost++;
-            Say("It tore free and is gone, bleeding.");
-            f.st = FState::Fly; f.airspeed = 6; f.pitch = 0.6f; f.pos.y = 0.4f; f.struggleAgent = -1;
-        }
-    } break;
-    case FState::Under:
-        f.pos.y = -0.6f; f.vel = {0, 0, 0};
-        f.underT -= dt;
-        if (f.underT <= 0) { f.st = FState::Fly; f.airspeed = 7; f.pitch = 0.55f; f.pos.y = 0.4f; f.stamina = std::max(0.0f, f.stamina - 0.5f); }
-        break;
-    case FState::Perched:
-    case FState::Floating: {
-        f.vel = {0, 0, 0}; f.airspeed = 0; f.bank = 0;
-        if (f.st == FState::Perched) {
-            float y = ground;
-            for (const auto& s : col.sites) if (Vector2Distance({f.pos.x, f.pos.z}, {s.pos.x, s.pos.z}) < 1.5f && fabsf(f.pos.y - s.pos.y) < 2) y = s.pos.y;
-            f.pos.y = y;
-        }
-        else f.pos.y = 0;
-        f.yaw += atan2f(sinf(in.yaw - f.yaw), cosf(in.yaw - f.yaw)) * std::min(1.0f, dt * 6);
-        f.stamina = std::min(maxStam, f.stamina + (f.st == FState::Perched ? 1.2f : 0.6f) * dt);
-        if (in.interact) Interact();
-        if (in.eat) Eat();
-        if (in.takeoff && f.stamina > 0.4f) {
-            f.st = FState::Fly; f.airspeed = f.pos.y <= 0.01f && !overLand ? 6.0f : 8.0f; f.pitch = 0.6f; f.pos.y += 0.4f;
-            f.stamina -= f.pos.y <= 0.5f ? 1.0f : 0.4f;   // (off the water is hard work)
-        }
-    } break;
-    case FState::Fainted: {
-        f.faintT -= dt;
-        // it drops: onto the land, or into the sea (where it floats, helpless)
-        if (f.pos.y > ground + 0.05f) f.pos.y = std::max(ground, f.pos.y - 6 * dt);
-        f.vel = {0, 0, 0};
-        if (f.faintT <= 0) { f.hunger = 0.12f; f.st = overLand ? FState::Perched : FState::Floating; Say("The Founder comes to, weak with hunger."); }
-    } break;
-    case FState::Dead:
-        f.respawnT -= dt;
-        if (f.respawnT <= 0) Respawn();
-        break;
     }
-    // stay in the world's box
-    f.pos.x = std::clamp(f.pos.x, -1400.0f, 1400.0f); f.pos.z = std::clamp(f.pos.z, -1400.0f, 1400.0f);
+}
+
+// the strike runs on real time while the world crawls: steer the talons onto a fish
+void World::StrikeStep(float realDt, const FounderInput& in) {
+    if (me.st != FState::Strike) return;
+    me.strikeT += realDt;
+    Vector3 right{-sinf(me.yaw), 0, cosf(me.yaw)}, fwd{cosf(me.yaw), 0, sinf(me.yaw)};
+    Vector3 aim = Vector3Add(me.strikeAt, Vector3Add(Vector3Scale(right, std::clamp(in.steer.x, -1.0f, 1.0f) * 2.6f), Vector3Scale(fwd, std::clamp(in.steer.y, -1.0f, 1.0f) * 2.6f)));
+    me.strikeAim = Vector3Lerp(me.strikeAim, aim, std::min(1.0f, realDt * 10));
+    float k = std::min(1.0f, me.strikeT / me.strikeLen);
+    me.pos = Vector3Lerp(me.pos, {me.strikeAim.x, 0.5f * (1 - k), me.strikeAim.z}, std::min(1.0f, realDt * 3));
+    if (me.strikeT >= me.strikeLen) ResolveStrike();
+}
+// A guest's own Founder between the host's snapshots: its flight only (the host decides strikes, landings and the rest)
+void World::PredictFounder(float dt, const FounderInput& in) {
+    if (me.st != FState::Fly || dt <= 0) return;
+    predicting = true;
+    FlyMotion(std::min(dt, 0.1f), in);
+    predicting = false;
+    float g = std::max(0.0f, HeightAt(me.pos.x, me.pos.z));
+    if (me.pos.y < g + 0.3f) me.pos.y = g + 0.3f;
 }
 
 void World::Step(float realDt, const FounderInput& in) {
     realDt = std::min(realDt, 0.1f);
-    // the strike runs on real time while the world crawls: steer the talons onto a fish
-    if (me.st == FState::Strike) {
-        me.strikeT += realDt;
-        Vector3 right{-sinf(me.yaw), 0, cosf(me.yaw)}, fwd{cosf(me.yaw), 0, sinf(me.yaw)};
-        Vector3 aim = Vector3Add(me.strikeAt, Vector3Add(Vector3Scale(right, std::clamp(in.steer.x, -1.0f, 1.0f) * 2.6f), Vector3Scale(fwd, std::clamp(in.steer.y, -1.0f, 1.0f) * 2.6f)));
-        me.strikeAim = Vector3Lerp(me.strikeAim, aim, std::min(1.0f, realDt * 10));
-        float k = std::min(1.0f, me.strikeT / me.strikeLen);
-        me.pos = Vector3Lerp(me.pos, {me.strikeAim.x, 0.5f * (1 - k), me.strikeAim.z}, std::min(1.0f, realDt * 3));
-        if (me.strikeT >= me.strikeLen) ResolveStrike();
-    }
+    if (mirror || over) return;   // (a guest's copy never steps; a finished match stands still)
+    StrikeStep(realDt, in);
     float dt = realDt * timeScale;
     time += dt;
     // the wind shifts every few minutes
@@ -428,21 +463,29 @@ void World::Step(float realDt, const FounderInput& in) {
     }
     SyncBody();
     eco.Step(dt);
+    fogT += dt; fogNow = fogT >= 0.25f;
+    if (fogNow) fogT = 0;
     StepColony(dt);   // (the caches spoil, the grounds regrow, the colony lives)
     StepMap(dt);      // (a whole map: the fog, the scouts, the sea waking where the birds are)
-    // the rival colonies: each swapped in and stepped by the same code (its Founder flown by the colony's logic, its
-    // panel by a careful bot), then the war over every colony
+    // the other colonies: each swapped in and stepped by the same code. A bot's Founder is flown by the colony's logic
+    // and its panel run by a careful bot; a person's Founder by their input (a networked match), and its panel by them;
+    // a person the AI has stood in for (they dropped) is flown and run by a cautious bot that fishes and defends.
     if (wholeMap && !sides.empty()) {
         for (int i = 0; i < (int)sides.size(); i++) {
-            SwapSide(i); quiet = true;
-            if (me.st != FState::Strike) BotFounderStep(dt);
-            BotGovern(dt);
+            SwapSide(i);
+            quiet = !human;
+            const FounderInput& si = i + 1 < (int)sideIn.size() ? sideIn[i + 1] : FounderInput{};
+            if (human && !founderBot) StrikeStep(realDt, si);
+            if (me.st != FState::Strike) { if (founderBot) BotFounderStep(dt); else StepFounder(dt, si); }
+            if (founderBot) BotGovern(dt);
             StepColony(dt);
+            if (human) { StepFog(dt); SyncBody(); }
             quiet = false; SwapSide(i);
         }
-        for (int i = 0; i < (int)sides.size(); i++) BotWar(i + 1, dt);
+        for (int i = 0; i < (int)sides.size(); i++) if (!sides[i].human || (sides[i].founderBot && !((cautiousMask >> (i + 1)) & 1))) BotWar(i + 1, dt);
     }
     if (wholeMap) StepWar(dt);
+    if (matchLen > 0 || multi) CheckEnd();
 }
 
 // ---------------------------------------------------------------- --flight-test
@@ -617,6 +660,22 @@ int RunFlightTest() {
         }
         printf("  (ten minutes: %d strikes, %d caught, %d missed, %d lost, %d eaten, %d in the nest, hunger %.2f, %s)\n", dives, v.fishCaught, v.fishMissed, v.fishLost, v.fishEaten, (int)v.Cache0().size(), v.me.hunger, FStateName(v.me.st));
         check(dives >= 10 && v.fishCaught >= 4 && v.me.st != FState::Dead, TextFormat("an autopilot fishing for ten minutes strikes %d times and catches %d", dives, v.fishCaught));
+    }
+    // taking off from the first nest on every home island (the user: in the town the Founder couldn't leave its nest)
+    for (int ty = 0; ty < 4; ty++) {
+        MapOpts o; o.players = 2; o.home = (IsleType)ty;
+        auto v = std::make_unique<World>(); v->Init("taloned", 11, o);
+        Vector3 p0 = v->me.pos;
+        FounderInput in; in.yaw = v->me.yaw; in.pitch = 0.35f; in.flap = true; in.takeoff = true;
+        v->Step(1 / 60.0f, in); in.takeoff = false;
+        for (int k = 0; k < 180; k++) v->Step(1 / 60.0f, in);
+        check(v->me.st == FState::Fly && Vector3Distance(v->me.pos, p0) > 10, TextFormat("%s: Space and W lift the Founder off its nest (%s, %.0f m away after 3 s)", IsleTypeName((IsleType)ty), FStateName(v->me.st), Vector3Distance(v->me.pos, p0)));
+    }
+    {   // a full Founder lasts minutes, not a game day (the user: with 2-minute days it starved far too fast)
+        World h; h.Init("taloned", 3);
+        h.me.hunger = 1; FounderInput in; in.yaw = h.me.yaw;
+        for (int k = 0; k < 1000; k++) h.Step(0.1f, in);
+        check(h.me.hunger > 0.6f && h.me.hunger < 0.85f, TextFormat("a Founder is still %.0f%% fed after 100 s (a full one lasts %.0f s)", h.me.hunger * 100, Econ().founderHungerS));
     }
     printf(fails ? "flight-test: %d check(s) failed\n" : "flight-test: all checks passed\n", fails);
     return fails ? 1 : 0;

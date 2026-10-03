@@ -1,0 +1,23 @@
+{
+  "_source": "The Flight design document p27 (Victory, Score) and p28-29 (match lengths); research, pearls, fervour, the kraken and dangerous islands score from stages 6-7",
+  "living_bird": 2,
+  "chick": 1,
+  "nest": 5,
+  "island_held": 30,
+  "dangerous_island_held": 80,
+  "cache_fish_per_point": 5,
+  "pearl": 3,
+  "research_tier": 10,
+  "research_tier4": 40,
+  "enemy_bird_killed": 1,
+  "enemy_nest_destroyed": 5,
+  "egg_stolen": 5,
+  "fervour_full": 50,
+  "kraken_killed": 150,
+  "founder_never_died": 60,
+  "hold_share": 0.6667,
+  "hold_from_day": 3,
+  "hold_min_nests_per_player": 4,
+  "match_minutes": [20, 30, 45],
+  "tokens": {"match": 10, "per_score": 50, "first": 5, "win": 20}
+}

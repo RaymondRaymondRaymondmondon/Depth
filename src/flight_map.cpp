@@ -453,11 +453,9 @@ void World::Init(const std::string& founderKey, uint32_t seed, const MapOpts& o)
     for (size_t i = 0; i < m.spawns.size(); i++) m.spawns[i].count = keep[i];
     me.agent = eco.AddDiver(0, {0, 50, 0});
     if (me.agent >= 0) eco.agents[me.agent].alive = false;
-    eco.onDiverHit = [this](int, int attacker, float) {
-        if (me.st == FState::Dead || me.pos.y > 10 || LandAt(me.pos.x, me.pos.z)) return;
-        std::string who = attacker >= 0 && attacker < (int)eco.agents.size() ? eco.map->species[eco.agents[attacker].sp].name : std::string("something below");
-        Kill("taken by a " + who);
-    };
+    HookDiverHits();
+    multi = o.multi; matchLen = o.minutes * 60; human = (o.humanMask & 1) != 0;
+    if (multi) timeScale = 1;
     // the colony on its island, the grounds' stocks (asleep, full), the live zones, the fog
     stocks.clear();
     InitColony();
@@ -472,9 +470,10 @@ void World::Init(const std::string& founderKey, uint32_t seed, const MapOpts& o)
     know.seen.assign((size_t)know.nx * know.nz, -1);
     know.isle.assign(isles.size(), 0); know.sight.assign(isles.size(), Sighting{});
     know.ground.assign(m.zones.size(), GroundInfo{});
+    Knowledge blank = know;                     // (every side starts knowing only its own island)
     know.isle[home] = 2;
-    // rivals (stage 4): every other starting island holds a bot colony, run by the same colony code (its own Founder, a
-    // random species, a livery) swapped in to step
+    // the other starting islands (stage 4): each holds a colony run by the same colony code (its own Founder, a random
+    // species, a livery) swapped in to step; a bot's, or (a networked match) a person's
     rivals.clear(); sides.clear();
     static const Color LIV[5] = {{206, 64, 56, 255}, {64, 112, 210, 255}, {70, 170, 90, 255}, {200, 130, 40, 255}, {150, 80, 180, 255}};
     Rng RR{seed * 7477u + 5};
@@ -487,17 +486,28 @@ void World::Init(const std::string& founderKey, uint32_t seed, const MapOpts& o)
         island = isles[i]; home = i;
         me = Founder{}; me.def = (int)(RR() * Founders().size()) % (int)Founders().size();
         me.st = FState::Perched; me.pos = island.nest; me.hunger = 1; me.stamina = Def().stamina; me.hp = Def().hp;
-        founderBot = true; fb = Bird{};
+        me.strikeLen = Def().key == "taloned" ? 1.0f : 0.5f;
+        human = ((o.humanMask >> (k + 1)) & 1) != 0;
+        founderBot = !human; fb = Bird{};
+        know = blank; know.isle[home] = 2; log.clear();
+        if (human) { me.hunger = 0.8f; me.yaw = PI * 0.5f; me.agent = eco.AddDiver(k + 1, {0, 50, 0}); if (me.agent >= 0) eco.agents[me.agent].alive = false; }
         InitColony();
         col.side = k + 1;
         inshoreZone = -1; for (int z = 0; z < (int)zoneIsle.size(); z++) if (zoneIsle[z].first == i && inshoreZone < 0) inshoreZone = z;
         lagoonZone = inshoreZone;
+        if (human) { Reveal(me.pos, 120, home); Say(TextFormat("%s, %s, %d islands. Fill your nest's courtship bowl (three fish) to call a mate.", ArrangementName(opts.arr), IsleTypeName(island.type), (int)isles.size())); }
         SwapSide(k);
-    }    me.st = FState::Perched; me.pos = island.nest;
+    }
+    me.st = FState::Perched; me.pos = island.nest;
     Reveal(me.pos, 120, home);
     StepMap(0);
     Say(TextFormat("%s, %s, %d islands. Fill your nest's courtship bowl (three fish) to call a mate.", ArrangementName(opts.arr), IsleTypeName(island.type), (int)isles.size()));
 }
+
+int World::HomeOf(int side) const { return side == cur ? home : side == 0 ? sides[cur - 1].home : side > 0 && side <= (int)sides.size() ? sides[side - 1].home : -1; }
+int World::OwnerOf(int isle) const { for (int s = 0; s <= (int)sides.size(); s++) if (HomeOf(s) == isle) return s; return -1; }
+bool World::HumanOf(int side) const { return side == cur ? human : side == 0 ? sides[cur - 1].human : side > 0 && side <= (int)sides.size() ? sides[side - 1].human : false; }
+bool World::BotFlown(int side) const { return side == cur ? founderBot : side == 0 ? sides[cur - 1].founderBot : side > 0 && side <= (int)sides.size() ? sides[side - 1].founderBot : true; }
 
 // ---------------------------------------------------------------- the fog and the sightings
 bool Knowledge::Seen(float x, float z) const { return SeenAt(x, z) >= 0; }
@@ -514,7 +524,9 @@ void World::Reveal(Vector3 p, float radius, int landedIsle) {
         float cx = know.x0 + (i + 0.5f) * know.cell, cz = know.z0 + (j + 0.5f) * know.cell;
         if ((cx - p.x) * (cx - p.x) + (cz - p.z) * (cz - p.z) <= radius * radius) know.seen[(size_t)j * know.nx + i] = time;
     }
-    // an island flown over is known as a silhouette; one landed on, in full
+    // an island flown over is known as a silhouette; one landed on, in full (a guest's mirror only lifts the fog: the
+    // host keeps the rest of its knowledge and sends it)
+    if (mirror) return;
     for (int k = 0; k < (int)isles.size(); k++) {
         if (Vector2Distance({p.x, p.z}, {isles[k].c.x, isles[k].c.z}) < radius + isles[k].radius && know.isle[k] < 1) {
             know.isle[k] = 1;
@@ -582,7 +594,8 @@ void World::ScoutReport(Bird& b) {
         k = s;
         if (know.isle[b.scoutIsle] < 1) know.isle[b.scoutIsle] = 1;
         const Island& is = isles[b.scoutIsle];
-        std::string who = is.start == 0 ? "your colony" : is.start > 0 ? TextFormat("Rival %d's colony", is.start) : "no colony";
+        int owner = OwnerOf(b.scoutIsle);
+        std::string who = owner == cur ? "your colony" : owner >= 0 ? SideName(owner) + "'s colony" : "no colony";
         know.log.push_back({time, 1, TextFormat("%s (%s, from %s): %s, %s%d nests, %d caches, %s%d birds%s%s", is.name.c_str(), IsleTypeName(is.type), AltName((Alt)s.alt), who.c_str(),
                                                 s.exact ? "" : "about ", s.nests, s.caches, s.exact ? "" : "about ", s.birds, s.scouts > 1 ? " (cross-checked)" : "", ago.c_str()), is.c});
     } else if (b.scoutZone >= 0) {
@@ -604,27 +617,33 @@ int SpawnFishSlot(rt::Ecosystem& eco, int sp, Vector3 pos, int zone) {
     }
     return i;
 }
+// the fog round the side in the fields: the Founder sees farther the higher it flies; every colony bird sees round it;
+// a scout by its height (a person's side only: a bot's knowledge isn't kept)
+void World::StepFog(float dt) {
+    if (!wholeMap || know.nx == 0) return;
+    if (!fogNow && dt != 0) return;
+    if (me.st != FState::Dead) {
+        int landed = me.st == FState::Perched ? IsleAt(me.pos.x, me.pos.z, 10) : -1;
+        Reveal(me.pos, std::clamp(45 + 1.6f * me.pos.y, 45.0f, 300.0f), mirror ? -1 : landed);
+    }
+    for (const auto& b : col.birds) if (b.alive && (b.stage == BStage::Adult || b.stage == BStage::Mate) && Vector3Length(b.vel) > 0.5f)
+        Reveal(b.pos, b.role == Role::Scout && b.hasOrder ? AltSight(b.alt) : 45);
+}
 void World::StepMap(float dt) {
     if (!wholeMap) return;
-    static float fogT = 0, liveT = 0;
-    fogT += dt; liveT += dt;
-    // the fog: the Founder sees farther the higher it flies; every colony bird sees round it; a scout by its height
-    if (fogT >= 0.25f || dt == 0) {
-        fogT = 0;
-        if (me.st != FState::Dead) {
-            int landed = me.st == FState::Perched ? IsleAt(me.pos.x, me.pos.z, 10) : -1;
-            Reveal(me.pos, std::clamp(45 + 1.6f * me.pos.y, 45.0f, 300.0f), landed);
-        }
-        for (const auto& b : col.birds) if (b.alive && (b.stage == BStage::Adult || b.stage == BStage::Mate) && Vector3Length(b.vel) > 0.5f)
-            Reveal(b.pos, b.role == Role::Scout && b.hasOrder ? AltSight(b.alt) : 45);
-    }
+    liveT += dt;
+    if (human) StepFog(dt);
     // the sea wakes where birds are (within 300 m) and sleeps where none have been for 20 s
     if (liveT >= 1 || dt == 0) {
         liveT = 0;
         std::vector<Vector3> pts;
-        if (me.st != FState::Dead) pts.push_back(me.pos);
+        for (int s = 0; s <= (int)sides.size(); s++) {   // (every side's Founder and fishers, and every flock: a fight wakes the water under it)
+            const Founder& F = FounderOf(s);
+            if (F.st != FState::Dead && (s == 0 || HumanOf(s) || !BotFlown(s))) pts.push_back(F.pos);
+            if (s != cur) for (const auto& b : ColOf(s).birds) if (b.alive && b.stage == BStage::Adult && b.role == Role::Fisher && HumanOf(s)) pts.push_back(b.task == Task::Search || b.task == Task::Dive ? b.pos : b.goal);
+            for (const auto& fl : ColOf(s).flocks) if (!fl.members.empty()) pts.push_back(fl.pos);
+        }
         for (const auto& b : col.birds) if (b.alive && b.stage == BStage::Adult && (b.role == Role::Fisher || b.role == Role::Scout)) pts.push_back(b.task == Task::Search || b.task == Task::Dive || b.role == Role::Scout ? b.pos : b.goal);
-        for (int s = 0; s <= (int)sides.size(); s++) for (const auto& fl : ColOf(s).flocks) if (!fl.members.empty()) pts.push_back(fl.pos);   // (a fight wakes the water under it, whoever's it is)
         const rt::MapData& m = *eco.map;
         for (int z = 0; z < (int)m.zones.size(); z++) {
             bool near = false;

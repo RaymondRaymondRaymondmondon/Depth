@@ -351,7 +351,8 @@ void Session::HostTick(float dt) {
     for (auto& s : seats) if (s.used && s.lost && !s.ai) {
         double left = TAKEOVER_AFTER - (now - s.lostAt);
         if (left <= 0) { s.ai = true; Log("The AI takes over for " + s.name + "."); SendLobby(); }
-        else { paused = true; pauseLeft = std::max(pauseLeft, (float)left); }
+        else if (Info(game).pauseOnLost) { paused = true; pauseLeft = std::max(pauseLeft, (float)left); }
+        else pauseLeft = std::max(pauseLeft, (float)left);   // (the game runs on; the countdown still shows)
     }
     if (paused || !truth) return;
     uint32_t aiMask = 0;

@@ -2541,6 +2541,7 @@ void Match::EnemiesVsDivers(float dt) {
 }
 
 // ---------------------------------------------------------------- the Goliath (boss sheet)
+static constexpr float FAR_INHALE = 14.0f;   // (its inhale's reach on a diver who keeps away, from its snout)
 bool Match::DecideBoss(Agent& a, int idx) {
     (void)idx;
     int di = NearestDiver(a.pos, 40.0f, true);
@@ -2691,7 +2692,7 @@ void Match::UpdateBoss(float dt) {
         bossWind = -1;
         DiverState& t = divers[std::clamp(bossTarget, 0, (int)divers.size() - 1)];
         float td = Vector3Distance(B.pos, t.pos) - reach;
-        if (k == 0 && inhale && !t.downed && !t.dead && td <= inhale->range + 0.5f) {
+        if (k == 0 && inhale && !t.downed && !t.dead && td <= std::max(inhale->range, FAR_INHALE) + 0.5f) {
             bossInhaleT = 5; bossInhaleDiver = t.slot; bossGillDmg = 0; bossInhales++;
             Say(s.name, "INHALES a diver: shoot the gills!", 4);
         } else if (k == 1 && lunge && td <= lunge->range) HitDiver(t, lunge->damage * dm, s.name, lunge->effect, B.pos, bossAgent);
@@ -2717,6 +2718,10 @@ void Match::UpdateBoss(float dt) {
     else if (slam && ph >= 2 && d0 <= slam->range && bossCd[3] <= 0) pick = 3;
     else if (lunge && d0 <= lunge->range && bossCd[1] <= 0) pick = 1;
     else if (boom && d0 <= boom->range && bossCd[2] <= 0) pick = 2;
+    // a diver who keeps out of its reach (it stays near home in phase 1) isn't safe for long: the gills close and the
+    // water rushes into its mouth from across the room (the user: a Goliath shot from a distance did nothing)
+    bossFarT = lunge && d0 > lunge->range ? bossFarT + dt : 0;
+    if (pick < 0 && inhale && bossFarT > 3 && d0 <= FAR_INHALE && bossCd[0] <= 0) { pick = 0; bossFarT = 0; }
     if (pick < 0) return;
     const Attack* at = pick == 0 ? inhale : pick == 1 ? lunge : pick == 2 ? boom : slam;
     bossWind = pick; bossWindT = at->windup; bossTarget = near;

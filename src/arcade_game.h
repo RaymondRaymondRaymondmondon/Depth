@@ -20,6 +20,7 @@ struct GameInfo {
     bool realtime;                // snapshots at snapshotHz on the unreliable channel
     float snapshotHz;
     bool built;                   // has its GameHost been written yet?
+    bool pauseOnLost = true;      // does the table wait while a player is lost? (The Flight runs on: a dropped colony keeps its last orders)
 };
 const GameInfo& Info(int game);
 
