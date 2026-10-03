@@ -44,6 +44,7 @@ struct FlightWardrobe {
     std::vector<std::string> owned;            // costume, livery colour and livery hat ids
     std::string costume, liveryColour, liveryHat;   // worn ("" none)
     uint32_t firsts = 0;                       // bit 0 first kraken kill, 1 first dangerous island held, 2 first tier 4
+    uint32_t hints = 0;                        // (the mastery map, doc p50: which of its eight hints this player has had, across runs)
     bool Owns(const std::string& id) const;
 };
 FlightWardrobe& Wardrobe();

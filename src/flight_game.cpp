@@ -991,6 +991,50 @@ void DrawBar(float x, float y, float w, float h, float k, Color c, const char* l
     TxtBold(label, x + 6, y - 1, (int)h, Color{250, 250, 245, 230});
 }
 const char* AltBand(float y) { return y < 3 ? "wave-top" : y < 15 ? "low" : y < 60 ? "cruise" : "high"; }
+// The mastery map (doc p50): what a player learns over repeated runs, in the order they tend to learn it, which is also
+// the order the hints come: each once, when its moment first comes and every hint before it has been had (kept in the
+// wardrobe file, so a returning player isn't told twice)
+void MasteryHints(const fl::World& w) {
+    static const char* HINT[8] = {
+        "Feed before you grow: keep days of food in the caches before you raise more nests.",
+        "The fish move with the seasons, and each ground wants its technique: the colony panel shows catch and loss per technique.",
+        "Founders suit some islands and some neighbours better than others: try another pairing next run.",
+        "In a fight, height, wind and breath decide it: get above them, and fight with the wind behind you.",
+        "Decrees are a plan for the day, not a gift: pick the one tomorrow needs.",
+        "Raids are theft (eggs, fish, chicks): guard the caches and nests before you build warriors.",
+        "Each dangerous island has a rule: the kraken's offering, the ape's tuna, the fort's flocks of six.",
+        "The pirates, the fishing fleet and the Grey Wings are tools: hire, trade with and pay them against your rivals."};
+    static int showing = -1; static float showT = 0;
+    if (S.shot || !GameSettings().showHints) return;
+    fl::FlightWardrobe& wd = fl::Wardrobe();
+    int next = 0; while (next < 8 && ((wd.hints >> next) & 1)) next++;
+    if (showing < 0 && next < 8) {
+        const fl::Colony& C = w.col; bool fire = false;
+        int bits = 0; for (uint32_t v = C.decreesUsed; v; v >>= 1) bits += v & 1;
+        int tries = 0; for (int n : C.techLog) tries += n;
+        switch (next) {
+        case 0: fire = w.Alive() >= 4 && w.DaysOfFood() < 1.5f; break;
+        case 1: fire = (w.seasons > 0 && w.GameDay() >= 2) || tries > 30; break;
+        case 2: fire = w.GameDay() >= 3; break;
+        case 3: fire = C.kills + C.losses > 0; break;
+        case 4: fire = w.seasons > 0 && bits >= 3; break;
+        case 5: fire = C.lostToRaids > 0 || C.eggsStolen > 0 || C.nestsDestroyed > 0; break;
+        case 6: for (const auto& is : w.isles) fire |= fl::IsDangerous(is.type) && !fl::IsDrifting(is.type) && Vector3Distance(w.me.pos, is.c) < is.radius + 250; break;
+        case 7: fire = w.seasons > 0 && w.GameDay() >= 6; break;
+        }
+        if (fire) { showing = next; showT = 12; wd.hints |= 1u << next; fl::SaveWardrobe(); }
+    }
+    if (showing < 0) return;
+    showT -= GetFrameTime();
+    if (showT <= 0) { showing = -1; return; }
+    float a = std::min(1.0f, std::min(showT, 12 - showT) * 2);
+    std::string s = HINT[showing];
+    int tw = MeasureText(s.c_str(), 17) + 40;
+    Rectangle r{SCREEN_W / 2.0f - tw / 2.0f, SCREEN_H - 168.0f, (float)tw, 46};
+    DrawRectangleRounded(r, 0.3f, 6, Fade(Color{20, 30, 40, 255}, 0.75f * a));
+    DrawTextCentered(TextFormat("The mastery map, %d of 8", showing + 1), SCREEN_W / 2.0f, r.y + 4, 13, Fade(Color{255, 220, 150, 255}, a));
+    DrawTextCenteredBold(s, SCREEN_W / 2.0f, r.y + 21, 17, Fade(WHITE, a));
+}
 void DrawHud(const fl::World& w) {
     const fl::Founder& f = w.me;
     const fl::FounderDef& d = w.Def();
@@ -2386,7 +2430,7 @@ void SceneFlight(Game& g) {
         S.t += dt;
         Render(dt);
         if (!S.shot || getenv("DEPTH_FLAUDIO")) FlightAudioFrame(w, dt);
-        DrawHud(w);
+        DrawHud(w); if (!S.panel) MasteryHints(w);
         if (S.panel) { if (S.page == 0) DrawColonyPanel(w); else if (S.page == 1) DrawFlockPanel(w); else if (S.page == 2) DrawSocietyPanel(w); else DrawLongPanel(w); }
         if (S.chart) DrawChart(w);
         // a person lost: their colony runs on its last orders, then the AI stands in
@@ -2403,7 +2447,7 @@ void SceneFlight(Game& g) {
     S.t += dt * WD().timeScale;
     Render(dt * WD().timeScale);
     if (!S.shot || getenv("DEPTH_FLAUDIO")) FlightAudioFrame(WD(), dt);
-    DrawHud(WD());
+    DrawHud(WD()); if (!S.panel) MasteryHints(WD());
     if (S.panel) { if (S.page == 0) DrawColonyPanel(WD()); else if (S.page == 1) DrawFlockPanel(WD()); else if (S.page == 2) DrawSocietyPanel(WD()); else DrawLongPanel(WD()); }
     if (S.chart) DrawChart(WD());
     if (WD().over) DrawResults(g, WD());

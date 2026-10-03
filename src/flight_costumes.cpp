@@ -86,6 +86,7 @@ void LoadWardrobe() {
         else if (k == "crates") s >> gW.crates;
         else if (k == "best") s >> gW.bestScore;
         else if (k == "firsts") s >> gW.firsts;
+        else if (k == "hints") s >> gW.hints;
         else if (k == "own") { std::string id; while (s >> id) gW.owned.push_back(id); }
         else if (k == "costume") s >> gW.costume;
         else if (k == "colour") s >> gW.liveryColour;
@@ -95,7 +96,7 @@ void LoadWardrobe() {
 void SaveWardrobe() {
     if (gWardrobeNoSave) return;
     std::ofstream f(WardrobePath());
-    f << "tokens " << gW.tokens << "\nfeathers " << gW.feathers << "\ncrates " << gW.crates << "\nbest " << gW.bestScore << "\nfirsts " << gW.firsts << "\nown";
+    f << "tokens " << gW.tokens << "\nfeathers " << gW.feathers << "\ncrates " << gW.crates << "\nbest " << gW.bestScore << "\nfirsts " << gW.firsts << "\nhints " << gW.hints << "\nown";
     for (const auto& id : gW.owned) f << " " << id;
     f << "\n";
     if (!gW.costume.empty()) f << "costume " << gW.costume << "\n";
