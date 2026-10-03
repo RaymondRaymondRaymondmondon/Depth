@@ -88,6 +88,7 @@ void OrderPact(Writer& w, int to) { w.U8(FA_PACT); w.I32(to); }
 void OrderLoan(Writer& w, int to, int flock, int fish) { w.U8(FA_LOAN); w.I32(to); w.I32(flock); w.I32(fish); }
 void OrderBounty(Writer& w, int target, int fish) { w.U8(FA_BOUNTY); w.I32(target); w.I32(fish); }
 void OrderBreak(Writer& w, int with) { w.U8(FA_BREAK); w.I32(with); }
+void OrderTech(Writer& w, int tech) { w.U8(FA_TECH); w.I32(tech); }
 bool FormationUnlocked(const Colony& c, Formation f) { return f == Formation::Chevron || f == Formation::Scatter || c.HasTier(Tree::War, 1); }
 
 std::string TargetText(World& w, const Flock& f) {
@@ -243,6 +244,7 @@ bool OrderIn(World& w, int side, int kind, Reader& r) {
     case FA_PACT: { int t = r.I32(); if (r.bad) return false; return w.OfferPact(t) >= 0; }
     case FA_LOAN: { int t = r.I32(), f = r.I32(), n = r.I32(); if (r.bad) return false; return w.OfferLoan(t, f, n) >= 0; }
     case FA_BOUNTY: { int t = r.I32(), n = r.I32(); if (r.bad || n < 1 || n > 100) return false; return w.PostBounty(t, n); }
+    case FA_TECH: { int t = r.I32(); if (r.bad || t < -1 || t >= TK_COUNT || w.seasons <= 0) return false; w.col.tech = t; return true; }
     case FA_BREAK: { int t = r.I32(); if (r.bad || t < 0 || t > (int)w.sides.size()) return false; return w.BreakTruce(t); }
     case FA_WANT_TRAIT: { int k = r.I32(); if (r.bad || k < -1 || k >= MT_COUNT) return false; C.wantTrait = k; for (auto& n : C.nests) n.favFish = 0; if (k >= 0) w.Say("The courtship bowls ask for a " + MateTraits()[k].name + " mate: fill them with " + MateTraits()[k].favorite + "."); return true; }
     case FA_BREW: { int s = (int)r.U8(); if (r.bad || s <= STIM_NONE || s >= STIM_COUNT) return false; C.brewFor = s; w.Say(std::string("The Chemists will brew ") + StimName(s) + "."); return true; }
@@ -443,6 +445,7 @@ template <class A> void VisitColony(A& a, Colony& c, bool own, bool full, const 
     a.i(c.wantTrait);
     { int rl = (int)c.relics; a.i(rl); c.relics = (uint32_t)rl; a.i(c.legend); a.b(c.legendAlive); }
     a.i(c.pact); a.i(c.bounty); a.i(c.bountyBy);
+    a.i(c.tech); for (float& m : c.techMastery) a.f(m); a.vec(c.techLog, [&](int& n) { a.i(n); });
     a.i(c.decree); a.i(c.yesterday); for (int& o : c.offer) a.i(o); a.i(c.dealtDay); a.i(c.lastRaider); { int u = (int)c.decreesUsed; a.i(u); c.decreesUsed = (uint32_t)u; }   // (the long match's decrees)
 }
 // each zone's stock as a share of what it holds (one pass over the fish)

@@ -809,6 +809,101 @@ void World::StepDiplomacy(float dt) {
     }
 }
 
+// ---------------------------------------------------------------- fishing mastery (doc p48): techniques, each a different dive and a different risk
+namespace {
+struct TechData { std::vector<TechDef> v; float masteryPer = 0.025f, masteryK = 0.25f, explore = 0.15f; int trustTries = 12; };
+const TechData& TD() {
+    static TechData d; static bool loaded = false;
+    if (loaded) return d;
+    loaded = true;
+    Json j = LoadJsonFile(FlightDataDir() + "/flight_long.json");
+    const Json& t = j["techniques"];
+    d.masteryPer = t["mastery_per_catch"].F(d.masteryPer); d.masteryK = t["mastery_catch"].F(d.masteryK); d.explore = t["explore"].F(d.explore); d.trustTries = t["trust_tries"].I(d.trustTries);
+    for (const Json& p : t["list"].a) {
+        TechDef x; x.key = p["key"].Str0(); x.name = p["name"].Str0(x.key); x.how = p["how"].Str0(); x.best = p["best"].Str0(); x.risk = p["risk"].Str0();
+        x.catchK = p["catch"].F(1); x.bigK = p["big"].F(0); x.smallK = p["small"].F(1); x.shoreK = p["shore"].F(1); x.riskK = p["risk_k"].F(1); x.splash = p["splash"].F(1);
+        x.pace = p["pace"].F(1); x.steal = p["steal"].F(0); x.fightK = p["fight"].F(0); x.recover = p["recover"].F(0); x.yield = p["yield"].I(1); x.minFishers = p["min_fishers"].I(0);
+        x.reach = p["reach"].F(1); x.founder = p["founder"].Str0(); x.founderK = p["founder_k"].F(1); x.safeFor = p["safe_for"].Str0(); x.safeK = p["safe_k"].F(1);
+        d.v.push_back(x);
+    }
+    while ((int)d.v.size() < TK_COUNT) { TechDef x; x.key = x.name = "technique"; d.v.push_back(x); }
+    return d;
+}
+}  // namespace
+const std::vector<TechDef>& Techniques() { return TD().v; }
+static int TechLogIx(int zone, int tk, int what) { return (zone * TK_COUNT + tk) * 3 + what; }
+void World::TechLog(int zone, int tk, int what) {
+    if (seasons <= 0 || zone < 0 || tk < 0 || tk >= TK_COUNT || !eco.map) return;
+    size_t need = eco.map->zones.size() * TK_COUNT * 3;
+    if (col.techLog.size() < need) col.techLog.resize(need, 0);
+    col.techLog[TechLogIx(zone, tk, what)]++;
+    if (what == TL_CATCH) col.techMastery[tk] = std::min(1.0f, col.techMastery[tk] + TD().masteryPer);
+}
+float World::TechRate(int zone, int tk, int what, int* tries) const {
+    int ix = TechLogIx(zone, tk, TL_TRY);
+    int n = zone >= 0 && ix + 2 < (int)col.techLog.size() ? col.techLog[ix] : 0;
+    if (tries) *tries = n;
+    return n > 0 ? col.techLog[ix + what] / (float)n : 0;
+}
+bool World::TechUsable(int tk, int zone, const Bird* b) const {
+    if (seasons <= 0 || tk < 0 || tk >= TK_COUNT) return false;
+    const std::string& fk = Founders()[me.def].key;
+    if (tk == TK_DEEP) return (b && b->role == Role::Diver) || fk == "penguin" || col.HasTier(Tree::Fishing, 2);
+    if (tk == TK_NIGHT) { float ph = DayPhase(); return ph < 0.3f || ph > 0.7f; }   // (the dusk and dawn rises, and the night)
+    if (tk == TK_DRIVE) {
+        int n = 0;
+        for (const auto& o : col.birds) if (o.alive && o.stage == BStage::Adult && (o.role == Role::Fisher || o.role == Role::Diver) && eco.ZoneAt({o.goal.x, -1, o.goal.z}) == zone) n++;
+        return n >= Techniques()[TK_DRIVE].minFishers;
+    }
+    return true;
+}
+int World::BestTech(int zone, const Bird* b) const {
+    // what the log says, once a technique has been tried enough on this ground; otherwise what the water looks like
+    int best = -1; float bs = -1e9f;
+    for (int k = 0; k < TK_COUNT; k++) {
+        if (!TechUsable(k, zone, b)) continue;
+        int n = 0; float c = TechRate(zone, k, TL_CATCH, &n), l = TechRate(zone, k, TL_LOSS);
+        if (n < TD().trustTries) continue;
+        float s = c * Techniques()[k].yield - l * 4;
+        if (s > bs) { bs = s; best = k; }
+    }
+    if (best >= 0) return best;
+    const std::string& fk = Founders()[me.def].key;
+    if (TechUsable(TK_NIGHT, zone, b) && Techniques()[TK_NIGHT].safeFor.find(fk) != std::string::npos) return TK_NIGHT;
+    if (zone >= 0 && zone < (int)zoneNear.size() && zoneNear[zone]) return TK_HOVER;   // (crabs and shallows)
+    if (zone >= 0 && eco.map && eco.map->zones[zone].y0 < -3.5f && TechUsable(TK_DEEP, zone, b)) return TK_DEEP;
+    float small = 0, big = 0;
+    for (const auto& s : stocks) if (s.zone == zone && eco.map) { int sz = eco.map->species[s.sp].size; (sz <= 1 ? small : big) += s.pop; }
+    if (fk == "gannet") return TK_PLUNGE;
+    return small > big * 1.5f ? TK_SKIM : TK_PLUNGE;
+}
+int World::PickTech(int zone, const Bird* b) {
+    if (seasons <= 0) return -1;
+    int t = col.tech;
+    if (t >= 0 && TechUsable(t, zone, b)) return t;
+    if (t < 0 && Rand() < TD().explore) {   // (auto: now and then a technique this ground hasn't seen enough of, so the log fills)
+        std::vector<int> fresh;
+        for (int k = 0; k < TK_COUNT; k++) { int n = 0; TechRate(zone, k, TL_CATCH, &n); if (n < TD().trustTries && TechUsable(k, zone, b)) fresh.push_back(k); }
+        if (!fresh.empty()) return fresh[(size_t)(Rand() * fresh.size()) % fresh.size()];
+    }
+    return BestTech(zone, b);
+}
+TechMod World::TechMods(int tk, int zone, int size) const {
+    TechMod m;
+    if (seasons <= 0 || tk < 0 || tk >= TK_COUNT) return m;
+    const TechDef& T = Techniques()[tk];
+    const std::string& fk = Founders()[me.def].key;
+    m.hit = T.catchK * (size <= 1 ? T.smallK : 1.0f + T.bigK * (size - 1)) * (1 + TD().masteryK * col.techMastery[tk]);
+    if (zone >= 0 && zone < (int)zoneNear.size() && zoneNear[zone]) m.hit *= T.shoreK;
+    if (!T.founder.empty() && T.founder.find(fk) != std::string::npos) m.hit *= T.founderK;   // (the Gannet's plunge, the Swift's skim)
+    if (tk == TK_DRIVE && col.HasTier(Tree::Fishing, 4)) m.hit *= 1.25f;   // (yield with Cooperative Fishing)
+    m.risk = T.riskK * (!T.safeFor.empty() && T.safeFor.find(fk) != std::string::npos ? T.safeK : 1.0f);
+    m.splash = T.splash; m.yield = T.yield; m.fight = T.fightK; m.recover = T.recover; m.pace = T.pace; m.reach = T.reach;
+    m.steal = T.steal;
+    if (m.steal > 0) for (int s = 0; s <= (int)sides.size(); s++) if (s != cur && Founders()[FounderOf(s).def].key == "frigatebird") { m.steal *= 3; break; }   // (frigatebirds steal from a hovering bird)
+    return m;
+}
+
 // ---------------------------------------------------------------- --flight-long-test (the expansion's long match)
 int RunFlightLongTest() {
     int fails = 0;
@@ -1087,6 +1182,42 @@ int RunFlightLongTest() {
         check(F && F->loanTo == 1 && w->ColOf(1).caches[0].fish.size() < 5 + 30, "a flock lent for a day, for fish");
         w->time += World::DAY * 1.1f; w->StepDiplomacy(0.1f);
         check(F && F->loanTo < 0, "the loan ends and the flock comes home");
+    }    // ---- fishing mastery (doc p48)
+    {
+        const auto& TK = Techniques();
+        check(TK.size() == TK_COUNT && TK[TK_PLUNGE].name == "Plunge" && TK[TK_NIGHT].yield == 2 && TK[TK_DRIVE].minFishers == 3, "six techniques: Plunge, Skim, Hover-strike, Drive, Deep dive, Night fishing");
+        auto w = make(4, 111); w->ape.isle = -1; w->kraken.isle = -1; w->weather.next = 1e9f;
+        int z = w->lagoonZone >= 0 ? w->lagoonZone : 0;
+        check(w->TechMods(TK_SKIM, z, 1).hit > w->TechMods(TK_PLUNGE, z, 1).hit && w->TechMods(TK_PLUNGE, z, 3).hit > w->TechMods(TK_SKIM, z, 3).hit,
+              "a skim takes small fish better, a plunge big ones");
+        check(w->TechMods(TK_DRIVE, z, 1).splash >= 3 && w->TechMods(TK_DRIVE, z, 1).risk > 1.5f && w->TechMods(TK_NIGHT, z, 1).yield == 2 && w->TechMods(TK_DEEP, z, 1).fight > 0,
+              "a drive is a triple splash the sharks come to; night fishing brings two fish; a deep dive turns a predator into a fight");
+        check(!w->TechUsable(TK_DEEP, z), "a deep dive wants a Diver, a Penguin or the Deep Dive research");
+        w->col.tier[(int)Tree::Fishing] = 2;
+        check(w->TechUsable(TK_DEEP, z), "with the research, the colony's fishers can dive deep");
+        w->time = 0.28f * World::DAY; bool noon = w->TechUsable(TK_NIGHT, z); w->time = 0.88f * World::DAY; bool dawn = w->TechUsable(TK_NIGHT, z);
+        check(!noon && dawn, "night fishing only at the dusk and dawn rises (and the night)");
+        check(!w->TechUsable(TK_DRIVE, z), "a drive needs three fishers on the ground");
+        auto o = make(4, 111); o->ape.isle = -1; o->kraken.isle = -1;
+        bool owlSafe = false; for (int d = 0; d < (int)Founders().size(); d++) if (Founders()[d].key == "owl") { o->me.def = d; owlSafe = o->TechMods(TK_NIGHT, z, 1).risk < 1; }
+        check(owlSafe, "night fishing is safe for an Owl");
+        // the colony fishes a day by plunging, then a day by skimming: the log fills and the technique is learned
+        w->col.tier[(int)Tree::Fishing] = 0; w->time = 0;
+        for (int q = 0; q < 8; q++) { Bird b; b.id = w->col.nextId++; b.stage = BStage::Adult; b.role = Role::Fisher; b.hp = 60; b.hunger = 1; b.pos = w->col.caches[0].pos; w->col.birds.push_back(b); }
+        w->col.ground = z;
+        auto w2 = make(4, 111); w2->ape.isle = -1; w2->kraken.isle = -1; w2->weather.next = 1e9f;   // (a second colony, so the plunge day doesn't empty the skim day's lagoon)
+        for (int q = 0; q < 8; q++) { Bird b; b.id = w2->col.nextId++; b.stage = BStage::Adult; b.role = Role::Fisher; b.hp = 60; b.hunger = 1; b.pos = w2->col.caches[0].pos; w2->col.birds.push_back(b); }
+        w2->col.ground = z;
+        auto day = [&](World& W, int tk) { W.col.tech = tk; for (float t = 0; t < World::DAY; t += 0.1f) { W.Step(0.1f, FounderInput{}); for (auto& b : W.col.birds) if (b.alive) b.hunger = 1; } };
+        day(*w, TK_PLUNGE); day(*w2, TK_SKIM);
+        int np = 0, ns = 0; float cp = w->TechRate(z, TK_PLUNGE, TL_CATCH, &np), cs = w2->TechRate(z, TK_SKIM, TL_CATCH, &ns);
+        check(np >= 10 && ns >= 10 && cp > 0 && cs > 0, TextFormat("a day of each on the lagoon: plunge %d dives, %.0f%% caught; skim %d dives, %.0f%% caught", np, cp * 100, ns, cs * 100));
+        check(w->col.techMastery[TK_PLUNGE] > 0 && w2->col.techMastery[TK_SKIM] > 0 && w->TechMods(TK_PLUNGE, z, 2).hit > Techniques()[TK_PLUNGE].catchK * (1 + Techniques()[TK_PLUNGE].bigK),
+              TextFormat("learned by using them: plunge mastery %.2f, skim %.2f, and a mastered technique strikes truer", w->col.techMastery[TK_PLUNGE], w2->col.techMastery[TK_SKIM]));
+        w->col.tech = -1; int best = w->BestTech(z);
+        check(best == TK_PLUNGE, "auto picks from what the log says once each has been tried enough: " + TK[best].name);
+        auto s = make(0, 111);
+        check(s->PickTech(0) == -1 && s->TechMods(TK_DRIVE, 0, 1).hit == 1, "a standard match has no techniques");
     }    printf(fails ? "flight-long-test: %d check(s) failed\n" : "flight-long-test: all checks passed\n", fails);
     return fails ? 1 : 0;
 }

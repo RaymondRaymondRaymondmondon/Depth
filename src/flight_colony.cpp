@@ -346,6 +346,7 @@ void World::FisherStep(Bird& b, float dt) {
         b.task = Task::Deliver;
         if (MoveTo(b, Vector3Add(col.caches[ci].pos, {0, 0.6f, 0}), speed, dt)) {
             col.caches[ci].fish.push_back({b.carrySp, b.carrySize, 0});
+            for (; b.bonusFish > 0; b.bonusFish--) if ((int)col.caches[ci].fish.size() < CacheCap()) { col.caches[ci].fish.push_back({b.carrySp, b.carrySize, 0}); col.feedToday += b.carrySize; }   // (night fishing: twice the fish per trip)
             if (b.role == Role::Diver && Rand() < 0.15f) { col.pearls++; Say("A Diver brings up a pearl."); }   // (pearls without the research)
             if (&b == &fb && BendNow().pouch && (int)col.caches[ci].fish.size() < CacheCap()) col.caches[ci].fish.push_back({b.carrySp, b.carrySize, 0});   // (the Pelican's Pouch: the Founder brings two)
             col.feedToday += b.carrySize; col.caughtToday++; b.caught++;
@@ -370,9 +371,10 @@ void World::FisherStep(Bird& b, float dt) {
                 float stock = StockOf(z), total = 0;
                 for (const auto& s : stocks) if (s.zone == z) { const rt::Species& sp = eco.map->species[s.sp]; if (Catchable(sp) && sp.size <= carry && sp.size >= minSize) total += s.pop; }
                 float owlDay = BD.daylight < 1 && DayPhase() > 0.25f && DayPhase() < 0.75f ? BD.daylight : 1.0f;   // (the Owl by day)
-        if (total >= 1 && Rand() < 0.55f * BD.fishHit * owlDay * boom * DecreeNow().catchK * (GreatNow(GE_CALM) ? GreatEvents()[GE_CALM].catchK : 1.0f) * (coop ? 1.5f : 1.0f) * std::clamp(stock * 1.5f, 0.1f, 1.0f)) {
+                TechMod tm = TechMods(b.tk, z, 1); TechLog(z, b.tk, TL_TRY);
+                if (total >= 1 && Rand() < tm.hit * 0.55f * BD.fishHit * owlDay * boom * DecreeNow().catchK * (GreatNow(GE_CALM) ? GreatEvents()[GE_CALM].catchK : 1.0f) * (coop ? 1.5f : 1.0f) * std::clamp(stock * 1.5f, 0.1f, 1.0f)) {
                     float pick = Rand() * total;
-                    for (auto& s : stocks) if (s.zone == z) { const rt::Species& sp = eco.map->species[s.sp]; if (!Catchable(sp) || sp.size > carry || sp.size < minSize) continue; pick -= s.pop; if (pick <= 0) { s.pop -= 1; b.carrySp = s.sp; b.carrySize = sp.size; b.task = Task::Idle; break; } }
+                    for (auto& s : stocks) if (s.zone == z) { const rt::Species& sp = eco.map->species[s.sp]; if (!Catchable(sp) || sp.size > carry || sp.size < minSize) continue; pick -= s.pop; if (pick <= 0) { s.pop -= 1; b.carrySp = s.sp; b.carrySize = sp.size; b.task = Task::Idle; TechLog(z, b.tk, TL_CATCH); if (tm.yield > 1 && s.pop >= 1) { s.pop -= 1; b.bonusFish = tm.yield - 1; } break; } }
                 }
                 if (b.carrySp < 0 && Rand() < 0.3f) b.task = Task::Idle;
             }
@@ -384,6 +386,7 @@ void World::FisherStep(Bird& b, float dt) {
     case Task::Idle: {
         // the ground, then where its fish show from the air (schools are dark patches; a lone fish a glint)
         int z = ChooseGround(b.pos);
+        b.tk = PickTech(z, &b); b.bonusFish = 0;   // (the long match: a technique for the trip)
         if (z < 0) { b.task = Task::Sit; b.taskT = 0; MoveTo(b, Vector3Add(col.caches[0].pos, {0.6f, 0.4f, -0.6f}), speed, dt, 0.5f); return; }   // (nothing worth the trip: wait at home)
         const rt::Zone& Z = eco.map->zones[z];
         b.goal = {Z.plan.x + Z.plan.width * (0.2f + 0.6f * Rand()), 12, Z.plan.y + Z.plan.height * (0.2f + 0.6f * Rand())};
@@ -403,14 +406,16 @@ void World::FisherStep(Bird& b, float dt) {
         break;
     case Task::Search: {
         // circle over the water, reading it for a fish near the surface it can lift
-        b.taskT += dt * Econ().workPace;
+        float tpace = b.tk >= 0 ? Techniques()[b.tk].pace : 1.0f, treach = FISHER_REACH * (b.tk >= 0 ? Techniques()[b.tk].reach : 1.0f);
+        b.taskT += dt * Econ().workPace * tpace;
+        if (b.recoverT > 0) { b.recoverT -= dt * Econ().workPace; break; }   // (a missed plunge: 2 s under the water before it can look again)
         float a = b.taskT * 0.5f + b.id;
         MoveTo(b, {b.goal.x + cosf(a) * 8, 12, b.goal.z + sinf(a) * 8}, speed * 0.7f, dt, 0.5f);
         if (fmodf(b.taskT, 0.5f) < dt) {
             int best = -1; float bd = col.HasTier(Tree::Fishing, 1) ? 35.0f : 25.0f;   // (Schooling eye: schools seen from farther)
             for (int i = 0; i < (int)eco.agents.size(); i++) {
                 const auto& ag = eco.agents[i];
-                if (!ag.alive || ag.diver >= 0 || ag.pos.y < -FISHER_REACH) continue;
+                if (!ag.alive || ag.diver >= 0 || ag.pos.y < -treach) continue;
                 const rt::Species& s = eco.map->species[ag.sp];
                 if (!Catchable(s) || s.size > carry || s.size < minSize) continue;
                 float d = Dist2(ag.pos, b.pos);
@@ -425,22 +430,29 @@ void World::FisherStep(Bird& b, float dt) {
         b.taskT += dt * Econ().workPace;
         bool gone = fi < 0 || fi >= (int)eco.agents.size() || !eco.agents[fi].alive;
         Vector3 fp = gone ? Vector3{b.pos.x, 0, b.pos.z} : eco.agents[fi].pos;
-        MoveTo(b, {fp.x, 0.2f, fp.z}, 18, dt, 0.2f);
+        int dz = eco.ZoneAt({b.goal.x, -1, b.goal.z});
+        TechMod tm = TechMods(b.tk, dz, gone ? 1 : eco.map->species[eco.agents[fi].sp].size);
+        float treach = FISHER_REACH * tm.reach;
+        MoveTo(b, {fp.x, tm.reach > 1 ? std::max(fp.y, -treach) : 0.2f, fp.z}, 18, dt, 0.2f);
         if (b.taskT < 1.2f && b.pos.y > 0.6f) break;
         // the strike: hit chance by size, the founder's boost, the water; a hungry shark below may take the bird
-        if (DecreeNow().splash > 0) eco.AddNoise({b.pos.x, 0, b.pos.z}, (coop ? 4.5f : 1.5f) * DecreeNow().splash);   // (Cooperative fishing: triple splash; Full Nets twice, Quiet Wings none)
+        TechLog(dz, b.tk, TL_TRY);
+        if (DecreeNow().splash > 0) eco.AddNoise({b.pos.x, 0, b.pos.z}, (coop ? 4.5f : 1.5f) * DecreeNow().splash * tm.splash);   // (the technique: a plunge's splash, a drive's triple splash, a skim's none)   // (Cooperative fishing: triple splash; Full Nets twice, Quiet Wings none)
         {
             float ph = DayPhase();
             bool dark = ph < 0.22f || ph > 0.8f;
-            float risk = 0.35f * (dark && !col.HasTier(Tree::Fishing, 3) && !BD.nightFishing ? 1.6f : 1.0f);   // (Night fishing: the dusk and dawn are safe)
+            float risk = 0.35f * tm.risk * (dark && !col.HasTier(Tree::Fishing, 3) && !BD.nightFishing ? 1.6f : 1.0f);   // (Night fishing: the dusk and dawn are safe)
             for (const auto& ag : eco.agents) {
                 if (!ag.alive || ag.diver >= 0 || !EatsBirds(eco, ag.sp)) continue;
-                if (Vector3Distance(ag.pos, {b.pos.x, 0, b.pos.z}) < 6 * BD.predatorRange && ag.hunger > 0.5f && Rand() < risk) { BirdDies(b, "taken by a " + eco.map->species[ag.sp].name); return; }
+                if (Vector3Distance(ag.pos, {b.pos.x, 0, b.pos.z}) < 6 * BD.predatorRange && ag.hunger > 0.5f && Rand() < risk) {
+                    if (tm.fight > 0 && Rand() < tm.fight) { b.hp *= 0.5f; b.task = Task::Search; b.taskT = 3; b.pos.y = 0.8f; b.recoverT = 2; return; }   // (a deep dive: a fight instead of a flight, and it got away)
+                    TechLog(dz, b.tk, TL_LOSS); BirdDies(b, "taken by a " + eco.map->species[ag.sp].name); return;
+                }
             }
         }
-        if (!gone && Dist2(fp, b.pos) < 3 && fp.y > -FISHER_REACH - 0.3f) {
+        if (!gone && Dist2(fp, b.pos) < 3 + (tm.reach > 1 ? 9.0f : 0.0f) && fp.y > -treach - 0.3f) {
             const rt::Species& s = eco.map->species[eco.agents[fi].sp];
-            float chance = 0.55f * BD.fishHit * boom * DecreeNow().catchK * (coop ? 1.5f : 1.0f) * (1.15f - 0.1f * s.size);
+            float chance = tm.hit * 0.55f * BD.fishHit * boom * DecreeNow().catchK * (coop ? 1.5f : 1.0f) * (1.15f - 0.1f * s.size);
             if (Rand() < chance) {
                 b.carrySp = eco.agents[fi].sp; b.carrySize = s.size;
                 if (eco.agents[fi].homeZone >= 0 && eco.agents[fi].homeZone < 16) caughtIn[eco.agents[fi].homeZone]++;
@@ -448,10 +460,15 @@ void World::FisherStep(Bird& b, float dt) {
                 if (b.carrySp < (int)eco.deathsBySpecies.size()) eco.deathsBySpecies[b.carrySp]++;
                 b.task = Task::Idle; b.pos.y = 0.8f;
                 if (&b == &fb) fishCaught++;
+                if (tm.steal > 0 && Rand() < tm.steal) { b.carrySp = -1; b.carrySize = 0; Say("A frigatebird robs a hovering fisher of its fish."); return; }   // (hover-strike: a frigatebird steals from a hovering bird)
+                TechLog(dz, b.tk, TL_CATCH);
+                if (tm.yield > 1) b.bonusFish = tm.yield - 1;
+                if (b.tk == TK_DEEP && Rand() < DeepDivePearl()) col.pearls++;   // (a deep dive: the oyster beds too)
                 return;
             }
         }
         b.task = Task::Search; b.taskT = 3; b.pos.y = 0.8f;   // (missed: up and look again)
+        b.recoverT = tm.recover;   // (a missed plunge: 2 s recovery underwater)
     } break;
     }
 }

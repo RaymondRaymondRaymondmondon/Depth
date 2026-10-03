@@ -126,6 +126,16 @@ int RelicsMax();
 float RelicStealChance();
 int PirateHireFish();
 int TributeFish();
+// fishing mastery (doc p48): techniques, each a different dive and a different risk
+enum Tech { TK_PLUNGE = 0, TK_SKIM, TK_HOVER, TK_DRIVE, TK_DEEP, TK_NIGHT, TK_COUNT };
+enum { TL_TRY = 0, TL_CATCH = 1, TL_LOSS = 2 };
+struct TechDef {
+    std::string key, name, how, best, risk, founder, safeFor;
+    float catchK = 1, bigK = 0, smallK = 1, shoreK = 1, riskK = 1, splash = 1, pace = 1, steal = 0, fightK = 0, recover = 0, reach = 1, founderK = 1, safeK = 1;
+    int yield = 1, minFishers = 0;
+};
+struct TechMod { float hit = 1, risk = 1, splash = 1, steal = 0, fight = 0, recover = 0, pace = 1, reach = 1; int yield = 1; };
+const std::vector<TechDef>& Techniques();
 // Founder perks (doc p38)
 struct PerkDef {
     std::string key, name, effect;
@@ -272,7 +282,8 @@ struct Bird {
     // the long match: veterans (doc p42) and mates' traits (p43)
     int fights = 0; int vet = -1, vetName = -1; bool luckyUsed = false; float foughtT = -100, countedT = -100;   // vet: VT_* trait, -1 none
     int trait = -1;                           // MT_*: a mate's trait, and its chicks' (inherited)
-    bool taught = false;                      // (a Teacher saw it fledge)           // (a Trader's goods coming home; carrySp -2 an egg being stolen, -3 a bomb)
+    bool taught = false;                      // (a Teacher saw it fledge)
+    int tk = -1, bonusFish = 0; float recoverT = 0;   // (fishing mastery: the technique of this trip; a second fish (night fishing); a missed plunge's recovery)           // (a Trader's goods coming home; carrySp -2 an egg being stolen, -3 a bomb)
 };
 struct Site { Vector3 pos{}; int palm = -1; int nest = -1; int isle = -1; };
 struct Nest {
@@ -396,6 +407,7 @@ struct Colony {
     int wantTrait = -1, nextVetName = 0;
     uint32_t relics = 0; int legend = -1; bool legendAlive = false, goldenEggUsed = false;
     float greyHit = -1000;
+    int tech = -1; float techMastery[TK_COUNT] = {}; std::vector<int> techLog;   // (fishing mastery: the colony's technique, -1 auto; per ground x technique: tries, catches, losses)
     int pact = -1, bounty = 0, bountyBy = -1; float pactT = 0, truceBroken = -1000;   // (diplomacy: a feed-pact partner; fish posted on this colony's Founder)                      // (the last time the Grey Wings took one of its birds)   // (the long match: relics at the shrine, a legendary bird)        // (the long match) the trait the courtship bowls ask for (-1 any); the next veteran's name
     int decree = -1, yesterday = -1, offer[3] = {-1, -1, -1}, dealtDay = 0, lastRaider = -1; uint32_t decreesUsed = 0; float salvageT = 0, titheFish = 0;
     bool bell = false; float offeredKraken = -1e9f, apeFedT = -1e9f;
@@ -581,6 +593,12 @@ struct World {
     void InitFactions();
     void StepFactions(float dt);
     void BotFactions();
+    bool TechUsable(int tk, int zone, const Bird* b = nullptr) const;   // (fishing mastery, doc p48)
+    int BestTech(int zone, const Bird* b = nullptr) const;
+    int PickTech(int zone, const Bird* b = nullptr);
+    TechMod TechMods(int tk, int zone, int size) const;
+    void TechLog(int zone, int tk, int what);
+    float TechRate(int zone, int tk, int what, int* tries = nullptr) const;
     int OfferPact(int to);                      // (diplomacy, doc pp. 47-48: the colony in the fields)
     int OfferLoan(int to, int flock, int fish);
     bool PostBounty(int target, int fish);

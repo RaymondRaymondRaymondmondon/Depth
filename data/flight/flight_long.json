@@ -120,5 +120,23 @@
   },  "spawning_regrow": 3.0,
   "migration_mates": 6,
   "tuna": {"count": 26, "size_min": 4},
-  "winter_holdings": 2.0
+  "winter_holdings": 2.0,
+  "techniques": {
+    "source": "doc p48: Fishing mastery. catch multiplies the strike's hit chance; small/big shape it by the fish's size; shore on a ground by an island's shore; risk_k the predators' take; splash the noise; pace the search's speed; recover the seconds after a miss; reach how deep it goes; yield fish per trip; steal a frigatebird's chance on a hover; fight a predator encounter survived. Mastery: each catch +mastery_per_catch (to 1), the hit x(1 + mastery_catch x mastery).",
+    "mastery_per_catch": 0.006, "mastery_catch": 0.25, "explore": 0.15, "trust_tries": 12,
+    "list": [
+      {"key": "plunge", "name": "Plunge", "how": "a straight dive from above 30 m; the strike window is short and strong", "best": "big fish; the Gannet's everything", "risk": "sharks see the splash; a miss is a 2 s recovery underwater",
+       "catch": 0.95, "big": 0.14, "small": 0.92, "risk_k": 1.3, "splash": 1.6, "recover": 2.0, "founder": "gannet", "founder_k": 1.3},
+      {"key": "skim", "name": "Skim", "how": "fly along the surface and snatch", "best": "schools of small fish; the Swift", "risk": "low altitude over a long line: breaches",
+       "catch": 1.0, "small": 1.3, "big": -0.25, "risk_k": 1.25, "splash": 0.4, "founder": "swift", "founder_k": 1.2},
+      {"key": "hover", "name": "Hover-strike", "how": "hold position over a spot and drop", "best": "precision on one fish; crabs and shallows", "risk": "stamina; frigatebirds steal from a hovering bird",
+       "catch": 1.2, "shore": 1.25, "risk_k": 0.9, "splash": 0.8, "pace": 0.75, "steal": 0.05},
+      {"key": "drive", "name": "Drive", "how": "several fishers push a school against a shore or a reef, then strike together", "best": "yield with Cooperative Fishing", "risk": "triple splash; the whole shark population comes",
+       "catch": 1.6, "risk_k": 1.9, "splash": 3.0, "min_fishers": 3},
+      {"key": "deep", "name": "Deep dive", "how": "swim down (Divers, Penguins, Deep Dive research)", "best": "pearls, deep fish, the kraken's floor", "risk": "a fight instead of a flight if something's there",
+       "catch": 1.1, "reach": 2.5, "fight": 0.6, "splash": 0.7, "founder": "penguin", "founder_k": 1.2},
+      {"key": "night", "name": "Night fishing", "how": "fish the dusk and dawn rises", "best": "twice the fish per trip", "risk": "the owls and the Shadows are the only ones it's safe for",
+       "catch": 1.0, "yield": 2, "risk_k": 2.2, "safe_for": "owl shadow", "safe_k": 0.35}
+    ]
+  }
 }

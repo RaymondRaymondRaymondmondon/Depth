@@ -1233,6 +1233,26 @@ void DrawColonyPanel(fl::World& w) {
     if (w.col.ground >= 0) { Txt(TextFormat("its stock: %.0f%% of what it holds", w.StockOf(w.col.ground) * 100), x + 16, ly, 14, w.StockOf(w.col.ground) < 0.35f ? bad : dim); }
     else if (w.lagoonZone >= 0) Txt(TextFormat("the lagoon's stock: %.0f%%", w.StockOf(w.lagoonZone) * 100), x + 16, ly, 14, w.StockOf(w.lagoonZone) < 0.35f ? bad : dim);
     ly += 22;
+    if (w.seasons > 0) {   // (fishing mastery, doc p48: a technique per trip; the catch and loss rates per technique on this ground)
+        const auto& TK = fl::Techniques();
+        int gz = w.col.ground >= 0 ? w.col.ground : w.lagoonZone;
+        std::string tn = w.col.tech < 0 ? "auto (" + (gz >= 0 ? TK[w.BestTech(gz)].name : std::string("by the ground")) + ")" : TK[w.col.tech].name;
+        TxtBold("Technique", x + 16, ly, 15, ink);
+        if (SmallBtn({x + 110, ly - 2, 24, 20}, "<", true)) { Writer o; fl::OrderTech(o, w.col.tech <= -1 ? fl::TK_COUNT - 1 : w.col.tech - 1); Order(o); }
+        Txt(tn, x + 140, ly, 14, ink);
+        if (SmallBtn({x + 350, ly - 2, 24, 20}, ">", true)) { Writer o; fl::OrderTech(o, w.col.tech >= fl::TK_COUNT - 1 ? -1 : w.col.tech + 1); Order(o); }
+        ly += 20;
+        if (w.col.tech >= 0) { Txt(TK[w.col.tech].how + ". Risk: " + TK[w.col.tech].risk + ".", x + 16, ly, 12, dim); ly += 16; }
+        if (gz >= 0) {
+            Txt("On this ground, catch / loss per dive:", x + 16, ly, 12, dim); ly += 15;
+            for (int k = 0; k < fl::TK_COUNT; k++) {
+                int n = 0; float c = w.TechRate(gz, k, fl::TL_CATCH, &n), l = w.TechRate(gz, k, fl::TL_LOSS);
+                std::string cell = n > 0 ? TextFormat("%s %.0f%% / %.1f%% (%d)", TK[k].name.c_str(), c * 100, l * 100, n) : TK[k].name + "  untried";
+                Txt(cell, x + 16 + (k % 3) * 190, ly + (k / 3) * 15, 12, w.TechUsable(k, gz) ? ink : dim);
+            }
+            ly += 34;
+        }
+    }
     if (!w.col.deaths.empty()) {
         std::string d = "Deaths:"; for (const auto& p : w.col.deaths) d += TextFormat("  %s %d", p.first.c_str(), p.second);
         Txt(d, x + 16, ly, 14, bad);
