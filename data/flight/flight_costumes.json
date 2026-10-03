@@ -1,0 +1,82 @@
+{
+  "_source": "The Flight design document pp. 28-30 (Costumes: tokens, the token shop, colony liveries, the loot crate and its odds). Looks are the doc's words made into parts the scene draws on the bird (hat, extras, tints, effects).",
+  "tokens": {"per_match": 10, "per_score": 50, "first": 5, "win": 20},
+  "crate_price": 1,
+  "odds": {"common": 60, "rare": 25, "super": 12, "special": 3},
+  "costumes": [
+    {"id": "sea_legs", "name": "Sea Legs", "tier": "shop", "price": 50, "note": "A sailor's cap and a neckerchief", "look": {"hat": "sailor_cap", "hat_c": [240, 240, 236], "extras": ["neckerchief"], "extra_c": [40, 70, 150]}},
+    {"id": "lighthouse_keeper", "name": "The Lighthouse Keeper", "tier": "shop", "price": 80, "note": "A lantern on a chain; glows at night (and is seen at night)", "look": {"hat": "beanie", "hat_c": [160, 40, 40], "extras": ["lantern"], "glow": true}},
+    {"id": "admiral", "name": "The Admiral", "tier": "shop", "price": 100, "note": "A bicorne and epaulettes", "look": {"hat": "bicorne", "hat_c": [30, 34, 50], "extras": ["epaulettes"], "extra_c": [230, 190, 70]}},
+    {"id": "pearl_diver", "name": "The Pearl Diver", "tier": "shop", "price": 100, "note": "Goggles and a shell necklace", "look": {"extras": ["goggles", "shell_necklace"], "extra_c": [236, 226, 210]}},
+    {"id": "fisherman", "name": "The Fisherman", "tier": "shop", "price": 120, "note": "A hat of hooks; wild gulls follow you", "look": {"hat": "hook_hat", "hat_c": [120, 110, 60], "follow": "gulls"}},
+    {"id": "scarecrow", "name": "The Scarecrow", "tier": "shop", "price": 120, "note": "Straw and a burlap head; crows won't steal from you (a joke; they will)", "look": {"hat": "straw_hat", "hat_c": [220, 190, 110], "tint": [196, 170, 120], "extras": ["straw"]}},
+    {"id": "pirate", "name": "The Pirate", "tier": "shop", "price": 150, "note": "An eyepatch, a bandana, a wooden leg", "look": {"hat": "bandana", "hat_c": [180, 30, 36], "extras": ["eyepatch", "wooden_leg"]}},
+    {"id": "monk", "name": "The Monk", "tier": "shop", "price": 150, "note": "A cowl; your shrine's bells ring when you land", "look": {"hat": "cowl", "hat_c": [110, 80, 54]}},
+    {"id": "krakens_friend", "name": "The Kraken's Friend", "tier": "shop", "price": 200, "note": "A tentacle scarf; the kraken makes a sound when you fly over the cove", "look": {"extras": ["tentacle_scarf"], "extra_c": [150, 46, 50]}},
+    {"id": "captain_nemo", "name": "The Captain Nemo", "tier": "shop", "price": 250, "note": "The coat, the beard, a tiny periscope hat", "look": {"hat": "periscope_cap", "hat_c": [40, 44, 56], "extras": ["coat", "beard"], "extra_c": [40, 44, 56]}},
+
+    {"id": "rubber_duck", "name": "The Rubber Duck", "tier": "common", "note": "Squeaks on landing", "look": {"tint": [255, 226, 60], "beak_c": [255, 140, 30], "beak": 1.4}},
+    {"id": "chicken", "name": "The Chicken", "tier": "common", "note": "A red comb and wattle", "look": {"tint": [250, 246, 236], "hat": "comb", "hat_c": [210, 40, 40], "beak_c": [240, 190, 60]}},
+    {"id": "penguin", "name": "The Penguin", "tier": "common", "note": "You waddle on land", "look": {"tint": [60, 64, 72], "extras": ["white_front"], "beak_c": [240, 150, 40], "waddle": true}},
+    {"id": "puffin_beak", "name": "The Puffin Beak", "tier": "common", "note": "A beak like a sunset", "look": {"beak_c": [240, 110, 40], "beak": 1.6, "extras": ["beak_stripes"]}},
+    {"id": "flamingo", "name": "The Flamingo", "tier": "common", "note": "Pink, one leg when perched", "look": {"tint": [250, 150, 170], "beak_c": [40, 30, 30], "extras": ["long_leg"]}},
+    {"id": "parrot", "name": "The Parrot", "tier": "common", "note": "Repeats your last order aloud", "look": {"tint": [80, 200, 90], "hat": "crest_feathers", "hat_c": [230, 60, 40], "beak_c": [60, 60, 60]}},
+    {"id": "pigeon", "name": "The Pigeon", "tier": "common", "note": "A city pigeon, unbothered", "look": {"tint": [150, 156, 170], "extras": ["iridescent_neck"], "extra_c": [90, 170, 140]}},
+    {"id": "turkey", "name": "The Turkey", "tier": "common", "note": "A fan and a wattle", "look": {"tint": [140, 100, 70], "extras": ["fan_tail", "wattle"], "extra_c": [190, 60, 50]}},
+    {"id": "owl_glasses", "name": "The Owl Glasses", "tier": "common", "note": "Round glasses; you look wiser", "look": {"extras": ["glasses"], "extra_c": [40, 34, 30]}},
+    {"id": "swan_neck", "name": "The Swan Neck", "tier": "common", "note": "A long white neck", "look": {"tint": [252, 252, 250], "extras": ["long_neck"], "beak_c": [240, 120, 40]}},
+    {"id": "pelican_pouch", "name": "The Pelican Pouch", "tier": "common", "note": "Purely cosmetic; you can't carry more", "look": {"extras": ["pouch"], "extra_c": [240, 200, 140]}},
+    {"id": "toucan_beak", "name": "The Toucan Beak", "tier": "common", "note": "Mostly beak", "look": {"tint": [40, 40, 44], "beak_c": [250, 170, 40], "beak": 2.2}},
+    {"id": "peacock_tail", "name": "The Peacock Tail", "tier": "common", "note": "A drag when landing", "look": {"extras": ["peacock_tail"], "extra_c": [40, 140, 150]}},
+    {"id": "seagull_chip", "name": "The Seagull with a Chip", "tier": "common", "note": "It is your chip", "look": {"tint": [240, 242, 246], "extras": ["chip"], "extra_c": [240, 210, 110]}},
+    {"id": "crow_shiny", "name": "The Crow with a Shiny Thing", "tier": "common", "note": "Treasure", "look": {"tint": [44, 44, 52], "extras": ["shiny"], "extra_c": [250, 230, 140]}},
+
+    {"id": "dodo", "name": "The Dodo", "tier": "rare", "note": "Extinct, undaunted", "look": {"tint": [150, 140, 130], "beak_c": [200, 180, 90], "beak": 1.7, "scale": 1.15}},
+    {"id": "albatross_cape", "name": "The Albatross Cape", "tier": "rare", "note": "A long white cape", "look": {"extras": ["cape"], "extra_c": [246, 246, 240]}},
+    {"id": "phoenix", "name": "The Phoenix", "tier": "rare", "note": "Ember particles", "look": {"tint": [255, 130, 50], "fx": "embers"}},
+    {"id": "kiwi", "name": "The Kiwi", "tier": "rare", "note": "A tiny flightless suit that flies anyway", "look": {"tint": [130, 100, 70], "extras": ["kiwi_suit"], "scale": 0.8}},
+    {"id": "stork_bundle", "name": "The Stork with a Bundle", "tier": "rare", "note": "Who ordered this?", "look": {"tint": [248, 248, 246], "extras": ["bundle"], "extra_c": [236, 230, 220]}},
+    {"id": "hummingbird", "name": "The Hummingbird", "tier": "rare", "note": "A blur", "look": {"tint": [60, 190, 150], "fx": "blur"}},
+    {"id": "vultures_ruff", "name": "The Vulture's Ruff", "tier": "rare", "note": "A ruff of feathers round the neck", "look": {"extras": ["ruff"], "extra_c": [230, 222, 206]}},
+    {"id": "heron_hat", "name": "The Heron Hat", "tier": "rare", "note": "A plume and a long bill", "look": {"hat": "heron_hat", "hat_c": [40, 40, 50], "beak": 1.6}},
+    {"id": "cuckoo_clock", "name": "The Cuckoo Clock", "tier": "rare", "note": "A clock on your chest that strikes the game hour", "look": {"extras": ["clock"], "extra_c": [130, 90, 60]}},
+    {"id": "carrier_pigeon", "name": "The Carrier Pigeon", "tier": "rare", "note": "A tiny scroll; your reports arrive with a stamp", "look": {"tint": [170, 176, 190], "extras": ["scroll"], "extra_c": [240, 230, 200]}},
+    {"id": "german_goose", "name": "German Goose", "tier": "rare", "note": "A goose with a black armband", "look": {"tint": [236, 236, 230], "beak_c": [240, 140, 40], "extras": ["armband"], "extra_c": [24, 24, 26]}},
+
+    {"id": "roc", "name": "The Roc", "tier": "super", "note": "A giant shadow; your silhouette is three times its size, which everyone sees", "look": {"tint": [120, 90, 60], "scale": 3.0}},
+    {"id": "thunderbird", "name": "The Thunderbird", "tier": "super", "note": "Lightning on dive", "look": {"tint": [70, 80, 130], "hat": "crest_feathers", "hat_c": [250, 230, 90], "fx": "lightning"}},
+    {"id": "griffin", "name": "The Griffin", "tier": "super", "note": "A lion's rear", "look": {"extras": ["lion_rear"], "extra_c": [200, 160, 80]}},
+    {"id": "kraken_costume", "name": "The Kraken Costume", "tier": "super", "note": "Eight dangling arms", "look": {"tint": [170, 60, 60], "extras": ["arms8"], "extra_c": [150, 46, 50]}},
+    {"id": "sand_worm", "name": "The Sand Worm Puppet", "tier": "super", "note": "From A Night Off's crate, for the ambitious", "look": {"extras": ["worm_puppet"], "extra_c": [200, 170, 120]}},
+    {"id": "diving_bell", "name": "The Diving Bell Helmet", "tier": "super", "note": "A brass bell over the head", "look": {"hat": "bell_helmet", "hat_c": [200, 160, 70]}},
+    {"id": "fish_costume", "name": "The Fish Costume", "tier": "super", "note": "You look like your own lunch; sharks are not fooled", "look": {"tint": [150, 190, 210], "extras": ["fish_suit"], "extra_c": [120, 170, 200]}},
+    {"id": "nautilus", "name": "The Nautilus", "tier": "super", "note": "The submarine with wings", "look": {"tint": [70, 80, 90], "extras": ["sub_hull"], "extra_c": [60, 66, 74]}},
+    {"id": "goat_wings", "name": "The Goat with Wings", "tier": "super", "note": "The goat", "look": {"tint": [236, 230, 220], "extras": ["goat_horns", "goat_beard"], "extra_c": [120, 110, 100]}},
+    {"id": "depth_diver", "name": "The Depth Diver", "tier": "super", "note": "The brass helmet from Red Tide", "look": {"hat": "brass_helmet", "hat_c": [190, 150, 70]}},
+
+    {"id": "golden_egg", "name": "The Golden Egg", "tier": "special", "note": "You are an egg with wings; chicks follow you", "look": {"tint": [255, 210, 70], "extras": ["egg_body"], "extra_c": [255, 214, 80], "follow": "chicks", "glow": true}},
+    {"id": "great_apes_hat", "name": "The Great Ape's Hat", "tier": "special", "note": "Skull island's ape waves", "look": {"hat": "ape_hat", "hat_c": [70, 56, 46]}},
+    {"id": "sun_god_mask", "name": "The Sun God's Mask", "tier": "special", "note": "From the Island; glows at dusk", "look": {"extras": ["sun_mask"], "extra_c": [250, 200, 70], "glow": true}},
+    {"id": "matriarch", "name": "The Matriarch", "tier": "special", "note": "An orca costume; sharks give you room", "look": {"tint": [30, 30, 36], "extras": ["orca_patches", "dorsal_fin"], "extra_c": [250, 250, 250]}},
+    {"id": "founders_crown", "name": "The Founder's Crown", "tier": "special", "note": "A crown that shows your best match score to everyone, forever", "look": {"hat": "crown", "hat_c": [240, 200, 60], "label": "best"}},
+    {"id": "donald_quack", "name": "Donald the Quack", "tier": "special", "note": "A duck with a magnificent swoop of hair", "look": {"tint": [250, 250, 246], "beak_c": [255, 150, 40], "hat": "swoop_hair", "hat_c": [250, 210, 110], "extras": ["red_tie"], "extra_c": [200, 30, 40]}}
+  ],
+  "liveries": {
+    "colours": [
+      {"id": "storm_grey", "name": "Storm grey", "price": 60, "c": [120, 128, 140]},
+      {"id": "sunset", "name": "Sunset", "price": 60, "c": [250, 150, 90]},
+      {"id": "lagoon", "name": "Lagoon", "price": 60, "c": [80, 200, 200]},
+      {"id": "ash", "name": "Ash", "price": 60, "c": [90, 86, 84]},
+      {"id": "gold", "name": "Gold", "price": 60, "c": [240, 200, 80]},
+      {"id": "red_tide", "name": "Red tide", "price": 60, "c": [200, 50, 50]}
+    ],
+    "hats": [
+      {"id": "caps", "name": "Caps", "price": 80, "hat": "sailor_cap", "c": [240, 240, 236]},
+      {"id": "helmets", "name": "Helmets", "price": 80, "hat": "brass_helmet", "c": [150, 156, 160]},
+      {"id": "crowns", "name": "Crowns", "price": 80, "hat": "crown", "c": [240, 200, 60]},
+      {"id": "bandanas", "name": "Bandanas", "price": 80, "hat": "bandana", "c": [180, 30, 36]},
+      {"id": "top_hats", "name": "Tiny top hats", "price": 80, "hat": "top_hat", "c": [30, 30, 34]},
+      {"id": "shells", "name": "Shells", "price": 80, "hat": "shell", "c": [240, 210, 196]}
+    ]
+  }
+}

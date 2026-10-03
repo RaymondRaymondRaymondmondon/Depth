@@ -44,7 +44,7 @@ void MergeInput(FounderInput& into, const FounderInput& n) {
 void ClearPresses(FounderInput& in) { in.interact = in.eat = in.takeoff = false; }
 
 // ---------------------------------------------------------------- orders
-void OrderHello(Writer& w, const std::string& name, const std::string& founderKey) { w.U8(FA_HELLO); w.Str(name.substr(0, 24)); w.Str(founderKey); }
+void OrderHello(Writer& w, const std::string& name, const std::string& founderKey, const std::string& look) { w.U8(FA_HELLO); w.Str(name.substr(0, 24)); w.Str(founderKey); w.Str(look.substr(0, 80)); }
 void OrderPlan(Writer& w, Role r, float share) { w.U8(FA_PLAN); w.U8((uint8_t)r); w.F32(share); }
 void OrderNests(Writer& w, int n) { w.U8(FA_NESTS); w.I32(n); }
 void OrderGround(Writer& w, int zone) { w.U8(FA_GROUND); w.I32(zone); }
@@ -99,8 +99,9 @@ bool OrderIn(World& w, int side, int kind, Reader& r) {
     int nZones = (int)w.eco.map->zones.size(), nSides = (int)w.sides.size() + 1, nIsles = (int)w.isles.size();
     switch (kind) {
     case FA_HELLO: {
-        std::string name = r.Str(), key = r.Str();
+        std::string name = r.Str(), key = r.Str(), look = r.Str();
         if (r.bad) return false;
+        w.LookOf(side) = look.substr(0, 80);   // (a costume and a livery: how everyone else sees this colony)
         name = name.substr(0, 24);
         if (!name.empty()) { if (side == 0) w.name0 = name; else w.sides[side - 1].name = name; }
         int fi = FounderIndex(key);
@@ -494,6 +495,7 @@ template <class A> void Visit(A& a, World& w, bool full) {
         VisitFounder(a, w.FounderOf(s));
         a.b(HumanRef(w, s)); a.b(BotRef(w, s));
         VisitColony(a, w.ColOf(s), s == w.cur, full, keep);
+        a.s(w.LookOf(s));
         if (s > 0) { Side& sd = w.sides[s - 1]; a.s(sd.name); int c = sd.livery.r | sd.livery.g << 8 | sd.livery.b << 16; a.i(c); if constexpr (A::reading) sd.livery = {(unsigned char)(c & 255), (unsigned char)((c >> 8) & 255), (unsigned char)((c >> 16) & 255), 255}; }
     }
     if (full) {
@@ -738,7 +740,7 @@ int RunFlightNetTest() {
     World& W = *FlightHostWorld(host.get());
     check(W.sides.size() == 3 && W.multi && W.matchLen == 30 * 60, TextFormat("the host's options: four starting islands, a %.0f-minute match", W.matchLen / 60));
     for (int p = 0; p < 3; p++) Autopilot(*host, p, true);
-    { Writer o; OrderHello(o, "Ana", "albatross"); check(Send(*host, 1, o) && W.SideName(1) == "Ana" && Founders()[W.FounderOf(1).def].key == "albatross", "a player's hello names their colony and picks their founder"); }
+    { Writer o; OrderHello(o, "Ana", "albatross", "admiral;lagoon;caps;120"); check(Send(*host, 1, o) && W.SideName(1) == "Ana" && Founders()[W.FounderOf(1).def].key == "albatross" && W.LookOf(1) == "admiral;lagoon;caps;120", "a player's hello names their colony, picks their founder and dresses it (costume, livery)"); }
     host->Tick(0.1f, 1u << 3);
     check(!W.HumanOf(3) && W.HumanOf(1) && W.SideName(3) == "Bot 3", "the lobby's AI seat is a bot colony; the people's are theirs");
     for (int k = 0; k < (int)(World::DAY * 2 / 0.1f); k++) host->Tick(0.1f, 1u << 3);
@@ -753,6 +755,7 @@ int RunFlightNetTest() {
         Writer b; WriteWorld(*mir, 1, b, true);
         check(ok && r.Done() && mir->mirror && mir->cur == 1, TextFormat("player 1's snapshot (%d bytes) builds a mirror with their colony in the fields", (int)a.b.size()));
         check(a.b == b.b, "the mirror writes back exactly the bytes it read");
+        check(mir->LookOf(1) == "admiral;lagoon;caps;120", "the costume and livery reach the mirror");
         check(Vector3Distance(mir->me.pos, W.FounderOf(1).pos) < 1e-4f && Birds(mir->col) == b1 && mir->know.isle == W.sides[0].know.isle, "the mirror's own Founder, colony and knowledge are player 1's");
         int near = 0; Vector2 e{W.FounderOf(1).pos.x, W.FounderOf(1).pos.z};
         for (const auto& b : W.ColOf(2).birds) if (b.alive && Vector2Distance(Qxz(b.pos), e) < 330) near++;

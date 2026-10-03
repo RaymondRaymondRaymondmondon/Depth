@@ -36,7 +36,7 @@ void MergeInput(FounderInput& into, const FounderInput& n);  // the newest steer
 void ClearPresses(FounderInput& in);
 
 // the orders (each writes one action)
-void OrderHello(Writer& w, const std::string& name, const std::string& founderKey);
+void OrderHello(Writer& w, const std::string& name, const std::string& founderKey, const std::string& look = "");   // look: "costume;colour;hat"
 void OrderPlan(Writer& w, Role r, float share);
 void OrderNests(Writer& w, int n);
 void OrderGround(Writer& w, int zone);

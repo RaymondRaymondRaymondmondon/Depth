@@ -886,6 +886,10 @@ void StartFlightNet(Game& g, arcade::Session* net, const char* founderKey, const
 void FlightMenuTick(float dt);                                                                 // (the game menu is open) a networked Flight keeps talking
 void DebugFlightShot(Game& g, int which);   // --shots: 0 dawn over the lagoon, 1 the strike, 2 the nest, 3 high over the island
 int FlightFounderCount();
+bool FlightWardrobePage(int founder);            // the Roost wardrobe over the arcade (true: Back)
+void DebugFlightWardrobe(int tab, const char* pick);   // (--shots)
+void DrawFlightCostumeGallery(int page);         // (--shots: every costume, page by page)
+void DebugArcadeFlightWardrobe(Game& g, int tab, const char* pick, int galleryPage);
 const char* FlightFounderName(int i);
 const char* FlightFounderKey(int i);
 const char* FlightFounderLine(int i);

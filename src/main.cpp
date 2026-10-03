@@ -22,6 +22,7 @@
 #include "game.h"
 #include "voice.h"
 #include "flight.h"
+#include "flight_costumes.h"
 #include "study.h"
 #include "course.h"
 #include "expr.h"
@@ -234,6 +235,13 @@ void DebugWardrobe(Game& g, int game); void TakeShots(const Game& base, const st
         {"flight_volcano", [](Game& g) { DebugFlightShot(g, 18); }},
         {"flight_storm", [](Game& g) { DebugFlightShot(g, 19); }},
         {"flight_outpost", [](Game& g) { DebugFlightShot(g, 20); }},
+        {"flight_wardrobe", [](Game& g) { DebugArcadeFlightWardrobe(g, 0, "captain_nemo", -1); }},
+        {"flight_wardrobe_eggs", [](Game& g) { DebugArcadeFlightWardrobe(g, 1, "phoenix", -1); }},
+        {"flight_wardrobe_livery", [](Game& g) { DebugArcadeFlightWardrobe(g, 2, "top_hats", -1); }},
+        {"flight_costumes_1", [](Game& g) { DebugArcadeFlightWardrobe(g, 0, nullptr, 0); }},
+        {"flight_costumes_2", [](Game& g) { DebugArcadeFlightWardrobe(g, 0, nullptr, 1); }},
+        {"flight_costumes_3", [](Game& g) { DebugArcadeFlightWardrobe(g, 0, nullptr, 2); }},
+        {"flight_costumes_4", [](Game& g) { DebugArcadeFlightWardrobe(g, 0, nullptr, 3); }},
         {"arcade_flight", [](Game& g) { g.scene = Scene::Arcade; DebugArcadeReel(5); }},
         {"trawl_deck", [](Game& g) { DebugTrawlShot(g, 0); }},
         {"trawl_engine", [](Game& g) { DebugTrawlShot(g, 1); }},
@@ -752,6 +760,7 @@ int main(int argc, char** argv) {
     if (argc >= 2 && strcmp(argv[1], "--flight-sim") == 0) { SetTraceLogLevel(LOG_WARNING); return fl::RunFlightSim(argc, argv); }
     if (argc >= 2 && strcmp(argv[1], "--flight-fair") == 0) { SetTraceLogLevel(LOG_WARNING); return fl::RunFlightFairTest(argc, argv); }
     if (argc >= 2 && strcmp(argv[1], "--flight-danger-test") == 0) { SetTraceLogLevel(LOG_WARNING); return fl::RunFlightDangerTest(); }
+    if (argc >= 2 && strcmp(argv[1], "--flight-costume-test") == 0) { SetTraceLogLevel(LOG_WARNING); return fl::RunFlightCostumeTest(); }
     if (argc >= 2 && strcmp(argv[1], "--flight-siege") == 0) { SetTraceLogLevel(LOG_WARNING); return fl::RunFlightSiege(argc, argv); }
     if (argc >= 2 && strcmp(argv[1], "--flight-society-test") == 0) { SetTraceLogLevel(LOG_WARNING); return fl::RunFlightSocietyTest(); }
     if (argc >= 2 && strcmp(argv[1], "--flight-net-test") == 0) { SetTraceLogLevel(LOG_WARNING); return fl::RunFlightNetTest(); }

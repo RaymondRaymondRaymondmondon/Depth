@@ -459,6 +459,8 @@ struct World {
     void InitTowns();
     // stage 7 (flight_danger.cpp): the dangerous islands, the weather, holding islands, sieges, bombs and stimulants
     Kraken kraken; Ape ape; Volcano volcano; WreckState wreck; Weather weather;
+    std::vector<std::string> lookOf;            // (stage 8) per absolute side: "costume;livery colour;livery hat" (cosmetic; from the hello)
+    std::string& LookOf(int s) { if ((int)lookOf.size() <= s) lookOf.resize(s + 1); return lookOf[s]; }
     std::vector<int> outpostIsle;               // (scratch)
     int HolderOf(int isle) const;               // the side with the most built nests on an island (-1: nobody, or a tie)
     int NestsOn(int side, int isle) const;

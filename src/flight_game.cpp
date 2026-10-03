@@ -12,6 +12,7 @@
 #include "raymath.h"
 #include <algorithm>
 #include <cmath>
+#include "flight_costumes.h"
 
 namespace {
 
@@ -183,8 +184,10 @@ void FreeModels() {
     for (Model* m : {&S.palm, &S.nest, &S.body, &S.head, &S.beak, &S.tail, &S.wingIn, &S.wingOut, &S.egg, &S.chick, &S.pile}) UnloadModel(*m);
     S.ready = false; S.readyFor = -1;
 }
+void FreePreview();
 void EnsureModels() {
     if (!IsWindowReady()) return;
+    FreePreview();   // (the wardrobe's own bird, if it was open)
     int key = (int)WD().island.seed * 31 + WD().me.def + (int)WD().isles.size() * 7919;
     if (S.ready && S.readyFor == key) return;
     FreeModels();
@@ -307,10 +310,122 @@ Matrix BirdWorld(const fl::Founder& f, float scale) {
     m = MatrixMultiply(m, MatrixRotateY(-f.yaw));
     return MatrixMultiply(m, MatrixTranslate(f.pos.x, f.pos.y, f.pos.z));
 }
+// ---------------------------------------------------------------- costumes (stage 8; doc pp. 28-30)
+// A costume is drawn as parts on the bird: a hat in the head's frame, extras in the body's, a tint, a beak, a scale and an
+// effect. gLook is set by whoever draws a bird (the Founder's costume, or a colony's livery hat) and cleared after.
+Color Tint(Color a, Color b) { return {(unsigned char)(a.r * b.r / 255), (unsigned char)(a.g * b.g / 255), (unsigned char)(a.b * b.b / 255), 255}; }
+fl::World& WD();
+Matrix PoseWorld(Vector3 pos, float yaw, float pitch, float bank, float scale);
+void DrawBirdBody(const fl::FounderDef& d, Matrix W, float shoulder, float wrist, float fold, float flare, float headTilt, float tailSpread, Color tint);
+const fl::CostumeLook* gLook = nullptr;
+struct SideLook { const fl::CostumeDef* costume = nullptr; const fl::LiveryColour* colour = nullptr; const fl::LiveryHat* hat = nullptr; int best = 0; fl::CostumeLook hatLook; };
+SideLook ParseLook(const std::string& s) {
+    SideLook L;
+    std::vector<std::string> p; size_t a = 0;
+    for (size_t i = 0; i <= s.size(); i++) if (i == s.size() || s[i] == ';') { p.push_back(s.substr(a, i - a)); a = i + 1; }
+    if (p.size() > 0 && !p[0].empty()) L.costume = fl::FindCostume(p[0]);
+    if (p.size() > 1 && !p[1].empty()) L.colour = fl::FindLiveryColour(p[1]);
+    if (p.size() > 2 && !p[2].empty()) L.hat = fl::FindLiveryHat(p[2]);
+    if (p.size() > 3) L.best = atoi(p[3].c_str());
+    if (L.hat) { L.hatLook.hat = L.hat->hat; L.hatLook.hatC = L.hat->c; }
+    return L;
+}
+std::string MyLook() {
+    const fl::FlightWardrobe& w = fl::Wardrobe();
+    return w.costume + ";" + w.liveryColour + ";" + w.liveryHat + ";" + std::to_string(w.bestScore);
+}
+void Box(Matrix frame, Vector3 c, Vector3 size, Color col, float rotY = 0, float rotX = 0, float rotZ = 0) {
+    Matrix m = MatrixMultiply(MatrixScale(size.x, size.y, size.z), MatrixMultiply(MatrixMultiply(MatrixRotateX(rotX), MatrixRotateZ(rotZ)), MatrixRotateY(rotY)));
+    rt::DrawCubeM(MatrixMultiply(MatrixMultiply(m, MatrixTranslate(c.x, c.y, c.z)), frame), col);
+}
+void Glow(Matrix frame, Vector3 c, float s, Color col, float k) { rt::DrawCubeGlow(MatrixMultiply(MatrixMultiply(MatrixScale(s, s, s), MatrixTranslate(c.x, c.y, c.z)), frame), col, k); }
+// the hat, in the head's frame (centre of the head at the origin, forward +z, up +y; r the head's radius)
+void DrawHat(const std::string& h, Color c, Matrix H, float r) {
+    Color dk = Shade(c, 0.7f);
+    if (h == "sailor_cap") { Box(H, {0, r * 0.95f, -r * 0.1f}, {r * 1.7f, r * 0.28f, r * 1.7f}, c); Box(H, {0, r * 0.78f, -r * 0.1f}, {r * 1.75f, r * 0.12f, r * 1.75f}, Color{30, 40, 80, 255}); }
+    else if (h == "beanie") { Box(H, {0, r * 0.85f, -r * 0.15f}, {r * 1.5f, r * 0.75f, r * 1.6f}, c); Box(H, {0, r * 0.5f, -r * 0.15f}, {r * 1.6f, r * 0.2f, r * 1.7f}, dk); Box(H, {0, r * 1.35f, -r * 0.15f}, {r * 0.4f, r * 0.4f, r * 0.4f}, WHITE); }
+    else if (h == "bicorne") { Box(H, {0, r * 1.15f, -r * 0.1f}, {r * 3.0f, r * 0.95f, r * 0.55f}, c); Box(H, {r * 0.5f, r * 1.2f, r * 0.2f}, {r * 0.35f, r * 0.35f, r * 0.1f}, Color{200, 40, 40, 255}); Box(H, {0, r * 0.75f, -r * 0.1f}, {r * 3.0f, r * 0.12f, r * 0.6f}, Color{220, 180, 70, 255}); }
+    else if (h == "hook_hat") { Box(H, {0, r * 1.0f, -r * 0.1f}, {r * 1.6f, r * 0.65f, r * 1.6f}, c); Box(H, {0, r * 0.7f, -r * 0.1f}, {r * 2.4f, r * 0.1f, r * 2.4f}, dk); for (int k = 0; k < 6; k++) { float a = k * 1.05f; Box(H, {cosf(a) * r * 1.0f, r * 1.05f, -r * 0.1f + sinf(a) * r * 1.0f}, {r * 0.08f, r * 0.45f, r * 0.08f}, Color{190, 196, 200, 255}, a, 0.4f); } }
+    else if (h == "straw_hat") { Box(H, {0, r * 0.8f, -r * 0.1f}, {r * 3.2f, r * 0.1f, r * 3.2f}, c, 0.3f); Box(H, {0, r * 1.15f, -r * 0.1f}, {r * 1.3f, r * 0.65f, r * 1.3f}, c, 0.3f); Box(H, {0, r * 0.9f, -r * 0.1f}, {r * 1.35f, r * 0.15f, r * 1.35f}, Color{150, 60, 50, 255}, 0.3f); }
+    else if (h == "bandana") { Box(H, {0, r * 0.7f, -r * 0.1f}, {r * 2.05f, r * 0.65f, r * 2.1f}, c); for (int s = -1; s <= 1; s += 2) Box(H, {r * 0.25f * s, r * 0.55f, -r * 1.3f}, {r * 0.3f, r * 0.12f, r * 0.8f}, c, 0.3f * s, 0.5f); }
+    else if (h == "cowl") { Box(H, {0, r * 0.35f, -r * 0.35f}, {r * 2.3f, r * 2.3f, r * 2.0f}, c); Box(H, {0, r * 1.25f, -r * 1.1f}, {r * 0.9f, r * 0.7f, r * 0.9f}, c, 0, 0.5f); }
+    else if (h == "periscope_cap") { Box(H, {0, r * 0.95f, -r * 0.1f}, {r * 1.6f, r * 0.35f, r * 1.6f}, c); Box(H, {0, r * 1.6f, -r * 0.1f}, {r * 0.22f, r * 1.0f, r * 0.22f}, Color{180, 150, 80, 255}); Box(H, {0, r * 2.05f, r * 0.15f}, {r * 0.22f, r * 0.22f, r * 0.6f}, Color{180, 150, 80, 255}); Box(H, {0, r * 2.05f, r * 0.47f}, {r * 0.18f, r * 0.18f, r * 0.05f}, Color{120, 200, 230, 255}); }
+    else if (h == "comb") { for (int k = 0; k < 3; k++) Box(H, {0, r * (1.0f + 0.12f * (k == 1)), r * (0.3f - 0.4f * k)}, {r * 0.18f, r * 0.55f, r * 0.38f}, c); Box(H, {0, -r * 0.6f, r * 0.85f}, {r * 0.22f, r * 0.5f, r * 0.2f}, c); }
+    else if (h == "crest_feathers") { for (int k = 0; k < 4; k++) Box(H, {0, r * 1.1f, -r * (0.1f + 0.3f * k)}, {r * 0.12f, r * (1.0f - 0.12f * k), r * 0.2f}, c, 0, -0.5f - 0.15f * k); }
+    else if (h == "heron_hat") { Box(H, {0, r * 0.95f, -r * 0.1f}, {r * 1.4f, r * 0.3f, r * 1.4f}, c); for (int k = 0; k < 2; k++) Box(H, {0, r * 1.0f, -r * (1.0f + 0.4f * k)}, {r * 0.08f, r * 0.08f, r * 1.6f}, Color{30, 30, 34, 255}, 0, 0.2f + 0.15f * k); }
+    else if (h == "bell_helmet" || h == "brass_helmet") {
+        bool bell = h == "bell_helmet";
+        Box(H, {0, r * 0.25f, 0}, {r * (bell ? 2.6f : 2.3f), r * (bell ? 2.8f : 2.3f), r * (bell ? 2.6f : 2.3f)}, c, 0.785f);
+        Box(H, {0, r * 0.25f, r * (bell ? 1.32f : 1.18f)}, {r * 1.1f, r * 1.1f, r * 0.1f}, Color{60, 90, 110, 255});
+        Box(H, {0, r * 0.25f, r * (bell ? 1.36f : 1.22f)}, {r * 1.3f, r * 0.15f, r * 0.08f}, dk);
+        if (!bell) for (int s = -1; s <= 1; s += 2) Box(H, {r * 1.18f * s, r * 0.25f, 0}, {r * 0.1f, r * 0.7f, r * 0.7f}, Color{60, 90, 110, 255});
+        Box(H, {0, -r * 0.95f, 0}, {r * 2.0f, r * 0.3f, r * 2.0f}, dk);
+    }
+    else if (h == "ape_hat") { Box(H, {0, r * 1.0f, -r * 0.2f}, {r * 2.0f, r * 1.1f, r * 1.9f}, c); Box(H, {0, r * 0.9f, r * 0.75f}, {r * 1.1f, r * 0.7f, r * 0.15f}, Color{140, 116, 96, 255}); for (int s = -1; s <= 1; s += 2) Box(H, {r * 0.3f * s, r * 1.05f, r * 0.84f}, {r * 0.16f, r * 0.16f, r * 0.05f}, Color{240, 220, 140, 255}); }
+    else if (h == "crown") { Box(H, {0, r * 0.95f, -r * 0.05f}, {r * 1.5f, r * 0.35f, r * 1.5f}, c); for (int k = 0; k < 5; k++) { float a = k * 2 * PI / 5; Box(H, {cosf(a) * r * 0.6f, r * 1.3f, -r * 0.05f + sinf(a) * r * 0.6f}, {r * 0.22f, r * 0.45f, r * 0.22f}, c, a); Box(H, {cosf(a) * r * 0.62f, r * 1.0f, -r * 0.05f + sinf(a) * r * 0.62f}, {r * 0.18f, r * 0.18f, r * 0.18f}, k % 2 ? Color{200, 30, 60, 255} : Color{60, 120, 220, 255}, a); } }
+    else if (h == "swoop_hair") { for (int k = 0; k < 5; k++) Box(H, {r * (0.5f - 0.2f * k), r * (1.0f + 0.08f * k), r * (0.5f - 0.35f * k)}, {r * 1.6f, r * 0.35f, r * 0.9f}, Mix(c, WHITE, 0.08f * k), 0.5f, -0.25f, 0.2f); Box(H, {r * 0.6f, r * 1.05f, r * 0.75f}, {r * 0.9f, r * 0.3f, r * 0.6f}, c, -0.4f, 0.3f); }
+    else if (h == "top_hat") { Box(H, {0, r * 0.82f, -r * 0.1f}, {r * 1.9f, r * 0.1f, r * 1.9f}, c); Box(H, {0, r * 1.45f, -r * 0.1f}, {r * 1.1f, r * 1.3f, r * 1.1f}, c); Box(H, {0, r * 1.0f, -r * 0.1f}, {r * 1.15f, r * 0.18f, r * 1.15f}, Color{160, 40, 40, 255}); }
+    else if (h == "shell") { for (int k = -2; k <= 2; k++) Box(H, {r * 0.25f * k, r * 1.05f, -r * 0.1f}, {r * 0.28f, r * 0.8f, r * 0.12f}, Mix(c, WHITE, 0.15f * (k & 1)), 0, -0.2f, -0.3f * k); }
+}
+// the extras, in the body's frame (forward +z, up +y; L the body's length), and some on the head
+void DrawExtras(const fl::CostumeLook& lk, Matrix W, Matrix H, float L, float r, bool flying) {
+    Color c = lk.extraC, dk = Shade(c, 0.7f);
+    for (const std::string& e : lk.extras) {
+        if (e == "neckerchief") { Box(W, {0, -L * 0.05f, L * 0.36f}, {L * 0.3f, L * 0.18f, L * 0.1f}, c); Box(W, {0, -L * 0.17f, L * 0.37f}, {L * 0.12f, L * 0.14f, L * 0.06f}, c, 0, 0, 0.785f); }
+        else if (e == "lantern") { Box(W, {0, -L * 0.3f, L * 0.2f}, {L * 0.02f, L * 0.25f, L * 0.02f}, Color{60, 60, 60, 255}); Box(W, {0, -L * 0.5f, L * 0.2f}, {L * 0.14f, L * 0.18f, L * 0.14f}, Color{70, 60, 40, 255}); Glow(W, {0, -L * 0.5f, L * 0.2f}, L * 0.1f, Color{255, 220, 140, 255}, 2.0f); }
+        else if (e == "epaulettes") for (int s = -1; s <= 1; s += 2) { Box(W, {L * 0.17f * s, L * 0.17f, L * 0.18f}, {L * 0.16f, L * 0.05f, L * 0.14f}, c); for (int k = 0; k < 3; k++) Box(W, {L * (0.12f + 0.05f * k) * s, L * 0.11f, L * 0.18f}, {L * 0.015f, L * 0.08f, L * 0.015f}, c); }
+        else if (e == "goggles") for (int s = -1; s <= 1; s += 2) { Box(H, {r * 0.62f * s, r * 0.3f, r * 0.5f}, {r * 0.5f, r * 0.5f, r * 0.2f}, Color{110, 80, 50, 255}, 0.3f * s); Box(H, {r * 0.66f * s, r * 0.3f, r * 0.6f}, {r * 0.32f, r * 0.32f, r * 0.05f}, Color{150, 210, 230, 255}, 0.3f * s); }
+        else if (e == "shell_necklace") for (int k = 0; k < 7; k++) { float a = (k - 3) * 0.32f; Box(W, {sinf(a) * L * 0.2f, -L * 0.1f + cosf(a * 1.5f) * L * 0.02f, L * 0.33f + cosf(a) * L * 0.03f}, {L * 0.05f, L * 0.05f, L * 0.03f}, k == 3 ? Color{250, 250, 255, 255} : c, a); }
+        else if (e == "straw") for (int k = 0; k < 8; k++) { float s = k % 2 ? 1.0f : -1.0f; Box(W, {L * 0.2f * s, L * (0.05f - 0.03f * (k / 2)), L * (0.1f - 0.08f * (k / 2))}, {L * 0.15f, L * 0.015f, L * 0.015f}, Color{230, 200, 110, 255}, 0.4f * s, 0, 0.3f * s); }
+        else if (e == "eyepatch") { Box(H, {r * 0.66f, r * 0.27f, r * 0.48f}, {r * 0.4f, r * 0.4f, r * 0.1f}, Color{20, 20, 22, 255}, 0.5f); Box(H, {0, r * 0.45f, 0}, {r * 2.05f, r * 0.08f, r * 2.05f}, Color{20, 20, 22, 255}, 0, 0.3f); }
+        else if (e == "wooden_leg") Box(W, {L * 0.06f, -L * 0.38f, -L * 0.02f}, {L * 0.05f, L * 0.3f, L * 0.05f}, Color{140, 100, 60, 255});
+        else if (e == "tentacle_scarf") { Box(W, {0, -L * 0.02f, L * 0.33f}, {L * 0.42f, L * 0.1f, L * 0.16f}, c); for (int k = 0; k < 4; k++) Box(W, {L * (0.1f - 0.03f * k), -L * (0.1f + 0.07f * k), L * (0.3f + 0.02f * sinf(S.t * 3 + k))}, {L * (0.06f - 0.01f * k), L * 0.08f, L * (0.06f - 0.01f * k)}, k % 2 ? dk : c, 0, 0, 0.3f * sinf(S.t * 2 + k)); }
+        else if (e == "coat") for (int s = -1; s <= 1; s += 2) { Box(W, {L * 0.08f * s, -L * 0.05f, -L * 0.25f}, {L * 0.14f, L * 0.06f, L * 0.4f}, c, 0.1f * s, 0.25f + (flying ? 0.1f * sinf(S.t * 6 + s) : 0)); Box(W, {L * 0.11f * s, L * 0.05f, L * 0.1f}, {L * 0.04f, L * 0.04f, L * 0.04f}, Color{220, 190, 80, 255}); }
+        else if (e == "beard") { Box(H, {0, -r * 0.5f, r * 0.6f}, {r * 0.9f, r * 0.9f, r * 0.5f}, Color{210, 210, 206, 255}, 0, -0.2f); }
+        else if (e == "white_front") Box(W, {0, -L * 0.05f, L * 0.12f}, {L * 0.26f, L * 0.24f, L * 0.42f}, Color{246, 246, 244, 255});
+        else if (e == "beak_stripes") { Box(H, {0, -r * 0.05f, r * 1.2f}, {r * 0.42f, r * 0.42f, r * 0.08f}, Color{250, 220, 80, 255}); Box(H, {0, -r * 0.05f, r * 1.5f}, {r * 0.34f, r * 0.34f, r * 0.08f}, Color{60, 70, 100, 255}); }
+        else if (e == "long_leg") { Box(W, {0, -L * 0.55f, 0}, {L * 0.03f, L * 0.7f, L * 0.03f}, Color{240, 120, 140, 255}); Box(W, {0, -L * 0.9f, L * 0.05f}, {L * 0.04f, L * 0.02f, L * 0.14f}, Color{240, 120, 140, 255}); }
+        else if (e == "iridescent_neck") Box(W, {0, L * 0.03f, L * 0.36f}, {L * 0.3f, L * 0.22f, L * 0.14f}, Mix(c, Color{170, 90, 170, 255}, 0.5f + 0.5f * sinf(S.t * 2)));
+        else if (e == "fan_tail") for (int k = -3; k <= 3; k++) Box(W, {L * 0.07f * k, L * 0.2f, -L * 0.45f}, {L * 0.08f, L * 0.55f, L * 0.02f}, k % 2 ? Color{110, 80, 50, 255} : Color{170, 130, 80, 255}, 0, 0.3f, -0.18f * k);
+        else if (e == "wattle") Box(H, {0, -r * 0.65f, r * 0.75f}, {r * 0.3f, r * 0.7f, r * 0.25f}, c);
+        else if (e == "glasses") for (int s = -1; s <= 1; s += 2) { Box(H, {r * 0.62f * s, r * 0.27f, r * 0.55f}, {r * 0.48f, r * 0.48f, r * 0.06f}, c, 0.3f * s); Box(H, {r * 0.62f * s, r * 0.27f, r * 0.57f}, {r * 0.36f, r * 0.36f, r * 0.03f}, Color{200, 230, 240, 255}, 0.3f * s); }
+        else if (e == "long_neck") Box(W, {0, L * 0.18f, L * 0.42f}, {L * 0.12f, L * 0.4f, L * 0.12f}, lk.tinted ? lk.tint : WHITE);
+        else if (e == "pouch") Box(H, {0, -r * 0.65f, r * 1.1f}, {r * 0.5f, r * 0.6f, r * 1.1f}, c, 0, 0.15f);
+        else if (e == "peacock_tail") for (int k = -4; k <= 4; k++) { Box(W, {L * 0.08f * k, L * 0.15f, -L * 0.75f}, {L * 0.1f, L * 0.02f, L * 0.75f}, c, -0.12f * k, -0.25f); Box(W, {L * 0.2f * k, L * 0.33f, -L * 1.1f}, {L * 0.09f, L * 0.03f, L * 0.09f}, Color{40, 80, 200, 255}, -0.12f * k, -0.25f); }
+        else if (e == "chip") Box(H, {r * 0.15f, -r * 0.1f, r * 1.5f}, {r * 1.1f, r * 0.18f, r * 0.18f}, c, 0.4f);
+        else if (e == "shiny") Glow(H, {0, -r * 0.15f, r * 1.4f}, r * 0.3f, c, 1.4f + 0.6f * sinf(S.t * 5));
+        else if (e == "cape") Box(W, {0, L * 0.12f, -L * 0.3f}, {L * 0.45f, L * 0.03f, L * 0.8f}, c, 0, 0.08f + (flying ? 0.12f * sinf(S.t * 7) : 0.6f));
+        else if (e == "kiwi_suit") Box(W, {0, 0, 0}, {L * 0.5f, L * 0.48f, L * 0.62f}, Color{130, 100, 70, 255}, 0.785f);
+        else if (e == "bundle") { Box(H, {0, -r * 0.4f, r * 1.4f}, {r * 0.08f, r * 0.8f, r * 0.08f}, Color{200, 180, 140, 255}); Box(H, {0, -r * 1.2f, r * 1.4f}, {r * 1.0f, r * 0.9f, r * 0.9f}, c, 0.785f); }
+        else if (e == "ruff") for (int k = 0; k < 10; k++) { float a = k * 2 * PI / 10; Box(W, {cosf(a) * L * 0.17f, sinf(a) * L * 0.17f + L * 0.02f, L * 0.33f}, {L * 0.1f, L * 0.05f, L * 0.08f}, c, 0, 0, a); }
+        else if (e == "clock") { Box(W, {0, -L * 0.04f, L * 0.36f}, {L * 0.2f, L * 0.24f, L * 0.06f}, c); Box(W, {0, -L * 0.04f, L * 0.4f}, {L * 0.14f, L * 0.14f, L * 0.01f}, Color{240, 236, 220, 255}); Box(W, {0, -L * 0.04f, L * 0.41f}, {L * 0.01f, L * 0.07f, L * 0.01f}, BLACK, 0, 0, S.t * 0.5f); }
+        else if (e == "scroll") { Box(W, {L * 0.05f, -L * 0.3f, -L * 0.02f}, {L * 0.04f, L * 0.04f, L * 0.16f}, c); Box(W, {L * 0.05f, -L * 0.3f, -L * 0.02f}, {L * 0.045f, L * 0.045f, L * 0.02f}, Color{180, 40, 40, 255}); }
+        else if (e == "armband") for (int s = -1; s <= 1; s += 2) Box(W, {L * 0.2f * s, L * 0.06f, L * 0.08f}, {L * 0.08f, L * 0.1f, L * 0.1f}, c);
+        else if (e == "lion_rear") { Box(W, {0, -L * 0.03f, -L * 0.3f}, {L * 0.42f, L * 0.4f, L * 0.45f}, c, 0.785f); for (int s = -1; s <= 1; s += 2) Box(W, {L * 0.12f * s, -L * 0.35f, -L * 0.32f}, {L * 0.08f, L * 0.3f, L * 0.08f}, c); Box(W, {0, L * 0.05f, -L * 0.75f}, {L * 0.03f, L * 0.03f, L * 0.5f}, c, 0, -0.3f); Box(W, {0, L * 0.2f, -L * 1.0f}, {L * 0.1f, L * 0.1f, L * 0.1f}, Color{120, 80, 40, 255}); }
+        else if (e == "arms8") for (int k = 0; k < 8; k++) { float a = k * 2 * PI / 8; for (int j = 0; j < 3; j++) Box(W, {cosf(a) * L * (0.12f + 0.03f * j), -L * (0.15f + 0.12f * j), sinf(a) * L * 0.12f + L * 0.05f * sinf(S.t * 3 + k + j)}, {L * (0.06f - 0.012f * j), L * 0.12f, L * (0.06f - 0.012f * j)}, j % 2 ? dk : c, a); }
+        else if (e == "worm_puppet") for (int j = 0; j < 7; j++) Box(W, {L * 0.05f * sinf(S.t * 2 + j * 0.8f), L * (0.25f + 0.13f * j), -L * 0.1f + L * 0.04f * j}, {L * (0.2f - 0.012f * j), L * 0.14f, L * (0.2f - 0.012f * j)}, j % 2 ? dk : c, j * 0.3f);
+        else if (e == "fish_suit") { Box(W, {0, L * 0.22f, 0}, {L * 0.04f, L * 0.2f, L * 0.4f}, c, 0, 0.3f); for (int s = -1; s <= 1; s += 2) Box(W, {L * 0.2f * s, -L * 0.05f, L * 0.1f}, {L * 0.14f, L * 0.03f, L * 0.12f}, c, 0.5f * s); Box(W, {0, 0, -L * 0.55f}, {L * 0.03f, L * 0.42f, L * 0.22f}, c); }
+        else if (e == "sub_hull") { Box(W, {0, 0, 0}, {L * 0.42f, L * 0.42f, L * 1.0f}, c); Box(W, {0, L * 0.3f, L * 0.05f}, {L * 0.14f, L * 0.22f, L * 0.26f}, Shade(c, 0.85f)); Box(W, {0, L * 0.47f, L * 0.1f}, {L * 0.03f, L * 0.12f, L * 0.03f}, Color{180, 150, 80, 255}); for (int k = 0; k < 3; k++) Box(W, {L * 0.21f, L * 0.05f, L * (0.25f - 0.2f * k)}, {L * 0.02f, L * 0.07f, L * 0.07f}, Color{230, 200, 120, 255}); }
+        else if (e == "goat_horns") for (int s = -1; s <= 1; s += 2) { Box(H, {r * 0.45f * s, r * 1.0f, -r * 0.3f}, {r * 0.22f, r * 0.7f, r * 0.22f}, c, 0, -0.6f, 0.2f * s); Box(H, {r * 0.55f * s, r * 1.2f, -r * 0.85f}, {r * 0.18f, r * 0.5f, r * 0.18f}, c, 0, -1.5f, 0.2f * s); }
+        else if (e == "goat_beard") Box(H, {0, -r * 0.75f, r * 0.55f}, {r * 0.25f, r * 0.75f, r * 0.25f}, c, 0, -0.2f);
+        else if (e == "egg_body") rt::DrawStatic(S.egg, MatrixMultiply(MatrixMultiply(MatrixScale(L * 13.0f, L * 13.0f, L * 14.0f), MatrixRotateX(-0.3f)), W), c);
+        else if (e == "sun_mask") { Box(H, {0, r * 0.2f, r * 0.75f}, {r * 1.7f, r * 1.7f, r * 0.1f}, c, 0, 0, 0.785f); for (int k = 0; k < 8; k++) { float a = k * PI / 4; Box(H, {cosf(a) * r * 1.2f, r * 0.2f + sinf(a) * r * 1.2f, r * 0.7f}, {r * 0.5f, r * 0.15f, r * 0.05f}, Color{250, 150, 40, 255}, 0, 0, a); } Glow(H, {0, r * 0.2f, r * 0.85f}, r * 0.4f, Color{255, 220, 120, 255}, 1.2f); }
+        else if (e == "orca_patches") { for (int s = -1; s <= 1; s += 2) Box(H, {r * 0.6f * s, r * 0.5f, r * 0.2f}, {r * 0.3f, r * 0.25f, r * 0.5f}, c); Box(W, {0, -L * 0.12f, L * 0.1f}, {L * 0.24f, L * 0.1f, L * 0.5f}, c); }
+        else if (e == "dorsal_fin") Box(W, {0, L * 0.35f, -L * 0.05f}, {L * 0.04f, L * 0.45f, L * 0.22f}, Color{24, 24, 30, 255}, 0, -0.35f);
+        else if (e == "red_tie") { Box(W, {0, -L * 0.03f, L * 0.37f}, {L * 0.08f, L * 0.06f, L * 0.05f}, c); Box(W, {0, -L * 0.2f, L * 0.36f}, {L * 0.07f, L * 0.3f, L * 0.03f}, c); }
+    }
+}
 // One bird's body with its wings posed: shoulder (up/down beat), wrist, fold (0 spread .. 1 folded along the body),
 // flare (wings up and forward for a landing), head tilt and tail spread. Used for the Founder and every colony bird.
 void DrawBirdBody(const fl::FounderDef& d, Matrix W, float shoulder, float wrist, float fold, float flare, float headTilt, float tailSpread, Color tint = WHITE) {
     float L = 0.22f + d.span * 0.14f;
+    const fl::CostumeLook* lk = gLook;
+    bool longNeck = false;
+    if (lk) {
+        if (lk->scale != 1) W = MatrixMultiply(MatrixScale(lk->scale, lk->scale, lk->scale), W);
+        if (lk->tinted) tint = Tint(lk->tint, Mix(WHITE, tint, 0.35f));
+        for (const auto& e : lk->extras) longNeck |= e == "long_neck";
+    }
     float sweep = fold * 1.2f, raise = flare * 0.6f;
     float inner = d.span * 0.5f * 0.45f;
     auto wing = [&](float side) {   // side 1 the right wing (out along -x), -1 the left (mirrored, out along +x)
@@ -327,11 +442,17 @@ void DrawBirdBody(const fl::FounderDef& d, Matrix W, float shoulder, float wrist
         rt::DrawStatic(S.wingOut, MatrixMultiply(MatrixMultiply(MatrixMultiply(MatrixScale(1 - fold * 0.3f, 1, 1), mir), el), MatrixMultiply(MatrixTranslate(-inLen * side, 0, 0), shB)), tint);
     };
     rt::DrawStatic(S.body, W, tint);
-    Matrix headM = MatrixMultiply(MatrixMultiply(MatrixRotateX(headTilt), MatrixTranslate(0, L * 0.1f, L * 0.5f)), W);
+    Matrix headM = MatrixMultiply(MatrixMultiply(MatrixRotateX(headTilt), MatrixTranslate(0, L * (longNeck ? 0.45f : 0.1f), L * (longNeck ? 0.56f : 0.5f))), W);
     rt::DrawStatic(S.head, headM, tint);
-    rt::DrawStatic(S.beak, MatrixMultiply(MatrixTranslate(0, 0, L * 0.17f), headM));
+    float bs = lk ? lk->beak : 1.0f;
+    rt::DrawStatic(S.beak, MatrixMultiply(MatrixMultiply(MatrixScale(bs, bs, bs), MatrixTranslate(0, 0, L * 0.17f)), headM), lk && lk->beakTinted ? lk->beakC : WHITE);
     rt::DrawStatic(S.tail, MatrixMultiply(MatrixMultiply(MatrixScale(tailSpread, 1, 1), MatrixMultiply(MatrixRotateX(-0.15f + 0.4f * flare), MatrixTranslate(0, 0, -L * 0.42f))), W), tint);
     wing(1); wing(-1);
+    if (lk) {   // the costume's hat and extras
+        float r = L * 0.17f;
+        if (!lk->hat.empty()) DrawHat(lk->hat, lk->hatC, headM, r);
+        DrawExtras(*lk, W, headM, L, r, fold < 0.5f);
+    }
 }
 Matrix PoseWorld(Vector3 pos, float yaw, float pitch, float bank, float scale) {
     Matrix m = MatrixScale(scale, scale, scale);
@@ -340,6 +461,29 @@ Matrix PoseWorld(Vector3 pos, float yaw, float pitch, float bank, float scale) {
     m = MatrixMultiply(m, MatrixRotateZ(pitch));
     m = MatrixMultiply(m, MatrixRotateY(-yaw));
     return MatrixMultiply(m, MatrixTranslate(pos.x, pos.y, pos.z));
+}
+// the costume's effects in the world (after the bird): embers, lightning on a dive, a blur, the gulls or chicks that follow
+void DrawCostumeFx(const fl::CostumeLook& lk, Vector3 pos, Vector3 vel, float yaw, float L, bool diving, bool night) {
+    if (lk.fx == "embers") for (int k = 0; k < 10; k++) { float ph = fmodf(S.t * 0.8f + k * 0.1f, 1.0f); Vector3 p = Vector3Add(pos, Vector3Add(Vector3Scale(vel, -0.12f * ph * 4), {sinf(k * 2.3f) * 0.3f, 0.4f * ph, cosf(k * 1.7f) * 0.3f})); rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.06f * (1 - ph), 0.06f * (1 - ph), 0.06f * (1 - ph)), MatrixTranslate(p.x, p.y, p.z)), Color{255, (unsigned char)(160 - 100 * ph), 40, 255}, 2.0f); }
+    if (lk.fx == "lightning" && diving) { Vector3 a = pos; for (int k = 0; k < 6; k++) { Vector3 b = Vector3Add(a, {sinf(S.t * 40 + k * 3) * 0.5f, -0.7f, cosf(S.t * 37 + k * 2) * 0.5f}); Vector3 m = Vector3Scale(Vector3Add(a, b), 0.5f); float len = Vector3Distance(a, b); rt::DrawCubeGlow(MatrixMultiply(MatrixMultiply(MatrixScale(0.05f, len, 0.05f), MatrixRotateZ(atan2f(b.x - a.x, a.y - b.y))), MatrixTranslate(m.x, m.y, m.z)), Color{200, 220, 255, 255}, 3.0f); a = b; } }
+    if (lk.fx == "blur") for (int k = 0; k < 6; k++) {   // (speed streaks off the wingtips)
+        float side = k % 2 ? 1.0f : -1.0f, ph = fmodf(S.t * 3 + k * 0.17f, 1.0f);
+        Vector3 f{cosf(yaw), 0, sinf(yaw)}, r{-f.z, 0, f.x};
+        Vector3 p = Vector3Add(pos, Vector3Add(Vector3Scale(r, side * L * (0.9f + 0.2f * (k / 2))), Vector3Scale(f, -L * (0.5f + 1.5f * ph))));
+        rt::DrawCubeGlow(MatrixMultiply(MatrixMultiply(MatrixScale(L * 0.03f, L * 0.03f, L * 0.6f), MatrixRotateY(-yaw + PI * 0.5f)), MatrixTranslate(p.x, p.y, p.z)), Color{160, 255, 220, 255}, 1.2f * (1 - ph));
+    }
+    if (lk.glow && night) rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.25f, 0.25f, 0.25f), MatrixTranslate(pos.x, pos.y - L * 0.5f, pos.z)), Color{255, 220, 150, 255}, 3.0f);
+    if (!lk.follow.empty()) {
+        bool chicks = lk.follow == "chicks";
+        for (int k = 0; k < 3; k++) {
+            float back = L * (4.5f + 2.6f * k), side = (k - 1) * L * 2.2f;
+            Vector3 f{cosf(yaw), 0, sinf(yaw)}, r{-f.z, 0, f.x};
+            Vector3 p = Vector3Add(pos, Vector3Add(Vector3Scale(f, -back), Vector3Add(Vector3Scale(r, side), {0, 0.3f * sinf(S.t * 2 + k), 0})));
+            if (chicks) rt::DrawStatic(S.chick, MatrixMultiply(MatrixMultiply(MatrixScale(1.6f, 1.6f, 1.6f), MatrixRotateY(-yaw + PI * 0.5f)), MatrixTranslate(p.x, p.y - 0.15f, p.z)), Color{255, 230, 140, 255});
+            else { const fl::CostumeLook* keep = gLook; gLook = nullptr; float b = sinf(S.t * 9 + k * 2);
+                   DrawBirdBody(WD().Def(), PoseWorld(p, yaw, 0, 0, 0.45f), 0.5f * b, 0.3f * b, 0, 0, 0, 0.7f, Color{250, 250, 252, 255}); gLook = keep; }
+        }
+    }
 }
 void DrawCarried(const fl::World& w, Matrix W, float L, int sp, int twigs, float yaw, float pitch) {
     if (sp >= 0 && w.eco.map) {
@@ -377,13 +521,16 @@ void DrawBird(const fl::World& w, float dt) {
     float beat = sinf(S.flapPh);
     float shoulder = S.flapAmt * (0.25f + 0.75f * (1 - tired * 0.4f)) * 0.75f * beat + 0.08f * (1 - S.flapAmt) + 0.05f * sinf(S.t * 1.3f);
     float wrist = S.flapAmt * 0.45f * sinf(S.flapPh - 0.9f);
+    SideLook look = ParseLook(const_cast<fl::World&>(w).LookOf(w.cur));
+    gLook = look.costume ? &look.costume->look : nullptr;
     DrawBirdBody(d, W, shoulder, wrist, S.fold, S.flare, f.st == fl::FState::Strike ? 0.35f : -0.1f * f.pitch, 0.7f + 0.6f * S.flare + 0.2f * fabsf(f.bank));
+    gLook = nullptr;
     DrawCarried(w, W, L, f.carrySp, f.carryTwigs, f.yaw, f.pitch);
+    if (look.costume) DrawCostumeFx(look.costume->look, f.pos, f.vel, f.yaw, L, f.st == fl::FState::Strike || f.pitch < -0.6f, w.DayPhase() < 0.2f || w.DayPhase() > 0.85f);
 }
 // the colony's birds: smaller than the Founder (its species, the colony's look), posed from their motion; a warrior's
 // role shows in its size and colouring (a small sleek Skirmisher, a dark Striker, a round pale Watcher, a gull-white
 // Screamer, a black Flockmaster, a heavy Tank); a rival's birds wear its livery
-Color Tint(Color a, Color b) { return {(unsigned char)(a.r * b.r / 255), (unsigned char)(a.g * b.g / 255), (unsigned char)(a.b * b.b / 255), 255}; }
 void RoleLook(fl::Role r, float* scale, Color* tint) {
     switch (r) {
     case fl::Role::Skirmisher: *scale = 0.62f; *tint = {235, 235, 245, 255}; break;
@@ -395,7 +542,7 @@ void RoleLook(fl::Role r, float* scale, Color* tint) {
     default: *scale = 0.75f; *tint = WHITE; break;
     }
 }
-void DrawColonyBird(const fl::World& w, const fl::Bird& b, Color side) {
+void DrawColonyBird(const fl::World& w, const fl::Bird& b, Color side, const SideLook* look = nullptr) {
     const fl::FounderDef& d = w.Def();
     float L = 0.22f + d.span * 0.14f;
     float sp = Vector3Length(b.vel);
@@ -407,11 +554,14 @@ void DrawColonyBird(const fl::World& w, const fl::Bird& b, Color side) {
     Matrix W = PoseWorld(b.pos, b.yaw, pitch, b.netT > 0 ? 0.6f * sinf(S.t * 20) : 0, sc);
     float beat = sinf(b.flapPh);
     float shoulder = sitting ? 0 : diving ? 0.1f : 0.55f * beat + 0.05f;
+    if (look && look->colour) side = Mix(WHITE, look->colour->c, 0.6f);   // (the colony's livery colour)
+    gLook = look && look->hat ? &look->hatLook : nullptr;   // (and its hat)
     DrawBirdBody(d, W, shoulder, sitting ? 0 : 0.35f * sinf(b.flapPh - 0.9f), sitting ? 1.0f : diving ? 0.85f : 0.0f, 0, sitting ? 0.1f * sinf(S.t * 2 + b.id) : 0, 0.7f, Tint(tint, side));
+    gLook = nullptr;
     DrawCarried(w, W, L * sc, b.carrySp, b.carryTwigs + b.carryShells, b.yaw, pitch);
     if (b.role == fl::Role::Tank) rt::DrawCubeM(MatrixMultiply(MatrixScale(L * 0.5f, L * 0.08f, L * 0.7f), MatrixMultiply(MatrixTranslate(0, L * 0.22f, 0), W)), Color{214, 206, 190, 255});   // (shell armour on its back)
 }
-void DrawColony(const fl::World& w, const fl::Colony& c, const Camera3D& cam, Color side) {
+void DrawColony(const fl::World& w, const fl::Colony& c, const Camera3D& cam, Color side, const SideLook* look = nullptr) {
     // nests: built ones whole; under way, a flat ring that thickens with its twigs
     for (const auto& n : c.nests) {
         if (Vector3Distance(n.pos, cam.position) > 400) continue;
@@ -438,7 +588,7 @@ void DrawColony(const fl::World& w, const fl::Colony& c, const Camera3D& cam, Co
             float bob = 0.04f * fabsf(sinf(S.t * 3 + b.id)), grow = 0.6f + 0.25f * std::min(1.0f, b.age / fl::Econ().chickDays);
             Matrix m = MatrixMultiply(MatrixMultiply(MatrixScale(grow, grow, grow), MatrixRotateY(b.id * 1.3f + 0.4f * sinf(S.t + b.id))), MatrixTranslate(b.pos.x, b.pos.y + bob, b.pos.z));
             rt::DrawStatic(S.chick, m, b.hunger < 0.25f ? Color{200, 170, 160, 255} : WHITE);
-        } else DrawColonyBird(w, b, side);
+        } else DrawColonyBird(w, b, side, look);
     }
     // caches: a twig platform on the ground with its fish on it; the colony's twig stock beside the first
     for (size_t i = 0; i < c.caches.size(); i++) {
@@ -678,18 +828,25 @@ void DrawWorld(const fl::World& w, const Camera3D& cam, float dt) {
             rt::DrawCubeM(m, PC[std::clamp(pr.kind, 0, 7)]);
         }
     }
-    DrawColony(w, w.col, cam, WHITE);
+    fl::World& wm = const_cast<fl::World&>(w);
+    bool night = w.DayPhase() < 0.2f || w.DayPhase() > 0.85f;
+    { SideLook mine = ParseLook(wm.LookOf(w.cur)); DrawColony(w, w.col, cam, WHITE, &mine); }
     for (int s = 0; s <= (int)w.sides.size(); s++) {
         if (s == w.cur) continue;
-        DrawColony(w, w.ColOf(s), cam, w.SideColor(s));
+        SideLook look = ParseLook(wm.LookOf(s));
+        Color sc = look.colour ? look.colour->c : w.SideColor(s);
+        DrawColony(w, w.ColOf(s), cam, w.SideColor(s), &look);
         const fl::Founder& f = w.FounderOf(s);
         if (f.st == fl::FState::Dead || f.st == fl::FState::Under || Vector3Distance(f.pos, cam.position) > 260) continue;
         bool flying = f.st == fl::FState::Fly || f.st == fl::FState::Strike;
-        DrawBirdBody(w.Def(), PoseWorld(f.pos, f.yaw, flying ? f.pitch : 0, flying ? f.bank : 0, f.chick ? 0.7f : 1.0f), flying ? 0.5f * sinf(S.t * 7 + s) : 0, flying ? 0.25f : 0, flying ? 0.1f : 1.0f, 0, 0, 0.7f, w.SideColor(s));
+        gLook = look.costume ? &look.costume->look : nullptr;
+        DrawBirdBody(w.Def(), PoseWorld(f.pos, f.yaw, flying ? f.pitch : 0, flying ? f.bank : 0, f.chick ? 0.7f : 1.0f), flying ? 0.5f * sinf(S.t * 7 + s) : 0, flying ? 0.25f : 0, flying ? 0.1f : 1.0f, 0, 0, 0.7f, sc);
+        gLook = nullptr;
+        if (look.costume) DrawCostumeFx(look.costume->look, f.pos, f.vel, f.yaw, 0.22f + w.Def().span * 0.14f, f.st == fl::FState::Strike, night);
         DrawCarried(w, PoseWorld(f.pos, f.yaw, 0, 0, 1.0f), 0.22f + w.Def().span * 0.14f, f.carrySp, f.carryTwigs, f.yaw, f.pitch);
         if (w.multi && Vector3Distance(f.pos, cam.position) < 120) {   // (a person's Founder: their name over it)
             Vector3 fwd = Vector3Normalize(Vector3Subtract(cam.target, cam.position));
-            if (Vector3DotProduct(Vector3Subtract(f.pos, cam.position), fwd) > 0) { gNames.push_back({Vector3Add(f.pos, {0, 1.6f, 0}), w.SideName(s), w.SideColor(s)}); }
+            if (Vector3DotProduct(Vector3Subtract(f.pos, cam.position), fwd) > 0) { gNames.push_back({Vector3Add(f.pos, {0, 1.6f, 0}), w.SideName(s) + (look.costume && look.costume->look.label == "best" ? TextFormat("  (best %d)", look.best) : ""), w.SideColor(s)}); }   // (the Founder's Crown shows the best score)
         }
     }
     DrawWarFx(w);
@@ -1521,12 +1678,207 @@ void Start(Game& g, const std::string& founder, uint32_t seed, bool shot, const 
     if (!rt::DataOk(&why)) { g.scene = Scene::Arcade; return; }
     S.active = true; S.shot = shot; S.founder = founder; S.opts = o;
     S.W.Init(founder, seed, o);
+    S.W.LookOf(0) = shot ? std::string() : MyLook();   // (your costume and livery; shots wear none unless they say)
 
     S.chart = false; S.panel = false; S.chartZoom = 1; S.chartAt = {0, 0};
     S.aimYaw = WD().me.yaw; S.aimPitch = 0.1f; S.camYaw = S.aimYaw; S.camPitch = -0.1f;
     S.t = 0; S.help = true;
     g.scene = Scene::Flight;
 }
+// ---------------------------------------------------------------- the Roost wardrobe (stage 8; doc pp. 28-30)
+// From the arcade's Flight reel: the token shop, the egg crate (tap an egg), the colony liveries and what you own, with
+// your Founder turning on a perch in the costume picked. Its own bird models (a preview), freed when a match starts.
+struct WardrobeUi { int tab = 0, sel = -1, scroll = 0; std::string pick, msg; float msgT = 0, hatchT = 0; int hatchTier = -1; bool shotMode = false; };
+WardrobeUi gWr;
+int gPreviewFor = -1;
+void FreePreview() {
+    if (gPreviewFor < 0) return;
+    for (Model* m : {&S.body, &S.head, &S.beak, &S.tail, &S.wingIn, &S.wingOut, &S.egg, &S.chick}) UnloadModel(*m);
+    gPreviewFor = -1;
+}
+void BuildEggChick(const fl::FounderDef& d) {
+    { rt::MeshBuilder mb; mb.Lathe(0.075f, 5, 8, [](float u) { return 0.028f * sinf(std::max(0.05f, u) * PI) * (1.1f - 0.25f * u); }, [](float u) { return 0.028f * sinf(std::max(0.05f, u) * PI) * (1.1f - 0.25f * u); }, {244, 238, 226, 255}, {226, 218, 204, 255}); S.egg = LoadModelFromMesh(mb.Build()); }
+    { rt::MeshBuilder mb;
+      Color down = Mix(d.belly, Color{200, 196, 186, 255}, 0.6f);
+      mb.Lathe(0.16f, 5, 8, [](float u) { return 0.075f * sinf(std::max(0.08f, u) * PI); }, [](float u) { return 0.07f * sinf(std::max(0.08f, u) * PI); }, down, Shade(down, 0.85f), {0, 0.07f, 0});
+      mb.Lathe(0.09f, 4, 8, [](float u) { return 0.045f * sinf(std::max(0.08f, u) * PI); }, [](float u) { return 0.045f * sinf(std::max(0.08f, u) * PI); }, down, Shade(down, 0.9f), {0, 0.16f, 0.06f});
+      mb.Cone({0, 0.16f, 0.1f}, {0, 0.17f, 0.15f}, 0.018f, 5, d.accent);
+      S.chick = LoadModelFromMesh(mb.Build()); }
+}
+void EnsurePreview(int fi) {
+    if (!IsWindowReady()) return;
+    if (S.ready) FreeModels();   // (a match's models: the preview builds its own bird)
+    if (gPreviewFor == fi) return;
+    FreePreview();
+    const fl::FounderDef& d = fl::Founders()[std::clamp(fi, 0, (int)fl::Founders().size() - 1)];
+    BuildBird(d); BuildEggChick(d);
+    gPreviewFor = fi;
+}
+// the 3D: noon light over a sea-coloured backdrop; the birds placed by the caller
+void PreviewBegin(Camera3D& cam) {
+    DayLook day = Day(0.45f);
+    rt::SceneLight L;
+    L.fog = day.horizon; L.fogDensity = 0.0008f; L.fogBanks = 0;
+    L.key = {0, 0, 0, 255}; L.lampRange = 1; L.lampPos = {0, -500, 0}; L.lampDir = {0, -1, 0};
+    L.fill = Shade(day.amb, 0.5f); L.rim = Shade(day.horizon, 0.6f);
+    L.moonDir = Vector3Negate(day.toSun); L.moon = day.sun; L.moonK = day.sunK;
+    L.skyAmb = day.amb; L.seaAmb = Shade(day.amb, 0.45f); L.ambK = day.ambK;
+    L.surfaceY = 1e5f; L.time = S.t;
+    L.outline = 0.45f; L.outlineTint = {36, 44, 52, 255}; L.stipple = 0; L.grain = 0.25f;
+    L.aoK = 0.5f; L.aoRadius = 0.5f; L.filmic = 0; L.saturation = 1.3f;
+    rt::ApplyGameQuality();
+    rt::RenderBegin(cam, L);
+    rt::SkyLook sk; sk.zenith = day.zenith; sk.horizon = day.horizon; sk.cloud = day.cloud; sk.moonDir = day.toSun; sk.moonPhase = 0.5f; sk.cloudCover = 0.3f; sk.stars = 0; sk.time = S.t;
+    rt::DrawSkyDome(sk);
+    rt::DrawWorldCube({0, -60, 0}, {600, 1, 600}, Color{40, 130, 150, 255});
+}
+// one Founder on a perch, wearing a look (and, for a livery, three colony birds beside it)
+void PreviewBird(const fl::FounderDef& d, Vector3 at, float yaw, const fl::CostumeLook* look, bool flying, const SideLook* livery = nullptr, float size = 1) {
+    float L = (0.22f + d.span * 0.14f) * size;
+    if (!flying) rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(L * 1.5f, L * 0.4f, L * 1.1f), MatrixRotateY(0.4f)), MatrixTranslate(at.x, at.y - L * 0.5f, at.z)), Color{150, 140, 120, 255});
+    gLook = look;
+    float b = sinf(S.t * 6);
+    DrawBirdBody(d, PoseWorld(at, yaw, 0, 0, size), flying ? 0.5f * b : 0, flying ? 0.3f * b : 0, flying ? 0 : 1.0f, 0, 0.1f * sinf(S.t * 1.3f), 0.8f, WHITE);
+    gLook = nullptr;
+    if (look) DrawCostumeFx(*look, at, {cosf(yaw) * 4, 0, sinf(yaw) * 4}, yaw, L, false, false);
+    if (livery && (livery->colour || livery->hat)) for (int k = 0; k < 3; k++) {
+        Vector3 p{at.x - L * 2.0f + L * 2.0f * k, at.y - L * 0.3f, at.z - L * 3.2f};
+        rt::DrawCubeM(MatrixMultiply(MatrixScale(L * 1.0f, L * 0.3f, L * 0.8f), MatrixTranslate(p.x, p.y - L * 0.4f, p.z)), Color{150, 140, 120, 255});
+        gLook = livery->hat ? &livery->hatLook : nullptr;
+        DrawBirdBody(d, PoseWorld(p, yaw + 0.3f * (k - 1), 0, 0, 0.75f), 0, 0, 1.0f, 0, 0.1f * sinf(S.t * 2 + k), 0.7f, livery->colour ? Mix(WHITE, livery->colour->c, 0.6f) : WHITE);
+        gLook = nullptr;
+    }
+}
+bool WardrobeRow(Rectangle r, const std::string& name, int tier, const std::string& right, bool sel, bool worn) {
+    bool hover = CheckCollisionPointRec(GetMousePosition(), r);
+    DrawRectangleRounded(r, 0.25f, 4, sel ? Color{90, 66, 40, 230} : hover ? Color{44, 52, 60, 230} : Color{24, 32, 40, 210});
+    DrawRectangle((int)r.x + 4, (int)r.y + 5, 4, (int)r.height - 10, fl::CostumeTierColor(tier));
+    TxtBold(name + (worn ? "  (worn)" : ""), r.x + 16, r.y + 5, 15, worn ? Color{255, 226, 150, 255} : Color{246, 242, 230, 255});
+    Txt(right, r.x + r.width - 8 - MeasureText(right.c_str(), 13), r.y + 7, 13, Color{200, 214, 214, 255});
+    bool hit = hover && IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
+    if (hit) PlayCue("ui.click");
+    return hit;
+}
+}  // namespace
+
+bool FlightWardrobePage(int founder) {
+    float dt = std::min(GetFrameTime(), 1 / 30.0f);
+    S.t += dt;
+    EnsurePreview(founder);
+    const fl::FounderDef& d = fl::Founders()[std::clamp(founder, 0, (int)fl::Founders().size() - 1)];
+    fl::FlightWardrobe& W = fl::Wardrobe();
+    const fl::CostumeData& D = fl::Costumes();
+    // what's on the perch: the row picked, else what's worn
+    const fl::CostumeDef* show = fl::FindCostume(gWr.pick.empty() ? W.costume : gWr.pick);
+    SideLook liv = ParseLook(";" + W.liveryColour + ";" + W.liveryHat);
+    if (const fl::LiveryColour* c = fl::FindLiveryColour(gWr.pick)) liv.colour = c;
+    if (const fl::LiveryHat* h = fl::FindLiveryHat(gWr.pick)) { liv.hat = h; liv.hatLook = fl::CostumeLook{}; liv.hatLook.hat = h->hat; liv.hatLook.hatC = h->c; }
+    // ---- the 3D: the Founder turning on its perch
+    Camera3D cam{}; cam.up = {0, 1, 0}; cam.fovy = 30; cam.projection = CAMERA_PERSPECTIVE;
+    float sc = show ? std::min(show->look.scale, 1.6f) : 1.0f;
+    float span = 0.6f + d.span * 0.35f;   // (frame the bird by its size, on the right half of the screen)
+    cam.target = {-0.55f * span * sc, 0.1f * sc, -0.3f}; cam.position = {-0.55f * span * sc, 0.6f + 0.4f * sc, 2.7f * span * sc};
+    PreviewBegin(cam);
+    PreviewBird(d, {0, 0, 0}, -PI * 0.5f + S.t * 0.6f, show ? &show->look : nullptr, false, &liv);
+    rt::RenderEnd();
+    // ---- the page (the left half; the bird stays visible on the right)
+    Color ink{250, 248, 236, 255}, dim{200, 214, 214, 255}, gold{255, 220, 150, 255};
+    DrawRectangleRounded({16, 16, 480, SCREEN_H - 32.0f}, 0.03f, 6, Fade(Color{8, 18, 28, 255}, 0.88f));
+    DrawRectangleRoundedLinesEx({16, 16, 480, SCREEN_H - 32.0f}, 0.03f, 6, 2, Color{214, 180, 110, 255});
+    TxtBold("The Roost wardrobe", 32, 26, 24, ink);
+    Txt(TextFormat("%s   %d tokens   %d crates   %d feathers", d.name.c_str(), W.tokens, W.crates, W.feathers), 32, 56, 14, gold);
+    static const char* TABS[4] = {"Shop", "Eggs", "Liveries", "Mine"};
+    for (int k = 0; k < 4; k++) { if (SmallBtn({32 + k * 112.0f, 80, 104, 26}, TABS[k])) { gWr.tab = k; gWr.pick.clear(); gWr.scroll = 0; } if (gWr.tab == k) DrawRectangleLinesEx({30 + k * 112.0f, 78, 108, 30}, 2, Color{200, 60, 40, 255}); }
+    float y = 118;
+    auto act = [&](const std::string& id, int price, bool buyable) {   // the buy / wear button under the list
+        bool own = W.Owns(id), worn = W.costume == id || W.liveryColour == id || W.liveryHat == id;
+        std::string why;
+        if (!own && buyable) { if (SmallBtn({32, SCREEN_H - 82.0f, 220, 30}, TextFormat("Buy for %d tokens", price), W.tokens >= price)) { if (fl::BuyCostume(id, &why)) { gWr.msg = "Yours."; PlayCue("arc.win"); } else gWr.msg = why; gWr.msgT = 3; } }
+        else if (own && SmallBtn({32, SCREEN_H - 82.0f, 220, 30}, worn ? "Take it off" : "Wear it")) { if (worn && fl::FindCostume(id)) fl::WearCostume(""); else fl::WearCostume(id); }
+    };
+    if (gWr.tab == 0 || gWr.tab == 3) {   // the shop, or everything you own
+        int row = 0;
+        for (const auto& c : D.costumes) {
+            if (gWr.tab == 0 && c.tier != fl::CT_SHOP) continue;
+            if (gWr.tab == 3 && !W.Owns(c.id)) continue;
+            if (row++ < gWr.scroll) continue;
+            if (y > SCREEN_H - 150) break;
+            std::string right = W.Owns(c.id) ? std::string(fl::CostumeTierName(c.tier)) : TextFormat("%d tokens", c.price);
+            if (WardrobeRow({32, y, 448, 30}, c.name, c.tier, right, gWr.pick == c.id, W.costume == c.id)) gWr.pick = c.id;
+            y += 34;
+        }
+        if (row == 0) DrawWrapped(gWr.tab == 3 ? "Nothing yet: buy one in the shop, or hatch an egg." : "", {32, y, 440, 40}, 14, dim);
+        if (GetMouseWheelMove() != 0 && GetMousePosition().x < 496) gWr.scroll = std::clamp(gWr.scroll - (int)GetMouseWheelMove(), 0, std::max(0, row - 10));
+        if (const fl::CostumeDef* c = fl::FindCostume(gWr.pick)) { DrawWrapped(c->note, {32, SCREEN_H - 128.0f, 440, 40}, 14, dim); act(c->id, c->price, c->tier == fl::CT_SHOP); }
+    } else if (gWr.tab == 1) {   // the egg crate: a nest of eggs; tap one
+        DrawWrapped(TextFormat("One token, one crate. Tap an egg and it hatches a costume: common %d%%, rare %d%%, super rare %d%%, special %d%%. A costume you already have hatches a feather and nothing else.", D.odds[fl::CT_COMMON], D.odds[fl::CT_RARE], D.odds[fl::CT_SUPER], D.odds[fl::CT_SPECIAL]), {32, y, 440, 70}, 14, dim);
+        y += 80;
+        if (SmallBtn({32, y, 220, 30}, TextFormat("Buy a crate (%d token)", D.cratePrice), W.tokens >= D.cratePrice)) { std::string why; if (!fl::BuyCrate(&why)) { gWr.msg = why; gWr.msgT = 3; } }
+        y += 50;
+        Vector2 nc{256, y + 90};
+        DrawEllipse((int)nc.x, (int)nc.y + 40, 190, 50, Color{120, 92, 60, 255});
+        DrawEllipse((int)nc.x, (int)nc.y + 34, 170, 40, Color{90, 68, 44, 255});
+        for (int k = 0; k < 5; k++) {
+            Vector2 e{nc.x - 120 + k * 60.0f, nc.y + 10 + 6 * (k % 2)};
+            bool have = k < W.crates;
+            bool hover = have && CheckCollisionPointCircle(GetMousePosition(), e, 26);
+            float wob = hover ? 3 * sinf(S.t * 20) : 0;
+            DrawEllipse((int)(e.x + wob), (int)e.y, 22, 30, have ? (hover ? Color{255, 246, 226, 255} : Color{240, 232, 214, 255}) : Fade(Color{240, 232, 214, 255}, 0.18f));
+            if (have) DrawEllipse((int)(e.x + wob - 6), (int)e.y - 10, 5, 8, Fade(WHITE, 0.6f));
+            if (hover && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+                fl::EggRoll r = fl::OpenEgg((uint32_t)(GetTime() * 1000) ^ (uint32_t)(W.feathers * 7919 + W.owned.size() * 104729));
+                if (r.ok) { gWr.hatchT = 2.5f; gWr.hatchTier = r.tier; gWr.pick = r.duplicate ? "" : r.id; const fl::CostumeDef* c = fl::FindCostume(r.id);
+                            gWr.msg = r.duplicate ? std::string("A feather: you already have ") + (c ? c->name : r.id) + "." : TextFormat("Hatched: %s (%s)!", c ? c->name.c_str() : r.id.c_str(), fl::CostumeTierName(r.tier)); gWr.msgT = 5;
+                            PlayCue(r.tier >= fl::CT_SUPER && !r.duplicate ? "arc.win" : "ui.click"); }
+            }
+        }
+        if (gWr.hatchT > 0) { gWr.hatchT -= dt; for (int k = 0; k < 14; k++) { float a = k * 0.45f, rr = 40 + 120 * (1 - gWr.hatchT / 2.5f); DrawCircleV({nc.x + cosf(a) * rr, nc.y + sinf(a) * rr * 0.6f}, 4, Fade(fl::CostumeTierColor(gWr.hatchTier), gWr.hatchT / 2.5f)); } }
+        DrawTextCentered(W.crates ? TextFormat("%d crate%s to open", W.crates, W.crates == 1 ? "" : "s") : "No crates: buy one above", nc.x, nc.y + 100, 15, ink);
+        if (const fl::CostumeDef* c = fl::FindCostume(gWr.pick)) act(c->id, 0, false);
+    } else {   // liveries: a colour and a hat for every bird in the colony
+        TxtBold("Colours (the whole colony)", 32, y, 15, gold); y += 22;
+        for (const auto& c : D.colours) { std::string right = W.Owns(c.id) ? "owned" : TextFormat("%d tokens", c.price);
+            Rectangle rr{32, y, 448, 26}; if (WardrobeRow(rr, c.name, fl::CT_SHOP, right, gWr.pick == c.id, W.liveryColour == c.id)) gWr.pick = c.id;
+            DrawRectangle((int)rr.x + 200, (int)rr.y + 6, 40, 14, c.c); y += 29; }
+        y += 8; TxtBold("Hats (every bird wears one)", 32, y, 15, gold); y += 22;
+        for (const auto& h : D.hats) { std::string right = W.Owns(h.id) ? "owned" : TextFormat("%d tokens", h.price);
+            if (WardrobeRow({32, y, 448, 26}, h.name, fl::CT_SHOP, right, gWr.pick == h.id, W.liveryHat == h.id)) gWr.pick = h.id; y += 29; }
+        if (fl::FindLiveryColour(gWr.pick)) act(gWr.pick, fl::FindLiveryColour(gWr.pick)->price, true);
+        else if (fl::FindLiveryHat(gWr.pick)) act(gWr.pick, fl::FindLiveryHat(gWr.pick)->price, true);
+    }
+    if (gWr.msgT > 0) { gWr.msgT -= dt; DrawTextCenteredBold(gWr.msg, 880, SCREEN_H - 110.0f, 20, Fade(gold, std::min(1.0f, gWr.msgT))); }
+    if (show) { float tw = (float)MeasureText(show->name.c_str(), 24) + 60; DrawRectangleRounded({880 - tw / 2, 28, tw, 62}, 0.3f, 6, Fade(Color{8, 18, 28, 255}, 0.75f)); DrawTextCenteredBold(show->name, 880, 36, 24, fl::CostumeTierColor(show->tier)); DrawTextCentered(fl::CostumeTierName(show->tier), 880, 66, 14, dim); }
+    DrawTextCentered("Tokens: 10 a match, 1 per 50 score, 5 for each first, 20 for a win", 880, SCREEN_H - 40.0f, 13, dim);
+    return SmallBtn({SCREEN_W - 156.0f, 20, 140, 30}, "Back");
+}
+// --shots: the wardrobe (a shop costume on the perch), and the gallery of every costume (page by page)
+void DebugFlightWardrobe(int tab, const char* pick) {
+    fl::gWardrobeNoSave = true; fl::LoadWardrobe();
+    fl::FlightWardrobe& W = fl::Wardrobe(); W.tokens = 340; W.crates = 3; W.feathers = 2; W.owned = {"admiral", "rubber_duck", "phoenix", "lagoon", "caps"}; W.costume = "admiral"; W.liveryColour = "lagoon"; W.liveryHat = "caps";
+    gWr = WardrobeUi{}; gWr.tab = tab; gWr.pick = pick ? pick : "";
+}
+void DrawFlightCostumeGallery(int page) {
+    EnsurePreview(0);
+    const auto& C = fl::Costumes().costumes;
+    const int PER = 14;
+    Camera3D cam{}; cam.up = {0, 1, 0}; cam.fovy = 40; cam.projection = CAMERA_PERSPECTIVE; cam.target = {0, 0.3f, 0}; cam.position = {0, 2.2f, 9.5f};
+    PreviewBegin(cam);
+    struct Lab { Vector3 p; const fl::CostumeDef* c; };
+    std::vector<Lab> labs;
+    for (int i = 0; i < PER; i++) {
+        int idx = page * PER + i; if (idx >= (int)C.size()) break;
+        int row = i / 7, col = i % 7;
+        Vector3 at{-5.25f + col * 1.75f, 1.3f - row * 2.6f, -row * 0.5f};
+        const fl::CostumeDef& c = C[idx];
+        fl::CostumeLook lk = c.look; if (lk.scale > 1.2f) lk.scale = 1.6f;   // (the Roc, shrunk to fit the page)
+        PreviewBird(fl::Founders()[0], at, -PI * 0.5f + 0.5f, &lk, false, nullptr, lk.scale > 1.2f ? 1.6f : 2.3f);
+        labs.push_back({Vector3Add(at, {0, -0.75f, 0}), &c});
+    }
+    rt::RenderEnd();
+    for (const auto& l : labs) { Vector2 p = GetWorldToScreenEx(l.p, cam, SCREEN_W, SCREEN_H); float tw = (float)MeasureText(l.c->name.c_str(), 13) + 16; DrawRectangleRounded({p.x - tw / 2, p.y - 3, tw, 34}, 0.3f, 4, Fade(Color{8, 18, 28, 255}, 0.7f)); DrawTextCenteredBold(l.c->name, p.x, p.y, 13, fl::CostumeTierColor(l.c->tier)); DrawTextCentered(l.c->tier == fl::CT_SHOP ? TextFormat("%d tokens", l.c->price) : fl::CostumeTierName(l.c->tier), p.x, p.y + 15, 11, WHITE); }
+    DrawTextCenteredBold(TextFormat("The Flight: Founder costumes, page %d of %d", page + 1, ((int)C.size() + PER - 1) / PER), SCREEN_W / 2.0f, 14, 22, WHITE);
+}
+namespace {
 }  // namespace
 
 void StartFlight(Game& g, const char* founder, int isleType, int arrangement, int players) {
@@ -1566,6 +1918,15 @@ void FlightMenuTick(float dt) {
 // the end of a match: the standings, the winner, the way out
 static void DrawResults(Game& g, fl::World& w) {
     Color ink{250, 248, 236, 255}, dim{200, 214, 214, 255};
+    static int paid = -1; static const fl::World* paidFor = nullptr;
+    if (paidFor != &w || paid < 0) {   // (the match's tokens, once: 10, per 50 score, firsts, a win)
+        uint32_t firsts = 0;
+        if (w.ColOf(w.cur).krakenKill) firsts |= 1;
+        for (int i = 0; i < (int)w.isles.size(); i++) if (fl::IsDangerous(w.isles[i].type) && w.HolderOf(i) == w.cur) firsts |= 2;
+        for (int k = 0; k < (int)fl::Tree::COUNT; k++) if (w.ColOf(w.cur).tier[k] >= 4) firsts |= 4;
+        paid = S.shot ? fl::MatchTokens(w.Score(w.cur).total, w.winner == w.cur, firsts) : fl::AwardMatch(w.Score(w.cur).total, w.winner == w.cur, firsts);
+        paidFor = &w;
+    }
     DrawRectangle(0, 0, SCREEN_W, SCREEN_H, Fade(BLACK, 0.55f));
     Rectangle r{SCREEN_W / 2.0f - 450, 110, 900, 150.0f + 30 * (w.sides.size() + 1)};
     DrawRectangleRounded(r, 0.06f, 6, Fade(Color{8, 18, 28, 255}, 0.92f));
@@ -1586,8 +1947,9 @@ static void DrawResults(Game& g, fl::World& w) {
         for (int k = 0; k < 11; k++) Txt(TextFormat("%d", v[k]), r.x + 220 + k * 60.0f, y, 17, k == 10 ? col : ink);
         y += 30;
     }
+    DrawTextCenteredBold(TextFormat("+%d tokens for the Roost wardrobe (%d in all)", paid, fl::Wardrobe().tokens + (S.shot ? paid : 0)), SCREEN_W / 2.0f, r.y + r.height - 78, 16, Color{255, 220, 150, 255});
     bool host = !S.net || S.net->role == arcade::R_HOST;
-    if (Button({SCREEN_W / 2.0f - 120, r.y + r.height - 50, 240, 38}, S.net ? (host ? "Back to the lobby" : "Leave the table") : "Back to the arcade", true, 16)) LeaveFlight(g);
+    if (Button({SCREEN_W / 2.0f - 120, r.y + r.height - 50, 240, 38}, S.net ? (host ? "Back to the lobby" : "Leave the table") : "Back to the arcade", true, 16)) { paid = -1; LeaveFlight(g); }
 }
 const char* FlightFounderName(int i) { const auto& v = fl::Founders(); return i >= 0 && i < (int)v.size() ? v[i].name.c_str() : "?"; }
 const char* FlightFounderKey(int i) { const auto& v = fl::Founders(); return i >= 0 && i < (int)v.size() ? v[i].key.c_str() : "taloned"; }
@@ -1625,7 +1987,7 @@ void SceneFlight(Game& g) {
             return;
         }
         if (!S.helloSent) {   // (your name and your founder, once: the founder counts in the match's first 30 s)
-            Writer o; fl::OrderHello(o, S.netName, S.netFounder); N.Act(o); S.helloSent = true;
+            Writer o; fl::OrderHello(o, S.netName, S.netFounder, MyLook()); N.Act(o); S.helloSent = true;
             S.aimYaw = w.me.yaw; S.camYaw = S.aimYaw;
         }
         if (w.col.flocks.size() > S.flocksSeen && !w.col.flocks.empty()) S.selFlock = w.col.flocks.back().id;   // (a flock just formed is the one picked)

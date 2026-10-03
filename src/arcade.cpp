@@ -10,7 +10,8 @@
 #include "skins.h"
 #include "voice.h"
 #include "input.h"
-static int gWardrobe = -1;   // the skins page over the arcade (skins::TRAWL), -1 none
+static int gWardrobe = -1;
+static bool gFlWardrobe = false; static int gFlGallery = -1;   // the Flight's Roost wardrobe; a costume gallery page (--shots)   // the skins page over the arcade (skins::TRAWL), -1 none
 #include "sound.h"
 #include <algorithm>
 #include <cmath>
@@ -272,6 +273,7 @@ void DrawReels(Game& g) {
         { int pv = flPlayers - 2; cyc(376, "starting islands (solo)", pv, 5, TextFormat("%d: you and %d bot colonies", flPlayers, flPlayers - 1)); flPlayers = pv + 2; }
         DrawWrapped(FlightFounderLine(flSel), {40, 424, 244, 48}, 13, SCREEN_DIM);
         if (Button({c.x - 110, c.y + 236, 220, 36}, "Fly (solo)", true, 15)) { StartFlight(g, FlightFounderKey(flSel), flIsle, flArr, flPlayers); return; }
+        if (Button({c.x + 120, c.y + 236, 170, 36}, "Roost wardrobe", true, 14)) { gFlWardrobe = true; return; }
         DrawTextCentered("Host or Join to fly with friends (2-6; the host picks the map and the length in the lobby)", c.x, c.y + 280, 13, SCREEN_DIM);
     }
     if (selGame == G_RED_TIDE) {
@@ -940,6 +942,8 @@ void DrawRoom(Game& g) {
 void SceneArcade(Game& g) {
     if (!gProfileLoaded) LoadProfile();
     if (gWardrobe >= 0) { if (skins::WardrobePage(gWardrobe)) gWardrobe = -1; return; }
+    if (gFlGallery >= 0) { DrawFlightCostumeGallery(gFlGallery); return; }
+    if (gFlWardrobe) { if (FlightWardrobePage(gFlSel)) gFlWardrobe = false; return; }
     // the lobby's small noises: someone sits down, someone speaks
     static int lastSeats = 0; static size_t lastChat = 0;
     gSess.Update(GetTime(), GetFrameTime());
@@ -1025,6 +1029,10 @@ void DebugArcadeShot(int which) {
         } else TakeView();
     }
     SetAudioSuppressed(false);
+}
+void DebugArcadeFlightWardrobe(Game& g, int tab, const char* pick, int galleryPage) {
+    g.scene = Scene::Arcade; gFlGallery = galleryPage; gFlWardrobe = galleryPage < 0;
+    if (galleryPage < 0) DebugFlightWardrobe(tab, pick);
 }
 // --shots: the Wardrobe page with a few skins owned (in memory: shots never save)
 void DebugWardrobe(Game& g, int game) {

@@ -422,7 +422,11 @@ amespace {} reopened before DrawRichEnemy). Shots: `foes_new_cave|island|weeds|a
 - **The sea:** Red Tide's `rt::Ecosystem` on `data/flight/sea/<island>/` (map key `flight_<island>`; `MapLoad` and the art-sheet lookup redirect `flight_` keys). The bird is a Diver agent in the web while it is low over the water.
 - **Data files** must be saved as UTF-8 without a BOM: the JSON reader rejects a BOM.
 - **Checks:** `depth.exe --flight-test`. Shots: `flight_*`, `arcade_flight`.
-- **Stages 1-4 are done:** flight and fishing; the colony; islands, scouting and the map; war. Stage 5 (multiplayer) is next.
+- **Stages 1-7 are done:** flight and fishing; the colony; islands, scouting and the map; war; multiplayer; research, faith, trade and the twelve founders; dangerous islands, sieges, bombing and chemistry. Stage 8 (costumes, sound, internet play, balance) is next. Details per stage in docs/FLIGHT_PROGRESS.md.
+- **Stage 5, multiplayer** (`flight_net.*`): `FlightHost` on the arcade session. Every order goes through `ApplyOrder` (`FA_*`; solo too, via the scene's `Order()`). The snapshot is one templated `Visit`: any new field a screen draws must be added there. Checks: `--flight-net-test`, `--net-loop flight [mem]`.
+- **Stage 6, society** (`flight_society.cpp`; data `flight_research.json`, `flight_bends.json`, `flight_towns.json`): the Roost and research, fervour, towns, barter and truces, and the founders' bends (`BendOf`, `BendOfSide`). Checks: `--flight-society-test`, `--flight-sim founders`.
+- **Stage 7, dangers** (`flight_danger.cpp`, `flight_danger.json`): `HolderOf`, outposts, the kraken, ape, volcano, wreck, weather, blockade and wall, assault, the Works (bombs and stimulants). The scene's `DrawDangers`. Checks: `--flight-danger-test`, `--flight-siege [runs]` (the gate).
+- The war tests: `--flight-war [scenario|all]`. `DEPTH_FIGHTTRACE=1` prints each fight's end; `DEPTH_BOTTRACE=1` prints the bots scenario day by day.
 - **War (stage 4):** `flight_war.cpp` and `data/flight/flight_war.json`.
   - Warrior roles, flocks (`MakeFlock`, `OrderFlock`), morale (`Morale`), `StepWar` (fights, the five rules, raids, Watchers, home guards), hedges and towers (`Colony::builds`).
   - **Rivals are `Side`s** swapped into the World's fields to step (`SwapSide`; `ColOf(side)` and `FounderOf(side)` find any side's data wherever it is), run by `BotGovern` and `BotWar`.
