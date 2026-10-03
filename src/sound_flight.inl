@@ -199,3 +199,20 @@ void FlCueImpl(int kind, float vol, float pan, float pitch) {
         default: { Voice& v = Tone(c, W_SINE, 600, 600, 0.1f, 0.03f); v.decPow = 2; break; }
     }
 }
+// a colony's song (the Long Flight): a short phrase on a pentatonic scale from its seed, the species' pitch
+void FlSongImpl(uint32_t seed, float pitch, float vol, float pan) {
+    if (vol < 0.01f) return;
+    Ctx c{vol, 1, 1, 1, B_MUSIC, 0.5f};
+    PanGains(pan, c.gl, c.gr);
+    uint32_t h = seed * 2654435761u + 7;
+    auto nx = [&]() { h = h * 1664525u + 1013904223u; return (h >> 8) / 16777216.0f; };
+    static const int PENT[5] = {0, 2, 4, 7, 9};
+    float t = 0; int deg = (int)(nx() * 5);
+    for (int k = 0; k < 8; k++) {
+        deg = std::clamp(deg + (int)(nx() * 5) - 2, -2, 9);
+        int o = deg >= 0 ? deg / 5 : -1, d = ((deg % 5) + 5) % 5;
+        float f = FL_ROOT * 2 * std::clamp(pitch, 0.5f, 2.0f) * powf(2.0f, o + PENT[d] / 12.0f), dur = nx() < 0.3f ? 0.5f : 0.25f;
+        Voice& v = Tone(c, W_SAW, f, f, dur * 1.2f, 0.035f, t); v.fa0 = f * 1.5f; v.fa1 = f * 1.2f; v.fq = 3; v.vibR = 6; v.vibD = 0.03f; v.decPow = 1.2f; v.send = 0.6f;
+        t += dur;
+    }
+}

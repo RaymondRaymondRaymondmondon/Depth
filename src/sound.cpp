@@ -1155,6 +1155,7 @@ void AudioTrawl(const TwAudio& a) { gTw.want = a; }
 void TrawlCue(int kind, float vol, float pan, float pitch) { if (gReady && !gCueSuppressed) TwCueImpl(kind, vol, pan, pitch); }
 void AudioFlight(const FlAudio& a) { gFl.want = a; }
 void FlightCue(int kind, float vol, float pan, float pitch) { if (gReady && !gCueSuppressed) FlCueImpl(kind, vol * (1 - 0.6f * gFl.uwS), pan, pitch); }
+void FlightSong(uint32_t seed, float pitch, float vol, float pan) { if (gReady && !gCueSuppressed) FlSongImpl(seed, pitch, vol, pan); }
 float AudioBeat() { return gBeat; }
 void AudioReact(int kind) { if (gReady && !gCueSuppressed) ExpReact(kind); }
 void CombatVoice(int enemyType, float size, int cue, float pan) {

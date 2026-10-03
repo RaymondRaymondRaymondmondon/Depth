@@ -156,4 +156,5 @@ enum FlCue { FLC_FLAP, FLC_DIVE, FLC_SPLASH, FLC_STRUGGLE, FLC_SLAP, FLC_CALL, F
              FLC_FALL, FLC_NET, FLC_BOMB, FLC_BURN, FLC_SCREAM, FLC_ROUT, FLC_ROAR, FLC_REPORT, FLC_MAP, FLC_PEARL,
              FLC_ERUPT, FLC_THUNDER, FLC_ROCK, FLC_BELL, FLC_LAND, FLC_HATCH, FLC_EGG, FLC_DEATH, FLC_COUNT };
 void AudioFlight(const FlAudio& a);
-void FlightCue(int kind, float vol, float pan, float pitch = 1);   // pitch: the species' voice for calls, a bigger bird lower
+void FlightCue(int kind, float vol, float pan, float pitch = 1);
+void FlightSong(uint32_t seed, float pitch, float vol, float pan);   // (the Long Flight: a colony's song)   // pitch: the species' voice for calls, a bigger bird lower

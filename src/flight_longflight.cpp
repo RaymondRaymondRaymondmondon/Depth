@@ -14,6 +14,7 @@
 //      year two: Peace, the Hunt, Embargo, Sanctuary, Tithe, the Great War), oaths and the Great War.
 //   6. Trade empires: six wares (salt fish, lamp oil, spices, iron, cloth, feathers), the Bird Exchange (the Market
 //      Hall's fee and embargo), chartered routes flown by Traders (convoys, pirates, escorts), market events.
+//   7. Culture: the Chronicle (a chapter a season; exported at the end), titles worth score, and the Drummers' songs.
 // The calendar (the user's call: the doc's days stretched to fit the colony's growth): a year is the four-season
 // match's 24 days, so the Long Flight is 48 days (or 36 for the shorter one); the Founder's life is a year.
 #include "flight.h"
@@ -810,6 +811,7 @@ void World::StepCouncil(float dt) {
                 float until = time + D.motionDays * DAY;
                 switch (m.kind) {
                 case MO_PEACE:
+                    ColOf(m.by).peacemaker = true;
                     council.peaceUntil = until; pirates.scatterUntil = std::max(pirates.scatterUntil, until);
                     for (int s = 0; s < N; s++) { int n = D.peaceFish; for (auto& c : ColOf(s).caches) while (n > 0 && !c.fish.empty()) { c.fish.pop_back(); n--; } Chronicle(s, CK_OATH, "The Council made the Peace of the Sea."); }
                     for (int s = 0; s < N; s++) for (auto& f : ColOf(s).flocks) if (f.target == Target::Cache || f.target == Target::Nests) OrderFlock(s, f.id, Target::Home, -1, -1, -1, -1, {});
@@ -1010,6 +1012,77 @@ void World::StepTrade(float dt) {
 
 bool World::SetHallFee(int fee) { if (!HasWonder(cur, WD_MARKET)) return false; market.fee = std::clamp(fee, TRD().feeMin, TRD().feeMax); Say(TextFormat("The Exchange's fee is 1 in %d.", market.fee)); return true; }
 bool World::HallEmbargo(int side) { if (!HasWonder(cur, WD_MARKET) || side == cur || side < 0 || side > (int)sides.size() || time < market.hallEmbargoReady) return false; market.embargo = side; market.embargoUntil = time + 6 * DAY; market.hallEmbargoReady = time + 6 * DAY; for (int o = 0; o <= (int)sides.size(); o++) SayTo(o, SideName(cur) + "'s Market Hall embargoes " + SideName(side) + " on the Exchange for a season."); return true; }
+
+// ---------------------------------------------------------------- 7. culture: the Chronicle, titles and songs (doc pp. 14-15)
+namespace {
+const char* SeasonWord(int s) { static const char* N[4] = {"Spring", "Summer", "Autumn", "Winter"}; return N[std::clamp(s, 0, 3)]; }
+uint32_t Hash32(uint32_t a, uint32_t b) { uint32_t h = a * 2654435761u ^ (b + 0x9E3779B9u + (a << 6) + (a >> 2)); h ^= h >> 15; h *= 2246822519u; h ^= h >> 13; return h; }
+}  // namespace
+int World::SeasonAbs() const { return seasons <= 0 ? 0 : (Year() - 1) * 4 + std::max(0, Season()); }
+std::string World::ChronicleText(int side) const {
+    // the book: a chapter a season, its lines in order; the dynasty's name at the top
+    const Colony& C = ColOf(side);
+    std::string out = "The Chronicle of " + DynastyOf(side) + " (" + SideName(side) + ", " + Founders()[FounderOf(side).def].name + ")\n";
+    if (!C.speciesName.empty()) out += "a colony that became the " + C.speciesName + "\n";
+    int chap = -1; int chapters = 0;
+    for (const auto& l : C.chronicle) {
+        int abs = (l.year - 1) * 4 + std::max(0, l.season);
+        if (abs != chap) { chap = abs; chapters++; out += std::string("\n") + SeasonWord(l.season) + (l.year == 1 ? " of the first year\n" : " of the second year\n"); }
+        out += TextFormat("  Day %d. ", l.day) + l.text + "\n";
+    }
+    for (const auto& s : C.songs) out += "\nA song of the colony: " + s.name;
+    auto T = Titles(side);
+    if (!T.empty()) { out += "\n\nTitles:"; for (const auto& t : T) out += " " + t.first + TextFormat(" (%+d)", t.second) + ";"; }
+    out += TextFormat("\n\n%d chapters.\n", chapters);
+    return out;
+}
+int World::ChronicleChapters(int side) const { int chap = -1, n = 0; for (const auto& l : ColOf(side).chronicle) { int abs = (l.year - 1) * 4 + std::max(0, l.season); if (abs != chap) { chap = abs; n++; } } return n; }
+std::vector<std::pair<std::string, int>> World::Titles(int side) const {
+    std::vector<std::pair<std::string, int>> v;
+    if (!LongFlight() || side < 0 || side > (int)sides.size()) return v;
+    const Colony& C = ColOf(side); int N = (int)sides.size() + 1;
+    // the Fisher King: the most fish caught in a season, by anyone
+    int best = 0, bestSide = -1; for (int s = 0; s < N; s++) for (int k = 0; k < 8; k++) if (ColOf(s).seasonCatch[k] > best) { best = ColOf(s).seasonCatch[k]; bestSide = s; }
+    if (bestSide == side) v.push_back({"the Fisher King", 75});
+    if (C.stormCrossed) v.push_back({"the Stormrider", 25});
+    if (C.krakenKill) v.push_back({"the Kraken's Bane", 100});
+    if (C.peacemaker) v.push_back({"the Peacemaker", 50});
+    if (C.oathsBroken > 0) v.push_back({"the Oathbreaker", -50});
+    int adults = 0; for (const auto& b : C.birds) adults += b.alive && b.stage == BStage::Adult;
+    if (C.chicksStarved == 0 && adults >= 8) v.push_back({"the Shepherd", 50});
+    bool wonder = false; for (int w = 0; w < WD_COUNT; w++) wonder |= wonderBy[w] == side;
+    if (wonder) v.push_back({"the Wonder-builder", 50});
+    if (C.legend == LG_DODO && C.legendAlive) v.push_back({"the Dodo's Keeper", 75});
+    bool last = FounderOf(side).deaths == 0; for (int s = 0; s < N && last; s++) if (s != side && FounderOf(s).deaths == 0) last = false;
+    if (last && N > 1) v.push_back({"the Last Founder", 100});
+    return v;
+}
+int World::TitleScore(int side) const { int s = 0; for (const auto& t : Titles(side)) s += t.second; return s; }
+void World::StepCulture(float dt) {
+    if (!LongFlight()) return;
+    int N = (int)sides.size() + 1;
+    int abs = SeasonAbs();
+    if (abs == lastSongSeason) return;
+    int prev = lastSongSeason; lastSongSeason = abs;
+    if (prev < 0) return;
+    // a colony with a Drummer and fervour over 50 writes a song each season: its species' call, its best moment
+    static const char* OF[CK_COUNT] = {"the Old Founder", "the Heir", "the Elders", "the New Shore", "the First Clutch", "the Raid", "the Wonder", "the War", "the League", "the Broken Oath", "the Beast", "the Storm Wall", "the New Kind", "the Season"};
+    static const int RANK[CK_COUNT] = {7, 8, 3, 4, 2, 5, 10, 9, 6, 4, 8, 7, 9, 1};
+    for (int s = 0; s < N; s++) {
+        Colony& C = ColOf(s);
+        bool drummer = false; for (const auto& b : C.birds) drummer |= b.alive && b.stage == BStage::Adult && b.role == Role::Drummer;
+        if (!drummer || C.fervour <= 50) continue;
+        int bestKind = CK_OTHER, br = 0;
+        for (const auto& l : C.chronicle) if ((l.year - 1) * 4 + std::max(0, l.season) == prev && l.kind >= 0 && l.kind < CK_COUNT && RANK[l.kind] > br) { br = RANK[l.kind]; bestKind = l.kind; }
+        Song g; g.seed = Hash32((uint32_t)(s * 131 + FounderOf(s).def), (uint32_t)(prev * 977 + C.speciesTrait[0] + 3));
+        g.name = std::string("The Song of ") + OF[bestKind] + ", " + SeasonWord(prev % 4) + (prev < 4 ? " of the first year" : " of the second year");
+        g.season = prev;
+        C.songs.push_back(g);
+        SayTo(s, "Your Drummers have made a song: " + g.name + " (it plays when your flocks fly in formation).");
+        Chronicle(s, CK_OTHER, "The colony made a song: " + g.name + ".");
+    }
+    (void)dt;
+}
 
 // ---------------------------------------------------------------- --flight-longflight-test
 int RunFlightLongFlightTest() {
@@ -1230,6 +1303,22 @@ int RunFlightLongFlightTest() {
         // the Market Hall's builder takes a fee
         w->wonderBy[WD_MARKET] = 1; w->col.wares[WR_OIL] = 20; int h0 = w->ColOf(1).pearls; w->Exchange(WR_OIL, 20, true);
         check(w->ColOf(1).pearls > h0, "the Market Hall's builder takes a fee on every trade");
+    }    // ---- culture: the Chronicle, titles, songs
+    {
+        auto w = make(8);
+        w->time = 2 * World::DAY; w->Chronicle(0, CK_FOUNDING, "We came to the island.");
+        w->time = 8 * World::DAY; w->Chronicle(0, CK_RAID, "Rival 1 stole our eggs.");
+        std::string book = w->ChronicleText(0);
+        check(book.find("Spring of the first year") != std::string::npos && book.find("Summer of the first year") != std::string::npos && w->ChronicleChapters(0) == 2,
+              "the Chronicle is written in chapters, a season each, with the dynasty's name at the top");
+        w->col.seasonCatch[1] = 40; w->ColOf(1).seasonCatch[0] = 30; w->col.oathsBroken = 1;
+        auto T = w->Titles(0); bool king = false, oath = false; for (const auto& t : T) { king |= t.first == "the Fisher King"; oath |= t.second < 0; }
+        check(king && oath && w->TitleScore(0) == 75 - 50 + (w->Titles(0).size() > 2 ? w->TitleScore(0) - 25 : 0), "titles: the Fisher King (the most fish in a season), the Oathbreaker (-50)");
+        // a song: a Drummer and fervour over 50, when the season turns
+        adult(*w, Role::Drummer, w->col.caches[0].pos); w->col.fervour = 70;
+        w->time = 3 * World::DAY; w->StepCulture(0.1f); w->time = 7 * World::DAY; w->StepCulture(0.1f);
+        check(w->col.songs.size() == 1 && w->col.songs[0].name.find("The Song of") == 0, "a colony with a Drummer and fervour over 50 makes a song each season: " + (w->col.songs.empty() ? std::string("none") : w->col.songs[0].name));
+        check(w->LegacyScore(0) >= w->TitleScore(0) + 10, "titles and the Chronicle's length (5 a chapter) are in the score");
     }    printf(fails ? "flight-longflight-test: %d check(s) failed\n" : "flight-longflight-test: all checks passed\n", fails);
     return fails ? 1 : 0;
 }

@@ -1632,6 +1632,14 @@ void DrawLongPanel(fl::World& w) {
         if (!row.empty()) { Txt(row, x + 16, ly, 12, ink); ly += 15; }
         if (rare) { Txt(TextFormat("rare births: %d", rare), x + 16, ly, 12, dim); ly += 15; }
         ly += 4;
+        // the Chronicle (the last lines) and the titles so far
+        TxtBold("The Chronicle", x + 16, ly, 15, ink);
+        { auto T = w.Titles(w.cur); std::string ts; for (const auto& t : T) ts += (ts.empty() ? "" : ", ") + t.first; Txt(ts.empty() ? std::string("no titles yet") : "titles: " + ts, x + 140, ly + 2, 12, Color{255, 220, 150, 255}); }
+        ly += 18;
+        int from = std::max(0, (int)w.col.chronicle.size() - 9);
+        for (int k = from; k < (int)w.col.chronicle.size(); k++) { const auto& l = w.col.chronicle[k]; Txt(TextFormat("day %d  ", l.day) + l.text, x + 16, ly, 12, ink); ly += 15; }
+        if (w.col.chronicle.empty()) { Txt("Nothing written yet.", x + 16, ly, 12, dim); ly += 15; }
+        if (!w.col.songs.empty()) { Txt("Songs: " + w.col.songs.back().name + TextFormat(" (and %d more)", (int)w.col.songs.size() - 1), x + 16, ly, 12, dim); ly += 15; }
     }
     // the Long Flight's Grand Projects: consecrate one where the Founder stands; raise it in year two; its hand
     if (w.LongFlight() && sub == 2) {
@@ -2434,6 +2442,16 @@ float PanOf(Vector3 p) {
 }
 float Near(Vector3 p, float range) { return std::clamp(1 - Vector3Distance(p, S.cam.position) / range, 0.0f, 1.0f); }
 void FlightAudioFrame(const fl::World& w, float dt) {
+    if (w.LongFlight()) {   // (the Long Flight's songs: a rival's is a warning you hear before you see them)
+        static float songT = 0; songT -= dt;
+        if (songT <= 0) for (int s = 0; s <= (int)w.sides.size() && songT <= 0; s++) {
+            const fl::Colony& C = w.ColOf(s); if (C.songs.empty()) continue;
+            Vector3 near = s == w.cur ? Vector3{} : w.isles[w.HomeOf(s)].c; bool play = false;
+            if (s != w.cur) play = Vector2Distance({near.x, near.z}, {w.me.pos.x, w.me.pos.z}) < w.isles[w.HomeOf(s)].radius + 200;
+            else for (const auto& f : C.flocks) if (!f.members.empty() && Vector3Distance(f.pos, w.me.pos) < 90 && f.target != fl::Target::Home) { play = true; near = f.pos; }
+            if (play) { FlightSong(C.songs.back().seed, 0.8f + 0.05f * (w.FounderOf(s).def % 8), 0.5f, std::clamp((near.x - w.me.pos.x) / 200.0f, -1.0f, 1.0f)); songT = 45; }
+        }
+    }
     fl::World& W = const_cast<fl::World&>(w);
     const fl::Founder& f = w.me;
     FlAudio a; a.on = true;
@@ -2568,6 +2586,13 @@ static void DrawResults(Game& g, fl::World& w) {
         for (int k = 0; k < (int)fl::Tree::COUNT; k++) if (w.ColOf(w.cur).tier[k] >= 4) firsts |= 4;
         paid = S.shot ? fl::MatchTokens(w.Score(w.cur).total, w.winner == w.cur, firsts) : fl::AwardMatch(w.Score(w.cur).total, w.winner == w.cur, firsts);
         paidFor = &w;
+        if (w.LongFlight() && !S.shot) {   // (the Long Flight: every colony's Chronicle, in score order, written out for the group to keep)
+            std::vector<int> order; for (int s = 0; s <= (int)w.sides.size(); s++) order.push_back(s);
+            std::sort(order.begin(), order.end(), [&](int a, int b) { return w.Score(a).total > w.Score(b).total; });
+            std::string all = "THE LONG FLIGHT: the Chronicles\n\n";
+            for (int s : order) all += w.ChronicleText(s) + TextFormat("Score: %d\n\n----\n\n", w.Score(s).total);
+            SaveFileText("flight_chronicle.txt", (char*)all.c_str());
+        }
     }
     DrawRectangle(0, 0, SCREEN_W, SCREEN_H, Fade(BLACK, 0.55f));
     Rectangle r{SCREEN_W / 2.0f - 450, 110, 900, 150.0f + 30 * (w.sides.size() + 1)};

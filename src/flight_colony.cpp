@@ -350,6 +350,7 @@ void World::FisherStep(Bird& b, float dt) {
             if (b.role == Role::Diver && Rand() < 0.15f) { col.pearls++; Say("A Diver brings up a pearl."); }   // (pearls without the research)
             if (&b == &fb && BendNow().pouch && (int)col.caches[ci].fish.size() < CacheCap()) col.caches[ci].fish.push_back({b.carrySp, b.carrySize, 0});   // (the Pelican's Pouch: the Founder brings two)
             col.feedToday += b.carrySize; col.caughtToday++; b.caught++;
+            if (LongFlight()) col.seasonCatch[std::min(7, SeasonAbs())]++;   // (the Fisher King's count)
             if ((col.HasTier(Tree::Fishing, 2) || DecreeNow().pearlDive) && Rand() < DeepDivePearl()) { col.pearls++; Say("A fisher brings up a pearl from the oyster beds."); }   // (Deep dive)
             else if (&b == &fb && Rand() < std::max(0.1f, PerkSum(me.perks).pearl)) { col.pearls++; Say("The Founder brings up a pearl with the catch."); }   // (the Founder dives deep: doc p6)
         else if (Rand() < Econ().pearlCatch) col.pearls++;   // (now and then an oyster comes up with the fish)
@@ -655,6 +656,7 @@ void World::MateStep(Bird& b, float dt) {
             eggs += GeneEffects(b, col).clutch;   // (a Fertile mother)
             if (HasRelic(cur, RL_EGG) && !col.goldenEggUsed) { eggs *= 2; col.goldenEggUsed = true; Say("The Golden Egg: a clutch doubled."); }   // (a Fertile mate)   // (a fractional bend: a chance of one egg more)
             eggs = std::min(eggs, (b.nest >= 0 && b.nest < (int)col.nests.size() ? NestEggsOf(col.nests[b.nest]) : NestEggs()) - inNest);   // (a Platform holds six)
+            if (eggs > 0 && LongFlight() && !col.firstClutch) { col.firstClutch = true; Chronicle(cur, CK_CLUTCH, "The first clutch was laid."); }
             if (eggs > 0) {
                 for (int k = 0; k < eggs; k++) { Bird e; e.id = col.nextId++; e.stage = BStage::Egg; e.nest = b.nest; e.pos = n.pos; e.hunger = 1; e.trait = b.trait; e.kin = b.kin; if (LongFlight()) Conceive(e, b, n); born.push_back(e); }   // (its chicks inherit its trait)   // (appended after the loop: b is a reference into col.birds)
                 b.clutches++; b.clutchT = 0;
@@ -698,6 +700,11 @@ void World::Fledge(Bird& b) {
 void World::BirdDies(Bird& b, const std::string& cause) {
     if (!b.alive) return;
     b.alive = false; b.cause = cause;
+    if (LongFlight()) {   // (the Chronicle: veterans' deaths, the heir's; the Shepherd's count of starved chicks)
+        if (b.stage == BStage::Chick && cause == "starved") col.chicksStarved++;
+        if (b.vet >= 0) Chronicle(cur, CK_DEATH, (b.vetName >= 0 ? Veterans().names[b.vetName % Veterans().names.size()] : std::string("A veteran")) + (b.elder ? ", an elder," : "") + " died: " + cause + ".");
+        if (b.id == col.heirId) Chronicle(cur, CK_DEATH, "The heir died: " + cause + ".");
+    }
     for (auto& d : col.deaths) if (d.first == cause) { d.second++; goto counted; }
     col.deaths.push_back({cause, 1});
 counted:

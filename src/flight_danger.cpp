@@ -124,6 +124,7 @@ bool World::FoundOutpost(int isle, Vector3 near) {
         for (const auto& sp : is.shellPts) { TwigSource t; t.pos = Vector3Add(sp, {0, 0.15f, 0}); t.shells = true; t.cap = 4; t.twigs = t.cap; col.twigSrc.push_back(t); }
         Reveal(n.pos, 120, isle);
     }
+    if (LongFlight()) Chronicle(cur, CK_FOUNDING, "We founded an outpost on " + is.name + ".");
     Say(TextFormat("An outpost on %s: a nest laid out (bring %d twigs) and a cache; whoever has the most nests there holds it.", is.name.c_str(), NestTwigs()));
     for (int s = 0; s <= (int)sides.size(); s++) if (s != cur && IsDangerous(is.type)) SayTo(s, SideName(cur) + " lands on " + is.name + ".");
     return true;

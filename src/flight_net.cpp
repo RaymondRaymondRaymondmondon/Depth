@@ -485,6 +485,7 @@ template <class A> void VisitColony(A& a, Colony& c, bool own, bool full, const 
     a.f(c.beaconT); a.b(c.rookeryWarm);
     a.i(c.speciesTrait[0]); a.i(c.speciesTrait[1]); a.s(c.speciesName); a.b(c.stormCrossed);
     for (int& v : c.wares) a.i(v); a.i(c.tradeEarned);
+    for (int& v : c.seasonCatch) a.i(v); a.i(c.chicksStarved); a.b(c.peacemaker); a.vec(c.songs, [&](Song& g) { int sd = (int)g.seed; a.i(sd); g.seed = (uint32_t)sd; a.s(g.name); a.i(g.season); });
     a.vec(c.routes, [&](TradeRoute& r) { a.i(r.from); a.i(r.to); a.i(r.ware); a.i(r.traders); a.i(r.trips); a.f(r.t); a.f(r.since); a.b(r.repDone); });
     a.i(c.league); a.i(c.oathsBroken); a.i(c.warsWon); a.i(c.huntScore); a.f(c.leagueFrom); a.f(c.oathUntil);
     a.i(c.gen); a.i(c.heirId); a.i(c.heirTrait); a.i(c.succChoice); a.i(c.keepPerk); a.i(c.dynastyPick); a.b(c.regent); a.f(c.genStart); a.f(c.successionT); { int rk = (int)c.relicsKept; a.i(rk); c.relicsKept = (uint32_t)rk; } a.s(c.dynasty);

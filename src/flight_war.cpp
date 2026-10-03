@@ -517,7 +517,7 @@ void World::StepWar(float dt) {
                 if (b->carrySp == -2 && !C.caches.empty() && Flat(b->pos, C.caches[0].pos) < 6) {   // (home with it: into the emptiest nest)
                     int best = -1, fewest = 99;
                     for (int ni = 0; ni < (int)C.nests.size(); ni++) { if (!C.nests[ni].built) continue; int k = 0; for (const auto& o : C.birds) k += o.alive && o.nest == ni && (o.stage == BStage::Egg || o.stage == BStage::Chick); if (k < fewest) { fewest = k; best = ni; } }
-                    if (best >= 0) { Bird e; e.id = C.nextId++; e.stage = BStage::Egg; e.nest = best; e.pos = C.nests[best].pos; e.hunger = 1; late.push_back({s, e}); C.eggsStolen++; SayTo(s, "A stolen egg is in your nest: it will hatch yours."); }
+                    if (best >= 0) { Bird e; e.id = C.nextId++; e.stage = BStage::Egg; e.nest = best; e.pos = C.nests[best].pos; e.hunger = 1; late.push_back({s, e}); C.eggsStolen++; if (LongFlight() && C.chronRaidDay != GameDay()) { C.chronRaidDay = GameDay(); Chronicle(s, CK_RAID, "Our raiders stole an egg (it hatches ours)."); } SayTo(s, "A stolen egg is in your nest: it will hatch yours."); }
                     b->carrySp = -1;
                 }
                 // a Bomber over the target drops its bomb (from high: 50 m up at least)
@@ -546,6 +546,7 @@ void World::StepWar(float dt) {
                             for (auto& m : T.birds) if (m.alive && m.nest == ni && m.stage == BStage::Mate) { m.alive = false; m.cause = "its nest torn down by " + SideName(s); }
                             n.mate = -1;
                             C.nestsDestroyed++;
+                            if (LongFlight()) Chronicle(fl.tSide, CK_RAID, SideName(s) + "'s Strikers tore down one of our nests.");
                             SayTo(fl.tSide, SideName(s) + "'s Strikers have torn down one of your nests" + (n.isle >= 0 && n.isle < (int)isles.size() ? " on " + isles[n.isle].name : std::string()) + "!");
                             SayTo(s, "Your Strikers tear down a nest.");
                         }
