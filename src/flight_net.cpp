@@ -103,6 +103,8 @@ void OrderExchange(Writer& w, int ware, int qty, bool sell) { w.U8(FA_EXCHANGE);
 void OrderCharter(Writer& w, int from, int to, int ware) { w.U8(FA_CHARTER); w.I32(from); w.I32(to); w.I32(ware); }
 void OrderUncharter(Writer& w, int k) { w.U8(FA_UNCHARTER); w.I32(k); }
 void OrderHallFee(Writer& w, int fee) { w.U8(FA_HALL_FEE); w.I32(fee); }
+void OrderTame(Writer& w, int beast) { w.U8(FA_TAME); w.I32(beast); }
+void OrderMirror(Writer& w) { w.U8(FA_MIRROR); }
 void OrderHallEmbargo(Writer& w, int side) { w.U8(FA_HALL_EMBARGO); w.I32(side); }
 void OrderPropose(Writer& w, int kind, int target) { w.U8(FA_PROPOSE); w.I32(kind); w.I32(target); }
 void OrderVote(Writer& w, int idx, bool yes) { w.U8(FA_VOTE); w.I32(idx); w.U8(yes ? 1 : 0); }
@@ -260,6 +262,8 @@ bool OrderIn(World& w, int side, int kind, Reader& r) {
     case FA_LOAN: { int t = r.I32(), f = r.I32(), n = r.I32(); if (r.bad) return false; return w.OfferLoan(t, f, n) >= 0; }
     case FA_BOUNTY: { int t = r.I32(), n = r.I32(); if (r.bad || n < 1 || n > 100) return false; return w.PostBounty(t, n); }
     case FA_BEACON: return w.LightBeacon();
+    case FA_TAME: { int b = r.I32(); if (r.bad) return false; return w.Tame(b); }
+    case FA_MIRROR: return w.MirrorSignal();
     case FA_EXCHANGE: { int ware = r.I32(), q = r.I32(); bool sell = r.U8() != 0; if (r.bad || q < 1 || q > 999) return false; return w.Exchange(ware, q, sell); }
     case FA_CHARTER: { int a = r.I32(), b = r.I32(), ware = r.I32(); if (r.bad) return false; return w.Charter(a, b, ware); }
     case FA_UNCHARTER: { int k = r.I32(); if (r.bad) return false; return w.Uncharter(k); }
@@ -434,7 +438,7 @@ template <class A> void VisitFounder(A& a, Founder& f) {
     a.i(f.chickFish); a.f(f.adultT); a.i(f.deaths); a.i(f.agent); a.s(f.lastCause);
 }
 template <class A> void VisitBird(A& a, Bird& b, bool own) {
-    a.b(b.elder); a.i(b.kin); { int g = (int)b.genes; a.i(g); b.genes = (uint32_t)g; } { int r = b.rare; a.i(r); b.rare = (uint8_t)r; }   // (the Long Flight)
+    a.b(b.elder); a.i(b.kin); a.b(b.tame); { int g = (int)b.genes; a.i(g); b.genes = (uint32_t)g; } { int r = b.rare; a.i(r); b.rare = (uint8_t)r; }   // (the Long Flight)
     a.i(b.id); a.e(b.stage); a.e(b.role); a.e(b.retrainTo); a.i(b.nest);
     P16(a, b.pos); a.s8(b.vel.x, 60); a.s8(b.vel.y, 60); a.s8(b.vel.z, 60);
     a.ang(b.yaw); a.ang(b.flapPh);
@@ -485,6 +489,7 @@ template <class A> void VisitColony(A& a, Colony& c, bool own, bool full, const 
     a.f(c.beaconT); a.b(c.rookeryWarm);
     a.i(c.speciesTrait[0]); a.i(c.speciesTrait[1]); a.s(c.speciesName); a.b(c.stormCrossed);
     for (int& v : c.wares) a.i(v); a.i(c.tradeEarned);
+    { int tl = (int)c.tools; a.i(tl); c.tools = (uint32_t)tl; } a.i(c.taming); a.i(c.tamed); a.i(c.tameDays); a.i(c.tamedId);
     for (int& v : c.seasonCatch) a.i(v); a.i(c.chicksStarved); a.b(c.peacemaker); a.vec(c.songs, [&](Song& g) { int sd = (int)g.seed; a.i(sd); g.seed = (uint32_t)sd; a.s(g.name); a.i(g.season); });
     a.vec(c.routes, [&](TradeRoute& r) { a.i(r.from); a.i(r.to); a.i(r.ware); a.i(r.traders); a.i(r.trips); a.f(r.t); a.f(r.since); a.b(r.repDone); });
     a.i(c.league); a.i(c.oathsBroken); a.i(c.warsWon); a.i(c.huntScore); a.f(c.leagueFrom); a.f(c.oathUntil);

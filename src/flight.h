@@ -194,6 +194,9 @@ enum { ME_NONE = 0, ME_FISH, ME_SPICES, ME_FEATHERS, ME_CORNER, ME_COUNT };
 const char* WareName(int w); const char* MarketEventName(int e);
 struct TradeRoute { int from = -1, to = -1, ware = 0, traders = 0, trips = 0; float t = 0, since = 0; bool repDone = false; };
 struct MarketState { int event = 0, next = 0, cornerWare = 0, fee = 0, embargo = -1; float embargoUntil = -1, hallEmbargoReady = -1; };
+enum { TOOL_HOOK = 0, TOOL_HAMMER, TOOL_FIRE, TOOL_MIRROR, TOOL_ROPE, TOOL_COUNT };   // (the Long Flight's tools, doc p15)
+enum { TB_DOLPHIN = 0, TB_TURTLE, TB_EAGLE, TB_CROC, TB_APE, TB_COUNT };                // (and the beasts a colony can tame)
+const char* ToolName(int t); const char* ToolWhat(int t); const char* BeastName(int b); const char* BeastWhat(int b);
 struct Song { uint32_t seed = 0; std::string name; int season = 0; };   // (the Long Flight: a colony's song for a season)
 struct Rival { int isle = -1; std::vector<Vector3> nests; std::vector<Vector3> caches; int birds = 0; };   // (a colony that sits still until stage 4)
 
@@ -330,7 +333,7 @@ struct Bird {
     int trait = -1;                           // MT_*: a mate's trait, and its chicks' (inherited)
     bool taught = false;                      // (a Teacher saw it fledge)
     float songT = 0;                          // (the Siren Rocks: enthralled, sitting on the rocks)
-    bool elder = false; float vetT = -1e9f; int kin = -1;
+    bool elder = false; float vetT = -1e9f; int kin = -1; bool tame = false;
     uint32_t genes = 0; uint8_t rare = 0;     // (the Long Flight's evolution: its traits' ranks; RARE_* births)   // (the Long Flight: a veteran a year on is an elder; a mate's founder species, passed to its chicks)
     int tk = -1, bonusFish = 0; float recoverT = 0;   // (fishing mastery: the technique of this trip; a second fish (night fishing); a missed plunge's recovery)           // (a Trader's goods coming home; carrySp -2 an egg being stolen, -3 a bomb)
 };
@@ -477,6 +480,7 @@ struct Colony {
     float templeT = -1e9f, arkT = -1e9f; int chainMark = -1, windPick = -1;   // (the wonders' hands)
     int league = -1, oathsBroken = 0, warsWon = 0, huntScore = 0; float leagueFrom = 0, oathUntil = -1e9f;
     int wares[WR_COUNT] = {}; std::vector<TradeRoute> routes; int tradeEarned = 0;   // (trade empires)
+    uint32_t tools = 0; int toolSeason = -1, taming = -1, tamed = -1, tameDays = 0, tamedId = -1; float apeT = 0, mirrorT = -1e9f;   // (tools and taming)
     int seasonCatch[8] = {}, chicksStarved = 0, chronRaidDay = -1; bool peacemaker = false, firstClutch = false; std::vector<Song> songs;   // (culture: the Fisher King's count, the Shepherd's, the songs)   // (leagues, oaths, the Great War, the Council's Hunt)   // (the Far Sea: the Storm Wall crossed; a Roc's egg taken; the Fleet boarded)   // (the Long Flight: the colony's species, once 20 birds share a trait at III)
     float genStart = 0, successionT = -1e9f; uint32_t relicsKept = 0; std::string dynasty; std::vector<ChronLine> chronicle;
     float beaconT = -1e9f, rookeryFledgeT = -1e9f; bool rookeryWarm = false;   // (the Beacon last lit; the Rookery's chicks fledging together; enough adults about it)
@@ -719,6 +723,7 @@ struct World {
     int lastSongSeason = -1;                    // (culture)
     int SeasonAbs() const; std::string ChronicleText(int side) const; int ChronicleChapters(int side) const;
     std::vector<std::pair<std::string, int>> Titles(int side) const; int TitleScore(int side) const; void StepCulture(float dt);
+    bool HasTool(int side, int tool) const; int FisherCarryBonus() const; bool MirrorSignal(); bool Tame(int beast); float TamedRisk() const; void StepTools(float dt);
     float eventDay2[4] = {-1, -1, -1, -1};      // (the Long Flight: year two's season events)
     void InitIsles(); void StepIsles(float dt); void SetGhostPose();
     bool IsleShields(int isle, int threat) const;   // (the island keeps raiders off its nests: sheer ice, the roots, the Maelstrom's rocks, the beam at night)

@@ -285,7 +285,7 @@ int World::ChooseGround(Vector3 from) const {
     if (col.ground >= 0) return col.ground;
     // the best ground: fish near the surface that a fisher can lift, over the distance to get there
     std::vector<float> score(eco.map->zones.size(), 0);
-    int carry = std::max(1, RoleOf(Role::Fisher).carry + BendNow().carry);
+    int carry = std::max(1, RoleOf(Role::Fisher).carry + BendNow().carry) + FisherCarryBonus();
     float reach = 100 * BendNow().reach;   // (the Albatross's Long Reach: far grounds are worth the trip)
     for (const auto& a : eco.agents) {
         if (!a.alive || a.diver >= 0 || a.pos.y < -FISHER_REACH || a.zone < 0) continue;
@@ -324,7 +324,7 @@ int World::ChooseGround(Vector3 from) const {
 void World::FisherStep(Bird& b, float dt) {
     const RoleDef& R = RoleOf(b.role == Role::None ? Role::Fisher : b.role);
     const Bend& BD = BendNow();
-    int carry = std::max(1, R.carry + BD.carry);
+    int carry = std::max(1, R.carry + BD.carry) + FisherCarryBonus();   // (the Long Flight's Hook and Rope)
     if (&b == &fb) carry = me.Carry(Def());
     float speed = R.speed * BD.speed;
     float boom = col.boomState == 1 ? 1.6f : col.boomState == 2 ? 0.6f : 1.0f;   // (the Tycoon's boom and bust: the feed)
@@ -442,7 +442,7 @@ void World::FisherStep(Bird& b, float dt) {
         {
             float ph = DayPhase();
             bool dark = ph < 0.22f || ph > 0.8f;
-            float risk = 0.35f * tm.risk * (dark && !col.HasTier(Tree::Fishing, 3) && !BD.nightFishing ? 1.6f : 1.0f);   // (Night fishing: the dusk and dawn are safe)
+            float risk = 0.35f * tm.risk * TamedRisk() * (dark && !col.HasTier(Tree::Fishing, 3) && !BD.nightFishing ? 1.6f : 1.0f);   // (Night fishing: the dusk and dawn are safe)
             for (const auto& ag : eco.agents) {
                 if (!ag.alive || ag.diver >= 0 || !EatsBirds(eco, ag.sp)) continue;
                 if (Vector3Distance(ag.pos, {b.pos.x, 0, b.pos.z}) < 6 * BD.predatorRange && ag.hunger > 0.5f && Rand() < risk) {

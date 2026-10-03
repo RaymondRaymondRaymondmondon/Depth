@@ -540,7 +540,7 @@ void World::StepWar(float dt) {
                         bool young = false; for (const auto& c : T.birds) young |= c.alive && c.nest == ni && (c.stage == BStage::Chick || c.stage == BStage::Egg);
                         bool guarded = false; for (const auto& wt : T.birds) guarded |= wt.alive && wt.role == Role::Watcher && wt.stage == BStage::Adult && Flat(wt.pos, n.pos) < 40;
                         if (young || guarded) break;
-                        n.tear += TearPerStrike() * dt;
+                        n.tear += TearPerStrike() * dt * (HasTool(s, TOOL_FIRE) ? 2.0f : 1.0f);   // (the Fire Carry)
                         if (n.tear >= std::max(4.0f, n.twigs)) {
                             n.built = false; n.twigs = 0; n.tear = 0; n.bowl = 0;
                             for (auto& m : T.birds) if (m.alive && m.nest == ni && m.stage == BStage::Mate) { m.alive = false; m.cause = "its nest torn down by " + SideName(s); }

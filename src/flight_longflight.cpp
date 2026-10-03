@@ -15,6 +15,7 @@
 //   6. Trade empires: six wares (salt fish, lamp oil, spices, iron, cloth, feathers), the Bird Exchange (the Market
 //      Hall's fee and embargo), chartered routes flown by Traders (convoys, pirates, escorts), market events.
 //   7. Culture: the Chronicle (a chapter a season; exported at the end), titles worth score, and the Drummers' songs.
+//   8. Tools (a Clever III colony learns one a season) and taming (a season of a Priest's offerings).
 // The calendar (the user's call: the doc's days stretched to fit the colony's growth): a year is the four-season
 // match's 24 days, so the Long Flight is 48 days (or 36 for the shorter one); the Founder's life is a year.
 #include "flight.h"
@@ -1084,6 +1085,109 @@ void World::StepCulture(float dt) {
     (void)dt;
 }
 
+// ---------------------------------------------------------------- 8. tools and taming (doc p15)
+namespace {
+struct TameData { int cleverBirds = 3, offerFish = 5, offerDays = 6, eagleHp = 200; float dolphinRisk = 0.5f, dolphinRegrow = 1.3f, turtleMates = 2, apeEvery = 20, apeRange = 150, crocTear = 10; };
+const TameData& TMD() {
+    static TameData d; static bool loaded = false;
+    if (loaded) return d;
+    loaded = true;
+    Json j = LoadJsonFile(FlightDataDir() + "/flight_longflight.json");
+    const Json& t = j["tools_taming"];
+    auto F = [&](const char* k, float& v) { if (t[k].IsNum()) v = t[k].F(v); };
+    auto I = [&](const char* k, int& v) { if (t[k].IsNum()) v = t[k].I(v); };
+    I("clever_birds", d.cleverBirds); I("offer_fish", d.offerFish); I("offer_days", d.offerDays); I("eagle_hp", d.eagleHp);
+    F("dolphin_risk", d.dolphinRisk); F("dolphin_regrow", d.dolphinRegrow); F("turtle_mates", d.turtleMates); F("ape_every_s", d.apeEvery); F("ape_range_m", d.apeRange); F("croc_tear", d.crocTear);
+    return d;
+}
+}  // namespace
+const char* ToolName(int t) { static const char* N[TOOL_COUNT] = {"the Hook", "the Shell Hammer", "the Fire Carry", "the Mirror", "the Rope"}; return N[std::clamp(t, 0, TOOL_COUNT - 1)]; }
+const char* ToolWhat(int t) { static const char* W[TOOL_COUNT] = {"a thorn held in the beak: fishers lift fish a size bigger", "builders break coral: new sites on the reef islands", "an ember from the volcano: Strikers burn nests down twice as fast", "a shard that signals across the map: every flock home at once", "a seaweed line: two birds carry what one can't (fishers +1 size)"}; return W[std::clamp(t, 0, TOOL_COUNT - 1)]; }
+const char* BeastName(int b) { static const char* N[TB_COUNT] = {"a dolphin pod", "a sea turtle", "the Grey Wings' eagle", "a crocodile", "the great ape"}; return N[std::clamp(b, 0, TB_COUNT - 1)]; }
+const char* BeastWhat(int b) { static const char* W[TB_COUNT] = {"drives fish to your grounds and fights sharks", "a living raft: wild mates come with it", "a Striker that doesn't eat your fish", "guards your shore: raiders at your nests are bitten", "sleeps on your island and throws rocks at your enemies; eats a big fish a day"}; return W[std::clamp(b, 0, TB_COUNT - 1)]; }
+bool World::HasTool(int side, int tool) const { return side >= 0 && side <= (int)sides.size() && ((ColOf(side).tools >> tool) & 1); }
+int World::FisherCarryBonus() const { return (HasTool(cur, TOOL_HOOK) ? 1 : 0) + (HasTool(cur, TOOL_ROPE) ? 1 : 0); }
+bool World::MirrorSignal() {
+    if (!HasTool(cur, TOOL_MIRROR)) return false;
+    if (time - col.mirrorT < 0.25f * DAY) { Say("The Mirror flashes again in a quarter day."); return false; }
+    col.mirrorT = time; int n = 0;
+    for (auto& f : col.flocks) if (f.loanTo < 0) { OrderFlock(cur, f.id, Target::Home, -1, -1, -1, -1, {}); n++; }
+    Say(TextFormat("The Mirror flashes across the map: every flock (%d) turns for home.", n));
+    return true;
+}
+bool World::Tame(int beast) {
+    if (!LongFlight() || beast < 0 || beast >= TB_COUNT) return false;
+    if (col.tamed >= 0) { Say(std::string("The colony already has its beast: ") + BeastName(col.tamed) + "."); return false; }
+    if (!col.HasTier(Tree::Faith, 3)) { Say("Taming wants Faith 3 and a Priest."); return false; }
+    if (beast == TB_APE && ape.isle < 0) { Say("There's no great ape on this map."); return false; }
+    if (beast == TB_EAGLE && (grey.isle < 0 || grey.dead)) { Say("The Grey Wings' eagle isn't to be had."); return false; }
+    col.taming = beast; col.tameDays = 0;
+    Say(std::string("Your priests begin a season of offerings to ") + BeastName(beast) + TextFormat(" (%d fish a day for %d days).", TMD().offerFish, TMD().offerDays));
+    return true;
+}
+float World::TamedRisk() const { return col.tamed == TB_DOLPHIN ? TMD().dolphinRisk : 1.0f; }
+void World::StepTools(float dt) {
+    if (!LongFlight()) return;
+    const TameData& D = TMD();
+    int N = (int)sides.size() + 1;
+    bool dayTick = fmodf(time, DAY) < dt;
+    int abs = SeasonAbs();
+    for (int s = 0; s < N; s++) {
+        Colony& C = ColOf(s);
+        // tools: a colony with Clever III birds learns one a season, in order
+        if (dayTick && C.toolSeason != abs) {
+            int clever = 0; for (const auto& b : C.birds) clever += b.alive && b.stage == BStage::Adult && (GeneRank(b.genes, GT_CLEVER) == 3 || C.speciesTrait[0] == GT_CLEVER || C.speciesTrait[1] == GT_CLEVER);
+            if (clever >= D.cleverBirds) {
+                int next = -1; for (int t = 0; t < TOOL_COUNT; t++) if (!((C.tools >> t) & 1)) { next = t; break; }
+                if (next >= 0) {
+                    C.tools |= 1u << next; C.toolSeason = abs;
+                    SayTo(s, std::string("Your Clever birds have learned a tool: ") + ToolName(next) + " (" + ToolWhat(next) + ").");
+                    Chronicle(s, CK_OTHER, std::string("The colony learned to use a tool: ") + ToolName(next) + ".");
+                    if (next == TOOL_HAMMER) {   // (new sites broken out of the reef islands it nests on)
+                        for (int i = 0; i < (int)isles.size(); i++) {
+                            IsleType t = isles[i].type; bool reef = t == IsleType::ReefGarden || t == IsleType::Atoll || t == IsleType::Shipwreck || t == IsleType::Islet || t == IsleType::Thorns;
+                            bool mine = false; for (const auto& n : C.nests) mine |= n.isle == i && n.built;
+                            if (!reef || !mine) continue;
+                            for (int k = 0; k < 4; k++) { float a = k * PI / 2 + 0.6f; Site st; st.pos = GroundAt(isles[i].c.x + cosf(a) * isles[i].radius * 0.6f, isles[i].c.z + sinf(a) * isles[i].radius * 0.6f); st.isle = i; C.sites.push_back(st); }
+                        }
+                    }
+                }
+            }
+        }
+        // taming: a season of offerings
+        if (dayTick && C.taming >= 0 && C.tamed < 0) {
+            int priests = 0; for (const auto& b : C.birds) priests += b.alive && b.stage == BStage::Adult && b.role == Role::Priest;
+            int fish = 0; for (const auto& c : C.caches) fish += (int)c.fish.size();
+            if (priests > 0 && fish >= D.offerFish) {
+                int n = D.offerFish; for (auto& c : C.caches) while (n > 0 && !c.fish.empty()) { c.fish.pop_back(); n--; }
+                if (++C.tameDays >= D.offerDays) {
+                    C.tamed = C.taming; C.taming = -1;
+                    for (int o = 0; o < N; o++) SayTo(o, SideName(s) + " has tamed " + BeastName(C.tamed) + ".");
+                    Chronicle(s, CK_BEAST, std::string("We tamed ") + BeastName(C.tamed) + ".");
+                    if (C.tamed == TB_EAGLE && !C.caches.empty()) { Bird e; e.id = C.nextId++; e.stage = BStage::Adult; e.role = Role::Striker; e.hp = (float)D.eagleHp; e.hunger = 1; e.tame = true; e.pos = Vector3Add(C.caches[0].pos, {0, 8, 0}); born.push_back(e); C.tamedId = e.id; grey.dead = true; }
+                    if (C.tamed == TB_APE) { ape.sleepT = 1e9f; ape.isle = -1; }   // (it leaves skull island for yours)
+                }
+            } else if (priests == 0) SayTo(s, "The offerings stop: no Priest to make them.");
+        }
+        if (C.tamed < 0) continue;
+        // what the beasts do
+        if (C.tamed == TB_TURTLE && dayTick) C.wildMates += (int)D.turtleMates;
+        if (C.tamed == TB_EAGLE) { if (Bird* e = FindBird(s, C.tamedId)) e->hunger = 1; else if (C.tamedId >= 0) { C.tamed = -1; SayTo(s, "Your tamed eagle is dead."); Chronicle(s, CK_BEAST, "Our tamed eagle was killed."); } }
+        if (C.tamed == TB_APE) {
+            if (dayTick) { bool fed = false; for (auto& c : C.caches) for (size_t k = 0; k < c.fish.size() && !fed; k++) if (c.fish[k].size >= 3) { c.fish.erase(c.fish.begin() + k); fed = true; } if (!fed) { C.tamed = -1; SayTo(s, "Unfed, the great ape leaves your island."); continue; } }
+            C.apeT += dt;
+            if (C.apeT >= D.apeEvery && !C.caches.empty()) {
+                C.apeT = 0; Vector3 home = C.caches[0].pos;
+                for (int o = 0; o < N; o++) { if (o == s || Truce(s, o)) continue; bool hit = false; for (auto& b : ColOf(o).birds) if (b.alive && b.stage == BStage::Adult && Vector3Distance(b.pos, home) < D.apeRange) { Bird& bb = b; WithSide(o, [&] { BirdDies(bb, "struck by a tamed ape's rock"); }); hit = true; break; } if (hit) break; }
+            }
+        }
+        if (C.tamed == TB_CROC && fmodf(time, 1.0f) < dt && !C.caches.empty()) {
+            Vector3 home = C.caches[0].pos;
+            for (int o = 0; o < N; o++) { if (o == s) continue; for (auto& b : ColOf(o).birds) if (b.alive && b.stage == BStage::Adult && b.flock >= 0 && Vector3Distance(b.pos, home) < 60 && b.pos.y < 6) { b.hp -= D.crocTear; if (b.hp <= 0) { Bird& bb = b; WithSide(o, [&] { BirdDies(bb, "taken by a tamed crocodile"); }); } } }
+        }
+    }
+}
+
 // ---------------------------------------------------------------- --flight-longflight-test
 int RunFlightLongFlightTest() {
     int fails = 0;
@@ -1319,6 +1423,22 @@ int RunFlightLongFlightTest() {
         w->time = 3 * World::DAY; w->StepCulture(0.1f); w->time = 7 * World::DAY; w->StepCulture(0.1f);
         check(w->col.songs.size() == 1 && w->col.songs[0].name.find("The Song of") == 0, "a colony with a Drummer and fervour over 50 makes a song each season: " + (w->col.songs.empty() ? std::string("none") : w->col.songs[0].name));
         check(w->LegacyScore(0) >= w->TitleScore(0) + 10, "titles and the Chronicle's length (5 a chapter) are in the score");
+    }    // ---- tools and taming
+    {
+        auto w = make(8);
+        for (int k = 0; k < 3; k++) { Bird& b = adult(*w, Role::Builder, w->col.caches[0].pos); b.genes = SetGene(0, GT_CLEVER, 3); }
+        w->time = 3 * World::DAY; w->StepTools(0.1f);
+        int bonus = w->FisherCarryBonus();
+        w->time = 4 * World::DAY; w->StepTools(0.1f); bool oneASeason = !w->HasTool(0, TOOL_HAMMER);
+        w->time = 7 * World::DAY; w->StepTools(0.1f);
+        check(w->HasTool(0, TOOL_HOOK) && bonus == 1 && oneASeason && w->HasTool(0, TOOL_HAMMER), "a colony with three Clever III birds learns a tool a season: the Hook first (fishers lift a size bigger), then the Shell Hammer");
+        // taming: Faith 3, a Priest, a season of offerings
+        w->col.tier[(int)Tree::Faith] = 3; adult(*w, Role::Priest, w->col.caches[0].pos);
+        for (int q = 0; q < 60; q++) w->col.caches[0].fish.push_back({0, 2, 0});
+        bool start = w->Tame(TB_DOLPHIN);
+        for (int d = 8; d < 16; d++) { w->time = d * World::DAY; w->StepTools(0.1f); }
+        check(start && w->col.tamed == TB_DOLPHIN && w->TamedRisk() < 1, "a Priest's season of offerings tames a dolphin pod: the sharks take fewer fishers");
+        check(!w->Tame(TB_TURTLE), "one tamed beast a colony");
     }    printf(fails ? "flight-longflight-test: %d check(s) failed\n" : "flight-longflight-test: all checks passed\n", fails);
     return fails ? 1 : 0;
 }

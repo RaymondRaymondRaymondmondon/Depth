@@ -1553,9 +1553,9 @@ void DrawLongPanel(fl::World& w) {
     Txt("Tab: close", x + W - 90, y + 16, 14, dim);
     // sub-pages: the year; the neutral powers and diplomacy; building (structures, Grand Projects); the dynasty (the Long Flight)
     int& sub = gLongSub;
-    { static const char* TAB[5] = {"The year", "Powers", "Building", "Dynasty", "Trade"}; int nt = w.LongFlight() ? 5 : 3; if (sub >= nt) sub = 0;
-      for (int k = 0; k < nt; k++) if (SmallBtn({x + 210 + k * 92.0f, y + 12, 88, 22}, TAB[k], true)) sub = k;
-      if (sub < nt) DrawRectangle((int)(x + 210 + sub * 92), (int)(y + 35), 88, 2, Color{255, 220, 150, 255}); }
+    { static const char* TAB[6] = {"The year", "Powers", "Building", "Dynasty", "Trade", "Culture"}; int nt = w.LongFlight() ? 6 : 3; if (sub >= nt) sub = 0;
+      for (int k = 0; k < nt; k++) if (SmallBtn({x + 200 + k * 84.0f, y + 12, 80, 22}, TAB[k], true)) sub = k;
+      if (sub < nt) DrawRectangle((int)(x + 200 + sub * 84), (int)(y + 35), 80, 2, Color{255, 220, 150, 255}); }
     float ly = y + 44;
     auto line = [&](const std::string& s, Color c, int size = 15) { DrawWrapped(s, {x + 16, ly, W - 32, 40}, size, c); ly += size + 7; };
     if (sub == 0) {
@@ -1632,6 +1632,8 @@ void DrawLongPanel(fl::World& w) {
         if (!row.empty()) { Txt(row, x + 16, ly, 12, ink); ly += 15; }
         if (rare) { Txt(TextFormat("rare births: %d", rare), x + 16, ly, 12, dim); ly += 15; }
         ly += 4;
+    }
+    if (w.LongFlight() && sub == 5) {
         // the Chronicle (the last lines) and the titles so far
         TxtBold("The Chronicle", x + 16, ly, 15, ink);
         { auto T = w.Titles(w.cur); std::string ts; for (const auto& t : T) ts += (ts.empty() ? "" : ", ") + t.first; Txt(ts.empty() ? std::string("no titles yet") : "titles: " + ts, x + 140, ly + 2, 12, Color{255, 220, 150, 255}); }
@@ -1640,6 +1642,18 @@ void DrawLongPanel(fl::World& w) {
         for (int k = from; k < (int)w.col.chronicle.size(); k++) { const auto& l = w.col.chronicle[k]; Txt(TextFormat("day %d  ", l.day) + l.text, x + 16, ly, 12, ink); ly += 15; }
         if (w.col.chronicle.empty()) { Txt("Nothing written yet.", x + 16, ly, 12, dim); ly += 15; }
         if (!w.col.songs.empty()) { Txt("Songs: " + w.col.songs.back().name + TextFormat(" (and %d more)", (int)w.col.songs.size() - 1), x + 16, ly, 12, dim); ly += 15; }
+        // tools (a Clever III colony learns one a season) and taming (Faith 3, a Priest, a season of offerings)
+        ly += 8; TxtBold("Tools", x + 16, ly, 15, ink);
+        { std::string tl; for (int t = 0; t < fl::TOOL_COUNT; t++) if (w.HasTool(w.cur, t)) tl += (tl.empty() ? "" : ", ") + std::string(fl::ToolName(t)); Txt(tl.empty() ? std::string("none: three Clever III birds learn one a season") : tl, x + 80, ly + 2, 12, tl.empty() ? dim : ink); }
+        if (w.HasTool(w.cur, fl::TOOL_MIRROR) && SmallBtn({x + 560, ly, 120, 20}, "flash the Mirror")) { Writer o; fl::OrderMirror(o); Order(o); }
+        ly += 22;
+        TxtBold("Taming", x + 16, ly, 15, ink);
+        if (w.col.tamed >= 0) Txt(std::string("tamed: ") + fl::BeastName(w.col.tamed) + " (" + fl::BeastWhat(w.col.tamed) + ")", x + 90, ly + 2, 12, Color{170, 240, 180, 255});
+        else if (w.col.taming >= 0) Txt(TextFormat("offerings to %s: day %d", fl::BeastName(w.col.taming), w.col.tameDays), x + 90, ly + 2, 12, ink);
+        else Txt(w.col.HasTier(fl::Tree::Faith, 3) ? "a Priest and a season of offerings tame one beast:" : "Faith 3 and a Priest tame one beast with a season of offerings", x + 90, ly + 2, 12, dim);
+        ly += 20;
+        if (w.col.tamed < 0 && w.col.taming < 0) for (int b = 0; b < fl::TB_COUNT; b++) { if (SmallBtn({x + 16 + (b % 3) * 230.0f, ly + (b / 3) * 22.0f, 224, 20}, fl::BeastName(b), w.col.HasTier(fl::Tree::Faith, 3))) { Writer o; fl::OrderTame(o, b); Order(o); } }
+        ly += 46;
     }
     // the Long Flight's Grand Projects: consecrate one where the Founder stands; raise it in year two; its hand
     if (w.LongFlight() && sub == 2) {
