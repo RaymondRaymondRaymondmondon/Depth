@@ -463,6 +463,7 @@ void World::FisherStep(Bird& b, float dt) {
                 if (tm.steal > 0 && Rand() < tm.steal) { b.carrySp = -1; b.carrySize = 0; Say("A frigatebird robs a hovering fisher of its fish."); return; }   // (hover-strike: a frigatebird steals from a hovering bird)
                 TechLog(dz, b.tk, TL_CATCH);
                 if (tm.yield > 1) b.bonusFish = tm.yield - 1;
+                if (float tx = GateTaxFor(dz, cur); tx > 0 && Rand() < tx) { Colony& G = ColOf(wonderBy[WD_GATE]); if (!G.caches.empty()) G.caches[0].fish.push_back({b.carrySp, b.carrySize, 0}); b.carrySp = -1; b.carrySize = 0; b.bonusFish = 0; return; }   // (the Fish Gate's toll: a fish in five)
                 if (b.tk == TK_DEEP && Rand() < DeepDivePearl()) col.pearls++;   // (a deep dive: the oyster beds too)
                 return;
             }
@@ -524,17 +525,17 @@ void World::BuilderStep(Bird& b, float dt) {
     for (const auto& st : col.builds) if (!st.built && st.kind == ST_ROOST) nestJob = false;   // (the Roost before more nests: research waits on it)
     if (!nestJob) for (int pass = 0; pass < 2; pass++) for (auto& st : col.builds) {
         if (st.built || (pass == 0) != (st.kind == ST_ROOST)) continue;   // (the Roost first)
-        int needT = StructureTwigs(st.kind) - (int)st.twigs, needS = StructureShells(st.kind) - st.shells;
+        int needT = StTwigs(st) - (int)st.twigs, needS = StShells(st) - st.shells;
         if (b.carryTwigs > 0 || b.carryShells > 0) {
             b.task = Task::Build;
             if (MoveTo(b, Vector3Add(st.pos, {0, 0.6f, 0}), R.speed, dt)) {
                 st.twigs += b.carryTwigs * DecreeNow().build; st.shells += b.carryShells; b.carryTwigs = 0; b.carryShells = 0; b.task = Task::Idle;   // (Builders' Day)
-                if (st.twigs >= StructureTwigs(st.kind) && st.shells >= StructureShells(st.kind)) {
+                if (st.kind != ST_WONDER && st.twigs >= StTwigs(st) && st.shells >= StShells(st)) {
                     st.built = true;
                     static const char* DONE[ST_COUNT] = {"A hedge of thorn now rings the home nest: Skirmishers can't get through.", "A tower stands over the colony: a Watcher on it sees farther and nets farther.",
                                                          "The Roost is built: research can begin (the colony panel's third page).", "The shrine is raised: priests can tend it, and the Founder can pray there.", "The Works stand: bombs and stimulants can be made.",
                                                          "A perch stands: a Watcher on it sees farther.", "The smokehouse is built: the caches keep longer.", "The Lookout stands: scouts report from twice as far.",
-                                                         "The Rookery is built: chicks there are warmed by any adult and fledge together.", "The Beacon is built: light it to call every flock home at once.", "A Monument is raised: score, and nothing else."};
+                                                         "The Rookery is built: chicks there are warmed by any adult and fledge together.", "The Beacon is built: light it to call every flock home at once.", "A Monument is raised: score, and nothing else.", "A Grand Project's materials are in."};
                     Say(DONE[std::clamp(st.kind, 0, ST_COUNT - 1)]);
                 }
             }
@@ -856,7 +857,7 @@ void World::StepColony(float dt) {
         Nest& n = col.nests[i];
         if (!n.built || n.mate >= 0) continue;
         if (n.mateT < 0 && (n.bowl >= n.bowlNeed || EventNow(EV_MIGRATION)) && col.wildMates > 0 && !DecreeNow().noMates) {   // (the Migration: mates come free; Guano Harvest: they keep away)
-            float mul = E.tropicalMate * BendNow().mateTime * SeasonNow().mateTime * DecreeNow().mateTime * (HasRelic(cur, RL_SHELL) ? Relics()[RL_SHELL].mateTime : 1.0f);   // (the Siren's Shell)
+            float mul = E.tropicalMate * BendNow().mateTime * SeasonNow().mateTime * DecreeNow().mateTime * MateTimeMul(cur) * (HasRelic(cur, RL_SHELL) ? Relics()[RL_SHELL].mateTime : 1.0f);   // (the Siren's Shell)
             n.mateT = (E.mateMin + (E.mateMax - E.mateMin) * Rand()) * DAY * mul;
             Say("The courtship bowl is full: a mate will come within the day.");
         }

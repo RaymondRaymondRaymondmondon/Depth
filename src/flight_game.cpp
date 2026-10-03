@@ -645,7 +645,7 @@ void DrawColony(const fl::World& w, const fl::Colony& c, const Camera3D& cam, Co
     for (const auto& s : c.builds) {
         if (Vector3Distance(s.pos, cam.position) > 400) continue;
         if (s.hp <= 0) continue;
-        float k = s.built ? 1.0f : std::clamp(s.twigs / std::max(1, fl::StructureTwigs(s.kind)), 0.1f, 1.0f);
+        float k = s.built ? 1.0f : std::clamp((s.twigs + s.shells) / std::max(1.0f, (float)(fl::StTwigs(s) + fl::StShells(s))), 0.1f, 1.0f);
         if (s.kind == 0) for (int j = 0; j < 16; j++) {
             float a = j * 2 * PI / 16; Vector3 p = Vector3Add(s.pos, {cosf(a) * 7, 0, sinf(a) * 7}); p.y = w.HeightAt(p.x, p.z);
             rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(2.8f, 1.4f * k, 0.9f), MatrixRotateY(-a + PI / 2)), MatrixTranslate(p.x, p.y + 0.6f * k, p.z)), Color{70, 96, 52, 255});
@@ -665,6 +665,29 @@ void DrawColony(const fl::World& w, const fl::Colony& c, const Camera3D& cam, Co
             rt::DrawCubeM(MatrixMultiply(MatrixScale(2, 3 * k, 2), MatrixTranslate(s.pos.x, s.pos.y + 1.5f * k, s.pos.z + 3)), Color{110, 104, 98, 255});
             if (k >= 1) { rt::DrawCubeGlow(MatrixMultiply(MatrixScale(1, 0.6f, 1), MatrixTranslate(s.pos.x, s.pos.y + 0.6f, s.pos.z + 4.1f)), Color{255, 140, 50, 255}, 1.2f);
                 for (int j = 0; j < 4; j++) { float ph = fmodf(S.t * 0.3f + j * 0.25f, 1.0f); rt::DrawCubeM(MatrixMultiply(MatrixScale(1 + ph * 2, 1 + ph * 2, 1 + ph * 2), MatrixTranslate(s.pos.x + ph * 2, s.pos.y + 3.5f + ph * 10, s.pos.z + 3)), Mix(Color{120, 116, 112, 255}, Color{200, 200, 198, 255}, ph)); } }
+        }
+        else if (s.kind == fl::ST_WONDER) {   // a Grand Project: scaffolding while it rises, then the wonder itself
+            Color stone{196, 188, 172, 255}, wood{112, 86, 56, 255};
+            if (!s.built) {
+                for (int j = 0; j < 4; j++) for (int lv = 0; lv < (int)(1 + 5 * k); lv++) { float a = j * PI / 2 + 0.78f; rt::DrawCubeM(MatrixMultiply(MatrixScale(0.3f, 4, 0.3f), MatrixTranslate(s.pos.x + cosf(a) * 7, s.pos.y + 2 + lv * 4.0f, s.pos.z + sinf(a) * 7)), wood); }
+                for (int lv = 1; lv <= (int)(1 + 5 * k); lv++) rt::DrawCubeM(MatrixMultiply(MatrixScale(14, 0.25f, 14), MatrixTranslate(s.pos.x, s.pos.y + lv * 4.0f, s.pos.z)), Fade(wood, 0.9f));
+                rt::DrawCubeM(MatrixMultiply(MatrixScale(10, 20 * k, 10), MatrixTranslate(s.pos.x, s.pos.y + 10 * k, s.pos.z)), stone);
+            } else switch (s.wonder) {
+            case fl::WD_ROOKERY: for (int j = 0; j < 16; j++) { float a = j * PI / 8; rt::DrawStatic(S.nest, MatrixMultiply(MatrixScale(1.4f, 1.0f, 1.4f), MatrixTranslate(s.pos.x + cosf(a) * 9, s.pos.y + 2.2f, s.pos.z + sinf(a) * 9))); }
+                rt::DrawCubeM(MatrixMultiply(MatrixScale(22, 2, 22), MatrixTranslate(s.pos.x, s.pos.y + 1, s.pos.z)), wood); break;
+            case fl::WD_LIGHTHOUSE: rt::DrawCubeM(MatrixMultiply(MatrixScale(7, 40, 7), MatrixTranslate(s.pos.x, s.pos.y + 20, s.pos.z)), stone);
+                rt::DrawCubeGlow(MatrixMultiply(MatrixScale(5, 4, 5), MatrixTranslate(s.pos.x, s.pos.y + 42, s.pos.z)), Color{255, 240, 190, 255}, w.DayPhase() < 0.2f || w.DayPhase() > 0.85f ? 3.0f : 0.8f); break;
+            case fl::WD_GATE: for (int j = -6; j <= 6; j++) rt::DrawCubeM(MatrixMultiply(MatrixScale(6, 5, 3), MatrixTranslate(s.pos.x + j * 6.0f, 1.5f, s.pos.z + 20 + 0.1f * j * j)), stone); break;
+            case fl::WD_TEMPLE: for (int j = 0; j < 6; j++) rt::DrawCubeM(MatrixMultiply(MatrixScale(18.0f - j * 3, 3, 18.0f - j * 3), MatrixTranslate(s.pos.x, s.pos.y + 1.5f + j * 3.0f, s.pos.z)), j % 2 ? stone : Color{230, 222, 200, 255});
+                rt::DrawCubeGlow(MatrixMultiply(MatrixScale(2, 2, 2), MatrixTranslate(s.pos.x, s.pos.y + 20, s.pos.z)), Color{240, 240, 255, 255}, 1.2f + 0.4f * sinf(S.t * 2)); break;
+            case fl::WD_WORKS: for (int j = 0; j < 3; j++) rt::DrawCubeM(MatrixMultiply(MatrixScale(3, 22, 3), MatrixTranslate(s.pos.x - 6 + j * 6.0f, s.pos.y + 11, s.pos.z)), Color{110, 104, 98, 255});
+                rt::DrawCubeM(MatrixMultiply(MatrixScale(20, 6, 10), MatrixTranslate(s.pos.x, s.pos.y + 3, s.pos.z + 6)), Color{130, 120, 110, 255}); break;
+            case fl::WD_MARKET: rt::DrawCubeM(MatrixMultiply(MatrixScale(24, 7, 14), MatrixTranslate(s.pos.x, s.pos.y + 3.5f, s.pos.z)), Color{226, 218, 200, 255});
+                rt::DrawCubeM(MatrixMultiply(MatrixScale(26, 1.4f, 16), MatrixTranslate(s.pos.x, s.pos.y + 7.6f, s.pos.z)), Color{170, 70, 52, 255}); break;
+            case fl::WD_CHAIN: for (int j = 0; j < 10; j++) rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(3, 1, 1.6f), MatrixRotateY(j % 2 ? PI / 2 : 0)), MatrixTranslate(s.pos.x + j * 3.0f, s.pos.y - j * 1.2f, s.pos.z)), Color{60, 60, 66, 255}); break;
+            case fl::WD_ARK: { Vector3 a = w.arkPos; rt::DrawCubeM(MatrixMultiply(MatrixScale(24, 3, 12), MatrixTranslate(a.x, 1, a.z)), wood); rt::DrawCubeM(MatrixMultiply(MatrixScale(14, 5, 8), MatrixTranslate(a.x, 5, a.z)), Color{150, 112, 70, 255}); } break;
+            default: for (int j = 0; j < 10; j++) rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(12.0f - j, 3, 12.0f - j), MatrixRotateY(j * 0.4f)), MatrixTranslate(s.pos.x, s.pos.y + 1.5f + j * 3.0f, s.pos.z)), j % 2 ? Color{236, 230, 220, 255} : Color{214, 220, 236, 255}); break;
+            }
         }
         else if (s.kind == fl::ST_PERCH) {   // a perch: one tall pole and a crossbar
             Color wood{112, 86, 56, 255};
@@ -1520,15 +1543,22 @@ void DrawFlockPanel(fl::World& w) {
 
 // The fourth page in a long match (Tab four times; doc pp. 35-48): the season, today's decree, the Founder's perks, the
 // relics at the shrine and the legend, the veterans by name, and the neutral powers (hire the pirates, pay the Grey Wings)
+int gLongSub = 0;   // (the long page's sub-page)
 void DrawLongPanel(fl::World& w) {
     Color ink{250, 248, 236, 255}, dim{200, 214, 214, 255}, gold{255, 220, 150, 255}, bad{255, 140, 120, 255};
-    float x = 20, y = 78, W = 540, H = 620;
+    float x = 20, y = 78, W = 720, H = 630;
     DrawRectangleRounded({x, y, W, H}, 0.05f, 6, Fade(Color{8, 18, 28, 255}, 0.88f));
     DrawRectangleRoundedLinesEx({x, y, W, H}, 0.05f, 6, 2, Color{200, 180, 120, 255});
     TxtBold("The long match", x + 16, y + 10, 22, ink);
     Txt("Tab: close", x + W - 90, y + 16, 14, dim);
+    // sub-pages: the year; the neutral powers and diplomacy; building (structures, Grand Projects); the dynasty (the Long Flight)
+    int& sub = gLongSub;
+    { static const char* TAB[4] = {"The year", "Powers", "Building", "Dynasty"}; int nt = w.LongFlight() ? 4 : 3; if (sub >= nt) sub = 0;
+      for (int k = 0; k < nt; k++) if (SmallBtn({x + 230 + k * 100.0f, y + 12, 94, 22}, TAB[k], true)) sub = k;
+      if (sub < nt) DrawRectangle((int)(x + 230 + sub * 100), (int)(y + 35), 94, 2, Color{255, 220, 150, 255}); }
     float ly = y + 44;
     auto line = [&](const std::string& s, Color c, int size = 15) { DrawWrapped(s, {x + 16, ly, W - 32, 40}, size, c); ly += size + 7; };
+    if (sub == 0) {
     const fl::SeasonFx& S0 = w.SeasonNow();
     line(TextFormat("%s, day %d of %d. %s", S0.name.c_str(), w.GameDay(), fl::SeasonDays(w.seasons), S0.sea.c_str()), Color{170, 240, 160, 255});
     line("Rewards: " + S0.rewards, dim, 13);
@@ -1542,6 +1572,8 @@ void DrawLongPanel(fl::World& w) {
     ly += 6; TxtBold("Veterans", x + 16, ly, 17, ink); ly += 24;
     int nv = 0; for (const auto& b : w.col.birds) if (b.alive && b.vet >= 0 && nv < 6) { line(w.VetLabel(b) + TextFormat(" (a %s, %d fights)", fl::RoleName(b.role), b.fights), ink, 13); nv++; }
     if (!nv) line("None yet: a warrior that survives three fights earns a name.", dim, 13);
+    }
+    if (sub == 1) {
     ly += 6; TxtBold("The neutral powers", x + 16, ly, 17, ink); ly += 24;
     if (w.pirates.on) {
         bool scattered = w.time < w.pirates.scatterUntil;
@@ -1556,8 +1588,16 @@ void DrawLongPanel(fl::World& w) {
             ly += 26;
         }
     }
+    line(TextFormat("The Fishing Fleet: %d boats work the grounds, drop chum, and net birds that fly low near them.", (int)w.fleet.size()), dim, 13);
+    if (w.grey.isle >= 0) {
+        bool peace = w.cur < (int)w.grey.peaceUntil.size() && w.time < w.grey.peaceUntil[w.cur];
+        line(w.grey.dead ? std::string("The Grey Wings' eagle is dead.") : "The Grey Wings hunt chicks and lone fishers from " + w.isles[w.grey.isle].name + (peace ? " (you have peace today)." : "."), w.grey.dead ? dim : bad, 13);
+        if (!w.grey.dead && !peace && SmallBtn({x + 16, ly, 260, 20}, TextFormat("pay them tribute (%d fish)", fl::TributeFish()))) { Writer o; fl::OrderTribute(o); Order(o); }
+        ly += 26;
+    }
+    }
     // the Long Flight's generations: the Founder's age, the heir, the succession choice, the perk it keeps, the dynasty
-    if (w.LongFlight()) {
+    if (w.LongFlight() && sub == 3) {
         static const char* AG[3] = {"young", "in its prime (+10%)", "old (slower each day; no size-4 fish)"};
         ly += 4; TxtBold("Generations", x + 16, ly, 17, ink);
         Txt(TextFormat("year %d; generation %d; the Founder is %s, %.0f days into its life of %d", w.Year(), w.col.gen + 1, AG[w.AgeStage(w.cur)], w.FounderAge(w.cur), fl::YearDays()), x + 130, ly + 3, 12, dim); ly += 22;
@@ -1593,8 +1633,35 @@ void DrawLongPanel(fl::World& w) {
         if (rare) { Txt(TextFormat("rare births: %d", rare), x + 16, ly, 12, dim); ly += 15; }
         ly += 4;
     }
+    // the Long Flight's Grand Projects: consecrate one where the Founder stands; raise it in year two; its hand
+    if (w.LongFlight() && sub == 2) {
+        ly += 4; TxtBold("Grand Projects", x + 16, ly, 17, ink);
+        int here = w.IsleAt(w.me.pos.x, w.me.pos.z, 10);
+        Txt(here >= 0 ? "the Founder is on " + w.isles[here].name : std::string("fly the Founder to a site to consecrate one"), x + 170, ly + 3, 12, dim); ly += 20;
+        static int target = 1;
+        for (int k = 0; k < fl::WD_COUNT; k++) {
+            const fl::WonderDef& W = fl::Wonders()[k];
+            const fl::Structure* mine = nullptr; for (const auto& s : w.col.builds) if (s.kind == fl::ST_WONDER && s.wonder == k) mine = &s;
+            int by = w.WonderBy(k); bool raised = (w.wonderRaised >> k) & 1;
+            std::string st = by >= 0 ? (by == w.cur ? std::string("yours") : "built by " + w.SideName(by)) + (raised ? ", raised" : "")
+                           : mine ? TextFormat("rising: %.0f/%d twigs, %d/%d shells, then %d pearls", mine->twigs, fl::StTwigs(*mine), mine->shells, fl::StShells(*mine), W.pearls)
+                           : TextFormat("%d twigs, %d shells, %d pearls%s; %s", W.twigs, W.shells, W.pearls, W.sulfur ? TextFormat(", %d sulfur", W.sulfur) : "", W.where.c_str());
+            Txt(W.name + ": " + st, x + 16, ly + 2, 12, by == w.cur ? Color{170, 240, 180, 255} : by >= 0 ? dim : ink);
+            float bx = x + 470;
+            if (by < 0 && !mine && SmallBtn({bx, ly, 110, 18}, "consecrate", w.WonderSiteOk(k, here))) { Writer o; fl::OrderWonder(o, k); Order(o); }
+            if (by == w.cur && !raised && w.Year() == 2 && SmallBtn({bx, ly, 110, 18}, "raise it")) { Writer o; fl::OrderWonderRaise(o, k); Order(o); }
+            if (by == w.cur && k == fl::WD_TEMPLE) { if (SmallBtn({bx + 114, ly, 60, 18}, "bless")) { Writer o; fl::OrderWonderAct(o, k, 2000 + target, {}); Order(o); } if (SmallBtn({bx + 178, ly, 60, 18}, "curse")) { Writer o; fl::OrderWonderAct(o, k, 1000 + target, {}); Order(o); } }
+            if (by == w.cur && k == fl::WD_WORKS && SmallBtn({bx + 114, ly, 120, 18}, "turn the wind")) { Writer o; fl::OrderWonderAct(o, k, ((w.col.windPick < 0 ? 0 : w.col.windPick) + 45) % 360, {}); Order(o); }
+            if (by == w.cur && k == fl::WD_CHAIN && SmallBtn({bx + 114, ly, 120, 18}, "mark for the kraken")) { Writer o; fl::OrderWonderAct(o, k, target, {}); Order(o); }
+            if (by == w.cur && k == fl::WD_ARK && SmallBtn({bx + 114, ly, 120, 18}, "move it here")) { Writer o; fl::OrderWonderAct(o, k, 0, w.me.pos); Order(o); }
+            ly += 20;
+        }
+        int n = (int)w.sides.size() + 1; if (target == w.cur || target >= n) target = (w.cur + 1) % n;
+        if (SmallBtn({x + 16, ly, 24, 18}, ">")) { do target = (target + 1) % n; while (target == w.cur); }
+        Txt("the Temple and the Chain act on: " + w.SideName(target), x + 46, ly + 2, 12, dim); ly += 24;
+    }
     // structures beyond nests (doc p49): lay them out for the builders; light the Beacon
-    {
+    if (sub == 2) {
         ly += 4; TxtBold("Structures", x + 16, ly, 17, ink); ly += 22;
         static const int KINDS[] = {fl::ST_PERCH, fl::ST_SMOKEHOUSE, fl::ST_LOOKOUT, fl::ST_ROOKERY, fl::ST_BEACON, fl::ST_MONUMENT};
         for (int q = 0; q < 6; q++) {
@@ -1612,7 +1679,7 @@ void DrawLongPanel(fl::World& w) {
         ly += 76;
     }
     // diplomacy, lightly: a pact, a bounty, a loan, a broken truce (doc pp. 47-48)
-    {
+    if (sub == 1) {
         static int with = 1; int n = (int)w.sides.size() + 1; if (with == w.cur || with >= n) with = (w.cur + 1) % n;
         ly += 4; TxtBold("Diplomacy", x + 16, ly, 17, ink);
         if (SmallBtn({x + 130, ly, 24, 20}, "<")) { do with = (with + n - 1) % n; while (with == w.cur); }
@@ -1627,12 +1694,6 @@ void DrawLongPanel(fl::World& w) {
         if (w.Truce(w.cur, with) && SmallBtn({x + 16, ly, 200, 20}, "break the truce (fervour -20)")) { Writer o; fl::OrderBreak(o, with); Order(o); }
         if (w.col.bounty > 0) line(TextFormat("A bounty of %d fish is on your Founder (posted by %s).", w.col.bounty, w.SideName(w.col.bountyBy).c_str()), bad, 13);
         ly += 4;
-    }
-    line(TextFormat("The Fishing Fleet: %d boats work the grounds, drop chum, and net birds that fly low near them.", (int)w.fleet.size()), dim, 13);
-    if (w.grey.isle >= 0) {
-        bool peace = w.cur < (int)w.grey.peaceUntil.size() && w.time < w.grey.peaceUntil[w.cur];
-        line(w.grey.dead ? std::string("The Grey Wings' eagle is dead.") : "The Grey Wings hunt chicks and lone fishers from " + w.isles[w.grey.isle].name + (peace ? " (you have peace today)." : "."), w.grey.dead ? dim : bad, 13);
-        if (!w.grey.dead && !peace && SmallBtn({x + 16, ly, 260, 20}, TextFormat("pay them tribute (%d fish)", fl::TributeFish()))) { Writer o; fl::OrderTribute(o); Order(o); }
     }
 }
 // The third page (Tab three times; design doc pp. 20-22, 25-27): research at the Roost, faith and fervour, trade at
@@ -2528,12 +2589,17 @@ void SceneFlight(Game& g) {
 void DebugFlightShot(Game& g, int which) {
     fl::MapOpts o; o.seasons = which == 21 || which == 22 || (which >= 23 && which <= 34) ? 4 : 0; o.home = which == 6 ? fl::IsleType::Stack : which == 7 ? fl::IsleType::Town : which == 8 ? fl::IsleType::Atoll : fl::IsleType::Tropical;
     if (which >= 23 && which <= 28) o.home = (fl::IsleType)((int)fl::IsleType::Iceberg + which - 23);   // (the expansion's starting islands)
-    if (which >= 35 && which <= 38) o.seasons = 8;   // (the Long Flight)
+    if (which >= 35 && which <= 42) o.seasons = 8;   // (the Long Flight)
     Start(g, which == 3 ? "albatross" : "taloned", 11, true, o);
     fl::World& w = WD();
     fl::Founder& f = w.me;
     f.st = fl::FState::Fly; f.airspeed = 11; f.yaw = PI * 0.5f; f.pitch = 0;
     S.help = which == 0;
+    if (which >= 39 && which <= 42) {   // the Long Flight's page, each sub-page, a colony grown a few days by the bots
+        w.founderBot = true; for (float tt = 0; tt < fl::World::DAY * 3; tt += 0.1f) w.Step(0.1f, fl::FounderInput{}); w.founderBot = false;
+        w.time = 13.5f * fl::World::DAY; w.StepGenerations(0.1f);
+        S.panel = true; S.page = 3; gLongSub = which - 39;
+    }
     if (which >= 35 && which <= 38) {   // the Long Flight: the fog before the Far Sea opens; the Roc's Peak; the Sunken City; the Thorns
         fl::IsleType want = which == 36 ? fl::IsleType::RocPeak : which == 37 ? fl::IsleType::SunkenCity : fl::IsleType::Thorns;
         int k = -1; for (int i = 0; i < (int)w.isles.size(); i++) if (w.isles[i].type == want) k = i;

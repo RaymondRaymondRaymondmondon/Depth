@@ -368,10 +368,15 @@ float StructureHp(int kind); float StimSpeed(int stim); float StimAttack(int sti
 float BellMorale(); float FogSight(); float TearPerStrike(); float SkullShrineFervour(); float DesertDays();
 // what a colony has raised (doc p24, p20): hedges round nest sites, towers for Watchers, the Roost (research), the
 // shrine (faith), the Works (bombs and stimulants: stage 7)
-enum { ST_HEDGE = 0, ST_TOWER = 1, ST_ROOST = 2, ST_SHRINE = 3, ST_WORKS = 4, ST_PERCH, ST_SMOKEHOUSE, ST_LOOKOUT, ST_ROOKERY, ST_BEACON, ST_MONUMENT, ST_COUNT };   // (5 on: the long match's, doc p49)
+enum { ST_HEDGE = 0, ST_TOWER = 1, ST_ROOST = 2, ST_SHRINE = 3, ST_WORKS = 4, ST_PERCH, ST_SMOKEHOUSE, ST_LOOKOUT, ST_ROOKERY, ST_BEACON, ST_MONUMENT, ST_WONDER, ST_COUNT };   // (ST_WONDER: the Long Flight's Grand Projects)
+enum { WD_ROOKERY = 0, WD_LIGHTHOUSE, WD_GATE, WD_TEMPLE, WD_WORKS, WD_MARKET, WD_CHAIN, WD_ARK, WD_MONUMENT, WD_COUNT };
+struct WonderDef { std::string key, name, where, forBuilder, forMap, raised; int twigs = 0, shells = 0, pearls = 0, sulfur = 0, score = 300; };
+const std::vector<WonderDef>& Wonders();   // (5 on: the long match's, doc p49)
 int StructureTwigs(int kind); int StructureShells(int kind);   // (flight_war.json and flight_research.json)
 const char* StructureName(int kind);
-struct Structure { int kind = 0; Vector3 pos{}; float twigs = 0; int shells = 0; bool built = false; int site = -1; float hp = 100; int isle = -1; };
+struct Structure { int kind = 0; Vector3 pos{}; float twigs = 0; int shells = 0; bool built = false; int site = -1; float hp = 100; int isle = -1;
+                  int wonder = -1; bool raising = false; float startT = 0; };   // (a Grand Project: which; its second tier under way; consecrated when)
+int StTwigs(const Structure& s); int StShells(const Structure& s);   // (a structure's cost, a wonder's included)
 struct Colony;
 const Structure* BuiltOf(const Colony& C, int kind);   // (the long match's structures, doc p49)
 int MonumentsOf(const Colony& C);
@@ -460,7 +465,8 @@ struct Colony {
     // the Long Flight: generations (the heir, the succession choice, the perk it keeps), the dynasty, the Chronicle
     int gen = 0, heirId = -1, heirTrait = -1, succChoice = 0, keepPerk = -1, dynastyPick = 0, heirAnnounced = -1; bool regent = false;
     int speciesTrait[2] = {-1, -1}; std::string speciesName;
-    bool stormCrossed = false, rocEgg = false, fleetBoarded = false;   // (the Far Sea: the Storm Wall crossed; a Roc's egg taken; the Fleet boarded)   // (the Long Flight: the colony's species, once 20 birds share a trait at III)
+    bool stormCrossed = false, rocEgg = false, fleetBoarded = false;
+    float templeT = -1e9f, arkT = -1e9f; int chainMark = -1, windPick = -1;   // (the wonders' hands)   // (the Far Sea: the Storm Wall crossed; a Roc's egg taken; the Fleet boarded)   // (the Long Flight: the colony's species, once 20 birds share a trait at III)
     float genStart = 0, successionT = -1e9f; uint32_t relicsKept = 0; std::string dynasty; std::vector<ChronLine> chronicle;
     float beaconT = -1e9f, rookeryFledgeT = -1e9f; bool rookeryWarm = false;   // (the Beacon last lit; the Rookery's chicks fledging together; enough adults about it)
     int tech = -1; float techMastery[TK_COUNT] = {}; std::vector<int> techLog;   // (fishing mastery: the colony's technique, -1 auto; per ground x technique: tries, catches, losses)
@@ -678,6 +684,11 @@ struct World {
     bool FarOpen() const; bool IsFar(int isle) const;
     void InitFarSea(); void StepFarSea(float dt); void SetFleetPose();
     float FarCatchMul(int zone) const;          // (the Mirror Lagoon's fish never flee)
+    int wonderBy[WD_COUNT] = {-1, -1, -1, -1, -1, -1, -1, -1, -1}; uint32_t wonderRaised = 0; int gateZone = -1; Vector3 arkPos{};   // (Grand Projects)
+    bool WonderSiteOk(int wonder, int isle) const; int WonderBy(int wonder) const; bool HasWonder(int side, int wonder) const;
+    bool Consecrate(int wonder); bool RaiseWonder(int wonder); bool WonderAct(int wonder, int arg, Vector3 at);
+    float MateTimeMul(int side) const; float GateTaxFor(int zone, int side) const;
+    void StepWonders(float dt); void BotWonders(); int WonderScore(int side) const;
     float eventDay2[4] = {-1, -1, -1, -1};      // (the Long Flight: year two's season events)
     void InitIsles(); void StepIsles(float dt); void SetGhostPose();
     bool IsleShields(int isle, int threat) const;   // (the island keeps raiders off its nests: sheer ice, the roots, the Maelstrom's rocks, the beam at night)

@@ -8,6 +8,8 @@
 //   3. The Far Sea: a ring of new islands beyond a fog that lifts at the end of year one (the Archipelago of Thorns,
 //      the Drowned Fleet, the Roc's Peak, the Mirror Lagoon, the Ice Shelf, the Sunken City, two ports and the navy's
 //      frigate), and the Storm Wall beyond it.
+//   4. Grand Projects: nine wonders, one per map, consecrated by the Founder and raised by builders over a season;
+//      each changes the map for everyone; raised to a second tier in year two.
 // The calendar (the user's call: the doc's days stretched to fit the colony's growth): a year is the four-season
 // match's 24 days, so the Long Flight is 48 days (or 36 for the shorter one); the Founder's life is a year.
 #include "flight.h"
@@ -493,6 +495,174 @@ void World::StepFarSea(float dt) {
     }
 }
 
+// ---------------------------------------------------------------- 4. Grand Projects (doc pp. 7-9): nine wonders, one per map
+namespace {
+struct ProjData { std::vector<WonderDef> w; float minDays = 4, raiseMul = 0.5f, taxShare = 0.2f, gateYield = 2, rookeryMates = 1.3f, beamNight = 600, chainKills = 3, arkMates = 8, arkMove = 400; int worksBombs = 3; };
+const ProjData& PD2() {
+    static ProjData d; static bool loaded = false;
+    if (loaded) return d;
+    loaded = true;
+    Json j = LoadJsonFile(FlightDataDir() + "/flight_longflight.json");
+    const Json& p = j["projects"];
+    auto F = [&](const char* k, float& v) { if (p[k].IsNum()) v = p[k].F(v); };
+    F("min_days", d.minDays); F("raise_cost", d.raiseMul); F("gate_tax", d.taxShare); F("gate_yield", d.gateYield); F("rookery_others_mate_time", d.rookeryMates); F("beam_night_m", d.beamNight);
+    F("chain_kills", d.chainKills); F("ark_mates", d.arkMates); F("ark_move_m", d.arkMove);
+    if (p["works_bombs"].IsNum()) d.worksBombs = p["works_bombs"].I(d.worksBombs);
+    for (const Json& x : p["list"].a) {
+        WonderDef w; w.key = x["key"].Str0(); w.name = x["name"].Str0(w.key); w.where = x["where"].Str0(); w.forBuilder = x["builder"].Str0(); w.forMap = x["map"].Str0(); w.raised = x["raised"].Str0();
+        w.twigs = x["twigs"].I(0); w.shells = x["shells"].I(0); w.pearls = x["pearls"].I(0); w.sulfur = x["sulfur"].I(0); w.score = x["score"].I(300);
+        d.w.push_back(w);
+    }
+    while ((int)d.w.size() < WD_COUNT) { WonderDef w; w.key = w.name = "wonder"; d.w.push_back(w); }
+    return d;
+}
+}  // namespace
+const std::vector<WonderDef>& Wonders() { return PD2().w; }
+int StTwigs(const Structure& s) { return s.kind == ST_WONDER && s.wonder >= 0 ? (int)lroundf(Wonders()[s.wonder].twigs * (s.raising ? PD2().raiseMul : 1.0f)) : StructureTwigs(s.kind); }
+int StShells(const Structure& s) { return s.kind == ST_WONDER && s.wonder >= 0 ? (int)lroundf(Wonders()[s.wonder].shells * (s.raising ? PD2().raiseMul : 1.0f)) : StructureShells(s.kind); }
+bool World::WonderSiteOk(int wonder, int isle) const {
+    if (wonder < 0 || wonder >= WD_COUNT || isle < 0 || isle >= (int)isles.size()) return false;
+    IsleType t = isles[isle].type;
+    switch (wonder) {
+    case WD_ROOKERY: return isles[isle].sites.size() >= 20;
+    case WD_LIGHTHOUSE: return t == IsleType::Stack || t == IsleType::CliffTown || t == IsleType::Lighthouse || t == IsleType::RocPeak || t == IsleType::KrakenCove;
+    case WD_GATE: return t == IsleType::ReefGarden || t == IsleType::Atoll || t == IsleType::Shipwreck || t == IsleType::Islet || t == IsleType::Thorns;
+    case WD_TEMPLE: { float top = -1e9f; int best = -1; for (int i = 0; i < (int)isles.size(); i++) if (!isles[i].far || FarOpen()) if (isles[i].hill.y > top) { top = isles[i].hill.y; best = i; } return isle == best; }
+    case WD_WORKS: return t == IsleType::Volcano || t == IsleType::IronIsland;
+    case WD_MARKET: return t == IsleType::Town || t == IsleType::CliffTown;
+    case WD_CHAIN: return t == IsleType::KrakenCove;
+    default: return true;   // (the Ark, the Monument of Feathers: anywhere)
+    }
+}
+int World::WonderBy(int wonder) const { return wonder >= 0 && wonder < WD_COUNT ? wonderBy[wonder] : -1; }
+bool World::HasWonder(int side, int wonder) const { return WonderBy(wonder) == side; }
+bool World::Consecrate(int wonder) {
+    if (!LongFlight() || wonder < 0 || wonder >= WD_COUNT) return false;
+    if (wonderBy[wonder] >= 0) { Say(Wonders()[wonder].name + " is already built (by " + SideName(wonderBy[wonder]) + ")."); return false; }
+    for (const auto& s : col.builds) if (s.kind == ST_WONDER && s.wonder == wonder) { Say("Your builders are already raising it."); return false; }
+    int isle = IsleAt(me.pos.x, me.pos.z, 10);
+    if (!WonderSiteOk(wonder, isle)) { Say(Wonders()[wonder].name + " must stand " + Wonders()[wonder].where + ": fly the Founder there and consecrate it."); return false; }
+    Structure st; st.kind = ST_WONDER; st.wonder = wonder; st.isle = isle; st.pos = GroundAt(me.pos.x, me.pos.z); st.hp = 2000; st.startT = time;
+    col.builds.push_back(st);
+    Say("The site of " + Wonders()[wonder].name + " is consecrated: your builders will raise it (scaffolding everyone can scout).");
+    for (int o = 0; o <= (int)sides.size(); o++) if (o != cur) SayTo(o, SideName(cur) + " has begun " + Wonders()[wonder].name + " on " + isles[isle].name + ".");
+    Chronicle(cur, CK_WONDER, "The site of " + Wonders()[wonder].name + " was consecrated on " + isles[isle].name + ".");
+    return true;
+}
+bool World::RaiseWonder(int wonder) {
+    if (!LongFlight() || Year() < 2 || wonderBy[wonder] != cur || (wonderRaised >> wonder) & 1) return false;
+    for (auto& s : col.builds) if (s.kind == ST_WONDER && s.wonder == wonder && s.built) { s.built = false; s.raising = true; s.twigs = 0; s.shells = 0; s.startT = time; Say(Wonders()[wonder].name + ": its second tier begins (half the cost again)."); return true; }
+    return false;
+}
+bool World::WonderAct(int wonder, int arg, Vector3 at) {
+    // the builder's hand: the Temple's blessing or curse, the Works' wind, the Chain's mark, the Ark's course
+    if (!HasWonder(cur, wonder)) return false;
+    if (wonder == WD_TEMPLE) {
+        if (time - col.templeT < DAY) { Say("The Temple speaks once a day."); return false; }
+        int t = arg >= 0 ? arg % 1000 : -1; bool curse = arg >= 1000 && arg < 2000; if (arg >= 1000) t = arg - (curse ? 1000 : 2000);
+        if (t < 0 || t > (int)sides.size()) return false;
+        col.templeT = time;
+        ColOf(t).fervour = std::clamp(ColOf(t).fervour + (curse ? -10.0f : 10.0f), 0.0f, 100.0f);
+        if (curse && (wonderRaised >> WD_TEMPLE) & 1) for (auto& f : ColOf(t).flocks) OrderFlock(t, f.id, Target::Home, -1, -1, -1, -1, {});   // (raised: the curse routs)
+        for (int o = 0; o <= (int)sides.size(); o++) SayTo(o, SideName(cur) + "'s Sky Temple " + (curse ? "curses " : "blesses ") + SideName(t) + ".");
+        return true;
+    }
+    if (wonder == WD_WORKS) { float a = (float)arg * PI / 180; wind.dir = wind.nextDir = {cosf(a), sinf(a)}; col.windPick = arg; Say("The Great Works turn the wind."); return true; }
+    if (wonder == WD_CHAIN) { if (arg < 0 || arg > (int)sides.size() || arg == cur) return false; col.chainMark = arg; Say("The Kraken's Chain: the kraken will rise against " + SideName(arg) + " at dawn."); return true; }
+    if (wonder == WD_ARK) {
+        Vector3 d = Vector3Subtract(at, arkPos); d.y = 0; float l = Vector3Length(d);
+        if (l > PD2().arkMove) d = Vector3Scale(d, PD2().arkMove / l);
+        if (time - col.arkT < DAY) { Say("The Ark moves a region a day."); return false; }
+        col.arkT = time; arkPos = Vector3Add(arkPos, d); Say("The Ark drifts to its new water (the wild birds follow it)."); return true;
+    }
+    return false;
+}
+float World::MateTimeMul(int side) const {
+    // the Great Rookery's island draws the map's wild mates: everyone else's courtship takes longer; the Ark the same
+    float m = 1;
+    for (int wd : {WD_ROOKERY, WD_ARK}) if (wonderBy[wd] >= 0 && wonderBy[wd] != side) m *= PD2().rookeryMates;
+    return m;
+}
+float World::GateTaxFor(int zone, int side) const {
+    if (wonderBy[WD_GATE] < 0 || wonderBy[WD_GATE] == side || zone != gateZone) return 0;
+    return PD2().taxShare;
+}
+void World::StepWonders(float dt) {
+    if (!LongFlight()) return;
+    const ProjData& D = PD2();
+    int N = (int)sides.size() + 1;
+    bool dayTick = fmodf(time, DAY) < dt;
+    float ph = DayPhase(); bool night = ph < 0.2f || ph > 0.85f;
+    for (int s = 0; s < N; s++) {
+        Colony& C = ColOf(s);
+        for (auto& st : C.builds) {
+            if (st.kind != ST_WONDER || st.built || st.wonder < 0) continue;
+            const WonderDef& W = Wonders()[st.wonder];
+            if (!st.raising && wonderBy[st.wonder] >= 0) continue;   // (someone else finished it first)
+            float mul = st.raising ? D.raiseMul : 1.0f;
+            int pearls = (int)lroundf(W.pearls * mul), sulfur = (int)lroundf(W.sulfur * mul);
+            if (st.twigs < StTwigs(st) || st.shells < StShells(st) || time - st.startT < D.minDays * DAY) continue;
+            if (C.pearls < pearls || C.sulfur < sulfur) { if (dayTick) SayTo(s, TextFormat("%s waits on the stores: %d pearls and %d sulfur.", W.name.c_str(), pearls, sulfur)); continue; }
+            C.pearls -= pearls; C.sulfur -= (float)sulfur;
+            st.built = true;
+            if (st.raising) { st.raising = false; wonderRaised |= 1u << st.wonder; for (int o = 0; o < N; o++) SayTo(o, SideName(s) + " raises " + W.name + " to its second tier: " + W.raised + "."); Chronicle(s, CK_WONDER, W.name + " was raised to its second tier."); continue; }
+            wonderBy[st.wonder] = s;
+            if (st.wonder == WD_ARK) arkPos = st.pos;
+            if (st.wonder == WD_GATE && eco.map) { int z = eco.ZoneAt({st.pos.x, -1, st.pos.z}); if (z < 0) { float bd = 1e9f; for (int k = 0; k < (int)eco.map->zones.size(); k++) { float dd = Vector3Distance(eco.map->zones[k].Center(), st.pos); if (dd < bd) { bd = dd; z = k; } } } gateZone = z; for (auto& sk : stocks) if (sk.zone == z) sk.K *= D.gateYield; }
+            for (int o = 0; o < N; o++) { SayTo(o, SideName(s) + " has finished " + W.name + ". " + (o == s ? W.forBuilder : W.forMap) + "."); if (o != s) Chronicle(o, CK_WONDER, SideName(s) + " finished " + W.name + "."); }
+            Chronicle(s, CK_WONDER, "We finished " + W.name + ": " + W.forBuilder + ".");
+            // the others' progress on it turns to shells
+            for (int o = 0; o < N; o++) if (o != s) { Colony& O = ColOf(o); for (int k = (int)O.builds.size() - 1; k >= 0; k--) if (O.builds[k].kind == ST_WONDER && O.builds[k].wonder == st.wonder && !O.builds[k].built) { O.shells += (int)(O.builds[k].twigs / 2) + O.builds[k].shells; O.builds.erase(O.builds.begin() + k); SayTo(o, "Your work on " + W.name + " is turned to shells: " + SideName(s) + " finished it first."); } }
+        }
+    }
+    // ---- what the wonders do
+    if (int b = wonderBy[WD_ROOKERY]; b >= 0 && dayTick) {   // (every chick on its island fledges together at dawn)
+        Colony& C = ColOf(b); int isle = -1; for (const auto& st : C.builds) if (st.kind == ST_WONDER && st.wonder == WD_ROOKERY) isle = st.isle;
+        bool raised = (wonderRaised >> WD_ROOKERY) & 1;
+        WithSide(b, [&] { for (auto& c : col.birds) if (c.alive && c.nest >= 0 && c.nest < (int)col.nests.size() && col.nests[c.nest].isle == isle) { if (c.stage == BStage::Chick && c.age > Econ().chickDays * 0.5f) Fledge(c); else if (raised && c.stage == BStage::Egg) c.age = std::max(c.age, Econ().hatchDays); } });
+    }
+    if (int b = wonderBy[WD_LIGHTHOUSE]; b >= 0 && night && fmodf(time, 3.0f) < dt) {   // (the beam: a region of the builder's choice each night; every colony sees it)
+        Vector3 lamp{}; for (const auto& st : ColOf(b).builds) if (st.kind == ST_WONDER && st.wonder == WD_LIGHTHOUSE) lamp = st.pos;
+        int pick = (int)(time / DAY) % std::max(1, (int)isles.size());
+        WithSide(b, [&] { Reveal(isles[pick].c, D.beamNight); });
+        for (int o = 0; o < N; o++) WithSide(o, [&] { Reveal(lamp, 120); });
+        if ((wonderRaised >> WD_LIGHTHOUSE) & 1) for (int o = 0; o < N; o++) if (o != b) for (auto& f : ColOf(o).flocks) if (Vector2Distance({f.pos.x, f.pos.z}, {lamp.x, lamp.z}) < 400 && f.target != Target::Home) { OrderFlock(o, f.id, Target::Home, -1, -1, -1, -1, {}); SayTo(o, "The Lighthouse of Birds' beam blinds your flock: it turns for home."); }
+    }
+    if (int b = wonderBy[WD_TEMPLE]; b >= 0) ColOf(b).fervour = 100;   // (fervour 100 for the builder)
+    if (int b = wonderBy[WD_WORKS]; b >= 0 && dayTick) { ColOf(b).bombs += D.worksBombs; if ((wonderRaised >> WD_WORKS) & 1) ColOf(b).blockbusters++; }
+    if (int b = wonderBy[WD_ARK]; b >= 0 && dayTick) ColOf(b).wildMates += (int)D.arkMates * (((wonderRaised >> WD_ARK) & 1) ? 2 : 1);
+    if (int b = wonderBy[WD_CHAIN]; b >= 0) {
+        kraken.mood = 0;   // (the kraken no longer roams: it answers to the Chain)
+        Colony& B = ColOf(b);
+        if (dayTick && B.chainMark >= 0 && B.chainMark <= (int)sides.size() && B.chainMark != b) {
+            int t = B.chainMark; Colony& T = ColOf(t); int killed = 0;
+            Vector3 home = T.caches.empty() ? isles[HomeOf(t)].c : T.caches[0].pos;
+            int times = ((wonderRaised >> WD_CHAIN) & 1) ? 2 : 1;
+            for (auto& x : T.birds) if (killed < (int)D.chainKills * times && x.alive && x.stage == BStage::Adult && Vector3Distance(x.pos, home) < 160) { Bird& bb = x; WithSide(t, [&] { BirdDies(bb, "seized by the chained kraken"); }); killed++; }
+            SayTo(t, "The chained KRAKEN rises off your island at " + SideName(b) + "'s word!"); SayTo(b, TextFormat("The kraken rises against %s (%d of their birds taken).", SideName(t).c_str(), killed));
+            B.chainMark = -1;
+        }
+    }
+}
+void World::BotWonders() {
+    if (!LongFlight() || fmodf(time, DAY) >= 0.2f || HumanOf(cur) || GameDay() < 7) return;
+    int alive = 0; for (const auto& b : col.birds) alive += b.alive && b.stage == BStage::Adult;
+    if (alive < 25) return;
+    for (const auto& s : col.builds) if (s.kind == ST_WONDER && !s.built) return;   // (one at a time)
+    for (int wd = 0; wd < WD_COUNT; wd++) {
+        if (wonderBy[wd] >= 0 || (wd == WD_MONUMENT && Year() < 2)) continue;
+        bool mine = false; for (const auto& s : col.builds) mine |= s.kind == ST_WONDER && s.wonder == wd;
+        if (mine || !WonderSiteOk(wd, home)) continue;
+        Vector3 keep = me.pos; me.pos = isles[home].nest; bool ok = Consecrate(wd); me.pos = keep;
+        if (ok) return;
+    }
+}
+int World::WonderScore(int side) const {
+    int s = 0;
+    for (int w = 0; w < WD_COUNT; w++) if (wonderBy[w] == side) s += Wonders()[w].score * (((wonderRaised >> w) & 1) ? 2 : 1);
+    return s;
+}
+
 // ---------------------------------------------------------------- --flight-longflight-test
 int RunFlightLongFlightTest() {
     int fails = 0;
@@ -621,6 +791,39 @@ int RunFlightLongFlightTest() {
         // the Drowned Fleet drifts toward the loudest colony
         Vector3 f0 = w->far.fleetC; for (int q = 0; q < 100; q++) w->StepFarSea(1.0f);
         check(Vector3Distance(f0, w->far.fleetC) > 50, "the Drowned Fleet drifts (toward the loudest colony)");
+    }    // ---- Grand Projects
+    {
+        const auto& WD = Wonders();
+        check(WD.size() == WD_COUNT && WD[WD_ROOKERY].twigs == 300 && WD[WD_MONUMENT].score == 500 && WD[WD_WORKS].sulfur == 20, "nine Grand Projects with the doc's costs");
+        auto w = make(8);
+        int cove = -1; for (int i = 0; i < (int)w->isles.size(); i++) if (w->isles[i].type == IsleType::KrakenCove) cove = i;
+        check(cove >= 0 && w->WonderSiteOk(WD_CHAIN, cove) && !w->WonderSiteOk(WD_CHAIN, w->home) && w->WonderSiteOk(WD_MONUMENT, w->home), "each wonder has its place (the Kraken's Chain at the cove; the Monument anywhere)");
+        w->me.pos = w->isles[w->home].nest; bool wrong = !w->Consecrate(WD_CHAIN);
+        w->me.pos = w->isles[cove].hill; bool ok = w->Consecrate(WD_CHAIN);
+        check(wrong && ok && !w->Consecrate(WD_CHAIN), "the Founder consecrates a wonder where it stands (and only at its place)");
+        // a rival raises the same wonder; ours finishes first and theirs turns to shells
+        w->WithSide(1, [&] { w->me.pos = w->isles[cove].hill; w->Consecrate(WD_CHAIN); if (!w->col.builds.empty()) w->col.builds.back().twigs = 40; });
+        Structure* st = nullptr; for (auto& s : w->col.builds) if (s.kind == ST_WONDER) st = &s;
+        st->twigs = (float)StTwigs(*st); st->shells = StShells(*st);
+        w->Blast(st->pos, 1, 1);
+        bool burnt = st->twigs < StTwigs(*st);
+        st->twigs = (float)StTwigs(*st);
+        w->col.pearls = 100; w->time = 6 * World::DAY + 1; int sh1 = w->ColOf(1).shells;
+        w->StepWonders(0.1f);
+        check(burnt && w->WonderBy(WD_CHAIN) == 0 && w->col.pearls == 50 && w->ColOf(1).shells > sh1, "an incendiary burns scaffolding; finished after a season (paid in pearls), it's ours: the rival's progress turns to shells");
+        check(w->WonderScore(0) == 300 && w->LegacyScore(0) >= 300, "a Grand Project is 300 to the score");
+        // the Chain: the kraken rises against the marked colony
+        for (int k = 0; k < 4; k++) { Bird b; b.id = w->ColOf(1).nextId++; b.stage = BStage::Adult; b.role = Role::Fisher; b.hp = 60; b.hunger = 1; b.pos = w->ColOf(1).caches[0].pos; w->ColOf(1).birds.push_back(b); }
+        int before = 0; for (const auto& b : w->ColOf(1).birds) before += b.alive && b.stage == BStage::Adult;
+        check(w->WonderAct(WD_CHAIN, 1, {}), "the builder marks a colony for the kraken");
+        w->time = 7 * World::DAY; w->StepWonders(0.1f);
+        int after = 0; for (const auto& b : w->ColOf(1).birds) after += b.alive && b.stage == BStage::Adult;
+        check(after < before, TextFormat("at dawn the chained kraken rises off the marked colony's island (%d of %d birds left)", after, before));
+        // year two: the second tier
+        w->time = 30 * World::DAY; bool raise = w->RaiseWonder(WD_CHAIN);
+        for (auto& s : w->col.builds) if (s.kind == ST_WONDER) { s.twigs = (float)StTwigs(s); s.shells = StShells(s); s.startT = 0; }
+        w->StepWonders(0.1f);
+        check(raise && ((w->wonderRaised >> WD_CHAIN) & 1) && w->WonderScore(0) == 600, "in year two a wonder can be raised to its second tier (half the cost; its score doubles)");
     }    printf(fails ? "flight-longflight-test: %d check(s) failed\n" : "flight-longflight-test: all checks passed\n", fails);
     return fails ? 1 : 0;
 }

@@ -23,5 +23,20 @@
       {"key": "clever", "name": "Clever", "effect": "research 5% faster per Clever bird", "look": "a bright eye", "clever": 0.05, "power": "research flies", "species": "Wiseling"},
       {"key": "lucky", "name": "Lucky", "effect": "5% chance to survive a killing blow", "look": "a white mark", "lucky": 0.05, "power": "every bird a little luckier (15%)", "species": "Luckfeather"}
     ]
+  },
+  "projects": {
+    "_source": "doc pp. 7-9: costs as written; 'a season of a colony's builders' is at least 4 days; second tiers in year two at half the cost; 300 score each (the Monument 500), raised: the same again",
+    "min_days": 4, "raise_cost": 0.5, "gate_tax": 0.2, "gate_yield": 2, "rookery_others_mate_time": 1.3, "beam_night_m": 600, "chain_kills": 3, "ark_mates": 8, "ark_move_m": 400, "works_bombs": 3,
+    "list": [
+      {"key": "rookery", "name": "The Great Rookery", "where": "on an island of 20 sites", "twigs": 300, "shells": 100, "pearls": 10, "builder": "every chick on its island fledges together at dawn", "map": "the wild mates prefer its island: everyone else's courtship takes longer", "raised": "every egg on the island hatches in a day"},
+      {"key": "lighthouse", "name": "The Lighthouse of Birds", "where": "on a stack or a cliff", "twigs": 200, "shells": 200, "pearls": 20, "builder": "its beam reveals a region each night", "map": "every colony sees the beam; night raids near it are impossible", "raised": "the beam blinds flocks that come near at night"},
+      {"key": "gate", "name": "The Fish Gate", "where": "on a reef or a strait", "twigs": 150, "shells": 300, "pearls": 30, "builder": "its ground's yield doubles for good", "map": "everyone's fishers go there, and the builder takes a fish in five", "raised": "the reef becomes a wall"},
+      {"key": "temple", "name": "The Sky Temple", "where": "on the highest point on the map", "twigs": 250, "shells": 150, "pearls": 40, "builder": "fervour 100", "map": "every shrine is the Temple's: the builder blesses (+10) or curses (-10) any colony once a day", "raised": "its curse routs a colony's flocks"},
+      {"key": "works", "name": "The Great Works", "where": "on Volcano Island or Iron Island", "twigs": 200, "shells": 100, "pearls": 50, "sulfur": 20, "builder": "three bombs a day", "map": "the builder picks the prevailing wind", "raised": "a Blockbuster a day"},
+      {"key": "market", "name": "The Market Hall", "where": "on a town", "twigs": 300, "shells": 100, "pearls": 30, "builder": "the Bird Exchange is run from here; the builder sets the fee", "map": "every trade on the map goes through the Exchange; embargoes become possible", "raised": "the builder sets the prices"},
+      {"key": "chain", "name": "The Kraken's Chain", "where": "at Kraken Cove", "twigs": 100, "shells": 400, "pearls": 50, "builder": "the kraken attacks what the builder marks, once a day", "map": "the kraken no longer roams", "raised": "the kraken strikes twice as hard"},
+      {"key": "ark", "name": "The Ark", "where": "anywhere", "twigs": 400, "shells": 200, "pearls": 60, "builder": "a floating island the builder moves a region a day; the wild birds follow it", "map": "the map's mates travel with it", "raised": "twice the mates"},
+      {"key": "monument", "name": "The Monument of Feathers", "where": "anywhere", "twigs": 0, "shells": 500, "pearls": 100, "score": 500, "builder": "500 to the score, and the dynasty named in every Chronicle", "map": "nothing else: it is enormous and everyone can see it", "raised": "it doubles"}
+    ]
   }
 }

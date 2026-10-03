@@ -1058,7 +1058,7 @@ bool World::LayStructure(int kind) {
     if (kind < 0 || kind >= ST_COUNT || col.caches.empty()) return false;
     int same = 0; for (const auto& s : col.builds) if (s.kind == kind) { if (kind != ST_MONUMENT || !s.built) return false; same++; }
     if (!BuildUnlocked(kind)) return false;
-    static const Vector3 OFF[ST_COUNT] = {{0, 0, 0}, {6, 0, 4}, {-5, 0, 3}, {4, 0, -5}, {-6, 0, -4}, {3, 0, 7}, {-3, 0, -8}, {9, 0, -2}, {-9, 0, 1}, {2, 0, 10}, {11, 0, 7}};
+    static const Vector3 OFF[ST_COUNT] = {{0, 0, 0}, {6, 0, 4}, {-5, 0, 3}, {4, 0, -5}, {-6, 0, -4}, {3, 0, 7}, {-3, 0, -8}, {9, 0, -2}, {-9, 0, 1}, {2, 0, 10}, {11, 0, 7}, {0, 0, 0}};
     Structure n; n.kind = kind; n.isle = home; n.hp = StructureHp(kind);
     Vector3 o = OFF[kind]; if (kind == ST_MONUMENT) { o.x += 4 * same; o.z -= 3 * same; }
     n.pos = kind == ST_HEDGE ? col.caches[0].pos : GroundAt(col.caches[0].pos.x + o.x, col.caches[0].pos.z + o.z);
@@ -1099,6 +1099,7 @@ int World::LegacyScore(int side, int* part) const {
     }
     if (part) for (int k = 0; k < 6; k++) part[k] = p[k];
     int lf = LongFlight() && side >= 0 && side <= (int)sides.size() && ColOf(side).stormCrossed ? (int)StormCrossScore() : 0;   // (the Long Flight: the Storm Wall crossed)
+    if (LongFlight() && side >= 0 && side <= (int)sides.size()) lf += WonderScore(side);   // (Grand Projects)
     return p[0] + p[1] + p[2] + p[3] + p[4] + p[5] + lf;
 }
 // ---------------------------------------------------------------- --flight-long-test (the expansion's long match)

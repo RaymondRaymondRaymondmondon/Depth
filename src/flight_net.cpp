@@ -95,6 +95,9 @@ void OrderHeir(Writer& w, int id) { w.U8(FA_HEIR); w.I32(id); }
 void OrderSuccession(Writer& w, int choice) { w.U8(FA_SUCC); w.I32(choice); }
 void OrderKeepPerk(Writer& w, int perk) { w.U8(FA_KEEP_PERK); w.I32(perk); }
 void OrderDynasty(Writer& w, int pick) { w.U8(FA_DYNASTY); w.I32(pick); }
+void OrderWonder(Writer& w, int wonder) { w.U8(FA_WONDER); w.I32(wonder); }
+void OrderWonderRaise(Writer& w, int wonder) { w.U8(FA_WONDER_RAISE); w.I32(wonder); }
+void OrderWonderAct(Writer& w, int wonder, int arg, Vector3 at) { w.U8(FA_WONDER_ACT); w.I32(wonder); w.I32(arg); w.F32(at.x); w.F32(at.y); w.F32(at.z); }
 bool FormationUnlocked(const Colony& c, Formation f) { return f == Formation::Chevron || f == Formation::Scatter || c.HasTier(Tree::War, 1); }
 
 std::string TargetText(World& w, const Flock& f) {
@@ -248,6 +251,9 @@ bool OrderIn(World& w, int side, int kind, Reader& r) {
     case FA_LOAN: { int t = r.I32(), f = r.I32(), n = r.I32(); if (r.bad) return false; return w.OfferLoan(t, f, n) >= 0; }
     case FA_BOUNTY: { int t = r.I32(), n = r.I32(); if (r.bad || n < 1 || n > 100) return false; return w.PostBounty(t, n); }
     case FA_BEACON: return w.LightBeacon();
+    case FA_WONDER: { int k = r.I32(); if (r.bad || k < 0 || k >= WD_COUNT) return false; return w.Consecrate(k); }
+    case FA_WONDER_RAISE: { int k = r.I32(); if (r.bad || k < 0 || k >= WD_COUNT) return false; return w.RaiseWonder(k); }
+    case FA_WONDER_ACT: { int k = r.I32(), g = r.I32(); Vector3 at{r.F32(), r.F32(), r.F32()}; if (r.bad || k < 0 || k >= WD_COUNT) return false; return w.WonderAct(k, g, at); }
     case FA_HEIR: { int id = r.I32(); if (r.bad || !w.LongFlight()) return false; return id < 0 ? w.MarkNextHeir() : w.MarkHeir(id); }
     case FA_SUCC: { int c = r.I32(); if (r.bad || c < 0 || c > 2 || !w.LongFlight()) return false; w.col.succChoice = c; return true; }
     case FA_KEEP_PERK: { int p = r.I32(); if (r.bad || p < -1 || p >= 32 || !w.LongFlight()) return false; w.col.keepPerk = p; return true; }
@@ -446,7 +452,7 @@ template <class A> void VisitColony(A& a, Colony& c, bool own, bool full, const 
         a.b(f.retreating); a.b(f.scattered); a.b(f.leaderDead); a.s(f.name);
         a.i(f.stim); a.f(f.stimT); a.f(f.crashT);
     });
-    a.vec(c.builds, [&](Structure& s) { a.i(s.kind); a.v3(s.pos); a.f(s.twigs); a.i(s.shells); a.b(s.built); a.i(s.site); a.f(s.hp); a.i(s.isle); });
+    a.vec(c.builds, [&](Structure& s) { a.i(s.kind); a.v3(s.pos); a.f(s.twigs); a.i(s.shells); a.b(s.built); a.i(s.site); a.f(s.hp); a.i(s.isle); a.i(s.wonder); a.b(s.raising); a.f(s.startT); });
     // stage 6: the stores, research, fervour, the buttons
     a.i(c.pearls); a.f(c.guano); a.f(c.sulfur);
     for (int t = 0; t < (int)Tree::COUNT; t++) { int v = c.tier[t]; a.i(v); c.tier[t] = (uint8_t)std::clamp(v, 0, 4); }
@@ -573,6 +579,7 @@ template <class A> void Visit(A& a, World& w, bool full) {
     { WreckState& r = w.wreck; a.i(r.isle); a.i(r.hold); a.b(r.bell); }
     { Weather& e = w.weather; a.i(e.kind); a.f(e.t); a.f(e.next); }
     { IsleState& x = w.isx; a.i(x.ghost); a.v3(x.ghostC0); a.i(x.whale); a.f(x.whaleNext); a.f(x.whaleUnderT); a.i(x.dives); a.vec(x.birdConv, [&](float& v) { a.f(v); }); }
+    for (int& b : w.wonderBy) a.i(b); { int r = (int)w.wonderRaised; a.i(r); w.wonderRaised = (uint32_t)r; } a.i(w.gateZone); a.v3(w.arkPos);
     { FarState& x = w.far; a.v3(x.c); a.f(x.fogR); a.f(x.wallR); a.b(x.opened); a.i(x.rocIsle); a.v3(x.roc); a.f(x.rocHp); a.b(x.rocHunting); a.i(x.fleet); a.v3(x.fleetC); a.i(x.frigateTown); a.v3(x.frigate); a.f(x.mirrorCloudT); a.vec(x.thornConv, [&](float& v) { a.f(v); }); a.vec(x.iceConv, [&](float& v) { a.f(v); }); }
     if constexpr (A::reading) { w.SetWreckPose(); w.SetGhostPose(); w.SetFleetPose(); }
     VisitSea(a, w, w.me.pos);
