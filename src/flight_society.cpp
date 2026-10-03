@@ -309,7 +309,7 @@ bool World::TradeAt(int town, int feedIn, int good, int* got) {
     if (T.rep[cur] <= TD().repShoo) { Say(isles[T.isle].name + "'s people shoo your birds away (your reputation there)."); return false; }
     if (Embargoed(cur)) { Say("The Council's embargo: no town will trade with you."); return false; }
     // the colony's credit at the town (feed sold and not yet spent) buys as many of the good as it covers
-    float value = feedIn * FishPrice(town) * BendNow().trade * DecreeNow().trade * (HasRelic(cur, RL_FLAG) ? Relics()[RL_FLAG].trade : 1.0f) * (T.rep[cur] >= 50 ? 1.1f : 1.0f) * (Oathbroken(cur) ? 0.8f : 1.0f);   // (oathbroken: worse rates)   // (the Fort's Flag)   // (Market Day +30%)
+    float value = feedIn * FishPrice(town) * (market.event == ME_FISH ? 3.0f : 1.0f) * BendNow().trade * DecreeNow().trade * (HasRelic(cur, RL_FLAG) ? Relics()[RL_FLAG].trade : 1.0f) * (T.rep[cur] >= 50 ? 1.1f : 1.0f) * (Oathbroken(cur) ? 0.8f : 1.0f);   // (oathbroken: worse rates)   // (the Fort's Flag)   // (Market Day +30%)
     if (int tithe = DecreeNow().tithe; tithe > 0) { col.titheFish += feedIn; while (col.titheFish >= tithe) { col.titheFish -= tithe; col.pearls++; } }   // (the Tithe: a pearl per 20 traded)
     T.stock[G_FISH] += feedIn;
     if (townCredit.size() < towns.size() * 8) townCredit.resize(towns.size() * 8, 0);

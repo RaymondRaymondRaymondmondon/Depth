@@ -12,6 +12,8 @@
 //      each changes the map for everyone; raised to a second tier in year two.
 //   5. Leagues (shared sight, truce, the score shared), the Council (a vote at dawn every six days from Summer of
 //      year two: Peace, the Hunt, Embargo, Sanctuary, Tithe, the Great War), oaths and the Great War.
+//   6. Trade empires: six wares (salt fish, lamp oil, spices, iron, cloth, feathers), the Bird Exchange (the Market
+//      Hall's fee and embargo), chartered routes flown by Traders (convoys, pirates, escorts), market events.
 // The calendar (the user's call: the doc's days stretched to fit the colony's growth): a year is the four-season
 // match's 24 days, so the Long Flight is 48 days (or 36 for the shorter one); the Founder's life is a year.
 #include "flight.h"
@@ -870,6 +872,145 @@ void World::ShareLeagueScores() {
     for (int a = 0; a < N; a++) if (scores[a].leagueShare > 0) { scores[a].total = scores[a].leagueShare; scores[a].leagueShare = 0; }
 }
 
+// ---------------------------------------------------------------- 6. trade empires (doc pp. 13-14): wares, the Bird Exchange, routes and convoys, market events
+namespace {
+struct WareDef { std::string key, name, from; float price = 4, farMul = 1, oldMul = 1; };
+struct TradeData {
+    std::vector<WareDef> wares; float feedPerPearl = 4, convoy = 1.2f, piracy = 0.25f, tripLoad = 2, traderSpeed = 10, routeRepDays = 6, routeRep = 20;
+    int feeDefault = 20, feeMin = 10, feeMax = 40; float eventChance = 0.25f;
+};
+const TradeData& TRD() {
+    static TradeData d; static bool loaded = false;
+    if (loaded) return d;
+    loaded = true;
+    Json j = LoadJsonFile(FlightDataDir() + "/flight_longflight.json");
+    const Json& t = j["trade"];
+    auto F = [&](const char* k, float& v) { if (t[k].IsNum()) v = t[k].F(v); };
+    F("feed_per_pearl", d.feedPerPearl); F("convoy", d.convoy); F("piracy", d.piracy); F("trip_load", d.tripLoad); F("trader_speed", d.traderSpeed); F("route_rep_days", d.routeRepDays); F("route_rep", d.routeRep); F("event_chance", d.eventChance);
+    if (t["fee"].IsNum()) d.feeDefault = t["fee"].I(d.feeDefault);
+    for (const Json& x : t["wares"].a) { WareDef w; w.key = x["key"].Str0(); w.name = x["name"].Str0(w.key); w.from = x["from"].Str0(); w.price = x["price"].F(4); w.farMul = x["far_town"].F(1); w.oldMul = x["old_town"].F(1); d.wares.push_back(w); }
+    while ((int)d.wares.size() < WR_COUNT) { WareDef w; w.key = w.name = "ware"; d.wares.push_back(w); }
+    return d;
+}
+}  // namespace
+const char* WareName(int w) { return w >= 0 && w < WR_COUNT ? TRD().wares[w].name.c_str() : "?"; }
+const char* MarketEventName(int e) { static const char* N[ME_COUNT] = {"", "The fleet's bad season: fish prices triple", "A Far Sea town burned: spices vanish", "A town's festival wants feathers", "The cornering of the market"}; return N[std::clamp(e, 0, ME_COUNT - 1)]; }
+float World::WarePrice(int town, int ware) const {
+    // what a town pays for a ware, in feed: the Far Sea's goods pay triple at the old towns; the day's market event
+    if (ware < 0 || ware >= WR_COUNT || town < 0 || town >= (int)towns.size()) return 0;
+    const WareDef& W = TRD().wares[ware];
+    bool farTown = IsFar(towns[town].isle);
+    float p = W.price * (farTown ? W.farMul : W.oldMul);
+    if (market.event == ME_SPICES && ware == WR_SPICE) p = 0;
+    if (market.event == ME_FEATHERS && ware == WR_FEATHER) p *= 6;
+    if (market.event == ME_CORNER && market.cornerWare == ware) p *= 2;
+    return p;
+}
+float World::ExchangePrice(int ware, bool sell) const {
+    // the Bird Exchange's board: a sale fetches the best price any town offers this dawn, a purchase pays the cheapest
+    float best = sell ? 0 : 1e9f; for (int t = 0; t < (int)towns.size(); t++) if (!IsFar(towns[t].isle) || FarOpen()) { float p = WarePrice(t, ware); if (p <= 0) continue; best = sell ? std::max(best, p) : std::min(best, p); }
+    return best >= 1e8f ? 0 : best;
+}
+int World::ExchangeFee() const { return market.fee < TRD().feeMin || market.fee > TRD().feeMax ? TRD().feeDefault : market.fee; }
+bool World::Exchange(int ware, int qty, bool sell) {
+    // sell (or buy) wares on the Exchange at the board's price; the Market Hall's builder takes its fee and can embargo
+    if (!LongFlight() || ware < 0 || ware >= WR_COUNT || qty <= 0) return false;
+    if (Embargoed(cur) || (market.embargo == cur && time < market.embargoUntil)) { Say("You are embargoed: your orders don't post."); return false; }
+    float price = ExchangePrice(ware, sell); if (price <= 0) { Say(std::string("No market for ") + WareName(ware) + " today."); return false; }
+    int hall = wonderBy[WD_MARKET];
+    float feed = price * qty, fee = hall >= 0 && hall != cur ? feed / ExchangeFee() : 0;
+    if (sell) {
+        if (col.wares[ware] < qty) { Say("You don't have that much."); return false; }
+        col.wares[ware] -= qty;
+        int pearls = (int)((feed - fee) / TRD().feedPerPearl);
+        col.pearls += pearls; col.tradeEarned += pearls;
+        if (hall >= 0 && hall != cur) ColOf(hall).pearls += (int)(fee / TRD().feedPerPearl + 0.5f);
+        Say(TextFormat("Sold %d %s on the Exchange: %d pearls%s.", qty, WareName(ware), pearls, fee > 0 ? " (less the Hall's fee)" : ""));
+    } else {
+        int cost = (int)ceilf((feed + fee) / TRD().feedPerPearl);
+        if (col.pearls < cost) { Say(TextFormat("That costs %d pearls.", cost)); return false; }
+        col.pearls -= cost; col.wares[ware] += qty;
+        if (hall >= 0 && hall != cur) ColOf(hall).pearls += (int)(fee / TRD().feedPerPearl + 0.5f);
+        Say(TextFormat("Bought %d %s on the Exchange for %d pearls.", qty, WareName(ware), cost));
+    }
+    return true;
+}
+bool World::Charter(int from, int to, int ware) {
+    if (!LongFlight() || from < 0 || to < 0 || from >= (int)towns.size() || to >= (int)towns.size() || from == to || ware < 0 || ware >= WR_COUNT) return false;
+    if ((IsFar(towns[from].isle) || IsFar(towns[to].isle)) && !FarOpen()) { Say("That town lies in the Far Sea (it opens at the end of the first year)."); return false; }
+    for (const auto& r : col.routes) if (r.from == from && r.to == to && r.ware == ware) return false;
+    if (col.routes.size() >= 4) { Say("Four routes at most."); return false; }
+    TradeRoute r; r.from = from; r.to = to; r.ware = ware; r.since = time; col.routes.push_back(r);
+    Say(std::string("A route is chartered: ") + WareName(ware) + " from " + isles[towns[from].isle].name + " to " + isles[towns[to].isle].name + " (your Traders fly it).");
+    Chronicle(cur, CK_OTHER, std::string("We chartered a trade route in ") + WareName(ware) + ".");
+    return true;
+}
+bool World::Uncharter(int k) { if (k < 0 || k >= (int)col.routes.size()) return false; col.routes.erase(col.routes.begin() + k); return true; }
+void World::StepTrade(float dt) {
+    if (!LongFlight()) return;
+    const TradeData& D = TRD();
+    int N = (int)sides.size() + 1;
+    bool dayTick = fmodf(time, DAY) < dt;
+    // the market's day: an event now and then (an Augur knows a day ahead)
+    if (dayTick) {
+        market.event = market.next; market.next = ME_NONE;
+        if (market.event == ME_CORNER) market.cornerWare = (int)(Rand() * WR_COUNT) % WR_COUNT;
+        if (market.event != ME_NONE) for (int s = 0; s < N; s++) SayTo(s, std::string("The market: ") + MarketEventName(market.event) + ".");
+        if (Rand() < D.eventChance) {
+            market.next = 1 + (int)(Rand() * (ME_COUNT - 1)) % (ME_COUNT - 1);
+            for (int s = 0; s < N; s++) { bool augur = false; for (const auto& b : ColOf(s).birds) augur |= b.alive && b.stage == BStage::Adult && b.role == Role::Augur; if (augur) SayTo(s, std::string("Your Augur foresees tomorrow's market: ") + MarketEventName(market.next) + "."); }
+        }
+    }
+    for (int s = 0; s < N; s++) {
+        Colony& C = ColOf(s);
+        // where the wares come from: salt fish from wrecks and the Fleet, lamp oil from the Lighthouse, feathers from every colony
+        if (dayTick) {
+            int birds = 0; for (const auto& b : C.birds) birds += b.alive;
+            C.wares[WR_FEATHER] += birds / 10;
+            int h = HomeOf(s); IsleType ht = h >= 0 && h < (int)isles.size() ? isles[h].type : IsleType::Islet;
+            if (ht == IsleType::Shipwreck) C.wares[WR_SALTFISH] += 2;
+            if (ht == IsleType::Lighthouse) C.wares[WR_OIL] += 2;
+            for (int i = 0; i < (int)isles.size(); i++) if (HolderOf(i) == s) { IsleType t = isles[i].type; if (t == IsleType::IronIsland || t == IsleType::DrownedFleet || t == IsleType::Wreck) C.wares[WR_SALTFISH] += 2; }
+        }
+        if (dayTick && !HumanOf(s)) WithSide(s, [&] {
+            for (int k = 0; k < WR_COUNT; k++) if (col.wares[k] >= 4 && ExchangePrice(k, true) > 0) Exchange(k, col.wares[k], true);
+            int tr = 0; for (const auto& b : col.birds) tr += b.alive && b.stage == BStage::Adult && b.role == Role::Trader;
+            if (tr > 0 && col.routes.empty() && towns.size() >= 2) {
+                int bf = -1, bt = -1, bw = 0; float bs = 0;
+                for (int a = 0; a < (int)towns.size(); a++) for (int b2 = 0; b2 < (int)towns.size(); b2++) if (a != b2) for (int k = 0; k < WR_COUNT; k++) {
+                    if ((IsFar(towns[a].isle) || IsFar(towns[b2].isle)) && !FarOpen()) continue;
+                    float sp = WarePrice(b2, k) - WarePrice(a, k) * 0.5f; if (sp > bs) { bs = sp; bf = a; bt = b2; bw = k; }
+                }
+                if (bf >= 0) Charter(bf, bt, bw);
+            }
+        });
+        // the routes: the colony's Traders fly them; a round trip pays by the distance and the spread
+        int traders = 0, escorts = 0; for (const auto& b : C.birds) if (b.alive && b.stage == BStage::Adult) { traders += b.role == Role::Trader; escorts += b.role == Role::Tank || b.role == Role::Harrier; }
+        int nr = (int)C.routes.size(); if (!nr) continue;
+        for (auto& r : C.routes) {
+            int tr = traders / nr + (&r - &C.routes[0] < traders % nr ? 1 : 0);
+            r.traders = tr; if (tr <= 0) continue;
+            Vector3 a = towns[r.from].dock, b = towns[r.to].dock;
+            float dist = Vector3Distance(a, b), trip = std::max(30.0f, 2 * dist / D.traderSpeed);
+            r.t += dt;
+            if (r.t < trip) continue;
+            r.t = 0; r.trips++;
+            float buy = WarePrice(r.from, r.ware), sell = WarePrice(r.to, r.ware);
+            float load = tr * D.tripLoad * (tr >= 3 ? D.convoy : 1.0f);   // (three or more: a convoy, 20% more)
+            float gain = std::max(0.0f, (sell - buy * 0.5f)) * load * (1 + dist / 2000);
+            bool robbed = tr >= 3 && pirates.on && time >= pirates.scatterUntil && escorts == 0 && Rand() < D.piracy;   // (pirates hunt convoys without an escort)
+            if (robbed) { SayTo(s, "Pirates fall on your convoy: the load is lost (an escort, a Tank or a Harrier, would have held them off)."); continue; }
+            int pearls = (int)(gain / D.feedPerPearl);
+            C.pearls += pearls; C.tradeEarned += pearls;
+            if (Embargoed(s)) C.pearls -= pearls;   // (an embargo: the towns won't take it)
+            if (time - r.since > D.routeRepDays * DAY && !r.repDone) { r.repDone = true; for (int k : {r.from, r.to}) { Town& T = towns[k]; if ((int)T.rep.size() <= s) T.rep.resize(s + 1, 0); T.rep[s] = std::min(100.0f, T.rep[s] + D.routeRep); } SayTo(s, "Your route is kept a season: its towns' gulls escort it now."); }
+        }
+    }
+}
+
+bool World::SetHallFee(int fee) { if (!HasWonder(cur, WD_MARKET)) return false; market.fee = std::clamp(fee, TRD().feeMin, TRD().feeMax); Say(TextFormat("The Exchange's fee is 1 in %d.", market.fee)); return true; }
+bool World::HallEmbargo(int side) { if (!HasWonder(cur, WD_MARKET) || side == cur || side < 0 || side > (int)sides.size() || time < market.hallEmbargoReady) return false; market.embargo = side; market.embargoUntil = time + 6 * DAY; market.hallEmbargoReady = time + 6 * DAY; for (int o = 0; o <= (int)sides.size(); o++) SayTo(o, SideName(cur) + "'s Market Hall embargoes " + SideName(side) + " on the Exchange for a season."); return true; }
+
 // ---------------------------------------------------------------- --flight-longflight-test
 int RunFlightLongFlightTest() {
     int fails = 0;
@@ -1069,6 +1210,26 @@ int RunFlightLongFlightTest() {
         // the Hunt
         w->council.hunt = 0; w->council.huntUntil = w->time + World::DAY; w->HuntKilled(0, 1);
         check(w->ColOf(1).huntScore == 300, "the Council's Hunt: the kraken's killer gets 300");
+    }    // ---- trade empires
+    {
+        auto w = make(8);
+        int oldT = -1, farT = -1; for (int t = 0; t < (int)w->towns.size(); t++) { if (w->IsFar(w->towns[t].isle)) farT = t; else oldT = t; }
+        check(oldT >= 0 && farT >= 0 && w->WarePrice(oldT, WR_SPICE) > w->WarePrice(farT, WR_SPICE) * 2.5f, "the Far Sea's goods pay triple at the old towns");
+        w->col.wares[WR_FEATHER] = 10; int p0 = w->col.pearls;
+        bool sold = w->Exchange(WR_FEATHER, 10, true);
+        check(sold && w->col.wares[WR_FEATHER] == 0 && w->col.pearls >= p0, "wares are sold on the Bird Exchange for pearls");
+        w->market.event = ME_FEATHERS; float fest = w->ExchangePrice(WR_FEATHER, true); w->market.event = ME_NONE;
+        check(fest > w->ExchangePrice(WR_FEATHER, true) * 5, "a festival makes feathers worth something");
+        // a route flown by three Traders: a convoy pays more each trip
+        for (int k = 0; k < 3; k++) adult(*w, Role::Trader, w->col.caches[0].pos);
+        bool farClosed = !w->Charter(oldT, farT, WR_SALTFISH);
+        w->time = 26 * World::DAY;
+        bool ch = w->Charter(farT, oldT, WR_SPICE);
+        int before = w->col.pearls; for (int q = 0; q < 4000; q++) w->StepTrade(0.25f);
+        check(farClosed && ch && w->col.routes[0].trips > 0 && w->col.pearls > before, TextFormat("a chartered route (Far Sea spices to the old towns) pays its Traders' colony: %d trips, %d pearls", w->col.routes.empty() ? 0 : w->col.routes[0].trips, w->col.pearls - before));
+        // the Market Hall's builder takes a fee
+        w->wonderBy[WD_MARKET] = 1; w->col.wares[WR_OIL] = 20; int h0 = w->ColOf(1).pearls; w->Exchange(WR_OIL, 20, true);
+        check(w->ColOf(1).pearls > h0, "the Market Hall's builder takes a fee on every trade");
     }    printf(fails ? "flight-longflight-test: %d check(s) failed\n" : "flight-longflight-test: all checks passed\n", fails);
     return fails ? 1 : 0;
 }

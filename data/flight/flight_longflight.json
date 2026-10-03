@@ -39,5 +39,17 @@
       {"key": "monument", "name": "The Monument of Feathers", "where": "anywhere", "twigs": 0, "shells": 500, "pearls": 100, "score": 500, "builder": "500 to the score, and the dynasty named in every Chronicle", "map": "nothing else: it is enormous and everyone can see it", "raised": "it doubles"}
     ]
   },
-  "council": {"_source": "doc pp. 11-12: a league costs each a pearl and a day; leaving 30 fervour and a season oathbroken (towns -20%); the Council meets from Summer of year two every four days (stretched: day 31, then every 6); motions last four days (6); the Great War lasts four days (6), ends at two-thirds of the fronts; weariness 5 fervour and a fish a bird a day; 200 score to the winners", "league_pearls": 1, "league_days": 1, "leave_fervour": 30, "oath_days": 6, "oath_trade": 0.8, "first_day": 31, "every_days": 6, "vote_days": 0.3, "motion_days": 6, "peace_fish": 20, "hunt_score": 300, "war_days": 6, "war_fervour": 5, "war_fish_per_bird": 1, "war_share": 0.667, "war_score": 200}
+  "council": {"_source": "doc pp. 11-12: a league costs each a pearl and a day; leaving 30 fervour and a season oathbroken (towns -20%); the Council meets from Summer of year two every four days (stretched: day 31, then every 6); motions last four days (6); the Great War lasts four days (6), ends at two-thirds of the fronts; weariness 5 fervour and a fish a bird a day; 200 score to the winners", "league_pearls": 1, "league_days": 1, "leave_fervour": 30, "oath_days": 6, "oath_trade": 0.8, "first_day": 31, "every_days": 6, "vote_days": 0.3, "motion_days": 6, "peace_fish": 20, "hunt_score": 300, "war_days": 6, "war_fervour": 5, "war_fish_per_bird": 1, "war_share": 0.667, "war_score": 200},
+  "trade": {
+    "_source": "doc pp. 13-14: goods and who pays most; routes pay by distance and spread; convoys of three +20% and hunted by pirates; the Exchange's fee 1 in 20 (1 in 10 to 1 in 40); prices in feed, four feed a pearl",
+    "feed_per_pearl": 4, "convoy": 1.2, "piracy": 0.25, "trip_load": 1, "trader_speed": 10, "route_rep_days": 6, "route_rep": 20, "fee": 20, "event_chance": 0.25,
+    "wares": [
+      {"key": "saltfish", "name": "salt fish", "from": "shipwrecks, the Drowned Fleet, Iron Island", "price": 3, "far_town": 2, "old_town": 1},
+      {"key": "oil", "name": "lamp oil", "from": "Lighthouse Rock", "price": 4, "far_town": 1, "old_town": 1.5},
+      {"key": "spice", "name": "spices", "from": "the Far Sea towns", "price": 4, "far_town": 1, "old_town": 3},
+      {"key": "iron", "name": "iron", "from": "the Far Sea towns", "price": 5, "far_town": 1, "old_town": 3},
+      {"key": "cloth", "name": "cloth", "from": "the Far Sea towns", "price": 3, "far_town": 1, "old_town": 3},
+      {"key": "feather", "name": "feathers", "from": "every colony", "price": 0.5, "far_town": 1, "old_town": 1}
+    ]
+  }
 }

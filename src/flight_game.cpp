@@ -1553,9 +1553,9 @@ void DrawLongPanel(fl::World& w) {
     Txt("Tab: close", x + W - 90, y + 16, 14, dim);
     // sub-pages: the year; the neutral powers and diplomacy; building (structures, Grand Projects); the dynasty (the Long Flight)
     int& sub = gLongSub;
-    { static const char* TAB[4] = {"The year", "Powers", "Building", "Dynasty"}; int nt = w.LongFlight() ? 4 : 3; if (sub >= nt) sub = 0;
-      for (int k = 0; k < nt; k++) if (SmallBtn({x + 230 + k * 100.0f, y + 12, 94, 22}, TAB[k], true)) sub = k;
-      if (sub < nt) DrawRectangle((int)(x + 230 + sub * 100), (int)(y + 35), 94, 2, Color{255, 220, 150, 255}); }
+    { static const char* TAB[5] = {"The year", "Powers", "Building", "Dynasty", "Trade"}; int nt = w.LongFlight() ? 5 : 3; if (sub >= nt) sub = 0;
+      for (int k = 0; k < nt; k++) if (SmallBtn({x + 210 + k * 92.0f, y + 12, 88, 22}, TAB[k], true)) sub = k;
+      if (sub < nt) DrawRectangle((int)(x + 210 + sub * 92), (int)(y + 35), 88, 2, Color{255, 220, 150, 255}); }
     float ly = y + 44;
     auto line = [&](const std::string& s, Color c, int size = 15) { DrawWrapped(s, {x + 16, ly, W - 32, 40}, size, c); ly += size + 7; };
     if (sub == 0) {
@@ -1677,6 +1677,48 @@ void DrawLongPanel(fl::World& w) {
             if (kd == fl::ST_BEACON && done && SmallBtn({bx + 210, by, 80, 20}, "light it", w.time - w.col.beaconT > 0.25f * fl::World::DAY)) { Writer o; fl::OrderBeacon(o); Order(o); }
         }
         ly += 76;
+    }
+    // the Long Flight: trade empires (the Exchange, the routes, the Market Hall)
+    if (sub == 4 && w.LongFlight()) {
+        ly += 4; TxtBold("The Bird Exchange", x + 16, ly, 17, ink);
+        int hall = w.WonderBy(fl::WD_MARKET);
+        Txt(hall >= 0 ? TextFormat("run from %s's Market Hall (fee 1 in %d)", w.SideName(hall).c_str(), w.ExchangeFee()) : std::string("run from the largest town, no fee"), x + 190, ly + 3, 12, dim); ly += 22;
+        if (w.market.event) line(std::string("Today: ") + fl::MarketEventName(w.market.event), gold, 13);
+        for (int k = 0; k < fl::WR_COUNT; k++) {
+            Txt(TextFormat("%s: %d   sells %.1f, buys %.1f feed", fl::WareName(k), w.col.wares[k], w.ExchangePrice(k, true), w.ExchangePrice(k, false)), x + 16, ly + 2, 13, ink);
+            if (SmallBtn({x + 380, ly, 80, 20}, "sell 5", w.col.wares[k] >= 5)) { Writer o; fl::OrderExchange(o, k, 5, true); Order(o); }
+            if (SmallBtn({x + 466, ly, 80, 20}, "buy 5")) { Writer o; fl::OrderExchange(o, k, 5, false); Order(o); }
+            ly += 22;
+        }
+        ly += 6; TxtBold("Routes", x + 16, ly, 17, ink);
+        int traders = 0; for (const auto& b : w.col.birds) traders += b.alive && b.stage == fl::BStage::Adult && b.role == fl::Role::Trader;
+        Txt(TextFormat("%d Traders fly them (three on a route: a convoy, +20%%, hunted by pirates; a Tank or a Harrier escorts)", traders), x + 90, ly + 3, 12, dim); ly += 22;
+        for (int k = 0; k < (int)w.col.routes.size(); k++) {
+            const fl::TradeRoute& r = w.col.routes[k];
+            Txt(TextFormat("%s: %s to %s, %d Traders, %d trips", fl::WareName(r.ware), w.isles[w.towns[r.from].isle].name.c_str(), w.isles[w.towns[r.to].isle].name.c_str(), r.traders, r.trips), x + 16, ly + 2, 13, ink);
+            if (SmallBtn({x + 560, ly, 90, 20}, "close it")) { Writer o; fl::OrderUncharter(o, k); Order(o); }
+            ly += 22;
+        }
+        static int rf = 0, rt = 1, rw = 0; int nt2 = (int)w.towns.size();
+        if (nt2 >= 2) {
+            rf %= nt2; rt %= nt2; if (rt == rf) rt = (rf + 1) % nt2;
+            if (SmallBtn({x + 16, ly, 24, 20}, ">")) rf = (rf + 1) % nt2;
+            Txt(w.isles[w.towns[rf].isle].name, x + 44, ly + 2, 12, ink);
+            if (SmallBtn({x + 200, ly, 24, 20}, ">")) { rt = (rt + 1) % nt2; if (rt == rf) rt = (rt + 1) % nt2; }
+            Txt(w.isles[w.towns[rt].isle].name, x + 228, ly + 2, 12, ink);
+            if (SmallBtn({x + 384, ly, 24, 20}, ">")) rw = (rw + 1) % fl::WR_COUNT;
+            Txt(fl::WareName(rw), x + 412, ly + 2, 12, ink);
+            if (SmallBtn({x + 520, ly, 130, 20}, "charter a route")) { Writer o; fl::OrderCharter(o, rf, rt, rw); Order(o); }
+            ly += 26;
+        }
+        if (hall == w.cur) {
+            static int emb = 1; int n = (int)w.sides.size() + 1; if (emb == w.cur || emb >= n) emb = (w.cur + 1) % n;
+            TxtBold("Your Market Hall", x + 16, ly, 15, ink); ly += 20;
+            if (SmallBtn({x + 16, ly, 120, 20}, TextFormat("fee 1 in %d", w.ExchangeFee()))) { Writer o; fl::OrderHallFee(o, w.ExchangeFee() >= 40 ? 10 : w.ExchangeFee() + 10); Order(o); }
+            if (SmallBtn({x + 150, ly, 24, 20}, ">")) { do emb = (emb + 1) % n; while (emb == w.cur); }
+            if (SmallBtn({x + 180, ly, 220, 20}, ("embargo " + w.SideName(emb) + " (a season)").c_str())) { Writer o; fl::OrderHallEmbargo(o, emb); Order(o); }
+            ly += 24;
+        }
     }
     // the Long Flight: leagues, the Council, the Great War
     if (sub == 1 && w.LongFlight()) {

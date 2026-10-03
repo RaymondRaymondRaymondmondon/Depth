@@ -509,6 +509,7 @@ void World::Step(float realDt, const FounderInput& in) {
     StepFarSea(dt);
     StepWonders(dt);
     StepCouncil(dt);
+    StepTrade(dt);
     if (LongFlight()) for (int s = 1; s <= (int)sides.size(); s++) WithSide(s, [&] { BotWonders(); });
     if (seasons > 0) for (int s = 0; s <= (int)sides.size(); s++) WithSide(s, [&] { StepVeterans(dt); });
     fogT += dt; fogNow = fogT >= 0.25f;

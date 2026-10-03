@@ -188,6 +188,12 @@ uint32_t Inherit(uint32_t mother, uint32_t father, bool hybrid, float u1, float 
 struct Bird; struct Colony;
 GeneFx GeneEffects(const Bird& b, const Colony& C);
 float GiantHunger();
+// the Long Flight's trade (flight_longflight.cpp)
+enum { WR_SALTFISH = 0, WR_OIL, WR_SPICE, WR_IRON, WR_CLOTH, WR_FEATHER, WR_COUNT };
+enum { ME_NONE = 0, ME_FISH, ME_SPICES, ME_FEATHERS, ME_CORNER, ME_COUNT };
+const char* WareName(int w); const char* MarketEventName(int e);
+struct TradeRoute { int from = -1, to = -1, ware = 0, traders = 0, trips = 0; float t = 0, since = 0; bool repDone = false; };
+struct MarketState { int event = 0, next = 0, cornerWare = 0, fee = 0, embargo = -1; float embargoUntil = -1, hallEmbargoReady = -1; };
 struct Rival { int isle = -1; std::vector<Vector3> nests; std::vector<Vector3> caches; int birds = 0; };   // (a colony that sits still until stage 4)
 
 // What your birds have seen (doc pp. 18-19): the fog, islands by how well they're known, grounds, sightings, reports
@@ -468,7 +474,8 @@ struct Colony {
     int speciesTrait[2] = {-1, -1}; std::string speciesName;
     bool stormCrossed = false, rocEgg = false, fleetBoarded = false;
     float templeT = -1e9f, arkT = -1e9f; int chainMark = -1, windPick = -1;   // (the wonders' hands)
-    int league = -1, oathsBroken = 0, warsWon = 0, huntScore = 0; float leagueFrom = 0, oathUntil = -1e9f;   // (leagues, oaths, the Great War, the Council's Hunt)   // (the Far Sea: the Storm Wall crossed; a Roc's egg taken; the Fleet boarded)   // (the Long Flight: the colony's species, once 20 birds share a trait at III)
+    int league = -1, oathsBroken = 0, warsWon = 0, huntScore = 0; float leagueFrom = 0, oathUntil = -1e9f;
+    int wares[WR_COUNT] = {}; std::vector<TradeRoute> routes; int tradeEarned = 0;   // (trade empires)   // (leagues, oaths, the Great War, the Council's Hunt)   // (the Far Sea: the Storm Wall crossed; a Roc's egg taken; the Fleet boarded)   // (the Long Flight: the colony's species, once 20 birds share a trait at III)
     float genStart = 0, successionT = -1e9f; uint32_t relicsKept = 0; std::string dynasty; std::vector<ChronLine> chronicle;
     float beaconT = -1e9f, rookeryFledgeT = -1e9f; bool rookeryWarm = false;   // (the Beacon last lit; the Rookery's chicks fledging together; enough adults about it)
     int tech = -1; float techMastery[TK_COUNT] = {}; std::vector<int> techLog;   // (fishing mastery: the colony's technique, -1 auto; per ground x technique: tries, catches, losses)
@@ -703,6 +710,10 @@ struct World {
     int OfferLeague(int to); void JoinLeague(int a, int b); bool LeaveLeague();
     bool Propose(int kind, int target); bool Vote(int idx, bool yes); void BotCouncil(int side); void StepCouncil(float dt);
     void HuntKilled(int beast, int side); void ShareLeagueScores();
+    MarketState market;                         // (trade empires)
+    float WarePrice(int town, int ware) const; float ExchangePrice(int ware, bool sell) const; int ExchangeFee() const;
+    bool Exchange(int ware, int qty, bool sell); bool Charter(int from, int to, int ware); bool Uncharter(int k);
+    bool SetHallFee(int fee); bool HallEmbargo(int side); void StepTrade(float dt);
     float eventDay2[4] = {-1, -1, -1, -1};      // (the Long Flight: year two's season events)
     void InitIsles(); void StepIsles(float dt); void SetGhostPose();
     bool IsleShields(int isle, int threat) const;   // (the island keeps raiders off its nests: sheer ice, the roots, the Maelstrom's rocks, the beam at night)
