@@ -248,9 +248,27 @@ void DrawReels(Game& g) {
         DrawTextCenteredBold(">", r.x + 15, r.y, 22, Pal::Brass);
         if ((IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), l)) || IsKeyPressed(KEY_LEFT)) { flSel = (flSel + nf - 1) % nf; PlayCue("ui.click"); }
         if ((IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), r)) || IsKeyPressed(KEY_RIGHT)) { flSel = (flSel + 1) % nf; PlayCue("ui.click"); }
-        DrawWrapped(FlightFounderLine(flSel), {c.x - 200, c.y + 140, 400, 40}, 14, SCREEN_DIM);
-        if (Button({c.x - 110, c.y + 236, 220, 36}, "Fly (solo)", true, 15)) { StartFlight(g, FlightFounderKey(flSel)); return; }
-        DrawTextCentered("Fishing and flight first; the colony, war and friends come in later stages", c.x, c.y + 280, 13, SCREEN_DIM);
+
+        // the map: your island type, the arrangement, how many starting islands (the rivals sit still until stage 4)
+        static int flIsle = 0, flArr = 0, flPlayers = 4;
+        // (on a plate to the left of the drum, like Red Tide's pages)
+        DrawRectangleRounded({28, 236, 268, 240}, 0.08f, 6, Fade(Color{8, 30, 34, 255}, 0.85f));
+        DrawRectangleRoundedLinesEx({28, 236, 268, 240}, 0.08f, 6, 2, Pal::BrassDk);
+        DrawTextCenteredBold("The map", 162, 246, 18, Color{230, 200, 150, 255});
+        auto cyc = [&](float y, const char* label, int& v, int n, const char* text) {
+            Rectangle l{40, y + 16, 24, 22}, r{260, y + 16, 24, 22};
+            DrawTextCentered(label, 162, y, 13, SCREEN_DIM);
+            DrawTextCenteredBold(text, 162, y + 17, 16, Color{180, 230, 220, 255});
+            DrawTextCenteredBold("<", l.x + 12, l.y, 18, Pal::Brass); DrawTextCenteredBold(">", r.x + 12, r.y, 18, Pal::Brass);
+            if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), l)) { v = (v + n - 1) % n; PlayCue("ui.click"); }
+            if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), r)) { v = (v + 1) % n; PlayCue("ui.click"); }
+        };
+        cyc(276, "your island", flIsle, 4, FlightIsleTypeName(flIsle));
+        cyc(326, "the arrangement", flArr, 4, FlightArrangementName(flArr));
+        { int pv = flPlayers - 2; cyc(376, "starting islands", pv, 5, TextFormat("%d (rivals sit still for now)", flPlayers)); flPlayers = pv + 2; }
+        DrawWrapped(FlightFounderLine(flSel), {40, 424, 244, 48}, 13, SCREEN_DIM);
+        if (Button({c.x - 110, c.y + 236, 220, 36}, "Fly (solo)", true, 15)) { StartFlight(g, FlightFounderKey(flSel), flIsle, flArr, flPlayers); return; }
+        DrawTextCentered("Flight, the colony and the map so far; war and friends come in later stages", c.x, c.y + 280, 13, SCREEN_DIM);
     }
     if (selGame == G_RED_TIDE) {
         const char* const* RT_MAPS = RT_MAP_KEYS;

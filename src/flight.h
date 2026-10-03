@@ -13,6 +13,7 @@
 // ============================================================================
 #include "raylib.h"
 #include "redtide.h"
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -30,21 +31,75 @@ const std::vector<FounderDef>& Founders();
 int FounderIndex(const std::string& key);   // -1 if unknown
 std::string FlightDataDir();                  // data/flight (found like Red Tide's)
 
-// ---------------------------------------------------------------- the island (stage 1: the tropical island)
+// ---------------------------------------------------------------- the islands (stage 1: the tropical island; stage 3: every type)
+// Design doc pp. 13-16: four starting types (one per player), neutral islets, and the dangerous islands of the map's
+// middle (their shapes now; their dangers and prizes are stage 7).
+enum class IsleType : uint8_t { Tropical, Stack, Town, Atoll, Islet, KrakenCove, Skull, Volcano, ReefGarden, Wreck, COUNT };
+const char* IsleTypeName(IsleType t);
+inline bool IsStartType(IsleType t) { return t <= IsleType::Atoll; }
+inline bool IsDangerous(IsleType t) { return t >= IsleType::KrakenCove; }
+struct Prop { Vector3 c{}, half{}; int kind = 0; float yaw = 0; };   // a box: 0 house, 1 roof, 2 tower, 3 dock, 4 boat, 5 woodpile, 6 hull, 7 mast
 struct Island {
-    int n = 0; float cell = 2, x0 = 0, z0 = 0;   // the heightmap's grid
+    IsleType type = IsleType::Tropical;
+    std::string name;
+    Vector3 c{};                                // its middle (y = 0)
+    float radius = 90;                          // its land's reach
+    int start = -1;                             // a player's starting island (slot), or -1
+    int n = 0; float cell = 2, x0 = 0, z0 = 0;   // the heightmap's grid (world coordinates)
     std::vector<float> h;                       // metres above the sea (negative: the sea floor)
     std::vector<Vector3> palms;                 // trunk feet
     std::vector<float> palmH;                   // their heights (the crown is at the foot + 0.97 h)
     int nestPalm = -1;
-    Vector3 hill{}, nest{};                     // the hill's top; the Founder's first nest (in a palm by the hill)
+    Vector3 hill{}, nest{};                     // the high point; the first nest (a palm crown, a ledge, a roof, the ring)
+    std::vector<Vector3> sites;                 // nest sites (doc: 40 tropical, 20 stack, 25 town, 15 atoll)
+    std::vector<std::pair<Vector3, float>> twigPts;   // where twigs come from, and how many a spot holds (palms, driftwood, the woodpile)
+    std::vector<Vector3> shellPts;              // shells on the beaches
+    std::vector<Prop> props;                    // the town's houses, tower, docks and boats; the wreck's hull
+    std::vector<Vector2> outline;               // the coast, 72 points (the chart draws it)
+    float floorDepth = -25;                     // the sea floor at the grid's edge
     uint32_t seed = 1;
-    void Generate(uint32_t seed);
-    float Height(float x, float z) const;       // bilinear; the open sea beyond the grid is -12
+    void Generate(uint32_t seed);               // (the stage-1 tropical island at the origin)
+    void Generate(IsleType type, uint32_t seed, Vector3 centre);
+    float Height(float x, float z) const;       // bilinear; outside the grid: the floor depth
+    bool Covers(float x, float z) const { return n > 0 && x >= x0 && z >= z0 && x < x0 + (n - 1) * cell && z < z0 + (n - 1) * cell; }
     Vector3 Normal(float x, float z) const;
     bool Land(float x, float z) const { return Height(x, z) > 0.15f; }
     Vector3 Ground(float x, float z) const { return {x, std::max(0.0f, Height(x, z)), z}; }   // where a bird stands (the surface over water)
+  private:
+    void BuildOutline();
 };
+
+// ---------------------------------------------------------------- the map (stage 3: doc p14 "Arrangements")
+enum class Arrangement : uint8_t { Archipelago, SafeDistance, Ring, Chain, COUNT };
+const char* ArrangementName(Arrangement a);
+struct MapOpts {
+    int players = 4;                            // 2-6 starting islands (solo: you, and rivals that sit still until stage 4)
+    Arrangement arr = Arrangement::Archipelago;
+    IsleType home = IsleType::Tropical;         // your starting island's type
+    uint32_t seed = 1;
+};
+struct IsleSpec { IsleType type = IsleType::Islet; Vector3 c{}; int start = -1; std::string name; };
+std::vector<IsleSpec> LayoutMap(const MapOpts& o);   // slot 0 at the origin; rotational fairness
+struct Rival { int isle = -1; std::vector<Vector3> nests; std::vector<Vector3> caches; int birds = 0; };   // (a colony that sits still until stage 4)
+
+// What your birds have seen (doc pp. 18-19): the fog, islands by how well they're known, grounds, sightings, reports
+struct Sighting { float t = -1; int nests = 0, caches = 0, birds = 0; int alt = 0; bool exact = false; int scouts = 0; };
+struct GroundInfo { float t = -1; float stock = 0; float predators = 0; int fishers = 0; };
+struct Report { float t = 0; int kind = 0; std::string text; Vector3 at{}; };   // kind 0 ground, 1 island, 2 flock, 3 danger, 4 opportunity
+struct Knowledge {
+    float x0 = 0, z0 = 0, cell = 25; int nx = 0, nz = 0;
+    std::vector<float> seen;                    // last seen (game time), -1 never: the fog
+    std::vector<uint8_t> isle;                  // per island: 0 unknown, 1 flown over (a silhouette), 2 landed on (in full)
+    std::vector<Sighting> sight;                // per island: the latest report on it
+    std::vector<GroundInfo> ground;             // per zone
+    std::vector<Report> log;                    // newest last
+    bool Seen(float x, float z) const;
+    float SeenAt(float x, float z) const;
+};
+enum class Alt : uint8_t { Low, Mid, High };
+const char* AltName(Alt a);
+float AltHeight(Alt a);                         // 12, 40, 120 m
+float AltSight(Alt a);                          // what a bird at that height sees round it (60, 120, 250 m)
 
 // ---------------------------------------------------------------- the weather
 struct Wind {
@@ -111,9 +166,10 @@ struct Economy {
     int feederCover = 8;                      // one feeder serves this many working birds
 };
 const Economy& Econ();
-enum class Role : uint8_t { None, Fisher, Feeder, Builder, COUNT };
+enum class Role : uint8_t { None, Fisher, Feeder, Builder, Scout, COUNT };
 struct RoleDef { std::string key, name, what; float hp = 60, speed = 12; int carry = 2; };
 const RoleDef& RoleOf(Role r);
+int SpawnFishSlot(rt::Ecosystem& eco, int sp, Vector3 pos, int zone);   // a fish into a dead slot (the web only appends)
 const char* RoleName(Role r);
 enum class BStage : uint8_t { Egg, Chick, Adult, Mate };
 enum class Task : uint8_t { Idle, Fly, Search, Dive, Deliver, Eat, Gather, Build, Sit, Fetch, Feed };
@@ -127,6 +183,9 @@ struct Bird {
     int carrySp = -1, carrySize = 0, carryTwigs = 0, carryShells = 0;
     int clutches = 0; float clutchT = 0;      // mates
     int caught = 0;
+    // a scout's order (doc p19): where, how high, what it saw, and the report it carries home
+    int scoutIsle = -1, scoutZone = -1; Vector3 scoutAt{}; Alt alt = Alt::Mid; bool hasOrder = false, observed = false;
+    Sighting obs; GroundInfo gobs; float obsT = 0;
 };
 struct Site { Vector3 pos{}; int palm = -1; int nest = -1; };
 struct Nest {
@@ -137,7 +196,7 @@ struct Nest {
 };
 struct Cache { Vector3 pos{}; std::vector<CachedFish> fish; bool built = true; float twigs = 0; };
 struct TwigSource { Vector3 pos{}; float twigs = 0, cap = 6; bool shells = false; };
-struct Stock { int row = 0, sp = 0, zone = 0; float K = 0, births = 0; };   // a fishing ground's species (one spawn row)
+struct Stock { int row = 0, sp = 0, zone = 0; float K = 0, births = 0, pop = 0; };   // a fishing ground's species (one spawn row); pop: its count while the zone sleeps
 struct DayStats { int day = 0, birds = 0, eggs = 0, chicks = 0, mates = 0, nests = 0, caught = 0, deaths = 0; float feedCaught = 0, mouths = 0, cacheFeed = 0, lagoon = 0; };
 struct Colony {
     std::vector<Bird> birds;
@@ -146,7 +205,7 @@ struct Colony {
     std::vector<Site> sites;
     std::vector<TwigSource> twigSrc;
     int twigs = 0, shells = 0, wildMates = 30, nextId = 1;
-    float plan[(int)Role::COUNT] = {0, 0.5f, 0.2f, 0.3f};   // the fledging plan: the share of each role
+    float plan[(int)Role::COUNT] = {0, 0.5f, 0.2f, 0.3f, 0};   // the fledging plan: the share of each role
     int ground = -1;                          // fishers' ground: -1 the best, else a zone index
     float restBelow = 0;                      // fishers leave a ground resting while its stock is under this (0 never)
     int nestsWanted = 2;                      // builders raise nests (on free sites) until there are this many
@@ -180,7 +239,26 @@ struct World {
     static inline float DAY = 120;              // seconds in a game day (flight_economy.json "day_seconds"; the user: shorter days than the doc's 4 minutes, so a match runs well past day 8)
     float DayPhase() const;                     // 0 midnight .. 0.25 dawn .. 0.5 noon .. 0.75 dusk
     const FounderDef& Def() const { return Founders()[me.def]; }
-    void Init(const std::string& founderKey, uint32_t seed);
+    void Init(const std::string& founderKey, uint32_t seed);                       // (stage 1: the tropical island alone)
+    void Init(const std::string& founderKey, uint32_t seed, const MapOpts& o);     // a whole map (stage 3)
+    // the map
+    MapOpts opts; bool wholeMap = false;
+    std::vector<Island> isles; int home = 0;    // every island (home is yours; island above is a copy of it)
+    std::vector<Rival> rivals;
+    Knowledge know;
+    std::unique_ptr<rt::MapData> sea;           // the generated sea (a whole map)
+    std::vector<uint8_t> liveZone; std::vector<float> zoneNearT;   // zones with fish in them now; when a bird was last near
+    int inshoreZone = -1;
+    float HeightAt(float x, float z) const;     // every island's ground; the deep sea elsewhere
+    bool LandAt(float x, float z) const { return HeightAt(x, z) > 0.15f; }
+    Vector3 GroundAt(float x, float z) const { return {x, std::max(0.0f, HeightAt(x, z)), z}; }
+    Vector3 NormalAt(float x, float z) const;
+    int IsleAt(float x, float z, float pad = 0) const;   // the island whose land reach covers the point, or -1
+    void Reveal(Vector3 p, float radius, int landedIsle = -1);
+    bool SendScout(int isle, int zone, Vector3 at, Alt alt);   // an idle scout flies there; false if none
+    void ScoutReport(Bird& b);
+    void ScoutStep(Bird& b, float dt);
+    void StepMap(float dt);                     // the fog, the live zones
     void Step(float dt, const FounderInput& in); // dt in real seconds (the slow motion scales the world inside)
     void Say(const std::string& s);
     float Rand();
@@ -239,5 +317,7 @@ struct World {
 int RunFlightTest();                            // depth.exe --flight-test
 int RunFlightColonyTest();                      // depth.exe --flight-colony-test
 int RunFlightSim(int argc, char** argv);        // depth.exe --flight-sim <island> <days> [careful|lagoon] [founder] [seed]
+int RunFlightFairTest(int argc, char** argv);   // depth.exe --flight-fair [seed]: every arrangement and player count is fair
+int RunFlightScoutTest();                       // depth.exe --flight-scout-test: the stage-3 gate (a scout's report from each altitude)
 
 }  // namespace fl

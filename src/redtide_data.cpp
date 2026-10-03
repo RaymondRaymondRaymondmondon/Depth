@@ -639,6 +639,22 @@ static void LinkMouths(const MapData& m, Link& l) {
 
 static std::map<std::string, std::unique_ptr<MapData>> gMaps;
 
+// A map built in code (the Flight's generated seas): bounds, link mouths, one alarm region, points' heights.
+void RebuildMapGeometry(MapData& m) {
+    m.boundsMin = {1e9f, 1e9f, 1e9f}; m.boundsMax = {-1e9f, -1e9f, -1e9f};
+    for (const auto& z : m.zones) {
+        m.boundsMin.x = std::min(m.boundsMin.x, z.plan.x); m.boundsMax.x = std::max(m.boundsMax.x, z.plan.x + z.plan.width);
+        m.boundsMin.z = std::min(m.boundsMin.z, z.plan.y); m.boundsMax.z = std::max(m.boundsMax.z, z.plan.y + z.plan.height);
+        m.boundsMin.y = std::min(m.boundsMin.y, z.y0); m.boundsMax.y = std::max(m.boundsMax.y, z.y1);
+    }
+    for (auto& l : m.links) LinkMouths(m, l);
+    m.alarmRegions.clear();
+    AlarmRegion r; r.name = "All"; r.mult = 1;
+    for (int i = 0; i < (int)m.zones.size(); i++) { r.zones.push_back(i); m.zones[i].alarmRegion = 0; }
+    m.alarmRegions.push_back(r);
+    for (auto& p : m.pois) if (p.zone >= 0) { const Zone& z = m.zones[p.zone]; p.pos.y = z.y0 + 1; }
+}
+
 // ---------------------------------------------------------------- species seasons (design doc, "Species seasons")
 // "A season is a data drop: species rows, diet matrix columns, spawn entries, and dossier pages, with models from the
 // existing body plans": data/redtide/seasons/<n>.json carries, per map, a fragment of extra.json merged into the map's

@@ -57,7 +57,7 @@ void Island::Generate(uint32_t s) {
         float dh = sqrtf((x - hill.x) * (x - hill.x) + (z - hill.z) * (z - hill.z));
         float dome = 30 * expf(-(dh / 34) * (dh / 34));
         float land = plateau + dome * (1 - Smooth(60, 80, r)) + (Fbm(x * 0.06f, z * 0.06f, s + 5) - 0.5f) * 3 * (1 - Smooth(60, 85, r));
-        float sea = -1.6f - 10 * Smooth(88, 150, r);
+        float sea = -1.6f - 23.4f * Smooth(88, 158, r);   // (down to the open sea's floor at the grid's edge)
         float y = r < 88 ? land : sea;
         // the lagoon bay to the south: 2-3 m of water, opening onto the reef flat
         float bay = Smooth(44, 38, fabsf(x)) * Smooth(46, 54, z);
@@ -88,9 +88,9 @@ void Island::Generate(uint32_t s) {
     nest.y += 7.5f;   // (up in the crown)
 }
 float Island::Height(float x, float z) const {
-    if (h.empty()) return -12;
+    if (h.empty()) return floorDepth;
     float fx = (x - x0) / cell, fz = (z - z0) / cell;
-    if (fx < 0 || fz < 0 || fx >= n - 1 || fz >= n - 1) return -12;
+    if (fx < 0 || fz < 0 || fx >= n - 1 || fz >= n - 1) return floorDepth;
     int xi = (int)fx, zi = (int)fz; float tx = fx - xi, tz = fz - zi;
     float a = h[(size_t)zi * n + xi], b = h[(size_t)zi * n + xi + 1], c = h[(size_t)(zi + 1) * n + xi], d = h[(size_t)(zi + 1) * n + xi + 1];
     return (a + (b - a) * tx) * (1 - tz) + (c + (d - c) * tx) * tz;
@@ -151,14 +151,14 @@ void World::Init(const std::string& founderKey, uint32_t seed) {
     *this = World{};
     rng = seed ? seed * 2654435761u + 1 : 7;
     DAY = Econ().daySeconds;
-    island.Generate(seed ? seed : 1);
+    island.Generate(IsleType::Tropical, seed ? seed : 1, {0, 0, 0});
     const rt::MapData& sea = rt::Map(seaKey);
     eco.Init(sea, seed ? seed : 1, 1, 1);
     // a bird low over the water is a body in the web: a shark's strike on it is the game's to resolve
     me.agent = eco.AddDiver(0, {0, 50, 0});
     if (me.agent >= 0) eco.agents[me.agent].alive = false;
     eco.onDiverHit = [this](int, int attacker, float) {
-        if (me.st == FState::Dead || me.pos.y > 10 || island.Land(me.pos.x, me.pos.z)) return;
+        if (me.st == FState::Dead || me.pos.y > 10 || LandAt(me.pos.x, me.pos.z)) return;
         std::string who = attacker >= 0 && attacker < (int)eco.agents.size() ? eco.map->species[eco.agents[attacker].sp].name : std::string("something below");
         Kill("taken by a " + who);
     };
@@ -189,7 +189,7 @@ void World::SyncBody() {
     // the body in the web: at the surface under the bird while it is low over the water (a shark can breach to 10 m)
     if (me.agent < 0 || me.agent >= (int)eco.agents.size()) return;
     rt::Agent& a = eco.agents[me.agent];
-    bool low = me.st != FState::Dead && me.pos.y < 10 && !island.Land(me.pos.x, me.pos.z);
+    bool low = me.st != FState::Dead && me.pos.y < 10 && !LandAt(me.pos.x, me.pos.z);
     Vector3 at{me.pos.x, me.st == FState::Struggle || me.st == FState::Under ? -0.6f : -0.3f, me.pos.z};
     int zi = low ? eco.ZoneAt(at) : -1;
     a.alive = low && zi >= 0;
@@ -257,9 +257,9 @@ void World::StepFounder(float dt, const FounderInput& in) {
     if (f.adultT > 0) f.adultT += dt;
     // a carried fish is weight and scent
     float carryMul = 1 - 0.06f * f.carrySize;
-    if (f.carrySp >= 0 && f.pos.y < 12 && !island.Land(f.pos.x, f.pos.z)) eco.AddBlood({f.pos.x, -0.3f, f.pos.z}, 0.04f * f.carrySize * dt);
-    float ground = std::max(0.0f, island.Height(f.pos.x, f.pos.z));
-    bool overLand = island.Land(f.pos.x, f.pos.z);
+    if (f.carrySp >= 0 && f.pos.y < 12 && !LandAt(f.pos.x, f.pos.z)) eco.AddBlood({f.pos.x, -0.3f, f.pos.z}, 0.04f * f.carrySize * dt);
+    float ground = std::max(0.0f, HeightAt(f.pos.x, f.pos.z));
+    bool overLand = LandAt(f.pos.x, f.pos.z);
     switch (f.st) {
     case FState::Fly: {
         // steering: toward the player's aim, banking into the turn
@@ -314,8 +314,8 @@ void World::StepFounder(float dt, const FounderInput& in) {
         // the strike: a fast dive about to meet open water
         if (!overLand && f.vel.y < -4 && f.airspeed > 10 && f.pos.y > 0.3f && f.pos.y / -f.vel.y < 0.35f) { StartStrike(); break; }
         // the ground and the sea
-        ground = std::max(0.0f, island.Height(f.pos.x, f.pos.z));
-        overLand = island.Land(f.pos.x, f.pos.z);
+        ground = std::max(0.0f, HeightAt(f.pos.x, f.pos.z));
+        overLand = LandAt(f.pos.x, f.pos.z);
         if (f.pos.y < ground + 0.3f) {
             float sp = Vector3Length(f.vel);
             if (overLand) {
@@ -428,6 +428,7 @@ void World::Step(float realDt, const FounderInput& in) {
     SyncBody();
     eco.Step(dt);
     StepColony(dt);   // (the caches spoil, the grounds regrow, the colony lives)
+    StepMap(dt);      // (a whole map: the fog, the scouts, the sea waking where the birds are)
 }
 
 // ---------------------------------------------------------------- --flight-test

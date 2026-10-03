@@ -160,6 +160,7 @@ const MapData& MapCustom(const std::string& key, int season, const std::string& 
 int SeasonCount();                                // data/redtide/seasons/1.json, 2.json, ...
 std::string SeasonName(int season);
 bool DataOk(std::string* why = nullptr);
+void RebuildMapGeometry(MapData& m);              // a map built in code: bounds, link mouths, one alarm region
 
 // ---------------------------------------------------------------- the simulation
 enum class State : uint8_t { Graze, Rest, Investigate, Hunt, Feed, Flee, Defend, Return, Attached, Dead };

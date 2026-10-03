@@ -167,5 +167,87 @@ Gate (doc p33): "A bot colony grows to 40 and starves if it outfishes its lagoon
 
 **Day length (the user, 2026-10-03): keep the doc's timings in days, shorter days.** A game day is `day_seconds` 120 (was the doc's 240), so a 30-minute match runs to day 15. Colony birds work at `work_pace` 240/day_seconds (2x: they fly and fetch faster) and fish rise and sink at the same share of the shorter day, so every per-day number (3-6 fish a fisher a day, hatch 1, fledge 2...) holds. Last sim: careful reaches 40 birds on day 12 (24 minutes), no deaths; lagoon-only starves (24 of 24).
 
-## Next: stage 3, islands, scouting and the map
-All four starting island types, the generator, the arrangements; scouts, fog, the map, reports (doc p34).
+## Stage 3: islands, scouting and the map (done; gate met)
+
+Gate (doc p34): "A Scout report updates the map correctly from each altitude."
+
+**Code:** `src/flight_map.cpp` (headless), plus the scene's island drawing and the chart in `flight_game.cpp`.
+
+**Islands** (`Island::Generate(type, seed, centre)`, doc pp. 13-16):
+- **Starting types:**
+  - *The tropical island:* stage 1's, with 40 sites: 32 palm crowns and 8 on the beach.
+  - *The sea stack:* a terraced column 120 m tall, with 20 sites on its ledges, driftwood and shells on the lowest ledge, and deep water all round.
+  - *The fishing town:* a low island with a harbour, houses with roofs, a church tower, docks, boats and a woodpile. The props stand in the heightmap, so a bird lands on roofs and quays. 25 sites: roofs, the tower and its ledges, boats and docks.
+  - *The atoll:* a sand ring round a lagoon, with a channel to the east, a few palms and 15 sites on the ring.
+- **Neutral islands:** islets.
+- **Dangerous islands:** their shapes only. Their dangers and prizes are stage 7.
+  - the kraken cove: a crescent of cliffs round a deep cove;
+  - skull island: a big jungle island round a skull-faced mountain, with the tallest trees;
+  - the volcano: a cone with a crater lake;
+  - the reef garden: a coral flat with one sand cay;
+  - the wreck: a hulk with masts.
+- **Outlines:** each island carries 72 points of coastline for the chart.
+
+**Arrangements** (`LayoutMap`, doc p14): Archipelago, Safe Distance, Ring and Chain, for 2-6 starting islands.
+- Slot 0 (yours) is at the origin; the rivals' types are random.
+- The kraken cove sits in the middle and a ring of dangerous islands between the starts. Neutral fishing towns and islets lie between, and the wreck sits off-centre.
+- `depth.exe --flight-fair [seed]` checks 100 maps (5 seeds × 4 arrangements × 2-6 players). Every start must be the same distance from its nearest dangerous island, town and neighbour (within 2%), and no two coasts may come within 40 m (10 m for the drifting wreck). All 100 pass.
+- **Deviation:** archipelago neighbours sit 560-1120 m apart, not the doc's 300-500, because a ring of dangerous islands the size of skull island has to fit between them.
+
+**The sea over the whole map:**
+- `World::Init(founder, seed, MapOpts)` builds an `rt::MapData` in code: Red Tide's species and food web, each island's water zones from a template, a 500 m open-sea grid round everything, and links between every pair of zones that touch. `rt::RebuildMapGeometry` finishes it.
+- **Dormant zones:** zones more than 300 m from every bird hold their fish as numbers (`Stock::pop`) and regrow logistically. A zone wakes with fish when a bird comes near and goes back to sleep 20 s after the last one leaves.
+- **Slot reuse:** fish go into dead slots (`SpawnFishSlot`), because the web only ever appends.
+- **Cost:** a 4-player archipelago has 96 zones and 369 links; about 650 fish are live, and a step costs about 4-6 ms.
+
+**What the colony knows** (`Knowledge`, doc pp. 18-19):
+- **The fog:** a 25 m grid of when each cell was last seen.
+  - The Founder sees 45-300 m round it, more the higher it flies.
+  - Colony birds see 45 m.
+  - A scout sees by its height: 250 m high, 120 m mid, 60 m low.
+- **Islands:** unknown, flown over (a silhouette), or landed on (charted in full).
+- **Grounds:** yield and sharks.
+- **Sightings:** nests, caches and birds, with their time, height, exactness and how many scouts saw them.
+- **Reports:** a log.
+- **Rivals:** the other starting islands each hold a rival colony that sits still until stage 4: 3-7 nests, 1-2 caches and some birds.
+
+**Scouts** (a new role; `SendScout`, `ScoutStep`, `ScoutReport`):
+- A scout flies to an island or a ground at high (120 m), mid (40 m) or low (12 m). It circles and looks for 6 s, then flies home.
+- It reports within 60 m (measured flat) of a nest, a cache or the Founder.
+- High counts nests and birds to within 30%. Mid and low count exactly (doc: mid is seen by Watchers and low is a target; both are stage 4).
+- Two scouts reporting on the same island within half a day cross-check, and the counts become exact.
+- A scout out on an order flies on through the night.
+
+**The chart (M):**
+- *Fog and age:* cloud where nobody has looked; sea where your birds have, washing to sepia as the sighting ages.
+- *Islands:* landed islands in their colours with nest sites; silhouettes in grey, named only by type.
+- *Overlays:*
+  - worked grounds with their yield word and a shark fin;
+  - sightings ("~4 nests, 2 caches, ~12 birds; seen high, 1.0 days ago, cross-checked");
+  - wind arrows over seen water;
+  - your birds by role, scouts with a line to their target, and the Founder.
+- *Navigation:* wheel to zoom, right-drag to pan.
+- *Orders:* send a scout to an island or a ground at the chosen height, or send the fishers to a ground ("the best ground" resets it).
+- *Reports:* the log, newest first; click one to centre the chart on it.
+
+**The arcade:** a plate left of the drum picks your island type, the arrangement and the number of starting islands. The Founder's playstyle shows there too.
+
+**Checks:**
+- `depth.exe --flight-scout-test`:
+  - the map's makeup;
+  - every island type generates with the doc's site counts;
+  - the sea sleeps where there are no birds;
+  - the fog at the start;
+  - a scout at each height reports correctly (high about 6 of 7 nests, mid and low exactly 7, all in about 0.4 days);
+  - higher scouts clear more fog;
+  - two scouts cross-check to an exact count;
+  - a ground report;
+  - a whole map costs under 8 ms a step.
+- `--flight-fair`; the stage 1 and stage 2 checks still pass.
+- Shots: `flight_stack`, `flight_town`, `flight_atoll`, `flight_chart`, `arcade_flight`.
+
+**Carried over:**
+- *The colony on other home types:* the colony runs on any home island using that island's own sites and twig spots, but its numbers were tuned on the tropical island.
+- *The careful sim:* it varies from seed to seed: 40 birds on days 10-19.
+## Next: stage 4, war
+Formations, altitude and wind rules, morale, the warrior roles, raids, Watchers, hedges, towers; the rival colonies become bot colonies. Gate: two bot colonies fight and the higher, downwind flock wins (doc p34).

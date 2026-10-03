@@ -878,7 +878,9 @@ void LeaveTrawlMatch(Game& g);                                                 /
 void TrawlMenuTick(float dt);                                                  // (the game menu is open) a networked Trawl keeps talking   // crew 1-6 (the rest are bots), botSkill 0 Green, 1 Able, 2 Old Hand   // firstPerson: the 3D version (trawl_view3d.cpp); V switches in game
 void DebugTrawlShot(Game& g, int which);   // --shots: 0 the deck, 1 the engine room, 2 the wheelhouse, 3 a squall
 void SceneFlight(Game& g);    // The Flight, arcade game 7: the Founder flown over the tropical island (flight_game.cpp)
-void StartFlight(Game& g, const char* founder = "taloned");
+void StartFlight(Game& g, const char* founder = "taloned", int isleType = 0, int arrangement = 0, int players = 4);   // a whole map: your island type (0 tropical, 1 stack, 2 town, 3 atoll), the arrangement, 2-6 starting islands
+const char* FlightIsleTypeName(int t);
+const char* FlightArrangementName(int a);
 void LeaveFlight(Game& g);
 void DebugFlightShot(Game& g, int which);   // --shots: 0 dawn over the lagoon, 1 the strike, 2 the nest, 3 high over the island
 int FlightFounderCount();

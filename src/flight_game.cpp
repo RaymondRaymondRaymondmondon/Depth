@@ -25,7 +25,10 @@ struct FlightScene {
     Camera3D cam{};
     // models
     bool ready = false; int readyFor = -1;
-    Model terrain{}, palm{}, nest{}, sea{};
+    Model palm{}, nest{}, sea{};
+    std::vector<Model> terr;                  // one terrain per island (the whole map), or the one island
+    bool chart = false; float chartZoom = 1; Vector2 chartAt{0, 0}; int chartMode = 0; fl::Alt chartAlt = fl::Alt::Mid;   // the chart (M): zoom, centre, order mode (0 scout, 1 fishers), a scout's height
+    fl::MapOpts opts;
     Model body{}, head{}, beak{}, tail{}, wingIn{}, wingOut{};
     Model egg{}, chick{}, pile{};
     bool panel = false;                       // the colony panel (Tab)
@@ -42,30 +45,41 @@ float Hash(float x, float z) { float h = sinf(x * 12.9898f + z * 78.233f) * 4375
 void TwoSided(rt::MeshBuilder& mb, Vector3 a, Vector3 b, Vector3 c, Color col) { mb.Tri(a, b, c, col); mb.Tri(a, c, b, col); }
 
 // ---------------------------------------------------------------- models
-void BuildTerrain(rt::MeshBuilder& mb, const fl::Island& is) {
-    // the island as one mesh: wet sand at the waterline, dry sand, grass, jungle green inland, grey rock where it's steep;
-    // under the water the sand darkens with depth (the lagoon's turquoise is the sand seen through the water)
-    const Color wet{196, 178, 132, 255}, sand{236, 220, 170, 255}, grass{118, 168, 74, 255}, jungle{58, 120, 58, 255}, rock{150, 146, 136, 255}, seabed{210, 200, 160, 255}, deep{60, 96, 104, 255};
+void BuildTerrain(rt::MeshBuilder& mb, const fl::Island& is, int step = 1) {
+    // an island as one mesh, coloured by its type: wet sand at the waterline, dry sand, grass, jungle inland, rock where
+    // it's steep (the stack's chalk-white with guano, the volcano's black basalt), coral on the reef garden's flat;
+    // under the water the sand darkens with depth (a lagoon's turquoise is the sand seen through the water)
+    const Color wet{196, 178, 132, 255}, sand{236, 220, 170, 255}, grass{118, 168, 74, 255}, jungle{58, 120, 58, 255}, seabed{210, 200, 160, 255}, deep{60, 96, 104, 255};
+    Color rock{150, 146, 136, 255};
+    fl::IsleType ty = is.type;
+    if (ty == fl::IsleType::Stack) rock = {214, 210, 198, 255};
+    if (ty == fl::IsleType::Volcano || ty == fl::IsleType::KrakenCove) rock = {70, 64, 62, 255};
     auto col = [&](float x, float z) {
         float h = is.Height(x, z), n = is.Normal(x, z).y, j = Hash(floorf(x * 0.5f), floorf(z * 0.5f)) * 0.08f - 0.04f;
+        float r = Vector2Distance({x, z}, {is.c.x, is.c.z});
         Color c;
-        if (h < -0.2f) c = Mix(seabed, deep, std::clamp((-h - 0.2f) / 11, 0.0f, 1.0f));
+        if (h < -0.2f) {
+            c = Mix(seabed, deep, std::clamp((-h - 0.2f) / 11, 0.0f, 1.0f));
+            if (ty == fl::IsleType::ReefGarden && r < 100) { float k = Hash(floorf(x / 3), floorf(z / 3)); c = k < 0.33f ? Color{214, 120, 120, 255} : k < 0.66f ? Color{224, 180, 90, 255} : Color{150, 190, 170, 255}; }
+        }
         else if (h < 0.5f) c = wet;
         else if (h < 1.8f) c = sand;
         else if (h < 3.0f) c = Mix(sand, grass, (h - 1.8f) / 1.2f);
         else c = Mix(grass, jungle, std::clamp((h - 3) / 6, 0.0f, 1.0f));
+        if (ty == fl::IsleType::Volcano && h > 0.5f) c = Mix(Color{96, 86, 74, 255}, rock, std::clamp(h / 40, 0.0f, 1.0f));
+        if (ty == fl::IsleType::Volcano && r < 20 && h < 47.5f) c = {96, 170, 150, 255};   // (the crater lake's strange green water)
+        if (ty == fl::IsleType::Town && h > 1.0f) c = Mix(grass, Color{196, 184, 150, 255}, 0.35f);
         if (h > 0.5f && n < 0.8f) c = Mix(c, rock, (0.8f - n) / 0.2f);
         return Shade(c, 1 + j);
     };
-    int step = 1;
-    for (int zi = 0; zi < is.n - 1; zi += step) for (int xi = 0; xi < is.n - 1; xi += step) {
+    for (int zi = 0; zi + step < is.n; zi += step) for (int xi = 0; xi + step < is.n; xi += step) {
         float x0 = is.x0 + xi * is.cell, z0 = is.z0 + zi * is.cell, x1 = x0 + is.cell * step, z1 = z0 + is.cell * step;
         Vector3 a{x0, is.Height(x0, z0), z0}, b{x1, is.Height(x1, z0), z0}, c{x1, is.Height(x1, z1), z1}, d{x0, is.Height(x0, z1), z1};
-        Color cc = col(x0 + is.cell * 0.5f, z0 + is.cell * 0.5f);
+        if (a.y < -20 && b.y < -20 && c.y < -20 && d.y < -20) continue;   // (the deep floor: the seabed plane covers it)
+        Color cc = col(x0 + is.cell * step * 0.5f, z0 + is.cell * step * 0.5f);
         mb.Tri(a, c, b, cc); mb.Tri(a, d, c, cc);
     }
-}
-void BuildPalm(rt::MeshBuilder& mb) {
+}void BuildPalm(rt::MeshBuilder& mb) {
     // a unit palm 1 m tall (scaled per tree): a leaning trunk in rings, a crown of drooping fronds, coconuts
     std::vector<Vector3> trunk;
     for (int k = 0; k <= 6; k++) { float u = k / 6.0f; trunk.push_back({0.12f * u * u, u, 0.03f * sinf(u * 3)}); }
@@ -149,14 +163,18 @@ void BuildBird(const fl::FounderDef& d) {
 }
 void FreeModels() {
     if (!S.ready) return;
-    for (Model* m : {&S.terrain, &S.palm, &S.nest, &S.body, &S.head, &S.beak, &S.tail, &S.wingIn, &S.wingOut, &S.egg, &S.chick, &S.pile}) UnloadModel(*m);
+    for (Model& m : S.terr) UnloadModel(m);
+    S.terr.clear();
+    for (Model* m : {&S.palm, &S.nest, &S.body, &S.head, &S.beak, &S.tail, &S.wingIn, &S.wingOut, &S.egg, &S.chick, &S.pile}) UnloadModel(*m);
     S.ready = false; S.readyFor = -1;
 }
 void EnsureModels() {
     if (!IsWindowReady()) return;
-    if (S.ready && S.readyFor == (int)S.W.island.seed * 31 + S.W.me.def) return;
+    int key = (int)S.W.island.seed * 31 + S.W.me.def + (int)S.W.isles.size() * 7919;
+    if (S.ready && S.readyFor == key) return;
     FreeModels();
-    { rt::MeshBuilder mb; BuildTerrain(mb, S.W.island); S.terrain = LoadModelFromMesh(mb.Build()); }
+    if (S.W.wholeMap) for (size_t i = 0; i < S.W.isles.size(); i++) { rt::MeshBuilder mb; if (S.W.isles[i].type != fl::IsleType::Wreck) BuildTerrain(mb, S.W.isles[i], (int)i == S.W.home ? 1 : 2); else mb.Tri({0, -30, 0}, {0.1f, -30, 0}, {0, -30, 0.1f}, BLACK); S.terr.push_back(LoadModelFromMesh(mb.Build())); }
+    else { rt::MeshBuilder mb; BuildTerrain(mb, S.W.island); S.terr.push_back(LoadModelFromMesh(mb.Build())); }
     { rt::MeshBuilder mb; BuildPalm(mb); S.palm = LoadModelFromMesh(mb.Build()); }
     { rt::MeshBuilder mb; BuildNest(mb); S.nest = LoadModelFromMesh(mb.Build()); }
     { rt::MeshBuilder mb; mb.Lathe(0.075f, 5, 8, [](float u) { return 0.028f * sinf(std::max(0.05f, u) * PI) * (1.1f - 0.25f * u); }, [](float u) { return 0.028f * sinf(std::max(0.05f, u) * PI) * (1.1f - 0.25f * u); }, {244, 238, 226, 255}, {226, 218, 204, 255}); S.egg = LoadModelFromMesh(mb.Build()); }
@@ -171,7 +189,7 @@ void EnsureModels() {
       for (int k = 0; k < 14; k++) { float a = k * 0.45f, r = 0.35f + 0.25f * Hash((float)k, 3); Vector3 c{cosf(a) * r * 0.5f, 0.03f + 0.025f * (k % 3), sinf(a) * r * 0.5f}; mb.Tube({Vector3Add(c, {cosf(a + 1.6f) * 0.45f, 0, sinf(a + 1.6f) * 0.45f}), Vector3Subtract(c, {cosf(a + 1.6f) * 0.45f, 0, sinf(a + 1.6f) * 0.45f})}, 0.03f, 0.025f, 4, {118, 90, 58, 255}, {140, 108, 70, 255}, 0); }
       S.pile = LoadModelFromMesh(mb.Build()); }
     BuildBird(S.W.Def());
-    S.ready = true; S.readyFor = (int)S.W.island.seed * 31 + S.W.me.def;
+    S.ready = true; S.readyFor = key;
 }
 void EnsureSea() {
     if (S.seaReady || !IsWindowReady()) return;
@@ -232,9 +250,10 @@ fl::FounderInput Gather(float dt) {
     fl::FounderInput in;
     fl::Founder& f = S.W.me;
     if (S.shot) { in.yaw = S.aimYaw; in.pitch = S.aimPitch; return in; }
-    if (IsKeyPressed(KEY_TAB)) S.panel = !S.panel;
-    Vector2 md = MouseLook(f.st != fl::FState::Dead && !S.panel);   // (the panel takes the pointer: the bird flies on its last heading)
-    if (S.panel) md = {0, 0};
+    if (IsKeyPressed(KEY_TAB)) { S.panel = !S.panel; S.chart = false; }
+    if (IsKeyPressed(KEY_M)) { S.chart = !S.chart; S.panel = false; }
+    Vector2 md = MouseLook(f.st != fl::FState::Dead && !S.panel && !S.chart);   // (the panel and the chart take the pointer: the bird flies on its last heading)
+    if (S.panel || S.chart) md = {0, 0};
     if (f.st == fl::FState::Strike) {
         // the strike: the mouse steers the talons over the water (the world crawls at a quarter speed)
         S.steer.x = std::clamp(S.steer.x + md.x * 0.006f, -1.0f, 1.0f);
@@ -404,15 +423,35 @@ void DrawColony(const fl::World& w, const Camera3D& cam) {
     }
 }
 void DrawWorld(const fl::World& w, const Camera3D& cam, float dt) {
-    const fl::Island& is = w.island;
-    rt::DrawStatic(S.terrain, MatrixIdentity());
-    rt::DrawWorldCube({w.island.x0 + 160, -12.6f, w.island.z0 + 160}, {5000, 0.4f, 5000}, Color{60, 96, 104, 255});   // (the sea floor beyond the island's shelf)
-    for (size_t k = 0; k < is.palms.size(); k++) {
-        const Vector3& p = is.palms[k];
-        float h = k < is.palmH.size() ? is.palmH[k] : 7;
-        float sway = 0.03f * sinf(S.t * 0.8f + k);
-        Matrix m = MatrixMultiply(MatrixMultiply(MatrixScale(h, h, h), MatrixRotateY(Hash(p.z, p.x) * 6.28f)), MatrixRotateZ(sway));
-        rt::DrawStatic(S.palm, MatrixMultiply(m, MatrixTranslate(p.x, p.y - 0.2f, p.z)));
+    rt::DrawWorldCube({cam.position.x, -25.6f, cam.position.z}, {4000, 0.4f, 4000}, Color{52, 84, 96, 255});   // (the open sea's floor)
+    size_t nIsles = w.wholeMap ? w.isles.size() : 1;   // (stage 1: the one island)
+    for (size_t i = 0; i < nIsles; i++) {
+        const fl::Island& is = w.wholeMap ? w.isles[i] : w.island;
+        float d = Vector2Distance({cam.position.x, cam.position.z}, {is.c.x, is.c.z}) - is.radius;
+        if (d > 1100) continue;   // (beyond the haze)
+        if (i < S.terr.size()) rt::DrawStatic(S.terr[i], MatrixIdentity());
+        // trees
+        if (d < 450) for (size_t k = 0; k < is.palms.size(); k++) {
+            const Vector3& p = is.palms[k];
+            float h = k < is.palmH.size() ? is.palmH[k] : 7;
+            float sway = 0.03f * sinf(S.t * 0.8f + k);
+            Matrix m = MatrixMultiply(MatrixMultiply(MatrixScale(h, h, h), MatrixRotateY(Hash(p.z, p.x) * 6.28f)), MatrixRotateZ(sway));
+            rt::DrawStatic(S.palm, MatrixMultiply(m, MatrixTranslate(p.x, p.y - 0.2f, p.z)));
+        }
+        // the town's houses, roofs, tower, docks, boats and woodpile; the wreck's hull and masts
+        for (const auto& pr : is.props) {
+            static const Color PC[] = {{226, 218, 200, 255}, {170, 70, 52, 255}, {200, 192, 176, 255}, {132, 100, 66, 255}, {116, 84, 56, 255}, {150, 112, 70, 255}, {78, 64, 52, 255}, {96, 80, 64, 255}};
+            float bob = pr.kind == 4 ? 0.12f * sinf(S.t * 1.3f + pr.c.x) : pr.kind == 6 ? 0.25f * sinf(S.t * 0.4f) : 0;
+            Matrix m = MatrixMultiply(MatrixMultiply(MatrixScale(pr.half.x * 2, pr.half.y * 2, pr.half.z * 2), MatrixRotateY(-pr.yaw)), MatrixTranslate(pr.c.x, pr.c.y + bob, pr.c.z));
+            rt::DrawCubeM(m, PC[std::clamp(pr.kind, 0, 7)]);
+        }
+    }
+    // rival colonies (they sit still until stage 4): their nests and caches
+    for (const auto& rv : w.rivals) {
+        const fl::Island& is = w.isles[rv.isle];
+        if (Vector2Distance({cam.position.x, cam.position.z}, {is.c.x, is.c.z}) > 500) continue;
+        for (const auto& n : rv.nests) rt::DrawStatic(S.nest, MatrixTranslate(n.x, n.y - 0.05f, n.z), Color{220, 200, 200, 255});
+        for (const auto& c : rv.caches) rt::DrawStatic(S.pile, MatrixTranslate(c.x, c.y + 0.1f, c.z));
     }
     DrawColony(w, cam);
     // the sea's life: what's near enough to see (the water drawn over it shows the shallow ones plainly)
@@ -568,7 +607,7 @@ void DrawHud(const fl::World& w) {
     if (S.help) {
         const char* lines[] = {"Mouse: steer (look where you fly)   W: flap   Shift: sprint   S: flare / brake   A D: turn",
                                "Dive steeply at the water near fish to strike; steer the talons in the slow motion",
-                               "Space: take off   E: use (bowl, cache, twigs, nest site)   F: eat   Tab: colony   H: hide this   Esc: menu"};
+                               "Space: take off   E: use (bowl, cache, twigs, nest site)   F: eat   Tab: colony   M: chart   H: hide   Esc: menu"};
         DrawRectangleRounded({SCREEN_W - 680.0f, SCREEN_H - 74.0f, 668, 62}, 0.2f, 6, Fade(Color{10, 20, 30, 255}, 0.45f));
         for (int k = 0; k < 3; k++) DrawTextCentered(lines[k], SCREEN_W - 346.0f, SCREEN_H - 70.0f + k * 18, 14, ink);
     }
@@ -650,6 +689,183 @@ void DrawColonyPanel(fl::World& w) {
     if (w.col.leaderless) Txt("Leaderless: the old orders are running down.", x + 16, y + 476, 14, bad);
 }
 
+// The chart (M; design doc pp. 18-19): the world as the colony has seen it. A hand-drawn chart: fog is cloud, old
+// information fades to sepia; islands landed on in full, flown over as silhouettes; worked grounds with their yield and a
+// shark fin; scouts' sightings with their age; wind; your birds. The report log on the right (click: centre on it), and
+// orders: a scout to an island or a ground at a height, the fishers to a ground.
+void DrawChart(fl::World& w) {
+    const fl::Knowledge& K = w.know;
+    if (K.nx == 0) { DrawTextCenteredBold("No chart (a lone island)", SCREEN_W / 2.0f, SCREEN_H / 2.0f, 24, WHITE); return; }
+    Rectangle area{24, 24, SCREEN_W - 24 - 330.0f, SCREEN_H - 48.0f};
+    Color paper{232, 220, 190, 255}, ink{58, 46, 34, 255}, faded{120, 104, 84, 255}, sea{176, 204, 202, 255}, fog{236, 232, 224, 255};
+    DrawRectangleRec({0, 0, (float)SCREEN_W, (float)SCREEN_H}, Fade(BLACK, 0.55f));
+    DrawRectangleRec(area, fog);
+    float ww = K.nx * K.cell, wh = K.nz * K.cell;
+    Vector2 mid{K.x0 + ww / 2, K.z0 + wh / 2};
+    if (S.chartAt.x == 0 && S.chartAt.y == 0) S.chartAt = mid;
+    float base = std::min(area.width / ww, area.height / wh);
+    // zoom about the pointer; pan with the right button
+    Vector2 m = GetMousePosition();
+    bool over = CheckCollisionPointRec(m, area);
+    float sc = base * S.chartZoom;
+    auto toS = [&](float x, float z) { return Vector2{area.x + area.width / 2 + (x - S.chartAt.x) * sc, area.y + area.height / 2 + (z - S.chartAt.y) * sc}; };
+    auto toW = [&](Vector2 p) { return Vector2{S.chartAt.x + (p.x - area.x - area.width / 2) / sc, S.chartAt.y + (p.y - area.y - area.height / 2) / sc}; };
+    if (over) {
+        float wheel = GetMouseWheelMove();
+        if (wheel != 0) {
+            Vector2 before = toW(m);
+            S.chartZoom = std::clamp(S.chartZoom * powf(1.2f, wheel), 1.0f, 10.0f);
+            sc = base * S.chartZoom;
+            Vector2 after = toW(m);
+            S.chartAt = Vector2Add(S.chartAt, Vector2Subtract(before, after));
+        }
+        if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT)) { Vector2 d = GetMouseDelta(); S.chartAt = Vector2Subtract(S.chartAt, Vector2Scale(d, 1 / sc)); }
+    }
+    // (no scissor: the scene is supersampled behind a pushed matrix; what spills past the chart is masked after)
+    // the fog: cloud where nobody has looked; a sepia wash over what was seen long ago
+    {
+        int i0 = std::max(0, (int)((toW({area.x, area.y}).x - K.x0) / K.cell)), i1 = std::min(K.nx - 1, (int)((toW({area.x + area.width, 0}).x - K.x0) / K.cell) + 1);
+        int j0 = std::max(0, (int)((toW({0, area.y}).y - K.z0) / K.cell)), j1 = std::min(K.nz - 1, (int)((toW({0, area.y + area.height}).y - K.z0) / K.cell) + 1);
+        float cs = K.cell * sc;
+        for (int j = j0; j <= j1; j++) for (int i = i0; i <= i1; i++) {
+            float s = K.seen[(size_t)j * K.nx + i];
+            Vector2 p = toS(K.x0 + i * K.cell, K.z0 + j * K.cell);
+            if (s < 0) { float h = Hash((float)i, (float)j); DrawRectangleV({p.x - 1, p.y - 1}, {cs + 2, cs + 2}, Color{(unsigned char)(226 + 14 * h), (unsigned char)(222 + 14 * h), (unsigned char)(214 + 12 * h), 255}); }
+            else { float age = (w.time - s) / fl::World::DAY; DrawRectangleV({p.x - 0.5f, p.y - 0.5f}, {cs + 1, cs + 1}, Mix(sea, Color{196, 170, 126, 255}, std::clamp((age - 1) * 0.25f, 0.0f, 0.6f))); }
+        }
+    }
+    // islands (under the fog: a cell nobody has seen hides what's there)
+    auto isleFill = [&](fl::IsleType t) {
+        switch (t) {
+        case fl::IsleType::Stack: return Color{196, 190, 176, 255}; case fl::IsleType::Town: return Color{200, 180, 140, 255}; case fl::IsleType::Atoll: return Color{226, 210, 160, 255};
+        case fl::IsleType::Volcano: return Color{120, 104, 92, 255}; case fl::IsleType::KrakenCove: return Color{130, 124, 116, 255}; case fl::IsleType::ReefGarden: return Color{226, 200, 150, 255};
+        case fl::IsleType::Wreck: return Color{110, 90, 70, 255}; default: return Color{150, 180, 110, 255};
+        }
+    };
+    for (size_t i = 0; i < w.isles.size(); i++) {
+        const fl::Island& is = w.isles[i];
+        int st = K.isle[i];
+        if (st == 0) continue;
+        Vector2 c = toS(is.c.x, is.c.z);
+        Color fill = st == 2 ? isleFill(is.type) : Color{168, 156, 134, 255};
+        // the reef garden's flat and the cove's water first, as rings
+        if (is.type == fl::IsleType::ReefGarden && st == 2) DrawCircleLinesV(c, 100 * sc, Fade(ink, 0.5f));
+        const auto& o = is.outline;
+        for (size_t k = 0; k < o.size(); k++) { Vector2 a = toS(o[k].x, o[k].y), b = toS(o[(k + 1) % o.size()].x, o[(k + 1) % o.size()].y); if (Vector2Distance(a, c) > 0.5f || Vector2Distance(b, c) > 0.5f) DrawTri(c, a, b, fill); }
+        if (is.type == fl::IsleType::Atoll || is.type == fl::IsleType::KrakenCove) {   // (the inner water)
+            float r = is.type == fl::IsleType::Atoll ? 58.0f : 54.0f;
+            DrawCircleV(c, r * sc, sea);
+        }
+        for (size_t k = 0; k < o.size(); k++) { Vector2 a = toS(o[k].x, o[k].y), b = toS(o[(k + 1) % o.size()].x, o[(k + 1) % o.size()].y); if (Vector2Distance(a, c) > 0.5f) DrawLineEx(a, b, 1.6f, ink); }
+        if (is.type == fl::IsleType::Wreck) DrawRectanglePro({c.x, c.y, 8, 24}, {4, 12}, 11, ink);
+        if (st == 2) for (const auto& s : is.sites) { Vector2 p = toS(s.x, s.z); DrawCircleV(p, 1.5f, Fade(ink, 0.6f)); }
+    }
+    // grounds your fishers and scouts have worked: the yield and a shark fin (darker: more sharks)
+    for (int z = 0; z < (int)K.ground.size(); z++) {
+        const fl::GroundInfo& g = K.ground[z];
+        if (g.t < 0) continue;
+        const rt::Zone& Z = w.eco.map->zones[z];
+        Vector2 a = toS(Z.plan.x, Z.plan.y), b = toS(Z.plan.x + Z.plan.width, Z.plan.y + Z.plan.height);
+        float age = (w.time - g.t) / fl::World::DAY;
+        Color c = Fade(age > 1 ? faded : Color{40, 80, 110, 255}, 0.75f);
+        DrawRectangleLinesEx({a.x, a.y, b.x - a.x, b.y - a.y}, 1, Fade(c, 0.5f));
+        const char* y = g.stock > 0.75f ? "abundant" : g.stock > 0.45f ? "fair" : g.stock > 0.15f ? "thin" : "fished out";
+        Vector2 ctr{(a.x + b.x) / 2, (a.y + b.y) / 2};
+        if (b.x - a.x > 50) {
+            DrawTextCentered(y, ctr.x, ctr.y - 7, 13, c);
+            Color fin = Mix(Color{190, 190, 180, 255}, Color{20, 20, 20, 255}, g.predators);
+            DrawTri({ctr.x + 26, ctr.y + 10}, {ctr.x + 36, ctr.y + 10}, {ctr.x + 34, ctr.y}, fin);
+            if (age > 0.5f) DrawTextCentered(TextFormat("%.0f d ago", age), ctr.x, ctr.y + 7, 11, faded);
+        }
+    }
+    // names and the scouts' sightings, over the fog where they're known
+    for (size_t i = 0; i < w.isles.size(); i++) {
+        const fl::Island& is = w.isles[i];
+        if (K.isle[i] == 0) continue;
+        Vector2 c = toS(is.c.x, is.c.z);
+        std::string nm = K.isle[i] == 2 || K.sight[i].t >= 0 ? is.name : std::string("? ") + fl::IsleTypeName(is.type);
+        DrawTextCentered(nm, c.x, c.y + is.radius * sc + 3, 13, ink);
+        const fl::Sighting& s = K.sight[i];
+        if (s.t >= 0) {
+            float age = (w.time - s.t) / fl::World::DAY;
+            Color c2 = age > 1 ? faded : Color{120, 30, 24, 255};
+            DrawTextCentered(TextFormat("%s%d nests, %d caches, %s%d birds", s.exact ? "" : "~", s.nests, s.caches, s.exact ? "" : "~", s.birds), c.x, c.y + is.radius * sc + 17, 12, c2);
+            DrawTextCentered(TextFormat("seen %s, %.1f days ago%s", fl::AltName((fl::Alt)s.alt), age, s.scouts > 1 ? ", cross-checked" : ""), c.x, c.y + is.radius * sc + 30, 11, faded);
+        }
+    }
+    // the wind
+    Vector2 wv = w.WindAt();
+    for (float z = K.z0 + 150; z < K.z0 + wh; z += 400) for (float x = K.x0 + 150; x < K.x0 + ww; x += 400) {
+        if (!K.Seen(x, z)) continue;
+        Vector2 p = toS(x, z), d = Vector2Scale(Vector2Normalize(wv), 14);
+        DrawLineEx(p, Vector2Add(p, d), 1.2f, Fade(ink, 0.35f));
+        DrawCircleV(Vector2Add(p, d), 1.8f, Fade(ink, 0.35f));
+    }
+    // your birds: the Founder, the colony (by role), scouts and their targets
+    for (const auto& b : w.col.birds) {
+        if (!b.alive || b.stage != fl::BStage::Adult) continue;
+        Vector2 p = toS(b.pos.x, b.pos.z);
+        Color c = b.role == fl::Role::Fisher ? Color{40, 90, 150, 255} : b.role == fl::Role::Feeder ? Color{200, 120, 40, 255} : b.role == fl::Role::Builder ? Color{120, 84, 50, 255} : Color{170, 30, 30, 255};
+        if (b.role == fl::Role::Scout && b.hasOrder) { Vector2 tgt = toS(b.scoutAt.x, b.scoutAt.z); DrawLineEx(p, tgt, 1, Fade(c, 0.6f)); DrawTextCentered(fl::AltName(b.alt), p.x, p.y - 14, 11, c); }
+        DrawCircleV(p, b.role == fl::Role::Scout ? 3.0f : 2.0f, c);
+    }
+    if (w.me.st != fl::FState::Dead) {
+        Vector2 p = toS(w.me.pos.x, w.me.pos.z), f{cosf(w.me.yaw), sinf(w.me.yaw)};
+        DrawTri(Vector2Add(p, Vector2Scale(f, 9)), Vector2Add(p, Vector2Scale({-f.y, f.x}, 5)), Vector2Add(p, Vector2Scale({f.y, -f.x}, 5)), Color{220, 160, 30, 255});
+    }
+    {   // mask what spilled past the chart's edge
+        Color mk{14, 18, 24, 255};
+        DrawRectangle(0, 0, SCREEN_W, (int)area.y, mk); DrawRectangle(0, (int)(area.y + area.height), SCREEN_W, SCREEN_H, mk);
+        DrawRectangle(0, 0, (int)area.x, SCREEN_H, mk); DrawRectangle((int)(area.x + area.width), 0, SCREEN_W, SCREEN_H, mk);
+    }
+    DrawRectangleLinesEx(area, 3, ink);
+    TxtBold("The Chart", area.x + 12, area.y + 8, 22, ink);
+    Txt(TextFormat("%s, %d islands   M closes, wheel zooms, right-drag pans", fl::ArrangementName(w.opts.arr), (int)w.isles.size()), area.x + 140, area.y + 13, 14, faded);
+    // the side: orders, then the report log
+    Rectangle side{area.x + area.width + 12, area.y, 306, area.height};
+    DrawRectangleRec(side, paper); DrawRectangleLinesEx(side, 2, ink);
+    float y = side.y + 10;
+    TxtBold("Orders", side.x + 12, y, 18, ink); y += 26;
+    int idle = 0, scouts = 0; for (const auto& b : w.col.birds) if (b.alive && b.stage == fl::BStage::Adult && b.role == fl::Role::Scout) { scouts++; idle += !b.hasOrder && b.retrainT <= 0; }
+    if (SmallBtn({side.x + 12, y, 90, 24}, "Scout", true)) S.chartMode = 0;
+    if (SmallBtn({side.x + 108, y, 90, 24}, "Fishers", true)) S.chartMode = 1;
+    DrawRectangleLinesEx({side.x + (S.chartMode == 0 ? 12.0f : 108.0f) - 2, y - 2, 94, 28}, 2, Color{200, 60, 40, 255});
+    y += 32;
+    if (S.chartMode == 0) {
+        static const fl::Alt alts[3] = {fl::Alt::High, fl::Alt::Mid, fl::Alt::Low};
+        for (int k = 0; k < 3; k++) { if (SmallBtn({side.x + 12 + k * 64.0f, y, 58, 24}, fl::AltName(alts[k]), true)) S.chartAlt = alts[k]; if (S.chartAlt == alts[k]) DrawRectangleLinesEx({side.x + 10 + k * 64.0f, y - 2, 62, 28}, 2, Color{200, 60, 40, 255}); }
+        y += 30;
+        DrawWrapped(scouts == 0 ? "No scouts: retrain a bird as a Scout on the colony panel (Tab), or set some in the fledging plan." :
+                    TextFormat("%d of %d scouts idle. Click an island or a ground. High sees far but counts nests to 30%%; mid and low count exactly.", idle, scouts),
+                    {side.x + 12, y, side.width - 24, 60}, 13, ink);
+    } else {
+        DrawWrapped(TextFormat("Click a ground: the fishers work it (now: %s).", w.col.ground < 0 ? "the best ground" : w.eco.map->zones[w.col.ground].name.c_str()), {side.x + 12, y, side.width - 24, 40}, 13, ink);
+        if (SmallBtn({side.x + 12, y + 36, 150, 24}, "the best ground", true)) w.col.ground = -1;
+    }
+    y += 76;
+    // a click on the chart: an order
+    if (over && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+        Vector2 at = toW(m);
+        int isle = -1; for (int i = 0; i < (int)w.isles.size(); i++) if (Vector2Distance(at, {w.isles[i].c.x, w.isles[i].c.z}) < w.isles[i].radius + 15) isle = i;
+        int zone = w.eco.ZoneAt({at.x, -1, at.y});
+        if (S.chartMode == 0) {
+            if (!w.SendScout(isle, isle < 0 ? zone : -1, {at.x, 0, at.y}, S.chartAlt)) w.ColonySay(scouts ? "Every scout is out." : "No scouts in the colony.");
+        } else if (zone >= 0) { w.col.ground = zone; w.ColonySay("The fishers will work " + w.eco.map->zones[zone].name + "."); }
+    }
+    TxtBold("Reports", side.x + 12, y, 18, ink); y += 24;
+    for (int k = (int)K.log.size() - 1; k >= 0 && y < side.y + side.height - 30; k--) {
+        const fl::Report& r = K.log[k];
+        float day = r.t / fl::World::DAY;
+        Rectangle row{side.x + 8, y - 2, side.width - 16, 44};
+        bool hov = CheckCollisionPointRec(m, row);
+        if (hov) DrawRectangleRec(row, Fade(Color{200, 170, 110, 255}, 0.35f));
+        if (hov && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) { S.chartAt = {r.at.x, r.at.z}; S.chartZoom = 3; }
+        Txt(TextFormat("day %d, %02d:00", (int)day + 1, (int)(fmodf(day, 1) * 24)), side.x + 12, y, 11, faded);
+        DrawWrapped(r.text, {side.x + 12, y + 12, side.width - 24, 30}, 12, ink);
+        y += 46;
+    }
+}
+
 void Render(float dt) {
     fl::World& w = S.W;
     fl::Founder& f = w.me;
@@ -667,7 +883,7 @@ void Render(float dt) {
     if (f.st == fl::FState::Dead) focus = w.island.nest;
     if (f.st == fl::FState::Strike) { focus = Vector3Lerp(f.pos, f.strikeAim, 0.5f); dist *= 0.75f; }
     Vector3 eye = Vector3Add(Vector3Subtract(focus, Vector3Scale(look, dist)), {0, 1.2f + span * 0.4f, 0});
-    float g = std::max(0.0f, w.island.Height(eye.x, eye.z));
+    float g = std::max(0.0f, w.HeightAt(eye.x, eye.z));
     eye.y = std::max(eye.y, g + 0.8f);
     S.cam.position = eye;
     S.cam.target = Vector3Add(focus, Vector3Scale(look, 4));
@@ -705,18 +921,24 @@ void Render(float dt) {
     rt::RenderEnd();
 }
 
-void Start(Game& g, const std::string& founder, uint32_t seed, bool shot) {
+void Start(Game& g, const std::string& founder, uint32_t seed, bool shot, const fl::MapOpts& o = fl::MapOpts{}) {
     std::string why;
     if (!rt::DataOk(&why)) { g.scene = Scene::Arcade; return; }
-    S.active = true; S.shot = shot; S.founder = founder;
-    S.W.Init(founder, seed);
+    S.active = true; S.shot = shot; S.founder = founder; S.opts = o;
+    S.W.Init(founder, seed, o);
+    S.chart = false; S.panel = false; S.chartZoom = 1; S.chartAt = {0, 0};
     S.aimYaw = S.W.me.yaw; S.aimPitch = 0.1f; S.camYaw = S.aimYaw; S.camPitch = -0.1f;
     S.t = 0; S.help = true;
     g.scene = Scene::Flight;
 }
 }  // namespace
 
-void StartFlight(Game& g, const char* founder) { Start(g, founder ? founder : "taloned", (uint32_t)GetRandomValue(1, 1 << 30), false); }
+void StartFlight(Game& g, const char* founder, int isleType, int arrangement, int players) {
+    fl::MapOpts o; o.home = (fl::IsleType)std::clamp(isleType, 0, 3); o.arr = (fl::Arrangement)std::clamp(arrangement, 0, 3); o.players = std::clamp(players, 2, 6);
+    Start(g, founder ? founder : "taloned", (uint32_t)GetRandomValue(1, 1 << 30), false, o);
+}
+const char* FlightIsleTypeName(int t) { return fl::IsleTypeName((fl::IsleType)std::clamp(t, 0, 3)); }
+const char* FlightArrangementName(int a) { return fl::ArrangementName((fl::Arrangement)std::clamp(a, 0, 3)); }
 void LeaveFlight(Game& g) { S.active = false; FreeModels(); g.scene = Scene::Arcade; }
 const char* FlightFounderName(int i) { const auto& v = fl::Founders(); return i >= 0 && i < (int)v.size() ? v[i].name.c_str() : "?"; }
 const char* FlightFounderKey(int i) { const auto& v = fl::Founders(); return i >= 0 && i < (int)v.size() ? v[i].key.c_str() : "taloned"; }
@@ -733,11 +955,13 @@ void SceneFlight(Game& g) {
     Render(dt * S.W.timeScale);
     DrawHud(S.W);
     if (S.panel) DrawColonyPanel(S.W);
+    if (S.chart) DrawChart(S.W);
 }
 
 // --shots: 0 cruising over the lagoon at dawn, 1 the strike, 2 at the nest with a fish, 3 noon from high over the island
 void DebugFlightShot(Game& g, int which) {
-    Start(g, which == 3 ? "albatross" : "taloned", 11, true);
+    fl::MapOpts o; o.home = which == 6 ? fl::IsleType::Stack : which == 7 ? fl::IsleType::Town : which == 8 ? fl::IsleType::Atoll : fl::IsleType::Tropical;
+    Start(g, which == 3 ? "albatross" : "taloned", 11, true, o);
     fl::World& w = S.W;
     fl::Founder& f = w.me;
     f.st = fl::FState::Fly; f.airspeed = 11; f.yaw = PI * 0.5f; f.pitch = 0;
@@ -763,5 +987,21 @@ void DebugFlightShot(Game& g, int which) {
         S.aimYaw = f.yaw; S.aimPitch = -0.3f; S.panel = which == 5; S.help = false;
     }
     if (which == 3) { w.time = fl::World::DAY * 0.27f; f.pos = {40, 70, 120}; f.yaw = -PI * 0.6f; S.aimPitch = -0.35f; }
+    if (which >= 6 && which <= 8) {   // the other starting islands, from the air at noon
+        w.time = fl::World::DAY * 0.45f; S.help = false;
+        Vector3 c = w.island.c; float r = w.island.radius;
+        f.pos = {c.x - r * 1.5f, which == 6 ? 75.0f : 45.0f, c.z + r * 1.6f}; f.yaw = atan2f(c.z - f.pos.z, c.x - f.pos.x); f.airspeed = 10;
+        S.aimPitch = which == 6 ? -0.2f : -0.35f;
+    }
+    if (which == 9) {   // the chart, after two scouts have been out and the Founder has flown a circuit
+        w.time = fl::World::DAY * 0.4f; S.help = false;
+        for (int k = 0; k < 2; k++) { fl::Bird b; b.id = w.col.nextId++; b.stage = fl::BStage::Adult; b.role = fl::Role::Scout; b.pos = w.col.caches[0].pos; w.col.birds.push_back(b); }
+        int t1 = -1, t2 = -1; for (int i = 0; i < (int)w.isles.size(); i++) { if (w.isles[i].start == 1) t1 = i; if (w.isles[i].type == fl::IsleType::KrakenCove) t2 = i; }
+        w.SendScout(t1, -1, {}, fl::Alt::High); w.SendScout(t2, -1, {}, fl::Alt::Mid);
+        w.founderBot = true;
+        for (float tt = 0; tt < fl::World::DAY * 1.2f; tt += 0.1f) w.Step(0.1f, fl::FounderInput{});
+        w.founderBot = false;
+        S.chart = true;
+    }
     S.aimYaw = which == 2 ? S.aimYaw : f.yaw; S.camYaw = S.aimYaw; S.camPitch = S.aimPitch * 0.8f - 0.12f;
 }

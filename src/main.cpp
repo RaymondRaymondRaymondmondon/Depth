@@ -219,6 +219,10 @@ void DebugWardrobe(Game& g, int game); void TakeShots(const Game& base, const st
         {"flight_high", [](Game& g) { DebugFlightShot(g, 3); }},
         {"flight_colony", [](Game& g) { DebugFlightShot(g, 4); }},
         {"flight_panel", [](Game& g) { DebugFlightShot(g, 5); }},
+        {"flight_stack", [](Game& g) { DebugFlightShot(g, 6); }},
+        {"flight_town", [](Game& g) { DebugFlightShot(g, 7); }},
+        {"flight_atoll", [](Game& g) { DebugFlightShot(g, 8); }},
+        {"flight_chart", [](Game& g) { DebugFlightShot(g, 9); }},
         {"arcade_flight", [](Game& g) { g.scene = Scene::Arcade; DebugArcadeReel(5); }},
         {"trawl_deck", [](Game& g) { DebugTrawlShot(g, 0); }},
         {"trawl_engine", [](Game& g) { DebugTrawlShot(g, 1); }},
@@ -735,6 +739,8 @@ int main(int argc, char** argv) {
     if (argc >= 2 && strcmp(argv[1], "--flight-test") == 0) { SetTraceLogLevel(LOG_WARNING); return fl::RunFlightTest(); }
     if (argc >= 2 && strcmp(argv[1], "--flight-colony-test") == 0) { SetTraceLogLevel(LOG_WARNING); return fl::RunFlightColonyTest(); }
     if (argc >= 2 && strcmp(argv[1], "--flight-sim") == 0) { SetTraceLogLevel(LOG_WARNING); return fl::RunFlightSim(argc, argv); }
+    if (argc >= 2 && strcmp(argv[1], "--flight-fair") == 0) { SetTraceLogLevel(LOG_WARNING); return fl::RunFlightFairTest(argc, argv); }
+    if (argc >= 2 && strcmp(argv[1], "--flight-scout-test") == 0) { SetTraceLogLevel(LOG_WARNING); return fl::RunFlightScoutTest(); }
     if (argc >= 2 && strcmp(argv[1], "--bet-test") == 0) { SetTraceLogLevel(LOG_WARNING); return RunBetTest(); }
     if (argc >= 2 && strcmp(argv[1], "--voice-test") == 0) { SetTraceLogLevel(LOG_WARNING); return voice::RunVoiceTest(); }
     if (argc >= 2 && strcmp(argv[1], "--trawl-gear-test") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlGearTest(); }

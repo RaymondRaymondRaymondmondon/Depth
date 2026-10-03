@@ -48,6 +48,7 @@ const RoleDef& RoleOf(Role r) {
         v[1] = {"fisher", "Fisher", "Fishes a ground and brings the catch to the nearest cache.", 60, 12, 2};
         v[2] = {"feeder", "Feeder", "Carries fish from the caches to the nests.", 60, 14, 2};
         v[3] = {"builder", "Builder", "Gathers twigs and shells; builds nests and caches.", 70, 11, 3};
+        v[4] = {"scout", "Scout", "Flies to a target at the height you set, looks, and comes home to report.", 50, 18, 0};
         Json j = LoadJsonFile(FlightDataDir() + "/flight_roles.json");
         for (const Json& r : j.a) {
             std::string k = r["key"].Str0();
@@ -72,8 +73,10 @@ constexpr float FISHER_REACH = 2.7f;   // how deep a colony bird's plunge reache
 
 float World::StockOf(int zone) const {
     float n = 0, k = 0;
+    bool asleep = wholeMap && zone >= 0 && zone < (int)liveZone.size() && !liveZone[zone];
     for (const auto& s : stocks) if (s.zone == zone && Catchable(eco.map->species[s.sp])) {
         k += s.K;
+        if (asleep) { n += s.pop; continue; }
         for (const auto& a : eco.agents) if (a.alive && a.diver < 0 && a.sp == s.sp && a.homeZone == s.zone) n++;
     }
     return k > 0 ? n / k : 0;
@@ -136,37 +139,33 @@ void World::InitColony() {
     const Economy& E = Econ();
     col = Colony{};
     col.wildMates = E.wildMates;
-    // nest sites: the crowns of the palms nearest home (an island of this size has a couple of dozen)
-    std::vector<int> order(island.palms.size());
-    for (int i = 0; i < (int)order.size(); i++) order[i] = i;
-    std::sort(order.begin(), order.end(), [&](int a, int b) { return Vector3Distance(island.palms[a], island.nest) < Vector3Distance(island.palms[b], island.nest); });
-    for (int k = 0; k < (int)order.size() && (int)col.sites.size() < E.sites; k++) {
-        int i = order[k];
-        Site s; s.palm = i; s.pos = {island.palms[i].x, island.palms[i].y + island.palmH[i] * 0.97f, island.palms[i].z};
+    // nest sites: the island's own (palm crowns and beach, ledges, roofs and the tower, the ring), the nearest to home first
+    std::vector<Vector3> sites = island.sites;
+    std::sort(sites.begin(), sites.end(), [&](const Vector3& a, const Vector3& b) { return Vector3Distance(a, island.nest) < Vector3Distance(b, island.nest); });
+    for (int k = 0; k < (int)sites.size() && (int)col.sites.size() < std::max(E.sites, (int)sites.size()); k++) {
+        Site s; s.pos = sites[k];
+        for (int i = 0; i < (int)island.palms.size(); i++) if (Vector2Distance({island.palms[i].x, island.palms[i].z}, {s.pos.x, s.pos.z}) < 0.2f) s.palm = i;
         col.sites.push_back(s);
     }
     // the Founder's own nest, built; its courtship bowl waits for the first mate
     Nest home; home.pos = island.nest; home.built = true; home.founders = true; home.twigs = (float)E.nestTwigs; home.bowlNeed = E.courtFish;
-    for (int i = 0; i < (int)col.sites.size(); i++) if (col.sites[i].palm == island.nestPalm) { home.site = i; col.sites[i].nest = 0; }
+    { int best = -1; float bd = 3; for (int i = 0; i < (int)col.sites.size(); i++) { float d = Vector3Distance(col.sites[i].pos, island.nest); if (d < bd) { bd = d; best = i; } } if (best >= 0) { home.site = best; col.sites[best].nest = 0; } }
     col.nests.push_back(home);
-    // the first cache: a pile at the foot of the home palm (stage 1's "nest cache")
+    // the first cache: on flat ground by home (the foot of the home palm; the same ledge on the stack; a roof in town)
     Vector3 foot = island.nestPalm >= 0 ? island.palms[island.nestPalm] : island.nest;
     Vector3 cp = island.Ground(foot.x + 2.5f, foot.z + 1.5f);
-    if (!island.Land(cp.x, cp.z)) cp = island.Ground(foot.x, foot.z);
+    bool found = island.nestPalm >= 0 && island.Land(cp.x, cp.z);
+    for (int k = 0; k < 64 && !found; k++) {
+        float a = k * 0.7f, r = 2 + (k % 8) * 0.8f;
+        Vector3 q = island.Ground(island.nest.x + cosf(a) * r, island.nest.z + sinf(a) * r);
+        if (island.Land(q.x, q.z) && fabsf(q.y - island.nest.y) < 1.5f && island.Normal(q.x, q.z).y > 0.8f) { cp = q; found = true; }
+    }
+    if (!found) cp = island.Ground(island.nest.x + 2, island.nest.z + 2);
     Cache c0; c0.pos = {cp.x, cp.y + 0.1f, cp.z};
     col.caches.push_back(c0);
-    // twigs: every palm drops fronds and sticks; driftwood and shells on the beaches
-    for (int i = 0; i < (int)island.palms.size(); i++) { TwigSource t; t.pos = island.Ground(island.palms[i].x + 0.8f, island.palms[i].z); t.pos.y += 0.2f; t.cap = (float)E.palmTwigs; t.twigs = t.cap; col.twigSrc.push_back(t); }
-    uint32_t rs = island.seed * 7919u + 3;
-    auto R = [&]() { rs = rs * 1664525u + 1013904223u; return (rs >> 8) / 16777216.0f; };
-    for (int k = 0, made = 0; k < 4000 && made < 24; k++) {
-        float a = R() * 2 * PI, r = 60 + R() * 40;
-        float x = cosf(a) * r, z = sinf(a) * r, h = island.Height(x, z);
-        if (h < 0.3f || h > 1.6f) continue;   // (the beach)
-        TwigSource t; t.pos = {x, h + 0.15f, z}; t.shells = made % 2 == 1; t.cap = t.shells ? 4.0f : 2.0f; t.twigs = t.cap;
-        col.twigSrc.push_back(t); made++;
-    }
-    // the grounds: the sea's spawn rows, regrown logistically from here on
+    // twigs: palms drop fronds and sticks; driftwood on the beaches and ledges; the town's woodpile; shells
+    for (const auto& tp : island.twigPts) { TwigSource t; t.pos = tp.first; t.cap = tp.second < 0 ? (float)E.palmTwigs : tp.second; t.twigs = t.cap; col.twigSrc.push_back(t); }
+    for (const auto& sp : island.shellPts) { TwigSource t; t.pos = Vector3Add(sp, {0, 0.15f, 0}); t.shells = true; t.cap = 4; t.twigs = t.cap; col.twigSrc.push_back(t); }    // the grounds: the sea's spawn rows, regrown logistically from here on
     stocks.clear();
     for (int ri = 0; ri < (int)eco.map->spawns.size(); ri++) {
         const auto& r = eco.map->spawns[ri];
@@ -185,6 +184,11 @@ void World::RegrowFish(float dt) {
     const Economy& E = Econ();
     for (auto& s : stocks) {
         const rt::Species& sp = eco.map->species[s.sp];
+        if (wholeMap && s.zone < (int)liveZone.size() && !liveZone[s.zone]) {   // (asleep: the count regrows as a number)
+            float r = E.regrow[std::clamp(sp.size, 0, 6)];
+            s.pop = std::min(s.K, s.pop + step / DAY * (r * s.pop * (1 - s.pop / std::max(1.0f, s.K)) + E.immigration * s.K));
+            continue;
+        }
         int n = 0; int any = -1;
         for (int i = 0; i < (int)eco.agents.size(); i++) { const auto& a = eco.agents[i]; if (a.alive && a.diver < 0 && a.sp == s.sp && a.homeZone == s.zone) { n++; if (any < 0 || Rand() < 0.2f) any = i; } }
         float r = E.regrow[std::clamp(sp.size, 0, 6)];
@@ -193,7 +197,7 @@ void World::RegrowFish(float dt) {
         while (s.births >= 1 && n < (int)ceilf(K)) {
             s.births -= 1;
             Vector3 at = any >= 0 ? eco.agents[any].pos : eco.map->zones[s.zone].Center();
-            int ai = eco.Spawn(s.sp, eco.map->zones[s.zone].Clamp(Vector3Add(at, {Rand() * 4 - 2, Rand() * 2 - 1, Rand() * 4 - 2})), s.zone);
+            int ai = SpawnFishSlot(eco, s.sp, eco.map->zones[s.zone].Clamp(Vector3Add(at, {Rand() * 4 - 2, Rand() * 2 - 1, Rand() * 4 - 2})), s.zone);
             if (ai >= 0) { eco.agents[ai].homeZone = s.zone; if (any >= 0) eco.agents[ai].group = eco.agents[any].group; }
             n++;
         }
@@ -208,12 +212,12 @@ bool World::MoveTo(Bird& b, Vector3 goal, float speed, float dt, float arrive) {
     float flat = sqrtf(d.x * d.x + d.z * d.z);
     if (Vector3Length(d) < arrive) { b.vel = Vector3Scale(b.vel, 0.5f); return true; }
     // travel at a cruising height, coming down over the last stretch
-    float cruise = std::max(goal.y, std::max(0.0f, island.Height(b.pos.x, b.pos.z)) + 10);
+    float cruise = std::max(goal.y, std::max(0.0f, HeightAt(b.pos.x, b.pos.z)) + 10);
     Vector3 aim = flat > 14 ? Vector3{goal.x, std::max(goal.y, cruise), goal.z} : goal;
     Vector3 want = Vector3Scale(Vector3Normalize(Vector3Subtract(aim, b.pos)), speed);
     b.vel = Vector3Lerp(b.vel, want, std::min(1.0f, dt * 3 * Econ().workPace));
     b.pos = Vector3Add(b.pos, Vector3Scale(b.vel, dt));
-    float g = std::max(0.0f, island.Height(b.pos.x, b.pos.z));
+    float g = std::max(0.0f, HeightAt(b.pos.x, b.pos.z));
     if (b.pos.y < g + 0.3f && flat > 3) b.pos.y = g + 0.3f;
     if (Vector2Length({b.vel.x, b.vel.z}) > 0.3f) b.yaw = atan2f(b.vel.z, b.vel.x);
     b.flapPh += dt * 2 * PI * (b.vel.y > 0.5f ? 3.4f : 2.2f);
@@ -575,7 +579,7 @@ void World::StepBird(Bird& b, float dt) {
         // night: the colony roosts (fervour, a later stage, will keep it working); a bird with a fish brings it home first
         float ph = DayPhase();
         bool night = ph < 0.19f || ph > 0.87f;
-        if (night && b.carrySp < 0 && b.carryTwigs == 0 && b.carryShells == 0) {
+        if (night && b.carrySp < 0 && b.carryTwigs == 0 && b.carryShells == 0 && !(b.role == Role::Scout && b.hasOrder)) {   // (a scout out on an order flies on)
             if (b.hunger < 0.3f && BirdEatsAtCache(b, dt)) break;
             const Site& s = col.sites[(b.id * 7) % col.sites.size()];
             b.task = MoveTo(b, Vector3Add(s.pos, {0.3f * cosf(b.id * 1.1f), 0.2f, 0.3f * sinf(b.id * 1.1f)}), 12, dt, 0.4f) ? Task::Sit : Task::Fly;
@@ -586,6 +590,7 @@ void World::StepBird(Bird& b, float dt) {
         if (b.role == Role::Fisher || b.role == Role::None) FisherStep(b, dt);
         else if (b.role == Role::Feeder) FeederStep(b, dt);
         else if (b.role == Role::Builder) BuilderStep(b, dt);
+        else if (b.role == Role::Scout) ScoutStep(b, dt);
     } break;
     }
 }
@@ -833,7 +838,7 @@ int RunFlightColonyTest() {
     // ---- the Founder's courtship: three fish of size 2+ in the bowl call a mate within a day
     {
         World w; w.Init("taloned", 5);
-        check(w.col.nests.size() == 1 && w.col.nests[0].built && w.col.caches.size() == 1 && (int)w.col.sites.size() == E.sites, TextFormat("the colony starts with the Founder's nest, a cache and %d nest sites", (int)w.col.sites.size()));
+        check(w.col.nests.size() == 1 && w.col.nests[0].built && w.col.caches.size() == 1 && (int)w.col.sites.size() == (int)w.island.sites.size(), TextFormat("the colony starts with the Founder's nest, a cache and %d nest sites", (int)w.col.sites.size()));
         w.me.st = FState::Perched; w.me.pos = w.island.nest;
         int mullet = w.eco.map->SpeciesIndex("Mullet"), sardine = w.eco.map->SpeciesIndex("Sardine");
         w.me.carrySp = sardine; w.me.carrySize = 1; bool small = w.InteractHint().find("courtship wants") != std::string::npos; w.Interact();

@@ -422,7 +422,15 @@ amespace {} reopened before DrawRichEnemy). Shots: `foes_new_cave|island|weeds|a
 - **The sea:** Red Tide's `rt::Ecosystem` on `data/flight/sea/<island>/` (map key `flight_<island>`; `MapLoad` and the art-sheet lookup redirect `flight_` keys). The bird is a Diver agent in the web while it is low over the water.
 - **Data files** must be saved as UTF-8 without a BOM: the JSON reader rejects a BOM.
 - **Checks:** `depth.exe --flight-test`. Shots: `flight_*`, `arcade_flight`.
-- **Stage 1** (flight and fishing) **and stage 2** (the colony loop) **are done.** Stage 3 is next: islands, scouting and the map.
+- **Stages 1-3 are done:** flight and fishing; the colony; islands, scouting and the map. Stage 4 (war) is next.
+- **A game day is 120 s** (`day_seconds`): the user wants shorter days than the doc's 4 minutes, with the doc's per-day timings kept. Colony birds work at `work_pace` (240/day).
+- **The map (stage 3):** `flight_map.cpp`.
+  - `World::Init(founder, seed, MapOpts)` makes the whole map: `LayoutMap` (arrangements, fairness), `Island::Generate(type, ...)`, and a generated `rt::MapData` (via `rt::RebuildMapGeometry`).
+  - Far zones sleep as numbers (`liveZone`, `Stock::pop`) and wake within 300 m of a bird.
+  - Use `World::HeightAt`/`LandAt` for ground, never one island's.
+  - `Knowledge` is the fog, islands, grounds, sightings and reports. Scouts are a role (`SendScout`). The chart is M.
+- **Checks:** `--flight-fair`, `--flight-scout-test`.
+- **The scene draws into a supersampled target:** never use `BeginScissorMode` in it (the scissor lands in the wrong place); mask instead.
 - **The colony (stage 2):** `flight_colony.cpp` with `data/flight/flight_economy.json` and `flight_roles.json`.
   - Colony birds are kinematic flyers (fisher, feeder, builder) that fish the real web.
   - The grounds regrow logistically (`RegrowFish`). The Flight's spawn rows have `respawn_s` 0, so Red Tide's flat respawn is off.
