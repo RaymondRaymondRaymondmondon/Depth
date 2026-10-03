@@ -76,6 +76,9 @@ void OrderBarter(Writer& w, int to, const int give[G_COUNT], const int get[G_COU
     w.F32(truceDays);
 }
 void OrderAnswer(Writer& w, int offer, bool accept) { w.U8(FA_ANSWER); w.I32(offer); w.U8(accept ? 1 : 0); }
+void OrderFound(Writer& w, int isle) { w.U8(FA_FOUND); w.I32(isle); }
+void OrderDose(Writer& w, int flock, int stim) { w.U8(FA_DOSE); w.I32(flock); w.U8((uint8_t)stim); }
+void OrderBrew(Writer& w, int stim) { w.U8(FA_BREW); w.U8((uint8_t)stim); }
 bool FormationUnlocked(const Colony& c, Formation f) { return f == Formation::Chevron || f == Formation::Scatter || c.HasTier(Tree::War, 1); }
 
 std::string TargetText(World& w, const Flock& f) {
@@ -215,6 +218,15 @@ bool OrderIn(World& w, int side, int kind, Reader& r) {
         return w.MakeOffer(side, to, give, get, truce) >= 0;
     }
     case FA_ANSWER: { int id = r.I32(); bool yes = r.U8() != 0; if (r.bad) return false; return w.AnswerOffer(side, id, yes); }
+    case FA_FOUND: {
+        int isle = r.I32();
+        if (r.bad || isle < 0 || isle >= nIsles || isle == w.home) return false;
+        if (!w.RoleUnlocked(Role::Pathfinder) || w.Count(BStage::Adult, Role::Pathfinder) == 0) { w.Say("An outpost without the Founder wants a Pathfinder (Trade 4)."); return false; }
+        C.expandTo = isle; w.Say("A Pathfinder sets out to found an outpost on " + w.isles[isle].name + ".");
+        return true;
+    }
+    case FA_DOSE: { int id = r.I32(); int s = (int)r.U8(); if (r.bad) return false; return w.Dose(id, s); }
+    case FA_BREW: { int s = (int)r.U8(); if (r.bad || s <= STIM_NONE || s >= STIM_COUNT) return false; C.brewFor = s; w.Say(std::string("The Chemists will brew ") + StimName(s) + "."); return true; }
     default: return false;
     }
 }
@@ -232,7 +244,7 @@ bool ApplyOrder(World& w, int side, const Writer& order) { Reader r(order.b); re
 // ---------------------------------------------------------------- the score and the end (doc p27; flight_scoring.json)
 namespace {
 struct Scoring {
-    float bird = 2, chick = 1, nest = 5, island = 30, cachePer = 5, kill = 1, founder = 60, pearl = 3, tier = 10, tier4 = 40, fervour = 50, theft = 5;
+    float bird = 2, chick = 1, nest = 5, island = 30, danger = 80, kraken = 150, cachePer = 5, kill = 1, founder = 60, pearl = 3, tier = 10, tier4 = 40, fervour = 50, theft = 5;
     float holdShare = 2.0f / 3, holdDay = 3, holdPer = 4;
     std::vector<int> lengths{20, 30, 45};
 };
@@ -243,7 +255,7 @@ const Scoring& SC() {
     std::string err; Json j;
     if (!LoadJsonFile(FlightDataDir() + "/flight_scoring.json", j, &err)) return s;
     auto F = [&](const char* k, float& v) { if (j[k].IsNum()) v = j[k].F(v); };
-    F("living_bird", s.bird); F("chick", s.chick); F("nest", s.nest); F("island_held", s.island); F("cache_fish_per_point", s.cachePer);
+    F("living_bird", s.bird); F("dangerous_island_held", s.danger); F("kraken_killed", s.kraken); F("chick", s.chick); F("nest", s.nest); F("island_held", s.island); F("cache_fish_per_point", s.cachePer);
     F("enemy_bird_killed", s.kill); F("founder_never_died", s.founder); F("pearl", s.pearl); F("research_tier", s.tier); F("research_tier4", s.tier4); F("fervour_full", s.fervour); F("egg_stolen", s.theft);
     F("hold_share", s.holdShare); F("hold_from_day", s.holdDay); F("hold_min_nests_per_player", s.holdPer);
     if (j["match_minutes"].IsArr()) { s.lengths.clear(); for (const Json& m : j["match_minutes"].a) s.lengths.push_back(m.I(30)); }
@@ -265,7 +277,7 @@ ScoreCard World::Score(int side) const {
     for (const auto& ca : C.caches) fish += (int)ca.fish.size();
     c.birds = (int)lroundf(adults * K.bird + chicks * K.chick);
     c.nests = (int)lroundf(nests * K.nest);
-    c.isles = nests > 0 || adults > 1 ? (int)K.island : 0;   // (its home, while it holds a colony there)
+    for (int i = 0; i < (int)isles.size(); i++) if (HolderOf(i) == side) c.isles += IsDangerous(isles[i].type) ? (int)K.danger : (int)K.island;   // (islands held: the most nests on them)
     c.cache = (int)(fish / std::max(1.0f, K.cachePer));
     c.kills = (int)lroundf(C.kills * K.kill);
     c.founder = F.deaths == 0 ? (int)K.founder : 0;
@@ -273,7 +285,8 @@ ScoreCard World::Score(int side) const {
     c.pearls = (int)(C.pearls * K.pearl);
     c.faith = C.fervour >= 100 ? (int)K.fervour : 0;
     c.thefts = (int)((C.eggsStolen + C.nestsDestroyed) * K.theft);
-    c.total = c.birds + c.nests + c.isles + c.cache + c.kills + c.founder + c.research + c.pearls + c.faith + c.thefts;
+    c.kraken = C.krakenKill ? (int)K.kraken : 0;
+    c.total = c.birds + c.nests + c.isles + c.cache + c.kills + c.founder + c.research + c.pearls + c.faith + c.thefts + c.kraken;
     return c;
 }
 void World::CheckEnd() {
@@ -376,10 +389,10 @@ template <class A> void VisitColony(A& a, Colony& c, bool own, bool full, const 
     std::vector<Bird> sent;
     if constexpr (!A::reading) { sent.reserve(c.birds.size()); for (const auto& b : c.birds) if (b.alive && (own || keep(b))) sent.push_back(b); }
     a.vec(A::reading ? c.birds : sent, [&](Bird& b) { VisitBird(a, b, own); if constexpr (A::reading) b.alive = true; });
-    a.vec(c.nests, [&](Nest& n) { a.i(n.site); a.v3(n.pos); a.f(n.twigs); a.b(n.built); a.b(n.founders); a.i(n.mate); a.i(n.bowl); a.i(n.bowlNeed); a.f(n.mateT); a.f(n.larder); a.i(n.shells); });
-    a.vec(c.caches, [&](Cache& k) { a.v3(k.pos); a.b(k.built); a.f(k.twigs); a.vec(k.fish, [&](CachedFish& f) { a.i(f.sp); a.i(f.size); a.f(f.age); }); });
-    a.vec(c.sites, [&](Site& s) { a.i(s.nest); });          // (where the sites are is the island's: the mirror placed the same)
-    a.vec(c.twigSrc, [&](TwigSource& t) { a.f(t.twigs); });
+    a.vec(c.nests, [&](Nest& n) { a.i(n.site); a.v3(n.pos); a.f(n.twigs); a.b(n.built); a.b(n.founders); a.i(n.mate); a.i(n.bowl); a.i(n.bowlNeed); a.f(n.mateT); a.f(n.larder); a.i(n.shells); a.i(n.isle); a.f(n.tear); });
+    a.vec(c.caches, [&](Cache& k) { a.v3(k.pos); a.b(k.built); a.f(k.twigs); a.i(k.isle); a.vec(k.fish, [&](CachedFish& f) { a.i(f.sp); a.i(f.size); a.f(f.age); }); });
+    a.vec(c.sites, [&](Site& s) { a.v3(s.pos); a.i(s.nest); a.i(s.isle); });   // (an outpost adds another island's sites)
+    a.vec(c.twigSrc, [&](TwigSource& t) { a.v3(t.pos); a.f(t.twigs); a.f(t.cap); a.b(t.shells); });
     a.i(c.twigs); a.i(c.shells); a.i(c.wildMates); a.i(c.nextId); a.i(c.nextFlock);
     for (int r = 0; r < (int)Role::COUNT; r++) a.f(c.plan[r]);
     a.i(c.ground); a.f(c.restBelow); a.i(c.nestsWanted); a.f(c.feedToday); a.f(c.feedYesterday); a.i(c.caughtToday); a.i(c.deathsToday);
@@ -394,6 +407,7 @@ template <class A> void VisitColony(A& a, Colony& c, bool own, bool full, const 
         P16(a, f.pos); a.s8(f.vel.x, 60); a.s8(f.vel.y, 60); a.s8(f.vel.z, 60);
         a.f(f.morale); a.f(f.wins); a.f(f.engagedT); a.i(f.startSize); a.i(f.lost);
         a.b(f.retreating); a.b(f.scattered); a.b(f.leaderDead); a.s(f.name);
+        a.i(f.stim); a.f(f.stimT); a.f(f.crashT);
     });
     a.vec(c.builds, [&](Structure& s) { a.i(s.kind); a.v3(s.pos); a.f(s.twigs); a.i(s.shells); a.b(s.built); a.i(s.site); a.f(s.hp); a.i(s.isle); });
     // stage 6: the stores, research, fervour, the buttons
@@ -402,6 +416,7 @@ template <class A> void VisitColony(A& a, Colony& c, bool own, bool full, const 
     a.i(c.resTree); a.f(c.resLeft); a.f(c.resDays); a.f(c.fervour); a.f(c.prayerT); a.i(c.prayedDay); a.i(c.tradeFor);
     a.i(c.boomState); a.f(c.boomT); a.f(c.boomCd); a.b(c.cornered); a.i(c.serenadeDay); a.i(c.eggsStolen); a.i(c.nestsDestroyed); a.i(c.converted);
     if (own) a.vec(c.spies, [&](int& s) { a.i(s); });
+    a.i(c.bombs); a.i(c.blockbusters); for (int k = 0; k < STIM_COUNT; k++) a.i(c.stims[k]); a.i(c.brewFor); a.b(c.bell); a.f(c.offeredKraken); a.i(c.krakenKill); a.i(c.expandTo);
 }
 // each zone's stock as a share of what it holds (one pass over the fish)
 std::vector<float> ZoneStocks(const World& w) {
@@ -484,7 +499,7 @@ template <class A> void Visit(A& a, World& w, bool full) {
     if (full) {
         VisitKnowledge(a, w.know);
         a.vec(w.log, [&](std::string& s) { a.s(s); });
-        a.vec(w.scores, [&](ScoreCard& c) { a.i(c.birds); a.i(c.nests); a.i(c.isles); a.i(c.cache); a.i(c.kills); a.i(c.founder); a.i(c.total); a.i(c.research); a.i(c.pearls); a.i(c.faith); a.i(c.thefts); });
+        a.vec(w.scores, [&](ScoreCard& c) { a.i(c.birds); a.i(c.nests); a.i(c.isles); a.i(c.cache); a.i(c.kills); a.i(c.founder); a.i(c.total); a.i(c.research); a.i(c.pearls); a.i(c.faith); a.i(c.thefts); a.i(c.kraken); });
         // the towns' markets (what they have, your standing), offers made to you and by you, truces
         a.vec(w.towns, [&](Town& t) { a.i(t.isle); a.v3(t.dock); for (int g = 0; g < G_COUNT; g++) { a.f(t.price[g]); a.f(t.stock[g]); } a.f(t.storm); a.vec(t.rep, [&](float& r) { a.f(r); }); });
         a.vec(w.townCredit, [&](float& c) { a.f(c); });
@@ -497,6 +512,13 @@ template <class A> void Visit(A& a, World& w, bool full) {
         a.vec(st, [&](float& v) { a.q8(v, 1.5f); });
         if constexpr (A::reading) w.mirrorStock = st;
     }
+    // the dangerous islands and the weather
+    { Kraken& k = w.kraken; a.i(k.isle); a.i(k.mood); a.f(k.hp); a.f(k.hpMax); a.b(k.dead); a.i(k.killedBy); a.v3(k.arm); a.f(k.armT); }
+    { Ape& p = w.ape; a.i(p.isle); a.f(p.sleepT); a.v3(p.pos); a.v3(p.rockFrom); a.v3(p.rockTo); a.f(p.rockT); a.f(p.plantsBurnt); }
+    { Volcano& v = w.volcano; a.i(v.isle); a.f(v.next); a.f(v.tremorT); a.f(v.ashT); a.i(v.eruptions); }
+    { WreckState& r = w.wreck; a.i(r.isle); a.i(r.hold); a.b(r.bell); }
+    { Weather& e = w.weather; a.i(e.kind); a.f(e.t); a.f(e.next); }
+    if constexpr (A::reading) w.SetWreckPose();
     VisitSea(a, w, w.me.pos);
     if (a.bad()) return;
     // the war's effects, numbered (a mirror appends the ones it hasn't had)

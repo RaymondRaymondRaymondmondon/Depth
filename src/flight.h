@@ -57,6 +57,7 @@ struct Island {
     std::vector<Prop> props;                    // the town's houses, tower, docks and boats; the wreck's hull
     std::vector<Vector2> outline;               // the coast, 72 points (the chart draws it)
     float floorDepth = -25;                     // the sea floor at the grid's edge
+    float drop = 0;                             // (the wreck sinking: metres the whole island has gone down)
     uint32_t seed = 1;
     void Generate(uint32_t seed);               // (the stage-1 tropical island at the origin)
     void Generate(IsleType type, uint32_t seed, Vector3 centre);
@@ -156,6 +157,7 @@ struct FounderInput {
 struct Economy {
     float daySeconds = 120, workPace = 1;     // a game day in real seconds; colony birds work this much faster (keeps the per-day economy when days are short)
     int startPearls = 2, startShells = 12;    // (a founder's dowry: the first research by day 2, as the doc's pacing has it)
+    float pearlCatch = 0.02f;                 // (stage 8: the chance any delivered catch has an oyster with a pearl in it)
     float founderHungerS = 360;               // real seconds a full Founder lasts (the user: a day's worth emptied far too fast once days were 2 minutes)
     float feedAdult = 2.5f, feedChick = 1, feedFounder = 3;   // feed units a full hunger bar holds (one day's eating)
     float chickDrain = 2;                     // chicks empty twice as fast
@@ -206,16 +208,18 @@ struct Bird {
     int flock = -1; int tgtSide = -1, tgtId = 0;   // tgtId 0 = the side's Founder
     bool struck = false;                      // (its first strike in this engagement is spent)
     Vector3 post{};                           // a Watcher's perch
-    int carryGood = -1, carryN = 0;           // (a Trader's goods coming home; carrySp -2 an egg being stolen)
+    int carryGood = -1, carryN = 0;           // (a Trader's goods coming home; carrySp -2 an egg being stolen, -3 a bomb)
 };
-struct Site { Vector3 pos{}; int palm = -1; int nest = -1; };
+struct Site { Vector3 pos{}; int palm = -1; int nest = -1; int isle = -1; };
 struct Nest {
     int site = -1; Vector3 pos{}; float twigs = 0; bool built = false, founders = false;
     int mate = -1; int bowl = 0, bowlNeed = 3; float mateT = -1;   // mateT: counting down to the mate's arrival
     float larder = 0;                         // feed laid in the nest (chicks and the mate eat from it)
     int shells = 0;                           // lining
+    int isle = -1;                            // (the island it stands on: an island is held by whoever has the most nests there)
+    float tear = 0;                           // (an assault's damage to it)
 };
-struct Cache { Vector3 pos{}; std::vector<CachedFish> fish; bool built = true; float twigs = 0; };
+struct Cache { Vector3 pos{}; std::vector<CachedFish> fish; bool built = true; float twigs = 0; int isle = -1; };
 struct TwigSource { Vector3 pos{}; float twigs = 0, cap = 6; bool shells = false; };
 struct Stock { int row = 0, sp = 0, zone = 0; float K = 0, births = 0, pop = 0; };   // a fishing ground's species (one spawn row); pop: its count while the zone sleeps
 struct DayStats { int day = 0, birds = 0, eggs = 0, chicks = 0, mates = 0, nests = 0, caught = 0, deaths = 0; float feedCaught = 0, mouths = 0, cacheFeed = 0, lagoon = 0; };
@@ -235,7 +239,13 @@ struct Flock {
     int startSize = 0, lost = 0;
     bool retreating = false, scattered = false, leaderDead = false;
     std::string name;
+    int stim = 0; float stimT = 0, crashT = 0;   // (stage 7: a stimulant the flock was dosed with, and its crash)
 };
+// stage 7: stimulants (doc p25; the Chemistry tree)
+enum Stim : uint8_t { STIM_NONE, STIM_HASTE, STIM_FURY, STIM_CLOT, STIM_DRAUGHT, STIM_COUNT };
+const char* StimName(int s);
+float StructureHp(int kind); float StimSpeed(int stim); float StimAttack(int stim); float StimBleed(int stim);   // (flight_danger.cpp)
+float BellMorale(); float FogSight(); float TearPerStrike(); float SkullShrineFervour(); float DesertDays();
 // what a colony has raised (doc p24, p20): hedges round nest sites, towers for Watchers, the Roost (research), the
 // shrine (faith), the Works (bombs and stimulants: stage 7)
 enum { ST_HEDGE = 0, ST_TOWER = 1, ST_ROOST = 2, ST_SHRINE = 3, ST_WORKS = 4, ST_COUNT };
@@ -309,6 +319,12 @@ struct Colony {
     int eggsStolen = 0, nestsDestroyed = 0, converted = 0;   // (tallies for the score and the news)
     float goldenT = 0;                        // (the Tycoon's golden nest: a pearl a day)
     float convertAcc = 0;                     // (the priests' conversions under way)
+    // stage 7: bombs and stimulants at the Works, the ship's bell, the kraken's offerings
+    int bombs = 0, blockbusters = 0; float bombT = 0, blockT = 0;
+    int stims[STIM_COUNT] = {}; int brewFor = STIM_HASTE; float brewT = 0;
+    bool bell = false; float offeredKraken = -1e9f, apeFedT = -1e9f;
+    int krakenKill = 0;                       // (the kraken killed: 150 to the score)
+    int expandTo = -1;                        // (an island the colony's Founder or Pathfinder is off to found an outpost on)
     bool HasTier(Tree t, int n) const { return tier[(int)t] >= n; }
 };
 // A rival (and, while it steps, you): everything that is one player's and not the world's. The colony code works on the
@@ -320,7 +336,13 @@ struct Side {
     int slot = 1; std::string name; Color livery{200, 60, 60, 255};
 };
 // the score (design doc p27; data/flight/flight_scoring.json)
-struct ScoreCard { int birds = 0, nests = 0, isles = 0, cache = 0, kills = 0, founder = 0, total = 0, research = 0, pearls = 0, faith = 0, thefts = 0; };
+struct ScoreCard { int birds = 0, nests = 0, isles = 0, cache = 0, kills = 0, founder = 0, total = 0, research = 0, pearls = 0, faith = 0, thefts = 0, kraken = 0; };
+// stage 7: the dangerous islands' monsters and moods, the weather (flight_danger.cpp; data/flight/flight_danger.json)
+struct Kraken { int isle = -1; int mood = 0; float hp = 4000, hpMax = 4000, moodT = 0, calmT = 0, grabT = 0, armT = 0, armKill = 0; bool dead = false; int killedBy = -1; Vector3 arm{}; };   // mood 0 asleep, 1 awake, 2 surfaced
+struct Ape { int isle = -1; float sleepT = 0, throwT = 0, rockT = 0; Vector3 pos{}, rockFrom{}, rockTo{}; float lizardT = 0, plantT = 0, plantsBurnt = 0; };
+struct Volcano { int isle = -1; float next = 0, tremorT = 0, ashT = 0; int eruptions = 0; };
+struct WreckState { int isle = -1; Vector3 c0{}; Vector2 vel{}; float sunk = 0; int hold = 30; bool bell = true; bool gone = false; float ratT = 0, ghostT = 0; };
+struct Weather { int kind = 0; float t = 0, next = 0; float fogDawn = -1; };   // kind 0 fair, 1 storm, 2 fog
 
 // ---------------------------------------------------------------- the world (one Founder, one island: stage 1)
 struct World {
@@ -435,6 +457,27 @@ struct World {
     void TraderStep(Bird& b, float dt);
     void PriestStep(Bird& b, float dt);
     void InitTowns();
+    // stage 7 (flight_danger.cpp): the dangerous islands, the weather, holding islands, sieges, bombs and stimulants
+    Kraken kraken; Ape ape; Volcano volcano; WreckState wreck; Weather weather;
+    std::vector<int> outpostIsle;               // (scratch)
+    int HolderOf(int isle) const;               // the side with the most built nests on an island (-1: nobody, or a tie)
+    int NestsOn(int side, int isle) const;
+    int OutpostSite() const;                    // (a site for the next nest on an outpost that has fewer than three)
+    bool FoundOutpost(int isle, Vector3 near);  // the colony in the fields lays out a nest and a cache on another island
+    void InitDanger();
+    void StepDanger(float dt);                  // the monsters, the volcano, the wreck, the weather (once a step)
+    void StepWorks(float dt);                   // bombs and stimulants at the colony's Works (the colony in the fields)
+    void Blast(Vector3 at, int side, int kind); // a bomb (kind 0 plain, 1 incendiary, 2 blockbuster)
+    bool Dose(int flock, int stim);             // a stimulant into a flock of the colony in the fields
+    bool Grounded(Vector3 p) const;             // (a storm, or the volcano's ash: birds stay down)
+    bool Blockaded(int zone, int side) const;   // a hostile flock holds that ground
+    bool Walled(int isle, int side) const;      // a hostile Wall holds the air over that island
+    bool OfferKraken();                          // the Founder at the cove with a fish
+    bool FeedApe();                              // the Founder at the ape with a big fish
+    void SetWreckPose();                         // (the wreck where it has drifted to by now)
+    bool StormNow() const { return weather.kind == 1; }
+    bool FogNow() const { return weather.kind == 2; }
+    void BotDanger(float dt);                   // a bot's expansion, offerings, sieges and bombs (the colony in the fields)
     void PredictFounder(float dt, const FounderInput& in);   // the guest's own Founder between snapshots
     void StepFog(float dt);                     // the fog round the side in the fields
     // war (flight_war.cpp)
@@ -468,7 +511,7 @@ struct World {
     void Say(const std::string& s);              // (your log; silent while a rival steps)
     float Rand();
     // the sea
-    Vector2 WindAt() const { return wind.At(time); }
+    Vector2 WindAt() const { Vector2 v = wind.At(time); float k = weather.kind == 1 ? 2.5f : 1.0f; return {v.x * k, v.y * k}; }   // (a storm: a gale)
     float Thermal(Vector3 p) const;             // updraft m/s (the hill in the afternoon)
     int FishNear(Vector3 p, float r, float maxDepth, int* count = nullptr) const;   // nearest catchable fish agent
     float FeedValue(int sp) const;              // a fish's size class
@@ -530,7 +573,9 @@ int RunFlightFairTest(int argc, char** argv);   // depth.exe --flight-fair [seed
 int RunFlightScoutTest();                       // depth.exe --flight-scout-test: the stage-3 gate (a scout's report from each altitude)
 int RunFlightWar(int argc, char** argv);         // depth.exe --flight-war [scenario|all] [runs]: the five rules in scripted fights; the stage-4 gate
 int RunFlightFounders(int days, int seeds);      // depth.exe --flight-sim founders [days] [seeds]: every founder's window (the stage-6 gate)
-int RunFlightSocietyTest();                     // depth.exe --flight-society-test: research, faith, trade, the founders (stage 6)
+int RunFlightSocietyTest();
+int RunFlightSiege(int argc, char** argv);      // depth.exe --flight-siege [runs]: the stage-7 gate (a bot takes the cove and holds it through a siege)
+int RunFlightDangerTest();                      // depth.exe --flight-danger-test: the dangerous islands, bombs, stimulants, sieges                     // depth.exe --flight-society-test: research, faith, trade, the founders (stage 6)
 int RunFlightNetTest();                         // depth.exe --flight-net-test: inputs, orders, snapshots, mirrors, the score (flight_net.cpp)
 int RunFlightNetLoop(bool forceMemory);         // depth.exe --net-loop flight [mem]: the stage-5 gate (six players finish a 30-minute match)
 

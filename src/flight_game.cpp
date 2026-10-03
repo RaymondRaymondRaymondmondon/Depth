@@ -34,6 +34,7 @@ struct FlightScene {
     fl::MapOpts opts;
     Model body{}, head{}, beak{}, tail{}, wingIn{}, wingOut{};
     Model egg{}, chick{}, pile{};
+    bool dangerReady = false; Model krakenArm{}, krakenHead{}, ape{};   // (stage 7: the monsters)
     bool panel = false;                       // the colony panel (Tab)
     int page = 0, selFlock = -1; bool raidChicks = false;   // (the panel's page: 0 the colony, 1 the flocks; the flock picked for chart orders)
     int plat = 0;                             // (the panel's fledging-plan row picked)
@@ -345,6 +346,13 @@ void DrawCarried(const fl::World& w, Matrix W, float L, int sp, int twigs, float
         const rt::CreatureModel& cm = rt::Creature(w.seaKey, w.eco.map->species[sp].name);
         rt::DrawCreature(cm, Vector3Transform({0, -L * 0.35f, 0}, W), atan2f(cosf(yaw), sinf(yaw)), pitch * 0.5f, 1.0f, S.t * cm.freq * 1.5f, 0.6f);
     }
+    else if (sp == -2) rt::DrawStatic(S.egg, MatrixMultiply(MatrixTranslate(0, -L * 0.35f, 0), W));   // (a stolen egg)
+    else if (sp == -3) {   // a bomb: a gourd packed with guano and sulfur, its fuse smouldering
+        rt::DrawCubeM(MatrixMultiply(MatrixScale(L * 0.45f, L * 0.45f, L * 0.45f), MatrixMultiply(MatrixTranslate(0, -L * 0.45f, 0), W)), Color{92, 70, 46, 255});
+        rt::DrawCubeGlow(MatrixMultiply(MatrixScale(L * 0.08f, L * 0.08f, L * 0.08f), MatrixMultiply(MatrixTranslate(0, -L * 0.2f, 0), W)), Color{255, 160, 60, 255}, 1.5f + sinf(S.t * 20));
+    }
+    else if (sp == -4) rt::DrawCubeM(MatrixMultiply(MatrixScale(L * 0.4f, L * 0.5f, L * 0.4f), MatrixMultiply(MatrixTranslate(0, -L * 0.5f, 0), W)), Color{196, 150, 60, 255});   // (the wreck's bell)
+    else if (sp == -5) rt::DrawCubeM(MatrixMultiply(MatrixScale(L * 0.35f, L * 0.25f, L * 0.35f), MatrixMultiply(MatrixTranslate(0, -L * 0.4f, 0), W)), Color{226, 204, 64, 255});   // (a lump of sulfur)
     for (int k = 0; k < twigs; k++) rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(0.6f, 0.03f, 0.03f), MatrixRotateY(0.4f + k * 0.5f)), MatrixMultiply(MatrixTranslate(0, -L * 0.3f - k * 0.03f, 0), W)), Color{120, 88, 54, 255});
 }
 void DrawBird(const fl::World& w, float dt) {
@@ -452,10 +460,27 @@ void DrawColony(const fl::World& w, const fl::Colony& c, const Camera3D& cam, Co
     // defences: a hedge of thorn (a ring of bramble round the cache and the home nest), a tower of lashed sticks
     for (const auto& s : c.builds) {
         if (Vector3Distance(s.pos, cam.position) > 400) continue;
+        if (s.hp <= 0) continue;
         float k = s.built ? 1.0f : std::clamp(s.twigs / std::max(1, fl::StructureTwigs(s.kind)), 0.1f, 1.0f);
         if (s.kind == 0) for (int j = 0; j < 16; j++) {
             float a = j * 2 * PI / 16; Vector3 p = Vector3Add(s.pos, {cosf(a) * 7, 0, sinf(a) * 7}); p.y = w.HeightAt(p.x, p.z);
             rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(2.8f, 1.4f * k, 0.9f), MatrixRotateY(-a + PI / 2)), MatrixTranslate(p.x, p.y + 0.6f * k, p.z)), Color{70, 96, 52, 255});
+        }
+        else if (s.kind == fl::ST_ROOST) {   // a Roost: a broad low platform of sticks under a lean-to of fronds
+            for (int j = 0; j < 6; j++) { float a = j * PI / 3; rt::DrawCubeM(MatrixMultiply(MatrixScale(0.3f, 3 * k, 0.3f), MatrixTranslate(s.pos.x + cosf(a) * 4, s.pos.y + 1.5f * k, s.pos.z + sinf(a) * 4)), Color{112, 86, 56, 255}); }
+            rt::DrawCubeM(MatrixMultiply(MatrixScale(9, 0.4f, 9), MatrixTranslate(s.pos.x, s.pos.y + 0.3f, s.pos.z)), Color{132, 100, 64, 255});
+            if (k >= 1) for (int j = 0; j < 5; j++) rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(10, 0.15f, 2.2f), MatrixRotateX(0.35f)), MatrixTranslate(s.pos.x, s.pos.y + 3.2f, s.pos.z - 4 + 2 * j)), Color{86, 120, 60, 255});
+        }
+        else if (s.kind == fl::ST_SHRINE) {   // a shrine: a cairn of shells and pearls with a feather totem
+            for (int j = 0; j < 5; j++) rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(2.4f - 0.4f * j, 0.7f, 2.4f - 0.4f * j), MatrixRotateY(j * 0.6f)), MatrixTranslate(s.pos.x, s.pos.y + 0.35f + 0.7f * j * k, s.pos.z)), Color{(unsigned char)(220 - 10 * j), (unsigned char)(210 - 10 * j), 196, 255});
+            if (k >= 1) { rt::DrawCubeM(MatrixMultiply(MatrixScale(0.2f, 4, 0.2f), MatrixTranslate(s.pos.x, s.pos.y + 5, s.pos.z)), Color{112, 86, 56, 255}); rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.5f, 0.5f, 0.5f), MatrixTranslate(s.pos.x, s.pos.y + 7.2f, s.pos.z)), Color{240, 240, 255, 255}, 0.8f + 0.4f * sinf(S.t * 2)); }
+        }
+        else if (s.kind == fl::ST_WORKS) {   // the Works: a guano pit, a sulfur heap, a smoking kiln of stones
+            rt::DrawCubeM(MatrixMultiply(MatrixScale(4, 0.5f, 4), MatrixTranslate(s.pos.x - 3, s.pos.y + 0.1f, s.pos.z)), Color{226, 224, 210, 255});
+            rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(2.5f, 1.2f, 2.5f), MatrixRotateY(0.7f)), MatrixTranslate(s.pos.x + 3, s.pos.y + 0.5f, s.pos.z)), Color{222, 200, 60, 255});
+            rt::DrawCubeM(MatrixMultiply(MatrixScale(2, 3 * k, 2), MatrixTranslate(s.pos.x, s.pos.y + 1.5f * k, s.pos.z + 3)), Color{110, 104, 98, 255});
+            if (k >= 1) { rt::DrawCubeGlow(MatrixMultiply(MatrixScale(1, 0.6f, 1), MatrixTranslate(s.pos.x, s.pos.y + 0.6f, s.pos.z + 4.1f)), Color{255, 140, 50, 255}, 1.2f);
+                for (int j = 0; j < 4; j++) { float ph = fmodf(S.t * 0.3f + j * 0.25f, 1.0f); rt::DrawCubeM(MatrixMultiply(MatrixScale(1 + ph * 2, 1 + ph * 2, 1 + ph * 2), MatrixTranslate(s.pos.x + ph * 2, s.pos.y + 3.5f + ph * 10, s.pos.z + 3)), Mix(Color{120, 116, 112, 255}, Color{200, 200, 198, 255}, ph)); } }
         }
         else {
             for (int j = 0; j < 4; j++) { float a = j * PI / 2 + 0.78f; rt::DrawCubeM(MatrixMultiply(MatrixScale(0.25f, 16 * k, 0.25f), MatrixTranslate(s.pos.x + cosf(a) * 1.2f, s.pos.y + 8 * k, s.pos.z + sinf(a) * 1.2f)), Color{112, 86, 56, 255}); }
@@ -510,6 +535,125 @@ void DrawWarFx(const fl::World& w) {
         DrawBirdBody(w.Def(), W, 0.6f * sinf(f.spin * 2), 0.3f, 0.2f, 0, 0.5f, 0.6f, f.tint);   // (limp, tumbling)
     }
 }
+// the dangerous islands on screen (stage 7): the kraken's arms and its head when it surfaces, an arm snatching a bird;
+// the great ape on skull island (asleep when fed) and its thrown rock; the volcano's plume, and its ash and lava in an
+// eruption; the wreck's ghost light; a bomb's blast (a flash and a ball of smoke)
+struct Blast { Vector3 p; float age; int kind; };
+std::vector<Blast> gBlasts; size_t gBlastSeen = 0;
+void BuildDangerModels() {
+    if (S.dangerReady) return;
+    {   // one kraken arm: a long tapering curl (unit height), dark red with paler suckers along its inside
+        rt::MeshBuilder mb;
+        std::vector<Vector3> spine;
+        for (int k = 0; k <= 10; k++) { float u = k / 10.0f; spine.push_back({0.25f * sinf(u * 2.6f), u, 0.18f * (1 - cosf(u * 2.2f))}); }
+        mb.Tube(spine, 0.11f, 0.015f, 7, Color{138, 40, 44, 255}, Color{170, 70, 66, 255}, 0);
+        for (int k = 1; k < 9; k++) { const Vector3& p = spine[k]; mb.Octa({p.x + 0.06f, p.y, p.z - 0.07f}, 0.03f * (1 - k / 10.0f), Color{226, 180, 160, 255}); }
+        S.krakenArm = LoadModelFromMesh(mb.Build());
+    }
+    {   // its head: a mantle rising out of the water, two great eyes
+        rt::MeshBuilder mb;
+        mb.Tube({{0, -1.0f, 0}, {0, 0, 0}, {0, 0.55f, -0.08f}, {0, 0.95f, -0.25f}, {0, 1.15f, -0.45f}}, 0.5f, 0.12f, 12, Color{128, 36, 40, 255}, Color{96, 28, 34, 255}, 0);
+        mb.Octa({0.42f, 0.05f, 0.28f}, 0.09f, Color{250, 220, 120, 255}); mb.Octa({-0.42f, 0.05f, 0.28f}, 0.09f, Color{250, 220, 120, 255});
+        mb.Octa({0.44f, 0.05f, 0.33f}, 0.04f, Color{20, 16, 14, 255}); mb.Octa({-0.44f, 0.05f, 0.33f}, 0.04f, Color{20, 16, 14, 255});
+        S.krakenHead = LoadModelFromMesh(mb.Build());
+    }
+    {   // the great ape: a hunched body, a head, long arms on their knuckles (unit height, scaled up)
+        rt::MeshBuilder mb;
+        Color fur{58, 46, 40, 255}, face{120, 96, 80, 255};
+        mb.Tube({{0, 0.25f, -0.1f}, {0, 0.7f, 0.0f}, {0, 1.05f, 0.12f}}, 0.4f, 0.32f, 9, Shade(fur, 0.85f), fur, 0);
+        mb.Tube({{0, 1.1f, 0.18f}, {0, 1.3f, 0.26f}, {0, 1.42f, 0.28f}}, 0.2f, 0.12f, 8, fur, Shade(fur, 0.9f), 0);
+        mb.Box({0, 1.24f, 0.4f}, {0.1f, 0.07f, 0.04f}, face);
+        for (int sd = -1; sd <= 1; sd += 2) {
+            mb.Tube({{0.36f * sd, 1.0f, 0.1f}, {0.55f * sd, 0.6f, 0.25f}, {0.5f * sd, 0.05f, 0.35f}}, 0.12f, 0.09f, 6, fur, Shade(fur, 0.85f), 0);
+            mb.Tube({{0.18f * sd, 0.3f, -0.05f}, {0.25f * sd, 0.15f, 0.05f}, {0.22f * sd, 0.0f, 0.0f}}, 0.13f, 0.1f, 6, fur, Shade(fur, 0.85f), 0);
+            mb.Octa({0.07f * sd, 1.3f, 0.38f}, 0.03f, Color{230, 200, 120, 255});
+        }
+        S.ape = LoadModelFromMesh(mb.Build());
+    }
+    S.dangerReady = true;
+}
+void DrawDangers(const fl::World& w, const Camera3D& cam, float dt) {
+    if (!w.wholeMap) return;
+    BuildDangerModels();
+    // ---- the kraken: asleep, nothing shows; awake, arms test the air; surfaced, its head too
+    const fl::Kraken& K = w.kraken;
+    if (K.isle >= 0 && !K.dead) {
+        Vector3 c = w.isles[K.isle].c;
+        if (Vector3Distance(c, cam.position) < 900) {
+            int arms = K.mood == 2 ? 8 : K.mood == 1 ? 4 : 0;
+            for (int a = 0; a < arms; a++) {
+                float ang = a * 2 * PI / arms + 0.3f * sinf(S.t * 0.4f + a);
+                float r = 16 + 14 * Hash((float)a, 3.0f);
+                float len = (K.mood == 2 ? 26 : 14) * (0.8f + 0.4f * Hash((float)a, 7.0f)) * (0.85f + 0.15f * sinf(S.t * 1.3f + a));
+                Matrix m = MatrixMultiply(MatrixMultiply(MatrixScale(len * 0.6f, len, len * 0.6f), MatrixRotateZ(0.35f * sinf(S.t * 0.9f + a * 1.7f))), MatrixMultiply(MatrixRotateY(-ang), MatrixTranslate(c.x + cosf(ang) * r, -1.0f, c.z + sinf(ang) * r)));
+                rt::DrawStatic(S.krakenArm, m);
+            }
+            if (K.mood == 2) rt::DrawStatic(S.krakenHead, MatrixMultiply(MatrixScale(14, 10, 14), MatrixTranslate(c.x, -4.5f + 0.6f * sinf(S.t * 0.7f), c.z)));
+        }
+        if (K.armT > 0) {   // an arm out of the water where a bird was taken
+            float k = std::clamp(K.armT / 1.2f, 0.0f, 1.0f);
+            float hgt = std::max(4.0f, K.arm.y + 4) * (0.4f + 0.6f * k);
+            rt::DrawStatic(S.krakenArm, MatrixMultiply(MatrixScale(hgt * 0.5f, hgt, hgt * 0.5f), MatrixTranslate(K.arm.x, -1.0f, K.arm.z)));
+        }
+    }
+    // ---- the great ape on skull island's summit, and its rock in the air
+    const fl::Ape& A = w.ape;
+    if (A.isle >= 0 && Vector3Distance(A.pos, cam.position) < 900) {
+        bool sleeping = A.sleepT > 0;
+        Matrix m = sleeping ? MatrixMultiply(MatrixMultiply(MatrixScale(7, 7, 7), MatrixRotateX(-PI * 0.45f)), MatrixTranslate(A.pos.x, A.pos.y + 1.5f, A.pos.z))
+                            : MatrixMultiply(MatrixMultiply(MatrixScale(7, 7 * (1 + 0.02f * sinf(S.t * 1.7f)), 7), MatrixRotateY(0.6f * sinf(S.t * 0.15f))), MatrixTranslate(A.pos.x, A.pos.y - 0.5f, A.pos.z));
+        rt::DrawStatic(S.ape, m);
+        if (A.rockT > 0) {
+            float k = std::clamp(1 - A.rockT, 0.0f, 1.0f);
+            Vector3 p = Vector3Lerp(A.rockFrom, A.rockTo, k); p.y += 30 * sinf(k * PI);
+            rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(1.6f, 1.4f, 1.5f), MatrixRotateY(S.t * 7)), MatrixTranslate(p.x, p.y, p.z)), Color{96, 90, 82, 255});
+        }
+    }
+    // ---- the volcano: a plume always; in an eruption a column of ash and lava down its flanks; tremors shake the summit
+    const fl::Volcano& V = w.volcano;
+    if (V.isle >= 0) {
+        const fl::Island& is = w.isles[V.isle];
+        Vector3 top{is.hill.x, is.hill.y + 2, is.hill.z};
+        if (Vector3Distance(top, cam.position) < 1400) {
+            bool erupting = V.ashT > 0;
+            int puffs = erupting ? 44 : 12;
+            for (int k = 0; k < puffs; k++) {
+                float ph = fmodf(S.t * (erupting ? 0.35f : 0.12f) + k / (float)puffs, 1.0f);
+                float h = ph * (erupting ? 220 : 90);
+                Vector3 p{top.x + sinf(k * 2.3f + S.t * 0.1f) * (4 + h * 0.18f) + w.wind.dir.x * h * 0.3f, top.y + h, top.z + cosf(k * 1.7f) * (4 + h * 0.18f) + w.wind.dir.y * h * 0.3f};
+                float s = (erupting ? 12 : 5) + h * 0.1f;
+                Color c = erupting ? Mix(Color{60, 50, 48, 255}, Color{130, 120, 116, 255}, ph) : Mix(Color{150, 146, 140, 255}, Color{210, 210, 206, 255}, ph);
+                rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(s, s * 0.8f, s), MatrixRotateY(k * 0.7f)), MatrixTranslate(p.x, p.y, p.z)), c);
+            }
+            rt::DrawCubeGlow(MatrixMultiply(MatrixScale(5, 0.8f, 5), MatrixTranslate(top.x, top.y - 1.5f, top.z)), Color{255, 120, 40, 255}, erupting ? 2.0f : 0.8f);
+            if (erupting) for (int k = 0; k < 18; k++) {
+                float a = k * 0.7f, r = 8 + fmodf(k * 13.7f + S.t * 3, 70);
+                Vector3 p{top.x + cosf(a) * r, 0, top.z + sinf(a) * r}; p.y = w.HeightAt(p.x, p.z) + 0.3f;
+                if (p.y > 0.5f) rt::DrawCubeGlow(MatrixMultiply(MatrixScale(3, 0.6f, 3), MatrixTranslate(p.x, p.y, p.z)), Color{255, 110, 30, 255}, 1.5f);
+            }
+        }
+    }
+    // ---- the wreck's ghost light at night: lanterns along her rail
+    if (w.wreck.isle >= 0 && !w.wreck.gone && w.wreck.ghostT > 0) {
+        Vector3 c = w.isles[w.wreck.isle].hill;
+        for (int k = 0; k < 5; k++) rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.7f, 1.0f, 0.7f), MatrixTranslate(c.x - 12 + 6 * k, c.y + 3 + 0.4f * sinf(S.t * 2 + k), c.z)), Color{120, 255, 190, 255}, 1.6f);
+    }
+    // ---- bomb blasts
+    size_t end = w.warFxBase + w.warFx.size();
+    if (gBlastSeen < w.warFxBase || gBlastSeen > end) gBlastSeen = w.warFxBase;
+    for (; gBlastSeen < end; gBlastSeen++) { const auto& e = w.warFx[gBlastSeen - w.warFxBase]; if (e.kind == 3 && Vector3Distance(e.p, cam.position) < 700) gBlasts.push_back({e.p, 0, (int)e.yaw}); }
+    for (auto& b : gBlasts) b.age += dt;
+    gBlasts.erase(std::remove_if(gBlasts.begin(), gBlasts.end(), [](const Blast& b) { return b.age > 3; }), gBlasts.end());
+    for (const auto& b : gBlasts) {
+        float k = b.age / 3, s = (b.kind == 2 ? 8 : 4) + 14 * sqrtf(k);
+        if (b.age < 0.4f) rt::DrawCubeGlow(MatrixMultiply(MatrixScale(s * 1.2f, s, s * 1.2f), MatrixTranslate(b.p.x, b.p.y + 2, b.p.z)), b.kind == 1 ? Color{255, 120, 20, 255} : Color{255, 230, 160, 255}, 3.0f);
+        for (int j = 0; j < 7; j++) {   // a ball of smoke: puffs rolling up and out, paling as they go
+            float a = j * 0.9f + b.p.x, r = (j == 0 ? 0 : 0.5f) * s, ps = s * (0.45f - 0.03f * j) * (0.6f + k);
+            rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(ps, ps * 0.8f, ps), MatrixRotateY(a + b.age)), MatrixTranslate(b.p.x + cosf(a) * r, b.p.y + 2 + 9 * k + (j % 3) * ps * 0.4f, b.p.z + sinf(a) * r)), Mix(Color{92, 86, 80, 255}, Color{176, 172, 166, 255}, k + 0.05f * j));
+        }
+        if (b.kind == 1 && b.age > 0.3f) for (int j = 0; j < 6; j++) { float a = j * 1.05f; rt::DrawCubeGlow(MatrixMultiply(MatrixScale(1.2f, 1.6f + sinf(S.t * 9 + j), 1.2f), MatrixTranslate(b.p.x + cosf(a) * 4, b.p.y + 0.8f, b.p.z + sinf(a) * 4)), Color{255, 140, 40, 255}, 2.0f); }
+    }
+}
 void DrawWorld(const fl::World& w, const Camera3D& cam, float dt) {
     rt::DrawWorldCube({cam.position.x, -25.6f, cam.position.z}, {4000, 0.4f, 4000}, Color{52, 84, 96, 255});   // (the open sea's floor)
     size_t nIsles = w.wholeMap ? w.isles.size() : 1;   // (stage 1: the one island)
@@ -549,6 +693,7 @@ void DrawWorld(const fl::World& w, const Camera3D& cam, float dt) {
         }
     }
     DrawWarFx(w);
+    DrawDangers(w, cam, dt);
     // the sea's life: what's near enough to see (the water drawn over it shows the shallow ones plainly)
     for (const auto& a : w.eco.agents) {
         if (!a.alive || a.diver >= 0) continue;
@@ -733,6 +878,31 @@ void DrawHud(const fl::World& w) {
     } else if (f.st == fl::FState::Fainted) {
         DrawTextCenteredBold("Fainted from hunger...", SCREEN_W / 2.0f, SCREEN_H / 2.0f, 28, Color{255, 180, 140, 255});
     }
+    if (w.weather.kind == 1) for (int k = 0; k < 160; k++) {   // rain
+        float x = fmodf(Hash((float)k, 1.0f) * SCREEN_W + S.t * 160, (float)SCREEN_W), y = fmodf(Hash((float)k, 2.0f) * SCREEN_H + S.t * (900 + 300 * Hash((float)k, 3.0f)), (float)SCREEN_H);
+        DrawLineEx({x, y}, {x - 6, y + 22}, 1.2f, Fade(Color{210, 220, 235, 255}, 0.35f));
+    }
+    // the dangers (stage 7): the weather, the volcano, the kraken and the ape when they're near
+    if (w.wholeMap) {
+        std::vector<std::pair<std::string, Color>> warn;
+        if (w.weather.kind == 1) warn.push_back({"STORM: the wind runs wild; every flock makes for home", Color{200, 220, 255, 255}});
+        if (w.weather.kind == 2) warn.push_back({"FOG: the sea is shut in; Watchers see half as far", Color{230, 236, 240, 255}});
+        if (w.volcano.isle >= 0) {
+            float d = Vector3Distance(f.pos, w.isles[w.volcano.isle].c);
+            if (w.volcano.ashT > 0 && d < 600) warn.push_back({"ASH: the volcano erupts; birds near it are grounded", Color{255, 170, 110, 255}});
+            else if (w.volcano.tremorT > 0 && d < 900) warn.push_back({"The volcano rumbles: an eruption is coming", Color{255, 200, 140, 255}});
+        }
+        if (w.kraken.isle >= 0 && !w.kraken.dead && w.kraken.mood > 0 && Vector3Distance(f.pos, w.isles[w.kraken.isle].c) < 400)
+            warn.push_back({w.kraken.mood == 2 ? "THE KRAKEN HAS SURFACED: keep high, or fight it" : "The kraken stirs: its arms take low fliers", Color{255, 130, 130, 255}});
+        if (w.ape.isle >= 0 && w.ape.sleepT <= 0 && Vector3Distance(f.pos, w.ape.pos) < 260) warn.push_back({"The great ape is awake: it throws at what flies near (feed it to calm it)", Color{240, 210, 170, 255}});
+        float wy = 46;
+        for (const auto& wn : warn) {
+            int tw = MeasureText(wn.first.c_str(), 18) + 30;
+            DrawRectangleRounded({SCREEN_W / 2.0f - tw / 2.0f, wy - 3, (float)tw, 26}, 0.4f, 6, Fade(BLACK, 0.5f));
+            DrawTextCenteredBold(wn.first, SCREEN_W / 2.0f, wy, 18, Fade(wn.second, 0.75f + 0.25f * sinf(S.t * 4)));
+            wy += 30;
+        }
+    }
     // the log
     {
         float y = 80;
@@ -859,6 +1029,9 @@ void DrawFlockPanel(fl::World& w) {
         std::string comp;
         for (int r = (int)fl::Role::Skirmisher; r < (int)fl::Role::COUNT; r++) if (n[r]) comp += TextFormat("%d %s ", n[r], fl::RoleAbbrev((fl::Role)r));
         TxtBold(f.name, x + 18, ly, 16, ink);
+        if (f.stim != fl::STIM_NONE) Txt(f.stimT > 0 ? TextFormat("%s %.1f d", fl::StimName(f.stim), f.stimT / fl::World::DAY) : "crashing", x + W - 118, ly - 12, 12, f.stimT > 0 ? Color{255, 200, 120, 255} : bad);
+        else { int have = 0; for (int s = 1; s < fl::STIM_COUNT; s++) if (w.col.stims[s] > 0) { have = s; break; }
+               if (have && SmallBtn({x + W - 96, ly - 14, 76, 17}, TextFormat("+%s", fl::StimName(have)))) { Writer o; fl::OrderDose(o, f.id, have); Order(o); } }
         Txt(TextFormat("%s   led by %s", comp.c_str(), f.leader == -2 ? "the Founder" : f.leader >= 0 ? "a Flockmaster" : "no one"), x + 120, ly + 2, 13, dim);
         // morale
         DrawRectangle((int)x + 18, (int)ly + 22, 160, 8, Fade(BLACK, 0.5f));
@@ -883,12 +1056,12 @@ void DrawFlockPanel(fl::World& w) {
         ly += 104;
     }
     // defences
-    ly = y + H - 140;
+    ly = y + H - 190;
     TxtBold("Defences", x + 16, ly, 17, ink);
     if (!w.BuildUnlocked(fl::ST_HEDGE)) Txt("(hedges and towers want War 3)", x + 110, ly + 2, 13, dim);
     ly += 24;
     const fl::Structure* hedge = nullptr; const fl::Structure* tower = nullptr;
-    for (const auto& s : w.col.builds) { if (s.kind == 0) hedge = &s; else tower = &s; }
+    for (const auto& s : w.col.builds) { if (s.kind == fl::ST_HEDGE) hedge = &s; else if (s.kind == fl::ST_TOWER) tower = &s; }
     int watchers = w.Count(fl::BStage::Adult, fl::Role::Watcher);
     auto row = [&](const char* name, const fl::Structure* s, int kind, const char* cost) {
         std::string st = !s ? "none" : s->built ? "built" : TextFormat("under way: %.0f of %d twigs", s->twigs, fl::StructureTwigs(kind));
@@ -898,6 +1071,21 @@ void DrawFlockPanel(fl::World& w) {
     };
     row("Hedge round the home cache", hedge, 0, "raise (10 twigs)");
     row("Tower for a Watcher", tower, 1, "raise (20 twigs, 5 shells)");
+    // the Works (Bombing 1 or Chemistry 1): bombs for the Bombers, stimulants for the flocks
+    {
+        const fl::Structure* works = nullptr; for (const auto& s : w.col.builds) if (s.kind == fl::ST_WORKS) works = &s;
+        if (!works || !works->built) row("The Works", works, fl::ST_WORKS, w.BuildUnlocked(fl::ST_WORKS) ? "raise the Works" : "(Bombing or Chemistry 1)");
+        else {
+            Txt(TextFormat("Works: %d bombs, %d blockbusters; guano %.0f, sulfur %.0f", w.col.bombs, w.col.blockbusters, w.col.guano, w.col.sulfur), x + 16, ly + 2, 14, ink); ly += 20;
+            std::string st; for (int s = 1; s < fl::STIM_COUNT; s++) st += TextFormat("%s %d  ", fl::StimName(s), w.col.stims[s]);
+            Txt(st, x + 16, ly + 2, 13, dim);
+            if (w.col.HasTier(fl::Tree::Chemistry, 1)) {
+                Txt("brew", x + W - 166, ly + 2, 13, dim);
+                if (SmallBtn({x + W - 130, ly, 114, 19}, fl::StimName(w.col.brewFor))) { int nx = w.col.brewFor % (fl::STIM_COUNT - 1) + 1; Writer o; fl::OrderBrew(o, nx); Order(o); }
+            }
+            ly += 24;
+        }
+    }
     Txt(TextFormat("%d Watchers guard the nests (hedges stop Skirmishers; Strikers go over)", watchers), x + 16, ly + 2, 13, dim); ly += 22;
     DrawWrapped("Pick a flock, then click a target on the chart (M). G: the Founder leads the nearest flock (+20 morale, +10% speed).", {x + 16, ly, W - 32, 34}, 13, dim);
 }
@@ -1144,6 +1332,7 @@ void DrawChart(fl::World& w) {
         Vector2 c = toS(is.c.x, is.c.z);
         std::string nm = K.isle[i] == 2 || K.sight[i].t >= 0 ? is.name : std::string("? ") + fl::IsleTypeName(is.type);
         DrawTextCentered(nm, c.x, c.y + is.radius * sc + 3, 13, ink);
+        if (K.isle[i] == 2 || K.sight[i].t >= 0) { int h = w.HolderOf((int)i); if (h >= 0) { Vector2 fp{c.x + MeasureText(nm.c_str(), 13) / 2.0f + 6, c.y + is.radius * sc + 2}; DrawLineEx(fp, {fp.x, fp.y + 14}, 1.5f, ink); DrawTri(fp, {fp.x + 10, fp.y + 3}, {fp.x, fp.y + 6}, w.SideColor(h)); } }
         const fl::Sighting& s = K.sight[i];
         if (s.t >= 0) {
             float age = (w.time - s.t) / fl::World::DAY;
@@ -1197,10 +1386,9 @@ void DrawChart(fl::World& w) {
     float y = side.y + 10;
     TxtBold("Orders", side.x + 12, y, 18, ink); y += 26;
     int idle = 0, scouts = 0; for (const auto& b : w.col.birds) if (b.alive && b.stage == fl::BStage::Adult && b.role == fl::Role::Scout) { scouts++; idle += !b.hasOrder && b.retrainT <= 0; }
-    if (SmallBtn({side.x + 12, y, 86, 24}, "Scout", true)) S.chartMode = 0;
-    if (SmallBtn({side.x + 104, y, 86, 24}, "Fishers", true)) S.chartMode = 1;
-    if (SmallBtn({side.x + 196, y, 86, 24}, "Flock", true)) S.chartMode = 2;
-    DrawRectangleLinesEx({side.x + 12 + S.chartMode * 92.0f - 2, y - 2, 90, 28}, 2, Color{200, 60, 40, 255});
+    {   static const char* modes[4] = {"Scout", "Fishers", "Flock", "Outpost"};
+        for (int k = 0; k < 4; k++) if (SmallBtn({side.x + 12 + k * 71.0f, y, 66, 24}, modes[k], true)) S.chartMode = k;
+        DrawRectangleLinesEx({side.x + 12 + S.chartMode * 71.0f - 2, y - 2, 70, 28}, 2, Color{200, 60, 40, 255}); }
     y += 32;
     if (S.chartMode == 0) {
         static const fl::Alt alts[3] = {fl::Alt::High, fl::Alt::Mid, fl::Alt::Low};
@@ -1212,6 +1400,11 @@ void DrawChart(fl::World& w) {
     } else if (S.chartMode == 1) {
         DrawWrapped(TextFormat("Click a ground: the fishers work it (now: %s).", w.col.ground < 0 ? "the best ground" : w.eco.map->zones[w.col.ground].name.c_str()), {side.x + 12, y, side.width - 24, 40}, 13, ink);
         if (SmallBtn({side.x + 12, y + 36, 150, 24}, "the best ground", true)) { Writer o; fl::OrderGround(o, -1); Order(o); }
+    } else if (S.chartMode == 3) {
+        int pf = w.Count(fl::BStage::Adult, fl::Role::Pathfinder);
+        DrawWrapped(!w.RoleUnlocked(fl::Role::Pathfinder) ? "Outposts want a Pathfinder (Trade 4), or the Founder: land on a free site of another island and press E." :
+                    TextFormat("%d Pathfinders. Click another island: one flies out and lays a nest and a cache there%s. Holding an island scores; a dangerous one scores more.", pf, w.col.expandTo >= 0 ? TextFormat(" (now bound for %s)", w.isles[w.col.expandTo].name.c_str()) : ""),
+                    {side.x + 12, y, side.width - 24, 70}, 13, ink);
     } else {
         fl::Flock* sf = w.FindFlock(w.cur, S.selFlock);
         if (!sf && !w.col.flocks.empty()) { S.selFlock = w.col.flocks[0].id; sf = &w.col.flocks[0]; }
@@ -1227,11 +1420,13 @@ void DrawChart(fl::World& w) {
         int zone = w.eco.ZoneAt({at.x, -1, at.y});
         if (S.chartMode == 0) { Writer o; fl::OrderScout(o, isle, isle < 0 ? zone : -1, {at.x, 0, at.y}, S.chartAlt); Order(o); }
         else if (S.chartMode == 1) { if (zone >= 0) { Writer o; fl::OrderGround(o, zone); Order(o); } }
+        else if (S.chartMode == 3) { if (isle >= 0 && isle != w.home) { Writer o; fl::OrderFound(o, isle); Order(o); } }
         else if (fl::Flock* sf = w.FindFlock(w.cur, S.selFlock)) {
             // an enemy flock where you clicked (one you can see now), an island (yours: guard it; a rival's: raid it), a ground, a mark
             int ts = -1, tf = -1; float bd = 40 / std::max(0.3f, S.chartZoom) * 3;
             for (int s = 0; s <= (int)w.sides.size(); s++) if (s != w.cur) for (const auto& ef : w.ColOf(s).flocks) if (K.SeenAt(ef.pos.x, ef.pos.z) > w.time - 2 && Vector2Distance(at, {ef.pos.x, ef.pos.z}) < bd) { bd = Vector2Distance(at, {ef.pos.x, ef.pos.z}); ts = s; tf = ef.id; }
             int owner = isle >= 0 ? w.OwnerOf(isle) : -1;
+            if (owner < 0 && isle >= 0) owner = w.HolderOf(isle);   // (an outpost)
             Writer o;
             if (tf >= 0) fl::OrderFlockTarget(o, sf->id, fl::Target::Flock, ts, -1, -1, tf, {});
             else if (isle == w.home) fl::OrderFlockTarget(o, sf->id, fl::Target::Home, -1, -1, -1, -1, {});
@@ -1291,11 +1486,20 @@ void Render(float dt) {
     L.outline = 0.45f; L.outlineTint = {36, 44, 52, 255}; L.stipple = 0; L.grain = 0.25f;
     L.aoK = 0.5f; L.aoRadius = 0.5f;
     L.filmic = 0; L.saturation = 1.35f;   // (the filmic curve blows a daylit sky out to white: daylight goes without it)
+    // the weather and the volcano's ash (stage 7): a storm darkens and closes the sky, fog shuts the sea in, ash greys it
+    static float stormK = 0, fogK = 0, ashK = 0;
+    { float e = std::min(1.0f, dt * 0.5f);
+      stormK += ((w.weather.kind == 1 ? 1.0f : 0.0f) - stormK) * e; fogK += ((w.weather.kind == 2 ? 1.0f : 0.0f) - fogK) * e;
+      float ashNear = 0; if (w.volcano.isle >= 0 && w.volcano.ashT > 0) ashNear = std::clamp(1 - (Vector3Distance(S.cam.position, w.isles[w.volcano.isle].c) - 150) / 350, 0.0f, 1.0f);
+      ashK += (ashNear - ashK) * e; }
+    L.fogDensity *= 1 + stormK * 1.6f + fogK * 5.0f + ashK * 3.0f;
+    L.fog = Mix(L.fog, Color{96, 104, 112, 255}, stormK * 0.7f); L.fog = Mix(L.fog, Color{206, 212, 214, 255}, fogK * 0.8f); L.fog = Mix(L.fog, Color{112, 104, 98, 255}, ashK * 0.8f);
+    L.moonK *= 1 - 0.6f * stormK - 0.35f * fogK - 0.4f * ashK;
     rt::ApplyGameQuality();
     rt::RenderBegin(S.cam, L);
     rt::SkyLook sk;
     sk.zenith = day.zenith; sk.horizon = day.horizon; sk.cloud = day.cloud;
-    sk.moonDir = day.toSun; sk.moonPhase = 0.5f; sk.cloudCover = 0.32f; sk.stars = day.night; sk.time = S.t;
+    sk.moonDir = day.toSun; sk.moonPhase = 0.5f; sk.cloudCover = 0.32f + 0.6f * stormK + 0.3f * ashK; sk.zenith = Mix(sk.zenith, Color{80, 88, 98, 255}, stormK * 0.7f + ashK * 0.5f); sk.horizon = Mix(sk.horizon, L.fog, std::max(fogK, stormK) * 0.8f); sk.stars = day.night; sk.time = S.t;
     rt::DrawSkyDome(sk);
     StepWarFx(w, dt);
     DrawWorld(w, S.cam, dt);
@@ -1304,7 +1508,7 @@ void Render(float dt) {
     wl.deep = Mix(Color{8, 20, 34, 255}, Color{34, 150, 160, 255}, 1 - day.night);
     wl.zenith = day.zenith; wl.horizon = day.horizon;
     wl.boatPos = {1e6f, 1e6f}; wl.boatLen = 0.1f; wl.boatBeam = 0.1f;
-    wl.alpha = 0.66f; wl.moonK = day.sunK * 0.8f; wl.crest = 0.04f;
+    wl.alpha = 0.66f; wl.moonK = day.sunK * 0.8f * (1 - 0.6f * stormK); wl.crest = 0.04f + 0.12f * stormK;
     // blood in the water where a fish fought the talons
     if (f.st == fl::FState::Struggle) { wl.stains = 1; wl.stain[0] = {f.pos.x, f.pos.z, 1.5f, 0.8f}; }
     for (const auto& s : gStains) if (wl.stains < 8) wl.stain[wl.stains++] = {s.p.x, s.p.y, 0.8f + std::min(3.5f, s.age * 0.3f), std::clamp(1 - s.age / 40, 0.0f, 1.0f)};   // (where a bird went into the sea)
@@ -1567,6 +1771,42 @@ void DebugFlightShot(Game& g, int which) {
         StartFlightNet(g, &guest, "swift", "Guest");
         S.shot = true; S.help = false;
         return;
+    }
+    if (which >= 16 && which <= 18) {   // the dangerous islands: the kraken surfaced, the ape awake and throwing, the volcano erupting
+        w.time = fl::World::DAY * 0.4f; S.help = false;
+        fl::IsleType want = which == 16 ? fl::IsleType::KrakenCove : which == 17 ? fl::IsleType::Skull : fl::IsleType::Volcano;
+        int I = -1; for (int i = 0; i < (int)w.isles.size(); i++) if (w.isles[i].type == want) I = i;
+        if (I >= 0) {
+            const fl::Island& is = w.isles[I];
+            if (which == 16) { w.kraken.mood = 2; w.kraken.armT = 1.0f; w.kraken.arm = Vector3Add(is.c, {-30, 8, 10}); }
+            if (which == 17) { w.ape.sleepT = 0; w.ape.rockT = 0.45f; w.ape.rockFrom = w.ape.pos; w.ape.rockTo = Vector3Add(w.ape.pos, {-60, -10, 50}); }
+            if (which == 18) { w.volcano.ashT = 60; w.volcano.tremorT = 0; }
+            float dist = which == 18 ? is.radius * 2.6f + 120 : which == 16 ? is.radius * 0.9f : 70;
+            Vector3 c = which == 17 ? w.ape.pos : is.c;
+            f.st = fl::FState::Fly; f.pos = {c.x - dist * 0.8f, which == 18 ? 70.0f : which == 16 ? 85.0f : c.y + 18, c.z + dist * 0.6f};
+            f.yaw = atan2f(c.z - f.pos.z, c.x - f.pos.x); f.airspeed = 10;
+            S.aimPitch = which == 18 ? 0.05f : which == 16 ? -0.6f : -0.25f;
+            for (int k = 0; k < 40; k++) { S.t += 0.05f; }
+        }
+    }
+    if (which == 19) {   // a storm over home: the Roost, the shrine and the Works raised; an enemy bomb going off by the cache
+        w.time = fl::World::DAY * 0.36f; S.help = false;
+        Vector3 c0 = w.col.caches[0].pos;
+        int kinds[3] = {fl::ST_ROOST, fl::ST_SHRINE, fl::ST_WORKS}; Vector2 off[3] = {{-9, 5}, {6, -8}, {10, 8}};
+        for (int k = 0; k < 3; k++) { fl::Structure s; s.kind = kinds[k]; s.built = true; s.pos = w.GroundAt(c0.x + off[k].x, c0.z + off[k].y); s.twigs = 30; w.col.builds.push_back(s); }
+        w.weather.kind = 1; w.weather.t = 60;
+        w.warFx.push_back({w.GroundAt(c0.x + 18, c0.z - 14), 3, 1, fl::Role::Bomber, 1.0f});
+        f.st = fl::FState::Fly; f.pos = {c0.x - 34, c0.y + 20, c0.z + 30}; f.yaw = atan2f(c0.z - f.pos.z, c0.x - f.pos.x); f.airspeed = 9;
+        S.aimPitch = -0.35f;
+    }
+    if (which == 20) {   // the chart's outpost orders, with a rival holding the kraken's cove
+        w.time = fl::World::DAY * 0.5f; S.help = false;
+        for (auto& c : w.know.seen) c = w.time;
+        for (size_t i = 0; i < w.isles.size(); i++) w.know.isle[i] = 2;
+        int I = -1; for (int i = 0; i < (int)w.isles.size(); i++) if (w.isles[i].type == fl::IsleType::KrakenCove) I = i;
+        if (I >= 0 && !w.sides.empty()) w.WithSide(1, [&] { w.FoundOutpost(I, w.isles[I].c); for (auto& n : w.col.nests) if (n.isle == I) n.built = true; });
+        w.col.tier[(int)fl::Tree::Trade] = 4;
+        S.chart = true; S.chartMode = 3;
     }
     S.aimYaw = which == 2 ? S.aimYaw : f.yaw; S.camYaw = S.aimYaw; S.camPitch = S.aimPitch * 0.8f - 0.12f;
 }

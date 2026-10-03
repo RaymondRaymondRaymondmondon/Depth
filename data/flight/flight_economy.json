@@ -1,7 +1,7 @@
 {
   "_source": "The Flight design doc pp. 4-7 (hunger, courtship, mates, eggs, chicks, caches) and p. 34 (targets); numbers the doc leaves open are marked _open",
   "day_seconds": 120,
-  "founder_hunger_s": 360,
+  "pearl_per_catch": 0.05, "founder_hunger_s": 360,
   "start_pearls": 2,
   "start_shells": 12,
   "_day_note": "the user (2026-10-03): keep the doc's timings in days but make days and nights shorter than its 4 minutes; matches run well past day 8",

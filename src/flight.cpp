@@ -93,7 +93,7 @@ float Island::Height(float x, float z) const {
     if (fx < 0 || fz < 0 || fx >= n - 1 || fz >= n - 1) return floorDepth;
     int xi = (int)fx, zi = (int)fz; float tx = fx - xi, tz = fz - zi;
     float a = h[(size_t)zi * n + xi], b = h[(size_t)zi * n + xi + 1], c = h[(size_t)(zi + 1) * n + xi], d = h[(size_t)(zi + 1) * n + xi + 1];
-    return (a + (b - a) * tx) * (1 - tz) + (c + (d - c) * tx) * tz;
+    return (a + (b - a) * tx) * (1 - tz) + (c + (d - c) * tx) * tz - drop;
 }
 Vector3 Island::Normal(float x, float z) const {
     float e = cell;
@@ -131,6 +131,10 @@ float World::Thermal(Vector3 p) const {
     // thermals rise off the hill in the afternoon: free altitude
     float ph = DayPhase(), k = Smooth(0.42f, 0.5f, ph) * (1 - Smooth(0.68f, 0.76f, ph));
     if (col.HasTier(Tree::Flight, 1)) k = std::max(k, 0.6f * Smooth(0.3f, 0.36f, ph) * (1 - Smooth(0.8f, 0.86f, ph)));   // (Thermal riding: lift all day)
+    if (volcano.isle >= 0 && p.y < 200) {   // (the volcano's thermals: free altitude all day)
+        float dv = Vector2Distance({p.x, p.z}, {isles[volcano.isle].c.x, isles[volcano.isle].c.z});
+        if (dv < 110) return 3.0f * (1 - dv / 110);
+    }
     if (k <= 0 || p.y > 180) return 0;
     float d = Vector2Distance({p.x, p.z}, {island.hill.x, island.hill.z});
     return d < 34 ? 3.6f * k * (1 - d / 34) : 0;
@@ -474,6 +478,7 @@ void World::Step(float realDt, const FounderInput& in) {
     SyncBody();
     eco.Step(dt);
     StepTowns(dt);
+    if (wholeMap) StepDanger(dt);
     fogT += dt; fogNow = fogT >= 0.25f;
     if (fogNow) fogT = 0;
     StepColony(dt);   // (the caches spoil, the grounds regrow, the colony lives)

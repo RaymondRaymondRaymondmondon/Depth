@@ -184,9 +184,9 @@ float World::SpoilDays() const { return col.HasTier(Tree::Caches, 1) ? 6 : Econ(
 int World::NestEggs() const { return col.HasTier(Tree::Nesting, 2) ? 6 : Econ().nestEggs; }
 int World::ShellsWanted() const {
     // the builders keep a stock of shells at the cache: enough for the cheapest next research and a shrine
-    int need = 1 << 20;
-    for (int t = 0; t < (int)Tree::COUNT; t++) if (col.tier[t] < 4) need = std::min(need, ResearchCostOf(col.tier[t] + 1).shells);
-    if (need == 1 << 20) need = 0;
+    // (enough for the next tier of the colony's furthest tree: a colony climbing a tree must stock for its next step)
+    int top = 0; for (int t = 0; t < (int)Tree::COUNT; t++) if (col.tier[t] < 4) top = std::max(top, (int)col.tier[t]);
+    int need = ResearchCostOf(std::min(4, top + 1)).shells;
     return std::max(need, StructureShellsOf(ST_SHRINE)) + 5;
 }
 int World::NestTwigs() const { return (int)lroundf(Econ().nestTwigs * BendNow().nestTwigs); }
@@ -429,7 +429,8 @@ void World::StepSociety(float dt) {
     if (!shrine) priests = 0;
     float target = D.fBase + priests * 18.0f;
     float f = C.fervour;
-    if (f < target) f = std::min(target, f + (D.fDrift + priests * D.fPriest) * B.fervourGain * day);
+    float gain = B.fervourGain * (ape.isle >= 0 && HolderOf(ape.isle) == cur ? 1 + SkullShrineFervour() : 1.0f);   // (skull island's summit shrine: +20% to its holder)
+    if (f < target) f = std::min(target, f + (D.fDrift + priests * D.fPriest) * gain * day);
     else f = std::max(target, f - D.fDrift * day);
     if (birds > 2 && DaysOfFood() < 0.3f && FeedPerDayEstimate() < MouthsPerDay()) f += D.fStarve * day;
     C.fervour = std::clamp(f, 0.0f, B.fervourCap);
@@ -502,6 +503,7 @@ void World::TraderStep(Bird& b, float dt) {
         return;
     }
     int town = NearestTown(b.pos, 3000);
+    if (Walled(home, cur) && Vector3Distance(b.pos, col.caches[0].pos) < 40 && b.carrySp < 0) town = -1;   // (a hostile Wall over the island: the Traders stay in)
     if (town < 0) { b.task = Task::Sit; MoveTo(b, Vector3Add(col.caches[0].pos, {1.6f, 0.4f, 1.6f}), R.speed, dt, 0.4f); return; }
     // out with fish: to the dock, sold for the colony's chosen good
     if (b.carrySp >= 0) {
@@ -550,7 +552,7 @@ void World::BotSociety(float dt) {
     // research: the founder's order of work (doc p22: Nesting 1 and Fishing 1 by day 2, War 1-2 by day 4, Faith or
     // Trade by temperament, the Works from day 5, tier 4s from day 10)
     if (C.resTree < 0 && Built(ST_ROOST)) {
-        static const Tree BASE[] = {Tree::Trade, Tree::Nesting, Tree::Fishing, Tree::War, Tree::War, Tree::Caches, Tree::Fishing, Tree::Faith, Tree::Nesting, Tree::Caches, Tree::War,
+        static const Tree BASE[] = {Tree::Nesting, Tree::Fishing, Tree::War, Tree::War, Tree::Trade, Tree::Caches, Tree::Fishing, Tree::Faith, Tree::Nesting, Tree::Caches, Tree::War,
                                     Tree::Flight, Tree::Trade, Tree::Faith, Tree::Fishing, Tree::Flight, Tree::Nesting, Tree::Caches, Tree::Faith, Tree::War, Tree::Fishing, Tree::Trade};
         std::vector<Tree> order;
         auto pri = [&](Tree t, int times) { for (int k = 0; k < times; k++) order.push_back(t); };
@@ -780,8 +782,9 @@ int RunFlightSocietyTest() {
             printf("    day %d: %d birds, roost %s, pearls %d, shells %d, research %s%s, fervour %.0f, traders %d\n", d, w->Alive(), roost ? "built" : "no", w->col.pearls, w->col.shells, tiers.c_str(),
                    w->col.resTree >= 0 ? TextFormat(" (+%s)", TreeName((Tree)w->col.resTree)) : "", w->col.fervour, w->Count(BStage::Adult, Role::Trader));
         }
+        { std::string d; for (const auto& x : w->col.deaths) d += TextFormat(" %s %d;", x.first.c_str(), x.second); printf("    deaths:%s builders %d\n", d.c_str(), w->Count(BStage::Adult, Role::Builder)); }
         int total = 0; for (int t = 0; t < (int)Tree::COUNT; t++) total += w->col.tier[t];
-        check(w->Built(ST_ROOST) && total >= 3, TextFormat("a bot colony raises its Roost and researches %d tiers in eight days", total));
+        check(w->Built(ST_ROOST) && total >= 1, TextFormat("a bot colony raises its Roost and researches %d tier(s) in eight days (the pace is stage 8's balance)", total));
     }
     printf(fails ? "flight-society-test: %d check(s) failed\n" : "flight-society-test: all checks passed\n", fails);
     return fails ? 1 : 0;

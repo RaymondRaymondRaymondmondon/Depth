@@ -500,6 +500,7 @@ void World::Init(const std::string& founderKey, uint32_t seed, const MapOpts& o)
     }
     me.st = FState::Perched; me.pos = island.nest;
     InitTowns();
+    InitDanger();
     truceUntil.assign((sides.size() + 1) * (sides.size() + 1), -1);
     Reveal(me.pos, 120, home);
     StepMap(0);
@@ -627,10 +628,10 @@ void World::StepFog(float dt) {
     if (!fogNow && dt != 0) return;
     if (me.st != FState::Dead) {
         int landed = me.st == FState::Perched ? IsleAt(me.pos.x, me.pos.z, 10) : -1;
-        Reveal(me.pos, std::clamp(45 + 1.6f * me.pos.y, 45.0f, 300.0f), mirror ? -1 : landed);
+        Reveal(me.pos, std::clamp(45 + 1.6f * me.pos.y, 45.0f, 300.0f) * (FogNow() ? FogSight() : 1.0f) * BendNow().scout, mirror ? -1 : landed);
     }
     for (const auto& b : col.birds) if (b.alive && (b.stage == BStage::Adult || b.stage == BStage::Mate) && Vector3Length(b.vel) > 0.5f)
-        Reveal(b.pos, b.role == Role::Scout && b.hasOrder ? AltSight(b.alt) : 45);
+        Reveal(b.pos, (b.role == Role::Scout && b.hasOrder ? AltSight(b.alt) * BendNow().scout : 45) * (FogNow() ? FogSight() : 1.0f));
 }
 void World::StepMap(float dt) {
     if (!wholeMap) return;
@@ -684,7 +685,7 @@ void World::StepMap(float dt) {
 void World::ScoutStep(Bird& b, float dt) {
     const RoleDef& R = RoleOf(Role::Scout);
     if (b.hunger < 0.3f && !b.hasOrder && BirdEatsAtCache(b, dt)) return;
-    if (!b.hasOrder) { b.task = Task::Sit; MoveTo(b, Vector3Add(col.caches[0].pos, {1.5f, 0.4f, -1.5f}), R.speed, dt, 0.4f); return; }
+    if (!b.hasOrder || (Walled(home, cur) && !b.observed && Vector3Distance(b.pos, col.caches[0].pos) < 30)) { b.task = Task::Sit; MoveTo(b, Vector3Add(col.caches[0].pos, {1.5f, 0.4f, -1.5f}), R.speed, dt, 0.4f); return; }   // (a hostile Wall over the island: the scouts can't get out)
     float y = AltHeight(b.alt);
     if (!b.observed) {
         Vector3 at{b.scoutAt.x, std::max(y, HeightAt(b.scoutAt.x, b.scoutAt.z) + 15), b.scoutAt.z};

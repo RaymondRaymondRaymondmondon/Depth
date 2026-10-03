@@ -120,8 +120,10 @@ float World::Morale(int side, const Flock& f) const {
     m += std::min(2.0f, f.wins) * w.mWin;
     if (f.startSize > 0) m += w.mLoss * (float)f.lost / f.startSize;
     if (f.leaderDead) m += w.mLeader;
-    // fervour (doc p26): high fervour steadies a flock (+10, +20)
+    // fervour (doc p26): high fervour steadies a flock (+10, +20); the wreck's bell rings in their ears
     { int band = W_.FervourBandOf(side); m += band == 2 ? 10.0f : band >= 3 ? 20.0f : 0.0f; }
+    if (W_.ColOf(side).bell) m += BellMorale();
+    if (f.stim == STIM_DRAUGHT && f.stimT > 0) return 100;   // (the Draught: immune to morale)
     // the colony's feed: a hungry colony's flocks fight poorly
     float food = 0, mouths = 1;
     { Colony& C = W_.ColOf(side); for (const auto& c : C.caches) for (const auto& x : c.fish) food += x.size; mouths = 3; for (const auto& b : C.birds) if (b.alive && b.stage != BStage::Egg) mouths += b.stage == BStage::Chick ? 1 : 2.5f; }
@@ -164,7 +166,10 @@ void World::StepWar(float dt) {
         if (warFx.size() > 400) { warFxBase += 200; warFx.erase(warFx.begin(), warFx.begin() + 200); }
         warFx.push_back({p, 1, v.side, v.b ? v.b->role : Role::Flockmaster, v.b ? v.b->yaw : v.f->yaw});
         std::string cause = std::string("killed by ") + (bySide == 0 ? "your " : SideName(bySide) + "'s ") + RoleName(byRole);
-        if (!LandAt(p.x, p.z)) eco.AddBlood({p.x, -0.5f, p.z}, w.bloodFall);   // (the fall calls the sharks)
+        { Flock* vf0 = v.b && v.b->flock >= 0 ? FindFlock(v.side, v.b->flock) : nullptr; float bleed = vf0 && vf0->stimT > 0 ? StimBleed(vf0->stim) : 1.0f;
+          if (!LandAt(p.x, p.z)) eco.AddBlood({p.x, -0.5f, p.z}, w.bloodFall * bleed); }   // (the fall calls the sharks; Fury bleeds more, Clot less)
+        // killing a Trader near a town is an insult the town remembers
+        if (v.b && v.b->role == Role::Trader) { int t = NearestTown(p, 200); if (t >= 0 && bySide < (int)towns[t].rep.size()) towns[t].rep[bySide] = std::max(-100.0f, towns[t].rep[bySide] - 25); }
         ColOf(v.side).losses++; ColOf(bySide).kills++;
         warLog.push_back(TextFormat("%.0f: %s's %s %s", time, SideName(v.side).c_str(), v.b ? RoleName(v.b->role) : "Founder", cause.c_str()));
         if (v.b) {
@@ -200,7 +205,8 @@ void World::StepWar(float dt) {
             // a rout: at 30 it goes home on its own; at 0 it scatters (every bird for itself, and it's eaten)
             int band = FervourBandOf(s);
             float routAt = band == 0 ? std::max(40.0f, w.mRetreat) : w.mRetreat;   // (low fervour: flocks break sooner; at zeal, never)
-            if (band < 4 && !fl.retreating && (fl.morale <= routAt || (fl.stance == Stance::RetreatHalf && fl.lost * 2 >= fl.startSize))) {
+            bool steady = band >= 4 || (fl.stimT > 0 && (fl.stim == STIM_FURY || fl.stim == STIM_DRAUGHT));   // (Fury and the Draught won't retreat)
+            if (!steady && !fl.retreating && (fl.morale <= routAt || (fl.stance == Stance::RetreatHalf && fl.lost * 2 >= fl.startSize))) {
                 fl.retreating = true; fl.target = Target::Home;
                 C.fervour = std::max(0.0f, C.fervour + FervourRout());
                 SayTo(s, fl.name + " breaks off and flies home.");
@@ -223,6 +229,7 @@ void World::StepWar(float dt) {
         const RoleDef& R = RoleOf(ar);
         Flock* af = inFlock(att); Flock* vf = inFlock(vic);
         float dmg = att.f ? Founders()[att.f->def].attack * (att.f->chick ? 0.5f : 1.0f) : R.attack * BendOfSide(att.side).attack;
+        if (af && af->stimT > 0) dmg *= StimAttack(af->stim);   // (Fury, the Draught)
         if (R.strong & (1u << (int)vr)) dmg *= w.strong;
         if (R.weak & (1u << (int)vr)) dmg *= w.weak;
         // altitude: the first strike from above, diving, +50%
@@ -268,8 +275,9 @@ void World::StepWar(float dt) {
         b.atkCd -= dt;
         if (b.netT > 0) { b.netT -= dt; b.vel = {0, 0, 0}; continue; }   // (held in a net)
         // the nearest enemy in reach (a Watcher looks from its post)
-        float sight = guardian ? w.watchSight * (b.post.y > 15 ? w.towerMult : 1.0f) : w.engage;
+        float sight = guardian ? w.watchSight * (b.post.y > 15 ? w.towerMult : 1.0f) * (FogNow() ? FogSight() : 1.0f) : w.engage;
         Vector3 from = guardian ? b.post : b.pos;
+        if (b.role == Role::Flockmaster) sight = std::min(sight, 10.0f);   // (the Flockmaster directs from the rear: it fights only what reaches it)
         Fighter* best = nullptr; float bd = sight;
         for (auto& y : all) {
             if (!hostile(x.side, y.side)) continue;
@@ -279,7 +287,9 @@ void World::StepWar(float dt) {
             float d = Vector3Distance(from, yp);
             if (guardian && yp.y - from.y > 50) continue;   // (a Watcher only sees what flies mid or low)
             if (guardian && BendOfSide(y.side).duskRaid && (DayPhase() < 0.2f || DayPhase() > 0.85f)) continue;   // (the Shadow's Dusk Raid: unseen at night)
-            float pref = (R.strong & (1u << (int)roleOf(y))) ? 0.7f : 1.0f;
+            float pref = (R.strong & (1u << (int)roleOf(y))) ? 0.7f : roleOf(y) == Role::Flockmaster ? 1.5f : 1.0f;   // (a leader behind its flock is reached last, except by the Strikers who hunt it)
+            // a leader screened by its flock's Tanks: they put themselves in the way (an attacker must get past them first)
+            if (roleOf(y) == Role::Flockmaster) if (Flock* yf = inFlock(y)) for (int id : yf->members) if (Bird* tb = FindBird(y.side, id); tb && tb->role == Role::Tank && Vector3Distance(tb->pos, yp) < 12) { pref *= 3; break; }
             // a Wall's Tanks stand in front: an attacker not diving from above must go through them
             if (Flock* yf = inFlock(y); yf && yf->form == Formation::Wall && roleOf(y) != Role::Tank && b.pos.y - yp.y < w.aboveM) pref *= 1.6f;
             if (d * pref < bd) { bd = d * pref; best = &y; }
@@ -332,20 +342,23 @@ void World::StepWar(float dt) {
             Vector3 goal = homeAt;
             switch (fl.target) {
             case Target::Home: goal = Vector3Add(homeAt, {0, 0, 0}); break;
-            case Target::Cache: { Colony& T = ColOf(fl.tSide); if (!T.caches.empty()) { int best = 0; for (int k = 0; k < (int)T.caches.size(); k++) if (T.caches[k].fish.size() > T.caches[best].fish.size()) best = k; goal = T.caches[best].pos; } } break;
-            case Target::Nests: { Colony& T = ColOf(fl.tSide); for (const auto& n : T.nests) { goal = n.pos; bool chicks = false; for (const auto& b : T.birds) if (b.alive && b.stage == BStage::Chick && b.nest == (int)(&n - &T.nests[0])) chicks = true; if (chicks) break; } } break;
+            case Target::Cache: { Colony& T = ColOf(fl.tSide); int best = -1; for (int k = 0; k < (int)T.caches.size(); k++) if ((fl.tIsle < 0 || T.caches[k].isle == fl.tIsle) && (best < 0 || T.caches[k].fish.size() > T.caches[best].fish.size())) best = k; if (best >= 0) goal = T.caches[best].pos; } break;
+            case Target::Nests: { Colony& T = ColOf(fl.tSide); bool any = false; for (const auto& n : T.nests) { if (fl.tIsle >= 0 && n.isle != fl.tIsle) continue; if (!n.built && any) continue; goal = n.pos; any = true; bool chicks = false; for (const auto& b : T.birds) if (b.alive && (b.stage == BStage::Chick || b.stage == BStage::Egg) && b.nest == (int)(&n - &T.nests[0])) chicks = true; if (chicks && n.built) break; } } break;
             case Target::Ground: if (fl.tZone >= 0) goal = eco.map->zones[fl.tZone].Center(); break;
             case Target::Flock: { Flock* tf = FindFlock(fl.tSide, fl.tFlock); goal = tf ? tf->pos : fl.tAt; if (!tf) fl.target = Target::Point; } break;
             case Target::Point: goal = fl.tAt; break;
             default: break;
             }
             if (fl.leader == -2) goal = F.pos;   // (the Founder leads: the flock follows it)
+            if (StormNow() && !(fl.stim == STIM_DRAUGHT && fl.stimT > 0)) goal = homeAt;   // (a storm: every flock makes for home)
+            bool asleep = fl.stim == STIM_DRAUGHT && fl.crashT > 0;   // (the Draught's crash: the flock sleeps where it is)
             float altY = AltHeight(fl.alt);
             if (fl.target == Target::Ground && fl.alt == Alt::Low) altY = 8;
             bool atTarget = Flat(fl.pos, goal) < 25;
             // speed: the slowest member, the leader, the chevron, the wind along the way
             float sp = 99; for (int id : fl.members) { Bird* b = FindBird(s, id); if (!b) continue; sp = std::min(sp, RoleOf(b->role).speed * (b->fight <= 0 ? 0.5f : 1.0f)); }
-            if (sp > 98) continue;   // (every member fell this step)
+            if (sp > 98 || asleep) continue;   // (every member fell this step; or the flock sleeps)
+            if (fl.stimT > 0) sp *= StimSpeed(fl.stim);   // (Haste, the Draught)
             sp *= 1 + (fl.leader == -2 ? w.founderSpeed : fl.leader >= 0 ? w.fmSpeed : 0) + (fl.form == Formation::Chevron ? w.chevSpeed + (C.HasTier(Tree::Flight, 4) ? 0.3f : 0.0f) : 0);
             sp *= BendOfSide(s).speed;
             Vector2 dir = Flat(goal, fl.pos) > 1 ? Vector2Normalize({goal.x - fl.pos.x, goal.z - fl.pos.z}) : Vector2{0, 0};
@@ -400,6 +413,10 @@ void World::StepWar(float dt) {
                 case Formation::Cover: slot = Vector3Add(fl.pos, {rt.x * sideK * 3.0f * row, 0, rt.y * sideK * 3.0f * row}); ky = b->role == Role::Tank ? 6.0f : 0; break;
                 default: break;
                 }
+                if (b->role == Role::Bomber) ky = std::max(ky, AltHeight(Alt::High) - altY);   // (Bombers fly high only)
+                bool leaderLed = fl.leader >= 0 && fl.form != Formation::Spiral && fl.form != Formation::Scatter && fl.form != Formation::Wall;
+                if (b->role == Role::Flockmaster && leaderLed) { slot = Vector3Add(fl.pos, {-fw.x * 9, 0, -fw.y * 9}); ky = 3; }   // (at the rear, a little high, calling)
+                else if (b->role == Role::Tank && leaderLed) { slot = Vector3Add(fl.pos, {-fw.x * 7 + rt.x * sideK * 4, 0, -fw.y * 7 + rt.y * sideK * 4}); ky = 3; }   // (its Tanks screen it)
                 // the flock heads for its goal; its slots ride along with it
                 if (!atTarget || fl.target == Target::Flock) slot = Vector3Add(slot, Vector3Scale(fl.vel, 1.5f));
                 slot.y = std::max(altY + ky, std::max(0.0f, HeightAt(slot.x, slot.z)) + 6);
@@ -479,8 +496,33 @@ void World::StepWar(float dt) {
                     if (best >= 0) { Bird e; e.id = C.nextId++; e.stage = BStage::Egg; e.nest = best; e.pos = C.nests[best].pos; e.hunger = 1; late.push_back({s, e}); C.eggsStolen++; SayTo(s, "A stolen egg is in your nest: it will hatch yours."); }
                     b->carrySp = -1;
                 }
+                // a Bomber over the target drops its bomb (from high: 50 m up at least)
+                if (b->role == Role::Bomber && b->carrySp == -3 && b->pos.y > 50) {
+                    Vector3 goal = fl.tAt;
+                    if (fl.target == Target::Cache || fl.target == Target::Nests) { Colony& T = ColOf(fl.tSide); for (const auto& n : T.nests) if (n.built && (fl.tIsle < 0 || n.isle == fl.tIsle)) { goal = n.pos; break; } if (fl.target == Target::Cache && !T.caches.empty()) goal = T.caches[0].pos; }
+                    if (fl.target == Target::Ground && fl.tZone >= 0) goal = eco.map->zones[fl.tZone].Center();
+                    if (Flat(b->pos, goal) < 6) { Blast(GroundAt(goal.x, goal.z), s, b->carrySize); b->carrySp = -1; b->carrySize = 0; SayTo(s, "A Bomber drops its bomb."); }
+                }
                 if (fl.target == Target::Nests && b->role == Role::Striker) {
                     Colony& T = ColOf(fl.tSide);
+                    // an assault: with no chick or egg left in it, the nest is torn down (and the island's holding with it)
+                    for (int ni = 0; ni < (int)T.nests.size(); ni++) {
+                        Nest& n = T.nests[ni];
+                        if (!n.built || Vector3Distance(b->pos, n.pos) > 3 || (fl.tIsle >= 0 && n.isle != fl.tIsle)) continue;
+                        bool young = false; for (const auto& c : T.birds) young |= c.alive && c.nest == ni && (c.stage == BStage::Chick || c.stage == BStage::Egg);
+                        bool guarded = false; for (const auto& wt : T.birds) guarded |= wt.alive && wt.role == Role::Watcher && wt.stage == BStage::Adult && Flat(wt.pos, n.pos) < 40;
+                        if (young || guarded) break;
+                        n.tear += TearPerStrike() * dt;
+                        if (n.tear >= std::max(4.0f, n.twigs)) {
+                            n.built = false; n.twigs = 0; n.tear = 0; n.bowl = 0;
+                            for (auto& m : T.birds) if (m.alive && m.nest == ni && m.stage == BStage::Mate) { m.alive = false; m.cause = "its nest torn down by " + SideName(s); }
+                            n.mate = -1;
+                            C.nestsDestroyed++;
+                            SayTo(fl.tSide, SideName(s) + "'s Strikers have torn down one of your nests" + (n.isle >= 0 && n.isle < (int)isles.size() ? " on " + isles[n.isle].name : std::string()) + "!");
+                            SayTo(s, "Your Strikers tear down a nest.");
+                        }
+                        break;
+                    }
                     for (auto& c : T.birds) {
                         if (!c.alive || c.stage != BStage::Chick || Vector3Distance(b->pos, c.pos) > 3) continue;
                         bool guarded = false; for (const auto& wt : T.birds) if (wt.alive && wt.role == Role::Watcher && wt.stage == BStage::Adult && Flat(wt.pos, c.pos) < 40) guarded = true;
@@ -512,7 +554,15 @@ void World::StepWar(float dt) {
         if (C.caches.empty()) continue;
         Vector3 homeAt = C.caches[0].pos;
         Flock* threat = nullptr; int threatSide = -1;
-        for (int t = 0; t < nSides && !threat; t++) { if (t == s) continue; for (auto& fl : ColOf(t).flocks) if (!fl.retreating && Flat(fl.pos, homeAt) < 220) { threat = &fl; threatSide = t; break; } }
+        for (int t = 0; t < nSides && !threat; t++) {
+            if (t == s || Truce(s, t)) continue;
+            for (auto& fl : ColOf(t).flocks) {
+                if (fl.retreating) continue;
+                bool near = Flat(fl.pos, homeAt) < 220;
+                for (const auto& ca : C.caches) near |= ca.isle >= 0 && ca.isle != HomeOf(s) && Flat(fl.pos, ca.pos) < 160;   // (an outpost is guarded too)
+                if (near) { threat = &fl; threatSide = t; break; }
+            }
+        }
         if (!threat) continue;
         bool guarding = false; for (const auto& fl : C.flocks) if (fl.name == "Home guard") guarding = true;
         if (guarding) continue;
@@ -537,7 +587,7 @@ void World::BotGovern(float dt) {
     float fish = fpd < mouths * 1.15f ? 0.8f : 0.6f;
     for (int r = 0; r < (int)Role::COUNT; r++) col.plan[r] = 0;
     col.plan[(int)Role::Fisher] = fish; col.plan[(int)Role::Feeder] = 0.12f; col.plan[(int)Role::Builder] = 0.08f;
-    if (alive >= 10 && DaysOfFood() > 0.8f) {
+    if (alive >= 10 && (DaysOfFood() > 0.8f || fpd > mouths * 1.1f)) {   // (a store of food, or a catch that outruns the mouths)
         col.plan[(int)Role::Fisher] = std::max(0.5f, fish - 0.2f);
         col.plan[(int)Role::Skirmisher] = 0.1f; col.plan[(int)Role::Striker] = 0.05f; col.plan[(int)Role::Tank] = 0.04f; col.plan[(int)Role::Watcher] = Count(BStage::Adult, Role::Watcher) < 2 ? 0.04f : 0;
         if (alive >= 18) { col.plan[(int)Role::Screamer] = 0.02f; col.plan[(int)Role::Flockmaster] = Count(BStage::Adult, Role::Flockmaster) < 1 ? 0.03f : 0; }
@@ -557,6 +607,7 @@ void World::BotGovern(float dt) {
     if (RoleUnlocked(Role::Trader) && !towns.empty()) col.plan[(int)Role::Trader] = BendNow().trade > 1.2f ? 0.15f : 0.1f;
     if (RoleUnlocked(Role::Priest) && Built(ST_SHRINE)) col.plan[(int)Role::Priest] = BendNow().fervourGain > 1.3f ? 0.1f : 0.04f;
     BotSociety(dt);
+    BotDanger(dt);
 }
 void World::BotWar(int side, float dt) {
     Colony& C = ColOf(side);
@@ -569,8 +620,34 @@ void World::BotWar(int side, float dt) {
     if ((int)idle.size() < 4) return;
     if (!C.HasTier(Tree::War, 1)) return;   // (no flock orders yet: no raids)
     float food = 0; for (const auto& c : C.caches) for (const auto& x : c.fish) food += x.size;
-    if (food < 8) return;
+    bool thin = false; WithSide(side, [&] { thin = FeedPerDayEstimate() < MouthsPerDay(); });
+    if (food < 8 && thin) return;   // (no raid from an empty larder, unless the catch outruns the mouths)
     Vector3 homeAt = C.caches[0].pos;
+    // a siege (doc p24): a rival holding a dangerous island is the target: an assault on its nests there (Strikers tear
+    // them down), and with War 4 a blockade of the island's grounds; the bombers and the stimulants go with it
+    for (int i = 0; i < (int)isles.size() && (int)idle.size() >= 6; i++) {
+        if (!IsDangerous(isles[i].type)) continue;
+        int holder = HolderOf(i);
+        if (holder < 0 || holder == side || Truce(side, holder)) continue;
+        bool busy = false; for (const auto& f : C.flocks) busy |= f.tIsle == i && !f.retreating;
+        if (busy) continue;
+        WithSide(side, [&] {
+            std::vector<int> assault, block;
+            for (int id : idle) { Bird* b = FindBird(side, id); if (!b) continue; if (col.HasTier(Tree::War, 4) && b->role == Role::Tank && block.size() < 3) block.push_back(id); else assault.push_back(id); }
+            int fa = MakeFlock(side, assault, Formation::Hammer, Alt::High, Stance::Raid);
+            if (fa >= 0) {
+                OrderFlock(side, fa, Target::Nests, holder, i, -1, -1, isles[i].c);
+                if (Flock* f = FindFlock(side, fa)) { f->name = "Assault on " + isles[i].name; for (int k = STIM_DRAUGHT; k >= STIM_HASTE; k--) if (col.stims[k] > 0 && k != STIM_CLOT) { Dose(fa, k); break; } }
+            }
+            if (block.size() >= 2) {
+                int zone = -1; float zd = 1e9f; for (int z = 0; z < (int)eco.map->zones.size(); z++) { float d = Flat(eco.map->zones[z].Center(), isles[i].c); if (d < zd) { zd = d; zone = z; } }
+                int fb2 = MakeFlock(side, block, Formation::Wall, Alt::Mid, Stance::Hold);
+                if (fb2 >= 0 && zone >= 0) { OrderFlock(side, fb2, Target::Ground, -1, -1, zone, -1, eco.map->zones[zone].Center()); if (Flock* f = FindFlock(side, fb2)) f->name = "Blockade of " + isles[i].name; }
+            }
+        });
+        SayTo(holder, TextFormat("%s lays siege to %s!", SideName(side).c_str(), isles[i].name.c_str()));
+        return;
+    }
     int tgt = -1; float bd = 1e9f;
     for (int s = 0; s <= (int)sides.size(); s++) { if (s == side || ColOf(s).caches.empty() || Truce(side, s)) continue; float d = Flat(ColOf(s).caches[0].pos, homeAt); if (d < bd) { bd = d; tgt = s; } }
     if (tgt < 0) return;
@@ -602,6 +679,7 @@ void SetupArena(Arena& a, uint32_t seed) {
     Vector3 other{}; for (const auto& is : a.w.isles) if (is.start == 1) other = is.c;
     a.mid = Vector3Scale(Vector3Add(a.w.island.c, other), 0.5f);
     a.w.me.st = FState::Perched; a.w.me.pos = a.w.island.nest; a.w.me.hunger = 1;
+    a.w.FounderOf(1).def = a.w.FounderOf(0).def;   // (the same founder both sides: its bend shapes the fight, so the rules are tested alone)
     a.w.wind.speed = a.w.wind.nextSpeed = 0.01f; a.w.wind.shiftT = 0; a.w.wind.shiftLen = 1e9f;
     for (int s = 0; s < 2; s++) for (int k = 0; k < 30; k++) a.w.ColOf(s).caches[0].fish.push_back({a.w.eco.map->SpeciesIndex("Mullet"), 2, 0});   // (fed colonies: no hunger in their morale)
 }
@@ -627,6 +705,7 @@ int Fight(Arena& a, float maxS = 150, float* lossA = nullptr, float* lossB = nul
         if (aOut || bOut) {
             int la = 0, lb = 0; for (const auto& b : v.ColOf(0).birds) la += !b.alive && IsWarrior(b.role); for (const auto& b : v.ColOf(1).birds) lb += !b.alive && IsWarrior(b.role);
             if (lossA) *lossA = (float)la / nA; if (lossB) *lossB = (float)lb / nB;
+            if (getenv("DEPTH_FIGHTTRACE")) printf("    [t %.1f] A %s %d/%d morale %.0f   B %s %d/%d morale %.0f   fervour %.0f/%.0f  leaderDead %d\n", t, aOut ? "out" : "in", fa ? (int)fa->members.size() : 0, nA, fa ? fa->morale : -1.0f, bOut ? "out" : "in", fb ? (int)fb->members.size() : 0, nB, fb ? fb->morale : -1.0f, v.ColOf(0).fervour, v.ColOf(1).fervour, fa ? (int)fa->leaderDead : -1);
             return aOut && bOut ? 0 : bOut ? 1 : 2;
         }
     }
@@ -821,6 +900,14 @@ int RunFlightWar(int argc, char** argv) {
             v.BotGovern(0.1f); v.BotWar(0, 0.1f);
             v.Step(0.1f, FounderInput{});
             for (int s = 0; s < 2; s++) for (const auto& f : v.ColOf(s).flocks) if (f.name != "Home guard" && v.time - lastFlock > 30) { flocks++; lastFlock = v.time; }
+            if (getenv("DEPTH_BOTTRACE") && fmodf(t, World::DAY) < 0.1f) for (int s = 0; s < 2; s++) {
+                const Colony& C = v.ColOf(s); const Founder& F = v.FounderOf(s);
+                int alive = 0, adults = 0, nests = 0, fish = 0; for (const auto& b : C.birds) { alive += b.alive && b.stage != BStage::Egg; adults += b.alive && b.stage == BStage::Adult; } for (const auto& n : C.nests) nests += n.built; for (const auto& c : C.caches) fish += (int)c.fish.size();
+                std::string deaths; for (const auto& d : C.deaths) deaths += TextFormat(" %s %d", d.first.c_str(), d.second);
+                int wr = 0, idleW = 0; for (const auto& b : C.birds) if (b.alive && b.stage == BStage::Adult && IsWarrior(b.role)) { wr++; idleW += b.role != Role::Watcher && b.flock < 0 && b.hunger > 0.5f; }
+                float fpd = 0, mo = 0; v.WithSide(s, [&] { fpd = v.FeedPerDayEstimate(); mo = v.MouthsPerDay(); });
+                printf("    day %.0f side %d: %d alive (%d adults), %d nests, %d fish, founder %s hunger %.2f, fervour %.0f, pearls %d shells %d war %d res %d; warriors %d (idle fed %d) fpd %.0f mouths %.0f; deaths%s\n", t / World::DAY, s, alive, adults, nests, fish, FStateName(F.st), F.hunger, C.fervour, C.pearls, C.shells, C.tier[(int)Tree::War], C.resTree, wr, idleW, fpd, mo, deaths.c_str());
+            }
         }
         double secs = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
         int warriors[2] = {}, alive[2] = {};

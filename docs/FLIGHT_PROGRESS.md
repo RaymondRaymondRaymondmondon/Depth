@@ -443,5 +443,60 @@ Doc pp. 6-10, 20-22, 25-27. Code: `flight_society.cpp`. Data: `flight_research.j
 
 Shot: `flight_society`.
 
-## Next: stage 7, dangerous islands, sieges, bombing and chemistry
-The kraken, skull island, the volcano, the wreck and the reef; sieges and assaults; bombing and chemistry. Gate: a bot takes the cove and holds it through a siege (doc p34).
+## Stage 7: dangerous islands, sieges, bombing and chemistry (done 2026-10-03)
+Doc pp. 15-18, 21, 24-25, 34. Code: `flight_danger.cpp`. Data: `flight_danger.json` (every number below is there).
+
+**Holding islands.** `HolderOf(isle)` is the side with the most built nests on an island (a tie holds nothing). An **outpost** is a nest and a cache on another island: the Founder lands on a free site and presses E, or a Pathfinder (Trade 4) flies out when ordered on the chart's new Outpost mode. Outposts grow to three nests, and get a home guard when raided. The score counts islands held: 30 each, 80 for a dangerous one, and 150 for killing the kraken.
+
+**The dangerous islands:**
+- *Kraken Cove.* The kraken sleeps, wakes on blood and noise, and surfaces. Low fliers in the cove are snatched: 1% a second while it sleeps, 5% awake, 12% surfaced. It hoards 20 pearls. Offerings of fish calm it for a day; neglect for three wakes it. It has 4000 HP, and bombs do 300.
+- *Skull Island.* A great ape throws rocks (170 m, 45 damage) at birds below 25 m. Feeding it a big fish puts it to sleep for a day. Lizards raid nests. The summit shrine gives its holder +20% fervour.
+- *The volcano.* The first eruption comes about day 4.5, then every 6 days, each after half a day of tremors. Ash grounds birds within 420 m for a day. Its thermals lift fliers. It yields sulfur (2 a day) and crater fish.
+- *The wreck.* It drifts and sinks over about 3.5 days. Its hold has 30 fish, there are rats, and a ghost crew comes at night. The bell, carried home, gives +10 morale.
+- *The reef.* Eels, and cleaner fish that calm flocks.
+
+**Weather:**
+- A storm every 3-5 days: two hours of 2.5x wind, and every flock makes for home.
+- Fog at 30% of dawns: two hours in which Watchers see half as far.
+
+**Sieges:**
+- *Blockade* (War 4): a hostile flock within 120 m holds a ground, and the owner's fishers stay off it.
+- *Wall* (War 4): a hostile flock within 150 m of an island; the Traders and Scouts stay home.
+- *Assault:* Strikers tear down a nest with no chick, egg or Watcher in it (3 a strike), and the island's holding goes with it.
+- *Desertion:* a colony with under 0.15 days of food loses its warriors to fishing.
+- *Bot sieges:* a bot sieges a rival who holds a dangerous island, with an assault, a blockade, and a stimulant for the assault.
+
+**Bombing and chemistry (the Works: 20 twigs, 15 shells):**
+- *Bombs* (Bombing 1): 5 guano and 1 sulfur, one a day, up to 4. Bombers (Bombing 2) carry one high and drop it from over 50 m: 60 damage in 8 m, structures damaged, and -15 morale. There are also incendiaries and a blockbuster every 2 days.
+- *Stimulants* (Chemistry): Haste x1.3 speed; Fury x1.4 attack with more bleeding; Clot halves bleeding; the Draught gives x1.5 everything and immunity to morale, then a day asleep. Each lasts a day and is followed by a day's crash. Chemists brew one every half day from guano and pearls.
+
+**The scene:**
+- The kraken's arms (four awake, eight surfaced), its head when surfaced, and an arm out of the water where a bird was taken.
+- The ape on the summit (lying down asleep) and its rock in flight.
+- The volcano's plume, with an ash column, a glowing crater and lava pools in an eruption.
+- The wreck's ghost lanterns.
+- Bomb blasts: a flash, a ball of smoke, and fire for an incendiary.
+- Models for the Roost, the shrine and the Works. Bombs, the bell, sulfur and stolen eggs are drawn in birds' talons.
+- *Weather:* a storm darkens and closes the sky, roughens the sea and rains on the screen. Fog and ash thicken the haze.
+- *HUD banners* for a storm, fog, ash, tremors, the kraken and the ape.
+- *The Flocks page* has a dose button per flock, and the Works' stocks with a brew picker. The chart has an Outpost mode and a holder's flag by every island.
+
+**Fixes found on the way:**
+- The Flockmaster now leads from the rear, screened by its Tanks (an attacker must get past them first). The fight with a leader and a Screamer against an extra Skirmisher had slipped to 5 of 20 and is back to 10 of 20.
+- The war tests give both sides the same founder (the bends shape fights).
+- A starving bot Founder kept still until it died; now it goes for food. This is what wiped a rival colony out in the bots test.
+- The first builder now also keeps the shell stock; with one builder and the "every third bird" rule, no shells were stocked.
+- Shells are stocked for the next tier of the colony's furthest tree.
+- War before Trade in the bots' research order (doc p22: War 1 and 2 by day 4).
+- *Pearls:* any catch has a 5% chance of an oyster with a pearl (`pearl_per_catch`).
+
+**Checks:**
+- `depth.exe --flight-danger-test`: each monster, the volcano, the wreck, the weather, outposts and holding, blockade, wall, assault, desertion, bombs and stimulants.
+- `depth.exe --flight-siege [runs]`, **the gate**: a bot takes the cove and holds it while a rival lays siege. It passed 3 of 3 (some runs take it with a single nest).
+- Shots: `flight_kraken`, `flight_ape`, `flight_volcano`, `flight_storm`, `flight_outpost`.
+
+**Open for stage 8 (balance):**
+- *The bots test* (`--flight-war bots`): the bots now raise warriors and reach War 2 by about day 10, but don't raid in 14 days. Their colonies stall near 20 birds, short of food.
+- *The colony gate* (`--flight-sim tropical 16 careful`) peaks at 35 birds, against 40 (the doc wants 40 by day 6).
+
+## Next: stage 8, costumes, sound, internet play and the balance pass

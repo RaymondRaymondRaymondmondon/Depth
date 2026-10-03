@@ -1,0 +1,18 @@
+{
+  "_source": "The Flight design document pp. 15-18 (dangerous islands, the map's monsters, weather), pp. 24-25 (sieges, assaults, bombing, chemistry), p21 (the Bombing and Chemistry trees)",
+  "kraken": {"hp": 4000, "grab_below_m": 20, "cove_radius_m": 62, "grab_per_s_awake": 0.05, "grab_per_s_surfaced": 0.12, "grab_per_s_asleep_low": 0.01,
+             "wake_blood": 6, "offering_days": 1, "neglect_days": 3, "calm_days": 0.33, "arm_kill_s": 4, "bomb_damage": 300,
+             "hoard_pearls": 20, "nest_raid_s": 30, "loud_birds": 10},
+  "ape": {"throw_range_m": 170, "throw_below_m": 25, "throw_s": 3, "hit": 0.35, "rock_damage": 45, "sleep_days_per_feed": 1, "feed_size": 4},
+  "skull": {"lizard_days": 0.5, "plant_days": 1, "carcass_feed_per_day": 4, "shrine_fervour": 0.2},
+  "volcano": {"every_days": 6, "first_days": 4.5, "tremor_days": 0.5, "ash_days": 1, "ash_radius_m": 420, "lava_share": 0.5, "sulfur_per_day": 2, "crater_fish_per_day": 2},
+  "wreck": {"drift_mps": 0.5, "sink_per_day": 0.35, "gone_at": 3.5, "ghost_per_s": 0.2, "rat_days": 0.5, "hold_fish": 30, "bell_morale": 10},
+  "reef": {"eel_days": 1, "cleaner_calm": 0.5},
+  "weather": {"storm_every_days": [3, 5], "storm_hours": 2, "fog_chance_per_dawn": 0.3, "fog_hours": 2, "fog_sight": 0.5},
+  "siege": {"blockade_m": 120, "wall_m": 150, "desert_days_of_food": 0.15},
+  "assault": {"tear_per_strike": 3},
+  "bombs": {"guano": 5, "sulfur": 1, "per_day": 1, "max": 4, "damage": 60, "radius_m": 8, "incendiary_radius_m": 12, "blockbuster_every_days": 2, "morale_hit": 15, "noise": 10},
+  "structures_hp": {"hedge": 60, "tower": 120, "roost": 150, "shrine": 100, "works": 120},
+  "stims": {"haste": {"guano": 3, "pearls": 0, "speed": 1.3}, "fury": {"guano": 4, "pearls": 1, "attack": 1.4, "bleed": 1.5}, "clot": {"guano": 4, "pearls": 1, "bleed": 0.5},
+            "draught": {"guano": 6, "pearls": 2, "all": 1.5}, "brew_days": 0.5, "effect_days": 1, "crash_days": 1}
+}
