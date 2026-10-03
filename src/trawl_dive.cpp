@@ -1,4 +1,4 @@
-﻿// Diving, the deck's side and the diver's moves (design doc v2, "Diving and salvage", page 55). The wrecks are
+// Diving, the deck's side and the diver's moves (design doc v2, "Diving and salvage", page 55). The wrecks are
 // trawl_wreck.cpp's. Design calls where the doc leaves numbers open:
 //  - Going down: a hand with the hardhat suit at the stern (x < -10), she lying still (under 0.4 m/s) within 15 m of a
 //    wreck that a hardhat reaches (a bell wreck needs the diving bell: not yet built). The descent takes the wreck's
@@ -132,7 +132,7 @@ void Gannet::StepDive(float dt) {
         basketLine[i].cookT -= dt;
         if (basketLine[i].cookT > 0) { i++; continue; }
         CatchRec r = basketLine[i]; basketLine.erase(basketLine.begin() + i);
-        r.cookT = -1; hold.push_back(r);
+        r.cookT = -1; if (r.hand < 0) r.hand = dive.diver; hold.push_back(r);
         Say(TextFormat("The basket comes up: %s", r.name.c_str()));
         if (r.cursed && eco) { eco->wake = std::min(100.0f, eco->wake + 10); eyeBlinkT = 0.6f; Say("The idol comes over the rail and the water goes very still: the Wake rises"); }
     }

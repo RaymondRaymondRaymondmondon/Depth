@@ -867,6 +867,7 @@ void DebugArcadeShot(int which);   // shots: 0 the lobby, 1 the Scuttle table (A
 void DebugArcadeReel(int reel);    // --shots: turn the arcade drum to a reel (0 Flats Duel ... 4 Red Tide)
 int RunScuttleSim(int matches);    // --scuttle-sim (net_test.cpp)
 int RunNetLoop(int lagMs, bool forceMemory);   // --net-loop
+int RunBetTest();                                // --bet-test
 int RunStudyAudioTest(const char* wavPath, float seconds);   // --study-audio-test (study_test.cpp)
 void SceneTrawl(Game& g);     // The Trawl, the Deep Arcade's co-op fishing horror game (trawl.cpp)
 void StartTrawl(Game& g, bool firstPerson = false, int crew = 1, int botSkill = 1);
@@ -888,6 +889,9 @@ bool RedTideLongNightSaved(const char* map, int* tide = nullptr, float* time = n
 void RedTideClearLongNight(const char* map);
 // voice chat's glue (arcade.cpp): every frame from the main loop; the "who's talking" strip; the settings page's bits
 void ArcadeVoiceFrame(float dt);
+// the pre-match bets: each game says, once its match is over, which lobby seats won (false while it isn't over)
+bool RedTideBetWinners(std::vector<int>& seats);
+bool TrawlBetWinners(std::vector<int>& seats);
 void DrawVoiceHud();
 bool& VoiceMicTest();
 float VoiceMicLevel();

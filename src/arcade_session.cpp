@@ -10,7 +10,7 @@
 
 namespace arcade {
 
-enum Msg : uint8_t { M_HELLO = 1, M_WELCOME, M_REJECT, M_LOBBY, M_READY, M_CHAT, M_LAUNCH, M_ACTION, M_STATE, M_PING, M_PONG, M_BYE, M_STATE_PART, M_VOICE };
+enum Msg : uint8_t { M_HELLO = 1, M_WELCOME, M_REJECT, M_LOBBY, M_READY, M_CHAT, M_LAUNCH, M_ACTION, M_STATE, M_PING, M_PONG, M_BYE, M_STATE_PART, M_VOICE, M_BET };
 // a real-time snapshot bigger than this goes as parts (GameNetworkingSockets sends an unreliable message over about
 // 16 KB as a reliable one, which would queue behind loss); a guest puts them back together, and a lost part only
 // loses that one snapshot
@@ -104,6 +104,7 @@ void Session::SendLobby() {
         if (!s.used) continue;
         w.U8((s.ai ? 1 : 0) | (s.ready ? 2 : 0) | (s.lost ? 4 : 0) | (s.host ? 8 : 0));
         w.Str(s.name); w.U16((uint32_t)std::clamp(s.ping, 0, 65535));
+        w.U8((uint8_t)(s.betOn + 1)); w.U16((uint32_t)std::clamp(s.bet, 0, BET_CAP));
     }
     for (int k = 0; k < MAX_PLAYERS; k++) w.U8((uint8_t)(playerSeat[k] + 1));
     Broadcast(w);
@@ -147,7 +148,17 @@ int Session::SeatOfConn(int conn) const { for (int i = 0; i < MAX_PLAYERS; i++) 
 int Session::PlayerOfSeat(int seat) const { for (int k = 0; k < MAX_PLAYERS; k++) if (playerSeat[k] == seat && seat >= 0) return k; return -1; }
 int Session::SeatOfPlayer(int p) const { return p >= 0 && p < MAX_PLAYERS ? playerSeat[p] : -1; }
 
-void Session::SetReady(bool r) {
+void Session::PlaceBet(int backSeat, int amount) {
+    if (stage != S_LOBBY || mySeat < 0) return;
+    if (role == R_HOST) {
+        SeatInfo& s = seats[mySeat];
+        if (backSeat < 0 || backSeat >= MAX_PLAYERS || !seats[backSeat].used || amount <= 0) { s.betOn = -1; s.bet = 0; }
+        else { s.betOn = backSeat; s.bet = std::min(amount, BET_CAP); }
+        SendLobby();
+    } else if (role == R_CLIENT) {
+        Writer w; w.U8(M_BET); w.U8((uint8_t)(int8_t)backSeat); w.U16((uint32_t)std::clamp(amount, 0, BET_CAP)); SendTo(server, w);
+    }
+}void Session::SetReady(bool r) {
     if (role == R_HOST) return;
     Writer w; w.U8(M_READY); w.U8(r); SendTo(server, w);
 }
@@ -215,6 +226,7 @@ void Session::BackToLobby() {
         if (!s.used) continue;
         if (s.lost) { s = SeatInfo{}; continue; }      // whoever never came back leaves the table
         if (!s.ai && !s.host) s.ready = false;
+        s.betOn = -1; s.bet = 0;                       // (bets are for one match)
     }
     for (int& c : playerSeat) c = -1;
     truth.reset();
@@ -302,6 +314,13 @@ void Session::HostMessage(int conn, Reader& r) {
     s.heard = now;
     switch (type) {
         case M_READY: s.ready = r.U8() != 0; if (!r.bad) SendLobby(); break;
+        case M_BET: {   // a guest's bet, before the match (checked here: the seat backed must be at the table)
+            int on = (int)(int8_t)r.U8(), amt = (int)r.U16();
+            if (r.bad || stage != S_LOBBY || s.ai) break;
+            if (on < 0 || on >= MAX_PLAYERS || !seats[on].used || amt <= 0) { s.betOn = -1; s.bet = 0; }
+            else { s.betOn = on; s.bet = std::min(amt, BET_CAP); }
+            SendLobby();
+        } break;
         case M_CHAT: { r.U8(); std::string t = r.Str(); if (!r.bad && !t.empty()) SendChat(seat, t); } break;
         case M_ACTION: {
             int p = PlayerOfSeat(seat);   // a client can only ever act as its own player
@@ -374,6 +393,7 @@ void Session::ClientMessage(Reader& r) {
                 if (!ns[i].used) continue;
                 int f = r.U8(); ns[i].ai = f & 1; ns[i].ready = f & 2; ns[i].lost = f & 4; ns[i].host = f & 8;
                 ns[i].name = r.Str(); ns[i].ping = r.U16();
+                ns[i].betOn = (int)r.U8() - 1; ns[i].bet = (int)r.U16();
             }
             int ps[MAX_PLAYERS]; for (int& c : ps) c = (int)r.U8() - 1;
             if (r.bad) break;

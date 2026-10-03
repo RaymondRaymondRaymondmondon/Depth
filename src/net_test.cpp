@@ -212,3 +212,38 @@ int RunNetLoop(int lagMs, bool forceMemory) {
     if (real) net::Shutdown();
     return fails ? 1 : 0;
 }
+// depth.exe --bet-test: the pre-match bets over the session (a host and two guests in memory): a guest backs a seat,
+// everyone sees it, a stake is capped, a bet on an empty seat is refused, bets are cleared for the next match; and the
+// payouts' arithmetic
+int RunBetTest() {
+    using namespace arcade;
+    int fails = 0;
+    auto check = [&](bool ok, const char* what) { printf("  %s  %s\n", ok ? "ok  " : "FAIL", what); if (!ok) fails++; };
+    printf("Pre-match bets\n");
+    Session host, a, b; std::string err;
+    Profile ph{"Captain", 1}, pa{"Nurse", 2}, pb{"Diver", 3};
+    bool up = host.Host(ph, G_RED_TIDE, &err, 47813, net::MakeMemoryTransport(), false) && a.Join(pa, "mem:47813", &err, 0, net::MakeMemoryTransport()) && b.Join(pb, "mem:47813", &err, 0, net::MakeMemoryTransport());
+    double t = 0;
+    auto step = [&](int n) { for (int i = 0; i < n; i++) { t += 1 / 60.0; host.Update(t, 1 / 60.0f); a.Update(t, 1 / 60.0f); b.Update(t, 1 / 60.0f); } };
+    for (int i = 0; i < 300 && !(a.stage == S_LOBBY && b.stage == S_LOBBY); i++) step(1);
+    step(10);
+    a.PlaceBet(b.mySeat, 30); host.PlaceBet(a.mySeat, 500); step(10);
+    check(up && host.seats[a.mySeat].betOn == b.mySeat && host.seats[a.mySeat].bet == 30 && b.seats[a.mySeat].betOn == b.mySeat && b.seats[a.mySeat].bet == 30,
+          "a guest backs another seat for 30: the host and the other guest both see it");
+    check(host.seats[host.mySeat].bet == BET_CAP && a.seats[host.mySeat].bet == BET_CAP && a.seats[host.mySeat].betOn == a.mySeat, "a stake over the cap is held to 50");
+    b.PlaceBet(5, 20); step(10);
+    check(host.seats[b.mySeat].bet == 0 && host.seats[b.mySeat].betOn == -1, "a bet on an empty seat is refused");
+    a.PlaceBet(-1, 0); step(10);
+    check(host.seats[a.mySeat].bet == 0 && b.seats[a.mySeat].bet == 0, "a bet can be taken back before the match");
+    a.PlaceBet(host.mySeat, 20); step(10);
+    for (auto& s : host.seats) if (s.used) s.ready = true;
+    a.SetReady(true); b.SetReady(true); step(10);
+    std::string why; host.gameOpts = "ship"; bool launched = host.Launch(&why); step(30);
+    host.BackToLobby(); step(10);
+    check(launched && host.seats[a.mySeat].bet == 0 && a.seats[a.mySeat].bet == 0, "the bets are cleared when the table goes back to the lobby");
+    check(BetPayout(20, 3, 1, true) == 60 && BetPayout(20, 4, 2, true) == 40 && BetPayout(20, 4, 4, true) == 20 && BetPayout(20, 4, 1, false) == 0,
+          "a right pick pays the stake times the players, shared among joint winners (a level match gives it back); a wrong one nothing");
+    host.Leave(); a.Leave(); b.Leave();
+    printf(fails ? "bet-test: %d check(s) failed\n" : "bet-test: all checks passed\n", fails);
+    return fails ? 1 : 0;
+}

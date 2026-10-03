@@ -338,7 +338,7 @@ template <class A> void Visit(A& a, TrawlWorld& w) {
     a.f(s.quota); a.f(s.money); a.f(s.sold); a.f(s.clock); a.b(s.clockOn); a.s(s.ground); a.e(s.weather); a.f(s.moon); a.f(s.wxAt); a.e(s.wxTo);
     a.e(s.variant); a.e(s.canoe); a.f(s.canoeAt); a.f(s.canoeT); a.s(s.canoeWord); a.f(s.archCloseAt);
     a.vec(s.requests, [&](Session::Request& q) { a.i(q.who); a.s(q.species); a.b(q.done); }); a.i(s.freeAttach);
-    a.i(s.tokens); a.b(s.met); for (bool& x : s.slip) a.b(x); a.v2(s.harbour); a.f(s.harbourR); a.u(s.seed); a.f(s.lastSaleTotal);
+    a.i(s.tokens); a.b(s.met); for (bool& x : s.slip) a.b(x); a.v2(s.harbour); a.f(s.harbourR); a.u(s.seed); a.f(s.lastSaleTotal); for (float& x : s.handEarned) a.f(x);
     VisitTail(a, s.tape, 14);
     a.vec(s.lastSale, [&](SaleLine& l) { a.s(l.name); a.f(l.kg); a.f(l.price); a.f(l.grade); a.f(l.fresh); a.f(l.glut); a.f(l.bonus); a.f(l.value); a.i(l.src); });
     a.vec(s.lastDelivery, [&](SaleLine& l) { a.s(l.name); a.f(l.kg); a.f(l.price); a.f(l.grade); a.f(l.fresh); a.f(l.glut); a.f(l.bonus); a.f(l.value); a.i(l.src); });

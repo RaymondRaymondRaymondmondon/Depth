@@ -15,6 +15,10 @@
 namespace arcade {
 
 constexpr int MAX_PLAYERS = 6;
+constexpr int BET_CAP = 50;              // the most a player may stake on a match (tokens)
+// a bet's return: a right pick pays the stake times the players at the table, shared among the winners (a level
+// match among everyone gives the stake back); a wrong pick pays nothing
+inline int BetPayout(int stake, int players, int winners, bool right) { return right && winners > 0 ? (int)((long long)stake * players / winners) : 0; }
 constexpr uint8_t PROTOCOL = 3;   // (3: big real-time snapshots go in parts)
 constexpr double LOST_AFTER = 6.0, TAKEOVER_AFTER = 120.0, PING_EVERY = 1.0, BEACON_EVERY = 1.0;
 
@@ -31,6 +35,7 @@ struct SeatInfo {
     uint32_t token = 0;     // host side: what a dropped player shows to get this seat back
     double lostAt = 0, heard = 0;
     int ping = 0;
+    int betOn = -1, bet = 0;   // the pre-match bet: the lobby seat this player backs to win, and the stake in tokens (0: none)
 };
 
 enum Role : uint8_t { R_NONE, R_HOST, R_CLIENT };
@@ -50,6 +55,7 @@ public:
     void AddAI();                  // host
     void RemoveSeat(int seat);     // host: an AI seat, or gives a player's seat away
     void Chat(const std::string& text);
+    void PlaceBet(int backSeat, int amount);   // in the lobby: back a seat to win (-1 or 0: no bet); everyone sees it
     bool CanLaunch(std::string* why) const;
     bool Launch(std::string* why); // host: everyone ready, enough seats, the game is aboard
     void BackToLobby();            // host: after a match (guests must ready up again)

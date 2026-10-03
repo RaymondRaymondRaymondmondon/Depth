@@ -483,7 +483,7 @@ void Gannet::DropThief(int ti, int by) {
     t.fish.killScore = std::max(t.fish.killScore, 1.0f);
     Vector2 lp = boat.ToDeck(t.p);
     if (fabsf(lp.x) < 9 && fabsf(lp.y) < 2.8f) {   // over her deck: both drop where they fall
-        bird.deckAt = lp; t.fish.deckAt = Vector2Add(lp, {0.4f, 0});
+        bird.deckAt = lp; t.fish.deckAt = Vector2Add(lp, {0.4f, 0}); bird.hand = by;
         hold.push_back(t.fish); hold.push_back(bird);
         Say(TextFormat("Shot down! The %s and the %s drop on the deck", bd.name, t.fish.name.c_str()));
     } else {                                        // over the water: both float, to be gaffed or tethered
@@ -650,6 +650,7 @@ bool Gannet::GaffFloater(int ci) {
         r.bycatch = f.price <= 0;
         r.dead = true;                                     // (it was dead in the water)
         r.deckAt = {c.p.x, c.p.y * 0.6f};                  // swung inboard of the hand
+        r.hand = ci;
         hold.push_back(r);
         Say(TextFormat("Gaffed aboard: %s, %.1f kg", f.name.c_str(), f.kg));
         floaters.erase(floaters.begin() + i);
@@ -720,7 +721,7 @@ void Gannet::NetInput(int ci, bool held, bool cut, float dt) {
                 for (const auto& kv : n.catchKg) {
                     if (kv.second < 0.05f) continue;
                     const SpeciesRec& r = S[kv.first];
-                    CatchRec rec; rec.name = r.name; rec.kg = kv.second; rec.price = r.price; rec.sp = kv.first; rec.grade = 0.9f; rec.src = CS_NET;
+                    CatchRec rec; rec.name = r.name; rec.kg = kv.second; rec.price = r.price; rec.sp = kv.first; rec.grade = 0.9f; rec.src = CS_NET; rec.hand = ci;
                     rec.bycatch = r.price <= 0 && !r.protectedSp; rec.protectedSp = r.protectedSp;
                     rec.deckAt = {-8.6f + (RandF(gRng) - 0.5f) * 2.0f, (RandF(gRng) - 0.5f) * 2.4f};   // spilled across the sorting deck
                     if (r.stings) jellies = true;
@@ -751,7 +752,7 @@ bool Gannet::HaulSetGear(int ci) {
         for (const auto& h : L.hooks) {
             if (h.sp < 0) { empty++; continue; }
             CatchRec r; r.name = S[h.sp].name + (h.head ? " (head)" : ""); r.kg = h.kg; r.price = S[h.sp].price; r.sp = h.sp; r.grade = h.head ? 0.9f : 1.0f; r.src = CS_SET;
-            r.dead = h.head; r.deckAt = {crew[ci].p.x + (RandF(gRng) - 0.5f) * 1.5f, crew[ci].p.y * 0.6f};
+            r.dead = h.head; r.deckAt = {crew[ci].p.x + (RandF(gRng) - 0.5f) * 1.5f, crew[ci].p.y * 0.6f}; r.hand = ci;
             hold.push_back(r); fish++; heads += h.head;
         }
         Say(TextFormat("Longline hauled: %d fish, %d heads, %d empty hooks", fish - heads, heads, empty));
@@ -762,7 +763,7 @@ bool Gannet::HaulSetGear(int ci) {
     for (size_t i = 0; i < pots.size(); i++) {
         Pot& p = pots[i];
         if (Vector2Distance(rail, p.p) > 5) continue;
-        for (const auto& kv : p.catchKg) { CatchRec r; r.name = S[kv.first].name; r.kg = kv.second; r.price = S[kv.first].price; r.sp = kv.first; r.src = CS_SET; r.deckAt = {crew[ci].p.x, crew[ci].p.y * 0.6f}; hold.push_back(r); }
+        for (const auto& kv : p.catchKg) { CatchRec r; r.name = S[kv.first].name; r.kg = kv.second; r.price = S[kv.first].price; r.sp = kv.first; r.src = CS_SET; r.hand = ci; r.deckAt = {crew[ci].p.x, crew[ci].p.y * 0.6f}; hold.push_back(r); }
         Say(TextFormat("Pot hauled: %d aboard", p.n));
         pots.erase(pots.begin() + i);
         AddItem(Item::Pot, 1);

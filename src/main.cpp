@@ -199,6 +199,7 @@ void DebugWardrobe(Game& g, int game); void TakeShots(const Game& base, const st
         {"arcade_table", [](Game& g) { g.scene = Scene::Arcade; DebugArcadeShot(1); }},
         {"arcade_result", [](Game& g) { g.scene = Scene::Arcade; DebugArcadeShot(2); }},
         {"arcade_rules", [](Game& g) { g.scene = Scene::Arcade; DebugArcadeShot(3); }},
+        {"arcade_bets", [](Game& g) { g.scene = Scene::Arcade; DebugArcadeShot(10); }},
         {"arcade_redtide", [](Game& g) { g.scene = Scene::Arcade; DebugArcadeReel(4); }},
         {"arcade_custom", [](Game& g) { g.scene = Scene::Arcade; DebugArcadeReel(104); }},
         {"skins_trawl", [](Game& g) { DebugWardrobe(g, 0); }},
@@ -720,6 +721,7 @@ int main(int argc, char** argv) {
     }
     if (argc >= 2 && strcmp(argv[1], "--trawl-eco") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlEco(argc, argv); }
     if (argc >= 2 && strcmp(argv[1], "--trawl-sim") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlSim(argc, argv); }
+    if (argc >= 2 && strcmp(argv[1], "--bet-test") == 0) { SetTraceLogLevel(LOG_WARNING); return RunBetTest(); }
     if (argc >= 2 && strcmp(argv[1], "--voice-test") == 0) { SetTraceLogLevel(LOG_WARNING); return voice::RunVoiceTest(); }
     if (argc >= 2 && strcmp(argv[1], "--trawl-gear-test") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlGearTest(); }
     if (argc >= 2 && strcmp(argv[1], "--trawl-skiff-test") == 0) { SetTraceLogLevel(LOG_WARNING); return tw::RunTrawlSkiffTest(); }

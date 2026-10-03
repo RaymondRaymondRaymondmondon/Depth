@@ -322,6 +322,7 @@ float Session::Sell(int idx) {
         lastSale.push_back({c.name, c.kg, c.price, c.grade, c.fresh, g, b, v, c.src});
         glutKg[c.name.substr(0, c.name.find(" ("))] += c.kg;   // (the glut counts after each fish: a big haul drives its own price down)
         lastSaleTotal += v;
+        if (c.hand >= 0 && c.hand < 6) handEarned[c.hand] += v;   // (who brought it aboard: the bets' "top earner")
         G->hold.erase(G->hold.begin() + i);
     }
     money += lastSaleTotal;
@@ -604,6 +605,7 @@ float Session::Deliver(int idx, int* rejected) {
         if (v <= 0) { lastRejected++; continue; }   // (it stays in the hold: the market may still take it)
         lastDelivery.push_back({c.name, c.kg, c.price, c.grade, c.fresh, 1, c.first ? FIRST_CATCH_BONUS : 1, v, c.src});
         lastDeliveryTotal += v;
+        if (c.hand >= 0 && c.hand < 6) handEarned[c.hand] += v;
         G->hold.erase(G->hold.begin() + i);
     }
     sold += lastDeliveryTotal;

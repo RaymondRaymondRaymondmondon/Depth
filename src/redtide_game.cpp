@@ -2333,7 +2333,24 @@ bool RedTideCustomPanel() {
 }bool RedTideLongNightSaved(const char* map, int* tide, float* time) { return LongNightSaved(map ? map : "ship", tide, time); }
 void RedTideClearLongNight(const char* map) { ClearLongNight(map ? map : "ship"); }
 void SetRedTideResume(bool resume) { gRtResume = resume; }
-void StartRedTide(Game& g, const char* map) {
+// the pre-match bets (arcade.cpp): when the match is over, the lobby seats that won it: the richer pair in Poachers,
+// otherwise the diver who earned the most scrip (ties share it)
+bool RedTideBetWinners(std::vector<int>& seats) {
+    seats.clear();
+    if (!S.net) return false;
+    const Match& m = M();
+    if (!m.map || !m.over) return false;
+    int best = -1;
+    for (const auto& d : m.divers) best = std::max(best, d.scripEarned);
+    int a = m.TeamScrip(0), b = m.TeamScrip(1);
+    for (int p = 0; p < (int)m.divers.size(); p++) {
+        int seat = S.net->SeatOfPlayer(p);
+        if (seat < 0) continue;
+        bool won = m.mode == RM_POACHERS ? (a == b || Match::TeamOf(p) == (a > b ? 0 : 1)) : m.divers[p].scripEarned == best;
+        if (won) seats.push_back(seat);
+    }
+    return true;
+}void StartRedTide(Game& g, const char* map) {
     gRtMap = map ? map : "ship";
     gSndMap = gRtMap;
     S.net = nullptr; S.live = nullptr; S.me = 0; S.fxSeen = 0;

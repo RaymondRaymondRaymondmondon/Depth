@@ -1711,7 +1711,18 @@ void SceneTrawl(Game& g) {
 
 // --shots: 0 the deck at night, 1 the engine room, 2 the wheelhouse, 3 a squall, 4 a fish on, 5 a marlin jumping,
 // 6 the Lagoon under a full lantern, 7 the searchlight over the reef, 8 a reef shark come to the chum (and the gulls)
-void DebugTrawlShot(Game& g, int which) {
+// the pre-match bets (arcade.cpp): when the run is over, the lobby seat of the hand whose catches sold for the most
+// (everyone, if nobody earned: the stakes come back)
+bool TrawlBetWinners(std::vector<int>& seats) {
+    seats.clear();
+    if (!S.net || !S.W || S.W->sess.phase != tw::Phase::Over) return false;
+    int top = S.W->sess.TopEarner();
+    for (int p = 0; p < (int)S.W->G.crew.size(); p++) {
+        int seat = S.net->SeatOfPlayer(p);
+        if (seat >= 0 && (top < 0 || p == top)) seats.push_back(seat);
+    }
+    return true;
+}void DebugTrawlShot(Game& g, int which) {
     bool fp = which >= 100;                    // 100+: the same set-ups in first person
     if (fp) which -= 100;
     StartTrawl(g, fp);

@@ -105,6 +105,7 @@ void Gannet::StepBoss(float dt) {
 }
 
 void Gannet::OnLanded(CatchRec& rec, int holder) {
+    rec.hand = holder;
     int bi = MiniBossOf(rec.name);
     if (bi >= 0) {
         const MiniBossDef& b = MiniBosses()[bi];

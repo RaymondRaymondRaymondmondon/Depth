@@ -15,6 +15,11 @@ static int gWardrobe = -1;   // the skins page over the arcade (skins::TRAWL), -
 #include <cmath>
 #include <fstream>
 
+int BetWallet(int game);                 // (the pre-match bets, at the end of the file)
+void DrawBetControls(Rectangle row);
+void ArcadeBetFrame();
+static void DrawBetResult();
+
 namespace {
 using namespace arcade;
 
@@ -382,6 +387,8 @@ void DrawLobby() {
         TxtBold(s.name + (s.host ? "  (host)" : s.ai ? "  (AI)" : ""), row.x + 66, row.y + 8, 20, SCREEN_INK);
         Txt(s.lost ? "lost connection" : s.ready ? "ready" : "not ready", row.x + 66, row.y + 30, 15, s.lost ? Pal::Coral : s.ready ? Pal::Good : SCREEN_DIM);
         if (!s.ai && !s.host && s.ping) Txt(TextFormat("%d ms", s.ping), row.x + row.width - 220, row.y + 17, 15, SCREEN_DIM);
+        if (i == gSess.mySeat && BetWallet(gSess.game) >= 0 && gSess.stage == S_LOBBY) DrawBetControls(row);
+        else if (s.bet > 0 && s.betOn >= 0 && gSess.seats[s.betOn].used) Txt(TextFormat("bets %d on %s", s.bet, gSess.seats[s.betOn].name.c_str()), row.x + 270, row.y + 30, 14, Pal::Brass);
         if (host && i != 0 && Button({row.x + row.width - 120, row.y + 8, 108, 36}, s.ai ? "Remove" : "Give away", true, 15)) gSess.RemoveSeat(i);
         y += 60;
     }
@@ -933,10 +940,11 @@ void DebugArcadeShot(int which) {
     if (!gProfileLoaded) LoadProfile();
     std::string err;
     SetAudioSuppressed(true);
-    gSess.Host(gProfile, G_SCUTTLE, &err, 47791, net::MakeMemoryTransport(), false);
+    gSess.Host(gProfile, which == 10 ? G_RED_TIDE : G_SCUTTLE, &err, 47791, net::MakeMemoryTransport(), false);
     gSess.AddAI(); gSess.AddAI();
     gSess.Chat("Ahoy!");
     gMode = MODE_ROOM;
+    if (which == 10) { gSess.seats[1].betOn = 2; gSess.seats[1].bet = 15; gSess.PlaceBet(1, 20); return; }   // (10: a Red Tide lobby with bets: mine on the first AI, one shown for the second)
     gViewVer = -1; gView = scuttle::State{};
     double clock = 0;
     uint32_t rng = 5;
@@ -1006,6 +1014,7 @@ void ArcadeVoiceFrame(float dt) {
     bool want = S.voiceOn && (inSession || gMicTest);
     if (want && !voice::MicIsOpen() && gMicError.empty()) { if (!voice::MicOpen(&gMicError)) gMicTest = false; }
     if (!want) { if (voice::MicIsOpen()) voice::MicClose(); gMicError.clear(); }
+    ArcadeBetFrame();   // (the pre-match bets: the stake at the start, the payout at the end)
     for (auto& v : gSess.voiceIn) voice::Receive(v.seat, v.seq, v.data.data(), v.data.size());
     gSess.voiceIn.clear();
     if (!inSession && wasIn) voice::Reset();
@@ -1029,6 +1038,7 @@ void ArcadeVoiceFrame(float dt) {
 }
 // who's talking: a strip at the top of the screen in any scene while at a table (the game's own HUD may show more)
 void DrawVoiceHud() {
+    DrawBetResult();
     if (gSess.stage != S_LOBBY && gSess.stage != S_PLAYING) return;
     float x = SCREEN_W / 2.0f - 200, y = 8;
     for (int s = 0; s < MAX_PLAYERS; s++) {
@@ -1041,4 +1051,84 @@ void DrawVoiceHud() {
         TxtBold(name, x + 26, y + 4, 15, Color{220, 236, 226, 255});
         x += w + 8;
     }
+}
+// ---------------------------------------------------------------- the pre-match bets (the user's request)
+// In the lobby each player may stake up to BET_CAP tokens from the game's own wallet (Red Tide's profile, the Trawl's)
+// on who will win: Red Tide's richest diver (the richer pair in Poachers), the Trawl's top earner over the run. The
+// stake is taken when the match starts; a right pick pays the stake times the number of players at the table, shared
+// if several win together; a wrong one loses it; a match left before its end gives it back. Everyone's bet shows.
+int BetWallet(int game) { return game == G_RED_TIDE ? skins::REDTIDE : game == G_TRAWL ? skins::TRAWL : -1; }
+static struct { bool live = false; int wallet = -1, game = -1, on = -1, amount = 0, players = 0; } gBet;
+static std::string gBetMsg; static double gBetMsgAt = -100;
+static void BetSay(const std::string& m) { gBetMsg = m; gBetMsgAt = GetTime(); gSess.chat.push_back(m); }
+void DrawBetControls(Rectangle row) {
+    const SeatInfo& me = gSess.seats[gSess.mySeat];
+    int wallet = BetWallet(gSess.game), have = skins::Tokens(wallet);
+    std::vector<int> backable; for (int k = 0; k < MAX_PLAYERS; k++) if (gSess.seats[k].used) backable.push_back(k);
+    int on = me.betOn, amt = me.bet;
+    float x = row.x + 270, y = row.y + 26;
+    // (brass glyphs, like the map and mode pickers: the little riveted buttons are too small to read)
+    auto hot = [](Rectangle r, const char* s, bool enabled) {
+        bool h = enabled && CheckCollisionPointRec(GetMousePosition(), r);
+        DrawTextCenteredBold(s, r.x + r.width / 2, r.y + 1, 18, !enabled ? Fade(Pal::BrassDk, 0.4f) : h ? Pal::Brass : Pal::BrassDk);
+        if (h && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) { PlayCue("ui.click"); return true; }
+        return false;
+    };
+    Txt("Bet", x, y + 3, 14, SCREEN_DIM);
+    // who: < name >
+    auto idx = std::find(backable.begin(), backable.end(), on);
+    int cur = idx == backable.end() ? -1 : (int)(idx - backable.begin());
+    if (hot({x + 30, y, 22, 22}, "<", true)) { cur = cur <= 0 ? (int)backable.size() - 1 : cur - 1; on = backable[cur]; if (amt <= 0) amt = std::min(10, std::min(BET_CAP, have)); }
+    DrawTextCentered(on >= 0 && gSess.seats[on].used ? gSess.seats[on].name : "nobody", x + 105, y + 3, 14, on >= 0 ? Pal::Brass : SCREEN_DIM);
+    if (hot({x + 158, y, 22, 22}, ">", true)) { cur = cur < 0 || cur + 1 >= (int)backable.size() ? 0 : cur + 1; on = backable[cur]; if (amt <= 0) amt = std::min(10, std::min(BET_CAP, have)); }
+    // how much: - n +
+    if (hot({x + 190, y, 22, 22}, "-", on >= 0)) amt = std::max(0, amt - 5);
+    DrawTextCenteredBold(TextFormat("%d", amt), x + 229, y + 2, 16, SCREEN_INK);
+    if (hot({x + 246, y, 22, 22}, "+", on >= 0)) amt = std::min({amt + 5, BET_CAP, have});
+    Txt(TextFormat("of %d tokens", have), x + 274, y + 3, 12, SCREEN_DIM);
+    if (amt > have) amt = have;
+    if (on != me.betOn || amt != me.bet) gSess.PlaceBet(amt > 0 ? on : -1, amt);
+}
+void ArcadeBetFrame() {
+    static int lastStage = S_IDLE;
+    int me = gSess.mySeat;
+    if (lastStage != S_PLAYING && gSess.stage == S_PLAYING && me >= 0 && !gBet.live) {
+        // the match starts: the stake leaves the wallet (if it's still there)
+        const SeatInfo& s = gSess.seats[me];
+        int wallet = BetWallet(gSess.game), players = 0;
+        for (int p = 0; p < MAX_PLAYERS; p++) players += gSess.SeatOfPlayer(p) >= 0;
+        if (players == 0) return;   // (the launch arrived before the lobby that says who plays: next frame)
+        bool inGame = false; for (int p = 0; p < MAX_PLAYERS; p++) if (gSess.SeatOfPlayer(p) == s.betOn) inGame = true;
+        if (wallet >= 0 && s.bet > 0 && s.betOn >= 0 && inGame && players >= 2 && skins::Spend(wallet, s.bet)) {
+            gBet.live = true; gBet.wallet = wallet; gBet.game = gSess.game; gBet.on = s.betOn; gBet.amount = s.bet; gBet.players = players;
+            BetSay(TextFormat("Your bet: %d tokens on %s", s.bet, gSess.seats[s.betOn].name.c_str()));
+        }
+    }
+    if (gBet.live) {
+        std::vector<int> won;
+        bool over = gBet.game == G_RED_TIDE ? RedTideBetWinners(won) : gBet.game == G_TRAWL ? TrawlBetWinners(won) : false;
+        if (over) {
+            bool right = std::find(won.begin(), won.end(), gBet.on) != won.end();
+            int pay = BetPayout(gBet.amount, gBet.players, (int)won.size(), right);
+            if (pay > 0) skins::AddTokens(gBet.wallet, pay);
+            std::string who = gBet.on >= 0 && gBet.on < MAX_PLAYERS ? gSess.seats[gBet.on].name : "?";
+            BetSay(right ? TextFormat("Your bet on %s came in: %d tokens back (%d staked)", who.c_str(), pay, gBet.amount) : TextFormat("Your bet on %s lost: %d tokens gone", who.c_str(), gBet.amount));
+            gBet.live = false;
+        } else if (gSess.stage != S_PLAYING) {
+            skins::AddTokens(gBet.wallet, gBet.amount);   // (the match ended before a winner: the stake comes back)
+            BetSay(TextFormat("The match ended early: your %d tokens come back", gBet.amount));
+            gBet.live = false;
+        }
+    }
+    lastStage = gSess.stage;
+}
+static void DrawBetResult() {
+    double age = GetTime() - gBetMsgAt;
+    if (age > 8 || gBetMsg.empty()) return;
+    float a = (float)std::min(1.0, std::min(age * 4, (8 - age) * 2));
+    float w = (float)MeasureTxt(gBetMsg, 17, true) + 40;
+    Rectangle r{SCREEN_W / 2.0f - w / 2, 40, w, 32};
+    DrawRectangleRounded(r, 0.4f, 6, Fade(Color{12, 20, 22, 255}, 0.8f * a));
+    DrawRectangleRoundedLinesEx(r, 0.4f, 6, 1.5f, Fade(Pal::Brass, a));
+    DrawTextCenteredBold(gBetMsg, r.x + w / 2, r.y + 7, 17, Fade(Pal::Brass, a));
 }

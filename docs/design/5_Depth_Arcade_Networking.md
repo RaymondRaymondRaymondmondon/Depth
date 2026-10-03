@@ -250,3 +250,12 @@ Friends can play before the public release through Steam's **Playtest** feature 
 - One region (the US): one server would be enough, and with Steam, none is needed.
 - Steam is the release and online platform; its backend moves up to step N4.
 - No cloud provider is needed unless step N7 is ever built.
+
+## Pre-match bets (2026-10-02; the user's request)
+- **The bet:** in a networked lobby of Red Tide or the Trawl, each player can stake up to `BET_CAP` (50) tokens on who will win. Stakes come from the game's own wallet (`skins::Tokens`: Red Tide's arcade profile, the Trawl's wallet). Scuttle has no tokens, so its lobby has no bets.
+- **Placing it:** on your own lobby row, "Bet < name > - n +" picks the backed seat (any seat at the table, AI included) and the stake, in steps of 5. Everyone else's bet shows on their row ("bets 15 on Old Salt"). The session carries it as `SeatInfo::betOn/bet`: `M_BET` to the host, which checks it and puts it in the lobby message. Bets are cleared when the table goes back to the lobby.
+- **Settling it:** the stake is taken when the match starts (`ArcadeBetFrame`, arcade.cpp). When the game reports its winners (`RedTideBetWinners`, `TrawlBetWinners`), a right pick pays `BetPayout`: the stake times the number of players at the table, shared among joint winners, so a level match gives the stake back. A wrong pick loses it, and a match that ends before a winner refunds it. The result shows in a banner and in Table Talk.
+- **Who wins:**
+  - Red Tide: the diver who earned the most scrip, or in Poachers the richer pair.
+  - The Trawl: the hand whose catches sold or delivered for the most over the run (`Session::handEarned`, `TopEarner`). Each catch now carries the hand that brought it aboard (`CatchRec::hand`: the rod's holder, the gaffer, the winch hand, the set-gear hauler, the bird's shooter, the diver).
+- **Checks:** `depth.exe --bet-test` (the protocol over a host and two guests in memory, the cap, the refusal, the clearing, and the payout arithmetic). Shot `arcade_bets`.

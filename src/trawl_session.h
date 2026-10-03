@@ -86,6 +86,8 @@ struct Session {
     std::vector<std::string> tape;              // the Owners' telegraph, newest last
     std::vector<SaleLine> lastSale;
     float lastSaleTotal = 0;
+    float handEarned[6] = {};                             // what each hand's catches have sold or delivered for this run (the bets' "top earner")
+    int TopEarner() const { int b = -1; float bv = 0; for (int k = 0; k < 6; k++) if (handEarned[k] > bv) { bv = handEarned[k]; b = k; } return b; }   // -1: nobody has earned yet
     int tokens = 0;
     bool wardrobe = false;                      // a real run (not a test): met deadlines pay into the skins wallet and give a crate (skins.h)
     bool met = false;                           // (Result) the last count

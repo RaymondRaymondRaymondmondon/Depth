@@ -262,6 +262,7 @@ struct CatchRec {
     bool trophy = false;                                  // landed by a Trophy Hunter: a first catch pays 50% more again
     bool bycatch = false, protectedSp = false; float aboardT = 0;   // worthless or protected: back over the side (a turtle within 60 s)
     int src = 0;                                          // how it came aboard: CatchSource (the sim's money by source)
+    int hand = -1;                                        // the hand who brought it aboard (the rod, the gaff, the winch, the set gear, the gun), -1 none (the pre-match bets' "top earner")
     // on the deck (the playtest, 2026-10-01): a landed fish lies where it came aboard and flops for the rail until
     // it is clubbed (the priest, a gaff, a knife), shot, or gutted; one that reaches the rail goes back over the side
     bool dead = false; float flopT = 0; Vector2 deckAt{-8, 0};
