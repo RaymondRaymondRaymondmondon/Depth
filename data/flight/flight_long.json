@@ -152,5 +152,6 @@
       {"key": "floating", "name": "Floating", "twigs": 25, "cost": "25 twigs, water nearby", "effect": "on the water: immune to everything on land; sharks take from it"}
     ]
   },
-  "structures": {"source": "doc p49: structures beyond nests (costs in flight_research.json, health in flight_danger.json)", "perch_sight": 1.25, "smokehouse_spoil": 1.5, "lookout_report": 2, "rookery_m": 40, "rookery_adults": 3, "beacon_days": 0.25}
+  "structures": {"source": "doc p49: structures beyond nests (costs in flight_research.json, health in flight_danger.json)", "perch_sight": 1.25, "smokehouse_spoil": 1.5, "lookout_report": 2, "rookery_m": 40, "rookery_adults": 3, "beacon_days": 0.25},
+  "score": {"source": "doc p50: additions to the score in a long match", "veteran_alive": 10, "relic_held": 60, "monument": 30, "decree_distinct": 5, "decree_max": 60, "truce_kept": 20}
 }

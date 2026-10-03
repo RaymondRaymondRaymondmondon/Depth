@@ -438,7 +438,7 @@ struct Side {
     int slot = 1; std::string name; Color livery{200, 60, 60, 255};
 };
 // the score (design doc p27; data/flight/flight_scoring.json)
-struct ScoreCard { int birds = 0, nests = 0, isles = 0, cache = 0, kills = 0, founder = 0, total = 0, research = 0, pearls = 0, faith = 0, thefts = 0, kraken = 0; };
+struct ScoreCard { int birds = 0, nests = 0, isles = 0, cache = 0, kills = 0, founder = 0, total = 0, research = 0, pearls = 0, faith = 0, thefts = 0, kraken = 0, legacy = 0; };   // (legacy: the long match's additions, doc p50)
 // stage 7: the dangerous islands' monsters and moods, the weather (flight_danger.cpp; data/flight/flight_danger.json)
 struct Kraken { int isle = -1; int mood = 0; float hp = 4000, hpMax = 4000, moodT = 0, calmT = 0, grabT = 0, armT = 0, armKill = 0; bool dead = false; int killedBy = -1; Vector3 arm{}; };   // mood 0 asleep, 1 awake, 2 surfaced
 struct Ape { int isle = -1; float sleepT = 0, throwT = 0, rockT = 0; Vector3 pos{}, rockFrom{}, rockTo{}; float lizardT = 0, plantT = 0, plantsBurnt = 0; };
@@ -607,6 +607,7 @@ struct World {
     void InitFactions();
     void StepFactions(float dt);
     void BotFactions();
+    int LegacyScore(int side, int* part = nullptr) const;   // (the long match's additions to the score, doc p50: part[6] veterans, relics, legend, monuments, decrees, truces)
     bool InRookery(const Nest& n) const;        // (structures, doc p49)
     bool LightBeacon();
     void StepStructures(float dt);

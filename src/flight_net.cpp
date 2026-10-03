@@ -309,7 +309,8 @@ ScoreCard World::Score(int side) const {
     c.faith = C.fervour >= 100 ? (int)K.fervour : 0;
     c.thefts = (int)((C.eggsStolen + C.nestsDestroyed) * K.theft);
     c.kraken = C.krakenKill ? (int)K.kraken : 0;
-    c.total = c.birds + c.nests + c.isles + c.cache + c.kills + c.founder + c.research + c.pearls + c.faith + c.thefts + c.kraken;
+    c.legacy = LegacyScore(side);
+    c.total = c.birds + c.nests + c.isles + c.cache + c.kills + c.founder + c.research + c.pearls + c.faith + c.thefts + c.kraken + c.legacy;
     return c;
 }
 void World::CheckEnd() {
@@ -539,7 +540,7 @@ template <class A> void Visit(A& a, World& w, bool full) {
     if (full) {
         VisitKnowledge(a, w.know);
         a.vec(w.log, [&](std::string& s) { a.s(s); });
-        a.vec(w.scores, [&](ScoreCard& c) { a.i(c.birds); a.i(c.nests); a.i(c.isles); a.i(c.cache); a.i(c.kills); a.i(c.founder); a.i(c.total); a.i(c.research); a.i(c.pearls); a.i(c.faith); a.i(c.thefts); a.i(c.kraken); });
+        a.vec(w.scores, [&](ScoreCard& c) { a.i(c.birds); a.i(c.nests); a.i(c.isles); a.i(c.cache); a.i(c.kills); a.i(c.founder); a.i(c.total); a.i(c.research); a.i(c.pearls); a.i(c.faith); a.i(c.thefts); a.i(c.kraken); a.i(c.legacy); });
         // the towns' markets (what they have, your standing), offers made to you and by you, truces
         a.vec(w.towns, [&](Town& t) { a.i(t.isle); a.v3(t.dock); for (int g = 0; g < G_COUNT; g++) { a.f(t.price[g]); a.f(t.stock[g]); } a.f(t.storm); a.vec(t.rep, [&](float& r) { a.f(r); }); });
         a.vec(w.townCredit, [&](float& c) { a.f(c); });

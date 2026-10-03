@@ -1061,6 +1061,40 @@ bool World::LayStructure(int kind) {
     return true;
 }
 
+// ---------------------------------------------------------------- the long match's additions to the score (doc p50)
+namespace {
+struct LongScore { float vet = 10, relic = 60, monument = 30, decree = 5, decreeMax = 60, truce = 20; };
+const LongScore& LS() {
+    static LongScore d; static bool loaded = false;
+    if (loaded) return d;
+    loaded = true;
+    Json j = LoadJsonFile(FlightDataDir() + "/flight_long.json");
+    const Json& t = j["score"];
+    d.vet = t["veteran_alive"].F(d.vet); d.relic = t["relic_held"].F(d.relic); d.monument = t["monument"].F(d.monument);
+    d.decree = t["decree_distinct"].F(d.decree); d.decreeMax = t["decree_max"].F(d.decreeMax); d.truce = t["truce_kept"].F(d.truce);
+    return d;
+}
+int Bits(uint32_t v) { int n = 0; while (v) { n += v & 1; v >>= 1; } return n; }
+}  // namespace
+int World::LegacyScore(int side, int* part) const {
+    // veterans alive 10 each; relics held 60 each; a legendary bird alive 100 (the Dodo 200); monuments 30 each;
+    // decrees used, 5 per distinct one (at most 60); truces kept to the end, 20 each (none for a colony that broke one)
+    int p[6] = {};
+    if (seasons > 0 && side >= 0 && side <= (int)sides.size()) {
+        const LongScore& K = LS();
+        const Colony& C = ColOf(side);
+        int vets = 0; for (const auto& b : C.birds) vets += b.alive && b.stage == BStage::Adult && b.vet >= 0;
+        p[0] = (int)lroundf(vets * K.vet);
+        p[1] = (int)lroundf(Bits(C.relics) * K.relic);
+        p[2] = C.legendAlive && C.legend >= 0 && C.legend < (int)Legends().size() ? Legends()[C.legend].score : 0;
+        p[3] = (int)lroundf(MonumentsOf(C) * K.monument);
+        p[4] = (int)std::min(K.decreeMax, Bits(C.decreesUsed) * K.decree);
+        size_t N = sides.size() + 1;
+        if (C.truceBroken < -999 && truceUntil.size() >= N * N) for (size_t t = 0; t < N; t++) if ((int)t != side && truceUntil[side * N + t] >= time) p[5] += (int)K.truce;
+    }
+    if (part) for (int k = 0; k < 6; k++) part[k] = p[k];
+    return p[0] + p[1] + p[2] + p[3] + p[4] + p[5];
+}
 // ---------------------------------------------------------------- --flight-long-test (the expansion's long match)
 int RunFlightLongTest() {
     int fails = 0;
@@ -1455,6 +1489,23 @@ int RunFlightLongTest() {
         w->time = 14 * World::DAY; w->col.shells = 200;
         built(ST_MONUMENT); bool second = w->LayStructure(ST_MONUMENT);
         check(second && MonumentsOf(w->col) == 1, "a second Monument can be laid once the first is raised");
+    }    // ---- the long match's additions to the score (doc p50)
+    {
+        auto w = make(4, 111); w->ape.isle = -1; w->kraken.isle = -1;
+        int base = w->LegacyScore(0);
+        w->col.relics = (1u << RL_BELL) | (1u << RL_LENS);
+        w->col.decreesUsed = 0xFFFFFu;   // (20 distinct decrees: capped at 60)
+        Bird v; v.id = w->col.nextId++; v.stage = BStage::Adult; v.role = Role::Striker; v.hp = 60; v.vet = VT_LUCKY; w->col.birds.push_back(v);
+        w->col.legend = LG_DODO; w->col.legendAlive = true;
+        Structure m; m.kind = ST_MONUMENT; m.built = true; w->col.builds.push_back(m);
+        size_t N = w->sides.size() + 1; w->truceUntil.assign(N * N, -1); w->truceUntil[0 * N + 1] = w->truceUntil[1 * N + 0] = w->time + World::DAY;
+        int part[6] = {}; int got = w->LegacyScore(0, part);
+        check(base == 0 && part[0] == 10 && part[1] == 120 && part[2] == 200 && part[3] == 30 && part[4] == 60 && part[5] == 20 && got == 440 && w->Score(0).legacy == got,
+              TextFormat("a veteran 10, two relics 120, the Dodo 200, a Monument 30, decrees 60 (capped), a truce kept 20: %d", got));
+        w->col.truceBroken = w->time;
+        check(w->LegacyScore(0) == 420, "a colony that broke a truce gets nothing for the ones it kept");
+        auto s = make(0, 111); s->col.relics = 3;
+        check(s->LegacyScore(0) == 0, "a standard match has no legacy score");
     }    printf(fails ? "flight-long-test: %d check(s) failed\n" : "flight-long-test: all checks passed\n", fails);
     return fails ? 1 : 0;
 }

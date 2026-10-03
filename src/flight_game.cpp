@@ -2268,8 +2268,9 @@ static void DrawResults(Game& g, fl::World& w) {
     DrawTextCenteredBold(w.winner == w.cur ? "Your colony wins!" : w.SideName(w.winner) + " wins", SCREEN_W / 2.0f, r.y + 14, 30, Color{255, 226, 150, 255});
     DrawTextCentered(w.overReason, SCREEN_W / 2.0f, r.y + 52, 16, dim);
     float y = r.y + 82;
-    static const char* COLS[] = {"birds", "nests", "island", "cache", "kills", "Founder", "research", "pearls", "faith", "thefts", "total"};
-    for (int c = 0; c < 11; c++) Txt(COLS[c], r.x + 220 + c * 60.0f, y, 14, dim);
+    static const char* COLS[] = {"birds", "nests", "island", "cache", "kills", "Founder", "research", "pearls", "faith", "thefts", "legacy", "total"};
+    int nc = w.seasons > 0 ? 12 : 11; float cw = w.seasons > 0 ? 56.0f : 60.0f;   // (the long match: its legacy column, doc p50)
+    for (int c = 0; c < nc; c++) Txt(COLS[c == nc - 1 ? 11 : c], r.x + 220 + c * cw, y, 14, dim);
     y += 22;
     std::vector<int> order; for (int s = 0; s <= (int)w.sides.size(); s++) order.push_back(s);
     std::sort(order.begin(), order.end(), [&](int a, int b) { return w.Score(a).total > w.Score(b).total; });
@@ -2277,8 +2278,8 @@ static void DrawResults(Game& g, fl::World& w) {
         fl::ScoreCard c = w.Score(s);
         Color col = s == w.cur ? Color{255, 230, 140, 255} : Mix(w.SideColor(s), WHITE, 0.35f);
         TxtBold(s == w.cur ? "You" : w.SideName(s), r.x + 24, y, 17, col);
-        int v[11] = {c.birds, c.nests, c.isles, c.cache, c.kills, c.founder, c.research, c.pearls, c.faith, c.thefts, c.total};
-        for (int k = 0; k < 11; k++) Txt(TextFormat("%d", v[k]), r.x + 220 + k * 60.0f, y, 17, k == 10 ? col : ink);
+        int v[12] = {c.birds, c.nests, c.isles, c.cache, c.kills, c.founder, c.research, c.pearls, c.faith, c.thefts, c.legacy, c.total};
+        for (int k = 0; k < nc; k++) Txt(TextFormat("%d", v[k == nc - 1 ? 11 : k]), r.x + 220 + k * cw, y, 17, k == nc - 1 ? col : ink);
         y += 30;
     }
     DrawTextCenteredBold(TextFormat("+%d tokens for the Roost wardrobe (%d in all)", paid, fl::Wardrobe().tokens + (S.shot ? paid : 0)), SCREEN_W / 2.0f, r.y + r.height - 78, 16, Color{255, 220, 150, 255});
