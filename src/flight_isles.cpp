@@ -343,6 +343,7 @@ bool World::IsleShields(int isle, int threat) const {
     if (isle < 0 || isle >= (int)isles.size()) return false;
     IsleType t = isles[isle].type;
     if (threat != NT_THEFT && threat != NT_TEAR) return false;
+    if (Sanctuary(isle)) return true;   // (the Council's Sanctuary)
     if (t == IsleType::Iceberg || t == IsleType::Mangrove || t == IsleType::Maelstrom) return true;   // (sheer ice; the roots; the centre rocks)
     if (t == IsleType::Lighthouse) { float ph = DayPhase(); return ph < 0.2f || ph > 0.85f; }   // (the beam blinds night raiders)
     return false;

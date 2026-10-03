@@ -1678,6 +1678,45 @@ void DrawLongPanel(fl::World& w) {
         }
         ly += 76;
     }
+    // the Long Flight: leagues, the Council, the Great War
+    if (sub == 1 && w.LongFlight()) {
+        static int lwith = 1; int n = (int)w.sides.size() + 1; if (lwith == w.cur || lwith >= n) lwith = (w.cur + 1) % n;
+        ly += 4; TxtBold("Leagues", x + 16, ly, 17, ink);
+        std::string mem; for (int s = 0; s < n; s++) if (s != w.cur && w.Leagued(w.cur, s)) mem += (mem.empty() ? "" : ", ") + w.SideName(s);
+        Txt(w.col.league >= 0 ? "your league: " + (mem.empty() ? std::string("binding (a day)") : mem) : std::string("no league"), x + 110, ly + 3, 13, w.col.league >= 0 ? Color{170, 240, 180, 255} : dim);
+        if (w.Oathbroken(w.cur)) Txt("OATHBROKEN", x + 460, ly + 3, 14, bad);
+        ly += 22;
+        if (SmallBtn({x + 16, ly, 24, 20}, ">")) { do lwith = (lwith + 1) % n; while (lwith == w.cur); }
+        Txt(w.SideName(lwith), x + 46, ly + 2, 14, w.SideColor(lwith));
+        if (w.col.league < 0 || !w.Leagued(w.cur, lwith)) { if (SmallBtn({x + 180, ly, 210, 20}, "propose a league (a pearl)")) { Writer o; fl::OrderLeague(o, lwith); Order(o); } }
+        if (w.col.league >= 0 && SmallBtn({x + 400, ly, 200, 20}, "leave the league (oathbroken)")) { Writer o; fl::OrderLeaveLeague(o); Order(o); }
+        ly += 26;
+        TxtBold("The Council", x + 16, ly, 17, ink);
+        int nextDay = 31; while (nextDay <= w.GameDay() && w.council.meeting < 0) nextDay += 6;
+        Txt(w.council.meeting >= 0 ? std::string("sitting now: vote by midday") : w.GameDay() < 31 ? std::string("meets from Summer of year two (day 31), every six days") : TextFormat("meets next on day %d", nextDay), x + 130, ly + 3, 12, dim);
+        ly += 22;
+        static int mk = 0;
+        if (w.council.meeting >= 0) {
+            for (int k = 0; k < (int)w.council.agenda.size(); k++) {
+                const fl::Motion& m = w.council.agenda[k];
+                std::string tg = m.kind == fl::MO_EMBARGO ? " on " + w.SideName(m.target) : m.kind == fl::MO_SANCTUARY && m.target >= 0 && m.target < (int)w.isles.size() ? " for " + w.isles[m.target].name : m.kind == fl::MO_HUNT ? (m.target == 1 ? " on the Roc" : " on the kraken") : "";
+                Txt(std::string(fl::MotionName(m.kind)) + tg + " (" + w.SideName(m.by) + ")", x + 16, ly + 2, 13, ink);
+                int v = (int)m.votes.size() > w.cur ? m.votes[w.cur] : 0;
+                if (SmallBtn({x + 420, ly, 60, 20}, v > 0 ? "[yes]" : "yes")) { Writer o; fl::OrderVote(o, k, true); Order(o); }
+                if (SmallBtn({x + 486, ly, 60, 20}, v < 0 ? "[no]" : "no")) { Writer o; fl::OrderVote(o, k, false); Order(o); }
+                ly += 22;
+            }
+            if (SmallBtn({x + 16, ly, 24, 20}, ">")) mk = (mk + 1) % fl::MO_COUNT;
+            Txt(std::string(fl::MotionName(mk)) + ": " + fl::MotionWhat(mk), x + 46, ly + 2, 12, dim);
+            int tgt = mk == fl::MO_SANCTUARY ? w.IsleAt(w.me.pos.x, w.me.pos.z, 10) : mk == fl::MO_HUNT ? (w.FarOpen() ? 1 : 0) : lwith;
+            if (SmallBtn({x + 560, ly, 120, 20}, "propose it")) { Writer o; fl::OrderPropose(o, mk, tgt); Order(o); }
+            ly += 24;
+        }
+        if (w.PeaceNow()) line("The Peace of the Sea holds: no raids.", Color{170, 240, 180, 255}, 13);
+        if (w.council.embargoUntil > w.time && w.council.embargo >= 0) line("Embargo on " + w.SideName(w.council.embargo) + ".", bad, 13);
+        if (w.council.war) line(std::string("THE GREAT WAR") + (w.time < w.council.warFrom ? " begins at dawn" : "") + ": your side is " + (w.WarSide(w.cur) == 0 ? "the proposer's league" : "everyone else") + ".", bad, 14);
+        ly += 4;
+    }
     // diplomacy, lightly: a pact, a bounty, a loan, a broken truce (doc pp. 47-48)
     if (sub == 1) {
         static int with = 1; int n = (int)w.sides.size() + 1; if (with == w.cur || with >= n) with = (w.cur + 1) % n;

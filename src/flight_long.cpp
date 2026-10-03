@@ -1099,7 +1099,7 @@ int World::LegacyScore(int side, int* part) const {
     }
     if (part) for (int k = 0; k < 6; k++) part[k] = p[k];
     int lf = LongFlight() && side >= 0 && side <= (int)sides.size() && ColOf(side).stormCrossed ? (int)StormCrossScore() : 0;   // (the Long Flight: the Storm Wall crossed)
-    if (LongFlight() && side >= 0 && side <= (int)sides.size()) lf += WonderScore(side);   // (Grand Projects)
+    if (LongFlight() && side >= 0 && side <= (int)sides.size()) { const Colony& C = ColOf(side); lf += WonderScore(side) + C.warsWon * 200 + C.huntScore; }   // (Grand Projects; the Great War won; the Hunt)
     return p[0] + p[1] + p[2] + p[3] + p[4] + p[5] + lf;
 }
 // ---------------------------------------------------------------- --flight-long-test (the expansion's long match)

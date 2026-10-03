@@ -38,5 +38,6 @@
       {"key": "ark", "name": "The Ark", "where": "anywhere", "twigs": 400, "shells": 200, "pearls": 60, "builder": "a floating island the builder moves a region a day; the wild birds follow it", "map": "the map's mates travel with it", "raised": "twice the mates"},
       {"key": "monument", "name": "The Monument of Feathers", "where": "anywhere", "twigs": 0, "shells": 500, "pearls": 100, "score": 500, "builder": "500 to the score, and the dynasty named in every Chronicle", "map": "nothing else: it is enormous and everyone can see it", "raised": "it doubles"}
     ]
-  }
+  },
+  "council": {"_source": "doc pp. 11-12: a league costs each a pearl and a day; leaving 30 fervour and a season oathbroken (towns -20%); the Council meets from Summer of year two every four days (stretched: day 31, then every 6); motions last four days (6); the Great War lasts four days (6), ends at two-thirds of the fronts; weariness 5 fervour and a fish a bird a day; 200 score to the winners", "league_pearls": 1, "league_days": 1, "leave_fervour": 30, "oath_days": 6, "oath_trade": 0.8, "first_day": 31, "every_days": 6, "vote_days": 0.3, "motion_days": 6, "peace_fish": 20, "hunt_score": 300, "war_days": 6, "war_fervour": 5, "war_fish_per_bird": 1, "war_share": 0.667, "war_score": 200}
 }

@@ -91,7 +91,7 @@ struct MapOpts {
     float minutes = 0;                          // 0: no limit (solo)
     bool multi = false;                         // no slow motion in a strike (the world can't crawl for one player)
     int seasons = 0;                            // (the expansion's long match) 0 standard; 2, 3 or 4 seasons; 6 or 8 the Long Flight
-    bool farSea = true, roc = true;             // (the Long Flight's lobby: the Far Sea, the Roc)
+    bool farSea = true, roc = true, greatWar = true;   // (the Long Flight's lobby: the Far Sea, the Roc, the Great War allowed)
 };
 // ---------------------------------------------------------------- the long match (the expansion, doc pp. 35-51: flight_long.cpp)
 enum SeasonId { SEASON_SPRING = 0, SEASON_SUMMER, SEASON_AUTUMN, SEASON_WINTER, SEASON_COUNT };
@@ -417,6 +417,7 @@ struct Town {
 struct Barter {   // an offer between two colonies (Trade tier 2): goods each way, a truce
     int id = 0, from = 0, to = 0; int give[G_COUNT] = {}, get[G_COUNT] = {}; float truceDays = 0, t = 0; int state = 0;   // 0 open, 1 accepted, 2 refused, 3 expired
     bool pact = false; int loanFlock = -1;      // (the long match's diplomacy: a feed pact; a flock lent for a day, for the fish asked)
+    bool league = false;                        // (the Long Flight: a league proposed by Herald)
 };
 struct Colony {
     int side = 0;                             // whose (0 you; 1.. the rivals)
@@ -466,7 +467,8 @@ struct Colony {
     int gen = 0, heirId = -1, heirTrait = -1, succChoice = 0, keepPerk = -1, dynastyPick = 0, heirAnnounced = -1; bool regent = false;
     int speciesTrait[2] = {-1, -1}; std::string speciesName;
     bool stormCrossed = false, rocEgg = false, fleetBoarded = false;
-    float templeT = -1e9f, arkT = -1e9f; int chainMark = -1, windPick = -1;   // (the wonders' hands)   // (the Far Sea: the Storm Wall crossed; a Roc's egg taken; the Fleet boarded)   // (the Long Flight: the colony's species, once 20 birds share a trait at III)
+    float templeT = -1e9f, arkT = -1e9f; int chainMark = -1, windPick = -1;   // (the wonders' hands)
+    int league = -1, oathsBroken = 0, warsWon = 0, huntScore = 0; float leagueFrom = 0, oathUntil = -1e9f;   // (leagues, oaths, the Great War, the Council's Hunt)   // (the Far Sea: the Storm Wall crossed; a Roc's egg taken; the Fleet boarded)   // (the Long Flight: the colony's species, once 20 birds share a trait at III)
     float genStart = 0, successionT = -1e9f; uint32_t relicsKept = 0; std::string dynasty; std::vector<ChronLine> chronicle;
     float beaconT = -1e9f, rookeryFledgeT = -1e9f; bool rookeryWarm = false;   // (the Beacon last lit; the Rookery's chicks fledging together; enough adults about it)
     int tech = -1; float techMastery[TK_COUNT] = {}; std::vector<int> techLog;   // (fishing mastery: the colony's technique, -1 auto; per ground x technique: tries, catches, losses)
@@ -486,12 +488,18 @@ struct Side {
     int slot = 1; std::string name; Color livery{200, 60, 60, 255};
 };
 // the score (design doc p27; data/flight/flight_scoring.json)
-struct ScoreCard { int birds = 0, nests = 0, isles = 0, cache = 0, kills = 0, founder = 0, total = 0, research = 0, pearls = 0, faith = 0, thefts = 0, kraken = 0, legacy = 0; };   // (legacy: the long match's additions, doc p50)
+struct ScoreCard { int birds = 0, nests = 0, isles = 0, cache = 0, kills = 0, founder = 0, total = 0, research = 0, pearls = 0, faith = 0, thefts = 0, kraken = 0, legacy = 0, leagueShare = 0; };   // (legacy: the long match's additions, doc p50)
 // stage 7: the dangerous islands' monsters and moods, the weather (flight_danger.cpp; data/flight/flight_danger.json)
 struct Kraken { int isle = -1; int mood = 0; float hp = 4000, hpMax = 4000, moodT = 0, calmT = 0, grabT = 0, armT = 0, armKill = 0; bool dead = false; int killedBy = -1; Vector3 arm{}; };   // mood 0 asleep, 1 awake, 2 surfaced
 struct Ape { int isle = -1; float sleepT = 0, throwT = 0, rockT = 0; Vector3 pos{}, rockFrom{}, rockTo{}; float lizardT = 0, plantT = 0, plantsBurnt = 0; };
 struct Volcano { int isle = -1; float next = 0, tremorT = 0, ashT = 0; int eruptions = 0; };
 struct WreckState { int isle = -1; Vector3 c0{}; Vector2 vel{}; float sunk = 0; int hold = 30; bool bell = true; bool gone = false; float ratT = 0, ghostT = 0; };
+// the Long Flight's Council (flight_longflight.cpp)
+enum { MO_PEACE = 0, MO_HUNT, MO_EMBARGO, MO_SANCTUARY, MO_TITHE, MO_WAR, MO_COUNT };
+const char* MotionName(int k); const char* MotionWhat(int k);
+struct Motion { int kind = 0, by = 0, target = -1; std::vector<int> votes; };   // (votes: per side, 1 yes, -1 no, 0 not yet)
+struct CouncilState { int meeting = -1, lastMeeting = -1; std::vector<Motion> agenda; float peaceUntil = -1, embargoUntil = -1, sanctuaryUntil = -1, huntUntil = -1, warFrom = 0, warUntil = 0;
+                      int embargo = -1, sanctuary = -1, hunt = -1, chest = 0; bool war = false; uint32_t warA = 0; };
 // the Long Flight's Far Sea (flight_longflight.cpp)
 struct FarState { Vector3 c{}; float fogR = 1e9f, wallR = 1e9f; bool opened = false;
                   int rocIsle = -1, rocTarget = -1; Vector3 roc{}; float rocHp = 900, rocT = 0, rocNestT = -1e9f; bool rocHunting = false;
@@ -689,6 +697,12 @@ struct World {
     bool Consecrate(int wonder); bool RaiseWonder(int wonder); bool WonderAct(int wonder, int arg, Vector3 at);
     float MateTimeMul(int side) const; float GateTaxFor(int zone, int side) const;
     void StepWonders(float dt); void BotWonders(); int WonderScore(int side) const;
+    CouncilState council; int nextLeague = 0;   // (leagues, the Council, the Great War)
+    bool Leagued(int a, int b) const; bool Oathbroken(int side) const; bool Embargoed(int side) const; bool PeaceNow() const; bool Sanctuary(int isle) const;
+    int WarSide(int side) const; int VoteWeight(int side) const; void OathBreak(int side, const std::string& what);
+    int OfferLeague(int to); void JoinLeague(int a, int b); bool LeaveLeague();
+    bool Propose(int kind, int target); bool Vote(int idx, bool yes); void BotCouncil(int side); void StepCouncil(float dt);
+    void HuntKilled(int beast, int side); void ShareLeagueScores();
     float eventDay2[4] = {-1, -1, -1, -1};      // (the Long Flight: year two's season events)
     void InitIsles(); void StepIsles(float dt); void SetGhostPose();
     bool IsleShields(int isle, int threat) const;   // (the island keeps raiders off its nests: sheer ice, the roots, the Maelstrom's rocks, the beam at night)

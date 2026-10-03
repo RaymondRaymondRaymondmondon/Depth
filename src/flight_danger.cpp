@@ -404,7 +404,7 @@ void World::StepDanger(float dt) {
                     for (int s = 0; s < N; s++) for (auto& f : ColOf(s).flocks) if (!f.members.empty() && Flat2(f.pos, cove) < D.kRadius + 10) { if (Bird* b = FindBird(s, f.members[(int)(Rand() * f.members.size()) % f.members.size()])) { kraken.arm = b->pos; kraken.armT = 1.2f; WithSide(s, [&] { BirdDies(*b, "taken by the kraken"); }); } s = N; break; }
                 }
                 if (kraken.hp <= 0 && bySide >= 0) {
-                    kraken.dead = true; kraken.killedBy = bySide;
+                    kraken.dead = true; kraken.killedBy = bySide; HuntKilled(0, bySide);   // (the Council's Hunt)
                     Colony& K = ColOf(bySide); K.krakenKill = 1; K.pearls += (int)D.kHoard;
                     for (auto& st : stocks) { int zi = st.zone; if (zi >= 0 && eco.ZoneAt(eco.map->zones[zi].Center()) == zi && Flat2(eco.map->zones[zi].Center(), cove) < 220) st.K *= 0.5f; }   // (nothing keeps the sharks out now)
                     for (int s = 0; s < N; s++) SayTo(s, s == bySide ? "THE KRAKEN IS DEAD: your flock has killed it (its hoard of pearls is yours; the cove's yield halves for everyone)." : SideName(bySide) + " has killed the kraken.");

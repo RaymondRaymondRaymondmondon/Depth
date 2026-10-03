@@ -307,8 +307,9 @@ bool World::TradeAt(int town, int feedIn, int good, int* got) {
     Town& T = towns[town];
     if ((int)T.rep.size() <= cur) T.rep.resize(cur + 1, 0);
     if (T.rep[cur] <= TD().repShoo) { Say(isles[T.isle].name + "'s people shoo your birds away (your reputation there)."); return false; }
+    if (Embargoed(cur)) { Say("The Council's embargo: no town will trade with you."); return false; }
     // the colony's credit at the town (feed sold and not yet spent) buys as many of the good as it covers
-    float value = feedIn * FishPrice(town) * BendNow().trade * DecreeNow().trade * (HasRelic(cur, RL_FLAG) ? Relics()[RL_FLAG].trade : 1.0f) * (T.rep[cur] >= 50 ? 1.1f : 1.0f);   // (the Fort's Flag)   // (Market Day +30%)
+    float value = feedIn * FishPrice(town) * BendNow().trade * DecreeNow().trade * (HasRelic(cur, RL_FLAG) ? Relics()[RL_FLAG].trade : 1.0f) * (T.rep[cur] >= 50 ? 1.1f : 1.0f) * (Oathbroken(cur) ? 0.8f : 1.0f);   // (oathbroken: worse rates)   // (the Fort's Flag)   // (Market Day +30%)
     if (int tithe = DecreeNow().tithe; tithe > 0) { col.titheFish += feedIn; while (col.titheFish >= tithe) { col.titheFish -= tithe; col.pearls++; } }   // (the Tithe: a pearl per 20 traded)
     T.stock[G_FISH] += feedIn;
     if (townCredit.size() < towns.size() * 8) townCredit.resize(towns.size() * 8, 0);
@@ -354,7 +355,12 @@ bool World::Pelican(int town, int isle) {
 // ---------------------------------------------------------------- barter between colonies (Trade 2)
 bool World::Truce(int a, int b) const {
     size_t N = sides.size() + 1;
-    if (a < 0 || b < 0 || (size_t)a >= N || (size_t)b >= N || truceUntil.size() < N * N) return false;
+    if (a < 0 || b < 0 || (size_t)a >= N || (size_t)b >= N) return false;
+    if (LongFlight() && a != b) {   // (the Long Flight: the Great War decides who is at peace; leagues and the Peace of the Sea are truces)
+        if (council.war && time >= council.warFrom) return WarSide(a) == WarSide(b);
+        if (Leagued(a, b) || PeaceNow()) return true;
+    }
+    if (truceUntil.size() < N * N) return false;
     return truceUntil[a * N + b] > time;
 }
 bool World::PayGoods(int side, const int goods[G_COUNT], bool take) {
@@ -397,6 +403,7 @@ bool World::AnswerOffer(int side, int id, bool accept) {
         GiveGoods(o.to, o.give); GiveGoods(o.from, o.get);
         size_t N = sides.size() + 1;
         if (o.truceDays > 0) { truceUntil.resize(N * N, -1); truceUntil[o.from * N + o.to] = truceUntil[o.to * N + o.from] = time + o.truceDays * DAY; }
+        if (o.league) JoinLeague(o.from, o.to);
         if (o.pact) { ColOf(o.from).pact = o.to; ColOf(o.to).pact = o.from; for (size_t s = 0; s < N; s++) SayTo((int)s, SideName(o.from) + " and " + SideName(o.to) + " open a feed line: cutting it is an act of war against both."); }
         if (o.loanFlock >= 0) if (Flock* f = FindFlock(o.from, o.loanFlock)) { f->loanTo = o.to; f->loanUntil = time + DAY; SayTo(o.to, f->name + " flies under your orders for a day (it follows your lead flock)."); }
         o.state = 1;
@@ -605,8 +612,8 @@ void World::BotSociety(float dt) {
     // offers to this colony: fair or better, and it can pay
     auto value = [](const int g[G_COUNT]) { return g[G_FISH] * 1.0f + g[G_TWIGS] * 0.5f + g[G_SHELLS] * 1.0f + g[G_PEARLS] * 8.0f; };
     for (auto& o : offers) if (o.state == 0 && o.to == cur) {
-        if (o.pact || o.loanFlock >= 0) {   // (diplomacy: a pact with anyone who hasn't raided it; a loan when it has an enemy and the fish)
-            bool yes = o.pact ? C.lastRaider != o.from && C.pact < 0 : C.lastRaider >= 0 && C.lastRaider != o.from && PayGoods(cur, o.get, false);
+        if (o.pact || o.loanFlock >= 0 || o.league) {   // (diplomacy: a pact with anyone who hasn't raided it; a loan when it has an enemy and the fish; a league likewise, half the time)
+            bool yes = o.league ? C.lastRaider != o.from && C.pearls >= 1 && !Oathbroken(cur) && Rand() < 0.5f : o.pact ? C.lastRaider != o.from && C.pact < 0 : C.lastRaider >= 0 && C.lastRaider != o.from && PayGoods(cur, o.get, false);
             AnswerOffer(cur, o.id, yes);
             continue;
         }

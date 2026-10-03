@@ -10,6 +10,8 @@
 //      frigate), and the Storm Wall beyond it.
 //   4. Grand Projects: nine wonders, one per map, consecrated by the Founder and raised by builders over a season;
 //      each changes the map for everyone; raised to a second tier in year two.
+//   5. Leagues (shared sight, truce, the score shared), the Council (a vote at dawn every six days from Summer of
+//      year two: Peace, the Hunt, Embargo, Sanctuary, Tithe, the Great War), oaths and the Great War.
 // The calendar (the user's call: the doc's days stretched to fit the colony's growth): a year is the four-season
 // match's 24 days, so the Long Flight is 48 days (or 36 for the shorter one); the Founder's life is a year.
 #include "flight.h"
@@ -380,6 +382,7 @@ void World::StepFarSea(float dt) {
             Vector3 dv = Vector3Subtract(goal, far.roc); float dl = Vector3Length(dv);
             if (dl > 0.1f) far.roc = Vector3Add(far.roc, Vector3Scale(dv, std::min(1.0f, 28 * dt / dl)));
             far.rocT += dt;
+            if (ts >= 0 && dl < 25) { far.rocHp -= dt * 3 * best; if (far.rocHp <= 0) { for (int s = 0; s < N; s++) SayTo(s, SideName(ts) + "'s flock has killed the Roc."); Chronicle(ts, CK_BEAST, "Our flock killed the Roc."); HuntKilled(1, ts); } }   // (a hunted flock fights back)
             if (ts >= 0 && dl < 25 && far.rocT >= D.rocEvery) {
                 far.rocT = 0;
                 if (Flock* f = FindFlock(ts, tf)) for (int id : f->members) if (Bird* b = FindBird(ts, id)) { Bird& bb = *b; WithSide(ts, [&] { BirdDies(bb, "taken by the Roc"); }); SayTo(ts, "The ROC strikes your flock (fly in flocks of nine, or at dawn)."); break; }
@@ -663,6 +666,210 @@ int World::WonderScore(int side) const {
     return s;
 }
 
+// ---------------------------------------------------------------- 5. leagues, the Council and the Great War (doc pp. 11-12)
+namespace {
+struct CouncilData {
+    int leaguePearls = 1; float leagueDays = 1, leaveFervour = 30, oathDays = 6, oathTrade = 0.8f;
+    int firstDay = 31, every = 6; float voteDays = 0.3f, motionDays = 6; int peaceFish = 20; float huntScore = 300;
+    float warDays = 6, warFervour = 5, warFishPerBird = 1, warShare = 2.0f / 3; float warScore = 200;
+};
+const CouncilData& CD() {
+    static CouncilData d; static bool loaded = false;
+    if (loaded) return d;
+    loaded = true;
+    Json j = LoadJsonFile(FlightDataDir() + "/flight_longflight.json");
+    const Json& c = j["council"];
+    auto F = [&](const char* k, float& v) { if (c[k].IsNum()) v = c[k].F(v); };
+    auto I = [&](const char* k, int& v) { if (c[k].IsNum()) v = c[k].I(v); };
+    I("league_pearls", d.leaguePearls); F("league_days", d.leagueDays); F("leave_fervour", d.leaveFervour); F("oath_days", d.oathDays); F("oath_trade", d.oathTrade);
+    I("first_day", d.firstDay); I("every_days", d.every); F("vote_days", d.voteDays); F("motion_days", d.motionDays); I("peace_fish", d.peaceFish); F("hunt_score", d.huntScore);
+    F("war_days", d.warDays); F("war_fervour", d.warFervour); F("war_fish_per_bird", d.warFishPerBird); F("war_share", d.warShare); F("war_score", d.warScore);
+    return d;
+}
+}  // namespace
+const char* MotionName(int k) { static const char* N[MO_COUNT] = {"Peace of the Sea", "The Hunt", "Embargo", "Sanctuary", "Tithe", "The Great War"}; return N[std::clamp(k, 0, MO_COUNT - 1)]; }
+const char* MotionWhat(int k) {
+    static const char* W[MO_COUNT] = {"no raids for six days; every player pays 20 fish and the pirates are paid off", "whoever kills the named beast gets 300 and its relic",
+                                      "the named player can't trade at any town for six days", "the named island is neutral for six days: no nests built or destroyed there",
+                                      "every player pays a pearl to the Council's chest", "the proposer's league against everyone else, from the next dawn"};
+    return W[std::clamp(k, 0, MO_COUNT - 1)];
+}
+bool World::Leagued(int a, int b) const { return a != b && a >= 0 && b >= 0 && a <= (int)sides.size() && b <= (int)sides.size() && ColOf(a).league >= 0 && ColOf(a).league == ColOf(b).league && time >= ColOf(a).leagueFrom && time >= ColOf(b).leagueFrom; }
+bool World::Oathbroken(int side) const { return side >= 0 && side <= (int)sides.size() && time < ColOf(side).oathUntil; }
+bool World::Embargoed(int side) const { return council.embargo == side && time < council.embargoUntil; }
+bool World::PeaceNow() const { return time < council.peaceUntil; }
+bool World::Sanctuary(int isle) const { return isle >= 0 && isle == council.sanctuary && time < council.sanctuaryUntil; }
+int World::WarSide(int side) const { if (!council.war) return -1; return ((council.warA >> side) & 1) ? 0 : 1; }
+int World::VoteWeight(int side) const { int w = 0; for (int i = 0; i < (int)isles.size(); i++) w += HolderOf(i) == side; return std::max(1, w + RelicCount(side)); }
+void World::OathBreak(int side, const std::string& what) {
+    Colony& C = ColOf(side);
+    if (time < C.oathUntil) return;
+    C.oathUntil = time + CD().oathDays * DAY; C.oathsBroken++;
+    for (int o = 0; o <= (int)sides.size(); o++) SayTo(o, SideName(side) + " is OATHBROKEN (" + what + "): worse rates at every town, no new leagues, its name in red for a season.");
+    Chronicle(side, CK_OATH, "We broke our oath: " + what + ".");
+}
+int World::OfferLeague(int to) {
+    if (!LongFlight() || to < 0 || to > (int)sides.size() || to == cur) return -1;
+    if (Oathbroken(cur)) { Say("An oathbroken colony can't make a league."); return -1; }
+    if (col.pearls < CD().leaguePearls) { Say("A league costs a pearl from each."); return -1; }
+    Barter o; o.id = nextOffer++; o.from = cur; o.to = to; o.t = time; o.league = true; o.give[G_PEARLS] = 0;
+    offers.push_back(o);
+    SayTo(to, SideName(cur) + "'s Herald proposes a league: shared sight, feed lines, flocks together, the Reckoning's score shared (the trade page).");
+    Say("Your Herald carries the proposal.");
+    return o.id;
+}
+void World::JoinLeague(int a, int b) {
+    Colony& A = ColOf(a); Colony& B = ColOf(b);
+    A.pearls = std::max(0, A.pearls - CD().leaguePearls); B.pearls = std::max(0, B.pearls - CD().leaguePearls);
+    int id = A.league >= 0 ? A.league : B.league >= 0 ? B.league : nextLeague++;
+    int old = B.league; for (int s = 0; s <= (int)sides.size(); s++) if (old >= 0 && ColOf(s).league == old) ColOf(s).league = id;
+    A.league = B.league = id; A.leagueFrom = std::max(A.leagueFrom, time + CD().leagueDays * DAY); B.leagueFrom = std::max(B.leagueFrom, time + CD().leagueDays * DAY);
+    for (int s = 0; s <= (int)sides.size(); s++) SayTo(s, SideName(a) + " and " + SideName(b) + " form a league (bound in a day).");
+    Chronicle(a, CK_MARRIAGE, "We bound ourselves in a league with " + SideName(b) + "."); Chronicle(b, CK_MARRIAGE, "We bound ourselves in a league with " + SideName(a) + ".");
+}
+bool World::LeaveLeague() {
+    if (col.league < 0) return false;
+    col.league = -1; col.fervour = std::max(0.0f, col.fervour - CD().leaveFervour);
+    OathBreak(cur, "it left its league");
+    return true;
+}
+bool World::Propose(int kind, int target) {
+    if (!LongFlight() || kind < 0 || kind >= MO_COUNT || council.meeting < 0) { Say("The Council isn't sitting (it meets every six days from Summer of year two)."); return false; }
+    for (const auto& m : council.agenda) if (m.by == cur) { Say("One proposal a player a meeting."); return false; }
+    Motion m; m.kind = kind; m.by = cur; m.target = target; m.votes.assign(sides.size() + 1, 0);
+    council.agenda.push_back(m);
+    for (int s = 0; s <= (int)sides.size(); s++) SayTo(s, SideName(cur) + " proposes to the Council: " + MotionName(kind) + ".");
+    return true;
+}
+bool World::Vote(int idx, bool yes) {
+    if (council.meeting < 0 || idx < 0 || idx >= (int)council.agenda.size()) return false;
+    council.agenda[idx].votes[cur] = yes ? 1 : -1;
+    return true;
+}
+void World::BotCouncil(int s) {
+    // a bot proposes what suits it, and votes its interest
+    Colony& C = ColOf(s);
+    float mine = Score(s).total, avg = 0; int N = (int)sides.size() + 1; for (int o = 0; o < N; o++) avg += Score(o).total; avg /= N;
+    bool proposed = false; for (const auto& m : council.agenda) proposed |= m.by == s;
+    if (!proposed && Rand() < 0.4f) {
+        int leader = 0; for (int o = 1; o < N; o++) if (Score(o).total > Score(leader).total) leader = o;
+        Motion m; m.by = s; m.votes.assign(N, 0);
+        if (mine < avg * 0.85f) { m.kind = MO_PEACE; }
+        else if (C.league >= 0 && opts.greatWar && !council.war && Year() == 2 && Season() == SEASON_SUMMER) { m.kind = MO_WAR; }
+        else if (leader != s) { m.kind = MO_EMBARGO; m.target = leader; }
+        else { m.kind = MO_HUNT; m.target = 0; }
+        council.agenda.push_back(m);
+    }
+    for (auto& m : council.agenda) {
+        if (m.votes[s]) continue;
+        bool yes = false;
+        switch (m.kind) {
+        case MO_PEACE: yes = mine < avg; break;
+        case MO_HUNT: yes = true; break;
+        case MO_EMBARGO: yes = m.target != s && !Leagued(s, m.target); break;
+        case MO_SANCTUARY: yes = HolderOf(m.target) != s; break;
+        case MO_TITHE: yes = C.pearls > 6; break;
+        case MO_WAR: yes = m.by == s || Leagued(s, m.by); break;
+        }
+        m.votes[s] = yes ? 1 : -1;
+    }
+}
+void World::StepCouncil(float dt) {
+    if (!LongFlight()) return;
+    const CouncilData& D = CD();
+    int N = (int)sides.size() + 1;
+    int day = GameDay();
+    bool dayTick = fmodf(time, DAY) < dt;
+    // the leagues: shared sight (each member sees what any member has seen)
+    if (fmodf(time, 5.0f) < dt) for (int a = 0; a < N; a++) for (int b = a + 1; b < N; b++) if (Leagued(a, b)) {
+        Knowledge& KA = a == cur ? know : (a == 0 ? sides[cur - 1].know : sides[a - 1].know);
+        Knowledge& KB = b == cur ? know : (b == 0 ? sides[cur - 1].know : sides[b - 1].know);
+        for (size_t i = 0; i < KA.isle.size() && i < KB.isle.size(); i++) KA.isle[i] = KB.isle[i] = std::max(KA.isle[i], KB.isle[i]);
+    }
+    // bots seek a league in year two (a colony that hasn't raided them)
+    if (dayTick && Year() == 2) for (int s = 0; s < N; s++) {
+        if (HumanOf(s) || ColOf(s).league >= 0 || Oathbroken(s) || Rand() > 0.25f) continue;
+        int to = -1; for (int o = 0; o < N; o++) if (o != s && ColOf(s).lastRaider != o && ColOf(o).lastRaider != s && (to < 0 || Rand() < 0.5f)) to = o;
+        if (to >= 0) WithSide(s, [&] { OfferLeague(to); });
+    }
+    // the Council: from Summer of year two, a meeting at dawn every six days
+    if (council.meeting < 0 && day >= D.firstDay && (day - D.firstDay) % D.every == 0 && council.lastMeeting != day && fmodf(time, DAY) < 0.1f * DAY) {
+        council.meeting = day; council.lastMeeting = day; council.agenda.clear();
+        for (int s = 0; s < N; s++) SayTo(s, "THE COUNCIL SITS: propose a motion and vote by midday (weight: islands held and relics).");
+    }
+    if (council.meeting >= 0) {
+        for (int s = 0; s < N; s++) if (!HumanOf(s)) BotCouncil(s);
+        if (fmodf(time, DAY) >= D.voteDays * DAY) {
+            for (auto& m : council.agenda) {
+                int yes = 0, no = 0; for (int s = 0; s < N; s++) { int wv = VoteWeight(s); if (m.votes[s] > 0) yes += wv; else if (m.votes[s] < 0) no += wv; }
+                bool pass = yes > no;
+                for (int s = 0; s < N; s++) SayTo(s, TextFormat("The Council: %s %s (%d to %d).", MotionName(m.kind), pass ? "PASSES" : "fails", yes, no));
+                if (!pass) continue;
+                float until = time + D.motionDays * DAY;
+                switch (m.kind) {
+                case MO_PEACE:
+                    council.peaceUntil = until; pirates.scatterUntil = std::max(pirates.scatterUntil, until);
+                    for (int s = 0; s < N; s++) { int n = D.peaceFish; for (auto& c : ColOf(s).caches) while (n > 0 && !c.fish.empty()) { c.fish.pop_back(); n--; } Chronicle(s, CK_OATH, "The Council made the Peace of the Sea."); }
+                    for (int s = 0; s < N; s++) for (auto& f : ColOf(s).flocks) if (f.target == Target::Cache || f.target == Target::Nests) OrderFlock(s, f.id, Target::Home, -1, -1, -1, -1, {});
+                    if (council.war) { council.war = false; for (int s = 0; s < N; s++) SayTo(s, "The Peace ends the Great War."); }
+                    break;
+                case MO_HUNT: council.hunt = m.target; council.huntUntil = until; break;
+                case MO_EMBARGO: council.embargo = m.target; council.embargoUntil = until; break;
+                case MO_SANCTUARY: council.sanctuary = m.target; council.sanctuaryUntil = until; break;
+                case MO_TITHE: for (int s = 0; s < N; s++) if (ColOf(s).pearls > 0) { ColOf(s).pearls--; council.chest++; } break;
+                case MO_WAR: {
+                    if (council.war || !opts.greatWar) break;
+                    uint32_t A = 1u << m.by; for (int s = 0; s < N; s++) if (Leagued(s, m.by)) A |= 1u << s;
+                    council.warA = A; council.warFrom = (floorf(time / DAY) + 1) * DAY; council.warUntil = council.warFrom + D.warDays * DAY; council.war = true;
+                    for (int s = 0; s < N; s++) { SayTo(s, std::string("THE GREAT WAR is declared: ") + (((A >> s) & 1) ? "your side is the proposer's league" : "you stand with everyone else") + ". It begins at the next dawn."); Chronicle(s, CK_WAR, "The Great War was declared."); }
+                } break;
+                }
+            }
+            council.meeting = -1; council.agenda.clear();
+        }
+    }
+    // a raid during the Peace breaks the oath
+    if (PeaceNow()) for (int s = 0; s < N; s++) for (const auto& f : ColOf(s).flocks) if ((f.target == Target::Cache || f.target == Target::Nests) && f.tSide >= 0 && f.tSide != s && !f.retreating) OathBreak(s, "it raided during the Peace of the Sea");
+    // the Great War
+    if (council.war && time >= council.warFrom) {
+        if (dayTick) {
+            for (int s = 0; s < N; s++) {   // (war weariness: armies eat, and every day costs fervour)
+                Colony& C = ColOf(s); int birds = 0; for (const auto& b : C.birds) birds += b.alive;
+                C.fervour = std::max(0.0f, C.fervour - D.warFervour);
+                int n = (int)(birds * D.warFishPerBird); for (auto& c : C.caches) while (n > 0 && !c.fish.empty()) { c.fish.pop_back(); n--; }
+                if (!HumanOf(s)) { int foe = -1; float bd = 1e9f; for (int o = 0; o < N; o++) if (WarSide(o) != WarSide(s) && !ColOf(o).caches.empty() && !C.caches.empty()) { float d = Vector3Distance(C.caches[0].pos, ColOf(o).caches[0].pos); if (d < bd) { bd = d; foe = o; } } C.warT = 0; if (foe >= 0) ColOf(foe).lastRaider = s; }
+            }
+        }
+        // the fronts: every island either side holds; two-thirds to one side ends it
+        int a = 0, b = 0; for (int i = 0; i < (int)isles.size(); i++) { int h = HolderOf(i); if (h < 0) continue; if (WarSide(h) == 0) a++; else b++; }
+        int fronts = a + b; int won = -1;
+        if (fronts >= 3 && a >= D.warShare * fronts) won = 0; else if (fronts >= 3 && b >= D.warShare * fronts) won = 1;
+        if (won < 0 && time >= council.warUntil) won = a > b ? 0 : b > a ? 1 : 2;
+        if (won >= 0) {
+            council.war = false;
+            for (int s = 0; s < N; s++) {
+                bool win = won < 2 && WarSide(s) == won;
+                if (win) { ColOf(s).warsWon++; Chronicle(s, CK_WAR, "We won the Great War."); } else Chronicle(s, CK_WAR, won == 2 ? "The Great War ended with no side the victor." : "We lost the Great War.");
+                SayTo(s, won == 2 ? std::string("The Great War ends, undecided.") : win ? std::string("The GREAT WAR is won: your side holds the fronts (+200).") : std::string("The Great War is lost; you keep what you held."));
+            }
+        }
+    }
+}
+
+void World::HuntKilled(int beast, int side) {
+    if (!LongFlight() || council.hunt != beast || time > council.huntUntil || side < 0) return;
+    Colony& C = ColOf(side); C.huntScore += (int)CD().huntScore; council.hunt = -1;
+    if (RelicCount(side) < RelicsMax()) for (int r = 0; r < RL_COUNT; r++) { bool held = false; for (int o = 0; o <= (int)sides.size(); o++) held |= (ColOf(o).relics >> r) & 1; if (!held) { C.relics |= 1u << r; break; } }
+    for (int o = 0; o <= (int)sides.size(); o++) SayTo(o, SideName(side) + " wins the Council's Hunt (+300 and the beast's relic).");
+    Chronicle(side, CK_BEAST, beast == 0 ? "We killed the kraken in the Council's Hunt." : "We killed the Roc in the Council's Hunt.");
+}
+void World::ShareLeagueScores() {
+    if (!LongFlight()) return;
+    int N = (int)scores.size();
+    for (int a = 0; a < N; a++) { int lg = ColOf(a).league; if (lg < 0) continue; int sum = 0, n = 0; for (int b = 0; b < N; b++) if (ColOf(b).league == lg) { sum += scores[b].legacy >= 0 ? scores[b].total : 0; n++; } if (n > 1) scores[a].leagueShare = sum / n; }
+    for (int a = 0; a < N; a++) if (scores[a].leagueShare > 0) { scores[a].total = scores[a].leagueShare; scores[a].leagueShare = 0; }
+}
+
 // ---------------------------------------------------------------- --flight-longflight-test
 int RunFlightLongFlightTest() {
     int fails = 0;
@@ -824,6 +1031,44 @@ int RunFlightLongFlightTest() {
         for (auto& s : w->col.builds) if (s.kind == ST_WONDER) { s.twigs = (float)StTwigs(s); s.shells = StShells(s); s.startT = 0; }
         w->StepWonders(0.1f);
         check(raise && ((w->wonderRaised >> WD_CHAIN) & 1) && w->WonderScore(0) == 600, "in year two a wonder can be raised to its second tier (half the cost; its score doubles)");
+    }    // ---- leagues, the Council and the Great War
+    {
+        auto w = std::make_unique<World>(); { MapOpts o; o.players = 3; o.seasons = 8; w->Init("taloned", 41, o); w->ape.isle = -1; w->kraken.isle = -1; w->weather.next = 1e9f; }
+        for (int s = 0; s < 3; s++) w->ColOf(s).pearls = 5;
+        int id = w->OfferLeague(1);
+        w->WithSide(1, [&] { w->AnswerOffer(1, id, true); });
+        bool binding = w->ColOf(0).league >= 0 && !w->Leagued(0, 1);
+        w->time += World::DAY * 1.1f;
+        check(binding && w->Leagued(0, 1) && w->Truce(0, 1) && !w->Leagued(0, 2) && w->ColOf(0).pearls == 4, "a league by Herald: a pearl from each, bound in a day; leaguemates are at truce");
+        // the league shares its score at the end
+        w->scores.assign(3, ScoreCard{}); w->scores[0].total = 100; w->scores[1].total = 300; w->scores[2].total = 150; w->ShareLeagueScores();
+        check(w->scores[0].total == 200 && w->scores[1].total == 200 && w->scores[2].total == 150, "the Reckoning's score is the league's total, shared evenly");
+        // the Council
+        w->time = 30 * World::DAY + 0.02f * World::DAY; w->StepCouncil(0.1f);
+        bool sitting = w->council.meeting == 31;
+        w->col.relics = (1u << RL_BELL) | (1u << RL_LENS);   // (weight: islands held and relics)
+        bool prop = w->Propose(MO_EMBARGO, 2) && !w->Propose(MO_TITHE, -1);
+        int ours = -1; for (int k = 0; k < (int)w->council.agenda.size(); k++) if (w->council.agenda[k].by == 0) ours = k;
+        w->Vote(ours, true);
+        w->time = 30 * World::DAY + 0.35f * World::DAY; w->StepCouncil(0.1f);
+        check(sitting && prop && w->Embargoed(2) && w->council.meeting < 0, "the Council sits at dawn on day 31; one motion a player; an Embargo passes by weight (islands and relics)");
+        bool traded = true; w->WithSide(2, [&] { traded = !w->towns.empty() && w->TradeAt(0, 4, G_TWIGS); });
+        check(!traded, "an embargoed colony can't trade at any town");
+        // leaving a league: oathbroken
+        float fv = w->ColOf(0).fervour = 60; w->LeaveLeague();
+        check(w->Oathbroken(0) && w->ColOf(0).fervour <= fv - 29 && w->OfferLeague(2) < 0, "leaving a league costs 30 fervour and a season oathbroken (no new leagues)");
+        // the Great War
+        w->council.meeting = 37; w->council.agenda.clear(); w->time = 36 * World::DAY + 0.02f * World::DAY;
+        Motion m; m.kind = MO_WAR; m.by = 0; m.votes = {1, 1, 1}; w->council.agenda.push_back(m);
+        w->time = 36 * World::DAY + 0.35f * World::DAY; w->StepCouncil(0.1f);
+        bool declared = w->council.war;
+        w->time = 37 * World::DAY + 0.5f * World::DAY; float f2 = w->ColOf(2).fervour; w->time = 38 * World::DAY; w->StepCouncil(0.1f);
+        check(declared && !w->Truce(0, 2) && w->ColOf(2).fervour < f2, "the Great War: declared, it begins at dawn; no truce across the sides; war weariness costs fervour");
+        w->time = w->council.warUntil + 1; w->StepCouncil(0.1f);
+        check(!w->council.war, "the Great War ends (two-thirds of the fronts, a Peace, or six days)");
+        // the Hunt
+        w->council.hunt = 0; w->council.huntUntil = w->time + World::DAY; w->HuntKilled(0, 1);
+        check(w->ColOf(1).huntScore == 300, "the Council's Hunt: the kraken's killer gets 300");
     }    printf(fails ? "flight-longflight-test: %d check(s) failed\n" : "flight-longflight-test: all checks passed\n", fails);
     return fails ? 1 : 0;
 }
