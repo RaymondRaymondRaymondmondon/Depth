@@ -266,7 +266,7 @@ void World::InitTowns() {
     towns.clear();
     const TownData& D = TD();
     for (int i = 0; i < (int)isles.size(); i++) {
-        if (isles[i].type != IsleType::Town) continue;
+        if (isles[i].type != IsleType::Town && isles[i].type != IsleType::CliffTown) continue;
         Town t; t.isle = i;
         t.dock = isles[i].c;
         float bd = -1;   // (the dock: the town's longest jetty, its end over the water)
@@ -276,6 +276,7 @@ void World::InitTowns() {
         t.stock[G_FISH] = 120;   // (the fleet's morning catch, in feed)
         t.rep.assign(sides.size() + 1, 0);
         towns.push_back(t);
+        if (isles[i].type == IsleType::CliffTown) { t.dock = Vector3Add(isles[i].hill, {0, 1, 0}); for (int g = 0; g < G_COUNT; g++) t.price[g] *= 1.15f; towns.push_back(t); }   // (the town's own market up the cliff: the best trade on the map)
     }
 }
 int World::NearestTown(Vector3 p, float r) const {

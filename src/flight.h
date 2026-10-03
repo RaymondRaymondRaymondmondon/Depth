@@ -34,10 +34,13 @@ std::string FlightDataDir();                  // data/flight (found like Red Tid
 // ---------------------------------------------------------------- the islands (stage 1: the tropical island; stage 3: every type)
 // Design doc pp. 13-16: four starting types (one per player), neutral islets, and the dangerous islands of the map's
 // middle (their shapes now; their dangers and prizes are stage 7).
-enum class IsleType : uint8_t { Tropical, Stack, Town, Atoll, Islet, KrakenCove, Skull, Volcano, ReefGarden, Wreck, COUNT };
+enum class IsleType : uint8_t { Tropical, Stack, Town, Atoll, Islet, KrakenCove, Skull, Volcano, ReefGarden, Wreck,
+                                Iceberg, Lighthouse, Shipwreck, Mangrove, KelpRaft, CliffTown,          // (the expansion's six more starting islands, doc p43)
+                                IronIsland, Whale, SirenRocks, Maelstrom, GhostShip, BirdIsland, COUNT };   // (and six more dangerous ones, pp. 44-45)
 const char* IsleTypeName(IsleType t);
-inline bool IsStartType(IsleType t) { return t <= IsleType::Atoll; }
-inline bool IsDangerous(IsleType t) { return t >= IsleType::KrakenCove; }
+inline bool IsStartType(IsleType t) { return t <= IsleType::Atoll || (t >= IsleType::Iceberg && t <= IsleType::CliffTown); }
+inline bool IsDangerous(IsleType t) { return (t >= IsleType::KrakenCove && t <= IsleType::Wreck) || t >= IsleType::IronIsland; }
+inline bool IsDrifting(IsleType t) { return t == IsleType::Wreck || t == IsleType::GhostShip; }   // (no terrain: drawn from its props, moved by the time)
 struct Prop { Vector3 c{}, half{}; int kind = 0; float yaw = 0; };   // a box: 0 house, 1 roof, 2 tower, 3 dock, 4 boat, 5 woodpile, 6 hull, 7 mast
 struct Island {
     IsleType type = IsleType::Tropical;
@@ -61,6 +64,8 @@ struct Island {
     uint32_t seed = 1;
     void Generate(uint32_t seed);               // (the stage-1 tropical island at the origin)
     void Generate(IsleType type, uint32_t seed, Vector3 centre);
+    void GenerateMore(IsleType type, uint32_t seed);   // (the expansion's islands: flight_isles.cpp)
+    void addSiteAt(Vector3 p);
     float Height(float x, float z) const;       // bilinear; outside the grid: the floor depth
     bool Covers(float x, float z) const { return n > 0 && x >= x0 && z >= z0 && x < x0 + (n - 1) * cell && z < z0 + (n - 1) * cell; }
     Vector3 Normal(float x, float z) const;
@@ -290,6 +295,7 @@ struct Bird {
     int fights = 0; int vet = -1, vetName = -1; bool luckyUsed = false; float foughtT = -100, countedT = -100;   // vet: VT_* trait, -1 none
     int trait = -1;                           // MT_*: a mate's trait, and its chicks' (inherited)
     bool taught = false;                      // (a Teacher saw it fledge)
+    float songT = 0;                          // (the Siren Rocks: enthralled, sitting on the rocks)
     int tk = -1, bonusFish = 0; float recoverT = 0;   // (fishing mastery: the technique of this trip; a second fish (night fishing); a missed plunge's recovery)           // (a Trader's goods coming home; carrySp -2 an egg being stolen, -3 a bomb)
 };
 struct Site { Vector3 pos{}; int palm = -1; int nest = -1; int isle = -1; };
@@ -444,6 +450,9 @@ struct Kraken { int isle = -1; int mood = 0; float hp = 4000, hpMax = 4000, mood
 struct Ape { int isle = -1; float sleepT = 0, throwT = 0, rockT = 0; Vector3 pos{}, rockFrom{}, rockTo{}; float lizardT = 0, plantT = 0, plantsBurnt = 0; };
 struct Volcano { int isle = -1; float next = 0, tremorT = 0, ashT = 0; int eruptions = 0; };
 struct WreckState { int isle = -1; Vector3 c0{}; Vector2 vel{}; float sunk = 0; int hold = 30; bool bell = true; bool gone = false; float ratT = 0, ghostT = 0; };
+// the expansion's islands' state (flight_isles.cpp)
+struct IsleState { int ghost = -1, whale = -1, dives = 0; Vector3 ghostC0{}; float whaleNext = 0, whaleUnderT = 0, ironT = 0; bool ironStores = false, sirenGift = false, maelRelic = false; bool holdFlooded[6] = {}; std::vector<float> birdConv; std::vector<int> ghostSeason; };
+float IcebergShells(); float SongRange();
 struct Weather { int kind = 0; float t = 0, next = 0; float fogDawn = -1; };   // kind 0 fair, 1 storm, 2 fog
 
 // ---------------------------------------------------------------- the world (one Founder, one island: stage 1)
@@ -608,6 +617,12 @@ struct World {
     void StepFactions(float dt);
     void BotFactions();
     int LegacyScore(int side, int* part = nullptr) const;   // (the long match's additions to the score, doc p50: part[6] veterans, relics, legend, monuments, decrees, truces)
+    IsleState isx;                              // (the expansion's islands, doc pp. 43-45)
+    void InitIsles(); void StepIsles(float dt); void SetGhostPose();
+    bool IsleShields(int isle, int threat) const;   // (the island keeps raiders off its nests: sheer ice, the roots, the Maelstrom's rocks, the beam at night)
+    bool Calm() const;                          // (a dead-calm day: the Maelstrom's rocks can be reached)
+    int IsleOfType(IsleType t) const;
+    float IsleConv(int side) const;             // (Bird Island: how far a side's priests have converted it)
     bool InRookery(const Nest& n) const;        // (structures, doc p49)
     bool LightBeacon();
     void StepStructures(float dt);

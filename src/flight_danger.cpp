@@ -92,6 +92,9 @@ bool World::FoundOutpost(int isle, Vector3 near) {
     if (isle < 0 || isle >= (int)isles.size() || isle == home) return false;
     const Island& is = isles[isle];
     if (is.type == IsleType::Wreck) { Say("The wreck can't be held: it's raided."); return false; }
+    if (is.type == IsleType::GhostShip) { Say("The Ghost Ship isn't held: it's boarded by day and fled by night."); return false; }
+    if (is.type == IsleType::BirdIsland) { Say("The wild colony mobs anything that lands: Bird Island is won by priests preaching at its edge."); return false; }
+    if (is.type == IsleType::Maelstrom && !Calm()) { Say("The Maelstrom's rocks can only be reached on a dead-calm day."); return false; }
     for (const auto& n : col.nests) if (n.isle == isle) return false;   // (already an outpost there: its builders raise more nests)
     bool already = false; for (const auto& s : col.sites) already |= s.isle == isle;
     // the island's free sites (none another colony nests on) join the colony's; the nearest gets a nest at once
@@ -554,7 +557,7 @@ void World::BotDanger(float dt) {
         int best = -1; float bd = 1e9f;
         for (int i = 0; i < (int)isles.size(); i++) {
             const Island& is = isles[i];
-            if (i == home || is.start >= 0 || is.type == IsleType::Wreck || is.type == IsleType::Town || is.sites.empty()) continue;
+            if (i == home || is.start >= 0 || is.type == IsleType::Wreck || is.type == IsleType::Town || is.sites.empty() || is.type == IsleType::GhostShip || is.type == IsleType::BirdIsland || is.type == IsleType::CliffTown || (is.type == IsleType::Maelstrom && !Calm())) continue;
             if (HolderOf(i) >= 0) continue;
             float d = Flat2(is.c, isles[home].c) * (is.type == IsleType::KrakenCove && alive >= 22 ? 0.4f : 1.0f);
             if (d < bd) { bd = d; best = i; }

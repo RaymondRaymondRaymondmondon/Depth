@@ -84,7 +84,16 @@ void BuildTerrain(rt::MeshBuilder& mb, const fl::Island& is, int step = 1) {
         else c = Mix(grass, jungle, std::clamp((h - 3) / 6, 0.0f, 1.0f));
         if (ty == fl::IsleType::Volcano && h > 0.5f) c = Mix(Color{96, 86, 74, 255}, rock, std::clamp(h / 40, 0.0f, 1.0f));
         if (ty == fl::IsleType::Volcano && r < 20 && h < 47.5f) c = {96, 170, 150, 255};   // (the crater lake's strange green water)
-        if (ty == fl::IsleType::Town && h > 1.0f) c = Mix(grass, Color{196, 184, 150, 255}, 0.35f);
+        if ((ty == fl::IsleType::Town || ty == fl::IsleType::CliffTown) && h > 1.0f) c = Mix(grass, Color{196, 184, 150, 255}, 0.35f);
+        // the expansion's islands (doc pp. 43-45)
+        if (ty == fl::IsleType::Iceberg && h > -0.2f) c = Mix(Color{214, 232, 244, 255}, Color{250, 252, 255, 255}, std::clamp(h / 22, 0.0f, 1.0f));
+        if (ty == fl::IsleType::Iceberg && h <= -0.2f && h > -8.5f) c = Color{120, 190, 210, 255};   // (the berg's foot under the water)
+        if (ty == fl::IsleType::Whale && h > -0.5f) c = Mix(Color{58, 66, 78, 255}, Color{92, 100, 110, 255}, Hash(floorf(x / 4), floorf(z / 4)) * 0.6f);
+        if (ty == fl::IsleType::BirdIsland && h > 0.5f) c = Mix(Color{150, 144, 132, 255}, Color{240, 238, 228, 255}, std::clamp(h / 30, 0.0f, 1.0f) * (0.6f + 0.4f * Hash(floorf(x / 2), floorf(z / 2))));   // (guano)
+        if ((ty == fl::IsleType::Lighthouse || ty == fl::IsleType::SirenRocks || ty == fl::IsleType::Maelstrom || ty == fl::IsleType::IronIsland) && h > 0.5f) c = Mix(Color{120, 116, 108, 255}, ty == fl::IsleType::IronIsland ? grass : Color{150, 146, 136, 255}, ty == fl::IsleType::IronIsland ? 0.5f : Hash(floorf(x / 3), floorf(z / 3)));
+        if (ty == fl::IsleType::KelpRaft && h > -0.2f) c = Mix(Color{96, 98, 40, 255}, Color{130, 120, 52, 255}, Hash(floorf(x / 2), floorf(z / 2)));
+        if (ty == fl::IsleType::Mangrove && h > -1.2f) c = Mix(Color{70, 60, 40, 255}, Color{80, 96, 52, 255}, Hash(floorf(x / 3), floorf(z / 3)));
+        if (ty == fl::IsleType::Maelstrom && h < -0.2f && r < 125) c = Mix(Color{30, 50, 60, 255}, c, std::clamp((r - 60) / 65, 0.0f, 1.0f));
         if (h > 0.5f && n < 0.8f) c = Mix(c, rock, (0.8f - n) / 0.2f);
         return Shade(c, 1 + j);
     };
@@ -189,9 +198,10 @@ void EnsureModels() {
     if (!IsWindowReady()) return;
     FreePreview();   // (the wardrobe's own bird, if it was open)
     int key = (int)WD().island.seed * 31 + WD().me.def + (int)WD().isles.size() * 7919;
+    for (const auto& is : WD().isles) key = key * 31 + (int)is.type + (int)is.seed;   // (the islands themselves: a map with other island types is other terrain)
     if (S.ready && S.readyFor == key) return;
     FreeModels();
-    if (WD().wholeMap) for (size_t i = 0; i < WD().isles.size(); i++) { rt::MeshBuilder mb; if (WD().isles[i].type != fl::IsleType::Wreck) BuildTerrain(mb, WD().isles[i], (int)i == WD().home ? 1 : 2); else mb.Tri({0, -30, 0}, {0.1f, -30, 0}, {0, -30, 0.1f}, BLACK); S.terr.push_back(LoadModelFromMesh(mb.Build())); }
+    if (WD().wholeMap) for (size_t i = 0; i < WD().isles.size(); i++) { rt::MeshBuilder mb; if (!fl::IsDrifting(WD().isles[i].type)) BuildTerrain(mb, WD().isles[i], (int)i == WD().home ? 1 : 2); else mb.Tri({0, -30, 0}, {0.1f, -30, 0}, {0, -30, 0.1f}, BLACK); S.terr.push_back(LoadModelFromMesh(mb.Build())); }
     else { rt::MeshBuilder mb; BuildTerrain(mb, WD().island); S.terr.push_back(LoadModelFromMesh(mb.Build())); }
     { rt::MeshBuilder mb; BuildPalm(mb); S.palm = LoadModelFromMesh(mb.Build()); }
     { rt::MeshBuilder mb; BuildNest(mb); S.nest = LoadModelFromMesh(mb.Build()); }
@@ -828,6 +838,39 @@ void DrawDangers(const fl::World& w, const Camera3D& cam, float dt) {
         Vector3 c = w.isles[w.wreck.isle].hill;
         for (int k = 0; k < 5; k++) rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.7f, 1.0f, 0.7f), MatrixTranslate(c.x - 12 + 6 * k, c.y + 3 + 0.4f * sinf(S.t * 2 + k), c.z)), Color{120, 255, 190, 255}, 1.6f);
     }
+    // ---- the expansion's islands: the Maelstrom's whirl, the lighthouse's beam, the Whale's spout, the Sirens, Bird Island's wild colony, the Ghost Ship's lights
+    {
+        bool nightNow = w.DayPhase() < 0.2f || w.DayPhase() > 0.85f;
+        for (int i = 0; i < (int)w.isles.size(); i++) {
+            const fl::Island& is = w.isles[i];
+            if (Vector3Distance(is.c, cam.position) > 900) continue;
+            switch (is.type) {
+            case fl::IsleType::Maelstrom:   // rings of foam turning in, faster near the rocks
+                for (int r = 0; r < 6; r++) { float rad = 20 + r * 16.0f, sp = 0.6f / (1 + r * 0.4f);
+                    for (int k = 0; k < 18; k++) { float a = k * 2 * PI / 18 + S.t * sp + r; rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(rad * 0.3f, 0.08f, 0.6f), MatrixRotateY(-a - PI * 0.5f)), MatrixTranslate(is.c.x + cosf(a) * rad, 0.15f - r * 0.05f, is.c.z + sinf(a) * rad)), Color{226, 240, 244, 255}); } }
+                break;
+            case fl::IsleType::Lighthouse: if (nightNow) {   // the beam sweeping round
+                float a = S.t * 0.6f; Vector3 lamp = is.hill;
+                for (int k = 1; k < 14; k++) rt::DrawCubeGlow(MatrixMultiply(MatrixScale(1.2f + k * 0.5f, 0.6f + k * 0.3f, 1.2f + k * 0.5f), MatrixTranslate(lamp.x + cosf(a) * k * 9, lamp.y + 1, lamp.z + sinf(a) * k * 9)), Color{255, 240, 190, 255}, 0.5f / (1 + k * 0.25f)); }
+                break;
+            case fl::IsleType::Whale: if (w.isx.whaleUnderT <= 0) {   // the blowhole's spout now and then
+                float ph = fmodf(S.t * 0.12f, 1.0f); if (ph < 0.25f) for (int k = 0; k < 6; k++) { float u = ph * 4; rt::DrawCubeM(MatrixMultiply(MatrixScale(1 + u * 2, 1.2f, 1 + u * 2), MatrixTranslate(is.hill.x, is.hill.y + 1 + k * 1.5f * u, is.hill.z)), Color{230, 238, 244, 255}); } }
+                break;
+            case fl::IsleType::SirenRocks: for (int k = 0; k < 3; k++) {   // the Sirens on their rocks, a glow of song about them
+                float a = k * 2.1f + 0.3f; Vector3 p{is.c.x + cosf(a) * 16, w.HeightAt(is.c.x + cosf(a) * 16, is.c.z + sinf(a) * 16) + 1.2f, is.c.z + sinf(a) * 16};
+                rt::DrawCubeM(MatrixMultiply(MatrixScale(0.8f, 2.2f, 0.8f), MatrixTranslate(p.x, p.y, p.z)), Color{110, 170, 160, 255});
+                rt::DrawCubeGlow(MatrixMultiply(MatrixScale(1.6f, 1.6f, 1.6f), MatrixTranslate(p.x, p.y + 2 + 0.5f * sinf(S.t * 2 + k), p.z)), Color{160, 255, 230, 255}, 0.4f + 0.3f * sinf(S.t * 3 + k)); }
+                break;
+            case fl::IsleType::BirdIsland: for (int k = 0; k < 40; k++) {   // the wild colony wheeling over its rock
+                float a = S.t * (0.3f + 0.02f * (k % 7)) + k * 0.61f, rr = 20 + (k % 9) * 4.0f; Vector3 p{is.c.x + cosf(a) * rr, is.hill.y - 10 + (k % 5) * 5.0f + 2 * sinf(S.t + k), is.c.z + sinf(a) * rr};
+                rt::DrawCubeM(MatrixMultiply(MatrixMultiply(MatrixScale(1.4f, 0.12f, 0.4f), MatrixRotateY(-a)), MatrixTranslate(p.x, p.y, p.z)), Color{246, 246, 240, 255}); }
+                break;
+            case fl::IsleType::GhostShip: if (nightNow) for (int k = 0; k < 4; k++) rt::DrawCubeGlow(MatrixMultiply(MatrixScale(0.7f, 1.0f, 0.7f), MatrixTranslate(is.hill.x - 9 + 6 * k, is.hill.y + 3 + 0.4f * sinf(S.t * 2 + k), is.hill.z)), Color{120, 255, 190, 255}, 1.6f);
+                break;
+            default: break;
+            }
+        }
+    }
     // ---- the neutral factions: the pirate band, the fleet's boats, the Grey Wings over their crag
     if (w.pirates.on && w.time >= w.pirates.scatterUntil && Vector3Distance(w.pirates.pos, cam.position) < 500)
         for (int k = 0; k < 8; k++) { float a = S.t * 0.8f + k * 0.785f; Vector3 p = Vector3Add(w.pirates.pos, {cosf(a) * 6, 2 * sinf(S.t + k), sinf(a) * 6}); float bt = sinf(S.t * 8 + k);
@@ -892,10 +935,14 @@ void DrawWorld(const fl::World& w, const Camera3D& cam, float dt) {
         }
         // the town's houses, roofs, tower, docks, boats and woodpile; the wreck's hull and masts
         for (const auto& pr : is.props) {
-            static const Color PC[] = {{226, 218, 200, 255}, {170, 70, 52, 255}, {200, 192, 176, 255}, {132, 100, 66, 255}, {116, 84, 56, 255}, {150, 112, 70, 255}, {78, 64, 52, 255}, {96, 80, 64, 255}};
-            float bob = pr.kind == 4 ? 0.12f * sinf(S.t * 1.3f + pr.c.x) : pr.kind == 6 ? 0.25f * sinf(S.t * 0.4f) : 0;
+            // (8 a lamp, 9 ice, 10 stone walls, 11 a kelp mat, 12 a cannon, 13 mangrove roots: the expansion's islands)
+            static const Color PC[] = {{226, 218, 200, 255}, {170, 70, 52, 255}, {200, 192, 176, 255}, {132, 100, 66, 255}, {116, 84, 56, 255}, {150, 112, 70, 255}, {78, 64, 52, 255}, {96, 80, 64, 255},
+                                       {255, 236, 170, 255}, {200, 226, 240, 255}, {132, 128, 122, 255}, {104, 102, 44, 255}, {44, 44, 48, 255}, {76, 60, 40, 255}};
+            bool ghost = is.type == fl::IsleType::GhostShip;
+            float bob = pr.kind == 4 ? 0.12f * sinf(S.t * 1.3f + pr.c.x) : pr.kind == 6 ? 0.25f * sinf(S.t * 0.4f) : pr.kind == 11 ? 0.05f * sinf(S.t * 0.7f) : 0;
             Matrix m = MatrixMultiply(MatrixMultiply(MatrixScale(pr.half.x * 2, pr.half.y * 2, pr.half.z * 2), MatrixRotateY(-pr.yaw)), MatrixTranslate(pr.c.x, pr.c.y + bob, pr.c.z));
-            rt::DrawCubeM(m, PC[std::clamp(pr.kind, 0, 7)]);
+            if (pr.kind == 8) rt::DrawCubeGlow(m, PC[8], w.DayPhase() < 0.2f || w.DayPhase() > 0.85f ? 2.4f : 0.6f);   // (the lighthouse's lamp, bright at night)
+            else rt::DrawCubeM(m, ghost ? Mix(PC[std::clamp(pr.kind, 0, 13)], Color{120, 140, 130, 255}, 0.5f) : PC[std::clamp(pr.kind, 0, 13)]);
         }
     }
     fl::World& wm = const_cast<fl::World&>(w);
@@ -1672,7 +1719,11 @@ void DrawChart(fl::World& w) {
         switch (t) {
         case fl::IsleType::Stack: return Color{196, 190, 176, 255}; case fl::IsleType::Town: return Color{200, 180, 140, 255}; case fl::IsleType::Atoll: return Color{226, 210, 160, 255};
         case fl::IsleType::Volcano: return Color{120, 104, 92, 255}; case fl::IsleType::KrakenCove: return Color{130, 124, 116, 255}; case fl::IsleType::ReefGarden: return Color{226, 200, 150, 255};
-        case fl::IsleType::Wreck: return Color{110, 90, 70, 255}; default: return Color{150, 180, 110, 255};
+        case fl::IsleType::Wreck: case fl::IsleType::GhostShip: return Color{110, 90, 70, 255};
+        case fl::IsleType::Iceberg: return Color{220, 236, 246, 255}; case fl::IsleType::Lighthouse: case fl::IsleType::SirenRocks: case fl::IsleType::Maelstrom: return Color{150, 146, 136, 255};
+        case fl::IsleType::Shipwreck: return Color{200, 180, 130, 255}; case fl::IsleType::Mangrove: return Color{90, 104, 60, 255}; case fl::IsleType::KelpRaft: return Color{120, 116, 52, 255};
+        case fl::IsleType::CliffTown: return Color{200, 180, 140, 255}; case fl::IsleType::IronIsland: return Color{140, 140, 132, 255}; case fl::IsleType::Whale: return Color{80, 88, 100, 255};
+        case fl::IsleType::BirdIsland: return Color{232, 228, 216, 255}; default: return Color{150, 180, 110, 255};
         }
     };
     for (size_t i = 0; i < w.isles.size(); i++) {
@@ -2360,12 +2411,21 @@ void SceneFlight(Game& g) {
 
 // --shots: 0 cruising over the lagoon at dawn, 1 the strike, 2 at the nest with a fish, 3 noon from high over the island
 void DebugFlightShot(Game& g, int which) {
-    fl::MapOpts o; o.seasons = which == 21 || which == 22 ? 4 : 0; o.home = which == 6 ? fl::IsleType::Stack : which == 7 ? fl::IsleType::Town : which == 8 ? fl::IsleType::Atoll : fl::IsleType::Tropical;
+    fl::MapOpts o; o.seasons = which == 21 || which == 22 || (which >= 23 && which <= 34) ? 4 : 0; o.home = which == 6 ? fl::IsleType::Stack : which == 7 ? fl::IsleType::Town : which == 8 ? fl::IsleType::Atoll : fl::IsleType::Tropical;
+    if (which >= 23 && which <= 28) o.home = (fl::IsleType)((int)fl::IsleType::Iceberg + which - 23);   // (the expansion's starting islands)
     Start(g, which == 3 ? "albatross" : "taloned", 11, true, o);
     fl::World& w = WD();
     fl::Founder& f = w.me;
     f.st = fl::FState::Fly; f.airspeed = 11; f.yaw = PI * 0.5f; f.pitch = 0;
     S.help = which == 0;
+    if (which >= 23 && which <= 34) {   // the expansion's islands (doc pp. 43-45): a starting one as home, a dangerous one turned out of a neutral island
+        fl::IsleType ty = (fl::IsleType)((int)fl::IsleType::Iceberg + which - 23);
+        int k = w.home;
+        if (!fl::IsStartType(ty)) { for (int i = 0; i < (int)w.isles.size(); i++) if (w.isles[i].start < 0 && w.isles[i].type != fl::IsleType::KrakenCove && !fl::IsDrifting(w.isles[i].type)) { k = i; break; } w.isles[k].Generate(ty, 9, w.isles[k].c); w.InitIsles(); w.SetGhostPose(); EnsureModels(); }
+        w.time = fl::World::DAY * (ty == fl::IsleType::Lighthouse || ty == fl::IsleType::GhostShip ? 0.9f : 0.36f);
+        const fl::Island& is = w.isles[k];
+        f.pos = {is.c.x - is.radius - 70, std::max(40.0f, is.hill.y + 30), is.c.z + 40}; f.yaw = atan2f(is.c.z - f.pos.z, is.c.x - f.pos.x); S.aimYaw = 0; S.aimPitch = -0.32f;
+    }
     if (which == 0) { w.time = fl::World::DAY * 0.06f; f.pos = {-30, 14, 20}; f.flapping = true; }
     if (which == 1) {
         w.time = fl::World::DAY * 0.3f;

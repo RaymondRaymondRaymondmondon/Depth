@@ -12,7 +12,8 @@
 namespace fl {
 
 const char* IsleTypeName(IsleType t) {
-    static const char* N[] = {"Tropical Island", "Sea Stack", "Fishing Town", "Atoll", "Islet", "Kraken Cove", "Skull Island", "Volcano Island", "Reef Garden", "The Wreck"};
+    static const char* N[] = {"Tropical Island", "Sea Stack", "Fishing Town", "Atoll", "Islet", "Kraken Cove", "Skull Island", "Volcano Island", "Reef Garden", "The Wreck",
+                              "The Iceberg", "Lighthouse Rock", "Shipwreck Island", "The Mangrove", "The Kelp Raft", "The Cliff Town", "Iron Island", "The Whale", "Siren Rocks", "The Maelstrom", "The Ghost Ship", "Bird Island"};
     return N[std::clamp((int)t, 0, (int)IsleType::COUNT - 1)];
 }
 const char* ArrangementName(Arrangement a) {
@@ -254,7 +255,7 @@ void Island::Generate(IsleType t, uint32_t s, Vector3 centre) {
         nest = sites[0];
         twigPts.push_back({{c.x, 3.7f, c.z + 4}, 12.0f});   // (its rigging)
     } break;
-    default: break;
+    default: GenerateMore(t, s); break;   // (the expansion's islands: flight_isles.cpp)
     }
     if (hill.y == 0 && n > 0) hill.y = Height(hill.x, hill.z);
     BuildOutline();
@@ -267,7 +268,12 @@ std::vector<IsleSpec> LayoutMap(const MapOpts& o) {
     Rng R{o.seed * 2654435761u + 7};
     static const IsleType starts[4] = {IsleType::Tropical, IsleType::Stack, IsleType::Town, IsleType::Atoll};
     static const IsleType danger[3] = {IsleType::Skull, IsleType::Volcano, IsleType::ReefGarden};
-    auto startType = [&](int i) { return i == 0 ? o.home : starts[(int)(R() * 4) % 4]; };
+    // the long match (the expansion, doc pp. 43-45): ten starting islands and eleven dangerous ones
+    static const IsleType startsL[10] = {IsleType::Tropical, IsleType::Stack, IsleType::Town, IsleType::Atoll, IsleType::Iceberg, IsleType::Lighthouse, IsleType::Shipwreck, IsleType::Mangrove, IsleType::KelpRaft, IsleType::CliffTown};
+    static const IsleType dangerL[8] = {IsleType::Skull, IsleType::IronIsland, IsleType::Volcano, IsleType::Whale, IsleType::ReefGarden, IsleType::SirenRocks, IsleType::Maelstrom, IsleType::BirdIsland};
+    bool L = o.seasons > 0; uint32_t dOff = (o.seed * 7u) % 8u;
+    auto dangerAt = [&](int i) { return L ? dangerL[(i + dOff) % 8] : danger[i % 3]; };
+    auto startType = [&](int i) { return i == 0 ? o.home : L ? startsL[(int)(R() * 10) % 10] : starts[(int)(R() * 4) % 4]; };
     auto add = [&](IsleType t, float x, float z, int start, const std::string& name) { IsleSpec s; s.type = t; s.c = {x, 0, z}; s.start = start; s.name = name; v.push_back(s); };
     auto startName = [&](int i) { return i == 0 ? std::string("Your island") : TextFormat("Rival %d's island", i); };
     float th0 = PI * 0.5f;   // (slot 0 due south of the middle)
@@ -275,12 +281,13 @@ std::vector<IsleSpec> LayoutMap(const MapOpts& o) {
         float d = 520;
         for (int i = 0; i < N; i++) add(startType(i), i * d, 0, i, startName(i));
         for (int i = 0; i + 1 < N; i++) {
-            add(danger[i % 3], (i + 0.5f) * d, 330, -1, IsleTypeName(danger[i % 3]));
+            add(dangerAt(i), (i + 0.5f) * d, 330, -1, IsleTypeName(dangerAt(i)));
             add(IsleType::Town, (i + 0.5f) * d, -330, -1, "Fishing Town");
             add(IsleType::Islet, (i + 0.5f) * d + (R() - 0.5f) * 40, (R() - 0.5f) * 60, -1, "Islet");
         }
         add(IsleType::KrakenCove, (N - 1) * d * 0.5f, 760, -1, "Kraken Cove");
         add(IsleType::Wreck, (N - 1) * d * 0.5f, -620, -1, "The Wreck");
+        if (L) add(IsleType::GhostShip, (N - 1) * d * 0.5f + 300, 560, -1, "The Ghost Ship");
     } else {
         float d = o.arr == Arrangement::SafeDistance ? 900 + 300 * R() : o.arr == Arrangement::Ring ? 480 : 350 + 150 * R();
         float Rr = std::max(d / (2 * sinf(PI / N)), o.arr == Arrangement::SafeDistance ? 700.0f : 560.0f);
@@ -288,7 +295,7 @@ std::vector<IsleSpec> LayoutMap(const MapOpts& o) {
         add(IsleType::KrakenCove, 0, 0, -1, "Kraken Cove");
         for (int i = 0; i < N; i++) {
             float a = th0 + (i + 0.5f) * 2 * PI / N;
-            if (o.arr != Arrangement::Ring) add(danger[i % 3], cosf(a) * Rr * 0.55f, sinf(a) * Rr * 0.55f, -1, IsleTypeName(danger[i % 3]));
+            if (o.arr != Arrangement::Ring) add(dangerAt(i), cosf(a) * Rr * 0.55f, sinf(a) * Rr * 0.55f, -1, IsleTypeName(dangerAt(i)));
             else add(IsleType::ReefGarden, cosf(a) * Rr * 0.6f, sinf(a) * Rr * 0.6f, -1, "Reef Garden");
             add(IsleType::Town, cosf(a) * Rr * 1.3f, sinf(a) * Rr * 1.3f, -1, "Fishing Town");
             float ai = th0 + (i + 0.5f) * 2 * PI / N;
@@ -296,13 +303,14 @@ std::vector<IsleSpec> LayoutMap(const MapOpts& o) {
         }
         float aw = th0 + PI + (N % 2 ? PI / N : 0.0f);   // (opposite your island, in a gap of the dangerous ring)
         add(IsleType::Wreck, cosf(aw) * Rr * 0.3f, sinf(aw) * Rr * 0.3f, -1, "The Wreck");
+        if (L) add(IsleType::GhostShip, cosf(aw + PI) * Rr * 1.05f, sinf(aw + PI) * Rr * 1.05f, -1, "The Ghost Ship");
     }
     // number the neutral names; slot 0 to the origin
     Vector3 o0 = v[0].c;
     int counts[(int)IsleType::COUNT] = {};
     for (auto& s : v) {
         s.c = Vector3Subtract(s.c, o0);
-        if (s.start < 0 && s.type != IsleType::KrakenCove && s.type != IsleType::Wreck) s.name += " " + std::to_string(++counts[(int)s.type]);
+        if (s.start < 0 && s.type != IsleType::KrakenCove && s.type != IsleType::Wreck && s.type != IsleType::GhostShip) s.name += " " + std::to_string(++counts[(int)s.type]);
     }
     return v;
 }
@@ -333,6 +341,18 @@ void ZonesFor(IsleType t, std::vector<ZoneT>& out) {
     case IsleType::Volcano: ring(112, 220, -20); break;
     case IsleType::ReefGarden: out.push_back({"The Garden", {-98, -98, 196, 196}, -4}); ring(102, 220, -30); break;
     case IsleType::Wreck: out.push_back({"Wreck water", {-80, -80, 160, 160}, -30}); break;
+    case IsleType::Iceberg: out.push_back({"Under the berg", {-50, -50, 100, 100}, -30}); ring(50, 150, -40); break;
+    case IsleType::Lighthouse: ring(34, 140, -16); break;
+    case IsleType::Shipwreck: out.push_back({"The reef", {-60, -40, 120, 80}, -5}); ring(60, 160, -14); break;
+    case IsleType::Mangrove: out.push_back({"Under the roots", {-64, -64, 128, 128}, -2.5f}); ring(74, 170, -10); break;
+    case IsleType::KelpRaft: out.push_back({"Under the raft", {-50, -50, 100, 100}, -12}); ring(54, 150, -20); break;
+    case IsleType::CliffTown: out.push_back({"Harbour", {-26, 30, 52, 44}, -5}); ring(76, 180, -14); break;
+    case IsleType::IronIsland: ring(66, 170, -14); break;
+    case IsleType::Whale: out.push_back({"The wake", {-110, -40, 220, 80}, -20}); break;
+    case IsleType::SirenRocks: ring(28, 120, -18); break;
+    case IsleType::Maelstrom: out.push_back({"The edge of the whirl", {-125, -125, 250, 250}, -30}); break;
+    case IsleType::GhostShip: break;   // (it drifts)
+    case IsleType::BirdIsland: ring(62, 170, -14); break;
     default: break;
     }
 }
@@ -363,6 +383,17 @@ std::vector<SpawnT> SpawnsFor(IsleType t, const std::string& tag) {
         if (tag == "The Garden") return {{"Snapper", 16}, {"Cleaner Wrasse", 6}, {"Anchovy", 30}, {"Crab", 6}};
         return {{"Reef Shark", 1}, {"Barracuda", 2}, {"Mackerel", 12}};
     case IsleType::Wreck: return {{"Sardine", 20}, {"Crab", 6}};
+    case IsleType::Iceberg: if (tag == "Under the berg") return {{"Squid", 20}, {"Sardine", 40}, {"Tuna", 3}}; return {{"Mackerel", 18}, {"Squid", 8}};   // (deep fish and krill under it)
+    case IsleType::Lighthouse: return {{"Mackerel", 20}, {"Sardine", 30}, {"Snapper", 6}};
+    case IsleType::Shipwreck: if (tag == "The reef") return {{"Snapper", 12}, {"Crab", 8}, {"Anchovy", 24}}; return {{"Mackerel", 14}, {"Sardine", 20}};
+    case IsleType::Mangrove: if (tag == "Under the roots") return {{"Crab", 24}, {"Mullet", 14}, {"Anchovy", 30}}; return {{"Mackerel", 12}, {"Sardine", 18}};   // (crabs and shellfish; the crocodiles keep sharks out)
+    case IsleType::KelpRaft: if (tag == "Under the raft") return {{"Sardine", 50}, {"Snapper", 14}, {"Anchovy", 30}}; return {{"Mackerel", 16}};   // (fish shelter under it)
+    case IsleType::CliffTown: if (tag == "Harbour") return {{"Mullet", 14}, {"Sardine", 26}, {"Crab", 8}}; return {{"Mackerel", 16}, {"Sardine", 20}};
+    case IsleType::IronIsland: return {{"Mackerel", 18}, {"Sardine", 20}};
+    case IsleType::Whale: return {{"Anchovy", 60}, {"Sardine", 40}};   // (krill in its wake: endless size-1 feed)
+    case IsleType::SirenRocks: return {{"Snapper", 10}, {"Mackerel", 14}, {"Barracuda", 1}};
+    case IsleType::Maelstrom: return {{"Squid", 16}, {"Mackerel", 20}, {"Tuna", 2}};
+    case IsleType::BirdIsland: return {{"Sardine", 30}, {"Mackerel", 20}};
     default: break;
     }
     (void)ring;
@@ -502,6 +533,7 @@ void World::Init(const std::string& founderKey, uint32_t seed, const MapOpts& o)
     InitTowns();
     InitDanger();
     seasons = o.seasons; InitSeasons();   // (the long match: seasons and their events)
+    InitIsles();
     InitRelics();
     InitFactions();
     truceUntil.assign((sides.size() + 1) * (sides.size() + 1), -1);
@@ -739,7 +771,7 @@ int RunFlightFairTest(int argc, char** argv) {
             for (const auto& t : v) {
                 if (&t == &s) continue;
                 float dist = Vector3Distance(s.c, t.c);
-                if (IsDangerous(t.type) && t.type != IsleType::Wreck) d[0] = std::min(d[0], dist);   // (the wreck drifts)
+                if (IsDangerous(t.type) && !IsDrifting(t.type)) d[0] = std::min(d[0], dist);   // (the wreck drifts)
                 if (t.type == IsleType::Town && t.start < 0) d[1] = std::min(d[1], dist);
                 if (t.start >= 0) d[2] = std::min(d[2], dist);
             }

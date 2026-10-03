@@ -504,7 +504,7 @@ void World::StepWar(float dt) {
                     for (auto& e : T.birds) {
                         bool plat = e.nest >= 0 && e.nest < (int)T.nests.size() && T.nests[e.nest].style == NS_PLATFORM;   // (a Platform is seen from far: easier to find)
                         if (!e.alive || e.stage != BStage::Egg || Vector3Distance(b->pos, e.pos) > (plat ? 5 : 3)) continue;
-                        if (e.nest >= 0 && e.nest < (int)T.nests.size() && !NestOpen(T.nests[e.nest], NT_THEFT)) continue;   // (hanging, cliff and floating nests: out of reach)
+                        if (e.nest >= 0 && e.nest < (int)T.nests.size() && (!NestOpen(T.nests[e.nest], NT_THEFT) || IsleShields(T.nests[e.nest].isle, NT_THEFT))) continue;   // (hanging, cliff and floating nests: out of reach)
                         bool guarded = false; for (const auto& wt : T.birds) if (wt.alive && wt.role == Role::Watcher && wt.stage == BStage::Adult && Flat(wt.pos, e.pos) < 40) guarded = true;
                         if (guarded) continue;
                         e.alive = false; e.cause = "stolen by " + SideName(s);
@@ -535,7 +535,7 @@ void World::StepWar(float dt) {
                     // an assault: with no chick or egg left in it, the nest is torn down (and the island's holding with it)
                     for (int ni = 0; ni < (int)T.nests.size(); ni++) {
                         Nest& n = T.nests[ni];
-                        if (!n.built || Vector3Distance(b->pos, n.pos) > 3 || (fl.tIsle >= 0 && n.isle != fl.tIsle) || !NestOpen(n, NT_TEAR)) continue;
+                        if (!n.built || Vector3Distance(b->pos, n.pos) > 3 || (fl.tIsle >= 0 && n.isle != fl.tIsle) || !NestOpen(n, NT_TEAR) || IsleShields(n.isle, NT_TEAR)) continue;
                         bool young = false; for (const auto& c : T.birds) young |= c.alive && c.nest == ni && (c.stage == BStage::Chick || c.stage == BStage::Egg);
                         bool guarded = false; for (const auto& wt : T.birds) guarded |= wt.alive && wt.role == Role::Watcher && wt.stage == BStage::Adult && Flat(wt.pos, n.pos) < 40;
                         if (young || guarded) break;

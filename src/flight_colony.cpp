@@ -741,6 +741,11 @@ void World::StepBird(Bird& b, float dt) {
     } break;
     case BStage::Mate: MateStep(b, dt); break;
     case BStage::Adult: {
+        if (b.songT > 0) {   // (the Siren Rocks: it sits on their rocks, lost to the colony for a day)
+            b.songT -= dt;
+            int si = IsleOfType(IsleType::SirenRocks);
+            if (si >= 0) { b.task = Task::Sit; MoveTo(b, Vector3Add(isles[si].hill, {3 * cosf(b.id * 1.3f), 0.5f, 3 * sinf(b.id * 1.3f)}), 12, dt, 0.5f); break; }
+        }
         // night: the colony roosts (fervour, a later stage, will keep it working); a bird with a fish brings it home first
         // (fervour shortens the night's rest: half a night, two hours, none at Zeal; the Shadow's and Night fishing's
         // fishers work it)
@@ -938,7 +943,7 @@ static Act FounderAct(const World& w, int* idx) {
     // a free site on another island: an outpost
     if (f.carrySp < 0 && f.carryTwigs == 0) {
         int is = w.IsleAt(f.pos.x, f.pos.z, 5);
-        if (is >= 0 && is != w.home && w.isles[is].type != IsleType::Wreck) {
+        if (is >= 0 && is != w.home && !IsDrifting(w.isles[is].type)) {
             for (const auto& p : w.isles[is].sites) if (Vector3Distance(f.pos, p) < 3.5f) {
                 bool free = true; for (int k = 0; k <= (int)w.sides.size(); k++) for (const auto& n : w.ColOf(k).nests) if (Vector3Distance(n.pos, p) < 1.5f) free = false;
                 bool mine = false; for (const auto& n : w.col.nests) mine |= n.isle == is;

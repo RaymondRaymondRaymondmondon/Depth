@@ -1506,6 +1506,80 @@ int RunFlightLongTest() {
         check(w->LegacyScore(0) == 420, "a colony that broke a truce gets nothing for the ones it kept");
         auto s = make(0, 111); s->col.relics = 3;
         check(s->LegacyScore(0) == 0, "a standard match has no legacy score");
+    }    // ---- the expansion's islands (doc pp. 43-45)
+    {
+        struct Want { IsleType t; int sites; bool start; };
+        const Want W[] = {{IsleType::Iceberg, 15, true}, {IsleType::Lighthouse, 18, true}, {IsleType::Shipwreck, 22, true}, {IsleType::Mangrove, 35, true}, {IsleType::KelpRaft, 20, true}, {IsleType::CliffTown, 30, true},
+                          {IsleType::IronIsland, 10, false}, {IsleType::Whale, 10, false}, {IsleType::SirenRocks, 6, false}, {IsleType::Maelstrom, 4, false}, {IsleType::GhostShip, 3, false}, {IsleType::BirdIsland, 10, false}};
+        bool shapes = true; std::string bad;
+        for (const auto& q : W) {
+            Island is; is.Generate(q.t, 77, {0, 0, 0});
+            bool ok = (int)is.sites.size() >= q.sites && (q.start ? IsStartType(q.t) && !IsDangerous(q.t) : IsDangerous(q.t) && !IsStartType(q.t)) && !is.outline.empty();
+            if (q.t != IsleType::GhostShip && q.t != IsleType::Mangrove) ok = ok && is.Height(is.hill.x, is.hill.z) > 0;   // (the Mangrove is roots over shallow water)
+            if (!ok) { shapes = false; bad += std::string(" ") + IsleTypeName(q.t) + TextFormat("(%d sites)", (int)is.sites.size()); }
+        }
+        check(shapes, "twelve new islands, each with its sites (the Iceberg 15, the Lighthouse 18, the Shipwreck 22, the Mangrove 35, the Kelp Raft 20, the Cliff Town 30)" + bad);
+        int seenNew = 0, ghosts = 0;
+        for (uint32_t sd = 1; sd <= 6; sd++) { auto m = std::make_unique<World>(); MapOpts o; o.players = 6; o.seasons = 4; m->Init("taloned", sd, o);
+            for (const auto& is : m->isles) { seenNew += is.type >= IsleType::Iceberg && is.type != IsleType::GhostShip; ghosts += is.type == IsleType::GhostShip; } }
+        auto s0 = make(0, 5); int newInStd = 0; for (const auto& is : s0->isles) newInStd += is.type >= IsleType::Iceberg;
+        check(seenNew > 6 && ghosts == 6 && newInStd == 0, TextFormat("long-match maps draw from all of them (%d new islands over six maps, a Ghost Ship on each); a standard match has none", seenNew));
+        // the rules, island by island (an island of the map turned into the one under test)
+        auto turn = [&](World& v, int k, IsleType t) { v.isles[k].Generate(t, 9, v.isles[k].c); v.InitIsles(); };
+        auto w = make(4, 111); w->ape.isle = -1; w->kraken.isle = -1; w->weather.next = 1e9f;
+        int far = -1; for (int k = 0; k < (int)w->isles.size(); k++) if (k != w->home && w->isles[k].start < 0 && w->isles[k].type != IsleType::KrakenCove && w->isles[k].type != IsleType::Wreck) { far = k; break; }
+        turn(*w, far, IsleType::Iceberg);
+        check(w->IsleShields(far, NT_TEAR) && w->IsleShields(far, NT_THEFT) && !w->IsleShields(far, NT_LAVA), "the Iceberg: raiders can't land on sheer ice");
+        turn(*w, far, IsleType::Lighthouse);
+        w->time = 0.28f * World::DAY; bool day = w->IsleShields(far, NT_THEFT); w->time = 0.9f * World::DAY; bool night = w->IsleShields(far, NT_THEFT);
+        check(!day && night, "Lighthouse Rock: the beam blinds night raiders (and only at night)");
+        turn(*w, far, IsleType::GhostShip); w->time = 0; w->SetGhostPose(); Vector3 g0 = w->isles[far].c; w->time = 2 * World::DAY; w->SetGhostPose();
+        check(Vector3Distance(g0, w->isles[far].c) > 20 && !w->FoundOutpost(far, w->isles[far].c), "the Ghost Ship drifts, and can't be held");
+        turn(*w, far, IsleType::BirdIsland);
+        check(!w->FoundOutpost(far, w->isles[far].c), "Bird Island can't be landed on and held");
+        {   // priests convert it
+            Bird pr; pr.id = w->col.nextId++; pr.stage = BStage::Adult; pr.role = Role::Priest; pr.hp = 60; pr.hunger = 1; pr.pos = w->isles[far].c; pr.pos.y = 80; w->col.birds.push_back(pr);
+            w->isx.birdConv[0] = 99; w->time = 5 * World::DAY; w->StepIsles(0.1f);
+            check(w->HolderOf(far) == 0, "Bird Island: priests preaching at its edge convert it, and its colony is yours");
+        }
+        turn(*w, far, IsleType::Maelstrom);
+        {
+            w->wind.speed = 9; w->wind.nextSpeed = 9;
+            bool refused = !w->FoundOutpost(far, w->isles[far].c);
+            Bird lo; lo.id = w->col.nextId++; lo.stage = BStage::Adult; lo.role = Role::Fisher; lo.hp = 60; lo.hunger = 1; lo.pos = Vector3Add(w->isles[far].c, {40, 5, 0}); w->col.birds.push_back(lo); int lid = lo.id;
+            for (int q = 0; q < 60; q++) { w->time = 10 * World::DAY + q; for (auto& b : w->col.birds) if (b.id == lid) b.pos = Vector3Add(w->isles[far].c, {40, 5, 0}); w->StepIsles(0.05f); }
+            bool dead = false; for (const auto& b : w->col.birds) if (b.id == lid) dead = !b.alive;
+            check(refused && dead, "the Maelstrom: its rocks can't be reached on a windy day, and a bird low over it is pulled in");
+        }
+        turn(*w, far, IsleType::SirenRocks);
+        {
+            Bird sb; sb.id = w->col.nextId++; sb.stage = BStage::Adult; sb.role = Role::Fisher; sb.hp = 60; sb.hunger = 1; sb.pos = Vector3Add(w->isles[far].c, {60, 20, 0}); w->col.birds.push_back(sb); int sid = sb.id;
+            for (int q = 0; q < 200; q++) { w->time = 12 * World::DAY + q * 0.05f * World::DAY; w->StepIsles(0.1f); }
+            float song = 0; for (const auto& b : w->col.birds) if (b.id == sid) song = b.songT;
+            check(song > 0, "the Siren Rocks: a bird within the song flies to the rocks and sits");
+        }
+        turn(*w, far, IsleType::IronIsland);
+        {
+            std::vector<int> ids; for (int q = 0; q < 8; q++) { Bird k; k.id = w->col.nextId++; k.stage = BStage::Adult; k.role = Role::Skirmisher; k.hp = 50; k.hunger = 1; k.pos = Vector3Add(w->isles[far].c, {q * 2.0f, 30, 0}); w->col.birds.push_back(k); ids.push_back(k.id); }
+            w->MakeFlock(0, ids, Formation::Chevron, Alt::Mid, Stance::Raid);
+            for (int q = 0; q < 40; q++) w->StepIsles(0.1f);
+            int alive = 0; for (int id : ids) alive += w->FindBird(0, id) != nullptr;
+            check(alive < 8, TextFormat("Iron Island: the fort's cannons fire on a flock of more than six (%d of 8 left)", alive));
+        }
+        turn(*w, far, IsleType::Whale);
+        {
+            Nest n; n.isle = far; n.pos = w->isles[far].sites[0]; n.built = true; w->col.nests.push_back(n); int ni = (int)w->col.nests.size() - 1;
+            w->time = w->isx.whaleNext; w->StepIsles(0.1f);
+            check(!w->col.nests[ni].built && w->isx.whaleUnderT > 0, "the Whale dives once a season: everything on its back is in the sea");
+        }
+        // the starting islands' gifts
+        auto st = [&](IsleType t) { auto v = std::make_unique<World>(); MapOpts o; o.players = 2; o.seasons = 4; o.home = t; v->Init("taloned", 21, o); v->ape.isle = -1; v->kraken.isle = -1; return v; };
+        { auto v = st(IsleType::Shipwreck); int f = 0; for (const auto& c : v->col.caches) f += (int)c.fish.size(); check(v->col.bell && f >= 20, TextFormat("the Shipwreck Island: a hold of salted fish (%d) and the ship's bell", f)); }
+        { auto v = st(IsleType::CliffTown); int towns = 0; for (const auto& t : v->towns) towns += t.isle == v->home; check(towns == 2, TextFormat("the Cliff Town: two markets (%d; home is %s, %d towns)", towns, IsleTypeName(v->isles[v->home].type), (int)v->towns.size())); }
+        { auto v = st(IsleType::Iceberg); Nest n; n.isle = v->home; n.pos = v->isles[v->home].sites[3]; v->col.nests.push_back(n); int ni = (int)v->col.nests.size() - 1; int sh = v->col.shells; v->StepIsles(0.1f);
+          check(v->col.nests[ni].built && v->col.shells == sh - (int)IcebergShells(), "the Iceberg: no twigs; an ice nest is cut with shells"); }
+        { auto v = st(IsleType::Lighthouse); for (int q = 0; q < 20; q++) v->col.caches[0].fish.push_back({0, 2, 0}); int p0 = v->col.pearls; v->time = World::DAY; v->StepIsles(0.1f);
+          check(v->col.pearls == p0 + 1, "Lighthouse Rock: the keeper trades lamp oil for fish"); }
     }    printf(fails ? "flight-long-test: %d check(s) failed\n" : "flight-long-test: all checks passed\n", fails);
     return fails ? 1 : 0;
 }

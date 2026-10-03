@@ -129,6 +129,7 @@ float World::DayPhase() const { return EventNow(EV_LONG_NIGHT) || GreatNow(GE_EC
 float World::FeedValue(int sp) const { return sp >= 0 && eco.map && sp < (int)eco.map->species.size() ? (float)eco.map->species[sp].size : 1; }
 float World::Thermal(Vector3 p) const {
     if (GreatNow(GE_CALM)) return 0;   // (the Calm: the thermals die)
+    if (wholeMap) { int mi = IsleAt(p.x, p.z, 0); if (mi >= 0 && isles[mi].type == IsleType::Mangrove) return 0; }   // (the Mangrove: no thermals)
     // thermals rise off the hill in the afternoon: free altitude
     if (wholeMap) for (int s = 0; s <= (int)sides.size(); s++) if (DecreeOf(s).thermalHome) { int h = HomeOf(s); if (h >= 0 && h < (int)isles.size() && p.y < 160 && Vector2Distance({p.x, p.z}, {isles[h].c.x, isles[h].c.z}) < isles[h].radius) return 2.0f; }   // (Thermal Day)
     float ph = DayPhase(), k = Smooth(0.42f, 0.5f, ph) * (1 - Smooth(0.68f, 0.76f, ph));
@@ -502,6 +503,7 @@ void World::Step(float realDt, const FounderInput& in) {
     StepDiplomacy(dt);
     StepNestStyles(dt);
     StepStructures(dt);
+    StepIsles(dt);
     if (seasons > 0) for (int s = 0; s <= (int)sides.size(); s++) WithSide(s, [&] { StepVeterans(dt); });
     fogT += dt; fogNow = fogT >= 0.25f;
     if (fogNow) fogT = 0;

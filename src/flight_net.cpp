@@ -559,7 +559,8 @@ template <class A> void Visit(A& a, World& w, bool full) {
     { Volcano& v = w.volcano; a.i(v.isle); a.f(v.next); a.f(v.tremorT); a.f(v.ashT); a.i(v.eruptions); }
     { WreckState& r = w.wreck; a.i(r.isle); a.i(r.hold); a.b(r.bell); }
     { Weather& e = w.weather; a.i(e.kind); a.f(e.t); a.f(e.next); }
-    if constexpr (A::reading) w.SetWreckPose();
+    { IsleState& x = w.isx; a.i(x.ghost); a.v3(x.ghostC0); a.i(x.whale); a.f(x.whaleNext); a.f(x.whaleUnderT); a.i(x.dives); a.vec(x.birdConv, [&](float& v) { a.f(v); }); }
+    if constexpr (A::reading) { w.SetWreckPose(); w.SetGhostPose(); }
     VisitSea(a, w, w.me.pos);
     if (a.bad()) return;
     // the war's effects, numbered (a mirror appends the ones it hasn't had)
