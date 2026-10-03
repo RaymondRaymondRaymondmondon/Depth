@@ -27,6 +27,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <chrono>
 
 namespace fl {
 
@@ -248,7 +249,7 @@ void World::StepEvolution(float dt) {
         int need = slot == 0 ? D.speciesAt : D.secondAt, best = -1;
         for (int t = 0; t < GT_COUNT; t++) if (t != C.speciesTrait[0] && count[t] >= need && (best < 0 || count[t] > count[best])) best = t;
         if (best < 0) continue;
-        C.speciesTrait[slot] = best;
+        C.speciesTrait[slot] = best; if (slot == 0) C.speciesDay = GameDay();
         const GeneDef& G = Genes()[best];
         if (slot == 0) C.speciesName = G.species + " " + std::string(Founders()[FounderOf(s).def].name).substr(4);   // (e.g. "Swiftwing Taloned")
         std::string what = slot == 0 ? TextFormat("%s has become a species of its own: the %s (%s III in every bird; %s).", SideName(s).c_str(), C.speciesName.c_str(), G.name.c_str(), G.power.c_str())
@@ -616,7 +617,7 @@ void World::StepWonders(float dt) {
             C.pearls -= pearls; C.sulfur -= (float)sulfur;
             st.built = true;
             if (st.raising) { st.raising = false; wonderRaised |= 1u << st.wonder; for (int o = 0; o < N; o++) SayTo(o, SideName(s) + " raises " + W.name + " to its second tier: " + W.raised + "."); Chronicle(s, CK_WONDER, W.name + " was raised to its second tier."); continue; }
-            wonderBy[st.wonder] = s;
+            wonderBy[st.wonder] = s; wonderDay[st.wonder] = GameDay();
             if (st.wonder == WD_ARK) arkPos = st.pos;
             if (st.wonder == WD_GATE && eco.map) { int z = eco.ZoneAt({st.pos.x, -1, st.pos.z}); if (z < 0) { float bd = 1e9f; for (int k = 0; k < (int)eco.map->zones.size(); k++) { float dd = Vector3Distance(eco.map->zones[k].Center(), st.pos); if (dd < bd) { bd = dd; z = k; } } } gateZone = z; for (auto& sk : stocks) if (sk.zone == z) sk.K *= D.gateYield; }
             for (int o = 0; o < N; o++) { SayTo(o, SideName(s) + " has finished " + W.name + ". " + (o == s ? W.forBuilder : W.forMap) + "."); if (o != s) Chronicle(o, CK_WONDER, SideName(s) + " finished " + W.name + "."); }
@@ -811,7 +812,9 @@ void World::StepCouncil(float dt) {
                 int yes = 0, no = 0; for (int s = 0; s < N; s++) { int wv = VoteWeight(s); if (m.votes[s] > 0) yes += wv; else if (m.votes[s] < 0) no += wv; }
                 bool pass = yes > no;
                 for (int s = 0; s < N; s++) SayTo(s, TextFormat("The Council: %s %s (%d to %d).", MotionName(m.kind), pass ? "PASSES" : "fails", yes, no));
+                council.votes++;
                 if (!pass) continue;
+                council.passed[m.kind]++;
                 float until = time + D.motionDays * DAY;
                 switch (m.kind) {
                 case MO_PEACE:
@@ -828,7 +831,7 @@ void World::StepCouncil(float dt) {
                 case MO_WAR: {
                     if (council.war || !opts.greatWar) break;
                     uint32_t A = 1u << m.by; for (int s = 0; s < N; s++) if (Leagued(s, m.by)) A |= 1u << s;
-                    council.warA = A; council.warFrom = (floorf(time / DAY) + 1) * DAY; council.warUntil = council.warFrom + D.warDays * DAY; council.war = true;
+                    council.warA = A; council.warFrom = (floorf(time / DAY) + 1) * DAY; council.warUntil = council.warFrom + D.warDays * DAY; council.war = true; council.warsDeclared++;
                     for (int s = 0; s < N; s++) { SayTo(s, std::string("THE GREAT WAR is declared: ") + (((A >> s) & 1) ? "your side is the proposer's league" : "you stand with everyone else") + ". It begins at the next dawn."); Chronicle(s, CK_WAR, "The Great War was declared."); }
                 } break;
                 }
@@ -854,7 +857,7 @@ void World::StepCouncil(float dt) {
         if (fronts >= 3 && a >= D.warShare * fronts) won = 0; else if (fronts >= 3 && b >= D.warShare * fronts) won = 1;
         if (won < 0 && time >= council.warUntil) won = a > b ? 0 : b > a ? 1 : 2;
         if (won >= 0) {
-            council.war = false;
+            council.war = false; council.warDays += (time - council.warFrom) / DAY;
             for (int s = 0; s < N; s++) {
                 bool win = won < 2 && WarSide(s) == won;
                 if (win) { ColOf(s).warsWon++; Chronicle(s, CK_WAR, "We won the Great War."); } else Chronicle(s, CK_WAR, won == 2 ? "The Great War ended with no side the victor." : "We lost the Great War.");
@@ -1595,4 +1598,48 @@ int RunFlightLongFlightTest() {
     return fails ? 1 : 0;
 }
 
+// ---------------------------------------------------------------- --flight-long <days> [players] [seed] [runs]: a full bot Long Flight
+int RunFlightLongSim(int argc, char** argv) {
+    int days = argc > 2 ? std::max(1, atoi(argv[2])) : 48, players = argc > 3 ? std::clamp(atoi(argv[3]), 2, 6) : 6;
+    uint32_t seed = argc > 4 ? (uint32_t)atoi(argv[4]) : 1; int runs = argc > 5 ? std::max(1, atoi(argv[5])) : 1;
+    std::string why; if (!rt::DataOk(&why)) { printf("no data: %s\n", why.c_str()); return 1; }
+    printf("The Flight, the Long Flight: %d bot colonies, %d days, %d run(s)\n", players, days, runs);
+    int wars = 0, totalWonders = 0, wondersBy24 = 0, specs = 0; float spreadSum = 0, reckLoss = 0; int reckN = 0;
+    for (int run = 0; run < runs; run++) {
+        auto w = std::make_unique<World>(); MapOpts o; o.players = players; o.seasons = 8; w->Init("taloned", seed + run * 101, o);
+        w->founderBot = true;
+        int N = (int)w->sides.size() + 1;
+        std::vector<int> pre(N, 0);
+        auto t0 = std::chrono::steady_clock::now();
+        for (float t = 0; w->time < days * World::DAY && !w->over; t += 0.25f) {
+            int d0 = w->GameDay();
+            w->Step(0.25f, FounderInput{});
+            if (w->GameDay() != d0) {
+                int d = w->GameDay();
+                if (d == 46) for (int s = 0; s < N; s++) { pre[s] = 0; for (const auto& n : w->ColOf(s).nests) pre[s] += n.built; }
+                if (d == 47) for (int s = 0; s < N; s++) { int now = 0; for (const auto& n : w->ColOf(s).nests) now += n.built; if (pre[s] > 0) { reckLoss += 1.0f - (float)now / pre[s]; reckN++; } }
+                if (d % 6 == 1) { int birds = 0; for (int s = 0; s < N; s++) for (const auto& b : w->ColOf(s).birds) birds += b.alive; printf("  [run %d day %2d] %d birds on the map, %.0f s\n", run, d, birds, std::chrono::duration<float>(std::chrono::steady_clock::now() - t0).count()); fflush(stdout); }
+            }
+        }
+        for (int s = 0; s < N; s++) w->scores.resize(N), w->scores[s] = w->Score(s);
+        w->ShareLeagueScores();
+        int hi = -1 << 30, lo = 1 << 30; for (int s = 0; s < N; s++) { hi = std::max(hi, w->scores[s].total); lo = std::min(lo, w->scores[s].total); }
+        spreadSum += hi > 0 ? (float)(hi - lo) / hi : 0;
+        printf("  run %d (seed %u): day %d%s\n", run, seed + run * 101, w->GameDay(), w->over ? (" (over: " + w->overReason + ")").c_str() : "");
+        for (int s = 0; s < N; s++) {
+            const Colony& C = w->ColOf(s); int birds = 0; for (const auto& b : C.birds) birds += b.alive;
+            printf("    %-9s %-14s gen %d%s, %3d birds, species %s, %d elders, league %d, pearls %d (trade %d), chronicle %d lines, score %d\n", w->SideName(s).c_str(), Founders()[w->FounderOf(s).def].name.c_str(), C.gen + 1, C.regentEver ? " (a regency)" : "",
+                   birds, C.speciesTrait[0] >= 0 ? (C.speciesName + TextFormat(" (day %d)", C.speciesDay)).c_str() : "-", w->Elders(s), C.league, C.pearls, C.tradeEarned, (int)C.chronicle.size(), w->scores[s].total);
+            specs += C.speciesTrait[0] >= 0;
+        }
+        int nw = 0; std::string wl; for (int k = 0; k < WD_COUNT; k++) if (w->wonderBy[k] >= 0) { nw++; if (w->wonderDay[k] <= 24) wondersBy24++; wl += TextFormat(" %s (%s, day %d);", Wonders()[k].name.c_str(), w->SideName(w->wonderBy[k]).c_str(), w->wonderDay[k]); }
+        totalWonders += nw;
+        printf("    wonders: %d%s\n", nw, wl.c_str());
+        printf("    the Council: %d votes; passed: peace %d, hunt %d, embargo %d, sanctuary %d, tithe %d, war %d; Great Wars declared %d (%.1f days)\n", w->council.votes, w->council.passed[MO_PEACE], w->council.passed[MO_HUNT], w->council.passed[MO_EMBARGO], w->council.passed[MO_SANCTUARY], w->council.passed[MO_TITHE], w->council.passed[MO_WAR], w->council.warsDeclared, w->council.warDays);
+        wars += w->council.warsDeclared > 0;
+    }
+    printf("summary: %.1f wonders a match (%.1f by day 24; the doc: 1-3 by its day 16, 6-9 by 32); %d of %d colonies speciated; a Great War in %d of %d matches (the doc: about 60%%);\n", totalWonders / (float)runs, wondersBy24 / (float)runs, specs, runs * players, wars, runs);
+    printf("         the Kraken's Reckoning took %.0f%% of the nests on average (the doc: 10-20%%; a prepared colony under 5%%); score spread first to last %.0f%%\n", reckN ? 100 * reckLoss / reckN : 0.0f, 100 * spreadSum / runs);
+    return 0;
+}
 }  // namespace fl

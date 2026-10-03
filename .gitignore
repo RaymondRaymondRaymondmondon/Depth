@@ -23,3 +23,6 @@ __pycache__/
 docs/redtide_vis_pages/*.png
 
 docs/flight_pdf_pages/*.png
+flight_longflight_save.bin
+flight_chronicle.txt
+flight_lf_test_save.bin

@@ -174,6 +174,7 @@ int YearDays();
 const std::vector<std::string>& DynastyNames();
 const char* SuccessionName(int c); const char* SuccessionWhat(int c);
 int RunFlightLongFlightTest();                  // depth.exe --flight-longflight-test
+int RunFlightLongSim(int argc, char** argv);    // depth.exe --flight-long <days> [players] [seed] [runs]: a full bot Long Flight and its report
 int ReckoningTimerFrom(); int ReckoningReadingDay();
 // the Long Flight's evolution: twelve traits in ranks I-III, two bits each in Bird::genes (the first six are the mates' traits)
 enum GeneTrait { GT_BIG_EGGS = 0, GT_QUICK, GT_HARDY, GT_KEEN, GT_FIERCE, GT_FERTILE, GT_DEEP, GT_TIRELESS, GT_SILENT, GT_THICK, GT_CLEVER, GT_LUCKY, GT_COUNT };
@@ -476,7 +477,7 @@ struct Colony {
     int nestStyle = 0;                        // (the long match: the style new nests are laid in)
     // the Long Flight: generations (the heir, the succession choice, the perk it keeps), the dynasty, the Chronicle
     int gen = 0, heirId = -1, heirTrait = -1, succChoice = 0, keepPerk = -1, dynastyPick = 0, heirAnnounced = -1; bool regent = false;
-    int speciesTrait[2] = {-1, -1}; std::string speciesName;
+    int speciesTrait[2] = {-1, -1}; std::string speciesName; int speciesDay = -1;
     bool stormCrossed = false, rocEgg = false, fleetBoarded = false;
     float templeT = -1e9f, arkT = -1e9f; int chainMark = -1, windPick = -1;   // (the wonders' hands)
     int league = -1, oathsBroken = 0, warsWon = 0, huntScore = 0; float leagueFrom = 0, oathUntil = -1e9f;
@@ -514,7 +515,8 @@ enum { MO_PEACE = 0, MO_HUNT, MO_EMBARGO, MO_SANCTUARY, MO_TITHE, MO_WAR, MO_COU
 const char* MotionName(int k); const char* MotionWhat(int k);
 struct Motion { int kind = 0, by = 0, target = -1; std::vector<int> votes; };   // (votes: per side, 1 yes, -1 no, 0 not yet)
 struct CouncilState { int meeting = -1, lastMeeting = -1; std::vector<Motion> agenda; float peaceUntil = -1, embargoUntil = -1, sanctuaryUntil = -1, huntUntil = -1, warFrom = 0, warUntil = 0;
-                      int embargo = -1, sanctuary = -1, hunt = -1, chest = 0; bool war = false; uint32_t warA = 0; };
+                      int embargo = -1, sanctuary = -1, hunt = -1, chest = 0; bool war = false; uint32_t warA = 0;
+                      int passed[MO_COUNT] = {}, votes = 0, warsDeclared = 0; float warDays = 0; };   // (tallies for --flight-long)
 // the Long Flight's Far Sea (flight_longflight.cpp)
 struct FarState { Vector3 c{}; float fogR = 1e9f, wallR = 1e9f; bool opened = false;
                   int rocIsle = -1, rocTarget = -1; Vector3 roc{}; float rocHp = 900, rocT = 0, rocNestT = -1e9f; bool rocHunting = false;
@@ -707,7 +709,7 @@ struct World {
     bool FarOpen() const; bool IsFar(int isle) const;
     void InitFarSea(); void StepFarSea(float dt); void SetFleetPose();
     float FarCatchMul(int zone) const;          // (the Mirror Lagoon's fish never flee)
-    int wonderBy[WD_COUNT] = {-1, -1, -1, -1, -1, -1, -1, -1, -1}; uint32_t wonderRaised = 0; int gateZone = -1; Vector3 arkPos{};   // (Grand Projects)
+    int wonderBy[WD_COUNT] = {-1, -1, -1, -1, -1, -1, -1, -1, -1}; int wonderDay[WD_COUNT] = {}; uint32_t wonderRaised = 0; int gateZone = -1; Vector3 arkPos{};   // (Grand Projects)
     bool WonderSiteOk(int wonder, int isle) const; int WonderBy(int wonder) const; bool HasWonder(int side, int wonder) const;
     bool Consecrate(int wonder); bool RaiseWonder(int wonder); bool WonderAct(int wonder, int arg, Vector3 at);
     float MateTimeMul(int side) const; float GateTaxFor(int zone, int side) const;

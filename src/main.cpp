@@ -775,6 +775,7 @@ int main(int argc, char** argv) {
     if (argc >= 2 && strcmp(argv[1], "--flight-costume-test") == 0) { SetTraceLogLevel(LOG_WARNING); return fl::RunFlightCostumeTest(); }
     if (argc >= 2 && strcmp(argv[1], "--flight-long-test") == 0) { SetTraceLogLevel(LOG_WARNING); return fl::RunFlightLongTest(); }
     if (argc >= 2 && strcmp(argv[1], "--flight-longflight-test") == 0) { SetTraceLogLevel(LOG_WARNING); return fl::RunFlightLongFlightTest(); }
+    if (argc >= 2 && strcmp(argv[1], "--flight-long") == 0) { SetTraceLogLevel(LOG_WARNING); return fl::RunFlightLongSim(argc, argv); }
     if (argc >= 2 && strcmp(argv[1], "--flight-siege") == 0) { SetTraceLogLevel(LOG_WARNING); return fl::RunFlightSiege(argc, argv); }
     if (argc >= 2 && strcmp(argv[1], "--flight-society-test") == 0) { SetTraceLogLevel(LOG_WARNING); return fl::RunFlightSocietyTest(); }
     if (argc >= 2 && strcmp(argv[1], "--flight-net-test") == 0) { SetTraceLogLevel(LOG_WARNING); return fl::RunFlightNetTest(); }
