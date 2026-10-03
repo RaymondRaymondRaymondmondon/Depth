@@ -99,7 +99,7 @@ void World::StepSeasons(float dt) {
     for (int k = 0; k < EV_SEASON_COUNT * 2; k++) {
         int e = k % EV_SEASON_COUNT; float on = k < EV_SEASON_COUNT ? eventDay[e] : eventDay2[e];
         if ((eventsDone >> k) & 1 || on < 0 || day < (int)on) continue;
-        eventsDone |= 1u << k; seasonEvent = e; eventUntil = time + DAY;
+        eventsDone |= 1u << k; seasonEvent = e; eventUntil = time + DAY * (k >= EV_SEASON_COUNT && e == EV_LONG_NIGHT ? 2 : 1);   // (year two's Long Night is two days)
         std::string what = D.seasons[e].event + ": " + D.seasons[e].eventWhat + ".";
         for (int s = 0; s <= (int)sides.size(); s++) SayTo(s, what);
         if (e == EV_MIGRATION) for (int s = 0; s <= (int)sides.size(); s++) ColOf(s).wildMates += D.migrationMates;
@@ -637,6 +637,7 @@ bool World::PayTribute() {
     const FactionData& D = FD();
     if (grey.isle < 0 || grey.dead) return false;
     if (!PayFish(col, D.tributeFish)) { Say(TextFormat("The Grey Wings want %d fish.", D.tributeFish)); return false; }
+    col.tributePaid++;
     if ((int)grey.peaceUntil.size() <= cur) grey.peaceUntil.resize(cur + 1, 0);
     grey.peaceUntil[cur] = time + D.peaceDays * DAY;
     Say("The Grey Wings take the tribute: a day's peace.");
@@ -1099,7 +1100,7 @@ int World::LegacyScore(int side, int* part) const {
     }
     if (part) for (int k = 0; k < 6; k++) part[k] = p[k];
     int lf = LongFlight() && side >= 0 && side <= (int)sides.size() && ColOf(side).stormCrossed ? (int)StormCrossScore() : 0;   // (the Long Flight: the Storm Wall crossed)
-    if (LongFlight() && side >= 0 && side <= (int)sides.size()) { const Colony& C = ColOf(side); lf += WonderScore(side) + C.warsWon * 200 + C.huntScore + TitleScore(side) + std::min(100, 5 * ChronicleChapters(side)); }   // (titles; the Chronicle's length)   // (Grand Projects; the Great War won; the Hunt)
+    if (LongFlight() && side >= 0 && side <= (int)sides.size()) { const Colony& C = ColOf(side); lf += WonderScore(side) + C.warsWon * 200 + C.huntScore + TitleScore(side) + std::min(100, 5 * ChronicleChapters(side)) + ReckoningScore(side); }   // (titles; the Chronicle's length)   // (Grand Projects; the Great War won; the Hunt)
     return p[0] + p[1] + p[2] + p[3] + p[4] + p[5] + lf;
 }
 // ---------------------------------------------------------------- --flight-long-test (the expansion's long match)

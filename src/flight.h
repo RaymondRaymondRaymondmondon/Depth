@@ -91,7 +91,7 @@ struct MapOpts {
     float minutes = 0;                          // 0: no limit (solo)
     bool multi = false;                         // no slow motion in a strike (the world can't crawl for one player)
     int seasons = 0;                            // (the expansion's long match) 0 standard; 2, 3 or 4 seasons; 6 or 8 the Long Flight
-    bool farSea = true, roc = true, greatWar = true;   // (the Long Flight's lobby: the Far Sea, the Roc, the Great War allowed)
+    bool farSea = true, roc = true, greatWar = true, reckoning = true;   // (the Long Flight's lobby: the Far Sea, the Roc, the Great War allowed)
 };
 // ---------------------------------------------------------------- the long match (the expansion, doc pp. 35-51: flight_long.cpp)
 enum SeasonId { SEASON_SPRING = 0, SEASON_SUMMER, SEASON_AUTUMN, SEASON_WINTER, SEASON_COUNT };
@@ -174,6 +174,7 @@ int YearDays();
 const std::vector<std::string>& DynastyNames();
 const char* SuccessionName(int c); const char* SuccessionWhat(int c);
 int RunFlightLongFlightTest();                  // depth.exe --flight-longflight-test
+int ReckoningTimerFrom(); int ReckoningReadingDay();
 // the Long Flight's evolution: twelve traits in ranks I-III, two bits each in Bird::genes (the first six are the mates' traits)
 enum GeneTrait { GT_BIG_EGGS = 0, GT_QUICK, GT_HARDY, GT_KEEN, GT_FIERCE, GT_FERTILE, GT_DEEP, GT_TIRELESS, GT_SILENT, GT_THICK, GT_CLEVER, GT_LUCKY, GT_COUNT };
 enum { RARE_ALBINO = 1, RARE_GIANT = 2, RARE_CRESTED = 4 };
@@ -350,7 +351,7 @@ struct Nest {
 };
 struct Cache { Vector3 pos{}; std::vector<CachedFish> fish; bool built = true; float twigs = 0; int isle = -1; };
 struct TwigSource { Vector3 pos{}; float twigs = 0, cap = 6; bool shells = false; };
-struct Stock { int row = 0, sp = 0, zone = 0; float K = 0, births = 0, pop = 0; };   // a fishing ground's species (one spawn row); pop: its count while the zone sleeps
+struct Stock { int row = 0, sp = 0, zone = 0; float K = 0, births = 0, pop = 0; float fracSum = 0; int days = 0; };   // (fracSum/days: the Long Flight's year-one average, which year two remembers)   // a fishing ground's species (one spawn row); pop: its count while the zone sleeps
 struct DayStats { int day = 0, birds = 0, eggs = 0, chicks = 0, mates = 0, nests = 0, caught = 0, deaths = 0; float feedCaught = 0, mouths = 0, cacheFeed = 0, lagoon = 0; };
 // A flock (doc p13): 2-12 warriors with a leader, a formation, an altitude order, a stance and a target
 enum class Formation : uint8_t { Chevron, Wall, Spiral, Scatter, Hammer, Cover, COUNT };
@@ -385,7 +386,7 @@ const std::vector<WonderDef>& Wonders();   // (5 on: the long match's, doc p49)
 int StructureTwigs(int kind); int StructureShells(int kind);   // (flight_war.json and flight_research.json)
 const char* StructureName(int kind);
 struct Structure { int kind = 0; Vector3 pos{}; float twigs = 0; int shells = 0; bool built = false; int site = -1; float hp = 100; int isle = -1;
-                  int wonder = -1; bool raising = false; float startT = 0; };   // (a Grand Project: which; its second tier under way; consecrated when)
+                  int wonder = -1; bool raising = false, damaged = false; float startT = 0; };   // (a Grand Project: which; its second tier under way; consecrated when)
 int StTwigs(const Structure& s); int StShells(const Structure& s);   // (a structure's cost, a wonder's included)
 struct Colony;
 const Structure* BuiltOf(const Colony& C, int kind);   // (the long match's structures, doc p49)
@@ -480,6 +481,7 @@ struct Colony {
     float templeT = -1e9f, arkT = -1e9f; int chainMark = -1, windPick = -1;   // (the wonders' hands)
     int league = -1, oathsBroken = 0, warsWon = 0, huntScore = 0; float leagueFrom = 0, oathUntil = -1e9f;
     int wares[WR_COUNT] = {}; std::vector<TradeRoute> routes; int tradeEarned = 0;   // (trade empires)
+    bool catchUp = false, regentEver = false, reckonSurvived = false; int coveCatch = 0, tributePaid = 0;   // (the Reckoning's accounts)
     uint32_t tools = 0; int toolSeason = -1, taming = -1, tamed = -1, tameDays = 0, tamedId = -1; float apeT = 0, mirrorT = -1e9f;   // (tools and taming)
     int seasonCatch[8] = {}, chicksStarved = 0, chronRaidDay = -1; bool peacemaker = false, firstClutch = false; std::vector<Song> songs;   // (culture: the Fisher King's count, the Shepherd's, the songs)   // (leagues, oaths, the Great War, the Council's Hunt)   // (the Far Sea: the Storm Wall crossed; a Roc's egg taken; the Fleet boarded)   // (the Long Flight: the colony's species, once 20 birds share a trait at III)
     float genStart = 0, successionT = -1e9f; uint32_t relicsKept = 0; std::string dynasty; std::vector<ChronLine> chronicle;
@@ -723,6 +725,8 @@ struct World {
     int lastSongSeason = -1;                    // (culture)
     int SeasonAbs() const; std::string ChronicleText(int side) const; int ChronicleChapters(int side) const;
     std::vector<std::pair<std::string, int>> Titles(int side) const; int TitleScore(int side) const; void StepCulture(float dt);
+    bool remembered = false, reading = false;   // (the Reckoning)
+    bool CatchUp(int side) const; int ReckoningScore(int side) const; void StepReckoning(float dt);
     bool HasTool(int side, int tool) const; int FisherCarryBonus() const; bool MirrorSignal(); bool Tame(int beast); float TamedRisk() const; void StepTools(float dt);
     float eventDay2[4] = {-1, -1, -1, -1};      // (the Long Flight: year two's season events)
     void InitIsles(); void StepIsles(float dt); void SetGhostPose();

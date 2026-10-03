@@ -1175,6 +1175,7 @@ void DrawHud(const fl::World& w) {
             if (w.LongFlight()) {   // (the Long Flight: the year and the Founder's age)
                 static const char* AG[3] = {"young", "in its prime", "old"};
                 DrawTextCentered(TextFormat("year %d   the Founder is %s%s", w.Year(), AG[w.AgeStage(w.cur)], w.col.regent ? "   (a regent)" : ""), c.x - 20, c.y + 206, 13, w.AgeStage(w.cur) == 2 ? Color{255, 170, 140, 255} : Color{200, 230, 255, 255});
+                if (w.GameDay() >= fl::ReckoningTimerFrom() && w.opts.reckoning) { int left = fl::ReckoningReadingDay() - w.GameDay(); DrawTextCenteredBold(left > 0 ? TextFormat("the Reckoning in %d days", left) : TextFormat("THE RECKONING: %.1f days left", w.matchLen / fl::World::DAY - w.time / fl::World::DAY), c.x - 20, c.y + 222, 14, Color{255, 150, 120, 255}); }
             }
             if (w.col.decree >= 0 && w.col.decree < (int)fl::Decrees().size()) DrawTextCentered(TextFormat("decree: %s", fl::Decrees()[w.col.decree].name.c_str()), c.x - 20, c.y + 190, 13, Color{255, 226, 160, 255});
         }
@@ -2600,6 +2601,11 @@ static void DrawResults(Game& g, fl::World& w) {
         for (int k = 0; k < (int)fl::Tree::COUNT; k++) if (w.ColOf(w.cur).tier[k] >= 4) firsts |= 4;
         paid = S.shot ? fl::MatchTokens(w.Score(w.cur).total, w.winner == w.cur, firsts) : fl::AwardMatch(w.Score(w.cur).total, w.winner == w.cur, firsts);
         paidFor = &w;
+        if (w.LongFlight()) {   // (the Long Flight pays double, 50 a first, and the Dynast)
+            const fl::Colony& M = w.ColOf(w.cur); uint32_t lf = 0;
+            if (M.speciesTrait[0] >= 0) lf |= 8; for (int k = 0; k < fl::WD_COUNT; k++) if (w.WonderBy(k) == w.cur) lf |= 16; if (M.warsWon > 0) lf |= 32;
+            if (!S.shot) paid += fl::AwardLongFlight(paid, lf, w.DynastyOf(w.cur));
+        }
         if (w.LongFlight() && !S.shot) {   // (the Long Flight: every colony's Chronicle, in score order, written out for the group to keep)
             std::vector<int> order; for (int s = 0; s <= (int)w.sides.size(); s++) order.push_back(s);
             std::sort(order.begin(), order.end(), [&](int a, int b) { return w.Score(a).total > w.Score(b).total; });
@@ -2700,6 +2706,25 @@ void SceneFlight(Game& g) {
     Render(dt * WD().timeScale);
     if (!S.shot || getenv("DEPTH_FLAUDIO")) FlightAudioFrame(WD(), dt);
     DrawHud(WD()); if (!S.panel) MasteryHints(WD());
+    if (WD().LongFlight() && WD().reading) {
+        static float readT = 0; static bool skipped = false; static int forDay = -1;
+        fl::World& rw = WD();
+        if (forDay != rw.GameDay()) { forDay = rw.GameDay(); readT = 0; skipped = false; }
+        if (!skipped) {
+            readT += GetFrameTime();
+            std::vector<int> order; for (int s = 0; s <= (int)rw.sides.size(); s++) order.push_back(s);
+            std::sort(order.begin(), order.end(), [&](int a, int b) { return rw.Score(a).total > rw.Score(b).total; });
+            int who = order[std::min((int)order.size() - 1, (int)(readT / 15))];
+            if (readT > 15.0f * order.size()) skipped = true;
+            Rectangle r{SCREEN_W / 2.0f - 360, 120, 720, 300};
+            DrawRectangleRounded(r, 0.05f, 6, Fade(Color{20, 16, 10, 255}, 0.88f)); DrawRectangleRoundedLinesEx(r, 0.05f, 6, 2, Color{220, 190, 120, 255});
+            DrawTextCenteredBold("The Reading: " + rw.DynastyOf(who) + " (" + rw.SideName(who) + TextFormat(", %d)", rw.Score(who).total), SCREEN_W / 2.0f, r.y + 14, 19, Color{255, 226, 160, 255});
+            const auto& ch = rw.ColOf(who).chronicle; float ly = r.y + 48;
+            for (int k = std::max(0, (int)ch.size() - 10); k < (int)ch.size(); k++) { DrawTextCentered(TextFormat("day %d. ", ch[k].day) + ch[k].text, SCREEN_W / 2.0f, ly, 13, Color{240, 232, 214, 255}); ly += 18; }
+            { std::string ts; for (const auto& t : rw.Titles(who)) ts += (ts.empty() ? "" : ", ") + t.first; if (!ts.empty()) DrawTextCentered("Titles: " + ts, SCREEN_W / 2.0f, r.y + r.height - 50, 14, Color{255, 220, 150, 255}); }
+            if (Button({r.x + r.width - 130, r.y + r.height - 34, 116, 26}, "skip", true, 13)) skipped = true;
+        }
+    }
     if (S.panel) { if (S.page == 0) DrawColonyPanel(WD()); else if (S.page == 1) DrawFlockPanel(WD()); else if (S.page == 2) DrawSocietyPanel(WD()); else DrawLongPanel(WD()); }
     if (S.chart) DrawChart(WD());
     if (WD().over) DrawResults(g, WD());

@@ -61,7 +61,25 @@ const CostumeData& Costumes() {
     for (const Json& c : lv["hats"].a) { LiveryHat x; x.id = c["id"].Str0(); x.name = c["name"].Str0(x.id); x.hat = c["hat"].Str0(); x.price = c["price"].I(80); x.c = Col(c["c"], WHITE); d.hats.push_back(x); }
     return d;
 }
-const CostumeDef* FindCostume(const std::string& id) { for (const auto& c : Costumes().costumes) if (c.id == id) return &c; return nullptr; }
+const CostumeDef* FindCostume(const std::string& id) {
+    for (const auto& c : Costumes().costumes) if (c.id == id) return &c;
+    if (id == "dynast") {   // (the costume only the Long Flight gives: a crown of the dynasty's own feathers)
+        static CostumeDef d; static bool made = false;
+        if (!made) { made = true; d.id = "dynast"; d.name = "The Dynast"; d.note = "A crown of your dynasty's own feathers, with its name (only the Long Flight gives it)"; d.tier = CT_SPECIAL; d.look.hat = "crown"; d.look.hatC = {200, 120, 220, 255}; d.look.label = "dynasty"; }
+        return &d;
+    }
+    return nullptr;
+}
+int AwardLongFlight(int baseTokens, uint32_t lfFirsts, const std::string& dynasty) {
+    FlightWardrobe& w = Wardrobe();
+    int got = baseTokens;   // (double: the match's own tokens again)
+    for (int b = 3; b <= 5; b++) if (((lfFirsts >> b) & 1) && !((w.firsts >> b) & 1)) { w.firsts |= 1u << b; got += 50; }
+    w.tokens += got;
+    if (!w.Owns("dynast")) { w.owned.push_back("dynast"); if (w.costume.empty()) w.costume = "dynast"; }
+    w.dynasty = dynasty;
+    SaveWardrobe();
+    return got;
+}
 const LiveryColour* FindLiveryColour(const std::string& id) { for (const auto& c : Costumes().colours) if (c.id == id) return &c; return nullptr; }
 const LiveryHat* FindLiveryHat(const std::string& id) { for (const auto& c : Costumes().hats) if (c.id == id) return &c; return nullptr; }
 
@@ -87,6 +105,7 @@ void LoadWardrobe() {
         else if (k == "best") s >> gW.bestScore;
         else if (k == "firsts") s >> gW.firsts;
         else if (k == "hints") s >> gW.hints;
+        else if (k == "dynasty") { std::getline(s, gW.dynasty); if (!gW.dynasty.empty() && gW.dynasty[0] == ' ') gW.dynasty.erase(0, 1); }
         else if (k == "own") { std::string id; while (s >> id) gW.owned.push_back(id); }
         else if (k == "costume") s >> gW.costume;
         else if (k == "colour") s >> gW.liveryColour;
@@ -102,6 +121,7 @@ void SaveWardrobe() {
     if (!gW.costume.empty()) f << "costume " << gW.costume << "\n";
     if (!gW.liveryColour.empty()) f << "colour " << gW.liveryColour << "\n";
     if (!gW.liveryHat.empty()) f << "hat " << gW.liveryHat << "\n";
+    if (!gW.dynasty.empty()) f << "dynasty " << gW.dynasty << "\n";
 }
 
 bool BuyCostume(const std::string& id, std::string* why) {

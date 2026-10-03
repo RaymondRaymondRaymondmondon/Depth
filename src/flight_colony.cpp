@@ -463,6 +463,7 @@ void World::FisherStep(Bird& b, float dt) {
                 if (&b == &fb) fishCaught++;
                 if (tm.steal > 0 && Rand() < tm.steal) { b.carrySp = -1; b.carrySize = 0; Say("A frigatebird robs a hovering fisher of its fish."); return; }   // (hover-strike: a frigatebird steals from a hovering bird)
                 TechLog(dz, b.tk, TL_CATCH);
+                if (LongFlight() && dz >= 0) { Vector3 zc = eco.map->zones[dz].Center(); int ci = IsleAt(zc.x, zc.z, 80); if (ci >= 0 && isles[ci].type == IsleType::KrakenCove) col.coveCatch++; }
                 if (tm.yield > 1) b.bonusFish = tm.yield - 1;
                 if (float tx = GateTaxFor(dz, cur); tx > 0 && Rand() < tx) { Colony& G = ColOf(wonderBy[WD_GATE]); if (!G.caches.empty()) G.caches[0].fish.push_back({b.carrySp, b.carrySize, 0}); b.carrySp = -1; b.carrySize = 0; b.bonusFish = 0; return; }   // (the Fish Gate's toll: a fish in five)
                 if (b.tk == TK_DEEP && Rand() < DeepDivePearl()) col.pearls++;   // (a deep dive: the oyster beds too)

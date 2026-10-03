@@ -16,6 +16,8 @@
 //      Hall's fee and embargo), chartered routes flown by Traders (convoys, pirates, escorts), market events.
 //   7. Culture: the Chronicle (a chapter a season; exported at the end), titles worth score, and the Drummers' songs.
 //   8. Tools (a Clever III colony learns one a season) and taming (a season of a Priest's offerings).
+//   9. The Reckoning (the Reading, the Great Storm of the Year, the Kraken's Reckoning, Reckoning Day) and year two
+//      (the grounds remember year one; plagues in crowded colonies; catch-up winds for the bottom third).
 // The calendar (the user's call: the doc's days stretched to fit the colony's growth): a year is the four-season
 // match's 24 days, so the Long Flight is 48 days (or 36 for the shorter one); the Founder's life is a year.
 #include "flight.h"
@@ -495,7 +497,7 @@ void World::StepFarSea(float dt) {
             far.frigateT = 0;
             if (pirates.on && FlatXZ(pirates.pos, far.frigate) < D.frigateRange * 2) { pirates.hp -= 60; if (pirates.hp <= 0) { pirates.scatterUntil = time + DAY; pirates.hp = 400; for (int s = 0; s < N; s++) SayTo(s, "The navy's frigate scatters the pirates."); } }
             for (int s = 0; s < N; s++) {
-                if (Founders()[FounderOf(s).def].key != "frigatebird") continue;
+                if (Founders()[FounderOf(s).def].key != "frigatebird" && !Embargoed(s)) continue;   // (it hunts pirates, and anyone the Council embargoed)
                 for (auto& b : ColOf(s).birds) if (b.alive && b.stage == BStage::Adult && FlatXZ(b.pos, far.frigate) < D.frigateRange) { Bird& bb = b; WithSide(s, [&] { BirdDies(bb, "shot by the navy's frigate"); }); SayTo(s, "The navy's frigate fires on your birds: it hunts pirates, frigatebirds included."); break; }
             }
         }
@@ -586,7 +588,7 @@ bool World::WonderAct(int wonder, int arg, Vector3 at) {
 }
 float World::MateTimeMul(int side) const {
     // the Great Rookery's island draws the map's wild mates: everyone else's courtship takes longer; the Ark the same
-    float m = 1;
+    float m = CatchUp(side) ? 0.7f : 1.0f;   // (catch-up winds: the mates come faster)
     for (int wd : {WD_ROOKERY, WD_ARK}) if (wonderBy[wd] >= 0 && wonderBy[wd] != side) m *= PD2().rookeryMates;
     return m;
 }
@@ -666,7 +668,7 @@ void World::BotWonders() {
 }
 int World::WonderScore(int side) const {
     int s = 0;
-    for (int w = 0; w < WD_COUNT; w++) if (wonderBy[w] == side) s += Wonders()[w].score * (((wonderRaised >> w) & 1) ? 2 : 1);
+    for (int w = 0; w < WD_COUNT; w++) if (wonderBy[w] == side) { bool dmg = false; for (const auto& st : ColOf(side).builds) dmg |= st.kind == ST_WONDER && st.wonder == w && st.damaged; s += Wonders()[w].score * (((wonderRaised >> w) & 1) ? 2 : 1) / (dmg ? 2 : 1); }   // (storm damage: half)
     return s;
 }
 
@@ -1188,6 +1190,114 @@ void World::StepTools(float dt) {
     }
 }
 
+// ---------------------------------------------------------------- 9. the Reckoning and year two (doc pp. 3, 16-19): the clock's mercy, what's older, the end
+namespace {
+struct ReckData {
+    int readingDay = 43, stormDay = 44, krakenDay = 46, lastDay = 48, timerFrom = 37;
+    float lossPrepared = 0.05f, lossUnprepared = 0.15f, survived = 150, catchUpMates = 2, catchUpMateTime = 0.7f;
+    float plagueAt = 80, plagueChance = 0.05f, plagueLoss = 0.10f, rememberMin = 0.5f, rememberMax = 1.2f;
+    float species = 200, species2 = 200, dynasty = 150, elder = 20;
+};
+const ReckData& RKD() {
+    static ReckData d; static bool loaded = false;
+    if (loaded) return d;
+    loaded = true;
+    Json j = LoadJsonFile(FlightDataDir() + "/flight_longflight.json");
+    const Json& r = j["reckoning"];
+    auto F = [&](const char* k, float& v) { if (r[k].IsNum()) v = r[k].F(v); };
+    auto I = [&](const char* k, int& v) { if (r[k].IsNum()) v = r[k].I(v); };
+    I("reading_day", d.readingDay); I("storm_day", d.stormDay); I("kraken_day", d.krakenDay); I("last_day", d.lastDay); I("timer_from", d.timerFrom);
+    F("loss_prepared", d.lossPrepared); F("loss_unprepared", d.lossUnprepared); F("survived", d.survived); F("catch_up_mates", d.catchUpMates); F("catch_up_mate_time", d.catchUpMateTime);
+    F("plague_birds", d.plagueAt); F("plague_chance", d.plagueChance); F("plague_loss", d.plagueLoss); F("remember_min", d.rememberMin); F("remember_max", d.rememberMax);
+    F("species", d.species); F("species2", d.species2); F("dynasty", d.dynasty); F("elder", d.elder);
+    return d;
+}
+}  // namespace
+int ReckoningTimerFrom() { return RKD().timerFrom; }
+int ReckoningReadingDay() { return RKD().readingDay; }
+bool World::CatchUp(int side) const { return LongFlight() && side >= 0 && side <= (int)sides.size() && ColOf(side).catchUp; }
+int World::ReckoningScore(int side) const {
+    // the Reckoning's additions: a species 200 (a second power 200 more), an unbroken dynasty 150, elders 20 each, a colony that came through the Kraken's Reckoning with no nest lost 150
+    if (!LongFlight() || side < 0 || side > (int)sides.size()) return 0;
+    const ReckData& D = RKD(); const Colony& C = ColOf(side); int s = 0;
+    if (C.speciesTrait[0] >= 0) s += (int)D.species; if (C.speciesTrait[1] >= 0) s += (int)D.species2;
+    if (C.gen >= 1 && !C.regentEver) s += (int)D.dynasty;
+    s += (int)(Elders(side) * D.elder);
+    if (C.reckonSurvived) s += (int)D.survived;
+    return s;
+}
+void World::StepReckoning(float dt) {
+    if (!LongFlight()) return;
+    const ReckData& D = RKD();
+    int N = (int)sides.size() + 1, day = GameDay();
+    bool dayTick = fmodf(time, DAY) < dt;
+    for (int s = 0; s < N; s++) if (ColOf(s).regent) ColOf(s).regentEver = true;
+    if (!dayTick) return;
+    // the clock's mercy: the bottom third of the score gets a tailwind and its wild mates come faster
+    { std::vector<std::pair<int, int>> sc; for (int s = 0; s < N; s++) sc.push_back({Score(s).total, s}); std::sort(sc.begin(), sc.end());
+      for (int s = 0; s < N; s++) ColOf(s).catchUp = false;
+      int third = std::max(1, N / 3); for (int k = 0; k < third && N > 2; k++) { Colony& C = ColOf(sc[k].second); C.catchUp = true; C.wildMates += (int)D.catchUpMates; SayTo(sc[k].second, "Catch-up winds: a tailwind for your flocks today, and the wild mates come faster."); } }
+    // year two remembers: an overfished ground stays poor, a rested one rich (its year-one average)
+    if (day == YearDays() + 1 && !remembered) {
+        remembered = true;
+        for (auto& st : stocks) { float avg = st.days > 0 ? st.fracSum / st.days : 1; st.K *= std::clamp(avg, D.rememberMin, D.rememberMax); }
+        for (int s = 0; s < N; s++) SayTo(s, "Year two: the grounds remember. An overfished lagoon stays poor; a rested one stays rich.");
+    }
+    if (Year() == 1) for (auto& st : stocks) { st.fracSum += st.K > 0 ? std::min(1.5f, st.pop / st.K) : 1; st.days++; }
+    // year two: plagues come to crowded colonies (Nurses and the Chemistry tree are the cure)
+    if (Year() == 2) for (int s = 0; s < N; s++) {
+        Colony& C = ColOf(s); int alive = 0, nurses = 0; for (const auto& b : C.birds) { alive += b.alive; nurses += b.alive && b.stage == BStage::Adult && b.role == Role::Nurse; }
+        if (alive < D.plagueAt || Rand() > D.plagueChance) continue;
+        float loss = D.plagueLoss * (nurses > 0 || C.HasTier(Tree::Chemistry, 1) ? 0.3f : 1.0f); int kill = (int)(alive * loss), k = 0;
+        for (auto& b : C.birds) if (k < kill && b.alive && b.stage != BStage::Egg) { Bird& bb = b; WithSide(s, [&] { BirdDies(bb, "the plague"); }); k++; }
+        SayTo(s, TextFormat("PLAGUE in the colony: %d birds die (Nurses and the Chemistry tree are the cure).", k));
+        Chronicle(s, CK_OTHER, TextFormat("A plague took %d of the colony.", k));
+    }
+    if (!opts.reckoning) return;
+    // the Reckoning's events, one a day, announced at dawn
+    if (day == D.timerFrom) for (int s = 0; s < N; s++) SayTo(s, TextFormat("The Reckoning comes on day %d: the end is on the clock.", D.readingDay));
+    if (day == D.readingDay + 1) reading = false;
+    if (day == D.readingDay) {
+        reading = true;
+        for (int s = 0; s < N; s++) { SayTo(s, "THE READING: every colony's Chronicle is read, in order of score; the titles are given."); for (const auto& t : Titles(s)) Chronicle(s, CK_TITLE, "The colony was named " + t.first + "."); }
+    }
+    if (day == D.stormDay || day == D.stormDay + 1) {
+        weather.kind = 1; weather.t = DAY; weather.next = time + DAY * 2;
+        if (day == D.stormDay) {
+            for (int s = 0; s < N; s++) SayTo(s, "THE GREAT STORM OF THE YEAR: two days of the worst weather; wonders on open ground take damage unless hedged.");
+            for (int s = 0; s < N; s++) { Colony& C = ColOf(s); bool hedge = BuiltOf(C, ST_HEDGE) != nullptr; for (auto& st : C.builds) if (st.kind == ST_WONDER && st.built && !hedge) { st.damaged = true; SayTo(s, Wonders()[st.wonder].name + " takes storm damage (a hedge would have saved it)."); } }
+            if (far.fleet >= 0) far.fleetC = Vector3Add(far.fleetC, {Rand() * 300 - 150, 0, Rand() * 300 - 150});   // (the Fleet runs aground somewhere)
+            if (far.wallR < 1e8f) far.wallR -= 150;   // (the Storm Wall closes in)
+        }
+    }
+    if (day == D.krakenDay) {
+        // every colony faces its own debt at once: the kraken the one that bled its cove most, the Roc the one that killed most birds,
+        // the Grey Wings the one that paid least, the Drowned the loudest
+        int bled = -1, killer = -1, stingy = -1, loud = -1; int bb = -1, bk = -1, bs = 1 << 30, bl = -1;
+        for (int s = 0; s < N; s++) { const Colony& C = ColOf(s); if (C.coveCatch > bb) { bb = C.coveCatch; bled = s; } if (C.kills > bk) { bk = C.kills; killer = s; } if (C.tributePaid < bs) { bs = C.tributePaid; stingy = s; } int a = 0; for (const auto& b : C.birds) a += b.alive; if (a > bl) { bl = a; loud = s; } }
+        struct Debt { int side; const char* who; } debts[4] = {{bled, "the kraken"}, {killer, "the Roc"}, {stingy, "the Grey Wings"}, {loud, "the Drowned"}};
+        for (int s = 0; s < N; s++) ColOf(s).reckonSurvived = true;
+        for (const auto& d : debts) {
+            if (d.side < 0) continue;
+            Colony& C = ColOf(d.side);
+            int watchers = 0; for (const auto& b : C.birds) watchers += b.alive && b.stage == BStage::Adult && b.role == Role::Watcher;
+            bool prepared = watchers >= 3 || BuiltOf(C, ST_HEDGE) || BuiltOf(C, ST_TOWER);
+            int built = 0; for (const auto& n : C.nests) built += n.built;
+            int lose = std::max(prepared ? 0 : 1, (int)ceilf(built * (prepared ? D.lossPrepared : D.lossUnprepared)));
+            int lost = 0;
+            for (int ni = 0; ni < (int)C.nests.size() && lost < lose; ni++) {
+                Nest& n = C.nests[ni]; if (!n.built) continue;
+                for (auto& b : C.birds) if (b.alive && b.nest == ni && b.stage != BStage::Adult) { Bird& x = b; WithSide(d.side, [&] { BirdDies(x, std::string("taken in the Reckoning by ") + d.who); }); }
+                n.built = false; n.twigs = 0; n.mate = -1; n.bowl = 0; lost++;
+            }
+            if (lost > 0) C.reckonSurvived = false;
+            SayTo(d.side, TextFormat("THE KRAKEN'S RECKONING: %s comes for its debt: %d of your nests lost%s.", d.who, lost, prepared ? " (you were ready)" : ""));
+            Chronicle(d.side, CK_BEAST, TextFormat("In the Reckoning %s came for us; we lost %d nests.", d.who, lost));
+        }
+    }
+    if (day == D.lastDay) for (int s = 0; s < N; s++) SayTo(s, "RECKONING DAY: the second Founder dies at dusk; at midnight the score is final.");
+}
+
 // ---------------------------------------------------------------- --flight-longflight-test
 int RunFlightLongFlightTest() {
     int fails = 0;
@@ -1439,6 +1549,34 @@ int RunFlightLongFlightTest() {
         for (int d = 8; d < 16; d++) { w->time = d * World::DAY; w->StepTools(0.1f); }
         check(start && w->col.tamed == TB_DOLPHIN && w->TamedRisk() < 1, "a Priest's season of offerings tames a dolphin pod: the sharks take fewer fishers");
         check(!w->Tame(TB_TURTLE), "one tamed beast a colony");
+    }    // ---- the Reckoning and year two
+    {
+        auto w = std::make_unique<World>(); { MapOpts o; o.players = 3; o.seasons = 8; w->Init("taloned", 41, o); w->ape.isle = -1; w->kraken.isle = -1; w->weather.next = 1e9f; }
+        for (int k = 0; k < 6; k++) adult(*w, Role::Fisher, w->col.caches[0].pos);   // (side 0 the strongest)
+        w->time = 10 * World::DAY; w->StepReckoning(0.1f);
+        int low = -1; for (int s = 0; s < 3; s++) if (w->CatchUp(s)) low = s;
+        check(low > 0 && !w->CatchUp(0), "catch-up winds: the bottom third gets a tailwind and faster mates");
+        // the grounds remember year one
+        for (auto& st : w->stocks) { st.fracSum = 0.4f * 24; st.days = 24; }
+        float k0 = w->stocks.empty() ? 0 : w->stocks[0].K; w->time = 24 * World::DAY; w->StepReckoning(0.1f);
+        check(!w->stocks.empty() && w->stocks[0].K < k0 * 0.6f, "year two: an overfished ground stays poor (its year-one average)");
+        // the Great Storm: a wonder on open ground is damaged unless hedged
+        Structure wd; wd.kind = ST_WONDER; wd.wonder = WD_MONUMENT; wd.built = true; w->col.builds.push_back(wd); w->wonderBy[WD_MONUMENT] = 0;
+        int before = w->WonderScore(0); w->time = 43 * World::DAY; w->StepReckoning(0.1f);
+        check(w->weather.kind == 1 && w->WonderScore(0) == before / 2, "the Great Storm of the Year: two days of storm; an unhedged wonder is damaged (half its score)");
+        // the Kraken's Reckoning: each colony's debt; a prepared one loses less
+        for (int s = 0; s < 3; s++) w->WithSide(s, [&] { for (auto& n : w->col.nests) n.built = true; });
+        w->col.coveCatch = 50;
+        int built0 = 0; for (const auto& n : w->col.nests) built0 += n.built;
+        w->time = 45 * World::DAY; w->StepReckoning(0.1f);
+        int built1 = 0; for (const auto& n : w->col.nests) built1 += n.built;
+        check(built1 < built0 && !w->col.reckonSurvived, TextFormat("the Kraken's Reckoning: the kraken comes for the colony that bled its cove most (%d of %d nests left)", built1, built0));
+        // the Reckoning's score lines
+        w->col.speciesTrait[0] = GT_QUICK; w->col.gen = 1; w->col.regentEver = false;
+        check(w->ReckoningScore(0) >= 350, TextFormat("the Reckoning's score: a species 200, an unbroken dynasty 150 (%d)", w->ReckoningScore(0)));
+        for (auto& n : w->col.nests) n.built = true;
+        w->time = 46.5f * World::DAY; ScoreCard sc = w->Score(0); w->time = 20.5f * World::DAY; ScoreCard s1 = w->Score(0);
+        check(s1.nests > 0 && sc.nests >= (int)(s1.nests * 1.4f), "the last winter's holdings count triple (the first winter's double)");
     }    printf(fails ? "flight-longflight-test: %d check(s) failed\n" : "flight-longflight-test: all checks passed\n", fails);
     return fails ? 1 : 0;
 }

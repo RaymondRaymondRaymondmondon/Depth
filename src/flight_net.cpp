@@ -336,7 +336,7 @@ ScoreCard World::Score(int side) const {
     c.birds = (int)lroundf(adults * K.bird + chicks * K.chick);
     c.nests = (int)lroundf(nests * K.nest);
     for (int i = 0; i < (int)isles.size(); i++) if (HolderOf(i) == side) c.isles += IsDangerous(isles[i].type) ? (int)K.danger : (int)K.island;   // (islands held: the most nests on them)
-    if (seasons >= 4 && Season() == SEASON_WINTER) { c.isles = (int)lroundf(c.isles * WinterHoldings()); c.nests = (int)lroundf(c.nests * WinterHoldings()); }   // (Winter's holdings count double)
+    if (seasons >= 4 && Season() == SEASON_WINTER) { float wm = LongFlight() && Year() == 2 ? WinterHoldings() * 1.5f : WinterHoldings(); c.isles = (int)lroundf(c.isles * wm); c.nests = (int)lroundf(c.nests * wm); }   // (the Long Flight's last winter: triple)   // (Winter's holdings count double)
     c.cache = (int)(fish / std::max(1.0f, K.cachePer));
     c.kills = (int)lroundf(C.kills * K.kill);
     c.founder = F.deaths == 0 ? (int)K.founder : 0;
@@ -475,7 +475,7 @@ template <class A> void VisitColony(A& a, Colony& c, bool own, bool full, const 
         a.b(f.retreating); a.b(f.scattered); a.b(f.leaderDead); a.s(f.name);
         a.i(f.stim); a.f(f.stimT); a.f(f.crashT);
     });
-    a.vec(c.builds, [&](Structure& s) { a.i(s.kind); a.v3(s.pos); a.f(s.twigs); a.i(s.shells); a.b(s.built); a.i(s.site); a.f(s.hp); a.i(s.isle); a.i(s.wonder); a.b(s.raising); a.f(s.startT); });
+    a.vec(c.builds, [&](Structure& s) { a.i(s.kind); a.v3(s.pos); a.f(s.twigs); a.i(s.shells); a.b(s.built); a.i(s.site); a.f(s.hp); a.i(s.isle); a.i(s.wonder); a.b(s.raising); a.b(s.damaged); a.f(s.startT); });
     // stage 6: the stores, research, fervour, the buttons
     a.i(c.pearls); a.f(c.guano); a.f(c.sulfur);
     for (int t = 0; t < (int)Tree::COUNT; t++) { int v = c.tier[t]; a.i(v); c.tier[t] = (uint8_t)std::clamp(v, 0, 4); }
@@ -489,6 +489,7 @@ template <class A> void VisitColony(A& a, Colony& c, bool own, bool full, const 
     a.f(c.beaconT); a.b(c.rookeryWarm);
     a.i(c.speciesTrait[0]); a.i(c.speciesTrait[1]); a.s(c.speciesName); a.b(c.stormCrossed);
     for (int& v : c.wares) a.i(v); a.i(c.tradeEarned);
+    a.b(c.catchUp); a.b(c.regentEver); a.b(c.reckonSurvived); a.i(c.coveCatch); a.i(c.tributePaid);
     { int tl = (int)c.tools; a.i(tl); c.tools = (uint32_t)tl; } a.i(c.taming); a.i(c.tamed); a.i(c.tameDays); a.i(c.tamedId);
     for (int& v : c.seasonCatch) a.i(v); a.i(c.chicksStarved); a.b(c.peacemaker); a.vec(c.songs, [&](Song& g) { int sd = (int)g.seed; a.i(sd); g.seed = (uint32_t)sd; a.s(g.name); a.i(g.season); });
     a.vec(c.routes, [&](TradeRoute& r) { a.i(r.from); a.i(r.to); a.i(r.ware); a.i(r.traders); a.i(r.trips); a.f(r.t); a.f(r.since); a.b(r.repDone); });
@@ -607,6 +608,7 @@ template <class A> void Visit(A& a, World& w, bool full) {
     { WreckState& r = w.wreck; a.i(r.isle); a.i(r.hold); a.b(r.bell); }
     { Weather& e = w.weather; a.i(e.kind); a.f(e.t); a.f(e.next); }
     { IsleState& x = w.isx; a.i(x.ghost); a.v3(x.ghostC0); a.i(x.whale); a.f(x.whaleNext); a.f(x.whaleUnderT); a.i(x.dives); a.vec(x.birdConv, [&](float& v) { a.f(v); }); }
+    a.b(w.reading);
     { MarketState& m = w.market; a.i(m.event); a.i(m.next); a.i(m.cornerWare); a.i(m.fee); a.i(m.embargo); a.f(m.embargoUntil); }
     { CouncilState& k = w.council; a.i(k.meeting); a.f(k.peaceUntil); a.f(k.embargoUntil); a.f(k.sanctuaryUntil); a.f(k.huntUntil); a.f(k.warFrom); a.f(k.warUntil); a.i(k.embargo); a.i(k.sanctuary); a.i(k.hunt); a.i(k.chest); a.b(k.war); { int wa = (int)k.warA; a.i(wa); k.warA = (uint32_t)wa; }
       a.vec(k.agenda, [&](Motion& m) { a.i(m.kind); a.i(m.by); a.i(m.target); a.vec(m.votes, [&](int& v) { a.i(v); }); }); }

@@ -44,7 +44,8 @@ struct FlightWardrobe {
     std::vector<std::string> owned;            // costume, livery colour and livery hat ids
     std::string costume, liveryColour, liveryHat;   // worn ("" none)
     uint32_t firsts = 0;                       // bit 0 first kraken kill, 1 first dangerous island held, 2 first tier 4
-    uint32_t hints = 0;                        // (the mastery map, doc p50: which of its eight hints this player has had, across runs)
+    uint32_t hints = 0;
+    std::string dynasty;                       // (the Long Flight: the Dynast's crown carries the last dynasty's name)                        // (the mastery map, doc p50: which of its eight hints this player has had, across runs)
     bool Owns(const std::string& id) const;
 };
 FlightWardrobe& Wardrobe();
@@ -60,6 +61,7 @@ EggRoll OpenEgg(uint32_t seed);                // spends a crate: a costume, or 
 // what a match pays the player: 10, 1 per 50 score, 5 for each first done in it (only the first time ever), 20 for a win
 int MatchTokens(int score, bool won, uint32_t firstsThisMatch, uint32_t* newFirsts = nullptr);
 int AwardMatch(int score, bool won, uint32_t firstsThisMatch);   // adds them to the wallet (and the best score); returns the tokens
+int AwardLongFlight(int baseTokens, uint32_t lfFirsts, const std::string& dynasty);   // (the Long Flight: double tokens, 50 for each first (speciation, a wonder, a Great War won), the Dynast)
 
 int RunFlightCostumeTest();                    // depth.exe --flight-costume-test
 
