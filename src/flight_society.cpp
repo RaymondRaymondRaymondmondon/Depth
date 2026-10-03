@@ -392,6 +392,8 @@ bool World::AnswerOffer(int side, int id, bool accept) {
         GiveGoods(o.to, o.give); GiveGoods(o.from, o.get);
         size_t N = sides.size() + 1;
         if (o.truceDays > 0) { truceUntil.resize(N * N, -1); truceUntil[o.from * N + o.to] = truceUntil[o.to * N + o.from] = time + o.truceDays * DAY; }
+        if (o.pact) { ColOf(o.from).pact = o.to; ColOf(o.to).pact = o.from; for (size_t s = 0; s < N; s++) SayTo((int)s, SideName(o.from) + " and " + SideName(o.to) + " open a feed line: cutting it is an act of war against both."); }
+        if (o.loanFlock >= 0) if (Flock* f = FindFlock(o.from, o.loanFlock)) { f->loanTo = o.to; f->loanUntil = time + DAY; SayTo(o.to, f->name + " flies under your orders for a day (it follows your lead flock)."); }
         o.state = 1;
         SayTo(o.from, SideName(side) + " accepts your offer" + (o.truceDays > 0 ? TextFormat(": a truce for %.0f days.", o.truceDays) : "."));
         SayTo(side, "The trade is made.");
@@ -598,6 +600,11 @@ void World::BotSociety(float dt) {
     // offers to this colony: fair or better, and it can pay
     auto value = [](const int g[G_COUNT]) { return g[G_FISH] * 1.0f + g[G_TWIGS] * 0.5f + g[G_SHELLS] * 1.0f + g[G_PEARLS] * 8.0f; };
     for (auto& o : offers) if (o.state == 0 && o.to == cur) {
+        if (o.pact || o.loanFlock >= 0) {   // (diplomacy: a pact with anyone who hasn't raided it; a loan when it has an enemy and the fish)
+            bool yes = o.pact ? C.lastRaider != o.from && C.pact < 0 : C.lastRaider >= 0 && C.lastRaider != o.from && PayGoods(cur, o.get, false);
+            AnswerOffer(cur, o.id, yes);
+            continue;
+        }
         bool herald = false; for (const auto& hb : ColOf(o.from).birds) herald |= hb.alive && hb.role == Role::Herald && hb.stage == BStage::Adult;
         bool fair = value(o.give) * PerksOf(o.from).barter * (herald ? 1.1f : 1.0f) + o.truceDays * 3 >= value(o.get) * 1.1f;   // (a Diplomat's offers +20%; a Herald's +10%)   // (a Diplomat's offers +20%)
         AnswerOffer(cur, o.id, fair && PayGoods(cur, o.get, false));
@@ -664,7 +671,7 @@ int RunFlightFounders(int days, int seeds) {
     }
     double secs = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
     printf("  (scores relative to the field at each mark; mean scores %.0f / %.0f / %.0f; %d of %d windows where the doc puts them; %.0f s)\n", mean[0] / seeds, mean[1] / seeds, mean[2] / seeds, matched, nf, secs);
-    bool ok = nf == 12 && mean[2] > mean[0];
+    bool ok = nf == (int)Founders().size() && nf >= 12 && mean[2] > mean[0];
     printf(ok ? "flight-sim founders: every founder's window shown\n" : "flight-sim founders: FAILED\n");
     return ok ? 0 : 1;
 }

@@ -725,6 +725,90 @@ void World::BotFactions() {   // (the colony in the fields, a bot: tribute when 
     }
 }
 
+// ---------------------------------------------------------------- diplomacy, lightly (doc pp. 47-48): truces, feed pacts, bounties, flock loans
+namespace {
+int CacheFish(const Colony& C) { int n = 0; for (const auto& c : C.caches) n += (int)c.fish.size(); return n; }
+}
+int World::OfferPact(int to) {   // (the colony in the fields proposes a feed line)
+    if (seasons <= 0 || to < 0 || to > (int)sides.size() || to == cur || col.pact >= 0) return -1;
+    int none[G_COUNT] = {};
+    Barter o; o.id = nextOffer++; o.from = cur; o.to = to; o.t = time; o.pact = true;
+    for (int g = 0; g < G_COUNT; g++) { o.give[g] = none[g]; o.get[g] = none[g]; }
+    offers.push_back(o);
+    SayTo(to, SideName(cur) + " proposes a feed pact: a feed line between the two colonies (the trade page).");
+    Say("Your pact is proposed.");
+    return o.id;
+}
+int World::OfferLoan(int to, int flock, int fish) {   // (lend a flock for a day, for fish)
+    Flock* f = FindFlock(cur, flock);
+    if (seasons <= 0 || !f || to < 0 || to > (int)sides.size() || to == cur || f->loanTo >= 0) return -1;
+    Barter o; o.id = nextOffer++; o.from = cur; o.to = to; o.t = time; o.loanFlock = flock; o.get[G_FISH] = std::clamp(fish, 0, 60);
+    offers.push_back(o);
+    SayTo(to, TextFormat("%s offers you its flock %s for a day, for %d fish (the trade page).", SideName(cur).c_str(), f->name.c_str(), o.get[G_FISH]));
+    Say("Your flock is offered.");
+    return o.id;
+}
+bool World::PostBounty(int target, int fish) {
+    if (seasons <= 0 || target < 0 || target > (int)sides.size() || target == cur || fish <= 0) return false;
+    if (CacheFish(col) < fish) { Say("Not enough fish in the caches for that bounty."); return false; }
+    int n = fish; for (auto& c : col.caches) while (n > 0 && !c.fish.empty()) { c.fish.pop_back(); n--; }
+    ColOf(target).bounty += fish; ColOf(target).bountyBy = cur;
+    for (int s = 0; s <= (int)sides.size(); s++) SayTo(s, TextFormat("%s posts a bounty of %d fish on %s's Founder: whoever kills it collects.", SideName(cur).c_str(), fish, SideName(target).c_str()));
+    return true;
+}
+bool World::BreakTruce(int with) {
+    if (!Truce(cur, with)) return false;
+    size_t N = sides.size() + 1;
+    truceUntil[cur * N + with] = truceUntil[with * N + cur] = -1;
+    col.fervour = std::max(0.0f, col.fervour - 20);
+    for (auto& t : towns) if (cur < (int)t.rep.size()) t.rep[cur] = std::max(-100.0f, t.rep[cur] - 10);
+    for (int s = 0; s <= (int)sides.size(); s++) SayTo(s, SideName(cur) + " breaks its truce with " + SideName(with) + ": the broken flag flies over its island.");
+    col.truceBroken = time;
+    return true;
+}
+void World::CollectBounty(int victim, int killer) {
+    Colony& V = ColOf(victim);
+    if (V.bounty <= 0 || killer < 0 || killer == victim || killer > (int)sides.size()) return;
+    Colony& K = ColOf(killer);
+    int n = V.bounty; V.bounty = 0;
+    for (int q = 0; q < n && !K.caches.empty(); q++) K.caches[q % K.caches.size()].fish.push_back({0, 2, 0});
+    for (int s = 0; s <= (int)sides.size(); s++) SayTo(s, TextFormat("%s kills %s's Founder and collects the bounty: %d fish.", SideName(killer).c_str(), SideName(victim).c_str(), n));
+}
+void World::StepDiplomacy(float dt) {
+    if (seasons <= 0) return;
+    int N = (int)sides.size() + 1;
+    // feed pacts: twice a day the better-fed colony sends fish down the line
+    for (int a = 0; a < N; a++) {
+        Colony& A = ColOf(a); int b = A.pact;
+        if (b < 0 || b <= a || b >= N) continue;
+        Colony& B = ColOf(b);
+        A.pactT += dt;
+        if (A.pactT < DAY * 0.5f) continue;
+        A.pactT = 0;
+        int fa = CacheFish(A), fb = CacheFish(B);
+        Colony& rich = fa > fb ? A : B; Colony& poor = fa > fb ? B : A;
+        int give = std::min(4, std::abs(fa - fb) / 3);
+        for (int q = 0; q < give; q++) for (auto& c : rich.caches) if (!c.fish.empty()) { CachedFish f = c.fish.back(); c.fish.pop_back(); if (!poor.caches.empty()) poor.caches[0].fish.push_back(f); break; }
+    }
+    // flock loans: a lent flock fights beside the borrower's (or guards its island), then comes home
+    for (int s = 0; s < N; s++) for (auto& fl : ColOf(s).flocks) {
+        if (fl.loanTo < 0) continue;
+        if (time > fl.loanUntil) { fl.loanTo = -1; OrderFlock(s, fl.id, Target::Home, -1, -1, -1, -1, {}); SayTo(s, fl.name + " comes home from its loan."); continue; }
+        const Colony& B = ColOf(fl.loanTo);
+        const Flock* lead = nullptr; for (const auto& o : B.flocks) if (o.name != "Home guard" && !o.retreating) { lead = &o; break; }
+        if (lead && (fl.target != lead->target || fl.tSide != lead->tSide)) OrderFlock(s, fl.id, lead->target, lead->tSide, lead->tIsle, lead->tZone, lead->tFlock, lead->tAt);
+        else if (!lead && fl.target != Target::Point) OrderFlock(s, fl.id, Target::Point, -1, -1, -1, -1, B.caches.empty() ? isles[HomeOf(fl.loanTo)].c : B.caches[0].pos);
+    }
+    // a raid on one end of a feed line is an act of war against both
+    for (int s = 0; s < N; s++) for (auto& fl : ColOf(s).flocks) {
+        if (fl.tSide < 0 || fl.tSide >= N || fl.pactWarned || (fl.target != Target::Cache && fl.target != Target::Nests)) continue;
+        int p = ColOf(fl.tSide).pact;
+        if (p < 0 || p == s) continue;
+        fl.pactWarned = true; ColOf(p).lastRaider = s;
+        SayTo(p, SideName(s) + " raids " + SideName(fl.tSide) + ", your feed-pact partner: an act of war against you both.");
+    }
+}
+
 // ---------------------------------------------------------------- --flight-long-test (the expansion's long match)
 int RunFlightLongTest() {
     int fails = 0;
@@ -975,6 +1059,34 @@ int RunFlightLongTest() {
         int lid = lo.id; bool netted = false;
         for (int q = 0; q < 200 && !netted; q++) { for (auto& b : w->col.birds) if (b.id == lid) { b.pos = {w->fleet[0].pos.x + 2, 2, w->fleet[0].pos.z}; netted = b.netT > 0; } w->StepFactions(0.1f); }
         check(netted, "the Fishing Fleet nets a bird flying low beside its boat");
+    }    // ---- diplomacy, lightly (doc pp. 47-48)
+    {
+        auto w = make(4, 111); w->ape.isle = -1; w->kraken.isle = -1;
+        for (int s = 0; s <= 1; s++) w->WithSide(s, [&] { for (int q = 0; q < 30; q++) w->col.caches[0].fish.push_back({0, 2, 0}); });
+        int id = w->OfferPact(1);
+        w->WithSide(1, [&] { w->AnswerOffer(1, id, true); });
+        check(w->ColOf(0).pact == 1 && w->ColOf(1).pact == 0, "a feed pact proposed and accepted: a feed line between the two");
+        for (int q = 0; q < 25; q++) w->ColOf(1).caches[0].fish.pop_back();
+        int poor0 = (int)w->ColOf(1).caches[0].fish.size();
+        w->ColOf(0).pactT = World::DAY; w->StepDiplomacy(0.1f);
+        check((int)w->ColOf(1).caches[0].fish.size() > poor0, TextFormat("fish go down the line to the hungrier colony (%d to %d)", poor0, (int)w->ColOf(1).caches[0].fish.size()));
+        check(w->PostBounty(1, 10) && w->ColOf(1).bounty == 10, "a bounty of 10 fish posted on a rival's Founder");
+        size_t mine = w->ColOf(0).caches[0].fish.size();
+        w->CollectBounty(1, 0);
+        check(w->ColOf(1).bounty == 0 && w->ColOf(0).caches[0].fish.size() == mine + 10, "the Founder killed: the killer collects the bounty");
+        // a truce, then broken: fervour and reputation pay for it
+        size_t N = w->sides.size() + 1; w->truceUntil.assign(N * N, -1); w->truceUntil[0 * N + 1] = w->truceUntil[1 * N + 0] = w->time + World::DAY;
+        float f0 = w->col.fervour = 50;
+        check(w->BreakTruce(1) && !w->Truce(0, 1) && w->col.fervour <= f0 - 19.9f, "a truce broken: the breaker loses 20 fervour and reputation, and everyone sees the broken flag");
+        // a flock lent for a day follows the borrower's lead
+        std::vector<int> ids; for (int q = 0; q < 3; q++) { Bird k; k.id = w->col.nextId++; k.stage = BStage::Adult; k.role = Role::Skirmisher; k.hp = 50; k.hunger = 1; k.pos = w->col.caches[0].pos; w->col.birds.push_back(k); ids.push_back(k.id); }
+        int fl = w->MakeFlock(0, ids, Formation::Chevron, Alt::Mid, Stance::Raid);
+        int lid = w->OfferLoan(1, fl, 8);
+        w->WithSide(1, [&] { w->AnswerOffer(1, lid, true); });
+        Flock* F = w->FindFlock(0, fl);
+        check(F && F->loanTo == 1 && w->ColOf(1).caches[0].fish.size() < 5 + 30, "a flock lent for a day, for fish");
+        w->time += World::DAY * 1.1f; w->StepDiplomacy(0.1f);
+        check(F && F->loanTo < 0, "the loan ends and the flock comes home");
     }    printf(fails ? "flight-long-test: %d check(s) failed\n" : "flight-long-test: all checks passed\n", fails);
     return fails ? 1 : 0;
 }

@@ -175,6 +175,7 @@ void World::StepWar(float dt) {
         // killing a Trader near a town is an insult the town remembers
         if (v.b && v.b->role == Role::Trader) { int t = NearestTown(p, 200); if (t >= 0 && bySide < (int)towns[t].rep.size()) towns[t].rep[bySide] = std::max(-100.0f, towns[t].rep[bySide] - 25); }
         ColOf(v.side).losses++; ColOf(bySide).kills++;
+        if (v.f) CollectBounty(v.side, bySide);   // (a bounty on that Founder: the killer collects)
         warLog.push_back(TextFormat("%.0f: %s's %s %s", time, SideName(v.side).c_str(), v.b ? RoleName(v.b->role) : "Founder", cause.c_str()));
         if (v.b) {
             Bird& b = *v.b;

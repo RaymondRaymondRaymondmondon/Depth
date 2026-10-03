@@ -1370,6 +1370,23 @@ void DrawLongPanel(fl::World& w) {
             ly += 26;
         }
     }
+    // diplomacy, lightly: a pact, a bounty, a loan, a broken truce (doc pp. 47-48)
+    {
+        static int with = 1; int n = (int)w.sides.size() + 1; if (with == w.cur || with >= n) with = (w.cur + 1) % n;
+        ly += 4; TxtBold("Diplomacy", x + 16, ly, 17, ink);
+        if (SmallBtn({x + 130, ly, 24, 20}, "<")) { do with = (with + n - 1) % n; while (with == w.cur); }
+        Txt(w.SideName(with), x + 160, ly + 2, 15, w.SideColor(with));
+        if (SmallBtn({x + 300, ly, 24, 20}, ">")) { do with = (with + 1) % n; while (with == w.cur); }
+        ly += 26;
+        if (w.col.pact >= 0) line("Feed pact with " + w.SideName(w.col.pact) + ": the better-fed colony sends fish down the line.", Color{170, 240, 180, 255}, 13);
+        else if (SmallBtn({x + 16, ly, 150, 20}, "propose a feed pact")) { Writer o; fl::OrderPact(o, with); Order(o); }
+        if (SmallBtn({x + 176, ly, 150, 20}, "bounty: 10 fish")) { Writer o; fl::OrderBounty(o, with, 10); Order(o); }
+        if (!w.col.flocks.empty() && SmallBtn({x + 336, ly, 180, 20}, TextFormat("lend %s (8 fish)", w.col.flocks[0].name.c_str()))) { Writer o; fl::OrderLoan(o, with, w.col.flocks[0].id, 8); Order(o); }
+        ly += 24;
+        if (w.Truce(w.cur, with) && SmallBtn({x + 16, ly, 200, 20}, "break the truce (fervour -20)")) { Writer o; fl::OrderBreak(o, with); Order(o); }
+        if (w.col.bounty > 0) line(TextFormat("A bounty of %d fish is on your Founder (posted by %s).", w.col.bounty, w.SideName(w.col.bountyBy).c_str()), bad, 13);
+        ly += 4;
+    }
     line(TextFormat("The Fishing Fleet: %d boats work the grounds, drop chum, and net birds that fly low near them.", (int)w.fleet.size()), dim, 13);
     if (w.grey.isle >= 0) {
         bool peace = w.cur < (int)w.grey.peaceUntil.size() && w.time < w.grey.peaceUntil[w.cur];
@@ -1517,7 +1534,9 @@ void DrawSocietyPanel(fl::World& w) {
         if (o.state != 0 || o.to != w.cur || ly > y + H - 30) continue;
         std::string give, get;
         for (int g = 0; g < fl::G_COUNT; g++) { if (o.give[g]) give += TextFormat("%d %s ", o.give[g], fl::GoodName(g)); if (o.get[g]) get += TextFormat("%d %s ", o.get[g], fl::GoodName(g)); }
-        Txt(TextFormat("%s gives %sfor %s%s", w.SideName(o.from).c_str(), give.empty() ? "nothing " : give.c_str(), get.empty() ? "nothing" : get.c_str(), o.truceDays > 0 ? TextFormat(", truce %.0f d", o.truceDays) : ""), x + 16, ly + 2, 13, gold);
+        if (o.pact) Txt(w.SideName(o.from) + " proposes a feed pact (a feed line both ways)", x + 16, ly + 2, 13, gold);
+        else if (o.loanFlock >= 0) Txt(TextFormat("%s lends you a flock for a day, for %d fish", w.SideName(o.from).c_str(), o.get[fl::G_FISH]), x + 16, ly + 2, 13, gold);
+        else Txt(TextFormat("%s gives %sfor %s%s", w.SideName(o.from).c_str(), give.empty() ? "nothing " : give.c_str(), get.empty() ? "nothing" : get.c_str(), o.truceDays > 0 ? TextFormat(", truce %.0f d", o.truceDays) : ""), x + 16, ly + 2, 13, gold);
         if (SmallBtn({x + W - 150, ly, 64, 20}, "accept")) { Writer a; fl::OrderAnswer(a, o.id, true); Order(a); }
         if (SmallBtn({x + W - 80, ly, 64, 20}, "refuse")) { Writer a; fl::OrderAnswer(a, o.id, false); Order(a); }
         ly += 24;

@@ -296,6 +296,7 @@ enum class Target : uint8_t { Home, Cache, Nests, Ground, Flock, Point, COUNT };
 struct Flock {
     int id = 0; std::vector<int> members;     // bird ids
     int leader = -1;                          // -2 the Founder (when it flies with the flock), a Flockmaster's id, or -1
+    int loanTo = -1; float loanUntil = 0; bool pactWarned = false;   // (diplomacy: lent to another colony for a day; its raid on a pact partner announced)
     Formation form = Formation::Chevron; Alt alt = Alt::Mid; Stance stance = Stance::Raid;
     Target target = Target::Home; int tSide = -1, tIsle = -1, tZone = -1, tFlock = -1; Vector3 tAt{};
     Vector3 pos{}, vel{};                     // its middle, how it's moving
@@ -350,6 +351,7 @@ struct Town {
 };
 struct Barter {   // an offer between two colonies (Trade tier 2): goods each way, a truce
     int id = 0, from = 0, to = 0; int give[G_COUNT] = {}, get[G_COUNT] = {}; float truceDays = 0, t = 0; int state = 0;   // 0 open, 1 accepted, 2 refused, 3 expired
+    bool pact = false; int loanFlock = -1;      // (the long match's diplomacy: a feed pact; a flock lent for a day, for the fish asked)
 };
 struct Colony {
     int side = 0;                             // whose (0 you; 1.. the rivals)
@@ -393,7 +395,8 @@ struct Colony {
     // the long match: today's decree, the three offered at dawn, the ones used (no repeats), yesterday's (its after-effects)
     int wantTrait = -1, nextVetName = 0;
     uint32_t relics = 0; int legend = -1; bool legendAlive = false, goldenEggUsed = false;
-    float greyHit = -1000;                      // (the last time the Grey Wings took one of its birds)   // (the long match: relics at the shrine, a legendary bird)        // (the long match) the trait the courtship bowls ask for (-1 any); the next veteran's name
+    float greyHit = -1000;
+    int pact = -1, bounty = 0, bountyBy = -1; float pactT = 0, truceBroken = -1000;   // (diplomacy: a feed-pact partner; fish posted on this colony's Founder)                      // (the last time the Grey Wings took one of its birds)   // (the long match: relics at the shrine, a legendary bird)        // (the long match) the trait the courtship bowls ask for (-1 any); the next veteran's name
     int decree = -1, yesterday = -1, offer[3] = {-1, -1, -1}, dealtDay = 0, lastRaider = -1; uint32_t decreesUsed = 0; float salvageT = 0, titheFish = 0;
     bool bell = false; float offeredKraken = -1e9f, apeFedT = -1e9f;
     int krakenKill = 0;                       // (the kraken killed: 150 to the score)
@@ -578,6 +581,12 @@ struct World {
     void InitFactions();
     void StepFactions(float dt);
     void BotFactions();
+    int OfferPact(int to);                      // (diplomacy, doc pp. 47-48: the colony in the fields)
+    int OfferLoan(int to, int flock, int fish);
+    bool PostBounty(int target, int fish);
+    bool BreakTruce(int with);
+    void CollectBounty(int victim, int killer);
+    void StepDiplomacy(float dt);
     bool HirePirates(int target);               // the colony in the fields pays the Frigate Pirates to raid a colony for a day
     bool PayTribute();                          // ... and the Grey Wings for a day's peace                // warriors that have survived three fights become veterans (the colony in the fields)
     std::string VetLabel(const Bird& b) const;  // "Old Gray, Fearless" ("" for a bird that isn't one)

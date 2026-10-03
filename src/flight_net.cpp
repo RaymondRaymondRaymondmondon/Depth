@@ -84,6 +84,10 @@ void OrderPerk(Writer& w, int k) { w.U8(FA_PERK); w.U8((uint8_t)k); }
 void OrderWantTrait(Writer& w, int trait) { w.U8(FA_WANT_TRAIT); w.I32(trait); }
 void OrderHire(Writer& w, int target) { w.U8(FA_HIRE); w.I32(target); }
 void OrderTribute(Writer& w) { w.U8(FA_TRIBUTE); }
+void OrderPact(Writer& w, int to) { w.U8(FA_PACT); w.I32(to); }
+void OrderLoan(Writer& w, int to, int flock, int fish) { w.U8(FA_LOAN); w.I32(to); w.I32(flock); w.I32(fish); }
+void OrderBounty(Writer& w, int target, int fish) { w.U8(FA_BOUNTY); w.I32(target); w.I32(fish); }
+void OrderBreak(Writer& w, int with) { w.U8(FA_BREAK); w.I32(with); }
 bool FormationUnlocked(const Colony& c, Formation f) { return f == Formation::Chevron || f == Formation::Scatter || c.HasTier(Tree::War, 1); }
 
 std::string TargetText(World& w, const Flock& f) {
@@ -236,6 +240,10 @@ bool OrderIn(World& w, int side, int kind, Reader& r) {
     case FA_PERK: { int k = (int)r.U8(); if (r.bad) return false; return w.PickPerk(k); }
     case FA_HIRE: { int t = r.I32(); if (r.bad) return false; return w.HirePirates(t); }
     case FA_TRIBUTE: return w.PayTribute();
+    case FA_PACT: { int t = r.I32(); if (r.bad) return false; return w.OfferPact(t) >= 0; }
+    case FA_LOAN: { int t = r.I32(), f = r.I32(), n = r.I32(); if (r.bad) return false; return w.OfferLoan(t, f, n) >= 0; }
+    case FA_BOUNTY: { int t = r.I32(), n = r.I32(); if (r.bad || n < 1 || n > 100) return false; return w.PostBounty(t, n); }
+    case FA_BREAK: { int t = r.I32(); if (r.bad || t < 0 || t > (int)w.sides.size()) return false; return w.BreakTruce(t); }
     case FA_WANT_TRAIT: { int k = r.I32(); if (r.bad || k < -1 || k >= MT_COUNT) return false; C.wantTrait = k; for (auto& n : C.nests) n.favFish = 0; if (k >= 0) w.Say("The courtship bowls ask for a " + MateTraits()[k].name + " mate: fill them with " + MateTraits()[k].favorite + "."); return true; }
     case FA_BREW: { int s = (int)r.U8(); if (r.bad || s <= STIM_NONE || s >= STIM_COUNT) return false; C.brewFor = s; w.Say(std::string("The Chemists will brew ") + StimName(s) + "."); return true; }
     default: return false;
@@ -418,6 +426,7 @@ template <class A> void VisitColony(A& a, Colony& c, bool own, bool full, const 
     a.vec(c.flocks, [&](Flock& f) {
         a.i(f.id); a.vec(f.members, [&](int& m) { a.i(m); }); a.i(f.leader);
         a.e(f.form); a.e(f.alt); a.e(f.stance); a.e(f.target); a.i(f.tSide); a.i(f.tIsle); a.i(f.tZone); a.i(f.tFlock); a.v3(f.tAt);
+    a.i(f.loanTo); a.f(f.loanUntil);
         P16(a, f.pos); a.s8(f.vel.x, 60); a.s8(f.vel.y, 60); a.s8(f.vel.z, 60);
         a.f(f.morale); a.f(f.wins); a.f(f.engagedT); a.i(f.startSize); a.i(f.lost);
         a.b(f.retreating); a.b(f.scattered); a.b(f.leaderDead); a.s(f.name);
@@ -433,6 +442,7 @@ template <class A> void VisitColony(A& a, Colony& c, bool own, bool full, const 
     a.i(c.bombs); a.i(c.blockbusters); for (int k = 0; k < STIM_COUNT; k++) a.i(c.stims[k]); a.i(c.brewFor); a.b(c.bell); a.f(c.offeredKraken); a.i(c.krakenKill); a.i(c.expandTo);
     a.i(c.wantTrait);
     { int rl = (int)c.relics; a.i(rl); c.relics = (uint32_t)rl; a.i(c.legend); a.b(c.legendAlive); }
+    a.i(c.pact); a.i(c.bounty); a.i(c.bountyBy);
     a.i(c.decree); a.i(c.yesterday); for (int& o : c.offer) a.i(o); a.i(c.dealtDay); a.i(c.lastRaider); { int u = (int)c.decreesUsed; a.i(u); c.decreesUsed = (uint32_t)u; }   // (the long match's decrees)
 }
 // each zone's stock as a share of what it holds (one pass over the fish)
@@ -529,7 +539,7 @@ template <class A> void Visit(A& a, World& w, bool full) {
         a.vec(w.townCredit, [&](float& c) { a.f(c); });
         std::vector<Barter> mine;
         if constexpr (!A::reading) for (const auto& o : w.offers) if ((o.from == w.cur || o.to == w.cur) && w.time - o.t < World::DAY * 2) mine.push_back(o);
-        a.vec(A::reading ? w.offers : mine, [&](Barter& o) { a.i(o.id); a.i(o.from); a.i(o.to); for (int g = 0; g < G_COUNT; g++) { a.i(o.give[g]); a.i(o.get[g]); } a.f(o.truceDays); a.f(o.t); a.i(o.state); });
+        a.vec(A::reading ? w.offers : mine, [&](Barter& o) { a.i(o.id); a.i(o.from); a.i(o.to); for (int g = 0; g < G_COUNT; g++) { a.i(o.give[g]); a.i(o.get[g]); } a.f(o.truceDays); a.f(o.t); a.i(o.state); a.b(o.pact); a.i(o.loanFlock); });
         a.vec(w.truceUntil, [&](float& v) { a.f(v); });
         std::vector<float> st;
         if constexpr (!A::reading) st = ZoneStocks(w);
