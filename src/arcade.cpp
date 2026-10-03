@@ -194,7 +194,7 @@ void DrawReels(Game& g) {
     DrawWrapped(reels[gSel].line, {c.x - 200, c.y + 100, 400, 50}, 17, Color{200, 240, 232, 255});
 
     // the valve wheels: Host, Join, Browse (and a practice table against the arcade's own crabs)
-    bool ready = Info(reels[gSel].game).built;
+    bool ready = Info(reels[gSel].game).built && reels[gSel].game != G_FLIGHT;   // (the Flight's host runs in tests; its networked screen comes next in stage 5)
     int selGame = reels[gSel].game;
     const char* valves[3] = {"Host", "Join", "Browse"};
     for (int k = 0; k < 3; k++) {
