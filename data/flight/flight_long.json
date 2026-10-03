@@ -138,5 +138,18 @@
       {"key": "night", "name": "Night fishing", "how": "fish the dusk and dawn rises", "best": "twice the fish per trip", "risk": "the owls and the Shadows are the only ones it's safe for",
        "catch": 1.0, "yield": 2, "risk_k": 2.2, "safe_for": "owl shadow", "safe_k": 0.35}
     ]
+  },
+  "nest_styles": {
+    "source": "doc p49: Nest styles. twigs per nest at the base cost of 10 (the founder's bend scales them); eggs the clutch cap (0: the standard); the effects are in NestOpen and StepNestStyles (flight_long.cpp).",
+    "burrow_flood_days": 0.2, "mud_rain_days": 2, "floating_shark_per_day": 0.25, "water_near_m": 30, "cliff_height_m": 4, "sand_below_m": 3,
+    "list": [
+      {"key": "cup", "name": "Cup", "twigs": 10, "cost": "10 twigs", "effect": "the default"},
+      {"key": "platform", "name": "Platform", "twigs": 20, "eggs": 6, "cost": "20 twigs", "effect": "holds 6 eggs; visible from far (egg thieves find it easier)"},
+      {"key": "burrow", "name": "Burrow", "twigs": 5, "cost": "5 twigs, on sand or soil (low ground)", "effect": "hidden from scouts; floods in storms"},
+      {"key": "hanging", "name": "Hanging", "twigs": 15, "cost": "15 twigs, a palm's branch", "effect": "immune to egg theft, raids and things on the ground; it sways, so Watchers can't perch over it"},
+      {"key": "mud", "name": "Mud", "twigs": 10, "cost": "10 twigs, water nearby", "effect": "fireproof (lava); dissolves in two days of rain"},
+      {"key": "cliff", "name": "Cliff ledge", "twigs": 8, "shells": 10, "cost": "8 twigs and 10 shells, a high site", "effect": "the stack's nest: nothing climbs to it (no theft, no raid, no lizards)"},
+      {"key": "floating", "name": "Floating", "twigs": 25, "cost": "25 twigs, water nearby", "effect": "on the water: immune to everything on land; sharks take from it"}
+    ]
   }
 }

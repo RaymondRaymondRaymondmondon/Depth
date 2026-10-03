@@ -904,6 +904,101 @@ TechMod World::TechMods(int tk, int zone, int size) const {
     return m;
 }
 
+// ---------------------------------------------------------------- nest styles (doc p49): chosen per nest, each a small bet
+namespace {
+struct NestStyleData { std::vector<NestStyleDef> v; float floodDays = 0.2f, mudDays = 2, sharkPerDay = 0.25f, waterM = 30, cliffM = 4, sandM = 3; };
+const NestStyleData& NSD() {
+    static NestStyleData d; static bool loaded = false;
+    if (loaded) return d;
+    loaded = true;
+    Json j = LoadJsonFile(FlightDataDir() + "/flight_long.json");
+    const Json& t = j["nest_styles"];
+    d.floodDays = t["burrow_flood_days"].F(d.floodDays); d.mudDays = t["mud_rain_days"].F(d.mudDays); d.sharkPerDay = t["floating_shark_per_day"].F(d.sharkPerDay);
+    d.waterM = t["water_near_m"].F(d.waterM); d.cliffM = t["cliff_height_m"].F(d.cliffM); d.sandM = t["sand_below_m"].F(d.sandM);
+    for (const Json& p : t["list"].a) {
+        NestStyleDef x; x.key = p["key"].Str0(); x.name = p["name"].Str0(x.key); x.cost = p["cost"].Str0(); x.effect = p["effect"].Str0();
+        x.twigs = p["twigs"].I(10); x.shells = p["shells"].I(0); x.eggs = p["eggs"].I(0);
+        d.v.push_back(x);
+    }
+    while ((int)d.v.size() < NS_COUNT) { NestStyleDef x; x.key = x.name = "cup"; d.v.push_back(x); }
+    return d;
+}
+}  // namespace
+const std::vector<NestStyleDef>& NestStyles() { return NSD().v; }
+bool World::WaterNear(Vector3 p, float r, Vector3* at) const {
+    for (float rr = 6; rr <= r; rr += 6) for (int k = 0; k < 16; k++) {
+        float a = k * PI / 8;
+        float x = p.x + cosf(a) * rr, z = p.z + sinf(a) * rr;
+        if (HeightAt(x, z) < -0.3f) { if (at) *at = {x, 0.05f, z}; return true; }
+    }
+    return false;
+}
+bool World::NestStyleFits(int style, int site) const {
+    if (style <= NS_CUP || style >= NS_COUNT) return true;
+    if (site < 0 || site >= (int)col.sites.size()) return false;
+    const Site& s = col.sites[site];
+    const NestStyleData& D = NSD();
+    switch (style) {
+    case NS_BURROW: return s.pos.y < D.sandM;                    // (sand or soil: the low ground)
+    case NS_HANGING: return s.palm >= 0;                         // (a branch or an overhang)
+    case NS_MUD: case NS_FLOATING: return WaterNear(s.pos, D.waterM);
+    case NS_CLIFF: return s.pos.y >= D.cliffM && col.shells >= NestStyles()[NS_CLIFF].shells;   // (the stack: a high site, and the shells)
+    default: return true;
+    }
+}
+void World::StyleNest(Nest& n, bool tell) {
+    n.style = NS_CUP;
+    if (seasons <= 0) return;
+    int st = col.nestStyle;
+    if (st <= NS_CUP || st >= NS_COUNT) return;
+    if (!NestStyleFits(st, n.site)) { if (tell) Say("This site won't take a " + NestStyles()[st].name + " nest (" + NestStyles()[st].cost + "): a cup it is."); return; }
+    col.shells -= NestStyles()[st].shells;
+    n.style = st;
+    if (st == NS_FLOATING) { Vector3 at; if (WaterNear(n.pos, NSD().waterM, &at)) n.pos = at; }   // (out on the water)
+    if (tell) Say("A " + NestStyles()[st].name + " nest: " + NestStyles()[st].effect + ".");
+}
+int World::NestCostOf(int style) const { return (int)lroundf(NestTwigs() * NestStyles()[std::clamp(style, 0, NS_COUNT - 1)].twigs / 10.0f); }
+int World::NestEggsOf(const Nest& n) const { int e = NestStyles()[std::clamp(n.style, 0, NS_COUNT - 1)].eggs; return e > 0 ? e : NestEggs(); }
+bool NestOpen(const Nest& n, int threat) {
+    switch (n.style) {
+    case NS_HANGING: return threat != NT_THEFT && threat != NT_TEAR && threat != NT_LAND;   // (out of reach of the ground and the raid; it sways, so no Watcher perches on it)
+    case NS_MUD: return threat != NT_LAVA;                                                 // (fireproof)
+    case NS_CLIFF: return threat != NT_THEFT && threat != NT_TEAR && threat != NT_LAND;   // (nothing climbs to it)
+    case NS_FLOATING: return threat != NT_LAND && threat != NT_LAVA && threat != NT_ASH && threat != NT_THEFT && threat != NT_TEAR;   // (immune to everything on land)
+    default: return true;
+    }
+}
+void World::StepNestStyles(float dt) {
+    if (seasons <= 0) return;
+    const NestStyleData& D = NSD();
+    bool storm = weather.kind == 1;
+    for (int s = 0; s <= (int)sides.size(); s++) {
+        Colony& C = ColOf(s);
+        for (int ni = 0; ni < (int)C.nests.size(); ni++) {
+            Nest& n = C.nests[ni];
+            if (!n.built) continue;
+            auto lose = [&](const char* cause, bool all) {
+                for (auto& b : C.birds) if (b.alive && b.nest == ni && (b.stage == BStage::Egg || b.stage == BStage::Chick)) { WithSide(s, [&] { BirdDies(b, cause); }); if (!all) break; }
+            };
+            if (n.style == NS_BURROW) {   // (floods in storms: the eggs and chicks in it drown)
+                if (!storm) n.floodT = 0;
+                else if (n.floodT >= 0 && (n.floodT += dt) >= D.floodDays * DAY) { lose("drowned in a flooded burrow", true); n.floodT = -1e9f; SayTo(s, "The storm floods a burrow nest: its eggs and chicks drown."); }
+            }
+            if (n.style == NS_MUD && storm && (n.rainT += dt) >= D.mudDays * DAY) {   // (dissolves in two days of rain)
+                lose("its mud nest dissolved in the rain", true);
+                n.built = false; n.twigs = 0; n.rainT = 0; n.bowl = 0;
+                for (auto& m : C.birds) if (m.alive && m.nest == ni && m.stage == BStage::Mate) { m.alive = false; m.cause = "its mud nest dissolved"; }
+                n.mate = -1;
+                SayTo(s, "Two days of rain: a mud nest dissolves.");
+            }
+            if (n.style == NS_FLOATING && (n.floodT += dt) >= DAY) {   // (sharks: once a day, a chance one of its young is taken from below)
+                n.floodT = 0;
+                if (Rand() < D.sharkPerDay) { bool any = false; for (const auto& b : C.birds) any |= b.alive && b.nest == ni && (b.stage == BStage::Egg || b.stage == BStage::Chick); if (any) { lose("taken by a shark under the floating nest", false); SayTo(s, "A shark takes one of the young from a floating nest."); } }
+            }
+        }
+    }
+}
+
 // ---------------------------------------------------------------- --flight-long-test (the expansion's long match)
 int RunFlightLongTest() {
     int fails = 0;
@@ -1218,6 +1313,51 @@ int RunFlightLongTest() {
         check(best == TK_PLUNGE, "auto picks from what the log says once each has been tried enough: " + TK[best].name);
         auto s = make(0, 111);
         check(s->PickTech(0) == -1 && s->TechMods(TK_DRIVE, 0, 1).hit == 1, "a standard match has no techniques");
+    }    // ---- nest styles (doc p49)
+    {
+        const auto& NS = NestStyles();
+        auto w = make(4, 111); w->ape.isle = -1; w->kraken.isle = -1; w->weather.next = 1e9f;
+        check(NS.size() == NS_COUNT && NS[NS_PLATFORM].eggs == 6 && w->NestCostOf(NS_PLATFORM) == 2 * w->NestCostOf(NS_CUP) && w->NestCostOf(NS_BURROW) < w->NestCostOf(NS_CUP),
+              TextFormat("seven nest styles; a Platform costs %d twigs to a Cup's %d, a Burrow %d", w->NestCostOf(NS_PLATFORM), w->NestCostOf(NS_CUP), w->NestCostOf(NS_BURROW)));
+        int palm = -1, bare = -1, wet = -1, low = -1;
+        for (int s = 0; s < (int)w->col.sites.size(); s++) {
+            const Site& S = w->col.sites[s]; if (S.nest >= 0) continue;
+            if (S.palm >= 0 && palm < 0) palm = s; if (S.palm < 0 && bare < 0) bare = s;
+            if (wet < 0 && w->WaterNear(S.pos, 30)) wet = s; if (low < 0 && S.pos.y < 3) low = s;
+        }
+        auto lay = [&](int style, int site) { w->col.nestStyle = style; Nest n; n.site = site; n.pos = w->col.sites[site].pos; n.isle = w->col.sites[site].isle; w->StyleNest(n); return n; };
+        Nest pl = lay(NS_PLATFORM, bare >= 0 ? bare : 0);
+        check(pl.style == NS_PLATFORM && w->NestEggsOf(pl) == 6 && w->NestEggsOf(Nest{}) < 6, "a Platform holds six eggs");
+        if (palm >= 0) { Nest h = lay(NS_HANGING, palm); check(h.style == NS_HANGING && !NestOpen(h, NT_THEFT) && !NestOpen(h, NT_LAND) && NestOpen(h, NT_LAVA), "a Hanging nest on a palm: no theft, no raid, nothing from the ground reaches it"); }
+        else check(false, "a palm site for a Hanging nest");
+        if (bare >= 0) { Nest h = lay(NS_HANGING, bare); check(h.style == NS_CUP, "a Hanging nest needs a branch: on a bare site it's a cup"); }
+        if (wet >= 0) {
+            Nest f = lay(NS_FLOATING, wet);
+            check(f.style == NS_FLOATING && w->HeightAt(f.pos.x, f.pos.z) < 0 && !NestOpen(f, NT_LAND) && !NestOpen(f, NT_LAVA), "a Floating nest goes out on the water: immune to everything on land");
+            Nest m = lay(NS_MUD, wet); check(m.style == NS_MUD && !NestOpen(m, NT_LAVA) && NestOpen(m, NT_THEFT), "a Mud nest by the water: fireproof");
+        } else check(false, "a site by the water");
+        w->col.shells = 0; w->col.nestStyle = NS_CLIFF;
+        bool noCliff = true; for (int s = 0; s < (int)w->col.sites.size(); s++) noCliff &= !w->NestStyleFits(NS_CLIFF, s);
+        check(noCliff, "a Cliff ledge wants ten shells");
+        Nest c; c.style = NS_CLIFF; check(!NestOpen(c, NT_LAND) && !NestOpen(c, NT_THEFT), "nothing climbs to a Cliff ledge");
+        // a burrow: hidden from scouts, and a storm floods it
+        int ni = -1; for (int k = 0; k < (int)w->col.nests.size(); k++) if (w->col.nests[k].built) { ni = k; break; }
+        if (ni >= 0) {
+            int seen0 = w->TrueSighting(w->home).nests;
+            w->col.nests[ni].style = NS_BURROW;
+            check(w->TrueSighting(w->home).nests == seen0 - 1, TextFormat("a burrow is hidden from scouts (%d nests seen, was %d)", w->TrueSighting(w->home).nests, seen0));
+            Bird e; e.id = w->col.nextId++; e.stage = BStage::Egg; e.nest = ni; e.pos = w->col.nests[ni].pos; w->col.birds.push_back(e); int eid = e.id;
+            w->weather.kind = 1;
+            for (float t = 0; t < World::DAY * 0.3f; t += 0.5f) w->StepNestStyles(0.5f);
+            bool drowned = false; for (const auto& b : w->col.birds) if (b.id == eid) drowned = !b.alive;
+            check(drowned, "a storm floods the burrow: its egg drowns");
+            w->col.nests[ni].style = NS_MUD; w->col.nests[ni].rainT = 0;
+            for (float t = 0; t < World::DAY * 2.1f; t += 0.5f) w->StepNestStyles(0.5f);
+            check(!w->col.nests[ni].built, "two days of rain dissolve a mud nest");
+            w->weather.kind = 0;
+        }
+        auto s = make(0, 111); s->col.nestStyle = NS_PLATFORM; Nest n; n.site = 0; s->StyleNest(n);
+        check(n.style == NS_CUP, "a standard match lays cups");
     }    printf(fails ? "flight-long-test: %d check(s) failed\n" : "flight-long-test: all checks passed\n", fails);
     return fails ? 1 : 0;
 }

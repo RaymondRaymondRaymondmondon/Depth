@@ -502,7 +502,9 @@ void World::StepWar(float dt) {
                 if (fl.target == Target::Nests && b->role == Role::Skirmisher && b->carrySp == -1 && (C.HasTier(Tree::Trade, 3) || BendOfSide(s).eggTheft) && !DecreeOf(fl.tSide).noRaids) {   // (Egg Watch: cuckoos fail)
                     Colony& T = ColOf(fl.tSide);
                     for (auto& e : T.birds) {
-                        if (!e.alive || e.stage != BStage::Egg || Vector3Distance(b->pos, e.pos) > 3) continue;
+                        bool plat = e.nest >= 0 && e.nest < (int)T.nests.size() && T.nests[e.nest].style == NS_PLATFORM;   // (a Platform is seen from far: easier to find)
+                        if (!e.alive || e.stage != BStage::Egg || Vector3Distance(b->pos, e.pos) > (plat ? 5 : 3)) continue;
+                        if (e.nest >= 0 && e.nest < (int)T.nests.size() && !NestOpen(T.nests[e.nest], NT_THEFT)) continue;   // (hanging, cliff and floating nests: out of reach)
                         bool guarded = false; for (const auto& wt : T.birds) if (wt.alive && wt.role == Role::Watcher && wt.stage == BStage::Adult && Flat(wt.pos, e.pos) < 40) guarded = true;
                         if (guarded) continue;
                         e.alive = false; e.cause = "stolen by " + SideName(s);
@@ -533,7 +535,7 @@ void World::StepWar(float dt) {
                     // an assault: with no chick or egg left in it, the nest is torn down (and the island's holding with it)
                     for (int ni = 0; ni < (int)T.nests.size(); ni++) {
                         Nest& n = T.nests[ni];
-                        if (!n.built || Vector3Distance(b->pos, n.pos) > 3 || (fl.tIsle >= 0 && n.isle != fl.tIsle)) continue;
+                        if (!n.built || Vector3Distance(b->pos, n.pos) > 3 || (fl.tIsle >= 0 && n.isle != fl.tIsle) || !NestOpen(n, NT_TEAR)) continue;
                         bool young = false; for (const auto& c : T.birds) young |= c.alive && c.nest == ni && (c.stage == BStage::Chick || c.stage == BStage::Egg);
                         bool guarded = false; for (const auto& wt : T.birds) guarded |= wt.alive && wt.role == Role::Watcher && wt.stage == BStage::Adult && Flat(wt.pos, n.pos) < 40;
                         if (young || guarded) break;
@@ -551,6 +553,7 @@ void World::StepWar(float dt) {
                     for (auto& c : T.birds) {
                         if (!c.alive || c.stage != BStage::Chick || Vector3Distance(b->pos, c.pos) > 3) continue;
                         bool guarded = false; for (const auto& wt : T.birds) if (wt.alive && wt.role == Role::Watcher && wt.stage == BStage::Adult && Flat(wt.pos, c.pos) < 40) guarded = true;
+                        if (c.nest >= 0 && c.nest < (int)T.nests.size() && T.nests[c.nest].style == NS_HANGING) guarded = false;   // (a hanging nest sways: no Watcher can perch over it)
                         if (guarded) continue;
                         c.alive = false; c.cause = "taken by " + SideName(s) + "'s Striker";
                         bool counted = false; for (auto& d : T.deaths) if (d.first == c.cause) { d.second++; counted = true; }

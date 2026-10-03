@@ -126,6 +126,13 @@ int RelicsMax();
 float RelicStealChance();
 int PirateHireFish();
 int TributeFish();
+// nest styles (doc p49): chosen per nest, each a small bet
+enum NestStyle { NS_CUP = 0, NS_PLATFORM, NS_BURROW, NS_HANGING, NS_MUD, NS_CLIFF, NS_FLOATING, NS_COUNT };
+enum { NT_THEFT = 0, NT_TEAR, NT_LAND, NT_LAVA, NT_ASH };   // what threatens a nest: egg theft, a raid tearing it down, things on land (lizards, plants), lava, ash
+struct NestStyleDef { std::string key, name, cost, effect; int twigs = 10, shells = 0, eggs = 0; };
+const std::vector<NestStyleDef>& NestStyles();
+struct Nest;
+bool NestOpen(const Nest& n, int threat);       // (a nest's style shuts out some threats)
 // fishing mastery (doc p48): techniques, each a different dive and a different risk
 enum Tech { TK_PLUNGE = 0, TK_SKIM, TK_HOVER, TK_DRIVE, TK_DEEP, TK_NIGHT, TK_COUNT };
 enum { TL_TRY = 0, TL_CATCH = 1, TL_LOSS = 2 };
@@ -293,6 +300,7 @@ struct Nest {
     int shells = 0;                           // lining
     int isle = -1;                            // (the island it stands on: an island is held by whoever has the most nests there)
     float tear = 0;                           // (an assault's damage to it)
+    int style = 0; float rainT = 0, floodT = 0;   // (the long match: NS_* style; a mud nest's rain; a burrow's flooding, a floating nest's day)
 };
 struct Cache { Vector3 pos{}; std::vector<CachedFish> fish; bool built = true; float twigs = 0; int isle = -1; };
 struct TwigSource { Vector3 pos{}; float twigs = 0, cap = 6; bool shells = false; };
@@ -407,6 +415,7 @@ struct Colony {
     int wantTrait = -1, nextVetName = 0;
     uint32_t relics = 0; int legend = -1; bool legendAlive = false, goldenEggUsed = false;
     float greyHit = -1000;
+    int nestStyle = 0;                        // (the long match: the style new nests are laid in)
     int tech = -1; float techMastery[TK_COUNT] = {}; std::vector<int> techLog;   // (fishing mastery: the colony's technique, -1 auto; per ground x technique: tries, catches, losses)
     int pact = -1, bounty = 0, bountyBy = -1; float pactT = 0, truceBroken = -1000;   // (diplomacy: a feed-pact partner; fish posted on this colony's Founder)                      // (the last time the Grey Wings took one of its birds)   // (the long match: relics at the shrine, a legendary bird)        // (the long match) the trait the courtship bowls ask for (-1 any); the next veteran's name
     int decree = -1, yesterday = -1, offer[3] = {-1, -1, -1}, dealtDay = 0, lastRaider = -1; uint32_t decreesUsed = 0; float salvageT = 0, titheFish = 0;
@@ -593,6 +602,13 @@ struct World {
     void InitFactions();
     void StepFactions(float dt);
     void BotFactions();
+    bool WaterNear(Vector3 p, float r, Vector3* at = nullptr) const;   // (nest styles, doc p49)
+    bool NestStyleFits(int style, int site) const;
+    void StyleNest(Nest& n, bool tell = false);
+    int NestCostOf(int style) const;
+    int NestCost(const Nest& n) const { return NestCostOf(n.style); }
+    int NestEggsOf(const Nest& n) const;
+    void StepNestStyles(float dt);
     bool TechUsable(int tk, int zone, const Bird* b = nullptr) const;   // (fishing mastery, doc p48)
     int BestTech(int zone, const Bird* b = nullptr) const;
     int PickTech(int zone, const Bird* b = nullptr);

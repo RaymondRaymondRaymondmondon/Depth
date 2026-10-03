@@ -439,7 +439,7 @@ void World::StepDanger(float dt) {
         if (lizards || plants) for (int s = 0; s < N; s++) {
             Colony& C = ColOf(s);
             for (auto& b : C.birds) {
-                if (!b.alive || (b.stage != BStage::Egg && b.stage != BStage::Chick) || b.nest < 0 || b.nest >= (int)C.nests.size() || C.nests[b.nest].isle != ape.isle) continue;
+                if (!b.alive || (b.stage != BStage::Egg && b.stage != BStage::Chick) || b.nest < 0 || b.nest >= (int)C.nests.size() || C.nests[b.nest].isle != ape.isle || !NestOpen(C.nests[b.nest], NT_LAND)) continue;
                 bool watched = false; for (const auto& w : C.birds) watched |= w.alive && w.role == Role::Watcher && w.stage == BStage::Adult && Vector3Distance(w.pos, b.pos) < 40;
                 if (lizards && !watched) { WithSide(s, [&] { BirdDies(b, "taken by the giant lizards"); }); lizards = false; continue; }
                 if (plants) { WithSide(s, [&] { BirdDies(b, "eaten by the carnivorous plants"); }); plants = false; }
@@ -466,13 +466,13 @@ void World::StepDanger(float dt) {
                     if (!n.built) continue;
                     bool onIt = n.isle == volcano.isle;
                     float a = atan2f(n.pos.z - vc.z, n.pos.x - vc.x);
-                    bool lava = onIt && Hash01((int)(a * 100), volcano.eruptions) < D.vLava && !C.HasTier(Tree::Nesting, 4);
+                    bool lava = onIt && Hash01((int)(a * 100), volcano.eruptions) < D.vLava && !C.HasTier(Tree::Nesting, 4) && NestOpen(n, NT_LAVA);   // (a mud or floating nest: fireproof)
                     if (lava) {
                         n.built = false; n.twigs = 0;
                         for (auto& b : C.birds) if (b.alive && b.nest == ni && b.stage != BStage::Adult) WithSide(s, [&] { BirdDies(b, "taken by the lava"); });
                         n.mate = -1; n.bowl = 0;
                         SayTo(s, "Lava takes one of your nests on the volcano.");
-                    } else if (Flat2(n.pos, vc) < D.vAshR && !C.HasTier(Tree::Nesting, 4)) {
+                    } else if (Flat2(n.pos, vc) < D.vAshR && !C.HasTier(Tree::Nesting, 4) && NestOpen(n, NT_ASH)) {
                         for (auto& b : C.birds) if (b.alive && b.nest == ni && b.stage == BStage::Chick) WithSide(s, [&] { BirdDies(b, "choked by the volcano's ash"); });
                     }
                 }

@@ -519,7 +519,7 @@ void World::BuilderStep(Bird& b, float dt) {
         if (src >= 0) { b.task = Task::Gather; if (MoveTo(b, Vector3Add(col.twigSrc[src].pos, {0, 0.3f, 0}), R.speed, dt)) { int k = std::min((int)col.twigSrc[src].twigs, R.carry); col.twigSrc[src].twigs -= k; b.carryShells = k; } return; }
     }
     // an outpost short of three nests comes first (an island is held by its nests): lay its next one before any structure
-    if (!col.leaderless && !nestWaiting) if (int s = OutpostSite(); s >= 0) { Nest n; n.site = s; n.pos = col.sites[s].pos; n.isle = col.sites[s].isle; n.bowlNeed = E.courtFish + E.courtStep * (int)col.nests.size(); col.sites[s].nest = (int)col.nests.size(); col.nests.push_back(n); nestWaiting = true; }
+    if (!col.leaderless && !nestWaiting) if (int s = OutpostSite(); s >= 0) { Nest n; n.site = s; n.pos = col.sites[s].pos; n.isle = col.sites[s].isle; n.bowlNeed = E.courtFish + E.courtStep * (int)col.nests.size(); StyleNest(n); col.sites[s].nest = (int)col.nests.size(); col.nests.push_back(n); nestWaiting = true; }
     bool nestJob = false; for (const auto& n : col.nests) nestJob |= !n.built;
     for (const auto& st : col.builds) if (!st.built && st.kind == ST_ROOST) nestJob = false;   // (the Roost before more nests: research waits on it)
     if (!nestJob) for (int pass = 0; pass < 2; pass++) for (auto& st : col.builds) {
@@ -569,10 +569,10 @@ void World::BuilderStep(Bird& b, float dt) {
         if (job < 0 && (nests < col.nestsWanted || OutpostSite() >= 0)) {   // (no cache wanted, or no ground found for one: the next nest)
             int s = OutpostSite();   // (an outpost with fewer than three nests gets the next one: the island has to be held)
             if (s < 0) s = NearestSite(col.nests[0].pos, 1e9f);
-            if (s >= 0) { Nest n; n.site = s; n.pos = col.sites[s].pos; n.isle = col.sites[s].isle; n.bowlNeed = E.courtFish + E.courtStep * (int)col.nests.size(); col.sites[s].nest = (int)col.nests.size(); col.nests.push_back(n); job = (int)col.nests.size() - 1; }
+            if (s >= 0) { Nest n; n.site = s; n.pos = col.sites[s].pos; n.isle = col.sites[s].isle; n.bowlNeed = E.courtFish + E.courtStep * (int)col.nests.size(); StyleNest(n); col.sites[s].nest = (int)col.nests.size(); col.nests.push_back(n); job = (int)col.nests.size() - 1; }
         }
     }
-    float need = job < 0 ? 0 : jobCache ? E.cacheTwigs - col.caches[job].twigs : NestTwigs() - col.nests[job].twigs;
+    float need = job < 0 ? 0 : jobCache ? E.cacheTwigs - col.caches[job].twigs : NestCost(col.nests[job]) - col.nests[job].twigs;
     Vector3 jobPos = job < 0 ? Vector3{} : jobCache ? col.caches[job].pos : col.nests[job].pos;
     if (b.carryTwigs > 0) {
         Vector3 to = job >= 0 ? jobPos : col.caches[0].pos;
@@ -580,7 +580,7 @@ void World::BuilderStep(Bird& b, float dt) {
         if (MoveTo(b, Vector3Add(to, {0, 0.5f, 0}), R.speed, dt)) {
             if (job >= 0) {
                 if (jobCache) { col.caches[job].twigs += b.carryTwigs; if (col.caches[job].twigs >= E.cacheTwigs) { col.caches[job].built = true; Say("A new cache is built."); } }
-                else { col.nests[job].twigs += b.carryTwigs; if (col.nests[job].twigs >= NestTwigs()) { col.nests[job].built = true; Say(TextFormat("A new nest is built: its courtship bowl wants %d fish.", col.nests[job].bowlNeed)); } }
+                else { col.nests[job].twigs += b.carryTwigs; if (col.nests[job].twigs >= NestCost(col.nests[job])) { col.nests[job].built = true; Say(TextFormat("A new nest is built: its courtship bowl wants %d fish.", col.nests[job].bowlNeed)); } }
             } else col.twigs += b.carryTwigs;
             b.carryTwigs = 0; b.task = Task::Idle;
         }
@@ -651,7 +651,7 @@ void World::MateStep(Bird& b, float dt) {
             if (DecreeNow().extraEgg) eggs++;   // (Brood Day)
             if (b.trait >= 0) eggs += MateTraits()[b.trait].clutch;
             if (HasRelic(cur, RL_EGG) && !col.goldenEggUsed) { eggs *= 2; col.goldenEggUsed = true; Say("The Golden Egg: a clutch doubled."); }   // (a Fertile mate)   // (a fractional bend: a chance of one egg more)
-            eggs = std::min(eggs, NestEggs() - inNest);
+            eggs = std::min(eggs, (b.nest >= 0 && b.nest < (int)col.nests.size() ? NestEggsOf(col.nests[b.nest]) : NestEggs()) - inNest);   // (a Platform holds six)
             if (eggs > 0) {
                 for (int k = 0; k < eggs; k++) { Bird e; e.id = col.nextId++; e.stage = BStage::Egg; e.nest = b.nest; e.pos = n.pos; e.hunger = 1; e.trait = b.trait; born.push_back(e); }   // (its chicks inherit its trait)   // (appended after the loop: b is a reference into col.birds)
                 b.clutches++; b.clutchT = 0;
@@ -952,7 +952,7 @@ std::string World::InteractHint() const {
     case Act::AddTwigs: return "E: add the twigs to the build";
     case Act::StockTwigs: return "E: add the twigs to the colony's stock";
     case Act::PickTwigs: return "E: pick up twigs";
-    case Act::StartNest: return TextFormat("E: lay out a nest here (%d twigs)", NestTwigs());
+    case Act::StartNest: return seasons > 0 && col.nestStyle > 0 ? TextFormat("E: lay out a %s nest here (%d twigs%s)", NestStyles()[col.nestStyle].name.c_str(), NestCostOf(col.nestStyle), NestStyleFits(col.nestStyle, i) ? "" : "; this site won't take it: a cup") : TextFormat("E: lay out a nest here (%d twigs)", NestTwigs());
     case Act::Pray: return "E: pray at the shrine (+15 fervour for an hour, once a day)";
     case Act::Offer: return "E: lay the fish on the shrine (an offering: fervour)";
     case Act::Trade: return TextFormat("E: sell the fish at %s's dock for %s (%.1f feed each)", isles[towns[i].isle].name.c_str(), GoodName(col.tradeFor), SellPrice(i, col.tradeFor) / std::max(0.1f, FishPrice(i)));
@@ -995,7 +995,7 @@ void World::Interact() {
     case Act::AddTwigs:
         if (i >= 0 && i < (int)col.nests.size() && !col.nests[i].built && Vector3Distance(f.pos, col.nests[i].pos) < 3.5f) {
             Nest& n = col.nests[i]; n.twigs += f.carryTwigs; f.carryTwigs = 0;
-            float need = (float)NestTwigs();
+            float need = (float)NestCost(n);
             if (n.twigs >= need) { n.built = true; n.bowlNeed = E.courtFish + E.courtStep * (i); Say(TextFormat("The nest is built. Its courtship bowl wants %d fish of size %d+.", n.bowlNeed, E.courtMinSize)); }
             else Say(TextFormat("The nest: %.0f of %.0f twigs.", n.twigs, need));
         } else { Cache& c = col.caches[i]; c.twigs += f.carryTwigs; f.carryTwigs = 0; if (c.twigs >= E.cacheTwigs) { c.built = true; Say("The cache is built."); } }
@@ -1008,8 +1008,9 @@ void World::Interact() {
         break;
     case Act::StartNest: {
         Nest n; n.site = i; n.pos = col.sites[i].pos; n.isle = col.sites[i].isle; n.bowlNeed = E.courtFish + E.courtStep * (int)col.nests.size();
+        StyleNest(n, true);
         col.sites[i].nest = (int)col.nests.size(); col.nests.push_back(n);
-        Say(TextFormat("A nest is laid out: bring %d twigs (palms and driftwood have them).", NestTwigs()));
+        Say(TextFormat("A nest is laid out: bring %d twigs (palms and driftwood have them).", NestCost(n)));
     } break;
     case Act::Pray: Pray(); break;
     case Act::Offer: if (Offer(f.carrySize)) { f.carrySp = -1; f.carrySize = 0; } break;
@@ -1118,13 +1119,13 @@ int World::BotFounderStep(float dt) {
     // 3. with no builders yet: build the next nest alone
     if (Count(BStage::Adult, Role::Builder) == 0 && (int)col.nests.size() < col.nestsWanted) {
         int s = NearestSite(col.nests[0].pos, 1e9f);
-        if (s >= 0) { Nest n; n.site = s; n.pos = col.sites[s].pos; n.isle = col.sites[s].isle; n.bowlNeed = E.courtFish + E.courtStep * (int)col.nests.size(); col.sites[s].nest = (int)col.nests.size(); col.nests.push_back(n); }
+        if (s >= 0) { Nest n; n.site = s; n.pos = col.sites[s].pos; n.isle = col.sites[s].isle; n.bowlNeed = E.courtFish + E.courtStep * (int)col.nests.size(); StyleNest(n); col.sites[s].nest = (int)col.nests.size(); col.nests.push_back(n); }
     }
     int job = -1; for (int i = 0; i < (int)col.nests.size(); i++) if (!col.nests[i].built) { job = i; break; }
     if (job >= 0 && Count(BStage::Adult, Role::Builder) == 0) {
         Nest& n = col.nests[job];
         if (fb.carryTwigs > 0) {
-            if (MoveTo(fb, Vector3Add(n.pos, {0, 0.4f, 0}), 11, dt)) { n.twigs += fb.carryTwigs; fb.carryTwigs = 0; if (n.twigs >= NestTwigs()) { n.built = true; Say("The Founder has built a nest."); } }
+            if (MoveTo(fb, Vector3Add(n.pos, {0, 0.4f, 0}), 11, dt)) { n.twigs += fb.carryTwigs; fb.carryTwigs = 0; if (n.twigs >= NestCost(n)) { n.built = true; Say("The Founder has built a nest."); } }
         } else {
             int t = NearestTwigs(n.pos, 1e9f);
             if (t >= 0 && MoveTo(fb, Vector3Add(col.twigSrc[t].pos, {0, 0.3f, 0}), 11, dt)) { int k = std::min(2, (int)col.twigSrc[t].twigs); col.twigSrc[t].twigs -= k; fb.carryTwigs = k; }

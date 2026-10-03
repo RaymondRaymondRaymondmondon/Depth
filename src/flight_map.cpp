@@ -556,7 +556,7 @@ static Sighting Observe(World& w, int isle, Alt alt, Rng& R) {
         if (h != isle) continue;
         if (w.DecreeOf(s).hidden) continue;   // (a Fog Bank: the island shows nothing)
         Colony& C = w.ColOf(s);
-        for (const auto& n : C.nests) nests += n.built;
+        for (const auto& n : C.nests) nests += n.built && n.style != NS_BURROW;   // (a burrow is hidden from scouts)
         caches = (int)C.caches.size();
         birds = 1; for (const auto& b : C.birds) birds += b.alive && b.stage != BStage::Egg;
     }

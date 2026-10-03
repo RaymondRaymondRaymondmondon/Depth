@@ -573,9 +573,16 @@ void DrawColony(const fl::World& w, const fl::Colony& c, const Camera3D& cam, Co
     // nests: built ones whole; under way, a flat ring that thickens with its twigs
     for (const auto& n : c.nests) {
         if (Vector3Distance(n.pos, cam.position) > 400) continue;
-        float need = (float)((w.Def().key == "albatross" ? 2 : 1) * fl::Econ().nestTwigs);
+        float need = (float)std::max(1, w.NestCost(n));
         float k = n.built ? 1.0f : std::clamp(n.twigs / need, 0.05f, 1.0f);
-        rt::DrawStatic(S.nest, MatrixMultiply(MatrixScale(0.6f + 0.4f * k, 0.3f + 0.7f * k, 0.6f + 0.4f * k), MatrixTranslate(n.pos.x, n.pos.y - 0.05f, n.pos.z)));
+        // the style (doc p49): a wide platform, a mound with a dark mouth, a basket hung on a cord, a mud cup, a rock stack, a raft
+        float sw = n.style == fl::NS_PLATFORM ? 1.6f : n.style == fl::NS_FLOATING ? 1.4f : 1.0f, sh = n.style == fl::NS_PLATFORM ? 0.6f : n.style == fl::NS_BURROW ? 1.4f : 1.0f;
+        Color nc = n.style == fl::NS_MUD ? Color{150, 112, 80, 255} : n.style == fl::NS_BURROW ? Color{196, 170, 120, 255} : n.style == fl::NS_FLOATING ? Color{170, 160, 120, 255} : WHITE;
+        if (n.style == fl::NS_CLIFF) rt::DrawCubeM(MatrixMultiply(MatrixScale(1.1f, 2.4f, 1.1f), MatrixTranslate(n.pos.x, n.pos.y - 1.25f, n.pos.z)), Color{120, 116, 110, 255});   // (the stack under it)
+        if (n.style == fl::NS_HANGING) rt::DrawCubeM(MatrixMultiply(MatrixScale(0.03f, 1.4f, 0.03f), MatrixTranslate(n.pos.x, n.pos.y + 0.75f, n.pos.z)), Color{90, 70, 50, 255});   // (the cord to the branch)
+        if (n.style == fl::NS_FLOATING) rt::DrawCubeM(MatrixMultiply(MatrixScale(1.5f, 0.12f, 1.5f), MatrixTranslate(n.pos.x, n.pos.y - 0.1f, n.pos.z)), Color{140, 120, 84, 255});   // (the raft of reeds)
+        rt::DrawStatic(S.nest, MatrixMultiply(MatrixScale((0.6f + 0.4f * k) * sw, (0.3f + 0.7f * k) * sh, (0.6f + 0.4f * k) * sw), MatrixTranslate(n.pos.x, n.pos.y - 0.05f + (n.style == fl::NS_HANGING ? 0.05f * sinf(S.t * 1.3f + n.pos.x) : 0), n.pos.z)), nc);
+        if (n.style == fl::NS_BURROW) rt::DrawCubeM(MatrixMultiply(MatrixScale(0.35f, 0.25f, 0.05f), MatrixTranslate(n.pos.x, n.pos.y + 0.1f, n.pos.z + 0.55f)), Color{30, 24, 18, 255});   // (its mouth)
         if (n.built && n.shells >= fl::Econ().liningShells) rt::DrawStatic(S.egg, MatrixMultiply(MatrixScale(2.2f, 0.25f, 2.2f), MatrixTranslate(n.pos.x, n.pos.y + 0.03f, n.pos.z)), Color{236, 226, 210, 255});   // (the shell lining)
         // the courtship bowl: a row of cups beside the nest, lit as fish fill them
         if (n.built && n.mate < 0) for (int b = 0; b < n.bowlNeed; b++) {
@@ -1012,7 +1019,7 @@ void DrawHud(const fl::World& w) {
         Vector2 p = GetWorldToScreenEx(Vector3Add(n.pos, {0, 1.2f, 0}), S.cam, SCREEN_W, SCREEN_H);
         int eggs = 0, chicks = 0; bool mate = false;
         for (const auto& b : w.col.birds) if (b.alive && b.nest == (int)(&n - &w.col.nests[0])) { eggs += b.stage == fl::BStage::Egg; chicks += b.stage == fl::BStage::Chick; mate = mate || b.stage == fl::BStage::Mate; }
-        std::string s = !n.built ? TextFormat("nest: %.0f/%d twigs", n.twigs, fl::Econ().nestTwigs * (w.Def().key == "albatross" ? 2 : 1))
+        std::string s = !n.built ? TextFormat("%snest: %.0f/%d twigs", n.style > 0 ? (fl::NestStyles()[n.style].name + " ").c_str() : "", n.twigs, w.NestCost(n))
                       : n.mateT >= 0 ? "a mate is coming"
                       : !mate ? TextFormat("courtship bowl %d/%d", n.bowl, n.bowlNeed)
                       : TextFormat("mate  %d eggs  %d chicks", eggs, chicks);
@@ -1213,6 +1220,13 @@ void DrawColonyPanel(fl::World& w) {
     if (SmallBtn({x + 318, ly + 18, 26, 24}, "-", w.col.nestsWanted > 1)) { Writer o; fl::OrderNests(o, w.col.nestsWanted - 1); Order(o); }
     if (SmallBtn({x + 350, ly + 18, 26, 24}, "+", w.col.nestsWanted < (int)w.col.sites.size())) { Writer o; fl::OrderNests(o, w.col.nestsWanted + 1); Order(o); }
     ly += 52;
+    if (w.seasons > 0) {   // (the long match: the style new nests are laid in, doc p49)
+        const auto& NS = fl::NestStyles(); const auto& st = NS[std::clamp(w.col.nestStyle, 0, fl::NS_COUNT - 1)];
+        if (SmallBtn({x + 16, ly - 2, 26, 20}, "<", true)) { Writer o; fl::OrderNestStyle(o, w.col.nestStyle <= 0 ? fl::NS_COUNT - 1 : w.col.nestStyle - 1); Order(o); }
+        if (SmallBtn({x + 46, ly - 2, 26, 20}, ">", true)) { Writer o; fl::OrderNestStyle(o, w.col.nestStyle >= fl::NS_COUNT - 1 ? 0 : w.col.nestStyle + 1); Order(o); }
+        Txt("New nests: " + st.name + " (" + st.cost + ")", x + 80, ly, 13, Color{255, 220, 170, 255}); ly += 16;
+        Txt(st.effect, x + 80, ly, 12, dim); ly += 20;
+    }
     if (w.seasons > 0) {   // (the long match: mates with traits; a picky bowl)
         const auto& MT = fl::MateTraits();
         std::string want = w.col.wantTrait < 0 ? std::string("any trait") : MT[w.col.wantTrait].name + " (" + MT[w.col.wantTrait].favorite + "): " + MT[w.col.wantTrait].effect;
